@@ -108,13 +108,25 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
   .toolbar     { grid-area: toolbar; flex-wrap: wrap; row-gap: 4px; }
   .toolbar-title { display: none; }
   .left-pane   { grid-area: main; min-height: 0; }
-  .numpad-section { grid-area: numpad; min-height: 0; overflow-y: auto; }
+  .numpad-section {
+    grid-area: numpad; min-height: 0; overflow-y: auto;
+    /* 横向き：リサイザーを左、テンキーを右に横並び（詳細は基本ルールの後で上書き） */
+    display: flex; flex-direction: row; align-items: stretch;
+  }
+  /* 横向き：ノッチは上ではなく左右に来る。左ペインを左セーフエリア分ずらし、
+     ツールバーの上方向の余白は不要に戻す */
+  .toolbar { padding-top: 5px; }
+  .left-pane { padding-left: env(safe-area-inset-left); }
 }
 
 .toolbar {
   background: #217346;
   color: white;
   padding: 5px 7px;
+  /* iPhoneホーム画面アプリ：カメラ/ノッチ/Dynamic Island を避けてメニューを下げる */
+  padding-top: calc(5px + env(safe-area-inset-top));
+  padding-left: calc(7px + env(safe-area-inset-left));
+  padding-right: calc(7px + env(safe-area-inset-right));
   font-size: 14px;
   font-weight: bold;
   flex-shrink: 0;
@@ -188,6 +200,24 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
   touch-action: manipulation;
 }
 .btn-rc:hover { background: rgba(255,255,255,0.32); }
+/* 行・列の挿入／削除ボタン（設定パネル内） */
+.btn-ins, .btn-del {
+  color:#fff; border:none; border-radius:5px; padding:4px 8px;
+  font-size:11px; font-weight:bold; cursor:pointer; touch-action:manipulation;
+  white-space:nowrap;
+}
+.btn-ins { background:#1a6b3a; }
+.btn-ins:active { background:#0f4a26; }
+.btn-del { background:#a93226; }
+.btn-del:active { background:#7d2017; }
+/* 簡易トースト通知 */
+.app-toast {
+  position:fixed; left:50%; bottom:18px; transform:translateX(-50%) translateY(8px);
+  background:rgba(0,0,0,0.85); color:#fff; padding:8px 16px; border-radius:8px;
+  font-size:13px; font-weight:bold; z-index:9999; opacity:0; pointer-events:none;
+  transition:opacity .15s, transform .15s; max-width:80%; text-align:center;
+}
+.app-toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 
 .formula-bar {
   display: flex;
@@ -268,7 +298,26 @@ table.sheet { border-collapse: collapse; table-layout: fixed; width: 100%; }
   outline: none; background: var(--cell-bg);
   z-index: 1; position: relative;
 }
-.cell.in-col { background: var(--cell-in-col); }
+/* ユーザーが保護（ロック）したセル */
+.cell.cell-locked { position: relative; }
+.cell.cell-locked::before {
+  content: '🔒'; position: absolute; top: 0; right: 1px;
+  font-size: 9px; line-height: 1; opacity: 0.5; pointer-events: none;
+}
+/* 保護セルを編集しようとしたときの注意フラッシュ */
+.cell.cell-lock-flash { animation: lockFlash 0.35s ease; }
+@keyframes lockFlash {
+  0%, 100% { background: var(--cell-bg); }
+  40%      { background: #ffd6d6; }
+}
+body.dark .cell.cell-lock-flash { animation: lockFlashDark 0.35s ease; }
+@keyframes lockFlashDark {
+  0%, 100% { background: var(--cell-bg); }
+  40%      { background: #5a2a2a; }
+}
+/* セル選択時に列全体のセル背景は変えない（選択は枠線と列見出しで示す）。
+   in-col クラスは付くが背景色は変更しない。 */
+.cell.in-col { }
 .cell.in-row { background: var(--cell-in-row); }
 .cell.sel-range {
   background: #bbdefb !important;
@@ -316,9 +365,47 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
   white-space: nowrap; cursor: pointer;
 }
 .stat-val.stat-copied { background: #27ae60 !important; color: white !important; border-radius: 3px; }
+/* 合計バー右端の円マーク：タップで兆・億・万表示を切替 */
+.stat-yen {
+  margin-left: auto; flex-shrink: 0; align-self: center;
+  background: var(--cell-hover); color: #107c41;
+  border: 1px solid var(--cell-border); border-radius: 6px;
+  font-size: calc(16px * var(--info-scale, 1)); font-weight: bold;
+  line-height: 1; padding: 5px 12px; cursor: pointer; touch-action: manipulation;
+}
+.stat-yen:active { opacity: 0.55; }
+.stat-yen.on { background: #107c41; color: #fff; border-color: #107c41; }
 
 
-.numpad-section { flex-shrink: 0; background: #2c2c2c; padding: 7px; --key-scale: 1.3; }
+.numpad-section {
+  flex-shrink: 0; background: #2c2c2c; padding: 7px; --key-scale: 1.3;
+  /* iPhoneホーム画面アプリ：下のホームバー（ホームインジケーター）を避ける */
+  padding-bottom: calc(7px + env(safe-area-inset-bottom));
+  padding-left: calc(7px + env(safe-area-inset-left));
+  padding-right: calc(7px + env(safe-area-inset-right));
+}
+/* テンキー上端のドラッグ用グリップ（上下にスライドで大きさ変更） */
+.numpad-resizer {
+  height: 16px; margin: -3px -3px 4px; cursor: ns-resize;
+  display: flex; align-items: center; justify-content: center;
+  touch-action: none; -webkit-tap-highlight-color: transparent;
+}
+.numpad-resizer-grip {
+  width: 46px; height: 5px; border-radius: 3px;
+  background: #6a6a6a; transition: background 0.1s;
+}
+.numpad-resizer:hover .numpad-resizer-grip,
+.numpad-resizer.dragging .numpad-resizer-grip { background: #9a9a9a; }
+/* スマホ横向き：大きさ調整バーをテンキー左端に縦向きで（左右ドラッグで調整）。
+   基本ルールの後に置いて上書きする */
+@media (orientation: landscape) and (max-height: 500px) {
+  .numpad-resizer {
+    height: auto; width: 16px; margin: -3px 4px -3px -3px;
+    cursor: ew-resize; flex-shrink: 0;
+  }
+  .numpad-resizer-grip { width: 5px; height: 46px; }
+  .numpad-grid { flex: 1; min-width: 0; }
+}
 .numpad-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -392,7 +479,7 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 .modal-close:hover { background: rgba(255,255,255,0.35); }
 .modal-body { flex: 1; overflow-y: auto; padding: 10px; }
 .save-item {
-  display: flex; align-items: center;
+  display: flex; align-items: center; flex-wrap: wrap; row-gap: 6px;
   padding: 8px 10px;
   border: 1px solid var(--save-item-border);
   border-radius: 6px; margin-bottom: 8px; gap: 5px;
@@ -403,11 +490,30 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 .save-date { font-size: 11px; color: var(--text-light); margin-top: 2px; }
 .btn-load   { background: #217346; color: white; border: none; border-radius: 4px; padding: 5px 9px; font-size: 11px; font-weight: bold; cursor: pointer; white-space: nowrap; touch-action: manipulation; }
 .btn-load:hover { background: #1a5c35; }
+/* 保存記録をモードに登録して移動 */
+.btn-tomode { background: #6c3483; color: white; border: none; border-radius: 4px; padding: 5px 8px; font-size: 11px; font-weight: bold; cursor: pointer; white-space: nowrap; touch-action: manipulation; }
+.btn-tomode:hover { background: #8e44ad; }
 .btn-rename { background: #5d6d7e; color: white; border: none; border-radius: 4px; padding: 5px 8px; font-size: 11px; font-weight: bold; cursor: pointer; white-space: nowrap; touch-action: manipulation; }
 .btn-rename:hover { background: #717d8a; }
 .btn-del    { background: #a93226; color: white; border: none; border-radius: 4px; padding: 5px 8px; font-size: 11px; font-weight: bold; cursor: pointer; white-space: nowrap; touch-action: manipulation; }
 .btn-del:hover { background: #c0392b; }
 .no-saves { text-align: center; color: var(--text-light); padding: 30px 16px; font-size: 13px; }
+/* 書き出し／読み込みツールバー */
+.save-toolbar { display: flex; gap: 8px; padding: 8px 16px 0; }
+.save-tool-btn {
+  flex: 1; background: var(--save-item-bg); color: var(--text);
+  border: 1px solid var(--save-item-border); border-radius: 6px;
+  padding: 8px 6px; font-size: 12px; font-weight: bold; cursor: pointer;
+  white-space: nowrap; touch-action: manipulation;
+}
+.save-tool-btn:hover { background: var(--cell-hover); }
+/* リスト保護（ロック） */
+.btn-lock { background: var(--save-item-bg); border: 1px solid var(--save-item-border); border-radius: 4px; padding: 5px 6px; font-size: 12px; cursor: pointer; white-space: nowrap; touch-action: manipulation; }
+.btn-lock:hover { background: var(--cell-hover); }
+.save-item.locked { border-color: #e0a800; box-shadow: inset 3px 0 0 #e0a800; }
+.btn-rename:disabled, .btn-del:disabled { opacity: 0.35; cursor: not-allowed; filter: grayscale(0.6); }
+.btn-rename:disabled:hover { background: #5d6d7e; }
+.btn-del:disabled:hover { background: #a93226; }
 
 /* ── モード選択メニュー ── */
 .mode-item {
@@ -425,6 +531,31 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 .mode-name { font-weight: bold; font-size: 14px; }
 .mode-desc { font-size: 11px; color: var(--text-light); margin-top: 1px; white-space: normal; }
 .mode-check { color: #217346; font-weight: bold; font-size: 16px; }
+/* 長押しで並べ替えできるモード項目 */
+.mode-item { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.mode-grip {
+  flex-shrink: 0; align-self: stretch; min-width: 30px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-light); font-size: 18px; cursor: grab;
+  touch-action: none;             /* スマホでスクロールに奪われずドラッグできる */
+  -webkit-user-select: none; user-select: none;
+}
+.mode-grip:active { cursor: grabbing; }
+.mode-item.mode-dragging {
+  opacity: 0.92; background: var(--cell-hover);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35); transform: scale(1.02);
+}
+body.mode-reordering .mode-item { touch-action: none; }
+/* 並べ替えのヒント表示 */
+.mode-hint { font-size: 11.5px; color: var(--text-light); padding: 8px 16px 0; }
+/* 登録モードの解除（✕）ボタン */
+.mode-remove {
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(169,50,38,0.12); color: #a93226;
+  font-size: 15px; font-weight: bold; margin-left: 4px;
+}
+.mode-remove:hover { background: rgba(169,50,38,0.25); }
 
 /* ── 設定内「説明書」ボタン ── */
 .sc-help {
@@ -435,6 +566,8 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
   cursor: pointer; touch-action: manipulation; margin-top: 2px;
 }
 .sc-help:hover { background: rgba(255,255,255,0.32); }
+.sc-help.sc-half { flex: 1 1 44%; }
+.sc-help.on { background: rgba(255,255,255,0.4); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.6); }
 
 /* ── 説明書ページ ── */
 .help-modal { max-width: 460px; max-height: 85vh; }
@@ -471,6 +604,14 @@ body.dark .help-li b { color: #8fd4ab; }
 .fmt-label { font-size: 13px; font-weight: bold; color: var(--text); min-width: 56px; }
 .fmt-ctrl { display: flex; align-items: center; gap: 8px; }
 .fmt-val { font-size: 14px; font-weight: bold; min-width: 40px; text-align: center; color: var(--text); }
+.fmt-mini { font-size: 11px; color: var(--text-sub); margin: 0 1px 0 6px; }
+/* 端数処理のリスト（プルダウン） */
+.fmt-select {
+  font-size: 14px; font-weight: bold; color: var(--text);
+  background: var(--cell-hover); border: 1px solid var(--cell-border);
+  border-radius: 5px; padding: 5px 8px; min-width: 110px; cursor: pointer;
+  touch-action: manipulation;
+}
 .fmt-deco {
   width: 34px; height: 30px; font-size: 16px;
   border: 1px solid var(--save-item-border); border-radius: 5px;
@@ -545,6 +686,8 @@ body.dark .wariai-bar { background: #102a2e; border-color: #2a7a85; color: #8fd6
 body.dark .warikan-bar { background: #152436; border-color: #3a6ea5; color: #9cc4e8; }
 .youseki-bar { background: #fff3e0; border-color: #fb8c00; color: #e65100; }
 body.dark .youseki-bar { background: #2a1f12; border-color: #a86a20; color: #e0a060; }
+.jikan-bar { background: #ede7f6; border-color: #5e35b1; color: #311b92; }
+body.dark .jikan-bar { background: #1c1730; border-color: #5a4a8a; color: #c4b4e8; }
 .shop-tax-bar b { font-size: calc(18px * var(--info-scale, 1)); }
 .wk-people { display: flex; align-items: center; gap: 5px; }
 .wk-btn {
@@ -582,8 +725,6 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   <button class="btn-save" id="saveBtn" onclick="saveData()">保存</button>
   <button class="btn-list" onclick="showSaveList()">リスト</button>
   <button class="btn-undo" id="undoBtn" onclick="undoLast()" disabled>↩ 戻る</button>
-  <button class="btn-csv" onclick="exportCSV()" title="CSVエクスポート">CSV</button>
-  <button class="btn-dark" id="darkBtn" onclick="toggleDark()">🌙</button>
   <button class="btn-reset" onclick="resetAll()">リセット</button>
 </div>
 
@@ -601,6 +742,16 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="btn-rc" onclick="changeCols(-1)">−</button>
     <span class="sc-val" id="colCount">3</span>
     <button class="btn-rc" onclick="changeCols(1)">+</button>
+  </div>
+  <div class="sc">
+    <span class="sc-label">行操作</span>
+    <button class="btn-ins" onclick="insertRowAtSel()" title="選択セルの上に行を挿入">＋上に追加</button>
+    <button class="btn-del" onclick="deleteRowAtSel()" title="選択セルの行を削除">行を削除</button>
+  </div>
+  <div class="sc">
+    <span class="sc-label">列操作</span>
+    <button class="btn-ins" onclick="insertColAtSel()" title="選択セルの左に列を挿入">＋左に追加</button>
+    <button class="btn-del" onclick="deleteColAtSel()" title="選択セルの列を削除">列を削除</button>
   </div>
   <div class="sc">
     <span class="sc-label">小数</span>
@@ -638,6 +789,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <span class="sc-val" id="infoSize">標準</span>
     <button class="btn-rc" onclick="changeInfoSize(1)">+</button>
   </div>
+  <button class="sc-help sc-half" id="darkBtn" onclick="toggleDark()">🌙 ナイトモード</button>
+  <button class="sc-help sc-half" onclick="exportCSV()">📄 CSV出力</button>
   <button class="sc-help" id="numpadToggleBtn" onclick="toggleNumpad()">⌨ テンキー非表示</button>
   <button class="sc-help" onclick="openHelp()">📖 説明書（使い方）</button>
 </div>
@@ -690,14 +843,25 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   <span class="yz-status" id="yzStatus"></span>
 </div>
 
+<div class="shop-tax-bar jikan-bar" id="jikanBar">
+  <span>合計 <b id="jkTotal">0時間0分</b></span>
+  <span>時:分 <b id="jkClock">0:00</b></span>
+  <span>= <b id="jkDecimal">0時間</b></span>
+  <span>= <b id="jkMinutes">0分</b></span>
+</div>
+
 <div class="stats-section">
-  <span class="stats-title" id="statsTitle" title="タップで漢数字⇄数字を切替">合計 — 列 A</span>
+  <span class="stats-title" id="statsTitle" title="タップで合計⇄平均を切替">合計 — 列 A</span>
   <span class="stat-val" id="sSum" title="タップで数値コピー">0</span>
+  <button class="stat-yen" id="statYenBtn" title="タップで兆・億・万表示に切替">¥</button>
 </div>
 
 </div><!-- /left-pane -->
 
 <div class="numpad-section" id="numpadSection">
+  <div class="numpad-resizer" id="numpadResizer" title="ドラッグでテンキーの大きさを変更（横向きは左右）">
+    <span class="numpad-resizer-grip"></span>
+  </div>
   <div class="numpad-grid">
     <!-- Row 1 -->
     <button class="btn clr" id="shoppingBtn" onclick="onModeBtnClick()">モード</button>
@@ -736,6 +900,13 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <span>保存データ一覧</span>
       <button class="modal-close" onclick="closeSaveList()">✕</button>
     </div>
+    <div class="save-toolbar">
+      <button class="save-tool-btn" onclick="exportSaves()" title="保存データをファイルに書き出して他の端末へ移せます">⬇ 書き出し</button>
+      <button class="save-tool-btn" onclick="document.getElementById('importSavesInput').click()" title="書き出したファイルから保存データを読み込みます">⬆ 読み込み</button>
+      <button class="save-tool-btn" id="saveLocBtn" onclick="changeSaveLocation()" style="display:none" title="保存データを書き込むフォルダを指定します（exe版のみ）">📁 保存場所</button>
+      <input id="importSavesInput" type="file" accept="application/json,.json" style="display:none" onchange="importSaves(event)">
+    </div>
+    <div id="saveLocInfo" style="display:none;padding:4px 16px 0;font-size:12px;color:var(--text-muted,#888);word-break:break-all"></div>
     <div class="modal-body" id="saveListBody"></div>
   </div>
 </div>
@@ -746,6 +917,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <span>モード選択</span>
       <button class="modal-close" onclick="closeModeMenu()">✕</button>
     </div>
+    <div class="mode-hint">タップで切替／左の ⠿ をドラッグで並べ替え</div>
     <div class="modal-body" id="modeMenuBody"></div>
   </div>
 </div>
@@ -801,6 +973,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <div class="help-sec">
         <div class="help-h">🎨 セルの書式</div>
         <div class="help-p">上部の「<b>A1</b>」（セル名）をタップすると、そのセルの小数点桁・太字/斜体/下線・文字色・背景色・大きさを変更できます。</div>
+        <div class="help-li"><b>🔒 保護</b>：書式パネルの「保護」をオンにすると、そのセルは編集できなくなります（🔒マークが付きます）。誤って消したくない値の固定に便利。解除はもう一度タップ。</div>
       </div>
 
       <div class="help-sec">
@@ -831,6 +1004,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <div class="help-sec">
         <div class="help-h">💾 保存・その他（上部メニュー）</div>
         <div class="help-li"><b>保存</b>：名前を付けて保存　<b>リスト</b>：保存データを開く</div>
+        <div class="help-li">リスト画面の<b>⬇書き出し</b>で保存データをファイルに出力 → 別の端末・ブラウザで<b>⬆読み込み</b>すると復元できます（バックアップ・引っ越し用）。</div>
+        <div class="help-li">各データの<b>🔓ロック</b>をタップすると🔒保護され、誤って削除・改名できなくなります（もう一度タップで解除）。</div>
         <div class="help-li"><b>CSV</b>：表をCSVで書き出し</div>
         <div class="help-li"><b>🌙</b>：ダークモード切替　<b>リセット</b>：今のモードの内容を消去</div>
       </div>
@@ -876,6 +1051,16 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         </div>
       </div>
       <div class="fmt-row">
+        <span class="fmt-label">端数処理</span>
+        <div class="fmt-ctrl">
+          <select class="fmt-select" id="fmtRound" onchange="fmtRoundChange(this.value)">
+            <option value="round">四捨五入</option>
+            <option value="up">切り上げ</option>
+            <option value="down">切り捨て</option>
+          </select>
+        </div>
+      </div>
+      <div class="fmt-row">
         <span class="fmt-label">大きさ</span>
         <div class="fmt-ctrl">
           <button class="btn-rc" onclick="fmtSize(-1)">−</button>
@@ -889,6 +1074,41 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
           <button class="fmt-deco" id="fmtBold"   onclick="fmtToggle('bold')"      style="font-weight:bold">B</button>
           <button class="fmt-deco" id="fmtItalic" onclick="fmtToggle('italic')"    style="font-style:italic">I</button>
           <button class="fmt-deco" id="fmtUnder"  onclick="fmtToggle('underline')" style="text-decoration:underline">U</button>
+        </div>
+      </div>
+      <div class="fmt-row">
+        <span class="fmt-label">文字位置</span>
+        <div class="fmt-ctrl">
+          <button class="fmt-deco" id="fmtAlL" onclick="fmtAlign('left')"   title="左寄せ">⬅</button>
+          <button class="fmt-deco" id="fmtAlC" onclick="fmtAlign('center')" title="中央">中</button>
+          <button class="fmt-deco" id="fmtAlR" onclick="fmtAlign('right')"  title="右寄せ">➡</button>
+        </div>
+      </div>
+      <div class="fmt-row">
+        <span class="fmt-label">縦位置</span>
+        <div class="fmt-ctrl">
+          <button class="fmt-deco" id="fmtVaT" onclick="fmtValign('top')"    title="上">⬆</button>
+          <button class="fmt-deco" id="fmtVaM" onclick="fmtValign('middle')" title="中央">中</button>
+          <button class="fmt-deco" id="fmtVaB" onclick="fmtValign('bottom')" title="下">⬇</button>
+        </div>
+      </div>
+      <div class="fmt-row">
+        <span class="fmt-label">セル結合</span>
+        <div class="fmt-ctrl">
+          <span class="fmt-mini">横</span>
+          <button class="btn-rc" onclick="fmtMergeSpan('cs',-1)">−</button>
+          <span class="fmt-val" id="fmtMergeCols" style="min-width:18px">1</span>
+          <button class="btn-rc" onclick="fmtMergeSpan('cs',1)">＋</button>
+          <span class="fmt-mini">縦</span>
+          <button class="btn-rc" onclick="fmtMergeSpan('rs',-1)">−</button>
+          <span class="fmt-val" id="fmtMergeRows" style="min-width:18px">1</span>
+          <button class="btn-rc" onclick="fmtMergeSpan('rs',1)">＋</button>
+        </div>
+      </div>
+      <div class="fmt-row">
+        <span class="fmt-label">保護</span>
+        <div class="fmt-ctrl">
+          <button class="fmt-deco" id="fmtLock" onclick="fmtLock()" title="このセルを編集できないようにロックします" style="width:auto;padding:0 10px">🔒 ロック</button>
         </div>
       </div>
       <div class="fmt-row col">
@@ -951,22 +1171,43 @@ function cellDec(r, c) {
   const s = cellStyles[`${r},${c}`];
   return (s && typeof s.dec === 'number') ? s.dec : decPlaces;
 }
+/* セル個別の端数処理。'round'(四捨五入,既定) / 'up'(切り上げ) / 'down'(切り捨て) */
+function cellRound(r, c) {
+  const s = cellStyles[`${r},${c}`];
+  return (s && s.round) ? s.round : 'round';
+}
+/* 指定桁 d で丸める。d<0(自動)のときは整数で丸め。
+   切り上げ=ゼロから遠い方向、切り捨て=ゼロ方向（Excelの ROUNDUP/ROUNDDOWN と同じ）。 */
+function roundAt(n, d, mode) {
+  const p = Math.pow(10, d >= 0 ? d : 0);
+  const x = n * p;
+  const eps = 1e-9;                      // 浮動小数点の誤差対策
+  let r;
+  if (mode === 'up')        r = x >= 0 ? Math.ceil(x - eps)  : Math.floor(x + eps);
+  else if (mode === 'down') r = x >= 0 ? Math.floor(x + eps) : Math.ceil(x - eps);
+  else                      r = Math.round(x);
+  return r / p;
+}
 
 function getCellDisplay(r, c) {
   const raw = String(data[r][c]);
   const d = cellDec(r, c);
+  const rm = cellRound(r, c);
+  const show = (n) => {
+    if (rm !== 'round') n = roundAt(n, d, rm);   // 切り上げ／切り捨て
+    return d >= 0 ? n.toFixed(d) : autoFmt(n);   // 四捨五入は toFixed/autoFmt が担当
+  };
   if (!raw.startsWith('=')) {
     const t = raw.trim();
     if (t !== '' && !isNaN(t)) {            // 純粋な数値のみ整形
-      const n = Number(t);
-      return d >= 0 ? n.toFixed(d) : autoFmt(n);
+      return show(Number(t));
     }
     return data[r][c];                       // 空・文字列はそのまま
   }
   let res;
   try { res = evalFormula(raw); } catch(e) { return '#ERR'; }
   if (typeof res !== 'number' || !isFinite(res)) return '#ERR';
-  return d >= 0 ? res.toFixed(d) : autoFmt(res);
+  return show(res);
 }
 
 function evalFormula(formula) {
@@ -1095,6 +1336,30 @@ function recalcAll() {
   autoFitSheet();
 }
 
+/* ── セル結合 ──
+   結合情報は cellStyles に持たせる（保存・モード切替に自動で同梱される）。
+   ・左上(アンカー)セル: cellStyles["r,c"].merge = {rs, cs}（行数・列数）
+   ・覆われるセル:        cellStyles["r,c"].cover = "ar,ac"（アンカーのキー） */
+function mergeAt(r,c){ const s=cellStyles[`${r},${c}`]; return (s&&s.merge)?s.merge:null; }
+function coverOf(r,c){ const s=cellStyles[`${r},${c}`]; return (s&&s.cover)?s.cover:null; }
+/* (r,c) の代表（アンカー）セル座標を返す。覆われていなければ自身 */
+function anchorOf(r,c){
+  const cov=coverOf(r,c);
+  if(cov){ const p=cov.split(','); return [+p[0],+p[1]]; }
+  return [r,c];
+}
+/* すべての結合を解除（行・列の挿入/削除時に構造破綻を防ぐため） */
+function stripAllMerges(){
+  let had=false;
+  for(const k in cellStyles){
+    const s=cellStyles[k];
+    if(s.merge){ delete s.merge; had=true; }
+    if(s.cover){ delete s.cover; had=true; }
+    if(Object.keys(s).length===0) delete cellStyles[k];
+  }
+  return had;
+}
+
 /* ── スプレッドシート構築 ── */
 function buildSheet() {
   copySrcR=copySrcC=-1;
@@ -1119,8 +1384,15 @@ function buildSheet() {
     rh.addEventListener('click', ()=>clickRow(r));
     makeRowGrip(rh, r);
     for (let c=0; c<COLS; c++) {
+      if (coverOf(r,c)) continue;          // 結合で覆われたセルは描画しない
       const td=tr.insertCell();
       td.className='cell'; td.id=`c${r}_${c}`;
+      const mg=mergeAt(r,c);
+      if (mg) {                            // 結合アンカー：colspan/rowspan を設定
+        if (mg.cs>1) td.colSpan=Math.min(mg.cs, COLS-c);
+        if (mg.rs>1) td.rowSpan=Math.min(mg.rs, ROWS-r);
+        td.classList.add('cell-merged');
+      }
       td.textContent=getCellDisplay(r,c);
       if (isStructMode()) {
         const m=STRUCT_MODES[tableMode];
@@ -1140,7 +1412,7 @@ function buildSheet() {
         if (e.shiftKey) return;
         if (sumSuppressClick) { sumSuppressClick=false; return; }   // スライド直後のクリックは無視
         if (sumSelectMode) { applySumRangeFromCells(r,c,r,c); return; } // Σ指定中：タップ=1セル範囲
-        if (isLockedCell(r,c)) return;
+        if (isStructLocked(r,c)) return;   // 見出し・自動計算列は選択不可（ユーザーロックは選択可＝解除のため）
         const fi=document.getElementById('formulaInput');
         if (formulaEditMode && fi.value.startsWith('=')) {
           fi.value=fi.value+`${ALPHA[c]}${r+1}`;
@@ -1184,6 +1456,7 @@ function autoFitSheet(){
     if(colWidths[c]){ need[c]=colWidths[c]; continue; }
     for(let r=0;r<ROWS;r++){
       const td=document.getElementById('c'+r+'_'+c); if(!td) continue;
+      if(td.colSpan>1) continue;           // 横結合セルは列幅測定から除外
       if(td.scrollWidth>need[c]) need[c]=td.scrollWidth;
     }
   }
@@ -1239,6 +1512,15 @@ function makeColGrip(th,c){
   g.addEventListener('pointerdown', e=>{
     if(e.button!==undefined && e.button>0) return;
     e.preventDefault(); e.stopPropagation();
+    // ダブルタップ → この列を内容に合わせて自動幅に（タッチでは dblclick が出ないため手動検出）
+    const now=Date.now();
+    if(now - (g._lastTap||0) < 350){
+      g._lastTap=0;
+      delete colWidths[c]; saveSheetSizes(); autoFitSheet();
+      toast(`${ALPHA[c]}列の幅を自動調整しました`);
+      return;
+    }
+    g._lastTap=now;
     g.setPointerCapture(e.pointerId);
     document.body.classList.add('col-resizing');
     // 実寸（px）表示へ切替：現在の各列の表示幅を固定（他の列が動かないように）
@@ -1271,9 +1553,9 @@ function makeColGrip(th,c){
     g.addEventListener('pointerup',end);
     g.addEventListener('pointercancel',end);
   });
-  // ダブルクリック／ダブルタップで自動幅に戻す
+  // ダブルクリック（PC）で自動幅に戻す
   g.addEventListener('dblclick', e=>{ e.preventDefault(); e.stopPropagation();
-    colWidths={}; saveSheetSizes(); autoFitSheet(); });
+    delete colWidths[c]; saveSheetSizes(); autoFitSheet(); });
   th.appendChild(g);
 }
 function makeRowGrip(rh,r){
@@ -1281,6 +1563,15 @@ function makeRowGrip(rh,r){
   g.addEventListener('pointerdown', e=>{
     if(e.button!==undefined && e.button>0) return;
     e.preventDefault(); e.stopPropagation();
+    // ダブルタップ → この行の高さを自動（既定）に戻す（タッチでは dblclick が出ないため手動検出）
+    const now=Date.now();
+    if(now - (g._lastTap||0) < 350){
+      g._lastTap=0;
+      delete rowHeights[r]; applyRowHeight(r,null); saveSheetSizes();
+      toast(`${r+1}行目の高さを自動調整しました`);
+      return;
+    }
+    g._lastTap=now;
     g.setPointerCapture(e.pointerId);
     document.body.classList.add('row-resizing');
     const startY=e.clientY;
@@ -1341,22 +1632,22 @@ function clearCopySrc() {
   copySrcR=copySrcC=-1;
 }
 
-/* 同じセルを素早く3回タップでコピー／貼付を起動 */
+/* 同じセルを素早く2回タップ（ダブルタップ）でコピー／貼付を起動 */
 let tapR=-1, tapC=-1, tapCount=0, tapTimer=null;
 function registerTap(r,c) {
   if (formulaEditMode || isLockedCell(r,c)) { tapCount=0; tapR=tapC=-1; return; }
   if (r===tapR && c===tapC) tapCount++;
   else { tapR=r; tapC=c; tapCount=1; }
   clearTimeout(tapTimer);
-  if (tapCount>=3) {
+  if (tapCount>=2) {
     tapCount=0; tapR=tapC=-1;
-    tripleTapCopyPaste(r,c);
+    doubleTapCopyPaste(r,c);
     return;
   }
   tapTimer=setTimeout(()=>{ tapCount=0; tapR=tapC=-1; }, 450);
 }
 
-function tripleTapCopyPaste(r,c) {
+function doubleTapCopyPaste(r,c) {
   clearRangeSelection();
   if (copySrcR<0) {
     sel(r,c); copyCell();
@@ -1369,6 +1660,7 @@ function tripleTapCopyPaste(r,c) {
     sel(r,c); pasteCell();
     const el=document.getElementById(`c${r}_${c}`);
     if (el) { el.classList.add('paste-flash'); setTimeout(()=>el.classList.remove('paste-flash'),450); }
+    clearCopySrc();   // 一度貼り付けたらコピー状態を解除する
   }
 }
 
@@ -1413,7 +1705,9 @@ function exportCSV() {
 function toggleDark() {
   darkMode=!darkMode;
   document.body.classList.toggle('dark',darkMode);
-  document.getElementById('darkBtn').textContent=darkMode?'☀':'🌙';
+  const b=document.getElementById('darkBtn');
+  b.textContent=darkMode?'☀ ライトに戻す':'🌙 ナイトモード';
+  b.classList.toggle('on',darkMode);
   localStorage.setItem('excalc_dark',darkMode?'1':'0');
 }
 
@@ -1431,6 +1725,119 @@ function changeCols(delta) {
   buildSheet(); sel(selR,Math.min(selC,COLS-1));
   persistModes();
 }
+
+/* ── 行・列の挿入／削除 ── */
+/* 簡易トースト通知 */
+let _toastTimer=null;
+function toast(msg){
+  let el=document.getElementById('appToast');
+  if(!el){ el=document.createElement('div'); el.id='appToast'; el.className='app-toast'; document.body.appendChild(el); }
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>el.classList.remove('show'), 1800);
+}
+/* 数式内のセル参照を写像で変換。mapFn(r0,c0)→[r2,c2] または null(=参照先が消滅) */
+function remapFormulaRefs(formula, mapFn){
+  const s=String(formula);
+  if(!s.startsWith('=')) return formula;
+  return s.replace(/([A-Za-z])(\d+)/g,(m,col,row)=>{
+    const ci=ALPHA.indexOf(col.toUpperCase()); if(ci<0) return m;
+    const res=mapFn(parseInt(row)-1, ci);
+    if(!res || res[0]<0 || res[0]>49 || res[1]<0 || res[1]>25) return '#REF';
+    return `${ALPHA[res[1]]}${res[0]+1}`;
+  });
+}
+function remapAllFormulas(mapFn){
+  for(let r=0;r<50;r++) for(let c=0;c<26;c++){
+    const v=data[r][c];
+    if(typeof v==='string' && v.startsWith('=')) data[r][c]=remapFormulaRefs(v,mapFn);
+  }
+}
+/* "r,c"キーの cellStyles を写像で作り直す。mapFn(r,c)→[r2,c2] または null(=削除) */
+function remapCellStyles(mapFn){
+  const ns={};
+  for(const k in cellStyles){
+    const p=k.split(','), r=+p[0], c=+p[1];
+    const res=mapFn(r,c);
+    if(res && res[0]>=0 && res[0]<50 && res[1]>=0 && res[1]<26) ns[`${res[0]},${res[1]}`]=cellStyles[k];
+  }
+  cellStyles=ns;
+}
+/* {index:値} を写像で作り直す。mapFn(i)→i2 または null */
+function remapIndexMap(obj, mapFn){
+  const n={};
+  for(const k in obj){ const j=mapFn(+k); if(j!=null) n[j]=obj[k]; }
+  return n;
+}
+/* 構造化モード（買物・税計算など）は固定レイアウトのため不可 */
+function structOpBlocked(){
+  if(isStructMode()){ toast('このモードでは行・列の追加／削除はできません'); return true; }
+  return false;
+}
+/* 構造変更後の後処理：履歴クリア・保存・再描画・再選択 */
+function afterStructChange(newSelR,newSelC){
+  history.length=0; updateUndoBtn();          // 構造変更は元に戻せないため履歴をクリア
+  document.getElementById('rowCount').textContent=ROWS;
+  document.getElementById('colCount').textContent=COLS;
+  localStorage.setItem('excalc_rows',ROWS);
+  localStorage.setItem('excalc_cols',COLS);
+  saveSheetSizes();
+  buildSheet();
+  sel(Math.max(0,Math.min(newSelR,ROWS-1)), Math.max(0,Math.min(newSelC,COLS-1)));
+  persistModes();
+}
+function insertRowAtSel(){
+  if(structOpBlocked()) return;
+  stripAllMerges();   // 行・列の挿入/削除時は結合を解除（構造破綻を防ぐ）
+  const at=selR, newROWS=Math.min(50, ROWS+1);
+  for(let r=newROWS-1; r>at; r--) data[r]=data[r-1].slice();
+  data[at]=Array(26).fill('');
+  remapCellStyles((r,c)=> r>=at ? [r+1,c] : [r,c]);
+  rowHeights=remapIndexMap(rowHeights, i=> i>=at ? (i+1<50?i+1:null) : i);
+  remapAllFormulas((r,c)=> [r>=at ? r+1 : r, c]);
+  ROWS=newROWS;
+  afterStructChange(at, selC);
+  toast(`${at+1}行目に行を追加しました`);
+}
+function deleteRowAtSel(){
+  if(structOpBlocked()) return;
+  stripAllMerges();   // 行・列の挿入/削除時は結合を解除（構造破綻を防ぐ）
+  const at=selR;
+  for(let r=at; r<ROWS-1; r++) data[r]=data[r+1].slice();
+  data[ROWS-1]=Array(26).fill('');
+  remapCellStyles((r,c)=> r===at ? null : [r>at?r-1:r, c]);
+  rowHeights=remapIndexMap(rowHeights, i=> i===at?null : (i>at?i-1:i));
+  remapAllFormulas((r,c)=> r===at ? null : [r>at?r-1:r, c]);
+  ROWS=Math.max(1, ROWS-1);
+  afterStructChange(at, selC);
+  toast(`${at+1}行目を削除しました`);
+}
+function insertColAtSel(){
+  if(structOpBlocked()) return;
+  stripAllMerges();   // 行・列の挿入/削除時は結合を解除（構造破綻を防ぐ）
+  const at=selC, newCOLS=Math.min(26, COLS+1);
+  for(let c=newCOLS-1; c>at; c--) for(let r=0;r<50;r++) data[r][c]=data[r][c-1];
+  for(let r=0;r<50;r++) data[r][at]='';
+  remapCellStyles((r,c)=> c>=at ? [r,c+1] : [r,c]);
+  colWidths=remapIndexMap(colWidths, i=> i>=at ? (i+1<26?i+1:null) : i);
+  remapAllFormulas((r,c)=> [r, c>=at ? c+1 : c]);
+  COLS=newCOLS;
+  afterStructChange(selR, at);
+  toast(`${ALPHA[at]}列に列を追加しました`);
+}
+function deleteColAtSel(){
+  if(structOpBlocked()) return;
+  stripAllMerges();   // 行・列の挿入/削除時は結合を解除（構造破綻を防ぐ）
+  const at=selC;
+  for(let c=at; c<COLS-1; c++) for(let r=0;r<50;r++) data[r][c]=data[r][c+1];
+  for(let r=0;r<50;r++) data[r][COLS-1]='';
+  remapCellStyles((r,c)=> c===at ? null : [r, c>at?c-1:c]);
+  colWidths=remapIndexMap(colWidths, i=> i===at?null : (i>at?i-1:i));
+  remapAllFormulas((r,c)=> c===at ? null : [r, c>at?c-1:c]);
+  COLS=Math.max(1, COLS-1);
+  afterStructChange(selR, at);
+  toast(`${ALPHA[at]}列を削除しました`);
+}
 function changeDec(delta) {
   const next=decPlaces+delta; if (next<-1||next>10) return;
   decPlaces=next;
@@ -1445,11 +1852,20 @@ function changeDec(delta) {
 /* ── テンキーサイズ ── */
 const KEY_STEPS=[1.0, 1.15, 1.3, 1.5, 1.75, 2.0];
 const KEY_LABELS=['小','やや小','標準','大','特大','最大'];
+const KEY_MIN=1.0, KEY_MAX=2.5;
 let keySizeIdx=3;
+let keyScale=KEY_STEPS[keySizeIdx];   // ドラッグで連続的に変わる実スケール
+/* スケール値→いちばん近いラベル（「大」など）を返す */
+function keyScaleLabel(s) {
+  let best=0, bd=Infinity;
+  KEY_STEPS.forEach((v,i)=>{ const d=Math.abs(v-s); if(d<bd){bd=d;best=i;} });
+  return s>KEY_STEPS[KEY_STEPS.length-1]+0.05 ? '最大' : KEY_LABELS[best];
+}
 function applyKeySize() {
-  document.getElementById('numpadSection').style.setProperty('--key-scale', KEY_STEPS[keySizeIdx]);
-  document.getElementById('keySize').textContent=KEY_LABELS[keySizeIdx];
-  localStorage.setItem('excalc_keysize', keySizeIdx);
+  keyScale=Math.min(KEY_MAX, Math.max(KEY_MIN, keyScale));
+  document.getElementById('numpadSection').style.setProperty('--key-scale', keyScale.toFixed(3));
+  document.getElementById('keySize').textContent=keyScaleLabel(keyScale);
+  localStorage.setItem('excalc_keyscale', keyScale.toFixed(3));
   fitNumpadLabels();
 }
 /* テンキー各ボタンの文字を、枠幅に収まるよう自動縮小（折り返し防止） */
@@ -1467,9 +1883,57 @@ function fitNumpadLabels() {
 }
 window.addEventListener('resize', fitNumpadLabels);
 function changeKeySize(delta) {
-  const next=keySizeIdx+delta; if (next<0||next>=KEY_STEPS.length) return;
-  keySizeIdx=next; applyKeySize();
+  // 現在のスケールに最も近いステップを基準に、1段ずつ増減
+  let i=0, bd=Infinity;
+  KEY_STEPS.forEach((v,idx)=>{ const d=Math.abs(v-keyScale); if(d<bd){bd=d;i=idx;} });
+  if (delta>0 && keyScale>KEY_STEPS[i]+0.01) i++;        // 端数で大きい側にいる時の押し込み防止
+  else if (delta<0 && keyScale<KEY_STEPS[i]-0.01) i--;
+  const next=i+delta; if (next<0||next>=KEY_STEPS.length) return;
+  keySizeIdx=next; keyScale=KEY_STEPS[next]; applyKeySize();
 }
+
+/* ── テンキー上端のドラッグで大きさ変更 ── */
+(function setupNumpadResizer(){
+  const handle=document.getElementById('numpadResizer');
+  if(!handle) return;
+  let startY=0, startX=0, startScale=0, active=false, horiz=false;
+  const SENS=0.006;   // 1px あたりのスケール変化量
+  /* 横向きレイアウト（左にセル・右にテンキー）か */
+  function isLandscapeNumpad(){
+    return window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  }
+  function onMove(e){
+    if(!active) return;
+    const p=(e.touches?e.touches[0]:e);
+    // 横向き＝左へドラッグで拡大／縦持ち＝上へドラッグで拡大
+    const delta = horiz ? (startX - p.clientX) : (startY - p.clientY);
+    keyScale=startScale + delta*SENS;
+    applyKeySize();
+    e.preventDefault();
+  }
+  function onUp(){
+    if(!active) return;
+    active=false; handle.classList.remove('dragging');
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('touchmove', onMove);
+    window.removeEventListener('touchend', onUp);
+  }
+  function onDown(e){
+    active=true; handle.classList.add('dragging');
+    horiz=isLandscapeNumpad();
+    const p=(e.touches?e.touches[0]:e);
+    startX=p.clientX; startY=p.clientY;
+    startScale=keyScale;
+    window.addEventListener('pointermove', onMove, {passive:false});
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('touchmove', onMove, {passive:false});
+    window.addEventListener('touchend', onUp);
+    e.preventDefault();
+  }
+  handle.addEventListener('pointerdown', onDown);
+  handle.addEventListener('touchstart', onDown, {passive:false});
+})();
 
 /* ── 画面幅（パソコン等で全幅が広すぎる時に狭める） ── */
 const WIDTH_STEPS =['100%','1100px','920px','760px','620px','500px'];
@@ -1547,6 +2011,7 @@ function clearRowSel() {
 }
 
 function sel(r,c) {
+  { const a=anchorOf(r,c); r=a[0]; c=a[1]; }   // 結合セルは代表(左上)を選ぶ
   const wasFormula=formulaEditMode;
   formulaEditMode=false;
   sumSelectMode=false;            // セル移動でΣスライド指定を終了
@@ -1615,7 +2080,7 @@ function clickRow(r) {
 }
 
 function updateRowStats(r) {
-  document.getElementById('statsTitle').textContent=`合計 — 行 ${r+1}`;
+  lastStatScope=`行 ${r+1}`;
   const nums=[];
   for (let c=0;c<COLS;c++) {
     const raw=data[r][c]; if(raw==='') continue;
@@ -1625,7 +2090,25 @@ function updateRowStats(r) {
   renderStats(nums);
 }
 
+/* iPhone等で全角入力された数字・記号を半角へ正規化する。
+   数値・数式と判定できる場合のみ半角化し、全角の文字ラベルはそのまま保持する。 */
+function normalizeFullWidth(v){
+  if(typeof v!=='string' || v==='') return v;
+  let s = v.replace(/[！-～]/g, ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0)) // 全角ASCII（０-９＋－．＝等）→半角
+           .replace(/　/g,' ')      // 全角スペース→半角
+           .replace(/[。．]/g,'.')   // 句点・全角ピリオド→.
+           .replace(/[、，]/g,',')   // 読点・全角カンマ→,
+           .replace(/[ー−–—]/g,'-'); // 長音・各種マイナス記号→-
+  const t = s.trim();
+  if (t.startsWith('=')) return s;                          // 数式は半角化を採用
+  const num = t.replace(/[,%]/g,'');                        // 桁区切り・％を除いて数値判定
+  if (num!=='' && /^[+\-]?\d*\.?\d+$/.test(num)) return s;  // 数値として解釈できる場合のみ半角化
+  return v;                                                 // それ以外（文字ラベル等）は原文を保持
+}
+
 function setCellVal(r,c,v) {
+  v = normalizeFullWidth(v);                              // 全角数字→半角（iPhoneキーボード対策）
+  if (isLockedCell(r,c)) { flashLocked(r,c); return; }   // 保護セルへの書き込みを防止（手入力・貼付・フィル）
   pushHistory([{r,c,val:data[r][c]}]);
   data[r][c]=v;
   // 消費税モード：税抜と税込は一方のみ入力（他方を消して入力元を一意にする）
@@ -1676,17 +2159,33 @@ function toKanjiNum(n) {
   return sign+result;
 }
 
-let lastStatSum=null;     // 直近の合計（生の数値）
-let statKanji=false;      // 合計を漢数字表示するか
-function renderStats(nums) {
+let lastStatNums=null;    // 直近の対象数値（合計・平均の計算元）
+let lastStatScope='';     // 対象範囲のラベル（例「列 A」「行 3」）
+let statKanji=false;      // 兆・億・万（漢数字）で表示するか
+let statMode='sum';       // 'sum'=合計 / 'avg'=平均
+
+/* いま表示すべき統計値（合計 or 平均）。対象が無ければ null */
+function currentStatValue() {
+  if (!lastStatNums || lastStatNums.length===0) return null;
+  const sum=lastStatNums.reduce((a,b)=>a+b,0);
+  return statMode==='avg' ? sum/lastStatNums.length : sum;
+}
+/* タイトルと値を現在の状態（合計/平均・漢数字）で再描画 */
+function refreshStatsDisplay() {
+  const word = statMode==='avg' ? '平均' : '合計';
+  document.getElementById('statsTitle').textContent=`${word} — ${lastStatScope}`;
   const sumEl=document.getElementById('sSum');
-  if (nums.length===0) { lastStatSum=null; sumEl.textContent='—'; return; }
-  lastStatSum=nums.reduce((a,b)=>a+b,0);
-  sumEl.textContent = statKanji ? toKanjiNum(lastStatSum) : fmt(lastStatSum);
+  const v=currentStatValue();
+  if (v===null) { sumEl.textContent='—'; return; }
+  sumEl.textContent = statKanji ? toKanjiNum(v) : fmt(v);
+}
+function renderStats(nums) {
+  lastStatNums = nums;
+  refreshStatsDisplay();
 }
 
 function updateStats(c) {
-  document.getElementById('statsTitle').textContent=`合計 — 列 ${ALPHA[c]}`;
+  lastStatScope=`列 ${ALPHA[c]}`;
   const nums=[];
   for (let r=0;r<ROWS;r++) {
     const raw=data[r][c]; if(raw==='') continue;
@@ -1746,12 +2245,14 @@ function numpadAppend(char) {
   fi.value=fi.value+char; refreshDisp();
 }
 function startFormula() {
+  if (editBlocked()) return;
   formulaEditMode=true;
   const fi=document.getElementById('formulaInput');
   fi.value='='; fi.classList.add('formula-mode'); refreshDisp();
 }
 function num(n) {
   if (formulaEditMode) { numpadAppend(n); return; }
+  if (editBlocked()) return;
   if (!cellEditing) { disp_val=n==='0'?'0':n; cellEditing=true; }
   else if (waiting) { disp_val=n; waiting=false; }
   else { disp_val=(disp_val==='0'||disp_val==='-0')?(disp_val.startsWith('-')?'-'+n:n):disp_val+n; }
@@ -1759,6 +2260,12 @@ function num(n) {
 }
 function dot() {
   if (formulaEditMode) { numpadAppend('.'); return; }
+  if (editBlocked()) return;
+  if (tableMode==='jikan' && (selC===1||selC===2)) {   // 時刻入力欄では「.」キーで「:」を入力
+    if (!cellEditing || waiting) { disp_val=''; cellEditing=true; waiting=false; }
+    if (!disp_val.includes(':')) disp_val=(disp_val===''?'0':disp_val)+':';
+    refreshDisp(); return;
+  }
   if (!cellEditing) { disp_val='0.'; cellEditing=true; }
   else if (waiting) { disp_val='0.'; waiting=false; }
   else if (!disp_val.includes('.')) { disp_val+='.'; }
@@ -1766,6 +2273,7 @@ function dot() {
 }
 function op(o) {
   if (formulaEditMode) { numpadAppend(o==='*'?'×':o==='/'?'÷':o); return; }
+  if (editBlocked()) return;
   cellEditing=true;
   const cur=parseFloat(disp_val);
   if (op1!==null&&!waiting) { const r=calc(op1,cur,cur_op); disp_val=fmtNum(r); op1=r; }
@@ -1802,6 +2310,7 @@ function ac() {
 }
 function ce() {
   if (formulaEditMode) { document.getElementById('formulaInput').value='='; refreshDisp(); return; }
+  if (editBlocked()) return;
   cellEditing=true; disp_val='0'; refreshDisp();
 }
 function bs() {
@@ -1815,11 +2324,13 @@ function bs() {
     }
     refreshDisp(); return;
   }
+  if (editBlocked()) return;
   cellEditing=true;
   disp_val=disp_val.length>1?disp_val.slice(0,-1):'0'; refreshDisp();
 }
 function toggleSign() {
   if (formulaEditMode) { numpadAppend('-'); return; }
+  if (editBlocked()) return;
   cellEditing=true;
   if (disp_val!=='0') disp_val=disp_val.startsWith('-')?disp_val.slice(1):'-'+disp_val;
   refreshDisp();
@@ -1832,6 +2343,7 @@ function toggleTextInput() {
     if (btn) btn.classList.remove('text-on');
     return;
   }
+  if (editBlocked()) return;
   // 入力中の数値・数式状態をリセットしてから文字入力へ
   cellEditing=false; op1=null; cur_op=null; waiting=false;
   formulaEditMode=false; fi.classList.remove('formula-mode');
@@ -1912,6 +2424,7 @@ function updateAutoSumBtn(){
 }
 
 function toCell() {
+  if (editBlocked()) { if(formulaEditMode){ const fi=document.getElementById('formulaInput'); formulaEditMode=false; fi.classList.remove('formula-mode'); fi.value=data[selR][selC]; const el=document.getElementById(`c${selR}_${selC}`); if(el) el.textContent=getCellDisplay(selR,selC);} return; }
   if (formulaEditMode) {
     const fi=document.getElementById('formulaInput');
     const v=fi.value.trim();
@@ -1929,19 +2442,32 @@ function toCell() {
 /* ── 数式バー ── */
 (function() {
   const fi=document.getElementById('formulaInput');
+  let fiDirty=false;   // 数式バーに未確定の手入力／貼り付けがあるか
   fi.addEventListener('input', ()=>{
     formulaEditMode=fi.value.startsWith('=');
     fi.classList.toggle('formula-mode',formulaEditMode);
+    fiDirty=true;      // 実際の入力・ペーストがあった（プログラムでの value 設定では発火しない）
     const el=document.getElementById(`c${selR}_${selC}`);
     if(el) el.textContent=fi.value||getCellDisplay(selR,selC);
   });
   fi.addEventListener('blur', ()=>{
     const btn=document.getElementById('textBtn');
     if(btn) btn.classList.remove('text-on');
+    // 別セルのタップやテンキー操作でフォーカスが外れた時も、入力内容を確定する。
+    // （数式組み立て中＝「=」始まりはセルタップで blur しない設計なので影響しない）
+    if(fiDirty){
+      fiDirty=false;
+      if(!isLockedCell(selR,selC)){
+        const v=fi.value.trim();
+        formulaEditMode=false; fi.classList.remove('formula-mode');
+        if(v!==data[selR][selC]) setCellVal(selR,selC,v);
+      }
+    }
   });
   fi.addEventListener('keydown', e=>{
     if (e.key==='Enter') {
       e.preventDefault(); e.stopPropagation();
+      fiDirty=false;   // ここで確定済み。blur での二重確定を防ぐ
       formulaEditMode=false; fi.classList.remove('formula-mode');
       setCellVal(selR,selC,fi.value.trim());
       if(selR<ROWS-1) sel(selR+1,selC);
@@ -1950,6 +2476,7 @@ function toCell() {
     }
     if (e.key==='Escape') {
       e.preventDefault(); e.stopPropagation();
+      fiDirty=false;   // 取り消し。blur での確定を防ぐ
       formulaEditMode=false; fi.classList.remove('formula-mode');
       fi.value=data[selR][selC]; clearSumRange();
       const el=document.getElementById(`c${selR}_${selC}`);
@@ -1962,6 +2489,7 @@ function toCell() {
 
 /* ── キーボードショートカット ── */
 document.addEventListener('keydown', e=>{
+  if (typeof appModalOpen!=='undefined' && appModalOpen) return;   // 入力モーダル表示中は電卓キーを無効化
   const ae=document.activeElement;
   if (ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA')) return;
   const k=e.key;
@@ -2001,7 +2529,7 @@ document.addEventListener('keydown', e=>{
     else if (!e.shiftKey&&selR>0) { clearRangeSelection(); sel(selR-1,selC); }
   }
   else if (k==='Tab') { e.preventDefault(); if(selC<COLS-1) sel(selR,selC+1); }
-  else if (k==='F2') { e.preventDefault(); document.getElementById('formulaInput').focus(); }
+  else if (k==='F2') { e.preventDefault(); if(!editBlocked()) document.getElementById('formulaInput').focus(); }
 });
 
 /* ── モード（買物・簡易・割り勘・消費税・容積・予算配分） ── */
@@ -2018,8 +2546,9 @@ const STRUCT_MODES={
   wariai:  {cols:6, headers:['元の値','割','％','割合額','足す','引く'], computed:[3,4,5]},
   youseki: {cols:5, headers:['名称','縦m','横m','高さm','容積㎥'], computed:[4]},
   yosan:   {cols:5, headers:['品名','単価','最低','個数','小計'], computed:[3,4]},
+  jikan:   {cols:4, headers:['項目','開始','終了','時間'],         computed:[3]},
 };
-const MODE_LABELS={normal:'モード', simple:'簡易中', shopping:'買物中', warikan:'割勘中', zei:'税計中', wariai:'割合中', youseki:'容積中', yosan:'予算中'};
+const MODE_LABELS={normal:'モード', simple:'簡易中', shopping:'買物中', warikan:'割勘中', zei:'税計中', wariai:'割合中', youseki:'容積中', yosan:'予算中', jikan:'時間中'};
 const MODE_MENU=[
   {key:'normal',  icon:'▦',  name:'通常',   desc:'標準のスプレッドシート'},
   {key:'simple',  icon:'⬛',  name:'簡易',   desc:'列を少なく・セルを大きく見やすく'},
@@ -2029,18 +2558,103 @@ const MODE_MENU=[
   {key:'wariai',  icon:'％', name:'割合計算', desc:'元の値の何割・何％と、足す/引くを計算'},
   {key:'youseki', icon:'📦', name:'容積',   desc:'縦×横×高さで容積(㎥)を計算'},
   {key:'yosan',   icon:'🎯', name:'予算配分', desc:'予算と合計個数から各商品の最適な購入数を計算'},
+  {key:'jikan',   icon:'⏱', name:'時間計算', desc:'開始〜終了の時刻から何時間何分かを計算（合計も）'},
 ];
 
-function isStructMode(){ return tableMode==='shopping'||tableMode==='warikan'||tableMode==='zei'||tableMode==='wariai'||tableMode==='youseki'||tableMode==='yosan'; }
-function isLockedCell(r,c){
+/* ── 保存リストから登録したカスタムモード（最大3個） ── */
+const CUSTOM_MODES_KEY='excalc_custommodes';
+const CUSTOM_MODE_MAX=3;
+let customModes=[];   // [{key,name,icon,rows,sourceId}]
+function loadCustomModes(){
+  try{ customModes=JSON.parse(localStorage.getItem(CUSTOM_MODES_KEY))||[]; }catch(e){ customModes=[]; }
+  if(!Array.isArray(customModes)) customModes=[];
+}
+function persistCustomModes(){
+  try{ localStorage.setItem(CUSTOM_MODES_KEY, JSON.stringify(customModes)); }catch(e){}
+}
+function findCustomMode(key){ return customModes.find(m=>m.key===key); }
+function isValidMode(key){ return MODE_MENU.some(m=>m.key===key) || !!findCustomMode(key); }
+/* モード選択メニュー等で使う表示名 */
+function modeDisplayName(key){
+  const b=MODE_MENU.find(m=>m.key===key); if(b) return b.name;
+  const c=findCustomMode(key); return c?c.name:'このモード';
+}
+/* テンキーのモードボタンに出す短い表示 */
+function modeButtonLabel(key){
+  if(MODE_LABELS[key]) return MODE_LABELS[key];
+  const c=findCustomMode(key);
+  if(c) return c.name.length>5 ? c.name.slice(0,5)+'…' : c.name;
+  return 'モード';
+}
+
+function isStructMode(){ return tableMode==='shopping'||tableMode==='warikan'||tableMode==='zei'||tableMode==='wariai'||tableMode==='youseki'||tableMode==='yosan'||tableMode==='jikan'; }
+/* ユーザーが書式設定で保護したセル */
+function isUserLocked(r,c){
+  const s=cellStyles[`${r},${c}`];
+  return !!(s && s.locked);
+}
+/* 構造化モードの見出し行・自動計算列（選択そのものを禁止） */
+function isStructLocked(r,c){
   if(!isStructMode()) return false;
   const m=STRUCT_MODES[tableMode];
   if(r===0) return true;                 // 見出し行
   return m.computed.includes(c);         // 自動計算列
 }
+/* 編集禁止セル（構造ロック or ユーザーロック） */
+function isLockedCell(r,c){
+  return isUserLocked(r,c) || isStructLocked(r,c);
+}
+/* ロックされたセルを編集しようとしたら短くフラッシュして知らせる */
+function flashLocked(r,c){
+  const el=document.getElementById(`c${r}_${c}`);
+  if(!el) return;
+  el.classList.add('cell-lock-flash');
+  setTimeout(()=>el.classList.remove('cell-lock-flash'),350);
+}
+/* 選択中セルがロックなら true（編集系操作の入口で使用） */
+function editBlocked(){
+  if(!isLockedCell(selR,selC)) return false;
+  flashLocked(selR,selC);
+  return true;
+}
 function modeComputedDisplay(r,c){
   const raw=data[r][c]; if(raw===''||raw==null) return '';
-  const v=parseFloat(raw); return isNaN(v)?'':fmt(v);
+  const v=parseFloat(raw); if(isNaN(v)) return '';
+  if(tableMode==='jikan' && c===3) return hourMinJP(v);   // 時間モードの所要列は「◯時間◯分」表示
+  return fmt(v);
+}
+/* 分 → 「H:MM」表記 */
+function hmm(mins){
+  const sign=mins<0?'-':''; mins=Math.abs(Math.round(mins));
+  const h=Math.floor(mins/60), m=mins%60;
+  return sign+h+':'+String(m).padStart(2,'0');
+}
+/* 分 → 「◯時間◯分」表記 */
+function hourMinJP(mins){
+  const sign=mins<0?'-':''; mins=Math.abs(Math.round(mins));
+  const h=Math.floor(mins/60), m=mins%60;
+  return sign+h+'時間'+m+'分';
+}
+/* 時刻文字列 → 0時からの通算分。"9:00" / "9.00" / "900"(HHMM) / "9"(=9時) などを許容。無効はnull */
+function parseClock(raw){
+  if(raw==null) return null;
+  let s=String(raw).trim();
+  if(s==='') return null;
+  let m=s.match(/^(\d{1,2})\s*[:：.．]\s*(\d{1,2})$/);   // 区切りあり（コロン/ピリオド）
+  if(m){ const h=+m[1], mi=+m[2]; if(mi>59||h>47) return null; return h*60+mi; }
+  if(/^\d{1,4}$/.test(s)){                                // 数字のみ
+    const n=+s;
+    if(s.length<=2){ if(n>47) return null; return n*60; } // 9→9:00、17→17:00
+    const mi=n%100, h=Math.floor(n/100);                  // 3〜4桁は下2桁を分（930→9:30、1730→17:30）
+    if(mi>59||h>47) return null;
+    return h*60+mi;
+  }
+  return null;
+}
+/* 通算分 → 「H:MM」表記（時刻の見た目を揃える） */
+function clockStr(mins){
+  const h=Math.floor(mins/60), m=mins%60;
+  return h+':'+String(m).padStart(2,'0');
 }
 function syncRowColLabels(){
   document.getElementById('rowCount').textContent=ROWS;
@@ -2151,6 +2765,32 @@ function recalcMode(){
     document.getElementById('ysLiter').textContent=fmt(total*1000);
   } else if(tableMode==='yosan'){
     solveYosanMode();
+  } else if(tableMode==='jikan'){
+    /* 列: 0=項目 1=開始(時刻) 2=終了(時刻) 3=時間(自動)。
+       終了−開始を分で求める。終了が開始より早ければ日をまたいだとみなし+24時間。*/
+    let totalMin=0;
+    for(let r=1;r<ROWS;r++){
+      const start=parseClock(data[r][1]);
+      const end=parseClock(data[r][2]);
+      // 入力欄の見た目を「H:MM」に整える（生データは保持）
+      const e1=document.getElementById(`c${r}_1`);
+      const e2=document.getElementById(`c${r}_2`);
+      if(e1 && start!=null && data[r][1]!=='') e1.textContent=clockStr(start);
+      if(e2 && end!=null   && data[r][2]!=='') e2.textContent=clockStr(end);
+      let mins='';
+      if(start!=null && end!=null){
+        let d=end-start; if(d<0) d+=1440;   // 日またぎ（例 22:00→6:00）
+        mins=d;
+      }
+      data[r][3]=(mins===''?'':String(mins));
+      const el=document.getElementById(`c${r}_3`);
+      if(el) el.textContent=(mins===''?'':hourMinJP(mins));
+      if(mins!=='') totalMin+=mins;
+    }
+    document.getElementById('jkTotal').textContent=hourMinJP(totalMin);
+    document.getElementById('jkClock').textContent=hmm(totalMin);
+    document.getElementById('jkDecimal').textContent=fmt(Math.round(totalMin/60*100)/100)+'時間';
+    document.getElementById('jkMinutes').textContent=fmt(totalMin)+'分';
   }
 }
 function changeWarikan(d){
@@ -2271,13 +2911,13 @@ function solveYosanMode(){
 
 /* フッターバーの表示切替 */
 function hideAllBars(){
-  ['shopTaxBar','zeiBar','wariaiBar','warikanBar','yousekiBar','yosanBar'].forEach(id=>{
+  ['shopTaxBar','zeiBar','wariaiBar','warikanBar','yousekiBar','yosanBar','jikanBar'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.classList.remove('open');
   });
 }
 function showModeBar(){
   hideAllBars();
-  const id={shopping:'shopTaxBar', zei:'zeiBar', wariai:'wariaiBar', warikan:'warikanBar', youseki:'yousekiBar', yosan:'yosanBar'}[tableMode];
+  const id={shopping:'shopTaxBar', zei:'zeiBar', wariai:'wariaiBar', warikan:'warikanBar', youseki:'yousekiBar', yosan:'yosanBar', jikan:'jikanBar'}[tableMode];
   if(id) document.getElementById(id).classList.add('open');
 }
 
@@ -2314,6 +2954,8 @@ function normalizeStructLayout(){
 
 function switchMode(target){
   if(target===tableMode) return;
+  const curCustom=findCustomMode(tableMode);
+  if(curCustom){ curCustom.rows=ROWS; persistCustomModes(); }   // 登録モードは行数も記憶
   captureMode(tableMode);                 // いま開いているモードを保存
   tableMode=target;
   document.body.classList.toggle('simple-mode', target==='simple');
@@ -2325,6 +2967,8 @@ function switchMode(target){
   } else {                                 // 初回は新規作成
     initFreshMode(target);
   }
+  const tgtCustom=findCustomMode(target);   // 登録モードは保存時の行数を復元
+  if(tgtCustom && tgtCustom.rows){ ROWS=Math.max(1,Math.min(50,tgtCustom.rows)); localStorage.setItem('excalc_rows',ROWS); }
   normalizeStructLayout();
   syncRowColLabels();
   buildSheet();
@@ -2334,7 +2978,7 @@ function switchMode(target){
 }
 function updateModeButton(){
   const btn=document.getElementById('shoppingBtn');
-  btn.textContent=MODE_LABELS[tableMode];
+  btn.textContent=modeButtonLabel(tableMode);
   btn.classList.toggle('shopping-on', tableMode!=='normal');
 }
 
@@ -2359,7 +3003,7 @@ function restoreModeStore(){
   if(typeof s.warikanPeople==='number') warikanPeople=s.warikanPeople;
   if(s.rows>=1&&s.rows<=50) ROWS=s.rows;
   let cur=s.current||'normal';
-  if(!MODE_MENU.some(m=>m.key===cur)) cur='normal';   // 廃止済みモード(家計簿等)は通常へ
+  if(!isValidMode(cur)) cur='normal';   // 廃止済みモード(家計簿等)・解除済み登録モードは通常へ
   if(modeStates[cur]){
     tableMode=cur;
     loadData(modeStates[cur].data);
@@ -2374,19 +3018,160 @@ function restoreModeStore(){
 /* 買物（モード）ボタン：押すとモード選択メニューを開く */
 function onModeBtnClick(){ openModeMenu(); }
 
+/* ── モード並び順（長押しドラッグで変更・保存） ── */
+const MODE_ORDER_KEY='excalc_modeorder';
+let modeOrder=[];
+function loadModeOrder(){
+  try{ modeOrder=JSON.parse(localStorage.getItem(MODE_ORDER_KEY))||[]; }catch(e){ modeOrder=[]; }
+  if(!Array.isArray(modeOrder)) modeOrder=[];
+}
+function persistModeOrder(){ try{ localStorage.setItem(MODE_ORDER_KEY, JSON.stringify(modeOrder)); }catch(e){} }
+function allModeKeys(){ return MODE_MENU.map(m=>m.key).concat(customModes.map(m=>m.key)); }
+/* 並び順を現存モードに同期（消えたキーを除去・新規キーを末尾に追加） */
+function syncModeOrder(){
+  const all=allModeKeys();
+  modeOrder=modeOrder.filter(k=>all.includes(k));
+  all.forEach(k=>{ if(!modeOrder.includes(k)) modeOrder.push(k); });
+}
+/* キー→メニュー項目（ビルトイン or 登録モード） */
+function modeItemByKey(key){
+  const b=MODE_MENU.find(m=>m.key===key);
+  if(b) return {item:b, custom:false};
+  const c=findCustomMode(key);
+  if(c) return {item:{key:c.key, icon:c.icon||'📋', name:c.name, desc:'保存リストから登録したモード'}, custom:true};
+  return null;
+}
+
 /* モード選択メニュー */
-function openModeMenu(){
-  const body=document.getElementById('modeMenuBody');
-  body.innerHTML=MODE_MENU.map(m=>`
-    <button class="mode-item${m.key===tableMode?' active':''}" onclick="pickMode('${m.key}')">
+function renderModeItem(m, isCustom){
+  const active=m.key===tableMode;
+  return `
+    <div class="mode-item${active?' active':''}" data-key="${m.key}" role="button">
+      <span class="mode-grip" title="ここをドラッグで並べ替え">⠿</span>
       <span class="mode-ico">${m.icon}</span>
       <span class="mode-text">
-        <span class="mode-name">${m.name}</span>
-        <span class="mode-desc">${m.desc}</span>
+        <span class="mode-name">${escHtml(m.name)}</span>
+        <span class="mode-desc">${escHtml(m.desc)}</span>
       </span>
-      ${m.key===tableMode?'<span class="mode-check">✓</span>':''}
-    </button>`).join('');
+      ${active?'<span class="mode-check">✓</span>':''}
+      ${isCustom?`<span class="mode-remove" onclick="event.stopPropagation();removeCustomMode('${m.key}')" title="この登録モードを解除">✕</span>`:''}
+    </div>`;
+}
+function openModeMenu(){
+  syncModeOrder();
+  const body=document.getElementById('modeMenuBody');
+  body.innerHTML=modeOrder.map(k=>{ const o=modeItemByKey(k); return o?renderModeItem(o.item,o.custom):''; }).join('');
+  bindModeDrag();
   document.getElementById('modeMenuOverlay').classList.add('open');
+}
+
+/* ── 長押しドラッグでモードを並べ替え ── */
+let mdDrag=null;
+function bindModeDrag(){
+  document.querySelectorAll('#modeMenuBody .mode-item').forEach(el=>{
+    el.addEventListener('pointerdown', onModePointerDown);
+  });
+}
+function onModePointerDown(e){
+  if(e.button!==undefined && e.button>0) return;
+  if(e.target.closest('.mode-remove')) return;   // 解除ボタンはドラッグ/タップ対象外
+  const el=e.currentTarget;
+  const fromGrip = !!e.target.closest('.mode-grip');
+  mdDrag={el, key:el.dataset.key, started:false, fromGrip, startX:e.clientX, startY:e.clientY, pointerId:e.pointerId, timer:null};
+  if(fromGrip){
+    // グリップ(⠿)は touch-action:none。スクロールに奪われないので、動かせば即ドラッグ開始
+    try{ el.setPointerCapture(e.pointerId); }catch(_){}
+  } else {
+    mdDrag.timer=setTimeout(startModeDrag, 320);   // 本体は長押しでドラッグ（PC等の補助）
+  }
+}
+function startModeDrag(){
+  if(!mdDrag || mdDrag.started) return;
+  mdDrag.started=true;
+  try{ mdDrag.el.setPointerCapture(mdDrag.pointerId); }catch(_){}
+  mdDrag.el.classList.add('mode-dragging');
+  document.body.classList.add('mode-reordering');
+  if(navigator.vibrate){ try{ navigator.vibrate(15); }catch(_){} }
+}
+function onModePointerMove(e){
+  if(!mdDrag) return;
+  if(!mdDrag.started){
+    const moved=Math.hypot(e.clientX-mdDrag.startX, e.clientY-mdDrag.startY);
+    if(mdDrag.fromGrip){
+      if(moved>3) startModeDrag(); else return;   // グリップから動かしたら即ドラッグ
+    } else {
+      // 本体でドラッグ開始前に動いたら＝スクロール意図。ドラッグを取りやめる
+      if(moved>8){ clearTimeout(mdDrag.timer); mdDrag=null; }
+      return;
+    }
+  }
+  e.preventDefault();
+  const el=mdDrag.el;
+  el.style.pointerEvents='none';
+  const under=document.elementFromPoint(e.clientX, e.clientY);
+  el.style.pointerEvents='';
+  const target=under&&under.closest?under.closest('.mode-item'):null;
+  if(!target || target===el || target.parentNode!==el.parentNode) return;
+  const rect=target.getBoundingClientRect();
+  const before=e.clientY < rect.top+rect.height/2;
+  el.parentNode.insertBefore(el, before?target:target.nextSibling);
+}
+function onModePointerUp(e){
+  if(!mdDrag) return;
+  clearTimeout(mdDrag.timer);
+  const started=mdDrag.started, key=mdDrag.key, el=mdDrag.el, fromGrip=mdDrag.fromGrip;
+  mdDrag=null;
+  if(started){
+    el.classList.remove('mode-dragging');
+    document.body.classList.remove('mode-reordering');
+    try{ el.releasePointerCapture(e.pointerId); }catch(_){}
+    modeOrder=[...document.querySelectorAll('#modeMenuBody .mode-item')].map(x=>x.dataset.key);
+    persistModeOrder();
+  } else if(!fromGrip){
+    pickMode(key);   // 本体の短いタップ＝モード切替（グリップのタップは何もしない）
+  }
+}
+function onModePointerCancel(){
+  if(!mdDrag) return;
+  clearTimeout(mdDrag.timer);
+  if(mdDrag.started){ mdDrag.el.classList.remove('mode-dragging'); document.body.classList.remove('mode-reordering'); }
+  mdDrag=null;
+}
+document.addEventListener('pointermove', onModePointerMove, {passive:false});
+document.addEventListener('pointerup', onModePointerUp);
+document.addEventListener('pointercancel', onModePointerCancel);
+/* 保存リストの記録をモードに登録して移動（最大3個） */
+function registerSaveAsMode(id){
+  const saves=getSaves();
+  const entry=saves.find(s=>s.id===id); if(!entry) return;
+  const exist=customModes.find(m=>m.sourceId===id);
+  if(exist){ closeSaveList(); switchMode(exist.key); return; }   // 登録済みなら移動するだけ
+  if(customModes.length>=CUSTOM_MODE_MAX){
+    alert(`モードへの登録は${CUSTOM_MODE_MAX}個までです。\nモード選択メニューで不要な登録モードを「✕」で解除してから追加してください。`);
+    return;
+  }
+  const key='cm_'+id;
+  modeStates[key]={
+    cols: entry.cols||normalCols(),
+    data: entry.data.map(r=>Array.isArray(r)?r.slice():Array(26).fill('')),
+    styles: entry.styles?{...entry.styles}:{}
+  };
+  customModes.push({ key, name:entry.name, icon:'📋', rows:entry.rows||ROWS, sourceId:id });
+  persistCustomModes();
+  closeSaveList();
+  switchMode(key);
+  toast(`「${entry.name}」をモードに登録しました`);
+}
+/* 登録モードを解除（元の保存記録は消えない） */
+function removeCustomMode(key){
+  const cm=findCustomMode(key); if(!cm) return;
+  if(!confirm(`登録モード「${cm.name}」を解除しますか？\n（保存リストの記録自体は消えません）`)) return;
+  if(tableMode===key) switchMode('normal');   // 退避してから通常へ
+  const idx=customModes.findIndex(m=>m.key===key);
+  if(idx>=0) customModes.splice(idx,1);
+  delete modeStates[key];
+  persistCustomModes(); persistModes();
+  openModeMenu();
 }
 function closeModeMenu(){ document.getElementById('modeMenuOverlay').classList.remove('open'); }
 function pickMode(key){ closeModeMenu(); switchMode(key); }
@@ -2403,9 +3188,31 @@ function toggleSettings() {
 function openHelp(){ document.getElementById('helpOverlay').classList.add('open'); }
 function closeHelp(){ document.getElementById('helpOverlay').classList.remove('open'); }
 
+/* 数字として消去対象になるセルか（文字・数式・空は残す） */
+function isPlainNumberCell(v){
+  if(typeof v!=='string') return false;
+  const t=v.trim();
+  return t!=='' && !t.startsWith('=') && !isNaN(t);
+}
 function resetAll() {
-  const label=MODE_MENU.find(m=>m.key===tableMode);
-  const name=tableMode==='normal'?'通常':(label?label.name:'このモード');
+  const name=modeDisplayName(tableMode);
+  // 登録モード（保存リストから作ったモード）はテンプレート扱い：
+  // リセットでは入力した数字だけ消し、文字・数式・書式・レイアウトは残す
+  if(findCustomMode(tableMode)){
+    if(!confirm(`「${name}」モードをリセットしますか？\n入力した数字だけを消去し、文字・数式・書式は残します。`)) return;
+    const cleared=[];
+    for(let r=0;r<50;r++) for(let c=0;c<26;c++){
+      if(isPlainNumberCell(data[r][c])){ cleared.push({r,c,val:data[r][c]}); data[r][c]=''; }
+    }
+    pushHistory(cleared);
+    cellEditing=false; op1=null; cur_op=null; waiting=false; disp_val='0';
+    buildSheet();
+    sel(initCellOfMode(),0);
+    document.getElementById('formulaInput').value=data[selR][selC];
+    persistModes();
+    toast('数字をリセットしました（文字・数式は保持）');
+    return;
+  }
   if(!confirm(`「${name}」モードの内容をリセットしますか？\n（他のモードの内容は残ります）`)) return;
   const entries=[];
   for(let r=0;r<50;r++) for(let c=0;c<26;c++) if(data[r][c]!=='') entries.push({r,c,val:data[r][c]});
@@ -2432,13 +3239,18 @@ let fmtR=-1, fmtC=-1;
 function applyCellStyle(td, r, c){
   td.style.fontWeight=''; td.style.fontStyle=''; td.style.textDecoration='';
   td.style.color=''; td.style.background=''; td.style.fontSize='';
+  td.style.textAlign=''; td.style.verticalAlign='';
   td.style.removeProperty('--dsize');
+  td.classList.remove('cell-locked');
   const s=cellStyles[`${r},${c}`]; if(!s) return;
+  if(s.locked)    td.classList.add('cell-locked');
   if(s.bold)      td.style.fontWeight='bold';
   if(s.italic)    td.style.fontStyle='italic';
   if(s.underline) td.style.textDecoration='underline';
   if(s.color)     td.style.color=s.color;
   if(s.bg)        td.style.background=s.bg;
+  if(s.align)     td.style.textAlign=s.align;        // 文字の横位置（左/中央/右）
+  if(s.valign)    td.style.verticalAlign=s.valign;   // 文字の縦位置（上/中央/下）
   if(s.size && s.size!==1) td.style.setProperty('--dsize', s.size);
 }
 /* 1セルだけ再描画（表示文字＋書式） */
@@ -2469,11 +3281,24 @@ function syncCellFmt(){
   const s=cellStyles[fmtKey()]||{};
   const dec=(typeof s.dec==='number')?s.dec:decPlaces;
   document.getElementById('fmtDecVal').textContent=dec<0?'自動':dec;
+  document.getElementById('fmtRound').value=s.round||'round';
   const sz=s.size||1; let si=FMT_SIZES.indexOf(sz); if(si<0) si=1;
   document.getElementById('fmtSizeVal').textContent=FMT_SLABEL[si];
   document.getElementById('fmtBold').classList.toggle('on', !!s.bold);
   document.getElementById('fmtItalic').classList.toggle('on', !!s.italic);
   document.getElementById('fmtUnder').classList.toggle('on', !!s.underline);
+  document.getElementById('fmtAlL').classList.toggle('on', s.align==='left');
+  document.getElementById('fmtAlC').classList.toggle('on', s.align==='center');
+  document.getElementById('fmtAlR').classList.toggle('on', s.align==='right');
+  document.getElementById('fmtVaT').classList.toggle('on', s.valign==='top');
+  document.getElementById('fmtVaM').classList.toggle('on', s.valign==='middle');
+  document.getElementById('fmtVaB').classList.toggle('on', s.valign==='bottom');
+  const mg=mergeAt(fmtR,fmtC)||{rs:1,cs:1};
+  document.getElementById('fmtMergeCols').textContent=mg.cs;
+  document.getElementById('fmtMergeRows').textContent=mg.rs;
+  const lockBtn=document.getElementById('fmtLock');
+  lockBtn.classList.toggle('on', !!s.locked);
+  lockBtn.textContent = s.locked ? '🔒 ロック中' : '🔓 ロック';
   renderSwatches('fmtTextColors', TEXT_COLORS, s.color||'', 'color');
   renderSwatches('fmtBgColors',   BG_COLORS,   s.bg||'',    'bg');
 }
@@ -2492,6 +3317,11 @@ function fmtDec(delta){
   cur=Math.max(-1, Math.min(10, cur+delta));
   s.dec=cur;
   document.getElementById('fmtDecVal').textContent=cur<0?'自動':cur;
+  repaintCell(fmtR,fmtC); afterFmtChange();
+}
+function fmtRoundChange(v){
+  const s=fmtStyle(true);
+  if(v==='round') delete s.round; else s.round=v;   // 既定(四捨五入)は保存しない
   repaintCell(fmtR,fmtC); afterFmtChange();
 }
 function fmtSize(delta){
@@ -2513,8 +3343,28 @@ function fmtColor(type, v){
   if(v==='') delete s[type]; else s[type]=v;
   repaintCell(fmtR,fmtC); syncCellFmt(); afterFmtChange();
 }
+function fmtLock(){
+  const s=fmtStyle(true);
+  s.locked=!s.locked;
+  if(!s.locked) delete s.locked;
+  // ロック中のセルは選択中でも編集状態を解除
+  if(fmtR===selR && fmtC===selC && s.locked) cellEditing=false;
+  repaintCell(fmtR,fmtC); syncCellFmt(); afterFmtChange();
+}
 function fmtClear(){
   delete cellStyles[fmtKey()];
+  repaintCell(fmtR,fmtC); syncCellFmt(); afterFmtChange();
+}
+/* 文字の横位置（左/中央/右）。同じものを再度押すと既定(解除)に戻す */
+function fmtAlign(v){
+  const s=fmtStyle(true);
+  if(s.align===v) delete s.align; else s.align=v;
+  repaintCell(fmtR,fmtC); syncCellFmt(); afterFmtChange();
+}
+/* 文字の縦位置（上/中央/下） */
+function fmtValign(v){
+  const s=fmtStyle(true);
+  if(s.valign===v) delete s.valign; else s.valign=v;
   repaintCell(fmtR,fmtC); syncCellFmt(); afterFmtChange();
 }
 /* 空オブジェクトは捨てて保存 */
@@ -2524,19 +3374,75 @@ function afterFmtChange(){
   persistModes();
 }
 
+/* ── セル結合の操作 ── */
+/* 指定セルが属する結合を解除（アンカー・覆われセル両方の情報を消す） */
+function clearMergeAt(r,c){
+  const [ar,ac]=anchorOf(r,c);
+  const a=cellStyles[`${ar},${ac}`];
+  if(!a||!a.merge) return;
+  const rs=a.merge.rs, cs=a.merge.cs;
+  delete a.merge;
+  if(Object.keys(a).length===0) delete cellStyles[`${ar},${ac}`];
+  for(let r2=ar;r2<ar+rs;r2++) for(let c2=ac;c2<ac+cs;c2++){
+    const k=`${r2},${c2}`, s=cellStyles[k];
+    if(s&&s.cover){ delete s.cover; if(Object.keys(s).length===0) delete cellStyles[k]; }
+  }
+}
+/* 選択セルを左上(アンカー)として rs×cs の大きさに結合する。1×1なら結合解除 */
+function applyMerge(ar,ac,rs,cs){
+  clearMergeAt(ar,ac);                          // 既存のアンカー結合を解除
+  for(let r=ar;r<ar+rs;r++) for(let c=ac;c<ac+cs;c++){
+    if((r!==ar||c!==ac) && (mergeAt(r,c)||coverOf(r,c))) clearMergeAt(r,c);   // 重なる結合も解除
+  }
+  if(rs>1||cs>1){
+    for(let r=ar;r<ar+rs;r++) for(let c=ac;c<ac+cs;c++){
+      if(r===ar&&c===ac) continue;
+      data[r][c]='';                            // 左上以外は空に（Excel同様）
+      const k=`${r},${c}`; (cellStyles[k]=cellStyles[k]||{}).cover=`${ar},${ac}`;
+    }
+    const ak=`${ar},${ac}`, a=cellStyles[ak]=cellStyles[ak]||{};
+    a.merge={rs,cs};
+    if(!a.align) a.align='center';              // 結合セルは中央寄せを既定に
+    if(!a.valign) a.valign='middle';
+  }
+  buildSheet();
+  fmtR=ar; fmtC=ac; sel(ar,ac);                 // 書式対象＝アンカーを維持（モーダルは開いたまま）
+  persistModes();
+}
+/* 書式モーダル：結合する横(cs)・縦(rs)のセル数を増減 */
+function fmtMergeSpan(dim, delta){
+  if(isStructMode()){ toast('このモードではセル結合はできません'); return; }
+  const ar=fmtR, ac=fmtC;
+  if(isUserLocked(ar,ac)){ toast('ロックされたセルは結合できません'); return; }
+  const cur=mergeAt(ar,ac)||{rs:1,cs:1};
+  let rs=cur.rs, cs=cur.cs;
+  if(dim==='cs') cs=Math.max(1, Math.min(COLS-ac, cs+delta));
+  else           rs=Math.max(1, Math.min(ROWS-ar, rs+delta));
+  applyMerge(ar,ac,rs,cs);
+  syncCellFmt();
+  toast(rs>1||cs>1 ? `結合：${rs}行 × ${cs}列` : '結合を解除しました');
+}
+
 /* ── 合計セクションのタップ ──
-   「合計」ラベル → 漢数字(万進)⇄数字 を切替 ／ 値 → 数値をコピー */
+   「合計」ラベル → 合計⇄平均 を切替 ／ ¥ → 兆億万(漢数字)⇄数字 を切替 ／ 値 → 数値をコピー */
 document.querySelector('.stats-section').addEventListener('click', e=>{
-  if(lastStatSum===null) return;
-  // 「合計」ラベルをタップ → 表示形式を切替
-  if(e.target.closest('.stats-title')){
+  // ¥ボタン → 兆・億・万（漢数字）表示の切替
+  if(e.target.closest('.stat-yen')){
     statKanji=!statKanji;
-    document.getElementById('sSum').textContent = statKanji ? toKanjiNum(lastStatSum) : fmt(lastStatSum);
+    document.getElementById('statYenBtn').classList.toggle('on', statKanji);
+    refreshStatsDisplay();
+    return;
+  }
+  // 「合計／平均」ラベルをタップ → 合計⇄平均 を切替
+  if(e.target.closest('.stats-title')){
+    statMode = statMode==='sum' ? 'avg' : 'sum';
+    refreshStatsDisplay();
     return;
   }
   // 値をタップ → 数値をコピー
+  const v=currentStatValue(); if(v===null) return;
   const sv=e.target.closest('.stat-val'); if(!sv) return;
-  const plain=fmt(lastStatSum).replace(/,/g,'');
+  const plain=fmt(v).replace(/,/g,'');
   (navigator.clipboard?navigator.clipboard.writeText(plain):Promise.reject())
     .catch(()=>{
       const ta=Object.assign(document.createElement('textarea'),{value:plain});
@@ -2679,9 +3585,61 @@ function sumPointerUp(e){
 const SAVE_KEY='excalc_saves';
 function getSaves(){try{return JSON.parse(localStorage.getItem(SAVE_KEY)||'[]');}catch{return[];}}
 
-function saveData() {
+/* 保存データを永続化する共通関数。
+   localStorage に書くのは従来通り（ブラウザ版・即時の作業用）。
+   exe版で保存先フォルダが指定されていれば、同じ内容をそのフォルダの
+   JSONファイルにも書き出す（こちらが指定保存場所）。 */
+function persistSaves(saves){
+  const json=JSON.stringify(saves);
+  localStorage.setItem(SAVE_KEY,json);
+  if(window.electronAPI){ try{ window.electronAPI.writeSaves(json); }catch(e){} }
+}
+
+/* window.prompt はElectron(exe版)では使えないため、自前のモーダルで入力を受け取る。
+   ブラウザ・exe版どちらでも動く。OKでtrim前の文字列、キャンセルでnullを返す。 */
+let appModalOpen=false;   // モーダル表示中は電卓のキー処理を止めるためのフラグ
+function appPrompt(message, defaultValue=''){
+  return new Promise(resolve=>{
+    appModalOpen=true;
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45)';
+    const box=document.createElement('div');
+    box.style.cssText='background:var(--panel,#fff);color:var(--text,#222);min-width:280px;max-width:90vw;padding:18px;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.35);font-size:15px';
+    const msg=document.createElement('div');
+    msg.textContent=message; msg.style.cssText='margin-bottom:10px;font-weight:600';
+    const input=document.createElement('input');
+    input.type='text'; input.value=defaultValue;
+    input.style.cssText='width:100%;box-sizing:border-box;padding:8px 10px;font-size:15px;border:1px solid #999;border-radius:6px;background:var(--cell-bg,#fff);color:var(--text,#222)';
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;justify-content:flex-end;gap:8px;margin-top:14px';
+    const cancel=document.createElement('button');
+    cancel.textContent='キャンセル';
+    cancel.style.cssText='padding:7px 14px;font-size:14px;border:1px solid #999;border-radius:6px;background:#eee;color:#222;cursor:pointer';
+    const ok=document.createElement('button');
+    ok.textContent='OK';
+    ok.style.cssText='padding:7px 16px;font-size:14px;border:none;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer';
+    const close=(val)=>{ appModalOpen=false; document.body.removeChild(ov); resolve(val); };
+    cancel.onclick=()=>close(null);
+    ok.onclick=()=>close(input.value);
+    // モーダル内のキーはここで止め、電卓側のグローバルハンドラに渡さない（数字キー等の横取り防止）
+    input.addEventListener('keydown',e=>{
+      e.stopPropagation();
+      if(e.key==='Enter'){ e.preventDefault(); close(input.value); }
+      else if(e.key==='Escape'){ e.preventDefault(); close(null); }
+    });
+    ov.addEventListener('mousedown',e=>{ if(e.target===ov) close(null); });
+    row.appendChild(cancel); row.appendChild(ok);
+    box.appendChild(msg); box.appendChild(input); box.appendChild(row);
+    ov.appendChild(box); document.body.appendChild(ov);
+    // Electronではモーダル生成直後のfocus()が効かないことがあるため次フレームでも当てる
+    input.focus(); input.select();
+    requestAnimationFrame(()=>{ input.focus(); input.select(); });
+  });
+}
+
+async function saveData() {
   const defaultName=new Date().toLocaleString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
-  const name=prompt('保存名を入力してください',defaultName);
+  const name=await appPrompt('保存名を入力してください',defaultName);
   if(name===null) return;
   const saves=getSaves();
   saves.unshift({
@@ -2689,7 +3647,7 @@ function saveData() {
     timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces,
     data:data.map(row=>[...row]), styles:{...cellStyles}
   });
-  localStorage.setItem(SAVE_KEY,JSON.stringify(saves));
+  persistSaves(saves);
   const btn=document.getElementById('saveBtn');
   btn.textContent='✓ 保存済'; setTimeout(()=>{btn.textContent='保存';},1200);
 }
@@ -2705,26 +3663,89 @@ function renderSaveList() {
   const body=document.getElementById('saveListBody');
   const saves=getSaves();
   if(saves.length===0){body.innerHTML='<div class="no-saves">保存データがありません</div>';return;}
-  body.innerHTML=saves.map(s=>`
-    <div class="save-item">
+  body.innerHTML=saves.map(s=>{
+    const locked=!!s.locked;
+    return `
+    <div class="save-item${locked?' locked':''}">
       <div class="save-info">
-        <div class="save-name">${escHtml(s.name)}</div>
+        <div class="save-name">${locked?'🔒 ':''}${escHtml(s.name)}</div>
         <div class="save-date">${new Date(s.timestamp).toLocaleString('ja-JP')}　${s.rows}行×${s.cols}列</div>
       </div>
-      <button class="btn-rename" onclick="renameSave(${s.id})">✏</button>
+      <button class="btn-lock"   onclick="toggleSaveLock(${s.id})" title="${locked?'ロックを解除':'ロック（削除・改名を防止）'}">${locked?'🔒':'🔓'}</button>
+      <button class="btn-rename" onclick="renameSave(${s.id})" ${locked?'disabled':''} title="${locked?'ロック中は改名できません':'名前を変更'}">✏</button>
+      <button class="btn-tomode" onclick="registerSaveAsMode(${s.id})" title="この記録をモードに登録して移動（最大3個）">モードへ</button>
       <button class="btn-load"   onclick="loadSave(${s.id})">読込</button>
-      <button class="btn-del"    onclick="deleteSave(${s.id})">削除</button>
-    </div>
-  `).join('');
+      <button class="btn-del"    onclick="deleteSave(${s.id})" ${locked?'disabled':''} title="${locked?'ロック中は削除できません':'削除'}">削除</button>
+    </div>`;
+  }).join('');
 }
 
-function renameSave(id) {
+/* リスト保護：保存データを🔒ロック／解除（削除・改名を防止） */
+function toggleSaveLock(id) {
   const saves=getSaves();
   const entry=saves.find(s=>s.id===id); if(!entry) return;
-  const newName=prompt('新しい名前を入力してください',entry.name);
+  entry.locked=!entry.locked;
+  if(!entry.locked) delete entry.locked;
+  persistSaves(saves);
+  renderSaveList();
+}
+
+/* 保存データをJSONファイルに書き出し（別端末への移動・バックアップ用） */
+function exportSaves() {
+  const saves=getSaves();
+  if(saves.length===0){ alert('保存データがありません'); return; }
+  const payload={ app:'hyodenki', type:'saves', version:1, exportedAt:Date.now(), saves };
+  const blob=new Blob([JSON.stringify(payload)],{type:'application/json;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=Object.assign(document.createElement('a'),{
+    href:url,
+    download:`表電卓_保存データ_${new Date().toLocaleDateString('ja-JP').replace(/\//g,'-')}.json`
+  });
+  a.click(); URL.revokeObjectURL(url);
+}
+
+/* ファイルから保存データを読み込み（既存リストに追加。重複IDは新規採番） */
+function importSaves(ev) {
+  const file=ev.target.files&&ev.target.files[0];
+  ev.target.value='';                        // 同じファイルを連続で選べるようにリセット
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    let parsed;
+    try{ parsed=JSON.parse(reader.result); }
+    catch(e){ alert('読み込みに失敗しました：ファイルを解析できません'); return; }
+    const incoming=Array.isArray(parsed)?parsed
+      :(parsed && Array.isArray(parsed.saves)?parsed.saves:null);
+    if(!incoming){ alert('保存データの形式ではありません'); return; }
+    const valid=incoming.filter(s=>s && Array.isArray(s.data));
+    if(valid.length===0){ alert('取り込める保存データが見つかりませんでした'); return; }
+    const existing=getSaves();
+    const usedIds=new Set(existing.map(s=>s.id));
+    let added=0;
+    valid.forEach(s=>{
+      const e={...s};
+      while(e.id==null || usedIds.has(e.id)){ e.id=Date.now()+Math.floor(Math.random()*1000000); }
+      usedIds.add(e.id);
+      if(typeof e.timestamp!=='number') e.timestamp=Date.now();
+      existing.unshift(e);
+      added++;
+    });
+    persistSaves(existing);
+    renderSaveList();
+    alert(`${added}件の保存データを読み込みました`);
+  };
+  reader.onerror=()=>alert('ファイルの読み込みに失敗しました');
+  reader.readAsText(file);
+}
+
+async function renameSave(id) {
+  const saves=getSaves();
+  const entry=saves.find(s=>s.id===id); if(!entry) return;
+  if(entry.locked){ alert('🔒 ロックされています。先にロックを解除してください。'); return; }
+  const newName=await appPrompt('新しい名前を入力してください',entry.name);
   if(newName===null) return;
   entry.name=newName.trim()||entry.name;
-  localStorage.setItem(SAVE_KEY,JSON.stringify(saves));
+  persistSaves(saves);
   renderSaveList();
 }
 
@@ -2745,18 +3766,63 @@ function loadSave(id) {
 function deleteSave(id) {
   const saves=getSaves();
   const entry=saves.find(s=>s.id===id); if(!entry) return;
+  if(entry.locked){ alert('🔒 ロックされています。先にロックを解除してください。'); return; }
   if(!confirm(`「${entry.name}」を削除しますか？`)) return;
-  localStorage.setItem(SAVE_KEY,JSON.stringify(saves.filter(s=>s.id!==id)));
+  persistSaves(saves.filter(s=>s.id!==id));
   renderSaveList();
 }
+
+/* ── 保存場所（フォルダ指定）：exe版のみ ── */
+function updateSaveLocationUI(dir){
+  const info=document.getElementById('saveLocInfo');
+  if(!info) return;
+  info.style.display='block';
+  info.textContent=dir ? ('保存場所：'+dir) : '保存場所：未設定（「📁 保存場所」で指定できます）';
+}
+
+async function changeSaveLocation(){
+  if(!window.electronAPI){ alert('この機能はexe版（アプリ版）でのみ使えます。'); return; }
+  const dir=await window.electronAPI.chooseSaveDir();
+  if(!dir) return;                              // キャンセル
+  // 指定フォルダに既存ファイルがあればそれを採用、無ければ現在のデータを書き出して移行
+  const txt=await window.electronAPI.readSaves();
+  if(txt){ localStorage.setItem(SAVE_KEY,txt); }
+  else { await window.electronAPI.writeSaves(localStorage.getItem(SAVE_KEY)||'[]'); }
+  updateSaveLocationUI(dir);
+  renderSaveList();
+  alert('保存場所を変更しました：\n'+dir);
+}
+
+/* 起動時：exe版で保存先が設定済みなら、そのフォルダのデータを読み込んで反映する */
+async function initSaveLocation(){
+  if(!window.electronAPI) return;              // ブラウザ版は対象外
+  document.getElementById('saveLocBtn').style.display='';
+  try{
+    const dir=await window.electronAPI.getSaveDir();
+    if(dir){
+      const txt=await window.electronAPI.readSaves();
+      if(txt){ localStorage.setItem(SAVE_KEY,txt); }     // ファイル優先で同期
+      else { await window.electronAPI.writeSaves(localStorage.getItem(SAVE_KEY)||'[]'); }
+    }
+    updateSaveLocationUI(dir);
+  }catch(e){}
+}
+initSaveLocation();
 
 /* ── 初期化 ── */
 if(localStorage.getItem('excalc_dark')==='1'){
   darkMode=true; document.body.classList.add('dark');
-  document.getElementById('darkBtn').textContent='☀';
+  const b=document.getElementById('darkBtn');
+  b.textContent='☀ ライトに戻す'; b.classList.add('on');
 }
-const savedKeySize=parseInt(localStorage.getItem('excalc_keysize'));
-if(!isNaN(savedKeySize)&&savedKeySize>=0&&savedKeySize<KEY_STEPS.length) keySizeIdx=savedKeySize;
+const savedKeyScale=parseFloat(localStorage.getItem('excalc_keyscale'));
+if(!isNaN(savedKeyScale)){
+  keyScale=savedKeyScale;
+}else{
+  // 旧バージョンのインデックス保存値からの移行
+  const savedKeySize=parseInt(localStorage.getItem('excalc_keysize'));
+  if(!isNaN(savedKeySize)&&savedKeySize>=0&&savedKeySize<KEY_STEPS.length) keyScale=KEY_STEPS[savedKeySize];
+}
 applyKeySize();
 const savedAppWidth=parseInt(localStorage.getItem('excalc_appwidth'));
 if(!isNaN(savedAppWidth)&&savedAppWidth>=0&&savedAppWidth<WIDTH_STEPS.length) appWidthIdx=savedAppWidth;
@@ -2797,6 +3863,8 @@ updateAutoSumBtn();
 })();
 
 /* 各モードの内容を復元（前回のモード・入力をリセットまで保持） */
+loadCustomModes();          // 登録モードの定義を先に読む（モード検証・表示に使う）
+loadModeOrder();            // モードの並び順を読む
 restoreModeStore();
 syncRowColLabels();
 if(isStructMode()) showModeBar();
