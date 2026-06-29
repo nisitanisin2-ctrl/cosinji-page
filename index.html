@@ -1,0 +1,2815 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#217346">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="表電卓">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>表電卓</title>
+<style>
+:root {
+  --bg: #f0f0f0;
+  --sheet-bg: white;
+  --cell-bg: white;
+  --cell-hover: #f5f5f5;
+  --cell-in-col: #e8f5e9;
+  --cell-in-row: #e3f2fd;
+  --cell-border: #d0d0d0;
+  --ch-bg: #f2f2f2;
+  --ch-color: #333;
+  --formula-bg: white;
+  --formula-border: #bbb;
+  --formula-color: #333;
+  --stats-bg: #fafafa;
+  --text: #333;
+  --text-sub: #555;
+  --text-light: #888;
+  --action-bg: #3a3a3a;
+  --save-item-bg: #fafafa;
+  --save-item-border: #e0e0e0;
+  --modal-bg: white;
+}
+body.dark {
+  --bg: #1a1a2e;
+  --sheet-bg: #16213e;
+  --cell-bg: #1e2a45;
+  --cell-hover: #263552;
+  --cell-in-col: #1b3a2a;
+  --cell-in-row: #1a2e45;
+  --cell-border: #334466;
+  --ch-bg: #1a2a3a;
+  --ch-color: #ccc;
+  --formula-bg: #1e2a45;
+  --formula-border: #334466;
+  --formula-color: #ddd;
+  --stats-bg: #16213e;
+  --text: #ddd;
+  --text-sub: #aaa;
+  --text-light: #777;
+  --action-bg: #252535;
+  --save-item-bg: #1e2a45;
+  --save-item-border: #334466;
+  --modal-bg: #1e2a45;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* iOS：回転時の文字自動拡大を抑止 */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; background: #c9ced3; }
+html:has(body.dark) { background: #0d0d18; }
+
+/* パソコン等で全幅が広すぎる時に、画面幅を狭めて中央寄せできるようにする */
+body { max-width: var(--app-width, 100%); margin-inline: auto; }
+body.narrowed { box-shadow: 0 0 0 1px rgba(0,0,0,0.18); }
+
+body {
+  font-family: 'Meiryo', 'MS Gothic', sans-serif;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  /* iOS：長押しメニュー・タップ時のハイライト・引っぱりバウンスを抑止 */
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+/* 入力欄だけは選択・編集を許可 */
+input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+
+/* シート等（テンキー以外）をまとめる左ペイン */
+.left-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* スマホ横向き：左にセル、右にテンキー */
+@media (orientation: landscape) and (max-height: 500px) {
+  body {
+    display: grid;
+    grid-template-columns: 1fr 42%;
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "main toolbar"
+      "main numpad";
+  }
+  .toolbar     { grid-area: toolbar; flex-wrap: wrap; row-gap: 4px; }
+  .toolbar-title { display: none; }
+  .left-pane   { grid-area: main; min-height: 0; }
+  .numpad-section { grid-area: numpad; min-height: 0; overflow-y: auto; }
+}
+
+.toolbar {
+  background: #217346;
+  color: white;
+  padding: 5px 7px;
+  font-size: 14px;
+  font-weight: bold;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.toolbar-title { flex: 1; font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.btn-settings, .btn-dark, .btn-csv {
+  background: rgba(255,255,255,0.15);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 5px;
+  padding: 3px 7px;
+  font-size: 13px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.1s;
+}
+.btn-settings:hover, .btn-dark:hover, .btn-csv:hover { background: rgba(255,255,255,0.28); }
+.btn-settings.open { background: rgba(255,255,255,0.32); }
+
+.btn-save, .btn-list, .btn-undo, .btn-reset {
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.1s;
+  touch-action: manipulation;
+}
+.btn-save   { background: #1a6b3a; }
+.btn-save:hover  { background: #217346; }
+.btn-save:active { background: #145a30; }
+.btn-list   { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.35); }
+.btn-list:hover  { background: rgba(255,255,255,0.28); }
+.btn-undo   {
+  background: #e67e22; font-size: 13px; padding: 4px 11px;
+  box-shadow: 0 0 0 1.5px rgba(255,255,255,0.55);
+}
+.btn-undo:hover  { background: #f39c12; }
+.btn-undo:disabled { background: #4a4a4a; opacity: 0.4; cursor: default; box-shadow: none; }
+.btn-reset  { background: #a93226; }
+.btn-reset:hover { background: #c0392b; }
+
+.settings-panel {
+  display: none;
+  flex-shrink: 0;
+  background: #1a5c35;
+  padding: 6px 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  border-bottom: 1px solid #0f3d23;
+}
+.settings-panel.open { display: flex; }
+.sc { display: flex; align-items: center; gap: 3px; color: white; flex: 1 1 40%; justify-content: center; }
+.sc-label { font-size: 10px; opacity: 0.8; margin-right: 1px; }
+.sc-val   { font-size: 13px; font-weight: bold; min-width: 22px; text-align: center; }
+.btn-rc {
+  background: rgba(255,255,255,0.18);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 4px;
+  width: 24px; height: 22px;
+  font-size: 15px; font-weight: bold;
+  line-height: 1; cursor: pointer;
+  touch-action: manipulation;
+}
+.btn-rc:hover { background: rgba(255,255,255,0.32); }
+
+.formula-bar {
+  display: flex;
+  align-items: center;
+  background: var(--formula-bg);
+  border-bottom: 1px solid var(--formula-border);
+  padding: 3px 6px;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.formula-bar label { font-size: 11px; color: var(--text-sub); }
+#cellRef {
+  width: 52px; padding: 2px 4px;
+  border: 1px solid var(--formula-border);
+  font-size: 12px; text-align: center;
+  background: var(--formula-bg);
+  color: var(--formula-color);
+  cursor: pointer; font-weight: bold;
+}
+#cellRef:hover { background: var(--cell-hover); border-color: #217346; }
+#formulaInput {
+  flex: 1; padding: 2px 6px;
+  border: 1px solid var(--formula-border);
+  font-size: 13px;
+  background: var(--formula-bg);
+  color: var(--formula-color);
+}
+#formulaInput.formula-mode {
+  background: #fffde7;
+  border-color: #217346;
+  outline: none;
+}
+body.dark #formulaInput.formula-mode {
+  background: #2a2a10;
+  border-color: #88bb44;
+  color: #eee;
+}
+
+.sheet-wrap {
+  flex: 1; overflow: auto;
+  background: var(--sheet-bg);
+  min-height: 0;
+}
+table.sheet { border-collapse: collapse; table-layout: fixed; width: 100%; }
+
+.ch {
+  background: var(--ch-bg); color: var(--ch-color);
+  font-size: calc(11px * var(--cell-scale, 1)); font-weight: bold; text-align: center;
+  width: auto; height: calc(26px * var(--cell-scale, 1));
+  border: 1px solid var(--cell-border);
+  cursor: pointer; white-space: nowrap; touch-action: manipulation;
+}
+.ch.sel { background: #107c41; color: white; }
+.ch:hover:not(.sel) { background: var(--cell-hover); }
+
+.rh {
+  background: var(--ch-bg); color: var(--ch-color);
+  font-size: calc(11px * var(--cell-scale, 1)); text-align: center;
+  width: 48px; height: calc(32px * var(--cell-scale, 1));
+  border: 1px solid var(--cell-border);
+  cursor: pointer; touch-action: manipulation;
+}
+.rh.sel { background: #1a5276; color: white; }
+.rh:hover:not(.sel) { background: var(--cell-hover); }
+
+.cell {
+  height: calc(32px * var(--cell-scale, 1)); width: calc(60px * var(--cell-scale, 1)); padding: 1px 4px;
+  font-size: calc(14px * var(--cell-scale, 1) * var(--dsize, 1) * var(--fit, 1)); text-align: right; cursor: cell;
+  border: 1px solid var(--cell-border);
+  background: var(--cell-bg);
+  color: var(--text);
+  white-space: nowrap; overflow: hidden;
+  vertical-align: middle; touch-action: manipulation;
+}
+.cell:hover { background: var(--cell-hover); }
+.cell.active {
+  border: 2px solid #217346 !important;
+  outline: none; background: var(--cell-bg);
+  z-index: 1; position: relative;
+}
+.cell.in-col { background: var(--cell-in-col); }
+.cell.in-row { background: var(--cell-in-row); }
+.cell.sel-range {
+  background: #bbdefb !important;
+  outline: 1px solid #1976d2;
+}
+body.dark .cell.sel-range {
+  background: #1a3a5c !important;
+  outline: 1px solid #4488cc;
+}
+.cell.copy-src {
+  outline: 2px dashed #e67e22 !important;
+  outline-offset: -2px;
+}
+.cell.paste-flash { background: #c8f7c5 !important; }
+body.dark .cell.paste-flash { background: #1f5132 !important; }
+
+.shop-tax-bar {
+  display: none; flex-shrink: 0;
+  background: #fff8e1;
+  border-top: 2px solid #f9a825;
+  padding: 4px 10px;
+  font-size: calc(11px * var(--info-scale, 1)); font-weight: bold; color: #7d4e00;
+  gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.shop-tax-bar.open { display: flex; }
+body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8c040; }
+
+.stats-section {
+  flex-shrink: 0;
+  background: var(--stats-bg);
+  border-top: 2px solid #217346;
+  border-bottom: 1px solid var(--cell-border);
+  padding: 2px 8px;
+  display: flex; align-items: baseline; gap: 8px;
+}
+.stats-title {
+  font-size: calc(12px * var(--info-scale, 1)); font-weight: bold; color: #217346;
+  white-space: nowrap; flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer; touch-action: manipulation;
+}
+.stats-title:active { opacity: 0.55; }
+.stat-val {
+  flex-shrink: 0; text-align: left;
+  font-size: calc(22px * var(--info-scale, 1)); font-weight: bold; color: #107c41;
+  white-space: nowrap; cursor: pointer;
+}
+.stat-val.stat-copied { background: #27ae60 !important; color: white !important; border-radius: 3px; }
+
+
+.numpad-section { flex-shrink: 0; background: #2c2c2c; padding: 7px; --key-scale: 1.3; }
+.numpad-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+}
+.btn {
+  background: #4a4a4a; color: white; border: none;
+  border-radius: 4px;
+  padding: calc(9px * var(--key-scale, 1.3)) 4px;
+  font-size: calc(15px * var(--key-scale, 1.3));
+  font-weight: bold; cursor: pointer;
+  transition: background 0.1s, transform 0.05s;
+  line-height: 1; touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap; overflow: hidden;
+}
+.btn.fx { background: #5d4037; font-size: calc(12px * var(--key-scale, 1.3)); }
+.btn.fx:hover { background: #795548; }
+.btn.text-on { background: #1a5276 !important; box-shadow: inset 0 0 0 2px #5dade2; }
+.btn:hover  { background: #666; }
+.btn:active { transform: scale(0.95); background: #888; }
+.btn.op     { background: #1a6b3a; }
+.btn.op:hover { background: #217346; }
+.btn.clr    { background: #a93226; }
+.btn.clr:hover { background: #c0392b; }
+.btn.enter  { background: #1a5276; grid-row: span 2; font-size: calc(22px * var(--key-scale, 1.3)); }
+.btn.enter:hover { background: #1f618d; }
+.btn.span2  { grid-column: span 2; }
+
+.cell.fill-src {
+  border: 2px solid #e67e22 !important;
+  background: #fef5e7 !important;
+  box-shadow: inset 0 0 0 2px #f39c12;
+}
+.cell.fill-preview { background: #d5f5e3 !important; border-color: #27ae60 !important; }
+.cell.sum-range    { background: #c5e8f5 !important; border: 2px dashed #1a7fc1 !important; }
+.cell.shop-label   {
+  background: #d5e8d4 !important;
+  font-weight: bold; color: #217346;
+  text-align: center !important; cursor: default;
+}
+.cell.shop-total   {
+  background: #fff2cc !important;
+  color: #7d4e00; font-weight: bold; cursor: default;
+}
+.btn.shopping-on { background: #1a5276 !important; }
+
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55); z-index: 1000;
+  align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--modal-bg); border-radius: 8px;
+  width: 92%; max-width: 420px; max-height: 75vh;
+  display: flex; flex-direction: column;
+  overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+.modal-header {
+  background: #217346; color: white;
+  padding: 12px 16px; font-size: 14px; font-weight: bold;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.modal-close {
+  background: rgba(255,255,255,0.2); color: white; border: none;
+  border-radius: 4px; width: 28px; height: 28px; font-size: 16px;
+  cursor: pointer; touch-action: manipulation;
+}
+.modal-close:hover { background: rgba(255,255,255,0.35); }
+.modal-body { flex: 1; overflow-y: auto; padding: 10px; }
+.save-item {
+  display: flex; align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--save-item-border);
+  border-radius: 6px; margin-bottom: 8px; gap: 5px;
+  background: var(--save-item-bg);
+}
+.save-info { flex: 1; min-width: 0; }
+.save-name { font-weight: bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.save-date { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+.btn-load   { background: #217346; color: white; border: none; border-radius: 4px; padding: 5px 9px; font-size: 11px; font-weight: bold; cursor: pointer; white-space: nowrap; touch-action: manipulation; }
+.btn-load:hover { background: #1a5c35; }
+.btn-rename { background: #5d6d7e; color: white; border: none; border-radius: 4px; padding: 5px 8px; font-size: 11px; font-weight: bold; cursor: pointer; white-space: nowrap; touch-action: manipulation; }
+.btn-rename:hover { background: #717d8a; }
+.btn-del    { background: #a93226; color: white; border: none; border-radius: 4px; padding: 5px 8px; font-size: 11px; font-weight: bold; cursor: pointer; white-space: nowrap; touch-action: manipulation; }
+.btn-del:hover { background: #c0392b; }
+.no-saves { text-align: center; color: var(--text-light); padding: 30px 16px; font-size: 13px; }
+
+/* ── モード選択メニュー ── */
+.mode-item {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 11px 12px; margin-bottom: 8px;
+  border: 1px solid var(--save-item-border); border-radius: 8px;
+  background: var(--save-item-bg); color: var(--text);
+  cursor: pointer; text-align: left; touch-action: manipulation;
+  font-family: inherit;
+}
+.mode-item:hover { background: var(--cell-hover); }
+.mode-item.active { border-color: #217346; box-shadow: inset 0 0 0 2px #217346; }
+.mode-ico { font-size: 22px; width: 30px; text-align: center; flex-shrink: 0; }
+.mode-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.mode-name { font-weight: bold; font-size: 14px; }
+.mode-desc { font-size: 11px; color: var(--text-light); margin-top: 1px; white-space: normal; }
+.mode-check { color: #217346; font-weight: bold; font-size: 16px; }
+
+/* ── 設定内「説明書」ボタン ── */
+.sc-help {
+  flex: 1 1 100%;
+  background: rgba(255,255,255,0.18); color: white;
+  border: 1px solid rgba(255,255,255,0.4); border-radius: 5px;
+  padding: 7px; font-size: 12.5px; font-weight: bold;
+  cursor: pointer; touch-action: manipulation; margin-top: 2px;
+}
+.sc-help:hover { background: rgba(255,255,255,0.32); }
+
+/* ── 説明書ページ ── */
+.help-modal { max-width: 460px; max-height: 85vh; }
+.help-sec { margin-bottom: 15px; }
+.help-sec:last-child { margin-bottom: 4px; }
+.help-h {
+  font-size: 14px; font-weight: bold; color: #217346;
+  border-bottom: 2px solid #217346; padding-bottom: 3px; margin-bottom: 7px;
+}
+body.dark .help-h { color: #6cc492; border-color: #3a7a55; }
+.help-p { font-size: 12.5px; line-height: 1.65; color: var(--text); margin-bottom: 4px; }
+.help-p b { color: #1a7a45; }
+body.dark .help-p b { color: #8fd4ab; }
+.help-li {
+  font-size: 12.5px; line-height: 1.6; color: var(--text);
+  margin: 3px 0; padding-left: 15px; position: relative;
+}
+.help-li::before { content: '•'; position: absolute; left: 3px; color: #217346; font-weight: bold; }
+body.dark .help-li::before { color: #6cc492; }
+.help-li b { color: #1a7a45; }
+body.dark .help-li b { color: #8fd4ab; }
+.help-tag {
+  display: inline-block; background: var(--cell-hover); border: 1px solid var(--cell-border);
+  border-radius: 4px; padding: 0 5px; font-weight: bold; font-size: 11.5px; color: var(--text);
+}
+.help-lead { font-size: 12.5px; line-height: 1.6; color: var(--text-sub); margin-bottom: 10px; }
+
+/* ── セル書式パネル ── */
+.fmt-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 4px; border-bottom: 1px solid var(--save-item-border);
+}
+.fmt-row.col { flex-direction: column; align-items: flex-start; gap: 6px; }
+.fmt-label { font-size: 13px; font-weight: bold; color: var(--text); min-width: 56px; }
+.fmt-ctrl { display: flex; align-items: center; gap: 8px; }
+.fmt-val { font-size: 14px; font-weight: bold; min-width: 40px; text-align: center; color: var(--text); }
+.fmt-deco {
+  width: 34px; height: 30px; font-size: 16px;
+  border: 1px solid var(--save-item-border); border-radius: 5px;
+  background: var(--save-item-bg); color: var(--text); cursor: pointer; touch-action: manipulation;
+}
+.fmt-deco.on { background: #217346; color: #fff; border-color: #217346; }
+.fmt-swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.fmt-sw {
+  width: 30px; height: 30px; border-radius: 6px; cursor: pointer;
+  border: 2px solid var(--save-item-border); padding: 0; touch-action: manipulation;
+  position: relative;
+}
+.fmt-sw.sel { border-color: #217346; box-shadow: 0 0 0 2px #217346; }
+.fmt-sw.none { background: var(--cell-bg) !important; }
+.fmt-sw.none::after {
+  content: ''; position: absolute; left: 3px; right: 3px; top: 50%;
+  height: 2px; background: #e53935; transform: rotate(-45deg);
+}
+/* 「決定」ボタン（書式モーダルを閉じる） */
+.fmt-done {
+  width: 100%; margin-top: 12px; padding: 12px;
+  background: #217346; color: #fff; border: none; border-radius: 6px;
+  font-size: 15px; font-weight: bold; cursor: pointer; touch-action: manipulation;
+}
+.fmt-done:hover { background: #1a5c35; }
+/* ヘッダー左（✕の左）の「書式を解除」ボタン */
+.fmt-clear-hdr {
+  background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.45);
+  border-radius: 4px; padding: 4px 10px; height: 28px;
+  font-size: 12px; font-weight: bold; cursor: pointer; touch-action: manipulation; white-space: nowrap;
+}
+.fmt-clear-hdr:hover { background: rgba(255,255,255,0.35); }
+/* モーダル内の −／＋ ボタンは白背景でも見えるよう色を上書き */
+.fmt-ctrl .btn-rc {
+  background: var(--cell-hover); color: var(--text);
+  border: 1px solid var(--cell-border);
+  width: 32px; height: 30px; font-size: 18px;
+}
+.fmt-ctrl .btn-rc:hover { background: var(--cell-border); }
+/* モーダルヘッダーのタイトルを伸ばし、ボタンを右側にまとめる */
+.modal-header { gap: 8px; }
+.modal-header > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── 列幅・行高のドラッグ変更グリップ ── */
+.ch, .rh { position: relative; }
+.col-grip {
+  position: absolute; top: 0; right: -4px; width: 11px; height: 100%;
+  cursor: col-resize; z-index: 4; touch-action: none;
+}
+.row-grip {
+  position: absolute; left: 0; bottom: -4px; width: 100%; height: 11px;
+  cursor: row-resize; z-index: 4; touch-action: none;
+}
+.col-grip:hover, .row-grip:hover { background: rgba(33,115,70,0.35); }
+body.col-resizing, body.col-resizing * { cursor: col-resize !important; }
+body.row-resizing, body.row-resizing * { cursor: row-resize !important; }
+
+/* ── 簡易モード：列を少なく・セルを大きく（幅は画面いっぱい） ── */
+body.simple-mode .cell {
+  height: calc(46px * var(--cell-scale, 1));
+  font-size: calc(20px * var(--cell-scale, 1) * var(--dsize, 1) * var(--fit, 1));
+}
+body.simple-mode .ch  { height: calc(30px * var(--cell-scale, 1)); }
+body.simple-mode .rh  { height: calc(46px * var(--cell-scale, 1)); }
+
+/* ── モードバー（消費税・割り勘 等） ── */
+.zei-bar { background: #e8f5e9; border-color: #43a047; color: #1b5e20; }
+body.dark .zei-bar { background: #16271a; border-color: #3a7a44; color: #9bd6a0; }
+.wariai-bar { background: #e0f7fa; border-color: #00acc1; color: #006064; }
+body.dark .wariai-bar { background: #102a2e; border-color: #2a7a85; color: #8fd6de; }
+.warikan-bar { background: #e3f2fd; border-color: #1e88e5; color: #0d47a1; }
+body.dark .warikan-bar { background: #152436; border-color: #3a6ea5; color: #9cc4e8; }
+.youseki-bar { background: #fff3e0; border-color: #fb8c00; color: #e65100; }
+body.dark .youseki-bar { background: #2a1f12; border-color: #a86a20; color: #e0a060; }
+.shop-tax-bar b { font-size: calc(18px * var(--info-scale, 1)); }
+.wk-people { display: flex; align-items: center; gap: 5px; }
+.wk-btn {
+  width: 24px; height: 22px; font-size: 15px; line-height: 1; font-weight: bold;
+  background: #1e88e5; color: #fff; border: none; border-radius: 4px;
+  cursor: pointer; touch-action: manipulation;
+}
+.wk-btn:hover { background: #1565c0; }
+
+/* ── 予算配分モード ── */
+.yosan-bar { background: #f3e5f5; border-color: #8e24aa; color: #4a148c; }
+body.dark .yosan-bar { background: #241630; border-color: #7a4a9a; color: #d8b4e8; }
+.yz-field { display: flex; align-items: center; gap: 3px; }
+.yz-field input {
+  width: 66px; padding: 2px 4px;
+  font-size: calc(13px * var(--info-scale, 1)); font-weight: bold; text-align: right;
+  border: 1px solid #8e24aa; border-radius: 4px;
+  background: #fff; color: #4a148c;
+}
+body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #7a4a9a; }
+.yz-calc {
+  width: auto; padding: 0 10px; height: 24px; font-size: 12px;
+  background: #8e24aa; color: #fff; border: none; border-radius: 4px;
+  font-weight: bold; cursor: pointer; touch-action: manipulation;
+}
+.yz-calc:hover { background: #6a1b9a; }
+.yz-status { font-size: calc(10px * var(--info-scale, 1)); opacity: 0.85; flex-basis: 100%; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="toolbar-title">表電卓</span>
+  <button class="btn-settings" id="settingsBtn" onclick="toggleSettings()">⚙</button>
+  <button class="btn-save" id="saveBtn" onclick="saveData()">保存</button>
+  <button class="btn-list" onclick="showSaveList()">リスト</button>
+  <button class="btn-undo" id="undoBtn" onclick="undoLast()" disabled>↩ 戻る</button>
+  <button class="btn-csv" onclick="exportCSV()" title="CSVエクスポート">CSV</button>
+  <button class="btn-dark" id="darkBtn" onclick="toggleDark()">🌙</button>
+  <button class="btn-reset" onclick="resetAll()">リセット</button>
+</div>
+
+<div class="left-pane">
+
+<div class="settings-panel" id="settingsPanel">
+  <div class="sc">
+    <span class="sc-label">行</span>
+    <button class="btn-rc" onclick="changeRows(-1)">−</button>
+    <span class="sc-val" id="rowCount">15</span>
+    <button class="btn-rc" onclick="changeRows(1)">+</button>
+  </div>
+  <div class="sc">
+    <span class="sc-label">列</span>
+    <button class="btn-rc" onclick="changeCols(-1)">−</button>
+    <span class="sc-val" id="colCount">3</span>
+    <button class="btn-rc" onclick="changeCols(1)">+</button>
+  </div>
+  <div class="sc">
+    <span class="sc-label">小数</span>
+    <button class="btn-rc" onclick="changeDec(-1)">−</button>
+    <span class="sc-val" id="decCount">自</span>
+    <button class="btn-rc" onclick="changeDec(1)">+</button>
+  </div>
+  <div class="sc">
+    <span class="sc-label">税率</span>
+    <button class="btn-rc" onclick="changeTax(-1)">−</button>
+    <span class="sc-val" id="taxRate">10%</span>
+    <button class="btn-rc" onclick="changeTax(1)">+</button>
+  </div>
+  <div class="sc">
+    <span class="sc-label">テンキー</span>
+    <button class="btn-rc" onclick="changeKeySize(-1)">−</button>
+    <span class="sc-val" id="keySize">大</span>
+    <button class="btn-rc" onclick="changeKeySize(1)">+</button>
+  </div>
+  <div class="sc">
+    <span class="sc-label">画面幅</span>
+    <button class="btn-rc" onclick="changeAppWidth(-1)">−</button>
+    <span class="sc-val" id="appWidth">全幅</span>
+    <button class="btn-rc" onclick="changeAppWidth(1)">+</button>
+  </div>
+  <div class="sc">
+    <span class="sc-label">セル文字</span>
+    <button class="btn-rc" onclick="changeCellSize(-1)">−</button>
+    <span class="sc-val" id="cellSize">標準</span>
+    <button class="btn-rc" onclick="changeCellSize(1)">+</button>
+  </div>
+  <div class="sc">
+    <span class="sc-label">小計文字</span>
+    <button class="btn-rc" onclick="changeInfoSize(-1)">−</button>
+    <span class="sc-val" id="infoSize">標準</span>
+    <button class="btn-rc" onclick="changeInfoSize(1)">+</button>
+  </div>
+  <button class="sc-help" id="numpadToggleBtn" onclick="toggleNumpad()">⌨ テンキー非表示</button>
+  <button class="sc-help" onclick="openHelp()">📖 説明書（使い方）</button>
+</div>
+
+<div class="formula-bar">
+  <label>セル</label>
+  <input id="cellRef" type="text" value="A1" readonly onclick="openCellFmt()" title="タップでこのセルの書式設定（小数点・装飾・色・大きさ）">
+  <input id="formulaInput" type="text" placeholder="値を入力 (Enterで確定)" autocomplete="off">
+</div>
+
+<div class="sheet-wrap">
+  <table class="sheet" id="sheet"></table>
+</div>
+
+<div class="shop-tax-bar" id="shopTaxBar">
+  <span>小計:</span><b id="shopSubtotal">¥0</b>
+</div>
+
+<div class="shop-tax-bar zei-bar" id="zeiBar">
+  <span>税率 <b id="zeiRate">10%</b></span>
+  <span>税込計 <b id="zeiTotalInc">¥0</b></span>
+  <span>消費税計 <b id="zeiTotalTax">¥0</b></span>
+</div>
+
+<div class="shop-tax-bar wariai-bar" id="wariaiBar">
+  <span>元の値＋割か％ → <b>割合額・足す(＋)・引く(−)</b> を計算（1割=10%）</span>
+</div>
+
+<div class="shop-tax-bar warikan-bar" id="warikanBar">
+  <span>合計 <b id="wkTotal">¥0</b></span>
+  <span class="wk-people">人数
+    <button class="wk-btn" onclick="changeWarikan(-1)">−</button>
+    <b id="wkPeople">2</b>
+    <button class="wk-btn" onclick="changeWarikan(1)">+</button>
+  </span>
+  <span>1人 <b id="wkPer">¥0</b></span>
+</div>
+
+<div class="shop-tax-bar youseki-bar" id="yousekiBar">
+  <span>合計容積 <b id="ysTotal">0</b> ㎥</span>
+  <span>= <b id="ysLiter">0</b> L</span>
+</div>
+
+<div class="shop-tax-bar yosan-bar" id="yosanBar">
+  <span class="yz-field">予算¥<input type="number" id="yzBudget" inputmode="numeric" min="0" value="1000"></span>
+  <span class="yz-field">合計<input type="number" id="yzCount" inputmode="numeric" min="1" value="10">個</span>
+  <button class="yz-calc" onclick="recalcMode()">計算</button>
+  <span>使用 <b id="yzSpend">¥0</b></span>
+  <span>余り <b id="yzLeft">¥0</b></span>
+  <span class="yz-status" id="yzStatus"></span>
+</div>
+
+<div class="stats-section">
+  <span class="stats-title" id="statsTitle" title="タップで漢数字⇄数字を切替">合計 — 列 A</span>
+  <span class="stat-val" id="sSum" title="タップで数値コピー">0</span>
+</div>
+
+</div><!-- /left-pane -->
+
+<div class="numpad-section" id="numpadSection">
+  <div class="numpad-grid">
+    <!-- Row 1 -->
+    <button class="btn clr" id="shoppingBtn" onclick="onModeBtnClick()">モード</button>
+    <button class="btn clr"   onclick="ce()">CE</button>
+    <button class="btn op"    onclick="bs()">⌫</button>
+    <button class="btn op"    onclick="op('/')">÷</button>
+    <button class="btn op"    onclick="op('*')">×</button>
+    <!-- Row 2 -->
+    <button class="btn"       onclick="num('7')">7</button>
+    <button class="btn"       onclick="num('8')">8</button>
+    <button class="btn"       onclick="num('9')">9</button>
+    <button class="btn op"    onclick="op('-')">−</button>
+    <button class="btn enter" onclick="eq()" id="eqBtn">Enter</button>
+    <!-- Row 3 -->
+    <button class="btn"       onclick="num('4')">4</button>
+    <button class="btn"       onclick="num('5')">5</button>
+    <button class="btn"       onclick="num('6')">6</button>
+    <button class="btn op"    onclick="op('+')">+</button>
+    <!-- Row 4 -->
+    <button class="btn"       onclick="num('1')">1</button>
+    <button class="btn"       onclick="num('2')">2</button>
+    <button class="btn"       onclick="num('3')">3</button>
+    <button class="btn op"    onclick="toggleSign()">±</button>
+    <button class="btn fx"    id="autoSumBtn">Σ合計</button>
+    <!-- Row 5 -->
+    <button class="btn span2" onclick="num('0')">0</button>
+    <button class="btn"       onclick="dot()">.</button>
+    <button class="btn fx"    onclick="startFormula()">fx=</button>
+    <button class="btn fx"    id="textBtn" onclick="toggleTextInput()">文字</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="saveListOverlay" onclick="if(event.target===this)closeSaveList()">
+  <div class="modal">
+    <div class="modal-header">
+      <span>保存データ一覧</span>
+      <button class="modal-close" onclick="closeSaveList()">✕</button>
+    </div>
+    <div class="modal-body" id="saveListBody"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modeMenuOverlay" onclick="if(event.target===this)closeModeMenu()">
+  <div class="modal">
+    <div class="modal-header">
+      <span>モード選択</span>
+      <button class="modal-close" onclick="closeModeMenu()">✕</button>
+    </div>
+    <div class="modal-body" id="modeMenuBody"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="helpOverlay" onclick="if(event.target===this)closeHelp()">
+  <div class="modal help-modal">
+    <div class="modal-header">
+      <span>📖 表電卓の使い方</span>
+      <button class="modal-close" onclick="closeHelp()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="help-lead">スプレッドシート風の電卓です。表に数値を入れて、合計・平均・数式や各種モードで素早く計算できます。入力内容は自動保存され、次回も続きから使えます。</p>
+
+      <div class="help-sec">
+        <div class="help-h">✏️ 基本の使い方</div>
+        <div class="help-li">セルをタップして選び、テンキーで入力 → <b>Enter</b>で確定（下のセルへ移動）。</div>
+        <div class="help-li">上部の入力欄から直接入力／編集もできます。</div>
+        <div class="help-li">列見出し（A,B…）や行番号をタップすると、その列・行を選択して下に合計が出ます。</div>
+      </div>
+
+      <div class="help-sec">
+        <div class="help-h">🔢 テンキーのボタン</div>
+        <div class="help-li"><span class="help-tag">CE</span> 入力中の値をクリア　<span class="help-tag">⌫</span> 1文字消す</div>
+        <div class="help-li"><span class="help-tag">±</span> 符号（＋/−）を反転</div>
+        <div class="help-li"><span class="help-tag">fx=</span> 数式入力を開始（先頭が <b>=</b> になる）</div>
+        <div class="help-li"><span class="help-tag">文字</span> 文字（テキスト）を入力</div>
+        <div class="help-li"><span class="help-tag">モード</span> 計算モードを切替</div>
+      </div>
+
+      <div class="help-sec">
+        <div class="help-h">Σ オート（合計・平均）</div>
+        <div class="help-li"><span class="help-tag">Σ</span>を押すと隣の連続データを自動で合計し <b>=SUM(範囲)</b> を作成。<b>Enter</b>で確定。</div>
+        <div class="help-li">押した後に<b>セルを始点→終点までスライド</b>すると、なぞった範囲を合計範囲にできます（タップで1セル）。</div>
+        <div class="help-li"><b>Σを長押し</b>すると「合計／平均」を選べます。選んだ方を記憶し、ボタン表示も変わります。</div>
+      </div>
+
+      <div class="help-sec">
+        <div class="help-h">🧮 数式</div>
+        <div class="help-p">先頭を <b>=</b> にすると数式になります。セルは A1 のように指定。</div>
+        <div class="help-li"><b>=A1+B1*2</b> … 四則演算（×÷も可）</div>
+        <div class="help-li"><b>=SUM(A1:A5)</b> 合計　<b>=AVERAGE(A1:A5)</b> 平均</div>
+        <div class="help-li">他に MAX・MIN・COUNT・ABS・SQRT・ROUND・IF が使えます。</div>
+        <div class="help-li">数式入力中にセルをタップするとセル名が挿入されます。</div>
+      </div>
+
+      <div class="help-sec">
+        <div class="help-h">∑ 合計欄（画面下）</div>
+        <div class="help-li">列・行を選ぶと合計が表示されます。</div>
+        <div class="help-li">「<b>合計</b>」の文字をタップ → 数字⇄漢数字（例 5万3千…）表示を切替。</div>
+        <div class="help-li">数値をタップ → その数値をコピー。</div>
+      </div>
+
+      <div class="help-sec">
+        <div class="help-h">🎨 セルの書式</div>
+        <div class="help-p">上部の「<b>A1</b>」（セル名）をタップすると、そのセルの小数点桁・太字/斜体/下線・文字色・背景色・大きさを変更できます。</div>
+      </div>
+
+      <div class="help-sec">
+        <div class="help-h">📥 コピー操作</div>
+        <div class="help-li"><b>フィル</b>：セルを<b>長押し→スライド</b>で、その値（数式は自動でずらして）を隣へコピー。</div>
+        <div class="help-li"><b>コピペ</b>：セルを<b>3回タップ</b>でコピー → 別セルを3回タップで貼り付け。</div>
+        <div class="help-li">PCでは Ctrl+C / Ctrl+V、元に戻すは Ctrl+Z。</div>
+      </div>
+
+      <div class="help-sec">
+        <div class="help-h">🔀 モード（「モード」ボタン）</div>
+        <div class="help-p">切替後も各モードの内容はリセットするまで保持されます。</div>
+        <div class="help-li"><b>通常</b>：標準の表　<b>簡易</b>：列少なめ・大きな表示</div>
+        <div class="help-li"><b>買物</b>：単価×個数で小計</div>
+        <div class="help-li"><b>割り勘</b>：合計を人数で割る</div>
+        <div class="help-li"><b>消費税</b>：税抜→税込／税込→税抜＋消費税（税率は設定）</div>
+        <div class="help-li"><b>割合計算</b>：元の値の何割・何％と、足す/引くを計算</div>
+        <div class="help-li"><b>容積</b>：縦×横×高さ＝容積　<b>予算配分</b>：予算と個数から最適な購入数</div>
+      </div>
+
+      <div class="help-sec">
+        <div class="help-h">⚙️ 設定（このパネル）</div>
+        <div class="help-li"><b>行／列</b>：表の大きさ　<b>小数</b>：小数点以下の桁（自＝自動）</div>
+        <div class="help-li"><b>税率</b>：消費税モードの税率</div>
+        <div class="help-li"><b>テンキー／セル文字／小計文字</b>：各文字サイズ</div>
+      </div>
+
+      <div class="help-sec">
+        <div class="help-h">💾 保存・その他（上部メニュー）</div>
+        <div class="help-li"><b>保存</b>：名前を付けて保存　<b>リスト</b>：保存データを開く</div>
+        <div class="help-li"><b>CSV</b>：表をCSVで書き出し</div>
+        <div class="help-li"><b>🌙</b>：ダークモード切替　<b>リセット</b>：今のモードの内容を消去</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="sumFuncOverlay" onclick="if(event.target===this)closeSumFuncMenu()">
+  <div class="modal">
+    <div class="modal-header">
+      <span>Σオートの集計</span>
+      <button class="modal-close" onclick="closeSumFuncMenu()">✕</button>
+    </div>
+    <div class="modal-body">
+      <button class="mode-item" onclick="pickSumFunc('SUM')">
+        <span class="mode-ico">Σ</span>
+        <span class="mode-text"><span class="mode-name">合計</span><span class="mode-desc">範囲の数値を合計する</span></span>
+        <span class="mode-check" id="sumChkSum"></span>
+      </button>
+      <button class="mode-item" onclick="pickSumFunc('AVERAGE')">
+        <span class="mode-ico">x̄</span>
+        <span class="mode-text"><span class="mode-name">平均</span><span class="mode-desc">範囲の数値の平均を出す</span></span>
+        <span class="mode-check" id="sumChkAvg"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="cellFmtOverlay" onclick="if(event.target===this)closeCellFmt()">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="cellFmtTitle">セルの書式</span>
+      <button class="fmt-clear-hdr" onclick="fmtClear()">書式を解除</button>
+      <button class="modal-close" onclick="closeCellFmt()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fmt-row">
+        <span class="fmt-label">小数点</span>
+        <div class="fmt-ctrl">
+          <button class="btn-rc" onclick="fmtDec(-1)">−</button>
+          <span class="fmt-val" id="fmtDecVal">自動</span>
+          <button class="btn-rc" onclick="fmtDec(1)">＋</button>
+        </div>
+      </div>
+      <div class="fmt-row">
+        <span class="fmt-label">大きさ</span>
+        <div class="fmt-ctrl">
+          <button class="btn-rc" onclick="fmtSize(-1)">−</button>
+          <span class="fmt-val" id="fmtSizeVal">標準</span>
+          <button class="btn-rc" onclick="fmtSize(1)">＋</button>
+        </div>
+      </div>
+      <div class="fmt-row">
+        <span class="fmt-label">装飾</span>
+        <div class="fmt-ctrl">
+          <button class="fmt-deco" id="fmtBold"   onclick="fmtToggle('bold')"      style="font-weight:bold">B</button>
+          <button class="fmt-deco" id="fmtItalic" onclick="fmtToggle('italic')"    style="font-style:italic">I</button>
+          <button class="fmt-deco" id="fmtUnder"  onclick="fmtToggle('underline')" style="text-decoration:underline">U</button>
+        </div>
+      </div>
+      <div class="fmt-row col">
+        <span class="fmt-label">文字色</span>
+        <div class="fmt-swatches" id="fmtTextColors"></div>
+      </div>
+      <div class="fmt-row col">
+        <span class="fmt-label">背景色</span>
+        <div class="fmt-swatches" id="fmtBgColors"></div>
+      </div>
+      <button class="fmt-done" onclick="closeCellFmt()">決定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let ROWS = 15;
+let COLS = 3;
+let decPlaces = -1;
+const ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const data       = Array.from({length: 50}, () => Array(26).fill(''));
+let cellStyles   = {};   // "r,c" -> {dec,size,bold,italic,underline,color,bg} 現在モードのセル書式
+
+let selR = 0, selC = 0, selRow = -1;
+let formulaEditMode = false;
+const evaluating = new Set();
+
+// 複数セル選択
+let rangeR1 = -1, rangeC1 = -1, rangeR2 = -1, rangeC2 = -1;
+
+// コピー&ペースト
+let clipData = null;
+
+// ダークモード
+let darkMode = false;
+
+/* ── 数式エンジン ── */
+function getCellValue(r, c) {
+  if (r < 0 || r >= 50 || c < 0 || c >= 26) return 0;
+  const key = `${r},${c}`;
+  if (evaluating.has(key)) return 0;
+  const raw = String(data[r][c]);
+  if (!raw.startsWith('=')) { const n = parseFloat(raw); return isNaN(n) ? 0 : n; }
+  evaluating.add(key);
+  let res;
+  try { res = evalFormula(raw); } catch(e) { res = 0; }
+  evaluating.delete(key);
+  return typeof res === 'number' ? res : 0;
+}
+
+/* 自動表示：小数点以下は最大3桁、端数が無ければ整数で表示 */
+function autoFmt(n) { return parseFloat(n.toFixed(3)).toString(); }
+
+function applyDec(n) {
+  if (decPlaces >= 0) return n.toFixed(decPlaces);
+  return autoFmt(n);
+}
+/* セル個別の小数点桁。未設定なら全体設定 decPlaces を使用 */
+function cellDec(r, c) {
+  const s = cellStyles[`${r},${c}`];
+  return (s && typeof s.dec === 'number') ? s.dec : decPlaces;
+}
+
+function getCellDisplay(r, c) {
+  const raw = String(data[r][c]);
+  const d = cellDec(r, c);
+  if (!raw.startsWith('=')) {
+    const t = raw.trim();
+    if (t !== '' && !isNaN(t)) {            // 純粋な数値のみ整形
+      const n = Number(t);
+      return d >= 0 ? n.toFixed(d) : autoFmt(n);
+    }
+    return data[r][c];                       // 空・文字列はそのまま
+  }
+  let res;
+  try { res = evalFormula(raw); } catch(e) { return '#ERR'; }
+  if (typeof res !== 'number' || !isFinite(res)) return '#ERR';
+  return d >= 0 ? res.toFixed(d) : autoFmt(res);
+}
+
+function evalFormula(formula) {
+  const expr = String(formula).slice(1).replace(/×/g,'*').replace(/÷/g,'/');
+  return parseArith(expr);
+}
+
+function parseArith(s) {
+  let pos = 0;
+  const ws = () => { while (pos < s.length && s[pos] === ' ') pos++; };
+
+  // expr: 比較演算子レベル（IF条件などで使用）
+  function expr() {
+    let v = addSub(); ws();
+    while (pos < s.length) {
+      if (s.slice(pos,pos+2) === '>=') { pos+=2; v=(v>=addSub())?1:0; }
+      else if (s.slice(pos,pos+2) === '<=') { pos+=2; v=(v<=addSub())?1:0; }
+      else if (s.slice(pos,pos+2) === '<>') { pos+=2; v=(v!==addSub())?1:0; }
+      else if (s[pos]==='>' && s[pos+1]!=='=') { pos++; v=(v>addSub())?1:0; }
+      else if (s[pos]==='<' && s[pos+1]!=='=' && s[pos+1]!=='>') { pos++; v=(v<addSub())?1:0; }
+      else break;
+      ws();
+    }
+    return v;
+  }
+  function addSub() {
+    ws(); let v = term(); ws();
+    while (pos < s.length && (s[pos]==='+' || s[pos]==='-')) {
+      const op = s[pos++]; v = op==='+' ? v+term() : v-term(); ws();
+    }
+    return v;
+  }
+  function term() {
+    ws(); let v = factor(); ws();
+    while (pos < s.length && (s[pos]==='*' || s[pos]==='/')) {
+      const op = s[pos++]; const r2 = factor();
+      v = op==='*' ? v*r2 : (r2!==0 ? v/r2 : 0); ws();
+    }
+    return v;
+  }
+  function parseArgs() {
+    const vals = [];
+    while (pos < s.length && s[pos] !== ')') {
+      ws();
+      if (/[A-Za-z]/.test(s[pos])) {
+        const savedPos = pos;
+        let c1=''; while (pos<s.length && /[A-Za-z]/.test(s[pos])) c1+=s[pos++].toUpperCase();
+        let r1=''; while (pos<s.length && /[0-9]/.test(s[pos])) r1+=s[pos++];
+        ws();
+        if (r1 && pos<s.length && s[pos]===':') {
+          pos++;
+          let c2=''; while (pos<s.length && /[A-Za-z]/.test(s[pos])) c2+=s[pos++].toUpperCase();
+          let r2=''; while (pos<s.length && /[0-9]/.test(s[pos])) r2+=s[pos++];
+          const ri1=parseInt(r1)-1, ci1=ALPHA.indexOf(c1);
+          const ri2=parseInt(r2)-1, ci2=ALPHA.indexOf(c2);
+          for (let rr=Math.min(ri1,ri2); rr<=Math.max(ri1,ri2); rr++)
+            for (let cc=Math.min(ci1,ci2); cc<=Math.max(ci1,ci2); cc++)
+              vals.push(getCellValue(rr,cc));
+        } else if (r1) {
+          vals.push(getCellValue(parseInt(r1)-1, ALPHA.indexOf(c1)));
+        } else {
+          pos = savedPos;
+          vals.push(expr());
+        }
+      } else {
+        vals.push(expr());
+      }
+      ws();
+      if (pos<s.length && s[pos]===',') pos++;
+    }
+    return vals;
+  }
+  function factor() {
+    ws();
+    if (pos >= s.length) return 0;
+    if (s[pos]==='(') { pos++; const v=expr(); if(pos<s.length&&s[pos]===')') pos++; return v; }
+    if (s[pos]==='-') { pos++; return -factor(); }
+    if (/[A-Za-z]/.test(s[pos])) {
+      let name='';
+      while (pos<s.length && /[A-Za-z]/.test(s[pos])) name+=s[pos++].toUpperCase();
+      ws();
+      if (pos<s.length && s[pos]==='(') {
+        pos++;
+        if (name === 'IF') {
+          ws(); const cond = expr();
+          ws(); if (pos<s.length && s[pos]===',') pos++;
+          ws(); const thenVal = expr();
+          ws(); if (pos<s.length && s[pos]===',') pos++;
+          ws(); const elseVal = expr();
+          ws(); if (pos<s.length && s[pos]===')') pos++;
+          return cond ? thenVal : elseVal;
+        }
+        const vals = parseArgs();
+        if (pos<s.length && s[pos]===')') pos++;
+        if (name==='SUM')     return vals.reduce((a,b)=>a+b, 0);
+        if (name==='AVG'||name==='AVERAGE') return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+        if (name==='MAX')     return vals.length ? Math.max(...vals) : 0;
+        if (name==='MIN')     return vals.length ? Math.min(...vals) : 0;
+        if (name==='COUNT')   return vals.length;
+        if (name==='ABS')     return vals.length ? Math.abs(vals[0]) : 0;
+        if (name==='SQRT')    return vals.length ? Math.sqrt(Math.max(0,vals[0])) : 0;
+        if (name==='ROUND') {
+          const n=vals[0]||0, d=vals.length>=2?vals[1]:0;
+          return Math.round(n*Math.pow(10,d))/Math.pow(10,d);
+        }
+        return 0;
+      }
+      let row='';
+      while (pos<s.length && /[0-9]/.test(s[pos])) row+=s[pos++];
+      return row ? getCellValue(parseInt(row)-1, ALPHA.indexOf(name)) : 0;
+    }
+    let n='';
+    while (pos<s.length && /[0-9.]/.test(s[pos])) n+=s[pos++];
+    return parseFloat(n)||0;
+  }
+  return expr();
+}
+
+function recalcAll() {
+  for (let r=0; r<ROWS; r++)
+    for (let c=0; c<COLS; c++)
+      if (String(data[r][c]).startsWith('=')) {
+        const el=document.getElementById(`c${r}_${c}`);
+        if (el) el.textContent=getCellDisplay(r,c);
+      }
+  autoFitSheet();
+}
+
+/* ── スプレッドシート構築 ── */
+function buildSheet() {
+  copySrcR=copySrcC=-1;
+  const t=document.getElementById('sheet');
+  t.innerHTML='';
+  // テーブルは横幅いっぱい(width:100%)。列が多い時だけ最小幅でスクロールさせる
+  // 実際の最小幅は autoFitSheet() で内容に合わせて決める
+  const hr=t.insertRow();
+  const corner=hr.insertCell();
+  corner.className='ch'; corner.style.width='48px'; corner.style.cursor='default';
+  for (let c=0; c<COLS; c++) {
+    const th=hr.insertCell();
+    th.className='ch'; th.id=`ch${c}`;
+    th.textContent=ALPHA[c];
+    th.addEventListener('click', ()=>clickCol(c));
+    makeColGrip(th, c);
+  }
+  for (let r=0; r<ROWS; r++) {
+    const tr=t.insertRow();
+    const rh=tr.insertCell();
+    rh.className='rh'; rh.id=`rh${r}`; rh.textContent=r+1;
+    rh.addEventListener('click', ()=>clickRow(r));
+    makeRowGrip(rh, r);
+    for (let c=0; c<COLS; c++) {
+      const td=tr.insertCell();
+      td.className='cell'; td.id=`c${r}_${c}`;
+      td.textContent=getCellDisplay(r,c);
+      if (isStructMode()) {
+        const m=STRUCT_MODES[tableMode];
+        if (r===0 && c<m.headers.length) {
+          td.classList.add('shop-label');
+        } else if (r>0 && m.computed.includes(c)) {
+          td.classList.add('shop-total');
+          td.textContent=modeComputedDisplay(r,c);
+        }
+      }
+      applyCellStyle(td, r, c);
+      td.addEventListener('mousedown', e => {
+        if (formulaEditMode) e.preventDefault();
+        if (e.shiftKey) { e.preventDefault(); extendRange(r,c); }
+      });
+      td.addEventListener('click', e => {
+        if (e.shiftKey) return;
+        if (sumSuppressClick) { sumSuppressClick=false; return; }   // スライド直後のクリックは無視
+        if (sumSelectMode) { applySumRangeFromCells(r,c,r,c); return; } // Σ指定中：タップ=1セル範囲
+        if (isLockedCell(r,c)) return;
+        const fi=document.getElementById('formulaInput');
+        if (formulaEditMode && fi.value.startsWith('=')) {
+          fi.value=fi.value+`${ALPHA[c]}${r+1}`;
+          refreshDisp(); return;
+        }
+        formulaEditMode=false; fi.classList.remove('formula-mode');
+        clearRangeSelection(); sel(r,c);
+        registerTap(r,c);
+      });
+      td.addEventListener('dblclick', e => { e.preventDefault(); });
+    }
+  }
+  if (isStructMode()) recalcMode();
+  autoFitSheet();
+}
+
+/* ── セル自動フィット ──
+   文字が枠に収まらない列は現状幅の AUTOFIT_MAX(=1.15)倍まで広げ、
+   それでも収まらないセルは文字サイズを縮小する。 */
+const AUTOFIT_MAX=1.15;   // 列幅の拡大上限（現状セル幅の1.15倍）
+const AUTOFIT_MIN=0.55;   // 文字縮小の下限（読めなくならない範囲）
+function autoFitSheet(){
+  const t=document.getElementById('sheet'); if(!t||COLS<=0) return;
+  if(!document.getElementById('c0_0')) return;
+  const scale=SIZE_STEPS[cellSizeIdx]||1;
+  const baseW=Math.round(60*scale);
+  const maxW=Math.round(baseW*AUTOFIT_MAX);
+  // 1) 基準幅に揃え、前回の縮小を解除（手動指定列はその幅）
+  for(let c=0;c<COLS;c++){
+    const ch=document.getElementById('ch'+c);
+    if(ch) ch.style.width=(colWidths[c]||baseW)+'px';
+    for(let r=0;r<ROWS;r++){
+      const td=document.getElementById('c'+r+'_'+c);
+      if(td) td.style.removeProperty('--fit');
+    }
+  }
+  t.style.minWidth=(48+COLS*baseW)+'px';
+  // 2) 列ごとに必要幅を測る（手動指定列は測らず固定）
+  const need=new Array(COLS).fill(baseW);
+  for(let c=0;c<COLS;c++){
+    if(colWidths[c]){ need[c]=colWidths[c]; continue; }
+    for(let r=0;r<ROWS;r++){
+      const td=document.getElementById('c'+r+'_'+c); if(!td) continue;
+      if(td.scrollWidth>need[c]) need[c]=td.scrollWidth;
+    }
+  }
+  // 3) 列幅を設定（手動指定はそのまま、自動は baseW〜maxW にクランプ）
+  let total=0;
+  for(let c=0;c<COLS;c++){
+    const w=colWidths[c] ? colWidths[c] : Math.min(Math.max(baseW,need[c]),maxW);
+    total+=w;
+    const ch=document.getElementById('ch'+c); if(ch) ch.style.width=w+'px';
+  }
+  t.style.minWidth=(48+total)+'px';
+  // 手動で列幅を指定したら、引き伸ばしをやめて実寸（px）で表示する
+  t.style.width = Object.keys(colWidths).length ? (48+total)+'px' : '';
+  // 4) 拡大しても収まらないセルは文字を縮小
+  const PAD=8;
+  for(let c=0;c<COLS;c++){
+    for(let r=0;r<ROWS;r++){
+      const td=document.getElementById('c'+r+'_'+c); if(!td) continue;
+      const avail=td.clientWidth, cont=td.scrollWidth;
+      if(cont>avail+0.5 && avail>PAD){
+        const ratio=(avail-PAD)/(cont-PAD);
+        td.style.setProperty('--fit', Math.max(AUTOFIT_MIN, ratio).toFixed(3));
+      }
+    }
+  }
+  applyRowHeights();
+}
+
+/* ── 列幅・行高の手動変更（表の端をドラッグ／スライド） ── */
+const COL_MIN=30,  COL_MAX=400;
+const ROW_MIN=22,  ROW_MAX=200;
+let colWidths={};   // c -> px（手動指定）
+let rowHeights={};  // r -> px（手動指定）
+function saveSheetSizes(){
+  localStorage.setItem('excalc_colwidths', JSON.stringify(colWidths));
+  localStorage.setItem('excalc_rowheights', JSON.stringify(rowHeights));
+}
+function restoreSheetSizes(){
+  try{ colWidths=JSON.parse(localStorage.getItem('excalc_colwidths'))||{}; }catch(e){ colWidths={}; }
+  try{ rowHeights=JSON.parse(localStorage.getItem('excalc_rowheights'))||{}; }catch(e){ rowHeights={}; }
+}
+function applyRowHeight(r,h){
+  const rh=document.getElementById('rh'+r); if(rh) rh.style.height=h?h+'px':'';
+  for(let c=0;c<COLS;c++){
+    const td=document.getElementById('c'+r+'_'+c); if(td) td.style.height=h?h+'px':'';
+  }
+}
+function applyRowHeights(){
+  for(let r=0;r<ROWS;r++) applyRowHeight(r, rowHeights[r]);
+}
+function makeColGrip(th,c){
+  const g=document.createElement('div'); g.className='col-grip'; g.title='ドラッグで列幅を変更';
+  g.addEventListener('pointerdown', e=>{
+    if(e.button!==undefined && e.button>0) return;
+    e.preventDefault(); e.stopPropagation();
+    g.setPointerCapture(e.pointerId);
+    document.body.classList.add('col-resizing');
+    // 実寸（px）表示へ切替：現在の各列の表示幅を固定（他の列が動かないように）
+    const t=document.getElementById('sheet');
+    let frozen=48;
+    for(let i=0;i<COLS;i++){
+      const ch=document.getElementById('ch'+i);
+      const w=Math.round(ch.getBoundingClientRect().width);
+      ch.style.width=w+'px'; colWidths[i]=w; frozen+=w;
+    }
+    t.style.width=frozen+'px';
+    const startX=e.clientX;
+    const startW=document.getElementById('ch'+c).getBoundingClientRect().width;
+    const move=ev=>{
+      let w=Math.round(startW+(ev.clientX-startX));
+      w=Math.max(COL_MIN, Math.min(COL_MAX, w));
+      colWidths[c]=w;
+      const ch=document.getElementById('ch'+c); if(ch) ch.style.width=w+'px';
+      let tot=48; for(let i=0;i<COLS;i++) tot+=parseFloat(document.getElementById('ch'+i).style.width)||0;
+      t.style.width=tot+'px';
+    };
+    const end=()=>{
+      g.removeEventListener('pointermove',move);
+      g.removeEventListener('pointerup',end);
+      g.removeEventListener('pointercancel',end);
+      document.body.classList.remove('col-resizing');
+      saveSheetSizes(); autoFitSheet();
+    };
+    g.addEventListener('pointermove',move);
+    g.addEventListener('pointerup',end);
+    g.addEventListener('pointercancel',end);
+  });
+  // ダブルクリック／ダブルタップで自動幅に戻す
+  g.addEventListener('dblclick', e=>{ e.preventDefault(); e.stopPropagation();
+    colWidths={}; saveSheetSizes(); autoFitSheet(); });
+  th.appendChild(g);
+}
+function makeRowGrip(rh,r){
+  const g=document.createElement('div'); g.className='row-grip'; g.title='ドラッグで行高を変更';
+  g.addEventListener('pointerdown', e=>{
+    if(e.button!==undefined && e.button>0) return;
+    e.preventDefault(); e.stopPropagation();
+    g.setPointerCapture(e.pointerId);
+    document.body.classList.add('row-resizing');
+    const startY=e.clientY;
+    const startH=document.getElementById('rh'+r).getBoundingClientRect().height;
+    const move=ev=>{
+      let h=Math.round(startH+(ev.clientY-startY));
+      h=Math.max(ROW_MIN, Math.min(ROW_MAX, h));
+      rowHeights[r]=h; applyRowHeight(r,h);
+    };
+    const end=()=>{
+      g.removeEventListener('pointermove',move);
+      g.removeEventListener('pointerup',end);
+      g.removeEventListener('pointercancel',end);
+      document.body.classList.remove('row-resizing');
+      saveSheetSizes();
+    };
+    g.addEventListener('pointermove',move);
+    g.addEventListener('pointerup',end);
+    g.addEventListener('pointercancel',end);
+  });
+  // ダブルクリック／ダブルタップで自動高さに戻す
+  g.addEventListener('dblclick', e=>{ e.preventDefault(); e.stopPropagation();
+    delete rowHeights[r]; applyRowHeight(r,null); saveSheetSizes(); });
+  rh.appendChild(g);
+}
+
+/* ── 複数セル選択 ── */
+function clearRangeSelection() {
+  document.querySelectorAll('.sel-range').forEach(el=>el.classList.remove('sel-range'));
+  rangeR1=rangeC1=rangeR2=rangeC2=-1;
+}
+
+function extendRange(r,c) {
+  if (rangeR1<0) { rangeR1=selR; rangeC1=selC; }
+  rangeR2=r; rangeC2=c;
+  document.querySelectorAll('.sel-range').forEach(el=>el.classList.remove('sel-range'));
+  const r1=Math.min(rangeR1,rangeR2), r2=Math.max(rangeR1,rangeR2);
+  const c1=Math.min(rangeC1,rangeC2), c2=Math.max(rangeC1,rangeC2);
+  for (let rr=r1;rr<=r2;rr++) for (let cc=c1;cc<=c2;cc++) {
+    const el=document.getElementById(`c${rr}_${cc}`);
+    if (el && !(rr===selR&&cc===selC)) el.classList.add('sel-range');
+  }
+}
+
+/* ── コピー＆ペースト ── */
+function copyCell() {
+  clipData={val:data[selR][selC]};
+  (navigator.clipboard?navigator.clipboard.writeText(clipData.val):Promise.resolve()).catch(()=>{});
+}
+
+/* ── トリプルタップでコピー＆貼付（コピー元を持ち上げ→別セルで貼付） ── */
+let copySrcR=-1, copySrcC=-1;
+function clearCopySrc() {
+  if (copySrcR>=0) {
+    const el=document.getElementById(`c${copySrcR}_${copySrcC}`);
+    if (el) el.classList.remove('copy-src');
+  }
+  copySrcR=copySrcC=-1;
+}
+
+/* 同じセルを素早く3回タップでコピー／貼付を起動 */
+let tapR=-1, tapC=-1, tapCount=0, tapTimer=null;
+function registerTap(r,c) {
+  if (formulaEditMode || isLockedCell(r,c)) { tapCount=0; tapR=tapC=-1; return; }
+  if (r===tapR && c===tapC) tapCount++;
+  else { tapR=r; tapC=c; tapCount=1; }
+  clearTimeout(tapTimer);
+  if (tapCount>=3) {
+    tapCount=0; tapR=tapC=-1;
+    tripleTapCopyPaste(r,c);
+    return;
+  }
+  tapTimer=setTimeout(()=>{ tapCount=0; tapR=tapC=-1; }, 450);
+}
+
+function tripleTapCopyPaste(r,c) {
+  clearRangeSelection();
+  if (copySrcR<0) {
+    sel(r,c); copyCell();
+    copySrcR=r; copySrcC=c;
+    const el=document.getElementById(`c${r}_${c}`);
+    if (el) el.classList.add('copy-src');
+  } else if (r===copySrcR && c===copySrcC) {
+    clearCopySrc();
+  } else {
+    sel(r,c); pasteCell();
+    const el=document.getElementById(`c${r}_${c}`);
+    if (el) { el.classList.add('paste-flash'); setTimeout(()=>el.classList.remove('paste-flash'),450); }
+  }
+}
+
+function pasteCell() {
+  if (!clipData) return;
+  if (rangeR1>=0) {
+    const r1=Math.min(rangeR1,rangeR2), r2=Math.max(rangeR1,rangeR2);
+    const c1=Math.min(rangeC1,rangeC2), c2=Math.max(rangeC1,rangeC2);
+    for (let r=r1;r<=r2;r++) for (let c=c1;c<=c2;c++) {
+      setCellVal(r,c,clipData.val);
+    }
+  } else {
+    setCellVal(selR,selC,clipData.val);
+  }
+}
+
+/* ── CSVエクスポート ── */
+function exportCSV() {
+  const rows=[];
+  for (let r=0;r<ROWS;r++) {
+    const cells=[];
+    for (let c=0;c<COLS;c++) {
+      const raw=data[r][c];
+      const val=String(raw).startsWith('=')?getCellDisplay(r,c):(raw??'');
+      const s=String(val);
+      cells.push(s.includes(',')||s.includes('"')||s.includes('\n')
+        ?`"${s.replace(/"/g,'""')}"`:s);
+    }
+    rows.push(cells.join(','));
+  }
+  const csv='﻿'+rows.join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=Object.assign(document.createElement('a'),{
+    href:url,
+    download:`表電卓_${new Date().toLocaleDateString('ja-JP').replace(/\//g,'-')}.csv`
+  });
+  a.click(); URL.revokeObjectURL(url);
+}
+
+/* ── ダークモード ── */
+function toggleDark() {
+  darkMode=!darkMode;
+  document.body.classList.toggle('dark',darkMode);
+  document.getElementById('darkBtn').textContent=darkMode?'☀':'🌙';
+  localStorage.setItem('excalc_dark',darkMode?'1':'0');
+}
+
+function changeRows(delta) {
+  const next=ROWS+delta; if (next<1||next>50) return;
+  ROWS=next; document.getElementById('rowCount').textContent=ROWS;
+  localStorage.setItem('excalc_rows',ROWS);
+  buildSheet(); sel(Math.min(selR,ROWS-1),selC);
+  persistModes();
+}
+function changeCols(delta) {
+  const next=COLS+delta; if (next<1||next>26) return;
+  COLS=next; document.getElementById('colCount').textContent=COLS;
+  localStorage.setItem('excalc_cols',COLS);
+  buildSheet(); sel(selR,Math.min(selC,COLS-1));
+  persistModes();
+}
+function changeDec(delta) {
+  const next=decPlaces+delta; if (next<-1||next>10) return;
+  decPlaces=next;
+  localStorage.setItem('excalc_dec',decPlaces);
+  document.getElementById('decCount').textContent=decPlaces<0?'自':decPlaces;
+  for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++) {
+    const el=document.getElementById(`c${r}_${c}`); if(el) el.textContent=getCellDisplay(r,c);
+  }
+  if (selRow>=0) updateRowStats(selRow); else updateStats(selC);
+}
+
+/* ── テンキーサイズ ── */
+const KEY_STEPS=[1.0, 1.15, 1.3, 1.5, 1.75, 2.0];
+const KEY_LABELS=['小','やや小','標準','大','特大','最大'];
+let keySizeIdx=3;
+function applyKeySize() {
+  document.getElementById('numpadSection').style.setProperty('--key-scale', KEY_STEPS[keySizeIdx]);
+  document.getElementById('keySize').textContent=KEY_LABELS[keySizeIdx];
+  localStorage.setItem('excalc_keysize', keySizeIdx);
+  fitNumpadLabels();
+}
+/* テンキー各ボタンの文字を、枠幅に収まるよう自動縮小（折り返し防止） */
+function fitNumpadLabels() {
+  const btns=document.querySelectorAll('.numpad-grid .btn');
+  // まず CSS 基準サイズに戻してから測定（再フィット時に拡大も効くように）
+  btns.forEach(b=>{ b.style.fontSize=''; });
+  btns.forEach(b=>{
+    let fs=parseFloat(getComputedStyle(b).fontSize);
+    let guard=0;
+    while(b.scrollWidth>b.clientWidth && fs>6 && guard++<60){
+      fs-=0.5; b.style.fontSize=fs+'px';
+    }
+  });
+}
+window.addEventListener('resize', fitNumpadLabels);
+function changeKeySize(delta) {
+  const next=keySizeIdx+delta; if (next<0||next>=KEY_STEPS.length) return;
+  keySizeIdx=next; applyKeySize();
+}
+
+/* ── 画面幅（パソコン等で全幅が広すぎる時に狭める） ── */
+const WIDTH_STEPS =['100%','1100px','920px','760px','620px','500px'];
+const WIDTH_LABELS=['全幅','広',  'やや広','標準','やや狭','狭'];
+let appWidthIdx=0;
+function applyAppWidth() {
+  const v=WIDTH_STEPS[appWidthIdx];
+  document.body.style.setProperty('--app-width', v);
+  document.body.classList.toggle('narrowed', appWidthIdx>0);
+  document.getElementById('appWidth').textContent=WIDTH_LABELS[appWidthIdx];
+  localStorage.setItem('excalc_appwidth', appWidthIdx);
+  // 幅が変わったので列幅・テンキー文字を再調整
+  if (typeof autoFitSheet==='function') autoFitSheet();
+  fitNumpadLabels();
+}
+function changeAppWidth(delta) {
+  const next=appWidthIdx+delta; if (next<0||next>=WIDTH_STEPS.length) return;
+  appWidthIdx=next; applyAppWidth();
+}
+
+/* ── テンキー表示／非表示 ── */
+let numpadHidden=false;
+function applyNumpad() {
+  document.getElementById('numpadSection').style.display = numpadHidden?'none':'';
+  const b=document.getElementById('numpadToggleBtn');
+  if (b) b.textContent = numpadHidden?'⌨ テンキー表示':'⌨ テンキー非表示';
+  localStorage.setItem('excalc_numpad_hidden', numpadHidden?'1':'0');
+  if (!numpadHidden) fitNumpadLabels();
+}
+function toggleNumpad() { numpadHidden=!numpadHidden; applyNumpad(); }
+
+/* ── セル文字サイズ ── */
+const SIZE_STEPS=[0.85, 1.0, 1.2, 1.4, 1.6];
+const SIZE_LABELS=['小','標準','大','特大','最大'];
+let cellSizeIdx=2, infoSizeIdx=1;   // 既定のセル文字＝大
+function applyCellSize() {
+  document.documentElement.style.setProperty('--cell-scale', SIZE_STEPS[cellSizeIdx]);
+  document.getElementById('cellSize').textContent=SIZE_LABELS[cellSizeIdx];
+  localStorage.setItem('excalc_cellsize', cellSizeIdx);
+  autoFitSheet();   // 文字サイズ変更に合わせて列幅も更新
+}
+function changeCellSize(delta) {
+  const next=cellSizeIdx+delta; if (next<0||next>=SIZE_STEPS.length) return;
+  cellSizeIdx=next; applyCellSize();
+}
+/* ── 消費税率 ── */
+function applyTaxRate(){
+  document.getElementById('taxRate').textContent=taxPct+'%';
+  const zr=document.getElementById('zeiRate'); if(zr) zr.textContent=taxPct+'%';
+  localStorage.setItem('excalc_taxrate', taxPct);
+  if(tableMode==='zei') recalcMode();
+}
+function changeTax(delta){
+  taxPct=Math.max(0, Math.min(30, taxPct+delta));
+  applyTaxRate();
+}
+/* ── 小計・統計文字サイズ ── */
+function applyInfoSize() {
+  document.documentElement.style.setProperty('--info-scale', SIZE_STEPS[infoSizeIdx]);
+  document.getElementById('infoSize').textContent=SIZE_LABELS[infoSizeIdx];
+  localStorage.setItem('excalc_infosize', infoSizeIdx);
+}
+function changeInfoSize(delta) {
+  const next=infoSizeIdx+delta; if (next<0||next>=SIZE_STEPS.length) return;
+  infoSizeIdx=next; applyInfoSize();
+}
+
+function clearRowSel() {
+  if (selRow<0) return;
+  const rh=document.getElementById(`rh${selRow}`); if(rh) rh.classList.remove('sel');
+  for (let c=0;c<COLS;c++) {
+    const cell=document.getElementById(`c${selRow}_${c}`); if(cell) cell.classList.remove('in-row');
+  }
+  selRow=-1;
+}
+
+function sel(r,c) {
+  const wasFormula=formulaEditMode;
+  formulaEditMode=false;
+  sumSelectMode=false;            // セル移動でΣスライド指定を終了
+  document.getElementById('formulaInput').classList.remove('formula-mode');
+  clearSumRange();
+
+  if (wasFormula) {
+    const prevEl=document.getElementById(`c${selR}_${selC}`);
+    if (prevEl) prevEl.textContent=getCellDisplay(selR,selC);
+  }
+  if (cellEditing) {
+    const commitVal=(waiting&&op1!==null)?fmtNum(op1):disp_val;
+    const isNoOp=(commitVal==='0'&&data[selR][selC]==='')||commitVal===data[selR][selC];
+    if (!isNoOp) setCellVal(selR,selC,commitVal);
+    else {
+      const prevEl=document.getElementById(`c${selR}_${selC}`);
+      if (prevEl) prevEl.textContent=getCellDisplay(selR,selC);
+    }
+    cellEditing=false; op1=null; cur_op=null; waiting=false;
+  }
+
+  document.getElementById(`c${selR}_${selC}`).classList.remove('active');
+  highlightCol(selC,false);
+  clearRowSel();
+
+  selR=r; selC=c;
+  if (isLockedCell(r,c)) cellEditing=false;
+
+  highlightCol(c,true);
+  document.getElementById(`c${r}_${c}`).classList.add('active');
+  document.getElementById('cellRef').value=`${ALPHA[c]}${r+1}`;
+  document.getElementById('formulaInput').value=data[r][c];
+
+  const numV=getCellValue(r,c);
+  disp_val=data[r][c]!==''?fmtNum(numV):'0';
+  op1=null; cur_op=null; waiting=false;
+  updateStats(c);
+  document.getElementById(`c${r}_${c}`).scrollIntoView({block:'nearest',inline:'nearest'});
+}
+
+function highlightCol(c,on) {
+  document.getElementById(`ch${c}`).classList.toggle('sel',on);
+  document.getElementById(`rh${selR}`).classList.toggle('sel',false);
+  for (let r=0;r<ROWS;r++) {
+    const cell=document.getElementById(`c${r}_${c}`);
+    if (cell&&!cell.classList.contains('active')) cell.classList.toggle('in-col',on);
+  }
+}
+
+function clickCol(c) { clearRangeSelection(); sel(selR,c); }
+
+function clickRow(r) {
+  document.getElementById(`ch${selC}`).classList.remove('sel');
+  for (let row=0;row<ROWS;row++) {
+    const cell=document.getElementById(`c${row}_${selC}`);
+    if (cell) cell.classList.remove('in-col');
+  }
+  document.getElementById(`c${selR}_${selC}`).classList.remove('active');
+  clearRowSel();
+  selRow=r;
+  document.getElementById(`rh${r}`).classList.add('sel');
+  for (let c=0;c<COLS;c++) {
+    const cell=document.getElementById(`c${r}_${c}`); if(cell) cell.classList.add('in-row');
+  }
+  updateRowStats(r);
+}
+
+function updateRowStats(r) {
+  document.getElementById('statsTitle').textContent=`合計 — 行 ${r+1}`;
+  const nums=[];
+  for (let c=0;c<COLS;c++) {
+    const raw=data[r][c]; if(raw==='') continue;
+    if (String(raw).startsWith('=')) { nums.push(getCellValue(r,c)); continue; }
+    const v=parseFloat(raw); if(!isNaN(v)) nums.push(v);
+  }
+  renderStats(nums);
+}
+
+function setCellVal(r,c,v) {
+  pushHistory([{r,c,val:data[r][c]}]);
+  data[r][c]=v;
+  // 消費税モード：税抜と税込は一方のみ入力（他方を消して入力元を一意にする）
+  if(tableMode==='zei' && v!==''){
+    if(c===0) data[r][2]='';
+    else if(c===2) data[r][0]='';
+  }
+  // 割合モード：割と％は連動（一方を入力したら他方は自動表示にする）
+  if(tableMode==='wariai' && v!==''){
+    if(c===1) data[r][2]='';
+    else if(c===2) data[r][1]='';
+  }
+  const cell=document.getElementById(`c${r}_${c}`);
+  if (cell) cell.textContent=getCellDisplay(r,c);
+  document.getElementById('formulaInput').value=v;
+  if (isStructMode()) recalcMode();
+  recalcAll();
+  updateStats(c);
+  persistModes();
+}
+
+/* ── 統計 ── */
+function fmt(n) {
+  if (n===null||n===undefined||isNaN(n)) return '—';
+  const s=decPlaces>=0?n.toFixed(decPlaces):autoFmt(n);
+  const parts=s.split('.');
+  parts[0]=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  return parts.join('.');
+}
+
+/* 万進法の漢数字に変換（千は使わない。例: 15000 → 1万5000、55555555555555555 → 5555京5555兆…） */
+function toKanjiNum(n) {
+  if (n===null||n===undefined||isNaN(n)||!isFinite(n)) return '—';
+  const sign = n<0 ? '-' : '';
+  n = Math.abs(n);
+  let intPart = Math.floor(n);
+  const frac = n - intPart;
+  const groupUnits = ['','万','億','兆','京','垓'];
+  const groups = [];
+  while (intPart>0) { groups.push(intPart%10000); intPart=Math.floor(intPart/10000); }
+  let result='';
+  for (let gi=groups.length-1; gi>=0; gi--) {
+    const g=groups[gi]; if (g===0) continue;   // 各4桁グループはそのまま表示（千で分割しない）
+    result += g + (groupUnits[gi]||'');
+  }
+  if (result==='') result='0';
+  if (frac>0) result += String(Math.round(frac*1000)/1000).slice(1);   // ".xxx"
+  return sign+result;
+}
+
+let lastStatSum=null;     // 直近の合計（生の数値）
+let statKanji=false;      // 合計を漢数字表示するか
+function renderStats(nums) {
+  const sumEl=document.getElementById('sSum');
+  if (nums.length===0) { lastStatSum=null; sumEl.textContent='—'; return; }
+  lastStatSum=nums.reduce((a,b)=>a+b,0);
+  sumEl.textContent = statKanji ? toKanjiNum(lastStatSum) : fmt(lastStatSum);
+}
+
+function updateStats(c) {
+  document.getElementById('statsTitle').textContent=`合計 — 列 ${ALPHA[c]}`;
+  const nums=[];
+  for (let r=0;r<ROWS;r++) {
+    const raw=data[r][c]; if(raw==='') continue;
+    if (String(raw).startsWith('=')) { nums.push(getCellValue(r,c)); continue; }
+    const v=parseFloat(raw); if(!isNaN(v)) nums.push(v);
+  }
+  renderStats(nums);
+}
+
+/* ── テンキー状態 ── */
+let disp_val='0', op1=null, cur_op=null, waiting=false;
+let cellEditing=false;
+
+/* ── アンドゥ履歴 ── */
+const history=[];
+const MAX_HISTORY=50;
+let undoing=false;
+
+function pushHistory(entries) {
+  if (undoing||entries.length===0) return;
+  history.push(entries);
+  if (history.length>MAX_HISTORY) history.shift();
+  updateUndoBtn();
+}
+function updateUndoBtn() {
+  const btn=document.getElementById('undoBtn');
+  if (btn) btn.disabled=history.length===0;
+}
+function undoLast() {
+  if (history.length===0) return;
+  const entries=history.pop();
+  undoing=true;
+  for (const {r,c,val} of entries) {
+    data[r][c]=val;
+    const cell=document.getElementById(`c${r}_${c}`);
+    if (cell) cell.textContent=getCellDisplay(r,c);
+  }
+  recalcAll();
+  if (isStructMode()) recalcMode();
+  document.getElementById('formulaInput').value=data[selR][selC];
+  if (selRow>=0) updateRowStats(selRow); else updateStats(selC);
+  undoing=false; updateUndoBtn();
+  persistModes();
+}
+
+function refreshDisp() {
+  const fi=document.getElementById('formulaInput');
+  const el=document.getElementById(`c${selR}_${selC}`);
+  if (formulaEditMode) { if(el) el.textContent=fi.value||'='; return; }
+  if (!cellEditing) return;
+  const preview=(waiting&&op1!==null)?fmtNum(op1):disp_val;
+  if (el) el.textContent=preview;
+  if (!fi.matches(':focus')) fi.value=preview;
+}
+function numpadAppend(char) {
+  const fi=document.getElementById('formulaInput');
+  fi.value=fi.value+char; refreshDisp();
+}
+function startFormula() {
+  formulaEditMode=true;
+  const fi=document.getElementById('formulaInput');
+  fi.value='='; fi.classList.add('formula-mode'); refreshDisp();
+}
+function num(n) {
+  if (formulaEditMode) { numpadAppend(n); return; }
+  if (!cellEditing) { disp_val=n==='0'?'0':n; cellEditing=true; }
+  else if (waiting) { disp_val=n; waiting=false; }
+  else { disp_val=(disp_val==='0'||disp_val==='-0')?(disp_val.startsWith('-')?'-'+n:n):disp_val+n; }
+  refreshDisp();
+}
+function dot() {
+  if (formulaEditMode) { numpadAppend('.'); return; }
+  if (!cellEditing) { disp_val='0.'; cellEditing=true; }
+  else if (waiting) { disp_val='0.'; waiting=false; }
+  else if (!disp_val.includes('.')) { disp_val+='.'; }
+  refreshDisp();
+}
+function op(o) {
+  if (formulaEditMode) { numpadAppend(o==='*'?'×':o==='/'?'÷':o); return; }
+  cellEditing=true;
+  const cur=parseFloat(disp_val);
+  if (op1!==null&&!waiting) { const r=calc(op1,cur,cur_op); disp_val=fmtNum(r); op1=r; }
+  else { op1=isNaN(cur)?0:cur; }
+  cur_op=o; waiting=true; refreshDisp();
+}
+function eq() {
+  if (cur_op===null||op1===null) { toCell(); return; }
+  const r=calc(op1,parseFloat(disp_val),cur_op);
+  disp_val=fmtNum(r); op1=null; cur_op=null; waiting=false; refreshDisp();
+}
+function calc(a,b,o) {
+  switch(o){case'+':return a+b;case'-':return a-b;case'*':return a*b;case'/':return b!==0?a/b:0;}
+  return b;
+}
+function fmtNum(n) { return parseFloat(n.toFixed(10)).toString(); }
+function ac() {
+  clearSumRange();
+  sumSelectMode=false;
+  if (formulaEditMode) {
+    formulaEditMode=false;
+    const fi=document.getElementById('formulaInput');
+    fi.classList.remove('formula-mode'); fi.value=data[selR][selC];
+    const el=document.getElementById(`c${selR}_${selC}`);
+    if(el) el.textContent=getCellDisplay(selR,selC);
+  }
+  if (cellEditing) {
+    const el=document.getElementById(`c${selR}_${selC}`);
+    if(el) el.textContent=getCellDisplay(selR,selC);
+    document.getElementById('formulaInput').value=data[selR][selC];
+    cellEditing=false;
+  }
+  disp_val='0'; op1=null; cur_op=null; waiting=false;
+}
+function ce() {
+  if (formulaEditMode) { document.getElementById('formulaInput').value='='; refreshDisp(); return; }
+  cellEditing=true; disp_val='0'; refreshDisp();
+}
+function bs() {
+  if (formulaEditMode) {
+    const fi=document.getElementById('formulaInput');
+    if (fi.value.length>1) fi.value=fi.value.slice(0,-1);
+    else {
+      formulaEditMode=false; fi.classList.remove('formula-mode'); fi.value=data[selR][selC];
+      const el=document.getElementById(`c${selR}_${selC}`);
+      if(el) el.textContent=getCellDisplay(selR,selC);
+    }
+    refreshDisp(); return;
+  }
+  cellEditing=true;
+  disp_val=disp_val.length>1?disp_val.slice(0,-1):'0'; refreshDisp();
+}
+function toggleSign() {
+  if (formulaEditMode) { numpadAppend('-'); return; }
+  cellEditing=true;
+  if (disp_val!=='0') disp_val=disp_val.startsWith('-')?disp_val.slice(1):'-'+disp_val;
+  refreshDisp();
+}
+function toggleTextInput() {
+  const fi=document.getElementById('formulaInput');
+  const btn=document.getElementById('textBtn');
+  if (document.activeElement===fi) {
+    fi.blur();
+    if (btn) btn.classList.remove('text-on');
+    return;
+  }
+  // 入力中の数値・数式状態をリセットしてから文字入力へ
+  cellEditing=false; op1=null; cur_op=null; waiting=false;
+  formulaEditMode=false; fi.classList.remove('formula-mode');
+  fi.value=data[selR][selC];
+  const el=document.getElementById(`c${selR}_${selC}`);
+  if (el) el.textContent=getCellDisplay(selR,selC);
+  fi.focus();
+  try { fi.setSelectionRange(fi.value.length, fi.value.length); } catch(e) {}
+  if (btn) btn.classList.add('text-on');
+}
+
+function clearSumRange() {
+  document.querySelectorAll('.sum-range').forEach(el=>el.classList.remove('sum-range'));
+}
+
+/* ── Σオート（合計／平均）と範囲スライド指定 ── */
+let sumFunc='SUM';                 // 'SUM' | 'AVERAGE'（設定は長押しメニュー）
+let sumSelectMode=false;           // Σオート直後＝セルをスライドして範囲指定できる状態
+let sumTargetR=-1, sumTargetC=-1;  // 結果を書き込むセル（Σオートを押した時の選択セル）
+let sumR1=-1,sumC1=-1,sumR2=-1,sumC2=-1;  // 現在のΣ範囲
+let sumPending=false, sumDragging=false, sumStartR=-1, sumStartC=-1;
+let sumDownX=0, sumDownY=0, sumSuppressClick=false;
+
+/* 範囲(矩形)を反映：ハイライト＋対象セルへ =関数(範囲) を表示 */
+function writeSumFormula(R1,C1,R2,C2){
+  sumR1=R1; sumC1=C1; sumR2=R2; sumC2=C2;
+  clearSumRange();
+  for(let r=R1;r<=R2;r++) for(let c=C1;c<=C2;c++){
+    const el=document.getElementById(`c${r}_${c}`); if(el) el.classList.add('sum-range');
+  }
+  const ref=(R1===R2&&C1===C2)?`${ALPHA[C1]}${R1+1}`:`${ALPHA[C1]}${R1+1}:${ALPHA[C2]}${R2+1}`;
+  const formula=`=${sumFunc}(${ref})`;
+  formulaEditMode=true; cellEditing=false;
+  const fi=document.getElementById('formulaInput');
+  fi.value=formula; fi.classList.add('formula-mode');
+  const el=document.getElementById(`c${sumTargetR}_${sumTargetC}`);
+  if(el) el.textContent=formula;
+}
+function applySumRangeFromCells(sr,sc,er,ec){
+  writeSumFormula(Math.min(sr,er),Math.min(sc,ec),Math.max(sr,er),Math.max(sc,ec));
+}
+function reapplySum(){ if(sumTargetR>=0) writeSumFormula(sumR1,sumC1,sumR2,sumC2); }
+
+function autoSum() {
+  clearSumRange();
+  sumTargetR=selR; sumTargetC=selC;
+  let er=selR-1; while (er>=0&&data[er][selC]==='') er--;
+  if (er>=0) {                       // 上方向の連続データを自動検出
+    let sr=er; while (sr>0&&data[sr-1][selC]!=='') sr--;
+    writeSumFormula(sr,selC,er,selC);
+  } else {
+    let ec=selC-1; while (ec>=0&&data[selR][ec]==='') ec--;
+    if (ec>=0) {                     // 左方向の連続データを自動検出
+      let sc=ec; while (sc>0&&data[selR][sc-1]!=='') sc--;
+      writeSumFormula(selR,sc,selR,ec);
+    } else {                         // 周囲にデータ無し：対象セルから開始（スライドで範囲指定）
+      writeSumFormula(selR,selC,selR,selC);
+    }
+  }
+  sumSelectMode=true;                // この後セルをスライド／タップで範囲を指定できる
+}
+
+/* 集計方法（合計／平均）選択メニュー：Σオートの長押しで開く */
+function openSumFuncMenu(){ syncSumFuncChecks(); document.getElementById('sumFuncOverlay').classList.add('open'); }
+function closeSumFuncMenu(){ document.getElementById('sumFuncOverlay').classList.remove('open'); }
+function syncSumFuncChecks(){
+  const a=document.getElementById('sumChkSum'), b=document.getElementById('sumChkAvg');
+  if(a) a.textContent=sumFunc==='SUM'?'✓':'';
+  if(b) b.textContent=sumFunc==='AVERAGE'?'✓':'';
+}
+function pickSumFunc(fn){
+  sumFunc=fn; localStorage.setItem('excalc_sumfunc',fn);
+  updateAutoSumBtn(); closeSumFuncMenu();
+  if(sumSelectMode) reapplySum();    // 表示中の式があれば集計方法を切替
+}
+function updateAutoSumBtn(){
+  const b=document.getElementById('autoSumBtn'); if(b) b.textContent=(sumFunc==='AVERAGE'?'Σ平均':'Σ合計');
+}
+
+function toCell() {
+  if (formulaEditMode) {
+    const fi=document.getElementById('formulaInput');
+    const v=fi.value.trim();
+    formulaEditMode=false; fi.classList.remove('formula-mode');
+    setCellVal(selR,selC,v);
+    if (selR<ROWS-1) sel(selR+1,selC); else ac(); return;
+  }
+  const commitVal=(waiting&&op1!==null)?fmtNum(op1):(disp_val==='Error'?'':disp_val);
+  cellEditing=false; op1=null; cur_op=null; waiting=false;
+  setCellVal(selR,selC,commitVal);
+  if (modeAdvance()) return;
+  if (selR<ROWS-1) sel(selR+1,selC); else ac();
+}
+
+/* ── 数式バー ── */
+(function() {
+  const fi=document.getElementById('formulaInput');
+  fi.addEventListener('input', ()=>{
+    formulaEditMode=fi.value.startsWith('=');
+    fi.classList.toggle('formula-mode',formulaEditMode);
+    const el=document.getElementById(`c${selR}_${selC}`);
+    if(el) el.textContent=fi.value||getCellDisplay(selR,selC);
+  });
+  fi.addEventListener('blur', ()=>{
+    const btn=document.getElementById('textBtn');
+    if(btn) btn.classList.remove('text-on');
+  });
+  fi.addEventListener('keydown', e=>{
+    if (e.key==='Enter') {
+      e.preventDefault(); e.stopPropagation();
+      formulaEditMode=false; fi.classList.remove('formula-mode');
+      setCellVal(selR,selC,fi.value.trim());
+      if(selR<ROWS-1) sel(selR+1,selC);
+      const tb=document.getElementById('textBtn'); if(tb) tb.classList.remove('text-on');
+      fi.blur();
+    }
+    if (e.key==='Escape') {
+      e.preventDefault(); e.stopPropagation();
+      formulaEditMode=false; fi.classList.remove('formula-mode');
+      fi.value=data[selR][selC]; clearSumRange();
+      const el=document.getElementById(`c${selR}_${selC}`);
+      if(el) el.textContent=getCellDisplay(selR,selC);
+      const tb=document.getElementById('textBtn'); if(tb) tb.classList.remove('text-on');
+      fi.blur();
+    }
+  });
+})();
+
+/* ── キーボードショートカット ── */
+document.addEventListener('keydown', e=>{
+  const ae=document.activeElement;
+  if (ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA')) return;
+  const k=e.key;
+  if (e.ctrlKey||e.metaKey) {
+    if (k==='c') { e.preventDefault(); copyCell(); return; }
+    if (k==='v') { e.preventDefault(); pasteCell(); return; }
+    if (k==='z') { e.preventDefault(); undoLast(); return; }
+  }
+  if      (k>='0'&&k<='9') { e.preventDefault(); num(k); }
+  else if (k==='.') { e.preventDefault(); dot(); }
+  else if (k==='+') { e.preventDefault(); op('+'); }
+  else if (k==='-') { e.preventDefault(); op('-'); }
+  else if (k==='*') { e.preventDefault(); op('*'); }
+  else if (k==='/') { e.preventDefault(); op('/'); }
+  else if (k==='Enter') { e.preventDefault(); eq(); }
+  else if (k==='Backspace') { e.preventDefault(); bs(); }
+  else if (k==='Escape') { e.preventDefault(); ac(); clearRangeSelection(); clearCopySrc(); }
+  else if (k==='Delete') { e.preventDefault(); setCellVal(selR,selC,''); ac(); }
+  else if (k==='ArrowRight') {
+    e.preventDefault();
+    if (e.shiftKey&&selC<COLS-1) { extendRange(selR, rangeR1>=0?Math.min(rangeC2+1,COLS-1):selC+1); }
+    else if (!e.shiftKey&&selC<COLS-1) { clearRangeSelection(); sel(selR,selC+1); }
+  }
+  else if (k==='ArrowLeft') {
+    e.preventDefault();
+    if (e.shiftKey&&selC>0) { extendRange(selR, rangeR1>=0?Math.max(rangeC2-1,0):selC-1); }
+    else if (!e.shiftKey&&selC>0) { clearRangeSelection(); sel(selR,selC-1); }
+  }
+  else if (k==='ArrowDown') {
+    e.preventDefault();
+    if (e.shiftKey&&selR<ROWS-1) { extendRange(rangeR1>=0?Math.min(rangeR2+1,ROWS-1):selR+1, selC); }
+    else if (!e.shiftKey&&selR<ROWS-1) { clearRangeSelection(); sel(selR+1,selC); }
+  }
+  else if (k==='ArrowUp') {
+    e.preventDefault();
+    if (e.shiftKey&&selR>0) { extendRange(rangeR1>=0?Math.max(rangeR2-1,0):selR-1, selC); }
+    else if (!e.shiftKey&&selR>0) { clearRangeSelection(); sel(selR-1,selC); }
+  }
+  else if (k==='Tab') { e.preventDefault(); if(selC<COLS-1) sel(selR,selC+1); }
+  else if (k==='F2') { e.preventDefault(); document.getElementById('formulaInput').focus(); }
+});
+
+/* ── モード（買物・簡易・割り勘・消費税・容積・予算配分） ── */
+let tableMode='normal';      // 'normal' | 'simple' | 'shopping' | 'warikan' | 'zei' | 'youseki' | 'yosan'
+let warikanPeople=2;
+let taxPct=10;               // 消費税の税率(%)。設定で変更
+const modeStates={};         // モードキー -> {cols, data:[50][26]}（各モードの入力をリセットまで保持）
+const MODE_STORE_KEY='excalc_modeStore';
+
+const STRUCT_MODES={
+  shopping:{cols:4, headers:['品名','単価','個数','合計'], computed:[3]},
+  warikan: {cols:2, headers:['項目','金額'],               computed:[]},
+  zei:     {cols:3, headers:['税抜','消費税','税込'],        computed:[1]},
+  wariai:  {cols:6, headers:['元の値','割','％','割合額','足す','引く'], computed:[3,4,5]},
+  youseki: {cols:5, headers:['名称','縦m','横m','高さm','容積㎥'], computed:[4]},
+  yosan:   {cols:5, headers:['品名','単価','最低','個数','小計'], computed:[3,4]},
+};
+const MODE_LABELS={normal:'モード', simple:'簡易中', shopping:'買物中', warikan:'割勘中', zei:'税計中', wariai:'割合中', youseki:'容積中', yosan:'予算中'};
+const MODE_MENU=[
+  {key:'normal',  icon:'▦',  name:'通常',   desc:'標準のスプレッドシート'},
+  {key:'simple',  icon:'⬛',  name:'簡易',   desc:'列を少なく・セルを大きく見やすく'},
+  {key:'shopping',icon:'🛒', name:'買物',   desc:'単価×個数で小計を自動計算'},
+  {key:'warikan', icon:'🍻', name:'割り勘', desc:'金額の合計を人数で割る'},
+  {key:'zei',     icon:'🧾', name:'消費税', desc:'税抜→税込、税込→税抜＋消費税を計算（税率は設定）'},
+  {key:'wariai',  icon:'％', name:'割合計算', desc:'元の値の何割・何％と、足す/引くを計算'},
+  {key:'youseki', icon:'📦', name:'容積',   desc:'縦×横×高さで容積(㎥)を計算'},
+  {key:'yosan',   icon:'🎯', name:'予算配分', desc:'予算と合計個数から各商品の最適な購入数を計算'},
+];
+
+function isStructMode(){ return tableMode==='shopping'||tableMode==='warikan'||tableMode==='zei'||tableMode==='wariai'||tableMode==='youseki'||tableMode==='yosan'; }
+function isLockedCell(r,c){
+  if(!isStructMode()) return false;
+  const m=STRUCT_MODES[tableMode];
+  if(r===0) return true;                 // 見出し行
+  return m.computed.includes(c);         // 自動計算列
+}
+function modeComputedDisplay(r,c){
+  const raw=data[r][c]; if(raw===''||raw==null) return '';
+  const v=parseFloat(raw); return isNaN(v)?'':fmt(v);
+}
+function syncRowColLabels(){
+  document.getElementById('rowCount').textContent=ROWS;
+  document.getElementById('colCount').textContent=COLS;
+}
+
+/* 構造モードのEnter移動：自動計算列を飛ばして次の入力セルへ */
+function modeAdvance(){
+  if(!isStructMode()) return false;
+  const m=STRUCT_MODES[tableMode];
+  let c=selC+1;
+  while(c<COLS && m.computed.includes(c)) c++;
+  if(c<COLS){ sel(selR,c); return true; }
+  if(selR<ROWS-1){
+    let nc=0; while(nc<COLS && m.computed.includes(nc)) nc++;
+    sel(selR+1,nc);
+  } else ac();
+  return true;
+}
+
+/* 自動計算列・フッターバーの再計算 */
+function recalcMode(){
+  if(tableMode==='shopping'){
+    for(let r=1;r<ROWS;r++){
+      const bv=parseFloat(data[r][1]), cv=parseFloat(data[r][2]);
+      const ok=data[r][1]!==''&&!isNaN(bv)&&data[r][2]!==''&&!isNaN(cv);
+      data[r][3]=ok?String(bv*cv):'';
+      const el=document.getElementById(`c${r}_3`); if(el) el.textContent=ok?fmt(bv*cv):'';
+    }
+    let sub=0; for(let r=1;r<ROWS;r++){const v=parseFloat(data[r][3]); if(!isNaN(v)) sub+=v;}
+    document.getElementById('shopSubtotal').textContent='¥'+fmt(sub);
+  } else if(tableMode==='zei'){
+    /* 列: 0=税抜(入力) 1=消費税(自動) 2=税込(入力)。
+       税抜と税込はどちらか一方を入力すると残りが計算される（入力時に他方はクリア済み）。*/
+    const rate=taxPct/100;
+    let totInc=0, totTax=0;
+    for(let r=1;r<ROWS;r++){
+      const exRaw=data[r][0], incRaw=data[r][2];
+      const hasEx = exRaw!=='' && !isNaN(parseFloat(exRaw));
+      const hasInc= incRaw!=='' && !isNaN(parseFloat(incRaw));
+      let body='', tax='', inc='';
+      if(hasEx){
+        body=Math.round(parseFloat(exRaw)*1000)/1000;
+        tax=Math.floor(body*rate + 1e-6);        // 1e-6: 浮動小数点誤差の補正
+        inc=body+tax;
+      } else if(hasInc){
+        inc=Math.round(parseFloat(incRaw)*1000)/1000;
+        body=Math.floor(inc/(1+rate) + 1e-6);    // 同上（例: 2200/1.1=2000）
+        tax=inc-body;
+      }
+      data[r][1]=(tax===''?'':String(tax));   // 消費税は確定列としてdataにも保持
+      const e0=document.getElementById(`c${r}_0`);
+      const e1=document.getElementById(`c${r}_1`);
+      const e2=document.getElementById(`c${r}_2`);
+      if(e0 && !hasEx)  e0.textContent=(body===''?'':fmt(body));   // 税込入力時：税抜を計算表示
+      if(e2 && !hasInc) e2.textContent=(inc==='' ?'':fmt(inc));    // 税抜入力時：税込を計算表示
+      if(e1) e1.textContent=(tax===''?'':fmt(tax));
+      if(tax!==''){ totInc+=inc; totTax+=tax; }
+    }
+    document.getElementById('zeiRate').textContent=taxPct+'%';
+    document.getElementById('zeiTotalInc').textContent='¥'+fmt(totInc);
+    document.getElementById('zeiTotalTax').textContent='¥'+fmt(totTax);
+  } else if(tableMode==='wariai'){
+    /* 列: 0=元の値 1=割(入力) 2=％(入力) 3=割合額 4=足す 5=引く。
+       割と％は連動（1割=10%）。どちらか一方を入力すると他方は自動表示。*/
+    for(let r=1;r<ROWS;r++){
+      const baseRaw=data[r][0], wariRaw=data[r][1], pctRaw=data[r][2];
+      const hasBase=baseRaw!==''&&!isNaN(parseFloat(baseRaw));
+      const hasWari=wariRaw!==''&&!isNaN(parseFloat(wariRaw));
+      const hasPct =pctRaw!==''&&!isNaN(parseFloat(pctRaw));
+      let wari='', pct='', amount='', plus='', minus='';
+      if(hasWari){ wari=parseFloat(wariRaw); pct=wari*10; }
+      else if(hasPct){ pct=parseFloat(pctRaw); wari=pct/10; }
+      if(hasBase && (hasWari||hasPct)){
+        const base=parseFloat(baseRaw);
+        amount=Math.round(base*pct/100*1e6)/1e6;   // 1e6: 浮動小数点誤差の補正
+        plus=base+amount;
+        minus=base-amount;
+      }
+      data[r][3]=(amount===''?'':String(amount));
+      data[r][4]=(plus===''?'':String(plus));
+      data[r][5]=(minus===''?'':String(minus));
+      const e1=document.getElementById(`c${r}_1`), e2=document.getElementById(`c${r}_2`);
+      const e3=document.getElementById(`c${r}_3`), e4=document.getElementById(`c${r}_4`), e5=document.getElementById(`c${r}_5`);
+      if(e1 && !hasWari) e1.textContent=(wari===''?'':fmt(wari));   // ％入力時は割を自動表示
+      if(e2 && !hasPct)  e2.textContent=(pct===''?'':fmt(pct));    // 割入力時は％を自動表示
+      if(e3) e3.textContent=(amount===''?'':fmt(amount));
+      if(e4) e4.textContent=(plus===''?'':fmt(plus));
+      if(e5) e5.textContent=(minus===''?'':fmt(minus));
+    }
+  } else if(tableMode==='warikan'){
+    let total=0; for(let r=1;r<ROWS;r++){const v=parseFloat(data[r][1]); if(!isNaN(v)) total+=v;}
+    const per=warikanPeople>0?Math.ceil(total/warikanPeople):0;
+    document.getElementById('wkTotal').textContent='¥'+fmt(total);
+    document.getElementById('wkPeople').textContent=warikanPeople;
+    document.getElementById('wkPer').textContent='¥'+fmt(per);
+  } else if(tableMode==='youseki'){
+    let total=0;
+    for(let r=1;r<ROWS;r++){
+      const a=parseFloat(data[r][1]), b=parseFloat(data[r][2]), h=parseFloat(data[r][3]);
+      const ok=data[r][1]!==''&&!isNaN(a)&&data[r][2]!==''&&!isNaN(b)&&data[r][3]!==''&&!isNaN(h);
+      const vol=ok?a*b*h:NaN;
+      data[r][4]=ok?String(vol):'';
+      const el=document.getElementById(`c${r}_4`); if(el) el.textContent=ok?fmt(vol):'';
+      if(ok) total+=vol;
+    }
+    document.getElementById('ysTotal').textContent=fmt(total);
+    document.getElementById('ysLiter').textContent=fmt(total*1000);
+  } else if(tableMode==='yosan'){
+    solveYosanMode();
+  }
+}
+function changeWarikan(d){
+  warikanPeople=Math.max(1,Math.min(99,warikanPeople+d));
+  if(tableMode==='warikan') recalcMode();
+  persistModes();
+}
+
+/* ── 予算配分：合計個数ぴったりで予算を一番使い切る購入数を計算 ── */
+function gcd(a,b){ a=Math.abs(Math.round(a)); b=Math.abs(Math.round(b)); while(b){ const t=a%b; a=b; b=t; } return a; }
+
+/* prices(>0の整数配列) を使い、合計 count 個・合計金額 budget 以下で
+   金額を最大化する各商品の個数を求める（整数DP）。*/
+function solveYosan(prices, budget, count){
+  const n=prices.length;
+  if(n===0||count<=0||budget<=0) return {feasible:false, minSpend:0};
+  let g=budget; for(const p of prices) g=gcd(g,p);
+  if(!(g>0)) g=1;
+  const sp=prices.map(p=>Math.max(1,Math.round(p/g)));   // スケール後の単価
+  const B=Math.round(budget/g);
+  const K=count;
+  const minP=Math.min(...sp);
+  if(minP*K>B) return {feasible:false, minSpend:minP*K*g};   // 最安だけでも予算オーバー
+  if(K*(B+1)>8000000) return {tooBig:true};                  // 計算規模が大きすぎる
+  // dp[k][s] = ちょうど k 個で合計 s（スケール後）が作れるか
+  const dp=[];
+  const first=new Uint8Array(B+1); first[0]=1; dp.push(first);
+  for(let k=1;k<=K;k++){
+    const prev=dp[k-1], cur=new Uint8Array(B+1);
+    for(let s=0;s<=B;s++){
+      if(!prev[s]) continue;
+      for(let i=0;i<n;i++){ const ns=s+sp[i]; if(ns<=B) cur[ns]=1; }
+    }
+    dp.push(cur);
+  }
+  // 予算以下で最大の合計金額を探す
+  let best=-1; const last=dp[K];
+  for(let s=B;s>=0;s--){ if(last[s]){ best=s; break; } }
+  if(best<0) return {feasible:false, minSpend:minP*K*g};
+  // 逆算して各商品の個数を復元
+  const qty=new Array(n).fill(0);
+  let s=best, k=K;
+  while(k>0){
+    let found=false;
+    for(let i=0;i<n;i++){ const ps=s-sp[i]; if(ps>=0&&dp[k-1][ps]){ qty[i]++; s=ps; k--; found=true; break; } }
+    if(!found) break;
+  }
+  return {feasible:true, qty, spend:best*g};
+}
+
+function solveYosanMode(){
+  const bEl=document.getElementById('yzBudget'), cEl=document.getElementById('yzCount');
+  const sEl=document.getElementById('yzStatus');
+  const spendEl=document.getElementById('yzSpend'), leftEl=document.getElementById('yzLeft');
+  const budget=Math.round(parseFloat(bEl.value)||0);
+  const count=Math.round(parseFloat(cEl.value)||0);
+
+  // 単価が入っている行を商品として収集（最低個数=col2、空欄は0）
+  const items=[];
+  for(let r=1;r<ROWS;r++){
+    const p=parseFloat(data[r][1]);
+    if(data[r][1]!==''&&!isNaN(p)&&p>0){
+      let mn=parseInt(data[r][2]); if(isNaN(mn)||mn<0) mn=0;
+      items.push({r, price:Math.round(p), min:mn});
+    }
+  }
+  // 計算列（個数=col3, 小計=col4）をクリア
+  for(let r=1;r<ROWS;r++){ data[r][3]=''; data[r][4]=''; }
+  const paint=()=>{
+    for(let r=1;r<ROWS;r++){
+      const e3=document.getElementById(`c${r}_3`); if(e3) e3.textContent=data[r][3]!==''?fmt(parseFloat(data[r][3])):'';
+      const e4=document.getElementById(`c${r}_4`); if(e4) e4.textContent=data[r][4]!==''?fmt(parseFloat(data[r][4])):'';
+    }
+  };
+  const fail=(msg)=>{ paint(); spendEl.textContent='—'; leftEl.textContent='¥'+fmt(budget); sEl.textContent=msg; };
+
+  if(items.length===0||budget<=0||count<=0){
+    paint();
+    spendEl.textContent='¥0'; leftEl.textContent='¥'+fmt(budget);
+    sEl.textContent=items.length===0?'品名と単価を入力してください'
+                   :(count<=0?'合計個数を入力してください':'予算を入力してください');
+    return;
+  }
+
+  // 最低個数ぶんを先取りし、残りを最適配分する
+  const M=items.reduce((s,it)=>s+it.min,0);          // 最低個数の合計
+  const baseCost=items.reduce((s,it)=>s+it.min*it.price,0);  // 最低個数ぶんの金額
+  if(M>count){ fail(`最低個数の合計が${M}個で、合計個数${count}個を超えています`); return; }
+  if(baseCost>budget){ fail(`最低個数だけで¥${fmt(baseCost)}必要（予算¥${fmt(budget)}を超過）`); return; }
+
+  const Kx=count-M, Bx=budget-baseCost;     // 残りの個数・予算
+  let qty, total;
+  if(Kx===0){
+    qty=items.map(it=>it.min);              // 全て最低個数ちょうど
+  } else {
+    const res=solveYosan(items.map(it=>it.price), Bx, Kx);
+    if(res.tooBig){
+      paint(); spendEl.textContent='—'; leftEl.textContent='—';
+      sEl.textContent='数値が大きすぎます。予算か個数を小さくしてください';
+      return;
+    }
+    if(!res.feasible){ fail(`予算オーバー：この条件では最低 ¥${fmt(baseCost+res.minSpend)} 必要です`); return; }
+    qty=items.map((it,i)=>it.min+res.qty[i]);
+  }
+
+  total=0;
+  items.forEach((it,i)=>{
+    data[it.r][3]=String(qty[i]);
+    data[it.r][4]=String(qty[i]*it.price);
+    total+=qty[i]*it.price;
+  });
+  paint();
+  spendEl.textContent='¥'+fmt(total);
+  leftEl.textContent='¥'+fmt(budget-total);
+  const gap=budget-total;
+  sEl.textContent=gap===0?'予算ぴったり使い切り！🎯':('余り ¥'+fmt(gap)+'（'+count+'個ちょうど）');
+}
+
+/* フッターバーの表示切替 */
+function hideAllBars(){
+  ['shopTaxBar','zeiBar','wariaiBar','warikanBar','yousekiBar','yosanBar'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.classList.remove('open');
+  });
+}
+function showModeBar(){
+  hideAllBars();
+  const id={shopping:'shopTaxBar', zei:'zeiBar', wariai:'wariaiBar', warikan:'warikanBar', youseki:'yousekiBar', yosan:'yosanBar'}[tableMode];
+  if(id) document.getElementById(id).classList.add('open');
+}
+
+/* ── モード切替（各モードの内容はリセットまで保持） ── */
+function snapshotData(){ return data.map(r=>r.slice()); }
+function loadData(arr){
+  for(let r=0;r<50;r++) for(let c=0;c<26;c++)
+    data[r][c]=(arr&&arr[r]&&arr[r][c]!==undefined)?arr[r][c]:'';
+}
+function normalCols(){
+  const v=parseInt(localStorage.getItem('excalc_cols'));
+  return (!isNaN(v)&&v>=1&&v<=26)?v:3;
+}
+/* 現在モードの内容をストアへ退避 */
+function captureMode(key){ modeStates[key]={cols:COLS, data:snapshotData(), styles:{...cellStyles}}; }
+/* 未訪問モードを新規初期化（空＋見出し） */
+function initFreshMode(mode){
+  for(let r=0;r<50;r++) for(let c=0;c<26;c++) data[r][c]='';
+  cellStyles={};
+  if(mode==='simple'){ COLS=2; }
+  else if(STRUCT_MODES[mode]){
+    STRUCT_MODES[mode].headers.forEach((h,i)=>{ data[0][i]=h; });
+    COLS=STRUCT_MODES[mode].cols;
+  } else { COLS=normalCols(); }   // normal
+}
+function initCellOfMode(){ return isStructMode()?Math.min(1,ROWS-1):0; }
+/* 構造モードは列数・見出しを定義に合わせる（構成変更にも追従） */
+function normalizeStructLayout(){
+  if(!isStructMode()) return;
+  const m=STRUCT_MODES[tableMode];
+  COLS=m.cols;
+  m.headers.forEach((h,i)=>{ data[0][i]=h; });
+}
+
+function switchMode(target){
+  if(target===tableMode) return;
+  captureMode(tableMode);                 // いま開いているモードを保存
+  tableMode=target;
+  document.body.classList.toggle('simple-mode', target==='simple');
+  if(isStructMode()) showModeBar(); else hideAllBars();
+  if(modeStates[target]){                  // 保存済みなら内容を復元
+    loadData(modeStates[target].data);
+    COLS=modeStates[target].cols;
+    cellStyles=modeStates[target].styles?{...modeStates[target].styles}:{};
+  } else {                                 // 初回は新規作成
+    initFreshMode(target);
+  }
+  normalizeStructLayout();
+  syncRowColLabels();
+  buildSheet();
+  sel(initCellOfMode(),0);
+  updateModeButton();
+  persistModes();
+}
+function updateModeButton(){
+  const btn=document.getElementById('shoppingBtn');
+  btn.textContent=MODE_LABELS[tableMode];
+  btn.classList.toggle('shopping-on', tableMode!=='normal');
+}
+
+/* ── 各モードの内容を localStorage に保存／復元（リセットまで保持） ── */
+function persistModes(){
+  try{
+    const states={};
+    for(const k in modeStates) states[k]={cols:modeStates[k].cols, data:modeStates[k].data, styles:modeStates[k].styles||{}};
+    states[tableMode]={cols:COLS, data:snapshotData(), styles:{...cellStyles}};   // 現在モードは生データから
+    localStorage.setItem(MODE_STORE_KEY, JSON.stringify({
+      current:tableMode, rows:ROWS, warikanPeople, states
+    }));
+  }catch(e){}
+}
+function restoreModeStore(){
+  let s; try{ s=JSON.parse(localStorage.getItem(MODE_STORE_KEY)||'null'); }catch(e){ s=null; }
+  if(!s||!s.states) return false;
+  for(const k in s.states){
+    const st=s.states[k];
+    if(st&&st.data) modeStates[k]={cols:st.cols, data:st.data, styles:st.styles||{}};
+  }
+  if(typeof s.warikanPeople==='number') warikanPeople=s.warikanPeople;
+  if(s.rows>=1&&s.rows<=50) ROWS=s.rows;
+  let cur=s.current||'normal';
+  if(!MODE_MENU.some(m=>m.key===cur)) cur='normal';   // 廃止済みモード(家計簿等)は通常へ
+  if(modeStates[cur]){
+    tableMode=cur;
+    loadData(modeStates[cur].data);
+    COLS=modeStates[cur].cols||normalCols();
+    cellStyles=modeStates[cur].styles?{...modeStates[cur].styles}:{};
+    document.body.classList.toggle('simple-mode', cur==='simple');
+    normalizeStructLayout();
+  }
+  return true;
+}
+
+/* 買物（モード）ボタン：押すとモード選択メニューを開く */
+function onModeBtnClick(){ openModeMenu(); }
+
+/* モード選択メニュー */
+function openModeMenu(){
+  const body=document.getElementById('modeMenuBody');
+  body.innerHTML=MODE_MENU.map(m=>`
+    <button class="mode-item${m.key===tableMode?' active':''}" onclick="pickMode('${m.key}')">
+      <span class="mode-ico">${m.icon}</span>
+      <span class="mode-text">
+        <span class="mode-name">${m.name}</span>
+        <span class="mode-desc">${m.desc}</span>
+      </span>
+      ${m.key===tableMode?'<span class="mode-check">✓</span>':''}
+    </button>`).join('');
+  document.getElementById('modeMenuOverlay').classList.add('open');
+}
+function closeModeMenu(){ document.getElementById('modeMenuOverlay').classList.remove('open'); }
+function pickMode(key){ closeModeMenu(); switchMode(key); }
+
+(function(){
+  const sbtn=document.getElementById('shoppingBtn');
+  sbtn.addEventListener('contextmenu', e=>{ e.preventDefault(); openModeMenu(); });
+})();
+
+function toggleSettings() {
+  const panel=document.getElementById('settingsPanel'), btn=document.getElementById('settingsBtn');
+  const open=panel.classList.toggle('open'); btn.classList.toggle('open',open);
+}
+function openHelp(){ document.getElementById('helpOverlay').classList.add('open'); }
+function closeHelp(){ document.getElementById('helpOverlay').classList.remove('open'); }
+
+function resetAll() {
+  const label=MODE_MENU.find(m=>m.key===tableMode);
+  const name=tableMode==='normal'?'通常':(label?label.name:'このモード');
+  if(!confirm(`「${name}」モードの内容をリセットしますか？\n（他のモードの内容は残ります）`)) return;
+  const entries=[];
+  for(let r=0;r<50;r++) for(let c=0;c<26;c++) if(data[r][c]!=='') entries.push({r,c,val:data[r][c]});
+  pushHistory(entries);
+  for(let r=0;r<50;r++) for(let c=0;c<26;c++) data[r][c]='';
+  if(isStructMode()) STRUCT_MODES[tableMode].headers.forEach((h,i)=>{ data[0][i]=h; });   // 見出しは復元
+  cellStyles={};   // 書式もクリア
+  colWidths={}; rowHeights={}; saveSheetSizes();   // 手動の列幅・行高もデフォルトに戻す
+  cellEditing=false; op1=null; cur_op=null; waiting=false; disp_val='0';
+  buildSheet();
+  sel(initCellOfMode(),0);
+  document.getElementById('formulaInput').value=data[selR][selC];
+  persistModes();
+}
+
+/* ── セル書式（小数点・装飾・色・大きさ）──────────────────── */
+const FMT_SIZES  = [0.8, 1.0, 1.25, 1.5];
+const FMT_SLABEL = ['小','標準','大','特大'];
+const TEXT_COLORS = ['', '#e53935','#1e88e5','#2e7d32','#fb8c00','#8e24aa','#000000','#ffffff'];
+const BG_COLORS   = ['', '#fff59d','#c8e6c9','#bbdefb','#f8bbd0','#ffe0b2','#cfd8dc','#212121'];
+let fmtR=-1, fmtC=-1;
+
+/* td に現在の書式を反映（毎回リセットしてから適用） */
+function applyCellStyle(td, r, c){
+  td.style.fontWeight=''; td.style.fontStyle=''; td.style.textDecoration='';
+  td.style.color=''; td.style.background=''; td.style.fontSize='';
+  td.style.removeProperty('--dsize');
+  const s=cellStyles[`${r},${c}`]; if(!s) return;
+  if(s.bold)      td.style.fontWeight='bold';
+  if(s.italic)    td.style.fontStyle='italic';
+  if(s.underline) td.style.textDecoration='underline';
+  if(s.color)     td.style.color=s.color;
+  if(s.bg)        td.style.background=s.bg;
+  if(s.size && s.size!==1) td.style.setProperty('--dsize', s.size);
+}
+/* 1セルだけ再描画（表示文字＋書式） */
+function repaintCell(r,c){
+  const td=document.getElementById(`c${r}_${c}`); if(!td) return;
+  if(!(isStructMode() && (r===0 || STRUCT_MODES[tableMode].computed.includes(c))))
+    td.textContent=getCellDisplay(r,c);
+  applyCellStyle(td,r,c);
+  autoFitSheet();   // 装飾(文字サイズ等)変更後も列幅・縮小を更新
+}
+function fmtKey(){ return `${fmtR},${fmtC}`; }
+function fmtStyle(create){
+  const k=fmtKey();
+  if(!cellStyles[k] && create) cellStyles[k]={};
+  return cellStyles[k];
+}
+
+function openCellFmt(){
+  fmtR=selR; fmtC=selC;
+  document.getElementById('cellFmtTitle').textContent=`${ALPHA[fmtC]}${fmtR+1} の書式`;
+  syncCellFmt();
+  document.getElementById('cellFmtOverlay').classList.add('open');
+}
+function closeCellFmt(){ document.getElementById('cellFmtOverlay').classList.remove('open'); }
+
+/* パネルの表示を現在のセル書式に合わせる */
+function syncCellFmt(){
+  const s=cellStyles[fmtKey()]||{};
+  const dec=(typeof s.dec==='number')?s.dec:decPlaces;
+  document.getElementById('fmtDecVal').textContent=dec<0?'自動':dec;
+  const sz=s.size||1; let si=FMT_SIZES.indexOf(sz); if(si<0) si=1;
+  document.getElementById('fmtSizeVal').textContent=FMT_SLABEL[si];
+  document.getElementById('fmtBold').classList.toggle('on', !!s.bold);
+  document.getElementById('fmtItalic').classList.toggle('on', !!s.italic);
+  document.getElementById('fmtUnder').classList.toggle('on', !!s.underline);
+  renderSwatches('fmtTextColors', TEXT_COLORS, s.color||'', 'color');
+  renderSwatches('fmtBgColors',   BG_COLORS,   s.bg||'',    'bg');
+}
+function renderSwatches(boxId, colors, cur, type){
+  document.getElementById(boxId).innerHTML=colors.map(v=>{
+    const none=(v==='');
+    const cls='fmt-sw'+(none?' none':'')+(cur===v?' sel':'');
+    const bg=none?'':`background:${v}`;
+    return `<button class="${cls}" style="${bg}" onclick="fmtColor('${type}','${v}')"></button>`;
+  }).join('');
+}
+
+function fmtDec(delta){
+  const s=fmtStyle(true);
+  let cur=(typeof s.dec==='number')?s.dec:decPlaces;
+  cur=Math.max(-1, Math.min(10, cur+delta));
+  s.dec=cur;
+  document.getElementById('fmtDecVal').textContent=cur<0?'自動':cur;
+  repaintCell(fmtR,fmtC); afterFmtChange();
+}
+function fmtSize(delta){
+  const s=fmtStyle(true);
+  let si=FMT_SIZES.indexOf(s.size||1); if(si<0) si=1;
+  si=Math.max(0, Math.min(FMT_SIZES.length-1, si+delta));
+  s.size=FMT_SIZES[si];
+  document.getElementById('fmtSizeVal').textContent=FMT_SLABEL[si];
+  repaintCell(fmtR,fmtC); afterFmtChange();
+}
+function fmtToggle(prop){
+  const s=fmtStyle(true);
+  s[prop]=!s[prop];
+  document.getElementById(prop==='bold'?'fmtBold':prop==='italic'?'fmtItalic':'fmtUnder').classList.toggle('on', !!s[prop]);
+  repaintCell(fmtR,fmtC); afterFmtChange();
+}
+function fmtColor(type, v){
+  const s=fmtStyle(true);
+  if(v==='') delete s[type]; else s[type]=v;
+  repaintCell(fmtR,fmtC); syncCellFmt(); afterFmtChange();
+}
+function fmtClear(){
+  delete cellStyles[fmtKey()];
+  repaintCell(fmtR,fmtC); syncCellFmt(); afterFmtChange();
+}
+/* 空オブジェクトは捨てて保存 */
+function afterFmtChange(){
+  const k=fmtKey(), s=cellStyles[k];
+  if(s && Object.keys(s).length===0) delete cellStyles[k];
+  persistModes();
+}
+
+/* ── 合計セクションのタップ ──
+   「合計」ラベル → 漢数字(万進)⇄数字 を切替 ／ 値 → 数値をコピー */
+document.querySelector('.stats-section').addEventListener('click', e=>{
+  if(lastStatSum===null) return;
+  // 「合計」ラベルをタップ → 表示形式を切替
+  if(e.target.closest('.stats-title')){
+    statKanji=!statKanji;
+    document.getElementById('sSum').textContent = statKanji ? toKanjiNum(lastStatSum) : fmt(lastStatSum);
+    return;
+  }
+  // 値をタップ → 数値をコピー
+  const sv=e.target.closest('.stat-val'); if(!sv) return;
+  const plain=fmt(lastStatSum).replace(/,/g,'');
+  (navigator.clipboard?navigator.clipboard.writeText(plain):Promise.reject())
+    .catch(()=>{
+      const ta=Object.assign(document.createElement('textarea'),{value:plain});
+      Object.assign(ta.style,{position:'fixed',opacity:'0'});
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+    });
+  sv.classList.add('stat-copied');
+  setTimeout(()=>sv.classList.remove('stat-copied'),700);
+});
+
+/* ── フィル機能（長押し→スライドでコピー） ── */
+let fillMode=false, fillSrcR=-1, fillSrcC=-1, fillEndR=-1, fillEndC=-1;
+let fillTimer=null, fillTouchX=0, fillTouchY=0;
+
+function startFillPress(e,r,c) {
+  if(e.touches.length!==1) return;
+  fillTouchX=e.touches[0].clientX; fillTouchY=e.touches[0].clientY;
+  clearTimeout(fillTimer);
+  fillTimer=setTimeout(()=>{fillTimer=null; enterFillMode(r,c);},600);
+}
+function enterFillMode(r,c) {
+  fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c;
+  const el=document.getElementById(`c${r}_${c}`); if(el) el.classList.add('fill-src');
+  if(navigator.vibrate) navigator.vibrate(40);
+}
+function onFillTouchMove(e) {
+  if(fillTimer!==null&&e.touches.length===1){
+    const dx=e.touches[0].clientX-fillTouchX, dy=e.touches[0].clientY-fillTouchY;
+    if(dx*dx+dy*dy>64){clearTimeout(fillTimer);fillTimer=null;}
+  }
+  if(!fillMode||e.touches.length!==1) return;
+  e.preventDefault();
+  const t=e.touches[0];
+  const target=document.elementFromPoint(t.clientX,t.clientY); if(!target) return;
+  const m=target.id?target.id.match(/^c(\d+)_(\d+)$/):null; if(!m) return;
+  const r=parseInt(m[1]),c=parseInt(m[2]);
+  const dr=Math.abs(r-fillSrcR),dc=Math.abs(c-fillSrcC);
+  const endR=dr>=dc?r:fillSrcR, endC=dc>dr?c:fillSrcC;
+  if(endR===fillEndR&&endC===fillEndC) return;
+  clearFillPreview(); fillEndR=endR; fillEndC=endC;
+  const r1=Math.min(fillSrcR,fillEndR),r2=Math.max(fillSrcR,fillEndR);
+  const c1=Math.min(fillSrcC,fillEndC),c2=Math.max(fillSrcC,fillEndC);
+  for(let row=r1;row<=r2;row++) for(let col=c1;col<=c2;col++){
+    if(row===fillSrcR&&col===fillSrcC) continue;
+    const el=document.getElementById(`c${row}_${col}`); if(el) el.classList.add('fill-preview');
+  }
+}
+function onFillTouchEnd(e) {
+  if(fillTimer!==null){clearTimeout(fillTimer);fillTimer=null;}
+  if(!fillMode) return; e.preventDefault(); commitFill();
+}
+function clearFillPreview() {
+  document.querySelectorAll('.fill-preview').forEach(el=>el.classList.remove('fill-preview'));
+}
+function adjustFormula(formula,dr,dc) {
+  const s=String(formula); if(!s.startsWith('=')) return formula;
+  return s.replace(/([A-Z])(\d+)/g,(match,col,row)=>{
+    const ci=ALPHA.indexOf(col),rn=parseInt(row);
+    if(ci===-1||rn<1||rn>50) return match;
+    return `${ALPHA[Math.min(25,Math.max(0,ci+dc))]}${Math.min(50,Math.max(1,rn+dr))}`;
+  });
+}
+function commitFill() {
+  fillMode=false;
+  const srcEl=document.getElementById(`c${fillSrcR}_${fillSrcC}`);
+  if(srcEl) srcEl.classList.remove('fill-src');
+  clearFillPreview();
+  const steps=Math.max(Math.abs(fillEndR-fillSrcR),Math.abs(fillEndC-fillSrcC));
+  if(steps>0){
+    const dr=fillEndR>fillSrcR?1:fillEndR<fillSrcR?-1:0;
+    const dc=fillEndC>fillSrcC?1:fillEndC<fillSrcC?-1:0;
+    const srcVal=data[fillSrcR][fillSrcC];
+    for(let step=1;step<=steps;step++){
+      const r=fillSrcR+dr*step, c=fillSrcC+dc*step;
+      if(r<0||r>=ROWS||c<0||c>=COLS) break;
+      setCellVal(r,c,adjustFormula(srcVal,dr*step,dc*step));
+    }
+  }
+  fillSrcR=fillSrcC=fillEndR=fillEndC=-1;
+}
+document.getElementById('sheet').addEventListener('touchstart',e=>{
+  const td=e.target.closest&&e.target.closest('.cell'); if(!td) return;
+  const m=td.id.match(/^c(\d+)_(\d+)$/); if(!m) return;
+  const r=parseInt(m[1]),c=parseInt(m[2]);
+  if(sumSelectMode){ sumPending=true; sumDragging=false; sumStartR=r; sumStartC=c; sumDownX=e.touches[0].clientX; sumDownY=e.touches[0].clientY; return; }
+  startFillPress(e,r,c);
+},{passive:true});
+document.addEventListener('touchmove',e=>{
+  if(sumSelectMode){ if(e.touches[0]) sumPointerMove(e.touches[0],e); return; }
+  onFillTouchMove(e);
+},{passive:false});
+document.addEventListener('touchend',e=>{
+  if(sumSelectMode){ sumPointerUp(e); return; }
+  onFillTouchEnd(e);
+},{passive:false});
+
+/* マウス(PC)でのΣスライド範囲指定 */
+document.getElementById('sheet').addEventListener('mousedown',e=>{
+  if(!sumSelectMode) return;
+  const td=e.target.closest&&e.target.closest('.cell'); if(!td) return;
+  const m=td.id.match(/^c(\d+)_(\d+)$/); if(!m) return;
+  sumPending=true; sumDragging=false; sumStartR=parseInt(m[1]); sumStartC=parseInt(m[2]); sumDownX=e.clientX; sumDownY=e.clientY;
+});
+document.addEventListener('mousemove',e=>{ if(sumSelectMode&&sumPending) sumPointerMove(e,e); });
+document.addEventListener('mouseup',e=>{ if(sumSelectMode) sumPointerUp(e); });
+
+function sumPointerMove(pt,e){
+  if(!sumPending) return;
+  if(!sumDragging){
+    const dx=pt.clientX-sumDownX, dy=pt.clientY-sumDownY;
+    if(dx*dx+dy*dy<36) return;        // 微小移動はタップ扱い
+    sumDragging=true;
+  }
+  if(e&&e.cancelable) e.preventDefault();
+  const target=document.elementFromPoint(pt.clientX,pt.clientY); if(!target) return;
+  const mm=target.id?target.id.match(/^c(\d+)_(\d+)$/):null; if(!mm) return;
+  applySumRangeFromCells(sumStartR,sumStartC,parseInt(mm[1]),parseInt(mm[2]));
+}
+function sumPointerUp(e){
+  if(sumDragging){ if(e&&e.cancelable) e.preventDefault(); sumSuppressClick=true; }
+  sumPending=false; sumDragging=false;
+}
+
+/* Σオートボタン：短押し=Σオート実行／長押し=合計・平均メニュー */
+(function(){
+  const b=document.getElementById('autoSumBtn'); if(!b) return;
+  let timer=null, longed=false;
+  const press=()=>{ longed=false; clearTimeout(timer); timer=setTimeout(()=>{ longed=true; openSumFuncMenu(); if(navigator.vibrate) navigator.vibrate(30); },500); };
+  const release=()=>{ if(timer){clearTimeout(timer);timer=null;} if(!longed) autoSum(); longed=false; };
+  const cancel=()=>{ if(timer){clearTimeout(timer);timer=null;} longed=false; };
+  b.addEventListener('touchstart',e=>{ e.preventDefault(); press(); },{passive:false});
+  b.addEventListener('touchend',  e=>{ e.preventDefault(); release(); },{passive:false});
+  b.addEventListener('touchcancel',cancel);
+  b.addEventListener('mousedown', press);
+  b.addEventListener('mouseup',   release);
+  b.addEventListener('mouseleave',cancel);
+})();
+
+/* ── 保存・ロード ── */
+const SAVE_KEY='excalc_saves';
+function getSaves(){try{return JSON.parse(localStorage.getItem(SAVE_KEY)||'[]');}catch{return[];}}
+
+function saveData() {
+  const defaultName=new Date().toLocaleString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const name=prompt('保存名を入力してください',defaultName);
+  if(name===null) return;
+  const saves=getSaves();
+  saves.unshift({
+    id:Date.now(), name:name.trim()||defaultName,
+    timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces,
+    data:data.map(row=>[...row]), styles:{...cellStyles}
+  });
+  localStorage.setItem(SAVE_KEY,JSON.stringify(saves));
+  const btn=document.getElementById('saveBtn');
+  btn.textContent='✓ 保存済'; setTimeout(()=>{btn.textContent='保存';},1200);
+}
+
+function showSaveList(){renderSaveList();document.getElementById('saveListOverlay').classList.add('open');}
+function closeSaveList(){document.getElementById('saveListOverlay').classList.remove('open');}
+
+function escHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderSaveList() {
+  const body=document.getElementById('saveListBody');
+  const saves=getSaves();
+  if(saves.length===0){body.innerHTML='<div class="no-saves">保存データがありません</div>';return;}
+  body.innerHTML=saves.map(s=>`
+    <div class="save-item">
+      <div class="save-info">
+        <div class="save-name">${escHtml(s.name)}</div>
+        <div class="save-date">${new Date(s.timestamp).toLocaleString('ja-JP')}　${s.rows}行×${s.cols}列</div>
+      </div>
+      <button class="btn-rename" onclick="renameSave(${s.id})">✏</button>
+      <button class="btn-load"   onclick="loadSave(${s.id})">読込</button>
+      <button class="btn-del"    onclick="deleteSave(${s.id})">削除</button>
+    </div>
+  `).join('');
+}
+
+function renameSave(id) {
+  const saves=getSaves();
+  const entry=saves.find(s=>s.id===id); if(!entry) return;
+  const newName=prompt('新しい名前を入力してください',entry.name);
+  if(newName===null) return;
+  entry.name=newName.trim()||entry.name;
+  localStorage.setItem(SAVE_KEY,JSON.stringify(saves));
+  renderSaveList();
+}
+
+function loadSave(id) {
+  const saves=getSaves();
+  const entry=saves.find(s=>s.id===id); if(!entry) return;
+  if(!confirm(`「${entry.name}」を読み込みますか？\n現在のデータは上書きされます。`)) return;
+  for(let r=0;r<50;r++) for(let c=0;c<26;c++){data[r][c]='';}
+  entry.data.forEach((row,r)=>row.forEach((val,c)=>{data[r][c]=val;}));
+  cellStyles=entry.styles?{...entry.styles}:{};
+  ROWS=entry.rows; COLS=entry.cols; decPlaces=entry.decPlaces;
+  document.getElementById('rowCount').textContent=ROWS;
+  document.getElementById('colCount').textContent=COLS;
+  document.getElementById('decCount').textContent=decPlaces<0?'自':decPlaces;
+  buildSheet(); sel(0,0); closeSaveList(); persistModes();
+}
+
+function deleteSave(id) {
+  const saves=getSaves();
+  const entry=saves.find(s=>s.id===id); if(!entry) return;
+  if(!confirm(`「${entry.name}」を削除しますか？`)) return;
+  localStorage.setItem(SAVE_KEY,JSON.stringify(saves.filter(s=>s.id!==id)));
+  renderSaveList();
+}
+
+/* ── 初期化 ── */
+if(localStorage.getItem('excalc_dark')==='1'){
+  darkMode=true; document.body.classList.add('dark');
+  document.getElementById('darkBtn').textContent='☀';
+}
+const savedKeySize=parseInt(localStorage.getItem('excalc_keysize'));
+if(!isNaN(savedKeySize)&&savedKeySize>=0&&savedKeySize<KEY_STEPS.length) keySizeIdx=savedKeySize;
+applyKeySize();
+const savedAppWidth=parseInt(localStorage.getItem('excalc_appwidth'));
+if(!isNaN(savedAppWidth)&&savedAppWidth>=0&&savedAppWidth<WIDTH_STEPS.length) appWidthIdx=savedAppWidth;
+applyAppWidth();
+numpadHidden=localStorage.getItem('excalc_numpad_hidden')==='1';
+applyNumpad();
+restoreSheetSizes();
+/* 新デフォルト（セル文字＝大・列幅は内容に合わせ自動調整）を既存ユーザーにも一度だけ適用 */
+if(localStorage.getItem('excalc_cellsize_default_v4')!=='1'){
+  localStorage.removeItem('excalc_cellsize');
+  localStorage.setItem('excalc_cellsize_default_v4','1');
+}
+const savedCellSize=parseInt(localStorage.getItem('excalc_cellsize'));
+if(!isNaN(savedCellSize)&&savedCellSize>=0&&savedCellSize<SIZE_STEPS.length) cellSizeIdx=savedCellSize;
+applyCellSize();
+const savedInfoSize=parseInt(localStorage.getItem('excalc_infosize'));
+if(!isNaN(savedInfoSize)&&savedInfoSize>=0&&savedInfoSize<SIZE_STEPS.length) infoSizeIdx=savedInfoSize;
+applyInfoSize();
+const savedRows=parseInt(localStorage.getItem('excalc_rows'));
+if(!isNaN(savedRows)&&savedRows>=1&&savedRows<=50){ ROWS=savedRows; document.getElementById('rowCount').textContent=ROWS; }
+const savedCols=parseInt(localStorage.getItem('excalc_cols'));
+if(!isNaN(savedCols)&&savedCols>=1&&savedCols<=26){ COLS=savedCols; document.getElementById('colCount').textContent=COLS; }
+const savedDec=parseInt(localStorage.getItem('excalc_dec'));
+if(!isNaN(savedDec)&&savedDec>=-1&&savedDec<=10){ decPlaces=savedDec; document.getElementById('decCount').textContent=decPlaces<0?'自':decPlaces; }
+const savedTax=parseInt(localStorage.getItem('excalc_taxrate'));
+if(!isNaN(savedTax)&&savedTax>=0&&savedTax<=30) taxPct=savedTax;
+applyTaxRate();
+const savedSumFunc=localStorage.getItem('excalc_sumfunc');
+if(savedSumFunc==='SUM'||savedSumFunc==='AVERAGE') sumFunc=savedSumFunc;
+updateAutoSumBtn();
+/* 予算配分モードの予算・合計個数を復元し、変更時に再計算 */
+(function(){
+  const b=document.getElementById('yzBudget'), c=document.getElementById('yzCount');
+  const sb=localStorage.getItem('excalc_yzBudget'); if(sb!==null&&b) b.value=sb;
+  const sc=localStorage.getItem('excalc_yzCount');  if(sc!==null&&c) c.value=sc;
+  if(b) b.addEventListener('input', ()=>{ localStorage.setItem('excalc_yzBudget',b.value); if(tableMode==='yosan') solveYosanMode(); });
+  if(c) c.addEventListener('input', ()=>{ localStorage.setItem('excalc_yzCount',c.value);  if(tableMode==='yosan') solveYosanMode(); });
+})();
+
+/* 各モードの内容を復元（前回のモード・入力をリセットまで保持） */
+restoreModeStore();
+syncRowColLabels();
+if(isStructMode()) showModeBar();
+updateModeButton();
+buildSheet();
+sel(initCellOfMode(),0);
+
+fitNumpadLabels();
+window.addEventListener('load', fitNumpadLabels);
+
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("./service-worker.js");
+}
+</script>
+</body>
+</html>
