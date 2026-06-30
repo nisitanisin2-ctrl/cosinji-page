@@ -421,6 +421,7 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 }
 .btn.ubtn:hover { background: #6f49a3; }
 .btn.ubtn.empty { background: #3a3550; color: #9b8fc0; }   /* 未登録 */
+.btn.ubtn.armed { background: #9460d8; box-shadow: inset 0 0 0 2px #d3b4f5; }  /* 長押し成立＝登録できる状態 */
 .numpad-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -2316,22 +2317,28 @@ async function registerUserKey(i){
   if(!pad) return;
   let timer=null, longed=false, startX=0, startY=0, curBtn=null;
   const clear=()=>{ if(timer){ clearTimeout(timer); timer=null; } };
+  /* 指を離してから登録モーダル（入力キー）を開く。直後の合成イベントで誤閉じしないよう少し遅らせる */
+  const openRegister=(i)=>{ setTimeout(()=>registerUserKey(i), 160); };
   pad.addEventListener('pointerdown', e=>{
     const b=e.target.closest&&e.target.closest('.ubtn'); if(!b) return;
     curBtn=b; longed=false; startX=e.clientX; startY=e.clientY; clear();
-    timer=setTimeout(()=>{ longed=true; if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} registerUserKey(+b.dataset.uk); }, 500);
+    // 長押しが成立したら「登録できる状態」にして知らせるだけ（モーダルは離してから開く）
+    timer=setTimeout(()=>{ longed=true; b.classList.add('armed'); if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} }, 500);
   });
   pad.addEventListener('pointermove', e=>{
     if(curBtn && Math.hypot(e.clientX-startX, e.clientY-startY)>10) clear();   // 動いたら長押し取消（＝ページめくり等）
   });
   pad.addEventListener('pointerup', ()=>{
     if(!curBtn) return;
-    clear(); const b=curBtn; curBtn=null;
-    if(longed){ longed=false; return; }   // 長押し（登録）後はタップ動作しない
-    if(numpadSwiping) return;              // フリックでページ移動した時は入力しない
-    userKey(+b.dataset.uk);
+    clear(); const b=curBtn; curBtn=null; b.classList.remove('armed');
+    const wasLong=longed; longed=false;
+    if(numpadSwiping) return;                         // フリックでページ移動した時は何もしない
+    const i=+b.dataset.uk;
+    if(wasLong){ openRegister(i); return; }           // 長押し→離してから登録モーダル
+    if((userKeys[i]||'')===''){ openRegister(i); return; }  // 未登録タップ→離してから登録
+    userKey(i);                                        // 登録済みタップ→入力
   });
-  pad.addEventListener('pointercancel', ()=>{ clear(); curBtn=null; longed=false; });
+  pad.addEventListener('pointercancel', ()=>{ clear(); if(curBtn) curBtn.classList.remove('armed'); curBtn=null; longed=false; });
   pad.addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); }, true);  // pointerで処理（clickは無効化）
 })();
 
