@@ -717,6 +717,18 @@ body.dark .warikan-bar { background: #152436; border-color: #3a6ea5; color: #9cc
 body.dark .youseki-bar { background: #2a1f12; border-color: #a86a20; color: #e0a060; }
 .jikan-bar { background: #ede7f6; border-color: #5e35b1; color: #311b92; }
 body.dark .jikan-bar { background: #1c1730; border-color: #5a4a8a; color: #c4b4e8; }
+/* ── 単位水量試験（土研法エアメータ法）モード ── */
+.tanisui-bar { background: #e0f2f1; border-color: #00897b; color: #004d40; }
+body.dark .tanisui-bar { background: #102826; border-color: #2f7a70; color: #8fd4ca; }
+.ts-field { display: flex; align-items: center; gap: 3px; }
+.ts-judge {
+  padding: 2px 10px; border-radius: 4px; font-weight: bold;
+  font-size: calc(12px * var(--info-scale, 1)); color: #fff; background: #9e9e9e;
+}
+.ts-judge.ok   { background: #2e7d32; }
+.ts-judge.warn { background: #ef6c00; }
+.ts-judge.ng   { background: #c62828; }
+.ts-hint { font-size: calc(10px * var(--info-scale, 1)); opacity: 0.85; flex-basis: 100%; }
 .shop-tax-bar b { font-size: calc(18px * var(--info-scale, 1)); }
 .wk-people { display: flex; align-items: center; gap: 5px; }
 .wk-btn {
@@ -880,6 +892,17 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   <span>= <b id="jkMinutes">0分</b></span>
 </div>
 
+<div class="shop-tax-bar tanisui-bar" id="tanisuiryouBar">
+  <span>配合γ1 <b id="tsG1">—</b></span>
+  <span>試験γ2 <b id="tsG2">—</b></span>
+  <span>推定単位水量 <b id="tsW">—</b></span>
+  <span>差 <b id="tsDelta">—</b></span>
+  <span class="ts-judge" id="tsJudge">—</span>
+  <span class="ts-field">合格±<button class="wk-btn" onclick="changeTsTol('warn',-1)">−</button><b id="tsWarn">15</b><button class="wk-btn" onclick="changeTsTol('warn',1)">+</button></span>
+  <span class="ts-field">限界±<button class="wk-btn" onclick="changeTsTol('limit',-1)">−</button><b id="tsLimit">20</b><button class="wk-btn" onclick="changeTsTol('limit',1)">+</button></span>
+  <span class="ts-hint" id="tsHint">配合と試験の各値を入力してください（W=W1+0.7×(γ1−γ2)、β=0.7）</span>
+</div>
+
 <div class="stats-section">
   <span class="stats-title" id="statsTitle" title="タップで合計⇄平均を切替">合計 — 列 A</span>
   <span class="stat-val" id="sSum" title="タップで数値コピー">0</span>
@@ -1023,6 +1046,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><b>消費税</b>：税抜→税込／税込→税抜＋消費税（税率は設定）</div>
         <div class="help-li"><b>割合計算</b>：元の値の何割・何％と、足す/引くを計算</div>
         <div class="help-li"><b>容積</b>：縦×横×高さ＝容積　<b>予算配分</b>：予算と個数から最適な購入数</div>
+        <div class="help-li"><b>時間計算</b>：開始〜終了の時刻から所要時間</div>
+        <div class="help-li"><b>単位水量</b>：土研法エアメータ法で生コンの単位水量を推定。表に配合（単位水量W1・セメント・細骨材・粗骨材・混和材・配合空気量）と試験値（容器容積V・容器質量・容器+試料・測定空気量）を入力すると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で単位水量を推定し、配合値との差を許容差（合格±/限界±、下のバーで変更可）で合否判定します。質量はkg・容積はLで入力。</div>
       </div>
 
       <div class="help-sec">
@@ -1430,6 +1455,10 @@ function buildSheet() {
         const m=STRUCT_MODES[tableMode];
         if (r===0 && c<m.headers.length) {
           td.classList.add('shop-label');
+        } else if (tableMode==='tanisuiryou' && c===0) {
+          td.classList.add('shop-label');                 // 単位水量フォームの項目名（固定ラベル）
+          const f=TS_FORM[r-1];
+          td.textContent=f?`${f.label} (${f.unit})`:'';
         } else if (r>0 && m.computed.includes(c)) {
           td.classList.add('shop-total');
           td.textContent=modeComputedDisplay(r,c);
@@ -2690,8 +2719,23 @@ const STRUCT_MODES={
   youseki: {cols:5, headers:['名称','縦m','横m','高さm','容積㎥'], computed:[4]},
   yosan:   {cols:5, headers:['品名','単価','最低','個数','小計'], computed:[3,4]},
   jikan:   {cols:4, headers:['項目','開始','終了','時間'],         computed:[3]},
+  tanisuiryou:{cols:2, headers:['項目','値'], computed:[]},   // 単位水量試験（土研法）：表をフォームとして使う
 };
-const MODE_LABELS={normal:'モード', simple:'簡易中', shopping:'買物中', warikan:'割勘中', zei:'税計中', wariai:'割合中', youseki:'容積中', yosan:'予算中', jikan:'時間中'};
+/* 単位水量試験モードの入力フォーム（表 col0=ラベル固定／col1=入力。行r=1..length に対応） */
+const TS_FORM=[
+  {label:'単位水量 W1', unit:'kg/m³'},   // r1
+  {label:'セメント C',  unit:'kg/m³'},   // r2
+  {label:'細骨材 S',    unit:'kg/m³'},   // r3
+  {label:'粗骨材 G',    unit:'kg/m³'},   // r4
+  {label:'混和材 P',    unit:'kg/m³'},   // r5（無ければ0）
+  {label:'配合空気量 A1', unit:'%'},     // r6
+  {label:'容器の容積 V', unit:'L'},      // r7
+  {label:'容器質量 m1', unit:'kg'},      // r8
+  {label:'容器+試料 m2', unit:'kg'},     // r9
+  {label:'測定空気量 A2', unit:'%'},     // r10
+];
+const TS_ROWS=TS_FORM.length+1;   // 見出し行＋入力行
+const MODE_LABELS={normal:'モード', simple:'簡易中', shopping:'買物中', warikan:'割勘中', zei:'税計中', wariai:'割合中', youseki:'容積中', yosan:'予算中', jikan:'時間中', tanisuiryou:'水量中'};
 const MODE_MENU=[
   {key:'normal',  icon:'▦',  name:'通常',   desc:'標準のスプレッドシート'},
   {key:'simple',  icon:'⬛',  name:'簡易',   desc:'列を少なく・セルを大きく見やすく'},
@@ -2702,6 +2746,7 @@ const MODE_MENU=[
   {key:'youseki', icon:'📦', name:'容積',   desc:'縦×横×高さで容積(㎥)を計算'},
   {key:'yosan',   icon:'🎯', name:'予算配分', desc:'予算と合計個数から各商品の最適な購入数を計算'},
   {key:'jikan',   icon:'⏱', name:'時間計算', desc:'開始〜終了の時刻から何時間何分かを計算（合計も）'},
+  {key:'tanisuiryou', icon:'💧', name:'単位水量', desc:'土研法エアメータ法で生コンの単位水量を推定（配合・試験値から算定し合否判定）'},
 ];
 
 /* ── 保存リストから登録したカスタムモード（最大3個） ── */
@@ -2730,7 +2775,7 @@ function modeButtonLabel(key){
   return 'モード';
 }
 
-function isStructMode(){ return tableMode==='shopping'||tableMode==='warikan'||tableMode==='zei'||tableMode==='wariai'||tableMode==='youseki'||tableMode==='yosan'||tableMode==='jikan'; }
+function isStructMode(){ return tableMode==='shopping'||tableMode==='warikan'||tableMode==='zei'||tableMode==='wariai'||tableMode==='youseki'||tableMode==='yosan'||tableMode==='jikan'||tableMode==='tanisuiryou'; }
 /* ユーザーが書式設定で保護したセル */
 function isUserLocked(r,c){
   const s=cellStyles[`${r},${c}`];
@@ -2741,6 +2786,10 @@ function isStructLocked(r,c){
   if(!isStructMode()) return false;
   const m=STRUCT_MODES[tableMode];
   if(r===0) return true;                 // 見出し行
+  if(tableMode==='tanisuiryou'){
+    if(c===0) return true;               // ラベル列は固定
+    return r>TS_FORM.length;             // 入力行(1..length)以外は不可
+  }
   return m.computed.includes(c);         // 自動計算列
 }
 /* 編集禁止セル（構造ロック or ユーザーロック） */
@@ -2807,6 +2856,10 @@ function syncRowColLabels(){
 /* 構造モードのEnter移動：自動計算列を飛ばして次の入力セルへ */
 function modeAdvance(){
   if(!isStructMode()) return false;
+  if(tableMode==='tanisuiryou'){                 // 値の列(col1)を上から下へ移動
+    if(selR<TS_FORM.length) sel(selR+1,1); else ac();
+    return true;
+  }
   const m=STRUCT_MODES[tableMode];
   let c=selC+1;
   while(c<COLS && m.computed.includes(c)) c++;
@@ -2908,6 +2961,8 @@ function recalcMode(){
     document.getElementById('ysLiter').textContent=fmt(total*1000);
   } else if(tableMode==='yosan'){
     solveYosanMode();
+  } else if(tableMode==='tanisuiryou'){
+    recalcTanisuiryou();
   } else if(tableMode==='jikan'){
     /* 列: 0=項目 1=開始(時刻) 2=終了(時刻) 3=時間(自動)。
        終了−開始を分で求める。終了が開始より早ければ日をまたいだとみなし+24時間。*/
@@ -3052,15 +3107,78 @@ function solveYosanMode(){
   sEl.textContent=gap===0?'予算ぴったり使い切り！🎯':('余り ¥'+fmt(gap)+'（'+count+'個ちょうど）');
 }
 
+/* ── 単位水量試験（土研法エアメータ法）：配合と試験値から単位水量を推定 ──
+   γ1 = (W1+C+S+G+P)/(1−A1/100)         配合上の空気を除いた単位容積質量
+   γc = (m2−m1)×1000/V                  試料の単位容積質量（V:L → m³換算）
+   γ2 = γc/(1−A2/100)                   試験の空気を除いた単位容積質量
+   W  = W1 + 0.7×(γ1−γ2)                推定単位水量（簡便式・β=0.7）           */
+let tsWarn=15, tsLimit=20;   // 合否判定の許容差(kg/m³)
+function applyTsTolLabels(){
+  const w=document.getElementById('tsWarn'), l=document.getElementById('tsLimit');
+  if(w) w.textContent=tsWarn; if(l) l.textContent=tsLimit;
+}
+function changeTsTol(which,delta){
+  if(which==='warn') tsWarn=Math.max(1,Math.min(tsLimit,tsWarn+delta));
+  else               tsLimit=Math.max(tsWarn,Math.min(99,tsLimit+delta));
+  applyTsTolLabels();
+  localStorage.setItem('excalc_ts_warn',tsWarn);
+  localStorage.setItem('excalc_ts_limit',tsLimit);
+  if(tableMode==='tanisuiryou') recalcTanisuiryou();
+}
+function recalcTanisuiryou(){
+  const g1El=document.getElementById('tsG1'), g2El=document.getElementById('tsG2');
+  const wEl=document.getElementById('tsW'), dEl=document.getElementById('tsDelta');
+  const jEl=document.getElementById('tsJudge'), hEl=document.getElementById('tsHint');
+  if(!g1El) return;
+  const val=r=>{ const raw=data[r] && data[r][1]; const v=parseFloat(raw); return (raw!=='' && raw!=null && !isNaN(v))?v:null; };
+  const W1=val(1), C=val(2), S=val(3), G=val(4); let P=val(5); const A1=val(6);
+  const V=val(7), m1=val(8), m2=val(9), A2=val(10);
+  if(P===null) P=0;   // 混和材は任意（未入力は0扱い）
+  const r1=x=>fmt(Math.round(x*10)/10);
+  // γ1（配合上の空気を除いた単位容積質量）
+  let g1=null;
+  if(W1!==null&&C!==null&&S!==null&&G!==null&&A1!==null&&A1<100){
+    g1=(W1+C+S+G+P)/(1-A1/100);
+  }
+  // γc・γ2（試験）
+  let g2=null;
+  if(m1!==null&&m2!==null&&V!==null&&V>0&&(m2-m1)>0){
+    const gc=(m2-m1)*1000/V;
+    if(A2!==null&&A2<100) g2=gc/(1-A2/100);
+  }
+  g1El.textContent = g1!==null ? r1(g1)+' kg/m³' : '—';
+  g2El.textContent = g2!==null ? r1(g2)+' kg/m³' : '—';
+  jEl.className='ts-judge';
+  if(g1!==null&&g2!==null&&W1!==null){
+    const W=W1+0.7*(g1-g2);
+    const d=W-W1;
+    const dr=Math.round(d*10)/10;                       // 表示用に丸めてから符号判定（−0回避）
+    const dStr=(dr>0?'+':dr<0?'−':'±')+fmt(Math.abs(dr))+' kg/m³';
+    wEl.textContent=r1(W)+' kg/m³';
+    dEl.textContent=dStr;
+    const ad=Math.abs(d);
+    if(ad<=tsWarn){ jEl.classList.add('ok');   jEl.textContent='合格'; }
+    else if(ad<=tsLimit){ jEl.classList.add('warn'); jEl.textContent='要注意'; }
+    else { jEl.classList.add('ng'); jEl.textContent='不合格(再試験)'; }
+    hEl.textContent=`配合W1=${r1(W1)} に対する差 ${dStr}（合格±${tsWarn}／限界±${tsLimit}）`;
+  } else {
+    jEl.textContent='—'; wEl.textContent='—'; dEl.textContent='—';
+    const miss=[];
+    if(g1===null) miss.push('配合(W1・C・S・G・A1)');
+    if(g2===null) miss.push('試験(V・m1・m2・A2)');
+    hEl.textContent='未入力：'+miss.join(' / ')+' を入力してください';
+  }
+}
+
 /* フッターバーの表示切替 */
 function hideAllBars(){
-  ['shopTaxBar','zeiBar','wariaiBar','warikanBar','yousekiBar','yosanBar','jikanBar'].forEach(id=>{
+  ['shopTaxBar','zeiBar','wariaiBar','warikanBar','yousekiBar','yosanBar','jikanBar','tanisuiryouBar'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.classList.remove('open');
   });
 }
 function showModeBar(){
   hideAllBars();
-  const id={shopping:'shopTaxBar', zei:'zeiBar', wariai:'wariaiBar', warikan:'warikanBar', youseki:'yousekiBar', yosan:'yosanBar', jikan:'jikanBar'}[tableMode];
+  const id={shopping:'shopTaxBar', zei:'zeiBar', wariai:'wariaiBar', warikan:'warikanBar', youseki:'yousekiBar', yosan:'yosanBar', jikan:'jikanBar', tanisuiryou:'tanisuiryouBar'}[tableMode];
   if(id) document.getElementById(id).classList.add('open');
 }
 
@@ -3093,6 +3211,7 @@ function normalizeStructLayout(){
   const m=STRUCT_MODES[tableMode];
   COLS=m.cols;
   m.headers.forEach((h,i)=>{ data[0][i]=h; });
+  if(tableMode==='tanisuiryou'){ ROWS=TS_ROWS; }   // フォームの行数に固定（表示のみ。保存済みの行数設定は変えない）
 }
 
 function switchMode(target){
@@ -3115,7 +3234,7 @@ function switchMode(target){
   normalizeStructLayout();
   syncRowColLabels();
   buildSheet();
-  sel(initCellOfMode(),0);
+  if(tableMode==='tanisuiryou') sel(1,1); else sel(initCellOfMode(),0);   // 単位水量は最初の入力欄へ
   updateModeButton();
   persistModes();
 }
@@ -4008,6 +4127,14 @@ updateAutoSumBtn();
   if(c) c.addEventListener('input', ()=>{ localStorage.setItem('excalc_yzCount',c.value);  if(tableMode==='yosan') solveYosanMode(); });
 })();
 
+/* 単位水量試験モードの判定許容差を復元 */
+(function(){
+  const w=parseInt(localStorage.getItem('excalc_ts_warn'));  if(!isNaN(w)&&w>=1&&w<=99) tsWarn=w;
+  const l=parseInt(localStorage.getItem('excalc_ts_limit')); if(!isNaN(l)&&l>=1&&l<=99) tsLimit=l;
+  if(tsLimit<tsWarn) tsLimit=tsWarn;
+  applyTsTolLabels();
+})();
+
 /* 各モードの内容を復元（前回のモード・入力をリセットまで保持） */
 loadCustomModes();          // 登録モードの定義を先に読む（モード検証・表示に使う）
 loadModeOrder();            // モードの並び順を読む
@@ -4016,7 +4143,7 @@ syncRowColLabels();
 if(isStructMode()) showModeBar();
 updateModeButton();
 buildSheet();
-sel(initCellOfMode(),0);
+if(tableMode==='tanisuiryou') sel(1,1); else sel(initCellOfMode(),0);
 
 fitNumpadLabels();
 window.addEventListener('load', fitNumpadLabels);
