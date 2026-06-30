@@ -1311,7 +1311,13 @@ function applyDec(n) {
 /* セル個別の小数点桁。未設定なら全体設定 decPlaces を使用 */
 function cellDec(r, c) {
   const s = cellStyles[`${r},${c}`];
-  return (s && typeof s.dec === 'number') ? s.dec : decPlaces;
+  if (s && typeof s.dec === 'number') return s.dec;
+  // 単位水量モード：一部の入力欄（容器+試料・容器の容積・容器質量）は既定で3桁小数表示
+  if (tableMode==='tanisuiryou' && c===1) {
+    const f = TS_FORM[r-1];
+    if (f && typeof f.dec === 'number') return f.dec;
+  }
+  return decPlaces;
 }
 /* セル個別の端数処理。'round'(四捨五入,既定) / 'up'(切り上げ) / 'down'(切り捨て) */
 function cellRound(r, c) {
@@ -2809,10 +2815,10 @@ const STRUCT_MODES={
 /* 単位水量試験モードの入力フォーム（表 col0=ラベル固定／col1=入力。行r=1..length に対応）。
    並び順：試験値（容器・容器+試料・空気量）を上、配合を下に置く。値は key で参照する。 */
 const TS_FORM=[
-  {key:'m2', label:'容器+試料 m2', unit:'kg'},    // ── 試験値（上） ──
+  {key:'m2', label:'容器+試料 m2', unit:'kg', dec:3},  // ── 試験値（上） ── 質量・容積は3桁小数で表示
   {key:'A2', label:'測定空気量 A2', unit:'%'},
-  {key:'V',  label:'容器の容積 V', unit:'L'},      // 容器+試料・測定空気量の下に配置
-  {key:'m1', label:'容器質量 m1',  unit:'kg'},
+  {key:'V',  label:'容器の容積 V', unit:'L', dec:3},   // 容器+試料・測定空気量の下に配置
+  {key:'m1', label:'容器質量 m1',  unit:'kg', dec:3},
   {key:'W1', label:'単位水量 W1',  unit:'kg/m³'}, // ── 配合（下） ──
   {key:'C',  label:'セメント C',   unit:'kg/m³'},
   {key:'S',  label:'細骨材 S',     unit:'kg/m³'},
