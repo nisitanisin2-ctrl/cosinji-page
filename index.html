@@ -753,6 +753,8 @@ body.dark .cell.ts-calc-top { border-top-color: #2f7a70 !important; }
   cursor: pointer; touch-action: manipulation;
 }
 .ts-setBtn:hover { background: #00695c; }
+/* 単位水量バーでは設定ボタンを右下の端に寄せる（ヒントが全幅のため次行＝最下段に来る） */
+.tanisui-bar .ts-setBtn { margin-left: auto; align-self: flex-end; }
 .ts-set-row {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 11px 6px; border-bottom: 1px solid var(--cell-border, #ddd);
@@ -938,8 +940,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   <span>推定単位水量 <b id="tsW">—</b></span>
   <span>差 <b id="tsDelta">—</b></span>
   <span class="ts-judge" id="tsJudge">—</span>
-  <button class="ts-setBtn" onclick="openTsSettings()">⚙ 設定</button>
   <span class="ts-hint" id="tsHint">配合と試験の各値を入力してください（W=W1+0.7×(γ1−γ2)、β=0.7）</span>
+  <button class="ts-setBtn" onclick="openTsSettings()">⚙ 設定</button>
 </div>
 
 <div class="modal-overlay" id="tsSettingsOverlay" onclick="if(event.target===this)closeTsSettings()">
