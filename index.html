@@ -406,10 +406,23 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
     cursor: ew-resize; flex-shrink: 0;
   }
   .numpad-resizer-grip { width: 5px; height: 46px; }   /* 横ドラッグでテンキー領域の幅を変更 */
-  .numpad-viewport { flex: 1; min-width: 0; }
+  .numpad-body { flex: 1; min-width: 0; }
 }
+/* 登録ボタン列（左）＋テンキー本体 を横並びに */
+.numpad-body { display: flex; flex-direction: row; gap: 5px; align-items: stretch; }
+.numpad-userpad {
+  display: grid; grid-template-rows: repeat(5, 1fr); gap: 5px;
+  flex: 0 0 auto; width: calc(42px * var(--key-scale, 1.3));
+}
+.btn.ubtn {
+  background: #5b3a86; padding: 4px 3px;
+  font-size: calc(12px * var(--key-scale, 1.3));
+  white-space: normal; overflow: hidden; line-height: 1.05; word-break: break-all;
+}
+.btn.ubtn:hover { background: #6f49a3; }
+.btn.ubtn.empty { background: #3a3550; color: #9b8fc0; }   /* 未登録 */
 /* テンキー2ページ（数字／関数）のスライド表示 */
-.numpad-viewport { position: relative; overflow: hidden; }
+.numpad-viewport { position: relative; overflow: hidden; flex: 1; min-width: 0; }
 .numpad-track { display: flex; width: 200%; transition: transform 0.25s ease; will-change: transform; touch-action: pan-y; }
 .numpad-track.np-dragging { transition: none; }
 .numpad-track > .numpad-grid { flex: 0 0 50%; width: 50%; }
@@ -1007,6 +1020,14 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   <div class="numpad-resizer" id="numpadResizer" title="ドラッグでテンキーの大きさを変更（横向きは左右）">
     <span class="numpad-resizer-grip"></span>
   </div>
+  <div class="numpad-body">
+  <div class="numpad-userpad" id="numpadUserpad" title="長押しで文字・数字を登録／タップで入力">
+    <button class="btn ubtn" data-uk="0"></button>
+    <button class="btn ubtn" data-uk="1"></button>
+    <button class="btn ubtn" data-uk="2"></button>
+    <button class="btn ubtn" data-uk="3"></button>
+    <button class="btn ubtn" data-uk="4"></button>
+  </div>
   <div class="numpad-viewport" id="numpadViewport">
     <div class="numpad-track" id="numpadTrack">
     <div class="numpad-grid" id="numpadPage1">
@@ -1063,6 +1084,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="btn op" data-key="fp_eq"    onclick="fkey('=')">=</button>
     </div>
     </div>
+  </div>
   </div>
 </div>
 
@@ -1128,6 +1150,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><span class="help-tag">fx=</span> 数式入力を開始（先頭が <b>=</b> になる）</div>
         <div class="help-li"><span class="help-tag">文字</span> 文字（テキスト）を入力</div>
         <div class="help-li"><span class="help-tag">モード</span> 計算モードを切替</div>
+        <div class="help-li"><b>テンキー左の登録ボタン（紫）</b>：<b>長押し</b>でよく使う文字や数字を登録、<b>タップ</b>でそれを入力できます（未登録の「＋」はタップでも登録）。数値の途中でタップすると連結（例：100→「円」で100円）。登録は保存されます。</div>
         <div class="help-li"><b>Enterボタンの上で左にフリック</b>すると、関数・記号テンキー（( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 など）に切り替わります。これらを押すと数式（先頭が <b>=</b>）に挿入されます。<b>関数ページからは、どのボタンの上で右にフリックしても</b>数字テンキーに戻れます。</div>
         <div class="help-li">テンキー上端（横向きは左端）の<b>バーをドラッグ</b>すると大きさ（横向きは幅）を変更できます。設定の<b>「🔧 テンキーのボタン配置を編集」</b>で各ボタンの位置も入れ替えできます。</div>
       </div>
@@ -2226,6 +2249,66 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
   vp.addEventListener('click', e=>{ if(numpadSwiping){ e.preventDefault(); e.stopPropagation(); } }, true);
   // 画面回転・幅変更時に現在ページ位置を維持（瞬時に合わせてからアニメを戻す）
   window.addEventListener('resize', ()=>{ rest(false); requestAnimationFrame(()=>track.classList.remove('np-dragging')); });
+})();
+
+/* ── 登録ボタン列（テンキー左）：長押しで文字/数字を登録、タップで入力 ── */
+let userKeys=['','','','',''];
+function loadUserKeys(){
+  try{ const a=JSON.parse(localStorage.getItem('excalc_userkeys')); if(Array.isArray(a)) userKeys=a.map(x=>String(x==null?'':x)); }catch(_){}
+  userKeys=userKeys.slice(0,5); while(userKeys.length<5) userKeys.push('');
+}
+function saveUserKeys(){ try{ localStorage.setItem('excalc_userkeys', JSON.stringify(userKeys)); }catch(_){} }
+function renderUserKeys(){
+  document.querySelectorAll('#numpadUserpad .ubtn').forEach(b=>{
+    const i=+b.dataset.uk, v=userKeys[i]||'';
+    b.textContent = v!=='' ? v : '＋';
+    b.classList.toggle('empty', v==='');
+    b.title = v!=='' ? '「'+v+'」を入力（長押しで変更）' : '長押しで文字・数字を登録';
+  });
+  if(typeof fitNumpadLabels==='function') fitNumpadLabels();
+}
+/* 登録値を現在のセルに入力（数式中は数式へ追記） */
+function userKey(i){
+  const v=userKeys[i]||'';
+  if(v===''){ registerUserKey(i); return; }     // 未登録はタップで登録
+  if(editBlocked()) return;
+  const fi=document.getElementById('formulaInput');
+  if(formulaEditMode){ numpadAppend(v); return; }
+  const base = cellEditing ? ((waiting&&op1!==null)?fmtNum(op1):disp_val) : '';
+  disp_val = base + v;
+  cellEditing=true; waiting=false; op1=null; cur_op=null;
+  const el=document.getElementById(`c${selR}_${selC}`);
+  if(el) el.textContent=disp_val;
+  if(!fi.matches(':focus')) fi.value=disp_val;
+}
+async function registerUserKey(i){
+  const cur=userKeys[i]||'';
+  const v=await appPrompt('このボタンに登録する文字・数字を入力（空にすると登録を解除）', cur);
+  if(v===null) return;
+  userKeys[i]=String(v);
+  saveUserKeys(); renderUserKeys();
+}
+(function setupUserpad(){
+  const pad=document.getElementById('numpadUserpad');
+  if(!pad) return;
+  let timer=null, longed=false, startX=0, startY=0, curBtn=null;
+  const clear=()=>{ if(timer){ clearTimeout(timer); timer=null; } };
+  pad.addEventListener('pointerdown', e=>{
+    const b=e.target.closest&&e.target.closest('.ubtn'); if(!b) return;
+    curBtn=b; longed=false; startX=e.clientX; startY=e.clientY; clear();
+    timer=setTimeout(()=>{ longed=true; if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} registerUserKey(+b.dataset.uk); }, 500);
+  });
+  pad.addEventListener('pointermove', e=>{
+    if(curBtn && Math.hypot(e.clientX-startX, e.clientY-startY)>10) clear();   // 動いたら長押し取消
+  });
+  pad.addEventListener('pointerup', ()=>{
+    if(!curBtn) return;
+    clear(); const b=curBtn; curBtn=null;
+    if(longed){ longed=false; return; }   // 長押し（登録）後はタップ動作しない
+    userKey(+b.dataset.uk);
+  });
+  pad.addEventListener('pointercancel', ()=>{ clear(); curBtn=null; longed=false; });
+  pad.addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); }, true);  // pointerで処理（clickは無効化）
 })();
 
 /* ── 画面幅（パソコン等で全幅が広すぎる時に狭める） ── */
@@ -4435,6 +4518,8 @@ applyNumpad();
 loadKeypadPos();
 applyKeypadLayout();
 bindKeypadDrag();
+loadUserKeys();
+renderUserKeys();
 restoreSheetSizes();
 /* 新デフォルト（セル文字＝大・列幅は内容に合わせ自動調整）を既存ユーザーにも一度だけ適用 */
 if(localStorage.getItem('excalc_cellsize_default_v4')!=='1'){
