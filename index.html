@@ -741,7 +741,17 @@ body.dark .tanisui-bar { background: #102826; border-color: #2f7a70; color: #8fd
 }
 .ts-set-label { display: flex; flex-direction: column; font-weight: bold; font-size: 14px; color: var(--text); min-width: 0; }
 .ts-set-label small { font-weight: normal; font-size: 11px; color: var(--text-light); margin-top: 2px; }
-.ts-set-ctrl { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.ts-set-ctrl { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.ts-spin { display: flex; flex-direction: column; gap: 2px; }
+.ts-spin-btn {
+  width: 34px; height: 20px; padding: 0; line-height: 1;
+  font-size: 12px; font-weight: bold;
+  background: #00897b; color: #fff; border: none; border-radius: 4px;
+  cursor: pointer; touch-action: manipulation;
+  display: flex; align-items: center; justify-content: center;
+}
+.ts-spin-btn:hover { background: #00695c; }
+.ts-spin-btn:active { background: #004d40; }
 .shop-tax-bar b { font-size: calc(18px * var(--info-scale, 1)); }
 .wk-people { display: flex; align-items: center; gap: 5px; }
 .wk-btn {
@@ -925,27 +935,27 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <div class="modal-body">
       <div class="ts-set-row">
         <div class="ts-set-label">小数桁1<small>配合上の空気量を除いた容積 (m³)</small></div>
-        <div class="ts-set-ctrl"><button class="btn-rc" onclick="changeTsDp(1,-1)">−</button><span class="sc-val" id="tsDp1">3</span><button class="btn-rc" onclick="changeTsDp(1,1)">+</button></div>
+        <div class="ts-set-ctrl"><span class="sc-val" id="tsDp1">3</span><span class="ts-spin"><button class="ts-spin-btn" onclick="changeTsDp(1,1)" aria-label="増やす">▲</button><button class="ts-spin-btn" onclick="changeTsDp(1,-1)" aria-label="減らす">▼</button></span></div>
       </div>
       <div class="ts-set-row">
         <div class="ts-set-label">小数桁2<small>単位容積質量 (kg/m³)</small></div>
-        <div class="ts-set-ctrl"><button class="btn-rc" onclick="changeTsDp(2,-1)">−</button><span class="sc-val" id="tsDp2">1</span><button class="btn-rc" onclick="changeTsDp(2,1)">+</button></div>
+        <div class="ts-set-ctrl"><span class="sc-val" id="tsDp2">1</span><span class="ts-spin"><button class="ts-spin-btn" onclick="changeTsDp(2,1)" aria-label="増やす">▲</button><button class="ts-spin-btn" onclick="changeTsDp(2,-1)" aria-label="減らす">▼</button></span></div>
       </div>
       <div class="ts-set-row">
         <div class="ts-set-label">小数桁3<small>試料の空気量を除いた容積 (mL)</small></div>
-        <div class="ts-set-ctrl"><button class="btn-rc" onclick="changeTsDp(3,-1)">−</button><span class="sc-val" id="tsDp3">1</span><button class="btn-rc" onclick="changeTsDp(3,1)">+</button></div>
+        <div class="ts-set-ctrl"><span class="sc-val" id="tsDp3">1</span><span class="ts-spin"><button class="ts-spin-btn" onclick="changeTsDp(3,1)" aria-label="増やす">▲</button><button class="ts-spin-btn" onclick="changeTsDp(3,-1)" aria-label="減らす">▼</button></span></div>
       </div>
       <div class="ts-set-row">
         <div class="ts-set-label">小数桁4<small>推定単位水量 (kg/m³)</small></div>
-        <div class="ts-set-ctrl"><button class="btn-rc" onclick="changeTsDp(4,-1)">−</button><span class="sc-val" id="tsDp4">1</span><button class="btn-rc" onclick="changeTsDp(4,1)">+</button></div>
+        <div class="ts-set-ctrl"><span class="sc-val" id="tsDp4">1</span><span class="ts-spin"><button class="ts-spin-btn" onclick="changeTsDp(4,1)" aria-label="増やす">▲</button><button class="ts-spin-btn" onclick="changeTsDp(4,-1)" aria-label="減らす">▼</button></span></div>
       </div>
       <div class="ts-set-row">
         <div class="ts-set-label">合格 ±(kg/m³)<small>この差までは「合格」</small></div>
-        <div class="ts-set-ctrl"><button class="btn-rc" onclick="changeTsTol('warn',-1)">−</button><span class="sc-val" id="tsWarn">15</span><button class="btn-rc" onclick="changeTsTol('warn',1)">+</button></div>
+        <div class="ts-set-ctrl"><span class="sc-val" id="tsWarn">15</span><span class="ts-spin"><button class="ts-spin-btn" onclick="changeTsTol('warn',1)" aria-label="増やす">▲</button><button class="ts-spin-btn" onclick="changeTsTol('warn',-1)" aria-label="減らす">▼</button></span></div>
       </div>
       <div class="ts-set-row">
         <div class="ts-set-label">限界 ±(kg/m³)<small>これを超えると「不合格」</small></div>
-        <div class="ts-set-ctrl"><button class="btn-rc" onclick="changeTsTol('limit',-1)">−</button><span class="sc-val" id="tsLimit">20</span><button class="btn-rc" onclick="changeTsTol('limit',1)">+</button></div>
+        <div class="ts-set-ctrl"><span class="sc-val" id="tsLimit">20</span><span class="ts-spin"><button class="ts-spin-btn" onclick="changeTsTol('limit',1)" aria-label="増やす">▲</button><button class="ts-spin-btn" onclick="changeTsTol('limit',-1)" aria-label="減らす">▼</button></span></div>
       </div>
     </div>
   </div>
