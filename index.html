@@ -517,6 +517,12 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 .save-info { flex: 1; min-width: 0; }
 .save-name { font-weight: bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
 .save-date { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+.save-mode {
+  display: inline-block; margin-left: 6px; padding: 1px 7px;
+  font-size: 11px; font-weight: bold; border-radius: 9px;
+  background: #e0f2f1; color: #00695c; vertical-align: middle;
+}
+body.dark .save-mode { background: #143a35; color: #7fcabd; }
 .btn-load   { background: #217346; color: white; border: none; border-radius: 4px; padding: 5px 9px; font-size: 11px; font-weight: bold; cursor: pointer; white-space: nowrap; touch-action: manipulation; }
 .btn-load:hover { background: #1a5c35; }
 /* 保存記録をモードに登録して移動 */
@@ -4064,11 +4070,13 @@ function renderSaveList() {
   if(saves.length===0){body.innerHTML='<div class="no-saves">保存データがありません</div>';return;}
   body.innerHTML=saves.map(s=>{
     const locked=!!s.locked;
+    const mi=s.mode?modeItemByKey(s.mode):null;   // 保存時のモード（古い保存はmode無し）
+    const modeBadge=mi?`<span class="save-mode">${mi.item.icon} ${escHtml(mi.item.name)}</span>`:'';
     return `
     <div class="save-item${locked?' locked':''}">
       <div class="save-info">
         <div class="save-name">${locked?'🔒 ':''}${escHtml(s.name)}</div>
-        <div class="save-date">${new Date(s.timestamp).toLocaleString('ja-JP')}　${s.rows}行×${s.cols}列</div>
+        <div class="save-date">${new Date(s.timestamp).toLocaleString('ja-JP')}　${s.rows}行×${s.cols}列${modeBadge}</div>
       </div>
       <button class="btn-lock"   onclick="toggleSaveLock(${s.id})" title="${locked?'ロックを解除':'ロック（削除・改名を防止）'}">${locked?'🔒':'🔓'}</button>
       <button class="btn-rename" onclick="renameSave(${s.id})" ${locked?'disabled':''} title="${locked?'ロック中は改名できません':'名前を変更'}">✏</button>
