@@ -99,7 +99,7 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
 @media (orientation: landscape) and (max-height: 500px) {
   body {
     display: grid;
-    grid-template-columns: 1fr 42%;
+    grid-template-columns: 1fr var(--numpad-w, 42%);   /* テンキー領域の幅（レバーの横ドラッグで変更） */
     grid-template-rows: auto 1fr;
     grid-template-areas:
       "main toolbar"
@@ -399,7 +399,11 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 /* スマホ横向き：大きさ調整バーをテンキー左端に縦向きで（左右ドラッグで調整）。
    基本ルールの後に置いて上書きする */
 @media (orientation: landscape) and (max-height: 500px) {
-  .numpad-resizer { display: none; }   /* 横向きでは調整が効かないため非表示（大きさは設定のテンキー −/＋で変更） */
+  .numpad-resizer {
+    height: auto; width: 18px; margin: -3px 4px -3px -3px;
+    cursor: ew-resize; flex-shrink: 0;
+  }
+  .numpad-resizer-grip { width: 5px; height: 46px; }   /* 横ドラッグでテンキー領域の幅を変更 */
   .numpad-grid { flex: 1; min-width: 0; }
 }
 .numpad-grid {
@@ -2057,25 +2061,38 @@ function changeKeySize(delta) {
 /* ── テンキー上端のドラッグで大きさ変更 ── */
 (function setupNumpadResizer(){
   const handle=document.getElementById('numpadResizer');
-  if(!handle) return;
-  let startY=0, startX=0, startScale=0, active=false, horiz=false;
-  const SENS=0.006;   // 1px あたりのスケール変化量
+  const section=document.getElementById('numpadSection');
+  if(!handle||!section) return;
+  let startY=0, startX=0, startScale=0, startW=0, active=false, horiz=false;
+  const SENS=0.006;   // 1px あたりのスケール変化量（縦持ち）
   /* 横向きレイアウト（左にセル・右にテンキー）か */
   function isLandscapeNumpad(){
     return window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
   }
+  /* 横向き：テンキー領域の幅(px)を設定・保存（最小200px／画面の75%まで） */
+  function setLandWidth(px){
+    px=Math.min(Math.round(window.innerWidth*0.75), Math.max(200, Math.round(px)));
+    document.body.style.setProperty('--numpad-w', px+'px');
+    localStorage.setItem('excalc_numpad_landw', String(px));
+    fitNumpadLabels();
+  }
   function onMove(e){
     if(!active) return;
     const p=(e.touches?e.touches[0]:e);
-    // 横向き＝左へドラッグで拡大／縦持ち＝上へドラッグで拡大
-    const delta = horiz ? (startX - p.clientX) : (startY - p.clientY);
-    keyScale=startScale + delta*SENS;
-    applyKeySize();
+    if(horiz){
+      // 横向き：左へドラッグでテンキー領域を広く／右へドラッグで狭く
+      setLandWidth(startW + (startX - p.clientX));
+    } else {
+      // 縦持ち：上へドラッグでテンキーを大きく
+      keyScale=startScale + (startY - p.clientY)*SENS;
+      applyKeySize();
+    }
     e.preventDefault();
   }
   function onUp(){
     if(!active) return;
     active=false; handle.classList.remove('dragging');
+    if(horiz && typeof autoFitSheet==='function') autoFitSheet();   // セル側の列幅も再調整
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('touchmove', onMove);
@@ -2087,6 +2104,7 @@ function changeKeySize(delta) {
     const p=(e.touches?e.touches[0]:e);
     startX=p.clientX; startY=p.clientY;
     startScale=keyScale;
+    startW=section.offsetWidth;          // 横向き：現在のテンキー領域幅を基準に
     window.addEventListener('pointermove', onMove, {passive:false});
     window.addEventListener('pointerup', onUp);
     window.addEventListener('touchmove', onMove, {passive:false});
@@ -2095,6 +2113,11 @@ function changeKeySize(delta) {
   }
   handle.addEventListener('pointerdown', onDown);
   handle.addEventListener('touchstart', onDown, {passive:false});
+  /* 起動時：保存済みの横向きテンキー幅を復元（横向きでのみ反映される） */
+  (function(){
+    const sv=parseInt(localStorage.getItem('excalc_numpad_landw'));
+    if(!isNaN(sv)&&sv>=120) document.body.style.setProperty('--numpad-w', sv+'px');
+  })();
 })();
 
 /* ── 画面幅（パソコン等で全幅が広すぎる時に狭める） ── */
