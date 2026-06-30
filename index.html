@@ -792,6 +792,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   <button class="sc-help sc-half" id="darkBtn" onclick="toggleDark()">🌙 ナイトモード</button>
   <button class="sc-help sc-half" onclick="exportCSV()">📄 CSV出力</button>
   <button class="sc-help" id="numpadToggleBtn" onclick="toggleNumpad()">⌨ テンキー非表示</button>
+  <button class="sc-help" id="numLayoutBtn" onclick="toggleNumpadLayout()" title="テンキーの数字の並びを電卓配列（789が上）と電話配列（123が上）で切り替えます">🔢 テンキー配列：電卓（789上）</button>
   <button class="sc-help" onclick="openHelp()">📖 説明書（使い方）</button>
 </div>
 
@@ -869,10 +870,10 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="btn op"    onclick="bs()">⌫</button>
     <button class="btn op"    onclick="op('/')">÷</button>
     <button class="btn op"    onclick="op('*')">×</button>
-    <!-- Row 2 -->
-    <button class="btn"       onclick="num('7')">7</button>
-    <button class="btn"       onclick="num('8')">8</button>
-    <button class="btn"       onclick="num('9')">9</button>
+    <!-- Row 2（テンキー配列で上段／下段の数字が入れ替わる） -->
+    <button class="btn" id="numKeyTopL" onclick="num('7')">7</button>
+    <button class="btn" id="numKeyTopM" onclick="num('8')">8</button>
+    <button class="btn" id="numKeyTopR" onclick="num('9')">9</button>
     <button class="btn op"    onclick="op('-')">−</button>
     <button class="btn enter" onclick="eq()" id="eqBtn">Enter</button>
     <!-- Row 3 -->
@@ -881,9 +882,9 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="btn"       onclick="num('6')">6</button>
     <button class="btn op"    onclick="op('+')">+</button>
     <!-- Row 4 -->
-    <button class="btn"       onclick="num('1')">1</button>
-    <button class="btn"       onclick="num('2')">2</button>
-    <button class="btn"       onclick="num('3')">3</button>
+    <button class="btn" id="numKeyBotL" onclick="num('1')">1</button>
+    <button class="btn" id="numKeyBotM" onclick="num('2')">2</button>
+    <button class="btn" id="numKeyBotR" onclick="num('3')">3</button>
     <button class="btn op"    onclick="toggleSign()">±</button>
     <button class="btn fx"    id="autoSumBtn">Σ合計</button>
     <!-- Row 5 -->
@@ -999,6 +1000,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><b>行／列</b>：表の大きさ　<b>小数</b>：小数点以下の桁（自＝自動）</div>
         <div class="help-li"><b>税率</b>：消費税モードの税率</div>
         <div class="help-li"><b>テンキー／セル文字／小計文字</b>：各文字サイズ</div>
+        <div class="help-li"><b>🔢 テンキー配列</b>：数字の並びを電卓配列（789が上）⇄電話配列（123が上）で切替</div>
       </div>
 
       <div class="help-sec">
@@ -1964,6 +1966,22 @@ function applyNumpad() {
   if (!numpadHidden) fitNumpadLabels();
 }
 function toggleNumpad() { numpadHidden=!numpadHidden; applyNumpad(); }
+
+/* ── テンキー配列（電卓配列＝789上／電話配列＝123上） ── */
+let numpadPhone=false;   // false=電卓配列(789が上), true=電話配列(123が上)
+function applyNumpadLayout() {
+  const topDigits = numpadPhone ? ['1','2','3'] : ['7','8','9'];
+  const botDigits = numpadPhone ? ['7','8','9'] : ['1','2','3'];
+  const tops=['numKeyTopL','numKeyTopM','numKeyTopR'];
+  const bots=['numKeyBotL','numKeyBotM','numKeyBotR'];
+  tops.forEach((id,i)=>{ const b=document.getElementById(id); if(b){ b.textContent=topDigits[i]; b.setAttribute('onclick',"num('"+topDigits[i]+"')"); } });
+  bots.forEach((id,i)=>{ const b=document.getElementById(id); if(b){ b.textContent=botDigits[i]; b.setAttribute('onclick',"num('"+botDigits[i]+"')"); } });
+  const btn=document.getElementById('numLayoutBtn');
+  if(btn) btn.textContent = numpadPhone ? '🔢 テンキー配列：電話（123上）' : '🔢 テンキー配列：電卓（789上）';
+  localStorage.setItem('excalc_numpad_phone', numpadPhone?'1':'0');
+  fitNumpadLabels();
+}
+function toggleNumpadLayout() { numpadPhone=!numpadPhone; applyNumpadLayout(); }
 
 /* ── セル文字サイズ ── */
 const SIZE_STEPS=[0.85, 1.0, 1.2, 1.4, 1.6];
@@ -3829,6 +3847,8 @@ if(!isNaN(savedAppWidth)&&savedAppWidth>=0&&savedAppWidth<WIDTH_STEPS.length) ap
 applyAppWidth();
 numpadHidden=localStorage.getItem('excalc_numpad_hidden')==='1';
 applyNumpad();
+numpadPhone=localStorage.getItem('excalc_numpad_phone')==='1';
+applyNumpadLayout();
 restoreSheetSizes();
 /* 新デフォルト（セル文字＝大・列幅は内容に合わせ自動調整）を既存ユーザーにも一度だけ適用 */
 if(localStorage.getItem('excalc_cellsize_default_v4')!=='1'){
