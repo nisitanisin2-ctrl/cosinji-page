@@ -4043,7 +4043,7 @@ async function saveData() {
   const saves=getSaves();
   saves.unshift({
     id:Date.now(), name:name.trim()||defaultName,
-    timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces,
+    timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces, mode:tableMode,
     data:data.map(row=>[...row]), styles:{...cellStyles}
   });
   persistSaves(saves);
@@ -4152,14 +4152,26 @@ function loadSave(id) {
   const saves=getSaves();
   const entry=saves.find(s=>s.id===id); if(!entry) return;
   if(!confirm(`「${entry.name}」を読み込みますか？\n現在のデータは上書きされます。`)) return;
-  for(let r=0;r<50;r++) for(let c=0;c<26;c++){data[r][c]='';}
-  entry.data.forEach((row,r)=>row.forEach((val,c)=>{data[r][c]=val;}));
+  // 保存時のモードへ切替（古い保存＝mode無しは現在のモードのまま）
+  const targetMode=(entry.mode && isValidMode(entry.mode)) ? entry.mode : tableMode;
+  captureMode(tableMode);                 // 現在のモード内容を退避
+  tableMode=targetMode;
+  document.body.classList.toggle('simple-mode', targetMode==='simple');
+  // 保存データを流し込む
+  loadData(entry.data);
   cellStyles=entry.styles?{...entry.styles}:{};
-  ROWS=entry.rows; COLS=entry.cols; decPlaces=entry.decPlaces;
-  document.getElementById('rowCount').textContent=ROWS;
-  document.getElementById('colCount').textContent=COLS;
+  if(entry.rows>=1&&entry.rows<=50) ROWS=entry.rows;
+  COLS=entry.cols||normalCols();
+  if(entry.decPlaces!==undefined) decPlaces=entry.decPlaces;
+  normalizeStructLayout();                // 構造モードは列数・見出し（単位水量は行数）を整える
+  if(isStructMode()) showModeBar(); else hideAllBars();
+  syncRowColLabels();
   document.getElementById('decCount').textContent=decPlaces<0?'自':decPlaces;
-  buildSheet(); sel(0,0); closeSaveList(); persistModes();
+  buildSheet();
+  if(targetMode==='tanisuiryou') sel(1,1); else sel(initCellOfMode(),0);
+  updateModeButton();
+  closeSaveList();
+  persistModes();
 }
 
 function deleteSave(id) {
