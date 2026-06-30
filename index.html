@@ -117,6 +117,8 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
      ツールバーの上方向の余白は不要に戻す */
   .toolbar { padding-top: 5px; }
   .left-pane { padding-left: env(safe-area-inset-left); }
+  /* 横向きで設定が画面より高い時にスクロールできるように */
+  .settings-panel { max-height: 100vh; overflow-y: auto; -webkit-overflow-scrolling: touch; align-content: flex-start; }
 }
 
 .toolbar {
@@ -411,9 +413,6 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 .numpad-track { display: flex; width: 200%; transition: transform 0.25s ease; will-change: transform; touch-action: pan-y; }
 .numpad-track.np-dragging { transition: none; }
 .numpad-track > .numpad-grid { flex: 0 0 50%; width: 50%; }
-.numpad-pages { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 6px; pointer-events: none; z-index: 5; }
-.np-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.3); transition: background 0.15s; }
-.np-dot.active { background: rgba(255,255,255,0.85); }
 .numpad-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -1009,9 +1008,6 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <span class="numpad-resizer-grip"></span>
   </div>
   <div class="numpad-viewport" id="numpadViewport">
-    <div class="numpad-pages" id="numpadDots" aria-hidden="true">
-      <span class="np-dot active"></span><span class="np-dot"></span>
-    </div>
     <div class="numpad-track" id="numpadTrack">
     <div class="numpad-grid" id="numpadPage1">
     <!-- 既定の並び。各ボタンの位置は data-key を使って自由に入れ替えできる（設定→ボタン配置を編集） -->
@@ -1132,6 +1128,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><span class="help-tag">fx=</span> 数式入力を開始（先頭が <b>=</b> になる）</div>
         <div class="help-li"><span class="help-tag">文字</span> 文字（テキスト）を入力</div>
         <div class="help-li"><span class="help-tag">モード</span> 計算モードを切替</div>
+        <div class="help-li"><b>テンキーを左右にフリック</b>すると、関数・記号テンキー（( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 など）に切り替わります。これらを押すと数式（先頭が <b>=</b>）に挿入されます。反対方向のフリックで数字テンキーに戻ります。</div>
+        <div class="help-li">テンキー上端（横向きは左端）の<b>バーをドラッグ</b>すると大きさ（横向きは幅）を変更できます。設定の<b>「🔧 テンキーのボタン配置を編集」</b>で各ボタンの位置も入れ替えできます。</div>
       </div>
 
       <div class="help-sec">
@@ -1189,11 +1187,13 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><b>税率</b>：消費税モードの税率</div>
         <div class="help-li"><b>テンキー／セル文字／小計文字</b>：各文字サイズ</div>
         <div class="help-li"><b>🔧 テンキーのボタン配置を編集</b>：押すと編集モードになり、テンキーのボタンをドラッグして好きな位置に入れ替えできます（同じ大きさのボタン同士。Enter・0は固定）。配置は自動保存され、編集バーの「↺初期化」で元に戻せます。</div>
+        <div class="help-li"><b>🔀 モードの表示/非表示</b>：「モード」一覧に出す標準モードを選べます。チェックを外すと一覧から隠れます（内容は保持。「通常」は常に表示）。</div>
       </div>
 
       <div class="help-sec">
         <div class="help-h">💾 保存・その他（上部メニュー）</div>
         <div class="help-li"><b>保存</b>：名前を付けて保存　<b>リスト</b>：保存データを開く</div>
+        <div class="help-li">保存したときの<b>モードも一緒に記録</b>され、読み込むとそのモード（単位水量など）で再現します。リストの各データにはモードのバッジが表示されます。</div>
         <div class="help-li">リスト画面の<b>⬇書き出し</b>で保存データをファイルに出力 → 別の端末・ブラウザで<b>⬆読み込み</b>すると復元できます（バックアップ・引っ越し用）。</div>
         <div class="help-li">各データの<b>🔓ロック</b>をタップすると🔒保護され、誤って削除・改名できなくなります（もう一度タップで解除）。</div>
         <div class="help-li"><b>CSV</b>：表をCSVで書き出し</div>
