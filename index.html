@@ -744,6 +744,9 @@ body.dark .tanisui-bar { background: #102826; border-color: #2f7a70; color: #8fd
 .ts-judge.warn { background: #ef6c00; }
 .ts-judge.ng   { background: #c62828; }
 .ts-hint { font-size: calc(10px * var(--info-scale, 1)); opacity: 0.85; flex-basis: 100%; }
+/* 計算工程の先頭セル：入力欄との区切り線 */
+.cell.ts-calc-top { border-top: 3px double #00897b !important; }
+body.dark .cell.ts-calc-top { border-top-color: #2f7a70 !important; }
 .ts-setBtn {
   background: #00897b; color: #fff; border: none; border-radius: 4px;
   padding: 3px 10px; font-size: calc(11px * var(--info-scale, 1)); font-weight: bold;
@@ -932,9 +935,6 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 </div>
 
 <div class="shop-tax-bar tanisui-bar" id="tanisuiryouBar">
-  <span>配合の空気抜き容積 <b id="tsV1">—</b></span>
-  <span>単位容積質量 <b id="tsUw">—</b></span>
-  <span>試料の空気抜き容積 <b id="tsVs">—</b></span>
   <span>推定単位水量 <b id="tsW">—</b></span>
   <span>差 <b id="tsDelta">—</b></span>
   <span class="ts-judge" id="tsJudge">—</span>
@@ -1546,10 +1546,17 @@ function buildSheet() {
         const m=STRUCT_MODES[tableMode];
         if (r===0 && c<m.headers.length) {
           td.classList.add('shop-label');
-        } else if (tableMode==='tanisuiryou' && c===0) {
-          td.classList.add('shop-label');                 // 単位水量フォームの項目名（固定ラベル）
-          const f=TS_FORM[r-1];
-          td.textContent=f?`${f.label} (${f.unit})`:'';
+        } else if (tableMode==='tanisuiryou' && (c===0 || c===1)) {
+          const inN=TS_FORM.length;
+          const isCalc=(r-1)>=inN;                         // 入力欄の下＝計算工程行
+          if(isCalc && r-1===inN) td.classList.add('ts-calc-top');   // 計算工程の先頭で区切り線
+          if(c===0){
+            td.classList.add('shop-label');                // 項目名（固定ラベル）
+            const f=isCalc?TS_CALC[r-1-inN]:TS_FORM[r-1];
+            td.textContent=f?`${f.label} (${f.unit})`:'';
+          } else if(isCalc){
+            td.classList.add('shop-total');                // 計算工程の結果セル（読み取り専用、recalcで更新）
+          }
         } else if (r>0 && m.computed.includes(c)) {
           td.classList.add('shop-total');
           td.textContent=modeComputedDisplay(r,c);
@@ -2826,7 +2833,13 @@ const TS_FORM=[
   {key:'P',  label:'混和材 P',     unit:'kg/m³'}, // 無ければ0
   {key:'A1', label:'配合空気量 A1', unit:'%'},
 ];
-const TS_ROWS=TS_FORM.length+1;   // 見出し行＋入力行
+/* 計算工程（入力欄の下に表示する自動計算の途中結果）。dp は tsDp の桁設定の添字 */
+const TS_CALC=[
+  {key:'V1', label:'配合の空気抜き容積', unit:'m³',    dp:0},
+  {key:'uw', label:'単位容積質量',       unit:'kg/m³', dp:1},
+  {key:'Vs', label:'試料の空気抜き容積', unit:'mL',    dp:2},
+];
+const TS_ROWS=TS_FORM.length+TS_CALC.length+1;   // 見出し行＋入力行＋計算工程行
 const MODE_LABELS={normal:'モード', simple:'簡易中', shopping:'買物中', warikan:'割勘中', zei:'税計中', wariai:'割合中', youseki:'容積中', yosan:'予算中', jikan:'時間中', tanisuiryou:'水量中'};
 const MODE_MENU=[
   {key:'normal',  icon:'▦',  name:'通常',   desc:'標準のスプレッドシート'},
@@ -3238,7 +3251,6 @@ function changeTsDp(which,delta){
 function openTsSettings(){ applyTsDpLabels(); applyTsTolLabels(); document.getElementById('tsSettingsOverlay').classList.add('open'); }
 function closeTsSettings(){ document.getElementById('tsSettingsOverlay').classList.remove('open'); }
 function recalcTanisuiryou(){
-  const v1El=document.getElementById('tsV1'), uwEl=document.getElementById('tsUw'), vsEl=document.getElementById('tsVs');
   const wEl=document.getElementById('tsW'), dEl=document.getElementById('tsDelta');
   const jEl=document.getElementById('tsJudge'), hEl=document.getElementById('tsHint');
   if(!wEl) return;
@@ -3260,9 +3272,12 @@ function recalcTanisuiryou(){
   let g1=null;
   const g2=uw;
   if(W1!==null&&C!==null&&S!==null&&G!==null&&V1!==null&&V1>0) g1=rdp((W1+C+S+G+P)/V1, tsDp[1]);
-  v1El.textContent = V1!==null ? tsFmt(V1,tsDp[0])+' m³'   : '—';
-  uwEl.textContent = uw!==null ? tsFmt(uw,tsDp[1])+' kg/m³' : '—';
-  vsEl.textContent = Vs!==null ? tsFmt(Vs,tsDp[2])+' mL'    : '—';
+  // 計算工程（①配合の空気抜き容積・②単位容積質量・③試料の空気抜き容積）を入力欄の下の表セルに表示
+  const calcVals={V1,uw,Vs};
+  TS_CALC.forEach((f,i)=>{
+    const cell=document.getElementById('c'+(1+TS_FORM.length+i)+'_1');
+    if(cell){ const v=calcVals[f.key]; cell.textContent=(v!=null)?tsFmt(v,tsDp[f.dp])+' '+f.unit:'—'; }
+  });
   jEl.className='ts-judge';
   if(g1!==null&&g2!==null&&W1!==null){
     // 推定誤差⑱=(⑨−⑰)×0.7（⑨⑰は表示桁で丸め済み）、推定単位水量=W1+⑱ を小数桁4で丸め
