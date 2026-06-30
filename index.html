@@ -1603,9 +1603,10 @@ function buildSheet() {
   t.innerHTML='';
   // テーブルは横幅いっぱい(width:100%)。列が多い時だけ最小幅でスクロールさせる
   // 実際の最小幅は autoFitSheet() で内容に合わせて決める
+  const rhW = (tableMode==='tanisuiryou') ? 30 : 48;   // 単位水量モードは行番号列を狭く
   const hr=t.insertRow();
   const corner=hr.insertCell();
-  corner.className='ch'; corner.style.width='48px'; corner.style.cursor='default';
+  corner.className='ch'; corner.style.width=rhW+'px'; corner.style.cursor='default';
   for (let c=0; c<COLS; c++) {
     const th=hr.insertCell();
     th.className='ch'; th.id=`ch${c}`;
@@ -1616,7 +1617,7 @@ function buildSheet() {
   for (let r=0; r<ROWS; r++) {
     const tr=t.insertRow();
     const rh=tr.insertCell();
-    rh.className='rh'; rh.id=`rh${r}`; rh.textContent=r+1;
+    rh.className='rh'; rh.id=`rh${r}`; rh.textContent=r+1; rh.style.width=rhW+'px';
     rh.addEventListener('click', ()=>clickRow(r));
     makeRowGrip(rh, r);
     for (let c=0; c<COLS; c++) {
@@ -1697,7 +1698,8 @@ function autoFitSheet(){
       if(td) td.style.removeProperty('--fit');
     }
   }
-  t.style.minWidth=(48+COLS*baseW)+'px';
+  const rhW=(tableMode==='tanisuiryou')?30:48;   // 行番号列の幅（単位水量は狭く）
+  t.style.minWidth=(rhW+COLS*baseW)+'px';
   // 2) 列ごとに必要幅を測る（手動指定列は測らず固定）
   const need=new Array(COLS).fill(baseW);
   for(let c=0;c<COLS;c++){
@@ -1713,9 +1715,12 @@ function autoFitSheet(){
   for(let c=0;c<COLS;c++){
     const w=colWidths[c] ? colWidths[c] : Math.min(Math.max(baseW,need[c]),maxW);
     total+=w;
-    const ch=document.getElementById('ch'+c); if(ch) ch.style.width=w+'px';
+    const ch=document.getElementById('ch'+c); if(!ch) continue;
+    // 単位水量モードは「項目」列を可変にして余白を吸収させ、行番号列を狭いまま保つ
+    if(tableMode==='tanisuiryou' && c===0) ch.style.width='auto';
+    else ch.style.width=w+'px';
   }
-  t.style.minWidth=(48+total)+'px';
+  t.style.minWidth=(rhW+total)+'px';
   // 手動で列幅を指定したら、引き伸ばしをやめて実寸（px）で表示する
   t.style.width = Object.keys(colWidths).length ? (48+total)+'px' : '';
   // 4) 拡大しても収まらないセルは文字を縮小
