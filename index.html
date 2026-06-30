@@ -729,6 +729,19 @@ body.dark .tanisui-bar { background: #102826; border-color: #2f7a70; color: #8fd
 .ts-judge.warn { background: #ef6c00; }
 .ts-judge.ng   { background: #c62828; }
 .ts-hint { font-size: calc(10px * var(--info-scale, 1)); opacity: 0.85; flex-basis: 100%; }
+.ts-setBtn {
+  background: #00897b; color: #fff; border: none; border-radius: 4px;
+  padding: 3px 10px; font-size: calc(11px * var(--info-scale, 1)); font-weight: bold;
+  cursor: pointer; touch-action: manipulation;
+}
+.ts-setBtn:hover { background: #00695c; }
+.ts-set-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 11px 6px; border-bottom: 1px solid var(--cell-border, #ddd);
+}
+.ts-set-label { display: flex; flex-direction: column; font-weight: bold; font-size: 14px; color: var(--text); min-width: 0; }
+.ts-set-label small { font-weight: normal; font-size: 11px; color: var(--text-light); margin-top: 2px; }
+.ts-set-ctrl { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .shop-tax-bar b { font-size: calc(18px * var(--info-scale, 1)); }
 .wk-people { display: flex; align-items: center; gap: 5px; }
 .wk-btn {
@@ -893,14 +906,49 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 </div>
 
 <div class="shop-tax-bar tanisui-bar" id="tanisuiryouBar">
-  <span>配合γ1 <b id="tsG1">—</b></span>
-  <span>試験γ2 <b id="tsG2">—</b></span>
+  <span>配合の空気抜き容積 <b id="tsV1">—</b></span>
+  <span>単位容積質量 <b id="tsUw">—</b></span>
+  <span>試料の空気抜き容積 <b id="tsVs">—</b></span>
   <span>推定単位水量 <b id="tsW">—</b></span>
   <span>差 <b id="tsDelta">—</b></span>
   <span class="ts-judge" id="tsJudge">—</span>
-  <span class="ts-field">合格±<button class="wk-btn" onclick="changeTsTol('warn',-1)">−</button><b id="tsWarn">15</b><button class="wk-btn" onclick="changeTsTol('warn',1)">+</button></span>
-  <span class="ts-field">限界±<button class="wk-btn" onclick="changeTsTol('limit',-1)">−</button><b id="tsLimit">20</b><button class="wk-btn" onclick="changeTsTol('limit',1)">+</button></span>
+  <button class="ts-setBtn" onclick="openTsSettings()">⚙ 設定</button>
   <span class="ts-hint" id="tsHint">配合と試験の各値を入力してください（W=W1+0.7×(γ1−γ2)、β=0.7）</span>
+</div>
+
+<div class="modal-overlay" id="tsSettingsOverlay" onclick="if(event.target===this)closeTsSettings()">
+  <div class="modal">
+    <div class="modal-header">
+      <span>💧 単位水量の設定</span>
+      <button class="modal-close" onclick="closeTsSettings()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="ts-set-row">
+        <div class="ts-set-label">小数桁1<small>配合上の空気量を除いた容積 (m³)</small></div>
+        <div class="ts-set-ctrl"><button class="btn-rc" onclick="changeTsDp(1,-1)">−</button><span class="sc-val" id="tsDp1">3</span><button class="btn-rc" onclick="changeTsDp(1,1)">+</button></div>
+      </div>
+      <div class="ts-set-row">
+        <div class="ts-set-label">小数桁2<small>単位容積質量 (kg/m³)</small></div>
+        <div class="ts-set-ctrl"><button class="btn-rc" onclick="changeTsDp(2,-1)">−</button><span class="sc-val" id="tsDp2">1</span><button class="btn-rc" onclick="changeTsDp(2,1)">+</button></div>
+      </div>
+      <div class="ts-set-row">
+        <div class="ts-set-label">小数桁3<small>試料の空気量を除いた容積 (mL)</small></div>
+        <div class="ts-set-ctrl"><button class="btn-rc" onclick="changeTsDp(3,-1)">−</button><span class="sc-val" id="tsDp3">1</span><button class="btn-rc" onclick="changeTsDp(3,1)">+</button></div>
+      </div>
+      <div class="ts-set-row">
+        <div class="ts-set-label">小数桁4<small>推定単位水量 (kg/m³)</small></div>
+        <div class="ts-set-ctrl"><button class="btn-rc" onclick="changeTsDp(4,-1)">−</button><span class="sc-val" id="tsDp4">1</span><button class="btn-rc" onclick="changeTsDp(4,1)">+</button></div>
+      </div>
+      <div class="ts-set-row">
+        <div class="ts-set-label">合格 ±(kg/m³)<small>この差までは「合格」</small></div>
+        <div class="ts-set-ctrl"><button class="btn-rc" onclick="changeTsTol('warn',-1)">−</button><span class="sc-val" id="tsWarn">15</span><button class="btn-rc" onclick="changeTsTol('warn',1)">+</button></div>
+      </div>
+      <div class="ts-set-row">
+        <div class="ts-set-label">限界 ±(kg/m³)<small>これを超えると「不合格」</small></div>
+        <div class="ts-set-ctrl"><button class="btn-rc" onclick="changeTsTol('limit',-1)">−</button><span class="sc-val" id="tsLimit">20</span><button class="btn-rc" onclick="changeTsTol('limit',1)">+</button></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="stats-section">
@@ -3113,10 +3161,21 @@ function solveYosanMode(){
    γc = (m2−m1)×1000/V                  試料の単位容積質量（V:L → m³換算）
    γ2 = γc/(1−A2/100)                   試験の空気を除いた単位容積質量
    W  = W1 + 0.7×(γ1−γ2)                推定単位水量（簡便式・β=0.7）           */
-let tsWarn=15, tsLimit=20;   // 合否判定の許容差(kg/m³)
+let tsWarn=15, tsLimit=20;     // 合否判定の許容差(kg/m³)
+let tsDp=[3,1,1,1];            // 小数桁1..4（①配合の空気抜き容積 ②単位容積質量 ③試料の空気抜き容積 ④推定単位水量）
+/* 桁数指定つきの数値整形（3桁区切り＋小数n桁） */
+function tsFmt(x,n){
+  if(x==null||!isFinite(x)) return '—';
+  const neg=x<0, s=Math.abs(x).toFixed(n), p=s.split('.');
+  p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  return (neg?'−':'')+p.join('.');
+}
 function applyTsTolLabels(){
   const w=document.getElementById('tsWarn'), l=document.getElementById('tsLimit');
   if(w) w.textContent=tsWarn; if(l) l.textContent=tsLimit;
+}
+function applyTsDpLabels(){
+  for(let i=1;i<=4;i++){ const e=document.getElementById('tsDp'+i); if(e) e.textContent=tsDp[i-1]; }
 }
 function changeTsTol(which,delta){
   if(which==='warn') tsWarn=Math.max(1,Math.min(tsLimit,tsWarn+delta));
@@ -3126,43 +3185,51 @@ function changeTsTol(which,delta){
   localStorage.setItem('excalc_ts_limit',tsLimit);
   if(tableMode==='tanisuiryou') recalcTanisuiryou();
 }
+function changeTsDp(which,delta){
+  const i=which-1; if(i<0||i>3) return;
+  tsDp[i]=Math.max(0,Math.min(4,tsDp[i]+delta));
+  applyTsDpLabels();
+  localStorage.setItem('excalc_ts_dp', JSON.stringify(tsDp));
+  if(tableMode==='tanisuiryou') recalcTanisuiryou();
+}
+function openTsSettings(){ applyTsDpLabels(); applyTsTolLabels(); document.getElementById('tsSettingsOverlay').classList.add('open'); }
+function closeTsSettings(){ document.getElementById('tsSettingsOverlay').classList.remove('open'); }
 function recalcTanisuiryou(){
-  const g1El=document.getElementById('tsG1'), g2El=document.getElementById('tsG2');
+  const v1El=document.getElementById('tsV1'), uwEl=document.getElementById('tsUw'), vsEl=document.getElementById('tsVs');
   const wEl=document.getElementById('tsW'), dEl=document.getElementById('tsDelta');
   const jEl=document.getElementById('tsJudge'), hEl=document.getElementById('tsHint');
-  if(!g1El) return;
+  if(!wEl) return;
   const idx={}; TS_FORM.forEach((f,i)=>{ idx[f.key]=i+1; });   // key → 表の行番号（並べ替えに追従）
   const val=key=>{ const raw=data[idx[key]] && data[idx[key]][1]; const v=parseFloat(raw); return (raw!=='' && raw!=null && !isNaN(v))?v:null; };
   const W1=val('W1'), C=val('C'), S=val('S'), G=val('G'); let P=val('P'); const A1=val('A1');
   const V=val('V'), m1=val('m1'), m2=val('m2'), A2=val('A2');
   if(P===null) P=0;   // 混和材は任意（未入力は0扱い）
-  const r1=x=>fmt(Math.round(x*10)/10);
-  // γ1（配合上の空気を除いた単位容積質量）
-  let g1=null;
-  if(W1!==null&&C!==null&&S!==null&&G!==null&&A1!==null&&A1<100){
-    g1=(W1+C+S+G+P)/(1-A1/100);
-  }
-  // γc・γ2（試験）
-  let g2=null;
-  if(m1!==null&&m2!==null&&V!==null&&V>0&&(m2-m1)>0){
-    const gc=(m2-m1)*1000/V;
-    if(A2!==null&&A2<100) g2=gc/(1-A2/100);
-  }
-  g1El.textContent = g1!==null ? r1(g1)+' kg/m³' : '—';
-  g2El.textContent = g2!==null ? r1(g2)+' kg/m³' : '—';
+  // ① 配合上の空気量を除いた容積(m³)＝1−A1/100
+  const V1=(A1!==null&&A1<100)?(1-A1/100):null;
+  // ② 単位容積質量(kg/m³)＝(m2−m1)/容器容積  ※V:L→m³換算
+  const uw=(m1!==null&&m2!==null&&V!==null&&V>0&&(m2-m1)>0)?((m2-m1)*1000/V):null;
+  // ③ 試料の空気量を除いた容積(mL)＝V×(1−A2/100)  ※V:L→mL換算
+  const Vs=(V!==null&&V>0&&A2!==null&&A2<100)?(V*1000*(1-A2/100)):null;
+  // γ1・γ2（内部：簡易式の推定に使用）
+  let g1=null, g2=null;
+  if(W1!==null&&C!==null&&S!==null&&G!==null&&A1!==null&&A1<100) g1=(W1+C+S+G+P)/(1-A1/100);
+  if(uw!==null&&A2!==null&&A2<100) g2=uw/(1-A2/100);
+  v1El.textContent = V1!==null ? tsFmt(V1,tsDp[0])+' m³'   : '—';
+  uwEl.textContent = uw!==null ? tsFmt(uw,tsDp[1])+' kg/m³' : '—';
+  vsEl.textContent = Vs!==null ? tsFmt(Vs,tsDp[2])+' mL'    : '—';
   jEl.className='ts-judge';
   if(g1!==null&&g2!==null&&W1!==null){
     const W=W1+0.7*(g1-g2);
     const d=W-W1;
     const dr=Math.round(d*10)/10;                       // 表示用に丸めてから符号判定（−0回避）
-    const dStr=(dr>0?'+':dr<0?'−':'±')+fmt(Math.abs(dr))+' kg/m³';
-    wEl.textContent=r1(W)+' kg/m³';
+    const dStr=(dr>0?'+':dr<0?'−':'±')+tsFmt(Math.abs(dr),tsDp[3])+' kg/m³';
+    wEl.textContent=tsFmt(W,tsDp[3])+' kg/m³';
     dEl.textContent=dStr;
     const ad=Math.abs(d);
     if(ad<=tsWarn){ jEl.classList.add('ok');   jEl.textContent='合格'; }
     else if(ad<=tsLimit){ jEl.classList.add('warn'); jEl.textContent='要注意'; }
     else { jEl.classList.add('ng'); jEl.textContent='不合格(再試験)'; }
-    hEl.textContent=`配合W1=${r1(W1)} に対する差 ${dStr}（合格±${tsWarn}／限界±${tsLimit}）`;
+    hEl.textContent=`配合W1=${tsFmt(W1,tsDp[3])} に対する差 ${dStr}（合格±${tsWarn}／限界±${tsLimit}）`;
   } else {
     jEl.textContent='—'; wEl.textContent='—'; dEl.textContent='—';
     const miss=[];
@@ -4129,12 +4196,14 @@ updateAutoSumBtn();
   if(c) c.addEventListener('input', ()=>{ localStorage.setItem('excalc_yzCount',c.value);  if(tableMode==='yosan') solveYosanMode(); });
 })();
 
-/* 単位水量試験モードの判定許容差を復元 */
+/* 単位水量試験モードの判定許容差・小数桁を復元 */
 (function(){
   const w=parseInt(localStorage.getItem('excalc_ts_warn'));  if(!isNaN(w)&&w>=1&&w<=99) tsWarn=w;
   const l=parseInt(localStorage.getItem('excalc_ts_limit')); if(!isNaN(l)&&l>=1&&l<=99) tsLimit=l;
   if(tsLimit<tsWarn) tsLimit=tsWarn;
+  try{ const a=JSON.parse(localStorage.getItem('excalc_ts_dp')); if(Array.isArray(a)&&a.length===4) tsDp=a.map(n=>Math.max(0,Math.min(4,parseInt(n)||0))); }catch(_){}
   applyTsTolLabels();
+  applyTsDpLabels();
 })();
 
 /* 各モードの内容を復元（前回のモード・入力をリセットまで保持） */
