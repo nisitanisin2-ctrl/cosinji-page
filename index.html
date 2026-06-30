@@ -1128,7 +1128,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><span class="help-tag">fx=</span> 数式入力を開始（先頭が <b>=</b> になる）</div>
         <div class="help-li"><span class="help-tag">文字</span> 文字（テキスト）を入力</div>
         <div class="help-li"><span class="help-tag">モード</span> 計算モードを切替</div>
-        <div class="help-li"><b>Enterボタンの上で左右にフリック</b>すると、関数・記号テンキー（( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 など）に切り替わります。これらを押すと数式（先頭が <b>=</b>）に挿入されます。反対方向のフリックで数字テンキーに戻ります（スライドはEnter上でのみ）。</div>
+        <div class="help-li"><b>Enterボタンの上で左にフリック</b>すると、関数・記号テンキー（( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 など）に切り替わります。これらを押すと数式（先頭が <b>=</b>）に挿入されます。<b>関数ページからは、どのボタンの上で右にフリックしても</b>数字テンキーに戻れます。</div>
         <div class="help-li">テンキー上端（横向きは左端）の<b>バーをドラッグ</b>すると大きさ（横向きは幅）を変更できます。設定の<b>「🔧 テンキーのボタン配置を編集」</b>で各ボタンの位置も入れ替えできます。</div>
       </div>
 
@@ -2179,7 +2179,14 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
   function goPage(p){ page=Math.max(0,Math.min(1,p)); rest(true); }
   function onDown(e){
     if(e.button!==undefined && e.button>0) return;
-    if(!(e.target && e.target.closest && e.target.closest('.btn.enter'))) return;   // Enterボタン上でのみスワイプ開始（編集中もEnterでページ移動可）
+    const onBtn   = !!(e.target && e.target.closest && e.target.closest('.btn'));
+    const onEnter = !!(e.target && e.target.closest && e.target.closest('.btn.enter'));
+    // 編集中＝Enterのみ（他は入れ替え用）／関数ページ(1)＝どのボタンからでも戻れる／数字ページ(0)＝Enterのみ
+    let ok;
+    if(keypadEditing) ok=onEnter;
+    else if(page===1) ok=onBtn;
+    else ok=onEnter;
+    if(!ok) return;
     downX=e.clientX; downY=e.clientY; dragging=false; decided=false; numpadSwiping=false;
     w=vp.offsetWidth||1;
   }
