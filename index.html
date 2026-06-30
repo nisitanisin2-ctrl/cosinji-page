@@ -2721,18 +2721,19 @@ const STRUCT_MODES={
   jikan:   {cols:4, headers:['項目','開始','終了','時間'],         computed:[3]},
   tanisuiryou:{cols:2, headers:['項目','値'], computed:[]},   // 単位水量試験（土研法）：表をフォームとして使う
 };
-/* 単位水量試験モードの入力フォーム（表 col0=ラベル固定／col1=入力。行r=1..length に対応） */
+/* 単位水量試験モードの入力フォーム（表 col0=ラベル固定／col1=入力。行r=1..length に対応）。
+   並び順：試験値（容器・容器+試料・空気量）を上、配合を下に置く。値は key で参照する。 */
 const TS_FORM=[
-  {label:'単位水量 W1', unit:'kg/m³'},   // r1
-  {label:'セメント C',  unit:'kg/m³'},   // r2
-  {label:'細骨材 S',    unit:'kg/m³'},   // r3
-  {label:'粗骨材 G',    unit:'kg/m³'},   // r4
-  {label:'混和材 P',    unit:'kg/m³'},   // r5（無ければ0）
-  {label:'配合空気量 A1', unit:'%'},     // r6
-  {label:'容器の容積 V', unit:'L'},      // r7
-  {label:'容器質量 m1', unit:'kg'},      // r8
-  {label:'容器+試料 m2', unit:'kg'},     // r9
-  {label:'測定空気量 A2', unit:'%'},     // r10
+  {key:'V',  label:'容器の容積 V', unit:'L'},     // ── 試験値（上） ──
+  {key:'m1', label:'容器質量 m1',  unit:'kg'},
+  {key:'m2', label:'容器+試料 m2', unit:'kg'},
+  {key:'A2', label:'測定空気量 A2', unit:'%'},
+  {key:'W1', label:'単位水量 W1',  unit:'kg/m³'}, // ── 配合（下） ──
+  {key:'C',  label:'セメント C',   unit:'kg/m³'},
+  {key:'S',  label:'細骨材 S',     unit:'kg/m³'},
+  {key:'G',  label:'粗骨材 G',     unit:'kg/m³'},
+  {key:'P',  label:'混和材 P',     unit:'kg/m³'}, // 無ければ0
+  {key:'A1', label:'配合空気量 A1', unit:'%'},
 ];
 const TS_ROWS=TS_FORM.length+1;   // 見出し行＋入力行
 const MODE_LABELS={normal:'モード', simple:'簡易中', shopping:'買物中', warikan:'割勘中', zei:'税計中', wariai:'割合中', youseki:'容積中', yosan:'予算中', jikan:'時間中', tanisuiryou:'水量中'};
@@ -3130,9 +3131,10 @@ function recalcTanisuiryou(){
   const wEl=document.getElementById('tsW'), dEl=document.getElementById('tsDelta');
   const jEl=document.getElementById('tsJudge'), hEl=document.getElementById('tsHint');
   if(!g1El) return;
-  const val=r=>{ const raw=data[r] && data[r][1]; const v=parseFloat(raw); return (raw!=='' && raw!=null && !isNaN(v))?v:null; };
-  const W1=val(1), C=val(2), S=val(3), G=val(4); let P=val(5); const A1=val(6);
-  const V=val(7), m1=val(8), m2=val(9), A2=val(10);
+  const idx={}; TS_FORM.forEach((f,i)=>{ idx[f.key]=i+1; });   // key → 表の行番号（並べ替えに追従）
+  const val=key=>{ const raw=data[idx[key]] && data[idx[key]][1]; const v=parseFloat(raw); return (raw!=='' && raw!=null && !isNaN(v))?v:null; };
+  const W1=val('W1'), C=val('C'), S=val('S'), G=val('G'); let P=val('P'); const A1=val('A1');
+  const V=val('V'), m1=val('m1'), m2=val('m2'), A2=val('A2');
   if(P===null) P=0;   // 混和材は任意（未入力は0扱い）
   const r1=x=>fmt(Math.round(x*10)/10);
   // γ1（配合上の空気を除いた単位容積質量）
