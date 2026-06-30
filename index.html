@@ -2175,7 +2175,8 @@ function sel(r,c) {
     cellEditing=false; op1=null; cur_op=null; waiting=false;
   }
 
-  document.getElementById(`c${selR}_${selC}`).classList.remove('active');
+  const prevActive=document.getElementById(`c${selR}_${selC}`);
+  if (prevActive) prevActive.classList.remove('active');   // 列・行を減らして前の選択セルが消えていてもエラーにしない
   highlightCol(selC,false);
   clearRowSel();
 
@@ -2195,8 +2196,8 @@ function sel(r,c) {
 }
 
 function highlightCol(c,on) {
-  document.getElementById(`ch${c}`).classList.toggle('sel',on);
-  document.getElementById(`rh${selR}`).classList.toggle('sel',false);
+  const ch=document.getElementById(`ch${c}`); if(ch) ch.classList.toggle('sel',on);   // 範囲外の列でもエラーにしない
+  const rh=document.getElementById(`rh${selR}`); if(rh) rh.classList.toggle('sel',false);
   for (let r=0;r<ROWS;r++) {
     const cell=document.getElementById(`c${r}_${c}`);
     if (cell&&!cell.classList.contains('active')) cell.classList.toggle('in-col',on);
