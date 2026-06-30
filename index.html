@@ -2830,7 +2830,7 @@ const STRUCT_MODES={
    並び順：試験値（容器・容器+試料・空気量）を上、配合を下に置く。値は key で参照する。 */
 const TS_FORM=[
   {key:'m2', label:'容器+試料 m2', unit:'kg', dec:3},  // ── 試験値（上） ── 質量・容積は3桁小数で表示
-  {key:'A2', label:'測定空気量 A2', unit:'%'},
+  {key:'A2', label:'測定空気量 A2', unit:'%', dec:1},  // 1桁小数で表示
   {key:'V',  label:'容器の容積 V', unit:'L', dec:3},   // 容器+試料・測定空気量の下に配置
   {key:'m1', label:'容器質量 m1',  unit:'kg', dec:3},
   {key:'C',  label:'セメント C',   unit:'kg/m³'}, // ── 配合（下） ── セメントを水より上に配置
