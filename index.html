@@ -399,11 +399,7 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 /* スマホ横向き：大きさ調整バーをテンキー左端に縦向きで（左右ドラッグで調整）。
    基本ルールの後に置いて上書きする */
 @media (orientation: landscape) and (max-height: 500px) {
-  .numpad-resizer {
-    height: auto; width: 16px; margin: -3px 4px -3px -3px;
-    cursor: ew-resize; flex-shrink: 0;
-  }
-  .numpad-resizer-grip { width: 5px; height: 46px; }
+  .numpad-resizer { display: none; }   /* 横向きでは調整が効かないため非表示（大きさは設定のテンキー −/＋で変更） */
   .numpad-grid { flex: 1; min-width: 0; }
 }
 .numpad-grid {
