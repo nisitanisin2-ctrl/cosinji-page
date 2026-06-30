@@ -1036,31 +1036,31 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="btn fx"  data-key="text" id="textBtn" onclick="toggleTextInput()">文字</button>
     </div>
     <div class="numpad-grid numpad-fpage" id="numpadPage2">
-    <!-- 関数・記号ページ（フリックで表示）。数式に記号・関数を挿入する -->
-    <button class="btn op" onclick="fkey('(')">(</button>
-    <button class="btn op" onclick="fkey(')')">)</button>
-    <button class="btn op" onclick="fkey(',')">,</button>
-    <button class="btn op" onclick="fkey(':')">:</button>
-    <button class="btn clr" onclick="bs()">⌫</button>
-    <button class="btn fx" onclick="fkey('SUM(')">SUM(</button>
-    <button class="btn fx" onclick="fkey('AVERAGE(')">AVG(</button>
-    <button class="btn fx" onclick="fkey('MAX(')">MAX(</button>
-    <button class="btn fx" onclick="fkey('MIN(')">MIN(</button>
-    <button class="btn enter" onclick="eq()">Enter</button>
-    <button class="btn fx" onclick="fkey('SQRT(')">√(</button>
-    <button class="btn fx" onclick="fkey('ABS(')">ABS(</button>
-    <button class="btn fx" onclick="fkey('ROUND(')">ROUND(</button>
-    <button class="btn fx" onclick="fkey('COUNT(')">COUNT(</button>
-    <button class="btn fx" onclick="fkey('IF(')">IF(</button>
-    <button class="btn op" onclick="fkey('&gt;')">&gt;</button>
-    <button class="btn op" onclick="fkey('&lt;')">&lt;</button>
-    <button class="btn op" onclick="fkey('&gt;=')">≧</button>
-    <button class="btn op" onclick="fkey('&lt;=')">≦</button>
-    <button class="btn op" onclick="fkey('+')">+</button>
-    <button class="btn op" onclick="fkey('-')">−</button>
-    <button class="btn op" onclick="fkey('×')">×</button>
-    <button class="btn op" onclick="fkey('÷')">÷</button>
-    <button class="btn op" onclick="fkey('=')">=</button>
+    <!-- 関数・記号ページ（フリックで表示）。数式に記号・関数を挿入する。data-keyで配置編集に対応 -->
+    <button class="btn op" data-key="fp_lp"    onclick="fkey('(')">(</button>
+    <button class="btn op" data-key="fp_rp"    onclick="fkey(')')">)</button>
+    <button class="btn op" data-key="fp_comma" onclick="fkey(',')">,</button>
+    <button class="btn op" data-key="fp_colon" onclick="fkey(':')">:</button>
+    <button class="btn clr" data-key="fp_bs"   onclick="bs()">⌫</button>
+    <button class="btn fx" data-key="fp_sum"   onclick="fkey('SUM(')">SUM(</button>
+    <button class="btn fx" data-key="fp_avg"   onclick="fkey('AVERAGE(')">AVG(</button>
+    <button class="btn fx" data-key="fp_max"   onclick="fkey('MAX(')">MAX(</button>
+    <button class="btn fx" data-key="fp_min"   onclick="fkey('MIN(')">MIN(</button>
+    <button class="btn enter" data-key="fp_enter" onclick="eq()">Enter</button>
+    <button class="btn fx" data-key="fp_sqrt"  onclick="fkey('SQRT(')">√(</button>
+    <button class="btn fx" data-key="fp_abs"   onclick="fkey('ABS(')">ABS(</button>
+    <button class="btn fx" data-key="fp_round" onclick="fkey('ROUND(')">ROUND(</button>
+    <button class="btn fx" data-key="fp_count" onclick="fkey('COUNT(')">COUNT(</button>
+    <button class="btn fx" data-key="fp_if"    onclick="fkey('IF(')">IF(</button>
+    <button class="btn op" data-key="fp_gt"    onclick="fkey('&gt;')">&gt;</button>
+    <button class="btn op" data-key="fp_lt"    onclick="fkey('&lt;')">&lt;</button>
+    <button class="btn op" data-key="fp_ge"    onclick="fkey('&gt;=')">≧</button>
+    <button class="btn op" data-key="fp_le"    onclick="fkey('&lt;=')">≦</button>
+    <button class="btn op" data-key="fp_plus"  onclick="fkey('+')">+</button>
+    <button class="btn op" data-key="fp_fminus" onclick="fkey('-')">−</button>
+    <button class="btn op" data-key="fp_fmul"  onclick="fkey('×')">×</button>
+    <button class="btn op" data-key="fp_fdiv"  onclick="fkey('÷')">÷</button>
+    <button class="btn op" data-key="fp_eq"    onclick="fkey('=')">=</button>
     </div>
     </div>
   </div>
@@ -1186,7 +1186,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><b>行／列</b>：表の大きさ　<b>小数</b>：小数点以下の桁（自＝自動）</div>
         <div class="help-li"><b>税率</b>：消費税モードの税率</div>
         <div class="help-li"><b>テンキー／セル文字／小計文字</b>：各文字サイズ</div>
-        <div class="help-li"><b>🔧 テンキーのボタン配置を編集</b>：押すと編集モードになり、テンキーのボタンをドラッグして好きな位置に入れ替えできます（同じ大きさのボタン同士。Enter・0は固定）。配置は自動保存され、編集バーの「↺初期化」で元に戻せます。</div>
+        <div class="help-li"><b>🔧 テンキーのボタン配置を編集</b>：押すと編集モードになり、テンキーのボタンをドラッグして好きな位置に入れ替えできます（同じ大きさのボタン同士。Enter・0は固定）。<b>関数ページも編集可能</b>（編集中もEnter上のフリックでページを移動できます）。配置は自動保存され、編集バーの「↺初期化」で両ページを元に戻せます。</div>
         <div class="help-li"><b>🔀 モードの表示/非表示</b>：「モード」一覧に出す標準モードを選べます。チェックを外すと一覧から隠れます（内容は保持。「通常」は常に表示）。</div>
       </div>
 
@@ -2178,9 +2178,8 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
   }
   function goPage(p){ page=Math.max(0,Math.min(1,p)); rest(true); }
   function onDown(e){
-    if(keypadEditing) return;       // 配置編集中はスワイプ無効
     if(e.button!==undefined && e.button>0) return;
-    if(!(e.target && e.target.closest && e.target.closest('.btn.enter'))) return;   // Enterボタン上でのみスワイプ開始
+    if(!(e.target && e.target.closest && e.target.closest('.btn.enter'))) return;   // Enterボタン上でのみスワイプ開始（編集中もEnterでページ移動可）
     downX=e.clientX; downY=e.clientY; dragging=false; decided=false; numpadSwiping=false;
     w=vp.offsetWidth||1;
   }
@@ -2255,6 +2254,7 @@ function toggleNumpad() { numpadHidden=!numpadHidden; applyNumpad(); }
 /* ── テンキーのボタン配置（ドラッグで自由に入れ替え） ──
    既定位置（5列のグリッド上の行r・列c。w/h は大きいボタンの占有数）。
    位置は data-key 単位で入れ替え、localStorage に保存する。       */
+/* 数字ページ（page1）の既定配置 */
 const KEYPAD_DEFAULT_POS={
   mode:{r:1,c:1}, ce:{r:1,c:2}, bs:{r:1,c:3}, div:{r:1,c:4}, mul:{r:1,c:5},
   n7:{r:2,c:1}, n8:{r:2,c:2}, n9:{r:2,c:3}, minus:{r:2,c:4}, enter:{r:2,c:5,h:2},
@@ -2262,32 +2262,50 @@ const KEYPAD_DEFAULT_POS={
   n1:{r:4,c:1}, n2:{r:4,c:2}, n3:{r:4,c:3}, sign:{r:4,c:4}, sum:{r:4,c:5},
   n0:{r:5,c:1,w:2}, dot:{r:5,c:3}, fx:{r:5,c:4}, text:{r:5,c:5}
 };
-function kpFootprint(key){ const d=KEYPAD_DEFAULT_POS[key]||{}; return (d.w||1)+'x'+(d.h||1); }
-function kpIsFixed(key){ const d=KEYPAD_DEFAULT_POS[key]||{}; return (d.w||1)>1 || (d.h||1)>1; }  // 大きいボタン(Enter・0)は固定
-let keypadPos={};        // key -> {r,c}（大きさは KEYPAD_DEFAULT_POS から）
+/* 関数ページ（page2）の既定配置 */
+const KEYPAD_DEFAULT_POS2={
+  fp_lp:{r:1,c:1}, fp_rp:{r:1,c:2}, fp_comma:{r:1,c:3}, fp_colon:{r:1,c:4}, fp_bs:{r:1,c:5},
+  fp_sum:{r:2,c:1}, fp_avg:{r:2,c:2}, fp_max:{r:2,c:3}, fp_min:{r:2,c:4}, fp_enter:{r:2,c:5,h:2},
+  fp_sqrt:{r:3,c:1}, fp_abs:{r:3,c:2}, fp_round:{r:3,c:3}, fp_count:{r:3,c:4},
+  fp_if:{r:4,c:1}, fp_gt:{r:4,c:2}, fp_lt:{r:4,c:3}, fp_ge:{r:4,c:4}, fp_le:{r:4,c:5},
+  fp_plus:{r:5,c:1}, fp_fminus:{r:5,c:2}, fp_fmul:{r:5,c:3}, fp_fdiv:{r:5,c:4}, fp_eq:{r:5,c:5}
+};
+/* 編集対象のページ一覧（各ページが独自の既定配置・保存キー・現在配置を持つ） */
+const KP_PAGES=[
+  {sel:'#numpadPage1', def:KEYPAD_DEFAULT_POS,  skey:'excalc_keypad_pos',  pos:{}},
+  {sel:'#numpadPage2', def:KEYPAD_DEFAULT_POS2, skey:'excalc_keypad_pos2', pos:{}}
+];
 let keypadEditing=false;
+let kpDrag=null;
+function kpFootprint(def,key){ const d=def[key]||{}; return (d.w||1)+'x'+(d.h||1); }
+function kpIsFixed(def,key){ const d=def[key]||{}; return (d.w||1)>1 || (d.h||1)>1; }   // 大きいボタン(Enter・0)は固定
+function kpPageOfEl(el){ return KP_PAGES.find(p=>el.closest && el.closest(p.sel)); }
 function loadKeypadPos(){
-  keypadPos={};
-  for(const k in KEYPAD_DEFAULT_POS) keypadPos[k]={r:KEYPAD_DEFAULT_POS[k].r, c:KEYPAD_DEFAULT_POS[k].c};
-  try{
-    const saved=JSON.parse(localStorage.getItem('excalc_keypad_pos')||'null');
-    if(saved&&typeof saved==='object'){
-      for(const k in keypadPos){
-        if(saved[k]&&typeof saved[k].r==='number'&&typeof saved[k].c==='number') keypadPos[k]={r:saved[k].r, c:saved[k].c};
+  KP_PAGES.forEach(pg=>{
+    pg.pos={};
+    for(const k in pg.def) pg.pos[k]={r:pg.def[k].r, c:pg.def[k].c};
+    try{
+      const saved=JSON.parse(localStorage.getItem(pg.skey)||'null');
+      if(saved&&typeof saved==='object'){
+        for(const k in pg.pos){
+          if(saved[k]&&typeof saved[k].r==='number'&&typeof saved[k].c==='number') pg.pos[k]={r:saved[k].r, c:saved[k].c};
+        }
       }
-    }
-  }catch(_){}
+    }catch(_){}
+  });
 }
-function saveKeypadPos(){ try{ localStorage.setItem('excalc_keypad_pos', JSON.stringify(keypadPos)); }catch(_){} }
+function saveKeypadPos(pg){ try{ localStorage.setItem(pg.skey, JSON.stringify(pg.pos)); }catch(_){} }
 function applyKeypadLayout(){
-  for(const key in keypadPos){
-    const b=document.querySelector('.numpad-grid [data-key="'+key+'"]');
-    if(!b) continue;
-    const d=KEYPAD_DEFAULT_POS[key]||{}, p=keypadPos[key], w=d.w||1, h=d.h||1;
-    b.style.gridColumn = p.c + (w>1?(' / span '+w):'');
-    b.style.gridRow    = p.r + (h>1?(' / span '+h):'');
-    b.classList.toggle('key-fixed', keypadEditing && kpIsFixed(key));
-  }
+  KP_PAGES.forEach(pg=>{
+    for(const key in pg.pos){
+      const b=document.querySelector(pg.sel+' [data-key="'+key+'"]');
+      if(!b) continue;
+      const d=pg.def[key]||{}, p=pg.pos[key], w=d.w||1, h=d.h||1;
+      b.style.gridColumn = p.c + (w>1?(' / span '+w):'');
+      b.style.gridRow    = p.r + (h>1?(' / span '+h):'');
+      b.classList.toggle('key-fixed', keypadEditing && kpIsFixed(pg.def,key));
+    }
+  });
   fitNumpadLabels();
 }
 function toggleKeypadEdit(){
@@ -2299,31 +2317,30 @@ function toggleKeypadEdit(){
   applyKeypadLayout();   // 固定ボタンの淡色表示を更新
 }
 function resetKeypadLayout(){
-  if(!confirm('テンキーのボタン配置を最初の状態に戻しますか？')) return;
-  localStorage.removeItem('excalc_keypad_pos');
+  if(!confirm('テンキーのボタン配置を最初の状態に戻しますか？（数字・関数の両ページ）')) return;
+  KP_PAGES.forEach(pg=>localStorage.removeItem(pg.skey));
   loadKeypadPos();
   applyKeypadLayout();
 }
-function swapKeypadKeys(a,b){
-  if(!a||!b||a===b) return;
-  if(kpIsFixed(a)||kpIsFixed(b)) return;
-  if(kpFootprint(a)!==kpFootprint(b)) return;   // 同じ大きさ同士だけ入れ替え（レイアウト崩れ防止）
-  const t=keypadPos[a]; keypadPos[a]=keypadPos[b]; keypadPos[b]=t;
-  saveKeypadPos();
+function swapKeypadKeys(pg,a,b){
+  if(!pg||!a||!b||a===b) return;
+  if(kpIsFixed(pg.def,a)||kpIsFixed(pg.def,b)) return;
+  if(kpFootprint(pg.def,a)!==kpFootprint(pg.def,b)) return;   // 同じ大きさ同士だけ入れ替え（レイアウト崩れ防止）
+  const t=pg.pos[a]; pg.pos[a]=pg.pos[b]; pg.pos[b]=t;
+  saveKeypadPos(pg);
   applyKeypadLayout();
   if(navigator.vibrate){ try{ navigator.vibrate(12); }catch(_){} }
 }
-/* ドラッグでボタンを入れ替え */
-let kpDrag=null;
+/* ドラッグでボタンを入れ替え（ページ内で完結） */
 function onKeypadGridPointerDown(e){
   if(!keypadEditing) return;
   if(e.button!==undefined && e.button>0) return;
   e.stopPropagation();                  // 編集中はボタン本来のpointer操作（Σ合計の範囲選択など）を止める
   const btn=e.target.closest&&e.target.closest('.btn');
   if(!btn) { kpDrag=null; return; }
-  const key=btn.dataset.key;
-  if(!key || kpIsFixed(key)) { kpDrag=null; return; }
-  kpDrag={el:btn, key, started:false, startX:e.clientX, startY:e.clientY, target:null};
+  const pg=kpPageOfEl(btn), key=btn.dataset.key;
+  if(!pg || !key || kpIsFixed(pg.def,key)) { kpDrag=null; return; }
+  kpDrag={el:btn, key, pg, started:false, startX:e.clientX, startY:e.clientY, target:null};
 }
 function onKeypadPointerMove(e){
   if(!kpDrag) return;
@@ -2335,9 +2352,10 @@ function onKeypadPointerMove(e){
   kpDrag.el.style.pointerEvents='none';
   const under=document.elementFromPoint(e.clientX, e.clientY);
   kpDrag.el.style.pointerEvents='';
-  const t=(under&&under.closest)?under.closest('.numpad-grid .btn'):null;
+  const pg=kpDrag.pg;
+  const t=(under&&under.closest)?under.closest(pg.sel+' .btn'):null;   // 同じページ内のボタンのみ対象
   if(kpDrag.target && kpDrag.target!==t) kpDrag.target.classList.remove('key-target');
-  if(t && t!==kpDrag.el && t.dataset.key && !kpIsFixed(t.dataset.key) && kpFootprint(t.dataset.key)===kpFootprint(kpDrag.key)){
+  if(t && t!==kpDrag.el && t.dataset.key && !kpIsFixed(pg.def,t.dataset.key) && kpFootprint(pg.def,t.dataset.key)===kpFootprint(pg.def,kpDrag.key)){
     t.classList.add('key-target'); kpDrag.target=t;
   } else {
     kpDrag.target=null;
@@ -2345,18 +2363,19 @@ function onKeypadPointerMove(e){
 }
 function onKeypadPointerUp(){
   if(!kpDrag) return;
-  const {el, key, started, target}=kpDrag;
+  const {el, key, started, target, pg}=kpDrag;
   if(started) el.classList.remove('key-dragging');
   if(target) target.classList.remove('key-target');
   kpDrag=null;
-  if(started && target) swapKeypadKeys(key, target.dataset.key);
+  if(started && target) swapKeypadKeys(pg, key, target.dataset.key);
 }
 function bindKeypadDrag(){
-  const grid=document.querySelector('.numpad-grid');
-  if(grid){
+  KP_PAGES.forEach(pg=>{
+    const grid=document.querySelector(pg.sel);
+    if(!grid) return;
     grid.addEventListener('pointerdown', onKeypadGridPointerDown, true);   // capture：ボタン側ハンドラより先に処理
     grid.addEventListener('click', e=>{ if(keypadEditing){ e.preventDefault(); e.stopPropagation(); } }, true);  // 編集中はタップ無効化
-  }
+  });
   document.addEventListener('pointermove', onKeypadPointerMove, {passive:false});
   document.addEventListener('pointerup', onKeypadPointerUp);
   document.addEventListener('pointercancel', onKeypadPointerUp);
