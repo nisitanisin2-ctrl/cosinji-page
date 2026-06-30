@@ -406,14 +406,14 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
     cursor: ew-resize; flex-shrink: 0;
   }
   .numpad-resizer-grip { width: 5px; height: 46px; }   /* 横ドラッグでテンキー領域の幅を変更 */
-  .numpad-body { flex: 1; min-width: 0; }
+  .numpad-viewport { flex: 1; min-width: 0; }
 }
-/* 登録ボタン列（左）＋テンキー本体 を横並びに */
-.numpad-body { display: flex; flex-direction: row; gap: 5px; align-items: stretch; }
-.numpad-userpad {
-  display: grid; grid-template-rows: repeat(5, 1fr); gap: 5px;
-  flex: 0 0 auto; width: calc(42px * var(--key-scale, 1.3));
-}
+/* テンキー3ページ（登録／数字／関数）のスライド表示 */
+.numpad-viewport { position: relative; overflow: hidden; }
+.numpad-track { display: flex; width: 300%; transition: transform 0.25s ease; will-change: transform; touch-action: pan-y; }
+.numpad-track.np-dragging { transition: none; }
+.numpad-track > .numpad-grid { flex: 0 0 33.3333%; width: 33.3333%; }
+/* 登録ページのボタン（紫）。長押しで登録・タップで入力 */
 .btn.ubtn {
   background: #5b3a86; padding: 4px 3px;
   font-size: calc(12px * var(--key-scale, 1.3));
@@ -421,11 +421,6 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 }
 .btn.ubtn:hover { background: #6f49a3; }
 .btn.ubtn.empty { background: #3a3550; color: #9b8fc0; }   /* 未登録 */
-/* テンキー2ページ（数字／関数）のスライド表示 */
-.numpad-viewport { position: relative; overflow: hidden; flex: 1; min-width: 0; }
-.numpad-track { display: flex; width: 200%; transition: transform 0.25s ease; will-change: transform; touch-action: pan-y; }
-.numpad-track.np-dragging { transition: none; }
-.numpad-track > .numpad-grid { flex: 0 0 50%; width: 50%; }
 .numpad-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -1020,16 +1015,36 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   <div class="numpad-resizer" id="numpadResizer" title="ドラッグでテンキーの大きさを変更（横向きは左右）">
     <span class="numpad-resizer-grip"></span>
   </div>
-  <div class="numpad-body">
-  <div class="numpad-userpad" id="numpadUserpad" title="長押しで文字・数字を登録／タップで入力">
+  <div class="numpad-viewport" id="numpadViewport">
+    <div class="numpad-track" id="numpadTrack">
+    <div class="numpad-grid numpad-regpage" id="numpadPageReg" title="長押しで文字・数字を登録／タップで入力">
+    <!-- 登録ページ（数字ページの左。フリックで表示）。長押しで登録・タップで入力 -->
     <button class="btn ubtn" data-uk="0"></button>
     <button class="btn ubtn" data-uk="1"></button>
     <button class="btn ubtn" data-uk="2"></button>
     <button class="btn ubtn" data-uk="3"></button>
     <button class="btn ubtn" data-uk="4"></button>
-  </div>
-  <div class="numpad-viewport" id="numpadViewport">
-    <div class="numpad-track" id="numpadTrack">
+    <button class="btn ubtn" data-uk="5"></button>
+    <button class="btn ubtn" data-uk="6"></button>
+    <button class="btn ubtn" data-uk="7"></button>
+    <button class="btn ubtn" data-uk="8"></button>
+    <button class="btn ubtn" data-uk="9"></button>
+    <button class="btn ubtn" data-uk="10"></button>
+    <button class="btn ubtn" data-uk="11"></button>
+    <button class="btn ubtn" data-uk="12"></button>
+    <button class="btn ubtn" data-uk="13"></button>
+    <button class="btn ubtn" data-uk="14"></button>
+    <button class="btn ubtn" data-uk="15"></button>
+    <button class="btn ubtn" data-uk="16"></button>
+    <button class="btn ubtn" data-uk="17"></button>
+    <button class="btn ubtn" data-uk="18"></button>
+    <button class="btn ubtn" data-uk="19"></button>
+    <button class="btn ubtn" data-uk="20"></button>
+    <button class="btn ubtn" data-uk="21"></button>
+    <button class="btn ubtn" data-uk="22"></button>
+    <button class="btn ubtn" data-uk="23"></button>
+    <button class="btn ubtn" data-uk="24"></button>
+    </div>
     <div class="numpad-grid" id="numpadPage1">
     <!-- 既定の並び。各ボタンの位置は data-key を使って自由に入れ替えできる（設定→ボタン配置を編集） -->
     <button class="btn clr" data-key="mode" id="shoppingBtn" onclick="onModeBtnClick()">モード</button>
@@ -1084,7 +1099,6 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="btn op" data-key="fp_eq"    onclick="fkey('=')">=</button>
     </div>
     </div>
-  </div>
   </div>
 </div>
 
@@ -1150,8 +1164,10 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><span class="help-tag">fx=</span> 数式入力を開始（先頭が <b>=</b> になる）</div>
         <div class="help-li"><span class="help-tag">文字</span> 文字（テキスト）を入力</div>
         <div class="help-li"><span class="help-tag">モード</span> 計算モードを切替</div>
-        <div class="help-li"><b>テンキー左の登録ボタン（紫）</b>：<b>長押し</b>でよく使う文字や数字を登録、<b>タップ</b>でそれを入力できます（未登録の「＋」はタップでも登録）。数値の途中でタップすると連結（例：100→「円」で100円）。登録は保存されます。</div>
-        <div class="help-li"><b>Enterボタンの上で左にフリック</b>すると、関数・記号テンキー（( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 など）に切り替わります。これらを押すと数式（先頭が <b>=</b>）に挿入されます。<b>関数ページからは、どのボタンの上で右にフリックしても</b>数字テンキーに戻れます。</div>
+        <div class="help-li">テンキーは<b>3ページ構成</b>です（フリックでスライド／数字ページからは <b>Enterボタンの上で</b>フリック）：
+          <br>・<b>左＝登録ページ</b>（右へフリック）…紫のボタンを<b>長押し</b>でよく使う文字・数字を登録、<b>タップ</b>で入力（未登録の「＋」はタップでも登録）。数値の途中でタップすると連結（例：100→「円」で100円）。登録は保存されます。
+          <br>・<b>右＝関数・記号ページ</b>（左へフリック）…( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 などを数式（先頭が <b>=</b>）に挿入。
+          <br>両端のページからは、<b>どのボタンの上で逆方向にフリックしても</b>中央の数字ページに戻れます。</div>
         <div class="help-li">テンキー上端（横向きは左端）の<b>バーをドラッグ</b>すると大きさ（横向きは幅）を変更できます。設定の<b>「🔧 テンキーのボタン配置を編集」</b>で各ボタンの位置も入れ替えできます。</div>
       </div>
 
@@ -2185,30 +2201,28 @@ function changeKeySize(delta) {
   })();
 })();
 
-/* ── テンキーのページ切替（フリックで 数字⇄関数 をスライド） ── */
-let numpadSwiping=false;           // スワイプ中／直後はボタンのタップを抑止（autoSum等と共有）
+/* ── テンキーのページ切替（フリックで 登録／数字／関数 をスライド） ── */
+let numpadSwiping=false;           // スワイプ中／直後はボタンのタップを抑止（autoSum・登録ボタン等と共有）
+const NP_PAGES=3, NP_STEP=100/NP_PAGES;   // 0=登録, 1=数字(既定), 2=関数
 (function setupNumpadPager(){
   const vp=document.getElementById('numpadViewport');
   const track=document.getElementById('numpadTrack');
   if(!vp||!track) return;
-  let page=0;                      // 0=数字ページ, 1=関数ページ
+  let page=1;                      // 中央＝数字ページを既定表示
   let downX=null, downY=0, dragging=false, decided=false, w=1;
-  function setDots(){ document.querySelectorAll('#numpadDots .np-dot').forEach((d,i)=>d.classList.toggle('active', i===page)); }
   function rest(animate){
     track.classList.toggle('np-dragging', !animate);
-    track.style.transform=`translateX(${-page*50}%)`;
-    setDots();
+    track.style.transform=`translateX(${-page*NP_STEP}%)`;
   }
-  function goPage(p){ page=Math.max(0,Math.min(1,p)); rest(true); }
   function onDown(e){
     if(e.button!==undefined && e.button>0) return;
     const onBtn   = !!(e.target && e.target.closest && e.target.closest('.btn'));
     const onEnter = !!(e.target && e.target.closest && e.target.closest('.btn.enter'));
-    // 編集中＝Enterのみ（他は入れ替え用）／関数ページ(1)＝どのボタンからでも戻れる／数字ページ(0)＝Enterのみ
+    // 編集中＝Enterのみ／数字ページ(1)＝Enterのみ／両端（登録0・関数2）＝どのボタンからでも中央へ戻れる
     let ok;
     if(keypadEditing) ok=onEnter;
-    else if(page===1) ok=onBtn;
-    else ok=onEnter;
+    else if(page===1) ok=onEnter;
+    else ok=onBtn;
     if(!ok) return;
     downX=e.clientX; downY=e.clientY; dragging=false; decided=false; numpadSwiping=false;
     w=vp.offsetWidth||1;
@@ -2225,7 +2239,7 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
     if(!dragging) return;
     e.preventDefault();
     const cl=Math.max(-w, Math.min(w, e.clientX-downX));
-    track.style.transform=`translateX(calc(${-page*50}% + ${cl}px))`;
+    track.style.transform=`translateX(calc(${-page*NP_STEP}% + ${cl}px))`;
   }
   function onUp(e){
     if(downX===null) return;
@@ -2233,13 +2247,12 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
     const wasDragging=dragging;
     if(wasDragging){
       const th=Math.max(40, w*0.22);
-      if(dx<=-th && page<1) page=1;
-      else if(dx>=th && page>0) page=0;
+      if(dx<=-th && page<NP_PAGES-1) page++;        // 左へフリック＝右のページへ
+      else if(dx>=th && page>0) page--;             // 右へフリック＝左のページへ
       rest(true);
     }
     downX=null; dragging=false;
-    // ドラッグした時は直後の click を1回抑止
-    if(wasDragging){ setTimeout(()=>{ numpadSwiping=false; }, 50); }
+    if(wasDragging){ setTimeout(()=>{ numpadSwiping=false; }, 50); }   // 直後のタップを1回抑止
   }
   vp.addEventListener('pointerdown', onDown);
   window.addEventListener('pointermove', onMove, {passive:false});
@@ -2249,17 +2262,20 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
   vp.addEventListener('click', e=>{ if(numpadSwiping){ e.preventDefault(); e.stopPropagation(); } }, true);
   // 画面回転・幅変更時に現在ページ位置を維持（瞬時に合わせてからアニメを戻す）
   window.addEventListener('resize', ()=>{ rest(false); requestAnimationFrame(()=>track.classList.remove('np-dragging')); });
+  // 起動時：中央（数字ページ）に位置合わせ
+  rest(false); requestAnimationFrame(()=>track.classList.remove('np-dragging'));
 })();
 
-/* ── 登録ボタン列（テンキー左）：長押しで文字/数字を登録、タップで入力 ── */
-let userKeys=['','','','',''];
+/* ── 登録ページ（数字ページの左）：長押しで文字/数字を登録、タップで入力 ── */
+const USER_KEYS_N=25;
+let userKeys=new Array(USER_KEYS_N).fill('');
 function loadUserKeys(){
   try{ const a=JSON.parse(localStorage.getItem('excalc_userkeys')); if(Array.isArray(a)) userKeys=a.map(x=>String(x==null?'':x)); }catch(_){}
-  userKeys=userKeys.slice(0,5); while(userKeys.length<5) userKeys.push('');
+  userKeys=userKeys.slice(0,USER_KEYS_N); while(userKeys.length<USER_KEYS_N) userKeys.push('');
 }
 function saveUserKeys(){ try{ localStorage.setItem('excalc_userkeys', JSON.stringify(userKeys)); }catch(_){} }
 function renderUserKeys(){
-  document.querySelectorAll('#numpadUserpad .ubtn').forEach(b=>{
+  document.querySelectorAll('#numpadPageReg .ubtn').forEach(b=>{
     const i=+b.dataset.uk, v=userKeys[i]||'';
     b.textContent = v!=='' ? v : '＋';
     b.classList.toggle('empty', v==='');
@@ -2289,7 +2305,7 @@ async function registerUserKey(i){
   saveUserKeys(); renderUserKeys();
 }
 (function setupUserpad(){
-  const pad=document.getElementById('numpadUserpad');
+  const pad=document.getElementById('numpadPageReg');
   if(!pad) return;
   let timer=null, longed=false, startX=0, startY=0, curBtn=null;
   const clear=()=>{ if(timer){ clearTimeout(timer); timer=null; } };
@@ -2299,12 +2315,13 @@ async function registerUserKey(i){
     timer=setTimeout(()=>{ longed=true; if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} registerUserKey(+b.dataset.uk); }, 500);
   });
   pad.addEventListener('pointermove', e=>{
-    if(curBtn && Math.hypot(e.clientX-startX, e.clientY-startY)>10) clear();   // 動いたら長押し取消
+    if(curBtn && Math.hypot(e.clientX-startX, e.clientY-startY)>10) clear();   // 動いたら長押し取消（＝ページめくり等）
   });
   pad.addEventListener('pointerup', ()=>{
     if(!curBtn) return;
     clear(); const b=curBtn; curBtn=null;
     if(longed){ longed=false; return; }   // 長押し（登録）後はタップ動作しない
+    if(numpadSwiping) return;              // フリックでページ移動した時は入力しない
     userKey(+b.dataset.uk);
   });
   pad.addEventListener('pointercancel', ()=>{ clear(); curBtn=null; longed=false; });
