@@ -446,6 +446,8 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 }
 .btn.ubtn:hover { background: #6f49a3; }
 .btn.ubtn.empty { background: #3a3550; color: #9b8fc0; }   /* 未登録 */
+.btn.ubtn.action { background: #2a6f6f; font-size: calc(20px * var(--key-scale, 1.3)); }  /* 便利機能を登録したボタン */
+.btn.ubtn.action:hover { background: #35898f; }
 .btn.ubtn.armed { background: #9460d8; box-shadow: inset 0 0 0 2px #d3b4f5; }  /* 長押し成立＝登録できる状態 */
 .numpad-grid {
   display: grid;
@@ -818,6 +820,9 @@ body.dark .cell.ts-calc-top, body.dark .cell.ts-sep { border-top-color: #2f7a70 
 .ts-spin-btn:hover { background: #00695c; }
 .ts-spin-btn:active { background: #004d40; }
 .shop-tax-bar b { font-size: calc(18px * var(--info-scale, 1)); }
+/* 買物モード：小計の横に出す消費税8%/10%込の参考額（小計より控えめな見た目） */
+.shop-tax-sub { font-weight: normal; opacity: 0.85; }
+.shop-tax-sub b { font-size: calc(13px * var(--info-scale, 1)); font-weight: bold; }
 .wk-people { display: flex; align-items: center; gap: 5px; }
 .wk-btn {
   width: 24px; height: 22px; font-size: 15px; line-height: 1; font-weight: bold;
@@ -941,6 +946,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 
 <div class="shop-tax-bar" id="shopTaxBar">
   <span>小計:</span><b id="shopSubtotal">¥0</b>
+  <span class="shop-tax-sub">消費税8%込 <b id="shopTax8">¥0</b></span>
+  <span class="shop-tax-sub">消費税10%込 <b id="shopTax10">¥0</b></span>
 </div>
 
 <div class="shop-tax-bar zei-bar" id="zeiBar">
@@ -1199,6 +1206,17 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   </div>
 </div>
 
+<div class="modal-overlay" id="regPickOverlay" onclick="if(event.target===this)closeRegPick()">
+  <div class="modal">
+    <div class="modal-header">
+      <span>テンキー登録</span>
+      <button class="modal-close" onclick="closeRegPick()">✕</button>
+    </div>
+    <div class="mode-hint">よく使う文字・数字、または戻る／進むなどの便利機能をこのボタンに登録します</div>
+    <div class="modal-body" id="regPickBody"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="helpOverlay" onclick="if(event.target===this)closeHelp()">
   <div class="modal help-modal">
     <div class="modal-header">
@@ -1225,7 +1243,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li">テンキーは<b>横に3ページ</b>（関数電卓・数字・関数記号）＋<b>数字ページの下に登録ページ</b>という構成です（数字ページからは <b>右側ゾーン（数字より右の演算子・Enter など）の上で</b>フリック）：
           <br>・<b>数字ページを右へフリック＝関数電卓ページ</b>…SIN・COS・TAN・ASIN・ACOS・ATAN・LOG・LN・EXP・π・e・n!（階乗）・x²・^（べき乗）・1/(・MOD( などを数式に挿入。<b>DEG/RAD</b>ボタンで三角関数の角度単位（度数法⇄弧度法）を切替できます。
           <br>・<b>数字ページを左へフリック＝関数・記号ページ</b>…( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 などを数式（先頭が <b>=</b>）に挿入。
-          <br>・<b>数字ページを上へフリック＝登録ページ</b>（数字ページの下からせり上がって表示）…紫のボタンを<b>長押し</b>でよく使う文字・数字を登録、<b>タップ</b>で入力（未登録の「＋」はタップでも登録）。数値の途中でタップすると連結（例：100→「円」で100円）。登録は保存されます。登録ページの<b>どのボタンの上でも下へフリック</b>すると数字ページに戻ります。
+          <br>・<b>数字ページを上へフリック＝登録ページ</b>（数字ページの下からせり上がって表示）…紫のボタンを<b>長押し</b>すると登録メニューが開き、<b>「文字・数字」</b>（よく使う文字・数字を登録、数値の途中でタップすると連結。例：100→「円」で100円）か、<b>「戻る」「進む」「保存」「リスト」「リセット」「CSV出力」「ナイト」「モード」</b>などの便利機能を選んで登録できます。登録後は<b>タップ</b>で入力／実行（未登録の「＋」はタップでも登録メニューが開きます）。登録は保存されます。登録ページの<b>どのボタンの上でも下へフリック</b>すると数字ページに戻ります。
           <br>関数電卓・関数記号ページからは、<b>どのボタンの上で数字ページ方向へフリックしても</b>数字ページに戻れます。</div>
         <div class="help-li">テンキー上端（横向きは左端）の<b>バーをドラッグ</b>すると大きさ（横向きは幅）を変更できます。設定の<b>「🔧 テンキーのボタン配置を編集」</b>で各ボタンの位置も入れ替えできます。</div>
       </div>
@@ -2405,28 +2423,66 @@ const NP_PAGES=3, NP_STEP=100/NP_PAGES, NP_STD=1;   // 0=関数電卓, 1=数字(
   requestAnimationFrame(()=>{ track.classList.remove('np-dragging'); reg.classList.remove('nr-dragging'); });
 })();
 
-/* ── 登録ページ（数字ページの左）：長押しで文字/数字を登録、タップで入力 ── */
+/* ── 登録ページ（数字ページの下）：長押しで文字・数字／便利機能を登録、タップで実行 ── */
 const USER_KEYS_N=25;
-let userKeys=new Array(USER_KEYS_N).fill('');
+/* 各枠 {type:'text',value:'...'} または {type:'action',value:REG_ACTIONSのid} */
+let userKeys=new Array(USER_KEYS_N).fill(null).map(()=>({type:'text',value:''}));
+/* 登録できる便利機能 */
+const REG_ACTIONS=[
+  {id:'undo',  icon:'↩', name:'戻る',       desc:'直前の変更を元に戻す'},
+  {id:'redo',  icon:'↪', name:'進む',       desc:'元に戻した操作をやり直す'},
+  {id:'save',  icon:'💾', name:'保存',       desc:'名前を付けて保存'},
+  {id:'list',  icon:'📋', name:'リスト',     desc:'保存データの一覧を開く'},
+  {id:'reset', icon:'🗑', name:'リセット',   desc:'今のモードの内容を消去'},
+  {id:'csv',   icon:'📄', name:'CSV出力',    desc:'表をCSVファイルに書き出す'},
+  {id:'dark',  icon:'🌙', name:'ナイト',     desc:'ダークモードを切替'},
+  {id:'mode',  icon:'🔀', name:'モード',     desc:'モード選択メニューを開く'},
+];
+const REG_ACTION_FN={ undo:undoLast, redo:redoLast, save:()=>saveData(), list:showSaveList,
+                       reset:resetAll, csv:exportCSV, dark:toggleDark, mode:onModeBtnClick };
+function regEntry(i){ return userKeys[i]||{type:'text',value:''}; }
+function regIsEmpty(i){ const e=regEntry(i); return e.value===''||e.value==null; }
 function loadUserKeys(){
-  try{ const a=JSON.parse(localStorage.getItem('excalc_userkeys')); if(Array.isArray(a)) userKeys=a.map(x=>String(x==null?'':x)); }catch(_){}
-  userKeys=userKeys.slice(0,USER_KEYS_N); while(userKeys.length<USER_KEYS_N) userKeys.push('');
+  try{
+    const a=JSON.parse(localStorage.getItem('excalc_userkeys'));
+    if(Array.isArray(a)) userKeys=a.map(x=>{
+      if(x && typeof x==='object' && (x.type==='text'||x.type==='action')) return {type:x.type, value:String(x.value==null?'':x.value)};
+      return {type:'text', value:String(x==null?'':x)};   // 旧形式（文字列のみ保存）からの移行
+    });
+  }catch(_){}
+  userKeys=userKeys.slice(0,USER_KEYS_N);
+  while(userKeys.length<USER_KEYS_N) userKeys.push({type:'text',value:''});
 }
 function saveUserKeys(){ try{ localStorage.setItem('excalc_userkeys', JSON.stringify(userKeys)); }catch(_){} }
 function renderUserKeys(){
   document.querySelectorAll('#numpadPageReg .ubtn').forEach(b=>{
-    const i=+b.dataset.uk, v=userKeys[i]||'';
-    b.textContent = v!=='' ? v : '＋';
-    b.classList.toggle('empty', v==='');
-    b.title = v!=='' ? '「'+v+'」を入力（長押しで変更）' : '長押しで文字・数字を登録';
+    const i=+b.dataset.uk, e=regEntry(i);
+    if(e.type==='action'){
+      const act=REG_ACTIONS.find(a=>a.id===e.value);
+      b.textContent = act ? act.icon : '？';
+      b.classList.remove('empty'); b.classList.add('action');
+      b.title = act ? act.name+'（長押しで変更）' : '不明な機能です（長押しで登録し直してください）';
+    } else {
+      const v=e.value||'';
+      b.textContent = v!=='' ? v : '＋';
+      b.classList.toggle('empty', v==='');
+      b.classList.remove('action');
+      b.title = v!=='' ? '「'+v+'」を入力（長押しで変更）' : '長押しで文字・数字・便利機能を登録';
+    }
   });
   if(typeof fitNumpadLabels==='function') fitNumpadLabels();
 }
-/* 登録値を現在のセルに入力（数式中は数式へ追記） */
+/* 登録内容を実行／入力（数式中は数式へ追記） */
 function userKey(i){
-  const v=userKeys[i]||'';
-  if(v===''){ registerUserKey(i); return; }     // 未登録はタップで登録
+  const e=regEntry(i);
+  if(regIsEmpty(i)){ registerUserKey(i); return; }   // 未登録はタップで登録
+  if(e.type==='action'){
+    const fn=REG_ACTION_FN[e.value];
+    if(fn) fn();
+    return;
+  }
   if(editBlocked()) return;
+  const v=e.value;
   const fi=document.getElementById('formulaInput');
   if(formulaEditMode){ numpadAppend(v); return; }
   const base = cellEditing ? ((waiting&&op1!==null)?fmtNum(op1):disp_val) : '';
@@ -2436,19 +2492,66 @@ function userKey(i){
   if(el) el.textContent=disp_val;
   if(!fi.matches(':focus')) fi.value=disp_val;
 }
-async function registerUserKey(i){
-  const cur=userKeys[i]||'';
-  const v=await appPrompt('このボタンに登録する文字・数字を入力（空にすると登録を解除）', cur);
+/* ── 登録先の選択（文字・数字／便利機能） ── */
+let regPickIndex=-1;
+function registerUserKey(i){
+  regPickIndex=i;
+  renderRegPickBody();
+  document.getElementById('regPickOverlay').classList.add('open');
+}
+function closeRegPick(){ document.getElementById('regPickOverlay').classList.remove('open'); regPickIndex=-1; }
+function renderRegPickBody(){
+  const body=document.getElementById('regPickBody'); if(!body) return;
+  const cur=regEntry(regPickIndex);
+  let html=`<button class="mode-item" onclick="regPickText()">
+    <span class="mode-ico">✏️</span>
+    <span class="mode-text"><span class="mode-name">文字・数字を入力</span><span class="mode-desc">よく使う文字や数字を登録します</span></span>
+    ${(cur.type==='text'&&cur.value!=='')?'<span class="mode-check">✓</span>':''}
+  </button>`;
+  REG_ACTIONS.forEach(a=>{
+    const active=(cur.type==='action'&&cur.value===a.id);
+    html+=`<button class="mode-item" onclick="regPickAction('${a.id}')">
+      <span class="mode-ico">${a.icon}</span>
+      <span class="mode-text"><span class="mode-name">${escHtml(a.name)}</span><span class="mode-desc">${escHtml(a.desc)}</span></span>
+      ${active?'<span class="mode-check">✓</span>':''}
+    </button>`;
+  });
+  if(!regIsEmpty(regPickIndex)){
+    html+=`<button class="mode-item" onclick="regPickClear()">
+      <span class="mode-ico">✕</span>
+      <span class="mode-text"><span class="mode-name">登録を解除</span><span class="mode-desc">このボタンを未登録に戻します</span></span>
+    </button>`;
+  }
+  body.innerHTML=html;
+}
+async function regPickText(){
+  const i=regPickIndex;
+  const cur=regEntry(i);
+  const curVal=cur.type==='text'?cur.value:'';
+  closeRegPick();
+  const v=await appPrompt('このボタンに登録する文字・数字を入力（空にすると登録を解除）', curVal);
   if(v===null) return;
-  userKeys[i]=String(v);
+  userKeys[i]={type:'text', value:String(v)};
   saveUserKeys(); renderUserKeys();
+}
+function regPickAction(id){
+  const i=regPickIndex;
+  userKeys[i]={type:'action', value:id};
+  saveUserKeys(); renderUserKeys();
+  closeRegPick();
+}
+function regPickClear(){
+  const i=regPickIndex;
+  userKeys[i]={type:'text', value:''};
+  saveUserKeys(); renderUserKeys();
+  closeRegPick();
 }
 (function setupUserpad(){
   const pad=document.getElementById('numpadPageReg');
   if(!pad) return;
   let timer=null, longed=false, startX=0, startY=0, curBtn=null;
   const clear=()=>{ if(timer){ clearTimeout(timer); timer=null; } };
-  /* 指を離してから登録モーダル（入力キー）を開く。直後の合成イベントで誤閉じしないよう少し遅らせる */
+  /* 指を離してから登録先の選択モーダルを開く。直後の合成イベントで誤閉じしないよう少し遅らせる */
   const openRegister=(i)=>{ setTimeout(()=>registerUserKey(i), 160); };
   pad.addEventListener('pointerdown', e=>{
     const b=e.target.closest&&e.target.closest('.ubtn'); if(!b) return;
@@ -2465,9 +2568,9 @@ async function registerUserKey(i){
     const wasLong=longed; longed=false;
     if(numpadSwiping) return;                         // フリックでページ移動した時は何もしない
     const i=+b.dataset.uk;
-    if(wasLong){ openRegister(i); return; }           // 長押し→離してから登録モーダル
-    if((userKeys[i]||'')===''){ openRegister(i); return; }  // 未登録タップ→離してから登録
-    userKey(i);                                        // 登録済みタップ→入力
+    if(wasLong){ openRegister(i); return; }           // 長押し→離してから登録選択モーダル
+    if(regIsEmpty(i)){ openRegister(i); return; }      // 未登録タップ→離してから登録選択
+    userKey(i);                                        // 登録済みタップ→実行／入力
   });
   pad.addEventListener('pointercancel', ()=>{ clear(); if(curBtn) curBtn.classList.remove('armed'); curBtn=null; longed=false; });
   pad.addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); }, true);  // pointerで処理（clickは無効化）
@@ -2868,8 +2971,9 @@ function updateStats(c) {
 let disp_val='0', op1=null, cur_op=null, waiting=false;
 let cellEditing=false;
 
-/* ── アンドゥ履歴 ── */
+/* ── アンドゥ／リドゥ履歴 ── */
 const history=[];
+const redoHistory=[];      // 戻る操作をやり直す（進む）ための履歴
 const MAX_HISTORY=50;
 let undoing=false;
 
@@ -2877,16 +2981,18 @@ function pushHistory(entries) {
   if (undoing||entries.length===0) return;
   history.push(entries);
   if (history.length>MAX_HISTORY) history.shift();
-  updateUndoBtn();
+  redoHistory.length=0;    // 新しい変更が入ったら「進む」履歴は無効化
+  updateUndoBtn(); updateRedoBtn();
 }
 function updateUndoBtn() {
   const btn=document.getElementById('undoBtn');
   if (btn) btn.disabled=history.length===0;
 }
-function undoLast() {
-  if (history.length===0) return;
-  const entries=history.pop();
-  undoing=true;
+function updateRedoBtn() {
+  const btn=document.getElementById('redoBtn');
+  if (btn) btn.disabled=redoHistory.length===0;
+}
+function applyHistoryEntries(entries){
   for (const {r,c,val} of entries) {
     data[r][c]=val;
     const cell=document.getElementById(`c${r}_${c}`);
@@ -2896,8 +3002,27 @@ function undoLast() {
   if (isStructMode()) recalcMode();
   document.getElementById('formulaInput').value=data[selR][selC];
   if (selRow>=0) updateRowStats(selRow); else updateStats(selC);
-  undoing=false; updateUndoBtn();
   persistModes();
+}
+function undoLast() {
+  if (history.length===0) return;
+  const entries=history.pop();
+  undoing=true;
+  const redoEntries=entries.map(({r,c})=>({r,c,val:data[r][c]}));   // 現在値を「進む」用に保存
+  applyHistoryEntries(entries);
+  redoHistory.push(redoEntries);
+  if (redoHistory.length>MAX_HISTORY) redoHistory.shift();
+  undoing=false; updateUndoBtn(); updateRedoBtn();
+}
+function redoLast() {
+  if (redoHistory.length===0) return;
+  const entries=redoHistory.pop();
+  undoing=true;
+  const undoEntries=entries.map(({r,c})=>({r,c,val:data[r][c]}));   // 現在値を「戻る」用に保存
+  applyHistoryEntries(entries);
+  history.push(undoEntries);
+  if (history.length>MAX_HISTORY) history.shift();
+  undoing=false; updateUndoBtn(); updateRedoBtn();
 }
 
 function refreshDisp() {
@@ -3426,6 +3551,9 @@ function recalcMode(){
     }
     let sub=0; for(let r=1;r<ROWS;r++){const v=parseFloat(data[r][3]); if(!isNaN(v)) sub+=v;}
     document.getElementById('shopSubtotal').textContent='¥'+fmt(sub);
+    // 小計に軽減税率8%・標準税率10%をかけた税込額を参考表示（内税額の端数は切り捨て）
+    document.getElementById('shopTax8').textContent='¥'+fmt(Math.floor(sub*1.08));
+    document.getElementById('shopTax10').textContent='¥'+fmt(Math.floor(sub*1.10));
   } else if(tableMode==='zei'){
     /* 列: 0=税抜(入力) 1=消費税(自動) 2=税込(入力)。
        税抜と税込はどちらか一方を入力すると残りが計算される（入力時に他方はクリア済み）。*/
