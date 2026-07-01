@@ -576,7 +576,7 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
   border-radius: 6px; margin-bottom: 8px; gap: 5px;
   background: var(--save-item-bg);
 }
-.save-info { flex: 1; min-width: 0; }
+.save-info { flex: 1 1 100%; min-width: 0; }   /* 常に単独行にして、ボタン列（タブ選択追加分含む）で名前が潰れないようにする */
 .save-name { font-weight: bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
 .save-date { font-size: 11px; color: var(--text-light); margin-top: 2px; }
 .save-mode {
@@ -595,8 +595,8 @@ body.dark .save-mode { background: #143a35; color: #7fcabd; }
 .btn-del    { background: #a93226; color: white; border: none; border-radius: 4px; padding: 5px 8px; font-size: 11px; font-weight: bold; cursor: pointer; white-space: nowrap; touch-action: manipulation; }
 .btn-del:hover { background: #c0392b; }
 .no-saves { text-align: center; color: var(--text-light); padding: 30px 16px; font-size: 13px; }
-/* 書き出し／読み込みツールバー */
-.save-toolbar { display: flex; gap: 8px; padding: 8px 16px 0; }
+/* 書き出し／読み込みツールバー（リストの下） */
+.save-toolbar { display: flex; gap: 8px; padding: 8px 16px; flex-shrink: 0; border-top: 1px solid var(--save-item-border); }
 .save-tool-btn {
   flex: 1; background: var(--save-item-bg); color: var(--text);
   border: 1px solid var(--save-item-border); border-radius: 6px;
@@ -604,6 +604,22 @@ body.dark .save-mode { background: #143a35; color: #7fcabd; }
   white-space: nowrap; touch-action: manipulation;
 }
 .save-tool-btn:hover { background: var(--cell-hover); }
+/* 保存データ一覧のタブ（記録／タブ1／タブ2で振り分け） */
+.save-tabbar { display: flex; gap: 6px; padding: 8px 16px 0; flex-shrink: 0; }
+.save-tab {
+  flex: 1; background: var(--save-item-bg); color: var(--text-light);
+  border: 1px solid var(--save-item-border); border-radius: 6px 6px 0 0;
+  padding: 8px 4px; font-size: 12px; font-weight: bold; cursor: pointer;
+  white-space: nowrap; touch-action: manipulation;
+}
+.save-tab:hover { background: var(--cell-hover); }
+.save-tab.active { background: #217346; color: #fff; border-color: #217346; }
+/* 保存項目の振り分け先タブ選択 */
+.save-tab-select {
+  border: 1px solid var(--save-item-border); border-radius: 4px;
+  background: var(--save-item-bg); color: var(--text);
+  font-size: 11px; font-weight: bold; padding: 5px 4px; touch-action: manipulation;
+}
 /* リスト保護（ロック） */
 .btn-lock { background: var(--save-item-bg); border: 1px solid var(--save-item-border); border-radius: 4px; padding: 5px 6px; font-size: 12px; cursor: pointer; white-space: nowrap; touch-action: manipulation; }
 .btn-lock:hover { background: var(--cell-hover); }
@@ -1190,14 +1206,19 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <span>保存データ一覧</span>
       <button class="modal-close" onclick="closeSaveList()">✕</button>
     </div>
+    <div class="save-tabbar" id="saveTabBar">
+      <button class="save-tab active" data-tab="0" onclick="setSaveTab(0)">🗂 記録</button>
+      <button class="save-tab" data-tab="1" onclick="setSaveTab(1)">📌 タブ1</button>
+      <button class="save-tab" data-tab="2" onclick="setSaveTab(2)">📌 タブ2</button>
+    </div>
+    <div class="modal-body" id="saveListBody"></div>
     <div class="save-toolbar">
       <button class="save-tool-btn" onclick="exportSaves()" title="保存データをファイルに書き出して他の端末へ移せます">⬇ 書き出し</button>
       <button class="save-tool-btn" onclick="document.getElementById('importSavesInput').click()" title="書き出したファイルから保存データを読み込みます">⬆ 読み込み</button>
       <button class="save-tool-btn" id="saveLocBtn" onclick="changeSaveLocation()" style="display:none" title="保存データを書き込むフォルダを指定します（exe版のみ）">📁 保存場所</button>
       <input id="importSavesInput" type="file" accept="application/json,.json" style="display:none" onchange="importSaves(event)">
     </div>
-    <div id="saveLocInfo" style="display:none;padding:4px 16px 0;font-size:12px;color:var(--text-muted,#888);word-break:break-all"></div>
-    <div class="modal-body" id="saveListBody"></div>
+    <div id="saveLocInfo" style="display:none;padding:4px 16px 8px;font-size:12px;color:var(--text-muted,#888);word-break:break-all"></div>
   </div>
 </div>
 
@@ -1326,7 +1347,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-h">💾 保存・その他（上部メニュー）</div>
         <div class="help-li"><b>保存</b>：名前を付けて保存　<b>リスト</b>：保存データを開く</div>
         <div class="help-li">保存したときの<b>モードも一緒に記録</b>され、読み込むとそのモード（単位水量など）で再現します。リストの各データにはモードのバッジが表示されます。</div>
-        <div class="help-li">リスト画面の<b>⬇書き出し</b>で保存データをファイルに出力 → 別の端末・ブラウザで<b>⬆読み込み</b>すると復元できます（バックアップ・引っ越し用）。</div>
+        <div class="help-li">リストの上に<b>🗂記録／📌タブ1／📌タブ2</b>の3つのタブがあります。保存した記録はまず<b>「記録」</b>タブに入り、各データの<b>タブ選択欄</b>でよく呼び出したい記録を<b>タブ1・タブ2</b>に振り分けて整理できます。</div>
+        <div class="help-li">リスト画面いちばん下の<b>⬇書き出し</b>で保存データをファイルに出力 → 別の端末・ブラウザで<b>⬆読み込み</b>すると復元できます（バックアップ・引っ越し用）。</div>
         <div class="help-li">各データの<b>🔓ロック</b>をタップすると🔒保護され、誤って削除・改名できなくなります（もう一度タップで解除）。</div>
         <div class="help-li"><b>CSV</b>：表をCSVで書き出し</div>
         <div class="help-li"><b>🌙</b>：ダークモード切替　<b>リセット</b>：今のモードの内容を消去</div>
@@ -4690,14 +4712,33 @@ async function saveData() {
   saves.unshift({
     id:Date.now(), name:name.trim()||defaultName,
     timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces, mode:tableMode,
-    data:data.map(row=>[...row]), styles:{...cellStyles}
+    data:data.map(row=>[...row]), styles:{...cellStyles}, tab:0
   });
   persistSaves(saves);
   const btn=document.getElementById('saveBtn');
   btn.textContent='✓ 保存済'; setTimeout(()=>{btn.textContent='保存';},1200);
 }
 
-function showSaveList(){renderSaveList();document.getElementById('saveListOverlay').classList.add('open');}
+/* 保存データ一覧のタブ（0=記録／1=タブ1／2=タブ2）。保存した記録はまず0（記録）に入り、
+   よく呼び出したい記録はタブ1・タブ2に振り分けて整理できる */
+let saveActiveTab=0;
+function setSaveTab(tab){
+  saveActiveTab=tab;
+  document.querySelectorAll('#saveTabBar .save-tab').forEach(b=>b.classList.toggle('active', +b.dataset.tab===tab));
+  renderSaveList();
+}
+function setSaveItemTab(id, tabStr){
+  const tab=parseInt(tabStr,10)||0;
+  const saves=getSaves();
+  const entry=saves.find(s=>s.id===id); if(!entry) return;
+  entry.tab=tab;
+  persistSaves(saves);
+  renderSaveList();
+}
+function showSaveList(){
+  setSaveTab(0);
+  document.getElementById('saveListOverlay').classList.add('open');
+}
 function closeSaveList(){document.getElementById('saveListOverlay').classList.remove('open');}
 
 function escHtml(s){
@@ -4706,10 +4747,11 @@ function escHtml(s){
 
 function renderSaveList() {
   const body=document.getElementById('saveListBody');
-  const saves=getSaves();
-  if(saves.length===0){body.innerHTML='<div class="no-saves">保存データがありません</div>';return;}
+  const saves=getSaves().filter(s=>(s.tab||0)===saveActiveTab);
+  if(saves.length===0){body.innerHTML='<div class="no-saves">このタブに保存データがありません</div>';return;}
   body.innerHTML=saves.map(s=>{
     const locked=!!s.locked;
+    const tab=s.tab||0;
     const mi=s.mode?modeItemByKey(s.mode):null;   // 保存時のモード（古い保存はmode無し）
     const modeBadge=mi?`<span class="save-mode">${mi.item.icon} ${escHtml(mi.item.name)}</span>`:'';
     return `
@@ -4718,6 +4760,11 @@ function renderSaveList() {
         <div class="save-name">${locked?'🔒 ':''}${escHtml(s.name)}</div>
         <div class="save-date">${new Date(s.timestamp).toLocaleString('ja-JP')}　${s.rows}行×${s.cols}列${modeBadge}</div>
       </div>
+      <select class="save-tab-select" onchange="setSaveItemTab(${s.id}, this.value)" title="振り分け先のタブを変更">
+        <option value="0" ${tab===0?'selected':''}>記録</option>
+        <option value="1" ${tab===1?'selected':''}>タブ1</option>
+        <option value="2" ${tab===2?'selected':''}>タブ2</option>
+      </select>
       <button class="btn-lock"   onclick="toggleSaveLock(${s.id})" title="${locked?'ロックを解除':'ロック（削除・改名を防止）'}">${locked?'🔒':'🔓'}</button>
       <button class="btn-rename" onclick="renameSave(${s.id})" ${locked?'disabled':''} title="${locked?'ロック中は改名できません':'名前を変更'}">✏</button>
       <button class="btn-tomode" onclick="registerSaveAsMode(${s.id})" title="この記録をモードに登録して移動（最大10個）">モードへ</button>
