@@ -788,6 +788,8 @@ body.dark .tanisui-bar { background: #102826; border-color: #2f7a70; color: #8fd
 /* 計算工程の先頭・グループ区切りの二重線 */
 .cell.ts-calc-top, .cell.ts-sep { border-top: 3px double #00897b !important; }
 body.dark .cell.ts-calc-top, body.dark .cell.ts-sep { border-top-color: #2f7a70 !important; }
+/* 値の列：右詰めの文字の右側に、文字1個分の余白を空ける */
+.cell.ts-val { padding-right: 1ch; }
 .ts-setBtn {
   background: #00897b; color: #fff; border: none; border-radius: 4px;
   padding: 3px 10px; font-size: calc(11px * var(--info-scale, 1)); font-weight: bold;
@@ -1726,8 +1728,9 @@ function buildSheet() {
             td.classList.add('shop-label');                // 項目名（固定ラベル）
             const f=isCalc?TS_CALC[r-1-inN]:TS_FORM[r-1];
             td.textContent=f?`${f.label} (${f.unit})`:'';
-          } else if(isCalc){
-            td.classList.add('shop-total');                // 計算工程の結果セル（読み取り専用、recalcで更新）
+          } else {
+            td.classList.add('ts-val');                     // 値の列：右側に文字1個分の余白
+            if(isCalc) td.classList.add('shop-total');       // 計算工程の結果セル（読み取り専用、recalcで更新）
           }
         } else if (r>0 && m.computed.includes(c)) {
           td.classList.add('shop-total');
@@ -1793,9 +1796,11 @@ function autoFitSheet(){
     }
   }
   // 3) 列幅を設定（手動指定はそのまま、自動は baseW〜maxW にクランプ）
+  const tsValMaxW=Math.round(baseW*1.5);   // 単位水量モードの「値」列は少し広めの上限にする
   let total=0;
   for(let c=0;c<COLS;c++){
-    const w=colWidths[c] ? colWidths[c] : Math.min(Math.max(baseW,need[c]),maxW);
+    const isTsVal=(tableMode==='tanisuiryou' && c===1);
+    const w=colWidths[c] ? colWidths[c] : Math.min(Math.max(baseW,need[c]), isTsVal?tsValMaxW:maxW);
     total+=w;
     const ch=document.getElementById('ch'+c); if(!ch) continue;
     // 単位水量モードは「項目」列を可変にして余白を吸収させ、行番号列を狭いまま保つ
