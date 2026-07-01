@@ -424,20 +424,19 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
   .numpad-resizer-grip { width: 5px; height: 46px; }   /* 横ドラッグでテンキー領域の幅を変更 */
   .numpad-viewport { flex: 1; min-width: 0; }
 }
-/* テンキー：関数電卓／数字／関数 の横フリック（3ページ）＋ 登録ページの上フリック（数字ページの下に配置） */
+/* テンキー：数字ページ(標準)は通常表示。関数電卓／関数記号／登録ページは
+   数字ページの上に重なってスライドインするオーバーレイ（フリックで開閉） */
 .numpad-viewport { position: relative; overflow: hidden; touch-action: none; }
-.numpad-track { display: flex; width: 300%; transition: transform 0.25s ease; will-change: transform; }
-.numpad-track.np-dragging { transition: none; }
-.numpad-track > .numpad-grid { flex: 0 0 33.3333%; width: 33.3333%; }
-/* 登録ページ：数字ページの下に重ねて配置し、上フリックでスライドイン表示 */
-.numpad-regpage {
+.numpad-overlay {
   position: absolute; inset: 0; z-index: 5;
   background: #2c2c2c;
-  transform: translateY(100%);
   transition: transform 0.25s ease;
   will-change: transform;
 }
-.numpad-regpage.nr-dragging { transition: none; }
+.numpad-overlay.ov-dragging { transition: none; }
+.numpad-overlay.ov-right { transform: translateX(100%); }   /* 関数電卓：右から重なる（右フリックで表示） */
+.numpad-overlay.ov-left  { transform: translateX(-100%); }   /* 関数記号：左から重なる（左フリックで表示） */
+.numpad-overlay.ov-down  { transform: translateY(100%); }    /* 登録：下から重なる（上フリックで表示） */
 /* 登録ページのボタン（紫）。長押しで登録・タップで入力 */
 .btn.ubtn {
   background: #5b3a86; padding: 4px 3px;
@@ -1054,9 +1053,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <span class="numpad-resizer-grip"></span>
   </div>
   <div class="numpad-viewport" id="numpadViewport">
-    <div class="numpad-track" id="numpadTrack">
-    <div class="numpad-grid numpad-fpage" id="numpadPageSci">
-    <!-- 関数電卓ページ（数字ページから右フリックで表示）。三角関数・log・べき乗などを数式に挿入する -->
+    <div class="numpad-grid numpad-overlay ov-right" id="numpadPageSci">
+    <!-- 関数電卓ページ（数字ページから右フリックで表示。数字ページの上に重なってスライドイン）。三角関数・log・べき乗などを数式に挿入する -->
     <button class="btn fx" onclick="fkey('SIN(')">SIN(</button>
     <button class="btn fx" onclick="fkey('COS(')">COS(</button>
     <button class="btn fx" onclick="fkey('TAN(')">TAN(</button>
@@ -1108,8 +1106,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="btn fx"  data-key="fx"   onclick="startFormula()">fx=</button>
     <button class="btn fx"  data-key="text" id="textBtn" onclick="toggleTextInput()">文字</button>
     </div>
-    <div class="numpad-grid numpad-fpage" id="numpadPage2">
-    <!-- 関数・記号ページ（フリックで表示）。数式に記号・関数を挿入する。data-keyで配置編集に対応 -->
+    <div class="numpad-grid numpad-overlay ov-left" id="numpadPage2">
+    <!-- 関数・記号ページ（数字ページから左フリックで表示。数字ページの上に重なってスライドイン）。数式に記号・関数を挿入する。data-keyで配置編集に対応 -->
     <button class="btn op" data-key="fp_lp"    onclick="fkey('(')">(</button>
     <button class="btn op" data-key="fp_rp"    onclick="fkey(')')">)</button>
     <button class="btn op" data-key="fp_comma" onclick="fkey(',')">,</button>
@@ -1135,8 +1133,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="btn op" data-key="fp_fdiv"  onclick="fkey('÷')">÷</button>
     <button class="btn op" data-key="fp_eq"    onclick="fkey('=')">=</button>
     </div>
-    </div>
-    <div class="numpad-grid numpad-regpage" id="numpadPageReg" title="長押しで文字・数字を登録／タップで入力">
+    <div class="numpad-grid numpad-overlay ov-down numpad-regpage" id="numpadPageReg" title="長押しで文字・数字を登録／タップで入力">
     <!-- 登録ページ（数字ページ＝標準の下。数字ページの右側ゾーンを上向きにフリックで表示）。長押しで登録・タップで入力 -->
     <button class="btn ubtn" data-uk="0"></button>
     <button class="btn ubtn" data-uk="1"></button>
@@ -1240,11 +1237,10 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><span class="help-tag">fx=</span> 数式入力を開始（先頭が <b>=</b> になる）</div>
         <div class="help-li"><span class="help-tag">文字</span> 文字（テキスト）を入力</div>
         <div class="help-li"><span class="help-tag">モード</span> 計算モードを切替</div>
-        <div class="help-li">テンキーは<b>横に3ページ</b>（関数電卓・数字・関数記号）＋<b>数字ページの下に登録ページ</b>という構成です（数字ページからは <b>右側ゾーン（数字より右の演算子・Enter など）の上で</b>フリック）：
-          <br>・<b>数字ページを右へフリック＝関数電卓ページ</b>…SIN・COS・TAN・ASIN・ACOS・ATAN・LOG・LN・EXP・π・e・n!（階乗）・x²・^（べき乗）・1/(・MOD( などを数式に挿入。<b>DEG/RAD</b>ボタンで三角関数の角度単位（度数法⇄弧度法）を切替できます。
-          <br>・<b>数字ページを左へフリック＝関数・記号ページ</b>…( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 などを数式（先頭が <b>=</b>）に挿入。
-          <br>・<b>数字ページを上へフリック＝登録ページ</b>（数字ページの下からせり上がって表示）…紫のボタンを<b>長押し</b>すると登録メニューが開き、<b>「文字・数字」</b>（よく使う文字・数字を登録、数値の途中でタップすると連結。例：100→「円」で100円）か、<b>「戻る」「進む」「保存」「リスト」「リセット」「CSV出力」「ナイト」「モード」</b>などの便利機能を選んで登録できます。登録後は<b>タップ</b>で入力／実行（未登録の「＋」はタップでも登録メニューが開きます）。登録は保存されます。登録ページの<b>どのボタンの上でも下へフリック</b>すると数字ページに戻ります。
-          <br>関数電卓・関数記号ページからは、<b>どのボタンの上で数字ページ方向へフリックしても</b>数字ページに戻れます。</div>
+        <div class="help-li">テンキーは<b>数字ページ（標準）</b>を土台に、<b>関数電卓・関数記号・登録ページ</b>がその上に重なってスライドインする構成です（数字ページは<b>どこからでもフリック開始可</b>）：
+          <br>・<b>数字ページを右へフリック＝関数電卓ページが重なって表示</b>…SIN・COS・TAN・ASIN・ACOS・ATAN・LOG・LN・EXP・π・e・n!（階乗）・x²・^（べき乗）・1/(・MOD( などを数式に挿入。<b>DEG/RAD</b>ボタンで三角関数の角度単位（度数法⇄弧度法）を切替できます。<b>どのボタンの上でも左へフリック</b>すると数字ページに戻ります。
+          <br>・<b>数字ページを左へフリック＝関数・記号ページが重なって表示</b>…( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 などを数式（先頭が <b>=</b>）に挿入。<b>どのボタンの上でも右へフリック</b>すると数字ページに戻ります。
+          <br>・<b>数字ページを上へフリック＝登録ページが重なって表示</b>…紫のボタンを<b>長押し</b>すると登録メニューが開き、<b>「文字・数字」</b>（よく使う文字・数字を登録、数値の途中でタップすると連結。例：100→「円」で100円）か、<b>「戻る」「進む」「保存」「リスト」「リセット」「CSV出力」「ナイト」「モード」</b>などの便利機能を選んで登録できます。登録後は<b>タップ</b>で入力／実行（未登録の「＋」はタップでも登録メニューが開きます）。登録は保存されます。<b>どのボタンの上でも下へフリック</b>すると数字ページに戻ります。</div>
         <div class="help-li">テンキー上端（横向きは左端）の<b>バーをドラッグ</b>すると大きさ（横向きは幅）を変更できます。設定の<b>「🔧 テンキーのボタン配置を編集」</b>で各ボタンの位置も入れ替えできます。</div>
       </div>
 
@@ -2312,50 +2308,41 @@ function changeKeySize(delta) {
   })();
 })();
 
-/* ── テンキーのページ切替 ──
-   横フリック：関数電卓／数字(既定)／関数・記号 の3ページをスライド
-   縦フリック：数字ページの右側ゾーンを上にフリックすると、数字ページの下に配置した
-              登録ページがせり上がって表示される（下フリック、または登録ページの
-              どのボタンからでも下フリックで数字ページに戻る） */
+/* ── テンキーのページ切替（登録ページと同じ「上に重ねてスライドイン」方式） ──
+   数字ページ（標準）が常に土台として表示され、関数電卓・関数記号・登録ページは
+   フリックすると数字ページの上に重なってスライドインする。
+   フリック方向：右＝関数電卓、左＝関数記号、上＝登録。閉じる時は開いた側と逆方向へ
+   （関数電卓は左、関数記号は右、登録は下）フリック。数字ページはどこからでもフリック開始可（全面）。 */
 let numpadSwiping=false;           // スワイプ中／直後はボタンのタップを抑止（autoSum・登録ボタン等と共有）
-const NP_PAGES=3, NP_STEP=100/NP_PAGES, NP_STD=1;   // 0=関数電卓, 1=数字(既定), 2=関数・記号
 (function setupNumpadPager(){
   const vp=document.getElementById('numpadViewport');
-  const track=document.getElementById('numpadTrack');
-  const reg=document.getElementById('numpadPageReg');
-  if(!vp||!track||!reg) return;
-  let page=NP_STD;                 // 数字ページを既定表示
-  let regOpen=false;               // 登録ページ（数字ページの下）が開いているか
-  let downX=null, downY=0, dragging=false, vdragging=false, decided=false, w=1, h=1;
-  function restH(animate){
-    track.classList.toggle('np-dragging', !animate);
-    track.style.transform=`translateX(${-page*NP_STEP}%)`;
+  const pgSci=document.getElementById('numpadPageSci');
+  const pgFunc=document.getElementById('numpadPage2');
+  const pgReg=document.getElementById('numpadPageReg');
+  if(!vp||!pgSci||!pgFunc||!pgReg) return;
+  const overlays=[pgSci,pgFunc,pgReg];
+  let openWhich=null;               // null=数字ページ／'sci'／'func'／'reg'
+  let downX=null, downY=0, axis=null, activeEl=null, decided=false, w=1, h=1;
+  function closedTransform(el){
+    if(el===pgSci) return 'translateX(100%)';
+    if(el===pgFunc) return 'translateX(-100%)';
+    return 'translateY(100%)';
   }
-  function restV(animate){
-    reg.classList.toggle('nr-dragging', !animate);
-    reg.style.transform=`translateY(${regOpen?0:100}%)`;
+  function restAll(animate){
+    overlays.forEach(el=>{
+      el.classList.toggle('ov-dragging', !animate);
+      const isOpen=(el===pgSci&&openWhich==='sci')||(el===pgFunc&&openWhich==='func')||(el===pgReg&&openWhich==='reg');
+      el.style.transform = isOpen ? 'translate(0,0)' : closedTransform(el);
+    });
   }
   function onDown(e){
     if(e.button!==undefined && e.button>0) return;
     const onBtn   = !!(e.target && e.target.closest && e.target.closest('.btn'));
     const onEnter = !!(e.target && e.target.closest && e.target.closest('.btn.enter'));
-    // 編集中＝Enterのみ／登録ページ表示中＝どのボタンからでも下フリックで戻れる
-    //   ／数字ページ(NP_STD)＝右側ゾーン（数字キーより右の演算子・Enter等）から横フリック・上フリック可
-    //   ／それ以外のページ（関数電卓・関数記号）＝どのボタンからでも数字ページへ戻れる
-    let ok;
-    if(keypadEditing){
-      ok=onEnter;
-    } else if(regOpen){
-      ok=onBtn;
-    } else if(page===NP_STD){
-      const r=vp.getBoundingClientRect();
-      const inRightZone=(e.clientX - r.left) >= r.width*0.6;   // 左3列（数字）より右
-      ok = onBtn && (onEnter || inRightZone);
-    } else {
-      ok=onBtn;
-    }
+    // 編集中＝Enterのみ／それ以外＝数字ページを含めどのボタンからでもフリック開始可（全面）
+    const ok = keypadEditing ? onEnter : onBtn;
     if(!ok) return;
-    downX=e.clientX; downY=e.clientY; dragging=false; vdragging=false; decided=false; numpadSwiping=false;
+    downX=e.clientX; downY=e.clientY; axis=null; activeEl=null; decided=false; numpadSwiping=false;
     w=vp.offsetWidth||1; h=vp.offsetHeight||1;
   }
   function onMove(e){
@@ -2366,61 +2353,66 @@ const NP_PAGES=3, NP_STEP=100/NP_PAGES, NP_STD=1;   // 0=関数電卓, 1=数字(
       decided=true;
       const horizDominant = Math.abs(dx) > Math.abs(dy)*1.3;
       const vertDominant  = Math.abs(dy) > Math.abs(dx)*1.3;
-      if(regOpen){
-        vdragging = vertDominant;                  // 登録ページ表示中：縦優勢のみ閉じる操作を受け付ける
-      } else if(page===NP_STD){
-        dragging  = horizDominant;                 // 数字ページ：横優勢＝ページ送り、縦優勢（上）＝登録 page表示
-        vdragging = vertDominant && dy<0;
-      } else {
-        dragging = horizDominant;                  // 関数電卓・関数記号ページ：横フリックのみ
+      if(openWhich===null){
+        if(horizDominant){ axis='h'; activeEl = dx<0 ? pgFunc : pgSci; }         // 左＝関数記号／右＝関数電卓
+        else if(vertDominant && dy<0){ axis='v'; activeEl=pgReg; }               // 上＝登録
+      } else if(openWhich==='reg'){
+        if(vertDominant){ axis='v'; activeEl=pgReg; }                           // 登録は縦フリックのみで閉じる
+      } else if(openWhich==='sci'){
+        if(horizDominant){ axis='h'; activeEl=pgSci; }                          // 関数電卓は横フリックのみで閉じる
+      } else if(openWhich==='func'){
+        if(horizDominant){ axis='h'; activeEl=pgFunc; }                         // 関数記号は横フリックのみで閉じる
       }
-      if(dragging||vdragging){ numpadSwiping=true; track.classList.add('np-dragging'); reg.classList.add('nr-dragging'); }
+      if(axis){ numpadSwiping=true; activeEl.classList.add('ov-dragging'); }
     }
-    if(dragging){
+    if(axis==='h' && activeEl){
       e.preventDefault();
+      const base = activeEl===pgSci ? (openWhich==='sci'?0:100) : (openWhich==='func'?0:-100);
       const cl=Math.max(-w, Math.min(w, dx));
-      track.style.transform=`translateX(calc(${-page*NP_STEP}% + ${cl}px))`;
-    } else if(vdragging){
+      activeEl.style.transform=`translateX(calc(${base}% + ${cl}px))`;
+    } else if(axis==='v' && activeEl){
       e.preventDefault();
-      const base=regOpen?0:100;
+      const base=openWhich==='reg'?0:100;
       const clV=Math.max(-h, Math.min(h, dy));
-      reg.style.transform=`translateY(calc(${base}% + ${clV}px))`;
+      activeEl.style.transform=`translateY(calc(${base}% + ${clV}px))`;
     }
   }
   function onUp(e){
     if(downX===null) return;
     const dx=(e.clientX!==undefined?e.clientX:downX)-downX;
     const dy=(e.clientY!==undefined?e.clientY:downY)-downY;
-    const wasDragging=dragging, wasVDragging=vdragging;
-    if(wasDragging){
+    const wasAxis=axis;
+    if(wasAxis==='h'){
       const th=Math.max(40, w*0.22);
-      if(dx<=-th && page<NP_PAGES-1) page++;        // 左へフリック＝右のページへ
-      else if(dx>=th && page>0) page--;             // 右へフリック＝左のページへ
-      restH(true);
-    }
-    if(wasVDragging){
+      if(openWhich===null){
+        if(dx<=-th) openWhich='func';
+        else if(dx>=th) openWhich='sci';
+      } else if(openWhich==='sci' && dx<=-th){ openWhich=null; }
+      else if(openWhich==='func' && dx>=th){ openWhich=null; }
+      restAll(true);
+    } else if(wasAxis==='v'){
       const thV=Math.max(40, h*0.22);
-      if(!regOpen && dy<=-thV) regOpen=true;         // 上へフリック＝登録ページを開く
-      else if(regOpen && dy>=thV) regOpen=false;      // 下へフリック＝登録ページを閉じる
-      restV(true);
+      if(openWhich===null && dy<=-thV) openWhich='reg';
+      else if(openWhich==='reg' && dy>=thV) openWhich=null;
+      restAll(true);
     }
-    downX=null; dragging=false; vdragging=false;
-    if(wasDragging||wasVDragging){ setTimeout(()=>{ numpadSwiping=false; }, 50); }   // 直後のタップを1回抑止
+    downX=null; axis=null; activeEl=null;
+    if(wasAxis){ setTimeout(()=>{ numpadSwiping=false; }, 50); }   // 直後のタップを1回抑止
   }
   vp.addEventListener('pointerdown', onDown);
   window.addEventListener('pointermove', onMove, {passive:false});
   window.addEventListener('pointerup', onUp);
-  window.addEventListener('pointercancel', ()=>{ downX=null; dragging=false; vdragging=false; numpadSwiping=false; });
+  window.addEventListener('pointercancel', ()=>{ downX=null; axis=null; activeEl=null; numpadSwiping=false; });
   // スワイプ直後のボタン誤作動を防ぐ（capture でクリックを握りつぶす）
   vp.addEventListener('click', e=>{ if(numpadSwiping){ e.preventDefault(); e.stopPropagation(); } }, true);
   // 画面回転・幅変更時に現在位置を維持（瞬時に合わせてからアニメを戻す）
   window.addEventListener('resize', ()=>{
-    restH(false); restV(false);
-    requestAnimationFrame(()=>{ track.classList.remove('np-dragging'); reg.classList.remove('nr-dragging'); });
+    restAll(false);
+    requestAnimationFrame(()=>overlays.forEach(el=>el.classList.remove('ov-dragging')));
   });
-  // 起動時：中央（数字ページ）・登録ページは閉じた状態に位置合わせ
-  restH(false); restV(false);
-  requestAnimationFrame(()=>{ track.classList.remove('np-dragging'); reg.classList.remove('nr-dragging'); });
+  // 起動時：すべて閉じた状態（数字ページ表示）に位置合わせ
+  restAll(false);
+  requestAnimationFrame(()=>overlays.forEach(el=>el.classList.remove('ov-dragging')));
 })();
 
 /* ── 登録ページ（数字ページの下）：長押しで文字・数字／便利機能を登録、タップで実行 ── */
