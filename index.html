@@ -1801,7 +1801,7 @@ function buildSheet() {
       td.addEventListener('click', e => {
         if (e.shiftKey) return;
         if (sumSuppressClick) { sumSuppressClick=false; return; }   // スライド直後のクリックは無視
-        if (sumSelectMode) { applySumRangeFromCells(r,c,r,c); return; } // Σ指定中：タップ=1セル範囲
+        if (sumSelectMode) { applySumRangeFromCells(r,c,r,c); sumSelectMode=false; toCell(); return; } // Σ指定中：タップ=1セル範囲（指定後はEnterと同様に確定して通常モードに戻る）
         if (isStructLocked(r,c)) return;   // 見出し・自動計算列は選択不可（ユーザーロックは選択可＝解除のため）
         const fi=document.getElementById('formulaInput');
         if (formulaEditMode && fi.value.startsWith('=')) {
@@ -4632,7 +4632,9 @@ function sumPointerMove(pt,e){
   applySumRangeFromCells(sumStartR,sumStartC,parseInt(mm[1]),parseInt(mm[2]));
 }
 function sumPointerUp(e){
-  if(sumDragging){ if(e&&e.cancelable) e.preventDefault(); sumSuppressClick=true; }
+  // ドラッグで範囲を指定し終えたら、Enterと同様に確定して通常モードに戻る
+  // （タップのみの場合はクリック側で1セル範囲を確定してから戻す）
+  if(sumDragging){ if(e&&e.cancelable) e.preventDefault(); sumSuppressClick=true; sumSelectMode=false; toCell(); }
   sumPending=false; sumDragging=false;
 }
 
