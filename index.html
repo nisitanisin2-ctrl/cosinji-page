@@ -871,7 +871,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="btn-ins" onclick="insertColAtSel()" title="選択セルの左に列を挿入">＋左に追加</button>
     <button class="btn-del" onclick="deleteColAtSel()" title="選択セルの列を削除">列を削除</button>
   </div>
-  <button class="sc-toggle" id="scAdvToggle" onclick="toggleScAdv()">▸ 詳細設定（小数・税率・テンキー・画面幅）</button>
+  <button class="sc-toggle" id="scAdvToggle" onclick="toggleScAdv()">▸ 詳細設定（小数・税率・テンキー・画面幅・配置編集・モード表示・ナイト・CSV）</button>
   <div class="sc-adv" id="scAdvGroup">
     <div class="sc">
       <span class="sc-label">小数</span>
@@ -897,6 +897,10 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <span class="sc-val" id="appWidth">全幅</span>
       <button class="btn-rc" onclick="changeAppWidth(1)">+</button>
     </div>
+    <button class="sc-help sc-half" id="darkBtn" onclick="toggleDark()">🌙 ナイトモード</button>
+    <button class="sc-help sc-half" onclick="exportCSV()">📄 CSV出力</button>
+    <button class="sc-help" id="keypadEditBtn" onclick="toggleKeypadEdit()" title="テンキーのボタンをドラッグして好きな位置に入れ替えます（同じ大きさのボタン同士）">🔧 テンキーのボタン配置を編集</button>
+    <button class="sc-help" onclick="openModeVis()" title="「モード」一覧に表示する標準モードを選びます">🔀 モードの表示/非表示</button>
   </div>
   <div class="sc">
     <span class="sc-label">セル文字</span>
@@ -910,11 +914,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <span class="sc-val" id="infoSize">標準</span>
     <button class="btn-rc" onclick="changeInfoSize(1)">+</button>
   </div>
-  <button class="sc-help sc-half" id="darkBtn" onclick="toggleDark()">🌙 ナイトモード</button>
-  <button class="sc-help sc-half" onclick="exportCSV()">📄 CSV出力</button>
   <button class="sc-help" id="numpadToggleBtn" onclick="toggleNumpad()">⌨ テンキー非表示</button>
-  <button class="sc-help" id="keypadEditBtn" onclick="toggleKeypadEdit()" title="テンキーのボタンをドラッグして好きな位置に入れ替えます（同じ大きさのボタン同士）">🔧 テンキーのボタン配置を編集</button>
-  <button class="sc-help" onclick="openModeVis()" title="「モード」一覧に表示する標準モードを選びます">🔀 モードの表示/非表示</button>
   <button class="sc-help" onclick="openHelp()">📖 説明書（使い方）</button>
 </div>
 
@@ -3944,7 +3944,7 @@ let scAdvOpen=false;
 function applyScAdv(){
   const g=document.getElementById('scAdvGroup'), b=document.getElementById('scAdvToggle');
   if(g) g.classList.toggle('open', scAdvOpen);
-  if(b) b.textContent=(scAdvOpen?'▾':'▸')+' 詳細設定（小数・税率・テンキー・画面幅）';
+  if(b) b.textContent=(scAdvOpen?'▾':'▸')+' 詳細設定（小数・税率・テンキー・画面幅・配置編集・モード表示・ナイト・CSV）';
   localStorage.setItem('excalc_scadv_open', scAdvOpen?'1':'0');
 }
 function toggleScAdv(){ scAdvOpen=!scAdvOpen; applyScAdv(); }
