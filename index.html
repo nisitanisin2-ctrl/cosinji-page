@@ -1287,7 +1287,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li">テンキーは<b>数字ページ（標準）</b>を土台に、<b>関数電卓・関数記号・登録ページ</b>がその上に重なってスライドインする構成です（数字ページは<b>どこからでもフリック開始可</b>）：
           <br>・<b>数字ページを右へフリック＝関数電卓ページが重なって表示</b>…SIN・COS・TAN・ASIN・ACOS・ATAN・LOG・LN・EXP・π・e・n!（階乗）・x²・^（べき乗）・1/(・MOD( などを数式に挿入。<b>DEG/RAD</b>ボタンで三角関数の角度単位（度数法⇄弧度法）を切替できます。<b>どのボタンの上でも左へフリック</b>すると数字ページに戻ります。
           <br>・<b>数字ページを左へフリック＝関数・記号ページが重なって表示</b>…( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 などを数式（先頭が <b>=</b>）に挿入。<b>どのボタンの上でも右へフリック</b>すると数字ページに戻ります。
-          <br>・<b>数字ページを上へフリック＝登録ページが重なって表示</b>…紫のボタンを<b>長押し</b>すると登録画面が開きます。基本は<b>文字・数字を入力して「登録」</b>するだけ（よく使う文字・数字を登録、数値の途中でタップすると連結。例：100→「円」で100円）。<b>「🔧 便利機能から選ぶ（オプション）」</b>を開くと、<b>「Enter」「1文字削除」「戻る」「進む」「保存」「リスト」「リセット」「CSV出力」「ナイト」「モード」</b>などの便利機能も選んで登録できます。登録後は<b>タップ</b>で入力／実行（未登録の「＋」はタップでも登録画面が開きます）。登録画面の<b>「🔀 このボタンを別の場所へ移動」</b>を押すと、移動先のボタンをタップして位置を入れ替えできます。登録は保存されます。<b>どのボタンの上でも下へフリック</b>すると数字ページに戻ります。</div>
+          <br>・<b>数字ページを上へフリック＝登録ページが重なって表示</b>…紫のボタンを<b>長押し</b>すると登録画面が開きます。基本は<b>文字・数字を入力して「登録」</b>するだけ（よく使う文字・数字を登録、数値の途中でタップすると連結。例：100→「円」で100円）。<b>「🔧 便利機能から選ぶ（オプション）」</b>を開くと、<b>「Enter」「1文字削除」「戻る」「進む」「保存」「リスト」「リセット」「CSV出力」「CSV読込」「ナイト」「モード」</b>などの便利機能も選んで登録できます。登録後は<b>タップ</b>で入力／実行（未登録の「＋」はタップでも登録画面が開きます）。登録画面の<b>「🔀 このボタンを別の場所へ移動」</b>を押すと、移動先のボタンをタップして位置を入れ替えできます。登録は保存されます。<b>どのボタンの上でも下へフリック</b>すると数字ページに戻ります。</div>
         <div class="help-li">テンキー上端（横向きは左端）の<b>バーをドラッグ</b>すると大きさ（横向きは幅）を変更できます。設定の<b>「🔧 テンキーのボタン配置を編集」</b>で各ボタンの位置も入れ替えできます。</div>
       </div>
 
@@ -2550,11 +2550,13 @@ const REG_ACTIONS=[
   {id:'list',  icon:'📋', name:'リスト',     desc:'保存データの一覧を開く'},
   {id:'reset', icon:'🗑', name:'リセット',   desc:'今のモードの内容を消去'},
   {id:'csv',   icon:'📄', name:'CSV出力',    desc:'表をCSVファイルに書き出す'},
+  {id:'csvin', icon:'📥', name:'CSV読込',    desc:'CSVファイルを表に読み込む（上書き）'},
   {id:'dark',  icon:'🌙', name:'ナイト',     desc:'ダークモードを切替'},
   {id:'mode',  icon:'🔀', name:'モード',     desc:'モード選択メニューを開く'},
 ];
 const REG_ACTION_FN={ enter:eq, bs:bs, undo:undoLast, redo:redoLast, save:()=>saveData(), list:showSaveList,
-                       reset:resetAll, csv:exportCSV, dark:toggleDark, mode:onModeBtnClick };
+                       reset:resetAll, csv:exportCSV, csvin:()=>document.getElementById('importCSVInput').click(),
+                       dark:toggleDark, mode:onModeBtnClick };
 function regEntry(i){ return userKeys[i]||{type:'text',value:''}; }
 function regIsEmpty(i){ const e=regEntry(i); return e.value===''||e.value==null; }
 function loadUserKeys(){
