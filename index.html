@@ -2621,7 +2621,11 @@ function regPickAction(id){
     const i=+b.dataset.uk;
     if(wasLong){ openRegister(i); return; }           // 長押し→離してから登録選択モーダル
     if(regIsEmpty(i)){ openRegister(i); return; }      // 未登録タップ→離してから登録選択
-    userKey(i);                                        // 登録済みタップ→実行／入力
+    // 登録済みタップ→実行／入力。便利機能（リスト・モード・保存など、指を離した直後の
+    //   合成クリックで誤って閉じてしまうモーダルを開く操作）は openRegister と同様に少し遅らせて実行。
+    //   文字・数字の入力は即時（モーダルを開かないため遅延不要）。
+    if(regEntry(i).type==='action'){ setTimeout(()=>userKey(i), 160); }
+    else userKey(i);
   });
   pad.addEventListener('pointercancel', ()=>{ clear(); if(curBtn) curBtn.classList.remove('armed'); curBtn=null; longed=false; });
   pad.addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); }, true);  // pointerで処理（clickは無効化）
