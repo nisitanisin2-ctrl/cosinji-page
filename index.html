@@ -196,6 +196,17 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
 .sc { display: flex; align-items: center; gap: 3px; color: white; flex: 1 1 40%; justify-content: center; }
 .sc-label { font-size: 10px; opacity: 0.8; margin-right: 1px; }
 .sc-val   { font-size: 13px; font-weight: bold; min-width: 22px; text-align: center; }
+/* 小数・税率・テンキー・画面幅の折りたたみ */
+.sc-toggle {
+  flex-basis: 100%; text-align: left;
+  background: transparent; color: white;
+  border: 1px dashed rgba(255,255,255,0.4); border-radius: 4px;
+  padding: 3px 8px; font-size: 11px; font-weight: bold;
+  cursor: pointer; touch-action: manipulation;
+}
+.sc-toggle:hover { background: rgba(255,255,255,0.08); }
+.sc-adv { display: none; flex-basis: 100%; flex-wrap: wrap; gap: 6px 8px; }
+.sc-adv.open { display: flex; }
 .btn-rc {
   background: rgba(255,255,255,0.18);
   color: white;
@@ -860,29 +871,32 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="btn-ins" onclick="insertColAtSel()" title="選択セルの左に列を挿入">＋左に追加</button>
     <button class="btn-del" onclick="deleteColAtSel()" title="選択セルの列を削除">列を削除</button>
   </div>
-  <div class="sc">
-    <span class="sc-label">小数</span>
-    <button class="btn-rc" onclick="changeDec(-1)">−</button>
-    <span class="sc-val" id="decCount">自</span>
-    <button class="btn-rc" onclick="changeDec(1)">+</button>
-  </div>
-  <div class="sc">
-    <span class="sc-label">税率</span>
-    <button class="btn-rc" onclick="changeTax(-1)">−</button>
-    <span class="sc-val" id="taxRate">10%</span>
-    <button class="btn-rc" onclick="changeTax(1)">+</button>
-  </div>
-  <div class="sc">
-    <span class="sc-label">テンキー</span>
-    <button class="btn-rc" onclick="changeKeySize(-1)">−</button>
-    <span class="sc-val" id="keySize">大</span>
-    <button class="btn-rc" onclick="changeKeySize(1)">+</button>
-  </div>
-  <div class="sc">
-    <span class="sc-label">画面幅</span>
-    <button class="btn-rc" onclick="changeAppWidth(-1)">−</button>
-    <span class="sc-val" id="appWidth">全幅</span>
-    <button class="btn-rc" onclick="changeAppWidth(1)">+</button>
+  <button class="sc-toggle" id="scAdvToggle" onclick="toggleScAdv()">▸ 詳細設定（小数・税率・テンキー・画面幅）</button>
+  <div class="sc-adv" id="scAdvGroup">
+    <div class="sc">
+      <span class="sc-label">小数</span>
+      <button class="btn-rc" onclick="changeDec(-1)">−</button>
+      <span class="sc-val" id="decCount">自</span>
+      <button class="btn-rc" onclick="changeDec(1)">+</button>
+    </div>
+    <div class="sc">
+      <span class="sc-label">税率</span>
+      <button class="btn-rc" onclick="changeTax(-1)">−</button>
+      <span class="sc-val" id="taxRate">10%</span>
+      <button class="btn-rc" onclick="changeTax(1)">+</button>
+    </div>
+    <div class="sc">
+      <span class="sc-label">テンキー</span>
+      <button class="btn-rc" onclick="changeKeySize(-1)">−</button>
+      <span class="sc-val" id="keySize">大</span>
+      <button class="btn-rc" onclick="changeKeySize(1)">+</button>
+    </div>
+    <div class="sc">
+      <span class="sc-label">画面幅</span>
+      <button class="btn-rc" onclick="changeAppWidth(-1)">−</button>
+      <span class="sc-val" id="appWidth">全幅</span>
+      <button class="btn-rc" onclick="changeAppWidth(1)">+</button>
+    </div>
   </div>
   <div class="sc">
     <span class="sc-label">セル文字</span>
@@ -3925,6 +3939,15 @@ function toggleSettings() {
   const panel=document.getElementById('settingsPanel'), btn=document.getElementById('settingsBtn');
   const open=panel.classList.toggle('open'); btn.classList.toggle('open',open);
 }
+/* 小数・税率・テンキー・画面幅をまとめて折りたたみ（設定パネルをコンパクトに） */
+let scAdvOpen=false;
+function applyScAdv(){
+  const g=document.getElementById('scAdvGroup'), b=document.getElementById('scAdvToggle');
+  if(g) g.classList.toggle('open', scAdvOpen);
+  if(b) b.textContent=(scAdvOpen?'▾':'▸')+' 詳細設定（小数・税率・テンキー・画面幅）';
+  localStorage.setItem('excalc_scadv_open', scAdvOpen?'1':'0');
+}
+function toggleScAdv(){ scAdvOpen=!scAdvOpen; applyScAdv(); }
 function openHelp(){ document.getElementById('helpOverlay').classList.add('open'); }
 function closeHelp(){ document.getElementById('helpOverlay').classList.remove('open'); }
 
@@ -4588,6 +4611,8 @@ applyKeypadLayout();
 bindKeypadDrag();
 loadUserKeys();
 renderUserKeys();
+scAdvOpen=localStorage.getItem('excalc_scadv_open')==='1';
+applyScAdv();
 restoreSheetSizes();
 /* 新デフォルト（セル文字＝大・列幅は内容に合わせ自動調整）を既存ユーザーにも一度だけ適用 */
 if(localStorage.getItem('excalc_cellsize_default_v4')!=='1'){
