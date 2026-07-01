@@ -1357,7 +1357,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li">リスト画面いちばん下の<b>⬇書き出し</b>で保存データをファイルに出力 → 別の端末・ブラウザで<b>⬆読み込み</b>すると復元できます（バックアップ・引っ越し用）。</div>
         <div class="help-li">各データの<b>🔓ロック</b>をタップすると🔒保護され、誤って削除・改名できなくなります（もう一度タップで解除）。</div>
         <div class="help-li"><b>↩戻る／↪進む</b>：直前の入力を元に戻す／やり直す</div>
-        <div class="help-li"><b>📄 CSV出力</b>：表をCSVファイルに書き出し　<b>📥 CSV読込</b>：CSVファイルを今の表に読み込み（上書き）。どちらも詳細設定内にあります。</div>
+        <div class="help-li"><b>📄 CSV出力</b>：表をCSVファイルに書き出し　<b>📥 CSV読込</b>：CSVファイルを今の表に読み込み（上書き）。文字コード（UTF-8／Shift_JIS）は自動判別するのでExcelのCSVもそのまま読めます。どちらも詳細設定内にあります。</div>
         <div class="help-li"><b>🌙</b>：ダークモード切替　<b>リセット</b>：今のモードの内容を消去</div>
       </div>
     </div>
@@ -2124,6 +2124,23 @@ function parseCSV(text){
   if(field!==''||row.length>0){ row.push(field); rows.push(row); }
   return rows;
 }
+/* CSVの文字コードを自動判別してデコード（Excel等の日本語CSVはShift_JISが多く、
+   UTF-8固定で読むと文字化けするため）。BOM→UTF-8/UTF-16、無ければUTF-8厳密判定に
+   失敗した場合Shift_JIS(CP932)とみなす。 */
+function decodeCSVBuffer(buf){
+  const bytes=new Uint8Array(buf);
+  if(bytes.length>=3 && bytes[0]===0xEF && bytes[1]===0xBB && bytes[2]===0xBF)
+    return new TextDecoder('utf-8').decode(bytes);                 // UTF-8 BOM
+  if(bytes.length>=2 && bytes[0]===0xFF && bytes[1]===0xFE)
+    return new TextDecoder('utf-16le').decode(bytes);              // UTF-16 LE BOM
+  if(bytes.length>=2 && bytes[0]===0xFE && bytes[1]===0xFF)
+    return new TextDecoder('utf-16be').decode(bytes);              // UTF-16 BE BOM
+  try{ return new TextDecoder('utf-8',{fatal:true}).decode(bytes); }   // BOM無し：まずUTF-8厳密
+  catch(_){
+    try{ return new TextDecoder('shift_jis').decode(bytes); }      // 不正ならShift_JIS(CP932)
+    catch(e){ return new TextDecoder('utf-8').decode(bytes); }     // 最後は寛容UTF-8
+  }
+}
 function importCSV(ev){
   const file=ev.target.files&&ev.target.files[0];
   ev.target.value='';                        // 同じファイルを連続で選べるようにリセット
@@ -2131,7 +2148,7 @@ function importCSV(ev){
   const reader=new FileReader();
   reader.onload=()=>{
     let rows;
-    try{ rows=parseCSV(reader.result); }catch(e){ alert('CSVの解析に失敗しました'); return; }
+    try{ rows=parseCSV(decodeCSVBuffer(reader.result)); }catch(e){ alert('CSVの解析に失敗しました'); return; }
     while(rows.length && rows[rows.length-1].every(c=>c==='')) rows.pop();   // 末尾の空行を除去
     if(rows.length===0){ alert('読み込めるデータが見つかりませんでした'); return; }
     const nRows=Math.min(50, rows.length);
@@ -2152,7 +2169,7 @@ function importCSV(ev){
     if(typeof toast==='function') toast(`${nRows}行×${nCols}列を読み込みました`);
   };
   reader.onerror=()=>alert('ファイルの読み込みに失敗しました');
-  reader.readAsText(file);
+  reader.readAsArrayBuffer(file);
 }
 
 /* ── ダークモード ── */
