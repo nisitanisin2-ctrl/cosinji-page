@@ -4923,7 +4923,20 @@ fitNumpadLabels();
 window.addEventListener('load', fitNumpadLabels);
 
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("./service-worker.js");
+  let swRefreshing=false;
+  // 新しいservice-workerが制御を引き継いだら自動でリロードし、インストール版（スマホ等）でも
+  // 更新をすぐ反映する（ブラウザ任せの更新チェックだけだと、しばらく古い版のままになるため）
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if(swRefreshing) return;
+    swRefreshing = true;
+    location.reload();
+  });
+  navigator.serviceWorker.register("./service-worker.js").then(reg => {
+    reg.update();
+    document.addEventListener('visibilitychange', () => {
+      if(document.visibilityState === 'visible') reg.update();
+    });
+  });
 }
 </script>
 </body>
