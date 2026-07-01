@@ -151,7 +151,7 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
 .btn-settings:hover, .btn-dark:hover, .btn-csv:hover { background: rgba(255,255,255,0.28); }
 .btn-settings.open { background: rgba(255,255,255,0.32); }
 
-.btn-save, .btn-list, .btn-undo, .btn-reset {
+.btn-save, .btn-list, .btn-undo, .btn-redo, .btn-reset {
   color: white;
   border: none;
   border-radius: 4px;
@@ -173,6 +173,9 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
 }
 .btn-undo:hover  { background: #f39c12; }
 .btn-undo:disabled { background: #4a4a4a; opacity: 0.4; cursor: default; box-shadow: none; }
+.btn-redo   { background: #b9772a; font-size: 13px; padding: 4px 11px; }
+.btn-redo:hover  { background: #cf8a34; }
+.btn-redo:disabled { background: #4a4a4a; opacity: 0.4; cursor: default; }
 .btn-reset  { background: #a93226; }
 .btn-reset:hover { background: #c0392b; }
 
@@ -448,6 +451,8 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 .btn.ubtn.action { background: #2a6f6f; font-size: calc(20px * var(--key-scale, 1.3)); }  /* 便利機能を登録したボタン */
 .btn.ubtn.action:hover { background: #35898f; }
 .btn.ubtn.armed { background: #9460d8; box-shadow: inset 0 0 0 2px #d3b4f5; }  /* 長押し成立＝登録できる状態 */
+/* 移動モード：移動先を選んでいる間、登録ボタンを点滅風に強調 */
+.numpad-regpage.reg-moving .btn.ubtn { outline: 2px dashed rgba(255,255,255,0.55); outline-offset: -3px; }
 /* 登録ピッカー：文字・数字入力を基本、便利機能はオプション表示 */
 .regpick-text { display: flex; gap: 8px; margin-bottom: 6px; }
 .regpick-input {
@@ -615,6 +620,7 @@ body.dark .save-mode { background: #143a35; color: #7fcabd; }
 }
 .save-tab:hover { background: var(--cell-hover); }
 .save-tab.active { background: #217346; color: #fff; border-color: #217346; }
+.save-tab.tab-armed { box-shadow: inset 0 0 0 2px #f1c40f; }   /* 長押し成立＝名前変更できる状態 */
 /* 保存項目の振り分け先タブ選択 */
 .save-tab-select {
   border: 1px solid var(--save-item-border); border-radius: 4px;
@@ -895,6 +901,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   <button class="btn-save" id="saveBtn" onclick="saveData()">保存</button>
   <button class="btn-list" onclick="showSaveList()">リスト</button>
   <button class="btn-undo" id="undoBtn" onclick="undoLast()" disabled>↩ 戻る</button>
+  <button class="btn-redo" id="redoBtn" onclick="redoLast()" disabled>↪ 進む</button>
   <button class="btn-reset" onclick="resetAll()">リセット</button>
 </div>
 
@@ -961,8 +968,10 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <span class="sc-val" id="appWidth">全幅</span>
       <button class="btn-rc" onclick="changeAppWidth(1)">+</button>
     </div>
-    <button class="sc-help sc-half" id="darkBtn" onclick="toggleDark()">🌙 ナイトモード</button>
+    <button class="sc-help" id="darkBtn" onclick="toggleDark()">🌙 ナイトモード</button>
     <button class="sc-help sc-half" onclick="exportCSV()">📄 CSV出力</button>
+    <button class="sc-help sc-half" onclick="document.getElementById('importCSVInput').click()" title="CSVファイルを現在の表に読み込みます（上書き）">📥 CSV読込</button>
+    <input id="importCSVInput" type="file" accept=".csv,text/csv" style="display:none" onchange="importCSV(event)">
     <button class="sc-help" id="keypadEditBtn" onclick="toggleKeypadEdit()" title="テンキーのボタンをドラッグして好きな位置に入れ替えます（同じ大きさのボタン同士）">🔧 テンキーのボタン配置を編集</button>
     <button class="sc-help" onclick="openModeVis()" title="「モード」一覧に表示する標準モードを選びます">🔀 モードの表示/非表示</button>
   </div>
@@ -1207,11 +1216,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <span>保存データ一覧</span>
       <button class="modal-close" onclick="closeSaveList()">✕</button>
     </div>
-    <div class="save-tabbar" id="saveTabBar">
-      <button class="save-tab active" data-tab="0" onclick="setSaveTab(0)">🗂 記録</button>
-      <button class="save-tab" data-tab="1" onclick="setSaveTab(1)">📌 タブ1</button>
-      <button class="save-tab" data-tab="2" onclick="setSaveTab(2)">📌 タブ2</button>
-    </div>
+    <div class="save-tabbar" id="saveTabBar" title="タップで切替／長押しで名前を変更"></div>
     <div class="modal-body" id="saveListBody"></div>
     <div class="save-toolbar">
       <button class="save-tool-btn" onclick="exportSaves()" title="保存データをファイルに書き出して他の端末へ移せます">⬇ 書き出し</button>
@@ -1282,7 +1287,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li">テンキーは<b>数字ページ（標準）</b>を土台に、<b>関数電卓・関数記号・登録ページ</b>がその上に重なってスライドインする構成です（数字ページは<b>どこからでもフリック開始可</b>）：
           <br>・<b>数字ページを右へフリック＝関数電卓ページが重なって表示</b>…SIN・COS・TAN・ASIN・ACOS・ATAN・LOG・LN・EXP・π・e・n!（階乗）・x²・^（べき乗）・1/(・MOD( などを数式に挿入。<b>DEG/RAD</b>ボタンで三角関数の角度単位（度数法⇄弧度法）を切替できます。<b>どのボタンの上でも左へフリック</b>すると数字ページに戻ります。
           <br>・<b>数字ページを左へフリック＝関数・記号ページが重なって表示</b>…( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 などを数式（先頭が <b>=</b>）に挿入。<b>どのボタンの上でも右へフリック</b>すると数字ページに戻ります。
-          <br>・<b>数字ページを上へフリック＝登録ページが重なって表示</b>…紫のボタンを<b>長押し</b>すると登録画面が開きます。基本は<b>文字・数字を入力して「登録」</b>するだけ（よく使う文字・数字を登録、数値の途中でタップすると連結。例：100→「円」で100円）。<b>「🔧 便利機能から選ぶ（オプション）」</b>を開くと、<b>「Enter」「1文字削除」「戻る」「進む」「保存」「リスト」「リセット」「CSV出力」「ナイト」「モード」</b>などの便利機能も選んで登録できます。登録後は<b>タップ</b>で入力／実行（未登録の「＋」はタップでも登録画面が開きます）。登録は保存されます。<b>どのボタンの上でも下へフリック</b>すると数字ページに戻ります。</div>
+          <br>・<b>数字ページを上へフリック＝登録ページが重なって表示</b>…紫のボタンを<b>長押し</b>すると登録画面が開きます。基本は<b>文字・数字を入力して「登録」</b>するだけ（よく使う文字・数字を登録、数値の途中でタップすると連結。例：100→「円」で100円）。<b>「🔧 便利機能から選ぶ（オプション）」</b>を開くと、<b>「Enter」「1文字削除」「戻る」「進む」「保存」「リスト」「リセット」「CSV出力」「ナイト」「モード」</b>などの便利機能も選んで登録できます。登録後は<b>タップ</b>で入力／実行（未登録の「＋」はタップでも登録画面が開きます）。登録画面の<b>「🔀 このボタンを別の場所へ移動」</b>を押すと、移動先のボタンをタップして位置を入れ替えできます。登録は保存されます。<b>どのボタンの上でも下へフリック</b>すると数字ページに戻ります。</div>
         <div class="help-li">テンキー上端（横向きは左端）の<b>バーをドラッグ</b>すると大きさ（横向きは幅）を変更できます。設定の<b>「🔧 テンキーのボタン配置を編集」</b>で各ボタンの位置も入れ替えできます。</div>
       </div>
 
@@ -1348,10 +1353,11 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-h">💾 保存・その他（上部メニュー）</div>
         <div class="help-li"><b>保存</b>：名前を付けて保存　<b>リスト</b>：保存データを開く</div>
         <div class="help-li">保存したときの<b>モードも一緒に記録</b>され、読み込むとそのモード（単位水量など）で再現します。リストの各データにはモードのバッジが表示されます。</div>
-        <div class="help-li">リストの上に<b>🗂記録／📌タブ1／📌タブ2</b>の3つのタブがあります。保存した記録はまず<b>「記録」</b>タブに入り、各データの<b>タブ選択欄</b>でよく呼び出したい記録を<b>タブ1・タブ2</b>に振り分けて整理できます。</div>
+        <div class="help-li">リストの上に<b>🗂記録／📌タブ1／📌タブ2</b>の3つのタブがあります。保存した記録はまず<b>「記録」</b>タブに入り、各データの<b>タブ選択欄</b>でよく呼び出したい記録を<b>タブ1・タブ2</b>に振り分けて整理できます。タブは<b>長押し</b>で名前を変更できます（例：「現場A」「経理」）。</div>
         <div class="help-li">リスト画面いちばん下の<b>⬇書き出し</b>で保存データをファイルに出力 → 別の端末・ブラウザで<b>⬆読み込み</b>すると復元できます（バックアップ・引っ越し用）。</div>
         <div class="help-li">各データの<b>🔓ロック</b>をタップすると🔒保護され、誤って削除・改名できなくなります（もう一度タップで解除）。</div>
-        <div class="help-li"><b>CSV</b>：表をCSVで書き出し</div>
+        <div class="help-li"><b>↩戻る／↪進む</b>：直前の入力を元に戻す／やり直す</div>
+        <div class="help-li"><b>📄 CSV出力</b>：表をCSVファイルに書き出し　<b>📥 CSV読込</b>：CSVファイルを今の表に読み込み（上書き）。どちらも詳細設定内にあります。</div>
         <div class="help-li"><b>🌙</b>：ダークモード切替　<b>リセット</b>：今のモードの内容を消去</div>
       </div>
     </div>
@@ -2098,6 +2104,57 @@ function exportCSV() {
   a.click(); URL.revokeObjectURL(url);
 }
 
+/* ── CSVインポート（現在の表に読み込み・上書き） ── */
+function parseCSV(text){
+  text=String(text).replace(/^﻿/,'');   // BOM除去
+  const rows=[]; let row=[], field='', inQ=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(inQ){
+      if(ch==='"'){ if(text[i+1]==='"'){ field+='"'; i++; } else inQ=false; }
+      else field+=ch;
+    } else {
+      if(ch==='"') inQ=true;
+      else if(ch===',') { row.push(field); field=''; }
+      else if(ch==='\n'){ row.push(field); rows.push(row); row=[]; field=''; }
+      else if(ch==='\r'){ /* CRLFの\rは無視（\nで改行） */ }
+      else field+=ch;
+    }
+  }
+  if(field!==''||row.length>0){ row.push(field); rows.push(row); }
+  return rows;
+}
+function importCSV(ev){
+  const file=ev.target.files&&ev.target.files[0];
+  ev.target.value='';                        // 同じファイルを連続で選べるようにリセット
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    let rows;
+    try{ rows=parseCSV(reader.result); }catch(e){ alert('CSVの解析に失敗しました'); return; }
+    while(rows.length && rows[rows.length-1].every(c=>c==='')) rows.pop();   // 末尾の空行を除去
+    if(rows.length===0){ alert('読み込めるデータが見つかりませんでした'); return; }
+    const nRows=Math.min(50, rows.length);
+    const nCols=Math.min(26, Math.max(1, rows.reduce((m,r)=>Math.max(m,r.length),0)));
+    if(!confirm(`CSVを読み込みますか？（${nRows}行×${nCols}列）\n現在の表は上書きされます。`)) return;
+    const arr=[];
+    for(let r=0;r<nRows;r++){ arr[r]=[]; for(let c=0;c<nCols;c++){ const v=rows[r]&&rows[r][c]; arr[r][c]=(v===undefined||v===null)?'':String(v); } }
+    loadData(arr);
+    cellStyles={};
+    ROWS=Math.max(1,nRows); COLS=Math.max(1,nCols);
+    localStorage.setItem('excalc_rows',ROWS); localStorage.setItem('excalc_cols',COLS);
+    syncRowColLabels();
+    normalizeStructLayout();                 // 構造モードなら列数・見出しを整える
+    if(isStructMode()) showModeBar(); else hideAllBars();
+    buildSheet();
+    sel(0,0);
+    persistModes();
+    if(typeof toast==='function') toast(`${nRows}行×${nCols}列を読み込みました`);
+  };
+  reader.onerror=()=>alert('ファイルの読み込みに失敗しました');
+  reader.readAsText(file);
+}
+
 /* ── ダークモード ── */
 function toggleDark() {
   darkMode=!darkMode;
@@ -2440,7 +2497,7 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
     } else if(wasAxis==='v'){
       const thV=Math.max(40, h*0.22);
       if(openWhich===null && dy<=-thV) openWhich='reg';
-      else if(openWhich==='reg' && dy>=thV) openWhich=null;
+      else if(openWhich==='reg' && dy>=thV){ openWhich=null; if(typeof cancelRegMove==='function') cancelRegMove(); }  // 閉じたら移動モードも解除
       restAll(true);
     }
     downX=null; axis=null; activeEl=null;
@@ -2535,6 +2592,29 @@ function userKey(i){
 }
 /* ── 登録先の選択（文字・数字／便利機能） ── */
 let regPickIndex=-1;
+let regMoveFrom=-1;         // 登録ボタンの移動元（-1=移動モードでない）
+function regPickStartMove(){
+  regMoveFrom=regPickIndex;
+  closeRegPick();
+  const pad=document.getElementById('numpadPageReg');
+  if(pad) pad.classList.add('reg-moving');
+  toast('移動先のボタンをタップしてください');
+}
+function cancelRegMove(){
+  regMoveFrom=-1;
+  const pad=document.getElementById('numpadPageReg');
+  if(pad) pad.classList.remove('reg-moving');
+}
+/* 移動先タップ：移動元と入れ替え（移動先が空なら移すだけ） */
+function regMoveTo(i){
+  const from=regMoveFrom;
+  cancelRegMove();
+  if(from<0 || i===from) return;
+  const t=userKeys[from]; userKeys[from]=userKeys[i]; userKeys[i]=t;
+  saveUserKeys(); renderUserKeys();
+  if(navigator.vibrate){ try{ navigator.vibrate(12); }catch(_){} }
+  toast('移動しました');
+}
 function registerUserKey(i){
   regPickIndex=i;
   renderRegPickBody();
@@ -2565,6 +2645,11 @@ function renderRegPickBody(){
     </button>`;
   });
   html+=`</div>`;
+  if(!regIsEmpty(regPickIndex)){
+    html+=`<button class="regpick-toggle" onclick="regPickStartMove()" style="margin-top:8px;color:var(--text)">
+      <span>🔀 このボタンを別の場所へ移動</span><span>›</span>
+    </button>`;
+  }
   body.innerHTML=html;
   const input=document.getElementById('regPickInput');
   if(input){
@@ -2620,6 +2705,7 @@ function regPickAction(id){
     const wasLong=longed; longed=false;
     if(numpadSwiping) return;                         // フリックでページ移動した時は何もしない
     const i=+b.dataset.uk;
+    if(regMoveFrom>=0){ regMoveTo(i); return; }        // 移動モード：タップ先へ入れ替え
     if(wasLong){ openRegister(i); return; }           // 長押し→離してから登録選択モーダル
     if(regIsEmpty(i)){ openRegister(i); return; }      // 未登録タップ→離してから登録選択
     // 登録済みタップ→実行／入力。便利機能（リスト・モード・保存など、指を離した直後の
@@ -2746,11 +2832,12 @@ function swapKeypadKeys(pg,a,b){
 function onKeypadGridPointerDown(e){
   if(!keypadEditing) return;
   if(e.button!==undefined && e.button>0) return;
-  e.stopPropagation();                  // 編集中はボタン本来のpointer操作（Σ合計の範囲選択など）を止める
   const btn=e.target.closest&&e.target.closest('.btn');
-  if(!btn) { kpDrag=null; return; }
-  const pg=kpPageOfEl(btn), key=btn.dataset.key;
-  if(!pg || !key || kpIsFixed(pg.def,key)) { kpDrag=null; return; }
+  const pg=btn?kpPageOfEl(btn):null, key=btn?btn.dataset.key:null;
+  // Enter等の固定ボタンはドラッグ対象外。ここでは stopPropagation せず pager(onDown)に
+  //   イベントを渡し、編集中でもEnter上のフリックでページを移動できるようにする。
+  if(!btn || !pg || !key || kpIsFixed(pg.def,key)) { kpDrag=null; return; }
+  e.stopPropagation();                  // ドラッグ対象ボタンのみ、本来のpointer操作（Σ合計の範囲選択など）を止める
   kpDrag={el:btn, key, pg, started:false, startX:e.clientX, startY:e.clientY, target:null};
 }
 function onKeypadPointerMove(e){
@@ -4730,8 +4817,48 @@ async function saveData() {
 }
 
 /* 保存データ一覧のタブ（0=記録／1=タブ1／2=タブ2）。保存した記録はまず0（記録）に入り、
-   よく呼び出したい記録はタブ1・タブ2に振り分けて整理できる */
+   よく呼び出したい記録はタブ1・タブ2に振り分けて整理できる。タブ名は長押しで変更可 */
 let saveActiveTab=0;
+const SAVE_TAB_DEF=['記録','タブ1','タブ2'];
+const SAVE_TAB_ICON=['🗂','📌','📌'];
+let saveTabNames=[null,null,null];   // null=既定名を使う
+function loadSaveTabNames(){
+  try{ const a=JSON.parse(localStorage.getItem('excalc_savetabnames'));
+    if(Array.isArray(a)) saveTabNames=[a[0]||null, a[1]||null, a[2]||null]; }catch(_){}
+}
+function saveTabLabel(t){ return saveTabNames[t] || SAVE_TAB_DEF[t]; }
+function renderSaveTabBar(){
+  const bar=document.getElementById('saveTabBar'); if(!bar) return;
+  bar.innerHTML=[0,1,2].map(t=>
+    `<button class="save-tab${t===saveActiveTab?' active':''}" data-tab="${t}">${SAVE_TAB_ICON[t]} ${escHtml(saveTabLabel(t))}</button>`
+  ).join('');
+}
+async function renameSaveTab(t){
+  const v=await appPrompt(`タブ「${saveTabLabel(t)}」の名前を入力（空にすると既定名に戻す）`, saveTabNames[t]||'');
+  if(v===null) return;
+  saveTabNames[t]=v.trim()||null;
+  try{ localStorage.setItem('excalc_savetabnames', JSON.stringify(saveTabNames)); }catch(_){}
+  renderSaveTabBar(); renderSaveList();
+}
+(function setupSaveTabBar(){
+  const bar=document.getElementById('saveTabBar'); if(!bar) return;
+  let timer=null, longed=false, curTab=-1, sx=0, sy=0, curBtn=null;
+  const clear=()=>{ if(timer){ clearTimeout(timer); timer=null; } };
+  bar.addEventListener('pointerdown', e=>{
+    const b=e.target.closest&&e.target.closest('.save-tab'); if(!b) return;
+    curBtn=b; curTab=+b.dataset.tab; longed=false; sx=e.clientX; sy=e.clientY; clear();
+    timer=setTimeout(()=>{ longed=true; b.classList.add('tab-armed'); if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} }, 500);
+  });
+  bar.addEventListener('pointermove', e=>{ if(curTab>=0 && Math.hypot(e.clientX-sx,e.clientY-sy)>10) clear(); });
+  bar.addEventListener('pointerup', ()=>{
+    if(curTab<0) return;
+    clear(); const t=curTab, wasLong=longed; if(curBtn) curBtn.classList.remove('tab-armed');
+    curTab=-1; longed=false; curBtn=null;
+    if(wasLong){ setTimeout(()=>renameSaveTab(t), 160); return; }   // 長押し→離してから改名（合成クリック対策）
+    setSaveTab(t);
+  });
+  bar.addEventListener('pointercancel', ()=>{ clear(); if(curBtn) curBtn.classList.remove('tab-armed'); curTab=-1; longed=false; curBtn=null; });
+})();
 function setSaveTab(tab){
   saveActiveTab=tab;
   document.querySelectorAll('#saveTabBar .save-tab').forEach(b=>b.classList.toggle('active', +b.dataset.tab===tab));
@@ -4746,6 +4873,7 @@ function setSaveItemTab(id, tabStr){
   renderSaveList();
 }
 function showSaveList(){
+  renderSaveTabBar();
   setSaveTab(0);
   document.getElementById('saveListOverlay').classList.add('open');
 }
@@ -4771,9 +4899,9 @@ function renderSaveList() {
         <div class="save-date">${new Date(s.timestamp).toLocaleString('ja-JP')}　${s.rows}行×${s.cols}列${modeBadge}</div>
       </div>
       <select class="save-tab-select" onchange="setSaveItemTab(${s.id}, this.value)" title="振り分け先のタブを変更">
-        <option value="0" ${tab===0?'selected':''}>記録</option>
-        <option value="1" ${tab===1?'selected':''}>タブ1</option>
-        <option value="2" ${tab===2?'selected':''}>タブ2</option>
+        <option value="0" ${tab===0?'selected':''}>${escHtml(saveTabLabel(0))}</option>
+        <option value="1" ${tab===1?'selected':''}>${escHtml(saveTabLabel(1))}</option>
+        <option value="2" ${tab===2?'selected':''}>${escHtml(saveTabLabel(2))}</option>
       </select>
       <button class="btn-lock"   onclick="toggleSaveLock(${s.id})" title="${locked?'ロックを解除':'ロック（削除・改名を防止）'}">${locked?'🔒':'🔓'}</button>
       <button class="btn-rename" onclick="renameSave(${s.id})" ${locked?'disabled':''} title="${locked?'ロック中は改名できません':'名前を変更'}">✏</button>
@@ -4950,6 +5078,7 @@ applyKeypadLayout();
 bindKeypadDrag();
 loadUserKeys();
 renderUserKeys();
+loadSaveTabNames();
 scAdvOpen=localStorage.getItem('excalc_scadv_open')==='1';
 applyScAdv();
 if(localStorage.getItem('excalc_trigmode')==='rad') trigMode='rad';
