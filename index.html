@@ -448,6 +448,26 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 .btn.ubtn.action { background: #2a6f6f; font-size: calc(20px * var(--key-scale, 1.3)); }  /* 便利機能を登録したボタン */
 .btn.ubtn.action:hover { background: #35898f; }
 .btn.ubtn.armed { background: #9460d8; box-shadow: inset 0 0 0 2px #d3b4f5; }  /* 長押し成立＝登録できる状態 */
+/* 登録ピッカー：文字・数字入力を基本、便利機能はオプション表示 */
+.regpick-text { display: flex; gap: 8px; margin-bottom: 6px; }
+.regpick-input {
+  flex: 1; min-width: 0; padding: 9px 10px; font-size: 15px;
+  border: 1px solid var(--save-item-border); border-radius: 6px;
+  background: var(--cell-bg, #fff); color: var(--text);
+}
+.regpick-save {
+  padding: 0 16px; font-size: 14px; font-weight: bold; border: none; border-radius: 6px;
+  background: #217346; color: #fff; cursor: pointer; touch-action: manipulation;
+}
+.regpick-save:hover { background: #28935a; }
+.regpick-hint { font-size: 11px; color: var(--text-light); margin: -2px 0 10px; }
+.regpick-toggle {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  margin-bottom: 8px; padding: 9px 12px; font-size: 13px; font-weight: bold;
+  border: 1px dashed var(--save-item-border); border-radius: 8px;
+  background: transparent; color: var(--text-light); cursor: pointer; touch-action: manipulation;
+}
+.regpick-toggle:hover { background: var(--cell-hover); }
 .numpad-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -1209,7 +1229,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <span>テンキー登録</span>
       <button class="modal-close" onclick="closeRegPick()">✕</button>
     </div>
-    <div class="mode-hint">よく使う文字・数字、または戻る／進むなどの便利機能をこのボタンに登録します</div>
+    <div class="mode-hint">よく使う文字・数字を入力して登録します。戻る／進む・Enterなどの便利機能はオプションで選べます</div>
     <div class="modal-body" id="regPickBody"></div>
   </div>
 </div>
@@ -1240,7 +1260,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li">テンキーは<b>数字ページ（標準）</b>を土台に、<b>関数電卓・関数記号・登録ページ</b>がその上に重なってスライドインする構成です（数字ページは<b>どこからでもフリック開始可</b>）：
           <br>・<b>数字ページを右へフリック＝関数電卓ページが重なって表示</b>…SIN・COS・TAN・ASIN・ACOS・ATAN・LOG・LN・EXP・π・e・n!（階乗）・x²・^（べき乗）・1/(・MOD( などを数式に挿入。<b>DEG/RAD</b>ボタンで三角関数の角度単位（度数法⇄弧度法）を切替できます。<b>どのボタンの上でも左へフリック</b>すると数字ページに戻ります。
           <br>・<b>数字ページを左へフリック＝関数・記号ページが重なって表示</b>…( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 などを数式（先頭が <b>=</b>）に挿入。<b>どのボタンの上でも右へフリック</b>すると数字ページに戻ります。
-          <br>・<b>数字ページを上へフリック＝登録ページが重なって表示</b>…紫のボタンを<b>長押し</b>すると登録メニューが開き、<b>「文字・数字」</b>（よく使う文字・数字を登録、数値の途中でタップすると連結。例：100→「円」で100円）か、<b>「戻る」「進む」「保存」「リスト」「リセット」「CSV出力」「ナイト」「モード」</b>などの便利機能を選んで登録できます。登録後は<b>タップ</b>で入力／実行（未登録の「＋」はタップでも登録メニューが開きます）。登録は保存されます。<b>どのボタンの上でも下へフリック</b>すると数字ページに戻ります。</div>
+          <br>・<b>数字ページを上へフリック＝登録ページが重なって表示</b>…紫のボタンを<b>長押し</b>すると登録画面が開きます。基本は<b>文字・数字を入力して「登録」</b>するだけ（よく使う文字・数字を登録、数値の途中でタップすると連結。例：100→「円」で100円）。<b>「🔧 便利機能から選ぶ（オプション）」</b>を開くと、<b>「Enter」「1文字削除」「戻る」「進む」「保存」「リスト」「リセット」「CSV出力」「ナイト」「モード」</b>などの便利機能も選んで登録できます。登録後は<b>タップ</b>で入力／実行（未登録の「＋」はタップでも登録画面が開きます）。登録は保存されます。<b>どのボタンの上でも下へフリック</b>すると数字ページに戻ります。</div>
         <div class="help-li">テンキー上端（横向きは左端）の<b>バーをドラッグ</b>すると大きさ（横向きは幅）を変更できます。設定の<b>「🔧 テンキーのボタン配置を編集」</b>で各ボタンの位置も入れ替えできます。</div>
       </div>
 
@@ -2423,6 +2443,8 @@ const USER_KEYS_N=25;
 let userKeys=new Array(USER_KEYS_N).fill(null).map(()=>({type:'text',value:''}));
 /* 登録できる便利機能 */
 const REG_ACTIONS=[
+  {id:'enter', icon:'⏎', name:'Enter',      desc:'入力を確定する'},
+  {id:'bs',    icon:'⌫', name:'1文字削除', desc:'最後の1文字を消す'},
   {id:'undo',  icon:'↩', name:'戻る',       desc:'直前の変更を元に戻す'},
   {id:'redo',  icon:'↪', name:'進む',       desc:'元に戻した操作をやり直す'},
   {id:'save',  icon:'💾', name:'保存',       desc:'名前を付けて保存'},
@@ -2432,7 +2454,7 @@ const REG_ACTIONS=[
   {id:'dark',  icon:'🌙', name:'ナイト',     desc:'ダークモードを切替'},
   {id:'mode',  icon:'🔀', name:'モード',     desc:'モード選択メニューを開く'},
 ];
-const REG_ACTION_FN={ undo:undoLast, redo:redoLast, save:()=>saveData(), list:showSaveList,
+const REG_ACTION_FN={ enter:eq, bs:bs, undo:undoLast, redo:redoLast, save:()=>saveData(), list:showSaveList,
                        reset:resetAll, csv:exportCSV, dark:toggleDark, mode:onModeBtnClick };
 function regEntry(i){ return userKeys[i]||{type:'text',value:''}; }
 function regIsEmpty(i){ const e=regEntry(i); return e.value===''||e.value==null; }
@@ -2497,46 +2519,56 @@ function closeRegPick(){ document.getElementById('regPickOverlay').classList.rem
 function renderRegPickBody(){
   const body=document.getElementById('regPickBody'); if(!body) return;
   const cur=regEntry(regPickIndex);
-  let html=`<button class="mode-item" onclick="regPickText()">
-    <span class="mode-ico">✏️</span>
-    <span class="mode-text"><span class="mode-name">文字・数字を入力</span><span class="mode-desc">よく使う文字や数字を登録します</span></span>
-    ${(cur.type==='text'&&cur.value!=='')?'<span class="mode-check">✓</span>':''}
-  </button>`;
+  const textVal = cur.type==='text' ? cur.value : '';
+  const actionsOpen = cur.type==='action';   // 便利機能が登録済みなら最初から開いて見せる
+  let html=`
+    <div class="regpick-text">
+      <input type="text" id="regPickInput" class="regpick-input" placeholder="文字・数字を入力（例：円、100 など）" value="${escHtml(textVal)}">
+      <button class="regpick-save" onclick="regPickTextSave()">登録</button>
+    </div>
+    <div class="regpick-hint">空にして「登録」を押すと、このボタンの登録を解除します</div>
+    <button class="regpick-toggle" onclick="toggleRegPickActions()">
+      <span>🔧 便利機能から選ぶ（オプション）</span><span id="regPickArrow">${actionsOpen?'▲':'▼'}</span>
+    </button>
+    <div class="regpick-actions" id="regPickActions" style="display:${actionsOpen?'block':'none'}">`;
   REG_ACTIONS.forEach(a=>{
     const active=(cur.type==='action'&&cur.value===a.id);
-    html+=`<button class="mode-item" onclick="regPickAction('${a.id}')">
+    html+=`<button class="mode-item${active?' active':''}" onclick="regPickAction('${a.id}')">
       <span class="mode-ico">${a.icon}</span>
       <span class="mode-text"><span class="mode-name">${escHtml(a.name)}</span><span class="mode-desc">${escHtml(a.desc)}</span></span>
       ${active?'<span class="mode-check">✓</span>':''}
     </button>`;
   });
-  if(!regIsEmpty(regPickIndex)){
-    html+=`<button class="mode-item" onclick="regPickClear()">
-      <span class="mode-ico">✕</span>
-      <span class="mode-text"><span class="mode-name">登録を解除</span><span class="mode-desc">このボタンを未登録に戻します</span></span>
-    </button>`;
-  }
+  html+=`</div>`;
   body.innerHTML=html;
+  const input=document.getElementById('regPickInput');
+  if(input){
+    input.addEventListener('keydown', e=>{
+      e.stopPropagation();
+      if(e.key==='Enter'){ e.preventDefault(); regPickTextSave(); }
+    });
+    if(!actionsOpen){ requestAnimationFrame(()=>{ input.focus(); input.select(); }); }
+  }
 }
-async function regPickText(){
+function toggleRegPickActions(){
+  const list=document.getElementById('regPickActions');
+  const arrow=document.getElementById('regPickArrow');
+  if(!list) return;
+  const open = list.style.display==='none';
+  list.style.display = open ? 'block' : 'none';
+  if(arrow) arrow.textContent = open ? '▲' : '▼';
+}
+function regPickTextSave(){
   const i=regPickIndex;
-  const cur=regEntry(i);
-  const curVal=cur.type==='text'?cur.value:'';
-  closeRegPick();
-  const v=await appPrompt('このボタンに登録する文字・数字を入力（空にすると登録を解除）', curVal);
-  if(v===null) return;
+  const input=document.getElementById('regPickInput');
+  const v=input ? input.value : '';
   userKeys[i]={type:'text', value:String(v)};
   saveUserKeys(); renderUserKeys();
+  closeRegPick();
 }
 function regPickAction(id){
   const i=regPickIndex;
   userKeys[i]={type:'action', value:id};
-  saveUserKeys(); renderUserKeys();
-  closeRegPick();
-}
-function regPickClear(){
-  const i=regPickIndex;
-  userKeys[i]={type:'text', value:''};
   saveUserKeys(); renderUserKeys();
   closeRegPick();
 }
@@ -3412,9 +3444,9 @@ const MODE_MENU=[
   {key:'tanisuiryou', icon:'💧', name:'単位水量', desc:'土研法エアメータ法で生コンの単位水量を推定（配合・試験値から算定し合否判定）'},
 ];
 
-/* ── 保存リストから登録したカスタムモード（最大3個） ── */
+/* ── 保存リストから登録したカスタムモード（最大10個） ── */
 const CUSTOM_MODES_KEY='excalc_custommodes';
-const CUSTOM_MODE_MAX=3;
+const CUSTOM_MODE_MAX=10;
 let customModes=[];   // [{key,name,icon,rows,sourceId}]
 function loadCustomModes(){
   try{ customModes=JSON.parse(localStorage.getItem(CUSTOM_MODES_KEY))||[]; }catch(e){ customModes=[]; }
@@ -4144,7 +4176,7 @@ function onModePointerCancel(){
 document.addEventListener('pointermove', onModePointerMove, {passive:false});
 document.addEventListener('pointerup', onModePointerUp);
 document.addEventListener('pointercancel', onModePointerCancel);
-/* 保存リストの記録をモードに登録して移動（最大3個） */
+/* 保存リストの記録をモードに登録して移動（最大10個） */
 function registerSaveAsMode(id){
   const saves=getSaves();
   const entry=saves.find(s=>s.id===id); if(!entry) return;
@@ -4688,7 +4720,7 @@ function renderSaveList() {
       </div>
       <button class="btn-lock"   onclick="toggleSaveLock(${s.id})" title="${locked?'ロックを解除':'ロック（削除・改名を防止）'}">${locked?'🔒':'🔓'}</button>
       <button class="btn-rename" onclick="renameSave(${s.id})" ${locked?'disabled':''} title="${locked?'ロック中は改名できません':'名前を変更'}">✏</button>
-      <button class="btn-tomode" onclick="registerSaveAsMode(${s.id})" title="この記録をモードに登録して移動（最大3個）">モードへ</button>
+      <button class="btn-tomode" onclick="registerSaveAsMode(${s.id})" title="この記録をモードに登録して移動（最大10個）">モードへ</button>
       <button class="btn-load"   onclick="loadSave(${s.id})">読込</button>
       <button class="btn-del"    onclick="deleteSave(${s.id})" ${locked?'disabled':''} title="${locked?'ロック中は削除できません':'削除'}">削除</button>
     </div>`;
