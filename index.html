@@ -1274,7 +1274,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><b>割合計算</b>：元の値の何割・何％と、足す/引くを計算</div>
         <div class="help-li"><b>容積</b>：縦×横×高さ＝容積　<b>予算配分</b>：予算と個数から最適な購入数</div>
         <div class="help-li"><b>時間計算</b>：開始〜終了の時刻から所要時間</div>
-        <div class="help-li"><b>単位水量</b>：土研法エアメータ法で生コンの単位水量を推定。表に配合（単位水量W1・セメント・細骨材・粗骨材・混和材・配合空気量）と試験値（容器容積V・容器質量・容器+試料・測定空気量）を入力すると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で単位水量を推定し、配合値との差を許容差（合格±/限界±、下のバーで変更可）で合否判定します。質量はkg・容積はLで入力。</div>
+        <div class="help-li"><b>単位水量</b>：土研法エアメータ法で生コンの単位水量を推定。表に配合（単位水量W1・セメント・細骨材・粗骨材・混和材・配合空気量）と試験値（容器容積V・容器質量・容器+試料・測定空気量）を入力すると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で単位水量を推定し、配合値との差を許容差（合格±/限界±、下のバーで変更可）で合否判定します。配合の質量はkg/m³、試験の容器容積・容器質量・容器+試料はg・ccで入力。</div>
       </div>
 
       <div class="help-sec">
@@ -1456,7 +1456,7 @@ function applyDec(n) {
 function cellDec(r, c) {
   const s = cellStyles[`${r},${c}`];
   if (s && typeof s.dec === 'number') return s.dec;
-  // 単位水量モード：一部の入力欄（容器+試料・容器の容積・容器質量）は既定で3桁小数表示
+  // 単位水量モード：一部の入力欄（容器+試料・容器の容積・容器質量）は既定で1桁小数表示
   if (tableMode==='tanisuiryou' && c===1) {
     const f = TS_FORM[r-1];
     if (f && typeof f.dec === 'number') return f.dec;
@@ -3243,10 +3243,10 @@ const STRUCT_MODES={
 /* 単位水量試験モードの入力フォーム（表 col0=ラベル固定／col1=入力。行r=1..length に対応）。
    並び順：試験値（容器・容器+試料・空気量）を上、配合を下に置く。値は key で参照する。 */
 const TS_FORM=[
-  {key:'m2', label:'容器+試料 m2', unit:'kg', dec:3},  // ── 試験値（上） ── 質量・容積は3桁小数で表示
+  {key:'m2', label:'容器+試料 m2', unit:'g', dec:1},   // ── 試験値（上） ── 質量はg・容積はccで表示
   {key:'A2', label:'測定空気量 A2', unit:'%', dec:1},  // 1桁小数で表示
-  {key:'V',  label:'容器の容積 V', unit:'L', dec:3},   // 容器+試料・測定空気量の下に配置
-  {key:'m1', label:'容器質量 m1',  unit:'kg', dec:3},
+  {key:'V',  label:'容器の容積 V', unit:'cc', dec:1},  // 容器+試料・測定空気量の下に配置
+  {key:'m1', label:'容器質量 m1',  unit:'g', dec:1},
   {key:'C',  label:'セメント C',   unit:'kg/m³'}, // ── 配合（下） ── セメントを水より上に配置
   {key:'W1', label:'単位水量 W1',  unit:'kg/m³'},
   {key:'S',  label:'細骨材 S',     unit:'kg/m³'},
@@ -3260,12 +3260,12 @@ const TS_CALC=[
   {key:'sum7',  label:'コンクリート1m³あたりの質量',   unit:'kg/m³', fixedDp:1},
   {key:'V1',    label:'配合の空気抜き容積',             unit:'m³',    dp:0},
   {key:'g1',    label:'配合上の単位容積質量',           unit:'kg/m³', dp:1},
-  {key:'V10',   label:'エアメータの容器容積',           unit:'cc',    fixedDp:0},
-  {key:'m1g',   label:'容器質量',                       unit:'g',     fixedDp:0},
-  {key:'m2g',   label:'測定質量（容器+試料）',          unit:'g',     fixedDp:0},
+  {key:'V10',   label:'エアメータの容器容積',           unit:'cc',    fixedDp:1},
+  {key:'m1g',   label:'容器質量',                       unit:'g',     fixedDp:1},
+  {key:'m2g',   label:'測定質量（容器+試料）',          unit:'g',     fixedDp:1},
   {key:'A2c',   label:'測定空気量',                     unit:'%',     fixedDp:1},
   {key:'A2adj', label:'試料中の空気量',                 unit:'%',     fixedDp:1},
-  {key:'m15',   label:'試料の質量',                     unit:'g',     fixedDp:0},
+  {key:'m15',   label:'試料の質量',                     unit:'g',     fixedDp:1},
   {key:'Vs',    label:'試料の空気抜き容積',             unit:'cc',    dp:2},
   {key:'uw',    label:'試料の単位容積質量',             unit:'kg/m³', dp:1},
   {key:'derr',  label:'単位水量の推定誤差',             unit:'kg/m³', dp:3},
@@ -3702,12 +3702,12 @@ function recalcTanisuiryou(){
   const V1=(A1!==null&&C!==null)?rdp(1-(A1+(C+P)*0.001)*0.01, tsDp[0]):null;
   // ⑨ 配合上の単位容積質量(kg/m³)＝⑦÷⑧（丸め済み）を小数桁2で丸め
   const g1=(sum7!==null&&V1!==null&&V1>0)?rdp(sum7/V1, tsDp[1]):null;
-  // ⑩ エアメータの容器容積(cc)＝V(L)×1000
-  const V10=(V!==null)?Math.round(V*1000):null;
-  // ⑪ 容器質量(g)＝m1(kg)×1000
-  const m1g=(m1!==null)?Math.round(m1*1000):null;
-  // ⑫ 測定質量・容器+試料(g)＝m2(kg)×1000
-  const m2g=(m2!==null)?Math.round(m2*1000):null;
+  // ⑩ エアメータの容器容積(cc)＝V（入力欄がcc単位のためそのまま）
+  const V10=(V!==null)?V:null;
+  // ⑪ 容器質量(g)＝m1（入力欄がg単位のためそのまま）
+  const m1g=(m1!==null)?m1:null;
+  // ⑫ 測定質量・容器+試料(g)＝m2（入力欄がg単位のためそのまま）
+  const m2g=(m2!==null)?m2:null;
   // ⑬ 測定空気量(%)＝A2　⑭ 試料中の空気量(%)＝A2（骨材修正係数は現状0として扱う）
   const A2c=A2, A2adj=A2;
   // ⑮ 試料の質量(g)＝⑫−⑪
