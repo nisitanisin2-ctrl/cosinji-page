@@ -135,7 +135,7 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
   align-items: center;
   gap: 4px;
 }
-.toolbar-title { flex: 1; font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toolbar-title { display: none; }   /* タイトル「表電卓」は常に非表示（縦・横とも） */
 
 .btn-settings, .btn-dark, .btn-csv {
   background: rgba(255,255,255,0.15);
@@ -150,6 +150,7 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
 }
 .btn-settings:hover, .btn-dark:hover, .btn-csv:hover { background: rgba(255,255,255,0.28); }
 .btn-settings.open { background: rgba(255,255,255,0.32); }
+.btn-settings { font-size: 17px; padding: 4px 10px; }   /* 設定ボタンだけ少し大きく */
 
 .btn-save, .btn-list, .btn-undo, .btn-redo, .btn-reset {
   color: white;
