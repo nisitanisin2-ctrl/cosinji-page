@@ -1,4 +1,4 @@
-const CACHE = 'excalc-v94';
+const CACHE = 'excalc-v95';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -15,8 +15,19 @@ self.addEventListener('activate', e => {
   );
 });
 
+// ネットワーク優先：オンライン時は常に最新版を取得してキャッシュも更新する。
+// オフライン時のみキャッシュから返す（更新が確実に反映されるようにするため）。
 self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    fetch(e.request).then(res => {
+      if (res && res.ok) {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
+      }
+      return res;
+    }).catch(() =>
+      caches.match(e.request).then(cached => cached || caches.match('./index.html'))
+    )
   );
 });
