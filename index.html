@@ -809,6 +809,17 @@ body.dark .help-li b { color: #8fd4ab; }
 .col-grip:hover, .row-grip:hover { background: rgba(33,115,70,0.35); }
 body.col-resizing, body.col-resizing * { cursor: col-resize !important; }
 body.row-resizing, body.row-resizing * { cursor: row-resize !important; }
+/* 左上コーナー：スワイプでセル全体の大きさを変更（対角リサイズのヒント表示） */
+.ch.corner-resizer {
+  cursor: nwse-resize; position: relative; touch-action: none;
+  -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.ch.corner-resizer::after {
+  content: '⤢'; position: absolute; right: 2px; bottom: 0px;
+  font-size: 11px; line-height: 1; color: #217346; opacity: 0.7; pointer-events: none;
+}
+body.dark .ch.corner-resizer::after { color: #7fcabd; }
+body.cellsize-resizing, body.cellsize-resizing * { cursor: nwse-resize !important; }
 
 /* ── 簡易モード：列を少なく・セルを大きく（幅は画面いっぱい） ── */
 body.simple-mode .cell {
@@ -946,7 +957,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   <div class="sc">
     <span class="sc-label">セル文字</span>
     <button class="btn-rc" onclick="changeCellSize(-1)">−</button>
-    <span class="sc-val" id="cellSize">標準</span>
+    <span class="sc-val" id="cellSize">120%</span>
     <button class="btn-rc" onclick="changeCellSize(1)">+</button>
   </div>
   <div class="sc">
@@ -1303,6 +1314,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li">セルをタップして選び、テンキーで入力 → <b>Enter</b>で確定（下のセルへ移動）。</div>
         <div class="help-li">上部の入力欄から直接入力／編集もできます。</div>
         <div class="help-li">列見出し（A,B…）や行番号をタップすると、その列・行を選択して下に合計が出ます。</div>
+        <div class="help-li"><b>列見出しの右端／行番号の下端をドラッグ</b>すると、その列の幅・行の高さを個別に変更できます（ダブルタップで自動に戻す）。</div>
+        <div class="help-li"><b>左上のコーナー（⤢）をスワイプ</b>すると、セル全体の大きさをまとめて変更できます（右下方向で拡大／左上方向で縮小。ダブルタップで100%に戻す）。設定の<b>「セル文字」</b>の＋−でも変更できます。</div>
       </div>
 
       <div class="help-sec">
@@ -1782,7 +1795,9 @@ function buildSheet() {
   const rhW = (tableMode==='tanisuiryou') ? 30 : 48;   // 単位水量モードは行番号列を狭く
   const hr=t.insertRow();
   const corner=hr.insertCell();
-  corner.className='ch'; corner.style.width=rhW+'px'; corner.style.cursor='default';
+  corner.className='ch corner-resizer'; corner.id='cornerCell'; corner.style.width=rhW+'px';
+  corner.title='スワイプ（ドラッグ）でセルの大きさを変更／ダブルタップで標準に戻す';
+  makeCellSizeResizer(corner);
   for (let c=0; c<COLS; c++) {
     const th=hr.insertCell();
     th.className='ch'; th.id=`ch${c}`;
@@ -1863,7 +1878,7 @@ const AUTOFIT_MIN=0.55;   // 文字縮小の下限（読めなくならない範
 function autoFitSheet(){
   const t=document.getElementById('sheet'); if(!t||COLS<=0) return;
   if(!document.getElementById('c0_0')) return;
-  const scale=SIZE_STEPS[cellSizeIdx]||1;
+  const scale=cellScale||1;
   const baseW=Math.round(60*scale);
   const maxW=Math.round(baseW*AUTOFIT_MAX);
   // 1) 基準幅に揃え、前回の縮小を解除（手動指定列はその幅）
@@ -2982,16 +2997,52 @@ function bindKeypadDrag(){
 /* ── セル文字サイズ ── */
 const SIZE_STEPS=[0.85, 1.0, 1.2, 1.4, 1.6];
 const SIZE_LABELS=['小','標準','大','特大','最大'];
-let cellSizeIdx=2, infoSizeIdx=1;   // 既定のセル文字＝大
-function applyCellSize() {
-  document.documentElement.style.setProperty('--cell-scale', SIZE_STEPS[cellSizeIdx]);
-  document.getElementById('cellSize').textContent=SIZE_LABELS[cellSizeIdx];
-  localStorage.setItem('excalc_cellsize', cellSizeIdx);
+let infoSizeIdx=1;
+/* セルの大きさは連続値（スワイプ／＋−ボタンで変更）。--cell-scale がセルの
+   文字サイズ・幅・高さすべての倍率になっている。 */
+const CELL_SCALE_MIN=0.6, CELL_SCALE_MAX=2.4, CELL_SCALE_STEP=0.1;
+let cellScale=1.2;   // 既定＝従来の「大」
+function setCellScale(v, persist){
+  cellScale=Math.max(CELL_SCALE_MIN, Math.min(CELL_SCALE_MAX, Math.round(v*1000)/1000));
+  document.documentElement.style.setProperty('--cell-scale', cellScale);
+  const el=document.getElementById('cellSize'); if(el) el.textContent=Math.round(cellScale*100)+'%';
   autoFitSheet();   // 文字サイズ変更に合わせて列幅も更新
+  if(persist) localStorage.setItem('excalc_cellscale', cellScale.toFixed(3));
 }
-function changeCellSize(delta) {
-  const next=cellSizeIdx+delta; if (next<0||next>=SIZE_STEPS.length) return;
-  cellSizeIdx=next; applyCellSize();
+function applyCellSize(){ setCellScale(cellScale, true); }
+function changeCellSize(delta) { setCellScale(cellScale + delta*CELL_SCALE_STEP, true); }
+/* 左上コーナーをドラッグ（スワイプ）してセル全体の大きさを変更／ダブルタップで標準(100%)へ */
+function makeCellSizeResizer(corner){
+  corner.addEventListener('pointerdown', e=>{
+    if(e.button!==undefined && e.button>0) return;
+    e.preventDefault(); e.stopPropagation();
+    const now=Date.now();
+    if(now - (corner._lastTap||0) < 350){    // ダブルタップ＝標準(100%)に戻す
+      corner._lastTap=0; setCellScale(1.0, true); toast('セルの大きさを100%にしました'); return;
+    }
+    corner._lastTap=now;
+    try{ corner.setPointerCapture(e.pointerId); }catch(_){}
+    document.body.classList.add('cellsize-resizing');
+    const startX=e.clientX, startY=e.clientY, startScale=cellScale;
+    let raf=0, pending=startScale;
+    const move=ev=>{
+      // 右／下方向へのドラッグで拡大（対角の動きに追従）。約260pxで1.0倍ぶん変化
+      const d=((ev.clientX-startX)+(ev.clientY-startY))/260;
+      pending=startScale + d;
+      if(!raf) raf=requestAnimationFrame(()=>{ raf=0; setCellScale(pending, false); });
+    };
+    const end=()=>{
+      corner.removeEventListener('pointermove',move);
+      corner.removeEventListener('pointerup',end);
+      corner.removeEventListener('pointercancel',end);
+      if(raf) cancelAnimationFrame(raf);
+      document.body.classList.remove('cellsize-resizing');
+      setCellScale(cellScale, true);   // 最終値を保存
+    };
+    corner.addEventListener('pointermove',move);
+    corner.addEventListener('pointerup',end);
+    corner.addEventListener('pointercancel',end);
+  });
 }
 /* ── 消費税率 ── */
 function applyTaxRate(){
@@ -5189,8 +5240,15 @@ if(localStorage.getItem('excalc_cellsize_default_v4')!=='1'){
   localStorage.removeItem('excalc_cellsize');
   localStorage.setItem('excalc_cellsize_default_v4','1');
 }
-const savedCellSize=parseInt(localStorage.getItem('excalc_cellsize'));
-if(!isNaN(savedCellSize)&&savedCellSize>=0&&savedCellSize<SIZE_STEPS.length) cellSizeIdx=savedCellSize;
+/* セルの大きさ：連続値(excalc_cellscale)を優先。無ければ旧・段階値(excalc_cellsize)から換算 */
+{
+  let sc=parseFloat(localStorage.getItem('excalc_cellscale'));
+  if(isNaN(sc)){
+    const idx=parseInt(localStorage.getItem('excalc_cellsize'));
+    sc=(!isNaN(idx)&&SIZE_STEPS[idx])?SIZE_STEPS[idx]:1.2;
+  }
+  cellScale=Math.max(CELL_SCALE_MIN, Math.min(CELL_SCALE_MAX, sc));
+}
 applyCellSize();
 const savedInfoSize=parseInt(localStorage.getItem('excalc_infosize'));
 if(!isNaN(savedInfoSize)&&savedInfoSize>=0&&savedInfoSize<SIZE_STEPS.length) infoSizeIdx=savedInfoSize;
