@@ -1881,10 +1881,10 @@ function autoFitSheet(){
   const scale=cellScale||1;
   const baseW=Math.round(60*scale);
   const maxW=Math.round(baseW*AUTOFIT_MAX);
-  // 1) 基準幅に揃え、前回の縮小を解除（手動指定列はその幅）
+  // 1) 基準幅に揃え、前回の縮小を解除（手動指定列は「100%基準の幅×倍率」）
   for(let c=0;c<COLS;c++){
     const ch=document.getElementById('ch'+c);
-    if(ch) ch.style.width=(colWidths[c]||baseW)+'px';
+    if(ch) ch.style.width=(colWidths[c]?Math.round(colWidths[c]*scale):baseW)+'px';
     for(let r=0;r<ROWS;r++){
       const td=document.getElementById('c'+r+'_'+c);
       if(td) td.style.removeProperty('--fit');
@@ -1895,7 +1895,7 @@ function autoFitSheet(){
   // 2) 列ごとに必要幅を測る（手動指定列は測らず固定）
   const need=new Array(COLS).fill(baseW);
   for(let c=0;c<COLS;c++){
-    if(colWidths[c]){ need[c]=colWidths[c]; continue; }
+    if(colWidths[c]){ need[c]=Math.round(colWidths[c]*scale); continue; }
     for(let r=0;r<ROWS;r++){
       const td=document.getElementById('c'+r+'_'+c); if(!td) continue;
       if(td.colSpan>1) continue;           // 横結合セルは列幅測定から除外
@@ -1907,7 +1907,7 @@ function autoFitSheet(){
   let total=0;
   for(let c=0;c<COLS;c++){
     const isTsVal=(tableMode==='tanisuiryou' && c===1);
-    const w=colWidths[c] ? colWidths[c] : Math.min(Math.max(baseW,need[c]), isTsVal?tsValMaxW:maxW);
+    const w=colWidths[c] ? Math.round(colWidths[c]*scale) : Math.min(Math.max(baseW,need[c]), isTsVal?tsValMaxW:maxW);
     total+=w;
     const ch=document.getElementById('ch'+c); if(!ch) continue;
     // 単位水量モードは「項目」列を可変にして余白を吸収させ、行番号列を狭いまま保つ
@@ -1935,8 +1935,8 @@ function autoFitSheet(){
 /* ── 列幅・行高の手動変更（表の端をドラッグ／スライド） ── */
 const COL_MIN=30,  COL_MAX=400;
 const ROW_MIN=22,  ROW_MAX=200;
-let colWidths={};   // c -> px（手動指定）
-let rowHeights={};  // r -> px（手動指定）
+let colWidths={};   // c -> px（手動指定。倍率100%基準で保存し、適用時に cellScale を掛ける）
+let rowHeights={};  // r -> px（手動指定。同上）
 function saveSheetSizes(){
   localStorage.setItem('excalc_colwidths', JSON.stringify(colWidths));
   localStorage.setItem('excalc_rowheights', JSON.stringify(rowHeights));
@@ -1952,7 +1952,8 @@ function applyRowHeight(r,h){
   }
 }
 function applyRowHeights(){
-  for(let r=0;r<ROWS;r++) applyRowHeight(r, rowHeights[r]);
+  const scale=cellScale||1;
+  for(let r=0;r<ROWS;r++) applyRowHeight(r, rowHeights[r]?Math.round(rowHeights[r]*scale):null);
 }
 function makeColGrip(th,c){
   const g=document.createElement('div'); g.className='col-grip'; g.title='ドラッグで列幅を変更';
@@ -1976,7 +1977,7 @@ function makeColGrip(th,c){
     for(let i=0;i<COLS;i++){
       const ch=document.getElementById('ch'+i);
       const w=Math.round(ch.getBoundingClientRect().width);
-      ch.style.width=w+'px'; colWidths[i]=w; frozen+=w;
+      ch.style.width=w+'px'; colWidths[i]=w/(cellScale||1); frozen+=w;   // 保存は100%基準
     }
     t.style.width=frozen+'px';
     const startX=e.clientX;
@@ -1984,7 +1985,7 @@ function makeColGrip(th,c){
     const move=ev=>{
       let w=Math.round(startW+(ev.clientX-startX));
       w=Math.max(COL_MIN, Math.min(COL_MAX, w));
-      colWidths[c]=w;
+      colWidths[c]=w/(cellScale||1);   // 保存は100%基準（表示は実px）
       const ch=document.getElementById('ch'+c); if(ch) ch.style.width=w+'px';
       let tot=48; for(let i=0;i<COLS;i++) tot+=parseFloat(document.getElementById('ch'+i).style.width)||0;
       t.style.width=tot+'px';
@@ -2026,7 +2027,7 @@ function makeRowGrip(rh,r){
     const move=ev=>{
       let h=Math.round(startH+(ev.clientY-startY));
       h=Math.max(ROW_MIN, Math.min(ROW_MAX, h));
-      rowHeights[r]=h; applyRowHeight(r,h);
+      rowHeights[r]=h/(cellScale||1); applyRowHeight(r,h);   // 保存は100%基準（表示は実px）
     };
     const end=()=>{
       g.removeEventListener('pointermove',move);
@@ -5283,6 +5284,17 @@ if(localStorage.getItem('excalc_cellsize_default_v4')!=='1'){
     sc=(!isNaN(idx)&&SIZE_STEPS[idx])?SIZE_STEPS[idx]:1.2;
   }
   cellScale=Math.max(CELL_SCALE_MIN, Math.min(CELL_SCALE_MAX, sc));
+}
+/* 手動の列幅・行高を「倍率100%基準」に一度だけ換算（旧版は実pxで保存していたため、
+   現在の倍率で割って見た目のサイズを維持したまま基準値化する） */
+if(localStorage.getItem('excalc_sheetsizes_base_v1')!=='1'){
+  const s=cellScale||1;
+  if(s!==1 && (Object.keys(colWidths).length||Object.keys(rowHeights).length)){
+    for(const k in colWidths) colWidths[k]=colWidths[k]/s;
+    for(const k in rowHeights) rowHeights[k]=rowHeights[k]/s;
+    saveSheetSizes();
+  }
+  localStorage.setItem('excalc_sheetsizes_base_v1','1');
 }
 applyCellSize();
 const savedInfoSize=parseInt(localStorage.getItem('excalc_infosize'));
