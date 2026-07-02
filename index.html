@@ -922,6 +922,20 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 }
 .yz-calc:hover { background: #6a1b9a; }
 .yz-status { font-size: calc(10px * var(--info-scale, 1)); opacity: 0.85; flex-basis: 100%; }
+
+/* ── PDF出力（印刷）用の表示 ── */
+#printArea { display: none; }
+@media print {
+  body > *:not(#printArea) { display: none !important; }
+  #printArea { display: block !important; color: #000; }
+  #printArea .pa-title { font-size: 16px; font-weight: bold; margin: 0 0 8px; }
+  #printArea .pa-date  { font-size: 11px; color: #555; margin: 0 0 10px; }
+  #printArea table { border-collapse: collapse; width: 100%; }
+  #printArea th, #printArea td { border: 1px solid #888; padding: 4px 7px; font-size: 12px; }
+  #printArea thead th, #printArea tbody th { background: #eee; text-align: center; font-weight: bold; }
+  #printArea td.num { text-align: right; }
+  @page { margin: 12mm; }
+}
 </style>
 </head>
 <body>
@@ -1004,6 +1018,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="sc-help sc-half" onclick="exportCSV()">📄 CSV出力</button>
     <button class="sc-help sc-half" onclick="document.getElementById('importCSVInput').click()" title="CSVファイルを現在の表に読み込みます（上書き）">📥 CSV読込</button>
     <input id="importCSVInput" type="file" accept=".csv,text/csv" style="display:none" onchange="importCSV(event)">
+    <button class="sc-help" onclick="exportPDF()" title="今の表を印刷画面から「PDFに保存」で書き出せます">🖨 PDF出力（印刷）</button>
     <button class="sc-help" id="keypadEditBtn" onclick="toggleKeypadEdit()" title="テンキーのボタンをドラッグして好きな位置に入れ替えます（同じ大きさのボタン同士）">🔧 テンキーのボタン配置を編集</button>
     <button class="sc-help" onclick="openModeVis()" title="「モード」一覧に表示する標準モードを選びます">🔀 モードの表示/非表示</button>
     <button class="sc-help" onclick="openCalcTmpl()" title="いろいろな計算のひな形を選んで、値を入れるだけの状態にします">📋 計算テンプレ</button>
@@ -1423,6 +1438,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li">各データの<b>🔓ロック</b>をタップすると🔒保護され、誤って削除・改名できなくなります（もう一度タップで解除）。</div>
         <div class="help-li"><b>↩戻る／↪進む</b>：直前の入力を元に戻す／やり直す</div>
         <div class="help-li"><b>📄 CSV出力</b>：表をCSVファイルに書き出し　<b>📥 CSV読込</b>：CSVファイルを今の表に読み込み（上書き）。文字コード（UTF-8／Shift_JIS）は自動判別するのでExcelのCSVもそのまま読めます。どちらも詳細設定内にあります。</div>
+        <div class="help-li"><b>🖨 PDF出力（印刷）</b>（詳細設定内）：今の表を見やすい形に整えて印刷画面を開きます。印刷先で<b>「PDFに保存」</b>を選べばPDFファイルとして書き出せます。</div>
         <div class="help-li"><b>🌙</b>：ダークモード切替　<b>リセット</b>：今のモードの内容を消去</div>
       </div>
     </div>
@@ -2171,6 +2187,40 @@ function exportCSV() {
     download:`表電卓_${new Date().toLocaleDateString('ja-JP').replace(/\//g,'-')}.csv`
   });
   a.click(); URL.revokeObjectURL(url);
+}
+
+/* ── PDF出力：印刷用の見やすい表を作り、ブラウザの印刷（→「PDFに保存」）を開く ── */
+function exportPDF(){
+  let pa=document.getElementById('printArea');
+  if(!pa){ pa=document.createElement('div'); pa.id='printArea'; document.body.appendChild(pa); }
+  const title = (typeof modeDisplayName==='function' && tableMode!=='normal') ? `表電卓 － ${modeDisplayName(tableMode)}` : '表電卓';
+  let html=`<div class="pa-title">${escHtml(title)}</div><div class="pa-date">${new Date().toLocaleString('ja-JP')}</div>`;
+  html+='<table><thead><tr><th></th>';
+  for(let c=0;c<COLS;c++) html+=`<th>${ALPHA[c]}</th>`;
+  html+='</tr></thead><tbody>';
+  for(let r=0;r<ROWS;r++){
+    html+=`<tr><th>${r+1}</th>`;
+    for(let c=0;c<COLS;c++){
+      const td=document.getElementById(`c${r}_${c}`);
+      const disp = td ? td.textContent : '';
+      const s=cellStyles[`${r},${c}`]||{};
+      let st='';
+      if(s.bold)      st+='font-weight:bold;';
+      if(s.italic)    st+='font-style:italic;';
+      if(s.underline) st+='text-decoration:underline;';
+      if(s.color)     st+='color:'+s.color+';';
+      if(s.bg)        st+='background:'+s.bg+';';
+      let cls='';
+      if(s.align) st+='text-align:'+s.align+';';
+      else if(disp!=='' && !isNaN(disp.replace(/,/g,''))) cls='num';   // 数値は右寄せ
+      html+=`<td class="${cls}" style="${st}">${escHtml(disp)}</td>`;
+    }
+    html+='</tr>';
+  }
+  html+='</tbody></table>';
+  pa.innerHTML=html;
+  const sp=document.getElementById('settingsPanel'); if(sp&&sp.classList.contains('open')) toggleSettings();
+  setTimeout(()=>{ try{ window.print(); }catch(e){ alert('印刷を開けませんでした'); } }, 120);
 }
 
 /* ── CSVインポート（現在の表に読み込み・上書き） ── */
