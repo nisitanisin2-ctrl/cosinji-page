@@ -180,64 +180,65 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
 .btn-reset  { background: #a93226; }
 .btn-reset:hover { background: #c0392b; }
 
-/* 設定は保存リストと同じモーダル（別ウィンドウ）で表示する。
-   中身の緑背景・白文字ボタンはそのまま活かすため、本体を緑にしている。 */
-.settings-modal { max-height: 85vh; max-height: 85dvh; width: 94%; }
-.settings-body {
-  background: #1a5c35;
-  padding: 10px;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px 8px;
-  align-content: flex-start;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  flex: 1;
+/* 設定：タブ式のモーダル。「表・見た目・計算・データ」の4タブに分類し、
+   1行に1項目の白いカードで見やすくする */
+.settings-modal { max-height: 88vh; max-height: 88dvh; width: 94%; }
+.settings-tabbar { display: flex; gap: 5px; padding: 8px 10px 0; background: #f0f0f0; flex-shrink: 0; }
+.settings-tab {
+  flex: 1; background: var(--save-item-bg); color: var(--text-light);
+  border: 1px solid var(--save-item-border); border-bottom: none;
+  border-radius: 8px 8px 0 0; padding: 9px 2px;
+  font-size: 12.5px; font-weight: bold; cursor: pointer;
+  white-space: nowrap; touch-action: manipulation;
 }
-.sc { display: flex; align-items: center; gap: 3px; color: white; flex: 1 1 40%; justify-content: center; }
-.sc-label { font-size: 10px; opacity: 0.8; margin-right: 1px; }
-.sc-val   { font-size: 13px; font-weight: bold; min-width: 22px; text-align: center; }
-/* 小数・税率・テンキー・画面幅の折りたたみ */
-.sc-toggle {
-  flex-basis: 100%; text-align: left;
-  background: transparent; color: white;
-  border: 1px dashed rgba(255,255,255,0.4); border-radius: 4px;
-  padding: 3px 8px; font-size: 11px; font-weight: bold;
+.settings-tab.active { background: #217346; color: #fff; border-color: #217346; }
+.settings-body {
+  background: #f0f0f0;
+  padding: 10px; overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1;
+}
+body.dark .settings-tabbar, body.dark .settings-body { background: #141d33; }
+.set-page { display: none; }
+.set-page.open { display: block; }
+.set-sec { font-size: 11.5px; font-weight: bold; color: var(--text-light); margin: 10px 4px 6px; }
+.set-sec:first-child { margin-top: 0; }
+.set-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: var(--modal-bg); border: 1px solid var(--save-item-border);
+  border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+}
+.set-label { font-size: 14px; font-weight: bold; color: var(--text); }
+.set-label small { display: block; font-size: 10.5px; font-weight: normal; color: var(--text-light); margin-top: 2px; }
+.set-stepper { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.step-btn {
+  width: 40px; height: 36px; border: none; border-radius: 6px;
+  background: #217346; color: #fff; font-size: 18px; font-weight: bold;
+  line-height: 1; cursor: pointer; touch-action: manipulation;
+}
+.step-btn:active { background: #1a5c35; }
+.sc-val { font-size: 13px; font-weight: bold; min-width: 22px; text-align: center; }   /* 単位水量設定でも使用 */
+.set-row .sc-val { min-width: 46px; font-size: 15px; color: var(--text); }
+/* 設定内のアクションボタン（1行1項目のカード型）。on=有効状態、armed=長押し成立 */
+.set-act {
+  display: flex; justify-content: space-between; align-items: center; width: 100%;
+  border: 1px solid var(--save-item-border); border-radius: 8px;
+  background: var(--modal-bg); padding: 12px; margin-bottom: 8px;
+  font-size: 13.5px; font-weight: bold; color: var(--text); text-align: left;
   cursor: pointer; touch-action: manipulation;
 }
-.sc-toggle:hover { background: rgba(255,255,255,0.08); }
-.sc-adv { display: none; flex-basis: 100%; flex-wrap: wrap; gap: 6px 8px; }
-.sc-adv.open { display: flex; }
-.btn-rc {
-  background: rgba(255,255,255,0.18);
-  color: white;
-  border: 1px solid rgba(255,255,255,0.35);
-  border-radius: 4px;
-  width: 24px; height: 22px;
-  font-size: 15px; font-weight: bold;
-  line-height: 1; cursor: pointer;
-  touch-action: manipulation;
-}
-.btn-rc:hover { background: rgba(255,255,255,0.32); }
-/* 既定の行数・列数に戻すボタン（長押しで既定値を設定） */
-.btn-default-size {
-  background: rgba(255,255,255,0.18); color: white;
-  border: 1px solid rgba(255,255,255,0.35); border-radius: 4px;
-  padding: 3px 8px; margin-left: 6px; font-size: 11px; font-weight: bold;
-  line-height: 1; cursor: pointer; touch-action: manipulation; white-space: nowrap;
-}
-.btn-default-size:hover { background: rgba(255,255,255,0.32); }
-.btn-default-size.armed { background: rgba(255,255,255,0.45); box-shadow: inset 0 0 0 1.5px #f1c40f; }
-/* 行・列の挿入／削除ボタン（設定パネル内） */
+.set-act::after { content: "›"; color: var(--text-light); font-size: 17px; margin-left: 6px; }
+.set-act:hover { background: var(--cell-hover); }
+.set-act.on { box-shadow: inset 0 0 0 2px #217346; }
+.set-act.armed { box-shadow: inset 0 0 0 2px #f1c40f; }
+/* 行・列の挿入／削除など、緑＋赤の2つ並びボタン */
+.set-pair { display: flex; gap: 8px; margin-bottom: 8px; }
 .btn-ins, .btn-del {
-  color:#fff; border:none; border-radius:5px; padding:4px 8px;
-  font-size:11px; font-weight:bold; cursor:pointer; touch-action:manipulation;
+  flex: 1; color:#fff; border:none; border-radius:8px; padding:12px 8px;
+  font-size:13.5px; font-weight:bold; cursor:pointer; touch-action:manipulation;
   white-space:nowrap;
 }
-.btn-ins { background:#1a6b3a; }
+.btn-ins { background:#217346; }
 .btn-ins:active { background:#0f4a26; }
-.btn-del { background:#a93226; }
+.btn-del { background:#c0392b; }
 .btn-del:active { background:#7d2017; }
 /* 簡易トースト通知 */
 .app-toast {
@@ -716,18 +717,6 @@ body.mode-reordering .mode-item { touch-action: none; }
 .mode-vis-item input { width: 20px; height: 20px; flex-shrink: 0; accent-color: #217346; }
 .mode-vis-item.locked { opacity: 0.55; cursor: default; }
 
-/* ── 設定内「説明書」ボタン ── */
-.sc-help {
-  flex: 1 1 100%;
-  background: rgba(255,255,255,0.18); color: white;
-  border: 1px solid rgba(255,255,255,0.4); border-radius: 5px;
-  padding: 7px; font-size: 12.5px; font-weight: bold;
-  cursor: pointer; touch-action: manipulation; margin-top: 2px;
-}
-.sc-help:hover { background: rgba(255,255,255,0.32); }
-.sc-help.sc-half { flex: 1 1 44%; }
-.sc-help.on { background: rgba(255,255,255,0.4); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.6); }
-
 /* ── 説明書ページ ── */
 .help-modal { max-width: 460px; max-height: 85vh; }
 .help-sec { margin-bottom: 15px; }
@@ -968,80 +957,86 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <span>⚙ 設定</span>
     <button class="modal-close" onclick="toggleSettings()">✕</button>
   </div>
+  <div class="settings-tabbar">
+    <button class="settings-tab active" onclick="setSettingsTab(0)">📐 表</button>
+    <button class="settings-tab" onclick="setSettingsTab(1)">🎨 見た目</button>
+    <button class="settings-tab" onclick="setSettingsTab(2)">🧮 計算</button>
+    <button class="settings-tab" onclick="setSettingsTab(3)">📄 データ</button>
+  </div>
   <div class="settings-body">
-  <div class="sc">
-    <span class="sc-label">行</span>
-    <button class="btn-rc" onclick="changeRows(-1)">−</button>
-    <span class="sc-val" id="rowCount">15</span>
-    <button class="btn-rc" onclick="changeRows(1)">+</button>
-  </div>
-  <div class="sc">
-    <span class="sc-label">列</span>
-    <button class="btn-rc" onclick="changeCols(-1)">−</button>
-    <span class="sc-val" id="colCount">3</span>
-    <button class="btn-rc" onclick="changeCols(1)">+</button>
-    <button class="btn-default-size" id="defaultSizeBtn" title="タップで既定の行数・列数に／長押しで既定値を設定">▦ デフォルト</button>
-  </div>
-  <div class="sc">
-    <span class="sc-label">行操作</span>
-    <button class="btn-ins" onclick="insertRowAtSel()" title="選択セルの上に行を挿入">＋上に追加</button>
-    <button class="btn-del" onclick="deleteRowAtSel()" title="選択セルの行を削除">行を削除</button>
-  </div>
-  <div class="sc">
-    <span class="sc-label">列操作</span>
-    <button class="btn-ins" onclick="insertColAtSel()" title="選択セルの左に列を挿入">＋左に追加</button>
-    <button class="btn-del" onclick="deleteColAtSel()" title="選択セルの列を削除">列を削除</button>
-  </div>
-  <div class="sc">
-    <span class="sc-label">セル文字</span>
-    <button class="btn-rc" onclick="changeCellSize(-1)">−</button>
-    <span class="sc-val" id="cellSize">120%</span>
-    <button class="btn-rc" onclick="changeCellSize(1)">+</button>
-  </div>
-  <div class="sc">
-    <span class="sc-label">小計文字</span>
-    <button class="btn-rc" onclick="changeInfoSize(-1)">−</button>
-    <span class="sc-val" id="infoSize">標準</span>
-    <button class="btn-rc" onclick="changeInfoSize(1)">+</button>
-  </div>
-  <button class="sc-toggle" id="scAdvToggle" onclick="toggleScAdv()">▸ 詳細設定（小数・税率・テンキー・画面幅・配置編集・モード表示・ナイト・CSV）</button>
-  <div class="sc-adv" id="scAdvGroup">
-    <div class="sc">
-      <span class="sc-label">小数</span>
-      <button class="btn-rc" onclick="changeDec(-1)">−</button>
-      <span class="sc-val" id="decCount">自</span>
-      <button class="btn-rc" onclick="changeDec(1)">+</button>
+
+  <div class="set-page open" id="setPage0">
+    <div class="set-sec">行と列の数</div>
+    <div class="set-row">
+      <span class="set-label">行の数</span>
+      <span class="set-stepper"><button class="step-btn" onclick="changeRows(-1)">−</button><span class="sc-val" id="rowCount">15</span><button class="step-btn" onclick="changeRows(1)">＋</button></span>
     </div>
-    <div class="sc">
-      <span class="sc-label">税率</span>
-      <button class="btn-rc" onclick="changeTax(-1)">−</button>
-      <span class="sc-val" id="taxRate">10%</span>
-      <button class="btn-rc" onclick="changeTax(1)">+</button>
+    <div class="set-row">
+      <span class="set-label">列の数</span>
+      <span class="set-stepper"><button class="step-btn" onclick="changeCols(-1)">−</button><span class="sc-val" id="colCount">3</span><button class="step-btn" onclick="changeCols(1)">＋</button></span>
     </div>
-    <div class="sc">
-      <span class="sc-label">テンキー</span>
-      <button class="btn-rc" onclick="changeKeySize(-1)">−</button>
-      <span class="sc-val" id="keySize">大</span>
-      <button class="btn-rc" onclick="changeKeySize(1)">+</button>
+    <button class="set-act" id="defaultSizeBtn" title="タップで既定の行数・列数に／長押しで既定値を設定">▦ 既定の行数・列数にもどす</button>
+    <div class="set-sec">選択中のセルの行・列</div>
+    <div class="set-pair">
+      <button class="btn-ins" onclick="insertRowAtSel()" title="選択セルの上に行を挿入">＋ 上に行を追加</button>
+      <button class="btn-del" onclick="deleteRowAtSel()" title="選択セルの行を削除">行を削除</button>
     </div>
-    <div class="sc">
-      <span class="sc-label">画面幅</span>
-      <button class="btn-rc" onclick="changeAppWidth(-1)">−</button>
-      <span class="sc-val" id="appWidth">全幅</span>
-      <button class="btn-rc" onclick="changeAppWidth(1)">+</button>
+    <div class="set-pair">
+      <button class="btn-ins" onclick="insertColAtSel()" title="選択セルの左に列を挿入">＋ 左に列を追加</button>
+      <button class="btn-del" onclick="deleteColAtSel()" title="選択セルの列を削除">列を削除</button>
     </div>
-    <button class="sc-help" id="darkBtn" onclick="toggleDark()">🌙 ナイトモード</button>
-    <button class="sc-help sc-half" onclick="exportCSV()">📄 CSV出力</button>
-    <button class="sc-help sc-half" onclick="document.getElementById('importCSVInput').click()" title="CSVファイルを現在の表に読み込みます（上書き）">📥 CSV読込</button>
+  </div>
+
+  <div class="set-page" id="setPage1">
+    <div class="set-sec">文字の大きさ</div>
+    <div class="set-row">
+      <span class="set-label">セルの文字</span>
+      <span class="set-stepper"><button class="step-btn" onclick="changeCellSize(-1)">−</button><span class="sc-val" id="cellSize">120%</span><button class="step-btn" onclick="changeCellSize(1)">＋</button></span>
+    </div>
+    <div class="set-row">
+      <span class="set-label">小計の文字</span>
+      <span class="set-stepper"><button class="step-btn" onclick="changeInfoSize(-1)">−</button><span class="sc-val" id="infoSize">標準</span><button class="step-btn" onclick="changeInfoSize(1)">＋</button></span>
+    </div>
+    <div class="set-sec">画面とテンキー</div>
+    <div class="set-row">
+      <span class="set-label">画面の幅</span>
+      <span class="set-stepper"><button class="step-btn" onclick="changeAppWidth(-1)">−</button><span class="sc-val" id="appWidth">全幅</span><button class="step-btn" onclick="changeAppWidth(1)">＋</button></span>
+    </div>
+    <div class="set-row">
+      <span class="set-label">テンキーの大きさ</span>
+      <span class="set-stepper"><button class="step-btn" onclick="changeKeySize(-1)">−</button><span class="sc-val" id="keySize">大</span><button class="step-btn" onclick="changeKeySize(1)">＋</button></span>
+    </div>
+    <button class="set-act" id="darkBtn" onclick="toggleDark()">🌙 ナイトモード</button>
+    <button class="set-act" id="numpadToggleBtn" onclick="toggleNumpad()">⌨ テンキー非表示</button>
+    <button class="set-act" id="keypadEditBtn" onclick="toggleKeypadEdit()" title="テンキーのボタンをドラッグして好きな位置に入れ替えます（同じ大きさのボタン同士）">🔧 テンキーのボタン配置を編集</button>
+  </div>
+
+  <div class="set-page" id="setPage2">
+    <div class="set-sec">計算のしかた</div>
+    <div class="set-row">
+      <span class="set-label">小数点以下の桁数<small>「自」は自動</small></span>
+      <span class="set-stepper"><button class="step-btn" onclick="changeDec(-1)">−</button><span class="sc-val" id="decCount">自</span><button class="step-btn" onclick="changeDec(1)">＋</button></span>
+    </div>
+    <div class="set-row">
+      <span class="set-label">消費税の税率</span>
+      <span class="set-stepper"><button class="step-btn" onclick="changeTax(-1)">−</button><span class="sc-val" id="taxRate">10%</span><button class="step-btn" onclick="changeTax(1)">＋</button></span>
+    </div>
+    <div class="set-sec">ひな形（テンプレ）とモード</div>
+    <button class="set-act" onclick="openCalcTmpl()" title="いろいろな計算のひな形を選んで、値を入れるだけの状態にします">📋 計算テンプレ</button>
+    <button class="set-act" onclick="openFinTmpl()" title="損益計算書・貸借対照表・収支計算書のかんたんなひな形">📑 決算書テンプレ</button>
+    <button class="set-act" onclick="openModeVis()" title="「モード」一覧に表示する標準モードを選びます">🔀 モードの表示/非表示</button>
+  </div>
+
+  <div class="set-page" id="setPage3">
+    <div class="set-sec">書き出し・読み込み</div>
+    <button class="set-act" onclick="exportPDF()" title="今の表を印刷画面から「PDFに保存」で書き出せます">🖨 PDF出力（印刷）</button>
+    <button class="set-act" onclick="exportCSV()">📄 CSV出力</button>
+    <button class="set-act" onclick="document.getElementById('importCSVInput').click()" title="CSVファイルを現在の表に読み込みます（上書き）">📥 CSV読込</button>
     <input id="importCSVInput" type="file" accept=".csv,text/csv" style="display:none" onchange="importCSV(event)">
-    <button class="sc-help" onclick="exportPDF()" title="今の表を印刷画面から「PDFに保存」で書き出せます">🖨 PDF出力（印刷）</button>
-    <button class="sc-help" id="keypadEditBtn" onclick="toggleKeypadEdit()" title="テンキーのボタンをドラッグして好きな位置に入れ替えます（同じ大きさのボタン同士）">🔧 テンキーのボタン配置を編集</button>
-    <button class="sc-help" onclick="openModeVis()" title="「モード」一覧に表示する標準モードを選びます">🔀 モードの表示/非表示</button>
-    <button class="sc-help sc-half" onclick="openCalcTmpl()" title="いろいろな計算のひな形を選んで、値を入れるだけの状態にします">📋 計算テンプレ</button>
-    <button class="sc-help sc-half" onclick="openFinTmpl()" title="損益計算書・貸借対照表・収支計算書のかんたんなひな形">📑 決算書テンプレ</button>
+    <div class="set-sec">ヘルプ</div>
+    <button class="set-act" onclick="openHelp()">📖 説明書（使い方）</button>
   </div>
-  <button class="sc-help" id="numpadToggleBtn" onclick="toggleNumpad()">⌨ テンキー非表示</button>
-  <button class="sc-help" onclick="openHelp()">📖 説明書（使い方）</button>
+
   </div>
  </div>
 </div>
@@ -1445,8 +1440,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><b>容積</b>：縦×横×高さ＝容積　<b>予算配分</b>：予算と個数から最適な購入数</div>
         <div class="help-li"><b>時間計算</b>：開始〜終了の時刻から所要時間</div>
         <div class="help-li"><b>単位水量</b>：土研法エアメータ法で生コンの単位水量を推定。表に配合（単位水量W1・セメント・細骨材・粗骨材・混和材・配合空気量）と試験値（容器容積V・容器質量・容器+試料・測定空気量）を入力すると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で単位水量を推定し、配合値との差を許容差（合格±/限界±、下のバーで変更可）で合否判定します。配合の質量はkg/m³、試験の容器容積・容器質量・容器+試料はg・ccで入力。</div>
-        <div class="help-li"><b>📋 計算テンプレ</b>（詳細設定内）：割引・消費税・BMI・速さ・電気代・面積・ローンなど、よくある計算の<b>ひな形</b>を選ぶと、項目名と計算式が入った表になります。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
-        <div class="help-li"><b>📑 決算書テンプレ</b>（詳細設定内）：損益計算書・貸借対照表・収支計算書の<b>かんたんなひな形</b>です。黄色のセルに金額を入れると、利益や合計・検算（貸借の差額）が自動で出ます。</div>
+        <div class="help-li"><b>📋 計算テンプレ</b>（設定の「計算」タブ）：割引・消費税・BMI・速さ・電気代・面積・ローンなど、よくある計算の<b>ひな形</b>を選ぶと、項目名と計算式が入った表になります。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
+        <div class="help-li"><b>📑 決算書テンプレ</b>（設定の「計算」タブ）：損益計算書・貸借対照表・収支計算書の<b>かんたんなひな形</b>です。黄色のセルに金額を入れると、利益や合計・検算（貸借の差額）が自動で出ます。</div>
       </div>
 
       <div class="help-sec">
@@ -1468,8 +1463,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li">リスト画面いちばん下の<b>⬇書き出し</b>で保存データをファイルに出力 → 別の端末・ブラウザで<b>⬆読み込み</b>すると復元できます（バックアップ・引っ越し用）。</div>
         <div class="help-li">各データの<b>🔓ロック</b>をタップすると🔒保護され、誤って削除・改名できなくなります（もう一度タップで解除）。</div>
         <div class="help-li"><b>↩戻る／↪進む</b>：直前の入力を元に戻す／やり直す</div>
-        <div class="help-li"><b>📄 CSV出力</b>：表をCSVファイルに書き出し　<b>📥 CSV読込</b>：CSVファイルを今の表に読み込み（上書き）。文字コード（UTF-8／Shift_JIS）は自動判別するのでExcelのCSVもそのまま読めます。どちらも詳細設定内にあります。</div>
-        <div class="help-li"><b>🖨 PDF出力（印刷）</b>（詳細設定内）：今の表を見やすい形に整えて印刷画面を開きます。印刷先で<b>「PDFに保存」</b>を選べばPDFファイルとして書き出せます。</div>
+        <div class="help-li"><b>📄 CSV出力</b>：表をCSVファイルに書き出し　<b>📥 CSV読込</b>：CSVファイルを今の表に読み込み（上書き）。文字コード（UTF-8／Shift_JIS）は自動判別するのでExcelのCSVもそのまま読めます。どちらも設定の「データ」タブにあります。</div>
+        <div class="help-li"><b>🖨 PDF出力（印刷）</b>（設定の「データ」タブ）：今の表を見やすい形に整えて印刷画面を開きます。印刷先で<b>「PDFに保存」</b>を選べばPDFファイルとして書き出せます。</div>
         <div class="help-li"><b>🌙</b>：ダークモード切替　<b>リセット</b>：今のモードの内容を消去</div>
       </div>
     </div>
@@ -4757,15 +4752,14 @@ function toggleSettings() {
   const panel=document.getElementById('settingsPanel'), btn=document.getElementById('settingsBtn');
   const open=panel.classList.toggle('open'); btn.classList.toggle('open',open);
 }
-/* 小数・税率・テンキー・画面幅をまとめて折りたたみ（設定パネルをコンパクトに） */
-let scAdvOpen=false;
-function applyScAdv(){
-  const g=document.getElementById('scAdvGroup'), b=document.getElementById('scAdvToggle');
-  if(g) g.classList.toggle('open', scAdvOpen);
-  if(b) b.textContent=(scAdvOpen?'▾':'▸')+' 詳細設定（小数・税率・テンキー・画面幅・配置編集・モード表示・ナイト・CSV）';
-  localStorage.setItem('excalc_scadv_open', scAdvOpen?'1':'0');
+/* 設定のタブ切替（表・見た目・計算・データ）。開いたタブを記憶する */
+let settingsTab=0;
+function setSettingsTab(i){
+  settingsTab=i;
+  document.querySelectorAll('.settings-tab').forEach((b,idx)=>b.classList.toggle('active',idx===i));
+  for(let p=0;p<4;p++){ const el=document.getElementById('setPage'+p); if(el) el.classList.toggle('open',p===i); }
+  localStorage.setItem('excalc_settings_tab',String(i));
 }
-function toggleScAdv(){ scAdvOpen=!scAdvOpen; applyScAdv(); }
 function openHelp(){ document.getElementById('helpOverlay').classList.add('open'); }
 function closeHelp(){ document.getElementById('helpOverlay').classList.remove('open'); }
 
@@ -5608,8 +5602,7 @@ bindKeypadDrag();
 loadUserKeys();
 renderUserKeys();
 loadSaveTabNames();
-scAdvOpen=localStorage.getItem('excalc_scadv_open')==='1';
-applyScAdv();
+setSettingsTab(Math.min(3,Math.max(0,parseInt(localStorage.getItem('excalc_settings_tab')||'0',10)||0)));
 if(localStorage.getItem('excalc_trigmode')==='rad') trigMode='rad';
 applyTrigModeBtn();
 restoreSheetSizes();
