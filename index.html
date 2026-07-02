@@ -3508,7 +3508,7 @@ function bs() {
   }
   if (editBlocked()) return;
   cellEditing=true;
-  disp_val=disp_val.length>1?disp_val.slice(0,-1):'0'; refreshDisp();
+  disp_val=disp_val.length>1?disp_val.slice(0,-1):''; refreshDisp();
 }
 function toggleSign() {
   if (formulaEditMode) { numpadAppend('-'); return; }
@@ -3650,9 +3650,11 @@ function toCell() {
     setCellVal(selR,selC,v);
     advanceRowOrAdd(); return;
   }
-  const commitVal=(waiting&&op1!==null)?fmtNum(op1):(disp_val==='Error'?'':disp_val);
+  if (cellEditing) {
+    const commitVal=(waiting&&op1!==null)?fmtNum(op1):(disp_val==='Error'?'':disp_val);
+    setCellVal(selR,selC,commitVal);
+  }
   cellEditing=false; op1=null; cur_op=null; waiting=false;
-  setCellVal(selR,selC,commitVal);
   if (modeAdvance()) return;
   advanceRowOrAdd();
 }
