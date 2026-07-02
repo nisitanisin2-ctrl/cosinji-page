@@ -1315,7 +1315,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li">上部の入力欄から直接入力／編集もできます。</div>
         <div class="help-li">列見出し（A,B…）や行番号をタップすると、その列・行を選択して下に合計が出ます。</div>
         <div class="help-li"><b>列見出しの右端／行番号の下端をドラッグ</b>すると、その列の幅・行の高さを個別に変更できます（ダブルタップで自動に戻す）。</div>
-        <div class="help-li"><b>左上のコーナー（⤢）をスワイプ</b>すると、セル全体の大きさをまとめて変更できます（右下方向で拡大／左上方向で縮小。ダブルタップで100%に戻す）。設定の<b>「セル文字」</b>の＋−でも変更できます。</div>
+        <div class="help-li"><b>左上のコーナー（⤢）をスワイプ</b>、または表の上で<b>2本指ピンチ</b>すると、セル全体の大きさ（表示倍率）をまとめて変更できます（コーナーはダブルタップで100%に戻す）。設定の<b>「セル文字」</b>の＋−でも変更できます。</div>
       </div>
 
       <div class="help-sec">
@@ -4769,6 +4769,7 @@ document.querySelector('.stats-section').addEventListener('click', e=>{
 /* ── フィル機能（長押し→スライドでコピー） ── */
 let fillMode=false, fillSrcR=-1, fillSrcC=-1, fillEndR=-1, fillEndC=-1;
 let fillTimer=null, fillTouchX=0, fillTouchY=0;
+let pinchZooming=false;   // 2本指ピンチでセル倍率を変更中（他のタッチ処理を抑止）
 
 function startFillPress(e,r,c) {
   if(e.touches.length!==1) return;
@@ -4844,13 +4845,47 @@ document.getElementById('sheet').addEventListener('touchstart',e=>{
   startFillPress(e,r,c);
 },{passive:true});
 document.addEventListener('touchmove',e=>{
+  if(pinchZooming) return;
   if(sumSelectMode){ if(e.touches[0]) sumPointerMove(e.touches[0],e); return; }
   onFillTouchMove(e);
 },{passive:false});
 document.addEventListener('touchend',e=>{
+  if(pinchZooming) return;
   if(sumSelectMode){ sumPointerUp(e); return; }
   onFillTouchEnd(e);
 },{passive:false});
+
+/* ── ピンチ操作（2本指）でセルの表示倍率を変更 ── */
+(function setupPinchZoom(){
+  const wrap=document.querySelector('.sheet-wrap'); if(!wrap) return;
+  let startDist=1, startScale=1, raf=0, pending=1;
+  const dist=t=>Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY);
+  wrap.addEventListener('touchstart', e=>{
+    if(e.touches.length===2){
+      pinchZooming=true;
+      startDist=dist(e.touches)||1; startScale=cellScale; pending=cellScale;
+      if(fillTimer!==null){ clearTimeout(fillTimer); fillTimer=null; }   // 進行中のフィル長押しを取消
+      if(fillMode){ clearFillPreview(); fillMode=false; }
+      e.preventDefault();
+    }
+  }, {passive:false});
+  wrap.addEventListener('touchmove', e=>{
+    if(pinchZooming && e.touches.length>=2){
+      e.preventDefault();
+      pending=startScale * (dist(e.touches)/startDist);
+      if(!raf) raf=requestAnimationFrame(()=>{ raf=0; setCellScale(pending, false); });
+    }
+  }, {passive:false});
+  const endPinch=e=>{
+    if(!pinchZooming) return;
+    if(e.touches && e.touches.length>=2) return;   // まだ2本以上残っている
+    pinchZooming=false;
+    if(raf){ cancelAnimationFrame(raf); raf=0; }
+    setCellScale(cellScale, true);                 // 最終値を保存
+  };
+  wrap.addEventListener('touchend', endPinch);
+  wrap.addEventListener('touchcancel', endPinch);
+})();
 
 /* マウス(PC)でのΣスライド範囲指定 */
 document.getElementById('sheet').addEventListener('mousedown',e=>{
