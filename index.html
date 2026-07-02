@@ -930,9 +930,9 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   #printArea { display: block !important; color: #000; }
   #printArea .pa-title { font-size: 16px; font-weight: bold; margin: 0 0 8px; }
   #printArea .pa-date  { font-size: 11px; color: #555; margin: 0 0 10px; }
-  #printArea table { border-collapse: collapse; width: 100%; }
-  #printArea th, #printArea td { border: 1px solid #888; padding: 4px 7px; font-size: 12px; }
-  #printArea thead th, #printArea tbody th { background: #eee; text-align: center; font-weight: bold; }
+  #printArea table { border-collapse: separate; border-spacing: 0; width: 100%; }
+  #printArea td { border: 1px solid transparent; padding: 4px 7px; font-size: 12px; }
+  #printArea td.filled { border-color: #000; }
   #printArea td.num { text-align: right; }
   @page { margin: 12mm; }
 }
@@ -2208,11 +2208,9 @@ function exportPDF(){
   if(!pa){ pa=document.createElement('div'); pa.id='printArea'; document.body.appendChild(pa); }
   const title = (typeof modeDisplayName==='function' && tableMode!=='normal') ? `表電卓 － ${modeDisplayName(tableMode)}` : '表電卓';
   let html=`<div class="pa-title">${escHtml(title)}</div><div class="pa-date">${new Date().toLocaleString('ja-JP')}</div>`;
-  html+='<table><thead><tr><th></th>';
-  for(let c=0;c<COLS;c++) html+=`<th>${ALPHA[c]}</th>`;
-  html+='</tr></thead><tbody>';
+  html+='<table><tbody>';
   for(let r=0;r<ROWS;r++){
-    html+=`<tr><th>${r+1}</th>`;
+    html+='<tr>';
     for(let c=0;c<COLS;c++){
       const td=document.getElementById(`c${r}_${c}`);
       const disp = td ? td.textContent : '';
@@ -2223,9 +2221,9 @@ function exportPDF(){
       if(s.underline) st+='text-decoration:underline;';
       if(s.color)     st+='color:'+s.color+';';
       if(s.bg)        st+='background:'+s.bg+';';
-      let cls='';
+      let cls=disp!=='' ? 'filled' : '';
       if(s.align) st+='text-align:'+s.align+';';
-      else if(disp!=='' && !isNaN(disp.replace(/,/g,''))) cls='num';   // 数値は右寄せ
+      else if(disp!=='' && !isNaN(disp.replace(/,/g,''))) cls+=' num';   // 数値は右寄せ
       html+=`<td class="${cls}" style="${st}">${escHtml(disp)}</td>`;
     }
     html+='</tr>';
