@@ -221,6 +221,15 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
   touch-action: manipulation;
 }
 .btn-rc:hover { background: rgba(255,255,255,0.32); }
+/* 既定の行数・列数に戻すボタン（長押しで既定値を設定） */
+.btn-default-size {
+  background: rgba(255,255,255,0.18); color: white;
+  border: 1px solid rgba(255,255,255,0.35); border-radius: 4px;
+  padding: 3px 8px; margin-left: 6px; font-size: 11px; font-weight: bold;
+  line-height: 1; cursor: pointer; touch-action: manipulation; white-space: nowrap;
+}
+.btn-default-size:hover { background: rgba(255,255,255,0.32); }
+.btn-default-size.armed { background: rgba(255,255,255,0.45); box-shadow: inset 0 0 0 1.5px #f1c40f; }
 /* 行・列の挿入／削除ボタン（設定パネル内） */
 .btn-ins, .btn-del {
   color:#fff; border:none; border-radius:5px; padding:4px 8px;
@@ -465,6 +474,9 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
   background: #217346; color: #fff; cursor: pointer; touch-action: manipulation;
 }
 .regpick-save:hover { background: #28935a; }
+/* デフォルト行数・列数の設定ダイアログ */
+.defsize-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; color: var(--text); font-size: 14px; font-weight: bold; }
+.defsize-input { width: 90px; padding: 9px 10px; font-size: 16px; text-align: center; border: 1px solid var(--save-item-border); border-radius: 6px; background: var(--cell-bg, #fff); color: var(--text); }
 .regpick-hint { font-size: 11px; color: var(--text-light); margin: -2px 0 10px; }
 .regpick-toggle {
   display: flex; align-items: center; justify-content: space-between; width: 100%;
@@ -919,6 +931,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="btn-rc" onclick="changeCols(-1)">−</button>
     <span class="sc-val" id="colCount">3</span>
     <button class="btn-rc" onclick="changeCols(1)">+</button>
+    <button class="btn-default-size" id="defaultSizeBtn" title="タップで既定の行数・列数に／長押しで既定値を設定">▦ デフォルト</button>
   </div>
   <div class="sc">
     <span class="sc-label">行操作</span>
@@ -1228,6 +1241,21 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   </div>
 </div>
 
+<div class="modal-overlay" id="defaultSizeOverlay" onclick="if(event.target===this)closeDefaultSizeDlg()">
+  <div class="modal">
+    <div class="modal-header">
+      <span>デフォルトの行数・列数</span>
+      <button class="modal-close" onclick="closeDefaultSizeDlg()">✕</button>
+    </div>
+    <div class="mode-hint">「▦ デフォルト」ボタンをタップしたときに設定する行数・列数を指定します。</div>
+    <div class="modal-body">
+      <div class="defsize-row"><label for="defRowsInput">行数（1〜50）</label><input type="number" id="defRowsInput" class="defsize-input" min="1" max="50" inputmode="numeric"></div>
+      <div class="defsize-row"><label for="defColsInput">列数（1〜26）</label><input type="number" id="defColsInput" class="defsize-input" min="1" max="26" inputmode="numeric"></div>
+      <button class="regpick-save" style="width:100%;padding:10px;margin-top:6px" onclick="saveDefaultSize()">この内容で保存</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modeMenuOverlay" onclick="if(event.target===this)closeModeMenu()">
   <div class="modal">
     <div class="modal-header">
@@ -1343,6 +1371,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <div class="help-sec">
         <div class="help-h">⚙️ 設定（このパネル）</div>
         <div class="help-li"><b>行／列</b>：表の大きさ　<b>小数</b>：小数点以下の桁（自＝自動）</div>
+        <div class="help-li"><b>▦ デフォルト</b>：タップすると決めておいた行数・列数に一発で変更。<b>長押し</b>すると既定の行数・列数を設定する画面が開きます。</div>
         <div class="help-li"><b>税率</b>：消費税モードの税率</div>
         <div class="help-li"><b>テンキー／セル文字／小計文字</b>：各文字サイズ</div>
         <div class="help-li"><b>🔧 テンキーのボタン配置を編集</b>：押すと編集モードになり、テンキーのボタンをドラッグして好きな位置に入れ替えできます（同じ大きさのボタン同士。Enter・0は固定）。<b>関数ページも編集可能</b>（編集中もEnter上のフリックでページを移動できます）。配置は自動保存され、編集バーの「↺初期化」で両ページを元に戻せます。</div>
@@ -2196,6 +2225,58 @@ function changeCols(delta) {
   buildSheet(); sel(selR,Math.min(selC,COLS-1));
   persistModes();
 }
+
+/* ── デフォルトの行数・列数（「▦ デフォルト」ボタン） ── */
+function getDefaultRows(){ const v=parseInt(localStorage.getItem('excalc_default_rows')); return (!isNaN(v)&&v>=1&&v<=50)?v:15; }
+function getDefaultCols(){ const v=parseInt(localStorage.getItem('excalc_default_cols')); return (!isNaN(v)&&v>=1&&v<=26)?v:3; }
+/* 既定の行数・列数に設定し直す */
+function applyDefaultSize(){
+  if(isStructMode()){ toast('このモードでは行・列数を変更できません'); return; }
+  ROWS=getDefaultRows(); COLS=getDefaultCols();
+  document.getElementById('rowCount').textContent=ROWS;
+  document.getElementById('colCount').textContent=COLS;
+  localStorage.setItem('excalc_rows',ROWS);
+  localStorage.setItem('excalc_cols',COLS);
+  buildSheet();
+  sel(Math.min(selR,ROWS-1), Math.min(selC,COLS-1));
+  persistModes();
+  toast(`${ROWS}行×${COLS}列にしました`);
+}
+function openDefaultSizeDlg(){
+  document.getElementById('defRowsInput').value=getDefaultRows();
+  document.getElementById('defColsInput').value=getDefaultCols();
+  document.getElementById('defaultSizeOverlay').classList.add('open');
+}
+function closeDefaultSizeDlg(){ document.getElementById('defaultSizeOverlay').classList.remove('open'); }
+function saveDefaultSize(){
+  let r=parseInt(document.getElementById('defRowsInput').value);
+  let c=parseInt(document.getElementById('defColsInput').value);
+  if(isNaN(r)) r=15; r=Math.max(1,Math.min(50,r));
+  if(isNaN(c)) c=3;  c=Math.max(1,Math.min(26,c));
+  localStorage.setItem('excalc_default_rows',r);
+  localStorage.setItem('excalc_default_cols',c);
+  closeDefaultSizeDlg();
+  toast(`デフォルトを${r}行×${c}列に設定しました`);
+}
+/* タップ＝デフォルト適用／長押し＝既定値の設定ダイアログ */
+(function setupDefaultSizeBtn(){
+  const b=document.getElementById('defaultSizeBtn'); if(!b) return;
+  let timer=null, longed=false, sx=0, sy=0, down=false;
+  const clear=()=>{ if(timer){ clearTimeout(timer); timer=null; } };
+  b.addEventListener('pointerdown', e=>{
+    down=true; longed=false; sx=e.clientX; sy=e.clientY; clear();
+    timer=setTimeout(()=>{ longed=true; b.classList.add('armed'); if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} }, 500);
+  });
+  b.addEventListener('pointermove', e=>{ if(down && Math.hypot(e.clientX-sx,e.clientY-sy)>10) clear(); });
+  b.addEventListener('pointerup', ()=>{
+    if(!down) return;
+    clear(); const wasLong=longed; down=false; longed=false; b.classList.remove('armed');
+    if(wasLong){ setTimeout(openDefaultSizeDlg, 160); return; }   // 長押し→離してから設定ダイアログ（合成クリック対策）
+    applyDefaultSize();
+  });
+  b.addEventListener('pointercancel', ()=>{ clear(); down=false; longed=false; b.classList.remove('armed'); });
+  b.addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); }, true);  // pointerで処理
+})();
 
 /* ── 行・列の挿入／削除 ── */
 /* 簡易トースト通知 */
