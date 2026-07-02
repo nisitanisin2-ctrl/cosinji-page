@@ -1021,7 +1021,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="sc-help" onclick="exportPDF()" title="今の表を印刷画面から「PDFに保存」で書き出せます">🖨 PDF出力（印刷）</button>
     <button class="sc-help" id="keypadEditBtn" onclick="toggleKeypadEdit()" title="テンキーのボタンをドラッグして好きな位置に入れ替えます（同じ大きさのボタン同士）">🔧 テンキーのボタン配置を編集</button>
     <button class="sc-help" onclick="openModeVis()" title="「モード」一覧に表示する標準モードを選びます">🔀 モードの表示/非表示</button>
-    <button class="sc-help" onclick="openCalcTmpl()" title="いろいろな計算のひな形を選んで、値を入れるだけの状態にします">📋 計算テンプレ</button>
+    <button class="sc-help sc-half" onclick="openCalcTmpl()" title="いろいろな計算のひな形を選んで、値を入れるだけの状態にします">📋 計算テンプレ</button>
+    <button class="sc-help sc-half" onclick="openFinTmpl()" title="損益計算書・貸借対照表・収支計算書のかんたんなひな形">📑 決算書テンプレ</button>
   </div>
   <button class="sc-help" id="numpadToggleBtn" onclick="toggleNumpad()">⌨ テンキー非表示</button>
   <button class="sc-help" onclick="openHelp()">📖 説明書（使い方）</button>
@@ -1324,6 +1325,17 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   </div>
 </div>
 
+<div class="modal-overlay" id="finTmplOverlay" onclick="if(event.target===this)closeFinTmpl()">
+  <div class="modal">
+    <div class="modal-header">
+      <span>📑 決算書テンプレ</span>
+      <button class="modal-close" onclick="closeFinTmpl()">✕</button>
+    </div>
+    <div class="mode-hint">かんたんな決算書類のひな形です。<b>黄色のセル</b>に金額を入れると、利益や合計・検算が自動で出ます（今の表は上書きされます）。</div>
+    <div class="modal-body" id="finTmplBody"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="regPickOverlay" onclick="if(event.target===this)closeRegPick()">
   <div class="modal">
     <div class="modal-header">
@@ -1416,6 +1428,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><b>時間計算</b>：開始〜終了の時刻から所要時間</div>
         <div class="help-li"><b>単位水量</b>：土研法エアメータ法で生コンの単位水量を推定。表に配合（単位水量W1・セメント・細骨材・粗骨材・混和材・配合空気量）と試験値（容器容積V・容器質量・容器+試料・測定空気量）を入力すると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で単位水量を推定し、配合値との差を許容差（合格±/限界±、下のバーで変更可）で合否判定します。配合の質量はkg/m³、試験の容器容積・容器質量・容器+試料はg・ccで入力。</div>
         <div class="help-li"><b>📋 計算テンプレ</b>（詳細設定内）：割引・消費税・BMI・速さ・電気代・面積・ローンなど、よくある計算の<b>ひな形</b>を選ぶと、項目名と計算式が入った表になります。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
+        <div class="help-li"><b>📑 決算書テンプレ</b>（詳細設定内）：損益計算書・貸借対照表・収支計算書の<b>かんたんなひな形</b>です。黄色のセルに金額を入れると、利益や合計・検算（貸借の差額）が自動で出ます。</div>
       </div>
 
       <div class="help-sec">
@@ -3823,10 +3836,12 @@ function renderCalcTmplBody(){
       <span class="mode-text"><span class="mode-name">${escHtml(t.name)}</span><span class="mode-desc">${escHtml(t.desc)}</span></span>
     </button>`).join('');
 }
-function applyCalcTemplate(id){
-  const t=CALC_TEMPLATES.find(x=>x.id===id); if(!t) return;
+function applyCalcTemplate(id){ const t=CALC_TEMPLATES.find(x=>x.id===id); if(t) applyTemplateObj(t, closeCalcTmpl); }
+/* テンプレを表に展開（計算テンプレ・決算書テンプレ共通）。
+   rows: [A列ラベル, B列値]。B列が null＝見出し行、'='始まり＝計算式、それ以外＝入力(黄色)。 */
+function applyTemplateObj(t, closeFn){
   if(!confirm(`「${t.name}」のテンプレートを読み込みますか？\n現在の表は上書きされます。`)) return;
-  closeCalcTmpl();
+  if(closeFn) closeFn();
   const sp=document.getElementById('settingsPanel'); if(sp&&sp.classList.contains('open')) toggleSettings();
   captureMode(tableMode);
   tableMode='normal';
@@ -3835,11 +3850,21 @@ function applyCalcTemplate(id){
   cellStyles={};
   let firstInput=-1;
   t.rows.forEach((row,i)=>{
-    data[i][0]=row[0]; cellStyles[`${i},0`]={bold:true};
-    data[i][1]=row[1]!=null?String(row[1]):'';
-    if(!String(data[i][1]).startsWith('=')){
-      cellStyles[`${i},1`]={bg:'#fff2b3'};                 // 入力セルは黄色で強調
-      if(firstInput<0 && data[i][1]==='') firstInput=i;    // 最初の空入力にカーソル
+    const label=row[0], v=row[1];
+    data[i][0]=label;
+    if(v===null){                                          // 見出し行（グレー背景・太字・入力なし）
+      cellStyles[`${i},0`]={bold:true, bg:'#e6e6e6'};
+      cellStyles[`${i},1`]={bg:'#e6e6e6'};
+      data[i][1]='';
+      return;
+    }
+    data[i][1]=String(v);
+    if(String(v).startsWith('=')){                         // 計算式行（合計・利益など）：太字
+      cellStyles[`${i},0`]={bold:true};
+      cellStyles[`${i},1`]={bold:true};
+    } else {                                               // 入力行：黄色で強調
+      cellStyles[`${i},1`]={bg:'#fff2b3'};
+      if(firstInput<0 && v==='') firstInput=i;             // 最初の空入力にカーソル
     }
   });
   ROWS=Math.max(2, Math.min(50, t.rows.length));
@@ -3853,6 +3878,36 @@ function applyCalcTemplate(id){
   persistModes();
   toast(`「${t.name}」を読み込みました。黄色のセルに値を入れてください`);
 }
+
+/* ── 決算書類テンプレ（かんたん） ── */
+const FINANCIAL_TEMPLATES=[
+  {id:'pl', icon:'📈', name:'損益計算書（かんたん）', desc:'売上から各段階の利益を自動計算', rows:[
+    ['売上高',''],['売上原価',''],['売上総利益','=B1-B2'],
+    ['販売費・一般管理費',''],['営業利益','=B3-B4'],
+    ['営業外収益',''],['営業外費用',''],['経常利益','=B5+B6-B7'],
+    ['特別利益',''],['特別損失',''],['税引前当期純利益','=B8+B9-B10'],
+    ['法人税等',''],['当期純利益','=B11-B12']]},
+  {id:'bs', icon:'⚖️', name:'貸借対照表（かんたん）', desc:'資産・負債・純資産の合計と検算', rows:[
+    ['【資産の部】',null],['流動資産',''],['固定資産',''],['資産合計','=B2+B3'],
+    ['【負債の部】',null],['流動負債',''],['固定負債',''],['負債合計','=B6+B7'],
+    ['【純資産の部】',null],['純資産',''],['負債・純資産合計','=B8+B10'],
+    ['差額（0ならOK）','=B4-B11']]},
+  {id:'income', icon:'💰', name:'収支計算書（かんたん）', desc:'収入と支出から利益（収支）を計算', rows:[
+    ['【収入】',null],['売上・収入',''],['その他収入',''],['収入合計','=B2+B3'],
+    ['【支出】',null],['仕入・材料費',''],['人件費',''],['その他経費',''],['支出合計','=B6+B7+B8'],
+    ['利益（収支）','=B4-B9']]},
+];
+function openFinTmpl(){ renderFinTmplBody(); document.getElementById('finTmplOverlay').classList.add('open'); }
+function closeFinTmpl(){ document.getElementById('finTmplOverlay').classList.remove('open'); }
+function renderFinTmplBody(){
+  const body=document.getElementById('finTmplBody'); if(!body) return;
+  body.innerHTML=FINANCIAL_TEMPLATES.map(t=>`
+    <button class="mode-item" onclick="applyFinTemplate('${t.id}')">
+      <span class="mode-ico">${t.icon}</span>
+      <span class="mode-text"><span class="mode-name">${escHtml(t.name)}</span><span class="mode-desc">${escHtml(t.desc)}</span></span>
+    </button>`).join('');
+}
+function applyFinTemplate(id){ const t=FINANCIAL_TEMPLATES.find(x=>x.id===id); if(t) applyTemplateObj(t, closeFinTmpl); }
 
 /* ── 保存リストから登録したカスタムモード（最大10個） ── */
 const CUSTOM_MODES_KEY='excalc_custommodes';
