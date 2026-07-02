@@ -1358,7 +1358,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 
       <div class="help-sec">
         <div class="help-h">✏️ 基本の使い方</div>
-        <div class="help-li">セルをタップして選び、テンキーで入力 → <b>Enter</b>で確定（下のセルへ移動）。</div>
+        <div class="help-li">セルをタップして選び、テンキーで入力 → <b>Enter</b>で確定（下のセルへ移動）。<b>いちばん下の行でEnter</b>を押すと、自動で<b>行が1つ追加</b>されて続けて入力できます（通常・簡易モード、最大50行）。</div>
         <div class="help-li">上部の入力欄から直接入力／編集もできます。</div>
         <div class="help-li">列見出し（A,B…）や行番号をタップすると、その列・行を選択して下に合計が出ます。</div>
         <div class="help-li"><b>列見出しの右端／行番号の下端をドラッグ</b>すると、その列の幅・行の高さを個別に変更できます（ダブルタップで自動に戻す）。</div>
@@ -3628,6 +3628,21 @@ function updateAutoSumBtn(){
   const b=document.getElementById('autoSumBtn'); if(b) b.textContent=(sumFunc==='AVERAGE'?'Σ平均':'Σ合計');
 }
 
+/* Enter確定後に下のセルへ移動。最終行なら（通常・簡易モードで50行未満のとき）
+   行を1つ追加してそこへ移動する。追加できない場合は入力をクリアするだけ。 */
+function advanceRowOrAdd(){
+  if (selR<ROWS-1){ sel(selR+1,selC); return; }
+  if (!isStructMode() && ROWS<50){
+    ROWS++;
+    document.getElementById('rowCount').textContent=ROWS;
+    localStorage.setItem('excalc_rows',ROWS);
+    buildSheet();
+    sel(selR+1,selC);
+    persistModes();
+    return;
+  }
+  ac();
+}
 function toCell() {
   if (editBlocked()) { if(formulaEditMode){ const fi=document.getElementById('formulaInput'); formulaEditMode=false; fi.classList.remove('formula-mode'); fi.value=data[selR][selC]; const el=document.getElementById(`c${selR}_${selC}`); if(el) el.textContent=getCellDisplay(selR,selC);} return; }
   if (formulaEditMode) {
@@ -3635,13 +3650,13 @@ function toCell() {
     const v=fi.value.trim();
     formulaEditMode=false; fi.classList.remove('formula-mode');
     setCellVal(selR,selC,v);
-    if (selR<ROWS-1) sel(selR+1,selC); else ac(); return;
+    advanceRowOrAdd(); return;
   }
   const commitVal=(waiting&&op1!==null)?fmtNum(op1):(disp_val==='Error'?'':disp_val);
   cellEditing=false; op1=null; cur_op=null; waiting=false;
   setCellVal(selR,selC,commitVal);
   if (modeAdvance()) return;
-  if (selR<ROWS-1) sel(selR+1,selC); else ac();
+  advanceRowOrAdd();
 }
 
 /* ── 数式バー ── */
@@ -3675,7 +3690,7 @@ function toCell() {
       fiDirty=false;   // ここで確定済み。blur での二重確定を防ぐ
       formulaEditMode=false; fi.classList.remove('formula-mode');
       setCellVal(selR,selC,fi.value.trim());
-      if(selR<ROWS-1) sel(selR+1,selC);
+      advanceRowOrAdd();   // 最終行なら行を追加して移動
       const tb=document.getElementById('textBtn'); if(tb) tb.classList.remove('text-on');
       fi.blur();
     }
