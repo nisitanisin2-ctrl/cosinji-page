@@ -1006,6 +1006,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <input id="importCSVInput" type="file" accept=".csv,text/csv" style="display:none" onchange="importCSV(event)">
     <button class="sc-help" id="keypadEditBtn" onclick="toggleKeypadEdit()" title="テンキーのボタンをドラッグして好きな位置に入れ替えます（同じ大きさのボタン同士）">🔧 テンキーのボタン配置を編集</button>
     <button class="sc-help" onclick="openModeVis()" title="「モード」一覧に表示する標準モードを選びます">🔀 モードの表示/非表示</button>
+    <button class="sc-help" onclick="openCalcTmpl()" title="いろいろな計算のひな形を選んで、値を入れるだけの状態にします">📋 計算テンプレ</button>
   </div>
   <button class="sc-help" id="numpadToggleBtn" onclick="toggleNumpad()">⌨ テンキー非表示</button>
   <button class="sc-help" onclick="openHelp()">📖 説明書（使い方）</button>
@@ -1297,6 +1298,17 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   </div>
 </div>
 
+<div class="modal-overlay" id="calcTmplOverlay" onclick="if(event.target===this)closeCalcTmpl()">
+  <div class="modal">
+    <div class="modal-header">
+      <span>📋 計算テンプレ</span>
+      <button class="modal-close" onclick="closeCalcTmpl()">✕</button>
+    </div>
+    <div class="mode-hint">やりたい計算を選ぶと、項目名と計算式が入った表になります。<b>黄色のセル</b>に値を入れるだけで答えが出ます（今の表は上書きされます）。</div>
+    <div class="modal-body" id="calcTmplBody"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="regPickOverlay" onclick="if(event.target===this)closeRegPick()">
   <div class="modal">
     <div class="modal-header">
@@ -1388,6 +1400,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><b>容積</b>：縦×横×高さ＝容積　<b>予算配分</b>：予算と個数から最適な購入数</div>
         <div class="help-li"><b>時間計算</b>：開始〜終了の時刻から所要時間</div>
         <div class="help-li"><b>単位水量</b>：土研法エアメータ法で生コンの単位水量を推定。表に配合（単位水量W1・セメント・細骨材・粗骨材・混和材・配合空気量）と試験値（容器容積V・容器質量・容器+試料・測定空気量）を入力すると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で単位水量を推定し、配合値との差を許容差（合格±/限界±、下のバーで変更可）で合否判定します。配合の質量はkg/m³、試験の容器容積・容器質量・容器+試料はg・ccで入力。</div>
+        <div class="help-li"><b>📋 計算テンプレ</b>（詳細設定内）：割引・消費税・BMI・速さ・電気代・面積・ローンなど、よくある計算の<b>ひな形</b>を選ぶと、項目名と計算式が入った表になります。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
       </div>
 
       <div class="help-sec">
@@ -3725,6 +3738,71 @@ const MODE_MENU=[
   {key:'jikan',   icon:'⏱', name:'時間計算', desc:'開始〜終了の時刻から何時間何分かを計算（合計も）'},
   {key:'tanisuiryou', icon:'💧', name:'単位水量', desc:'土研法エアメータ法で生コンの単位水量を推定（配合・試験値から算定し合否判定）'},
 ];
+
+/* ── 計算テンプレ：状況を選ぶと項目名＋計算式が入り、黄色セルに値を入れるだけ ──
+   各 rows は [A列=項目名, B列=値または数式('='始まり)]。B列が空＝入力セル（黄色）。 */
+const CALC_TEMPLATES=[
+  {id:'discount', icon:'🏷', name:'割引計算', desc:'元の値段と割引率から割引後の値段・割引額', rows:[
+    ['元の値段',''],['割引率(%)',''],['割引後の値段','=B1*(1-B2/100)'],['割引額','=B1-B3']]},
+  {id:'tax', icon:'🧾', name:'消費税（税抜→税込）', desc:'税抜価格と税率から税込価格・消費税額', rows:[
+    ['税抜価格',''],['税率(%)','10'],['税込価格','=B1*(1+B2/100)'],['消費税額','=B1*B2/100']]},
+  {id:'bmi', icon:'⚖️', name:'BMI', desc:'身長と体重からBMIを計算', rows:[
+    ['身長(cm)',''],['体重(kg)',''],['BMI','=B2/(B1/100)^2']]},
+  {id:'sdt', icon:'🚗', name:'速さ・距離・時間', desc:'距離と時間から速さ（km/h）', rows:[
+    ['距離(km)',''],['時間(時間)',''],['速さ(km/h)','=B1/B2']]},
+  {id:'power', icon:'💡', name:'電気代', desc:'消費電力・使用時間・単価から電気代', rows:[
+    ['消費電力(W)',''],['使用時間(h)',''],['単価(円/kWh)','31'],['電気代(円)','=B1/1000*B2*B3']]},
+  {id:'rect', icon:'⬛', name:'長方形の面積', desc:'縦×横で面積と周の長さ', rows:[
+    ['縦',''],['横',''],['面積','=B1*B2'],['周の長さ','=(B1+B2)*2']]},
+  {id:'circle', icon:'⚪', name:'円の面積・円周', desc:'半径から面積・円周', rows:[
+    ['半径',''],['面積','=B1^2*PI'],['円周','=2*B1*PI']]},
+  {id:'avg', icon:'📊', name:'合計・平均（3項目）', desc:'3つの値の合計と平均', rows:[
+    ['値1',''],['値2',''],['値3',''],['合計','=SUM(B1:B3)'],['平均','=AVERAGE(B1:B3)']]},
+  {id:'commission', icon:'💴', name:'歩合給', desc:'売上と歩合率から歩合給・合計支給', rows:[
+    ['売上',''],['歩合率(%)',''],['基本給',''],['歩合給','=B1*B2/100'],['合計支給','=B3+B4']]},
+  {id:'loan', icon:'🏦', name:'ローン毎月返済額', desc:'借入額・年利・年数から毎月返済額（元利均等）', rows:[
+    ['借入額',''],['年利(%)',''],['返済年数',''],['毎月返済額','=B1*(B2/100/12)/(1-(1+B2/100/12)^(0-B3*12))']]},
+];
+function openCalcTmpl(){ renderCalcTmplBody(); document.getElementById('calcTmplOverlay').classList.add('open'); }
+function closeCalcTmpl(){ document.getElementById('calcTmplOverlay').classList.remove('open'); }
+function renderCalcTmplBody(){
+  const body=document.getElementById('calcTmplBody'); if(!body) return;
+  body.innerHTML=CALC_TEMPLATES.map(t=>`
+    <button class="mode-item" onclick="applyCalcTemplate('${t.id}')">
+      <span class="mode-ico">${t.icon}</span>
+      <span class="mode-text"><span class="mode-name">${escHtml(t.name)}</span><span class="mode-desc">${escHtml(t.desc)}</span></span>
+    </button>`).join('');
+}
+function applyCalcTemplate(id){
+  const t=CALC_TEMPLATES.find(x=>x.id===id); if(!t) return;
+  if(!confirm(`「${t.name}」のテンプレートを読み込みますか？\n現在の表は上書きされます。`)) return;
+  closeCalcTmpl();
+  const sp=document.getElementById('settingsPanel'); if(sp&&sp.classList.contains('open')) toggleSettings();
+  captureMode(tableMode);
+  tableMode='normal';
+  document.body.classList.remove('simple-mode');
+  for(let r=0;r<50;r++) for(let c=0;c<26;c++) data[r][c]='';
+  cellStyles={};
+  let firstInput=-1;
+  t.rows.forEach((row,i)=>{
+    data[i][0]=row[0]; cellStyles[`${i},0`]={bold:true};
+    data[i][1]=row[1]!=null?String(row[1]):'';
+    if(!String(data[i][1]).startsWith('=')){
+      cellStyles[`${i},1`]={bg:'#fff2b3'};                 // 入力セルは黄色で強調
+      if(firstInput<0 && data[i][1]==='') firstInput=i;    // 最初の空入力にカーソル
+    }
+  });
+  ROWS=Math.max(2, Math.min(50, t.rows.length));
+  COLS=2;
+  localStorage.setItem('excalc_rows',ROWS); localStorage.setItem('excalc_cols',COLS);
+  hideAllBars();
+  syncRowColLabels();
+  buildSheet();
+  sel(firstInput>=0?firstInput:0, 1);
+  updateModeButton();
+  persistModes();
+  toast(`「${t.name}」を読み込みました。黄色のセルに値を入れてください`);
+}
 
 /* ── 保存リストから登録したカスタムモード（最大10個） ── */
 const CUSTOM_MODES_KEY='excalc_custommodes';
