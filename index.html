@@ -1396,7 +1396,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-h">💾 保存・その他（上部メニュー）</div>
         <div class="help-li"><b>保存</b>：名前を付けて保存　<b>リスト</b>：保存データを開く</div>
         <div class="help-li">保存したときの<b>モードも一緒に記録</b>され、読み込むとそのモード（単位水量など）で再現します。リストの各データにはモードのバッジが表示されます。</div>
-        <div class="help-li">リストの上に<b>🗂記録／📌タブ1／📌タブ2</b>の3つのタブがあります。保存した記録はまず<b>「記録」</b>タブに入り、各データの<b>タブ選択欄</b>でよく呼び出したい記録を<b>タブ1・タブ2</b>に振り分けて整理できます。タブは<b>長押し</b>で名前を変更できます（例：「現場A」「経理」）。</div>
+        <div class="help-li">リストの上に<b>🗂記録／📌タブ1／📌タブ2／🔀モード</b>の4つのタブがあります。保存した記録はまず<b>「記録」</b>タブに入り、各データの<b>タブ選択欄</b>でよく呼び出したい記録を<b>タブ1・タブ2</b>に振り分けて整理できます。タブは<b>長押し</b>で名前を変更できます（例：「現場A」「経理」）。</div>
+        <div class="help-li"><b>「モードへ」</b>で記録をモードに登録すると、その記録は自動で<b>「モード」タブ</b>へ移動し、誤って削除・改名・タブ移動できないよう<b>保護</b>されます（🔒ロックと同じ状態。手動での「モード」タブへの振り分けはできません）。</div>
         <div class="help-li">リスト画面いちばん下の<b>⬇書き出し</b>で保存データをファイルに出力 → 別の端末・ブラウザで<b>⬆読み込み</b>すると復元できます（バックアップ・引っ越し用）。</div>
         <div class="help-li">各データの<b>🔓ロック</b>をタップすると🔒保護され、誤って削除・改名できなくなります（もう一度タップで解除）。</div>
         <div class="help-li"><b>↩戻る／↪進む</b>：直前の入力を元に戻す／やり直す</div>
@@ -4464,9 +4465,29 @@ function registerSaveAsMode(id){
   };
   customModes.push({ key, name:entry.name, icon:'📋', rows:entry.rows||ROWS, sourceId:id });
   persistCustomModes();
+  // 登録した記録は保存リストの「モード」タブへ移動し、誤って削除・改名・移動できないよう保護する
+  entry.tab=SAVE_TAB_MODE; entry.locked=true;
+  persistSaves(saves);
   closeSaveList();
   switchMode(key);
-  toast(`「${entry.name}」をモードに登録しました`);
+  toast(`「${entry.name}」をモードに登録し、「${saveTabLabel(SAVE_TAB_MODE)}」タブへ移動・保護しました`);
+}
+/* 既にモード登録済みだが、旧仕様のため「モード」タブへ未移動・未保護のままの記録を
+   一度だけ揃える（この機能を追加する前から使っているユーザー向けの移行処理） */
+function migrateModeRegisteredSaves(){
+  if(localStorage.getItem('excalc_modetab_migrated_v1')==='1') return;
+  if(customModes.length){
+    const saves=getSaves();
+    let changed=false;
+    customModes.forEach(cm=>{
+      const entry=saves.find(s=>s.id===cm.sourceId);
+      if(entry && (entry.tab!==SAVE_TAB_MODE || !entry.locked)){
+        entry.tab=SAVE_TAB_MODE; entry.locked=true; changed=true;
+      }
+    });
+    if(changed) persistSaves(saves);
+  }
+  localStorage.setItem('excalc_modetab_migrated_v1','1');
 }
 /* 登録モードを解除（元の保存記録は消えない） */
 function removeCustomMode(key){
@@ -5007,17 +5028,20 @@ async function saveData() {
 /* 保存データ一覧のタブ（0=記録／1=タブ1／2=タブ2）。保存した記録はまず0（記録）に入り、
    よく呼び出したい記録はタブ1・タブ2に振り分けて整理できる。タブ名は長押しで変更可 */
 let saveActiveTab=0;
-const SAVE_TAB_DEF=['記録','タブ1','タブ2'];
-const SAVE_TAB_ICON=['🗂','📌','📌'];
-let saveTabNames=[null,null,null];   // null=既定名を使う
+/* タブ3「モード」は登録専用（モードへ登録した記録が自動で移動・保護される）。
+   名前は変更できるが、記録を手動でこのタブへ振り分けることはできない。 */
+const SAVE_TAB_DEF=['記録','タブ1','タブ2','モード'];
+const SAVE_TAB_ICON=['🗂','📌','📌','🔀'];
+const SAVE_TAB_MODE=3;
+let saveTabNames=[null,null,null,null];   // null=既定名を使う
 function loadSaveTabNames(){
   try{ const a=JSON.parse(localStorage.getItem('excalc_savetabnames'));
-    if(Array.isArray(a)) saveTabNames=[a[0]||null, a[1]||null, a[2]||null]; }catch(_){}
+    if(Array.isArray(a)) saveTabNames=SAVE_TAB_DEF.map((_,i)=>a[i]||null); }catch(_){}
 }
 function saveTabLabel(t){ return saveTabNames[t] || SAVE_TAB_DEF[t]; }
 function renderSaveTabBar(){
   const bar=document.getElementById('saveTabBar'); if(!bar) return;
-  bar.innerHTML=[0,1,2].map(t=>
+  bar.innerHTML=SAVE_TAB_DEF.map((_,t)=>
     `<button class="save-tab${t===saveActiveTab?' active':''}" data-tab="${t}">${SAVE_TAB_ICON[t]} ${escHtml(saveTabLabel(t))}</button>`
   ).join('');
 }
@@ -5053,7 +5077,8 @@ function setSaveTab(tab){
   renderSaveList();
 }
 function setSaveItemTab(id, tabStr){
-  const tab=parseInt(tabStr,10)||0;
+  let tab=parseInt(tabStr,10)||0;
+  if(tab===SAVE_TAB_MODE) tab=0;   // 「モード」タブへの手動振り分けは不可（登録時に自動で移動）
   const saves=getSaves();
   const entry=saves.find(s=>s.id===id); if(!entry) return;
   entry.tab=tab;
@@ -5086,7 +5111,8 @@ function renderSaveList() {
         <div class="save-name">${locked?'🔒 ':''}${escHtml(s.name)}</div>
         <div class="save-date">${new Date(s.timestamp).toLocaleString('ja-JP')}　${s.rows}行×${s.cols}列${modeBadge}</div>
       </div>
-      <select class="save-tab-select" onchange="setSaveItemTab(${s.id}, this.value)" title="振り分け先のタブを変更">
+      <select class="save-tab-select" onchange="setSaveItemTab(${s.id}, this.value)" title="振り分け先のタブを変更" ${locked?'disabled':''}>
+        ${tab===SAVE_TAB_MODE?`<option value="3" selected>${escHtml(saveTabLabel(3))}</option>`:''}
         <option value="0" ${tab===0?'selected':''}>${escHtml(saveTabLabel(0))}</option>
         <option value="1" ${tab===1?'selected':''}>${escHtml(saveTabLabel(1))}</option>
         <option value="2" ${tab===2?'selected':''}>${escHtml(saveTabLabel(2))}</option>
@@ -5334,6 +5360,7 @@ updateAutoSumBtn();
 
 /* 各モードの内容を復元（前回のモード・入力をリセットまで保持） */
 loadCustomModes();          // 登録モードの定義を先に読む（モード検証・表示に使う）
+migrateModeRegisteredSaves();   // 既存の登録モードを保存リストの「モード」タブへ移動・保護（一度だけ）
 loadModeOrder();            // モードの並び順を読む
 loadHiddenModes();          // モードの表示/非表示設定を読む
 restoreModeStore();
