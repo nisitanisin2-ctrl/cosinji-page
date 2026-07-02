@@ -268,6 +268,9 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
   cursor: pointer; font-weight: bold;
 }
 #cellRef:hover { background: var(--cell-hover); border-color: #217346; }
+/* 保護（ロック）されたセルを選択中：セル番号枠を赤系にして知らせる */
+#cellRef.locked-ref { background: #fdecea; color: #a93226; border-color: #c0392b; box-shadow: inset 0 0 0 1px #c0392b; }
+body.dark #cellRef.locked-ref { background: #3a1f1c; color: #f0a5a0; border-color: #c0392b; }
 #formulaInput {
   flex: 1; padding: 2px 6px;
   border: 1px solid var(--formula-border);
@@ -328,12 +331,12 @@ table.sheet { border-collapse: collapse; table-layout: fixed; width: 100%; }
   outline: none; background: var(--cell-bg);
   z-index: 1; position: relative;
 }
-/* ユーザーが保護（ロック）したセル */
+/* ユーザーが保護（ロック）したセル：セル内にはマークを表示しない。
+   保護中のセルを選択すると、右上のセル番号枠（#cellRef）の色が変わって知らせる。 */
 .cell.cell-locked { position: relative; }
-.cell.cell-locked::before {
-  content: '🔒'; position: absolute; top: 0; right: 1px;
-  font-size: 9px; line-height: 1; opacity: 0.5; pointer-events: none;
-}
+/* 長押しで保護を切替えられる状態（アーム）の見た目 */
+.cell.lock-arm  { box-shadow: inset 0 0 0 3px #c0392b; }
+.cell.setgs-arm { box-shadow: inset 0 0 0 3px #8e44ad; }
 /* 保護セルを編集しようとしたときの注意フラッシュ */
 .cell.cell-lock-flash { animation: lockFlash 0.35s ease; }
 @keyframes lockFlash {
@@ -1364,7 +1367,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <div class="help-sec">
         <div class="help-h">🎨 セルの書式</div>
         <div class="help-p">上部の「<b>A1</b>」（セル名）をタップすると、そのセルの小数点桁・太字/斜体/下線・文字色・背景色・大きさを変更できます。</div>
-        <div class="help-li"><b>🔒 保護</b>：書式パネルの「保護」をオンにすると、そのセルは編集できなくなります（🔒マークが付きます）。誤って消したくない値の固定に便利。解除はもう一度タップ。</div>
+        <div class="help-li"><b>🔒 保護</b>：<b>セルを長押し</b>すると保護のオン/オフを切替できます（動かさずに約1秒→枠が赤くなったら離す）。<b>さらに長く押し続ける</b>と枠が紫になり、離すと書式・保護の設定画面が開きます。保護中のセルはセル内にマークは付きませんが、選択すると右上のセル番号の枠が<b>赤</b>くなって知らせます。書式パネル（右上のセル名をタップ）の「保護」からも切替できます。</div>
       </div>
 
       <div class="help-sec">
@@ -3117,7 +3120,9 @@ function sel(r,c) {
 
   highlightCol(c,true);
   document.getElementById(`c${r}_${c}`).classList.add('active');
-  document.getElementById('cellRef').value=`${ALPHA[c]}${r+1}`;
+  const cref=document.getElementById('cellRef');
+  cref.value=`${ALPHA[c]}${r+1}`;
+  cref.classList.toggle('locked-ref', isLockedCell(r,c));   // 保護セルは枠の色で知らせる
   document.getElementById('formulaInput').value=data[r][c];
 
   const numV=getCellValue(r,c);
@@ -3752,6 +3757,24 @@ function isStructMode(){ return tableMode==='shopping'||tableMode==='warikan'||t
 function isUserLocked(r,c){
   const s=cellStyles[`${r},${c}`];
   return !!(s && s.locked);
+}
+/* 選択セルの保護（ロック）を切替（セルの長押しで使用） */
+function toggleUserLock(r,c){
+  if(isStructMode() && isStructLocked(r,c)){ toast('このモードの固定セルは保護を変更できません'); return; }
+  const k=`${r},${c}`;
+  const s=cellStyles[k] || (cellStyles[k]={});
+  s.locked=!s.locked;
+  const nowLocked=!!s.locked;
+  if(!s.locked) delete s.locked;
+  if(Object.keys(s).length===0) delete cellStyles[k];
+  if(nowLocked && r===selR && c===selC) cellEditing=false;
+  repaintCell(r,c);
+  if(r===selR && c===selC){
+    document.getElementById('cellRef').classList.toggle('locked-ref', isLockedCell(r,c));
+  }
+  persistModes();
+  toast(nowLocked ? `${ALPHA[c]}${r+1} を保護しました🔒` : `${ALPHA[c]}${r+1} の保護を解除しました`);
+  if(navigator.vibrate){ try{ navigator.vibrate(30); }catch(_){} }
 }
 /* 構造化モードの見出し行・自動計算列（選択そのものを禁止） */
 function isStructLocked(r,c){
@@ -4691,6 +4714,7 @@ function fmtLock(){
   if(!s.locked) delete s.locked;
   // ロック中のセルは選択中でも編集状態を解除
   if(fmtR===selR && fmtC===selC && s.locked) cellEditing=false;
+  if(fmtR===selR && fmtC===selC) document.getElementById('cellRef').classList.toggle('locked-ref', isLockedCell(selR,selC));
   repaintCell(fmtR,fmtC); syncCellFmt(); afterFmtChange();
 }
 function fmtClear(){
@@ -4795,22 +4819,66 @@ document.querySelector('.stats-section').addEventListener('click', e=>{
   setTimeout(()=>sv.classList.remove('stat-copied'),700);
 });
 
-/* ── フィル機能（長押し→スライドでコピー） ── */
+/* ── セルの長押し操作（フィル／保護／設定） ──
+   セルを押して…
+   ・動かす（スライド）→ フィル（値・数式を範囲コピー）
+   ・動かさず約1.0秒で「保護アーム」（赤枠）→ 離すと保護のオン/オフ切替
+   ・さらに動かさず約1.7秒で「設定アーム」（紫枠）→ 離すと書式・保護設定を開く */
 let fillMode=false, fillSrcR=-1, fillSrcC=-1, fillEndR=-1, fillEndC=-1;
-let fillTimer=null, fillTouchX=0, fillTouchY=0;
 let pinchZooming=false;   // 2本指ピンチでセル倍率を変更中（他のタッチ処理を抑止）
-
-function startFillPress(e,r,c) {
-  if(e.touches.length!==1) return;
-  fillTouchX=e.touches[0].clientX; fillTouchY=e.touches[0].clientY;
-  clearTimeout(fillTimer);
-  fillTimer=setTimeout(()=>{fillTimer=null; enterFillMode(r,c);},600);
+let fillJustCommitted=false;   // フィル/保護/設定の直後、1回だけクリック（セル選択）を抑止
+/* 段階的長押しの状態 */
+let lpR=-1, lpC=-1, lpX=0, lpY=0, lpMoved=false, lpStage=0;   // stage: 0=なし, 2=保護, 3=設定
+let lpFillTimer=null, lpLockTimer=null, lpSetgsTimer=null;
+const LP_FILL_MS=550, LP_LOCK_MS=1000, LP_SETGS_MS=1700, LP_MOVE_TOL=8;
+function lpClearTimers(){ clearTimeout(lpFillTimer); clearTimeout(lpLockTimer); clearTimeout(lpSetgsTimer); lpFillTimer=lpLockTimer=lpSetgsTimer=null; }
+function lpSetArmVisual(cls){
+  const el=document.getElementById(`c${lpR}_${lpC}`);
+  if(el){ el.classList.remove('lock-arm','setgs-arm'); if(cls) el.classList.add(cls); }
 }
-function enterFillMode(r,c) {
-  fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c;
-  const el=document.getElementById(`c${r}_${c}`); if(el) el.classList.add('fill-src');
-  document.body.classList.add('fill-active');   // ドラッグ中の文字選択を抑止
-  if(navigator.vibrate) navigator.vibrate(40);
+function lpClearArmVisual(){ const el=document.getElementById(`c${lpR}_${lpC}`); if(el) el.classList.remove('lock-arm','setgs-arm'); }
+function startCellPress(r,c,x,y){
+  lpR=r; lpC=c; lpX=x; lpY=y; lpMoved=false; lpStage=0;
+  lpClearTimers();
+  lpFillTimer=setTimeout(()=>{ lpFillTimer=null; if(!lpMoved){ fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; } }, LP_FILL_MS);
+  lpLockTimer=setTimeout(()=>{ lpLockTimer=null; if(lpMoved) return; lpStage=2; lpSetArmVisual('lock-arm'); if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} }, LP_LOCK_MS);
+  lpSetgsTimer=setTimeout(()=>{ lpSetgsTimer=null; if(lpMoved) return; lpStage=3; lpSetArmVisual('setgs-arm'); if(navigator.vibrate){try{navigator.vibrate([15,40,15]);}catch(_){}} }, LP_SETGS_MS);
+}
+function moveCellPress(x,y){
+  if(lpR<0) return false;
+  if(!lpMoved){
+    const dx=x-lpX, dy=y-lpY;
+    if(dx*dx+dy*dy>LP_MOVE_TOL*LP_MOVE_TOL){
+      lpMoved=true;
+      clearTimeout(lpLockTimer); clearTimeout(lpSetgsTimer); lpLockTimer=lpSetgsTimer=null;
+      lpStage=0; lpClearArmVisual();
+      if(fillMode){   // フィル成立：ここで初めて元セルを強調＆文字選択を抑止
+        const el=document.getElementById(`c${fillSrcR}_${fillSrcC}`); if(el) el.classList.add('fill-src');
+        document.body.classList.add('fill-active');
+        if(navigator.vibrate){try{navigator.vibrate(30);}catch(_){}}
+      }
+    }
+  }
+  if(fillMode && lpMoved){ fillUpdateTo(x,y); return true; }
+  return false;
+}
+function endCellPress(){
+  if(lpR<0) return;
+  const stage=lpStage, moved=lpMoved, r=lpR, c=lpC;
+  lpClearTimers(); lpClearArmVisual();
+  lpR=lpC=-1; lpStage=0; lpMoved=false;
+  if(fillMode && moved){ fillJustCommitted=true; commitFill(); return; }   // ドラッグ＝フィル確定
+  fillMode=false; document.body.classList.remove('fill-active');
+  fillSrcR=fillSrcC=fillEndR=fillEndC=-1;
+  if(stage===3){ fillJustCommitted=true; sel(r,c); openCellFmt(); return; }        // さらに長押し＝設定
+  if(stage===2){ fillJustCommitted=true; sel(r,c); toggleUserLock(r,c); return; }  // 長押し＝保護切替
+  // それ以外（短い押下・小移動）は通常のクリック（セル選択）に任せる
+}
+function cancelCellPress(){
+  lpClearTimers(); lpClearArmVisual();
+  if(fillMode){ clearFillPreview(); const el=document.getElementById(`c${fillSrcR}_${fillSrcC}`); if(el) el.classList.remove('fill-src'); document.body.classList.remove('fill-active'); }
+  fillMode=false; fillSrcR=fillSrcC=fillEndR=fillEndC=-1;
+  lpR=lpC=-1; lpStage=0; lpMoved=false;
 }
 /* 座標(clientX,clientY)のセルまでフィル範囲プレビューを更新（タッチ・マウス共通） */
 function fillUpdateTo(clientX, clientY){
@@ -4827,19 +4895,6 @@ function fillUpdateTo(clientX, clientY){
     if(row===fillSrcR&&col===fillSrcC) continue;
     const el=document.getElementById(`c${row}_${col}`); if(el) el.classList.add('fill-preview');
   }
-}
-function onFillTouchMove(e) {
-  if(fillTimer!==null&&e.touches.length===1){
-    const dx=e.touches[0].clientX-fillTouchX, dy=e.touches[0].clientY-fillTouchY;
-    if(dx*dx+dy*dy>64){clearTimeout(fillTimer);fillTimer=null;}
-  }
-  if(!fillMode||e.touches.length!==1) return;
-  e.preventDefault();
-  fillUpdateTo(e.touches[0].clientX, e.touches[0].clientY);
-}
-function onFillTouchEnd(e) {
-  if(fillTimer!==null){clearTimeout(fillTimer);fillTimer=null;}
-  if(!fillMode) return; e.preventDefault(); commitFill();
 }
 function clearFillPreview() {
   document.querySelectorAll('.fill-preview').forEach(el=>el.classList.remove('fill-preview'));
@@ -4876,18 +4931,23 @@ document.getElementById('sheet').addEventListener('touchstart',e=>{
   const m=td.id.match(/^c(\d+)_(\d+)$/); if(!m) return;
   const r=parseInt(m[1]),c=parseInt(m[2]);
   if(sumSelectMode){ sumPending=true; sumDragging=false; sumStartR=r; sumStartC=c; sumDownX=e.touches[0].clientX; sumDownY=e.touches[0].clientY; return; }
-  startFillPress(e,r,c);
+  if(e.touches.length!==1) return;
+  startCellPress(r,c,e.touches[0].clientX,e.touches[0].clientY);
 },{passive:true});
 document.addEventListener('touchmove',e=>{
   if(pinchZooming) return;
   if(sumSelectMode){ if(e.touches[0]) sumPointerMove(e.touches[0],e); return; }
-  onFillTouchMove(e);
+  if(lpR<0||e.touches.length!==1) return;
+  if(moveCellPress(e.touches[0].clientX, e.touches[0].clientY)) e.preventDefault();
 },{passive:false});
 document.addEventListener('touchend',e=>{
   if(pinchZooming) return;
   if(sumSelectMode){ sumPointerUp(e); return; }
-  onFillTouchEnd(e);
+  if(lpR<0) return;
+  if(fillMode&&lpMoved) e.preventDefault();
+  endCellPress();
 },{passive:false});
+document.addEventListener('touchcancel',()=>{ if(lpR>=0) cancelCellPress(); });
 
 /* ── ピンチ操作（2本指）でセルの表示倍率を変更 ── */
 (function setupPinchZoom(){
@@ -4898,8 +4958,7 @@ document.addEventListener('touchend',e=>{
     if(e.touches.length===2){
       pinchZooming=true;
       startDist=dist(e.touches)||1; startScale=cellScale; pending=cellScale;
-      if(fillTimer!==null){ clearTimeout(fillTimer); fillTimer=null; }   // 進行中のフィル長押しを取消
-      if(fillMode){ clearFillPreview(); fillMode=false; }
+      cancelCellPress();   // 進行中のセル長押し（フィル/保護/設定）を取消
       e.preventDefault();
     }
   }, {passive:false});
@@ -4931,37 +4990,22 @@ document.getElementById('sheet').addEventListener('mousedown',e=>{
 document.addEventListener('mousemove',e=>{ if(sumSelectMode&&sumPending) sumPointerMove(e,e); });
 document.addEventListener('mouseup',e=>{ if(sumSelectMode) sumPointerUp(e); });
 
-/* マウス(PC)でのフィル：セルを長くクリック(600ms)→色が変わりフィルモード→
-   ドラッグでその範囲へコピー（タッチの長押し→スライドと同じ操作をマウスでも可能に） */
-let fillMouseActive=false, fillJustCommitted=false;
+/* マウス(PC)でのセル長押し操作（タッチと共通の startCellPress/moveCellPress/endCellPress）：
+   長くクリック→動かせばフィル、動かさず保持で保護（さらに長く保持で設定） */
 document.getElementById('sheet').addEventListener('mousedown',e=>{
-  fillJustCommitted=false;                           // 新しい操作の開始で、前回フィルの抑止フラグを解除
+  fillJustCommitted=false;                           // 新しい操作の開始で、前回の抑止フラグを解除
   if(sumSelectMode) return;                          // Σ指定中はそちらを優先
   if(e.button!==undefined && e.button>0) return;     // 左ボタンのみ
   if(formulaEditMode) return;                        // 数式編集中は無効
   const td=e.target.closest&&e.target.closest('.cell'); if(!td) return;
   const m=td.id.match(/^c(\d+)_(\d+)$/); if(!m) return;
-  const r=parseInt(m[1]),c=parseInt(m[2]);
-  fillMouseActive=true; fillTouchX=e.clientX; fillTouchY=e.clientY;
-  clearTimeout(fillTimer);
-  fillTimer=setTimeout(()=>{ fillTimer=null; enterFillMode(r,c); }, 600);
+  startCellPress(parseInt(m[1]),parseInt(m[2]),e.clientX,e.clientY);
 });
 document.addEventListener('mousemove',e=>{
-  if(!fillMouseActive) return;
-  if(fillTimer!==null){                              // 長押し成立前に動いたら通常のクリック/選択扱い
-    const dx=e.clientX-fillTouchX, dy=e.clientY-fillTouchY;
-    if(dx*dx+dy*dy>64){ clearTimeout(fillTimer); fillTimer=null; }
-  }
-  if(!fillMode) return;
-  e.preventDefault();
-  fillUpdateTo(e.clientX, e.clientY);
+  if(lpR<0) return;
+  if(moveCellPress(e.clientX,e.clientY)) e.preventDefault();
 });
-document.addEventListener('mouseup',()=>{
-  if(!fillMouseActive) return;
-  fillMouseActive=false;
-  if(fillTimer!==null){ clearTimeout(fillTimer); fillTimer=null; }
-  if(fillMode){ fillJustCommitted=true; commitFill(); }   // 直後のクリック（セル選択）を1回抑止
-});
+document.addEventListener('mouseup',()=>{ if(lpR>=0) endCellPress(); });
 
 function sumPointerMove(pt,e){
   if(!sumPending) return;
