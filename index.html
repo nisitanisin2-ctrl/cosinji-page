@@ -436,6 +436,17 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
   }
   .numpad-resizer-grip { width: 5px; height: 46px; }   /* 横ドラッグでテンキー領域の幅を変更 */
   .numpad-viewport { flex: 1; min-width: 0; }
+  /* 横持ち：テンキーの高さを本体（画面）の高さに合わせる。
+     ボタンの高さはkey-scaleの上下パディングではなくグリッド行(1fr)で決めるので、
+     テンキーサイズの大小に関わらず全体がぴったり収まり、はみ出しも余白も出ない。 */
+  .numpad-grid { height: 100%; grid-auto-rows: 1fr; gap: 4px; }
+  .numpad-section .numpad-grid .btn {
+    padding-top: 2px; padding-bottom: 2px; min-height: 0;
+    font-size: clamp(10px, 5vh, 26px);
+  }
+  .numpad-section .numpad-grid .btn.fx,
+  .numpad-section .numpad-grid .btn.ubtn { font-size: clamp(9px, 3.6vh, 19px); }
+  .numpad-section .numpad-grid .btn.enter { font-size: clamp(12px, 6vh, 30px); }
 }
 /* テンキー：数字ページ(標準)は通常表示。関数電卓／関数記号／登録ページは
    数字ページの上に重なってスライドインするオーバーレイ（フリックで開閉） */
