@@ -549,6 +549,8 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
   box-shadow: inset 0 0 0 2px #f39c12;
 }
 .cell.fill-preview { background: #d5f5e3 !important; border-color: #27ae60 !important; }
+/* フィル中はマウスドラッグでの文字選択を抑止（PCでのコピー操作をスムーズに） */
+body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: none; }
 .cell.sum-range    { background: #c5e8f5 !important; border: 2px dashed #1a7fc1 !important; }
 .cell.shop-label   {
   background: #d5e8d4 !important;
@@ -1367,7 +1369,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 
       <div class="help-sec">
         <div class="help-h">📥 コピー操作</div>
-        <div class="help-li"><b>フィル</b>：セルを<b>長押し→スライド</b>で、その値（数式は自動でずらして）を隣へコピー。</div>
+        <div class="help-li"><b>フィル</b>：セルを<b>長押し→スライド</b>で、その値（数式は自動でずらして）を隣へコピー。パソコン（マウス）でも<b>セルを長めにクリックし続けると色が変わり、そのままドラッグ</b>すると同じようにコピーできます。</div>
         <div class="help-li"><b>コピペ</b>：セルを<b>2回タップ</b>でコピー → 別セルを2回タップで貼り付け。</div>
         <div class="help-li">PCでは Ctrl+C / Ctrl+V、元に戻すは Ctrl+Z。</div>
       </div>
@@ -1856,6 +1858,7 @@ function buildSheet() {
       });
       td.addEventListener('click', e => {
         if (e.shiftKey) return;
+        if (fillJustCommitted) { fillJustCommitted=false; return; }   // フィル確定直後のクリックは無視
         if (sumSuppressClick) { sumSuppressClick=false; return; }   // スライド直後のクリックは無視
         if (sumSelectMode) { applySumRangeFromCells(r,c,r,c); sumSelectMode=false; toCell(); return; } // Σ指定中：タップ=1セル範囲（指定後はEnterと同様に確定して通常モードに戻る）
         if (isStructLocked(r,c)) return;   // 見出し・自動計算列は選択不可（ユーザーロックは選択可＝解除のため）
@@ -4806,17 +4809,12 @@ function startFillPress(e,r,c) {
 function enterFillMode(r,c) {
   fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c;
   const el=document.getElementById(`c${r}_${c}`); if(el) el.classList.add('fill-src');
+  document.body.classList.add('fill-active');   // ドラッグ中の文字選択を抑止
   if(navigator.vibrate) navigator.vibrate(40);
 }
-function onFillTouchMove(e) {
-  if(fillTimer!==null&&e.touches.length===1){
-    const dx=e.touches[0].clientX-fillTouchX, dy=e.touches[0].clientY-fillTouchY;
-    if(dx*dx+dy*dy>64){clearTimeout(fillTimer);fillTimer=null;}
-  }
-  if(!fillMode||e.touches.length!==1) return;
-  e.preventDefault();
-  const t=e.touches[0];
-  const target=document.elementFromPoint(t.clientX,t.clientY); if(!target) return;
+/* 座標(clientX,clientY)のセルまでフィル範囲プレビューを更新（タッチ・マウス共通） */
+function fillUpdateTo(clientX, clientY){
+  const target=document.elementFromPoint(clientX,clientY); if(!target) return;
   const m=target.id?target.id.match(/^c(\d+)_(\d+)$/):null; if(!m) return;
   const r=parseInt(m[1]),c=parseInt(m[2]);
   const dr=Math.abs(r-fillSrcR),dc=Math.abs(c-fillSrcC);
@@ -4829,6 +4827,15 @@ function onFillTouchMove(e) {
     if(row===fillSrcR&&col===fillSrcC) continue;
     const el=document.getElementById(`c${row}_${col}`); if(el) el.classList.add('fill-preview');
   }
+}
+function onFillTouchMove(e) {
+  if(fillTimer!==null&&e.touches.length===1){
+    const dx=e.touches[0].clientX-fillTouchX, dy=e.touches[0].clientY-fillTouchY;
+    if(dx*dx+dy*dy>64){clearTimeout(fillTimer);fillTimer=null;}
+  }
+  if(!fillMode||e.touches.length!==1) return;
+  e.preventDefault();
+  fillUpdateTo(e.touches[0].clientX, e.touches[0].clientY);
 }
 function onFillTouchEnd(e) {
   if(fillTimer!==null){clearTimeout(fillTimer);fillTimer=null;}
@@ -4847,6 +4854,7 @@ function adjustFormula(formula,dr,dc) {
 }
 function commitFill() {
   fillMode=false;
+  document.body.classList.remove('fill-active');
   const srcEl=document.getElementById(`c${fillSrcR}_${fillSrcC}`);
   if(srcEl) srcEl.classList.remove('fill-src');
   clearFillPreview();
@@ -4922,6 +4930,38 @@ document.getElementById('sheet').addEventListener('mousedown',e=>{
 });
 document.addEventListener('mousemove',e=>{ if(sumSelectMode&&sumPending) sumPointerMove(e,e); });
 document.addEventListener('mouseup',e=>{ if(sumSelectMode) sumPointerUp(e); });
+
+/* マウス(PC)でのフィル：セルを長くクリック(600ms)→色が変わりフィルモード→
+   ドラッグでその範囲へコピー（タッチの長押し→スライドと同じ操作をマウスでも可能に） */
+let fillMouseActive=false, fillJustCommitted=false;
+document.getElementById('sheet').addEventListener('mousedown',e=>{
+  fillJustCommitted=false;                           // 新しい操作の開始で、前回フィルの抑止フラグを解除
+  if(sumSelectMode) return;                          // Σ指定中はそちらを優先
+  if(e.button!==undefined && e.button>0) return;     // 左ボタンのみ
+  if(formulaEditMode) return;                        // 数式編集中は無効
+  const td=e.target.closest&&e.target.closest('.cell'); if(!td) return;
+  const m=td.id.match(/^c(\d+)_(\d+)$/); if(!m) return;
+  const r=parseInt(m[1]),c=parseInt(m[2]);
+  fillMouseActive=true; fillTouchX=e.clientX; fillTouchY=e.clientY;
+  clearTimeout(fillTimer);
+  fillTimer=setTimeout(()=>{ fillTimer=null; enterFillMode(r,c); }, 600);
+});
+document.addEventListener('mousemove',e=>{
+  if(!fillMouseActive) return;
+  if(fillTimer!==null){                              // 長押し成立前に動いたら通常のクリック/選択扱い
+    const dx=e.clientX-fillTouchX, dy=e.clientY-fillTouchY;
+    if(dx*dx+dy*dy>64){ clearTimeout(fillTimer); fillTimer=null; }
+  }
+  if(!fillMode) return;
+  e.preventDefault();
+  fillUpdateTo(e.clientX, e.clientY);
+});
+document.addEventListener('mouseup',()=>{
+  if(!fillMouseActive) return;
+  fillMouseActive=false;
+  if(fillTimer!==null){ clearTimeout(fillTimer); fillTimer=null; }
+  if(fillMode){ fillJustCommitted=true; commitFill(); }   // 直後のクリック（セル選択）を1回抑止
+});
 
 function sumPointerMove(pt,e){
   if(!sumPending) return;
