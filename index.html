@@ -5059,7 +5059,9 @@ async function renameSaveTab(t){
   bar.addEventListener('pointerdown', e=>{
     const b=e.target.closest&&e.target.closest('.save-tab'); if(!b) return;
     curBtn=b; curTab=+b.dataset.tab; longed=false; sx=e.clientX; sy=e.clientY; clear();
-    timer=setTimeout(()=>{ longed=true; b.classList.add('tab-armed'); if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} }, 500);
+    // タブはタップで切替える方が主な使い方なので、通常より長めの保持時間でだけ改名扱いにする
+    // （少し長めのタップで改名画面が開いてリストが隠れたように見える誤操作を防ぐ）
+    timer=setTimeout(()=>{ longed=true; b.classList.add('tab-armed'); if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} }, 900);
   });
   bar.addEventListener('pointermove', e=>{ if(curTab>=0 && Math.hypot(e.clientX-sx,e.clientY-sy)>10) clear(); });
   bar.addEventListener('pointerup', ()=>{
