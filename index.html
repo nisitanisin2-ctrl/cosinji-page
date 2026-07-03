@@ -491,6 +491,7 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 .numpad-overlay.ov-right { transform: translateX(100%); }   /* 右に隠れていて左フリックで引き出す */
 .numpad-overlay.ov-left  { transform: translateX(-100%); }   /* 左に隠れていて右フリックで引き出す */
 .numpad-overlay.ov-down  { transform: translateY(100%); }    /* 登録：下から重なる（上フリックで表示） */
+.numpad-overlay.ov-lv2   { z-index: 6; }                     /* 2枚目の右ページ（関数電卓）：関数・記号の上に重なる */
 /* 登録ページのボタン（紫）。長押しで登録・タップで入力 */
 .btn.ubtn {
   background: #5b3a86; padding: 4px 3px;
@@ -1222,32 +1223,29 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <span class="numpad-resizer-grip"></span>
   </div>
   <div class="numpad-viewport" id="numpadViewport">
-    <div class="numpad-grid numpad-overlay ov-left" id="numpadPageSci">
-    <!-- 関数電卓ページ（数字ページから右フリックで表示。数字ページの上に重なってスライドイン）。三角関数・log・べき乗などを数式に挿入する -->
-    <button class="btn fx" onclick="fkey('SIN(')">SIN(</button>
-    <button class="btn fx" onclick="fkey('COS(')">COS(</button>
-    <button class="btn fx" onclick="fkey('TAN(')">TAN(</button>
-    <button class="btn op" id="trigModeBtn" onclick="toggleTrigMode()" title="三角関数の角度単位（度数法/弧度法）を切替">DEG</button>
-    <button class="btn clr" onclick="bs()">⌫</button>
-    <button class="btn fx" onclick="fkey('ASIN(')">ASIN(</button>
-    <button class="btn fx" onclick="fkey('ACOS(')">ACOS(</button>
-    <button class="btn fx" onclick="fkey('ATAN(')">ATAN(</button>
-    <button class="btn op" onclick="fkey('^')">^</button>
-    <button class="btn enter" onclick="eq()">Enter</button>
-    <button class="btn fx" onclick="fkey('LOG(')">LOG(</button>
-    <button class="btn fx" onclick="fkey('LN(')">LN(</button>
-    <button class="btn fx" onclick="fkey('EXP(')">EXP(</button>
-    <button class="btn fx" onclick="fkey('SQRT(')">√(</button>
-    <button class="btn op" onclick="fkey('PI')">π</button>
-    <button class="btn op" onclick="fkey('E')">e</button>
-    <button class="btn op" onclick="fkey('!')">n!</button>
-    <button class="btn op" onclick="fkey('^2')">x²</button>
-    <button class="btn op" onclick="fkey('(')">(</button>
-    <button class="btn fx" onclick="fkey('1/(')">1/(</button>
-    <button class="btn fx" onclick="fkey('MOD(')">MOD(</button>
-    <button class="btn op" onclick="fkey(')')">)</button>
-    <button class="btn op" onclick="fkey(',')">,</button>
-    <button class="btn op" onclick="fkey('=')">=</button>
+    <div class="numpad-grid numpad-overlay ov-left" id="numpadPageFmt">
+    <!-- セル書式ページ（数字ページから右フリックで表示）。選択中のセル（スライドで範囲選択していれば範囲全体）の書式を変える -->
+    <button class="btn" style="font-weight:bold" onclick="kfmtToggle('bold')" title="太字">太字</button>
+    <button class="btn" style="font-style:italic" onclick="kfmtToggle('italic')" title="斜体">斜体</button>
+    <button class="btn" style="text-decoration:underline" onclick="kfmtToggle('underline')" title="下線">下線</button>
+    <button class="btn op" onclick="kfmtSize(-1)" title="文字を小さく">A−</button>
+    <button class="btn op" onclick="kfmtSize(1)" title="文字を大きく">A＋</button>
+    <button class="btn" onclick="kfmtColor('color','')" title="文字色を標準に戻す">あ</button>
+    <button class="btn" style="color:#ff8a80" onclick="kfmtColor('color','#e53935')" title="文字を赤に">あ</button>
+    <button class="btn" style="color:#82b1ff" onclick="kfmtColor('color','#1e88e5')" title="文字を青に">あ</button>
+    <button class="btn" style="color:#b9f6ca" onclick="kfmtColor('color','#2e7d32')" title="文字を緑に">あ</button>
+    <button class="btn" style="color:#ea80fc" onclick="kfmtColor('color','#8e24aa')" title="文字を紫に">あ</button>
+    <button class="btn" onclick="kfmtColor('bg','')" title="背景色なしに戻す">なし</button>
+    <button class="btn" style="background:#fff59d;color:#333" onclick="kfmtColor('bg','#fff59d')" title="背景を黄色に">黄</button>
+    <button class="btn" style="background:#c8e6c9;color:#333" onclick="kfmtColor('bg','#c8e6c9')" title="背景を緑に">緑</button>
+    <button class="btn" style="background:#bbdefb;color:#333" onclick="kfmtColor('bg','#bbdefb')" title="背景を青に">青</button>
+    <button class="btn" style="background:#f8bbd0;color:#333" onclick="kfmtColor('bg','#f8bbd0')" title="背景を桃色に">桃</button>
+    <button class="btn op" onclick="kfmtAlign('left')" title="左寄せ">⬅寄</button>
+    <button class="btn op" onclick="kfmtAlign('center')" title="中央寄せ">中央</button>
+    <button class="btn op" onclick="kfmtAlign('right')" title="右寄せ">寄➡</button>
+    <button class="btn clr" onclick="kfmtLock()" title="セルの保護（ロック）を切替">🔒保護</button>
+    <button class="btn clr" onclick="kfmtClear()" title="このセルの書式をすべて消す">🧹消去</button>
+    <button class="btn fx" style="grid-column:1/-1" onclick="openCellFmt()" title="小数点・結合などのくわしい書式設定を開く">🎨 くわしい書式設定…</button>
     </div>
     <div class="numpad-grid" id="numpadPage1">
     <!-- 既定の並び。各ボタンの位置は data-key を使って自由に入れ替えできる（設定→ボタン配置を編集） -->
@@ -1301,6 +1299,33 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="btn op" data-key="fp_fmul"  onclick="fkey('×')">×</button>
     <button class="btn op" data-key="fp_fdiv"  onclick="fkey('÷')">÷</button>
     <button class="btn op" data-key="fp_eq"    onclick="fkey('=')">=</button>
+    </div>
+    <div class="numpad-grid numpad-overlay ov-right ov-lv2" id="numpadPageSci">
+    <!-- 関数電卓ページ（関数・記号ページからさらに左フリックで表示）。三角関数・log・べき乗などを数式に挿入する -->
+    <button class="btn fx" onclick="fkey('SIN(')">SIN(</button>
+    <button class="btn fx" onclick="fkey('COS(')">COS(</button>
+    <button class="btn fx" onclick="fkey('TAN(')">TAN(</button>
+    <button class="btn op" id="trigModeBtn" onclick="toggleTrigMode()" title="三角関数の角度単位（度数法/弧度法）を切替">DEG</button>
+    <button class="btn clr" onclick="bs()">⌫</button>
+    <button class="btn fx" onclick="fkey('ASIN(')">ASIN(</button>
+    <button class="btn fx" onclick="fkey('ACOS(')">ACOS(</button>
+    <button class="btn fx" onclick="fkey('ATAN(')">ATAN(</button>
+    <button class="btn op" onclick="fkey('^')">^</button>
+    <button class="btn enter" onclick="eq()">Enter</button>
+    <button class="btn fx" onclick="fkey('LOG(')">LOG(</button>
+    <button class="btn fx" onclick="fkey('LN(')">LN(</button>
+    <button class="btn fx" onclick="fkey('EXP(')">EXP(</button>
+    <button class="btn fx" onclick="fkey('SQRT(')">√(</button>
+    <button class="btn op" onclick="fkey('PI')">π</button>
+    <button class="btn op" onclick="fkey('E')">e</button>
+    <button class="btn op" onclick="fkey('!')">n!</button>
+    <button class="btn op" onclick="fkey('^2')">x²</button>
+    <button class="btn op" onclick="fkey('(')">(</button>
+    <button class="btn fx" onclick="fkey('1/(')">1/(</button>
+    <button class="btn fx" onclick="fkey('MOD(')">MOD(</button>
+    <button class="btn op" onclick="fkey(')')">)</button>
+    <button class="btn op" onclick="fkey(',')">,</button>
+    <button class="btn op" onclick="fkey('=')">=</button>
     </div>
     <div class="numpad-grid numpad-overlay ov-down numpad-regpage" id="numpadPageReg" title="長押しで文字・数字を登録／タップで入力">
     <!-- 登録ページ（数字ページ＝標準の下。数字ページの右側ゾーンを上向きにフリックで表示）。長押しで登録・タップで入力 -->
@@ -1513,6 +1538,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li">列見出し（A,B…）や行番号をタップすると、その列・行を選択して下に合計が出ます。</div>
         <div class="help-li"><b>列見出しの右端／行番号の下端をドラッグ</b>すると、その列の幅・行の高さを個別に変更できます（ダブルタップで自動に戻す）。</div>
         <div class="help-li"><b>列見出し（A,B…）や行番号を長押し</b>すると、その場所に<b>行・列を追加したり削除したり</b>できるメニューが開きます（上・下／左・右に追加、または削除）。</div>
+        <div class="help-li"><b>選択中のセルからそのままスライド</b>すると、なぞった<b>範囲を選択</b>できます（他のセルからのスライドは今までどおり画面スクロール）。選択した範囲には、テンキーを右へフリックして出る<b>セル書式ページ</b>でまとめて書式を付けられます。</div>
         <div class="help-li"><b>左上のコーナー（⤢）をスワイプ</b>、または表の上で<b>2本指ピンチ</b>すると、セル全体の大きさ（表示倍率）をまとめて変更できます（コーナーはダブルタップで100%に戻す）。設定の<b>「セル文字」</b>の＋−でも変更できます。</div>
       </div>
 
@@ -1523,9 +1549,10 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><span class="help-tag">fx=</span> 数式入力を開始（先頭が <b>=</b> になる）</div>
         <div class="help-li"><span class="help-tag">文字</span> 文字（テキスト）を入力</div>
         <div class="help-li"><span class="help-tag">モード</span> 計算モードを切替</div>
-        <div class="help-li">テンキーは<b>数字ページ（標準）</b>を土台に、<b>関数電卓・関数記号・登録ページ</b>がその上に重なってスライドインする構成です（数字ページは<b>どこからでもフリック開始可</b>）：
-          <br>・<b>数字ページを右へフリック＝関数電卓ページが重なって表示</b>…SIN・COS・TAN・ASIN・ACOS・ATAN・LOG・LN・EXP・π・e・n!（階乗）・x²・^（べき乗）・1/(・MOD( などを数式に挿入。<b>DEG/RAD</b>ボタンで三角関数の角度単位（度数法⇄弧度法）を切替できます。<b>どのボタンの上でも左へフリック</b>すると数字ページに戻ります。
-          <br>・<b>数字ページを左へフリック＝関数・記号ページが重なって表示</b>…( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 などを数式（先頭が <b>=</b>）に挿入。<b>どのボタンの上でも右へフリック</b>すると数字ページに戻ります。
+        <div class="help-li">テンキーは<b>数字ページ（標準）</b>を土台に、<b>セル書式・関数記号・関数電卓・登録ページ</b>がその上に重なってスライドインする構成です（数字ページは<b>どこからでもフリック開始可</b>）：
+          <br>・<b>数字ページを右へフリック＝セル書式ページが重なって表示</b>…選択中のセル（スライドで範囲選択していれば範囲全体）に、太字・斜体・下線・文字の大小・文字色・背景色・寄せ・保護・書式消去をワンタップで適用できます。「🎨 くわしい書式設定…」でいつもの書式画面も開けます。<b>左へフリック</b>すると数字ページに戻ります。
+          <br>・<b>数字ページを左へフリック＝関数・記号ページが重なって表示</b>…( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 などを数式（先頭が <b>=</b>）に挿入。<b>右へフリック</b>すると数字ページに戻ります。
+          <br>・<b>関数・記号ページをさらに左へフリック＝関数電卓ページが表示</b>…SIN・COS・TAN・ASIN・ACOS・ATAN・LOG・LN・EXP・π・e・n!（階乗）・x²・^（べき乗）・1/(・MOD( などを数式に挿入。<b>DEG/RAD</b>ボタンで三角関数の角度単位（度数法⇄弧度法）を切替できます。<b>右へフリック</b>すると関数・記号ページに戻ります。
           <br>・<b>数字ページを上へフリック＝登録ページが重なって表示</b>…紫のボタンを<b>長押し</b>すると登録画面が開きます。基本は<b>文字・数字を入力して「登録」</b>するだけ（よく使う文字・数字を登録、数値の途中でタップすると連結。例：100→「円」で100円）。<b>「🔧 便利機能から選ぶ（オプション）」</b>を開くと、<b>「Enter」「1文字削除」「戻る」「進む」「保存」「リスト」「リセット」「CSV出力」「CSV読込」「ナイト」「モード」</b>などの便利機能も選んで登録できます。登録後は<b>タップ</b>で入力／実行（未登録の「＋」はタップでも登録画面が開きます）。登録画面の<b>「🔀 このボタンを別の場所へ移動」</b>を押すと、移動先のボタンをタップして位置を入れ替えできます。登録は保存されます。<b>どのボタンの上でも下へフリック</b>すると数字ページに戻ります。</div>
         <div class="help-li">テンキー上端（横向きは左端）の<b>バーをドラッグ</b>すると大きさ（横向きは幅）を変更できます。設定の<b>「🔧 テンキーのボタン配置を編集」</b>で各ボタンの位置も入れ替えできます。</div>
       </div>
@@ -2898,31 +2925,36 @@ function changeKeySize(delta) {
 })();
 
 /* ── テンキーのページ切替（登録ページと同じ「上に重ねてスライドイン」方式） ──
-   数字ページ（標準）が常に土台として表示され、関数電卓・関数記号・登録ページは
-   フリックすると数字ページの上に重なってスライドインする（隠れている側と逆方向へ
-   フリックすると引き出されるように、指の動きにそのまま追従して自然に出てくる）。
-   フリック方向：右＝関数電卓（左に隠れている）、左＝関数記号（右に隠れている）、上＝登録（下に隠れている）。
-   閉じる時は開いた側と逆方向へ（関数電卓は左、関数記号は右、登録は下）フリック。
-   数字ページはどこからでもフリック開始可（全面）。 */
+   数字ページ（標準）が常に土台として表示され、他ページはフリックすると
+   数字ページの上に重なってスライドインする（指の動きに追従）。
+   ページ並び：[セル書式] ← 数字 → [関数・記号] → [関数電卓]、上フリック＝登録。
+   フリック方向：右＝セル書式（左に隠れている）、左＝関数記号、
+   関数記号からさらに左＝関数電卓（2枚目）、上＝登録。
+   閉じる時は開いた側と逆方向へフリック（関数電卓は右で関数記号に戻る）。 */
 let numpadSwiping=false;           // スワイプ中／直後はボタンのタップを抑止（autoSum・登録ボタン等と共有）
 (function setupNumpadPager(){
   const vp=document.getElementById('numpadViewport');
+  const pgFmt=document.getElementById('numpadPageFmt');
   const pgSci=document.getElementById('numpadPageSci');
   const pgFunc=document.getElementById('numpadPage2');
   const pgReg=document.getElementById('numpadPageReg');
-  if(!vp||!pgSci||!pgFunc||!pgReg) return;
-  const overlays=[pgSci,pgFunc,pgReg];
-  let openWhich=null;               // null=数字ページ／'sci'／'func'／'reg'
+  if(!vp||!pgFmt||!pgSci||!pgFunc||!pgReg) return;
+  const overlays=[pgFmt,pgFunc,pgSci,pgReg];
+  let openWhich=null;               // null=数字ページ／'fmt'(左)／'func'(右1)／'sci'(右2)／'reg'(下)
   let downX=null, downY=0, axis=null, activeEl=null, decided=false, w=1, h=1;
   function closedTransform(el){
-    if(el===pgSci) return 'translateX(-100%)';
-    if(el===pgFunc) return 'translateX(100%)';
+    if(el===pgFmt) return 'translateX(-100%)';
+    if(el===pgFunc||el===pgSci) return 'translateX(100%)';
     return 'translateY(100%)';
   }
   function restAll(animate){
     overlays.forEach(el=>{
       el.classList.toggle('ov-dragging', !animate);
-      const isOpen=(el===pgSci&&openWhich==='sci')||(el===pgFunc&&openWhich==='func')||(el===pgReg&&openWhich==='reg');
+      // sci(右2枚目)が開いている間は、その下のfunc(右1枚目)も開いた位置に置いておく
+      const isOpen=(el===pgFmt&&openWhich==='fmt')||
+                   (el===pgFunc&&(openWhich==='func'||openWhich==='sci'))||
+                   (el===pgSci&&openWhich==='sci')||
+                   (el===pgReg&&openWhich==='reg');
       el.style.transform = isOpen ? 'translate(0,0)' : closedTransform(el);
     });
   }
@@ -2947,20 +2979,25 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
       const horizDominant = Math.abs(dx) > Math.abs(dy)*1.3;
       const vertDominant  = Math.abs(dy) > Math.abs(dx)*1.3;
       if(openWhich===null){
-        if(horizDominant){ axis='h'; activeEl = dx<0 ? pgFunc : pgSci; }         // 左＝関数記号／右＝関数電卓
+        if(horizDominant){ axis='h'; activeEl = dx<0 ? pgFunc : pgFmt; }         // 左＝関数記号／右＝セル書式
         else if(vertDominant && dy<0){ axis='v'; activeEl=pgReg; }               // 上＝登録
       } else if(openWhich==='reg'){
         if(vertDominant){ axis='v'; activeEl=pgReg; }                           // 登録は縦フリックのみで閉じる
-      } else if(openWhich==='sci'){
-        if(horizDominant){ axis='h'; activeEl=pgSci; }                          // 関数電卓は横フリックのみで閉じる
+      } else if(openWhich==='fmt'){
+        if(horizDominant){ axis='h'; activeEl=pgFmt; }                          // セル書式は横フリックで閉じる
       } else if(openWhich==='func'){
-        if(horizDominant){ axis='h'; activeEl=pgFunc; }                         // 関数記号は横フリックのみで閉じる
+        if(horizDominant){ axis='h'; activeEl = dx<0 ? pgSci : pgFunc; }        // さらに左＝関数電卓／右＝閉じる
+      } else if(openWhich==='sci'){
+        if(horizDominant){ axis='h'; activeEl=pgSci; }                          // 関数電卓は右フリックで戻る
       }
       if(axis){ numpadSwiping=true; activeEl.classList.add('ov-dragging'); }
     }
     if(axis==='h' && activeEl){
       e.preventDefault();
-      const base = activeEl===pgSci ? (openWhich==='sci'?0:-100) : (openWhich==='func'?0:100);
+      let base;
+      if(activeEl===pgFmt)      base = openWhich==='fmt' ? 0 : -100;
+      else if(activeEl===pgSci) base = openWhich==='sci' ? 0 : 100;
+      else                      base = (openWhich==='func'||openWhich==='sci') ? 0 : 100;
       const cl=Math.max(-w, Math.min(w, dx));
       activeEl.style.transform=`translateX(calc(${base}% + ${cl}px))`;
     } else if(axis==='v' && activeEl){
@@ -2979,9 +3016,13 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
       const th=Math.max(40, w*0.22);
       if(openWhich===null){
         if(dx<=-th) openWhich='func';
-        else if(dx>=th) openWhich='sci';
-      } else if(openWhich==='sci' && dx<=-th){ openWhich=null; }
-      else if(openWhich==='func' && dx>=th){ openWhich=null; }
+        else if(dx>=th) openWhich='fmt';
+      } else if(openWhich==='fmt' && dx<=-th){ openWhich=null; }
+      else if(openWhich==='func'){
+        if(dx>=th) openWhich=null;
+        else if(dx<=-th) openWhich='sci';
+      }
+      else if(openWhich==='sci' && dx>=th){ openWhich='func'; }
       restAll(true);
     } else if(wasAxis==='v'){
       const thV=Math.max(40, h*0.22);
@@ -5260,6 +5301,63 @@ function afterFmtChange(){
   persistModes();
 }
 
+/* ── テンキー左の「セル書式」ページ ──
+   選択中のセル（スライドで範囲選択していれば範囲全体）に書式を適用する */
+function kfmtCells(){
+  const out=[];
+  if(rangeR1>=0){
+    const r1=Math.min(rangeR1,rangeR2), r2=Math.max(rangeR1,rangeR2);
+    const c1=Math.min(rangeC1,rangeC2), c2=Math.max(rangeC1,rangeC2);
+    for(let r=r1;r<=r2;r++) for(let c=c1;c<=c2;c++) out.push([r,c]);
+  } else out.push([selR,selC]);
+  return out;
+}
+function kfmtApply(mut){
+  kfmtCells().forEach(([r,c])=>{
+    const k=`${r},${c}`;
+    const s=cellStyles[k]||(cellStyles[k]={});
+    mut(s);
+    if(Object.keys(s).length===0) delete cellStyles[k];
+    repaintCell(r,c);
+  });
+  persistModes();
+}
+function kfmtToggle(prop){
+  const cells=kfmtCells();
+  const s0=cellStyles[`${cells[0][0]},${cells[0][1]}`];
+  const turnOn=!(s0&&s0[prop]);   // 先頭セルの状態を基準に、範囲全体を一括オン/オフ
+  kfmtApply(s=>{ if(turnOn) s[prop]=true; else delete s[prop]; });
+}
+function kfmtColor(type,v){ kfmtApply(s=>{ if(v==='') delete s[type]; else s[type]=v; }); }
+function kfmtAlign(v){
+  const cells=kfmtCells();
+  const s0=cellStyles[`${cells[0][0]},${cells[0][1]}`];
+  const clear=(s0&&s0.align===v);   // 同じ寄せをもう一度＝解除
+  kfmtApply(s=>{ if(clear) delete s.align; else s.align=v; });
+}
+function kfmtSize(d){
+  kfmtApply(s=>{
+    let si=FMT_SIZES.indexOf(s.size||1); if(si<0) si=1;
+    si=Math.max(0, Math.min(FMT_SIZES.length-1, si+d));
+    if(FMT_SIZES[si]===1) delete s.size; else s.size=FMT_SIZES[si];
+  });
+}
+function kfmtLock(){
+  const cells=kfmtCells();
+  const s0=cellStyles[`${cells[0][0]},${cells[0][1]}`];
+  const turnOn=!(s0&&s0.locked);
+  kfmtApply(s=>{ if(turnOn) s.locked=true; else delete s.locked; });
+  if(turnOn && cells.some(([r,c])=>r===selR&&c===selC)) cellEditing=false;
+  document.getElementById('cellRef').classList.toggle('locked-ref', isLockedCell(selR,selC));
+  toast(turnOn?'セルを保護しました':'セルの保護を解除しました');
+}
+function kfmtClear(){
+  kfmtCells().forEach(([r,c])=>{ delete cellStyles[`${r},${c}`]; repaintCell(r,c); });
+  document.getElementById('cellRef').classList.toggle('locked-ref', isLockedCell(selR,selC));
+  persistModes();
+  toast('書式を消去しました');
+}
+
 /* ── セル結合の操作 ── */
 /* 指定セルが属する結合を解除（アンカー・覆われセル両方の情報を消す） */
 function clearMergeAt(r,c){
@@ -5349,6 +5447,8 @@ let pinchZooming=false;   // 2本指ピンチでセル倍率を変更中（他�
 let fillJustCommitted=false;   // フィル/保護/設定の直後、1回だけクリック（セル選択）を抑止
 /* 段階的長押しの状態 */
 let lpR=-1, lpC=-1, lpX=0, lpY=0, lpMoved=false, lpStage=0;   // stage: 0=なし, 2=保護, 3=設定
+let lpFromActive=false;   // 選択中(アクティブ)セルから押し始めたか（すぐ動かすと範囲選択）
+let rangeDragging=false;  // スライドで範囲選択中
 let lpFillTimer=null, lpLockTimer=null, lpSetgsTimer=null;
 const LP_FILL_MS=550, LP_LOCK_MS=1000, LP_SETGS_MS=1700, LP_MOVE_TOL=8;
 function lpClearTimers(){ clearTimeout(lpFillTimer); clearTimeout(lpLockTimer); clearTimeout(lpSetgsTimer); lpFillTimer=lpLockTimer=lpSetgsTimer=null; }
@@ -5359,6 +5459,7 @@ function lpSetArmVisual(cls){
 function lpClearArmVisual(){ const el=document.getElementById(`c${lpR}_${lpC}`); if(el) el.classList.remove('lock-arm','setgs-arm'); }
 function startCellPress(r,c,x,y){
   lpR=r; lpC=c; lpX=x; lpY=y; lpMoved=false; lpStage=0;
+  lpFromActive=(r===selR && c===selC); rangeDragging=false;
   lpClearTimers();
   lpFillTimer=setTimeout(()=>{ lpFillTimer=null; if(!lpMoved){ fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; } }, LP_FILL_MS);
   lpLockTimer=setTimeout(()=>{ lpLockTimer=null; if(lpMoved) return; lpStage=2; lpSetArmVisual('lock-arm'); if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} }, LP_LOCK_MS);
@@ -5376,11 +5477,22 @@ function moveCellPress(x,y){
         const el=document.getElementById(`c${fillSrcR}_${fillSrcC}`); if(el) el.classList.add('fill-src');
         document.body.classList.add('fill-active');
         if(navigator.vibrate){try{navigator.vibrate(30);}catch(_){}}
+      } else if(lpFromActive){
+        // 選択中のセルからすぐスライド＝範囲選択（フィルは長押し後のドラッグのまま）
+        rangeDragging=true;
+        clearTimeout(lpFillTimer); lpFillTimer=null;
       }
     }
   }
   if(fillMode && lpMoved){ fillUpdateTo(x,y); return true; }
+  if(rangeDragging && lpMoved){ rangeDragUpdateTo(x,y); return true; }
   return false;
+}
+/* スライド範囲選択：座標のセルまで選択範囲を伸ばす */
+function rangeDragUpdateTo(clientX, clientY){
+  const target=document.elementFromPoint(clientX,clientY); if(!target) return;
+  const m=target.id?target.id.match(/^c(\d+)_(\d+)$/):null; if(!m) return;
+  extendRange(parseInt(m[1]), parseInt(m[2]));
 }
 function endCellPress(){
   if(lpR<0) return;
@@ -5388,6 +5500,8 @@ function endCellPress(){
   lpClearTimers(); lpClearArmVisual();
   lpR=lpC=-1; lpStage=0; lpMoved=false;
   if(fillMode && moved){ fillJustCommitted=true; commitFill(); return; }   // ドラッグ＝フィル確定
+  if(rangeDragging && moved){ rangeDragging=false; fillJustCommitted=true; return; }   // スライド＝範囲選択を確定（次のclickを1回無効化）
+  rangeDragging=false;
   fillMode=false; document.body.classList.remove('fill-active');
   fillSrcR=fillSrcC=fillEndR=fillEndC=-1;
   if(stage===3){ fillJustCommitted=true; sel(r,c); openCellFmt(); return; }        // さらに長押し＝設定
@@ -5398,7 +5512,7 @@ function cancelCellPress(){
   lpClearTimers(); lpClearArmVisual();
   if(fillMode){ clearFillPreview(); const el=document.getElementById(`c${fillSrcR}_${fillSrcC}`); if(el) el.classList.remove('fill-src'); document.body.classList.remove('fill-active'); }
   fillMode=false; fillSrcR=fillSrcC=fillEndR=fillEndC=-1;
-  lpR=lpC=-1; lpStage=0; lpMoved=false;
+  lpR=lpC=-1; lpStage=0; lpMoved=false; rangeDragging=false;
 }
 /* 座標(clientX,clientY)のセルまでフィル範囲プレビューを更新（タッチ・マウス共通） */
 function fillUpdateTo(clientX, clientY){
@@ -5464,7 +5578,7 @@ document.addEventListener('touchend',e=>{
   if(pinchZooming) return;
   if(sumSelectMode){ sumPointerUp(e); return; }
   if(lpR<0) return;
-  if(fillMode&&lpMoved) e.preventDefault();
+  if((fillMode||rangeDragging)&&lpMoved) e.preventDefault();
   endCellPress();
 },{passive:false});
 document.addEventListener('touchcancel',()=>{ if(lpR>=0) cancelCellPress(); });
