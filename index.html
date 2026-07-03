@@ -1319,7 +1319,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   </div>
 </div>
 
-<div class="modal-overlay" id="headerMenuOverlay" onclick="if(event.target===this)closeHeaderMenu()">
+<div class="modal-overlay" id="headerMenuOverlay">
   <div class="modal" style="max-width:300px;">
     <div class="modal-header">
       <span id="headerMenuTitle">行の操作</span>
@@ -2709,6 +2709,15 @@ function openHeaderMenu(kind, index){
   document.getElementById('headerMenuOverlay').classList.add('open');
 }
 function closeHeaderMenu(){ document.getElementById('headerMenuOverlay').classList.remove('open'); }
+/* 背景タップで閉じるのは「背景の上でpointerdownして離した」ときだけにする。
+   長押しでメニューを開いた直後、指を離した瞬間に発生する合成clickでは
+   背景の上でpointerdownしていないので閉じない（＝出た瞬間に消える不具合を防ぐ）。 */
+(function initHeaderMenuBackdrop(){
+  const ov=document.getElementById('headerMenuOverlay'); if(!ov) return;
+  let downOnBackdrop=false;
+  ov.addEventListener('pointerdown', e=>{ downOnBackdrop=(e.target===ov); });
+  ov.addEventListener('click', e=>{ if(e.target===ov && downOnBackdrop) closeHeaderMenu(); downOnBackdrop=false; });
+})();
 function hmDo(action, index){
   closeHeaderMenu();
   if(action==='insRowAbove') insertRowAt(index);
