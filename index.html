@@ -617,6 +617,21 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
 .hm-btn.add:active { background: #0f4a26; }
 .hm-btn.del { background: #c0392b; margin-top: 4px; }
 .hm-btn.del:active { background: #7d2017; }
+/* PDF出力の設定ダイアログ */
+.pdf-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 2px; border-bottom: 1px solid var(--save-item-border); }
+.pdf-row:last-of-type { border-bottom: none; }
+.pdf-row-label { font-size: 13.5px; font-weight: bold; color: var(--text); }
+.pdf-row-label small { display: block; font-weight: normal; font-size: 10.5px; color: var(--text-light); margin-top: 2px; }
+.pdf-input { flex: 1; min-width: 0; max-width: 58%; padding: 8px 9px; font-size: 14px; border: 1px solid var(--save-item-border); border-radius: 6px; background: var(--cell-bg,#fff); color: var(--text); }
+.pdf-seg { display: flex; gap: 4px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+.pdf-seg button { padding: 7px 11px; font-size: 12.5px; font-weight: bold; border: 1px solid var(--save-item-border); border-radius: 6px; background: var(--modal-bg); color: var(--text); cursor: pointer; touch-action: manipulation; }
+.pdf-seg button.on { background: #217346; color: #fff; border-color: #217346; }
+.pdf-num { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-light); flex-shrink: 0; }
+.pdf-num input { width: 60px; padding: 8px; text-align: center; font-size: 14px; border: 1px solid var(--save-item-border); border-radius: 6px; background: var(--cell-bg,#fff); color: var(--text); }
+.pdf-chk { width: 22px; height: 22px; flex-shrink: 0; }
+.pdf-print-btn { width: 100%; margin-top: 14px; padding: 14px; border: none; border-radius: 8px; background: #217346; color: #fff; font-size: 15px; font-weight: bold; cursor: pointer; touch-action: manipulation; }
+.pdf-print-btn:active { background: #0f4a26; }
+.pdf-note { font-size: 11px; color: var(--text-light); margin-top: 8px; text-align: center; line-height: 1.4; }
 .save-item {
   display: flex; align-items: center; flex-wrap: wrap; row-gap: 6px;
   padding: 8px 10px;
@@ -934,7 +949,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 .yz-calc:hover { background: #6a1b9a; }
 .yz-status { font-size: calc(10px * var(--info-scale, 1)); opacity: 0.85; flex-basis: 100%; }
 
-/* ── PDF出力（印刷）用の表示 ── */
+/* ── PDF出力（印刷）用の表示。細かな体裁はPDF設定ダイアログ→#printDynamicStyle で上書き ── */
 #printArea { display: none; }
 @media print {
   body > *:not(#printArea) { display: none !important; }
@@ -942,9 +957,11 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   #printArea .pa-title { font-size: 16px; font-weight: bold; margin: 0 0 8px; }
   #printArea .pa-date  { font-size: 11px; color: #555; margin: 0 0 10px; }
   #printArea table { border-collapse: separate; border-spacing: 0; width: 100%; }
-  #printArea td { border: 1px solid transparent; padding: 4px 7px; font-size: 12px; }
+  #printArea td { border: 1px solid transparent; padding: 4px 7px; font-size: 12px; vertical-align: top; }
   #printArea td.filled { border-color: #000; }
   #printArea td.num { text-align: right; }
+  /* ヘッダー／フッターは thead/tfoot に入れることで各ページに繰り返し印刷される */
+  #printArea thead .pa-run, #printArea tfoot .pa-run { border: none !important; text-align: center; font-size: 11px; color: #000; padding: 4px 3px; }
   @page { margin: 12mm; }
 }
 </style>
@@ -1312,6 +1329,72 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   </div>
 </div>
 
+<div class="modal-overlay" id="pdfDlgOverlay" onclick="if(event.target===this)closePdfDlg()">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <span>🖨 PDF出力の設定</span>
+      <button class="modal-close" onclick="closePdfDlg()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="pdf-row">
+        <span class="pdf-row-label">タイトル<small>空欄なら印刷しません</small></span>
+        <input type="text" id="pdfTitle" class="pdf-input" placeholder="（なし）">
+      </div>
+      <div class="pdf-row">
+        <span class="pdf-row-label">日時を入れる</span>
+        <input type="checkbox" id="pdfDate" class="pdf-chk">
+      </div>
+      <div class="pdf-row">
+        <span class="pdf-row-label">ヘッダー<small>各ページの上に印刷</small></span>
+        <input type="text" id="pdfHeader" class="pdf-input" placeholder="（なし）">
+      </div>
+      <div class="pdf-row">
+        <span class="pdf-row-label">フッター<small>各ページの下に印刷</small></span>
+        <input type="text" id="pdfFooter" class="pdf-input" placeholder="（なし）">
+      </div>
+      <div class="pdf-row">
+        <span class="pdf-row-label">用紙の向き</span>
+        <span class="pdf-seg" id="pdfOrient">
+          <button data-v="portrait" onclick="pdfSeg('pdfOrient',this)">縦</button>
+          <button data-v="landscape" onclick="pdfSeg('pdfOrient',this)">横</button>
+        </span>
+      </div>
+      <div class="pdf-row">
+        <span class="pdf-row-label">上下の余白</span>
+        <span class="pdf-num"><input type="number" id="pdfMarginV" min="0" max="40" inputmode="numeric"> mm</span>
+      </div>
+      <div class="pdf-row">
+        <span class="pdf-row-label">左右の余白</span>
+        <span class="pdf-num"><input type="number" id="pdfMarginH" min="0" max="40" inputmode="numeric"> mm</span>
+      </div>
+      <div class="pdf-row">
+        <span class="pdf-row-label">表の配置</span>
+        <span class="pdf-seg" id="pdfAlign">
+          <button data-v="left" onclick="pdfSeg('pdfAlign',this)">左寄せ</button>
+          <button data-v="center" onclick="pdfSeg('pdfAlign',this)">中央</button>
+        </span>
+      </div>
+      <div class="pdf-row">
+        <span class="pdf-row-label">文字の大きさ</span>
+        <span class="pdf-seg" id="pdfFont">
+          <button data-v="s" onclick="pdfSeg('pdfFont',this)">小</button>
+          <button data-v="m" onclick="pdfSeg('pdfFont',this)">中</button>
+          <button data-v="l" onclick="pdfSeg('pdfFont',this)">大</button>
+        </span>
+      </div>
+      <div class="pdf-row">
+        <span class="pdf-row-label">枠線</span>
+        <span class="pdf-seg" id="pdfBorder">
+          <button data-v="all" onclick="pdfSeg('pdfBorder',this)">すべてのセル</button>
+          <button data-v="filled" onclick="pdfSeg('pdfBorder',this)">文字のみ</button>
+        </span>
+      </div>
+      <button class="pdf-print-btn" onclick="doExportPDF()">🖨 印刷／PDFに保存</button>
+      <div class="pdf-note">この後に印刷画面が開きます。送信先を「PDFに保存」にすると PDF ファイルとして書き出せます。プリンター選択や部数などはその画面で指定します。</div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="defaultSizeOverlay" onclick="if(event.target===this)closeDefaultSizeDlg()">
   <div class="modal">
     <div class="modal-header">
@@ -1487,7 +1570,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li">各データの<b>🔓ロック</b>をタップすると🔒保護され、誤って削除・改名できなくなります（もう一度タップで解除）。</div>
         <div class="help-li"><b>↩戻る／↪進む</b>：直前の入力を元に戻す／やり直す</div>
         <div class="help-li"><b>📄 CSV出力</b>：表をCSVファイルに書き出し　<b>📥 CSV読込</b>：CSVファイルを今の表に読み込み（上書き）。文字コード（UTF-8／Shift_JIS）は自動判別するのでExcelのCSVもそのまま読めます。どちらも設定の「データ」タブにあります。</div>
-        <div class="help-li"><b>🖨 PDF出力（印刷）</b>（設定の「データ」タブ）：今の表を見やすい形に整えて印刷画面を開きます。印刷先で<b>「PDFに保存」</b>を選べばPDFファイルとして書き出せます。</div>
+        <div class="help-li"><b>🖨 PDF出力（印刷）</b>（設定の「データ」タブ）：印刷画面の前に<b>PDF設定ダイアログ</b>が開き、タイトル・日時・ヘッダー・フッター・用紙の向き・上下左右の余白・表の配置・文字サイズ・枠線を指定できます。「印刷／PDFに保存」を押すと印刷画面が開くので、印刷先で<b>「PDFに保存」</b>を選べばPDFとして書き出せます。設定内容は次回も引き継がれます。</div>
         <div class="help-li"><b>🌙</b>：ダークモード切替　<b>リセット</b>：今のモードの内容を消去</div>
       </div>
     </div>
@@ -2243,12 +2326,61 @@ function exportCSV() {
 }
 
 /* ── PDF出力：印刷用の見やすい表を作り、ブラウザの印刷（→「PDFに保存」）を開く ── */
+/* PDF出力の設定（タイトル・ヘッダー等）。localStorageに保存して次回も使う */
+const PDF_DEFAULTS={ title:'', date:false, header:'', footer:'', orient:'portrait', mv:12, mh:12, align:'left', font:'m', border:'all' };
+function loadPdfSettings(){
+  try{ return Object.assign({}, PDF_DEFAULTS, JSON.parse(localStorage.getItem('excalc_pdf_settings')||'{}')); }
+  catch(_){ return Object.assign({}, PDF_DEFAULTS); }
+}
+function pdfSeg(groupId, btn){ document.querySelectorAll('#'+groupId+' button').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); }
+function pdfSegVal(groupId){ const b=document.querySelector('#'+groupId+' button.on'); return b?b.dataset.v:''; }
+function pdfSegSet(groupId, v){ document.querySelectorAll('#'+groupId+' button').forEach(b=>b.classList.toggle('on', b.dataset.v===v)); }
+
+/* 「🖨 PDF出力」→ まず設定ダイアログを開く（印刷プレビューはその後） */
 function exportPDF(){
+  const sp=document.getElementById('settingsPanel'); if(sp&&sp.classList.contains('open')) toggleSettings();
+  const s=loadPdfSettings();
+  document.getElementById('pdfTitle').value=s.title;
+  document.getElementById('pdfDate').checked=!!s.date;
+  document.getElementById('pdfHeader').value=s.header;
+  document.getElementById('pdfFooter').value=s.footer;
+  pdfSegSet('pdfOrient', s.orient);
+  document.getElementById('pdfMarginV').value=s.mv;
+  document.getElementById('pdfMarginH').value=s.mh;
+  pdfSegSet('pdfAlign', s.align);
+  pdfSegSet('pdfFont', s.font);
+  pdfSegSet('pdfBorder', s.border);
+  document.getElementById('pdfDlgOverlay').classList.add('open');
+}
+function closePdfDlg(){ document.getElementById('pdfDlgOverlay').classList.remove('open'); }
+
+/* 設定を反映して印刷用の内容を組み立て、印刷画面を開く */
+function doExportPDF(){
+  const ps={
+    title: document.getElementById('pdfTitle').value.trim(),
+    date:  document.getElementById('pdfDate').checked,
+    header:document.getElementById('pdfHeader').value.trim(),
+    footer:document.getElementById('pdfFooter').value.trim(),
+    orient:pdfSegVal('pdfOrient')||'portrait',
+    mv: Math.max(0, Math.min(40, parseInt(document.getElementById('pdfMarginV').value,10)||0)),
+    mh: Math.max(0, Math.min(40, parseInt(document.getElementById('pdfMarginH').value,10)||0)),
+    align: pdfSegVal('pdfAlign')||'left',
+    font:  pdfSegVal('pdfFont')||'m',
+    border:pdfSegVal('pdfBorder')||'all',
+  };
+  localStorage.setItem('excalc_pdf_settings', JSON.stringify(ps));
+  closePdfDlg();
+
   let pa=document.getElementById('printArea');
   if(!pa){ pa=document.createElement('div'); pa.id='printArea'; document.body.appendChild(pa); }
-  const title = (typeof modeDisplayName==='function' && tableMode!=='normal') ? `表電卓 － ${modeDisplayName(tableMode)}` : '表電卓';
-  let html=`<div class="pa-title">${escHtml(title)}</div><div class="pa-date">${new Date().toLocaleString('ja-JP')}</div>`;
-  html+='<table><tbody>';
+  let html='';
+  if(ps.title) html+=`<div class="pa-title">${escHtml(ps.title)}</div>`;
+  if(ps.date)  html+=`<div class="pa-date">${escHtml(new Date().toLocaleString('ja-JP'))}</div>`;
+  const tableStyle = ps.align==='center' ? 'border-collapse:separate;border-spacing:0;width:auto;margin:0 auto;max-width:100%;' : '';
+  html+=`<table${tableStyle?` style="${tableStyle}"`:''}>`;
+  if(ps.header) html+=`<thead><tr><td class="pa-run" colspan="${COLS}">${escHtml(ps.header)}</td></tr></thead>`;
+  if(ps.footer) html+=`<tfoot><tr><td class="pa-run" colspan="${COLS}">${escHtml(ps.footer)}</td></tr></tfoot>`;
+  html+='<tbody>';
   for(let r=0;r<ROWS;r++){
     html+='<tr>';
     for(let c=0;c<COLS;c++){
@@ -2261,7 +2393,7 @@ function exportPDF(){
       if(s.underline) st+='text-decoration:underline;';
       if(s.color)     st+='color:'+s.color+';';
       if(s.bg)        st+='background:'+s.bg+';';
-      let cls=disp!=='' ? 'filled' : '';
+      let cls=(ps.border==='all' || disp!=='') ? 'filled' : '';   // 「すべて」なら空セルも枠あり
       if(s.align) st+='text-align:'+s.align+';';
       else if(disp!=='' && !isNaN(disp.replace(/,/g,''))) cls+=' num';   // 数値は右寄せ
       html+=`<td class="${cls}" style="${st}">${escHtml(disp)}</td>`;
@@ -2270,8 +2402,17 @@ function exportPDF(){
   }
   html+='</tbody></table>';
   pa.innerHTML=html;
-  const sp=document.getElementById('settingsPanel'); if(sp&&sp.classList.contains('open')) toggleSettings();
-  setTimeout(()=>{ try{ window.print(); }catch(e){ alert('印刷を開けませんでした'); } }, 120);
+
+  // 用紙の向き・余白・文字サイズを動的に反映
+  const fontPx = ps.font==='s' ? 10 : ps.font==='l' ? 15 : 12.5;
+  let dyn=document.getElementById('printDynamicStyle');
+  if(!dyn){ dyn=document.createElement('style'); dyn.id='printDynamicStyle'; document.head.appendChild(dyn); }
+  dyn.textContent = '@media print{'+
+    `@page{ size: A4 ${ps.orient}; margin: ${ps.mv}mm ${ps.mh}mm; }`+
+    `#printArea td{ font-size:${fontPx}px; }`+
+  '}';
+
+  setTimeout(()=>{ try{ window.print(); }catch(e){ alert('印刷を開けませんでした'); } }, 150);
 }
 
 /* ── CSVインポート（現在の表に読み込み・上書き） ── */
