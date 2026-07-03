@@ -167,19 +167,16 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
 .btn-save:active { background: #145a30; }
 .btn-list   { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.35); }
 .btn-list:hover  { background: rgba(255,255,255,0.28); }
-.btn-undo   {
-  background: #e67e22; font-size: 13px; padding: 4px 11px;
-  box-shadow: 0 0 0 1.5px rgba(255,255,255,0.55);
-}
+.btn-undo   { background: #e67e22; }
 .btn-undo:hover  { background: #f39c12; }
-.btn-undo:disabled { background: #4a4a4a; opacity: 0.4; cursor: default; box-shadow: none; }
-.btn-redo   { background: #b9772a; font-size: 13px; padding: 4px 11px; }
+.btn-undo:disabled { background: #4a4a4a; opacity: 0.4; cursor: default; }
+.btn-redo   { background: #b9772a; }
 .btn-redo:hover  { background: #cf8a34; }
 .btn-redo:disabled { background: #4a4a4a; opacity: 0.4; cursor: default; }
 .btn-reset  { background: #a93226; }
 .btn-reset:hover { background: #c0392b; }
-/* 設定(⚙)・保存・リストの3ボタンは同じ大きさに揃える（枠線・高さも統一） */
-.btn-settings, .btn-save, .btn-list {
+/* 設定(⚙)・保存・リスト・戻る・進むは同じ大きさに揃える（枠線・高さも統一） */
+.btn-settings, .btn-save, .btn-list, .btn-undo, .btn-redo {
   box-sizing: border-box;
   font-size: 14px; font-weight: bold;
   padding: 0 8px; min-width: 62px; height: 30px;
@@ -991,8 +988,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   <button class="btn-settings" id="settingsBtn" onclick="toggleSettings()">⚙</button>
   <button class="btn-save" id="saveBtn" onclick="saveData()">保存</button>
   <button class="btn-list" onclick="showSaveList()">リスト</button>
-  <button class="btn-undo" id="undoBtn" onclick="undoLast()" disabled>↩ 戻る</button>
-  <button class="btn-redo" id="redoBtn" onclick="redoLast()" disabled>↪ 進む</button>
+  <button class="btn-undo" id="undoBtn" onclick="undoLast()" disabled>戻る</button>
+  <button class="btn-redo" id="redoBtn" onclick="redoLast()" disabled>進む</button>
   <button class="btn-reset" onclick="resetAll()">リセット</button>
 </div>
 
