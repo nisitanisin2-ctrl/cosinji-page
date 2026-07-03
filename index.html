@@ -605,6 +605,18 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
 }
 .modal-close:hover { background: rgba(255,255,255,0.35); }
 .modal-body { flex: 1; overflow-y: auto; padding: 10px; }
+/* 見出し長押しメニューのボタン（緑＝追加／赤＝削除） */
+.hm-btn {
+  display: block; width: 100%; border: none; border-radius: 8px;
+  padding: 14px 14px; margin-bottom: 8px;
+  font-size: 14.5px; font-weight: bold; color: #fff;
+  text-align: left; cursor: pointer; touch-action: manipulation;
+}
+.hm-btn:last-child { margin-bottom: 0; }
+.hm-btn.add { background: #217346; }
+.hm-btn.add:active { background: #0f4a26; }
+.hm-btn.del { background: #c0392b; margin-top: 4px; }
+.hm-btn.del:active { background: #7d2017; }
 .save-item {
   display: flex; align-items: center; flex-wrap: wrap; row-gap: 6px;
   padding: 8px 10px;
@@ -1290,6 +1302,16 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   </div>
 </div>
 
+<div class="modal-overlay" id="headerMenuOverlay" onclick="if(event.target===this)closeHeaderMenu()">
+  <div class="modal" style="max-width:300px;">
+    <div class="modal-header">
+      <span id="headerMenuTitle">行の操作</span>
+      <button class="modal-close" onclick="closeHeaderMenu()">✕</button>
+    </div>
+    <div class="modal-body" id="headerMenuBody"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="defaultSizeOverlay" onclick="if(event.target===this)closeDefaultSizeDlg()">
   <div class="modal">
     <div class="modal-header">
@@ -1375,6 +1397,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li">上部の入力欄から直接入力／編集もできます。</div>
         <div class="help-li">列見出し（A,B…）や行番号をタップすると、その列・行を選択して下に合計が出ます。</div>
         <div class="help-li"><b>列見出しの右端／行番号の下端をドラッグ</b>すると、その列の幅・行の高さを個別に変更できます（ダブルタップで自動に戻す）。</div>
+        <div class="help-li"><b>列見出し（A,B…）や行番号を長押し</b>すると、その場所に<b>行・列を追加したり削除したり</b>できるメニューが開きます（上・下／左・右に追加、または削除）。</div>
         <div class="help-li"><b>左上のコーナー（⤢）をスワイプ</b>、または表の上で<b>2本指ピンチ</b>すると、セル全体の大きさ（表示倍率）をまとめて変更できます（コーナーはダブルタップで100%に戻す）。設定の<b>「セル文字」</b>の＋−でも変更できます。</div>
       </div>
 
@@ -1867,15 +1890,19 @@ function buildSheet() {
     const th=hr.insertCell();
     th.className='ch'; th.id=`ch${c}`;
     th.textContent=ALPHA[c];
+    th.title='タップで列選択／長押しで列の追加・削除';
     th.addEventListener('click', ()=>clickCol(c));
     makeColGrip(th, c);
+    makeHeaderLongPress(th, 'col', c);
   }
   for (let r=0; r<ROWS; r++) {
     const tr=t.insertRow();
     const rh=tr.insertCell();
     rh.className='rh'; rh.id=`rh${r}`; rh.textContent=r+1; rh.style.width=rhW+'px';
+    rh.title='タップで行選択／長押しで行の追加・削除';
     rh.addEventListener('click', ()=>clickRow(r));
     makeRowGrip(rh, r);
+    makeHeaderLongPress(rh, 'row', r);
     for (let c=0; c<COLS; c++) {
       if (coverOf(r,c)) continue;          // 結合で覆われたセルは描画しない
       const td=tr.insertCell();
@@ -2452,10 +2479,13 @@ function afterStructChange(newSelR,newSelC){
   sel(Math.max(0,Math.min(newSelR,ROWS-1)), Math.max(0,Math.min(newSelC,COLS-1)));
   persistModes();
 }
-function insertRowAtSel(){
+/* 行・列の挿入／削除（at で対象位置を指定）。見出し長押しメニューと設定パネル両方から使う */
+function insertRowAt(at){
   if(structOpBlocked()) return;
+  if(ROWS>=50){ toast('これ以上行を増やせません（最大50行）'); return; }
   stripAllMerges();   // 行・列の挿入/削除時は結合を解除（構造破綻を防ぐ）
-  const at=selR, newROWS=Math.min(50, ROWS+1);
+  at=Math.max(0, Math.min(at, ROWS));
+  const newROWS=ROWS+1;
   for(let r=newROWS-1; r>at; r--) data[r]=data[r-1].slice();
   data[at]=Array(26).fill('');
   remapCellStyles((r,c)=> r>=at ? [r+1,c] : [r,c]);
@@ -2465,23 +2495,26 @@ function insertRowAtSel(){
   afterStructChange(at, selC);
   toast(`${at+1}行目に行を追加しました`);
 }
-function deleteRowAtSel(){
+function deleteRowAt(at){
   if(structOpBlocked()) return;
-  stripAllMerges();   // 行・列の挿入/削除時は結合を解除（構造破綻を防ぐ）
-  const at=selR;
+  if(ROWS<=1){ toast('これ以上行を減らせません'); return; }
+  stripAllMerges();
+  at=Math.max(0, Math.min(at, ROWS-1));
   for(let r=at; r<ROWS-1; r++) data[r]=data[r+1].slice();
   data[ROWS-1]=Array(26).fill('');
   remapCellStyles((r,c)=> r===at ? null : [r>at?r-1:r, c]);
   rowHeights=remapIndexMap(rowHeights, i=> i===at?null : (i>at?i-1:i));
   remapAllFormulas((r,c)=> r===at ? null : [r>at?r-1:r, c]);
-  ROWS=Math.max(1, ROWS-1);
-  afterStructChange(at, selC);
+  ROWS=ROWS-1;
+  afterStructChange(Math.min(at,ROWS-1), selC);
   toast(`${at+1}行目を削除しました`);
 }
-function insertColAtSel(){
+function insertColAt(at){
   if(structOpBlocked()) return;
-  stripAllMerges();   // 行・列の挿入/削除時は結合を解除（構造破綻を防ぐ）
-  const at=selC, newCOLS=Math.min(26, COLS+1);
+  if(COLS>=26){ toast('これ以上列を増やせません（最大26列）'); return; }
+  stripAllMerges();
+  at=Math.max(0, Math.min(at, COLS));
+  const newCOLS=COLS+1;
   for(let c=newCOLS-1; c>at; c--) for(let r=0;r<50;r++) data[r][c]=data[r][c-1];
   for(let r=0;r<50;r++) data[r][at]='';
   remapCellStyles((r,c)=> c>=at ? [r,c+1] : [r,c]);
@@ -2491,18 +2524,80 @@ function insertColAtSel(){
   afterStructChange(selR, at);
   toast(`${ALPHA[at]}列に列を追加しました`);
 }
-function deleteColAtSel(){
+function deleteColAt(at){
   if(structOpBlocked()) return;
-  stripAllMerges();   // 行・列の挿入/削除時は結合を解除（構造破綻を防ぐ）
-  const at=selC;
+  if(COLS<=1){ toast('これ以上列を減らせません'); return; }
+  stripAllMerges();
+  at=Math.max(0, Math.min(at, COLS-1));
   for(let c=at; c<COLS-1; c++) for(let r=0;r<50;r++) data[r][c]=data[r][c+1];
   for(let r=0;r<50;r++) data[r][COLS-1]='';
   remapCellStyles((r,c)=> c===at ? null : [r, c>at?c-1:c]);
   colWidths=remapIndexMap(colWidths, i=> i===at?null : (i>at?i-1:i));
   remapAllFormulas((r,c)=> c===at ? null : [r, c>at?c-1:c]);
-  COLS=Math.max(1, COLS-1);
-  afterStructChange(selR, at);
+  COLS=COLS-1;
+  afterStructChange(selR, Math.min(at,COLS-1));
   toast(`${ALPHA[at]}列を削除しました`);
+}
+/* 設定パネルの「選択中のセル」に対する操作（従来ボタン用） */
+function insertRowAtSel(){ insertRowAt(selR); }
+function deleteRowAtSel(){ deleteRowAt(selR); }
+function insertColAtSel(){ insertColAt(selC); }
+function deleteColAtSel(){ deleteColAt(selC); }
+
+/* ── 見出し長押しメニュー（行・列の追加/削除） ── */
+let headerPressFired=false;   // 長押しでメニューを出した直後の click(セル選択) を1回無効化するフラグ
+function openHeaderMenu(kind, index){
+  if(isStructMode()){ toast('このモードでは行・列の追加／削除はできません'); return; }
+  const title=document.getElementById('headerMenuTitle');
+  const body=document.getElementById('headerMenuBody');
+  if(kind==='row'){
+    clickRow(index);
+    title.textContent=`${index+1}行目`;
+    body.innerHTML=
+      `<button class="hm-btn add" onclick="hmDo('insRowAbove',${index})">⬆ 上に1行追加</button>`+
+      `<button class="hm-btn add" onclick="hmDo('insRowBelow',${index})">⬇ 下に1行追加</button>`+
+      `<button class="hm-btn del" onclick="hmDo('delRow',${index})">🗑 この行を削除</button>`;
+  } else {
+    clickCol(index);
+    title.textContent=`${ALPHA[index]}列`;
+    body.innerHTML=
+      `<button class="hm-btn add" onclick="hmDo('insColLeft',${index})">⬅ 左に1列追加</button>`+
+      `<button class="hm-btn add" onclick="hmDo('insColRight',${index})">➡ 右に1列追加</button>`+
+      `<button class="hm-btn del" onclick="hmDo('delCol',${index})">🗑 この列を削除</button>`;
+  }
+  document.getElementById('headerMenuOverlay').classList.add('open');
+}
+function closeHeaderMenu(){ document.getElementById('headerMenuOverlay').classList.remove('open'); }
+function hmDo(action, index){
+  closeHeaderMenu();
+  if(action==='insRowAbove') insertRowAt(index);
+  else if(action==='insRowBelow') insertRowAt(index+1);
+  else if(action==='delRow') deleteRowAt(index);
+  else if(action==='insColLeft') insertColAt(index);
+  else if(action==='insColRight') insertColAt(index+1);
+  else if(action==='delCol') deleteColAt(index);
+}
+/* 行・列見出しに長押しを付ける。短いタップは従来どおり選択、グリップ(端)は幅/高さ変更のまま。 */
+function makeHeaderLongPress(el, kind, index){
+  let timer=null, sx=0, sy=0;
+  const clear=()=>{ if(timer){ clearTimeout(timer); timer=null; } };
+  el.addEventListener('pointerdown', e=>{
+    if(e.button!==undefined && e.button>0) return;
+    if(e.target.classList && (e.target.classList.contains('col-grip')||e.target.classList.contains('row-grip'))) return;   // 端のグリップは幅/高さ変更
+    headerPressFired=false;
+    sx=e.clientX; sy=e.clientY;
+    clear();
+    timer=setTimeout(()=>{
+      timer=null;
+      if(navigator.vibrate){ try{ navigator.vibrate(20); }catch(_){} }
+      openHeaderMenu(kind, index);   // 中で clickRow/clickCol を呼ぶ（この時点では headerPressFired は false）
+      headerPressFired=true;         // このあと来る click（選択）を1回だけ無効化
+    }, 500);
+  });
+  el.addEventListener('pointermove', e=>{ if(timer && (Math.abs(e.clientX-sx)>10 || Math.abs(e.clientY-sy)>10)) clear(); });
+  el.addEventListener('pointerup', clear);
+  el.addEventListener('pointercancel', clear);
+  el.addEventListener('pointerleave', clear);
 }
 function changeDec(delta) {
   const next=decPlaces+delta; if (next<-1||next>10) return;
@@ -3228,9 +3323,10 @@ function highlightCol(c,on) {
   }
 }
 
-function clickCol(c) { clearRangeSelection(); sel(selR,c); }
+function clickCol(c) { if(headerPressFired){ headerPressFired=false; return; } clearRangeSelection(); sel(selR,c); }
 
 function clickRow(r) {
+  if(headerPressFired){ headerPressFired=false; return; }
   document.getElementById(`ch${selC}`).classList.remove('sel');
   for (let row=0;row<ROWS;row++) {
     const cell=document.getElementById(`c${row}_${selC}`);
