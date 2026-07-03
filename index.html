@@ -557,6 +557,16 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 .btn.enter:hover { background: #1f618d; }
 .btn.span2  { grid-column: span 2; }
 .btn.bd-on  { box-shadow: inset 0 0 0 2.5px #f1c40f; }   /* 枠線ページ：選択中の線種・色 */
+/* セル書式ページの色の列：横スクロール（1画面に5個表示、続きはスライドで） */
+.kf-scroll {
+  grid-column: 1 / -1;
+  display: flex; gap: 5px;
+  overflow-x: auto; overflow-y: hidden;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  touch-action: pan-x;
+}
+.kf-scroll::-webkit-scrollbar { display: none; }
+.kf-scroll .btn { flex: 0 0 calc((100% - 20px)/5); }   /* ちょうど5個分の幅（gap 5px×4を差引） */
 
 /* ── テンキーのボタン配置編集（ドラッグで入れ替え） ── */
 .kp-edit-bar { display: none; }
@@ -1249,16 +1259,32 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="btn" style="text-decoration:underline" onclick="kfmtToggle('underline')" title="下線">下線</button>
     <button class="btn op" onclick="kfmtSize(-1)" title="文字を小さく">A−</button>
     <button class="btn op" onclick="kfmtSize(1)" title="文字を大きく">A＋</button>
-    <button class="btn" onclick="kfmtColor('color','')" title="文字色を標準に戻す">あ</button>
-    <button class="btn" style="color:#ff8a80" onclick="kfmtColor('color','#e53935')" title="文字を赤に">あ</button>
-    <button class="btn" style="color:#82b1ff" onclick="kfmtColor('color','#1e88e5')" title="文字を青に">あ</button>
-    <button class="btn" style="color:#b9f6ca" onclick="kfmtColor('color','#2e7d32')" title="文字を緑に">あ</button>
-    <button class="btn" style="color:#ea80fc" onclick="kfmtColor('color','#8e24aa')" title="文字を紫に">あ</button>
-    <button class="btn" onclick="kfmtColor('bg','')" title="背景色なしに戻す">なし</button>
-    <button class="btn" style="background:#fff59d;color:#333" onclick="kfmtColor('bg','#fff59d')" title="背景を黄色に">黄</button>
-    <button class="btn" style="background:#c8e6c9;color:#333" onclick="kfmtColor('bg','#c8e6c9')" title="背景を緑に">緑</button>
-    <button class="btn" style="background:#bbdefb;color:#333" onclick="kfmtColor('bg','#bbdefb')" title="背景を青に">青</button>
-    <button class="btn" style="background:#f8bbd0;color:#333" onclick="kfmtColor('bg','#f8bbd0')" title="背景を桃色に">桃</button>
+    <div class="kf-scroll" title="横にスライドすると他の色が出ます">
+      <button class="btn" onclick="kfmtColor('color','')" title="文字色を標準に戻す">あ</button>
+      <button class="btn" style="color:#ff8a80" onclick="kfmtColor('color','#e53935')" title="文字を赤に">あ</button>
+      <button class="btn" style="color:#ffcc80" onclick="kfmtColor('color','#fb8c00')" title="文字をだいだい色に">あ</button>
+      <button class="btn" style="color:#fff59d" onclick="kfmtColor('color','#f9a825')" title="文字を黄色に">あ</button>
+      <button class="btn" style="color:#b9f6ca" onclick="kfmtColor('color','#2e7d32')" title="文字を緑に">あ</button>
+      <button class="btn" style="color:#84ffff" onclick="kfmtColor('color','#00acc1')" title="文字を水色に">あ</button>
+      <button class="btn" style="color:#82b1ff" onclick="kfmtColor('color','#1e88e5')" title="文字を青に">あ</button>
+      <button class="btn" style="color:#ea80fc" onclick="kfmtColor('color','#8e24aa')" title="文字を紫に">あ</button>
+      <button class="btn" style="color:#ff80ab" onclick="kfmtColor('color','#e91e63')" title="文字を桃色に">あ</button>
+      <button class="btn" style="color:#bcaaa4" onclick="kfmtColor('color','#6d4c41')" title="文字を茶色に">あ</button>
+      <button class="btn" onclick="kfmtColor('color','#000000')" title="文字を黒に">黒</button>
+    </div>
+    <div class="kf-scroll" title="横にスライドすると他の色が出ます">
+      <button class="btn" onclick="kfmtColor('bg','')" title="背景色なしに戻す">なし</button>
+      <button class="btn" style="background:#fff59d;color:#333" onclick="kfmtColor('bg','#fff59d')" title="背景を黄色に">黄</button>
+      <button class="btn" style="background:#ffe0b2;color:#333" onclick="kfmtColor('bg','#ffe0b2')" title="背景をだいだい色に">橙</button>
+      <button class="btn" style="background:#c8e6c9;color:#333" onclick="kfmtColor('bg','#c8e6c9')" title="背景を緑に">緑</button>
+      <button class="btn" style="background:#b2ebf2;color:#333" onclick="kfmtColor('bg','#b2ebf2')" title="背景を水色に">水</button>
+      <button class="btn" style="background:#bbdefb;color:#333" onclick="kfmtColor('bg','#bbdefb')" title="背景を青に">青</button>
+      <button class="btn" style="background:#e1bee7;color:#333" onclick="kfmtColor('bg','#e1bee7')" title="背景を紫に">紫</button>
+      <button class="btn" style="background:#f8bbd0;color:#333" onclick="kfmtColor('bg','#f8bbd0')" title="背景を桃色に">桃</button>
+      <button class="btn" style="background:#ffcdd2;color:#333" onclick="kfmtColor('bg','#ffcdd2')" title="背景を赤に">赤</button>
+      <button class="btn" style="background:#cfd8dc;color:#333" onclick="kfmtColor('bg','#cfd8dc')" title="背景を灰色に">灰</button>
+      <button class="btn" style="background:#d7ccc8;color:#333" onclick="kfmtColor('bg','#d7ccc8')" title="背景を茶色に">茶</button>
+    </div>
     <button class="btn op" onclick="kfmtAlign('left')" title="左寄せ">⬅寄</button>
     <button class="btn op" onclick="kfmtAlign('center')" title="中央寄せ">中央</button>
     <button class="btn op" onclick="kfmtAlign('right')" title="右寄せ">寄➡</button>
@@ -2997,6 +3023,7 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
   }
   function onDown(e){
     if(e.button!==undefined && e.button>0) return;
+    if(e.target && e.target.closest && e.target.closest('.kf-scroll')) return;   // 色の列は横スクロール優先（ページ切替と衝突させない）
     const onBtn   = !!(e.target && e.target.closest && e.target.closest('.btn'));
     const onEnter = !!(e.target && e.target.closest && e.target.closest('.btn.enter'));
     // 編集中＝Enterのみ／それ以外＝数字ページを含めどのボタンからでもフリック開始可（全面）
