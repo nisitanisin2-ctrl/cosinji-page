@@ -833,11 +833,20 @@ body.dark .help-li b { color: #8fd4ab; }
   background: var(--save-item-bg); color: var(--text); cursor: pointer; touch-action: manipulation;
 }
 .fmt-deco.on { background: #217346; color: #fff; border-color: #217346; }
-.fmt-swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+/* 色見本は1列に並べ、収まらない分は横スライドで表示
+   （min-width:0：flexアイテムとして親の幅まで縮めてoverflow-xを効かせる） */
+.fmt-swatches {
+  display: flex; flex-wrap: nowrap; gap: 6px;
+  min-width: 0; max-width: 100%;
+  overflow-x: auto; overflow-y: hidden; padding: 2px;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  touch-action: pan-x;
+}
+.fmt-swatches::-webkit-scrollbar { display: none; }
 .fmt-sw {
   width: 30px; height: 30px; border-radius: 6px; cursor: pointer;
   border: 2px solid var(--save-item-border); padding: 0; touch-action: manipulation;
-  position: relative;
+  position: relative; flex-shrink: 0;
 }
 .fmt-sw.sel { border-color: #217346; box-shadow: 0 0 0 2px #217346; }
 .fmt-sw.none { background: var(--cell-bg) !important; }
@@ -1455,11 +1464,15 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <input type="text" id="pdfFooter" class="pdf-input" placeholder="（なし）">
       </div>
       <div class="pdf-row">
-        <span class="pdf-row-label">用紙の向き</span>
+        <span class="pdf-row-label">用紙の向き<small>iPhoneで向きが変わらない場合は印刷画面のオプションで「横」を選んでください</small></span>
         <span class="pdf-seg" id="pdfOrient">
           <button data-v="portrait" onclick="pdfSeg('pdfOrient',this)">縦</button>
           <button data-v="landscape" onclick="pdfSeg('pdfOrient',this)">横</button>
         </span>
+      </div>
+      <div class="pdf-row">
+        <span class="pdf-row-label">用紙の幅に合わせる<small>表を自動で拡大・縮小してぴったりに</small></span>
+        <input type="checkbox" id="pdfFit" class="pdf-chk" checked>
       </div>
       <div class="pdf-row">
         <span class="pdf-row-label">上下の余白</span>
@@ -1676,7 +1689,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li">各データの<b>🔓ロック</b>をタップすると🔒保護され、誤って削除・改名できなくなります（もう一度タップで解除）。</div>
         <div class="help-li"><b>↩戻る／↪進む</b>：直前の入力を元に戻す／やり直す</div>
         <div class="help-li"><b>📄 CSV出力</b>：表をCSVファイルに書き出し　<b>📥 CSV読込</b>：CSVファイルを今の表に読み込み（上書き）。文字コード（UTF-8／Shift_JIS）は自動判別するのでExcelのCSVもそのまま読めます。どちらも設定の「データ」タブにあります。</div>
-        <div class="help-li"><b>🖨 PDF出力（印刷）</b>（設定の「データ」タブ）：印刷画面の前に<b>PDF設定ダイアログ</b>が開き、タイトル・日時・ヘッダー・フッター・用紙の向き・上下左右の余白・表の配置・文字サイズ・枠線を指定できます。「印刷／PDFに保存」を押すと印刷画面が開くので、印刷先で<b>「PDFに保存」</b>を選べばPDFとして書き出せます。設定内容は次回も引き継がれます。</div>
+        <div class="help-li"><b>🖨 PDF出力（印刷）</b>（設定の「データ」タブ）：印刷画面の前に<b>PDF設定ダイアログ</b>が開き、タイトル・日時・ヘッダー・フッター・用紙の向き・<b>用紙の幅に合わせる（自動で拡大・縮小）</b>・上下左右の余白・表の配置・文字サイズ・枠線を指定できます。「印刷／PDFに保存」を押すと印刷画面が開くので、印刷先で<b>「PDFに保存」</b>を選べばPDFとして書き出せます。設定内容は次回も引き継がれます。iPhoneで用紙の向きが変わらない場合は、印刷画面のオプションで向きを選んでください。</div>
         <div class="help-li"><b>🌙</b>：ダークモード切替　<b>リセット</b>：今のモードの内容を消去</div>
       </div>
     </div>
@@ -2433,7 +2446,7 @@ function exportCSV() {
 
 /* ── PDF出力：印刷用の見やすい表を作り、ブラウザの印刷（→「PDFに保存」）を開く ── */
 /* PDF出力の設定（タイトル・ヘッダー等）。localStorageに保存して次回も使う */
-const PDF_DEFAULTS={ title:'', date:false, header:'', footer:'', orient:'portrait', mv:12, mh:12, align:'left', font:'m', border:'drawn' };
+const PDF_DEFAULTS={ title:'', date:false, header:'', footer:'', orient:'portrait', fit:true, mv:12, mh:12, align:'left', font:'m', border:'drawn' };
 function loadPdfSettings(){
   try{
     const o=Object.assign({}, PDF_DEFAULTS, JSON.parse(localStorage.getItem('excalc_pdf_settings')||'{}'));
@@ -2456,6 +2469,7 @@ function exportPDF(){
   document.getElementById('pdfHeader').value=s.header;
   document.getElementById('pdfFooter').value=s.footer;
   pdfSegSet('pdfOrient', s.orient);
+  document.getElementById('pdfFit').checked=(s.fit!==false);
   document.getElementById('pdfMarginV').value=s.mv;
   document.getElementById('pdfMarginH').value=s.mh;
   pdfSegSet('pdfAlign', s.align);
@@ -2473,6 +2487,7 @@ function doExportPDF(){
     header:document.getElementById('pdfHeader').value.trim(),
     footer:document.getElementById('pdfFooter').value.trim(),
     orient:pdfSegVal('pdfOrient')||'portrait',
+    fit:  document.getElementById('pdfFit').checked,
     mv: Math.max(0, Math.min(40, parseInt(document.getElementById('pdfMarginV').value,10)||0)),
     mh: Math.max(0, Math.min(40, parseInt(document.getElementById('pdfMarginH').value,10)||0)),
     align: pdfSegVal('pdfAlign')||'left',
@@ -2523,14 +2538,35 @@ function doExportPDF(){
   html+='</tbody></table>';
   pa.innerHTML=html;
 
-  // 用紙の向き・余白・文字サイズを動的に反映
+  // 用紙の向き・余白・文字サイズを動的に反映。
+  // @pageはトップレベルに置く（@media内より対応ブラウザが広い。印刷時のみ効くので画面表示には影響しない）
   const fontPx = ps.font==='s' ? 10 : ps.font==='l' ? 15 : 12.5;
   let dyn=document.getElementById('printDynamicStyle');
   if(!dyn){ dyn=document.createElement('style'); dyn.id='printDynamicStyle'; document.head.appendChild(dyn); }
-  dyn.textContent = '@media print{'+
+  dyn.textContent =
     `@page{ size: A4 ${ps.orient}; margin: ${ps.mv}mm ${ps.mh}mm; }`+
-    `#printArea td{ font-size:${fontPx}px; }`+
-  '}';
+    `@media print{ #printArea td{ font-size:${fontPx}px; } }`;
+
+  // 用紙の幅に合わせて自動フィット（拡大・縮小）：
+  // 印刷時と同じ書式で表の自然な幅を測り、印刷可能幅との比率をzoomで適用する
+  const tbl=pa.querySelector('table');
+  if(ps.fit && tbl){
+    const meas=document.createElement('style');
+    meas.textContent=
+      '#printArea{display:block!important;position:fixed;left:-10000px;top:0;width:2000px;}'+
+      '#printArea table{border-collapse:separate;border-spacing:0;}'+
+      `#printArea td{border:1px solid transparent;padding:4px 7px;font-size:${fontPx}px;vertical-align:top;}`+
+      '#printArea thead .pa-run, #printArea tfoot .pa-run{font-size:11px;padding:4px 3px;}';
+    document.head.appendChild(meas);
+    tbl.style.width='max-content';
+    const natural=tbl.getBoundingClientRect().width;
+    meas.remove();
+    const availPx=((ps.orient==='landscape'?297:210) - 2*ps.mh) * 96/25.4;   // 印刷可能幅(px)
+    if(natural>0){
+      const k=Math.max(0.2, Math.min(4, (availPx*0.99)/natural));
+      tbl.style.zoom=String(k);
+    }
+  }
 
   setTimeout(()=>{ try{ window.print(); }catch(e){ alert('印刷を開けませんでした'); } }, 150);
 }
@@ -5228,8 +5264,9 @@ function resetAll() {
 /* ── セル書式（小数点・装飾・色・大きさ）──────────────────── */
 const FMT_SIZES  = [0.8, 1.0, 1.25, 1.5];
 const FMT_SLABEL = ['小','標準','大','特大'];
-const TEXT_COLORS = ['', '#e53935','#1e88e5','#2e7d32','#fb8c00','#8e24aa','#000000','#ffffff'];
-const BG_COLORS   = ['', '#fff59d','#c8e6c9','#bbdefb','#f8bbd0','#ffe0b2','#cfd8dc','#212121'];
+/* テンキーのセル書式ページと同じ拡張パレット（＋白文字・濃背景） */
+const TEXT_COLORS = ['', '#e53935','#fb8c00','#f9a825','#2e7d32','#00acc1','#1e88e5','#8e24aa','#e91e63','#6d4c41','#000000','#ffffff'];
+const BG_COLORS   = ['', '#fff59d','#ffe0b2','#c8e6c9','#b2ebf2','#bbdefb','#e1bee7','#f8bbd0','#ffcdd2','#cfd8dc','#d7ccc8','#212121'];
 let fmtR=-1, fmtC=-1;
 
 /* td に現在の書式を反映（毎回リセットしてから適用） */
