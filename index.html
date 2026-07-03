@@ -672,6 +672,23 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
 .pdf-print-btn { width: 100%; margin-top: 14px; padding: 14px; border: none; border-radius: 8px; background: #217346; color: #fff; font-size: 15px; font-weight: bold; cursor: pointer; touch-action: manipulation; }
 .pdf-print-btn:active { background: #0f4a26; }
 .pdf-note { font-size: 11px; color: var(--text-light); margin-top: 8px; text-align: center; line-height: 1.4; }
+/* PDF設定内のプレビュー（1ページ目の縮小表示）。上に固定し、設定を変えると即時更新される */
+.pdf-preview-box {
+  position: sticky; top: -10px; z-index: 3;
+  background: var(--modal-bg); margin: -10px -10px 8px; padding: 8px 10px 6px;
+  border-bottom: 1px solid var(--save-item-border); text-align: center;
+}
+.pdf-preview-page { display: inline-block; background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,0.35); position: relative; overflow: hidden; }
+.pdf-preview-margin { position: absolute; outline: 1px dashed #b6c6e0; overflow: hidden; }
+.pdf-preview-inner { color: #000; text-align: left; background: #fff; }
+.pdf-preview-inner .pa-title { font-size: 16px; font-weight: bold; margin: 0 0 8px; }
+.pdf-preview-inner .pa-date  { font-size: 11px; color: #555; margin: 0 0 10px; }
+.pdf-preview-inner table { border-collapse: separate; border-spacing: 0; width: max-content; }
+.pdf-preview-inner td { border: 1px solid transparent; padding: 4px 7px; font-size: var(--pvfont, 12.5px); vertical-align: top; color: #000; }
+.pdf-preview-inner td.filled { border-color: #000; }
+.pdf-preview-inner td.num { text-align: right; }
+.pdf-preview-inner thead .pa-run, .pdf-preview-inner tfoot .pa-run { border: none; text-align: center; font-size: 11px; padding: 4px 3px; }
+.pdf-preview-cap { font-size: 11px; color: var(--text-light); margin-top: 4px; }
 .save-item {
   display: flex; align-items: center; flex-wrap: wrap; row-gap: 6px;
   padding: 8px 10px;
@@ -1447,6 +1464,12 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <button class="modal-close" onclick="closePdfDlg()">✕</button>
     </div>
     <div class="modal-body">
+      <div class="pdf-preview-box">
+        <div class="pdf-preview-page" id="pdfPrevPage">
+          <div class="pdf-preview-margin" id="pdfPrevMargin"><div class="pdf-preview-inner" id="pdfPrevInner"></div></div>
+        </div>
+        <div class="pdf-preview-cap" id="pdfPrevCap"></div>
+      </div>
       <div class="pdf-row">
         <span class="pdf-row-label">タイトル<small>空欄なら印刷しません</small></span>
         <input type="text" id="pdfTitle" class="pdf-input" placeholder="（なし）">
@@ -1471,8 +1494,16 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         </span>
       </div>
       <div class="pdf-row">
-        <span class="pdf-row-label">用紙の幅に合わせる<small>表を自動で拡大・縮小してぴったりに</small></span>
-        <input type="checkbox" id="pdfFit" class="pdf-chk" checked>
+        <span class="pdf-row-label">拡大縮小<small>横＝幅に合わせる／縦＝1ページに収める</small></span>
+        <span class="pdf-seg" id="pdfFitMode">
+          <button data-v="w" onclick="pdfSeg('pdfFitMode',this)">横フィット</button>
+          <button data-v="h" onclick="pdfSeg('pdfFitMode',this)">縦フィット</button>
+          <button data-v="pct" onclick="pdfSeg('pdfFitMode',this)">倍率</button>
+        </span>
+      </div>
+      <div class="pdf-row">
+        <span class="pdf-row-label">倍率の値<small>「倍率」を選んだときに使われます</small></span>
+        <span class="pdf-num"><input type="number" id="pdfPct" min="20" max="400" step="5" inputmode="numeric"> %</span>
       </div>
       <div class="pdf-row">
         <span class="pdf-row-label">上下の余白</span>
@@ -2446,48 +2477,37 @@ function exportCSV() {
 
 /* ── PDF出力：印刷用の見やすい表を作り、ブラウザの印刷（→「PDFに保存」）を開く ── */
 /* PDF出力の設定（タイトル・ヘッダー等）。localStorageに保存して次回も使う */
-const PDF_DEFAULTS={ title:'', date:false, header:'', footer:'', orient:'portrait', fit:true, mv:12, mh:12, align:'left', font:'m', border:'drawn' };
+const PDF_DEFAULTS={ title:'', date:false, header:'', footer:'', orient:'portrait', fitMode:'w', pct:100, mv:12, mh:12, align:'left', font:'m', border:'drawn' };
 function loadPdfSettings(){
   try{
-    const o=Object.assign({}, PDF_DEFAULTS, JSON.parse(localStorage.getItem('excalc_pdf_settings')||'{}'));
+    const raw=JSON.parse(localStorage.getItem('excalc_pdf_settings')||'{}');
+    const o=Object.assign({}, PDF_DEFAULTS, raw);
     // 枠線機能の導入に伴い、既定を「引いた線のみ」へ1回だけ移行（以後はユーザーの選択を尊重）
     if(!o._v2){ o.border='drawn'; o._v2=1; }
+    // 旧「用紙の幅に合わせる」チェックからの移行：ON→横フィット、OFF→倍率100%
+    if(raw.fitMode!=='w'&&raw.fitMode!=='h'&&raw.fitMode!=='pct') o.fitMode=(raw.fit===false)?'pct':'w';
     return o;
   }
   catch(_){ return Object.assign({}, PDF_DEFAULTS); }
 }
-function pdfSeg(groupId, btn){ document.querySelectorAll('#'+groupId+' button').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); }
+function pdfSeg(groupId, btn){
+  document.querySelectorAll('#'+groupId+' button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  updatePdfPreview();
+}
 function pdfSegVal(groupId){ const b=document.querySelector('#'+groupId+' button.on'); return b?b.dataset.v:''; }
 function pdfSegSet(groupId, v){ document.querySelectorAll('#'+groupId+' button').forEach(b=>b.classList.toggle('on', b.dataset.v===v)); }
 
-/* 「🖨 PDF出力」→ まず設定ダイアログを開く（印刷プレビューはその後） */
-function exportPDF(){
-  const sp=document.getElementById('settingsPanel'); if(sp&&sp.classList.contains('open')) toggleSettings();
-  const s=loadPdfSettings();
-  document.getElementById('pdfTitle').value=s.title;
-  document.getElementById('pdfDate').checked=!!s.date;
-  document.getElementById('pdfHeader').value=s.header;
-  document.getElementById('pdfFooter').value=s.footer;
-  pdfSegSet('pdfOrient', s.orient);
-  document.getElementById('pdfFit').checked=(s.fit!==false);
-  document.getElementById('pdfMarginV').value=s.mv;
-  document.getElementById('pdfMarginH').value=s.mh;
-  pdfSegSet('pdfAlign', s.align);
-  pdfSegSet('pdfFont', s.font);
-  pdfSegSet('pdfBorder', s.border);
-  document.getElementById('pdfDlgOverlay').classList.add('open');
-}
-function closePdfDlg(){ document.getElementById('pdfDlgOverlay').classList.remove('open'); }
-
-/* 設定を反映して印刷用の内容を組み立て、印刷画面を開く */
-function doExportPDF(){
-  const ps={
+/* ダイアログの現在値を設定オブジェクトとして読み取る（印刷とプレビューで共用） */
+function readPdfDlg(){
+  return {
     title: document.getElementById('pdfTitle').value.trim(),
     date:  document.getElementById('pdfDate').checked,
     header:document.getElementById('pdfHeader').value.trim(),
     footer:document.getElementById('pdfFooter').value.trim(),
     orient:pdfSegVal('pdfOrient')||'portrait',
-    fit:  document.getElementById('pdfFit').checked,
+    fitMode:pdfSegVal('pdfFitMode')||'w',
+    pct: Math.max(20, Math.min(400, parseInt(document.getElementById('pdfPct').value,10)||100)),
     mv: Math.max(0, Math.min(40, parseInt(document.getElementById('pdfMarginV').value,10)||0)),
     mh: Math.max(0, Math.min(40, parseInt(document.getElementById('pdfMarginH').value,10)||0)),
     align: pdfSegVal('pdfAlign')||'left',
@@ -2495,11 +2515,16 @@ function doExportPDF(){
     border:pdfSegVal('pdfBorder')||'drawn',
     _v2: 1,
   };
-  localStorage.setItem('excalc_pdf_settings', JSON.stringify(ps));
-  closePdfDlg();
-
-  let pa=document.getElementById('printArea');
-  if(!pa){ pa=document.createElement('div'); pa.id='printArea'; document.body.appendChild(pa); }
+}
+function pdfFontPx(ps){ return ps.font==='s' ? 10 : ps.font==='l' ? 15 : 12.5; }
+/* 用紙(A4)の印刷可能領域(px, 96dpi) */
+function pdfAvail(ps){
+  const wMm=ps.orient==='landscape'?297:210, hMm=ps.orient==='landscape'?210:297;
+  const PX=96/25.4;
+  return { availW:(wMm-2*ps.mh)*PX, availH:(hMm-2*ps.mv)*PX, wMm, hMm };
+}
+/* 印刷する中身(タイトル・日時・表)のHTMLを組み立てる */
+function buildPdfHtml(ps){
   let html='';
   if(ps.title) html+=`<div class="pa-title">${escHtml(ps.title)}</div>`;
   if(ps.date)  html+=`<div class="pa-date">${escHtml(new Date().toLocaleString('ja-JP'))}</div>`;
@@ -2536,37 +2561,116 @@ function doExportPDF(){
     html+='</tr>';
   }
   html+='</tbody></table>';
+  return html;
+}
+/* 印刷時と同じ書式で中身の自然な大きさ(px)を測る（#printAreaを画面外で一時表示） */
+function measurePdfNatural(html, fontPx){
+  let pa=document.getElementById('printArea');
+  if(!pa){ pa=document.createElement('div'); pa.id='printArea'; document.body.appendChild(pa); }
   pa.innerHTML=html;
+  const meas=document.createElement('style');
+  meas.textContent=
+    '#printArea{display:block!important;position:fixed;left:-10000px;top:0;width:2000px;}'+
+    '#printArea table{border-collapse:separate;border-spacing:0;width:max-content;}'+
+    `#printArea td{border:1px solid transparent;padding:4px 7px;font-size:${fontPx}px;vertical-align:top;}`+
+    '#printArea thead .pa-run, #printArea tfoot .pa-run{font-size:11px;padding:4px 3px;}';
+  document.head.appendChild(meas);
+  const tbl=pa.querySelector('table');
+  const w=tbl?tbl.getBoundingClientRect().width:0;
+  let h=0; for(const ch of pa.children) h+=ch.getBoundingClientRect().height;
+  meas.remove();
+  return {w,h};
+}
+/* フィットモードに応じた倍率：w=幅に合わせる／h=縦1ページに収める（幅も超えない）／pct=指定倍率 */
+function computePdfZoom(ps, nat){
+  const {availW,availH}=pdfAvail(ps);
+  let k;
+  if(ps.fitMode==='pct') k=ps.pct/100;
+  else if(ps.fitMode==='h') k=Math.min((availW*0.99)/Math.max(1,nat.w), (availH*0.99)/Math.max(1,nat.h));
+  else k=(availW*0.99)/Math.max(1,nat.w);
+  return Math.max(0.2, Math.min(4, k));
+}
+
+/* 「🖨 PDF出力」→ まず設定ダイアログを開く（印刷プレビューはその後） */
+function exportPDF(){
+  const sp=document.getElementById('settingsPanel'); if(sp&&sp.classList.contains('open')) toggleSettings();
+  const s=loadPdfSettings();
+  document.getElementById('pdfTitle').value=s.title;
+  document.getElementById('pdfDate').checked=!!s.date;
+  document.getElementById('pdfHeader').value=s.header;
+  document.getElementById('pdfFooter').value=s.footer;
+  pdfSegSet('pdfOrient', s.orient);
+  pdfSegSet('pdfFitMode', s.fitMode);
+  document.getElementById('pdfPct').value=s.pct;
+  document.getElementById('pdfMarginV').value=s.mv;
+  document.getElementById('pdfMarginH').value=s.mh;
+  pdfSegSet('pdfAlign', s.align);
+  pdfSegSet('pdfFont', s.font);
+  pdfSegSet('pdfBorder', s.border);
+  document.getElementById('pdfDlgOverlay').classList.add('open');
+  updatePdfPreview();
+}
+function closePdfDlg(){ document.getElementById('pdfDlgOverlay').classList.remove('open'); }
+
+/* ダイアログ内ミニプレビュー：1ページ目を縮小表示し、倍率とおよそのページ数も示す */
+function updatePdfPreview(){
+  const box=document.getElementById('pdfPrevPage'); if(!box) return;
+  if(!document.getElementById('pdfDlgOverlay').classList.contains('open')) return;
+  const ps=readPdfDlg();
+  const fontPx=pdfFontPx(ps);
+  const html=buildPdfHtml(ps);
+  const nat=measurePdfNatural(html, fontPx);
+  const k=computePdfZoom(ps, nat);
+  const {availW,availH,wMm,hMm}=pdfAvail(ps);
+  // ミニページの実寸（縦向き156×220／横向き300×212程度）
+  const pageH=ps.orient==='landscape'?212:220;
+  const pageW=Math.round(pageH*wMm/hMm);
+  const rho=pageW/(wMm*96/25.4);          // 実ページpx→プレビューpxの縮小率
+  const mvP=ps.mv*(96/25.4)*rho, mhP=ps.mh*(96/25.4)*rho;
+  box.style.width=pageW+'px'; box.style.height=pageH+'px';
+  const mg=document.getElementById('pdfPrevMargin');
+  mg.style.left=mhP+'px'; mg.style.right=mhP+'px'; mg.style.top=mvP+'px'; mg.style.bottom=mvP+'px';
+  const inner=document.getElementById('pdfPrevInner');
+  inner.innerHTML=html;
+  inner.style.setProperty('--pvfont', fontPx+'px');
+  inner.style.width=availW+'px';
+  inner.style.zoom=String(rho);
+  const t=inner.querySelector('table'); if(t) t.style.zoom=String(k);
+  const pages=Math.max(1, Math.ceil((nat.h*k)/Math.max(1,availH)));
+  document.getElementById('pdfPrevCap').textContent=`プレビュー（1ページ目）｜ 倍率 ${Math.round(k*100)}%・約${pages}ページ`;
+}
+/* 入力欄の変更でもプレビューを更新（倍率欄を触ったら自動で「倍率」モードに） */
+(function wirePdfPreview(){
+  ['pdfTitle','pdfDate','pdfHeader','pdfFooter','pdfMarginV','pdfMarginH'].forEach(id=>{
+    const el=document.getElementById(id); if(!el) return;
+    el.addEventListener('input', updatePdfPreview);
+    el.addEventListener('change', updatePdfPreview);
+  });
+  const pct=document.getElementById('pdfPct');
+  if(pct) pct.addEventListener('input', ()=>{ pdfSegSet('pdfFitMode','pct'); updatePdfPreview(); });
+})();
+
+/* 設定を反映して印刷用の内容を組み立て、印刷画面を開く */
+function doExportPDF(){
+  const ps=readPdfDlg();
+  localStorage.setItem('excalc_pdf_settings', JSON.stringify(ps));
+  closePdfDlg();
+
+  const fontPx=pdfFontPx(ps);
+  const html=buildPdfHtml(ps);
+  const nat=measurePdfNatural(html, fontPx);   // ここで#printAreaに中身もセットされる
+  const k=computePdfZoom(ps, nat);
+  const pa=document.getElementById('printArea');
+  const tbl=pa.querySelector('table');
+  if(tbl){ tbl.style.width=(ps.align==='center'?'auto':'max-content'); tbl.style.zoom=String(k); }
 
   // 用紙の向き・余白・文字サイズを動的に反映。
   // @pageはトップレベルに置く（@media内より対応ブラウザが広い。印刷時のみ効くので画面表示には影響しない）
-  const fontPx = ps.font==='s' ? 10 : ps.font==='l' ? 15 : 12.5;
   let dyn=document.getElementById('printDynamicStyle');
   if(!dyn){ dyn=document.createElement('style'); dyn.id='printDynamicStyle'; document.head.appendChild(dyn); }
   dyn.textContent =
     `@page{ size: A4 ${ps.orient}; margin: ${ps.mv}mm ${ps.mh}mm; }`+
     `@media print{ #printArea td{ font-size:${fontPx}px; } }`;
-
-  // 用紙の幅に合わせて自動フィット（拡大・縮小）：
-  // 印刷時と同じ書式で表の自然な幅を測り、印刷可能幅との比率をzoomで適用する
-  const tbl=pa.querySelector('table');
-  if(ps.fit && tbl){
-    const meas=document.createElement('style');
-    meas.textContent=
-      '#printArea{display:block!important;position:fixed;left:-10000px;top:0;width:2000px;}'+
-      '#printArea table{border-collapse:separate;border-spacing:0;}'+
-      `#printArea td{border:1px solid transparent;padding:4px 7px;font-size:${fontPx}px;vertical-align:top;}`+
-      '#printArea thead .pa-run, #printArea tfoot .pa-run{font-size:11px;padding:4px 3px;}';
-    document.head.appendChild(meas);
-    tbl.style.width='max-content';
-    const natural=tbl.getBoundingClientRect().width;
-    meas.remove();
-    const availPx=((ps.orient==='landscape'?297:210) - 2*ps.mh) * 96/25.4;   // 印刷可能幅(px)
-    if(natural>0){
-      const k=Math.max(0.2, Math.min(4, (availPx*0.99)/natural));
-      tbl.style.zoom=String(k);
-    }
-  }
 
   setTimeout(()=>{ try{ window.print(); }catch(e){ alert('印刷を開けませんでした'); } }, 150);
 }
