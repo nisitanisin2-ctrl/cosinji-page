@@ -105,7 +105,10 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
       "main toolbar"
       "main numpad";
   }
-  .toolbar     { grid-area: toolbar; flex-wrap: wrap; row-gap: 4px; }
+  /* 横向き：ツールバーは折り返さず1段のまま。はみ出す分は横スクロール（スライド）で表示 */
+  .toolbar     { grid-area: toolbar; flex-wrap: nowrap; min-width: 0; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .toolbar::-webkit-scrollbar { display: none; }
+  .toolbar > * { flex-shrink: 0; }
   .toolbar-title { display: none; }
   .left-pane   { grid-area: main; min-height: 0; }
   .numpad-section {
