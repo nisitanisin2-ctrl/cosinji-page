@@ -1121,7 +1121,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <span class="set-stepper"><button class="step-btn" onclick="changeTax(-1)">−</button><span class="sc-val" id="taxRate">10%</span><button class="step-btn" onclick="changeTax(1)">＋</button></span>
     </div>
     <div class="set-sec">ひな形（テンプレ）とモード</div>
-    <button class="set-act" onclick="openCalcTmpl()" title="いろいろな計算のひな形を選んで、値を入れるだけの状態にします">📋 計算テンプレ</button>
+    <button class="set-act" onclick="openCalcTmpl()" title="色々な計算式のひな形（約20種類）を選んで、値を入れるだけの状態にします">📋 計算式テンプレ</button>
     <button class="set-act" onclick="openFinTmpl()" title="損益計算書・貸借対照表・収支計算書のかんたんなひな形">📑 決算書テンプレ</button>
     <button class="set-act" onclick="openModeVis()" title="「モード」一覧に表示する標準モードを選びます">🔀 モードの表示/非表示</button>
   </div>
@@ -1582,7 +1582,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 <div class="modal-overlay" id="calcTmplOverlay" onclick="if(event.target===this)closeCalcTmpl()">
   <div class="modal">
     <div class="modal-header">
-      <span>📋 計算テンプレ</span>
+      <span>📋 計算式テンプレ</span>
       <button class="modal-close" onclick="closeCalcTmpl()">✕</button>
     </div>
     <div class="mode-hint">やりたい計算を選ぶと、項目名と計算式が入った表になります。<b>黄色のセル</b>に値を入れるだけで答えが出ます（今の表は上書きされます）。</div>
@@ -1696,7 +1696,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><b>容積</b>：縦×横×高さ＝容積　<b>予算配分</b>：予算と個数から最適な購入数</div>
         <div class="help-li"><b>時間計算</b>：開始〜終了の時刻から所要時間</div>
         <div class="help-li"><b>単位水量</b>：土研法エアメータ法で生コンの単位水量を推定。表に配合（単位水量W1・セメント・細骨材・粗骨材・混和材・配合空気量）と試験値（容器容積V・容器質量・容器+試料・測定空気量）を入力すると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で単位水量を推定し、配合値との差を許容差（合格±/限界±、下のバーで変更可）で合否判定します。配合の質量はkg/m³、試験の容器容積・容器質量・容器+試料はg・ccで入力。</div>
-        <div class="help-li"><b>📋 計算テンプレ</b>（設定の「計算」タブ）：割引・消費税・BMI・速さ・電気代・面積・ローンなど、よくある計算の<b>ひな形</b>を選ぶと、項目名と計算式が入った表になります。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
+        <div class="help-li"><b>📋 計算式テンプレ</b>（設定の「計算」タブ）：割引・割合・増減率・利益率・BMI・基礎代謝・速さ・燃費・電気代・給料・複利・ローン・面積・体積・三平方・温度換算など、<b>色々な計算式をエクセルの式に落とし込んだ約20種類のひな形</b>を選ぶと、項目名と計算式が入った表になります。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
         <div class="help-li"><b>📑 決算書テンプレ</b>（設定の「計算」タブ）：損益計算書・貸借対照表・収支計算書の<b>かんたんなひな形</b>です。黄色のセルに金額を入れると、利益や合計・検算（貸借の差額）が自動で出ます。</div>
       </div>
 
@@ -1998,7 +1998,13 @@ function parseArith(s) {
             for (let cc=Math.min(ci1,ci2); cc<=Math.max(ci1,ci2); cc++)
               vals.push(getCellValue(rr,cc));
         } else if (r1) {
-          vals.push(getCellValue(parseInt(r1)-1, ALPHA.indexOf(c1)));
+          ws();
+          if (pos<s.length && s[pos]!==',' && s[pos]!==')'){
+            pos = savedPos;              // 参照の後に演算子が続く（例: SQRT(B1^2+B2^2)）＝式として解釈し直す
+            vals.push(expr());
+          } else {
+            vals.push(getCellValue(parseInt(r1)-1, ALPHA.indexOf(c1)));
+          }
         } else {
           pos = savedPos;
           vals.push(expr());
@@ -4371,29 +4377,54 @@ const MODE_MENU=[
   {key:'tanisuiryou', icon:'💧', name:'単位水量', desc:'土研法エアメータ法で生コンの単位水量を推定（配合・試験値から算定し合否判定）'},
 ];
 
-/* ── 計算テンプレ：状況を選ぶと項目名＋計算式が入り、黄色セルに値を入れるだけ ──
+/* ── 計算式テンプレ：色々な計算式をエクセルの式に落とし込んだひな形。
+   選ぶと項目名＋計算式が入り、黄色セルに値を入れるだけで答えが出る。
    各 rows は [A列=項目名, B列=値または数式('='始まり)]。B列が空＝入力セル（黄色）。 */
 const CALC_TEMPLATES=[
   {id:'discount', icon:'🏷', name:'割引計算', desc:'元の値段と割引率から割引後の値段・割引額', rows:[
     ['元の値段',''],['割引率(%)',''],['割引後の値段','=B1*(1-B2/100)'],['割引額','=B1-B3']]},
   {id:'tax', icon:'🧾', name:'消費税（税抜→税込）', desc:'税抜価格と税率から税込価格・消費税額', rows:[
     ['税抜価格',''],['税率(%)','10'],['税込価格','=B1*(1+B2/100)'],['消費税額','=B1*B2/100']]},
-  {id:'bmi', icon:'⚖️', name:'BMI', desc:'身長と体重からBMIを計算', rows:[
-    ['身長(cm)',''],['体重(kg)',''],['BMI','=B2/(B1/100)^2']]},
-  {id:'sdt', icon:'🚗', name:'速さ・距離・時間', desc:'距離と時間から速さ（km/h）', rows:[
-    ['距離(km)',''],['時間(時間)',''],['速さ(km/h)','=B1/B2']]},
+  {id:'pct', icon:'🎯', name:'割合（何％か）', desc:'部分と全体から割合(%)を計算', rows:[
+    ['部分の値',''],['全体の値',''],['割合(%)','=B1/B2*100']]},
+  {id:'change', icon:'📈', name:'増減率（前年比）', desc:'前の値と今の値から増減率・増減額', rows:[
+    ['前の値',''],['今の値',''],['増減率(%)','=(B2-B1)/B1*100'],['増減額','=B2-B1']]},
+  {id:'profit', icon:'💹', name:'利益と利益率', desc:'原価と売価から利益・利益率（粗利率）', rows:[
+    ['原価',''],['売価',''],['利益','=B2-B1'],['利益率(%)','=(B2-B1)/B2*100']]},
+  {id:'bmi', icon:'⚖️', name:'BMIと標準体重', desc:'身長と体重からBMI・標準体重を計算', rows:[
+    ['身長(cm)',''],['体重(kg)',''],['BMI','=B2/(B1/100)^2'],['標準体重(kg)','=(B1/100)^2*22']]},
+  {id:'kcal', icon:'🔥', name:'基礎代謝（目安）', desc:'体重・身長・年齢から1日の基礎代謝（Mifflin式）', rows:[
+    ['体重(kg)',''],['身長(cm)',''],['年齢',''],['男性(kcal/日)','=10*B1+6.25*B2-5*B3+5'],['女性(kcal/日)','=10*B1+6.25*B2-5*B3-161']]},
+  {id:'sdt', icon:'🚗', name:'速さ・距離・時間', desc:'距離と時間から速さ、所要時間（分）も', rows:[
+    ['距離(km)',''],['時間(時間)',''],['速さ(km/h)','=B1/B2'],['かかった分数','=B2*60']]},
+  {id:'fuel', icon:'⛽', name:'燃費とガソリン代', desc:'距離と給油量から燃費、単価からガソリン代', rows:[
+    ['走った距離(km)',''],['給油量(L)',''],['燃費(km/L)','=B1/B2'],['単価(円/L)',''],['ガソリン代(円)','=B2*B4']]},
   {id:'power', icon:'💡', name:'電気代', desc:'消費電力・使用時間・単価から電気代', rows:[
     ['消費電力(W)',''],['使用時間(h)',''],['単価(円/kWh)','31'],['電気代(円)','=B1/1000*B2*B3']]},
-  {id:'rect', icon:'⬛', name:'長方形の面積', desc:'縦×横で面積と周の長さ', rows:[
-    ['縦',''],['横',''],['面積','=B1*B2'],['周の長さ','=(B1+B2)*2']]},
-  {id:'circle', icon:'⚪', name:'円の面積・円周', desc:'半径から面積・円周', rows:[
-    ['半径',''],['面積','=B1^2*PI'],['円周','=2*B1*PI']]},
-  {id:'avg', icon:'📊', name:'合計・平均（3項目）', desc:'3つの値の合計と平均', rows:[
-    ['値1',''],['値2',''],['値3',''],['合計','=SUM(B1:B3)'],['平均','=AVERAGE(B1:B3)']]},
+  {id:'wage', icon:'👷', name:'給料（時給×時間）', desc:'時給と勤務時間・残業(1.25倍)から支給額', rows:[
+    ['時給(円)',''],['通常時間(h)',''],['残業時間(h)',''],['通常分','=B1*B2'],['残業分(1.25倍)','=B1*B3*1.25'],['支給合計','=B4+B5']]},
   {id:'commission', icon:'💴', name:'歩合給', desc:'売上と歩合率から歩合給・合計支給', rows:[
     ['売上',''],['歩合率(%)',''],['基本給',''],['歩合給','=B1*B2/100'],['合計支給','=B3+B4']]},
-  {id:'loan', icon:'🏦', name:'ローン毎月返済額', desc:'借入額・年利・年数から毎月返済額（元利均等）', rows:[
+  {id:'compound', icon:'🏦', name:'複利（元利合計）', desc:'元金・年利・年数から満期の元利合計と利息', rows:[
+    ['元金',''],['年利(%)',''],['年数',''],['元利合計','=B1*(1+B2/100)^B3'],['利息','=B4-B1']]},
+  {id:'loan', icon:'🏠', name:'ローン毎月返済額', desc:'借入額・年利・年数から毎月返済額（元利均等）', rows:[
     ['借入額',''],['年利(%)',''],['返済年数',''],['毎月返済額','=B1*(B2/100/12)/(1-(1+B2/100/12)^(0-B3*12))']]},
+  {id:'rect', icon:'⬛', name:'長方形の面積', desc:'縦×横で面積と周の長さ', rows:[
+    ['縦',''],['横',''],['面積','=B1*B2'],['周の長さ','=(B1+B2)*2']]},
+  {id:'tri', icon:'🔺', name:'三角形の面積', desc:'底辺×高さ÷2で面積', rows:[
+    ['底辺',''],['高さ',''],['面積','=B1*B2/2']]},
+  {id:'pytha', icon:'📐', name:'三平方の定理', desc:'直角をはさむ2辺から斜辺の長さ', rows:[
+    ['辺a',''],['辺b',''],['斜辺c','=SQRT(B1^2+B2^2)']]},
+  {id:'circle', icon:'⚪', name:'円の面積・円周', desc:'半径から面積・円周', rows:[
+    ['半径',''],['面積','=B1^2*PI'],['円周','=2*B1*PI']]},
+  {id:'cylinder', icon:'🥫', name:'円柱の体積', desc:'半径と高さから体積', rows:[
+    ['半径',''],['高さ',''],['体積','=PI*B1^2*B2']]},
+  {id:'sphere', icon:'🥎', name:'球の体積・表面積', desc:'半径から体積と表面積', rows:[
+    ['半径',''],['体積','=4/3*PI*B1^3'],['表面積','=4*PI*B1^2']]},
+  {id:'temp', icon:'🌡', name:'温度換算（℃⇄℉）', desc:'摂氏から華氏、華氏から摂氏へ換算', rows:[
+    ['摂氏(℃)',''],['→華氏(℉)','=B1*9/5+32'],['華氏(℉)',''],['→摂氏(℃)','=(B3-32)*5/9']]},
+  {id:'avg', icon:'📊', name:'合計・平均（3項目）', desc:'3つの値の合計と平均・最大・最小', rows:[
+    ['値1',''],['値2',''],['値3',''],['合計','=SUM(B1:B3)'],['平均','=AVERAGE(B1:B3)'],['最大','=MAX(B1:B3)'],['最小','=MIN(B1:B3)']]},
 ];
 function openCalcTmpl(){ renderCalcTmplBody(); document.getElementById('calcTmplOverlay').classList.add('open'); }
 function closeCalcTmpl(){ document.getElementById('calcTmplOverlay').classList.remove('open'); }
