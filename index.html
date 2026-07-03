@@ -4991,11 +4991,35 @@ function toggleSettings() {
 }
 /* 設定のタブ切替（表・見た目・計算・データ）。開いたタブを記憶する */
 let settingsTab=0;
+const SETTINGS_TAB_MAX=3;
 function setSettingsTab(i){
+  i=Math.max(0, Math.min(SETTINGS_TAB_MAX, i));
   settingsTab=i;
   document.querySelectorAll('.settings-tab').forEach((b,idx)=>b.classList.toggle('active',idx===i));
   for(let p=0;p<4;p++){ const el=document.getElementById('setPage'+p); if(el) el.classList.toggle('open',p===i); }
   localStorage.setItem('excalc_settings_tab',String(i));
+}
+/* 設定本体を横フリックしてタブを切替（左＝次、右＝前）。縦スクロールやボタンのタップは邪魔しない */
+function attachSettingsSwipe(){
+  const el=document.querySelector('.settings-body'); if(!el) return;
+  let sx=0, sy=0, tracking=false;
+  const start=(x,y,t)=>{
+    if(t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) { tracking=false; return; }   // 入力欄では無効
+    sx=x; sy=y; tracking=true;
+  };
+  const end=(x,y)=>{
+    if(!tracking) return; tracking=false;
+    const dx=x-sx, dy=y-sy;
+    if(Math.abs(dx)>60 && Math.abs(dx)>Math.abs(dy)*1.5){   // はっきりした横フリックのみ
+      if(dx<0) setSettingsTab(settingsTab+1);   // 左へ払う → 次のタブ
+      else     setSettingsTab(settingsTab-1);   // 右へ払う → 前のタブ
+    }
+  };
+  el.addEventListener('touchstart', e=>{ if(e.touches.length===1) start(e.touches[0].clientX, e.touches[0].clientY, e.target); }, {passive:true});
+  el.addEventListener('touchend',   e=>{ const t=e.changedTouches[0]; if(t) end(t.clientX, t.clientY); }, {passive:true});
+  el.addEventListener('touchcancel',()=>{ tracking=false; });
+  el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
+  el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
 function openHelp(){ document.getElementById('helpOverlay').classList.add('open'); }
 function closeHelp(){ document.getElementById('helpOverlay').classList.remove('open'); }
@@ -5840,6 +5864,7 @@ loadUserKeys();
 renderUserKeys();
 loadSaveTabNames();
 setSettingsTab(Math.min(3,Math.max(0,parseInt(localStorage.getItem('excalc_settings_tab')||'0',10)||0)));
+attachSettingsSwipe();
 if(localStorage.getItem('excalc_trigmode')==='rad') trigMode='rad';
 applyTrigModeBtn();
 restoreSheetSizes();
