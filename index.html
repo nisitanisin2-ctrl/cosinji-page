@@ -3794,7 +3794,7 @@ function ac() {
 function ce() {
   if (formulaEditMode) { document.getElementById('formulaInput').value='='; refreshDisp(); return; }
   if (editBlocked()) return;
-  cellEditing=true; disp_val='0'; refreshDisp();
+  cellEditing=true; disp_val=''; refreshDisp();
 }
 function bs() {
   if (formulaEditMode) {
