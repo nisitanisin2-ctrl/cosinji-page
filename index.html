@@ -1461,6 +1461,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <div class="pdf-row">
         <span class="pdf-row-label">枠線</span>
         <span class="pdf-seg" id="pdfBorder">
+          <button data-v="drawn" onclick="pdfSeg('pdfBorder',this)" title="枠線ページで引いた線だけを印刷">引いた線のみ</button>
           <button data-v="all" onclick="pdfSeg('pdfBorder',this)">すべてのセル</button>
           <button data-v="filled" onclick="pdfSeg('pdfBorder',this)">文字のみ</button>
         </span>
@@ -2406,9 +2407,14 @@ function exportCSV() {
 
 /* ── PDF出力：印刷用の見やすい表を作り、ブラウザの印刷（→「PDFに保存」）を開く ── */
 /* PDF出力の設定（タイトル・ヘッダー等）。localStorageに保存して次回も使う */
-const PDF_DEFAULTS={ title:'', date:false, header:'', footer:'', orient:'portrait', mv:12, mh:12, align:'left', font:'m', border:'all' };
+const PDF_DEFAULTS={ title:'', date:false, header:'', footer:'', orient:'portrait', mv:12, mh:12, align:'left', font:'m', border:'drawn' };
 function loadPdfSettings(){
-  try{ return Object.assign({}, PDF_DEFAULTS, JSON.parse(localStorage.getItem('excalc_pdf_settings')||'{}')); }
+  try{
+    const o=Object.assign({}, PDF_DEFAULTS, JSON.parse(localStorage.getItem('excalc_pdf_settings')||'{}'));
+    // 枠線機能の導入に伴い、既定を「引いた線のみ」へ1回だけ移行（以後はユーザーの選択を尊重）
+    if(!o._v2){ o.border='drawn'; o._v2=1; }
+    return o;
+  }
   catch(_){ return Object.assign({}, PDF_DEFAULTS); }
 }
 function pdfSeg(groupId, btn){ document.querySelectorAll('#'+groupId+' button').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); }
@@ -2445,7 +2451,8 @@ function doExportPDF(){
     mh: Math.max(0, Math.min(40, parseInt(document.getElementById('pdfMarginH').value,10)||0)),
     align: pdfSegVal('pdfAlign')||'left',
     font:  pdfSegVal('pdfFont')||'m',
-    border:pdfSegVal('pdfBorder')||'all',
+    border:pdfSegVal('pdfBorder')||'drawn',
+    _v2: 1,
   };
   localStorage.setItem('excalc_pdf_settings', JSON.stringify(ps));
   closePdfDlg();
@@ -2478,7 +2485,9 @@ function doExportPDF(){
         if(s.bd.l) st+='border-left:'+s.bd.l+';';
         if(s.bd.r) st+='border-right:'+s.bd.r+';';
       }
-      let cls=(ps.border==='all' || disp!=='') ? 'filled' : '';   // 「すべて」なら空セルも枠あり
+      // 枠線：「引いた線のみ」＝自動の枠は付けない（上でst追加済みのs.bdだけ印刷）
+      //       「すべてのセル」＝全セルに枠／「文字のみ」＝値のあるセルに枠
+      let cls=(ps.border==='all' || (ps.border==='filled' && disp!=='')) ? 'filled' : '';
       if(s.align) st+='text-align:'+s.align+';';
       else if(disp!=='' && !isNaN(disp.replace(/,/g,''))) cls+=' num';   // 数値は右寄せ
       html+=`<td class="${cls}" style="${st}">${escHtml(disp)}</td>`;
