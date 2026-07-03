@@ -137,7 +137,16 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
   display: flex;
   align-items: center;
   gap: 4px;
+  /* 縦・横とも、ボタンは折り返さず1段。狭い機種ではみ出す分は横スクロール（スライド）で表示 */
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+.toolbar::-webkit-scrollbar { display: none; }
+.toolbar > * { flex-shrink: 0; }
 .toolbar-title { display: none; }   /* タイトル「表電卓」は常に非表示（縦・横とも） */
 
 .btn-settings, .btn-dark, .btn-csv {
