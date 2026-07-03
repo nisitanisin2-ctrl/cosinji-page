@@ -187,14 +187,15 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
 .btn-redo:disabled { background: #4a4a4a; opacity: 0.4; cursor: default; }
 .btn-reset  { background: #a93226; }
 .btn-reset:hover { background: #c0392b; }
-/* 設定(⚙)・保存・リスト・戻る・進むは同じ大きさに揃える（枠線・高さも統一） */
-.btn-settings, .btn-save, .btn-list, .btn-undo, .btn-redo {
+/* 設定(⚙)・保存・リスト・戻る・進む・リセットは同じ大きさに揃える（枠線・高さも統一） */
+.btn-settings, .btn-save, .btn-list, .btn-undo, .btn-redo, .btn-reset {
   box-sizing: border-box;
   font-size: 14px; font-weight: bold;
   padding: 0 8px; min-width: 62px; height: 30px;
   text-align: center; border-radius: 5px;
   border: 1px solid rgba(255,255,255,0.35);
 }
+.btn-reset { font-size: 13px; padding: 0 2px; }   /* 「リセット」は文字数が多いので少しだけ詰めてリストと同じ62pxに */
 
 /* 設定：タブ式のモーダル。「表・見た目・計算・データ」の4タブに分類し、
    1行に1項目の白いカードで見やすくする */
