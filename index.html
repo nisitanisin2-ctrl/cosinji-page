@@ -214,6 +214,15 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
   padding: 10px; overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1;
 }
 body.dark .settings-tabbar, body.dark .settings-body { background: #141d33; }
+/* タブの外側（常に表示）の共通ボタン：どのタブでも押せる */
+.settings-footer {
+  display: flex; gap: 8px; padding: 8px 10px;
+  background: #f0f0f0; border-top: 1px solid var(--save-item-border);
+  flex-shrink: 0;
+}
+body.dark .settings-footer { background: #141d33; }
+.settings-footer .set-act { width: auto; flex: 1; margin: 0; font-size: 12.5px; padding: 12px 6px; justify-content: center; text-align: center; }
+.settings-footer .set-act::after { content: ""; margin: 0; }
 .set-page { display: none; }
 .set-page.open { display: block; }
 .set-sec { font-size: 11.5px; font-weight: bold; color: var(--text-light); margin: 10px 4px 6px; }
@@ -1036,9 +1045,9 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 
 <div class="toolbar">
   <span class="toolbar-title">表電卓</span>
-  <button class="btn-settings" id="settingsBtn" onclick="toggleSettings()">設定</button>
   <button class="btn-save" id="saveBtn" onclick="saveData()">保存</button>
   <button class="btn-list" onclick="showSaveList()">リスト</button>
+  <button class="btn-settings" id="settingsBtn" onclick="toggleSettings()">設定</button>
   <button class="btn-undo" id="undoBtn" onclick="undoLast()" disabled>戻る</button>
   <button class="btn-redo" id="redoBtn" onclick="redoLast()" disabled>進む</button>
   <button class="btn-reset" onclick="resetAll()">リセット</button>
@@ -1070,7 +1079,6 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <span class="set-label">列の数</span>
       <span class="set-stepper"><button class="step-btn" onclick="changeCols(-1)">−</button><span class="sc-val" id="colCount">3</span><button class="step-btn" onclick="changeCols(1)">＋</button></span>
     </div>
-    <button class="set-act set-act-primary" id="defaultSizeBtn" title="タップで既定の行数・列数に／長押しで既定値を設定">▦ 既定の行数・列数にもどす</button>
     <div class="set-sec">選択中のセルの行・列</div>
     <div class="set-pair">
       <button class="btn-ins" onclick="insertRowAtSel()" title="選択セルの上に行を挿入">＋ 上に行を追加</button>
@@ -1106,7 +1114,6 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <span class="set-stepper"><button class="step-btn" onclick="changeKeySize(-1)">−</button><span class="sc-val" id="keySize">大</span><button class="step-btn" onclick="changeKeySize(1)">＋</button></span>
     </div>
     <button class="set-act" id="darkBtn" onclick="toggleDark()">🌙 ナイトモード</button>
-    <button class="set-act" id="numpadToggleBtn" onclick="toggleNumpad()">⌨ テンキー非表示</button>
     <button class="set-act" id="keypadEditBtn" onclick="toggleKeypadEdit()" title="テンキーのボタンをドラッグして好きな位置に入れ替えます（同じ大きさのボタン同士）">🔧 テンキーのボタン配置を編集</button>
   </div>
 
@@ -1136,6 +1143,10 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="set-act" onclick="openHelp()">📖 説明書（使い方）</button>
   </div>
 
+  </div>
+  <div class="settings-footer">
+    <button class="set-act set-act-primary" id="defaultSizeBtn" title="タップで既定の行数・列数に／長押しで既定値を設定">▦ 既定の行数・列数にもどす</button>
+    <button class="set-act" id="numpadToggleBtn" onclick="toggleNumpad()">⌨ テンキー非表示</button>
   </div>
  </div>
 </div>
@@ -4381,50 +4392,87 @@ const MODE_MENU=[
    選ぶと項目名＋計算式が入り、黄色セルに値を入れるだけで答えが出る。
    各 rows は [A列=項目名, B列=値または数式('='始まり)]。B列が空＝入力セル（黄色）。 */
 const CALC_TEMPLATES=[
-  {id:'discount', icon:'🏷', name:'割引計算', desc:'元の値段と割引率から割引後の値段・割引額', rows:[
-    ['元の値段',''],['割引率(%)',''],['割引後の値段','=B1*(1-B2/100)'],['割引額','=B1-B3']]},
-  {id:'tax', icon:'🧾', name:'消費税（税抜→税込）', desc:'税抜価格と税率から税込価格・消費税額', rows:[
-    ['税抜価格',''],['税率(%)','10'],['税込価格','=B1*(1+B2/100)'],['消費税額','=B1*B2/100']]},
-  {id:'pct', icon:'🎯', name:'割合（何％か）', desc:'部分と全体から割合(%)を計算', rows:[
-    ['部分の値',''],['全体の値',''],['割合(%)','=B1/B2*100']]},
-  {id:'change', icon:'📈', name:'増減率（前年比）', desc:'前の値と今の値から増減率・増減額', rows:[
-    ['前の値',''],['今の値',''],['増減率(%)','=(B2-B1)/B1*100'],['増減額','=B2-B1']]},
-  {id:'profit', icon:'💹', name:'利益と利益率', desc:'原価と売価から利益・利益率（粗利率）', rows:[
-    ['原価',''],['売価',''],['利益','=B2-B1'],['利益率(%)','=(B2-B1)/B2*100']]},
-  {id:'bmi', icon:'⚖️', name:'BMIと標準体重', desc:'身長と体重からBMI・標準体重を計算', rows:[
-    ['身長(cm)',''],['体重(kg)',''],['BMI','=B2/(B1/100)^2'],['標準体重(kg)','=(B1/100)^2*22']]},
-  {id:'kcal', icon:'🔥', name:'基礎代謝（目安）', desc:'体重・身長・年齢から1日の基礎代謝（Mifflin式）', rows:[
-    ['体重(kg)',''],['身長(cm)',''],['年齢',''],['男性(kcal/日)','=10*B1+6.25*B2-5*B3+5'],['女性(kcal/日)','=10*B1+6.25*B2-5*B3-161']]},
-  {id:'sdt', icon:'🚗', name:'速さ・距離・時間', desc:'距離と時間から速さ、所要時間（分）も', rows:[
-    ['距離(km)',''],['時間(時間)',''],['速さ(km/h)','=B1/B2'],['かかった分数','=B2*60']]},
-  {id:'fuel', icon:'⛽', name:'燃費とガソリン代', desc:'距離と給油量から燃費、単価からガソリン代', rows:[
-    ['走った距離(km)',''],['給油量(L)',''],['燃費(km/L)','=B1/B2'],['単価(円/L)',''],['ガソリン代(円)','=B2*B4']]},
-  {id:'power', icon:'💡', name:'電気代', desc:'消費電力・使用時間・単価から電気代', rows:[
-    ['消費電力(W)',''],['使用時間(h)',''],['単価(円/kWh)','31'],['電気代(円)','=B1/1000*B2*B3']]},
-  {id:'wage', icon:'👷', name:'給料（時給×時間）', desc:'時給と勤務時間・残業(1.25倍)から支給額', rows:[
-    ['時給(円)',''],['通常時間(h)',''],['残業時間(h)',''],['通常分','=B1*B2'],['残業分(1.25倍)','=B1*B3*1.25'],['支給合計','=B4+B5']]},
-  {id:'commission', icon:'💴', name:'歩合給', desc:'売上と歩合率から歩合給・合計支給', rows:[
-    ['売上',''],['歩合率(%)',''],['基本給',''],['歩合給','=B1*B2/100'],['合計支給','=B3+B4']]},
-  {id:'compound', icon:'🏦', name:'複利（元利合計）', desc:'元金・年利・年数から満期の元利合計と利息', rows:[
-    ['元金',''],['年利(%)',''],['年数',''],['元利合計','=B1*(1+B2/100)^B3'],['利息','=B4-B1']]},
-  {id:'loan', icon:'🏠', name:'ローン毎月返済額', desc:'借入額・年利・年数から毎月返済額（元利均等）', rows:[
-    ['借入額',''],['年利(%)',''],['返済年数',''],['毎月返済額','=B1*(B2/100/12)/(1-(1+B2/100/12)^(0-B3*12))']]},
-  {id:'rect', icon:'⬛', name:'長方形の面積', desc:'縦×横で面積と周の長さ', rows:[
-    ['縦',''],['横',''],['面積','=B1*B2'],['周の長さ','=(B1+B2)*2']]},
-  {id:'tri', icon:'🔺', name:'三角形の面積', desc:'底辺×高さ÷2で面積', rows:[
-    ['底辺',''],['高さ',''],['面積','=B1*B2/2']]},
-  {id:'pytha', icon:'📐', name:'三平方の定理', desc:'直角をはさむ2辺から斜辺の長さ', rows:[
-    ['辺a',''],['辺b',''],['斜辺c','=SQRT(B1^2+B2^2)']]},
-  {id:'circle', icon:'⚪', name:'円の面積・円周', desc:'半径から面積・円周', rows:[
-    ['半径',''],['面積','=B1^2*PI'],['円周','=2*B1*PI']]},
-  {id:'cylinder', icon:'🥫', name:'円柱の体積', desc:'半径と高さから体積', rows:[
-    ['半径',''],['高さ',''],['体積','=PI*B1^2*B2']]},
-  {id:'sphere', icon:'🥎', name:'球の体積・表面積', desc:'半径から体積と表面積', rows:[
-    ['半径',''],['体積','=4/3*PI*B1^3'],['表面積','=4*PI*B1^2']]},
-  {id:'temp', icon:'🌡', name:'温度換算（℃⇄℉）', desc:'摂氏から華氏、華氏から摂氏へ換算', rows:[
-    ['摂氏(℃)',''],['→華氏(℉)','=B1*9/5+32'],['華氏(℉)',''],['→摂氏(℃)','=(B3-32)*5/9']]},
-  {id:'avg', icon:'📊', name:'合計・平均（3項目）', desc:'3つの値の合計と平均・最大・最小', rows:[
-    ['値1',''],['値2',''],['値3',''],['合計','=SUM(B1:B3)'],['平均','=AVERAGE(B1:B3)'],['最大','=MAX(B1:B3)'],['最小','=MIN(B1:B3)']]},
+  {id:'discount', icon:'🏷', name:'割引計算', desc:'割引率でも値引き額でもOK。実質の割引率も', rows:[
+    ['元の値段',''],['割引率(%)',''],['または値引き額(円)',''],
+    ['割引後の値段','=IF(B3>0,B1-B3,B1*(1-B2/100))'],['引かれた金額','=B1-B4'],
+    ['実質の割引率(%)','=IF(B1>0,B5/B1*100,0)']]},
+  {id:'tax', icon:'🧾', name:'消費税（税抜⇄税込）', desc:'税抜→税込も、税込→税抜の逆算も', rows:[
+    ['税率(%)','10'],
+    ['〔税抜 → 税込〕',null],['税抜価格',''],['税込価格','=B3*(1+B1/100)'],['消費税額','=B3*B1/100'],
+    ['〔税込 → 税抜〕',null],['税込価格',''],['税抜価格','=B7/(1+B1/100)'],['うち消費税','=B7-B8']]},
+  {id:'pct', icon:'🎯', name:'割合（3パターン）', desc:'何%か・全体の◯%分・全体の逆算', rows:[
+    ['〔何％かを求める〕',null],['部分の値',''],['全体の値',''],['割合(%)','=IF(B3>0,B2/B3*100,0)'],
+    ['〔全体の◯％分を求める〕',null],['全体の値',''],['割合(%)',''],['その値','=B6*B7/100'],
+    ['〔全体を逆算する〕',null],['部分の値',''],['それが全体の何%か',''],['全体の値','=IF(B11>0,B10/(B11/100),0)']]},
+  {id:'change', icon:'📈', name:'増減率（前年比）', desc:'増減率を求める・増減後の値を求める', rows:[
+    ['〔増減率を求める〕',null],['前の値',''],['今の値',''],
+    ['増減率(%)','=IF(B2>0,(B3-B2)/B2*100,0)'],['増減額','=B3-B2'],
+    ['〔増減後の値を求める〕',null],['元の値',''],['増減率(%)※減少はマイナス',''],['増減後の値','=B7*(1+B8/100)']]},
+  {id:'profit', icon:'💹', name:'利益と利益率', desc:'利益率を求める・ほしい利益率から売価を決める', rows:[
+    ['〔利益率を求める〕',null],['原価',''],['売価',''],
+    ['利益','=B3-B2'],['利益率(%)','=IF(B3>0,B4/B3*100,0)'],
+    ['〔売価を決める〕',null],['原価',''],['ほしい利益率(%)',''],['売価','=IF(B8<100,B7/(1-B8/100),0)']]},
+  {id:'bmi', icon:'⚖️', name:'BMIと目標体重', desc:'BMI・標準体重・目標BMIまであと何kgかも', rows:[
+    ['身長(cm)',''],['体重(kg)',''],
+    ['BMI','=IF(B1>0,B2/(B1/100)^2,0)'],['標準体重(BMI22)','=(B1/100)^2*22'],
+    ['目標BMI','22'],['目標体重','=(B1/100)^2*B5'],['目標まであと(kg)','=B2-B6']]},
+  {id:'kcal', icon:'🔥', name:'基礎代謝と1日の消費', desc:'基礎代謝(Mifflin式)＋活動レベルで1日の消費目安も', rows:[
+    ['体重(kg)',''],['身長(cm)',''],['年齢',''],
+    ['男性の基礎代謝(kcal/日)','=10*B1+6.25*B2-5*B3+5'],['女性の基礎代謝(kcal/日)','=10*B1+6.25*B2-5*B3-161'],
+    ['活動レベル(1.2〜1.9)','1.5'],['男性の1日消費目安','=B4*B6'],['女性の1日消費目安','=B5*B6']]},
+  {id:'sdt', icon:'🚗', name:'速さ・距離・時間', desc:'速さ・距離・時間のどれでも求められます', rows:[
+    ['〔速さを求める〕',null],['距離(km)',''],['時間(h)',''],['速さ(km/h)','=IF(B3>0,B2/B3,0)'],
+    ['〔距離を求める〕',null],['速さ(km/h)',''],['時間(h)',''],['距離(km)','=B6*B7'],
+    ['〔時間を求める〕',null],['距離(km)',''],['速さ(km/h)',''],['時間(h)','=IF(B11>0,B10/B11,0)'],['＝分に直すと','=B12*60']]},
+  {id:'fuel', icon:'⛽', name:'燃費とガソリン代', desc:'燃費を求める・予定距離からガソリン代を見積る', rows:[
+    ['〔燃費を求める〕',null],['走った距離(km)',''],['給油量(L)',''],['燃費(km/L)','=IF(B3>0,B2/B3,0)'],
+    ['〔ガソリン代を見積る〕',null],['走る予定(km)',''],['燃費(km/L)',''],['単価(円/L)',''],
+    ['必要な燃料(L)','=IF(B7>0,B6/B7,0)'],['ガソリン代(円)','=B9*B8']]},
+  {id:'power', icon:'💡', name:'電気代（日・月・年）', desc:'1日の電気代から1か月・1年分まで', rows:[
+    ['消費電力(W)',''],['1日の使用時間(h)',''],['単価(円/kWh)','31'],
+    ['1日の電気代(円)','=B1/1000*B2*B3'],['1か月(30日)の電気代','=B4*30'],['1年(365日)の電気代','=B4*365']]},
+  {id:'wage', icon:'👷', name:'給料（時給×時間）', desc:'通常・残業(1.25倍)・深夜(1.25倍)から支給額', rows:[
+    ['時給(円)',''],['通常時間(h)',''],['残業時間(h)',''],['深夜時間(h)',''],
+    ['通常分','=B1*B2'],['残業分(1.25倍)','=B1*B3*1.25'],['深夜分(1.25倍)','=B1*B4*1.25'],['支給合計','=B5+B6+B7']]},
+  {id:'commission', icon:'💴', name:'歩合給', desc:'歩合給の計算・ほしい額から必要売上の逆算も', rows:[
+    ['〔歩合給を計算〕',null],['売上',''],['歩合率(%)',''],['基本給',''],
+    ['歩合給','=B2*B3/100'],['合計支給','=B4+B5'],
+    ['〔必要な売上を逆算〕',null],['ほしい歩合給',''],['歩合率(%)',''],['必要な売上','=IF(B9>0,B8/(B9/100),0)']]},
+  {id:'compound', icon:'🏦', name:'複利（元利合計）', desc:'複利の満期額・利息、単利との比較も', rows:[
+    ['元金',''],['年利(%)',''],['年数',''],
+    ['複利の元利合計','=B1*(1+B2/100)^B3'],['複利の利息','=B4-B1'],['(比較)単利なら','=B1*(1+B2/100*B3)']]},
+  {id:'loan', icon:'🏠', name:'ローン毎月返済額', desc:'毎月返済額・総返済額・利息の総額（元利均等）', rows:[
+    ['借入額',''],['年利(%)',''],['返済年数',''],
+    ['毎月返済額','=IF(B2>0,B1*(B2/100/12)/(1-(1+B2/100/12)^(0-B3*12)),IF(B3>0,B1/(B3*12),0))'],
+    ['総返済額','=B4*B3*12'],['利息の総額','=B5-B1']]},
+  {id:'rect', icon:'⬛', name:'長方形の面積', desc:'面積・周を求める、面積から辺の逆算も', rows:[
+    ['〔面積・周を求める〕',null],['縦',''],['横',''],['面積','=B2*B3'],['周の長さ','=(B2+B3)*2'],
+    ['〔面積から辺を逆算〕',null],['面積',''],['片方の辺',''],['もう片方の辺','=IF(B8>0,B7/B8,0)']]},
+  {id:'tri', icon:'🔺', name:'三角形の面積', desc:'底辺×高さから、3辺から(ヘロンの公式)も', rows:[
+    ['〔底辺と高さから〕',null],['底辺',''],['高さ',''],['面積','=B2*B3/2'],
+    ['〔3辺から(ヘロンの公式)〕',null],['辺a',''],['辺b',''],['辺c',''],
+    ['面積','=SQRT(ABS((B6+B7+B8)/2*((B6+B7+B8)/2-B6)*((B6+B7+B8)/2-B7)*((B6+B7+B8)/2-B8)))']]},
+  {id:'pytha', icon:'📐', name:'三平方の定理', desc:'斜辺を求める・斜辺と1辺から残りの辺も', rows:[
+    ['〔斜辺を求める〕',null],['辺a',''],['辺b',''],['斜辺c','=SQRT(B2^2+B3^2)'],
+    ['〔残りの辺を求める〕',null],['斜辺c',''],['わかっている辺',''],['残りの辺','=SQRT(ABS(B6^2-B7^2))']]},
+  {id:'circle', icon:'⚪', name:'円の面積・円周', desc:'半径でも直径でもOK。円周からの逆算も', rows:[
+    ['〔半径か直径どちらかを入力〕',null],['半径',''],['直径',''],
+    ['面積','=IF(B3>0,(B3/2)^2*PI,B2^2*PI)'],['円周','=IF(B3>0,B3*PI,2*B2*PI)'],
+    ['〔円周から逆算〕',null],['円周',''],['半径','=B7/(2*PI)'],['直径','=B8*2']]},
+  {id:'cylinder', icon:'🥫', name:'円柱の体積・表面積', desc:'半径でも直径でもOK。表面積も', rows:[
+    ['〔半径か直径どちらかを入力〕',null],['半径',''],['直径',''],['高さ',''],
+    ['体積','=IF(B3>0,(B3/2)^2,B2^2)*PI*B4'],
+    ['表面積(側面含む)','=2*PI*IF(B3>0,B3/2,B2)*(IF(B3>0,B3/2,B2)+B4)']]},
+  {id:'sphere', icon:'🥎', name:'球の体積・表面積', desc:'半径でも直径でもOK', rows:[
+    ['〔半径か直径どちらかを入力〕',null],['半径',''],['直径',''],
+    ['体積','=4/3*PI*IF(B3>0,B3/2,B2)^3'],['表面積','=4*PI*IF(B3>0,B3/2,B2)^2']]},
+  {id:'temp', icon:'🌡', name:'温度換算（℃⇄℉）', desc:'摂氏→華氏も、華氏→摂氏も', rows:[
+    ['〔摂氏 → 華氏〕',null],['摂氏(℃)',''],['華氏(℉)','=B2*9/5+32'],
+    ['〔華氏 → 摂氏〕',null],['華氏(℉)',''],['摂氏(℃)','=(B5-32)*5/9']]},
+  {id:'avg', icon:'📊', name:'合計・平均（5つまで）', desc:'最大5つの値の合計・平均・最大・最小（個数は変更可）', rows:[
+    ['値1',''],['値2',''],['値3',''],['値4',''],['値5',''],
+    ['入れた値の個数','5'],
+    ['合計','=SUM(B1:B5)'],['平均','=IF(B6>0,B7/B6,0)'],['最大','=MAX(B1:B5)'],['最小','=MIN(B1:B5)']]},
 ];
 function openCalcTmpl(){ renderCalcTmplBody(); document.getElementById('calcTmplOverlay').classList.add('open'); }
 function closeCalcTmpl(){ document.getElementById('calcTmplOverlay').classList.remove('open'); }
