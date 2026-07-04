@@ -3238,6 +3238,7 @@ const KEY_FUNCS={
   a_numpadhide:{g:'設定・機能',label:'⌨隠す',run:()=>toggleNumpad()},
 };
 let keyAssign={}, kaTargetKey=null, kaSuppress=false;
+let kaReady=false;   // ピッカー表示後、新しく押し直すまで項目を無効化（長押しの指を離した時の誤タップ防止）
 function loadKeyAssign(){ try{ keyAssign=JSON.parse(localStorage.getItem('excalc_key_assign')||'{}'); }catch(_){ keyAssign={}; } }
 function saveKeyAssign(){ localStorage.setItem('excalc_key_assign', JSON.stringify(keyAssign)); }
 function applyKeyAssign(){
@@ -3264,6 +3265,7 @@ function openKeyAssign(dataKey){
   }
   html+='<button class="ka-reset" onclick="pickKeyAssign(null)">↺ 元のボタンに戻す</button>';
   document.getElementById('keyAssignBody').innerHTML=html;
+  kaReady=false;   // 開いた直後＝まだ長押しの指が乗っている。押し直すまでは反応しない
   document.getElementById('keyAssignOverlay').classList.add('open');
 }
 function closeKeyAssign(){ document.getElementById('keyAssignOverlay').classList.remove('open'); }
@@ -3300,7 +3302,12 @@ function pickKeyAssign(fid){
   /* 背景タップで閉じる（背景でpointerdownした場合のみ＝長押し解放の合成クリックでは閉じない） */
   const ov=document.getElementById('keyAssignOverlay');
   let downOnBackdrop=false;
-  ov.addEventListener('pointerdown', e=>{ downOnBackdrop=(e.target===ov); });
+  ov.addEventListener('pointerdown', e=>{ downOnBackdrop=(e.target===ov); kaReady=true; });   // 押し直したら項目を有効化
+  /* 開いた直後（押し直す前）のクリックは、項目・✕・背景のどこに落ちても1回無効化。
+     長押しの指がピッカーのボタンの上で離れても誤動作しない */
+  ov.addEventListener('click', e=>{
+    if(!kaReady){ e.preventDefault(); e.stopPropagation(); return; }
+  }, true);
   ov.addEventListener('click', e=>{ if(e.target===ov && downOnBackdrop) closeKeyAssign(); downOnBackdrop=false; });
   loadKeyAssign(); applyKeyAssign();
 })();
