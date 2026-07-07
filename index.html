@@ -3065,6 +3065,15 @@ async function exportXLSX(){
   }catch(e){ alert('Excelの書き出しに失敗しました'); }
 }
 
+/* <si>（共有文字列）や <is>（インライン文字列）の内側XMLから本文テキストを取り出す。
+   Excelでは漢字のフリガナ（ふりがな）が <rPh>…</rPh> と <phoneticPr> として一緒に
+   保存されるため、それらを取り除いてから本文の <t> だけを連結する。
+   （除かないとフリガナがセルの値に混ざって表示されてしまう） */
+function xlsxRichText(inner){
+  const body=inner.replace(/<rPh\b[^>]*>[\s\S]*?<\/rPh>/g,'').replace(/<phoneticPr\b[^>]*\/?>/g,'');
+  const ts=body.match(/<t[^>]*>([\s\S]*?)<\/t>/g)||[];
+  return ts.map(t=>xlUnesc(t.replace(/<[^>]+>/g,''))).join('');
+}
 function importXLSX(ev){
   const file=ev.target.files&&ev.target.files[0];
   ev.target.value='';
@@ -3079,7 +3088,7 @@ function importXLSX(ev){
     if(!sheetName){ alert('シートが見つかりませんでした'); return; }
     const sheetXml=dec.decode(map.get(sheetName));
     let shared=[]; const ss=names.find(n=>/sharedStrings\.xml$/i.test(n));
-    if(ss){ const sx=dec.decode(map.get(ss)); const re=/<si\b[^>]*>([\s\S]*?)<\/si>/g; let mm; while((mm=re.exec(sx))){ const ts=mm[1].match(/<t[^>]*>([\s\S]*?)<\/t>/g)||[]; shared.push(ts.map(t=>xlUnesc(t.replace(/<[^>]+>/g,''))).join('')); } }
+    if(ss){ const sx=dec.decode(map.get(ss)); const re=/<si\b[^>]*>([\s\S]*?)<\/si>/g; let mm; while((mm=re.exec(sx))){ shared.push(xlsxRichText(mm[1])); } }
     let styleFn={styleForIdx:()=>null}; const stName=names.find(n=>/styles\.xml$/i.test(n));
     if(stName){ try{ styleFn=parseXlsxStyles(dec.decode(map.get(stName))); }catch(_){ } }
     const cells={}, styleRefs={}; let maxR=0,maxC=0;
@@ -3093,7 +3102,7 @@ function importXLSX(ev){
       const sM=/\bs="(\d+)"/.exec(attrs);
       const fM=/<f[^>]*>([\s\S]*?)<\/f>/.exec(inner), vM=/<v>([\s\S]*?)<\/v>/.exec(inner);
       let val='';
-      if(t==='inlineStr'){ const im=/<t[^>]*>([\s\S]*?)<\/t>/.exec(inner); val=im?xlUnesc(im[1]):''; }
+      if(t==='inlineStr'){ val=xlsxRichText(inner); }
       else if(t==='s'){ const idx=vM?parseInt(vM[1]):-1; val=(idx>=0&&shared[idx]!=null)?shared[idx]:''; }
       else if(t==='str'){ val=vM?xlUnesc(vM[1]):''; if(fM){ const xf=xlUnesc(fM[1]); if(xlsxFormulaCompatible(xf)) val='='+xlsxFormulaToApp(xf); } }
       else if(fM){ const xf=xlUnesc(fM[1]); if(xlsxFormulaCompatible(xf)) val='='+xlsxFormulaToApp(xf); else if(vM) val=xlUnesc(vM[1]); else val='='+xlsxFormulaToApp(xf); }
