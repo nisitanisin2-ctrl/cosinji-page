@@ -1299,10 +1299,11 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   <div class="numpad-viewport" id="numpadViewport">
     <div class="numpad-grid numpad-overlay ov-left ov-lv2" id="numpadPageBd">
     <!-- 枠線ページ（セル書式ページからさらに右フリックで表示）。線の種類・色を選び、場所ボタンで選択範囲に枠線を引く -->
+    <button class="btn bd-type" onclick="bdSetType('thin',this)" title="細い線"><span style="display:inline-block;width:70%;border-bottom:1px solid #fff"></span></button>
     <button class="btn bd-type bd-on" onclick="bdSetType('normal',this)" title="ふつうの線"><span style="display:inline-block;width:70%;border-bottom:2px solid #fff"></span></button>
     <button class="btn bd-type" onclick="bdSetType('thick',this)" title="太い線"><span style="display:inline-block;width:70%;border-bottom:5px solid #fff"></span></button>
     <button class="btn bd-type" onclick="bdSetType('double',this)" title="二重線"><span style="display:inline-block;width:70%;border-bottom:6px double #fff"></span></button>
-    <button class="btn clr span2" onclick="bdApply('clear')" title="選択範囲の枠線を消す">🧹枠線を消す</button>
+    <button class="btn clr" onclick="bdApply('clear')" title="選択範囲の枠線を消す">🧹消す</button>
     <button class="btn bd-color bd-on" onclick="bdSetColor('#000000',this)" title="黒い線">黒</button>
     <button class="btn bd-color" style="color:#ff8a80" onclick="bdSetColor('#e53935',this)" title="赤い線">赤</button>
     <button class="btn bd-color" style="color:#82b1ff" onclick="bdSetColor('#1e88e5',this)" title="青い線">青</button>
@@ -1597,7 +1598,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       </div>
       <div class="pdf-row">
         <span class="pdf-row-label">自動枠線の太さ<small>「すべてのセル」「文字のみ」で入る線の太さ</small></span>
-        <span class="pdf-num"><input type="number" id="pdfBW" min="1" max="6" inputmode="numeric"> px</span>
+        <span class="pdf-num"><input type="number" id="pdfBW" min="0.1" max="6" step="0.1" inputmode="decimal"> px</span>
       </div>
       <button class="pdf-print-btn" onclick="doExportPDF()">🖨 印刷／PDFに保存</button>
       <div class="pdf-note">この後に印刷画面が開きます。送信先を「PDFに保存」にすると PDF ファイルとして書き出せます。プリンター選択や部数などはその画面で指定します。</div>
@@ -2587,7 +2588,7 @@ function readPdfDlg(){
     tsize: Math.max(8, Math.min(40, parseInt(document.getElementById('pdfTsize').value,10)||16)),
     hsize: Math.max(6, Math.min(30, parseInt(document.getElementById('pdfHsize').value,10)||11)),
     border:pdfSegVal('pdfBorder')||'drawn',
-    bw: Math.max(1, Math.min(6, parseInt(document.getElementById('pdfBW').value,10)||1)),
+    bw: Math.max(0.1, Math.min(6, parseFloat(document.getElementById('pdfBW').value)||1)),
     _v2: 1,
   };
 }
@@ -6005,6 +6006,7 @@ function applyCellStyle(td, r, c){
   td.style.color=''; td.style.background=''; td.style.fontSize='';
   td.style.textAlign=''; td.style.verticalAlign='';
   td.style.borderTop=''; td.style.borderRight=''; td.style.borderBottom=''; td.style.borderLeft='';
+  td.style.boxShadow='';
   td.style.removeProperty('--dsize');
   td.classList.remove('cell-locked');
   const s=cellStyles[`${r},${c}`]; if(!s) return;
@@ -6018,10 +6020,30 @@ function applyCellStyle(td, r, c){
   if(s.valign)    td.style.verticalAlign=s.valign;   // 文字の縦位置（上/中央/下）
   if(s.size && s.size!==1) td.style.setProperty('--dsize', s.size);
   if(s.bd){   // ユーザーが引いた枠線（上/下/左/右それぞれCSS値で保存）
-    if(s.bd.t) td.style.borderTop=s.bd.t;
-    if(s.bd.b) td.style.borderBottom=s.bd.b;
-    if(s.bd.l) td.style.borderLeft=s.bd.l;
-    if(s.bd.r) td.style.borderRight=s.bd.r;
+    // 実線は inset の box-shadow で描く。table が border-collapse:collapse のため、
+    // borderTop/Left は隣接セルの borderBottom/Right と競合し、細い線だと消えて
+    // しまう（下・右しか出ない）不具合があった。box-shadow はセル内側に必ず描画
+    // されるので上下左右すべて同じ太さで確実に表示できる。二重線(double)だけは
+    // box-shadow で表現できないため従来通り border で描画する。
+    const shadows=[];
+    const side=(css,dir)=>{
+      if(!css) return;
+      const m=/^(\S+)\s+(\S+)\s+(.+)$/.exec(css); if(!m){ return; }
+      const w=m[1], st=m[2], col=m[3];
+      if(st==='solid'){
+        if(dir==='t')      shadows.push(`inset 0 ${w} 0 0 ${col}`);
+        else if(dir==='b') shadows.push(`inset 0 -${w} 0 0 ${col}`);
+        else if(dir==='l') shadows.push(`inset ${w} 0 0 0 ${col}`);
+        else if(dir==='r') shadows.push(`inset -${w} 0 0 0 ${col}`);
+      }else{
+        if(dir==='t')      td.style.borderTop=css;
+        else if(dir==='b') td.style.borderBottom=css;
+        else if(dir==='l') td.style.borderLeft=css;
+        else if(dir==='r') td.style.borderRight=css;
+      }
+    };
+    side(s.bd.t,'t'); side(s.bd.b,'b'); side(s.bd.l,'l'); side(s.bd.r,'r');
+    if(shadows.length) td.style.boxShadow=shadows.join(',');
   }
 }
 /* 1セルだけ再描画（表示文字＋書式） */
@@ -6217,7 +6239,7 @@ function kfmtClear(){
 /* ── テンキー「枠線」ページ（セル書式ページのさらに左） ──
    線の種類(普通/太い/二重)と色を選び、場所ボタンで選択範囲に枠線を引く */
 let bdType='normal', bdColor='#000000';
-const BD_CSS={ normal:'1px solid', thick:'3px solid', double:'4px double' };
+const BD_CSS={ thin:'0.5px solid', normal:'1px solid', thick:'3px solid', double:'4px double' };
 function bdSetType(t,btn){
   bdType=t;
   document.querySelectorAll('#numpadPageBd .bd-type').forEach(b=>b.classList.toggle('bd-on', b===btn));
