@@ -1900,6 +1900,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
             <option value="">日付にしない</option>
             <option value="ymd">2026/7/7</option>
             <option value="jp">2026年7月7日</option>
+            <option value="jpmd">7月7日</option>
             <option value="md">7/7</option>
             <option value="wday">2026/7/7(曜)</option>
             <option value="wareki">令和8年7月7日</option>
@@ -2042,6 +2043,7 @@ function formatDate(serial, fmt){
   const {y,m,d,w}=serialToYMD(serial);
   switch(fmt){
     case 'jp':     return `${y}年${m}月${d}日`;
+    case 'jpmd':   return `${m}月${d}日`;
     case 'md':     return `${m}/${d}`;
     case 'wday':   return `${y}/${m}/${d}(${WDAY_JP[w]})`;
     case 'wareki': return warekiStr(y,m,d);
@@ -3127,16 +3129,15 @@ function parseXlsxStyles(xml){
   // 組込みの日付書式ID（時刻のみ 18-21,45-47 は除く）
   const BUILTIN_DATE=new Set([14,15,16,17,22,27,28,29,30,31,36,50,51,52,53,54,55,56,57,58]);
   const dateFmtFor=(id)=>{
-    let jp=false;
-    if(BUILTIN_DATE.has(id)){ if(id>=27) jp=true; }
-    else {
-      const code=numFmts[id]; if(!code) return null;
-      const c=code.replace(/\[[^\]]*\]/g,'').replace(/"[^"]*"/g,'').replace(/\\./g,'');   // [..]・"..."・\x を除去
-      if(!/[yd]/i.test(c) && !/年|月|日/.test(code)) return null;   // y/d か 年月日 が無ければ日付ではない
-      if(/[ge]/i.test(code) && /y/i.test(code)===false) return 'wareki';   // 元号
-      if(/年|月|日/.test(code)) jp=true;
+    if(BUILTIN_DATE.has(id)) return id>=27?'jp':'ymd';
+    const code=numFmts[id]; if(!code) return null;
+    const c=code.replace(/\[[^\]]*\]/g,'').replace(/"[^"]*"/g,'').replace(/\\./g,'');   // [..]・"..."・\x を除去
+    if(!/[yd]/i.test(c) && !/年|月|日/.test(code)) return null;   // y/d か 年月日 が無ければ日付ではない
+    if(/[ge]/i.test(code) && !/y/i.test(code)) return 'wareki';   // 元号
+    if(/年|月|日/.test(code)){                                    // 和風：年があれば年月日、無ければ月日だけ
+      return (/年/.test(code) || /y/i.test(code)) ? 'jp' : 'jpmd';
     }
-    return jp?'jp':'ymd';
+    return 'ymd';
   };
   const xfs=xlSegments(seg('cellXfs'),'xf').map(x=>{
     const gi=n=>{ const m=new RegExp(n+'="(\\d+)"').exec(x.attrs); return m?parseInt(m[1]):0; };
@@ -3163,7 +3164,7 @@ async function exportXLSX(){
     const borders=['<border><left/><right/><top/><bottom/><diagonal/></border>'], borderKey=new Map();
     const xfs=['<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'], xfKey=new Map();
     // 日付の表示形式（アプリのdfmt→Excelの書式コード）。custom numFmt として登録する
-    const XL_DATE_CODE={ ymd:'yyyy/m/d', jp:'yyyy"年"m"月"d"日"', md:'m/d', wday:'yyyy/m/d(aaa)', wareki:'[$-411]ggge"年"m"月"d"日"' };
+    const XL_DATE_CODE={ ymd:'yyyy/m/d', jp:'yyyy"年"m"月"d"日"', jpmd:'m"月"d"日"', md:'m/d', wday:'yyyy/m/d(aaa)', wareki:'[$-411]ggge"年"m"月"d"日"' };
     const numFmtDefs=[], numFmtKey=new Map(); let nextNumFmtId=176;
     const regNumFmt=dfmt=>{ const code=XL_DATE_CODE[dfmt]||XL_DATE_CODE.ymd; if(numFmtKey.has(code)) return numFmtKey.get(code);
       const id=nextNumFmtId++; numFmtDefs.push(`<numFmt numFmtId="${id}" formatCode="${xlEsc(code)}"/>`); numFmtKey.set(code,id); return id; };
