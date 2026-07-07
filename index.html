@@ -533,6 +533,10 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
   .numpad-section .numpad-grid .btn.fx,
   .numpad-section .numpad-grid .btn.ubtn { font-size: clamp(9px, 3.6vh, 19px); }
   .numpad-section .numpad-grid .btn.enter { font-size: clamp(12px, 6vh, 30px); }
+  /* テンキーを一定サイズ以下に縮めたときは、ボタンの表記（文字）を消す。
+     こうすると縮小時に文字合わせ(fitNumpadLabels)を走らせずに済み、
+     端までドラッグしても軽く動く。ボタンの枠は残るので位置関係は保たれる。 */
+  body.numpad-compact .numpad-grid .btn { font-size: 0 !important; }
 }
 /* テンキー：数字ページ(標準)は通常表示。関数電卓／関数記号／登録ページは
    数字ページの上に重なってスライドインするオーバーレイ（フリックで開閉） */
@@ -3768,11 +3772,19 @@ window.addEventListener('resize', applyNumpadCollapse);
   const SENS=0.006;   // 1px あたりのスケール変化量（縦持ち）
   const isLandscapeNumpad=numpadIsLandscape;
   /* 横向き：テンキー領域の幅(px)を設定・保存（バーの幅18pxまで縮小可＝実質消える／画面の75%まで） */
+  const LABEL_HIDE_W=120;   // この幅より狭くしたらボタンの表記を消す（軽くする）
+  let fitRAF=0;
+  function fitNumpadLabelsThrottled(){   // ドラッグ中は1フレームに1回だけ文字合わせ
+    if(fitRAF) return;
+    fitRAF=requestAnimationFrame(()=>{ fitRAF=0; fitNumpadLabels(); });
+  }
   function setLandWidth(px){
     px=Math.min(Math.round(window.innerWidth*0.75), Math.max(18, Math.round(px)));
     document.body.style.setProperty('--numpad-w', px+'px');
     localStorage.setItem('excalc_numpad_landw', String(px));
-    fitNumpadLabels();
+    const compact = px < LABEL_HIDE_W;
+    document.body.classList.toggle('numpad-compact', compact);
+    if(!compact) fitNumpadLabelsThrottled();   // 表記を消しているときは文字合わせ不要＝ドラッグが重くならない
   }
   function onMove(e){
     if(!active) return;
@@ -3793,6 +3805,7 @@ window.addEventListener('resize', applyNumpadCollapse);
   function onUp(){
     if(!active) return;
     active=false; handle.classList.remove('dragging');
+    if(horiz && !document.body.classList.contains('numpad-compact')) fitNumpadLabels();   // 指を離したら最終的な文字合わせを1回
     if(horiz && typeof autoFitSheet==='function') autoFitSheet();   // セル側の列幅も再調整
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
@@ -3817,7 +3830,7 @@ window.addEventListener('resize', applyNumpadCollapse);
   /* 起動時：保存済みの横向きテンキー幅を復元（横向きでのみ反映される） */
   (function(){
     const sv=parseInt(localStorage.getItem('excalc_numpad_landw'));
-    if(!isNaN(sv)&&sv>=18) document.body.style.setProperty('--numpad-w', sv+'px');
+    if(!isNaN(sv)&&sv>=18){ document.body.style.setProperty('--numpad-w', sv+'px'); document.body.classList.toggle('numpad-compact', sv<LABEL_HIDE_W); }
   })();
   applyNumpadCollapse();   // 起動時：折りたたみ状態を復元
 })();
