@@ -431,6 +431,15 @@ table.sheet {
   vertical-align: middle; touch-action: manipulation;
 }
 .cell:hover { background: var(--cell-hover); }
+/* 日付書式のセル：左上に小さな三角の印を出して見分けられるようにする */
+.cell.cell-dated { position: relative; }
+.cell.cell-dated::before {
+  content: ''; position: absolute; top: 0; left: 0;
+  border-width: 6px 6px 0 0; border-style: solid;
+  border-color: #1e88e5 transparent transparent transparent;
+  pointer-events: none;
+}
+body.dark .cell.cell-dated::before { border-top-color: #82b1ff; }
 .cell.active {
   border: 2px solid #217346 !important;
   outline: none; background: var(--cell-bg);
@@ -2059,7 +2068,7 @@ function parseDateInput(str){
   if(m) return mkSerial(+m[1],+m[2],+m[3]);
   m=/^(\d{4})年(\d{1,2})月(\d{1,2})日?$/.exec(t);
   if(m) return mkSerial(+m[1],+m[2],+m[3]);
-  m=/^(\d{1,2})[\/\-.](\d{1,2})$/.exec(t);
+  m=/^(\d{1,2})[\/\-](\d{1,2})$/.exec(t);   // 月/日（「.」は小数と紛らわしいので対象外：1.5は日付にしない）
   if(m) return mkSerial(new Date().getFullYear(), +m[1], +m[2]);
   m=/^(\d{1,2})月(\d{1,2})日?$/.exec(t);
   if(m) return mkSerial(new Date().getFullYear(), +m[1], +m[2]);
@@ -4096,6 +4105,7 @@ const KEY_FUNCS={
 /* 選択中のセルに今日の日付を入れる（日付として自動認識される） */
 function insertTodayDate(){
   if(isLockedCell(selR,selC)){ flashLocked(selR,selC); return; }
+  const s=cellStyles[`${selR},${selC}`]; if(s&&s.nodate) delete s.nodate;   // 今日ボタンは日付にする
   const {y,m,d}=serialToYMD(todaySerial());
   setCellVal(selR,selC,`${y}/${m}/${d}`);
 }
@@ -4870,9 +4880,11 @@ function setCellVal(r,c,v) {
   let dfmtChange=null;   // {set:'ymd'} または {clear:true}
   if (v!=='' && !String(v).startsWith('=')) {
     const s0=cellStyles[`${r},${c}`];
-    const serial=parseDateInput(v);
-    if (serial!==null) { dfmtChange={set:(s0&&s0.dfmt)?s0.dfmt:'ymd'}; v=String(serial); }
-    else if (s0&&s0.dfmt) { dfmtChange={clear:true}; }   // 日付セルに日付以外→書式解除
+    if (!(s0 && s0.nodate)) {                              // 「日付にしない」を選んだセルは自動で日付化しない
+      const serial=parseDateInput(v);
+      if (serial!==null) { dfmtChange={set:(s0&&s0.dfmt)?s0.dfmt:'ymd'}; v=String(serial); }
+      else if (s0&&s0.dfmt) { dfmtChange={clear:true}; }   // 日付セルに日付以外→書式解除
+    }
   }
   if (dfmtChange) pushStyleHistory([`${r},${c}`]);        // 書式変更も戻せるように（値の前に積む）
   pushHistory([{r,c,val:data[r][c]}]);
@@ -4892,7 +4904,7 @@ function setCellVal(r,c,v) {
     else if(c===2) data[r][1]='';
   }
   const cell=document.getElementById(`c${r}_${c}`);
-  if (cell) cell.textContent=getCellDisplay(r,c);
+  if (cell) { cell.textContent=getCellDisplay(r,c); if(dfmtChange) applyCellStyle(cell,r,c); }   // 日付書式の増減で左上の印も更新
   document.getElementById('formulaInput').value=cellEditString(r,c);
   if (isStructMode()) recalcMode();
   recalcAll();
@@ -6757,8 +6769,10 @@ function applyCellStyle(td, r, c){
   td.style.boxShadow='';
   td.style.removeProperty('--dsize');
   td.classList.remove('cell-locked');
+  td.classList.remove('cell-dated');
   const s=cellStyles[`${r},${c}`]; if(!s) return;
   if(s.locked)    td.classList.add('cell-locked');
+  if(s.dfmt)      td.classList.add('cell-dated');   // 日付書式のセルは左上に印を出す
   if(s.bold)      td.style.fontWeight='bold';
   if(s.italic)    td.style.fontStyle='italic';
   if(s.underline) td.style.textDecoration='underline';
@@ -6854,7 +6868,8 @@ function fmtRoundChange(v){
 function fmtDateChange(v){
   pushStyleHistory([fmtKey()]);
   const s=fmtStyle(true);
-  if(v) s.dfmt=v; else delete s.dfmt;
+  if(v){ s.dfmt=v; delete s.nodate; }
+  else { delete s.dfmt; s.nodate=true; }   // 「日付にしない」→以後このセルへ入力しても自動で日付にしない
   repaintCell(fmtR,fmtC); afterFmtChange();
 }
 /* このセルに今日の日付を入れる（日付書式が未設定なら ymd を付ける） */
@@ -6863,7 +6878,7 @@ function fmtToday(){
   pushStyleHistory([key]);
   pushHistory([{r:fmtR,c:fmtC,val:data[fmtR][fmtC]}]);
   data[fmtR][fmtC]=String(todaySerial());
-  const s=fmtStyle(true); if(!s.dfmt) s.dfmt='ymd';
+  const s=fmtStyle(true); if(!s.dfmt) s.dfmt='ymd'; delete s.nodate;   // 今日ボタンは日付にする
   document.getElementById('fmtDate').value=s.dfmt;
   repaintCell(fmtR,fmtC);
   if(fmtR===selR && fmtC===selC) document.getElementById('formulaInput').value=cellEditString(fmtR,fmtC);
