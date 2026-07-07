@@ -197,6 +197,46 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
 }
 .btn-reset { font-size: 13px; padding: 0 2px; }   /* 「リセット」は文字数が多いので少しだけ詰めてリストと同じ62pxに */
 
+/* ── シート機能：上メニューの「シート」ボタンでメニュー↔シート一覧を切り替え ── */
+.btn-sheet {
+  box-sizing: border-box;
+  color: white; background: #2d8659;
+  border: 1px solid rgba(255,255,255,0.35); border-radius: 5px;
+  font-size: 14px; font-weight: bold;
+  padding: 0 8px; min-width: 62px; height: 30px; text-align: center;
+  cursor: pointer; touch-action: manipulation; transition: background 0.1s;
+}
+.btn-sheet:hover { background: #37a06c; }
+.toolbar.sheets-open .btn-sheet { background: #fff; color: #217346; }
+.toolbar.sheets-open .menu-item { display: none; }   /* シート表示中はメニューボタンを隠す */
+.sheet-bar { display: none; }
+.toolbar.sheets-open .sheet-bar {
+  display: flex; align-items: center; gap: 4px;
+  flex: 1; min-width: 0;
+  overflow-x: auto; overflow-y: hidden;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.toolbar.sheets-open .sheet-bar::-webkit-scrollbar { display: none; }
+.sheet-tab {
+  box-sizing: border-box;
+  color: white; background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.35); border-radius: 5px;
+  font-size: 14px; font-weight: bold;
+  padding: 0 12px; height: 30px; max-width: 140px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer; touch-action: manipulation;
+}
+.sheet-tab.active { background: #fff; color: #217346; }
+.sheet-add, .sheet-del {
+  box-sizing: border-box; flex-shrink: 0;
+  color: white; background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.35); border-radius: 5px;
+  font-size: 16px; font-weight: bold;
+  min-width: 34px; height: 30px;
+  cursor: pointer; touch-action: manipulation;
+}
+.sheet-add:hover, .sheet-del:hover { background: rgba(255,255,255,0.28); }
+
 /* 設定：タブ式のモーダル。「表・見た目・計算・データ」の4タブに分類し、
    1行に1項目の白いカードで見やすくする */
 .settings-modal { max-height: 88vh; max-height: 88dvh; width: 94%; }
@@ -1066,14 +1106,16 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 </head>
 <body>
 
-<div class="toolbar">
+<div class="toolbar" id="mainToolbar">
   <span class="toolbar-title">表電卓</span>
-  <button class="btn-save" id="saveBtn" onclick="saveData()">保存</button>
-  <button class="btn-list" onclick="showSaveList()">リスト</button>
-  <button class="btn-settings" id="settingsBtn" onclick="toggleSettings()">設定</button>
-  <button class="btn-undo" id="undoBtn" onclick="undoLast()" disabled>戻る</button>
-  <button class="btn-redo" id="redoBtn" onclick="redoLast()" disabled>進む</button>
-  <button class="btn-reset" onclick="resetAll()">リセット</button>
+  <button class="btn-sheet" id="sheetToggleBtn" onclick="toggleSheetView()" title="シートの切り替え・追加">シート</button>
+  <button class="btn-save menu-item" id="saveBtn" onclick="saveData()">保存</button>
+  <button class="btn-list menu-item" onclick="showSaveList()">リスト</button>
+  <button class="btn-settings menu-item" id="settingsBtn" onclick="toggleSettings()">設定</button>
+  <button class="btn-undo menu-item" id="undoBtn" onclick="undoLast()" disabled>戻る</button>
+  <button class="btn-redo menu-item" id="redoBtn" onclick="redoLast()" disabled>進む</button>
+  <button class="btn-reset menu-item" onclick="resetAll()">リセット</button>
+  <div class="sheet-bar" id="sheetBar"></div>
 </div>
 
 <div class="left-pane">
@@ -5706,6 +5748,169 @@ function restoreModeStore(){
   return true;
 }
 
+/* ── シート機能（Excelのシートのように複数の表を切り替える） ──
+   上メニューの「シート」ボタンでメニュー↔シート一覧を切り替える。
+   各シートは独立した表（データ・書式・行列数・列幅/行高・モード状態）を持つ。
+   開いているシートは従来どおり excalc_modeStore 等に保存され、
+   その他のシートの内容と一覧・現在位置は excalc_sheets に保存する。 */
+const SHEETS_KEY='excalc_sheets';
+let sheets=[];        // [{name, store, colWidths, rowHeights}]
+let curSheet=0;
+let sheetViewOpen=false;
+
+/* いま画面に表示中の表の全状態を1シート分のスナップショットにまとめる */
+function captureCurrentSheet(){
+  const states={};
+  for(const k in modeStates) states[k]={cols:modeStates[k].cols, data:modeStates[k].data, styles:modeStates[k].styles||{}};
+  states[tableMode]={cols:COLS, data:snapshotData(), styles:{...cellStyles}};
+  return {
+    store:{ current:tableMode, rows:ROWS, warikanPeople, states },
+    colWidths:{...colWidths},
+    rowHeights:{...rowHeights}
+  };
+}
+
+/* シートのスナップショットを画面（グローバル状態）へ復元する */
+function loadSheetStore(sheet){
+  const st=(sheet&&sheet.store)||{};
+  for(const k in modeStates) delete modeStates[k];   // const のため中身を入れ替える
+  for(const k in (st.states||{})){ const s=st.states[k]; if(s&&s.data) modeStates[k]={cols:s.cols, data:s.data, styles:s.styles||{}}; }
+  warikanPeople=(typeof st.warikanPeople==='number')?st.warikanPeople:2;
+  ROWS=(st.rows>=1&&st.rows<=50)?st.rows:ROWS;
+  colWidths=(sheet&&sheet.colWidths)?{...sheet.colWidths}:{};
+  rowHeights=(sheet&&sheet.rowHeights)?{...sheet.rowHeights}:{};
+  let cur=st.current||'normal'; if(!isValidMode(cur)) cur='normal';
+  if(modeStates[cur]){
+    tableMode=cur;
+    loadData(modeStates[cur].data);
+    COLS=modeStates[cur].cols||normalCols();
+    cellStyles=modeStates[cur].styles?{...modeStates[cur].styles}:{};
+  }else{
+    tableMode='normal';
+    initFreshMode('normal');
+  }
+  document.body.classList.toggle('simple-mode', tableMode==='simple');
+  normalizeStructLayout();
+  // 開いているシートは従来キーにも反映（リロード時の整合性のため）
+  localStorage.setItem('excalc_rows',ROWS);
+  localStorage.setItem('excalc_cols',COLS);
+  saveSheetSizes();
+  persistModes();
+}
+
+/* シート一覧・現在位置を保存（開いているシートの最新状態も取り込む） */
+function saveSheets(){
+  if(sheets[curSheet]) Object.assign(sheets[curSheet], captureCurrentSheet());
+  try{ localStorage.setItem(SHEETS_KEY, JSON.stringify({cur:curSheet, sheets})); }catch(e){}
+}
+
+/* 空の新しいシートを作る */
+function freshSheet(name){
+  const rows=getDefaultRows(), cols=getDefaultCols();
+  const blank=[]; for(let r=0;r<50;r++){ blank[r]=[]; for(let c=0;c<26;c++) blank[r][c]=''; }
+  return { name, store:{ current:'normal', rows, warikanPeople:2, states:{ normal:{cols, data:blank, styles:{}} } }, colWidths:{}, rowHeights:{} };
+}
+
+/* まだ使っていない「シートN」の名前を返す */
+function nextSheetName(){
+  const names=new Set(sheets.map(s=>s.name));
+  let n=sheets.length+1;
+  while(names.has('シート'+n)) n++;
+  return 'シート'+n;
+}
+
+/* 起動時：シート一覧を復元。無ければ現在の表を「シート1」として作る */
+function restoreSheets(){
+  restoreModeStore();   // 開いているシートの内容を従来キーからグローバルへ
+  let saved=null; try{ saved=JSON.parse(localStorage.getItem(SHEETS_KEY)||'null'); }catch(e){}
+  if(saved && Array.isArray(saved.sheets) && saved.sheets.length){
+    sheets=saved.sheets.map((s,i)=>({ name:(s&&s.name)||('シート'+(i+1)), store:(s&&s.store)||{}, colWidths:(s&&s.colWidths)||{}, rowHeights:(s&&s.rowHeights)||{} }));
+    curSheet=Math.max(0, Math.min(sheets.length-1, saved.cur|0));
+    Object.assign(sheets[curSheet], captureCurrentSheet());   // 開いているシートは実状態を優先
+  }else{
+    sheets=[Object.assign({name:'シート1'}, captureCurrentSheet())];
+    curSheet=0;
+  }
+  saveSheets();
+  renderSheetBar();
+}
+
+/* シート切り替え後の画面再構築（共通処理） */
+function applyActiveSheet(){
+  syncRowColLabels();
+  if(isStructMode()) showModeBar(); else hideAllBars();
+  updateModeButton();
+  buildSheet();
+  sel(0,0);
+  renderSheetBar();
+}
+function switchSheet(idx){
+  if(idx===curSheet || idx<0 || idx>=sheets.length) return;
+  Object.assign(sheets[curSheet], captureCurrentSheet());   // 今のシートを退避
+  curSheet=idx;
+  loadSheetStore(sheets[idx]);
+  applyActiveSheet();
+  saveSheets();
+}
+function addSheet(){
+  if(sheets.length>=30){ alert('シートはこれ以上ふやせません（最大30）'); return; }
+  Object.assign(sheets[curSheet], captureCurrentSheet());   // 今のシートを退避
+  const s=freshSheet(nextSheetName());
+  sheets.push(s);
+  curSheet=sheets.length-1;
+  loadSheetStore(s);
+  applyActiveSheet();
+  saveSheets();
+}
+function renameSheet(idx){
+  const cur=sheets[idx]; if(!cur) return;
+  const name=prompt('シートの名前', cur.name);
+  if(name===null) return;
+  const t=name.trim(); if(!t) return;
+  cur.name=t.slice(0,20);
+  renderSheetBar();
+  saveSheets();
+}
+function deleteSheet(idx){
+  if(sheets.length<=1){ alert('シートは1つ必要です'); return; }
+  if(idx<0||idx>=sheets.length) return;
+  if(!confirm('「'+sheets[idx].name+'」を削除しますか？（元に戻せません）')) return;
+  sheets.splice(idx,1);
+  if(curSheet>=sheets.length) curSheet=sheets.length-1;
+  else if(idx<curSheet) curSheet--;
+  loadSheetStore(sheets[curSheet]);
+  applyActiveSheet();
+  saveSheets();
+}
+/* シートボタン：メニュー↔シート一覧を切り替える */
+function toggleSheetView(){
+  sheetViewOpen=!sheetViewOpen;
+  document.getElementById('mainToolbar').classList.toggle('sheets-open', sheetViewOpen);
+  document.getElementById('sheetToggleBtn').textContent = sheetViewOpen?'メニュー':'シート';
+  if(sheetViewOpen) renderSheetBar();
+}
+/* シート一覧（タブ）を描画 */
+function renderSheetBar(){
+  const bar=document.getElementById('sheetBar'); if(!bar) return;
+  bar.innerHTML='';
+  sheets.forEach((s,i)=>{
+    const b=document.createElement('button');
+    b.className='sheet-tab'+(i===curSheet?' active':'');
+    b.textContent=s.name;
+    b.title=(i===curSheet)?'もう一度押すと名前を変えられます':'このシートを開く';
+    b.onclick=()=>{ if(i===curSheet) renameSheet(i); else switchSheet(i); };
+    bar.appendChild(b);
+  });
+  const add=document.createElement('button');
+  add.className='sheet-add'; add.textContent='＋'; add.title='シートを追加';
+  add.onclick=addSheet; bar.appendChild(add);
+  if(sheets.length>1){
+    const del=document.createElement('button');
+    del.className='sheet-del'; del.textContent='🗑'; del.title='今のシートを削除';
+    del.onclick=()=>deleteSheet(curSheet); bar.appendChild(del);
+  }
+}
+
 /* 買物（モード）ボタン：押すとモード選択メニューを開く */
 function onModeBtnClick(){ openModeMenu(); }
 
@@ -7030,7 +7235,7 @@ loadCustomModes();          // 登録モードの定義を先に読む（モー�
 migrateModeRegisteredSaves();   // 既存の登録モードを保存リストの「モード」タブへ移動・保護（一度だけ）
 loadModeOrder();            // モードの並び順を読む
 loadHiddenModes();          // モードの表示/非表示設定を読む
-restoreModeStore();
+restoreSheets();            // シート一覧を復元（開いているシートは restoreModeStore で読む）
 syncRowColLabels();
 if(isStructMode()) showModeBar();
 updateModeButton();
