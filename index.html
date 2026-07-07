@@ -236,6 +236,15 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
   cursor: pointer; touch-action: manipulation;
 }
 .sheet-add:hover, .sheet-del:hover { background: rgba(255,255,255,0.28); }
+.sheet-reset {
+  box-sizing: border-box; flex-shrink: 0;
+  color: white; background: rgba(169,50,38,0.55);
+  border: 1px solid rgba(255,255,255,0.35); border-radius: 5px;
+  font-size: 13px; font-weight: bold;
+  padding: 0 10px; height: 30px; white-space: nowrap;
+  cursor: pointer; touch-action: manipulation;
+}
+.sheet-reset:hover { background: rgba(169,50,38,0.75); }
 
 /* 設定：上のバーのボタン表示/非表示トグル */
 .topbtn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px; }
@@ -6208,6 +6217,9 @@ function renderSheetBar(){
     const del=document.createElement('button');
     del.className='sheet-del'; del.textContent='🗑'; del.title='今のシートを削除';
     del.onclick=()=>deleteSheet(curSheet); bar.appendChild(del);
+    const rst=document.createElement('button');
+    rst.className='sheet-reset'; rst.textContent='1枚に'; rst.title='ほかのシートを全部消して1枚に戻す（シートリセット）';
+    rst.onclick=resetSheets; bar.appendChild(rst);
   }
 }
 
@@ -6494,21 +6506,9 @@ function isPlainNumberCell(v){
   const t=v.trim();
   return t!=='' && !t.startsWith('=') && !isNaN(t);
 }
-/* リセット後にシートも初期化する。複数シートがあれば全部消して1枚に戻す */
-function afterResetSheets(multi){
-  if(typeof sheets==='undefined' || !sheets.length) return;
-  if(multi){
-    sheets.splice(0, sheets.length);
-    curSheet=0;
-    sheets.push(Object.assign({name:'シート1'}, captureCurrentSheet()));
-  }
-  saveSheets();
-  renderSheetBar();
-}
+/* リセット：今開いているシートの表だけを初期化する（シートの数は変えない）。
+   シートの数を1枚に戻したいときは resetSheets（シートリセット）を使う。 */
 function resetAll() {
-  // 複数シートがあるときは、ほかのシートも消して1枚に戻すことを確認する
-  const multiSheets=(typeof sheets!=='undefined' && sheets.length>1);
-  if(multiSheets && !confirm('ほかのシートも削除して1枚に戻し、表をリセットしますか？（元に戻せません）')) return;
   // 登録モード（保存リストから作ったモード）はテンプレート扱い：
   // リセットでは入力した数字だけ消し、文字・数式・書式・レイアウトは残す
   if(findCustomMode(tableMode)){
@@ -6522,8 +6522,8 @@ function resetAll() {
     sel(initCellOfMode(),0);
     document.getElementById('formulaInput').value=data[selR][selC];
     persistModes();
-    afterResetSheets(multiSheets);
-    toast(multiSheets?'シートを1枚に戻し、数字をリセットしました':'数字をリセットしました（文字・数式は保持）');
+    if(typeof saveSheets==='function') saveSheets();   // 今のシートの内容だけ保存に反映（数は変えない）
+    toast('数字をリセットしました（文字・数式は保持）');
     return;
   }
   const entries=[];
@@ -6538,8 +6538,20 @@ function resetAll() {
   sel(initCellOfMode(),0);
   document.getElementById('formulaInput').value=data[selR][selC];
   persistModes();
-  afterResetSheets(multiSheets);
-  if(multiSheets) toast('シートを1枚に戻し、リセットしました');
+  if(typeof saveSheets==='function') saveSheets();   // 今のシートの内容だけ保存に反映（数は変えない）
+}
+/* シートリセット：ほかのシートを全部消して1枚に戻す（今開いているシートの内容・名前は残す）。
+   表の中身は消さない（中身を消したいときは通常の「リセット」を使う）。 */
+function resetSheets(){
+  if(typeof sheets==='undefined' || sheets.length<=1){ toast('シートはすでに1枚です'); return; }
+  if(!confirm(`今のシート以外（${sheets.length-1}枚）を削除して、シートを1枚に戻しますか？（元に戻せません）`)) return;
+  const keep=Object.assign({name:sheets[curSheet].name}, captureCurrentSheet());
+  sheets.splice(0, sheets.length);
+  sheets.push(keep);
+  curSheet=0;
+  saveSheets();
+  renderSheetBar();
+  toast('シートを1枚に戻しました');
 }
 
 /* ── セル書式（小数点・装飾・色・大きさ）──────────────────── */
