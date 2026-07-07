@@ -1809,6 +1809,9 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><b>=A1+B1*2</b> … 四則演算（×÷も可）</div>
         <div class="help-li"><b>=SUM(A1:A5)</b> 合計　<b>=AVERAGE(A1:A5)</b> 平均</div>
         <div class="help-li">他に MAX・MIN・COUNT・ABS・SQRT・ROUND・IF が使えます。</div>
+        <div class="help-li"><b>シート間の連携</b>：他のシートのセルは <b>=シート名!A1</b>（例 <b>=商品!C2</b>）で参照できます。足し算や関数の範囲（例 <b>=SUM(商品!A1:A5)</b>）にも使えます。</div>
+        <div class="help-li"><b>=VLOOKUP(探す値, 範囲, 何列目, 0)</b>：範囲の左端から値を探し、その行の指定列を返します（末尾の <b>0</b> で完全一致）。例 <b>=VLOOKUP(A1, 商品!A2:C9, 2, 0)</b></div>
+        <div class="help-li"><b>=XLOOKUP(探す値, 検索範囲, 戻す範囲, "見つからない時")</b>：検索範囲で値を探し、対応する戻す範囲の値を返します。文字も返せます。</div>
         <div class="help-li">数式入力中にセルをタップするとセル名が挿入されます。</div>
       </div>
 
@@ -2092,17 +2095,92 @@ function cellEditString(r,c){
 }
 
 /* ── 数式エンジン ── */
-function getCellValue(r, c) {
-  if (r < 0 || r >= MAXROWS || c < 0 || c >= MAXCOLS) return 0;
-  const key = `${r},${c}`;
-  if (evaluating.has(key)) return 0;
-  const raw = String(data[r][c]);
-  if (!raw.startsWith('=')) { const n = parseFloat(raw); return isNaN(n) ? 0 : n; }
+/* ── シート間連携・文字列を扱える数式評価 ──
+   数式は数値だけでなく文字列（VLOOKUP等の結果）も返せる。
+   セル参照は「今評価中のシート」を基準に解決し、"シート名!A1" で他シートを参照できる。 */
+let EVAL_SHEET = -1;   // -1 = 現在表示中のシート（ライブの data）
+function evalSheetIdx(){ return EVAL_SHEET<0 ? (typeof curSheet==='number'?curSheet:0) : EVAL_SHEET; }
+/* 数式で使う数値化（文字列→数値、数値でなければ0） */
+function toNum(v){
+  if(typeof v==='number') return isFinite(v)?v:0;
+  if(v==null||v==='') return 0;
+  const n=parseFloat(String(v).replace(/,/g,''));
+  return isNaN(n)?0:n;
+}
+/* ゆるい等値比較（数値同士は数値、それ以外は前後空白を除いた大文字小文字無視の文字列比較） */
+function looseEq(a,b){
+  if(typeof a==='number' && typeof b==='number') return a===b;
+  const sa=String(a).trim(), sb=String(b).trim();
+  if(sa!=='' && sb!=='' && !isNaN(sa) && !isNaN(sb)) return Number(sa)===Number(sb);
+  return sa.toLowerCase()===sb.toLowerCase();
+}
+/* シート名から番号を得る（見つからなければ -1） */
+function sheetIndexByName(name){
+  if(typeof sheets==='undefined' || !Array.isArray(sheets)) return -1;
+  const nm=String(name).trim();
+  for(let i=0;i<sheets.length;i++) if(sheets[i].name===nm) return i;
+  const low=nm.toLowerCase();
+  for(let i=0;i<sheets.length;i++) if(String(sheets[i].name).toLowerCase()===low) return i;
+  return -1;
+}
+/* シート番号の生データ配列（表示中のシートはライブの data） */
+function sheetDataOf(idx){
+  if(typeof curSheet==='number' && idx===curSheet) return data;
+  const sh=(typeof sheets!=='undefined' && sheets[idx])?sheets[idx]:null;
+  if(!sh) return null;
+  const st=sh.store||{}; let cur=st.current||'normal';
+  const ms=st.states && st.states[cur];
+  return (ms && ms.data)?ms.data : null;
+}
+/* セルの生の値（数値なら数値、文字列なら文字列、空なら''、数式なら評価結果） */
+function cellRawValue(idx, r, c){
+  if(r<0||r>=MAXROWS||c<0||c>=MAXCOLS) return '';
+  const src=sheetDataOf(idx); if(!src) return '';
+  const raw=(src[r]&&src[r][c]!==undefined)?String(src[r][c]):'';
+  if(raw==='') return '';
+  if(!raw.startsWith('=')){
+    const t=raw.trim();
+    return (t!=='' && !isNaN(t)) ? Number(t) : raw;
+  }
+  const key=idx+':'+r+','+c;
+  if(evaluating.has(key)) return 0;
   evaluating.add(key);
-  let res;
-  try { res = evalFormula(raw); } catch(e) { res = 0; }
-  evaluating.delete(key);
-  return typeof res === 'number' ? res : 0;
+  const prev=EVAL_SHEET; EVAL_SHEET=idx;
+  let res; try{ res=parseArith(raw.slice(1).replace(/×/g,'*').replace(/÷/g,'/')); }catch(e){ res=NaN; }
+  EVAL_SHEET=prev; evaluating.delete(key);
+  return res;
+}
+/* 既存互換：数値としてのセル値（統計・再計算などで使用） */
+function getCellValue(r, c) {
+  const v=cellRawValue(evalSheetIdx(), r, c);
+  const n=(typeof v==='number')?v:toNum(v);
+  return isFinite(n)?n:0;
+}
+/* 範囲内の全セル座標（行→列の順） */
+function rangeCells(rng){ const out=[]; for(let r=rng.r1;r<=rng.r2;r++) for(let c=rng.c1;c<=rng.c2;c++) out.push({r,c}); return out; }
+/* VLOOKUP：範囲の左端列から key を探し、col列目の値を返す（exact=完全一致） */
+function vlookup(key, rng, col, exact){
+  if(!rng) return NaN;
+  const targetC=rng.c1+(col-1);
+  if(col<1 || targetC>rng.c2) return NaN;
+  if(exact){
+    for(let r=rng.r1;r<=rng.r2;r++){ if(looseEq(cellRawValue(rng.idx,r,rng.c1), key)) return cellRawValue(rng.idx,r,targetC); }
+    return NaN;
+  }
+  let best=null; const kn=toNum(key);
+  for(let r=rng.r1;r<=rng.r2;r++){ const v=toNum(cellRawValue(rng.idx,r,rng.c1)); if(v<=kn) best=r; else break; }
+  return best==null?NaN:cellRawValue(rng.idx,best,targetC);
+}
+/* XLOOKUP：検索範囲で key を探し、対応する戻り範囲の値を返す（無ければ既定値/NaN） */
+function xlookup(key, lrng, rrng, hasDef, defVal){
+  if(!lrng||!rrng) return NaN;
+  const lc=rangeCells(lrng), rc=rangeCells(rrng);
+  for(let i=0;i<lc.length;i++){
+    if(looseEq(cellRawValue(lrng.idx,lc[i].r,lc[i].c), key)){
+      const g=rc[i]; return g?cellRawValue(rrng.idx,g.r,g.c):NaN;
+    }
+  }
+  return hasDef?defVal:NaN;
 }
 
 /* 自動表示：小数点以下は最大3桁、端数が無ければ整数で表示 */
@@ -2160,6 +2238,7 @@ function getCellDisplay(r, c) {
   }
   let res;
   try { res = evalFormula(raw); } catch(e) { return '#ERR'; }
+  if (typeof res === 'string') return res;   // 文字列（VLOOKUP/XLOOKUP等の結果）はそのまま表示
   if (typeof res !== 'number' || !isFinite(res)) return '#ERR';
   if (dfmt) return formatDate(res, dfmt);   // 数式の結果を日付として表示
   return show(res);
@@ -2178,11 +2257,12 @@ function parseArith(s) {
   function expr() {
     let v = addSub(); ws();
     while (pos < s.length) {
-      if (s.slice(pos,pos+2) === '>=') { pos+=2; v=(v>=addSub())?1:0; }
-      else if (s.slice(pos,pos+2) === '<=') { pos+=2; v=(v<=addSub())?1:0; }
-      else if (s.slice(pos,pos+2) === '<>') { pos+=2; v=(v!==addSub())?1:0; }
-      else if (s[pos]==='>' && s[pos+1]!=='=') { pos++; v=(v>addSub())?1:0; }
-      else if (s[pos]==='<' && s[pos+1]!=='=' && s[pos+1]!=='>') { pos++; v=(v<addSub())?1:0; }
+      if (s.slice(pos,pos+2) === '>=') { pos+=2; v=(toNum(v)>=toNum(addSub()))?1:0; }
+      else if (s.slice(pos,pos+2) === '<=') { pos+=2; v=(toNum(v)<=toNum(addSub()))?1:0; }
+      else if (s.slice(pos,pos+2) === '<>') { pos+=2; v=looseEq(v,addSub())?0:1; }   // 文字列も比較可
+      else if (s[pos]==='=') { pos++; v=looseEq(v,addSub())?1:0; }                   // 等値（文字列も可）
+      else if (s[pos]==='>' && s[pos+1]!=='=') { pos++; v=(toNum(v)>toNum(addSub()))?1:0; }
+      else if (s[pos]==='<' && s[pos+1]!=='=' && s[pos+1]!=='>') { pos++; v=(toNum(v)<toNum(addSub()))?1:0; }
       else break;
       ws();
     }
@@ -2191,33 +2271,89 @@ function parseArith(s) {
   function addSub() {
     ws(); let v = term(); ws();
     while (pos < s.length && (s[pos]==='+' || s[pos]==='-')) {
-      const op = s[pos++]; v = op==='+' ? v+term() : v-term(); ws();
+      const op = s[pos++]; v = op==='+' ? toNum(v)+toNum(term()) : toNum(v)-toNum(term()); ws();
     }
     return v;
   }
   function term() {
     ws(); let v = powFactor(); ws();
     while (pos < s.length && (s[pos]==='*' || s[pos]==='/')) {
-      const op = s[pos++]; const r2 = powFactor();
-      v = op==='*' ? v*r2 : (r2!==0 ? v/r2 : 0); ws();
+      const op = s[pos++]; const a=toNum(v), b=toNum(powFactor());
+      v = op==='*' ? a*b : (b!==0 ? a/b : 0); ws();
     }
     return v;
   }
   /* べき乗(^,右結合)と階乗(!,後置)。関数電卓ページ用。 */
   function powFactor() {
     let v = factor(); ws();
-    while (pos < s.length && s[pos]==='!') { pos++; v = factorialCalc(v); ws(); }
+    while (pos < s.length && s[pos]==='!') { pos++; v = factorialCalc(toNum(v)); ws(); }
     if (pos < s.length && s[pos]==='^') {
       pos++; const r = powFactor();   // 右結合：2^3^2 = 2^(3^2)
-      v = Math.pow(v, r); ws();
-      while (pos < s.length && s[pos]==='!') { pos++; v = factorialCalc(v); ws(); }
+      v = Math.pow(toNum(v), toNum(r)); ws();
+      while (pos < s.length && s[pos]==='!') { pos++; v = factorialCalc(toNum(v)); ws(); }
     }
     return v;
+  }
+  /* "シート名!" があれば読み取ってシート番号を返す（無ければ null で位置は元のまま）。
+     見つからないシート名は -1 を返す（呼び出し側で#ERR相当に）。 */
+  function trySheetPrefix(){
+    const save=pos; ws();
+    let name=null;
+    if(s[pos]==="'"){
+      pos++; let nm=''; while(pos<s.length && s[pos]!=="'") nm+=s[pos++];
+      if(s[pos]==="'"){ pos++; name=nm; } else { pos=save; return null; }
+    } else {
+      let nm=''; while(pos<s.length && !/[!'"+\-*/(),:^=<>&% ]/.test(s[pos])) nm+=s[pos++];
+      name=nm;
+    }
+    if(name!=='' && name!=null && s[pos]==='!'){ pos++; return sheetIndexByName(name); }
+    pos=save; return null;
+  }
+  /* 範囲参照（例: A1:C10 / シート2!A1:C10）を読み取り {idx,r1,c1,r2,c2} を返す */
+  function parseRangeArg(){
+    ws();
+    const sp=trySheetPrefix();
+    const idx = (sp==null) ? evalSheetIdx() : sp;
+    ws();
+    if(!/[A-Za-z]/.test(s[pos]||'')) return null;
+    let c1=''; while(pos<s.length && /[A-Za-z]/.test(s[pos])) c1+=s[pos++].toUpperCase();
+    let r1=''; while(pos<s.length && /[0-9]/.test(s[pos])) r1+=s[pos++];
+    if(!r1) return null;
+    let c2=c1, r2=r1; ws();
+    if(s[pos]===':'){ pos++; ws(); trySheetPrefix(); ws();
+      let cc=''; while(pos<s.length && /[A-Za-z]/.test(s[pos])) cc+=s[pos++].toUpperCase();
+      let rr=''; while(pos<s.length && /[0-9]/.test(s[pos])) rr+=s[pos++];
+      if(cc&&rr){ c2=cc; r2=rr; }
+    }
+    const ci1=ALPHA.indexOf(c1), ci2=ALPHA.indexOf(c2), ri1=+r1-1, ri2=+r2-1;
+    if(ci1<0||ci2<0) return null;
+    return { idx, r1:Math.min(ri1,ri2), c1:Math.min(ci1,ci2), r2:Math.max(ri1,ri2), c2:Math.max(ci1,ci2) };
   }
   function parseArgs() {
     const vals = [];
     while (pos < s.length && s[pos] !== ')') {
       ws();
+      // シート接頭辞つきの参照（例: SUM(シート2!A1:A3)）
+      { const spSave=pos; const sp=trySheetPrefix();
+        if(sp!==null){
+          ws();
+          if(/[A-Za-z]/.test(s[pos]||'')){
+            let c1=''; while(pos<s.length && /[A-Za-z]/.test(s[pos])) c1+=s[pos++].toUpperCase();
+            let r1=''; while(pos<s.length && /[0-9]/.test(s[pos])) r1+=s[pos++];
+            let c2=c1,r2=r1; ws();
+            if(r1 && s[pos]===':'){ pos++; ws(); trySheetPrefix(); ws();
+              let cc=''; while(pos<s.length&&/[A-Za-z]/.test(s[pos])) cc+=s[pos++].toUpperCase();
+              let rr=''; while(pos<s.length&&/[0-9]/.test(s[pos])) rr+=s[pos++]; if(cc&&rr){c2=cc;r2=rr;} }
+            if(r1){
+              const ci1=ALPHA.indexOf(c1),ci2=ALPHA.indexOf(c2),ri1=+r1-1,ri2=+r2-1;
+              for(let rr2=Math.min(ri1,ri2);rr2<=Math.max(ri1,ri2);rr2++)
+                for(let cc2=Math.min(ci1,ci2);cc2<=Math.max(ci1,ci2);cc2++) vals.push(toNum(cellRawValue(sp,rr2,cc2)));
+              ws(); if(pos<s.length && s[pos]===',') pos++; continue;
+            }
+          }
+          pos=spSave;
+        }
+      }
       if (/[A-Za-z]/.test(s[pos])) {
         const savedPos = pos;
         let c1=''; while (pos<s.length && /[A-Za-z]/.test(s[pos])) c1+=s[pos++].toUpperCase();
@@ -2236,16 +2372,16 @@ function parseArith(s) {
           ws();
           if (pos<s.length && s[pos]!==',' && s[pos]!==')'){
             pos = savedPos;              // 参照の後に演算子が続く（例: SQRT(B1^2+B2^2)）＝式として解釈し直す
-            vals.push(expr());
+            vals.push(toNum(expr()));
           } else {
             vals.push(getCellValue(parseInt(r1)-1, ALPHA.indexOf(c1)));
           }
         } else {
           pos = savedPos;
-          vals.push(expr());
+          vals.push(toNum(expr()));
         }
       } else {
-        vals.push(expr());
+        vals.push(toNum(expr()));
       }
       ws();
       if (pos<s.length && s[pos]===',') pos++;
@@ -2256,13 +2392,53 @@ function parseArith(s) {
     ws();
     if (pos >= s.length) return 0;
     if (s[pos]==='(') { pos++; const v=expr(); if(pos<s.length&&s[pos]===')') pos++; return v; }
-    if (s[pos]==='-') { pos++; return -factor(); }
+    if (s[pos]==='-') { pos++; return -toNum(factor()); }
+    if (s[pos]==='+') { pos++; return factor(); }
+    if (s[pos]==='"') {   // 文字列リテラル（"" は " を表す）
+      pos++; let str='';
+      while (pos<s.length) { if (s[pos]==='"') { if (s[pos+1]==='"') { str+='"'; pos+=2; continue; } pos++; break; } str+=s[pos++]; }
+      return str;
+    }
+    // シート参照（例: シート2!A1）
+    { const save=pos; const sIdx=trySheetPrefix();
+      if (sIdx!==null) {
+        ws();
+        if (/[A-Za-z]/.test(s[pos]||'')) {
+          let cc=''; while (pos<s.length && /[A-Za-z]/.test(s[pos])) cc+=s[pos++].toUpperCase();
+          let rr=''; while (pos<s.length && /[0-9]/.test(s[pos])) rr+=s[pos++];
+          if (rr) { const ci=ALPHA.indexOf(cc); return (sIdx<0||ci<0) ? NaN : cellRawValue(sIdx, +rr-1, ci); }
+        }
+        pos=save;
+      }
+    }
     if (/[A-Za-z]/.test(s[pos])) {
       let name='';
       while (pos<s.length && /[A-Za-z]/.test(s[pos])) name+=s[pos++].toUpperCase();
       ws();
       if (pos<s.length && s[pos]==='(') {
         pos++;
+        if (name === 'VLOOKUP') {
+          ws(); const key = expr();
+          ws(); if (pos<s.length && s[pos]===',') pos++;
+          const rng = parseRangeArg();
+          ws(); if (pos<s.length && s[pos]===',') pos++;
+          ws(); const col = Math.round(toNum(expr()));
+          let exact = false;   // 既定は近似一致（Excel互換）。第4引数 FALSE/0 で完全一致
+          ws(); if (pos<s.length && s[pos]===',') { pos++; ws(); exact = (toNum(expr())===0); }
+          ws(); if (pos<s.length && s[pos]===')') pos++;
+          return vlookup(key, rng, col, exact);
+        }
+        if (name === 'XLOOKUP') {
+          ws(); const key = expr();
+          ws(); if (pos<s.length && s[pos]===',') pos++;
+          const lrng = parseRangeArg();
+          ws(); if (pos<s.length && s[pos]===',') pos++;
+          const rrng = parseRangeArg();
+          let hasDef=false, defVal=NaN;
+          ws(); if (pos<s.length && s[pos]===',') { pos++; ws(); defVal = expr(); hasDef=true; }
+          ws(); if (pos<s.length && s[pos]===')') pos++;
+          return xlookup(key, lrng, rrng, hasDef, defVal);
+        }
         if (name === 'IF') {
           ws(); const cond = expr();
           ws(); if (pos<s.length && s[pos]===',') pos++;
@@ -2304,7 +2480,7 @@ function parseArith(s) {
       }
       let row='';
       while (pos<s.length && /[0-9]/.test(s[pos])) row+=s[pos++];
-      return row ? getCellValue(parseInt(row)-1, ALPHA.indexOf(name)) : 0;
+      return row ? cellRawValue(evalSheetIdx(), parseInt(row)-1, ALPHA.indexOf(name)) : 0;
     }
     let n='';
     while (pos<s.length && /[0-9.]/.test(s[pos])) n+=s[pos++];
@@ -3118,10 +3294,20 @@ function xlColToIdx(letters){ let n=0; for(const ch of letters) n=n*26+(ch.charC
 function xlIsNumeric(raw){ if(raw==null||raw==='') return false; const t=String(raw).replace(/,/g,'').trim(); return t!=='' && !isNaN(t) && isFinite(Number(t)); }
 function xlBorder(css){ if(!css) return null; const wm=css.match(/(\d+(?:\.\d+)?)px/); const w=wm?parseFloat(wm[1]):1; const cm=css.match(/#([0-9a-fA-F]{6})/); const color='FF'+(cm?cm[1].toUpperCase():'000000'); const style=/double/i.test(css)?'double':(w>=3.5?'thick':(w>=2.5?'medium':'thin')); return {style,color}; }
 /* アプリの数式→Excelの数式 */
-function appFormulaToXlsx(f){ return String(f).replace(/×/g,'*').replace(/÷/g,'/').replace(/\bPI\b/g,'PI()').replace(/\bE\b(?!\d)/g,'EXP(1)'); }
+function appFormulaToXlsx(f){
+  let out=String(f).replace(/×/g,'*').replace(/÷/g,'/').replace(/\bPI\b/g,'PI()').replace(/\bE\b(?!\d)/g,'EXP(1)');
+  // シート参照 名前!A1 は Excel が解釈しやすいよう '名前'!A1 に（引用符で囲む）
+  out=out.replace(/(^|[^'\w])([^\s'"(),:!+\-*/^=<>&%]+)!/g, (m,pre,name)=> pre+"'"+name.replace(/'/g,"''")+"'!");
+  return out;
+}
 /* Excelの数式→アプリの数式（アプリ対応関数のみ） */
-function xlsxFormulaToApp(f){ return String(f).replace(/\bPI\(\s*\)/gi,'PI').replace(/\bEXP\(\s*1\s*\)/gi,'E'); }
-const XLSX_FUNCS=new Set(['SUM','AVERAGE','AVG','MAX','MIN','COUNT','ABS','SQRT','ROUND','IF','MOD','SIN','COS','TAN','ASIN','ACOS','ATAN','LOG','LN','EXP','PI']);
+function xlsxFormulaToApp(f){
+  let out=String(f).replace(/\bPI\(\s*\)/gi,'PI').replace(/\bEXP\(\s*1\s*\)/gi,'E');
+  // Excelの '名前'!A1 → アプリの 名前!A1（引用符を外す。'' は ' に戻す）
+  out=out.replace(/'((?:[^']|'')*)'!/g, (m,name)=> name.replace(/''/g,"'")+'!');
+  return out;
+}
+const XLSX_FUNCS=new Set(['SUM','AVERAGE','AVG','MAX','MIN','COUNT','ABS','SQRT','ROUND','IF','MOD','SIN','COS','TAN','ASIN','ACOS','ATAN','LOG','LN','EXP','PI','VLOOKUP','XLOOKUP']);
 function xlsxFormulaCompatible(f){ const fns=String(f).match(/[A-Za-z]+(?=\s*\()/g)||[]; return fns.every(fn=>XLSX_FUNCS.has(fn.toUpperCase())); }
 /* 繰り返し要素 <tag ...>...</tag> or <tag .../> を {attrs,inner} の配列に */
 function xlSegments(xml, tag){ const re=new RegExp(`<${tag}\\b([^>]*?)\\s*(?:/>|>([\\s\\S]*?)</${tag}>)`,'g'); const out=[]; let m; while((m=re.exec(xml))) out.push({attrs:m[1]||'', inner:m[2]||''}); return out; }
