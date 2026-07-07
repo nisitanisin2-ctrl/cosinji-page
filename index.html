@@ -1890,6 +1890,20 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         </div>
       </div>
       <div class="fmt-row">
+        <span class="fmt-label">日付<small>数値を日付として表示</small></span>
+        <div class="fmt-ctrl">
+          <select class="fmt-select" id="fmtDate" onchange="fmtDateChange(this.value)">
+            <option value="">日付にしない</option>
+            <option value="ymd">2026/7/7</option>
+            <option value="jp">2026年7月7日</option>
+            <option value="md">7/7</option>
+            <option value="wday">2026/7/7(曜)</option>
+            <option value="wareki">令和8年7月7日</option>
+          </select>
+          <button class="btn-rc" onclick="fmtToday()" title="このセルに今日の日付を入れる" style="width:auto;padding:0 10px">今日</button>
+        </div>
+      </div>
+      <div class="fmt-row">
         <span class="fmt-label">大きさ</span>
         <div class="fmt-ctrl">
           <button class="btn-rc" onclick="fmtSize(-1)">−</button>
@@ -1974,6 +1988,63 @@ let clipData = null;
 // ダークモード
 let darkMode = false;
 
+/* ── 日付（Excel互換の通し番号で保存し、書式コードで表示） ──
+   data には Excelと同じ「1899-12-30からの日数」を数値で保存し、
+   cellStyles[key].dfmt に表示形式（ymd/jp/md/wday/wareki）を持たせる。
+   これにより日付でも計算やExcelとの往復ができる。 */
+const XL_EPOCH = Date.UTC(1899,11,30);
+const WDAY_JP = ['日','月','火','水','木','金','土'];
+function dateToSerial(y,mo,d){ return Math.round((Date.UTC(y,mo-1,d)-XL_EPOCH)/86400000); }
+function serialToYMD(serial){ const dt=new Date(XL_EPOCH+Math.round(serial)*86400000);
+  return {y:dt.getUTCFullYear(), m:dt.getUTCMonth()+1, d:dt.getUTCDate(), w:dt.getUTCDay()}; }
+function todaySerial(){ const n=new Date(); return dateToSerial(n.getFullYear(), n.getMonth()+1, n.getDate()); }
+function mkSerial(y,mo,d){
+  if(y<1900||y>9999||mo<1||mo>12||d<1||d>31) return null;
+  const dt=new Date(Date.UTC(y,mo-1,d));
+  if(dt.getUTCFullYear()!==y||dt.getUTCMonth()!==mo-1||dt.getUTCDate()!==d) return null;   // 2/30 等の無効日を除外
+  return dateToSerial(y,mo,d);
+}
+/* 入力文字列を日付の通し番号へ。日付でなければ null（YYYY/M/D・YYYY年M月D日・M/D・M月D日 に対応） */
+function parseDateInput(str){
+  const t=String(str).trim(); if(!t) return null;
+  let m=/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/.exec(t);
+  if(m) return mkSerial(+m[1],+m[2],+m[3]);
+  m=/^(\d{4})年(\d{1,2})月(\d{1,2})日?$/.exec(t);
+  if(m) return mkSerial(+m[1],+m[2],+m[3]);
+  m=/^(\d{1,2})[\/\-.](\d{1,2})$/.exec(t);
+  if(m) return mkSerial(new Date().getFullYear(), +m[1], +m[2]);
+  m=/^(\d{1,2})月(\d{1,2})日?$/.exec(t);
+  if(m) return mkSerial(new Date().getFullYear(), +m[1], +m[2]);
+  return null;
+}
+function warekiStr(y,mo,d){
+  const t=Date.UTC(y,mo-1,d);
+  const eras=[[Date.UTC(2019,4,1),'令和',2018],[Date.UTC(1989,0,8),'平成',1988],[Date.UTC(1926,11,25),'昭和',1925],[Date.UTC(1912,6,30),'大正',1911],[Date.UTC(1868,0,25),'明治',1867]];
+  for(const [start,name,base] of eras){ if(t>=start){ const yy=y-base; return `${name}${yy===1?'元':yy}年${mo}月${d}日`; } }
+  return `${y}年${mo}月${d}日`;
+}
+function formatDate(serial, fmt){
+  if(!isFinite(serial)) return String(serial);
+  const {y,m,d,w}=serialToYMD(serial);
+  switch(fmt){
+    case 'jp':     return `${y}年${m}月${d}日`;
+    case 'md':     return `${m}/${d}`;
+    case 'wday':   return `${y}/${m}/${d}(${WDAY_JP[w]})`;
+    case 'wareki': return warekiStr(y,m,d);
+    case 'ymd':
+    default:       return `${y}/${m}/${d}`;
+  }
+}
+/* セルの日付書式コード（無ければ null） */
+function cellDateFmt(r,c){ const s=cellStyles[`${r},${c}`]; return (s&&s.dfmt)?s.dfmt:null; }
+/* 数値セルか（日付判定用） */
+function isDateSerialCell(r,c){ const raw=data[r][c]; return raw!=='' && !String(raw).startsWith('=') && !isNaN(String(raw).trim()); }
+/* 編集時に入力欄へ表示する文字列（日付セルは編集しやすい YYYY/M/D で表示） */
+function cellEditString(r,c){
+  if(cellDateFmt(r,c) && isDateSerialCell(r,c)){ const {y,m,d}=serialToYMD(Number(data[r][c])); return `${y}/${m}/${d}`; }
+  return data[r][c];
+}
+
 /* ── 数式エンジン ── */
 function getCellValue(r, c) {
   if (r < 0 || r >= 50 || c < 0 || c >= 26) return 0;
@@ -2032,9 +2103,11 @@ function getCellDisplay(r, c) {
     if (rm !== 'round') n = roundAt(n, d, rm);   // 切り上げ／切り捨て
     return d >= 0 ? n.toFixed(d) : autoFmt(n);   // 四捨五入は toFixed/autoFmt が担当
   };
+  const dfmt = cellDateFmt(r, c);
   if (!raw.startsWith('=')) {
     const t = raw.trim();
     if (t !== '' && !isNaN(t)) {            // 純粋な数値のみ整形
+      if (dfmt) return formatDate(Number(t), dfmt);   // 日付として表示
       return show(Number(t));
     }
     return data[r][c];                       // 空・文字列はそのまま
@@ -2042,6 +2115,7 @@ function getCellDisplay(r, c) {
   let res;
   try { res = evalFormula(raw); } catch(e) { return '#ERR'; }
   if (typeof res !== 'number' || !isFinite(res)) return '#ERR';
+  if (dfmt) return formatDate(res, dfmt);   // 数式の結果を日付として表示
   return show(res);
 }
 
@@ -2579,7 +2653,7 @@ function exportCSV() {
     const cells=[];
     for (let c=0;c<COLS;c++) {
       const raw=data[r][c];
-      const val=String(raw).startsWith('=')?getCellDisplay(r,c):(raw??'');
+      const val=(String(raw).startsWith('=')||cellDateFmt(r,c))?getCellDisplay(r,c):(raw??'');
       const s=String(val);
       cells.push(s.includes(',')||s.includes('"')||s.includes('\n')
         ?`"${s.replace(/"/g,'""')}"`:s);
@@ -3030,10 +3104,30 @@ function parseXlsxStyles(xml){
     });
     return (bd.t||bd.b||bd.l||bd.r)?bd:null;
   });
+  // 独自の数値書式（custom numFmts）を読む。日付判定に使う
+  const numFmts={};
+  xlSegments(seg('numFmts'),'numFmt').forEach(nf=>{
+    const idm=/numFmtId="(\d+)"/.exec(nf.attrs), cm=/formatCode="([^"]*)"/.exec(nf.attrs);
+    if(idm) numFmts[idm[1]]=cm?cm[1]:'';
+  });
+  // 組込みの日付書式ID（時刻のみ 18-21,45-47 は除く）
+  const BUILTIN_DATE=new Set([14,15,16,17,22,27,28,29,30,31,36,50,51,52,53,54,55,56,57,58]);
+  const dateFmtFor=(id)=>{
+    let jp=false;
+    if(BUILTIN_DATE.has(id)){ if(id>=27) jp=true; }
+    else {
+      const code=numFmts[id]; if(!code) return null;
+      const c=code.replace(/\[[^\]]*\]/g,'').replace(/"[^"]*"/g,'').replace(/\\./g,'');   // [..]・"..."・\x を除去
+      if(!/[yd]/i.test(c) && !/年|月|日/.test(code)) return null;   // y/d か 年月日 が無ければ日付ではない
+      if(/[ge]/i.test(code) && /y/i.test(code)===false) return 'wareki';   // 元号
+      if(/年|月|日/.test(code)) jp=true;
+    }
+    return jp?'jp':'ymd';
+  };
   const xfs=xlSegments(seg('cellXfs'),'xf').map(x=>{
     const gi=n=>{ const m=new RegExp(n+'="(\\d+)"').exec(x.attrs); return m?parseInt(m[1]):0; };
     const am=/horizontal="([^"]+)"/.exec(x.inner);
-    return { fontId:gi('fontId'), fillId:gi('fillId'), borderId:gi('borderId'), align:am?am[1]:'' };
+    return { fontId:gi('fontId'), fillId:gi('fillId'), borderId:gi('borderId'), numFmtId:gi('numFmtId'), align:am?am[1]:'' };
   });
   return { styleForIdx:(n)=>{
     const xf=xfs[n]; if(!xf) return null; const st={};
@@ -3042,6 +3136,7 @@ function parseXlsxStyles(xml){
     if(xf.fillId>1 && fills[xf.fillId]) st.bg=fills[xf.fillId];
     if(xf.borderId>0 && borders[xf.borderId]) st.bd=borders[xf.borderId];
     if(xf.align==='left'||xf.align==='center'||xf.align==='right') st.align=xf.align;
+    const df=dateFmtFor(xf.numFmtId); if(df) st.dfmt=df;   // 日付書式のセルは日付表示にする
     return Object.keys(st).length?st:null;
   }};
 }
@@ -3053,6 +3148,11 @@ async function exportXLSX(){
     const fills=['<fill><patternFill patternType="none"/></fill>','<fill><patternFill patternType="gray125"/></fill>'], fillKey=new Map();
     const borders=['<border><left/><right/><top/><bottom/><diagonal/></border>'], borderKey=new Map();
     const xfs=['<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'], xfKey=new Map();
+    // 日付の表示形式（アプリのdfmt→Excelの書式コード）。custom numFmt として登録する
+    const XL_DATE_CODE={ ymd:'yyyy/m/d', jp:'yyyy"年"m"月"d"日"', md:'m/d', wday:'yyyy/m/d(aaa)', wareki:'[$-411]ggge"年"m"月"d"日"' };
+    const numFmtDefs=[], numFmtKey=new Map(); let nextNumFmtId=176;
+    const regNumFmt=dfmt=>{ const code=XL_DATE_CODE[dfmt]||XL_DATE_CODE.ymd; if(numFmtKey.has(code)) return numFmtKey.get(code);
+      const id=nextNumFmtId++; numFmtDefs.push(`<numFmt numFmtId="${id}" formatCode="${xlEsc(code)}"/>`); numFmtKey.set(code,id); return id; };
     const regFont=s=>{ const key=JSON.stringify([!!s.bold,!!s.italic,!!s.underline,s.color||'']); if(fontKey.has(key)) return fontKey.get(key);
       let f='<font>'; if(s.bold)f+='<b/>'; if(s.italic)f+='<i/>'; if(s.underline)f+='<u/>'; f+='<sz val="11"/>'; if(s.color)f+=`<color rgb="FF${s.color.replace('#','').toUpperCase()}"/>`; f+='<name val="Calibri"/></font>';
       const id=fonts.length; fonts.push(f); fontKey.set(key,id); return id; };
@@ -3062,9 +3162,11 @@ async function exportXLSX(){
       const xml=`<border>${side(bd.l,'left')}${side(bd.r,'right')}${side(bd.t,'top')}${side(bd.b,'bottom')}<diagonal/></border>`;
       const id=borders.length; borders.push(xml); borderKey.set(key,id); return id; };
     const regXf=s=>{ const fontId=regFont(s), fillId=regFill(s.bg), borderId=regBorder(s.bd), align=s.align||'';
-      const key=JSON.stringify([fontId,fillId,borderId,align]); if(xfKey.has(key)) return xfKey.get(key);
+      const numFmtId=s.dfmt?regNumFmt(s.dfmt):0;
+      const key=JSON.stringify([fontId,fillId,borderId,align,numFmtId]); if(xfKey.has(key)) return xfKey.get(key);
       const alignXml=align?`<alignment horizontal="${align}"/>`:''; const applyAlign=align?' applyAlignment="1"':'';
-      xfs.push(`<xf numFmtId="0" fontId="${fontId}" fillId="${fillId}" borderId="${borderId}" xfId="0" applyFont="1" applyFill="1" applyBorder="1"${applyAlign}>${alignXml}</xf>`);
+      const applyNum=numFmtId?' applyNumberFormat="1"':'';
+      xfs.push(`<xf numFmtId="${numFmtId}" fontId="${fontId}" fillId="${fillId}" borderId="${borderId}" xfId="0" applyFont="1" applyFill="1" applyBorder="1"${applyNum}${applyAlign}>${alignXml}</xf>`);
       const id=xfs.length-1; xfKey.set(key,id); return id; };
 
     const P='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
@@ -3076,7 +3178,7 @@ async function exportXLSX(){
         for(let c=0;c<COLS;c++){
           if(coverOf(r,c)) continue;
           const ref=xlColLetter(c)+(r+1), raw=data[r][c]??'', s=cellStyles[`${r},${c}`]||{};
-          const styled=!!(s.bold||s.italic||s.underline||s.color||s.bg||s.bd||s.align);
+          const styled=!!(s.bold||s.italic||s.underline||s.color||s.bg||s.bd||s.align||s.dfmt);
           const sIdx=styled?regXf(s):0, sAttr=sIdx?` s="${sIdx}"`:'';
           const mg=mergeAt(r,c);
           if(mg&&(mg.rs>1||mg.cs>1)) merges.push(`${ref}:${xlColLetter(Math.min(25,c+mg.cs-1))}${Math.min(50,r+mg.rs)}`);
@@ -3138,7 +3240,8 @@ async function exportXLSX(){
     }
 
     const N=sheetNames.length;
-    const stylesXml=`${P}<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="${fonts.length}">${fonts.join('')}</fonts><fills count="${fills.length}">${fills.join('')}</fills><borders count="${borders.length}">${borders.join('')}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${xfs.length}">${xfs.join('')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+    const numFmtsXml=numFmtDefs.length?`<numFmts count="${numFmtDefs.length}">${numFmtDefs.join('')}</numFmts>`:'';
+    const stylesXml=`${P}<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${numFmtsXml}<fonts count="${fonts.length}">${fonts.join('')}</fonts><fills count="${fills.length}">${fills.join('')}</fills><borders count="${borders.length}">${borders.join('')}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${xfs.length}">${xfs.join('')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
     const sheetsTag=sheetNames.map((nm,i)=>`<sheet name="${xlEsc(nm)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('');
     const wbXml=`${P}<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheetsTag}</sheets><calcPr fullCalcOnLoad="1"/></workbook>`;
     const wbRels=`${P}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`+
@@ -3748,7 +3851,14 @@ const KEY_FUNCS={
   a_modevis:{g:'設定・機能',label:'🔀表示',run:()=>openModeVis()}, a_help:{g:'設定・機能',label:'📖説明',run:()=>openHelp()},
   a_defsize:{g:'設定・機能',label:'▦既定',run:()=>applyDefaultSize()}, a_cellfmt:{g:'設定・機能',label:'🎨書式',run:()=>openCellFmt()},
   a_numpadhide:{g:'設定・機能',label:'⌨隠す',run:()=>toggleNumpad()},
+  a_today:{g:'設定・機能',label:'📅今日',run:()=>insertTodayDate()},
 };
+/* 選択中のセルに今日の日付を入れる（日付として自動認識される） */
+function insertTodayDate(){
+  if(isLockedCell(selR,selC)){ flashLocked(selR,selC); return; }
+  const {y,m,d}=serialToYMD(todaySerial());
+  setCellVal(selR,selC,`${y}/${m}/${d}`);
+}
 let keyAssign={}, kaTargetKey=null, kaSuppress=false;
 let kaReady=false;   // ピッカー表示後、新しく押し直すまで項目を無効化（長押しの指を離した時の誤タップ防止）
 function loadKeyAssign(){ try{ keyAssign=JSON.parse(localStorage.getItem('excalc_key_assign')||'{}'); }catch(_){ keyAssign={}; } }
@@ -4449,7 +4559,7 @@ function sel(r,c) {
   const cref=document.getElementById('cellRef');
   cref.value=`${ALPHA[c]}${r+1}`;
   cref.classList.toggle('locked-ref', isLockedCell(r,c));   // 保護セルは枠の色で知らせる
-  document.getElementById('formulaInput').value=data[r][c];
+  document.getElementById('formulaInput').value=cellEditString(r,c);   // 日付セルは YYYY/M/D で編集
 
   const numV=getCellValue(r,c);
   disp_val=data[r][c]!==''?fmtNum(numV):'0';
@@ -4516,8 +4626,21 @@ function normalizeFullWidth(v){
 function setCellVal(r,c,v) {
   v = normalizeFullWidth(v);                              // 全角数字→半角（iPhoneキーボード対策）
   if (isLockedCell(r,c)) { flashLocked(r,c); return; }   // 保護セルへの書き込みを防止（手入力・貼付・フィル）
+  // 日付の自動認識：日付として入力されたらExcel互換の通し番号に変換し日付書式を付ける
+  let dfmtChange=null;   // {set:'ymd'} または {clear:true}
+  if (v!=='' && !String(v).startsWith('=')) {
+    const s0=cellStyles[`${r},${c}`];
+    const serial=parseDateInput(v);
+    if (serial!==null) { dfmtChange={set:(s0&&s0.dfmt)?s0.dfmt:'ymd'}; v=String(serial); }
+    else if (s0&&s0.dfmt) { dfmtChange={clear:true}; }   // 日付セルに日付以外→書式解除
+  }
+  if (dfmtChange) pushStyleHistory([`${r},${c}`]);        // 書式変更も戻せるように（値の前に積む）
   pushHistory([{r,c,val:data[r][c]}]);
   data[r][c]=v;
+  if (dfmtChange) {
+    if (dfmtChange.clear) { const s=cellStyles[`${r},${c}`]; if(s){ delete s.dfmt; if(Object.keys(s).length===0) delete cellStyles[`${r},${c}`]; } }
+    else { (cellStyles[`${r},${c}`]=cellStyles[`${r},${c}`]||{}).dfmt=dfmtChange.set; }
+  }
   // 消費税モード：税抜と税込は一方のみ入力（他方を消して入力元を一意にする）
   if(tableMode==='zei' && v!==''){
     if(c===0) data[r][2]='';
@@ -4530,7 +4653,7 @@ function setCellVal(r,c,v) {
   }
   const cell=document.getElementById(`c${r}_${c}`);
   if (cell) cell.textContent=getCellDisplay(r,c);
-  document.getElementById('formulaInput').value=v;
+  document.getElementById('formulaInput').value=cellEditString(r,c);
   if (isStructMode()) recalcMode();
   recalcAll();
   updateStats(c);
@@ -6417,6 +6540,7 @@ function syncCellFmt(){
   const dec=(typeof s.dec==='number')?s.dec:decPlaces;
   document.getElementById('fmtDecVal').textContent=dec<0?'自動':dec;
   document.getElementById('fmtRound').value=s.round||'round';
+  document.getElementById('fmtDate').value=s.dfmt||'';
   const sz=s.size||1; let si=FMT_SIZES.indexOf(sz); if(si<0) si=1;
   document.getElementById('fmtSizeVal').textContent=FMT_SLABEL[si];
   document.getElementById('fmtBold').classList.toggle('on', !!s.bold);
@@ -6460,6 +6584,26 @@ function fmtRoundChange(v){
   const s=fmtStyle(true);
   if(v==='round') delete s.round; else s.round=v;   // 既定(四捨五入)は保存しない
   repaintCell(fmtR,fmtC); afterFmtChange();
+}
+/* 日付の表示形式を変更（空＝日付にしない） */
+function fmtDateChange(v){
+  pushStyleHistory([fmtKey()]);
+  const s=fmtStyle(true);
+  if(v) s.dfmt=v; else delete s.dfmt;
+  repaintCell(fmtR,fmtC); afterFmtChange();
+}
+/* このセルに今日の日付を入れる（日付書式が未設定なら ymd を付ける） */
+function fmtToday(){
+  const key=fmtKey();
+  pushStyleHistory([key]);
+  pushHistory([{r:fmtR,c:fmtC,val:data[fmtR][fmtC]}]);
+  data[fmtR][fmtC]=String(todaySerial());
+  const s=fmtStyle(true); if(!s.dfmt) s.dfmt='ymd';
+  document.getElementById('fmtDate').value=s.dfmt;
+  repaintCell(fmtR,fmtC);
+  if(fmtR===selR && fmtC===selC) document.getElementById('formulaInput').value=cellEditString(fmtR,fmtC);
+  recalcAll(); if(isStructMode()) recalcMode();
+  afterFmtChange();
 }
 function fmtSize(delta){
   pushStyleHistory([fmtKey()]);
