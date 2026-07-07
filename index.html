@@ -371,13 +371,20 @@ body.dark #formulaInput.formula-mode {
   background: var(--sheet-bg);
   min-height: 0;
 }
-table.sheet { border-collapse: collapse; table-layout: fixed; width: 100%; }
+/* 枠線は border-collapse:separate（隣どうしの線を共有しない）で描く。
+   各セルは右辺・下辺だけに既定グリッド線を持ち、外周の上辺・左辺は表自身が引く。
+   こうすると細いユーザー枠線も隣セルと競合せず、全辺に1本ずつきれいに出る
+   （collapse＋box-shadowだと共有辺で2本線に見える不具合があった）。 */
+table.sheet {
+  border-collapse: separate; border-spacing: 0; table-layout: fixed; width: 100%;
+  border-top: 1px solid var(--cell-border); border-left: 1px solid var(--cell-border);
+}
 
 .ch {
   background: var(--ch-bg); color: var(--ch-color);
   font-size: calc(11px * var(--cell-scale, 1)); font-weight: bold; text-align: center;
   width: auto; height: calc(26px * var(--cell-scale, 1));
-  border: 1px solid var(--cell-border);
+  border-right: 1px solid var(--cell-border); border-bottom: 1px solid var(--cell-border);
   cursor: pointer; white-space: nowrap; touch-action: manipulation;
 }
 .ch.sel { background: #107c41; color: white; }
@@ -387,7 +394,7 @@ table.sheet { border-collapse: collapse; table-layout: fixed; width: 100%; }
   background: var(--ch-bg); color: var(--ch-color);
   font-size: calc(11px * var(--cell-scale, 1)); text-align: center;
   width: 48px; height: calc(32px * var(--cell-scale, 1));
-  border: 1px solid var(--cell-border);
+  border-right: 1px solid var(--cell-border); border-bottom: 1px solid var(--cell-border);
   cursor: pointer; touch-action: manipulation;
 }
 .rh.sel { background: #1a5276; color: white; }
@@ -396,7 +403,7 @@ table.sheet { border-collapse: collapse; table-layout: fixed; width: 100%; }
 .cell {
   height: calc(32px * var(--cell-scale, 1)); width: calc(60px * var(--cell-scale, 1)); padding: 1px 4px;
   font-size: calc(14px * var(--cell-scale, 1) * var(--dsize, 1) * var(--fit, 1)); text-align: right; cursor: cell;
-  border: 1px solid var(--cell-border);
+  border-right: 1px solid var(--cell-border); border-bottom: 1px solid var(--cell-border);
   background: var(--cell-bg);
   color: var(--text);
   white-space: nowrap; overflow: hidden;
@@ -3334,6 +3341,7 @@ function applyDefaultSize(){
   buildSheet();
   sel(Math.min(selR,ROWS-1), Math.min(selC,COLS-1));
   persistModes();
+  closeSettingsPanel();   // 規定に戻したら設定を閉じて表を見せる
   toast(`${ROWS}行×${COLS}列にしました`);
 }
 function openDefaultSizeDlg(){
@@ -4180,7 +4188,7 @@ function applyNumpad() {
   localStorage.setItem('excalc_numpad_hidden', numpadHidden?'1':'0');
   if (!numpadHidden) fitNumpadLabels();
 }
-function toggleNumpad() { numpadHidden=!numpadHidden; applyNumpad(); }
+function toggleNumpad() { numpadHidden=!numpadHidden; applyNumpad(); closeSettingsPanel(); }
 
 /* ── テンキーのボタン配置（ドラッグで自由に入れ替え） ──
    既定位置（5列のグリッド上の行r・列c。w/h は大きいボタンの占有数）。
@@ -6250,6 +6258,11 @@ function toggleSettings() {
   const panel=document.getElementById('settingsPanel'), btn=document.getElementById('settingsBtn');
   const open=panel.classList.toggle('open'); btn.classList.toggle('open',open);
 }
+/* 設定パネルが開いていれば閉じる（規定に戻す・テンキー非表示を押したら結果が見えるように） */
+function closeSettingsPanel(){
+  const p=document.getElementById('settingsPanel');
+  if(p&&p.classList.contains('open')) toggleSettings();
+}
 /* 設定のタブ切替（表・見た目・計算・データ）。開いたタブを記憶する */
 let settingsTab=0;
 const SETTINGS_TAB_MAX=3;
@@ -6291,7 +6304,21 @@ function isPlainNumberCell(v){
   const t=v.trim();
   return t!=='' && !t.startsWith('=') && !isNaN(t);
 }
+/* リセット後にシートも初期化する。複数シートがあれば全部消して1枚に戻す */
+function afterResetSheets(multi){
+  if(typeof sheets==='undefined' || !sheets.length) return;
+  if(multi){
+    sheets.splice(0, sheets.length);
+    curSheet=0;
+    sheets.push(Object.assign({name:'シート1'}, captureCurrentSheet()));
+  }
+  saveSheets();
+  renderSheetBar();
+}
 function resetAll() {
+  // 複数シートがあるときは、ほかのシートも消して1枚に戻すことを確認する
+  const multiSheets=(typeof sheets!=='undefined' && sheets.length>1);
+  if(multiSheets && !confirm('ほかのシートも削除して1枚に戻し、表をリセットしますか？（元に戻せません）')) return;
   // 登録モード（保存リストから作ったモード）はテンプレート扱い：
   // リセットでは入力した数字だけ消し、文字・数式・書式・レイアウトは残す
   if(findCustomMode(tableMode)){
@@ -6305,7 +6332,8 @@ function resetAll() {
     sel(initCellOfMode(),0);
     document.getElementById('formulaInput').value=data[selR][selC];
     persistModes();
-    toast('数字をリセットしました（文字・数式は保持）');
+    afterResetSheets(multiSheets);
+    toast(multiSheets?'シートを1枚に戻し、数字をリセットしました':'数字をリセットしました（文字・数式は保持）');
     return;
   }
   const entries=[];
@@ -6320,6 +6348,8 @@ function resetAll() {
   sel(initCellOfMode(),0);
   document.getElementById('formulaInput').value=data[selR][selC];
   persistModes();
+  afterResetSheets(multiSheets);
+  if(multiSheets) toast('シートを1枚に戻し、リセットしました');
 }
 
 /* ── セル書式（小数点・装飾・色・大きさ）──────────────────── */
@@ -6350,30 +6380,12 @@ function applyCellStyle(td, r, c){
   if(s.valign)    td.style.verticalAlign=s.valign;   // 文字の縦位置（上/中央/下）
   if(s.size && s.size!==1) td.style.setProperty('--dsize', s.size);
   if(s.bd){   // ユーザーが引いた枠線（上/下/左/右それぞれCSS値で保存）
-    // 実線は inset の box-shadow で描く。table が border-collapse:collapse のため、
-    // borderTop/Left は隣接セルの borderBottom/Right と競合し、細い線だと消えて
-    // しまう（下・右しか出ない）不具合があった。box-shadow はセル内側に必ず描画
-    // されるので上下左右すべて同じ太さで確実に表示できる。二重線(double)だけは
-    // box-shadow で表現できないため従来通り border で描画する。
-    const shadows=[];
-    const side=(css,dir)=>{
-      if(!css) return;
-      const m=/^(\S+)\s+(\S+)\s+(.+)$/.exec(css); if(!m){ return; }
-      const w=m[1], st=m[2], col=m[3];
-      if(st==='solid'){
-        if(dir==='t')      shadows.push(`inset 0 ${w} 0 0 ${col}`);
-        else if(dir==='b') shadows.push(`inset 0 -${w} 0 0 ${col}`);
-        else if(dir==='l') shadows.push(`inset ${w} 0 0 0 ${col}`);
-        else if(dir==='r') shadows.push(`inset -${w} 0 0 0 ${col}`);
-      }else{
-        if(dir==='t')      td.style.borderTop=css;
-        else if(dir==='b') td.style.borderBottom=css;
-        else if(dir==='l') td.style.borderLeft=css;
-        else if(dir==='r') td.style.borderRight=css;
-      }
-    };
-    side(s.bd.t,'t'); side(s.bd.b,'b'); side(s.bd.l,'l'); side(s.bd.r,'r');
-    if(shadows.length) td.style.boxShadow=shadows.join(',');
+    // 表は border-collapse:separate（隣どうしで線を共有しない）なので、細い線も
+    // 隣セルの既定グリッド線と競合せず、指定した辺にそのまま1本ずつ描画できる。
+    if(s.bd.t) td.style.borderTop=s.bd.t;
+    if(s.bd.b) td.style.borderBottom=s.bd.b;
+    if(s.bd.l) td.style.borderLeft=s.bd.l;
+    if(s.bd.r) td.style.borderRight=s.bd.r;
   }
 }
 /* 1セルだけ再描画（表示文字＋書式） */
