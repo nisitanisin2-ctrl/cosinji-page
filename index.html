@@ -3116,6 +3116,79 @@ function xlsxRichText(inner){
   const ts=body.match(/<t[^>]*>([\s\S]*?)<\/t>/g)||[];
   return ts.map(t=>xlUnesc(t.replace(/<[^>]+>/g,''))).join('');
 }
+
+/* ブック内の全ワークシートを Excel の並び順で取り出す（名前＋XML）。
+   workbook.xml のシート順と workbook.xml.rels の対応から解決し、
+   取れない場合は xl/worksheets/sheetN.xml を番号順に並べて代替する。 */
+function xlsxWorkbookSheets(map, names, dec){
+  const out=[];
+  const wbName=names.find(n=>/^xl\/workbook\.xml$/i.test(n));
+  const relName=names.find(n=>/^xl\/_rels\/workbook\.xml\.rels$/i.test(n));
+  if(wbName && relName){
+    const wb=dec.decode(map.get(wbName)), rels=dec.decode(map.get(relName));
+    const relMap={};
+    (rels.match(/<Relationship\b[^>]*>/g)||[]).forEach(r=>{
+      const id=(/Id="([^"]+)"/.exec(r)||[])[1];
+      const tgt=(/Target="([^"]+)"/.exec(r)||[])[1];
+      if(id&&tgt) relMap[id]=tgt;
+    });
+    (wb.match(/<sheet\b[^>]*\/?>/g)||[]).forEach((s,i)=>{
+      const nm=(/name="([^"]*)"/.exec(s)||[])[1];
+      const rid=(/r:id="([^"]+)"/.exec(s)||/[^:]\bid="([^"]+)"/.exec(s)||[])[1];
+      let tgt=rid?relMap[rid]:null; if(!tgt) return;
+      let path=tgt.replace(/^\//,'').replace(/^\.\//,'');
+      if(!/^xl\//i.test(path)) path='xl/'+path;
+      const key=names.find(n=>n.toLowerCase()===path.toLowerCase());
+      if(key && map.get(key)) out.push({ name:nm?xlUnesc(nm):('シート'+(i+1)), xml:dec.decode(map.get(key)) });
+    });
+  }
+  if(out.length) return out;
+  names.filter(n=>/^xl\/worksheets\/sheet\d+\.xml$/i.test(n))
+    .sort((a,b)=>(parseInt((a.match(/sheet(\d+)/i)||[])[1])||0)-(parseInt((b.match(/sheet(\d+)/i)||[])[1])||0))
+    .forEach((n,i)=>out.push({ name:'シート'+(i+1), xml:dec.decode(map.get(n)) }));
+  return out;
+}
+
+/* 1つのワークシートXMLを表データ・書式・行列数へ変換する。
+   shared=共有文字列, styleFn=styles.xml から作った書式解決関数 */
+function parseXlsxSheet(sheetXml, shared, styleFn){
+  const cells={}, styleRefs={}; let maxR=0,maxC=0;
+  const cellRe=/<c\b([^>]*?)(\/>|>([\s\S]*?)<\/c>)/g; let m;
+  while((m=cellRe.exec(sheetXml))){
+    const attrs=m[1], inner=m[3]||'';
+    const rm=/r="([A-Z]+)(\d+)"/.exec(attrs); if(!rm) continue;
+    const col=xlColToIdx(rm[1]), rowN=parseInt(rm[2])-1;
+    if(col>=26||rowN>=50||col<0||rowN<0) continue;
+    const tM=/t="([^"]+)"/.exec(attrs), t=tM?tM[1]:'';
+    const sM=/\bs="(\d+)"/.exec(attrs);
+    const fM=/<f[^>]*>([\s\S]*?)<\/f>/.exec(inner), vM=/<v>([\s\S]*?)<\/v>/.exec(inner);
+    let val='';
+    if(t==='inlineStr'){ val=xlsxRichText(inner); }
+    else if(t==='s'){ const idx=vM?parseInt(vM[1]):-1; val=(idx>=0&&shared[idx]!=null)?shared[idx]:''; }
+    else if(t==='str'){ val=vM?xlUnesc(vM[1]):''; if(fM){ const xf=xlUnesc(fM[1]); if(xlsxFormulaCompatible(xf)) val='='+xlsxFormulaToApp(xf); } }
+    else if(fM){ const xf=xlUnesc(fM[1]); if(xlsxFormulaCompatible(xf)) val='='+xlsxFormulaToApp(xf); else if(vM) val=xlUnesc(vM[1]); else val='='+xlsxFormulaToApp(xf); }
+    else if(vM){ val=xlUnesc(vM[1]); }
+    if(sM){ const st=styleFn.styleForIdx(parseInt(sM[1])); if(st) styleRefs[`${rowN},${col}`]=st; }
+    if(val!==''||styleRefs[`${rowN},${col}`]){ if(val!=='') cells[`${rowN},${col}`]=val; maxR=Math.max(maxR,rowN); maxC=Math.max(maxC,col); }
+  }
+  const hasContent = Object.keys(cells).length>0 || Object.keys(styleRefs).length>0;
+  const nRows=Math.max(1,Math.min(50,maxR+1)), nCols=Math.max(1,Math.min(26,maxC+1));
+  const arr=[]; for(let r=0;r<nRows;r++){ arr[r]=[]; for(let c=0;c<nCols;c++) arr[r][c]=cells[`${r},${c}`]??''; }
+  const styles={};
+  for(const k in styleRefs){ const [r,c]=k.split(',').map(Number); if(r<nRows&&c<nCols) styles[k]=Object.assign({}, styleRefs[k]); }
+  // セル結合を反映（範囲内のみ）
+  const mcSeg=(sheetXml.match(/<mergeCells\b[^>]*>([\s\S]*?)<\/mergeCells>/)||[])[1]||'';
+  (mcSeg.match(/<mergeCell\b[^>]*ref="([A-Z]+\d+:[A-Z]+\d+)"/g)||[]).forEach(mc=>{
+    const rr=/ref="([A-Z]+)(\d+):([A-Z]+)(\d+)"/.exec(mc); if(!rr) return;
+    let r1=parseInt(rr[2])-1,c1=xlColToIdx(rr[1]),r2=parseInt(rr[4])-1,c2=xlColToIdx(rr[3]);
+    if(r1>=nRows||c1>=nCols) return;
+    r2=Math.min(r2,nRows-1); c2=Math.min(c2,nCols-1);
+    const rs=r2-r1+1, cs=c2-c1+1; if(rs<=1&&cs<=1) return;
+    (styles[`${r1},${c1}`]=styles[`${r1},${c1}`]||{}).merge={rs,cs};
+    for(let r=r1;r<=r2;r++) for(let c=c1;c<=c2;c++){ if(r===r1&&c===c1) continue; (styles[`${r},${c}`]=styles[`${r},${c}`]||{}).cover=`${r1},${c1}`; }
+  });
+  return { arr, styles, rows:nRows, cols:nCols, hasContent };
+}
 function importXLSX(ev){
   const file=ev.target.files&&ev.target.files[0];
   ev.target.value='';
@@ -3126,56 +3199,49 @@ function importXLSX(ev){
     catch(e){ alert('Excelファイルを開けませんでした（.xlsx形式か確認してください）'); return; }
     const dec=new TextDecoder();
     const names=[...map.keys()];
-    const sheetName=names.find(n=>/^xl\/worksheets\/sheet1\.xml$/i.test(n)) || names.find(n=>/^xl\/worksheets\/.*\.xml$/i.test(n));
-    if(!sheetName){ alert('シートが見つかりませんでした'); return; }
-    const sheetXml=dec.decode(map.get(sheetName));
     let shared=[]; const ss=names.find(n=>/sharedStrings\.xml$/i.test(n));
     if(ss){ const sx=dec.decode(map.get(ss)); const re=/<si\b[^>]*>([\s\S]*?)<\/si>/g; let mm; while((mm=re.exec(sx))){ shared.push(xlsxRichText(mm[1])); } }
     let styleFn={styleForIdx:()=>null}; const stName=names.find(n=>/styles\.xml$/i.test(n));
     if(stName){ try{ styleFn=parseXlsxStyles(dec.decode(map.get(stName))); }catch(_){ } }
-    const cells={}, styleRefs={}; let maxR=0,maxC=0;
-    const cellRe=/<c\b([^>]*?)(\/>|>([\s\S]*?)<\/c>)/g; let m;
-    while((m=cellRe.exec(sheetXml))){
-      const attrs=m[1], inner=m[3]||'';
-      const rm=/r="([A-Z]+)(\d+)"/.exec(attrs); if(!rm) continue;
-      const col=xlColToIdx(rm[1]), rowN=parseInt(rm[2])-1;
-      if(col>=26||rowN>=50||col<0||rowN<0) continue;
-      const tM=/t="([^"]+)"/.exec(attrs), t=tM?tM[1]:'';
-      const sM=/\bs="(\d+)"/.exec(attrs);
-      const fM=/<f[^>]*>([\s\S]*?)<\/f>/.exec(inner), vM=/<v>([\s\S]*?)<\/v>/.exec(inner);
-      let val='';
-      if(t==='inlineStr'){ val=xlsxRichText(inner); }
-      else if(t==='s'){ const idx=vM?parseInt(vM[1]):-1; val=(idx>=0&&shared[idx]!=null)?shared[idx]:''; }
-      else if(t==='str'){ val=vM?xlUnesc(vM[1]):''; if(fM){ const xf=xlUnesc(fM[1]); if(xlsxFormulaCompatible(xf)) val='='+xlsxFormulaToApp(xf); } }
-      else if(fM){ const xf=xlUnesc(fM[1]); if(xlsxFormulaCompatible(xf)) val='='+xlsxFormulaToApp(xf); else if(vM) val=xlUnesc(vM[1]); else val='='+xlsxFormulaToApp(xf); }
-      else if(vM){ val=xlUnesc(vM[1]); }
-      if(sM){ const st=styleFn.styleForIdx(parseInt(sM[1])); if(st) styleRefs[`${rowN},${col}`]=st; }
-      if(val!==''||styleRefs[`${rowN},${col}`]){ if(val!=='') cells[`${rowN},${col}`]=val; maxR=Math.max(maxR,rowN); maxC=Math.max(maxC,col); }
+    // ブック内の全シートを取り出し、中身のあるものだけ取り込む
+    const wsSheets=xlsxWorkbookSheets(map, names, dec);
+    if(!wsSheets.length){ alert('シートが見つかりませんでした'); return; }
+    const parsed=wsSheets.map(ws=>Object.assign({name:ws.name}, parseXlsxSheet(ws.xml, shared, styleFn)));
+    const useSheets=parsed.filter(p=>p.hasContent);
+    if(!useSheets.length){ alert('読み込めるデータが見つかりませんでした'); return; }
+
+    if(useSheets.length===1){
+      // 1シートのみ：従来どおり現在の表へ上書き
+      const p=useSheets[0];
+      if(!confirm(`Excelを読み込みますか？（${p.rows}行×${p.cols}列）\n値・数式に加え、色・枠線・太字・寄せ・結合も取り込みます。現在の表は上書きされます。`)) return;
+      loadData(p.arr);
+      cellStyles={}; for(const k in p.styles) cellStyles[k]=Object.assign({}, p.styles[k]);
+      ROWS=p.rows; COLS=p.cols;
+      localStorage.setItem('excalc_rows',ROWS); localStorage.setItem('excalc_cols',COLS);
+      syncRowColLabels(); normalizeStructLayout();
+      if(isStructMode()) showModeBar(); else hideAllBars();
+      buildSheet(); sel(0,0); persistModes();
+      if(typeof saveSheets==='function'){ saveSheets(); renderSheetBar(); }
+      if(typeof toast==='function') toast(`Excelから ${p.rows}行×${p.cols}列を読み込みました`);
+      return;
     }
-    if(Object.keys(cells).length===0 && Object.keys(styleRefs).length===0){ alert('読み込めるデータが見つかりませんでした'); return; }
-    // セル結合
-    const mergeList=[]; const mcSeg=(sheetXml.match(/<mergeCells\b[^>]*>([\s\S]*?)<\/mergeCells>/)||[])[1]||'';
-    (mcSeg.match(/<mergeCell\b[^>]*ref="([A-Z]+\d+:[A-Z]+\d+)"/g)||[]).forEach(mc=>{ const rr=/ref="([A-Z]+)(\d+):([A-Z]+)(\d+)"/.exec(mc); if(rr) mergeList.push([parseInt(rr[2])-1,xlColToIdx(rr[1]),parseInt(rr[4])-1,xlColToIdx(rr[3])]); });
-    const nRows=Math.max(1,Math.min(50,maxR+1)), nCols=Math.max(1,Math.min(26,maxC+1));
-    if(!confirm(`Excelを読み込みますか？（${nRows}行×${nCols}列）\n値・数式に加え、色・枠線・太字・寄せ・結合も取り込みます。現在の表は上書きされます。`)) return;
-    const arr=[]; for(let r=0;r<nRows;r++){ arr[r]=[]; for(let c=0;c<nCols;c++){ arr[r][c]=cells[`${r},${c}`]??''; } }
-    loadData(arr);
-    cellStyles={};
-    for(const k in styleRefs){ const [r,c]=k.split(',').map(Number); if(r<nRows&&c<nCols) cellStyles[k]=Object.assign({}, styleRefs[k]); }
-    // 結合を反映（範囲内のみ）
-    mergeList.forEach(([r1,c1,r2,c2])=>{
-      if(r1>=nRows||c1>=nCols) return;
-      r2=Math.min(r2,nRows-1); c2=Math.min(c2,nCols-1);
-      const rs=r2-r1+1, cs=c2-c1+1; if(rs<=1&&cs<=1) return;
-      (cellStyles[`${r1},${c1}`]=cellStyles[`${r1},${c1}`]||{}).merge={rs,cs};
-      for(let r=r1;r<=r2;r++) for(let c=c1;c<=c2;c++){ if(r===r1&&c===c1) continue; (cellStyles[`${r},${c}`]=cellStyles[`${r},${c}`]||{}).cover=`${r1},${c1}`; }
-    });
-    ROWS=nRows; COLS=nCols;
-    localStorage.setItem('excalc_rows',ROWS); localStorage.setItem('excalc_cols',COLS);
-    syncRowColLabels(); normalizeStructLayout();
-    if(isStructMode()) showModeBar(); else hideAllBars();
-    buildSheet(); sel(0,0); persistModes();
-    if(typeof toast==='function') toast(`Excelから ${nRows}行×${nCols}列を読み込みました`);
+
+    // 複数シート：それぞれを新しいシートとして追加
+    if(!confirm(`Excelのシート${useSheets.length}枚を読み込みますか？\nそれぞれ新しいシートとして追加されます（現在のシートは残ります）。`)) return;
+    if(sheets[curSheet]) Object.assign(sheets[curSheet], captureCurrentSheet());   // 今のシートを退避
+    if(sheets.length+useSheets.length>30){ alert('シートが多すぎます（最大30枚）。追加できる分だけ取り込みます。'); }
+    let firstNew=-1;
+    for(const p of useSheets){
+      if(sheets.length>=30) break;
+      const nm=(p.name||'').trim().slice(0,20) || nextSheetName();
+      sheets.push({ name:nm, store:{ current:'normal', rows:p.rows, warikanPeople:2, states:{ normal:{cols:p.cols, data:p.arr, styles:p.styles} } }, colWidths:{}, rowHeights:{} });
+      if(firstNew<0) firstNew=sheets.length-1;
+    }
+    curSheet=firstNew;
+    loadSheetStore(sheets[curSheet]);
+    applyActiveSheet();
+    saveSheets();
+    if(typeof toast==='function') toast(`Excelから${useSheets.length}枚のシートを読み込みました`);
   })();
 }
 
