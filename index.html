@@ -237,6 +237,18 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
 }
 .sheet-add:hover, .sheet-del:hover { background: rgba(255,255,255,0.28); }
 
+/* 設定：上のバーのボタン表示/非表示トグル */
+.topbtn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px; }
+.topbtn-toggle {
+  box-sizing: border-box; padding: 10px 4px; border-radius: 8px;
+  font-size: 13px; font-weight: bold; cursor: pointer; touch-action: manipulation;
+  border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text-light);
+  position: relative;
+}
+.topbtn-toggle::before { content: '🚫 非表示'; display: block; font-size: 10.5px; font-weight: normal; opacity: 0.75; margin-bottom: 2px; }
+.topbtn-toggle.on { background: #217346; color: #fff; border-color: #217346; }
+.topbtn-toggle.on::before { content: '✓ 表示'; opacity: 0.95; }
+
 /* 設定：タブ式のモーダル。「表・見た目・計算・データ」の4タブに分類し、
    1行に1項目の白いカードで見やすくする */
 .settings-modal { max-height: 88vh; max-height: 88dvh; width: 94%; }
@@ -1121,11 +1133,11 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   <span class="toolbar-title">表電卓</span>
   <button class="btn-sheet" id="sheetToggleBtn" onclick="toggleSheetView()" title="シートの切り替え・追加">シート</button>
   <button class="btn-save menu-item" id="saveBtn" onclick="saveData()">保存</button>
-  <button class="btn-list menu-item" onclick="showSaveList()">リスト</button>
+  <button class="btn-list menu-item" id="listBtn" onclick="showSaveList()">リスト</button>
   <button class="btn-settings menu-item" id="settingsBtn" onclick="toggleSettings()">設定</button>
   <button class="btn-undo menu-item" id="undoBtn" onclick="undoLast()" disabled>戻る</button>
   <button class="btn-redo menu-item" id="redoBtn" onclick="redoLast()" disabled>進む</button>
-  <button class="btn-reset menu-item" onclick="resetAll()">リセット</button>
+  <button class="btn-reset menu-item" id="resetBtn" onclick="resetAll()">リセット</button>
   <div class="sheet-bar" id="sheetBar"></div>
 </div>
 
@@ -1191,6 +1203,15 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     </div>
     <button class="set-act" id="darkBtn" onclick="toggleDark()">🌙 ナイトモード</button>
     <button class="set-act" id="keypadEditBtn" onclick="toggleKeypadEdit()" title="テンキーのボタンをドラッグして好きな位置に入れ替えます（同じ大きさのボタン同士）">🔧 テンキーのボタン配置を編集</button>
+    <div class="set-sec">上のバーのボタン<small>タップで表示／非表示（「設定」は常に表示）</small></div>
+    <div class="topbtn-grid" id="topBtnToggles">
+      <button class="topbtn-toggle" data-btn="sheet" onclick="toggleTopBtn('sheet')">シート</button>
+      <button class="topbtn-toggle" data-btn="save"  onclick="toggleTopBtn('save')">保存</button>
+      <button class="topbtn-toggle" data-btn="list"  onclick="toggleTopBtn('list')">リスト</button>
+      <button class="topbtn-toggle" data-btn="undo"  onclick="toggleTopBtn('undo')">戻る</button>
+      <button class="topbtn-toggle" data-btn="redo"  onclick="toggleTopBtn('redo')">進む</button>
+      <button class="topbtn-toggle" data-btn="reset" onclick="toggleTopBtn('reset')">リセット</button>
+    </div>
   </div>
 
   <div class="set-page" id="setPage2">
@@ -6418,6 +6439,20 @@ function closeSettingsPanel(){
   const p=document.getElementById('settingsPanel');
   if(p&&p.classList.contains('open')) toggleSettings();
 }
+/* ── 上のバーのボタンの表示/非表示（「設定」は常に表示） ── */
+const TOPBTN_IDS={ sheet:'sheetToggleBtn', save:'saveBtn', list:'listBtn', undo:'undoBtn', redo:'redoBtn', reset:'resetBtn' };
+let topBtnHidden={};
+function loadTopBtnHidden(){ try{ topBtnHidden=JSON.parse(localStorage.getItem('excalc_topbtn_hidden')||'{}')||{}; }catch(_){ topBtnHidden={}; } }
+function applyTopBtnHidden(){
+  for(const k in TOPBTN_IDS){ const el=document.getElementById(TOPBTN_IDS[k]); if(el) el.style.display = topBtnHidden[k]?'none':''; }
+  document.querySelectorAll('#topBtnToggles .topbtn-toggle').forEach(b=>b.classList.toggle('on', !topBtnHidden[b.dataset.btn]));
+}
+function toggleTopBtn(k){
+  if(!(k in TOPBTN_IDS)) return;
+  topBtnHidden[k]=!topBtnHidden[k];
+  try{ localStorage.setItem('excalc_topbtn_hidden', JSON.stringify(topBtnHidden)); }catch(_){}
+  applyTopBtnHidden();
+}
 /* 設定のタブ切替（表・見た目・計算・データ）。開いたタブを記憶する */
 let settingsTab=0;
 const SETTINGS_TAB_MAX=3;
@@ -7468,6 +7503,7 @@ renderUserKeys();
 loadSaveTabNames();
 setSettingsTab(Math.min(3,Math.max(0,parseInt(localStorage.getItem('excalc_settings_tab')||'0',10)||0)));
 attachSettingsSwipe();
+loadTopBtnHidden(); applyTopBtnHidden();   // 上のバーのボタンの表示/非表示を復元
 if(localStorage.getItem('excalc_trigmode')==='rad') trigMode='rad';
 applyTrigModeBtn();
 restoreSheetSizes();
