@@ -1663,8 +1663,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     </div>
     <div class="mode-hint">「▦ デフォルト」ボタンをタップしたときに設定する行数・列数を指定します。</div>
     <div class="modal-body">
-      <div class="defsize-row"><label for="defRowsInput">行数（1〜50）</label><input type="number" id="defRowsInput" class="defsize-input" min="1" max="50" inputmode="numeric"></div>
-      <div class="defsize-row"><label for="defColsInput">列数（1〜26）</label><input type="number" id="defColsInput" class="defsize-input" min="1" max="26" inputmode="numeric"></div>
+      <div class="defsize-row"><label for="defRowsInput">行数（1〜250）</label><input type="number" id="defRowsInput" class="defsize-input" min="1" max="250" inputmode="numeric"></div>
+      <div class="defsize-row"><label for="defColsInput">列数（1〜50）</label><input type="number" id="defColsInput" class="defsize-input" min="1" max="50" inputmode="numeric"></div>
       <button class="regpick-save" style="width:100%;padding:10px;margin-top:6px" onclick="saveDefaultSize()">この内容で保存</button>
     </div>
   </div>
@@ -1736,7 +1736,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 
       <div class="help-sec">
         <div class="help-h">✏️ 基本の使い方</div>
-        <div class="help-li">セルをタップして選び、テンキーで入力 → <b>Enter</b>で確定（下のセルへ移動）。<b>いちばん下の行でEnter</b>を押すと、自動で<b>行が1つ追加</b>されて続けて入力できます（通常・簡易モード、最大50行）。</div>
+        <div class="help-li">セルをタップして選び、テンキーで入力 → <b>Enter</b>で確定（下のセルへ移動）。<b>いちばん下の行でEnter</b>を押すと、自動で<b>行が1つ追加</b>されて続けて入力できます（通常・簡易モード、最大250行）。</div>
         <div class="help-li">上部の入力欄から直接入力／編集もできます。</div>
         <div class="help-li">列見出し（A,B…）や行番号をタップすると、その列・行を選択して下に合計が出ます。</div>
         <div class="help-li"><b>列見出しの右端／行番号の下端をドラッグ</b>すると、その列の幅・行の高さを個別に変更できます（ダブルタップで自動に戻す）。</div>
@@ -1968,11 +1968,21 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 </div>
 
 <script>
+const MAXROWS = 250;   // 最大行数
+const MAXCOLS = 50;    // 最大列数（A〜AX）
 let ROWS = 15;
 let COLS = 3;
 let decPlaces = -1;
-const ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-const data       = Array.from({length: 50}, () => Array(26).fill(''));
+/* 列見出しは A〜Z のあと AA〜AX まで。ALPHA[c] で列名、ALPHA.indexOf('AA') で列番号を返す
+   （xlColLetter/xlColToIdx は base-26 で多桁に対応。既存コードを変えずに50列へ拡張するためのProxy） */
+const ALPHA = new Proxy({}, {
+  get(t, prop){
+    if(prop==='indexOf') return (s)=>{ const u=String(s).toUpperCase(); return /^[A-Z]+$/.test(u)?xlColToIdx(u):-1; };
+    const n=Number(prop);
+    return Number.isInteger(n)&&n>=0 ? xlColLetter(n) : undefined;
+  }
+});
+const data       = Array.from({length: MAXROWS}, () => Array(MAXCOLS).fill(''));
 let cellStyles   = {};   // "r,c" -> {dec,size,bold,italic,underline,color,bg} 現在モードのセル書式
 
 let selR = 0, selC = 0, selRow = -1;
@@ -2047,7 +2057,7 @@ function cellEditString(r,c){
 
 /* ── 数式エンジン ── */
 function getCellValue(r, c) {
-  if (r < 0 || r >= 50 || c < 0 || c >= 26) return 0;
+  if (r < 0 || r >= MAXROWS || c < 0 || c >= MAXCOLS) return 0;
   const key = `${r},${c}`;
   if (evaluating.has(key)) return 0;
   const raw = String(data[r][c]);
@@ -2982,8 +2992,8 @@ function importCSV(ev){
     try{ rows=parseCSV(decodeCSVBuffer(reader.result)); }catch(e){ alert('CSVの解析に失敗しました'); return; }
     while(rows.length && rows[rows.length-1].every(c=>c==='')) rows.pop();   // 末尾の空行を除去
     if(rows.length===0){ alert('読み込めるデータが見つかりませんでした'); return; }
-    const nRows=Math.min(50, rows.length);
-    const nCols=Math.min(26, Math.max(1, rows.reduce((m,r)=>Math.max(m,r.length),0)));
+    const nRows=Math.min(MAXROWS, rows.length);
+    const nCols=Math.min(MAXCOLS, Math.max(1, rows.reduce((m,r)=>Math.max(m,r.length),0)));
     if(!confirm(`CSVを読み込みますか？（${nRows}行×${nCols}列）\n現在の表は上書きされます。`)) return;
     const arr=[];
     for(let r=0;r<nRows;r++){ arr[r]=[]; for(let c=0;c<nCols;c++){ const v=rows[r]&&rows[r][c]; arr[r][c]=(v===undefined||v===null)?'':String(v); } }
@@ -3181,7 +3191,7 @@ async function exportXLSX(){
           const styled=!!(s.bold||s.italic||s.underline||s.color||s.bg||s.bd||s.align||s.dfmt);
           const sIdx=styled?regXf(s):0, sAttr=sIdx?` s="${sIdx}"`:'';
           const mg=mergeAt(r,c);
-          if(mg&&(mg.rs>1||mg.cs>1)) merges.push(`${ref}:${xlColLetter(Math.min(25,c+mg.cs-1))}${Math.min(50,r+mg.rs)}`);
+          if(mg&&(mg.rs>1||mg.cs>1)) merges.push(`${ref}:${xlColLetter(Math.min(MAXCOLS-1,c+mg.cs-1))}${Math.min(MAXROWS,r+mg.rs)}`);
           if(String(raw).startsWith('=')){
             const v=getCellValue(r,c);
             row+=`<c r="${ref}"${sAttr}><f>${xlEsc(appFormulaToXlsx(String(raw).slice(1)))}</f><v>${isFinite(v)?v:0}</v></c>`;
@@ -3224,7 +3234,7 @@ async function exportXLSX(){
           loadData(ms.data||[]);
           cellStyles=ms.styles?{...ms.styles}:{};
           COLS=ms.cols||normalCols();
-          ROWS=(st.rows>=1&&st.rows<=50)?st.rows:ROWS;
+          ROWS=(st.rows>=1&&st.rows<=MAXROWS)?st.rows:ROWS;
           colWidths=sh.colWidths?{...sh.colWidths}:{};
           tableMode=cur;
           normalizeStructLayout();
@@ -3318,7 +3328,7 @@ function parseXlsxSheet(sheetXml, shared, styleFn){
     const attrs=m[1], inner=m[3]||'';
     const rm=/r="([A-Z]+)(\d+)"/.exec(attrs); if(!rm) continue;
     const col=xlColToIdx(rm[1]), rowN=parseInt(rm[2])-1;
-    if(col>=26||rowN>=50||col<0||rowN<0) continue;
+    if(col>=MAXCOLS||rowN>=MAXROWS||col<0||rowN<0) continue;
     const tM=/t="([^"]+)"/.exec(attrs), t=tM?tM[1]:'';
     const sM=/\bs="(\d+)"/.exec(attrs);
     const fM=/<f[^>]*>([\s\S]*?)<\/f>/.exec(inner), vM=/<v>([\s\S]*?)<\/v>/.exec(inner);
@@ -3332,7 +3342,7 @@ function parseXlsxSheet(sheetXml, shared, styleFn){
     if(val!==''||styleRefs[`${rowN},${col}`]){ if(val!=='') cells[`${rowN},${col}`]=val; maxR=Math.max(maxR,rowN); maxC=Math.max(maxC,col); }
   }
   const hasContent = Object.keys(cells).length>0 || Object.keys(styleRefs).length>0;
-  const nRows=Math.max(1,Math.min(50,maxR+1)), nCols=Math.max(1,Math.min(26,maxC+1));
+  const nRows=Math.max(1,Math.min(MAXROWS,maxR+1)), nCols=Math.max(1,Math.min(MAXCOLS,maxC+1));
   const arr=[]; for(let r=0;r<nRows;r++){ arr[r]=[]; for(let c=0;c<nCols;c++) arr[r][c]=cells[`${r},${c}`]??''; }
   const styles={};
   for(const k in styleRefs){ const [r,c]=k.split(',').map(Number); if(r<nRows&&c<nCols) styles[k]=Object.assign({}, styleRefs[k]); }
@@ -3416,14 +3426,14 @@ function toggleDark() {
 }
 
 function changeRows(delta) {
-  const next=ROWS+delta; if (next<1||next>50) return;
+  const next=ROWS+delta; if (next<1||next>MAXROWS) return;
   ROWS=next; document.getElementById('rowCount').textContent=ROWS;
   localStorage.setItem('excalc_rows',ROWS);
   buildSheet(); sel(Math.min(selR,ROWS-1),selC);
   persistModes();
 }
 function changeCols(delta) {
-  const next=COLS+delta; if (next<1||next>26) return;
+  const next=COLS+delta; if (next<1||next>MAXCOLS) return;
   COLS=next; document.getElementById('colCount').textContent=COLS;
   localStorage.setItem('excalc_cols',COLS);
   buildSheet(); sel(selR,Math.min(selC,COLS-1));
@@ -3431,8 +3441,8 @@ function changeCols(delta) {
 }
 
 /* ── デフォルトの行数・列数（「▦ デフォルト」ボタン） ── */
-function getDefaultRows(){ const v=parseInt(localStorage.getItem('excalc_default_rows')); return (!isNaN(v)&&v>=1&&v<=50)?v:15; }
-function getDefaultCols(){ const v=parseInt(localStorage.getItem('excalc_default_cols')); return (!isNaN(v)&&v>=1&&v<=26)?v:3; }
+function getDefaultRows(){ const v=parseInt(localStorage.getItem('excalc_default_rows')); return (!isNaN(v)&&v>=1&&v<=MAXROWS)?v:15; }
+function getDefaultCols(){ const v=parseInt(localStorage.getItem('excalc_default_cols')); return (!isNaN(v)&&v>=1&&v<=MAXCOLS)?v:3; }
 /* 既定の行数・列数に設定し直す */
 function applyDefaultSize(){
   if(isStructMode()){ toast('このモードでは行・列数を変更できません'); return; }
@@ -3456,8 +3466,8 @@ function closeDefaultSizeDlg(){ document.getElementById('defaultSizeOverlay').cl
 function saveDefaultSize(){
   let r=parseInt(document.getElementById('defRowsInput').value);
   let c=parseInt(document.getElementById('defColsInput').value);
-  if(isNaN(r)) r=15; r=Math.max(1,Math.min(50,r));
-  if(isNaN(c)) c=3;  c=Math.max(1,Math.min(26,c));
+  if(isNaN(r)) r=15; r=Math.max(1,Math.min(MAXROWS,r));
+  if(isNaN(c)) c=3;  c=Math.max(1,Math.min(MAXCOLS,c));
   localStorage.setItem('excalc_default_rows',r);
   localStorage.setItem('excalc_default_cols',c);
   closeDefaultSizeDlg();
@@ -3500,12 +3510,12 @@ function remapFormulaRefs(formula, mapFn){
   return s.replace(/([A-Za-z])(\d+)/g,(m,col,row)=>{
     const ci=ALPHA.indexOf(col.toUpperCase()); if(ci<0) return m;
     const res=mapFn(parseInt(row)-1, ci);
-    if(!res || res[0]<0 || res[0]>49 || res[1]<0 || res[1]>25) return '#REF';
+    if(!res || res[0]<0 || res[0]>MAXROWS-1 || res[1]<0 || res[1]>MAXCOLS-1) return '#REF';
     return `${ALPHA[res[1]]}${res[0]+1}`;
   });
 }
 function remapAllFormulas(mapFn){
-  for(let r=0;r<50;r++) for(let c=0;c<26;c++){
+  for(let r=0;r<MAXROWS;r++) for(let c=0;c<MAXCOLS;c++){
     const v=data[r][c];
     if(typeof v==='string' && v.startsWith('=')) data[r][c]=remapFormulaRefs(v,mapFn);
   }
@@ -3516,7 +3526,7 @@ function remapCellStyles(mapFn){
   for(const k in cellStyles){
     const p=k.split(','), r=+p[0], c=+p[1];
     const res=mapFn(r,c);
-    if(res && res[0]>=0 && res[0]<50 && res[1]>=0 && res[1]<26) ns[`${res[0]},${res[1]}`]=cellStyles[k];
+    if(res && res[0]>=0 && res[0]<MAXROWS && res[1]>=0 && res[1]<MAXCOLS) ns[`${res[0]},${res[1]}`]=cellStyles[k];
   }
   cellStyles=ns;
 }
@@ -3546,14 +3556,14 @@ function afterStructChange(newSelR,newSelC){
 /* 行・列の挿入／削除（at で対象位置を指定）。見出し長押しメニューと設定パネル両方から使う */
 function insertRowAt(at){
   if(structOpBlocked()) return;
-  if(ROWS>=50){ toast('これ以上行を増やせません（最大50行）'); return; }
+  if(ROWS>=MAXROWS){ toast('これ以上行を増やせません（最大250行）'); return; }
   stripAllMerges();   // 行・列の挿入/削除時は結合を解除（構造破綻を防ぐ）
   at=Math.max(0, Math.min(at, ROWS));
   const newROWS=ROWS+1;
   for(let r=newROWS-1; r>at; r--) data[r]=data[r-1].slice();
-  data[at]=Array(26).fill('');
+  data[at]=Array(MAXCOLS).fill('');
   remapCellStyles((r,c)=> r>=at ? [r+1,c] : [r,c]);
-  rowHeights=remapIndexMap(rowHeights, i=> i>=at ? (i+1<50?i+1:null) : i);
+  rowHeights=remapIndexMap(rowHeights, i=> i>=at ? (i+1<MAXROWS?i+1:null) : i);
   remapAllFormulas((r,c)=> [r>=at ? r+1 : r, c]);
   ROWS=newROWS;
   afterStructChange(at, selC);
@@ -3565,7 +3575,7 @@ function deleteRowAt(at){
   stripAllMerges();
   at=Math.max(0, Math.min(at, ROWS-1));
   for(let r=at; r<ROWS-1; r++) data[r]=data[r+1].slice();
-  data[ROWS-1]=Array(26).fill('');
+  data[ROWS-1]=Array(MAXCOLS).fill('');
   remapCellStyles((r,c)=> r===at ? null : [r>at?r-1:r, c]);
   rowHeights=remapIndexMap(rowHeights, i=> i===at?null : (i>at?i-1:i));
   remapAllFormulas((r,c)=> r===at ? null : [r>at?r-1:r, c]);
@@ -3575,14 +3585,14 @@ function deleteRowAt(at){
 }
 function insertColAt(at){
   if(structOpBlocked()) return;
-  if(COLS>=26){ toast('これ以上列を増やせません（最大26列）'); return; }
+  if(COLS>=MAXCOLS){ toast('これ以上列を増やせません（最大50列）'); return; }
   stripAllMerges();
   at=Math.max(0, Math.min(at, COLS));
   const newCOLS=COLS+1;
-  for(let c=newCOLS-1; c>at; c--) for(let r=0;r<50;r++) data[r][c]=data[r][c-1];
-  for(let r=0;r<50;r++) data[r][at]='';
+  for(let c=newCOLS-1; c>at; c--) for(let r=0;r<MAXROWS;r++) data[r][c]=data[r][c-1];
+  for(let r=0;r<MAXROWS;r++) data[r][at]='';
   remapCellStyles((r,c)=> c>=at ? [r,c+1] : [r,c]);
-  colWidths=remapIndexMap(colWidths, i=> i>=at ? (i+1<26?i+1:null) : i);
+  colWidths=remapIndexMap(colWidths, i=> i>=at ? (i+1<MAXCOLS?i+1:null) : i);
   remapAllFormulas((r,c)=> [r, c>=at ? c+1 : c]);
   COLS=newCOLS;
   afterStructChange(selR, at);
@@ -3593,8 +3603,8 @@ function deleteColAt(at){
   if(COLS<=1){ toast('これ以上列を減らせません'); return; }
   stripAllMerges();
   at=Math.max(0, Math.min(at, COLS-1));
-  for(let c=at; c<COLS-1; c++) for(let r=0;r<50;r++) data[r][c]=data[r][c+1];
-  for(let r=0;r<50;r++) data[r][COLS-1]='';
+  for(let c=at; c<COLS-1; c++) for(let r=0;r<MAXROWS;r++) data[r][c]=data[r][c+1];
+  for(let r=0;r<MAXROWS;r++) data[r][COLS-1]='';
   remapCellStyles((r,c)=> c===at ? null : [r, c>at?c-1:c]);
   colWidths=remapIndexMap(colWidths, i=> i===at?null : (i>at?i-1:i));
   remapAllFormulas((r,c)=> c===at ? null : [r, c>at?c-1:c]);
@@ -5046,7 +5056,7 @@ function updateAutoSumBtn(){
    行を1つ追加してそこへ移動する。追加できない場合は入力をクリアするだけ。 */
 function advanceRowOrAdd(){
   if (selR<ROWS-1){ sel(selR+1,selC); return; }
-  if (!isStructMode() && ROWS<50){
+  if (!isStructMode() && ROWS<MAXROWS){
     ROWS++;
     document.getElementById('rowCount').textContent=ROWS;
     localStorage.setItem('excalc_rows',ROWS);
@@ -5339,7 +5349,7 @@ function applyTemplateObj(t, closeFn){
   captureMode(tableMode);
   tableMode='normal';
   document.body.classList.remove('simple-mode');
-  for(let r=0;r<50;r++) for(let c=0;c<26;c++) data[r][c]='';
+  for(let r=0;r<MAXROWS;r++) for(let c=0;c<MAXCOLS;c++) data[r][c]='';
   cellStyles={};
   let firstInput=-1;
   t.rows.forEach((row,i)=>{
@@ -5360,7 +5370,7 @@ function applyTemplateObj(t, closeFn){
       if(firstInput<0 && v==='') firstInput=i;             // 最初の空入力にカーソル
     }
   });
-  ROWS=Math.max(2, Math.min(50, t.rows.length));
+  ROWS=Math.max(2, Math.min(MAXROWS, t.rows.length));
   COLS=2;
   localStorage.setItem('excalc_rows',ROWS); localStorage.setItem('excalc_cols',COLS);
   hideAllBars();
@@ -5901,20 +5911,28 @@ function showModeBar(){
 }
 
 /* ── モード切替（各モードの内容はリセットまで保持） ── */
-function snapshotData(){ return data.map(r=>r.slice()); }
+/* 保存・履歴用の複製。末尾の空行・空列は省いて容量を抑える（loadDataが不足分を''で補う）。
+   250×50に拡張したため、全セルを常に保存すると localStorage を圧迫するので中身のある範囲だけ持つ。 */
+function snapshotData(){
+  let maxR=0, maxC=0;
+  for(let r=0;r<MAXROWS;r++) for(let c=0;c<MAXCOLS;c++) if(data[r][c]!==''){ if(r+1>maxR)maxR=r+1; if(c+1>maxC)maxC=c+1; }
+  const out=[];
+  for(let r=0;r<maxR;r++){ const row=new Array(maxC); for(let c=0;c<maxC;c++) row[c]=data[r][c]; out.push(row); }
+  return out;
+}
 function loadData(arr){
-  for(let r=0;r<50;r++) for(let c=0;c<26;c++)
+  for(let r=0;r<MAXROWS;r++) for(let c=0;c<MAXCOLS;c++)
     data[r][c]=(arr&&arr[r]&&arr[r][c]!==undefined)?arr[r][c]:'';
 }
 function normalCols(){
   const v=parseInt(localStorage.getItem('excalc_cols'));
-  return (!isNaN(v)&&v>=1&&v<=26)?v:3;
+  return (!isNaN(v)&&v>=1&&v<=MAXCOLS)?v:3;
 }
 /* 現在モードの内容をストアへ退避 */
 function captureMode(key){ modeStates[key]={cols:COLS, data:snapshotData(), styles:{...cellStyles}}; }
 /* 未訪問モードを新規初期化（空＋見出し） */
 function initFreshMode(mode){
-  for(let r=0;r<50;r++) for(let c=0;c<26;c++) data[r][c]='';
+  for(let r=0;r<MAXROWS;r++) for(let c=0;c<MAXCOLS;c++) data[r][c]='';
   cellStyles={};
   if(mode==='simple'){ COLS=2; }
   else if(STRUCT_MODES[mode]){
@@ -5948,7 +5966,7 @@ function switchMode(target){
     initFreshMode(target);
   }
   const tgtCustom=findCustomMode(target);   // 登録モードは保存時の行数を復元
-  if(tgtCustom && tgtCustom.rows){ ROWS=Math.max(1,Math.min(50,tgtCustom.rows)); localStorage.setItem('excalc_rows',ROWS); }
+  if(tgtCustom && tgtCustom.rows){ ROWS=Math.max(1,Math.min(MAXROWS,tgtCustom.rows)); localStorage.setItem('excalc_rows',ROWS); }
   normalizeStructLayout();
   syncRowColLabels();
   buildSheet();
@@ -5981,7 +5999,7 @@ function restoreModeStore(){
     if(st&&st.data) modeStates[k]={cols:st.cols, data:st.data, styles:st.styles||{}};
   }
   if(typeof s.warikanPeople==='number') warikanPeople=s.warikanPeople;
-  if(s.rows>=1&&s.rows<=50) ROWS=s.rows;
+  if(s.rows>=1&&s.rows<=MAXROWS) ROWS=s.rows;
   let cur=s.current||'normal';
   if(!isValidMode(cur)) cur='normal';   // 廃止済みモード(家計簿等)・解除済み登録モードは通常へ
   if(modeStates[cur]){
@@ -6023,7 +6041,7 @@ function loadSheetStore(sheet){
   for(const k in modeStates) delete modeStates[k];   // const のため中身を入れ替える
   for(const k in (st.states||{})){ const s=st.states[k]; if(s&&s.data) modeStates[k]={cols:s.cols, data:s.data, styles:s.styles||{}}; }
   warikanPeople=(typeof st.warikanPeople==='number')?st.warikanPeople:2;
-  ROWS=(st.rows>=1&&st.rows<=50)?st.rows:ROWS;
+  ROWS=(st.rows>=1&&st.rows<=MAXROWS)?st.rows:ROWS;
   colWidths=(sheet&&sheet.colWidths)?{...sheet.colWidths}:{};
   rowHeights=(sheet&&sheet.rowHeights)?{...sheet.rowHeights}:{};
   let cur=st.current||'normal'; if(!isValidMode(cur)) cur='normal';
@@ -6054,7 +6072,7 @@ function saveSheets(){
 /* 空の新しいシートを作る */
 function freshSheet(name){
   const rows=getDefaultRows(), cols=getDefaultCols();
-  const blank=[]; for(let r=0;r<50;r++){ blank[r]=[]; for(let c=0;c<26;c++) blank[r][c]=''; }
+  const blank=[]; for(let r=0;r<MAXROWS;r++){ blank[r]=[]; for(let c=0;c<MAXCOLS;c++) blank[r][c]=''; }
   return { name, store:{ current:'normal', rows, warikanPeople:2, states:{ normal:{cols, data:blank, styles:{}} } }, colWidths:{}, rowHeights:{} };
 }
 
@@ -6329,7 +6347,7 @@ function registerSaveAsMode(id){
   const key='cm_'+id;
   modeStates[key]={
     cols: entry.cols||normalCols(),
-    data: entry.data.map(r=>Array.isArray(r)?r.slice():Array(26).fill('')),
+    data: entry.data.map(r=>Array.isArray(r)?r.slice():Array(MAXCOLS).fill('')),
     styles: entry.styles?{...entry.styles}:{}
   };
   customModes.push({ key, name:entry.name, icon:'📋', rows:entry.rows||ROWS, sourceId:id });
@@ -6446,7 +6464,7 @@ function resetAll() {
   // リセットでは入力した数字だけ消し、文字・数式・書式・レイアウトは残す
   if(findCustomMode(tableMode)){
     const cleared=[];
-    for(let r=0;r<50;r++) for(let c=0;c<26;c++){
+    for(let r=0;r<MAXROWS;r++) for(let c=0;c<MAXCOLS;c++){
       if(isPlainNumberCell(data[r][c])){ cleared.push({r,c,val:data[r][c]}); data[r][c]=''; }
     }
     pushHistory(cleared);
@@ -6460,9 +6478,9 @@ function resetAll() {
     return;
   }
   const entries=[];
-  for(let r=0;r<50;r++) for(let c=0;c<26;c++) if(data[r][c]!=='') entries.push({r,c,val:data[r][c]});
+  for(let r=0;r<MAXROWS;r++) for(let c=0;c<MAXCOLS;c++) if(data[r][c]!=='') entries.push({r,c,val:data[r][c]});
   pushHistory(entries);
-  for(let r=0;r<50;r++) for(let c=0;c<26;c++) data[r][c]='';
+  for(let r=0;r<MAXROWS;r++) for(let c=0;c<MAXCOLS;c++) data[r][c]='';
   if(isStructMode()) STRUCT_MODES[tableMode].headers.forEach((h,i)=>{ data[0][i]=h; });   // 見出しは復元
   cellStyles={};   // 書式もクリア
   colWidths={}; rowHeights={}; saveSheetSizes();   // 手動の列幅・行高もデフォルトに戻す
@@ -6945,8 +6963,8 @@ function adjustFormula(formula,dr,dc) {
   const s=String(formula); if(!s.startsWith('=')) return formula;
   return s.replace(/([A-Z])(\d+)/g,(match,col,row)=>{
     const ci=ALPHA.indexOf(col),rn=parseInt(row);
-    if(ci===-1||rn<1||rn>50) return match;
-    return `${ALPHA[Math.min(25,Math.max(0,ci+dc))]}${Math.min(50,Math.max(1,rn+dr))}`;
+    if(ci===-1||rn<1||rn>MAXROWS) return match;
+    return `${ALPHA[Math.min(MAXCOLS-1,Math.max(0,ci+dc))]}${Math.min(MAXROWS,Math.max(1,rn+dr))}`;
   });
 }
 function commitFill() {
@@ -7348,7 +7366,7 @@ function loadSave(id) {
   // 保存データを流し込む
   loadData(entry.data);
   cellStyles=entry.styles?{...entry.styles}:{};
-  if(entry.rows>=1&&entry.rows<=50) ROWS=entry.rows;
+  if(entry.rows>=1&&entry.rows<=MAXROWS) ROWS=entry.rows;
   COLS=entry.cols||normalCols();
   if(entry.decPlaces!==undefined) decPlaces=entry.decPlaces;
   normalizeStructLayout();                // 構造モードは列数・見出し（単位水量は行数）を整える
@@ -7472,9 +7490,9 @@ const savedFormulaSize=parseInt(localStorage.getItem('excalc_formulasize'));
 if(!isNaN(savedFormulaSize)&&savedFormulaSize>=0&&savedFormulaSize<SIZE_STEPS.length) formulaSizeIdx=savedFormulaSize;
 applyFormulaSize();
 const savedRows=parseInt(localStorage.getItem('excalc_rows'));
-if(!isNaN(savedRows)&&savedRows>=1&&savedRows<=50){ ROWS=savedRows; document.getElementById('rowCount').textContent=ROWS; }
+if(!isNaN(savedRows)&&savedRows>=1&&savedRows<=MAXROWS){ ROWS=savedRows; document.getElementById('rowCount').textContent=ROWS; }
 const savedCols=parseInt(localStorage.getItem('excalc_cols'));
-if(!isNaN(savedCols)&&savedCols>=1&&savedCols<=26){ COLS=savedCols; document.getElementById('colCount').textContent=COLS; }
+if(!isNaN(savedCols)&&savedCols>=1&&savedCols<=MAXCOLS){ COLS=savedCols; document.getElementById('colCount').textContent=COLS; }
 const savedDec=parseInt(localStorage.getItem('excalc_dec'));
 if(!isNaN(savedDec)&&savedDec>=-1&&savedDec<=10){ decPlaces=savedDec; document.getElementById('decCount').textContent=decPlaces<0?'自':decPlaces; }
 const savedTax=parseInt(localStorage.getItem('excalc_taxrate'));
