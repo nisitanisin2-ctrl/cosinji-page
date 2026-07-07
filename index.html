@@ -716,7 +716,7 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
 .pdf-preview-inner .pa-date  { font-size: 11px; color: #555; margin: 0 0 10px; }
 .pdf-preview-inner table { border-collapse: separate; border-spacing: 0; width: max-content; }
 .pdf-preview-inner td { border: 1px solid transparent; padding: 4px 7px; font-size: var(--pvfont, 12.5px); vertical-align: top; color: #000; }
-.pdf-preview-inner td.filled { border-color: #000; }
+.pdf-preview-inner td.filled { border-color: #000; border-width: var(--pvbw, 1px); }
 .pdf-preview-inner td.num { text-align: right; }
 .pdf-preview-inner thead .pa-run, .pdf-preview-inner tfoot .pa-run { border: none; text-align: center; font-size: var(--pvrun, 11px); padding: 4px 3px; }
 .pdf-preview-page { touch-action: pan-y; cursor: grab; }   /* 横フリックでページ切替 */
@@ -1594,6 +1594,10 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
           <button data-v="all" onclick="pdfSeg('pdfBorder',this)">すべてのセル</button>
           <button data-v="filled" onclick="pdfSeg('pdfBorder',this)">文字のみ</button>
         </span>
+      </div>
+      <div class="pdf-row">
+        <span class="pdf-row-label">自動枠線の太さ<small>「すべてのセル」「文字のみ」で入る線の太さ</small></span>
+        <span class="pdf-num"><input type="number" id="pdfBW" min="1" max="6" inputmode="numeric"> px</span>
       </div>
       <button class="pdf-print-btn" onclick="doExportPDF()">🖨 印刷／PDFに保存</button>
       <div class="pdf-note">この後に印刷画面が開きます。送信先を「PDFに保存」にすると PDF ファイルとして書き出せます。プリンター選択や部数などはその画面で指定します。</div>
@@ -2544,7 +2548,7 @@ function exportCSV() {
 
 /* ── PDF出力：印刷用の見やすい表を作り、ブラウザの印刷（→「PDFに保存」）を開く ── */
 /* PDF出力の設定（タイトル・ヘッダー等）。localStorageに保存して次回も使う */
-const PDF_DEFAULTS={ title:'', date:false, header:'', footer:'', orient:'portrait', fitMode:'w', onePage:true, pct:100, mv:12, mh:12, align:'left', font:'m', tsize:16, hsize:11, border:'drawn' };
+const PDF_DEFAULTS={ title:'', date:false, header:'', footer:'', orient:'portrait', fitMode:'w', onePage:true, pct:100, mv:12, mh:12, align:'left', font:'m', tsize:16, hsize:11, border:'drawn', bw:1 };
 function loadPdfSettings(){
   try{
     const raw=JSON.parse(localStorage.getItem('excalc_pdf_settings')||'{}');
@@ -2583,6 +2587,7 @@ function readPdfDlg(){
     tsize: Math.max(8, Math.min(40, parseInt(document.getElementById('pdfTsize').value,10)||16)),
     hsize: Math.max(6, Math.min(30, parseInt(document.getElementById('pdfHsize').value,10)||11)),
     border:pdfSegVal('pdfBorder')||'drawn',
+    bw: Math.max(1, Math.min(6, parseInt(document.getElementById('pdfBW').value,10)||1)),
     _v2: 1,
   };
 }
@@ -2696,6 +2701,7 @@ function exportPDF(){
   document.getElementById('pdfTsize').value=s.tsize;
   document.getElementById('pdfHsize').value=s.hsize;
   pdfSegSet('pdfBorder', s.border);
+  document.getElementById('pdfBW').value=s.bw;
   document.getElementById('pdfDlgOverlay').classList.add('open');
   pvPage=1;
   updatePdfPreview();
@@ -2727,6 +2733,7 @@ function updatePdfPreview(){
   inner.style.setProperty('--pvfont', fontPx+'px');
   inner.style.setProperty('--pvtitle', ps.tsize+'px');
   inner.style.setProperty('--pvrun', ps.hsize+'px');
+  inner.style.setProperty('--pvbw', ps.bw+'px');
   inner.style.width=availW+'px';
   inner.style.zoom=String(rho);
   const t=inner.querySelector('table'); if(t) t.style.zoom=String(k);
@@ -2747,7 +2754,7 @@ function applyPvPage(){
 }
 /* 入力欄の変更でもプレビューを更新（倍率欄を触ったら自動で「倍率」モードに） */
 (function wirePdfPreview(){
-  ['pdfTitle','pdfDate','pdfHeader','pdfFooter','pdfMarginV','pdfMarginH','pdfOnePage','pdfTsize','pdfHsize'].forEach(id=>{
+  ['pdfTitle','pdfDate','pdfHeader','pdfFooter','pdfMarginV','pdfMarginH','pdfOnePage','pdfTsize','pdfHsize','pdfBW'].forEach(id=>{
     const el=document.getElementById(id); if(!el) return;
     el.addEventListener('input', ()=>{ pvPage=1; updatePdfPreview(); });
     el.addEventListener('change', ()=>{ pvPage=1; updatePdfPreview(); });
@@ -2797,6 +2804,7 @@ function doExportPDF(){
   dyn.textContent =
     `@page{ size: A4 ${ps.orient}; margin: ${ps.mv}mm ${ps.mh}mm; }`+
     `@media print{ #printArea td{ font-size:${fontPx}px; } `+
+    `#printArea td.filled{ border-width:${ps.bw}px; } `+
     `#printArea .pa-title{ font-size:${ps.tsize}px; } `+
     `#printArea thead .pa-run, #printArea tfoot .pa-run{ font-size:${ps.hsize}px; } }`;
 
@@ -4455,23 +4463,63 @@ function applyHistoryEntries(entries){
   if (selRow>=0) updateRowStats(selRow); else updateStats(selC);
   persistModes();
 }
+/* ── 書式（枠線・色・太字・寄せ・保護など）の履歴 ──
+   値の履歴（{r,c,val}の配列）と同じ history/redoHistory に、
+   スタイルのスナップショット {style:{key:styleObj|null}} として積む。 */
+function snapshotStyles(keys){
+  const snap={};
+  keys.forEach(k=>{ snap[k]=cellStyles[k]?JSON.parse(JSON.stringify(cellStyles[k])):null; });
+  return snap;
+}
+function pushStyleHistory(keys){
+  if(undoing || !keys || keys.length===0) return;
+  history.push({style:snapshotStyles(keys)});
+  if(history.length>MAX_HISTORY) history.shift();
+  redoHistory.length=0;
+  updateUndoBtn(); updateRedoBtn();
+}
+function applyStyleSnapshot(snap){
+  for(const k in snap){
+    if(snap[k]==null) delete cellStyles[k];
+    else cellStyles[k]=JSON.parse(JSON.stringify(snap[k]));
+    const [r,c]=k.split(',').map(Number);
+    if(!isNaN(r)&&!isNaN(c)) repaintCell(r,c);
+  }
+  const cref=document.getElementById('cellRef'); if(cref) cref.classList.toggle('locked-ref', isLockedCell(selR,selC));
+  if(fmtR>=0 && document.getElementById('cellFmtOverlay').classList.contains('open') && typeof syncCellFmt==='function') syncCellFmt();
+  persistModes();
+}
 function undoLast() {
   if (history.length===0) return;
-  const entries=history.pop();
+  const item=history.pop();
   undoing=true;
-  const redoEntries=entries.map(({r,c})=>({r,c,val:data[r][c]}));   // 現在値を「進む」用に保存
-  applyHistoryEntries(entries);
-  redoHistory.push(redoEntries);
+  if(item && item.style){
+    const redo={style:snapshotStyles(Object.keys(item.style))};
+    applyStyleSnapshot(item.style);
+    redoHistory.push(redo);
+  } else {
+    const entries=item;
+    const redoEntries=entries.map(({r,c})=>({r,c,val:data[r][c]}));   // 現在値を「進む」用に保存
+    applyHistoryEntries(entries);
+    redoHistory.push(redoEntries);
+  }
   if (redoHistory.length>MAX_HISTORY) redoHistory.shift();
   undoing=false; updateUndoBtn(); updateRedoBtn();
 }
 function redoLast() {
   if (redoHistory.length===0) return;
-  const entries=redoHistory.pop();
+  const item=redoHistory.pop();
   undoing=true;
-  const undoEntries=entries.map(({r,c})=>({r,c,val:data[r][c]}));   // 現在値を「戻る」用に保存
-  applyHistoryEntries(entries);
-  history.push(undoEntries);
+  if(item && item.style){
+    const undo={style:snapshotStyles(Object.keys(item.style))};
+    applyStyleSnapshot(item.style);
+    history.push(undo);
+  } else {
+    const entries=item;
+    const undoEntries=entries.map(({r,c})=>({r,c,val:data[r][c]}));   // 現在値を「戻る」用に保存
+    applyHistoryEntries(entries);
+    history.push(undoEntries);
+  }
   if (history.length>MAX_HISTORY) history.shift();
   undoing=false; updateUndoBtn(); updateRedoBtn();
 }
@@ -5091,6 +5139,7 @@ function isUserLocked(r,c){
 function toggleUserLock(r,c){
   if(isStructMode() && isStructLocked(r,c)){ toast('このモードの固定セルは保護を変更できません'); return; }
   const k=`${r},${c}`;
+  pushStyleHistory([k]);
   const s=cellStyles[k] || (cellStyles[k]={});
   s.locked=!s.locked;
   const nowLocked=!!s.locked;
@@ -6034,6 +6083,7 @@ function renderSwatches(boxId, colors, cur, type){
 }
 
 function fmtDec(delta){
+  pushStyleHistory([fmtKey()]);
   const s=fmtStyle(true);
   let cur=(typeof s.dec==='number')?s.dec:decPlaces;
   cur=Math.max(-1, Math.min(10, cur+delta));
@@ -6042,11 +6092,13 @@ function fmtDec(delta){
   repaintCell(fmtR,fmtC); afterFmtChange();
 }
 function fmtRoundChange(v){
+  pushStyleHistory([fmtKey()]);
   const s=fmtStyle(true);
   if(v==='round') delete s.round; else s.round=v;   // 既定(四捨五入)は保存しない
   repaintCell(fmtR,fmtC); afterFmtChange();
 }
 function fmtSize(delta){
+  pushStyleHistory([fmtKey()]);
   const s=fmtStyle(true);
   let si=FMT_SIZES.indexOf(s.size||1); if(si<0) si=1;
   si=Math.max(0, Math.min(FMT_SIZES.length-1, si+delta));
@@ -6055,17 +6107,20 @@ function fmtSize(delta){
   repaintCell(fmtR,fmtC); afterFmtChange();
 }
 function fmtToggle(prop){
+  pushStyleHistory([fmtKey()]);
   const s=fmtStyle(true);
   s[prop]=!s[prop];
   document.getElementById(prop==='bold'?'fmtBold':prop==='italic'?'fmtItalic':'fmtUnder').classList.toggle('on', !!s[prop]);
   repaintCell(fmtR,fmtC); afterFmtChange();
 }
 function fmtColor(type, v){
+  pushStyleHistory([fmtKey()]);
   const s=fmtStyle(true);
   if(v==='') delete s[type]; else s[type]=v;
   repaintCell(fmtR,fmtC); syncCellFmt(); afterFmtChange();
 }
 function fmtLock(){
+  pushStyleHistory([fmtKey()]);
   const s=fmtStyle(true);
   s.locked=!s.locked;
   if(!s.locked) delete s.locked;
@@ -6075,17 +6130,20 @@ function fmtLock(){
   repaintCell(fmtR,fmtC); syncCellFmt(); afterFmtChange();
 }
 function fmtClear(){
+  pushStyleHistory([fmtKey()]);
   delete cellStyles[fmtKey()];
   repaintCell(fmtR,fmtC); syncCellFmt(); afterFmtChange();
 }
 /* 文字の横位置（左/中央/右）。同じものを再度押すと既定(解除)に戻す */
 function fmtAlign(v){
+  pushStyleHistory([fmtKey()]);
   const s=fmtStyle(true);
   if(s.align===v) delete s.align; else s.align=v;
   repaintCell(fmtR,fmtC); syncCellFmt(); afterFmtChange();
 }
 /* 文字の縦位置（上/中央/下） */
 function fmtValign(v){
+  pushStyleHistory([fmtKey()]);
   const s=fmtStyle(true);
   if(s.valign===v) delete s.valign; else s.valign=v;
   repaintCell(fmtR,fmtC); syncCellFmt(); afterFmtChange();
@@ -6109,6 +6167,7 @@ function kfmtCells(){
   return out;
 }
 function kfmtApply(mut){
+  pushStyleHistory(kfmtCells().map(([r,c])=>`${r},${c}`));   // 変更前を履歴に（戻る対応）
   kfmtCells().forEach(([r,c])=>{
     const k=`${r},${c}`;
     const s=cellStyles[k]||(cellStyles[k]={});
@@ -6148,6 +6207,7 @@ function kfmtLock(){
   toast(turnOn?'セルを保護しました':'セルの保護を解除しました');
 }
 function kfmtClear(){
+  pushStyleHistory(kfmtCells().map(([r,c])=>`${r},${c}`));
   kfmtCells().forEach(([r,c])=>{ delete cellStyles[`${r},${c}`]; repaintCell(r,c); });
   document.getElementById('cellRef').classList.toggle('locked-ref', isLockedCell(selR,selC));
   persistModes();
@@ -6175,6 +6235,8 @@ function bdRange(){
           'box'＝外わく4辺、'grid'＝全セルの全辺、'clear'＝範囲の枠線を消す */
 function bdApply(where){
   const {r1,r2,c1,c2}=bdRange();
+  const keys=[]; for(let r=r1;r<=r2;r++) for(let c=c1;c<=c2;c++) keys.push(`${r},${c}`);
+  pushStyleHistory(keys);   // 枠線の変更を履歴に（戻る対応）
   const css=BD_CSS[bdType]+' '+bdColor;
   for(let r=r1;r<=r2;r++) for(let c=c1;c<=c2;c++){
     const k=`${r},${c}`;
