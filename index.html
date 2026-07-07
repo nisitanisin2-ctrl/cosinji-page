@@ -1162,6 +1162,9 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="set-act" onclick="exportCSV()">📄 CSV出力</button>
     <button class="set-act" onclick="document.getElementById('importCSVInput').click()" title="CSVファイルを現在の表に読み込みます（上書き）">📥 CSV読込</button>
     <input id="importCSVInput" type="file" accept=".csv,text/csv" style="display:none" onchange="importCSV(event)">
+    <button class="set-act" onclick="exportXLSX()" title="値・数式・書式（色・枠線・太字・寄せ・結合）をエクセル形式で書き出します">📊 Excel出力（.xlsx）</button>
+    <button class="set-act" onclick="document.getElementById('importXLSXInput').click()" title="エクセル(.xlsx)ファイルを現在の表に読み込みます（上書き）">📈 Excel読込（.xlsx）</button>
+    <input id="importXLSXInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onchange="importXLSX(event)">
     <div class="set-sec">ヘルプ</div>
     <button class="set-act" onclick="openHelp()">📖 説明書（使い方）</button>
   </div>
@@ -1777,6 +1780,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li">各データの<b>🔓ロック</b>をタップすると🔒保護され、誤って削除・改名できなくなります（もう一度タップで解除）。</div>
         <div class="help-li"><b>↩戻る／↪進む</b>：直前の入力を元に戻す／やり直す</div>
         <div class="help-li"><b>📄 CSV出力</b>：表をCSVファイルに書き出し　<b>📥 CSV読込</b>：CSVファイルを今の表に読み込み（上書き）。文字コード（UTF-8／Shift_JIS）は自動判別するのでExcelのCSVもそのまま読めます。どちらも設定の「データ」タブにあります。</div>
+        <div class="help-li"><b>📊 Excel出力（.xlsx）</b>：値だけでなく<b>数式・太字・文字色・背景色・枠線・寄せ・セル結合・列幅</b>まで<b>エクセル形式</b>で書き出せます（そのままExcelで開けます）。<b>📈 Excel読込（.xlsx）</b>：Excelファイルを今の表に読み込みます。数式はアプリ対応の関数ならそのまま、非対応の関数は計算結果として取り込みます。どちらも設定の「データ」タブにあります。CSVと違い、色や枠線・数式を保ったままやり取りできます。</div>
         <div class="help-li"><b>🖨 PDF出力（印刷）</b>（設定の「データ」タブ）：印刷画面の前に<b>PDF設定ダイアログ</b>が開き、タイトル・日時・ヘッダー・フッター・用紙の向き・<b>拡大縮小（横フィット／縦フィット／倍率）・1ページに収める</b>・上下左右の余白・表の配置・文字サイズ（セル／タイトル／ヘッダー・フッター）・枠線を指定できます。上部の<b>プレビュー</b>は設定を変えるとその場で反映され、複数ページになるときは<b>プレビューを横にフリック</b>すると2ページ目以降も確認できます。「印刷／PDFに保存」を押すと印刷画面が開くので、印刷先で<b>「PDFに保存」</b>を選べばPDFとして書き出せます。設定内容は次回も引き継がれます。iPhoneで用紙の向きが変わらない場合は、印刷画面のオプションで向きを選んでください。</div>
         <div class="help-li"><b>🌙</b>：ダークモード切替　<b>リセット</b>：今のモードの内容を消去</div>
       </div>
@@ -2867,6 +2871,254 @@ function importCSV(ev){
   reader.readAsArrayBuffer(file);
 }
 
+/* ── Excel(.xlsx)の書き出し・読み込み ──
+   外部ライブラリなし。.xlsxはZIP＋XMLなので、ブラウザ標準の圧縮API
+   (CompressionStream/DecompressionStream)＋自前のZIP読み書きで対応する。
+   値・数式・太字・斜体・下線・文字色・背景色・寄せ・枠線・セル結合・列幅を保持。 */
+const XLSX_CRC=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); t[n]=c>>>0; } return t; })();
+function xlsxCrc32(u8){ let c=0xFFFFFFFF; for(let i=0;i<u8.length;i++) c=XLSX_CRC[(c^u8[i])&0xFF]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function xlU16(n){ return [n&0xFF,(n>>8)&0xFF]; }
+function xlU32(n){ n>>>=0; return [n&0xFF,(n>>8)&0xFF,(n>>16)&0xFF,(n>>24)&0xFF]; }
+async function xlsxDeflate(u8){
+  if(typeof CompressionStream==='undefined') return {data:u8, method:0};
+  try{
+    const cs=new CompressionStream('deflate-raw');
+    const buf=await new Response(new Blob([u8]).stream().pipeThrough(cs)).arrayBuffer();
+    return {data:new Uint8Array(buf), method:8};
+  }catch(_){ return {data:u8, method:0}; }
+}
+async function xlsxInflate(u8){
+  const ds=new DecompressionStream('deflate-raw');
+  const buf=await new Response(new Blob([u8]).stream().pipeThrough(ds)).arrayBuffer();
+  return new Uint8Array(buf);
+}
+/* entries:[{name,u8}] → .xlsxのBlob */
+async function xlsxZip(entries){
+  const enc=new TextEncoder();
+  const parts=[]; const central=[]; let offset=0;
+  for(const e of entries){
+    const nameBytes=enc.encode(e.name), raw=e.u8, crc=xlsxCrc32(raw);
+    const {data,method}=await xlsxDeflate(raw);
+    parts.push(new Uint8Array([].concat(xlU32(0x04034b50),xlU16(20),xlU16(0),xlU16(method),xlU16(0),xlU16(0),xlU32(crc),xlU32(data.length),xlU32(raw.length),xlU16(nameBytes.length),xlU16(0))));
+    parts.push(nameBytes); parts.push(data);
+    central.push({name:nameBytes,crc,comp:data.length,raw:raw.length,method,offset});
+    offset+=30+nameBytes.length+data.length;
+  }
+  const cd=[]; let cdSize=0;
+  for(const c of central){
+    cd.push(new Uint8Array([].concat(xlU32(0x02014b50),xlU16(20),xlU16(20),xlU16(0),xlU16(c.method),xlU16(0),xlU16(0),xlU32(c.crc),xlU32(c.comp),xlU32(c.raw),xlU16(c.name.length),xlU16(0),xlU16(0),xlU16(0),xlU16(0),xlU32(0),xlU32(c.offset))));
+    cd.push(c.name); cdSize+=46+c.name.length;
+  }
+  const end=new Uint8Array([].concat(xlU32(0x06054b50),xlU16(0),xlU16(0),xlU16(central.length),xlU16(central.length),xlU32(cdSize),xlU32(offset),xlU16(0)));
+  return new Blob([...parts,...cd,end],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+/* ArrayBuffer(.xlsx) → Map(name→Uint8Array) */
+async function xlsxUnzip(buf){
+  const dv=new DataView(buf), u8=new Uint8Array(buf), dec=new TextDecoder();
+  let eocd=-1;
+  for(let i=buf.byteLength-22;i>=0;i--){ if(dv.getUint32(i,true)===0x06054b50){ eocd=i; break; } }
+  if(eocd<0) throw new Error('not a zip');
+  const count=dv.getUint16(eocd+10,true); let p=dv.getUint32(eocd+16,true);
+  const out=new Map();
+  for(let i=0;i<count;i++){
+    const method=dv.getUint16(p+10,true), compSize=dv.getUint32(p+20,true);
+    const nameLen=dv.getUint16(p+28,true), extraLen=dv.getUint16(p+30,true), commLen=dv.getUint16(p+32,true);
+    const localOff=dv.getUint32(p+42,true);
+    const name=dec.decode(u8.subarray(p+46,p+46+nameLen));
+    const lNameLen=dv.getUint16(localOff+26,true), lExtraLen=dv.getUint16(localOff+28,true);
+    const start=localOff+30+lNameLen+lExtraLen;
+    const comp=u8.subarray(start,start+compSize);
+    out.set(name, method===0 ? comp.slice() : await xlsxInflate(comp));
+    p+=46+nameLen+extraLen+commLen;
+  }
+  return out;
+}
+function xlEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function xlUnesc(s){ return String(s).replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&#39;/g,"'").replace(/&amp;/g,'&'); }
+function xlColLetter(c){ let s=''; c++; while(c>0){ const m=(c-1)%26; s=String.fromCharCode(65+m)+s; c=Math.floor((c-1)/26); } return s; }
+function xlColToIdx(letters){ let n=0; for(const ch of letters) n=n*26+(ch.charCodeAt(0)-64); return n-1; }
+function xlIsNumeric(raw){ if(raw==null||raw==='') return false; const t=String(raw).replace(/,/g,'').trim(); return t!=='' && !isNaN(t) && isFinite(Number(t)); }
+function xlBorder(css){ if(!css) return null; const wm=css.match(/(\d+(?:\.\d+)?)px/); const w=wm?parseFloat(wm[1]):1; const cm=css.match(/#([0-9a-fA-F]{6})/); const color='FF'+(cm?cm[1].toUpperCase():'000000'); const style=/double/i.test(css)?'double':(w>=3.5?'thick':(w>=2.5?'medium':'thin')); return {style,color}; }
+/* アプリの数式→Excelの数式 */
+function appFormulaToXlsx(f){ return String(f).replace(/×/g,'*').replace(/÷/g,'/').replace(/\bPI\b/g,'PI()').replace(/\bE\b(?!\d)/g,'EXP(1)'); }
+/* Excelの数式→アプリの数式（アプリ対応関数のみ） */
+function xlsxFormulaToApp(f){ return String(f).replace(/\bPI\(\s*\)/gi,'PI').replace(/\bEXP\(\s*1\s*\)/gi,'E'); }
+const XLSX_FUNCS=new Set(['SUM','AVERAGE','AVG','MAX','MIN','COUNT','ABS','SQRT','ROUND','IF','MOD','SIN','COS','TAN','ASIN','ACOS','ATAN','LOG','LN','EXP','PI']);
+function xlsxFormulaCompatible(f){ const fns=String(f).match(/[A-Za-z]+(?=\s*\()/g)||[]; return fns.every(fn=>XLSX_FUNCS.has(fn.toUpperCase())); }
+/* 繰り返し要素 <tag ...>...</tag> or <tag .../> を {attrs,inner} の配列に */
+function xlSegments(xml, tag){ const re=new RegExp(`<${tag}\\b([^>]*?)\\s*(?:/>|>([\\s\\S]*?)</${tag}>)`,'g'); const out=[]; let m; while((m=re.exec(xml))) out.push({attrs:m[1]||'', inner:m[2]||''}); return out; }
+function xlRgb6(h){ if(!h) return ''; if(h.length===8) h=h.slice(2); return '#'+h.toLowerCase(); }
+/* styles.xml を解析して「セルのスタイル番号→書式オブジェクト」の関数を返す（読込用・簡易） */
+function parseXlsxStyles(xml){
+  if(!xml) return { styleForIdx:()=>null };
+  const seg=(name)=>(xml.match(new RegExp(`<${name}\\b[^>]*>([\\s\\S]*?)</${name}>`))||[])[1]||'';
+  const fonts=xlSegments(seg('fonts'),'font').map(f=>{
+    const cm=/<color\b[^>]*rgb="([0-9A-Fa-f]{6,8})"/.exec(f.inner);
+    return { bold:/<b\b/.test(f.inner), italic:/<i\b/.test(f.inner), underline:/<u\b/.test(f.inner), color:cm?xlRgb6(cm[1]):'' };
+  });
+  const fills=xlSegments(seg('fills'),'fill').map(f=>{
+    if(!/patternType="solid"/.test(f.inner)) return '';
+    const m=/<fgColor\b[^>]*rgb="([0-9A-Fa-f]{6,8})"/.exec(f.inner)||/<bgColor\b[^>]*rgb="([0-9A-Fa-f]{6,8})"/.exec(f.inner);
+    return m?xlRgb6(m[1]):'';
+  });
+  const smap={thin:'1px solid',medium:'3px solid',thick:'3px solid',double:'4px double',hair:'1px solid',dotted:'1px solid',dashed:'1px solid',mediumDashed:'3px solid'};
+  const borders=xlSegments(seg('borders'),'border').map(b=>{
+    const bd={};
+    [['left','l'],['right','r'],['top','t'],['bottom','b']].forEach(([side,k])=>{
+      const sm=new RegExp(`<${side}\\b([^>]*?)\\s*(?:/>|>([\\s\\S]*?)</${side}>)`).exec(b.inner);
+      if(!sm) return; const stm=/style="([^"]+)"/.exec(sm[1]||''); if(!stm) return;
+      const cm=sm[2]?/rgb="([0-9A-Fa-f]{6,8})"/.exec(sm[2]):null;
+      bd[k]=(smap[stm[1]]||'1px solid')+' '+(cm?xlRgb6(cm[1]):'#000000');
+    });
+    return (bd.t||bd.b||bd.l||bd.r)?bd:null;
+  });
+  const xfs=xlSegments(seg('cellXfs'),'xf').map(x=>{
+    const gi=n=>{ const m=new RegExp(n+'="(\\d+)"').exec(x.attrs); return m?parseInt(m[1]):0; };
+    const am=/horizontal="([^"]+)"/.exec(x.inner);
+    return { fontId:gi('fontId'), fillId:gi('fillId'), borderId:gi('borderId'), align:am?am[1]:'' };
+  });
+  return { styleForIdx:(n)=>{
+    const xf=xfs[n]; if(!xf) return null; const st={};
+    const f=fonts[xf.fontId];
+    if(xf.fontId>0 && f){ if(f.bold)st.bold=true; if(f.italic)st.italic=true; if(f.underline)st.underline=true; if(f.color)st.color=f.color; }
+    if(xf.fillId>1 && fills[xf.fillId]) st.bg=fills[xf.fillId];
+    if(xf.borderId>0 && borders[xf.borderId]) st.bd=borders[xf.borderId];
+    if(xf.align==='left'||xf.align==='center'||xf.align==='right') st.align=xf.align;
+    return Object.keys(st).length?st:null;
+  }};
+}
+
+async function exportXLSX(){
+  try{
+    const enc=new TextEncoder();
+    const fonts=['<font><sz val="11"/><name val="Calibri"/></font>'], fontKey=new Map();
+    const fills=['<fill><patternFill patternType="none"/></fill>','<fill><patternFill patternType="gray125"/></fill>'], fillKey=new Map();
+    const borders=['<border><left/><right/><top/><bottom/><diagonal/></border>'], borderKey=new Map();
+    const xfs=['<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'], xfKey=new Map();
+    const regFont=s=>{ const key=JSON.stringify([!!s.bold,!!s.italic,!!s.underline,s.color||'']); if(fontKey.has(key)) return fontKey.get(key);
+      let f='<font>'; if(s.bold)f+='<b/>'; if(s.italic)f+='<i/>'; if(s.underline)f+='<u/>'; f+='<sz val="11"/>'; if(s.color)f+=`<color rgb="FF${s.color.replace('#','').toUpperCase()}"/>`; f+='<name val="Calibri"/></font>';
+      const id=fonts.length; fonts.push(f); fontKey.set(key,id); return id; };
+    const regFill=bg=>{ if(!bg) return 0; if(fillKey.has(bg)) return fillKey.get(bg); const id=fills.length; fills.push(`<fill><patternFill patternType="solid"><fgColor rgb="FF${bg.replace('#','').toUpperCase()}"/><bgColor indexed="64"/></patternFill></fill>`); fillKey.set(bg,id); return id; };
+    const regBorder=bd=>{ if(!bd||!(bd.t||bd.b||bd.l||bd.r)) return 0; const key=JSON.stringify(bd); if(borderKey.has(key)) return borderKey.get(key);
+      const side=(css,tag)=>{ const b=xlBorder(css); return b?`<${tag} style="${b.style}"><color rgb="${b.color}"/></${tag}>`:`<${tag}/>`; };
+      const xml=`<border>${side(bd.l,'left')}${side(bd.r,'right')}${side(bd.t,'top')}${side(bd.b,'bottom')}<diagonal/></border>`;
+      const id=borders.length; borders.push(xml); borderKey.set(key,id); return id; };
+    const regXf=s=>{ const fontId=regFont(s), fillId=regFill(s.bg), borderId=regBorder(s.bd), align=s.align||'';
+      const key=JSON.stringify([fontId,fillId,borderId,align]); if(xfKey.has(key)) return xfKey.get(key);
+      const alignXml=align?`<alignment horizontal="${align}"/>`:''; const applyAlign=align?' applyAlignment="1"':'';
+      xfs.push(`<xf numFmtId="0" fontId="${fontId}" fillId="${fillId}" borderId="${borderId}" xfId="0" applyFont="1" applyFill="1" applyBorder="1"${applyAlign}>${alignXml}</xf>`);
+      const id=xfs.length-1; xfKey.set(key,id); return id; };
+
+    const merges=[]; let sheetRows='';
+    for(let r=0;r<ROWS;r++){
+      let row=`<row r="${r+1}">`;
+      for(let c=0;c<COLS;c++){
+        if(coverOf(r,c)) continue;
+        const ref=xlColLetter(c)+(r+1), raw=data[r][c]??'', s=cellStyles[`${r},${c}`]||{};
+        const styled=!!(s.bold||s.italic||s.underline||s.color||s.bg||s.bd||s.align);
+        const sIdx=styled?regXf(s):0, sAttr=sIdx?` s="${sIdx}"`:'';
+        const mg=mergeAt(r,c);
+        if(mg&&(mg.rs>1||mg.cs>1)) merges.push(`${ref}:${xlColLetter(Math.min(25,c+mg.cs-1))}${Math.min(50,r+mg.rs)}`);
+        if(String(raw).startsWith('=')){
+          const v=getCellValue(r,c);
+          row+=`<c r="${ref}"${sAttr}><f>${xlEsc(appFormulaToXlsx(String(raw).slice(1)))}</f><v>${isFinite(v)?v:0}</v></c>`;
+        } else if(xlIsNumeric(raw)){
+          row+=`<c r="${ref}"${sAttr}><v>${parseFloat(String(raw).replace(/,/g,''))}</v></c>`;
+        } else if(raw!==''){
+          row+=`<c r="${ref}"${sAttr} t="inlineStr"><is><t xml:space="preserve">${xlEsc(String(raw))}</t></is></c>`;
+        } else if(sIdx){ row+=`<c r="${ref}"${sAttr}/>`; }
+      }
+      sheetRows+=row+'</row>';
+    }
+    let colDefs=''; for(let c=0;c<COLS;c++){ if(colWidths[c]){ colDefs+=`<col min="${c+1}" max="${c+1}" width="${Math.max(4,Math.round(colWidths[c]/7))}" customWidth="1"/>`; } }
+    const colsXml=colDefs?`<cols>${colDefs}</cols>`:'';
+    const mergeXml=merges.length?`<mergeCells count="${merges.length}">${merges.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells>`:'';
+    const dim=`A1:${xlColLetter(Math.max(0,COLS-1))}${ROWS}`;
+    const P='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+    const sheetXml=`${P}<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="${dim}"/><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/>${colsXml}<sheetData>${sheetRows}</sheetData>${mergeXml}</worksheet>`;
+    const stylesXml=`${P}<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="${fonts.length}">${fonts.join('')}</fonts><fills count="${fills.length}">${fills.join('')}</fills><borders count="${borders.length}">${borders.join('')}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${xfs.length}">${xfs.join('')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+    const wbXml=`${P}<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="表電卓" sheetId="1" r:id="rId1"/></sheets><calcPr fullCalcOnLoad="1"/></workbook>`;
+    const wbRels=`${P}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+    const rootRels=`${P}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+    const ct=`${P}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`;
+    const blob=await xlsxZip([
+      {name:'[Content_Types].xml', u8:enc.encode(ct)},
+      {name:'_rels/.rels', u8:enc.encode(rootRels)},
+      {name:'xl/workbook.xml', u8:enc.encode(wbXml)},
+      {name:'xl/_rels/workbook.xml.rels', u8:enc.encode(wbRels)},
+      {name:'xl/styles.xml', u8:enc.encode(stylesXml)},
+      {name:'xl/worksheets/sheet1.xml', u8:enc.encode(sheetXml)},
+    ]);
+    const url=URL.createObjectURL(blob);
+    const a=Object.assign(document.createElement('a'),{href:url,download:`表電卓_${new Date().toLocaleDateString('ja-JP').replace(/\//g,'-')}.xlsx`});
+    a.click(); URL.revokeObjectURL(url);
+    if(typeof toast==='function') toast('Excel(.xlsx)を書き出しました');
+  }catch(e){ alert('Excelの書き出しに失敗しました'); }
+}
+
+function importXLSX(ev){
+  const file=ev.target.files&&ev.target.files[0];
+  ev.target.value='';
+  if(!file) return;
+  (async()=>{
+    let map;
+    try{ map=await xlsxUnzip(await file.arrayBuffer()); }
+    catch(e){ alert('Excelファイルを開けませんでした（.xlsx形式か確認してください）'); return; }
+    const dec=new TextDecoder();
+    const names=[...map.keys()];
+    const sheetName=names.find(n=>/^xl\/worksheets\/sheet1\.xml$/i.test(n)) || names.find(n=>/^xl\/worksheets\/.*\.xml$/i.test(n));
+    if(!sheetName){ alert('シートが見つかりませんでした'); return; }
+    const sheetXml=dec.decode(map.get(sheetName));
+    let shared=[]; const ss=names.find(n=>/sharedStrings\.xml$/i.test(n));
+    if(ss){ const sx=dec.decode(map.get(ss)); const re=/<si\b[^>]*>([\s\S]*?)<\/si>/g; let mm; while((mm=re.exec(sx))){ const ts=mm[1].match(/<t[^>]*>([\s\S]*?)<\/t>/g)||[]; shared.push(ts.map(t=>xlUnesc(t.replace(/<[^>]+>/g,''))).join('')); } }
+    let styleFn={styleForIdx:()=>null}; const stName=names.find(n=>/styles\.xml$/i.test(n));
+    if(stName){ try{ styleFn=parseXlsxStyles(dec.decode(map.get(stName))); }catch(_){ } }
+    const cells={}, styleRefs={}; let maxR=0,maxC=0;
+    const cellRe=/<c\b([^>]*?)(\/>|>([\s\S]*?)<\/c>)/g; let m;
+    while((m=cellRe.exec(sheetXml))){
+      const attrs=m[1], inner=m[3]||'';
+      const rm=/r="([A-Z]+)(\d+)"/.exec(attrs); if(!rm) continue;
+      const col=xlColToIdx(rm[1]), rowN=parseInt(rm[2])-1;
+      if(col>=26||rowN>=50||col<0||rowN<0) continue;
+      const tM=/t="([^"]+)"/.exec(attrs), t=tM?tM[1]:'';
+      const sM=/\bs="(\d+)"/.exec(attrs);
+      const fM=/<f[^>]*>([\s\S]*?)<\/f>/.exec(inner), vM=/<v>([\s\S]*?)<\/v>/.exec(inner);
+      let val='';
+      if(t==='inlineStr'){ const im=/<t[^>]*>([\s\S]*?)<\/t>/.exec(inner); val=im?xlUnesc(im[1]):''; }
+      else if(t==='s'){ const idx=vM?parseInt(vM[1]):-1; val=(idx>=0&&shared[idx]!=null)?shared[idx]:''; }
+      else if(t==='str'){ val=vM?xlUnesc(vM[1]):''; if(fM){ const xf=xlUnesc(fM[1]); if(xlsxFormulaCompatible(xf)) val='='+xlsxFormulaToApp(xf); } }
+      else if(fM){ const xf=xlUnesc(fM[1]); if(xlsxFormulaCompatible(xf)) val='='+xlsxFormulaToApp(xf); else if(vM) val=xlUnesc(vM[1]); else val='='+xlsxFormulaToApp(xf); }
+      else if(vM){ val=xlUnesc(vM[1]); }
+      if(sM){ const st=styleFn.styleForIdx(parseInt(sM[1])); if(st) styleRefs[`${rowN},${col}`]=st; }
+      if(val!==''||styleRefs[`${rowN},${col}`]){ if(val!=='') cells[`${rowN},${col}`]=val; maxR=Math.max(maxR,rowN); maxC=Math.max(maxC,col); }
+    }
+    if(Object.keys(cells).length===0 && Object.keys(styleRefs).length===0){ alert('読み込めるデータが見つかりませんでした'); return; }
+    // セル結合
+    const mergeList=[]; const mcSeg=(sheetXml.match(/<mergeCells\b[^>]*>([\s\S]*?)<\/mergeCells>/)||[])[1]||'';
+    (mcSeg.match(/<mergeCell\b[^>]*ref="([A-Z]+\d+:[A-Z]+\d+)"/g)||[]).forEach(mc=>{ const rr=/ref="([A-Z]+)(\d+):([A-Z]+)(\d+)"/.exec(mc); if(rr) mergeList.push([parseInt(rr[2])-1,xlColToIdx(rr[1]),parseInt(rr[4])-1,xlColToIdx(rr[3])]); });
+    const nRows=Math.max(1,Math.min(50,maxR+1)), nCols=Math.max(1,Math.min(26,maxC+1));
+    if(!confirm(`Excelを読み込みますか？（${nRows}行×${nCols}列）\n値・数式に加え、色・枠線・太字・寄せ・結合も取り込みます。現在の表は上書きされます。`)) return;
+    const arr=[]; for(let r=0;r<nRows;r++){ arr[r]=[]; for(let c=0;c<nCols;c++){ arr[r][c]=cells[`${r},${c}`]??''; } }
+    loadData(arr);
+    cellStyles={};
+    for(const k in styleRefs){ const [r,c]=k.split(',').map(Number); if(r<nRows&&c<nCols) cellStyles[k]=Object.assign({}, styleRefs[k]); }
+    // 結合を反映（範囲内のみ）
+    mergeList.forEach(([r1,c1,r2,c2])=>{
+      if(r1>=nRows||c1>=nCols) return;
+      r2=Math.min(r2,nRows-1); c2=Math.min(c2,nCols-1);
+      const rs=r2-r1+1, cs=c2-c1+1; if(rs<=1&&cs<=1) return;
+      (cellStyles[`${r1},${c1}`]=cellStyles[`${r1},${c1}`]||{}).merge={rs,cs};
+      for(let r=r1;r<=r2;r++) for(let c=c1;c<=c2;c++){ if(r===r1&&c===c1) continue; (cellStyles[`${r},${c}`]=cellStyles[`${r},${c}`]||{}).cover=`${r1},${c1}`; }
+    });
+    ROWS=nRows; COLS=nCols;
+    localStorage.setItem('excalc_rows',ROWS); localStorage.setItem('excalc_cols',COLS);
+    syncRowColLabels(); normalizeStructLayout();
+    if(isStructMode()) showModeBar(); else hideAllBars();
+    buildSheet(); sel(0,0); persistModes();
+    if(typeof toast==='function') toast(`Excelから ${nRows}行×${nCols}列を読み込みました`);
+  })();
+}
+
 /* ── ダークモード ── */
 function toggleDark() {
   darkMode=!darkMode;
@@ -3306,6 +3558,8 @@ const KEY_FUNCS={
   a_dark:{g:'設定・機能',label:'🌙夜',run:()=>toggleDark()}, a_pdf:{g:'設定・機能',label:'🖨PDF',run:()=>exportPDF()},
   a_csvout:{g:'設定・機能',label:'CSV出',run:()=>exportCSV()},
   a_csvin:{g:'設定・機能',label:'CSV読',run:()=>document.getElementById('importCSVInput').click()},
+  a_xlsxout:{g:'設定・機能',label:'📊Excel出',run:()=>exportXLSX()},
+  a_xlsxin:{g:'設定・機能',label:'📈Excel読',run:()=>document.getElementById('importXLSXInput').click()},
   a_calctmpl:{g:'設定・機能',label:'📋式テン',run:()=>openCalcTmpl()}, a_fintmpl:{g:'設定・機能',label:'📑決算',run:()=>openFinTmpl()},
   a_modevis:{g:'設定・機能',label:'🔀表示',run:()=>openModeVis()}, a_help:{g:'設定・機能',label:'📖説明',run:()=>openHelp()},
   a_defsize:{g:'設定・機能',label:'▦既定',run:()=>applyDefaultSize()}, a_cellfmt:{g:'設定・機能',label:'🎨書式',run:()=>openCellFmt()},
