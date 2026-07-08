@@ -7692,11 +7692,18 @@ async function saveData() {
   const defaultName=new Date().toLocaleString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
   const name=await appPrompt('保存名を入力してください',defaultName);
   if(name===null) return;
+  // 全シートも一緒に保存（開いているシートの最新状態を取り込んでから複製）
+  let sheetsSnap, curSnap=0;
+  if(typeof sheets!=='undefined' && Array.isArray(sheets) && sheets.length){
+    if(sheets[curSheet]) Object.assign(sheets[curSheet], captureCurrentSheet());
+    try{ sheetsSnap=JSON.parse(JSON.stringify(sheets)); curSnap=(typeof curSheet==='number')?curSheet:0; }catch(_){ sheetsSnap=undefined; }
+  }
   const saves=getSaves();
   saves.unshift({
     id:Date.now(), name:name.trim()||defaultName,
     timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces, mode:tableMode,
-    data:data.map(row=>[...row]), styles:{...cellStyles}, tab:0
+    data:data.map(row=>[...row]), styles:{...cellStyles}, tab:0,
+    sheets:sheetsSnap, cur:curSnap          // 全シート情報（無い古い保存もあるので任意）
   });
   persistSaves(saves);
   const btn=document.getElementById('saveBtn');
@@ -7889,6 +7896,24 @@ function loadSave(id) {
   const saves=getSaves();
   const entry=saves.find(s=>s.id===id); if(!entry) return;
   if(!confirm(`「${entry.name}」を読み込みますか？\n現在のデータは上書きされます。`)) return;
+  // 全シートが保存されていれば、シートごと復元する
+  if(Array.isArray(entry.sheets) && entry.sheets.length && typeof sheets!=='undefined'){
+    const restored=entry.sheets.map((s,i)=>({ name:(s&&s.name)||('シート'+(i+1)), store:(s&&s.store)||{}, colWidths:(s&&s.colWidths)||{}, rowHeights:(s&&s.rowHeights)||{} }));
+    sheets.splice(0, sheets.length, ...restored);
+    curSheet=Math.max(0, Math.min(sheets.length-1, entry.cur|0));
+    if(entry.decPlaces!==undefined) decPlaces=entry.decPlaces;
+    loadSheetStore(sheets[curSheet]);
+    document.getElementById('decCount').textContent=decPlaces<0?'自':decPlaces;
+    syncRowColLabels();
+    if(isStructMode()) showModeBar(); else hideAllBars();
+    updateModeButton();
+    buildSheet();
+    sel(0,0);
+    renderSheetBar();
+    saveSheets();
+    closeSaveList();
+    return;
+  }
   // 保存時のモードへ切替（古い保存＝mode無しは現在のモードのまま）
   const targetMode=(entry.mode && isValidMode(entry.mode)) ? entry.mode : tableMode;
   captureMode(tableMode);                 // 現在のモード内容を退避
@@ -7909,6 +7934,7 @@ function loadSave(id) {
   updateModeButton();
   closeSaveList();
   persistModes();
+  if(typeof saveSheets==='function') saveSheets();   // 現在のシートの内容を保存に反映（シート数は変えない）
 }
 
 function deleteSave(id) {
