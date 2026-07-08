@@ -4988,14 +4988,18 @@ function updateRowStats(r) {
    数値・数式と判定できる場合のみ半角化し、全角の文字ラベルはそのまま保持する。 */
 function normalizeFullWidth(v){
   if(typeof v!=='string' || v==='') return v;
-  let s = v.replace(/[！-～]/g, ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0)) // 全角ASCII（０-９＋－．＝等）→半角
-           .replace(/　/g,' ')      // 全角スペース→半角
-           .replace(/[。．]/g,'.')   // 句点・全角ピリオド→.
-           .replace(/[、，]/g,',')   // 読点・全角カンマ→,
-           .replace(/[ー−–—]/g,'-'); // 長音・各種マイナス記号→-
-  const t = s.trim();
-  if (t.startsWith('=')) return s;                          // 数式は半角化を採用
-  const num = t.replace(/[,%]/g,'');                        // 桁区切り・％を除いて数値判定
+  // 全角ASCII（０-９（），．－：等）と全角スペースは常に半角化（数式でも安全）
+  const base = v.replace(/[！-～]/g, ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0)).replace(/　/g,' ');
+  const bt = base.trim();
+  if (bt.startsWith('=')) {
+    // 数式：日本語の長音「ー」・読点「、」・句点「。」はシート名や文字列に使うので変換しない
+    // （そのまま変換すると「シート1」→「シ-ト1」のように壊れて別シート参照がエラーになる）。
+    // 数学記号のマイナス（−）だけ半角- にしておく。
+    return base.replace(/[−]/g,'-');
+  }
+  // 数値入力のときだけ、日本語の句読点・長音も数値記号に寄せる（例:「１、０００」→1000）
+  const s = base.replace(/[。．]/g,'.').replace(/[、，]/g,',').replace(/[ー−–—]/g,'-');
+  const num = s.trim().replace(/[,%]/g,'');
   if (num!=='' && /^[+\-]?\d*\.?\d+$/.test(num)) return s;  // 数値として解釈できる場合のみ半角化
   return v;                                                 // それ以外（文字ラベル等）は原文を保持
 }
