@@ -415,6 +415,23 @@ body.dark #cellRef.locked-ref { background: #3a1f1c; color: #f0a5a0; border-colo
   cursor: pointer; touch-action: manipulation;
 }
 .enterdir-btn.on { background: #217346; color: #fff; border-color: #217346; }
+/* セル長押しメニュー */
+.cellmenu-backdrop { display: none; position: fixed; inset: 0; z-index: 70; }
+.cellmenu-backdrop.show { display: block; }
+.cell-menu {
+  display: none; position: fixed; z-index: 71;
+  background: var(--save-item-bg, #fff); border: 1px solid var(--save-item-border, #ccc);
+  border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); padding: 5px;
+  min-width: 148px;
+}
+.cell-menu.show { display: block; }
+.cell-menu button {
+  display: block; width: 100%; text-align: left; background: none; border: none;
+  padding: 11px 14px; font-size: 14.5px; font-weight: bold; color: var(--text-light);
+  cursor: pointer; touch-action: manipulation; border-radius: 6px; white-space: nowrap;
+}
+.cell-menu button:hover { background: var(--cell-hover); }
+.cell-menu button:active { background: var(--cell-border); }
 
 /* 照合ビルダー */
 .lk-seg, .lk-seg2 { display: flex; gap: 6px; }
@@ -1938,7 +1955,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <div class="help-sec">
         <div class="help-h">🎨 セルの書式</div>
         <div class="help-p">上部の「<b>A1</b>」（セル名）をタップすると、そのセルの小数点桁・太字/斜体/下線・文字色・背景色・大きさを変更できます。</div>
-        <div class="help-li"><b>🔒 保護</b>：<b>セルを長押し</b>すると保護のオン/オフを切替できます（動かさずに約1秒→枠が赤くなったら離す）。<b>さらに長く押し続ける</b>と枠が紫になり、離すと書式・保護の設定画面が開きます。保護中のセルはセル内にマークは付きませんが、選択すると右上のセル番号の枠が<b>赤</b>くなって知らせます。書式パネル（右上のセル名をタップ）の「保護」からも切替できます。</div>
+        <div class="help-li"><b>🔒 保護</b>：<b>セルを長押し</b>すると保護のオン/オフを切替できます（動かさずに約1秒→枠が赤くなったら離す）。<b>さらに長く押し続ける</b>と枠が紫になり、離すと<b>メニュー（🎨書式・📋コピー・📥貼り付け・🧹消去・🔒保護）</b>が開きます。保護中のセルはセル内にマークは付きませんが、選択すると右上のセル番号の枠が<b>赤</b>くなって知らせます。書式パネル（右上のセル名をタップ）の「保護」からも切替できます。</div>
       </div>
 
       <div class="help-sec">
@@ -2019,6 +2036,16 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="pick-cancel" onclick="lookupPickCancel()">やめる</button>
   </div>
   <div class="pick-sheets" id="pickSheets"></div>
+</div>
+
+<!-- セル長押しメニュー（コピー・貼り付け・消去・書式・保護） -->
+<div class="cellmenu-backdrop" id="cellMenuBackdrop" onclick="hideCellMenu()"></div>
+<div class="cell-menu" id="cellMenu">
+  <button onclick="cellMenuAct('fmt')">🎨 書式</button>
+  <button onclick="cellMenuAct('copy')">📋 コピー</button>
+  <button onclick="cellMenuAct('paste')">📥 貼り付け</button>
+  <button onclick="cellMenuAct('clear')">🧹 消去</button>
+  <button onclick="cellMenuAct('lock')" id="cellMenuLock">🔒 保護</button>
 </div>
 
 <!-- 🔎セルの検索・移動 -->
@@ -3054,6 +3081,51 @@ function doubleTapCopyPaste(r,c) {
   }
 }
 
+/* ── セル長押しメニュー ── */
+function showCellMenu(r,c){
+  sel(r,c);
+  const td=document.getElementById(`c${r}_${c}`); if(!td) return;
+  const menu=document.getElementById('cellMenu'), back=document.getElementById('cellMenuBackdrop');
+  const lockBtn=document.getElementById('cellMenuLock');
+  lockBtn.textContent = isLockedCell(r,c) ? '🔓 保護をやめる' : '🔒 保護';
+  back.classList.add('show'); menu.classList.add('show');
+  // セルの近く（下側優先、はみ出すなら上側）に配置
+  const rect=td.getBoundingClientRect();
+  const mw=menu.offsetWidth, mh=menu.offsetHeight;
+  let left=Math.min(rect.left, window.innerWidth-mw-8); left=Math.max(8,left);
+  let top=rect.bottom+4;
+  if(top+mh>window.innerHeight-8) top=Math.max(8, rect.top-mh-4);
+  menu.style.left=left+'px'; menu.style.top=top+'px';
+}
+function hideCellMenu(){
+  document.getElementById('cellMenu').classList.remove('show');
+  document.getElementById('cellMenuBackdrop').classList.remove('show');
+}
+function cellMenuAct(a){
+  hideCellMenu();
+  if(a==='fmt'){ openCellFmt(); }
+  else if(a==='copy'){ copyCell(); if(typeof toast==='function') toast('コピーしました'); }
+  else if(a==='paste'){ pasteCell(); }
+  else if(a==='clear'){ clearSelection(); }
+  else if(a==='lock'){ toggleUserLock(selR,selC); }
+}
+/* 選択セル（範囲があれば範囲全体）の値を消去（枠線・書式は残す） */
+function clearSelection(){
+  const cells=[];
+  if(rangeR1>=0){
+    const r1=Math.min(rangeR1,rangeR2), r2=Math.max(rangeR1,rangeR2);
+    const c1=Math.min(rangeC1,rangeC2), c2=Math.max(rangeC1,rangeC2);
+    for(let r=r1;r<=r2;r++) for(let c=c1;c<=c2;c++) cells.push([r,c]);
+  } else cells.push([selR,selC]);
+  const entries=[];
+  cells.forEach(([r,c])=>{ if(!isLockedCell(r,c) && data[r][c]!=='') entries.push({r,c,val:data[r][c]}); });
+  if(!entries.length) return;
+  pushHistory(entries);
+  entries.forEach(({r,c})=>{ data[r][c]=''; const el=document.getElementById(`c${r}_${c}`); if(el) el.textContent=getCellDisplay(r,c); });
+  recalcAll(); if(isStructMode()) recalcMode();
+  document.getElementById('formulaInput').value=cellEditString(selR,selC);
+  updateStats(selC); persistModes(); if(typeof saveSheets==='function') saveSheets();
+}
 function pasteCell() {
   if (!clipData) return;
   if (rangeR1>=0) {
@@ -7593,7 +7665,7 @@ function endCellPress(){
   rangeDragging=false;
   fillMode=false; document.body.classList.remove('fill-active');
   fillSrcR=fillSrcC=fillEndR=fillEndC=-1;
-  if(stage===3){ fillJustCommitted=true; sel(r,c); openCellFmt(); return; }        // さらに長押し＝設定
+  if(stage===3){ fillJustCommitted=true; showCellMenu(r,c); return; }               // さらに長押し＝メニュー（書式・コピー等）
   if(stage===2){ fillJustCommitted=true; sel(r,c); toggleUserLock(r,c); return; }  // 長押し＝保護切替
   // それ以外（短い押下・小移動）は通常のクリック（セル選択）に任せる
 }
