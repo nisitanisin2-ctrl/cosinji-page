@@ -1422,9 +1422,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 <div class="formula-bar">
   <label>セル</label>
   <input id="cellRef" type="text" value="A1" readonly onclick="openCellFmt()" title="タップでこのセルの書式設定（小数点・装飾・色・大きさ）">
-  <button id="findBtn" class="find-btn" onclick="openFindDlg()" title="セルの検索・移動（A100へ移動／文字を探す）">🔎</button>
   <input id="formulaInput" type="text" placeholder="値を入力 (Enterで確定)" autocomplete="off">
-  <button id="lookupBtn" class="lookup-btn" onclick="openLookupDlg()" title="VLOOKUP／XLOOKUP（表から探して取り出す）をかんたんに作る">🔍照合</button>
 </div>
 
 <div class="sheet-wrap">
@@ -1543,22 +1541,22 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   <div class="numpad-viewport" id="numpadViewport">
     <div class="numpad-grid numpad-overlay ov-left ov-lv2" id="numpadPageBd">
     <!-- 枠線ページ（セル書式ページからさらに右フリックで表示）。線の種類・色を選び、場所ボタンで選択範囲に枠線を引く -->
-    <button class="btn bd-type" onclick="bdSetType('thin',this)" title="細い線"><span style="display:inline-block;width:70%;border-bottom:1px solid #fff"></span></button>
-    <button class="btn bd-type bd-on" onclick="bdSetType('normal',this)" title="ふつうの線"><span style="display:inline-block;width:70%;border-bottom:2px solid #fff"></span></button>
-    <button class="btn bd-type" onclick="bdSetType('thick',this)" title="太い線"><span style="display:inline-block;width:70%;border-bottom:5px solid #fff"></span></button>
-    <button class="btn bd-type" onclick="bdSetType('double',this)" title="二重線"><span style="display:inline-block;width:70%;border-bottom:6px double #fff"></span></button>
-    <button class="btn clr" onclick="bdApply('clear')" title="選択範囲の枠線を消す">🧹消す</button>
-    <button class="btn bd-color bd-on" onclick="bdSetColor('#000000',this)" title="黒い線">黒</button>
-    <button class="btn bd-color" style="color:#ff8a80" onclick="bdSetColor('#e53935',this)" title="赤い線">赤</button>
-    <button class="btn bd-color" style="color:#82b1ff" onclick="bdSetColor('#1e88e5',this)" title="青い線">青</button>
-    <button class="btn bd-color" style="color:#b9f6ca" onclick="bdSetColor('#2e7d32',this)" title="緑の線">緑</button>
-    <button class="btn bd-color" style="color:#ea80fc" onclick="bdSetColor('#8e24aa',this)" title="紫の線">紫</button>
-    <button class="btn op" onclick="bdApply('top')" title="範囲の上側に線">上</button>
-    <button class="btn op" onclick="bdApply('bottom')" title="範囲の下側に線（下線）">下</button>
-    <button class="btn op" onclick="bdApply('left')" title="範囲の左側に線">左</button>
-    <button class="btn op" onclick="bdApply('right')" title="範囲の右側に線">右</button>
-    <button class="btn op" onclick="bdApply('grid')" title="全セルの全部の辺に線">格子</button>
-    <button class="btn fx" style="grid-column:1/-1" onclick="bdApply('box')" title="選択範囲のまわりを囲む">⬜ 選択範囲を囲む（外わく）</button>
+    <button class="btn bd-type" data-key="bd_thin" onclick="bdSetType('thin',this)" title="細い線"><span style="display:inline-block;width:70%;border-bottom:1px solid #fff"></span></button>
+    <button class="btn bd-type bd-on" data-key="bd_normal" onclick="bdSetType('normal',this)" title="ふつうの線"><span style="display:inline-block;width:70%;border-bottom:2px solid #fff"></span></button>
+    <button class="btn bd-type" data-key="bd_thick" onclick="bdSetType('thick',this)" title="太い線"><span style="display:inline-block;width:70%;border-bottom:5px solid #fff"></span></button>
+    <button class="btn bd-type" data-key="bd_double" onclick="bdSetType('double',this)" title="二重線"><span style="display:inline-block;width:70%;border-bottom:6px double #fff"></span></button>
+    <button class="btn clr" data-key="bd_clear" onclick="bdApply('clear')" title="選択範囲の枠線を消す">🧹消す</button>
+    <button class="btn bd-color bd-on" data-key="bd_black" onclick="bdSetColor('#000000',this)" title="黒い線">黒</button>
+    <button class="btn bd-color" data-key="bd_red" style="color:#ff8a80" onclick="bdSetColor('#e53935',this)" title="赤い線">赤</button>
+    <button class="btn bd-color" data-key="bd_blue" style="color:#82b1ff" onclick="bdSetColor('#1e88e5',this)" title="青い線">青</button>
+    <button class="btn bd-color" data-key="bd_green" style="color:#b9f6ca" onclick="bdSetColor('#2e7d32',this)" title="緑の線">緑</button>
+    <button class="btn bd-color" data-key="bd_purple" style="color:#ea80fc" onclick="bdSetColor('#8e24aa',this)" title="紫の線">紫</button>
+    <button class="btn op" data-key="bd_top" onclick="bdApply('top')" title="範囲の上側に線">上</button>
+    <button class="btn op" data-key="bd_bottom" onclick="bdApply('bottom')" title="範囲の下側に線（下線）">下</button>
+    <button class="btn op" data-key="bd_left" onclick="bdApply('left')" title="範囲の左側に線">左</button>
+    <button class="btn op" data-key="bd_right" onclick="bdApply('right')" title="範囲の右側に線">右</button>
+    <button class="btn op" data-key="bd_grid" onclick="bdApply('grid')" title="全セルの全部の辺に線">格子</button>
+    <button class="btn fx" data-key="bd_box" style="grid-column:1/-1" onclick="bdApply('box')" title="選択範囲のまわりを囲む">⬜ 選択範囲を囲む（外わく）</button>
     </div>
     <div class="numpad-grid numpad-overlay ov-left" id="numpadPageFmt">
     <!-- セル書式ページ（数字ページから右フリックで表示）。選択中のセル（スライドで範囲選択していれば範囲全体）の書式を変える -->
@@ -1652,7 +1650,6 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="btn op" data-key="fp_fmul"  onclick="fkey('×')">×</button>
     <button class="btn op" data-key="fp_fdiv"  onclick="fkey('÷')">÷</button>
     <button class="btn op" data-key="fp_eq"    onclick="fkey('=')">=</button>
-    <button class="btn fx" onclick="openLookupDlg()" title="VLOOKUP／XLOOKUPをかんたんに作る">🔍照合</button>
     </div>
     <div class="numpad-grid numpad-overlay ov-right ov-lv2" id="numpadPageSci">
     <!-- 関数電卓ページ（関数・記号ページからさらに左フリックで表示）。三角関数・log・べき乗などを数式に挿入する -->
@@ -1972,7 +1969,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><b>=SUM(A1:A5)</b> 合計　<b>=AVERAGE(A1:A5)</b> 平均</div>
         <div class="help-li">他に MAX・MIN・COUNT・ABS・SQRT・ROUND・IF が使えます。</div>
         <div class="help-li"><b>シート間の連携</b>：他のシートのセルは <b>=シート名!A1</b>（例 <b>=商品!C2</b>）で参照できます。足し算や関数の範囲（例 <b>=SUM(商品!A1:A5)</b>）にも使えます。</div>
-        <div class="help-li"><b>🔍照合ボタン</b>（上の入力欄の右）を押すと、<b>VLOOKUP／XLOOKUP を画面の案内どおりに作れます</b>。表の範囲や探す値は<b>「セルを選ぶ／範囲を選ぶ」→ 表を指でタップ</b>して指定でき、手で式を打たなくても作れます（他のシートの表も、そのシートに切り替えて選べます）。</div>
+        <div class="help-li"><b>🔍照合</b>（テンキーのボタンを長押しして割り当て可能）を押すと、<b>VLOOKUP／XLOOKUP を画面の案内どおりに作れます</b>。表の範囲や探す値は<b>「セルを選ぶ／範囲を選ぶ」→ 表を指でタップ</b>して指定でき、手で式を打たなくても作れます（他のシートの表も、そのシートに切り替えて選べます）。</div>
         <div class="help-li"><b>=VLOOKUP(探す値, 範囲, 何列目, 0)</b>：範囲の左端から値を探し、その行の指定列を返します（末尾の <b>0</b> で完全一致）。例 <b>=VLOOKUP(A1, 商品!A2:C9, 2, 0)</b></div>
         <div class="help-li"><b>=XLOOKUP(探す値, 検索範囲, 戻す範囲, "見つからない時")</b>：検索範囲で値を探し、対応する戻す範囲の値を返します。文字も返せます。</div>
         <div class="help-li">数式入力中にセルをタップするとセル名が挿入されます。</div>
@@ -2020,7 +2017,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><b>▦ デフォルト</b>：タップすると決めておいた行数・列数に一発で変更。<b>長押し</b>すると既定の行数・列数を設定する画面が開きます。</div>
         <div class="help-li"><b>税率</b>：消費税モードの税率</div>
         <div class="help-li"><b>テンキー／セル文字／小計文字</b>：各文字サイズ</div>
-        <div class="help-li"><b>🔧 テンキーのボタン配置を編集</b>：押すと編集モードになり、テンキーのボタンをドラッグして好きな位置に入れ替えできます（同じ大きさのボタン同士。Enter・0は固定）。<b>関数ページも編集可能</b>（編集中もEnter上のフリックでページを移動できます）。配置は自動保存され、編集バーの「↺初期化」で両ページを元に戻せます。</div>
+        <div class="help-li"><b>🔧 テンキーのボタン配置を編集</b>：押すと編集モードになり、テンキーのボタンをドラッグして好きな位置に入れ替えできます（同じ大きさのボタン同士。Enter・0は固定）。<b>関数ページ・枠線ページ（右に2回フリック）も編集可能</b>（編集中もEnter上のフリックでページを移動できます）。配置は自動保存され、編集バーの「↺初期化」で各ページを元に戻せます。</div>
         <div class="help-li"><b>🔀 モードの表示/非表示</b>：「モード」一覧に出す標準モードを選べます。チェックを外すと一覧から隠れます（内容は保持。「通常」は常に表示）。</div>
       </div>
 
@@ -4400,6 +4397,8 @@ const KEY_FUNCS={
   a_defsize:{g:'設定・機能',label:'▦既定',run:()=>applyDefaultSize()}, a_cellfmt:{g:'設定・機能',label:'🎨書式',run:()=>openCellFmt()},
   a_numpadhide:{g:'設定・機能',label:'⌨隠す',run:()=>toggleNumpad()},
   a_today:{g:'設定・機能',label:'📅今日',run:()=>insertTodayDate()},
+  a_lookup:{g:'設定・機能',label:'🔍照合',run:()=>openLookupDlg()},
+  a_find:{g:'設定・機能',label:'🔎検索',run:()=>openFindDlg()},
 };
 /* 選択中のセルに今日の日付を入れる（日付として自動認識される） */
 function insertTodayDate(){
@@ -4868,10 +4867,18 @@ const KEYPAD_DEFAULT_POS2={
   fp_if:{r:4,c:1}, fp_gt:{r:4,c:2}, fp_lt:{r:4,c:3}, fp_ge:{r:4,c:4}, fp_le:{r:4,c:5},
   fp_plus:{r:5,c:1}, fp_fminus:{r:5,c:2}, fp_fmul:{r:5,c:3}, fp_fdiv:{r:5,c:4}, fp_eq:{r:5,c:5}
 };
+/* 枠線ページ（数字から右へ2回フリック）の既定配置 */
+const KEYPAD_DEFAULT_POS_BD={
+  bd_thin:{r:1,c:1}, bd_normal:{r:1,c:2}, bd_thick:{r:1,c:3}, bd_double:{r:1,c:4}, bd_clear:{r:1,c:5},
+  bd_black:{r:2,c:1}, bd_red:{r:2,c:2}, bd_blue:{r:2,c:3}, bd_green:{r:2,c:4}, bd_purple:{r:2,c:5},
+  bd_top:{r:3,c:1}, bd_bottom:{r:3,c:2}, bd_left:{r:3,c:3}, bd_right:{r:3,c:4}, bd_grid:{r:3,c:5},
+  bd_box:{r:4,c:1,w:5}
+};
 /* 編集対象のページ一覧（各ページが独自の既定配置・保存キー・現在配置を持つ） */
 const KP_PAGES=[
   {sel:'#numpadPage1', def:KEYPAD_DEFAULT_POS,  skey:'excalc_keypad_pos',  pos:{}},
-  {sel:'#numpadPage2', def:KEYPAD_DEFAULT_POS2, skey:'excalc_keypad_pos2', pos:{}}
+  {sel:'#numpadPage2', def:KEYPAD_DEFAULT_POS2, skey:'excalc_keypad_pos2', pos:{}},
+  {sel:'#numpadPageBd', def:KEYPAD_DEFAULT_POS_BD, skey:'excalc_keypad_posbd', pos:{}}
 ];
 let keypadEditing=false;
 let kpDrag=null;
@@ -4915,7 +4922,7 @@ function toggleKeypadEdit(){
   applyKeypadLayout();   // 固定ボタンの淡色表示を更新
 }
 function resetKeypadLayout(){
-  if(!confirm('テンキーのボタン配置を最初の状態に戻しますか？（数字・関数の両ページ）')) return;
+  if(!confirm('テンキーのボタン配置を最初の状態に戻しますか？（数字・関数・枠線の各ページ）')) return;
   KP_PAGES.forEach(pg=>localStorage.removeItem(pg.skey));
   loadKeypadPos();
   applyKeypadLayout();
