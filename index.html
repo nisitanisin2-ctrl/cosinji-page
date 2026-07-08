@@ -376,6 +376,56 @@ body.dark #cellRef.locked-ref { background: #3a1f1c; color: #f0a5a0; border-colo
   background: var(--formula-bg);
   color: var(--formula-color);
 }
+.lookup-btn {
+  flex-shrink: 0; background: #1e88e5; color: #fff; border: none; border-radius: 5px;
+  padding: calc(3px * var(--formula-scale, 1)) 8px; font-size: calc(12px * var(--formula-scale, 1));
+  font-weight: bold; cursor: pointer; touch-action: manipulation; white-space: nowrap;
+}
+.lookup-btn:hover { background: #1565c0; }
+
+/* 照合ビルダー */
+.lk-seg, .lk-seg2 { display: flex; gap: 6px; }
+.lk-fn, .lk-match {
+  flex: 1; padding: 10px 4px; border-radius: 8px; font-size: 13px; font-weight: bold;
+  border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text-light);
+  cursor: pointer; touch-action: manipulation;
+}
+.lk-fn.on, .lk-match.on { background: #1e88e5; color: #fff; border-color: #1e88e5; }
+.lk-hint { font-size: 12px; color: var(--text-sub); margin: 8px 2px; line-height: 1.5; }
+.lk-field { margin: 10px 0; }
+.lk-label { display: block; font-size: 12.5px; font-weight: bold; color: var(--text-light); margin-bottom: 4px; }
+.lk-label small { font-weight: normal; color: var(--text-sub); margin-left: 6px; font-size: 11px; }
+.lk-ctrl { display: flex; align-items: center; gap: 6px; }
+.lk-ctrl input {
+  flex: 1; min-width: 0; padding: 9px 8px; border: 1px solid var(--save-item-border); border-radius: 6px;
+  font-size: 14px; background: var(--save-item-bg); color: var(--text-light);
+}
+.lk-pick {
+  flex-shrink: 0; background: #2d8659; color: #fff; border: none; border-radius: 6px;
+  padding: 9px 10px; font-size: 12.5px; font-weight: bold; cursor: pointer; touch-action: manipulation; white-space: nowrap;
+}
+.lk-pick:hover { background: #37a06c; }
+.lk-preview { margin: 12px 2px 8px; font-size: 12px; color: var(--text-sub); }
+.lk-preview code { display: block; margin-top: 4px; padding: 8px 10px; background: var(--save-item-bg);
+  border: 1px solid var(--save-item-border); border-radius: 6px; color: var(--text-light);
+  font-size: 13px; word-break: break-all; }
+.lk-insert {
+  width: 100%; margin-top: 4px; padding: 13px; border: none; border-radius: 8px;
+  background: #217346; color: #fff; font-size: 15px; font-weight: bold; cursor: pointer; touch-action: manipulation;
+}
+.lk-insert:hover { background: #1a6b3a; }
+.lk-insert:disabled { background: #9e9e9e; cursor: default; }
+
+/* ピック中の案内バー（画面上部固定） */
+.pick-banner {
+  display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 60;
+  background: #1e88e5; color: #fff; padding: calc(8px + env(safe-area-inset-top)) 12px 8px;
+  font-size: 14px; font-weight: bold; align-items: center; justify-content: space-between; gap: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.pick-banner.show { display: flex; }
+.pick-cancel { background: rgba(255,255,255,0.25); color: #fff; border: 1px solid rgba(255,255,255,0.5);
+  border-radius: 6px; padding: 6px 12px; font-size: 13px; font-weight: bold; cursor: pointer; flex-shrink: 0; }
 #formulaInput.formula-mode {
   background: #fffde7;
   border-color: #217346;
@@ -1273,6 +1323,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   <label>セル</label>
   <input id="cellRef" type="text" value="A1" readonly onclick="openCellFmt()" title="タップでこのセルの書式設定（小数点・装飾・色・大きさ）">
   <input id="formulaInput" type="text" placeholder="値を入力 (Enterで確定)" autocomplete="off">
+  <button id="lookupBtn" class="lookup-btn" onclick="openLookupDlg()" title="VLOOKUP／XLOOKUP（表から探して取り出す）をかんたんに作る">🔍照合</button>
 </div>
 
 <div class="sheet-wrap">
@@ -1819,6 +1870,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><b>=SUM(A1:A5)</b> 合計　<b>=AVERAGE(A1:A5)</b> 平均</div>
         <div class="help-li">他に MAX・MIN・COUNT・ABS・SQRT・ROUND・IF が使えます。</div>
         <div class="help-li"><b>シート間の連携</b>：他のシートのセルは <b>=シート名!A1</b>（例 <b>=商品!C2</b>）で参照できます。足し算や関数の範囲（例 <b>=SUM(商品!A1:A5)</b>）にも使えます。</div>
+        <div class="help-li"><b>🔍照合ボタン</b>（上の入力欄の右）を押すと、<b>VLOOKUP／XLOOKUP を画面の案内どおりに作れます</b>。表の範囲や探す値は<b>「セルを選ぶ／範囲を選ぶ」→ 表を指でタップ</b>して指定でき、手で式を打たなくても作れます（他のシートの表も、そのシートに切り替えて選べます）。</div>
         <div class="help-li"><b>=VLOOKUP(探す値, 範囲, 何列目, 0)</b>：範囲の左端から値を探し、その行の指定列を返します（末尾の <b>0</b> で完全一致）。例 <b>=VLOOKUP(A1, 商品!A2:C9, 2, 0)</b></div>
         <div class="help-li"><b>=XLOOKUP(探す値, 検索範囲, 戻す範囲, "見つからない時")</b>：検索範囲で値を探し、対応する戻す範囲の値を返します。文字も返せます。</div>
         <div class="help-li">数式入力中にセルをタップするとセル名が挿入されます。</div>
@@ -1905,6 +1957,67 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <span class="mode-text"><span class="mode-name">平均</span><span class="mode-desc">範囲の数値の平均を出す</span></span>
         <span class="mode-check" id="sumChkAvg"></span>
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- セル/範囲を指でタップして選ぶときの案内バー（照合ビルダーのピック中に表示） -->
+<div class="pick-banner" id="pickBanner">
+  <span id="pickBannerMsg">セルを選んでください</span>
+  <button class="pick-cancel" onclick="lookupPickCancel()">やめる</button>
+</div>
+
+<!-- 🔍照合ビルダー：VLOOKUP／XLOOKUP をボタンと入力で作る -->
+<div class="modal-overlay" id="lookupOverlay" onclick="if(event.target===this)closeLookupDlg()">
+  <div class="modal">
+    <div class="modal-header">
+      <span>🔍 表から探す（照合）</span>
+      <button class="modal-close" onclick="closeLookupDlg()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="lk-seg">
+        <button class="lk-fn on" id="lkFnV" onclick="lkSetFn('VLOOKUP')">VLOOKUP</button>
+        <button class="lk-fn" id="lkFnX" onclick="lkSetFn('XLOOKUP')">XLOOKUP</button>
+      </div>
+      <div class="lk-hint" id="lkHint"></div>
+
+      <div class="lk-field">
+        <span class="lk-label">① 探す値</span>
+        <div class="lk-ctrl"><input type="text" id="lkKey" placeholder="例: A1 または りんご" oninput="lkPreview()"><button class="lk-pick" onclick="lookupPickStart('key',false)">セルを選ぶ</button></div>
+      </div>
+
+      <div id="lkVArea">
+        <div class="lk-field">
+          <span class="lk-label">② 表の範囲</span>
+          <div class="lk-ctrl"><input type="text" id="lkRange" placeholder="例: A2:C10" oninput="lkPreview()"><button class="lk-pick" onclick="lookupPickStart('range',true)">範囲を選ぶ</button></div>
+        </div>
+        <div class="lk-field">
+          <span class="lk-label">③ 取り出す列<small>表の左から何列目</small></span>
+          <div class="lk-ctrl"><span class="set-stepper"><button class="step-btn" onclick="lkCol(-1)">−</button><span class="sc-val" id="lkColVal">2</span><button class="step-btn" onclick="lkCol(1)">＋</button></span></div>
+        </div>
+        <div class="lk-field">
+          <span class="lk-label">④ 一致のしかた</span>
+          <div class="lk-ctrl lk-seg2"><button class="lk-match on" id="lkExactY" onclick="lkSetExact(true)">完全一致</button><button class="lk-match" id="lkExactN" onclick="lkSetExact(false)">近い値</button></div>
+        </div>
+      </div>
+
+      <div id="lkXArea" style="display:none">
+        <div class="lk-field">
+          <span class="lk-label">② 探す範囲<small>この中から値を探す</small></span>
+          <div class="lk-ctrl"><input type="text" id="lkLook" placeholder="例: A2:A10" oninput="lkPreview()"><button class="lk-pick" onclick="lookupPickStart('look',true)">範囲を選ぶ</button></div>
+        </div>
+        <div class="lk-field">
+          <span class="lk-label">③ 取り出す範囲<small>見つかった行/列の値</small></span>
+          <div class="lk-ctrl"><input type="text" id="lkRet" placeholder="例: B2:B10" oninput="lkPreview()"><button class="lk-pick" onclick="lookupPickStart('ret',true)">範囲を選ぶ</button></div>
+        </div>
+        <div class="lk-field">
+          <span class="lk-label">④ 見つからない時<small>省略可</small></span>
+          <div class="lk-ctrl"><input type="text" id="lkNF" placeholder="例: なし（空でもOK）" oninput="lkPreview()"></div>
+        </div>
+      </div>
+
+      <div class="lk-preview"><span>できる式</span><code id="lkPreview">=</code></div>
+      <button class="lk-insert" onclick="lkInsert()">このセルに入れる</button>
     </div>
   </div>
 </div>
@@ -2601,6 +2714,7 @@ function buildSheet() {
         if (e.shiftKey) { e.preventDefault(); extendRange(r,c); }
       });
       td.addEventListener('click', e => {
+        if (typeof lookupPick!=='undefined' && lookupPick) { if(lookupPickTapCell(r,c)===false) return; }   // 照合ビルダーのピック中
         if (e.shiftKey) return;
         if (fillJustCommitted) { fillJustCommitted=false; return; }   // フィル確定直後のクリックは無視
         if (sumSuppressClick) { sumSuppressClick=false; return; }   // スライド直後のクリックは無視
@@ -6805,6 +6919,121 @@ function fmtStyle(create){
   return cellStyles[k];
 }
 
+/* ── 🔍照合ビルダー（VLOOKUP/XLOOKUP をボタンと入力でかんたんに作る） ── */
+let lkState=null;      // 作成中の設定
+let lookupPick=null;   // セル/範囲のピック中の状態
+function openLookupDlg(keepState){
+  if(!keepState || !lkState){
+    lkState={ fn:'VLOOKUP', targetR:selR, targetC:selC, targetSheet:(typeof curSheet==='number'?curSheet:0),
+              key:'', range:'', col:2, exact:true, look:'', ret:'', nf:'' };
+  }
+  document.getElementById('lkKey').value=lkState.key;
+  document.getElementById('lkRange').value=lkState.range;
+  document.getElementById('lkLook').value=lkState.look;
+  document.getElementById('lkRet').value=lkState.ret;
+  document.getElementById('lkNF').value=lkState.nf;
+  document.getElementById('lkColVal').textContent=lkState.col;
+  lkSetFn(lkState.fn, true);
+  lkSetExact(lkState.exact, true);
+  lkPreview();
+  document.getElementById('lookupOverlay').classList.add('open');
+}
+function closeLookupDlg(){ document.getElementById('lookupOverlay').classList.remove('open'); }
+function lkSetFn(fn, silent){
+  lkState.fn=fn;
+  document.getElementById('lkFnV').classList.toggle('on', fn==='VLOOKUP');
+  document.getElementById('lkFnX').classList.toggle('on', fn==='XLOOKUP');
+  document.getElementById('lkVArea').style.display = fn==='VLOOKUP'?'':'none';
+  document.getElementById('lkXArea').style.display = fn==='XLOOKUP'?'':'none';
+  document.getElementById('lkHint').textContent = fn==='VLOOKUP'
+    ? '表のいちばん左の列から「探す値」を見つけ、その行の「取り出す列」を返します。'
+    : '「探す範囲」で値を見つけ、同じ位置の「取り出す範囲」の値を返します（文字も返せます）。';
+  if(!silent) lkPreview();
+}
+function lkSetExact(v, silent){
+  lkState.exact=v;
+  document.getElementById('lkExactY').classList.toggle('on', v);
+  document.getElementById('lkExactN').classList.toggle('on', !v);
+  if(!silent) lkPreview();
+}
+function lkCol(d){ lkState.col=Math.max(1,Math.min(50,(lkState.col||1)+d)); document.getElementById('lkColVal').textContent=lkState.col; lkPreview(); }
+function lkSync(){
+  if(!lkState) return;
+  lkState.key=document.getElementById('lkKey').value.trim();
+  lkState.range=document.getElementById('lkRange').value.trim();
+  lkState.look=document.getElementById('lkLook').value.trim();
+  lkState.ret=document.getElementById('lkRet').value.trim();
+  lkState.nf=document.getElementById('lkNF').value.trim();
+}
+/* 値を数式用に整える（数値・セル/範囲はそのまま、文字は " で囲む） */
+function lkArg(v){
+  if(v==='') return '';
+  if(/^-?\d+(\.\d+)?$/.test(v)) return v;
+  if(/^".*"$/.test(v)) return v;
+  if(/^(('[^']*'|[^\s!'"(),:+\-*/^=<>]+)!)?[A-Za-z]+\d+(:[A-Za-z]+\d+)?$/.test(v)) return v;   // セル/範囲（シート付き含む）
+  return '"'+v.replace(/"/g,'""')+'"';
+}
+function lkBuildFormula(){
+  lkSync(); if(!lkState) return '';
+  if(lkState.fn==='VLOOKUP'){
+    if(!lkState.key||!lkState.range) return '';
+    return `=VLOOKUP(${lkArg(lkState.key)}, ${lkState.range}, ${lkState.col}, ${lkState.exact?0:1})`;
+  }
+  if(!lkState.key||!lkState.look||!lkState.ret) return '';
+  let f=`=XLOOKUP(${lkArg(lkState.key)}, ${lkState.look}, ${lkState.ret}`;
+  if(lkState.nf!=='') f+=`, ${lkArg(lkState.nf)}`;
+  return f+')';
+}
+function lkPreview(){
+  const f=lkBuildFormula();
+  document.getElementById('lkPreview').textContent=f||'（未入力の項目があります）';
+  const b=document.querySelector('.lk-insert'); if(b) b.disabled=!f;
+}
+function lkInsert(){
+  const f=lkBuildFormula(); if(!f) return;
+  closeLookupDlg();
+  if(typeof curSheet==='number' && curSheet!==lkState.targetSheet && typeof switchSheet==='function') switchSheet(lkState.targetSheet);
+  sel(lkState.targetR, lkState.targetC);
+  setCellVal(lkState.targetR, lkState.targetC, f);
+  if(typeof toast==='function') toast('式を入れました');
+}
+/* セル/範囲を指でタップして選ぶ */
+function lookupPickStart(field, needRange){
+  lkSync();
+  lookupPick={ field, needRange, stage:0, r1:-1, c1:-1, sheetIdx:(typeof curSheet==='number'?curSheet:0) };
+  closeLookupDlg();
+  showPickBanner(needRange ? '表の左上のセルをタップ（範囲の始め）' : '「探す値」のセルをタップ');
+}
+function showPickBanner(msg){ document.getElementById('pickBannerMsg').textContent=msg; document.getElementById('pickBanner').classList.add('show'); }
+function hidePickBanner(){ document.getElementById('pickBanner').classList.remove('show'); }
+function lookupPickCancel(){ lookupPick=null; hidePickBanner(); openLookupDlg(true); }
+function lkColLetter(c){ return (typeof xlColLetter==='function')?xlColLetter(c):String.fromCharCode(65+c); }
+/* セルタップ時にピック処理。false を返したら通常のセル操作はしない */
+function lookupPickTapCell(r,c){
+  if(!lookupPick) return true;
+  if(!lookupPick.needRange){ lookupPickFinish(r,c,r,c); return false; }
+  if(lookupPick.stage===0){
+    lookupPick.r1=r; lookupPick.c1=c; lookupPick.sheetIdx=(typeof curSheet==='number'?curSheet:0); lookupPick.stage=1;
+    if(typeof clearRangeSelection==='function') clearRangeSelection();
+    if(typeof sel==='function') sel(r,c);
+    showPickBanner('右下のセルをタップ（1マスなら同じ所）'); return false;
+  }
+  if(typeof extendRange==='function') extendRange(r,c);
+  lookupPickFinish(lookupPick.r1, lookupPick.c1, r, c); return false;
+}
+function lookupPickFinish(r1,c1,r2,c2){
+  const idx=lookupPick.sheetIdx, field=lookupPick.field, needRange=lookupPick.needRange;
+  const rr1=Math.min(r1,r2), rr2=Math.max(r1,r2), cc1=Math.min(c1,c2), cc2=Math.max(c1,c2);
+  let ref = (!needRange && r1===r2 && c1===c2) ? `${lkColLetter(c1)}${r1+1}` : `${lkColLetter(cc1)}${rr1+1}:${lkColLetter(cc2)}${rr2+1}`;
+  if(typeof sheets!=='undefined' && lkState && idx!==lkState.targetSheet && sheets[idx]){
+    const nm=sheets[idx].name;
+    ref = /[\s!'":(),]/.test(nm) ? `'${String(nm).replace(/'/g,"''")}'!${ref}` : `${nm}!${ref}`;
+  }
+  if(lkState){ if(field==='key') lkState.key=ref; else if(field==='range') lkState.range=ref; else if(field==='look') lkState.look=ref; else if(field==='ret') lkState.ret=ref; }
+  lookupPick=null; hidePickBanner();
+  if(typeof curSheet==='number' && lkState && curSheet!==lkState.targetSheet && typeof switchSheet==='function') switchSheet(lkState.targetSheet);
+  openLookupDlg(true);
+}
 function openCellFmt(){
   fmtR=selR; fmtC=selC;
   document.getElementById('cellFmtTitle').textContent=`${ALPHA[fmtC]}${fmtR+1} の書式`;
