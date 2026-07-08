@@ -1070,7 +1070,9 @@ body.dark .help-li b { color: #8fd4ab; }
 .modal-header > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── 列幅・行高のドラッグ変更グリップ ── */
-.ch, .rh { position: relative; }
+/* 見出し行(.ch)と行番号列(.rh)を固定表示（フリーズ）。長い表でもスクロール中に見出しが見える */
+.ch { position: sticky; top: 0; z-index: 3; }
+.rh { position: sticky; left: 0; z-index: 2; }
 .col-grip {
   position: absolute; top: 0; right: -4px; width: 11px; height: 100%;
   cursor: col-resize; z-index: 4; touch-action: none;
@@ -1084,7 +1086,7 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; }
 body.row-resizing, body.row-resizing * { cursor: row-resize !important; }
 /* 左上コーナー：スワイプでセル全体の大きさを変更（対角リサイズのヒント表示） */
 .ch.corner-resizer {
-  cursor: nwse-resize; position: relative; touch-action: none;
+  cursor: nwse-resize; position: sticky; top: 0; left: 0; z-index: 4; touch-action: none;
   -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
 }
 .ch.corner-resizer::after {
@@ -4978,6 +4980,7 @@ function updateRowStats(r) {
   const nums=[];
   for (let c=0;c<COLS;c++) {
     const raw=data[r][c]; if(raw==='') continue;
+    if (cellDateFmt(r,c)) continue;   // 日付セルは合計・平均に含めない
     if (String(raw).startsWith('=')) { nums.push(getCellValue(r,c)); continue; }
     const v=parseFloat(raw); if(!isNaN(v)) nums.push(v);
   }
@@ -5102,6 +5105,7 @@ function updateStats(c) {
   const nums=[];
   for (let r=0;r<ROWS;r++) {
     const raw=data[r][c]; if(raw==='') continue;
+    if (cellDateFmt(r,c)) continue;   // 日付セルは合計・平均に含めない（通し番号が混ざるのを防ぐ）
     if (String(raw).startsWith('=')) { nums.push(getCellValue(r,c)); continue; }
     const v=parseFloat(raw); if(!isNaN(v)) nums.push(v);
   }
