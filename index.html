@@ -382,6 +382,39 @@ body.dark #cellRef.locked-ref { background: #3a1f1c; color: #f0a5a0; border-colo
   font-weight: bold; cursor: pointer; touch-action: manipulation; white-space: nowrap;
 }
 .lookup-btn:hover { background: #1565c0; }
+.find-btn {
+  flex-shrink: 0; background: var(--cell-hover); color: var(--formula-color);
+  border: 1px solid var(--formula-border); border-radius: 5px;
+  padding: calc(2px * var(--formula-scale, 1)) 6px; font-size: calc(13px * var(--formula-scale, 1));
+  cursor: pointer; touch-action: manipulation;
+}
+.find-btn:hover { background: var(--cell-border); }
+/* 検索・移動ダイアログ */
+.find-modal { width: 90%; max-width: 420px; }
+.find-hint { font-size: 12.5px; color: var(--text-sub); margin-bottom: 10px; line-height: 1.5; }
+.find-row { display: flex; gap: 6px; }
+.find-row input {
+  flex: 1; min-width: 0; padding: 10px 10px; border: 1px solid var(--save-item-border); border-radius: 6px;
+  font-size: 15px; background: var(--save-item-bg); color: var(--text-light);
+}
+.find-go {
+  flex-shrink: 0; background: #217346; color: #fff; border: none; border-radius: 6px;
+  padding: 0 16px; font-size: 14px; font-weight: bold; cursor: pointer; touch-action: manipulation;
+}
+.find-actions { margin-top: 10px; }
+.find-next {
+  width: 100%; background: var(--save-item-bg); color: var(--text-light); border: 1px solid var(--save-item-border);
+  border-radius: 6px; padding: 10px; font-size: 13.5px; font-weight: bold; cursor: pointer; touch-action: manipulation;
+}
+.find-msg { margin-top: 10px; font-size: 13px; font-weight: bold; color: #1e88e5; min-height: 1.2em; }
+/* Enterで進む向き */
+.enterdir-seg { display: flex; gap: 8px; margin-top: 4px; }
+.enterdir-btn {
+  flex: 1; padding: 11px 4px; border-radius: 8px; font-size: 14px; font-weight: bold;
+  border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text-light);
+  cursor: pointer; touch-action: manipulation;
+}
+.enterdir-btn.on { background: #217346; color: #fff; border-color: #217346; }
 
 /* 照合ビルダー */
 .lk-seg, .lk-seg2 { display: flex; gap: 6px; }
@@ -1256,6 +1289,11 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <button class="btn-ins" onclick="insertColAtSel()" title="選択セルの左に列を挿入">＋ 左に列を追加</button>
       <button class="btn-del" onclick="deleteColAtSel()" title="選択セルの列を削除">列を削除</button>
     </div>
+    <div class="set-sec">Enterで進む向き</div>
+    <div class="enterdir-seg" id="enterDirSeg">
+      <button class="enterdir-btn on" data-dir="down" onclick="setEnterDir('down')">↓ 下へ</button>
+      <button class="enterdir-btn" data-dir="right" onclick="setEnterDir('right')">→ 右へ</button>
+    </div>
   </div>
 
   <div class="set-page" id="setPage1">
@@ -1334,6 +1372,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 <div class="formula-bar">
   <label>セル</label>
   <input id="cellRef" type="text" value="A1" readonly onclick="openCellFmt()" title="タップでこのセルの書式設定（小数点・装飾・色・大きさ）">
+  <button id="findBtn" class="find-btn" onclick="openFindDlg()" title="セルの検索・移動（A100へ移動／文字を探す）">🔎</button>
   <input id="formulaInput" type="text" placeholder="値を入力 (Enterで確定)" autocomplete="off">
   <button id="lookupBtn" class="lookup-btn" onclick="openLookupDlg()" title="VLOOKUP／XLOOKUP（表から探して取り出す）をかんたんに作る">🔍照合</button>
 </div>
@@ -1980,6 +2019,28 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="pick-cancel" onclick="lookupPickCancel()">やめる</button>
   </div>
   <div class="pick-sheets" id="pickSheets"></div>
+</div>
+
+<!-- 🔎セルの検索・移動 -->
+<div class="modal-overlay" id="findOverlay" onclick="if(event.target===this)closeFindDlg()">
+  <div class="modal find-modal">
+    <div class="modal-header">
+      <span>🔎 検索・移動</span>
+      <button class="modal-close" onclick="closeFindDlg()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="find-hint">セル番号（例 <b>A100</b>）を入れると移動、文字（例 <b>りんご</b>）を入れると探します。</div>
+      <div class="find-row">
+        <input type="text" id="findInput" placeholder="A100 または りんご" autocomplete="off"
+          onkeydown="if(event.key==='Enter')doFind()">
+        <button class="find-go" onclick="doFind()">検索</button>
+      </div>
+      <div class="find-actions">
+        <button class="find-next" onclick="doFind()">次を探す ▶</button>
+      </div>
+      <div class="find-msg" id="findMsg"></div>
+    </div>
+  </div>
 </div>
 
 <!-- 🔍照合ビルダー：VLOOKUP／XLOOKUP をボタンと入力で作る -->
@@ -5429,9 +5490,26 @@ function updateAutoSumBtn(){
   const b=document.getElementById('autoSumBtn'); if(b) b.textContent=(sumFunc==='AVERAGE'?'Σ平均':'Σ合計');
 }
 
-/* Enter確定後に下のセルへ移動。最終行なら（通常・簡易モードで50行未満のとき）
-   行を1つ追加してそこへ移動する。追加できない場合は入力をクリアするだけ。 */
+/* Enterで進む向き（'down'＝下／'right'＝右）。設定で切替 */
+let enterMoveDir = (localStorage.getItem('excalc_enterdir')==='right') ? 'right' : 'down';
+function setEnterDir(d){
+  enterMoveDir = (d==='right')?'right':'down';
+  localStorage.setItem('excalc_enterdir', enterMoveDir);
+  document.querySelectorAll('#enterDirSeg .enterdir-btn').forEach(b=>b.classList.toggle('on', b.dataset.dir===enterMoveDir));
+}
+/* Enter確定後に次のセルへ移動。既定は下、設定で右にできる。
+   下：最終行なら（通常・簡易モードで最大未満のとき）行を追加してそこへ。
+   右：行末なら次の行の先頭へ（無ければ行を追加）。 */
 function advanceRowOrAdd(){
+  if (enterMoveDir==='right' && !isStructMode()){
+    if (selC<COLS-1){ sel(selR,selC+1); return; }        // 右へ
+    if (selR<ROWS-1){ sel(selR+1,0); return; }           // 行末→次の行の先頭
+    if (ROWS<MAXROWS){                                   // 最終行→行を追加
+      ROWS++; document.getElementById('rowCount').textContent=ROWS;
+      localStorage.setItem('excalc_rows',ROWS); buildSheet(); sel(selR+1,0); persistModes(); return;
+    }
+    ac(); return;
+  }
   if (selR<ROWS-1){ sel(selR+1,selC); return; }
   if (!isStructMode() && ROWS<MAXROWS){
     ROWS++;
@@ -6940,6 +7018,56 @@ function fmtStyle(create){
   return cellStyles[k];
 }
 
+/* ── 🔎 検索・移動 ── */
+let findState={ term:'' };
+function openFindDlg(){
+  document.getElementById('findInput').value='';
+  document.getElementById('findMsg').textContent='';
+  document.getElementById('findOverlay').classList.add('open');
+  setTimeout(()=>{ const el=document.getElementById('findInput'); if(el) el.focus(); }, 60);
+}
+function closeFindDlg(){ document.getElementById('findOverlay').classList.remove('open'); }
+function jumpToCell(r,c){
+  if(typeof clearRangeSelection==='function') clearRangeSelection();
+  sel(r,c);
+  const td=document.getElementById(`c${r}_${c}`);
+  if(td) td.scrollIntoView({block:'center', inline:'center'});
+}
+function doFind(){
+  const q=document.getElementById('findInput').value.trim();
+  const msg=document.getElementById('findMsg');
+  if(!q){ msg.textContent='セル番号か文字を入れてください'; return; }
+  // セル番号ならその場所へ移動（表示範囲外なら通常モードで広げる）
+  const m=/^([A-Za-z]+)(\d+)$/.exec(q);
+  if(m){
+    const c=xlColToIdx(m[1].toUpperCase()), r=parseInt(m[2])-1;
+    if(c>=0 && c<MAXCOLS && r>=0 && r<MAXROWS){
+      const canGrow = !isStructMode();
+      if(canGrow){
+        let grew=false;
+        if(r>=ROWS){ ROWS=Math.min(MAXROWS,r+1); localStorage.setItem('excalc_rows',ROWS); grew=true; }
+        if(c>=COLS){ COLS=Math.min(MAXCOLS,c+1); localStorage.setItem('excalc_cols',COLS); grew=true; }
+        if(grew){ syncRowColLabels(); buildSheet(); persistModes(); if(typeof saveSheets==='function') saveSheets(); }
+      }
+      if(r<ROWS && c<COLS){ jumpToCell(r,c); closeFindDlg(); return; }
+      msg.textContent='その場所は今の表の外です'; return;
+    }
+  }
+  // 文字を探す（現在のセルの次から、行→列の順に一周）
+  const term=q.toLowerCase();
+  const total=ROWS*COLS;
+  const start=selR*COLS+selC;
+  let found=null;
+  for(let k=1;k<=total;k++){
+    const p=(start+k)%total, r=Math.floor(p/COLS), c=p%COLS;
+    const disp=String(getCellDisplay(r,c)).toLowerCase();
+    const raw=String(data[r][c]).toLowerCase();
+    if(disp.includes(term) || raw.includes(term)){ found=[r,c]; break; }
+  }
+  if(found){ jumpToCell(found[0],found[1]); msg.textContent=`${ALPHA[found[1]]}${found[0]+1} で見つかりました（「次を探す」でさらに）`; }
+  else msg.textContent='見つかりませんでした';
+}
+
 /* ── 🔍照合ビルダー（VLOOKUP/XLOOKUP をボタンと入力でかんたんに作る） ── */
 let lkState=null;      // 作成中の設定
 let lookupPick=null;   // セル/範囲のピック中の状態
@@ -8016,6 +8144,7 @@ loadSaveTabNames();
 setSettingsTab(Math.min(3,Math.max(0,parseInt(localStorage.getItem('excalc_settings_tab')||'0',10)||0)));
 attachSettingsSwipe();
 loadTopBtnHidden(); applyTopBtnHidden();   // 上のバーのボタンの表示/非表示を復元
+setEnterDir(enterMoveDir);                 // Enterで進む向きを復元
 if(localStorage.getItem('excalc_trigmode')==='rad') trigMode='rad';
 applyTrigModeBtn();
 restoreSheetSizes();
