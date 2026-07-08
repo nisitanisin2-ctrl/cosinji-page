@@ -236,6 +236,28 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
   cursor: pointer; touch-action: manipulation;
 }
 .sheet-add:hover, .sheet-del:hover { background: rgba(255,255,255,0.28); }
+/* 常設シートタブバー（設定でオン） */
+.sheet-persist { display: none; }
+body.has-sheet-tabs .sheet-persist {
+  display: flex; gap: 4px; align-items: center; flex-shrink: 0;
+  background: #1a5c3a; padding: 4px 6px;
+  overflow-x: auto; scrollbar-width: none;
+}
+.sheet-persist::-webkit-scrollbar { display: none; }
+.sp-tab {
+  flex-shrink: 0; box-sizing: border-box; color: #fff; background: rgba(255,255,255,0.16);
+  border: 1px solid rgba(255,255,255,0.3); border-radius: 5px;
+  font-size: 12.5px; font-weight: bold; padding: 4px 12px; height: 26px;
+  max-width: 130px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer; touch-action: manipulation;
+}
+.sp-tab.active { background: #fff; color: #1a5c3a; }
+.sp-add {
+  flex-shrink: 0; color: #fff; background: rgba(255,255,255,0.16);
+  border: 1px solid rgba(255,255,255,0.3); border-radius: 5px;
+  font-size: 15px; font-weight: bold; min-width: 30px; height: 26px;
+  cursor: pointer; touch-action: manipulation;
+}
 .sheet-reset {
   box-sizing: border-box; flex-shrink: 0;
   color: white; background: rgba(169,50,38,0.55);
@@ -432,6 +454,15 @@ body.dark #cellRef.locked-ref { background: #3a1f1c; color: #f0a5a0; border-colo
 }
 .cell-menu button:hover { background: var(--cell-hover); }
 .cell-menu button:active { background: var(--cell-border); }
+/* フィル後の連番ボタン */
+.seq-btn {
+  display: none; position: fixed; z-index: 55;
+  background: #1e88e5; color: #fff; border: none; border-radius: 8px;
+  padding: 9px 14px; font-size: 13.5px; font-weight: bold; white-space: nowrap;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.35); cursor: pointer; touch-action: manipulation;
+}
+.seq-btn.show { display: block; }
+.seq-btn:hover { background: #1565c0; }
 
 /* 照合ビルダー */
 .lk-seg, .lk-seg2 { display: flex; gap: 6px; }
@@ -1270,6 +1301,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   <button class="btn-reset menu-item" id="resetBtn" onclick="resetAll()">リセット</button>
   <div class="sheet-bar" id="sheetBar"></div>
 </div>
+<div class="sheet-persist" id="sheetPersist"></div>
 
 <div class="left-pane">
 
@@ -1336,6 +1368,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <span class="set-label">テンキーの大きさ</span>
       <span class="set-stepper"><button class="step-btn" onclick="changeKeySize(-1)">−</button><span class="sc-val" id="keySize">大</span><button class="step-btn" onclick="changeKeySize(1)">＋</button></span>
     </div>
+    <button class="set-act" id="sheetTabsBtn" onclick="toggleSheetTabs()">🗂 シートのタブを常に表示</button>
     <button class="set-act" id="darkBtn" onclick="toggleDark()">🌙 ナイトモード</button>
     <button class="set-act" id="keypadEditBtn" onclick="toggleKeypadEdit()" title="テンキーのボタンをドラッグして好きな位置に入れ替えます（同じ大きさのボタン同士）">🔧 テンキーのボタン配置を編集</button>
     <div class="set-sec">上のバーのボタン<small>タップで表示／非表示（「設定」は常に表示）</small></div>
@@ -1619,6 +1652,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="btn op" data-key="fp_fmul"  onclick="fkey('×')">×</button>
     <button class="btn op" data-key="fp_fdiv"  onclick="fkey('÷')">÷</button>
     <button class="btn op" data-key="fp_eq"    onclick="fkey('=')">=</button>
+    <button class="btn fx" onclick="openLookupDlg()" title="VLOOKUP／XLOOKUPをかんたんに作る">🔍照合</button>
     </div>
     <div class="numpad-grid numpad-overlay ov-right ov-lv2" id="numpadPageSci">
     <!-- 関数電卓ページ（関数・記号ページからさらに左フリックで表示）。三角関数・log・べき乗などを数式に挿入する -->
@@ -2037,6 +2071,9 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   </div>
   <div class="pick-sheets" id="pickSheets"></div>
 </div>
+
+<!-- フィル後の「連番にする」ボタン（数値・日付・末尾が数字の文字のとき） -->
+<button class="seq-btn" id="seqBtn" onclick="fillAsSequence()">🔢 連番 1,2,3…</button>
 
 <!-- セル長押しメニュー（コピー・貼り付け・消去・書式・保護） -->
 <div class="cellmenu-backdrop" id="cellMenuBackdrop" onclick="hideCellMenu()"></div>
@@ -6704,6 +6741,30 @@ function renderSheetBar(){
     rst.className='sheet-reset'; rst.textContent='1枚に'; rst.title='ほかのシートを全部消して1枚に戻す（シートリセット）';
     rst.onclick=resetSheets; bar.appendChild(rst);
   }
+  renderSheetPersist();
+}
+/* 常設シートタブバー（設定でオンのときだけ表示） */
+let showSheetTabs = localStorage.getItem('excalc_show_sheettabs')==='1';
+function renderSheetPersist(){
+  const bar=document.getElementById('sheetPersist'); if(!bar) return;
+  const show = showSheetTabs && typeof sheets!=='undefined' && Array.isArray(sheets) && sheets.length>1;
+  document.body.classList.toggle('has-sheet-tabs', show);
+  bar.innerHTML='';
+  if(!show) return;
+  sheets.forEach((s,i)=>{
+    const b=document.createElement('button');
+    b.className='sp-tab'+(i===curSheet?' active':'');
+    b.textContent=s.name;
+    b.onclick=()=>{ if(i!==curSheet) switchSheet(i); };
+    bar.appendChild(b);
+  });
+  const add=document.createElement('button'); add.className='sp-add'; add.textContent='＋'; add.title='シートを追加'; add.onclick=addSheet; bar.appendChild(add);
+}
+function toggleSheetTabs(){
+  showSheetTabs=!showSheetTabs;
+  localStorage.setItem('excalc_show_sheettabs', showSheetTabs?'1':'0');
+  const btn=document.getElementById('sheetTabsBtn'); if(btn) btn.classList.toggle('on', showSheetTabs);
+  renderSheetPersist();
 }
 
 /* 買物（モード）ボタン：押すとモード選択メニューを開く */
@@ -7619,6 +7680,7 @@ function lpSetArmVisual(cls){
 }
 function lpClearArmVisual(){ const el=document.getElementById(`c${lpR}_${lpC}`); if(el) el.classList.remove('lock-arm','setgs-arm'); }
 function startCellPress(r,c,x,y){
+  if(typeof hideSeqBtn==='function') hideSeqBtn();   // 別の操作を始めたら連番ボタンを消す
   lpR=r; lpC=c; lpX=x; lpY=y; lpMoved=false; lpStage=0;
   lpFromActive=(r===selR && c===selC); rangeDragging=false;
   lpClearTimers();
@@ -7718,8 +7780,43 @@ function commitFill() {
       if(r<0||r>=ROWS||c<0||c>=COLS) break;
       setCellVal(r,c,adjustFormula(srcVal,dr*step,dc*step));
     }
+    // 数値・日付・末尾が数字の文字なら「連番にする」ボタンを出す
+    const srcT=String(srcVal).trim();
+    const canSeq = !srcT.startsWith('=') && (/^-?\d+(\.\d+)?$/.test(srcT) || cellDateFmt(fillSrcR,fillSrcC) || /\d+$/.test(srcT));
+    if(canSeq){ lastFill={srcR:fillSrcR,srcC:fillSrcC,dr,dc,steps}; showSeqBtn(fillSrcR+dr*steps, fillSrcC+dc*steps); }
+    else hideSeqBtn();
   }
   fillSrcR=fillSrcC=fillEndR=fillEndC=-1;
+}
+/* ── 連番フィル ── */
+let lastFill=null, seqHideTimer=null;
+function showSeqBtn(r,c){
+  const td=document.getElementById(`c${r}_${c}`); const btn=document.getElementById('seqBtn');
+  if(!td||!btn){ return; }
+  btn.classList.add('show');
+  const rect=td.getBoundingClientRect(), bw=btn.offsetWidth, bh=btn.offsetHeight;
+  let left=Math.min(rect.left, window.innerWidth-bw-8); left=Math.max(8,left);
+  let top=rect.bottom+4; if(top+bh>window.innerHeight-8) top=Math.max(8,rect.top-bh-4);
+  btn.style.left=left+'px'; btn.style.top=top+'px';
+  clearTimeout(seqHideTimer); seqHideTimer=setTimeout(hideSeqBtn, 6000);
+}
+function hideSeqBtn(){ const b=document.getElementById('seqBtn'); if(b) b.classList.remove('show'); clearTimeout(seqHideTimer); }
+function fillAsSequence(){
+  const f=lastFill; if(!f){ hideSeqBtn(); return; }
+  const srcStr=String(data[f.srcR][f.srcC]).trim();
+  const srcFmt=cellDateFmt(f.srcR,f.srcC);
+  const cells=[];
+  for(let step=1;step<=f.steps;step++){ const r=f.srcR+f.dr*step, c=f.srcC+f.dc*step; if(r<0||r>=ROWS||c<0||c>=COLS)break; cells.push([r,c,step]); }
+  if(/^-?\d+(\.\d+)?$/.test(srcStr)){
+    const base=Number(srcStr);
+    cells.forEach(([r,c,step])=>{ if(isLockedCell(r,c))return; setCellVal(r,c,String(base+step)); if(srcFmt){ (cellStyles[`${r},${c}`]=cellStyles[`${r},${c}`]||{}).dfmt=srcFmt; repaintCell(r,c); } });
+  } else {
+    const m=/^(.*?)(\d+)$/.exec(srcStr); if(!m){ hideSeqBtn(); return; }
+    const prefix=m[1], base=parseInt(m[2],10), width=m[2].length;
+    cells.forEach(([r,c,step])=>{ if(isLockedCell(r,c))return; let n=String(base+step); if(n.length<width)n=n.padStart(width,'0'); setCellVal(r,c, prefix+n); });
+  }
+  if(srcFmt) persistModes();
+  hideSeqBtn();
 }
 document.getElementById('sheet').addEventListener('touchstart',e=>{
   const td=e.target.closest&&e.target.closest('.cell'); if(!td) return;
@@ -8217,6 +8314,7 @@ setSettingsTab(Math.min(3,Math.max(0,parseInt(localStorage.getItem('excalc_setti
 attachSettingsSwipe();
 loadTopBtnHidden(); applyTopBtnHidden();   // 上のバーのボタンの表示/非表示を復元
 setEnterDir(enterMoveDir);                 // Enterで進む向きを復元
+{ const stb=document.getElementById('sheetTabsBtn'); if(stb) stb.classList.toggle('on', showSheetTabs); }
 if(localStorage.getItem('excalc_trigmode')==='rad') trigMode='rad';
 applyTrigModeBtn();
 restoreSheetSizes();
