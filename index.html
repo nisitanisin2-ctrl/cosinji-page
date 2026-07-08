@@ -1652,31 +1652,31 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="btn op" data-key="fp_eq"    onclick="fkey('=')">=</button>
     </div>
     <div class="numpad-grid numpad-overlay ov-right ov-lv2" id="numpadPageSci">
-    <!-- 関数電卓ページ（関数・記号ページからさらに左フリックで表示）。三角関数・log・べき乗などを数式に挿入する -->
-    <button class="btn fx" onclick="fkey('SIN(')">SIN(</button>
-    <button class="btn fx" onclick="fkey('COS(')">COS(</button>
-    <button class="btn fx" onclick="fkey('TAN(')">TAN(</button>
-    <button class="btn op" id="trigModeBtn" onclick="toggleTrigMode()" title="三角関数の角度単位（度数法/弧度法）を切替">DEG</button>
-    <button class="btn clr" onclick="bs()">⌫</button>
-    <button class="btn fx" onclick="fkey('ASIN(')">ASIN(</button>
-    <button class="btn fx" onclick="fkey('ACOS(')">ACOS(</button>
-    <button class="btn fx" onclick="fkey('ATAN(')">ATAN(</button>
-    <button class="btn op" onclick="fkey('^')">^</button>
-    <button class="btn enter" onclick="eq()">Enter</button>
-    <button class="btn fx" onclick="fkey('LOG(')">LOG(</button>
-    <button class="btn fx" onclick="fkey('LN(')">LN(</button>
-    <button class="btn fx" onclick="fkey('EXP(')">EXP(</button>
-    <button class="btn fx" onclick="fkey('SQRT(')">√(</button>
-    <button class="btn op" onclick="fkey('PI')">π</button>
-    <button class="btn op" onclick="fkey('E')">e</button>
-    <button class="btn op" onclick="fkey('!')">n!</button>
-    <button class="btn op" onclick="fkey('^2')">x²</button>
-    <button class="btn op" onclick="fkey('(')">(</button>
-    <button class="btn fx" onclick="fkey('1/(')">1/(</button>
-    <button class="btn fx" onclick="fkey('MOD(')">MOD(</button>
-    <button class="btn op" onclick="fkey(')')">)</button>
-    <button class="btn op" onclick="fkey(',')">,</button>
-    <button class="btn op" onclick="fkey('=')">=</button>
+    <!-- 関数電卓ページ（関数・記号ページからさらに左フリックで表示）。三角関数・log・べき乗などを数式に挿入する。data-keyで長押し割り当てに対応 -->
+    <button class="btn fx" data-key="sc_sin" onclick="fkey('SIN(')">SIN(</button>
+    <button class="btn fx" data-key="sc_cos" onclick="fkey('COS(')">COS(</button>
+    <button class="btn fx" data-key="sc_tan" onclick="fkey('TAN(')">TAN(</button>
+    <button class="btn op" data-key="sc_deg" id="trigModeBtn" onclick="toggleTrigMode()" title="三角関数の角度単位（度数法/弧度法）を切替">DEG</button>
+    <button class="btn clr" data-key="sc_bs" onclick="bs()">⌫</button>
+    <button class="btn fx" data-key="sc_asin" onclick="fkey('ASIN(')">ASIN(</button>
+    <button class="btn fx" data-key="sc_acos" onclick="fkey('ACOS(')">ACOS(</button>
+    <button class="btn fx" data-key="sc_atan" onclick="fkey('ATAN(')">ATAN(</button>
+    <button class="btn op" data-key="sc_pow" onclick="fkey('^')">^</button>
+    <button class="btn enter" data-key="sc_enter" onclick="eq()">Enter</button>
+    <button class="btn fx" data-key="sc_log" onclick="fkey('LOG(')">LOG(</button>
+    <button class="btn fx" data-key="sc_ln" onclick="fkey('LN(')">LN(</button>
+    <button class="btn fx" data-key="sc_exp" onclick="fkey('EXP(')">EXP(</button>
+    <button class="btn fx" data-key="sc_sqrt" onclick="fkey('SQRT(')">√(</button>
+    <button class="btn op" data-key="sc_pi" onclick="fkey('PI')">π</button>
+    <button class="btn op" data-key="sc_e" onclick="fkey('E')">e</button>
+    <button class="btn op" data-key="sc_fact" onclick="fkey('!')">n!</button>
+    <button class="btn op" data-key="sc_sq" onclick="fkey('^2')">x²</button>
+    <button class="btn op" data-key="sc_lp" onclick="fkey('(')">(</button>
+    <button class="btn fx" data-key="sc_inv" onclick="fkey('1/(')">1/(</button>
+    <button class="btn fx" data-key="sc_mod" onclick="fkey('MOD(')">MOD(</button>
+    <button class="btn op" data-key="sc_rp" onclick="fkey(')')">)</button>
+    <button class="btn op" data-key="sc_comma" onclick="fkey(',')">,</button>
+    <button class="btn op" data-key="sc_eq" onclick="fkey('=')">=</button>
     </div>
     <div class="numpad-grid numpad-overlay ov-down numpad-regpage" id="numpadPageReg" title="長押しで文字・数字を登録／タップで入力">
     <!-- 登録ページ（数字ページ＝標準の下。数字ページの右側ゾーンを上向きにフリックで表示）。長押しで登録・タップで入力 -->
@@ -1952,7 +1952,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
           <br>・<b>関数・記号ページをさらに左へフリック＝関数電卓ページが表示</b>…SIN・COS・TAN・ASIN・ACOS・ATAN・LOG・LN・EXP・π・e・n!（階乗）・x²・^（べき乗）・1/(・MOD( などを数式に挿入。<b>DEG/RAD</b>ボタンで三角関数の角度単位（度数法⇄弧度法）を切替できます。<b>右へフリック</b>すると関数・記号ページに戻ります。
           <br>・<b>数字ページを上へフリック＝登録ページが重なって表示</b>…紫のボタンを<b>長押し</b>すると登録画面が開きます。基本は<b>文字・数字を入力して「登録」</b>するだけ（よく使う文字・数字を登録、数値の途中でタップすると連結。例：100→「円」で100円）。<b>「🔧 便利機能から選ぶ（オプション）」</b>を開くと、<b>「Enter」「1文字削除」「戻る」「進む」「保存」「リスト」「リセット」「CSV出力」「CSV読込」「ナイト」「モード」</b>などの便利機能も選んで登録できます。登録後は<b>タップ</b>で入力／実行（未登録の「＋」はタップでも登録画面が開きます）。登録画面の<b>「🔀 このボタンを別の場所へ移動」</b>を押すと、移動先のボタンをタップして位置を入れ替えできます。登録は保存されます。<b>どのボタンの上でも下へフリック</b>すると数字ページに戻ります。</div>
         <div class="help-li">テンキー上端（横向きは左端）の<b>バーをドラッグ</b>すると大きさ（横向きは幅）を変更できます。<b>端までドラッグするとテンキーが消え</b>、もう一度バーをつかんで戻すと再び表示されます。設定の<b>「🔧 テンキーのボタン配置を編集」</b>で各ボタンの位置も入れ替えできます。</div>
-        <div class="help-li">数字ページ・関数記号ページの<b>ボタンを長押し</b>すると「ボタンの割り当て」が開き、そのボタンを<b>別のキーや設定の機能</b>（保存・リスト・PDF出力・CSV・ナイトモード・テンプレなど）に変更できます。「↺ 元のボタンに戻す」でいつでも戻せます（Σボタンは長押しに合計/平均の切替があるため対象外）。</div>
+        <div class="help-li">数字ページ・関数記号ページ・関数電卓ページ（左に2回フリック）の<b>ボタンを長押し</b>すると「ボタンの割り当て」が開き、そのボタンを<b>別のキーや設定の機能</b>（保存・リスト・PDF出力・CSV・ナイトモード・テンプレなど）に変更できます。「↺ 元のボタンに戻す」でいつでも戻せます（Σボタンは長押しに合計/平均の切替があるため対象外）。</div>
       </div>
 
       <div class="help-sec">
@@ -4358,7 +4358,7 @@ window.addEventListener('resize', applyNumpadCollapse);
 })();
 
 /* ── テンキーのボタン割り当て（ボタン長押しで別の機能に変更） ──
-   数字・記号ページ(data-key付き)のボタンを長押しするとピッカーが開き、
+   数字・記号・関数電卓ページ(data-key付き)のボタンを長押しするとピッカーが開き、
    標準キー・記号・設定の各機能から選んで、そのボタンに割り当てられる。 */
 const KEY_FUNCS={
   /* 標準キー */
@@ -4412,7 +4412,7 @@ let kaReady=false;   // ピッカー表示後、新しく押し直すまで項�
 function loadKeyAssign(){ try{ keyAssign=JSON.parse(localStorage.getItem('excalc_key_assign')||'{}'); }catch(_){ keyAssign={}; } }
 function saveKeyAssign(){ localStorage.setItem('excalc_key_assign', JSON.stringify(keyAssign)); }
 function applyKeyAssign(){
-  document.querySelectorAll('#numpadPage1 .btn[data-key], #numpadPage2 .btn[data-key]').forEach(b=>{
+  document.querySelectorAll('#numpadPage1 .btn[data-key], #numpadPage2 .btn[data-key], #numpadPageSci .btn[data-key]').forEach(b=>{
     if(!('origLabel' in b.dataset)) b.dataset.origLabel=b.textContent;
     const fid=keyAssign[b.dataset.key];
     if(fid && KEY_FUNCS[fid]){ b.textContent=KEY_FUNCS[fid].label; b.classList.add('key-assigned'); }
@@ -4451,7 +4451,7 @@ function pickKeyAssign(fid){
   vp.addEventListener('pointerdown', e=>{
     if(e.button!==undefined && e.button>0) return;
     if(keypadEditing) return;
-    const b=e.target.closest&&e.target.closest('#numpadPage1 .btn[data-key], #numpadPage2 .btn[data-key]');
+    const b=e.target.closest&&e.target.closest('#numpadPage1 .btn[data-key], #numpadPage2 .btn[data-key], #numpadPageSci .btn[data-key]');
     if(!b || b.dataset.key==='sum') return;   // Σは長押し＝合計/平均メニューが既にあるため除外
     sx=e.clientX; sy=e.clientY; clearTimeout(timer);
     timer=setTimeout(()=>{ timer=null; kaSuppress=true; if(navigator.vibrate){try{navigator.vibrate(25);}catch(_){}} openKeyAssign(b.dataset.key); }, 600);
