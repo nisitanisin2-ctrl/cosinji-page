@@ -4295,8 +4295,13 @@ function applyKeySize() {
   fitNumpadLabels();
 }
 /* テンキー各ボタンの文字を、枠幅に収まるよう自動縮小（折り返し防止） */
-function fitNumpadLabels() {
-  const btns=document.querySelectorAll('.numpad-grid .btn');
+function fitNumpadLabels(root) {
+  // root を渡すとそのページ内のボタンだけを対象にする（ドラッグ中の負荷軽減）。
+  // 省略時は全ページ（全テンキーページ）のボタンをまとめて調整。
+  // root は文字列セレクタか要素のみ受け付ける（resize/load リスナーが渡す Event は無視）
+  const scope = (typeof root==='string') ? document.querySelector(root)
+              : (root && typeof root.querySelectorAll==='function') ? root : null;
+  const btns = scope ? scope.querySelectorAll('.btn') : document.querySelectorAll('.numpad-grid .btn');
   // まず CSS 基準サイズに戻してから測定（再フィット時に拡大も効くように）
   btns.forEach(b=>{ b.style.fontSize=''; });
   btns.forEach(b=>{
@@ -4352,9 +4357,9 @@ window.addEventListener('resize', applyNumpadCollapse);
   /* 横向き：テンキー領域の幅(px)を設定・保存（バーの幅18pxまで縮小可＝実質消える／画面の75%まで） */
   const LABEL_HIDE_W=120;   // この幅より狭くしたらボタンの表記を消す（軽くする）
   let fitRAF=0;
-  function fitNumpadLabelsThrottled(){   // ドラッグ中は1フレームに1回だけ文字合わせ
+  function fitNumpadLabelsThrottled(){   // ドラッグ中は1フレームに1回、かつ見えているページ(標準)だけ文字合わせ（全ページだと重い）
     if(fitRAF) return;
-    fitRAF=requestAnimationFrame(()=>{ fitRAF=0; fitNumpadLabels(); });
+    fitRAF=requestAnimationFrame(()=>{ fitRAF=0; fitNumpadLabels('#numpadPage1'); });
   }
   function setLandWidth(px){
     px=Math.min(Math.round(window.innerWidth*0.75), Math.max(18, Math.round(px)));
