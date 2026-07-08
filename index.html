@@ -419,13 +419,23 @@ body.dark #cellRef.locked-ref { background: #3a1f1c; color: #f0a5a0; border-colo
 /* ピック中の案内バー（画面上部固定） */
 .pick-banner {
   display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 60;
-  background: #1e88e5; color: #fff; padding: calc(8px + env(safe-area-inset-top)) 12px 8px;
-  font-size: 14px; font-weight: bold; align-items: center; justify-content: space-between; gap: 10px;
+  background: #1e88e5; color: #fff; padding: calc(8px + env(safe-area-inset-top)) 10px 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  flex-direction: column; gap: 6px;
 }
 .pick-banner.show { display: flex; }
+.pick-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; font-weight: bold; }
 .pick-cancel { background: rgba(255,255,255,0.25); color: #fff; border: 1px solid rgba(255,255,255,0.5);
   border-radius: 6px; padding: 6px 12px; font-size: 13px; font-weight: bold; cursor: pointer; flex-shrink: 0; }
+.pick-sheets { display: flex; gap: 5px; overflow-x: auto; scrollbar-width: none; align-items: center; }
+.pick-sheets::-webkit-scrollbar { display: none; }
+.pick-sheets-label { font-size: 12px; opacity: 0.9; flex-shrink: 0; }
+.pick-sheet-btn {
+  flex-shrink: 0; background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.5);
+  border-radius: 5px; padding: 5px 10px; font-size: 12.5px; font-weight: bold; white-space: nowrap;
+  cursor: pointer; touch-action: manipulation;
+}
+.pick-sheet-btn.cur { background: #fff; color: #1565c0; }
 #formulaInput.formula-mode {
   background: #fffde7;
   border-color: #217346;
@@ -1963,8 +1973,11 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 
 <!-- セル/範囲を指でタップして選ぶときの案内バー（照合ビルダーのピック中に表示） -->
 <div class="pick-banner" id="pickBanner">
-  <span id="pickBannerMsg">セルを選んでください</span>
-  <button class="pick-cancel" onclick="lookupPickCancel()">やめる</button>
+  <div class="pick-top">
+    <span id="pickBannerMsg">セルを選んでください</span>
+    <button class="pick-cancel" onclick="lookupPickCancel()">やめる</button>
+  </div>
+  <div class="pick-sheets" id="pickSheets"></div>
 </div>
 
 <!-- 🔍照合ビルダー：VLOOKUP／XLOOKUP をボタンと入力で作る -->
@@ -7004,16 +7017,39 @@ function lookupPickStart(field, needRange){
   closeLookupDlg();
   showPickBanner(needRange ? '表の左上のセルをタップ（範囲の始め）' : '「探す値」のセルをタップ');
 }
-function showPickBanner(msg){ document.getElementById('pickBannerMsg').textContent=msg; document.getElementById('pickBanner').classList.add('show'); }
+function showPickBanner(msg){ document.getElementById('pickBannerMsg').textContent=msg; document.getElementById('pickBanner').classList.add('show'); renderPickSheets(); }
 function hidePickBanner(){ document.getElementById('pickBanner').classList.remove('show'); }
+/* ピック中：バーにシート切替ボタンを出す（別シートの表も選べるように） */
+function renderPickSheets(){
+  const box=document.getElementById('pickSheets'); if(!box) return;
+  box.innerHTML='';
+  if(typeof sheets==='undefined' || !Array.isArray(sheets) || sheets.length<=1){ box.style.display='none'; return; }
+  box.style.display='flex';
+  const label=document.createElement('span'); label.className='pick-sheets-label'; label.textContent='シート:';
+  box.appendChild(label);
+  sheets.forEach((s,i)=>{
+    const b=document.createElement('button');
+    b.className='pick-sheet-btn'+(i===curSheet?' cur':'');
+    b.textContent=s.name;
+    b.onclick=()=>lookupPickSwitchSheet(i);
+    box.appendChild(b);
+  });
+}
+function lookupPickSwitchSheet(idx){
+  if(!lookupPick || idx===curSheet) return;
+  if(typeof switchSheet==='function') switchSheet(idx);
+  lookupPick.stage=0; lookupPick.r1=-1; lookupPick.c1=-1;   // シートをまたぐ範囲は不可→そのシートで選び直し
+  showPickBanner(lookupPick.needRange ? '表の左上のセルをタップ（範囲の始め）' : '「探す値」のセルをタップ');
+}
 function lookupPickCancel(){ lookupPick=null; hidePickBanner(); openLookupDlg(true); }
 function lkColLetter(c){ return (typeof xlColLetter==='function')?xlColLetter(c):String.fromCharCode(65+c); }
 /* セルタップ時にピック処理。false を返したら通常のセル操作はしない */
 function lookupPickTapCell(r,c){
   if(!lookupPick) return true;
-  if(!lookupPick.needRange){ lookupPickFinish(r,c,r,c); return false; }
+  const cs=(typeof curSheet==='number'?curSheet:0);
+  if(!lookupPick.needRange){ lookupPick.sheetIdx=cs; lookupPickFinish(r,c,r,c); return false; }
   if(lookupPick.stage===0){
-    lookupPick.r1=r; lookupPick.c1=c; lookupPick.sheetIdx=(typeof curSheet==='number'?curSheet:0); lookupPick.stage=1;
+    lookupPick.r1=r; lookupPick.c1=c; lookupPick.sheetIdx=cs; lookupPick.stage=1;
     if(typeof clearRangeSelection==='function') clearRangeSelection();
     if(typeof sel==='function') sel(r,c);
     showPickBanner('右下のセルをタップ（1マスなら同じ所）'); return false;
