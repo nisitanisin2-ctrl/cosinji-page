@@ -121,7 +121,13 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
   .toolbar { padding-top: 5px; }
   .left-pane { padding-left: env(safe-area-inset-left); }
   /* 横向きは元々vhが小さいため、基本ルールのmax-height指定だけで収まる（別指定は不要） */
+  /* テンキーを閉じたとき：横向きは display:none にせず、列を端(18px)まで詰めてバーだけ残す
+     （display:none だと var(--numpad-w) の列が空いたまま残ってしまうため） */
+  body.numpad-off { grid-template-columns: 1fr 18px; }
+  body.numpad-off .numpad-section { display: flex !important; overflow: hidden; }
 }
+/* テンキーを閉じた状態：既定（縦向きなど）はテンキー領域ごと非表示 */
+body.numpad-off .numpad-section { display: none; }
 
 .toolbar {
   background: #217346;
@@ -4980,7 +4986,8 @@ function changeAppWidth(delta) {
 /* ── テンキー表示／非表示 ── */
 let numpadHidden=false;
 function applyNumpad() {
-  document.getElementById('numpadSection').style.display = numpadHidden?'none':'';
+  document.getElementById('numpadSection').style.display='';   // インラインdisplayは使わずクラスで制御（横向きは列を詰める・縦向きは非表示）
+  document.body.classList.toggle('numpad-off', numpadHidden);
   const b=document.getElementById('numpadToggleBtn');
   if (b) b.textContent = numpadHidden?'⌨ テンキー表示':'⌨ テンキー非表示';
   localStorage.setItem('excalc_numpad_hidden', numpadHidden?'1':'0');
@@ -7259,7 +7266,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v155';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v156';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
