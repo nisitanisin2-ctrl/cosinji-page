@@ -788,6 +788,13 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 .btn.enter:hover { background: #1f618d; }
 .btn.span2  { grid-column: span 2; }
 .btn.bd-on  { box-shadow: inset 0 0 0 2.5px #f1c40f; }   /* 枠線ページ：選択中の線種・色 */
+/* 枠線の場所ボタン：Excelの罫線アイコン風（点線のセル格子＋引く辺を実線で表示） */
+.bd-ico { width: 1.7em; height: 1.7em; display: block; margin: 0 auto; pointer-events: none; }
+.bd-ico .d { stroke: currentColor; stroke-opacity: 0.35; stroke-width: 1.4; stroke-dasharray: 2 1.7; fill: none; }
+.bd-ico .s { stroke: currentColor; stroke-width: 2.4; fill: none; stroke-linecap: square; }
+.btn.bd-place { display: flex; align-items: center; justify-content: center; }
+.btn.bd-place.bd-wide { gap: 0.4em; }
+.btn.bd-place.bd-wide .bd-ico { margin: 0; }
 /* セル書式ページの色の列：横スクロール（1画面に5個表示、続きはスライドで） */
 .kf-scroll {
   grid-column: 1 / -1;
@@ -1553,12 +1560,12 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="btn bd-color" data-key="bd_blue" style="color:#82b1ff" onclick="bdSetColor('#1e88e5',this)" title="青い線">青</button>
     <button class="btn bd-color" data-key="bd_green" style="color:#b9f6ca" onclick="bdSetColor('#2e7d32',this)" title="緑の線">緑</button>
     <button class="btn bd-color" data-key="bd_purple" style="color:#ea80fc" onclick="bdSetColor('#8e24aa',this)" title="紫の線">紫</button>
-    <button class="btn op" data-key="bd_top" onclick="bdApply('top')" title="範囲の上側に線">上</button>
-    <button class="btn op" data-key="bd_bottom" onclick="bdApply('bottom')" title="範囲の下側に線（下線）">下</button>
-    <button class="btn op" data-key="bd_left" onclick="bdApply('left')" title="範囲の左側に線">左</button>
-    <button class="btn op" data-key="bd_right" onclick="bdApply('right')" title="範囲の右側に線">右</button>
-    <button class="btn op" data-key="bd_grid" onclick="bdApply('grid')" title="全セルの全部の辺に線">格子</button>
-    <button class="btn fx" data-key="bd_box" style="grid-column:1/-1" onclick="bdApply('box')" title="選択範囲のまわりを囲む">⬜ 選択範囲を囲む（外わく）</button>
+    <button class="btn op bd-place" data-key="bd_top" onclick="bdApply('top')" title="上罫線（範囲の上側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 4H20"/></svg></button>
+    <button class="btn op bd-place" data-key="bd_bottom" onclick="bdApply('bottom')" title="下罫線（範囲の下側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 20H20"/></svg></button>
+    <button class="btn op bd-place" data-key="bd_left" onclick="bdApply('left')" title="左罫線（範囲の左側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 4V20"/></svg></button>
+    <button class="btn op bd-place" data-key="bd_right" onclick="bdApply('right')" title="右罫線（範囲の右側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M20 4V20"/></svg></button>
+    <button class="btn op bd-place" data-key="bd_grid" onclick="bdApply('grid')" title="格子（全セルの全部の辺に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="s" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/></svg></button>
+    <button class="btn fx bd-place bd-wide" data-key="bd_box" style="grid-column:1/-1" onclick="bdApply('box')" title="外枠（選択範囲のまわりを囲む）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 12H20M12 4V20"/><path class="s" d="M4 4H20M4 20H20M4 4V20M20 4V20"/></svg>囲む</button>
     </div>
     <div class="numpad-grid numpad-overlay ov-left" id="numpadPageFmt">
     <!-- セル書式ページ（数字ページから右フリックで表示）。選択中のセル（スライドで範囲選択していれば範囲全体）の書式を変える -->
@@ -7157,7 +7164,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v152';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v153';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
