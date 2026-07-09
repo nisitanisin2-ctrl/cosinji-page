@@ -1065,6 +1065,8 @@ body.mode-reordering .mode-item { touch-action: none; }
 }
 body.dark .help-h { color: #6cc492; border-color: #3a7a55; }
 .help-p { font-size: 12.5px; line-height: 1.65; color: var(--text); margin-bottom: 4px; }
+.help-ver { text-align: center; font-size: 11px; color: #999; margin-top: 14px; padding-top: 8px; border-top: 1px solid var(--cell-border); }
+body.dark .help-ver { color: #7a7a90; }
 .help-p b { color: #1a7a45; }
 body.dark .help-p b { color: #8fd4ab; }
 .help-li {
@@ -2091,6 +2093,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><b>🖨 PDF出力（印刷）</b>（設定の「データ」タブ）：印刷画面の前に<b>PDF設定ダイアログ</b>が開き、タイトル・日時・ヘッダー・フッター・用紙の向き・<b>拡大縮小（横フィット／縦フィット／倍率）・1ページに収める</b>・上下左右の余白・表の配置・文字サイズ（セル／タイトル／ヘッダー・フッター）・枠線を指定できます。上部の<b>プレビュー</b>は設定を変えるとその場で反映され、複数ページになるときは<b>プレビューを横にフリック</b>すると2ページ目以降も確認できます。「印刷／PDFに保存」を押すと印刷画面が開くので、印刷先で<b>「PDFに保存」</b>を選べばPDFとして書き出せます。設定内容は次回も引き継がれます。iPhoneで用紙の向きが変わらない場合は、印刷画面のオプションで向きを選んでください。</div>
         <div class="help-li"><b>🌙</b>：ダークモード切替　<b>リセット</b>：今のモードの内容を消去</div>
       </div>
+
+      <div class="help-ver" id="helpVer"></div>
     </div>
   </div>
 </div>
@@ -7153,7 +7157,12 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-function openHelp(){ document.getElementById('helpOverlay').classList.add('open'); }
+const APP_VERSION='v152';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+function openHelp(){
+  const ver=document.getElementById('helpVer');
+  if(ver) ver.textContent='バージョン '+APP_VERSION;
+  document.getElementById('helpOverlay').classList.add('open');
+}
 function closeHelp(){ document.getElementById('helpOverlay').classList.remove('open'); }
 
 /* 数字として消去対象になるセルか（文字・数式・空は残す） */
