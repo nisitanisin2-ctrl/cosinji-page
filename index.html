@@ -2129,6 +2129,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <div class="help-sec">
         <div class="help-h">💾 保存・その他（上部メニュー）</div>
         <div class="help-li"><b>保存</b>：名前を付けて保存　<b>リスト</b>：保存データを開く</div>
+        <div class="help-li"><b>上書き保存</b>：リストから読み込んだ記録（または直前に保存した記録）があるときに<b>「保存」</b>を押すと、<b>「◯◯に上書き保存しますか？」</b>と確認が出ます。<b>OK</b>で同じ記録に上書き、<b>キャンセル</b>で新しい名前を付けて別に保存します（🔒ロック中の記録は上書きされず、新規保存になります）。</div>
         <div class="help-li">保存したときの<b>モードも一緒に記録</b>され、読み込むとそのモード（単位水量など）で再現します。リストの各データにはモードのバッジが表示されます。</div>
         <div class="help-li">リストの上に<b>🗂記録／📌タブ1／📌タブ2／🔀モード</b>の4つのタブがあります。保存した記録はまず<b>「記録」</b>タブに入り、各データの<b>タブ選択欄</b>でよく呼び出したい記録を<b>タブ1・タブ2</b>に振り分けて整理できます。タブは<b>長押し</b>で名前を変更できます（例：「現場A」「経理」）。</div>
         <div class="help-li"><b>「モードへ」</b>で記録をモードに登録すると、その記録は自動で<b>「モード」タブ</b>へ移動し、誤って削除・改名・タブ移動できないよう<b>保護</b>されます（🔒ロックと同じ状態。手動での「モード」タブへの振り分けはできません）。</div>
@@ -7281,7 +7282,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v158';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v159';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -8182,6 +8183,7 @@ function sumPointerUp(e){
 /* ── 保存・ロード ── */
 const SAVE_KEY='excalc_saves';
 function getSaves(){try{return JSON.parse(localStorage.getItem(SAVE_KEY)||'[]');}catch{return[];}}
+let currentSaveId=null;   // リストから読込／新規保存した記録のid（保存時に上書き先の候補にする）
 
 /* 保存データを永続化する共通関数。
    localStorage に書くのは従来通り（ブラウザ版・即時の作業用）。
@@ -8236,25 +8238,42 @@ function appPrompt(message, defaultValue=''){
 }
 
 async function saveData() {
-  const defaultName=new Date().toLocaleString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
-  const name=await appPrompt('保存名を入力してください',defaultName);
-  if(name===null) return;
   // 全シートも一緒に保存（開いているシートの最新状態を取り込んでから複製）
   let sheetsSnap, curSnap=0;
   if(typeof sheets!=='undefined' && Array.isArray(sheets) && sheets.length){
     if(sheets[curSheet]) Object.assign(sheets[curSheet], captureCurrentSheet());
     try{ sheetsSnap=JSON.parse(JSON.stringify(sheets)); curSnap=(typeof curSheet==='number')?curSheet:0; }catch(_){ sheetsSnap=undefined; }
   }
+  const btn=document.getElementById('saveBtn');
   const saves=getSaves();
+  // リストから読込／保存済みの記録があれば「上書き保存」を先に提案（ロック中は除く）
+  const cur=(currentSaveId!=null)?saves.find(s=>s.id===currentSaveId):null;
+  if(cur && !cur.locked){
+    if(confirm(`「${cur.name}」に上書き保存しますか？\n［キャンセル］を押すと新しい名前を付けて保存します。`)){
+      Object.assign(cur, {
+        timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces, mode:tableMode,
+        data:data.map(row=>[...row]), styles:{...cellStyles},
+        sheets:sheetsSnap, cur:curSnap
+      });
+      persistSaves(saves);
+      if(btn){ btn.textContent='✓ 上書き'; setTimeout(()=>{btn.textContent='保存';},1200); }
+      return;
+    }
+  }
+  // 新規保存
+  const defaultName=new Date().toLocaleString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const name=await appPrompt('保存名を入力してください', cur?cur.name:defaultName);
+  if(name===null) return;
+  const id=Date.now();
   saves.unshift({
-    id:Date.now(), name:name.trim()||defaultName,
+    id, name:name.trim()||defaultName,
     timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces, mode:tableMode,
     data:data.map(row=>[...row]), styles:{...cellStyles}, tab:0,
     sheets:sheetsSnap, cur:curSnap          // 全シート情報（無い古い保存もあるので任意）
   });
   persistSaves(saves);
-  const btn=document.getElementById('saveBtn');
-  btn.textContent='✓ 保存済'; setTimeout(()=>{btn.textContent='保存';},1200);
+  currentSaveId=id;                          // 以後この記録に上書きできるようにする
+  if(btn){ btn.textContent='✓ 保存済'; setTimeout(()=>{btn.textContent='保存';},1200); }
 }
 
 /* 保存データ一覧のタブ（0=記録／1=タブ1／2=タブ2）。保存した記録はまず0（記録）に入り、
@@ -8443,6 +8462,7 @@ function loadSave(id) {
   const saves=getSaves();
   const entry=saves.find(s=>s.id===id); if(!entry) return;
   if(!confirm(`「${entry.name}」を読み込みますか？\n現在のデータは上書きされます。`)) return;
+  currentSaveId=id;   // 以後「保存」でこの記録に上書きできるようにする
   // 全シートが保存されていれば、シートごと復元する
   if(Array.isArray(entry.sheets) && entry.sheets.length && typeof sheets!=='undefined'){
     const restored=entry.sheets.map((s,i)=>({ name:(s&&s.name)||('シート'+(i+1)), store:(s&&s.store)||{}, colWidths:(s&&s.colWidths)||{}, rowHeights:(s&&s.rowHeights)||{} }));
