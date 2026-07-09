@@ -2073,6 +2073,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><b>=SUM(A1:A5)</b> 合計　<b>=AVERAGE(A1:A5)</b> 平均</div>
         <div class="help-li">他に MAX・MIN・COUNT・ABS・SQRT・ROUND・IF が使えます。</div>
         <div class="help-li"><b>シート間の連携</b>：他のシートのセルは <b>=シート名!A1</b>（例 <b>=商品!C2</b>）で参照できます。足し算や関数の範囲（例 <b>=SUM(商品!A1:A5)</b>）にも使えます。</div>
+        <div class="help-li"><b>シートはモード毎に別々</b>：シートのタブ一式は<b>モード毎に独立</b>しています。モードを切り替えると、そのモード専用のタブ一式に入れ替わります（例：単位水量モードでは本体・配合登録・エアメータ登録が表示され、通常モードに戻ると通常モードのシートが表示されます）。保存・読込ではすべてのモードのシートがまとめて保存・復元されます。</div>
         <div class="help-li"><b>🔍照合</b>（テンキーのボタンを長押しして割り当て可能）を押すと、<b>VLOOKUP／XLOOKUP を画面の案内どおりに作れます</b>。表の範囲や探す値は<b>「セルを選ぶ／範囲を選ぶ」→ 表を指でタップ</b>して指定でき、手で式を打たなくても作れます（他のシートの表も、そのシートに切り替えて選べます）。</div>
         <div class="help-li"><b>=VLOOKUP(探す値, 範囲, 何列目, 0)</b>：範囲の左端から値を探し、その行の指定列を返します（末尾の <b>0</b> で完全一致）。例 <b>=VLOOKUP(A1, 商品!A2:C9, 2, 0)</b></div>
         <div class="help-li"><b>=XLOOKUP(探す値, 検索範囲, 戻す範囲, "見つからない時")</b>：検索範囲で値を探し、対応する戻す範囲の値を返します。文字も返せます。</div>
@@ -6133,6 +6134,7 @@ function applyTemplateObj(t, closeFn){
   sel(firstInput>=0?firstInput:0, 1);
   updateModeButton();
   persistModes();
+  if(typeof saveSheets==='function') saveSheets();   // テンプレ内容を今のシートに反映
   toast(`「${t.name}」を読み込みました。黄色のセルに値を入れてください`);
 }
 
@@ -6756,33 +6758,28 @@ function normalizeStructLayout(){
 }
 
 function switchMode(target){
-  if(target===tableMode) return;
+  if(target===workspaceMode) return;
   const curCustom=findCustomMode(tableMode);
   if(curCustom){ curCustom.rows=ROWS; persistCustomModes(); }   // 登録モードは行数も記憶
-  captureMode(tableMode);                 // いま開いているモードを保存
-  tableMode=target;
-  document.body.classList.toggle('simple-mode', target==='simple');
-  if(isStructMode()) showModeBar(); else hideAllBars();
-  if(modeStates[target]){                  // 保存済みなら内容を復元
-    loadData(modeStates[target].data);
-    COLS=modeStates[target].cols;
-    cellStyles=modeStates[target].styles?{...modeStates[target].styles}:{};
-  } else {                                 // 初回は新規作成
-    initFreshMode(target);
-  }
-  const tgtCustom=findCustomMode(target);   // 登録モードは保存時の行数を復元
-  if(tgtCustom && tgtCustom.rows){ ROWS=Math.max(1,Math.min(MAXROWS,tgtCustom.rows)); localStorage.setItem('excalc_rows',ROWS); }
+  // いまのワークスペース（モード）のシート一式を退避
+  if(sheets[curSheet]) Object.assign(sheets[curSheet], captureCurrentSheet());
+  modeSheets[workspaceMode]={ sheets, cur:curSheet };
+  activateModeSheetSet(target);                      // target のシート一式へ（無ければ新規1枚。登録モードはテンプレートから）
+  document.body.classList.toggle('simple-mode', tableMode==='simple');
   normalizeStructLayout();
+  if(isStructMode()) showModeBar(); else hideAllBars();
   syncRowColLabels();
   buildSheet();
   if(tableMode==='tanisuiryou') sel(1,1); else sel(initCellOfMode(),0);   // 単位水量は最初の入力欄へ
   updateModeButton();
+  renderSheetBar();
   persistModes();
+  saveSheets();
 }
 function updateModeButton(){
   const btn=document.getElementById('shoppingBtn');
-  btn.textContent=modeButtonLabel(tableMode);
-  btn.classList.toggle('shopping-on', tableMode!=='normal');
+  btn.textContent=modeButtonLabel(workspaceMode);
+  btn.classList.toggle('shopping-on', workspaceMode!=='normal');
 }
 
 /* ── 各モードの内容を localStorage に保存／復元（リセットまで保持） ── */
@@ -6824,9 +6821,58 @@ function restoreModeStore(){
    開いているシートは従来どおり excalc_modeStore 等に保存され、
    その他のシートの内容と一覧・現在位置は excalc_sheets に保存する。 */
 const SHEETS_KEY='excalc_sheets';
-let sheets=[];        // [{name, store, colWidths, rowHeights}]
+let sheets=[];        // [{name, store, colWidths, rowHeights}] ＝ 現在のモードのシート一式（modeSheets[tableMode].sheets と同じ参照）
 let curSheet=0;
 let sheetViewOpen=false;
+/* モード毎のシート一式：{ mode: {sheets:[...], cur:index} }。
+   モードを変えると、そのモード専用のシート一式に切り替わる。
+   workspaceMode＝いま表示中のシート一式が属するモード（モードボタンで切替）。
+   個々のシートは自分の tableMode を持ち（例：単位水量の登録シートは普通モード）、
+   タブ切替では workspaceMode は変わらず tableMode だけが変わる。 */
+let modeSheets={};
+let workspaceMode='normal';
+/* 保存データ等から読んだ生オブジェクトを、正しい形のシートに整える */
+function normSheet(s,i){
+  return { name:(s&&s.name)||('シート'+(i+1)), store:(s&&s.store)||{}, colWidths:(s&&s.colWidths)||{}, rowHeights:(s&&s.rowHeights)||{} };
+}
+/* 指定モードの新しいシートを1枚作る（グローバル状態には触れない）。
+   登録モードはテンプレート（modeStates または登録元の保存記録）から中身を入れる。 */
+function freshSheetInMode(name, mode){
+  const cm=(typeof findCustomMode==='function')?findCustomMode(mode):null;
+  if(cm){
+    // 登録モード：テンプレート内容を読む（modeStates → 無ければ登録元の保存記録）
+    let t=modeStates[mode];
+    if(!t || !t.data){ const src=getSaves().find(s=>s.id===cm.sourceId); if(src) t={cols:src.cols||normalCols(), data:src.data, styles:src.styles||{}}; }
+    if(t && t.data){
+      const rows=Math.max(1,Math.min(MAXROWS, cm.rows||getDefaultRows()));
+      let d; try{ d=JSON.parse(JSON.stringify(t.data)); }catch(_){ d=t.data.map(r=>Array.isArray(r)?r.slice():r); }
+      return { name, store:{ current:mode, rows, warikanPeople:2, states:{ [mode]:{cols:t.cols||normalCols(), data:d, styles:{...(t.styles||{})}} } }, colWidths:{}, rowHeights:{} };
+    }
+  }
+  const blank=[]; for(let r=0;r<MAXROWS;r++){ blank[r]=[]; for(let c=0;c<MAXCOLS;c++) blank[r][c]=''; }
+  let cols=getDefaultCols(), rows=getDefaultRows();
+  if(mode==='simple') cols=2;
+  else if(STRUCT_MODES[mode]){
+    STRUCT_MODES[mode].headers.forEach((h,i)=>{ blank[0][i]=h; });
+    cols=STRUCT_MODES[mode].cols;
+    if(mode==='tanisuiryou') rows=TS_ROWS;
+  }
+  if(cm && cm.rows) rows=Math.max(1,Math.min(MAXROWS,cm.rows));
+  return { name, store:{ current:mode, rows, warikanPeople:2, states:{ [mode]:{cols, data:blank, styles:{}} } }, colWidths:{}, rowHeights:{} };
+}
+/* 指定モードのシート一式をアクティブ（sheets/curSheet）にして画面へ読み込む。
+   一式が無ければ、そのモードの空シートを1枚だけ用意する。 */
+function activateModeSheetSet(mode){
+  workspaceMode=mode;
+  let set=modeSheets[mode];
+  if(!set || !Array.isArray(set.sheets) || !set.sheets.length){
+    set={ sheets:[freshSheetInMode('シート1', mode)], cur:0 };
+    modeSheets[mode]=set;
+  }
+  sheets=set.sheets;
+  curSheet=Math.max(0, Math.min(sheets.length-1, set.cur|0));
+  loadSheetStore(sheets[curSheet]);   // tableMode はそのシートのモードになる
+}
 
 /* いま画面に表示中の表の全状態を1シート分のスナップショットにまとめる */
 function captureCurrentSheet(){
@@ -6871,7 +6917,8 @@ function loadSheetStore(sheet){
 /* シート一覧・現在位置を保存（開いているシートの最新状態も取り込む） */
 function saveSheets(){
   if(sheets[curSheet]) Object.assign(sheets[curSheet], captureCurrentSheet());
-  try{ localStorage.setItem(SHEETS_KEY, JSON.stringify({cur:curSheet, sheets})); }catch(e){}
+  modeSheets[workspaceMode]={ sheets, cur:curSheet };   // 現在のワークスペース（モード）の一式を反映
+  try{ localStorage.setItem(SHEETS_KEY, JSON.stringify({ current:workspaceMode, modes:modeSheets })); }catch(e){}
 }
 
 /* 空の新しいシートを作る */
@@ -6891,15 +6938,33 @@ function nextSheetName(){
 
 /* 起動時：シート一覧を復元。無ければ現在の表を「シート1」として作る */
 function restoreSheets(){
-  restoreModeStore();   // 開いているシートの内容を従来キーからグローバルへ
+  restoreModeStore();   // 開いているシートの内容を従来キーからグローバルへ（tableMode/data を確定）
+  workspaceMode=isValidMode(tableMode)?tableMode:'normal';
   let saved=null; try{ saved=JSON.parse(localStorage.getItem(SHEETS_KEY)||'null'); }catch(e){}
-  if(saved && Array.isArray(saved.sheets) && saved.sheets.length){
-    sheets=saved.sheets.map((s,i)=>({ name:(s&&s.name)||('シート'+(i+1)), store:(s&&s.store)||{}, colWidths:(s&&s.colWidths)||{}, rowHeights:(s&&s.rowHeights)||{} }));
-    curSheet=Math.max(0, Math.min(sheets.length-1, saved.cur|0));
-    Object.assign(sheets[curSheet], captureCurrentSheet());   // 開いているシートは実状態を優先
-  }else{
+  modeSheets={};
+  if(saved && saved.modes && typeof saved.modes==='object'){
+    // 新形式：モード毎のシート一式
+    for(const m in saved.modes){
+      const set=saved.modes[m];
+      if(set && Array.isArray(set.sheets) && set.sheets.length)
+        modeSheets[m]={ sheets:set.sheets.map(normSheet), cur:Math.max(0,Math.min(set.sheets.length-1,set.cur|0)) };
+    }
+    let cur=(saved.current && isValidMode(saved.current))?saved.current:workspaceMode;
+    if(!isValidMode(cur)) cur='normal';
+    activateModeSheetSet(cur);
+    // 現在モードの開いているシートは、restoreModeStoreで読んだ実状態を優先
+    if(sheets[curSheet]) Object.assign(sheets[curSheet], captureCurrentSheet());
+  } else if(saved && Array.isArray(saved.sheets) && saved.sheets.length){
+    // 旧形式（単一のシート一式）：現在モードの一式として移行
+    const arr=saved.sheets.map(normSheet);
+    modeSheets[workspaceMode]={ sheets:arr, cur:Math.max(0,Math.min(arr.length-1,saved.cur|0)) };
+    sheets=arr; curSheet=modeSheets[workspaceMode].cur;
+    Object.assign(sheets[curSheet], captureCurrentSheet());
+  } else {
+    // 何も無い：いまの状態から1枚
     sheets=[Object.assign({name:'シート1'}, captureCurrentSheet())];
     curSheet=0;
+    modeSheets[workspaceMode]={ sheets, cur:0 };
   }
   saveSheets();
   renderSheetBar();
@@ -6925,7 +6990,7 @@ function switchSheet(idx){
 function addSheet(){
   if(sheets.length>=30){ alert('シートはこれ以上ふやせません（最大30）'); return; }
   Object.assign(sheets[curSheet], captureCurrentSheet());   // 今のシートを退避
-  const s=freshSheet(nextSheetName());
+  const s=freshSheetInMode(nextSheetName(), workspaceMode);  // 追加シートは現在のモードで作る
   sheets.push(s);
   curSheet=sheets.length-1;
   loadSheetStore(s);
@@ -7068,7 +7133,7 @@ function modeItemByKey(key){
 
 /* モード選択メニュー */
 function renderModeItem(m, isCustom){
-  const active=m.key===tableMode;
+  const active=m.key===workspaceMode;
   return `
     <div class="mode-item${active?' active':''}" data-key="${m.key}" role="button">
       <span class="mode-grip" title="ここをドラッグで並べ替え">⠿</span>
@@ -7085,7 +7150,7 @@ function openModeMenu(){
   syncModeOrder();
   const body=document.getElementById('modeMenuBody');
   body.innerHTML=modeOrder
-    .filter(k=> !isModeHidden(k) || k===tableMode )   // 非表示モードは出さない（現在のモードは常に表示）
+    .filter(k=> !isModeHidden(k) || k===workspaceMode )   // 非表示モードは出さない（現在のモードは常に表示）
     .map(k=>{ const o=modeItemByKey(k); return o?renderModeItem(o.item,o.custom):''; }).join('');
   bindModeDrag();
   document.getElementById('modeMenuOverlay').classList.add('open');
@@ -7212,7 +7277,7 @@ function migrateModeRegisteredSaves(){
 function removeCustomMode(key){
   const cm=findCustomMode(key); if(!cm) return;
   if(!confirm(`登録モード「${cm.name}」を解除しますか？\n（保存リストの記録自体は消えません）`)) return;
-  if(tableMode===key) switchMode('normal');   // 退避してから通常へ
+  if(workspaceMode===key) switchMode('normal');   // 退避してから通常へ
   const idx=customModes.findIndex(m=>m.key===key);
   if(idx>=0) customModes.splice(idx,1);
   delete modeStates[key];
@@ -7282,7 +7347,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v159';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v160';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -8238,11 +8303,12 @@ function appPrompt(message, defaultValue=''){
 }
 
 async function saveData() {
-  // 全シートも一緒に保存（開いているシートの最新状態を取り込んでから複製）
-  let sheetsSnap, curSnap=0;
+  // 全モードのシート一式も一緒に保存（開いているシートの最新状態を取り込んでから複製）
+  let modeSheetsSnap;
   if(typeof sheets!=='undefined' && Array.isArray(sheets) && sheets.length){
     if(sheets[curSheet]) Object.assign(sheets[curSheet], captureCurrentSheet());
-    try{ sheetsSnap=JSON.parse(JSON.stringify(sheets)); curSnap=(typeof curSheet==='number')?curSheet:0; }catch(_){ sheetsSnap=undefined; }
+    modeSheets[tableMode]={ sheets, cur:curSheet };
+    try{ modeSheetsSnap=JSON.parse(JSON.stringify(modeSheets)); }catch(_){ modeSheetsSnap=undefined; }
   }
   const btn=document.getElementById('saveBtn');
   const saves=getSaves();
@@ -8253,7 +8319,7 @@ async function saveData() {
       Object.assign(cur, {
         timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces, mode:tableMode,
         data:data.map(row=>[...row]), styles:{...cellStyles},
-        sheets:sheetsSnap, cur:curSnap
+        modeSheets:modeSheetsSnap, curMode:tableMode, sheets:undefined, cur:undefined
       });
       persistSaves(saves);
       if(btn){ btn.textContent='✓ 上書き'; setTimeout(()=>{btn.textContent='保存';},1200); }
@@ -8269,7 +8335,7 @@ async function saveData() {
     id, name:name.trim()||defaultName,
     timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces, mode:tableMode,
     data:data.map(row=>[...row]), styles:{...cellStyles}, tab:0,
-    sheets:sheetsSnap, cur:curSnap          // 全シート情報（無い古い保存もあるので任意）
+    modeSheets:modeSheetsSnap, curMode:tableMode   // モード毎の全シート情報（古い保存には無い）
   });
   persistSaves(saves);
   currentSaveId=id;                          // 以後この記録に上書きできるようにする
@@ -8463,45 +8529,52 @@ function loadSave(id) {
   const entry=saves.find(s=>s.id===id); if(!entry) return;
   if(!confirm(`「${entry.name}」を読み込みますか？\n現在のデータは上書きされます。`)) return;
   currentSaveId=id;   // 以後「保存」でこの記録に上書きできるようにする
-  // 全シートが保存されていれば、シートごと復元する
-  if(Array.isArray(entry.sheets) && entry.sheets.length && typeof sheets!=='undefined'){
-    const restored=entry.sheets.map((s,i)=>({ name:(s&&s.name)||('シート'+(i+1)), store:(s&&s.store)||{}, colWidths:(s&&s.colWidths)||{}, rowHeights:(s&&s.rowHeights)||{} }));
-    sheets.splice(0, sheets.length, ...restored);
-    curSheet=Math.max(0, Math.min(sheets.length-1, entry.cur|0));
-    if(entry.decPlaces!==undefined) decPlaces=entry.decPlaces;
-    loadSheetStore(sheets[curSheet]);
-    document.getElementById('decCount').textContent=decPlaces<0?'自':decPlaces;
-    syncRowColLabels();
-    if(isStructMode()) showModeBar(); else hideAllBars();
-    updateModeButton();
-    buildSheet();
-    sel(0,0);
-    renderSheetBar();
-    saveSheets();
-    closeSaveList();
-    return;
-  }
-  // 保存時のモードへ切替（古い保存＝mode無しは現在のモードのまま）
-  const targetMode=(entry.mode && isValidMode(entry.mode)) ? entry.mode : tableMode;
-  captureMode(tableMode);                 // 現在のモード内容を退避
-  tableMode=targetMode;
-  document.body.classList.toggle('simple-mode', targetMode==='simple');
-  // 保存データを流し込む
-  loadData(entry.data);
-  cellStyles=entry.styles?{...entry.styles}:{};
-  if(entry.rows>=1&&entry.rows<=MAXROWS) ROWS=entry.rows;
-  COLS=entry.cols||normalCols();
   if(entry.decPlaces!==undefined) decPlaces=entry.decPlaces;
-  normalizeStructLayout();                // 構造モードは列数・見出し（単位水量は行数）を整える
+  // ① 新形式：モード毎のシート一式を丸ごと復元
+  if(entry.modeSheets && typeof entry.modeSheets==='object'){
+    modeSheets={};
+    for(const m in entry.modeSheets){
+      const set=entry.modeSheets[m];
+      if(set && Array.isArray(set.sheets) && set.sheets.length)
+        modeSheets[m]={ sheets:set.sheets.map(normSheet), cur:Math.max(0,Math.min(set.sheets.length-1,set.cur|0)) };
+    }
+    for(const k in modeStates) delete modeStates[k];
+    let cur=(entry.curMode&&isValidMode(entry.curMode))?entry.curMode:((entry.mode&&isValidMode(entry.mode))?entry.mode:'normal');
+    activateModeSheetSet(cur);
+  }
+  // ② 旧形式：単一のシート一式 → そのモードの一式として復元
+  else if(Array.isArray(entry.sheets) && entry.sheets.length){
+    const targetMode=(entry.mode && isValidMode(entry.mode))?entry.mode:workspaceMode;
+    modeSheets={}; for(const k in modeStates) delete modeStates[k];
+    modeSheets[targetMode]={ sheets:entry.sheets.map(normSheet), cur:Math.max(0,Math.min(entry.sheets.length-1,entry.cur|0)) };
+    activateModeSheetSet(targetMode);
+  }
+  // ③ 最も古い形式：シート無しの単一表 → そのモードの1枚として復元
+  else {
+    const targetMode=(entry.mode && isValidMode(entry.mode)) ? entry.mode : workspaceMode;
+    tableMode=targetMode; workspaceMode=targetMode;
+    document.body.classList.toggle('simple-mode', targetMode==='simple');
+    loadData(entry.data);
+    cellStyles=entry.styles?{...entry.styles}:{};
+    if(entry.rows>=1&&entry.rows<=MAXROWS) ROWS=entry.rows;
+    COLS=entry.cols||normalCols();
+    normalizeStructLayout();
+    modeSheets={}; for(const k in modeStates) delete modeStates[k];
+    sheets=[Object.assign({name:'シート1'}, captureCurrentSheet())]; curSheet=0;
+    modeSheets[targetMode]={ sheets, cur:0 };
+  }
+  document.body.classList.toggle('simple-mode', tableMode==='simple');
+  normalizeStructLayout();
   if(isStructMode()) showModeBar(); else hideAllBars();
   syncRowColLabels();
   document.getElementById('decCount').textContent=decPlaces<0?'自':decPlaces;
   buildSheet();
-  if(targetMode==='tanisuiryou') sel(1,1); else sel(initCellOfMode(),0);
+  if(tableMode==='tanisuiryou') sel(1,1); else sel(initCellOfMode(),0);
   updateModeButton();
+  renderSheetBar();
   closeSaveList();
   persistModes();
-  if(typeof saveSheets==='function') saveSheets();   // 現在のシートの内容を保存に反映（シート数は変えない）
+  saveSheets();
 }
 
 function deleteSave(id) {
