@@ -4287,12 +4287,12 @@ function keyScaleLabel(s) {
   KEY_STEPS.forEach((v,i)=>{ const d=Math.abs(v-s); if(d<bd){bd=d;best=i;} });
   return s>KEY_STEPS[KEY_STEPS.length-1]+0.05 ? '最大' : KEY_LABELS[best];
 }
-function applyKeySize() {
+function applyKeySize(fitRoot) {
   keyScale=Math.min(KEY_MAX, Math.max(KEY_MIN, keyScale));
   document.getElementById('numpadSection').style.setProperty('--key-scale', keyScale.toFixed(3));
   document.getElementById('keySize').textContent=keyScaleLabel(keyScale);
   localStorage.setItem('excalc_keyscale', keyScale.toFixed(3));
-  fitNumpadLabels();
+  fitNumpadLabels(fitRoot);   // fitRoot を渡すとそのページだけ調整（ドラッグ中の負荷軽減）
 }
 /* テンキー各ボタンの文字を、枠幅に収まるよう自動縮小（折り返し防止） */
 function fitNumpadLabels(root) {
@@ -4379,7 +4379,7 @@ window.addEventListener('resize', applyNumpadCollapse);
       // 縦持ち：上へドラッグで大きく。最小サイズを越えて下へドラッグすると折りたたみ（0で消える）
       const raw=startRaw + (startY - p.clientY)*SENS;
       keyScale=raw;
-      applyKeySize();                              // KEY_MIN〜KEY_MAXにクランプされる
+      applyKeySize('#numpadPage1');                // 見えている標準ページだけ文字合わせ（全ページだと重い）
       numpadCollapsePx = raw<KEY_MIN ? (KEY_MIN-raw)/SENS : 0;
       applyNumpadCollapse();
     }
@@ -4388,7 +4388,8 @@ window.addEventListener('resize', applyNumpadCollapse);
   function onUp(){
     if(!active) return;
     active=false; handle.classList.remove('dragging');
-    if(horiz && !document.body.classList.contains('numpad-compact')) fitNumpadLabels();   // 指を離したら最終的な文字合わせを1回
+    // 指を離したら最終的に全ページの文字合わせを1回（横向きでラベル非表示中は不要）
+    if(!(horiz && document.body.classList.contains('numpad-compact'))) fitNumpadLabels();
     if(horiz && typeof autoFitSheet==='function') autoFitSheet();   // セル側の列幅も再調整
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
