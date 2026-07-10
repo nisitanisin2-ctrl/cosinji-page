@@ -387,7 +387,6 @@ body.dark .settings-footer { background: #141d33; }
   gap: 6px;
   flex-shrink: 0;
 }
-.formula-bar label { font-size: calc(11px * var(--formula-scale, 1)); color: var(--text-sub); }
 #cellRef {
   width: calc(52px * var(--formula-scale, 1)); padding: calc(2px * var(--formula-scale, 1)) 4px;
   border: 1px solid var(--formula-border);
@@ -1522,7 +1521,6 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 </div>
 
 <div class="formula-bar">
-  <label>セル</label>
   <input id="cellRef" type="text" value="A1" readonly onclick="openCellFmt()" title="タップでこのセルの書式設定（小数点・装飾・色・大きさ）">
   <input id="formulaInput" type="text" placeholder="値を入力 (Enterで確定)" autocomplete="off">
 </div>
@@ -7578,7 +7576,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v170';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v171';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
