@@ -811,6 +811,8 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 #numpadPage1 .btn[data-key^="n"], #numpadPage1 .btn[data-key="dot"] {
   font-size: calc(15px * var(--key-scale, 1.3) * var(--num-scale, 1));
 }
+/* 数字キーの左3列を広げて枠を大きくする（設定で段階変更。演算子側の2列は1fr） */
+#numpadPage1 { grid-template-columns: var(--num-cols, 1fr 1fr 1fr 1fr 1fr); }
 .btn.bd-on  { box-shadow: inset 0 0 0 2.5px #f1c40f; }   /* 枠線ページ：選択中の線種・色 */
 /* 枠線の場所ボタン：Excelの罫線アイコン風（点線のセル格子＋引く辺を実線で表示） */
 .bd-ico { width: 1.7em; height: 1.7em; display: block; margin: 0 auto; pointer-events: none; }
@@ -2136,7 +2138,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><b>▦ デフォルト</b>：タップすると決めておいた行数・列数に一発で変更。<b>長押し</b>すると既定の行数・列数を設定する画面が開きます。</div>
         <div class="help-li"><b>税率</b>：消費税モードの税率</div>
         <div class="help-li"><b>テンキー／セル文字／小計文字</b>：各文字サイズ</div>
-        <div class="help-li"><b>数字キーの大きさ</b>：標準テンキーの<b>0〜9（と「.」）だけ</b>を、標準から何段階か大きくできます（演算子やEnterなど他のキーはそのまま）。</div>
+        <div class="help-li"><b>数字キーの大きさ</b>：標準テンキーの<b>0〜9（と「.」）だけ</b>を、標準から何段階か大きくできます。<b>文字だけでなくボタンの枠（左3列の幅）も広がり</b>、押しやすくなります（演算子やEnterなど右側のキーはその分やや狭くなります）。</div>
         <div class="help-li"><b>🔧 テンキーのボタン配置を編集</b>：押すと編集モードになり、テンキーのボタンをドラッグして好きな位置に入れ替えできます（同じ大きさのボタン同士。Enter・0は固定）。<b>関数ページ・枠線ページ（右に2回フリック）も編集可能</b>（編集中もEnter上のフリックでページを移動できます）。配置は自動保存され、編集バーの「↺初期化」で各ページを元に戻せます。</div>
         <div class="help-li"><b>🔀 モードの表示/非表示</b>：「モード」一覧に出す標準モードを選べます。チェックを外すと一覧から隠れます（内容は保持。「通常」は常に表示）。</div>
       </div>
@@ -4391,14 +4393,20 @@ function changeKeySize(delta) {
   keySizeIdx=next; keyScale=KEY_STEPS[next]; applyKeySize();
 }
 /* ── 標準テンキーの数字キー(0〜9・.)だけの文字サイズ（設定で何段階か大きく） ── */
-const NUM_STEPS=[1.0, 1.2, 1.4, 1.6, 1.8];
+const NUM_STEPS=[1.0, 1.2, 1.4, 1.6, 1.8];   // 文字サイズの倍率
+const NUM_COLS =[1.0, 1.1, 1.2, 1.3, 1.4];   // 数字キー3列の幅（fr。枠の大きさ）。演算子側の負担を抑えて控えめに
 const NUM_LABELS=['標準','大','特大','最大','超特大'];
 let numSizeIdx=0;
 function applyNumSize(){
   const sec=document.getElementById('numpadSection');
-  if(sec) sec.style.setProperty('--num-scale', NUM_STEPS[numSizeIdx].toFixed(2));
+  if(sec){
+    sec.style.setProperty('--num-scale', NUM_STEPS[numSizeIdx].toFixed(2));
+    const f=NUM_COLS[numSizeIdx].toFixed(2);
+    sec.style.setProperty('--num-cols', `${f}fr ${f}fr ${f}fr 1fr 1fr`);   // 左3列を広げる
+  }
   const el=document.getElementById('numSize'); if(el) el.textContent=NUM_LABELS[numSizeIdx];
   localStorage.setItem('excalc_numscale', numSizeIdx);
+  if(typeof fitNumpadLabels==='function') fitNumpadLabels('#numpadPage1');   // 列幅が変わったので文字合わせ
 }
 function changeNumSize(delta){
   const next=numSizeIdx+delta; if(next<0||next>=NUM_STEPS.length) return;
@@ -7380,7 +7388,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v163';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v164';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
