@@ -720,6 +720,10 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
   .numpad-section .numpad-grid .btn.fx,
   .numpad-section .numpad-grid .btn.ubtn { font-size: clamp(9px, 3.6vh, 19px); }
   .numpad-section .numpad-grid .btn.enter { font-size: clamp(12px, 6vh, 30px); }
+  /* 横向きでも数字キーだけ設定で大きく（--num-scale） */
+  #numpadPage1 .btn[data-key^="n"], #numpadPage1 .btn[data-key="dot"] {
+    font-size: calc(clamp(10px, 5vh, 26px) * var(--num-scale, 1));
+  }
   /* テンキーを一定サイズ以下に縮めたときは、ボタンの表記（文字）を消す。
      こうすると縮小時に文字合わせ(fitNumpadLabels)を走らせずに済み、
      端までドラッグしても軽く動く。ボタンの枠は残るので位置関係は保たれる。 */
@@ -803,6 +807,10 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 .btn.enter  { background: #1a5276; grid-row: span 2; font-size: calc(22px * var(--key-scale, 1.3)); }
 .btn.enter:hover { background: #1f618d; }
 .btn.span2  { grid-column: span 2; }
+/* 標準テンキーの数字キー(0〜9・.)だけ、設定で文字を大きくできる（--num-scale） */
+#numpadPage1 .btn[data-key^="n"], #numpadPage1 .btn[data-key="dot"] {
+  font-size: calc(15px * var(--key-scale, 1.3) * var(--num-scale, 1));
+}
 .btn.bd-on  { box-shadow: inset 0 0 0 2.5px #f1c40f; }   /* 枠線ページ：選択中の線種・色 */
 /* 枠線の場所ボタン：Excelの罫線アイコン風（点線のセル格子＋引く辺を実線で表示） */
 .bd-ico { width: 1.7em; height: 1.7em; display: block; margin: 0 auto; pointer-events: none; }
@@ -1410,6 +1418,10 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <div class="set-row">
       <span class="set-label">テンキーの大きさ</span>
       <span class="set-stepper"><button class="step-btn" onclick="changeKeySize(-1)">−</button><span class="sc-val" id="keySize">大</span><button class="step-btn" onclick="changeKeySize(1)">＋</button></span>
+    </div>
+    <div class="set-row">
+      <span class="set-label">数字キーの大きさ<small>標準テンキーの0〜9だけ大きく</small></span>
+      <span class="set-stepper"><button class="step-btn" onclick="changeNumSize(-1)">−</button><span class="sc-val" id="numSize">標準</span><button class="step-btn" onclick="changeNumSize(1)">＋</button></span>
     </div>
     <button class="set-act" id="sheetTabsBtn" onclick="toggleSheetTabs()">🗂 シートのタブを常に表示</button>
     <button class="set-act" id="darkBtn" onclick="toggleDark()">🌙 ナイトモード</button>
@@ -2124,6 +2136,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><b>▦ デフォルト</b>：タップすると決めておいた行数・列数に一発で変更。<b>長押し</b>すると既定の行数・列数を設定する画面が開きます。</div>
         <div class="help-li"><b>税率</b>：消費税モードの税率</div>
         <div class="help-li"><b>テンキー／セル文字／小計文字</b>：各文字サイズ</div>
+        <div class="help-li"><b>数字キーの大きさ</b>：標準テンキーの<b>0〜9（と「.」）だけ</b>を、標準から何段階か大きくできます（演算子やEnterなど他のキーはそのまま）。</div>
         <div class="help-li"><b>🔧 テンキーのボタン配置を編集</b>：押すと編集モードになり、テンキーのボタンをドラッグして好きな位置に入れ替えできます（同じ大きさのボタン同士。Enter・0は固定）。<b>関数ページ・枠線ページ（右に2回フリック）も編集可能</b>（編集中もEnter上のフリックでページを移動できます）。配置は自動保存され、編集バーの「↺初期化」で各ページを元に戻せます。</div>
         <div class="help-li"><b>🔀 モードの表示/非表示</b>：「モード」一覧に出す標準モードを選べます。チェックを外すと一覧から隠れます（内容は保持。「通常」は常に表示）。</div>
       </div>
@@ -4376,6 +4389,20 @@ function changeKeySize(delta) {
   else if (delta<0 && keyScale<KEY_STEPS[i]-0.01) i--;
   const next=i+delta; if (next<0||next>=KEY_STEPS.length) return;
   keySizeIdx=next; keyScale=KEY_STEPS[next]; applyKeySize();
+}
+/* ── 標準テンキーの数字キー(0〜9・.)だけの文字サイズ（設定で何段階か大きく） ── */
+const NUM_STEPS=[1.0, 1.2, 1.4, 1.6, 1.8];
+const NUM_LABELS=['標準','大','特大','最大','超特大'];
+let numSizeIdx=0;
+function applyNumSize(){
+  const sec=document.getElementById('numpadSection');
+  if(sec) sec.style.setProperty('--num-scale', NUM_STEPS[numSizeIdx].toFixed(2));
+  const el=document.getElementById('numSize'); if(el) el.textContent=NUM_LABELS[numSizeIdx];
+  localStorage.setItem('excalc_numscale', numSizeIdx);
+}
+function changeNumSize(delta){
+  const next=numSizeIdx+delta; if(next<0||next>=NUM_STEPS.length) return;
+  numSizeIdx=next; applyNumSize();
 }
 
 /* ── テンキーの折りたたみ（バーを端までドラッグすると消える。バーで戻す） ──
@@ -7353,7 +7380,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v162';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v163';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -8644,6 +8671,9 @@ if(!isNaN(savedKeyScale)){
   if(!isNaN(savedKeySize)&&savedKeySize>=0&&savedKeySize<KEY_STEPS.length) keyScale=KEY_STEPS[savedKeySize];
 }
 applyKeySize();
+const savedNumSize=parseInt(localStorage.getItem('excalc_numscale'));
+if(!isNaN(savedNumSize)&&savedNumSize>=0&&savedNumSize<NUM_STEPS.length) numSizeIdx=savedNumSize;
+applyNumSize();
 const savedAppWidth=parseInt(localStorage.getItem('excalc_appwidth'));
 if(!isNaN(savedAppWidth)&&savedAppWidth>=0&&savedAppWidth<WIDTH_STEPS.length) appWidthIdx=savedAppWidth;
 applyAppWidth();
