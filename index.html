@@ -194,7 +194,7 @@ body.numpad-off .numpad-section { display: none; }
 .btn-reset  { background: #a93226; }
 .btn-reset:hover { background: #c0392b; }
 /* 設定(⚙)・保存・リスト・戻る・進む・リセットは同じ大きさに揃える（枠線・高さも統一） */
-.btn-settings, .btn-save, .btn-list, .btn-undo, .btn-redo, .btn-reset {
+.btn-settings, .btn-save, .btn-list, .btn-undo, .btn-redo, .btn-reset, .btn-defsize {
   box-sizing: border-box;
   font-size: 14px; font-weight: bold;
   padding: 0 8px; min-width: 62px; height: 30px;
@@ -202,6 +202,9 @@ body.numpad-off .numpad-section { display: none; }
   border: 1px solid rgba(255,255,255,0.35);
 }
 .btn-reset { font-size: 13px; padding: 0 2px; }   /* 「リセット」は文字数が多いので少しだけ詰めてリストと同じ62pxに */
+.btn-defsize { background: rgba(255,255,255,0.15); color: #fff; font-size: 13px; padding: 0 4px; }
+.btn-defsize:hover { background: rgba(255,255,255,0.28); }
+.btn-defsize.armed { background: rgba(255,255,255,0.4); }
 
 /* ── シート機能：上メニューの「シート」ボタンでメニュー↔シート一覧を切り替え ── */
 .btn-sheet {
@@ -1352,6 +1355,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   <button class="btn-undo menu-item" id="undoBtn" onclick="undoLast()" disabled>戻る</button>
   <button class="btn-redo menu-item" id="redoBtn" onclick="redoLast()" disabled>進む</button>
   <button class="btn-reset menu-item" id="resetBtn" onclick="resetAll()">リセット</button>
+  <button class="btn-defsize menu-item" id="defsizeTopBtn" title="タップで既定の行数・列数に／長押しで既定値を設定">▦既定</button>
   <div class="sheet-bar" id="sheetBar"></div>
 </div>
 <div class="sheet-persist" id="sheetPersist"></div>
@@ -1436,6 +1440,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <button class="topbtn-toggle" data-btn="undo"  onclick="toggleTopBtn('undo')">戻る</button>
       <button class="topbtn-toggle" data-btn="redo"  onclick="toggleTopBtn('redo')">進む</button>
       <button class="topbtn-toggle" data-btn="reset" onclick="toggleTopBtn('reset')">リセット</button>
+      <button class="topbtn-toggle" data-btn="defsize" onclick="toggleTopBtn('defsize')">▦既定サイズ</button>
     </div>
   </div>
 
@@ -1471,7 +1476,6 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   </div>
   <div class="settings-footer">
     <button class="set-act set-act-primary" id="defaultSizeBtn" title="タップで既定の行数・列数に／長押しで既定値を設定">▦ 既定の行数・列数にもどす</button>
-    <button class="set-act" id="numpadToggleBtn" onclick="toggleNumpad()">⌨ テンキー非表示</button>
   </div>
  </div>
 </div>
@@ -2135,7 +2139,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <div class="help-sec">
         <div class="help-h">⚙️ 設定（このパネル）</div>
         <div class="help-li"><b>行／列</b>：表の大きさ　<b>小数</b>：小数点以下の桁（自＝自動）</div>
-        <div class="help-li"><b>▦ デフォルト</b>：タップすると決めておいた行数・列数に一発で変更。<b>長押し</b>すると既定の行数・列数を設定する画面が開きます。</div>
+        <div class="help-li"><b>▦ デフォルト</b>：タップすると決めておいた行数・列数に一発で変更。<b>長押し</b>すると既定の行数・列数を設定する画面が開きます。設定の<b>「上のバーのボタン」で「▦既定サイズ」をオン</b>にすると、シートや保存と同じ<b>上のバーにボタンを出せます</b>（そこでもタップで適用・長押しで設定）。</div>
         <div class="help-li"><b>税率</b>：消費税モードの税率</div>
         <div class="help-li"><b>テンキー／セル文字／小計文字</b>：各文字サイズ</div>
         <div class="help-li"><b>数字キーの大きさ</b>：標準テンキーの<b>0〜9（と「.」）だけ</b>を、標準から何段階か大きくできます。<b>文字だけでなくボタンの枠（左3列の幅）も広がり</b>、押しやすくなります（演算子やEnterなど右側のキーはその分やや狭くなります）。</div>
@@ -4124,9 +4128,9 @@ function saveDefaultSize(){
   closeDefaultSizeDlg();
   toast(`デフォルトを${r}行×${c}列に設定しました`);
 }
-/* タップ＝デフォルト適用／長押し＝既定値の設定ダイアログ */
-(function setupDefaultSizeBtn(){
-  const b=document.getElementById('defaultSizeBtn'); if(!b) return;
+/* タップ＝デフォルト適用／長押し＝既定値の設定ダイアログ（設定内・上バーの両ボタン共通） */
+function bindDefaultSizeBtn(b){
+  if(!b) return;
   let timer=null, longed=false, sx=0, sy=0, down=false;
   const clear=()=>{ if(timer){ clearTimeout(timer); timer=null; } };
   b.addEventListener('pointerdown', e=>{
@@ -4142,7 +4146,9 @@ function saveDefaultSize(){
   });
   b.addEventListener('pointercancel', ()=>{ clear(); down=false; longed=false; b.classList.remove('armed'); });
   b.addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); }, true);  // pointerで処理
-})();
+}
+bindDefaultSizeBtn(document.getElementById('defaultSizeBtn'));
+bindDefaultSizeBtn(document.getElementById('defsizeTopBtn'));
 
 /* ── 行・列の挿入／削除 ── */
 /* 簡易トースト通知 */
@@ -7343,16 +7349,18 @@ function closeSettingsPanel(){
   if(p&&p.classList.contains('open')) toggleSettings();
 }
 /* ── 上のバーのボタンの表示/非表示（「設定」は常に表示） ── */
-const TOPBTN_IDS={ sheet:'sheetToggleBtn', save:'saveBtn', list:'listBtn', undo:'undoBtn', redo:'redoBtn', reset:'resetBtn' };
+const TOPBTN_IDS={ sheet:'sheetToggleBtn', save:'saveBtn', list:'listBtn', undo:'undoBtn', redo:'redoBtn', reset:'resetBtn', defsize:'defsizeTopBtn' };
+const TOPBTN_DEFAULT_HIDDEN={ defsize:true };   // 既定で非表示（オプトインで表示）
 let topBtnHidden={};
+function topBtnIsHidden(k){ return (k in topBtnHidden)?topBtnHidden[k]:!!TOPBTN_DEFAULT_HIDDEN[k]; }
 function loadTopBtnHidden(){ try{ topBtnHidden=JSON.parse(localStorage.getItem('excalc_topbtn_hidden')||'{}')||{}; }catch(_){ topBtnHidden={}; } }
 function applyTopBtnHidden(){
-  for(const k in TOPBTN_IDS){ const el=document.getElementById(TOPBTN_IDS[k]); if(el) el.style.display = topBtnHidden[k]?'none':''; }
-  document.querySelectorAll('#topBtnToggles .topbtn-toggle').forEach(b=>b.classList.toggle('on', !topBtnHidden[b.dataset.btn]));
+  for(const k in TOPBTN_IDS){ const el=document.getElementById(TOPBTN_IDS[k]); if(el) el.style.display = topBtnIsHidden(k)?'none':''; }
+  document.querySelectorAll('#topBtnToggles .topbtn-toggle').forEach(b=>b.classList.toggle('on', !topBtnIsHidden(b.dataset.btn)));
 }
 function toggleTopBtn(k){
   if(!(k in TOPBTN_IDS)) return;
-  topBtnHidden[k]=!topBtnHidden[k];
+  topBtnHidden[k]=!topBtnIsHidden(k);
   try{ localStorage.setItem('excalc_topbtn_hidden', JSON.stringify(topBtnHidden)); }catch(_){}
   applyTopBtnHidden();
 }
@@ -7388,7 +7396,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v164';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v165';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
