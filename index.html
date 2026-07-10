@@ -782,6 +782,13 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
   background: transparent; color: var(--text-light); cursor: pointer; touch-action: manipulation;
 }
 .regpick-toggle:hover { background: var(--cell-hover); }
+.regpick-cellpick {
+  display: block; width: 100%; margin: 0 0 10px; padding: 10px;
+  border: 1px solid #217346; border-radius: 8px; cursor: pointer;
+  background: rgba(33,115,70,0.1); color: #217346; font-size: 13px; font-weight: bold; touch-action: manipulation;
+}
+.regpick-cellpick:hover { background: rgba(33,115,70,0.2); }
+.regpick-cellpick:active { opacity: 0.7; }
 /* 登録の書式セクション（文字色・背景・サイズ・装飾） */
 .regpick-fmt { margin: 0 0 10px; }
 .regfmt-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -2101,7 +2108,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
           <br>・<b>セル書式ページをさらに右へフリック＝枠線ページが表示</b>…線の<b>種類（普通・太い・二重線）</b>と<b>色（黒・赤・青・緑・紫）</b>を選び、<b>上・下・左・右・格子・囲む</b>のボタンで選択範囲に枠線を引けます（1つのセルに下線だけ、なども可能）。「🧹枠線を消す」で範囲の枠線を消去。枠線はPDF出力にも反映されます。<b>左へフリック</b>するとセル書式ページに戻ります。
           <br>・<b>数字ページを左へフリック＝関数・記号ページが重なって表示</b>…( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 などを数式（先頭が <b>=</b>）に挿入。<b>右へフリック</b>すると数字ページに戻ります。
           <br>・<b>関数・記号ページをさらに左へフリック＝関数電卓ページが表示</b>…SIN・COS・TAN・ASIN・ACOS・ATAN・LOG・LN・EXP・π・e・n!（階乗）・x²・^（べき乗）・1/(・MOD( などを数式に挿入。<b>DEG/RAD</b>ボタンで三角関数の角度単位（度数法⇄弧度法）を切替できます。<b>右へフリック</b>すると関数・記号ページに戻ります。
-          <br>・<b>数字ページを上へフリック＝登録ページが重なって表示</b>…紫のボタンを<b>長押し</b>すると登録画面が開きます。基本は<b>文字・数字を入力して「登録」</b>するだけ（よく使う文字・数字を登録、数値の途中でタップすると連結。例：100→「円」で100円）。<b>「🎨 書式（文字色・背景・サイズ・装飾）」</b>を開いて色・背景・大きさ・太字などを付けておくと、そのボタンで入力したときに<b>その書式のまま</b>セルへ入ります。<b>「🔧 ボタンの機能から選ぶ（オプション）」</b>を開くと、<b>テンキーのボタンを長押しして割り当てられる機能と同じもの</b>（標準キー・記号/関数・保存/リスト/照合/検索/PDF/CSVなどの設定機能）を選んで登録できます。登録後は<b>タップ</b>で入力／実行（未登録の「＋」はタップでも登録画面が開きます）。登録画面の<b>「🔀 このボタンを別の場所へ移動」</b>を押すと、移動先のボタンをタップして位置を入れ替えできます（<b>別のページのボタンとも</b>入れ替え可）。登録は保存されます。登録ページは<b>左右にフリックすると「左ページ・中央・右ページ」の3ページ</b>を切り替えでき、合計で数多くのボタンを登録できます（中央ページ＝これまでの登録内容）。<b>どのボタンの上でも下へフリック</b>すると数字ページに戻ります。</div>
+          <br>・<b>数字ページを上へフリック＝登録ページが重なって表示</b>…紫のボタンを<b>長押し</b>すると登録画面が開きます。基本は<b>文字・数字を入力して「登録」</b>するだけ（よく使う文字・数字を登録、数値の途中でタップすると連結。例：100→「円」で100円）。<b>「🎨 書式（文字色・背景・サイズ・装飾）」</b>を開いて色・背景・大きさ・太字などを付けておくと、そのボタンで入力したときに<b>その書式のまま</b>セルへ入ります。<b>「📋 セルから選ぶ」</b>を押してから表のセルをタップすると、そのセルの<b>内容と書式をまとめて</b>登録できます。<b>「🔧 ボタンの機能から選ぶ（オプション）」</b>を開くと、<b>テンキーのボタンを長押しして割り当てられる機能と同じもの</b>（標準キー・記号/関数・保存/リスト/照合/検索/PDF/CSVなどの設定機能）を選んで登録できます。登録後は<b>タップ</b>で入力／実行（未登録の「＋」はタップでも登録画面が開きます）。登録画面の<b>「🔀 このボタンを別の場所へ移動」</b>を押すと、移動先のボタンをタップして位置を入れ替えできます（<b>別のページのボタンとも</b>入れ替え可）。登録は保存されます。登録ページは<b>左右にフリックすると「左ページ・中央・右ページ」の3ページ</b>を切り替えでき、合計で数多くのボタンを登録できます（中央ページ＝これまでの登録内容）。<b>どのボタンの上でも下へフリック</b>すると数字ページに戻ります。</div>
         <div class="help-li">テンキー上端（横向きは左端）の<b>バーをドラッグ</b>すると大きさ（横向きは幅）を変更できます。<b>端までドラッグするとテンキーが消え</b>、もう一度バーをつかんで戻すと再び表示されます。設定の<b>「🔧 テンキーのボタン配置を編集」</b>で各ボタンの位置も入れ替えできます。</div>
         <div class="help-li">合計バー右端の<b>▼（横向きは▶）ボタン</b>を押すと、テンキーがワンタップで端まで収納されます。収納中は<b>▲（横向きは◀）</b>に変わり、押すと<b>元のサイズに戻ります</b>。</div>
         <div class="help-li">数字ページ・関数記号ページ・関数電卓ページ（左に2回フリック）の<b>ボタンを長押し</b>すると「ボタンの割り当て」が開き、そのボタンを<b>別のキーや設定の機能</b>（保存・リスト・PDF出力・CSV・ナイトモード・テンプレなど）に変更できます。「↺ 元のボタンに戻す」でいつでも戻せます（Σボタンは長押しに合計/平均の切替があるため対象外）。</div>
@@ -2223,7 +2230,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 <div class="pick-banner" id="pickBanner">
   <div class="pick-top">
     <span id="pickBannerMsg">セルを選んでください</span>
-    <button class="pick-cancel" onclick="lookupPickCancel()">やめる</button>
+    <button class="pick-cancel" onclick="pickBannerCancel()">やめる</button>
   </div>
   <div class="pick-sheets" id="pickSheets"></div>
 </div>
@@ -3010,6 +3017,7 @@ function buildSheet() {
         if (e.shiftKey) { e.preventDefault(); extendRange(r,c); }
       });
       td.addEventListener('click', e => {
+        if (typeof regCellPickIndex!=='undefined' && regCellPickIndex>=0) { regCellPickTap(r,c); return; }   // 登録：セルから取り込み中
         if (typeof lookupPick!=='undefined' && lookupPick) { if(lookupPickTapCell(r,c)===false) return; }   // 照合ビルダーのピック中
         if (e.shiftKey) return;
         if (fillJustCommitted) { fillJustCommitted=false; return; }   // フィル確定直後のクリックは無視
@@ -5007,6 +5015,7 @@ function renderRegPickBody(){
       <button class="regpick-save" onclick="regPickTextSave()">登録</button>
     </div>
     <div class="regpick-hint">空にして「登録」を押すと、このボタンの登録を解除します</div>
+    <button class="regpick-cellpick" onclick="regCellPickStart()">📋 セルから選ぶ（内容＋書式を取り込む）</button>
     <button class="regpick-toggle" onclick="toggleRegPickFmt()">
       <span>🎨 書式（文字色・背景・サイズ・装飾）</span><span id="regFmtArrow">${regFmtOpen?'▲':'▼'}</span>
     </button>
@@ -5097,6 +5106,31 @@ function regPickAction(id){
   saveUserKeys(); renderUserKeys();
   closeRegPick();
 }
+/* ── セルから選ぶ：登録ダイアログを閉じてセルをタップ → 内容＋書式を取り込む ── */
+let regCellPickIndex=-1;
+function regCellPickStart(){
+  if(regPickIndex<0) return;
+  regCellPickIndex=regPickIndex;
+  closeRegPick();
+  const msg=document.getElementById('pickBannerMsg'); if(msg) msg.textContent='登録するセルをタップしてください（内容と書式を取り込みます）';
+  const ps=document.getElementById('pickSheets'); if(ps) ps.innerHTML='';   // シート切替は出さない（現在シートのセルを選ぶ）
+  const bn=document.getElementById('pickBanner'); if(bn) bn.classList.add('show');
+}
+function regCellPickCancel(){ regCellPickIndex=-1; hidePickBanner(); }
+function regCellPickTap(r,c){
+  const i=regCellPickIndex; regCellPickIndex=-1; hidePickBanner();
+  if(i<0) return;
+  const raw=(data[r] && data[r][c]!=null)?String(data[r][c]):'';
+  if(raw===''){ toast('空のセルは登録できません'); return; }
+  const s=cellStyles[`${r},${c}`]||{};
+  const fmt={};
+  ['color','bg','size','bold','italic','underline'].forEach(k=>{ const v=s[k]; if(v!=null && v!==false && !(k==='size'&&v===1)) fmt[k]=v; });
+  userKeys[i]= Object.keys(fmt).length ? {type:'text', value:raw, fmt} : {type:'text', value:raw};
+  saveUserKeys(); renderUserKeys();
+  toast(`「${raw}」を${Object.keys(fmt).length?'書式ごと':''}登録しました`);
+}
+/* ピックバナーの「やめる」：状況に応じてキャンセル先を切り替え */
+function pickBannerCancel(){ if(regCellPickIndex>=0) regCellPickCancel(); else lookupPickCancel(); }
 (function setupUserpad(){
   const pads=[...document.querySelectorAll('.numpad-regpage')];
   if(!pads.length) return;
@@ -7516,7 +7550,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v167';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v168';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
