@@ -693,12 +693,12 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 }
 /* テンキー上端のドラッグ用グリップ（上下にスライドで大きさ変更） */
 .numpad-resizer {
-  height: 13px; margin: -2px -3px 2px; cursor: ns-resize;
+  height: calc(13px * var(--bar-scale, 1)); margin: -2px -3px 2px; cursor: ns-resize;
   display: flex; align-items: center; justify-content: center;
   touch-action: none; -webkit-tap-highlight-color: transparent;
 }
 .numpad-resizer-grip {
-  width: 46px; height: 5px; border-radius: 3px;
+  width: 46px; height: calc(5px * var(--bar-scale, 1)); border-radius: 3px;
   background: #6a6a6a; transition: background 0.1s;
 }
 .numpad-resizer:hover .numpad-resizer-grip,
@@ -707,10 +707,10 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
    基本ルールの後に置いて上書きする */
 @media (orientation: landscape) and (max-height: 500px) {
   .numpad-resizer {
-    height: auto; width: 18px; margin: -3px 4px -3px -3px;
+    height: auto; width: calc(18px * var(--bar-scale, 1)); margin: -3px 4px -3px -3px;
     cursor: ew-resize; flex-shrink: 0;
   }
-  .numpad-resizer-grip { width: 5px; height: 46px; }   /* 横ドラッグでテンキー領域の幅を変更 */
+  .numpad-resizer-grip { width: calc(5px * var(--bar-scale, 1)); height: 46px; }   /* 横ドラッグでテンキー領域の幅を変更 */
   .numpad-viewport { flex: 1; min-width: 0; }
   /* 横持ち：テンキーの高さを本体（画面）の高さに合わせる。
      ボタンの高さはkey-scaleの上下パディングではなくグリッド行(1fr)で決めるので、
@@ -1454,6 +1454,10 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <span class="set-label">数字キーの大きさ<small>標準テンキーの0〜9だけ大きく</small></span>
       <span class="set-stepper"><button class="step-btn" onclick="changeNumSize(-1)">−</button><span class="sc-val" id="numSize">標準</span><button class="step-btn" onclick="changeNumSize(1)">＋</button></span>
     </div>
+    <div class="set-row">
+      <span class="set-label">調整バーの太さ<small>テンキーの大きさを変えるバー</small></span>
+      <span class="set-stepper"><button class="step-btn" onclick="changeBarSize(-1)">−</button><span class="sc-val" id="barSize">標準</span><button class="step-btn" onclick="changeBarSize(1)">＋</button></span>
+    </div>
     <button class="set-act" id="sheetTabsBtn" onclick="toggleSheetTabs()">🗂 シートのタブを常に表示</button>
     <button class="set-act" id="darkBtn" onclick="toggleDark()">🌙 ナイトモード</button>
     <button class="set-act" id="keypadEditBtn" onclick="toggleKeypadEdit()" title="テンキーのボタンをドラッグして好きな位置に入れ替えます（同じ大きさのボタン同士）">🔧 テンキーのボタン配置を編集</button>
@@ -2168,6 +2172,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><b>税率</b>：消費税モードの税率</div>
         <div class="help-li"><b>テンキー／セル文字／小計文字</b>：各文字サイズ</div>
         <div class="help-li"><b>数字キーの大きさ</b>：標準テンキーの<b>0〜9（と「.」）だけ</b>を、標準から何段階か大きくできます。<b>文字だけでなくボタンの枠（左3列の幅）も広がり</b>、押しやすくなります（演算子やEnterなど右側のキーはその分やや狭くなります）。</div>
+        <div class="help-li"><b>調整バーの太さ</b>：テンキーの大きさを変えるバー（テンキー上端／横向きは左端）の太さを、細〜最太の何段階かで変えられます。つかみやすくしたいときに太くできます。</div>
         <div class="help-li"><b>🔧 テンキーのボタン配置を編集</b>：押すと編集モードになり、テンキーのボタンをドラッグして好きな位置に入れ替えできます（同じ大きさのボタン同士。Enter・0は固定）。<b>関数ページ・枠線ページ（右に2回フリック）も編集可能</b>（編集中もEnter上のフリックでページを移動できます）。配置は自動保存され、編集バーの「↺初期化」で各ページを元に戻せます。</div>
         <div class="help-li"><b>🔀 モードの表示/非表示</b>：「モード」一覧に出す標準モードを選べます。チェックを外すと一覧から隠れます（内容は保持。「通常」は常に表示）。</div>
       </div>
@@ -4442,6 +4447,19 @@ function applyNumSize(){
 function changeNumSize(delta){
   const next=numSizeIdx+delta; if(next<0||next>=NUM_STEPS.length) return;
   numSizeIdx=next; applyNumSize();
+}
+/* ── テンキーの大きさ調整バーの太さ ── */
+const BAR_STEPS=[0.7, 1.0, 1.5, 2.2, 3.0];
+const BAR_LABELS=['細','標準','太','極太','最太'];
+let barSizeIdx=1;
+function applyBarSize(){
+  document.body.style.setProperty('--bar-scale', BAR_STEPS[barSizeIdx].toFixed(2));
+  const el=document.getElementById('barSize'); if(el) el.textContent=BAR_LABELS[barSizeIdx];
+  localStorage.setItem('excalc_barsize', barSizeIdx);
+}
+function changeBarSize(delta){
+  const next=barSizeIdx+delta; if(next<0||next>=BAR_STEPS.length) return;
+  barSizeIdx=next; applyBarSize();
 }
 
 /* ── テンキーの折りたたみ（バーを端までドラッグすると消える。バーで戻す） ──
@@ -7498,7 +7516,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v166';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v167';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -8792,6 +8810,9 @@ applyKeySize();
 const savedNumSize=parseInt(localStorage.getItem('excalc_numscale'));
 if(!isNaN(savedNumSize)&&savedNumSize>=0&&savedNumSize<NUM_STEPS.length) numSizeIdx=savedNumSize;
 applyNumSize();
+const savedBarSize=parseInt(localStorage.getItem('excalc_barsize'));
+if(!isNaN(savedBarSize)&&savedBarSize>=0&&savedBarSize<BAR_STEPS.length) barSizeIdx=savedBarSize;
+applyBarSize();
 const savedAppWidth=parseInt(localStorage.getItem('excalc_appwidth'));
 if(!isNaN(savedAppWidth)&&savedAppWidth>=0&&savedAppWidth<WIDTH_STEPS.length) appWidthIdx=savedAppWidth;
 applyAppWidth();
