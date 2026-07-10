@@ -2194,7 +2194,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-h">💾 保存・その他（上部メニュー）</div>
         <div class="help-li"><b>保存</b>：名前を付けて保存　<b>リスト</b>：保存データを開く</div>
         <div class="help-li"><b>上書き保存</b>：リストから読み込んだ記録（または直前に保存した記録）があるときに<b>「保存」</b>を押すと、<b>「◯◯に上書き保存しますか？」</b>と確認が出ます。<b>OK</b>で同じ記録に上書き、<b>キャンセル</b>で新しい名前を付けて別に保存します（🔒ロック中の記録は上書きされず、新規保存になります）。</div>
-        <div class="help-li">保存したときの<b>モードも一緒に記録</b>され、読み込むとそのモード（単位水量など）で再現します。リストの各データにはモードのバッジが表示されます。</div>
+        <div class="help-li">記録1件＝<b>「保存したときのモードのシート一式」</b>です（単位水量なら本体・配合登録・エアメータ登録の3枚セット、通常モードなら通常のシートたち）。読み込むと<b>そのモードのシートだけが記録の内容に置き換わり</b>、<b>他のモードの内容には影響しません</b>。リストの各データにはモードのバッジが表示されます。</div>
+        <div class="help-li">アプリ全体のまるごとバックアップは、リスト画面いちばん下の<b>⬇書き出し／⬆読み込み</b>（ファイル）を使ってください。</div>
         <div class="help-li">リストの上に<b>🗂記録／📌タブ1／📌タブ2／🔀モード</b>の4つのタブがあります。保存した記録はまず<b>「記録」</b>タブに入り、各データの<b>タブ選択欄</b>でよく呼び出したい記録を<b>タブ1・タブ2</b>に振り分けて整理できます。タブは<b>長押し</b>で名前を変更できます（例：「現場A」「経理」）。</div>
         <div class="help-li"><b>「モードへ」</b>で記録をモードに登録すると、その記録は自動で<b>「モード」タブ</b>へ移動し、誤って削除・改名・タブ移動できないよう<b>保護</b>されます（🔒ロックと同じ状態。手動での「モード」タブへの振り分けはできません）。</div>
         <div class="help-li">リスト画面いちばん下の<b>⬇書き出し</b>で保存データをファイルに出力 → 別の端末・ブラウザで<b>⬆読み込み</b>すると復元できます（バックアップ・引っ越し用）。</div>
@@ -7577,7 +7578,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v169';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v170';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -8533,12 +8534,13 @@ function appPrompt(message, defaultValue=''){
 }
 
 async function saveData() {
-  // 全モードのシート一式も一緒に保存（開いているシートの最新状態を取り込んでから複製）
-  let modeSheetsSnap;
+  // 記録＝「今のモードのシート一式」だけを保存（開いているシートの最新状態を取り込んでから複製）。
+  // 他のモードの内容は記録に含めない（読込時も他のモードへ影響しないファイル感覚の保存）。
+  let sheetSetSnap;
   if(typeof sheets!=='undefined' && Array.isArray(sheets) && sheets.length){
     if(sheets[curSheet]) Object.assign(sheets[curSheet], captureCurrentSheet());
-    modeSheets[tableMode]={ sheets, cur:curSheet };
-    try{ modeSheetsSnap=JSON.parse(JSON.stringify(modeSheets)); }catch(_){ modeSheetsSnap=undefined; }
+    modeSheets[workspaceMode]={ sheets, cur:curSheet };
+    try{ sheetSetSnap=JSON.parse(JSON.stringify({ sheets, cur:curSheet })); }catch(_){ sheetSetSnap=undefined; }
   }
   const btn=document.getElementById('saveBtn');
   const saves=getSaves();
@@ -8547,9 +8549,9 @@ async function saveData() {
   if(cur && !cur.locked){
     if(confirm(`「${cur.name}」に上書き保存しますか？\n［キャンセル］を押すと新しい名前を付けて保存します。`)){
       Object.assign(cur, {
-        timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces, mode:tableMode,
+        timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces, mode:workspaceMode,
         data:data.map(row=>[...row]), styles:{...cellStyles},
-        modeSheets:modeSheetsSnap, curMode:tableMode, sheets:undefined, cur:undefined
+        sheetSet:sheetSetSnap, modeSheets:undefined, curMode:undefined, sheets:undefined, cur:undefined
       });
       persistSaves(saves);
       if(btn){ btn.textContent='✓ 上書き'; setTimeout(()=>{btn.textContent='保存';},1200); }
@@ -8563,9 +8565,9 @@ async function saveData() {
   const id=Date.now();
   saves.unshift({
     id, name:name.trim()||defaultName,
-    timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces, mode:tableMode,
+    timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces, mode:workspaceMode,
     data:data.map(row=>[...row]), styles:{...cellStyles}, tab:0,
-    modeSheets:modeSheetsSnap, curMode:tableMode   // モード毎の全シート情報（古い保存には無い）
+    sheetSet:sheetSetSnap   // 今のモードのシート一式（data/styles はモード登録・互換用の開いているシート分）
   });
   persistSaves(saves);
   currentSaveId=id;                          // 以後この記録に上書きできるようにする
@@ -8757,39 +8759,50 @@ async function renameSave(id) {
 function loadSave(id) {
   const saves=getSaves();
   const entry=saves.find(s=>s.id===id); if(!entry) return;
-  if(!confirm(`「${entry.name}」を読み込みますか？\n現在のデータは上書きされます。`)) return;
+  const ldName=(entry.mode&&typeof modeButtonLabel==='function')?modeButtonLabel(entry.mode):'';
+  if(!confirm(`「${entry.name}」を読み込みますか？\n${ldName?`「${ldName}」モードのシートが`:'現在のシートが'}この記録の内容に置き換わります（他のモードには影響しません）。`)) return;
   currentSaveId=id;   // 以後「保存」でこの記録に上書きできるようにする
   if(entry.decPlaces!==undefined) decPlaces=entry.decPlaces;
-  // ① 新形式：モード毎のシート一式を丸ごと復元
-  if(entry.modeSheets && typeof entry.modeSheets==='object'){
-    modeSheets={};
+  // まず今のワークスペースを退避（読込対象以外のモードの内容は保持する）
+  if(Array.isArray(sheets) && sheets.length && sheets[curSheet]){
+    Object.assign(sheets[curSheet], captureCurrentSheet());
+    modeSheets[workspaceMode]={ sheets, cur:curSheet };
+  }
+  const targetMode=(entry.mode && isValidMode(entry.mode)) ? entry.mode : workspaceMode;
+  // ① 新形式：そのモードのシート一式だけを置き換え（他のモードには影響しない）
+  if(entry.sheetSet && Array.isArray(entry.sheetSet.sheets) && entry.sheetSet.sheets.length){
+    modeSheets[targetMode]={ sheets:entry.sheetSet.sheets.map(normSheet), cur:Math.max(0,Math.min(entry.sheetSet.sheets.length-1,entry.sheetSet.cur|0)) };
+    for(const k in modeStates) delete modeStates[k];
+    activateModeSheetSet(targetMode);
+  }
+  // ② v160〜167の全モード形式：記録のあるモードを置き換え（無いモードは今のまま）
+  else if(entry.modeSheets && typeof entry.modeSheets==='object'){
     for(const m in entry.modeSheets){
       const set=entry.modeSheets[m];
       if(set && Array.isArray(set.sheets) && set.sheets.length)
         modeSheets[m]={ sheets:set.sheets.map(normSheet), cur:Math.max(0,Math.min(set.sheets.length-1,set.cur|0)) };
     }
     for(const k in modeStates) delete modeStates[k];
-    let cur=(entry.curMode&&isValidMode(entry.curMode))?entry.curMode:((entry.mode&&isValidMode(entry.mode))?entry.mode:'normal');
+    let cur=(entry.curMode&&isValidMode(entry.curMode))?entry.curMode:targetMode;
+    if(!isValidMode(cur)) cur='normal';
     activateModeSheetSet(cur);
   }
-  // ② 旧形式：単一のシート一式 → そのモードの一式として復元
+  // ③ 旧形式：単一のシート一式 → そのモードの一式として復元（他モードは保持）
   else if(Array.isArray(entry.sheets) && entry.sheets.length){
-    const targetMode=(entry.mode && isValidMode(entry.mode))?entry.mode:workspaceMode;
-    modeSheets={}; for(const k in modeStates) delete modeStates[k];
     modeSheets[targetMode]={ sheets:entry.sheets.map(normSheet), cur:Math.max(0,Math.min(entry.sheets.length-1,entry.cur|0)) };
+    for(const k in modeStates) delete modeStates[k];
     activateModeSheetSet(targetMode);
   }
-  // ③ 最も古い形式：シート無しの単一表 → そのモードの1枚として復元
+  // ④ 最も古い形式：シート無しの単一表 → そのモードの1枚として復元（他モードは保持）
   else {
-    const targetMode=(entry.mode && isValidMode(entry.mode)) ? entry.mode : workspaceMode;
     tableMode=targetMode; workspaceMode=targetMode;
     document.body.classList.toggle('simple-mode', targetMode==='simple');
+    for(const k in modeStates) delete modeStates[k];
     loadData(entry.data);
     cellStyles=entry.styles?{...entry.styles}:{};
     if(entry.rows>=1&&entry.rows<=MAXROWS) ROWS=entry.rows;
     COLS=entry.cols||normalCols();
     normalizeStructLayout();
-    modeSheets={}; for(const k in modeStates) delete modeStates[k];
     sheets=[Object.assign({name:'シート1'}, captureCurrentSheet())]; curSheet=0;
     modeSheets[targetMode]={ sheets, cur:0 };
   }
