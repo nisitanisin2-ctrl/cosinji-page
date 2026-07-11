@@ -2964,6 +2964,7 @@ function stripAllMerges(){
 /* ── スプレッドシート構築 ── */
 function buildSheet() {
   copySrcR=copySrcC=-1;
+  updateEnterArrow();
   const t=document.getElementById('sheet');
   t.innerHTML='';
   // テーブルは横幅いっぱい(width:100%)。列が多い時だけ最小幅でスクロールさせる
@@ -6040,7 +6041,15 @@ function setEnterDir(d){
   enterMoveDir = (d==='right')?'right':'down';
   localStorage.setItem('excalc_enterdir', enterMoveDir);
   document.querySelectorAll('#enterDirSeg .enterdir-btn').forEach(b=>b.classList.toggle('on', b.dataset.dir===enterMoveDir));
-  document.body.style.setProperty('--enter-arrow', enterMoveDir==='right' ? '"→"' : '"↓"');
+  updateEnterArrow();
+}
+/* Enterボタンの矢印表示を、実際にEnterで進む向きに合わせて更新。
+   構造化モードは modeAdvance() が優先されるため設定に関わらず向きが決まる
+   （単位水量＝下、それ以外の構造化モード＝右へ進んで行末で次行へ）。 */
+function updateEnterArrow(){
+  let dir=enterMoveDir;
+  if(isStructMode()) dir = (tableMode==='tanisuiryou') ? 'down' : 'right';
+  document.body.style.setProperty('--enter-arrow', dir==='right' ? '"→"' : '"↓"');
 }
 /* Enter確定後に次のセルへ移動。既定は下、設定で右にできる。
    下：最終行なら（通常・簡易モードで最大未満のとき）行を追加してそこへ。
@@ -7615,7 +7624,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v178';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v179';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
