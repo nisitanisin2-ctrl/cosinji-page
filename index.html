@@ -707,7 +707,7 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
    基本ルールの後に置いて上書きする */
 @media (orientation: landscape) and (max-height: 500px) {
   .numpad-resizer {
-    height: auto; width: calc(18px * var(--bar-scale, 1)); margin: -3px 4px -3px -3px;
+    height: auto; width: calc(13px * var(--bar-scale, 1)); margin: -3px 4px -3px -3px;   /* 縦持ちのバー高さ(13px)と同じ幅に */
     cursor: ew-resize; flex-shrink: 0;
   }
   .numpad-resizer-grip { width: calc(5px * var(--bar-scale, 1)); height: 46px; }   /* 横ドラッグでテンキー領域の幅を変更 */
@@ -7580,7 +7580,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v173';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v174';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
