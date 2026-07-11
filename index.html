@@ -2132,9 +2132,10 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li">他に MAX・MIN・COUNT・ABS・SQRT・ROUND・IF が使えます。</div>
         <div class="help-li"><b>シート間の連携</b>：他のシートのセルは <b>=シート名!A1</b>（例 <b>=商品!C2</b>）で参照できます。足し算や関数の範囲（例 <b>=SUM(商品!A1:A5)</b>）にも使えます。</div>
         <div class="help-li"><b>シートはモード毎に別々</b>：シートのタブ一式は<b>モード毎に独立</b>しています。モードを切り替えると、そのモード専用のタブ一式に入れ替わります（例：単位水量モードでは本体・配合登録・エアメータ登録が表示され、通常モードに戻ると通常モードのシートが表示されます）。保存・読込ではすべてのモードのシートがまとめて保存・復元されます。</div>
-        <div class="help-li"><b>🔍照合</b>（テンキーのボタンを長押しして割り当て可能）を押すと、<b>VLOOKUP／XLOOKUP を画面の案内どおりに作れます</b>。表の範囲や探す値は<b>「セルを選ぶ／範囲を選ぶ」→ 表を指でタップ</b>して指定でき、手で式を打たなくても作れます（他のシートの表も、そのシートに切り替えて選べます）。</div>
-        <div class="help-li"><b>=VLOOKUP(探す値, 範囲, 何列目, 0)</b>：範囲の左端から値を探し、その行の指定列を返します（末尾の <b>0</b> で完全一致）。例 <b>=VLOOKUP(A1, 商品!A2:C9, 2, 0)</b></div>
-        <div class="help-li"><b>=XLOOKUP(探す値, 検索範囲, 戻す範囲, "見つからない時")</b>：検索範囲で値を探し、対応する戻す範囲の値を返します。文字も返せます。</div>
+        <div class="help-li"><b>🔍照合</b>（テンキーのボタンを長押しして割り当て可能）を押すと、<b>V参照／X参照 の式を画面の案内どおりに作れます</b>。表の範囲や探す値は<b>「セルを選ぶ／範囲を選ぶ」→ 表を指でタップ</b>して指定でき、手で式を打たなくても作れます（他のシートの表も、そのシートに切り替えて選べます）。</div>
+        <div class="help-li"><b>=V参照(探す値, 範囲, 何列目, 0)</b>：範囲の左端から値を探し、その行の指定列を返します（末尾の <b>0</b> で完全一致）。例 <b>=V参照(A1, 商品!A2:C9, 2, 0)</b></div>
+        <div class="help-li"><b>=X参照(探す値, 検索範囲, 戻す範囲, "見つからない時")</b>：検索範囲で値を探し、対応する戻す範囲の値を返します。文字も返せます。</div>
+        <div class="help-li">エクセルと同じ書き方（VLOOKUP／XLOOKUP）でもそのまま入力・計算できます。Excel出力時は自動でエクセルの関数名に変換されます。</div>
         <div class="help-li">数式入力中にセルをタップするとセル名が挿入されます。</div>
       </div>
 
@@ -2284,8 +2285,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     </div>
     <div class="modal-body">
       <div class="lk-seg">
-        <button class="lk-fn on" id="lkFnV" onclick="lkSetFn('VLOOKUP')">VLOOKUP</button>
-        <button class="lk-fn" id="lkFnX" onclick="lkSetFn('XLOOKUP')">XLOOKUP</button>
+        <button class="lk-fn on" id="lkFnV" onclick="lkSetFn('VLOOKUP')">V参照</button>
+        <button class="lk-fn" id="lkFnX" onclick="lkSetFn('XLOOKUP')">X参照</button>
       </div>
       <div class="lk-hint" id="lkHint"></div>
 
@@ -2680,6 +2681,8 @@ function evalFormula(formula) {
 }
 
 function parseArith(s) {
+  // 日本語名の関数を内部名に正規化（V参照/X参照。従来の英語名もそのまま使える）
+  if(s.indexOf('参照')>=0) s=s.replace(/[VvＶ]参照\s*\(/g,'VLOOKUP(').replace(/[XxＸ]参照\s*\(/g,'XLOOKUP(');
   let pos = 0;
   const ws = () => { while (pos < s.length && s[pos] === ' ') pos++; };
 
@@ -3773,6 +3776,7 @@ function xlBorder(css){ if(!css) return null; const wm=css.match(/(\d+(?:\.\d+)?
 /* アプリの数式→Excelの数式 */
 function appFormulaToXlsx(f){
   let out=String(f).replace(/×/g,'*').replace(/÷/g,'/').replace(/\bPI\b/g,'PI()').replace(/\bE\b(?!\d)/g,'EXP(1)');
+  out=out.replace(/[VvＶ]参照\s*\(/g,'VLOOKUP(').replace(/[XxＸ]参照\s*\(/g,'XLOOKUP(');   // 日本語名→Excelの関数名
   // シート参照 名前!A1 は Excel が解釈しやすいよう '名前'!A1 に（引用符で囲む）
   out=out.replace(/(^|[^'\w])([^\s'"(),:!+\-*/^=<>&%]+)!/g, (m,pre,name)=> pre+"'"+name.replace(/'/g,"''")+"'!");
   return out;
@@ -7576,7 +7580,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v171';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v172';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -7799,10 +7803,10 @@ function lkBuildFormula(){
   lkSync(); if(!lkState) return '';
   if(lkState.fn==='VLOOKUP'){
     if(!lkState.key||!lkState.range) return '';
-    return `=VLOOKUP(${lkArg(lkState.key)}, ${lkState.range}, ${lkState.col}, ${lkState.exact?0:1})`;
+    return `=V参照(${lkArg(lkState.key)}, ${lkState.range}, ${lkState.col}, ${lkState.exact?0:1})`;
   }
   if(!lkState.key||!lkState.look||!lkState.ret) return '';
-  let f=`=XLOOKUP(${lkArg(lkState.key)}, ${lkState.look}, ${lkState.ret}`;
+  let f=`=X参照(${lkArg(lkState.key)}, ${lkState.look}, ${lkState.ret}`;
   if(lkState.nf!=='') f+=`, ${lkArg(lkState.nf)}`;
   return f+')';
 }
