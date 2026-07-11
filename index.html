@@ -1637,7 +1637,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 <div class="numpad-section" id="numpadSection">
   <div class="kp-edit-bar" id="kpEditBar">
     <span class="kp-edit-hint">ボタンをドラッグして入れ替え（同じ大きさ同士）</span>
-    <button class="kp-edit-act" onclick="resetKeypadLayout()">↺ 初期化</button>
+    <button class="kp-edit-act" onclick="resetKeypadLayout()">↺ 配置初期化</button>
+    <button class="kp-edit-act" onclick="resetKeypadAll()" title="全ページの配置と、長押しで割り当てた機能をすべて既定に戻します">⟲ 全部初期化</button>
     <button class="kp-edit-act done" onclick="toggleKeypadEdit()">完了</button>
   </div>
   <div class="numpad-resizer" id="numpadResizer" title="ドラッグでテンキーの大きさを変更（横向きは左右）">
@@ -4637,6 +4638,7 @@ const KEY_FUNCS={
   a_today:{g:'設定・機能',label:'📅今日',run:()=>insertTodayDate()},
   a_lookup:{g:'設定・機能',label:'🔍照合',run:()=>openLookupDlg()},
   a_find:{g:'設定・機能',label:'🔎検索',run:()=>openFindDlg()},
+  a_modenormal:{g:'設定・機能',label:'▦通常',run:()=>switchMode('normal')},
   a_sheetadd:{g:'設定・機能',label:'＋シート',run:()=>addSheet()},
   a_sheetnext:{g:'設定・機能',label:'⇄シート',run:()=>{ if(typeof sheets!=='undefined'&&sheets.length>1) switchSheet((curSheet+1)%sheets.length); }},
   a_sheettabs:{g:'設定・機能',label:'🗂タブ',run:()=>toggleSheetTabs()},
@@ -5256,10 +5258,10 @@ window.addEventListener('resize', updateNumpadEdgeBtn);   // 画面の向きが�
    位置は data-key 単位で入れ替え、localStorage に保存する。       */
 /* 数字ページ（page1）の既定配置 */
 const KEYPAD_DEFAULT_POS={
-  mode:{r:1,c:1}, ce:{r:1,c:2}, bs:{r:1,c:3}, div:{r:1,c:4}, mul:{r:1,c:5},
-  n7:{r:2,c:1}, n8:{r:2,c:2}, n9:{r:2,c:3}, minus:{r:2,c:4}, enter:{r:2,c:5,h:2},
+  mode:{r:1,c:1}, ce:{r:1,c:2}, sign:{r:1,c:3}, mul:{r:1,c:4}, bs:{r:1,c:5},
+  n7:{r:2,c:1}, n8:{r:2,c:2}, n9:{r:2,c:3}, div:{r:2,c:4}, enter:{r:2,c:5,h:2},
   n4:{r:3,c:1}, n5:{r:3,c:2}, n6:{r:3,c:3}, plus:{r:3,c:4},
-  n1:{r:4,c:1}, n2:{r:4,c:2}, n3:{r:4,c:3}, sign:{r:4,c:4}, sum:{r:4,c:5},
+  n1:{r:4,c:1}, n2:{r:4,c:2}, n3:{r:4,c:3}, minus:{r:4,c:4}, sum:{r:4,c:5},
   n0:{r:5,c:1,w:2}, dot:{r:5,c:3}, fx:{r:5,c:4}, text:{r:5,c:5}
 };
 /* 関数ページ（page2）の既定配置 */
@@ -5329,6 +5331,15 @@ function resetKeypadLayout(){
   KP_PAGES.forEach(pg=>localStorage.removeItem(pg.skey));
   loadKeypadPos();
   applyKeypadLayout();
+}
+/* すべてをデフォルトに：全ページの配置＋長押しで割り当てた機能をまとめて初期化 */
+function resetKeypadAll(){
+  if(!confirm('テンキーをすべてデフォルトに戻しますか？\n・全ページのボタン配置（数字・関数・枠線）\n・長押しで割り当てた機能\nが最初の状態に戻ります（登録テンキーの登録内容は残ります）。')) return;
+  KP_PAGES.forEach(pg=>localStorage.removeItem(pg.skey));
+  loadKeypadPos();
+  keyAssign={}; saveKeyAssign(); applyKeyAssign();
+  applyKeypadLayout();
+  toast('テンキーをデフォルトに戻しました');
 }
 function swapKeypadKeys(pg,a,b){
   if(!pg||!a||!b||a===b) return;
@@ -7590,7 +7601,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v175';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v176';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
