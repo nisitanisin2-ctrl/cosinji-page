@@ -839,7 +839,10 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 .btn.op:hover { background: #217346; }
 .btn.clr    { background: #a93226; }
 .btn.clr:hover { background: #c0392b; }
-.btn.enter  { background: #1a5276; grid-row: span 2; font-size: calc(22px * var(--key-scale, 1.3)); }
+.btn.enter  { background: #1a5276; grid-row: span 2; font-size: calc(22px * var(--key-scale, 1.3));
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+/* Enterの下に、確定後に進む向き（↓下／→右）を表示。長押しで切替 */
+.btn.enter::after { content: var(--enter-arrow, "↓"); font-size: 0.5em; line-height: 1; opacity: 0.75; font-weight: normal; }
 .btn.enter:hover { background: #1f618d; }
 .btn.span2  { grid-column: span 2; }
 /* 標準テンキーの数字キー(0〜9・.)だけ、設定で文字を大きくできる（--num-scale） */
@@ -2092,7 +2095,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <div class="help-sec">
         <div class="help-h">✏️ 基本の使い方</div>
         <div class="help-li">セルをタップして選び、テンキーで入力 → <b>Enter</b>で確定（下のセルへ移動）。<b>いちばん下の行でEnter</b>を押すと、自動で<b>行が1つ追加</b>されて続けて入力できます（通常・簡易モード、最大250行）。</div>
-        <div class="help-li"><b>Enterを長押し</b>すると、確定後に進む向きを<b>↓下 ⇄ →右</b>で切り替えられます（設定の「Enterで進む向き」と同じ）。</div>
+        <div class="help-li"><b>Enterを長押し</b>すると、確定後に進む向きを<b>↓下 ⇄ →右</b>で切り替えられます（設定の「Enterで進む向き」と同じ）。<b>Enterボタンの下の矢印</b>で今どちらの向きか確認できます。</div>
         <div class="help-li">上部の入力欄から直接入力／編集もできます。</div>
         <div class="help-li">列見出し（A,B…）や行番号をタップすると、その列・行を選択して下に合計が出ます。</div>
         <div class="help-li"><b>列見出しの右端／行番号の下端をドラッグ</b>すると、その列の幅・行の高さを個別に変更できます（ダブルタップで自動に戻す）。</div>
@@ -6037,6 +6040,7 @@ function setEnterDir(d){
   enterMoveDir = (d==='right')?'right':'down';
   localStorage.setItem('excalc_enterdir', enterMoveDir);
   document.querySelectorAll('#enterDirSeg .enterdir-btn').forEach(b=>b.classList.toggle('on', b.dataset.dir===enterMoveDir));
+  document.body.style.setProperty('--enter-arrow', enterMoveDir==='right' ? '"→"' : '"↓"');
 }
 /* Enter確定後に次のセルへ移動。既定は下、設定で右にできる。
    下：最終行なら（通常・簡易モードで最大未満のとき）行を追加してそこへ。
@@ -7611,7 +7615,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v177';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v178';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
