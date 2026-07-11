@@ -2092,6 +2092,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <div class="help-sec">
         <div class="help-h">✏️ 基本の使い方</div>
         <div class="help-li">セルをタップして選び、テンキーで入力 → <b>Enter</b>で確定（下のセルへ移動）。<b>いちばん下の行でEnter</b>を押すと、自動で<b>行が1つ追加</b>されて続けて入力できます（通常・簡易モード、最大250行）。</div>
+        <div class="help-li"><b>Enterを長押し</b>すると、確定後に進む向きを<b>↓下 ⇄ →右</b>で切り替えられます（設定の「Enterで進む向き」と同じ）。</div>
         <div class="help-li">上部の入力欄から直接入力／編集もできます。</div>
         <div class="help-li">列見出し（A,B…）や行番号をタップすると、その列・行を選択して下に合計が出ます。</div>
         <div class="help-li"><b>列見出しの右端／行番号の下端をドラッグ</b>すると、その列の幅・行の高さを個別に変更できます（ダブルタップで自動に戻す）。</div>
@@ -4704,6 +4705,15 @@ function pickKeyAssign(fid){
     const b=e.target.closest&&e.target.closest('#numpadPage1 .btn[data-key], #numpadPage2 .btn[data-key], #numpadPageSci .btn[data-key]');
     if(!b || b.dataset.key==='sum') return;   // Σは長押し＝合計/平均メニューが既にあるため除外
     sx=e.clientX; sy=e.clientY; clearTimeout(timer);
+    const key=b.dataset.key;
+    // Enterの長押し＝確定後に進む向き（下⇄右）を切替（割り当てピッカーは開かない）
+    if(key==='enter'||key==='fp_enter'||key==='sc_enter'){
+      timer=setTimeout(()=>{ timer=null; kaSuppress=true; if(navigator.vibrate){try{navigator.vibrate(25);}catch(_){}}
+        setEnterDir(enterMoveDir==='down'?'right':'down');
+        toast(enterMoveDir==='right'?'Enterで→右へ進みます':'Enterで↓下へ進みます');
+      }, 600);
+      return;
+    }
     timer=setTimeout(()=>{ timer=null; kaSuppress=true; if(navigator.vibrate){try{navigator.vibrate(25);}catch(_){}} openKeyAssign(b.dataset.key); }, 600);
   });
   window.addEventListener('pointermove', e=>{ if(timer && (Math.abs(e.clientX-sx)>10||Math.abs(e.clientY-sy)>10)){ clearTimeout(timer); timer=null; } });
@@ -7601,7 +7611,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v176';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v177';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
