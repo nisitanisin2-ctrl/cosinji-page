@@ -2114,7 +2114,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
           <br>・<b>数字ページを上へフリック＝登録ページが重なって表示</b>…紫のボタンを<b>長押し</b>すると登録画面が開きます。基本は<b>文字・数字を入力して「登録」</b>するだけ（よく使う文字・数字を登録、数値の途中でタップすると連結。例：100→「円」で100円）。<b>「🎨 書式（文字色・背景・サイズ・装飾）」</b>を開いて色・背景・大きさ・太字などを付けておくと、そのボタンで入力したときに<b>その書式のまま</b>セルへ入ります。<b>「📋 セルから選ぶ」</b>を押してから表のセルをタップすると、そのセルの<b>内容と書式をまとめて</b>登録できます。<b>「🔧 ボタンの機能から選ぶ（オプション）」</b>を開くと、<b>テンキーのボタンを長押しして割り当てられる機能と同じもの</b>（標準キー・記号/関数・保存/リスト/照合/検索/PDF/CSVなどの設定機能）を選んで登録できます。登録後は<b>タップ</b>で入力／実行（未登録の「＋」はタップでも登録画面が開きます）。登録画面の<b>「🔀 このボタンを別の場所へ移動」</b>を押すと、移動先のボタンをタップして位置を入れ替えできます（<b>別のページのボタンとも</b>入れ替え可）。登録は保存されます。登録ページは<b>左右にフリックすると「左ページ・中央・右ページ」の3ページ</b>を切り替えでき、合計で数多くのボタンを登録できます（中央ページ＝これまでの登録内容）。<b>どのボタンの上でも下へフリック</b>すると数字ページに戻ります。</div>
         <div class="help-li">テンキー上端（横向きは左端）の<b>バーをドラッグ</b>すると大きさ（横向きは幅）を変更できます。<b>端までドラッグするとテンキーが消え</b>、もう一度バーをつかんで戻すと再び表示されます。設定の<b>「🔧 テンキーのボタン配置を編集」</b>で各ボタンの位置も入れ替えできます。</div>
         <div class="help-li">合計バー右端の<b>▼（横向きは▶）ボタン</b>を押すと、テンキーがワンタップで端まで収納されます。収納中は<b>▲（横向きは◀）</b>に変わり、押すと<b>元のサイズに戻ります</b>。</div>
-        <div class="help-li">数字ページ・関数記号ページ・関数電卓ページ（左に2回フリック）の<b>ボタンを長押し</b>すると「ボタンの割り当て」が開き、そのボタンを<b>別のキーや設定の機能</b>（保存・リスト・PDF出力・CSV・ナイトモード・テンプレなど）に変更できます。「↺ 元のボタンに戻す」でいつでも戻せます（Σボタンは長押しに合計/平均の切替があるため対象外）。</div>
+        <div class="help-li">数字ページ・関数記号ページ・関数電卓ページ（左に2回フリック）の<b>ボタンを長押し</b>すると「ボタンの割り当て」が開き、そのボタンを<b>別のキーや設定の機能</b>（保存・リスト・PDF出力・CSV・ナイトモード・テンプレなど）や<b>「表の操作」</b>（行数・列数の増減／今の場所への行・列の挿入・削除／コピー・貼付・消去／A1へ移動／シート追加・切替）に変更できます。「↺ 元のボタンに戻す」でいつでも戻せます（Σボタンは長押しに合計/平均の切替があるため対象外）。同じ機能は<b>登録テンキーのボタン</b>にも登録できます。</div>
       </div>
 
       <div class="help-sec">
@@ -4637,6 +4637,16 @@ const KEY_FUNCS={
   a_today:{g:'設定・機能',label:'📅今日',run:()=>insertTodayDate()},
   a_lookup:{g:'設定・機能',label:'🔍照合',run:()=>openLookupDlg()},
   a_find:{g:'設定・機能',label:'🔎検索',run:()=>openFindDlg()},
+  a_sheetadd:{g:'設定・機能',label:'＋シート',run:()=>addSheet()},
+  a_sheetnext:{g:'設定・機能',label:'⇄シート',run:()=>{ if(typeof sheets!=='undefined'&&sheets.length>1) switchSheet((curSheet+1)%sheets.length); }},
+  a_sheettabs:{g:'設定・機能',label:'🗂タブ',run:()=>toggleSheetTabs()},
+  /* 表の操作（行・列の増減／今の場所への挿入・削除／コピー等） */
+  t_rowplus:{g:'表の操作',label:'行数＋',run:()=>changeRows(1)}, t_rowminus:{g:'表の操作',label:'行数−',run:()=>changeRows(-1)},
+  t_colplus:{g:'表の操作',label:'列数＋',run:()=>changeCols(1)}, t_colminus:{g:'表の操作',label:'列数−',run:()=>changeCols(-1)},
+  t_insrow:{g:'表の操作',label:'↥行挿入',run:()=>insertRowAtSel()}, t_delrow:{g:'表の操作',label:'✂行削除',run:()=>deleteRowAtSel()},
+  t_inscol:{g:'表の操作',label:'↤列挿入',run:()=>insertColAtSel()}, t_delcol:{g:'表の操作',label:'✂列削除',run:()=>deleteColAtSel()},
+  t_copy:{g:'表の操作',label:'📋コピー',run:()=>copyCell()}, t_paste:{g:'表の操作',label:'📥貼付',run:()=>pasteCell()},
+  t_clear:{g:'表の操作',label:'🧹消去',run:()=>clearSelection()}, t_home:{g:'表の操作',label:'⇱A1へ',run:()=>sel(0,0)},
 };
 /* 選択中のセルに今日の日付を入れる（日付として自動認識される） */
 function insertTodayDate(){
@@ -4666,7 +4676,7 @@ function openKeyAssign(dataKey){
   const groups={};
   Object.entries(KEY_FUNCS).forEach(([id,f])=>{ (groups[f.g]=groups[f.g]||[]).push([id,f]); });
   let html='';
-  for(const g of ['標準キー','記号・関数','設定・機能']){
+  for(const g of ['標準キー','記号・関数','表の操作','設定・機能']){
     html+=`<div class="ka-sec">${g}</div><div class="ka-grid">`;
     (groups[g]||[]).forEach(([id,f])=>{ html+=`<button class="ka-item${id===cur?' cur':''}" onclick="pickKeyAssign('${id}')">${escHtml(f.label)}</button>`; });
     html+='</div>';
@@ -5057,7 +5067,7 @@ function renderRegPickBody(){
   // テンキー長押しの割り当てと同じ機能一覧（KEY_FUNCS）をグループ表示
   const groups={};
   Object.entries(KEY_FUNCS).forEach(([id,f])=>{ (groups[f.g]=groups[f.g]||[]).push([id,f]); });
-  for(const g of ['標準キー','記号・関数','設定・機能']){
+  for(const g of ['標準キー','記号・関数','表の操作','設定・機能']){
     html+=`<div class="ka-sec">${g}</div><div class="ka-grid">`;
     (groups[g]||[]).forEach(([id,f])=>{
       const active=(cur.type==='action'&&cur.value===id);
@@ -7580,7 +7590,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v174';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v175';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
