@@ -273,7 +273,9 @@ body.has-sheet-tabs .sheet-persist {
 .sheet-tab.sheet-press, .sp-tab.sheet-press { outline: 3px solid #ffd23f; outline-offset: -1px; }
 /* 場所を移動できる状態＝水色のフチ */
 .sheet-tab.sheet-dragging, .sp-tab.sheet-dragging { outline: 3px solid #37c0ff; outline-offset: -1px; opacity: 0.85; }
-body.sheet-reordering .js-sheet-tab { touch-action: none; }
+/* タブは最初から touch-action:none。指の横ドラッグをブラウザのスクロールに奪われず、
+   長押し→ドラッグの並べ替えを確実に成立させる（横スクロールはJSで手動補完） */
+.js-sheet-tab { touch-action: none; }
 
 /* 設定：上のバーのボタン表示/非表示トグル */
 .topbtn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px; }
@@ -7374,8 +7376,8 @@ function bindSheetTab(el){
 function onSheetPointerDown(e){
   if(e.button!==undefined && e.button>0) return;
   const el=e.currentTarget;
-  stDrag={ el, idx:+el.dataset.idx, bar:el.parentNode, longpressed:false, started:false,
-           startX:e.clientX, startY:e.clientY, pointerId:e.pointerId, timer:null };
+  stDrag={ el, idx:+el.dataset.idx, bar:el.parentNode, longpressed:false, started:false, scrolling:false,
+           startX:e.clientX, startY:e.clientY, lastX:e.clientX, pointerId:e.pointerId, timer:null };
   stDrag.timer=setTimeout(()=>{
     if(!stDrag) return;
     stDrag.longpressed=true;
@@ -7393,11 +7395,13 @@ function startSheetDrag(){
 }
 function onSheetPointerMove(e){
   if(!stDrag) return;
+  const dx=e.clientX-stDrag.lastX; stDrag.lastX=e.clientX;
   const moved=Math.hypot(e.clientX-stDrag.startX, e.clientY-stDrag.startY);
   if(!stDrag.started){
+    if(stDrag.scrolling){ stDrag.bar.scrollLeft-=dx; return; }   // バーを手動で横スクロール
     if(!stDrag.longpressed){
-      // 長押し確定前に動いた＝横スクロール/フリック意図。タブ操作を取りやめる
-      if(moved>8){ clearTimeout(stDrag.timer); stDrag=null; }
+      // 長押し確定前に動いた＝横スクロール/フリック意図。タブ操作をやめてバースクロールへ移行
+      if(moved>8){ clearTimeout(stDrag.timer); stDrag.scrolling=true; stDrag.bar.scrollLeft-=dx; }
       return;
     }
     if(moved>3) startSheetDrag(); else return;
@@ -7416,13 +7420,15 @@ function onSheetPointerMove(e){
 function onSheetPointerUp(e){
   if(!stDrag) return;
   clearTimeout(stDrag.timer);
-  const {started, longpressed, idx, el, bar}=stDrag;
+  const {started, longpressed, scrolling, idx, el, bar}=stDrag;
   stDrag=null;
   if(started){
     el.classList.remove('sheet-dragging');
     document.body.classList.remove('sheet-reordering');
     try{ el.releasePointerCapture(e.pointerId); }catch(_){}
     commitSheetReorder(bar);
+  } else if(scrolling){
+    el.classList.remove('sheet-press');   // バースクロールだけ。切替も改名もしない
   } else {
     el.classList.remove('sheet-press');
     if(longpressed) renameSheet(idx);
@@ -7734,7 +7740,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v185';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v186';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
