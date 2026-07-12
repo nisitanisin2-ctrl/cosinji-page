@@ -3126,6 +3126,22 @@ function autoFitSheet(){
   t.style.minWidth=(rhW+total)+'px';
   // 手動で列幅を指定したら、引き伸ばしをやめて実寸（px）で表示する
   t.style.width = Object.keys(colWidths).length ? (48+total)+'px' : '';
+  // 3.5) 余白（表示幅 − 行番号列 − データ列合計）は行番号列(1,2…)ではなくデータ列へ均等に配る。
+  //   table-layout:fixed の余白は全列に比例配分されるため、放置すると行番号列も広がってしまう。
+  //   データ列を伸ばして余白を使い切ることで、行番号列を文字幅（rhW）以上に広げない。
+  //   （手動列指定・単位水量モードの可変列がある場合は対象外）
+  if(!Object.keys(colWidths).length && tableMode!=='tanisuiryou'){
+    const availW = t.parentElement ? t.parentElement.clientWidth : 0;
+    const surplus = availW - (rhW + total);
+    if(surplus > COLS){
+      const add = surplus / COLS;
+      for(let c=0;c<COLS;c++){
+        const ch=document.getElementById('ch'+c); if(!ch) continue;
+        const cur = parseFloat(ch.style.width) || baseW;
+        ch.style.width = Math.round(cur + add) + 'px';
+      }
+    }
+  }
   // 4) 拡大しても収まらないセルは文字を縮小
   const PAD=8;
   for(let c=0;c<COLS;c++){
@@ -3140,6 +3156,12 @@ function autoFitSheet(){
   }
   applyRowHeights();
 }
+// 画面サイズ・向きが変わったら列幅を再フィット（余白の配り直しで行番号列を広げないため）
+let refitTimer=null;
+window.addEventListener('resize', ()=>{
+  clearTimeout(refitTimer);
+  refitTimer=setTimeout(()=>{ if(document.getElementById('c0_0')) autoFitSheet(); }, 150);
+});
 
 /* ── 列幅・行高の手動変更（表の端をドラッグ／スライド） ── */
 const COL_MIN=30,  COL_MAX=400;
@@ -7740,7 +7762,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v186';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v187';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
