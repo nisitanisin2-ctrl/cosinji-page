@@ -268,9 +268,11 @@ body.has-sheet-tabs .sheet-persist {
   font-size: 15px; font-weight: bold; min-width: 30px; height: 26px;
   cursor: pointer; touch-action: manipulation;
 }
-/* シートタブ：長押し中／ドラッグ中の見た目 */
-.sheet-tab.sheet-press, .sp-tab.sheet-press { outline: 2px solid rgba(255,255,255,0.9); outline-offset: -1px; }
-.sheet-tab.sheet-dragging, .sp-tab.sheet-dragging { opacity: 0.6; }
+/* シートタブ：長押し中／ドラッグ中の見た目（フチの色で状態を区別） */
+/* 名前を変更できる状態＝黄色のフチ */
+.sheet-tab.sheet-press, .sp-tab.sheet-press { outline: 3px solid #ffd23f; outline-offset: -1px; }
+/* 場所を移動できる状態＝水色のフチ */
+.sheet-tab.sheet-dragging, .sp-tab.sheet-dragging { outline: 3px solid #37c0ff; outline-offset: -1px; opacity: 0.85; }
 body.sheet-reordering .js-sheet-tab { touch-action: none; }
 
 /* 設定：上のバーのボタン表示/非表示トグル */
@@ -7732,7 +7734,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v184';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v185';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
