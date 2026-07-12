@@ -4816,9 +4816,19 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
   const regPages=[pgReg,pgRegL,pgRegR];
   let openWhich=null;               // null=数字ページ／'bd'(左2)／'fmt'(左1)／'func'(右1)／'sci'(右2)／'reg'(下)／'regL'(登録左)／'regR'(登録右)
   let lastRegPage='reg';            // 登録を再度開いたとき表示するページ（最後に見ていた登録ページ）
-  let downX=null, downY=0, axis=null, activeEl=null, decided=false, w=1, h=1, downT=0;
+  let downX=null, downY=0, axis=null, activeEl=null, decided=false, w=1, h=1, downT=0, downTopRow=false;
   const isReg=s=>s==='reg'||s==='regL'||s==='regR';
   function regPageEl(s){ return s==='regL'?pgRegL : s==='regR'?pgRegR : s==='reg'?pgReg : null; }
+  /* 標準ページ(#numpadPage1)の最上段ボタンから始まったか（調整バーの取り違え対策：上スワイプで登録を開かない） */
+  function startedOnTopRow(target){
+    const btn = target && target.closest ? target.closest('.btn') : null;
+    if(!btn) return false;
+    const page = btn.parentElement;
+    if(!page || page.id!=='numpadPage1') return false;
+    let minTop=Infinity;
+    page.querySelectorAll(':scope > .btn').forEach(b=>{ if(b.offsetTop<minTop) minTop=b.offsetTop; });
+    return btn.offsetTop <= minTop+2;
+  }
   function closedTransform(el){
     if(el===pgFmt||el===pgBd) return 'translateX(-100%)';
     if(el===pgFunc||el===pgSci) return 'translateX(100%)';
@@ -4857,6 +4867,7 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
     const ok = keypadEditing ? onEnter : onBtn;
     if(!ok) return;
     downX=e.clientX; downY=e.clientY; axis=null; activeEl=null; decided=false; numpadSwiping=false;
+    downTopRow=startedOnTopRow(e.target);
     downT=(e.timeStamp||performance.now());
     w=vp.offsetWidth||1; h=vp.offsetHeight||1;
   }
@@ -4876,7 +4887,10 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
       const vertDominant  = Math.abs(dy) > Math.abs(dx)*1.3;
       if(openWhich===null){
         if(horizDominant){ axis='h'; activeEl = dx<0 ? pgFunc : pgFmt; }         // 左＝関数記号／右＝セル書式
-        else if(vertDominant && dy<0){ axis='v'; activeEl=regPageEl(lastRegPage); }  // 上＝登録（最後に見ていたページ）
+        else if(vertDominant && dy<0){
+          if(downTopRow) axis='block';                                          // 最上段からの上スワイプは無効（調整バーの取り違え対策）
+          else { axis='v'; activeEl=regPageEl(lastRegPage); }                   // 上＝登録（最後に見ていたページ）
+        }
       } else if(openWhich==='reg'){
         if(vertDominant){ axis='v'; activeEl=pgReg; }                           // 縦フリックで閉じる
         else if(horizDominant){ axis='h'; activeEl = dx<0 ? pgRegR : pgRegL; }  // 左＝右ページ／右＝左ページ
@@ -4896,14 +4910,16 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
         if(horizDominant){ axis='h'; activeEl=pgSci; }                          // 関数電卓は右フリックで戻る
       }
       if(axis){
-        numpadSwiping=true; activeEl.classList.add('ov-dragging');
+        numpadSwiping=true; if(activeEl) activeEl.classList.add('ov-dragging');
         // 登録ページの横切替：引き込む側を最前面にして隣ページの下に潜らせない
         if(axis==='h' && regPages.includes(activeEl)){
           regPages.forEach(el=>{ el.style.zIndex = el===activeEl ? '7' : '5'; });
         }
       }
     }
-    if(axis==='h' && activeEl){
+    if(axis==='block'){
+      e.preventDefault();   // 無効化した上スワイプ：ページは動かさずネイティブスクロールだけ抑止
+    } else if(axis==='h' && activeEl){
       e.preventDefault();
       let base;
       if(activeEl===pgBd)        base = openWhich==='bd' ? 0 : -100;
@@ -7800,7 +7816,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v189';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v190';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
