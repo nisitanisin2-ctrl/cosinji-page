@@ -267,15 +267,10 @@ body.has-sheet-tabs .sheet-persist {
   font-size: 15px; font-weight: bold; min-width: 30px; height: 26px;
   cursor: pointer; touch-action: manipulation;
 }
-.sheet-reset {
-  box-sizing: border-box; flex-shrink: 0;
-  color: white; background: rgba(169,50,38,0.55);
-  border: 1px solid rgba(255,255,255,0.35); border-radius: 5px;
-  font-size: 13px; font-weight: bold;
-  padding: 0 10px; height: 30px; white-space: nowrap;
-  cursor: pointer; touch-action: manipulation;
-}
-.sheet-reset:hover { background: rgba(169,50,38,0.75); }
+/* シートタブ：長押し中／ドラッグ中の見た目 */
+.sheet-tab.sheet-press, .sp-tab.sheet-press { outline: 2px solid rgba(255,255,255,0.9); outline-offset: -1px; }
+.sheet-tab.sheet-dragging, .sp-tab.sheet-dragging { opacity: 0.6; }
+body.sheet-reordering .js-sheet-tab { touch-action: none; }
 
 /* 設定：上のバーのボタン表示/非表示トグル */
 .topbtn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px; }
@@ -7329,10 +7324,11 @@ function renderSheetBar(){
   bar.innerHTML='';
   sheets.forEach((s,i)=>{
     const b=document.createElement('button');
-    b.className='sheet-tab'+(i===curSheet?' active':'');
+    b.className='sheet-tab js-sheet-tab'+(i===curSheet?' active':'');
     b.textContent=s.name;
-    b.title=(i===curSheet)?'もう一度押すと名前を変えられます':'このシートを開く';
-    b.onclick=()=>{ if(i===curSheet) renameSheet(i); else switchSheet(i); };
+    b.dataset.idx=i;
+    b.title='押すと開く／長押しで名前変更・そのままドラッグで並べ替え';
+    bindSheetTab(b);
     bar.appendChild(b);
   });
   const add=document.createElement('button');
@@ -7342,9 +7338,6 @@ function renderSheetBar(){
     const del=document.createElement('button');
     del.className='sheet-del'; del.textContent='🗑'; del.title='今のシートを削除';
     del.onclick=()=>deleteSheet(curSheet); bar.appendChild(del);
-    const rst=document.createElement('button');
-    rst.className='sheet-reset'; rst.textContent='1枚に'; rst.title='ほかのシートを全部消して1枚に戻す（シートリセット）';
-    rst.onclick=resetSheets; bar.appendChild(rst);
   }
   renderSheetPersist();
 }
@@ -7358,12 +7351,98 @@ function renderSheetPersist(){
   if(!show) return;
   sheets.forEach((s,i)=>{
     const b=document.createElement('button');
-    b.className='sp-tab'+(i===curSheet?' active':'');
+    b.className='sp-tab js-sheet-tab'+(i===curSheet?' active':'');
     b.textContent=s.name;
-    b.onclick=()=>{ if(i!==curSheet) switchSheet(i); };
+    b.dataset.idx=i;
+    b.title='押すと開く／長押しで名前変更・そのままドラッグで並べ替え';
+    bindSheetTab(b);
     bar.appendChild(b);
   });
   const add=document.createElement('button'); add.className='sp-add'; add.textContent='＋'; add.title='シートを追加'; add.onclick=addSheet; bar.appendChild(add);
+}
+/* ── シートタブ：タップ＝切替／長押し＝改名／長押し後ドラッグ＝並べ替え ── */
+let stDrag=null;
+function bindSheetTab(el){
+  el.addEventListener('pointerdown', onSheetPointerDown);
+}
+function onSheetPointerDown(e){
+  if(e.button!==undefined && e.button>0) return;
+  const el=e.currentTarget;
+  stDrag={ el, idx:+el.dataset.idx, bar:el.parentNode, longpressed:false, started:false,
+           startX:e.clientX, startY:e.clientY, pointerId:e.pointerId, timer:null };
+  stDrag.timer=setTimeout(()=>{
+    if(!stDrag) return;
+    stDrag.longpressed=true;
+    stDrag.el.classList.add('sheet-press');
+    if(navigator.vibrate){ try{ navigator.vibrate(15); }catch(_){}}
+  }, 450);
+}
+function startSheetDrag(){
+  if(!stDrag || stDrag.started) return;
+  stDrag.started=true;
+  try{ stDrag.el.setPointerCapture(stDrag.pointerId); }catch(_){}
+  stDrag.el.classList.remove('sheet-press');
+  stDrag.el.classList.add('sheet-dragging');
+  document.body.classList.add('sheet-reordering');
+}
+function onSheetPointerMove(e){
+  if(!stDrag) return;
+  const moved=Math.hypot(e.clientX-stDrag.startX, e.clientY-stDrag.startY);
+  if(!stDrag.started){
+    if(!stDrag.longpressed){
+      // 長押し確定前に動いた＝横スクロール/フリック意図。タブ操作を取りやめる
+      if(moved>8){ clearTimeout(stDrag.timer); stDrag=null; }
+      return;
+    }
+    if(moved>3) startSheetDrag(); else return;
+  }
+  e.preventDefault();
+  const el=stDrag.el;
+  el.style.pointerEvents='none';
+  const under=document.elementFromPoint(e.clientX, e.clientY);
+  el.style.pointerEvents='';
+  const target=under&&under.closest?under.closest('.js-sheet-tab'):null;
+  if(!target || target===el || target.parentNode!==el.parentNode) return;
+  const rect=target.getBoundingClientRect();
+  const before=e.clientX < rect.left+rect.width/2;
+  el.parentNode.insertBefore(el, before?target:target.nextSibling);
+}
+function onSheetPointerUp(e){
+  if(!stDrag) return;
+  clearTimeout(stDrag.timer);
+  const {started, longpressed, idx, el, bar}=stDrag;
+  stDrag=null;
+  if(started){
+    el.classList.remove('sheet-dragging');
+    document.body.classList.remove('sheet-reordering');
+    try{ el.releasePointerCapture(e.pointerId); }catch(_){}
+    commitSheetReorder(bar);
+  } else {
+    el.classList.remove('sheet-press');
+    if(longpressed) renameSheet(idx);
+    else switchSheet(idx);
+  }
+}
+function onSheetPointerCancel(){
+  if(!stDrag) return;
+  clearTimeout(stDrag.timer);
+  if(stDrag.started) document.body.classList.remove('sheet-reordering');
+  stDrag.el.classList.remove('sheet-press','sheet-dragging');
+  stDrag=null;
+}
+document.addEventListener('pointermove', onSheetPointerMove, {passive:false});
+document.addEventListener('pointerup', onSheetPointerUp);
+document.addEventListener('pointercancel', onSheetPointerCancel);
+/* ドラッグ後のDOM並びから sheets 配列を並べ替えて保存 */
+function commitSheetReorder(bar){
+  const order=[...bar.querySelectorAll('.js-sheet-tab')].map(x=>+x.dataset.idx);
+  if(order.length!==sheets.length) { renderSheetBar(); return; }
+  const now=sheets[curSheet];
+  const arr=order.map(i=>sheets[i]);
+  sheets.length=0; sheets.push(...arr);
+  curSheet=Math.max(0, sheets.indexOf(now));
+  saveSheets();
+  renderSheetBar();
 }
 function toggleSheetTabs(){
   showSheetTabs=!showSheetTabs;
@@ -7648,7 +7727,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v182';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v183';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
