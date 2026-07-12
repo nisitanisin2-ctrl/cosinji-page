@@ -4922,6 +4922,31 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
       activeEl.style.transform=`translateY(calc(${base}% + ${clV}px))`;
     }
   }
+  /* 横フリック1回分と同じページ遷移（dir=+1:次＝右のページへ／dir=-1:前＝左のページへ）。
+     PCのマウスホイール用。onUp の横フリック遷移表と同じ内容。 */
+  function pageStep(dir){
+    const prev=openWhich;
+    if(dir>0){          // 次（左スワイプ相当）
+      if(openWhich===null)       openWhich='func';
+      else if(openWhich==='fmt') openWhich=null;
+      else if(openWhich==='bd')  openWhich='fmt';
+      else if(openWhich==='func')openWhich='sci';
+      else if(openWhich==='reg') openWhich='regR';
+      else if(openWhich==='regL')openWhich='reg';
+      // sci / regR は端なので据え置き
+    } else {            // 前（右スワイプ相当）
+      if(openWhich===null)       openWhich='fmt';
+      else if(openWhich==='fmt') openWhich='bd';
+      else if(openWhich==='func')openWhich=null;
+      else if(openWhich==='sci') openWhich='func';
+      else if(openWhich==='reg') openWhich='regL';
+      else if(openWhich==='regR')openWhich='reg';
+      // bd / regL は端なので据え置き
+    }
+    if(openWhich===prev) return;
+    if(isReg(openWhich)) lastRegPage=openWhich;
+    restAll(true);
+  }
   function onUp(e){
     if(downX===null) return;
     const dx=(e.clientX!==undefined?e.clientX:downX)-downX;
@@ -4963,6 +4988,19 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
   window.addEventListener('pointermove', onMove, {passive:false});
   window.addEventListener('pointerup', onUp);
   window.addEventListener('pointercancel', ()=>{ downX=null; axis=null; activeEl=null; numpadSwiping=false; });
+  // PC：テンキー上でマウスホイールを回すと横スワイプと同じようにページを切り替える
+  let lastWheelT=0;
+  vp.addEventListener('wheel', e=>{
+    if(keypadEditing) return;                                   // ボタン配置の編集中は無効
+    if(e.target && e.target.closest && e.target.closest('.kf-vcol-in')) return;  // 色列の上は縦スクロール優先
+    const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if(!d) return;
+    e.preventDefault();
+    const now=e.timeStamp||performance.now();
+    if(now-lastWheelT < 220) return;                            // 1ノッチ＝1ページ（連続発火を間引く）
+    lastWheelT=now;
+    pageStep(d>0 ? 1 : -1);                                     // 下/右回し＝次（関数記号側）、上/左回し＝前（書式側）
+  }, {passive:false});
   // スワイプ直後のボタン誤作動を防ぐ（capture でクリックを握りつぶす）
   vp.addEventListener('click', e=>{ if(numpadSwiping){ e.preventDefault(); e.stopPropagation(); } }, true);
   // 画面回転・幅変更時に現在位置を維持（瞬時に合わせてからアニメを戻す）
@@ -7762,7 +7800,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v188';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v189';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
