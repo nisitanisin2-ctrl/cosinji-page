@@ -869,16 +869,18 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 .btn.bd-place { display: flex; align-items: center; justify-content: center; }
 .btn.bd-place.bd-wide { gap: 0.4em; }
 .btn.bd-place.bd-wide .bd-ico { margin: 0; }
-/* セル書式ページの色の列：横スクロール（1画面に5個表示、続きはスライドで） */
-.kf-scroll {
-  grid-column: 1 / -1;
-  display: flex; gap: 5px;
-  overflow-x: auto; overflow-y: hidden;
+/* セル書式ページの色の縦スクロール列（4行分の高さ。縦にスライドすると続きの色）。
+   横方向はスクロールしないので、色の上からでも横フリックでページ切替ができる */
+.kf-vcol { position: relative; grid-row: 1 / span 4; }
+.kf-vcol-in {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; gap: 5px;
+  overflow-y: auto; overflow-x: hidden;
   -webkit-overflow-scrolling: touch; scrollbar-width: none;
-  touch-action: pan-x;
+  touch-action: pan-y;      /* 縦はネイティブスクロール、横はページ切替へ */
 }
-.kf-scroll::-webkit-scrollbar { display: none; }
-.kf-scroll .btn { flex: 0 0 calc((100% - 20px)/5); }   /* ちょうど5個分の幅（gap 5px×4を差引） */
+.kf-vcol-in::-webkit-scrollbar { display: none; }
+.kf-vcol-in .btn { flex: 0 0 calc((100% - 15px)/4); }   /* ちょうど4個分の高さ（gap 5px×3を差引） */
 
 /* ── テンキーのボタン配置編集（ドラッグで入れ替え） ── */
 .kp-edit-bar { display: none; }
@@ -1668,14 +1670,10 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <button class="btn fx bd-place bd-wide" data-key="bd_box" style="grid-column:1/-1" onclick="bdApply('box')" title="外枠（選択範囲のまわりを囲む）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 12H20M12 4V20"/><path class="s" d="M4 4H20M4 20H20M4 4V20M20 4V20"/><path class="s2" d="M4 4H20M4 20H20M4 4V20M20 4V20"/></svg>囲む</button>
     </div>
     <div class="numpad-grid numpad-overlay ov-left" id="numpadPageFmt">
-    <!-- セル書式ページ（数字ページから右フリックで表示）。選択中のセル（スライドで範囲選択していれば範囲全体）の書式を変える -->
-    <button class="btn" style="font-weight:bold" onclick="kfmtToggle('bold')" title="太字">太字</button>
-    <button class="btn" style="font-style:italic" onclick="kfmtToggle('italic')" title="斜体">斜体</button>
-    <button class="btn" style="text-decoration:underline" onclick="kfmtToggle('underline')" title="下線">下線</button>
-    <button class="btn op" onclick="kfmtSize(-1)" title="文字を小さく">A−</button>
-    <button class="btn op" onclick="kfmtSize(1)" title="文字を大きく">A＋</button>
-    <div class="kf-scroll" title="横にスライドすると他の色が出ます">
-      <button class="btn" onclick="kfmtColor('color','')" title="文字色を標準に戻す">あ</button>
+    <!-- セル書式ページ（数字ページから右フリックで表示）。選択中のセル（スライドで範囲選択していれば範囲全体）の書式を変える。
+         縦列レイアウト：列1=装飾／列2=寄せ・保護／列3=サイズ・リセット／列4=文字色（縦スクロール）／列5=背景色（縦スクロール） -->
+    <div class="kf-vcol" style="grid-column:4" title="文字色（縦にスライドすると他の色が出ます）">
+      <div class="kf-vcol-in">
       <button class="btn" style="color:#ff8a80" onclick="kfmtColor('color','#e53935')" title="文字を赤に">あ</button>
       <button class="btn" style="color:#ffcc80" onclick="kfmtColor('color','#fb8c00')" title="文字をだいだい色に">あ</button>
       <button class="btn" style="color:#fff59d" onclick="kfmtColor('color','#f9a825')" title="文字を黄色に">あ</button>
@@ -1686,9 +1684,19 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <button class="btn" style="color:#ff80ab" onclick="kfmtColor('color','#e91e63')" title="文字を桃色に">あ</button>
       <button class="btn" style="color:#bcaaa4" onclick="kfmtColor('color','#6d4c41')" title="文字を茶色に">あ</button>
       <button class="btn" onclick="kfmtColor('color','#000000')" title="文字を黒に">黒</button>
+      <button class="btn" style="color:#ffffff" onclick="kfmtColor('color','#ffffff')" title="文字を白に">白</button>
+      <button class="btn" style="color:#ff5252" onclick="kfmtColor('color','#ff0000')" title="文字を原色の赤に">あ</button>
+      <button class="btn" style="color:#ff9e40" onclick="kfmtColor('color','#ff6600')" title="文字を原色のだいだい色に">あ</button>
+      <button class="btn" style="color:#ffff00" onclick="kfmtColor('color','#ffff00')" title="文字を原色の黄色に">あ</button>
+      <button class="btn" style="color:#69f069" onclick="kfmtColor('color','#00b300')" title="文字を原色の緑に">あ</button>
+      <button class="btn" style="color:#7a7aff" onclick="kfmtColor('color','#0000ff')" title="文字を原色の青に">あ</button>
+      <button class="btn" style="color:#ff66ff" onclick="kfmtColor('color','#ff00ff')" title="文字を原色の赤紫（マゼンタ）に">あ</button>
+      <button class="btn" style="color:#66ffff" onclick="kfmtColor('color','#00ffff')" title="文字を原色の水色（シアン）に">あ</button>
+      <button class="btn" style="color:#b0b0b0" onclick="kfmtColor('color','#808080')" title="文字を灰色に">あ</button>
+      </div>
     </div>
-    <div class="kf-scroll" title="横にスライドすると他の色が出ます">
-      <button class="btn" onclick="kfmtColor('bg','')" title="背景色なしに戻す">なし</button>
+    <div class="kf-vcol" style="grid-column:5" title="背景色（縦にスライドすると他の色が出ます）">
+      <div class="kf-vcol-in">
       <button class="btn" style="background:#fff59d;color:#333" onclick="kfmtColor('bg','#fff59d')" title="背景を黄色に">黄</button>
       <button class="btn" style="background:#ffe0b2;color:#333" onclick="kfmtColor('bg','#ffe0b2')" title="背景をだいだい色に">橙</button>
       <button class="btn" style="background:#c8e6c9;color:#333" onclick="kfmtColor('bg','#c8e6c9')" title="背景を緑に">緑</button>
@@ -1699,12 +1707,29 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <button class="btn" style="background:#ffcdd2;color:#333" onclick="kfmtColor('bg','#ffcdd2')" title="背景を赤に">赤</button>
       <button class="btn" style="background:#cfd8dc;color:#333" onclick="kfmtColor('bg','#cfd8dc')" title="背景を灰色に">灰</button>
       <button class="btn" style="background:#d7ccc8;color:#333" onclick="kfmtColor('bg','#d7ccc8')" title="背景を茶色に">茶</button>
+      <button class="btn" style="background:#ffffff;color:#333" onclick="kfmtColor('bg','#ffffff')" title="背景を白に">白</button>
+      <button class="btn" style="background:#ff0000;color:#fff" onclick="kfmtColor('bg','#ff0000')" title="背景を原色の赤に">赤</button>
+      <button class="btn" style="background:#ff9100;color:#333" onclick="kfmtColor('bg','#ff9100')" title="背景を原色のだいだい色に">橙</button>
+      <button class="btn" style="background:#ffff00;color:#333" onclick="kfmtColor('bg','#ffff00')" title="背景を原色の黄色に">黄</button>
+      <button class="btn" style="background:#00ff00;color:#333" onclick="kfmtColor('bg','#00ff00')" title="背景を原色の緑に">緑</button>
+      <button class="btn" style="background:#0000ff;color:#fff" onclick="kfmtColor('bg','#0000ff')" title="背景を原色の青に">青</button>
+      <button class="btn" style="background:#ff00ff;color:#fff" onclick="kfmtColor('bg','#ff00ff')" title="背景を原色の赤紫（マゼンタ）に">紫</button>
+      <button class="btn" style="background:#00ffff;color:#333" onclick="kfmtColor('bg','#00ffff')" title="背景を原色の水色（シアン）に">水</button>
+      <button class="btn" style="background:#212121;color:#fff" onclick="kfmtColor('bg','#212121')" title="背景を黒に">黒</button>
+      </div>
     </div>
+    <button class="btn" style="font-weight:bold" onclick="kfmtToggle('bold')" title="太字">太字</button>
     <button class="btn op" onclick="kfmtAlign('left')" title="左寄せ">⬅寄</button>
+    <button class="btn op" onclick="kfmtSize(-1)" title="文字を小さく">A−</button>
+    <button class="btn" style="font-style:italic" onclick="kfmtToggle('italic')" title="斜体">斜体</button>
     <button class="btn op" onclick="kfmtAlign('center')" title="中央寄せ">中央</button>
+    <button class="btn op" onclick="kfmtSize(1)" title="文字を大きく">A＋</button>
+    <button class="btn" style="text-decoration:underline" onclick="kfmtToggle('underline')" title="下線">下線</button>
     <button class="btn op" onclick="kfmtAlign('right')" title="右寄せ">寄➡</button>
+    <button class="btn" onclick="kfmtColor('color','')" title="文字色を標準に戻す">あ戻</button>
     <button class="btn clr" onclick="kfmtLock()" title="セルの保護（ロック）を切替">🔒保護</button>
     <button class="btn clr" onclick="kfmtClear()" title="このセルの書式をすべて消す">🧹消去</button>
+    <button class="btn" onclick="kfmtColor('bg','')" title="背景色なしに戻す">背景無</button>
     <button class="btn fx" style="grid-column:1/-1" onclick="openCellFmt()" title="小数点・結合などのくわしい書式設定を開く">🎨 くわしい書式設定…</button>
     </div>
     <div class="numpad-grid" id="numpadPage1">
@@ -2112,7 +2137,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-li"><span class="help-tag">文字</span> 文字（テキスト）を入力</div>
         <div class="help-li"><span class="help-tag">モード</span> 計算モードを切替</div>
         <div class="help-li">テンキーは<b>数字ページ（標準）</b>を土台に、<b>セル書式・関数記号・関数電卓・登録ページ</b>がその上に重なってスライドインする構成です（数字ページは<b>どこからでもフリック開始可</b>）：
-          <br>・<b>数字ページを右へフリック＝セル書式ページが重なって表示</b>…選択中のセル（スライドで範囲選択していれば範囲全体）に、太字・斜体・下線・文字の大小・文字色・背景色・寄せ・保護・書式消去をワンタップで適用できます。「🎨 くわしい書式設定…」でいつもの書式画面も開けます。<b>左へフリック</b>すると数字ページに戻ります。
+          <br>・<b>数字ページを右へフリック＝セル書式ページが重なって表示</b>…選択中のセル（スライドで範囲選択していれば範囲全体）に、太字・斜体・下線・文字の大小・文字色・背景色・寄せ・保護・書式消去をワンタップで適用できます。右の2列が<b>文字色・背景色の縦の列</b>で、<b>縦にスライド</b>すると他の色（原色を含む各19色）が出ます。「🎨 くわしい書式設定…」でいつもの書式画面も開けます。<b>左へフリック</b>すると数字ページに戻ります。
           <br>・<b>セル書式ページをさらに右へフリック＝枠線ページが表示</b>…線の<b>種類（普通・太い・二重線）</b>と<b>色（黒・赤・青・緑・紫）</b>を選び、<b>上・下・左・右・格子・囲む</b>のボタンで選択範囲に枠線を引けます（1つのセルに下線だけ、なども可能）。「🧹枠線を消す」で範囲の枠線を消去。枠線はPDF出力にも反映されます。<b>左へフリック</b>するとセル書式ページに戻ります。
           <br>・<b>数字ページを左へフリック＝関数・記号ページが重なって表示</b>…( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 などを数式（先頭が <b>=</b>）に挿入。<b>右へフリック</b>すると数字ページに戻ります。
           <br>・<b>関数・記号ページをさらに左へフリック＝関数電卓ページが表示</b>…SIN・COS・TAN・ASIN・ACOS・ATAN・LOG・LN・EXP・π・e・n!（階乗）・x²・^（べき乗）・1/(・MOD( などを数式に挿入。<b>DEG/RAD</b>ボタンで三角関数の角度単位（度数法⇄弧度法）を切替できます。<b>右へフリック</b>すると関数・記号ページに戻ります。
@@ -4804,7 +4829,6 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
   }
   function onDown(e){
     if(e.button!==undefined && e.button>0) return;
-    if(e.target && e.target.closest && e.target.closest('.kf-scroll')) return;   // 色の列は横スクロール優先（ページ切替と衝突させない）
     const onBtn   = !!(e.target && e.target.closest && e.target.closest('.btn'));
     const onEnter = !!(e.target && e.target.closest && e.target.closest('.btn.enter'));
     // 編集中＝Enterのみ／それ以外＝数字ページを含めどのボタンからでもフリック開始可（全面）
@@ -7624,7 +7648,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v181';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v182';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -7690,8 +7714,10 @@ function resetSheets(){
 const FMT_SIZES  = [0.8, 1.0, 1.25, 1.5];
 const FMT_SLABEL = ['小','標準','大','特大'];
 /* テンキーのセル書式ページと同じ拡張パレット（＋白文字・濃背景） */
-const TEXT_COLORS = ['', '#e53935','#fb8c00','#f9a825','#2e7d32','#00acc1','#1e88e5','#8e24aa','#e91e63','#6d4c41','#000000','#ffffff'];
-const BG_COLORS   = ['', '#fff59d','#ffe0b2','#c8e6c9','#b2ebf2','#bbdefb','#e1bee7','#f8bbd0','#ffcdd2','#cfd8dc','#d7ccc8','#212121'];
+const TEXT_COLORS = ['', '#e53935','#fb8c00','#f9a825','#2e7d32','#00acc1','#1e88e5','#8e24aa','#e91e63','#6d4c41','#000000','#ffffff',
+                     '#ff0000','#ff6600','#ffff00','#00b300','#0000ff','#ff00ff','#00ffff','#808080'];   // 原色
+const BG_COLORS   = ['', '#fff59d','#ffe0b2','#c8e6c9','#b2ebf2','#bbdefb','#e1bee7','#f8bbd0','#ffcdd2','#cfd8dc','#d7ccc8','#212121',
+                     '#ff0000','#ff9100','#ffff00','#00ff00','#0000ff','#ff00ff','#00ffff','#ffffff'];   // 原色
 let fmtR=-1, fmtC=-1;
 
 /* td に現在の書式を反映（毎回リセットしてから適用） */
