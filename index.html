@@ -216,6 +216,7 @@ body.numpad-off .numpad-section { display: none; }
   cursor: pointer; touch-action: manipulation; transition: background 0.1s;
 }
 .btn-sheet:hover { background: #37a06c; }
+.btn-sheet.on { background: #fff; color: #217346; }
 .toolbar.sheets-open .btn-sheet { background: #fff; color: #217346; }
 .toolbar.sheets-open .menu-item { display: none; }   /* シート表示中はメニューボタンを隠す */
 .sheet-bar { display: none; }
@@ -261,7 +262,7 @@ body.has-sheet-tabs .sheet-persist {
   cursor: pointer; touch-action: manipulation;
 }
 .sp-tab.active { background: #fff; color: #1a5c3a; }
-.sp-add {
+.sp-add, .sp-del {
   flex-shrink: 0; color: #fff; background: rgba(255,255,255,0.16);
   border: 1px solid rgba(255,255,255,0.3); border-radius: 5px;
   font-size: 15px; font-weight: bold; min-width: 30px; height: 26px;
@@ -1380,7 +1381,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 
 <div class="toolbar" id="mainToolbar">
   <span class="toolbar-title">表電卓</span>
-  <button class="btn-sheet" id="sheetToggleBtn" onclick="toggleSheetView()" title="シートの切り替え・追加">シート</button>
+  <button class="btn-sheet" id="sheetToggleBtn" onclick="toggleSheetTabs()" title="シートのタブバーを表示/非表示">シート</button>
   <button class="btn-save menu-item" id="saveBtn" onclick="saveData()">保存</button>
   <button class="btn-list menu-item" id="listBtn" onclick="showSaveList()">リスト</button>
   <button class="btn-settings menu-item" id="settingsBtn" onclick="toggleSettings()">設定</button>
@@ -7345,7 +7346,7 @@ function renderSheetBar(){
 let showSheetTabs = localStorage.getItem('excalc_show_sheettabs')==='1';
 function renderSheetPersist(){
   const bar=document.getElementById('sheetPersist'); if(!bar) return;
-  const show = showSheetTabs && typeof sheets!=='undefined' && Array.isArray(sheets) && sheets.length>1;
+  const show = showSheetTabs && typeof sheets!=='undefined' && Array.isArray(sheets) && sheets.length>=1;
   document.body.classList.toggle('has-sheet-tabs', show);
   bar.innerHTML='';
   if(!show) return;
@@ -7359,6 +7360,9 @@ function renderSheetPersist(){
     bar.appendChild(b);
   });
   const add=document.createElement('button'); add.className='sp-add'; add.textContent='＋'; add.title='シートを追加'; add.onclick=addSheet; bar.appendChild(add);
+  if(sheets.length>1){
+    const del=document.createElement('button'); del.className='sp-del'; del.textContent='🗑'; del.title='今のシートを削除'; del.onclick=()=>deleteSheet(curSheet); bar.appendChild(del);
+  }
 }
 /* ── シートタブ：タップ＝切替／長押し＝改名／長押し後ドラッグ＝並べ替え ── */
 let stDrag=null;
@@ -7448,6 +7452,7 @@ function toggleSheetTabs(){
   showSheetTabs=!showSheetTabs;
   localStorage.setItem('excalc_show_sheettabs', showSheetTabs?'1':'0');
   const btn=document.getElementById('sheetTabsBtn'); if(btn) btn.classList.toggle('on', showSheetTabs);
+  const top=document.getElementById('sheetToggleBtn'); if(top) top.classList.toggle('on', showSheetTabs);
   renderSheetPersist();
 }
 
@@ -7727,7 +7732,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v183';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v184';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -9056,7 +9061,8 @@ setSettingsTab(Math.min(3,Math.max(0,parseInt(localStorage.getItem('excalc_setti
 attachSettingsSwipe();
 loadTopBtnHidden(); applyTopBtnHidden();   // 上のバーのボタンの表示/非表示を復元
 setEnterDir(enterMoveDir);                 // Enterで進む向きを復元
-{ const stb=document.getElementById('sheetTabsBtn'); if(stb) stb.classList.toggle('on', showSheetTabs); }
+{ const stb=document.getElementById('sheetTabsBtn'); if(stb) stb.classList.toggle('on', showSheetTabs);
+  const stt=document.getElementById('sheetToggleBtn'); if(stt) stt.classList.toggle('on', showSheetTabs); }
 if(localStorage.getItem('excalc_trigmode')==='rad') trigMode='rad';
 applyTrigModeBtn();
 restoreSheetSizes();
