@@ -4765,6 +4765,16 @@ function pickKeyAssign(fid){
       }, 600);
       return;
     }
+    // ⌫（1文字消す）は押し続けで連続削除。割り当てピッカーは開かない（＝再割り当て対象から外す）
+    if(key==='bs'){
+      const rep=()=>{ bs(); timer=setTimeout(rep, 80); };
+      timer=setTimeout(()=>{
+        kaSuppress=true;                                   // 押し続け後の合成クリックによる余分な1回を抑止
+        if(navigator.vibrate){try{navigator.vibrate(15);}catch(_){}}
+        rep();
+      }, 400);
+      return;
+    }
     timer=setTimeout(()=>{ timer=null; kaSuppress=true; if(navigator.vibrate){try{navigator.vibrate(25);}catch(_){}} openKeyAssign(b.dataset.key); }, 600);
   });
   window.addEventListener('pointermove', e=>{ if(timer && (Math.abs(e.clientX-sx)>10||Math.abs(e.clientY-sy)>10)){ clearTimeout(timer); timer=null; } });
@@ -4790,7 +4800,9 @@ function pickKeyAssign(fid){
     if(!kaReady){ e.preventDefault(); e.stopPropagation(); return; }
   }, true);
   ov.addEventListener('click', e=>{ if(e.target===ov && downOnBackdrop) closeKeyAssign(); downOnBackdrop=false; });
-  loadKeyAssign(); applyKeyAssign();
+  loadKeyAssign();
+  if(keyAssign['bs']){ delete keyAssign['bs']; if(typeof saveKeyAssign==='function') saveKeyAssign(); }  // ⌫は常に「削除」（連続削除）に統一
+  applyKeyAssign();
 })();
 
 /* ── テンキーのページ切替（登録ページと同じ「上に重ねてスライドイン」方式） ──
@@ -7816,7 +7828,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v190';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v191';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
