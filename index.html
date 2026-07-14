@@ -109,7 +109,6 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
   .toolbar     { grid-area: toolbar; flex-wrap: nowrap; min-width: 0; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   .toolbar::-webkit-scrollbar { display: none; }
   .toolbar > * { flex-shrink: 0; }
-  .toolbar-title { display: none; }
   .left-pane   { grid-area: main; min-height: 0; }
   .numpad-section {
     grid-area: numpad; min-height: 0; overflow-y: auto;
@@ -153,7 +152,16 @@ body.numpad-off .numpad-section { display: none; }
 }
 .toolbar::-webkit-scrollbar { display: none; }
 .toolbar > * { flex-shrink: 0; }
-.toolbar-title { display: none; }   /* タイトル「表電卓」は常に非表示（縦・横とも） */
+/* 今開いている記録名の表示（ファイル名の感覚）。タップでリストを開く */
+.toolbar-title {
+  display: block; box-sizing: border-box;
+  max-width: 118px; height: 30px; padding: 0 7px; line-height: 28px;
+  font-size: 11.5px; font-weight: bold; color: #dff0e7;
+  background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); border-radius: 5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer; touch-action: manipulation;
+}
+.toolbar-title.dirty { border-color: #ffd23f; color: #ffe9a8; }   /* 未保存の変更あり */
 
 .btn-settings, .btn-dark, .btn-csv {
   background: rgba(255,255,255,0.15);
@@ -1389,7 +1397,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 <body>
 
 <div class="toolbar" id="mainToolbar">
-  <span class="toolbar-title">表電卓</span>
+  <span class="toolbar-title" id="recordTitle" onclick="showSaveList()" title="今開いている記録（タップでリストを開く）">📄 未保存</span>
   <button class="btn-sheet" id="sheetToggleBtn" onclick="toggleSheetTabs()" title="シートのタブバーを表示/非表示">シート</button>
   <button class="btn-save menu-item" id="saveBtn" onclick="saveData()">保存</button>
   <button class="btn-list menu-item" id="listBtn" onclick="showSaveList()">リスト</button>
@@ -5901,6 +5909,7 @@ function pushHistory(entries) {
   if (history.length>MAX_HISTORY) history.shift();
   redoHistory.length=0;    // 新しい変更が入ったら「進む」履歴は無効化
   updateUndoBtn(); updateRedoBtn();
+  if(typeof markSaveDirty==='function') markSaveDirty();   // 記録に未保存の変更あり
 }
 function updateUndoBtn() {
   const btn=document.getElementById('undoBtn');
@@ -5911,6 +5920,7 @@ function updateRedoBtn() {
   if (btn) btn.disabled=redoHistory.length===0;
 }
 function applyHistoryEntries(entries){
+  if(typeof markSaveDirty==='function') markSaveDirty();   // 戻る/進むも記録から見れば変更
   for (const {r,c,val} of entries) {
     data[r][c]=val;
     const cell=document.getElementById(`c${r}_${c}`);
@@ -7348,6 +7358,7 @@ function saveSheets(){
   if(sheets[curSheet]) Object.assign(sheets[curSheet], captureCurrentSheet());
   modeSheets[workspaceMode]={ sheets, cur:curSheet };   // 現在のワークスペース（モード）の一式を反映
   try{ localStorage.setItem(SHEETS_KEY, JSON.stringify({ current:workspaceMode, modes:modeSheets })); }catch(e){}
+  if(typeof markSaveDirty==='function') markSaveDirty();   // 記録に未保存の変更あり
 }
 
 /* 空の新しいシートを作る */
@@ -7883,7 +7894,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v193';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v194';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -7930,6 +7941,9 @@ function resetAll() {
   document.getElementById('formulaInput').value=data[selR][selC];
   persistModes();
   if(typeof saveSheets==='function') saveSheets();   // 今のシートの内容だけ保存に反映（数は変えない）
+  // リセット＝新規ファイル扱い：開いていた記録との紐付けを解除（次の「保存」は名前を付けて保存になる）
+  currentSaveId=null; saveDirty=false;
+  if(typeof updateRecordTitle==='function') updateRecordTitle();
 }
 /* シートリセット：ほかのシートを全部消して1枚に戻す（今開いているシートの内容・名前は残す）。
    表の中身は消さない（中身を消したいときは通常の「リセット」を使う）。 */
@@ -8787,6 +8801,21 @@ function sumPointerUp(e){
 const SAVE_KEY='excalc_saves';
 function getSaves(){try{return JSON.parse(localStorage.getItem(SAVE_KEY)||'[]');}catch{return[];}}
 let currentSaveId=null;   // リストから読込／新規保存した記録のid（保存時に上書き先の候補にする）
+/* ── 今開いている記録名の表示（ファイル名の感覚）＋未保存の変更マーカー（●） ── */
+let saveDirty=false;
+function updateRecordTitle(){
+  const el=document.getElementById('recordTitle'); if(!el) return;
+  const cur=(currentSaveId!=null)?getSaves().find(s=>s.id===currentSaveId):null;
+  if(cur){
+    el.textContent='📄 '+cur.name+(saveDirty?' ●':'');
+    el.title='今開いている記録：'+cur.name+(saveDirty?'（未保存の変更あり）':'')+'／タップでリストを開く';
+  } else {
+    el.textContent='📄 未保存';
+    el.title='まだ記録に保存されていません／タップでリストを開く';
+  }
+  el.classList.toggle('dirty', !!(cur&&saveDirty));
+}
+function markSaveDirty(){ if(!saveDirty){ saveDirty=true; updateRecordTitle(); } }
 
 /* 保存データを永続化する共通関数。
    localStorage に書くのは従来通り（ブラウザ版・即時の作業用）。
@@ -8840,32 +8869,41 @@ function appPrompt(message, defaultValue=''){
   });
 }
 
-async function saveData() {
-  // 記録＝「今のモードのシート一式」だけを保存（開いているシートの最新状態を取り込んでから複製）。
-  // 他のモードの内容は記録に含めない（読込時も他のモードへ影響しないファイル感覚の保存）。
-  let sheetSetSnap;
+/* 記録＝「今のモードのシート一式」のスナップショットを作る（開いているシートの最新状態を取り込んでから複製） */
+function makeSheetSetSnap(){
+  let snap;
   if(typeof sheets!=='undefined' && Array.isArray(sheets) && sheets.length){
     if(sheets[curSheet]) Object.assign(sheets[curSheet], captureCurrentSheet());
     modeSheets[workspaceMode]={ sheets, cur:curSheet };
-    try{ sheetSetSnap=JSON.parse(JSON.stringify({ sheets, cur:curSheet })); }catch(_){ sheetSetSnap=undefined; }
+    try{ snap=JSON.parse(JSON.stringify({ sheets, cur:curSheet })); }catch(_){ snap=undefined; }
   }
-  const btn=document.getElementById('saveBtn');
+  return snap;
+}
+/* 保存（タップ）：記録を開いていれば確認なしで即上書き（ファイル保存の感覚）。
+   開いていない／ロック中は「名前を付けて保存」へ。長押し＝常に「名前を付けて保存」。 */
+async function saveData() {
   const saves=getSaves();
-  // リストから読込／保存済みの記録があれば「上書き保存」を先に提案（ロック中は除く）
   const cur=(currentSaveId!=null)?saves.find(s=>s.id===currentSaveId):null;
   if(cur && !cur.locked){
-    if(confirm(`「${cur.name}」に上書き保存しますか？\n［キャンセル］を押すと新しい名前を付けて保存します。`)){
-      Object.assign(cur, {
-        timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces, mode:workspaceMode,
-        data:data.map(row=>[...row]), styles:{...cellStyles},
-        sheetSet:sheetSetSnap, modeSheets:undefined, curMode:undefined, sheets:undefined, cur:undefined
-      });
-      persistSaves(saves);
-      if(btn){ btn.textContent='✓ 上書き'; setTimeout(()=>{btn.textContent='保存';},1200); }
-      return;
-    }
+    const btn=document.getElementById('saveBtn');
+    Object.assign(cur, {
+      timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces, mode:workspaceMode,
+      data:data.map(row=>[...row]), styles:{...cellStyles},
+      sheetSet:makeSheetSetSnap(), modeSheets:undefined, curMode:undefined, sheets:undefined, cur:undefined
+    });
+    persistSaves(saves);
+    saveDirty=false; updateRecordTitle();
+    toast(`「${cur.name}」に上書き保存しました`);
+    if(btn){ btn.textContent='✓ 上書き'; setTimeout(()=>{btn.textContent='保存';},1200); }
+    return;
   }
-  // 新規保存
+  await saveAsData();
+}
+/* 名前を付けて保存（新しい記録を作る）。保存ボタンの長押しでも呼ばれる */
+async function saveAsData() {
+  const btn=document.getElementById('saveBtn');
+  const saves=getSaves();
+  const cur=(currentSaveId!=null)?saves.find(s=>s.id===currentSaveId):null;
   const defaultName=new Date().toLocaleString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
   const name=await appPrompt('保存名を入力してください', cur?cur.name:defaultName);
   if(name===null) return;
@@ -8874,12 +8912,28 @@ async function saveData() {
     id, name:name.trim()||defaultName,
     timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces, mode:workspaceMode,
     data:data.map(row=>[...row]), styles:{...cellStyles}, tab:0,
-    sheetSet:sheetSetSnap   // 今のモードのシート一式（data/styles はモード登録・互換用の開いているシート分）
+    sheetSet:makeSheetSetSnap()   // 今のモードのシート一式（data/styles はモード登録・互換用の開いているシート分）
   });
   persistSaves(saves);
   currentSaveId=id;                          // 以後この記録に上書きできるようにする
+  saveDirty=false; updateRecordTitle();
   if(btn){ btn.textContent='✓ 保存済'; setTimeout(()=>{btn.textContent='保存';},1200); }
 }
+/* 保存ボタンの長押し＝名前を付けて保存 */
+(function(){
+  const b=document.getElementById('saveBtn'); if(!b) return;
+  let timer=null, longed=false;
+  b.addEventListener('pointerdown', e=>{
+    if(e.button!==undefined && e.button>0) return;
+    longed=false; clearTimeout(timer);
+    timer=setTimeout(()=>{ longed=true; if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} saveAsData(); }, 600);
+  });
+  const clr=()=>clearTimeout(timer);
+  b.addEventListener('pointerup', clr);
+  b.addEventListener('pointercancel', ()=>{ clearTimeout(timer); longed=false; });
+  b.addEventListener('click', e=>{ if(longed){ longed=false; e.preventDefault(); e.stopImmediatePropagation(); } }, true);
+  b.title='タップで上書き保存／長押しで名前を付けて保存';
+})();
 
 /* 保存データ一覧のタブ（0=記録／1=タブ1／2=タブ2）。保存した記録はまず0（記録）に入り、
    よく呼び出したい記録はタブ1・タブ2に振り分けて整理できる。タブ名は長押しで変更可 */
@@ -9062,6 +9116,7 @@ async function renameSave(id) {
   entry.name=newName.trim()||entry.name;
   persistSaves(saves);
   renderSaveList();
+  if(id===currentSaveId) updateRecordTitle();   // 開いている記録の名前が変わったら上のバーも更新
 }
 
 function loadSave(id) {
@@ -9126,6 +9181,7 @@ function loadSave(id) {
   closeSaveList();
   persistModes();
   saveSheets();
+  saveDirty=false; updateRecordTitle();   // 読み込んだ直後＝記録と同じ内容（未保存の変更なし）
 }
 
 function deleteSave(id) {
@@ -9134,6 +9190,7 @@ function deleteSave(id) {
   if(entry.locked){ alert('🔒 ロックされています。先にロックを解除してください。'); return; }
   if(!confirm(`「${entry.name}」を削除しますか？`)) return;
   persistSaves(saves.filter(s=>s.id!==id));
+  if(id===currentSaveId){ currentSaveId=null; saveDirty=false; updateRecordTitle(); }   // 開いていた記録を消したら未保存扱い
   renderSaveList();
 }
 
@@ -9215,6 +9272,7 @@ loadTopBtnHidden(); applyTopBtnHidden();   // 上のバーのボタンの表示/
 setEnterDir(enterMoveDir);                 // Enterで進む向きを復元
 { const stb=document.getElementById('sheetTabsBtn'); if(stb) stb.classList.toggle('on', showSheetTabs);
   const stt=document.getElementById('sheetToggleBtn'); if(stt) stt.classList.toggle('on', showSheetTabs); }
+saveDirty=false; updateRecordTitle();   // 起動直後は「📄 未保存」（記録は開いていない）
 if(localStorage.getItem('excalc_trigmode')==='rad') trigMode='rad';
 applyTrigModeBtn();
 restoreSheetSizes();
