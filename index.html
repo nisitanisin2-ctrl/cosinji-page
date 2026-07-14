@@ -1083,6 +1083,11 @@ body.dark .save-mode { background: #143a35; color: #7fcabd; }
 .btn-lock { background: var(--save-item-bg); border: 1px solid var(--save-item-border); border-radius: 4px; padding: 5px 6px; font-size: 12px; cursor: pointer; white-space: nowrap; touch-action: manipulation; }
 .btn-lock:hover { background: var(--cell-hover); }
 .save-item.locked { border-color: #e0a800; box-shadow: inset 3px 0 0 #e0a800; }
+/* 今開いている記録（読込済み／上書き保存の対象）を強調 */
+.save-item.current { border-color: #217346; box-shadow: inset 0 0 0 1px #217346; background: rgba(33,115,70,0.06); }
+.save-open-badge { font-size: 11px; font-weight: bold; color: #217346; margin-left: 6px; white-space: nowrap; }
+body.dark .save-item.current { border-color: #4caf7d; box-shadow: inset 0 0 0 1px #4caf7d; background: rgba(76,175,125,0.12); }
+body.dark .save-open-badge { color: #7fd6a4; }
 .btn-rename:disabled, .btn-del:disabled { opacity: 0.35; cursor: not-allowed; filter: grayscale(0.6); }
 .btn-rename:disabled:hover { background: #5d6d7e; }
 .btn-del:disabled:hover { background: #a93226; }
@@ -7878,7 +7883,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v192';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v193';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -8965,13 +8970,14 @@ function renderSaveList() {
   if(saves.length===0){body.innerHTML='<div class="no-saves">このタブに保存データがありません</div>';return;}
   body.innerHTML=saves.map(s=>{
     const locked=!!s.locked;
+    const isCur=(s.id===currentSaveId);   // 今開いている記録（読込済み／上書き保存の対象）
     const tab=s.tab||0;
     const mi=s.mode?modeItemByKey(s.mode):null;   // 保存時のモード（古い保存はmode無し）
     const modeBadge=mi?`<span class="save-mode">${mi.item.icon} ${escHtml(mi.item.name)}</span>`:'';
     return `
-    <div class="save-item${locked?' locked':''}">
+    <div class="save-item${locked?' locked':''}${isCur?' current':''}">
       <div class="save-info">
-        <div class="save-name">${locked?'🔒 ':''}${escHtml(s.name)}</div>
+        <div class="save-name">${locked?'🔒 ':''}${escHtml(s.name)}${isCur?'<span class="save-open-badge">📂 開いています</span>':''}</div>
         <div class="save-date">${new Date(s.timestamp).toLocaleString('ja-JP')}　${s.rows}行×${s.cols}列${modeBadge}</div>
       </div>
       <select class="save-tab-select" onchange="setSaveItemTab(${s.id}, this.value)" title="振り分け先のタブを変更" ${locked?'disabled':''}>
