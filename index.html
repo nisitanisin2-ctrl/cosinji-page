@@ -711,6 +711,8 @@ body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8
 }
 .numpad-resizer:hover .numpad-resizer-grip,
 .numpad-resizer.dragging .numpad-resizer-grip { background: #9a9a9a; }
+/* 設定で調整バーをオフにしたときは非表示（縦・横どちらの向きでも） */
+body.resizer-off .numpad-resizer { display: none !important; }
 /* スマホ横向き：大きさ調整バーをテンキー左端に縦向きで（左右ドラッグで調整）。
    基本ルールの後に置いて上書きする */
 @media (orientation: landscape) and (max-height: 500px) {
@@ -1483,6 +1485,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <span class="set-label">調整バーの太さ<small>テンキーの大きさを変えるバー</small></span>
       <span class="set-stepper"><button class="step-btn" onclick="changeBarSize(-1)">−</button><span class="sc-val" id="barSize">標準</span><button class="step-btn" onclick="changeBarSize(1)">＋</button></span>
     </div>
+    <button class="set-act" id="resizerBarBtn" onclick="toggleResizerBar()" title="テンキーの大きさを変える調整バー（テンキー上端／横向きは左端）の表示を切り替えます">▬ 調整バーを表示する</button>
     <div class="set-row">
       <span class="set-label">テンキーの上下の余白<small>下の隙間・上のスペースを調整（iPhoneのホームバー分も）</small></span>
       <span class="set-stepper"><button class="step-btn" onclick="changeNpad(-1)">−</button><span class="sc-val" id="npadSize">標準</span><button class="step-btn" onclick="changeNpad(1)">＋</button></span>
@@ -4543,6 +4546,18 @@ function applyBarSize(){
 function changeBarSize(delta){
   const next=barSizeIdx+delta; if(next<0||next>=BAR_STEPS.length) return;
   barSizeIdx=next; applyBarSize();
+}
+/* ── 調整バーの表示/非表示（設定でオンオフ。既定は表示） ── */
+let showResizerBar = localStorage.getItem('excalc_show_resizerbar')!=='0';
+function applyResizerBar(){
+  document.body.classList.toggle('resizer-off', !showResizerBar);
+  const btn=document.getElementById('resizerBarBtn'); if(btn) btn.classList.toggle('on', showResizerBar);
+}
+function toggleResizerBar(){
+  showResizerBar=!showResizerBar;
+  localStorage.setItem('excalc_show_resizerbar', showResizerBar?'1':'0');
+  applyResizerBar();
+  toast(showResizerBar?'調整バーを表示します':'調整バーを隠しました（設定からいつでも戻せます）');
 }
 /* ── テンキーの上下の余白（下の隙間・上のスペースを調整。iPhoneのホームバー確保量も） ── */
 const NPAD_STEPS=[
@@ -7894,7 +7909,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v194';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v195';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -9272,6 +9287,7 @@ loadTopBtnHidden(); applyTopBtnHidden();   // 上のバーのボタンの表示/
 setEnterDir(enterMoveDir);                 // Enterで進む向きを復元
 { const stb=document.getElementById('sheetTabsBtn'); if(stb) stb.classList.toggle('on', showSheetTabs);
   const stt=document.getElementById('sheetToggleBtn'); if(stt) stt.classList.toggle('on', showSheetTabs); }
+applyResizerBar();   // 調整バーの表示/非表示を復元
 saveDirty=false; updateRecordTitle();   // 起動直後は「📄 未保存」（記録は開いていない）
 if(localStorage.getItem('excalc_trigmode')==='rad') trigMode='rad';
 applyTrigModeBtn();
