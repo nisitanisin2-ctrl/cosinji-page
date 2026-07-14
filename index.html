@@ -4828,7 +4828,7 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
   const regPages=[pgReg,pgRegL,pgRegR];
   let openWhich=null;               // null=数字ページ／'bd'(左2)／'fmt'(左1)／'func'(右1)／'sci'(右2)／'reg'(下)／'regL'(登録左)／'regR'(登録右)
   let lastRegPage='reg';            // 登録を再度開いたとき表示するページ（最後に見ていた登録ページ）
-  let downX=null, downY=0, axis=null, activeEl=null, decided=false, w=1, h=1, downT=0, downTopRow=false;
+  let downX=null, downY=0, downId=null, axis=null, activeEl=null, decided=false, w=1, h=1, downT=0, downTopRow=false;
   const isReg=s=>s==='reg'||s==='regL'||s==='regR';
   function regPageEl(s){ return s==='regL'?pgRegL : s==='regR'?pgRegR : s==='reg'?pgReg : null; }
   /* 標準ページ(#numpadPage1)の最上段ボタンから始まったか（調整バーの取り違え対策：上スワイプで登録を開かない） */
@@ -4873,18 +4873,19 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
   }
   function onDown(e){
     if(e.button!==undefined && e.button>0) return;
+    if(downX!==null) return;   // 2本目以降の指はスワイプ判定に使わない（素早い連打で誤スワイプ扱いになるのを防ぐ）
     const onBtn   = !!(e.target && e.target.closest && e.target.closest('.btn'));
     const onEnter = !!(e.target && e.target.closest && e.target.closest('.btn.enter'));
     // 編集中＝Enterのみ／それ以外＝数字ページを含めどのボタンからでもフリック開始可（全面）
     const ok = keypadEditing ? onEnter : onBtn;
     if(!ok) return;
-    downX=e.clientX; downY=e.clientY; axis=null; activeEl=null; decided=false; numpadSwiping=false;
+    downX=e.clientX; downY=e.clientY; downId=e.pointerId; axis=null; activeEl=null; decided=false; numpadSwiping=false;
     downTopRow=startedOnTopRow(e.target);
     downT=(e.timeStamp||performance.now());
     w=vp.offsetWidth||1; h=vp.offsetHeight||1;
   }
   function onMove(e){
-    if(downX===null) return;
+    if(downX===null || e.pointerId!==downId) return;
     const dx=e.clientX-downX, dy=e.clientY-downY;
     if(!decided){
       // 誤スライド防止：押し始めの短時間（＝素早いタップ）は、少し大きく動かすまでスライドしない。
@@ -4976,7 +4977,7 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
     restAll(true);
   }
   function onUp(e){
-    if(downX===null) return;
+    if(downX===null || e.pointerId!==downId) return;
     const dx=(e.clientX!==undefined?e.clientX:downX)-downX;
     const dy=(e.clientY!==undefined?e.clientY:downY)-downY;
     const wasAxis=axis;
@@ -5015,7 +5016,7 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
   vp.addEventListener('pointerdown', onDown);
   window.addEventListener('pointermove', onMove, {passive:false});
   window.addEventListener('pointerup', onUp);
-  window.addEventListener('pointercancel', ()=>{ downX=null; axis=null; activeEl=null; numpadSwiping=false; });
+  window.addEventListener('pointercancel', e=>{ if(downX!==null && e.pointerId!==downId) return; downX=null; axis=null; activeEl=null; numpadSwiping=false; });
   // PC：テンキー上でマウスホイールを回すと横スワイプと同じようにページを切り替える
   let lastWheelT=0;
   vp.addEventListener('wheel', e=>{
@@ -5039,6 +5040,55 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
   // 起動時：すべて閉じた状態（数字ページ表示）に位置合わせ
   restAll(false);
   requestAnimationFrame(()=>overlays.forEach(el=>el.classList.remove('ov-dragging')));
+})();
+
+/* ── テンキーのタップ取りこぼし防止（数字・関数・関数電卓ページ） ──
+   ブラウザ標準の click は、指が少しずれる・次のキーを離す前に押す（高速連打）と
+   合成されないことがあり「押したのに入力されない」原因になる。そこで pointerup 時点で
+   タップと判定できたらこちらから click を発行し、直後に来る本物の click は1回だけ
+   握りつぶして二重入力を防ぐ。Σは独自の押し離し処理があるため対象外。 */
+(function setupTapBoost(){
+  const vp=document.getElementById('numpadViewport'); if(!vp) return;
+  const SEL='#numpadPage1 .btn[data-key], #numpadPage2 .btn[data-key], #numpadPageSci .btn[data-key]';
+  const recs=new Map();        // pointerId -> {btn, x, y, t, maxMove}
+  const fired=new Map();       // btn -> 発行時刻（直後の本物clickを1回だけ抑止）
+  vp.addEventListener('pointerdown', e=>{
+    if(e.button!==undefined && e.button>0) return;
+    const b=e.target && e.target.closest ? e.target.closest(SEL) : null;
+    if(!b || b.dataset.key==='sum') return;
+    recs.set(e.pointerId, {btn:b, x:e.clientX, y:e.clientY, t:(e.timeStamp||performance.now()), maxMove:0});
+  });
+  window.addEventListener('pointermove', e=>{
+    const r=recs.get(e.pointerId); if(!r) return;
+    const d=Math.hypot(e.clientX-r.x, e.clientY-r.y);
+    if(d>r.maxMove) r.maxMove=d;
+  });
+  window.addEventListener('pointercancel', e=>{ recs.delete(e.pointerId); });
+  vp.addEventListener('pointerup', e=>{
+    const r=recs.get(e.pointerId); recs.delete(e.pointerId);
+    if(!r) return;
+    if(r.maxMove>28) return;                       // 動きすぎ＝タップではない（スワイプはページャに任せる）
+    if(keypadEditing || kaSuppress) return;        // 配置編集中／長押し成立後は入力しない
+    const dt=(e.timeStamp||performance.now())-r.t;
+    if(numpadSwiping){
+      if(dt>=250) return;                          // 遅い動き＝スワイプ意図。素早く小さな動きだけタップ扱いで救済
+      numpadSwiping=false;                         // 救済タップ：click抑止を解いてから発行
+    }
+    if(!r.btn.isConnected) return;
+    fired.set(r.btn, performance.now());
+    r.btn.click();
+  });
+  // 発行済みタップの直後に届く「本物の」clickを1回だけ無効化（documentのcaptureで最初に握る）
+  document.addEventListener('click', e=>{
+    if(!e.isTrusted) return;
+    const b=e.target && e.target.closest ? e.target.closest(SEL) : null;
+    if(!b) return;
+    const t=fired.get(b);
+    if(t!==undefined){
+      fired.delete(b);
+      if(performance.now()-t<450){ e.preventDefault(); e.stopPropagation(); }
+    }
+  }, true);
 })();
 
 /* ── 登録ページ（数字ページの下）：長押しで文字・数字／便利機能を登録、タップで実行 ── */
@@ -7828,7 +7878,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v191';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v192';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
