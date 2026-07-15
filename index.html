@@ -407,6 +407,16 @@ body.dark .settings-footer { background: #141d33; }
 /* 保護（ロック）されたセルを選択中：セル番号枠を赤系にして知らせる */
 #cellRef.locked-ref { background: #fdecea; color: #a93226; border-color: #c0392b; box-shadow: inset 0 0 0 1px #c0392b; }
 body.dark #cellRef.locked-ref { background: #3a1f1c; color: #f0a5a0; border-color: #c0392b; }
+/* 選択中のセルが日付書式のとき、セル番号枠の左上に小さな三角の印を出す */
+.cellref-wrap { position: relative; display: flex; flex-shrink: 0; }
+.date-badge {
+  position: absolute; top: 0; left: 0; width: 0; height: 0;
+  border-style: solid; border-width: 6px 6px 0 0;
+  border-color: #1e88e5 transparent transparent transparent;
+  pointer-events: none; display: none;
+}
+.date-badge.on { display: block; }
+body.dark .date-badge { border-top-color: #82b1ff; }
 #formulaInput {
   flex: 1; padding: calc(2px * var(--formula-scale, 1)) 6px;
   border: 1px solid var(--formula-border);
@@ -588,15 +598,6 @@ table.sheet {
   vertical-align: middle; touch-action: manipulation;
 }
 .cell:hover { background: var(--cell-hover); }
-/* 日付書式のセル：左上に小さな三角の印を出して見分けられるようにする */
-.cell.cell-dated { position: relative; }
-.cell.cell-dated::before {
-  content: ''; position: absolute; top: 0; left: 0;
-  border-width: 6px 6px 0 0; border-style: solid;
-  border-color: #1e88e5 transparent transparent transparent;
-  pointer-events: none;
-}
-body.dark .cell.cell-dated::before { border-top-color: #82b1ff; }
 .cell.active {
   border: 2px solid #217346 !important;
   outline: none; background: var(--cell-bg);
@@ -1636,7 +1637,10 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 </div>
 
 <div class="formula-bar">
-  <input id="cellRef" type="text" value="A1" readonly onclick="openCellFmt()" title="タップでこのセルの書式設定（小数点・装飾・色・大きさ）">
+  <span class="cellref-wrap">
+    <input id="cellRef" type="text" value="A1" readonly onclick="openCellFmt()" title="タップでこのセルの書式設定（小数点・装飾・色・大きさ）">
+    <span id="dateBadge" class="date-badge" title="日付書式のセル"></span>
+  </span>
   <input id="formulaInput" type="text" placeholder="値を入力 (Enterで確定)" autocomplete="off">
 </div>
 
@@ -5924,6 +5928,11 @@ function clearRowSel() {
   selRow=-1;
 }
 
+/* 選択中のセルが日付書式なら、セル番号枠（cellRef）の左上に印を出す */
+function updateDateBadge(){
+  const b=document.getElementById('dateBadge');
+  if(b) b.classList.toggle('on', !!cellDateFmt(selR,selC));
+}
 function sel(r,c) {
   { const a=anchorOf(r,c); r=a[0]; c=a[1]; }   // 結合セルは代表(左上)を選ぶ
   const wasFormula=formulaEditMode;
@@ -5966,6 +5975,7 @@ function sel(r,c) {
   disp_val=data[r][c]!==''?fmtNum(numV):'0';
   op1=null; cur_op=null; waiting=false;
   updateStats(c);
+  updateDateBadge();   // 日付書式のセルはセル番号枠に印を出す
   document.getElementById(`c${r}_${c}`).scrollIntoView({block:'nearest',inline:'nearest'});
 }
 
@@ -6060,7 +6070,7 @@ function setCellVal(r,c,v) {
     else if(c===2) data[r][1]='';
   }
   const cell=document.getElementById(`c${r}_${c}`);
-  if (cell) { cell.textContent=getCellDisplay(r,c); if(dfmtChange) applyCellStyle(cell,r,c); }   // 日付書式の増減で左上の印も更新
+  if (cell) { cell.textContent=getCellDisplay(r,c); if(dfmtChange) applyCellStyle(cell,r,c); }   // 日付書式の増減でセル番号枠の印も更新
   document.getElementById('formulaInput').value=cellEditString(r,c);
   if (tableMode==='tanisuiryou' && c===1) tsRefFill(r);   // 配合番号・エアメータ番号を入れたら登録シートから値を呼び出す
   if (isStructMode()) recalcMode();
@@ -8156,7 +8166,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v203';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v204';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -8267,10 +8277,9 @@ function applyCellStyle(td, r, c){
   td.style.boxShadow='';
   td.style.removeProperty('--dsize');
   td.classList.remove('cell-locked');
-  td.classList.remove('cell-dated');
+  if(r===selR && c===selC) updateDateBadge();   // 選択セルの日付書式が変わったらセル番号枠の印を更新
   const s=cellStyles[`${r},${c}`]; if(!s) return;
   if(s.locked)    td.classList.add('cell-locked');
-  if(s.dfmt)      td.classList.add('cell-dated');   // 日付書式のセルは左上に印を出す
   if(s.bold)      td.style.fontWeight='bold';
   if(s.italic)    td.style.fontStyle='italic';
   if(s.underline) td.style.textDecoration='underline';
