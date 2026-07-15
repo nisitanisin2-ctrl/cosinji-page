@@ -2239,7 +2239,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="help-h">💾 保存・その他（上部メニュー）</div>
         <div class="help-li"><b>保存</b>：名前を付けて保存　<b>リスト</b>：保存データを開く</div>
         <div class="help-li"><b>上書き保存</b>：リストから読み込んだ記録（または直前に保存した記録）があるときに<b>「保存」</b>を押すと、<b>「◯◯に上書き保存しますか？」</b>と確認が出ます。<b>OK</b>で同じ記録に上書き、<b>キャンセル</b>で新しい名前を付けて別に保存します（🔒ロック中の記録は上書きされず、新規保存になります）。</div>
-        <div class="help-li">記録1件＝<b>「保存したときのモードのシート一式」</b>です（単位水量なら本体・配合登録・エアメータ登録の3枚セット、通常モードなら通常のシートたち）。読み込むと<b>そのモードのシートだけが記録の内容に置き換わり</b>、<b>他のモードの内容には影響しません</b>。リストの各データにはモードのバッジが表示されます。</div>
+        <div class="help-li">記録1件＝<b>「全モードのシートをまとめた1つのスナップショット」</b>です（通常・買物・単位水量など、これまでに使った各モードのシートを一括で保存）。読み込むと<b>各モードの内容がその記録の状態にまとめて置き換わり</b>、保存したときに開いていたモードで開き直します。リストの各データには、保存時に開いていたモードのバッジが表示されます。（以前のバージョンで作った「1モードだけの記録」もそのまま読み込めます。）</div>
         <div class="help-li">アプリ全体のまるごとバックアップは、リスト画面いちばん下の<b>⬇書き出し／⬆読み込み</b>（ファイル）を使ってください。</div>
         <div class="help-li">リストの上に<b>🗂記録／📌タブ1／📌タブ2／🔀モード</b>の4つのタブがあります。保存した記録はまず<b>「記録」</b>タブに入り、各データの<b>タブ選択欄</b>でよく呼び出したい記録を<b>タブ1・タブ2</b>に振り分けて整理できます。タブは<b>長押し</b>で名前を変更できます（例：「現場A」「経理」）。</div>
         <div class="help-li"><b>「モードへ」</b>で記録をモードに登録すると、その記録は自動で<b>「モード」タブ</b>へ移動し、誤って削除・改名・タブ移動できないよう<b>保護</b>されます（🔒ロックと同じ状態。手動での「モード」タブへの振り分けはできません）。</div>
@@ -7922,7 +7922,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v196';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v197';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -8897,14 +8897,15 @@ function appPrompt(message, defaultValue=''){
   });
 }
 
-/* 記録＝「今のモードのシート一式」のスナップショットを作る（開いているシートの最新状態を取り込んでから複製） */
-function makeSheetSetSnap(){
-  let snap;
+/* 記録＝「全モードのシート一式」のスナップショットを作る。
+   まず開いているシートの最新状態を今のモードへ取り込んでから、modeSheets全体を複製する。 */
+function makeAllModesSnap(){
   if(typeof sheets!=='undefined' && Array.isArray(sheets) && sheets.length){
     if(sheets[curSheet]) Object.assign(sheets[curSheet], captureCurrentSheet());
     modeSheets[workspaceMode]={ sheets, cur:curSheet };
-    try{ snap=JSON.parse(JSON.stringify({ sheets, cur:curSheet })); }catch(_){ snap=undefined; }
   }
+  let snap;
+  try{ snap=JSON.parse(JSON.stringify(modeSheets)); }catch(_){ snap=undefined; }
   return snap;
 }
 /* 保存（タップ）：記録を開いていれば確認なしで即上書き（ファイル保存の感覚）。
@@ -8917,7 +8918,7 @@ async function saveData() {
     Object.assign(cur, {
       timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces, mode:workspaceMode,
       data:data.map(row=>[...row]), styles:{...cellStyles},
-      sheetSet:makeSheetSetSnap(), modeSheets:undefined, curMode:undefined, sheets:undefined, cur:undefined
+      modeSheets:makeAllModesSnap(), curMode:workspaceMode, sheetSet:undefined, sheets:undefined, cur:undefined
     });
     persistSaves(saves);
     saveDirty=false; updateRecordTitle();
@@ -8940,7 +8941,7 @@ async function saveAsData() {
     id, name:name.trim()||defaultName,
     timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces, mode:workspaceMode,
     data:data.map(row=>[...row]), styles:{...cellStyles}, tab:0,
-    sheetSet:makeSheetSetSnap()   // 今のモードのシート一式（data/styles はモード登録・互換用の開いているシート分）
+    modeSheets:makeAllModesSnap(), curMode:workspaceMode   // 全モードのシート一式（data/styles はモード登録・互換用の開いているシート分）
   });
   persistSaves(saves);
   currentSaveId=id;                          // 以後この記録に上書きできるようにする
@@ -9150,8 +9151,12 @@ async function renameSave(id) {
 function loadSave(id) {
   const saves=getSaves();
   const entry=saves.find(s=>s.id===id); if(!entry) return;
+  const isAllModes=!!(entry.modeSheets && typeof entry.modeSheets==='object');
   const ldName=(entry.mode&&typeof modeButtonLabel==='function')?modeButtonLabel(entry.mode):'';
-  if(!confirm(`「${entry.name}」を読み込みますか？\n${ldName?`「${ldName}」モードのシートが`:'現在のシートが'}この記録の内容に置き換わります（他のモードには影響しません）。`)) return;
+  const msg=isAllModes
+    ? `「${entry.name}」を読み込みますか？\nこの記録に入っている各モードの内容が、この記録の状態に置き換わります。`
+    : `「${entry.name}」を読み込みますか？\n${ldName?`「${ldName}」モードのシートが`:'現在のシートが'}この記録の内容に置き換わります（他のモードには影響しません）。`;
+  if(!confirm(msg)) return;
   currentSaveId=id;   // 以後「保存」でこの記録に上書きできるようにする
   if(entry.decPlaces!==undefined) decPlaces=entry.decPlaces;
   // まず今のワークスペースを退避（読込対象以外のモードの内容は保持する）
