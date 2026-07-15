@@ -4876,6 +4876,9 @@ function insertDatePick(){
   inp.addEventListener('blur', ()=>setTimeout(()=>finish(false), 250));
   try{ inp.showPicker(); }catch(_){ try{ inp.focus(); inp.click(); }catch(__){} }
 }
+/* 登録ボタンから実行するとき、指の操作（ユーザー操作）が生きているうちに呼ばないと
+   開かない機能（ネイティブのカレンダー・ファイル選択）。これらは遅延させずその場で実行する。 */
+const REG_GESTURE_ACTIONS = new Set(['a_calendar','a_csvin','a_xlsxin']);
 let keyAssign={}, kaTargetKey=null, kaSuppress=false;
 let kaReady=false;   // ピッカー表示後、新しく押し直すまで項目を無効化（長押しの指を離した時の誤タップ防止）
 function loadKeyAssign(){ try{ keyAssign=JSON.parse(localStorage.getItem('excalc_key_assign')||'{}'); }catch(_){ keyAssign={}; } }
@@ -5548,9 +5551,11 @@ function pickBannerCancel(){ if(regCellPickIndex>=0) regCellPickCancel(); else l
       if(wasLong){ openRegister(i); return; }           // 長押し→離してから登録選択モーダル
       if(regIsEmpty(i)){ openRegister(i); return; }      // 未登録タップ→離してから登録選択
       // 登録済みタップ→実行／入力。便利機能（リスト・モード・保存など、指を離した直後の
-      //   合成クリックで誤って閉じてしまうモーダルを開く操作）は openRegister と同様に少し遅らせて実行。
-      //   文字・数字の入力は即時（モーダルを開かないため遅延不要）。
-      if(regEntry(i).type==='action'){ setTimeout(()=>userKey(i), 160); }
+      //   合成クリックで誤って閉じてしまうモーダルを開く操作）は少し遅らせて実行。
+      //   ただしカレンダー・ファイル選択などは、指の操作が生きているうちに開く必要があるため即時実行。
+      //   文字・数字の入力も即時（モーダルを開かないため遅延不要）。
+      const eNow=regEntry(i);
+      if(eNow.type==='action' && !REG_GESTURE_ACTIONS.has(eNow.value)){ setTimeout(()=>userKey(i), 160); }
       else userKey(i);
     });
     pad.addEventListener('pointercancel', ()=>{ clear(); if(curBtn) curBtn.classList.remove('armed'); curBtn=null; longed=false; });
@@ -8072,7 +8077,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v201';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v202';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
