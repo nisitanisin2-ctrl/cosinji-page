@@ -968,6 +968,14 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
   cursor: pointer; touch-action: manipulation;
 }
 .modal-close:hover { background: rgba(255,255,255,0.35); }
+/* 保存リストの「新規」ボタン（まっさらから始める） */
+.save-new-btn {
+  flex-shrink: 0; background: rgba(255,255,255,0.2); color: #fff;
+  border: 1px solid rgba(255,255,255,0.45); border-radius: 5px;
+  padding: 5px 10px; height: 28px; font-size: 12.5px; font-weight: bold;
+  white-space: nowrap; cursor: pointer; touch-action: manipulation;
+}
+.save-new-btn:hover { background: rgba(255,255,255,0.35); }
 .modal-body { flex: 1; overflow-y: auto; padding: 10px; }
 /* 見出し長押しメニューのボタン（緑＝追加／赤＝削除） */
 .hm-btn {
@@ -1919,6 +1927,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   <div class="modal">
     <div class="modal-header">
       <span>保存データ一覧</span>
+      <button class="save-new-btn" onclick="newWorkspace()" title="今の内容を消して、まっさらな新規から始めます">🆕 新規</button>
       <button class="modal-close" onclick="closeSaveList()">✕</button>
     </div>
     <div class="save-tabbar" id="saveTabBar" title="タップで切替／長押しで名前を変更"></div>
@@ -4716,6 +4725,7 @@ const KEY_FUNCS={
   a_defsize:{g:'設定・機能',label:'▦既定',run:()=>applyDefaultSize()}, a_cellfmt:{g:'設定・機能',label:'🎨書式',run:()=>openCellFmt()},
   a_numpadhide:{g:'設定・機能',label:'⌨隠す',run:()=>toggleNumpad()},
   a_today:{g:'設定・機能',label:'📅今日',run:()=>insertTodayDate()},
+  a_calendar:{g:'設定・機能',label:'📅日付',run:()=>insertDatePick()},
   a_lookup:{g:'設定・機能',label:'🔍照合',run:()=>openLookupDlg()},
   a_find:{g:'設定・機能',label:'🔎検索',run:()=>openFindDlg()},
   a_modenormal:{g:'設定・機能',label:'▦通常',run:()=>switchMode('normal')},
@@ -4736,6 +4746,36 @@ function insertTodayDate(){
   const s=cellStyles[`${selR},${selC}`]; if(s&&s.nodate) delete s.nodate;   // 今日ボタンは日付にする
   const {y,m,d}=serialToYMD(todaySerial());
   setCellVal(selR,selC,`${y}/${m}/${d}`);
+}
+/* カレンダーで日付を選んで、選択中のセルに入れる（日付として自動認識される） */
+function insertDatePick(){
+  if(isLockedCell(selR,selC)){ flashLocked(selR,selC); return; }
+  const r=selR, c=selC;   // 開いている間に選択が変わっても入れ先を固定
+  // 初期値：セルが日付ならその日付、そうでなければ今日
+  let serial=todaySerial();
+  if(isDateSerialCell(r,c) && cellDateFmt(r,c)){ const n=Number(String(data[r][c]).trim()); if(!isNaN(n)) serial=n; }
+  const {y,m,d}=serialToYMD(serial);
+  const pad=n=>String(n).padStart(2,'0');
+  const inp=document.createElement('input');
+  inp.type='date'; inp.value=`${y}-${pad(m)}-${pad(d)}`;
+  inp.style.cssText='position:fixed; left:50%; bottom:60px; transform:translateX(-50%); width:1px; height:1px; opacity:0.01; z-index:99998;';
+  document.body.appendChild(inp);
+  let done=false;
+  const finish=(commit)=>{
+    if(done) return; done=true;
+    if(commit && inp.value){
+      const [yy,mm,dd]=inp.value.split('-').map(Number);
+      if(yy&&mm&&dd && !isLockedCell(r,c)){
+        const s=cellStyles[`${r},${c}`]; if(s&&s.nodate) delete s.nodate;   // 日付として扱う
+        if(typeof sel==='function') sel(r,c);
+        setCellVal(r,c,`${yy}/${mm}/${dd}`);
+      }
+    }
+    if(inp.parentNode) inp.parentNode.removeChild(inp);
+  };
+  inp.addEventListener('change', ()=>finish(true));
+  inp.addEventListener('blur', ()=>setTimeout(()=>finish(false), 250));
+  try{ inp.showPicker(); }catch(_){ try{ inp.focus(); inp.click(); }catch(__){} }
 }
 let keyAssign={}, kaTargetKey=null, kaSuppress=false;
 let kaReady=false;   // ピッカー表示後、新しく押し直すまで項目を無効化（長押しの指を離した時の誤タップ防止）
@@ -6131,13 +6171,20 @@ function toggleTextInput() {
     return;
   }
   if (editBlocked()) return;
-  // 入力中の数値・数式状態をリセットしてから文字入力へ
+  // 入力中の数値があれば、それを消さずに文字入力の続きにする
+  const pending = cellEditing ? ((waiting&&op1!==null)?fmtNum(op1):disp_val) : null;
   cellEditing=false; op1=null; cur_op=null; waiting=false;
   formulaEditMode=false; fi.classList.remove('formula-mode');
-  fi.value=data[selR][selC];
-  const el=document.getElementById(`c${selR}_${selC}`);
-  if (el) el.textContent=getCellDisplay(selR,selC);
-  fi.focus();
+  if (pending!=null && pending!=='') {
+    fi.value=pending;
+    fi.focus();
+    fi.dispatchEvent(new Event('input'));   // 数式バーを「未確定あり」にして、そのまま確定＝数字が消えない／セル表示も更新
+  } else {
+    fi.value=data[selR][selC];
+    const el=document.getElementById(`c${selR}_${selC}`);
+    if (el) el.textContent=getCellDisplay(selR,selC);
+    fi.focus();
+  }
   try { fi.setSelectionRange(fi.value.length, fi.value.length); } catch(e) {}
   if (btn) btn.classList.add('text-on');
 }
@@ -7926,7 +7973,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v198';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v199';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -7972,10 +8019,7 @@ function resetAll() {
   sel(initCellOfMode(),0);
   document.getElementById('formulaInput').value=data[selR][selC];
   persistModes();
-  if(typeof saveSheets==='function') saveSheets();   // 今のシートの内容だけ保存に反映（数は変えない）
-  // リセット＝新規ファイル扱い：開いていた記録との紐付けを解除（次の「保存」は名前を付けて保存になる）
-  currentSaveId=null; saveDirty=false;
-  if(typeof updateRecordTitle==='function') updateRecordTitle();
+  if(typeof saveSheets==='function') saveSheets();   // 今のシートの内容だけ保存に反映（記録との紐付けは保つ）
 }
 /* シートリセット：ほかのシートを全部消して1枚に戻す（今開いているシートの内容・名前は残す）。
    表の中身は消さない（中身を消したいときは通常の「リセット」を使う）。 */
@@ -7989,6 +8033,30 @@ function resetSheets(){
   saveSheets();
   renderSheetBar();
   toast('シートを1枚に戻しました');
+}
+
+/* 新規：全モードのシートを空にして、まっさらな状態から始める（記録との紐付けも解除）。
+   保存済みの記録はリストに残る。登録済みのカスタムモード定義は残す（内容だけ新規化）。 */
+function newWorkspace(){
+  if(!confirm('新しく始めますか？\n今のすべての内容（全モードのシート）が消えます。\n保存した記録はリストに残ります。')) return;
+  for(const k in modeSheets) delete modeSheets[k];
+  for(const k in modeStates) delete modeStates[k];
+  colWidths={}; rowHeights={};
+  tableMode='normal'; workspaceMode='normal';
+  activateModeSheetSet('normal');
+  document.body.classList.remove('simple-mode');
+  normalizeStructLayout();
+  hideAllBars();
+  syncRowColLabels();
+  buildSheet();
+  sel(0,0);
+  updateModeButton();
+  renderSheetBar();
+  currentSaveId=null;
+  persistModes(); saveSheets();
+  saveDirty=false; if(typeof updateRecordTitle==='function') updateRecordTitle();
+  closeSaveList();
+  toast('新しく始めました');
 }
 
 /* ── セル書式（小数点・装飾・色・大きさ）──────────────────── */
