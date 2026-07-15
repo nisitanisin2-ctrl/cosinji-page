@@ -1523,6 +1523,17 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <span class="set-label">消費税の税率</span>
       <span class="set-stepper"><button class="step-btn" onclick="changeTax(-1)">−</button><span class="sc-val" id="taxRate">10%</span><button class="step-btn" onclick="changeTax(1)">＋</button></span>
     </div>
+    <div class="set-row">
+      <span class="set-label">日付の表示<small>新しく入れる日付の形式</small></span>
+      <select class="fmt-select" id="defDateFmt" onchange="changeDefaultDateFmt(this.value)" style="flex-shrink:0">
+        <option value="ymd">2026/7/7</option>
+        <option value="jp">2026年7月7日</option>
+        <option value="jpmd">7月7日</option>
+        <option value="md">7/7</option>
+        <option value="wday">2026/7/7(曜)</option>
+        <option value="wareki">令和8年7月7日</option>
+      </select>
+    </div>
     <div class="set-sec">ひな形（テンプレ）とモード</div>
     <button class="set-act" onclick="openCalcTmpl()" title="色々な計算式のひな形（約20種類）を選んで、値を入れるだけの状態にします">📋 計算式テンプレ</button>
     <button class="set-act" onclick="openFinTmpl()" title="損益計算書・貸借対照表・収支計算書のかんたんなひな形">📑 決算書テンプレ</button>
@@ -2497,6 +2508,13 @@ const MAXCOLS = 50;    // 最大列数（A〜AX）
 let ROWS = 15;
 let COLS = 3;
 let decPlaces = -1;
+/* 新しく入れる日付のデフォルト表示形式（ymd/jp/jpmd/md/wday/wareki）。設定で変更可 */
+let defaultDateFmt = localStorage.getItem('excalc_default_datefmt') || 'ymd';
+function changeDefaultDateFmt(v){
+  const ok=['ymd','jp','jpmd','md','wday','wareki'];
+  defaultDateFmt = ok.includes(v) ? v : 'ymd';
+  localStorage.setItem('excalc_default_datefmt', defaultDateFmt);
+}
 /* 列見出しは A〜Z のあと AA〜AX まで。ALPHA[c] で列名、ALPHA.indexOf('AA') で列番号を返す
    （xlColLetter/xlColToIdx は base-26 で多桁に対応。既存コードを変えずに50列へ拡張するためのProxy） */
 const ALPHA = new Proxy({}, {
@@ -5855,7 +5873,7 @@ function setCellVal(r,c,v) {
     const s0=cellStyles[`${r},${c}`];
     if (!(s0 && s0.nodate)) {                              // 「日付にしない」を選んだセルは自動で日付化しない
       const serial=parseDateInput(v);
-      if (serial!==null) { dfmtChange={set:(s0&&s0.dfmt)?s0.dfmt:'ymd'}; v=String(serial); }
+      if (serial!==null) { dfmtChange={set:(s0&&s0.dfmt)?s0.dfmt:defaultDateFmt}; v=String(serial); }
       else if (s0&&s0.dfmt) { dfmtChange={clear:true}; }   // 日付セルに日付以外→書式解除
     }
   }
@@ -7973,7 +7991,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v199';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v200';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -8375,7 +8393,7 @@ function fmtToday(){
   pushStyleHistory([key]);
   pushHistory([{r:fmtR,c:fmtC,val:data[fmtR][fmtC]}]);
   data[fmtR][fmtC]=String(todaySerial());
-  const s=fmtStyle(true); if(!s.dfmt) s.dfmt='ymd'; delete s.nodate;   // 今日ボタンは日付にする
+  const s=fmtStyle(true); if(!s.dfmt) s.dfmt=defaultDateFmt; delete s.nodate;   // 今日ボタンは日付にする（既定形式）
   document.getElementById('fmtDate').value=s.dfmt;
   repaintCell(fmtR,fmtC);
   if(fmtR===selR && fmtC===selC) document.getElementById('formulaInput').value=cellEditString(fmtR,fmtC);
@@ -9378,6 +9396,7 @@ setEnterDir(enterMoveDir);                 // Enterで進む向きを復元
 { const stb=document.getElementById('sheetTabsBtn'); if(stb) stb.classList.toggle('on', showSheetTabs);
   const stt=document.getElementById('sheetToggleBtn'); if(stt) stt.classList.toggle('on', showSheetTabs); }
 applyResizerBar();   // 調整バーの表示/非表示を復元
+{ const dd=document.getElementById('defDateFmt'); if(dd) dd.value=defaultDateFmt; }   // 日付の既定表示形式を復元
 saveDirty=false; updateRecordTitle();   // 起動直後は「📄 未保存」（記録は開いていない）
 if(localStorage.getItem('excalc_trigmode')==='rad') trigMode='rad';
 applyTrigModeBtn();
