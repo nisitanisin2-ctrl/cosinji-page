@@ -5083,7 +5083,11 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
   vp.addEventListener('pointerdown', e=>{
     if(e.button!==undefined && e.button>0) return;
     const b=e.target && e.target.closest ? e.target.closest(SEL) : null;
-    if(!b || b.dataset.key==='sum') return;
+    if(!b) return;
+    const k=b.dataset.key;
+    // Σは独自の押し離し処理。文字キーはOSキーボードを出すため、
+    // 合成clickではなく本物のclick（ユーザー操作）でフォーカスさせる必要がある（両方とも対象外）。
+    if(k==='sum' || k==='text') return;
     recs.set(e.pointerId, {btn:b, x:e.clientX, y:e.clientY, t:(e.timeStamp||performance.now()), maxMove:0});
   });
   window.addEventListener('pointermove', e=>{
@@ -7922,7 +7926,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v197';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v198';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
