@@ -7109,28 +7109,40 @@ function recalcTanisuiryou(){
 }
 
 /* ── 配合番号・エアメータ番号 → 登録シートから値を呼び出して本体へ流し込む ── */
-function tsRefFill(r){
-  const f=TS_FORM[r-1]; if(!f||!f.ref) return;
-  const ref=TS_REF[f.ref]; if(!ref) return;
+function tsRefFill(r, opts){
+  opts=opts||{};
+  const f=TS_FORM[r-1]; if(!f||!f.ref) return 0;
+  const ref=TS_REF[f.ref]; if(!ref) return 0;
   const num=String((data[r]&&data[r][1])!=null?data[r][1]:'').trim();
-  if(num==='') return;                       // 番号を消したときは既存の値をそのまま残す
+  if(num==='') return 0;                      // 番号を消したときは既存の値をそのまま残す
   const si=(typeof sheetIndexByName==='function')?sheetIndexByName(ref.sheet):-1;
-  if(si<0){ toast('「'+ref.sheet+'」シートがありません（⚙設定の「登録シートを作成」で作れます）'); return; }
-  const sd=sheetDataOf(si); if(!sd) return;
+  if(si<0){ if(!opts.silent) toast('「'+ref.sheet+'」シートがありません（⚙設定の「登録シートを作成」で作れます）'); return 0; }
+  const sd=sheetDataOf(si); if(!sd) return 0;
   let found=-1;
   for(let rr=1;rr<MAXROWS;rr++){ const c0=sd[rr]&&sd[rr][0]; if(c0!=null && String(c0).trim()!=='' && String(c0).trim()===num){ found=rr; break; } }
-  if(found<0){ toast(f.label+'「'+num+'」は「'+ref.sheet+'」に見つかりません'); return; }
+  if(found<0){ if(!opts.silent) toast(f.label+'「'+num+'」は「'+ref.sheet+'」に見つかりません'); return 0; }
   const idx={}; TS_FORM.forEach((ff,i)=>{ idx[ff.key]=i+1; });
   const batch=[];
   Object.keys(ref.map).forEach(col=>{
     const tr=idx[ref.map[col]]; if(tr==null) return;
     const v=cellRawValue(si, found, +col);   // 数式なら評価結果・数値、空なら''
     const sv=(v===''||v==null)?'':String(v);
+    const old=String(data[tr][1]!=null?data[tr][1]:'');
+    if(sv===old) return;                      // 変化なしはスキップ（再取り込みを冪等に）
     batch.push({r:tr,c:1,val:data[tr][1]});
     data[tr][1]=sv;
     const cell=document.getElementById('c'+tr+'_1'); if(cell) cell.textContent=getCellDisplay(tr,1);
   });
-  if(batch.length) pushHistory(batch);
+  if(batch.length && !opts.noHistory) pushHistory(batch);
+  return batch.length;                        // 値が変わった数（0＝変化なし）
+}
+/* 登録シート（配合・エアメータ）の最新値を本体の各参照行へ取り込み直す（自動・無音）。
+   本体シートを開くたびに呼び、登録シート側の変更を反映する。 */
+function tsRefreshFromRegs(){
+  if(tableMode!=='tanisuiryou') return 0;
+  let changed=0;
+  TS_FORM.forEach((f,i)=>{ if(f.ref) changed+=tsRefFill(i+1, {silent:true, noHistory:true})||0; });
+  return changed;
 }
 /* 登録シート（普通モード）を作る：1行目＝見出し、以降＝入力行 */
 function makeRegSheet(name, headers, dataRows){
@@ -7443,7 +7455,8 @@ function applyActiveSheet(){
   syncRowColLabels();
   if(isStructMode()) showModeBar(); else hideAllBars();
   updateModeButton();
-  buildSheet();
+  if(tableMode==='tanisuiryou') tsRefreshFromRegs();   // 本体を開いたら登録シートの最新値を取り込む
+  buildSheet();      // buildSheet末尾で recalcMode() が走り、取り込んだ値で再計算される
   sel(0,0);
   renderSheetBar();
 }
@@ -7909,7 +7922,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v195';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v196';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
