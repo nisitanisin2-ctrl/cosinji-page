@@ -5041,7 +5041,15 @@ function pickKeyAssign(fid){
     const fid=keyAssign[b.dataset.key]; if(!fid||!KEY_FUNCS[fid]) return;
     if(keypadEditing||numpadSwiping) return;
     e.preventDefault(); e.stopPropagation();
-    KEY_FUNCS[fid].run();
+    // 「設定・機能」の多くはモーダルを開くが、指を離した直後に続く合成クリックで
+    //   誤って閉じてしまうことがあるため少し遅らせて実行（登録テンキーと同じ扱い）。
+    //   ファイル選択など指の操作が生きているうちに開く必要があるものと、数字・記号・関数・
+    //   表の操作（入力の反応を鈍らせないため）は即時実行。
+    if(KEY_FUNCS[fid].g==='設定・機能' && !REG_GESTURE_ACTIONS.has(fid)){
+      setTimeout(()=>{ const f=KEY_FUNCS[fid]; if(f) f.run(); }, 160);
+    } else {
+      KEY_FUNCS[fid].run();
+    }
   }, true);
   /* 背景タップで閉じる（背景でpointerdownした場合のみ＝長押し解放の合成クリックでは閉じない） */
   const ov=document.getElementById('keyAssignOverlay');
@@ -8166,7 +8174,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v204';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v205';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
