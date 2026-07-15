@@ -1188,6 +1188,51 @@ body.dark .help-li b { color: #8fd4ab; }
   border-radius: 4px; padding: 0 5px; font-weight: bold; font-size: 11.5px; color: var(--text);
 }
 .help-lead { font-size: 12.5px; line-height: 1.6; color: var(--text-sub); margin-bottom: 10px; }
+/* ── 説明書：クイックナビ＋アコーディオン（見やすいレイアウト） ── */
+.help-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 14px; }
+.help-nav a {
+  display: inline-block; background: var(--cell-hover); border: 1px solid var(--cell-border);
+  border-radius: 14px; padding: 4px 11px; font-size: 12px; font-weight: bold;
+  color: var(--text); text-decoration: none; cursor: pointer; touch-action: manipulation;
+}
+.help-nav a:active { background: #cdeadb; }
+.help-acc {
+  border: 1px solid var(--save-item-border); border-radius: 10px;
+  margin-bottom: 10px; overflow: hidden; background: var(--modal-bg);
+}
+.help-acc > summary {
+  list-style: none; cursor: pointer; touch-action: manipulation;
+  display: flex; align-items: center; gap: 8px; padding: 12px 14px;
+  font-size: 14px; font-weight: bold; color: #217346; background: rgba(33,115,70,0.06);
+}
+.help-acc > summary::-webkit-details-marker { display: none; }
+.help-acc > summary::after { content: '▾'; margin-left: auto; font-size: 12px; color: #217346; transition: transform 0.15s; }
+.help-acc:not([open]) > summary::after { transform: rotate(-90deg); }
+body.dark .help-acc > summary { color: #6cc492; background: rgba(76,175,125,0.10); }
+body.dark .help-acc > summary::after { color: #6cc492; }
+.help-acc-body { padding: 8px 14px 14px; }
+.help-acc-body .help-li:first-child { margin-top: 4px; }
+/* 早見表（ボタン・操作・モードなど） */
+.help-tbl { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 12.5px; }
+.help-tbl td { padding: 6px; border-bottom: 1px solid var(--cell-border); color: var(--text); vertical-align: top; line-height: 1.5; }
+.help-tbl tr:last-child td { border-bottom: none; }
+.help-tbl td:first-child { white-space: nowrap; width: 1%; padding-right: 10px; }
+.help-tbl b { color: #1a7a45; }
+body.dark .help-tbl b { color: #8fd4ab; }
+/* 操作・キーのチップ（緑） */
+.help-key {
+  display: inline-block; background: #217346; color: #fff; border-radius: 5px;
+  padding: 1px 8px; font-weight: bold; font-size: 12px; white-space: nowrap;
+}
+body.dark .help-key { background: #2f7f57; }
+/* ヒント／注意のコールアウト */
+.help-note {
+  border-left: 4px solid #f0ad4e; background: rgba(240,173,78,0.10);
+  border-radius: 0 8px 8px 0; padding: 8px 10px; font-size: 12px; line-height: 1.55;
+  color: var(--text); margin: 8px 0 4px;
+}
+.help-note b { color: #c77c11; }
+body.dark .help-note b { color: #f0c674; }
 
 /* ── セル書式パネル ── */
 .fmt-row {
@@ -2153,124 +2198,160 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <div class="modal-body">
       <p class="help-lead">スプレッドシート風の電卓です。表に数値を入れて、合計・平均・数式や各種モードで素早く計算できます。入力内容は自動保存され、次回も続きから使えます。</p>
 
-      <div class="help-sec">
-        <div class="help-h">✏️ 基本の使い方</div>
-        <div class="help-li">セルをタップして選び、テンキーで入力 → <b>Enter</b>で確定（下のセルへ移動）。<b>いちばん下の行でEnter</b>を押すと、自動で<b>行が1つ追加</b>されて続けて入力できます（通常・簡易モード、最大250行）。</div>
-        <div class="help-li"><b>Enterを長押し</b>すると、確定後に進む向きを<b>⇩下 ⇄ ⇨右</b>で切り替えられます（設定の「Enterで進む向き」と同じ）。<b>Enterボタンの下の矢印</b>で今どちらの向きか確認できます。</div>
-        <div class="help-li">上部の入力欄から直接入力／編集もできます。</div>
-        <div class="help-li">列見出し（A,B…）や行番号をタップすると、その列・行を選択して下に合計が出ます。</div>
-        <div class="help-li"><b>列見出しの右端／行番号の下端をドラッグ</b>すると、その列の幅・行の高さを個別に変更できます（ダブルタップで自動に戻す）。</div>
-        <div class="help-li"><b>列見出し（A,B…）や行番号を長押し</b>すると、その場所に<b>行・列を追加したり削除したり</b>できるメニューが開きます（上・下／左・右に追加、または削除）。</div>
-        <div class="help-li"><b>選択中のセルからそのままスライド</b>すると、なぞった<b>範囲を選択</b>できます（他のセルからのスライドは今までどおり画面スクロール）。選択した範囲には、テンキーを右へフリックして出る<b>セル書式ページ</b>でまとめて書式を付けられます。</div>
-        <div class="help-li"><b>左上のコーナー（⤢）をスワイプ</b>、または表の上で<b>2本指ピンチ</b>すると、セル全体の大きさ（表示倍率）をまとめて変更できます（コーナーはダブルタップで100%に戻す）。設定の<b>「セル文字」</b>の＋−でも変更できます。</div>
+      <div class="help-nav">
+        <a onclick="helpJump('h-basic')">✏️ 基本</a>
+        <a onclick="helpJump('h-keys')">🔢 テンキー</a>
+        <a onclick="helpJump('h-sum')">Σ 合計</a>
+        <a onclick="helpJump('h-formula')">🧮 数式</a>
+        <a onclick="helpJump('h-format')">🎨 書式</a>
+        <a onclick="helpJump('h-mode')">🔀 モード</a>
+        <a onclick="helpJump('h-settings')">⚙️ 設定</a>
+        <a onclick="helpJump('h-save')">💾 保存</a>
       </div>
 
-      <div class="help-sec">
-        <div class="help-h">🔢 テンキーのボタン</div>
-        <div class="help-li"><span class="help-tag">CE</span> 入力中の値をクリア　<span class="help-tag">⌫</span> 1文字消す</div>
-        <div class="help-li"><span class="help-tag">±</span> 符号（＋/−）を反転</div>
-        <div class="help-li"><span class="help-tag">fx=</span> 数式入力を開始（先頭が <b>=</b> になる）</div>
-        <div class="help-li"><span class="help-tag">文字</span> 文字（テキスト）を入力</div>
-        <div class="help-li"><span class="help-tag">モード</span> 計算モードを切替</div>
-        <div class="help-li">テンキーは<b>数字ページ（標準）</b>を土台に、<b>セル書式・関数記号・関数電卓・登録ページ</b>がその上に重なってスライドインする構成です（数字ページは<b>どこからでもフリック開始可</b>）：
-          <br>・<b>数字ページを右へフリック＝セル書式ページが重なって表示</b>…選択中のセル（スライドで範囲選択していれば範囲全体）に、太字・斜体・下線・文字の大小・文字色・背景色・寄せ・保護・書式消去をワンタップで適用できます。右の2列が<b>文字色・背景色の縦の列</b>で、<b>縦にスライド</b>すると他の色（原色を含む各19色）が出ます。「🎨 くわしい書式設定…」でいつもの書式画面も開けます。<b>左へフリック</b>すると数字ページに戻ります。
-          <br>・<b>セル書式ページをさらに右へフリック＝枠線ページが表示</b>…線の<b>種類（普通・太い・二重線）</b>と<b>色（黒・赤・青・緑・紫）</b>を選び、<b>上・下・左・右・格子・囲む</b>のボタンで選択範囲に枠線を引けます（1つのセルに下線だけ、なども可能）。「🧹枠線を消す」で範囲の枠線を消去。枠線はPDF出力にも反映されます。<b>左へフリック</b>するとセル書式ページに戻ります。
-          <br>・<b>数字ページを左へフリック＝関数・記号ページが重なって表示</b>…( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 などを数式（先頭が <b>=</b>）に挿入。<b>右へフリック</b>すると数字ページに戻ります。
-          <br>・<b>関数・記号ページをさらに左へフリック＝関数電卓ページが表示</b>…SIN・COS・TAN・ASIN・ACOS・ATAN・LOG・LN・EXP・π・e・n!（階乗）・x²・^（べき乗）・1/(・MOD( などを数式に挿入。<b>DEG/RAD</b>ボタンで三角関数の角度単位（度数法⇄弧度法）を切替できます。<b>右へフリック</b>すると関数・記号ページに戻ります。
-          <br>・<b>数字ページを上へフリック＝登録ページが重なって表示</b>…紫のボタンを<b>長押し</b>すると登録画面が開きます。基本は<b>文字・数字を入力して「登録」</b>するだけ（よく使う文字・数字を登録、数値の途中でタップすると連結。例：100→「円」で100円）。<b>「🎨 書式（文字色・背景・サイズ・装飾）」</b>を開いて色・背景・大きさ・太字などを付けておくと、そのボタンで入力したときに<b>その書式のまま</b>セルへ入ります。<b>「📋 セルから選ぶ」</b>を押してから表のセルをタップすると、そのセルの<b>内容と書式をまとめて</b>登録できます。<b>「🔧 ボタンの機能から選ぶ（オプション）」</b>を開くと、<b>テンキーのボタンを長押しして割り当てられる機能と同じもの</b>（標準キー・記号/関数・保存/リスト/照合/検索/PDF/CSVなどの設定機能）を選んで登録できます。登録後は<b>タップ</b>で入力／実行（未登録の「＋」はタップでも登録画面が開きます）。登録画面の<b>「🔀 このボタンを別の場所へ移動」</b>を押すと、移動先のボタンをタップして位置を入れ替えできます（<b>別のページのボタンとも</b>入れ替え可）。登録は保存されます。登録ページは<b>左右にフリックすると「左ページ・中央・右ページ」の3ページ</b>を切り替えでき、合計で数多くのボタンを登録できます（中央ページ＝これまでの登録内容）。<b>どのボタンの上でも下へフリック</b>すると数字ページに戻ります。</div>
-        <div class="help-li">テンキー上端（横向きは左端）の<b>バーをドラッグ</b>すると大きさ（横向きは幅）を変更できます。<b>端までドラッグするとテンキーが消え</b>、もう一度バーをつかんで戻すと再び表示されます。設定の<b>「🔧 テンキーのボタン配置を編集」</b>で各ボタンの位置も入れ替えできます。</div>
-        <div class="help-li">合計バー右端の<b>▼（横向きは▶）ボタン</b>を押すと、テンキーがワンタップで端まで収納されます。収納中は<b>▲（横向きは◀）</b>に変わり、押すと<b>元のサイズに戻ります</b>。</div>
-        <div class="help-li">数字ページ・関数記号ページ・関数電卓ページ（左に2回フリック）の<b>ボタンを長押し</b>すると「ボタンの割り当て」が開き、そのボタンを<b>別のキーや設定の機能</b>（保存・リスト・PDF出力・CSV・ナイトモード・テンプレなど）や<b>「表の操作」</b>（行数・列数の増減／今の場所への行・列の挿入・削除／コピー・貼付・消去／A1へ移動／シート追加・切替）に変更できます。「↺ 元のボタンに戻す」でいつでも戻せます（Σボタンは長押しに合計/平均の切替があるため対象外）。同じ機能は<b>登録テンキーのボタン</b>にも登録できます。</div>
-      </div>
+      <details class="help-acc" id="h-basic" open>
+        <summary>✏️ 基本の使い方</summary>
+        <div class="help-acc-body">
+          <div class="help-li">セルをタップして選び、テンキーで入力 → <b>Enter</b>で確定（下のセルへ移動）。<b>いちばん下の行でEnter</b>で<b>行が1つ自動追加</b>されます（通常・簡易モード、最大250行）。</div>
+          <div class="help-li">上部の入力欄から直接入力／編集もできます。数字を入れたあと<b>「文字」</b>キーで日本語も足せます（前に入れた数字は消えません）。</div>
+          <table class="help-tbl">
+            <tr><td><span class="help-key">Enter長押し</span></td><td>確定後に進む向きを <b>⇩下 ⇄ ⇨右</b> で切替（Enterボタン下の矢印で今の向きを確認）</td></tr>
+            <tr><td><span class="help-key">見出し／行番号タップ</span></td><td>その列・行を選択（下に合計が出ます）</td></tr>
+            <tr><td><span class="help-key">端をドラッグ</span></td><td>見出しの右端・行番号の下端で、列幅／行高を変更（ダブルタップで自動に戻す）</td></tr>
+            <tr><td><span class="help-key">見出し／行番号 長押し</span></td><td>その場所に行・列を追加／削除するメニュー（上下・左右に追加、または削除）</td></tr>
+            <tr><td><span class="help-key">セルからスライド</span></td><td>選択中のセルからなぞると<b>範囲選択</b>。右フリックの書式ページでまとめて書式を付けられます（他のセルからは画面スクロール）</td></tr>
+            <tr><td><span class="help-key">⤢スワイプ／2本指ピンチ</span></td><td>表示倍率をまとめて変更（コーナーはダブルタップで100%）。設定の「セル文字」＋−でも変更できます</td></tr>
+          </table>
+        </div>
+      </details>
 
-      <div class="help-sec">
-        <div class="help-h">Σ オート（合計・平均）</div>
-        <div class="help-li"><span class="help-tag">Σ</span>を押すと隣の連続データを自動で合計し <b>=SUM(範囲)</b> を作成。<b>Enter</b>で確定。</div>
-        <div class="help-li">押した後に<b>セルを始点→終点までスライド</b>すると、なぞった範囲を合計範囲にできます（タップで1セル）。</div>
-        <div class="help-li"><b>Σを長押し</b>すると「合計／平均」を選べます。選んだ方を記憶し、ボタン表示も変わります。</div>
-      </div>
+      <details class="help-acc" id="h-keys">
+        <summary>🔢 テンキーとページ切替</summary>
+        <div class="help-acc-body">
+          <table class="help-tbl">
+            <tr><td><span class="help-tag">CE</span></td><td>入力中の値をクリア</td></tr>
+            <tr><td><span class="help-tag">⌫</span></td><td>1文字消す（<b>押し続けると連続</b>で消せます）</td></tr>
+            <tr><td><span class="help-tag">±</span></td><td>符号（＋/−）を反転</td></tr>
+            <tr><td><span class="help-tag">fx=</span></td><td>数式入力を開始（先頭が <b>=</b> になる）</td></tr>
+            <tr><td><span class="help-tag">文字</span></td><td>文字（テキスト）を入力</td></tr>
+            <tr><td><span class="help-tag">モード</span></td><td>計算モードを切替</td></tr>
+          </table>
+          <div class="help-li"><b>フリックでページが切り替わります</b>（数字ページが土台。数字ページは<b>どこからでもフリック開始OK</b>）：</div>
+          <table class="help-tbl">
+            <tr><td><span class="help-key">右へ →</span></td><td><b>セル書式ページ</b>：太字・斜体・下線・文字の大小・寄せ・保護・書式消去。右2列は文字色／背景色で<b>縦にスライド</b>すると各19色（原色含む）。「🎨くわしい書式設定…」も開けます</td></tr>
+            <tr><td><span class="help-key">右→右</span></td><td><b>枠線ページ</b>：線の種類（普通・太・二重）と色（黒赤青緑紫）を選び、上・下・左・右・格子・囲む で枠線。🧹で消去（PDFにも反映）</td></tr>
+            <tr><td><span class="help-key">← 左へ</span></td><td><b>関数・記号ページ</b>：( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 を数式に挿入</td></tr>
+            <tr><td><span class="help-key">左→左</span></td><td><b>関数電卓ページ</b>：SIN・COS・TAN・LOG・LN・EXP・π・e・n!・x²・^・1/(・MOD( を挿入。<b>DEG/RAD</b>で角度単位を切替</td></tr>
+            <tr><td><span class="help-key">↑ 上へ</span></td><td><b>登録ページ</b>：紫ボタンを長押しで登録（下記）</td></tr>
+            <tr><td><span class="help-key">↓ 下へ</span></td><td>数字ページに戻る</td></tr>
+          </table>
+          <div class="help-li"><b>登録ページ</b>：紫ボタンを<b>長押し</b>で登録画面。よく使う<b>文字・数字</b>を入力して登録（数値の途中でタップすると連結。例 100→「円」で100円）。<b>🎨書式</b>を付ければその書式のまま入力、<b>📋セルから選ぶ</b>でセルの内容＋書式を取り込み、<b>🔧ボタンの機能</b>から便利機能（保存・リスト・PDF・📅日付〈カレンダー〉など）も登録できます。登録後は<b>タップで入力／実行</b>。<b>🔀移動</b>で位置入れ替え（別ページとも可）。<b>左右フリックで3ページ</b>（左・中央・右）、<b>下フリックで数字ページに戻る</b>。</div>
+          <div class="help-li"><b>ボタン長押しで機能を割り当て</b>（数字・関数記号・関数電卓ページ）：別のキーや設定機能（保存・リスト・PDF・CSV・ナイト・テンプレ・📅日付…）、<b>「表の操作」</b>（行列の増減／挿入・削除／コピー・貼付・消去／A1へ移動／シート追加・切替）に変更できます。「↺元に戻す」でいつでも戻せます（Σは対象外）。</div>
+          <div class="help-li"><b>テンキーの大きさ</b>：上端（横向きは左端）の<b>調整バーをドラッグ</b>で大小（端まで＝消える／バーで戻す）。設定でバーの<b>太さ・表示/非表示</b>も変えられます。合計バー右端の<b>▼</b>でワンタップ収納（▲で復帰）。設定の<b>🔧配置編集</b>でボタン位置も入れ替え可。</div>
+          <div class="help-note">💡 <b>パソコン</b>：テンキーの上でマウスの<b>ホイールを回す</b>と、横フリックと同じようにページを切り替えられます。</div>
+        </div>
+      </details>
 
-      <div class="help-sec">
-        <div class="help-h">🧮 数式</div>
-        <div class="help-p">先頭を <b>=</b> にすると数式になります。セルは A1 のように指定。</div>
-        <div class="help-li"><b>=A1+B1*2</b> … 四則演算（×÷も可）</div>
-        <div class="help-li"><b>=SUM(A1:A5)</b> 合計　<b>=AVERAGE(A1:A5)</b> 平均</div>
-        <div class="help-li">他に MAX・MIN・COUNT・ABS・SQRT・ROUND・IF が使えます。</div>
-        <div class="help-li"><b>シート間の連携</b>：他のシートのセルは <b>=シート名!A1</b>（例 <b>=商品!C2</b>）で参照できます。足し算や関数の範囲（例 <b>=SUM(商品!A1:A5)</b>）にも使えます。</div>
-        <div class="help-li"><b>シートはモード毎に別々</b>：シートのタブ一式は<b>モード毎に独立</b>しています。モードを切り替えると、そのモード専用のタブ一式に入れ替わります（例：単位水量モードでは本体・配合登録・エアメータ登録が表示され、通常モードに戻ると通常モードのシートが表示されます）。保存・読込ではすべてのモードのシートがまとめて保存・復元されます。</div>
-        <div class="help-li"><b>🔍照合</b>（テンキーのボタンを長押しして割り当て可能）を押すと、<b>VLOOKUP／XLOOKUP を画面の案内どおりに作れます</b>。表の範囲や探す値は<b>「セルを選ぶ／範囲を選ぶ」→ 表を指でタップ</b>して指定でき、手で式を打たなくても作れます（他のシートの表も、そのシートに切り替えて選べます）。</div>
-        <div class="help-li"><b>=VLOOKUP(探す値, 範囲, 何列目, 0)</b>：範囲の左端から値を探し、その行の指定列を返します（末尾の <b>0</b> で完全一致）。例 <b>=VLOOKUP(A1, 商品!A2:C9, 2, 0)</b></div>
-        <div class="help-li"><b>=XLOOKUP(探す値, 検索範囲, 戻す範囲, "見つからない時")</b>：検索範囲で値を探し、対応する戻す範囲の値を返します。文字も返せます。</div>
-        <div class="help-li">日本語名の <b>=V参照(…)／=X参照(…)</b> でも同じように計算できます（Excel出力時は自動で VLOOKUP／XLOOKUP に変換）。</div>
-        <div class="help-li">数式入力中にセルをタップするとセル名が挿入されます。</div>
-      </div>
+      <details class="help-acc" id="h-sum">
+        <summary>Σ 合計・平均</summary>
+        <div class="help-acc-body">
+          <div class="help-li"><span class="help-tag">Σ</span> を押すと隣の連続データを自動で合計し <b>=SUM(範囲)</b> を作成 → <b>Enter</b>で確定。</div>
+          <div class="help-li">押した後に<b>セルを始点→終点までスライド</b>で合計範囲を指定できます（タップで1セル）。</div>
+          <div class="help-li"><b>Σを長押し</b>で「合計／平均」を選べます（選んだ方を記憶し、ボタン表示も変わります）。</div>
+          <div class="help-li"><b>画面下の合計欄</b>：列・行を選ぶと合計を表示。<b>「合計」タップで合計⇄平均</b>／<b>「¥」タップで数字⇄漢数字</b>（兆・億・万）／<b>数値タップでコピー</b>。</div>
+        </div>
+      </details>
 
-      <div class="help-sec">
-        <div class="help-h">∑ 合計欄（画面下）</div>
-        <div class="help-li">列・行を選ぶと合計が表示されます。</div>
-        <div class="help-li">「<b>合計</b>」の文字をタップ → <b>合計⇄平均</b>を切替。</div>
-        <div class="help-li">「<b>¥</b>」をタップ → 数字⇄漢数字（兆・億・万）表示を切替。</div>
-        <div class="help-li">数値をタップ → その数値をコピー。</div>
-      </div>
+      <details class="help-acc" id="h-formula">
+        <summary>🧮 数式・関数・照合</summary>
+        <div class="help-acc-body">
+          <div class="help-li">先頭を <b>=</b> にすると数式。セルは A1 のように指定（<b>入力中にセルをタップ</b>するとセル名が入ります）。</div>
+          <table class="help-tbl">
+            <tr><td><b>=A1+B1*2</b></td><td>四則演算（×÷も可）</td></tr>
+            <tr><td><b>=SUM(A1:A5)</b></td><td>合計</td></tr>
+            <tr><td><b>=AVERAGE(A1:A5)</b></td><td>平均</td></tr>
+            <tr><td>その他</td><td>MAX・MIN・COUNT・ABS・SQRT・ROUND・IF</td></tr>
+          </table>
+          <div class="help-li"><b>シート間の連携</b>：他のシートのセルは <b>=シート名!A1</b>（例 <b>=商品!C2</b>）で参照。範囲（例 <b>=SUM(商品!A1:A5)</b>）にも使えます。<br><b>シートはモード毎に独立</b>し、モードを切り替えるとそのモード専用のタブ一式に入れ替わります。保存・読込では全モードのシートがまとめて保存・復元されます。</div>
+          <div class="help-li"><b>🔍照合（VLOOKUP／XLOOKUP）</b>：テンキーのボタンに長押しで割り当てて使えます。押すと<b>画面の案内どおり</b>に作れ、範囲や探す値は<b>「セルを選ぶ／範囲を選ぶ」→表をタップ</b>で指定（手で式を打たなくてOK。他シートの表も切り替えて選べます）。</div>
+          <table class="help-tbl">
+            <tr><td><b>=VLOOKUP</b></td><td>(探す値, 範囲, 何列目, 0)…範囲の左端から探し、その行の指定列を返す（末尾0で完全一致）。例 <b>=VLOOKUP(A1, 商品!A2:C9, 2, 0)</b></td></tr>
+            <tr><td><b>=XLOOKUP</b></td><td>(探す値, 検索範囲, 戻す範囲, "見つからない時")…対応する値を返す（文字も可）</td></tr>
+          </table>
+          <div class="help-li">日本語名の <b>=V参照(…)／=X参照(…)</b> でも同じです（Excel出力時に自動で VLOOKUP／XLOOKUP へ変換）。</div>
+        </div>
+      </details>
 
-      <div class="help-sec">
-        <div class="help-h">🎨 セルの書式</div>
-        <div class="help-p">上部の「<b>A1</b>」（セル名）をタップすると、そのセルの小数点桁・太字/斜体/下線・文字色・背景色・大きさを変更できます。</div>
-        <div class="help-li"><b>🔒 保護</b>：<b>セルを長押し</b>すると保護のオン/オフを切替できます（動かさずに約1秒→枠が赤くなったら離す）。<b>さらに長く押し続ける</b>と枠が紫になり、離すと<b>メニュー（🎨書式・📋コピー・📥貼り付け・🧹消去・🔒保護）</b>が開きます。保護中のセルはセル内にマークは付きませんが、選択すると右上のセル番号の枠が<b>赤</b>くなって知らせます。書式パネル（右上のセル名をタップ）の「保護」からも切替できます。</div>
-      </div>
+      <details class="help-acc" id="h-format">
+        <summary>🎨 書式・保護・コピー</summary>
+        <div class="help-acc-body">
+          <div class="help-li"><b>書式変更</b>：上部の「<b>A1</b>」（セル名）をタップすると、小数点桁・太字/斜体/下線・文字色・背景色・大きさを変更できます（テンキーを<b>右フリック</b>のセル書式ページでもワンタップ）。</div>
+          <table class="help-tbl">
+            <tr><td><span class="help-key">セル長押し（約1秒）</span></td><td>枠が<b>赤</b>くなったら離す＝<b>🔒保護</b>のオン/オフ（保護中は右上のセル番号枠が赤で知らせ）</td></tr>
+            <tr><td><span class="help-key">さらに長押し</span></td><td>枠が<b>紫</b>に→離すとメニュー（🎨書式・📋コピー・📥貼り付け・🧹消去・🔒保護）</td></tr>
+            <tr><td><span class="help-key">フィル</span></td><td>セルを<b>長押し→スライド</b>で値（数式は自動でずらして）を隣へコピー。PCは長めにクリック→色が変わったらドラッグ</td></tr>
+            <tr><td><span class="help-key">コピペ</span></td><td>セルを<b>2回タップ</b>でコピー → 別セルを2回タップで貼り付け</td></tr>
+          </table>
+          <div class="help-note">💻 <b>パソコン</b>：Ctrl+C / Ctrl+V でコピー・貼り付け、Ctrl+Z で元に戻す。</div>
+        </div>
+      </details>
 
-      <div class="help-sec">
-        <div class="help-h">📥 コピー操作</div>
-        <div class="help-li"><b>フィル</b>：セルを<b>長押し→スライド</b>で、その値（数式は自動でずらして）を隣へコピー。パソコン（マウス）でも<b>セルを長めにクリックし続けると色が変わり、そのままドラッグ</b>すると同じようにコピーできます。</div>
-        <div class="help-li"><b>コピペ</b>：セルを<b>2回タップ</b>でコピー → 別セルを2回タップで貼り付け。</div>
-        <div class="help-li">PCでは Ctrl+C / Ctrl+V、元に戻すは Ctrl+Z。</div>
-      </div>
+      <details class="help-acc" id="h-mode">
+        <summary>🔀 モード（「モード」ボタン）</summary>
+        <div class="help-acc-body">
+          <div class="help-li">切替後も各モードの内容は<b>リセットするまで保持</b>されます。</div>
+          <table class="help-tbl">
+            <tr><td><b>通常／簡易</b></td><td>標準の表／列少なめ・大きな表示</td></tr>
+            <tr><td><b>買物</b></td><td>単価×個数で小計</td></tr>
+            <tr><td><b>割り勘</b></td><td>合計を人数で割る</td></tr>
+            <tr><td><b>消費税</b></td><td>税抜→税込／税込→税抜＋消費税（税率は設定）</td></tr>
+            <tr><td><b>割合計算</b></td><td>元の値の何割・何％と、足す/引くを計算</td></tr>
+            <tr><td><b>容積／予算配分</b></td><td>縦×横×高さ＝容積／予算と個数から最適な購入数</td></tr>
+            <tr><td><b>時間計算</b></td><td>開始〜終了の時刻から所要時間</td></tr>
+            <tr><td><b>単位水量</b></td><td>土研法エアメータ法で生コンの単位水量を推定（下記）</td></tr>
+          </table>
+          <div class="help-li"><b>単位水量</b>：配合（W1・セメント・細骨材・粗骨材・混和材・配合空気量）と試験値（容器容積V・容器質量・容器+試料・測定空気量）を入れると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で推定し、許容差（下のバーで変更可）で合否判定します。配合はkg/m³、試験はg・ccで入力。</div>
+          <div class="help-li"><b>配合・エアメータの登録（シート連携）</b>：単位水量の<b>⚙設定</b>「📋配合・エアメータ登録シートを作成」で<b>本体・配合登録(30)・エアメータ登録(5)</b>の3シートができます。番号ごとの値を入れておくと、本体で<b>配合番号・エアメータ番号を入れるだけ</b>で値が呼び出されます（登録側を直すと本体にも反映）。上の常設タブで切替。</div>
+          <div class="help-li"><b>📋計算式テンプレ／📑決算書テンプレ</b>（設定の「計算」タブ）：割引・利益率・BMI・速さ・複利・ローン・面積…約20種類のひな形や、損益計算書・貸借対照表・収支計算書のひな形。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
+        </div>
+      </details>
 
-      <div class="help-sec">
-        <div class="help-h">🔀 モード（「モード」ボタン）</div>
-        <div class="help-p">切替後も各モードの内容はリセットするまで保持されます。</div>
-        <div class="help-li"><b>通常</b>：標準の表　<b>簡易</b>：列少なめ・大きな表示</div>
-        <div class="help-li"><b>買物</b>：単価×個数で小計</div>
-        <div class="help-li"><b>割り勘</b>：合計を人数で割る</div>
-        <div class="help-li"><b>消費税</b>：税抜→税込／税込→税抜＋消費税（税率は設定）</div>
-        <div class="help-li"><b>割合計算</b>：元の値の何割・何％と、足す/引くを計算</div>
-        <div class="help-li"><b>容積</b>：縦×横×高さ＝容積　<b>予算配分</b>：予算と個数から最適な購入数</div>
-        <div class="help-li"><b>時間計算</b>：開始〜終了の時刻から所要時間</div>
-        <div class="help-li"><b>単位水量</b>：土研法エアメータ法で生コンの単位水量を推定。表に配合（単位水量W1・セメント・細骨材・粗骨材・混和材・配合空気量）と試験値（容器容積V・容器質量・容器+試料・測定空気量）を入力すると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で単位水量を推定し、配合値との差を許容差（合格±/限界±、下のバーで変更可）で合否判定します。配合の質量はkg/m³、試験の容器容積・容器質量・容器+試料はg・ccで入力。</div>
-        <div class="help-li"><b>配合・エアメータの登録（シート連携）</b>：単位水量の<b>⚙設定</b>の「📋 配合・エアメータ登録シートを作成」を押すと、<b>単位水量本体</b>・<b>配合登録（30配合）</b>・<b>エアメータ登録（5個）</b>の3シートができます。<b>配合登録</b>に配合番号ごとのC・W1・S・G・P・A1、<b>エアメータ登録</b>にエアメータ番号ごとのV・m1を入れておくと、本体で<b>配合番号・エアメータ番号を入れるだけ</b>で、その値が自動で本体の表に呼び出されます（見つからない番号のときはお知らせ）。シートは上の常設タブで切り替えられます。</div>
-        <div class="help-li"><b>📋 計算式テンプレ</b>（設定の「計算」タブ）：割引・割合・増減率・利益率・BMI・基礎代謝・速さ・燃費・電気代・給料・複利・ローン・面積・体積・三平方・温度換算など、<b>色々な計算式をエクセルの式に落とし込んだ約20種類のひな形</b>を選ぶと、項目名と計算式が入った表になります。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
-        <div class="help-li"><b>📑 決算書テンプレ</b>（設定の「計算」タブ）：損益計算書・貸借対照表・収支計算書の<b>かんたんなひな形</b>です。黄色のセルに金額を入れると、利益や合計・検算（貸借の差額）が自動で出ます。</div>
-      </div>
+      <details class="help-acc" id="h-settings">
+        <summary>⚙️ 設定</summary>
+        <div class="help-acc-body">
+          <table class="help-tbl">
+            <tr><td><b>行／列</b></td><td>表の大きさ</td></tr>
+            <tr><td><b>小数</b></td><td>小数点以下の桁（自＝自動）</td></tr>
+            <tr><td><b>日付の表示</b></td><td>新しく入れる日付の既定の形式（2026/7/7・年月日・月日・曜日・和暦…）</td></tr>
+            <tr><td><b>税率</b></td><td>消費税モードの税率</td></tr>
+            <tr><td><b>文字サイズ</b></td><td>テンキー／セル文字／小計文字の大きさ</td></tr>
+            <tr><td><b>数字キーの大きさ</b></td><td>標準テンキーの0〜9（と「.」）だけを大きく（枠も広がり押しやすく／右側キーはやや狭く）</td></tr>
+            <tr><td><b>調整バー</b></td><td>大きさを変えるバーの太さ、表示/非表示を切替</td></tr>
+            <tr><td><b>上下の余白</b></td><td>テンキーの上下の隙間（「最小」でホームバー分も詰める）</td></tr>
+          </table>
+          <div class="help-li"><b>▦デフォルト</b>：タップで決めた行数・列数に一発変更、<b>長押しで既定値を設定</b>（設定「上のバーのボタン」で上のバーにも出せます）。</div>
+          <div class="help-li"><b>🔧テンキーのボタン配置を編集</b>：ドラッグでボタンを入れ替え（同じ大きさ同士。Enter・0は固定。関数・枠線ページも編集可）。「↺初期化」で元に戻せます。</div>
+          <div class="help-li"><b>🔀モードの表示/非表示</b>：「モード」一覧に出す標準モードを選べます（「通常」は常に表示）。</div>
+        </div>
+      </details>
 
-      <div class="help-sec">
-        <div class="help-h">⚙️ 設定（このパネル）</div>
-        <div class="help-li"><b>行／列</b>：表の大きさ　<b>小数</b>：小数点以下の桁（自＝自動）</div>
-        <div class="help-li"><b>▦ デフォルト</b>：タップすると決めておいた行数・列数に一発で変更。<b>長押し</b>すると既定の行数・列数を設定する画面が開きます。設定の<b>「上のバーのボタン」で「▦既定サイズ」をオン</b>にすると、シートや保存と同じ<b>上のバーにボタンを出せます</b>（そこでもタップで適用・長押しで設定）。</div>
-        <div class="help-li"><b>税率</b>：消費税モードの税率</div>
-        <div class="help-li"><b>テンキー／セル文字／小計文字</b>：各文字サイズ</div>
-        <div class="help-li"><b>数字キーの大きさ</b>：標準テンキーの<b>0〜9（と「.」）だけ</b>を、標準から何段階か大きくできます。<b>文字だけでなくボタンの枠（左3列の幅）も広がり</b>、押しやすくなります（演算子やEnterなど右側のキーはその分やや狭くなります）。</div>
-        <div class="help-li"><b>調整バーの太さ</b>：テンキーの大きさを変えるバー（テンキー上端／横向きは左端）の太さを、細〜最太の何段階かで変えられます。つかみやすくしたいときに太くできます。</div>
-        <div class="help-li"><b>テンキーの上下の余白</b>：テンキーの上のスペースと下の隙間を、最小〜特大で調整できます。<b>「最小」</b>にすると iPhone のホームバー分の余白も詰めてテンキーを下いっぱいに広げます（ホームバーと少し重なります）。隙間が気になるときは小さく、余裕がほしいときは大きくしてください。</div>
-        <div class="help-li"><b>🔧 テンキーのボタン配置を編集</b>：押すと編集モードになり、テンキーのボタンをドラッグして好きな位置に入れ替えできます（同じ大きさのボタン同士。Enter・0は固定）。<b>関数ページ・枠線ページ（右に2回フリック）も編集可能</b>（編集中もEnter上のフリックでページを移動できます）。配置は自動保存され、編集バーの「↺初期化」で各ページを元に戻せます。</div>
-        <div class="help-li"><b>🔀 モードの表示/非表示</b>：「モード」一覧に出す標準モードを選べます。チェックを外すと一覧から隠れます（内容は保持。「通常」は常に表示）。</div>
-      </div>
-
-      <div class="help-sec">
-        <div class="help-h">💾 保存・その他（上部メニュー）</div>
-        <div class="help-li"><b>保存</b>：名前を付けて保存　<b>リスト</b>：保存データを開く</div>
-        <div class="help-li"><b>上書き保存</b>：リストから読み込んだ記録（または直前に保存した記録）があるときに<b>「保存」</b>を押すと、<b>「◯◯に上書き保存しますか？」</b>と確認が出ます。<b>OK</b>で同じ記録に上書き、<b>キャンセル</b>で新しい名前を付けて別に保存します（🔒ロック中の記録は上書きされず、新規保存になります）。</div>
-        <div class="help-li">記録1件＝<b>「全モードのシートをまとめた1つのスナップショット」</b>です（通常・買物・単位水量など、これまでに使った各モードのシートを一括で保存）。読み込むと<b>各モードの内容がその記録の状態にまとめて置き換わり</b>、保存したときに開いていたモードで開き直します。リストの各データには、保存時に開いていたモードのバッジが表示されます。（以前のバージョンで作った「1モードだけの記録」もそのまま読み込めます。）</div>
-        <div class="help-li">アプリ全体のまるごとバックアップは、リスト画面いちばん下の<b>⬇書き出し／⬆読み込み</b>（ファイル）を使ってください。</div>
-        <div class="help-li">リストの上に<b>🗂記録／📌タブ1／📌タブ2／🔀モード</b>の4つのタブがあります。保存した記録はまず<b>「記録」</b>タブに入り、各データの<b>タブ選択欄</b>でよく呼び出したい記録を<b>タブ1・タブ2</b>に振り分けて整理できます。タブは<b>長押し</b>で名前を変更できます（例：「現場A」「経理」）。</div>
-        <div class="help-li"><b>「モードへ」</b>で記録をモードに登録すると、その記録は自動で<b>「モード」タブ</b>へ移動し、誤って削除・改名・タブ移動できないよう<b>保護</b>されます（🔒ロックと同じ状態。手動での「モード」タブへの振り分けはできません）。</div>
-        <div class="help-li">リスト画面いちばん下の<b>⬇書き出し</b>で保存データをファイルに出力 → 別の端末・ブラウザで<b>⬆読み込み</b>すると復元できます（バックアップ・引っ越し用）。</div>
-        <div class="help-li">各データの<b>🔓ロック</b>をタップすると🔒保護され、誤って削除・改名できなくなります（もう一度タップで解除）。</div>
-        <div class="help-li"><b>↩戻る／↪進む</b>：直前の入力を元に戻す／やり直す</div>
-        <div class="help-li"><b>📄 CSV出力</b>：表をCSVファイルに書き出し　<b>📥 CSV読込</b>：CSVファイルを今の表に読み込み（上書き）。文字コード（UTF-8／Shift_JIS）は自動判別するのでExcelのCSVもそのまま読めます。どちらも設定の「データ」タブにあります。</div>
-        <div class="help-li"><b>📊 Excel出力（.xlsx）</b>：値だけでなく<b>数式・太字・文字色・背景色・枠線・寄せ・セル結合・列幅</b>まで<b>エクセル形式</b>で書き出せます（そのままExcelで開けます）。<b>📈 Excel読込（.xlsx）</b>：Excelファイルを今の表に読み込みます。数式はアプリ対応の関数ならそのまま、非対応の関数は計算結果として取り込みます。どちらも設定の「データ」タブにあります。CSVと違い、色や枠線・数式を保ったままやり取りできます。</div>
-        <div class="help-li"><b>🖨 PDF出力（印刷）</b>（設定の「データ」タブ）：印刷画面の前に<b>PDF設定ダイアログ</b>が開き、タイトル・日時・ヘッダー・フッター・用紙の向き・<b>拡大縮小（横フィット／縦フィット／倍率）・1ページに収める</b>・上下左右の余白・表の配置・文字サイズ（セル／タイトル／ヘッダー・フッター）・枠線を指定できます。上部の<b>プレビュー</b>は設定を変えるとその場で反映され、複数ページになるときは<b>プレビューを横にフリック</b>すると2ページ目以降も確認できます。「印刷／PDFに保存」を押すと印刷画面が開くので、印刷先で<b>「PDFに保存」</b>を選べばPDFとして書き出せます。設定内容は次回も引き継がれます。iPhoneで用紙の向きが変わらない場合は、印刷画面のオプションで向きを選んでください。</div>
-        <div class="help-li"><b>🌙</b>：ダークモード切替　<b>リセット</b>：今のモードの内容を消去</div>
-      </div>
+      <details class="help-acc" id="h-save">
+        <summary>💾 保存・記録（上部メニュー）</summary>
+        <div class="help-acc-body">
+          <div class="help-li"><b>保存</b>：タップで<b>上書き保存</b>、<b>長押しで「名前を付けて保存」</b>（記録を開いていない・🔒ロック中はタップでも名前を付けて保存）。上のバーに<b>今の記録名（📄）</b>が出て、未保存の変更があると<b>●</b>が付きます。<b>リスト</b>で保存データ一覧を開きます。</div>
+          <div class="help-li"><b>1記録＝全モードのスナップショット</b>：通常・買物・単位水量など全モードのシートをまとめて保存。読み込むと各モードがその記録に置き換わり、保存時のモードで開き直します（以前の「1モードだけの記録」も読み込めます）。リストで<b>今開いている記録</b>は緑でハイライトされ「📂開いています」と表示。</div>
+          <div class="help-li"><b>リセット</b>は<b>今のシートだけ</b>を消去（記録との紐付けは保持）。まっさらにするときはリストの<b>🆕新規</b>ボタン。</div>
+          <table class="help-tbl">
+            <tr><td><b>タブ</b></td><td>🗂記録／📌タブ1／📌タブ2／🔀モード。保存はまず「記録」へ。各データのタブ選択欄で振り分け、タブ名は長押しで変更</td></tr>
+            <tr><td><b>モードへ</b></td><td>記録をモードに登録（自動で「モード」タブへ移動・保護）</td></tr>
+            <tr><td><b>🔓ロック</b></td><td>タップで🔒保護（削除・改名を防止。もう一度で解除）</td></tr>
+            <tr><td><b>↩戻る／↪進む</b></td><td>直前の入力を元に戻す／やり直す</td></tr>
+            <tr><td><b>⬇書き出し／⬆読み込み</b></td><td>リスト下部。保存データをファイルに出力→別端末で復元（バックアップ・引っ越し）</td></tr>
+          </table>
+          <div class="help-li"><b>📄CSV／📊Excel／🖨PDF</b>（設定の「データ」タブ）：CSVは表の値（文字コード自動判別）。<b>Excel(.xlsx)</b>は数式・太字・色・枠線・寄せ・結合・列幅まで保ったまま入出力。<b>PDF出力</b>は印刷前の設定ダイアログで、タイトル・向き・拡大縮小（1ページに収める）・余白・文字サイズ・枠線を指定でき、プレビューを横フリックで複数ページ確認。「印刷／PDFに保存」で書き出せます。</div>
+          <div class="help-li"><b>🌙</b>ダークモード切替。</div>
+        </div>
+      </details>
 
       <div class="help-ver" id="helpVer"></div>
     </div>
@@ -7991,13 +8072,19 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v200';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v201';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
   document.getElementById('helpOverlay').classList.add('open');
 }
 function closeHelp(){ document.getElementById('helpOverlay').classList.remove('open'); }
+/* 説明書：クイックナビのチップから、その項目を開いてスクロール */
+function helpJump(id){
+  const el=document.getElementById(id); if(!el) return;
+  if(el.tagName==='DETAILS') el.open=true;
+  el.scrollIntoView({behavior:'smooth', block:'start'});
+}
 
 /* 数字として消去対象になるセルか（文字・数式・空は残す） */
 function isPlainNumberCell(v){
