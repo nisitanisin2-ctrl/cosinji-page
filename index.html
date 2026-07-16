@@ -1018,12 +1018,13 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
   color: #217346; font-size: 14.5px; font-weight: bold; cursor: pointer; touch-action: manipulation;
 }
 .vol-photo-btn:active { opacity: 0.7; }
-.vol-photo-wrap { position: relative; margin-bottom: 12px; }
-.vol-photo-wrap img { display: block; width: 100%; max-height: 240px; object-fit: contain; border-radius: 8px; background: #000; }
+.vol-photo-wrap { position: relative; margin-bottom: 10px; }
+.vol-canvas { display: block; width: 100%; border-radius: 8px; background: #000; touch-action: none; }
 .vol-photo-clear {
   position: absolute; top: 6px; right: 6px; padding: 5px 10px; font-size: 12px;
   border: none; border-radius: 6px; background: rgba(0,0,0,0.6); color: #fff; cursor: pointer; touch-action: manipulation;
 }
+.vol-draw-hint { font-size: 12px; color: var(--text-sub); line-height: 1.5; margin-bottom: 10px; }
 .vol-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .vol-lb { flex-shrink: 0; width: 34px; font-size: 13px; font-weight: bold; color: var(--text-light); }
 .vol-chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -1034,13 +1035,23 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
 }
 .vol-chip.on { background: #217346; border-color: #217346; color: #fff; font-weight: bold; }
 .vol-dims { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 12px; }
-.vol-dim { display: flex; align-items: center; gap: 10px; }
-.vol-dim-lb { flex-shrink: 0; width: 56px; font-size: 14px; font-weight: bold; color: var(--text); }
+.vol-dim { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; padding: 4px; border-radius: 8px; }
+.vol-dim.active { background: rgba(33,115,70,0.08); box-shadow: inset 0 0 0 1px rgba(33,115,70,0.4); }
+.vol-dim-dot { flex-shrink: 0; width: 12px; height: 12px; border-radius: 50%; }
+.vol-dim-lb { flex-shrink: 0; width: 38px; font-size: 14px; font-weight: bold; color: var(--text); }
+.vol-ref, .vol-draw {
+  flex-shrink: 0; padding: 6px 10px; font-size: 12px; font-weight: bold;
+  border: 1px solid var(--save-item-border); border-radius: 6px;
+  background: var(--save-item-bg); color: var(--text-light); cursor: pointer; touch-action: manipulation;
+}
+.vol-ref.on { background: #1e88e5; border-color: #1e88e5; color: #fff; }
+.vol-draw.on { border-color: #217346; color: #217346; }
+.vol-draw.done { color: #217346; }
 .vol-dim-in {
-  flex: 1; min-width: 0; padding: 10px; font-size: 16px; text-align: right;
+  flex: 1; min-width: 64px; padding: 9px; font-size: 16px; text-align: right;
   border: 1px solid var(--save-item-border); border-radius: 6px; background: var(--cell-bg, #fff); color: var(--text);
 }
-.vol-dim-unit { flex-shrink: 0; width: 24px; font-size: 13px; color: var(--text-light); }
+.vol-dim-unit { flex-shrink: 0; width: 22px; font-size: 13px; color: var(--text-light); }
 .vol-result {
   text-align: center; padding: 14px 10px; margin-bottom: 12px;
   border: 1px solid var(--save-item-border); border-radius: 8px; background: var(--save-item-bg);
@@ -2270,9 +2281,10 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <input type="file" id="volPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="volPhotoChange(event)">
       <button class="vol-photo-btn" onclick="document.getElementById('volPhotoInput').click()">📷 写真を撮る／選ぶ</button>
       <div class="vol-photo-wrap" id="volPhotoWrap" style="display:none">
-        <img id="volPhoto" alt="撮った写真">
+        <canvas id="volCanvas" class="vol-canvas"></canvas>
         <button class="vol-photo-clear" onclick="volClearPhoto()">写真を消す</button>
       </div>
+      <div class="vol-draw-hint" id="volDrawHint" style="display:none">下の辺（🔴🔵…）を選んで、写真の上をなぞって印を付けます。1つを「基準」にして実際の長さを入れると、他の辺は写真の比率から自動で入ります（数値は手で直せます）。</div>
       <div class="vol-row"><span class="vol-lb">形</span><div class="vol-chips" id="volShapeRow"></div></div>
       <div class="vol-row"><span class="vol-lb">単位</span><div class="vol-chips" id="volUnitRow"></div></div>
       <div class="vol-dims" id="volDims"></div>
@@ -2281,7 +2293,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="vol-result-sub" id="volResultSub">寸法を入力すると容積が出ます</div>
       </div>
       <button class="vol-insert" id="volInsertBtn" onclick="volInsertToCell()" disabled>▦ この容積を選択中のセルに入れる</button>
-      <div class="vol-hint">写真は寸法を測る目安に使えます（物の大きさを見ながら数値を入力）。容積の数値は選択中のセルへ入れられます。</div>
+      <div class="vol-hint">写真は撮る角度や奥行きで実物と比率がずれるため、自動で入る数値は目安です。正確に出したいときは各辺の長さを直接入れてください。容積の数値は選択中のセルへ入れられます。</div>
     </div>
   </div>
 </div>
@@ -5041,48 +5053,157 @@ const VOL_SHAPES=[
   {id:'cone',   name:'円すい', dims:[['dia','直径'],['h','高さ']],       calc:v=>1/3*Math.PI*(v.dia/2)*(v.dia/2)*v.h},
 ];
 const VOL_UNITS=['mm','cm','m'];
-let volShape='box', volUnit='cm', volVals={}, volPhotoURL=null;
+const VOL_COLORS=['#e53935','#1e88e5','#43a047','#fb8c00'];   // 各辺の線の色
+let volShape='box', volUnit='cm', volPhotoURL=null, volImg=null;
+let volDimState={};        // 辺キー -> { seg:{x1,y1,x2,y2}|null, len:数値|null, auto:自動算出か }
+let volRefKey=null;        // 基準にする辺
+let volActiveKey=null;     // いま写真上でなぞる対象の辺
+let volDrawing=false, volDraft=null;
+function volDimList(){ return VOL_SHAPES.find(s=>s.id===volShape).dims; }
+function volEnsureState(){
+  const keys=volDimList().map(d=>d[0]);
+  keys.forEach(k=>{ if(!volDimState[k]) volDimState[k]={seg:null,len:null,auto:true}; });
+  if(!volRefKey || !keys.includes(volRefKey)) volRefKey=keys[0];
+  if(volActiveKey && !keys.includes(volActiveKey)) volActiveKey=null;
+}
 function openVolume(){
+  volEnsureState();
   renderVolShapes(); renderVolUnits(); renderVolDims(); updateVolResult();
+  document.getElementById('volDrawHint').style.display = volImg ? 'block' : 'none';
   document.getElementById('volumeOverlay').classList.add('open');
 }
 function closeVolume(){ document.getElementById('volumeOverlay').classList.remove('open'); }
+function trimNum(n){ return parseFloat(Number(n).toFixed(4)); }
+function segLen(s){ return s?Math.hypot(s.x2-s.x1, s.y2-s.y1):0; }
 function volPhotoChange(e){
   const f=e.target.files && e.target.files[0]; if(!f) return;
   if(volPhotoURL){ try{ URL.revokeObjectURL(volPhotoURL); }catch(_){} }
   volPhotoURL=URL.createObjectURL(f);
-  document.getElementById('volPhoto').src=volPhotoURL;
-  document.getElementById('volPhotoWrap').style.display='block';
+  const img=new Image();
+  img.onload=()=>{ volImg=img; volSetupCanvas(); volRedraw();
+    document.getElementById('volPhotoWrap').style.display='block';
+    document.getElementById('volDrawHint').style.display='block';
+    if(!volActiveKey) volActiveKey=volDimList()[0][0];   // 最初の辺をなぞる対象に
+    renderVolDims();
+  };
+  img.src=volPhotoURL;
   e.target.value='';   // 同じ写真をもう一度選べるように
 }
 function volClearPhoto(){
   if(volPhotoURL){ try{ URL.revokeObjectURL(volPhotoURL); }catch(_){} volPhotoURL=null; }
-  document.getElementById('volPhoto').src='';
+  volImg=null; volActiveKey=null;
+  volDimList().forEach(([k])=>{ if(volDimState[k]){ volDimState[k].seg=null; } });   // 線は消す（長さは残す）
   document.getElementById('volPhotoWrap').style.display='none';
+  document.getElementById('volDrawHint').style.display='none';
+  renderVolDims(); updateVolResult();
+}
+function volSetupCanvas(){
+  const c=document.getElementById('volCanvas'); if(!c||!volImg) return;
+  const W=Math.min(volImg.naturalWidth||800, 800);
+  const scale=W/(volImg.naturalWidth||W);
+  c.width=Math.round(W); c.height=Math.round((volImg.naturalHeight||W)*scale);
+  if(!c.dataset.bound){   // ポインタ操作は一度だけ登録
+    c.addEventListener('pointerdown', volCanvasDown);
+    c.addEventListener('pointermove', volCanvasMove);
+    c.addEventListener('pointerup', volCanvasUp);
+    c.addEventListener('pointercancel', ()=>{ volDrawing=false; volDraft=null; volRedraw(); });
+    c.dataset.bound='1';
+  }
+}
+function volPt(e){
+  const c=document.getElementById('volCanvas'); const r=c.getBoundingClientRect();
+  return { x:(e.clientX-r.left)*c.width/r.width, y:(e.clientY-r.top)*c.height/r.height };
+}
+function volCanvasDown(e){ if(!volImg||!volActiveKey) return; e.preventDefault();
+  const p=volPt(e); volDraft={x1:p.x,y1:p.y,x2:p.x,y2:p.y}; volDrawing=true;
+  try{ e.target.setPointerCapture(e.pointerId); }catch(_){}
+}
+function volCanvasMove(e){ if(!volDrawing) return; e.preventDefault(); const p=volPt(e); volDraft.x2=p.x; volDraft.y2=p.y; volRedraw(); }
+function volCanvasUp(e){
+  if(!volDrawing) return; e.preventDefault(); volDrawing=false;
+  const st=volDimState[volActiveKey];
+  if(st && volDraft && segLen(volDraft)>=6){
+    st.seg={...volDraft};
+    if(volActiveKey!==volRefKey) st.auto=true;   // なぞり直したら自動算出に戻す
+    volRecomputeAuto();
+    volAdvanceActive();
+  }
+  volDraft=null; renderVolDims(); volRedraw(); updateVolResult();
+}
+function volAdvanceActive(){   // まだ線を引いていない次の辺へ
+  const dims=volDimList();
+  const next=dims.find(([k])=>!(volDimState[k]&&volDimState[k].seg));
+  volActiveKey = next ? next[0] : volActiveKey;
+}
+function volRecomputeAuto(){   // 基準の線＋長さから、他の自動辺の長さを比率で求める
+  const ref=volDimState[volRefKey];
+  if(!ref || ref.len==null || !ref.seg) return;
+  const refPx=segLen(ref.seg); if(!(refPx>0)) return;
+  volDimList().forEach(([k])=>{
+    if(k===volRefKey) return;
+    const st=volDimState[k];
+    if(st && st.auto && st.seg){ const px=segLen(st.seg); if(px>0) st.len=trimNum(ref.len*px/refPx); }
+  });
+}
+function volRedraw(){
+  const c=document.getElementById('volCanvas'); if(!c||!volImg) return;
+  const ctx=c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height); ctx.drawImage(volImg,0,0,c.width,c.height);
+  const dims=volDimList();
+  dims.forEach(([k],i)=>{ const st=volDimState[k]; if(st&&st.seg) volDrawSeg(ctx,st.seg,VOL_COLORS[i%VOL_COLORS.length],k===volActiveKey); });
+  if(volDraft){ const i=dims.findIndex(d=>d[0]===volActiveKey); volDrawSeg(ctx,volDraft,VOL_COLORS[(i<0?0:i)%VOL_COLORS.length],true); }
+}
+function volDrawSeg(ctx,s,color,active){
+  ctx.lineWidth=active?5:4; ctx.strokeStyle=color; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(s.x1,s.y1); ctx.lineTo(s.x2,s.y2); ctx.stroke();
+  ctx.fillStyle=color;
+  [[s.x1,s.y1],[s.x2,s.y2]].forEach(([x,y])=>{ ctx.beginPath(); ctx.arc(x,y,active?8:6,0,7); ctx.fill(); });
 }
 function renderVolShapes(){
   document.getElementById('volShapeRow').innerHTML=VOL_SHAPES.map(s=>
     `<button class="vol-chip${s.id===volShape?' on':''}" onclick="setVolShape('${s.id}')">${s.name}</button>`).join('');
 }
-function setVolShape(id){ volShape=id; renderVolShapes(); renderVolDims(); updateVolResult(); }
+function setVolShape(id){ volShape=id; volEnsureState(); renderVolShapes(); renderVolDims(); volRedraw(); updateVolResult(); }
 function renderVolUnits(){
   document.getElementById('volUnitRow').innerHTML=VOL_UNITS.map(u=>
     `<button class="vol-chip${u===volUnit?' on':''}" onclick="setVolUnit('${u}')">${u}</button>`).join('');
 }
 function setVolUnit(u){ volUnit=u; renderVolUnits(); renderVolDims(); updateVolResult(); }
+function setVolActive(k){ volActiveKey=k; renderVolDims(); volRedraw(); }
+function setVolRef(k){ volRefKey=k; volDimState[k].auto=false; volRecomputeAuto(); renderVolDims(); updateVolResult(); }
 function renderVolDims(){
-  const sh=VOL_SHAPES.find(s=>s.id===volShape);
-  document.getElementById('volDims').innerHTML=sh.dims.map(([k,lb])=>
-    `<label class="vol-dim"><span class="vol-dim-lb">${lb}</span>`+
-    `<input type="number" inputmode="decimal" class="vol-dim-in" value="${volVals[k]!=null?volVals[k]:''}" `+
-    `oninput="volDimInput('${k}',this.value)" placeholder="0">`+
-    `<span class="vol-dim-unit">${volUnit}</span></label>`).join('');
+  volEnsureState();
+  const dims=volDimList(); const hasPhoto=!!volImg; const showRef=hasPhoto && dims.length>1;
+  document.getElementById('volDims').innerHTML=dims.map(([k,lb],i)=>{
+    const st=volDimState[k]; const color=VOL_COLORS[i%VOL_COLORS.length];
+    const isRef=(k===volRefKey), isActive=(k===volActiveKey), drawn=!!(st&&st.seg);
+    return `<div class="vol-dim${isActive?' active':''}">
+      <span class="vol-dim-dot" style="background:${color}"></span>
+      <span class="vol-dim-lb">${lb}</span>
+      ${showRef?`<button class="vol-ref${isRef?' on':''}" onclick="setVolRef('${k}')" title="この辺の長さを基準にする">基準</button>`:''}
+      ${hasPhoto?`<button class="vol-draw${drawn?' done':''}${isActive?' on':''}" onclick="setVolActive('${k}')">${drawn?'✓なぞり済':'✎なぞる'}</button>`:''}
+      <input type="number" inputmode="decimal" id="volin_${k}" class="vol-dim-in" value="${st&&st.len!=null?trimNum(st.len):''}" oninput="volLenInput('${k}',this.value)" placeholder="0">
+      <span class="vol-dim-unit">${volUnit}</span>
+    </div>`;
+  }).join('');
 }
-function volDimInput(k,val){ const n=parseFloat(val); if(isNaN(n)) delete volVals[k]; else volVals[k]=n; updateVolResult(); }
+function volLenInput(k,val){
+  const st=volDimState[k]; const n=parseFloat(val);
+  st.len = isNaN(n)?null:n;
+  if(k!==volRefKey) st.auto=false;   // 手入力＝手直し（自動から外す）
+  volRecomputeAuto();
+  volSyncInputs(k);
+  updateVolResult();
+}
+function volSyncInputs(exceptK){   // 自動で入った他の欄の表示を更新（入力中の欄は触らない）
+  volDimList().forEach(([k])=>{ if(k===exceptK) return;
+    const el=document.getElementById('volin_'+k); const st=volDimState[k];
+    if(el && document.activeElement!==el) el.value = (st&&st.len!=null)?trimNum(st.len):'';
+  });
+}
 function computeVol(){
-  const sh=VOL_SHAPES.find(s=>s.id===volShape);
-  for(const [k] of sh.dims){ if(!(volVals[k]>0)) return null; }   // すべての寸法が正の数のときだけ計算
-  return sh.calc(volVals);
+  const sh=VOL_SHAPES.find(s=>s.id===volShape); const v={};
+  for(const [k] of sh.dims){ const L=volDimState[k]&&volDimState[k].len; if(!(L>0)) return null; v[k]=L; }
+  return sh.calc(v);
 }
 function volFmt(n){ if(!isFinite(n)) return '—'; return Number(n.toPrecision(6)).toLocaleString('en-US',{maximumFractionDigits:6}); }
 function volToLiters(v,unit){ const cm=unit==='mm'?0.1:(unit==='m'?100:1); return v*cm*cm*cm/1000; }   // 1L = 1000cm³
@@ -8361,7 +8482,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v207';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v208';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
