@@ -1071,6 +1071,10 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
 .vol-poly-btns { display: flex; gap: 6px; margin-left: auto; }
 .vol-poly-mini { padding: 5px 9px; font-size: 12px; border: 1px solid var(--save-item-border); border-radius: 6px; background: var(--save-item-bg); color: var(--text-light); cursor: pointer; touch-action: manipulation; }
 .vol-poly-area { font-size: 13px; color: var(--text-light); margin: 4px 4px 8px; font-weight: bold; }
+.vol-face-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 4px 8px; font-size: 12.5px; color: var(--text-light); }
+.vol-face-tab { padding: 6px 11px; font-size: 13px; font-weight: bold; border: 1px solid var(--save-item-border); border-radius: 999px; background: var(--save-item-bg); color: var(--text); cursor: pointer; touch-action: manipulation; }
+.vol-face-tab.on.bottom { background: #43a047; border-color: #43a047; color: #fff; }
+.vol-face-tab.on.top { background: #fb8c00; border-color: #fb8c00; color: #fff; }
 .vol-result {
   text-align: center; padding: 14px 10px; margin-bottom: 12px;
   border: 1px solid var(--save-item-border); border-radius: 8px; background: var(--save-item-bg);
@@ -5154,11 +5158,14 @@ let volPointers=new Map(); // 押している指 pointerId -> {x,y}（キャン�
 let volGesture=null;       // 'draw'|'move'|'pinch'|'idle'|null
 let volMoveTarget=null;    // 端点編集中の対象 {key,end:'1'|'2'} または多角柱の頂点 {poly:true,idx}
 let volPinch=null;         // ピンチ開始時の情報 {dist,scale,anchor:{x,y}}
-let volPolyVerts=[];       // 多角柱の底面の頂点（画像基準座標）
-let volPolyRefIdx=0;       // 基準にする辺（頂点 i→i+1）
+let volPolyVerts=[];       // 多角柱の底面（下面）の頂点（画像基準座標）
+let volPolyTopVerts=[];    // 角錐台の上面の頂点（3点以上で錐台として計算）
+let volPolyEdit='bottom';  // いま編集中の面（'bottom'|'top'）
+let volPolyRefIdx=0;       // 基準にする辺（下面の 頂点 i→i+1）
 let volPolyRefLen=null;    // 基準の辺の実際の長さ
-let volPolyHeight=null;    // 多角柱の高さ（実際の長さ）
+let volPolyHeight=null;    // 多角柱/角錐台の高さ（実際の長さ）
 let volPolyDownCp=null;    // 多角柱：押した位置（タップ判定用）
+function volActivePoly(){ return volPolyEdit==='top' ? volPolyTopVerts : volPolyVerts; }
 let volParts=[];           // 合計するパーツ [{label, cm3}]（体積はcm³で保持し単位変更に強くする）
 function volUnitFactorCm(u){ return u==='mm'?0.1:(u==='m'?100:1); }   // 1単位＝何cm
 function volShapeDef(){ return VOL_SHAPES.find(s=>s.id===volShape); }
@@ -5198,7 +5205,7 @@ function volCaptureMeasure(){
   }
   return { photo, imgW, imgH, shape:volShape, unit:volUnit,
     dims: JSON.parse(JSON.stringify(volDimState)), ref: volRefKey,
-    poly: { verts: volPolyVerts.map(v=>({x:v.x,y:v.y})), refIdx:volPolyRefIdx, refLen:volPolyRefLen, height:volPolyHeight },
+    poly: { verts: volPolyVerts.map(v=>({x:v.x,y:v.y})), topVerts: volPolyTopVerts.map(v=>({x:v.x,y:v.y})), edit:volPolyEdit, refIdx:volPolyRefIdx, refLen:volPolyRefLen, height:volPolyHeight },
     parts: volParts.map(p=>({label:p.label, cm3:p.cm3})) };
 }
 function volRestoreMeasure(m){
@@ -5206,7 +5213,7 @@ function volRestoreMeasure(m){
   volUnit=VOL_UNITS.includes(m.unit)?m.unit:'cm';
   volDimState=m.dims?JSON.parse(JSON.stringify(m.dims)):{};
   volRefKey=m.ref||null;
-  const p=m.poly||{}; volPolyVerts=(p.verts||[]).map(v=>({x:+v.x,y:+v.y})); volPolyRefIdx=p.refIdx|0; volPolyRefLen=(p.refLen!=null?p.refLen:null); volPolyHeight=(p.height!=null?p.height:null);
+  const p=m.poly||{}; volPolyVerts=(p.verts||[]).map(v=>({x:+v.x,y:+v.y})); volPolyTopVerts=(p.topVerts||[]).map(v=>({x:+v.x,y:+v.y})); volPolyEdit=(p.edit==='top'?'top':'bottom'); volPolyRefIdx=p.refIdx|0; volPolyRefLen=(p.refLen!=null?p.refLen:null); volPolyHeight=(p.height!=null?p.height:null);
   volParts=(m.parts||[]).map(x=>({label:x.label, cm3:x.cm3}));
   volActiveKey=null; volDraft=null; volGesture=null; volMoveTarget=null; volPointers.clear(); volView={scale:1,tx:0,ty:0};
   const finish=()=>{ volEnsureState(); renderVolShapes(); renderVolUnits();
@@ -5261,7 +5268,7 @@ function volPhotoChange(e){
 function volClearPhoto(){
   if(volPhotoURL){ try{ URL.revokeObjectURL(volPhotoURL); }catch(_){} volPhotoURL=null; }
   volImg=null; volActiveKey=null; volDraft=null; volGesture=null; volMoveTarget=null; volPointers.clear();
-  volView={scale:1,tx:0,ty:0}; volPolyVerts=[]; volPolyRefIdx=0;
+  volView={scale:1,tx:0,ty:0}; volPolyVerts=[]; volPolyTopVerts=[]; volPolyRefIdx=0; volPolyEdit='bottom';
   Object.values(volDimState).forEach(st=>{ if(st) st.seg=null; });   // 線は消す（長さは残す）
   document.getElementById('volPhotoWrap').style.display='none';
   document.getElementById('volDrawHint').style.display='none';
@@ -5274,7 +5281,7 @@ function volSetupCanvas(keep){
   const scale=W/(volImg.naturalWidth||W);
   c.width=Math.round(W); c.height=Math.round((volImg.naturalHeight||W)*scale);
   volView={scale:1,tx:0,ty:0}; volPointers.clear(); volGesture=null; volDraft=null; volMoveTarget=null;
-  if(!keep){ volPolyVerts=[]; volPolyRefIdx=0; }   // 新しい写真では底面をやり直し（復元時は残す）
+  if(!keep){ volPolyVerts=[]; volPolyTopVerts=[]; volPolyRefIdx=0; volPolyEdit='bottom'; }   // 新しい写真では底面をやり直し（復元時は残す）
   if(!c.dataset.bound){   // ポインタ操作は一度だけ登録（複数指も扱えるようwindowで受ける）
     c.addEventListener('pointerdown', volPointerDown);
     window.addEventListener('pointermove', volPointerMove);
@@ -5344,7 +5351,7 @@ function volPointerMove(e){
   if(volGesture==='draw' && volDraft){ const b=volToBase(cp); volDraft.x2=b.x; volDraft.y2=b.y; volRedraw(); return; }
   if(volGesture==='move' && volMoveTarget){
     const b=volToBase(cp);
-    if(volMoveTarget.poly){ const v=volPolyVerts[volMoveTarget.idx]; if(v){ v.x=b.x; v.y=b.y; updateVolResult(); volRedraw(); } return; }
+    if(volMoveTarget.poly){ const v=volActivePoly()[volMoveTarget.idx]; if(v){ v.x=b.x; v.y=b.y; updateVolResult(); volRedraw(); } return; }
     const st=volDimState[volMoveTarget.key];
     if(st && st.seg){
       if(volMoveTarget.end==='1'){ st.seg.x1=b.x; st.seg.y1=b.y; } else { st.seg.x2=b.x; st.seg.y2=b.y; }
@@ -5366,9 +5373,13 @@ function volPointerUp(e){
     if(volGesture==='polytap' && volPolyDownCp){
       const moved=Math.hypot(upCp.x-volPolyDownCp.x, upCp.y-volPolyDownCp.y);
       if(moved < Math.max(10, volCanvasEl().width*0.02)){   // ほぼ動いていない＝タップ
-        const ei=volPolyHitEdge(upCp);
-        if(ei>=0 && volPolyVerts.length>=2){ volPolyRefIdx=ei; }   // 辺をタップ→基準の辺にする
-        else { const b=volToBase(upCp); volPolyVerts.push({x:b.x,y:b.y}); }   // 空きをタップ→頂点を追加
+        if(volPolyEdit==='bottom'){
+          const ei=volPolyHitEdge(upCp);
+          if(ei>=0 && volPolyVerts.length>=2){ volPolyRefIdx=ei; }   // 下面の辺をタップ→基準の辺に
+          else { const b=volToBase(upCp); volPolyVerts.push({x:b.x,y:b.y}); }
+        } else {
+          const b=volToBase(upCp); volPolyTopVerts.push({x:b.x,y:b.y});   // 上面の頂点を追加
+        }
       }
     }
     volDraft=null; volGesture=null; volMoveTarget=null; volPolyDownCp=null;
@@ -5417,21 +5428,26 @@ function volDrawSeg(ctx,s,color,active){
   ctx.fillStyle=color; ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=2;
   [a,b].forEach(p=>{ ctx.beginPath(); ctx.arc(p.x,p.y,active?9:7,0,7); ctx.fill(); ctx.stroke(); });   // 丸（白フチ）＝つまんで動かせる
 }
-/* ── 多角柱（底面をなぞる） ── */
-function volDrawPoly(ctx){
-  const n=volPolyVerts.length; const pts=volPolyVerts.map(v=>volT(v.x,v.y));
+/* ── 多角柱／角錐台（下面＋任意で上面をなぞる） ── */
+function volDrawPolyFace(ctx, verts, color, fillRGBA, active, isBottom){
+  const n=verts.length; const pts=verts.map(v=>volT(v.x,v.y));
   if(n>=2){
     ctx.beginPath(); pts.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); if(n>=3) ctx.closePath();
-    if(n>=3){ ctx.fillStyle='rgba(67,160,71,0.28)'; ctx.fill(); }
-    ctx.lineWidth=4; ctx.strokeStyle='#43a047'; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke();
-    const lim=n>=3?n:n-1;   // 基準の辺（青）を強調
-    if(volPolyRefIdx<lim){ const a=pts[volPolyRefIdx], b=pts[(volPolyRefIdx+1)%n]; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.lineWidth=6; ctx.strokeStyle='#1e88e5'; ctx.stroke(); }
+    if(n>=3 && fillRGBA){ ctx.fillStyle=fillRGBA; ctx.fill(); }
+    ctx.lineWidth=active?4:3; ctx.strokeStyle=color; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke();
+    if(isBottom){ const lim=n>=3?n:n-1;   // 基準の辺（青）を強調（下面のみ）
+      if(volPolyRefIdx<lim){ const a=pts[volPolyRefIdx], b=pts[(volPolyRefIdx+1)%n]; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.lineWidth=6; ctx.strokeStyle='#1e88e5'; ctx.stroke(); } }
   }
-  ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,0.9)';
-  pts.forEach((p,i)=>{ ctx.beginPath(); ctx.arc(p.x,p.y,7,0,7); ctx.fillStyle=(volMoveTarget&&volMoveTarget.poly&&volMoveTarget.idx===i)?'#e53935':'#43a047'; ctx.fill(); ctx.stroke(); });
+  ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=2;
+  pts.forEach((p,i)=>{ ctx.beginPath(); ctx.arc(p.x,p.y, active?8:6, 0,7);
+    ctx.fillStyle=(active && volMoveTarget&&volMoveTarget.poly&&volMoveTarget.idx===i)?'#e53935':color; ctx.fill(); ctx.stroke(); });
 }
-function volPolyHitVert(cp){ const c=volCanvasEl(); const R=Math.max(24,c.width*0.05); let best=-1,bd=R;
-  volPolyVerts.forEach((v,i)=>{ const p=volT(v.x,v.y); const d=Math.hypot(cp.x-p.x,cp.y-p.y); if(d<bd){bd=d;best=i;} }); return best; }
+function volDrawPoly(ctx){
+  volDrawPolyFace(ctx, volPolyVerts,   '#43a047', 'rgba(67,160,71,0.28)', volPolyEdit==='bottom', true);   // 下面＝緑
+  if(volPolyTopVerts.length) volDrawPolyFace(ctx, volPolyTopVerts, '#fb8c00', 'rgba(251,140,0,0.20)', volPolyEdit==='top', false);   // 上面＝オレンジ
+}
+function volPolyHitVert(cp){ const verts=volActivePoly(); const c=volCanvasEl(); const R=Math.max(24,c.width*0.05); let best=-1,bd=R;
+  verts.forEach((v,i)=>{ const p=volT(v.x,v.y); const d=Math.hypot(cp.x-p.x,cp.y-p.y); if(d<bd){bd=d;best=i;} }); return best; }
 function volDistToSeg(p,a,b){ const dx=b.x-a.x, dy=b.y-a.y; const L2=dx*dx+dy*dy; if(L2===0) return Math.hypot(p.x-a.x,p.y-a.y);
   let t=((p.x-a.x)*dx+(p.y-a.y)*dy)/L2; t=Math.max(0,Math.min(1,t)); return Math.hypot(p.x-(a.x+t*dx), p.y-(a.y+t*dy)); }
 function volPolyHitEdge(cp){ const n=volPolyVerts.length; if(n<2) return -1; const c=volCanvasEl(); const R=Math.max(16,c.width*0.035); let best=-1,bd=R;
@@ -5439,11 +5455,15 @@ function volPolyHitEdge(cp){ const n=volPolyVerts.length; if(n<2) return -1; con
   for(let i=0;i<lim;i++){ const a=volT(volPolyVerts[i].x,volPolyVerts[i].y), b=volT(volPolyVerts[(i+1)%n].x,volPolyVerts[(i+1)%n].y);
     const d=volDistToSeg(cp,a,b); if(d<bd){bd=d;best=i;} } return best; }
 function volPolyEdgeLenPx(idx){ const n=volPolyVerts.length; if(n<2) return 0; const a=volPolyVerts[idx%n], b=volPolyVerts[(idx+1)%n]; return Math.hypot(b.x-a.x,b.y-a.y); }
-function volPolyAreaPx(){ const n=volPolyVerts.length; if(n<3) return 0; let s=0; for(let i=0;i<n;i++){ const a=volPolyVerts[i], b=volPolyVerts[(i+1)%n]; s+=a.x*b.y-b.x*a.y; } return Math.abs(s)/2; }
+function volPolyAreaPxOf(verts){ const n=verts.length; if(n<3) return 0; let s=0; for(let i=0;i<n;i++){ const a=verts[i], b=verts[(i+1)%n]; s+=a.x*b.y-b.x*a.y; } return Math.abs(s)/2; }
 function volPolyScalePerPx(){ const px=volPolyEdgeLenPx(volPolyRefIdx); return (px>0 && volPolyRefLen>0)? volPolyRefLen/px : null; }
-function volPolyArea(){ const per=volPolyScalePerPx(); if(!per || volPolyVerts.length<3) return null; return volPolyAreaPx()*per*per; }
-function volPolyUndo(){ volPolyVerts.pop(); if(volPolyRefIdx>=Math.max(1,volPolyVerts.length)) volPolyRefIdx=0; renderVolDims(); volRedraw(); updateVolResult(); }
-function volPolyClear(){ volPolyVerts=[]; volPolyRefIdx=0; renderVolDims(); volRedraw(); updateVolResult(); }
+function volPolyAreaReal(verts){ const per=volPolyScalePerPx(); if(!per || verts.length<3) return null; return volPolyAreaPxOf(verts)*per*per; }   // 実面積（下面基準の縮尺）
+function volPolyArea(){ return volPolyAreaReal(volPolyVerts); }       // 下面の実面積
+function volPolyTopArea(){ return volPolyAreaReal(volPolyTopVerts); } // 上面の実面積
+function volPolyUndo(){ const verts=volActivePoly(); verts.pop(); if(volPolyEdit==='bottom' && volPolyRefIdx>=Math.max(1,volPolyVerts.length)) volPolyRefIdx=0; renderVolDims(); volRedraw(); updateVolResult(); }
+function volPolyClear(){ const verts=volActivePoly(); verts.length=0; if(volPolyEdit==='bottom') volPolyRefIdx=0; renderVolDims(); volRedraw(); updateVolResult(); }
+function setVolPolyEdit(which){ volPolyEdit=which; renderVolDims(); volRedraw(); }
+function volPolyClearTop(){ volPolyTopVerts=[]; if(volPolyEdit==='top') volPolyEdit='bottom'; renderVolDims(); volRedraw(); updateVolResult(); }
 function volPolyRefLenInput(val){ const n=parseFloat(val); volPolyRefLen=isNaN(n)?null:n; updateVolResult(); }
 function volPolyHeightInput(val){ const n=parseFloat(val); volPolyHeight=isNaN(n)?null:n; updateVolResult(); }
 function renderVolShapes(){
@@ -5479,13 +5499,21 @@ function renderVolDims(){
 }
 /* 多角柱：頂点数・基準辺の長さ・高さの入力欄を描画 */
 function renderVolPoly(){
-  const n=volPolyVerts.length; const hasPhoto=!!volImg;
+  const hasPhoto=!!volImg; const editTop=(volPolyEdit==='top');
+  const verts=volActivePoly(); const n=verts.length;
+  const faceName=editTop?'上面':'下面';
   const dh=document.getElementById('volDrawHint'); if(dh) dh.style.display='none';   // 多角柱はタップ操作なので「なぞる」説明は隠す
-  const note = !hasPhoto ? '写真を用意し、底面の角を順にタップして多角形を作ります'
-    : (n<3 ? `底面の角をタップ（あと${3-n}点以上）` : `${n}角形（頂点をドラッグで訂正／辺をタップで基準に）`);
+  const note = !hasPhoto ? '写真を用意し、下面の角を順にタップして多角形を作ります'
+    : (n<3 ? `${faceName}の角をタップ（あと${3-n}点以上）` : `${faceName}＝${n}角形（頂点をドラッグで訂正${editTop?'':'／辺をタップで基準に'}）`);
+  const faceTabs = hasPhoto ? `<div class="vol-face-tabs">断面：
+      <button class="vol-face-tab${!editTop?' on bottom':''}" onclick="setVolPolyEdit('bottom')">🟢下面 ${volPolyVerts.length||''}</button>
+      <button class="vol-face-tab${editTop?' on top':''}" onclick="setVolPolyEdit('top')">🟠上面 ${volPolyTopVerts.length||''}</button>
+      ${volPolyTopVerts.length?`<button class="vol-poly-mini" onclick="volPolyClearTop()">上面を消す</button>`:''}
+    </div>` : '';
   document.getElementById('volDims').innerHTML=`
+    ${faceTabs}
     <div class="vol-poly-note">${note}
-      ${hasPhoto?`<span class="vol-poly-btns"><button class="vol-poly-mini" onclick="volPolyUndo()">1つ戻す</button><button class="vol-poly-mini" onclick="volPolyClear()">全消し</button></span>`:''}
+      ${hasPhoto?`<span class="vol-poly-btns"><button class="vol-poly-mini" onclick="volPolyUndo()">1つ戻す</button><button class="vol-poly-mini" onclick="volPolyClear()">${faceName}全消し</button></span>`:''}
     </div>
     <div class="vol-dim"><span class="vol-dim-dot" style="background:#1e88e5"></span><span class="vol-dim-lb2">基準の辺</span>
       <input type="number" inputmode="decimal" id="volPolyRefIn" class="vol-dim-in" value="${volPolyRefLen!=null?trimNum(volPolyRefLen):''}" oninput="volPolyRefLenInput(this.value)" placeholder="0"><span class="vol-dim-unit">${volUnit}</span></div>
@@ -5497,14 +5525,18 @@ function renderVolPoly(){
 function updateVolPolyArea(){
   const el=document.getElementById('volPolyAreaLine'); if(!el) return;
   const a=volPolyArea();
-  el.textContent = a!=null ? `底面積 ≒ ${volFmt(a)} ${volUnit}²` : '底面（3点以上）と基準の辺の長さで底面積が出ます';
+  if(a==null){ el.textContent='下面（3点以上）と基準の辺の長さで底面積が出ます'; return; }
+  const t=volPolyTopArea();
+  if(t!=null){ el.textContent=`角錐台：下面 ${volFmt(a)} / 上面 ${volFmt(t)} ${volUnit}²（錐台公式で計算）`; }
+  else{ el.textContent=`底面積 ≒ ${volFmt(a)} ${volUnit}²（上面を足すと角錐台になります）`; }
 }
 /* いま線を引く辺の色・名前を写真の右上に表示する */
 function updateVolActiveBadge(){
   const el=document.getElementById('volActiveBadge'); if(!el) return;
   if(volIsPoly()){
     if(!volImg){ el.style.display='none'; return; }
-    el.innerHTML=`<span class="vol-active-dot" style="background:#43a047"></span>底面をタップ`;
+    const top=(volPolyEdit==='top');
+    el.innerHTML=`<span class="vol-active-dot" style="background:${top?'#fb8c00':'#43a047'}"></span>${top?'上面':'下面'}をタップ`;
     el.style.display='flex'; return;
   }
   const dims=volDimList(); const i=dims.findIndex(d=>d[0]===volActiveKey);
@@ -5532,7 +5564,12 @@ function computeVol(){
   if(volIsPoly()){
     if(volPolyVerts.length<3) return null;
     const per=volPolyScalePerPx(); if(!per || !(volPolyHeight>0)) return null;
-    return volPolyAreaPx()*per*per*volPolyHeight;   // 底面積 × 高さ
+    const A1=volPolyAreaPxOf(volPolyVerts)*per*per;   // 下面の実面積
+    if(volPolyTopVerts.length>=3){                     // 上面あり＝角錐台（錐台公式）
+      const A2=volPolyAreaPxOf(volPolyTopVerts)*per*per;
+      return volPolyHeight/3*(A1 + A2 + Math.sqrt(A1*A2));
+    }
+    return A1*volPolyHeight;   // 上面なし＝角柱
   }
   const sh=volShapeDef(); const v={};
   for(const [k] of sh.dims){ const L=volDimState[k]&&volDimState[k].len; if(!(L>0)) return null; v[k]=L; }
@@ -5575,7 +5612,7 @@ function volAddPart(){
   volParts.push({ label: volShapeDef().name+' '+(volParts.length+1), cm3: v*f*f*f });
   // 次のパーツのため現在の計測をリセット（写真・形・単位は残す）
   volDimState={}; volActiveKey=null;
-  volPolyVerts=[]; volPolyRefIdx=0; volPolyRefLen=null; volPolyHeight=null;
+  volPolyVerts=[]; volPolyTopVerts=[]; volPolyRefIdx=0; volPolyEdit='bottom'; volPolyRefLen=null; volPolyHeight=null;
   volEnsureState(); const dims=volDimList(); if(dims.length) volActiveKey=dims[0][0];
   renderVolDims(); volRedraw(); updateVolResult();
   toast('パーツを追加しました');
@@ -9001,7 +9038,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v215';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v216';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
