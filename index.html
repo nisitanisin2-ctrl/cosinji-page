@@ -1018,16 +1018,25 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
   color: #217346; font-size: 14.5px; font-weight: bold; cursor: pointer; touch-action: manipulation;
 }
 .vol-photo-btn:active { opacity: 0.7; }
+/* 容積計算のモーダルは画面いっぱいに表示する */
+.vol-modal { width: 100%; max-width: none; height: 100%; max-height: none; border-radius: 0; }
 .vol-photo-wrap { position: relative; margin-bottom: 10px; }
 .vol-canvas { display: block; width: 100%; border-radius: 8px; background: #000; touch-action: none; }
 .vol-photo-clear {
-  position: absolute; top: 6px; right: 6px; padding: 5px 10px; font-size: 12px;
+  position: absolute; bottom: 6px; right: 6px; padding: 5px 10px; font-size: 12px;
   border: none; border-radius: 6px; background: rgba(0,0,0,0.6); color: #fff; cursor: pointer; touch-action: manipulation;
 }
 .vol-zoom-reset {
   position: absolute; top: 6px; left: 6px; padding: 5px 10px; font-size: 12px;
   border: none; border-radius: 6px; background: rgba(0,0,0,0.6); color: #fff; cursor: pointer; touch-action: manipulation;
 }
+/* いま線を引く辺の色・名前を写真の右上に表示 */
+.vol-active-badge {
+  position: absolute; top: 6px; right: 6px; display: flex; align-items: center; gap: 6px;
+  padding: 5px 10px; font-size: 12.5px; font-weight: bold;
+  border-radius: 6px; background: rgba(0,0,0,0.62); color: #fff; pointer-events: none;
+}
+.vol-active-dot { width: 13px; height: 13px; border-radius: 50%; box-shadow: 0 0 0 2px rgba(255,255,255,0.9); }
 .vol-draw-hint { font-size: 12px; color: var(--text-sub); line-height: 1.5; margin-bottom: 10px; }
 .vol-draw-hint b { color: var(--text); }
 .vol-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
@@ -2277,7 +2286,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 
 <!-- 容積を計算（写真を撮って寸法を入れると容積が出る。結果をセルに入れられる） -->
 <div class="modal-overlay" id="volumeOverlay" onclick="if(event.target===this)closeVolume()">
-  <div class="modal">
+  <div class="modal vol-modal">
     <div class="modal-header">
       <span>📷 容積を計算</span>
       <button class="modal-close" onclick="closeVolume()">✕</button>
@@ -2288,6 +2297,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <div class="vol-photo-wrap" id="volPhotoWrap" style="display:none">
         <canvas id="volCanvas" class="vol-canvas"></canvas>
         <button class="vol-zoom-reset" onclick="volResetZoom()" title="全体表示に戻す">⤢ 全体</button>
+        <div class="vol-active-badge" id="volActiveBadge" style="display:none"></div>
         <button class="vol-photo-clear" onclick="volClearPhoto()">写真を消す</button>
       </div>
       <div class="vol-draw-hint" id="volDrawHint" style="display:none">下の辺（🔴🔵…）を選んで写真の上をなぞると線が引けます。<b>2本指でズーム</b>、<b>丸い点を押しながら動かす</b>と位置を直せます。1つを「基準」にして実際の長さを入れると、他の辺は写真の比率から自動で入ります（数値は手で直せます）。</div>
@@ -5263,6 +5273,17 @@ function renderVolDims(){
       <span class="vol-dim-unit">${volUnit}</span>
     </div>`;
   }).join('');
+  updateVolActiveBadge();
+}
+/* いま線を引く辺の色・名前を写真の右上に表示する */
+function updateVolActiveBadge(){
+  const el=document.getElementById('volActiveBadge'); if(!el) return;
+  const dims=volDimList(); const i=dims.findIndex(d=>d[0]===volActiveKey);
+  if(!volImg || i<0){ el.style.display='none'; return; }
+  const lb=dims[i][1], color=VOL_COLORS[i%VOL_COLORS.length];
+  const drawn=!!(volDimState[volActiveKey]&&volDimState[volActiveKey].seg);
+  el.innerHTML=`<span class="vol-active-dot" style="background:${color}"></span>${lb}${drawn?'（引き直し）':'を線引き'}`;
+  el.style.display='flex';
 }
 function volLenInput(k,val){
   const st=volDimState[k]; const n=parseFloat(val);
@@ -8560,7 +8581,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v209';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v210';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
