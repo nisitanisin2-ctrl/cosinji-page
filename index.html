@@ -1024,7 +1024,12 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
   position: absolute; top: 6px; right: 6px; padding: 5px 10px; font-size: 12px;
   border: none; border-radius: 6px; background: rgba(0,0,0,0.6); color: #fff; cursor: pointer; touch-action: manipulation;
 }
+.vol-zoom-reset {
+  position: absolute; top: 6px; left: 6px; padding: 5px 10px; font-size: 12px;
+  border: none; border-radius: 6px; background: rgba(0,0,0,0.6); color: #fff; cursor: pointer; touch-action: manipulation;
+}
 .vol-draw-hint { font-size: 12px; color: var(--text-sub); line-height: 1.5; margin-bottom: 10px; }
+.vol-draw-hint b { color: var(--text); }
 .vol-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .vol-lb { flex-shrink: 0; width: 34px; font-size: 13px; font-weight: bold; color: var(--text-light); }
 .vol-chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -2282,9 +2287,10 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <button class="vol-photo-btn" onclick="document.getElementById('volPhotoInput').click()">📷 写真を撮る／選ぶ</button>
       <div class="vol-photo-wrap" id="volPhotoWrap" style="display:none">
         <canvas id="volCanvas" class="vol-canvas"></canvas>
+        <button class="vol-zoom-reset" onclick="volResetZoom()" title="全体表示に戻す">⤢ 全体</button>
         <button class="vol-photo-clear" onclick="volClearPhoto()">写真を消す</button>
       </div>
-      <div class="vol-draw-hint" id="volDrawHint" style="display:none">下の辺（🔴🔵…）を選んで、写真の上をなぞって印を付けます。1つを「基準」にして実際の長さを入れると、他の辺は写真の比率から自動で入ります（数値は手で直せます）。</div>
+      <div class="vol-draw-hint" id="volDrawHint" style="display:none">下の辺（🔴🔵…）を選んで写真の上をなぞると線が引けます。<b>2本指でズーム</b>、<b>丸い点を押しながら動かす</b>と位置を直せます。1つを「基準」にして実際の長さを入れると、他の辺は写真の比率から自動で入ります（数値は手で直せます）。</div>
       <div class="vol-row"><span class="vol-lb">形</span><div class="vol-chips" id="volShapeRow"></div></div>
       <div class="vol-row"><span class="vol-lb">単位</span><div class="vol-chips" id="volUnitRow"></div></div>
       <div class="vol-dims" id="volDims"></div>
@@ -5055,10 +5061,15 @@ const VOL_SHAPES=[
 const VOL_UNITS=['mm','cm','m'];
 const VOL_COLORS=['#e53935','#1e88e5','#43a047','#fb8c00'];   // 各辺の線の色
 let volShape='box', volUnit='cm', volPhotoURL=null, volImg=null;
-let volDimState={};        // 辺キー -> { seg:{x1,y1,x2,y2}|null, len:数値|null, auto:自動算出か }
+let volDimState={};        // 辺キー -> { seg:{x1,y1,x2,y2}|null, len:数値|null, auto:自動算出か }（segは画像基準座標）
 let volRefKey=null;        // 基準にする辺
 let volActiveKey=null;     // いま写真上でなぞる対象の辺
-let volDrawing=false, volDraft=null;
+let volDraft=null;         // 描きかけの線（画像基準座標）
+let volView={scale:1,tx:0,ty:0};   // 写真の表示（ズーム・移動）。基準座標→表示座標 = base*scale + t
+let volPointers=new Map(); // 押している指 pointerId -> {x,y}（キャンバス座標）
+let volGesture=null;       // 'draw'|'move'|'pinch'|'idle'|null
+let volMoveTarget=null;    // 端点編集中の対象 {key,end:'1'|'2'}
+let volPinch=null;         // ピンチ開始時の情報 {dist,scale,anchor:{x,y}}
 function volDimList(){ return VOL_SHAPES.find(s=>s.id===volShape).dims; }
 function volEnsureState(){
   const keys=volDimList().map(d=>d[0]);
@@ -5091,44 +5102,108 @@ function volPhotoChange(e){
 }
 function volClearPhoto(){
   if(volPhotoURL){ try{ URL.revokeObjectURL(volPhotoURL); }catch(_){} volPhotoURL=null; }
-  volImg=null; volActiveKey=null;
+  volImg=null; volActiveKey=null; volDraft=null; volGesture=null; volMoveTarget=null; volPointers.clear();
+  volView={scale:1,tx:0,ty:0};
   volDimList().forEach(([k])=>{ if(volDimState[k]){ volDimState[k].seg=null; } });   // 線は消す（長さは残す）
   document.getElementById('volPhotoWrap').style.display='none';
   document.getElementById('volDrawHint').style.display='none';
   renderVolDims(); updateVolResult();
 }
+function volCanvasEl(){ return document.getElementById('volCanvas'); }
 function volSetupCanvas(){
-  const c=document.getElementById('volCanvas'); if(!c||!volImg) return;
+  const c=volCanvasEl(); if(!c||!volImg) return;
   const W=Math.min(volImg.naturalWidth||800, 800);
   const scale=W/(volImg.naturalWidth||W);
   c.width=Math.round(W); c.height=Math.round((volImg.naturalHeight||W)*scale);
-  if(!c.dataset.bound){   // ポインタ操作は一度だけ登録
-    c.addEventListener('pointerdown', volCanvasDown);
-    c.addEventListener('pointermove', volCanvasMove);
-    c.addEventListener('pointerup', volCanvasUp);
-    c.addEventListener('pointercancel', ()=>{ volDrawing=false; volDraft=null; volRedraw(); });
+  volView={scale:1,tx:0,ty:0}; volPointers.clear(); volGesture=null; volDraft=null; volMoveTarget=null;
+  if(!c.dataset.bound){   // ポインタ操作は一度だけ登録（複数指も扱えるようwindowで受ける）
+    c.addEventListener('pointerdown', volPointerDown);
+    window.addEventListener('pointermove', volPointerMove);
+    window.addEventListener('pointerup', volPointerUp);
+    window.addEventListener('pointercancel', volPointerUp);
     c.dataset.bound='1';
   }
 }
-function volPt(e){
-  const c=document.getElementById('volCanvas'); const r=c.getBoundingClientRect();
-  return { x:(e.clientX-r.left)*c.width/r.width, y:(e.clientY-r.top)*c.height/r.height };
+/* 座標変換：クライアント→キャンバス、キャンバス⇄画像基準 */
+function volClientToCanvas(clientX,clientY){ const c=volCanvasEl(); const r=c.getBoundingClientRect(); return {x:(clientX-r.left)*c.width/r.width, y:(clientY-r.top)*c.height/r.height}; }
+function volT(bx,by){ return {x:bx*volView.scale+volView.tx, y:by*volView.scale+volView.ty}; }        // 画像基準→表示
+function volToBase(cp){ return {x:(cp.x-volView.tx)/volView.scale, y:(cp.y-volView.ty)/volView.scale}; } // 表示→画像基準
+function volResetZoom(){ volView={scale:1,tx:0,ty:0}; volRedraw(); }
+function volHitEndpoint(cp){   // 押した位置に近い端点（丸）を探す
+  const c=volCanvasEl(); const R=Math.max(24, c.width*0.05); let best=null, bestD=R;
+  volDimList().forEach(([k])=>{ const st=volDimState[k]; if(!st||!st.seg) return;
+    [['1',st.seg.x1,st.seg.y1],['2',st.seg.x2,st.seg.y2]].forEach(([end,bx,by])=>{
+      const p=volT(bx,by); const d=Math.hypot(cp.x-p.x,cp.y-p.y); if(d<bestD){ bestD=d; best={key:k,end}; }
+    });
+  });
+  return best;
 }
-function volCanvasDown(e){ if(!volImg||!volActiveKey) return; e.preventDefault();
-  const p=volPt(e); volDraft={x1:p.x,y1:p.y,x2:p.x,y2:p.y}; volDrawing=true;
-  try{ e.target.setPointerCapture(e.pointerId); }catch(_){}
+function volTwoPointers(){ const it=volPointers.values(); return [it.next().value, it.next().value]; }
+function volStartPinch(){
+  const [p1,p2]=volTwoPointers(); if(!p1||!p2) return;
+  const mid={x:(p1.x+p2.x)/2,y:(p1.y+p2.y)/2};
+  volPinch={ dist:Math.hypot(p1.x-p2.x,p1.y-p2.y)||1, scale:volView.scale, anchor:volToBase(mid) };
 }
-function volCanvasMove(e){ if(!volDrawing) return; e.preventDefault(); const p=volPt(e); volDraft.x2=p.x; volDraft.y2=p.y; volRedraw(); }
-function volCanvasUp(e){
-  if(!volDrawing) return; e.preventDefault(); volDrawing=false;
-  const st=volDimState[volActiveKey];
-  if(st && volDraft && segLen(volDraft)>=6){
-    st.seg={...volDraft};
-    if(volActiveKey!==volRefKey) st.auto=true;   // なぞり直したら自動算出に戻す
-    volRecomputeAuto();
-    volAdvanceActive();
+function volDoPinch(){
+  const [p1,p2]=volTwoPointers(); if(!p1||!p2||!volPinch) return;
+  const mid={x:(p1.x+p2.x)/2,y:(p1.y+p2.y)/2};
+  const dist=Math.hypot(p1.x-p2.x,p1.y-p2.y)||1;
+  volView.scale=volPinch.scale*dist/volPinch.dist;
+  volView.tx=mid.x - volPinch.anchor.x*volView.scale;   // 指の中点に基準点を合わせる
+  volView.ty=mid.y - volPinch.anchor.y*volView.scale;
+  volClampView();
+}
+function volClampView(){
+  const c=volCanvasEl(); if(!c) return;
+  volView.scale=Math.max(1, Math.min(8, volView.scale));
+  const minTx=c.width - c.width*volView.scale, minTy=c.height - c.height*volView.scale;
+  volView.tx=Math.min(0, Math.max(minTx, volView.tx));
+  volView.ty=Math.min(0, Math.max(minTy, volView.ty));
+}
+function volPointerDown(e){
+  if(!volImg) return; const c=volCanvasEl(); if(e.target!==c) return;
+  e.preventDefault();
+  volPointers.set(e.pointerId, volClientToCanvas(e.clientX,e.clientY));
+  if(volPointers.size>=2){ volGesture='pinch'; volDraft=null; volMoveTarget=null; volStartPinch(); volRedraw(); return; }
+  const cp=volPointers.get(e.pointerId);
+  const hit=volHitEndpoint(cp);
+  if(hit){ volGesture='move'; volMoveTarget=hit; volActiveKey=hit.key; renderVolDims(); }   // 丸をつかんで位置訂正
+  else if(volActiveKey){ const b=volToBase(cp); volGesture='draw'; volDraft={x1:b.x,y1:b.y,x2:b.x,y2:b.y}; }
+  volRedraw();
+}
+function volPointerMove(e){
+  if(!volPointers.has(e.pointerId)) return; e.preventDefault();
+  volPointers.set(e.pointerId, volClientToCanvas(e.clientX,e.clientY));
+  if(volGesture==='pinch' && volPointers.size>=2){ volDoPinch(); volRedraw(); return; }
+  const cp=volPointers.get(e.pointerId);
+  if(volGesture==='draw' && volDraft){ const b=volToBase(cp); volDraft.x2=b.x; volDraft.y2=b.y; volRedraw(); return; }
+  if(volGesture==='move' && volMoveTarget){
+    const st=volDimState[volMoveTarget.key];
+    if(st && st.seg){ const b=volToBase(cp);
+      if(volMoveTarget.end==='1'){ st.seg.x1=b.x; st.seg.y1=b.y; } else { st.seg.x2=b.x; st.seg.y2=b.y; }
+      volRecomputeAuto(); volSyncInputs(null); updateVolResult(); volRedraw();
+    }
   }
-  volDraft=null; renderVolDims(); volRedraw(); updateVolResult();
+}
+function volPointerUp(e){
+  if(!volPointers.has(e.pointerId)) return;
+  volPointers.delete(e.pointerId);
+  if(volGesture==='pinch'){
+    volPinch=null;
+    if(volPointers.size<2) volGesture = (volPointers.size===1 ? 'idle' : null);   // 残り1本では描かない
+    volRedraw(); return;
+  }
+  if(volPointers.size>0) return;   // まだ指が残っている
+  if(volGesture==='draw' && volDraft && volActiveKey){
+    const st=volDimState[volActiveKey];
+    if(st && segLen(volDraft)*volView.scale>=8){   // 画面上で一定以上動いたら線として確定
+      st.seg={x1:volDraft.x1,y1:volDraft.y1,x2:volDraft.x2,y2:volDraft.y2};
+      if(volActiveKey!==volRefKey) st.auto=true;   // なぞり直したら自動算出に戻す
+      volRecomputeAuto(); volAdvanceActive();
+    }
+  }
+  volDraft=null; volGesture=null; volMoveTarget=null;
+  renderVolDims(); volRedraw(); updateVolResult();
 }
 function volAdvanceActive(){   // まだ線を引いていない次の辺へ
   const dims=volDimList();
@@ -5146,17 +5221,20 @@ function volRecomputeAuto(){   // 基準の線＋長さから、他の自動辺�
   });
 }
 function volRedraw(){
-  const c=document.getElementById('volCanvas'); if(!c||!volImg) return;
-  const ctx=c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height); ctx.drawImage(volImg,0,0,c.width,c.height);
+  const c=volCanvasEl(); if(!c||!volImg) return;
+  const ctx=c.getContext('2d');
+  ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,c.width,c.height);
+  ctx.save(); ctx.setTransform(volView.scale,0,0,volView.scale,volView.tx,volView.ty); ctx.drawImage(volImg,0,0,c.width,c.height); ctx.restore();
   const dims=volDimList();
   dims.forEach(([k],i)=>{ const st=volDimState[k]; if(st&&st.seg) volDrawSeg(ctx,st.seg,VOL_COLORS[i%VOL_COLORS.length],k===volActiveKey); });
   if(volDraft){ const i=dims.findIndex(d=>d[0]===volActiveKey); volDrawSeg(ctx,volDraft,VOL_COLORS[(i<0?0:i)%VOL_COLORS.length],true); }
 }
 function volDrawSeg(ctx,s,color,active){
+  const a=volT(s.x1,s.y1), b=volT(s.x2,s.y2);
   ctx.lineWidth=active?5:4; ctx.strokeStyle=color; ctx.lineCap='round';
-  ctx.beginPath(); ctx.moveTo(s.x1,s.y1); ctx.lineTo(s.x2,s.y2); ctx.stroke();
-  ctx.fillStyle=color;
-  [[s.x1,s.y1],[s.x2,s.y2]].forEach(([x,y])=>{ ctx.beginPath(); ctx.arc(x,y,active?8:6,0,7); ctx.fill(); });
+  ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+  ctx.fillStyle=color; ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=2;
+  [a,b].forEach(p=>{ ctx.beginPath(); ctx.arc(p.x,p.y,active?9:7,0,7); ctx.fill(); ctx.stroke(); });   // 丸（白フチ）＝つまんで動かせる
 }
 function renderVolShapes(){
   document.getElementById('volShapeRow').innerHTML=VOL_SHAPES.map(s=>
@@ -8482,7 +8560,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v208';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v209';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
