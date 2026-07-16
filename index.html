@@ -1085,6 +1085,21 @@ body.dark .vol-result-main { color: #7fd6a3; }
 }
 .vol-insert:disabled { background: var(--save-item-border); color: var(--text-light); cursor: default; }
 .vol-hint { font-size: 11.5px; color: var(--text-light); line-height: 1.5; }
+/* パーツ分割合計 */
+.vol-addpart {
+  display: block; width: 100%; padding: 11px; margin-bottom: 10px;
+  border: 1px dashed #217346; border-radius: 8px; background: rgba(33,115,70,0.08);
+  color: #217346; font-size: 13.5px; font-weight: bold; cursor: pointer; touch-action: manipulation;
+}
+.vol-addpart:disabled { border-color: var(--save-item-border); color: var(--text-light); background: transparent; cursor: default; }
+.vol-parts-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.vol-part-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--save-item-border); border-radius: 6px; background: var(--save-item-bg); }
+.vol-part-name { flex-shrink: 0; font-size: 13px; font-weight: bold; color: var(--text); }
+.vol-part-val { flex: 1; text-align: right; font-size: 13.5px; color: var(--text); }
+.vol-part-del { flex-shrink: 0; width: 26px; height: 26px; border: none; border-radius: 5px; background: rgba(192,57,43,0.12); color: #c0392b; font-size: 13px; cursor: pointer; touch-action: manipulation; }
+.vol-parts-total { text-align: right; font-size: 15px; font-weight: bold; color: #217346; margin-bottom: 10px; word-break: break-all; }
+body.dark .vol-parts-total { color: #7fd6a3; }
+.vol-parts-cur { font-size: 11px; font-weight: normal; color: var(--text-light); margin-left: 4px; }
 /* 見出し長押しメニューのボタン（緑＝追加／赤＝削除） */
 .hm-btn {
   display: block; width: 100%; border: none; border-radius: 8px;
@@ -2313,6 +2328,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <div class="vol-result-main" id="volResultVal">—</div>
         <div class="vol-result-sub" id="volResultSub">寸法を入力すると容積が出ます</div>
       </div>
+      <button class="vol-addpart" id="volAddPartBtn" onclick="volAddPart()">➕ このパーツを合計に追加（複雑な形を分けて足す）</button>
+      <div class="vol-parts" id="volParts"></div>
       <button class="vol-insert" id="volInsertBtn" onclick="volInsertToCell()" disabled>▦ この容積を選択中のセルに入れる</button>
       <div class="vol-hint">写真は撮る角度や奥行きで実物と比率がずれるため、自動で入る数値は目安です。正確に出したいときは各辺の長さを直接入れてください。容積の数値は選択中のセルへ入れられます。</div>
     </div>
@@ -5091,6 +5108,8 @@ let volPolyRefIdx=0;       // 基準にする辺（頂点 i→i+1）
 let volPolyRefLen=null;    // 基準の辺の実際の長さ
 let volPolyHeight=null;    // 多角柱の高さ（実際の長さ）
 let volPolyDownCp=null;    // 多角柱：押した位置（タップ判定用）
+let volParts=[];           // 合計するパーツ [{label, cm3}]（体積はcm³で保持し単位変更に強くする）
+function volUnitFactorCm(u){ return u==='mm'?0.1:(u==='m'?100:1); }   // 1単位＝何cm
 function volShapeDef(){ return VOL_SHAPES.find(s=>s.id===volShape); }
 function volIsPoly(){ return !!volShapeDef().poly; }
 function volDimList(){ return volShapeDef().dims||[]; }
@@ -5407,22 +5426,57 @@ function computeVol(){
 }
 function volFmt(n){ if(!isFinite(n)) return '—'; return Number(n.toPrecision(6)).toLocaleString('en-US',{maximumFractionDigits:6}); }
 function volToLiters(v,unit){ const cm=unit==='mm'?0.1:(unit==='m'?100:1); return v*cm*cm*cm/1000; }   // 1L = 1000cm³
+function volCurrentCm3(){ const v=computeVol(); const f=volUnitFactorCm(volUnit); return v!=null ? v*f*f*f : null; }
+function volTotalCm3(){ const cur=volCurrentCm3(); return volParts.reduce((s,p)=>s+p.cm3,0) + (cur!=null?cur:0); }
 function updateVolResult(){
   const v=computeVol();
   if(volIsPoly()) updateVolPolyArea();
   const valEl=document.getElementById('volResultVal'), subEl=document.getElementById('volResultSub');
-  const btn=document.getElementById('volInsertBtn');
-  if(v==null){ valEl.textContent='—'; subEl.textContent='寸法を入力すると容積が出ます'; if(btn) btn.disabled=true; return; }
-  valEl.textContent=`${volFmt(v)} ${volUnit}³`;
-  subEl.textContent=`＝ ${volFmt(volToLiters(v,volUnit))} L（リットル）`;
-  if(btn) btn.disabled=false;
+  const btn=document.getElementById('volInsertBtn'), addBtn=document.getElementById('volAddPartBtn');
+  if(v==null){ valEl.textContent='—'; subEl.textContent='寸法を入力すると容積が出ます'; }
+  else { valEl.textContent=`${volFmt(v)} ${volUnit}³`; subEl.textContent=`＝ ${volFmt(volToLiters(v,volUnit))} L（リットル）`; }
+  if(addBtn) addBtn.disabled=(v==null);
+  renderVolParts();
+  const totalCm3=volTotalCm3();
+  if(btn){ btn.disabled=!(totalCm3>0); btn.textContent = volParts.length ? '▦ 合計を選択中のセルに入れる' : '▦ この容積を選択中のセルに入れる'; }
 }
+/* パーツ（分割合計）一覧と合計を表示 */
+function renderVolParts(){
+  const box=document.getElementById('volParts'); if(!box) return;
+  const f=volUnitFactorCm(volUnit);
+  if(!volParts.length){ box.innerHTML=''; return; }
+  let html='<div class="vol-parts-list">'+volParts.map((p,i)=>{
+    const val=p.cm3/(f*f*f);
+    return `<div class="vol-part-row"><span class="vol-part-name">${escHtml(p.label)}</span><span class="vol-part-val">${volFmt(val)} ${volUnit}³</span><button class="vol-part-del" onclick="volDelPart(${i})" title="削除">✕</button></div>`;
+  }).join('')+'</div>';
+  const cur=volCurrentCm3();
+  const totalCm3=volParts.reduce((s,p)=>s+p.cm3,0)+(cur!=null?cur:0);
+  const total=totalCm3/(f*f*f);
+  html+=`<div class="vol-parts-total">合計 ${volFmt(total)} ${volUnit}³ ＝ ${volFmt(totalCm3/1000)} L${cur!=null?'<span class="vol-parts-cur">（今のパーツ含む）</span>':''}</div>`;
+  box.innerHTML=html;
+}
+function volAddPart(){
+  const v=computeVol(); if(v==null){ toast('先に寸法を入力してください'); return; }
+  const f=volUnitFactorCm(volUnit);
+  volParts.push({ label: volShapeDef().name+' '+(volParts.length+1), cm3: v*f*f*f });
+  // 次のパーツのため現在の計測をリセット（写真・形・単位は残す）
+  volDimState={}; volActiveKey=null;
+  volPolyVerts=[]; volPolyRefIdx=0; volPolyRefLen=null; volPolyHeight=null;
+  volEnsureState(); const dims=volDimList(); if(dims.length) volActiveKey=dims[0][0];
+  renderVolDims(); volRedraw(); updateVolResult();
+  toast('パーツを追加しました');
+}
+function volDelPart(i){ volParts.splice(i,1); updateVolResult(); }
 function volInsertToCell(){
-  const v=computeVol(); if(v==null){ toast('寸法を入力してください'); return; }
+  const f=volUnitFactorCm(volUnit);
+  const totalCm3=volTotalCm3();
+  if(!(totalCm3>0)){ toast('寸法を入力してください'); return; }
   if(selR<0||selC<0){ toast('入れるセルを選んでください'); return; }
   if(isLockedCell(selR,selC)){ flashLocked(selR,selC); return; }
-  setCellVal(selR,selC, String(Number(v.toPrecision(6))));   // 選択中の単位での容積（unit³）を入れる
+  const total=totalCm3/(f*f*f);
+  setCellVal(selR,selC, String(Number(total.toPrecision(6))));   // 選択中の単位での容積（unit³。パーツがあれば合計）
   toast('容積をセルに入れました');
+  volParts=[];   // 入れたら合計はクリア
   closeVolume();
 }
 /* 登録ボタンから実行するとき、指の操作（ユーザー操作）が生きているうちに呼ばないと
@@ -8683,7 +8737,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v211';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v212';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
