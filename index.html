@@ -1011,6 +1011,50 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
   border-radius: 7px; padding: 9px 22px; font-size: 13.5px; font-weight: bold;
   cursor: pointer; touch-action: manipulation;
 }
+/* 容積計算 */
+.vol-photo-btn {
+  display: block; width: 100%; margin-bottom: 10px; padding: 12px;
+  border: 1px solid #217346; border-radius: 8px; background: rgba(33,115,70,0.1);
+  color: #217346; font-size: 14.5px; font-weight: bold; cursor: pointer; touch-action: manipulation;
+}
+.vol-photo-btn:active { opacity: 0.7; }
+.vol-photo-wrap { position: relative; margin-bottom: 12px; }
+.vol-photo-wrap img { display: block; width: 100%; max-height: 240px; object-fit: contain; border-radius: 8px; background: #000; }
+.vol-photo-clear {
+  position: absolute; top: 6px; right: 6px; padding: 5px 10px; font-size: 12px;
+  border: none; border-radius: 6px; background: rgba(0,0,0,0.6); color: #fff; cursor: pointer; touch-action: manipulation;
+}
+.vol-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.vol-lb { flex-shrink: 0; width: 34px; font-size: 13px; font-weight: bold; color: var(--text-light); }
+.vol-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.vol-chip {
+  padding: 7px 13px; font-size: 13.5px; border: 1px solid var(--save-item-border);
+  border-radius: 999px; background: var(--save-item-bg); color: var(--text);
+  cursor: pointer; touch-action: manipulation;
+}
+.vol-chip.on { background: #217346; border-color: #217346; color: #fff; font-weight: bold; }
+.vol-dims { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 12px; }
+.vol-dim { display: flex; align-items: center; gap: 10px; }
+.vol-dim-lb { flex-shrink: 0; width: 56px; font-size: 14px; font-weight: bold; color: var(--text); }
+.vol-dim-in {
+  flex: 1; min-width: 0; padding: 10px; font-size: 16px; text-align: right;
+  border: 1px solid var(--save-item-border); border-radius: 6px; background: var(--cell-bg, #fff); color: var(--text);
+}
+.vol-dim-unit { flex-shrink: 0; width: 24px; font-size: 13px; color: var(--text-light); }
+.vol-result {
+  text-align: center; padding: 14px 10px; margin-bottom: 12px;
+  border: 1px solid var(--save-item-border); border-radius: 8px; background: var(--save-item-bg);
+}
+.vol-result-main { font-size: 22px; font-weight: bold; color: #217346; word-break: break-all; }
+body.dark .vol-result-main { color: #7fd6a3; }
+.vol-result-sub { font-size: 13.5px; color: var(--text-light); margin-top: 4px; word-break: break-all; }
+.vol-insert {
+  display: block; width: 100%; padding: 13px; margin-bottom: 8px;
+  border: none; border-radius: 8px; background: #217346; color: #fff;
+  font-size: 15px; font-weight: bold; cursor: pointer; touch-action: manipulation;
+}
+.vol-insert:disabled { background: var(--save-item-border); color: var(--text-light); cursor: default; }
+.vol-hint { font-size: 11.5px; color: var(--text-light); line-height: 1.5; }
 /* 見出し長押しメニューのボタン（緑＝追加／赤＝削除） */
 .hm-btn {
   display: block; width: 100%; border: none; border-radius: 8px;
@@ -2211,6 +2255,33 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <div class="dp-grid" id="datePickGrid"></div>
     <div class="dp-foot">
       <button class="dp-today" onclick="datePickJumpToday()">今日へ</button>
+    </div>
+  </div>
+</div>
+
+<!-- 容積を計算（写真を撮って寸法を入れると容積が出る。結果をセルに入れられる） -->
+<div class="modal-overlay" id="volumeOverlay" onclick="if(event.target===this)closeVolume()">
+  <div class="modal">
+    <div class="modal-header">
+      <span>📷 容積を計算</span>
+      <button class="modal-close" onclick="closeVolume()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="file" id="volPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="volPhotoChange(event)">
+      <button class="vol-photo-btn" onclick="document.getElementById('volPhotoInput').click()">📷 写真を撮る／選ぶ</button>
+      <div class="vol-photo-wrap" id="volPhotoWrap" style="display:none">
+        <img id="volPhoto" alt="撮った写真">
+        <button class="vol-photo-clear" onclick="volClearPhoto()">写真を消す</button>
+      </div>
+      <div class="vol-row"><span class="vol-lb">形</span><div class="vol-chips" id="volShapeRow"></div></div>
+      <div class="vol-row"><span class="vol-lb">単位</span><div class="vol-chips" id="volUnitRow"></div></div>
+      <div class="vol-dims" id="volDims"></div>
+      <div class="vol-result">
+        <div class="vol-result-main" id="volResultVal">—</div>
+        <div class="vol-result-sub" id="volResultSub">寸法を入力すると容積が出ます</div>
+      </div>
+      <button class="vol-insert" id="volInsertBtn" onclick="volInsertToCell()" disabled>▦ この容積を選択中のセルに入れる</button>
+      <div class="vol-hint">写真は寸法を測る目安に使えます（物の大きさを見ながら数値を入力）。容積の数値は選択中のセルへ入れられます。</div>
     </div>
   </div>
 </div>
@@ -4884,6 +4955,7 @@ const KEY_FUNCS={
   a_numpadhide:{g:'設定・機能',label:'⌨隠す',run:()=>toggleNumpad()},
   a_today:{g:'設定・機能',label:'📅今日',run:()=>insertTodayDate()},
   a_calendar:{g:'設定・機能',label:'📅日付',run:()=>insertDatePick()},
+  a_volume:{g:'設定・機能',label:'📷容積',run:()=>openVolume()},
   a_lookup:{g:'設定・機能',label:'🔍照合',run:()=>openLookupDlg()},
   a_find:{g:'設定・機能',label:'🔎検索',run:()=>openFindDlg()},
   a_modenormal:{g:'設定・機能',label:'▦通常',run:()=>switchMode('normal')},
@@ -4960,6 +5032,76 @@ function datePickChoose(y,m,d){
     setCellVal(r,c,`${y}/${m}/${d}`);
   }
   closeDatePick();
+}
+/* ── 容積を計算（写真を撮って寸法を入れると容積が出る。結果をセルに入れられる） ── */
+const VOL_SHAPES=[
+  {id:'box',    name:'直方体', dims:[['w','縦'],['d','横'],['h','高さ']], calc:v=>v.w*v.d*v.h},
+  {id:'cyl',    name:'円柱',   dims:[['dia','直径'],['h','高さ']],       calc:v=>Math.PI*(v.dia/2)*(v.dia/2)*v.h},
+  {id:'sphere', name:'球',     dims:[['dia','直径']],                    calc:v=>4/3*Math.PI*(v.dia/2)*(v.dia/2)*(v.dia/2)},
+  {id:'cone',   name:'円すい', dims:[['dia','直径'],['h','高さ']],       calc:v=>1/3*Math.PI*(v.dia/2)*(v.dia/2)*v.h},
+];
+const VOL_UNITS=['mm','cm','m'];
+let volShape='box', volUnit='cm', volVals={}, volPhotoURL=null;
+function openVolume(){
+  renderVolShapes(); renderVolUnits(); renderVolDims(); updateVolResult();
+  document.getElementById('volumeOverlay').classList.add('open');
+}
+function closeVolume(){ document.getElementById('volumeOverlay').classList.remove('open'); }
+function volPhotoChange(e){
+  const f=e.target.files && e.target.files[0]; if(!f) return;
+  if(volPhotoURL){ try{ URL.revokeObjectURL(volPhotoURL); }catch(_){} }
+  volPhotoURL=URL.createObjectURL(f);
+  document.getElementById('volPhoto').src=volPhotoURL;
+  document.getElementById('volPhotoWrap').style.display='block';
+  e.target.value='';   // 同じ写真をもう一度選べるように
+}
+function volClearPhoto(){
+  if(volPhotoURL){ try{ URL.revokeObjectURL(volPhotoURL); }catch(_){} volPhotoURL=null; }
+  document.getElementById('volPhoto').src='';
+  document.getElementById('volPhotoWrap').style.display='none';
+}
+function renderVolShapes(){
+  document.getElementById('volShapeRow').innerHTML=VOL_SHAPES.map(s=>
+    `<button class="vol-chip${s.id===volShape?' on':''}" onclick="setVolShape('${s.id}')">${s.name}</button>`).join('');
+}
+function setVolShape(id){ volShape=id; renderVolShapes(); renderVolDims(); updateVolResult(); }
+function renderVolUnits(){
+  document.getElementById('volUnitRow').innerHTML=VOL_UNITS.map(u=>
+    `<button class="vol-chip${u===volUnit?' on':''}" onclick="setVolUnit('${u}')">${u}</button>`).join('');
+}
+function setVolUnit(u){ volUnit=u; renderVolUnits(); renderVolDims(); updateVolResult(); }
+function renderVolDims(){
+  const sh=VOL_SHAPES.find(s=>s.id===volShape);
+  document.getElementById('volDims').innerHTML=sh.dims.map(([k,lb])=>
+    `<label class="vol-dim"><span class="vol-dim-lb">${lb}</span>`+
+    `<input type="number" inputmode="decimal" class="vol-dim-in" value="${volVals[k]!=null?volVals[k]:''}" `+
+    `oninput="volDimInput('${k}',this.value)" placeholder="0">`+
+    `<span class="vol-dim-unit">${volUnit}</span></label>`).join('');
+}
+function volDimInput(k,val){ const n=parseFloat(val); if(isNaN(n)) delete volVals[k]; else volVals[k]=n; updateVolResult(); }
+function computeVol(){
+  const sh=VOL_SHAPES.find(s=>s.id===volShape);
+  for(const [k] of sh.dims){ if(!(volVals[k]>0)) return null; }   // すべての寸法が正の数のときだけ計算
+  return sh.calc(volVals);
+}
+function volFmt(n){ if(!isFinite(n)) return '—'; return Number(n.toPrecision(6)).toLocaleString('en-US',{maximumFractionDigits:6}); }
+function volToLiters(v,unit){ const cm=unit==='mm'?0.1:(unit==='m'?100:1); return v*cm*cm*cm/1000; }   // 1L = 1000cm³
+function updateVolResult(){
+  const v=computeVol();
+  const valEl=document.getElementById('volResultVal'), subEl=document.getElementById('volResultSub');
+  const btn=document.getElementById('volInsertBtn');
+  if(v==null){ valEl.textContent='—'; subEl.textContent='寸法を入力すると容積が出ます'; if(btn) btn.disabled=true; return; }
+  valEl.textContent=`${volFmt(v)} ${volUnit}³`;
+  subEl.textContent=`＝ ${volFmt(volToLiters(v,volUnit))} L（リットル）`;
+  if(btn) btn.disabled=false;
+}
+function volInsertToCell(){
+  const v=computeVol(); if(v==null){ toast('寸法を入力してください'); return; }
+  if(selR<0||selC<0){ toast('入れるセルを選んでください'); return; }
+  if(isLockedCell(selR,selC)){ flashLocked(selR,selC); return; }
+  setCellVal(selR,selC, String(Number(v.toPrecision(6))));   // 選択中の単位での容積（unit³）を入れる
+  toast('容積をセルに入れました');
+  closeVolume();
 }
 /* 登録ボタンから実行するとき、指の操作（ユーザー操作）が生きているうちに呼ばないと
    開かない機能（ネイティブのファイル選択）。これらは遅延させずその場で実行する。
@@ -8219,7 +8361,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v206';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v207';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
