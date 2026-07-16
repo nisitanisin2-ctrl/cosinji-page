@@ -800,6 +800,9 @@ body.resizer-off .numpad-resizer { display: none !important; }
 }
 .regpick-cellpick:hover { background: rgba(33,115,70,0.2); }
 .regpick-cellpick:active { opacity: 0.7; }
+/* リンク（URL）登録セクション */
+.regpick-link { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.regpick-link .regpick-save { align-self: flex-start; padding: 9px 16px; }
 /* 登録の書式セクション（文字色・背景・サイズ・装飾） */
 .regpick-fmt { margin: 0 0 10px; }
 .regfmt-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -5383,9 +5386,10 @@ function loadUserKeys(){
   try{
     const a=JSON.parse(localStorage.getItem('excalc_userkeys'));
     if(Array.isArray(a)) userKeys=a.map(x=>{
-      if(x && typeof x==='object' && (x.type==='text'||x.type==='action')){
+      if(x && typeof x==='object' && (x.type==='text'||x.type==='action'||x.type==='link')){
         const o={type:x.type, value:String(x.value==null?'':x.value)};
         if(x.type==='text' && x.fmt && typeof x.fmt==='object') o.fmt={...x.fmt};   // 文字の書式（色・背景・サイズ・装飾）
+        if(x.type==='link' && x.label!=null) o.label=String(x.label);               // リンク（URL）のボタン表示名
         return o;
       }
       return {type:'text', value:String(x==null?'':x)};   // 旧形式（文字列のみ保存）からの移行
@@ -5406,6 +5410,10 @@ function renderUserKeys(){
       b.textContent = kf ? kf.label : (act ? act.icon : '？');
       b.classList.remove('empty'); b.classList.add('action');
       b.title = kf ? kf.label+'（長押しで変更）' : (act ? act.name+'（長押しで変更）' : '不明な機能です（長押しで登録し直してください）');
+    } else if(e.type==='link'){                              // リンク（URL）を開くボタン
+      b.textContent = e.label || '🔗';
+      b.classList.remove('empty'); b.classList.add('action');
+      b.title = (e.label?e.label:'リンク')+' を開く（長押しで変更）';
     } else {
       const v=e.value||'';
       b.textContent = v!=='' ? v : '＋';
@@ -5424,10 +5432,18 @@ function renderUserKeys(){
   });
   if(typeof fitNumpadLabels==='function') fitNumpadLabels();
 }
+/* 登録されたリンク（URL）を新しいタブ／ウィンドウで開く。スキームが無ければ https を補う。 */
+function openRegLink(url){
+  let u=String(url||'').trim(); if(!u) return;
+  if(!/^[a-z][a-z0-9+.-]*:/i.test(u) && !u.startsWith('/')) u='https://'+u;   // 例: example.com → https://example.com
+  try{ const w=window.open(u,'_blank','noopener'); if(!w) location.href=u; }   // ポップアップが塞がれたら同じ画面で開く
+  catch(_){ try{ location.href=u; }catch(__){} }
+}
 /* 登録内容を実行／入力（数式中は数式へ追記） */
 function userKey(i){
   const e=regEntry(i);
   if(regIsEmpty(i)){ registerUserKey(i); return; }   // 未登録はタップで登録
+  if(e.type==='link'){ openRegLink(e.value); return; }   // リンクを開く
   if(e.type==='action'){
     if(KEY_FUNCS[e.value]){ KEY_FUNCS[e.value].run(); return; }   // テンキー長押しと同じ機能
     const fn=REG_ACTION_FN[e.value];                             // 旧形式（互換）
@@ -5458,6 +5474,7 @@ function userKey(i){
 let regPickIndex=-1;
 let regPickFmt={};          // 文字登録に付ける書式（色・背景・サイズ・装飾）
 let regFmtOpen=false;       // 書式セクションの開閉
+let regLinkOpen=false;      // リンク（URL）登録セクションの開閉
 let regMoveFrom=-1;         // 登録ボタンの移動元（-1=移動モードでない）
 function regPickStartMove(){
   regMoveFrom=regPickIndex;
@@ -5490,6 +5507,8 @@ function renderRegPickBody(){
   const cur=regEntry(regPickIndex);
   const textVal = cur.type==='text' ? cur.value : '';
   const actionsOpen = cur.type==='action';   // 便利機能が登録済みなら最初から開いて見せる
+  const linkOpen = cur.type==='link';        // リンクが登録済みなら最初から開いて見せる
+  regLinkOpen = linkOpen;
   regPickFmt = (cur.type==='text' && cur.fmt) ? {...cur.fmt} : {};   // 書式の初期値
   regFmtOpen = Object.keys(regPickFmt).length>0;
   let html=`
@@ -5499,6 +5518,15 @@ function renderRegPickBody(){
     </div>
     <div class="regpick-hint">空にして「登録」を押すと、このボタンの登録を解除します</div>
     <button class="regpick-cellpick" onclick="regCellPickStart()">📋 セルから選ぶ（内容＋書式を取り込む）</button>
+    <button class="regpick-toggle" onclick="toggleRegPickLink()">
+      <span>🔗 リンク（URL）を登録</span><span id="regLinkArrow">${linkOpen?'▲':'▼'}</span>
+    </button>
+    <div class="regpick-link" id="regPickLinkBox" style="display:${linkOpen?'block':'none'}">
+      <input type="text" id="regLinkUrl" class="regpick-input" placeholder="URL（例：https://…）" value="${linkOpen?escHtml(cur.value):''}">
+      <input type="text" id="regLinkLabel" class="regpick-input" placeholder="ボタンの表示名（省略可）" value="${linkOpen?escHtml(cur.label||''):''}">
+      <button class="regpick-save" onclick="regPickLinkSave()">リンクを登録</button>
+      <div class="regpick-hint" style="margin:2px 0 0">タップするとそのリンクを新しい画面で開きます（写真から容積を出すアプリ等）。</div>
+    </div>
     <button class="regpick-toggle" onclick="toggleRegPickFmt()">
       <span>🎨 書式（文字色・背景・サイズ・装飾）</span><span id="regFmtArrow">${regFmtOpen?'▲':'▼'}</span>
     </button>
@@ -5566,6 +5594,23 @@ function regFmtBg(c){ if(c==='') delete regPickFmt.bg; else regPickFmt.bg=c; ren
 function regFmtSize(delta){ let i=(regPickFmt.size!=null)?FMT_SIZES.indexOf(regPickFmt.size):1; if(i<0)i=1; i=Math.max(0,Math.min(FMT_SIZES.length-1,i+delta)); if(FMT_SIZES[i]===1) delete regPickFmt.size; else regPickFmt.size=FMT_SIZES[i]; renderRegFmtSection(); }
 function regFmtToggle(prop){ if(regPickFmt[prop]) delete regPickFmt[prop]; else regPickFmt[prop]=true; renderRegFmtSection(); }
 function regFmtClear(){ regPickFmt={}; renderRegFmtSection(); }
+function toggleRegPickLink(){
+  regLinkOpen=!regLinkOpen;
+  const box=document.getElementById('regPickLinkBox'), arr=document.getElementById('regLinkArrow');
+  if(box){ box.style.display=regLinkOpen?'block':'none'; if(regLinkOpen){ const u=document.getElementById('regLinkUrl'); if(u) requestAnimationFrame(()=>u.focus()); } }
+  if(arr) arr.textContent=regLinkOpen?'▲':'▼';
+}
+function regPickLinkSave(){
+  const i=regPickIndex;
+  let url=((document.getElementById('regLinkUrl')||{}).value||'').trim();
+  if(url===''){ toast('URLを入力してください'); return; }
+  if(!/^[a-z][a-z0-9+.-]*:/i.test(url) && !url.startsWith('/')) url='https://'+url;   // スキーム補完
+  let label=((document.getElementById('regLinkLabel')||{}).value||'').trim();
+  if(!label){ try{ label='🔗'+new URL(url).hostname.replace(/^www\./,''); }catch(_){ label='🔗リンク'; } }
+  userKeys[i]={type:'link', value:url, label};
+  saveUserKeys(); renderUserKeys(); closeRegPick();
+  toast('リンクを登録しました');
+}
 function toggleRegPickActions(){
   const list=document.getElementById('regPickActions');
   const arrow=document.getElementById('regPickArrow');
@@ -8174,7 +8219,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v205';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v206';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
