@@ -1118,8 +1118,17 @@ body.dark .vol-parts-total { color: #7fd6a3; }
 .pm-shootrow { position: absolute; left: 8px; bottom: 8px; display: flex; gap: 8px; }
 .pm-shoot { padding: 8px 12px; border: none; border-radius: 7px; background: rgba(33,115,70,0.92); color: #fff; font-size: 13.5px; font-weight: bold; cursor: pointer; touch-action: manipulation; }
 .pm-zoomreset { position: absolute; right: 8px; top: 8px; padding: 5px 10px; border: none; border-radius: 6px; background: rgba(0,0,0,0.6); color: #fff; font-size: 12px; cursor: pointer; touch-action: manipulation; }
-.pm-memo { flex: 1 1 50%; min-height: 80px; resize: none; padding: 10px; font-size: 15px; line-height: 1.5;
-  border: 1px solid var(--save-item-border); border-radius: 8px; background: var(--cell-bg, #fff); color: var(--text); }
+.pm-memo { flex: 1 1 50%; min-height: 80px; overflow-y: auto; padding: 10px; font-size: 15px; line-height: 1.5;
+  border: 1px solid var(--save-item-border); border-radius: 8px; background: var(--cell-bg, #fff); color: var(--text);
+  -webkit-user-modify: read-write; word-break: break-word; }
+.pm-memo:empty::before { content: attr(data-ph); color: var(--text-light); pointer-events: none; }
+/* 写真メモの文字ツール（色・大きさ。選択した部分に適用） */
+.pm-tools { flex-shrink: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.pm-tool-lb { font-size: 11.5px; font-weight: bold; color: var(--text-light); margin-left: 2px; }
+.pm-color { width: 26px; height: 26px; border: 2px solid var(--save-item-border); border-radius: 50%; cursor: pointer; touch-action: manipulation; padding: 0; }
+.pm-color:active { transform: scale(1.15); }
+.pm-sizebtn { padding: 4px 9px; border: 1px solid var(--save-item-border); border-radius: 6px;
+  background: var(--save-item-bg); color: var(--text); font-weight: bold; cursor: pointer; touch-action: manipulation; }
 .pm-actions { flex-shrink: 0; display: flex; gap: 8px; }
 .pm-save, .pm-shot { flex: 1; padding: 13px; border: none; border-radius: 8px; font-size: 14.5px; font-weight: bold; cursor: pointer; touch-action: manipulation; }
 .pm-save { background: #217346; color: #fff; }
@@ -2389,7 +2398,21 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         </div>
         <button class="pm-zoomreset" id="pmZoomReset" onclick="pmResetZoom()" style="display:none">⤢ 全体</button>
       </div>
-      <textarea class="pm-memo" id="pmMemo" placeholder="メモを入力…" oninput="pmMarkDirty()" onkeydown="event.stopPropagation()"></textarea>
+      <div class="pm-tools">
+        <span class="pm-tool-lb">色</span>
+        <button class="pm-color" style="background:var(--text,#333)" title="標準" onpointerdown="event.preventDefault()" onclick="pmColor('')"></button>
+        <button class="pm-color" style="background:#e53935" onpointerdown="event.preventDefault()" onclick="pmColor('#e53935')"></button>
+        <button class="pm-color" style="background:#1e88e5" onpointerdown="event.preventDefault()" onclick="pmColor('#1e88e5')"></button>
+        <button class="pm-color" style="background:#2e7d32" onpointerdown="event.preventDefault()" onclick="pmColor('#2e7d32')"></button>
+        <button class="pm-color" style="background:#fb8c00" onpointerdown="event.preventDefault()" onclick="pmColor('#fb8c00')"></button>
+        <button class="pm-color" style="background:#8e24aa" onpointerdown="event.preventDefault()" onclick="pmColor('#8e24aa')"></button>
+        <span class="pm-tool-lb">大きさ</span>
+        <button class="pm-sizebtn" style="font-size:11px" onpointerdown="event.preventDefault()" onclick="pmSizeCmd(2)">小</button>
+        <button class="pm-sizebtn" style="font-size:13px" onpointerdown="event.preventDefault()" onclick="pmSizeCmd(3)">標準</button>
+        <button class="pm-sizebtn" style="font-size:15px" onpointerdown="event.preventDefault()" onclick="pmSizeCmd(5)">大</button>
+        <button class="pm-sizebtn" style="font-size:17px" onpointerdown="event.preventDefault()" onclick="pmSizeCmd(7)">特大</button>
+      </div>
+      <div class="pm-memo" id="pmMemo" contenteditable="true" data-ph="メモを入力…（文字を選んで色・大きさを変えられます）" oninput="pmMarkDirty()" onkeydown="event.stopPropagation()"></div>
       <div class="pm-actions">
         <button class="pm-save" onclick="pmSave()">💾 保存</button>
         <button class="pm-shot" onclick="pmScreenshot()">📸 スクリーンショット</button>
@@ -5068,8 +5091,8 @@ const KEY_FUNCS={
   a_numpadhide:{g:'設定・機能',label:'⌨隠す',run:()=>toggleNumpad()},
   a_today:{g:'設定・機能',label:'📅今日',run:()=>insertTodayDate()},
   a_calendar:{g:'設定・機能',label:'📅日付',run:()=>insertDatePick()},
-  a_volume:{g:'設定・機能',label:'📷容積',run:()=>openVolume()},
-  a_photomemo:{g:'設定・機能',label:'📝写真メモ',run:()=>openPhotoMemo()},
+  a_volume:{g:'設定・機能',label:'📷容積',short:'容積',run:()=>openVolume()},         // short＝キー上のコンパクト表示
+  a_photomemo:{g:'設定・機能',label:'📝写真メモ',short:'写メモ',run:()=>openPhotoMemo()},
   a_lookup:{g:'設定・機能',label:'🔍照合',run:()=>openLookupDlg()},
   a_find:{g:'設定・機能',label:'🔎検索',run:()=>openFindDlg()},
   a_modenormal:{g:'設定・機能',label:'▦通常',run:()=>switchMode('normal')},
@@ -5717,7 +5740,7 @@ let pmPointers=new Map(), pmPinch=null, pmPanLast=null;
 function pmCanvasEl(){ return document.getElementById('pmCanvas'); }
 function openPhotoMemo(){
   const sheet=volCurrentSheet(); const saved=sheet&&sheet.photoMemo;
-  const liveEmpty=!pmImg && !(document.getElementById('pmMemo').value||'').trim();
+  const liveEmpty=!pmImg && !pmMemoText().trim();
   document.getElementById('photoMemoOverlay').classList.add('open');
   armBackGuard(()=>document.getElementById('photoMemoOverlay').classList.remove('open'));
   requestAnimationFrame(()=>{
@@ -5806,16 +5829,33 @@ function pmCaptureData(){
   if(pmImg){ const iw=pmImg.naturalWidth, ih=pmImg.naturalHeight; const s=Math.min(1, 1000/Math.max(iw,ih));
     const oc=document.createElement('canvas'); oc.width=Math.max(1,Math.round(iw*s)); oc.height=Math.max(1,Math.round(ih*s));
     oc.getContext('2d').drawImage(pmImg,0,0,oc.width,oc.height); try{ photo=oc.toDataURL('image/jpeg',0.6); }catch(_){ photo=null; } }
-  return { photo, memo: document.getElementById('pmMemo').value };
+  return { photo, memo: pmMemoText(), memoHtml: document.getElementById('pmMemo').innerHTML };
 }
 function pmRestore(m){
-  document.getElementById('pmMemo').value=m.memo||'';
+  const ed=document.getElementById('pmMemo');
+  if(m.memoHtml!=null) ed.innerHTML=m.memoHtml;       // 色・大きさ付きメモ
+  else ed.textContent=m.memo||'';                     // 旧形式（プレーン文字）
   if(m.photo){ const img=new Image(); img.onload=()=>{ pmImg=img; pmSetupCanvas(); pmFitView(); pmRedraw(); }; img.onerror=()=>{ pmImg=null; pmRedraw(); }; img.src=m.photo; }
   else { pmImg=null; pmRedraw(); }
 }
+/* メモ欄（contenteditable）のプレーン文字を取り出す */
+function pmMemoText(){ const ed=document.getElementById('pmMemo'); return ed ? (ed.innerText||'') : ''; }
+/* 選択した部分（または以後の入力）の文字色を変える。空文字＝標準色 */
+function pmColor(c){
+  const ed=document.getElementById('pmMemo'); if(!ed) return; ed.focus();
+  const col = c || getComputedStyle(ed).color;   // 標準＝メモ欄の既定色
+  try{ document.execCommand('styleWithCSS', false, true); document.execCommand('foreColor', false, col); }catch(_){}
+  pmMarkDirty();
+}
+/* 選択した部分（または以後の入力）の文字の大きさを変える（1〜7） */
+function pmSizeCmd(n){
+  const ed=document.getElementById('pmMemo'); if(!ed) return; ed.focus();
+  try{ document.execCommand('fontSize', false, String(n)); }catch(_){}
+  pmMarkDirty();
+}
 function pmSave(){
   const sheet=volCurrentSheet(); if(!sheet){ toast('シートがありません'); return; }
-  const memo=document.getElementById('pmMemo').value;
+  const memo=pmMemoText();
   if(!pmImg && !memo.trim()){ toast('写真かメモを入れてください'); return; }
   const m=pmCaptureData(); sheet.photoMemo=m;
   if(!saveSheets()){
@@ -5838,30 +5878,78 @@ function pmUpdateSavedBadge(){
   const cb=document.getElementById('pmClearBtn'); if(cb) cb.style.display=has?'inline-block':'none';
   const sv=document.querySelector('#photoMemoOverlay .pm-save'); if(sv) sv.textContent=has?'💾 更新':'💾 保存';
 }
-/* 写真＋メモを1枚の画像にして書き出す（スクリーンショット） */
+/* メモ（contenteditable）を行ごとの「文字の連なり」（文字・色・大きさ・太字）に分解する */
+function pmMemoLines(){
+  const root=document.getElementById('pmMemo');
+  const lines=[[]];
+  const push=()=>lines.push([]);
+  (function walk(node){
+    node.childNodes.forEach(n=>{
+      if(n.nodeType===3){
+        const t=n.textContent; if(!t) return;
+        const cs=getComputedStyle(n.parentElement||root);
+        lines[lines.length-1].push({ text:t, color:cs.color, size:parseFloat(cs.fontSize)||15, bold:(parseInt(cs.fontWeight,10)||400)>=600 });
+      } else if(n.nodeType===1){
+        if(n.tagName==='BR'){ if(n.nextSibling || n.parentElement===root) push(); return; }   // 行末のBR（空行の器）は行に数えない
+        const isBlock=/^(DIV|P)$/.test(n.tagName);
+        if(isBlock && lines[lines.length-1].length) push();
+        walk(n);
+        if(isBlock) push();
+      }
+    });
+  })(root);
+  while(lines.length && lines[lines.length-1].length===0) lines.pop();   // 末尾の空行を除去
+  return lines;
+}
+/* 白背景で見えない薄い色は濃い色に置き換える（ダークモードの既定色対策） */
+function pmShotColor(col){
+  const m=/rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(col||'');
+  if(!m) return col||'#222222';
+  const lum=(0.299*+m[1]+0.587*+m[2]+0.114*+m[3])/255;
+  return lum>0.72 ? '#222222' : col;
+}
+/* 写真＋メモを1枚の画像にして書き出す（スクリーンショット。色・大きさも反映） */
 function pmScreenshot(){
-  const memo=(document.getElementById('pmMemo').value||'');
-  if(!pmImg && !memo.trim()){ toast('写真かメモを入れてください'); return; }
-  const W=1000, pad=28, lineH=26;
+  if(!pmImg && !pmMemoText().trim()){ toast('写真かメモを入れてください'); return; }
+  const W=1000, pad=28;
+  const FSCALE=18/15;   // 画面のメモ（基準15px）→ 出力（基準18px）
   let photoH=0, iw=0, ih=0;
   if(pmImg){ iw=pmImg.naturalWidth; ih=pmImg.naturalHeight; photoH=Math.round(W*ih/iw); }
-  const tmp=document.createElement('canvas').getContext('2d'); tmp.font='18px sans-serif';
-  const maxW=W-pad*2, lines=[];
-  if(memo.trim()){
-    memo.split('\n').forEach(par=>{
-      if(par===''){ lines.push(''); return; }
-      let cur='';
-      for(const ch of par){ if(tmp.measureText(cur+ch).width>maxW && cur){ lines.push(cur); cur=ch; } else cur+=ch; }
-      lines.push(cur);
+  const memoLines=pmMemoLines();
+  // 1パス目：折り返しを反映した描画行（各行の高さ＝その行で一番大きい文字基準）を作る
+  const tmp=document.createElement('canvas').getContext('2d');
+  const maxW=W-pad*2;
+  const drawLines=[];   // [{h, parts:[{text,x,color,font,size}]}]
+  memoLines.forEach(runs=>{
+    if(!runs.length){ drawLines.push({h:26, parts:[]}); return; }
+    let cur={parts:[], h:0}, x=0;
+    const flush=()=>{ cur.h=Math.max(26, cur.h); drawLines.push(cur); cur={parts:[], h:0}; x=0; };
+    runs.forEach(run=>{
+      const size=Math.round(run.size*FSCALE);
+      const font=`${run.bold?'bold ':''}${size}px sans-serif`;
+      tmp.font=font;
+      let buf='';
+      const put=()=>{ if(buf){ cur.parts.push({text:buf, x, color:pmShotColor(run.color), font, size}); x+=tmp.measureText(buf).width; cur.h=Math.max(cur.h, Math.round(size*1.45)); buf=''; } };
+      for(const ch of run.text){
+        if(x+tmp.measureText(buf+ch).width>maxW && (buf||cur.parts.length)){ put(); flush(); tmp.font=font; }
+        buf+=ch;
+      }
+      put();
     });
-  }
-  const memoH = lines.length ? (pad + lines.length*lineH + pad) : 0;
+    if(cur.parts.length||!drawLines.length) flush();
+  });
+  const memoH = drawLines.length ? (pad + drawLines.reduce((s,l)=>s+l.h,0) + pad) : 0;
   const H=Math.max(1, photoH + memoH);
   const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
   const ctx=cv.getContext('2d'); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,W,H);
   if(pmImg) ctx.drawImage(pmImg,0,0,iw,ih, 0,0,W,photoH);
-  if(memoH){ ctx.fillStyle='#222222'; ctx.font='18px sans-serif'; ctx.textBaseline='top';
-    let y=photoH+pad; lines.forEach(ln=>{ ctx.fillText(ln, pad, y); y+=lineH; }); }
+  ctx.textBaseline='alphabetic';
+  let y=photoH+pad;
+  drawLines.forEach(l=>{
+    const base=y + l.h - Math.round(l.h*0.28);   // 行内で下寄せ気味に揃える
+    l.parts.forEach(p=>{ ctx.font=p.font; ctx.fillStyle=p.color; ctx.fillText(p.text, pad+p.x, base); });
+    y+=l.h;
+  });
   cv.toBlob(blob=>{
     if(!blob){ toast('書き出せませんでした'); return; }
     const url=URL.createObjectURL(blob);
@@ -5882,7 +5970,7 @@ function applyKeyAssign(){
   document.querySelectorAll('#numpadPage1 .btn[data-key], #numpadPage2 .btn[data-key], #numpadPageSci .btn[data-key]').forEach(b=>{
     if(!('origLabel' in b.dataset)) b.dataset.origLabel=b.textContent;
     const fid=keyAssign[b.dataset.key];
-    if(fid && KEY_FUNCS[fid]){ b.textContent=KEY_FUNCS[fid].label; b.classList.add('key-assigned'); }
+    if(fid && KEY_FUNCS[fid]){ b.textContent=KEY_FUNCS[fid].short||KEY_FUNCS[fid].label; b.classList.add('key-assigned'); }
     else { b.textContent=b.dataset.origLabel; b.classList.remove('key-assigned'); }
   });
   if(typeof fitNumpadLabels==='function') fitNumpadLabels();
@@ -6316,7 +6404,7 @@ function renderUserKeys(){
     if(e.type==='action'){
       const kf=KEY_FUNCS[e.value];                           // テンキー長押しと同じ機能
       const act=!kf?REG_ACTIONS.find(a=>a.id===e.value):null; // 旧形式（互換）
-      b.textContent = kf ? kf.label : (act ? act.icon : '？');
+      b.textContent = kf ? (kf.short||kf.label) : (act ? act.icon : '？');
       b.classList.remove('empty'); b.classList.add('action');
       b.title = kf ? kf.label+'（長押しで変更）' : (act ? act.name+'（長押しで変更）' : '不明な機能です（長押しで登録し直してください）');
     } else if(e.type==='link'){                              // リンク（URL）を開くボタン
@@ -9133,7 +9221,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v218';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v219';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
