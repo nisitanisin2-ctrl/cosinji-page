@@ -1147,7 +1147,7 @@ body.dark .vol-parts-total { color: #7fd6a3; }
 .pm-shootrow { position: absolute; left: 8px; bottom: 8px; display: flex; gap: 8px; }
 .pm-shoot { padding: 8px 12px; border: none; border-radius: 7px; background: rgba(33,115,70,0.92); color: #fff; font-size: 13.5px; font-weight: bold; cursor: pointer; touch-action: manipulation; }
 .pm-zoomreset { position: absolute; right: 8px; top: 8px; padding: 5px 10px; border: none; border-radius: 6px; background: rgba(0,0,0,0.6); color: #fff; font-size: 12px; cursor: pointer; touch-action: manipulation; }
-.pm-memo { flex: 0 1 36%; min-height: 70px; overflow-y: auto; padding: 9px 10px; font-size: 28px; line-height: 1.35;
+.pm-memo { flex: 0 1 36%; min-height: 70px; overflow-y: auto; padding: 9px 10px; font-size: 28.8px; line-height: 1.35;   /* 既定48px×表示0.6倍 */
   border: 1px solid var(--save-item-border); border-radius: 8px; background: var(--cell-bg, #fff); color: var(--text);
   -webkit-user-modify: read-write; word-break: break-word; }
 .pm-memo:empty::before { content: attr(data-ph); color: var(--text-light); pointer-events: none; font-size: 15px; }
@@ -6030,15 +6030,19 @@ function pmColor(c){
   try{ document.execCommand('styleWithCSS', false, true); document.execCommand('foreColor', false, col); }catch(_){}
   pmMarkDirty();
 }
-/* 文字サイズの段階（既定は28px。そこから上下できる） */
+/* 文字サイズの段階（既定は48。そこから上下できる） */
 const PM_SIZES=[13,17,22,28,36,48,64,80,96];
-/* 選択位置の文字サイズ(px)を取得 */
+/* メモ欄の縮小表示率：サイズの数値（既定48）はそのままに、入力欄では0.6倍で小さめに表示する。
+   スクリーンショットには本来のサイズで書き出される。 */
+const PM_VIEW=0.6;
+/* 選択位置の文字サイズ（本来のpx＝表示pxを0.6で割った値）を取得 */
 function pmSelSize(){
   const ed=document.getElementById('pmMemo');
-  const s=getSelection(); if(!s || !s.rangeCount) return 28;
+  const s=getSelection(); if(!s || !s.rangeCount) return 48;
   let n=s.anchorNode; if(n && n.nodeType===3) n=n.parentElement;
   if(!n || !ed.contains(n)) n=ed;
-  return parseFloat(getComputedStyle(n).fontSize)||28;
+  const disp=parseFloat(getComputedStyle(n).fontSize);
+  return disp ? disp/PM_VIEW : 48;
 }
 /* ツールバーの「今の文字サイズ」表示を更新 */
 function pmUpdateSizeNow(px){
@@ -6063,10 +6067,10 @@ function pmSizeStep(dir){
 function pmSetTypingSize(px){
   const s=getSelection(); if(!s || !s.rangeCount) return;
   let n=s.anchorNode; if(n && n.nodeType===3) n=n.parentElement;
-  if(n && n.dataset && n.dataset.pmsize==='1'){ n.style.fontSize=px+'px'; pmMarkDirty(); return; }   // 直前の指定を更新
+  if(n && n.dataset && n.dataset.pmsize==='1'){ n.style.fontSize=(px*PM_VIEW)+'px'; pmMarkDirty(); return; }   // 直前の指定を更新
   const r=s.getRangeAt(0);
   const span=document.createElement('span');
-  span.style.fontSize=px+'px'; span.dataset.pmsize='1'; span.textContent='\u200B';
+  span.style.fontSize=(px*PM_VIEW)+'px'; span.dataset.pmsize='1'; span.textContent='\u200B';
   r.insertNode(span);
   const nr=document.createRange(); nr.setStart(span.firstChild,1); nr.collapse(true);
   s.removeAllRanges(); s.addRange(nr);
@@ -6099,7 +6103,7 @@ function pmApplySizePx(px){
     ed.querySelectorAll('font[size="7"]').forEach(f=>f.setAttribute('data-old','1'));   // 既存のものは触らない
     document.execCommand('styleWithCSS', false, false);
     document.execCommand('fontSize', false, '7');
-    ed.querySelectorAll('font[size="7"]:not([data-old])').forEach(f=>{ f.removeAttribute('size'); f.style.fontSize=px+'px'; });
+    ed.querySelectorAll('font[size="7"]:not([data-old])').forEach(f=>{ f.removeAttribute('size'); f.style.fontSize=(px*PM_VIEW)+'px'; });
     ed.querySelectorAll('font[data-old]').forEach(f=>f.removeAttribute('data-old'));
     document.execCommand('styleWithCSS', false, true);
   }catch(_){}
@@ -6160,7 +6164,7 @@ function pmMemoLines(){
         const t=n.textContent; if(!t) return;
         const p=n.parentElement||root;
         const cs=getComputedStyle(p);
-        lines[lines.length-1].push({ text:t, color:cs.color, size:parseFloat(cs.fontSize)||28, fam:cs.fontFamily||'sans-serif',
+        lines[lines.length-1].push({ text:t, color:cs.color, size:(parseFloat(cs.fontSize)||28.8)/PM_VIEW, fam:cs.fontFamily||'sans-serif',
           bold:(parseInt(cs.fontWeight,10)||400)>=600, italic:cs.fontStyle==='italic', underline:hasUnderline(p) });
       } else if(n.nodeType===1){
         if(n.tagName==='BR'){ if(n.nextSibling || n.parentElement===root) push(); return; }   // 行末のBR（空行の器）は行に数えない
@@ -9604,7 +9608,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v230';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v231';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
