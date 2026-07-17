@@ -1130,10 +1130,10 @@ body.dark .vol-parts-total { color: #7fd6a3; }
 .pm-shootrow { position: absolute; left: 8px; bottom: 8px; display: flex; gap: 8px; }
 .pm-shoot { padding: 8px 12px; border: none; border-radius: 7px; background: rgba(33,115,70,0.92); color: #fff; font-size: 13.5px; font-weight: bold; cursor: pointer; touch-action: manipulation; }
 .pm-zoomreset { position: absolute; right: 8px; top: 8px; padding: 5px 10px; border: none; border-radius: 6px; background: rgba(0,0,0,0.6); color: #fff; font-size: 12px; cursor: pointer; touch-action: manipulation; }
-.pm-memo { flex: 0 1 36%; min-height: 70px; overflow-y: auto; padding: 9px 10px; font-size: 17px; line-height: 1.5;
+.pm-memo { flex: 0 1 36%; min-height: 70px; overflow-y: auto; padding: 9px 10px; font-size: 48px; line-height: 1.35;
   border: 1px solid var(--save-item-border); border-radius: 8px; background: var(--cell-bg, #fff); color: var(--text);
   -webkit-user-modify: read-write; word-break: break-word; }
-.pm-memo:empty::before { content: attr(data-ph); color: var(--text-light); pointer-events: none; }
+.pm-memo:empty::before { content: attr(data-ph); color: var(--text-light); pointer-events: none; font-size: 15px; }
 /* 写真メモの文字ツール（色・大きさ。選択した部分に適用） */
 .pm-tools { flex-shrink: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .pm-tool-lb { font-size: 11.5px; font-weight: bold; color: var(--text-light); margin-left: 2px; }
@@ -2411,7 +2411,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         </div>
         <button class="pm-zoomreset" id="pmZoomReset" onclick="pmResetZoom()" style="display:none">⤢ 全体</button>
       </div>
-      <div class="pm-memo" id="pmMemo" contenteditable="true" data-ph="メモを入力…（文字を選んで下のボタンで色・大きさ・太字等を変えられます）" oninput="pmMarkDirty()" onkeydown="event.stopPropagation()"></div>
+      <div class="pm-memo" id="pmMemo" contenteditable="true" data-ph="メモを入力…（文字を選んで下のボタンで色・大きさ・字体・太字等を変えられます）" oninput="pmMarkDirty()" onkeydown="event.stopPropagation()"></div>
       <!-- 文字ツールはメモの下に置く（選択時に出るコピー等のメニューは選択の上側に出るため、重ならない） -->
       <div class="pm-tools">
         <span class="pm-tool-lb">色</span>
@@ -2422,10 +2422,13 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <button class="pm-color" style="background:#fb8c00" onpointerdown="event.preventDefault()" onclick="pmColor('#fb8c00')"></button>
         <button class="pm-color" style="background:#8e24aa" onpointerdown="event.preventDefault()" onclick="pmColor('#8e24aa')"></button>
         <span class="pm-tool-lb">大きさ</span>
-        <button class="pm-sizebtn" style="font-size:11px" onpointerdown="event.preventDefault()" onclick="pmSizeCmd(2)">小</button>
-        <button class="pm-sizebtn" style="font-size:13px" onpointerdown="event.preventDefault()" onclick="pmSizeCmd(3)">標準</button>
-        <button class="pm-sizebtn" style="font-size:15px" onpointerdown="event.preventDefault()" onclick="pmSizeCmd(5)">大</button>
-        <button class="pm-sizebtn" style="font-size:17px" onpointerdown="event.preventDefault()" onclick="pmSizeCmd(7)">特大</button>
+        <button class="pm-sizebtn" onpointerdown="event.preventDefault()" onclick="pmSizeStep(-1)">Ａ−</button>
+        <button class="pm-sizebtn" style="font-size:16px" onpointerdown="event.preventDefault()" onclick="pmSizeStep(1)">Ａ＋</button>
+        <span class="pm-tool-lb">字体</span>
+        <button class="pm-sizebtn" onpointerdown="event.preventDefault()" onclick="pmFont('sans-serif')">ゴシック</button>
+        <button class="pm-sizebtn" style="font-family:serif" onpointerdown="event.preventDefault()" onclick="pmFont('serif')">明朝</button>
+        <button class="pm-sizebtn" style="font-family:monospace" onpointerdown="event.preventDefault()" onclick="pmFont('monospace')">等幅</button>
+        <button class="pm-sizebtn" style="font-family:cursive" onpointerdown="event.preventDefault()" onclick="pmFont('cursive')">丸文字</button>
         <span class="pm-tool-lb">装飾</span>
         <button class="pm-sizebtn" style="font-weight:bold" onpointerdown="event.preventDefault()" onclick="pmDeco('bold')">B</button>
         <button class="pm-sizebtn" style="font-style:italic" onpointerdown="event.preventDefault()" onclick="pmDeco('italic')">I</button>
@@ -5912,10 +5915,44 @@ function pmColor(c){
   try{ document.execCommand('styleWithCSS', false, true); document.execCommand('foreColor', false, col); }catch(_){}
   pmMarkDirty();
 }
-/* 選択した部分（または以後の入力）の文字の大きさを変える（1〜7） */
-function pmSizeCmd(n){
+/* 文字サイズの段階（既定は48px＝旧・特大。そこから上下できる） */
+const PM_SIZES=[13,17,22,28,36,48,64,80,96];
+/* 選択位置の文字サイズ(px)を取得 */
+function pmSelSize(){
+  const ed=document.getElementById('pmMemo');
+  const s=getSelection(); if(!s || !s.rangeCount) return 48;
+  let n=s.anchorNode; if(n && n.nodeType===3) n=n.parentElement;
+  if(!n || !ed.contains(n)) n=ed;
+  return parseFloat(getComputedStyle(n).fontSize)||48;
+}
+/* 選択した文字の大きさを1段階 上げる/下げる */
+function pmSizeStep(dir){
   const ed=document.getElementById('pmMemo'); if(!ed) return; ed.focus();
-  try{ document.execCommand('fontSize', false, String(n)); }catch(_){}
+  const s=getSelection();
+  if(!s || !s.rangeCount || s.isCollapsed){ toast('大きさを変える文字を選んでください'); return; }
+  const cur=pmSelSize();
+  let i=PM_SIZES.findIndex(v=>v>=cur-0.5); if(i<0) i=PM_SIZES.length-1;
+  i=Math.max(0, Math.min(PM_SIZES.length-1, i+dir));
+  pmApplySizePx(PM_SIZES[i]);
+}
+/* 選択部分に指定pxの文字サイズを適用（execCommandの上限48pxを超えられるよう
+   一旦 <font size=7> にしてから span の px 指定に置き換える） */
+function pmApplySizePx(px){
+  const ed=document.getElementById('pmMemo'); if(!ed) return;
+  try{
+    ed.querySelectorAll('font[size="7"]').forEach(f=>f.setAttribute('data-old','1'));   // 既存のものは触らない
+    document.execCommand('styleWithCSS', false, false);
+    document.execCommand('fontSize', false, '7');
+    ed.querySelectorAll('font[size="7"]:not([data-old])').forEach(f=>{ f.removeAttribute('size'); f.style.fontSize=px+'px'; });
+    ed.querySelectorAll('font[data-old]').forEach(f=>f.removeAttribute('data-old'));
+    document.execCommand('styleWithCSS', false, true);
+  }catch(_){}
+  pmMarkDirty();
+}
+/* 選択した部分（または以後の入力）の字体を変える */
+function pmFont(fam){
+  const ed=document.getElementById('pmMemo'); if(!ed) return; ed.focus();
+  try{ document.execCommand('styleWithCSS', false, true); document.execCommand('fontName', false, fam); }catch(_){}
   pmMarkDirty();
 }
 /* 選択した部分（または以後の入力）の装飾を切り替える（bold/italic/underline） */
@@ -5967,7 +6004,7 @@ function pmMemoLines(){
         const t=n.textContent; if(!t) return;
         const p=n.parentElement||root;
         const cs=getComputedStyle(p);
-        lines[lines.length-1].push({ text:t, color:cs.color, size:parseFloat(cs.fontSize)||15,
+        lines[lines.length-1].push({ text:t, color:cs.color, size:parseFloat(cs.fontSize)||48, fam:cs.fontFamily||'sans-serif',
           bold:(parseInt(cs.fontWeight,10)||400)>=600, italic:cs.fontStyle==='italic', underline:hasUnderline(p) });
       } else if(n.nodeType===1){
         if(n.tagName==='BR'){ if(n.nextSibling || n.parentElement===root) push(); return; }   // 行末のBR（空行の器）は行に数えない
@@ -6007,7 +6044,7 @@ async function pmScreenshot(){
     const flush=()=>{ cur.h=Math.max(26, cur.h); drawLines.push(cur); cur={parts:[], h:0}; x=0; };
     runs.forEach(run=>{
       const size=Math.round(run.size*FSCALE);
-      const font=`${run.italic?'italic ':''}${run.bold?'bold ':''}${size}px sans-serif`;
+      const font=`${run.italic?'italic ':''}${run.bold?'bold ':''}${size}px ${run.fam||'sans-serif'}`;
       tmp.font=font;
       let buf='';
       const put=()=>{ if(buf){ cur.parts.push({text:buf, x, color:pmShotColor(run.color), font, size, und:!!run.underline}); x+=tmp.measureText(buf).width; cur.h=Math.max(cur.h, Math.round(size*1.45)); buf=''; } };
@@ -9336,7 +9373,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v225';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v226';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
