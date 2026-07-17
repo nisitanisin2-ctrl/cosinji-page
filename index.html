@@ -2411,6 +2411,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         </div>
         <button class="pm-zoomreset" id="pmZoomReset" onclick="pmResetZoom()" style="display:none">⤢ 全体</button>
       </div>
+      <div class="pm-memo" id="pmMemo" contenteditable="true" data-ph="メモを入力…（文字を選んで下のボタンで色・大きさ・太字等を変えられます）" oninput="pmMarkDirty()" onkeydown="event.stopPropagation()"></div>
+      <!-- 文字ツールはメモの下に置く（選択時に出るコピー等のメニューは選択の上側に出るため、重ならない） -->
       <div class="pm-tools">
         <span class="pm-tool-lb">色</span>
         <button class="pm-color" style="background:var(--text,#333)" title="標準" onpointerdown="event.preventDefault()" onclick="pmColor('')"></button>
@@ -2429,7 +2431,6 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <button class="pm-sizebtn" style="font-style:italic" onpointerdown="event.preventDefault()" onclick="pmDeco('italic')">I</button>
         <button class="pm-sizebtn" style="text-decoration:underline" onpointerdown="event.preventDefault()" onclick="pmDeco('underline')">U</button>
       </div>
-      <div class="pm-memo" id="pmMemo" contenteditable="true" data-ph="メモを入力…（文字を選んで色・大きさ・太字等を変えられます）" oninput="pmMarkDirty()" onkeydown="event.stopPropagation()"></div>
       <div class="pm-actions">
         <button class="pm-save" onclick="pmSave()">💾 保存</button>
         <button class="pm-shot" onclick="pmScreenshot()">📸 スクリーンショット</button>
@@ -9303,7 +9304,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v222';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v223';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
