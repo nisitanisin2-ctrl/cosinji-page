@@ -2411,8 +2411,12 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <button class="pm-sizebtn" style="font-size:13px" onpointerdown="event.preventDefault()" onclick="pmSizeCmd(3)">標準</button>
         <button class="pm-sizebtn" style="font-size:15px" onpointerdown="event.preventDefault()" onclick="pmSizeCmd(5)">大</button>
         <button class="pm-sizebtn" style="font-size:17px" onpointerdown="event.preventDefault()" onclick="pmSizeCmd(7)">特大</button>
+        <span class="pm-tool-lb">装飾</span>
+        <button class="pm-sizebtn" style="font-weight:bold" onpointerdown="event.preventDefault()" onclick="pmDeco('bold')">B</button>
+        <button class="pm-sizebtn" style="font-style:italic" onpointerdown="event.preventDefault()" onclick="pmDeco('italic')">I</button>
+        <button class="pm-sizebtn" style="text-decoration:underline" onpointerdown="event.preventDefault()" onclick="pmDeco('underline')">U</button>
       </div>
-      <div class="pm-memo" id="pmMemo" contenteditable="true" data-ph="メモを入力…（文字を選んで色・大きさを変えられます）" oninput="pmMarkDirty()" onkeydown="event.stopPropagation()"></div>
+      <div class="pm-memo" id="pmMemo" contenteditable="true" data-ph="メモを入力…（文字を選んで色・大きさ・太字等を変えられます）" oninput="pmMarkDirty()" onkeydown="event.stopPropagation()"></div>
       <div class="pm-actions">
         <button class="pm-save" onclick="pmSave()">💾 保存</button>
         <button class="pm-shot" onclick="pmScreenshot()">📸 スクリーンショット</button>
@@ -5868,6 +5872,12 @@ function pmSizeCmd(n){
   try{ document.execCommand('fontSize', false, String(n)); }catch(_){}
   pmMarkDirty();
 }
+/* 選択した部分（または以後の入力）の装飾を切り替える（bold/italic/underline） */
+function pmDeco(cmd){
+  const ed=document.getElementById('pmMemo'); if(!ed) return; ed.focus();
+  try{ document.execCommand(cmd, false, null); }catch(_){}
+  pmMarkDirty();
+}
 function pmSave(){
   const sheet=volCurrentSheet(); if(!sheet){ toast('シートがありません'); return; }
   const memo=pmMemoText();
@@ -5893,17 +5903,26 @@ function pmUpdateSavedBadge(){
   const cb=document.getElementById('pmClearBtn'); if(cb) cb.style.display=has?'inline-block':'none';
   const sv=document.querySelector('#photoMemoOverlay .pm-save'); if(sv) sv.textContent=has?'💾 更新':'💾 保存';
 }
-/* メモ（contenteditable）を行ごとの「文字の連なり」（文字・色・大きさ・太字）に分解する */
+/* メモ（contenteditable）を行ごとの「文字の連なり」（文字・色・大きさ・太字・斜体・下線）に分解する */
 function pmMemoLines(){
   const root=document.getElementById('pmMemo');
   const lines=[[]];
   const push=()=>lines.push([]);
+  const hasUnderline=(el)=>{   // 下線は継承されないため祖先（<u>等）まで遡って調べる
+    for(let e=el; e && e!==root.parentElement; e=e.parentElement){
+      if(((getComputedStyle(e).textDecorationLine)||'').includes('underline')) return true;
+      if(e===root) break;
+    }
+    return false;
+  };
   (function walk(node){
     node.childNodes.forEach(n=>{
       if(n.nodeType===3){
         const t=n.textContent; if(!t) return;
-        const cs=getComputedStyle(n.parentElement||root);
-        lines[lines.length-1].push({ text:t, color:cs.color, size:parseFloat(cs.fontSize)||15, bold:(parseInt(cs.fontWeight,10)||400)>=600 });
+        const p=n.parentElement||root;
+        const cs=getComputedStyle(p);
+        lines[lines.length-1].push({ text:t, color:cs.color, size:parseFloat(cs.fontSize)||15,
+          bold:(parseInt(cs.fontWeight,10)||400)>=600, italic:cs.fontStyle==='italic', underline:hasUnderline(p) });
       } else if(n.nodeType===1){
         if(n.tagName==='BR'){ if(n.nextSibling || n.parentElement===root) push(); return; }   // 行末のBR（空行の器）は行に数えない
         const isBlock=/^(DIV|P)$/.test(n.tagName);
@@ -5942,10 +5961,10 @@ async function pmScreenshot(){
     const flush=()=>{ cur.h=Math.max(26, cur.h); drawLines.push(cur); cur={parts:[], h:0}; x=0; };
     runs.forEach(run=>{
       const size=Math.round(run.size*FSCALE);
-      const font=`${run.bold?'bold ':''}${size}px sans-serif`;
+      const font=`${run.italic?'italic ':''}${run.bold?'bold ':''}${size}px sans-serif`;
       tmp.font=font;
       let buf='';
-      const put=()=>{ if(buf){ cur.parts.push({text:buf, x, color:pmShotColor(run.color), font, size}); x+=tmp.measureText(buf).width; cur.h=Math.max(cur.h, Math.round(size*1.45)); buf=''; } };
+      const put=()=>{ if(buf){ cur.parts.push({text:buf, x, color:pmShotColor(run.color), font, size, und:!!run.underline}); x+=tmp.measureText(buf).width; cur.h=Math.max(cur.h, Math.round(size*1.45)); buf=''; } };
       for(const ch of run.text){
         if(x+tmp.measureText(buf+ch).width>maxW && (buf||cur.parts.length)){ put(); flush(); tmp.font=font; }
         buf+=ch;
@@ -5963,7 +5982,14 @@ async function pmScreenshot(){
   let y=photoH+pad;
   drawLines.forEach(l=>{
     const base=y + l.h - Math.round(l.h*0.28);   // 行内で下寄せ気味に揃える
-    l.parts.forEach(p=>{ ctx.font=p.font; ctx.fillStyle=p.color; ctx.fillText(p.text, pad+p.x, base); });
+    l.parts.forEach(p=>{
+      ctx.font=p.font; ctx.fillStyle=p.color; ctx.fillText(p.text, pad+p.x, base);
+      if(p.und){   // 下線を引く
+        const w=ctx.measureText(p.text).width;
+        ctx.strokeStyle=p.color; ctx.lineWidth=Math.max(1.5, p.size/12);
+        ctx.beginPath(); ctx.moveTo(pad+p.x, base+Math.max(3, p.size*0.14)); ctx.lineTo(pad+p.x+w, base+Math.max(3, p.size*0.14)); ctx.stroke();
+      }
+    });
     y+=l.h;
   });
   cv.toBlob(blob=>{
@@ -9237,7 +9263,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v220';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v221';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
