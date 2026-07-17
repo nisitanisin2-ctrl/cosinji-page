@@ -1137,7 +1137,12 @@ body.dark .vol-parts-total { color: #7fd6a3; }
 .vol-save-row { display: flex; gap: 8px; margin-bottom: 8px; }
 .vol-savemeasure { flex: 1; padding: 11px; border: 1px solid var(--save-item-border); border-radius: 8px; background: var(--save-item-bg); color: var(--text); font-size: 13.5px; font-weight: bold; cursor: pointer; touch-action: manipulation; }
 .vol-savemeasure:active { opacity: 0.7; }
-.vol-clearsaved { flex-shrink: 0; padding: 11px 12px; border: 1px solid var(--save-item-border); border-radius: 8px; background: transparent; color: #c0392b; font-size: 12.5px; cursor: pointer; touch-action: manipulation; }
+/* 出力プレビュー（容積計算・写真メモ共通） */
+.shotprev-modal { width: 100%; max-width: 560px; }
+.shotprev-body { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 10px; gap: 8px; }
+.shotprev-imgwrap { flex: 1; min-height: 0; overflow-y: auto; border: 1px solid var(--save-item-border); border-radius: 8px; background: var(--save-item-bg); }
+.shotprev-imgwrap img { display: block; width: 100%; height: auto; }
+.shotprev-actions { flex-shrink: 0; display: flex; gap: 8px; }
 /* 写真メモ */
 .pm-modal { width: 100%; max-width: none; height: 100%; max-height: none; border-radius: 0; }
 .pm-body { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 8px; gap: 8px; }
@@ -1163,10 +1168,8 @@ body.dark .vol-parts-total { color: #7fd6a3; }
 .pm-memo.bg-white { background: #ffffff; color: #222222; }
 .pm-memo.bg-black { background: #000000; color: #ffffff; }
 .pm-actions { flex-shrink: 0; display: flex; gap: 8px; }
-.pm-save, .pm-shot { flex: 1; padding: 13px; border: none; border-radius: 8px; font-size: 14.5px; font-weight: bold; cursor: pointer; touch-action: manipulation; }
-.pm-save { background: #217346; color: #fff; }
-.pm-shot { background: var(--save-item-bg); color: var(--text); border: 1px solid var(--save-item-border); }
-.pm-clear { flex-shrink: 0; padding: 13px 12px; border: 1px solid var(--save-item-border); border-radius: 8px; background: transparent; color: #c0392b; font-size: 12.5px; cursor: pointer; touch-action: manipulation; }
+.pm-shot { flex: 1; padding: 13px; border-radius: 8px; font-size: 14.5px; font-weight: bold; cursor: pointer; touch-action: manipulation;
+  background: var(--save-item-bg); color: var(--text); border: 1px solid var(--save-item-border); }
 /* 見出し長押しメニューのボタン（緑＝追加／赤＝削除） */
 .hm-btn {
   display: block; width: 100%; border: none; border-radius: 8px;
@@ -2431,17 +2434,16 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <div class="vol-parts" id="volParts"></div>
       <button class="vol-insert" id="volInsertBtn" onclick="volInsertToCell()" disabled>▦ この容積を選択中のセルに入れる</button>
       <div class="vol-save-row">
-        <button class="vol-savemeasure" id="volSaveMeasureBtn" onclick="volSaveMeasureToSheet()">💾 この計測をシートに保存</button>
+        <button class="vol-savemeasure" onclick="volPreview()">👁 プレビュー</button>
         <button class="vol-savemeasure" onclick="volScreenshot()">📸 スクショ</button>
         <button class="vol-savemeasure" onclick="volScreenshot(true)">📤 共有</button>
-        <button class="vol-clearsaved" id="volClearSavedBtn" onclick="volClearSavedMeasure()" style="display:none">保存を消す</button>
       </div>
-      <div class="vol-hint">写真は撮る角度や奥行きで実物と比率がずれるため、自動で入る数値は目安です。正確に出したいときは各辺の長さを直接入れてください。<b>「シートに保存」すると写真＋計測が記録と一緒に保存され、次に開いた時に復元されます</b>（記録は上の「保存」で確定）。</div>
+      <div class="vol-hint">写真は撮る角度や奥行きで実物と比率がずれるため、自動で入る数値は目安です。正確に出したいときは各辺の長さを直接入れてください。<b>「プレビュー」で仕上がりを確認してから、スクショ（画像保存）や共有ができます</b>。</div>
     </div>
   </div>
 </div>
 
-<!-- 写真メモ（上：写真＋ピンチズーム／下：メモ。保存・スクショ書き出し） -->
+<!-- 写真メモ（上：写真＋ピンチズーム／下：メモ。プレビュー・スクショ・共有） -->
 <!-- リンク集（名前付きでURLを登録し、タップで開く） -->
 <div class="modal-overlay" id="linkListOverlay" onclick="if(event.target===this)closeLinkList()">
   <div class="modal">
@@ -2508,10 +2510,27 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <button class="pm-sizebtn" style="text-decoration:underline" onpointerdown="event.preventDefault()" onclick="pmDeco('underline')">U</button>
       </div>
       <div class="pm-actions">
-        <button class="pm-save" onclick="pmSave()">💾 保存</button>
+        <button class="pm-shot" onclick="pmPreview()">👁 プレビュー</button>
         <button class="pm-shot" onclick="pmScreenshot()">📸 スクショ</button>
         <button class="pm-shot" onclick="pmScreenshot(true)">📤 共有</button>
-        <button class="pm-clear" id="pmClearBtn" onclick="pmClearSaved()" style="display:none">保存を消す</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 出力プレビュー（容積計算・写真メモ共通。仕上がりを確認してからスクショ・共有） -->
+<div class="modal-overlay" id="shotPrevOverlay" onclick="if(event.target===this)closeShotPreview()">
+  <div class="modal shotprev-modal">
+    <div class="modal-header">
+      <span>👁 プレビュー</span>
+      <button class="modal-close" onclick="closeShotPreview()">✕</button>
+    </div>
+    <div class="shotprev-body">
+      <div class="mode-hint">この内容の画像になります。よければ「スクショ」で画像として保存、「共有」でLINE・メール等へ送れます。</div>
+      <div class="shotprev-imgwrap"><img id="shotPrevImg" alt="プレビュー"></div>
+      <div class="shotprev-actions">
+        <button class="pm-shot" onclick="shotPrevDeliver(false)">📸 スクショ</button>
+        <button class="pm-shot" onclick="shotPrevDeliver(true)">📤 共有</button>
       </div>
     </div>
   </div>
@@ -5315,8 +5334,6 @@ function volEnsureState(){
   if(!volRefKey || !keys.includes(volRefKey)) volRefKey=keys[0];
   if(volActiveKey && !keys.includes(volActiveKey)) volActiveKey=null;
 }
-function volCurrentSheet(){ return (typeof sheets!=='undefined' && Array.isArray(sheets) && sheets[curSheet]) ? sheets[curSheet] : null; }
-function volLiveEmpty(){ return !volImg && !volParts.length && !Object.keys(volDimState).length && !volPolyVerts.length; }
 /* 端末の「戻る」ボタンでアプリを閉じずに、開いている画面（容積・写真メモ）だけを閉じる。
    開く時に履歴を1つ積み、戻る（popstate）でモーダルだけ閉じる。✕で閉じた時は積んだ分を消費する。
    ※アプリのアンドゥ用 `history` 配列がブラウザの history を隠すため、必ず window.history を使う。 */
@@ -5330,74 +5347,13 @@ function releaseBackGuard(){
   if(backGuardFn){ backGuardFn=null; try{ window.history.back(); }catch(_){} }
 }
 function openVolume(){
-  const sheet=volCurrentSheet();
-  if(sheet && sheet.volMeasure && volLiveEmpty()){   // 保存済みの計測があれば復元
-    volRestoreMeasure(sheet.volMeasure);
-  } else {
-    volEnsureState();
-    renderVolShapes(); renderVolUnits(); renderVolDims(); updateVolResult();
-    document.getElementById('volDrawHint').style.display = (volImg && !volIsPoly()) ? 'block' : 'none';
-  }
-  updateVolSavedBadge();
+  volEnsureState();
+  renderVolShapes(); renderVolUnits(); renderVolDims(); updateVolResult();
+  document.getElementById('volDrawHint').style.display = (volImg && !volIsPoly()) ? 'block' : 'none';
   document.getElementById('volumeOverlay').classList.add('open');
   armBackGuard(()=>document.getElementById('volumeOverlay').classList.remove('open'));
 }
 function closeVolume(){ document.getElementById('volumeOverlay').classList.remove('open'); releaseBackGuard(); }
-/* いまの計測（写真＋線・多角形・パーツ・設定）をひとまとめのデータにする。
-   写真はキャンバス基準サイズ（≤800px）のJPEGにして容量を抑える。 */
-function volCaptureMeasure(){
-  let photo=null, imgW=0, imgH=0;
-  const c=volCanvasEl();
-  if(volImg && c){
-    const oc=document.createElement('canvas'); oc.width=c.width; oc.height=c.height;
-    oc.getContext('2d').drawImage(volImg,0,0,oc.width,oc.height);
-    try{ photo=oc.toDataURL('image/jpeg', 0.6); imgW=oc.width; imgH=oc.height; }catch(_){ photo=null; }
-  }
-  return { photo, imgW, imgH, shape:volShape, unit:volUnit,
-    dims: JSON.parse(JSON.stringify(volDimState)), ref: volRefKey,
-    poly: { verts: volPolyVerts.map(v=>({x:v.x,y:v.y})), topVerts: volPolyTopVerts.map(v=>({x:v.x,y:v.y})), edit:volPolyEdit, refIdx:volPolyRefIdx, refLen:volPolyRefLen, height:volPolyHeight },
-    parts: volParts.map(p=>({label:p.label, cm3:p.cm3})) };
-}
-function volRestoreMeasure(m){
-  volShape=(m.shape&&VOL_SHAPES.some(s=>s.id===m.shape))?m.shape:'box';
-  volUnit=VOL_UNITS.includes(m.unit)?m.unit:'cm';
-  volDimState=m.dims?JSON.parse(JSON.stringify(m.dims)):{};
-  volRefKey=m.ref||null;
-  const p=m.poly||{}; volPolyVerts=(p.verts||[]).map(v=>({x:+v.x,y:+v.y})); volPolyTopVerts=(p.topVerts||[]).map(v=>({x:+v.x,y:+v.y})); volPolyEdit=(p.edit==='top'?'top':'bottom'); volPolyArmed=true; volPolyRefIdx=p.refIdx|0; volPolyRefLen=(p.refLen!=null?p.refLen:null); volPolyHeight=(p.height!=null?p.height:null);
-  volParts=(m.parts||[]).map(x=>({label:x.label, cm3:x.cm3}));
-  volActiveKey=null; volDraft=null; volGesture=null; volMoveTarget=null; volPointers.clear(); volView={scale:1,tx:0,ty:0};
-  const finish=()=>{ volEnsureState(); renderVolShapes(); renderVolUnits();
-    const dims=volDimList(); if(dims.length && !volActiveKey) volActiveKey=dims[0][0];
-    renderVolDims(); volRedraw(); updateVolResult();
-    document.getElementById('volDrawHint').style.display = (volImg && !volIsPoly()) ? 'block' : 'none'; };
-  if(m.photo){ const img=new Image(); img.onload=()=>{ volImg=img; volSetupCanvas(true); document.getElementById('volPhotoWrap').style.display='block'; finish(); }; img.onerror=()=>{ volImg=null; finish(); }; img.src=m.photo; }
-  else { volImg=null; document.getElementById('volPhotoWrap').style.display='none'; finish(); }
-}
-function volSaveMeasureToSheet(){
-  const sheet=volCurrentSheet(); if(!sheet){ toast('シートがありません'); return; }
-  if(volLiveEmpty() && computeVol()==null){ toast('保存する計測がありません'); return; }
-  let m; try{ m=volCaptureMeasure(); }catch(_){ toast('保存できませんでした'); return; }
-  sheet.volMeasure=m;
-  if(!saveSheets()){   // 容量オーバー：写真を外して計測だけでも残す
-    if(m.photo){ m.photo=null; m.imgW=0; m.imgH=0; sheet.volMeasure=m;
-      if(saveSheets()){ toast('写真が大きく保存できないため、計測データのみ保存しました'); }
-      else { delete sheet.volMeasure; toast('保存できませんでした（容量オーバー）'); } }
-    else { delete sheet.volMeasure; toast('保存できませんでした（容量オーバー）'); }
-    updateVolSavedBadge(); return;
-  }
-  updateVolSavedBadge();
-  toast('この計測をシートに保存しました（記録は「保存」で確定）');
-}
-function volClearSavedMeasure(){
-  const sheet=volCurrentSheet();
-  if(sheet && sheet.volMeasure){ delete sheet.volMeasure; saveSheets(); toast('保存した計測を消しました'); }
-  updateVolSavedBadge();
-}
-function updateVolSavedBadge(){
-  const sheet=volCurrentSheet(); const has=!!(sheet&&sheet.volMeasure);
-  const cb=document.getElementById('volClearSavedBtn'); if(cb) cb.style.display=has?'inline-block':'none';
-  const sb=document.getElementById('volSaveMeasureBtn'); if(sb) sb.textContent=has?'💾 この計測でシートを更新':'💾 この計測をシートに保存';
-}
 function trimNum(n){ return parseFloat(Number(n).toFixed(4)); }
 function segLen(s){ return s?Math.hypot(s.x2-s.x1, s.y2-s.y1):0; }
 function volPhotoChange(e){
@@ -5848,13 +5804,29 @@ function shotDeliver(blob, fname, share){
   download();
   toast('スクリーンショットを保存しました');
 }
-/* 容積計算をスクリーンショットとして書き出す（線・多角形入りの写真＋寸法・結果を1枚のPNGに）。
-   share=true なら端末の共有機能へ送る（ファイル名は日時で自動） */
-async function volScreenshot(share){
-  const v=computeVol();
-  if(!volImg && v==null && !volParts.length){ toast('写真か計測がありません'); return; }
-  const fname = share ? `容積計算_${shotStamp()}.png` : await shotFileName('容積計算');
+/* ── 出力プレビュー（容積計算・写真メモ共通）：仕上がりの画像を見せてからスクショ・共有 ── */
+let shotPrevCanvas=null, shotPrevPrefix='';
+function openShotPreview(cv, prefix){
+  let url; try{ url=cv.toDataURL('image/png'); }catch(_){ toast('プレビューを作れませんでした'); return; }
+  shotPrevCanvas=cv; shotPrevPrefix=prefix;
+  document.getElementById('shotPrevImg').src=url;
+  document.getElementById('shotPrevOverlay').classList.add('open');
+}
+function closeShotPreview(){
+  document.getElementById('shotPrevOverlay').classList.remove('open');
+  shotPrevCanvas=null;
+  const img=document.getElementById('shotPrevImg'); if(img) img.removeAttribute('src');
+}
+async function shotPrevDeliver(share){
+  if(!shotPrevCanvas) return;
+  const fname = share ? `${shotPrevPrefix}_${shotStamp()}.png` : await shotFileName(shotPrevPrefix);
   if(fname===null) return;
+  shotPrevCanvas.toBlob(blob=>shotDeliver(blob, fname, share), 'image/png');
+}
+/* 容積計算の書き出し画像（線・多角形入りの写真＋寸法・結果を1枚に）を作る。中身が無ければ null */
+function volBuildShotCanvas(){
+  const v=computeVol();
+  if(!volImg && v==null && !volParts.length) return null;
   const W=1000, pad=28, lineH=26;
   // 線・多角形を描き込んだ写真（ズームに関係なく全体を等倍で描く）
   let anno=null, photoH=0;
@@ -5899,9 +5871,23 @@ async function volScreenshot(share){
   if(anno) ctx.drawImage(anno,0,0,anno.width,anno.height, 0,0,W,photoH);
   ctx.fillStyle='#222222'; ctx.font='18px sans-serif'; ctx.textBaseline='top';
   let y=photoH+pad; lines.forEach(ln=>{ ctx.fillText(ln,pad,y); y+=lineH; });
+  return cv;
+}
+/* 容積計算をスクリーンショットとして書き出す。share=true なら端末の共有機能へ送る（ファイル名は日時で自動） */
+async function volScreenshot(share){
+  const cv=volBuildShotCanvas();
+  if(!cv){ toast('写真か計測がありません'); return; }
+  const fname = share ? `容積計算_${shotStamp()}.png` : await shotFileName('容積計算');
+  if(fname===null) return;
   cv.toBlob(blob=>shotDeliver(blob, fname, share), 'image/png');
 }
-/* ── 写真メモ（上：写真＋ピンチズーム／下：メモ。保存・スクショ書き出し） ── */
+/* 容積計算の仕上がりをプレビューで確認（そこからスクショ・共有できる） */
+function volPreview(){
+  const cv=volBuildShotCanvas();
+  if(!cv){ toast('写真か計測がありません'); return; }
+  openShotPreview(cv, '容積計算');
+}
+/* ── 写真メモ（上：写真＋ピンチズーム／下：メモ。プレビュー・スクショ・共有） ── */
 let pmImg=null, pmMemoDirty=false;
 let pmView={scale:1,tx:0,ty:0,fit:1};
 let pmPointers=new Map(), pmPinch=null, pmPanLast=null;
@@ -5919,16 +5905,12 @@ function pmApplyBg(){
 }
 function pmSetBg(v){ pmBg=v; pmApplyBg(); pmMarkDirty(); }
 function openPhotoMemo(){
-  const sheet=volCurrentSheet(); const saved=sheet&&sheet.photoMemo;
-  const liveEmpty=!pmImg && !pmMemoText().trim();
   document.getElementById('photoMemoOverlay').classList.add('open');
   armBackGuard(()=>document.getElementById('photoMemoOverlay').classList.remove('open'));
   requestAnimationFrame(()=>{
     pmSetupCanvas();
-    if(saved && liveEmpty){ pmRestore(saved); }
-    else { pmFitView(); pmRedraw(); }
+    pmFitView(); pmRedraw();
     pmApplyBg();
-    pmUpdateSavedBadge();
   });
 }
 function closePhotoMemo(){ document.getElementById('photoMemoOverlay').classList.remove('open'); releaseBackGuard(); }
@@ -6005,22 +5987,6 @@ function pmPointerMove(e){ if(!pmPointers.has(e.pointerId)) return; e.preventDef
 function pmPointerUp(e){ if(!pmPointers.has(e.pointerId)) return; pmPointers.delete(e.pointerId);
   if(pmPointers.size<2) pmPinch=null; pmPanLast = pmPointers.size===1 ? [...pmPointers.values()][0] : null; }
 function pmMarkDirty(){ pmMemoDirty=true; }
-function pmCaptureData(){
-  pmCleanZwsp();   // サイズ指定の目印文字を掃除してから保存する
-  let photo=null;
-  if(pmImg){ const iw=pmImg.naturalWidth, ih=pmImg.naturalHeight; const s=Math.min(1, 1000/Math.max(iw,ih));
-    const oc=document.createElement('canvas'); oc.width=Math.max(1,Math.round(iw*s)); oc.height=Math.max(1,Math.round(ih*s));
-    oc.getContext('2d').drawImage(pmImg,0,0,oc.width,oc.height); try{ photo=oc.toDataURL('image/jpeg',0.6); }catch(_){ photo=null; } }
-  return { photo, memo: pmMemoText(), memoHtml: document.getElementById('pmMemo').innerHTML, bg: pmBg };
-}
-function pmRestore(m){
-  pmBg=(m.bg==='black'||m.bg==='white')?m.bg:pmBg; pmApplyBg();
-  const ed=document.getElementById('pmMemo');
-  if(m.memoHtml!=null) ed.innerHTML=m.memoHtml;       // 色・大きさ付きメモ
-  else ed.textContent=m.memo||'';                     // 旧形式（プレーン文字）
-  if(m.photo){ const img=new Image(); img.onload=()=>{ pmImg=img; pmSetupCanvas(); pmFitView(); pmRedraw(); }; img.onerror=()=>{ pmImg=null; pmRedraw(); }; img.src=m.photo; }
-  else { pmImg=null; pmRedraw(); }
-}
 /* メモ欄（contenteditable）のプレーン文字を取り出す */
 function pmMemoText(){ const ed=document.getElementById('pmMemo'); return ed ? (ed.innerText||'').replace(/\u200B/g,'') : ''; }
 /* 選択した部分（または以後の入力）の文字色を変える。空文字＝標準色 */
@@ -6121,31 +6087,6 @@ function pmDeco(cmd){
   try{ document.execCommand(cmd, false, null); }catch(_){}
   pmMarkDirty();
 }
-function pmSave(){
-  const sheet=volCurrentSheet(); if(!sheet){ toast('シートがありません'); return; }
-  const memo=pmMemoText();
-  if(!pmImg && !memo.trim()){ toast('写真かメモを入れてください'); return; }
-  const m=pmCaptureData(); sheet.photoMemo=m;
-  if(!saveSheets()){
-    if(m.photo){ m.photo=null; sheet.photoMemo=m;
-      if(saveSheets()){ toast('写真が大きく保存できないため、メモのみ保存しました'); }
-      else { delete sheet.photoMemo; toast('保存できませんでした（容量オーバー）'); } }
-    else { delete sheet.photoMemo; toast('保存できませんでした'); }
-    pmMemoDirty=false; pmUpdateSavedBadge(); return;
-  }
-  pmMemoDirty=false; pmUpdateSavedBadge();
-  toast('写真メモを保存しました（記録は「保存」で確定）');
-}
-function pmClearSaved(){
-  const sheet=volCurrentSheet();
-  if(sheet && sheet.photoMemo){ delete sheet.photoMemo; saveSheets(); toast('保存した写真メモを消しました'); }
-  pmUpdateSavedBadge();
-}
-function pmUpdateSavedBadge(){
-  const sheet=volCurrentSheet(); const has=!!(sheet&&sheet.photoMemo);
-  const cb=document.getElementById('pmClearBtn'); if(cb) cb.style.display=has?'inline-block':'none';
-  const sv=document.querySelector('#photoMemoOverlay .pm-save'); if(sv) sv.textContent=has?'💾 更新':'💾 保存';
-}
 /* メモ（contenteditable）を行ごとの「文字の連なり」（文字・色・大きさ・太字・斜体・下線）に分解する */
 function pmMemoLines(){
   const root=document.getElementById('pmMemo');
@@ -6186,12 +6127,10 @@ function pmShotColor(col, blackBg){
   if(blackBg) return lum<0.28 ? '#eeeeee' : col;   // 黒背景では暗すぎる色を明るく
   return lum>0.72 ? '#222222' : col;               // 白背景では薄すぎる色を濃く
 }
-/* 写真＋メモを1枚の画像にして書き出す（スクリーンショット。色・大きさも反映） */
-async function pmScreenshot(share){
+/* 写真メモの書き出し画像（写真＋メモ。色・大きさも反映）を作る。中身が無ければ null */
+function pmBuildShotCanvas(){
   pmCleanZwsp();   // サイズ指定の目印文字を掃除してから書き出す
-  if(!pmImg && !pmMemoText().trim()){ toast('写真かメモを入れてください'); return; }
-  const fname = share ? `写真メモ_${shotStamp()}.png` : await shotFileName('写真メモ');
-  if(fname===null) return;
+  if(!pmImg && !pmMemoText().trim()) return null;
   const W=1000, pad=28;
   const FSCALE=18/15;   // 画面のメモの文字px → 出力px（画面で大きくした分は書き出しも大きくなる）
   let photoH=0, iw=0, ih=0;
@@ -6239,7 +6178,21 @@ async function pmScreenshot(share){
     });
     y+=l.h;
   });
+  return cv;
+}
+/* 写真メモをスクリーンショットとして書き出す。share=true なら端末の共有機能へ送る */
+async function pmScreenshot(share){
+  const cv=pmBuildShotCanvas();
+  if(!cv){ toast('写真かメモを入れてください'); return; }
+  const fname = share ? `写真メモ_${shotStamp()}.png` : await shotFileName('写真メモ');
+  if(fname===null) return;
   cv.toBlob(blob=>shotDeliver(blob, fname, share), 'image/png');
+}
+/* 写真メモの仕上がりをプレビューで確認（そこからスクショ・共有できる） */
+function pmPreview(){
+  const cv=pmBuildShotCanvas();
+  if(!cv){ toast('写真かメモを入れてください'); return; }
+  openShotPreview(cv, '写真メモ');
 }
 /* 登録ボタンから実行するとき、指の操作（ユーザー操作）が生きているうちに呼ばないと
    開かない機能（ネイティブのファイル選択）。これらは遅延させずその場で実行する。
@@ -8980,10 +8933,7 @@ let modeSheets={};
 let workspaceMode='normal';
 /* 保存データ等から読んだ生オブジェクトを、正しい形のシートに整える */
 function normSheet(s,i){
-  const o={ name:(s&&s.name)||('シート'+(i+1)), store:(s&&s.store)||{}, colWidths:(s&&s.colWidths)||{}, rowHeights:(s&&s.rowHeights)||{} };
-  if(s && s.volMeasure) o.volMeasure=s.volMeasure;   // 容積計算（写真＋計測）を保持
-  if(s && s.photoMemo)  o.photoMemo=s.photoMemo;     // 写真メモ（写真＋メモ）を保持
-  return o;
+  return { name:(s&&s.name)||('シート'+(i+1)), store:(s&&s.store)||{}, colWidths:(s&&s.colWidths)||{}, rowHeights:(s&&s.rowHeights)||{} };
 }
 /* 指定モードの新しいシートを1枚作る（グローバル状態には触れない）。
    登録モードはテンプレート（modeStates または登録元の保存記録）から中身を入れる。 */
@@ -9608,7 +9558,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v231';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v232';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
