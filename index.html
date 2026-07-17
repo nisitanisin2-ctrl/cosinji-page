@@ -1141,6 +1141,10 @@ body.dark .vol-parts-total { color: #7fd6a3; }
 .pm-color:active { transform: scale(1.15); }
 .pm-sizebtn { padding: 4px 9px; border: 1px solid var(--save-item-border); border-radius: 6px;
   background: var(--save-item-bg); color: var(--text); font-weight: bold; cursor: pointer; touch-action: manipulation; }
+.pm-sizebtn.on { background: #217346; border-color: #217346; color: #fff; }
+/* メモ欄の背景色（白/黒を選べる） */
+.pm-memo.bg-white { background: #ffffff; color: #222222; }
+.pm-memo.bg-black { background: #000000; color: #ffffff; }
 .pm-actions { flex-shrink: 0; display: flex; gap: 8px; }
 .pm-save, .pm-shot { flex: 1; padding: 13px; border: none; border-radius: 8px; font-size: 14.5px; font-weight: bold; cursor: pointer; touch-action: manipulation; }
 .pm-save { background: #217346; color: #fff; }
@@ -2421,6 +2425,17 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <button class="pm-color" style="background:#2e7d32" onpointerdown="event.preventDefault()" onclick="pmColor('#2e7d32')"></button>
         <button class="pm-color" style="background:#fb8c00" onpointerdown="event.preventDefault()" onclick="pmColor('#fb8c00')"></button>
         <button class="pm-color" style="background:#8e24aa" onpointerdown="event.preventDefault()" onclick="pmColor('#8e24aa')"></button>
+        <button class="pm-color" style="background:#e91e63" onpointerdown="event.preventDefault()" onclick="pmColor('#e91e63')"></button>
+        <button class="pm-color" style="background:#f9a825" onpointerdown="event.preventDefault()" onclick="pmColor('#f9a825')"></button>
+        <button class="pm-color" style="background:#00acc1" onpointerdown="event.preventDefault()" onclick="pmColor('#00acc1')"></button>
+        <button class="pm-color" style="background:#7cb342" onpointerdown="event.preventDefault()" onclick="pmColor('#7cb342')"></button>
+        <button class="pm-color" style="background:#6d4c41" onpointerdown="event.preventDefault()" onclick="pmColor('#6d4c41')"></button>
+        <button class="pm-color" style="background:#9e9e9e" onpointerdown="event.preventDefault()" onclick="pmColor('#9e9e9e')"></button>
+        <button class="pm-color" style="background:#000000" onpointerdown="event.preventDefault()" onclick="pmColor('#000000')"></button>
+        <button class="pm-color" style="background:#ffffff" onpointerdown="event.preventDefault()" onclick="pmColor('#ffffff')"></button>
+        <span class="pm-tool-lb">背景</span>
+        <button class="pm-sizebtn" id="pmBgW" onpointerdown="event.preventDefault()" onclick="pmSetBg('white')">白</button>
+        <button class="pm-sizebtn" id="pmBgB" onpointerdown="event.preventDefault()" onclick="pmSetBg('black')">黒</button>
         <span class="pm-tool-lb">大きさ</span>
         <button class="pm-sizebtn" onpointerdown="event.preventDefault()" onclick="pmSizeStep(-1)">Ａ−</button>
         <span class="pm-tool-lb" id="pmSizeNow" title="今の文字サイズ">28</span>
@@ -5807,6 +5822,18 @@ let pmImg=null, pmMemoDirty=false;
 let pmView={scale:1,tx:0,ty:0,fit:1};
 let pmPointers=new Map(), pmPinch=null, pmPanLast=null;
 function pmCanvasEl(){ return document.getElementById('pmCanvas'); }
+let pmBg=null;   // メモ欄の背景色 'white'|'black'（未設定はテーマから決める）
+/* メモ欄の背景色（白/黒）を反映し、選択中ボタンを強調する */
+function pmApplyBg(){
+  const ed=document.getElementById('pmMemo'); if(!ed) return;
+  if(!pmBg) pmBg=document.body.classList.contains('dark')?'black':'white';
+  ed.classList.toggle('bg-white', pmBg==='white');
+  ed.classList.toggle('bg-black', pmBg==='black');
+  const w=document.getElementById('pmBgW'), b=document.getElementById('pmBgB');
+  if(w) w.classList.toggle('on', pmBg==='white');
+  if(b) b.classList.toggle('on', pmBg==='black');
+}
+function pmSetBg(v){ pmBg=v; pmApplyBg(); pmMarkDirty(); }
 function openPhotoMemo(){
   const sheet=volCurrentSheet(); const saved=sheet&&sheet.photoMemo;
   const liveEmpty=!pmImg && !pmMemoText().trim();
@@ -5816,6 +5843,7 @@ function openPhotoMemo(){
     pmSetupCanvas();
     if(saved && liveEmpty){ pmRestore(saved); }
     else { pmFitView(); pmRedraw(); }
+    pmApplyBg();
     pmUpdateSavedBadge();
   });
 }
@@ -5899,9 +5927,10 @@ function pmCaptureData(){
   if(pmImg){ const iw=pmImg.naturalWidth, ih=pmImg.naturalHeight; const s=Math.min(1, 1000/Math.max(iw,ih));
     const oc=document.createElement('canvas'); oc.width=Math.max(1,Math.round(iw*s)); oc.height=Math.max(1,Math.round(ih*s));
     oc.getContext('2d').drawImage(pmImg,0,0,oc.width,oc.height); try{ photo=oc.toDataURL('image/jpeg',0.6); }catch(_){ photo=null; } }
-  return { photo, memo: pmMemoText(), memoHtml: document.getElementById('pmMemo').innerHTML };
+  return { photo, memo: pmMemoText(), memoHtml: document.getElementById('pmMemo').innerHTML, bg: pmBg };
 }
 function pmRestore(m){
+  pmBg=(m.bg==='black'||m.bg==='white')?m.bg:pmBg; pmApplyBg();
   const ed=document.getElementById('pmMemo');
   if(m.memoHtml!=null) ed.innerHTML=m.memoHtml;       // 色・大きさ付きメモ
   else ed.textContent=m.memo||'';                     // 旧形式（プレーン文字）
@@ -6062,11 +6091,12 @@ function pmMemoLines(){
   return lines;
 }
 /* 白背景で見えない薄い色は濃い色に置き換える（ダークモードの既定色対策） */
-function pmShotColor(col){
+function pmShotColor(col, blackBg){
   const m=/rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(col||'');
-  if(!m) return col||'#222222';
+  if(!m) return col||(blackBg?'#eeeeee':'#222222');
   const lum=(0.299*+m[1]+0.587*+m[2]+0.114*+m[3])/255;
-  return lum>0.72 ? '#222222' : col;
+  if(blackBg) return lum<0.28 ? '#eeeeee' : col;   // 黒背景では暗すぎる色を明るく
+  return lum>0.72 ? '#222222' : col;               // 白背景では薄すぎる色を濃く
 }
 /* 写真＋メモを1枚の画像にして書き出す（スクリーンショット。色・大きさも反映） */
 async function pmScreenshot(){
@@ -6091,7 +6121,7 @@ async function pmScreenshot(){
       const font=`${run.italic?'italic ':''}${run.bold?'bold ':''}${size}px ${run.fam||'sans-serif'}`;
       tmp.font=font;
       let buf='';
-      const put=()=>{ if(buf){ cur.parts.push({text:buf, x, color:pmShotColor(run.color), font, size, und:!!run.underline}); x+=tmp.measureText(buf).width; cur.h=Math.max(cur.h, Math.round(size*1.45)); buf=''; } };
+      const put=()=>{ if(buf){ cur.parts.push({text:buf, x, color:pmShotColor(run.color, pmBg==='black'), font, size, und:!!run.underline}); x+=tmp.measureText(buf).width; cur.h=Math.max(cur.h, Math.round(size*1.45)); buf=''; } };
       for(const ch of run.text){
         if(x+tmp.measureText(buf+ch).width>maxW && (buf||cur.parts.length)){ put(); flush(); tmp.font=font; }
         buf+=ch;
@@ -6104,6 +6134,7 @@ async function pmScreenshot(){
   const H=Math.max(1, photoH + memoH);
   const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
   const ctx=cv.getContext('2d'); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,W,H);
+  if(pmBg==='black' && memoH){ ctx.fillStyle='#000000'; ctx.fillRect(0,photoH,W,memoH); }   // メモ部分の背景を黒に
   if(pmImg) ctx.drawImage(pmImg,0,0,iw,ih, 0,0,W,photoH);
   ctx.textBaseline='alphabetic';
   let y=photoH+pad;
@@ -9417,7 +9448,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v227';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v228';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
