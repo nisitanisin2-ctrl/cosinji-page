@@ -5180,6 +5180,18 @@ function volEnsureState(){
 }
 function volCurrentSheet(){ return (typeof sheets!=='undefined' && Array.isArray(sheets) && sheets[curSheet]) ? sheets[curSheet] : null; }
 function volLiveEmpty(){ return !volImg && !volParts.length && !Object.keys(volDimState).length && !volPolyVerts.length; }
+/* 端末の「戻る」ボタンでアプリを閉じずに、開いている画面（容積・写真メモ）だけを閉じる。
+   開く時に履歴を1つ積み、戻る（popstate）でモーダルだけ閉じる。✕で閉じた時は積んだ分を消費する。
+   ※アプリのアンドゥ用 `history` 配列がブラウザの history を隠すため、必ず window.history を使う。 */
+let backGuardFn=null;
+window.addEventListener('popstate', ()=>{ if(backGuardFn){ const f=backGuardFn; backGuardFn=null; f(); } });
+function armBackGuard(fn){
+  const had=!!backGuardFn; backGuardFn=fn;
+  if(!had){ try{ window.history.pushState({excalcModal:1},''); }catch(_){} }
+}
+function releaseBackGuard(){
+  if(backGuardFn){ backGuardFn=null; try{ window.history.back(); }catch(_){} }
+}
 function openVolume(){
   const sheet=volCurrentSheet();
   if(sheet && sheet.volMeasure && volLiveEmpty()){   // 保存済みの計測があれば復元
@@ -5191,8 +5203,9 @@ function openVolume(){
   }
   updateVolSavedBadge();
   document.getElementById('volumeOverlay').classList.add('open');
+  armBackGuard(()=>document.getElementById('volumeOverlay').classList.remove('open'));
 }
-function closeVolume(){ document.getElementById('volumeOverlay').classList.remove('open'); }
+function closeVolume(){ document.getElementById('volumeOverlay').classList.remove('open'); releaseBackGuard(); }
 /* いまの計測（写真＋線・多角形・パーツ・設定）をひとまとめのデータにする。
    写真はキャンバス基準サイズ（≤800px）のJPEGにして容量を抑える。 */
 function volCaptureMeasure(){
@@ -5639,6 +5652,7 @@ function openPhotoMemo(){
   const sheet=volCurrentSheet(); const saved=sheet&&sheet.photoMemo;
   const liveEmpty=!pmImg && !(document.getElementById('pmMemo').value||'').trim();
   document.getElementById('photoMemoOverlay').classList.add('open');
+  armBackGuard(()=>document.getElementById('photoMemoOverlay').classList.remove('open'));
   requestAnimationFrame(()=>{
     pmSetupCanvas();
     if(saved && liveEmpty){ pmRestore(saved); }
@@ -5646,7 +5660,7 @@ function openPhotoMemo(){
     pmUpdateSavedBadge();
   });
 }
-function closePhotoMemo(){ document.getElementById('photoMemoOverlay').classList.remove('open'); }
+function closePhotoMemo(){ document.getElementById('photoMemoOverlay').classList.remove('open'); releaseBackGuard(); }
 function pmSetupCanvas(){
   const c=pmCanvasEl(); if(!c) return;
   const rect=c.getBoundingClientRect();
@@ -5656,8 +5670,22 @@ function pmSetupCanvas(){
     window.addEventListener('pointermove', pmPointerMove);
     window.addEventListener('pointerup', pmPointerUp);
     window.addEventListener('pointercancel', pmPointerUp);
+    // キーボード開閉や回転で表示枠が変わったらキャンバスを合わせ直す（写真が細長く歪むのを防ぐ）
+    window.addEventListener('resize', pmOnResize);
+    if(window.visualViewport) window.visualViewport.addEventListener('resize', pmOnResize);
     c.dataset.bound='1';
   }
+}
+/* 写真メモの表示枠が変わった時：キャンバスの内部サイズを枠に合わせ、写真を全体表示で描き直す */
+function pmOnResize(){
+  const ov=document.getElementById('photoMemoOverlay');
+  if(!ov || !ov.classList.contains('open')) return;
+  const c=pmCanvasEl(); if(!c) return;
+  const r=c.getBoundingClientRect();
+  if(r.width<1 || r.height<1) return;
+  if(Math.abs(r.width-c.width)<2 && Math.abs(r.height-c.height)<2) return;
+  c.width=Math.max(1,Math.round(r.width)); c.height=Math.max(1,Math.round(r.height));
+  pmFitView(); pmRedraw();
 }
 function pmPhotoChange(e){
   const f=e.target.files && e.target.files[0]; if(!f) return;
@@ -9038,7 +9066,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v216';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v217';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
