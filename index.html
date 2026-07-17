@@ -1012,8 +1012,9 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
   cursor: pointer; touch-action: manipulation;
 }
 /* 容積計算 */
+.vol-photo-btns { display: flex; gap: 8px; margin-bottom: 10px; }
 .vol-photo-btn {
-  display: block; width: 100%; margin-bottom: 10px; padding: 12px;
+  flex: 1; display: block; padding: 12px;
   border: 1px solid #217346; border-radius: 8px; background: rgba(33,115,70,0.1);
   color: #217346; font-size: 14.5px; font-weight: bold; cursor: pointer; touch-action: manipulation;
 }
@@ -1114,7 +1115,8 @@ body.dark .vol-parts-total { color: #7fd6a3; }
 .pm-photo { position: relative; flex: 1 1 50%; min-height: 0; background: #000; border-radius: 8px; overflow: hidden; }
 .pm-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 .pm-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #888; font-size: 14px; pointer-events: none; }
-.pm-shoot { position: absolute; left: 8px; bottom: 8px; padding: 8px 12px; border: none; border-radius: 7px; background: rgba(33,115,70,0.92); color: #fff; font-size: 13.5px; font-weight: bold; cursor: pointer; touch-action: manipulation; }
+.pm-shootrow { position: absolute; left: 8px; bottom: 8px; display: flex; gap: 8px; }
+.pm-shoot { padding: 8px 12px; border: none; border-radius: 7px; background: rgba(33,115,70,0.92); color: #fff; font-size: 13.5px; font-weight: bold; cursor: pointer; touch-action: manipulation; }
 .pm-zoomreset { position: absolute; right: 8px; top: 8px; padding: 5px 10px; border: none; border-radius: 6px; background: rgba(0,0,0,0.6); color: #fff; font-size: 12px; cursor: pointer; touch-action: manipulation; }
 .pm-memo { flex: 1 1 50%; min-height: 80px; resize: none; padding: 10px; font-size: 15px; line-height: 1.5;
   border: 1px solid var(--save-item-border); border-radius: 8px; background: var(--cell-bg, #fff); color: var(--text); }
@@ -2336,7 +2338,11 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     </div>
     <div class="modal-body">
       <input type="file" id="volPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="volPhotoChange(event)">
-      <button class="vol-photo-btn" onclick="document.getElementById('volPhotoInput').click()">📷 写真を撮る／選ぶ</button>
+      <input type="file" id="volFileInput" accept="image/*" style="display:none" onchange="volPhotoChange(event)">
+      <div class="vol-photo-btns">
+        <button class="vol-photo-btn" onclick="document.getElementById('volPhotoInput').click()">📷 カメラで撮る</button>
+        <button class="vol-photo-btn" onclick="document.getElementById('volFileInput').click()">🖼 写真ファイル</button>
+      </div>
       <div class="vol-photo-wrap" id="volPhotoWrap" style="display:none">
         <canvas id="volCanvas" class="vol-canvas"></canvas>
         <button class="vol-zoom-reset" onclick="volResetZoom()" title="全体表示に戻す">⤢ 全体</button>
@@ -2356,6 +2362,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <button class="vol-insert" id="volInsertBtn" onclick="volInsertToCell()" disabled>▦ この容積を選択中のセルに入れる</button>
       <div class="vol-save-row">
         <button class="vol-savemeasure" id="volSaveMeasureBtn" onclick="volSaveMeasureToSheet()">💾 この計測をシートに保存</button>
+        <button class="vol-savemeasure" onclick="volScreenshot()">📸 スクリーンショット</button>
         <button class="vol-clearsaved" id="volClearSavedBtn" onclick="volClearSavedMeasure()" style="display:none">保存を消す</button>
       </div>
       <div class="vol-hint">写真は撮る角度や奥行きで実物と比率がずれるため、自動で入る数値は目安です。正確に出したいときは各辺の長さを直接入れてください。<b>「シートに保存」すると写真＋計測が記録と一緒に保存され、次に開いた時に復元されます</b>（記録は上の「保存」で確定）。</div>
@@ -2372,10 +2379,14 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     </div>
     <div class="pm-body">
       <input type="file" id="pmPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="pmPhotoChange(event)">
+      <input type="file" id="pmFileInput" accept="image/*" style="display:none" onchange="pmPhotoChange(event)">
       <div class="pm-photo" id="pmPhotoArea">
         <canvas id="pmCanvas" class="pm-canvas"></canvas>
         <div class="pm-empty" id="pmEmpty">写真がありません</div>
-        <button class="pm-shoot" onclick="document.getElementById('pmPhotoInput').click()">📷 写真を撮る／選ぶ</button>
+        <div class="pm-shootrow">
+          <button class="pm-shoot" onclick="document.getElementById('pmPhotoInput').click()">📷 カメラ</button>
+          <button class="pm-shoot" onclick="document.getElementById('pmFileInput').click()">🖼 ファイル</button>
+        </div>
         <button class="pm-zoomreset" id="pmZoomReset" onclick="pmResetZoom()" style="display:none">⤢ 全体</button>
       </div>
       <textarea class="pm-memo" id="pmMemo" placeholder="メモを入力…" oninput="pmMarkDirty()" onkeydown="event.stopPropagation()"></textarea>
@@ -5642,6 +5653,62 @@ function volInsertToCell(){
   toast('容積をセルに入れました');
   volParts=[];   // 入れたら合計はクリア
   closeVolume();
+}
+/* 容積計算をスクリーンショットとして書き出す（線・多角形入りの写真＋寸法・結果を1枚のPNGに） */
+function volScreenshot(){
+  const v=computeVol();
+  if(!volImg && v==null && !volParts.length){ toast('写真か計測がありません'); return; }
+  const W=1000, pad=28, lineH=26;
+  // 線・多角形を描き込んだ写真（ズームに関係なく全体を等倍で描く）
+  let anno=null, photoH=0;
+  if(volImg){
+    const c=volCanvasEl();
+    anno=document.createElement('canvas'); anno.width=c.width; anno.height=c.height;
+    const a=anno.getContext('2d');
+    const savedView=volView; volView={scale:1,tx:0,ty:0};
+    a.drawImage(volImg,0,0,anno.width,anno.height);
+    if(volIsPoly()) volDrawPoly(a);
+    else volDimList().forEach(([k],i)=>{ const st=volDimState[k]; if(st&&st.seg) volDrawSeg(a,st.seg,VOL_COLORS[i%VOL_COLORS.length],false); });
+    volView=savedView;
+    photoH=Math.round(W*anno.height/anno.width);
+  }
+  // 寸法・結果のテキスト
+  const raw=[];
+  raw.push(`形：${volShapeDef().name}　単位：${volUnit}`);
+  if(volIsPoly()){
+    const A1=volPolyArea(), A2=volPolyTopArea();
+    if(A1!=null) raw.push(`下面積：${volFmt(A1)} ${volUnit}²${A2!=null?`　上面積：${volFmt(A2)} ${volUnit}²`:''}`);
+    if(volPolyRefLen>0) raw.push(`基準の辺：${trimNum(volPolyRefLen)} ${volUnit}`);
+    if(volPolyHeight>0) raw.push(`高さ：${trimNum(volPolyHeight)} ${volUnit}`);
+  } else {
+    volDimList().forEach(([k,lb])=>{ const st=volDimState[k]; if(st&&st.len!=null) raw.push(`${lb}：${trimNum(st.len)} ${volUnit}`); });
+  }
+  if(v!=null) raw.push(`容積：${volFmt(v)} ${volUnit}³ ＝ ${volFmt(volToLiters(v,volUnit))} L`);
+  if(volParts.length){
+    const f=volUnitFactorCm(volUnit);
+    raw.push('― パーツ合計 ―');
+    volParts.forEach(p=>raw.push(`${p.label}：${volFmt(p.cm3/(f*f*f))} ${volUnit}³`));
+    const totalCm3=volTotalCm3();
+    raw.push(`合計：${volFmt(totalCm3/(f*f*f))} ${volUnit}³ ＝ ${volFmt(totalCm3/1000)} L`);
+  }
+  // 折り返して合成
+  const tmp=document.createElement('canvas').getContext('2d'); tmp.font='18px sans-serif';
+  const maxW=W-pad*2, lines=[];
+  raw.forEach(par=>{ let cur=''; for(const ch of par){ if(tmp.measureText(cur+ch).width>maxW && cur){ lines.push(cur); cur=ch; } else cur+=ch; } lines.push(cur); });
+  const textH = lines.length ? (pad + lines.length*lineH + pad) : 0;
+  const H=Math.max(1, photoH+textH);
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+  const ctx=cv.getContext('2d'); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,W,H);
+  if(anno) ctx.drawImage(anno,0,0,anno.width,anno.height, 0,0,W,photoH);
+  ctx.fillStyle='#222222'; ctx.font='18px sans-serif'; ctx.textBaseline='top';
+  let y=photoH+pad; lines.forEach(ln=>{ ctx.fillText(ln,pad,y); y+=lineH; });
+  cv.toBlob(blob=>{
+    if(!blob){ toast('書き出せませんでした'); return; }
+    const url=URL.createObjectURL(blob);
+    const a=Object.assign(document.createElement('a'),{ href:url, download:`容積計算_${new Date().toLocaleDateString('ja-JP').replace(/\//g,'-')}.png` });
+    a.click(); setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(_){} }, 1000);
+    toast('スクリーンショットを保存しました');
+  }, 'image/png');
 }
 /* ── 写真メモ（上：写真＋ピンチズーム／下：メモ。保存・スクショ書き出し） ── */
 let pmImg=null, pmMemoDirty=false;
@@ -9066,7 +9133,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v217';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v218';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
