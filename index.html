@@ -1522,6 +1522,22 @@ body.dark .warikan-bar { background: #152436; border-color: #3a6ea5; color: #9cc
 body.dark .youseki-bar { background: #2a1f12; border-color: #a86a20; color: #e0a060; }
 .jikan-bar { background: #ede7f6; border-color: #5e35b1; color: #311b92; }
 body.dark .jikan-bar { background: #1c1730; border-color: #5a4a8a; color: #c4b4e8; }
+/* 時間計算のクイック計算（「14:00 の 30分 前 は 13:30」） */
+.jk-quick { width: 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 5px; padding: 2px 0 3px; }
+.jk-quick input {
+  width: 84px; padding: 6px 6px; font-size: 14px; text-align: center;
+  border: 1px solid #5e35b1; border-radius: 6px; background: var(--cell-bg, #fff); color: var(--text);
+}
+body.dark .jk-quick input { border-color: #5a4a8a; }
+.jkq-lb { font-size: 12px; }
+.jkq-btn {
+  padding: 6px 11px; font-size: 13px; font-weight: bold; border: 1px solid #5e35b1;
+  border-radius: 6px; background: transparent; color: inherit; cursor: pointer; touch-action: manipulation;
+}
+.jkq-btn.on { background: #5e35b1; color: #fff; }
+body.dark .jkq-btn { border-color: #5a4a8a; }
+body.dark .jkq-btn.on { background: #5a4a8a; }
+.jkq-ans { font-size: 16px; min-width: 46px; }
 /* ── 単位水量試験（土研法エアメータ法）モード ── */
 .tanisui-bar { background: #e0f2f1; border-color: #00897b; color: #004d40; }
 body.dark .tanisui-bar { background: #102826; border-color: #2f7a70; color: #8fd4ca; }
@@ -1835,6 +1851,17 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   <span>時:分 <b id="jkClock">0:00</b></span>
   <span>= <b id="jkDecimal">0時間</b></span>
   <span>= <b id="jkMinutes">0分</b></span>
+  <!-- クイック計算：時刻の「◯分前／◯時間後」をその場で出す -->
+  <div class="jk-quick">
+    <input type="text" id="jkQTime" placeholder="時刻 14:00" inputmode="numeric" oninput="jkQuickCalc()" onkeydown="event.stopPropagation()">
+    <span class="jkq-lb">の</span>
+    <input type="text" id="jkQDur" placeholder="30分/1:30" inputmode="numeric" oninput="jkQuickCalc()" onkeydown="event.stopPropagation()">
+    <button class="jkq-btn on" id="jkQBefore" onclick="jkQuickDir('before')">前</button>
+    <button class="jkq-btn" id="jkQAfter" onclick="jkQuickDir('after')">後</button>
+    <span class="jkq-lb">は</span>
+    <b class="jkq-ans" id="jkQAns">—</b>
+    <button class="jkq-btn" onclick="jkQuickInsert()" title="答えを選択中のセルに入れる">⇩セルへ</button>
+  </div>
 </div>
 
 <div class="shop-tax-bar tanisui-bar" id="tanisuiryouBar">
@@ -8407,6 +8434,27 @@ function recalcMode(){
     document.getElementById('jkMinutes').textContent=fmt(totalMin)+'分';
   }
 }
+/* ── 時間計算のクイック計算：「時刻 の ◯分 前/後 は？」をその場で出す ── */
+let jkQDir='before';
+function jkQuickDir(d){ jkQDir=d; jkQuickCalc(); }
+function jkQuickCalc(){
+  const bBtn=document.getElementById('jkQBefore'), aBtn=document.getElementById('jkQAfter');
+  if(bBtn) bBtn.classList.toggle('on', jkQDir==='before');
+  if(aBtn) aBtn.classList.toggle('on', jkQDir==='after');
+  const ans=document.getElementById('jkQAns'); if(!ans) return;
+  const t=parseClock((document.getElementById('jkQTime')||{}).value);
+  const dur=parseDurMin((document.getElementById('jkQDur')||{}).value);
+  if(t==null || dur==null){ ans.textContent='—'; return; }
+  const m=(((jkQDir==='before' ? t-dur : t+dur)%1440)+1440)%1440;   // 日またぎも一周して表示
+  ans.textContent=clockStr(m);
+}
+function jkQuickInsert(){
+  const ans=(document.getElementById('jkQAns')||{}).textContent;
+  if(!ans || ans==='—'){ toast('時刻と時間を入れてください'); return; }
+  if(isLockedCell(selR,selC)){ flashLocked(selR,selC); return; }
+  setCellVal(selR,selC, ans);
+  toast('答えをセルに入れました');
+}
 function changeWarikan(d){
   warikanPeople=Math.max(1,Math.min(99,warikanPeople+d));
   if(tableMode==='warikan') recalcMode();
@@ -9448,7 +9496,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v228';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v229';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
