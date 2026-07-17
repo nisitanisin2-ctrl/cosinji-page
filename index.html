@@ -2591,7 +2591,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
             <tr><td><b>消費税</b></td><td>税抜→税込／税込→税抜＋消費税（税率は設定）</td></tr>
             <tr><td><b>割合計算</b></td><td>元の値の何割・何％と、足す/引くを計算</td></tr>
             <tr><td><b>容積／予算配分</b></td><td>縦×横×高さ＝容積／予算と個数から最適な購入数</td></tr>
-            <tr><td><b>時間計算</b></td><td>開始〜終了の時刻から所要時間</td></tr>
+            <tr><td><b>時間計算</b></td><td>開始・終了・時間のうち2つで残りを自動計算（◯時間後/◯分前も）</td></tr>
             <tr><td><b>単位水量</b></td><td>土研法エアメータ法で生コンの単位水量を推定（下記）</td></tr>
           </table>
           <div class="help-li"><b>単位水量</b>：配合（W1・セメント・細骨材・粗骨材・混和材・配合空気量）と試験値（容器容積V・容器質量・容器+試料・測定空気量）を入れると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で推定し、許容差（下のバーで変更可）で合否判定します。配合はkg/m³、試験はg・ccで入力。</div>
@@ -3089,6 +3089,11 @@ function roundAt(n, d, mode) {
 }
 
 function getCellDisplay(r, c) {
+  // 時間計算モード：開始・終了・時間のうち2つから残りを自動表示（データは触らない）
+  if (typeof tableMode!=='undefined' && tableMode==='jikan' && r>0 && c>=1 && c<=3 && typeof jikanCellDisplay==='function') {
+    const jd = jikanCellDisplay(r, c);
+    if (jd != null) return jd;
+  }
   const raw = String(data[r][c]);
   const d = cellDec(r, c);
   const rm = cellRound(r, c);
@@ -7414,7 +7419,7 @@ function num(n) {
 function dot() {
   if (formulaEditMode) { numpadAppend('.'); return; }
   if (editBlocked()) return;
-  if (tableMode==='jikan' && (selC===1||selC===2)) {   // 時刻入力欄では「.」キーで「:」を入力
+  if (tableMode==='jikan' && (selC===1||selC===2||selC===3)) {   // 時刻・時間の入力欄では「.」キーで「:」を入力
     if (!cellEditing || waiting) { disp_val=''; cellEditing=true; waiting=false; }
     if (!disp_val.includes(':')) disp_val=(disp_val===''?'0':disp_val)+':';
     refreshDisp(); return;
@@ -7770,7 +7775,7 @@ const STRUCT_MODES={
   wariai:  {cols:6, headers:['元の値','割','％','割合額','足す','引く'], computed:[3,4,5]},
   youseki: {cols:5, headers:['名称','縦m','横m','高さm','容積㎥'], computed:[4]},
   yosan:   {cols:5, headers:['品名','単価','最低','個数','小計'], computed:[3,4]},
-  jikan:   {cols:4, headers:['項目','開始','終了','時間'],         computed:[3]},
+  jikan:   {cols:4, headers:['項目','開始','終了','時間'],         computed:[]},   // 開始・終了・時間のうち2つで残りを自動計算
   tanisuiryou:{cols:2, headers:['項目','値'], computed:[]},   // 単位水量試験（土研法）：表をフォームとして使う
 };
 /* 単位水量試験モードの入力フォーム（表 col0=ラベル固定／col1=入力。行r=1..length に対応）。
@@ -7825,7 +7830,7 @@ const MODE_MENU=[
   {key:'wariai',  icon:'％', name:'割合計算', desc:'元の値の何割・何％と、足す/引くを計算'},
   {key:'youseki', icon:'📦', name:'容積',   desc:'縦×横×高さで容積(㎥)を計算'},
   {key:'yosan',   icon:'🎯', name:'予算配分', desc:'予算と合計個数から各商品の最適な購入数を計算'},
-  {key:'jikan',   icon:'⏱', name:'時間計算', desc:'開始〜終了の時刻から何時間何分かを計算（合計も）'},
+  {key:'jikan',   icon:'⏱', name:'時間計算', desc:'開始・終了・時間のうち2つで残りを自動計算（◯時間後は何時、◯分前は何時も）'},
   {key:'tanisuiryou', icon:'💧', name:'単位水量', desc:'土研法エアメータ法で生コンの単位水量を推定（配合・試験値から算定し合否判定）'},
 ];
 
@@ -8117,6 +8122,34 @@ function clockStr(mins){
   const h=Math.floor(mins/60), m=mins%60;
   return h+':'+String(m).padStart(2,'0');
 }
+/* 時間（長さ）の入力 → 分。数字だけ＝分（90→90分）、区切りあり＝時:分（1:30→90分）。無効はnull */
+function parseDurMin(raw){
+  if(raw==null) return null;
+  const s=String(raw).trim(); if(s==='') return null;
+  let m=s.match(/^(\d{1,3})\s*[:：.．]\s*(\d{1,2})$/);
+  if(m){ const h=+m[1], mi=+m[2]; if(mi>59) return null; return h*60+mi; }
+  if(/^\d+$/.test(s)) return +s;   // 数字だけは「分」
+  return null;
+}
+/* 時間計算モード：セルの表示を決める（開始・終了・時間のうち2つで残りを自動表示）。
+   null を返すと通常の表示処理に任せる。自動表示はデータには書かない。 */
+function jikanCellDisplay(r,c){
+  const s=parseClock(data[r][1]), e=parseClock(data[r][2]), dur=parseDurMin(data[r][3]);
+  if(c===1){
+    if(String(data[r][1])!=='') return s!=null?clockStr(s):null;         // 入力あり＝整形表示（無効はそのまま）
+    if(e!=null && dur!=null) return clockStr(((e-dur)%1440+1440)%1440);  // 終了−時間＝開始（◯分前は何時）
+    return null;
+  }
+  if(c===2){
+    if(String(data[r][2])!=='') return e!=null?clockStr(e):null;
+    if(s!=null && dur!=null) return clockStr((s+dur)%1440);              // 開始＋時間＝終了（◯時間後は何時）
+    return null;
+  }
+  // c===3（時間）
+  if(s!=null && e!=null){ let d=e-s; if(d<0)d+=1440; return hourMinJP(d); }   // 開始・終了があれば常に計算
+  if(String(data[r][3])!=='') return dur!=null?hourMinJP(dur):null;
+  return null;
+}
 function syncRowColLabels(){
   document.getElementById('rowCount').textContent=ROWS;
   document.getElementById('colCount').textContent=COLS;
@@ -8236,25 +8269,24 @@ function recalcMode(){
   } else if(tableMode==='tanisuiryou'){
     recalcTanisuiryou();
   } else if(tableMode==='jikan'){
-    /* 列: 0=項目 1=開始(時刻) 2=終了(時刻) 3=時間(自動)。
-       終了−開始を分で求める。終了が開始より早ければ日をまたいだとみなし+24時間。*/
+    /* 列: 0=項目 1=開始 2=終了 3=時間。3つのうち2つを入れると残りを自動計算：
+       開始+終了→時間 ／ 開始+時間→終了（◯時間後は何時） ／ 終了+時間→開始（◯分前は何時）。
+       終了が開始より早ければ日をまたいだとみなし+24時間。自動表示はデータに書かない
+       （時間だけは従来どおり開始・終了が揃っている時に分で保存する）。 */
     let totalMin=0;
     for(let r=1;r<ROWS;r++){
-      const start=parseClock(data[r][1]);
-      const end=parseClock(data[r][2]);
-      // 入力欄の見た目を「H:MM」に整える（生データは保持）
-      const e1=document.getElementById(`c${r}_1`);
-      const e2=document.getElementById(`c${r}_2`);
-      if(e1 && start!=null && data[r][1]!=='') e1.textContent=clockStr(start);
-      if(e2 && end!=null   && data[r][2]!=='') e2.textContent=clockStr(end);
+      const s=parseClock(data[r][1]);
+      const e=parseClock(data[r][2]);
+      const dur=parseDurMin(data[r][3]);
       let mins='';
-      if(start!=null && end!=null){
-        let d=end-start; if(d<0) d+=1440;   // 日またぎ（例 22:00→6:00）
+      if(s!=null && e!=null){
+        let d=e-s; if(d<0) d+=1440;   // 日またぎ（例 22:00→6:00）
         mins=d;
-      }
-      data[r][3]=(mins===''?'':String(mins));
-      const el=document.getElementById(`c${r}_3`);
-      if(el) el.textContent=(mins===''?'':hourMinJP(mins));
+        data[r][3]=String(d);         // 両端があれば時間列は計算値で確定（従来互換）
+      } else if(s!=null && dur!=null){ mins=dur; }
+        else if(e!=null && dur!=null){ mins=dur; }
+      // 表示は jikanCellDisplay（getCellDisplay 経由）で統一して描き直す
+      for(const c of [1,2,3]){ const el=document.getElementById(`c${r}_${c}`); if(el) el.textContent=getCellDisplay(r,c); }
       if(mins!=='') totalMin+=mins;
     }
     document.getElementById('jkTotal').textContent=hourMinJP(totalMin);
@@ -9304,7 +9336,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v223';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v224';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
