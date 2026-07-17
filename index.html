@@ -5677,10 +5677,25 @@ function volInsertToCell(){
   volParts=[];   // 入れたら合計はクリア
   closeVolume();
 }
+/* スクリーンショットのファイル名：秒までの日時（同じ日でも重複しない） */
+function shotStamp(){
+  const d=new Date(); const p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+/* ファイル名を入力してもらう（そのままOKなら日時入りの既定名。キャンセルは null） */
+async function shotFileName(prefix){
+  let name=await appPrompt('ファイル名（そのままでもOK）', `${prefix}_${shotStamp()}`);
+  if(name===null) return null;
+  name=String(name).trim().replace(/[\\/:*?"<>|]/g,'_');   // ファイル名に使えない文字を置換
+  if(!name) name=`${prefix}_${shotStamp()}`;               // 空なら日時で自動命名
+  if(!/\.png$/i.test(name)) name+='.png';
+  return name;
+}
 /* 容積計算をスクリーンショットとして書き出す（線・多角形入りの写真＋寸法・結果を1枚のPNGに） */
-function volScreenshot(){
+async function volScreenshot(){
   const v=computeVol();
   if(!volImg && v==null && !volParts.length){ toast('写真か計測がありません'); return; }
+  const fname=await shotFileName('容積計算'); if(fname===null) return;
   const W=1000, pad=28, lineH=26;
   // 線・多角形を描き込んだ写真（ズームに関係なく全体を等倍で描く）
   let anno=null, photoH=0;
@@ -5728,7 +5743,7 @@ function volScreenshot(){
   cv.toBlob(blob=>{
     if(!blob){ toast('書き出せませんでした'); return; }
     const url=URL.createObjectURL(blob);
-    const a=Object.assign(document.createElement('a'),{ href:url, download:`容積計算_${new Date().toLocaleDateString('ja-JP').replace(/\//g,'-')}.png` });
+    const a=Object.assign(document.createElement('a'),{ href:url, download:fname });
     a.click(); setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(_){} }, 1000);
     toast('スクリーンショットを保存しました');
   }, 'image/png');
@@ -5909,8 +5924,9 @@ function pmShotColor(col){
   return lum>0.72 ? '#222222' : col;
 }
 /* 写真＋メモを1枚の画像にして書き出す（スクリーンショット。色・大きさも反映） */
-function pmScreenshot(){
+async function pmScreenshot(){
   if(!pmImg && !pmMemoText().trim()){ toast('写真かメモを入れてください'); return; }
+  const fname=await shotFileName('写真メモ'); if(fname===null) return;
   const W=1000, pad=28;
   const FSCALE=18/15;   // 画面のメモ（基準15px）→ 出力（基準18px）
   let photoH=0, iw=0, ih=0;
@@ -5953,7 +5969,7 @@ function pmScreenshot(){
   cv.toBlob(blob=>{
     if(!blob){ toast('書き出せませんでした'); return; }
     const url=URL.createObjectURL(blob);
-    const a=Object.assign(document.createElement('a'),{ href:url, download:`写真メモ_${new Date().toLocaleDateString('ja-JP').replace(/\//g,'-')}.png` });
+    const a=Object.assign(document.createElement('a'),{ href:url, download:fname });
     a.click(); setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(_){} }, 1000);
     toast('スクリーンショットを保存しました');
   }, 'image/png');
@@ -9221,7 +9237,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v219';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v220';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
