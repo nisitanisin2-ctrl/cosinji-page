@@ -1,4 +1,4 @@
-const CACHE = 'excalc-v233';
+const CACHE = 'photomemo-v1';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -10,8 +10,7 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
-      // 自分（表電卓）の古いキャッシュだけ消す（写真メモ単独アプリのキャッシュは消さない）
-      Promise.all(keys.filter(k => k !== CACHE && k.startsWith('excalc-')).map(k => caches.delete(k)))
+      Promise.all(keys.filter(k => k !== CACHE && k.startsWith('photomemo-')).map(k => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
