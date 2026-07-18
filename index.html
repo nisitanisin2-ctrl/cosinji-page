@@ -1137,6 +1137,17 @@ body.dark .vol-parts-total { color: #7fd6a3; }
 .vol-save-row { display: flex; gap: 8px; margin-bottom: 8px; }
 .vol-savemeasure { flex: 1; padding: 11px; border: 1px solid var(--save-item-border); border-radius: 8px; background: var(--save-item-bg); color: var(--text); font-size: 13.5px; font-weight: bold; cursor: pointer; touch-action: manipulation; }
 .vol-savemeasure:active { opacity: 0.7; }
+/* キャリブレーション（距離補正）パネル */
+.vol-cal { border: 1px dashed #7b1fa2; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
+.vol-cal-hint { font-size: 11.5px; color: var(--text-light); margin-bottom: 6px; }
+.vol-cal-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 12.5px; color: var(--text); margin-bottom: 6px; }
+.vol-cal-pos { width: 64px; padding: 6px 6px; font-size: 14px; text-align: right; border: 1px solid var(--save-item-border); border-radius: 6px; background: var(--cell-bg, #fff); color: var(--text); }
+.vol-cal-note { font-size: 11px; color: #7b1fa2; font-weight: bold; }
+body.dark .vol-cal-note { color: #ce93d8; }
+.vol-cal-status { font-size: 11.5px; color: var(--text-light); margin: 4px 0 6px; }
+.vol-cal-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.vol-cal-mini { padding: 6px 10px; font-size: 12px; border: 1px solid var(--save-item-border); border-radius: 6px; background: var(--save-item-bg); color: var(--text); cursor: pointer; touch-action: manipulation; }
+.vol-cal-mini.on { background: #7b1fa2; border-color: #7b1fa2; color: #fff; }
 /* 出力プレビュー（容積計算・写真メモ共通） */
 .shotprev-modal { width: 100%; max-width: 560px; }
 .shotprev-body { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 10px; gap: 8px; }
@@ -2425,6 +2436,11 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <div class="vol-draw-hint" id="volDrawHint" style="display:none">写真の上のバーで<b>引く線を選んで</b>なぞります。<b>「✋見る/移動」</b>にすると線を引かずにスクロールできます。<b>2本指でズーム</b>、<b>丸い点を押しながら動かす</b>と位置を直せます。1つを「基準」にして実際の長さを入れると、他の辺は写真の比率から自動で入ります。</div>
       <div class="vol-row"><span class="vol-lb">形</span><div class="vol-chips" id="volShapeRow"></div></div>
       <div class="vol-row"><span class="vol-lb">単位</span><div class="vol-chips" id="volUnitRow"></div></div>
+      <div class="vol-row"><span class="vol-lb">校正</span><div class="vol-chips">
+        <button class="vol-chip" id="volCalBtn" onclick="volCalToggle()">📐 キャリブレーション</button>
+        <span class="vol-cal-note" id="volCalNote"></span>
+      </div></div>
+      <div class="vol-cal" id="volCalPanel" style="display:none"></div>
       <div class="vol-dims" id="volDims"></div>
       <div class="vol-result">
         <div class="vol-result-main" id="volResultVal">—</div>
@@ -2438,7 +2454,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <button class="vol-savemeasure" onclick="volScreenshot()">📸 スクショ</button>
         <button class="vol-savemeasure" onclick="volScreenshot(true)">📤 共有</button>
       </div>
-      <div class="vol-hint">写真は撮る角度や奥行きで実物と比率がずれるため、自動で入る数値は目安です。正確に出したいときは各辺の長さを直接入れてください。<b>「プレビュー」で仕上がりを確認してから、スクショ（画像保存）や共有ができます</b>。</div>
+      <div class="vol-hint">写真は撮る角度や奥行きで実物と比率がずれるため、自動で入る数値は目安です。<b>「📐キャリブレーション」で長さの分かる線を2〜3本登録すると、場所ごとのズレを補正して精度が上がります</b>。正確に出したいときは各辺の長さを直接入れてください。「プレビュー」で仕上がりを確認してから、スクショ（画像保存）や共有ができます。</div>
     </div>
   </div>
 </div>
@@ -5332,7 +5348,7 @@ function volEnsureState(){
   const keys=volDimList().map(d=>d[0]);
   keys.forEach(k=>{ if(!volDimState[k]) volDimState[k]={seg:null,len:null,auto:true}; });
   if(!volRefKey || !keys.includes(volRefKey)) volRefKey=keys[0];
-  if(volActiveKey && !keys.includes(volActiveKey)) volActiveKey=null;
+  if(volActiveKey && !keys.includes(volActiveKey) && !volCalIsKey(volActiveKey)) volActiveKey=null;
 }
 /* 端末の「戻る」ボタンでアプリを閉じずに、開いている画面（容積・写真メモ）だけを閉じる。
    開く時に履歴を1つ積み、戻る（popstate）でモーダルだけ閉じる。✕で閉じた時は積んだ分を消費する。
@@ -5401,9 +5417,10 @@ function volClientToCanvas(clientX,clientY){ const c=volCanvasEl(); const r=c.ge
 function volT(bx,by){ return {x:bx*volView.scale+volView.tx, y:by*volView.scale+volView.ty}; }        // 画像基準→表示
 function volToBase(cp){ return {x:(cp.x-volView.tx)/volView.scale, y:(cp.y-volView.ty)/volView.scale}; } // 表示→画像基準
 function volResetZoom(){ volView={scale:1,tx:0,ty:0}; volRedraw(); }
-function volHitEndpoint(cp){   // 押した位置に近い端点（丸）を探す
+function volHitEndpoint(cp){   // 押した位置に近い端点（丸）を探す（校正線の端点も対象）
   const c=volCanvasEl(); const R=Math.max(24, c.width*0.05); let best=null, bestD=R;
-  volDimList().forEach(([k])=>{ const st=volDimState[k]; if(!st||!st.seg) return;
+  const keys=volDimList().map(([k])=>k).concat(VOL_CAL_KEYS.map(([k])=>k));
+  keys.forEach(k=>{ const st=volSegSt(k); if(!st||!st.seg) return;
     [['1',st.seg.x1,st.seg.y1],['2',st.seg.x2,st.seg.y2]].forEach(([end,bx,by])=>{
       const p=volT(bx,by); const d=Math.hypot(cp.x-p.x,cp.y-p.y); if(d<bestD){ bestD=d; best={key:k,end}; }
     });
@@ -5461,10 +5478,10 @@ function volPointerMove(e){
   if(volGesture==='move' && volMoveTarget){
     const b=volToBase(cp);
     if(volMoveTarget.poly){ const v=volActivePoly()[volMoveTarget.idx]; if(v){ v.x=b.x; v.y=b.y; updateVolResult(); volRedraw(); } return; }
-    const st=volDimState[volMoveTarget.key];
+    const st=volSegSt(volMoveTarget.key);
     if(st && st.seg){
       if(volMoveTarget.end==='1'){ st.seg.x1=b.x; st.seg.y1=b.y; } else { st.seg.x2=b.x; st.seg.y2=b.y; }
-      volRecomputeAuto(); volSyncInputs(null); updateVolResult(); volRedraw();
+      volRecomputeAuto(); volSyncInputs(null); updateVolResult(); volCalSyncStatus(); volRedraw();
     }
   }
 }
@@ -5495,10 +5512,10 @@ function volPointerUp(e){
     renderVolDims(); volRedraw(); updateVolResult(); return;
   }
   if(volGesture==='draw' && volDraft && volActiveKey){
-    const st=volDimState[volActiveKey];
+    const st=volSegSt(volActiveKey);
     if(st && segLen(volDraft)*volView.scale>=8){   // 画面上で一定以上動いたら線として確定
       st.seg={x1:volDraft.x1,y1:volDraft.y1,x2:volDraft.x2,y2:volDraft.y2};
-      if(volActiveKey!==volRefKey) st.auto=true;   // なぞり直したら自動算出に戻す
+      if(!volCalIsKey(volActiveKey) && volActiveKey!==volRefKey) st.auto=true;   // なぞり直したら自動算出に戻す
       volRecomputeAuto(); volAdvanceActive();
     }
   }
@@ -5506,18 +5523,76 @@ function volPointerUp(e){
   renderVolDims(); volRedraw(); updateVolResult();
 }
 function volAdvanceActive(){   // まだ線を引いていない次の辺へ。全部引いたら「見る」モードへ（誤って引き直すのを防ぐ）
+  if(volCalIsKey(volActiveKey)){   // 校正線：次のまだ引いていない校正線へ
+    const next=VOL_CAL_KEYS.find(([k])=>!(volCal.lines[k]&&volCal.lines[k].seg));
+    volActiveKey = next ? next[0] : null;
+    return;
+  }
   const dims=volDimList();
   const next=dims.find(([k])=>!(volDimState[k]&&volDimState[k].seg));
   volActiveKey = next ? next[0] : null;
 }
-function volRecomputeAuto(){   // 基準の線＋長さから、他の自動辺の長さを比率で求める
+/* ── キャリブレーション（距離補正）──
+   長さの分かる線を最大3本登録すると、写真の縦位置（＝カメラからの距離）による
+   縮尺の変化を直線フィットで学習し、自動算出の長さを線の位置に応じて補正する。
+   校正カーブは保存でき、同じ位置（高さ・距離）から撮った次の写真でも
+   基準1点を入れるだけで補正が効く。 */
+const VOL_CAL_KEYS=[['c1','校正1'],['c2','校正2'],['c3','校正3']];
+const VOL_CAL_COLOR='#7b1fa2';   // 校正線の色（紫・破線）
+let volCalOpen=false;                       // 校正パネルの表示中か
+let volCal={ h:'', d:'', lines:{} };        // h/d=撮影位置メモ, lines: c1..c3 -> {seg,len}
+let volCalUseSaved=true;                    // 保存済みカーブを使うか
+let volCalSaved=null;                       // 保存済み {h,d,pts:[{yn,s}],date}
+try{ volCalSaved=JSON.parse(localStorage.getItem('excalc_volcal')||'null'); }catch(_){ volCalSaved=null; }
+function volCalIsKey(k){ return !!k && VOL_CAL_KEYS.some(([c])=>c===k); }
+function volCalSt(k){ return volCal.lines[k]=(volCal.lines[k]||{seg:null,len:null}); }
+function volSegSt(k){ return volCalIsKey(k) ? volCalSt(k) : volDimState[k]; }
+function segMidY(s){ return (s.y1+s.y2)/2; }
+/* いま有効な校正線 → [{y:写真上の縦位置(px), s:1pxあたりの実長}] */
+function volCalPointsLive(){
+  const pts=[];
+  VOL_CAL_KEYS.forEach(([k])=>{ const st=volCal.lines[k];
+    if(st && st.seg && st.len>0){ const px=segLen(st.seg); if(px>0) pts.push({x:segMidY(st.seg), s:st.len/px}); } });
+  return pts;
+}
+/* 最小二乗の直線フィット s(x)=a+bx（2点なら2点を通る直線、1点なら一定） */
+function volCalFit(pts){
+  const n=pts.length; let sx=0,ss=0,sxx=0,sxs=0;
+  pts.forEach(p=>{ sx+=p.x; ss+=p.s; sxx+=p.x*p.x; sxs+=p.x*p.s; });
+  if(n===1) return ()=>pts[0].s;
+  const den=n*sxx-sx*sx;
+  if(Math.abs(den)<1e-9){ const m=ss/n; return ()=>m; }
+  const b=(n*sxs-sx*ss)/den, a=(ss-b*sx)/n;
+  const minS=Math.min(...pts.map(p=>p.s))*0.2;   // 外挿でマイナスにならないよう下限を設ける
+  return x=>Math.max(minS, a+b*x);
+}
+/* 補正モデル：{at:(写真の縦位置y)=>縮尺, abs:絶対値か} を返す。無ければ null
+   ・今の写真の校正線（1本以上）＝絶対縮尺
+   ・保存済みカーブ（2点以上）＝相対カーブ（基準1点で絶対値が決まる） */
+function volCalScaleModel(){
+  if(volIsPoly()) return null;
+  const pts=volCalPointsLive();
+  if(pts.length>=1){ const f=volCalFit(pts); return {at:f, abs:true, n:pts.length, saved:false}; }
+  if(volCalUseSaved && volCalSaved && (volCalSaved.pts||[]).length>=2){
+    const f=volCalFit(volCalSaved.pts.map(p=>({x:p.yn, s:p.s})));
+    const c=volCanvasEl(); const H=(c&&c.height)||1;
+    return {at:y=>f(y/H), abs:false, n:volCalSaved.pts.length, saved:true};
+  }
+  return null;
+}
+function volRecomputeAuto(){   // 基準の線＋長さから、他の自動辺の長さを求める（校正があれば位置に応じて補正）
+  const model=volCalScaleModel();
   const ref=volDimState[volRefKey];
-  if(!ref || ref.len==null || !ref.seg) return;
-  const refPx=segLen(ref.seg); if(!(refPx>0)) return;
+  const refOk=!!(ref && ref.len!=null && ref.seg && segLen(ref.seg)>0);
+  if(!refOk && !(model && model.abs)) return;   // 基準なし＝今の写真の校正線があるときだけ自動で入る
+  const anchor = refOk && model ? ref.len/(segLen(ref.seg)*model.at(segMidY(ref.seg))) : 1;   // 基準に絶対値を合わせる係数
   volDimList().forEach(([k])=>{
-    if(k===volRefKey) return;
+    if(k===volRefKey && refOk) return;
     const st=volDimState[k];
-    if(st && st.auto && st.seg){ const px=segLen(st.seg); if(px>0) st.len=trimNum(ref.len*px/refPx); }
+    if(!(st && st.auto && st.seg)) return;
+    const px=segLen(st.seg); if(!(px>0)) return;
+    if(model) st.len=trimNum(px*model.at(segMidY(st.seg))*anchor);
+    else st.len=trimNum(ref.len*px/segLen(ref.seg));
   });
 }
 function volRedraw(){
@@ -5528,7 +5603,21 @@ function volRedraw(){
   if(volIsPoly()){ volDrawPoly(ctx); return; }
   const dims=volDimList();
   dims.forEach(([k],i)=>{ const st=volDimState[k]; if(st&&st.seg) volDrawSeg(ctx,st.seg,VOL_COLORS[i%VOL_COLORS.length],k===volActiveKey); });
-  if(volDraft){ const i=dims.findIndex(d=>d[0]===volActiveKey); volDrawSeg(ctx,volDraft,VOL_COLORS[(i<0?0:i)%VOL_COLORS.length],true); }
+  VOL_CAL_KEYS.forEach(([k])=>{ const st=volCal.lines[k]; if(st&&st.seg) volDrawCalSeg(ctx,st.seg,k===volActiveKey); });   // 校正線（紫・破線）
+  if(volDraft){
+    if(volCalIsKey(volActiveKey)) volDrawCalSeg(ctx,volDraft,true);
+    else { const i=dims.findIndex(d=>d[0]===volActiveKey); volDrawSeg(ctx,volDraft,VOL_COLORS[(i<0?0:i)%VOL_COLORS.length],true); }
+  }
+}
+/* 校正線を描く（通常の辺と見分けられるよう紫の破線） */
+function volDrawCalSeg(ctx,s,active){
+  const a=volT(s.x1,s.y1), b=volT(s.x2,s.y2);
+  ctx.save(); ctx.setLineDash([9,6]);
+  ctx.lineWidth=active?5:4; ctx.strokeStyle=VOL_CAL_COLOR; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle=VOL_CAL_COLOR; ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=2;
+  [a,b].forEach(p=>{ ctx.beginPath(); ctx.arc(p.x,p.y,active?9:7,0,7); ctx.fill(); ctx.stroke(); });
 }
 function volDrawSeg(ctx,s,color,active){
   const a=volT(s.x1,s.y1), b=volT(s.x2,s.y2);
@@ -5574,6 +5663,104 @@ function volPolyClear(){ const verts=volActivePoly(); verts.length=0; if(volPoly
 function setVolPolyEdit(which){ volPolyEdit=which; volPolyArmed=true; renderVolDims(); volRedraw(); }
 /* 「✋見る」＝線を引かないモードへ（スクロールや確認のため） */
 function volDisarmDraw(){ if(volIsPoly()) volPolyArmed=false; else volActiveKey=null; renderVolDims(); volRedraw(); }
+/* ── キャリブレーションのUI ── */
+function volCalToggle(){
+  volCalOpen=!volCalOpen;
+  if(volCalOpen && volImg && !volIsPoly() && !volCalIsKey(volActiveKey)){
+    const next=VOL_CAL_KEYS.find(([k])=>!(volCal.lines[k]&&volCal.lines[k].seg));
+    if(next) volActiveKey=next[0];   // 開いたらすぐ校正線を引ける状態に
+  }
+  if(!volCalOpen && volCalIsKey(volActiveKey)) volActiveKey=null;
+  renderVolDims(); volRedraw();
+}
+function volCalLenInput(k,val){
+  const st=volCalSt(k); const n=parseFloat(val);
+  st.len=isNaN(n)?null:n;
+  volRecomputeAuto(); volSyncInputs(null); updateVolResult(); volCalSyncStatus();
+}
+function volCalPosInput(which,val){ volCal[which]=val; }
+function volCalClearLines(){
+  volCal.lines={};
+  if(volCalIsKey(volActiveKey)) volActiveKey=null;
+  volRecomputeAuto(); renderVolDims(); volRedraw(); updateVolResult();
+}
+function volCalSave(){
+  const pts=volCalPointsLive();
+  if(pts.length<2){ toast('校正線を2本以上（長さ入り）引いてください'); return; }
+  const c=volCanvasEl(); const H=(c&&c.height)||1;
+  volCalSaved={ h:volCal.h, d:volCal.d, unit:volUnit, date:new Date().toISOString().slice(0,10),
+    pts: pts.map(p=>({yn:p.x/H, s:p.s})) };   // 縦位置は写真の高さで正規化して保存
+  try{ localStorage.setItem('excalc_volcal', JSON.stringify(volCalSaved)); }catch(_){ toast('保存できませんでした'); return; }
+  volCalUseSaved=true;
+  renderVolCal();
+  toast('校正を保存しました。同じ位置から撮った写真で使えます');
+}
+function volCalDeleteSaved(){
+  volCalSaved=null; try{ localStorage.removeItem('excalc_volcal'); }catch(_){}
+  volRecomputeAuto(); volSyncInputs(null); updateVolResult(); renderVolCal();
+  toast('保存した校正を消しました');
+}
+function volCalUseToggle(){
+  volCalUseSaved=!volCalUseSaved;
+  volRecomputeAuto(); volSyncInputs(null); updateVolResult(); renderVolCal();
+}
+/* 補正の状態を短い文で返す（バッジ・パネル・スクショに使う） */
+function volCalStatusText(){
+  const model=volCalScaleModel();
+  if(!model) return '';
+  if(model.abs) return `補正中：今の写真の校正線${model.n}本`;
+  const pos=[volCalSaved&&volCalSaved.h?`高さ${volCalSaved.h}m`:'', volCalSaved&&volCalSaved.d?`距離${volCalSaved.d}m`:''].filter(Boolean).join('・');
+  return `補正中：保存済みカーブ${pos?`（${pos}）`:''}＋基準で適用`;
+}
+function volCalSyncStatus(){
+  const note=document.getElementById('volCalNote'); if(note) note.textContent=volCalStatusText();
+  const stEl=document.getElementById('volCalStatus'); if(!stEl) return;
+  const pts=volCalPointsLive();
+  if(pts.length>=2){
+    const f=volCalFit(pts);
+    const c=volCanvasEl(); const H=(c&&c.height)||1;
+    const top=f(H*0.1), btm=f(H*0.9);
+    stEl.textContent=`縮尺の変化：写真の上側は下側の ${trimNum(btm>0?top/btm:1)} 倍の長さ／px（${pts.length}本から算出）`;
+  } else if(pts.length===1){
+    stEl.textContent='校正線1本＝全体を一定の縮尺で計算します（2本以上で場所ごとの補正が効きます）';
+  } else {
+    stEl.textContent='長さの分かる物（メジャー・ブロック等）に線を引き、実際の長さを入れてください';
+  }
+}
+function renderVolCal(){
+  const btn=document.getElementById('volCalBtn'); if(btn) btn.classList.toggle('on', volCalOpen);
+  const panel=document.getElementById('volCalPanel'); if(!panel) return;
+  volCalSyncStatus();
+  if(!volCalOpen){ panel.style.display='none'; return; }
+  panel.style.display='block';
+  if(volIsPoly()){ panel.innerHTML='<div class="vol-cal-hint">キャリブレーションは直方体・円柱など「線をなぞる」形で使えます（多角柱は対象外）。</div>'; return; }
+  const rows=VOL_CAL_KEYS.map(([k,lb])=>{
+    const st=volCal.lines[k]; const drawn=!!(st&&st.seg);
+    return `<div class="vol-dim${volActiveKey===k?' active':''}">
+      <span class="vol-dim-dot" style="background:${VOL_CAL_COLOR}"></span>
+      <span class="vol-dim-lb">${lb}</span>
+      ${volImg?`<button class="vol-draw${drawn?' done':''}${volActiveKey===k?' on':''}" onclick="setVolActive('${k}')">${drawn?'✓なぞり済':'✎なぞる'}</button>`:''}
+      <input type="number" inputmode="decimal" id="volcalin_${k}" class="vol-dim-in" value="${st&&st.len!=null?trimNum(st.len):''}" oninput="volCalLenInput('${k}',this.value)" placeholder="実際の長さ">
+      <span class="vol-dim-unit">${volUnit}</span>
+    </div>`;
+  }).join('');
+  const savedInfo = volCalSaved ?
+    `<button class="vol-cal-mini${volCalUseSaved?' on':''}" onclick="volCalUseToggle()">${volCalUseSaved?'✓':''}保存済みを使う${volCalSaved.h||volCalSaved.d?`（高さ${volCalSaved.h||'—'}m・距離${volCalSaved.d||'—'}m）`:''}</button>
+     <button class="vol-cal-mini" onclick="volCalDeleteSaved()">保存を消す</button>` : '';
+  panel.innerHTML=`
+    <div class="vol-cal-hint">長さの分かる物に<b>校正線を3本</b>（写真の手前・中・奥）引いて実際の長さを入れると、場所ごとの縮尺のズレを学習して自動算出を補正します。<b>「校正を保存」すると、同じ位置から撮った次の写真でも基準1点で補正できます</b>。</div>
+    <div class="vol-cal-row">撮影位置メモ：高さ
+      <input type="number" inputmode="decimal" class="vol-cal-pos" value="${escHtml(String(volCal.h||''))}" oninput="volCalPosInput('h',this.value)" placeholder="1.5"> m ・ 距離
+      <input type="number" inputmode="decimal" class="vol-cal-pos" value="${escHtml(String(volCal.d||''))}" oninput="volCalPosInput('d',this.value)" placeholder="2"> m</div>
+    ${rows}
+    <div class="vol-cal-status" id="volCalStatus"></div>
+    <div class="vol-cal-btns">
+      <button class="vol-cal-mini" onclick="volCalSave()">💾 校正を保存</button>
+      <button class="vol-cal-mini" onclick="volCalClearLines()">校正線を消す</button>
+      ${savedInfo}
+    </div>`;
+  volCalSyncStatus();
+}
 /* 写真上部の「引く線の選択バー」を描画し、キャンバスの見るモードも切り替える */
 function renderVolLineStrip(){
   const el=document.getElementById('volLineStrip'); if(!el) return;
@@ -5590,6 +5777,12 @@ function renderVolLineStrip(){
       const color=VOL_COLORS[i%VOL_COLORS.length]; const drawn=!!(volDimState[k]&&volDimState[k].seg);
       html+=`<button class="vol-line-chip${volActiveKey===k?' on':''}" onclick="setVolActive('${k}')"><span class="vol-chip-dot" style="background:${color}"></span>${lb}${drawn?'✓':''}</button>`;
     });
+    if(volCalOpen){   // 校正パネルを開いている間は校正線も選べる
+      VOL_CAL_KEYS.forEach(([k,lb])=>{
+        const drawn=!!(volCal.lines[k]&&volCal.lines[k].seg);
+        html+=`<button class="vol-line-chip${volActiveKey===k?' on':''}" onclick="setVolActive('${k}')"><span class="vol-chip-dot" style="background:${VOL_CAL_COLOR}"></span>${lb}${drawn?'✓':''}</button>`;
+      });
+    }
   }
   el.innerHTML=html;
   if(c) c.classList.toggle('viewmode', viewOn);   // 見るモード中は縦スワイプ＝スクロール
@@ -5601,7 +5794,7 @@ function renderVolShapes(){
   document.getElementById('volShapeRow').innerHTML=VOL_SHAPES.map(s=>
     `<button class="vol-chip${s.id===volShape?' on':''}" onclick="setVolShape('${s.id}')">${s.name}</button>`).join('');
 }
-function setVolShape(id){ volShape=id; volEnsureState(); renderVolShapes(); renderVolDims(); volRedraw(); updateVolResult(); }
+function setVolShape(id){ volShape=id; volEnsureState(); if(volIsPoly() && volCalIsKey(volActiveKey)) volActiveKey=null; renderVolShapes(); renderVolDims(); volRedraw(); updateVolResult(); }
 function renderVolUnits(){
   document.getElementById('volUnitRow').innerHTML=VOL_UNITS.map(u=>
     `<button class="vol-chip${u===volUnit?' on':''}" onclick="setVolUnit('${u}')">${u}</button>`).join('');
@@ -5612,6 +5805,7 @@ function setVolRef(k){ volRefKey=k; volDimState[k].auto=false; volRecomputeAuto(
 function renderVolDims(){
   volEnsureState();
   renderVolLineStrip();
+  renderVolCal();
   if(volIsPoly()){ renderVolPoly(); return; }
   const dims=volDimList(); const hasPhoto=!!volImg; const showRef=hasPhoto && dims.length>1;
   const dh=document.getElementById('volDrawHint'); if(dh) dh.style.display = hasPhoto ? 'block' : 'none';   // なぞる説明（多角柱以外）
@@ -5669,6 +5863,13 @@ function updateVolActiveBadge(){
     if(!volImg || !volPolyArmed){ el.style.display='none'; return; }   // 見るモード中は出さない
     const top=(volPolyEdit==='top');
     el.innerHTML=`<span class="vol-active-dot" style="background:${top?'#fb8c00':'#43a047'}"></span>${top?'上面':'下面'}をタップ`;
+    el.style.display='flex'; return;
+  }
+  if(volCalIsKey(volActiveKey)){   // 校正線を引くとき
+    if(!volImg){ el.style.display='none'; return; }
+    const lb=VOL_CAL_KEYS.find(([k])=>k===volActiveKey)[1];
+    const drawn=!!(volCal.lines[volActiveKey]&&volCal.lines[volActiveKey].seg);
+    el.innerHTML=`<span class="vol-active-dot" style="background:${VOL_CAL_COLOR}"></span>${lb}${drawn?'（引き直し）':'を線引き'}`;
     el.style.display='flex'; return;
   }
   const dims=volDimList(); const i=dims.findIndex(d=>d[0]===volActiveKey);
@@ -5837,13 +6038,17 @@ function volBuildShotCanvas(){
     const savedView=volView; volView={scale:1,tx:0,ty:0};
     a.drawImage(volImg,0,0,anno.width,anno.height);
     if(volIsPoly()) volDrawPoly(a);
-    else volDimList().forEach(([k],i)=>{ const st=volDimState[k]; if(st&&st.seg) volDrawSeg(a,st.seg,VOL_COLORS[i%VOL_COLORS.length],false); });
+    else {
+      volDimList().forEach(([k],i)=>{ const st=volDimState[k]; if(st&&st.seg) volDrawSeg(a,st.seg,VOL_COLORS[i%VOL_COLORS.length],false); });
+      VOL_CAL_KEYS.forEach(([k])=>{ const st=volCal.lines[k]; if(st&&st.seg) volDrawCalSeg(a,st.seg,false); });
+    }
     volView=savedView;
     photoH=Math.round(W*anno.height/anno.width);
   }
   // 寸法・結果のテキスト
   const raw=[];
   raw.push(`形：${volShapeDef().name}　単位：${volUnit}`);
+  const calTxt=volCalStatusText(); if(calTxt) raw.push(`📐 ${calTxt}`);
   if(volIsPoly()){
     const A1=volPolyArea(), A2=volPolyTopArea();
     if(A1!=null) raw.push(`下面積：${volFmt(A1)} ${volUnit}²${A2!=null?`　上面積：${volFmt(A2)} ${volUnit}²`:''}`);
@@ -9558,7 +9763,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v235';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v236';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
