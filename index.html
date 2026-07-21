@@ -2490,7 +2490,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         </div>
         <button class="pm-zoomreset" id="pmZoomReset" onclick="pmResetZoom()" style="display:none">⤢ 全体</button>
       </div>
-      <div class="pm-memo" id="pmMemo" contenteditable="true" data-ph="メモを入力…（文字を選んで下のボタンで色・大きさ・太字等を変えられます。図形ボタンで写真に〇→□も置けます）" oninput="pmMarkDirty()" onkeydown="event.stopPropagation()"></div>
+      <div class="pm-memo" id="pmMemo" contenteditable="true" data-ph="メモを入力…（文字を選んで下のボタンで色・大きさ・太字等を変えられます。図形ボタンで写真に〇→□も置けます）" onfocus="pmDeselShape()" oninput="pmMarkDirty()" onkeydown="event.stopPropagation()"></div>
       <!-- 文字ツールはメモの下に置く（選択時に出るコピー等のメニューは選択の上側に出るため、重ならない） -->
       <div class="pm-tools">
         <span class="pm-tool-lb">色</span>
@@ -6365,6 +6365,11 @@ function pmShapeSyncUi(){
   const del=document.getElementById('pmShapeDel');
   if(del) del.style.display = pmSelShape>=0 ? '' : 'none';
 }
+/* メモ欄に触れたら図形の選択を解除（色・Ａ± が文字に効くように。
+   図形の色や大きさを変えたい時は、写真上の図形をタップして選び直す） */
+function pmDeselShape(){
+  if(pmSelShape>=0){ pmSelShape=-1; pmShapeSyncUi(); pmRedraw(); }
+}
 /* 押した位置の図形/ハンドルを探す（キャンバス座標） */
 function pmShapeHit(cp){
   if(pmSelShape>=0 && pmShapes[pmSelShape]){   // 選択中図形のハンドル優先
@@ -9971,7 +9976,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v237';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v238';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
