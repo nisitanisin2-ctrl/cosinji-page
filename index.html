@@ -2649,7 +2649,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <button class="pm-sizebtn" id="pmStampDel" onclick="pmStampClear()" style="display:none">日付を消す</button>
       </div>
       <div class="pm-memowrap" id="pmMemoWrap">
-        <div class="pm-memo" id="pmMemo" contenteditable="true" data-ph="メモを入力…（文字を選んで上のボタンで色・大きさ・太字等を変えられます）" onfocus="pmDeselShape()" oninput="pmMarkDirty()" onkeydown="event.stopPropagation()"></div>
+        <div class="pm-memo" id="pmMemo" contenteditable="true" data-ph="メモを入力…（文字を選んで上のボタンで色・大きさ・太字等を変えられます）" onfocus="pmDeselShape()" oninput="pmMarkDirty()" onkeydown="pmMemoKeydown(event)"></div>
         <!-- 枠の右下：カーソル移動と範囲選択（長押しメニューを使わずに編集できる） -->
         <div class="pm-caret">
           <button class="pm-cbtn" id="pmCaretL" title="左へ">◀</button>
@@ -6462,9 +6462,25 @@ function pmMemoText(){ const ed=document.getElementById('pmMemo'); return ed ? (
    （文字タブ専用。図形の色は図形タブの pmShapeColorSet で変える） */
 function pmColor(c){
   const ed=document.getElementById('pmMemo'); if(!ed) return; ed.focus();
+  pmPushUndo(true);
   const col = c || getComputedStyle(ed).color;   // 標準＝メモ欄の既定色
   try{ document.execCommand('styleWithCSS', false, true); document.execCommand('foreColor', false, col); }catch(_){}
   pmMarkDirty();
+}
+/* メモ欄のキー処理。文字を選んだままEnterを押すと、その文字が消えて改行に
+   置き換わってしまうため、選択の終わりへカーソルを移してから改行する。 */
+function pmMemoKeydown(e){
+  e.stopPropagation();
+  if(e.key!=='Enter' || e.isComposing || e.keyCode===229) return;
+  const s=getSelection();
+  if(!s || !s.rangeCount || s.isCollapsed) return;   // 普通の改行はそのまま
+  e.preventDefault();
+  const r=s.getRangeAt(0).cloneRange(); r.collapse(false);   // 選んだ範囲の終わりへ
+  s.removeAllRanges(); s.addRange(r);
+  pmSelExtend=false; pmCaretSyncUi();
+  try{ document.execCommand('insertLineBreak'); }
+  catch(_){ try{ document.execCommand('insertHTML', false, '<br>'); }catch(__){} }
+  if(typeof pmMarkDirty==='function') pmMarkDirty(); else pmDraftSave();
 }
 /* ── メモ欄の右下ボタン：カーソル移動と範囲選択 ──
    長押しの選択メニューを出さずに、◀▶で位置を動かし「選択」を押してから
@@ -6604,6 +6620,7 @@ function pmCleanZwsp(){
    一旦 <font size=7> にしてから span の px 指定に置き換える） */
 function pmApplySizePx(px){
   const ed=document.getElementById('pmMemo'); if(!ed) return;
+  pmPushUndo(true);
   try{
     ed.querySelectorAll('font[size="7"]').forEach(f=>f.setAttribute('data-old','1'));   // 既存のものは触らない
     document.execCommand('styleWithCSS', false, false);
@@ -6757,9 +6774,13 @@ function pmClearShapes(){
 }
 /* ── 元に戻す（図形・文字・手書き・日付・写真の向きの操作を1手ずつ戻す） ── */
 let pmUndoStack=[];
-function pmSnapshot(){ return JSON.stringify({ sh:pmShapes, st:pmStamp, rot:pmRot }); }
-function pmPushUndo(){
-  pmUndoStack.push(pmSnapshot());
+/* memoOp=true のときはメモの中身も一緒に覚える（文字の書式変更を戻せるように） */
+function pmSnapshot(memoOp){
+  const ed=document.getElementById('pmMemo');
+  return JSON.stringify({ sh:pmShapes, st:pmStamp, rot:pmRot, mh:(memoOp&&ed)?ed.innerHTML:null });
+}
+function pmPushUndo(memoOp){
+  pmUndoStack.push(pmSnapshot(memoOp));
   if(pmUndoStack.length>40) pmUndoStack.shift();
   pmUndoSyncUi();
 }
@@ -6770,6 +6791,7 @@ function pmUndo(){
   const j=pmUndoStack.pop(); if(!j){ pmUndoSyncUi(); return; }
   let st; try{ st=JSON.parse(j); }catch(_){ pmUndoSyncUi(); return; }
   pmShapes=st.sh||[]; pmStamp=st.st||null; pmSelShape=-1;
+  if(st.mh!=null){ const ed=document.getElementById('pmMemo'); if(ed) ed.innerHTML=st.mh; }   // 文字の書式も戻す
   if((st.rot||0)!==pmRot){ pmRot=st.rot||0; pmApplyRot(); pmFitView(); }
   pmUndoSyncUi(); pmShapeSyncUi(); pmDateUiSync(); pmRedraw(); pmMarkDirty(); pmDraftSave();
 }
@@ -7028,6 +7050,7 @@ function pmDrawStamp(ctx, rect){
 /* 選択した部分（または以後の入力）の装飾を切り替える（bold/italic/underline） */
 function pmDeco(cmd){
   const ed=document.getElementById('pmMemo'); if(!ed) return; ed.focus();
+  pmPushUndo(true);
   try{ document.execCommand(cmd, false, null); }catch(_){}
   pmMarkDirty();
 }
@@ -10618,7 +10641,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v247';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v248';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
