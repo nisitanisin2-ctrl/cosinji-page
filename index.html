@@ -1218,7 +1218,7 @@ body.dark .vol-cal-note { color: #ce93d8; }
 /* メモ欄の背景色（白/黒を選べる） */
 .pm-memo.bg-white { background: #ffffff; color: #222222; }
 .pm-memo.bg-black { background: #000000; color: #ffffff; }
-.pm-actions { flex-shrink: 0; display: flex; gap: 8px; margin-top: 2px; }
+.pm-actions { flex-shrink: 0; display: flex; gap: 8px; }
 .pm-shot { flex: 1; padding: 13px 10px; border: none; border-radius: 10px; font-size: 14.5px; font-weight: bold;
   cursor: pointer; touch-action: manipulation; background: var(--pm-chip); color: var(--text);
   transition: background .14s, transform .08s, box-shadow .14s; }
@@ -2525,6 +2525,11 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <div class="pm-body">
       <input type="file" id="pmPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="pmPhotoChange(event)">
       <input type="file" id="pmFileInput" accept="image/*" style="display:none" onchange="pmPhotoChange(event)">
+      <div class="pm-actions">
+        <button class="pm-shot" onclick="pmPreview()">👁 プレビュー</button>
+        <button class="pm-shot" onclick="pmScreenshot()">📸 スクショ</button>
+        <button class="pm-shot primary" onclick="pmScreenshot(true)">📤 共有</button>
+      </div>
       <div class="pm-photo" id="pmPhotoArea">
         <canvas id="pmCanvas" class="pm-canvas"></canvas>
         <div class="pm-empty" id="pmEmpty">写真がありません</div>
@@ -2631,11 +2636,6 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
         <button class="pm-sizebtn" id="pmStampDel" onclick="pmStampClear()" style="display:none">日付を消す</button>
       </div>
       <input type="date" id="pmDateInput" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0" onchange="pmDatePicked(this.value)">
-      <div class="pm-actions">
-        <button class="pm-shot" onclick="pmPreview()">👁 プレビュー</button>
-        <button class="pm-shot" onclick="pmScreenshot()">📸 スクショ</button>
-        <button class="pm-shot primary" onclick="pmScreenshot(true)">📤 共有</button>
-      </div>
     </div>
   </div>
 </div>
@@ -10487,7 +10487,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v242';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v243';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
