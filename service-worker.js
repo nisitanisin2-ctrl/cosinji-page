@@ -1,4 +1,4 @@
-const CACHE = 'excalc-v259';
+const CACHE = 'excalc-v260';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
