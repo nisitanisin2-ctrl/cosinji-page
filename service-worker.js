@@ -1,4 +1,5 @@
-const CACHE = 'excalc-v261';
+const CACHE = 'excalc-v262';
+const CACHE_PREFIX = 'excalc-';   // このアプリのキャッシュだけを見分けるための名前
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -10,8 +11,9 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
-      // 古いキャッシュをすべて消す（撤去した写真メモ単独アプリのキャッシュも掃除する）
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+      // 自分の古いキャッシュだけを消す。キャッシュは「サイト（オリジン）ごと」に
+      // 共通なので、名前で絞らないと同じサイトにある別のアプリの分まで消してしまう。
+      Promise.all(keys.filter(k => k !== CACHE && k.startsWith(CACHE_PREFIX)).map(k => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
