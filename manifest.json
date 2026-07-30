@@ -2,7 +2,7 @@
   "name": "表電卓",
   "short_name": "表電卓",
   "description": "スプレッドシート風電卓アプリ",
-  "id": "./",
+  "id": "/excalc",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
