@@ -1728,6 +1728,27 @@ body.dark .jkq-btn.on { background: #5a4a8a; }
 /* ── 単位水量試験（土研法エアメータ法）モード ── */
 .tanisui-bar { background: #e0f2f1; border-color: #00897b; color: #004d40; }
 body.dark .tanisui-bar { background: #102826; border-color: #2f7a70; color: #8fd4ca; }
+.kantab-bar { background: #ede7f6; border-color: #5e35b1; color: #311b92; }
+body.dark .kantab-bar { background: #1c1630; border-color: #7e57c2; color: #c5b3ee; }
+.kantab-bar .ts-setBtn { background: #5e35b1; }
+.kantab-bar .ts-setBtn:hover { background: #4527a0; }
+/* カンタブの換算表（読み値→濃度）の編集欄 */
+.kt-tbl { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+.kt-row { display: flex; align-items: center; gap: 6px; }
+.kt-row input {
+  flex: 1 1 0; min-width: 0; padding: 8px; font-size: 15px; text-align: right;
+  border: 1px solid var(--cell-border, #ccc); border-radius: 6px;
+  background: var(--cell-bg, #fff); color: var(--text);
+}
+.kt-row .kt-unit { font-size: 12px; color: var(--text-light); width: 3.4em; flex-shrink: 0; }
+.kt-row .kt-del {
+  flex-shrink: 0; width: 32px; padding: 7px 0; border: none; border-radius: 6px; cursor: pointer;
+  background: rgba(192,57,43,.12); color: #c0392b; font-size: 14px; font-weight: bold;
+}
+.kt-head { display: flex; gap: 6px; font-size: 11.5px; font-weight: bold; color: var(--text-light); padding: 0 2px; }
+.kt-head span { flex: 1 1 0; }
+.kt-head span:last-child { flex: 0 0 32px; }
+.kt-empty { font-size: 12.5px; color: #c0392b; line-height: 1.6; padding: 6px 2px; }
 .ts-field { display: flex; align-items: center; gap: 3px; }
 .ts-judge {
   padding: 2px 10px; border-radius: 4px; font-weight: bold;
@@ -2058,6 +2079,42 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
   <div class="ts-bottomrow">
     <span class="ts-hint" id="tsHint">配合と試験の各値を入力してください（W=W1+0.7×(γ1−γ2)、β=0.7）</span>
     <button class="ts-setBtn" onclick="openTsSettings()">⚙ 設定</button>
+  </div>
+</div>
+
+<div class="shop-tax-bar kantab-bar" id="kantabBar">
+  <span>塩化物イオン量 <b id="ktCl">—</b></span>
+  <span>濃度 <b id="ktConc">—</b></span>
+  <span class="ts-judge" id="ktJudge">—</span>
+  <div class="ts-bottomrow">
+    <span class="ts-hint" id="ktHint">単位水量と読み値を入れてください（換算表は⚙設定で登録します）</span>
+    <button class="ts-setBtn" onclick="openKtSettings()">⚙ 設定</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ktSettingsOverlay" onclick="if(event.target===this)closeKtSettings()">
+  <div class="modal">
+    <div class="modal-header">
+      <span>🧪 カンタブの設定</span>
+      <button class="modal-close" onclick="closeKtSettings()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="ts-set-row">
+        <div class="ts-set-label">注意値 (kg/m³)<small>ここまでは「合格」</small></div>
+        <div class="ts-set-ctrl"><span class="sc-val" id="ktWarn">0.25</span><span class="ts-spin"><button class="ts-spin-btn" onclick="changeKtTol('warn',1)" aria-label="増やす">▲</button><button class="ts-spin-btn" onclick="changeKtTol('warn',-1)" aria-label="減らす">▼</button></span></div>
+      </div>
+      <div class="ts-set-row">
+        <div class="ts-set-label">管理値 (kg/m³)<small>これを超えると「不合格」</small></div>
+        <div class="ts-set-ctrl"><span class="sc-val" id="ktLimit">0.30</span><span class="ts-spin"><button class="ts-spin-btn" onclick="changeKtTol('limit',1)" aria-label="増やす">▲</button><button class="ts-spin-btn" onclick="changeKtTol('limit',-1)" aria-label="減らす">▼</button></span></div>
+      </div>
+      <div class="ts-ref-sec">
+        <div class="ts-ref-note"><b>換算表の登録</b>：お使いのカンタブ（試験紙）の容器や説明書にある<b>読み値 → 塩化物イオン濃度(%)</b>の対応を、そのまま入れてください。<br>
+          製品によって数値が違うため、はじめから入っている値はありません。読み値が表のちょうど中間のときは、前後の行から直線でおぎなった値を使い、その旨を下の帯に表示します。</div>
+        <div class="kt-head"><span>読み値</span><span>濃度 (%)</span><span></span></div>
+        <div class="kt-tbl" id="ktTblBody"></div>
+        <button class="ts-ref-btn" onclick="ktAddRow()">＋ 行を追加</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -3096,6 +3153,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
             <tr><td><b>単位水量</b></td><td>土研法エアメータ法で生コンの単位水量を推定（下記）</td></tr>
           </table>
           <div class="help-li"><b>単位水量</b>：配合（W1・セメント・細骨材・粗骨材・混和材・配合空気量）と試験値（容器容積V・容器質量・容器+試料・測定空気量）を入れると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で推定し、許容差（下のバーで変更可）で合否判定します。配合はkg/m³、試験はg・ccで入力。</div>
+          <div class="help-li"><b>カンタブ（塩化物イオン量）</b>：モードで<b>🧪カンタブ</b>を選ぶと、<b>単位水量</b>と<b>読み値①〜③</b>を入れるだけで、読み値の平均→塩化物イオン濃度(%)→<b>塩化物イオン量(kg/m³)</b>を出して合否を判定します。読み値から濃度への<b>換算表はカンタブの製品ごとに違う</b>ので、はじめに<b>⚙設定</b>でお使いの表を登録してください（読み値が表の間のときは前後から直線でおぎない、その旨を表示します）。管理値の既定は 0.30 kg/m³ で、設定で変えられます。</div>
           <div class="help-li"><b>配合・エアメータの登録（シート連携）</b>：単位水量の<b>⚙設定</b>「📋配合・エアメータ登録シートを作成」で<b>本体・配合登録(30)・エアメータ登録(5)</b>の3シートができます。番号ごとの値を入れておくと、本体で<b>配合番号・エアメータ番号を入れるだけ</b>で値が呼び出されます（登録側を直すと本体にも反映）。上の常設タブで切替。</div>
           <div class="help-li"><b>📋計算式テンプレ／📑決算書テンプレ</b>（設定の「計算」タブ）：割引・利益率・BMI・速さ・複利・ローン・面積…約20種類のひな形や、損益計算書・貸借対照表・収支計算書のひな形。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
         </div>
@@ -3564,9 +3622,9 @@ function applyDec(n) {
 function cellDec(r, c) {
   const s = cellStyles[`${r},${c}`];
   if (s && typeof s.dec === 'number') return s.dec;
-  // 単位水量モード：一部の入力欄（容器+試料・容器の容積・容器質量）は既定で整数表示
-  if (tableMode==='tanisuiryou' && c===1) {
-    const f = TS_FORM[r-1];
+  // フォーム型モード：入力欄ごとに決めた桁で表示する（質量は整数、読み値は小数2桁など）
+  if (isFormMode() && c===1) {
+    const f = formDef().form[r-1];
     if (f && typeof f.dec === 'number') return f.dec;
   }
   return decPlaces;
@@ -3908,7 +3966,7 @@ function buildSheet() {
   t.innerHTML='';
   // テーブルは横幅いっぱい(width:100%)。列が多い時だけ最小幅でスクロールさせる
   // 実際の最小幅は autoFitSheet() で内容に合わせて決める
-  const rhW = (tableMode==='tanisuiryou') ? 30 : 48;   // 単位水量モードは行番号列を狭く
+  const rhW = isFormMode() ? 30 : 48;   // フォーム型モードは行番号列を狭く
   const hr=t.insertRow();
   const corner=hr.insertCell();
   corner.className='ch corner-resizer'; corner.id='cornerCell'; corner.style.width=rhW+'px';
@@ -3946,14 +4004,15 @@ function buildSheet() {
         const m=STRUCT_MODES[tableMode];
         if (r===0 && c<m.headers.length) {
           td.classList.add('shop-label');
-        } else if (tableMode==='tanisuiryou' && (c===0 || c===1)) {
-          const inN=TS_FORM.length;
+        } else if (isFormMode() && (c===0 || c===1)) {
+          const fd=formDef();
+          const inN=fd.form.length;
           const isCalc=(r-1)>=inN;                         // 入力欄の下＝計算工程行
           if(isCalc && r-1===inN) td.classList.add('ts-calc-top');   // 計算工程の先頭で区切り線
-          if(TS_SEP_ROWS.includes(r)) td.classList.add('ts-sep');    // グループ区切りの二重線
+          if(fd.sep.includes(r)) td.classList.add('ts-sep');         // グループ区切りの二重線
           if(c===0){
             td.classList.add('shop-label');                // 項目名（固定ラベル）
-            const f=isCalc?TS_CALC[r-1-inN]:TS_FORM[r-1];
+            const f=isCalc?fd.calc[r-1-inN]:fd.form[r-1];
             td.textContent=f?(f.unit?`${f.label} (${f.unit})`:f.label):'';
           } else {
             td.classList.add('ts-val');                     // 値の列：右側に文字1個分の余白
@@ -4013,7 +4072,7 @@ function autoFitSheet(){
       if(td) td.style.removeProperty('--fit');
     }
   }
-  const rhW=(tableMode==='tanisuiryou')?30:48;   // 行番号列の幅（単位水量は狭く）
+  const rhW=isFormMode()?30:48;   // 行番号列の幅（フォーム型は狭く）
   t.style.minWidth=(rhW+COLS*baseW)+'px';
   // 2) 列ごとに必要幅を測る（手動指定列は測らず固定）
   const need=new Array(COLS).fill(baseW);
@@ -4029,12 +4088,12 @@ function autoFitSheet(){
   const tsValMaxW=Math.round(baseW*1.5);   // 単位水量モードの「値」列は少し広めの上限にする
   let total=0;
   for(let c=0;c<COLS;c++){
-    const isTsVal=(tableMode==='tanisuiryou' && c===1);
+    const isTsVal=(isFormMode() && c===1);
     const w=colWidths[c] ? Math.round(colWidths[c]*scale) : Math.min(Math.max(baseW,need[c]), isTsVal?tsValMaxW:maxW);
     total+=w;
     const ch=document.getElementById('ch'+c); if(!ch) continue;
     // 単位水量モードは「項目」列を可変にして余白を吸収させ、行番号列を狭いまま保つ
-    if(tableMode==='tanisuiryou' && c===0) ch.style.width='auto';
+    if(isFormMode() && c===0) ch.style.width='auto';
     else ch.style.width=w+'px';
   }
   t.style.minWidth=(rhW+total)+'px';
@@ -4044,7 +4103,7 @@ function autoFitSheet(){
   //   table-layout:fixed の余白は全列に比例配分されるため、放置すると行番号列も広がってしまう。
   //   データ列を伸ばして余白を使い切ることで、行番号列を文字幅（rhW）以上に広げない。
   //   （手動列指定・単位水量モードの可変列がある場合は対象外）
-  if(!Object.keys(colWidths).length && tableMode!=='tanisuiryou'){
+  if(!Object.keys(colWidths).length && !isFormMode()){
     const availW = t.parentElement ? t.parentElement.clientWidth : 0;
     const surplus = availW - (rhW + total);
     if(surplus > COLS){
@@ -9574,7 +9633,7 @@ function setEnterDir(d){
    （単位水量＝下、それ以外の構造化モード＝右へ進んで行末で次行へ）。 */
 function updateEnterArrow(){
   let dir=enterMoveDir;
-  if(isStructMode()) dir = (tableMode==='tanisuiryou') ? 'down' : 'right';
+  if(isStructMode()) dir = isFormMode() ? 'down' : 'right';
   document.body.style.setProperty('--enter-arrow', dir==='right' ? '"⇨"' : '"⇩"');
 }
 /* Enter確定後に次のセルへ移動。既定は下、設定で右にできる。
@@ -9729,6 +9788,7 @@ const STRUCT_MODES={
   yosan:   {cols:5, headers:['品名','単価','最低','個数','小計'], computed:[3,4]},
   jikan:   {cols:4, headers:['項目','開始','終了','時間'],         computed:[]},   // 開始・終了・時間のうち2つで残りを自動計算
   tanisuiryou:{cols:2, headers:['項目','値'], computed:[]},   // 単位水量試験（土研法）：表をフォームとして使う
+  kantab:  {cols:2, headers:['項目','値'], computed:[]},   // カンタブ試験（塩化物イオン量）：表をフォームとして使う
 };
 /* 単位水量試験モードの入力フォーム（表 col0=ラベル固定／col1=入力。行r=1..length に対応）。
    並び順：試験値（容器・容器+試料・空気量）を上、配合を下に置く。値は key で参照する。 */
@@ -9772,7 +9832,33 @@ const TS_REF={
   mix:{ sheet:'配合登録', headers:['配合番号','C','W1','S','G','P','A1'], rows:30, map:{1:'C',2:'W1',3:'S',4:'G',5:'P',6:'A1'} },
   air:{ sheet:'エアメータ登録', headers:['エアメータ番号','V(容器容積)','m1(容器質量)'], rows:5, map:{1:'V',2:'m1'} }
 };
-const MODE_LABELS={normal:'モード', simple:'簡易中', shopping:'買物中', warikan:'割勘中', zei:'税計中', wariai:'割合中', youseki:'容積中', yosan:'予算中', jikan:'時間中', tanisuiryou:'水量中'};
+/* ── カンタブ試験（生コンの塩化物イオン量）──
+   読み値を換算表で塩化物イオン濃度(%)に直し、単位水量を掛けて kg/m³ にする。
+   換算表は製品ごとに違うので、⚙設定で自分で登録してもらう。 */
+const KT_FORM=[
+  {key:'W',  label:'単位水量 W', unit:'kg/m³', dec:0},
+  {key:'r1', label:'読み値①',   unit:'',      dec:2},
+  {key:'r2', label:'読み値②',   unit:'',      dec:2},
+  {key:'r3', label:'読み値③',   unit:'',      dec:2},
+];
+const KT_CALC=[
+  {key:'avg',  label:'読み値の平均',     unit:'',      fixedDp:2},
+  {key:'conc', label:'塩化物イオン濃度', unit:'%',     fixedDp:3},
+  {key:'cl',   label:'塩化物イオン量',   unit:'kg/m³', fixedDp:3},
+];
+const KT_SEP_ROWS=[2];                                   // 読み値のかたまりの先頭に区切り線
+const KT_ROWS=KT_FORM.length+KT_CALC.length+1;
+
+/* 表をフォームとして使うモード（左＝項目名の固定ラベル／右＝入力欄）。
+   行の作り・移動・見た目はこの定義から共通に決める。 */
+const FORM_MODES={
+  tanisuiryou:{ form:TS_FORM, calc:TS_CALC, sep:TS_SEP_ROWS, rows:TS_ROWS },
+  kantab:     { form:KT_FORM, calc:KT_CALC, sep:KT_SEP_ROWS, rows:KT_ROWS },
+};
+function isFormMode(){ return !!FORM_MODES[tableMode]; }
+function formDef(){ return FORM_MODES[tableMode]; }
+
+const MODE_LABELS={normal:'モード', simple:'簡易中', shopping:'買物中', warikan:'割勘中', zei:'税計中', wariai:'割合中', youseki:'容積中', yosan:'予算中', jikan:'時間中', tanisuiryou:'水量中', kantab:'塩分中'};
 const MODE_MENU=[
   {key:'normal',  icon:'▦',  name:'通常',   desc:'標準のスプレッドシート'},
   {key:'simple',  icon:'⬛',  name:'簡易',   desc:'列を少なく・セルを大きく見やすく'},
@@ -9784,6 +9870,7 @@ const MODE_MENU=[
   {key:'yosan',   icon:'🎯', name:'予算配分', desc:'予算と合計個数から各商品の最適な購入数を計算'},
   {key:'jikan',   icon:'⏱', name:'時間計算', desc:'開始・終了・時間のうち2つで残りを自動計算（◯時間後は何時、◯分前は何時も）'},
   {key:'tanisuiryou', icon:'💧', name:'単位水量', desc:'土研法エアメータ法で生コンの単位水量を推定（配合・試験値から算定し合否判定）'},
+  {key:'kantab', icon:'🧪', name:'カンタブ', desc:'カンタブの読み値から生コンの塩化物イオン量(kg/m³)を算出し合否判定（換算表は自分で登録）'},
 ];
 
 /* ── 計算式テンプレ：色々な計算式をエクセルの式に落とし込んだひな形。
@@ -9982,7 +10069,7 @@ function modeButtonLabel(key){
   return 'モード';
 }
 
-function isStructMode(){ return tableMode==='shopping'||tableMode==='warikan'||tableMode==='zei'||tableMode==='wariai'||tableMode==='youseki'||tableMode==='yosan'||tableMode==='jikan'||tableMode==='tanisuiryou'; }
+function isStructMode(){ return tableMode==='shopping'||tableMode==='warikan'||tableMode==='zei'||tableMode==='wariai'||tableMode==='youseki'||tableMode==='yosan'||tableMode==='jikan'||tableMode==='tanisuiryou'||tableMode==='kantab'; }
 /* ユーザーが書式設定で保護したセル */
 function isUserLocked(r,c){
   const s=cellStyles[`${r},${c}`];
@@ -10012,9 +10099,9 @@ function isStructLocked(r,c){
   if(!isStructMode()) return false;
   const m=STRUCT_MODES[tableMode];
   if(r===0) return true;                 // 見出し行
-  if(tableMode==='tanisuiryou'){
+  if(isFormMode()){
     if(c===0) return true;               // ラベル列は固定
-    return r>TS_FORM.length;             // 入力行(1..length)以外は不可
+    return r>formDef().form.length;      // 入力行(1..length)以外は不可
   }
   return m.computed.includes(c);         // 自動計算列
 }
@@ -10110,8 +10197,8 @@ function syncRowColLabels(){
 /* 構造モードのEnter移動：自動計算列を飛ばして次の入力セルへ */
 function modeAdvance(){
   if(!isStructMode()) return false;
-  if(tableMode==='tanisuiryou'){                 // 値の列(col1)を上から下へ移動
-    if(selR<TS_FORM.length) sel(selR+1,1); else ac();
+  if(isFormMode()){                             // 値の列(col1)を上から下へ移動
+    if(selR<formDef().form.length) sel(selR+1,1); else ac();
     return true;
   }
   const m=STRUCT_MODES[tableMode];
@@ -10220,6 +10307,8 @@ function recalcMode(){
     solveYosanMode();
   } else if(tableMode==='tanisuiryou'){
     recalcTanisuiryou();
+  } else if(tableMode==='kantab'){
+    recalcKantab();
   } else if(tableMode==='jikan'){
     /* 列: 0=項目 1=開始 2=終了 3=時間。3つのうち2つを入れると残りを自動計算：
        開始+終了→時間 ／ 開始+時間→終了（◯時間後は何時） ／ 終了+時間→開始（◯分前は何時）。
@@ -10422,6 +10511,120 @@ function changeTsDp(which,delta){
 }
 function openTsSettings(){ applyTsDpLabels(); applyTsTolLabels(); document.getElementById('tsSettingsOverlay').classList.add('open'); }
 function closeTsSettings(){ document.getElementById('tsSettingsOverlay').classList.remove('open'); }
+
+/* ══ カンタブ試験（生コンの塩化物イオン量） ══
+   読み値の平均 → 換算表で塩化物イオン濃度(%) → 単位水量を掛けて kg/m³。
+   換算表はカンタブの製品ごとに違うため、はじめは空で、⚙設定から登録してもらう。 */
+const KT_TABLE_KEY='excalc_kantab_table';
+let ktTable=[];                 // [{r:読み値, c:濃度%}]
+let ktWarn=0.25, ktLimit=0.30;  // 判定のしきい値(kg/m³)。管理値の既定は 0.30
+function ktLoadPrefs(){
+  try{ const a=JSON.parse(localStorage.getItem(KT_TABLE_KEY)); if(Array.isArray(a)) ktTable=a; }catch(_){}
+  const w=parseFloat(localStorage.getItem('excalc_kantab_warn'));  if(!isNaN(w)&&w>0&&w<=9) ktWarn=w;
+  const l=parseFloat(localStorage.getItem('excalc_kantab_limit')); if(!isNaN(l)&&l>0&&l<=9) ktLimit=l;
+}
+function ktSavePrefs(){
+  try{
+    localStorage.setItem(KT_TABLE_KEY, JSON.stringify(ktTable));
+    localStorage.setItem('excalc_kantab_warn', String(ktWarn));
+    localStorage.setItem('excalc_kantab_limit', String(ktLimit));
+  }catch(_){}
+}
+/* 換算表から濃度を引く。ぴったり無ければ前後の行から直線でおぎなう。
+   表の外は、勝手に伸ばすと危ないので「範囲外」として答えを出さない。 */
+function ktLookup(x){
+  const t=ktTable.filter(p=>isFinite(p.r)&&isFinite(p.c)).slice().sort((a,b)=>a.r-b.r);
+  if(!t.length) return {v:null, why:'notable'};
+  for(const p of t){ if(Math.abs(p.r-x)<1e-9) return {v:p.c, exact:true}; }
+  if(x<t[0].r || x>t[t.length-1].r) return {v:null, why:'out'};
+  for(let i=0;i<t.length-1;i++){
+    if(x>t[i].r && x<t[i+1].r){
+      const k=(x-t[i].r)/(t[i+1].r-t[i].r);
+      return {v:t[i].c+(t[i+1].c-t[i].c)*k, exact:false};
+    }
+  }
+  return {v:null, why:'out'};
+}
+function recalcKantab(){
+  const clEl=document.getElementById('ktCl'), cEl=document.getElementById('ktConc');
+  const jEl=document.getElementById('ktJudge'), hEl=document.getElementById('ktHint');
+  if(!clEl) return;
+  const idx={}; KT_FORM.forEach((f,i)=>{ idx[f.key]=i+1; });
+  const val=key=>{ const raw=data[idx[key]] && data[idx[key]][1]; const v=parseFloat(raw); return (raw!==''&&raw!=null&&!isNaN(v))?v:null; };
+  const W=val('W');
+  const reads=['r1','r2','r3'].map(val).filter(v=>v!==null);
+  const avg=reads.length?reads.reduce((a,b)=>a+b,0)/reads.length:null;
+  const look=(avg!==null)?ktLookup(avg):{v:null, why:'noread'};
+  const conc=look.v;
+  const cl=(conc!==null&&W!==null)?W*conc/100:null;
+  // 計算工程を入力欄の下の表セルに表示
+  const vals={avg, conc, cl};
+  KT_CALC.forEach((f,i)=>{
+    const cell=document.getElementById('c'+(1+KT_FORM.length+i)+'_1');
+    if(cell){ const v=vals[f.key]; cell.textContent=(v!=null)?tsFmt(v,f.fixedDp)+(f.unit?' '+f.unit:''):'—'; }
+  });
+  jEl.className='ts-judge';
+  cEl.textContent=(conc!=null)?tsFmt(conc,3)+' %':'—';
+  if(cl!=null){
+    clEl.textContent=tsFmt(cl,3)+' kg/m³';
+    if(cl<=ktWarn){ jEl.classList.add('ok'); jEl.textContent='合格'; }
+    else if(cl<=ktLimit){ jEl.classList.add('warn'); jEl.textContent='要注意'; }
+    else { jEl.classList.add('ng'); jEl.textContent='不合格(管理値超過)'; }
+    const nte=look.exact?'':'（読み値'+tsFmt(avg,2)+'は表の間なので、前後から直線でおぎないました）';
+    hEl.textContent='読み値'+reads.length+'回の平均 '+tsFmt(avg,2)+' → 濃度 '+tsFmt(conc,3)+'% × 単位水量 '+tsFmt(W,0)+' ÷100 ＝ '+tsFmt(cl,3)+' kg/m³　（合格 '+tsFmt(ktWarn,2)+' 以下／管理値 '+tsFmt(ktLimit,2)+'）'+nte;
+  } else {
+    clEl.textContent='—'; jEl.textContent='—';
+    if(look.why==='notable') hEl.textContent='換算表がまだ登録されていません。⚙設定でお使いのカンタブの換算表を入れてください';
+    else if(look.why==='out') hEl.textContent='読み値の平均 '+tsFmt(avg,2)+' は登録した換算表の範囲外です（表に行を足すか、読み値を確認してください）';
+    else if(look.why==='noread') hEl.textContent='読み値を入れてください（①〜③のうち入れた分だけで平均します）';
+    else hEl.textContent='単位水量を入れてください（濃度 '+tsFmt(conc,3)+'% までは出ています）';
+  }
+}
+/* ── カンタブの設定ダイアログ ── */
+function openKtSettings(){ ktSyncUi(); ktRenderTable(); document.getElementById('ktSettingsOverlay').classList.add('open'); }
+function closeKtSettings(){ document.getElementById('ktSettingsOverlay').classList.remove('open'); }
+function ktSyncUi(){
+  const w=document.getElementById('ktWarn'), l=document.getElementById('ktLimit');
+  if(w) w.textContent=ktWarn.toFixed(2); if(l) l.textContent=ktLimit.toFixed(2);
+}
+function changeKtTol(which, delta){
+  const step=0.01, r2=x=>Math.round(x*100)/100;
+  if(which==='warn') ktWarn=r2(Math.max(0.01, Math.min(ktLimit, ktWarn+delta*step)));
+  else               ktLimit=r2(Math.max(ktWarn, Math.min(9, ktLimit+delta*step)));
+  ktSyncUi(); ktSavePrefs();
+  if(tableMode==='kantab') recalcKantab();
+}
+function ktRenderTable(){
+  const body=document.getElementById('ktTblBody'); if(!body) return;
+  if(!ktTable.length){
+    body.innerHTML='<div class="kt-empty">まだ登録されていません。「＋ 行を追加」で、お使いのカンタブの<b>読み値</b>と<b>濃度(%)</b>を1組ずつ入れてください。</div>';
+    return;
+  }
+  body.innerHTML=ktTable.map((p,i)=>
+    '<div class="kt-row">'+
+      '<input type="number" step="any" inputmode="decimal" value="'+(p.r!=null?p.r:'')+'" placeholder="読み値" oninput="ktEdit('+i+',\'r\',this.value)">'+
+      '<input type="number" step="any" inputmode="decimal" value="'+(p.c!=null?p.c:'')+'" placeholder="濃度%" oninput="ktEdit('+i+',\'c\',this.value)">'+
+      '<button class="kt-del" onclick="ktDelRow('+i+')" title="この行を消す">✕</button>'+
+    '</div>').join('');
+}
+function ktEdit(i, key, v){
+  if(!ktTable[i]) return;
+  const num=parseFloat(v);
+  ktTable[i][key]=(v===''||isNaN(num))?null:num;
+  ktSavePrefs();
+  if(tableMode==='kantab') recalcKantab();
+}
+function ktAddRow(){
+  if(ktTable.length>=60){ toast('換算表は60行までです'); return; }
+  ktTable.push({r:null,c:null}); ktSavePrefs(); ktRenderTable();
+  const rows=document.querySelectorAll('#ktTblBody .kt-row input');
+  if(rows.length) rows[rows.length-2].focus();
+}
+function ktDelRow(i){
+  ktTable.splice(i,1); ktSavePrefs(); ktRenderTable();
+  if(tableMode==='kantab') recalcKantab();
+}
+
 function recalcTanisuiryou(){
   const wEl=document.getElementById('tsW'), dEl=document.getElementById('tsDelta');
   const jEl=document.getElementById('tsJudge'), hEl=document.getElementById('tsHint');
@@ -10555,13 +10758,13 @@ function setupTanisuiryouSheets(){
 
 /* フッターバーの表示切替 */
 function hideAllBars(){
-  ['shopTaxBar','zeiBar','wariaiBar','warikanBar','yousekiBar','yosanBar','jikanBar','tanisuiryouBar'].forEach(id=>{
+  ['shopTaxBar','zeiBar','wariaiBar','warikanBar','yousekiBar','yosanBar','jikanBar','tanisuiryouBar','kantabBar'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.classList.remove('open');
   });
 }
 function showModeBar(){
   hideAllBars();
-  const id={shopping:'shopTaxBar', zei:'zeiBar', wariai:'wariaiBar', warikan:'warikanBar', youseki:'yousekiBar', yosan:'yosanBar', jikan:'jikanBar', tanisuiryou:'tanisuiryouBar'}[tableMode];
+  const id={shopping:'shopTaxBar', zei:'zeiBar', wariai:'wariaiBar', warikan:'warikanBar', youseki:'yousekiBar', yosan:'yosanBar', jikan:'jikanBar', tanisuiryou:'tanisuiryouBar', kantab:'kantabBar'}[tableMode];
   if(id) document.getElementById(id).classList.add('open');
 }
 
@@ -10602,7 +10805,7 @@ function normalizeStructLayout(){
   const m=STRUCT_MODES[tableMode];
   COLS=m.cols;
   m.headers.forEach((h,i)=>{ data[0][i]=h; });
-  if(tableMode==='tanisuiryou'){ ROWS=TS_ROWS; }   // フォームの行数に固定（表示のみ。保存済みの行数設定は変えない）
+  if(isFormMode()){ ROWS=formDef().rows; }   // フォームの行数に固定（表示のみ。保存済みの行数設定は変えない）
 }
 
 function switchMode(target){
@@ -10618,7 +10821,7 @@ function switchMode(target){
   if(isStructMode()) showModeBar(); else hideAllBars();
   syncRowColLabels();
   buildSheet();
-  if(tableMode==='tanisuiryou') sel(1,1); else sel(initCellOfMode(),0);   // 単位水量は最初の入力欄へ
+  if(isFormMode()) sel(1,1); else sel(initCellOfMode(),0);   // フォーム型は最初の入力欄へ
   updateModeButton();
   renderSheetBar();
   persistModes();
@@ -10703,7 +10906,7 @@ function freshSheetInMode(name, mode){
   else if(STRUCT_MODES[mode]){
     STRUCT_MODES[mode].headers.forEach((h,i)=>{ blank[0][i]=h; });
     cols=STRUCT_MODES[mode].cols;
-    if(mode==='tanisuiryou') rows=TS_ROWS;
+    if(FORM_MODES[mode]) rows=FORM_MODES[mode].rows;
   }
   if(cm && cm.rows) rows=Math.max(1,Math.min(MAXROWS,cm.rows));
   return { name, store:{ current:mode, rows, warikanPeople:2, states:{ [mode]:{cols, data:blank, styles:{}} } }, colWidths:{}, rowHeights:{} };
@@ -11306,7 +11509,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v262';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v263';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -12619,7 +12822,7 @@ function loadSave(id) {
   syncRowColLabels();
   document.getElementById('decCount').textContent=decPlaces<0?'自':decPlaces;
   buildSheet();
-  if(tableMode==='tanisuiryou') sel(1,1); else sel(initCellOfMode(),0);
+  if(isFormMode()) sel(1,1); else sel(initCellOfMode(),0);
   updateModeButton();
   renderSheetBar();
   closeSaveList();
@@ -12777,6 +12980,7 @@ updateAutoSumBtn();
 
 /* 単位水量試験モードの判定許容差・小数桁を復元 */
 (function(){
+  ktLoadPrefs();
   const w=parseInt(localStorage.getItem('excalc_ts_warn'));  if(!isNaN(w)&&w>=1&&w<=99) tsWarn=w;
   const l=parseInt(localStorage.getItem('excalc_ts_limit')); if(!isNaN(l)&&l>=1&&l<=99) tsLimit=l;
   if(tsLimit<tsWarn) tsLimit=tsWarn;
@@ -12795,7 +12999,7 @@ syncRowColLabels();
 if(isStructMode()) showModeBar();
 updateModeButton();
 buildSheet();
-if(tableMode==='tanisuiryou') sel(1,1); else sel(initCellOfMode(),0);
+if(isFormMode()) sel(1,1); else sel(initCellOfMode(),0);
 
 fitNumpadLabels();
 window.addEventListener('load', fitNumpadLabels);
