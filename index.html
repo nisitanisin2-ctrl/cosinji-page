@@ -1737,6 +1737,23 @@ body.dark .tanisui-bar { background: #102826; border-color: #2f7a70; color: #8fd
   background: var(--cell-bg, #fff); color: var(--text);
 }
 .kt-in-unit { flex: 0 0 3.6em; font-size: 12px; color: var(--text-light); }
+.kt-w-row { border-bottom: 1px solid var(--cell-border, #ddd); padding-bottom: 10px; margin-bottom: 6px; }
+/* ①②③ごとに「読み値／換算表の値／塩化物含有量」を1行に並べる */
+.kt-grid { display: flex; flex-direction: column; gap: 5px; padding: 2px 0 8px; }
+.kt-gh, .kt-gr { display: grid; grid-template-columns: 1.5em 1fr 5.4em 6.8em; align-items: center; gap: 6px; }
+.kt-gh { font-size: 11.5px; font-weight: bold; color: var(--text-light); }
+.kt-gh small { display: block; font-weight: normal; font-size: 10px; opacity: .85; }
+.kt-gh span { text-align: right; }
+.kt-gn { font-size: 16px; font-weight: bold; color: var(--text-light); }
+.kt-gr input {
+  min-width: 0; padding: 9px 8px; font-size: 16px; text-align: right;
+  border: 1px solid var(--cell-border, #ccc); border-radius: 7px;
+  background: var(--cell-bg, #fff); color: var(--text);
+}
+.kt-gv { font-size: 14px; text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+.kt-gv.kt-none { color: var(--text-light); }
+.kt-gv.kt-out { color: #c62828; font-size: 12px; font-weight: bold; }
+.kt-avg-lb { font-size: 12.5px; font-weight: bold; color: var(--text-light); margin-bottom: 2px; }
 .kt-judge-row { display: flex; justify-content: center; padding: 2px 0 6px; }
 /* 判定に合わせて結果の数字の色も変える（ひと目で分かるように） */
 #ktResVal.kt-ok   { color: #2e7d32; }
@@ -2104,15 +2121,22 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       </span>
     </div>
     <div class="modal-body">
-      <div class="kt-in" id="ktInputs"></div>
+      <div class="kt-in-row kt-w-row">
+        <span class="kt-in-lb">単位水量 W</span>
+        <input type="number" step="any" inputmode="decimal" id="ktIn_W" placeholder="例 175" oninput="ktInput('W',this.value)">
+        <span class="kt-in-unit">kg/m³</span>
+      </div>
+      <div class="kt-grid" id="ktGrid">
+        <div class="kt-gh"><span></span><span>読み値</span><span>換算表の値</span><span>塩化物含有量<small>kg/m³</small></span></div>
+      </div>
       <div class="vol-result">
+        <div class="kt-avg-lb">塩化物含有量 平均値</div>
         <div class="vol-result-main" id="ktResVal">—</div>
         <div class="vol-result-sub" id="ktResSub">単位水量と読み値を入れてください</div>
       </div>
       <div class="kt-judge-row"><span class="ts-judge" id="ktJudge">—</span></div>
-      <div class="kt-steps" id="ktSteps"></div>
-      <button class="vol-insert" id="ktInsertBtn" onclick="ktInsertToCell()" disabled>▦ この塩化物イオン量を選択中のセルに入れる</button>
-      <div class="vol-hint">読み値を①〜③に入れると、<b>入れた分だけで平均</b>します。平均を<b>換算表</b>で塩化物イオン濃度(%)に直し、<b>単位水量</b>を掛けて kg/m³ にします。<br>換算表はカンタブの製品ごとに違うため、はじめに<b>⚙換算表・設定</b>でお使いの表を登録してください。読み値が表の行と行の間のときは前後から直線でおぎない、その旨を表示します。表の範囲外のときは答えを出しません。</div>
+      <button class="vol-insert" id="ktInsertBtn" onclick="ktInsertToCell()" disabled>▦ この平均値を選択中のセルに入れる</button>
+      <div class="vol-hint">読み値ごとに<b>換算表</b>で塩化物イオン濃度(%)に直し、<b>単位水量</b>を掛けて塩化物含有量(kg/m³)を出します。最後にその<b>平均</b>で判定します（①〜③のうち<b>入れた分だけ</b>で平均します）。<br>換算表はカンタブの製品ごとに違うため、はじめに<b>⚙換算表・設定</b>でお使いの表を登録してください。読み値が表の行と行の間のときは前後から直線でおぎない、その値に<b>*</b>を付けます。表の範囲外のときは「範囲外」と出し、平均には入れません。</div>
     </div>
   </div>
 </div>
@@ -3178,7 +3202,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
             <tr><td><b>単位水量</b></td><td>土研法エアメータ法で生コンの単位水量を推定（下記）</td></tr>
           </table>
           <div class="help-li"><b>単位水量</b>：配合（W1・セメント・細骨材・粗骨材・混和材・配合空気量）と試験値（容器容積V・容器質量・容器+試料・測定空気量）を入れると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で推定し、許容差（下のバーで変更可）で合否判定します。配合はkg/m³、試験はg・ccで入力。</div>
-          <div class="help-li"><b>カンタブ（塩化物イオン量）</b>：容積計算や写真メモと同じ<b>道具</b>です。設定の<b>キーの割り当て</b>で<b>🧪カンタブ</b>をキーに登録すると、そのキーで開けます。<b>単位水量</b>と<b>読み値①〜③</b>を入れるだけで、読み値の平均→塩化物イオン濃度(%)→<b>塩化物イオン量(kg/m³)</b>を出して合否を判定し、<b>選択中のセルに入れる</b>こともできます。読み値から濃度への<b>換算表はカンタブの製品ごとに違う</b>ので、はじめに<b>⚙換算表・設定</b>でお使いの表を登録してください（読み値が表の間のときは前後から直線でおぎない、その旨を表示します）。管理値の既定は 0.30 kg/m³ で、設定で変えられます。</div>
+          <div class="help-li"><b>カンタブ（塩化物イオン量）</b>：容積計算や写真メモと同じ<b>道具</b>です。設定の<b>キーの割り当て</b>で<b>🧪カンタブ</b>をキーに登録すると、そのキーで開けます。<b>単位水量</b>と<b>読み値①〜③</b>を入れると、読み値ごとに<b>換算表の値(%)</b>と<b>塩化物含有量(kg/m³)</b>が並び、最後にその<b>平均値</b>で合否を判定します。平均値は<b>選択中のセルに入れる</b>こともできます。読み値から濃度への<b>換算表はカンタブの製品ごとに違う</b>ので、はじめに<b>⚙換算表・設定</b>でお使いの表を登録してください（読み値が表の間のときは前後から直線でおぎない、その旨を表示します）。管理値の既定は 0.30 kg/m³ で、設定で変えられます。</div>
           <div class="help-li"><b>配合・エアメータの登録（シート連携）</b>：単位水量の<b>⚙設定</b>「📋配合・エアメータ登録シートを作成」で<b>本体・配合登録(30)・エアメータ登録(5)</b>の3シートができます。番号ごとの値を入れておくと、本体で<b>配合番号・エアメータ番号を入れるだけ</b>で値が呼び出されます（登録側を直すと本体にも反映）。上の常設タブで切替。</div>
           <div class="help-li"><b>📋計算式テンプレ／📑決算書テンプレ</b>（設定の「計算」タブ）：割引・利益率・BMI・速さ・複利・ローン・面積…約20種類のひな形や、損益計算書・貸借対照表・収支計算書のひな形。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
         </div>
@@ -9860,11 +9884,10 @@ const TS_REF={
 /* ── カンタブ試験（生コンの塩化物イオン量）──
    読み値を換算表で塩化物イオン濃度(%)に直し、単位水量を掛けて kg/m³ にする。
    換算表は製品ごとに違うので、⚙設定で自分で登録してもらう。 */
-const KT_FIELDS=[
-  {key:'W',  label:'単位水量 W', unit:'kg/m³', ph:'例 175'},
-  {key:'r1', label:'読み値①',   unit:'',      ph:''},
-  {key:'r2', label:'読み値②',   unit:'',      ph:'（無ければ空欄）'},
-  {key:'r3', label:'読み値③',   unit:'',      ph:'（無ければ空欄）'},
+const KT_READS=[
+  {key:'r1', mark:'①'},
+  {key:'r2', mark:'②'},
+  {key:'r3', mark:'③'},
 ];
 
 /* 表をフォームとして使うモード（左＝項目名の固定ラベル／右＝入力欄）。
@@ -10571,48 +10594,75 @@ function openKantab(){
 }
 function closeKantab(){ document.getElementById('kantabOverlay').classList.remove('open'); releaseBackGuard(); }
 function ktRenderInputs(){
-  const box=document.getElementById('ktInputs'); if(!box) return;
-  box.innerHTML=KT_FIELDS.map(f=>
-    '<div class="kt-in-row">'+
-      '<span class="kt-in-lb">'+f.label+'</span>'+
+  const grid=document.getElementById('ktGrid'); if(!grid) return;
+  document.getElementById('ktIn_W').value = (ktVals.W!=null?ktVals.W:'');
+  grid.querySelectorAll('.kt-gr').forEach(e=>e.remove());
+  KT_READS.forEach(f=>{
+    const row=document.createElement('div');
+    row.className='kt-gr';
+    row.innerHTML='<span class="kt-gn">'+f.mark+'</span>'+
       '<input type="number" step="any" inputmode="decimal" id="ktIn_'+f.key+'" '+
-        'placeholder="'+f.ph+'" value="'+(ktVals[f.key]!=null?ktVals[f.key]:'')+'" oninput="ktInput(\''+f.key+'\',this.value)">'+
-      '<span class="kt-in-unit">'+f.unit+'</span>'+
-    '</div>').join('');
+        'value="'+(ktVals[f.key]!=null?ktVals[f.key]:'')+'" oninput="ktInput(\''+f.key+'\',this.value)">'+
+      '<span class="kt-gv kt-none" id="ktC_'+f.key+'">—</span>'+
+      '<span class="kt-gv kt-none" id="ktQ_'+f.key+'">—</span>';
+    grid.appendChild(row);
+  });
 }
 function ktInput(key, v){ ktVals[key]=v; ktSaveVals(); ktCalc(); }
-/* 入力から 平均→濃度→塩化物イオン量 を出して画面に反映する */
+/* 表示する桁で四捨五入する。JSの丸めは 0.2625→0.262 のようにずれることがあるため、
+   文字にしてから丸め直して、画面の数字と判定を必ず一致させる。 */
+function ktRound(x, d){
+  if(x==null||!isFinite(x)) return x;
+  const v=Number(Math.round(Number(x+'e'+d))+'e-'+d);
+  return isFinite(v)?v:x;
+}
+/* 読み値ごとに 換算表の値(%)→塩化物含有量(kg/m³) を出し、最後にその平均で判定する */
 function ktCalc(){
   const vEl=document.getElementById('ktResVal'), sEl=document.getElementById('ktResSub');
-  const jEl=document.getElementById('ktJudge'), stEl=document.getElementById('ktSteps');
-  const btn=document.getElementById('ktInsertBtn');
+  const jEl=document.getElementById('ktJudge'), btn=document.getElementById('ktInsertBtn');
   if(!vEl) return;
   const num=key=>{ const v=parseFloat(ktVals[key]); return isFinite(v)?v:null; };
   const W=num('W');
-  const reads=['r1','r2','r3'].map(num).filter(v=>v!==null);
-  const avg=reads.length?reads.reduce((a,b)=>a+b,0)/reads.length:null;
-  const look=(avg!==null)?ktLookup(avg):{v:null, why:'noread'};
-  const conc=look.v;
-  const cl=(conc!==null&&W!==null)?W*conc/100:null;
-  ktLastCl=cl;
-  stEl.innerHTML = (avg!=null?'<span>読み値'+reads.length+'回の平均 <b>'+tsFmt(avg,2)+'</b></span>':'')
-                 + (conc!=null?'<span>塩化物イオン濃度 <b>'+tsFmt(conc,3)+' %</b></span>':'');
+  let nRead=0, nOut=0, nInterp=0, noTable=false;
+  const cls=[];
+  KT_READS.forEach(f=>{
+    const cEl=document.getElementById('ktC_'+f.key), qEl=document.getElementById('ktQ_'+f.key);
+    if(!cEl) return;
+    const r=num(f.key);
+    cEl.className='kt-gv'; qEl.className='kt-gv';
+    if(r===null){ cEl.classList.add('kt-none'); qEl.classList.add('kt-none'); cEl.textContent='—'; qEl.textContent='—'; return; }
+    nRead++;
+    const look=ktLookup(r);
+    if(look.v===null){
+      if(look.why==='notable'){ noTable=true; cEl.classList.add('kt-none'); cEl.textContent='—'; }
+      else { nOut++; cEl.classList.add('kt-out'); cEl.textContent='範囲外'; }
+      qEl.classList.add('kt-none'); qEl.textContent='—'; return;
+    }
+    if(!look.exact) nInterp++;
+    cEl.textContent=tsFmt(ktRound(look.v,3),3)+' %'+(look.exact?'':' *');
+    if(W===null){ qEl.classList.add('kt-none'); qEl.textContent='—'; return; }
+    const cl=ktRound(W*look.v/100, 3);   // 1回ぶんも表示の桁で確定させ、その値で平均する
+    cls.push(Math.round(Number(cl+'e3')));   // 平均は 1/1000 単位の整数で足す（0.2625→0.263 を正しく出すため）
+    qEl.textContent=tsFmt(cl,3);
+  });
+  const avg=cls.length?ktRound(cls.reduce((a,b)=>a+b,0)/cls.length/1000, 3):null;
+  ktLastCl=avg;
   jEl.className='ts-judge'; vEl.className='vol-result-main';
-  if(cl!=null){
-    vEl.textContent=tsFmt(cl,3)+' kg/m³';
-    if(cl<=ktWarn){ jEl.classList.add('ok'); vEl.classList.add('kt-ok'); jEl.textContent='合格'; }
-    else if(cl<=ktLimit){ jEl.classList.add('warn'); vEl.classList.add('kt-warn'); jEl.textContent='要注意'; }
+  if(avg!=null){
+    vEl.textContent=tsFmt(avg,3)+' kg/m³';
+    if(avg<=ktWarn){ jEl.classList.add('ok'); vEl.classList.add('kt-ok'); jEl.textContent='合格'; }
+    else if(avg<=ktLimit){ jEl.classList.add('warn'); vEl.classList.add('kt-warn'); jEl.textContent='要注意'; }
     else { jEl.classList.add('ng'); vEl.classList.add('kt-ng'); jEl.textContent='不合格(管理値超過)'; }
-    sEl.textContent='濃度 '+tsFmt(conc,3)+'% × 単位水量 '+tsFmt(W,0)+' ÷100'
-      + (look.exact?'':'　※読み値'+tsFmt(avg,2)+'は表の間なので前後から直線でおぎないました')
-      + '　（合格 '+tsFmt(ktWarn,2)+' 以下／管理値 '+tsFmt(ktLimit,2)+'）';
+    sEl.textContent=cls.length+'回ぶんの平均（合格 '+tsFmt(ktWarn,2)+' 以下／管理値 '+tsFmt(ktLimit,2)+'）'
+      + (nInterp?'　* は表の間を直線でおぎなった値です':'')
+      + (nOut?'　※範囲外の'+nOut+'回は平均に入れていません':'');
     btn.disabled=false;
   } else {
     vEl.textContent='—'; jEl.textContent='—'; btn.disabled=true;
-    if(look.why==='notable') sEl.textContent='換算表がまだ登録されていません。「⚙換算表・設定」でお使いのカンタブの表を入れてください';
-    else if(look.why==='out') sEl.textContent='読み値の平均 '+tsFmt(avg,2)+' は登録した換算表の範囲外です（表に行を足すか、読み値を確かめてください）';
-    else if(look.why==='noread') sEl.textContent='読み値を入れてください（①〜③のうち入れた分だけで平均します）';
-    else sEl.textContent='単位水量を入れてください（濃度 '+tsFmt(conc,3)+'% までは出ています）';
+    if(noTable) sEl.textContent='換算表がまだ登録されていません。「⚙換算表・設定」でお使いのカンタブの表を入れてください';
+    else if(nRead===0) sEl.textContent='読み値を入れてください（①〜③のうち入れた分だけで平均します）';
+    else if(nOut===nRead) sEl.textContent='読み値がどれも登録した換算表の範囲外です（表に行を足すか、読み値を確かめてください）';
+    else sEl.textContent='単位水量を入れてください（換算表の値までは出ています）';
   }
 }
 let ktLastCl=null;
@@ -10621,7 +10671,7 @@ function ktInsertToCell(){
   if(ktLastCl==null){ toast('先に単位水量と読み値を入れてください'); return; }
   if(selR<0||selC<0){ toast('入れるセルを選んでください'); return; }
   if(isLockedCell(selR,selC)){ flashLocked(selR,selC); return; }
-  setCellVal(selR,selC, String(Number(ktLastCl.toFixed(3))));
+  setCellVal(selR,selC, String(ktLastCl));
   toast('塩化物イオン量をセルに入れました');
   closeKantab();
 }
@@ -11551,7 +11601,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v264';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v265';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
