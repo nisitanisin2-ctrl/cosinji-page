@@ -1740,7 +1740,7 @@ body.dark .tanisui-bar { background: #102826; border-color: #2f7a70; color: #8fd
 .kt-w-row { border-bottom: 1px solid var(--cell-border, #ddd); padding-bottom: 10px; margin-bottom: 6px; }
 /* ①②③ごとに「読み値／換算表の値／塩化物含有量」を1行に並べる */
 .kt-grid { display: flex; flex-direction: column; gap: 5px; padding: 2px 0 8px; }
-.kt-gh, .kt-gr { display: grid; grid-template-columns: 1.5em 1fr 5.4em 6.8em; align-items: center; gap: 6px; }
+.kt-gh, .kt-gr { display: grid; grid-template-columns: 1.4em 1fr 6.4em 5.9em; align-items: center; gap: 5px; }
 .kt-gh { font-size: 11.5px; font-weight: bold; color: var(--text-light); }
 .kt-gh small { display: block; font-weight: normal; font-size: 10px; opacity: .85; }
 .kt-gh span { text-align: right; }
@@ -1778,6 +1778,20 @@ body.dark .tanisui-bar { background: #102826; border-color: #2f7a70; color: #8fd
 .kt-head span { flex: 1 1 0; }
 .kt-head span:last-child { flex: 0 0 32px; }
 .kt-empty { font-size: 12.5px; color: #c0392b; line-height: 1.6; padding: 6px 2px; }
+/* 換算表をまとめて貼り付ける欄 */
+.kt-paste-sec { margin-bottom: 12px; }
+.kt-onebyone { font-size: 12px; font-weight: bold; color: var(--text-light); margin: 14px 0 6px; padding-top: 12px; border-top: 1px solid var(--cell-border, #ddd); }
+.kt-paste-ex code { background: var(--pm-chip, rgba(120,132,156,.13)); padding: 1px 5px; border-radius: 4px; font-size: 11.5px; }
+.kt-paste {
+  width: 100%; box-sizing: border-box; padding: 9px; margin-bottom: 8px;
+  font-family: monospace; font-size: 14px; line-height: 1.5;
+  border: 1px solid var(--cell-border, #ccc); border-radius: 7px;
+  background: var(--cell-bg, #fff); color: var(--text); resize: vertical;
+}
+.kt-paste-btns { display: flex; gap: 8px; }
+.kt-pb { flex: 1 1 0; font-size: 13px; padding: 10px 6px; }
+.kt-pb-sub { background: var(--pm-chip, rgba(120,132,156,.13)); color: var(--text); }
+.kt-pb-sub:hover { background: rgba(120,132,156,.24); }
 .ts-field { display: flex; align-items: center; gap: 3px; }
 .ts-judge {
   padding: 2px 10px; border-radius: 4px; font-weight: bold;
@@ -2159,6 +2173,16 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <div class="ts-ref-sec">
         <div class="ts-ref-note"><b>換算表の登録</b>：お使いのカンタブ（試験紙）の容器や説明書にある<b>読み値 → 塩化物イオン濃度(%)</b>の対応を、そのまま入れてください。<br>
           製品によって数値が違うため、はじめから入っている値はありません。読み値が表のちょうど中間のときは、前後の行から直線でおぎなった値を使い、その旨を下の帯に表示します。</div>
+        <div class="kt-paste-sec">
+          <div class="ts-ref-note"><b>まとめて入れる</b>：1行に「読み値」と「濃度」の2つの数字を並べて貼り付けてください。区切りは<b>スペース・タブ・カンマ</b>のどれでもよく、全角の数字も読めます。数字が2つ揃わない行（見出しなど）は読み飛ばします。
+            <br><span class="kt-paste-ex">例：<code>1.0　0.0100</code> / <code>1.1, 0.0125</code></span></div>
+          <textarea id="ktPaste" class="kt-paste" rows="5" placeholder="1.0  0.0100&#10;1.1  0.0125&#10;1.2  0.0150"></textarea>
+          <div class="kt-paste-btns">
+            <button class="ts-ref-btn kt-pb" onclick="ktImportTable()">📥 貼り付けた表を読み込む</button>
+            <button class="ts-ref-btn kt-pb kt-pb-sub" onclick="ktExportTable()">📤 今の表を書き出す</button>
+          </div>
+        </div>
+        <div class="kt-onebyone">1行ずつ直すとき</div>
         <div class="kt-head"><span>読み値</span><span>濃度 (%)</span><span></span></div>
         <div class="kt-tbl" id="ktTblBody"></div>
         <button class="ts-ref-btn" onclick="ktAddRow()">＋ 行を追加</button>
@@ -3202,7 +3226,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
             <tr><td><b>単位水量</b></td><td>土研法エアメータ法で生コンの単位水量を推定（下記）</td></tr>
           </table>
           <div class="help-li"><b>単位水量</b>：配合（W1・セメント・細骨材・粗骨材・混和材・配合空気量）と試験値（容器容積V・容器質量・容器+試料・測定空気量）を入れると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で推定し、許容差（下のバーで変更可）で合否判定します。配合はkg/m³、試験はg・ccで入力。</div>
-          <div class="help-li"><b>カンタブ（塩化物イオン量）</b>：容積計算や写真メモと同じ<b>道具</b>です。設定の<b>キーの割り当て</b>で<b>🧪カンタブ</b>をキーに登録すると、そのキーで開けます。<b>単位水量</b>と<b>読み値①〜③</b>を入れると、読み値ごとに<b>換算表の値(%)</b>と<b>塩化物含有量(kg/m³)</b>が並び、最後にその<b>平均値</b>で合否を判定します。平均値は<b>選択中のセルに入れる</b>こともできます。読み値から濃度への<b>換算表はカンタブの製品ごとに違う</b>ので、はじめに<b>⚙換算表・設定</b>でお使いの表を登録してください（読み値が表の間のときは前後から直線でおぎない、その旨を表示します）。管理値の既定は 0.30 kg/m³ で、設定で変えられます。</div>
+          <div class="help-li"><b>カンタブ（塩化物イオン量）</b>：容積計算や写真メモと同じ<b>道具</b>です。設定の<b>キーの割り当て</b>で<b>🧪カンタブ</b>をキーに登録すると、そのキーで開けます。<b>単位水量</b>と<b>読み値①〜③</b>を入れると、読み値ごとに<b>換算表の値(%)</b>と<b>塩化物含有量(kg/m³)</b>が並び、最後にその<b>平均値</b>で合否を判定します。平均値は<b>選択中のセルに入れる</b>こともできます。読み値から濃度への<b>換算表はカンタブの製品ごとに違う</b>ので、はじめに<b>⚙換算表・設定</b>でお使いの表を登録してください（読み値が表の間のときは前後から直線でおぎない、その旨を表示します）。換算表は<b>まとめて貼り付け</b>でも登録できます（1行に「読み値」と「濃度」の数字を2つ並べる。区切りはスペース・タブ・カンマのどれでもよく、全角の数字も読めます）。濃度は<b>小数4桁</b>まで扱えます。管理値の既定は 0.30 kg/m³ で、設定で変えられます。</div>
           <div class="help-li"><b>配合・エアメータの登録（シート連携）</b>：単位水量の<b>⚙設定</b>「📋配合・エアメータ登録シートを作成」で<b>本体・配合登録(30)・エアメータ登録(5)</b>の3シートができます。番号ごとの値を入れておくと、本体で<b>配合番号・エアメータ番号を入れるだけ</b>で値が呼び出されます（登録側を直すと本体にも反映）。上の常設タブで切替。</div>
           <div class="help-li"><b>📋計算式テンプレ／📑決算書テンプレ</b>（設定の「計算」タブ）：割引・利益率・BMI・速さ・複利・ローン・面積…約20種類のひな形や、損益計算書・貸借対照表・収支計算書のひな形。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
         </div>
@@ -9884,6 +9908,8 @@ const TS_REF={
 /* ── カンタブ試験（生コンの塩化物イオン量）──
    読み値を換算表で塩化物イオン濃度(%)に直し、単位水量を掛けて kg/m³ にする。
    換算表は製品ごとに違うので、⚙設定で自分で登録してもらう。 */
+const KT_CONC_DP=4;      // 換算表の濃度(%)は小数4桁まで（製品の表に合わせる）
+const KT_TABLE_MAX=200;  // 換算表の行数の上限
 const KT_READS=[
   {key:'r1', mark:'①'},
   {key:'r2', mark:'②'},
@@ -10639,7 +10665,7 @@ function ktCalc(){
       qEl.classList.add('kt-none'); qEl.textContent='—'; return;
     }
     if(!look.exact) nInterp++;
-    cEl.textContent=tsFmt(ktRound(look.v,3),3)+' %'+(look.exact?'':' *');
+    cEl.textContent=tsFmt(ktRound(look.v,KT_CONC_DP),KT_CONC_DP)+' %'+(look.exact?'':' *');
     if(W===null){ qEl.classList.add('kt-none'); qEl.textContent='—'; return; }
     const cl=ktRound(W*look.v/100, 3);   // 1回ぶんも表示の桁で確定させ、その値で平均する
     cls.push(Math.round(Number(cl+'e3')));   // 平均は 1/1000 単位の整数で足す（0.2625→0.263 を正しく出すため）
@@ -10697,7 +10723,7 @@ function ktRenderTable(){
   body.innerHTML=ktTable.map((p,i)=>
     '<div class="kt-row">'+
       '<input type="number" step="any" inputmode="decimal" value="'+(p.r!=null?p.r:'')+'" placeholder="読み値" oninput="ktEdit('+i+',\'r\',this.value)">'+
-      '<input type="number" step="any" inputmode="decimal" value="'+(p.c!=null?p.c:'')+'" placeholder="濃度%" oninput="ktEdit('+i+',\'c\',this.value)">'+
+      '<input type="number" step="any" inputmode="decimal" value="'+(p.c!=null?p.c:'')+'" placeholder="濃度% (例 0.0125)" oninput="ktEdit('+i+',\'c\',this.value)">'+
       '<button class="kt-del" onclick="ktDelRow('+i+')" title="この行を消す">✕</button>'+
     '</div>').join('');
 }
@@ -10707,8 +10733,49 @@ function ktEdit(i, key, v){
   ktTable[i][key]=(v===''||isNaN(num))?null:num;
   ktSavePrefs(); ktCalc();
 }
+/* 貼り付けた文字から「読み値・濃度」の組を読み取る。
+   全角の数字や、区切りがスペース／タブ／カンマのどれでも読めるようにする。 */
+function ktParseTable(text){
+  const rows=[], skipped=[];
+  const zen='０１２３４５６７８９．，－ー−';
+  const han='0123456789.,---';
+  String(text||'').split(/[\r\n]+/).forEach(line=>{
+    const t=line.replace(/[^\x00-\x7F]/g, ch=>{ const i=zen.indexOf(ch); return i>=0?han[i]:' '; }).trim();
+    if(!t) return;
+    const m=t.match(/-?\d+(?:\.\d+)?/g);
+    if(!m || m.length<2){ if(/\d/.test(t)) skipped.push(line.trim()); return; }
+    const r=parseFloat(m[0]), c=parseFloat(m[1]);
+    if(!isFinite(r)||!isFinite(c)){ skipped.push(line.trim()); return; }
+    rows.push({r, c});
+  });
+  return {rows, skipped};
+}
+function ktImportTable(){
+  const ta=document.getElementById('ktPaste'); if(!ta) return;
+  const {rows, skipped}=ktParseTable(ta.value);
+  if(!rows.length){ toast('読み取れる行がありませんでした（1行に数字を2つ並べてください）'); return; }
+  if(rows.length>KT_TABLE_MAX){ toast('行が多すぎます（'+KT_TABLE_MAX+'行まで）'); return; }
+  const msg='読み取った '+rows.length+' 行で、今の換算表（'+ktTable.length+'行）を置きかえます。よろしいですか？'
+    + (skipped.length?'\n※数字が2つ揃わない '+skipped.length+' 行は読み飛ばします。':'');
+  const ask=(typeof appConfirm==='function')?appConfirm(msg,'置きかえる','やめる'):Promise.resolve(confirm(msg));
+  ask.then(ok=>{
+    if(!ok) return;
+    ktTable=rows.sort((a,b)=>a.r-b.r);
+    ktSavePrefs(); ktRenderTable(); ktCalc();
+    ta.value='';
+    toast(ktTable.length+'行を読み込みました');
+  });
+}
+function ktExportTable(){
+  const ta=document.getElementById('ktPaste'); if(!ta) return;
+  const t=ktTable.filter(p=>isFinite(p.r)&&isFinite(p.c)).slice().sort((a,b)=>a.r-b.r);
+  if(!t.length){ toast('換算表がまだ空です'); return; }
+  ta.value=t.map(p=>p.r+'\t'+p.c).join('\n');
+  ta.focus(); ta.select();
+  toast('今の表を下の欄に出しました（長押しでコピーできます）');
+}
 function ktAddRow(){
-  if(ktTable.length>=60){ toast('換算表は60行までです'); return; }
+  if(ktTable.length>=KT_TABLE_MAX){ toast('換算表は'+KT_TABLE_MAX+'行までです'); return; }
   ktTable.push({r:null,c:null}); ktSavePrefs(); ktRenderTable();
   const rows=document.querySelectorAll('#ktTblBody .kt-row input');
   if(rows.length) rows[rows.length-2].focus();
@@ -11601,7 +11668,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v265';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v266';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
