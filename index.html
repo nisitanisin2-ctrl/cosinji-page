@@ -1729,31 +1729,39 @@ body.dark .jkq-btn.on { background: #5a4a8a; }
 .tanisui-bar { background: #e0f2f1; border-color: #00897b; color: #004d40; }
 body.dark .tanisui-bar { background: #102826; border-color: #2f7a70; color: #8fd4ca; }
 /* カンタブ試験の入力欄 */
-.kt-in-row { display: flex; align-items: center; gap: 8px; padding: 6px 2px; }
-.kt-in-lb { flex: 0 0 6.8em; font-size: 14px; font-weight: bold; color: var(--text); }
+.kt-in-row { display: flex; align-items: center; gap: 8px; padding: 7px 2px; }
+.kt-in-lb { flex: 0 0 6.2em; font-size: 16px; font-weight: bold; color: var(--text); }
 .kt-in-row input {
-  flex: 1 1 0; min-width: 0; padding: 10px; font-size: 17px; text-align: right;
+  flex: 1 1 0; min-width: 0; padding: 11px 10px; font-size: 21px; text-align: right;
   border: 1px solid var(--cell-border, #ccc); border-radius: 7px;
   background: var(--cell-bg, #fff); color: var(--text);
 }
-.kt-in-unit { flex: 0 0 3.6em; font-size: 12px; color: var(--text-light); }
+.kt-in-unit { flex: 0 0 3.4em; font-size: 13.5px; color: var(--text-light); }
 .kt-w-row { border-bottom: 1px solid var(--cell-border, #ddd); padding-bottom: 10px; margin-bottom: 6px; }
 /* ①②③ごとに「読み値／換算表の値／塩化物含有量」を1行に並べる */
 .kt-grid { display: flex; flex-direction: column; gap: 5px; padding: 2px 0 8px; }
-.kt-gh, .kt-gr { display: grid; grid-template-columns: 1.4em 1fr 6.4em 5.9em; align-items: center; gap: 5px; }
-.kt-gh { font-size: 11.5px; font-weight: bold; color: var(--text-light); }
-.kt-gh small { display: block; font-weight: normal; font-size: 10px; opacity: .85; }
-.kt-gh span { text-align: right; }
-.kt-gn { font-size: 16px; font-weight: bold; color: var(--text-light); }
+.kt-gh, .kt-gr { display: grid; font-size: 16px;
+  grid-template-columns: 1.3em 1fr 6.2em 6.2em; align-items: center; gap: 5px; }
+.kt-gh { font-size: 13px; font-weight: bold; color: var(--text-light); }
+.kt-gh small { display: block; font-weight: normal; font-size: 11px; opacity: .85; }
+.kt-gh span { text-align: right; white-space: nowrap; }
+.kt-gn { font-size: 19px; font-weight: bold; color: var(--text-light); }
 .kt-gr input {
-  min-width: 0; padding: 9px 8px; font-size: 16px; text-align: right;
+  min-width: 0; padding: 10px 8px; font-size: 20px; text-align: right;
   border: 1px solid var(--cell-border, #ccc); border-radius: 7px;
   background: var(--cell-bg, #fff); color: var(--text);
 }
-.kt-gv { font-size: 14px; text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+.kt-gv { font-size: 16px; text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
 .kt-gv.kt-none { color: var(--text-light); }
-.kt-gv.kt-out { color: #c62828; font-size: 12px; font-weight: bold; }
-.kt-avg-lb { font-size: 12.5px; font-weight: bold; color: var(--text-light); margin-bottom: 2px; }
+.kt-gv.kt-out { color: #c62828; font-size: 13.5px; font-weight: bold; }
+.kt-avg-lb { font-size: 14px; font-weight: bold; color: var(--text-light); margin-bottom: 2px; }
+/* 結果まわりもひとまわり大きく（カンタブの中だけ） */
+#kantabOverlay .vol-result-main { font-size: 32px; }
+#kantabOverlay .vol-result-sub { font-size: 13.5px; line-height: 1.6; }
+#kantabOverlay .vol-hint { font-size: 13px; line-height: 1.7; }
+#kantabOverlay .vol-insert { font-size: 16px; padding: 14px 10px; }
+#kantabOverlay .ts-judge { font-size: 15px; padding: 5px 14px; }
+#kantabOverlay .modal-header { font-size: 16px; }
 .kt-judge-row { display: flex; justify-content: center; padding: 2px 0 6px; }
 /* 判定に合わせて結果の数字の色も変える（ひと目で分かるように） */
 #ktResVal.kt-ok   { color: #2e7d32; }
@@ -1765,7 +1773,7 @@ body.dark .tanisui-bar { background: #102826; border-color: #2f7a70; color: #8fd
 .kt-tbl { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
 .kt-row { display: flex; align-items: center; gap: 6px; }
 .kt-row input {
-  flex: 1 1 0; min-width: 0; padding: 8px; font-size: 15px; text-align: right;
+  flex: 1 1 0; min-width: 0; padding: 9px; font-size: 17px; text-align: right;
   border: 1px solid var(--cell-border, #ccc); border-radius: 6px;
   background: var(--cell-bg, #fff); color: var(--text);
 }
@@ -1774,31 +1782,38 @@ body.dark .tanisui-bar { background: #102826; border-color: #2f7a70; color: #8fd
   flex-shrink: 0; width: 32px; padding: 7px 0; border: none; border-radius: 6px; cursor: pointer;
   background: rgba(192,57,43,.12); color: #c0392b; font-size: 14px; font-weight: bold;
 }
-.kt-head { display: flex; gap: 6px; font-size: 11.5px; font-weight: bold; color: var(--text-light); padding: 0 2px; }
+.kt-head { display: flex; gap: 6px; font-size: 13px; font-weight: bold; color: var(--text-light); padding: 0 2px; }
 .kt-head span { flex: 1 1 0; }
 .kt-head span:last-child { flex: 0 0 32px; }
-.kt-empty { font-size: 12.5px; color: #c0392b; line-height: 1.6; padding: 6px 2px; }
+.kt-empty { font-size: 14px; color: #c0392b; line-height: 1.65; padding: 6px 2px; }
 /* 換算表をまとめて貼り付ける欄 */
 .kt-paste-sec { margin-bottom: 12px; }
+/* 設定ダイアログの説明・見出しもひとまわり大きく */
+#ktSettingsOverlay .ts-ref-note { font-size: 13.5px; line-height: 1.65; }
+#ktSettingsOverlay .ts-set-label { font-size: 15.5px; }
+#ktSettingsOverlay .ts-set-label small { font-size: 12px; }
+#ktSettingsOverlay .sc-val { font-size: 17px; }
+#ktSettingsOverlay .modal-header { font-size: 16px; }
+.kt-paste-ex { font-size: 12.5px; }
 /* 製品ごとの換算表のひな形 */
 .kt-preset-sec { margin-bottom: 14px; }
 .kt-preset-btn {
   width: 100%; padding: 11px; margin-bottom: 6px; border: 1.5px solid var(--pm-acc, #217346);
   border-radius: 7px; background: transparent; color: var(--pm-acc, #217346);
-  font-size: 13.5px; font-weight: bold; cursor: pointer; touch-action: manipulation; text-align: left;
+  font-size: 15px; font-weight: bold; cursor: pointer; touch-action: manipulation; text-align: left;
 }
-.kt-preset-btn small { display: block; font-weight: normal; font-size: 11px; opacity: .8; margin-top: 2px; }
+.kt-preset-btn small { display: block; font-weight: normal; font-size: 12px; opacity: .8; margin-top: 3px; }
 .kt-preset-btn:active { opacity: .7; }
-.kt-onebyone { font-size: 12px; font-weight: bold; color: var(--text-light); margin: 14px 0 6px; padding-top: 12px; border-top: 1px solid var(--cell-border, #ddd); }
+.kt-onebyone { font-size: 13.5px; font-weight: bold; color: var(--text-light); margin: 14px 0 6px; padding-top: 12px; border-top: 1px solid var(--cell-border, #ddd); }
 .kt-paste-ex code { background: var(--pm-chip, rgba(120,132,156,.13)); padding: 1px 5px; border-radius: 4px; font-size: 11.5px; }
 .kt-paste {
   width: 100%; box-sizing: border-box; padding: 9px; margin-bottom: 8px;
-  font-family: monospace; font-size: 14px; line-height: 1.5;
+  font-family: monospace; font-size: 16px; line-height: 1.55;
   border: 1px solid var(--cell-border, #ccc); border-radius: 7px;
   background: var(--cell-bg, #fff); color: var(--text); resize: vertical;
 }
 .kt-paste-btns { display: flex; gap: 8px; }
-.kt-pb { flex: 1 1 0; font-size: 13px; padding: 10px 6px; }
+.kt-pb { flex: 1 1 0; font-size: 14.5px; padding: 11px 6px; }
 .kt-pb-sub { background: var(--pm-chip, rgba(120,132,156,.13)); color: var(--text); }
 .kt-pb-sub:hover { background: rgba(120,132,156,.24); }
 .ts-field { display: flex; align-items: center; gap: 3px; }
@@ -2146,7 +2161,8 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
     <div class="modal-body">
       <div class="kt-in-row kt-w-row">
         <span class="kt-in-lb">単位水量 W</span>
-        <input type="number" step="any" inputmode="decimal" id="ktIn_W" placeholder="例 175" oninput="ktInput('W',this.value)">
+        <input type="text" inputmode="decimal" id="ktIn_W" placeholder="例 175"
+          oninput="ktInput('W',this.value,this)" onfocus="ktCaretEnd(this)" onclick="ktCaretEnd(this)">
         <span class="kt-in-unit">kg/m³</span>
       </div>
       <div class="kt-grid" id="ktGrid">
@@ -10656,14 +10672,29 @@ function ktRenderInputs(){
     const row=document.createElement('div');
     row.className='kt-gr';
     row.innerHTML='<span class="kt-gn">'+f.mark+'</span>'+
-      '<input type="number" step="any" inputmode="decimal" id="ktIn_'+f.key+'" '+
-        'value="'+(ktVals[f.key]!=null?ktVals[f.key]:'')+'" oninput="ktInput(\''+f.key+'\',this.value)">'+
+      '<input type="text" inputmode="decimal" id="ktIn_'+f.key+'" '+
+        'value="'+(ktVals[f.key]!=null?ktVals[f.key]:'')+'" oninput="ktInput(\''+f.key+'\',this.value,this)" '+
+        'onfocus="ktCaretEnd(this)" onclick="ktCaretEnd(this)">'+
       '<span class="kt-gv kt-none" id="ktC_'+f.key+'">—</span>'+
       '<span class="kt-gv kt-none" id="ktQ_'+f.key+'">—</span>';
     grid.appendChild(row);
   });
 }
-function ktInput(key, v){ ktVals[key]=v; ktSaveVals(); ktCalc(); }
+/* 数字を入れる位置をいつも右端（末尾）にする。
+   途中をタップしても末尾に移るので、続きの桁がそのまま打てる。 */
+function ktCaretEnd(el){
+  if(!el) return;
+  const put=()=>{ try{ const L=el.value.length; el.setSelectionRange(L,L); }catch(_){} };
+  put(); setTimeout(put, 0);
+}
+/* 数字とピリコンマだけ受け付ける（全角で打たれても半角に直す） */
+function ktInput(key, v, el){
+  let t=String(v==null?'':v).replace(/[０-９．]/g, ch=>'０１２３４５６７８９．'.indexOf(ch)<10
+    ? String('０１２３４５６７８９'.indexOf(ch)) : '.');
+  t=t.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1');
+  if(el && t!==v){ el.value=t; ktCaretEnd(el); }
+  ktVals[key]=t; ktSaveVals(); ktCalc();
+}
 /* 表示する桁で四捨五入する。JSの丸めは 0.2625→0.262 のようにずれることがあるため、
    文字にしてから丸め直して、画面の数字と判定を必ず一致させる。 */
 function ktRound(x, d){
@@ -11717,7 +11748,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v267';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v268';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
