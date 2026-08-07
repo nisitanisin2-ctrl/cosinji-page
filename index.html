@@ -326,6 +326,62 @@ body.dark .settings-tabbar, body.dark .settings-body { background: #141d33; }
 body.dark .settings-footer { background: #141d33; }
 .settings-footer .set-act { width: auto; flex: 1; margin: 0; font-size: 12.5px; padding: 12px 6px; justify-content: center; text-align: center; }
 .settings-footer .set-act::after { content: ""; margin: 0; }
+/* ── 電卓モード ──
+   表のかわりに大きな電卓画面を出す。テンキーは共通のものをそのまま使う。 */
+.dt-pane { display: none; flex: 1; flex-direction: column; min-height: 0; gap: 8px; padding: 8px 10px 10px; }
+body.dentaku-mode .dt-pane { display: flex; }
+body.dentaku-mode .sheet-wrap,
+body.dentaku-mode .sheet-bar,
+body.dentaku-mode .sheet-persist,
+body.dentaku-mode .stats-section,
+body.dentaku-mode .formula-bar { display: none !important; }
+/* 履歴（テープ）。新しいものが下。行を押すとその答えが今の値に戻る */
+.dt-tape {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--cell-border, #ddd); border-radius: 9px;
+  background: var(--cell-bg, #fff); padding: 6px 8px;
+}
+.dt-tape-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  padding: 6px 4px; border-bottom: 1px dashed var(--cell-border, #e3e3e3);
+  cursor: pointer; touch-action: manipulation;
+}
+.dt-tape-row:last-child { border-bottom: none; }
+.dt-tape-row:active { background: var(--pm-chip, rgba(120,132,156,.13)); }
+.dt-tape-e { font-size: 13.5px; color: var(--text-light); min-width: 0; word-break: break-all; }
+.dt-tape-v { font-size: 17px; font-weight: bold; color: var(--text); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.dt-tape-empty { font-size: 13px; color: var(--text-light); padding: 8px 4px; line-height: 1.7; }
+.dt-tape-clr {
+  display: block; margin: 4px auto 0; padding: 5px 14px; border: none; border-radius: 6px;
+  background: var(--pm-chip, rgba(120,132,156,.13)); color: var(--text-light);
+  font-size: 12px; cursor: pointer; touch-action: manipulation;
+}
+/* 今の値と途中式 */
+.dt-disp {
+  flex-shrink: 0; border: 1px solid var(--cell-border, #ddd); border-radius: 10px;
+  background: var(--cell-bg, #fff); padding: 8px 12px 10px; text-align: right;
+}
+.dt-sub { font-size: 14px; color: var(--text-light); min-height: 1.4em; word-break: break-all; }
+.dt-main {
+  font-size: 40px; font-weight: bold; color: var(--text); line-height: 1.2;
+  word-break: break-all; font-variant-numeric: tabular-nums;
+}
+.dt-main.dt-err { color: #c62828; font-size: 26px; }
+/* ％・税・AC・セルへ */
+.dt-keys { flex-shrink: 0; display: flex; gap: 6px; }
+.dt-key {
+  flex: 1 1 0; min-width: 0; padding: 12px 4px; border: none; border-radius: 8px;
+  background: var(--pm-chip, rgba(120,132,156,.13)); color: var(--text);
+  font-size: 14px; font-weight: bold; cursor: pointer; touch-action: manipulation; white-space: nowrap;
+}
+.dt-key:active { transform: scale(.96); }
+.dt-key.dt-ac { background: rgba(192,57,43,.14); color: #c0392b; }
+.dt-key.dt-send { flex: 1.5 1 0; background: #217346; color: #fff; }
+/* 画面が低いときは表示を詰める */
+@media (max-height: 700px) {
+  .dt-main { font-size: 32px; }
+  .dt-key { padding: 10px 3px; font-size: 13px; }
+}
 .set-page { display: none; }
 .set-page.open { display: block; }
 .set-sec { font-size: 11.5px; font-weight: bold; color: var(--text-light); margin: 10px 4px 6px; }
@@ -2029,6 +2085,13 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
       <span class="set-stepper"><button class="step-btn" onclick="changeDec(-1)">−</button><span class="sc-val" id="decCount">自</span><button class="step-btn" onclick="changeDec(1)">＋</button></span>
     </div>
     <div class="set-row">
+      <span class="set-label">電卓の計算のしかた<small>🧮電卓モードでの「1＋2×3」の答え</small></span>
+      <select class="fmt-select" id="calcStyleSel" onchange="dtSetStyle(this.value)" style="flex-shrink:0">
+        <option value="simple">ふつうの電卓（左から順）＝9</option>
+        <option value="expr">式の優先順位どおり（×÷が先）＝7</option>
+      </select>
+    </div>
+    <div class="set-row">
       <span class="set-label">消費税の税率</span>
       <span class="set-stepper"><button class="step-btn" onclick="changeTax(-1)">−</button><span class="sc-val" id="taxRate">10%</span><button class="step-btn" onclick="changeTax(1)">＋</button></span>
     </div>
@@ -2079,6 +2142,22 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
 
 <div class="sheet-wrap">
   <table class="sheet" id="sheet"></table>
+</div>
+
+<!-- 電卓モードの画面。body.dentaku-mode のときだけ表のかわりに出る（テンキーはそのまま使う） -->
+<div class="dt-pane" id="dentakuPane">
+  <div class="dt-tape" id="dtTape"></div>
+  <div class="dt-disp">
+    <div class="dt-sub" id="dtSub"></div>
+    <div class="dt-main" id="dtMain">0</div>
+  </div>
+  <div class="dt-keys">
+    <button class="dt-key" onclick="dtPercent()" title="割合。例：100 ＋ 10 ％ → 110">％</button>
+    <button class="dt-key" id="dtTaxIn" onclick="dtTax(1)" title="今の値に消費税を足す">税込</button>
+    <button class="dt-key" id="dtTaxOut" onclick="dtTax(-1)" title="今の値から消費税を抜く">税抜</button>
+    <button class="dt-key dt-ac" onclick="dtAllClear()" title="ぜんぶ消す">AC</button>
+    <button class="dt-key dt-send" onclick="dtToCell()" title="表に戻って、選んでいるセルに答えを入れます">▦ セルへ</button>
+  </div>
 </div>
 
 <div class="shop-tax-bar" id="shopTaxBar">
@@ -3252,6 +3331,7 @@ body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #
             <tr><td><b>単位水量</b></td><td>土研法エアメータ法で生コンの単位水量を推定（下記）</td></tr>
           </table>
           <div class="help-li"><b>単位水量</b>：配合（W1・セメント・細骨材・粗骨材・混和材・配合空気量）と試験値（容器容積V・容器質量・容器+試料・測定空気量）を入れると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で推定し、許容差（下のバーで変更可）で合否判定します。配合はkg/m³、試験はg・ccで入力。</div>
+          <div class="help-li"><b>電卓モード</b>：モードで<b>🧮電卓</b>を選ぶと、表のかわりに<b>ふつうの電卓</b>が出ます。テンキーはそのまま使えて、押すたびに答えが出ます。計算するたびに<b>履歴（テープ）</b>が残り、行を押すとその答えをもう一度使えます。<b>％</b>（100＋10％→110）と<b>消費税</b>（税込・税抜。税率は設定のもの）のボタンつき。<b>▦セルへ</b>を押すと元のモードに戻って、選んでいるセルに答えが入ります。「1＋2×3」の答えを<b>9（ふつうの電卓）</b>にするか<b>7（式の優先順位どおり）</b>にするかは、<b>設定→🧮計算</b>で選べます。</div>
           <div class="help-li"><b>カンタブ（塩化物イオン量）</b>：容積計算や写真メモと同じ<b>道具</b>です。設定の<b>キーの割り当て</b>で<b>🧪カンタブ</b>をキーに登録すると、そのキーで開けます。<b>単位水量</b>と<b>読み値①〜③</b>を入れると、読み値ごとに<b>換算表の値(%)</b>と<b>塩化物含有量(kg/m³)</b>が並び、最後にその<b>平均値</b>で合否を判定します。平均値は<b>選択中のセルに入れる</b>こともできます。読み値から濃度への<b>換算表はカンタブの製品ごとに違う</b>ので、はじめに<b>⚙換算表・設定</b>でお使いの表を登録してください（読み値が表の間のときは前後から直線でおぎない、その旨を表示します）。換算表は<b>まとめて貼り付け</b>でも登録できます（1行に「読み値」と「濃度」の数字を2つ並べる。区切りはスペース・タブ・カンマのどれでもよく、全角の数字も読めます）。濃度は<b>小数4桁</b>まで扱えます。よく使う製品の表は<b>ひな形のボタン</b>でワンタップでも入れられます（写真から起こした値なので、入れたあと実物と見くらべてください）。管理値の既定は 0.30 kg/m³ で、設定で変えられます。</div>
           <div class="help-li"><b>配合・エアメータの登録（シート連携）</b>：単位水量の<b>⚙設定</b>「📋配合・エアメータ登録シートを作成」で<b>本体・配合登録(30)・エアメータ登録(5)</b>の3シートができます。番号ごとの値を入れておくと、本体で<b>配合番号・エアメータ番号を入れるだけ</b>で値が呼び出されます（登録側を直すと本体にも反映）。上の常設タブで切替。</div>
           <div class="help-li"><b>📋計算式テンプレ／📑決算書テンプレ</b>（設定の「計算」タブ）：割引・利益率・BMI・速さ・複利・ローン・面積…約20種類のひな形や、損益計算書・貸借対照表・収支計算書のひな形。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
@@ -5781,6 +5861,7 @@ const KEY_FUNCS={
   a_lookup:{g:'設定・機能',label:'🔍照合',run:()=>openLookupDlg()},
   a_find:{g:'設定・機能',label:'🔎検索',run:()=>openFindDlg()},
   a_modenormal:{g:'設定・機能',label:'▦通常',run:()=>switchMode('normal')},
+  a_modedentaku:{g:'設定・機能',label:'🧮電卓',short:'電卓',run:()=>switchMode('dentaku')},
   a_sheetadd:{g:'設定・機能',label:'＋シート',run:()=>addSheet()},
   a_sheetnext:{g:'設定・機能',label:'⇄シート',run:()=>{ if(typeof sheets!=='undefined'&&sheets.length>1) switchSheet((curSheet+1)%sheets.length); }},
   a_sheettabs:{g:'設定・機能',label:'🗂タブ',run:()=>toggleSheetTabs()},
@@ -9140,6 +9221,7 @@ function applyTaxRate(){
   document.getElementById('taxRate').textContent=taxPct+'%';
   const zr=document.getElementById('zeiRate'); if(zr) zr.textContent=taxPct+'%';
   localStorage.setItem('excalc_taxrate', taxPct);
+  if(typeof dtSyncTaxLabels==='function') dtSyncTaxLabels();
   if(tableMode==='zei') recalcMode();
 }
 function changeTax(delta){
@@ -9494,7 +9576,169 @@ function redoLast() {
   undoing=false; updateUndoBtn(); updateRedoBtn();
 }
 
+
+/* ══ 電卓モード ══
+   テンキーの計算エンジン（disp_val / op1 / cur_op / waiting / calc）をそのまま使い、
+   表示先と「＝」の確定だけをこちらで受け持つ。
+   計算のしかたは2通り：
+     simple … ふつうの電卓（押した順に計算。1+2×3=9）
+     expr   … 式の優先順位どおり（×÷が先。1+2×3=7）。既存の parseArith で計算する。 */
+const DT_TAPE_KEY='excalc_calc_tape', DT_STYLE_KEY='excalc_calc_style';
+const DT_TAPE_MAX=100;
+let dtTape=[];            // [{e:'120 ＋ 30', v:'150'}] 新しいものが後ろ
+let dtStyle='simple';     // 'simple' | 'expr'
+let dtExpr='';            // 式優先モードで組み立て中の式
+let dtSeq='';             // ふつうの電卓で押した式（履歴に残すため。例「1 ＋ 2 ×」）
+let dtPrevMode='normal';  // 電卓に入る前のモード（「セルへ」で戻る先）
+let dtPrevSel=null;       // 電卓に入る前に選んでいたセル（答えを入れる先）
+try{ const a=JSON.parse(localStorage.getItem(DT_TAPE_KEY)); if(Array.isArray(a)) dtTape=a.slice(-DT_TAPE_MAX); }catch(_){}
+try{ const st=localStorage.getItem(DT_STYLE_KEY); if(st==='simple'||st==='expr') dtStyle=st; }catch(_){}
+function isDentaku(){ return tableMode==='dentaku'; }
+function dtSaveTape(){ try{ localStorage.setItem(DT_TAPE_KEY, JSON.stringify(dtTape.slice(-DT_TAPE_MAX))); }catch(_){} }
+/* 演算子の見た目（×÷は打ちやすい記号で見せる） */
+function dtOpSign(o){ return o==='*'?'×':o==='/'?'÷':o==='-'?'−':'＋'; }
+/* いまの画面を描く */
+function dtRender(){
+  const m=document.getElementById('dtMain'), sub=document.getElementById('dtSub');
+  if(!m) return;
+  if(dtStyle==='expr'){
+    sub.textContent=dtExpr?'式の優先順位どおり':'式の優先順位どおり（×÷が先）';
+    m.textContent=dtExpr||disp_val||'0';
+  } else {
+    sub.textContent=dtSeq || ((op1!==null&&cur_op)?(fmtNum(op1)+' '+dtOpSign(cur_op)):'');
+    m.textContent=(disp_val===''?'0':disp_val);
+  }
+  m.classList.toggle('dt-err', m.textContent==='Error');
+  dtRenderTape();
+}
+function dtRenderTape(){
+  const t=document.getElementById('dtTape'); if(!t) return;
+  if(!dtTape.length){
+    t.innerHTML='<div class="dt-tape-empty">計算するとここに残ります。行を押すと、その答えをもう一度使えます。</div>';
+    return;
+  }
+  t.innerHTML=dtTape.map((x,i)=>
+    '<div class="dt-tape-row" onclick="dtUseTape('+i+')">'+
+      '<span class="dt-tape-e">'+dtEsc(x.e)+' ＝</span>'+
+      '<span class="dt-tape-v">'+dtEsc(x.v)+'</span>'+
+    '</div>').join('')
+    +'<button class="dt-tape-clr" onclick="event.stopPropagation();dtClearTape()">🗑 履歴を消す</button>';
+  t.scrollTop=t.scrollHeight;
+}
+function dtEsc(x){ return String(x).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function dtPush(e, v){
+  dtTape.push({e:String(e), v:String(v)});
+  while(dtTape.length>DT_TAPE_MAX) dtTape.shift();
+  dtSaveTape();
+}
+/* 履歴の行を押したら、その答えを今の値に戻す */
+function dtUseTape(i){
+  const x=dtTape[i]; if(!x) return;
+  if(dtStyle==='expr'){ dtExpr=String(x.v); }
+  else { disp_val=String(x.v); waiting=false; }
+  dtRender();
+}
+function dtClearTape(){ dtTape=[]; dtSaveTape(); dtRender(); toast('履歴を消しました'); }
+/* 「＝」を押したとき */
+function dtEquals(){
+  if(dtStyle==='expr'){
+    const e=dtExpr.trim(); if(!e) return;
+    let v;
+    try{ v=evalFormula('='+e); }catch(_){ v=null; }
+    const num=(typeof v==='number'&&isFinite(v))?fmtNum(v):null;
+    if(num===null){ document.getElementById('dtMain').textContent='Error'; document.getElementById('dtMain').classList.add('dt-err'); return; }
+    dtPush(e, num);
+    dtExpr=num; disp_val=num;
+    dtRender(); return;
+  }
+  if(cur_op===null||op1===null){                 // 演算が無いときは、今の値をそのまま履歴に残す
+    dtSeq='';
+    dtRender(); return;      // 演算が無いときは何も足さない（数字を打っただけでは履歴に残さない）
+  }
+  const b=parseFloat(disp_val), a=op1, o=cur_op;
+  if(o==='/' && b===0){                          // 0では割れない（表の計算とは分けて、電卓では素直に出す）
+    dtSeq=''; disp_val='Error'; op1=null; cur_op=null; waiting=false;
+    dtRender(); return;
+  }
+  const r=calc(a,b,o);
+  const val=fmtNum(r);
+  const e=dtSeq ? (dtSeq+' '+fmtNum(b)) : (fmtNum(a)+' '+dtOpSign(o)+' '+fmtNum(b));
+  dtPush(e, val);
+  dtSeq='';
+  disp_val=val; op1=null; cur_op=null; waiting=false;
+  dtRender();
+}
+/* ふつうの電卓：演算キーを押すたび、履歴用の式に積む。
+   演算子を続けて押したときは最後の演算子を置きかえる。 */
+function dtSeqOp(o){
+  if(waiting && dtSeq) dtSeq=dtSeq.replace(/\s*[＋−×÷]$/,'');
+  else dtSeq += (dtSeq?' ':'') + (disp_val===''?'0':disp_val);
+  dtSeq += ' ' + dtOpSign(o);
+}
+/* 式優先モード：数字・記号を式に足す（テンキーからも呼ぶ） */
+function dtExprAppend(t){ dtExpr+=t; disp_val=''; dtRender(); }
+/* ぜんぶ消す */
+function dtAllClear(){ dtExpr=''; dtSeq=''; disp_val='0'; op1=null; cur_op=null; waiting=false; dtRender(); }
+/* ％：演算が保留中なら「前の値に対する割合」、そうでなければ 100 で割る */
+function dtPercent(){
+  if(dtStyle==='expr'){ dtExprAppend('/100'); return; }
+  const cur=parseFloat(disp_val); if(!isFinite(cur)) return;
+  if(op1!==null&&cur_op){
+    const part=(cur_op==='+'||cur_op==='-') ? op1*cur/100 : cur/100;
+    disp_val=fmtNum(part);
+  } else {
+    disp_val=fmtNum(cur/100);
+  }
+  waiting=false; dtRender();
+}
+/* 消費税：dir=1 で税込、dir=-1 で税抜。税率は設定の taxPct をそのまま使う */
+function dtTax(dir){
+  const rate=1+taxPct/100;
+  if(dtStyle==='expr'){ dtExprAppend(dir>0?('*'+rate):('/'+rate)); return; }
+  const cur=parseFloat(disp_val); if(!isFinite(cur)) return;
+  const r=dir>0?cur*rate:cur/rate;
+  const val=fmtNum(Math.round(r*100)/100);
+  dtPush(fmtNum(cur)+(dir>0?' 税込':' 税抜')+taxPct+'%', val);
+  dtSeq='';
+  disp_val=val; op1=null; cur_op=null; waiting=false;
+  dtRender();
+}
+/* 税ボタンの表示に今の税率を出す */
+function dtSyncTaxLabels(){
+  const i=document.getElementById('dtTaxIn'), o=document.getElementById('dtTaxOut');
+  if(i) i.textContent='税込'+taxPct+'%';
+  if(o) o.textContent='税抜'+taxPct+'%';
+}
+/* 計算のしかた（ふつう／式の優先順位）を切り替える */
+function dtSetStyle(v){
+  dtStyle=(v==='expr')?'expr':'simple';
+  try{ localStorage.setItem(DT_STYLE_KEY, dtStyle); }catch(_){}
+  dtAllClear();
+}
+function dtSyncStyleUi(){
+  const sel=document.getElementById('calcStyleSel'); if(sel) sel.value=dtStyle;
+}
+/* 答えを表のセルに入れる。電卓では表が隠れているので、入る前のモードへ戻してから入れる */
+function dtToCell(){
+  const v=(dtStyle==='expr')?dtExpr:disp_val;
+  const num=parseFloat(v);
+  if(!isFinite(num)){ toast('先に計算してください'); return; }
+  const back=(dtPrevMode&&dtPrevMode!=='dentaku')?dtPrevMode:'normal';
+  switchMode(back);
+  // 電卓に入る前に選んでいたセルへ戻す（モード切替で選択位置が先頭に戻るため）
+  if(dtPrevSel && dtPrevSel.r<ROWS && dtPrevSel.c<COLS) sel(dtPrevSel.r, dtPrevSel.c);
+  if(isLockedCell(selR,selC)){ flashLocked(selR,selC); toast('そのセルは保護されているので入れられません'); return; }
+  setCellVal(selR,selC, fmtNum(num));
+  toast('答えを '+ALPHA[selC]+(selR+1)+' に入れました');
+}
+/* 電卓モードに入る・出るときの見た目の切り替え */
+function dtApplyMode(){
+  document.body.classList.toggle('dentaku-mode', isDentaku());
+  if(isDentaku()){ dtSyncTaxLabels(); dtRender(); }
+}
+
 function refreshDisp() {
+  if (isDentaku()) { dtRender(); return; }   // 電卓モードはセル・数式バーに触らない
   const fi=document.getElementById('formulaInput');
   const el=document.getElementById(`c${selR}_${selC}`);
   if (formulaEditMode) { if(el) el.textContent=fi.value||'='; return; }
@@ -9508,6 +9752,10 @@ function numpadAppend(char) {
   fi.value=fi.value+char; refreshDisp();
 }
 function startFormula() {
+  if (isDentaku()){                                  // 電卓では式の組み立てに使う（式優先のときだけ）
+    if(dtStyle!=='expr'){ toast('設定で「式の優先順位どおり」にすると式が書けます'); return; }
+    dtRender(); return;
+  }
   if (editBlocked()) return;
   formulaEditMode=true;
   const fi=document.getElementById('formulaInput');
@@ -9515,11 +9763,13 @@ function startFormula() {
 }
 /* 関数・記号ページのキー：数式に記号/関数を挿入（数式モードでなければ = で開始） */
 function fkey(token){
+  if (isDentaku()) { if(dtStyle==='expr') dtExprAppend(token); else toast('設定で「式の優先順位どおり」にすると使えます'); return; }
   if (editBlocked()) return;
   if (!formulaEditMode) startFormula();
   numpadAppend(token);
 }
 function num(n) {
+  if (isDentaku() && dtStyle==='expr') { dtExprAppend(n); return; }
   if (formulaEditMode) { numpadAppend(n); return; }
   if (editBlocked()) return;
   if (!cellEditing) { disp_val=n==='0'?'0':n; cellEditing=true; }
@@ -9528,6 +9778,7 @@ function num(n) {
   refreshDisp();
 }
 function dot() {
+  if (isDentaku() && dtStyle==='expr') { dtExprAppend('.'); return; }
   if (formulaEditMode) { numpadAppend('.'); return; }
   if (editBlocked()) return;
   if (tableMode==='jikan' && (selC===1||selC===2||selC===3)) {   // 時刻・時間の入力欄では「.」キーで「:」を入力
@@ -9541,6 +9792,8 @@ function dot() {
   refreshDisp();
 }
 function op(o) {
+  if (isDentaku() && dtStyle==='expr') { dtExprAppend(o); return; }
+  if (isDentaku()) dtSeqOp(o);
   if (formulaEditMode) { numpadAppend(o==='*'?'×':o==='/'?'÷':o); return; }
   if (editBlocked()) return;
   cellEditing=true;
@@ -9550,6 +9803,7 @@ function op(o) {
   cur_op=o; waiting=true; refreshDisp();
 }
 function eq() {
+  if (isDentaku()) { dtEquals(); return; }
   if (cur_op===null||op1===null) { toCell(); return; }
   const r=calc(op1,parseFloat(disp_val),cur_op);
   disp_val=fmtNum(r); op1=null; cur_op=null; waiting=false; refreshDisp();
@@ -9578,11 +9832,13 @@ function ac() {
   disp_val='0'; op1=null; cur_op=null; waiting=false;
 }
 function ce() {
+  if (isDentaku()) { if(dtStyle==='expr') dtExpr=''; disp_val=''; dtRender(); return; }
   if (formulaEditMode) { document.getElementById('formulaInput').value='='; refreshDisp(); return; }
   if (editBlocked()) return;
   cellEditing=true; disp_val=''; refreshDisp();
 }
 function bs() {
+  if (isDentaku() && dtStyle==='expr') { dtExpr=dtExpr.slice(0,-1); dtRender(); return; }
   if (formulaEditMode) {
     const fi=document.getElementById('formulaInput');
     if (fi.value.length>1) fi.value=fi.value.slice(0,-1);
@@ -9598,6 +9854,7 @@ function bs() {
   disp_val=disp_val.length>1?disp_val.slice(0,-1):''; refreshDisp();
 }
 function toggleSign() {
+  if (isDentaku() && dtStyle==='expr') { dtExprAppend('-'); return; }
   if (formulaEditMode) { numpadAppend('-'); return; }
   if (editBlocked()) return;
   cellEditing=true;
@@ -9605,6 +9862,7 @@ function toggleSign() {
   refreshDisp();
 }
 function toggleTextInput() {
+  if(isDentaku()){ toast('電卓モードでは文字は入れられません'); return; }
   const fi=document.getElementById('formulaInput');
   const btn=document.getElementById('textBtn');
   if (document.activeElement===fi) {
@@ -9969,7 +10227,7 @@ const FORM_MODES={
 function isFormMode(){ return !!FORM_MODES[tableMode]; }
 function formDef(){ return FORM_MODES[tableMode]; }
 
-const MODE_LABELS={normal:'モード', simple:'簡易中', shopping:'買物中', warikan:'割勘中', zei:'税計中', wariai:'割合中', youseki:'容積中', yosan:'予算中', jikan:'時間中', tanisuiryou:'水量中'};
+const MODE_LABELS={normal:'モード', simple:'簡易中', shopping:'買物中', warikan:'割勘中', zei:'税計中', wariai:'割合中', youseki:'容積中', yosan:'予算中', jikan:'時間中', tanisuiryou:'水量中', dentaku:'電卓中'};
 const MODE_MENU=[
   {key:'normal',  icon:'▦',  name:'通常',   desc:'標準のスプレッドシート'},
   {key:'simple',  icon:'⬛',  name:'簡易',   desc:'列を少なく・セルを大きく見やすく'},
@@ -9981,6 +10239,7 @@ const MODE_MENU=[
   {key:'yosan',   icon:'🎯', name:'予算配分', desc:'予算と合計個数から各商品の最適な購入数を計算'},
   {key:'jikan',   icon:'⏱', name:'時間計算', desc:'開始・終了・時間のうち2つで残りを自動計算（◯時間後は何時、◯分前は何時も）'},
   {key:'tanisuiryou', icon:'💧', name:'単位水量', desc:'土研法エアメータ法で生コンの単位水量を推定（配合・試験値から算定し合否判定）'},
+  {key:'dentaku', icon:'🧮', name:'電卓', desc:'ふつうの電卓。押すたびに答えが出て、履歴（テープ）も残る（％・消費税つき）'},
 ];
 
 /* ── 計算式テンプレ：色々な計算式をエクセルの式に落とし込んだひな形。
@@ -10228,6 +10487,7 @@ function flashLocked(r,c){
 }
 /* 選択中セルがロックなら true（編集系操作の入口で使用） */
 function editBlocked(){
+  if(isDentaku()) return false;   // 電卓モードはセルを触らないので、保護セルの制限を受けない
   if(!isLockedCell(selR,selC)) return false;
   flashLocked(selR,selC);
   return true;
@@ -11049,6 +11309,9 @@ function normalizeStructLayout(){
 
 function switchMode(target){
   if(target===workspaceMode) return;
+  if(target==='dentaku' && tableMode!=='dentaku'){                        // 「セルへ」で戻る先を覚える
+    dtPrevMode=tableMode; dtPrevSel={r:selR, c:selC};
+  }
   const curCustom=findCustomMode(tableMode);
   if(curCustom){ curCustom.rows=ROWS; persistCustomModes(); }   // 登録モードは行数も記憶
   // いまのワークスペース（モード）のシート一式を退避
@@ -11056,6 +11319,7 @@ function switchMode(target){
   modeSheets[workspaceMode]={ sheets, cur:curSheet };
   activateModeSheetSet(target);                      // target のシート一式へ（無ければ新規1枚。登録モードはテンプレートから）
   document.body.classList.toggle('simple-mode', tableMode==='simple');
+  dtApplyMode();
   normalizeStructLayout();
   if(isStructMode()) showModeBar(); else hideAllBars();
   syncRowColLabels();
@@ -11196,6 +11460,7 @@ function loadSheetStore(sheet){
     initFreshMode('normal');
   }
   document.body.classList.toggle('simple-mode', tableMode==='simple');
+  dtApplyMode();
   normalizeStructLayout();
   // 開いているシートは従来キーにも反映（リロード時の整合性のため）
   localStorage.setItem('excalc_rows',ROWS);
@@ -11274,6 +11539,7 @@ function restoreSheets(){
   }
   saveSheets();
   renderSheetBar();
+  dtApplyMode();   // 電卓モードで終了していたときは、起動時も電卓画面にする
 }
 
 /* シート切り替え後の画面再構築（共通処理） */
@@ -11748,7 +12014,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v268';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v269';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -13056,6 +13322,7 @@ function loadSave(id) {
     modeSheets[targetMode]={ sheets, cur:0 };
   }
   document.body.classList.toggle('simple-mode', tableMode==='simple');
+  dtApplyMode();
   normalizeStructLayout();
   if(isStructMode()) showModeBar(); else hideAllBars();
   syncRowColLabels();
@@ -13204,6 +13471,7 @@ const savedDec=parseInt(localStorage.getItem('excalc_dec'));
 if(!isNaN(savedDec)&&savedDec>=-1&&savedDec<=10){ decPlaces=savedDec; document.getElementById('decCount').textContent=decPlaces<0?'自':decPlaces; }
 const savedTax=parseInt(localStorage.getItem('excalc_taxrate'));
 if(!isNaN(savedTax)&&savedTax>=0&&savedTax<=30) taxPct=savedTax;
+dtSyncStyleUi(); dtSyncTaxLabels();
 applyTaxRate();
 const savedSumFunc=localStorage.getItem('excalc_sumfunc');
 if(savedSumFunc==='SUM'||savedSumFunc==='AVERAGE') sumFunc=savedSumFunc;
