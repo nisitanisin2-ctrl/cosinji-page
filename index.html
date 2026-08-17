@@ -66,7 +66,6 @@ body.dark { --pm-soft: rgba(33,115,70,.30); --pm-chip: rgba(150,170,210,.16); --
   --formula-bg: white;
   --formula-border: #bbb;
   --formula-color: #333;
-  --stats-bg: #fafafa;
   --text: #333;
   --text-sub: #555;
   --text-light: #888;
@@ -88,7 +87,6 @@ body.dark {
   --formula-bg: #1e2a45;
   --formula-border: #334466;
   --formula-color: #ddd;
-  --stats-bg: #16213e;
   --text: #ddd;
   --text-sub: #aaa;
   --text-light: #777;
@@ -236,10 +234,11 @@ body.numpad-off .numpad-section { display: none; }
 .btn-list:hover  { background: rgba(255,255,255,0.28); }
 .btn-undo   { background: var(--warn); }
 .btn-undo:hover  { background: var(--warn); }
-.btn-undo:disabled { background: #4a4a4a; opacity: 0.4; cursor: default; }
 .btn-redo   { background: var(--warn-dark); }
 .btn-redo:hover  { background: #cf8a34; }
-.btn-redo:disabled { background: #4a4a4a; opacity: 0.4; cursor: default; }
+/* 戻る／進むは押せないあいだは場所を取らない（押せないボタンが常に並んでいたのをやめた）。
+   設定で非表示にしている場合は applyTopBtnHidden() の style.display が優先される。 */
+.btn-undo:disabled, .btn-redo:disabled { display: none; }
 .btn-reset  { background: var(--danger-dark); }
 .btn-reset:hover { background: var(--danger); }
 /* 設定(⚙)・保存・リスト・戻る・進む・リセットは同じ大きさに揃える（枠線・高さも統一） */
@@ -484,6 +483,7 @@ body.dentaku-mode .formula-bar { display: none !important; }
 }
 .app-toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 
+/* セル番号・入力欄・合計を1本にまとめた帯。以前は入力欄の帯と合計の帯で2本使っていた。 */
 .formula-bar {
   display: flex;
   align-items: center;
@@ -492,6 +492,7 @@ body.dentaku-mode .formula-bar { display: none !important; }
   padding: calc(3px * var(--formula-scale, 1)) 6px;
   gap: 6px;
   flex-shrink: 0;
+  min-width: 0;
 }
 #cellRef {
   width: calc(52px * var(--formula-scale, 1)); padding: calc(2px * var(--formula-scale, 1)) 4px;
@@ -516,7 +517,8 @@ body.dark #cellRef.locked-ref { background: #3a1f1c; color: #f0a5a0; border-colo
 .date-badge.on { display: block; }
 body.dark .date-badge { border-top-color: #82b1ff; }
 #formulaInput {
-  flex: 1; padding: calc(2px * var(--formula-scale, 1)) 6px;
+  flex: 1 1 auto; min-width: 70px;    /* 合計が出ても入力欄がつぶれない下限 */
+  padding: calc(2px * var(--formula-scale, 1)) 6px;
   border: 1px solid var(--formula-border);
   font-size: calc(13px * var(--formula-scale, 1));
   background: var(--formula-bg);
@@ -748,49 +750,42 @@ body.dark .cell.paste-flash { background: #1f5132 !important; }
 .shop-tax-bar.open { display: flex; }
 body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8c040; }
 
+/* 合計（または平均）。入力欄と同じ帯の右側に置き、数値が無いときは丸ごと隠す。
+   縦の帯を1本減らすため、以前の全幅バーからこの形にした。 */
 .stats-section {
-  flex-shrink: 0;
-  background: var(--stats-bg);
-  border-top: 2px solid var(--acc);
-  border-bottom: 1px solid var(--cell-border);
-  padding: 2px 8px;
-  display: flex; align-items: baseline; gap: 8px;
+  flex: 0 0 auto; margin-left: auto;
+  display: flex; align-items: center; gap: 5px;
+  padding-left: 7px; border-left: 1px solid var(--formula-border);
 }
+.stats-section.stats-empty { display: none; }
 .stats-title {
   font-size: calc(12px * var(--info-scale, 1)); font-weight: bold; color: var(--acc-text);
-  white-space: nowrap; flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; flex-shrink: 0;
   cursor: pointer; touch-action: manipulation;
 }
 .stats-title:active { opacity: 0.55; }
 .stat-val {
-  flex-shrink: 0; text-align: left;
-  font-size: calc(22px * var(--info-scale, 1)); font-weight: bold; color: var(--acc-text);
-  white-space: nowrap; cursor: pointer;
+  flex-shrink: 0; text-align: right;
+  font-size: calc(16px * var(--info-scale, 1)); font-weight: bold; color: var(--acc-text);
+  white-space: nowrap; cursor: pointer; max-width: 40vw; overflow: hidden; text-overflow: ellipsis;
 }
 .stat-val.stat-copied { background: var(--acc-light) !important; color: white !important; border-radius: var(--r-btn); }
-/* 合計バー右端の円マーク：タップで兆・億・万表示を切替 */
-.stat-yen {
-  margin-left: auto; flex-shrink: 0; align-self: center;
-  background: var(--cell-hover); color: var(--acc-text);
-  border: 1px solid var(--cell-border); border-radius: var(--r-btn);
-  font-size: calc(16px * var(--info-scale, 1)); font-weight: bold;
-  line-height: 1; padding: 5px 12px; cursor: pointer; touch-action: manipulation;
-}
-.stat-yen:active { opacity: 0.55; }
-.stat-yen.on { background: var(--acc); color: #fff; border-color: var(--acc); }
-/* 合計バー右端の矢印：タップでテンキーを端まで収納／元のサイズに復元 */
-.stat-edge {
+/* 合計の右の円マーク：タップで兆・億・万表示を切替 */
+.stat-yen, .stat-edge {
   flex-shrink: 0; align-self: center;
   background: var(--cell-hover); color: var(--acc-text);
   border: 1px solid var(--cell-border); border-radius: var(--r-btn);
-  font-size: calc(16px * var(--info-scale, 1)); font-weight: bold;
-  line-height: 1; padding: 5px 12px; cursor: pointer; touch-action: manipulation;
+  font-size: calc(13px * var(--info-scale, 1)); font-weight: bold;
+  line-height: 1; padding: 4px 7px; cursor: pointer; touch-action: manipulation;
 }
-.stat-edge:active { opacity: 0.55; }
+.stat-yen:active, .stat-edge:active { opacity: 0.55; }
+.stat-yen.on { background: var(--acc); color: #fff; border-color: var(--acc); }
 
 
 .numpad-section {
   flex-shrink: 0; background: #2c2c2c; padding: 4px; --key-scale: 1.3;
+  /* 表の終わりを示す線。以前は合計バーの上線がこの役目をしていた */
+  border-top: 2px solid var(--acc);
   /* 上下の余白は設定で調整可（--np-top/--np-bottom）。iPhoneのホームバー分は
      --np-safe（0〜1）で確保量を調整（下の隙間を詰めたい人向け）。 */
   padding-top: var(--np-top, 4px);
@@ -815,6 +810,8 @@ body.resizer-off .numpad-resizer { display: none !important; }
 /* スマホ横向き：大きさ調整バーをテンキー左端に縦向きで（左右ドラッグで調整）。
    基本ルールの後に置いて上書きする */
 @media (orientation: landscape) and (max-height: 500px) {
+  /* 横向きはテンキーが右にあるので、表との区切り線も上ではなく左に置く */
+  .numpad-section { border-top: none; border-left: 2px solid var(--acc); }
   .numpad-resizer {
     height: auto; width: calc(13px * var(--bar-scale, 1)); margin: -3px 4px -3px -3px;   /* 縦持ちのバー高さ(13px)と同じ幅に */
     cursor: ew-resize; flex-shrink: 0;
@@ -2114,7 +2111,7 @@ body.dark {
     <button class="set-act" id="sheetTabsBtn" onclick="toggleSheetTabs()">🗂 シートのタブを常に表示</button>
     <button class="set-act" id="darkBtn" onclick="toggleDark()">🌙 ナイトモード</button>
     <button class="set-act" id="keypadEditBtn" onclick="toggleKeypadEdit()" title="テンキーのボタンをドラッグして好きな位置に入れ替えます（同じ大きさのボタン同士）">🔧 テンキーのボタン配置を編集</button>
-    <div class="set-sec">上のバーのボタン<small>タップで表示／非表示（「設定」は常に表示）</small></div>
+    <div class="set-sec">上のバーのボタン<small>タップで表示／非表示（「設定」は常に表示。「戻る」「進む」は使えるときだけ出ます）</small></div>
     <div class="topbtn-grid" id="topBtnToggles">
       <button class="topbtn-toggle" data-btn="sheet" onclick="toggleTopBtn('sheet')">シート</button>
       <button class="topbtn-toggle" data-btn="save"  onclick="toggleTopBtn('save')">保存</button>
@@ -2180,12 +2177,20 @@ body.dark {
  </div>
 </div>
 
+<!-- セル番号・入力欄・合計を1本にまとめた帯（以前は入力欄と合計欄で2本使っていた）。
+     合計は数値があるときだけ右側に出る。▼ はテンキーの開閉。 -->
 <div class="formula-bar">
   <span class="cellref-wrap">
     <input id="cellRef" type="text" value="A1" readonly onclick="openCellFmt()" title="タップでこのセルの書式設定（小数点・装飾・色・大きさ）">
     <span id="dateBadge" class="date-badge" title="日付書式のセル"></span>
   </span>
   <input id="formulaInput" type="text" placeholder="値を入力 (Enterで確定)" autocomplete="off">
+  <div class="stats-section stats-empty" id="statsSection">
+    <span class="stats-title" id="statsTitle" title="タップで合計⇄平均を切替">合計A</span>
+    <span class="stat-val" id="sSum" title="タップで数値コピー">0</span>
+    <button class="stat-yen" id="statYenBtn" title="タップで兆・億・万表示に切替">¥</button>
+  </div>
+  <button class="stat-edge" id="numpadEdgeBtn" onclick="toggleNumpadEdge()" title="テンキーを閉じる（端まで収納）">▼</button>
 </div>
 
 <div class="sheet-wrap">
@@ -2383,12 +2388,6 @@ body.dark {
   </div>
 </div>
 
-<div class="stats-section">
-  <span class="stats-title" id="statsTitle" title="タップで合計⇄平均を切替">合計 — 列 A</span>
-  <span class="stat-val" id="sSum" title="タップで数値コピー">0</span>
-  <button class="stat-yen" id="statYenBtn" title="タップで兆・億・万表示に切替">¥</button>
-  <button class="stat-edge" id="numpadEdgeBtn" onclick="toggleNumpadEdge()" title="テンキーを閉じる（端まで収納）">▼</button>
-</div>
 
 </div><!-- /left-pane -->
 
@@ -3284,7 +3283,7 @@ body.dark {
           <div class="help-li">上部の入力欄から直接入力／編集もできます。数字を入れたあと<b>「文字」</b>キーで日本語も足せます（前に入れた数字は消えません）。</div>
           <table class="help-tbl">
             <tr><td><span class="help-key">Enter長押し</span></td><td>確定後に進む向きを <b>⇩下 ⇄ ⇨右</b> で切替（Enterボタン下の矢印で今の向きを確認）</td></tr>
-            <tr><td><span class="help-key">見出し／行番号タップ</span></td><td>その列・行を選択（下に合計が出ます）</td></tr>
+            <tr><td><span class="help-key">見出し／行番号タップ</span></td><td>その列・行を選択（入力欄の右に合計が出ます）</td></tr>
             <tr><td><span class="help-key">端をドラッグ</span></td><td>見出しの右端・行番号の下端で、列幅／行高を変更（ダブルタップで自動に戻す）</td></tr>
             <tr><td><span class="help-key">見出し／行番号 長押し</span></td><td>その場所に行・列を追加／削除するメニュー（上下・左右に追加、または削除）</td></tr>
             <tr><td><span class="help-key">セルからスライド</span></td><td>選択中のセルからなぞると<b>範囲選択</b>。右フリックの書式ページでまとめて書式を付けられます（他のセルからは画面スクロール）</td></tr>
@@ -3315,7 +3314,7 @@ body.dark {
           </table>
           <div class="help-li"><b>登録ページ</b>：紫ボタンを<b>長押し</b>で登録画面。よく使う<b>文字・数字</b>を入力して登録（数値の途中でタップすると連結。例 100→「円」で100円）。<b>🎨書式</b>を付ければその書式のまま入力、<b>📋セルから選ぶ</b>でセルの内容＋書式を取り込み、<b>🔧ボタンの機能</b>から便利機能（保存・リスト・PDF・📅日付〈カレンダー〉など）も登録できます。登録後は<b>タップで入力／実行</b>。<b>🔀移動</b>で位置入れ替え（別ページとも可）。<b>左右フリックで3ページ</b>（左・中央・右）、<b>下フリックで数字ページに戻る</b>。</div>
           <div class="help-li"><b>ボタン長押しで機能を割り当て</b>（数字・関数記号・関数電卓ページ）：別のキーや設定機能（保存・リスト・PDF・CSV・ナイト・テンプレ・📅日付…）、<b>「表の操作」</b>（行列の増減／挿入・削除／コピー・貼付・消去／A1へ移動／シート追加・切替）に変更できます。「↺元に戻す」でいつでも戻せます（Σは対象外）。</div>
-          <div class="help-li"><b>テンキーの大きさ</b>：上端（横向きは左端）の<b>調整バーをドラッグ</b>で大小（端まで＝消える／バーで戻す）。設定でバーの<b>太さ・表示/非表示</b>も変えられます。合計バー右端の<b>▼</b>でワンタップ収納（▲で復帰）。設定の<b>🔧配置編集</b>でボタン位置も入れ替え可。</div>
+          <div class="help-li"><b>テンキーの大きさ</b>：上端（横向きは左端）の<b>調整バーをドラッグ</b>で大小（端まで＝消える／バーで戻す）。調整バーは既定では出していないので、使うときは設定の<b>▬調整バーを表示する</b>をオンにしてください（太さも変えられます）。入力欄の右端の<b>▼</b>でワンタップ収納（▲で復帰）。設定の<b>🔧配置編集</b>でボタン位置も入れ替え可。</div>
           <div class="help-note">💡 <b>パソコン</b>：テンキーの上でマウスの<b>ホイールを回す</b>と、横フリックと同じようにページを切り替えられます。</div>
         </div>
       </details>
@@ -3326,7 +3325,7 @@ body.dark {
           <div class="help-li"><span class="help-tag">Σ</span> を押すと隣の連続データを自動で合計し <b>=SUM(範囲)</b> を作成 → <b>Enter</b>で確定。</div>
           <div class="help-li">押した後に<b>セルを始点→終点までスライド</b>で合計範囲を指定できます（タップで1セル）。</div>
           <div class="help-li"><b>Σを長押し</b>で「合計／平均」を選べます（選んだ方を記憶し、ボタン表示も変わります）。</div>
-          <div class="help-li"><b>画面下の合計欄</b>：列・行を選ぶと合計を表示。<b>「合計」タップで合計⇄平均</b>／<b>「¥」タップで数字⇄漢数字</b>（兆・億・万）／<b>数値タップでコピー</b>。</div>
+          <div class="help-li"><b>入力欄の右の合計</b>：列・行を選ぶと合計を表示（数値が無いときは出ません）。<b>「合計」タップで合計⇄平均</b>／<b>「¥」タップで数字⇄漢数字</b>（兆・億・万）／<b>数値タップでコピー</b>。</div>
         </div>
       </details>
 
@@ -3415,7 +3414,7 @@ body.dark {
             <tr><td><b>タブ</b></td><td>🗂記録／📌タブ1／📌タブ2／🔀モード。保存はまず「記録」へ。各データのタブ選択欄で振り分け、タブ名は長押しで変更</td></tr>
             <tr><td><b>モードへ</b></td><td>記録をモードに登録（自動で「モード」タブへ移動・保護）</td></tr>
             <tr><td><b>🔓ロック</b></td><td>タップで🔒保護（削除・改名を防止。もう一度で解除）</td></tr>
-            <tr><td><b>↩戻る／↪進む</b></td><td>直前の入力を元に戻す／やり直す</td></tr>
+            <tr><td><b>↩戻る／↪進む</b></td><td>直前の入力を元に戻す／やり直す（上のバーのボタンは、使えるときだけ出ます）</td></tr>
             <tr><td><b>⬇書き出し／⬆読み込み</b></td><td>リスト下部。保存データをファイルに出力→別端末で復元（バックアップ・引っ越し）</td></tr>
           </table>
           <div class="help-li"><b>📄CSV／📊Excel／🖨PDF</b>（設定の「データ」タブ）：CSVは表の値（文字コード自動判別）。<b>Excel(.xlsx)</b>は数式・太字・色・枠線・寄せ・結合・列幅まで保ったまま入出力。<b>PDF出力</b>は印刷前の設定ダイアログで、タイトル・向き・拡大縮小（1ページに収める）・余白・文字サイズ・枠線を指定でき、プレビューを横フリックで複数ページ確認。「印刷／PDFに保存」で書き出せます。</div>
@@ -5731,8 +5730,10 @@ function changeBarSize(delta){
   const next=barSizeIdx+delta; if(next<0||next>=BAR_STEPS.length) return;
   barSizeIdx=next; applyBarSize();
 }
-/* ── 調整バーの表示/非表示（設定でオンオフ。既定は表示） ── */
-let showResizerBar = localStorage.getItem('excalc_show_resizerbar')!=='0';
+/* ── 調整バーの表示/非表示（設定でオンオフ。既定は非表示） ──
+   表を少しでも広く見せるため既定を非表示にした。テンキーの大きさは設定と ▼ でも変えられる。
+   これまで自分で表示に切り替えていた人（'1' が入っている）はそのまま表示のまま。 */
+let showResizerBar = localStorage.getItem('excalc_show_resizerbar')==='1';
 function applyResizerBar(){
   document.body.classList.toggle('resizer-off', !showResizerBar);
   const btn=document.getElementById('resizerBarBtn'); if(btn) btn.classList.toggle('on', showResizerBar);
@@ -9055,7 +9056,7 @@ function applyNumpad() {
   if (!numpadHidden) fitNumpadLabels();
 }
 function toggleNumpad() { numpadHidden=!numpadHidden; applyNumpad(); closeSettingsPanel(); }
-/* ── 合計バーの矢印：ワンタップでテンキーを端まで収納／元のサイズに戻す ──
+/* ── 入力欄の右の矢印：ワンタップでテンキーを端まで収納／元のサイズに戻す ──
    縦持ち＝▼(収納)/▲(復元)、横持ち＝▶(収納)/◀(復元)。表示状態は非表示トグルと共有。 */
 function updateNumpadEdgeBtn() {
   const b=document.getElementById('numpadEdgeBtn'); if(!b) return;
@@ -9387,7 +9388,7 @@ function clickRow(r) {
 }
 
 function updateRowStats(r) {
-  lastStatScope=`行 ${r+1}`;
+  lastStatScope=`${r+1}行`;        // 「合計3行」＝3行目の合計
   const nums=[];
   for (let c=0;c<COLS;c++) {
     const raw=data[r][c]; if(raw==='') continue;
@@ -9498,13 +9499,17 @@ function currentStatValue() {
   const sum=lastStatNums.reduce((a,b)=>a+b,0);
   return statMode==='avg' ? sum/lastStatNums.length : sum;
 }
-/* タイトルと値を現在の状態（合計/平均・漢数字）で再描画 */
+/* タイトルと値を現在の状態（合計/平均・漢数字）で再描画。
+   入力欄と同じ帯に入れたので、ラベルは「合計A」「平均3行」のように短くする。
+   数値が無いときは帯ごと隠して、入力欄を広く使えるようにする。 */
 function refreshStatsDisplay() {
   const word = statMode==='avg' ? '平均' : '合計';
-  document.getElementById('statsTitle').textContent=`${word} — ${lastStatScope}`;
+  document.getElementById('statsTitle').textContent = word + lastStatScope;
   const sumEl=document.getElementById('sSum');
+  const sec=document.getElementById('statsSection');
   const v=currentStatValue();
-  if (v===null) { sumEl.textContent='—'; return; }
+  if (v===null) { sumEl.textContent='—'; if(sec) sec.classList.add('stats-empty'); return; }
+  if(sec) sec.classList.remove('stats-empty');
   sumEl.textContent = statKanji ? toKanjiNum(v) : fmt(v);
 }
 function renderStats(nums) {
@@ -9513,7 +9518,7 @@ function renderStats(nums) {
 }
 
 function updateStats(c) {
-  lastStatScope=`列 ${ALPHA[c]}`;
+  lastStatScope=ALPHA[c];          // 「合計A」＝A列の合計
   const nums=[];
   for (let r=0;r<ROWS;r++) {
     const raw=data[r][c]; if(raw==='') continue;
@@ -12062,7 +12067,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v270';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v271';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
