@@ -823,7 +823,14 @@ body.resizer-off .numpad-resizer { display: none !important; }
    基本ルールの後に置いて上書きする */
 @media (orientation: landscape) and (max-height: 500px) {
   /* 横向きはテンキーが右にあるので、表との区切り線も上ではなく左に置く */
-  .numpad-section { border-top: none; border-left: 2px solid var(--acc); }
+  .numpad-section { border-top: none; border-left: 2px solid var(--acc); position: relative; }
+  /* 横向きはテンキーが左右に並ぶので、ページ表示は上端に重ねて置き、その分だけ上を空ける */
+  body:not(.pagebar-off) .numpad-section { padding-top: calc(var(--np-top, 4px) + 20px); }
+  .numpad-pagebar {
+    position: absolute; top: var(--np-top, 4px); left: 5px; right: 5px;
+    height: 18px; margin: 0; overflow-x: auto; scrollbar-width: none;
+  }
+  .numpad-pagebar::-webkit-scrollbar { display: none; }
   .numpad-resizer {
     height: auto; width: calc(13px * var(--bar-scale, 1)); margin: -3px 4px -3px -3px;   /* 縦持ちのバー高さ(13px)と同じ幅に */
     cursor: ew-resize; flex-shrink: 0;
@@ -850,6 +857,25 @@ body.resizer-off .numpad-resizer { display: none !important; }
      端までドラッグしても軽く動く。ボタンの枠は残るので位置関係は保たれる。 */
   body.numpad-compact .numpad-grid .btn { font-size: 0 !important; }
 }
+/* テンキーのページ表示。キーのすぐ上に1行だけ置く。
+   現在ページは緑で塗り、それ以外は控えめな文字。右端の1つは「もう一方の並びへの入口」。 */
+.numpad-pagebar {
+  display: flex; align-items: center; gap: 4px;
+  flex-shrink: 0; margin-bottom: 2px; min-width: 0;
+}
+body.pagebar-off .numpad-pagebar { display: none; }
+/* テンキーを閉じているときは出さない（横向きは幅18pxまで縮むため） */
+body.numpad-off .numpad-pagebar { display: none; }
+.np-page {
+  flex: 0 0 auto; padding: 2px 7px; border: none; border-radius: var(--r-pill);
+  background: transparent; color: #b9b9b9;
+  font-size: 10px; font-weight: bold; line-height: 1.35; white-space: nowrap;
+  cursor: pointer; touch-action: manipulation;
+}
+.np-page:hover { background: rgba(255,255,255,.10); color: #fff; }
+.np-page.on { background: var(--acc); color: var(--on-acc); }
+.np-page.np-axis { margin-left: auto; background: rgba(255,255,255,.10); color: #ddd; }
+.np-page.np-axis:hover { background: rgba(255,255,255,.20); }
 /* テンキー：数字ページ(標準)は通常表示。関数電卓／関数記号／登録ページは
    数字ページの上に重なってスライドインするオーバーレイ（フリックで開閉） */
 .numpad-viewport { position: relative; overflow: hidden; touch-action: none; }
@@ -2078,6 +2104,7 @@ body.dark {
       <span class="set-label">調整バーの太さ<small>テンキーの大きさを変えるバー</small></span>
       <span class="set-stepper"><button class="step-btn" onclick="changeBarSize(-1)">−</button><span class="sc-val" id="barSize">標準</span><button class="step-btn" onclick="changeBarSize(1)">＋</button></span>
     </div>
+    <button class="set-act" id="pageBarBtn" onclick="togglePageBar()" title="テンキーの上に出る「枠線・書式・数字・記号・関数／登録」のページ表示。タップでそのページへ移動できます">▤ テンキーのページ表示</button>
     <button class="set-act" id="resizerBarBtn" onclick="toggleResizerBar()" title="テンキーの大きさを変える調整バー（テンキー上端／横向きは左端）の表示を切り替えます">▬ 調整バーを表示する</button>
     <div class="set-row">
       <span class="set-label">テンキーの上下の余白<small>下の隙間・上のスペースを調整（iPhoneのホームバー分も）</small></span>
@@ -2372,6 +2399,9 @@ body.dark {
   <div class="numpad-resizer" id="numpadResizer" title="ドラッグでテンキーの大きさを変更（横向きは左右）">
     <span class="numpad-resizer-grip"></span>
   </div>
+  <!-- ページ表示：いま居る並びのページ名を出し、タップでそのページへ移動する。
+       フリック（左右・上下）とマウスホイールは今までどおり使える。設定で消せる。 -->
+  <div class="numpad-pagebar" id="numpadPageBar" role="tablist" aria-label="テンキーのページ"></div>
   <div class="numpad-viewport" id="numpadViewport">
     <div class="numpad-grid numpad-overlay ov-left ov-lv2" id="numpadPageBd" data-bd="normal">
     <!-- 枠線ページ（セル書式ページからさらに右フリックで表示）。線の種類・色を選び、場所ボタンで選択範囲に枠線を引く -->
@@ -3274,7 +3304,8 @@ body.dark {
             <tr><td><span class="help-tag">文字</span></td><td>文字（テキスト）を入力</td></tr>
             <tr><td><span class="help-tag">モード</span></td><td>計算モードを切替</td></tr>
           </table>
-          <div class="help-li"><b>フリックでページが切り替わります</b>（数字ページが土台。数字ページは<b>どこからでもフリック開始OK</b>）：</div>
+          <div class="help-li"><b>テンキーの上のページ表示</b>で、いまどのページに居るか分かります。<b>ページ名をタップ</b>するとそのページへ移動できます（数字の並びは「枠線・書式・数字・記号・関数」、右端の<b>▲登録</b>で登録ページの並びへ、<b>▼数字</b>で戻る）。設定の<b>▤ テンキーのページ表示</b>で消すこともできます。</div>
+          <div class="help-li"><b>フリックでも切り替わります</b>（数字ページが土台。数字ページは<b>どこからでもフリック開始OK</b>）：</div>
           <table class="help-tbl">
             <tr><td><span class="help-key">右へ →</span></td><td><b>セル書式ページ</b>：太字・斜体・下線・文字の大小・寄せ・保護・書式消去。右2列は文字色／背景色で<b>縦にスライド</b>すると各19色（原色含む）。「🎨くわしい書式設定…」も開けます</td></tr>
             <tr><td><span class="help-key">右→右</span></td><td><b>枠線ページ</b>：線の種類（普通・太・二重）と色（黒赤青緑紫）を選び、上・下・左・右・格子・囲む で枠線。🧹で消去（PDFにも反映）</td></tr>
@@ -3286,7 +3317,7 @@ body.dark {
           <div class="help-li"><b>登録ページ</b>：紫ボタンを<b>長押し</b>で登録画面。よく使う<b>文字・数字</b>を入力して登録（数値の途中でタップすると連結。例 100→「円」で100円）。<b>🎨書式</b>を付ければその書式のまま入力、<b>📋セルから選ぶ</b>でセルの内容＋書式を取り込み、<b>🔧ボタンの機能</b>から便利機能（保存・リスト・PDF・📅日付〈カレンダー〉など）も登録できます。登録後は<b>タップで入力／実行</b>。<b>🔀移動</b>で位置入れ替え（別ページとも可）。<b>左右フリックで3ページ</b>（左・中央・右）、<b>下フリックで数字ページに戻る</b>。</div>
           <div class="help-li"><b>ボタン長押しで機能を割り当て</b>（数字・関数記号・関数電卓ページ）：別のキーや設定機能（保存・リスト・PDF・CSV・ナイト・テンプレ・📅日付…）、<b>「表の操作」</b>（行列の増減／挿入・削除／コピー・貼付・消去／A1へ移動／シート追加・切替）に変更できます。「↺元に戻す」でいつでも戻せます（Σは対象外）。</div>
           <div class="help-li"><b>テンキーの大きさ</b>：上端（横向きは左端）の<b>調整バーをドラッグ</b>で大小（端まで＝消える／バーで戻す）。調整バーは既定では出していないので、使うときは設定の<b>▬調整バーを表示する</b>をオンにしてください（太さも変えられます）。入力欄の右端の<b>▼</b>でワンタップ収納（▲で復帰）。設定の<b>🔧配置編集</b>でボタン位置も入れ替え可。</div>
-          <div class="help-note">💡 <b>パソコン</b>：テンキーの上でマウスの<b>ホイールを回す</b>と、横フリックと同じようにページを切り替えられます。</div>
+          <div class="help-note">💡 <b>パソコン</b>：テンキーの上でマウスの<b>ホイールを回す</b>と、横フリックと同じようにページを切り替えられます。ページ名のクリックでも移動できます。</div>
         </div>
       </details>
 
@@ -8319,6 +8350,12 @@ function pickKeyAssign(fid){
    閉じる時は開いた側と逆方向へフリック（枠線は左でセル書式に、関数電卓は右で関数記号に戻る）。
    登録ページは開いた後、左右フリックで [登録左] ← [登録中央] → [登録右] の3ページを切替（下フリックで閉じる）。 */
 let numpadSwiping=false;           // スワイプ中／直後はボタンのタップを抑止（autoSum・登録ボタン等と共有）
+let numpadPager=null;      // ページ表示から現在ページを読む／移動するための口
+/* テンキーのページ名。ページャの起動時（restAll）から参照されるのでここで宣言する。
+     数字の並び： 枠線 書式 [数字] 記号 関数 ／ 右端＝▲登録
+     登録の並び： 登録左 [登録] 登録右      ／ 右端＝▼数字 */
+const NP_ROW_MAIN=[['bd','枠線'],['fmt','書式'],[null,'数字'],['func','記号'],['sci','関数']];
+const NP_ROW_REG =[['regL','登録左'],['reg','登録'],['regR','登録右']];
 (function setupNumpadPager(){
   const vp=document.getElementById('numpadViewport');
   const pgBd=document.getElementById('numpadPageBd');
@@ -8375,6 +8412,8 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
                    (el===pgSci&&openWhich==='sci');
       el.style.transform = isOpen ? 'translate(0,0)' : closedTransform(el);
     });
+    // ページが変わる経路は必ずここを通るので、表示の更新もここ1か所で足りる
+    if(typeof renderNumpadPageBar==='function') renderNumpadPageBar();
   }
   function onDown(e){
     if(e.button!==undefined && e.button>0) return;
@@ -8542,10 +8581,57 @@ let numpadSwiping=false;           // スワイプ中／直後はボタンのタ
     restAll(false);
     requestAnimationFrame(()=>overlays.forEach(el=>el.classList.remove('ov-dragging')));
   });
+  /* ページ表示からの移動。フリックと同じ経路（restAll）を通す。 */
+  numpadPager={
+    current(){ return openWhich; },
+    go(name){
+      if(name===undefined) return;
+      if(openWhich===name) return;
+      openWhich=name;
+      if(isReg(openWhich)) lastRegPage=openWhich;
+      if(!isReg(openWhich) && typeof cancelRegMove==='function') cancelRegMove();  // 登録から出たら移動モードも解除
+      restAll(true);
+    }
+  };
   // 起動時：すべて閉じた状態（数字ページ表示）に位置合わせ
   restAll(false);
   requestAnimationFrame(()=>overlays.forEach(el=>el.classList.remove('ov-dragging')));
 })();
+
+/* ── テンキーのページ表示（表は上で宣言済み） ── */
+function renderNumpadPageBar(){
+  const bar=document.getElementById('numpadPageBar'); if(!bar||!numpadPager) return;
+  const cur=numpadPager.current();
+  const inReg=(cur==='reg'||cur==='regL'||cur==='regR');
+  const row=inReg?NP_ROW_REG:NP_ROW_MAIN;
+  const axis=inReg ? [null,'▼ 数字'] : ['reg','▲ 登録'];
+  const html=row.map(([k,label])=>
+      '<button class="np-page'+(k===cur?' on':'')+'" role="tab" aria-selected="'+(k===cur)+'"'+
+      ' data-np="'+(k===null?'':k)+'">'+label+'</button>').join('')
+    + '<button class="np-page np-axis" data-np="'+(axis[0]===null?'':axis[0])+'">'+axis[1]+'</button>';
+  if(bar.dataset.html!==html){ bar.innerHTML=html; bar.dataset.html=html; }
+}
+(function setupNumpadPageBar(){
+  const bar=document.getElementById('numpadPageBar'); if(!bar) return;
+  bar.addEventListener('click', e=>{
+    const b=e.target.closest && e.target.closest('.np-page'); if(!b||!numpadPager) return;
+    numpadPager.go(b.dataset.np===''?null:b.dataset.np);
+  });
+  renderNumpadPageBar();
+})();
+
+/* ── ページ表示の表示/非表示（設定でオンオフ。既定は表示） ── */
+let showPageBar = localStorage.getItem('excalc_pagebar')!=='0';
+function applyPageBar(){
+  document.body.classList.toggle('pagebar-off', !showPageBar);
+  const btn=document.getElementById('pageBarBtn'); if(btn) btn.classList.toggle('on', showPageBar);
+}
+function togglePageBar(){
+  showPageBar=!showPageBar;
+  localStorage.setItem('excalc_pagebar', showPageBar?'1':'0');
+  applyPageBar();
+  toast(showPageBar?'テンキーのページ表示を出します':'ページ表示を隠しました（フリックとホイールはそのまま使えます）');
+}
 
 /* ── テンキーのタップ取りこぼし防止（数字・関数・関数電卓ページ） ──
    ブラウザ標準の click は、指が少しずれる・次のキーを離す前に押す（高速連打）と
@@ -12050,7 +12136,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v272';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v273';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -13462,6 +13548,7 @@ setEnterDir(enterMoveDir);                 // Enterで進む向きを復元
 { const stb=document.getElementById('sheetTabsBtn'); if(stb) stb.classList.toggle('on', showSheetTabs);
   const stt=document.getElementById('sheetToggleBtn'); if(stt) stt.classList.toggle('on', showSheetTabs); }
 applyResizerBar();   // 調整バーの表示/非表示を復元
+applyPageBar();      // テンキーのページ表示の有無を復元
 { const dd=document.getElementById('defDateFmt'); if(dd) dd.value=defaultDateFmt; }   // 日付の既定表示形式を復元
 saveDirty=false; updateRecordTitle();   // 起動直後は「📄 未保存」（記録は開いていない）
 if(localStorage.getItem('excalc_trigmode')==='rad') trigMode='rad';
