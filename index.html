@@ -339,7 +339,9 @@ body.has-sheet-tabs .sheet-persist {
 
 /* 設定：タブ式のモーダル。「表・見た目・計算・データ」の4タブに分類し、
    1行に1項目の白いカードで見やすくする */
-.settings-modal { max-height: 88vh; max-height: 88dvh; width: 94%; }
+/* 設定は項目が多いので画面をめいっぱい使う。あとに出てくる .modal の 75vh に
+   負けないよう .modal を付けて強さを上げる（以前は88vhが効いていなかった）。 */
+.modal.settings-modal { max-height: 88vh; max-height: 88dvh; width: 94%; }
 .settings-tabbar { display: flex; gap: 5px; padding: 8px 10px 0; background: #f0f0f0; flex-shrink: 0; }
 .settings-tab {
   flex: 1; background: var(--save-item-bg); color: var(--text-light);
@@ -1696,6 +1698,10 @@ body.dark .help-li b { color: #8fd4ab; }
 body.dark .help-acc > summary { color: var(--acc-on-dark); background: rgba(76,175,125,0.10); }
 body.dark .help-acc > summary::after { color: var(--acc-on-dark); }
 .help-acc-body { padding: 8px 14px 14px; }
+/* 設定の「くわしい設定」。説明書のアコーディオンと同じ見た目を使い、中身の余白だけ詰める */
+.set-acc { margin-top: 4px; }
+.set-acc-body { padding: 8px 4px 4px; }
+.set-acc-body .set-sec:first-child { margin-top: 2px; }
 .help-acc-body .help-li:first-child { margin-top: 4px; }
 /* 早見表（ボタン・操作・モードなど） */
 .help-tbl { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 12px; }
@@ -2074,20 +2080,12 @@ body.dark {
   </div>
 
   <div class="set-page" id="setPage1">
-    <div class="set-sec">文字の大きさ</div>
+    <!-- よく使うものだけ出し、めったに触らないものは「くわしい設定」に畳む。
+         折りたたみは説明書と同じ <details> の作り（.help-acc と同居する .set-acc）。 -->
     <div class="set-row">
       <span class="set-label">セルの文字</span>
       <span class="set-stepper"><button class="step-btn" onclick="changeCellSize(-1)">−</button><span class="sc-val" id="cellSize">120%</span><button class="step-btn" onclick="changeCellSize(1)">＋</button></span>
     </div>
-    <div class="set-row">
-      <span class="set-label">小計の文字</span>
-      <span class="set-stepper"><button class="step-btn" onclick="changeInfoSize(-1)">−</button><span class="sc-val" id="infoSize">標準</span><button class="step-btn" onclick="changeInfoSize(1)">＋</button></span>
-    </div>
-    <div class="set-row">
-      <span class="set-label">上のバー<small>セル番号・入力欄</small></span>
-      <span class="set-stepper"><button class="step-btn" onclick="changeFormulaSize(-1)">−</button><span class="sc-val" id="formulaSize">標準</span><button class="step-btn" onclick="changeFormulaSize(1)">＋</button></span>
-    </div>
-    <div class="set-sec">画面とテンキー</div>
     <div class="set-row">
       <span class="set-label">画面の幅</span>
       <span class="set-stepper"><button class="step-btn" onclick="changeAppWidth(-1)">−</button><span class="sc-val" id="appWidth">全幅</span><button class="step-btn" onclick="changeAppWidth(1)">＋</button></span>
@@ -2096,24 +2094,37 @@ body.dark {
       <span class="set-label">テンキーの大きさ</span>
       <span class="set-stepper"><button class="step-btn" onclick="changeKeySize(-1)">−</button><span class="sc-val" id="keySize">大</span><button class="step-btn" onclick="changeKeySize(1)">＋</button></span>
     </div>
+    <button class="set-act" id="darkBtn" onclick="toggleDark()">ナイトモード</button>
+    <button class="set-act" id="sheetTabsBtn" onclick="toggleSheetTabs()">シートのタブを常に表示</button>
+    <details class="help-acc set-acc" id="setDetailAcc" ontoggle="saveSetDetail(this)">
+      <summary>くわしい設定</summary>
+      <div class="help-acc-body set-acc-body">
+        <div class="set-sec">文字の大きさ</div>
     <div class="set-row">
-      <span class="set-label">数字キーの大きさ<small>標準テンキーの0〜9だけ大きく</small></span>
+      <span class="set-label">小計の文字</span>
+      <span class="set-stepper"><button class="step-btn" onclick="changeInfoSize(-1)">−</button><span class="sc-val" id="infoSize">標準</span><button class="step-btn" onclick="changeInfoSize(1)">＋</button></span>
+    </div>
+    <div class="set-row">
+      <span class="set-label">上のバー<small>セル番号・入力欄</small></span>
+      <span class="set-stepper"><button class="step-btn" onclick="changeFormulaSize(-1)">−</button><span class="sc-val" id="formulaSize">標準</span><button class="step-btn" onclick="changeFormulaSize(1)">＋</button></span>
+    </div>
+        <div class="set-sec">テンキー</div>
+    <div class="set-row">
+      <span class="set-label" title="標準テンキーの 0〜9 のキーだけを大きくします">数字キーの大きさ<small>0〜9のキーだけ</small></span>
       <span class="set-stepper"><button class="step-btn" onclick="changeNumSize(-1)">−</button><span class="sc-val" id="numSize">標準</span><button class="step-btn" onclick="changeNumSize(1)">＋</button></span>
     </div>
     <div class="set-row">
-      <span class="set-label">調整バーの太さ<small>テンキーの大きさを変えるバー</small></span>
-      <span class="set-stepper"><button class="step-btn" onclick="changeBarSize(-1)">−</button><span class="sc-val" id="barSize">標準</span><button class="step-btn" onclick="changeBarSize(1)">＋</button></span>
-    </div>
-    <button class="set-act" id="pageBarBtn" onclick="togglePageBar()" title="テンキーの上に出る「枠線・書式・数字・記号・関数／登録」のページ表示。タップでそのページへ移動できます">▤ テンキーのページ表示</button>
-    <button class="set-act" id="resizerBarBtn" onclick="toggleResizerBar()" title="テンキーの大きさを変える調整バー（テンキー上端／横向きは左端）の表示を切り替えます">▬ 調整バーを表示する</button>
-    <div class="set-row">
-      <span class="set-label">テンキーの上下の余白<small>下の隙間・上のスペースを調整（iPhoneのホームバー分も）</small></span>
+      <span class="set-label">テンキーの上下の余白<small>下の隙間・上のスペース</small></span>
       <span class="set-stepper"><button class="step-btn" onclick="changeNpad(-1)">−</button><span class="sc-val" id="npadSize">標準</span><button class="step-btn" onclick="changeNpad(1)">＋</button></span>
     </div>
-    <button class="set-act" id="sheetTabsBtn" onclick="toggleSheetTabs()">🗂 シートのタブを常に表示</button>
-    <button class="set-act" id="darkBtn" onclick="toggleDark()">🌙 ナイトモード</button>
-    <button class="set-act" id="keypadEditBtn" onclick="toggleKeypadEdit()" title="テンキーのボタンをドラッグして好きな位置に入れ替えます（同じ大きさのボタン同士）">🔧 テンキーのボタン配置を編集</button>
-    <div class="set-sec">上のバーのボタン<small>タップで表示／非表示（「設定」は常に表示。「戻る」「進む」は使えるときだけ出ます）</small></div>
+    <button class="set-act" id="pageBarBtn" onclick="togglePageBar()" title="テンキーの上に出る「枠線・書式・数字・記号・関数／登録」のページ表示。タップでそのページへ移動できます">テンキーのページ表示</button>
+    <button class="set-act" id="resizerBarBtn" onclick="toggleResizerBar()" title="テンキーの大きさを変える調整バー（テンキー上端／横向きは左端）の表示を切り替えます">調整バーを表示する</button>
+    <div class="set-row">
+      <span class="set-label" title="テンキーの大きさを変えるバー（テンキー上端／横向きは左端）の太さ">調整バーの太さ<small>大きさを変えるバー</small></span>
+      <span class="set-stepper"><button class="step-btn" onclick="changeBarSize(-1)">−</button><span class="sc-val" id="barSize">標準</span><button class="step-btn" onclick="changeBarSize(1)">＋</button></span>
+    </div>
+    <button class="set-act" id="keypadEditBtn" onclick="toggleKeypadEdit()" title="テンキーのボタンをドラッグして好きな位置に入れ替えます（同じ大きさのボタン同士）">テンキーのボタン配置を編集</button>
+    <div class="set-sec">上のバーのボタン<small>タップで表示／非表示</small></div>
     <div class="topbtn-grid" id="topBtnToggles">
       <button class="topbtn-toggle" data-btn="sheet" onclick="toggleTopBtn('sheet')">シート</button>
       <button class="topbtn-toggle" data-btn="save"  onclick="toggleTopBtn('save')">保存</button>
@@ -2123,6 +2134,8 @@ body.dark {
       <button class="topbtn-toggle" data-btn="reset" onclick="toggleTopBtn('reset')">リセット</button>
       <button class="topbtn-toggle" data-btn="defsize" onclick="toggleTopBtn('defsize')">▦既定サイズ</button>
     </div>
+      </div>
+    </details>
   </div>
 
   <div class="set-page" id="setPage2">
@@ -2153,28 +2166,28 @@ body.dark {
         <option value="wareki">令和8年7月7日</option>
       </select>
     </div>
-    <div class="set-sec">ひな形（テンプレ）とモード</div>
-    <button class="set-act" onclick="openCalcTmpl()" title="色々な計算式のひな形（約20種類）を選んで、値を入れるだけの状態にします">📋 計算式テンプレ</button>
-    <button class="set-act" onclick="openFinTmpl()" title="損益計算書・貸借対照表・収支計算書のかんたんなひな形">📑 決算書テンプレ</button>
-    <button class="set-act" onclick="openModeVis()" title="「モード」一覧に表示する標準モードを選びます">🔀 モードの表示/非表示</button>
+    <div class="set-sec">📋 ひな形（テンプレ）とモード</div>
+    <button class="set-act" onclick="openCalcTmpl()" title="色々な計算式のひな形（約20種類）を選んで、値を入れるだけの状態にします">計算式テンプレ</button>
+    <button class="set-act" onclick="openFinTmpl()" title="損益計算書・貸借対照表・収支計算書のかんたんなひな形">決算書テンプレ</button>
+    <button class="set-act" onclick="openModeVis()" title="「モード」一覧に表示する標準モードを選びます">モードの表示/非表示</button>
   </div>
 
   <div class="set-page" id="setPage3">
-    <div class="set-sec">書き出し・読み込み</div>
-    <button class="set-act" onclick="exportPDF()" title="今の表を印刷画面から「PDFに保存」で書き出せます">🖨 PDF出力（印刷）</button>
-    <button class="set-act" onclick="exportCSV()">📄 CSV出力</button>
-    <button class="set-act" onclick="document.getElementById('importCSVInput').click()" title="CSVファイルを現在の表に読み込みます（上書き）">📥 CSV読込</button>
+    <div class="set-sec">📤 書き出し・読み込み</div>
+    <button class="set-act" onclick="exportPDF()" title="今の表を印刷画面から「PDFに保存」で書き出せます">PDF出力（印刷）</button>
+    <button class="set-act" onclick="exportCSV()">CSV出力</button>
+    <button class="set-act" onclick="document.getElementById('importCSVInput').click()" title="CSVファイルを現在の表に読み込みます（上書き）">CSV読込</button>
     <input id="importCSVInput" type="file" accept=".csv,text/csv" style="display:none" onchange="importCSV(event)">
-    <button class="set-act" onclick="exportXLSX()" title="値・数式・書式（色・枠線・太字・寄せ・結合）をエクセル形式で書き出します">📊 Excel出力（.xlsx）</button>
-    <button class="set-act" onclick="document.getElementById('importXLSXInput').click()" title="エクセル(.xlsx)ファイルを現在の表に読み込みます（上書き）">📈 Excel読込（.xlsx）</button>
+    <button class="set-act" onclick="exportXLSX()" title="値・数式・書式（色・枠線・太字・寄せ・結合）をエクセル形式で書き出します">Excel出力（.xlsx）</button>
+    <button class="set-act" onclick="document.getElementById('importXLSXInput').click()" title="エクセル(.xlsx)ファイルを現在の表に読み込みます（上書き）">Excel読込（.xlsx）</button>
     <input id="importXLSXInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onchange="importXLSX(event)">
-    <div class="set-sec">ヘルプ</div>
-    <button class="set-act" onclick="openHelp()">📖 説明書（使い方）</button>
+    <div class="set-sec">📖 ヘルプ</div>
+    <button class="set-act" onclick="openHelp()">説明書（使い方）</button>
   </div>
 
   </div>
   <div class="settings-footer">
-    <button class="set-act set-act-primary" id="defaultSizeBtn" title="タップで既定の行数・列数に／長押しで既定値を設定">▦ 既定の行数・列数にもどす</button>
+    <button class="set-act set-act-primary" id="defaultSizeBtn" title="タップで既定の行数・列数に／長押しで既定値を設定">既定の行数・列数にもどす</button>
   </div>
  </div>
 </div>
@@ -2721,7 +2734,7 @@ body.dark {
         <input type="text" id="pdfFooter" class="pdf-input" placeholder="（なし）">
       </div>
       <div class="pdf-row">
-        <span class="pdf-row-label">用紙の向き<small>iPhoneで向きが変わらない場合は印刷画面のオプションで「横」を選んでください</small></span>
+        <span class="pdf-row-label" title="iPhoneで向きが変わらない場合は、印刷画面のオプションで「横」を選んでください">用紙の向き<small>変わらないときは印刷画面で「横」を選ぶ</small></span>
         <span class="pdf-seg" id="pdfOrient">
           <button data-v="portrait" onclick="pdfSeg('pdfOrient',this)">縦</button>
           <button data-v="landscape" onclick="pdfSeg('pdfOrient',this)">横</button>
@@ -2736,7 +2749,7 @@ body.dark {
         </span>
       </div>
       <div class="pdf-row">
-        <span class="pdf-row-label">1ページに収める<small>タイトル・ヘッダー・フッター込みで全体を1ページに</small></span>
+        <span class="pdf-row-label">1ページに収める<small>全体を1ページに収める</small></span>
         <input type="checkbox" id="pdfOnePage" class="pdf-chk" checked>
       </div>
       <div class="pdf-row">
@@ -3304,7 +3317,7 @@ body.dark {
             <tr><td><span class="help-tag">文字</span></td><td>文字（テキスト）を入力</td></tr>
             <tr><td><span class="help-tag">モード</span></td><td>計算モードを切替</td></tr>
           </table>
-          <div class="help-li"><b>テンキーの上のページ表示</b>で、いまどのページに居るか分かります。<b>ページ名をタップ</b>するとそのページへ移動できます（数字の並びは「枠線・書式・数字・記号・関数」、右端の<b>▲登録</b>で登録ページの並びへ、<b>▼数字</b>で戻る）。設定の<b>▤ テンキーのページ表示</b>で消すこともできます。</div>
+          <div class="help-li"><b>テンキーの上のページ表示</b>で、いまどのページに居るか分かります。<b>ページ名をタップ</b>するとそのページへ移動できます（数字の並びは「枠線・書式・数字・記号・関数」、右端の<b>▲登録</b>で登録ページの並びへ、<b>▼数字</b>で戻る）。設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーのページ表示</b>で消すこともできます。</div>
           <div class="help-li"><b>フリックでも切り替わります</b>（数字ページが土台。数字ページは<b>どこからでもフリック開始OK</b>）：</div>
           <table class="help-tbl">
             <tr><td><span class="help-key">右へ →</span></td><td><b>セル書式ページ</b>：太字・斜体・下線・文字の大小・寄せ・保護・書式消去。右2列は文字色／背景色で<b>縦にスライド</b>すると各19色（原色含む）。「🎨くわしい書式設定…」も開けます</td></tr>
@@ -3316,7 +3329,7 @@ body.dark {
           </table>
           <div class="help-li"><b>登録ページ</b>：紫ボタンを<b>長押し</b>で登録画面。よく使う<b>文字・数字</b>を入力して登録（数値の途中でタップすると連結。例 100→「円」で100円）。<b>🎨書式</b>を付ければその書式のまま入力、<b>📋セルから選ぶ</b>でセルの内容＋書式を取り込み、<b>🔧ボタンの機能</b>から便利機能（保存・リスト・PDF・📅日付〈カレンダー〉など）も登録できます。登録後は<b>タップで入力／実行</b>。<b>🔀移動</b>で位置入れ替え（別ページとも可）。<b>左右フリックで3ページ</b>（左・中央・右）、<b>下フリックで数字ページに戻る</b>。</div>
           <div class="help-li"><b>ボタン長押しで機能を割り当て</b>（数字・関数記号・関数電卓ページ）：別のキーや設定機能（保存・リスト・PDF・CSV・ナイト・テンプレ・📅日付…）、<b>「表の操作」</b>（行列の増減／挿入・削除／コピー・貼付・消去／A1へ移動／シート追加・切替）に変更できます。「↺元に戻す」でいつでも戻せます（Σは対象外）。</div>
-          <div class="help-li"><b>テンキーの大きさ</b>：上端（横向きは左端）の<b>調整バーをドラッグ</b>で大小（端まで＝消える／バーで戻す）。調整バーは既定では出していないので、使うときは設定の<b>▬調整バーを表示する</b>をオンにしてください（太さも変えられます）。入力欄の右端の<b>▼</b>でワンタップ収納（▲で復帰）。設定の<b>🔧配置編集</b>でボタン位置も入れ替え可。</div>
+          <div class="help-li"><b>テンキーの大きさ</b>：上端（横向きは左端）の<b>調整バーをドラッグ</b>で大小（端まで＝消える／バーで戻す）。調整バーは既定では出していないので、使うときは設定→<b>🎨見た目→くわしい設定</b>の<b>調整バーを表示する</b>をオンにしてください（太さも変えられます）。入力欄の右端の<b>▼</b>でワンタップ収納（▲で復帰）。設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーのボタン配置を編集</b>でボタン位置も入れ替え可。</div>
           <div class="help-note">💡 <b>パソコン</b>：テンキーの上でマウスの<b>ホイールを回す</b>と、横フリックと同じようにページを切り替えられます。ページ名のクリックでも移動できます。</div>
         </div>
       </details>
@@ -3357,7 +3370,7 @@ body.dark {
           <div class="help-li"><b>書式変更</b>：上部の「<b>A1</b>」（セル名）をタップすると、小数点桁・太字/斜体/下線・文字色・背景色・大きさを変更できます（テンキーを<b>右フリック</b>のセル書式ページでもワンタップ）。</div>
           <table class="help-tbl">
             <tr><td><span class="help-key">セル長押し（約1秒）</span></td><td>枠が<b>赤</b>くなったら離す＝<b>🔒保護</b>のオン/オフ（保護中は右上のセル番号枠が赤で知らせ）</td></tr>
-            <tr><td><span class="help-key">さらに長押し</span></td><td>枠が<b>紫</b>に→離すとメニュー（🎨書式・📋コピー・📥貼り付け・🧹消去・🔒保護）</td></tr>
+            <tr><td><span class="help-key">さらに長押し</span></td><td>枠が<b>紫</b>に→離すとメニュー（🎨書式・⧉コピー・📥貼り付け・🧹消去・🔒保護）</td></tr>
             <tr><td><span class="help-key">フィル</span></td><td>セルを<b>長押し→スライド</b>で値（数式は自動でずらして）を隣へコピー。PCは長めにクリック→色が変わったらドラッグ</td></tr>
             <tr><td><span class="help-key">コピペ</span></td><td>セルを<b>2回タップ</b>でコピー → 別セルを2回タップで貼り付け</td></tr>
           </table>
@@ -3390,6 +3403,8 @@ body.dark {
       <details class="help-acc" id="h-settings">
         <summary>⚙️ 設定</summary>
         <div class="help-acc-body">
+          <div class="help-li"><b>4つのタブ</b>に分かれています（<b>📐表</b>＝行と列・Enterの向き／<b>🎨見た目</b>＝文字や画面の大きさ／<b>🧮計算</b>＝小数桁・税率・日付／<b>📄データ</b>＝テンプレ・PDF・CSV・Excel・説明書）。<b>本文を横にフリック</b>してもタブを移動できます。</div>
+          <div class="help-li"><b>🎨見た目</b>は、よく使う<b>セルの文字・画面の幅・テンキーの大きさ・ナイトモード・シートのタブ</b>を先に出しています。それ以外は<b>「くわしい設定」</b>をタップすると出てきます（小計や上のバーの文字、数字キーの大きさ、テンキーの余白とページ表示、調整バー、ボタン配置の編集、上のバーのボタンの表示/非表示）。開いたまま／閉じたままの状態は次回も覚えています。</div>
           <table class="help-tbl">
             <tr><td><b>行／列</b></td><td>表の大きさ</td></tr>
             <tr><td><b>小数</b></td><td>小数点以下の桁（自＝自動）</td></tr>
@@ -3397,11 +3412,11 @@ body.dark {
             <tr><td><b>税率</b></td><td>消費税モードの税率</td></tr>
             <tr><td><b>文字サイズ</b></td><td>テンキー／セル文字／小計文字の大きさ</td></tr>
             <tr><td><b>数字キーの大きさ</b></td><td>標準テンキーの0〜9（と「.」）だけを大きく（枠も広がり押しやすく／右側キーはやや狭く）</td></tr>
-            <tr><td><b>調整バー</b></td><td>大きさを変えるバーの太さ、表示/非表示を切替</td></tr>
+            <tr><td><b>調整バー</b></td><td>大きさを変えるバーの太さ、表示/非表示を切替（「くわしい設定」の中）</td></tr>
             <tr><td><b>上下の余白</b></td><td>テンキーの上下の隙間（「最小」でホームバー分も詰める）</td></tr>
           </table>
           <div class="help-li"><b>▦デフォルト</b>：タップで決めた行数・列数に一発変更、<b>長押しで既定値を設定</b>（設定「上のバーのボタン」で上のバーにも出せます）。</div>
-          <div class="help-li"><b>🔧テンキーのボタン配置を編集</b>：ドラッグでボタンを入れ替え（同じ大きさ同士。Enter・0は固定。関数・枠線ページも編集可）。「↺初期化」で元に戻せます。</div>
+          <div class="help-li"><b>テンキーのボタン配置を編集</b>（「くわしい設定」の中）：ドラッグでボタンを入れ替え（同じ大きさ同士。Enter・0は固定。関数・枠線ページも編集可）。「↺初期化」で元に戻せます。</div>
           <div class="help-li"><b>🔀モードの表示/非表示</b>：「モード」一覧に出す標準モードを選べます（「通常」は常に表示）。</div>
         </div>
       </details>
@@ -3466,7 +3481,7 @@ body.dark {
 <div class="cellmenu-backdrop" id="cellMenuBackdrop" onclick="hideCellMenu()"></div>
 <div class="cell-menu" id="cellMenu">
   <button onclick="cellMenuAct('fmt')">🎨 書式</button>
-  <button onclick="cellMenuAct('copy')">📋 コピー</button>
+  <button onclick="cellMenuAct('copy')">⧉ コピー</button>
   <button onclick="cellMenuAct('paste')">📥 貼り付け</button>
   <button onclick="cellMenuAct('clear')">🧹 消去</button>
   <button onclick="cellMenuAct('lock')" id="cellMenuLock">🔒 保護</button>
@@ -5921,7 +5936,7 @@ const KEY_FUNCS={
   t_colplus:{g:'表の操作',label:'列数＋',run:()=>changeCols(1)}, t_colminus:{g:'表の操作',label:'列数−',run:()=>changeCols(-1)},
   t_insrow:{g:'表の操作',label:'↥行挿入',run:()=>insertRowAtSel()}, t_delrow:{g:'表の操作',label:'✂行削除',run:()=>deleteRowAtSel()},
   t_inscol:{g:'表の操作',label:'↤列挿入',run:()=>insertColAtSel()}, t_delcol:{g:'表の操作',label:'✂列削除',run:()=>deleteColAtSel()},
-  t_copy:{g:'表の操作',label:'📋コピー',run:()=>copyCell()}, t_paste:{g:'表の操作',label:'📥貼付',run:()=>pasteCell()},
+  t_copy:{g:'表の操作',label:'⧉コピー',run:()=>copyCell()}, t_paste:{g:'表の操作',label:'📥貼付',run:()=>pasteCell()},
   t_clear:{g:'表の操作',label:'🧹消去',run:()=>clearSelection()}, t_home:{g:'表の操作',label:'⇱A1へ',run:()=>sel(0,0)},
 };
 /* 選択中のセルに今日の日付を入れる（日付として自動認識される） */
@@ -8697,7 +8712,7 @@ const REG_ACTIONS=[
   {id:'undo',  icon:'↩', name:'戻る',       desc:'直前の変更を元に戻す'},
   {id:'redo',  icon:'↪', name:'進む',       desc:'元に戻した操作をやり直す'},
   {id:'save',  icon:'💾', name:'保存',       desc:'名前を付けて保存'},
-  {id:'list',  icon:'📋', name:'リスト',     desc:'保存データの一覧を開く'},
+  {id:'list',  icon:'🗂', name:'リスト',     desc:'保存データの一覧を開く'},
   {id:'reset', icon:'🗑', name:'リセット',   desc:'今のモードの内容を消去'},
   {id:'csv',   icon:'📄', name:'CSV出力',    desc:'表をCSVファイルに書き出す'},
   {id:'csvin', icon:'📥', name:'CSV読込',    desc:'CSVファイルを表に読み込む（上書き）'},
@@ -11914,7 +11929,7 @@ function modeItemByKey(key){
   const b=MODE_MENU.find(m=>m.key===key);
   if(b) return {item:b, custom:false};
   const c=findCustomMode(key);
-  if(c) return {item:{key:c.key, icon:c.icon||'📋', name:c.name, desc:'保存リストから登録したモード'}, custom:true};
+  if(c) return {item:{key:c.key, icon:c.icon||'🗂', name:c.name, desc:'保存リストから登録したモード'}, custom:true};
   return null;
 }
 
@@ -12034,7 +12049,7 @@ function registerSaveAsMode(id){
     data: entry.data.map(r=>Array.isArray(r)?r.slice():Array(MAXCOLS).fill('')),
     styles: entry.styles?{...entry.styles}:{}
   };
-  customModes.push({ key, name:entry.name, icon:'📋', rows:entry.rows||ROWS, sourceId:id });
+  customModes.push({ key, name:entry.name, icon:'🗂', rows:entry.rows||ROWS, sourceId:id });
   persistCustomModes();
   // 登録した記録は保存リストの「モード」タブへ移動し、誤って削除・改名・移動できないよう保護する
   entry.tab=SAVE_TAB_MODE; entry.locked=true;
@@ -12104,6 +12119,12 @@ function toggleTopBtn(k){
   try{ localStorage.setItem('excalc_topbtn_hidden', JSON.stringify(topBtnHidden)); }catch(_){}
   applyTopBtnHidden();
 }
+/* 「くわしい設定」の開閉を覚える（次に設定を開いたときも同じ状態にする） */
+function saveSetDetail(el){ try{ localStorage.setItem('excalc_set_detail', el.open?'1':'0'); }catch(_){} }
+function applySetDetail(){
+  const el=document.getElementById('setDetailAcc'); if(!el) return;
+  el.open = localStorage.getItem('excalc_set_detail')==='1';
+}
 /* 設定のタブ切替（表・見た目・計算・データ）。開いたタブを記憶する */
 let settingsTab=0;
 const SETTINGS_TAB_MAX=3;
@@ -12136,7 +12157,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v273';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v274';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -13549,6 +13570,7 @@ setEnterDir(enterMoveDir);                 // Enterで進む向きを復元
   const stt=document.getElementById('sheetToggleBtn'); if(stt) stt.classList.toggle('on', showSheetTabs); }
 applyResizerBar();   // 調整バーの表示/非表示を復元
 applyPageBar();      // テンキーのページ表示の有無を復元
+applySetDetail();    // 「くわしい設定」の開閉を復元
 { const dd=document.getElementById('defDateFmt'); if(dd) dd.value=defaultDateFmt; }   // 日付の既定表示形式を復元
 saveDirty=false; updateRecordTitle();   // 起動直後は「📄 未保存」（記録は開いていない）
 if(localStorage.getItem('excalc_trigmode')==='rad') trigMode='rad';
