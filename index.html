@@ -437,6 +437,10 @@ body.dentaku-mode .formula-bar { display: none !important; }
   line-height: 1; cursor: pointer; touch-action: manipulation;
 }
 .step-btn:active { background: var(--acc-dark); }
+/* 狭い場所ではこの2つの修飾で大きさだけ変える（色・形は共通）。
+   以前は .wk-btn（青24×22）・.ts-spin-btn（ティール34×20）と別々に定義していた。 */
+.step-btn.step-sm   { width: 24px; height: 22px; font-size: 15px; }
+.step-btn.step-spin { width: 34px; height: 20px; font-size: 12px; }
 /* 色を指定しないと夜モードで黒文字のまま暗い背景に乗って読めなくなるので、必ず --text を敷く */
 .sc-val { font-size: 13px; font-weight: bold; min-width: 22px; text-align: center; color: var(--text); }   /* 単位水量設定でも使用 */
 .set-row .sc-val { min-width: 46px; font-size: 15px; color: var(--text); }
@@ -616,12 +620,18 @@ body.dark .date-badge { border-top-color: #82b1ff; }
 .lk-preview code { display: block; margin-top: 4px; padding: 8px 10px; background: var(--save-item-bg);
   border: 1px solid var(--save-item-border); border-radius: var(--r-btn); color: var(--text-light);
   font-size: 13px; word-break: break-all; }
-.lk-insert {
-  width: 100%; margin-top: 4px; padding: 13px; border: none; border-radius: var(--r-btn);
-  background: var(--acc); color: #fff; font-size: 15px; font-weight: bold; cursor: pointer; touch-action: manipulation;
+/* 「セルに入れる」の全幅ボタン。容積・カンタブ・参照で同じ見た目を使う
+   （以前は .lk-insert と .vol-insert がほぼ同じ内容で別々に定義されていた）。 */
+.cell-insert-btn, .lk-insert, .vol-insert {
+  display: block; width: 100%; padding: 13px; border: none; border-radius: var(--r-btn);
+  background: var(--acc); color: var(--on-acc); font-size: 15px; font-weight: bold;
+  cursor: pointer; touch-action: manipulation;
 }
-.lk-insert:hover { background: var(--acc-dark); }
-.lk-insert:disabled { background: #9e9e9e; cursor: default; }
+.cell-insert-btn:hover, .lk-insert:hover, .vol-insert:hover { background: var(--acc-dark); }
+.cell-insert-btn:disabled, .lk-insert:disabled, .vol-insert:disabled {
+  background: var(--save-item-border); color: var(--text-light); cursor: default;
+}
+.lk-insert { margin-top: 4px; }
 
 /* ピック中の案内バー（画面上部固定） */
 .pick-banner {
@@ -739,16 +749,18 @@ body.dark .cell.sel-range {
 .cell.paste-flash { background: #c8f7c5 !important; }
 body.dark .cell.paste-flash { background: #1f5132 !important; }
 
+/* モードの下帯。以前はモードごとに背景・枠線・文字の色が違い、モードを変えるたびに
+   画面の色が変わっていた。地色は表の見出しと同じ中立色、区切りはアプリの緑1本にそろえる。
+   「いま何モードか」はテンキー左上のモードボタン（買物中・税計中…）が示す。 */
 .shop-tax-bar {
   display: none; flex-shrink: 0;
-  background: #fff8e1;
-  border-top: 2px solid #f9a825;
+  background: var(--ch-bg);
+  border-top: 2px solid var(--acc);
   padding: 4px 10px;
-  font-size: calc(11px * var(--info-scale, 1)); font-weight: bold; color: #7d4e00;
+  font-size: calc(11px * var(--info-scale, 1)); font-weight: bold; color: var(--text-sub);
   gap: 10px; align-items: center; flex-wrap: wrap;
 }
 .shop-tax-bar.open { display: flex; }
-body.dark .shop-tax-bar { background: #2a2510; border-color: #a08020; color: #e8c040; }
 
 /* 合計（または平均）。入力欄と同じ帯の右側に置き、数値が無いときは丸ごと隠す。
    縦の帯を1本減らすため、以前の全幅バーからこの形にした。 */
@@ -1207,12 +1219,7 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
 .vol-result-main { font-size: 20px; font-weight: bold; color: var(--acc-text); word-break: break-all; }
 body.dark .vol-result-main { color: #7fd6a3; }
 .vol-result-sub { font-size: 13px; color: var(--text-light); margin-top: 4px; word-break: break-all; }
-.vol-insert {
-  display: block; width: 100%; padding: 13px; margin-bottom: 8px;
-  border: none; border-radius: var(--r-btn); background: var(--acc); color: #fff;
-  font-size: 15px; font-weight: bold; cursor: pointer; touch-action: manipulation;
-}
-.vol-insert:disabled { background: var(--save-item-border); color: var(--text-light); cursor: default; }
+.vol-insert { margin-bottom: 8px; }
 .vol-hint { font-size: 11px; color: var(--text-light); line-height: 1.5; }
 /* パーツ分割合計 */
 .vol-addpart {
@@ -1790,36 +1797,22 @@ body.simple-mode .cell {
 body.simple-mode .ch  { height: calc(30px * var(--cell-scale, 1)); }
 body.simple-mode .rh  { height: calc(46px * var(--cell-scale, 1)); }
 
-/* ── モードバー（消費税・割り勘 等） ── */
-.zei-bar { background: #e8f5e9; border-color: var(--ok); color: var(--ok); }
-body.dark .zei-bar { background: #16271a; border-color: #3a7a44; color: #9bd6a0; }
-.wariai-bar { background: #e0f7fa; border-color: #00acc1; color: #006064; }
-body.dark .wariai-bar { background: #102a2e; border-color: #2a7a85; color: #8fd6de; }
-.warikan-bar { background: #e3f2fd; border-color: var(--info); color: #0d47a1; }
-body.dark .warikan-bar { background: #152436; border-color: #3a6ea5; color: #9cc4e8; }
-.youseki-bar { background: #fff3e0; border-color: #fb8c00; color: #e65100; }
-body.dark .youseki-bar { background: #2a1f12; border-color: #a86a20; color: #e0a060; }
-.jikan-bar { background: #ede7f6; border-color: #5e35b1; color: #311b92; }
-body.dark .jikan-bar { background: #1c1730; border-color: #5a4a8a; color: #c4b4e8; }
+/* ── モードバー（消費税・割り勘 等）──
+   色はすべて .shop-tax-bar の共通指定にそろえた（モードごとの色分けは廃止）。 */
 /* 時間計算のクイック計算（「14:00 の 30分 前 は 13:30」） */
 .jk-quick { width: 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 5px; padding: 2px 0 3px; }
 .jk-quick input {
   width: 84px; padding: 6px 6px; font-size: 15px; text-align: center;
-  border: 1px solid #5e35b1; border-radius: var(--r-btn); background: var(--cell-bg, #fff); color: var(--text);
+  border: 1px solid var(--formula-border); border-radius: var(--r-btn); background: var(--cell-bg, #fff); color: var(--text);
 }
-body.dark .jk-quick input { border-color: #5a4a8a; }
 .jkq-lb { font-size: 12px; }
 .jkq-btn {
-  padding: 6px 11px; font-size: 13px; font-weight: bold; border: 1px solid #5e35b1;
-  border-radius: var(--r-btn); background: transparent; color: inherit; cursor: pointer; touch-action: manipulation;
+  padding: 6px 11px; font-size: 13px; font-weight: bold; border: 1px solid var(--acc);
+  border-radius: var(--r-btn); background: transparent; color: var(--acc-text); cursor: pointer; touch-action: manipulation;
 }
-.jkq-btn.on { background: #5e35b1; color: #fff; }
-body.dark .jkq-btn { border-color: #5a4a8a; }
-body.dark .jkq-btn.on { background: #5a4a8a; }
+.jkq-btn.on { background: var(--acc); color: var(--on-acc); }
 .jkq-ans { font-size: 17px; min-width: 46px; }
 /* ── 単位水量試験（土研法エアメータ法）モード ── */
-.tanisui-bar { background: #e0f2f1; border-color: #00897b; color: #004d40; }
-body.dark .tanisui-bar { background: #102826; border-color: #2f7a70; color: #8fd4ca; }
 /* カンタブ試験の入力欄 */
 .kt-in-row { display: flex; align-items: center; gap: 8px; padding: 7px 2px; }
 .kt-in-lb { flex: 0 0 6.2em; font-size: 17px; font-weight: bold; color: var(--text); }
@@ -1918,16 +1911,15 @@ body.dark .tanisui-bar { background: #102826; border-color: #2f7a70; color: #8fd
 .ts-judge.ng   { background: var(--danger); }
 .ts-hint { font-size: calc(10px * var(--info-scale, 1)); opacity: 0.85; flex-basis: 100%; }
 /* 計算工程の先頭・グループ区切りの二重線 */
-.cell.ts-calc-top, .cell.ts-sep { border-top: 3px double #00897b !important; }
-body.dark .cell.ts-calc-top, body.dark .cell.ts-sep { border-top-color: #2f7a70 !important; }
+.cell.ts-calc-top, .cell.ts-sep { border-top: 3px double var(--acc-text) !important; }
 /* 値の列：右詰めの文字の右側に、文字1個分の余白を空ける */
 .cell.ts-val { padding-right: 1ch; }
 .ts-setBtn {
-  background: #00897b; color: #fff; border: none; border-radius: var(--r-btn);
+  background: var(--acc); color: var(--on-acc); border: none; border-radius: var(--r-btn);
   padding: 3px 10px; font-size: calc(11px * var(--info-scale, 1)); font-weight: bold;
   cursor: pointer; touch-action: manipulation;
 }
-.ts-setBtn:hover { background: #00695c; }
+.ts-setBtn:hover { background: var(--acc-dark); }
 /* 単位水量バー：1行目＝結果（推定・差・判定）、2行目＝結果解説（左）＋設定（右下） */
 .ts-bottomrow { flex-basis: 100%; display: flex; align-items: flex-end; gap: 8px; }
 .ts-bottomrow .ts-hint { flex: 1 1 0; }                /* 解説は左で伸縮（基準の100%を上書き） */
@@ -1940,14 +1932,7 @@ body.dark .cell.ts-calc-top, body.dark .cell.ts-sep { border-top-color: #2f7a70 
 .ts-set-label small { font-weight: normal; font-size: 11px; color: var(--text-light); margin-top: 2px; }
 .ts-set-ctrl { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .ts-spin { display: flex; flex-direction: column; gap: 2px; }
-.ts-spin-btn {
-  width: 34px; height: 20px; padding: 0; line-height: 1;
-  font-size: 12px; font-weight: bold;
-  background: #00897b; color: #fff; border: none; border-radius: var(--r-btn);
-  cursor: pointer; touch-action: manipulation;
-  display: flex; align-items: center; justify-content: center;
-}
-.ts-spin-btn:hover { background: #00695c; }
+.ts-spin-btn { padding: 0; display: flex; align-items: center; justify-content: center; }
 .ts-ref-sec { padding: 12px 6px 4px; }
 .ts-ref-note { font-size: 12px; color: var(--text-light); line-height: 1.55; margin-bottom: 9px; }
 .ts-ref-btn {
@@ -1956,36 +1941,26 @@ body.dark .cell.ts-calc-top, body.dark .cell.ts-sep { border-top-color: #2f7a70 
 }
 .ts-ref-btn:hover { background: var(--acc-dark); }
 .ts-ref-btn:active { opacity: 0.7; }
-.ts-spin-btn:active { background: #004d40; }
-.shop-tax-bar b { font-size: calc(18px * var(--info-scale, 1)); }
+.shop-tax-bar b { font-size: calc(18px * var(--info-scale, 1)); color: var(--acc-text); }
 /* 買物モード：小計の横に出す消費税8%/10%込の参考額（小計より控えめな見た目） */
 .shop-tax-sub { font-weight: normal; opacity: 0.85; }
 .shop-tax-sub b { font-size: calc(13px * var(--info-scale, 1)); font-weight: bold; }
 .wk-people { display: flex; align-items: center; gap: 5px; }
-.wk-btn {
-  width: 24px; height: 22px; font-size: 15px; line-height: 1; font-weight: bold;
-  background: var(--info); color: #fff; border: none; border-radius: var(--r-btn);
-  cursor: pointer; touch-action: manipulation;
-}
-.wk-btn:hover { background: var(--info-dark); }
 
 /* ── 予算配分モード ── */
-.yosan-bar { background: #f3e5f5; border-color: #8e24aa; color: #4a148c; }
-body.dark .yosan-bar { background: #241630; border-color: #7a4a9a; color: #d8b4e8; }
 .yz-field { display: flex; align-items: center; gap: 3px; }
 .yz-field input {
   width: 66px; padding: 2px 4px;
   font-size: calc(13px * var(--info-scale, 1)); font-weight: bold; text-align: right;
-  border: 1px solid #8e24aa; border-radius: var(--r-btn);
-  background: #fff; color: #4a148c;
+  border: 1px solid var(--formula-border); border-radius: var(--r-btn);
+  background: var(--cell-bg, #fff); color: var(--text);
 }
-body.dark .yz-field input { background: #1e2a45; color: #e0c0f0; border-color: #7a4a9a; }
 .yz-calc {
   width: auto; padding: 0 10px; height: 24px; font-size: 12px;
-  background: #8e24aa; color: #fff; border: none; border-radius: var(--r-btn);
+  background: var(--acc); color: var(--on-acc); border: none; border-radius: var(--r-btn);
   font-weight: bold; cursor: pointer; touch-action: manipulation;
 }
-.yz-calc:hover { background: #6a1b9a; }
+.yz-calc:hover { background: var(--acc-dark); }
 .yz-status { font-size: calc(10px * var(--info-scale, 1)); opacity: 0.85; flex-basis: 100%; }
 
 /* ── PDF出力（印刷）用の表示。細かな体裁はPDF設定ダイアログ→#printDynamicStyle で上書き ── */
@@ -2209,7 +2184,7 @@ body.dark {
     <button class="dt-key" id="dtTaxIn" onclick="dtTax(1)" title="今の値に消費税を足す">税込</button>
     <button class="dt-key" id="dtTaxOut" onclick="dtTax(-1)" title="今の値から消費税を抜く">税抜</button>
     <button class="dt-key dt-ac" onclick="dtAllClear()" title="ぜんぶ消す">AC</button>
-    <button class="dt-key dt-send" onclick="dtToCell()" title="表に戻って、選んでいるセルに答えを入れます">▦ セルへ</button>
+    <button class="dt-key dt-send" onclick="dtToCell()" title="表に戻って、選んでいるセルに答えを入れます">▦ セルに入れる</button>
   </div>
 </div>
 
@@ -2225,16 +2200,12 @@ body.dark {
   <span>消費税計 <b id="zeiTotalTax">¥0</b></span>
 </div>
 
-<div class="shop-tax-bar wariai-bar" id="wariaiBar">
-  <span>元の値＋割か％ → <b>割合額・足す(＋)・引く(−)</b> を計算（1割=10%）</span>
-</div>
-
 <div class="shop-tax-bar warikan-bar" id="warikanBar">
   <span>合計 <b id="wkTotal">¥0</b></span>
   <span class="wk-people">人数
-    <button class="wk-btn" onclick="changeWarikan(-1)">−</button>
+    <button class="step-btn step-sm" onclick="changeWarikan(-1)">−</button>
     <b id="wkPeople">2</b>
-    <button class="wk-btn" onclick="changeWarikan(1)">+</button>
+    <button class="step-btn step-sm" onclick="changeWarikan(1)">+</button>
   </span>
   <span>1人 <b id="wkPer">¥0</b></span>
 </div>
@@ -2267,7 +2238,7 @@ body.dark {
     <button class="jkq-btn" id="jkQAfter" onclick="jkQuickDir('after')">後</button>
     <span class="jkq-lb">は</span>
     <b class="jkq-ans" id="jkQAns">—</b>
-    <button class="jkq-btn" onclick="jkQuickInsert()" title="答えを選択中のセルに入れる">⇩セルへ</button>
+    <button class="jkq-btn" onclick="jkQuickInsert()" title="答えを選択中のセルに入れる">▦ セルに入れる</button>
   </div>
 </div>
 
@@ -2306,7 +2277,7 @@ body.dark {
         <div class="vol-result-sub" id="ktResSub">単位水量と読み値を入れてください</div>
       </div>
       <div class="kt-judge-row"><span class="ts-judge" id="ktJudge">—</span></div>
-      <button class="vol-insert" id="ktInsertBtn" onclick="ktInsertToCell()" disabled>▦ この平均値を選択中のセルに入れる</button>
+      <button class="vol-insert" id="ktInsertBtn" onclick="ktInsertToCell()" disabled>▦ 平均値をセルに入れる</button>
       <div class="vol-hint">読み値ごとに<b>換算表</b>で塩化物イオン濃度(%)に直し、<b>単位水量</b>を掛けて塩化物含有量(kg/m³)を出します。最後にその<b>平均</b>で判定します（①〜③のうち<b>入れた分だけ</b>で平均します）。<br>換算表はカンタブの製品ごとに違うため、はじめに<b>⚙換算表・設定</b>でお使いの表を登録してください。読み値が表の行と行の間のときは前後から直線でおぎない、その値に<b>*</b>を付けます。表の範囲外のときは「範囲外」と出し、平均には入れません。</div>
     </div>
   </div>
@@ -2321,11 +2292,11 @@ body.dark {
     <div class="modal-body">
       <div class="ts-set-row">
         <div class="ts-set-label">注意値 (kg/m³)<small>ここまでは「合格」</small></div>
-        <div class="ts-set-ctrl"><span class="sc-val" id="ktWarn">0.25</span><span class="ts-spin"><button class="ts-spin-btn" onclick="changeKtTol('warn',1)" aria-label="増やす">▲</button><button class="ts-spin-btn" onclick="changeKtTol('warn',-1)" aria-label="減らす">▼</button></span></div>
+        <div class="ts-set-ctrl"><span class="sc-val" id="ktWarn">0.25</span><span class="ts-spin"><button class="step-btn step-spin ts-spin-btn" onclick="changeKtTol('warn',1)" aria-label="増やす">▲</button><button class="step-btn step-spin ts-spin-btn" onclick="changeKtTol('warn',-1)" aria-label="減らす">▼</button></span></div>
       </div>
       <div class="ts-set-row">
         <div class="ts-set-label">管理値 (kg/m³)<small>これを超えると「不合格」</small></div>
-        <div class="ts-set-ctrl"><span class="sc-val" id="ktLimit">0.30</span><span class="ts-spin"><button class="ts-spin-btn" onclick="changeKtTol('limit',1)" aria-label="増やす">▲</button><button class="ts-spin-btn" onclick="changeKtTol('limit',-1)" aria-label="減らす">▼</button></span></div>
+        <div class="ts-set-ctrl"><span class="sc-val" id="ktLimit">0.30</span><span class="ts-spin"><button class="step-btn step-spin ts-spin-btn" onclick="changeKtTol('limit',1)" aria-label="増やす">▲</button><button class="step-btn step-spin ts-spin-btn" onclick="changeKtTol('limit',-1)" aria-label="減らす">▼</button></span></div>
       </div>
       <div class="ts-ref-sec">
         <div class="ts-ref-note"><b>換算表の登録</b>：お使いのカンタブ（試験紙）の容器や説明書にある<b>読み値 → 塩化物イオン濃度(%)</b>の対応を、そのまま入れてください。<br>
@@ -2358,27 +2329,27 @@ body.dark {
     <div class="modal-body">
       <div class="ts-set-row">
         <div class="ts-set-label">小数桁1<small>配合上の空気量を除いた容積 (m³)</small></div>
-        <div class="ts-set-ctrl"><span class="sc-val" id="tsDp1">3</span><span class="ts-spin"><button class="ts-spin-btn" onclick="changeTsDp(1,1)" aria-label="増やす">▲</button><button class="ts-spin-btn" onclick="changeTsDp(1,-1)" aria-label="減らす">▼</button></span></div>
+        <div class="ts-set-ctrl"><span class="sc-val" id="tsDp1">3</span><span class="ts-spin"><button class="step-btn step-spin ts-spin-btn" onclick="changeTsDp(1,1)" aria-label="増やす">▲</button><button class="step-btn step-spin ts-spin-btn" onclick="changeTsDp(1,-1)" aria-label="減らす">▼</button></span></div>
       </div>
       <div class="ts-set-row">
         <div class="ts-set-label">小数桁2<small>単位容積質量 (kg/m³)</small></div>
-        <div class="ts-set-ctrl"><span class="sc-val" id="tsDp2">1</span><span class="ts-spin"><button class="ts-spin-btn" onclick="changeTsDp(2,1)" aria-label="増やす">▲</button><button class="ts-spin-btn" onclick="changeTsDp(2,-1)" aria-label="減らす">▼</button></span></div>
+        <div class="ts-set-ctrl"><span class="sc-val" id="tsDp2">1</span><span class="ts-spin"><button class="step-btn step-spin ts-spin-btn" onclick="changeTsDp(2,1)" aria-label="増やす">▲</button><button class="step-btn step-spin ts-spin-btn" onclick="changeTsDp(2,-1)" aria-label="減らす">▼</button></span></div>
       </div>
       <div class="ts-set-row">
         <div class="ts-set-label">小数桁3<small>試料の空気量を除いた容積 (mL)</small></div>
-        <div class="ts-set-ctrl"><span class="sc-val" id="tsDp3">1</span><span class="ts-spin"><button class="ts-spin-btn" onclick="changeTsDp(3,1)" aria-label="増やす">▲</button><button class="ts-spin-btn" onclick="changeTsDp(3,-1)" aria-label="減らす">▼</button></span></div>
+        <div class="ts-set-ctrl"><span class="sc-val" id="tsDp3">1</span><span class="ts-spin"><button class="step-btn step-spin ts-spin-btn" onclick="changeTsDp(3,1)" aria-label="増やす">▲</button><button class="step-btn step-spin ts-spin-btn" onclick="changeTsDp(3,-1)" aria-label="減らす">▼</button></span></div>
       </div>
       <div class="ts-set-row">
         <div class="ts-set-label">小数桁4<small>推定単位水量 (kg/m³)</small></div>
-        <div class="ts-set-ctrl"><span class="sc-val" id="tsDp4">1</span><span class="ts-spin"><button class="ts-spin-btn" onclick="changeTsDp(4,1)" aria-label="増やす">▲</button><button class="ts-spin-btn" onclick="changeTsDp(4,-1)" aria-label="減らす">▼</button></span></div>
+        <div class="ts-set-ctrl"><span class="sc-val" id="tsDp4">1</span><span class="ts-spin"><button class="step-btn step-spin ts-spin-btn" onclick="changeTsDp(4,1)" aria-label="増やす">▲</button><button class="step-btn step-spin ts-spin-btn" onclick="changeTsDp(4,-1)" aria-label="減らす">▼</button></span></div>
       </div>
       <div class="ts-set-row">
         <div class="ts-set-label">合格 ±(kg/m³)<small>この差までは「合格」</small></div>
-        <div class="ts-set-ctrl"><span class="sc-val" id="tsWarn">15</span><span class="ts-spin"><button class="ts-spin-btn" onclick="changeTsTol('warn',1)" aria-label="増やす">▲</button><button class="ts-spin-btn" onclick="changeTsTol('warn',-1)" aria-label="減らす">▼</button></span></div>
+        <div class="ts-set-ctrl"><span class="sc-val" id="tsWarn">15</span><span class="ts-spin"><button class="step-btn step-spin ts-spin-btn" onclick="changeTsTol('warn',1)" aria-label="増やす">▲</button><button class="step-btn step-spin ts-spin-btn" onclick="changeTsTol('warn',-1)" aria-label="減らす">▼</button></span></div>
       </div>
       <div class="ts-set-row">
         <div class="ts-set-label">限界 ±(kg/m³)<small>これを超えると「不合格」</small></div>
-        <div class="ts-set-ctrl"><span class="sc-val" id="tsLimit">20</span><span class="ts-spin"><button class="ts-spin-btn" onclick="changeTsTol('limit',1)" aria-label="増やす">▲</button><button class="ts-spin-btn" onclick="changeTsTol('limit',-1)" aria-label="減らす">▼</button></span></div>
+        <div class="ts-set-ctrl"><span class="sc-val" id="tsLimit">20</span><span class="ts-spin"><button class="step-btn step-spin ts-spin-btn" onclick="changeTsTol('limit',1)" aria-label="増やす">▲</button><button class="step-btn step-spin ts-spin-btn" onclick="changeTsTol('limit',-1)" aria-label="減らす">▼</button></span></div>
       </div>
       <div class="ts-ref-sec">
         <div class="ts-ref-note">配合・エアメータをシートに登録しておくと、本体で<b>配合番号・エアメータ番号</b>を入れるだけで値を呼び出せます。</div>
@@ -2886,7 +2857,7 @@ body.dark {
       </div>
       <button class="vol-addpart" id="volAddPartBtn" onclick="volAddPart()">➕ このパーツを合計に追加（複雑な形を分けて足す）</button>
       <div class="vol-parts" id="volParts"></div>
-      <button class="vol-insert" id="volInsertBtn" onclick="volInsertToCell()" disabled>▦ この容積を選択中のセルに入れる</button>
+      <button class="vol-insert" id="volInsertBtn" onclick="volInsertToCell()" disabled>▦ 容積をセルに入れる</button>
       <div class="vol-save-row">
         <button class="vol-savemeasure" onclick="volPreview()">👁 プレビュー</button>
         <button class="vol-savemeasure" onclick="volScreenshot()">📸 スクショ</button>
@@ -3372,13 +3343,13 @@ body.dark {
             <tr><td><b>買物</b></td><td>単価×個数で小計</td></tr>
             <tr><td><b>割り勘</b></td><td>合計を人数で割る</td></tr>
             <tr><td><b>消費税</b></td><td>税抜→税込／税込→税抜＋消費税（税率は設定）</td></tr>
-            <tr><td><b>割合計算</b></td><td>元の値の何割・何％と、足す/引くを計算</td></tr>
+            <tr><td><b>割合計算</b></td><td>元の値と「割」か「％」を入れると、割合額・足す(＋)・引く(−)を計算（1割＝10%）</td></tr>
             <tr><td><b>容積／予算配分</b></td><td>縦×横×高さ＝容積／予算と個数から最適な購入数</td></tr>
             <tr><td><b>時間計算</b></td><td>開始・終了・時間のうち2つで残りを自動計算（◯時間後/◯分前も）</td></tr>
             <tr><td><b>単位水量</b></td><td>土研法エアメータ法で生コンの単位水量を推定（下記）</td></tr>
           </table>
           <div class="help-li"><b>単位水量</b>：配合（W1・セメント・細骨材・粗骨材・混和材・配合空気量）と試験値（容器容積V・容器質量・容器+試料・測定空気量）を入れると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で推定し、許容差（下のバーで変更可）で合否判定します。配合はkg/m³、試験はg・ccで入力。</div>
-          <div class="help-li"><b>電卓モード</b>：モードで<b>🧮電卓</b>を選ぶと、表のかわりに<b>ふつうの電卓</b>が出ます。テンキーはそのまま使えて、押すたびに答えが出ます。計算するたびに<b>履歴（テープ）</b>が残り、行を押すとその答えをもう一度使えます。<b>％</b>（100＋10％→110）と<b>消費税</b>（税込・税抜。税率は設定のもの）のボタンつき。<b>▦セルへ</b>を押すと元のモードに戻って、選んでいるセルに答えが入ります。「1＋2×3」の答えを<b>9（ふつうの電卓）</b>にするか<b>7（式の優先順位どおり）</b>にするかは、<b>設定→🧮計算</b>で選べます。</div>
+          <div class="help-li"><b>電卓モード</b>：モードで<b>🧮電卓</b>を選ぶと、表のかわりに<b>ふつうの電卓</b>が出ます。テンキーはそのまま使えて、押すたびに答えが出ます。計算するたびに<b>履歴（テープ）</b>が残り、行を押すとその答えをもう一度使えます。<b>％</b>（100＋10％→110）と<b>消費税</b>（税込・税抜。税率は設定のもの）のボタンつき。<b>▦ セルに入れる</b>を押すと元のモードに戻って、選んでいるセルに答えが入ります。「1＋2×3」の答えを<b>9（ふつうの電卓）</b>にするか<b>7（式の優先順位どおり）</b>にするかは、<b>設定→🧮計算</b>で選べます。</div>
           <div class="help-li"><b>カンタブ（塩化物イオン量）</b>：容積計算や写真メモと同じ<b>道具</b>です。設定の<b>キーの割り当て</b>で<b>🧪カンタブ</b>をキーに登録すると、そのキーで開けます。<b>単位水量</b>と<b>読み値①〜③</b>を入れると、読み値ごとに<b>換算表の値(%)</b>と<b>塩化物含有量(kg/m³)</b>が並び、最後にその<b>平均値</b>で合否を判定します。平均値は<b>選択中のセルに入れる</b>こともできます。読み値から濃度への<b>換算表はカンタブの製品ごとに違う</b>ので、はじめに<b>⚙換算表・設定</b>でお使いの表を登録してください（読み値が表の間のときは前後から直線でおぎない、その旨を表示します）。換算表は<b>まとめて貼り付け</b>でも登録できます（1行に「読み値」と「濃度」の数字を2つ並べる。区切りはスペース・タブ・カンマのどれでもよく、全角の数字も読めます）。濃度は<b>小数4桁</b>まで扱えます。よく使う製品の表は<b>ひな形のボタン</b>でワンタップでも入れられます（写真から起こした値なので、入れたあと実物と見くらべてください）。管理値の既定は 0.30 kg/m³ で、設定で変えられます。</div>
           <div class="help-li"><b>配合・エアメータの登録（シート連携）</b>：単位水量の<b>⚙設定</b>「📋配合・エアメータ登録シートを作成」で<b>本体・配合登録(30)・エアメータ登録(5)</b>の3シートができます。番号ごとの値を入れておくと、本体で<b>配合番号・エアメータ番号を入れるだけ</b>で値が呼び出されます（登録側を直すと本体にも反映）。上の常設タブで切替。</div>
           <div class="help-li"><b>📋計算式テンプレ／📑決算書テンプレ</b>（設定の「計算」タブ）：割引・利益率・BMI・速さ・複利・ローン・面積…約20種類のひな形や、損益計算書・貸借対照表・収支計算書のひな形。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
@@ -3542,7 +3513,7 @@ body.dark {
       </div>
 
       <div class="lk-preview"><span>できる式</span><code id="lkPreview">=</code></div>
-      <button class="lk-insert" onclick="lkInsert()">このセルに入れる</button>
+      <button class="lk-insert" onclick="lkInsert()">▦ セルに入れる</button>
     </div>
   </div>
 </div>
@@ -5452,12 +5423,12 @@ bindDefaultSizeBtn(document.getElementById('defsizeTopBtn'));
 /* ── 行・列の挿入／削除 ── */
 /* 簡易トースト通知 */
 let _toastTimer=null;
-function toast(msg){
+function toast(msg, ms){
   let el=document.getElementById('appToast');
   if(!el){ el=document.createElement('div'); el.id='appToast'; el.className='app-toast'; document.body.appendChild(el); }
   el.textContent=msg; el.classList.add('show');
   clearTimeout(_toastTimer);
-  _toastTimer=setTimeout(()=>el.classList.remove('show'), 1800);
+  _toastTimer=setTimeout(()=>el.classList.remove('show'), ms||1800);
 }
 /* 数式内のセル参照を写像で変換。mapFn(r0,c0)→[r2,c2] または null(=参照先が消滅) */
 function remapFormulaRefs(formula, mapFn){
@@ -6600,7 +6571,7 @@ function updateVolResult(){
   if(addBtn) addBtn.disabled=(v==null);
   renderVolParts();
   const totalCm3=volTotalCm3();
-  if(btn){ btn.disabled=!(totalCm3>0); btn.textContent = volParts.length ? '▦ 合計を選択中のセルに入れる' : '▦ この容積を選択中のセルに入れる'; }
+  if(btn){ btn.disabled=!(totalCm3>0); btn.textContent = volParts.length ? '▦ 合計をセルに入れる' : '▦ 容積をセルに入れる'; }
 }
 /* パーツ（分割合計）一覧と合計を表示 */
 function renderVolParts(){
@@ -9642,7 +9613,7 @@ let dtTape=[];            // [{e:'120 ＋ 30', v:'150'}] 新しいものが後�
 let dtStyle='simple';     // 'simple' | 'expr'
 let dtExpr='';            // 式優先モードで組み立て中の式
 let dtSeq='';             // ふつうの電卓で押した式（履歴に残すため。例「1 ＋ 2 ×」）
-let dtPrevMode='normal';  // 電卓に入る前のモード（「セルへ」で戻る先）
+let dtPrevMode='normal';  // 電卓に入る前のモード（「セルに入れる」で戻る先）
 let dtPrevSel=null;       // 電卓に入る前に選んでいたセル（答えを入れる先）
 try{ const a=JSON.parse(localStorage.getItem(DT_TAPE_KEY)); if(Array.isArray(a)) dtTape=a.slice(-DT_TAPE_MAX); }catch(_){}
 try{ const st=localStorage.getItem(DT_STYLE_KEY); if(st==='simple'||st==='expr') dtStyle=st; }catch(_){}
@@ -11310,14 +11281,25 @@ function setupTanisuiryouSheets(){
 
 /* フッターバーの表示切替 */
 function hideAllBars(){
-  ['shopTaxBar','zeiBar','wariaiBar','warikanBar','yousekiBar','yosanBar','jikanBar','tanisuiryouBar'].forEach(id=>{
+  ['shopTaxBar','zeiBar','warikanBar','yousekiBar','yosanBar','jikanBar','tanisuiryouBar'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.classList.remove('open');
   });
 }
 function showModeBar(){
   hideAllBars();
-  const id={shopping:'shopTaxBar', zei:'zeiBar', wariai:'wariaiBar', warikan:'warikanBar', youseki:'yousekiBar', yosan:'yosanBar', jikan:'jikanBar', tanisuiryou:'tanisuiryouBar'}[tableMode];
+  // 割合モードは説明だけの帯だったので廃止（初回のトーストで案内する）
+  const id={shopping:'shopTaxBar', zei:'zeiBar', warikan:'warikanBar', youseki:'yousekiBar', yosan:'yosanBar', jikan:'jikanBar', tanisuiryou:'tanisuiryouBar'}[tableMode];
   if(id) document.getElementById(id).classList.add('open');
+}
+
+/* モードに初めて入ったときだけ出す案内。
+   常設の説明帯は場所を取るので、一度だけトーストで伝えてフラグを立てる。 */
+const MODE_HINTS={ wariai:'元の値と「割」か「％」を入れると、割合額・足す・引くが出ます（1割＝10%）' };
+function showModeHintOnce(mode){
+  const msg=MODE_HINTS[mode]; if(!msg) return;
+  const key='excalc_hint_'+mode;
+  try{ if(localStorage.getItem(key)==='1') return; localStorage.setItem(key,'1'); }catch(_){}
+  toast(msg, 4500);
 }
 
 /* ── モード切替（各モードの内容はリセットまで保持） ── */
@@ -11382,6 +11364,7 @@ function switchMode(target){
   renderSheetBar();
   persistModes();
   saveSheets();
+  showModeHintOnce(tableMode);
 }
 function updateModeButton(){
   const btn=document.getElementById('shoppingBtn');
@@ -12067,7 +12050,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v271';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v272';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
