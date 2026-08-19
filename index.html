@@ -8399,7 +8399,7 @@ const NP_ROW_REG =[['regL','登録左'],['reg','登録'],['regR','登録右']];
     return btn.offsetTop <= minTop+2;
   }
   /* その向きにはもうページが無い＝端か。
-     端では大きく動かさない（動かすと裏の別ページが見えて、めくれたように誤解させるため）。 */
+     端ではページを一切動かさない（動かすと裏の別ページが見えて、めくれたように誤解させるため）。 */
   function atEdge(ax, d){
     if(ax==='h'){
       if(openWhich==='bd')   return d>0;   // 枠線より左は無い
@@ -8411,8 +8411,6 @@ const NP_ROW_REG =[['regL','登録左'],['reg','登録'],['regR','登録右']];
     if(ax==='v') return isReg(openWhich) && d<0;   // 登録ページから上には無い
     return false;
   }
-  const EDGE_PULL=18;                              // 端で動かせる上限(px)
-  const edgePull=d=>(d<0?-1:1)*Math.min(EDGE_PULL, Math.abs(d)*0.22);
   function closedTransform(el){
     if(el===pgFmt||el===pgBd) return 'translateX(-100%)';
     if(el===pgFunc||el===pgSci) return 'translateX(100%)';
@@ -8516,12 +8514,12 @@ const NP_ROW_REG =[['regL','登録左'],['reg','登録'],['regR','登録右']];
       else if(activeEl===pgRegR) base = openWhich==='regR' ? 0 : 100;   // 開いていれば0（跳ね返し）／それ以外は右から引き込む
       else if(activeEl===pgReg)  base = openWhich==='reg' ? 0 : (openWhich==='regL' ? 100 : -100); // 中央へ戻る（regLなら右から／regRなら左から）
       else                       base = (openWhich==='func'||openWhich==='sci') ? 0 : 100;
-      const cl = atEdge('h', dx) ? edgePull(dx) : Math.max(-w, Math.min(w, dx));
+      const cl = atEdge('h', dx) ? 0 : Math.max(-w, Math.min(w, dx));   // 端は動かさない
       activeEl.style.transform=`translateX(calc(${base}% + ${cl}px))`;
     } else if(axis==='v' && activeEl){
       e.preventDefault();
       const base = openWhich===null ? 100 : 0;   // null=開く途中(下から)／登録が開いていれば閉じる途中(0から)
-      const clV = atEdge('v', dy) ? edgePull(dy) : Math.max(-h, Math.min(h, dy));
+      const clV = atEdge('v', dy) ? 0 : Math.max(-h, Math.min(h, dy));  // 端は動かさない
       activeEl.style.transform=`translateY(calc(${base}% + ${clV}px))`;
     }
   }
@@ -12172,7 +12170,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v275';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v276';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
