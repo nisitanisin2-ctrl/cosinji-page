@@ -904,6 +904,9 @@ body.numpad-off .numpad-pagebar { display: none; }
 .btn.ubtn.action:hover { background: #35898f; }
 .btn.ubtn.armed { background: #9460d8; box-shadow: inset 0 0 0 2px #d3b4f5; }  /* 長押し成立＝登録できる状態 */
 /* 移動モード：移動先を選んでいる間、登録ボタンを点滅風に強調 */
+/* 登録ページ：長い文字を登録しても段が伸びないよう、5段を枠の高さで等分に固定する
+   （伸びると下の段が表示枠からはみ出して切れていた）。文字は fitRegLabels() が枠に合わせる。 */
+.numpad-regpage { height: 100%; grid-auto-rows: 1fr; align-content: stretch; }
 .numpad-regpage.reg-moving .btn.ubtn { outline: 2px dashed rgba(255,255,255,0.55); outline-offset: -3px; }
 /* 登録ピッカー：文字・数字入力を基本、便利機能はオプション表示 */
 .regpick-text { display: flex; gap: 8px; margin-bottom: 6px; }
@@ -5702,6 +5705,39 @@ function fitNumpadLabels(root) {
       fs-=0.5; b.style.fontSize=fs+'px';
     }
   });
+  fitRegLabels(scope);
+}
+/* 登録ボタン（紫・緑の登録ページ）の文字合わせ。
+   ここだけ折り返す設定なので、幅ではなく「縦にはみ出して下が切れる」形で溢れる。
+   ボタンの大きさは変えずに、
+     ①まず1行に収まるところまで縮める（ONE_MIN より小さくしてまで1行にはしない）
+     ②それでも入らなければ折り返して、2段まで・枠の高さに収まるまで縮める
+   という順で合わせる。 */
+function lineCount(el){
+  try{ const r=document.createRange(); r.selectNodeContents(el); return r.getClientRects().length||1; }
+  catch(_){ return 1; }
+}
+function fitRegLabels(scope){
+  const root = (scope && typeof scope.querySelectorAll==='function') ? scope : document;
+  const ONE_MIN=15;   // 1行にするために許す最小の文字サイズ
+  const MIN=9;        // 2段にしてもこれ以上は小さくしない
+  root.querySelectorAll('.numpad-regpage .ubtn').forEach(b=>{
+    b.style.fontSize=''; b.style.whiteSpace='';
+    const t=(b.textContent||'').trim();
+    if(!t || b.clientWidth<8 || b.clientHeight<8) return;   // まだ描かれていない時は触らない
+    const base=parseFloat(getComputedStyle(b).fontSize);
+    // ① 1行で収まるか（折り返しを止めて幅で見る）
+    let fs=base, guard=0;
+    b.style.whiteSpace='nowrap';
+    while(b.scrollWidth>b.clientWidth && fs>ONE_MIN && guard++<80){ fs-=0.5; b.style.fontSize=fs+'px'; }
+    if(b.scrollWidth<=b.clientWidth && b.scrollHeight<=b.clientHeight+1) return;
+    // ② 折り返して2段までに収める（段数は行の数を直接数える。
+    //    段の高さを固定したので、はみ出しは scrollHeight では分からない）
+    b.style.whiteSpace=''; b.style.fontSize=''; fs=base; guard=0;
+    while((b.scrollHeight>b.clientHeight+1 || lineCount(b)>2) && fs>MIN && guard++<80){
+      fs-=0.5; b.style.fontSize=fs+'px';
+    }
+  });
 }
 window.addEventListener('resize', fitNumpadLabels);
 function changeKeySize(delta) {
@@ -5920,8 +5956,8 @@ const KEY_FUNCS={
   a_today:{g:'設定・機能',label:'📅今日',run:()=>insertTodayDate()},
   a_calendar:{g:'設定・機能',label:'📅日付',run:()=>insertDatePick()},
   a_volume:{g:'設定・機能',label:'📷容積',short:'容積',run:()=>openVolume()},         // short＝キー上のコンパクト表示
-  a_photomemo:{g:'設定・機能',label:'📝写真メモ',short:'写メモ',run:()=>openPhotoMemo()},
-  a_kantab:{g:'設定・機能',label:'🧪カンタブ',short:'カンタ',run:()=>openKantab()},
+  a_photomemo:{g:'設定・機能',label:'📝写真メモ',short:'写真メモ',run:()=>openPhotoMemo()},
+  a_kantab:{g:'設定・機能',label:'🧪カンタブ',short:'カンタブ',run:()=>openKantab()},
   a_linklist:{g:'設定・機能',label:'🔗リンク集',short:'リンク',run:()=>openLinkList()},
   a_websearch:{g:'設定・機能',label:'🔍Web検索',short:'W検索',run:()=>webSearchCell()},
   a_lookup:{g:'設定・機能',label:'🔍照合',run:()=>openLookupDlg()},
@@ -12170,7 +12206,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v276';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v277';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
