@@ -1043,15 +1043,15 @@ body.numpad-off .numpad-pagebar { display: none; }
 /* 枠線の場所ボタン：Excelの罫線アイコン風（点線のセル格子＋引く辺を実線で表示） */
 .bd-ico { width: 1.7em; height: 1.7em; display: block; margin: 0 auto; pointer-events: none; }
 .bd-ico .d { stroke: currentColor; stroke-opacity: 0.35; stroke-width: 1.4; stroke-dasharray: 2 1.7; fill: none; }
-/* 実線の太さは、選ばれた線種(#numpadPageBd data-bd)に追従する（--bd-sw） */
+/* 実線の太さは、選ばれた線種(#numpadPageFmt data-bd)に追従する（--bd-sw） */
 .bd-ico .s  { stroke: currentColor; stroke-width: var(--bd-sw, 2.4); fill: none; stroke-linecap: square; }
 /* 二重線用の中央スリット（ボタン地色で実線の中央を割って2本に見せる） */
 .bd-ico .s2 { stroke: var(--bd-gap, #4a4a4a); stroke-width: 0; fill: none; stroke-linecap: butt; }
-#numpadPageBd[data-bd="thin"]   .bd-ico { --bd-sw: 1.3; }
-#numpadPageBd[data-bd="normal"] .bd-ico { --bd-sw: 2.4; }
-#numpadPageBd[data-bd="thick"]  .bd-ico { --bd-sw: 4.4; }
-#numpadPageBd[data-bd="double"] .bd-ico { --bd-sw: 5; }
-#numpadPageBd[data-bd="double"] .bd-ico .s2 { stroke-width: 1.9; }
+#numpadPageFmt[data-bd="thin"]   .bd-ico { --bd-sw: 1.3; }
+#numpadPageFmt[data-bd="normal"] .bd-ico { --bd-sw: 2.4; }
+#numpadPageFmt[data-bd="thick"]  .bd-ico { --bd-sw: 4.4; }
+#numpadPageFmt[data-bd="double"] .bd-ico { --bd-sw: 5; }
+#numpadPageFmt[data-bd="double"] .bd-ico .s2 { stroke-width: 1.9; }
 .btn.op { --bd-gap: var(--acc-dark); }
 .btn.fx { --bd-gap: #5d4037; }
 .btn.bd-place { display: flex; align-items: center; justify-content: center; }
@@ -1059,7 +1059,12 @@ body.numpad-off .numpad-pagebar { display: none; }
 .btn.bd-place.bd-wide .bd-ico { margin: 0; }
 /* セル書式ページの色の縦スクロール列（4行分の高さ。縦にスライドすると続きの色）。
    横方向はスクロールしないので、色の上からでも横フリックでページ切替ができる */
-.kf-vcol { position: relative; grid-row: 1 / span 4; }
+.kf-vcol { position: relative; grid-row: 2 / span 2; }
+/* 色の帯の先頭に置く「標準に戻す／なし」 */
+.kf-none { font-size: calc(11px * var(--key-scale, 1.3)); }
+/* 書式・枠線ページは6段。1段目は線の種類を選ぶだけなので、
+   数字ページの道具の段と同じ低さ（他の段の約2/3）にする。 */
+#numpadPageFmt { grid-template-rows: 0.66fr repeat(5, 1fr); }
 .kf-vcol-in {
   position: absolute; inset: 0;
   display: flex; flex-direction: column; gap: 5px;
@@ -2440,30 +2445,23 @@ body.dark {
        フリック（左右・上下）とマウスホイールは今までどおり使える。設定で消せる。 -->
   <div class="numpad-pagebar" id="numpadPageBar" role="tablist" aria-label="テンキーのページ"></div>
   <div class="numpad-viewport" id="numpadViewport">
-    <div class="numpad-grid numpad-overlay ov-left ov-lv2" id="numpadPageBd" data-bd="normal">
-    <!-- 枠線ページ（セル書式ページからさらに右フリックで表示）。線の種類・色を選び、場所ボタンで選択範囲に枠線を引く -->
+    <div class="numpad-grid numpad-overlay ov-left" id="numpadPageFmt" data-bd="normal">
+    <!-- 書式・枠線ページ（数字ページから右フリックで表示）。選択中のセル（スライドで範囲選択して
+         いれば範囲全体）の書式と枠線をここでまとめて変える。6段×5列。
+           低い段＝線の種類と枠線消し／2〜3段目＝文字の装飾・寄せ＋文字色・背景色の帯
+           4段目＝線の色／5〜6段目＝線を引く場所／残りは文字の大小・書式消去・くわしい設定
+         セルの保護はセルの長押しメニューか「🎨詳細」から。 -->
     <button class="btn bd-type" data-key="bd_thin" onclick="bdSetType('thin',this)" title="細い線"><span style="display:inline-block;width:70%;border-bottom:1px solid #fff"></span></button>
     <button class="btn bd-type bd-on" data-key="bd_normal" onclick="bdSetType('normal',this)" title="ふつうの線"><span style="display:inline-block;width:70%;border-bottom:2px solid #fff"></span></button>
     <button class="btn bd-type" data-key="bd_thick" onclick="bdSetType('thick',this)" title="太い線"><span style="display:inline-block;width:70%;border-bottom:5px solid #fff"></span></button>
     <button class="btn bd-type" data-key="bd_double" onclick="bdSetType('double',this)" title="二重線"><span style="display:inline-block;width:70%;border-bottom:6px double #fff"></span></button>
     <button class="btn clr" data-key="bd_clear" onclick="bdApply('clear')" title="選択範囲の枠線を消す">🧹消す</button>
-    <button class="btn bd-color bd-on" data-key="bd_black" onclick="bdSetColor('#000000',this)" title="黒い線">黒</button>
-    <button class="btn bd-color" data-key="bd_red" style="color:#ff8a80" onclick="bdSetColor('#e53935',this)" title="赤い線">赤</button>
-    <button class="btn bd-color" data-key="bd_blue" style="color:#82b1ff" onclick="bdSetColor('#1e88e5',this)" title="青い線">青</button>
-    <button class="btn bd-color" data-key="bd_green" style="color:#b9f6ca" onclick="bdSetColor('#2e7d32',this)" title="緑の線">緑</button>
-    <button class="btn bd-color" data-key="bd_purple" style="color:#ea80fc" onclick="bdSetColor('#8e24aa',this)" title="紫の線">紫</button>
-    <button class="btn op bd-place" data-key="bd_top" onclick="bdApply('top')" title="上罫線（範囲の上側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 4H20"/><path class="s2" d="M4 4H20"/></svg></button>
-    <button class="btn op bd-place" data-key="bd_bottom" onclick="bdApply('bottom')" title="下罫線（範囲の下側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 20H20"/><path class="s2" d="M4 20H20"/></svg></button>
-    <button class="btn op bd-place" data-key="bd_left" onclick="bdApply('left')" title="左罫線（範囲の左側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 4V20"/><path class="s2" d="M4 4V20"/></svg></button>
-    <button class="btn op bd-place" data-key="bd_right" onclick="bdApply('right')" title="右罫線（範囲の右側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M20 4V20"/><path class="s2" d="M20 4V20"/></svg></button>
-    <button class="btn op bd-place" data-key="bd_grid" onclick="bdApply('grid')" title="格子（全セルの全部の辺に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="s" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s2" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/></svg></button>
-    <button class="btn fx bd-place bd-wide" data-key="bd_box" style="grid-column:1/-1" onclick="bdApply('box')" title="外枠（選択範囲のまわりを囲む）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 12H20M12 4V20"/><path class="s" d="M4 4H20M4 20H20M4 4V20M20 4V20"/><path class="s2" d="M4 4H20M4 20H20M4 4V20M20 4V20"/></svg>囲む</button>
-    </div>
-    <div class="numpad-grid numpad-overlay ov-left" id="numpadPageFmt">
-    <!-- セル書式ページ（数字ページから右フリックで表示）。選択中のセル（スライドで範囲選択していれば範囲全体）の書式を変える。
-         縦列レイアウト：列1=装飾／列2=寄せ・保護／列3=サイズ・リセット／列4=文字色（縦スクロール）／列5=背景色（縦スクロール） -->
-    <div class="kf-vcol" style="grid-column:4" title="文字色（縦にスライドすると他の色が出ます）">
+    <button class="btn" data-key="kf_bold" style="font-weight:bold" onclick="kfmtToggle('bold')" title="太字">太字</button>
+    <button class="btn" data-key="kf_italic" style="font-style:italic" onclick="kfmtToggle('italic')" title="斜体">斜体</button>
+    <button class="btn" data-key="kf_under" style="text-decoration:underline" onclick="kfmtToggle('underline')" title="下線">下線</button>
+    <div class="kf-vcol" style="grid-column:4;grid-row:2/span 2" title="文字色（縦にスライドすると他の色が出ます）">
       <div class="kf-vcol-in">
+      <button class="btn kf-none" onclick="kfmtColor('color','')" title="文字色を標準に戻す">標準</button>
       <button class="btn" style="color:#ff8a80" onclick="kfmtColor('color','#e53935')" title="文字を赤に">あ</button>
       <button class="btn" style="color:#ffcc80" onclick="kfmtColor('color','#fb8c00')" title="文字をだいだい色に">あ</button>
       <button class="btn" style="color:#fff59d" onclick="kfmtColor('color','#f9a825')" title="文字を黄色に">あ</button>
@@ -2485,8 +2483,9 @@ body.dark {
       <button class="btn" style="color:#b0b0b0" onclick="kfmtColor('color','#808080')" title="文字を灰色に">あ</button>
       </div>
     </div>
-    <div class="kf-vcol" style="grid-column:5" title="背景色（縦にスライドすると他の色が出ます）">
+    <div class="kf-vcol" style="grid-column:5;grid-row:2/span 2" title="背景色（縦にスライドすると他の色が出ます）">
       <div class="kf-vcol-in">
+      <button class="btn kf-none" onclick="kfmtColor('bg','')" title="背景色をなしに戻す">なし</button>
       <button class="btn" style="background:#fff59d;color:#333" onclick="kfmtColor('bg','#fff59d')" title="背景を黄色に">黄</button>
       <button class="btn" style="background:#ffe0b2;color:#333" onclick="kfmtColor('bg','#ffe0b2')" title="背景をだいだい色に">橙</button>
       <button class="btn" style="background:#c8e6c9;color:#333" onclick="kfmtColor('bg','#c8e6c9')" title="背景を緑に">緑</button>
@@ -2508,19 +2507,24 @@ body.dark {
       <button class="btn" style="background:#212121;color:#fff" onclick="kfmtColor('bg','#212121')" title="背景を黒に">黒</button>
       </div>
     </div>
-    <button class="btn" style="font-weight:bold" onclick="kfmtToggle('bold')" title="太字">太字</button>
-    <button class="btn op" onclick="kfmtAlign('left')" title="左寄せ">⬅寄</button>
-    <button class="btn op" onclick="kfmtSize(-1)" title="文字を小さく">A−</button>
-    <button class="btn" style="font-style:italic" onclick="kfmtToggle('italic')" title="斜体">斜体</button>
-    <button class="btn op" onclick="kfmtAlign('center')" title="中央寄せ">中央</button>
-    <button class="btn op" onclick="kfmtSize(1)" title="文字を大きく">A＋</button>
-    <button class="btn" style="text-decoration:underline" onclick="kfmtToggle('underline')" title="下線">下線</button>
-    <button class="btn op" onclick="kfmtAlign('right')" title="右寄せ">寄➡</button>
-    <button class="btn" onclick="kfmtColor('color','')" title="文字色を標準に戻す">あ戻</button>
-    <button class="btn clr" onclick="kfmtLock()" title="セルの保護（ロック）を切替">🔒保護</button>
-    <button class="btn clr" onclick="kfmtClear()" title="このセルの書式をすべて消す">🧹消去</button>
-    <button class="btn" onclick="kfmtColor('bg','')" title="背景色なしに戻す">背景無</button>
-    <button class="btn fx" style="grid-column:1/-1" onclick="openCellFmt()" title="小数点・結合などのくわしい書式設定を開く">🎨 くわしい書式設定…</button>
+    <button class="btn op" data-key="kf_left" onclick="kfmtAlign('left')" title="左寄せ">⬅寄</button>
+    <button class="btn op" data-key="kf_center" onclick="kfmtAlign('center')" title="中央寄せ">中央</button>
+    <button class="btn op" data-key="kf_right" onclick="kfmtAlign('right')" title="右寄せ">寄➡</button>
+    <button class="btn bd-color bd-on" data-key="bd_black" onclick="bdSetColor('#000000',this)" title="黒い線">黒</button>
+    <button class="btn bd-color" data-key="bd_red" style="color:#ff8a80" onclick="bdSetColor('#e53935',this)" title="赤い線">赤</button>
+    <button class="btn bd-color" data-key="bd_blue" style="color:#82b1ff" onclick="bdSetColor('#1e88e5',this)" title="青い線">青</button>
+    <button class="btn bd-color" data-key="bd_green" style="color:#b9f6ca" onclick="bdSetColor('#2e7d32',this)" title="緑の線">緑</button>
+    <button class="btn bd-color" data-key="bd_purple" style="color:#ea80fc" onclick="bdSetColor('#8e24aa',this)" title="紫の線">紫</button>
+    <button class="btn op bd-place" data-key="bd_top" onclick="bdApply('top')" title="上罫線（範囲の上側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 4H20"/><path class="s2" d="M4 4H20"/></svg></button>
+    <button class="btn op bd-place" data-key="bd_bottom" onclick="bdApply('bottom')" title="下罫線（範囲の下側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 20H20"/><path class="s2" d="M4 20H20"/></svg></button>
+    <button class="btn op bd-place" data-key="bd_left" onclick="bdApply('left')" title="左罫線（範囲の左側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 4V20"/><path class="s2" d="M4 4V20"/></svg></button>
+    <button class="btn op bd-place" data-key="bd_right" onclick="bdApply('right')" title="右罫線（範囲の右側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M20 4V20"/><path class="s2" d="M20 4V20"/></svg></button>
+    <button class="btn op bd-place" data-key="bd_grid" onclick="bdApply('grid')" title="格子（全セルの全部の辺に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="s" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s2" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/></svg></button>
+    <button class="btn fx bd-place bd-wide" data-key="bd_box" onclick="bdApply('box')" title="外枠（選択範囲のまわりを囲む）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 12H20M12 4V20"/><path class="s" d="M4 4H20M4 20H20M4 4V20M20 4V20"/><path class="s2" d="M4 4H20M4 20H20M4 4V20M20 4V20"/></svg>囲む</button>
+    <button class="btn op" data-key="kf_smaller" onclick="kfmtSize(-1)" title="文字を小さく">A−</button>
+    <button class="btn op" data-key="kf_bigger" onclick="kfmtSize(1)" title="文字を大きく">A＋</button>
+    <button class="btn clr" data-key="kf_clear" onclick="kfmtClear()" title="このセルの書式をすべて消す">🧹書式消</button>
+    <button class="btn fx" data-key="kf_more" onclick="openCellFmt()" title="小数点・結合・保護などのくわしい書式設定を開く">🎨詳細</button>
     </div>
     <div class="numpad-grid" id="numpadPage1">
     <!-- 既定の並び。各ボタンの位置は data-key を使って自由に入れ替えできる（設定→ボタン配置を編集） -->
@@ -3353,8 +3357,12 @@ body.dark {
           <div class="help-li"><b>テンキーの上のページ表示</b>で、いまどのページに居るか分かります。<b>ページ名をタップ</b>するとそのページへ移動できます（数字の並びは「枠線・書式・数字・記号・関数」、右端の<b>▲登録</b>で登録ページの並びへ、<b>▼数字</b>で戻る）。設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーのページ表示</b>で消すこともできます。</div>
           <div class="help-li"><b>フリックでも切り替わります</b>（数字ページが土台。数字ページは<b>どこからでもフリック開始OK</b>）：</div>
           <table class="help-tbl">
-            <tr><td><span class="help-key">右へ →</span></td><td><b>セル書式ページ</b>：太字・斜体・下線・文字の大小・寄せ・保護・書式消去。右2列は文字色／背景色で<b>縦にスライド</b>すると各19色（原色含む）。「🎨くわしい書式設定…」も開けます</td></tr>
-            <tr><td><span class="help-key">右→右</span></td><td><b>枠線ページ</b>：線の種類（普通・太・二重）と色（黒赤青緑紫）を選び、上・下・左・右・格子・囲む で枠線。🧹で消去（PDFにも反映）</td></tr>
+            <tr><td><span class="help-key">右へ →</span></td><td><b>書式・枠線ページ</b>（6段×5列の1ページにまとめました）<br>
+              ・<b>いちばん上の低い段</b>＝線の種類（細・普通・太・二重）と<b>🧹線消</b><br>
+              ・<b>太字・斜体・下線／寄せ3種</b>、右2列は<b>文字色／背景色</b>で<b>縦にスライド</b>すると各20色（原色含む）。先頭の<b>標準／なし</b>で色を戻せます<br>
+              ・<b>線の色</b>（黒赤青緑紫）を選び、<b>上・下・左・右・格子・囲む</b>で枠線（PDFにも反映）<br>
+              ・<b>A−／A＋</b>で文字の大小、<b>🧹書式消</b>で書式を消去、<b>🎨詳細</b>で小数点・結合・保護などのくわしい設定<br>
+              ・<b>セルの保護</b>は<b>セルを長押し→🔒保護</b>か、この<b>🎨詳細</b>から</td></tr>
             <tr><td><span class="help-key">← 左へ</span></td><td><b>関数・記号ページ</b>：( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 を数式に挿入</td></tr>
             <tr><td><span class="help-key">左→左</span></td><td><b>関数電卓ページ</b>：SIN・COS・TAN・LOG・LN・EXP・π・e・n!・x²・^・1/(・MOD( を挿入。<b>DEG/RAD</b>で角度単位を切替</td></tr>
             <tr><td><span class="help-key">↑ 上へ</span></td><td><b>登録ページ</b>：紫ボタンを長押しで登録（下記）</td></tr>
@@ -3400,7 +3408,7 @@ body.dark {
       <details class="help-acc" id="h-format">
         <summary>🎨 書式・保護・コピー</summary>
         <div class="help-acc-body">
-          <div class="help-li"><b>書式変更</b>：上部の「<b>A1</b>」（セル名）をタップすると、小数点桁・太字/斜体/下線・文字色・背景色・大きさを変更できます（テンキーを<b>右フリック</b>のセル書式ページでもワンタップ）。</div>
+          <div class="help-li"><b>書式変更</b>：上部の「<b>A1</b>」（セル名）をタップすると、小数点桁・太字/斜体/下線・文字色・背景色・大きさを変更できます（テンキーを<b>右フリック</b>の書式・枠線ページでもワンタップ）。</div>
           <table class="help-tbl">
             <tr><td><span class="help-key">セル長押し（約1秒）</span></td><td>枠が<b>赤</b>くなったら離す＝<b>🔒保護</b>のオン/オフ（保護中は右上のセル番号枠が赤で知らせ）</td></tr>
             <tr><td><span class="help-key">さらに長押し</span></td><td>枠が<b>紫</b>に→離すとメニュー（🎨書式・⧉コピー・📥貼り付け・🧹消去・🔒保護）</td></tr>
@@ -8435,21 +8443,20 @@ let numpadPager=null;      // ページ表示から現在ページを読む／�
 /* テンキーのページ名。ページャの起動時（restAll）から参照されるのでここで宣言する。
      数字の並び： 枠線 書式 [数字] 記号 関数 ／ 右端＝▲登録
      登録の並び： 登録左 [登録] 登録右      ／ 右端＝▼数字 */
-const NP_ROW_MAIN=[['bd','枠線'],['fmt','書式'],[null,'数字'],['func','記号'],['sci','関数']];
+const NP_ROW_MAIN=[['fmt','書式・枠線'],[null,'数字'],['func','記号'],['sci','関数']];
 const NP_ROW_REG =[['regL','登録左'],['reg','登録'],['regR','登録右']];
 (function setupNumpadPager(){
   const vp=document.getElementById('numpadViewport');
-  const pgBd=document.getElementById('numpadPageBd');
   const pgFmt=document.getElementById('numpadPageFmt');
   const pgSci=document.getElementById('numpadPageSci');
   const pgFunc=document.getElementById('numpadPage2');
   const pgReg=document.getElementById('numpadPageReg');
   const pgRegL=document.getElementById('numpadPageRegL');
   const pgRegR=document.getElementById('numpadPageRegR');
-  if(!vp||!pgBd||!pgFmt||!pgSci||!pgFunc||!pgReg||!pgRegL||!pgRegR) return;
-  const overlays=[pgBd,pgFmt,pgFunc,pgSci,pgReg,pgRegL,pgRegR];
+  if(!vp||!pgFmt||!pgSci||!pgFunc||!pgReg||!pgRegL||!pgRegR) return;
+  const overlays=[pgFmt,pgFunc,pgSci,pgReg,pgRegL,pgRegR];
   const regPages=[pgReg,pgRegL,pgRegR];
-  let openWhich=null;               // null=数字ページ／'bd'(左2)／'fmt'(左1)／'func'(右1)／'sci'(右2)／'reg'(下)／'regL'(登録左)／'regR'(登録右)
+  let openWhich=null;               // null=数字ページ／'fmt'(左＝書式・枠線)／'func'(右1)／'sci'(右2)／'reg'(下)／'regL'(登録左)／'regR'(登録右)
   let lastRegPage='reg';            // 登録を再度開いたとき表示するページ（最後に見ていた登録ページ）
   let downX=null, downY=0, downId=null, axis=null, activeEl=null, decided=false, w=1, h=1, downT=0, downTopRow=false;
   const isReg=s=>s==='reg'||s==='regL'||s==='regR';
@@ -8468,7 +8475,7 @@ const NP_ROW_REG =[['regL','登録左'],['reg','登録'],['regR','登録右']];
      端ではページを一切動かさない（動かすと裏の別ページが見えて、めくれたように誤解させるため）。 */
   function atEdge(ax, d){
     if(ax==='h'){
-      if(openWhich==='bd')   return d>0;   // 枠線より左は無い
+      if(openWhich==='fmt')  return d>0;   // 書式・枠線より左は無い
       if(openWhich==='sci')  return d<0;   // 関数電卓より右は無い
       if(openWhich==='regL') return d>0;   // 登録左より左は無い
       if(openWhich==='regR') return d<0;   // 登録右より右は無い
@@ -8478,7 +8485,7 @@ const NP_ROW_REG =[['regL','登録左'],['reg','登録'],['regR','登録右']];
     return false;
   }
   function closedTransform(el){
-    if(el===pgFmt||el===pgBd) return 'translateX(-100%)';
+    if(el===pgFmt) return 'translateX(-100%)';
     if(el===pgFunc||el===pgSci) return 'translateX(100%)';
     return 'translateY(100%)';
   }
@@ -8500,8 +8507,7 @@ const NP_ROW_REG =[['regL','登録左'],['reg','登録'],['regR','登録右']];
         return;
       }
       // 2枚目(sci/bd)が開いている間は、その下の1枚目(func/fmt)も開いた位置に置いておく
-      const isOpen=(el===pgBd&&openWhich==='bd')||
-                   (el===pgFmt&&(openWhich==='fmt'||openWhich==='bd'))||
+      const isOpen=(el===pgFmt&&openWhich==='fmt')||
                    (el===pgFunc&&(openWhich==='func'||openWhich==='sci'))||
                    (el===pgSci&&openWhich==='sci');
       el.style.transform = isOpen ? 'translate(0,0)' : closedTransform(el);
@@ -8552,9 +8558,7 @@ const NP_ROW_REG =[['regL','登録左'],['reg','登録'],['regR','登録右']];
         if(vertDominant){ axis='v'; activeEl=pgRegR; }                          // 縦フリックで閉じる
         else if(horizDominant){ axis='h'; activeEl = dx>0 ? pgReg : pgRegR; }   // 右＝中央へ戻る／左＝端で跳ね返す
       } else if(openWhich==='fmt'){
-        if(horizDominant){ axis='h'; activeEl = dx>0 ? pgBd : pgFmt; }          // さらに右＝枠線／左＝閉じる
-      } else if(openWhich==='bd'){
-        if(horizDominant){ axis='h'; activeEl=pgBd; }                           // 枠線は左フリックで戻る
+        if(horizDominant){ axis='h'; activeEl=pgFmt; }                          // 左＝閉じる／右は端
       } else if(openWhich==='func'){
         if(horizDominant){ axis='h'; activeEl = dx<0 ? pgSci : pgFunc; }        // さらに左＝関数電卓／右＝閉じる
       } else if(openWhich==='sci'){
@@ -8573,8 +8577,7 @@ const NP_ROW_REG =[['regL','登録左'],['reg','登録'],['regR','登録右']];
     } else if(axis==='h' && activeEl){
       e.preventDefault();
       let base;
-      if(activeEl===pgBd)        base = openWhich==='bd' ? 0 : -100;
-      else if(activeEl===pgFmt)  base = (openWhich==='fmt'||openWhich==='bd') ? 0 : -100;
+      if(activeEl===pgFmt)       base = openWhich==='fmt' ? 0 : -100;
       else if(activeEl===pgSci)  base = openWhich==='sci' ? 0 : 100;
       else if(activeEl===pgRegL) base = openWhich==='regL' ? 0 : -100;  // 開いていれば0（跳ね返し）／それ以外は左から引き込む
       else if(activeEl===pgRegR) base = openWhich==='regR' ? 0 : 100;   // 開いていれば0（跳ね返し）／それ以外は右から引き込む
@@ -8596,19 +8599,17 @@ const NP_ROW_REG =[['regL','登録左'],['reg','登録'],['regR','登録右']];
     if(dir>0){          // 次（左スワイプ相当）
       if(openWhich===null)       openWhich='func';
       else if(openWhich==='fmt') openWhich=null;
-      else if(openWhich==='bd')  openWhich='fmt';
       else if(openWhich==='func')openWhich='sci';
       else if(openWhich==='reg') openWhich='regR';
       else if(openWhich==='regL')openWhich='reg';
       // sci / regR は端なので据え置き
     } else {            // 前（右スワイプ相当）
       if(openWhich===null)       openWhich='fmt';
-      else if(openWhich==='fmt') openWhich='bd';
       else if(openWhich==='func')openWhich=null;
       else if(openWhich==='sci') openWhich='func';
       else if(openWhich==='reg') openWhich='regL';
       else if(openWhich==='regR')openWhich='reg';
-      // bd / regL は端なので据え置き
+      // fmt / regL は端なので据え置き
     }
     if(openWhich===prev) return;
     if(isReg(openWhich)) lastRegPage=openWhich;
@@ -8626,9 +8627,7 @@ const NP_ROW_REG =[['regL','登録左'],['reg','登録'],['regR','登録右']];
         else if(dx>=th) openWhich='fmt';
       } else if(openWhich==='fmt'){
         if(dx<=-th) openWhich=null;
-        else if(dx>=th) openWhich='bd';
       }
-      else if(openWhich==='bd' && dx<=-th){ openWhich='fmt'; }
       else if(openWhich==='func'){
         if(dx>=th) openWhich=null;
         else if(dx<=-th) openWhich='sci';
@@ -9239,12 +9238,15 @@ const KEYPAD_DEFAULT_POS2={
   fp_if:{r:4,c:1}, fp_gt:{r:4,c:2}, fp_lt:{r:4,c:3}, fp_ge:{r:4,c:4}, fp_le:{r:4,c:5},
   fp_plus:{r:5,c:1}, fp_fminus:{r:5,c:2}, fp_fmul:{r:5,c:3}, fp_fdiv:{r:5,c:4}, fp_eq:{r:5,c:5}
 };
-/* 枠線ページ（数字から右へ2回フリック）の既定配置 */
-const KEYPAD_DEFAULT_POS_BD={
-  bd_thin:{r:1,c:1}, bd_normal:{r:1,c:2}, bd_thick:{r:1,c:3}, bd_double:{r:1,c:4}, bd_clear:{r:1,c:5},
-  bd_black:{r:2,c:1}, bd_red:{r:2,c:2}, bd_blue:{r:2,c:3}, bd_green:{r:2,c:4}, bd_purple:{r:2,c:5},
-  bd_top:{r:3,c:1}, bd_bottom:{r:3,c:2}, bd_left:{r:3,c:3}, bd_right:{r:3,c:4}, bd_grid:{r:3,c:5},
-  bd_box:{r:4,c:1,w:5}
+/* 書式・枠線ページ（数字から右フリック）の既定配置。6段×5列。
+   r1＝低い段（線の種類・枠線消し）。r2-r3 の c4,c5 は色の帯が占める。 */
+const KEYPAD_DEFAULT_POS_FMT={
+  bd_thin:{r:1,c:1,u:1}, bd_normal:{r:1,c:2,u:1}, bd_thick:{r:1,c:3,u:1}, bd_double:{r:1,c:4,u:1}, bd_clear:{r:1,c:5,u:1},
+  kf_bold:{r:2,c:1}, kf_italic:{r:2,c:2}, kf_under:{r:2,c:3},
+  kf_left:{r:3,c:1}, kf_center:{r:3,c:2}, kf_right:{r:3,c:3},
+  bd_black:{r:4,c:1}, bd_red:{r:4,c:2}, bd_blue:{r:4,c:3}, bd_green:{r:4,c:4}, bd_purple:{r:4,c:5},
+  bd_top:{r:5,c:1}, bd_bottom:{r:5,c:2}, bd_left:{r:5,c:3}, bd_right:{r:5,c:4}, bd_grid:{r:5,c:5},
+  bd_box:{r:6,c:1}, kf_smaller:{r:6,c:2}, kf_bigger:{r:6,c:3}, kf_clear:{r:6,c:4}, kf_more:{r:6,c:5}
 };
 /* 編集対象のページ一覧（各ページが独自の既定配置・保存キー・現在配置を持つ） */
 const KP_PAGES=[
@@ -9252,7 +9254,7 @@ const KP_PAGES=[
      旧キー(excalc_keypad_pos)に自分で並べ替えた配置がある人は、rを+1して引き継ぐ。 */
   {sel:'#numpadPage1', def:KEYPAD_DEFAULT_POS,  skey:'excalc_keypad_pos_v2', pos:{}, oldKey:'excalc_keypad_pos', shiftRow:1},
   {sel:'#numpadPage2', def:KEYPAD_DEFAULT_POS2, skey:'excalc_keypad_pos2', pos:{}},
-  {sel:'#numpadPageBd', def:KEYPAD_DEFAULT_POS_BD, skey:'excalc_keypad_posbd', pos:{}}
+  {sel:'#numpadPageFmt', def:KEYPAD_DEFAULT_POS_FMT, skey:'excalc_keypad_posfmt', pos:{}}
 ];
 let keypadEditing=false;
 let kpDrag=null;
@@ -12254,7 +12256,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v280';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v281';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -12792,12 +12794,12 @@ let bdType='normal', bdColor='#000000';
 const BD_CSS={ thin:'0.5px solid', normal:'1px solid', thick:'3px solid', double:'4px double' };
 function bdSetType(t,btn){
   bdType=t;
-  const pg=document.getElementById('numpadPageBd'); if(pg) pg.dataset.bd=t;   // 下の場所ボタンのアイコンの太さに反映
-  document.querySelectorAll('#numpadPageBd .bd-type').forEach(b=>b.classList.toggle('bd-on', b===btn));
+  const pg=document.getElementById('numpadPageFmt'); if(pg) pg.dataset.bd=t;   // 下の場所ボタンのアイコンの太さに反映
+  document.querySelectorAll('#numpadPageFmt .bd-type').forEach(b=>b.classList.toggle('bd-on', b===btn));
 }
 function bdSetColor(c,btn){
   bdColor=c;
-  document.querySelectorAll('#numpadPageBd .bd-color').forEach(b=>b.classList.toggle('bd-on', b===btn));
+  document.querySelectorAll('#numpadPageFmt .bd-color').forEach(b=>b.classList.toggle('bd-on', b===btn));
 }
 function bdRange(){
   if(rangeR1>=0) return { r1:Math.min(rangeR1,rangeR2), r2:Math.max(rangeR1,rangeR2),
