@@ -1014,6 +1014,14 @@ body.numpad-off .numpad-pagebar { display: none; }
 .btn.enter::after { content: var(--enter-arrow, "⇩"); font-size: 0.5em; line-height: 1; opacity: 0.75; font-weight: normal; }
 .btn.enter:hover { background: #1f618d; }
 .btn.span2  { grid-column: span 2; }
+/* 道具の段（いちばん上）。入力キーより低くして、表の取り分をなるべく減らさない。
+   色も分けて「入力するキー」と「道具」を見分けられるようにする。 */
+.btn.util {
+  padding: calc(5px * var(--key-scale, 1.3)) 3px;
+  font-size: calc(12px * var(--key-scale, 1.3));
+  background: #3f4a5a;
+}
+.btn.util:hover { background: #4d5a6d; }
 /* 標準テンキーの数字キー(0〜9・.)だけ、設定で文字を大きくできる（--num-scale） */
 #numpadPage1 .btn[data-key^="n"], #numpadPage1 .btn[data-key="dot"] {
   font-size: calc(15px * var(--key-scale, 1.3) * var(--num-scale, 1));
@@ -2503,6 +2511,13 @@ body.dark {
     </div>
     <div class="numpad-grid" id="numpadPage1">
     <!-- 既定の並び。各ボタンの位置は data-key を使って自由に入れ替えできる（設定→ボタン配置を編集） -->
+    <!-- いちばん上の「道具の段」。入力用のキーより低く、色も分けている。
+         5つとも長押しで好きな機能に変えられる（設定・機能／表の操作 など）。 -->
+    <button class="btn util" data-key="u_reset" onclick="resetAll()" title="表の中身を消す（戻るで元に戻せます）／長押しで別の機能に変更">リセット</button>
+    <button class="btn util" data-key="u_undo"  onclick="undoLast()" title="直前の入力を元に戻す／長押しで別の機能に変更">戻る</button>
+    <button class="btn util" data-key="u_redo"  onclick="redoLast()" title="元に戻した入力をやり直す／長押しで別の機能に変更">進む</button>
+    <button class="btn util" data-key="u_save"  onclick="saveData()" title="いまの表を記録に保存／長押しで別の機能に変更">保存</button>
+    <button class="btn util" data-key="u_list"  onclick="showSaveList()" title="保存した記録の一覧を開く／長押しで別の機能に変更">リスト</button>
     <button class="btn clr" data-key="mode" id="shoppingBtn" onclick="onModeBtnClick()">モード</button>
     <button class="btn clr" data-key="ce"   onclick="ce()">CE</button>
     <button class="btn op"  data-key="bs"   onclick="bs()">⌫</button>
@@ -3300,6 +3315,7 @@ body.dark {
           <div class="help-li">上部の入力欄から直接入力／編集もできます。数字を入れたあと<b>「文字」</b>キーで日本語も足せます（前に入れた数字は消えません）。</div>
           <table class="help-tbl">
             <tr><td><span class="help-key">Enter長押し</span></td><td>確定後に進む向きを <b>⇩下 ⇄ ⇨右</b> で切替（Enterボタン下の矢印で今の向きを確認）</td></tr>
+            <tr><td><span class="help-key">リセット</span></td><td>表の中身を消す（<b>戻る</b>で元に戻せます）。テンキーの道具の段と、上のバーの両方にあります</td></tr>
             <tr><td><span class="help-key">見出し／行番号タップ</span></td><td>その列・行を選択（入力欄の右に合計が出ます）</td></tr>
             <tr><td><span class="help-key">端をドラッグ</span></td><td>見出しの右端・行番号の下端で、列幅／行高を変更（ダブルタップで自動に戻す）</td></tr>
             <tr><td><span class="help-key">見出し／行番号 長押し</span></td><td>その場所に行・列を追加／削除するメニュー（上下・左右に追加、または削除）</td></tr>
@@ -3320,6 +3336,7 @@ body.dark {
             <tr><td><span class="help-tag">文字</span></td><td>文字（テキスト）を入力</td></tr>
             <tr><td><span class="help-tag">モード</span></td><td>計算モードを切替</td></tr>
           </table>
+          <div class="help-li"><b>いちばん上の「道具の段」</b>（リセット・戻る・進む・保存・リスト）は、入力用のキーより低く色の違う段です。<b>どれも長押しで好きな機能に変えられます</b>（設定・機能／表の操作など）。同じ働きのボタンは上のバーにもあるので、テンキー側で足りるなら設定→<b>🎨見た目→くわしい設定</b>の「上のバーのボタン」で上のバーから消すと、その分<b>表が広くなります</b>。</div>
           <div class="help-li"><b>テンキーの上のページ表示</b>で、いまどのページに居るか分かります。<b>ページ名をタップ</b>するとそのページへ移動できます（数字の並びは「枠線・書式・数字・記号・関数」、右端の<b>▲登録</b>で登録ページの並びへ、<b>▼数字</b>で戻る）。設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーのページ表示</b>で消すこともできます。</div>
           <div class="help-li"><b>フリックでも切り替わります</b>（数字ページが土台。数字ページは<b>どこからでもフリック開始OK</b>）：</div>
           <table class="help-tbl">
@@ -9193,11 +9210,13 @@ window.addEventListener('resize', updateNumpadEdgeBtn);   // 画面の向きが�
    位置は data-key 単位で入れ替え、localStorage に保存する。       */
 /* 数字ページ（page1）の既定配置 */
 const KEYPAD_DEFAULT_POS={
-  mode:{r:1,c:1}, ce:{r:1,c:2}, sign:{r:1,c:3}, mul:{r:1,c:4}, bs:{r:1,c:5},
-  n7:{r:2,c:1}, n8:{r:2,c:2}, n9:{r:2,c:3}, div:{r:2,c:4}, enter:{r:2,c:5,h:2},
-  n4:{r:3,c:1}, n5:{r:3,c:2}, n6:{r:3,c:3}, plus:{r:3,c:4},
-  n1:{r:4,c:1}, n2:{r:4,c:2}, n3:{r:4,c:3}, minus:{r:4,c:4}, sum:{r:4,c:5},
-  n0:{r:5,c:1,w:2}, dot:{r:5,c:3}, fx:{r:5,c:4}, text:{r:5,c:5}
+  /* r1＝道具の段（u:1 の印が付いたキーは道具の段どうしでだけ入れ替えできる） */
+  u_reset:{r:1,c:1,u:1}, u_undo:{r:1,c:2,u:1}, u_redo:{r:1,c:3,u:1}, u_save:{r:1,c:4,u:1}, u_list:{r:1,c:5,u:1},
+  mode:{r:2,c:1}, ce:{r:2,c:2}, sign:{r:2,c:3}, mul:{r:2,c:4}, bs:{r:2,c:5},
+  n7:{r:3,c:1}, n8:{r:3,c:2}, n9:{r:3,c:3}, div:{r:3,c:4}, enter:{r:3,c:5,h:2},
+  n4:{r:4,c:1}, n5:{r:4,c:2}, n6:{r:4,c:3}, plus:{r:4,c:4},
+  n1:{r:5,c:1}, n2:{r:5,c:2}, n3:{r:5,c:3}, minus:{r:5,c:4}, sum:{r:5,c:5},
+  n0:{r:6,c:1,w:2}, dot:{r:6,c:3}, fx:{r:6,c:4}, text:{r:6,c:5}
 };
 /* 関数ページ（page2）の既定配置 */
 const KEYPAD_DEFAULT_POS2={
@@ -9216,13 +9235,17 @@ const KEYPAD_DEFAULT_POS_BD={
 };
 /* 編集対象のページ一覧（各ページが独自の既定配置・保存キー・現在配置を持つ） */
 const KP_PAGES=[
-  {sel:'#numpadPage1', def:KEYPAD_DEFAULT_POS,  skey:'excalc_keypad_pos',  pos:{}},
+  /* v278 で道具の段を足し、既存のキーが1段ずつ下がったので保存キーを変えた。
+     旧キー(excalc_keypad_pos)に自分で並べ替えた配置がある人は、rを+1して引き継ぐ。 */
+  {sel:'#numpadPage1', def:KEYPAD_DEFAULT_POS,  skey:'excalc_keypad_pos_v2', pos:{}, oldKey:'excalc_keypad_pos', shiftRow:1},
   {sel:'#numpadPage2', def:KEYPAD_DEFAULT_POS2, skey:'excalc_keypad_pos2', pos:{}},
   {sel:'#numpadPageBd', def:KEYPAD_DEFAULT_POS_BD, skey:'excalc_keypad_posbd', pos:{}}
 ];
 let keypadEditing=false;
 let kpDrag=null;
-function kpFootprint(def,key){ const d=def[key]||{}; return (d.w||1)+'x'+(d.h||1); }
+/* 入れ替えできる相手の判定。大きさが同じでも、道具の段（低い段）のキーと
+   入力キーは行き来させない（高さが違って不格好になるため）。 */
+function kpFootprint(def,key){ const d=def[key]||{}; return (d.w||1)+'x'+(d.h||1)+(d.u?'u':''); }
 function kpIsFixed(def,key){ const d=def[key]||{}; return (d.w||1)>1 || (d.h||1)>1; }   // 大きいボタン(Enter・0)は固定
 function kpPageOfEl(el){ return KP_PAGES.find(p=>el.closest && el.closest(p.sel)); }
 function loadKeypadPos(){
@@ -9230,7 +9253,19 @@ function loadKeypadPos(){
     pg.pos={};
     for(const k in pg.def) pg.pos[k]={r:pg.def[k].r, c:pg.def[k].c};
     try{
-      const saved=JSON.parse(localStorage.getItem(pg.skey)||'null');
+      let saved=JSON.parse(localStorage.getItem(pg.skey)||'null');
+      // 旧バージョンの配置しか無ければ、段をずらして引き継ぐ（1回だけ）
+      if(!saved && pg.oldKey){
+        const old=JSON.parse(localStorage.getItem(pg.oldKey)||'null');
+        if(old&&typeof old==='object'){
+          saved={};
+          for(const k in old){
+            if(old[k]&&typeof old[k].r==='number'&&typeof old[k].c==='number')
+              saved[k]={r:old[k].r+(pg.shiftRow||0), c:old[k].c};
+          }
+          try{ localStorage.setItem(pg.skey, JSON.stringify(saved)); }catch(_){}
+        }
+      }
       if(saved&&typeof saved==='object'){
         for(const k in pg.pos){
           if(saved[k]&&typeof saved[k].r==='number'&&typeof saved[k].c==='number') pg.pos[k]={r:saved[k].r, c:saved[k].c};
@@ -12206,7 +12241,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v277';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v278';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -12259,6 +12294,7 @@ function resetAll() {
   document.getElementById('formulaInput').value=data[selR][selC];
   persistModes();
   if(typeof saveSheets==='function') saveSheets();   // 今のシートの内容だけ保存に反映（記録との紐付けは保つ）
+  toast('表の中身を消しました（戻るで元に戻せます）');
 }
 /* シートリセット：ほかのシートを全部消して1枚に戻す（今開いているシートの内容・名前は残す）。
    表の中身は消さない（中身を消したいときは通常の「リセット」を使う）。 */
