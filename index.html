@@ -1039,7 +1039,23 @@ body.numpad-off .numpad-pagebar { display: none; }
 }
 /* 数字キーの左3列を広げて枠を大きくする（設定で段階変更。演算子側の2列は1fr） */
 #numpadPage1 { grid-template-columns: var(--num-cols, 1fr 1fr 1fr 1fr 1fr); }
-.btn.bd-on  { box-shadow: inset 0 0 0 2px var(--armed); }   /* 枠線ページ：選択中の線種・色 */
+/* 書式・枠線ページのグループ分け。
+   青＝枠線（線の種類・線の色・引く場所・囲む）／緑＝文字（装飾・寄せ・大小）。
+   消す2つは赤、🎨詳細は茶のまま（他ページの fx= と同じ「開く」の色）。 */
+.btn.g-bd { background: var(--info-dark); --bd-gap: var(--info-dark); }
+.btn.g-bd:hover { background: var(--info); }
+.btn.g-kf { background: var(--acc-dark); }
+.btn.g-kf:hover { background: var(--acc); }
+/* 線の色ボタン：下辺に実際の線の色を出す（その色の線が引けることを見た目で示す） */
+.btn.g-bd.bd-color { border-bottom: 4px solid currentColor; padding-bottom: 0; }
+/* 「黒」は文字色を指定していないので下線が白になってしまう。線だけ黒くする */
+.btn.g-bd[data-key="bd_black"] { border-bottom-color: #101010; }
+/* 青と緑の境目。1か所だけ行の途中で変わるので、階段状に細い線を入れる */
+.btn.g-sep-t { box-shadow: inset 0  3px 0 rgba(255,255,255,.38); }
+.btn.g-sep-l { box-shadow: inset  3px 0 0 rgba(255,255,255,.38); }
+.btn.g-sep-b { box-shadow: inset 0 -3px 0 rgba(255,255,255,.38); }
+.btn.g-sep-t.g-sep-l { box-shadow: inset 0 3px 0 rgba(255,255,255,.38), inset 3px 0 0 rgba(255,255,255,.38); }
+.btn.bd-on  { box-shadow: inset 0 0 0 2px var(--armed); }   /* 選択中の線種・線の色（区切り線より優先） */
 /* 枠線の場所ボタン：Excelの罫線アイコン風（点線のセル格子＋引く辺を実線で表示） */
 .bd-ico { width: 1.7em; height: 1.7em; display: block; margin: 0 auto; pointer-events: none; }
 .bd-ico .d { stroke: currentColor; stroke-opacity: 0.35; stroke-width: 1.4; stroke-dasharray: 2 1.7; fill: none; }
@@ -2451,15 +2467,15 @@ body.dark {
            低い段＝線の種類と枠線消し／2〜3段目＝文字の装飾・寄せ＋文字色・背景色の帯
            4段目＝線の色／5〜6段目＝線を引く場所／残りは文字の大小・書式消去・くわしい設定
          セルの保護はセルの長押しメニューか「🎨詳細」から。 -->
-    <button class="btn bd-type" data-key="bd_thin" onclick="bdSetType('thin',this)" title="細い線"><span style="display:inline-block;width:70%;border-bottom:1px solid #fff"></span></button>
-    <button class="btn bd-type bd-on" data-key="bd_normal" onclick="bdSetType('normal',this)" title="ふつうの線"><span style="display:inline-block;width:70%;border-bottom:2px solid #fff"></span></button>
-    <button class="btn bd-type" data-key="bd_thick" onclick="bdSetType('thick',this)" title="太い線"><span style="display:inline-block;width:70%;border-bottom:5px solid #fff"></span></button>
-    <button class="btn bd-type" data-key="bd_double" onclick="bdSetType('double',this)" title="二重線"><span style="display:inline-block;width:70%;border-bottom:6px double #fff"></span></button>
+    <button class="btn bd-type g-bd" data-key="bd_thin" onclick="bdSetType('thin',this)" title="細い線"><span style="display:inline-block;width:70%;border-bottom:1px solid #fff"></span></button>
+    <button class="btn bd-type bd-on g-bd" data-key="bd_normal" onclick="bdSetType('normal',this)" title="ふつうの線"><span style="display:inline-block;width:70%;border-bottom:2px solid #fff"></span></button>
+    <button class="btn bd-type g-bd" data-key="bd_thick" onclick="bdSetType('thick',this)" title="太い線"><span style="display:inline-block;width:70%;border-bottom:5px solid #fff"></span></button>
+    <button class="btn bd-type g-bd" data-key="bd_double" onclick="bdSetType('double',this)" title="二重線"><span style="display:inline-block;width:70%;border-bottom:6px double #fff"></span></button>
     <button class="btn clr" data-key="bd_clear" onclick="bdApply('clear')" title="選択範囲の枠線を消す">🧹消す</button>
-    <button class="btn" data-key="kf_bold" style="font-weight:bold" onclick="kfmtToggle('bold')" title="太字">太字</button>
-    <button class="btn" data-key="kf_italic" style="font-style:italic" onclick="kfmtToggle('italic')" title="斜体">斜体</button>
-    <button class="btn" data-key="kf_under" style="text-decoration:underline" onclick="kfmtToggle('underline')" title="下線">下線</button>
-    <div class="kf-vcol" style="grid-column:4;grid-row:2/span 2" title="文字色（縦にスライドすると他の色が出ます）">
+    <button class="btn g-kf g-sep-t g-sep-l" data-key="kf_bold" style="font-weight:bold" onclick="kfmtToggle('bold')" title="太字">太字</button>
+    <button class="btn g-kf g-sep-t" data-key="kf_italic" style="font-style:italic" onclick="kfmtToggle('italic')" title="斜体">斜体</button>
+    <button class="btn g-kf g-sep-t" data-key="kf_under" style="text-decoration:underline" onclick="kfmtToggle('underline')" title="下線">下線</button>
+    <div class="kf-vcol" style="grid-column:4;grid-row:5/span 2" title="文字色（縦にスライドすると他の色が出ます）">
       <div class="kf-vcol-in">
       <button class="btn kf-none" onclick="kfmtColor('color','')" title="文字色を標準に戻す">標準</button>
       <button class="btn" style="color:#ff8a80" onclick="kfmtColor('color','#e53935')" title="文字を赤に">あ</button>
@@ -2483,7 +2499,7 @@ body.dark {
       <button class="btn" style="color:#b0b0b0" onclick="kfmtColor('color','#808080')" title="文字を灰色に">あ</button>
       </div>
     </div>
-    <div class="kf-vcol" style="grid-column:5;grid-row:2/span 2" title="背景色（縦にスライドすると他の色が出ます）">
+    <div class="kf-vcol" style="grid-column:5;grid-row:5/span 2" title="背景色（縦にスライドすると他の色が出ます）">
       <div class="kf-vcol-in">
       <button class="btn kf-none" onclick="kfmtColor('bg','')" title="背景色をなしに戻す">なし</button>
       <button class="btn" style="background:#fff59d;color:#333" onclick="kfmtColor('bg','#fff59d')" title="背景を黄色に">黄</button>
@@ -2507,23 +2523,23 @@ body.dark {
       <button class="btn" style="background:#212121;color:#fff" onclick="kfmtColor('bg','#212121')" title="背景を黒に">黒</button>
       </div>
     </div>
-    <button class="btn op" data-key="kf_left" onclick="kfmtAlign('left')" title="左寄せ">⬅寄</button>
-    <button class="btn op" data-key="kf_center" onclick="kfmtAlign('center')" title="中央寄せ">中央</button>
-    <button class="btn op" data-key="kf_right" onclick="kfmtAlign('right')" title="右寄せ">寄➡</button>
-    <button class="btn bd-color bd-on" data-key="bd_black" onclick="bdSetColor('#000000',this)" title="黒い線">黒</button>
-    <button class="btn bd-color" data-key="bd_red" style="color:#ff8a80" onclick="bdSetColor('#e53935',this)" title="赤い線">赤</button>
-    <button class="btn bd-color" data-key="bd_blue" style="color:#82b1ff" onclick="bdSetColor('#1e88e5',this)" title="青い線">青</button>
-    <button class="btn bd-color" data-key="bd_green" style="color:#b9f6ca" onclick="bdSetColor('#2e7d32',this)" title="緑の線">緑</button>
-    <button class="btn bd-color" data-key="bd_purple" style="color:#ea80fc" onclick="bdSetColor('#8e24aa',this)" title="紫の線">紫</button>
-    <button class="btn op bd-place" data-key="bd_top" onclick="bdApply('top')" title="上罫線（範囲の上側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 4H20"/><path class="s2" d="M4 4H20"/></svg></button>
-    <button class="btn op bd-place" data-key="bd_bottom" onclick="bdApply('bottom')" title="下罫線（範囲の下側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 20H20"/><path class="s2" d="M4 20H20"/></svg></button>
-    <button class="btn op bd-place" data-key="bd_left" onclick="bdApply('left')" title="左罫線（範囲の左側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 4V20"/><path class="s2" d="M4 4V20"/></svg></button>
-    <button class="btn op bd-place" data-key="bd_right" onclick="bdApply('right')" title="右罫線（範囲の右側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M20 4V20"/><path class="s2" d="M20 4V20"/></svg></button>
-    <button class="btn op bd-place" data-key="bd_grid" onclick="bdApply('grid')" title="格子（全セルの全部の辺に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="s" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s2" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/></svg></button>
-    <button class="btn fx bd-place bd-wide" data-key="bd_box" onclick="bdApply('box')" title="外枠（選択範囲のまわりを囲む）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 12H20M12 4V20"/><path class="s" d="M4 4H20M4 20H20M4 4V20M20 4V20"/><path class="s2" d="M4 4H20M4 20H20M4 4V20M20 4V20"/></svg>囲む</button>
-    <button class="btn op" data-key="kf_smaller" onclick="kfmtSize(-1)" title="文字を小さく">A−</button>
-    <button class="btn op" data-key="kf_bigger" onclick="kfmtSize(1)" title="文字を大きく">A＋</button>
-    <button class="btn clr" data-key="kf_clear" onclick="kfmtClear()" title="このセルの書式をすべて消す">🧹書式消</button>
+    <button class="btn op g-kf" data-key="kf_left" onclick="kfmtAlign('left')" title="左寄せ">⬅寄</button>
+    <button class="btn op g-kf" data-key="kf_center" onclick="kfmtAlign('center')" title="中央寄せ">中央</button>
+    <button class="btn op g-kf" data-key="kf_right" onclick="kfmtAlign('right')" title="右寄せ">寄➡</button>
+    <button class="btn bd-color bd-on g-bd" data-key="bd_black" onclick="bdSetColor('#000000',this)" title="黒い線">黒</button>
+    <button class="btn bd-color g-bd" data-key="bd_red" style="color:#ff8a80" onclick="bdSetColor('#e53935',this)" title="赤い線">赤</button>
+    <button class="btn bd-color g-bd" data-key="bd_blue" style="color:#bbdefb" onclick="bdSetColor('#1e88e5',this)" title="青い線">青</button>
+    <button class="btn bd-color g-bd" data-key="bd_green" style="color:#b9f6ca" onclick="bdSetColor('#2e7d32',this)" title="緑の線">緑</button>
+    <button class="btn bd-color g-bd" data-key="bd_purple" style="color:#ea80fc" onclick="bdSetColor('#8e24aa',this)" title="紫の線">紫</button>
+    <button class="btn op bd-place g-bd" data-key="bd_top" onclick="bdApply('top')" title="上罫線（範囲の上側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 4H20"/><path class="s2" d="M4 4H20"/></svg></button>
+    <button class="btn op bd-place g-bd" data-key="bd_bottom" onclick="bdApply('bottom')" title="下罫線（範囲の下側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 20H20"/><path class="s2" d="M4 20H20"/></svg></button>
+    <button class="btn op bd-place g-bd" data-key="bd_left" onclick="bdApply('left')" title="左罫線（範囲の左側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 4V20"/><path class="s2" d="M4 4V20"/></svg></button>
+    <button class="btn op bd-place g-bd" data-key="bd_right" onclick="bdApply('right')" title="右罫線（範囲の右側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M20 4V20"/><path class="s2" d="M20 4V20"/></svg></button>
+    <button class="btn op bd-place g-bd" data-key="bd_grid" onclick="bdApply('grid')" title="格子（全セルの全部の辺に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="s" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s2" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/></svg></button>
+    <button class="btn fx bd-place bd-wide g-bd g-sep-b" data-key="bd_box" onclick="bdApply('box')" title="外枠（選択範囲のまわりを囲む）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 12H20M12 4V20"/><path class="s" d="M4 4H20M4 20H20M4 4V20M20 4V20"/><path class="s2" d="M4 4H20M4 20H20M4 4V20M20 4V20"/></svg>囲む</button>
+    <button class="btn op g-kf" data-key="kf_smaller" onclick="kfmtSize(-1)" title="文字を小さく">A−</button>
+    <button class="btn op g-kf" data-key="kf_bigger" onclick="kfmtSize(1)" title="文字を大きく">A＋</button>
+    <button class="btn clr g-sep-t" data-key="kf_clear" onclick="kfmtClear()" title="このセルの書式をすべて消す">🧹書式消</button>
     <button class="btn fx" data-key="kf_more" onclick="openCellFmt()" title="小数点・結合・保護などのくわしい書式設定を開く">🎨詳細</button>
     </div>
     <div class="numpad-grid" id="numpadPage1">
@@ -3358,6 +3374,7 @@ body.dark {
           <div class="help-li"><b>フリックでも切り替わります</b>（数字ページが土台。数字ページは<b>どこからでもフリック開始OK</b>）：</div>
           <table class="help-tbl">
             <tr><td><span class="help-key">右へ →</span></td><td><b>書式・枠線ページ</b>（6段×5列の1ページにまとめました）<br>
+              <b>色で分かれています</b>：<b>青＝枠線</b>（上3段と「囲む」）／<b>緑＝文字</b>（太字・寄せ・大小）／<b>赤＝消す</b>／<b>茶＝くわしい設定</b>。境目には区切り線が入ります<br>
               ・<b>いちばん上の低い段</b>＝線の種類（細・普通・太・二重）と<b>🧹線消</b><br>
               ・<b>太字・斜体・下線／寄せ3種</b>、右2列は<b>文字色／背景色</b>で<b>縦にスライド</b>すると各20色（原色含む）。先頭の<b>標準／なし</b>で色を戻せます<br>
               ・<b>線の色</b>（黒赤青緑紫）を選び、<b>上・下・左・右・格子・囲む</b>で枠線（PDFにも反映）<br>
@@ -9241,12 +9258,14 @@ const KEYPAD_DEFAULT_POS2={
 /* 書式・枠線ページ（数字から右フリック）の既定配置。6段×5列。
    r1＝低い段（線の種類・枠線消し）。r2-r3 の c4,c5 は色の帯が占める。 */
 const KEYPAD_DEFAULT_POS_FMT={
+  /* 上3段＋r4c1 が枠線（青）、r4c2 から下が文字（緑）。r5-r6 の c4,c5 は色の帯。 */
   bd_thin:{r:1,c:1,u:1}, bd_normal:{r:1,c:2,u:1}, bd_thick:{r:1,c:3,u:1}, bd_double:{r:1,c:4,u:1}, bd_clear:{r:1,c:5,u:1},
-  kf_bold:{r:2,c:1}, kf_italic:{r:2,c:2}, kf_under:{r:2,c:3},
-  kf_left:{r:3,c:1}, kf_center:{r:3,c:2}, kf_right:{r:3,c:3},
-  bd_black:{r:4,c:1}, bd_red:{r:4,c:2}, bd_blue:{r:4,c:3}, bd_green:{r:4,c:4}, bd_purple:{r:4,c:5},
-  bd_top:{r:5,c:1}, bd_bottom:{r:5,c:2}, bd_left:{r:5,c:3}, bd_right:{r:5,c:4}, bd_grid:{r:5,c:5},
-  bd_box:{r:6,c:1}, kf_smaller:{r:6,c:2}, kf_bigger:{r:6,c:3}, kf_clear:{r:6,c:4}, kf_more:{r:6,c:5}
+  bd_black:{r:2,c:1}, bd_red:{r:2,c:2}, bd_blue:{r:2,c:3}, bd_green:{r:2,c:4}, bd_purple:{r:2,c:5},
+  bd_top:{r:3,c:1}, bd_bottom:{r:3,c:2}, bd_left:{r:3,c:3}, bd_right:{r:3,c:4}, bd_grid:{r:3,c:5},
+  bd_box:{r:4,c:1},
+  kf_bold:{r:4,c:2}, kf_italic:{r:4,c:3}, kf_under:{r:4,c:4}, kf_clear:{r:4,c:5},
+  kf_left:{r:5,c:1}, kf_center:{r:5,c:2}, kf_right:{r:5,c:3},
+  kf_smaller:{r:6,c:1}, kf_bigger:{r:6,c:2}, kf_more:{r:6,c:3}
 };
 /* 編集対象のページ一覧（各ページが独自の既定配置・保存キー・現在配置を持つ） */
 const KP_PAGES=[
@@ -9254,7 +9273,7 @@ const KP_PAGES=[
      旧キー(excalc_keypad_pos)に自分で並べ替えた配置がある人は、rを+1して引き継ぐ。 */
   {sel:'#numpadPage1', def:KEYPAD_DEFAULT_POS,  skey:'excalc_keypad_pos_v2', pos:{}, oldKey:'excalc_keypad_pos', shiftRow:1},
   {sel:'#numpadPage2', def:KEYPAD_DEFAULT_POS2, skey:'excalc_keypad_pos2', pos:{}},
-  {sel:'#numpadPageFmt', def:KEYPAD_DEFAULT_POS_FMT, skey:'excalc_keypad_posfmt', pos:{}}
+  {sel:'#numpadPageFmt', def:KEYPAD_DEFAULT_POS_FMT, skey:'excalc_keypad_posfmt2', pos:{}}
 ];
 let keypadEditing=false;
 let kpDrag=null;
@@ -12256,7 +12275,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v281';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v282';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
