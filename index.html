@@ -1040,25 +1040,40 @@ body.numpad-off .numpad-pagebar { display: none; }
 /* 数字キーの左3列を広げて枠を大きくする（設定で段階変更。演算子側の2列は1fr） */
 #numpadPage1 { grid-template-columns: var(--num-cols, 1fr 1fr 1fr 1fr 1fr); }
 /* 書式・枠線ページのグループ分け。
-   青＝枠線（線の種類・線の色・引く場所・囲む）／緑＝文字（装飾・寄せ・大小）。
-   消す2つは赤、🎨詳細は茶のまま（他ページの fx= と同じ「開く」の色）。 */
-.btn.g-bd { background: var(--info-dark); --bd-gap: var(--info-dark); }
-.btn.g-bd:hover { background: var(--info); }
-.btn.g-kf { background: var(--acc-dark); }
-.btn.g-kf:hover { background: var(--acc); }
-/* 線の色ボタン：下辺に実際の線の色を出す（その色の線が引けることを見た目で示す） */
-.btn.g-bd.bd-color { border-bottom: 4px solid currentColor; padding-bottom: 0; }
-/* 「黒」は文字色を指定していないので下線が白になってしまう。線だけ黒くする */
-.btn.g-bd[data-key="bd_black"] { border-bottom-color: #101010; }
-/* 青と緑の境目。1か所だけ行の途中で変わるので、階段状に細い線を入れる */
-.btn.g-sep-t { box-shadow: inset 0  3px 0 rgba(255,255,255,.38); }
-.btn.g-sep-l { box-shadow: inset  3px 0 0 rgba(255,255,255,.38); }
-.btn.g-sep-b { box-shadow: inset 0 -3px 0 rgba(255,255,255,.38); }
-.btn.g-sep-t.g-sep-l { box-shadow: inset 0 3px 0 rgba(255,255,255,.38), inset 3px 0 0 rgba(255,255,255,.38); }
+   濃い色のベタ塗りを26個ならべると画面がうるさくなるので、地色は彩度を落とした
+   2色にとどめ、はっきり目立たせるのは「いま選ばれているもの（黄色いふち）」だけにする。
+   青みの帯＝枠線（線の種類・線の色・引く場所・囲む）／緑みの帯＝文字（装飾・寄せ・大小）。 */
+.btn.g-bd { background: #2b4a66; --bd-gap: #2b4a66; }
+.btn.g-bd:hover { background: #365d80; }
+.btn.g-kf { background: #31493d; --bd-gap: #31493d; }
+.btn.g-kf:hover { background: #3e5a4c; }
+/* 罫線アイコンのすきま色。.btn.op / .btn.fx が後ろで --bd-gap を上書きしてしまうので、
+   id を足した強い指定でグループの地色にそろえる（囲む＝fx、場所5つ＝op） */
+#numpadPageFmt .btn.g-bd { --bd-gap: #2b4a66; }
+#numpadPageFmt .btn.g-kf { --bd-gap: #31493d; }
+/* このページはラベルの文字数が1〜4文字とばらばらで、幅に合わせて縮める仕組みだと
+   1文字のボタンだけが極端に大きくなり、大小が入り乱れて散らかって見える。
+   基準を少し下げて、どのボタンもだいたい同じ大きさの文字でそろうようにする。 */
+#numpadPageFmt .btn { font-size: calc(13px * var(--key-scale, 1.3)); }
+/* 線の色ボタン：文字は白のまま（読みやすさ優先）、色は下辺の帯だけで示す。
+   文字にも色を付けると同じことを二重に言うことになり、5個ならぶとうるさい。 */
+.btn.g-bd.bd-color { border-bottom: 5px solid #101010; padding-bottom: 0; }
+.btn.g-bd[data-key="bd_red"]    { border-bottom-color: #e53935; }
+.btn.g-bd[data-key="bd_blue"]   { border-bottom-color: #1e88e5; }
+.btn.g-bd[data-key="bd_green"]  { border-bottom-color: #2e7d32; }
+.btn.g-bd[data-key="bd_purple"] { border-bottom-color: #8e24aa; }
+/* 青と緑の境目。地色を落ち着かせたぶん、区切りの線も細く控えめにする */
+.btn.g-sep-t { box-shadow: inset 0  2px 0 rgba(255,255,255,.26); }
+.btn.g-sep-l { box-shadow: inset  2px 0 0 rgba(255,255,255,.26); }
+.btn.g-sep-b { box-shadow: inset 0 -2px 0 rgba(255,255,255,.26); }
+.btn.g-sep-t.g-sep-l { box-shadow: inset 0 2px 0 rgba(255,255,255,.26), inset 2px 0 0 rgba(255,255,255,.26); }
+/* 消すボタン：赤であることは保ちつつ、まわりと同じだけ彩度を落としてそろえる */
+#numpadPageFmt .btn.clr { background: #6b3a33; }
+#numpadPageFmt .btn.clr:hover { background: #85473e; }
 .btn.bd-on  { box-shadow: inset 0 0 0 2px var(--armed); }   /* 選択中の線種・線の色（区切り線より優先） */
 /* 枠線の場所ボタン：Excelの罫線アイコン風（点線のセル格子＋引く辺を実線で表示） */
 .bd-ico { width: 1.7em; height: 1.7em; display: block; margin: 0 auto; pointer-events: none; }
-.bd-ico .d { stroke: currentColor; stroke-opacity: 0.35; stroke-width: 1.4; stroke-dasharray: 2 1.7; fill: none; }
+.bd-ico .d { stroke: currentColor; stroke-opacity: 0.22; stroke-width: 1.1; stroke-dasharray: 2 2.2; fill: none; }
 /* 実線の太さは、選ばれた線種(#numpadPageFmt data-bd)に追従する（--bd-sw） */
 .bd-ico .s  { stroke: currentColor; stroke-width: var(--bd-sw, 2.4); fill: none; stroke-linecap: square; }
 /* 二重線用の中央スリット（ボタン地色で実線の中央を割って2本に見せる） */
@@ -1089,7 +1104,7 @@ body.numpad-off .numpad-pagebar { display: none; }
   touch-action: pan-y;      /* 縦はネイティブスクロール、横はページ切替へ */
 }
 .kf-vcol-in::-webkit-scrollbar { display: none; }
-.kf-vcol-in .btn { flex: 0 0 calc((100% - 15px)/4); }   /* ちょうど4個分の高さ（gap 5px×3を差引） */
+.kf-vcol-in .btn { flex: 0 0 calc((100% - 10px)/3); }   /* ちょうど3個分の高さ（gap 5px×2を差引） */
 
 /* ── テンキーのボタン配置編集（ドラッグで入れ替え） ── */
 .kp-edit-bar { display: none; }
@@ -2464,14 +2479,16 @@ body.dark {
     <div class="numpad-grid numpad-overlay ov-left" id="numpadPageFmt" data-bd="normal">
     <!-- 書式・枠線ページ（数字ページから右フリックで表示）。選択中のセル（スライドで範囲選択して
          いれば範囲全体）の書式と枠線をここでまとめて変える。6段×5列。
-           低い段＝線の種類と枠線消し／2〜3段目＝文字の装飾・寄せ＋文字色・背景色の帯
-           4段目＝線の色／5〜6段目＝線を引く場所／残りは文字の大小・書式消去・くわしい設定
-         セルの保護はセルの長押しメニューか「🎨詳細」から。 -->
+           上から 低い段＝線の種類／2段目＝線の色／3段目＝線を引く場所
+           4段目＝囲む｜太字・斜体・下線・書式消す（ここが枠線と文字の境目）
+           5段目＝寄せ3つ＋文字色・背景色の帯（帯は5〜6段目の2段ぶん）／6段目＝文字の大小とくわしく
+         地色は 青み＝枠線／緑み＝文字／赤み＝消す の3種類だけ。
+         セルの保護はセルの長押しメニューか「くわしく」から。 -->
     <button class="btn bd-type g-bd" data-key="bd_thin" onclick="bdSetType('thin',this)" title="細い線"><span style="display:inline-block;width:70%;border-bottom:1px solid #fff"></span></button>
     <button class="btn bd-type bd-on g-bd" data-key="bd_normal" onclick="bdSetType('normal',this)" title="ふつうの線"><span style="display:inline-block;width:70%;border-bottom:2px solid #fff"></span></button>
     <button class="btn bd-type g-bd" data-key="bd_thick" onclick="bdSetType('thick',this)" title="太い線"><span style="display:inline-block;width:70%;border-bottom:5px solid #fff"></span></button>
     <button class="btn bd-type g-bd" data-key="bd_double" onclick="bdSetType('double',this)" title="二重線"><span style="display:inline-block;width:70%;border-bottom:6px double #fff"></span></button>
-    <button class="btn clr" data-key="bd_clear" onclick="bdApply('clear')" title="選択範囲の枠線を消す">🧹消す</button>
+    <button class="btn clr" data-key="bd_clear" onclick="bdApply('clear')" title="選択範囲の枠線を消す">線を消す</button>
     <button class="btn g-kf g-sep-t g-sep-l" data-key="kf_bold" style="font-weight:bold" onclick="kfmtToggle('bold')" title="太字">太字</button>
     <button class="btn g-kf g-sep-t" data-key="kf_italic" style="font-style:italic" onclick="kfmtToggle('italic')" title="斜体">斜体</button>
     <button class="btn g-kf g-sep-t" data-key="kf_under" style="text-decoration:underline" onclick="kfmtToggle('underline')" title="下線">下線</button>
@@ -2527,10 +2544,10 @@ body.dark {
     <button class="btn op g-kf" data-key="kf_center" onclick="kfmtAlign('center')" title="中央寄せ">中央</button>
     <button class="btn op g-kf" data-key="kf_right" onclick="kfmtAlign('right')" title="右寄せ">寄➡</button>
     <button class="btn bd-color bd-on g-bd" data-key="bd_black" onclick="bdSetColor('#000000',this)" title="黒い線">黒</button>
-    <button class="btn bd-color g-bd" data-key="bd_red" style="color:#ff8a80" onclick="bdSetColor('#e53935',this)" title="赤い線">赤</button>
-    <button class="btn bd-color g-bd" data-key="bd_blue" style="color:#bbdefb" onclick="bdSetColor('#1e88e5',this)" title="青い線">青</button>
-    <button class="btn bd-color g-bd" data-key="bd_green" style="color:#b9f6ca" onclick="bdSetColor('#2e7d32',this)" title="緑の線">緑</button>
-    <button class="btn bd-color g-bd" data-key="bd_purple" style="color:#ea80fc" onclick="bdSetColor('#8e24aa',this)" title="紫の線">紫</button>
+    <button class="btn bd-color g-bd" data-key="bd_red" onclick="bdSetColor('#e53935',this)" title="赤い線">赤</button>
+    <button class="btn bd-color g-bd" data-key="bd_blue" onclick="bdSetColor('#1e88e5',this)" title="青い線">青</button>
+    <button class="btn bd-color g-bd" data-key="bd_green" onclick="bdSetColor('#2e7d32',this)" title="緑の線">緑</button>
+    <button class="btn bd-color g-bd" data-key="bd_purple" onclick="bdSetColor('#8e24aa',this)" title="紫の線">紫</button>
     <button class="btn op bd-place g-bd" data-key="bd_top" onclick="bdApply('top')" title="上罫線（範囲の上側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 4H20"/><path class="s2" d="M4 4H20"/></svg></button>
     <button class="btn op bd-place g-bd" data-key="bd_bottom" onclick="bdApply('bottom')" title="下罫線（範囲の下側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 20H20"/><path class="s2" d="M4 20H20"/></svg></button>
     <button class="btn op bd-place g-bd" data-key="bd_left" onclick="bdApply('left')" title="左罫線（範囲の左側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 4V20"/><path class="s2" d="M4 4V20"/></svg></button>
@@ -2539,8 +2556,8 @@ body.dark {
     <button class="btn fx bd-place bd-wide g-bd g-sep-b" data-key="bd_box" onclick="bdApply('box')" title="外枠（選択範囲のまわりを囲む）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 12H20M12 4V20"/><path class="s" d="M4 4H20M4 20H20M4 4V20M20 4V20"/><path class="s2" d="M4 4H20M4 20H20M4 4V20M20 4V20"/></svg>囲む</button>
     <button class="btn op g-kf" data-key="kf_smaller" onclick="kfmtSize(-1)" title="文字を小さく">A−</button>
     <button class="btn op g-kf" data-key="kf_bigger" onclick="kfmtSize(1)" title="文字を大きく">A＋</button>
-    <button class="btn clr g-sep-t" data-key="kf_clear" onclick="kfmtClear()" title="このセルの書式をすべて消す">🧹書式消</button>
-    <button class="btn fx" data-key="kf_more" onclick="openCellFmt()" title="小数点・結合・保護などのくわしい書式設定を開く">🎨詳細</button>
+    <button class="btn clr g-sep-t" data-key="kf_clear" onclick="kfmtClear()" title="このセルの書式をすべて消す">書式消す</button>
+    <button class="btn fx g-kf" data-key="kf_more" onclick="openCellFmt()" title="小数点・結合・保護などのくわしい書式設定を開く">くわしく</button>
     </div>
     <div class="numpad-grid" id="numpadPage1">
     <!-- 既定の並び。各ボタンの位置は data-key を使って自由に入れ替えできる（設定→ボタン配置を編集） -->
@@ -3374,12 +3391,12 @@ body.dark {
           <div class="help-li"><b>フリックでも切り替わります</b>（数字ページが土台。数字ページは<b>どこからでもフリック開始OK</b>）：</div>
           <table class="help-tbl">
             <tr><td><span class="help-key">右へ →</span></td><td><b>書式・枠線ページ</b>（6段×5列の1ページにまとめました）<br>
-              <b>色で分かれています</b>：<b>青＝枠線</b>（上3段と「囲む」）／<b>緑＝文字</b>（太字・寄せ・大小）／<b>赤＝消す</b>／<b>茶＝くわしい設定</b>。境目には区切り線が入ります<br>
-              ・<b>いちばん上の低い段</b>＝線の種類（細・普通・太・二重）と<b>🧹線消</b><br>
+              <b>地色で分かれています</b>：<b>青み＝枠線</b>（上3段と「囲む」）／<b>緑み＝文字</b>（太字・寄せ・大小・くわしく）／<b>赤み＝消す</b>の3種類だけ。境目には細い区切り線が入ります。はっきり目立つ<b>黄色いふち</b>は「いま選ばれている線の種類・線の色」です<br>
+              ・<b>いちばん上の低い段</b>＝線の種類（細・普通・太・二重）と<b>線を消す</b><br>
               ・<b>太字・斜体・下線／寄せ3種</b>、右2列は<b>文字色／背景色</b>で<b>縦にスライド</b>すると各20色（原色含む）。先頭の<b>標準／なし</b>で色を戻せます<br>
-              ・<b>線の色</b>（黒赤青緑紫）を選び、<b>上・下・左・右・格子・囲む</b>で枠線（PDFにも反映）<br>
-              ・<b>A−／A＋</b>で文字の大小、<b>🧹書式消</b>で書式を消去、<b>🎨詳細</b>で小数点・結合・保護などのくわしい設定<br>
-              ・<b>セルの保護</b>は<b>セルを長押し→🔒保護</b>か、この<b>🎨詳細</b>から</td></tr>
+              ・<b>線の色</b>（黒赤青緑紫。ボタンの<b>下辺の帯</b>がその色です）を選び、<b>上・下・左・右・格子・囲む</b>で枠線（PDFにも反映）<br>
+              ・<b>A−／A＋</b>で文字の大小、<b>書式消す</b>で書式を消去、<b>くわしく</b>で小数点・結合・保護などのくわしい設定<br>
+              ・<b>セルの保護</b>は<b>セルを長押し→🔒保護</b>か、この<b>くわしく</b>から</td></tr>
             <tr><td><span class="help-key">← 左へ</span></td><td><b>関数・記号ページ</b>：( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 を数式に挿入</td></tr>
             <tr><td><span class="help-key">左→左</span></td><td><b>関数電卓ページ</b>：SIN・COS・TAN・LOG・LN・EXP・π・e・n!・x²・^・1/(・MOD( を挿入。<b>DEG/RAD</b>で角度単位を切替</td></tr>
             <tr><td><span class="help-key">↑ 上へ</span></td><td><b>登録ページ</b>：紫ボタンを長押しで登録（下記）</td></tr>
@@ -12275,7 +12292,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v282';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v283';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
