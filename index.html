@@ -1014,8 +1014,14 @@ body.numpad-off .numpad-pagebar { display: none; }
 .btn.clr:hover { background: var(--danger); }
 .btn.enter  { background: #1a5276; grid-row: span 2; font-size: calc(22px * var(--key-scale, 1.3));
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
-/* Enterの下に、確定後に進む向き（↓下／→右）を表示。長押しで切替 */
-.btn.enter::after { content: var(--enter-arrow, "⇩"); font-size: 1em; line-height: 1; opacity: 0.75; font-weight: normal; }
+/* Enterの下に、確定後に進む向き（下／右）を表示。長押しで切替。
+   文字の矢印（⇩⇨）は後ろの線（軸）が長かったので、線を短くした矢印を描いて使う。
+   大きさは 1em なので、キーの大きさ設定にも横向きにもそのまま追従する。 */
+.btn.enter::after {
+  content: ''; display: block; width: 1em; height: 1em; flex: none;
+  background: var(--enter-arrow, url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Cpath d=%22M9.5 4.2H14.5V12H19L12 20.4 5 12H9.5Z%22 fill=%22none%22 stroke=%22%23fff%22 stroke-width=%221.7%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E")) center / contain no-repeat;
+  opacity: 0.75;
+}
 .btn.enter:hover { background: #1f618d; }
 .btn.span2  { grid-column: span 2; }
 /* 道具の段（いちばん上）。入力キーより低くして、表の取り分をなるべく減らさない。
@@ -10250,9 +10256,13 @@ function setEnterDir(d){
    構造化モードは modeAdvance() が優先されるため設定に関わらず向きが決まる
    （単位水量＝下、それ以外の構造化モード＝右へ進んで行末で次行へ）。 */
 function updateEnterArrow(){
+  // 矢印は関数の中で作る。外に const で置くと、初期化中に buildSheet() から
+  // 呼ばれたときにまだ評価されておらず参照エラーになる（TDZ）ため。
+  const ENTER_ARROW_DOWN  = 'url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Cpath d=%22M9.5 4.2H14.5V12H19L12 20.4 5 12H9.5Z%22 fill=%22none%22 stroke=%22%23fff%22 stroke-width=%221.7%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E")';
+  const ENTER_ARROW_RIGHT = 'url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Cpath d=%22M4.2 14.5V9.5H12V5L20.4 12 12 19V14.5Z%22 fill=%22none%22 stroke=%22%23fff%22 stroke-width=%221.7%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E")';
   let dir=enterMoveDir;
   if(isStructMode()) dir = isFormMode() ? 'down' : 'right';
-  document.body.style.setProperty('--enter-arrow', dir==='right' ? '"⇨"' : '"⇩"');
+  document.body.style.setProperty('--enter-arrow', dir==='right' ? ENTER_ARROW_RIGHT : ENTER_ARROW_DOWN);
 }
 /* Enter確定後に次のセルへ移動。既定は下、設定で右にできる。
    下：最終行なら（通常・簡易モードで最大未満のとき）行を追加してそこへ。
@@ -12292,7 +12302,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v284';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v285';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
