@@ -2568,12 +2568,13 @@ body.dark {
     <div class="numpad-grid" id="numpadPage1">
     <!-- 既定の並び。各ボタンの位置は data-key を使って自由に入れ替えできる（設定→ボタン配置を編集） -->
     <!-- いちばん上の「道具の段」。入力用のキーより低く、色も分けている。
+         進む・戻る・リセット・▦通常（通常モードへ）・電卓（電卓モードへ）の5つ。
          5つとも長押しで好きな機能に変えられる（設定・機能／表の操作 など）。 -->
-    <button class="btn util" data-key="u_reset" onclick="resetAll()" title="表の中身を消す（戻るで元に戻せます）／長押しで別の機能に変更">リセット</button>
-    <button class="btn util" data-key="u_undo"  onclick="undoLast()" title="直前の入力を元に戻す／長押しで別の機能に変更">戻る</button>
     <button class="btn util" data-key="u_redo"  onclick="redoLast()" title="元に戻した入力をやり直す／長押しで別の機能に変更">進む</button>
-    <button class="btn util" data-key="u_save"  onclick="saveData()" title="いまの表を記録に保存／長押しで別の機能に変更">保存</button>
-    <button class="btn util" data-key="u_list"  onclick="showSaveList()" title="保存した記録の一覧を開く／長押しで別の機能に変更">リスト</button>
+    <button class="btn util" data-key="u_undo"  onclick="undoLast()" title="直前の入力を元に戻す／長押しで別の機能に変更">戻る</button>
+    <button class="btn util" data-key="u_reset" onclick="resetAll()" title="表の中身を消す（戻るで元に戻せます）／長押しで別の機能に変更">リセット</button>
+    <button class="btn util" data-key="u_normal" onclick="switchMode('normal')" title="通常モード（ふつうの表）に戻す／長押しで別の機能に変更">▦通常</button>
+    <button class="btn util" data-key="u_dentaku" onclick="switchMode('dentaku')" title="電卓モードに切り替える／長押しで別の機能に変更">電卓</button>
     <button class="btn clr" data-key="mode" id="shoppingBtn" onclick="onModeBtnClick()">モード</button>
     <button class="btn clr" data-key="ce"   onclick="ce()">CE</button>
     <button class="btn op"  data-key="bs"   onclick="bs()">⌫</button>
@@ -3392,7 +3393,7 @@ body.dark {
             <tr><td><span class="help-tag">文字</span></td><td>文字（テキスト）を入力</td></tr>
             <tr><td><span class="help-tag">モード</span></td><td>計算モードを切替</td></tr>
           </table>
-          <div class="help-li"><b>いちばん上の「道具の段」</b>（リセット・戻る・進む・保存・リスト）は、入力用のキーより低く色の違う段です。<b>どれも長押しで好きな機能に変えられます</b>（設定・機能／表の操作など）。同じ働きのボタンは上のバーにもあるので、テンキー側で足りるなら設定→<b>🎨見た目→くわしい設定</b>の「上のバーのボタン」で上のバーから消すと、その分<b>表が広くなります</b>。</div>
+          <div class="help-li"><b>いちばん上の「道具の段」</b>（進む・戻る・リセット・▦通常・電卓）は、入力用のキーより低く色の違う段です。<b>▦通常</b>と<b>電卓</b>はモードの行き来に使います（表に戻る／電卓を出す）。<b>どれも長押しで好きな機能に変えられます</b>（設定・機能／表の操作など）。進む・戻る・リセットは上のバーにもあるので、テンキー側で足りるなら設定→<b>🎨見た目→くわしい設定</b>の「上のバーのボタン」で上のバーから消すと、その分<b>表が広くなります</b>。</div>
           <div class="help-li"><b>テンキーの上のページ表示</b>で、いまどのページに居るか分かります。<b>ページ名をタップ</b>するとそのページへ移動できます（数字の並びは「枠線・書式・数字・記号・関数」、右端の<b>▲登録</b>で登録ページの並びへ、<b>▼数字</b>で戻る）。設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーのページ表示</b>で消すこともできます。</div>
           <div class="help-li"><b>フリックでも切り替わります</b>（数字ページが土台。数字ページは<b>どこからでもフリック開始OK</b>）：</div>
           <table class="help-tbl">
@@ -9263,7 +9264,7 @@ window.addEventListener('resize', updateNumpadEdgeBtn);   // 画面の向きが�
 /* 数字ページ（page1）の既定配置 */
 const KEYPAD_DEFAULT_POS={
   /* r1＝道具の段（u:1 の印が付いたキーは道具の段どうしでだけ入れ替えできる） */
-  u_reset:{r:1,c:1,u:1}, u_undo:{r:1,c:2,u:1}, u_redo:{r:1,c:3,u:1}, u_save:{r:1,c:4,u:1}, u_list:{r:1,c:5,u:1},
+  u_redo:{r:1,c:1,u:1}, u_undo:{r:1,c:2,u:1}, u_reset:{r:1,c:3,u:1}, u_normal:{r:1,c:4,u:1}, u_dentaku:{r:1,c:5,u:1},
   mode:{r:2,c:1}, ce:{r:2,c:2}, sign:{r:2,c:3}, mul:{r:2,c:4}, bs:{r:2,c:5},
   n7:{r:3,c:1}, n8:{r:3,c:2}, n9:{r:3,c:3}, div:{r:3,c:4}, enter:{r:3,c:5,h:2},
   n4:{r:4,c:1}, n5:{r:4,c:2}, n6:{r:4,c:3}, plus:{r:4,c:4},
@@ -9294,7 +9295,10 @@ const KEYPAD_DEFAULT_POS_FMT={
 const KP_PAGES=[
   /* v278 で道具の段を足し、既存のキーが1段ずつ下がったので保存キーを変えた。
      旧キー(excalc_keypad_pos)に自分で並べ替えた配置がある人は、rを+1して引き継ぐ。 */
-  {sel:'#numpadPage1', def:KEYPAD_DEFAULT_POS,  skey:'excalc_keypad_pos_v2', pos:{}, oldKey:'excalc_keypad_pos', shiftRow:1},
+  /* v286 で道具の段の4・5番目を 保存/リスト から ▦通常/電卓 に変えた。
+     自分で並べ替えた人の位置がそのまま残るよう、旧キーの位置を引き継ぐ（renamed）。 */
+  {sel:'#numpadPage1', def:KEYPAD_DEFAULT_POS,  skey:'excalc_keypad_pos_v2', pos:{}, oldKey:'excalc_keypad_pos', shiftRow:1,
+   renamed:{u_normal:'u_save', u_dentaku:'u_list'}},
   {sel:'#numpadPage2', def:KEYPAD_DEFAULT_POS2, skey:'excalc_keypad_pos2', pos:{}},
   {sel:'#numpadPageFmt', def:KEYPAD_DEFAULT_POS_FMT, skey:'excalc_keypad_posfmt2', pos:{}}
 ];
@@ -9325,7 +9329,9 @@ function loadKeypadPos(){
       }
       if(saved&&typeof saved==='object'){
         for(const k in pg.pos){
-          if(saved[k]&&typeof saved[k].r==='number'&&typeof saved[k].c==='number') pg.pos[k]={r:saved[k].r, c:saved[k].c};
+          // 名前が変わったキーは、旧名で保存されている位置を引き継ぐ
+          const v = saved[k] || (pg.renamed&&pg.renamed[k] ? saved[pg.renamed[k]] : null);
+          if(v&&typeof v.r==='number'&&typeof v.c==='number') pg.pos[k]={r:v.r, c:v.c};
         }
       }
     }catch(_){}
@@ -12302,7 +12308,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v285';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v286';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
