@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- 開いたリンク先に、このページのURLを渡さない（どこから来たかを漏らさないため） -->
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4d5c6e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="メモ">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>メモ</title>
+<style>
+/* ── 見た目の土台 ──
+   このアプリは「ただのメモ帳」に見えることが仕事なので、色は地味な石板色1色でまとめる。 */
+:root {
+  --bg: #eef0f3;
+  --card: #ffffff;
+  --line: #d7dce3;
+  --text: #2f3742;
+  --sub: #6b7684;
+  --acc: #4d5c6e;
+  --acc-dark: #3c4959;
+  --acc-weak: rgba(77,92,110,.10);
+  --danger: #b3453a;
+  --star: #d8a12a;
+  --r-btn: 8px;
+  --r-card: 12px;
+  --r-pill: 999px;
+  --elev-1: 0 2px 8px rgba(0,0,0,.10);
+  --elev-2: 0 10px 30px rgba(0,0,0,.22);
+  --dur: .14s;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #191d23;
+    --card: #232830;
+    --line: #39414d;
+    --text: #e6e9ee;
+    --sub: #9aa5b4;
+    --acc: #7f8fa6;
+    --acc-dark: #6c7c93;
+    --acc-weak: rgba(127,143,166,.16);
+    --danger: #e07b70;
+    --star: #e8bf5a;
+    --elev-1: 0 2px 8px rgba(0,0,0,.45);
+    --elev-2: 0 10px 30px rgba(0,0,0,.6);
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+/* 画面から目を離した瞬間に中身をぼかす（横から覗かれた時の保険） */
+body.veil .veilable { filter: blur(14px); pointer-events: none; }
+
+button, input, textarea, select {
+  font: inherit; color: inherit;
+}
+button { cursor: pointer; border: none; background: none; }
+.btn {
+  background: var(--acc); color: #fff; border-radius: var(--r-btn);
+  padding: 9px 16px; font-weight: 600; transition: background var(--dur);
+}
+.btn:hover { background: var(--acc-dark); }
+.btn.sub { background: transparent; color: var(--text); border: 1px solid var(--line); }
+.btn.sub:hover { background: var(--acc-weak); }
+.btn.danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+.btn:disabled { opacity: .5; cursor: default; }
+.field {
+  width: 100%; background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--r-btn); padding: 10px 12px; outline: none;
+}
+.field:focus { border-color: var(--acc); }
+
+/* ── 表向きの画面（メモ帳） ── */
+#pad { display: flex; flex-direction: column; height: 100dvh; max-width: 760px; margin: 0 auto; padding: 12px; gap: 10px; }
+#pad header { display: flex; align-items: baseline; gap: 10px; }
+#brand {
+  font-size: 20px; font-weight: 700; letter-spacing: .04em;
+  padding: 4px 6px; margin: -4px -6px; border-radius: var(--r-btn);
+  user-select: none; -webkit-user-select: none; touch-action: manipulation;
+}
+#today { color: var(--sub); font-size: 13px; margin-left: auto; }
+#memo {
+  flex: 1; width: 100%; resize: none; background: var(--card);
+  border: 1px solid var(--line); border-radius: var(--r-card);
+  padding: 14px; outline: none; line-height: 1.8;
+}
+#memo:focus { border-color: var(--acc); }
+#pad footer { display: flex; align-items: center; gap: 8px; }
+#count { color: var(--sub); font-size: 13px; margin-right: auto; }
+
+/* ── 中身の画面（保管庫） ── */
+#vault { display: none; flex-direction: column; height: 100dvh; max-width: 760px; margin: 0 auto; }
+body.open #pad { display: none; }
+body.open #vault { display: flex; }
+#vault .bar {
+  display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  border-bottom: 1px solid var(--line); background: var(--card);
+}
+#q { flex: 1; }
+.icon-btn {
+  width: 38px; height: 38px; border-radius: var(--r-btn); font-size: 17px;
+  display: grid; place-items: center; color: var(--text); flex: 0 0 auto;
+}
+.icon-btn:hover { background: var(--acc-weak); }
+#tags { display: flex; gap: 6px; padding: 8px 12px 0; overflow-x: auto; scrollbar-width: none; }
+#tags::-webkit-scrollbar { display: none; }
+.chip {
+  border: 1px solid var(--line); border-radius: var(--r-pill); padding: 3px 12px;
+  font-size: 13px; color: var(--sub); white-space: nowrap;
+}
+.chip.on { background: var(--acc); border-color: var(--acc); color: #fff; }
+#list { flex: 1; overflow-y: auto; padding: 10px 12px 96px; display: flex; flex-direction: column; gap: 8px; }
+.item {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card);
+  padding: 10px 12px; display: flex; gap: 10px; align-items: flex-start;
+}
+.item .body { flex: 1; min-width: 0; }
+.item .ttl { font-weight: 600; word-break: break-word; }
+.item .url { color: var(--sub); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .note { color: var(--sub); font-size: 13px; white-space: pre-wrap; word-break: break-word; margin-top: 2px; }
+.item .tagrow { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.item .tagrow span { font-size: 11.5px; color: var(--sub); border: 1px solid var(--line); border-radius: var(--r-pill); padding: 1px 8px; }
+.item .acts { display: flex; gap: 2px; flex: 0 0 auto; }
+.pin { color: var(--star); }
+.pin.off { color: var(--line); }
+#empty { color: var(--sub); text-align: center; padding: 40px 20px; }
+#add {
+  position: fixed; right: max(16px, calc((100vw - 760px)/2 + 16px));
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  width: 54px; height: 54px; border-radius: var(--r-pill); background: var(--acc);
+  color: #fff; font-size: 26px; box-shadow: var(--elev-1); display: grid; place-items: center;
+}
+
+/* ── 覆いかぶさる小窓 ── */
+.sheet {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none;
+  align-items: center; justify-content: center; padding: 16px; z-index: 50;
+}
+.sheet.on { display: flex; }
+.sheet .box {
+  background: var(--card); border-radius: var(--r-card); box-shadow: var(--elev-2);
+  width: 100%; max-width: 460px; max-height: 90dvh; overflow-y: auto; padding: 18px;
+}
+.sheet h2 { margin: 0 0 12px; font-size: 17px; }
+.sheet label { display: block; font-size: 13px; color: var(--sub); margin: 10px 0 4px; }
+.sheet .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.sheet .msg { font-size: 13px; color: var(--danger); min-height: 20px; margin-top: 8px; }
+.sheet .help { font-size: 13px; color: var(--sub); }
+.sheet .help li { margin-bottom: 6px; }
+.menu { position: fixed; inset: 0; display: none; z-index: 40; }
+.menu.on { display: block; }
+.menu .pop {
+  position: absolute; right: 12px; top: 54px; background: var(--card);
+  border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--elev-2);
+  padding: 6px; min-width: 210px;
+}
+.menu .pop button { display: block; width: 100%; text-align: left; padding: 9px 12px; border-radius: var(--r-btn); }
+.menu .pop button:hover { background: var(--acc-weak); }
+.menu .pop hr { border: none; border-top: 1px solid var(--line); margin: 6px 0; }
+#toast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(84px + env(safe-area-inset-bottom)); background: rgba(0,0,0,.82); color: #fff;
+  padding: 8px 16px; border-radius: var(--r-pill); font-size: 13px; opacity: 0;
+  transition: opacity var(--dur); pointer-events: none; z-index: 60;
+}
+#toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ══ 表の顔：ただのメモ帳 ══ -->
+<div id="pad" class="veilable">
+  <header>
+    <div id="brand">メモ</div>
+    <div id="today"></div>
+  </header>
+  <textarea id="memo" placeholder="ここに書けます" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
+  <footer>
+    <span id="count">0 文字</span>
+    <button class="btn sub" id="clear">消す</button>
+    <button class="btn" id="save">保存</button>
+  </footer>
+</div>
+
+<!-- ══ 裏の顔：お気に入り保管庫 ══ -->
+<div id="vault" class="veilable">
+  <div class="bar">
+    <input id="q" class="field" type="search" placeholder="さがす" autocomplete="off">
+    <button class="icon-btn" id="menuBtn" title="メニュー">⋯</button>
+    <button class="icon-btn" id="lockBtn" title="閉じる（Esc）">✕</button>
+  </div>
+  <div id="tags"></div>
+  <div id="list"></div>
+  <button id="add" title="追加">＋</button>
+</div>
+
+<!-- 新しい保管庫を作る -->
+<div class="sheet" id="mkSheet"><div class="box">
+  <h2>新しい保管庫を作る</h2>
+  <p class="help">合言葉ひとつにつき保管庫がひとつできます。合言葉を知らない人には、中身どころか「あるかどうか」も分かりません。</p>
+  <label>合言葉</label>
+  <input class="field" id="mk1" type="password" autocomplete="new-password">
+  <label>もう一度</label>
+  <input class="field" id="mk2" type="password" autocomplete="new-password">
+  <p class="help" style="margin-top:12px">⚠ 合言葉を忘れると中身は永久に取り出せません（復元の手段はありません）。</p>
+  <div class="msg" id="mkMsg"></div>
+  <div class="row">
+    <button class="btn sub" data-close>やめる</button>
+    <button class="btn" id="mkGo">作る</button>
+  </div>
+</div></div>
+
+<!-- 1件の編集 -->
+<div class="sheet" id="edSheet"><div class="box">
+  <h2 id="edTitle">追加</h2>
+  <label>名前</label>
+  <input class="field" id="edName" autocomplete="off">
+  <label>URL</label>
+  <input class="field" id="edUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://">
+  <label>ふだ（カンマ区切り）</label>
+  <input class="field" id="edTags" autocomplete="off" placeholder="例：買う, あとで">
+  <label>おぼえ書き</label>
+  <textarea class="field" id="edMemo" rows="3"></textarea>
+  <div class="msg" id="edMsg"></div>
+  <div class="row">
+    <button class="btn sub" data-close>やめる</button>
+    <button class="btn" id="edGo">入れる</button>
+  </div>
+</div></div>
+
+<!-- 合言葉の変更 -->
+<div class="sheet" id="pwSheet"><div class="box">
+  <h2>合言葉を変える</h2>
+  <label>新しい合言葉</label>
+  <input class="field" id="pw1" type="password" autocomplete="new-password">
+  <label>もう一度</label>
+  <input class="field" id="pw2" type="password" autocomplete="new-password">
+  <div class="msg" id="pwMsg"></div>
+  <div class="row">
+    <button class="btn sub" data-close>やめる</button>
+    <button class="btn" id="pwGo">変える</button>
+  </div>
+</div></div>
+
+<!-- 書き出し／読み込み -->
+<div class="sheet" id="ioSheet"><div class="box">
+  <h2 id="ioTitle">控えを書き出す</h2>
+  <p class="help" id="ioHelp"></p>
+  <textarea class="field" id="ioText" rows="6" spellcheck="false" autocapitalize="off"></textarea>
+  <div class="msg" id="ioMsg"></div>
+  <div class="row">
+    <button class="btn sub" data-close>閉じる</button>
+    <button class="btn" id="ioGo">実行</button>
+  </div>
+</div></div>
+
+<!-- 設定 -->
+<div class="sheet" id="cfSheet"><div class="box">
+  <h2>設定</h2>
+  <label>ほうっておくと閉じるまで</label>
+  <select class="field" id="cfIdle">
+    <option value="30">30秒</option>
+    <option value="60">1分</option>
+    <option value="180">3分</option>
+    <option value="600">10分</option>
+    <option value="0">閉じない</option>
+  </select>
+  <label>ほかの画面に移ったとき</label>
+  <select class="field" id="cfBlur">
+    <option value="1">すぐ閉じる（おすすめ）</option>
+    <option value="0">開いたままにする</option>
+  </select>
+  <label>名前をおしたとき</label>
+  <select class="field" id="cfOpen">
+    <option value="open">リンクを開く</option>
+    <option value="copy">URLを写すだけ（履歴を残さない）</option>
+  </select>
+  <label>並び順</label>
+  <select class="field" id="cfSort">
+    <option value="new">新しい順</option>
+    <option value="name">名前順</option>
+    <option value="hit">よく開く順</option>
+  </select>
+  <div class="row">
+    <button class="btn" data-close>閉じる</button>
+  </div>
+</div></div>
+
+<!-- 使い方 -->
+<div class="sheet" id="hpSheet"><div class="box">
+  <h2>使い方</h2>
+  <ul class="help">
+    <li><b>開く</b>：メモ欄に合言葉だけを書いて、左上の「メモ」の文字をおす。</li>
+    <li><b>閉じる</b>：右上の ✕、Esc、または画面を離れたとき。合言葉は覚えていないので、開くたびに入力します。</li>
+    <li><b>新しく作る</b>：メモ欄を空にして「メモ」の文字を長おし（約1秒）。</li>
+    <li><b>合言葉が違うとき</b>：何も起きません。ただのメモ帳のままです。</li>
+    <li><b>中身</b>：この端末の中だけに、合言葉で錠をかけて保存します。どこにも送信しません。</li>
+    <li>⚠ 合言葉を忘れると取り出せません。控えの書き出し（錠つき）をおすすめします。</li>
+    <li>⚠ リンクを開くと、ブラウザの履歴には残ります。気になるときは設定で「URLを写すだけ」に。</li>
+    <li>⚠ ブラウザの「閲覧データの削除」をすると中身も消えます。ホーム画面に追加して使い、ときどき控えを書き出してください。</li>
+  </ul>
+  <div class="row"><button class="btn" data-close>閉じる</button></div>
+</div></div>
+
+<!-- 確認 -->
+<div class="sheet" id="okSheet"><div class="box">
+  <h2 id="okTitle">確認</h2>
+  <p class="help" id="okText"></p>
+  <div class="row">
+    <button class="btn sub" data-close>やめる</button>
+    <button class="btn danger" id="okGo">実行する</button>
+  </div>
+</div></div>
+
+<div class="menu" id="menu"><div class="pop">
+  <button data-m="add">＋ 追加</button>
+  <button data-m="cf">設定</button>
+  <hr>
+  <button data-m="ex">控えを書き出す</button>
+  <button data-m="im">控えを読み込む</button>
+  <button data-m="pw">合言葉を変える</button>
+  <hr>
+  <button data-m="hp">使い方</button>
+  <button data-m="rm" style="color:var(--danger)">この保管庫を消す</button>
+</div></div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ══════════════════════════════════════════════════════════════
+   隠しお気に入り帳
+   ・表向きは「メモ帳」。合言葉を知らない人には、保管庫の存在自体が見えない。
+   ・中身は AES-GCM（256bit）で錠をかけて、この端末の localStorage にだけ置く。
+     合言葉から鍵を作るのは PBKDF2-SHA256（21万回）。通信は一切しない。
+   ══════════════════════════════════════════════════════════════ */
+
+const KEY  = 'memo.local.v1';   // 保存場所の名前もそっけなくしておく
+const ITER = 210000;            // 合言葉を鍵に練り直す回数（総当たりを重くする）
+const PAD  = 1024;              // 中身の長さを丸めて、件数の多さを覗かせない
+const enc = new TextEncoder(), dec = new TextDecoder();
+
+/* ── 保存場所（表のメモ文と、錠つきの塊の束） ── */
+function loadStore() {
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if (s && typeof s === 'object') return { t: String(s.t || ''), b: Array.isArray(s.b) ? s.b : [] };
+  } catch (e) {}
+  return { t: '', b: [] };
+}
+function saveStore(s) {
+  try { localStorage.setItem(KEY, JSON.stringify(s)); return true; }
+  catch (e) { toast('保存できませんでした'); return false; }
+}
+
+/* ── 錠まわり ── */
+const b64 = u => btoa(String.fromCharCode.apply(null, Array.from(u)));
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+async function deriveKey(pass, salt) {
+  const base = await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: ITER, hash: 'SHA-256' },
+    base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+// 塊の中身：[版1][塩16][初期値12][暗号文…]
+async function seal(pass, obj) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const key  = await deriveKey(pass, salt);
+  let body = JSON.stringify(obj);
+  body += ' '.repeat((PAD - (enc.encode(body).length % PAD)) % PAD);   // 長さを丸める
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(body)));
+  const out = new Uint8Array(29 + ct.length);
+  out[0] = 1; out.set(salt, 1); out.set(iv, 17); out.set(ct, 29);
+  return b64(out);
+}
+async function unseal(pass, block) {
+  try {
+    const raw = unb64(block);
+    if (raw[0] !== 1 || raw.length < 46) return null;
+    const key = await deriveKey(pass, raw.slice(1, 17));
+    const pt  = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: raw.slice(17, 29) }, key, raw.slice(29));
+    return JSON.parse(dec.decode(pt));   // 合言葉が違えば復号の時点で必ず失敗する
+  } catch (e) { return null; }
+}
+
+/* ── いま開いている保管庫（画面を閉じたら消す） ── */
+let cur = null;   // { pass, idx, data }
+const DEF = { v: 1, items: [], set: { idle: 60, blur: 1, open: 'open', sort: 'new' } };
+
+/* ── ちいさな道具 ── */
+const $ = s => document.querySelector(s);
+let toastTimer = 0;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('on'), 1800);
+}
+function openSheet(id) { $(id).classList.add('on'); }
+function closeSheets() { document.querySelectorAll('.sheet.on').forEach(s => s.classList.remove('on')); }
+document.addEventListener('click', e => {
+  if (e.target.hasAttribute && e.target.hasAttribute('data-close')) closeSheets();
+  if (e.target.classList.contains('sheet')) closeSheets();
+});
+
+/* ══ 表のメモ帳 ══ */
+const memo = $('#memo');
+$('#today').textContent = new Date().toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' });
+memo.value = loadStore().t;
+const recount = () => { $('#count').textContent = memo.value.length + ' 文字'; };
+memo.addEventListener('input', recount);
+recount();
+
+$('#save').addEventListener('click', () => {
+  const s = loadStore(); s.t = memo.value;
+  if (saveStore(s)) toast('保存しました');
+});
+$('#clear').addEventListener('click', () => { memo.value = ''; recount(); memo.focus(); });
+
+/* 「メモ」の文字：ふつうにおす＝開ける、長おし＝新しく作る */
+const brand = $('#brand');
+let holdTimer = 0, held = false;
+brand.addEventListener('pointerdown', () => {
+  held = false;
+  holdTimer = setTimeout(() => { held = true; askMake(); }, 900);
+});
+['pointerup', 'pointerleave', 'pointercancel'].forEach(ev =>
+  brand.addEventListener(ev, () => clearTimeout(holdTimer)));
+brand.addEventListener('click', () => {
+  if (held) { held = false; return; }
+  tryUnlock();
+});
+brand.addEventListener('contextmenu', e => e.preventDefault());
+
+/* 合言葉で開ける。合わなければ「何も起きない」＝ただのメモ帳のまま */
+let busy = false;
+async function tryUnlock() {
+  const pass = memo.value.trim();
+  if (busy || !pass) return;
+  busy = true;
+  const store = loadStore();
+  for (let i = 0; i < store.b.length; i++) {
+    const data = await unseal(pass, store.b[i]);
+    if (data) {
+      cur = { pass, idx: i, data: normalize(data) };
+      memo.value = store.t; recount();     // 合言葉を画面に残さない
+      enterVault();
+      busy = false;
+      return;
+    }
+  }
+  busy = false;
+}
+function normalize(d) {
+  const s = Object.assign({}, DEF.set, d && d.set);
+  return { v: 1, items: Array.isArray(d && d.items) ? d.items : [], set: s };
+}
+
+/* 新しい保管庫を作る */
+function askMake() {
+  $('#mk1').value = ''; $('#mk2').value = ''; $('#mkMsg').textContent = '';
+  openSheet('#mkSheet'); setTimeout(() => $('#mk1').focus(), 30);
+}
+$('#mkGo').addEventListener('click', async () => {
+  const p1 = $('#mk1').value, p2 = $('#mk2').value;
+  if (p1.length < 4) { $('#mkMsg').textContent = '合言葉は4文字以上にしてください。'; return; }
+  if (p1 !== p2)     { $('#mkMsg').textContent = '2つが同じではありません。'; return; }
+  const store = loadStore();
+  for (const b of store.b) {
+    if (await unseal(p1, b)) { $('#mkMsg').textContent = 'その合言葉の保管庫はすでにあります。'; return; }
+  }
+  const data = JSON.parse(JSON.stringify(DEF));
+  store.b.push(await seal(p1, data));
+  if (!saveStore(store)) return;
+  cur = { pass: p1, idx: store.b.length - 1, data };
+  $('#mk1').value = ''; $('#mk2').value = '';
+  closeSheets();
+  enterVault();
+});
+
+/* ══ 保管庫の中 ══ */
+function enterVault() {
+  document.body.classList.add('open');
+  $('#q').value = ''; filterTag = '';
+  applySettings();
+  render();
+  resetIdle();
+}
+function lock() {
+  cur = null;
+  document.body.classList.remove('open', 'veil');
+  closeSheets(); $('#menu').classList.remove('on');
+  $('#list').textContent = ''; $('#tags').textContent = ''; $('#q').value = '';
+  clearTimeout(idleTimer);
+}
+$('#lockBtn').addEventListener('click', lock);
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  // Esc は「開いているものを1枚ずつ」閉じ、最後に保管庫を閉じる
+  const menu = $('#menu');
+  if (menu.classList.contains('on')) { menu.classList.remove('on'); return; }
+  if (document.querySelector('.sheet.on')) { closeSheets(); return; }
+  if (cur) lock();
+});
+
+/* ほうっておいたら閉じる／ほかの画面に移ったら閉じる */
+let idleTimer = 0;
+function resetIdle() {
+  clearTimeout(idleTimer);
+  const sec = cur ? Number(cur.data.set.idle) : 0;
+  if (cur && sec > 0) idleTimer = setTimeout(lock, sec * 1000);
+}
+['pointerdown', 'keydown', 'input', 'scroll'].forEach(ev =>
+  document.addEventListener(ev, () => { if (cur) resetIdle(); }, true));
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) { document.body.classList.remove('veil'); return; }
+  if (!cur) return;
+  if (Number(cur.data.set.blur)) lock(); else document.body.classList.add('veil');
+});
+window.addEventListener('blur',  () => { if (cur) document.body.classList.add('veil'); });
+window.addEventListener('focus', () => document.body.classList.remove('veil'));
+
+/* 保存（開いている保管庫だけを錠つきで書き戻す） */
+async function persist() {
+  if (!cur) return;
+  const store = loadStore();
+  const block = await seal(cur.pass, cur.data);
+  if (cur.idx < store.b.length) store.b[cur.idx] = block; else { store.b.push(block); cur.idx = store.b.length - 1; }
+  saveStore(store);
+}
+
+/* ── 一覧の描画 ── */
+let filterTag = '';
+function tidyUrl(u) {
+  let s = String(u || '').trim();
+  if (!s) return '';
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(s)) s = 'https://' + s;
+  try {
+    const url = new URL(s);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return '';   // javascript: などは受け付けない
+    return url.href;
+  } catch (e) { return ''; }
+}
+function sorted(items) {
+  const a = items.slice();
+  const mode = cur.data.set.sort;
+  a.sort((x, y) => {
+    if (!!y.pin !== !!x.pin) return (y.pin ? 1 : 0) - (x.pin ? 1 : 0);
+    if (mode === 'name') return String(x.title).localeCompare(String(y.title), 'ja');
+    if (mode === 'hit')  return (y.hits || 0) - (x.hits || 0) || (y.at || 0) - (x.at || 0);
+    return (y.at || 0) - (x.at || 0);
+  });
+  return a;
+}
+function render() {
+  if (!cur) return;
+  const list = $('#list'); list.textContent = '';
+  const q = $('#q').value.trim().toLowerCase();
+
+  // ふだ（タグ）の並び
+  const tagBox = $('#tags'); tagBox.textContent = '';
+  const tags = [];
+  cur.data.items.forEach(it => (it.tags || []).forEach(t => { if (t && tags.indexOf(t) < 0) tags.push(t); }));
+  tags.sort((a, b) => a.localeCompare(b, 'ja'));
+  tags.forEach(t => {
+    const c = document.createElement('button');
+    c.className = 'chip' + (filterTag === t ? ' on' : ''); c.textContent = t;
+    c.addEventListener('click', () => { filterTag = (filterTag === t ? '' : t); render(); });
+    tagBox.appendChild(c);
+  });
+
+  const hit = sorted(cur.data.items).filter(it => {
+    if (filterTag && (it.tags || []).indexOf(filterTag) < 0) return false;
+    if (!q) return true;
+    return (it.title + ' ' + it.url + ' ' + (it.memo || '') + ' ' + (it.tags || []).join(' ')).toLowerCase().indexOf(q) >= 0;
+  });
+
+  if (!hit.length) {
+    const e = document.createElement('div'); e.id = 'empty';
+    e.textContent = cur.data.items.length ? '見つかりません' : 'まだ空です。右下の ＋ で入れられます。';
+    list.appendChild(e); return;
+  }
+  hit.forEach(it => list.appendChild(row(it)));
+}
+function row(it) {
+  const el = document.createElement('div'); el.className = 'item';
+
+  const star = document.createElement('button');
+  star.className = 'icon-btn pin' + (it.pin ? '' : ' off'); star.textContent = '★'; star.title = '上に留める';
+  star.addEventListener('click', async () => { it.pin = !it.pin; await persist(); render(); });
+  el.appendChild(star);
+
+  const body = document.createElement('div'); body.className = 'body';
+  const ttl = document.createElement('div'); ttl.className = 'ttl'; ttl.textContent = it.title || it.url;
+  ttl.style.cursor = 'pointer';
+  ttl.addEventListener('click', () => go(it));
+  body.appendChild(ttl);
+  const url = document.createElement('div'); url.className = 'url'; url.textContent = it.url;
+  body.appendChild(url);
+  if (it.memo) { const m = document.createElement('div'); m.className = 'note'; m.textContent = it.memo; body.appendChild(m); }
+  if ((it.tags || []).length) {
+    const tr = document.createElement('div'); tr.className = 'tagrow';
+    it.tags.forEach(t => { const s = document.createElement('span'); s.textContent = t; tr.appendChild(s); });
+    body.appendChild(tr);
+  }
+  el.appendChild(body);
+
+  const acts = document.createElement('div'); acts.className = 'acts';
+  acts.appendChild(mkBtn('⧉', 'URLを写す', () => copy(it.url)));
+  acts.appendChild(mkBtn('✎', '直す', () => askEdit(it)));
+  acts.appendChild(mkBtn('🗑', '消す', () => askRemove(it)));
+  el.appendChild(acts);
+  return el;
+}
+function mkBtn(label, title, fn) {
+  const b = document.createElement('button');
+  b.className = 'icon-btn'; b.textContent = label; b.title = title;
+  b.addEventListener('click', fn);
+  return b;
+}
+async function go(it) {
+  it.hits = (it.hits || 0) + 1; await persist();
+  if (cur.data.set.open === 'copy') { copy(it.url); return; }
+  window.open(it.url, '_blank', 'noopener,noreferrer');
+}
+function copy(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => toast('URLを写しました'), () => toast('写せませんでした'));
+  } else {
+    const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t);
+    t.select(); try { document.execCommand('copy'); toast('URLを写しました'); } catch (e) { toast('写せませんでした'); }
+    document.body.removeChild(t);
+  }
+}
+
+/* ── 追加・編集 ── */
+let editing = null;
+function askEdit(it) {
+  editing = it || null;
+  $('#edTitle').textContent = it ? '直す' : '追加';
+  $('#edGo').textContent = it ? '直す' : '入れる';
+  $('#edName').value = it ? it.title : '';
+  $('#edUrl').value  = it ? it.url : '';
+  $('#edTags').value = it ? (it.tags || []).join(', ') : (filterTag || '');
+  $('#edMemo').value = it ? (it.memo || '') : '';
+  $('#edMsg').textContent = '';
+  openSheet('#edSheet');
+  setTimeout(() => $('#edUrl').focus(), 30);
+}
+$('#add').addEventListener('click', () => askEdit(null));
+$('#edGo').addEventListener('click', async () => {
+  const url = tidyUrl($('#edUrl').value);
+  if (!url) { $('#edMsg').textContent = 'URL を確かめてください（http / https のみ）。'; return; }
+  const tags = $('#edTags').value.split(',').map(s => s.trim()).filter(Boolean).slice(0, 12);
+  const title = $('#edName').value.trim() || (new URL(url)).hostname.replace(/^www\./, '');
+  if (editing) {
+    Object.assign(editing, { title, url, tags, memo: $('#edMemo').value.trim(), up: Date.now() });
+  } else {
+    cur.data.items.push({ id: 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                          title, url, tags, memo: $('#edMemo').value.trim(), pin: false, hits: 0, at: Date.now() });
+  }
+  await persist(); closeSheets(); render();
+  toast(editing ? '直しました' : '入れました');
+  editing = null;
+});
+
+/* ── 消す（確認つき） ── */
+let okFn = null;
+function confirmBox(title, text, fn) {
+  $('#okTitle').textContent = title; $('#okText').textContent = text; okFn = fn; openSheet('#okSheet');
+}
+$('#okGo').addEventListener('click', () => { const f = okFn; okFn = null; closeSheets(); if (f) f(); });
+function askRemove(it) {
+  confirmBox('消しますか', '「' + (it.title || it.url) + '」を消します。元に戻せません。', async () => {
+    cur.data.items = cur.data.items.filter(x => x !== it);
+    await persist(); render(); toast('消しました');
+  });
+}
+
+/* ── メニュー ── */
+$('#menuBtn').addEventListener('click', () => $('#menu').classList.add('on'));
+$('#menu').addEventListener('click', e => {
+  const m = e.target.getAttribute && e.target.getAttribute('data-m');
+  $('#menu').classList.remove('on');
+  if (!m) return;
+  if (m === 'add') askEdit(null);
+  if (m === 'cf') { applySettingsToForm(); openSheet('#cfSheet'); }
+  if (m === 'hp') openSheet('#hpSheet');
+  if (m === 'pw') { $('#pw1').value = ''; $('#pw2').value = ''; $('#pwMsg').textContent = ''; openSheet('#pwSheet'); }
+  if (m === 'ex') exportBox();
+  if (m === 'im') importBox();
+  if (m === 'rm') askRemoveVault();
+});
+
+/* ── 設定 ── */
+function applySettings() { resetIdle(); }
+function applySettingsToForm() {
+  $('#cfIdle').value = String(cur.data.set.idle);
+  $('#cfBlur').value = String(cur.data.set.blur);
+  $('#cfOpen').value = cur.data.set.open;
+  $('#cfSort').value = cur.data.set.sort;
+}
+[['#cfIdle', 'idle'], ['#cfBlur', 'blur'], ['#cfOpen', 'open'], ['#cfSort', 'sort']].forEach(([sel, key]) => {
+  $(sel).addEventListener('change', async () => {
+    cur.data.set[key] = (key === 'idle' || key === 'blur') ? Number($(sel).value) : $(sel).value;
+    await persist(); applySettings(); render();
+  });
+});
+
+/* ── 合言葉の変更 ── */
+$('#pwGo').addEventListener('click', async () => {
+  const p1 = $('#pw1').value, p2 = $('#pw2').value;
+  if (p1.length < 4) { $('#pwMsg').textContent = '合言葉は4文字以上にしてください。'; return; }
+  if (p1 !== p2)     { $('#pwMsg').textContent = '2つが同じではありません。'; return; }
+  const store = loadStore();
+  for (let i = 0; i < store.b.length; i++) {
+    if (i !== cur.idx && await unseal(p1, store.b[i])) { $('#pwMsg').textContent = 'ほかの保管庫と同じ合言葉は使えません。'; return; }
+  }
+  cur.pass = p1;
+  await persist();
+  $('#pw1').value = ''; $('#pw2').value = '';
+  closeSheets(); toast('合言葉を変えました');
+});
+
+/* ── 控えの書き出し／読み込み（錠がかかったままの文字列をやり取りする） ── */
+let ioMode = 'ex';
+async function exportBox() {
+  ioMode = 'ex';
+  $('#ioTitle').textContent = '控えを書き出す';
+  $('#ioHelp').textContent = '下の文字列が控えです。錠がかかったままなので、そのままメールや紙に控えても中身は読まれません。戻すときは同じ合言葉が要ります。';
+  $('#ioText').value = await seal(cur.pass, cur.data);
+  $('#ioMsg').textContent = '';
+  $('#ioGo').textContent = 'ファイルに落とす';
+  openSheet('#ioSheet');
+  setTimeout(() => $('#ioText').select(), 30);
+}
+function importBox() {
+  ioMode = 'im';
+  $('#ioTitle').textContent = '控えを読み込む';
+  $('#ioHelp').textContent = '書き出した文字列を貼り付けてください。いまの保管庫と同じ合言葉の控えなら、中身を差し替えます。';
+  $('#ioText').value = ''; $('#ioMsg').textContent = '';
+  $('#ioGo').textContent = '読み込む';
+  openSheet('#ioSheet');
+  setTimeout(() => $('#ioText').focus(), 30);
+}
+$('#ioGo').addEventListener('click', async () => {
+  if (ioMode === 'ex') {
+    const blob = new Blob([$('#ioText').value], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'memo-backup-' + new Date().toISOString().slice(0, 10) + '.txt';
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast('書き出しました');
+    return;
+  }
+  const data = await unseal(cur.pass, $('#ioText').value.trim());
+  if (!data) { $('#ioMsg').textContent = '読めませんでした（合言葉が違うか、文字列が欠けています）。'; return; }
+  confirmBox('入れ替えますか', 'いまの ' + cur.data.items.length + ' 件を、控えの ' + ((data.items || []).length) + ' 件で置き換えます。', async () => {
+    cur.data = normalize(data);
+    await persist(); applySettings(); render(); toast('読み込みました');
+  });
+});
+
+/* ── 保管庫ごと消す ── */
+function askRemoveVault() {
+  confirmBox('保管庫を消しますか', '中身 ' + cur.data.items.length + ' 件がすべて消えます。元に戻せません。', () => {
+    const store = loadStore();
+    store.b.splice(cur.idx, 1);
+    saveStore(store);
+    lock();
+    toast('消しました');
+  });
+}
+
+$('#q').addEventListener('input', render);
+
+/* ── Enter で決定（小窓の中の1行入力） ── */
+[['#mk1', '#mkGo'], ['#mk2', '#mkGo'], ['#pw1', '#pwGo'], ['#pw2', '#pwGo'],
+ ['#edName', '#edGo'], ['#edUrl', '#edGo'], ['#edTags', '#edGo']].forEach(([sel, go]) => {
+  $(sel).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $(go).click(); } });
+});
+
+/* ── オフラインでも使えるようにする ── */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(() => {}));
+}
+</script>
+</body>
+</html>
