@@ -6038,6 +6038,7 @@ const KEY_FUNCS={
   a_photomemo:{g:'設定・機能',label:'📝写真メモ',short:'写真メモ',run:()=>openPhotoMemo()},
   a_kantab:{g:'設定・機能',label:'🧪カンタブ',short:'カンタブ',run:()=>openKantab()},
   a_linklist:{g:'設定・機能',label:'🔗リンク集',short:'リンク',run:()=>openLinkList()},
+  a_memo:{g:'設定・機能',label:'📄メモ',short:'メモ',run:()=>openNotesApp()},
   a_websearch:{g:'設定・機能',label:'🔍Web検索',short:'W検索',run:()=>webSearchCell()},
   a_lookup:{g:'設定・機能',label:'🔍照合',run:()=>openLookupDlg()},
   a_find:{g:'設定・機能',label:'🔎検索',run:()=>openFindDlg()},
@@ -8366,7 +8367,7 @@ function appConfirm(message, yes='OK', no='キャンセル'){
 /* 登録ボタンから実行するとき、指の操作（ユーザー操作）が生きているうちに呼ばないと
    開かない機能（ネイティブのファイル選択）。これらは遅延させずその場で実行する。
    （カレンダーは自前モーダルなので通常の遅延パスでよい＝含めない） */
-const REG_GESTURE_ACTIONS = new Set(['a_csvin','a_xlsxin','a_websearch']);   // Web検索は新しいタブを開くため即時実行
+const REG_GESTURE_ACTIONS = new Set(['a_csvin','a_xlsxin','a_websearch','a_memo']);   // Web検索・メモは新しいタブを開くため即時実行
 let keyAssign={}, kaTargetKey=null, kaSuppress=false;
 let kaReady=false;   // ピッカー表示後、新しく押し直すまで項目を無効化（長押しの指を離した時の誤タップ防止）
 function loadKeyAssign(){ try{ keyAssign=JSON.parse(localStorage.getItem('excalc_key_assign')||'{}'); }catch(_){ keyAssign={}; } }
@@ -8899,6 +8900,13 @@ function openRegLink(url){
   if(!/^[a-z][a-z0-9+.-]*:/i.test(u) && !u.startsWith('/')) u='https://'+u;   // 例: example.com → https://example.com
   try{ const w=window.open(u,'_blank','noopener'); if(!w) location.href=u; }   // ポップアップが塞がれたら同じ画面で開く
   catch(_){ try{ location.href=u; }catch(__){} }
+}
+/* 同じ置き場所にある「メモ」（notes/）を新しい画面で開く。
+   場所は今のURLから組み立てるので、サイトの置き場所が変わってもそのまま付いてくる。 */
+function openNotesApp(){
+  let u='notes/';
+  try{ u=new URL('notes/', location.href).href; }catch(_){}
+  openRegLink(u);
 }
 /* ── リンク集：名前付きでURLを登録し、一覧から開く ── */
 let linkList=[], linkEditIdx=-1;
@@ -12308,7 +12316,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v286';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v287';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
