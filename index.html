@@ -2039,6 +2039,12 @@ body.simple-mode .rh  { height: calc(46px * var(--cell-scale, 1)); }
 .tsx-row .kt-in-lb { flex: 0 0 8.6em; font-size: 15px; }
 .tsx-row .kt-in-unit { flex: 0 0 3.6em; }
 .tsx-row.tsx-ref input { background: var(--save-item-bg); }
+/* 呼び出した配合の名前（21-5-40BB など）を番号のすぐ下に出す */
+.tsx-refname { font-size: 13px; color: var(--acc-text); font-weight: bold; min-height: 1.2em; padding: 0 2px 2px; }
+.tsx-refname.tsx-miss { color: var(--text-light); font-weight: normal; }
+.tsx-reg-btns { display: flex; gap: 6px; }
+.tsx-regbtn { flex: 1 1 0; min-width: 0; font-size: 13px; }
+.tsx-insert-bottom { margin: 12px 0 4px; }
 .tsx-steps-btn {
   width: 100%; display: flex; justify-content: space-between; align-items: center;
   padding: 9px 10px; margin: 8px 0 0; border: 1px solid var(--save-item-border);
@@ -2060,6 +2066,7 @@ body.simple-mode .rh  { height: calc(46px * var(--cell-scale, 1)); }
 .tsr-grid.tsr-g2 { grid-template-columns: repeat(2, 1fr); }
 .tsr-f { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .tsr-f label { flex: 0 0 2.6em; font-size: 12px; color: var(--text-light); }
+.tsr-card input.tsr-name { text-align: left; }
 .tsr-card input {
   min-width: 0; width: 100%; padding: 7px 8px; font-size: 15px; text-align: right;
   border: 1px solid var(--save-item-border); border-radius: var(--r-btn);
@@ -2404,13 +2411,18 @@ body.dark {
     <div class="modal-header">
       <span>💧 単位水量試験</span>
       <span class="hdr-right">
-        <button class="hdr-btn" onclick="openTsSettings()">⚙ 設定・登録</button>
+        <button class="hdr-btn" onclick="openTsSettings()">⚙ 設定</button>
         <button class="modal-close" onclick="closeTansui()">✕</button>
       </span>
     </div>
     <div class="modal-body">
-      <div class="tsx-sec tsx-first">番号で呼び出す（⚙設定・登録で登録した内容から）</div>
+      <div class="tsx-sec tsx-first">番号で呼び出す</div>
       <div id="tsxRefRows"></div>
+      <div class="tsx-refname" id="tsxRefName"></div>
+      <div class="tsx-reg-btns">
+        <button class="ts-ref-btn tsx-regbtn" onclick="openTsMixReg()">📋 配合の登録</button>
+        <button class="ts-ref-btn tsx-regbtn" onclick="openTsAirReg()">🧪 エアメータの登録</button>
+      </div>
       <div class="tsx-sec">試験値</div>
       <div id="tsxTestRows"></div>
       <div class="tsx-sec">配合</div>
@@ -2421,12 +2433,12 @@ body.dark {
         <div class="vol-result-sub" id="tsxSub">配合と試験の値を入れてください</div>
       </div>
       <div class="kt-judge-row"><span class="ts-judge" id="tsxJudge">—</span></div>
-      <button class="vol-insert ts-ref-btn" id="tsxInsertBtn" onclick="tsxInsertToCell()">▦ 推定単位水量をセルに入れる</button>
       <button class="tsx-steps-btn" onclick="tsxToggleSteps()">
         <span>🧮 計算の途中経過</span><span id="tsxStepsArrow">▼</span>
       </button>
       <div class="tsx-steps" id="tsxSteps" style="display:none"></div>
-      <div class="vol-hint">土研法エアメータ法です。<b>配合</b>（W1・C・S・G・P・A1）と<b>試験値</b>（容器+試料 m2・測定空気量 A2・容器容積 V・容器質量 m1）を入れると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で推定し、配合の W1 との差で合否を判定します。質量は g、容積は cc、配合は kg/m³ で入れてください。混和材 P は無ければ空のままで大丈夫です（0として計算します）。<br>よく使う配合とエアメータは<b>⚙設定・登録</b>に入れておくと、<b>番号を入れるだけ</b>で呼び出せます。許容差と小数桁も同じ画面で変えられます。</div>
+      <div class="vol-hint">土研法エアメータ法です。<b>配合</b>（W1・C・S・G・P・A1）と<b>試験値</b>（容器+試料 m2・測定空気量 A2・容器容積 V・容器質量 m1）を入れると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で推定し、配合の W1 との差で合否を判定します。質量は g、容積は cc、配合は kg/m³ で入れてください。混和材 P は無ければ空のままで大丈夫です（0として計算します）。<br>よく使う配合とエアメータは<b>📋配合の登録</b>・<b>🧪エアメータの登録</b>に入れておくと、<b>番号を入れるだけ</b>で呼び出せます。許容差と小数桁は<b>⚙設定</b>で変えられます。</div>
+      <button class="vol-insert ts-ref-btn tsx-insert-bottom" id="tsxInsertBtn" onclick="tsxInsertToCell()">▦ 推定単位水量をセルに入れる</button>
     </div>
   </div>
 </div>
@@ -2499,6 +2511,36 @@ body.dark {
   </div>
 </div>
 
+<!-- 配合の登録（単位水量の道具から番号で呼び出す元。設定とは別のウィンドウ） -->
+<div class="modal-overlay" id="tsMixOverlay" onclick="if(event.target===this)closeTsMixReg()">
+  <div class="modal">
+    <div class="modal-header">
+      <span>📋 配合の登録（<span id="tsrMixCount">0</span>/30）</span>
+      <button class="modal-close" onclick="closeTsMixReg()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="ts-ref-note"><b>配合番号</b>で呼び出します。<b>配合</b>の欄には呼び名（例 <b>21-5-40BB</b>）を入れておくと、道具で番号を入れたときにどの配合か分かります。混和材 P が無い配合は空のままで大丈夫です。</div>
+      <div id="tsrMixList"></div>
+      <button class="ts-ref-btn" onclick="tsRegAdd('mix')">＋ 配合を追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- エアメータの登録 -->
+<div class="modal-overlay" id="tsAirOverlay" onclick="if(event.target===this)closeTsAirReg()">
+  <div class="modal">
+    <div class="modal-header">
+      <span>🧪 エアメータの登録（<span id="tsrAirCount">0</span>/5）</span>
+      <button class="modal-close" onclick="closeTsAirReg()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="ts-ref-note"><b>エアメータ番号</b>で呼び出します。<b>名前</b>の欄には呼び名（例 <b>1号機</b>）を入れておけます。容器の容積 V と容器質量 m1 を、エアメータごとに入れてください。</div>
+      <div id="tsrAirList"></div>
+      <button class="ts-ref-btn" onclick="tsRegAdd('air')">＋ エアメータを追加</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="tsSettingsOverlay" onclick="if(event.target===this)closeTsSettings()">
   <div class="modal">
     <div class="modal-header">
@@ -2531,14 +2573,9 @@ body.dark {
         <div class="ts-set-ctrl"><span class="sc-val" id="tsLimit">20</span><span class="ts-spin"><button class="step-btn step-spin ts-spin-btn" onclick="changeTsTol('limit',1)" aria-label="増やす">▲</button><button class="step-btn step-spin ts-spin-btn" onclick="changeTsTol('limit',-1)" aria-label="減らす">▼</button></span></div>
       </div>
       <div class="ts-ref-sec">
-        <div class="kt-onebyone">配合の登録（<span id="tsrMixCount">0</span>/30）</div>
-        <div class="ts-ref-note">よく使う配合を入れておくと、<b>💧単位水量の道具</b>で<b>配合番号</b>を入れるだけで呼び出せます。混和材 P が無い配合は空のままで大丈夫です。</div>
-        <div id="tsrMixList"></div>
-        <button class="ts-ref-btn" onclick="tsRegAdd('mix')">＋ 配合を追加</button>
-        <div class="kt-onebyone">エアメータの登録（<span id="tsrAirCount">0</span>/5）</div>
-        <div class="ts-ref-note">容器の容積 V と容器質量 m1 を、エアメータごとに入れておけます。</div>
-        <div id="tsrAirList"></div>
-        <button class="ts-ref-btn" onclick="tsRegAdd('air')">＋ エアメータを追加</button>
+        <div class="ts-ref-note">よく使う配合とエアメータは、それぞれ別の画面で登録します。登録しておくと<b>💧単位水量</b>の道具で<b>番号を入れるだけ</b>で呼び出せます。</div>
+        <button class="ts-ref-btn" onclick="openTsMixReg()">📋 配合の登録を開く（<span id="tsrMixCount2">0</span>/30）</button>
+        <button class="ts-ref-btn" onclick="openTsAirReg()">🧪 エアメータの登録を開く（<span id="tsrAirCount2">0</span>/5）</button>
         <div class="kt-onebyone">表（シート）に登録したいとき</div>
         <div class="ts-ref-note">単位水量<b>モード</b>では、配合・エアメータを<b>シート</b>に登録して使うこともできます（上の登録とは別のものです）。モードで表として記録を残したいときはこちらをどうぞ。</div>
         <button class="ts-ref-btn" onclick="setupTanisuiryouSheets()">📋 配合・エアメータ登録シートを作成</button>
@@ -3557,7 +3594,7 @@ body.dark {
             <tr><td><b>単位水量</b></td><td>土研法エアメータ法で生コンの単位水量を推定（下記）</td></tr>
           </table>
           <div class="help-li"><b>単位水量</b>：配合（W1・セメント・細骨材・粗骨材・混和材・配合空気量）と試験値（容器容積V・容器質量・容器+試料・測定空気量）を入れると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で推定し、許容差（下のバーで変更可）で合否判定します。配合はkg/m³、試験はg・ccで入力。<b>モードに入らずに使える<b>💧単位水量</b>の道具</b>もあります（下記／計算は同じです）。</div>
-          <div class="help-li"><b>💧単位水量（道具）</b>：写真メモ・カンタブと同じ<b>道具</b>です。<b>登録ページ</b>の<b>🔧ボタンの機能</b>か、テンキーの<b>長押し</b>で<b>💧単位水量</b>をキーに登録すると、<b>モードに入らなくても</b>そのキーで開けます。同じ12項目を入れると<b>推定単位水量・配合W1との差・合否</b>が出て、<b>🧮計算の途中経過</b>で⑦〜⑱の値も確認できます。出た値は<b>▦推定単位水量をセルに入れる</b>で選択中のセルへ。入れた値は次に開いたときも残ります。<b>計算はモードとまったく同じ</b>なので、どちらで出しても値は一致します。<br>よく使う配合（30件まで）とエアメータ（5件まで）は<b>⚙設定・登録</b>に入れておけて、道具の<b>配合番号・エアメータ番号</b>に番号を入れるだけで呼び出せます。許容差と小数桁も同じ画面で変えられ、<b>モードと共通</b>です。</div>
+          <div class="help-li"><b>💧単位水量（道具）</b>：写真メモ・カンタブと同じ<b>道具</b>です。<b>登録ページ</b>の<b>🔧ボタンの機能</b>か、テンキーの<b>長押し</b>で<b>💧単位水量</b>をキーに登録すると、<b>モードに入らなくても</b>そのキーで開けます。同じ12項目を入れると<b>推定単位水量・配合W1との差・合否</b>が出て、<b>🧮計算の途中経過</b>で⑦〜⑱の値も確認できます。いちばん下の<b>▦推定単位水量をセルに入れる</b>で選択中のセルへ入ります。入れた値は次に開いたときも残ります。<b>計算はモードとまったく同じ</b>なので、どちらで出しても値は一致します。<br>よく使う配合（30件まで）とエアメータ（5件まで）は<b>📋配合の登録</b>・<b>🧪エアメータの登録</b>（それぞれ別の画面）に入れておけて、道具の<b>配合番号・エアメータ番号</b>に番号を入れるだけで呼び出せます。配合には番号とは別に<b>配合の呼び名</b>（例 21-5-40BB）を入れておけ、番号を入れると<b>どの配合を呼び出したか名前で確認</b>できます（番号が登録に無いときもその場で分かります）。許容差と小数桁は<b>⚙設定</b>で変えられ、<b>モードと共通</b>です。</div>
           <div class="help-li"><b>電卓モード</b>：モードで<b>🧮電卓</b>を選ぶと、表のかわりに<b>ふつうの電卓</b>が出ます。テンキーはそのまま使えて、押すたびに答えが出ます。計算するたびに<b>履歴（テープ）</b>が残り、行を押すとその答えをもう一度使えます。<b>％</b>（100＋10％→110）と<b>消費税</b>（税込・税抜。税率は設定のもの）のボタンつき。<b>▦ セルに入れる</b>を押すと元のモードに戻って、選んでいるセルに答えが入ります。「1＋2×3」の答えを<b>9（ふつうの電卓）</b>にするか<b>7（式の優先順位どおり）</b>にするかは、<b>設定→🧮計算</b>で選べます。</div>
           <div class="help-li"><b>カンタブ（塩化物イオン量）</b>：容積計算・写真メモ・単位水量と同じ<b>道具</b>です。設定の<b>キーの割り当て</b>で<b>🧪カンタブ</b>をキーに登録すると、そのキーで開けます。<b>単位水量</b>と<b>読み値①〜③</b>を入れると、読み値ごとに<b>換算表の値(%)</b>と<b>塩化物含有量(kg/m³)</b>が並び、最後にその<b>平均値</b>で合否を判定します。平均値は<b>選択中のセルに入れる</b>こともできます。読み値から濃度への<b>換算表はカンタブの製品ごとに違う</b>ので、はじめに<b>⚙換算表・設定</b>でお使いの表を登録してください（読み値が表の間のときは前後から直線でおぎない、その旨を表示します）。換算表は<b>まとめて貼り付け</b>でも登録できます（1行に「読み値」と「濃度」の数字を2つ並べる。区切りはスペース・タブ・カンマのどれでもよく、全角の数字も読めます）。濃度は<b>小数4桁</b>まで扱えます。よく使う製品の表は<b>ひな形のボタン</b>でワンタップでも入れられます（写真から起こした値なので、入れたあと実物と見くらべてください）。管理値の既定は 0.30 kg/m³ で、設定で変えられます。</div>
           <div class="help-li"><b>配合・エアメータの登録（シート連携）</b>：単位水量の<b>⚙設定</b>「📋配合・エアメータ登録シートを作成」で<b>本体・配合登録(30)・エアメータ登録(5)</b>の3シートができます。番号ごとの値を入れておくと、本体で<b>配合番号・エアメータ番号を入れるだけ</b>で値が呼び出されます（登録側を直すと本体にも反映）。上の常設タブで切替。</div>
@@ -11249,6 +11286,13 @@ function changeTsDp(which,delta){
 }
 function openTsSettings(){ applyTsDpLabels(); applyTsTolLabels(); tsRegRender(); document.getElementById('tsSettingsOverlay').classList.add('open'); }
 function closeTsSettings(){ document.getElementById('tsSettingsOverlay').classList.remove('open'); }
+/* 配合・エアメータの登録は、設定とは別のウィンドウで開く */
+function openTsMixReg(){ tsRegRender(); document.getElementById('tsMixOverlay').classList.add('open'); }
+function closeTsMixReg(){ document.getElementById('tsMixOverlay').classList.remove('open'); tsxAfterReg(); }
+function openTsAirReg(){ tsRegRender(); document.getElementById('tsAirOverlay').classList.add('open'); }
+function closeTsAirReg(){ document.getElementById('tsAirOverlay').classList.remove('open'); tsxAfterReg(); }
+/* 登録をいじったあと、道具が開いていれば番号の呼び出しと計算をやり直す */
+function tsxAfterReg(){ if(tsxIsOpen()){ tsxRefFill('mixNo'); tsxRefFill('airNo'); tsxCalc(); } }
 
 /* ══ 単位水量試験（道具版）══
    写真メモ・カンタブ・容積と同じ「道具」。モードに入らなくても、登録キーから開いて
@@ -11301,16 +11345,34 @@ function tsxRenderInputs(){
   put('tsxRefRows', TSX_REF_KEYS);
   put('tsxTestRows', TSX_TEST_KEYS);
   put('tsxMixRows', TSX_MIX_KEYS);
+  tsxRefName();
 }
 function tsxInput(key, val){
   tsxVals[key]=val; tsxSaveVals();
   if(key==='mixNo'||key==='airNo') tsxRefFill(key);
   tsxCalc();
 }
+/* 呼び出した配合・エアメータの名前を番号欄の下に出す。
+   番号が登録に無いときは、打ち間違いに気づけるようその旨を薄く出す。 */
+function tsxRefName(){
+  const el=document.getElementById('tsxRefName'); if(!el) return;
+  const parts=[]; let miss=false;
+  [['mixNo','mix','配合'],['airNo','air','エアメータ']].forEach(([k,kind,lb])=>{
+    const num=String(tsxVals[k]!=null?tsxVals[k]:'').trim();
+    if(num==='') return;
+    const e=(tsRegs[kind]||[]).find(x=>x&&String(x.no!=null?x.no:'').trim()===num);
+    if(!e){ parts.push(lb+'番号「'+num+'」は登録にありません'); miss=true; return; }
+    const nm=String(e.name!=null?e.name:'').trim();
+    parts.push(lb+'：'+(nm||'（名前なし・番号'+num+'）'));
+  });
+  el.textContent=parts.join(' ／ ');
+  el.classList.toggle('tsx-miss', miss || !parts.length);
+}
 /* 番号を入れたら、道具の中の登録から値を呼び出して各欄に入れる */
 function tsxRefFill(key){
   const kind=(key==='mixNo')?'mix':'air';
   const num=String(tsxVals[key]!=null?tsxVals[key]:'').trim();
+  tsxRefName();
   if(num==='') return 0;
   const e=(tsRegs[kind]||[]).find(x=>x&&String(x.no!=null?x.no:'').trim()===num);
   if(!e) return 0;                       // 見つからないときは何もしない（打っている途中のため）
@@ -11376,15 +11438,16 @@ function tsxInsertToCell(){
 }
 /* ── 配合・エアメータの登録（道具の中に持つぶん。⚙設定・登録の中で編集する） ── */
 const TSR_DEF={
-  mix:{ title:'配合', fields:TSX_MIX_KEYS, cls:'' },
-  air:{ title:'エアメータ', fields:['V','m1'], cls:' tsr-g2' }
+  /* nameLb＝番号とは別に付けておける呼び名の見出し（配合なら 21-5-40BB など） */
+  mix:{ title:'配合', nameLb:'配合',  namePh:'例 21-5-40BB', fields:TSX_MIX_KEYS, cls:'' },
+  air:{ title:'エアメータ', nameLb:'名前', namePh:'例 1号機', fields:['V','m1'], cls:' tsr-g2' }
 };
 function tsRegRender(){
   const byKey={}; TS_FORM.forEach(f=>{ byKey[f.key]=f; });
   ['mix','air'].forEach(kind=>{
     const box=document.getElementById(kind==='mix'?'tsrMixList':'tsrAirList'); if(!box) return;
-    const cnt=document.getElementById(kind==='mix'?'tsrMixCount':'tsrAirCount');
-    if(cnt) cnt.textContent=(tsRegs[kind]||[]).length;
+    [kind==='mix'?'tsrMixCount':'tsrAirCount', kind==='mix'?'tsrMixCount2':'tsrAirCount2']
+      .forEach(id=>{ const c=document.getElementById(id); if(c) c.textContent=(tsRegs[kind]||[]).length; });
     const d=TSR_DEF[kind];
     box.innerHTML=(tsRegs[kind]||[]).map((e,i)=>{
       const f=d.fields.map(k=>{
@@ -11398,6 +11461,9 @@ function tsRegRender(){
         +`<div class="tsr-top"><label>${d.title}番号</label>`
         +`<input type="text" value="${escHtml(String(e.no!=null?e.no:''))}" oninput="tsRegSet('${kind}',${i},'no',this.value)">`
         +`<button class="tsr-del" onclick="tsRegDel('${kind}',${i})" aria-label="削除">🗑</button></div>`
+        +`<div class="tsr-top"><label>${d.nameLb}</label>`
+        +`<input type="text" class="tsr-name" value="${escHtml(String(e.name!=null?e.name:''))}" placeholder="${d.namePh}"`
+        +` oninput="tsRegSet('${kind}',${i},'name',this.value)"></div>`
         +`<div class="tsr-grid${d.cls}">${f}</div></div>`;
     }).join('') || `<div class="ts-ref-note">まだ登録がありません。</div>`;
   });
@@ -11408,7 +11474,7 @@ function tsRegAdd(kind){
   // 番号は、まだ使われていない小さい数を自動で入れておく
   const used={}; tsRegs[kind].forEach(e=>{ used[String(e.no).trim()]=1; });
   let no=1; while(used[String(no)]) no++;
-  const e={no:String(no)}; TSR_DEF[kind].fields.forEach(k=>{ e[k]=''; });
+  const e={no:String(no), name:''}; TSR_DEF[kind].fields.forEach(k=>{ e[k]=''; });
   tsRegs[kind].push(e); tsRegsSave(); tsRegRender();
 }
 function tsRegDel(kind,i){
@@ -11418,7 +11484,7 @@ function tsRegDel(kind,i){
 function tsRegSet(kind,i,field,val){
   if(!tsRegs[kind]||!tsRegs[kind][i]) return;
   tsRegs[kind][i][field]=val; tsRegsSave();
-  if(tsxIsOpen()){ tsxRefFill('mixNo'); tsxRefFill('airNo'); tsxCalc(); }
+  tsxAfterReg();
 }
 
 
@@ -12585,7 +12651,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v288';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v289';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
