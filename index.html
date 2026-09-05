@@ -1374,7 +1374,13 @@ body.dark .vol-cal-note { color: #ce93d8; }
   box-shadow: var(--elev-1); }
 .pm-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 .pm-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #888; font-size: 15px; pointer-events: none; }
-.pm-shootrow { position: absolute; left: 8px; bottom: 8px; display: flex; gap: 8px; }
+/* ボタンは左下にまとめる。文字を入れて幅が増えても、はみ出さずに上へ折り返す。
+   ボタン以外のすき間は指の操作を通して、写真に線を引くじゃまをしない。 */
+.pm-shootrow { position: absolute; left: 8px; right: 8px; bottom: 8px; display: flex; flex-wrap: wrap; gap: 8px;
+  pointer-events: none; }
+.pm-shootrow button { pointer-events: auto; }
+/* 「戻す・進む」は対で使うので、折り返すときも2つ一緒に動かす */
+.pm-editgrp { display: flex; gap: 8px; pointer-events: none; }
 .pm-shoot { padding: 9px 13px; border: 1px solid rgba(255,255,255,.28); border-radius: var(--r-btn); background: rgba(0,0,0,.55);
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   color: #fff; font-size: 13px; font-weight: bold; cursor: pointer; touch-action: manipulation; transition: transform var(--dur); }
@@ -1384,6 +1390,21 @@ body.dark .vol-cal-note { color: #ce93d8; }
   background: rgba(255,255,255,.18); color: #fff; font-size: 13px; font-weight: bold;
   cursor: pointer; touch-action: manipulation; transition: background var(--dur), transform var(--dur); }
 .hdr-btn:active { transform: scale(.95); background: rgba(255,255,255,.32); }
+/* 画面の左上に置く「戻る」。✕ だけでは「消える」のか「前に戻る」のか分かりにくいので、
+   矢印と文字の両方を出して、押せば元の画面にもどると一目で分かるようにする。 */
+.hdr-back { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px;
+  padding: 6px 12px 6px 9px; border: 1px solid rgba(255,255,255,.55); border-radius: var(--r-pill);
+  background: rgba(255,255,255,.22); color: #fff; font-size: 13px; font-weight: bold;
+  cursor: pointer; touch-action: manipulation; white-space: nowrap;
+  transition: background var(--dur), transform var(--dur); }
+.hdr-back:hover { background: rgba(255,255,255,.35); }
+.hdr-back:active { transform: scale(.95); background: rgba(255,255,255,.4); }
+.hdr-back .hdr-back-ar { font-size: 16px; line-height: 1; }
+/* 見出しは残りの幅に収める（狭い画面では「戻る」と道具を優先し、見出しは詰める） */
+.hdr-title { flex: 1; min-width: 0; margin-left: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body[data-pm="xs"] .hdr-back { padding: 4px 9px 4px 7px; font-size: 12px; }
+body[data-pm="xs"] .hdr-back .hdr-back-ar { font-size: 14px; }
+body[data-pm="xs"] .hdr-title { margin-left: 6px; }
 /* 写真を回すボタンは上の帯（保存設定の左）へ。写真の上に重ねると編集の邪魔になるため */
 .hdr-rotrow { display: flex; align-items: center; gap: 4px; }
 .hdr-rot { padding: 5px 9px; font-size: 17px; line-height: 1; }
@@ -1429,10 +1450,13 @@ body[data-pm="xs"] .hdr-rot { padding: 4px 7px; font-size: 15px; }
 .pm-tabbar .pm-tab { background: transparent; color: var(--text-light); font-size: 17px; padding: 11px 8px;
   border-radius: 8px 8px 0 0; border-bottom: 3px solid transparent; margin-bottom: -1px; }
 .pm-tabbar .pm-tab.on { background: var(--pm-soft); color: var(--acc-text); border-bottom-color: var(--pm-acc); }
-.pm-editbtn { padding: 9px 13px; border: 1.5px solid var(--pm-acc); border-radius: var(--r-btn);
+.pm-editbtn { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+  padding: 9px 12px; border: 1.5px solid var(--pm-acc); border-radius: var(--r-btn);
   background: rgba(0,0,0,.55); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   color: #fff; font-size: 17px; font-weight: bold; line-height: 1;
   cursor: pointer; touch-action: manipulation; transition: transform var(--dur), background var(--dur); }
+/* 矢印のとなりに小さく役割を出す（絵だけだと「画面が戻る」と間違えやすいため） */
+.pm-editbtn .pm-editlb { font-size: 12px; }
 .pm-editbtn:active { transform: scale(.94); background: var(--pm-acc); }
 .pm-editbtn[disabled] { border-color: rgba(255,255,255,.25); color: rgba(255,255,255,.4); }
 .pm-del { background: rgba(192,57,43,.12); border: 1.5px solid var(--danger); color: var(--danger); }
@@ -1496,7 +1520,8 @@ body[data-pm="xs"] .pm-color { width: 23px; height: 23px; }
 body[data-pm="xs"] .pm-tool-lb { font-size: 11px; }
 body[data-pm="xs"] .pm-panel { gap: 2px; }
 body[data-pm="xs"] .pm-shoot { padding: 7px 10px; font-size: 12px; }
-body[data-pm="xs"] .pm-editbtn { padding: 7px 10px; font-size: 15px; }
+body[data-pm="xs"] .pm-editbtn { padding: 7px 9px; font-size: 15px; gap: 3px; }
+body[data-pm="xs"] .pm-editbtn .pm-editlb { font-size: 11px; }
 body[data-pm="xs"] .pm-cbtn { min-width: 30px; padding: 5px 7px; font-size: 11px; }
 body[data-pm="xs"] .pm-memowrap { min-height: 48px; }
 body[data-pm="xs"] .hdr-btn { padding: 4px 9px; font-size: 12px; }
@@ -3138,11 +3163,11 @@ body.dark {
 <div class="modal-overlay" id="photoMemoOverlay" onclick="if(event.target===this)closePhotoMemo()">
   <div class="modal pm-modal">
     <div class="modal-header">
-      <span>📝 写真メモ</span>
+      <button class="hdr-back" onclick="closePhotoMemo()" title="写真メモを閉じて表にもどる"><span class="hdr-back-ar">←</span>戻る</button>
+      <span class="hdr-title">📝 写真メモ</span>
       <span class="hdr-right">
         <span class="hdr-rotrow" id="pmRotRow" style="display:none"><button class="hdr-btn hdr-rot" onclick="pmRotatePhoto(-1)" title="左に90°回す">↺</button><button class="hdr-btn hdr-rot" onclick="pmRotatePhoto(1)" title="右に90°回す">↻</button></span>
         <button class="hdr-btn" onclick="pmOpenSaveSet()">⚙ 保存設定</button>
-        <button class="modal-close" onclick="closePhotoMemo()">✕</button>
       </span>
     </div>
     <div class="pm-body">
@@ -3154,8 +3179,7 @@ body.dark {
         <div class="pm-shootrow">
           <button class="pm-shoot" onclick="document.getElementById('pmPhotoInput').click()">📷 カメラ</button>
           <button class="pm-shoot" onclick="document.getElementById('pmFileInput').click()">🖼 ファイル</button>
-          <button class="pm-editbtn" id="pmUndoBtn" onpointerdown="event.preventDefault()" onclick="pmUndo()" disabled title="元に戻す">↩︎</button>
-          <button class="pm-editbtn" id="pmRedoBtn" onpointerdown="event.preventDefault()" onclick="pmRedo()" disabled title="やり直す">↪︎</button>
+          <span class="pm-editgrp"><button class="pm-editbtn" id="pmUndoBtn" onpointerdown="event.preventDefault()" onclick="pmUndo()" disabled title="直前の書き込みを取り消す">↩︎<span class="pm-editlb">戻す</span></button><button class="pm-editbtn" id="pmRedoBtn" onpointerdown="event.preventDefault()" onclick="pmRedo()" disabled title="取り消した書き込みをやり直す">↪︎<span class="pm-editlb">進む</span></button></span>
         </div>
         <div class="pm-penbadge" id="pmPenBadge" style="display:none" onclick="pmModeOff()"></div>
         <div class="pm-toprow" id="pmTopRow" style="display:none">
@@ -3397,8 +3421,8 @@ body.dark {
 <div class="modal-overlay" id="pmSaveSetOverlay" onclick="if(event.target===this)pmCloseSaveSet()">
   <div class="modal">
     <div class="modal-header">
-      <span>⚙ 保存設定</span>
-      <button class="modal-close" onclick="pmCloseSaveSet()">✕</button>
+      <button class="hdr-back" onclick="pmCloseSaveSet()" title="前の画面にもどる"><span class="hdr-back-ar">←</span>戻る</button>
+      <span class="hdr-title">⚙ 保存設定</span>
     </div>
     <div class="shotprev-body">
       <div class="mode-hint">スクショ・共有で書き出す画像の大きさです。「元のサイズ」なら写真の画質そのままで保存できます（元より大きくは引き伸ばしません）。</div>
@@ -3416,8 +3440,8 @@ body.dark {
 <div class="modal-overlay" id="pmPhraseOverlay" onclick="if(event.target===this)pmClosePhrases()">
   <div class="modal">
     <div class="modal-header">
-      <span>📋 定型文</span>
-      <button class="modal-close" onclick="pmClosePhrases()">✕</button>
+      <button class="hdr-back" onclick="pmClosePhrases()" title="前の画面にもどる"><span class="hdr-back-ar">←</span>戻る</button>
+      <span class="hdr-title">📋 定型文</span>
     </div>
     <div class="shotprev-body">
       <div class="mode-hint">言葉をタップするとメモに入ります。「📷」を押すと写真の上に文字として置きます。</div>
@@ -3434,8 +3458,8 @@ body.dark {
 <div class="modal-overlay" id="shotPrevOverlay" onclick="if(event.target===this)closeShotPreview()">
   <div class="modal shotprev-modal">
     <div class="modal-header">
-      <span>👁 プレビュー</span>
-      <button class="modal-close" onclick="closeShotPreview()">✕</button>
+      <button class="hdr-back" onclick="closeShotPreview()" title="前の画面にもどる"><span class="hdr-back-ar">←</span>戻る</button>
+      <span class="hdr-title">👁 プレビュー</span>
     </div>
     <div class="shotprev-body">
       <div class="mode-hint">この内容の画像になります。よければ「スクショ」で画像として保存、「共有」でLINE・メール等へ送れます。</div>
@@ -6310,17 +6334,24 @@ function volEnsureState(){
   if(!volRefKey || !keys.includes(volRefKey)) volRefKey=keys[0];
   if(volActiveKey && !keys.includes(volActiveKey) && !volCalIsKey(volActiveKey)) volActiveKey=null;
 }
-/* 端末の「戻る」ボタンでアプリを閉じずに、開いている画面（容積・写真メモ）だけを閉じる。
-   開く時に履歴を1つ積み、戻る（popstate）でモーダルだけ閉じる。✕で閉じた時は積んだ分を消費する。
+/* 端末の「戻る」ボタンでアプリを閉じずに、開いている画面（容積・写真メモとその小画面）だけを閉じる。
+   開く時に履歴を1つ積み、戻る（popstate）でいちばん上の画面だけ閉じる。画面の「戻る」で閉じた時は
+   積んだ分を1つ消費するので、端末の戻ると画面の戻るがいつも同じ動きになる。
    ※アプリのアンドゥ用 `history` 配列がブラウザの history を隠すため、必ず window.history を使う。 */
-let backGuardFn=null;
-window.addEventListener('popstate', ()=>{ if(backGuardFn){ const f=backGuardFn; backGuardFn=null; f(); } });
+let backGuardStack=[];     // 重ねて開いた画面の「閉じる処理」。後ろが上の画面
+let backGuardSkip=0;       // 自分で history.back() した分（popstate を1回読み飛ばす）
+window.addEventListener('popstate', ()=>{
+  if(backGuardSkip>0){ backGuardSkip--; return; }
+  const f=backGuardStack.pop(); if(f) f();
+});
 function armBackGuard(fn){
-  const had=!!backGuardFn; backGuardFn=fn;
-  if(!had){ try{ window.history.pushState({excalcModal:1},''); }catch(_){} }
+  backGuardStack.push(fn);
+  try{ window.history.pushState({excalcModal:1},''); }catch(_){}
 }
 function releaseBackGuard(){
-  if(backGuardFn){ backGuardFn=null; try{ window.history.back(); }catch(_){} }
+  if(!backGuardStack.length) return;
+  backGuardStack.pop(); backGuardSkip++;
+  try{ window.history.back(); }catch(_){ backGuardSkip--; }
 }
 function openVolume(){
   volEnsureState();
@@ -6329,7 +6360,11 @@ function openVolume(){
   document.getElementById('volumeOverlay').classList.add('open');
   armBackGuard(()=>document.getElementById('volumeOverlay').classList.remove('open'));
 }
-function closeVolume(){ document.getElementById('volumeOverlay').classList.remove('open'); releaseBackGuard(); }
+function closeVolume(){
+  const ov=document.getElementById('volumeOverlay'); if(!ov.classList.contains('open')) return;
+  if(document.getElementById('shotPrevOverlay').classList.contains('open')) closeShotPreview();   // 上のプレビューを先に閉じる
+  ov.classList.remove('open'); releaseBackGuard();
+}
 function trimNum(n){ return parseFloat(Number(n).toFixed(4)); }
 function segLen(s){ return s?Math.hypot(s.x2-s.x1, s.y2-s.y1):0; }
 function volPhotoChange(e){
@@ -6975,11 +7010,17 @@ function openShotPreview(build, prefix){
   shotPrevBuild=mk; shotPrevPrefix=prefix;
   document.getElementById('shotPrevImg').src=url;
   document.getElementById('shotPrevOverlay').classList.add('open');
+  armBackGuard(shotPrevHide);
 }
-function closeShotPreview(){
+/* 画面を消すだけ（履歴の始末はしない）。端末の戻るからはこちらを呼ぶ */
+function shotPrevHide(){
   document.getElementById('shotPrevOverlay').classList.remove('open');
   shotPrevBuild=null;
   const img=document.getElementById('shotPrevImg'); if(img) img.removeAttribute('src');
+}
+function closeShotPreview(){
+  if(!document.getElementById('shotPrevOverlay').classList.contains('open')) return;
+  shotPrevHide(); releaseBackGuard();
 }
 async function shotPrevDeliver(share){
   if(!shotPrevBuild) return;
@@ -7090,7 +7131,12 @@ function openPhotoMemo(){
     pmDraftOffer();
   });
 }
-function closePhotoMemo(){ document.getElementById('photoMemoOverlay').classList.remove('open'); releaseBackGuard(); }
+function closePhotoMemo(){
+  const ov=document.getElementById('photoMemoOverlay'); if(!ov.classList.contains('open')) return;
+  // 上に小画面（保存設定・定型文・プレビュー）が開いていれば先に閉じる（積んだ履歴の順を保つ）
+  closeShotPreview(); pmClosePhrases(); pmCloseSaveSet();
+  ov.classList.remove('open'); releaseBackGuard();
+}
 function pmSetupCanvas(){
   const c=pmCanvasEl(); if(!c) return;
   const rect=c.getBoundingClientRect();
@@ -8077,8 +8123,12 @@ function pmOutWidth(){
   if(pmPrefs.q==='high') return Math.min(w, 2000);
   return Math.min(w, PM_QMAX);   // 元のサイズ（引き伸ばしはしない）
 }
-function pmOpenSaveSet(){ pmQualitySyncUi(); document.getElementById('pmSaveSetOverlay').classList.add('open'); }
-function pmCloseSaveSet(){ document.getElementById('pmSaveSetOverlay').classList.remove('open'); }
+function pmOpenSaveSet(){ pmQualitySyncUi(); document.getElementById('pmSaveSetOverlay').classList.add('open');
+  armBackGuard(()=>document.getElementById('pmSaveSetOverlay').classList.remove('open')); }
+function pmCloseSaveSet(){
+  const ov=document.getElementById('pmSaveSetOverlay'); if(!ov.classList.contains('open')) return;
+  ov.classList.remove('open'); releaseBackGuard();
+}
 function pmQualitySyncUi(){
   [['pmQ_orig','orig'],['pmQ_high','high'],['pmQ_std','std']].forEach(([id,v])=>{
     const b=document.getElementById(id); if(b) b.classList.toggle('on', pmPrefs.q===v);
@@ -8412,8 +8462,12 @@ function pmSavePhrases(){ try{ localStorage.setItem('excalc_pm_phrases', JSON.st
 function pmOpenPhrases(){
   pmRenderPhrases();
   document.getElementById('pmPhraseOverlay').classList.add('open');
+  armBackGuard(()=>document.getElementById('pmPhraseOverlay').classList.remove('open'));
 }
-function pmClosePhrases(){ document.getElementById('pmPhraseOverlay').classList.remove('open'); }
+function pmClosePhrases(){
+  const ov=document.getElementById('pmPhraseOverlay'); if(!ov.classList.contains('open')) return;
+  ov.classList.remove('open'); releaseBackGuard();
+}
 function pmRenderPhrases(){
   const el=document.getElementById('pmPhraseList'); if(!el) return;
   if(!pmPhrases.length){ el.innerHTML='<div class="mode-hint">定型文がありません。下の欄から追加できます。</div>'; return; }
@@ -12600,7 +12654,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v292';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v293';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
