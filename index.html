@@ -2040,8 +2040,35 @@ body.simple-mode .rh  { height: calc(46px * var(--cell-scale, 1)); }
 .tsx-row .kt-in-unit { flex: 0 0 3.6em; }
 .tsx-row.tsx-ref input { background: var(--save-item-bg); }
 /* 呼び出した配合の名前（21-5-40BB など）を番号のすぐ下に出す */
-.tsx-refname { font-size: 13px; color: var(--acc-text); font-weight: bold; min-height: 1.2em; padding: 0 2px 2px; }
-.tsx-refname.tsx-miss { color: var(--text-light); font-weight: normal; }
+/* 呼び出した配合の名前。どの配合で計算しているかがひと目で分かるよう大きく出す */
+.tsx-refname { font-size: 17px; line-height: 1.35; color: var(--acc-text); font-weight: bold;
+  min-height: 1.35em; padding: 4px 2px 6px; word-break: break-all; }
+body.dark .tsx-refname { color: #7fd6a3; }
+.tsx-refname.tsx-miss { font-size: 13px; color: var(--text-light); font-weight: normal; }
+/* 折りたためる見出し（配合）。閉じているときは見出しの右に配合の名前を出す */
+.tsx-sec-btn {
+  width: 100%; display: flex; align-items: baseline; gap: 8px; text-align: left;
+  background: none; border: none; padding: 0; cursor: pointer; touch-action: manipulation;
+  font: inherit; color: inherit;
+}
+.tsx-sec-btn .tsx-sec-name { flex: 1; min-width: 0; font-size: 15px; font-weight: bold;
+  color: var(--acc-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.dark .tsx-sec-btn .tsx-sec-name { color: #7fd6a3; }
+.tsx-sec-btn .tsx-sec-arrow { flex-shrink: 0; font-size: 12px; color: var(--text-light); }
+/* 結果：推定単位水量と、配合W1との差を同じ大きさで並べる */
+.tsx-res2 { display: flex; gap: 10px; text-align: center; }
+.tsx-res2 > div { flex: 1 1 0; min-width: 0; }
+.tsx-res-lb { font-size: 13px; font-weight: bold; color: var(--text-light); margin-bottom: 2px; }
+.tsx-res-val { font-size: 24px; font-weight: bold; color: var(--acc-text); word-break: break-all; line-height: 1.2; }
+.tsx-res-val small { font-size: 13px; font-weight: bold; margin-left: 2px; }
+body.dark .tsx-res-val { color: #7fd6a3; }
+.tsx-res-val.ok   { color: var(--ok); }
+.tsx-res-val.warn { color: #b35309; }   /* 明るい地の上に置く文字なので、帯の橙より濃くする */
+.tsx-res-val.ng   { color: var(--danger); }
+/* 夜モードは地の色が暗いので、要注意・不合格の色も明るい側にずらす */
+body.dark .tsx-res-val.ok   { color: #7fd6a3; }
+body.dark .tsx-res-val.warn { color: #ffb74d; }
+body.dark .tsx-res-val.ng   { color: #ff8a80; }
 .tsx-reg-btns { display: flex; gap: 6px; }
 .tsx-regbtn { flex: 1 1 0; min-width: 0; font-size: 13px; }
 .tsx-insert-bottom { margin: 12px 0 4px; }
@@ -2425,11 +2452,23 @@ body.dark {
       </div>
       <div class="tsx-sec">試験値</div>
       <div id="tsxTestRows"></div>
-      <div class="tsx-sec">配合</div>
+      <div class="tsx-sec">
+        <button class="tsx-sec-btn" onclick="tsxToggleMix()">
+          <span>配合</span><span class="tsx-sec-name" id="tsxMixName"></span><span class="tsx-sec-arrow" id="tsxMixArrow">▲</span>
+        </button>
+      </div>
       <div id="tsxMixRows"></div>
       <div class="vol-result">
-        <div class="kt-avg-lb">推定単位水量 W</div>
-        <div class="vol-result-main" id="tsxW">—</div>
+        <div class="tsx-res2">
+          <div>
+            <div class="tsx-res-lb">推定単位水量 W</div>
+            <div class="tsx-res-val" id="tsxW">—</div>
+          </div>
+          <div>
+            <div class="tsx-res-lb">配合 W1 との差</div>
+            <div class="tsx-res-val" id="tsxDelta">—</div>
+          </div>
+        </div>
         <div class="vol-result-sub" id="tsxSub">配合と試験の値を入れてください</div>
       </div>
       <div class="kt-judge-row"><span class="ts-judge" id="tsxJudge">—</span></div>
@@ -11307,11 +11346,13 @@ const TSX_REF_KEYS =['mixNo','airNo'];                 // 番号で呼び出す
 let tsxVals={};                 // {key: 文字列}
 let tsRegs={mix:[], air:[]};    // 道具の中に持つ登録
 let tsxStepsOpen=false;
+let tsxMixOpen=true;      // 配合の欄を開いているか（番号で呼び出す人は閉じておける）
 let tsxLastW=null;
 
 function tsxLoad(){
   try{ const o=JSON.parse(localStorage.getItem(TSX_VALS_KEY)||'null');
        if(o&&typeof o==='object') tsxVals=o; }catch(_){}
+  tsxMixOpen = localStorage.getItem('excalc_tansui_mixopen')!=='0';
   try{ const o=JSON.parse(localStorage.getItem(TS_REG_KEY)||'null');
        if(o&&typeof o==='object'){
          tsRegs={ mix:Array.isArray(o.mix)?o.mix:[], air:Array.isArray(o.air)?o.air:[] }; } }catch(_){}
@@ -11320,8 +11361,20 @@ function tsxSaveVals(){ try{ localStorage.setItem(TSX_VALS_KEY, JSON.stringify(t
 function tsRegsSave(){ try{ localStorage.setItem(TS_REG_KEY, JSON.stringify(tsRegs)); }catch(_){} }
 function tsxIsOpen(){ const o=document.getElementById('tansuiOverlay'); return !!o && o.classList.contains('open'); }
 
+/* 配合の欄を開く／閉じる。番号で呼び出して使う人は閉じておけば画面が短くなる */
+function tsxToggleMix(){
+  tsxMixOpen=!tsxMixOpen;
+  try{ localStorage.setItem('excalc_tansui_mixopen', tsxMixOpen?'1':'0'); }catch(_){}
+  tsxApplyMixOpen();
+}
+function tsxApplyMixOpen(){
+  const rows=document.getElementById('tsxMixRows'), ar=document.getElementById('tsxMixArrow');
+  if(rows) rows.style.display=tsxMixOpen?'':'none';
+  if(ar) ar.textContent=tsxMixOpen?'▲':'▼';
+  tsxRefName();
+}
 function openTansui(){
-  tsxRenderInputs(); tsxCalc();
+  tsxRenderInputs(); tsxApplyMixOpen(); tsxCalc();
   document.getElementById('tansuiOverlay').classList.add('open');
   armBackGuard(()=>document.getElementById('tansuiOverlay').classList.remove('open'));
 }
@@ -11350,6 +11403,7 @@ function tsxRenderInputs(){
 function tsxInput(key, val){
   tsxVals[key]=val; tsxSaveVals();
   if(key==='mixNo'||key==='airNo') tsxRefFill(key);
+  else if(key==='W1') tsxRefName();   // 閉じている見出しに出す W1 を追従させる
   tsxCalc();
 }
 /* 呼び出した配合・エアメータの名前を番号欄の下に出す。
@@ -11367,6 +11421,19 @@ function tsxRefName(){
   });
   el.textContent=parts.join(' ／ ');
   el.classList.toggle('tsx-miss', miss || !parts.length);
+  // 配合を閉じているときは、見出しの右にも配合の名前を出して中身が分かるようにする
+  const mn=document.getElementById('tsxMixName');
+  if(mn){
+    let t='';
+    if(!tsxMixOpen){
+      const num=String(tsxVals.mixNo!=null?tsxVals.mixNo:'').trim();
+      const e=num?(tsRegs.mix||[]).find(x=>x&&String(x.no!=null?x.no:'').trim()===num):null;
+      const nm=e?String(e.name!=null?e.name:'').trim():'';
+      const w1=String(tsxVals.W1!=null?tsxVals.W1:'').trim();
+      t = nm || (w1?('W1 '+w1+' kg/m³'):'');
+    }
+    mn.textContent=t;
+  }
 }
 /* 番号を入れたら、道具の中の登録から値を呼び出して各欄に入れる */
 function tsxRefFill(key){
@@ -11410,16 +11477,24 @@ function tsxCalc(){
     }).join('');
   }
   jEl.className='ts-judge';
+  const dEl=document.getElementById('tsxDelta');
   const btn=document.getElementById('tsxInsertBtn');
+  wEl.className='tsx-res-val';
+  if(dEl) dEl.className='tsx-res-val';
   if(r.W!==null){
     tsxLastW=+tsFmt(r.W,tsDp[3]).replace(/,/g,'');
-    wEl.textContent=tsFmt(r.W,tsDp[3])+' kg/m³';
-    sEl.textContent=`配合W1=${tsFmt(vals.W1,tsDp[3])} に対する差 ${tsDeltaStr(r.derr)}（合格±${tsWarn}／限界±${tsLimit}）`;
+    wEl.innerHTML=escHtml(tsFmt(r.W,tsDp[3]))+'<small>kg/m³</small>';
+    // 差も同じ大きさで出し、合否と同じ色にして目で分かるようにする
+    if(dEl){
+      dEl.innerHTML=escHtml(tsDeltaStr(r.derr).replace(' kg/m³',''))+'<small>kg/m³</small>';
+      dEl.classList.add(r.judge);
+    }
+    sEl.textContent=`配合W1=${tsFmt(vals.W1,tsDp[3])} kg/m³（合格±${tsWarn}／限界±${tsLimit}）`;
     jEl.classList.add(r.judge); jEl.textContent=TS_JUDGE_TEXT[r.judge];
     if(btn) btn.disabled=false;
   } else {
     tsxLastW=null;
-    wEl.textContent='—'; jEl.textContent='—';
+    wEl.textContent='—'; if(dEl) dEl.textContent='—'; jEl.textContent='—';
     const miss=[];
     if(r.g1===null) miss.push('配合(W1・C・S・G・A1)');
     if(r.uw===null) miss.push('試験(m2・A2・V・m1)');
@@ -12651,7 +12726,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v289';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v290';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
