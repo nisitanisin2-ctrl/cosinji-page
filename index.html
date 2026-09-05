@@ -2007,21 +2007,12 @@ body.simple-mode .rh  { height: calc(46px * var(--cell-scale, 1)); }
 .ts-judge.ok   { background: var(--ok); }
 .ts-judge.warn { background: #ef6c00; }
 .ts-judge.ng   { background: var(--danger); }
-.ts-hint { font-size: calc(10px * var(--info-scale, 1)); opacity: 0.85; flex-basis: 100%; }
-/* 計算工程の先頭・グループ区切りの二重線 */
+/* ここから3つはフォーム型モード（FORM_MODES）用。v291 で単位水量をモードから
+   外したので今は使っていないが、仕組みごと残してある。
+   計算工程の先頭・グループ区切りの二重線 */
 .cell.ts-calc-top, .cell.ts-sep { border-top: 3px double var(--acc-text) !important; }
 /* 値の列：右詰めの文字の右側に、文字1個分の余白を空ける */
 .cell.ts-val { padding-right: 1ch; }
-.ts-setBtn {
-  background: var(--acc); color: var(--on-acc); border: none; border-radius: var(--r-btn);
-  padding: 3px 10px; font-size: calc(11px * var(--info-scale, 1)); font-weight: bold;
-  cursor: pointer; touch-action: manipulation;
-}
-.ts-setBtn:hover { background: var(--acc-dark); }
-/* 単位水量バー：1行目＝結果（推定・差・判定）、2行目＝結果解説（左）＋設定（右下） */
-.ts-bottomrow { flex-basis: 100%; display: flex; align-items: flex-end; gap: 8px; }
-.ts-bottomrow .ts-hint { flex: 1 1 0; }                /* 解説は左で伸縮（基準の100%を上書き） */
-.tanisui-bar .ts-setBtn { margin-left: auto; align-self: flex-end; flex-shrink: 0; }
 .ts-set-row {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 11px 6px; border-bottom: 1px solid var(--cell-border, #ddd);
@@ -2421,16 +2412,6 @@ body.dark {
   </div>
 </div>
 
-<div class="shop-tax-bar tanisui-bar" id="tanisuiryouBar">
-  <span>推定単位水量 <b id="tsW">—</b></span>
-  <span>差 <b id="tsDelta">—</b></span>
-  <span class="ts-judge" id="tsJudge">—</span>
-  <div class="ts-bottomrow">
-    <span class="ts-hint" id="tsHint">配合と試験の各値を入力してください（W=W1+0.7×(γ1−γ2)、β=0.7）</span>
-    <button class="ts-setBtn" onclick="openTsSettings()">⚙ 設定</button>
-  </div>
-</div>
-
 <!-- 単位水量試験（道具版）。写真メモ・カンタブ・容積と同じ「道具」で、モードに入らなくても使える。
      計算そのものは tsCompute() でモードと共通なので、どちらで出しても同じ値になる。 -->
 <div class="modal-overlay" id="tansuiOverlay" onclick="if(event.target===this)closeTansui()">
@@ -2615,9 +2596,6 @@ body.dark {
         <div class="ts-ref-note">よく使う配合とエアメータは、それぞれ別の画面で登録します。登録しておくと<b>💧単位水量</b>の道具で<b>番号を入れるだけ</b>で呼び出せます。</div>
         <button class="ts-ref-btn" onclick="openTsMixReg()">📋 配合の登録を開く（<span id="tsrMixCount2">0</span>/30）</button>
         <button class="ts-ref-btn" onclick="openTsAirReg()">🧪 エアメータの登録を開く（<span id="tsrAirCount2">0</span>/5）</button>
-        <div class="kt-onebyone">表（シート）に登録したいとき</div>
-        <div class="ts-ref-note">単位水量<b>モード</b>では、配合・エアメータを<b>シート</b>に登録して使うこともできます（上の登録とは別のものです）。モードで表として記録を残したいときはこちらをどうぞ。</div>
-        <button class="ts-ref-btn" onclick="setupTanisuiryouSheets()">📋 配合・エアメータ登録シートを作成</button>
       </div>
     </div>
   </div>
@@ -3630,13 +3608,10 @@ body.dark {
             <tr><td><b>割合計算</b></td><td>元の値と「割」か「％」を入れると、割合額・足す(＋)・引く(−)を計算（1割＝10%）</td></tr>
             <tr><td><b>容積／予算配分</b></td><td>縦×横×高さ＝容積／予算と個数から最適な購入数</td></tr>
             <tr><td><b>時間計算</b></td><td>開始・終了・時間のうち2つで残りを自動計算（◯時間後/◯分前も）</td></tr>
-            <tr><td><b>単位水量</b></td><td>土研法エアメータ法で生コンの単位水量を推定（下記）</td></tr>
           </table>
-          <div class="help-li"><b>単位水量</b>：配合（W1・セメント・細骨材・粗骨材・混和材・配合空気量）と試験値（容器容積V・容器質量・容器+試料・測定空気量）を入れると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で推定し、許容差（下のバーで変更可）で合否判定します。配合はkg/m³、試験はg・ccで入力。<b>モードに入らずに使える<b>💧単位水量</b>の道具</b>もあります（下記／計算は同じです）。</div>
-          <div class="help-li"><b>💧単位水量（道具）</b>：写真メモ・カンタブと同じ<b>道具</b>です。<b>登録ページ</b>の<b>🔧ボタンの機能</b>か、テンキーの<b>長押し</b>で<b>💧単位水量</b>をキーに登録すると、<b>モードに入らなくても</b>そのキーで開けます。同じ12項目を入れると<b>推定単位水量・配合W1との差・合否</b>が出て、<b>🧮計算の途中経過</b>で⑦〜⑱の値も確認できます。いちばん下の<b>▦推定単位水量をセルに入れる</b>で選択中のセルへ入ります。入れた値は次に開いたときも残ります。<b>計算はモードとまったく同じ</b>なので、どちらで出しても値は一致します。<br>よく使う配合（30件まで）とエアメータ（5件まで）は<b>📋配合の登録</b>・<b>🧪エアメータの登録</b>（それぞれ別の画面）に入れておけて、道具の<b>配合番号・エアメータ番号</b>に番号を入れるだけで呼び出せます。配合には番号とは別に<b>配合の呼び名</b>（例 21-5-40BB）を入れておけ、番号を入れると<b>どの配合を呼び出したか名前で確認</b>できます（番号が登録に無いときもその場で分かります）。許容差と小数桁は<b>⚙設定</b>で変えられ、<b>モードと共通</b>です。</div>
+          <div class="help-li"><b>💧単位水量</b>：容積計算・写真メモ・カンタブと同じ<b>道具</b>です（v291 でモードから道具に変わりました）。<b>登録ページ</b>の<b>🔧ボタンの機能</b>か、テンキーの<b>長押し</b>で<b>💧単位水量</b>をキーに登録すると、そのキーで開けます。<br>土研法エアメータ法です。<b>配合</b>（W1・セメント・細骨材・粗骨材・混和材・配合空気量）と<b>試験値</b>（容器+試料 m2・測定空気量 A2・容器容積 V・容器質量 m1）を入れると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で推定し、配合の W1 との<b>差</b>で合否を判定します。配合はkg/m³、質量はg、容積はccで入力。<b>推定単位水量と差を大きく並べて</b>出し、差は合否と同じ色（合格＝緑／要注意＝橙／不合格＝赤）になります。<b>🧮計算の途中経過</b>で⑦〜⑱の値も確認でき、いちばん下の<b>▦推定単位水量をセルに入れる</b>で選択中のセルへ入ります。入れた値は次に開いたときも残ります。<br>よく使う配合（30件まで）とエアメータ（5件まで）は<b>📋配合の登録</b>・<b>🧪エアメータの登録</b>（それぞれ別の画面）に入れておけて、<b>配合番号・エアメータ番号</b>に番号を入れるだけで呼び出せます。配合には番号とは別に<b>配合の呼び名</b>（例 21-5-40BB）を入れておけ、番号を入れると<b>どの配合を呼び出したか名前で確認</b>できます（番号が登録に無いときもその場で分かります）。<b>配合</b>の見出しを押すと配合の欄を<b>折りたためます</b>（閉じている間は見出しの右に呼び名が出ます）。許容差と小数桁は<b>⚙設定</b>で変えられます。</div>
           <div class="help-li"><b>電卓モード</b>：モードで<b>🧮電卓</b>を選ぶと、表のかわりに<b>ふつうの電卓</b>が出ます。テンキーはそのまま使えて、押すたびに答えが出ます。計算するたびに<b>履歴（テープ）</b>が残り、行を押すとその答えをもう一度使えます。<b>％</b>（100＋10％→110）と<b>消費税</b>（税込・税抜。税率は設定のもの）のボタンつき。<b>▦ セルに入れる</b>を押すと元のモードに戻って、選んでいるセルに答えが入ります。「1＋2×3」の答えを<b>9（ふつうの電卓）</b>にするか<b>7（式の優先順位どおり）</b>にするかは、<b>設定→🧮計算</b>で選べます。</div>
           <div class="help-li"><b>カンタブ（塩化物イオン量）</b>：容積計算・写真メモ・単位水量と同じ<b>道具</b>です。設定の<b>キーの割り当て</b>で<b>🧪カンタブ</b>をキーに登録すると、そのキーで開けます。<b>単位水量</b>と<b>読み値①〜③</b>を入れると、読み値ごとに<b>換算表の値(%)</b>と<b>塩化物含有量(kg/m³)</b>が並び、最後にその<b>平均値</b>で合否を判定します。平均値は<b>選択中のセルに入れる</b>こともできます。読み値から濃度への<b>換算表はカンタブの製品ごとに違う</b>ので、はじめに<b>⚙換算表・設定</b>でお使いの表を登録してください（読み値が表の間のときは前後から直線でおぎない、その旨を表示します）。換算表は<b>まとめて貼り付け</b>でも登録できます（1行に「読み値」と「濃度」の数字を2つ並べる。区切りはスペース・タブ・カンマのどれでもよく、全角の数字も読めます）。濃度は<b>小数4桁</b>まで扱えます。よく使う製品の表は<b>ひな形のボタン</b>でワンタップでも入れられます（写真から起こした値なので、入れたあと実物と見くらべてください）。管理値の既定は 0.30 kg/m³ で、設定で変えられます。</div>
-          <div class="help-li"><b>配合・エアメータの登録（シート連携）</b>：単位水量の<b>⚙設定</b>「📋配合・エアメータ登録シートを作成」で<b>本体・配合登録(30)・エアメータ登録(5)</b>の3シートができます。番号ごとの値を入れておくと、本体で<b>配合番号・エアメータ番号を入れるだけ</b>で値が呼び出されます（登録側を直すと本体にも反映）。上の常設タブで切替。</div>
           <div class="help-li"><b>📋計算式テンプレ／📑決算書テンプレ</b>（設定の「計算」タブ）：割引・利益率・BMI・速さ・複利・ローン・面積…約20種類のひな形や、損益計算書・貸借対照表・収支計算書のひな形。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
         </div>
       </details>
@@ -3666,7 +3641,7 @@ body.dark {
         <summary>💾 保存・記録（上部メニュー）</summary>
         <div class="help-acc-body">
           <div class="help-li"><b>保存</b>：タップで<b>上書き保存</b>、<b>長押しで「名前を付けて保存」</b>（記録を開いていない・🔒ロック中はタップでも名前を付けて保存）。上のバーに<b>今の記録名（📄）</b>が出て、未保存の変更があると<b>●</b>が付きます。<b>リスト</b>で保存データ一覧を開きます。</div>
-          <div class="help-li"><b>1記録＝全モードのスナップショット</b>：通常・買物・単位水量など全モードのシートをまとめて保存。読み込むと各モードがその記録に置き換わり、保存時のモードで開き直します（以前の「1モードだけの記録」も読み込めます）。リストで<b>今開いている記録</b>は緑でハイライトされ「📂開いています」と表示。</div>
+          <div class="help-li"><b>1記録＝全モードのスナップショット</b>：通常・買物・容積など全モードのシートをまとめて保存。読み込むと各モードがその記録に置き換わり、保存時のモードで開き直します（以前の「1モードだけの記録」も読み込めます）。リストで<b>今開いている記録</b>は緑でハイライトされ「📂開いています」と表示。</div>
           <div class="help-li"><b>リセット</b>は<b>今のシートだけ</b>を消去（記録との紐付けは保持）。まっさらにするときはリストの<b>🆕新規</b>ボタン。</div>
           <table class="help-tbl">
             <tr><td><b>タブ</b></td><td>🗂記録／📌タブ1／📌タブ2／🔀モード。保存はまず「記録」へ。各データのタブ選択欄で振り分け、タブ名は長押しで変更</td></tr>
@@ -9839,7 +9814,6 @@ function setCellVal(r,c,v) {
   const cell=document.getElementById(`c${r}_${c}`);
   if (cell) { cell.textContent=getCellDisplay(r,c); if(dfmtChange) applyCellStyle(cell,r,c); }   // 日付書式の増減でセル番号枠の印も更新
   document.getElementById('formulaInput').value=cellEditString(r,c);
-  if (tableMode==='tanisuiryou' && c===1) tsRefFill(r);   // 配合番号・エアメータ番号を入れたら登録シートから値を呼び出す
   if (isStructMode()) recalcMode();
   recalcAll();
   updateStats(c);
@@ -10589,7 +10563,6 @@ const STRUCT_MODES={
   youseki: {cols:5, headers:['名称','縦m','横m','高さm','容積㎥'], computed:[4]},
   yosan:   {cols:5, headers:['品名','単価','最低','個数','小計'], computed:[3,4]},
   jikan:   {cols:4, headers:['項目','開始','終了','時間'],         computed:[]},   // 開始・終了・時間のうち2つで残りを自動計算
-  tanisuiryou:{cols:2, headers:['項目','値'], computed:[]},   // 単位水量試験（土研法）：表をフォームとして使う
 };
 /* 単位水量試験モードの入力フォーム（表 col0=ラベル固定／col1=入力。行r=1..length に対応）。
    並び順：試験値（容器・容器+試料・空気量）を上、配合を下に置く。値は key で参照する。 */
@@ -10623,16 +10596,6 @@ const TS_CALC=[
   {key:'uw',    label:'試料の単位容積質量',             unit:'kg/m³', dp:1},
   {key:'derr',  label:'単位水量の推定誤差',             unit:'kg/m³', dp:3},
 ];
-const TS_ROWS=TS_FORM.length+TS_CALC.length+1;   // 見出し行＋入力行＋計算工程行
-/* 二重線で区切る行（その行の上に二重線）。データ行index＝表示行−1。
-   表示1-2行目間=データ1、3-4行目間=データ3、5-6行目間=データ5（測定値／容器値／配合 の区切り） */
-const TS_SEP_ROWS=[3,5,7];   // 二重線：試験値(m2)・容器(V)・配合(C)の各グループ先頭（参照2行を上に追加した分ずれる）
-/* 登録シート（配合・エアメータ）の定義。番号→本体フォームの各keyへ値を流し込む。
-   map: 登録シートの列index → 本体フォームの key */
-const TS_REF={
-  mix:{ sheet:'配合登録', headers:['配合番号','C','W1','S','G','P','A1'], rows:30, map:{1:'C',2:'W1',3:'S',4:'G',5:'P',6:'A1'} },
-  air:{ sheet:'エアメータ登録', headers:['エアメータ番号','V(容器容積)','m1(容器質量)'], rows:5, map:{1:'V',2:'m1'} }
-};
 /* ── カンタブ試験（生コンの塩化物イオン量）──
    読み値を換算表で塩化物イオン濃度(%)に直し、単位水量を掛けて kg/m³ にする。
    換算表は製品ごとに違うので、⚙設定で自分で登録してもらう。 */
@@ -10665,13 +10628,14 @@ const KT_READS=[
 
 /* 表をフォームとして使うモード（左＝項目名の固定ラベル／右＝入力欄）。
    行の作り・移動・見た目はこの定義から共通に決める。 */
-const FORM_MODES={
-  tanisuiryou:{ form:TS_FORM, calc:TS_CALC, sep:TS_SEP_ROWS, rows:TS_ROWS },
-};
+/* v291 で単位水量をモードから外したので、いまはフォーム型のモードは無い。
+   仕組み（左＝項目名の固定ラベル／右＝入力欄）はそのまま残してあるので、
+   ここに定義を足せばまたフォーム型のモードを作れる。 */
+const FORM_MODES={};
 function isFormMode(){ return !!FORM_MODES[tableMode]; }
 function formDef(){ return FORM_MODES[tableMode]; }
 
-const MODE_LABELS={normal:'モード', simple:'簡易中', shopping:'買物中', warikan:'割勘中', zei:'税計中', wariai:'割合中', youseki:'容積中', yosan:'予算中', jikan:'時間中', tanisuiryou:'水量中', dentaku:'電卓中'};
+const MODE_LABELS={normal:'モード', simple:'簡易中', shopping:'買物中', warikan:'割勘中', zei:'税計中', wariai:'割合中', youseki:'容積中', yosan:'予算中', jikan:'時間中', dentaku:'電卓中'};
 const MODE_MENU=[
   {key:'normal',  icon:'▦',  name:'通常',   desc:'標準のスプレッドシート'},
   {key:'simple',  icon:'⬛',  name:'簡易',   desc:'列を少なく・セルを大きく見やすく'},
@@ -10682,7 +10646,6 @@ const MODE_MENU=[
   {key:'youseki', icon:'📦', name:'容積',   desc:'縦×横×高さで容積(㎥)を計算'},
   {key:'yosan',   icon:'🎯', name:'予算配分', desc:'予算と合計個数から各商品の最適な購入数を計算'},
   {key:'jikan',   icon:'⏱', name:'時間計算', desc:'開始・終了・時間のうち2つで残りを自動計算（◯時間後は何時、◯分前は何時も）'},
-  {key:'tanisuiryou', icon:'💧', name:'単位水量', desc:'土研法エアメータ法で生コンの単位水量を推定（配合・試験値から算定し合否判定）'},
   {key:'dentaku', icon:'🧮', name:'電卓', desc:'ふつうの電卓。押すたびに答えが出て、履歴（テープ）も残る（％・消費税つき）'},
 ];
 
@@ -10882,7 +10845,7 @@ function modeButtonLabel(key){
   return 'モード';
 }
 
-function isStructMode(){ return tableMode==='shopping'||tableMode==='warikan'||tableMode==='zei'||tableMode==='wariai'||tableMode==='youseki'||tableMode==='yosan'||tableMode==='jikan'||tableMode==='tanisuiryou'; }
+function isStructMode(){ return tableMode==='shopping'||tableMode==='warikan'||tableMode==='zei'||tableMode==='wariai'||tableMode==='youseki'||tableMode==='yosan'||tableMode==='jikan'; }
 /* ユーザーが書式設定で保護したセル */
 function isUserLocked(r,c){
   const s=cellStyles[`${r},${c}`];
@@ -11119,8 +11082,6 @@ function recalcMode(){
     document.getElementById('ysLiter').textContent=fmt(total*1000);
   } else if(tableMode==='yosan'){
     solveYosanMode();
-  } else if(tableMode==='tanisuiryou'){
-    recalcTanisuiryou();
   } else if(tableMode==='jikan'){
     /* 列: 0=項目 1=開始 2=終了 3=時間。3つのうち2つを入れると残りを自動計算：
        開始+終了→時間 ／ 開始+時間→終了（◯時間後は何時） ／ 終了+時間→開始（◯分前は何時）。
@@ -11312,7 +11273,6 @@ function changeTsTol(which,delta){
   applyTsTolLabels();
   localStorage.setItem('excalc_ts_warn',tsWarn);
   localStorage.setItem('excalc_ts_limit',tsLimit);
-  if(tableMode==='tanisuiryou') recalcTanisuiryou();
   if(tsxIsOpen()) tsxCalc();
 }
 function changeTsDp(which,delta){
@@ -11320,7 +11280,6 @@ function changeTsDp(which,delta){
   tsDp[i]=Math.max(0,Math.min(4,tsDp[i]+delta));
   applyTsDpLabels();
   localStorage.setItem('excalc_ts_dp', JSON.stringify(tsDp));
-  if(tableMode==='tanisuiryou') recalcTanisuiryou();
   if(tsxIsOpen()) tsxCalc();
 }
 function openTsSettings(){ applyTsDpLabels(); applyTsTolLabels(); tsRegRender(); document.getElementById('tsSettingsOverlay').classList.add('open'); }
@@ -11851,114 +11810,16 @@ function tsDeltaStr(derr){
   const dr=Math.round(derr*10)/10;
   return (dr>0?'+':dr<0?'−':'±')+tsFmt(Math.abs(dr),tsDp[3])+' kg/m³';
 }
-/* 単位水量モード：表の値から計算して、下の帯と計算工程の行を更新する */
-function recalcTanisuiryou(){
-  const wEl=document.getElementById('tsW'), dEl=document.getElementById('tsDelta');
-  const jEl=document.getElementById('tsJudge'), hEl=document.getElementById('tsHint');
-  if(!wEl) return;
-  const idx={}; TS_FORM.forEach((f,i)=>{ idx[f.key]=i+1; });   // key → 表の行番号（並べ替えに追従）
-  const val=key=>{ const raw=data[idx[key]] && data[idx[key]][1]; const v=parseFloat(raw); return (raw!=='' && raw!=null && !isNaN(v))?v:null; };
-  const vals={W1:val('W1'), C:val('C'), S:val('S'), G:val('G'), P:val('P'), A1:val('A1'),
-              V:val('V'), m1:val('m1'), m2:val('m2'), A2:val('A2')};
-  const r=tsCompute(vals);
-  // 計算工程（⑦〜⑱）を入力欄の下の表セルに表示
-  TS_CALC.forEach((f,i)=>{
-    const cell=document.getElementById('c'+(1+TS_FORM.length+i)+'_1');
-    if(cell){
-      const v=r[f.key];
-      const dp=(f.dp!=null)?tsDp[f.dp]:f.fixedDp;
-      cell.textContent=(v!=null)?tsFmt(v,dp)+' '+f.unit:'—';
-    }
-  });
-  jEl.className='ts-judge';
-  if(r.W!==null){
-    const dStr=tsDeltaStr(r.derr);
-    wEl.textContent=tsFmt(r.W,tsDp[3])+' kg/m³';
-    dEl.textContent=dStr;
-    jEl.classList.add(r.judge); jEl.textContent=TS_JUDGE_TEXT[r.judge];
-    hEl.textContent=`配合W1=${tsFmt(vals.W1,tsDp[3])} に対する差 ${dStr}（合格±${tsWarn}／限界±${tsLimit}）`;
-  } else {
-    jEl.textContent='—'; wEl.textContent='—'; dEl.textContent='—';
-    const miss=[];
-    if(r.g1===null) miss.push('配合(W1・C・S・G・A1)');
-    if(r.uw===null) miss.push('試験(V・m1・m2・A2)');
-    hEl.textContent='未入力：'+miss.join(' / ')+' を入力してください';
-  }
-}
-
-/* ── 配合番号・エアメータ番号 → 登録シートから値を呼び出して本体へ流し込む ── */
-function tsRefFill(r, opts){
-  opts=opts||{};
-  const f=TS_FORM[r-1]; if(!f||!f.ref) return 0;
-  const ref=TS_REF[f.ref]; if(!ref) return 0;
-  const num=String((data[r]&&data[r][1])!=null?data[r][1]:'').trim();
-  if(num==='') return 0;                      // 番号を消したときは既存の値をそのまま残す
-  const si=(typeof sheetIndexByName==='function')?sheetIndexByName(ref.sheet):-1;
-  if(si<0){ if(!opts.silent) toast('「'+ref.sheet+'」シートがありません（⚙設定の「登録シートを作成」で作れます）'); return 0; }
-  const sd=sheetDataOf(si); if(!sd) return 0;
-  let found=-1;
-  for(let rr=1;rr<MAXROWS;rr++){ const c0=sd[rr]&&sd[rr][0]; if(c0!=null && String(c0).trim()!=='' && String(c0).trim()===num){ found=rr; break; } }
-  if(found<0){ if(!opts.silent) toast(f.label+'「'+num+'」は「'+ref.sheet+'」に見つかりません'); return 0; }
-  const idx={}; TS_FORM.forEach((ff,i)=>{ idx[ff.key]=i+1; });
-  const batch=[];
-  Object.keys(ref.map).forEach(col=>{
-    const tr=idx[ref.map[col]]; if(tr==null) return;
-    const v=cellRawValue(si, found, +col);   // 数式なら評価結果・数値、空なら''
-    const sv=(v===''||v==null)?'':String(v);
-    const old=String(data[tr][1]!=null?data[tr][1]:'');
-    if(sv===old) return;                      // 変化なしはスキップ（再取り込みを冪等に）
-    batch.push({r:tr,c:1,val:data[tr][1]});
-    data[tr][1]=sv;
-    const cell=document.getElementById('c'+tr+'_1'); if(cell) cell.textContent=getCellDisplay(tr,1);
-  });
-  if(batch.length && !opts.noHistory) pushHistory(batch);
-  return batch.length;                        // 値が変わった数（0＝変化なし）
-}
-/* 登録シート（配合・エアメータ）の最新値を本体の各参照行へ取り込み直す（自動・無音）。
-   本体シートを開くたびに呼び、登録シート側の変更を反映する。 */
-function tsRefreshFromRegs(){
-  if(tableMode!=='tanisuiryou') return 0;
-  let changed=0;
-  TS_FORM.forEach((f,i)=>{ if(f.ref) changed+=tsRefFill(i+1, {silent:true, noHistory:true})||0; });
-  return changed;
-}
-/* 登録シート（普通モード）を作る：1行目＝見出し、以降＝入力行 */
-function makeRegSheet(name, headers, dataRows){
-  const s=freshSheet(name);
-  const st=s.store.states.normal;
-  headers.forEach((h,c)=>{ st.data[0][c]=h; });
-  st.cols=headers.length;
-  s.store.rows=Math.min(MAXROWS, dataRows+1);
-  s.store.current='normal';
-  return s;
-}
-/* 単位水量：本体＋配合登録＋エアメータ登録の3シートを一括作成 */
-function setupTanisuiryouSheets(){
-  if(tableMode!=='tanisuiryou'){ toast('単位水量モードで実行してください'); return; }
-  const m=TS_REF.mix, a=TS_REF.air;
-  const need=(sheetIndexByName(m.sheet)<0?1:0)+(sheetIndexByName(a.sheet)<0?1:0);
-  if(sheets.length+need>30){ alert('シートが多すぎて作成できません（最大30）'); return; }
-  if(!confirm('「'+m.sheet+'」（'+m.rows+'行）と「'+a.sheet+'」（'+a.rows+'行）のシートを作成します。よろしいですか？\n※同名のシートがある場合はそのまま使います。')) return;
-  Object.assign(sheets[curSheet], captureCurrentSheet());          // 今のシート（本体）を退避
-  if(!sheets.some(s=>s.name==='単位水量本体')) sheets[curSheet].name='単位水量本体';
-  if(sheetIndexByName(m.sheet)<0) sheets.push(makeRegSheet(m.sheet, m.headers, m.rows));
-  if(sheetIndexByName(a.sheet)<0) sheets.push(makeRegSheet(a.sheet, a.headers, a.rows));
-  if(!showSheetTabs) toggleSheetTabs();   // 常設シートタブを表示して行き来しやすく
-  saveSheets(); renderSheetBar();
-  closeTsSettings();
-  toast('「'+m.sheet+'」「'+a.sheet+'」を作成しました。上のタブで切り替えて登録できます');
-}
-
 /* フッターバーの表示切替 */
 function hideAllBars(){
-  ['shopTaxBar','zeiBar','warikanBar','yousekiBar','yosanBar','jikanBar','tanisuiryouBar'].forEach(id=>{
+  ['shopTaxBar','zeiBar','warikanBar','yousekiBar','yosanBar','jikanBar'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.classList.remove('open');
   });
 }
 function showModeBar(){
   hideAllBars();
   // 割合モードは説明だけの帯だったので廃止（初回のトーストで案内する）
-  const id={shopping:'shopTaxBar', zei:'zeiBar', warikan:'warikanBar', youseki:'yousekiBar', yosan:'yosanBar', jikan:'jikanBar', tanisuiryou:'tanisuiryouBar'}[tableMode];
+  const id={shopping:'shopTaxBar', zei:'zeiBar', warikan:'warikanBar', youseki:'yousekiBar', yosan:'yosanBar', jikan:'jikanBar'}[tableMode];
   if(id) document.getElementById(id).classList.add('open');
 }
 
@@ -12253,7 +12114,6 @@ function applyActiveSheet(){
   syncRowColLabels();
   if(isStructMode()) showModeBar(); else hideAllBars();
   updateModeButton();
-  if(tableMode==='tanisuiryou') tsRefreshFromRegs();   // 本体を開いたら登録シートの最新値を取り込む
   buildSheet();      // buildSheet末尾で recalcMode() が走り、取り込んだ値で再計算される
   sel(0,0);
   renderSheetBar();
@@ -12726,7 +12586,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v290';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v291';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
