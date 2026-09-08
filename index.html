@@ -10742,7 +10742,7 @@ const STRUCT_MODES={
   warikan: {cols:2, headers:['項目','金額'],               computed:[]},
   zei:     {cols:3, headers:['税抜','消費税','税込'],        computed:[1]},
   wariai:  {cols:6, headers:['元の値','割','％','割合額','足す','引く'], computed:[3,4,5]},
-  youseki: {cols:5, headers:['名称','縦m','横m','高さm','容積㎥'], computed:[4]},
+  youseki: {cols:4, headers:['縦m','横m','高さm','容積㎥'], computed:[3]},   // v295 で「名称」列をやめた
   yosan:   {cols:5, headers:['品名','単価','最低','個数','小計'], computed:[3,4]},
   jikan:   {cols:4, headers:['項目','開始','終了','時間'],         computed:[]},   // 開始・終了・時間のうち2つで残りを自動計算
 };
@@ -11253,11 +11253,11 @@ function recalcMode(){
   } else if(tableMode==='youseki'){
     let total=0;
     for(let r=1;r<ROWS;r++){
-      const a=parseFloat(data[r][1]), b=parseFloat(data[r][2]), h=parseFloat(data[r][3]);
-      const ok=data[r][1]!==''&&!isNaN(a)&&data[r][2]!==''&&!isNaN(b)&&data[r][3]!==''&&!isNaN(h);
+      const a=parseFloat(data[r][0]), b=parseFloat(data[r][1]), h=parseFloat(data[r][2]);
+      const ok=data[r][0]!==''&&!isNaN(a)&&data[r][1]!==''&&!isNaN(b)&&data[r][2]!==''&&!isNaN(h);
       const vol=ok?a*b*h:NaN;
-      data[r][4]=ok?String(vol):'';
-      const el=document.getElementById(`c${r}_4`); if(el) el.textContent=ok?fmt(vol):'';
+      data[r][3]=ok?String(vol):'';
+      const el=document.getElementById(`c${r}_3`); if(el) el.textContent=ok?fmt(vol):'';
       if(ok) total+=vol;
     }
     document.getElementById('ysTotal').textContent=fmt(total);
@@ -12047,8 +12047,30 @@ function initFreshMode(mode){
 }
 function initCellOfMode(){ return isStructMode()?Math.min(1,ROWS-1):0; }
 /* 構造モードは列数・見出しを定義に合わせる（構成変更にも追従） */
+/* 容積モードは v295 で「名称」列をやめ、縦・横・高さだけにした。
+   古い並び（A列＝名称）のまま残っている中身は、見出しを付け直す前に1列ぶん左へ詰める。
+   見出し行に「名称」が残っていることを目印にするので、何度呼ばれても1回しか動かない。 */
+function migrateYousekiNoName(){
+  if(tableMode!=='youseki') return;
+  if(data[0][0]!=='名称' || data[0][1]!=='縦m') return;
+  for(let r=0;r<MAXROWS;r++){
+    for(let c=0;c<MAXCOLS-1;c++) data[r][c]=data[r][c+1];
+    data[r][MAXCOLS-1]='';
+  }
+  const ns={};                       // セルの書式も一緒に左へ寄せる（名称列の分は落ちる）
+  for(const k in cellStyles){
+    const p=k.split(','), r=+p[0], c=+p[1];
+    if(c===0) continue;
+    ns[r+','+(c-1)]=cellStyles[k];
+  }
+  cellStyles=ns;
+  const nw={};                       // 列幅も左へ
+  for(const k in colWidths){ const c=+k; if(c===0) continue; nw[c-1]=colWidths[k]; }
+  colWidths=nw;
+}
 function normalizeStructLayout(){
   if(!isStructMode()) return;
+  migrateYousekiNoName();
   const m=STRUCT_MODES[tableMode];
   COLS=m.cols;
   m.headers.forEach((h,i)=>{ data[0][i]=h; });
@@ -12768,7 +12790,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v294';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v295';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
