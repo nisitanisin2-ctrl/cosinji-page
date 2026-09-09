@@ -236,9 +236,9 @@ body.numpad-off .numpad-section { display: none; }
 .btn-undo:hover  { background: var(--warn); }
 .btn-redo   { background: var(--warn-dark); }
 .btn-redo:hover  { background: #cf8a34; }
-/* 戻る／進むは押せないあいだは場所を取らない（押せないボタンが常に並んでいたのをやめた）。
-   設定で非表示にしている場合は applyTopBtnHidden() の style.display が優先される。 */
-.btn-undo:disabled, .btn-redo:disabled { display: none; }
+/* 戻るは押せないあいだも場所を空けない（位置が動くと押し間違えるため薄くするだけ）。
+   ⋯ の中の「進む」も同じ扱い（.more-item:disabled）。 */
+.btn-undo:disabled { opacity: 0.4; }   /* 位置が動くと押し間違えるので、消さずに薄くする */
 .btn-reset  { background: var(--danger-dark); }
 .btn-reset:hover { background: var(--danger); }
 /* 設定(⚙)・保存・リスト・戻る・進む・リセットは同じ大きさに揃える（枠線・高さも統一） */
@@ -255,6 +255,43 @@ body.numpad-off .numpad-section { display: none; }
 .btn-defsize.armed { background: rgba(255,255,255,0.4); }
 
 /* ── シート機能：上メニューの「シート」ボタンでメニュー↔シート一覧を切り替え ── */
+/* 上のバーの「⋯」。保存・戻ると同じ高さでそろえる */
+.btn-more {
+  background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.35);
+  color: #fff; font-size: 18px; font-weight: bold; line-height: 1;
+  border-radius: var(--r-btn); cursor: pointer; touch-action: manipulation;
+  flex-shrink: 0; padding: 0 10px;
+}
+.btn-more:hover { background: rgba(255,255,255,0.28); }
+.btn-more:active { background: rgba(255,255,255,0.4); }
+/* 「⋯」の中身 */
+.modal.more-modal { width: 100%; max-width: 420px; max-height: 90vh; }
+.more-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.more-item {
+  display: flex; align-items: center; gap: 9px; width: 100%; min-width: 0;
+  padding: 11px 12px; border: 1px solid var(--save-item-border); border-radius: var(--r-btn);
+  background: var(--save-item-bg); color: var(--text);
+  font-size: 15px; font-weight: bold; text-align: left; cursor: pointer; touch-action: manipulation;
+}
+.more-item span { font-size: 18px; flex-shrink: 0; }
+.more-item:hover { background: var(--cell-hover, rgba(0,0,0,0.05)); }
+.more-item:active { opacity: 0.7; }
+.more-item:disabled { opacity: 0.38; cursor: default; }
+.more-sec {
+  font-size: 13px; font-weight: bold; color: var(--text-light);
+  margin: 12px 0 6px; padding-top: 9px; border-top: 1px solid var(--cell-border, #ddd);
+}
+.more-danger-sec { color: var(--danger); }
+.more-item.more-danger { border-color: var(--danger); color: var(--danger); }
+body.dark .more-item.more-danger { color: #ff8a80; border-color: #ff8a80; }
+/* 横向きは高さが足りないので、4列にして「リセット」まで一目で見えるようにする */
+@media (orientation: landscape) and (max-height: 500px) {
+  .modal.more-modal { max-width: 640px; }
+  .more-grid { grid-template-columns: repeat(4, 1fr); }
+  .more-item { padding: 9px 10px; font-size: 13px; gap: 6px; }
+  .more-item span { font-size: 15px; }
+  .more-sec { margin: 8px 0 5px; padding-top: 7px; }
+}
 .btn-sheet {
   box-sizing: border-box;
   color: white; background: var(--acc-light);
@@ -326,6 +363,8 @@ body.has-sheet-tabs .sheet-persist {
 .js-sheet-tab { touch-action: none; }
 
 /* 設定：上のバーのボタン表示/非表示トグル */
+/* 設定の中の、短い説明書き */
+.set-note { font-size: 12px; color: var(--text-light); line-height: 1.6; padding: 6px 2px 2px; }
 .topbtn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px; }
 .topbtn-toggle {
   box-sizing: border-box; padding: 10px 4px; border-radius: var(--r-btn);
@@ -2198,17 +2237,46 @@ body.dark {
 
 <div class="toolbar" id="mainToolbar">
   <span class="toolbar-title" id="recordTitle" onclick="showSaveList()" title="今開いている記録（タップでリストを開く）">📄 未保存</span>
-  <button class="btn-sheet" id="sheetToggleBtn" onclick="toggleSheetTabs()" title="シートのタブバーを表示/非表示">シート</button>
-  <button class="btn-save menu-item" id="saveBtn" onclick="saveData()">保存</button>
-  <button class="btn-list menu-item" id="listBtn" onclick="showSaveList()">リスト</button>
-  <button class="btn-settings menu-item" id="settingsBtn" onclick="toggleSettings()">設定</button>
-  <button class="btn-undo menu-item" id="undoBtn" onclick="undoLast()" disabled>戻る</button>
-  <button class="btn-redo menu-item" id="redoBtn" onclick="redoLast()" disabled>進む</button>
-  <button class="btn-reset menu-item" id="resetBtn" onclick="resetAll()">リセット</button>
-  <button class="btn-defsize menu-item" id="defsizeTopBtn" title="タップで既定の行数・列数に／長押しで既定値を設定">▦既定</button>
+  <button class="btn-save menu-item" id="saveBtn" onclick="saveData()" title="上書き保存／長押しで名前を付けて保存">保存</button>
+  <button class="btn-undo menu-item" id="undoBtn" onclick="undoLast()" disabled title="元に戻す">↶</button>
+  <button class="btn-more" id="moreBtn" onclick="openMoreMenu()" title="そのほかの操作">⋯</button>
   <div class="sheet-bar" id="sheetBar"></div>
 </div>
 <div class="sheet-persist" id="sheetPersist"></div>
+
+<!-- 上のバーの「⋯」。毎日使うもの（保存・戻る）だけを表に置き、
+     それ以外はここにまとめた。いちばん下の「リセット」だけ赤くして、
+     消してしまう操作が日常の操作に紛れないようにしている。 -->
+<div class="modal-overlay" id="moreMenuOverlay" onclick="if(event.target===this)closeMoreMenu()">
+  <div class="modal more-modal">
+    <div class="modal-header">
+      <span>⋯ そのほか</span>
+      <button class="modal-close" onclick="closeMoreMenu()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="more-grid">
+        <button class="more-item menu-item" id="redoBtn" onclick="moreDo(redoLast)" disabled><span>↷</span>進む</button>
+        <button class="more-item menu-item" id="listBtn" onclick="moreDo(showSaveList)"><span>📋</span>リスト</button>
+        <button class="more-item menu-item" id="sheetToggleBtn" onclick="moreDo(toggleSheetTabs)" title="シートのタブバーを表示/非表示"><span>🗂</span>シート</button>
+        <button class="more-item menu-item" id="settingsBtn" onclick="moreDo(toggleSettings)"><span>⚙</span>設定</button>
+      </div>
+      <div class="more-sec">書き出す</div>
+      <div class="more-grid">
+        <button class="more-item" onclick="moreDo(exportPDF)"><span>🖨</span>PDF</button>
+        <button class="more-item" onclick="moreDo(exportCSV)"><span>📄</span>CSV</button>
+        <button class="more-item" onclick="moreDo(exportXLSX)"><span>📊</span>Excel</button>
+        <button class="more-item" onclick="moreDo(openHelp)"><span>📖</span>説明書</button>
+      </div>
+      <div class="more-sec">表を整える</div>
+      <div class="more-grid">
+        <button class="more-item menu-item" id="defsizeTopBtn" title="タップで既定の行数・列数に／長押しで既定値を設定"><span>▦</span>既定の大きさ</button>
+        <button class="more-item" onclick="moreDo(toggleDark)"><span>🌙</span>ナイトモード</button>
+      </div>
+      <div class="more-sec more-danger-sec">表の中身を消す</div>
+      <button class="more-item more-danger menu-item" id="resetBtn" onclick="moreDo(resetAll)"><span>🧹</span>リセット（戻るで元に戻せます）</button>
+    </div>
+  </div>
+</div>
 
 <div class="left-pane">
 
@@ -2297,16 +2365,8 @@ body.dark {
       <span class="set-stepper"><button class="step-btn" onclick="changeBarSize(-1)">−</button><span class="sc-val" id="barSize">標準</span><button class="step-btn" onclick="changeBarSize(1)">＋</button></span>
     </div>
     <button class="set-act" id="keypadEditBtn" onclick="toggleKeypadEdit()" title="テンキーのボタンをドラッグして好きな位置に入れ替えます（同じ大きさのボタン同士）">テンキーのボタン配置を編集</button>
-    <div class="set-sec">上のバーのボタン<small>タップで表示／非表示</small></div>
-    <div class="topbtn-grid" id="topBtnToggles">
-      <button class="topbtn-toggle" data-btn="sheet" onclick="toggleTopBtn('sheet')">シート</button>
-      <button class="topbtn-toggle" data-btn="save"  onclick="toggleTopBtn('save')">保存</button>
-      <button class="topbtn-toggle" data-btn="list"  onclick="toggleTopBtn('list')">リスト</button>
-      <button class="topbtn-toggle" data-btn="undo"  onclick="toggleTopBtn('undo')">戻る</button>
-      <button class="topbtn-toggle" data-btn="redo"  onclick="toggleTopBtn('redo')">進む</button>
-      <button class="topbtn-toggle" data-btn="reset" onclick="toggleTopBtn('reset')">リセット</button>
-      <button class="topbtn-toggle" data-btn="defsize" onclick="toggleTopBtn('defsize')">▦既定サイズ</button>
-    </div>
+    <div class="set-sec">上のバー</div>
+    <div class="set-note">上のバーは <b>記録名・保存・↶戻る・⋯</b> の4つです。<b>リスト・進む・シート・設定・書き出し・既定の大きさ・ナイトモード・リセット</b>は <b>⋯</b> の中にまとめました（記録名をタップしてもリストが開きます）。</div>
       </div>
     </details>
   </div>
@@ -3607,6 +3667,7 @@ body.dark {
       <details class="help-acc" id="h-basic" open>
         <summary>✏️ 基本の使い方</summary>
         <div class="help-acc-body">
+          <div class="help-li"><b>いちばん上のバー</b>は <b>記録名｜保存｜↶戻る｜⋯</b> の4つです（v299から）。<b>記録名</b>をタップすると保存した記録のリストが開きます。<b>⋯</b>の中に <b>↷進む・📋リスト・🗂シート・⚙設定・🖨PDF・📄CSV・📊Excel・📖説明書・▦既定の大きさ・🌙ナイトモード</b>と、いちばん下に赤い <b>🧹リセット</b> があります（消してしまう操作だけ離して置いています）。</div>
           <div class="help-li">セルをタップして選び、テンキーで入力 → <b>Enter</b>で確定（下のセルへ移動）。<b>いちばん下の行でEnter</b>で<b>行が1つ自動追加</b>されます（通常・簡易モード、最大250行）。</div>
           <div class="help-li">上部の入力欄から直接入力／編集もできます。数字を入れたあと<b>「文字」</b>キーで日本語も足せます（前に入れた数字は消えません）。</div>
           <table class="help-tbl">
@@ -3773,7 +3834,7 @@ body.dark {
             <tr><td><b>タブ</b></td><td>🗂記録／📌タブ1／📌タブ2／🔀モード。保存はまず「記録」へ。各データのタブ選択欄で振り分け、タブ名は長押しで変更</td></tr>
             <tr><td><b>モードへ</b></td><td>記録をモードに登録（自動で「モード」タブへ移動・保護）</td></tr>
             <tr><td><b>🔓ロック</b></td><td>タップで🔒保護（削除・改名を防止。もう一度で解除）</td></tr>
-            <tr><td><b>↩戻る／↪進む</b></td><td>直前の入力を元に戻す／やり直す（上のバーのボタンは、使えるときだけ出ます）</td></tr>
+            <tr><td><b>↶戻る／↷進む</b></td><td>直前の入力を元に戻す／やり直す（<b>↶</b>は上のバー、<b>↷</b>は<b>⋯</b>の中。使えないときは薄く出ます）</td></tr>
             <tr><td><b>⬇書き出し／⬆読み込み</b></td><td>リスト下部。保存データをファイルに出力→別端末で復元（バックアップ・引っ越し）</td></tr>
           </table>
           <div class="help-li"><b>📄CSV／📊Excel／🖨PDF</b>（設定の「データ」タブ）：CSVは表の値（文字コード自動判別）。<b>Excel(.xlsx)</b>は数式・太字・色・枠線・寄せ・結合・列幅まで保ったまま入出力。<b>PDF出力</b>は印刷前の設定ダイアログで、タイトル・向き・拡大縮小（1ページに収める）・余白・文字サイズ・枠線を指定でき、プレビューを横フリックで複数ページ確認。「印刷／PDFに保存」で書き出せます。</div>
@@ -12984,21 +13045,23 @@ function closeSettingsPanel(){
   const p=document.getElementById('settingsPanel');
   if(p&&p.classList.contains('open')) toggleSettings();
 }
-/* ── 上のバーのボタンの表示/非表示（「設定」は常に表示） ── */
-const TOPBTN_IDS={ sheet:'sheetToggleBtn', save:'saveBtn', list:'listBtn', undo:'undoBtn', redo:'redoBtn', reset:'resetBtn', defsize:'defsizeTopBtn' };
-const TOPBTN_DEFAULT_HIDDEN={ defsize:true };   // 既定で非表示（オプトインで表示）
-let topBtnHidden={};
-function topBtnIsHidden(k){ return (k in topBtnHidden)?topBtnHidden[k]:!!TOPBTN_DEFAULT_HIDDEN[k]; }
-function loadTopBtnHidden(){ try{ topBtnHidden=JSON.parse(localStorage.getItem('excalc_topbtn_hidden')||'{}')||{}; }catch(_){ topBtnHidden={}; } }
-function applyTopBtnHidden(){
-  for(const k in TOPBTN_IDS){ const el=document.getElementById(TOPBTN_IDS[k]); if(el) el.style.display = topBtnIsHidden(k)?'none':''; }
-  document.querySelectorAll('#topBtnToggles .topbtn-toggle').forEach(b=>b.classList.toggle('on', !topBtnIsHidden(b.dataset.btn)));
+/* ── 上のバーの「⋯」 ──────────────────────────────────────────
+   v299 で上のバーを 記録名・保存・↶・⋯ の4つに絞った。
+   以前は7個ならんでいて、iPhone SE では中身480px／画面375px で
+   横スクロールしないと端のボタンに届かなかった。
+   毎日使うもの（保存・戻る）だけを表に出し、残りはここへまとめている。 */
+function openMoreMenu(){
+  document.getElementById('moreMenuOverlay').classList.add('open');
+  if(typeof armBackGuard==='function') armBackGuard(closeMoreMenu);
 }
-function toggleTopBtn(k){
-  if(!(k in TOPBTN_IDS)) return;
-  topBtnHidden[k]=!topBtnIsHidden(k);
-  try{ localStorage.setItem('excalc_topbtn_hidden', JSON.stringify(topBtnHidden)); }catch(_){}
-  applyTopBtnHidden();
+function closeMoreMenu(){
+  document.getElementById('moreMenuOverlay').classList.remove('open');
+  if(typeof releaseBackGuard==='function') releaseBackGuard();
+}
+/* メニューの項目：先に閉じてから実行する（設定など別の画面が開くものがあるため） */
+function moreDo(fn){
+  closeMoreMenu();
+  setTimeout(()=>{ try{ fn(); }catch(e){ if(typeof toast==='function') toast('うまく開けませんでした'); } }, 0);
 }
 /* 「くわしい設定」の開閉を覚える（次に設定を開いたときも同じ状態にする） */
 function saveSetDetail(el){ try{ localStorage.setItem('excalc_set_detail', el.open?'1':'0'); }catch(_){} }
@@ -13038,7 +13101,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v298';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v299';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -14458,7 +14521,6 @@ renderUserKeys();
 loadSaveTabNames();
 setSettingsTab(Math.min(3,Math.max(0,parseInt(localStorage.getItem('excalc_settings_tab')||'0',10)||0)));
 attachSettingsSwipe();
-loadTopBtnHidden(); applyTopBtnHidden();   // 上のバーのボタンの表示/非表示を復元
 setEnterDir(enterMoveDir);                 // Enterで進む向きを復元
 { const stb=document.getElementById('sheetTabsBtn'); if(stb) stb.classList.toggle('on', showSheetTabs);
   const stt=document.getElementById('sheetToggleBtn'); if(stt) stt.classList.toggle('on', showSheetTabs); }
