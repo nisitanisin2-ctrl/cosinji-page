@@ -10641,6 +10641,10 @@ let cellEditing=false;
 const history=[];
 const redoHistory=[];      // 戻る操作をやり直す（進む）ための履歴
 const MAX_HISTORY=50;
+/* モードごとの取り消し履歴の置き場。モードを移るときに、いまの履歴をここへ預け、
+   戻ってきたら返す。履歴の中身は「そのモードの表」なので、預けて返すぶんには
+   よそのモードへ書き込む心配がない（またいで取り消せるようにはしない）。 */
+const modeHistory={};
 let undoing=false;
 
 /* 履歴の1件は次の3つのどれか。どれも op（操作名）を持つ。
@@ -10650,12 +10654,10 @@ let undoing=false;
    丸ごとの形は重いので、まとめて書き換わる操作にだけ使う。 */
 function snapshotAll(){
   return { data:snapshotData(), styles:JSON.parse(JSON.stringify(cellStyles)),
-           rows:ROWS, cols:COLS, mode:tableMode, workspace:workspaceMode,
-           tmpl:(typeof tmplApplied!=='undefined'&&tmplApplied)?{...tmplApplied}:null };   // ひな形の印も一緒に戻せるように
+           rows:ROWS, cols:COLS, mode:tableMode, workspace:workspaceMode };
 }
 function applySnapshotAll(sn){
   loadData(sn.data);
-  tmplApplied = sn.tmpl ? {...sn.tmpl} : null;   // 取り消しでひな形に戻ったら、印も戻す
   cellStyles=JSON.parse(JSON.stringify(sn.styles||{}));
   ROWS=sn.rows; COLS=sn.cols;
   // 表示中のモードを直接戻す。switchMode() を使うと、いまのシート一式ごと
@@ -11546,16 +11548,45 @@ function renderCalcTmplBody(){
     </button>`).join('');
 }
 function applyCalcTemplate(id){ const t=CALC_TEMPLATES.find(x=>x.id===id); if(t) applyTemplateObj(t, closeCalcTmpl); }
-/* いま表に入っているひな形の印（名前と、入れる前の表の大きさ）。ひな形以外の表では null。 */
-var tmplApplied=null;   // 巻き上げのため var（初期化中に switchMode から触られても落ちないように）
+/* いまの表がひな形そのものかどうかは、変数の印ではなく「A列の見出しが一致するか」で見分ける。
+   印だとモードを行き来したりシートを移ったりしたときに消えてしまい、
+   ひな形の表だけが残って「通常」にも「戻る」にも戻れなくなっていた（v307で修正）。
+   中身から見分けるので、モードを往復しても読み込み直しても同じように分かる。 */
+function allTemplates(){
+  try{ return [...CALC_TEMPLATES, ...FINANCIAL_TEMPLATES]; }catch(_){ return []; }   // 定義前に呼ばれても落ちない
+}
+function currentTemplate(){
+  if(tableMode!=='normal' || COLS!==2) return null;
+  for(const t of allTemplates()){
+    if(ROWS!==Math.max(2, Math.min(MAXROWS, t.rows.length))) continue;
+    let same=true;
+    for(let i=0;i<t.rows.length;i++){ if(data[i][0]!==t.rows[i][0]){ same=false; break; } }
+    if(same) return t;      // 黄色いセルに数字が入っていても、見出しが同じならひな形の表
+  }
+  return null;
+}
+/* ひな形を入れる前の表の大きさ。読み込み直しても分かるように localStorage に控える。 */
+const PRETMPL_KEY='excalc_pretmpl';
+function rememberPreTemplateSize(){
+  if(currentTemplate()) return;    // ひな形からひな形へ入れ替えたときは、いちばん最初の大きさを保つ
+  try{ localStorage.setItem(PRETMPL_KEY, ROWS+','+COLS); }catch(_){}
+}
+function preTemplateSize(){
+  let rows=15, cols=3;             // 控えが無いときは、はじめの大きさ
+  try{
+    const v=String(localStorage.getItem(PRETMPL_KEY)||'').split(',');
+    const a=parseInt(v[0]), b=parseInt(v[1]);
+    if(a>=1&&a<=MAXROWS) rows=a;
+    if(b>=1&&b<=MAXCOLS) cols=b;
+  }catch(_){}
+  return {rows, cols};
+}
+function forgetPreTemplateSize(){ try{ localStorage.removeItem(PRETMPL_KEY); }catch(_){} }
 /* テンプレを表に展開（計算テンプレ・決算書テンプレ共通）。
    rows: [A列ラベル, B列値]。B列が null＝見出し行、'='始まり＝計算式、それ以外＝入力(黄色)。 */
 function applyTemplateObj(t, closeFn){
   if(!confirm(`「${t.name}」のテンプレートを読み込みますか？\n現在の表は上書きされます。`)) return;
-  // ひな形を入れる前の表の大きさを控える。あとで「まっさらな表に戻す」ときに使う。
-  // 続けてひな形を入れ替えたときは、いちばん最初の大きさを保つ。
-  const prevRows = tmplApplied ? tmplApplied.prevRows : ROWS;
-  const prevCols = tmplApplied ? tmplApplied.prevCols : COLS;
+  rememberPreTemplateSize();   // あとで「まっさらな表に戻す」ときの大きさを控える
   if(closeFn) closeFn();
   const sp=document.getElementById('settingsPanel'); if(sp&&sp.classList.contains('open')) toggleSettings();
   pushSnapshot('テンプレート「'+t.name+'」');   // 入れる前の表を控えて、戻れるようにする
@@ -11592,7 +11623,6 @@ function applyTemplateObj(t, closeFn){
   sel(firstInput>=0?firstInput:0, 1);
   updateModeButton();
   persistModes();
-  tmplApplied={name:t.name, prevRows, prevCols};   // 「通常」でまっさらな表へ戻せるようにする印
   if(typeof saveSheets==='function') saveSheets();   // テンプレ内容を今のシートに反映
   toast(`「${t.name}」を読み込みました。黄色のセルに値を入れてください`);
 }
@@ -11601,15 +11631,16 @@ function applyTemplateObj(t, closeFn){
    画面はひな形のまま＝押した人からは「通常に戻らない」に見えていた。
    そこで、まっさらな表に戻すかどうかを聞いてから戻す。↶戻る で元の表に戻せる。 */
 function plainTableFromTemplate(){
-  const t=tmplApplied; if(!t) return;
+  const t=currentTemplate(); if(!t) return;
   if(!confirm(`いまの表はひな形「${t.name}」です。\n中身を消して、まっさらな通常の表に戻しますか？`)) return;
   pushSnapshot('まっさらな表に戻す');
   for(let r=0;r<MAXROWS;r++) for(let c=0;c<MAXCOLS;c++) data[r][c]='';
   cellStyles={};
   colWidths={}; rowHeights={}; if(typeof saveSheetSizes==='function') saveSheetSizes();
-  ROWS=t.prevRows; COLS=t.prevCols;                  // ひな形を入れる前の大きさへ戻す
+  const pre=preTemplateSize();
+  ROWS=pre.rows; COLS=pre.cols;                      // ひな形を入れる前の大きさへ戻す
   localStorage.setItem('excalc_rows',ROWS); localStorage.setItem('excalc_cols',COLS);
-  tmplApplied=null;
+  forgetPreTemplateSize();
   cellEditing=false; op1=null; cur_op=null; waiting=false; disp_val='0';
   hideAllBars();
   syncRowColLabels();
@@ -12738,16 +12769,18 @@ function switchMode(target){
   // ひな形を読み込んだ直後の通常の表は、モードとしては通常のままなので素通りしていた。
   // 見た目はひな形なので「通常を押しても戻らない」になる。まっさらな表へ戻せるようにする。
   if(target===workspaceMode && target===tableMode){
-    if(target==='normal' && tmplApplied) plainTableFromTemplate();
+    if(target==='normal' && currentTemplate()) plainTableFromTemplate();
     return;
   }
-  tmplApplied=null;   // モードを切り替えたら、ひな形の印は消える
   // モードごとに表の中身は別なので、またいで取り消せると何が戻るのか分からなくなる。
   // 実際、容積で入れたテンプレを通常へ移ってから取り消すと、容積の中身が通常の
   // シートに書き込まれ、そのシートが容積を覚えてしまって戻れなくなっていた。
-  // モードを変えるところで履歴を切り、その混乱ごと無くす。
+  // かといって履歴を捨ててしまうと、ひな形を入れてからモードを触っただけで
+  // 元の表に戻せなくなる。そこで「捨てる」のではなく「モードごとに預ける」。
   if(target!==workspaceMode && typeof history!=='undefined' && Array.isArray(history)){
-    history.length=0; redoHistory.length=0;
+    modeHistory[workspaceMode]={ undo:history.splice(0), redo:redoHistory.splice(0) };
+    const back=modeHistory[target];                  // そのモードに前にいたときの履歴を返す
+    if(back){ history.push(...back.undo); redoHistory.push(...back.redo); delete modeHistory[target]; }
     if(typeof updateUndoBtn==='function'){ updateUndoBtn(); updateRedoBtn(); }
   }
   if(target==='dentaku' && tableMode!=='dentaku'){                        // 「セルへ」で戻る先を覚える
@@ -12785,6 +12818,10 @@ function switchMode(target){
   persistModes();
   saveSheets();
   showModeHintOnce(tableMode);
+  // ひな形の表が残っている通常モードへ来たときは、まっさらに戻せることを知らせる。
+  // （知らないと「通常なのにひな形のまま」で行き止まりに見えてしまう）
+  const backTmpl=currentTemplate();
+  if(backTmpl) setTimeout(()=>toast(`ひな形「${backTmpl.name}」の表です。もう一度「▦通常」でまっさらな表に戻せます`, 4200), 700);
 }
 function updateModeButton(){
   const btn=document.getElementById('shoppingBtn');
@@ -13535,7 +13572,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v306';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v307';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -13588,7 +13625,7 @@ function resetAll() {
     return;
   }
   pushSnapshot('リセット');   // 書式・行数・列数ごと戻せるようにする
-  tmplApplied=null;
+  forgetPreTemplateSize();
   for(let r=0;r<MAXROWS;r++) for(let c=0;c<MAXCOLS;c++) data[r][c]='';
   if(isStructMode()) STRUCT_MODES[tableMode].headers.forEach((h,i)=>{ data[0][i]=h; });   // 見出しは復元
   cellStyles={};   // 書式もクリア
@@ -14892,7 +14929,7 @@ function loadSave(id) {
     : `「${entry.name}」を読み込みますか？\n${ldName?`「${ldName}」モードのシートが`:'現在のシートが'}この記録の内容に置き換わります（他のモードには影響しません）。`;
   if(!confirm(msg)) return;
   currentSaveId=id;   // 以後「保存」でこの記録に上書きできるようにする
-  tmplApplied=null;   // 記録を読み込んだら、ひな形の印は消える
+  forgetPreTemplateSize();   // 記録を読み込んだら、ひな形の控えは要らない
   if(entry.decPlaces!==undefined) decPlaces=entry.decPlaces;
   // まず今のワークスペースを退避（読込対象以外のモードの内容は保持する）
   if(Array.isArray(sheets) && sheets.length && sheets[curSheet]){

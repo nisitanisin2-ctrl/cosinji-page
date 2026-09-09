@@ -63,7 +63,7 @@ const TMPL_BACK_TO_PLAIN = {
     { check: 'COLS', is: 3 },                     // ひな形を入れる前の大きさに戻る
     { check: 'ROWS', is: 15 },
     { check: 'Object.keys(cellStyles).length', is: 0 },
-    { check: "typeof tmplApplied==='undefined' || tmplApplied===null", is: true },
+    { check: "typeof currentTemplate!=='function' || currentTemplate()===null", is: true },
     { do: "undoLast()" },                         // ↶戻る でひな形に戻せる
     { check: 'data[0][0]===CALC_TEMPLATES[0].rows[0][0]', is: true },
     { do: "switchMode('normal')" },               // 戻したあとも、もう一度まっさらにできる
@@ -90,9 +90,62 @@ const TMPL_FROM_OTHER_MODE = {
     { do: "applyTemplateObj(CALC_TEMPLATES[0], ()=>{})" },
     { do: "switchMode('normal')", expect: { ws:'normal', tm:'normal' } },
     { check: 'data[0][0]', is: '' },
-    { check: "typeof tmplApplied==='undefined' || tmplApplied===null", is: true },
+    { check: "typeof currentTemplate!=='function' || currentTemplate()===null", is: true },
+  ]
+};
+
+/* v307 で直したバグ：ひな形を入れた状態でモードを押すと、ひな形の表だけが残り、
+   「通常」でも「↶戻る」でも元に戻せなくなっていた。
+   （ひな形の印がモード切替で消え、取り消し履歴もモード切替で捨てられていたため） */
+const TMPL_MODE_ROUNDTRIP = {
+  name: 'ひな形→モード→通常で元に戻せる',
+  steps: [
+    { do: "setCellVal(0,0,'もとの表'); setCellVal(1,0,'たいせつなメモ')" },
+    { do: "applyTemplateObj(CALC_TEMPLATES[0], ()=>{})" },
+    { do: "switchMode('shopping')", expect: { ws:'shopping', tm:'shopping' } },
+    { do: "switchMode('normal')",   expect: { ws:'normal',   tm:'normal'   } },
+    { check: "typeof currentTemplate==='function' && currentTemplate()!==null", is: true },      // ひな形の表だと分かる
+    { check: 'history.length>0', is: true },              // 取り消し履歴も戻っている
+    { do: "undoLast()" },                                 // ↶戻る で元の表に戻れる
+    { check: 'data[0][0]', is: 'もとの表' },
+    { check: 'data[1][0]', is: 'たいせつなメモ' },
+    { check: 'COLS', is: 3 },
+    { check: 'ROWS', is: 15 },
+  ]
+};
+
+/* ひな形を入れてモードを往復したあと、「通常」でまっさらな表にも戻せる */
+const TMPL_MODE_THEN_PLAIN = {
+  name: 'ひな形→モード→通常→通常でまっさらに',
+  steps: [
+    { do: "applyTemplateObj(CALC_TEMPLATES[0], ()=>{})" },
+    { do: "switchMode('warikan')" },
+    { do: "switchMode('normal')" },
+    { do: "switchMode('normal')" },                       // 2回目でまっさらな表へ
+    { check: 'data[0][0]', is: '' },
+    { check: 'COLS', is: 3 },
+    { check: "typeof currentTemplate!=='function' || currentTemplate()===null", is: true },
+  ]
+};
+
+/* モードごとの取り消し履歴は混ざらない（v304 のバグを戻さないための確認） */
+const HISTORY_PER_MODE = {
+  name: 'モードごとの履歴は混ざらない',
+  steps: [
+    { do: "switchMode('youseki'); setCellVal(1,0,'99')" },
+    { do: "switchMode('normal'); setCellVal(0,0,'つうじょう')" },
+    { do: "undoLast()" },
+    { check: 'data[0][0]', is: '' },                      // 通常の取り消しは通常の中だけ
+    { do: "undoLast()" },
+    { check: "tableMode", is: 'normal' },                 // 容積の履歴には手が届かない
+    { do: "switchMode('youseki')" },
+    { check: 'data[1][0]', is: '99' },
+    { check: 'history.length>0', is: true },              // 容積に戻れば容積の履歴が返る
+    { do: "undoLast()" },
+    { check: 'data[1][0]', is: '' },
   ]
 };
 
 module.exports = { MODES, ROUNDTRIP, STUCK_SCENARIO, HISTORY_CLEARED, UNDO_WITHIN_MODE,
-                   TMPL_BACK_TO_PLAIN, TMPL_KEEPS_PLAIN, TMPL_FROM_OTHER_MODE };
+                   TMPL_BACK_TO_PLAIN, TMPL_KEEPS_PLAIN, TMPL_FROM_OTHER_MODE,
+                   TMPL_MODE_ROUNDTRIP, TMPL_MODE_THEN_PLAIN, HISTORY_PER_MODE };
