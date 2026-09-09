@@ -3770,7 +3770,7 @@ body.dark {
             <tr><td><span class="help-tag">文字</span></td><td>文字（テキスト）を入力</td></tr>
             <tr><td><span class="help-tag">モード</span></td><td>計算モードを切替</td></tr>
           </table>
-          <div class="help-li"><b>いちばん上の「道具の段」</b>（進む・戻る・リセット・▦通常・電卓）は、入力用のキーより低く色の違う段です。<b>▦通常</b>と<b>電卓</b>はモードの行き来に使います（表に戻る／電卓を出す）。<b>どれも長押しで好きな機能に変えられます</b>（設定・機能／表の操作など）。進む・戻る・リセットは上のバーにもあるので、テンキー側で足りるなら設定→<b>🎨見た目→くわしい設定</b>の「上のバーのボタン」で上のバーから消すと、その分<b>表が広くなります</b>。</div>
+          <div class="help-li"><b>いちばん上の「道具の段」</b>（進む・戻る・リセット・▦通常・電卓）は、入力用のキーより低く色の違う段です。<b>▦通常</b>と<b>電卓</b>はモードの行き来に使います（表に戻る／電卓を出す）。ひな形の表のときに<b>▦通常</b>を押すと、<b>まっさらな表に戻ります</b>（確認は出ません。<b>↶戻る</b>でひな形に戻せます）。<b>どれも長押しで好きな機能に変えられます</b>（設定・機能／表の操作など）。進む・戻る・リセットは上のバーにもあるので、テンキー側で足りるなら設定→<b>🎨見た目→くわしい設定</b>の「上のバーのボタン」で上のバーから消すと、その分<b>表が広くなります</b>。</div>
           <div class="help-li"><b>テンキーの上のページ表示</b>で、いまどのページに居るか分かります。<b>ページ名をタップ</b>するとそのページへ移動できます（数字の並びは「枠線・書式・数字・記号・関数」、右端の<b>▲登録</b>で登録ページの並びへ、<b>▼数字</b>で戻る）。設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーのページ表示</b>で消すこともできます。</div>
           <div class="help-li"><b>フリックでも切り替わります</b>（数字ページが土台。数字ページは<b>どこからでもフリック開始OK</b>）：</div>
           <table class="help-tbl">
@@ -3850,7 +3850,7 @@ body.dark {
       <details class="help-acc" id="h-mode">
         <summary>🔀 モード（「モード」ボタン）</summary>
         <div class="help-acc-body">
-          <div class="help-li"><b>テンキーの「モード」キー</b>（または<b>⋯→🎯用途から始める</b>）で<b>「用途から始める」</b>が開きます（v305から）。上が<b>表のかたちを変える</b>（下のモード一覧）、下が<b>ひな形から始める</b>で、<b>くらし・おかね・からだ&thinsp;/&thinsp;くるま・かたち・帳票</b>の目的別に25種のひな形が並びます。ひな形を選ぶと、項目と計算式の入った表になります（今の表は上書きされるので、確認が出ます）。</div>
+          <div class="help-li"><b>テンキーの「モード」キー</b>（または<b>⋯→🎯用途から始める</b>）で<b>「用途から始める」</b>が開きます（v305から）。上が<b>表のかたちを変える</b>（下のモード一覧）、下が<b>ひな形から始める</b>で、<b>くらし・おかね・からだ&thinsp;/&thinsp;くるま・かたち・帳票</b>の目的別に25種のひな形が並びます。ひな形を選ぶと、項目と計算式の入った表になります（今の表は上書きされるので、確認が出ます）。ひな形をやめてふつうの表に戻したいときは、<b>▦通常</b>（またはモード一覧の「通常」）を押すと<b>まっさらな表</b>に戻ります。確認は出しませんが、<b>↶戻る</b>でひな形にも、ひな形を入れる前の表にも戻せます。</div>
           <div class="help-li">切替後も各モードの内容は<b>リセットするまで保持</b>されます。</div>
           <table class="help-tbl">
             <tr><td><b>通常／簡易</b></td><td>標準の表／列少なめ・大きな表示</td></tr>
@@ -11632,7 +11632,8 @@ function applyTemplateObj(t, closeFn){
    そこで、まっさらな表に戻すかどうかを聞いてから戻す。↶戻る で元の表に戻せる。 */
 function plainTableFromTemplate(){
   const t=currentTemplate(); if(!t) return;
-  if(!confirm(`いまの表はひな形「${t.name}」です。\n中身を消して、まっさらな通常の表に戻しますか？`)) return;
+  // 確認は出さない。モードを選ぶ流れの途中で確認窓が割り込むと、
+  // モードが選べなくなってしまうため。消したときは ↶戻る で戻せる。
   pushSnapshot('まっさらな表に戻す');
   for(let r=0;r<MAXROWS;r++) for(let c=0;c<MAXCOLS;c++) data[r][c]='';
   cellStyles={};
@@ -11649,7 +11650,7 @@ function plainTableFromTemplate(){
   const fi=document.getElementById('formulaInput'); if(fi) fi.value=data[selR][selC];
   persistModes();
   if(typeof saveSheets==='function') saveSheets();
-  toast('まっさらな表に戻しました（↶戻る で元に戻せます）');
+  toast(`ひな形「${t.name}」を消して、まっさらな表に戻しました（↶戻る で元に戻せます）`, 4200);
 }
 
 /* ── 決算書類テンプレ（かんたん） ── */
@@ -13572,7 +13573,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v307';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v308';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
