@@ -209,7 +209,8 @@ async function runA11y(browser) {
 
 async function runMode(browser) {
   const { ROUNDTRIP, STUCK_SCENARIO, HISTORY_CLEARED, UNDO_WITHIN_MODE,
-          TMPL_BACK_TO_PLAIN, TMPL_KEEPS_PLAIN, TMPL_FROM_OTHER_MODE } = require('./mode.test.js');
+          TMPL_BACK_TO_PLAIN, TMPL_KEEPS_PLAIN, TMPL_FROM_OTHER_MODE,
+          TMPL_MODE_ROUNDTRIP, TMPL_MODE_THEN_PLAIN, HISTORY_PER_MODE } = require('./mode.test.js');
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── モードの行き来 ──');
   const st = () => page.evaluate(() => ({ ws: workspaceMode, tm: tableMode }));
@@ -225,7 +226,8 @@ async function runMode(browser) {
   }
 
   for (const sc of [STUCK_SCENARIO, HISTORY_CLEARED, UNDO_WITHIN_MODE,
-                    TMPL_BACK_TO_PLAIN, TMPL_KEEPS_PLAIN, TMPL_FROM_OTHER_MODE]) {
+                    TMPL_BACK_TO_PLAIN, TMPL_KEEPS_PLAIN, TMPL_FROM_OTHER_MODE,
+                    TMPL_MODE_ROUNDTRIP, TMPL_MODE_THEN_PLAIN, HISTORY_PER_MODE]) {
     await page.evaluate(() => { localStorage.clear(); });
     await page.reload(); await page.waitForTimeout(900);
     for (const step of sc.steps) {
