@@ -3227,7 +3227,7 @@ body.dark {
     <div class="modal-body">
       <div class="mode-sec">表のかたちを変える<small>タップで切替／左の ⠿ をドラッグで並べ替え</small></div>
       <div id="modeMenuBody"></div>
-      <div class="mode-sec">ひな形から始める<small>項目と計算式が入った表を作ります（今の表は上書きされます）</small></div>
+      <div class="mode-sec">ひな形から始める<small>項目と計算式が入った表を作ります（今の表は上書き。↶戻る で戻せます）</small></div>
       <div id="tmplPickBody"></div>
     </div>
   </div>
@@ -3693,7 +3693,7 @@ body.dark {
       <span>📋 計算式テンプレ</span>
       <button class="modal-close" onclick="closeCalcTmpl()">✕</button>
     </div>
-    <div class="mode-hint">やりたい計算を選ぶと、項目名と計算式が入った表になります。<b>黄色のセル</b>に値を入れるだけで答えが出ます（今の表は上書きされます）。</div>
+    <div class="mode-hint">やりたい計算を選ぶと、項目名と計算式が入った表になります。<b>黄色のセル</b>に値を入れるだけで答えが出ます（今の表は上書き。<b>↶戻る</b>で戻せます）。</div>
     <div class="modal-body" id="calcTmplBody"></div>
   </div>
 </div>
@@ -3704,7 +3704,7 @@ body.dark {
       <span>📑 決算書テンプレ</span>
       <button class="modal-close" onclick="closeFinTmpl()">✕</button>
     </div>
-    <div class="mode-hint">かんたんな決算書類のひな形です。<b>黄色のセル</b>に金額を入れると、利益や合計・検算が自動で出ます（今の表は上書きされます）。</div>
+    <div class="mode-hint">かんたんな決算書類のひな形です。<b>黄色のセル</b>に金額を入れると、利益や合計・検算が自動で出ます（今の表は上書き。<b>↶戻る</b>で戻せます）。</div>
     <div class="modal-body" id="finTmplBody"></div>
   </div>
 </div>
@@ -13343,7 +13343,16 @@ function openModeMenu(){
     .map(k=>{ const o=modeItemByKey(k); return o?renderModeItem(o.item,o.custom):''; }).join('');
   bindModeDrag();
   document.getElementById('modeMenuOverlay').classList.add('open');
+  mmOpenedAt=Date.now();   // 開いた直後の「押しっぱなしの指」で項目が反応しないように
 }
+
+/* 一覧を開いた直後は、まだ「モード」キーを押した指が画面に残っている。
+   一覧はその指の真下に出るので、そのまま項目が押されたことになって
+   勝手にモードが変わったり、ひな形が読み込まれたりしていた。
+   開いてすぐの短い間は、項目を反応させない。 */
+let mmOpenedAt=0;
+const MM_GUARD_MS=400;
+function mmGuardActive(){ return Date.now()-mmOpenedAt < MM_GUARD_MS; }
 
 /* ── 長押しドラッグでモードを並べ替え ── */
 let mdDrag=null;
@@ -13408,6 +13417,7 @@ function onModePointerUp(e){
     modeOrder=[...document.querySelectorAll('#modeMenuBody .mode-item')].map(x=>x.dataset.key);
     persistModeOrder();
   } else if(!fromGrip){
+    if(mmGuardActive()) return;   // 「モード」キーを押した指がそのまま乗っているだけ
     pickMode(key);   // 本体の短いタップ＝モード切替（グリップのタップは何もしない）
   }
 }
@@ -13474,6 +13484,15 @@ function removeCustomMode(key){
   openModeMenu();
 }
 function closeModeMenu(){ document.getElementById('modeMenuOverlay').classList.remove('open'); }
+/* ひな形のボタンなど、一覧の中のタップ全部を同じ間だけ止める
+   （項目と同じく、開いた直後の指で押されたことにならないように） */
+(function(){
+  const ov=document.getElementById('modeMenuOverlay');
+  if(!ov) return;
+  ov.addEventListener('click', e=>{
+    if(mmGuardActive()){ e.preventDefault(); e.stopPropagation(); }
+  }, true);
+})();
 function pickMode(key){ closeModeMenu(); switchMode(key); }
 
 (function(){
@@ -13574,7 +13593,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v309';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v310';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

@@ -258,6 +258,58 @@ async function runMode(browser) {
   check('  通常でひな形を消すとき確認窓を出さない', dialogs.length, 0);
   check('  そのあとまっさらな表になっている', await page.evaluate(() => data[0][0] + '/' + COLS), '/3');
 
+  // 一覧は「モード」キーの指の真下に出る。実機では、キーを離した指の分の入力が
+  // 開いたばかりの一覧に届き、真下にあった項目が押されたことになっていた。
+  // 状態が読める新しいページで確かめる。
+  {
+    const g = await newPage(browser);
+    // キーの位置は一度の評価で取る（読み込み直後にテンキーが組み直され、
+    //   要素ハンドルが外れてしまうことがあるため）
+    const mb = await g.page.evaluate(() => {
+      const el = document.querySelector('[data-key="mode"]');
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return r.width ? { x: r.left, y: r.top, width: r.width, height: r.height } : null;
+    });
+    if (!mb) { check('  モードキーが見つかる', 'なし', 'ある'); await g.ctx.close(); return; }
+    await g.page.touchscreen.tap(mb.x + mb.width / 2, mb.y + mb.height / 2);
+    await g.page.waitForTimeout(120);
+    const under = await g.page.evaluate(() => {          // 指の真下の項目へ直接送る
+      const it = [...document.querySelectorAll('#modeMenuBody .mode-item')].find(x => x.dataset.key !== workspaceMode);
+      if (!it) return null;
+      const r = it.getBoundingClientRect();
+      const at = { clientX: r.left + r.width * 0.6, clientY: r.top + r.height / 2, bubbles: true,
+                   cancelable: true, pointerId: 1, pointerType: 'mouse', isPrimary: true };
+      it.dispatchEvent(new PointerEvent('pointerdown', at));
+      document.dispatchEvent(new PointerEvent('pointerup', at));
+      return it.dataset.key;
+    });
+    await g.page.waitForTimeout(700);
+    check('  一覧を開いた直後の指では項目が反応しない',
+          await g.page.evaluate(() => workspaceMode + '/' + document.getElementById('modeMenuOverlay').classList.contains('open')),
+          'normal/true');
+    if (!under) console.log('     モード項目が見つからなかった');
+    await g.page.waitForTimeout(500);                     // 少し待てば選べる
+    // 一覧が閉じてしまっていたら開き直す（直っていないと、上の指で閉じられている）
+    if (!await g.page.evaluate(() => document.getElementById('modeMenuOverlay').classList.contains('open'))) {
+      await g.page.evaluate(() => openModeMenu()); await g.page.waitForTimeout(600);
+    }
+    let picked = null;
+    const sb = await g.page.evaluate(() => {
+      const it = [...document.querySelectorAll('#modeMenuBody .mode-item')].find(x => x.dataset.key === 'shopping');
+      if (!it) return null;
+      it.scrollIntoView({ block: 'center' });
+      const r = it.getBoundingClientRect();
+      return r.width ? { x: r.left, y: r.top, width: r.width, height: r.height } : null;
+    });
+    if (sb) { await g.page.touchscreen.tap(sb.x + sb.width * 0.6, sb.y + sb.height / 2); picked = true; }
+    await g.page.waitForTimeout(800);
+    check('  少し待てばモードを選べる', picked && await g.page.evaluate(() => workspaceMode), 'shopping');
+    check('  一覧のJSエラーが出ていない', g.errs.length, 0);
+    if (g.errs.length) console.log('     ', g.errs);
+    await g.ctx.close();
+  }
+
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();
