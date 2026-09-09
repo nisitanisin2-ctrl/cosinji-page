@@ -2044,6 +2044,12 @@ body.simple-mode .rh  { height: calc(46px * var(--cell-scale, 1)); }
 .ts-judge.ok   { background: var(--ok); }
 .ts-judge.warn { background: #ef6c00; }
 .ts-judge.ng   { background: var(--danger); }
+/* 数式のエラー（#DIV/0! など）。0 と見間違えないよう赤で出す */
+.cell.cell-err {
+  color: var(--danger) !important; font-weight: bold;
+  background: rgba(192,57,43,0.07);
+}
+body.dark .cell.cell-err { color: #ff8a80 !important; background: rgba(255,138,128,0.10); }
 /* ここから3つはフォーム型モード（FORM_MODES）用。v291 で単位水量をモードから
    外したので今は使っていないが、仕組みごと残してある。
    計算工程の先頭・グループ区切りの二重線 */
@@ -3665,6 +3671,16 @@ body.dark {
             <tr><td><b>=XLOOKUP</b></td><td>(探す値, 検索範囲, 戻す範囲, "見つからない時")…対応する値を返す（文字も可）</td></tr>
           </table>
           <div class="help-li">日本語名の <b>=V参照(…)／=X参照(…)</b> でも同じです（Excel出力時に自動で VLOOKUP／XLOOKUP へ変換）。</div>
+          <div class="help-li"><b>計算できないときは、赤い字でその理由を出します</b>（v296から）。以前はどれも <b>0</b> と表示していたため、計算できた0と見分けがつきませんでした。<b>セルをタップ</b>すると説明が出ます。</div>
+          <table class="help-tbl">
+            <tr><td><b>#DIV/0!</b></td><td>0 で割っています。割る数のセルが空か 0 になっていないか確かめてください</td></tr>
+            <tr><td><b>#CYCLE!</b></td><td>式どうしがぐるぐる参照しています（自分の答えを自分で使っている状態）</td></tr>
+            <tr><td><b>#NAME?</b></td><td>この表では扱えない関数名か、セル名として読めない文字が入っています。<b>使える関数は上の表のとおり</b>です</td></tr>
+            <tr><td><b>#REF!</b></td><td>無いシートやセルを見ています</td></tr>
+            <tr><td><b>#VALUE!</b></td><td>式の形が読み取れません（記号の並びや括弧を確かめてください）</td></tr>
+            <tr><td><b>#NUM!</b></td><td>答えが大きすぎるか、計算できない値になりました（負の数の平方根など）</td></tr>
+          </table>
+          <div class="help-li"><b>合計・平均</b>は、エラーのセルを<b>0として混ぜずに飛ばします</b>。飛ばしたときは値の横に <b>⚠</b> が付きます。<br><b>Excelに書き出す</b>ときも、エラーの式はエラーのまま書き出します（0では書き出しません）。<br><b>=IF(…)</b> の使わなかった側にエラーがあっても、答えには影響しません（例：<b>=IF(B1&gt;0, 100/B1, 0)</b> は B1 が空でも 0 になります）。</div>
         </div>
       </details>
 
@@ -4086,9 +4102,32 @@ function cellEditString(r,c){
    セル参照は「今評価中のシート」を基準に解決し、"シート名!A1" で他シートを参照できる。 */
 let EVAL_SHEET = -1;   // -1 = 現在表示中のシート（ライブの data）
 function evalSheetIdx(){ return EVAL_SHEET<0 ? (typeof curSheet==='number'?curSheet:0) : EVAL_SHEET; }
-/* 数式で使う数値化（文字列→数値、数値でなければ0） */
+/* ── 数式のエラー ──────────────────────────────────────────────
+   これまでは、0で割った・ぐるぐる参照している・知らない関数を使った、の
+   どれでも答えを 0 として表に出していた。0 は「計算できた0」と見分けが
+   つかないので、間違いに気づけない。Excel と同じ書き方でセルに出す。
+   計算の途中で投げて式全体を止める（エラーを含む式の答えはエラー）。 */
+function FormulaError(code, detail){ this.code=code; this.detail=detail||''; }
+FormulaError.prototype.toString=function(){ return this.code; };
+function isFormulaError(e){ return e instanceof FormulaError; }
+function fErr(code, detail){ throw new FormulaError(code, detail); }
+/* セルに出るエラーの説明（タップしたときに出す） */
+const FORMULA_ERR_HELP={
+  '#DIV/0!': '0 で割っています。割る数のセルが空か 0 になっていないか確かめてください。',
+  '#CYCLE!': '式どうしがぐるぐる参照しています（自分の答えを自分で使っている状態です）。',
+  '#NAME?' : 'この表では扱えない関数名か、セル名として読めない文字が入っています。',
+  '#REF!'  : '無いシートやセルを見ています。シート名やセル番号を確かめてください。',
+  '#VALUE!': '式の形が読み取れません。記号の並びや括弧を確かめてください。',
+  '#NUM!'  : '答えが大きすぎるか、計算できない値になりました。'
+};
+const FORMULA_ERR_CODES=Object.keys(FORMULA_ERR_HELP);
+function isErrText(t){ return typeof t==='string' && FORMULA_ERR_CODES.indexOf(t)>=0; }
+const cellErrDetail={};   // 'r,c' → なぜそうなったかの一言（タップで出す）
+/* 数式で使う数値化（文字列→数値、数値でなければ0）。
+   文字は今までどおり 0 として扱う（見出しが混ざった列でも合計できるように）。
+   ただし無限大・NaN は計算が破綻した印なので #NUM! にする。 */
 function toNum(v){
-  if(typeof v==='number') return isFinite(v)?v:0;
+  if(typeof v==='number'){ if(!isFinite(v)) fErr('#NUM!'); return v; }
   if(v==null||v==='') return 0;
   const n=parseFloat(String(v).replace(/,/g,''));
   return isNaN(n)?0:n;
@@ -4129,18 +4168,28 @@ function cellRawValue(idx, r, c){
     return (t!=='' && !isNaN(t)) ? Number(t) : raw;
   }
   const key=idx+':'+r+','+c;
-  if(evaluating.has(key)) return 0;
+  if(evaluating.has(key)) fErr('#CYCLE!');   // 自分をたどり直した＝ぐるぐる参照
   evaluating.add(key);
   const prev=EVAL_SHEET; EVAL_SHEET=idx;
-  let res; try{ res=parseArith(raw.slice(1).replace(/×/g,'*').replace(/÷/g,'/')); }catch(e){ res=NaN; }
-  EVAL_SHEET=prev; evaluating.delete(key);
-  return res;
+  try{
+    return parseArith(raw.slice(1).replace(/×/g,'*').replace(/÷/g,'/'));
+  } catch(e){
+    if(isFormulaError(e)) throw e;           // 参照先のエラーはそのまま呼び出し元へ運ぶ
+    return NaN;
+  } finally {
+    EVAL_SHEET=prev; evaluating.delete(key);
+  }
 }
 /* 既存互換：数値としてのセル値（統計・再計算などで使用） */
 function getCellValue(r, c) {
-  const v=cellRawValue(evalSheetIdx(), r, c);
-  const n=(typeof v==='number')?v:toNum(v);
-  return isFinite(n)?n:0;
+  try{
+    const v=cellRawValue(evalSheetIdx(), r, c);
+    const n=(typeof v==='number')?v:toNum(v);
+    return isFinite(n)?n:0;
+  } catch(e){
+    if(isFormulaError(e)) return NaN;   // エラーのセルは 0 ではなく「数えない」
+    throw e;
+  }
 }
 /* 範囲内の全セル座標（行→列の順） */
 function rangeCells(rng){ const out=[]; for(let r=rng.r1;r<=rng.r2;r++) for(let c=rng.c1;c<=rng.c2;c++) out.push({r,c}); return out; }
@@ -4228,13 +4277,40 @@ function getCellDisplay(r, c) {
     return data[r][c];                       // 空・文字列はそのまま
   }
   let res;
-  try { res = evalFormula(raw); } catch(e) { return '#ERR'; }
+  const ekey=r+','+c;
+  delete cellErrDetail[ekey];
+  try { res = evalFormula(raw); }
+  catch(e) {
+    if(isFormulaError(e)){ if(e.detail) cellErrDetail[ekey]=e.detail; return e.code; }
+    return '#VALUE!';
+  }
   if (typeof res === 'string') return res;   // 文字列（VLOOKUP/XLOOKUP等の結果）はそのまま表示
-  if (typeof res !== 'number' || !isFinite(res)) return '#ERR';
+  if (typeof res !== 'number' || !isFinite(res)) return '#NUM!';
   if (dfmt) return formatDate(res, dfmt);   // 数式の結果を日付として表示
   return show(res);
 }
 
+/* セルに表示を書き込む一本道。エラーのときは赤くして、
+   タップで理由が出せるように印を付ける。 */
+function setCellDisp(el, r, c){
+  if(!el) return;
+  const t=getCellDisplay(r,c);
+  el.textContent=t;
+  const bad=isErrText(t);
+  el.classList.toggle('cell-err', bad);
+  if(bad){
+    const d=cellErrDetail[r+','+c];
+    el.title=(FORMULA_ERR_HELP[t]||'')+(d?'（'+d+'）':'');
+  }
+}
+/* エラーのセルを選んだときに、なぜそうなったかを一言出す */
+function tellCellError(r, c){
+  const t=getCellDisplay(r,c);
+  if(!isErrText(t)) return false;
+  const d=cellErrDetail[r+','+c];
+  toast(t+'　'+(FORMULA_ERR_HELP[t]||'')+(d?'（'+d+'）':''), 4500);
+  return true;
+}
 function evalFormula(formula) {
   const expr = String(formula).slice(1).replace(/×/g,'*').replace(/÷/g,'/');
   return parseArith(expr);
@@ -4272,7 +4348,8 @@ function parseArith(s) {
     ws(); let v = powFactor(); ws();
     while (pos < s.length && (s[pos]==='*' || s[pos]==='/')) {
       const op = s[pos++]; const a=toNum(v), b=toNum(powFactor());
-      v = op==='*' ? a*b : (b!==0 ? a/b : 0); ws();
+      if(op==='/' && b===0) fErr('#DIV/0!');
+      v = op==='*' ? a*b : a/b; ws();
     }
     return v;
   }
@@ -4360,7 +4437,7 @@ function parseArith(s) {
           const ri2=parseInt(r2)-1, ci2=ALPHA.indexOf(c2);
           for (let rr=Math.min(ri1,ri2); rr<=Math.max(ri1,ri2); rr++)
             for (let cc=Math.min(ci1,ci2); cc<=Math.max(ci1,ci2); cc++)
-              vals.push(getCellValue(rr,cc));
+              vals.push(toNum(cellRawValue(evalSheetIdx(), rr, cc)));
         } else if (r1) {
           ws();
           if (pos<s.length && s[pos]!==',' && s[pos]!==')'){
@@ -4383,7 +4460,7 @@ function parseArith(s) {
   }
   function factor() {
     ws();
-    if (pos >= s.length) return 0;
+    if (pos >= s.length) fErr('#VALUE!', '式が途中で終わっています');
     if (s[pos]==='(') { pos++; const v=expr(); if(pos<s.length&&s[pos]===')') pos++; return v; }
     if (s[pos]==='-') { pos++; return -toNum(factor()); }
     if (s[pos]==='+') { pos++; return factor(); }
@@ -4399,7 +4476,10 @@ function parseArith(s) {
         if (/[A-Za-z]/.test(s[pos]||'')) {
           let cc=''; while (pos<s.length && /[A-Za-z]/.test(s[pos])) cc+=s[pos++].toUpperCase();
           let rr=''; while (pos<s.length && /[0-9]/.test(s[pos])) rr+=s[pos++];
-          if (rr) { const ci=ALPHA.indexOf(cc); return (sIdx<0||ci<0) ? NaN : cellRawValue(sIdx, +rr-1, ci); }
+          if (rr) { const ci=ALPHA.indexOf(cc);
+                    if(sIdx<0) fErr('#REF!', 'シートが見つかりません');
+                    if(ci<0)   fErr('#REF!', cc+rr);
+                    return cellRawValue(sIdx, +rr-1, ci); }
         }
         pos=save;
       }
@@ -4435,11 +4515,38 @@ function parseArith(s) {
         if (name === 'IF') {
           ws(); const cond = expr();
           ws(); if (pos<s.length && s[pos]===',') pos++;
-          ws(); const thenVal = expr();
+          const take = !!cond;
+          // 両方の枝を読み進めるが、選ばれなかった側のエラーは捨てる。
+          // =IF(B1>0, B5/B1, 0) のような「0で割らないための番人」つきの式を
+          // 番人ごしにエラーにしないため（Excelは選んだ側しか計算しない）。
+          // 引数1つ分だけ読み飛ばす（括弧と引用符の中の , ) は数えない）
+          const skipArg = () => {
+            let depth=0, q=false;
+            while(pos<s.length){
+              const ch=s[pos];
+              if(q){ if(ch==='"'){ if(s[pos+1]==='"') pos++; else q=false; } pos++; continue; }
+              if(ch==='"'){ q=true; pos++; continue; }
+              if(ch==='('){ depth++; pos++; continue; }
+              if(ch===')'){ if(depth===0) break; depth--; pos++; continue; }
+              if(ch===',' && depth===0) break;
+              pos++;
+            }
+          };
+          // エラーを捨てるときは、途中で止まった読み取り位置を引数の終わりまで送る。
+          // ここを送らないと、続く , や ) を見失って式全体が #VALUE! になる。
+          const arm = keep => {
+            const save=pos;
+            try{ return expr(); }
+            catch(e){
+              if(!keep && isFormulaError(e)){ pos=save; skipArg(); return 0; }
+              throw e;
+            }
+          };
+          ws(); const thenVal = arm(take);
           ws(); if (pos<s.length && s[pos]===',') pos++;
-          ws(); const elseVal = expr();
+          ws(); const elseVal = arm(!take);
           ws(); if (pos<s.length && s[pos]===')') pos++;
-          return cond ? thenVal : elseVal;
+          return take ? thenVal : elseVal;
         }
         const vals = parseArgs();
         if (pos<s.length && s[pos]===')') pos++;
@@ -4449,7 +4556,11 @@ function parseArith(s) {
         if (name==='MIN')     return vals.length ? Math.min(...vals) : 0;
         if (name==='COUNT')   return vals.length;
         if (name==='ABS')     return vals.length ? Math.abs(vals[0]) : 0;
-        if (name==='SQRT')    return vals.length ? Math.sqrt(Math.max(0,vals[0])) : 0;
+        if (name==='SQRT'){
+          if(!vals.length) fErr('#VALUE!','SQRT');
+          if(vals[0]<0) fErr('#NUM!','SQRT');           // 負の数の平方根（今までは0にそろえていた）
+          return Math.sqrt(vals[0]);
+        }
         if (name==='ROUND') {
           const n=vals[0]||0, d=vals.length>=2?vals[1]:0;
           return Math.round(n*Math.pow(10,d))/Math.pow(10,d);
@@ -4464,8 +4575,12 @@ function parseArith(s) {
         if (name==='LOG')  return vals.length ? (vals.length>=2 ? Math.log(vals[0])/Math.log(vals[1]) : Math.log10(vals[0])) : 0;
         if (name==='LN')   return vals.length ? Math.log(vals[0]) : 0;
         if (name==='EXP')  return vals.length ? Math.exp(vals[0]) : 0;
-        if (name==='MOD')  return vals.length>=2 && vals[1]!==0 ? vals[0]-vals[1]*Math.floor(vals[0]/vals[1]) : 0;
-        return 0;
+        if (name==='MOD'){
+          if(vals.length<2) fErr('#VALUE!', 'MOD');
+          if(vals[1]===0) fErr('#DIV/0!', 'MOD');
+          return vals[0]-vals[1]*Math.floor(vals[0]/vals[1]);
+        }
+        fErr('#NAME?', name);        // この表では扱えない関数
       }
       if (!/[0-9]/.test(s[pos]||'')) {
         if (name==='PI') return Math.PI;
@@ -4473,11 +4588,19 @@ function parseArith(s) {
       }
       let row='';
       while (pos<s.length && /[0-9]/.test(s[pos])) row+=s[pos++];
-      return row ? cellRawValue(evalSheetIdx(), parseInt(row)-1, ALPHA.indexOf(name)) : 0;
+      if(!row) fErr('#NAME?', name);                    // 数字が続かない＝セル名でも関数でもない
+      const ci=ALPHA.indexOf(name);
+      if(ci<0) fErr('#NAME?', name+row);                // 列として読めない名前
+      const ri=parseInt(row)-1;
+      if(ri<0||ri>=MAXROWS) fErr('#REF!', name+row);
+      return cellRawValue(evalSheetIdx(), ri, ci);
     }
     let n='';
     while (pos<s.length && /[0-9.]/.test(s[pos])) n+=s[pos++];
-    return parseFloat(n)||0;
+    if(n==='') fErr('#VALUE!', s[pos]||'式の終わり');   // 読めない文字・記号の並び
+    const num=parseFloat(n);
+    if(isNaN(num)) fErr('#VALUE!', n);
+    return num;
   }
   return expr();
 }
@@ -4487,7 +4610,7 @@ function recalcAll() {
     for (let c=0; c<COLS; c++)
       if (String(data[r][c]).startsWith('=')) {
         const el=document.getElementById(`c${r}_${c}`);
-        if (el) el.textContent=getCellDisplay(r,c);
+        if (el) setCellDisp(el, r,c);
       }
   autoFitSheet();
 }
@@ -4557,7 +4680,7 @@ function buildSheet() {
         if (mg.rs>1) td.rowSpan=Math.min(mg.rs, ROWS-r);
         td.classList.add('cell-merged');
       }
-      td.textContent=getCellDisplay(r,c);
+      setCellDisp(td, r,c);
       if (isStructMode()) {
         const m=STRUCT_MODES[tableMode];
         if (r===0 && c<m.headers.length) {
@@ -4914,7 +5037,7 @@ function clearSelection(){
   cells.forEach(([r,c])=>{ if(!isLockedCell(r,c) && data[r][c]!=='') entries.push({r,c,val:data[r][c]}); });
   if(!entries.length) return;
   pushHistory(entries);
-  entries.forEach(({r,c})=>{ data[r][c]=''; const el=document.getElementById(`c${r}_${c}`); if(el) el.textContent=getCellDisplay(r,c); });
+  entries.forEach(({r,c})=>{ data[r][c]=''; const el=document.getElementById(`c${r}_${c}`); if(el) setCellDisp(el, r,c); });
   recalcAll(); if(isStructMode()) recalcMode();
   document.getElementById('formulaInput').value=cellEditString(selR,selC);
   updateStats(selC); persistModes(); if(typeof saveSheets==='function') saveSheets();
@@ -5480,7 +5603,15 @@ async function exportXLSX(){
           if(mg&&(mg.rs>1||mg.cs>1)) merges.push(`${ref}:${xlColLetter(Math.min(MAXCOLS-1,c+mg.cs-1))}${Math.min(MAXROWS,r+mg.rs)}`);
           if(String(raw).startsWith('=')){
             const v=getCellValue(r,c);
-            row+=`<c r="${ref}"${sAttr}><f>${xlEsc(appFormulaToXlsx(String(raw).slice(1)))}</f><v>${isFinite(v)?v:0}</v></c>`;
+            const fx=xlEsc(appFormulaToXlsx(String(raw).slice(1)));
+            const disp=getCellDisplay(r,c);
+            if(isErrText(disp)){
+              // エラーの式は、キャッシュ値も「エラー」として書き出す（t="e"）。
+              // 0 を書くと、Excel で開いた瞬間は 0 に見えてしまうため。
+              row+=`<c r="${ref}"${sAttr} t="e"><f>${fx}</f><v>${xlEsc(disp)}</v></c>`;
+            } else {
+              row+=`<c r="${ref}"${sAttr}><f>${fx}</f><v>${isFinite(v)?v:0}</v></c>`;
+            }
           } else if(xlIsNumeric(raw)){
             row+=`<c r="${ref}"${sAttr}><v>${parseFloat(String(raw).replace(/,/g,''))}</v></c>`;
           } else if(raw!==''){
@@ -5976,7 +6107,7 @@ function changeDec(delta) {
   localStorage.setItem('excalc_dec',decPlaces);
   document.getElementById('decCount').textContent=decPlaces<0?'自':decPlaces;
   for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++) {
-    const el=document.getElementById(`c${r}_${c}`); if(el) el.textContent=getCellDisplay(r,c);
+    const el=document.getElementById(`c${r}_${c}`); if(el) setCellDisp(el, r,c);
   }
   if (selRow>=0) updateRowStats(selRow); else updateStats(selC);
 }
@@ -9867,7 +9998,7 @@ function sel(r,c) {
 
   if (wasFormula) {
     const prevEl=document.getElementById(`c${selR}_${selC}`);
-    if (prevEl) prevEl.textContent=getCellDisplay(selR,selC);
+    if (prevEl) setCellDisp(prevEl, selR,selC);
   }
   if (cellEditing) {
     const commitVal=(waiting&&op1!==null)?fmtNum(op1):disp_val;
@@ -9875,7 +10006,7 @@ function sel(r,c) {
     if (!isNoOp) setCellVal(selR,selC,commitVal);
     else {
       const prevEl=document.getElementById(`c${selR}_${selC}`);
-      if (prevEl) prevEl.textContent=getCellDisplay(selR,selC);
+      if (prevEl) setCellDisp(prevEl, selR,selC);
     }
     cellEditing=false; op1=null; cur_op=null; waiting=false;
   }
@@ -9896,10 +10027,12 @@ function sel(r,c) {
   document.getElementById('formulaInput').value=cellEditString(r,c);   // 日付セルは YYYY/M/D で編集
 
   const numV=getCellValue(r,c);
-  disp_val=data[r][c]!==''?fmtNum(numV):'0';
+  // エラーのセルは数値が無いので、テンキー側は 0 から始める
+  disp_val=(data[r][c]!==''&&isFinite(numV))?fmtNum(numV):'0';
   op1=null; cur_op=null; waiting=false;
   updateStats(c);
   updateDateBadge();   // 日付書式のセルはセル番号枠に印を出す
+  tellCellError(r,c);  // エラーのセルなら、なぜそうなったかを一言出す
   document.getElementById(`c${r}_${c}`).scrollIntoView({block:'nearest',inline:'nearest'});
 }
 
@@ -9933,14 +10066,18 @@ function clickRow(r) {
 
 function updateRowStats(r) {
   lastStatScope=`${r+1}行`;        // 「合計3行」＝3行目の合計
-  const nums=[];
+  const nums=[]; let hasErr=false;
   for (let c=0;c<COLS;c++) {
     const raw=data[r][c]; if(raw==='') continue;
     if (cellDateFmt(r,c)) continue;   // 日付セルは合計・平均に含めない
-    if (String(raw).startsWith('=')) { nums.push(getCellValue(r,c)); continue; }
+    if (String(raw).startsWith('=')) {
+      const v=getCellValue(r,c);
+      if(isNaN(v)) hasErr=true; else nums.push(v);
+      continue;
+    }
     const v=parseFloat(raw); if(!isNaN(v)) nums.push(v);
   }
-  renderStats(nums);
+  renderStats(nums, hasErr);
 }
 
 /* iPhone等で全角入力された数字・記号を半角へ正規化する。
@@ -9994,7 +10131,7 @@ function setCellVal(r,c,v) {
     else if(c===2) data[r][1]='';
   }
   const cell=document.getElementById(`c${r}_${c}`);
-  if (cell) { cell.textContent=getCellDisplay(r,c); if(dfmtChange) applyCellStyle(cell,r,c); }   // 日付書式の増減でセル番号枠の印も更新
+  if (cell) { setCellDisp(cell, r,c); if(dfmtChange) applyCellStyle(cell,r,c); }   // 日付書式の増減でセル番号枠の印も更新
   document.getElementById('formulaInput').value=cellEditString(r,c);
   if (isStructMode()) recalcMode();
   recalcAll();
@@ -10045,6 +10182,7 @@ function currentStatValue() {
 /* タイトルと値を現在の状態（合計/平均・漢数字）で再描画。
    入力欄と同じ帯に入れたので、ラベルは「合計A」「平均3行」のように短くする。
    数値が無いときは帯ごと隠して、入力欄を広く使えるようにする。 */
+let lastStatHasErr=false;   // 今の合計に、飛ばしたエラーのセルがあったか
 function refreshStatsDisplay() {
   const word = statMode==='avg' ? '平均' : '合計';
   document.getElementById('statsTitle').textContent = word + lastStatScope;
@@ -10053,23 +10191,33 @@ function refreshStatsDisplay() {
   const v=currentStatValue();
   if (v===null) { sumEl.textContent='—'; if(sec) sec.classList.add('stats-empty'); return; }
   if(sec) sec.classList.remove('stats-empty');
-  sumEl.textContent = statKanji ? toKanjiNum(v) : fmt(v);
+  // エラーのセルを飛ばして出した合計は、そうと分かるように印を付ける
+  sumEl.textContent = (statKanji ? toKanjiNum(v) : fmt(v)) + (lastStatHasErr ? ' ⚠' : '');
+  sumEl.title = lastStatHasErr
+    ? 'この列にエラーのセルがあります。そのセルを除いた' + word + 'です'
+    : 'タップで数値コピー';
 }
-function renderStats(nums) {
+function renderStats(nums, hasErr) {
   lastStatNums = nums;
+  lastStatHasErr = !!hasErr;
   refreshStatsDisplay();
 }
 
 function updateStats(c) {
   lastStatScope=ALPHA[c];          // 「合計A」＝A列の合計
-  const nums=[];
+  const nums=[]; let hasErr=false;
   for (let r=0;r<ROWS;r++) {
     const raw=data[r][c]; if(raw==='') continue;
     if (cellDateFmt(r,c)) continue;   // 日付セルは合計・平均に含めない（通し番号が混ざるのを防ぐ）
-    if (String(raw).startsWith('=')) { nums.push(getCellValue(r,c)); continue; }
+    if (String(raw).startsWith('=')) {
+      const v=getCellValue(r,c);
+      if(isNaN(v)) hasErr=true;       // エラーのセルは足さない（0として混ぜると合計が狂う）
+      else nums.push(v);
+      continue;
+    }
     const v=parseFloat(raw); if(!isNaN(v)) nums.push(v);
   }
-  renderStats(nums);
+  renderStats(nums, hasErr);
 }
 
 /* ── テンキー状態 ── */
@@ -10103,7 +10251,7 @@ function applyHistoryEntries(entries){
   for (const {r,c,val} of entries) {
     data[r][c]=val;
     const cell=document.getElementById(`c${r}_${c}`);
-    if (cell) cell.textContent=getCellDisplay(r,c);
+    if (cell) setCellDisp(cell, r,c);
   }
   recalcAll();
   if (isStructMode()) recalcMode();
@@ -10417,11 +10565,11 @@ function ac() {
     const fi=document.getElementById('formulaInput');
     fi.classList.remove('formula-mode'); fi.value=data[selR][selC];
     const el=document.getElementById(`c${selR}_${selC}`);
-    if(el) el.textContent=getCellDisplay(selR,selC);
+    if(el) setCellDisp(el, selR,selC);
   }
   if (cellEditing) {
     const el=document.getElementById(`c${selR}_${selC}`);
-    if(el) el.textContent=getCellDisplay(selR,selC);
+    if(el) setCellDisp(el, selR,selC);
     document.getElementById('formulaInput').value=data[selR][selC];
     cellEditing=false;
   }
@@ -10441,7 +10589,7 @@ function bs() {
     else {
       formulaEditMode=false; fi.classList.remove('formula-mode'); fi.value=data[selR][selC];
       const el=document.getElementById(`c${selR}_${selC}`);
-      if(el) el.textContent=getCellDisplay(selR,selC);
+      if(el) setCellDisp(el, selR,selC);
     }
     refreshDisp(); return;
   }
@@ -10478,7 +10626,7 @@ function toggleTextInput() {
   } else {
     fi.value=data[selR][selC];
     const el=document.getElementById(`c${selR}_${selC}`);
-    if (el) el.textContent=getCellDisplay(selR,selC);
+    if (el) setCellDisp(el, selR,selC);
     fi.focus();
   }
   try { fi.setSelectionRange(fi.value.length, fi.value.length); } catch(e) {}
@@ -10620,7 +10768,7 @@ function advanceRowOrAdd(){
   ac();
 }
 function toCell() {
-  if (editBlocked()) { if(formulaEditMode){ const fi=document.getElementById('formulaInput'); formulaEditMode=false; fi.classList.remove('formula-mode'); fi.value=data[selR][selC]; const el=document.getElementById(`c${selR}_${selC}`); if(el) el.textContent=getCellDisplay(selR,selC);} return; }
+  if (editBlocked()) { if(formulaEditMode){ const fi=document.getElementById('formulaInput'); formulaEditMode=false; fi.classList.remove('formula-mode'); fi.value=data[selR][selC]; const el=document.getElementById(`c${selR}_${selC}`); if(el) setCellDisp(el, selR,selC);} return; }
   if (formulaEditMode) {
     const fi=document.getElementById('formulaInput');
     const v=fi.value.trim();
@@ -10678,7 +10826,7 @@ function toCell() {
       formulaEditMode=false; fi.classList.remove('formula-mode');
       fi.value=data[selR][selC]; clearSumRange();
       const el=document.getElementById(`c${selR}_${selC}`);
-      if(el) el.textContent=getCellDisplay(selR,selC);
+      if(el) setCellDisp(el, selR,selC);
       const tb=document.getElementById('textBtn'); if(tb) tb.classList.remove('text-on');
       fi.blur();
     }
@@ -11282,7 +11430,7 @@ function recalcMode(){
       } else if(s!=null && dur!=null){ mins=dur; }
         else if(e!=null && dur!=null){ mins=dur; }
       // 表示は jikanCellDisplay（getCellDisplay 経由）で統一して描き直す
-      for(const c of [1,2,3]){ const el=document.getElementById(`c${r}_${c}`); if(el) el.textContent=getCellDisplay(r,c); }
+      for(const c of [1,2,3]){ const el=document.getElementById(`c${r}_${c}`); if(el) setCellDisp(el, r,c); }
       if(mins!=='') totalMin+=mins;
     }
     document.getElementById('jkTotal').textContent=hourMinJP(totalMin);
@@ -12790,7 +12938,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v295';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v296';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 function openHelp(){
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
@@ -12926,7 +13074,7 @@ function applyCellStyle(td, r, c){
 function repaintCell(r,c){
   const td=document.getElementById(`c${r}_${c}`); if(!td) return;
   if(!(isStructMode() && (r===0 || STRUCT_MODES[tableMode].computed.includes(c))))
-    td.textContent=getCellDisplay(r,c);
+    setCellDisp(td, r,c);
   applyCellStyle(td,r,c);
   autoFitSheet();   // 装飾(文字サイズ等)変更後も列幅・縮小を更新
 }
