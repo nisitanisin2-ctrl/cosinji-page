@@ -122,11 +122,97 @@ async function runXlsx(browser) {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
 
+async function runA11y(browser) {
+  const { DIALOGS } = require('./a11y.test.js');
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 読み上げ・キーボード ──');
+
+  const noName = () => page.evaluate(() => {
+    const out = [];
+    document.querySelectorAll('button,[role="button"]').forEach(b => {
+      if (!b.getClientRects().length) return;
+      const t = (b.textContent || '').trim();
+      if (t || b.getAttribute('aria-label')) return;
+      out.push((b.id ? '#' + b.id : '') + '.' + String(b.className).split(' ')[0]);
+    });
+    return out;
+  });
+  check('  名前の取れないボタン（メイン画面）', (await noName()).length, 0);
+  check('  記号だけで読み方の無いボタン', await page.evaluate(() => {
+    const sym = /^[\s\p{P}\p{S}]+$/u;
+    return [...document.querySelectorAll('button')].filter(b => b.getClientRects().length
+      && sym.test((b.textContent || '').trim()) && (b.textContent || '').trim()
+      && !b.getAttribute('aria-label')).length;
+  }), 0);
+
+  const dl = await page.evaluate(() => {
+    const a = [...document.querySelectorAll('.modal-overlay')];
+    return { n: a.length, role: a.filter(x => x.getAttribute('role') === 'dialog').length,
+      modal: a.filter(x => x.getAttribute('aria-modal') === 'true').length,
+      label: a.filter(x => x.getAttribute('aria-labelledby')).length };
+  });
+  check('  ダイアログに role="dialog"', dl.role, dl.n);
+  check('  ダイアログに aria-modal', dl.modal, dl.n);
+  check('  ダイアログに見出しの結びつき', dl.label, dl.n);
+
+  await page.evaluate(() => openHelp()); await page.waitForTimeout(400);
+  check('  開いたらダイアログの中へ入る', await page.evaluate(() => {
+    const ov = document.getElementById('helpOverlay');
+    return !!(ov && ov.contains(document.activeElement)); }), true);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(350);
+  check('  Escで閉じる', await page.evaluate(() =>
+    !document.getElementById('helpOverlay').classList.contains('open')), true);
+
+  await page.evaluate(() => openMoreMenu()); await page.waitForTimeout(350);
+  let out = 0;
+  for (let i = 0; i < 25; i++) { await page.keyboard.press('Tab');
+    if (!await page.evaluate(() => document.getElementById('moreMenuOverlay').contains(document.activeElement))) out++; }
+  check('  Tabがダイアログの外へ出た回数', out, 0);
+  await page.evaluate(() => closeMoreMenu()); await page.waitForTimeout(300);
+
+  let inDialogs = 0;
+  for (const f of DIALOGS) {
+    try { await page.evaluate(f => eval(f), f); } catch (_) { continue; }
+    await page.waitForTimeout(260);
+    inDialogs += (await noName()).length;
+    await page.evaluate(() => document.querySelectorAll('.modal-overlay.open,.pm-overlay.open').forEach(x => x.classList.remove('open')));
+    await page.waitForTimeout(120);
+  }
+  check('  ダイアログの中の名前なし', inDialogs, 0);
+
+  await page.evaluate(() => sel(0, 0)); await page.waitForTimeout(250);
+  const grid = await page.evaluate(() => {
+    const t = document.getElementById('sheet'), c = document.getElementById('c0_0');
+    const live = document.getElementById('a11yLive');
+    return { table: (t && t.getAttribute('role')) || '(なし)', cell: (c && c.getAttribute('role')) || '(なし)',
+      selected: (c && c.getAttribute('aria-selected')) || '(なし)', tab: c ? c.tabIndex : '(なし)',
+      label: (c && c.getAttribute('aria-label')) || '(なし)', live: live ? live.textContent : '(読み上げ欄が無い)' };
+  });
+  check('  表が grid', grid.table, 'grid');
+  check('  セルが gridcell', grid.cell, 'gridcell');
+  check('  選んだセルに aria-selected', grid.selected, 'true');
+  check('  選んだセルは tabIndex 0', grid.tab, 0);
+  check('  セルの名前', grid.label, 'A1 空');
+  check('  読み上げ欄', grid.live, 'A1 空');
+  await page.evaluate(() => setCellVal(0, 0, '123')); await page.waitForTimeout(250);
+  check('  値を入れたら読み上げ欄も変わる', await page.evaluate(() => {
+    const live = document.getElementById('a11yLive');
+    return live ? live.textContent : '(読み上げ欄が無い)'; }), 'A1 123');
+
+  check('  トーストが読み上げに乗る', await page.evaluate(() => { toast('x');
+    const t = document.getElementById('appToast');
+    return t ? (t.getAttribute('role') + '/' + t.getAttribute('aria-live')) : '(トーストが無い)'; }), 'status/polite');
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
     if (!only || only === 'formula') await runFormula(browser);
     if (!only || only === 'xlsx') await runXlsx(browser);
+    if (!only || only === 'a11y') await runA11y(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
