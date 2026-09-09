@@ -310,6 +310,36 @@ async function runMode(browser) {
     await g.ctx.close();
   }
 
+  // ↶戻るの長押しで出る一覧が、指を離した分のクリックで閉じないこと
+  {
+    const u = await newPage(browser);
+    await u.page.evaluate(() => { setCellVal(0, 0, 'あ'); setCellVal(1, 0, 'い'); });
+    await u.page.waitForTimeout(300);
+    const stayed = await u.page.evaluate(() => {
+      openUndoList();
+      const ov = document.getElementById('undoListOverlay');
+      const bb = document.getElementById('undoBtn').getBoundingClientRect();
+      // 長押しの指を離した分のクリックは、↶の位置＝一覧の背景に届く
+      ov.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true,
+        clientX: bb.left + bb.width / 2, clientY: bb.top + bb.height / 2 }));
+      return ov.classList.contains('open');
+    });
+    check('  一覧が出た瞬間に指を離しても閉じない', stayed, true);
+    // 背景をきちんと押せば、今までどおり閉じる
+    const closed = await u.page.evaluate(async () => {
+      const ov = document.getElementById('undoListOverlay');
+      const at = { bubbles: true, cancelable: true, clientX: 5, clientY: 5 };
+      await new Promise(r => setTimeout(r, 500));           // 開いた直後の見張りが切れるまで待つ
+      ov.dispatchEvent(new PointerEvent('pointerdown', Object.assign({ pointerId: 1 }, at)));
+      ov.dispatchEvent(new MouseEvent('click', at));
+      return !ov.classList.contains('open');
+    });
+    check('  背景を押せば一覧は閉じる', closed, true);
+    check('  一覧のJSエラーが出ていない', u.errs.length, 0);
+    if (u.errs.length) console.log('     ', u.errs);
+    await u.ctx.close();
+  }
+
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();

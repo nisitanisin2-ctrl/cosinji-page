@@ -2291,7 +2291,7 @@ body.dark {
      それ以外はここにまとめた。いちばん下の「リセット」だけ赤くして、
      消してしまう操作が日常の操作に紛れないようにしている。 -->
 <!-- ↶の長押しで出す「取り消せる操作」の一覧。どこまで戻すかを選べる -->
-<div class="modal-overlay" id="undoListOverlay" onclick="if(event.target===this)closeUndoList()">
+<div class="modal-overlay" id="undoListOverlay" onpointerdown="this.dataset.downBg=(event.target===this)?'1':''" onclick="if(event.target===this&&this.dataset.downBg)closeUndoList()">
   <div class="modal">
     <div class="modal-header">
       <span>↶ 取り消せる操作</span>
@@ -3906,7 +3906,7 @@ body.dark {
       <details class="help-acc" id="h-save">
         <summary>💾 保存・記録（上部メニュー）</summary>
         <div class="help-acc-body">
-          <div class="help-li"><b>戻せるのは「操作」の単位です</b>（v301から）。入力・消去のほかに、<b>書式・枠線・保護・テンプレートの読み込み・リセット・行や列の増減</b>も1つの操作として戻せます。戻すと「『テンプレート「割引計算」』を元に戻しました」のように<b>何を戻したか</b>を出します。<b>↶の長押し</b>で一覧から選べば、そこまでまとめて戻せます（最大50件）。</div>
+          <div class="help-li"><b>戻せるのは「操作」の単位です</b>（v301から）。入力・消去のほかに、<b>書式・枠線・保護・テンプレートの読み込み・リセット・行や列の増減</b>も1つの操作として戻せます。戻すと「『テンプレート「割引計算」』を元に戻しました」のように<b>何を戻したか</b>を出します。<b>↶の長押し</b>（約0.4秒）で一覧から選べば、そこまでまとめて戻せます（最大50件）。一覧が出たら指は離して大丈夫です。</div>
           <div class="help-li"><b>いま中身がどこまで安全か</b>は、上のバーの<b>記録名の右の印</b>で分かります（v300から）。タップして開くリストの上には、もっとくわしい説明が出ます。</div>
           <table class="help-tbl">
             <tr><td><b>✓（白い枠）</b></td><td><b>いまの表は端末に自動保存されています</b>。アプリを閉じても戻ってきます</td></tr>
@@ -13516,6 +13516,20 @@ function closeSettingsPanel(){
    毎日使うもの（保存・戻る）だけを表に出し、残りはここへまとめている。 */
 /* ↶の長押し：何が取り消せるかを新しい順に出す。
    「入力」が続くだけだと選びにくいので、同じ操作名が続く分はまとめて数える。 */
+/* 長押しで開いた窓は、指を離したときのタップがそのまま窓に届いてしまう。
+   ↶戻るの一覧では、出た瞬間に指を離すと背景を押したことになって閉じていた。
+   開いた直後のごく短い間だけ、その窓の中のタップを止める。 */
+const HOLD_OPEN_GUARD_MS=400;
+function guardAfterOpen(overlayId){
+  const ov=document.getElementById(overlayId); if(!ov) return;
+  ov.dataset.openedAt=String(Date.now());
+  if(ov.dataset.guardBound) return;          // 見張りは1回だけ付ける
+  ov.dataset.guardBound='1';
+  ov.addEventListener('click', e=>{
+    if(Date.now()-(+ov.dataset.openedAt||0) < HOLD_OPEN_GUARD_MS){ e.preventDefault(); e.stopPropagation(); }
+  }, true);
+}
+
 function openUndoList(){
   const body=document.getElementById('undoListBody'); if(!body) return;
   if(!history.length){ if(typeof toast==='function') toast('取り消せる操作はありません'); return; }
@@ -13530,6 +13544,7 @@ function openUndoList(){
     `<button class="more-item undo-item" onclick="undoTo(${r.from})">`
     +`<span>↶</span>${escHtml(r.op)}${r.count>1?`<b class="undo-count">×${r.count}</b>`:''}</button>`).join('');
   document.getElementById('undoListOverlay').classList.add('open');
+  guardAfterOpen('undoListOverlay');   // 長押しの指を離した分で閉じないように
   if(typeof armBackGuard==='function') armBackGuard(closeUndoList);
 }
 function closeUndoList(){
@@ -13593,7 +13608,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v310';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v311';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -14723,7 +14738,7 @@ async function saveAsData() {
   b.addEventListener('pointerdown', e=>{
     if(e.button!==undefined && e.button>0) return;
     longed=false; clearTimeout(timer);
-    timer=setTimeout(()=>{ longed=true; if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} openUndoList(); }, 600);
+    timer=setTimeout(()=>{ longed=true; if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} openUndoList(); }, 400);
   });
   b.addEventListener('pointerup', ()=>clearTimeout(timer));
   b.addEventListener('pointercancel', ()=>{ clearTimeout(timer); longed=false; });
