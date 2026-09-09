@@ -10620,15 +10620,19 @@ let undoing=false;
    丸ごとの形は重いので、まとめて書き換わる操作にだけ使う。 */
 function snapshotAll(){
   return { data:snapshotData(), styles:JSON.parse(JSON.stringify(cellStyles)),
-           rows:ROWS, cols:COLS, mode:tableMode };
+           rows:ROWS, cols:COLS, mode:tableMode, workspace:workspaceMode };
 }
 function applySnapshotAll(sn){
   loadData(sn.data);
   cellStyles=JSON.parse(JSON.stringify(sn.styles||{}));
   ROWS=sn.rows; COLS=sn.cols;
-  // 表示中のモードを直接戻す。switchMode() は workspaceMode が同じだと何もしないので使えない
-  // （テンプレの読み込みも workspaceMode は変えずに tableMode だけ変えている）。
-  if(sn.mode && sn.mode!==tableMode){
+  // 表示中のモードを直接戻す。switchMode() を使うと、いまのシート一式ごと
+  // 入れ替わってしまう（丸ごと戻すのは「表の中身」だけにしたい）ため、ここで直接戻す。
+  // 控えたときと別のモード（シート一式）に移っているなら、表示モードは触らない。
+  // よそのモードの見た目をこのシートに書き込むと、そのシートがそれを覚えてしまい、
+  // あとから元のモードへ戻れなくなる。
+  const sameWorkspace = (sn.workspace==null) || (sn.workspace===workspaceMode);
+  if(sameWorkspace && sn.mode && sn.mode!==tableMode){
     tableMode=sn.mode;
     document.body.classList.toggle('simple-mode', tableMode==='simple');
     if(typeof normalizeStructLayout==='function') normalizeStructLayout();
@@ -12661,7 +12665,22 @@ function normalizeStructLayout(){
 }
 
 function switchMode(target){
-  if(target===workspaceMode) return;
+  // 「同じモードなら何もしない」で素通りしていたが、workspaceMode（どのシート一式を
+  // 使っているか）と tableMode（いま表示している形）はずれることがある。
+  //   例）容積モードでテンプレを読む → tableMode だけ normal になる
+  //       → 通常へ切り替え → そのあと取り消すと tableMode だけ youseki に戻る
+  //       → workspaceMode は normal のままなので「通常」を押しても素通りし、
+  //         容積の見た目から抜けられなくなっていた。
+  // ずれているときは、素通りせずに表示をそろえ直す。
+  if(target===workspaceMode && target===tableMode) return;
+  // モードごとに表の中身は別なので、またいで取り消せると何が戻るのか分からなくなる。
+  // 実際、容積で入れたテンプレを通常へ移ってから取り消すと、容積の中身が通常の
+  // シートに書き込まれ、そのシートが容積を覚えてしまって戻れなくなっていた。
+  // モードを変えるところで履歴を切り、その混乱ごと無くす。
+  if(target!==workspaceMode && typeof history!=='undefined' && Array.isArray(history)){
+    history.length=0; redoHistory.length=0;
+    if(typeof updateUndoBtn==='function'){ updateUndoBtn(); updateRedoBtn(); }
+  }
   if(target==='dentaku' && tableMode!=='dentaku'){                        // 「セルへ」で戻る先を覚える
     dtPrevMode=tableMode; dtPrevSel={r:selR, c:selC};
   }
@@ -12671,6 +12690,20 @@ function switchMode(target){
   if(sheets[curSheet]) Object.assign(sheets[curSheet], captureCurrentSheet());
   modeSheets[workspaceMode]={ sheets, cur:curSheet };
   activateModeSheetSet(target);                      // target のシート一式へ（無ければ新規1枚。登録モードはテンプレートから）
+  // シートは「自分がどのモードで表示されていたか」を覚えていて、上の呼び出しで
+  // tableMode がそれに戻る。選ばれたモードと違うときは、選ばれた方を表示する。
+  // （これをしないと、シートが容積を覚えている間は「通常」を押しても容積のままになる）
+  if(tableMode!==target){
+    captureMode(tableMode);                          // いま出ている内容を退避してから
+    tableMode=target;
+    if(modeStates[target]){
+      loadData(modeStates[target].data);
+      COLS=modeStates[target].cols||normalCols();
+      cellStyles=modeStates[target].styles?{...modeStates[target].styles}:{};
+    } else {
+      initFreshMode(target);
+    }
+  }
   document.body.classList.toggle('simple-mode', tableMode==='simple');
   dtApplyMode();
   normalizeStructLayout();
@@ -13403,7 +13436,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v303';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v304';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

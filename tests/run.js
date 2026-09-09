@@ -207,12 +207,50 @@ async function runA11y(browser) {
   await ctx.close();
 }
 
+async function runMode(browser) {
+  const { ROUNDTRIP, STUCK_SCENARIO, HISTORY_CLEARED, UNDO_WITHIN_MODE } = require('./mode.test.js');
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── モードの行き来 ──');
+  const st = () => page.evaluate(() => ({ ws: workspaceMode, tm: tableMode }));
+
+  // 往復して必ず元に戻れる
+  for (const m of ROUNDTRIP.modes) {
+    await page.evaluate(m => switchMode(m), m); await page.waitForTimeout(420);
+    const a = await st();
+    check(`  ${m} へ`, a.ws + '/' + a.tm, m + '/' + m);
+    await page.evaluate(b => switchMode(b), ROUNDTRIP.back); await page.waitForTimeout(420);
+    const c = await st();
+    check(`  ${m} → ${ROUNDTRIP.back} へ戻る`, c.ws + '/' + c.tm, ROUNDTRIP.back + '/' + ROUNDTRIP.back);
+  }
+
+  for (const sc of [STUCK_SCENARIO, HISTORY_CLEARED, UNDO_WITHIN_MODE]) {
+    await page.evaluate(() => { localStorage.clear(); });
+    await page.reload(); await page.waitForTimeout(900);
+    for (const step of sc.steps) {
+      if (step.do) { await page.evaluate(src => eval(src), step.do); await page.waitForTimeout(700); }
+      if (step.expect) {
+        const a = await st();
+        check(`  ${sc.name}／${step.do.slice(0, 24)}`, a.ws + '/' + a.tm, step.expect.ws + '/' + step.expect.tm);
+      }
+      if (step.check) {
+        const v = await page.evaluate(src => eval(src), step.check);
+        if (step.is !== undefined) check(`  ${sc.name}／${step.check}`, v, step.is);
+        if (step.min !== undefined) check(`  ${sc.name}／${step.check} が ${step.min} 以上`, v >= step.min, true);
+      }
+    }
+  }
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
     if (!only || only === 'formula') await runFormula(browser);
     if (!only || only === 'xlsx') await runXlsx(browser);
     if (!only || only === 'a11y') await runA11y(browser);
+    if (!only || only === 'mode') await runMode(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
