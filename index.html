@@ -2506,6 +2506,17 @@ body.dark {
   </div>
 </div>
 
+<!-- Excel を読み込んだあとの結果。式がそのまま生きたか、値になったかが分かるようにする -->
+<div class="modal-overlay" id="xlReportOverlay" onclick="if(event.target===this)closeXlImportReport()">
+  <div class="modal">
+    <div class="modal-header">
+      <span>📈 Excelの読み込み結果</span>
+      <button class="modal-close" onclick="closeXlImportReport()">✕</button>
+    </div>
+    <div class="modal-body" id="xlReportBody"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="kantabOverlay" onclick="if(event.target===this)closeKantab()">
   <div class="modal vol-modal">
     <div class="modal-header">
@@ -3659,11 +3670,11 @@ body.dark {
         <div class="help-acc-body">
           <div class="help-li">先頭を <b>=</b> にすると数式。セルは A1 のように指定（<b>入力中にセルをタップ</b>するとセル名が入ります）。</div>
           <table class="help-tbl">
-            <tr><td><b>=A1+B1*2</b></td><td>四則演算（×÷も可）</td></tr>
-            <tr><td><b>=SUM(A1:A5)</b></td><td>合計</td></tr>
-            <tr><td><b>=AVERAGE(A1:A5)</b></td><td>平均</td></tr>
-            <tr><td>その他</td><td>MAX・MIN・COUNT・ABS・SQRT・ROUND・IF</td></tr>
+            <tr><td><b>=A1+B1*2</b></td><td>四則演算（×÷も可）。<b>^</b>＝べき乗、<b>!</b>＝階乗、<b>%</b>＝÷100</td></tr>
+            <tr><td><b>=A1&amp;"円"</b></td><td><b>&amp;</b>＝文字をつなぐ（12 → 12円）</td></tr>
           </table>
+          <div class="help-li"><b>使える関数はこれだけです</b>（この一覧に無い関数を書くと <b>#NAME?</b> になります）。</div>
+          <table class="help-tbl" id="helpFuncTbl"></table>
           <div class="help-li"><b>シート間の連携</b>：他のシートのセルは <b>=シート名!A1</b>（例 <b>=商品!C2</b>）で参照。範囲（例 <b>=SUM(商品!A1:A5)</b>）にも使えます。<br><b>シートはモード毎に独立</b>し、モードを切り替えるとそのモード専用のタブ一式に入れ替わります。保存・読込では全モードのシートがまとめて保存・復元されます。</div>
           <div class="help-li"><b>🔍照合（VLOOKUP／XLOOKUP）</b>：テンキーのボタンに長押しで割り当てて使えます。押すと<b>画面の案内どおり</b>に作れ、範囲や探す値は<b>「セルを選ぶ／範囲を選ぶ」→表をタップ</b>で指定（手で式を打たなくてOK。他シートの表も切り替えて選べます）。</div>
           <table class="help-tbl">
@@ -4123,6 +4134,48 @@ const FORMULA_ERR_HELP={
 const FORMULA_ERR_CODES=Object.keys(FORMULA_ERR_HELP);
 function isErrText(t){ return typeof t==='string' && FORMULA_ERR_CODES.indexOf(t)>=0; }
 const cellErrDetail={};   // 'r,c' → なぜそうなったかの一言（タップで出す）
+/* ── 使える関数の一覧 ──────────────────────────────────────────
+   計算の中身も、説明書の表も、Excel読込のときの「対応/未対応」の判定も、
+   すべてここ1か所から決める。増やすときはここに1行足すだけでよい。
+     run  … 引数の値の配列を受け取って答えを返す（省略＝解析器が特別扱いする）
+     sig  … 説明書に出す書き方
+     desc … 説明書に出す説明 */
+const FORMULA_FUNCS={
+  SUM:    {sig:'(範囲/値…)',  desc:'合計', run:v=>v.reduce((a,b)=>a+b,0)},
+  AVERAGE:{sig:'(範囲/値…)',  desc:'平均（AVG でも同じ）',
+           run:v=>{ if(!v.length) fErr('#DIV/0!','AVERAGE'); return v.reduce((a,b)=>a+b,0)/v.length; }},
+  MAX:    {sig:'(範囲/値…)',  desc:'いちばん大きい値', run:v=>v.length?Math.max(...v):0},
+  MIN:    {sig:'(範囲/値…)',  desc:'いちばん小さい値', run:v=>v.length?Math.min(...v):0},
+  COUNT:  {sig:'(範囲/値…)',  desc:'数値の個数', run:v=>v.length},
+  ABS:    {sig:'(値)',        desc:'絶対値（マイナスを取る）',
+           run:v=>{ if(!v.length) fErr('#VALUE!','ABS'); return Math.abs(v[0]); }},
+  SQRT:   {sig:'(値)',        desc:'平方根（√）',
+           run:v=>{ if(!v.length) fErr('#VALUE!','SQRT'); if(v[0]<0) fErr('#NUM!','SQRT'); return Math.sqrt(v[0]); }},
+  ROUND:  {sig:'(値, 小数桁)', desc:'四捨五入',
+           run:v=>{ const x=v[0]||0, d=v.length>=2?v[1]:0; return Math.round(x*Math.pow(10,d))/Math.pow(10,d); }},
+  MOD:    {sig:'(値, 割る数)', desc:'余り',
+           run:v=>{ if(v.length<2) fErr('#VALUE!','MOD'); if(v[1]===0) fErr('#DIV/0!','MOD');
+                    return v[0]-v[1]*Math.floor(v[0]/v[1]); }},
+  /* 関数電卓ページ用（三角関数は DEG/RAD の設定に従う） */
+  SIN: {sig:'(角度)', desc:'サイン', calc:1, run:v=>v.length?Math.sin(toRad(v[0])):0},
+  COS: {sig:'(角度)', desc:'コサイン', calc:1, run:v=>v.length?Math.cos(toRad(v[0])):0},
+  TAN: {sig:'(角度)', desc:'タンジェント', calc:1, run:v=>v.length?Math.tan(toRad(v[0])):0},
+  ASIN:{sig:'(値)',   desc:'逆サイン', calc:1, run:v=>v.length?fromRad(Math.asin(v[0])):0},
+  ACOS:{sig:'(値)',   desc:'逆コサイン', calc:1, run:v=>v.length?fromRad(Math.acos(v[0])):0},
+  ATAN:{sig:'(値)',   desc:'逆タンジェント', calc:1, run:v=>v.length?fromRad(Math.atan(v[0])):0},
+  LOG: {sig:'(値[, 底])', desc:'常用対数（底を書けばその底）', calc:1,
+        run:v=>{ if(!v.length) fErr('#VALUE!','LOG'); if(v[0]<=0) fErr('#NUM!','LOG');
+                 return v.length>=2 ? Math.log(v[0])/Math.log(v[1]) : Math.log10(v[0]); }},
+  LN:  {sig:'(値)', desc:'自然対数', calc:1,
+        run:v=>{ if(!v.length) fErr('#VALUE!','LN'); if(v[0]<=0) fErr('#NUM!','LN'); return Math.log(v[0]); }},
+  EXP: {sig:'(値)', desc:'e の累乗', calc:1, run:v=>v.length?Math.exp(v[0]):0},
+  /* 下の3つは引数の読み方が特別なので、解析器の中で直接扱う（run は持たない） */
+  IF:     {sig:'(条件, 真のとき, 偽のとき)', desc:'条件で答えを変える', special:1},
+  VLOOKUP:{sig:'(探す値, 範囲, 何列目, 0)', desc:'範囲の左端から探して、その行の指定列を返す（末尾0で完全一致）。=V参照(…) でも可', special:1},
+  XLOOKUP:{sig:'(探す値, 検索範囲, 戻す範囲, "見つからない時")', desc:'対応する値を返す（文字も可）。=X参照(…) でも可', special:1}
+};
+const FORMULA_ALIAS={ AVG:'AVERAGE' };   // 昔からの短い名前
+function formulaFunc(name){ return FORMULA_FUNCS[FORMULA_ALIAS[name]||name]||null; }
 /* 数式で使う数値化（文字列→数値、数値でなければ0）。
    文字は今までどおり 0 として扱う（見出しが混ざった列でも合計できるように）。
    ただし無限大・NaN は計算が破綻した印なので #NUM! にする。 */
@@ -4131,6 +4184,12 @@ function toNum(v){
   if(v==null||v==='') return 0;
   const n=parseFloat(String(v).replace(/,/g,''));
   return isNaN(n)?0:n;
+}
+/* & でつなぐときの文字化。数値は桁区切りを付けず、そのままの見た目にする */
+function toStr(v){
+  if(v==null) return '';
+  if(typeof v==='number'){ if(!isFinite(v)) fErr('#NUM!'); return String(v); }
+  return String(v);
 }
 /* ゆるい等値比較（数値同士は数値、それ以外は前後空白を除いた大文字小文字無視の文字列比較） */
 function looseEq(a,b){
@@ -4324,17 +4383,24 @@ function parseArith(s) {
 
   // expr: 比較演算子レベル（IF条件などで使用）
   function expr() {
-    let v = addSub(); ws();
+    let v = concat(); ws();
     while (pos < s.length) {
-      if (s.slice(pos,pos+2) === '>=') { pos+=2; v=(toNum(v)>=toNum(addSub()))?1:0; }
-      else if (s.slice(pos,pos+2) === '<=') { pos+=2; v=(toNum(v)<=toNum(addSub()))?1:0; }
-      else if (s.slice(pos,pos+2) === '<>') { pos+=2; v=looseEq(v,addSub())?0:1; }   // 文字列も比較可
-      else if (s[pos]==='=') { pos++; v=looseEq(v,addSub())?1:0; }                   // 等値（文字列も可）
-      else if (s[pos]==='>' && s[pos+1]!=='=') { pos++; v=(toNum(v)>toNum(addSub()))?1:0; }
-      else if (s[pos]==='<' && s[pos+1]!=='=' && s[pos+1]!=='>') { pos++; v=(toNum(v)<toNum(addSub()))?1:0; }
+      if (s.slice(pos,pos+2) === '>=') { pos+=2; v=(toNum(v)>=toNum(concat()))?1:0; }
+      else if (s.slice(pos,pos+2) === '<=') { pos+=2; v=(toNum(v)<=toNum(concat()))?1:0; }
+      else if (s.slice(pos,pos+2) === '<>') { pos+=2; v=looseEq(v,concat())?0:1; }   // 文字列も比較可
+      else if (s[pos]==='=') { pos++; v=looseEq(v,concat())?1:0; }                   // 等値（文字列も可）
+      else if (s[pos]==='>' && s[pos+1]!=='=') { pos++; v=(toNum(v)>toNum(concat()))?1:0; }
+      else if (s[pos]==='<' && s[pos+1]!=='=' && s[pos+1]!=='>') { pos++; v=(toNum(v)<toNum(concat()))?1:0; }
       else break;
       ws();
     }
+    return v;
+  }
+  /* & ＝ 文字をつなぐ（Excel と同じ）。=A1&"円" で「12円」。
+     優先順位も Excel に合わせ、＋− より弱く、比較（>= など）より強い。 */
+  function concat() {
+    let v = addSub(); ws();
+    while (pos < s.length && s[pos]==='&') { pos++; v = toStr(v) + toStr(addSub()); ws(); }
     return v;
   }
   function addSub() {
@@ -4353,14 +4419,22 @@ function parseArith(s) {
     }
     return v;
   }
-  /* べき乗(^,右結合)と階乗(!,後置)。関数電卓ページ用。 */
+  /* べき乗(^,右結合)・階乗(!,後置)・パーセント(%,後置)。
+     % は Excel と同じで「÷100」（=100% は 1）。 */
+  function postfix(v){
+    ws();
+    while (pos < s.length && (s[pos]==='!' || s[pos]==='%')) {
+      if(s[pos]==='!'){ pos++; v = factorialCalc(toNum(v)); }
+      else { pos++; v = toNum(v)/100; }
+      ws();
+    }
+    return v;
+  }
   function powFactor() {
-    let v = factor(); ws();
-    while (pos < s.length && s[pos]==='!') { pos++; v = factorialCalc(toNum(v)); ws(); }
+    let v = postfix(factor());
     if (pos < s.length && s[pos]==='^') {
       pos++; const r = powFactor();   // 右結合：2^3^2 = 2^(3^2)
-      v = Math.pow(toNum(v), toNum(r)); ws();
-      while (pos < s.length && s[pos]==='!') { pos++; v = factorialCalc(toNum(v)); ws(); }
+      v = postfix(Math.pow(toNum(v), toNum(r)));
     }
     return v;
   }
@@ -4550,36 +4624,8 @@ function parseArith(s) {
         }
         const vals = parseArgs();
         if (pos<s.length && s[pos]===')') pos++;
-        if (name==='SUM')     return vals.reduce((a,b)=>a+b, 0);
-        if (name==='AVG'||name==='AVERAGE') return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
-        if (name==='MAX')     return vals.length ? Math.max(...vals) : 0;
-        if (name==='MIN')     return vals.length ? Math.min(...vals) : 0;
-        if (name==='COUNT')   return vals.length;
-        if (name==='ABS')     return vals.length ? Math.abs(vals[0]) : 0;
-        if (name==='SQRT'){
-          if(!vals.length) fErr('#VALUE!','SQRT');
-          if(vals[0]<0) fErr('#NUM!','SQRT');           // 負の数の平方根（今までは0にそろえていた）
-          return Math.sqrt(vals[0]);
-        }
-        if (name==='ROUND') {
-          const n=vals[0]||0, d=vals.length>=2?vals[1]:0;
-          return Math.round(n*Math.pow(10,d))/Math.pow(10,d);
-        }
-        // 関数電卓ページ用（三角関数はDEG/RADの現在設定に従う）
-        if (name==='SIN')  return vals.length ? Math.sin(toRad(vals[0]))  : 0;
-        if (name==='COS')  return vals.length ? Math.cos(toRad(vals[0]))  : 0;
-        if (name==='TAN')  return vals.length ? Math.tan(toRad(vals[0]))  : 0;
-        if (name==='ASIN') return vals.length ? fromRad(Math.asin(vals[0])) : 0;
-        if (name==='ACOS') return vals.length ? fromRad(Math.acos(vals[0])) : 0;
-        if (name==='ATAN') return vals.length ? fromRad(Math.atan(vals[0])) : 0;
-        if (name==='LOG')  return vals.length ? (vals.length>=2 ? Math.log(vals[0])/Math.log(vals[1]) : Math.log10(vals[0])) : 0;
-        if (name==='LN')   return vals.length ? Math.log(vals[0]) : 0;
-        if (name==='EXP')  return vals.length ? Math.exp(vals[0]) : 0;
-        if (name==='MOD'){
-          if(vals.length<2) fErr('#VALUE!', 'MOD');
-          if(vals[1]===0) fErr('#DIV/0!', 'MOD');
-          return vals[0]-vals[1]*Math.floor(vals[0]/vals[1]);
-        }
+        const fn = formulaFunc(name);
+        if (fn && fn.run) return fn.run(vals);
         fErr('#NAME?', name);        // この表では扱えない関数
       }
       if (!/[0-9]/.test(s[pos]||'')) {
@@ -4602,7 +4648,9 @@ function parseArith(s) {
     if(isNaN(num)) fErr('#VALUE!', n);
     return num;
   }
-  return expr();
+  const out = expr(); ws();
+  if (pos < s.length) fErr('#VALUE!', s.slice(pos, pos+10));   // 読み残しがある＝式の形が読めていない
+  return out;
 }
 
 function recalcAll() {
@@ -5495,8 +5543,24 @@ function xlsxFormulaToApp(f){
   out=out.replace(/'((?:[^']|'')*)'!/g, (m,name)=> name.replace(/''/g,"'")+'!');
   return out;
 }
-const XLSX_FUNCS=new Set(['SUM','AVERAGE','AVG','MAX','MIN','COUNT','ABS','SQRT','ROUND','IF','MOD','SIN','COS','TAN','ASIN','ACOS','ATAN','LOG','LN','EXP','PI','VLOOKUP','XLOOKUP']);
+/* Excel の式を読めるかどうかは、この表で扱える関数かどうかで決める。
+   FORMULA_FUNCS から作るので、関数を増やせばここも自動で付いてくる。 */
+const XLSX_FUNCS=new Set([...Object.keys(FORMULA_FUNCS), ...Object.keys(FORMULA_ALIAS), 'PI']);
 function xlsxFormulaCompatible(f){ const fns=String(f).match(/[A-Za-z]+(?=\s*\()/g)||[]; return fns.every(fn=>XLSX_FUNCS.has(fn.toUpperCase())); }
+/* Excel を読み込んだときの結果（そのまま読めた／値に変換した／未対応）をためる箱 */
+let xlImportReport=null;
+function xlReportReset(){ xlImportReport={ kept:[], toValue:[], unsupported:[], funcs:{} }; }
+function xlReportAdd(kind, sheet, r, c, formula){
+  if(!xlImportReport) return;
+  const where=(sheet?sheet+'!':'')+xlColLetter(c)+(r+1);
+  if(xlImportReport[kind].length<200) xlImportReport[kind].push({where, formula:String(formula).slice(0,60)});
+  if(kind!=='kept'){
+    (String(formula).match(/[A-Za-z]+(?=\s*\()/g)||[]).forEach(fn=>{
+      const u=fn.toUpperCase();
+      if(!XLSX_FUNCS.has(u)) xlImportReport.funcs[u]=(xlImportReport.funcs[u]||0)+1;
+    });
+  }
+}
 /* 繰り返し要素 <tag ...>...</tag> or <tag .../> を {attrs,inner} の配列に */
 function xlSegments(xml, tag){ const re=new RegExp(`<${tag}\\b([^>]*?)\\s*(?:/>|>([\\s\\S]*?)</${tag}>)`,'g'); const out=[]; let m; while((m=re.exec(xml))) out.push({attrs:m[1]||'', inner:m[2]||''}); return out; }
 function xlRgb6(h){ if(!h) return ''; if(h.length===8) h=h.slice(2); return '#'+h.toLowerCase(); }
@@ -5738,7 +5802,7 @@ function xlsxWorkbookSheets(map, names, dec){
 
 /* 1つのワークシートXMLを表データ・書式・行列数へ変換する。
    shared=共有文字列, styleFn=styles.xml から作った書式解決関数 */
-function parseXlsxSheet(sheetXml, shared, styleFn){
+function parseXlsxSheet(sheetXml, shared, styleFn, sheetName){
   const cells={}, styleRefs={}; let maxR=0,maxC=0;
   const cellRe=/<c\b([^>]*?)(\/>|>([\s\S]*?)<\/c>)/g; let m;
   while((m=cellRe.exec(sheetXml))){
@@ -5752,8 +5816,14 @@ function parseXlsxSheet(sheetXml, shared, styleFn){
     let val='';
     if(t==='inlineStr'){ val=xlsxRichText(inner); }
     else if(t==='s'){ const idx=vM?parseInt(vM[1]):-1; val=(idx>=0&&shared[idx]!=null)?shared[idx]:''; }
-    else if(t==='str'){ val=vM?xlUnesc(vM[1]):''; if(fM){ const xf=xlUnesc(fM[1]); if(xlsxFormulaCompatible(xf)) val='='+xlsxFormulaToApp(xf); } }
-    else if(fM){ const xf=xlUnesc(fM[1]); if(xlsxFormulaCompatible(xf)) val='='+xlsxFormulaToApp(xf); else if(vM) val=xlUnesc(vM[1]); else val='='+xlsxFormulaToApp(xf); }
+    else if(t==='str'){ val=vM?xlUnesc(vM[1]):'';
+      if(fM){ const xf=xlUnesc(fM[1]);
+        if(xlsxFormulaCompatible(xf)){ val='='+xlsxFormulaToApp(xf); xlReportAdd('kept', sheetName, rowN, col, xf); }
+        else xlReportAdd('toValue', sheetName, rowN, col, xf); } }
+    else if(fM){ const xf=xlUnesc(fM[1]);
+      if(xlsxFormulaCompatible(xf)){ val='='+xlsxFormulaToApp(xf); xlReportAdd('kept', sheetName, rowN, col, xf); }
+      else if(vM){ val=xlUnesc(vM[1]); xlReportAdd('toValue', sheetName, rowN, col, xf); }
+      else { val='='+xlsxFormulaToApp(xf); xlReportAdd('unsupported', sheetName, rowN, col, xf); } }
     else if(vM){ val=xlUnesc(vM[1]); }
     if(sM){ const st=styleFn.styleForIdx(parseInt(sM[1])); if(st) styleRefs[`${rowN},${col}`]=st; }
     if(val!==''||styleRefs[`${rowN},${col}`]){ if(val!=='') cells[`${rowN},${col}`]=val; maxR=Math.max(maxR,rowN); maxC=Math.max(maxC,col); }
@@ -5793,7 +5863,9 @@ function importXLSX(ev){
     // ブック内の全シートを取り出し、中身のあるものだけ取り込む
     const wsSheets=xlsxWorkbookSheets(map, names, dec);
     if(!wsSheets.length){ alert('シートが見つかりませんでした'); return; }
-    const parsed=wsSheets.map(ws=>Object.assign({name:ws.name}, parseXlsxSheet(ws.xml, shared, styleFn)));
+    xlReportReset();   // 「そのまま読めた／値に変換した／未対応」を数えながら読む
+    const parsed=wsSheets.map(ws=>Object.assign({name:ws.name},
+      parseXlsxSheet(ws.xml, shared, styleFn, wsSheets.length>1?ws.name:'')));
     const useSheets=parsed.filter(p=>p.hasContent);
     if(!useSheets.length){ alert('読み込めるデータが見つかりませんでした'); return; }
 
@@ -5809,7 +5881,7 @@ function importXLSX(ev){
       if(isStructMode()) showModeBar(); else hideAllBars();
       buildSheet(); sel(0,0); persistModes();
       if(typeof saveSheets==='function'){ saveSheets(); renderSheetBar(); }
-      if(typeof toast==='function') toast(`Excelから ${p.rows}行×${p.cols}列を読み込みました`);
+      showXlImportReport(`Excelから ${p.rows}行×${p.cols}列を読み込みました`);
       return;
     }
 
@@ -5828,9 +5900,37 @@ function importXLSX(ev){
     loadSheetStore(sheets[curSheet]);
     applyActiveSheet();
     saveSheets();
-    if(typeof toast==='function') toast(`Excelから${useSheets.length}枚のシートを読み込みました`);
+    showXlImportReport(`Excelから${useSheets.length}枚のシートを読み込みました`);
   })();
 }
+
+/* Excel を読み込んだあと、式がどう扱われたかを出す。
+   この表で扱えない関数は Excel が持っていた「答えの値」に置き換わるので、
+   あとで値を直しても計算し直されない。そこに気づけるようにする。 */
+function xlReportRows(list, limit){
+  return list.slice(0, limit).map(x=>
+    `<tr><td><b>${escHtml(x.where)}</b></td><td><code>=${escHtml(x.formula)}</code></td></tr>`).join('')
+    + (list.length>limit ? `<tr><td colspan="2">ほか ${list.length-limit} か所</td></tr>` : '');
+}
+function showXlImportReport(headline){
+  const rep=xlImportReport;
+  const body=document.getElementById('xlReportBody');
+  if(!rep || !body){ if(typeof toast==='function') toast(headline); return; }
+  const nk=rep.kept.length, nv=rep.toValue.length, nu=rep.unsupported.length;
+  if(nk+nv+nu===0){ if(typeof toast==='function') toast(headline+'（式は入っていませんでした）'); return; }
+  if(nv+nu===0){ if(typeof toast==='function') toast(headline+`／式 ${nk} か所はそのまま読めました`); return; }
+  const funcs=Object.entries(rep.funcs).sort((a,b)=>b[1]-a[1]).map(([f,c])=>`${f}（${c}）`).join('、');
+  body.innerHTML=
+    `<div class="ts-ref-note">${escHtml(headline)}</div>`
+    +`<table class="help-tbl"><tr><td><b>✅ そのまま読めた</b></td><td><b>${nk}</b> か所<br>式のまま入っていて、値を直せば計算し直されます</td></tr>`
+    +`<tr><td><b>🔸 値に変換した</b></td><td><b>${nv}</b> か所<br>この表では扱えない関数だったので、<b>Excelが持っていた答えの数値</b>を入れました。<b>値を直しても計算し直されません</b></td></tr>`
+    +`<tr><td><b>⚠ 未対応</b></td><td><b>${nu}</b> か所<br>答えの値も入っていなかったので、セルには <b>#NAME?</b> が出ます</td></tr></table>`
+    +(funcs?`<div class="ts-ref-note">この表で扱えなかった関数：<b>${escHtml(funcs)}</b><br>使える関数は<b>説明書→🧮数式・関数・照合</b>の一覧をご覧ください。</div>`:'')
+    +(nv?`<div class="kt-onebyone">値に変換した場所</div><table class="help-tbl">${xlReportRows(rep.toValue,30)}</table>`:'')
+    +(nu?`<div class="kt-onebyone">未対応の場所</div><table class="help-tbl">${xlReportRows(rep.unsupported,30)}</table>`:'');
+  document.getElementById('xlReportOverlay').classList.add('open');
+}
+function closeXlImportReport(){ document.getElementById('xlReportOverlay').classList.remove('open'); }
 
 /* ── ダークモード ── */
 function toggleDark() {
@@ -12938,8 +13038,20 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v296';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v297';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+/* 説明書の関数一覧を、使える関数の定義そのものから作る。
+   関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
+function renderHelpFuncTable(){
+  const tb=document.getElementById('helpFuncTbl'); if(!tb) return;
+  const rows=Object.keys(FORMULA_FUNCS).map(name=>{
+    const f=FORMULA_FUNCS[name];
+    return `<tr><td><b>${escHtml(name)}</b>${escHtml(f.sig||'')}</td><td>${escHtml(f.desc||'')}${f.calc?'（関数電卓ページ用）':''}</td></tr>`;
+  });
+  rows.push('<tr><td><b>PI</b> / <b>E</b></td><td>円周率 / 自然対数の底（括弧なしで書きます）</td></tr>');
+  tb.innerHTML=rows.join('');
+}
 function openHelp(){
+  renderHelpFuncTable();
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
   document.getElementById('helpOverlay').classList.add('open');
