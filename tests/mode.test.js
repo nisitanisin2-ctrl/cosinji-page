@@ -48,4 +48,51 @@ const UNDO_WITHIN_MODE = {
   ]
 };
 
-module.exports = { MODES, ROUNDTRIP, STUCK_SCENARIO, HISTORY_CLEARED, UNDO_WITHIN_MODE };
+/* v306 で直したバグ：通常モードのままひな形を読むと、モードとしては通常のままなので
+   「▦通常」を押しても何も起きず、画面はひな形のまま＝「通常に戻らない」に見えていた。
+   聞いたうえで、ひな形を入れる前の大きさのまっさらな表へ戻す。 */
+const TMPL_BACK_TO_PLAIN = {
+  name: '通常→ひな形→通常でまっさらな表に戻る',
+  steps: [
+    { do: "setCellVal(0,0,'もとの表')" },
+    { do: "applyTemplateObj(CALC_TEMPLATES[0], ()=>{})" },
+    { check: 'data[0][0]===CALC_TEMPLATES[0].rows[0][0]', is: true },
+    { check: 'COLS', is: 2 },
+    { do: "switchMode('normal')", expect: { ws:'normal', tm:'normal' } },
+    { check: 'data[0][0]', is: '' },              // ひな形の中身が消えている
+    { check: 'COLS', is: 3 },                     // ひな形を入れる前の大きさに戻る
+    { check: 'ROWS', is: 15 },
+    { check: 'Object.keys(cellStyles).length', is: 0 },
+    { check: "typeof tmplApplied==='undefined' || tmplApplied===null", is: true },
+    { do: "undoLast()" },                         // ↶戻る でひな形に戻せる
+    { check: 'data[0][0]===CALC_TEMPLATES[0].rows[0][0]', is: true },
+    { do: "switchMode('normal')" },               // 戻したあとも、もう一度まっさらにできる
+    { check: 'data[0][0]', is: '' },
+    { check: 'COLS', is: 3 },
+  ]
+};
+
+/* ひな形でない普通の表では、「通常」を押しても中身を消してはいけない */
+const TMPL_KEEPS_PLAIN = {
+  name: '普通の表で通常を押しても消えない',
+  steps: [
+    { do: "setCellVal(0,0,'たいせつな表')" },
+    { do: "switchMode('normal')" },
+    { check: 'data[0][0]', is: 'たいせつな表' },
+  ]
+};
+
+/* 別モードでひな形を読んだときは今までどおり（通常へ移ると通常の表が出る） */
+const TMPL_FROM_OTHER_MODE = {
+  name: '買物→ひな形→通常',
+  steps: [
+    { do: "switchMode('shopping')" },
+    { do: "applyTemplateObj(CALC_TEMPLATES[0], ()=>{})" },
+    { do: "switchMode('normal')", expect: { ws:'normal', tm:'normal' } },
+    { check: 'data[0][0]', is: '' },
+    { check: "typeof tmplApplied==='undefined' || tmplApplied===null", is: true },
+  ]
+};
+
+module.exports = { MODES, ROUNDTRIP, STUCK_SCENARIO, HISTORY_CLEARED, UNDO_WITHIN_MODE,
+                   TMPL_BACK_TO_PLAIN, TMPL_KEEPS_PLAIN, TMPL_FROM_OTHER_MODE };
