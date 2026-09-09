@@ -288,11 +288,12 @@ body.numpad-off .numpad-section { display: none; }
 body.dark .more-item.more-danger { color: #ff8a80; border-color: #ff8a80; }
 /* 横向きは高さが足りないので、4列にして「リセット」まで一目で見えるようにする */
 @media (orientation: landscape) and (max-height: 500px) {
-  .modal.more-modal { max-width: 640px; }
-  .more-grid { grid-template-columns: repeat(4, 1fr); }
-  .more-item { padding: 9px 10px; font-size: 13px; gap: 6px; }
-  .more-item span { font-size: 15px; }
-  .more-sec { margin: 8px 0 5px; padding-top: 7px; }
+  .modal.more-modal { max-width: 700px; max-height: 96vh; }
+  .more-grid { grid-template-columns: repeat(4, 1fr); gap: 5px; }
+  .more-item { padding: 6px 8px; font-size: 12px; gap: 5px; }
+  .more-item span { font-size: 14px; }
+  .more-sec { margin: 6px 0 3px; padding-top: 5px; font-size: 11px; }
+  #moreMenuOverlay .modal-body { padding: 6px 8px; }
 }
 .btn-sheet {
   box-sizing: border-box;
@@ -1855,6 +1856,11 @@ body.dark .help-acc > summary { color: var(--acc-on-dark); background: rgba(76,1
 body.dark .help-acc > summary::after { color: var(--acc-on-dark); }
 .help-acc-body { padding: 8px 14px 14px; }
 /* 設定の「くわしい設定」。説明書のアコーディオンと同じ見た目を使い、中身の余白だけ詰める */
+/* 「くわしい設定」の中の、もう一段たたんだところ（テンキーの細かい設定） */
+.set-acc2 { margin: 6px 0 4px; border: 1px solid var(--save-item-border); border-radius: var(--r-btn); }
+.set-acc2 > summary { padding: 10px 12px; font-size: 14px; }
+.set-acc2 > summary small { display: block; font-weight: normal; font-size: 11px; color: var(--text-light); margin-top: 2px; }
+.set-acc2 .set-acc-body { padding: 4px 10px 10px; }
 .set-acc { margin-top: 4px; }
 .set-acc-body { padding: 8px 4px 4px; }
 .set-acc-body .set-sec:first-child { margin-top: 2px; }
@@ -2300,6 +2306,11 @@ body.dark {
         <button class="more-item menu-item" id="defsizeTopBtn" title="タップで既定の行数・列数に／長押しで既定値を設定"><span>▦</span>既定の大きさ</button>
         <button class="more-item" onclick="moreDo(toggleDark)"><span>🌙</span>ナイトモード</button>
       </div>
+      <div class="more-sec">切り替える</div>
+      <div class="more-grid">
+        <button class="more-item" onclick="moreDo(()=>switchMode('normal'))"><span>▦</span>通常の表</button>
+        <button class="more-item" onclick="moreDo(()=>switchMode('dentaku'))"><span>🧮</span>電卓</button>
+      </div>
       <div class="more-sec more-danger-sec">表の中身を消す</div>
       <button class="more-item more-danger menu-item" id="resetBtn" onclick="moreDo(resetAll)"><span>🧹</span>リセット（戻るで元に戻せます）</button>
     </div>
@@ -2381,7 +2392,9 @@ body.dark {
       <span class="set-label">上のバー<small>セル番号・入力欄</small></span>
       <span class="set-stepper"><button class="step-btn" onclick="changeFormulaSize(-1)">−</button><span class="sc-val" id="formulaSize">標準</span><button class="step-btn" onclick="changeFormulaSize(1)">＋</button></span>
     </div>
-        <div class="set-sec">テンキー</div>
+    <details class="help-acc set-acc set-acc2" id="setKeypadAcc" ontoggle="saveSetKeypadAcc(this)">
+      <summary>テンキーを自分好みにする<small>ふだんは触らなくて大丈夫です</small></summary>
+      <div class="help-acc-body set-acc-body">
     <div class="set-row">
       <span class="set-label" title="標準テンキーの 0〜9 のキーだけを大きくします">数字キーの大きさ<small>0〜9のキーだけ</small></span>
       <span class="set-stepper"><button class="step-btn" onclick="changeNumSize(-1)">−</button><span class="sc-val" id="numSize">標準</span><button class="step-btn" onclick="changeNumSize(1)">＋</button></span>
@@ -2397,6 +2410,8 @@ body.dark {
       <span class="set-stepper"><button class="step-btn" onclick="changeBarSize(-1)">−</button><span class="sc-val" id="barSize">標準</span><button class="step-btn" onclick="changeBarSize(1)">＋</button></span>
     </div>
     <button class="set-act" id="keypadEditBtn" onclick="toggleKeypadEdit()" title="テンキーのボタンをドラッグして好きな位置に入れ替えます（同じ大きさのボタン同士）">テンキーのボタン配置を編集</button>
+      </div>
+    </details>
     <div class="set-sec">上のバー</div>
     <div class="set-note">上のバーは <b>記録名・保存・↶戻る・⋯</b> の4つです。<b>リスト・進む・シート・設定・書き出し・既定の大きさ・ナイトモード・リセット</b>は <b>⋯</b> の中にまとめました（記録名をタップしてもリストが開きます）。</div>
       </div>
@@ -3700,7 +3715,7 @@ body.dark {
       <details class="help-acc" id="h-basic" open>
         <summary>✏️ 基本の使い方</summary>
         <div class="help-acc-body">
-          <div class="help-li"><b>いちばん上のバー</b>は <b>記録名｜保存｜↶戻る｜⋯</b> の4つです（v299から）。<b>記録名</b>をタップすると保存した記録のリストが開きます。<b>⋯</b>の中に <b>↷進む・📋リスト・🗂シート・⚙設定・🖨PDF・📄CSV・📊Excel・📖説明書・▦既定の大きさ・🌙ナイトモード</b>と、いちばん下に赤い <b>🧹リセット</b> があります（消してしまう操作だけ離して置いています）。</div>
+          <div class="help-li"><b>いちばん上のバー</b>は <b>記録名｜保存｜↶戻る｜⋯</b> の4つです（v299から）。<b>記録名</b>をタップすると保存した記録のリストが開きます。<b>⋯</b>の中に <b>↷進む・📋リスト・🗂シート・⚙設定・🖨PDF・📄CSV・📊Excel・📖説明書・▦既定の大きさ・🌙ナイトモード・▦通常の表・🧮電卓</b>と、いちばん下に赤い <b>🧹リセット</b> があります（消してしまう操作だけ離して置いています）。</div>
           <div class="help-li">セルをタップして選び、テンキーで入力 → <b>Enter</b>で確定（下のセルへ移動）。<b>いちばん下の行でEnter</b>で<b>行が1つ自動追加</b>されます（通常・簡易モード、最大250行）。</div>
           <div class="help-li">上部の入力欄から直接入力／編集もできます。数字を入れたあと<b>「文字」</b>キーで日本語も足せます（前に入れた数字は消えません）。</div>
           <table class="help-tbl">
@@ -3840,6 +3855,7 @@ body.dark {
         <summary>⚙️ 設定</summary>
         <div class="help-acc-body">
           <div class="help-li"><b>4つのタブ</b>に分かれています（<b>📐表</b>＝行と列・Enterの向き／<b>🎨見た目</b>＝文字や画面の大きさ／<b>🧮計算</b>＝小数桁・税率・日付／<b>📄データ</b>＝テンプレ・PDF・CSV・Excel・説明書）。<b>本文を横にフリック</b>してもタブを移動できます。</div>
+          <div class="help-li"><b>テンキーを細かく変えたいとき</b>は、設定→<b>🎨見た目→くわしい設定→「テンキーを自分好みにする」</b>を開いてください（v303から。ふだんは触らなくて大丈夫なので、たたんであります）。<b>数字キーの大きさ・上下の余白・ページ表示・調整バー・ボタン配置の編集</b>がここにまとまっています。</div>
           <div class="help-li"><b>🎨見た目</b>は、よく使う<b>セルの文字・画面の幅・テンキーの大きさ・ナイトモード・シートのタブ</b>を先に出しています。それ以外は<b>「くわしい設定」</b>をタップすると出てきます（小計や上のバーの文字、数字キーの大きさ、テンキーの余白とページ表示、調整バー、ボタン配置の編集、上のバーのボタンの表示/非表示）。開いたまま／閉じたままの状態は次回も覚えています。</div>
           <table class="help-tbl">
             <tr><td><b>行／列</b></td><td>表の大きさ</td></tr>
@@ -13345,6 +13361,12 @@ function moreDo(fn){
 }
 /* 「くわしい設定」の開閉を覚える（次に設定を開いたときも同じ状態にする） */
 function saveSetDetail(el){ try{ localStorage.setItem('excalc_set_detail', el.open?'1':'0'); }catch(_){} }
+/* その中の「テンキーを自分好みにする」の開閉も別に覚える（既定は閉じたまま） */
+function saveSetKeypadAcc(el){ try{ localStorage.setItem('excalc_set_keypad', el.open?'1':'0'); }catch(_){} }
+function applySetKeypadAcc(){
+  const el=document.getElementById('setKeypadAcc'); if(!el) return;
+  el.open = localStorage.getItem('excalc_set_keypad')==='1';
+}
 function applySetDetail(){
   const el=document.getElementById('setDetailAcc'); if(!el) return;
   el.open = localStorage.getItem('excalc_set_detail')==='1';
@@ -13381,7 +13403,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v302';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v303';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -14887,6 +14909,7 @@ setEnterDir(enterMoveDir);                 // Enterで進む向きを復元
 applyResizerBar();   // 調整バーの表示/非表示を復元
 applyPageBar();      // テンキーのページ表示の有無を復元
 applySetDetail();    // 「くわしい設定」の開閉を復元
+applySetKeypadAcc(); // その中の「テンキーを自分好みにする」の開閉を復元（既定は閉じたまま）
 a11yInit();          // 読み上げ・キーボード操作の下ごしらえ（見た目は変えない）
 { const dd=document.getElementById('defDateFmt'); if(dd) dd.value=defaultDateFmt; }   // 日付の既定表示形式を復元
 saveDirty=false; updateRecordTitle();   // 起動直後は「📄 未保存」（記録は開いていない）
