@@ -30,12 +30,13 @@ async function newPage(browser) {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true });
   const page = await ctx.newPage();
   const errs = [];
+  const dialogs = [];   // 出た確認窓の1行目（出したくない場面の確認に使う）
   page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
-  page.on('dialog', d => d.accept());
+  page.on('dialog', d => { dialogs.push(d.message().split('\n')[0]); d.accept(); });
   await page.goto(INDEX); await page.waitForTimeout(300);
   await page.evaluate(() => localStorage.clear());
   await page.reload(); await page.waitForTimeout(900);
-  return { ctx, page, errs };
+  return { ctx, page, errs, dialogs };
 }
 
 async function runFormula(browser) {
@@ -211,7 +212,7 @@ async function runMode(browser) {
   const { ROUNDTRIP, STUCK_SCENARIO, HISTORY_CLEARED, UNDO_WITHIN_MODE,
           TMPL_BACK_TO_PLAIN, TMPL_KEEPS_PLAIN, TMPL_FROM_OTHER_MODE,
           TMPL_MODE_ROUNDTRIP, TMPL_MODE_THEN_PLAIN, HISTORY_PER_MODE } = require('./mode.test.js');
-  const { ctx, page, errs } = await newPage(browser);
+  const { ctx, page, errs, dialogs } = await newPage(browser);
   console.log('\n── モードの行き来 ──');
   const st = () => page.evaluate(() => ({ ws: workspaceMode, tm: tableMode }));
 
@@ -243,6 +244,18 @@ async function runMode(browser) {
       }
     }
   }
+  // ひな形の表で「通常」を押したとき、確認窓を出さない
+  // （モードを選ぶ流れに確認窓が割り込むと、モードが選べなくなるため）
+  await page.evaluate(() => { localStorage.clear(); });
+  await page.reload(); await page.waitForTimeout(900);
+  await page.evaluate(() => applyTemplateObj(CALC_TEMPLATES[0], () => {}));
+  await page.waitForTimeout(700);
+  dialogs.length = 0;
+  await page.evaluate(() => switchMode('normal'));
+  await page.waitForTimeout(700);
+  check('  通常でひな形を消すとき確認窓を出さない', dialogs.length, 0);
+  check('  そのあとまっさらな表になっている', await page.evaluate(() => data[0][0] + '/' + COLS), '/3');
+
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();
