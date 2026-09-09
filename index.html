@@ -3850,7 +3850,7 @@ body.dark {
       <details class="help-acc" id="h-mode">
         <summary>🔀 モード（「モード」ボタン）</summary>
         <div class="help-acc-body">
-          <div class="help-li"><b>テンキーの「モード」キー</b>（または<b>⋯→🎯用途から始める</b>）で<b>「用途から始める」</b>が開きます（v305から）。上が<b>表のかたちを変える</b>（下のモード一覧）、下が<b>ひな形から始める</b>で、<b>くらし・おかね・からだ&thinsp;/&thinsp;くるま・かたち・帳票</b>の目的別に25種のひな形が並びます。ひな形を選ぶと、項目と計算式の入った表になります（今の表は上書きされるので、確認が出ます）。ひな形をやめてふつうの表に戻したいときは、<b>▦通常</b>（またはモード一覧の「通常」）を押すと<b>まっさらな表</b>に戻ります。確認は出しませんが、<b>↶戻る</b>でひな形にも、ひな形を入れる前の表にも戻せます。</div>
+          <div class="help-li"><b>テンキーの「モード」キー</b>（または<b>⋯→🎯用途から始める</b>）で<b>「用途から始める」</b>が開きます（v305から）。上が<b>表のかたちを変える</b>（下のモード一覧）、下が<b>ひな形から始める</b>で、<b>くらし・おかね・からだ&thinsp;/&thinsp;くるま・かたち・帳票</b>の目的別に25種のひな形が並びます。ひな形を選ぶと、項目と計算式の入った表になります（<b>確認は出ません</b>。今の表は上書きされますが、<b>↶戻る</b>で元の表に戻せます）。ひな形をやめてふつうの表に戻したいときは、<b>▦通常</b>（またはモード一覧の「通常」）を押すと<b>まっさらな表</b>に戻ります。確認は出しませんが、<b>↶戻る</b>でひな形にも、ひな形を入れる前の表にも戻せます。</div>
           <div class="help-li">切替後も各モードの内容は<b>リセットするまで保持</b>されます。</div>
           <table class="help-tbl">
             <tr><td><b>通常／簡易</b></td><td>標準の表／列少なめ・大きな表示</td></tr>
@@ -11585,7 +11585,8 @@ function forgetPreTemplateSize(){ try{ localStorage.removeItem(PRETMPL_KEY); }ca
 /* テンプレを表に展開（計算テンプレ・決算書テンプレ共通）。
    rows: [A列ラベル, B列値]。B列が null＝見出し行、'='始まり＝計算式、それ以外＝入力(黄色)。 */
 function applyTemplateObj(t, closeFn){
-  if(!confirm(`「${t.name}」のテンプレートを読み込みますか？\n現在の表は上書きされます。`)) return;
+  // 確認は出さない。選ぶ流れの途中で確認窓が割り込むと止まってしまうため。
+  // 上書きされた前の表は ↶戻る で戻せる（下の pushSnapshot）。
   rememberPreTemplateSize();   // あとで「まっさらな表に戻す」ときの大きさを控える
   if(closeFn) closeFn();
   const sp=document.getElementById('settingsPanel'); if(sp&&sp.classList.contains('open')) toggleSettings();
@@ -11624,7 +11625,7 @@ function applyTemplateObj(t, closeFn){
   updateModeButton();
   persistModes();
   if(typeof saveSheets==='function') saveSheets();   // テンプレ内容を今のシートに反映
-  toast(`「${t.name}」を読み込みました。黄色のセルに値を入れてください`);
+  toast(`「${t.name}」を読み込みました。黄色のセルに値を入れてください（前の表は ↶戻る で戻せます）`, 4600);
 }
 
 /* ひな形を入れた直後に「▦通常」を押しても、もともと通常モードなので切り替える先が無く、
@@ -13573,7 +13574,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v308';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v309';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

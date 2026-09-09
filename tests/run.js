@@ -248,8 +248,10 @@ async function runMode(browser) {
   // （モードを選ぶ流れに確認窓が割り込むと、モードが選べなくなるため）
   await page.evaluate(() => { localStorage.clear(); });
   await page.reload(); await page.waitForTimeout(900);
+  dialogs.length = 0;
   await page.evaluate(() => applyTemplateObj(CALC_TEMPLATES[0], () => {}));
   await page.waitForTimeout(700);
+  check('  ひな形を読み込むとき確認窓を出さない', dialogs.length, 0);
   dialogs.length = 0;
   await page.evaluate(() => switchMode('normal'));
   await page.waitForTimeout(700);
