@@ -1786,6 +1786,29 @@ body.dark .save-open-badge { color: #7fd6a4; }
 }
 body.mode-reordering .mode-item { touch-action: none; }
 /* 並べ替えのヒント表示 */
+/* 「用途から始める」の見出しと、ひな形のチップ */
+.mode-sec {
+  font-size: 13px; font-weight: bold; color: var(--text-light);
+  margin: 14px 2px 8px; padding-top: 11px; border-top: 1px solid var(--cell-border, #ddd);
+}
+.mode-sec:first-child { margin-top: 2px; padding-top: 0; border-top: none; }
+.mode-sec small { display: block; font-weight: normal; font-size: 11px; margin-top: 3px; }
+.tmpl-group { margin-bottom: 10px; }
+.tmpl-group-name { font-size: 12px; font-weight: bold; color: var(--text-light); margin: 0 2px 5px; }
+.tmpl-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.tmpl-chip {
+  display: flex; align-items: center; gap: 7px; min-width: 0; width: 100%;
+  padding: 9px 10px; border: 1px solid var(--save-item-border); border-radius: var(--r-btn);
+  background: var(--save-item-bg); color: var(--text);
+  font-size: 13px; font-weight: bold; text-align: left; cursor: pointer; touch-action: manipulation;
+}
+.tmpl-chip:hover { background: var(--cell-hover, rgba(0,0,0,0.05)); }
+.tmpl-chip:active { opacity: 0.7; }
+.tmpl-ico { font-size: 15px; flex-shrink: 0; }
+.tmpl-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (orientation: landscape) and (min-width: 600px) {
+  .tmpl-grid { grid-template-columns: repeat(3, 1fr); }
+}
 .mode-hint { font-size: 11px; color: var(--text-light); padding: 8px 16px 0; }
 /* 登録モードの解除（✕）ボタン */
 .mode-remove {
@@ -2308,6 +2331,7 @@ body.dark {
       </div>
       <div class="more-sec">切り替える</div>
       <div class="more-grid">
+        <button class="more-item" onclick="moreDo(openModeMenu)"><span>🎯</span>用途から始める</button>
         <button class="more-item" onclick="moreDo(()=>switchMode('normal'))"><span>▦</span>通常の表</button>
         <button class="more-item" onclick="moreDo(()=>switchMode('dentaku'))"><span>🧮</span>電卓</button>
       </div>
@@ -2447,6 +2471,7 @@ body.dark {
       </select>
     </div>
     <div class="set-sec">📋 ひな形（テンプレ）とモード</div>
+    <div class="set-note">ひな形は<b>テンキーの「モード」キー</b>や<b>⋯→🎯用途から始める</b>からも選べます（目的別に並べてあります）。</div>
     <button class="set-act" onclick="openCalcTmpl()" title="色々な計算式のひな形（約20種類）を選んで、値を入れるだけの状態にします">計算式テンプレ</button>
     <button class="set-act" onclick="openFinTmpl()" title="損益計算書・貸借対照表・収支計算書のかんたんなひな形">決算書テンプレ</button>
     <button class="set-act" onclick="openModeVis()" title="「モード」一覧に表示する標準モードを選びます">モードの表示/非表示</button>
@@ -3196,11 +3221,15 @@ body.dark {
 <div class="modal-overlay" id="modeMenuOverlay" onclick="if(event.target===this)closeModeMenu()">
   <div class="modal">
     <div class="modal-header">
-      <span>モード選択</span>
+      <span>用途から始める</span>
       <button class="modal-close" onclick="closeModeMenu()">✕</button>
     </div>
-    <div class="mode-hint">タップで切替／左の ⠿ をドラッグで並べ替え</div>
-    <div class="modal-body" id="modeMenuBody"></div>
+    <div class="modal-body">
+      <div class="mode-sec">表のかたちを変える<small>タップで切替／左の ⠿ をドラッグで並べ替え</small></div>
+      <div id="modeMenuBody"></div>
+      <div class="mode-sec">ひな形から始める<small>項目と計算式が入った表を作ります（今の表は上書きされます）</small></div>
+      <div id="tmplPickBody"></div>
+    </div>
   </div>
 </div>
 
@@ -3715,7 +3744,7 @@ body.dark {
       <details class="help-acc" id="h-basic" open>
         <summary>✏️ 基本の使い方</summary>
         <div class="help-acc-body">
-          <div class="help-li"><b>いちばん上のバー</b>は <b>記録名｜保存｜↶戻る｜⋯</b> の4つです（v299から）。<b>記録名</b>をタップすると保存した記録のリストが開きます。<b>⋯</b>の中に <b>↷進む・📋リスト・🗂シート・⚙設定・🖨PDF・📄CSV・📊Excel・📖説明書・▦既定の大きさ・🌙ナイトモード・▦通常の表・🧮電卓</b>と、いちばん下に赤い <b>🧹リセット</b> があります（消してしまう操作だけ離して置いています）。</div>
+          <div class="help-li"><b>いちばん上のバー</b>は <b>記録名｜保存｜↶戻る｜⋯</b> の4つです（v299から）。<b>記録名</b>をタップすると保存した記録のリストが開きます。<b>⋯</b>の中に <b>↷進む・📋リスト・🗂シート・⚙設定・🖨PDF・📄CSV・📊Excel・📖説明書・▦既定の大きさ・🌙ナイトモード・🎯用途から始める・▦通常の表・🧮電卓</b>と、いちばん下に赤い <b>🧹リセット</b> があります（消してしまう操作だけ離して置いています）。</div>
           <div class="help-li">セルをタップして選び、テンキーで入力 → <b>Enter</b>で確定（下のセルへ移動）。<b>いちばん下の行でEnter</b>で<b>行が1つ自動追加</b>されます（通常・簡易モード、最大250行）。</div>
           <div class="help-li">上部の入力欄から直接入力／編集もできます。数字を入れたあと<b>「文字」</b>キーで日本語も足せます（前に入れた数字は消えません）。</div>
           <table class="help-tbl">
@@ -3821,6 +3850,7 @@ body.dark {
       <details class="help-acc" id="h-mode">
         <summary>🔀 モード（「モード」ボタン）</summary>
         <div class="help-acc-body">
+          <div class="help-li"><b>テンキーの「モード」キー</b>（または<b>⋯→🎯用途から始める</b>）で<b>「用途から始める」</b>が開きます（v305から）。上が<b>表のかたちを変える</b>（下のモード一覧）、下が<b>ひな形から始める</b>で、<b>くらし・おかね・からだ&thinsp;/&thinsp;くるま・かたち・帳票</b>の目的別に25種のひな形が並びます。ひな形を選ぶと、項目と計算式の入った表になります（今の表は上書きされるので、確認が出ます）。</div>
           <div class="help-li">切替後も各モードの内容は<b>リセットするまで保持</b>されます。</div>
           <table class="help-tbl">
             <tr><td><b>通常／簡易</b></td><td>標準の表／列少なめ・大きな表示</td></tr>
@@ -13197,8 +13227,38 @@ function renderModeItem(m, isCustom){
       ${isCustom?`<span class="mode-remove" onclick="event.stopPropagation();removeCustomMode('${m.key}')" title="この登録モードを解除">✕</span>`:''}
     </div>`;
 }
+/* ひな形を「何がしたいか」でまとめる。中身は既存のテンプレそのままで、
+   並べ方だけ目的別にして、モード選びと同じ画面から始められるようにする。 */
+const TMPL_GROUPS=[
+  { name:'くらし',       calc:['discount','tax','pct','change','power','temp'] },
+  { name:'おかね',       calc:['profit','wage','commission','compound','loan','avg'] },
+  { name:'からだ・くるま', calc:['bmi','kcal','sdt','fuel'] },
+  { name:'かたち',       calc:['rect','tri','pytha','circle','cylinder','sphere'] },
+  { name:'帳票',         fin:['pl','bs','income'] }
+];
+function renderTmplPick(){
+  const box=document.getElementById('tmplPickBody'); if(!box) return;
+  const byId={}; CALC_TEMPLATES.forEach(t=>byId[t.id]=['calc',t]);
+  FINANCIAL_TEMPLATES.forEach(t=>byId[t.id]=['fin',t]);
+  box.innerHTML=TMPL_GROUPS.map(g=>{
+    const ids=[...(g.calc||[]), ...(g.fin||[])];
+    const chips=ids.map(id=>{
+      const e=byId[id]; if(!e) return '';
+      const [kind,t]=e;
+      return `<button class="tmpl-chip" onclick="pickTemplate('${kind}','${t.id}')" title="${escHtml(t.desc||'')}">`
+        +`<span class="tmpl-ico">${t.icon||''}</span><span class="tmpl-name">${escHtml(t.name)}</span></button>`;
+    }).join('');
+    return `<div class="tmpl-group"><div class="tmpl-group-name">${escHtml(g.name)}</div><div class="tmpl-grid">${chips}</div></div>`;
+  }).join('');
+}
+/* ひな形を選んだ：この画面を閉じてから読み込む（読み込みの確認は既存のまま） */
+function pickTemplate(kind, id){
+  closeModeMenu();
+  setTimeout(()=>{ if(kind==='fin') applyFinTemplate(id); else applyCalcTemplate(id); }, 0);
+}
 function openModeMenu(){
   syncModeOrder();
+  renderTmplPick();
   const body=document.getElementById('modeMenuBody');
   body.innerHTML=modeOrder
     .filter(k=> !isModeHidden(k) || k===workspaceMode )   // 非表示モードは出さない（現在のモードは常に表示）
@@ -13436,7 +13496,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v304';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v305';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
