@@ -347,15 +347,15 @@ async function runMode(browser) {
 }
 
 async function runDigit(browser) {
-  const { CASES, TYPING, FORMULA } = require('./digit.test.js');
+  const { CASES, BIG, TYPING, FORMULA } = require('./digit.test.js');
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 数字の桁の読み ──');
 
-  const got = await page.evaluate(cases => cases.map(([v]) => {
-    const p = digitHintParts(v);
-    return p ? p.num + '＝' + p.kanji : '';
-  }), CASES);
+  const ev = cases => cases.map(([v]) => { const p = digitHintParts(v); return p ? p.kanji : ''; });
+  const got = await page.evaluate(ev, CASES);
   CASES.forEach(([v, want], i) => check(`  ${v || '(空)'}`, got[i], want));
+  const bigGot = await page.evaluate(ev, BIG);
+  BIG.forEach(([v, want], i) => check(`  ${v}`, bigGot[i], want));
 
   // テンキーで打っている途中の見え方
   const typed = await page.evaluate(async keys => {

@@ -3822,7 +3822,7 @@ body.dark {
           <div class="help-li"><span class="help-tag">Σ</span> を押すと隣の連続データを自動で合計し <b>=SUM(範囲)</b> を作成 → <b>Enter</b>で確定。</div>
           <div class="help-li">押した後に<b>セルを始点→終点までスライド</b>で合計範囲を指定できます（タップで1セル）。</div>
           <div class="help-li"><b>Σを長押し</b>で「合計／平均」を選べます（選んだ方を記憶し、ボタン表示も変わります）。</div>
-          <div class="help-li"><b>入力中の数字の桁</b>（v312から）：1万以上の数字を入れていると、入力欄の下に <b>5,000,000 ＝ 500万</b> のように出ます。打っている途中から出るので、0の数を数えなくてもすみます。数式のセルを選んだときは<b>計算結果</b>の桁を出します。いらないときは<b>設定→🧮計算→入力中の数字の桁を出す</b>で消せます。</div>
+          <div class="help-li"><b>入力中の数字の桁</b>（v312から）：1万以上の数字を入れていると、入力欄の下に <b>500万</b> のように読みが出ます。打っている途中から出るので、0の数を数えなくてもすみます。数式のセルを選んだときは<b>計算結果</b>の桁を出します。いらないときは<b>設定→🧮計算→入力中の数字の桁を出す</b>で消せます。</div>
           <div class="help-li"><b>入力欄の右の合計</b>：列・行を選ぶと合計を表示（数値が無いときは出ません）。<b>「合計」タップで合計⇄平均</b>／<b>「¥」タップで数字⇄漢数字</b>（兆・億・万）／<b>数値タップでコピー</b>。</div>
         </div>
       </details>
@@ -10586,24 +10586,43 @@ function fmt(n) {
   return parts.join('.');
 }
 
-/* 万進法の漢数字に変換（千は使わない。例: 15000 → 1万5000、55555555555555555 → 5555京5555兆…） */
-function toKanjiNum(n) {
-  if (n===null||n===undefined||isNaN(n)||!isFinite(n)) return '—';
-  const sign = n<0 ? '-' : '';
-  n = Math.abs(n);
-  let intPart = Math.floor(n);
-  const frac = n - intPart;
-  const groupUnits = ['','万','億','兆','京','垓'];
-  const groups = [];
-  while (intPart>0) { groups.push(intPart%10000); intPart=Math.floor(intPart/10000); }
-  let result='';
-  for (let gi=groups.length-1; gi>=0; gi--) {
-    const g=groups[gi]; if (g===0) continue;   // 各4桁グループはそのまま表示（千で分割しない）
-    result += g + (groupUnits[gi]||'');
+/* 万進法の漢数字に変換（千は使わない。例: 15000 → 1万5000）。
+   数字は「文字のまま」4桁ずつ区切る。数として割ると 9007兆（2^53）を超えたところで
+   桁がずれて、まったく違う数になっていた（1兆.5 や 1e24→12784 など）。
+   数値でも文字列でも受け取れる。文字列で渡せば、桁がいくつでもそのまま正しく読める。 */
+const KANJI_UNITS=['','万','億','兆','京','垓'];
+function toKanjiNum(v) {
+  if (v===null||v===undefined) return '—';
+  let s;
+  if (typeof v==='number') {
+    if (isNaN(v)||!isFinite(v)) return '—';
+    s = String(v);
+    if (/e/i.test(s)) {                                  // 1e+24 のような指数表記を数字に戻す
+      try { s = v.toLocaleString('fullwide',{useGrouping:false, maximumFractionDigits:20}); }
+      catch(_) { return '—'; }
+    }
+  } else {
+    s = String(v).trim().replace(/,/g,'');
   }
-  if (result==='') result='0';
-  if (frac>0) result += String(Math.round(frac*1000)/1000).slice(1);   // ".xxx"
-  return sign+result;
+  const m = s.match(/^([-+]?)(\d+)(?:\.(\d+))?$/);
+  if (!m) return '—';
+  const sign = m[1]==='-' ? '-' : '';
+  const intStr = m[2].replace(/^0+(?=\d)/,'');          // 先頭の0は落とす
+  const frac = m[3] ? m[3].replace(/0+$/,'') : '';       // 末尾の0は落とす
+  const groups=[];                                       // 右から4桁ずつ
+  for (let i=intStr.length; i>0; i-=4) groups.push(intStr.slice(Math.max(0,i-4), i));
+  if (groups.length > KANJI_UNITS.length) {               // 垓より上は漢数字にせず数字のまま出す
+    return sign + intStr.replace(/\B(?=(\d{3})+(?!\d))/g,',') + (frac?'.'+frac:'');
+  }
+  let out='';
+  for (let gi=groups.length-1; gi>=0; gi--) {
+    const g=groups[gi];
+    if (Number(g)===0) continue;                          // 0の組は言わない（1兆1 のように）
+    out += String(Number(g)) + (KANJI_UNITS[gi]||'');   // 例 1000000000001 → 1兆1
+  }
+  if (out==='') out='0';
+  if (frac) out += (/[万億兆京垓]$/.test(out) ? '0.' : '.') + frac;      // 1兆0.5 のように読めるように
+  return sign+out;
 }
 
 /* ── 入力中の数字の桁の読み ──
@@ -10622,7 +10641,7 @@ function digitHintParts(src){
   if(!/^[-+]?\d+(\.\d+)?$/.test(t)) return null;         // 数字だけのときに出す
   const n=Number(t);
   if(!isFinite(n) || Math.abs(n)<10000) return null;       // 4桁以下は出さない
-  return { num:digitGroups(t), kanji:toKanjiNum(n) };
+  return { num:digitGroups(t), kanji:toKanjiNum(t) };      // 打った文字のまま渡す＝桁がずれない
 }
 function updateDigitHint(){
   const el=document.getElementById('digitHint'); if(!el) return;
@@ -10638,9 +10657,7 @@ function updateDigitHint(){
   }
   const p=digitHintParts(src);
   if(!p){ el.hidden=true; el.textContent=''; return; }
-  el.innerHTML=`<span class="dh-num">${escHtml(p.num)}</span>`
-              +`<span class="dh-eq">＝</span>`
-              +`<span class="dh-kanji">${escHtml(p.kanji)}</span>`;
+  el.innerHTML=`<span class="dh-kanji">${escHtml(p.kanji)}</span>`;
   el.hidden=false;
 }
 function toggleDigitHint(){
@@ -13680,7 +13697,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v312';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v313';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
