@@ -3,6 +3,7 @@
      node tests/run.js           全部
      node tests/run.js formula   数式だけ
      node tests/run.js xlsx      Excelだけ
+     node tests/run.js digit     数字の桁の読みだけ
    Playwright は /opt/node22 に入っているものを使う（このリポジトリには入れない）。 */
 'use strict';
 const path = require('path');
@@ -345,6 +346,51 @@ async function runMode(browser) {
   await ctx.close();
 }
 
+async function runDigit(browser) {
+  const { CASES, TYPING, FORMULA } = require('./digit.test.js');
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 数字の桁の読み ──');
+
+  const got = await page.evaluate(cases => cases.map(([v]) => {
+    const p = digitHintParts(v);
+    return p ? p.num + '＝' + p.kanji : '';
+  }), CASES);
+  CASES.forEach(([v, want], i) => check(`  ${v || '(空)'}`, got[i], want));
+
+  // テンキーで打っている途中の見え方
+  const typed = await page.evaluate(async keys => {
+    const out = [];
+    sel(0, 0);
+    for (const k of keys) {
+      document.querySelector(`[data-key="${k}"]`).click();
+      await new Promise(r => setTimeout(r, 30));
+      const el = document.getElementById('digitHint');
+      out.push(el.hidden ? '' : el.textContent);
+    }
+    return out;
+  }, TYPING.keys);
+  TYPING.expect.forEach((want, i) => check(`  打っている途中 ${i + 1}桁目`, typed[i], want));
+
+  // 数式のセルは計算結果の桁を出す
+  const fv = await page.evaluate(f => {
+    f.setup.forEach(([r, c, v]) => setCellVal(r, c, v));
+    recalcAll(); sel(f.at[0], f.at[1]);
+    const el = document.getElementById('digitHint');
+    return el.hidden ? '' : el.textContent;
+  }, FORMULA);
+  check('  数式セルは計算結果の桁を出す', fv, FORMULA.want);
+
+  // 設定で切れる／戻せる
+  check('  設定で切ると出ない', await page.evaluate(() => {
+    toggleDigitHint(); const el = document.getElementById('digitHint'); return el.hidden; }), true);
+  check('  設定で戻すと出る', await page.evaluate(() => {
+    toggleDigitHint(); const el = document.getElementById('digitHint'); return !el.hidden; }), true);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -352,6 +398,7 @@ async function runMode(browser) {
     if (!only || only === 'xlsx') await runXlsx(browser);
     if (!only || only === 'a11y') await runA11y(browser);
     if (!only || only === 'mode') await runMode(browser);
+    if (!only || only === 'digit') await runDigit(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
