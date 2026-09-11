@@ -2834,7 +2834,7 @@ body.dark {
            4段目＝囲む｜太字・斜体・下線・書式消す（ここが枠線と文字の境目）
            5段目＝寄せ3つ＋文字色・背景色の帯（帯は5〜6段目の2段ぶん）／6段目＝文字の大小とくわしく
          地色は 青み＝枠線／緑み＝文字／赤み＝消す の3種類だけ。
-         セルの保護はセルの長押しメニューか「くわしく」から。 -->
+         セルの保護はセルの長押しメニュー（📥貼り付け・⧉コピー・🔒保護・🧹消去・🎨書式）か「くわしく」から。 -->
     <button class="btn bd-type g-bd" data-key="bd_thin" onclick="bdSetType('thin',this)" title="細い線"><span style="display:inline-block;width:70%;border-bottom:1px solid #fff"></span></button>
     <button class="btn bd-type bd-on g-bd" data-key="bd_normal" onclick="bdSetType('normal',this)" title="ふつうの線"><span style="display:inline-block;width:70%;border-bottom:2px solid #fff"></span></button>
     <button class="btn bd-type g-bd" data-key="bd_thick" onclick="bdSetType('thick',this)" title="太い線"><span style="display:inline-block;width:70%;border-bottom:5px solid #fff"></span></button>
@@ -3862,8 +3862,9 @@ body.dark {
         <div class="help-acc-body">
           <div class="help-li"><b>書式変更</b>：上部の「<b>A1</b>」（セル名）をタップすると、小数点桁・太字/斜体/下線・文字色・背景色・大きさを変更できます（テンキーを<b>右フリック</b>の書式・枠線ページでもワンタップ）。</div>
           <table class="help-tbl">
-            <tr><td><span class="help-key">セル長押し（約1秒）</span></td><td>枠が<b>赤</b>くなったら離す＝<b>🔒保護</b>のオン/オフ（保護中は右上のセル番号枠が赤で知らせ）</td></tr>
-            <tr><td><span class="help-key">さらに長押し</span></td><td>枠が<b>紫</b>に→離すとメニュー（🎨書式・⧉コピー・📥貼り付け・🧹消去・🔒保護）</td></tr>
+            <tr><td><span class="help-key">セル長押し（約1秒）</span></td><td>枠が<b>紫</b>になったら離す＝<b>メニュー</b>（📥貼り付け・⧉コピー・🔒保護・🧹消去・🎨書式）。スマホのふつうの長押しと同じです（v314から。以前は長押しが保護の切替でしたが、保護はメニューの中に入れました）</td></tr>
+            <tr><td><span class="help-key">📥貼り付け</span></td><td><b>端末でコピーした文字</b>もそのまま貼れます。エクセルやメモから<b>複数のセル</b>をコピーしていれば、その形のまま広がります（1回の操作なので<b>↶戻る</b>1回で戻せます）</td></tr>
+            <tr><td><span class="help-key">🔒保護</span></td><td>メニューから切り替えます（保護中は右上のセル番号枠が赤で知らせ）。テンキーのボタンに<b>長押し→🔧ボタンの機能→表の操作→🔒保護</b>を割り当てることもできます</td></tr>
             <tr><td><span class="help-key">フィル</span></td><td>セルを<b>長押し→スライド</b>で値（数式は自動でずらして）を隣へコピー。PCは長めにクリック→色が変わったらドラッグ</td></tr>
             <tr><td><span class="help-key">コピペ</span></td><td>セルを<b>2回タップ</b>でコピー → 別セルを2回タップで貼り付け</td></tr>
           </table>
@@ -3991,14 +3992,14 @@ body.dark {
 <!-- フィル後の「連番にする」ボタン（数値・日付・末尾が数字の文字のとき） -->
 <button class="seq-btn" id="seqBtn" onclick="fillAsSequence()">🔢 連番 1,2,3…</button>
 
-<!-- セル長押しメニュー（コピー・貼り付け・消去・書式・保護） -->
+<!-- セル長押しメニュー（貼り付け・コピー・保護・消去・書式） -->
 <div class="cellmenu-backdrop" id="cellMenuBackdrop" onclick="hideCellMenu()"></div>
 <div class="cell-menu" id="cellMenu">
-  <button onclick="cellMenuAct('fmt')">🎨 書式</button>
-  <button onclick="cellMenuAct('copy')">⧉ コピー</button>
   <button onclick="cellMenuAct('paste')">📥 貼り付け</button>
-  <button onclick="cellMenuAct('clear')">🧹 消去</button>
+  <button onclick="cellMenuAct('copy')">⧉ コピー</button>
   <button onclick="cellMenuAct('lock')" id="cellMenuLock">🔒 保護</button>
+  <button onclick="cellMenuAct('clear')">🧹 消去</button>
+  <button onclick="cellMenuAct('fmt')">🎨 書式</button>
 </div>
 
 <!-- 🔎セルの検索・移動 -->
@@ -5245,7 +5246,7 @@ function cellMenuAct(a){
   hideCellMenu();
   if(a==='fmt'){ openCellFmt(); }
   else if(a==='copy'){ copyCell(); if(typeof toast==='function') toast('コピーしました'); }
-  else if(a==='paste'){ pasteCell(); }
+  else if(a==='paste'){ pasteCellSmart(); }
   else if(a==='clear'){ clearSelection(); }
   else if(a==='lock'){ toggleUserLock(selR,selC); }
 }
@@ -5266,6 +5267,52 @@ function clearSelection(){
   document.getElementById('formulaInput').value=cellEditString(selR,selC);
   updateStats(selC); persistModes(); if(typeof saveSheets==='function') saveSheets();
 }
+/* メニューの「📥貼り付け」：スマホの貼り付けと同じく、まず端末のコピー内容を見る。
+   読めないとき（許可されない・空）は、アプリの中でコピーした内容を貼る。
+   タブ・改行で区切られていれば、その形のまま複数のセルへ広げる（表の貼り付け）。 */
+async function pasteCellSmart(){
+  if (isLockedCell(selR,selC)) { toast('このセルは保護されています'); return; }
+  let text=null;
+  try{
+    if (navigator.clipboard && navigator.clipboard.readText) text=await navigator.clipboard.readText();
+  }catch(_){ text=null; }   // 許可されなかった場合もここに来る
+  if (text!=null && String(text).length){
+    pasteText(String(text));
+    return;
+  }
+  if (!clipData){ toast('貼り付けるものがありません（先にコピーしてください）'); return; }
+  pasteCell();
+  toast('貼り付けました');
+}
+/* 文字列を貼る。タブ＝右へ、改行＝下へ広げる（表計算からのコピーをそのまま受けられる） */
+function pasteText(text){
+  const rows=String(text).replace(/\r\n?/g,'\n').replace(/\n+$/,'').split('\n').map(l=>l.split('\t'));
+  if (rows.length===1 && rows[0].length===1){
+    clipData={val:rows[0][0]};
+    pasteCell();
+    toast('貼り付けました');
+    return;
+  }
+  // 表の貼り付けは1回の操作として戻せるようにする。
+  // setCellVal はセルごとに履歴を積むので、その間だけ止めて、丸ごとの控えを1つ積む。
+  pushSnapshot('貼り付け');
+  let n=0, locked=0;
+  const wasUndoing=undoing; undoing=true;
+  try{
+    rows.forEach((cols,dr)=>cols.forEach((v,dc)=>{
+      const r=selR+dr, c=selC+dc;
+      if (r>=ROWS || c>=COLS) return;               // 表からはみ出す分は入れない
+      if (isLockedCell(r,c)){ locked++; return; }
+      setCellVal(r,c,v);
+      n++;
+    }));
+  } finally { undoing=wasUndoing; }
+  recalcAll();
+  buildSheet();
+  toast(n? `${rows.length}行×${rows[0].length}列を貼り付けました`+(locked?`（保護の${locked}個は除く）`:'')
+         : '貼り付けられるセルがありませんでした');
+}
+
 function pasteCell() {
   if (!clipData) return;
   if (rangeR1>=0) {
@@ -6852,7 +6899,8 @@ const KEY_FUNCS={
   t_colplus:{g:'表の操作',label:'列数＋',run:()=>changeCols(1)}, t_colminus:{g:'表の操作',label:'列数−',run:()=>changeCols(-1)},
   t_insrow:{g:'表の操作',label:'↥行挿入',run:()=>insertRowAtSel()}, t_delrow:{g:'表の操作',label:'✂行削除',run:()=>deleteRowAtSel()},
   t_inscol:{g:'表の操作',label:'↤列挿入',run:()=>insertColAtSel()}, t_delcol:{g:'表の操作',label:'✂列削除',run:()=>deleteColAtSel()},
-  t_copy:{g:'表の操作',label:'⧉コピー',run:()=>copyCell()}, t_paste:{g:'表の操作',label:'📥貼付',run:()=>pasteCell()},
+  t_copy:{g:'表の操作',label:'⧉コピー',run:()=>copyCell()}, t_paste:{g:'表の操作',label:'📥貼付',run:()=>pasteCellSmart()},
+  t_lock:{g:'表の操作',label:'🔒保護',run:()=>toggleUserLock(selR,selC)},
   t_clear:{g:'表の操作',label:'🧹消去',run:()=>clearSelection()}, t_home:{g:'表の操作',label:'⇱A1へ',run:()=>sel(0,0)},
 };
 /* 選択中のセルに今日の日付を入れる（日付として自動認識される） */
@@ -13697,7 +13745,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v313';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v314';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -14364,11 +14412,14 @@ document.querySelector('.stats-section').addEventListener('click', e=>{
   setTimeout(()=>sv.classList.remove('stat-copied'),700);
 });
 
-/* ── セルの長押し操作（フィル／保護／設定） ──
+/* ── セルの長押し操作（フィル／メニュー） ──
    セルを押して…
    ・動かす（スライド）→ フィル（値・数式を範囲コピー）
-   ・動かさず約1.0秒で「保護アーム」（赤枠）→ 離すと保護のオン/オフ切替
-   ・さらに動かさず約1.7秒で「設定アーム」（紫枠）→ 離すと書式・保護設定を開く */
+   ・動かさず約1.0秒で枠が紫（メニューアーム）→ 離すとメニュー
+     （🎨書式・⧉コピー・📥貼り付け・🧹消去・🔒保護）
+   以前は「1.0秒＝保護の切替／1.7秒＝メニュー」だったが、スマホのふつうの長押しと
+   同じく「長押し＝メニューが出て、その中の貼り付けを押す」形にそろえた。
+   保護はメニューの中に残してある。 */
 let fillMode=false, fillSrcR=-1, fillSrcC=-1, fillEndR=-1, fillEndC=-1;
 let pinchZooming=false;   // 2本指ピンチでセル倍率を変更中（他のタッチ処理を抑止）
 let fillJustCommitted=false;   // フィル/保護/設定の直後、1回だけクリック（セル選択）を抑止
@@ -14376,9 +14427,9 @@ let fillJustCommitted=false;   // フィル/保護/設定の直後、1回だけ�
 let lpR=-1, lpC=-1, lpX=0, lpY=0, lpMoved=false, lpStage=0;   // stage: 0=なし, 2=保護, 3=設定
 let lpFromActive=false;   // 選択中(アクティブ)セルから押し始めたか（すぐ動かすと範囲選択）
 let rangeDragging=false;  // スライドで範囲選択中
-let lpFillTimer=null, lpLockTimer=null, lpSetgsTimer=null;
-const LP_FILL_MS=550, LP_LOCK_MS=1000, LP_SETGS_MS=1700, LP_MOVE_TOL=8;
-function lpClearTimers(){ clearTimeout(lpFillTimer); clearTimeout(lpLockTimer); clearTimeout(lpSetgsTimer); lpFillTimer=lpLockTimer=lpSetgsTimer=null; }
+let lpFillTimer=null, lpMenuTimer=null;
+const LP_FILL_MS=550, LP_MENU_MS=1000, LP_MOVE_TOL=8;
+function lpClearTimers(){ clearTimeout(lpFillTimer); clearTimeout(lpMenuTimer); lpFillTimer=lpMenuTimer=null; }
 function lpSetArmVisual(cls){
   const el=document.getElementById(`c${lpR}_${lpC}`);
   if(el){ el.classList.remove('lock-arm','setgs-arm'); if(cls) el.classList.add(cls); }
@@ -14390,8 +14441,7 @@ function startCellPress(r,c,x,y){
   lpFromActive=(r===selR && c===selC); rangeDragging=false;
   lpClearTimers();
   lpFillTimer=setTimeout(()=>{ lpFillTimer=null; if(!lpMoved){ fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; } }, LP_FILL_MS);
-  lpLockTimer=setTimeout(()=>{ lpLockTimer=null; if(lpMoved) return; lpStage=2; lpSetArmVisual('lock-arm'); if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} }, LP_LOCK_MS);
-  lpSetgsTimer=setTimeout(()=>{ lpSetgsTimer=null; if(lpMoved) return; lpStage=3; lpSetArmVisual('setgs-arm'); if(navigator.vibrate){try{navigator.vibrate([15,40,15]);}catch(_){}} }, LP_SETGS_MS);
+  lpMenuTimer=setTimeout(()=>{ lpMenuTimer=null; if(lpMoved) return; lpStage=2; lpSetArmVisual('setgs-arm'); if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} }, LP_MENU_MS);
 }
 function moveCellPress(x,y){
   if(lpR<0) return false;
@@ -14399,7 +14449,7 @@ function moveCellPress(x,y){
     const dx=x-lpX, dy=y-lpY;
     if(dx*dx+dy*dy>LP_MOVE_TOL*LP_MOVE_TOL){
       lpMoved=true;
-      clearTimeout(lpLockTimer); clearTimeout(lpSetgsTimer); lpLockTimer=lpSetgsTimer=null;
+      clearTimeout(lpMenuTimer); lpMenuTimer=null;
       lpStage=0; lpClearArmVisual();
       if(fillMode){   // フィル成立：ここで初めて元セルを強調＆文字選択を抑止
         const el=document.getElementById(`c${fillSrcR}_${fillSrcC}`); if(el) el.classList.add('fill-src');
@@ -14432,8 +14482,7 @@ function endCellPress(){
   rangeDragging=false;
   fillMode=false; document.body.classList.remove('fill-active');
   fillSrcR=fillSrcC=fillEndR=fillEndC=-1;
-  if(stage===3){ fillJustCommitted=true; showCellMenu(r,c); return; }               // さらに長押し＝メニュー（書式・コピー等）
-  if(stage===2){ fillJustCommitted=true; sel(r,c); toggleUserLock(r,c); return; }  // 長押し＝保護切替
+  if(stage===2){ fillJustCommitted=true; showCellMenu(r,c); return; }   // 長押し＝メニュー（書式・コピー・貼り付け・消去・保護）
   // それ以外（短い押下・小移動）は通常のクリック（セル選択）に任せる
 }
 function cancelCellPress(){

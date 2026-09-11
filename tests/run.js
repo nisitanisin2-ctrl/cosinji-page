@@ -346,6 +346,64 @@ async function runMode(browser) {
   await ctx.close();
 }
 
+/* セルの長押し＝メニュー（スマホのふつうの長押しと同じ）。貼り付けが一番上。 */
+async function runCellMenu(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true,
+                                         permissions: ['clipboard-read', 'clipboard-write'] });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+  page.on('dialog', d => d.accept());
+  await page.goto(INDEX); await page.waitForTimeout(300);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload(); await page.waitForTimeout(900);
+  console.log('\n── セルの長押しメニュー ──');
+
+  // 1秒の長押しでメニューが出る（保護にはならない）
+  const bx = await page.evaluate(() => {
+    const b = document.getElementById('c1_1').getBoundingClientRect();
+    return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+  });
+  await page.mouse.move(bx.x, bx.y); await page.mouse.down();
+  await page.waitForTimeout(1100);
+  await page.mouse.up(); await page.waitForTimeout(400);
+  check('  長押しでメニューが出る',
+        await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show')), true);
+  check('  長押しでは保護にならない', await page.evaluate(() => isLockedCell(1, 1)), false);
+  check('  並びは 貼り付け→コピー→保護→消去→書式',
+        await page.evaluate(() => [...document.querySelectorAll('#cellMenu button')]
+          .map(b => b.textContent.trim().split(' ').pop()).join('/')),
+        '貼り付け/コピー/保護/消去/書式');
+
+  // 端末でコピーした文字を貼れる
+  await page.evaluate(() => navigator.clipboard.writeText('こんにちは'));
+  await page.evaluate(() => cellMenuAct('paste')); await page.waitForTimeout(700);
+  check('  端末のコピー内容を貼れる', await page.evaluate(() => data[1][1]), 'こんにちは');
+
+  // タブ・改行で区切られていれば表の形のまま広がり、戻るは1回で済む
+  await page.evaluate(() => navigator.clipboard.writeText('10\t20\n30\t40'));
+  await page.evaluate(() => sel(3, 0)); await page.waitForTimeout(200);
+  await page.evaluate(() => cellMenuAct('paste')); await page.waitForTimeout(800);
+  check('  表の形のまま広がる',
+        await page.evaluate(() => [data[3][0], data[3][1], data[4][0], data[4][1]].join(',')), '10,20,30,40');
+  await page.evaluate(() => undoLast()); await page.waitForTimeout(600);
+  check('  ↶戻る1回でまとめて戻せる',
+        await page.evaluate(() => [data[3][0], data[3][1], data[4][0], data[4][1]].join(',')), ',,,');
+
+  // 保護はメニューから
+  await page.evaluate(() => { sel(1, 1); cellMenuAct('lock'); }); await page.waitForTimeout(400);
+  check('  メニューから保護にできる', await page.evaluate(() => isLockedCell(1, 1)), true);
+
+  // 登録（ボタンの機能）に 🔒保護 がある
+  check('  登録の機能に🔒保護がある',
+        await page.evaluate(() => KEY_FUNCS.t_lock ? KEY_FUNCS.t_lock.g + '/' + KEY_FUNCS.t_lock.label : 'なし'),
+        '表の操作/🔒保護');
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 async function runDigit(browser) {
   const { CASES, BIG, TYPING, FORMULA } = require('./digit.test.js');
   const { ctx, page, errs } = await newPage(browser);
@@ -399,6 +457,7 @@ async function runDigit(browser) {
     if (!only || only === 'a11y') await runA11y(browser);
     if (!only || only === 'mode') await runMode(browser);
     if (!only || only === 'digit') await runDigit(browser);
+    if (!only || only === 'cellmenu') await runCellMenu(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
