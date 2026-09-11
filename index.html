@@ -532,7 +532,26 @@ body.dentaku-mode .formula-bar { display: none !important; }
 .app-toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 
 /* セル番号・入力欄・合計を1本にまとめた帯。以前は入力欄の帯と合計の帯で2本使っていた。 */
+/* 入力中の数字の桁の読み。数式バーの下へ浮かせて出すので、出ても表がずれない。
+   4桁以下では出ないので、普段は何も見えない。 */
+.digit-hint {
+  position: absolute; top: 100%; right: 6px; z-index: 6;
+  display: flex; align-items: center; gap: 7px;
+  background: var(--formula-bg);
+  border: 1px solid var(--formula-border); border-top: none;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,.18);
+  padding: 2px 10px 3px;
+  font-size: calc(12px * var(--formula-scale, 1));
+  color: var(--text-light);
+  white-space: nowrap; pointer-events: none;
+  max-width: calc(100% - 12px); overflow: hidden;
+}
+.digit-hint .dh-kanji { color: var(--acc); font-weight: bold; font-size: calc(15px * var(--formula-scale, 1)); }
+.digit-hint .dh-eq { opacity: .55; }
+
 .formula-bar {
+  position: relative;   /* 桁の読みをこのバーの下へ浮かせるため */
   display: flex;
   align-items: center;
   background: var(--formula-bg);
@@ -2470,6 +2489,7 @@ body.dark {
         <option value="wareki">令和8年7月7日</option>
       </select>
     </div>
+    <button class="set-act" id="digitHintBtn" onclick="toggleDigitHint()" title="入力中の数字を「5,000,000 ＝ 500万」のように数式バーの下に出します（1万以上のときだけ）">入力中の数字の桁を出す</button>
     <div class="set-sec">📋 ひな形（テンプレ）とモード</div>
     <div class="set-note">ひな形は<b>テンキーの「モード」キー</b>や<b>⋯→🎯用途から始める</b>からも選べます（目的別に並べてあります）。</div>
     <button class="set-act" onclick="openCalcTmpl()" title="色々な計算式のひな形（約20種類）を選んで、値を入れるだけの状態にします">計算式テンプレ</button>
@@ -2511,6 +2531,9 @@ body.dark {
     <button class="stat-yen" id="statYenBtn" title="タップで兆・億・万表示に切替">¥</button>
   </div>
   <button class="stat-edge" id="numpadEdgeBtn" onclick="toggleNumpadEdge()" title="テンキーを閉じる（端まで収納）">▼</button>
+  <!-- 入力中の数字の桁の読み（例 5,000,000 ＝ 500万）。4桁以下では出ない。
+       表がずれないように、バーの下へ浮かせて出す -->
+  <div class="digit-hint" id="digitHint" hidden aria-live="polite"></div>
 </div>
 
 <div class="sheet-wrap">
@@ -3799,6 +3822,7 @@ body.dark {
           <div class="help-li"><span class="help-tag">Σ</span> を押すと隣の連続データを自動で合計し <b>=SUM(範囲)</b> を作成 → <b>Enter</b>で確定。</div>
           <div class="help-li">押した後に<b>セルを始点→終点までスライド</b>で合計範囲を指定できます（タップで1セル）。</div>
           <div class="help-li"><b>Σを長押し</b>で「合計／平均」を選べます（選んだ方を記憶し、ボタン表示も変わります）。</div>
+          <div class="help-li"><b>入力中の数字の桁</b>（v312から）：1万以上の数字を入れていると、入力欄の下に <b>5,000,000 ＝ 500万</b> のように出ます。打っている途中から出るので、0の数を数えなくてもすみます。数式のセルを選んだときは<b>計算結果</b>の桁を出します。いらないときは<b>設定→🧮計算→入力中の数字の桁を出す</b>で消せます。</div>
           <div class="help-li"><b>入力欄の右の合計</b>：列・行を選ぶと合計を表示（数値が無いときは出ません）。<b>「合計」タップで合計⇄平均</b>／<b>「¥」タップで数字⇄漢数字</b>（兆・億・万）／<b>数値タップでコピー</b>。</div>
         </div>
       </details>
@@ -10444,6 +10468,7 @@ function sel(r,c) {
   op1=null; cur_op=null; waiting=false;
   updateStats(c);
   updateDateBadge();   // 日付書式のセルはセル番号枠に印を出す
+  updateDigitHint();   // 選んだセルの数字の桁を出す
   a11yAnnounceCell(r,c);   // 選んだセルを読み上げ用の欄に出す
   tellCellError(r,c);  // エラーのセルなら、なぜそうなったかを一言出す
   document.getElementById(`c${r}_${c}`).scrollIntoView({block:'nearest',inline:'nearest'});
@@ -10579,6 +10604,51 @@ function toKanjiNum(n) {
   if (result==='') result='0';
   if (frac>0) result += String(Math.round(frac*1000)/1000).slice(1);   // ".xxx"
   return sign+result;
+}
+
+/* ── 入力中の数字の桁の読み ──
+   5000000 と打っても何百万なのかすぐ分からない。入れている数字を
+   「5,000,000 ＝ 500万」のように数式バーの下に出して、桁をその場で分かるようにする。
+   4桁以下は見れば分かるので出さない。数式・文字のときも出さない。 */
+let digitHintOn = localStorage.getItem('excalc_digithint')!=='0';   // 既定は出す
+function digitGroups(s){                       // 打った桁をそのまま3桁区切りにする（丸めない）
+  const m=String(s).match(/^([-+]?)(\d+)(\.\d+)?$/); if(!m) return '';
+  return m[1]+m[2].replace(/\B(?=(\d{3})+(?!\d))/g,',')+(m[3]||'');
+}
+function digitHintParts(src){
+  if(!digitHintOn) return null;
+  let t=String(src==null?'':src).trim().replace(/,/g,'');
+  if(!t || t.startsWith('=')) return null;
+  if(!/^[-+]?\d+(\.\d+)?$/.test(t)) return null;         // 数字だけのときに出す
+  const n=Number(t);
+  if(!isFinite(n) || Math.abs(n)<10000) return null;       // 4桁以下は出さない
+  return { num:digitGroups(t), kanji:toKanjiNum(n) };
+}
+function updateDigitHint(){
+  const el=document.getElementById('digitHint'); if(!el) return;
+  let src='';
+  if(typeof isDentaku==='function' && isDentaku()){
+    src=(typeof disp_val!=='undefined')?disp_val:'';       // 電卓モードは表示中の数
+  } else {
+    const fi=document.getElementById('formulaInput');
+    src=fi?fi.value:'';
+    if((!src || src.startsWith('=')) && typeof getCellDisplay==='function'){
+      try{ src=getCellDisplay(selR,selC); }catch(_){ src=''; }   // 数式セルは計算結果の桁を出す
+    }
+  }
+  const p=digitHintParts(src);
+  if(!p){ el.hidden=true; el.textContent=''; return; }
+  el.innerHTML=`<span class="dh-num">${escHtml(p.num)}</span>`
+              +`<span class="dh-eq">＝</span>`
+              +`<span class="dh-kanji">${escHtml(p.kanji)}</span>`;
+  el.hidden=false;
+}
+function toggleDigitHint(){
+  digitHintOn=!digitHintOn;
+  localStorage.setItem('excalc_digithint', digitHintOn?'1':'0');
+  const b=document.getElementById('digitHintBtn'); if(b) b.classList.toggle('on', digitHintOn);
+  updateDigitHint();
+  toast(digitHintOn?'入力中の数字の桁を出します（例 5,000,000 ＝ 500万）':'桁の表示をやめました');
 }
 
 let lastStatNums=null;    // 直近の対象数値（合計・平均の計算元）
@@ -10954,7 +11024,7 @@ function dtApplyMode(){
 }
 
 function refreshDisp() {
-  if (isDentaku()) { dtRender(); return; }   // 電卓モードはセル・数式バーに触らない
+  if (isDentaku()) { dtRender(); updateDigitHint(); return; }   // 電卓モードはセル・数式バーに触らない
   const fi=document.getElementById('formulaInput');
   const el=document.getElementById(`c${selR}_${selC}`);
   if (formulaEditMode) { if(el) el.textContent=fi.value||'='; return; }
@@ -10962,6 +11032,7 @@ function refreshDisp() {
   const preview=(waiting&&op1!==null)?fmtNum(op1):disp_val;
   if (el) el.textContent=preview;
   if (!fi.matches(':focus')) fi.value=preview;
+  updateDigitHint();
 }
 function numpadAppend(char) {
   const fi=document.getElementById('formulaInput');
@@ -11267,6 +11338,7 @@ function toCell() {
     fiDirty=true;      // 実際の入力・ペーストがあった（プログラムでの value 設定では発火しない）
     const el=document.getElementById(`c${selR}_${selC}`);
     if(el) el.textContent=fi.value||getCellDisplay(selR,selC);
+    updateDigitHint();
   });
   fi.addEventListener('blur', ()=>{
     const btn=document.getElementById('textBtn');
@@ -13608,7 +13680,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v311';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v312';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -15115,6 +15187,9 @@ setEnterDir(enterMoveDir);                 // Enterで進む向きを復元
   const stt=document.getElementById('sheetToggleBtn'); if(stt) stt.classList.toggle('on', showSheetTabs); }
 applyResizerBar();   // 調整バーの表示/非表示を復元
 applyPageBar();      // テンキーのページ表示の有無を復元
+(function(){ const b=document.getElementById('digitHintBtn');
+  if(b) b.classList.toggle('on', digitHintOn);
+  if(typeof updateDigitHint==='function') updateDigitHint(); })();   // 桁の表示を復元
 applySetDetail();    // 「くわしい設定」の開閉を復元
 applySetKeypadAcc(); // その中の「テンキーを自分好みにする」の開閉を復元（既定は閉じたまま）
 a11yInit();          // 読み上げ・キーボード操作の下ごしらえ（見た目は変えない）
