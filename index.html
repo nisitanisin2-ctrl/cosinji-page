@@ -4032,7 +4032,7 @@ body.dark {
             <tr><td><b>⚠（橙）</b></td><td><b>ファイルへの書き出しをおすすめします</b>。まだ一度も書き出していないか、最後の書き出しから14日以上経っています</td></tr>
           </table>
           <div class="help-li"><b>安全さは3段階あります</b>。①<b>いまの表</b>＝書き換えるたび端末に自動保存（閉じても戻る）／②<b>記録</b>＝名前を付けて残す（置き場所はやはり端末）／③<b>ファイルに書き出す</b>＝端末の外に残る。<b>ブラウザのデータを消しても戻せるのは③だけ</b>です。リストの<b>⬇書き出し</b>をときどき使ってください。<br>端末の空きが足りなくて保存できなかったときは、<b>はっきりお知らせします</b>（「保存しました」とは言いません）。</div>
-          <div class="help-li"><b>保存</b>：タップで<b>上書き保存</b>、<b>長押しで「名前を付けて保存」</b>（記録を開いていない・🔒ロック中はタップでも名前を付けて保存）。上のバーに<b>今の記録名（📄）</b>が出て、未保存の変更があると<b>●</b>が付きます。<b>リスト</b>で保存データ一覧を開きます。</div>
+          <div class="help-li"><b>保存</b>：タップで<b>上書き保存</b>、<b>長押しで「名前を付けて保存」</b>（記録を開いていない・🔒ロック中はタップでも名前を付けて保存）。上のバーに<b>今の記録名（📄）</b>が出て、未保存の変更があると<b>●</b>が付きます。<b>リスト</b>で保存データ一覧を開きます。名前を付けて保存するときの<b>最初の名前は Book1・Book2…</b>です（v318から。以前は日付でした）。空いている番号が出るので、そのまま保存しても名前が重なりません。</div>
           <div class="help-li"><b>1記録＝全モードのスナップショット</b>：通常・買物・容積など全モードのシートをまとめて保存。読み込むと各モードがその記録に置き換わり、保存時のモードで開き直します（以前の「1モードだけの記録」も読み込めます）。リストで<b>今開いている記録</b>は緑でハイライトされ「📂開いています」と表示。</div>
           <div class="help-li"><b>リセット</b>は<b>今のシートだけ</b>を消去（記録との紐付けは保持）。まっさらにするときはリストの<b>🆕新規</b>ボタン。</div>
           <table class="help-tbl">
@@ -13842,7 +13842,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v317';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v318';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -14930,12 +14930,20 @@ async function saveData() {
   }
   await saveAsData();
 }
+/* 保存するときの最初の名前。日付だとどれがどれだか分かりにくいので、
+   エクセルと同じように Book1・Book2… と空いている番号を出す。
+   （番号は今ある記録の名前を見て決めるので、消したぶんの番号はまた使う） */
+function nextBookName(saves){
+  const used=new Set((saves||[]).map(s=>String(s.name).trim()));
+  for(let n=1;n<10000;n++){ const name='Book'+n; if(!used.has(name)) return name; }
+  return 'Book'+Date.now();
+}
 /* 名前を付けて保存（新しい記録を作る）。保存ボタンの長押しでも呼ばれる */
 async function saveAsData() {
   const btn=document.getElementById('saveBtn');
   const saves=getSaves();
   const cur=(currentSaveId!=null)?saves.find(s=>s.id===currentSaveId):null;
-  const defaultName=new Date().toLocaleString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const defaultName=nextBookName(saves);
   const name=await appPrompt('保存名を入力してください', cur?cur.name:defaultName);
   if(name===null) return;
   const id=Date.now();

@@ -520,6 +520,24 @@ async function runSaveList(browser) {
   check('  大きさと並べ替えも覚えている',
         await page.evaluate(() => saveSize + '/' + saveSort), 'l/namez');
 
+  // 保存するときの最初の名前は Book1・Book2…（日付ではない）
+  const nn = arr => page.evaluate(a => nextBookName(a), arr);
+  check('  記録が無ければ Book1', await nn([]), 'Book1');
+  check('  Book1 があれば Book2', await nn([{ name: 'Book1' }]), 'Book2');
+  check('  Book1,2 があれば Book3', await nn([{ name: 'Book1' }, { name: 'Book2' }]), 'Book3');
+  check('  空いている番号を使う', await nn([{ name: 'Book2' }]), 'Book1');
+  check('  別の名前だけなら Book1', await nn([{ name: '4月の売上' }]), 'Book1');
+  check('  前後に空白があっても同じ名前とみなす', await nn([{ name: ' Book1 ' }]), 'Book2');
+  check('  保存画面の最初の名前', await page.evaluate(async () => {
+    localStorage.removeItem('excalc_saves');
+    let seen = null;
+    const org = window.appPrompt;
+    window.appPrompt = (m, d) => { seen = d; return Promise.resolve(null); };
+    await saveAsData();
+    window.appPrompt = org;
+    return seen;
+  }), 'Book1');
+
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();
