@@ -430,6 +430,14 @@ async function runSaveList(browser) {
   await page.waitForTimeout(300);
   check('  ⋯でメニューが出る',
         await page.evaluate(() => document.getElementById('saveFileMenu').classList.contains('show')), true);
+  // 保存リストの下に隠れない（リストは z-index 1000）
+  check('  メニューはリストの上に出る', await page.evaluate(() => {
+    const m = +getComputedStyle(document.getElementById('saveFileMenu')).zIndex;
+    const o = +getComputedStyle(document.getElementById('saveListOverlay')).zIndex;
+    return m > o; }), true);
+  check('  メニューが画面からはみ出さない', await page.evaluate(() => {
+    const b = document.getElementById('saveFileMenu').getBoundingClientRect();
+    return b.top >= 0 && b.bottom <= window.innerHeight + 0.5 && b.left >= 0; }), true);
   check('  メニューの中身',
         await page.evaluate(() => [...document.querySelectorAll('#saveFileMenu button')]
           .map(b => b.textContent.trim().split(' ').pop()).join('/')),
@@ -543,6 +551,52 @@ async function runSaveList(browser) {
   await ctx.close();
 }
 
+/* 上のバーに出すボタン（設定→🎨見た目→くわしい設定） */
+async function runTopBar(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 820 }, hasTouch: true });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+  page.on('dialog', d => d.accept());
+  await page.goto(INDEX); await page.waitForTimeout(300);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload(); await page.waitForTimeout(900);
+  console.log('\n── 上のバーに出すボタン ──');
+
+  const shown = () => page.evaluate(() => ['tbRedo', 'tbList', 'tbSheet', 'tbSet', 'tbDefsize', 'tbReset']
+    .filter(id => { const el = document.getElementById(id);
+                    return el && getComputedStyle(el).display !== 'none'; }).join(','));
+  check('  はじめは何も出さない', await shown(), '');
+  check('  設定に選ぶところがある',
+        await page.evaluate(() => document.querySelectorAll('#topBtnToggles .topbtn-toggle').length), 6);
+
+  await page.evaluate(() => { if (typeof toggleTopBtn !== 'function') return;
+    toggleTopBtn('list'); toggleTopBtn('redo'); toggleTopBtn('reset'); });
+  await page.waitForTimeout(300);
+  check('  選んだものが上のバーに出る', await shown(), 'tbRedo,tbList,tbReset');
+  check('  設定の印も付く',
+        await page.evaluate(() => [...document.querySelectorAll('#topBtnToggles .topbtn-toggle')]
+          .filter(b => b.classList.contains('on')).map(b => b.dataset.btn).sort().join(',')), 'list,redo,reset');
+  check('  375pxでも横にはみ出さない', await page.evaluate(() => {
+    const t = document.getElementById('mainToolbar'); return t.scrollWidth <= t.clientWidth + 1; }), true);
+
+  const tbRedoDisabled = () => page.evaluate(() => {
+    const el = document.getElementById('tbRedo'); return el ? el.disabled : '(↷が無い)'; });
+  check('  ↷は戻す操作が無いうちは押せない', await tbRedoDisabled(), true);
+  await page.evaluate(() => { setCellVal(0, 0, 'あ'); undoLast(); }); await page.waitForTimeout(400);
+  check('  戻したあとは↷が押せる', await tbRedoDisabled(), false);
+
+  await page.evaluate(() => { if (typeof toggleTopBtn === 'function') toggleTopBtn('list'); });
+  await page.waitForTimeout(300);
+  check('  もう一度押すとしまえる', await shown(), 'tbRedo,tbReset');
+  await page.reload(); await page.waitForTimeout(900);
+  check('  開き直しても覚えている', await shown(), 'tbRedo,tbReset');
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 async function runDigit(browser) {
   const { CASES, BIG, TYPING, FORMULA } = require('./digit.test.js');
   const { ctx, page, errs } = await newPage(browser);
@@ -598,6 +652,7 @@ async function runDigit(browser) {
     if (!only || only === 'digit') await runDigit(browser);
     if (!only || only === 'cellmenu') await runCellMenu(browser);
     if (!only || only === 'savelist') await runSaveList(browser);
+    if (!only || only === 'topbar') await runTopBar(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
