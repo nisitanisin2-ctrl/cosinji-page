@@ -452,11 +452,46 @@ async function runSaveList(browser) {
   check('  長押しでは読み込まれない', await page.evaluate(() => currentSaveId), 'null');
   await page.evaluate(() => hideSaveFileMenu()); await page.waitForTimeout(200);
 
+  // 並べ替え（新しい順・古い順・名前順）。名前は日本語の並びで、数字は 2→10 の順。
+  const names = () => page.evaluate(() => [...document.querySelectorAll('.sf-name')].map(e => e.textContent).join('/'));
+  await page.evaluate(() => {
+    const list = ['見積もり10', '見積もり2', 'あさひ工区', '4月の売上'];
+    localStorage.setItem('excalc_saves', JSON.stringify(list.map((n, i) => ({
+      id: 2000 + i, name: n, timestamp: Date.now() - i * 86400000, rows: 15, cols: 3, data: [['a']], tab: 0
+    }))));
+    setSaveView('icon'); renderSaveList();
+  });
+  await page.evaluate(() => setSaveSort('new'));  await page.waitForTimeout(300);
+  check('  新しい順', await names(), '見積もり10/見積もり2/あさひ工区/4月の売上');
+  await page.evaluate(() => setSaveSort('old'));  await page.waitForTimeout(300);
+  check('  古い順', await names(), '4月の売上/あさひ工区/見積もり2/見積もり10');
+  await page.evaluate(() => setSaveSort('name')); await page.waitForTimeout(300);
+  check('  名前順（数字は2→10の順）', await names(), '4月の売上/あさひ工区/見積もり2/見積もり10');
+  await page.evaluate(() => setSaveSort('namez')); await page.waitForTimeout(300);
+  check('  名前の逆順', await names(), '見積もり10/見積もり2/あさひ工区/4月の売上');
+
+  // 大きさ（小・中・大）
+  const colw = () => page.evaluate(() => getComputedStyle(document.querySelector('.save-grid'))
+    .getPropertyValue('--sf-col').trim());
+  await page.evaluate(() => setSaveSize('s')); await page.waitForTimeout(300);
+  check('  小さいアイコン', await colw(), '66px');
+  await page.evaluate(() => setSaveSize('m')); await page.waitForTimeout(300);
+  check('  ふつうのアイコン', await colw(), '88px');
+  await page.evaluate(() => setSaveSize('l')); await page.waitForTimeout(300);
+  check('  大きいアイコン', await colw(), '116px');
+
   // リスト表示にも戻せて、その選択は覚えている
   await page.evaluate(() => setSaveView('list')); await page.waitForTimeout(400);
   check('  リスト表示に戻せる', await page.evaluate(() => document.querySelectorAll('.save-item').length), 4);
+  check('  リストでも並べ替えは効く',
+        await page.evaluate(() => [...document.querySelectorAll('.save-name')].map(e => e.textContent.trim()).join('/')),
+        '見積もり10/見積もり2/あさひ工区/4月の売上');
+  check('  リストでは大きさのボタンを隠す',
+        await page.evaluate(() => getComputedStyle(document.getElementById('saveSizeBar')).display), 'none');
   await page.reload(); await page.waitForTimeout(900);
   check('  開き直しても表示を覚えている', await page.evaluate(() => saveView), 'list');
+  check('  大きさと並べ替えも覚えている',
+        await page.evaluate(() => saveSize + '/' + saveSort), 'l/namez');
 
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
