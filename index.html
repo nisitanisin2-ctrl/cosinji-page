@@ -3953,7 +3953,7 @@ body.dark {
           <div class="help-li"><span class="help-tag">Σ</span> を押すと隣の連続データを自動で合計し <b>=SUM(範囲)</b> を作成 → <b>Enter</b>で確定。</div>
           <div class="help-li">押した後に<b>セルを始点→終点までスライド</b>で合計範囲を指定できます（タップで1セル）。</div>
           <div class="help-li"><b>Σを長押し</b>で「合計／平均」を選べます（選んだ方を記憶し、ボタン表示も変わります）。</div>
-          <div class="help-li"><b>記録の並べ方</b>（v315から）：保存データ一覧は<b>⊞アイコン</b>と<b>☰リスト</b>を切り替えられます。<b>アイコン</b>はエクスプローラーのようにファイルが並ぶ形で、<b>短くタップで開きます</b>（v320から確認は出ません。<b>↶戻る</b>で開く前の表に戻せます）。<b>⋯か長押し</b>でメニューが出て、<b>📂開く・✏名前の変更・⧉コピーを作る・🔒ロック・🔀モードへ登録・🗂他のタブへ移す・🗑削除</b>ができます（v317でコピーを追加）。長押しでメニューを出したときは、指を離しても<b>記録は開きません</b>（v320で修正）。<b>コピー</b>は中身ごと複製した別の記録になるので、元をそのまま残して作りかえられます（名前は「◯◯ のコピー」）。絵は保存したときのモードのものになります（🔒はロック中、📂は今開いている記録）。アイコンの<b>大きさ</b>（小・中・大）と<b>並べ替え</b>（新しい順・古い順・名前順 あ→ん／ん→あ）も選べます。名前順は日本語の並びで、<b>見積もり2 → 見積もり10</b> のように数字も数の順になります（並べ替えはリスト表示にも効きます）。選んだ表示・大きさ・並び順は次に開いたときも残ります。</div>
+          <div class="help-li"><b>記録の並べ方</b>（v315から）：保存データ一覧は<b>⊞アイコン</b>と<b>☰リスト</b>を切り替えられます。<b>アイコン</b>はエクスプローラーのようにファイルが並ぶ形で、<b>短くタップで開きます</b>（v320から確認は出ません。<b>↶戻る</b>で開く前の表に戻せます）。<b>⋯か長押し</b>でメニューが出て、<b>📂開く・✏名前の変更・⧉コピーを作る・🔒ロック・🔀モードへ登録・🗂他のタブへ移す・🗑削除</b>ができます（v317でコピーを追加）。長押しでメニューを出したときは、指を離しても<b>記録は開きません</b>。メニューの項目は<b>もう一度そこから押し直す</b>と動きます（v321。指の真下に出た項目が、離しただけで選ばれてしまうのを防ぐためです。セルの長押しメニューも同じです）。<b>コピー</b>は中身ごと複製した別の記録になるので、元をそのまま残して作りかえられます（名前は「◯◯ のコピー」）。絵は保存したときのモードのものになります（🔒はロック中、📂は今開いている記録）。アイコンの<b>大きさ</b>（小・中・大）と<b>並べ替え</b>（新しい順・古い順・名前順 あ→ん／ん→あ）も選べます。名前順は日本語の並びで、<b>見積もり2 → 見積もり10</b> のように数字も数の順になります（並べ替えはリスト表示にも効きます）。選んだ表示・大きさ・並び順は次に開いたときも残ります。</div>
           <div class="help-li"><b>入力中の数字の桁</b>（v312から）：1万以上の数字を入れていると、入力欄の下に <b>500万</b> のように読みが出ます。打っている途中から出るので、0の数を数えなくてもすみます。数式のセルを選んだときは<b>計算結果</b>の桁を出します。いらないときは<b>設定→🧮計算→入力中の数字の桁を出す</b>で消せます。</div>
           <div class="help-li"><b>入力欄の右の合計</b>：列・行を選ぶと合計を表示（数値が無いときは出ません）。<b>「合計」タップで合計⇄平均</b>／<b>「¥」タップで数字⇄漢数字</b>（兆・億・万）／<b>数値タップでコピー</b>。</div>
         </div>
@@ -5366,6 +5366,7 @@ function showCellMenu(r,c){
   const lockBtn=document.getElementById('cellMenuLock');
   lockBtn.textContent = isLockedCell(r,c) ? '🔓 保護をやめる' : '🔒 保護';
   back.classList.add('show'); menu.classList.add('show');
+  armOnRepress(menu); armOnRepress(back);   // 長押しの指を離しただけでは選ばれない／閉じない
   // セルの近く（下側優先、はみ出すなら上側）に配置
   const rect=td.getBoundingClientRect();
   const mw=menu.offsetWidth, mh=menu.offsetHeight;
@@ -13831,6 +13832,22 @@ function guardAfterOpen(overlayId){
   }, true);
 }
 
+/* 長押しで出したメニューは、指の真下に出る。そのまま指を離すと、真下にあった
+   項目（「開く」など）を押したことになってしまう。
+   そこで「もう一度そこから押し直すまで、中の項目は反応しない」ようにする。
+   押し直す＝メニューの上で新しく pointerdown が起きること。長押しの指を離すときは
+   pointerup とクリックしか来ないので、これで区別できる。 */
+function armOnRepress(el){
+  if(!el) return;
+  el.dataset.ready='';
+  if(el.dataset.repressBound) return;        // 見張りは1回だけ付ける
+  el.dataset.repressBound='1';
+  el.addEventListener('pointerdown', ()=>{ el.dataset.ready='1'; });   // 新しく押した＝ここから有効
+  el.addEventListener('click', e=>{
+    if(!el.dataset.ready){ e.preventDefault(); e.stopPropagation(); }
+  }, true);
+}
+
 function openUndoList(){
   const body=document.getElementById('undoListBody'); if(!body) return;
   if(!history.length){ if(typeof toast==='function') toast('取り消せる操作はありません'); return; }
@@ -13909,7 +13926,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v320';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v321';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -15274,6 +15291,7 @@ function showSaveFileMenu(id, el){
     + tabOpts
     +`<button onclick="saveFileMenuAct(${id},'delete')"${locked?' disabled':''}>🗑 削除</button>`;
   back.classList.add('show'); menu.classList.add('show');
+  armOnRepress(menu); armOnRepress(back);   // 長押しの指を離しただけでは選ばれない／閉じない
   // 画面からはみ出さない位置に置く。下にも上にも入りきらない高さのときは、
   // 画面いっぱいに収めて中をスクロールできるようにする（項目が切れて押せないのを防ぐ）
   menu.style.maxHeight=''; menu.style.overflowY='';
