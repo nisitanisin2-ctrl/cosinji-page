@@ -406,7 +406,7 @@ async function runCellMenu(browser) {
 
 /* 保存データ一覧の見せ方（アイコン＝エクスプローラー風／リスト） */
 async function runSaveList(browser) {
-  const { ctx, page, errs } = await newPage(browser);
+  const { ctx, page, errs, dialogs } = await newPage(browser);
   console.log('\n── 保存データ一覧の見せ方 ──');
   await page.evaluate(() => {
     const names = ['4月の売上', '材料費まとめ', '配合計算', '家計簿'];
@@ -475,17 +475,36 @@ async function runSaveList(browser) {
         await page.evaluate(() => [...document.querySelectorAll('.sf-name')].some(e => e.textContent === '4月の売上')), false);
   await page.evaluate(() => hideSaveFileMenu()); await page.waitForTimeout(200);
 
-  // 長押しでも同じメニュー（開いてしまわない）
-  const tb = await page.evaluate(() => {
-    const b = document.querySelectorAll('.save-file')[2].getBoundingClientRect();
+  // 長押しでも同じメニュー（指を離しても開いてしまわない）
+  const tileAt = n => page.evaluate(i => {
+    const b = document.querySelectorAll('.save-file')[i].getBoundingClientRect();
     return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
-  });
+  }, n);
+  dialogs.length = 0;
+  let tb = await tileAt(2);
   await page.mouse.move(tb.x, tb.y); await page.mouse.down();
-  await page.waitForTimeout(700); await page.mouse.up(); await page.waitForTimeout(400);
+  await page.waitForTimeout(700); await page.mouse.up(); await page.waitForTimeout(500);
   check('  長押しでもメニューが出る',
         await page.evaluate(() => document.getElementById('saveFileMenu').classList.contains('show')), true);
-  check('  長押しでは読み込まれない', await page.evaluate(() => currentSaveId), 'null');
-  await page.evaluate(() => hideSaveFileMenu()); await page.waitForTimeout(200);
+  check('  長押しで指を離しても開かない', await page.evaluate(() => currentSaveId), 'null');
+  check('  長押しでリストは開いたまま',
+        await page.evaluate(() => document.getElementById('saveListOverlay').classList.contains('open')), true);
+  await page.evaluate(() => hideSaveFileMenu()); await page.waitForTimeout(300);
+
+  // 短いタップなら開く。開くときの確認窓は出さず、↶戻る で前の表に戻せる
+  await page.evaluate(() => { sel(0, 0); setCellVal(0, 0, 'ひらく前の表'); showSaveList(); });
+  await page.waitForTimeout(500);
+  dialogs.length = 0;
+  tb = await tileAt(2);
+  await page.mouse.move(tb.x, tb.y); await page.mouse.down();
+  await page.waitForTimeout(80); await page.mouse.up(); await page.waitForTimeout(800);
+  check('  短いタップなら開く', await page.evaluate(() => currentSaveId !== null), true);
+  check('  開くときに確認窓を出さない', dialogs.length, 0);
+  check('  開いたらリストは閉じる',
+        await page.evaluate(() => document.getElementById('saveListOverlay').classList.contains('open')), false);
+  await page.evaluate(() => undoLast()); await page.waitForTimeout(600);
+  check('  ↶戻る で前の表に戻せる', await page.evaluate(() => data[0][0]), 'ひらく前の表');
+  await page.evaluate(() => { currentSaveId = null; showSaveList(); }); await page.waitForTimeout(500);
 
   // 並べ替え（新しい順・古い順・名前順）。名前は日本語の並びで、数字は 2→10 の順。
   const names = () => page.evaluate(() => [...document.querySelectorAll('.sf-name')].map(e => e.textContent).join('/'));
