@@ -3914,7 +3914,7 @@ body.dark {
           <div class="help-li"><span class="help-tag">Σ</span> を押すと隣の連続データを自動で合計し <b>=SUM(範囲)</b> を作成 → <b>Enter</b>で確定。</div>
           <div class="help-li">押した後に<b>セルを始点→終点までスライド</b>で合計範囲を指定できます（タップで1セル）。</div>
           <div class="help-li"><b>Σを長押し</b>で「合計／平均」を選べます（選んだ方を記憶し、ボタン表示も変わります）。</div>
-          <div class="help-li"><b>記録の並べ方</b>（v315から）：保存データ一覧は<b>⊞アイコン</b>と<b>☰リスト</b>を切り替えられます。<b>アイコン</b>はエクスプローラーのようにファイルが並ぶ形で、<b>タップで開く</b>／<b>⋯か長押し</b>で名前の変更・ロック・モードへ登録・タブの移動・削除ができます。絵は保存したときのモードのものになります（🔒はロック中、📂は今開いている記録）。アイコンの<b>大きさ</b>（小・中・大）と<b>並べ替え</b>（新しい順・古い順・名前順 あ→ん／ん→あ）も選べます。名前順は日本語の並びで、<b>見積もり2 → 見積もり10</b> のように数字も数の順になります（並べ替えはリスト表示にも効きます）。選んだ表示・大きさ・並び順は次に開いたときも残ります。</div>
+          <div class="help-li"><b>記録の並べ方</b>（v315から）：保存データ一覧は<b>⊞アイコン</b>と<b>☰リスト</b>を切り替えられます。<b>アイコン</b>はエクスプローラーのようにファイルが並ぶ形で、<b>タップで開く</b>／<b>⋯か長押し</b>でメニューが出て、<b>📂開く・✏名前の変更・⧉コピーを作る・🔒ロック・🔀モードへ登録・🗂他のタブへ移す・🗑削除</b>ができます（v317でコピーを追加）。<b>コピー</b>は中身ごと複製した別の記録になるので、元をそのまま残して作りかえられます（名前は「◯◯ のコピー」）。絵は保存したときのモードのものになります（🔒はロック中、📂は今開いている記録）。アイコンの<b>大きさ</b>（小・中・大）と<b>並べ替え</b>（新しい順・古い順・名前順 あ→ん／ん→あ）も選べます。名前順は日本語の並びで、<b>見積もり2 → 見積もり10</b> のように数字も数の順になります（並べ替えはリスト表示にも効きます）。選んだ表示・大きさ・並び順は次に開いたときも残ります。</div>
           <div class="help-li"><b>入力中の数字の桁</b>（v312から）：1万以上の数字を入れていると、入力欄の下に <b>500万</b> のように読みが出ます。打っている途中から出るので、0の数を数えなくてもすみます。数式のセルを選んだときは<b>計算結果</b>の桁を出します。いらないときは<b>設定→🧮計算→入力中の数字の桁を出す</b>で消せます。</div>
           <div class="help-li"><b>入力欄の右の合計</b>：列・行を選ぶと合計を表示（数値が無いときは出ません）。<b>「合計」タップで合計⇄平均</b>／<b>「¥」タップで数字⇄漢数字</b>（兆・億・万）／<b>数値タップでコピー</b>。</div>
         </div>
@@ -13842,7 +13842,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v316';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v317';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -15187,6 +15187,7 @@ function showSaveFileMenu(id, el){
   menu.innerHTML=
      `<button onclick="saveFileMenuAct(${id},'load')">📂 開く</button>`
     +`<button onclick="saveFileMenuAct(${id},'rename')"${locked?' disabled':''}>✏ 名前の変更</button>`
+    +`<button onclick="saveFileMenuAct(${id},'dup')">⧉ コピーを作る</button>`
     +`<button onclick="saveFileMenuAct(${id},'lock')">${locked?'🔓 ロックを解除':'🔒 ロック'}</button>`
     +`<button onclick="saveFileMenuAct(${id},'tomode')">🔀 モードへ登録</button>`
     + tabOpts
@@ -15207,6 +15208,7 @@ function saveFileMenuAct(id, a, arg){
   hideSaveFileMenu();
   if(a==='load') loadSave(id);
   else if(a==='rename') renameSave(id);
+  else if(a==='dup') duplicateSave(id);
   else if(a==='lock') toggleSaveLock(id);
   else if(a==='tomode') registerSaveAsMode(id);
   else if(a==='tab') setSaveItemTab(id, arg);
@@ -15317,6 +15319,29 @@ async function renameSave(id) {
   persistSaves(saves);
   renderSaveList();
   if(id===currentSaveId) updateRecordTitle();   // 開いている記録の名前が変わったら上のバーも更新
+}
+
+/* 記録のコピーを作る（元はそのまま。中身も書式もそっくり同じものがもう1つできる）。
+   名前は「◯◯ のコピー」。同じ名前があるときは「のコピー 2」「のコピー 3」…にする。
+   ロックは引き継がない（コピーはすぐ直せた方が使いやすいため）。 */
+function duplicateSave(id){
+  const saves=getSaves();
+  const entry=saves.find(s=>s.id===id); if(!entry) return;
+  const base=entry.name+' のコピー';
+  let name=base, n=2;
+  while(saves.some(s=>s.name===name)){ name=base+' '+n; n++; }
+  const copy=JSON.parse(JSON.stringify(entry));   // 中身ごと複製（元とつながらないように）
+  copy.id=Date.now()+Math.floor(Math.random()*100000);
+  while(saves.some(s=>s.id===copy.id)) copy.id++;
+  copy.name=name;
+  copy.timestamp=Date.now();
+  delete copy.locked;
+  if((entry.tab||0)===SAVE_TAB_MODE) copy.tab=0;   // モードのタブは登録専用なので「記録」へ
+  saves.push(copy);
+  if(!persistSaves(saves)){ return; }              // 入りきらなかったときは何も言い足さない（中で知らせる）
+  renderSaveList();
+  renderSaveStateBanner();
+  if(typeof toast==='function') toast(`「${name}」を作りました`);
 }
 
 function loadSave(id) {
