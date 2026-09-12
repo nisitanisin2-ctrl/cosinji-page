@@ -194,6 +194,9 @@ body.numpad-off .numpad-section { display: none; }
 /* 今開いている記録名の表示（ファイル名の感覚）。タップでリストを開く */
 .toolbar-title {
   display: block; box-sizing: border-box;
+  /* 上のバーにボタンを足したときは、記録名が先に縮んで場所をゆずる
+     （iPhone SE の 375px でも横スクロールが出ないように） */
+  flex: 0 1 auto; min-width: 44px;
   max-width: 118px; height: 30px; padding: 0 7px; line-height: 28px;
   font-size: 11px; font-weight: bold; color: #dff0e7;
   background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); border-radius: var(--r-btn);
@@ -253,6 +256,22 @@ body.numpad-off .numpad-section { display: none; }
 .btn-defsize { background: rgba(255,255,255,0.15); color: #fff; font-size: 13px; padding: 0 4px; }
 .btn-defsize:hover { background: rgba(255,255,255,0.28); }
 .btn-defsize.armed { background: rgba(255,255,255,0.4); }
+
+/* 設定「上のバーに出すボタン」で出せる追加ボタン。絵だけなので幅は詰める。
+   横に増えても iPhone SE（375px）で溢れないように、最小幅を小さくしてある。 */
+.btn-top-extra {
+  box-sizing: border-box; flex-shrink: 0;
+  background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.35);
+  color: #fff; font-size: 15px; font-weight: bold; line-height: 1;
+  min-width: 34px; height: 30px; padding: 0 6px;
+  border-radius: var(--r-btn); cursor: pointer; touch-action: manipulation;
+}
+.btn-top-extra:hover  { background: rgba(255,255,255,0.28); }
+.btn-top-extra:active { background: rgba(255,255,255,0.4); }
+.btn-top-extra:disabled { opacity: 0.4; }
+.btn-top-extra.armed { background: rgba(255,255,255,0.45); }
+.btn-top-reset { background: var(--danger-dark); border-color: rgba(255,255,255,0.35); }
+.btn-top-reset:hover { background: var(--danger); }
 
 /* ── シート機能：上メニューの「シート」ボタンでメニュー↔シート一覧を切り替え ── */
 /* 上のバーの「⋯」。保存・戻ると同じ高さでそろえる */
@@ -632,6 +651,10 @@ body.dark .date-badge { border-top-color: #82b1ff; }
 .enterdir-btn.on { background: var(--acc); color: #fff; border-color: var(--acc); }
 /* セル長押しメニュー */
 .cellmenu-backdrop { display: none; position: fixed; inset: 0; z-index: 70; }
+/* 記録の「⋯」メニューは保存リスト（modal-overlay = z-index 1000）の上に出す。
+   セルのメニューと同じ z-index のままだと、リストの下に隠れて見えなかった。 */
+#saveFileMenuBackdrop { z-index: 1010; }
+#saveFileMenu { z-index: 1011; }
 .cellmenu-backdrop.show { display: block; }
 .cell-menu {
   display: none; position: fixed; z-index: 71;
@@ -2376,6 +2399,14 @@ body.dark {
   <span class="toolbar-title" id="recordTitle" onclick="showSaveList()" title="今開いている記録（タップでリストを開く）">📄 未保存</span>
   <button class="btn-save menu-item" id="saveBtn" onclick="saveData()" title="上書き保存／長押しで名前を付けて保存">保存</button>
   <button class="btn-undo menu-item" id="undoBtn" onclick="undoLast()" disabled title="元に戻す">↶</button>
+  <!-- ここから下は、設定「上のバーに出すボタン」で選んだものだけ出る（既定は全部しまってある）。
+       中身は⋯メニューと同じ働きで、よく使うものを表に出しておける。 -->
+  <button class="btn-top-extra menu-item" id="tbRedo"    onclick="redoLast()" disabled style="display:none" title="進む（やり直す）">↷</button>
+  <button class="btn-top-extra menu-item" id="tbList"    onclick="showSaveList()" style="display:none" title="保存データ一覧">📋</button>
+  <button class="btn-top-extra menu-item" id="tbSheet"   onclick="toggleSheetTabs()" style="display:none" title="シートのタブを表示/非表示">🗂</button>
+  <button class="btn-top-extra menu-item" id="tbSet"     onclick="toggleSettings()" style="display:none" title="設定">⚙</button>
+  <button class="btn-top-extra menu-item" id="tbDefsize" style="display:none" title="タップで既定の行数・列数に／長押しで既定値を設定">▦</button>
+  <button class="btn-top-extra btn-top-reset menu-item" id="tbReset" onclick="resetAll()" style="display:none" title="表の中身を消す（戻るで元に戻せます）">🧹</button>
   <button class="btn-more" id="moreBtn" onclick="openMoreMenu()" title="そのほかの操作">⋯</button>
   <div class="sheet-bar" id="sheetBar"></div>
 </div>
@@ -2530,8 +2561,16 @@ body.dark {
     <button class="set-act" id="keypadEditBtn" onclick="toggleKeypadEdit()" title="テンキーのボタンをドラッグして好きな位置に入れ替えます（同じ大きさのボタン同士）">テンキーのボタン配置を編集</button>
       </div>
     </details>
-    <div class="set-sec">上のバー</div>
-    <div class="set-note">上のバーは <b>記録名・保存・↶戻る・⋯</b> の4つです。<b>リスト・進む・シート・設定・書き出し・既定の大きさ・ナイトモード・リセット</b>は <b>⋯</b> の中にまとめました（記録名をタップしてもリストが開きます）。</div>
+    <div class="set-sec">上のバーに出すボタン</div>
+    <div class="set-note">上のバーはふだん <b>記録名・保存・↶戻る・⋯</b> の4つです。よく使うものは、ここで選んで<b>上のバーに出しておけます</b>（どれも <b>⋯</b> の中にも入っています）。出しすぎるとバーが狭くなるので、必要なものだけどうぞ。</div>
+    <div class="topbtn-grid" id="topBtnToggles">
+      <button class="topbtn-toggle" data-btn="redo"    onclick="toggleTopBtn('redo')">↷ 進む</button>
+      <button class="topbtn-toggle" data-btn="list"    onclick="toggleTopBtn('list')">📋 リスト</button>
+      <button class="topbtn-toggle" data-btn="sheet"   onclick="toggleTopBtn('sheet')">🗂 シート</button>
+      <button class="topbtn-toggle" data-btn="settings" onclick="toggleTopBtn('settings')">⚙ 設定</button>
+      <button class="topbtn-toggle" data-btn="defsize" onclick="toggleTopBtn('defsize')">▦ 既定の大きさ</button>
+      <button class="topbtn-toggle" data-btn="reset"   onclick="toggleTopBtn('reset')">🧹 リセット</button>
+    </div>
       </div>
     </details>
   </div>
@@ -3885,7 +3924,7 @@ body.dark {
             <tr><td><span class="help-tag">文字</span></td><td>文字（テキスト）を入力</td></tr>
             <tr><td><span class="help-tag">モード</span></td><td>計算モードを切替</td></tr>
           </table>
-          <div class="help-li"><b>いちばん上の「道具の段」</b>（進む・戻る・リセット・▦通常・電卓）は、入力用のキーより低く色の違う段です。<b>▦通常</b>と<b>電卓</b>はモードの行き来に使います（表に戻る／電卓を出す）。ひな形の表のときに<b>▦通常</b>を押すと、<b>まっさらな表に戻ります</b>（確認は出ません。<b>↶戻る</b>でひな形に戻せます）。<b>どれも長押しで好きな機能に変えられます</b>（設定・機能／表の操作など）。進む・戻る・リセットは上のバーにもあるので、テンキー側で足りるなら設定→<b>🎨見た目→くわしい設定</b>の「上のバーのボタン」で上のバーから消すと、その分<b>表が広くなります</b>。</div>
+          <div class="help-li"><b>いちばん上の「道具の段」</b>（進む・戻る・リセット・▦通常・電卓）は、入力用のキーより低く色の違う段です。<b>▦通常</b>と<b>電卓</b>はモードの行き来に使います（表に戻る／電卓を出す）。ひな形の表のときに<b>▦通常</b>を押すと、<b>まっさらな表に戻ります</b>（確認は出ません。<b>↶戻る</b>でひな形に戻せます）。<b>どれも長押しで好きな機能に変えられます</b>（設定・機能／表の操作など）。上のバーにも出しておきたいときは、設定→<b>🎨見た目→くわしい設定→「上のバーに出すボタン」</b>で <b>↷進む・📋リスト・🗂シート・⚙設定・▦既定の大きさ・🧹リセット</b> を足せます（v319で復活。既定は出しません）。たくさん出すとバーが狭くなり、入りきらない分は横にスライドして出します。</div>
           <div class="help-li"><b>テンキーの上のページ表示</b>で、いまどのページに居るか分かります。<b>ページ名をタップ</b>するとそのページへ移動できます（数字の並びは「枠線・書式・数字・記号・関数」、右端の<b>▲登録</b>で登録ページの並びへ、<b>▼数字</b>で戻る）。設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーのページ表示</b>で消すこともできます。</div>
           <div class="help-li"><b>フリックでも切り替わります</b>（数字ページが土台。数字ページは<b>どこからでもフリック開始OK</b>）：</div>
           <table class="help-tbl">
@@ -4004,7 +4043,7 @@ body.dark {
         <div class="help-acc-body">
           <div class="help-li"><b>4つのタブ</b>に分かれています（<b>📐表</b>＝行と列・Enterの向き／<b>🎨見た目</b>＝文字や画面の大きさ／<b>🧮計算</b>＝小数桁・税率・日付／<b>📄データ</b>＝テンプレ・PDF・CSV・Excel・説明書）。<b>本文を横にフリック</b>してもタブを移動できます。</div>
           <div class="help-li"><b>テンキーを細かく変えたいとき</b>は、設定→<b>🎨見た目→くわしい設定→「テンキーを自分好みにする」</b>を開いてください（v303から。ふだんは触らなくて大丈夫なので、たたんであります）。<b>数字キーの大きさ・上下の余白・ページ表示・調整バー・ボタン配置の編集</b>がここにまとまっています。</div>
-          <div class="help-li"><b>🎨見た目</b>は、よく使う<b>セルの文字・画面の幅・テンキーの大きさ・ナイトモード・シートのタブ</b>を先に出しています。それ以外は<b>「くわしい設定」</b>をタップすると出てきます（小計や上のバーの文字、数字キーの大きさ、テンキーの余白とページ表示、調整バー、ボタン配置の編集、上のバーのボタンの表示/非表示）。開いたまま／閉じたままの状態は次回も覚えています。</div>
+          <div class="help-li"><b>🎨見た目</b>は、よく使う<b>セルの文字・画面の幅・テンキーの大きさ・ナイトモード・シートのタブ</b>を先に出しています。それ以外は<b>「くわしい設定」</b>をタップすると出てきます（小計や上のバーの文字、数字キーの大きさ、テンキーの余白とページ表示、調整バー、ボタン配置の編集、<b>上のバーに出すボタン</b>）。開いたまま／閉じたままの状態は次回も覚えています。</div>
           <table class="help-tbl">
             <tr><td><b>行／列</b></td><td>表の大きさ</td></tr>
             <tr><td><b>小数</b></td><td>小数点以下の桁（自＝自動）</td></tr>
@@ -4032,7 +4071,7 @@ body.dark {
             <tr><td><b>⚠（橙）</b></td><td><b>ファイルへの書き出しをおすすめします</b>。まだ一度も書き出していないか、最後の書き出しから14日以上経っています</td></tr>
           </table>
           <div class="help-li"><b>安全さは3段階あります</b>。①<b>いまの表</b>＝書き換えるたび端末に自動保存（閉じても戻る）／②<b>記録</b>＝名前を付けて残す（置き場所はやはり端末）／③<b>ファイルに書き出す</b>＝端末の外に残る。<b>ブラウザのデータを消しても戻せるのは③だけ</b>です。リストの<b>⬇書き出し</b>をときどき使ってください。<br>端末の空きが足りなくて保存できなかったときは、<b>はっきりお知らせします</b>（「保存しました」とは言いません）。</div>
-          <div class="help-li"><b>保存</b>：タップで<b>上書き保存</b>、<b>長押しで「名前を付けて保存」</b>（記録を開いていない・🔒ロック中はタップでも名前を付けて保存）。上のバーに<b>今の記録名（📄）</b>が出て、未保存の変更があると<b>●</b>が付きます。<b>リスト</b>で保存データ一覧を開きます。名前を付けて保存するときの<b>最初の名前は Book1・Book2…</b>です（v318から。以前は日付でした）。空いている番号が出るので、そのまま保存しても名前が重なりません。</div>
+          <div class="help-li"><b>保存</b>：タップで<b>上書き保存</b>、<b>長押しで「名前を付けて保存」</b>（記録を開いていない・🔒ロック中はタップでも名前を付けて保存）。上のバーに<b>今の記録名（📄）</b>が出て、未保存の変更があると<b>●</b>が付きます。<b>リスト</b>で保存データ一覧を開きます。よく使うものは設定→<b>🎨見た目→くわしい設定→「上のバーに出すボタン」</b>で上のバーに足せます。名前を付けて保存するときの<b>最初の名前は Book1・Book2…</b>です（v318から。以前は日付でした）。空いている番号が出るので、そのまま保存しても名前が重なりません。</div>
           <div class="help-li"><b>1記録＝全モードのスナップショット</b>：通常・買物・容積など全モードのシートをまとめて保存。読み込むと各モードがその記録に置き換わり、保存時のモードで開き直します（以前の「1モードだけの記録」も読み込めます）。リストで<b>今開いている記録</b>は緑でハイライトされ「📂開いています」と表示。</div>
           <div class="help-li"><b>リセット</b>は<b>今のシートだけ</b>を消去（記録との紐付けは保持）。まっさらにするときはリストの<b>🆕新規</b>ボタン。</div>
           <table class="help-tbl">
@@ -10941,6 +10980,8 @@ function updateUndoBtn() {
 function updateRedoBtn() {
   const btn=document.getElementById('redoBtn');
   if (btn) btn.disabled=redoHistory.length===0;
+  const tb=document.getElementById('tbRedo');
+  if (tb) tb.disabled=redoHistory.length===0;
 }
 function applyHistoryEntries(entries){
   if(typeof markSaveDirty==='function') markSaveDirty();   // 戻る/進むも記録から見れば変更
@@ -13743,6 +13784,32 @@ function closeSettingsPanel(){
   const p=document.getElementById('settingsPanel');
   if(p&&p.classList.contains('open')) toggleSettings();
 }
+/* ── 上のバーに出すボタン（v318で復活） ──────────────────────────
+   v299 で上のバーを4つに絞ったとき、この選択ごと無くしてしまっていた。
+   「記録名・保存・↶・⋯」は常に出したまま、よく使うものだけを足せるようにする。
+   既定はどれも出さない（今までと同じ見た目）。 */
+const TOPBTN_IDS={ redo:'tbRedo', list:'tbList', sheet:'tbSheet', settings:'tbSet', defsize:'tbDefsize', reset:'tbReset' };
+let topBtnShown={};
+function topBtnIsShown(k){ return !!topBtnShown[k]; }
+function loadTopBtnShown(){
+  try{ topBtnShown=JSON.parse(localStorage.getItem('excalc_topbtn_shown')||'{}')||{}; }catch(_){ topBtnShown={}; }
+}
+function applyTopBtnShown(){
+  for(const k in TOPBTN_IDS){
+    const el=document.getElementById(TOPBTN_IDS[k]);
+    if(el) el.style.display = topBtnIsShown(k) ? '' : 'none';
+  }
+  document.querySelectorAll('#topBtnToggles .topbtn-toggle')
+    .forEach(b=>b.classList.toggle('on', topBtnIsShown(b.dataset.btn)));
+  if(typeof updateRedoBtn==='function') updateRedoBtn();   // ↷は履歴があるときだけ押せる
+}
+function toggleTopBtn(k){
+  if(!(k in TOPBTN_IDS)) return;
+  topBtnShown[k]=!topBtnIsShown(k);
+  try{ localStorage.setItem('excalc_topbtn_shown', JSON.stringify(topBtnShown)); }catch(_){}
+  applyTopBtnShown();
+}
+
 /* ── 上のバーの「⋯」 ──────────────────────────────────────────
    v299 で上のバーを 記録名・保存・↶・⋯ の4つに絞った。
    以前は7個ならんでいて、iPhone SE では中身480px／画面375px で
@@ -13842,7 +13909,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v318';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v319';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -15201,11 +15268,18 @@ function showSaveFileMenu(id, el){
     + tabOpts
     +`<button onclick="saveFileMenuAct(${id},'delete')"${locked?' disabled':''}>🗑 削除</button>`;
   back.classList.add('show'); menu.classList.add('show');
+  // 画面からはみ出さない位置に置く。下にも上にも入りきらない高さのときは、
+  // 画面いっぱいに収めて中をスクロールできるようにする（項目が切れて押せないのを防ぐ）
+  menu.style.maxHeight=''; menu.style.overflowY='';
   const r=el.getBoundingClientRect();
-  const mw=menu.offsetWidth, mh=menu.offsetHeight;
-  let left=Math.min(r.right-mw, window.innerWidth-mw-8); left=Math.max(8,left);
-  let top=r.bottom+4;
-  if(top+mh>window.innerHeight-8) top=Math.max(8, r.top-mh-4);
+  const vh=window.innerHeight, vw=window.innerWidth;
+  let mh=menu.offsetHeight;
+  if(mh>vh-16){ menu.style.maxHeight=(vh-16)+'px'; menu.style.overflowY='auto'; mh=vh-16; }
+  const mw=menu.offsetWidth;
+  let left=Math.min(r.right-mw, vw-mw-8); left=Math.max(8,left);
+  let top=(r.bottom+4+mh<=vh-8) ? r.bottom+4        // 下に入るなら下
+        : (r.top-mh-4>=8)       ? r.top-mh-4        // 入らなければ上
+        : Math.max(8, vh-mh-8);                     // どちらも無理なら画面内へ寄せる
   menu.style.left=left+'px'; menu.style.top=top+'px';
 }
 function hideSaveFileMenu(){
@@ -15512,6 +15586,8 @@ setEnterDir(enterMoveDir);                 // Enterで進む向きを復元
   const stt=document.getElementById('sheetToggleBtn'); if(stt) stt.classList.toggle('on', showSheetTabs); }
 applyResizerBar();   // 調整バーの表示/非表示を復元
 applyPageBar();      // テンキーのページ表示の有無を復元
+loadTopBtnShown(); applyTopBtnShown();                       // 上のバーに出すボタンを復元
+if(typeof bindDefaultSizeBtn==='function') bindDefaultSizeBtn(document.getElementById('tbDefsize'));   // ▦は長押しで既定値を設定
 (function(){ const b=document.getElementById('digitHintBtn');
   if(b) b.classList.toggle('on', digitHintOn);
   if(typeof updateDigitHint==='function') updateDigitHint(); })();   // 桁の表示を復元
