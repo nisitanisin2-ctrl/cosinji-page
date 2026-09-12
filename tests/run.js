@@ -399,6 +399,22 @@ async function runCellMenu(browser) {
         await page.evaluate(() => KEY_FUNCS.t_lock ? KEY_FUNCS.t_lock.g + '/' + KEY_FUNCS.t_lock.label : 'なし'),
         '表の操作/🔒保護');
 
+  // 長押しで出たメニューは、指を離しただけでは効かない（押し直しが要る）
+  await page.evaluate(() => { sel(1, 1); showCellMenu(1, 1); }); await page.waitForTimeout(400);
+  const cmBtn = await page.evaluate(() => {
+    const b = document.querySelector('#cellMenu button').getBoundingClientRect();
+    return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+  });
+  await page.evaluate(a => document.querySelector('#cellMenu button').dispatchEvent(
+    new MouseEvent('click', { bubbles: true, cancelable: true, clientX: a.x, clientY: a.y })), cmBtn);
+  await page.waitForTimeout(400);
+  check('  指を離した分ではメニューの項目が効かない',
+        await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show')), true);
+  await page.mouse.move(cmBtn.x, cmBtn.y); await page.mouse.down();
+  await page.waitForTimeout(80); await page.mouse.up(); await page.waitForTimeout(400);
+  check('  押し直せば効く',
+        await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show')), false);
+
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();
@@ -489,10 +505,9 @@ async function runSaveList(browser) {
   check('  長押しで指を離しても開かない', await page.evaluate(() => currentSaveId), 'null');
   check('  長押しでリストは開いたまま',
         await page.evaluate(() => document.getElementById('saveListOverlay').classList.contains('open')), true);
-  await page.evaluate(() => hideSaveFileMenu()); await page.waitForTimeout(300);
-
   // 短いタップなら開く。開くときの確認窓は出さず、↶戻る で前の表に戻せる
-  await page.evaluate(() => { sel(0, 0); setCellVal(0, 0, 'ひらく前の表'); showSaveList(); });
+  await page.evaluate(() => { history.length = 0; redoHistory.length = 0;
+    sel(0, 0); setCellVal(0, 0, 'ひらく前の表'); showSaveList(); });
   await page.waitForTimeout(500);
   dialogs.length = 0;
   tb = await tileAt(2);
@@ -505,6 +520,26 @@ async function runSaveList(browser) {
   await page.evaluate(() => undoLast()); await page.waitForTimeout(600);
   check('  ↶戻る で前の表に戻せる', await page.evaluate(() => data[0][0]), 'ひらく前の表');
   await page.evaluate(() => { currentSaveId = null; showSaveList(); }); await page.waitForTimeout(500);
+
+  // 長押しで出たメニューは、指を離しただけでは効かない（押し直しが要る）
+  {
+    const t = await tileAt(2);
+    await page.mouse.move(t.x, t.y); await page.mouse.down();
+    await page.waitForTimeout(700); await page.mouse.up(); await page.waitForTimeout(400);
+    const openBtn = await page.evaluate(() => {
+      const b = document.querySelector('#saveFileMenu button').getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    });
+    await page.evaluate(a => document.querySelector('#saveFileMenu button').dispatchEvent(
+      new MouseEvent('click', { bubbles: true, cancelable: true, clientX: a.x, clientY: a.y })), openBtn);
+    await page.waitForTimeout(400);
+    check('  指を離した分では「開く」が効かない', await page.evaluate(() => currentSaveId), 'null');
+    check('  そのときメニューは出たまま',
+          await page.evaluate(() => document.getElementById('saveFileMenu').classList.contains('show')), true);
+    await page.mouse.move(openBtn.x, openBtn.y); await page.mouse.down();
+    await page.waitForTimeout(80); await page.mouse.up(); await page.waitForTimeout(700);
+    check('  押し直せば開く', await page.evaluate(() => currentSaveId !== null), true);
+  }
 
   // 並べ替え（新しい順・古い順・名前順）。名前は日本語の並びで、数字は 2→10 の順。
   const names = () => page.evaluate(() => [...document.querySelectorAll('.sf-name')].map(e => e.textContent).join('/'));
