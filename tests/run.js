@@ -404,6 +404,65 @@ async function runCellMenu(browser) {
   await ctx.close();
 }
 
+/* 保存データ一覧の見せ方（アイコン＝エクスプローラー風／リスト） */
+async function runSaveList(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 保存データ一覧の見せ方 ──');
+  await page.evaluate(() => {
+    const names = ['4月の売上', '材料費まとめ', '配合計算', '家計簿'];
+    localStorage.setItem('excalc_saves', JSON.stringify(names.map((n, i) => ({
+      id: 1000 + i, name: n, timestamp: Date.now() - i * 86400000, rows: 15, cols: 3,
+      data: [['a']], tab: 0, mode: i === 0 ? 'shopping' : null, locked: i === 1
+    }))));
+  });
+  await page.reload(); await page.waitForTimeout(900);
+  await page.evaluate(() => showSaveList()); await page.waitForTimeout(500);
+
+  check('  既定はアイコン表示', await page.evaluate(() => saveView), 'icon');
+  check('  記録がファイルのように並ぶ', await page.evaluate(() => document.querySelectorAll('.save-file').length), 4);
+  check('  モードのある記録はその絵',
+        await page.evaluate(() => document.querySelectorAll('.sf-ico')[0].textContent.trim()), '🛒');
+  check('  ロック中の記録は印が付く',
+        await page.evaluate(() => document.querySelectorAll('.save-file')[1].classList.contains('locked')), true);
+
+  // ⋯ でメニューが出る
+  await page.evaluate(() => showSaveFileMenu(1000, document.querySelector('.sf-more')));
+  await page.waitForTimeout(300);
+  check('  ⋯でメニューが出る',
+        await page.evaluate(() => document.getElementById('saveFileMenu').classList.contains('show')), true);
+  check('  メニューの中身',
+        await page.evaluate(() => [...document.querySelectorAll('#saveFileMenu button')]
+          .map(b => b.textContent.trim().split(' ').pop()).join('/')),
+        '開く/名前の変更/ロック/モードへ登録/タブ1へ移す/タブ2へ移す/削除');
+  check('  ロック中は名前の変更と削除ができない',
+        await page.evaluate(() => { hideSaveFileMenu();
+          showSaveFileMenu(1001, document.querySelector('.sf-more'));
+          return [...document.querySelectorAll('#saveFileMenu button')].filter(b => b.disabled).length; }), 4);
+  await page.evaluate(() => hideSaveFileMenu()); await page.waitForTimeout(200);
+
+  // 長押しでも同じメニュー（開いてしまわない）
+  const tb = await page.evaluate(() => {
+    const b = document.querySelectorAll('.save-file')[2].getBoundingClientRect();
+    return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+  });
+  await page.mouse.move(tb.x, tb.y); await page.mouse.down();
+  await page.waitForTimeout(700); await page.mouse.up(); await page.waitForTimeout(400);
+  check('  長押しでもメニューが出る',
+        await page.evaluate(() => document.getElementById('saveFileMenu').classList.contains('show')), true);
+  check('  長押しでは読み込まれない', await page.evaluate(() => currentSaveId), 'null');
+  await page.evaluate(() => hideSaveFileMenu()); await page.waitForTimeout(200);
+
+  // リスト表示にも戻せて、その選択は覚えている
+  await page.evaluate(() => setSaveView('list')); await page.waitForTimeout(400);
+  check('  リスト表示に戻せる', await page.evaluate(() => document.querySelectorAll('.save-item').length), 4);
+  await page.reload(); await page.waitForTimeout(900);
+  check('  開き直しても表示を覚えている', await page.evaluate(() => saveView), 'list');
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 async function runDigit(browser) {
   const { CASES, BIG, TYPING, FORMULA } = require('./digit.test.js');
   const { ctx, page, errs } = await newPage(browser);
@@ -458,6 +517,7 @@ async function runDigit(browser) {
     if (!only || only === 'mode') await runMode(browser);
     if (!only || only === 'digit') await runDigit(browser);
     if (!only || only === 'cellmenu') await runCellMenu(browser);
+    if (!only || only === 'savelist') await runSaveList(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }

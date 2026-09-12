@@ -1722,6 +1722,63 @@ body.dark .save-mode { background: #143a35; color: #7fcabd; }
 .btn-del    { background: var(--danger-dark); color: white; border: none; border-radius: var(--r-btn); padding: 5px 8px; font-size: 11px; font-weight: bold; cursor: pointer; white-space: nowrap; touch-action: manipulation; }
 .btn-del:hover { background: var(--danger); }
 .no-saves { text-align: center; color: var(--text-light); padding: 30px 16px; font-size: 13px; }
+
+/* ── アイコン表示（エクスプローラーのウィンドウにファイルが並んでいる感じ） ──
+   1件＝1つのファイル。タップで開く（読込）、⋯で名前の変更・削除など。 */
+.save-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 6px; }
+.save-file {
+  position: relative; display: flex; flex-direction: column; align-items: center;
+  gap: 3px; padding: 8px 4px 6px; border: 1px solid transparent; border-radius: var(--r-btn);
+  background: none; cursor: pointer; touch-action: manipulation; text-align: center;
+  color: var(--text); font: inherit;
+}
+.save-file:hover  { background: var(--cell-hover); border-color: var(--save-item-border); }
+.save-file:active { background: var(--cell-border); }
+.save-file.current { background: rgba(33,115,70,0.10); border-color: var(--acc); }
+.save-file.locked .sf-ico::after {
+  content: "🔒"; position: absolute; right: -4px; bottom: 2px; font-size: 13px;
+}
+.sf-ico {
+  position: relative; width: 46px; height: 54px; flex-shrink: 0;
+  display: flex; align-items: flex-end; justify-content: center; padding-bottom: 7px;
+  font-size: 19px; line-height: 1;
+  /* 右上が折れた紙の形 */
+  background: linear-gradient(135deg, transparent 0 11px, var(--save-item-bg) 11px) top right / 100% 100% no-repeat,
+              var(--save-item-bg);
+  border: 1px solid var(--save-item-border); border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.12);
+}
+.sf-ico::before {   /* 折り返しの三角 */
+  content: ""; position: absolute; top: -1px; right: -1px; width: 12px; height: 12px;
+  background: var(--save-item-border);
+  clip-path: polygon(100% 0, 0 0, 100% 100%);
+  border-top-right-radius: 3px;
+}
+.save-file.current .sf-ico { border-color: var(--acc); }
+.sf-name {
+  font-size: 11px; line-height: 1.25; font-weight: bold; width: 100%;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.sf-sub { font-size: 10px; color: var(--text-light); }
+.sf-top { position: relative; display: block; }
+.sf-more {
+  position: absolute; top: -5px; right: -17px; width: 24px; height: 24px; padding: 0;
+  border: 1px solid var(--save-item-border); border-radius: 50%;
+  background: var(--save-item-bg); color: var(--text-light);
+  font-size: 14px; line-height: 21px; text-align: center;
+  cursor: pointer; touch-action: manipulation;
+}
+.sf-more:hover { background: var(--cell-border); }
+.sf-open { position: absolute; top: -4px; left: -8px; font-size: 13px; }
+/* 表示の切り替え（リスト⇄アイコン） */
+.save-viewbar { display: flex; justify-content: flex-end; gap: 4px; padding: 0 16px 4px; flex-shrink: 0; }
+.save-viewbtn {
+  border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text-light);
+  border-radius: var(--r-btn); padding: 4px 10px; font-size: 12px; font-weight: bold;
+  cursor: pointer; touch-action: manipulation;
+}
+.save-viewbtn.on { background: var(--acc); color: #fff; border-color: var(--acc); }
 /* 書き出し／読み込みツールバー（リストの下） */
 .save-toolbar { display: flex; gap: 8px; padding: 8px 16px; flex-shrink: 0; border-top: 1px solid var(--save-item-border); }
 /* 記録名の右の印。緑＝端末に自動保存済み／黄＝未保存の変更あり／橙⚠＝書き出しを勧める */
@@ -3094,6 +3151,10 @@ body.dark {
     </div>
     <div class="save-state" id="saveStateBanner"></div>
     <div class="save-tabbar" id="saveTabBar" title="タップで切替／長押しで名前を変更"></div>
+    <div class="save-viewbar">
+      <button class="save-viewbtn" id="saveViewIcon" onclick="setSaveView('icon')" title="ファイルのアイコンで並べます">⊞ アイコン</button>
+      <button class="save-viewbtn" id="saveViewList" onclick="setSaveView('list')" title="1件ずつ、ボタン付きで並べます">☰ リスト</button>
+    </div>
     <div class="modal-body" id="saveListBody"></div>
     <div class="save-toolbar">
       <button class="save-tool-btn" onclick="exportSaves()" title="保存データをファイルに書き出して他の端末へ移せます">⬇ 書き出し</button>
@@ -3822,6 +3883,7 @@ body.dark {
           <div class="help-li"><span class="help-tag">Σ</span> を押すと隣の連続データを自動で合計し <b>=SUM(範囲)</b> を作成 → <b>Enter</b>で確定。</div>
           <div class="help-li">押した後に<b>セルを始点→終点までスライド</b>で合計範囲を指定できます（タップで1セル）。</div>
           <div class="help-li"><b>Σを長押し</b>で「合計／平均」を選べます（選んだ方を記憶し、ボタン表示も変わります）。</div>
+          <div class="help-li"><b>記録の並べ方</b>（v315から）：保存データ一覧は<b>⊞アイコン</b>と<b>☰リスト</b>を切り替えられます。<b>アイコン</b>はエクスプローラーのようにファイルが並ぶ形で、<b>タップで開く</b>／<b>⋯か長押し</b>で名前の変更・ロック・モードへ登録・タブの移動・削除ができます。絵は保存したときのモードのものになります（🔒はロック中、📂は今開いている記録）。選んだ表示は次に開いたときも残ります。</div>
           <div class="help-li"><b>入力中の数字の桁</b>（v312から）：1万以上の数字を入れていると、入力欄の下に <b>500万</b> のように読みが出ます。打っている途中から出るので、0の数を数えなくてもすみます。数式のセルを選んだときは<b>計算結果</b>の桁を出します。いらないときは<b>設定→🧮計算→入力中の数字の桁を出す</b>で消せます。</div>
           <div class="help-li"><b>入力欄の右の合計</b>：列・行を選ぶと合計を表示（数値が無いときは出ません）。<b>「合計」タップで合計⇄平均</b>／<b>「¥」タップで数字⇄漢数字</b>（兆・億・万）／<b>数値タップでコピー</b>。</div>
         </div>
@@ -3991,6 +4053,10 @@ body.dark {
 
 <!-- フィル後の「連番にする」ボタン（数値・日付・末尾が数字の文字のとき） -->
 <button class="seq-btn" id="seqBtn" onclick="fillAsSequence()">🔢 連番 1,2,3…</button>
+
+<!-- 記録アイコンの「⋯」メニュー（開く・名前・ロック・モードへ・タブ・削除） -->
+<div class="cellmenu-backdrop" id="saveFileMenuBackdrop" onclick="hideSaveFileMenu()"></div>
+<div class="cell-menu" id="saveFileMenu"></div>
 
 <!-- セル長押しメニュー（貼り付け・コピー・保護・消去・書式） -->
 <div class="cellmenu-backdrop" id="cellMenuBackdrop" onclick="hideCellMenu()"></div>
@@ -13745,7 +13811,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v314';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v315';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -14989,10 +15055,106 @@ function escHtml(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+/* ── 保存データの見せ方（アイコン／リスト） ──
+   アイコン＝エクスプローラーのウィンドウにファイルが並んでいる形。
+   タップで開く（読込）、右上の「⋯」で名前の変更・ロック・削除など。 */
+let saveView = localStorage.getItem('excalc_saveview')==='list' ? 'list' : 'icon';   // 既定はアイコン
+function setSaveView(v){
+  saveView = (v==='list') ? 'list' : 'icon';
+  localStorage.setItem('excalc_saveview', saveView);
+  syncSaveViewBtns();
+  renderSaveList();
+}
+function syncSaveViewBtns(){
+  const i=document.getElementById('saveViewIcon'), l=document.getElementById('saveViewList');
+  if(i) i.classList.toggle('on', saveView==='icon');
+  if(l) l.classList.toggle('on', saveView==='list');
+}
+/* アイコンの絵：保存時のモードがあればその絵、無ければ紙 */
+function saveFileIcon(s){
+  const mi=s.mode?modeItemByKey(s.mode):null;
+  return mi?mi.item.icon:'📄';
+}
+function renderSaveGrid(saves){
+  return '<div class="save-grid">'+saves.map(s=>{
+    const locked=!!s.locked;
+    const isCur=(s.id===currentSaveId);
+    const d=new Date(s.timestamp);
+    const date=(d.getMonth()+1)+'/'+d.getDate();
+    return `<button class="save-file${locked?' locked':''}${isCur?' current':''}" data-id="${s.id}"
+              onclick="loadSave(${s.id})" title="${escHtml(s.name)}／${escHtml(d.toLocaleString('ja-JP'))}　${s.rows}行×${s.cols}列">
+      <span class="sf-top">
+        <span class="sf-ico">${saveFileIcon(s)}</span>
+        ${isCur?'<span class="sf-open" title="開いています">📂</span>':''}
+        <span class="sf-more" role="button" tabindex="0" title="名前の変更・削除など"
+              onclick="event.stopPropagation();showSaveFileMenu(${s.id},this)">⋯</span>
+      </span>
+      <span class="sf-name">${escHtml(s.name)}</span>
+      <span class="sf-sub">${date}</span>
+    </button>`;
+  }).join('')+'</div>';
+}
+/* アイコンの長押しでも同じメニューを出す（スマホのふつうの操作） */
+let sfHoldTimer=null, sfHeld=false;
+function bindSaveFileHold(){
+  document.querySelectorAll('#saveListBody .save-file').forEach(el=>{
+    el.addEventListener('pointerdown', e=>{
+      if(e.button!==undefined && e.button>0) return;
+      if(e.target.closest('.sf-more')) return;
+      sfHeld=false; clearTimeout(sfHoldTimer);
+      const id=+el.dataset.id;
+      sfHoldTimer=setTimeout(()=>{ sfHoldTimer=null; sfHeld=true;
+        if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}}
+        showSaveFileMenu(id, el.querySelector('.sf-more')||el); }, 500);
+    });
+    el.addEventListener('pointerup',     ()=>clearTimeout(sfHoldTimer));
+    el.addEventListener('pointercancel', ()=>{ clearTimeout(sfHoldTimer); sfHeld=false; });
+    el.addEventListener('pointerleave',  ()=>clearTimeout(sfHoldTimer));
+    el.addEventListener('click', e=>{ if(sfHeld){ sfHeld=false; e.preventDefault(); e.stopImmediatePropagation(); } }, true);
+  });
+}
+/* アイコンの「⋯」メニュー */
+function showSaveFileMenu(id, el){
+  const s=getSaves().find(x=>x.id===id); if(!s) return;
+  const locked=!!s.locked;
+  const menu=document.getElementById('saveFileMenu'), back=document.getElementById('saveFileMenuBackdrop');
+  const tabOpts=[0,1,2].filter(t=>t!==(s.tab||0))
+    .map(t=>`<button onclick="saveFileMenuAct(${id},'tab',${t})"${locked?' disabled':''}>🗂 ${escHtml(saveTabLabel(t))}へ移す</button>`).join('');
+  menu.innerHTML=
+     `<button onclick="saveFileMenuAct(${id},'load')">📂 開く</button>`
+    +`<button onclick="saveFileMenuAct(${id},'rename')"${locked?' disabled':''}>✏ 名前の変更</button>`
+    +`<button onclick="saveFileMenuAct(${id},'lock')">${locked?'🔓 ロックを解除':'🔒 ロック'}</button>`
+    +`<button onclick="saveFileMenuAct(${id},'tomode')">🔀 モードへ登録</button>`
+    + tabOpts
+    +`<button onclick="saveFileMenuAct(${id},'delete')"${locked?' disabled':''}>🗑 削除</button>`;
+  back.classList.add('show'); menu.classList.add('show');
+  const r=el.getBoundingClientRect();
+  const mw=menu.offsetWidth, mh=menu.offsetHeight;
+  let left=Math.min(r.right-mw, window.innerWidth-mw-8); left=Math.max(8,left);
+  let top=r.bottom+4;
+  if(top+mh>window.innerHeight-8) top=Math.max(8, r.top-mh-4);
+  menu.style.left=left+'px'; menu.style.top=top+'px';
+}
+function hideSaveFileMenu(){
+  document.getElementById('saveFileMenu').classList.remove('show');
+  document.getElementById('saveFileMenuBackdrop').classList.remove('show');
+}
+function saveFileMenuAct(id, a, arg){
+  hideSaveFileMenu();
+  if(a==='load') loadSave(id);
+  else if(a==='rename') renameSave(id);
+  else if(a==='lock') toggleSaveLock(id);
+  else if(a==='tomode') registerSaveAsMode(id);
+  else if(a==='tab') setSaveItemTab(id, arg);
+  else if(a==='delete') deleteSave(id);
+}
+
 function renderSaveList() {
   const body=document.getElementById('saveListBody');
+  syncSaveViewBtns();
   const saves=getSaves().filter(s=>(s.tab||0)===saveActiveTab);
   if(saves.length===0){body.innerHTML='<div class="no-saves">このタブに保存データがありません</div>';return;}
+  if(saveView==='icon'){ body.innerHTML=renderSaveGrid(saves); bindSaveFileHold(); return; }
   body.innerHTML=saves.map(s=>{
     const locked=!!s.locked;
     const isCur=(s.id===currentSaveId);   // 今開いている記録（読込済み／上書き保存の対象）
