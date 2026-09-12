@@ -433,11 +433,38 @@ async function runSaveList(browser) {
   check('  メニューの中身',
         await page.evaluate(() => [...document.querySelectorAll('#saveFileMenu button')]
           .map(b => b.textContent.trim().split(' ').pop()).join('/')),
-        '開く/名前の変更/ロック/モードへ登録/タブ1へ移す/タブ2へ移す/削除');
+        '開く/名前の変更/コピーを作る/ロック/モードへ登録/タブ1へ移す/タブ2へ移す/削除');
   check('  ロック中は名前の変更と削除ができない',
         await page.evaluate(() => { hideSaveFileMenu();
           showSaveFileMenu(1001, document.querySelector('.sf-more'));
           return [...document.querySelectorAll('#saveFileMenu button')].filter(b => b.disabled).length; }), 4);
+  check('  ロック中でもコピーは作れる',
+        await page.evaluate(() => [...document.querySelectorAll('#saveFileMenu button')]
+          .find(b => b.textContent.includes('コピー')).disabled), false);
+  await page.evaluate(() => hideSaveFileMenu());
+
+  // コピーを作る：名前は「のコピー」、中身ごと複製、元とはつながらない
+  await page.evaluate(() => { saveFileMenuAct(1000, 'dup'); }); await page.waitForTimeout(400);
+  await page.evaluate(() => { duplicateSave(1000); }); await page.waitForTimeout(400);
+  check('  コピーの名前が増えていく',
+        await page.evaluate(() => getSaves().map(s => s.name).slice(-2).join('/')),
+        '4月の売上 のコピー/4月の売上 のコピー 2');
+  check('  中身ごと複製される',
+        await page.evaluate(() => { const c = getSaves().find(s => s.name === '4月の売上 のコピー');
+          return JSON.stringify(c.data) + '|' + c.mode; }), '[["a"]]|shopping');
+  check('  コピーは元とつながっていない',
+        await page.evaluate(() => { const c = getSaves().find(s => s.name === '4月の売上 のコピー');
+          c.data[0][0] = 'かえた';
+          return getSaves().find(s => s.id === 1000).data[0][0]; }), 'a');
+  check('  コピーにロックは引き継がない',
+        await page.evaluate(() => { duplicateSave(1001);
+          return !!getSaves().find(s => s.name === '材料費まとめ のコピー').locked; }), false);
+
+  // 他のタブへ移せる
+  await page.evaluate(() => saveFileMenuAct(1000, 'tab', 1)); await page.waitForTimeout(400);
+  check('  他のタブへ移せる', await page.evaluate(() => getSaves().find(s => s.id === 1000).tab), 1);
+  check('  移した記録はこのタブから消える',
+        await page.evaluate(() => [...document.querySelectorAll('.sf-name')].some(e => e.textContent === '4月の売上')), false);
   await page.evaluate(() => hideSaveFileMenu()); await page.waitForTimeout(200);
 
   // 長押しでも同じメニュー（開いてしまわない）
