@@ -754,8 +754,39 @@ async function runSpeech(browser) {
         '=100+50|=200*3|=SQRT(16)');
   check('  それぞれ計算される',
         await page.evaluate(() => [0, 1, 2].map(r => getCellDisplay(r, 0)).join('|')), '150|600|4');
+  check('  1つ入れるたびに下のセルへ移る',
+        await page.evaluate(() => xlColLetter(selC) + (selR + 1)), 'A4');
   await page.evaluate(() => voiceCancel()); await page.waitForTimeout(200);
   check('  画面タップで続けモードも終わる', await page.evaluate(() => voiceKeepGoing), false);
+
+  // 「左に式・右に答え」でも、ちゃんと下へ進む（同じセルに上書きしない）
+  await page.evaluate(() => { setSpeechLayout('split');
+    for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) setCellVal(r, c, '');
+    sel(0, 0); window.__q = ['100たす50', '200かける3', '300ひく100']; voiceStartContinuous(); });
+  await page.waitForTimeout(2600);
+  check('  左に式・右に答えでも下へ進む',
+        await page.evaluate(() => [0, 1, 2].map(r => data[r][0]).join('|')), '100+50|200×3|300-100');
+  check('  答えも1行ずつ入る',
+        await page.evaluate(() => [0, 1, 2].map(r => getCellDisplay(r, 1)).join('|')), '150|600|200');
+  check('  そのあとの場所',
+        await page.evaluate(() => xlColLetter(selC) + (selR + 1)), 'A4');
+  await page.evaluate(() => voiceCancel()); await page.waitForTimeout(200);
+
+  // いちばん下の行まで来たら、行を足して進む（上書きしない）
+  const rowsBefore = await page.evaluate(() => ROWS);
+  await page.evaluate(() => { sel(ROWS - 1, 0);
+    window.__q = ['2かける3', '4かける5']; voiceStartContinuous(); });
+  await page.waitForTimeout(1900);
+  check('  最終行では行を足して進む',
+        await page.evaluate(() => ROWS) > rowsBefore, true);
+  await page.evaluate(() => voiceCancel()); await page.waitForTimeout(200);
+  await page.evaluate(() => setSpeechLayout('one'));
+
+  // 1回だけのときは、そのセルに留まる
+  await page.evaluate(() => { setCellVal(1, 0, ''); sel(1, 0); window.__q = ['251かける68']; voiceStart(); });
+  await page.waitForTimeout(400);
+  check('  1回だけならそのセルに留まる',
+        await page.evaluate(() => xlColLetter(selC) + (selR + 1)), 'A2');
 
   check('  読み上げは既定で切ってある', await page.evaluate(() => speechSpeakOn), false);
   check('  設定で読み上げを入れられる',
