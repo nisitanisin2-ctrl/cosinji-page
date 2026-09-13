@@ -795,6 +795,41 @@ async function runSpeech(browser) {
   check('  🎤続けもキーに割り当てられる',
         await page.evaluate(() => KEY_FUNCS.a_voiceseq ? KEY_FUNCS.a_voiceseq.label : 'なし'), '🎤続け');
 
+  // ── 聞いている窓の中で「続けて入れる」を切り替えられること ──
+  // テンキーの🎤声キーは長押しが「別の機能に変更」なので、長押しでは切り替えられない。
+  await page.evaluate(() => { window.__q = [];
+    window.SpeechRecognition = class {
+      start() { this._on = true; setTimeout(() => { if (!this._on) return;
+        const t = window.__q.shift(); if (t === undefined) return;   // 何も無ければ聞いたまま
+        if (this.onresult) this.onresult({ resultIndex: 0,
+          results: [Object.assign([{ transcript: t }], { isFinal: true })] }); }, 30); }
+      abort() { this._on = false; } };
+  });
+  await page.evaluate(() => { voiceStop(); voiceKeepGoing = false; sel(0, 0); voiceStart(); });
+  await page.waitForTimeout(300);
+  check('  窓に「続けて入れる」がある',
+        await page.evaluate(() => !!document.getElementById('voiceSeqBtn')), true);
+  const seqBox = await page.evaluate(() => {
+    const r = document.getElementById('voiceSeqBtn').getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await page.mouse.move(seqBox.x, seqBox.y); await page.mouse.down();
+  await page.waitForTimeout(60); await page.mouse.up(); await page.waitForTimeout(300);
+  check('  押すと続けて入れるになる', await page.evaluate(() => voiceKeepGoing), true);
+  check('  押しても窓は閉じない',
+        await page.evaluate(() => document.getElementById('voiceOverlay').classList.contains('open')), true);
+  check('  ボタンの見た目も変わる',
+        await page.evaluate(() => document.getElementById('voiceSeqBtn').classList.contains('on')), true);
+  // そのまま続けて入る
+  await page.evaluate(() => { for (let r = 0; r < 5; r++) setCellVal(r, 0, ''); sel(0, 0);
+    window.__q = ['100たす50', '200かける3', '300ひく100']; voiceStop(); voiceStart(); });
+  await page.waitForTimeout(2600);
+  check('  窓から入れても続けて入る',
+        await page.evaluate(() => [0, 1, 2].map(r => data[r][0]).join('|')), '=100+50|=200*3|=300-100');
+  await page.evaluate(() => { voiceStop(); voiceStart(); }); await page.waitForTimeout(300);
+  await page.evaluate(() => voiceToggleKeepGoing()); await page.waitForTimeout(200);
+  check('  もう一度押すとやめる', await page.evaluate(() => voiceKeepGoing), false);
+  await page.evaluate(() => voiceCancel()); await page.waitForTimeout(200);
+
   // ── テンキーの🎤声キーで、押した瞬間に閉じないこと ──
   // 窓は画面いっぱいに出るので、キーを押した指がそのまま窓の上にある。
   // 指を離した分のクリックで開いた瞬間に閉じていた（登録ボタンは160ms遅れて動くので無事だった）。
