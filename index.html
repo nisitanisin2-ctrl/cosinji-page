@@ -4007,7 +4007,7 @@ body.dark {
       <details class="help-acc" id="h-mode">
         <summary>🔀 モード（「モード」ボタン）</summary>
         <div class="help-acc-body">
-          <div class="help-li"><b>テンキーの「モード」キー</b>（または<b>⋯→🎯用途から始める</b>）で<b>「用途から始める」</b>が開きます（v305から）。上が<b>表のかたちを変える</b>（下のモード一覧）、下が<b>ひな形から始める</b>で、<b>くらし・おかね・からだ&thinsp;/&thinsp;くるま・かたち・帳票</b>の目的別に25種のひな形が並びます。ひな形を選ぶと、項目と計算式の入った表になります（<b>確認は出ません</b>。今の表は上書きされますが、<b>↶戻る</b>で元の表に戻せます）。ひな形をやめてふつうの表に戻したいときは、<b>▦通常</b>（またはモード一覧の「通常」）を押すと<b>まっさらな表</b>に戻ります。確認は出しませんが、<b>↶戻る</b>でひな形にも、ひな形を入れる前の表にも戻せます。</div>
+          <div class="help-li"><b>テンキーの「モード」キー</b>（または<b>⋯→🎯用途から始める</b>）で<b>「用途から始める」</b>が開きます（v305から）。上が<b>表のかたちを変える</b>（下のモード一覧）、下が<b>ひな形から始める</b>で、<b>くらし・おかね・からだ&thinsp;/&thinsp;くるま・かたち・帳票</b>の目的別に25種のひな形が並びます。ひな形を選ぶと、項目と計算式の入った表になります（<b>確認は出ません</b>。今の表は上書きされますが、<b>↶戻る</b>で元の表に戻せます）。ひな形をやめてふつうの表に戻したいときは、<b>▦通常</b>（またはモード一覧の「通常」）を押すと<b>まっさらな表</b>に戻ります。行数・列数は<b>「▦既定の大きさ」で決めた大きさ</b>（初期値15行×3列）に戻るので、ひな形の小さい表のままになりません（v322から）。確認は出しませんが、<b>↶戻る</b>でひな形にも、ひな形を入れる前の表にも戻せます。</div>
           <div class="help-li">切替後も各モードの内容は<b>リセットするまで保持</b>されます。</div>
           <table class="help-tbl">
             <tr><td><b>通常／簡易</b></td><td>標準の表／列少なめ・大きな表示</td></tr>
@@ -11841,29 +11841,15 @@ function currentTemplate(){
   }
   return null;
 }
-/* ひな形を入れる前の表の大きさ。読み込み直しても分かるように localStorage に控える。 */
-const PRETMPL_KEY='excalc_pretmpl';
-function rememberPreTemplateSize(){
-  if(currentTemplate()) return;    // ひな形からひな形へ入れ替えたときは、いちばん最初の大きさを保つ
-  try{ localStorage.setItem(PRETMPL_KEY, ROWS+','+COLS); }catch(_){}
-}
-function preTemplateSize(){
-  let rows=15, cols=3;             // 控えが無いときは、はじめの大きさ
-  try{
-    const v=String(localStorage.getItem(PRETMPL_KEY)||'').split(',');
-    const a=parseInt(v[0]), b=parseInt(v[1]);
-    if(a>=1&&a<=MAXROWS) rows=a;
-    if(b>=1&&b<=MAXCOLS) cols=b;
-  }catch(_){}
-  return {rows, cols};
-}
-function forgetPreTemplateSize(){ try{ localStorage.removeItem(PRETMPL_KEY); }catch(_){} }
+/* ひな形は2列・数行しか使わないので、そのまま通常へ戻ると表が小さいままになる。
+   まっさらな表に戻すときは「▦既定の大きさ」で決めた行数・列数（初期値15行×3列）に戻す。
+   以前は「ひな形を入れる直前の大きさ」に戻していたが、ひな形を続けて入れたり
+   読み込み直したりすると分かりにくかったので、いつでも同じ大きさに戻す形にした。 */
 /* テンプレを表に展開（計算テンプレ・決算書テンプレ共通）。
    rows: [A列ラベル, B列値]。B列が null＝見出し行、'='始まり＝計算式、それ以外＝入力(黄色)。 */
 function applyTemplateObj(t, closeFn){
   // 確認は出さない。選ぶ流れの途中で確認窓が割り込むと止まってしまうため。
   // 上書きされた前の表は ↶戻る で戻せる（下の pushSnapshot）。
-  rememberPreTemplateSize();   // あとで「まっさらな表に戻す」ときの大きさを控える
   if(closeFn) closeFn();
   const sp=document.getElementById('settingsPanel'); if(sp&&sp.classList.contains('open')) toggleSettings();
   pushSnapshot('テンプレート「'+t.name+'」');   // 入れる前の表を控えて、戻れるようにする
@@ -11915,10 +11901,10 @@ function plainTableFromTemplate(){
   for(let r=0;r<MAXROWS;r++) for(let c=0;c<MAXCOLS;c++) data[r][c]='';
   cellStyles={};
   colWidths={}; rowHeights={}; if(typeof saveSheetSizes==='function') saveSheetSizes();
-  const pre=preTemplateSize();
-  ROWS=pre.rows; COLS=pre.cols;                      // ひな形を入れる前の大きさへ戻す
+  ROWS=getDefaultRows(); COLS=getDefaultCols();       // 既定の大きさへ戻す（狭いままにしない）
   localStorage.setItem('excalc_rows',ROWS); localStorage.setItem('excalc_cols',COLS);
-  forgetPreTemplateSize();
+  const rc=document.getElementById('rowCount'), cc=document.getElementById('colCount');
+  if(rc) rc.textContent=ROWS; if(cc) cc.textContent=COLS;
   cellEditing=false; op1=null; cur_op=null; waiting=false; disp_val='0';
   hideAllBars();
   syncRowColLabels();
@@ -13926,7 +13912,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v321';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v322';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -13979,7 +13965,6 @@ function resetAll() {
     return;
   }
   pushSnapshot('リセット');   // 書式・行数・列数ごと戻せるようにする
-  forgetPreTemplateSize();
   for(let r=0;r<MAXROWS;r++) for(let c=0;c<MAXCOLS;c++) data[r][c]='';
   if(isStructMode()) STRUCT_MODES[tableMode].headers.forEach((h,i)=>{ data[0][i]=h; });   // 見出しは復元
   cellStyles={};   // 書式もクリア
@@ -15457,7 +15442,6 @@ function loadSave(id) {
   // そのかわり、開く前の表を控えておいて ↶戻る で戻せるようにする。
   if(typeof pushSnapshot==='function') pushSnapshot('記録「'+entry.name+'」を開く');
   currentSaveId=id;   // 以後「保存」でこの記録に上書きできるようにする
-  forgetPreTemplateSize();   // 記録を読み込んだら、ひな形の控えは要らない
   if(entry.decPlaces!==undefined) decPlaces=entry.decPlaces;
   // まず今のワークスペースを退避（読込対象以外のモードの内容は保持する）
   if(Array.isArray(sheets) && sheets.length && sheets[curSheet]){
