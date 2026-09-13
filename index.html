@@ -1811,6 +1811,14 @@ body.dark .save-mode { background: #143a35; color: #7fcabd; }
 @keyframes voicePulse { 0%,100%{ transform: scale(1); opacity: 1; } 50%{ transform: scale(1.14); opacity: .6; } }
 .voice-text { margin-top: 12px; font-size: 18px; font-weight: bold; color: var(--text); min-height: 1.4em; word-break: break-all; }
 .voice-hint { margin-top: 10px; font-size: 12px; color: var(--text-light); line-height: 1.5; }
+/* 聞いている窓の中の「続けて入れる」切り替え */
+.voice-seq {
+  margin-top: 12px; padding: 9px 16px; font-size: 14px; font-weight: bold;
+  border: 1px solid var(--save-item-border); border-radius: var(--r-btn);
+  background: var(--save-item-bg); color: var(--text-light);
+  cursor: pointer; touch-action: manipulation;
+}
+.voice-seq.on { background: var(--acc); color: #fff; border-color: var(--acc); }
 
 .save-viewbar {
   display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
@@ -2446,7 +2454,10 @@ body.dark {
     <div class="modal-header" style="display:none"><span>🎤 声で入れる</span></div>
     <div class="voice-mic" aria-hidden="true">🎤</div>
     <div class="voice-text" id="voiceText" role="status" aria-live="polite">聞いています…</div>
-    <div class="voice-hint">式は「251かける68」のように言ってください／画面をタップでやめる</div>
+    <!-- 続けて入れるかどうかは、聞いている窓の中で切り替えられる。
+         テンキーの🎤声キーは長押しが「別の機能に変更」なので、そちらでは切り替えられないため。 -->
+    <button class="voice-seq" id="voiceSeqBtn" onclick="event.stopPropagation();voiceToggleKeepGoing()">🔁 続けて入れる</button>
+    <div class="voice-hint">式は「251かける68」のように言ってください／窓の外をタップでやめる</div>
   </div>
 </div>
 
@@ -4043,7 +4054,7 @@ body.dark {
               <tr><td><span class="help-key">セルを指す</span></td><td>「<b>A1たすB2</b>」「<b>エー1たすビー2</b>」→ <code>=A1+B2</code></td></tr>
               <tr><td><span class="help-key">まとめて計算</span></td><td>「<b>A1からA5の合計</b>」→ <code>=SUM(A1:A5)</code>。<b>平均・最大・最小</b>も同じ言い方でできます</td></tr>
               <tr><td><span class="help-key">ルート・◯乗</span></td><td>「<b>ルート16かける3</b>」→ <code>=SQRT(16)*3</code>／「<b>2の10乗</b>」→ <code>=2^10</code></td></tr>
-              <tr><td><span class="help-key">続けて入れる</span></td><td><b>🎤を長押し</b>すると、1つ言うたびに<b>下のセルへ移って</b>また聞きます（「左に式・右に答え」で入れているときも同じように下へ進みます。いちばん下まで来たら行を足します）。やめるときは画面をタップ（テンキーには「設定・機能→<b>🎤続け</b>」を割り当てられます）</td></tr>
+              <tr><td><span class="help-key">続けて入れる</span></td><td>聞いている窓の中の<b>🔁続けて入れる</b>を押すと、1つ言うたびに<b>下のセルへ移って</b>また聞きます（もう一度押すとやめる。「左に式・右に答え」で入れているときも同じように下へ進み、いちばん下まで来たら行を足します）。やめるときは<b>窓の外をタップ</b>。<br>はじめから続けて入れたいときは、<b>⋯の🎤を長押し</b>するか、キーに「設定・機能→<b>🎤続け</b>」を割り当ててください。<b>テンキーの🎤声キーは長押しが「別の機能に変更」</b>なので、そちらでは切り替わりません（v333で窓の中に入れました）</td></tr>
               <tr><td><span class="help-key">移るだけ</span></td><td>「<b>次</b>」「下」「右」「左」「上」と言うと、入れずにそのセルへ移ります</td></tr>
               <tr><td><span class="help-key">入れかたを選ぶ</span></td><td><b>設定→🧮計算→声の入れかた</b>（v327から）。<b>「式を入れる」</b>＝選んだセルに <code>=251*68</code>（答えが出ます）。<b>「左に式・右に答え」</b>＝選んだセルに <b>251×68</b>（読むための文字）、<b>右のセルに答え</b>を入れます。右のセルは式なので、あとから数字を直せば答えも変わり、<b>Σ合計</b>にも入ります。右に列が無いときは1列増やします。<b>↶戻る</b>1回で両方戻せます</td></tr>
               <tr><td><span class="help-key">答えを読み上げ</span></td><td><b>設定→🧮計算→答えを声で読み上げる</b>で、計算した答えを声で返します（<b>全機種で使えます</b>。手がふさがっているときの確認に）</td></tr>
@@ -11879,6 +11890,7 @@ function voiceStart(){
   if(txt) txt.textContent='聞いています…';
   if(ov){
     ov.classList.add('open');
+    syncVoiceSeqBtn();
     // この窓は画面いっぱいに広がるので、キーを押した指がそのまま窓の上にある。
     // 指を離した分のクリックで、開いた瞬間に閉じてしまっていた（テンキーの🎤声キー）。
     // 「押し直すまで反応しない」ようにして、開いてすぐ閉じるのを止める。
@@ -12008,7 +12020,20 @@ function voiceMove(dir){
   else if(dir==='left') c=Math.max(0, c-1);
   sel(r,c);
 }
-/* 続けて入れるモード（🎤の長押し）。1つ入れるたびに下へ移って聞き直す */
+/* 聞いている窓の中で、続けて入れるかどうかを切り替える */
+function voiceToggleKeepGoing(){
+  voiceKeepGoing=!voiceKeepGoing;
+  syncVoiceSeqBtn();
+  toast(voiceKeepGoing ? '続けて入れます。1つ言うたびに下のセルへ移ります'
+                       : '1つだけ入れます');
+}
+function syncVoiceSeqBtn(){
+  const b=document.getElementById('voiceSeqBtn');
+  if(!b) return;
+  b.classList.toggle('on', voiceKeepGoing);
+  b.textContent = voiceKeepGoing ? '🔁 続けて入れています（押すとやめる）' : '🔁 続けて入れる';
+}
+/* 続けて入れるモード（⋯の🎤の長押し／「🎤続け」キー）。1つ入れるたびに下へ移って聞き直す */
 let voiceKeepGoing=false;
 function voiceStartContinuous(){
   if(!voiceAvailable()){ voiceStart(); return; }   // 使えない端末では案内だけ出す
@@ -14388,7 +14413,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v332';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v333';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
