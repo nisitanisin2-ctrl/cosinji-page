@@ -764,6 +764,52 @@ async function runSpeech(browser) {
   check('  🎤続けもキーに割り当てられる',
         await page.evaluate(() => KEY_FUNCS.a_voiceseq ? KEY_FUNCS.a_voiceseq.label : 'なし'), '🎤続け');
 
+  // ── 失敗したときの知らせ方（自分で止めた分は失敗にしない） ──
+  const toastNow = () => page.evaluate(() => (document.getElementById('appToast') || {}).textContent || '');
+  const clearToast = () => page.evaluate(() => { const t = document.getElementById('appToast'); if (t) t.textContent = ''; });
+  // 実機と同じく abort() が「aborted」のエラーを起こす偽物にする
+  await page.evaluate(() => {
+    window.SpeechRecognition = class {
+      start() { this._on = true;
+        setTimeout(() => { if (!this._on) return;
+          if (window.__err) { if (this.onerror) this.onerror({ error: window.__err });
+                              if (this.onend) this.onend(); return; }
+          if (this.onresult) this.onresult({ resultIndex: 0,
+            results: [Object.assign([{ transcript: '251かける68' }], { isFinal: true })] }); }, 20); }
+      abort() { this._on = false; if (this.onerror) this.onerror({ error: 'aborted' }); if (this.onend) this.onend(); }
+    };
+  });
+  await clearToast();
+  await page.evaluate(() => { window.__err = null; setCellVal(0, 0, ''); sel(0, 0); voiceStart(); });
+  await page.waitForTimeout(400);
+  check('  うまく入ったのに失敗と言わない',
+        /聞き取れません/.test(await toastNow()), false);
+  check('  ちゃんと入っている', await page.evaluate(() => data[0][0]), '=251*68');
+  await clearToast();
+  await page.evaluate(() => { window.SpeechRecognition = class { start() {}
+    abort() { if (this.onerror) this.onerror({ error: 'aborted' }); } }; voiceStart(); });
+  await page.waitForTimeout(200);
+  await page.evaluate(() => voiceCancel()); await page.waitForTimeout(300);
+  check('  やめたときも失敗と言わない', await toastNow(), '');
+
+  // 理由ごとに言い方を変える
+  await page.evaluate(() => { window.SpeechRecognition = class {
+    start() { setTimeout(() => { if (this.onerror) this.onerror({ error: window.__err }); }, 20); }
+    abort() {} }; });
+  for (const [k, word] of [['not-allowed', 'マイクが使えません'], ['audio-capture', 'マイクが見つかりません'],
+                           ['network', 'ネットにつながって'], ['no-speech', '声を拾えませんでした'],
+                           ['language-not-supported', 'language-not-supported']]) {
+    await clearToast();
+    await page.evaluate(x => { window.__err = x; voiceStart(); }, k);
+    await page.waitForTimeout(250);
+    check(`  ${k} の知らせ方`, (await toastNow()).includes(word), true);
+  }
+  await clearToast();
+  await page.evaluate(() => { window.SpeechRecognition = class {
+    start() { setTimeout(() => { if (this.onend) this.onend(); }, 20); } abort() {} }; voiceStart(); });
+  await page.waitForTimeout(250);
+  check('  すぐ終わったときも理由を出す', (await toastNow()).includes('すぐに終わって'), true);
+
   // ── テンキーの道具の段の既定の並び ──
   const toolRow = () => page.evaluate(() => [...document.querySelectorAll('#numpadPage1 .btn.util')]
     .map(b => ({ k: b.dataset.key, c: +getComputedStyle(b).gridColumnStart }))
