@@ -764,6 +764,39 @@ async function runSpeech(browser) {
   check('  🎤続けもキーに割り当てられる',
         await page.evaluate(() => KEY_FUNCS.a_voiceseq ? KEY_FUNCS.a_voiceseq.label : 'なし'), '🎤続け');
 
+  // ── テンキーの道具の段の既定の並び ──
+  const toolRow = () => page.evaluate(() => [...document.querySelectorAll('#numpadPage1 .btn.util')]
+    .map(b => ({ k: b.dataset.key, c: +getComputedStyle(b).gridColumnStart }))
+    .sort((a, b) => a.c - b.c).map(x => x.k).join(','));
+  check('  道具の段は 🎤声・進む・戻る・リセット・▦通常',
+        await toolRow(), 'u_voice,u_redo,u_undo,u_reset,u_normal');
+  check('  電卓キーは道具の段に無い',
+        await page.evaluate(() => !!document.querySelector('#numpadPage1 [data-key="u_dentaku"]')), false);
+  check('  電卓は⋯から出せる', await page.evaluate(() =>
+    !!document.querySelector('#moreMenuOverlay button[onclick*="dentaku"]')), true);
+  check('  電卓はキーにも割り当てられる',
+        await page.evaluate(() => KEY_FUNCS.a_modedentaku ? KEY_FUNCS.a_modedentaku.label : 'なし'), '🧮電卓');
+  // 自分で並べ替えていた人は、電卓のあった場所に🎤声が入る（重ならない）
+  await page.evaluate(() => localStorage.setItem('excalc_keypad_pos_v2', JSON.stringify({
+    u_dentaku: { r: 1, c: 1 }, u_redo: { r: 1, c: 2 }, u_undo: { r: 1, c: 3 },
+    u_reset: { r: 1, c: 4 }, u_normal: { r: 1, c: 5 } })));
+  await page.reload(); await page.waitForTimeout(900);
+  check('  並べ替えていた人は電卓の場所に🎤声',
+        await toolRow(), 'u_voice,u_redo,u_undo,u_reset,u_normal');
+  await page.evaluate(() => { localStorage.removeItem('excalc_keypad_pos_v2'); });
+  await page.reload(); await page.waitForTimeout(900);
+  // 読み込み直したので、偽の音声認識を入れ直す
+  await page.evaluate(() => {
+    window.__q = [];
+    window.SpeechRecognition = class {
+      start() { setTimeout(() => { const t = window.__q.shift();
+        if (t === undefined) { if (this.onend) this.onend(); return; }
+        if (this.onresult) this.onresult({ resultIndex: 0,
+          results: [Object.assign([{ transcript: t }], { isFinal: true })] }); }, 20); }
+      abort() {}
+    };
+  });
+
   // ── 声の入れかた（1つのセル／左に式・右に答え） ──
   const pair = (r, c) => page.evaluate(([r, c]) =>
     data[r][c] + '|' + data[r][c + 1] + '|' + getCellDisplay(r, c + 1), [r, c]);
