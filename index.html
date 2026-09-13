@@ -3992,7 +3992,7 @@ body.dark {
               <tr><td><span class="help-key">セルを指す</span></td><td>「<b>A1たすB2</b>」「<b>エー1たすビー2</b>」→ <code>=A1+B2</code></td></tr>
               <tr><td><span class="help-key">まとめて計算</span></td><td>「<b>A1からA5の合計</b>」→ <code>=SUM(A1:A5)</code>。<b>平均・最大・最小</b>も同じ言い方でできます</td></tr>
               <tr><td><span class="help-key">ルート・◯乗</span></td><td>「<b>ルート16かける3</b>」→ <code>=SQRT(16)*3</code>／「<b>2の10乗</b>」→ <code>=2^10</code></td></tr>
-              <tr><td><span class="help-key">続けて入れる</span></td><td><b>🎤を長押し</b>すると、1つ言うたびに<b>下のセルへ移って</b>また聞きます。やめるときは画面をタップ（テンキーには「設定・機能→<b>🎤続け</b>」を割り当てられます）</td></tr>
+              <tr><td><span class="help-key">続けて入れる</span></td><td><b>🎤を長押し</b>すると、1つ言うたびに<b>下のセルへ移って</b>また聞きます（「左に式・右に答え」で入れているときも同じように下へ進みます。いちばん下まで来たら行を足します）。やめるときは画面をタップ（テンキーには「設定・機能→<b>🎤続け</b>」を割り当てられます）</td></tr>
               <tr><td><span class="help-key">移るだけ</span></td><td>「<b>次</b>」「下」「右」「左」「上」と言うと、入れずにそのセルへ移ります</td></tr>
               <tr><td><span class="help-key">入れかたを選ぶ</span></td><td><b>設定→🧮計算→声の入れかた</b>（v327から）。<b>「式を入れる」</b>＝選んだセルに <code>=251*68</code>（答えが出ます）。<b>「左に式・右に答え」</b>＝選んだセルに <b>251×68</b>（読むための文字）、<b>右のセルに答え</b>を入れます。右のセルは式なので、あとから数字を直せば答えも変わり、<b>Σ合計</b>にも入ります。右に列が無いときは1列増やします。<b>↶戻る</b>1回で両方戻せます</td></tr>
               <tr><td><span class="help-key">答えを読み上げ</span></td><td><b>設定→🧮計算→答えを声で読み上げる</b>で、計算した答えを声で返します（<b>全機種で使えます</b>。手がふさがっているときの確認に）</td></tr>
@@ -11802,7 +11802,10 @@ function speechPutSplit(r, c, formula, plain){
   setTimeout(()=>{ undoing=wasUndoing; }, 0);   // 左のセルを入れ終わってから元に戻す
   const left=formulaToReadable(formula);
   setTimeout(()=>{
-    recalcAll(); buildSheet(); sel(r,c);
+    recalcAll(); buildSheet();
+    // 続けて入れるときは、この時点でもう次のセルへ移っている。
+    // そのまま元のセルを選び直すと、次に言った式が同じセルに上書きされてしまう。
+    if(selR===r && selC===c) sel(r,c);
     if(typeof toast==='function'){
       toast(`「${plain}」→ ${left} ＝ ${getCellDisplay(r,rc)} を右のセルに入れました`
             +(had?'（元の内容は ↶戻る で戻せます）':''), 4600);
@@ -11968,7 +11971,18 @@ function voiceAccept(text){
 function describeCell(r,c){ return `${xlColLetter(c)}${r+1}`; }
 function voiceMove(dir){
   let r=selR, c=selC;
-  if(dir==='down') r=Math.min(ROWS-1, r+1);
+  if(dir==='down'){
+    // 続けて入れているときに最終行まで来たら、行を足して下へ進む
+    // （足せないときだけ、その行に留まる）
+    if(r>=ROWS-1 && !isStructMode() && ROWS<MAXROWS){
+      ROWS++;
+      const rc=document.getElementById('rowCount'); if(rc) rc.textContent=ROWS;
+      localStorage.setItem('excalc_rows',ROWS);
+      buildSheet();
+      persistModes();
+    }
+    r=Math.min(ROWS-1, r+1);
+  }
   else if(dir==='up') r=Math.max(0, r-1);
   else if(dir==='right') c=Math.min(COLS-1, c+1);
   else if(dir==='left') c=Math.max(0, c-1);
@@ -14354,7 +14368,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v330';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v331';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
