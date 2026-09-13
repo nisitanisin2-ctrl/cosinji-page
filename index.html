@@ -2603,6 +2603,7 @@ body.dark {
         <option value="wareki">令和8年7月7日</option>
       </select>
     </div>
+    <button class="set-act" id="speechAutoBtn" onclick="toggleSpeechAuto()" title="音声入力で「251かける68」のように言った式を、自動で計算式に直します（式に見えないときは文字のまま入ります）">しゃべった式を計算する</button>
     <button class="set-act" id="digitHintBtn" onclick="toggleDigitHint()" title="入力中の数字を「5,000,000 ＝ 500万」のように数式バーの下に出します（1万以上のときだけ）">入力中の数字の桁を出す</button>
     <div class="set-sec">📋 ひな形（テンプレ）とモード</div>
     <div class="set-note">ひな形は<b>テンキーの「モード」キー</b>や<b>⋯→🎯用途から始める</b>からも選べます（目的別に並べてあります）。</div>
@@ -3954,6 +3955,7 @@ body.dark {
           <div class="help-li">押した後に<b>セルを始点→終点までスライド</b>で合計範囲を指定できます（タップで1セル）。</div>
           <div class="help-li"><b>Σを長押し</b>で「合計／平均」を選べます（選んだ方を記憶し、ボタン表示も変わります）。</div>
           <div class="help-li"><b>記録の並べ方</b>（v315から）：保存データ一覧は<b>⊞アイコン</b>と<b>☰リスト</b>を切り替えられます。<b>アイコン</b>はエクスプローラーのようにファイルが並ぶ形で、<b>短くタップで開きます</b>（v320から確認は出ません。<b>↶戻る</b>で開く前の表に戻せます）。<b>⋯か長押し</b>でメニューが出て、<b>📂開く・✏名前の変更・⧉コピーを作る・🔒ロック・🔀モードへ登録・🗂他のタブへ移す・🗑削除</b>ができます（v317でコピーを追加）。長押しでメニューを出したときは、指を離しても<b>記録は開きません</b>。メニューの項目は<b>もう一度そこから押し直す</b>と動きます（v321。指の真下に出た項目が、離しただけで選ばれてしまうのを防ぐためです。セルの長押しメニューも同じです）。<b>コピー</b>は中身ごと複製した別の記録になるので、元をそのまま残して作りかえられます（名前は「◯◯ のコピー」）。絵は保存したときのモードのものになります（🔒はロック中、📂は今開いている記録）。アイコンの<b>大きさ</b>（小・中・大）と<b>並べ替え</b>（新しい順・古い順・名前順 あ→ん／ん→あ）も選べます。名前順は日本語の並びで、<b>見積もり2 → 見積もり10</b> のように数字も数の順になります（並べ替えはリスト表示にも効きます）。選んだ表示・大きさ・並び順は次に開いたときも残ります。</div>
+          <div class="help-li"><b>しゃべった式を計算する</b>（v324から）：<b>文字</b>キーで入力欄を出し、<b>キーボードのマイク</b>で「<b>251かける68</b>」のように言うと、<b>=251*68</b> に直して計算します。<b>かける・わる・たす・ひく・プラス・マイナス・かっこ・てん（小数点）</b>と、<b>×÷＋−</b>の記号、<b>全角の数字</b>、<b>漢数字</b>（二百五十一／一万二千三百）に対応します。「〜は？」「計算して」などの前後の言い回しは落とします。<b>式に見えないときは今までどおり文字のまま</b>入ります（「みかん3個」はそのまま）。直したときはお知らせが出て、<b>↶戻る</b>で戻せます。いらないときは<b>設定→🧮計算→しゃべった式を計算する</b>で切れます。</div>
           <div class="help-li"><b>入力中の数字の桁</b>（v312から）：1万以上の数字を入れていると、入力欄の下に <b>500万</b> のように読みが出ます。打っている途中から出るので、0の数を数えなくてもすみます。数式のセルを選んだときは<b>計算結果</b>の桁を出します。いらないときは<b>設定→🧮計算→入力中の数字の桁を出す</b>で消せます。</div>
           <div class="help-li"><b>入力欄の右の合計</b>：列・行を選ぶと合計を表示（数値が無いときは出ません）。<b>「合計」タップで合計⇄平均</b>／<b>「¥」タップで数字⇄漢数字</b>（兆・億・万）／<b>数値タップでコピー</b>。</div>
         </div>
@@ -11552,7 +11554,7 @@ function toCell() {
     if(fiDirty){
       fiDirty=false;
       if(!isLockedCell(selR,selC)){
-        const v=fi.value.trim();
+        const v=speechCommit(fi.value.trim(), selR, selC);
         formulaEditMode=false; fi.classList.remove('formula-mode');
         if(v!==data[selR][selC]) setCellVal(selR,selC,v);
       }
@@ -11563,7 +11565,7 @@ function toCell() {
       e.preventDefault(); e.stopPropagation();
       fiDirty=false;   // ここで確定済み。blur での二重確定を防ぐ
       formulaEditMode=false; fi.classList.remove('formula-mode');
-      setCellVal(selR,selC,fi.value.trim());
+      setCellVal(selR,selC,speechCommit(fi.value.trim(), selR, selC));
       advanceRowOrAdd();   // 最終行なら行を追加して移動
       const tb=document.getElementById('textBtn'); if(tb) tb.classList.remove('text-on');
       fi.blur();
@@ -11580,6 +11582,115 @@ function toCell() {
     }
   });
 })();
+
+/* ── しゃべった式を読み取る ────────────────────────────────────
+   音声入力（キーボードのマイク／アプリの🎤）で入る文字は端末によって形が違う。
+     「251×68」「251かける68」「２５１ かける ６８ は」「二百五十一かける六十八」
+   どれも同じ式として扱えるように、文字を数式に直してからセルへ入れる。
+   式に見えないとき（「みかん3個」など）は null を返し、今までどおり文字のまま入れる。 */
+
+/* 漢数字（万進法）を数字にする。例 二百五十一→251、一万二千三百→12300、十→10 */
+const KANJI_DIGIT={〇:0,零:0,一:1,壱:1,二:2,弐:2,三:3,参:3,四:4,五:5,六:6,七:7,八:8,九:9};
+const KANJI_SMALL={十:10,百:100,千:1000};
+const KANJI_BIG={万:10000,億:100000000,兆:1000000000000};
+function kanjiRunToNumber(run){
+  let total=0, section=0, digit=0, seen=false;
+  for(const ch of run){
+    if(ch in KANJI_DIGIT){ digit=KANJI_DIGIT[ch]; seen=true; }
+    else if(ch>='0'&&ch<='9'){ digit=digit*10+Number(ch); seen=true; }   // 「2百」のような混ざり方
+    else if(ch in KANJI_SMALL){ section+=(digit||1)*KANJI_SMALL[ch]; digit=0; seen=true; }
+    else if(ch in KANJI_BIG){ total+=(section+digit)*KANJI_BIG[ch]; section=0; digit=0; seen=true; }
+    else return null;
+  }
+  return seen ? total+section+digit : null;
+}
+/* 文字の中の漢数字のかたまりだけを数字に置き換える */
+function kanjiNumsToDigits(t){
+  return t.replace(/[〇零一壱二弐三参四五六七八九十百千万億兆0-9]{1,20}/g, run=>{
+    if(!/[〇零一壱二弐三参四五六七八九十百千万億兆]/.test(run)) return run;   // もともと数字だけ＝そのまま
+    const n=kanjiRunToNumber(run);
+    return n===null ? run : String(n);
+  });
+}
+/* 話し言葉を式の記号に直す（長い言い方から先に置き換える） */
+const SPEECH_WORDS=[
+  [/(かっこ|カッコ|括弧)(とじ|閉じ|閉|しめ|締め)/g, ')'],
+  [/(とじ|閉じ|閉|しめ|締め)(かっこ|カッコ|括弧)/g, ')'],
+  [/(かっこ|カッコ|括弧)/g, '('],
+  [/(かける|掛ける|掛け|かけ|カケル)/g, '*'],
+  [/(わる|割る|割り|わり|ワル)/g, '/'],
+  [/(たす|足す|足し|たし|プラス)/g, '+'],
+  [/(ひく|引く|引き|ひき|マイナス)/g, '-'],
+  [/(パーセント|ぱーせんと|％)/g, '%'],
+  [/(てん|・)(?=\d)/g, '.'],            // 「3てん5」→3.5
+];
+/* 前後の言い回しを落とす（「〜は？」「計算して」など） */
+const SPEECH_TRIM=[
+  /^(えーと|ええと|あの|それでは|じゃあ|ねえ|ねぇ)+/,
+  /^((計算|けいさん)(して|してください|して下さい)?)/,
+  /(を?(計算|けいさん)(して|してください|して下さい)?)$/,
+  /(は|わ|イコール|いこーる|＝|=)?(いくつ|幾つ|なんぼ|何|？|\?)*$/,
+  /(です|でーす|ですか|になります|ください|下さい|。|、)+$/,
+];
+/* しゃべった文字 → 数式。式に見えなければ null */
+function speechToFormula(text){
+  if(text==null) return null;
+  let t=String(text).trim();
+  if(t==='' || t.startsWith('=')) return null;        // 空・すでに数式は触らない
+  // 全角の数字・記号を半角へ。setCellVal の normalizeFullWidth は
+  // 「全体が数値のときだけ」半角にするので、ここでは使わず自前で直す。
+  t=t.replace(/[！-～]/g, ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0)).replace(/　/g,' ');
+  t=t.replace(/[×✕☓ｘxX]/g,'*').replace(/[÷／]/g,'/').replace(/[−–—ー]/g,'-');
+  t=t.replace(/[\s,，]/g,'');                          // 空白・読点は落とす
+  for(const re of SPEECH_TRIM) t=t.replace(re,'');
+  t=kanjiNumsToDigits(t);
+  for(const [re,rep] of SPEECH_WORDS) t=t.replace(re,rep);
+  for(const re of SPEECH_TRIM) t=t.replace(re,'');    // 記号に直したあと、末尾の「は」などをもう一度落とす
+  t=t.replace(/[。、]/g,'');
+  if(!/^[-+]?[\d.()%*\/+\-]+$/.test(t)) return null;  // 数字と記号だけになっていなければ式ではない
+  if(!/\d/.test(t)) return null;                      // 数字が無い
+  if(!/\d\s*[*\/+\-]/.test(t)) return null;           // 計算するところが無い（ただの数字）
+  if(/[*\/+\-]{2,}/.test(t.replace(/^[-+]/,''))) return null;   // 記号が続く＝読み間違い
+  if(/[*\/+\-.]$/.test(t)) return null;                        // 記号で終わっている＝言いかけ
+  if(/^[*\/]/.test(t)) return null;                            // 記号で始まっている
+  if(/\(\)/.test(t)) return null;                              // 中身の無いかっこ
+  const open=(t.match(/\(/g)||[]).length, close=(t.match(/\)/g)||[]).length;
+  if(open!==close) return null;                       // かっこが合わない
+  return '='+t;
+}
+/* セルへ入れる直前に通す。式に見えたら数式にし、直したことをお知らせで伝える。
+   言ったとおりの文字で残したいときのために「文字のままにする」を出す。 */
+let speechUndoInfo=null;    // {r,c,plain} 直前に変換したところ
+function speechCommit(v, r, c){
+  if(!speechAutoOn) return v;                 // 設定で切っているときは何もしない
+  const f=speechToFormula(v);
+  if(f===null) return v;
+  speechUndoInfo={ r, c, plain:String(v).trim() };
+  setTimeout(()=>{
+    if(typeof toast==='function'){
+      toast(`「${speechUndoInfo.plain}」を ${f} として計算しました（もう一度言い直すか、↶戻る で戻せます）`, 4600);
+    }
+  }, 0);
+  return f;
+}
+/* 直前の変換を取り消して、言ったとおりの文字に戻す */
+function speechKeepPlain(){
+  if(!speechUndoInfo) { if(typeof toast==='function') toast('直したところがありません'); return; }
+  const {r,c,plain}=speechUndoInfo;
+  speechUndoInfo=null;
+  setCellVal(r,c,plain);
+  buildSheet(); sel(r,c);
+  if(typeof toast==='function') toast('言ったとおりの文字に戻しました');
+}
+/* 自動で式に直すかどうか（設定→🧮計算） */
+let speechAutoOn = localStorage.getItem('excalc_speechauto')!=='0';   // 既定は直す
+function toggleSpeechAuto(){
+  speechAutoOn=!speechAutoOn;
+  localStorage.setItem('excalc_speechauto', speechAutoOn?'1':'0');
+  const b=document.getElementById('speechAutoBtn'); if(b) b.classList.toggle('on', speechAutoOn);
+  toast(speechAutoOn?'しゃべった式を自動で計算します（例「251かける68」→ =251*68）'
+                   :'しゃべった言葉は文字のまま入れます');
+}
 
 /* ── キーボードショートカット ── */
 document.addEventListener('keydown', e=>{
@@ -13942,7 +14053,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v323';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v324';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -15624,6 +15735,7 @@ applyResizerBar();   // 調整バーの表示/非表示を復元
 applyPageBar();      // テンキーのページ表示の有無を復元
 loadTopBtnShown(); applyTopBtnShown();                       // 上のバーに出すボタンを復元
 if(typeof bindDefaultSizeBtn==='function') bindDefaultSizeBtn(document.getElementById('tbDefsize'));   // ▦は長押しで既定値を設定
+(function(){ const b=document.getElementById('speechAutoBtn'); if(b) b.classList.toggle('on', speechAutoOn); })();
 (function(){ const b=document.getElementById('digitHintBtn');
   if(b) b.classList.toggle('on', digitHintOn);
   if(typeof updateDigitHint==='function') updateDigitHint(); })();   // 桁の表示を復元

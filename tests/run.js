@@ -4,6 +4,7 @@
      node tests/run.js formula   数式だけ
      node tests/run.js xlsx      Excelだけ
      node tests/run.js digit     数字の桁の読みだけ
+     node tests/run.js speech    しゃべった式の読み取りだけ
    Playwright は /opt/node22 に入っているものを使う（このリポジトリには入れない）。 */
 'use strict';
 const path = require('path');
@@ -653,6 +654,43 @@ async function runTopBar(browser) {
   await ctx.close();
 }
 
+/* しゃべった式の読み取り */
+async function runSpeech(browser) {
+  const { CASES } = require('./speech.test.js');
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── しゃべった式の読み取り ──');
+
+  const got = await page.evaluate(cases => cases.map(([t]) => speechToFormula(t) || ''), CASES);
+  CASES.forEach(([t, want], i) => check(`  ${t === '' ? '(空)' : t}`, got[i], want));
+
+  // 実際にセルへ入れたときも式になる／ならない
+  const commit = t => page.evaluate(x => {
+    sel(0, 0);
+    const fi = document.getElementById('formulaInput');
+    fi.focus(); fi.value = x; fi.dispatchEvent(new Event('input'));
+    fi.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    return data[0][0];
+  }, t);
+  check('  セルに式として入る', await commit('251かける68'), '=251*68');
+  check('  計算される', await page.evaluate(() => getCellDisplay(0, 0)), '17068');
+  check('  文字はそのまま入る', await commit('みかん3個'), 'みかん3個');
+
+  // 言ったとおりの文字に戻せる
+  await commit('251かける68');
+  await page.evaluate(() => speechKeepPlain()); await page.waitForTimeout(300);
+  check('  言ったとおりの文字に戻せる', await page.evaluate(() => data[0][0]), '251かける68');
+
+  // 設定で切れる
+  await page.evaluate(() => toggleSpeechAuto());
+  check('  設定で切ると文字のまま', await commit('251かける68'), '251かける68');
+  await page.evaluate(() => toggleSpeechAuto());
+  check('  設定で戻せる', await commit('251かける68'), '=251*68');
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 async function runDigit(browser) {
   const { CASES, BIG, TYPING, FORMULA } = require('./digit.test.js');
   const { ctx, page, errs } = await newPage(browser);
@@ -706,6 +744,7 @@ async function runDigit(browser) {
     if (!only || only === 'a11y') await runA11y(browser);
     if (!only || only === 'mode') await runMode(browser);
     if (!only || only === 'digit') await runDigit(browser);
+    if (!only || only === 'speech') await runSpeech(browser);
     if (!only || only === 'cellmenu') await runCellMenu(browser);
     if (!only || only === 'savelist') await runSaveList(browser);
     if (!only || only === 'topbar') await runTopBar(browser);
