@@ -11854,7 +11854,13 @@ function voiceStart(){
   const ov=document.getElementById('voiceOverlay');
   const txt=document.getElementById('voiceText');
   if(txt) txt.textContent='聞いています…';
-  if(ov) ov.classList.add('open');
+  if(ov){
+    ov.classList.add('open');
+    // この窓は画面いっぱいに広がるので、キーを押した指がそのまま窓の上にある。
+    // 指を離した分のクリックで、開いた瞬間に閉じてしまっていた（テンキーの🎤声キー）。
+    // 「押し直すまで反応しない」ようにして、開いてすぐ閉じるのを止める。
+    if(typeof armOnRepress==='function') armOnRepress(ov);
+  }
   const rec=new Ctor();
   voiceRec=rec;
   rec.lang='ja-JP';
@@ -14348,7 +14354,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v329';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v330';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
