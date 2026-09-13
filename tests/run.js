@@ -686,6 +686,46 @@ async function runSpeech(browser) {
   await page.evaluate(() => toggleSpeechAuto());
   check('  設定で戻せる', await commit('251かける68'), '=251*68');
 
+  // ── アプリの中の🎤 ──
+  check('  🎤が使えるか調べられる', await page.evaluate(() => typeof voiceAvailable()), 'boolean');
+  check('  使えるときは⋯に🎤が出る', await page.evaluate(() =>
+    voiceAvailable() === (getComputedStyle(document.getElementById('voiceMoreBtn')).display !== 'none')), true);
+  check('  キーに割り当てられる', await page.evaluate(() =>
+    KEY_FUNCS.a_voice ? KEY_FUNCS.a_voice.label : 'なし'), '🎤声');
+
+  // 聞き取りの部分は偽物に差し替えて、聞き取れたあとの動きだけ確かめる
+  await page.evaluate(() => {
+    window.__spoken = null;
+    window.SpeechRecognition = class {
+      start() { setTimeout(() => { if (this.onresult) this.onresult({ resultIndex: 0,
+        results: [Object.assign([{ transcript: window.__spoken }], { isFinal: true })] }); }, 20); }
+      abort() {}
+    };
+  });
+  const say = async t => { await page.evaluate(x => { window.__spoken = x; sel(0, 0); voiceStart(); }, t);
+    await page.waitForTimeout(300); return page.evaluate(() => data[0][0]); };
+  check('  しゃべった式がセルに入る', await say('251かける68'), '=251*68');
+  check('  計算される', await page.evaluate(() => getCellDisplay(0, 0)), '17068');
+  await page.evaluate(() => setCellVal(0, 0, ''));
+  check('  式でない言葉は文字のまま入る', await say('みかん3個'), 'みかん3個');
+  check('  入れ終わったら窓が閉じる', await page.evaluate(() =>
+    document.getElementById('voiceOverlay').classList.contains('open')), false);
+
+  // 聞き取り中の窓が出て、タップで閉じられる
+  await page.evaluate(() => { window.SpeechRecognition = class { start() {} abort() {} };
+    sel(0, 0); voiceStart(); }); await page.waitForTimeout(300);
+  check('  聞き取り中は窓が出る', await page.evaluate(() =>
+    document.getElementById('voiceOverlay').classList.contains('open')), true);
+  await page.evaluate(() => voiceStop()); await page.waitForTimeout(200);
+  check('  タップでやめられる', await page.evaluate(() =>
+    document.getElementById('voiceOverlay').classList.contains('open')), false);
+
+  // 使えない端末では、キーボードのマイクを案内する
+  await page.evaluate(() => { delete window.SpeechRecognition; delete window.webkitSpeechRecognition; voiceStart(); });
+  await page.waitForTimeout(300);
+  check('  使えない端末では案内を出す', await page.evaluate(() =>
+    /キーボードのマイク/.test(document.getElementById('appToast').textContent)), true);
+
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();

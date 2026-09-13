@@ -1802,6 +1802,16 @@ body.dark .save-mode { background: #143a35; color: #7fcabd; }
 .sf-more:hover { background: var(--cell-border); }
 .sf-open { position: absolute; top: -4px; left: -8px; font-size: 13px; }
 /* 表示の切り替え（リスト⇄アイコン） */
+/* 🎤で聞き取っている間の窓 */
+.voice-box {
+  background: var(--modal-bg); border-radius: var(--r-card); box-shadow: var(--elev-2);
+  padding: 22px 20px; width: 86%; max-width: 340px; text-align: center;
+}
+.voice-mic { font-size: 44px; line-height: 1; animation: voicePulse 1.1s ease-in-out infinite; }
+@keyframes voicePulse { 0%,100%{ transform: scale(1); opacity: 1; } 50%{ transform: scale(1.14); opacity: .6; } }
+.voice-text { margin-top: 12px; font-size: 18px; font-weight: bold; color: var(--text); min-height: 1.4em; word-break: break-all; }
+.voice-hint { margin-top: 10px; font-size: 12px; color: var(--text-light); line-height: 1.5; }
+
 .save-viewbar {
   display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
   padding: 0 16px 4px; flex-shrink: 0;
@@ -2429,6 +2439,17 @@ body.dark {
   </div>
 </div>
 
+<!-- 🎤で聞き取っている間だけ出す小さな窓。タップでやめられる -->
+<div class="modal-overlay" id="voiceOverlay" onclick="voiceStop()">
+  <div class="voice-box">
+    <!-- 読み上げ用に見出しを持たせる（他のダイアログと同じ作り）。画面には出さない -->
+    <div class="modal-header" style="display:none"><span>🎤 声で入れる</span></div>
+    <div class="voice-mic" aria-hidden="true">🎤</div>
+    <div class="voice-text" id="voiceText" role="status" aria-live="polite">聞いています…</div>
+    <div class="voice-hint">式は「251かける68」のように言ってください／画面をタップでやめる</div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="moreMenuOverlay" onclick="if(event.target===this)closeMoreMenu()">
   <div class="modal more-modal">
     <div class="modal-header">
@@ -2441,6 +2462,7 @@ body.dark {
         <button class="more-item menu-item" id="listBtn" onclick="moreDo(showSaveList)"><span>📋</span>リスト</button>
         <button class="more-item menu-item" id="sheetToggleBtn" onclick="moreDo(toggleSheetTabs)" title="シートのタブバーを表示/非表示"><span>🗂</span>シート</button>
         <button class="more-item menu-item" id="settingsBtn" onclick="moreDo(toggleSettings)"><span>⚙</span>設定</button>
+        <button class="more-item" id="voiceMoreBtn" onclick="moreDo(voiceStart)" style="display:none"><span>🎤</span>声で入れる</button>
       </div>
       <div class="more-sec">書き出す</div>
       <div class="more-grid">
@@ -3956,6 +3978,7 @@ body.dark {
           <div class="help-li"><b>Σを長押し</b>で「合計／平均」を選べます（選んだ方を記憶し、ボタン表示も変わります）。</div>
           <div class="help-li"><b>記録の並べ方</b>（v315から）：保存データ一覧は<b>⊞アイコン</b>と<b>☰リスト</b>を切り替えられます。<b>アイコン</b>はエクスプローラーのようにファイルが並ぶ形で、<b>短くタップで開きます</b>（v320から確認は出ません。<b>↶戻る</b>で開く前の表に戻せます）。<b>⋯か長押し</b>でメニューが出て、<b>📂開く・✏名前の変更・⧉コピーを作る・🔒ロック・🔀モードへ登録・🗂他のタブへ移す・🗑削除</b>ができます（v317でコピーを追加）。長押しでメニューを出したときは、指を離しても<b>記録は開きません</b>。メニューの項目は<b>もう一度そこから押し直す</b>と動きます（v321。指の真下に出た項目が、離しただけで選ばれてしまうのを防ぐためです。セルの長押しメニューも同じです）。<b>コピー</b>は中身ごと複製した別の記録になるので、元をそのまま残して作りかえられます（名前は「◯◯ のコピー」）。絵は保存したときのモードのものになります（🔒はロック中、📂は今開いている記録）。アイコンの<b>大きさ</b>（小・中・大）と<b>並べ替え</b>（新しい順・古い順・名前順 あ→ん／ん→あ）も選べます。名前順は日本語の並びで、<b>見積もり2 → 見積もり10</b> のように数字も数の順になります（並べ替えはリスト表示にも効きます）。選んだ表示・大きさ・並び順は次に開いたときも残ります。</div>
           <div class="help-li"><b>しゃべった式を計算する</b>（v324から）：<b>文字</b>キーで入力欄を出し、<b>キーボードのマイク</b>で「<b>251かける68</b>」のように言うと、<b>=251*68</b> に直して計算します。<b>かける・わる・たす・ひく・プラス・マイナス・かっこ・てん（小数点）</b>と、<b>×÷＋−</b>の記号、<b>全角の数字</b>、<b>漢数字</b>（二百五十一／一万二千三百）に対応します。「〜は？」「計算して」などの前後の言い回しは落とします。<b>式に見えないときは今までどおり文字のまま</b>入ります（「みかん3個」はそのまま）。直したときはお知らせが出て、<b>↶戻る</b>で戻せます。いらないときは<b>設定→🧮計算→しゃべった式を計算する</b>で切れます。</div>
+          <div class="help-li"><b>🎤声で入れる</b>（v325から）：キーボードを出さずに、<b>⋯→🎤声で入れる</b>でそのまましゃべれます。テンキーのボタンを<b>長押し→🔧ボタンの機能→設定・機能→🎤声</b>に変えれば、ワンタップで呼び出せます。聞き取り中は🎤の窓が出て、聞こえた言葉がその場に出ます（<b>画面をタップでやめる</b>）。聞き取れた言葉は上と同じ決まりで式に直します。<br>この機能は<b>端末しだい</b>です。Androidのブラウザでは使えますが、<b>iPhoneのホーム画面アプリでは使えないことがあります</b>。使えない端末では🎤を出さず、押したときは「<b>文字</b>キー＋キーボードのマイク」を案内します。<b>マイクの許可</b>が必要で、聞き取りは端末・ブラウザの音声サービス（ネット経由のことがあります）で行われます。</div>
           <div class="help-li"><b>入力中の数字の桁</b>（v312から）：1万以上の数字を入れていると、入力欄の下に <b>500万</b> のように読みが出ます。打っている途中から出るので、0の数を数えなくてもすみます。数式のセルを選んだときは<b>計算結果</b>の桁を出します。いらないときは<b>設定→🧮計算→入力中の数字の桁を出す</b>で消せます。</div>
           <div class="help-li"><b>入力欄の右の合計</b>：列・行を選ぶと合計を表示（数値が無いときは出ません）。<b>「合計」タップで合計⇄平均</b>／<b>「¥」タップで数字⇄漢数字</b>（兆・億・万）／<b>数値タップでコピー</b>。</div>
         </div>
@@ -7013,6 +7036,7 @@ const KEY_FUNCS={
   a_csvin:{g:'設定・機能',label:'CSV読',run:()=>document.getElementById('importCSVInput').click()},
   a_xlsxout:{g:'設定・機能',label:'📊Excel出',run:()=>exportXLSX()},
   a_xlsxin:{g:'設定・機能',label:'📈Excel読',run:()=>document.getElementById('importXLSXInput').click()},
+  a_voice:{g:'設定・機能',label:'🎤声',run:()=>voiceStart()},
   a_calctmpl:{g:'設定・機能',label:'📋式テン',run:()=>openCalcTmpl()}, a_fintmpl:{g:'設定・機能',label:'📑決算',run:()=>openFinTmpl()},
   a_modevis:{g:'設定・機能',label:'🔀表示',run:()=>openModeVis()}, a_help:{g:'設定・機能',label:'📖説明',run:()=>openHelp()},
   a_defsize:{g:'設定・機能',label:'▦既定',run:()=>applyDefaultSize()}, a_cellfmt:{g:'設定・機能',label:'🎨書式',run:()=>openCellFmt()},
@@ -11682,6 +11706,75 @@ function speechKeepPlain(){
   buildSheet(); sel(r,c);
   if(typeof toast==='function') toast('言ったとおりの文字に戻しました');
 }
+/* ── アプリの中の🎤（ブラウザの音声認識） ──────────────────────
+   キーボードを出さずに、テンキーから直接しゃべってセルへ入れる。
+   使えるかどうかは端末しだい（Android Chrome は動く。iPhone はホーム画面アプリだと
+   動かないことがある）ので、使えるときだけ🎤を出し、だめなときは
+   「文字キー＋キーボードのマイク」を案内する。 */
+function speechRecCtor(){ return window.SpeechRecognition || window.webkitSpeechRecognition || null; }
+function voiceAvailable(){ return !!speechRecCtor(); }
+let voiceRec=null, voiceBusy=false;
+function voiceStop(){
+  if(voiceRec){ try{ voiceRec.abort(); }catch(_){} voiceRec=null; }
+  voiceBusy=false;
+  const ov=document.getElementById('voiceOverlay'); if(ov) ov.classList.remove('open');
+}
+function voiceStart(){
+  const Ctor=speechRecCtor();
+  if(!Ctor){
+    toast('この端末ではアプリから直接は聞き取れません。「文字」キーを押して、キーボードのマイクでどうぞ', 5200);
+    return;
+  }
+  if(voiceBusy){ voiceStop(); return; }         // もう一度押したら止める
+  if(typeof editBlocked==='function' && editBlocked()) return;
+  voiceBusy=true;
+  const ov=document.getElementById('voiceOverlay');
+  const txt=document.getElementById('voiceText');
+  if(txt) txt.textContent='聞いています…';
+  if(ov) ov.classList.add('open');
+  const rec=new Ctor();
+  voiceRec=rec;
+  rec.lang='ja-JP';
+  rec.interimResults=true;                      // 途中経過も出して、聞こえているのが分かるように
+  rec.maxAlternatives=1;
+  rec.continuous=false;
+  rec.onresult=e=>{
+    let finalText='', interim='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const r=e.results[i];
+      if(r.isFinal) finalText+=r[0].transcript; else interim+=r[0].transcript;
+    }
+    if(txt) txt.textContent=(finalText||interim||'…');
+    if(finalText) voiceAccept(finalText);
+  };
+  rec.onerror=e=>{
+    voiceStop();
+    const k=e&&e.error;
+    if(k==='not-allowed'||k==='service-not-allowed') toast('マイクが使えませんでした。端末の設定でこのサイトのマイクを許可してください', 5200);
+    else if(k==='no-speech') toast('聞き取れませんでした。もう一度どうぞ');
+    else if(k==='network') toast('ネットにつながっていないと聞き取れません。「文字」キーとキーボードのマイクをお使いください', 5200);
+    else toast('聞き取れませんでした');
+  };
+  rec.onend=()=>{ if(voiceBusy) voiceStop(); };
+  try{ rec.start(); }
+  catch(_){ voiceStop(); toast('聞き取りを始められませんでした'); }
+}
+/* 聞き取れた言葉をセルへ入れる（式に見えれば式にして計算） */
+function voiceAccept(text){
+  voiceStop();
+  const raw=String(text).trim();
+  if(!raw){ toast('聞き取れませんでした'); return; }
+  if(isLockedCell(selR,selC)){ toast('このセルは保護されています'); return; }
+  const f=speechAutoOn ? speechToFormula(raw) : null;
+  const v=(f===null)?raw:f;
+  if(f!==null) speechUndoInfo={ r:selR, c:selC, plain:raw };
+  setCellVal(selR,selC,v);
+  buildSheet(); sel(selR,selC);
+  const el=document.getElementById('formulaInput'); if(el) el.value=data[selR][selC];
+  if(f!==null) toast(`「${raw}」→ ${f} ＝ ${getCellDisplay(selR,selC)}`, 4200);
+  else toast(`「${raw}」を入れました`);
+}
+
 /* 自動で式に直すかどうか（設定→🧮計算） */
 let speechAutoOn = localStorage.getItem('excalc_speechauto')!=='0';   // 既定は直す
 function toggleSpeechAuto(){
@@ -14053,7 +14146,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v324';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v325';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -15736,6 +15829,10 @@ applyPageBar();      // テンキーのページ表示の有無を復元
 loadTopBtnShown(); applyTopBtnShown();                       // 上のバーに出すボタンを復元
 if(typeof bindDefaultSizeBtn==='function') bindDefaultSizeBtn(document.getElementById('tbDefsize'));   // ▦は長押しで既定値を設定
 (function(){ const b=document.getElementById('speechAutoBtn'); if(b) b.classList.toggle('on', speechAutoOn); })();
+(function(){   // 🎤は、この端末で使えるときだけ出す
+  const b=document.getElementById('voiceMoreBtn');
+  if(b && typeof voiceAvailable==='function' && voiceAvailable()) b.style.display='';
+})();
 (function(){ const b=document.getElementById('digitHintBtn');
   if(b) b.classList.toggle('on', digitHintOn);
   if(typeof updateDigitHint==='function') updateDigitHint(); })();   // 桁の表示を復元
