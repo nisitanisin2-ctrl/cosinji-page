@@ -55,13 +55,16 @@ const TMPL_BACK_TO_PLAIN = {
   name: '通常→ひな形→通常でまっさらな表に戻る',
   steps: [
     { do: "setCellVal(0,0,'もとの表')" },
+    { do: "changeRows(5); changeCols(2)" },       // わざと広げてからひな形を入れる
     { do: "applyTemplateObj(CALC_TEMPLATES[0], ()=>{})" },
     { check: 'data[0][0]===CALC_TEMPLATES[0].rows[0][0]', is: true },
     { check: 'COLS', is: 2 },
+    { check: 'ROWS', is: 6 },
     { do: "switchMode('normal')", expect: { ws:'normal', tm:'normal' } },
     { check: 'data[0][0]', is: '' },              // ひな形の中身が消えている
-    { check: 'COLS', is: 3 },                     // ひな形を入れる前の大きさに戻る
+    { check: 'COLS', is: 3 },                     // 既定の大きさ（15行×3列）に戻る
     { check: 'ROWS', is: 15 },
+    { check: "document.getElementById('rowCount').textContent+'/'+document.getElementById('colCount').textContent", is: '15/3' },
     { check: 'Object.keys(cellStyles).length', is: 0 },
     { check: "typeof currentTemplate!=='function' || currentTemplate()===null", is: true },
     { do: "undoLast()" },                         // ↶戻る でひな形に戻せる
@@ -69,6 +72,19 @@ const TMPL_BACK_TO_PLAIN = {
     { do: "switchMode('normal')" },               // 戻したあとも、もう一度まっさらにできる
     { check: 'data[0][0]', is: '' },
     { check: 'COLS', is: 3 },
+  ]
+};
+
+/* 既定の大きさを変えていれば、そちらに戻る */
+const TMPL_TO_DEFAULT_SIZE = {
+  name: 'ひな形→通常で既定の大きさに戻る',
+  steps: [
+    { do: "localStorage.setItem('excalc_default_rows','30'); localStorage.setItem('excalc_default_cols','6')" },
+    { do: "applyTemplateObj(CALC_TEMPLATES[1], ()=>{})" },
+    { check: 'COLS', is: 2 },
+    { do: "switchMode('normal')" },
+    { check: 'ROWS', is: 30 },
+    { check: 'COLS', is: 6 },
   ]
 };
 
@@ -148,4 +164,5 @@ const HISTORY_PER_MODE = {
 
 module.exports = { MODES, ROUNDTRIP, STUCK_SCENARIO, HISTORY_CLEARED, UNDO_WITHIN_MODE,
                    TMPL_BACK_TO_PLAIN, TMPL_KEEPS_PLAIN, TMPL_FROM_OTHER_MODE,
-                   TMPL_MODE_ROUNDTRIP, TMPL_MODE_THEN_PLAIN, HISTORY_PER_MODE };
+                   TMPL_MODE_ROUNDTRIP, TMPL_MODE_THEN_PLAIN, HISTORY_PER_MODE,
+                   TMPL_TO_DEFAULT_SIZE };
