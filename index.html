@@ -2440,7 +2440,7 @@ body.dark {
 </div>
 
 <!-- 🎤で聞き取っている間だけ出す小さな窓。タップでやめられる -->
-<div class="modal-overlay" id="voiceOverlay" onclick="voiceStop()">
+<div class="modal-overlay" id="voiceOverlay" onclick="voiceCancel()">
   <div class="voice-box">
     <!-- 読み上げ用に見出しを持たせる（他のダイアログと同じ作り）。画面には出さない -->
     <div class="modal-header" style="display:none"><span>🎤 声で入れる</span></div>
@@ -2462,7 +2462,7 @@ body.dark {
         <button class="more-item menu-item" id="listBtn" onclick="moreDo(showSaveList)"><span>📋</span>リスト</button>
         <button class="more-item menu-item" id="sheetToggleBtn" onclick="moreDo(toggleSheetTabs)" title="シートのタブバーを表示/非表示"><span>🗂</span>シート</button>
         <button class="more-item menu-item" id="settingsBtn" onclick="moreDo(toggleSettings)"><span>⚙</span>設定</button>
-        <button class="more-item" id="voiceMoreBtn" onclick="moreDo(voiceStart)" style="display:none"><span>🎤</span>声で入れる</button>
+        <button class="more-item" id="voiceMoreBtn" onclick="moreDo(voiceStart)" style="display:none" title="タップで1つ入れる／長押しで続けて入れる"><span>🎤</span>声で入れる</button>
       </div>
       <div class="more-sec">書き出す</div>
       <div class="more-grid">
@@ -2626,6 +2626,7 @@ body.dark {
       </select>
     </div>
     <button class="set-act" id="speechAutoBtn" onclick="toggleSpeechAuto()" title="音声入力で「251かける68」のように言った式を、自動で計算式に直します（式に見えないときは文字のまま入ります）">しゃべった式を計算する</button>
+    <button class="set-act" id="speechSpeakBtn" onclick="toggleSpeechSpeak()" title="計算した答えを声で読み上げます（手がふさがっているときの確認に）">答えを声で読み上げる</button>
     <button class="set-act" id="digitHintBtn" onclick="toggleDigitHint()" title="入力中の数字を「5,000,000 ＝ 500万」のように数式バーの下に出します（1万以上のときだけ）">入力中の数字の桁を出す</button>
     <div class="set-sec">📋 ひな形（テンプレ）とモード</div>
     <div class="set-note">ひな形は<b>テンキーの「モード」キー</b>や<b>⋯→🎯用途から始める</b>からも選べます（目的別に並べてあります）。</div>
@@ -3979,6 +3980,16 @@ body.dark {
           <div class="help-li"><b>記録の並べ方</b>（v315から）：保存データ一覧は<b>⊞アイコン</b>と<b>☰リスト</b>を切り替えられます。<b>アイコン</b>はエクスプローラーのようにファイルが並ぶ形で、<b>短くタップで開きます</b>（v320から確認は出ません。<b>↶戻る</b>で開く前の表に戻せます）。<b>⋯か長押し</b>でメニューが出て、<b>📂開く・✏名前の変更・⧉コピーを作る・🔒ロック・🔀モードへ登録・🗂他のタブへ移す・🗑削除</b>ができます（v317でコピーを追加）。長押しでメニューを出したときは、指を離しても<b>記録は開きません</b>。メニューの項目は<b>もう一度そこから押し直す</b>と動きます（v321。指の真下に出た項目が、離しただけで選ばれてしまうのを防ぐためです。セルの長押しメニューも同じです）。<b>コピー</b>は中身ごと複製した別の記録になるので、元をそのまま残して作りかえられます（名前は「◯◯ のコピー」）。絵は保存したときのモードのものになります（🔒はロック中、📂は今開いている記録）。アイコンの<b>大きさ</b>（小・中・大）と<b>並べ替え</b>（新しい順・古い順・名前順 あ→ん／ん→あ）も選べます。名前順は日本語の並びで、<b>見積もり2 → 見積もり10</b> のように数字も数の順になります（並べ替えはリスト表示にも効きます）。選んだ表示・大きさ・並び順は次に開いたときも残ります。</div>
           <div class="help-li"><b>しゃべった式を計算する</b>（v324から）：<b>文字</b>キーで入力欄を出し、<b>キーボードのマイク</b>で「<b>251かける68</b>」のように言うと、<b>=251*68</b> に直して計算します。<b>かける・わる・たす・ひく・プラス・マイナス・かっこ・てん（小数点）</b>と、<b>×÷＋−</b>の記号、<b>全角の数字</b>、<b>漢数字</b>（二百五十一／一万二千三百）に対応します。「〜は？」「計算して」などの前後の言い回しは落とします。<b>式に見えないときは今までどおり文字のまま</b>入ります（「みかん3個」はそのまま）。直したときはお知らせが出て、<b>↶戻る</b>で戻せます。いらないときは<b>設定→🧮計算→しゃべった式を計算する</b>で切れます。</div>
           <div class="help-li"><b>🎤声で入れる</b>（v325から）：キーボードを出さずに、<b>⋯→🎤声で入れる</b>でそのまましゃべれます。テンキーのボタンを<b>長押し→🔧ボタンの機能→設定・機能→🎤声</b>に変えれば、ワンタップで呼び出せます。聞き取り中は🎤の窓が出て、聞こえた言葉がその場に出ます（<b>画面をタップでやめる</b>）。聞き取れた言葉は上と同じ決まりで式に直します。<br>この機能は<b>端末しだい</b>です。Androidのブラウザでは使えますが、<b>iPhoneのホーム画面アプリでは使えないことがあります</b>。使えない端末では🎤を出さず、押したときは「<b>文字</b>キー＋キーボードのマイク」を案内します。<b>マイクの許可</b>が必要で、聞き取りは端末・ブラウザの音声サービス（ネット経由のことがあります）で行われます。</div>
+          <div class="help-li"><b>声でできること（v326から）</b>：
+            <table class="help-tbl">
+              <tr><td><span class="help-key">セルを指す</span></td><td>「<b>A1たすB2</b>」「<b>エー1たすビー2</b>」→ <code>=A1+B2</code></td></tr>
+              <tr><td><span class="help-key">まとめて計算</span></td><td>「<b>A1からA5の合計</b>」→ <code>=SUM(A1:A5)</code>。<b>平均・最大・最小</b>も同じ言い方でできます</td></tr>
+              <tr><td><span class="help-key">ルート・◯乗</span></td><td>「<b>ルート16かける3</b>」→ <code>=SQRT(16)*3</code>／「<b>2の10乗</b>」→ <code>=2^10</code></td></tr>
+              <tr><td><span class="help-key">続けて入れる</span></td><td><b>🎤を長押し</b>すると、1つ言うたびに<b>下のセルへ移って</b>また聞きます。やめるときは画面をタップ（テンキーには「設定・機能→<b>🎤続け</b>」を割り当てられます）</td></tr>
+              <tr><td><span class="help-key">移るだけ</span></td><td>「<b>次</b>」「下」「右」「左」「上」と言うと、入れずにそのセルへ移ります</td></tr>
+              <tr><td><span class="help-key">答えを読み上げ</span></td><td><b>設定→🧮計算→答えを声で読み上げる</b>で、計算した答えを声で返します（<b>全機種で使えます</b>。手がふさがっているときの確認に）</td></tr>
+            </table>
+          </div>
           <div class="help-li"><b>入力中の数字の桁</b>（v312から）：1万以上の数字を入れていると、入力欄の下に <b>500万</b> のように読みが出ます。打っている途中から出るので、0の数を数えなくてもすみます。数式のセルを選んだときは<b>計算結果</b>の桁を出します。いらないときは<b>設定→🧮計算→入力中の数字の桁を出す</b>で消せます。</div>
           <div class="help-li"><b>入力欄の右の合計</b>：列・行を選ぶと合計を表示（数値が無いときは出ません）。<b>「合計」タップで合計⇄平均</b>／<b>「¥」タップで数字⇄漢数字</b>（兆・億・万）／<b>数値タップでコピー</b>。</div>
         </div>
@@ -7037,6 +7048,7 @@ const KEY_FUNCS={
   a_xlsxout:{g:'設定・機能',label:'📊Excel出',run:()=>exportXLSX()},
   a_xlsxin:{g:'設定・機能',label:'📈Excel読',run:()=>document.getElementById('importXLSXInput').click()},
   a_voice:{g:'設定・機能',label:'🎤声',run:()=>voiceStart()},
+  a_voiceseq:{g:'設定・機能',label:'🎤続け',run:()=>voiceStartContinuous()},
   a_calctmpl:{g:'設定・機能',label:'📋式テン',run:()=>openCalcTmpl()}, a_fintmpl:{g:'設定・機能',label:'📑決算',run:()=>openFinTmpl()},
   a_modevis:{g:'設定・機能',label:'🔀表示',run:()=>openModeVis()}, a_help:{g:'設定・機能',label:'📖説明',run:()=>openHelp()},
   a_defsize:{g:'設定・機能',label:'▦既定',run:()=>applyDefaultSize()}, a_cellfmt:{g:'設定・機能',label:'🎨書式',run:()=>openCellFmt()},
@@ -11636,6 +11648,34 @@ function kanjiNumsToDigits(t){
     return n===null ? run : String(n);
   });
 }
+/* 「エー」「ビー」…を A B … に直す（セル参照を言うとき用）。
+   「エー1」「エーの1」「A1」どれでも A1 にする。 */
+const SPEECH_LETTERS=[['エー','A'],['ビー','B'],['シー','C'],['ディー','D'],['イー','E'],
+  ['エフ','F'],['ジー','G'],['エイチ','H'],['アイ','I'],['ジェー','J'],['ジェイ','J'],
+  ['ケー','K'],['エル','L'],['エム','M'],['エヌ','N'],['オー','O'],['ピー','P'],
+  ['キュー','Q'],['アール','R'],['エス','S'],['ティー','T'],['ユー','U'],['ブイ','V'],
+  ['ダブリュー','W'],['エックス','X'],['ワイ','Y'],['ゼット','Z']];
+function speechLettersToRefs(t){
+  for(const [yomi,ch] of SPEECH_LETTERS) t=t.replace(new RegExp(yomi+'(の)?(?=\\d)','g'), ch);
+  return t;
+}
+/* 「A1からA5の合計」「A1からA5までの平均」→ SUM(A1:A5) / AVERAGE(A1:A5) */
+const SPEECH_RANGE_FUNCS=[
+  [/(合計|ごうけい|足した|総額)/, 'SUM'],
+  [/(平均|へいきん|ならし)/, 'AVERAGE'],
+  [/(いちばん大きい|最大|さいだい)/, 'MAX'],
+  [/(いちばん小さい|最小|さいしょう)/, 'MIN'],
+  [/(個数|件数|かず|数)/, 'COUNT'],
+];
+function speechRangeFormula(t){
+  const m=t.match(/^([A-Z]+\d+)(から|〜|~|-)([A-Z]+\d+)(まで)?(の)?(.+)$/);
+  if(!m) return null;
+  const tail=m[6];
+  for(const [re,fn] of SPEECH_RANGE_FUNCS){
+    if(re.test(tail)) return `=${fn}(${m[1]}:${m[3]})`;
+  }
+  return null;
+}
 /* 話し言葉を式の記号に直す（長い言い方から先に置き換える） */
 const SPEECH_WORDS=[
   [/(かっこ|カッコ|括弧)(とじ|閉じ|閉|しめ|締め)/g, ')'],
@@ -11647,6 +11687,9 @@ const SPEECH_WORDS=[
   [/(ひく|引く|引き|ひき|マイナス)/g, '-'],
   [/(パーセント|ぱーせんと|％)/g, '%'],
   [/(てん|・)(?=\d)/g, '.'],            // 「3てん5」→3.5
+  [/(の)?(二乗|2乗|にじょう)/g, '^2'],
+  [/(の)?(三乗|3乗|さんじょう)/g, '^3'],
+  [/(の)?(\d+)(じょう|乗)/g, '^$2'],
 ];
 /* 前後の言い回しを落とす（「〜は？」「計算して」など） */
 const SPEECH_TRIM=[
@@ -11664,16 +11707,25 @@ function speechToFormula(text){
   // 全角の数字・記号を半角へ。setCellVal の normalizeFullWidth は
   // 「全体が数値のときだけ」半角にするので、ここでは使わず自前で直す。
   t=t.replace(/[！-～]/g, ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0)).replace(/　/g,' ');
-  t=t.replace(/[×✕☓ｘxX]/g,'*').replace(/[÷／]/g,'/').replace(/[−–—ー]/g,'-');
+  // 「ー」（長音）はマイナスにも使われるが、ここで直すと「エー」「ルート」が壊れる。
+  // ことばの置き換えが終わったあと（下の方）でマイナスにする。
+  t=t.replace(/[×✕☓ｘxX]/g,'*').replace(/[÷／]/g,'/').replace(/[−–—]/g,'-');
   t=t.replace(/[\s,，]/g,'');                          // 空白・読点は落とす
   for(const re of SPEECH_TRIM) t=t.replace(re,'');
   t=kanjiNumsToDigits(t);
+  t=speechLettersToRefs(t.toUpperCase().replace(/([A-Z])\s+(?=\d)/g,'$1'));   // エー1 → A1
+  const rangeF=speechRangeFormula(t);            // 「A1からA5の合計」はここで決まり
+  if(rangeF) return rangeF;
+  t=t.replace(/(ルート|るーと|√)\s*(\d+(\.\d+)?)/g, 'SQRT($2)');
   for(const [re,rep] of SPEECH_WORDS) t=t.replace(re,rep);
+  t=t.replace(/ー/g,'-');                             // ここまで来たら「ー」はマイナス
   for(const re of SPEECH_TRIM) t=t.replace(re,'');    // 記号に直したあと、末尾の「は」などをもう一度落とす
   t=t.replace(/[。、]/g,'');
-  if(!/^[-+]?[\d.()%*\/+\-]+$/.test(t)) return null;  // 数字と記号だけになっていなければ式ではない
+  if(!/^[-+]?[A-Z0-9.():%*\/+\-^,]+$/.test(t)) return null;   // 数字・記号・セル参照だけか
+  if(/[A-Z]/.test(t) && !/^[-+]?((SQRT|SUM|AVERAGE|MAX|MIN|COUNT)?\(?|[A-Z]{1,2}\d)/.test(t)) return null;
   if(!/\d/.test(t)) return null;                      // 数字が無い
-  if(!/\d\s*[*\/+\-]/.test(t)) return null;           // 計算するところが無い（ただの数字）
+  const hasFunc=/(SQRT|SUM|AVERAGE|MAX|MIN|COUNT)\(/.test(t);
+  if(!hasFunc && !/[\dA-Z)]\s*[*\/+\-^]/.test(t)) return null;   // 計算するところが無い（ただの数字・ただのセル）
   if(/[*\/+\-]{2,}/.test(t.replace(/^[-+]/,''))) return null;   // 記号が続く＝読み間違い
   if(/[*\/+\-.]$/.test(t)) return null;                        // 記号で終わっている＝言いかけ
   if(/^[*\/]/.test(t)) return null;                            // 記号で始まっている
@@ -11719,6 +11771,8 @@ function voiceStop(){
   voiceBusy=false;
   const ov=document.getElementById('voiceOverlay'); if(ov) ov.classList.remove('open');
 }
+/* 画面タップ＝やめる（続けて入れるモードも終わる） */
+function voiceCancel(){ voiceKeepGoing=false; voiceStop(); }
 function voiceStart(){
   const Ctor=speechRecCtor();
   if(!Ctor){
@@ -11759,10 +11813,46 @@ function voiceStart(){
   try{ rec.start(); }
   catch(_){ voiceStop(); toast('聞き取りを始められませんでした'); }
 }
+/* 「次」「下」「右」などで、入れたあとに動く先を決める */
+function speechMoveWord(t){
+  const s=String(t).trim();
+  if(/^(次|つぎ|下|した|改行)$/.test(s)) return 'down';
+  if(/^(右|みぎ)$/.test(s)) return 'right';
+  if(/^(左|ひだり)$/.test(s)) return 'left';
+  if(/^(上|うえ)$/.test(s)) return 'up';
+  return null;
+}
+/* 答えを声で返す（読み上げ）。こちらは端末を選ばず使える */
+let speechSpeakOn = localStorage.getItem('excalc_speechspeak')==='1';   // 既定は読み上げない
+function toggleSpeechSpeak(){
+  speechSpeakOn=!speechSpeakOn;
+  localStorage.setItem('excalc_speechspeak', speechSpeakOn?'1':'0');
+  const b=document.getElementById('speechSpeakBtn'); if(b) b.classList.toggle('on', speechSpeakOn);
+  toast(speechSpeakOn?'答えを声で読み上げます':'読み上げをやめました');
+  if(speechSpeakOn) speechSay('読み上げます');
+}
+function speechSay(text){
+  if(!speechSpeakOn || !('speechSynthesis' in window)) return;
+  try{
+    window.speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(String(text));
+    u.lang='ja-JP'; u.rate=1.0;
+    window.speechSynthesis.speak(u);
+  }catch(_){}
+}
+
 /* 聞き取れた言葉をセルへ入れる（式に見えれば式にして計算） */
 function voiceAccept(text){
-  voiceStop();
   const raw=String(text).trim();
+  const move=speechMoveWord(raw);
+  if(move){                      // 「次」だけ言ったときは、入れずに動くだけ
+    voiceStop();
+    voiceMove(move);
+    toast(`${describeCell(selR,selC)} へ移りました`);
+    speechSay(describeCell(selR,selC));
+    return;
+  }
+  voiceStop();
   if(!raw){ toast('聞き取れませんでした'); return; }
   if(isLockedCell(selR,selC)){ toast('このセルは保護されています'); return; }
   const f=speechAutoOn ? speechToFormula(raw) : null;
@@ -11771,8 +11861,30 @@ function voiceAccept(text){
   setCellVal(selR,selC,v);
   buildSheet(); sel(selR,selC);
   const el=document.getElementById('formulaInput'); if(el) el.value=data[selR][selC];
-  if(f!==null) toast(`「${raw}」→ ${f} ＝ ${getCellDisplay(selR,selC)}`, 4200);
-  else toast(`「${raw}」を入れました`);
+  const shown=getCellDisplay(selR,selC);
+  if(f!==null){ toast(`「${raw}」→ ${f} ＝ ${shown}`, 4200); speechSay(shown); }
+  else { toast(`「${raw}」を入れました`); speechSay(raw); }
+  if(voiceKeepGoing){                       // 続けて入れるときは、次のセルへ移って聞き直す
+    voiceMove('down');
+    setTimeout(()=>{ if(voiceKeepGoing) voiceStart(); }, 450);
+  }
+}
+function describeCell(r,c){ return `${xlColLetter(c)}${r+1}`; }
+function voiceMove(dir){
+  let r=selR, c=selC;
+  if(dir==='down') r=Math.min(ROWS-1, r+1);
+  else if(dir==='up') r=Math.max(0, r-1);
+  else if(dir==='right') c=Math.min(COLS-1, c+1);
+  else if(dir==='left') c=Math.max(0, c-1);
+  sel(r,c);
+}
+/* 続けて入れるモード（🎤の長押し）。1つ入れるたびに下へ移って聞き直す */
+let voiceKeepGoing=false;
+function voiceStartContinuous(){
+  if(!voiceAvailable()){ voiceStart(); return; }   // 使えない端末では案内だけ出す
+  voiceKeepGoing=true;
+  toast('続けて入れます。1つ言うたびに下のセルへ移ります（やめるときは画面をタップ）', 4600);
+  voiceStart();
 }
 
 /* 自動で式に直すかどうか（設定→🧮計算） */
@@ -14146,7 +14258,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v325';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v326';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -15829,9 +15941,22 @@ applyPageBar();      // テンキーのページ表示の有無を復元
 loadTopBtnShown(); applyTopBtnShown();                       // 上のバーに出すボタンを復元
 if(typeof bindDefaultSizeBtn==='function') bindDefaultSizeBtn(document.getElementById('tbDefsize'));   // ▦は長押しで既定値を設定
 (function(){ const b=document.getElementById('speechAutoBtn'); if(b) b.classList.toggle('on', speechAutoOn); })();
-(function(){   // 🎤は、この端末で使えるときだけ出す
+(function(){ const b=document.getElementById('speechSpeakBtn'); if(b) b.classList.toggle('on', speechSpeakOn); })();
+(function(){   // 🎤は、この端末で使えるときだけ出す。長押しで「続けて入れる」
   const b=document.getElementById('voiceMoreBtn');
-  if(b && typeof voiceAvailable==='function' && voiceAvailable()) b.style.display='';
+  if(!b) return;
+  if(typeof voiceAvailable==='function' && voiceAvailable()) b.style.display='';
+  let timer=null, longed=false;
+  b.addEventListener('pointerdown', e=>{
+    if(e.button!==undefined && e.button>0) return;
+    longed=false; clearTimeout(timer);
+    timer=setTimeout(()=>{ timer=null; longed=true;
+      if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}}
+      closeMoreMenu(); setTimeout(voiceStartContinuous, 60); }, 500);
+  });
+  b.addEventListener('pointerup', ()=>clearTimeout(timer));
+  b.addEventListener('pointercancel', ()=>{ clearTimeout(timer); longed=false; });
+  b.addEventListener('click', e=>{ if(longed){ longed=false; e.preventDefault(); e.stopImmediatePropagation(); } }, true);
 })();
 (function(){ const b=document.getElementById('digitHintBtn');
   if(b) b.classList.toggle('on', digitHintOn);

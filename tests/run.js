@@ -656,12 +656,16 @@ async function runTopBar(browser) {
 
 /* しゃべった式の読み取り */
 async function runSpeech(browser) {
-  const { CASES } = require('./speech.test.js');
+  const { CASES, CASES3, MOVE } = require('./speech.test.js');
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── しゃべった式の読み取り ──');
 
   const got = await page.evaluate(cases => cases.map(([t]) => speechToFormula(t) || ''), CASES);
   CASES.forEach(([t, want], i) => check(`  ${t === '' ? '(空)' : t}`, got[i], want));
+  const got3 = await page.evaluate(cases => cases.map(([t]) => speechToFormula(t) || ''), CASES3);
+  CASES3.forEach(([t, want], i) => check(`  ${t}`, got3[i], want));
+  const gotMove = await page.evaluate(list => list.map(([t]) => speechMoveWord(t) || ''), MOVE);
+  MOVE.forEach(([t, want], i) => check(`  「${t}」は動く言葉か`, gotMove[i], want || ''));
 
   // 実際にセルへ入れたときも式になる／ならない
   const commit = t => page.evaluate(x => {
@@ -725,6 +729,40 @@ async function runSpeech(browser) {
   await page.waitForTimeout(300);
   check('  使えない端末では案内を出す', await page.evaluate(() =>
     /キーボードのマイク/.test(document.getElementById('appToast').textContent)), true);
+
+  // ── 第3期：続けて入れる・移る・読み上げ ──
+  await page.evaluate(() => {
+    window.__q = [];
+    window.SpeechRecognition = class {
+      start() { setTimeout(() => { const t = window.__q.shift();
+        if (t === undefined) { if (this.onend) this.onend(); return; }
+        if (this.onresult) this.onresult({ resultIndex: 0,
+          results: [Object.assign([{ transcript: t }], { isFinal: true })] }); }, 20); }
+      abort() {}
+    };
+  });
+  await page.evaluate(() => { setCellVal(0, 0, ''); sel(0, 0); window.__q = ['次']; voiceStart(); });
+  await page.waitForTimeout(300);
+  check('  「次」で下のセルへ移るだけ',
+        await page.evaluate(() => xlColLetter(selC) + (selR + 1) + '/' + data[0][0]), 'A2/');
+
+  await page.evaluate(() => { sel(0, 0); window.__q = ['100たす50', '200かける3', 'ルート16'];
+    voiceStartContinuous(); });
+  await page.waitForTimeout(2500);
+  check('  続けて3つ入る',
+        await page.evaluate(() => [data[0][0], data[1][0], data[2][0]].join('|')),
+        '=100+50|=200*3|=SQRT(16)');
+  check('  それぞれ計算される',
+        await page.evaluate(() => [0, 1, 2].map(r => getCellDisplay(r, 0)).join('|')), '150|600|4');
+  await page.evaluate(() => voiceCancel()); await page.waitForTimeout(200);
+  check('  画面タップで続けモードも終わる', await page.evaluate(() => voiceKeepGoing), false);
+
+  check('  読み上げは既定で切ってある', await page.evaluate(() => speechSpeakOn), false);
+  check('  設定で読み上げを入れられる',
+        await page.evaluate(() => { toggleSpeechSpeak(); return speechSpeakOn; }), true);
+  await page.evaluate(() => toggleSpeechSpeak());
+  check('  🎤続けもキーに割り当てられる',
+        await page.evaluate(() => KEY_FUNCS.a_voiceseq ? KEY_FUNCS.a_voiceseq.label : 'なし'), '🎤続け');
 
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
