@@ -764,6 +764,49 @@ async function runSpeech(browser) {
   check('  🎤続けもキーに割り当てられる',
         await page.evaluate(() => KEY_FUNCS.a_voiceseq ? KEY_FUNCS.a_voiceseq.label : 'なし'), '🎤続け');
 
+  // ── 声の入れかた（1つのセル／左に式・右に答え） ──
+  const pair = (r, c) => page.evaluate(([r, c]) =>
+    data[r][c] + '|' + data[r][c + 1] + '|' + getCellDisplay(r, c + 1), [r, c]);
+  const sayAt = async (r, c, t) => { await page.evaluate(([r, c, x]) => {
+    setCellVal(r, c, ''); setCellVal(r, c + 1, ''); sel(r, c);
+    window.__q = [x]; voiceStart(); }, [r, c, t]); await page.waitForTimeout(400); };
+
+  await page.evaluate(() => setSpeechLayout('one'));
+  await sayAt(0, 0, '251かける68');
+  check('  「式を入れる」は選んだセルだけ', await pair(0, 0), '=251*68||');
+
+  await page.evaluate(() => setSpeechLayout('split'));
+  await sayAt(2, 0, '251かける68');
+  check('  「左に式・右に答え」', await pair(2, 0), '251×68|=251*68|17068');
+  await sayAt(3, 0, '500わる4');
+  check('  ÷も読みやすい形で入る', await pair(3, 0), '500÷4|=500/4|125');
+
+  // 右は式なので、直せば答えも変わる
+  await page.evaluate(() => { setCellVal(3, 1, '=500/2'); recalcAll(); });
+  check('  右のセルは直せる（式のまま）', await page.evaluate(() => getCellDisplay(3, 1)), '250');
+
+  // ↶戻る 1回で両方戻る
+  await sayAt(5, 0, '3かける4');
+  await page.evaluate(() => undoLast()); await page.waitForTimeout(500);
+  check('  ↶戻る1回で両方戻る', await pair(5, 0), '||');
+
+  // いちばん右の列で言ったら、列を1つ増やす
+  const before = await page.evaluate(() => COLS);
+  await page.evaluate(() => { sel(7, COLS - 1); window.__q = ['7かける8']; voiceStart(); });
+  await page.waitForTimeout(400);
+  check('  右が無いときは列を増やす', await page.evaluate(() => COLS), before + 1);
+  check('  増やした列に答えが入る',
+        await page.evaluate(() => getCellDisplay(7, COLS - 1)), '56');
+
+  // キーボードのマイク（文字入力）でも同じ入れかたになる
+  await page.evaluate(() => { setCellVal(9, 0, ''); setCellVal(9, 1, ''); sel(9, 0);
+    const fi = document.getElementById('formulaInput'); fi.focus(); fi.value = '1200たす350';
+    fi.dispatchEvent(new Event('input'));
+    fi.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
+  await page.waitForTimeout(500);
+  check('  文字入力でも左に式・右に答え', await pair(9, 0), '1200+350|=1200+350|1550');
+  await page.evaluate(() => setSpeechLayout('one'));
+
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();

@@ -2626,6 +2626,13 @@ body.dark {
       </select>
     </div>
     <button class="set-act" id="speechAutoBtn" onclick="toggleSpeechAuto()" title="音声入力で「251かける68」のように言った式を、自動で計算式に直します（式に見えないときは文字のまま入ります）">しゃべった式を計算する</button>
+    <div class="set-row">
+      <span class="set-label">声の入れかた<small>「251かける68」と言ったとき</small></span>
+      <select class="fmt-select" id="speechLayoutSel" onchange="setSpeechLayout(this.value)" style="flex-shrink:0">
+        <option value="one">式を入れる（答えが出る）</option>
+        <option value="split">左に式・右に答え</option>
+      </select>
+    </div>
     <button class="set-act" id="speechSpeakBtn" onclick="toggleSpeechSpeak()" title="計算した答えを声で読み上げます（手がふさがっているときの確認に）">答えを声で読み上げる</button>
     <button class="set-act" id="digitHintBtn" onclick="toggleDigitHint()" title="入力中の数字を「5,000,000 ＝ 500万」のように数式バーの下に出します（1万以上のときだけ）">入力中の数字の桁を出す</button>
     <div class="set-sec">📋 ひな形（テンプレ）とモード</div>
@@ -3987,6 +3994,7 @@ body.dark {
               <tr><td><span class="help-key">ルート・◯乗</span></td><td>「<b>ルート16かける3</b>」→ <code>=SQRT(16)*3</code>／「<b>2の10乗</b>」→ <code>=2^10</code></td></tr>
               <tr><td><span class="help-key">続けて入れる</span></td><td><b>🎤を長押し</b>すると、1つ言うたびに<b>下のセルへ移って</b>また聞きます。やめるときは画面をタップ（テンキーには「設定・機能→<b>🎤続け</b>」を割り当てられます）</td></tr>
               <tr><td><span class="help-key">移るだけ</span></td><td>「<b>次</b>」「下」「右」「左」「上」と言うと、入れずにそのセルへ移ります</td></tr>
+              <tr><td><span class="help-key">入れかたを選ぶ</span></td><td><b>設定→🧮計算→声の入れかた</b>（v327から）。<b>「式を入れる」</b>＝選んだセルに <code>=251*68</code>（答えが出ます）。<b>「左に式・右に答え」</b>＝選んだセルに <b>251×68</b>（読むための文字）、<b>右のセルに答え</b>を入れます。右のセルは式なので、あとから数字を直せば答えも変わり、<b>Σ合計</b>にも入ります。右に列が無いときは1列増やします。<b>↶戻る</b>1回で両方戻せます</td></tr>
               <tr><td><span class="help-key">答えを読み上げ</span></td><td><b>設定→🧮計算→答えを声で読み上げる</b>で、計算した答えを声で返します（<b>全機種で使えます</b>。手がふさがっているときの確認に）</td></tr>
             </table>
           </div>
@@ -11742,12 +11750,63 @@ function speechCommit(v, r, c){
   const f=speechToFormula(v);
   if(f===null) return v;
   speechUndoInfo={ r, c, plain:String(v).trim() };
+  if(speechLayout==='split'){                 // 左に式・右に答え
+    const put=speechPutSplit(r, c, f, String(v).trim());
+    if(put) return put.left;                  // 左のセルに入れる文字を返す
+  }
   setTimeout(()=>{
     if(typeof toast==='function'){
       toast(`「${speechUndoInfo.plain}」を ${f} として計算しました（もう一度言い直すか、↶戻る で戻せます）`, 4600);
     }
   }, 0);
   return f;
+}
+
+/* ── 声の入れかた（1つのセル／左に式・右に答え） ──────────────
+   「251かける68」と言ったとき
+     one   ：選んだセルに =251*68（答えが出る）
+     split ：選んだセルに 251×68（読むための文字）、右のセルに =251*68（答え）
+   split は「計算の記録」を作るときに読みやすい。右のセルは式なので、
+   あとから数字を直せば答えも変わるし、Σ合計にも入る。 */
+let speechLayout = (localStorage.getItem('excalc_speechlayout')==='split') ? 'split' : 'one';
+function setSpeechLayout(v){
+  speechLayout = (v==='split') ? 'split' : 'one';
+  localStorage.setItem('excalc_speechlayout', speechLayout);
+  const sel=document.getElementById('speechLayoutSel'); if(sel) sel.value=speechLayout;
+  toast(speechLayout==='split' ? '選んだセルに式、その右に答えを入れます'
+                               : '選んだセルに式を入れます（答えが出ます）');
+}
+/* 式を読むための文字に直す（=251*68 → 251×68） */
+function formulaToReadable(f){
+  return String(f).replace(/^=/,'').replace(/\*/g,'×').replace(/\//g,'÷');
+}
+/* 左に式・右に答えを入れる。入れられたら {left} を返す（入れられなければ null） */
+function speechPutSplit(r, c, formula, plain){
+  let rc=c+1;
+  if(rc>=COLS){                               // 右が無いときは1列だけ増やす
+    if(COLS>=MAXCOLS) return null;            // これ以上増やせないときは今までどおり
+    COLS=COLS+1;
+    localStorage.setItem('excalc_cols',COLS);
+    const cc=document.getElementById('colCount'); if(cc) cc.textContent=COLS;
+    syncRowColLabels();
+  }
+  if(isLockedCell(r,rc)){ toast('右のセルが保護されているので、このセルに式を入れます'); return null; }
+  const had=data[r][rc]!=='';                 // 右のセルに何か入っていたか
+  pushSnapshot('声で入力');                    // 2つのセルをまとめて1回で戻せるように
+  // 右のセルと、このあと呼び出し側が入れる左のセルの両方で、1つずつの履歴は積まない。
+  // （積むと ↶戻る 1回では左しか戻らず、右に答えが残ってしまう）
+  const wasUndoing=undoing; undoing=true;
+  setCellVal(r, rc, formula);
+  setTimeout(()=>{ undoing=wasUndoing; }, 0);   // 左のセルを入れ終わってから元に戻す
+  const left=formulaToReadable(formula);
+  setTimeout(()=>{
+    recalcAll(); buildSheet(); sel(r,c);
+    if(typeof toast==='function'){
+      toast(`「${plain}」→ ${left} ＝ ${getCellDisplay(r,rc)} を右のセルに入れました`
+            +(had?'（元の内容は ↶戻る で戻せます）':''), 4600);
+    }
+  }, 0);
+  return { left };
 }
 /* 直前の変換を取り消して、言ったとおりの文字に戻す */
 function speechKeepPlain(){
@@ -11856,13 +11915,20 @@ function voiceAccept(text){
   if(!raw){ toast('聞き取れませんでした'); return; }
   if(isLockedCell(selR,selC)){ toast('このセルは保護されています'); return; }
   const f=speechAutoOn ? speechToFormula(raw) : null;
-  const v=(f===null)?raw:f;
   if(f!==null) speechUndoInfo={ r:selR, c:selC, plain:raw };
+  let v=(f===null)?raw:f, answerAt=null;
+  if(f!==null && speechLayout==='split'){        // 左に式・右に答え
+    const put=speechPutSplit(selR, selC, f, raw);
+    if(put){ v=put.left; answerAt=[selR, selC+1]; }
+  }
   setCellVal(selR,selC,v);
   buildSheet(); sel(selR,selC);
   const el=document.getElementById('formulaInput'); if(el) el.value=data[selR][selC];
-  const shown=getCellDisplay(selR,selC);
-  if(f!==null){ toast(`「${raw}」→ ${f} ＝ ${shown}`, 4200); speechSay(shown); }
+  const shown=answerAt ? getCellDisplay(answerAt[0], answerAt[1]) : getCellDisplay(selR,selC);
+  if(f!==null){
+    if(!answerAt) toast(`「${raw}」→ ${f} ＝ ${shown}`, 4200);   // splitのときは中で知らせている
+    speechSay(shown);
+  }
   else { toast(`「${raw}」を入れました`); speechSay(raw); }
   if(voiceKeepGoing){                       // 続けて入れるときは、次のセルへ移って聞き直す
     voiceMove('down');
@@ -14258,7 +14324,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v326';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v327';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -15942,6 +16008,7 @@ loadTopBtnShown(); applyTopBtnShown();                       // 上のバーに�
 if(typeof bindDefaultSizeBtn==='function') bindDefaultSizeBtn(document.getElementById('tbDefsize'));   // ▦は長押しで既定値を設定
 (function(){ const b=document.getElementById('speechAutoBtn'); if(b) b.classList.toggle('on', speechAutoOn); })();
 (function(){ const b=document.getElementById('speechSpeakBtn'); if(b) b.classList.toggle('on', speechSpeakOn); })();
+(function(){ const el=document.getElementById('speechLayoutSel'); if(el) el.value=speechLayout; })();
 (function(){   // 🎤は、この端末で使えるときだけ出す。長押しで「続けて入れる」
   const b=document.getElementById('voiceMoreBtn');
   if(!b) return;
