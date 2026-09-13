@@ -764,6 +764,31 @@ async function runSpeech(browser) {
   check('  🎤続けもキーに割り当てられる',
         await page.evaluate(() => KEY_FUNCS.a_voiceseq ? KEY_FUNCS.a_voiceseq.label : 'なし'), '🎤続け');
 
+  // ── テンキーの🎤声キーで、押した瞬間に閉じないこと ──
+  // 窓は画面いっぱいに出るので、キーを押した指がそのまま窓の上にある。
+  // 指を離した分のクリックで開いた瞬間に閉じていた（登録ボタンは160ms遅れて動くので無事だった）。
+  await page.evaluate(() => { window.SpeechRecognition = class { start() {} abort() {} }; });
+  const vOpen = () => page.evaluate(() => document.getElementById('voiceOverlay').classList.contains('open'));
+  const keyBox = await page.evaluate(() => {
+    const e = document.querySelector('[data-key="u_voice"]');
+    if (!e) return null;
+    const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  });
+  check('  テンキーに🎤声キーがある', !!keyBox, true);
+  await page.evaluate(() => voiceStop()); await page.waitForTimeout(150);
+  await page.evaluate(a => { voiceStart();
+    document.getElementById('voiceOverlay').dispatchEvent(new MouseEvent('click',
+      { bubbles: true, cancelable: true, clientX: a.x, clientY: a.y })); }, keyBox);
+  await page.waitForTimeout(300);
+  check('  押した指を離した分では閉じない', await vOpen(), true);
+  // 押し直せばちゃんと閉じられる
+  const boxTop = await page.evaluate(() => {
+    const r = document.querySelector('.voice-box').getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: Math.max(4, r.top - 30) }; });
+  await page.mouse.move(boxTop.x, boxTop.y); await page.mouse.down();
+  await page.waitForTimeout(60); await page.mouse.up(); await page.waitForTimeout(300);
+  check('  押し直せば閉じられる', await vOpen(), false);
+
   // ── 失敗したときの知らせ方（自分で止めた分は失敗にしない） ──
   const toastNow = () => page.evaluate(() => (document.getElementById('appToast') || {}).textContent || '');
   const clearToast = () => page.evaluate(() => { const t = document.getElementById('appToast'); if (t) t.textContent = ''; });
