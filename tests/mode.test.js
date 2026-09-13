@@ -88,6 +88,36 @@ const TMPL_TO_DEFAULT_SIZE = {
   ]
 };
 
+/* ひな形を入れてから「リセット」で中身だけ消すと、見出しが消えてひな形と分からなくなる。
+   2列・数行の小さい表のまま残るので、「通常」で既定の大きさに戻す（v323） */
+const TMPL_RESET_THEN_PLAIN = {
+  name: 'ひな形→リセット→通常で既定の大きさに戻る',
+  steps: [
+    { do: "applyTemplateObj(CALC_TEMPLATES[0], ()=>{})" },
+    { check: 'ROWS+"x"+COLS', is: '6x2' },
+    { do: "resetAll()" },
+    { check: 'data[0][0]', is: '' },
+    { check: 'ROWS+"x"+COLS', is: '6x2' },        // リセットだけでは大きさは変わらない
+    { do: "switchMode('normal')" },
+    { check: 'ROWS+"x"+COLS', is: '15x3' },       // 既定の大きさへ
+    { check: "document.getElementById('rowCount').textContent+'/'+document.getElementById('colCount').textContent", is: '15/3' },
+    { do: "undoLast()" },                          // ↶戻る で元の大きさに戻せる
+    { check: 'ROWS+"x"+COLS', is: '6x2' },
+  ]
+};
+
+/* 中身のある表では、小さくても大きさを変えない（作りかけの表を壊さない） */
+const SMALL_TABLE_KEPT = {
+  name: '中身のある小さい表はそのまま',
+  steps: [
+    { do: "changeRows(-10); setCellVal(0,0,'たいせつ')" },
+    { check: 'ROWS', is: 5 },
+    { do: "switchMode('normal')" },
+    { check: 'ROWS', is: 5 },
+    { check: 'data[0][0]', is: 'たいせつ' },
+  ]
+};
+
 /* ひな形でない普通の表では、「通常」を押しても中身を消してはいけない */
 const TMPL_KEEPS_PLAIN = {
   name: '普通の表で通常を押しても消えない',
@@ -165,4 +195,4 @@ const HISTORY_PER_MODE = {
 module.exports = { MODES, ROUNDTRIP, STUCK_SCENARIO, HISTORY_CLEARED, UNDO_WITHIN_MODE,
                    TMPL_BACK_TO_PLAIN, TMPL_KEEPS_PLAIN, TMPL_FROM_OTHER_MODE,
                    TMPL_MODE_ROUNDTRIP, TMPL_MODE_THEN_PLAIN, HISTORY_PER_MODE,
-                   TMPL_TO_DEFAULT_SIZE };
+                   TMPL_TO_DEFAULT_SIZE, TMPL_RESET_THEN_PLAIN, SMALL_TABLE_KEPT };
