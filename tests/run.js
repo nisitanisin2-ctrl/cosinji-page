@@ -1224,6 +1224,21 @@ async function runNpTools(browser) {
   check('  全画面は縦だけブラウザに任せる', await page.evaluate(() => {
     const m = document.getElementById('tansuiOverlay').querySelector('.modal');
     return getComputedStyle(m).touchAction; }), 'pan-y');
+  // スクロールする箱の中では、その外の決まりが効かないので、中身にも付ける（v357）
+  check('  中身にも同じ決まりが付く', await page.evaluate(() => {
+    openVeggie();
+    const el = document.querySelector('#veggieOverlay .veg-line') ||
+               document.querySelector('#veggieOverlay .modal-body > *');
+    const r = [];
+    for (let e = el; e && !e.classList.contains('modal-overlay'); e = e.parentElement)
+      r.push(getComputedStyle(e).touchAction);
+    closeVeggie();
+    return r.every(x => x === 'pan-y'); }), true);
+  check('  ボタンの上からでもフリックできる（見送らない）', await page.evaluate(() => {
+    openVeggie();
+    const btn = document.querySelector('#vegChips .veg-chip');
+    const ok = getComputedStyle(btn).touchAction === 'pan-y';
+    closeVeggie(); return ok; }), true);
   check('  写真などの中身はそのまま任せる', await page.evaluate(() => {
     const m = document.getElementById('volumeOverlay').querySelector('.modal');
     m.classList.add('modal-full');
