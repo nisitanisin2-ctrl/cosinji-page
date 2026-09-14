@@ -979,7 +979,9 @@ body.numpad-off .numpad-pagebar { display: none; }
 .numpad-overlay.ov-right { transform: translateX(100%); }   /* 右に隠れていて左フリックで引き出す */
 .numpad-overlay.ov-left  { transform: translateX(-100%); }   /* 左に隠れていて右フリックで引き出す */
 .numpad-overlay.ov-down  { transform: translateY(100%); }    /* 登録：下から重なる（上フリックで表示） */
-.numpad-overlay.ov-lv2   { z-index: 6; }                     /* 2枚目の右ページ（関数電卓）：関数・記号の上に重なる */
+.numpad-overlay.ov-lv2   { z-index: 6; }                     /* 2枚目の右ページ（電卓）：関数・記号の上に重なる */
+/* 電卓ページ：メモリーに何か入っているあいだの印 */
+.btn.mem-on { box-shadow: inset 0 0 0 2px #ffd23f; }
 /* 登録ページのボタン（紫）。長押しで登録・タップで入力 */
 .btn.ubtn {
   background: #5b3a86; padding: 4px 3px;
@@ -1107,6 +1109,8 @@ body.numpad-off .numpad-pagebar { display: none; }
   opacity: 0.75;
 }
 .btn.enter:hover { background: #1f618d; }
+/* 電卓ページの「＝」は Enter と同じ大きさ・色だが、進む向きの矢印は要らない */
+#numpadPageSci .btn.enter::after { content: none; }
 .btn.span2  { grid-column: span 2; }
 /* 道具の段（いちばん上）。入力キーより低くして、表の取り分をなるべく減らさない。
    色も分けて「入力するキー」と「道具」を見分けられるようにする。
@@ -3128,31 +3132,37 @@ body.dark {
     <button class="btn op" data-key="fp_eq"    onclick="fkey('=')">=</button>
     </div>
     <div class="numpad-grid numpad-overlay ov-right ov-lv2" id="numpadPageSci">
-    <!-- 関数電卓ページ（関数・記号ページからさらに左フリックで表示）。三角関数・log・べき乗などを数式に挿入する。data-keyで長押し割り当てに対応 -->
-    <button class="btn fx" data-key="sc_sin" onclick="fkey('SIN(')">SIN(</button>
-    <button class="btn fx" data-key="sc_cos" onclick="fkey('COS(')">COS(</button>
-    <button class="btn fx" data-key="sc_tan" onclick="fkey('TAN(')">TAN(</button>
-    <button class="btn op" data-key="sc_deg" id="trigModeBtn" onclick="toggleTrigMode()" title="三角関数の角度単位（度数法/弧度法）を切替">DEG</button>
-    <button class="btn clr" data-key="sc_bs" onclick="bs()">⌫</button>
-    <button class="btn fx" data-key="sc_asin" onclick="fkey('ASIN(')">ASIN(</button>
-    <button class="btn fx" data-key="sc_acos" onclick="fkey('ACOS(')">ACOS(</button>
-    <button class="btn fx" data-key="sc_atan" onclick="fkey('ATAN(')">ATAN(</button>
-    <button class="btn op" data-key="sc_pow" onclick="fkey('^')">^</button>
-    <button class="btn enter" data-key="sc_enter" onclick="eq()">Enter</button>
-    <button class="btn fx" data-key="sc_log" onclick="fkey('LOG(')">LOG(</button>
-    <button class="btn fx" data-key="sc_ln" onclick="fkey('LN(')">LN(</button>
-    <button class="btn fx" data-key="sc_exp" onclick="fkey('EXP(')">EXP(</button>
-    <button class="btn fx" data-key="sc_sqrt" onclick="fkey('SQRT(')">√(</button>
-    <button class="btn op" data-key="sc_pi" onclick="fkey('PI')">π</button>
-    <button class="btn op" data-key="sc_e" onclick="fkey('E')">e</button>
-    <button class="btn op" data-key="sc_fact" onclick="fkey('!')">n!</button>
-    <button class="btn op" data-key="sc_sq" onclick="fkey('^2')">x²</button>
-    <button class="btn op" data-key="sc_lp" onclick="fkey('(')">(</button>
-    <button class="btn fx" data-key="sc_inv" onclick="fkey('1/(')">1/(</button>
-    <button class="btn fx" data-key="sc_mod" onclick="fkey('MOD(')">MOD(</button>
-    <button class="btn op" data-key="sc_rp" onclick="fkey(')')">)</button>
-    <button class="btn op" data-key="sc_comma" onclick="fkey(',')">,</button>
-    <button class="btn op" data-key="sc_eq" onclick="fkey('=')">=</button>
+    <!-- 電卓ページ（記号ページからさらに左フリック）。v335で関数電卓ページから置き換えた。
+         数字の並びは標準テンキーと同じにして、セルを触るキー（Enter・Σ合計・fx=・文字・モード）を
+         ふつうの電卓のキー（＝・AC・％・メモリー）に変えてある。電卓モードに入ると自動で開く。 -->
+    <button class="btn util" data-key="dk_voice" onclick="voiceStart()" title="声で入れる">🎤声</button>
+    <button class="btn util" data-key="dk_mc" onclick="dtMemClear()" title="メモリーを消す">MC</button>
+    <button class="btn util" data-key="dk_mplus" onclick="dtMemAdd(1)" title="メモリーに足す">M＋</button>
+    <button class="btn util" data-key="dk_mminus" onclick="dtMemAdd(-1)" title="メモリーから引く">M−</button>
+    <button class="btn util" data-key="dk_mr" onclick="dtMemRecall()" title="メモリーを呼び出す">MR</button>
+    <button class="btn clr" data-key="dk_tosheet" onclick="dtToCellOrBack()" title="表に戻る（電卓モードのときは答えをセルに入れます）">▦表へ</button>
+    <button class="btn clr" data-key="dk_ce" onclick="ce()">CE</button>
+    <button class="btn op"  data-key="dk_sign" onclick="sign()">±</button>
+    <button class="btn op"  data-key="dk_mul" onclick="op('*')">×</button>
+    <button class="btn op"  data-key="dk_bs" onclick="bs()">⌫</button>
+    <button class="btn"     data-key="dk_7" onclick="num('7')">7</button>
+    <button class="btn"     data-key="dk_8" onclick="num('8')">8</button>
+    <button class="btn"     data-key="dk_9" onclick="num('9')">9</button>
+    <button class="btn op"  data-key="dk_div" onclick="op('/')">÷</button>
+    <button class="btn enter" data-key="dk_eq" onclick="eq()" title="＝（答えを出す）">＝</button>
+    <button class="btn"     data-key="dk_4" onclick="num('4')">4</button>
+    <button class="btn"     data-key="dk_5" onclick="num('5')">5</button>
+    <button class="btn"     data-key="dk_6" onclick="num('6')">6</button>
+    <button class="btn op"  data-key="dk_plus" onclick="op('+')">+</button>
+    <button class="btn"     data-key="dk_1" onclick="num('1')">1</button>
+    <button class="btn"     data-key="dk_2" onclick="num('2')">2</button>
+    <button class="btn"     data-key="dk_3" onclick="num('3')">3</button>
+    <button class="btn op"  data-key="dk_minus" onclick="op('-')">−</button>
+    <button class="btn clr" data-key="dk_ac" onclick="dtAllClear()" title="全部消す">AC</button>
+    <button class="btn"     data-key="dk_0" onclick="num('0')">0</button>
+    <button class="btn"     data-key="dk_dot" onclick="dot()">.</button>
+    <button class="btn op"  data-key="dk_pct" onclick="dtPercent()" title="％">％</button>
+    <button class="btn op"  data-key="dk_tax" onclick="dtTax(1)" title="今の値に消費税を足す">税込</button>
     </div>
     <div class="numpad-grid numpad-overlay ov-down numpad-regpage" id="numpadPageReg" title="長押しで文字・数字を登録／タップで入力">
     <!-- 登録ページ（数字ページ＝標準の下。数字ページの右側ゾーンを上向きにフリックで表示）。長押しで登録・タップで入力 -->
@@ -3976,7 +3986,7 @@ body.dark {
           </div>
           <div class="help-li"><b>どのキーも長押しで好きな機能に変えられます</b>（設定・機能／表の操作など）。<b>電卓</b>は<b>⋯→🧮電卓</b>から出せます。キーに戻したいときは長押し→<b>🔧ボタンの機能→設定・機能→🧮電卓</b>。</div>
           <div class="help-li"><b>上のバーに出すボタン</b>（v319で復活）：設定→<b>🎨見た目→くわしい設定</b>で、<b>↷進む・📋リスト・🗂シート・⚙設定・▦既定の大きさ・🧹リセット</b> を上のバーに足せます（既定は出しません）。たくさん出すとバーが狭くなり、入りきらない分は横にスライドして出します。</div>
-          <div class="help-li"><b>テンキーの上のページ表示</b>で、いまどのページに居るか分かります。<b>ページ名をタップ</b>するとそのページへ移動できます（数字の並びは「枠線・書式・数字・記号・関数」、右端の<b>▲登録</b>で登録ページの並びへ、<b>▼数字</b>で戻る）。設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーのページ表示</b>で消すこともできます。</div>
+          <div class="help-li"><b>テンキーの上のページ表示</b>で、いまどのページに居るか分かります。<b>ページ名をタップ</b>するとそのページへ移動できます（数字の並びは「枠線・書式・数字・記号・関数」、右端の<b>▲登録</b>で登録ページの並びへ、<b>▼数字</b>で戻る）。設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーのページ表示</b>で消すこともできます（ページ名は<b>書式・枠線／数字／記号／電卓</b>）。</div>
           <div class="help-li"><b>フリックでも切り替わります</b>（数字ページが土台。数字ページは<b>どこからでもフリック開始OK</b>）：</div>
           <table class="help-tbl">
             <tr><td><span class="help-key">右へ →</span></td><td><b>書式・枠線ページ</b>（6段×5列の1ページにまとめました）<br>
@@ -3987,12 +3997,17 @@ body.dark {
               ・<b>A−／A＋</b>で文字の大小、<b>書式消す</b>で書式を消去、<b>くわしく</b>で小数点・結合・保護などのくわしい設定<br>
               ・<b>セルの保護</b>は<b>セルを長押し→🔒保護</b>か、この<b>くわしく</b>から</td></tr>
             <tr><td><span class="help-key">← 左へ</span></td><td><b>関数・記号ページ</b>：( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 を数式に挿入</td></tr>
-            <tr><td><span class="help-key">左→左</span></td><td><b>関数電卓ページ</b>：SIN・COS・TAN・LOG・LN・EXP・π・e・n!・x²・^・1/(・MOD( を挿入。<b>DEG/RAD</b>で角度単位を切替</td></tr>
+            <tr><td><span class="help-key">左→左</span></td><td><b>電卓ページ</b>（v335から。以前は関数電卓ページでした）：<b>数字の並びは標準テンキーと同じ</b>で、セルを触るキー（Enter・Σ合計・fx=・文字・モード）を<b>ふつうの電卓のキー</b>に変えてあります<br>
+              ・<b>＝</b>（Enterの位置）／<b>AC</b>（ぜんぶ消す）／<b>CE</b>／<b>±</b>／<b>⌫</b>／<b>％</b>／<b>税込</b><br>
+              ・<b>メモリー</b>：<b>M＋</b>足す／<b>M−</b>引く／<b>MR</b>呼び出す／<b>MC</b>消す（何か入っている間は MR・MC に黄色い印。閉じても覚えています）<br>
+              ・<b>🧮電卓／▦表へ</b>：表のときは電卓モードへ、電卓のときは答えをセルに入れて表へ戻ります<br>
+              ・<b>🎤声</b>でそのまましゃべって計算できます<br>
+              <b>電卓モードに入ると、このページが自動で開きます</b>（表に戻ると数字ページに戻ります）。<b>＝のあとに数字を押すと新しい数として打ち始めます</b>（v335で直しました。以前は前の答えに続けて打たれていました）</td></tr>
             <tr><td><span class="help-key">↑ 上へ</span></td><td><b>登録ページ</b>：紫ボタンを長押しで登録（下記）</td></tr>
             <tr><td><span class="help-key">↓ 下へ</span></td><td>数字ページに戻る</td></tr>
           </table>
           <div class="help-li"><b>登録ページ</b>：紫ボタンを<b>長押し</b>で登録画面。よく使う<b>文字・数字</b>を入力して登録（数値の途中でタップすると連結。例 100→「円」で100円）。<b>🎨書式</b>を付ければその書式のまま入力、<b>📋セルから選ぶ</b>でセルの内容＋書式を取り込み、<b>🔧ボタンの機能</b>から便利機能（保存・リスト・PDF・📅日付〈カレンダー〉など）も登録できます。登録後は<b>タップで入力／実行</b>。<b>🔀移動</b>で位置入れ替え（別ページとも可）。<b>左右フリックで3ページ</b>（左・中央・右）、<b>下フリックで数字ページに戻る</b>。</div>
-          <div class="help-li"><b>ボタン長押しで機能を割り当て</b>（数字・関数記号・関数電卓ページ）：別のキーや設定機能（保存・リスト・PDF・CSV・ナイト・テンプレ・📅日付…）、<b>「表の操作」</b>（行列の増減／挿入・削除／コピー・貼付・消去／A1へ移動／シート追加・切替）に変更できます。「↺元に戻す」でいつでも戻せます（Σは対象外）。</div>
+          <div class="help-li"><b>ボタン長押しで機能を割り当て</b>（数字・関数記号・電卓ページ）：別のキーや設定機能（保存・リスト・PDF・CSV・ナイト・テンプレ・📅日付…）、<b>「表の操作」</b>（行列の増減／挿入・削除／コピー・貼付・消去／A1へ移動／シート追加・切替）に変更できます。「↺元に戻す」でいつでも戻せます（Σは対象外）。</div>
           <div class="help-li"><b>テンキーの大きさ</b>：上端（横向きは左端）の<b>調整バーをドラッグ</b>で大小（端まで＝消える／バーで戻す）。調整バーは既定では出していないので、使うときは設定→<b>🎨見た目→くわしい設定</b>の<b>調整バーを表示する</b>をオンにしてください（太さも変えられます）。入力欄の右端の<b>▼</b>でワンタップ収納（▲で復帰）。設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーのボタン配置を編集</b>でボタン位置も入れ替え可。</div>
           <div class="help-note">💡 <b>パソコン</b>：テンキーの上でマウスの<b>ホイールを回す</b>と、横フリックと同じようにページを切り替えられます。ページ名のクリックでも移動できます。</div>
         </div>
@@ -9631,7 +9646,7 @@ let numpadPager=null;      // ページ表示から現在ページを読む／�
 /* テンキーのページ名。ページャの起動時（restAll）から参照されるのでここで宣言する。
      数字の並び： 枠線 書式 [数字] 記号 関数 ／ 右端＝▲登録
      登録の並び： 登録左 [登録] 登録右      ／ 右端＝▼数字 */
-const NP_ROW_MAIN=[['fmt','書式・枠線'],[null,'数字'],['func','記号'],['sci','関数']];
+const NP_ROW_MAIN=[['fmt','書式・枠線'],[null,'数字'],['func','記号'],['sci','電卓']];
 const NP_ROW_REG =[['regL','登録左'],['reg','登録'],['regR','登録右']];
 (function setupNumpadPager(){
   const vp=document.getElementById('numpadViewport');
@@ -11159,6 +11174,7 @@ let dtTape=[];            // [{e:'120 ＋ 30', v:'150'}] 新しいものが後�
 let dtStyle='simple';     // 'simple' | 'expr'
 let dtExpr='';            // 式優先モードで組み立て中の式
 let dtSeq='';             // ふつうの電卓で押した式（履歴に残すため。例「1 ＋ 2 ×」）
+let dtFresh=false;        // ＝を押した直後（次に数字を押したら新しい数として打ち始める）
 let dtPrevMode='normal';  // 電卓に入る前のモード（「セルに入れる」で戻る先）
 let dtPrevSel=null;       // 電卓に入る前に選んでいたセル（答えを入れる先）
 try{ const a=JSON.parse(localStorage.getItem(DT_TAPE_KEY)); if(Array.isArray(a)) dtTape=a.slice(-DT_TAPE_MAX); }catch(_){}
@@ -11218,7 +11234,7 @@ function dtEquals(){
     const num=(typeof v==='number'&&isFinite(v))?fmtNum(v):null;
     if(num===null){ document.getElementById('dtMain').textContent='Error'; document.getElementById('dtMain').classList.add('dt-err'); return; }
     dtPush(e, num);
-    dtExpr=num; disp_val=num;
+    dtExpr=num; disp_val=num; dtFresh=true;
     dtRender(); return;
   }
   if(cur_op===null||op1===null){                 // 演算が無いときは、今の値をそのまま履歴に残す
@@ -11235,7 +11251,7 @@ function dtEquals(){
   const e=dtSeq ? (dtSeq+' '+fmtNum(b)) : (fmtNum(a)+' '+dtOpSign(o)+' '+fmtNum(b));
   dtPush(e, val);
   dtSeq='';
-  disp_val=val; op1=null; cur_op=null; waiting=false;
+  disp_val=val; op1=null; cur_op=null; waiting=false; dtFresh=true;
   dtRender();
 }
 /* ふつうの電卓：演算キーを押すたび、履歴用の式に積む。
@@ -11248,7 +11264,56 @@ function dtSeqOp(o){
 /* 式優先モード：数字・記号を式に足す（テンキーからも呼ぶ） */
 function dtExprAppend(t){ dtExpr+=t; disp_val=''; dtRender(); }
 /* ぜんぶ消す */
-function dtAllClear(){ dtExpr=''; dtSeq=''; disp_val='0'; op1=null; cur_op=null; waiting=false; dtRender(); }
+/* ── 電卓ページのメモリー（ふつうの電卓の M＋ M− MR MC） ──
+   表示している数をためておき、あとで呼び出す。端末に覚えておく。 */
+const DT_MEM_KEY='excalc_dtmem';
+let dtMem=0;
+try{ const v=parseFloat(localStorage.getItem(DT_MEM_KEY)); if(isFinite(v)) dtMem=v; }catch(_){}
+function dtMemSave(){ try{ localStorage.setItem(DT_MEM_KEY, String(dtMem)); }catch(_){} }
+function dtMemCurrent(){                       // いま表示している数
+  const v=parseFloat((typeof dtStyle!=='undefined'&&dtStyle==='expr'&&dtExpr)?dtExpr:disp_val);
+  return isFinite(v)?v:0;
+}
+function dtMemAdd(sign){
+  dtMem += sign*dtMemCurrent();
+  dtFresh=true;                       // メモリーに入れたら、次の数字は新しく打ち始める
+  dtMemSave(); dtMemSync();
+  toast((sign>0?'メモリーに足しました：':'メモリーから引きました：')+fmtNum(dtMem));
+}
+function dtMemRecall(){
+  dtFresh=true;                       // 呼び出した数のあとも、次の数字は新しく打ち始める
+  disp_val=fmtNum(dtMem);
+  if(typeof dtStyle!=='undefined' && dtStyle==='expr') dtExpr=disp_val;
+  cellEditing=true; waiting=false;
+  if(typeof isDentaku==='function' && isDentaku()) dtRender(); else refreshDisp();
+  toast('メモリーを呼び出しました：'+fmtNum(dtMem));
+}
+function dtMemClear(){ dtMem=0; dtMemSave(); dtMemSync(); toast('メモリーを消しました'); }
+/* メモリーに何か入っているあいだは MR / MC に印を付ける */
+function dtMemSync(){
+  const on=(dtMem!==0);
+  ['dk_mr','dk_mc'].forEach(k=>{
+    const b=document.querySelector('[data-key="'+k+'"]');
+    if(b) b.classList.toggle('mem-on', on);
+  });
+}
+/* ▦表へ：電卓モードなら答えをセルに入れて表へ。表のときは電卓モードへ行く */
+function dtToCellOrBack(){
+  if(typeof isDentaku==='function' && isDentaku()) dtToCell();
+  else switchMode('dentaku');
+}
+/* このキーの見た目を、いまのモードに合わせる */
+function dtSyncPageKeys(){
+  const b=document.querySelector('[data-key="dk_tosheet"]');
+  if(b){
+    const inDt=(typeof isDentaku==='function' && isDentaku());
+    b.textContent = inDt ? '▦表へ' : '🧮電卓';
+    b.title = inDt ? '表に戻って、答えを選んでいるセルに入れます' : '電卓モードにする';
+  }
+  dtMemSync();
+}
+
+function dtAllClear(){ dtExpr=''; dtSeq=''; disp_val='0'; op1=null; cur_op=null; waiting=false; dtFresh=false; dtRender(); }
 /* ％：演算が保留中なら「前の値に対する割合」、そうでなければ 100 で割る */
 function dtPercent(){
   if(dtStyle==='expr'){ dtExprAppend('/100'); return; }
@@ -11305,6 +11370,13 @@ function dtToCell(){
 function dtApplyMode(){
   document.body.classList.toggle('dentaku-mode', isDentaku());
   if(isDentaku()){ dtSyncTaxLabels(); dtRender(); }
+  if(typeof dtSyncPageKeys==='function') dtSyncPageKeys();
+  // 電卓モードに入ったら電卓ページを開き、表に戻ったら数字ページに戻す
+  if(typeof numpadPager!=='undefined' && numpadPager){
+    const cur=numpadPager.current();
+    if(isDentaku()){ if(cur!=='sci') numpadPager.go('sci'); }
+    else if(cur==='sci'){ numpadPager.go(null); }
+  }
 }
 
 function refreshDisp() {
@@ -11340,6 +11412,13 @@ function fkey(token){
   numpadAppend(token);
 }
 function num(n) {
+  // ふつうの電卓と同じで、＝のあとに数字を押したら新しい数として打ち始める
+  // （これが無いと 12×3＝36 のあと 1 を押して「361」になってしまう）
+  if (dtFresh && isDentaku()) {
+    dtFresh=false;
+    if (dtStyle==='expr'){ dtExpr=(n==='0'?'0':n); disp_val=dtExpr; dtRender(); return; }
+    disp_val=(n==='0'?'0':n); cellEditing=true; waiting=false; dtRender(); return;
+  }
   if (isDentaku() && dtStyle==='expr') { dtExprAppend(n); return; }
   if (formulaEditMode) { numpadAppend(n); return; }
   if (editBlocked()) return;
@@ -11349,6 +11428,11 @@ function num(n) {
   refreshDisp();
 }
 function dot() {
+  if (dtFresh && isDentaku()) {
+    dtFresh=false;
+    if (dtStyle==='expr'){ dtExpr='0.'; disp_val=dtExpr; dtRender(); return; }
+    disp_val='0.'; cellEditing=true; waiting=false; dtRender(); return;
+  }
   if (isDentaku() && dtStyle==='expr') { dtExprAppend('.'); return; }
   if (formulaEditMode) { numpadAppend('.'); return; }
   if (editBlocked()) return;
@@ -11979,7 +12063,7 @@ function voiceAcceptDentaku(raw){
   const num=fmtNum(v);
   dtPush(formulaToReadable(f), num);          // 履歴には 251×68 のように読みやすい形で残す
   if(dtStyle==='expr') dtExpr=num;
-  disp_val=num; op1=null; cur_op=null; waiting=false; dtSeq='';
+  disp_val=num; op1=null; cur_op=null; waiting=false; dtSeq=''; dtFresh=true;
   dtRender();
   toast(`「${raw}」＝ ${num}`, 4200);
   speechSay(num);
@@ -14439,14 +14523,14 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v334';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v335';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
   const tb=document.getElementById('helpFuncTbl'); if(!tb) return;
   const rows=Object.keys(FORMULA_FUNCS).map(name=>{
     const f=FORMULA_FUNCS[name];
-    return `<tr><td><b>${escHtml(name)}</b>${escHtml(f.sig||'')}</td><td>${escHtml(f.desc||'')}${f.calc?'（関数電卓ページ用）':''}</td></tr>`;
+    return `<tr><td><b>${escHtml(name)}</b>${escHtml(f.sig||'')}</td><td>${escHtml(f.desc||'')}${f.calc?'（数式に手で書いて使えます）':''}</td></tr>`;
   });
   rows.push('<tr><td><b>PI</b> / <b>E</b></td><td>円周率 / 自然対数の底（括弧なしで書きます）</td></tr>');
   tb.innerHTML=rows.join('');

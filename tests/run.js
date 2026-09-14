@@ -654,6 +654,79 @@ async function runTopBar(browser) {
   await ctx.close();
 }
 
+/* 電卓ページ（いちばん右。v335で関数電卓ページから置き換え） */
+async function runCalcPage(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 電卓ページ ──');
+  const tap = async k => { await page.evaluate(x => {
+    const b = document.querySelector('[data-key="' + x + '"]'); if (b) b.click(); }, k);
+    await page.waitForTimeout(110); };
+  const seq = async ks => { for (const k of ks) await tap(k); };
+  const main = () => page.evaluate(() => document.getElementById('dtMain').textContent);
+
+  check('  ページの名前が「電卓」', await page.evaluate(() => NP_ROW_MAIN.map(x => x[1]).join('/')),
+        '書式・枠線/数字/記号/電卓');
+  check('  数字の並びは標準テンキーと同じ', await page.evaluate(() =>
+    ['dk_7','dk_8','dk_9','dk_4','dk_5','dk_6','dk_1','dk_2','dk_3','dk_0','dk_dot']
+      .every(k => !!document.querySelector('[data-key="' + k + '"]'))), true);
+  check('  セルのキーが電卓のキーに変わっている', await page.evaluate(() =>
+    ['dk_eq','dk_ac','dk_ce','dk_pct','dk_tax','dk_mc','dk_mplus','dk_mminus','dk_mr']
+      .every(k => !!document.querySelector('[data-key="' + k + '"]'))), true);
+  check('  段数は標準テンキーと同じ6段', await page.evaluate(() =>
+    getComputedStyle(document.getElementById('numpadPageSci')).gridTemplateRows.split(' ').length), 6);
+
+  // 電卓モードに入ると自動で開き、表に戻ると数字ページへ
+  check('  はじめは数字ページ', await page.evaluate(() => numpadPager.current()), 'null');
+  await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(600);
+  check('  電卓モードで電卓ページが開く', await page.evaluate(() => numpadPager.current()), 'sci');
+  check('  ▦表へ の表示', await page.evaluate(() =>
+    document.querySelector('[data-key="dk_tosheet"]').textContent.trim()), '▦表へ');
+  await page.evaluate(() => switchMode('normal')); await page.waitForTimeout(600);
+  check('  表に戻ると数字ページへ', await page.evaluate(() => numpadPager.current()), 'null');
+  check('  表では 🧮電卓 の表示', await page.evaluate(() =>
+    document.querySelector('[data-key="dk_tosheet"]').textContent.trim()), '🧮電卓');
+
+  // 計算（ふつうの電卓）
+  await page.evaluate(() => { switchMode('dentaku'); dtStyle = 'simple'; dtTape = []; dtMem = 0; dtAllClear(); });
+  await page.waitForTimeout(500);
+  await seq(['dk_1','dk_2','dk_mul','dk_3','dk_eq']);
+  check('  12×3＝', await main(), '36');
+  await seq(['dk_1','dk_0']);
+  check('  ＝のあとの数字は新しく打ち始める', await main(), '10');
+  await seq(['dk_plus','dk_5','dk_eq']);
+  check('  ＋5＝', await main(), '15');
+  await page.evaluate(() => dtAllClear());
+  await seq(['dk_5','dk_dot','dk_5','dk_mul','dk_2','dk_eq']);
+  check('  5.5×2＝', await main(), '11');
+  await page.evaluate(() => dtAllClear());
+  await seq(['dk_1','dk_0','dk_0','dk_plus','dk_1','dk_0','dk_pct','dk_eq']);
+  check('  100＋10％＝', await main(), '110');
+  await page.evaluate(() => dtAllClear());
+  await seq(['dk_1','dk_0','dk_0','dk_tax']);
+  check('  100 税込', await main(), '110');
+
+  // メモリー
+  await page.evaluate(() => { dtMem = 0; dtAllClear(); });
+  await seq(['dk_1','dk_2','dk_mul','dk_3','dk_eq','dk_mplus']);
+  check('  M＋', await page.evaluate(() => fmtNum(dtMem)), '36');
+  check('  メモリーがあると印が付く', await page.evaluate(() =>
+    document.querySelector('[data-key="dk_mr"]').classList.contains('mem-on')), true);
+  await seq(['dk_1','dk_0','dk_mplus']);
+  check('  続けてM＋', await page.evaluate(() => fmtNum(dtMem)), '46');
+  await seq(['dk_6','dk_mminus']);
+  check('  M−', await page.evaluate(() => fmtNum(dtMem)), '40');
+  await seq(['dk_ac','dk_mr']);
+  check('  AC のあと MR で呼び出せる', await main(), '40');
+  await seq(['dk_mc']);
+  check('  MC で消える', await page.evaluate(() => fmtNum(dtMem)), '0');
+  check('  印も消える', await page.evaluate(() =>
+    document.querySelector('[data-key="dk_mr"]').classList.contains('mem-on')), false);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 /* しゃべった式の読み取り */
 async function runSpeech(browser) {
   const { CASES, CASES3, MOVE } = require('./speech.test.js');
@@ -1076,6 +1149,7 @@ async function runDigit(browser) {
     if (!only || only === 'mode') await runMode(browser);
     if (!only || only === 'digit') await runDigit(browser);
     if (!only || only === 'speech') await runSpeech(browser);
+    if (!only || only === 'calcpage') await runCalcPage(browser);
     if (!only || only === 'cellmenu') await runCellMenu(browser);
     if (!only || only === 'savelist') await runSaveList(browser);
     if (!only || only === 'topbar') await runTopBar(browser);
