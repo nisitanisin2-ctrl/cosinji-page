@@ -996,6 +996,77 @@ async function runReport(browser) {
   await ctx.close();
 }
 
+/* テンキーの上に出す道具（設定で選んでページ名の並びに足す） */
+async function runNpTools(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── テンキーの上に出す道具 ──');
+  const bar = () => page.evaluate(() =>
+    [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|'));
+
+  check('  はじめは道具のタブを出さない', await bar(), '書式・枠線|数字|記号|電卓|▲ 登録');
+  check('  設定に選べる道具が並ぶ', await page.evaluate(() =>
+    document.querySelectorAll('#npToolList .nptool-row').length), 9);
+  check('  中身は全画面で開く道具', await page.evaluate(() =>
+    NP_TOOLS.map(t => t.id).join(',')),
+    'tansui,kantab,veggie,volume,photomemo,linklist,memo,calctmpl,fintmpl');
+
+  // チェックすると並びに足される
+  await page.evaluate(() => { npToolToggle('tansui'); npToolToggle('veggie'); }); await page.waitForTimeout(250);
+  check('  チェックした道具が電卓の右に並ぶ', await bar(), '書式・枠線|数字|記号|電卓|💧単位水量|🌱野菜|▲ 登録');
+  check('  もう一度押すと外れる', await page.evaluate(() => {
+    npToolToggle('tansui'); return npTools.join(','); }), 'veggie');
+  await page.evaluate(() => { npToolToggle('tansui'); npToolToggle('kantab'); }); await page.waitForTimeout(250);
+  check('  足した順に並ぶ', await page.evaluate(() => npTools.join(',')), 'veggie,tansui,kantab');
+
+  // 並び順を変えられる
+  await page.evaluate(() => npToolMove('kantab', -1)); await page.waitForTimeout(250);
+  check('  ↑で上げられる', await page.evaluate(() => npTools.join(',')), 'veggie,kantab,tansui');
+  await page.evaluate(() => npToolMove('veggie', 1)); await page.waitForTimeout(250);
+  check('  ↓で下げられる', await page.evaluate(() => npTools.join(',')), 'kantab,veggie,tansui');
+  check('  並びはタブにも出る', await bar(), '書式・枠線|数字|記号|電卓|🧪カンタブ|🌱野菜|💧単位水量|▲ 登録');
+  check('  端では動かない', await page.evaluate(() => {
+    npToolMove('kantab', -1); npToolMove('tansui', 1); return npTools.join(','); }), 'kantab,veggie,tansui');
+
+  // タブをタップすると道具が開く（ページは動かない）
+  await page.evaluate(() => {
+    const t = [...document.querySelectorAll('#numpadPageBar .np-page')].find(b => /野菜/.test(b.textContent));
+    t.click(); }); await page.waitForTimeout(400);
+  check('  タブで道具が開く', await page.evaluate(() => isDlgOpen('veggieOverlay')), true);
+  check('  ページは動かない', await page.evaluate(() => String(numpadPager.current())), 'null');
+  await page.evaluate(() => closeVeggie()); await page.waitForTimeout(350);
+
+  // 電卓ページからさらに左へフリックすると、いちばん上の道具が開く
+  await page.evaluate(() => numpadPager.go('sci')); await page.waitForTimeout(500);
+  await page.evaluate(() => npToolFlick()); await page.waitForTimeout(400);
+  check('  電卓の先は並びの先頭の道具', await page.evaluate(() =>
+    isDlgOpen('kantabOverlay') + '/' + isDlgOpen('veggieOverlay')), 'true/false');
+  await page.evaluate(() => closeKantab()); await page.waitForTimeout(350);
+  await page.evaluate(() => numpadPager.go(null)); await page.waitForTimeout(400);
+  check('  1つも選んでいなければ何も開かない', await page.evaluate(() => {
+    const keep = npTools.slice(); npTools = [];
+    const r = npToolFlick(); npTools = keep; return r; }), false);
+
+  // 開き直しても覚えている
+  await page.reload(); await page.waitForTimeout(900);
+  check('  開き直しても覚えている', await page.evaluate(() => npTools.join(',')), 'kantab,veggie,tansui');
+  check('  タブも出たまま', await bar(), '書式・枠線|数字|記号|電卓|🧪カンタブ|🌱野菜|💧単位水量|▲ 登録');
+  check('  横に流して見られる', await page.evaluate(() =>
+    getComputedStyle(document.getElementById('numpadPageBar')).overflowX), 'auto');
+  check('  本体は横にずれない', await page.evaluate(() =>
+    document.documentElement.scrollWidth <= window.innerWidth), true);
+
+  // 登録ページでは道具のタブを出さない（並びが別のため）
+  await page.evaluate(() => numpadPager.go('reg')); await page.waitForTimeout(500);
+  check('  登録の並びには出さない', await page.evaluate(() =>
+    !/単位水量/.test(document.getElementById('numpadPageBar').textContent)), true);
+  await page.evaluate(() => numpadPager.go(null)); await page.waitForTimeout(400);
+  await page.evaluate(() => { npTools = []; saveNpTools(); renderNumpadPageBar(); });
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 /* 野菜の育成計画（種まきの日から予定日とカレンダーを出す道具） */
 async function runVeggie(browser) {
   const { ctx, page, errs } = await newPage(browser);
@@ -1930,6 +2001,7 @@ async function runDigit(browser) {
     if (!only || only === 'cellmenu') await runCellMenu(browser);
     if (!only || only === 'savelist') await runSaveList(browser);
     if (!only || only === 'topbar') await runTopBar(browser);
+    if (!only || only === 'nptools') await runNpTools(browser);
     if (!only || only === 'veggie') await runVeggie(browser);
     if (!only || only === 'report') await runReport(browser);
     if (!only || only === 'shared') await runShared(browser);
