@@ -1428,8 +1428,15 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
      指を離したことがこちらに届かない（v356で判明） */
   touch-action: pan-y;
 }
-/* 自分で指の動きを見ている中身（写真の拡大・線引きなど）は、そのまま任せる */
-.modal.modal-full canvas { touch-action: none; }
+/* 中身にも同じ決まりを付ける。スクロールする箱（modal-body）の中では、
+   その箱より外の touch-action は効かないため（v357で判明） */
+.modal.modal-full .modal-body,
+.modal.modal-full .modal-body * { touch-action: pan-y; }
+/* 自分で指の動きを見ている中身・横にすべる箱は、そのまま任せる（上のあとに置く） */
+.modal.modal-full .pm-tabbar, .modal.modal-full .pm-tabbar *,
+.modal.modal-full .pm-strip,  .modal.modal-full .pm-strip *,
+.modal.modal-full .pick-sheets, .modal.modal-full .pick-sheets * { touch-action: auto; }
+.modal.modal-full .modal-body canvas, .modal.modal-full canvas { touch-action: none; }
 .modal.modal-full .modal-body { padding: 12px 14px 16px; }
 @media (min-width: 700px) {   /* パソコンなど広い画面では、読みやすい幅で真ん中に */
   .modal.modal-full { width: 96%; max-width: 900px; height: 96%; border-radius: var(--r-card); }
@@ -11329,6 +11336,11 @@ function applyNpToolFull(){
 /* 全画面で開いている道具のあいだを、フリックで行き来する（v354）。
    左＝次の道具／右＝前の道具。端では閉じてテンキーに戻る。 */
 const NP_SWIPE_MIN=70;        // これだけ横に動かしたら移動とみなす
+/* フリックで移ったあとの短い間は、指を離した分のタップを打ち消す */
+let npSwipeBlockUntil=0;
+document.addEventListener('click', e=>{
+  if(Date.now()<npSwipeBlockUntil){ e.preventDefault(); e.stopPropagation(); }
+}, true);
 function npToolFlickable(){ return npTools.filter(id=>{ const t=npToolDef(id); return t && t.ov; }); }
 function npToolOpenAt(i){
   const list=npToolFlickable();
@@ -11357,10 +11369,13 @@ function bindNpToolSwipe(ovId){
   const ov=document.getElementById(ovId); if(!ov || ov.dataset.npSwipe) return;
   ov.dataset.npSwipe='1';
   let x0=null, y0=0, id=null, ok=false, lx=0, ly=0;
+  /* 見送るのは「横になぞる操作が別の意味を持つところ」だけにする。
+     ボタンの上からでもフリックできないと、中身がボタンだらけの画面（野菜など）で
+     どこもフリックできなくなるため、ボタンは見送らない（動いたらタップは打ち消す）。 */
   const skip=el=>{
     for(let e=el; e && e!==ov; e=e.parentElement){
       const tag=e.tagName;
-      if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||tag==='BUTTON'||tag==='A'||tag==='SUMMARY') return true;
+      if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return true;   // 文字を選ぶ操作とぶつかる
       if(tag==='CANVAS') return true;                     // 写真の拡大・線引きなど、自分で指を見ている中身
       if(e.scrollWidth>e.clientWidth+4) return true;      // 横にすべる箱
       let ta=''; try{ ta=getComputedStyle(e).touchAction; }catch(_){}
@@ -11385,6 +11400,7 @@ function bindNpToolSwipe(ovId){
     x0=null;
     if(!ok) return;
     if(Math.abs(dx)<NP_SWIPE_MIN || Math.abs(dx)<Math.abs(dy)*1.5) return;   // はっきり横のときだけ
+    npSwipeBlockUntil=Date.now()+400;   // なぞった先のボタンが押されたことにならないように
     npToolStep(dx<0 ? 1 : -1);
   };
   ov.addEventListener('pointerup', e=>{ if(e.pointerId===id) decide(e.clientX, e.clientY); });
@@ -16483,7 +16499,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v356';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v357';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
