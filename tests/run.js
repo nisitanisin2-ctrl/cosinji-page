@@ -714,7 +714,10 @@ async function runVeggie(browser) {
 
   await open();
   check('  キーに登録して開ける', await page.evaluate(() => KEY_FUNCS.a_veggie.label), '🌱野菜');
-  check('  はじめから入っている野菜の数', await page.evaluate(() => VEG_PLANS.length), 32);
+  check('  はじめから入っている野菜の数', await page.evaluate(() => VEG_PLANS.length), 33);
+  check('  ビーツが入っている', await page.evaluate(() =>
+    (VEG_PLANS.find(v => v.n === 'ビーツ') || {}).s.map(x => x[0]).join('/')),
+    '発芽/1回目の間引き/2回目の間引き/追肥/収穫');
   check('  日数は はじめ≦おわり で、順に並んでいる', await page.evaluate(() =>
     VEG_PLANS.every(v => v.s.every(([, a, b]) => a <= b) &&
       v.s.every((st, i) => i === 0 || st[1] >= v.s[i - 1][1]))), true);
@@ -757,6 +760,44 @@ async function runVeggie(browser) {
     /その名前の野菜はありません/.test(document.getElementById('vegChips').textContent)), true);
   await page.fill('#vegFind', ''); await page.waitForTimeout(200);
 
+  // ── 地域・標高・寒冷地で日数を補正する ──
+  const area = async (id, alt, cold) => { await page.evaluate(([id, alt, cold]) => {
+      document.getElementById('vegAreaSel').value = id;
+      document.getElementById('vegAlt').value = alt;
+      document.getElementById('vegCold').checked = cold;
+      vegAreaChange(); }, [id, alt, cold]); await page.waitForTimeout(200); };
+  await plant('コマツナ', 2026, 4, 1);
+  check('  はじめは補正なし', await page.evaluate(() => vegFactor()), 1);
+  check('  補正なしの案内', await page.evaluate(() =>
+    document.getElementById('vegFix').textContent.trim()), '補正 なし（そのままの日数）');
+  await area('hokkaido', 0, false);
+  check('  北海道は1.2倍', await page.evaluate(() => vegFactor()), 1.2);
+  await area('hokkaido', 300, true);
+  check('  標高300m・寒冷地でさらにおそく', await page.evaluate(() => vegFactor()), 1.34);
+  check('  補正の案内', await page.evaluate(() =>
+    document.getElementById('vegFix').textContent.replace(/\s+/g, ' ').trim()),
+    '補正 ＋34%（日数を1.34倍） ／ 種まきの時期は標準の地域より 4週間おそめ');
+  check('  日数も予定日もおそくなる', await plan(),
+        '種まき 4/1(水) 0日 / 発芽 4/5(日)〜4/6(月) 4〜5日 / 間引き 4/14(火)〜4/20(月) 13〜19日 / 収穫 5/11(月)〜5/25(月) 40〜54日');
+  check('  地域は短い言い方で出す', await page.evaluate(() => vegAreaText()), '北海道・標高300m・寒冷地');
+  await area('okinawa', 0, false);
+  check('  沖縄は0.88倍', await page.evaluate(() => vegFactor()), 0.88);
+  check('  あたたかい地域は早くとれる', await plan(),
+        '種まき 4/1(水) 0日 / 発芽 4/4(土)〜4/5(日) 3〜4日 / 間引き 4/10(金)〜4/13(月) 9〜12日 / 収穫 4/27(月)〜5/6(水) 26〜35日');
+  check('  標高は0〜2000mにおさめる', await page.evaluate(() => {
+    document.getElementById('vegAlt').value = -50; vegAreaChange(); const a = vegArea.alt;
+    document.getElementById('vegAlt').value = 9999; vegAreaChange(); return a + '/' + vegArea.alt; }), '0/2000');
+  await page.reload(); await page.waitForTimeout(900);
+  await open();
+  check('  地域の設定は開き直しても残る', await page.evaluate(() =>
+    vegArea.id + '/' + vegArea.alt + '/' + vegArea.cold), 'okinawa/2000/false');
+  await area('kanto', 0, false);
+
+  // 年をまたぐときは年も出す
+  await plant('タマネギ', 2026, 10, 1);
+  check('  年をまたいだ日は年も出す', await page.evaluate(() =>
+    document.querySelector('.veg-line:last-child .veg-when').textContent), '2027年5/9(日)〜2027年6/8(火)');
+
   // 予定表を表に入れる
   await plant('コマツナ', 2026, 4, 1);
   await page.evaluate(() => sel(3, 1)); await page.waitForTimeout(200);   // 選んでいるセルが左上になる
@@ -767,7 +808,7 @@ async function runVeggie(browser) {
   check('  表に入った中身', await page.evaluate(() => {
     const o = []; for (let r = 3; r < 9; r++) o.push([1, 2, 3, 4].map(c => getCellDisplay(r, c)).join('|'));
     return o.join(' / '); }),
-    '🥬 コマツナ の育成計画||| / 作業|予定日|おわり|日数 / 種まき|2026/4/1||0日 / '
+    '🥬 コマツナ の育成計画（関東・東海・近畿）||| / 作業|予定日|おわり|日数 / 種まき|2026/4/1||0日 / '
     + '発芽|2026/4/4|2026/4/5|3〜4日 / 間引き|2026/4/11|2026/4/15|10〜14日 / 収穫|2026/5/1|2026/5/11|30〜40日');
   check('  日付は日付として入る（計算に使える）', await page.evaluate(() =>
     String(data[5][2]) === String(dateToSerial(2026, 4, 1))), true);
@@ -781,7 +822,7 @@ async function runVeggie(browser) {
     vegMySave(); }); await page.waitForTimeout(300);
   check('  登録した野菜が選ばれる', await page.evaluate(() => vegSel.n), 'ゴーヤ');
   check('  登録した野菜も一覧に出る', await page.evaluate(() =>
-    document.querySelectorAll('#vegChips .veg-chip').length), 33);
+    document.querySelectorAll('#vegChips .veg-chip').length), 34);
   await plant('ゴーヤ', 2026, 5, 1);
   check('  登録した野菜の予定', await plan(),
         '種まき 5/1(金) 0日 / 発芽 5/7(木)〜5/11(月) 6〜10日 / 畑に植える 5/31(日)〜6/5(金) 30〜35日 / 収穫 7/10(金)〜7/30(木) 70〜90日');
