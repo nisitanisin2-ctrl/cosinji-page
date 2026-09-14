@@ -725,8 +725,9 @@ async function runCalcPage(browser) {
     const a = document.querySelector('#numpadPageSci [data-key="dk_7"]').getBoundingClientRect();
     const b = document.querySelector('#numpadPage1 [data-key="n7"]').getBoundingClientRect();
     return a.width > b.width; }), true);
-  check('  メモリーはキーに割り当てて使える', await page.evaluate(() =>
-    ['a_memplus','a_memminus','a_memrecall','a_memclear'].map(k => KEY_FUNCS[k].label).join(' ')), 'M＋ M− MR MC');
+  check('  メモリー・消費税はキーに割り当てて使える', await page.evaluate(() =>
+    ['a_memplus','a_memminus','a_memrecall','a_memclear','a_taxin','a_taxout']
+      .map(k => KEY_FUNCS[k].label).join(' ')), 'M＋ M− MR MC 税込 税抜');
 
   // 電卓モードに入ると自動で開き、表に戻ると数字ページへ
   check('  はじめは数字ページ', await page.evaluate(() => numpadPager.current()), 'null');
@@ -807,7 +808,7 @@ async function runCalcPage(browser) {
   await page.evaluate(() => { dtAllClear(); });
   await seq(['dk_1','dk_0','dk_0']);
   await page.evaluate(() => dtTax(1));
-  check('  100 税込（画面の税込ボタン）', await main(), '110');
+  check('  100 税込（キーに割り当てた税込）', await main(), '110');
 
   // ⌫ と （ ）
   await page.evaluate(() => dtAllClear());
@@ -838,6 +839,31 @@ async function runCalcPage(browser) {
   check('  AC のあと MR で呼び出せる', await main(), '40');
   await page.evaluate(() => dtMemClear());
   check('  MC で消える', await page.evaluate(() => fmtNum(dtMem)), '0');
+
+  // ── 声で言った計算式の行（v339。もとは％・税込・AC などのボタンがあった場所） ──
+  // 「式 ｜ 聞こえた言葉 ｜ 色」の1行にまとめて見くらべる
+  const vline = () => page.evaluate(() => {
+    const b = document.getElementById('dtVoice');
+    return [document.getElementById('dtVoiceF').textContent,
+            document.getElementById('dtVoiceRaw').textContent,
+            b.classList.contains('dt-voice-on') ? '緑' : b.classList.contains('dt-voice-ng') ? '赤' : '−'
+           ].join(' ｜ ');
+  });
+  check('  ％・税込・AC・セルに入れる の行は無くなった', await page.evaluate(() =>
+    document.querySelectorAll('#dentakuPane .dt-key').length + ':' +
+    (document.getElementById('dtVoice') ? 1 : 0)), '0:1');
+  await page.evaluate(() => { dtAllClear(); dtTape = []; });
+  check('  はじめは案内だけ', await vline(), '声で言った計算式がここに出ます ｜  ｜ −');
+  await page.evaluate(() => voiceAcceptDentaku('251かける68'));
+  await page.waitForTimeout(200);
+  check('  声で言った式が出る', await vline(), '251×68 ＝ 17068 ｜ 「251かける68」と聞こえました ｜ 緑');
+  check('  答えは大きい表示にも出る', await main(), '17068');
+  await page.evaluate(() => voiceAcceptDentaku('こんにちは'));
+  await page.waitForTimeout(200);
+  check('  式にできないときは聞こえた言葉を残す', await vline(),
+        '計算の形になりませんでした ｜ 「こんにちは」と聞こえました ｜ 赤');
+  await page.evaluate(() => dtAllClear());
+  check('  AC で消える', await vline(), '声で言った計算式がここに出ます ｜  ｜ −');
 
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);

@@ -468,6 +468,27 @@ body.dentaku-mode .formula-bar { display: none !important; }
 }
 .dt-main.dt-err { color: var(--danger); font-size: 26px; }
 /* ％・税・AC・セルへ */
+/* 声で言った式を見せる行（もとは％・税込・AC などのボタンが並んでいた場所） */
+.dt-voice {
+  flex-shrink: 0; display: flex; align-items: center; gap: 8px;
+  padding: 9px 11px; border-radius: 10px; min-height: 46px;
+  background: var(--pm-chip, rgba(120,132,156,.13));
+  border: 1px solid var(--border);
+}
+.dt-voice.dt-voice-on { border-color: var(--acc); }
+.dt-voice.dt-voice-ng { border-color: var(--danger); }
+.dt-voice-ico { font-size: 18px; flex-shrink: 0; opacity: .75; }
+.dt-voice-body { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.dt-voice-f {
+  font-size: 17px; font-weight: bold; color: var(--text-light);
+  word-break: break-all; line-height: 1.3;
+  /* 長い式でも履歴をつぶさないよう3行まで（全文は履歴に残る） */
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+}
+.dt-voice.dt-voice-on .dt-voice-f { color: var(--text); }
+.dt-voice.dt-voice-ng .dt-voice-f { color: var(--danger); }
+.dt-voice-raw { font-size: 12px; color: var(--text-light); word-break: break-all; line-height: 1.3; }
+.dt-voice-raw:empty { display: none; }
 .dt-keys { flex-shrink: 0; display: flex; gap: 6px; }
 .dt-key {
   flex: 1 1 0; min-width: 0; padding: 12px 4px; border: none; border-radius: var(--r-btn);
@@ -2721,12 +2742,13 @@ body.dark {
     <div class="dt-sub" id="dtSub"></div>
     <div class="dt-main" id="dtMain">0</div>
   </div>
-  <div class="dt-keys">
-    <button class="dt-key" onclick="dtPercent()" title="割合。例：100 ＋ 10 ％ → 110">％</button>
-    <button class="dt-key" id="dtTaxIn" onclick="dtTax(1)" title="今の値に消費税を足す">税込</button>
-    <button class="dt-key" id="dtTaxOut" onclick="dtTax(-1)" title="今の値から消費税を抜く">税抜</button>
-    <button class="dt-key dt-ac" onclick="dtAllClear()" title="ぜんぶ消す">AC</button>
-    <button class="dt-key dt-send" onclick="dtToCell()" title="表に戻って、選んでいるセルに答えを入れます">▦ セルに入れる</button>
+  <!-- 声で言った計算式を出す行。何を式として受け取ったかがその場で分かる -->
+  <div class="dt-voice" id="dtVoice" aria-live="polite">
+    <span class="dt-voice-ico">🎤</span>
+    <span class="dt-voice-body">
+      <span class="dt-voice-f" id="dtVoiceF">声で言った計算式がここに出ます</span>
+      <span class="dt-voice-raw" id="dtVoiceRaw"></span>
+    </span>
   </div>
 </div>
 
@@ -4014,7 +4036,7 @@ body.dark {
               ・<b>▦表へ／🧮電卓</b>：表のときは電卓モードへ、電卓のときは答えをセルに入れて表へ戻ります<br>
               ・<b>🎤声</b>：そのまましゃべって計算（「251かける68」）<br>
               ・<b>（ ）</b>は、設定→🧮計算で<b>「式の優先順位どおり（×÷が先）」</b>にしているときに使えます（開いていなければ開き、開いていれば閉じます）<br>
-              ・<b>税込・税抜</b>は電卓の画面側のボタンに、<b>メモリー（M＋ M− MR MC）</b>はキーの長押し→<b>🔧ボタンの機能→設定・機能</b>から割り当てて使えます<br>
+              ・<b>税込・税抜</b>と<b>メモリー（M＋ M− MR MC）</b>は、キーの長押し→<b>🔧ボタンの機能→設定・機能</b>から好きなキーに割り当てて使えます<br>
               <b>このページとモードは連動します</b>（v336から）。<b>スライドで電卓ページへ行く</b>か、上の<b>ページ名の「電卓」をタップ</b>すると<b>電卓モードに切り替わります</b>。<b>スライドで出る・ページ名の「数字」をタップ・▦表へを押す</b>と、<b>元のモード</b>（買物などから行ったときはそのモード、ふつうは通常）に戻ります。<b>＝のあとに数字を押すと新しい数として打ち始めます</b></td></tr>
             <tr><td><span class="help-key">↑ 上へ</span></td><td><b>登録ページ</b>：紫ボタンを長押しで登録（下記）</td></tr>
             <tr><td><span class="help-key">↓ 下へ</span></td><td>数字ページに戻る</td></tr>
@@ -4085,7 +4107,7 @@ body.dark {
               <tr><td><span class="help-key">続けて入れる</span></td><td>聞いている窓の中の<b>🔁続けて入れる</b>を押すと、1つ言うたびに<b>下のセルへ移って</b>また聞きます（もう一度押すとやめる。「左に式・右に答え」で入れているときも同じように下へ進み、いちばん下まで来たら行を足します）。やめるときは<b>窓の外をタップ</b>。<br>はじめから続けて入れたいときは、<b>⋯の🎤を長押し</b>するか、キーに「設定・機能→<b>🎤続け</b>」を割り当ててください。<b>テンキーの🎤声キーは長押しが「別の機能に変更」</b>なので、そちらでは切り替わりません（v333で窓の中に入れました）</td></tr>
               <tr><td><span class="help-key">移るだけ</span></td><td>「<b>次</b>」「下」「右」「左」「上」と言うと、入れずにそのセルへ移ります</td></tr>
               <tr><td><span class="help-key">入れかたを選ぶ</span></td><td><b>設定→🧮計算→声の入れかた</b>（v327から）。<b>「式を入れる」</b>＝選んだセルに <code>=251*68</code>（答えが出ます）。<b>「左に式・右に答え」</b>＝選んだセルに <b>251×68</b>（読むための文字）、<b>右のセルに答え</b>を入れます。右のセルは式なので、あとから数字を直せば答えも変わり、<b>Σ合計</b>にも入ります。右に列が無いときは1列増やします。<b>↶戻る</b>1回で両方戻せます</td></tr>
-              <tr><td><span class="help-key">電卓モードでも</span></td><td><b>🧮電卓</b>のときも声で計算できます（v334から）。言った式をその場で計算して<b>大きい表示</b>に出し、<b>履歴（テープ）</b>にも <b>251×68 ＝ 17068</b> のように残ります。<b>ふつうの電卓／式の優先順位どおり</b>のどちらでも同じです。電卓には動く先が無いので、<b>続けて入れる</b>ときはその場で聞き直します。式の形で言わなかったときは「計算の形で言ってください」と出ます（セルのように文字を入れることはしません）</td></tr>
+              <tr><td><span class="help-key">電卓モードでも</span></td><td><b>🧮電卓</b>のときも声で計算できます（v334から）。言った式をその場で計算して<b>大きい表示</b>に出し、<b>履歴（テープ）</b>にも <b>251×68 ＝ 17068</b> のように残ります。履歴の下の<b>🎤の行</b>には<b>受け取った計算式</b>がそのまま出るので（v339から）、<b>聞きまちがいがすぐ分かります</b>。式にできなかったときも、聞こえた言葉がその行に残ります。<b>ふつうの電卓／式の優先順位どおり</b>のどちらでも同じです。電卓には動く先が無いので、<b>続けて入れる</b>ときはその場で聞き直します。式の形で言わなかったときは「計算の形で言ってください」と出ます（セルのように文字を入れることはしません）</td></tr>
               <tr><td><span class="help-key">答えを読み上げ</span></td><td><b>設定→🧮計算→答えを声で読み上げる</b>で、計算した答えを声で返します（<b>全機種で使えます</b>。手がふさがっているときの確認に）</td></tr>
             </table>
           </div>
@@ -4121,7 +4143,7 @@ body.dark {
             <tr><td><b>容積／予算配分</b></td><td>縦×横×高さ＝容積／予算と個数から最適な購入数</td></tr>
             <tr><td><b>時間計算</b></td><td>開始・終了・時間のうち2つで残りを自動計算（◯時間後/◯分前も）</td></tr>
           </table>
-          <div class="help-li"><b>電卓モード</b>：モードで<b>🧮電卓</b>を選ぶと、表のかわりに<b>ふつうの電卓</b>が出ます。テンキーはそのまま使えて、押すたびに答えが出ます。計算するたびに<b>履歴（テープ）</b>が残り、行を押すとその答えをもう一度使えます。<b>％</b>（100＋10％→110）と<b>消費税</b>（税込・税抜。税率は設定のもの）のボタンつき。<b>▦ セルに入れる</b>を押すと元のモードに戻って、選んでいるセルに答えが入ります。<b>🎤声</b>キーで<b>声で計算</b>することもできます（🎤 声で入れるの章をどうぞ）。「1＋2×3」の答えを<b>9（ふつうの電卓）</b>にするか<b>7（式の優先順位どおり）</b>にするかは、<b>設定→🧮計算</b>で選べます。</div>
+          <div class="help-li"><b>電卓モード</b>：モードで<b>🧮電卓</b>を選ぶと、表のかわりに<b>ふつうの電卓</b>が出ます。テンキーはそのまま使えて、押すたびに答えが出ます。計算するたびに<b>履歴（テープ）</b>が残り、行を押すとその答えをもう一度使えます。履歴の下には<b>🎤 声で言った計算式の行</b>があり（v339から）、<b>声でどんな式として受け取ったか</b>がその場で分かります（例「251かける68」→ <b>251×68 ＝ 17068</b>、聞こえた言葉も小さく出ます）。式にできなかったときは<b>赤いふち</b>で聞こえた言葉だけ出るので、言い直す手がかりになります。<b>AC</b>を押すと消えます。<b>％・AC・▦表へ</b>はテンキーの<b>電卓ページ</b>にあります（<b>▦表へ</b>で元のモードに戻り、選んでいるセルに答えが入ります）。<b>🎤声</b>キーで<b>声で計算</b>できます（🎤 声で入れるの章をどうぞ）。「1＋2×3」の答えを<b>9（ふつうの電卓）</b>にするか<b>7（式の優先順位どおり）</b>にするかは、<b>設定→🧮計算</b>で選べます。</div>
           <div class="help-li"><b>📋計算式テンプレ／📑決算書テンプレ</b>（設定の「計算」タブ）：割引・利益率・BMI・速さ・複利・ローン・面積…約20種類のひな形や、損益計算書・貸借対照表・収支計算書のひな形。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
         </div>
       </details>
@@ -7118,6 +7140,7 @@ const KEY_FUNCS={
   a_voice:{g:'設定・機能',label:'🎤声',run:()=>voiceStart()},
   a_memplus:{g:'設定・機能',label:'M＋',run:()=>dtMemAdd(1)}, a_memminus:{g:'設定・機能',label:'M−',run:()=>dtMemAdd(-1)},
   a_memrecall:{g:'設定・機能',label:'MR',run:()=>dtMemRecall()}, a_memclear:{g:'設定・機能',label:'MC',run:()=>dtMemClear()},
+  a_taxin:{g:'設定・機能',label:'税込',run:()=>dtTax(1)}, a_taxout:{g:'設定・機能',label:'税抜',run:()=>dtTax(-1)},
   a_voiceseq:{g:'設定・機能',label:'🎤続け',run:()=>voiceStartContinuous()},
   a_calctmpl:{g:'設定・機能',label:'📋式テン',run:()=>openCalcTmpl()}, a_fintmpl:{g:'設定・機能',label:'📑決算',run:()=>openFinTmpl()},
   a_modevis:{g:'設定・機能',label:'🔀表示',run:()=>openModeVis()}, a_help:{g:'設定・機能',label:'📖説明',run:()=>openHelp()},
@@ -10705,7 +10728,6 @@ function applyTaxRate(){
   document.getElementById('taxRate').textContent=taxPct+'%';
   const zr=document.getElementById('zeiRate'); if(zr) zr.textContent=taxPct+'%';
   localStorage.setItem('excalc_taxrate', taxPct);
-  if(typeof dtSyncTaxLabels==='function') dtSyncTaxLabels();
   if(tableMode==='zei') recalcMode();
 }
 function changeTax(delta){
@@ -11372,7 +11394,20 @@ function dtSyncPageKeys(){
   dtMemSync();
 }
 
-function dtAllClear(){ dtExpr=''; dtSeq=''; disp_val='0'; op1=null; cur_op=null; waiting=false; dtFresh=false; dtRender(); }
+function dtAllClear(){ dtExpr=''; dtSeq=''; disp_val='0'; op1=null; cur_op=null; waiting=false; dtFresh=false; dtVoiceClear(); dtRender(); }
+/* ── 声で言った計算式の行 ──────────────────────────────────
+   電卓モードで声を使ったとき、何を式として受け取ったかをその場で見せる。
+   state: 'on'＝式になった / 'ng'＝式にできなかった / ''＝まだ何も言っていない */
+function dtVoiceShow(formula, raw, state){
+  const box=document.getElementById('dtVoice');
+  const f=document.getElementById('dtVoiceF'), r=document.getElementById('dtVoiceRaw');
+  if(!box||!f||!r) return;
+  f.textContent=formula||'声で言った計算式がここに出ます';
+  r.textContent=raw?('「'+raw+'」と聞こえました'):'';
+  box.classList.toggle('dt-voice-on', state==='on');
+  box.classList.toggle('dt-voice-ng', state==='ng');
+}
+function dtVoiceClear(){ dtVoiceShow('', '', ''); }
 /* ％：演算が保留中なら「前の値に対する割合」、そうでなければ 100 で割る */
 function dtPercent(){
   if(dtStyle==='expr'){ dtExprAppend('/100'); return; }
@@ -11396,12 +11431,6 @@ function dtTax(dir){
   dtSeq='';
   disp_val=val; op1=null; cur_op=null; waiting=false;
   dtRender();
-}
-/* 税ボタンの表示に今の税率を出す */
-function dtSyncTaxLabels(){
-  const i=document.getElementById('dtTaxIn'), o=document.getElementById('dtTaxOut');
-  if(i) i.textContent='税込'+taxPct+'%';
-  if(o) o.textContent='税抜'+taxPct+'%';
 }
 /* 計算のしかた（ふつう／式の優先順位）を切り替える */
 function dtSetStyle(v){
@@ -11444,7 +11473,7 @@ function syncModeToPage(which){
 /* 電卓モードに入る・出るときの見た目の切り替え */
 function dtApplyMode(){
   document.body.classList.toggle('dentaku-mode', isDentaku());
-  if(isDentaku()){ dtSyncTaxLabels(); dtRender(); }
+  if(isDentaku()) dtRender();
   if(typeof dtSyncPageKeys==='function') dtSyncPageKeys();
   // 電卓モードに入ったら電卓ページを開き、表に戻ったら数字ページに戻す
   if(!dtPageSyncing && typeof numpadPager!=='undefined' && numpadPager){
@@ -12133,13 +12162,19 @@ function speechSay(text){
 function voiceAcceptDentaku(raw){
   const f = speechAutoOn ? speechToFormula(raw) : null;
   if(f===null){
+    dtVoiceShow('計算の形になりませんでした', raw, 'ng');
     toast('計算の形で言ってください（例「251かける68」）');
     return;
   }
+  const shown=formulaToReadable(f);           // 251×68 のように読みやすい形
   let v; try{ v=evalFormula(f); }catch(_){ v=null; }
-  if(typeof v!=='number' || !isFinite(v)){ toast('計算できませんでした'); return; }
+  if(typeof v!=='number' || !isFinite(v)){
+    dtVoiceShow(shown, raw, 'ng');
+    toast('計算できませんでした'); return;
+  }
   const num=fmtNum(v);
-  dtPush(formulaToReadable(f), num);          // 履歴には 251×68 のように読みやすい形で残す
+  dtVoiceShow(shown+' ＝ '+num, raw, 'on');   // 受け取った式を電卓の行に出す
+  dtPush(shown, num);                         // 履歴には 251×68 のように読みやすい形で残す
   if(dtStyle==='expr') dtExpr=num;
   disp_val=num; op1=null; cur_op=null; waiting=false; dtSeq=''; dtFresh=true;
   dtRender();
@@ -14601,7 +14636,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v338';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v339';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -16353,7 +16388,7 @@ const savedDec=parseInt(localStorage.getItem('excalc_dec'));
 if(!isNaN(savedDec)&&savedDec>=-1&&savedDec<=10){ decPlaces=savedDec; document.getElementById('decCount').textContent=decPlaces<0?'自':decPlaces; }
 const savedTax=parseInt(localStorage.getItem('excalc_taxrate'));
 if(!isNaN(savedTax)&&savedTax>=0&&savedTax<=30) taxPct=savedTax;
-dtSyncStyleUi(); dtSyncTaxLabels();
+dtSyncStyleUi();
 applyTaxRate();
 const savedSumFunc=localStorage.getItem('excalc_sumfunc');
 if(savedSumFunc==='SUM'||savedSumFunc==='AVERAGE') sumFunc=savedSumFunc;
