@@ -4325,7 +4325,8 @@ body.dark {
               <tr><td><span class="help-key">ルート・◯乗</span></td><td>「<b>ルート16かける3</b>」→ <code>=SQRT(16)*3</code>／「<b>2の10乗</b>」→ <code>=2^10</code></td></tr>
               <tr><td><span class="help-key">続けて入れる</span></td><td>聞いている窓の中の<b>🔁続けて入れる</b>を押すと、1つ言うたびに<b>下のセルへ移って</b>また聞きます（もう一度押すとやめる。「左に式・右に答え」で入れているときも同じように下へ進み、いちばん下まで来たら行を足します）。やめるときは<b>窓の外をタップ</b>。<br>はじめから続けて入れたいときは、<b>⋯の🎤を長押し</b>するか、キーに「設定・機能→<b>🎤続け</b>」を割り当ててください。<b>テンキーの🎤声キーは長押しが「別の機能に変更」</b>なので、そちらでは切り替わりません（v333で窓の中に入れました）</td></tr>
               <tr><td><span class="help-key">移るだけ</span></td><td>「<b>次</b>」「下」「右」「左」「上」と言うと、入れずにそのセルへ移ります</td></tr>
-              <tr><td><span class="help-key">入れかたを選ぶ</span></td><td><b>設定→🧮計算→声の入れかた</b>（v327から）。<b>「式を入れる」</b>＝選んだセルに <code>=251*68</code>（答えが出ます）。<b>「左に式・右に答え」</b>＝選んだセルに <b>251×68</b>（読むための文字）、<b>右のセルに答え</b>を入れます。右のセルは式なので、あとから数字を直せば答えも変わり、<b>Σ合計</b>にも入ります。右に列が無いときは1列増やします。<b>↶戻る</b>1回で両方戻せます</td></tr>
+              <tr><td><span class="help-key">入れかたを選ぶ</span></td><td><b>設定→🧮計算→声の入れかた</b>（v327から）。<b>「式を入れる」</b>＝選んだセルに <code>=251*68</code>（答えが出ます）。<b>「左に式・右に答え」</b>＝選んだセルに <b>251×68</b>（読むための文字）、<b>右のセルに答え</b>を入れます。右のセルは式なので、あとから数字を直せば答えも変わり、<b>Σ合計</b>にも入ります。右に列が無いときは1列増やします。<b>↶戻る</b>1回で両方戻せます。<br>
+              <b>v344で直しました</b>：引き算の式（例「12ひく5」）が<b>日付（12月5日）と読まれて式が消える</b>ことがありました。式の見せ方を電卓と同じ <b>＋ − × ÷</b> にそろえて直しています。また、<b>右のセルが保護されているとき</b>（買物モードの自動計算列や、自分で保護したセル）は<b>その先の使えるセルに答えを入れる</b>ようにしました。どうしても入れる場所が無いときだけ、そのセルに式（答え）を入れ、<b>そのわけをお知らせに出します</b></td></tr>
               <tr><td><span class="help-key">電卓モードでも</span></td><td><b>🧮電卓</b>のときも声で計算できます（v334から）。言った式をその場で計算して<b>大きい表示</b>に出し、<b>履歴（テープ）</b>にも <b>251×68 ＝ 17068</b> のように残ります。履歴の下の<b>🎤の行</b>には<b>受け取った計算式</b>がそのまま出るので（v339から）、<b>聞きまちがいがすぐ分かります</b>。式にできなかったときも、聞こえた言葉がその行に残ります。<b>ふつうの電卓／式の優先順位どおり</b>のどちらでも同じです。電卓には動く先が無いので、<b>続けて入れる</b>ときはその場で聞き直します。式の形で言わなかったときは「計算の形で言ってください」と出ます（セルのように文字を入れることはしません）</td></tr>
               <tr><td><span class="help-key">答えを読み上げ</span></td><td><b>設定→🧮計算→答えを声で読み上げる</b>で、計算した答えを声で返します（<b>全機種で使えます</b>。手がふさがっているときの確認に）</td></tr>
             </table>
@@ -12967,12 +12968,15 @@ function speechCommit(v, r, c){
   }
   setTimeout(()=>{
     if(typeof toast==='function'){
-      toast(`「${speechUndoInfo.plain}」を ${f} として計算しました（もう一度言い直すか、↶戻る で戻せます）`, 4600);
+      toast(`「${speechUndoInfo.plain}」を ${formulaToReadable(f)} として計算しました`
+        +(speechSplitNote?`（${speechSplitNote}）`:'（もう一度言い直すか、↶戻る で戻せます）'), 4600);
     }
   }, 0);
   return f;
 }
 
+/* 「左に式・右に答え」にできなかったときの理由。お知らせに足して伝える */
+let speechSplitNote='';
 /* ── 声の入れかた（1つのセル／左に式・右に答え） ──────────────
    「251かける68」と言ったとき
      one   ：選んだセルに =251*68（答えが出る）
@@ -12989,19 +12993,25 @@ function setSpeechLayout(v){
 }
 /* 式を読むための文字に直す（=251*68 → 251×68） */
 function formulaToReadable(f){
-  return String(f).replace(/^=/,'').replace(/\*/g,'×').replace(/\//g,'÷');
+  // ＋ と − は全角にする。半角の「-」だと「12-5」が日付（12月5日）と読まれて式が消えるため。
+  // 見た目も電卓の表示（＋ − × ÷）とそろう。
+  return String(f).replace(/^=/,'').replace(/\*/g,'×').replace(/\//g,'÷')
+                  .replace(/\+/g,'＋').replace(/-/g,'−');
 }
 /* 左に式・右に答えを入れる。入れられたら {left} を返す（入れられなければ null） */
 function speechPutSplit(r, c, formula, plain){
-  let rc=c+1;
-  if(rc>=COLS){                               // 右が無いときは1列だけ増やす
-    if(COLS>=MAXCOLS) return null;            // これ以上増やせないときは今までどおり
+  speechSplitNote='';
+  // 右どなりが保護されていたら、その先の使えるセルをさがす（買物モードの自動計算列など）
+  let rc=-1;
+  for(let x=c+1; x<COLS; x++){ if(!isLockedCell(r,x)){ rc=x; break; } }
+  if(rc<0 && COLS<MAXCOLS && !isStructMode()){   // 右に空きが無いときは1列だけ増やす
     COLS=COLS+1;
     localStorage.setItem('excalc_cols',COLS);
     const cc=document.getElementById('colCount'); if(cc) cc.textContent=COLS;
     syncRowColLabels();
+    rc=COLS-1;
   }
-  if(isLockedCell(r,rc)){ toast('右のセルが保護されているので、このセルに式を入れます'); return null; }
+  if(rc<0){ speechSplitNote='右に答えを入れられるセルが無いので、このセルに式を入れました'; return null; }
   const had=data[r][rc]!=='';                 // 右のセルに何か入っていたか
   pushSnapshot('声で入力');                    // 2つのセルをまとめて1回で戻せるように
   // 右のセルと、このあと呼び出し側が入れる左のセルの両方で、1つずつの履歴は積まない。
@@ -13016,11 +13026,12 @@ function speechPutSplit(r, c, formula, plain){
     // そのまま元のセルを選び直すと、次に言った式が同じセルに上書きされてしまう。
     if(selR===r && selC===c) sel(r,c);
     if(typeof toast==='function'){
-      toast(`「${plain}」→ ${left} ＝ ${getCellDisplay(r,rc)} を右のセルに入れました`
+      const where=(rc===c+1)?'右のセル':(ALPHA[rc]+(r+1));
+      toast(`「${plain}」→ ${left} ＝ ${getCellDisplay(r,rc)} を${where}に入れました`
             +(had?'（元の内容は ↶戻る で戻せます）':''), 4600);
     }
   }, 0);
-  return { left };
+  return { left, c:rc };
 }
 /* 直前の変換を取り消して、言ったとおりの文字に戻す */
 function speechKeepPlain(){
@@ -13193,14 +13204,15 @@ function voiceAccept(text){
   let v=(f===null)?raw:f, answerAt=null;
   if(f!==null && speechLayout==='split'){        // 左に式・右に答え
     const put=speechPutSplit(selR, selC, f, raw);
-    if(put){ v=put.left; answerAt=[selR, selC+1]; }
+    if(put){ v=put.left; answerAt=[selR, put.c]; }
   }
   setCellVal(selR,selC,v);
   buildSheet(); sel(selR,selC);
   const el=document.getElementById('formulaInput'); if(el) el.value=data[selR][selC];
   const shown=answerAt ? getCellDisplay(answerAt[0], answerAt[1]) : getCellDisplay(selR,selC);
   if(f!==null){
-    if(!answerAt) toast(`「${raw}」→ ${f} ＝ ${shown}`, 4200);   // splitのときは中で知らせている
+    if(!answerAt) toast(`「${raw}」→ ${formulaToReadable(f)} ＝ ${shown}`
+      +(speechSplitNote?`（${speechSplitNote}）`:''), speechSplitNote?4600:4200);   // splitで入れたときは中で知らせている
     speechSay(shown);
   }
   else { toast(`「${raw}」を入れました`); speechSay(raw); }
@@ -15622,7 +15634,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v343';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v344';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

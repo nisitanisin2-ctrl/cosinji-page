@@ -1221,7 +1221,7 @@ async function runSpeech(browser) {
     sel(0, 0); window.__q = ['100たす50', '200かける3', '300ひく100']; voiceStartContinuous(); });
   await page.waitForTimeout(2600);
   check('  左に式・右に答えでも下へ進む',
-        await page.evaluate(() => [0, 1, 2].map(r => data[r][0]).join('|')), '100+50|200×3|300-100');
+        await page.evaluate(() => [0, 1, 2].map(r => data[r][0]).join('|')), '100＋50|200×3|300−100');
   check('  答えも1行ずつ入る',
         await page.evaluate(() => [0, 1, 2].map(r => getCellDisplay(r, 1)).join('|')), '150|600|200');
   check('  そのあとの場所',
@@ -1236,6 +1236,37 @@ async function runSpeech(browser) {
   check('  最終行では行を足して進む',
         await page.evaluate(() => ROWS) > rowsBefore, true);
   await page.evaluate(() => voiceCancel()); await page.waitForTimeout(200);
+  // ── 左に式・右に答え：式が消えてしまっていた不具合 ──
+  await page.evaluate(() => { cellStyles = {};
+    for (let r = 0; r < 8; r++) for (let c = 0; c < COLS; c++) setCellVal(r, c, ''); buildSheet(); });
+  const sayTo = async (t, r, c) => { await page.evaluate(async ([t, r, c]) => {
+      sel(r, c); voiceAccept(t); await new Promise(z => setTimeout(z, 80)); }, [t, r, c]);
+    await page.waitForTimeout(120); };
+  await sayTo('12ひく5', 0, 0);
+  check('  引き算の式が日付にならない',
+        await page.evaluate(() => getCellDisplay(0, 0) + '|' + getCellDisplay(0, 1)), '12−5|7');
+  await sayTo('5ひく3', 1, 0);
+  check('  小さい数の引き算も式のまま',
+        await page.evaluate(() => getCellDisplay(1, 0) + '|' + getCellDisplay(1, 1)), '5−3|2');
+  await sayTo('8たす9', 2, 0);
+  check('  足し算は＋で見せる',
+        await page.evaluate(() => getCellDisplay(2, 0) + '|' + getCellDisplay(2, 1)), '8＋9|17');
+  // 右のセルが保護されていたら、その先の使えるセルに答えを入れる
+  await page.evaluate(() => { cellStyles['3,1'] = { locked: true }; buildSheet(); });
+  await sayTo('9かける9', 3, 0);
+  check('  右が保護なら、その先のセルに答えを入れる',
+        await page.evaluate(() => [0, 1, 2].map(c => getCellDisplay(3, c)).join('|')), '9×9||81');
+  check('  どこに入れたか知らせる', await page.evaluate(() =>
+    /をC4に入れました/.test(document.getElementById('appToast').textContent)), true);
+  await page.evaluate(() => { cellStyles = {}; buildSheet(); });
+  // 右に入れる場所がまったく無いときは、そのセルに式を入れて理由を知らせる
+  await page.evaluate(() => switchMode('shopping')); await page.waitForTimeout(500);
+  await sayTo('120かける3', 1, 2);   // 右は自動計算の「合計」列
+  check('  入れる場所が無いときは、そのセルに式を入れる',
+        await page.evaluate(() => String(data[1][2]) + '|' + getCellDisplay(1, 2)), '=120*3|360');
+  check('  そのわけを知らせる', await page.evaluate(() =>
+    /右に答えを入れられるセルが無いので/.test(document.getElementById('appToast').textContent)), true);
+  await page.evaluate(() => switchMode('normal')); await page.waitForTimeout(500);
   await page.evaluate(() => setSpeechLayout('one'));
 
   // 1回だけのときは、そのセルに留まる
@@ -1470,7 +1501,7 @@ async function runSpeech(browser) {
     fi.dispatchEvent(new Event('input'));
     fi.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
   await page.waitForTimeout(500);
-  check('  文字入力でも左に式・右に答え', await pair(9, 0), '1200+350|=1200+350|1550');
+  check('  文字入力でも左に式・右に答え', await pair(9, 0), '1200＋350|=1200+350|1550');
   await page.evaluate(() => setSpeechLayout('one'));
 
   check('  JSエラーが出ていない', errs.length, 0);
