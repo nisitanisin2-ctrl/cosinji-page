@@ -744,6 +744,77 @@ async function runRegPick(browser) {
   await ctx.close();
 }
 
+/* 共通のしくみ（ダイアログの開け閉め・セルに入れる・一覧の保存） */
+async function runShared(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 共通のしくみ ──');
+  const open = async fn => { await page.evaluate(f => window[f](), fn); await page.waitForTimeout(350); };
+  const isOpen = id => page.evaluate(i => isDlgOpen(i), id);
+  const back = async () => { await page.goBack().catch(() => {}); await page.waitForTimeout(400); };
+  const alive = () => page.evaluate(() => typeof data).catch(() => 'DEAD');
+
+  // どのダイアログも端末の「戻る」で閉じる（v348で全部そろえた）
+  for (const [fn, id] of [['openHelp', 'helpOverlay'], ['openCalcTmpl', 'calcTmplOverlay'],
+                          ['showSaveList', 'saveListOverlay'], ['openCellFmt', 'cellFmtOverlay'],
+                          ['openFindDlg', 'findOverlay'], ['openLookupDlg', 'lookupOverlay'],
+                          ['openVeggie', 'veggieOverlay'], ['openVolume', 'volumeOverlay'],
+                          ['openLinkList', 'linkListOverlay'], ['openModeVis', 'modeVisOverlay'],
+                          ['insertDatePick', 'datePickOverlay'], ['openSumFuncMenu', 'sumFuncOverlay']]) {
+    await open(fn);
+    const wasOpen = await isOpen(id);
+    await back();
+    check(`  ${fn} は戻るで閉じる`, (wasOpen ? '開' : '×') + (await isOpen(id) ? '×' : '閉'), '開閉');
+  }
+  check('  戻るで閉じてもアプリは生きている', await alive(), 'object');
+
+  // 重ねて開いたときは、上の1つだけ閉じる
+  await open('openTansui'); await open('openTsSettings');
+  check('  2つ重ねて開ける', await page.evaluate(() =>
+    isDlgOpen('tansuiOverlay') && isDlgOpen('tsSettingsOverlay')), true);
+  await back();
+  check('  戻る1回で上だけ閉じる', await page.evaluate(() =>
+    isDlgOpen('tansuiOverlay') && !isDlgOpen('tsSettingsOverlay')), true);
+  await back();
+  check('  戻る2回で下も閉じる', await page.evaluate(() => !isDlgOpen('tansuiOverlay')), true);
+  check('  見張りが残らない', await page.evaluate(() => backGuardStack.length), 0);
+
+  // 閉じてすぐ開き直しても、アプリごと戻らない（声の窓）
+  await page.evaluate(() => { window.SpeechRecognition = function () {
+    this.start = () => {}; this.stop = () => {}; this.abort = () => {}; }; });
+  for (let i = 0; i < 3; i++) {
+    await page.evaluate(() => { voiceStop(); voiceStart(); }); await page.waitForTimeout(250);
+  }
+  check('  閉じてすぐ開き直しても大丈夫', await alive(), 'object');
+  await page.evaluate(() => voiceCancel()); await page.waitForTimeout(300);
+  check('  そのあと見張りも残らない', await page.evaluate(() => backGuardStack.length), 0);
+
+  // 道具の答えを「セルに入れる」は1つのしくみに（putToCell）
+  await page.evaluate(() => { sel(2, 1); setCellVal(2, 1, ''); cellStyles = {}; buildSheet(); });
+  check('  セルに入れられる', await page.evaluate(() => {
+    const ok = putToCell(123, '入れました'); return ok + '/' + getCellDisplay(2, 1); }), 'true/123');
+  check('  保護されたセルには入れない', await page.evaluate(() => {
+    cellStyles['2,1'] = { locked: true };
+    const ok = putToCell(999, '入れました'); return ok + '/' + getCellDisplay(2, 1); }), 'false/123');
+  await page.evaluate(() => { cellStyles = {}; buildSheet(); });
+
+  // 一覧の読み書きも1つに（loadList / saveList）
+  check('  一覧を保存して読み直せる', await page.evaluate(() => {
+    saveList('excalc_test_list', [{ a: 1 }, { a: 2 }]);
+    return JSON.stringify(loadList('excalc_test_list')); }), '[{"a":1},{"a":2}]');
+  check('  こわれていても空で返す', await page.evaluate(() => {
+    localStorage.setItem('excalc_test_list', 'こわれた'); return loadList('excalc_test_list').length; }), 0);
+  check('  無いキーは空で返す', await page.evaluate(() => loadList('excalc_nothing_here').length), 0);
+  await page.evaluate(() => localStorage.removeItem('excalc_test_list'));
+
+  // 全角→半角も1つに（toHalfAscii）
+  check('  全角を半角にする', await page.evaluate(() => toHalfAscii('１２３（Ａ）　＋')), '123(A) +');
+  check('  日本語はそのまま', await page.evaluate(() => toHalfAscii('かける　ルート')), 'かける ルート');
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 /* 1ページの書き出し（育成計画・単位水量試験のPDFと画像） */
 async function runReport(browser) {
   const { ctx, page, errs } = await newPage(browser);
@@ -1735,6 +1806,7 @@ async function runDigit(browser) {
     if (!only || only === 'topbar') await runTopBar(browser);
     if (!only || only === 'veggie') await runVeggie(browser);
     if (!only || only === 'report') await runReport(browser);
+    if (!only || only === 'shared') await runShared(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }

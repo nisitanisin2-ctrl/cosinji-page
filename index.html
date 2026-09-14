@@ -6069,11 +6069,11 @@ function exportPDF(){
   document.getElementById('pdfHsize').value=s.hsize;
   pdfSegSet('pdfBorder', s.border);
   document.getElementById('pdfBW').value=s.bw;
-  document.getElementById('pdfDlgOverlay').classList.add('open');
+  openDlg('pdfDlgOverlay');
   pvPage=1;
   updatePdfPreview();
 }
-function closePdfDlg(){ document.getElementById('pdfDlgOverlay').classList.remove('open'); }
+function closePdfDlg(){ closeDlg('pdfDlgOverlay'); }
 
 /* ダイアログ内ミニプレビュー：ページを縮小表示し、倍率とページ数も示す。
    複数ページのときはプレビューを横フリックすると2ページ目以降が見られる */
@@ -6714,9 +6714,9 @@ function showXlImportReport(headline){
     +(funcs?`<div class="ts-ref-note">この表で扱えなかった関数：<b>${escHtml(funcs)}</b><br>使える関数は<b>説明書→🧮数式・関数・照合</b>の一覧をご覧ください。</div>`:'')
     +(nv?`<div class="kt-onebyone">値に変換した場所</div><table class="help-tbl">${xlReportRows(rep.toValue,30)}</table>`:'')
     +(nu?`<div class="kt-onebyone">未対応の場所</div><table class="help-tbl">${xlReportRows(rep.unsupported,30)}</table>`:'');
-  document.getElementById('xlReportOverlay').classList.add('open');
+  openDlg('xlReportOverlay');
 }
-function closeXlImportReport(){ document.getElementById('xlReportOverlay').classList.remove('open'); }
+function closeXlImportReport(){ closeDlg('xlReportOverlay'); }
 
 
 /* ══ 読み上げ・キーボード操作のための下ごしらえ ══════════════════
@@ -6815,7 +6815,7 @@ document.addEventListener('keydown', e=>{
   if(e.key==='Escape'){
     const close=ov.querySelector('.modal-close');
     if(close){ e.preventDefault(); close.click(); }
-    else { e.preventDefault(); ov.classList.remove('open'); }   // 閉じるボタンが無い画面用
+    else { e.preventDefault(); closeDlg(ov.id); }   // 閉じるボタンが無い画面用
     return;
   }
   if(e.key!=='Tab') return;
@@ -6920,9 +6920,9 @@ function applyDefaultSize(){
 function openDefaultSizeDlg(){
   document.getElementById('defRowsInput').value=getDefaultRows();
   document.getElementById('defColsInput').value=getDefaultCols();
-  document.getElementById('defaultSizeOverlay').classList.add('open');
+  openDlg('defaultSizeOverlay');
 }
-function closeDefaultSizeDlg(){ document.getElementById('defaultSizeOverlay').classList.remove('open'); }
+function closeDefaultSizeDlg(){ closeDlg('defaultSizeOverlay'); }
 function saveDefaultSize(){
   let r=parseInt(document.getElementById('defRowsInput').value);
   let c=parseInt(document.getElementById('defColsInput').value);
@@ -7103,9 +7103,9 @@ function openHeaderMenu(kind, index){
       `<button class="hm-btn add" onclick="hmDo('insColRight',${index})">➡ 右に1列追加</button>`+
       `<button class="hm-btn del" onclick="hmDo('delCol',${index})">🗑 この列を削除</button>`;
   }
-  document.getElementById('headerMenuOverlay').classList.add('open');
+  openDlg('headerMenuOverlay');
 }
-function closeHeaderMenu(){ document.getElementById('headerMenuOverlay').classList.remove('open'); }
+function closeHeaderMenu(){ closeDlg('headerMenuOverlay'); }
 /* 背景タップで閉じるのは「背景の上でpointerdownして離した」ときだけにする。
    長押しでメニューを開いた直後、指を離した瞬間に発生する合成clickでは
    背景の上でpointerdownしていないので閉じない（＝出た瞬間に消える不具合を防ぐ）。 */
@@ -7495,9 +7495,9 @@ function insertDatePick(){
   const {y,m}=serialToYMD(serial);
   dpYear=y; dpMonth=m;
   renderDatePick();
-  document.getElementById('datePickOverlay').classList.add('open');
+  openDlg('datePickOverlay');
 }
-function closeDatePick(){ document.getElementById('datePickOverlay').classList.remove('open'); }
+function closeDatePick(){ closeDlg('datePickOverlay'); }
 function datePickMove(delta){
   let mi=(dpYear*12+(dpMonth-1))+delta;
   dpYear=Math.floor(mi/12); dpMonth=(mi%12)+1;
@@ -7882,10 +7882,8 @@ const VEG_PLOT_KEY='excalc_veg_plots';
 let vegPlots=[];        // [{id, n:'トマト', as:'seed'|'nae', s:通し番号, memo:''}]
 let vegPlotSel=null;    // いま選んでいる記録のid
 let vegAs='seed';       // 'seed'＝種から／'nae'＝苗から
-function loadVegPlots(){
-  try{ const a=JSON.parse(localStorage.getItem(VEG_PLOT_KEY)||'[]'); vegPlots=Array.isArray(a)?a:[]; }catch(_){ vegPlots=[]; }
-}
-function saveVegPlots(){ try{ localStorage.setItem(VEG_PLOT_KEY, JSON.stringify(vegPlots)); }catch(_){} }
+function loadVegPlots(){ vegPlots=loadList(VEG_PLOT_KEY); }
+function saveVegPlots(){ saveList(VEG_PLOT_KEY, vegPlots); }
 /* 苗から植えられる野菜か（種から育てる計画に「畑に植える」があるもの） */
 function vegTransplantDay(){
   if(!vegSel || (vegSel.from||'種まき')!=='種まき') return -1;
@@ -7984,10 +7982,8 @@ let vegSowSerial=null;                   // 種まき（植えつけ）の日
 let vegCalY=0, vegCalM=0;                // カレンダーに出している年月
 let vegNew={n:'', s:[['発芽',5,8],['間引き',15,20],['追肥',30,35],['収穫',60,80]]};   // 登録中の内容
 
-function loadVegMy(){
-  try{ const a=JSON.parse(localStorage.getItem(VEG_MY_KEY)||'[]'); vegMy=Array.isArray(a)?a:[]; }catch(_){ vegMy=[]; }
-}
-function saveVegMy(){ try{ localStorage.setItem(VEG_MY_KEY, JSON.stringify(vegMy)); }catch(_){} }
+function loadVegMy(){ vegMy=loadList(VEG_MY_KEY); }
+function saveVegMy(){ saveList(VEG_MY_KEY, vegMy); }
 function vegAll(){ return VEG_PLANS.concat(vegMy); }
 /* 作業の種類で色を分ける（カレンダーと予定表で同じ色にする） */
 function vegKind(label){
@@ -8024,10 +8020,9 @@ function openVeggie(){
   if(vegSowSerial===null) vegSowSerial=todaySerial();
   const {y,m}=serialToYMD(vegSowSerial); vegCalY=y; vegCalM=m;
   vegRenderAll();
-  document.getElementById('veggieOverlay').classList.add('open');
-  armBackGuard(()=>closeVeggie());
+  openDlg('veggieOverlay');
 }
-function closeVeggie(){ document.getElementById('veggieOverlay').classList.remove('open'); releaseBackGuard(); }
+function closeVeggie(){ closeDlg('veggieOverlay'); }
 
 function vegRenderAll(){ vegRenderPlots(); vegRenderChips(); vegRenderDate(); vegRenderArea(); vegRenderPlan(); vegRenderCal(); vegRenderFert(); vegRenderTips(); vegRenderSick(); vegRenderMy(); }
 /* 地域・標高・寒冷地の欄と、いまかかっている補正の案内 */
@@ -8509,30 +8504,83 @@ function volEnsureState(){
    ※アプリのアンドゥ用 `history` 配列がブラウザの history を隠すため、必ず window.history を使う。 */
 let backGuardStack=[];     // 重ねて開いた画面の「閉じる処理」。後ろが上の画面
 let backGuardSkip=0;       // 自分で history.back() した分（popstate を1回読み飛ばす）
+/* 履歴に積むのは「何か開いている間ずっと1つだけ」。
+   画面ごとに積むと、閉じてすぐ開けたときに history.back() が後から効いて
+   アプリごと戻ってしまう（back は非同期、pushState は即時のため）。 */
+function backGuardPush(){ try{ window.history.pushState({excalcModal:1},''); }catch(_){} }
 window.addEventListener('popstate', ()=>{
   if(backGuardSkip>0){ backGuardSkip--; return; }
   const f=backGuardStack.pop(); if(f) f();
+  if(backGuardStack.length) backGuardPush();   // まだ下に開いている画面があるので積み直す
 });
+/* 閉じたときの history.back() は少し待ってから出す。
+   閉じてすぐ開く（声の窓を開き直すなど）と、back は非同期・pushState は即時なので
+   順番が入れかわってアプリごと戻ってしまう。待つあいだに開き直したら、打ち消し合う。 */
+let backGuardPending=0;
 function armBackGuard(fn){
   backGuardStack.push(fn);
-  try{ window.history.pushState({excalcModal:1},''); }catch(_){}
+  if(backGuardPending){ backGuardPending--; return; }   // 直前に閉じた分と打ち消し合う（履歴はそのまま）
+  if(backGuardStack.length===1) backGuardPush();
 }
 function releaseBackGuard(){
   if(!backGuardStack.length) return;
-  backGuardStack.pop(); backGuardSkip++;
-  try{ window.history.back(); }catch(_){ backGuardSkip--; }
+  backGuardStack.pop();
+  if(backGuardStack.length) return;            // まだ開いている画面があるので、履歴はそのまま
+  backGuardPending++;
+  setTimeout(()=>{
+    if(!backGuardPending) return;              // 開き直したので取り消し
+    backGuardPending--;
+    if(backGuardStack.length) return;
+    backGuardSkip++;
+    try{ window.history.back(); }catch(_){ backGuardSkip--; }
+  }, 0);
 }
+/* ── ダイアログの開け閉め（v348で1本にまとめた）──────────────
+   開けたら必ず端末の「戻る」で閉じられるようにし、閉じたらその分を返す。
+   すでに開いている／閉じているときは何もしないので、「戻る」で閉じたあとに
+   閉じる関数が呼ばれても、見張りを二重に外してしまうことがない。 */
+function isDlgOpen(id){ const el=document.getElementById(id); return !!(el && el.classList.contains('open')); }
+function openDlg(id, cleanup){
+  const el=document.getElementById(id);
+  if(!el || el.classList.contains('open')) return false;
+  el.classList.add('open');
+  armBackGuard(()=>{ el.classList.remove('open'); if(cleanup) cleanup(); });
+  return true;
+}
+function closeDlg(id, cleanup){
+  const el=document.getElementById(id);
+  if(!el || !el.classList.contains('open')) return false;
+  el.classList.remove('open');
+  releaseBackGuard();
+  if(cleanup) cleanup();
+  return true;
+}
+/* 道具で出た答えを、選んでいるセルに入れる（容積・カンタブ・単位水量・時間で共通）。
+   入れられたら true。入れ先が無い・保護されているときは知らせて false を返す。 */
+function putToCell(val, msg, closeFn){
+  if(selR<0||selC<0){ toast('入れるセルを選んでください'); return false; }
+  if(isLockedCell(selR,selC)){ flashLocked(selR,selC); return false; }
+  setCellVal(selR,selC, String(val));
+  if(msg) toast(msg);
+  if(closeFn) closeFn();
+  return true;
+}
+/* 一覧の読み書き（リンク集・自分の野菜・育てている野菜・定型文などで共通） */
+function loadList(key){
+  try{ const a=JSON.parse(localStorage.getItem(key)||'[]'); return Array.isArray(a)?a:[]; }
+  catch(_){ return []; }
+}
+function saveList(key, arr){ try{ localStorage.setItem(key, JSON.stringify(arr)); }catch(_){} }
 function openVolume(){
   volEnsureState();
   renderVolShapes(); renderVolUnits(); renderVolDims(); updateVolResult();
   document.getElementById('volDrawHint').style.display = (volImg && !volIsPoly()) ? 'block' : 'none';
-  document.getElementById('volumeOverlay').classList.add('open');
-  armBackGuard(()=>document.getElementById('volumeOverlay').classList.remove('open'));
+  openDlg('volumeOverlay');
 }
 function closeVolume(){
-  const ov=document.getElementById('volumeOverlay'); if(!ov.classList.contains('open')) return;
-  if(document.getElementById('shotPrevOverlay').classList.contains('open')) closeShotPreview();   // 上のプレビューを先に閉じる
-  ov.classList.remove('open'); releaseBackGuard();
+  if(!isDlgOpen('volumeOverlay')) return;
+  if(isDlgOpen('shotPrevOverlay')) closeShotPreview();   // 上のプレビューを先に閉じる
+  closeDlg('volumeOverlay');
 }
 function trimNum(n){ return parseFloat(Number(n).toFixed(4)); }
 function segLen(s){ return s?Math.hypot(s.x2-s.x1, s.y2-s.y1):0; }
@@ -9121,11 +9169,8 @@ function volInsertToCell(){
   if(!(totalCm3>0)){ toast('寸法を入力してください'); return; }
   if(selR<0||selC<0){ toast('入れるセルを選んでください'); return; }
   if(isLockedCell(selR,selC)){ flashLocked(selR,selC); return; }
-  const total=totalCm3/(f*f*f);
-  setCellVal(selR,selC, String(Number(total.toPrecision(6))));   // 選択中の単位での容積（unit³。パーツがあれば合計）
-  toast('容積をセルに入れました');
-  volParts=[];   // 入れたら合計はクリア
-  closeVolume();
+  const total=totalCm3/(f*f*f);   // 選択中の単位での容積（unit³。パーツがあれば合計）
+  if(putToCell(Number(total.toPrecision(6)), '容積をセルに入れました', closeVolume)) volParts=[];   // 入れたら合計はクリア
 }
 /* スクリーンショットのファイル名：秒までの日時（同じ日でも重複しない） */
 function shotStamp(){
@@ -9178,19 +9223,14 @@ function openShotPreview(build, prefix){
   let url; try{ url=cv.toDataURL('image/png'); }catch(_){ toast('プレビューを作れませんでした'); return; }
   shotPrevBuild=mk; shotPrevPrefix=prefix;
   document.getElementById('shotPrevImg').src=url;
-  document.getElementById('shotPrevOverlay').classList.add('open');
-  armBackGuard(shotPrevHide);
+  openDlg('shotPrevOverlay', shotPrevClear);
 }
-/* 画面を消すだけ（履歴の始末はしない）。端末の戻るからはこちらを呼ぶ */
-function shotPrevHide(){
-  document.getElementById('shotPrevOverlay').classList.remove('open');
+/* 閉じたあとの片づけ（画像を持ったままにしない） */
+function shotPrevClear(){
   shotPrevBuild=null;
   const img=document.getElementById('shotPrevImg'); if(img) img.removeAttribute('src');
 }
-function closeShotPreview(){
-  if(!document.getElementById('shotPrevOverlay').classList.contains('open')) return;
-  shotPrevHide(); releaseBackGuard();
-}
+function closeShotPreview(){ closeDlg('shotPrevOverlay', shotPrevClear); }
 async function shotPrevDeliver(share){
   if(!shotPrevBuild) return;
   const fname = share ? `${shotPrevPrefix}_${shotStamp()}.png` : await shotFileName(shotPrevPrefix);
@@ -9290,8 +9330,7 @@ function pmApplyBg(){
 }
 function pmSetBg(v){ pmBg=v; pmApplyBg(); pmMarkDirty(); }
 function openPhotoMemo(){
-  document.getElementById('photoMemoOverlay').classList.add('open');
-  armBackGuard(()=>document.getElementById('photoMemoOverlay').classList.remove('open'));
+  openDlg('photoMemoOverlay');
   requestAnimationFrame(()=>{
     pmSetupCanvas();
     pmFitView(); pmRedraw();
@@ -9301,10 +9340,10 @@ function openPhotoMemo(){
   });
 }
 function closePhotoMemo(){
-  const ov=document.getElementById('photoMemoOverlay'); if(!ov.classList.contains('open')) return;
+  if(!isDlgOpen('photoMemoOverlay')) return;
   // 上に小画面（保存設定・定型文・プレビュー）が開いていれば先に閉じる（積んだ履歴の順を保つ）
   closeShotPreview(); pmClosePhrases(); pmCloseSaveSet();
-  ov.classList.remove('open'); releaseBackGuard();
+  closeDlg('photoMemoOverlay');
 }
 function pmSetupCanvas(){
   const c=pmCanvasEl(); if(!c) return;
@@ -10335,11 +10374,9 @@ function pmOutWidth(){
   if(pmPrefs.q==='high') return Math.min(w, 2000);
   return Math.min(w, PM_QMAX);   // 元のサイズ（引き伸ばしはしない）
 }
-function pmOpenSaveSet(){ pmQualitySyncUi(); document.getElementById('pmSaveSetOverlay').classList.add('open');
-  armBackGuard(()=>document.getElementById('pmSaveSetOverlay').classList.remove('open')); }
+function pmOpenSaveSet(){ pmQualitySyncUi(); openDlg('pmSaveSetOverlay'); }
 function pmCloseSaveSet(){
-  const ov=document.getElementById('pmSaveSetOverlay'); if(!ov.classList.contains('open')) return;
-  ov.classList.remove('open'); releaseBackGuard();
+  closeDlg('pmSaveSetOverlay');
 }
 function pmQualitySyncUi(){
   [['pmQ_orig','orig'],['pmQ_high','high'],['pmQ_std','std']].forEach(([id,v])=>{
@@ -10670,7 +10707,7 @@ function pmPreview(){
 const PM_PHRASE_DEF=['着工前','完了','配筋確認','型枠確認','打設前','打設後','是正前','是正後','立会確認','数量確認'];
 let pmPhrases=PM_PHRASE_DEF.slice();
 try{ const a=JSON.parse(localStorage.getItem('excalc_pm_phrases')||'null'); if(Array.isArray(a)) pmPhrases=a; }catch(_){}
-function pmSavePhrases(){ try{ localStorage.setItem('excalc_pm_phrases', JSON.stringify(pmPhrases)); }catch(_){} }
+function pmSavePhrases(){ saveList('excalc_pm_phrases', pmPhrases); }
 /* 定型文：開いた場所で「押したときの入り先」が変わる。
    文字タブから開けば写真の上、メモタブから開けばメモ欄に入る（もう一方は小さいボタンで選べる）。 */
 let pmPhraseTo='photo';
@@ -10681,12 +10718,10 @@ function pmOpenPhrases(target){
     ? '言葉をタップすると写真の上に文字として置きます。「📄」を押すと下のメモに入ります。'
     : '言葉をタップすると下のメモに入ります。「📷」を押すと写真の上に文字として置きます。';
   pmRenderPhrases();
-  document.getElementById('pmPhraseOverlay').classList.add('open');
-  armBackGuard(()=>document.getElementById('pmPhraseOverlay').classList.remove('open'));
+  openDlg('pmPhraseOverlay');
 }
 function pmClosePhrases(){
-  const ov=document.getElementById('pmPhraseOverlay'); if(!ov.classList.contains('open')) return;
-  ov.classList.remove('open'); releaseBackGuard();
+  closeDlg('pmPhraseOverlay');
 }
 function pmRenderPhrases(){
   const el=document.getElementById('pmPhraseList'); if(!el) return;
@@ -10822,9 +10857,9 @@ function openKeyAssign(dataKey){
   html+='<button class="ka-reset" onclick="pickKeyAssign(null)">↺ 元のボタンに戻す</button>';
   document.getElementById('keyAssignBody').innerHTML=html;
   kaReady=false;   // 開いた直後＝まだ長押しの指が乗っている。押し直すまでは反応しない
-  document.getElementById('keyAssignOverlay').classList.add('open');
+  openDlg('keyAssignOverlay');
 }
-function closeKeyAssign(){ document.getElementById('keyAssignOverlay').classList.remove('open'); }
+function closeKeyAssign(){ closeDlg('keyAssignOverlay'); }
 function pickKeyAssign(fid){
   if(!kaTargetKey) return;
   if(fid) keyAssign[kaTargetKey]=fid; else delete keyAssign[kaTargetKey];
@@ -11342,18 +11377,15 @@ function openNotesApp(){
 /* ── リンク集：名前付きでURLを登録し、一覧から開く ── */
 let linkList=[], linkEditIdx=-1;
 function loadLinkList(){
-  try{ const a=JSON.parse(localStorage.getItem('excalc_links')||'[]');
-    if(Array.isArray(a)) linkList=a.filter(x=>x&&x.url).map(x=>({name:String(x.name||''), url:String(x.url)})); }
-  catch(_){ linkList=[]; }
+  linkList=loadList('excalc_links').filter(x=>x&&x.url).map(x=>({name:String(x.name||''), url:String(x.url)}));
 }
-function saveLinkList(){ try{ localStorage.setItem('excalc_links', JSON.stringify(linkList)); }catch(_){} }
+function saveLinkList(){ saveList('excalc_links', linkList); }
 function openLinkList(){
   loadLinkList(); linkEditIdx=-1;
   renderLinkList();
-  document.getElementById('linkListOverlay').classList.add('open');
-  armBackGuard(()=>document.getElementById('linkListOverlay').classList.remove('open'));
+  openDlg('linkListOverlay');
 }
-function closeLinkList(){ document.getElementById('linkListOverlay').classList.remove('open'); releaseBackGuard(); }
+function closeLinkList(){ closeDlg('linkListOverlay'); }
 function linkHost(u){ try{ return new URL(/^[a-z]+:/i.test(u)?u:'https://'+u).hostname.replace(/^www\./,''); }catch(_){ return u; } }
 function renderLinkList(){
   const body=document.getElementById('linkListBody'); if(!body) return;
@@ -11455,9 +11487,9 @@ function regMoveTo(i){
 function registerUserKey(i){
   regPickIndex=i;
   renderRegPickBody();
-  document.getElementById('regPickOverlay').classList.add('open');
+  openDlg('regPickOverlay');
 }
-function closeRegPick(){ document.getElementById('regPickOverlay').classList.remove('open'); regPickIndex=-1; }
+function closeRegPick(){ closeDlg('regPickOverlay'); regPickIndex=-1; }
 function renderRegPickBody(){
   const body=document.getElementById('regPickBody'); if(!body) return;
   const cur=regEntry(regPickIndex);
@@ -12093,10 +12125,15 @@ function updateRowStats(r) {
 
 /* iPhone等で全角入力された数字・記号を半角へ正規化する。
    数値・数式と判定できる場合のみ半角化し、全角の文字ラベルはそのまま保持する。 */
+/* 全角のASCII（０-９（），．－：など）と全角スペースを半角にする。
+   数式でも安全なので、セルの入力と声の聞き取りの両方で使う。 */
+function toHalfAscii(v){
+  return String(v).replace(/[！-～]/g, ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0)).replace(/　/g,' ');
+}
 function normalizeFullWidth(v){
   if(typeof v!=='string' || v==='') return v;
   // 全角ASCII（０-９（），．－：等）と全角スペースは常に半角化（数式でも安全）
-  const base = v.replace(/[！-～]/g, ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0)).replace(/　/g,' ');
+  const base = toHalfAscii(v);
   const bt = base.trim();
   if (bt.startsWith('=')) {
     // 数式：日本語の長音「ー」・読点「、」・句点「。」はシート名や文字列に使うので変換しない
@@ -12498,13 +12535,12 @@ function dtRenderTape(){
   }
   t.innerHTML=dtTape.map((x,i)=>
     '<div class="dt-tape-row" onclick="dtUseTape('+i+')">'+
-      '<span class="dt-tape-e">'+dtEsc(x.e)+' ＝</span>'+
-      '<span class="dt-tape-v">'+dtEsc(x.v)+'</span>'+
+      '<span class="dt-tape-e">'+escHtml(x.e)+' ＝</span>'+
+      '<span class="dt-tape-v">'+escHtml(x.v)+'</span>'+
     '</div>').join('')
     +'<button class="dt-tape-clr" onclick="event.stopPropagation();dtClearTape()">🗑 履歴を消す</button>';
   t.scrollTop=t.scrollHeight;
 }
-function dtEsc(x){ return String(x).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function dtPush(e, v){
   dtTape.push({e:String(e), v:String(v)});
   while(dtTape.length>DT_TAPE_MAX) dtTape.shift();
@@ -12950,8 +12986,8 @@ function autoSum() {
 }
 
 /* 集計方法（合計／平均）選択メニュー：Σオートの長押しで開く */
-function openSumFuncMenu(){ syncSumFuncChecks(); document.getElementById('sumFuncOverlay').classList.add('open'); }
-function closeSumFuncMenu(){ document.getElementById('sumFuncOverlay').classList.remove('open'); }
+function openSumFuncMenu(){ syncSumFuncChecks(); openDlg('sumFuncOverlay'); }
+function closeSumFuncMenu(){ closeDlg('sumFuncOverlay'); }
 function syncSumFuncChecks(){
   const a=document.getElementById('sumChkSum'), b=document.getElementById('sumChkAvg');
   if(a) a.textContent=sumFunc==='SUM'?'✓':'';
@@ -13165,7 +13201,7 @@ function speechToFormula(text){
   if(t==='' || t.startsWith('=')) return null;        // 空・すでに数式は触らない
   // 全角の数字・記号を半角へ。setCellVal の normalizeFullWidth は
   // 「全体が数値のときだけ」半角にするので、ここでは使わず自前で直す。
-  t=t.replace(/[！-～]/g, ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0)).replace(/　/g,' ');
+  t=toHalfAscii(t);
   // 「ー」（長音）はマイナスにも使われるが、ここで直すと「エー」「ルート」が壊れる。
   // ことばの置き換えが終わったあと（下の方）でマイナスにする。
   t=t.replace(/[×✕☓ｘxX]/g,'*').replace(/[÷／]/g,'/').replace(/[−–—]/g,'-');
@@ -13299,7 +13335,7 @@ function voiceStop(){
     voiceRec=null;
   }
   voiceBusy=false;
-  const ov=document.getElementById('voiceOverlay'); if(ov) ov.classList.remove('open');
+  closeDlg('voiceOverlay');
 }
 /* 画面タップ＝やめる（続けて入れるモードも終わる） */
 function voiceCancel(){ voiceKeepGoing=false; voiceStop(); }
@@ -13317,7 +13353,7 @@ function voiceStart(){
   const txt=document.getElementById('voiceText');
   if(txt) txt.textContent='聞いています…';
   if(ov){
-    ov.classList.add('open');
+    openDlg('voiceOverlay');
     syncVoiceSeqBtn();
     // この窓は画面いっぱいに広がるので、キーを押した指がそのまま窓の上にある。
     // 指を離した分のクリックで、開いた瞬間に閉じてしまっていた（テンキーの🎤声キー）。
@@ -13745,8 +13781,8 @@ const CALC_TEMPLATES=[
     ['入れた値の個数','5'],
     ['合計','=SUM(B1:B5)'],['平均','=IF(B6>0,B7/B6,0)'],['最大','=MAX(B1:B5)'],['最小','=MIN(B1:B5)']]},
 ];
-function openCalcTmpl(){ renderCalcTmplBody(); document.getElementById('calcTmplOverlay').classList.add('open'); }
-function closeCalcTmpl(){ document.getElementById('calcTmplOverlay').classList.remove('open'); }
+function openCalcTmpl(){ renderCalcTmplBody(); openDlg('calcTmplOverlay'); }
+function closeCalcTmpl(){ closeDlg('calcTmplOverlay'); }
 function renderCalcTmplBody(){
   const body=document.getElementById('calcTmplBody'); if(!body) return;
   body.innerHTML=CALC_TEMPLATES.map(t=>`
@@ -13893,8 +13929,8 @@ const FINANCIAL_TEMPLATES=[
     ['【支出】',null],['仕入・材料費',''],['人件費',''],['その他経費',''],['支出合計','=B6+B7+B8'],
     ['利益（収支）','=B4-B9']]},
 ];
-function openFinTmpl(){ renderFinTmplBody(); document.getElementById('finTmplOverlay').classList.add('open'); }
-function closeFinTmpl(){ document.getElementById('finTmplOverlay').classList.remove('open'); }
+function openFinTmpl(){ renderFinTmplBody(); openDlg('finTmplOverlay'); }
+function closeFinTmpl(){ closeDlg('finTmplOverlay'); }
 function renderFinTmplBody(){
   const body=document.getElementById('finTmplBody'); if(!body) return;
   body.innerHTML=FINANCIAL_TEMPLATES.map(t=>`
@@ -14228,9 +14264,7 @@ function jkQuickCalc(){
 function jkQuickInsert(){
   const ans=(document.getElementById('jkQAns')||{}).textContent;
   if(!ans || ans==='—'){ toast('時刻と時間を入れてください'); return; }
-  if(isLockedCell(selR,selC)){ flashLocked(selR,selC); return; }
-  setCellVal(selR,selC, ans);
-  toast('答えをセルに入れました');
+  putToCell(ans, '答えをセルに入れました');
 }
 function changeWarikan(d){
   warikanPeople=Math.max(1,Math.min(99,warikanPeople+d));
@@ -14384,13 +14418,13 @@ function changeTsDp(which,delta){
   localStorage.setItem('excalc_ts_dp', JSON.stringify(tsDp));
   if(tsxIsOpen()) tsxCalc();
 }
-function openTsSettings(){ applyTsDpLabels(); applyTsTolLabels(); tsRegRender(); document.getElementById('tsSettingsOverlay').classList.add('open'); }
-function closeTsSettings(){ document.getElementById('tsSettingsOverlay').classList.remove('open'); }
+function openTsSettings(){ applyTsDpLabels(); applyTsTolLabels(); tsRegRender(); openDlg('tsSettingsOverlay'); }
+function closeTsSettings(){ closeDlg('tsSettingsOverlay'); }
 /* 配合・エアメータの登録は、設定とは別のウィンドウで開く */
-function openTsMixReg(){ tsRegRender(); document.getElementById('tsMixOverlay').classList.add('open'); }
-function closeTsMixReg(){ document.getElementById('tsMixOverlay').classList.remove('open'); tsxAfterReg(); }
-function openTsAirReg(){ tsRegRender(); document.getElementById('tsAirOverlay').classList.add('open'); }
-function closeTsAirReg(){ document.getElementById('tsAirOverlay').classList.remove('open'); tsxAfterReg(); }
+function openTsMixReg(){ tsRegRender(); openDlg('tsMixOverlay'); }
+function closeTsMixReg(){ closeDlg('tsMixOverlay'); tsxAfterReg(); }
+function openTsAirReg(){ tsRegRender(); openDlg('tsAirOverlay'); }
+function closeTsAirReg(){ closeDlg('tsAirOverlay'); tsxAfterReg(); }
 /* 登録をいじったあと、道具が開いていれば番号の呼び出しと計算をやり直す */
 function tsxAfterReg(){ if(tsxIsOpen()){ tsxRefFill('mixNo'); tsxRefFill('airNo'); tsxCalc(); } }
 
@@ -14436,10 +14470,9 @@ function tsxApplyMixOpen(){
 }
 function openTansui(){
   tsxRenderInputs(); tsxApplyMixOpen(); tsxCalc();
-  document.getElementById('tansuiOverlay').classList.add('open');
-  armBackGuard(()=>document.getElementById('tansuiOverlay').classList.remove('open'));
+  openDlg('tansuiOverlay');
 }
-function closeTansui(){ document.getElementById('tansuiOverlay').classList.remove('open'); releaseBackGuard(); }
+function closeTansui(){ closeDlg('tansuiOverlay'); }
 
 /* 入力欄を作る。並びと単位はモードと同じ TS_FORM から取るので、片方だけずれることがない */
 function tsxRenderInputs(){
@@ -14566,11 +14599,7 @@ function tsxCalc(){
 /* 出た値を、表の選択中のセルに入れる（容積・カンタブと同じ使い勝手） */
 function tsxInsertToCell(){
   if(tsxLastW==null){ toast('先に配合と試験の値を入れてください'); return; }
-  if(selR<0||selC<0){ toast('入れるセルを選んでください'); return; }
-  if(isLockedCell(selR,selC)){ flashLocked(selR,selC); return; }
-  setCellVal(selR,selC, String(tsxLastW));
-  toast('推定単位水量をセルに入れました');
-  closeTansui();
+  putToCell(tsxLastW, '推定単位水量をセルに入れました', closeTansui);
 }
 /* ── 単位水量試験の結果を1枚にまとめる（PDF・画像） ────────────
    画面に出ている配合・試験値・結果・計算の途中経過を、そのまま報告書の形にする。 */
@@ -14729,10 +14758,9 @@ try{ const o=JSON.parse(localStorage.getItem(KT_VALS_KEY)); if(o&&typeof o==='ob
 function ktSaveVals(){ try{ localStorage.setItem(KT_VALS_KEY, JSON.stringify(ktVals)); }catch(_){} }
 function openKantab(){
   ktRenderInputs(); ktCalc();
-  document.getElementById('kantabOverlay').classList.add('open');
-  armBackGuard(()=>document.getElementById('kantabOverlay').classList.remove('open'));
+  openDlg('kantabOverlay');
 }
-function closeKantab(){ document.getElementById('kantabOverlay').classList.remove('open'); releaseBackGuard(); }
+function closeKantab(){ closeDlg('kantabOverlay'); }
 function ktRenderInputs(){
   const grid=document.getElementById('ktGrid'); if(!grid) return;
   document.getElementById('ktIn_W').value = (ktVals.W!=null?ktVals.W:'');
@@ -14824,15 +14852,11 @@ let ktLastCl=null;
 /* 出た値を、表の選択中のセルに入れる（容積計算と同じ使い勝手） */
 function ktInsertToCell(){
   if(ktLastCl==null){ toast('先に単位水量と読み値を入れてください'); return; }
-  if(selR<0||selC<0){ toast('入れるセルを選んでください'); return; }
-  if(isLockedCell(selR,selC)){ flashLocked(selR,selC); return; }
-  setCellVal(selR,selC, String(ktLastCl));
-  toast('塩化物イオン量をセルに入れました');
-  closeKantab();
+  putToCell(ktLastCl, '塩化物イオン量をセルに入れました', closeKantab);
 }
 /* ── カンタブの設定ダイアログ ── */
-function openKtSettings(){ ktSyncUi(); ktRenderTable(); ktRenderPresets(); document.getElementById('ktSettingsOverlay').classList.add('open'); }
-function closeKtSettings(){ document.getElementById('ktSettingsOverlay').classList.remove('open'); }
+function openKtSettings(){ ktSyncUi(); ktRenderTable(); ktRenderPresets(); openDlg('ktSettingsOverlay'); }
+function closeKtSettings(){ closeDlg('ktSettingsOverlay'); }
 function ktSyncUi(){
   const w=document.getElementById('ktWarn'), l=document.getElementById('ktLimit');
   if(w) w.textContent=ktWarn.toFixed(2); if(l) l.textContent=ktLimit.toFixed(2);
@@ -15600,8 +15624,8 @@ function renderModeVisBody(){
     </label>`;
   }).join('');
 }
-function openModeVis(){ renderModeVisBody(); document.getElementById('modeVisOverlay').classList.add('open'); }
-function closeModeVis(){ document.getElementById('modeVisOverlay').classList.remove('open'); }
+function openModeVis(){ renderModeVisBody(); openDlg('modeVisOverlay'); }
+function closeModeVis(){ closeDlg('modeVisOverlay'); }
 function persistModeOrder(){ try{ localStorage.setItem(MODE_ORDER_KEY, JSON.stringify(modeOrder)); }catch(e){} }
 function allModeKeys(){ return MODE_MENU.map(m=>m.key).concat(customModes.map(m=>m.key)); }
 /* 並び順を現存モードに同期（消えたキーを除去・新規キーを末尾に追加） */
@@ -15671,7 +15695,7 @@ function openModeMenu(){
     .filter(k=> !isModeHidden(k) || k===workspaceMode )   // 非表示モードは出さない（現在のモードは常に表示）
     .map(k=>{ const o=modeItemByKey(k); return o?renderModeItem(o.item,o.custom):''; }).join('');
   bindModeDrag();
-  document.getElementById('modeMenuOverlay').classList.add('open');
+  openDlg('modeMenuOverlay');
   mmOpenedAt=Date.now();   // 開いた直後の「押しっぱなしの指」で項目が反応しないように
 }
 
@@ -15812,7 +15836,7 @@ function removeCustomMode(key){
   persistCustomModes(); persistModes();
   openModeMenu();
 }
-function closeModeMenu(){ document.getElementById('modeMenuOverlay').classList.remove('open'); }
+function closeModeMenu(){ closeDlg('modeMenuOverlay'); }
 /* ひな形のボタンなど、一覧の中のタップ全部を同じ間だけ止める
    （項目と同じく、開いた直後の指で押されたことにならないように） */
 (function(){
@@ -15830,8 +15854,9 @@ function pickMode(key){ closeModeMenu(); switchMode(key); }
 })();
 
 function toggleSettings() {
-  const panel=document.getElementById('settingsPanel'), btn=document.getElementById('settingsBtn');
-  const open=panel.classList.toggle('open'); btn.classList.toggle('open',open);
+  const btn=document.getElementById('settingsBtn');
+  const open=isDlgOpen('settingsPanel') ? !closeDlg('settingsPanel') : openDlg('settingsPanel');
+  btn.classList.toggle('open', open);
 }
 /* 設定パネルが開いていれば閉じる（規定に戻す・テンキー非表示を押したら結果が見えるように） */
 function closeSettingsPanel(){
@@ -15914,22 +15939,12 @@ function openUndoList(){
   body.innerHTML=rows.map(r=>
     `<button class="more-item undo-item" onclick="undoTo(${r.from})">`
     +`<span>↶</span>${escHtml(r.op)}${r.count>1?`<b class="undo-count">×${r.count}</b>`:''}</button>`).join('');
-  document.getElementById('undoListOverlay').classList.add('open');
+  openDlg('undoListOverlay');
   guardAfterOpen('undoListOverlay');   // 長押しの指を離した分で閉じないように
-  if(typeof armBackGuard==='function') armBackGuard(closeUndoList);
 }
-function closeUndoList(){
-  document.getElementById('undoListOverlay').classList.remove('open');
-  if(typeof releaseBackGuard==='function') releaseBackGuard();
-}
-function openMoreMenu(){
-  document.getElementById('moreMenuOverlay').classList.add('open');
-  if(typeof armBackGuard==='function') armBackGuard(closeMoreMenu);
-}
-function closeMoreMenu(){
-  document.getElementById('moreMenuOverlay').classList.remove('open');
-  if(typeof releaseBackGuard==='function') releaseBackGuard();
-}
+function closeUndoList(){ closeDlg('undoListOverlay'); }
+function openMoreMenu(){ openDlg('moreMenuOverlay'); }
+function closeMoreMenu(){ closeDlg('moreMenuOverlay'); }
 /* メニューの項目：先に閉じてから実行する（設定など別の画面が開くものがあるため） */
 function moreDo(fn){
   closeMoreMenu();
@@ -15979,7 +15994,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v347';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v348';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -15995,9 +16010,9 @@ function openHelp(){
   renderHelpFuncTable();
   const ver=document.getElementById('helpVer');
   if(ver) ver.textContent='バージョン '+APP_VERSION;
-  document.getElementById('helpOverlay').classList.add('open');
+  openDlg('helpOverlay');
 }
-function closeHelp(){ document.getElementById('helpOverlay').classList.remove('open'); }
+function closeHelp(){ closeDlg('helpOverlay'); }
 /* 説明書：クイックナビのチップから、その項目を開いてスクロール */
 function helpJump(id){
   const el=document.getElementById(id); if(!el) return;
@@ -16141,10 +16156,10 @@ let findState={ term:'' };
 function openFindDlg(){
   document.getElementById('findInput').value='';
   document.getElementById('findMsg').textContent='';
-  document.getElementById('findOverlay').classList.add('open');
+  openDlg('findOverlay');
   setTimeout(()=>{ const el=document.getElementById('findInput'); if(el) el.focus(); }, 60);
 }
-function closeFindDlg(){ document.getElementById('findOverlay').classList.remove('open'); }
+function closeFindDlg(){ closeDlg('findOverlay'); }
 function jumpToCell(r,c){
   if(typeof clearRangeSelection==='function') clearRangeSelection();
   sel(r,c);
@@ -16203,9 +16218,9 @@ function openLookupDlg(keepState){
   lkSetFn(lkState.fn, true);
   lkSetExact(lkState.exact, true);
   lkPreview();
-  document.getElementById('lookupOverlay').classList.add('open');
+  openDlg('lookupOverlay');
 }
-function closeLookupDlg(){ document.getElementById('lookupOverlay').classList.remove('open'); }
+function closeLookupDlg(){ closeDlg('lookupOverlay'); }
 function lkSetFn(fn, silent){
   lkState.fn=fn;
   document.getElementById('lkFnV').classList.toggle('on', fn==='VLOOKUP');
@@ -16328,9 +16343,9 @@ function openCellFmt(){
   fmtR=selR; fmtC=selC;
   document.getElementById('cellFmtTitle').textContent=`${ALPHA[fmtC]}${fmtR+1} の書式`;
   syncCellFmt();
-  document.getElementById('cellFmtOverlay').classList.add('open');
+  openDlg('cellFmtOverlay');
 }
-function closeCellFmt(){ document.getElementById('cellFmtOverlay').classList.remove('open'); }
+function closeCellFmt(){ closeDlg('cellFmtOverlay'); }
 
 /* パネルの表示を現在のセル書式に合わせる */
 function syncCellFmt(){
@@ -17191,9 +17206,9 @@ function showSaveList(){
   renderSaveTabBar();
   renderSaveStateBanner();
   setSaveTab(0);
-  document.getElementById('saveListOverlay').classList.add('open');
+  openDlg('saveListOverlay');
 }
-function closeSaveList(){document.getElementById('saveListOverlay').classList.remove('open');}
+function closeSaveList(){closeDlg('saveListOverlay');}
 /* 「いまの表」「記録」「ファイル」の3段階を、いまどこまで安全かと一緒に出す。
    どれも端末の中だけ、という誤解が起きやすいところなので言葉で分けて書く。 */
 function renderSaveStateBanner(){
