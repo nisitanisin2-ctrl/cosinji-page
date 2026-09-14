@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="表電卓">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>表電卓</title>
-<style>
+<style id="appStyle">
 /* ── 見た目の土台（デザイントークン） ──
    色・角丸・影・時間はここに集約する。個々の部品では直書きせず var() を使う。
    緑は18種類の色味が散らばっていたので、通常／濃い／さらに濃い／明るい／夜用の5段にまとめた。 */
@@ -1431,6 +1431,8 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
   background: rgba(192,57,43,.10); border: 1px solid rgba(192,57,43,.45);
   font-size: 12px; color: var(--text); line-height: 1.55;
 }
+.veg-outrow { display: flex; gap: 8px; }
+.veg-outrow .veg-pdf-btn { flex: 1; }
 .veg-pdf-btn {
   margin-bottom: 10px; background: var(--save-item-bg); color: var(--text);
   border: 1px solid var(--acc); font-size: 14px;
@@ -2550,48 +2552,52 @@ body.dark .tsx-res-val.ng   { color: #ff8a80; }
   @page { margin: 12mm; }
 }
 
-/* 育成計画を1ページのPDFにするときの組み方（#printArea の中だけ。紙は白なので色は決め打ち） */
-#printArea .vegpdf {
+/* 1ページもの（育成計画・試験の報告書）の組み方（#printArea の中だけ。紙は白なので色は決め打ち） */
+#printArea .op-doc {
   color: #000; background: #fff; font-size: 11px; line-height: 1.5;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
-#printArea .vegpdf .vp-head { border-bottom: 2px solid #2e7d32; padding-bottom: 6px; margin-bottom: 10px; }
-#printArea .vegpdf .vp-title { font-size: 20px; font-weight: bold; }
-#printArea .vegpdf .vp-sub { font-size: 11px; color: #555; margin-top: 2px; }
-#printArea .vegpdf .vp-big { font-size: 15px; font-weight: bold; color: #2e7d32; margin-top: 5px; }
-#printArea .vegpdf .vp-cols { columns: 330px; column-gap: 14px; }
-#printArea .vegpdf .vp-box {
+#printArea .op-doc .vp-head { border-bottom: 2px solid #2e7d32; padding-bottom: 6px; margin-bottom: 10px; }
+#printArea .op-doc .vp-title { font-size: 20px; font-weight: bold; }
+#printArea .op-doc .vp-sub { font-size: 11px; color: #555; margin-top: 2px; }
+#printArea .op-doc .vp-big { font-size: 15px; font-weight: bold; color: #2e7d32; margin-top: 5px; }
+#printArea .op-doc .vp-cols { columns: 330px; column-gap: 14px; }
+#printArea .op-doc .vp-box {
   break-inside: avoid; page-break-inside: avoid; margin: 0 0 10px;
   border: 1px solid #bbb; border-radius: 5px; padding: 6px 8px 7px;
 }
-#printArea .vegpdf .vp-h { font-size: 12px; font-weight: bold; margin-bottom: 4px; border-bottom: 1px solid #ddd; padding-bottom: 3px; }
-#printArea .vegpdf .vp-tbl { width: 100%; border-collapse: collapse; }
-#printArea .vegpdf .vp-tbl td {
+#printArea .op-doc .vp-h { font-size: 12px; font-weight: bold; margin-bottom: 4px; border-bottom: 1px solid #ddd; padding-bottom: 3px; }
+#printArea .op-doc .vp-tbl { width: 100%; border-collapse: collapse; }
+#printArea .op-doc .vp-tbl td {
   border: none; border-bottom: 1px solid #eee; padding: 3px 4px; font-size: 11px; vertical-align: top; color: #000;
 }
-#printArea .vegpdf .vp-tbl tr:last-child td { border-bottom: none; }
-#printArea .vegpdf .vp-dot { width: 12px; padding-right: 0; }
-#printArea .vegpdf .vp-dot span { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
-#printArea .vegpdf .vp-when { text-align: right; white-space: nowrap; font-weight: bold; }
-#printArea .vegpdf .vp-af { text-align: right; white-space: nowrap; color: #555; }
-#printArea .vegpdf .vp-k { width: 58px; font-weight: bold; color: #555; }
-#printArea .vegpdf .vp-sick { padding: 4px 0; border-bottom: 1px solid #eee; }
-#printArea .vegpdf .vp-sick:last-child { border-bottom: none; }
-#printArea .vegpdf .vp-t { display: inline-block; width: 48px; color: #555; }
-#printArea .vegpdf .vp-foot {
+#printArea .op-doc .vp-tbl tr:last-child td { border-bottom: none; }
+#printArea .op-doc .vp-dot { width: 12px; padding-right: 0; }
+#printArea .op-doc .vp-dot span { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+#printArea .op-doc .vp-when { text-align: right; white-space: nowrap; font-weight: bold; }
+#printArea .op-doc .vp-af { text-align: right; white-space: nowrap; color: #555; }
+#printArea .op-doc .vp-k { width: 58px; font-weight: bold; color: #555; }
+#printArea .op-doc .vp-w2 .vp-k { width: auto; white-space: nowrap; padding-right: 12px; }
+#printArea .op-doc .vp-sick { padding: 4px 0; border-bottom: 1px solid #eee; }
+#printArea .op-doc .vp-sick:last-child { border-bottom: none; }
+#printArea .op-doc .vp-t { display: inline-block; width: 48px; color: #555; }
+.op-doc .vp-j-ok { color: #2e7d32; }
+.op-doc .vp-j-warn { color: #ef6c00; }
+.op-doc .vp-j-ng { color: #c62828; }
+#printArea .op-doc .vp-foot {
   margin-top: 8px; padding-top: 6px; border-top: 1px solid #bbb; font-size: 10px; color: #444; line-height: 1.5;
 }
-#printArea .vegpdf .dp-wdays, #printArea .vegpdf .dp-grid { padding: 0; gap: 2px; }
-#printArea .vegpdf .dp-wd { font-size: 9px; color: #555; }
-#printArea .vegpdf .dp-wd.sun { color: #c62828; } #printArea .vegpdf .dp-wd.sat { color: #1565c0; }
-#printArea .vegpdf .dp-cell {
+#printArea .op-doc .dp-wdays, #printArea .op-doc .dp-grid { padding: 0; gap: 2px; }
+#printArea .op-doc .dp-wd { font-size: 9px; color: #555; }
+#printArea .op-doc .dp-wd.sun { color: #c62828; } #printArea .op-doc .dp-wd.sat { color: #1565c0; }
+#printArea .op-doc .dp-cell {
   aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center;
   font-size: 10px; border: 1px solid #ddd; border-radius: 3px; background: #fff; color: #000;
 }
-#printArea .vegpdf .dp-cell.empty { border-color: transparent; }
-#printArea .vegpdf .dp-cell.sun { color: #c62828; } #printArea .vegpdf .dp-cell.sat { color: #1565c0; }
-#printArea .vegpdf .dp-cell.veg-on { color: #fff; font-weight: bold; border-color: transparent; }
-#printArea .vegpdf .dp-cell.veg-band { color: #000 !important; }
+#printArea .op-doc .dp-cell.empty { border-color: transparent; }
+#printArea .op-doc .dp-cell.sun { color: #c62828; } #printArea .op-doc .dp-cell.sat { color: #1565c0; }
+#printArea .op-doc .dp-cell.veg-on { color: #fff; font-weight: bold; border-color: transparent; }
+#printArea .op-doc .dp-cell.veg-band { color: #000 !important; }
 
 /* ── 夜モードの手当て ──
    ツールバーと緑のボタンは色が固定だったため、夜は明るすぎた。少し落とす。 */
@@ -3006,6 +3012,11 @@ body.dark {
       <div class="tsx-steps" id="tsxSteps" style="display:none"></div>
       <div class="vol-hint">土研法エアメータ法です。<b>配合</b>（W1・C・S・G・P・A1）と<b>試験値</b>（容器+試料 m2・測定空気量 A2・容器容積 V・容器質量 m1）を入れると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で推定し、配合の W1 との差で合否を判定します。質量は g、容積は cc、配合は kg/m³ で入れてください。混和材 P は無ければ空のままで大丈夫です（0として計算します）。<br>よく使う配合とエアメータは<b>📋配合の登録</b>・<b>🧪エアメータの登録</b>に入れておくと、<b>番号を入れるだけ</b>で呼び出せます。許容差と小数桁は<b>⚙設定</b>で変えられます。</div>
       <button class="vol-insert ts-ref-btn tsx-insert-bottom" id="tsxInsertBtn" onclick="tsxInsertToCell()">▦ 推定単位水量をセルに入れる</button>
+      <button class="vol-insert veg-pdf-btn" onclick="tsxPdf()">🖨 結果を1ページのPDFに</button>
+      <div class="veg-outrow">
+        <button class="vol-insert veg-pdf-btn" onclick="tsxImage(false)">🖼 画像で保存</button>
+        <button class="vol-insert veg-pdf-btn" onclick="tsxImage(true)">📤 画像を共有</button>
+      </div>
     </div>
   </div>
 </div>
@@ -3713,6 +3724,10 @@ body.dark {
       <div class="veg-note">日数は家庭菜園のふつうの目安です。<b>品種・地域・その年の天気で前後します</b>ので、種の袋に書いてある日数があればそちらを目安にしてください。</div>
       <button class="vol-insert" id="vegInsertBtn" onclick="vegInsertToSheet()">▦ 予定表を表に入れる</button>
       <button class="vol-insert veg-pdf-btn" id="vegPdfBtn" onclick="vegPdf()">🖨 ぜんぶを1ページのPDFに</button>
+      <div class="veg-outrow">
+        <button class="vol-insert veg-pdf-btn" id="vegImgBtn" onclick="vegImage(false)">🖼 画像で保存</button>
+        <button class="vol-insert veg-pdf-btn" id="vegShareBtn" onclick="vegImage(true)">📤 画像を共有</button>
+      </div>
       <details class="veg-my">
         <summary>➕ 自分の野菜を登録する</summary>
         <div id="vegMyBody"></div>
@@ -4379,7 +4394,7 @@ body.dark {
             <tr><td><b>📝写真メモ</b></td><td>写真に<b>文字</b>を入れて保存（図形・矢印・手書き・日付も）</td></tr>
             <tr><td><b>🌱野菜</b></td><td>種をまいた日から、間引き・追肥・<b>収穫の予定日</b>をカレンダーで出す（下記）</td></tr>
           </table>
-          <div class="help-li"><b>💧単位水量</b>：土研法エアメータ法で、生コンの単位水量を推定します。<b>配合</b>（W1・セメント・細骨材・粗骨材・混和材・配合空気量）と<b>試験値</b>（容器+試料 m2・測定空気量 A2・容器容積 V・容器質量 m1）を入れると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で推定し、配合の W1 との<b>差</b>で合否を判定します。配合はkg/m³、質量はg、容積はccで入力。<b>推定単位水量と差を大きく並べて</b>出し、差は合否と同じ色（合格＝緑／要注意＝橙／不合格＝赤）になります。<b>🧮計算の途中経過</b>で⑦〜⑱の値も確認でき、いちばん下の<b>▦推定単位水量をセルに入れる</b>で選択中のセルへ入ります。入れた値は次に開いたときも残ります。<br>よく使う配合（30件まで）とエアメータ（5件まで）は<b>📋配合の登録</b>・<b>🧪エアメータの登録</b>（それぞれ別の画面）に入れておけて、<b>配合番号・エアメータ番号</b>に番号を入れるだけで呼び出せます。配合には番号とは別に<b>配合の呼び名</b>（例 21-5-40BB）を入れておけ、番号を入れると<b>どの配合を呼び出したか名前で確認</b>できます（番号が登録に無いときもその場で分かります）。<b>配合</b>の見出しを押すと配合の欄を<b>折りたためます</b>（閉じている間は見出しの右に呼び名が出ます）。許容差と小数桁は<b>⚙設定</b>で変えられます。</div>
+          <div class="help-li"><b>💧単位水量</b>：土研法エアメータ法で、生コンの単位水量を推定します。<b>配合</b>（W1・セメント・細骨材・粗骨材・混和材・配合空気量）と<b>試験値</b>（容器+試料 m2・測定空気量 A2・容器容積 V・容器質量 m1）を入れると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で推定し、配合の W1 との<b>差</b>で合否を判定します。配合はkg/m³、質量はg、容積はccで入力。<b>推定単位水量と差を大きく並べて</b>出し、差は合否と同じ色（合格＝緑／要注意＝橙／不合格＝赤）になります。<b>🧮計算の途中経過</b>で⑦〜⑱の値も確認でき、いちばん下の<b>▦推定単位水量をセルに入れる</b>で選択中のセルへ入ります。入れた値は次に開いたときも残ります。<br>よく使う配合（30件まで）とエアメータ（5件まで）は<b>📋配合の登録</b>・<b>🧪エアメータの登録</b>（それぞれ別の画面）に入れておけて、<b>配合番号・エアメータ番号</b>に番号を入れるだけで呼び出せます。配合には番号とは別に<b>配合の呼び名</b>（例 21-5-40BB）を入れておけ、番号を入れると<b>どの配合を呼び出したか名前で確認</b>できます（番号が登録に無いときもその場で分かります）。<b>配合</b>の見出しを押すと配合の欄を<b>折りたためます</b>（閉じている間は見出しの右に呼び名が出ます）。許容差と小数桁は<b>⚙設定</b>で変えられます。 <b>🖨結果を1ページのPDFに</b>と<b>🖼画像で保存・📤画像を共有</b>（v345から）で、<b>配合・試験値・結果（推定単位水量・差・判定）・判定のめやす・計算の途中経過</b>をまとめた<b>報告書をA4たて1枚</b>に書き出せます。</div>
           <div class="help-li"><b>🌱野菜の育成計画</b>（v340から）：<b>野菜を選んで、種をまいた日（いも・苗は植えつけた日）を入れるだけ</b>で、<b>発芽・間引き・追肥・収穫</b>などの<b>予定日</b>が出ます。いちばん上に<b>「収穫は◯〜◯日後（◯月◯日〜◯月◯日）」</b>と大きく出るので、<b>何日後にとれるか</b>がひと目で分かります。<br>
             ・<b>カレンダー</b>にも色が付きます（<span style="color:#6d4c41">■</span>種まき・植えつけ／<span style="color:#7cb342">■</span>発芽・根づく／<span style="color:#1565c0">■</span>間引き・土寄せなどの手入れ／<span style="color:#ef6c00">■</span>追肥／<span style="color:#c2185b">■</span>花・受粉／<span style="color:#2e7d32">■</span>収穫）。濃い色が<b>その作業の初日</b>、薄い色は<b>そのあいだの期間</b>です。<b>‹ ›</b>で月を送り、<b>「種まきの月」</b>で戻ります<br>
             ・<b>地域・標高・寒冷地</b>を選ぶと、<b>日数を補正</b>します（v341から）。寒いところほど育ちはゆっくりなので、日数に倍率をかけます。<b>地域</b>は沖縄〜北海道の7つ（関東・東海・近畿が標準）、<b>標高</b>は100mごとに約2%おそく（気温が約0.6℃下がるめやす）、<b>寒冷地（霜がおりる畑）</b>でさらに5%おそくします。いまかかっている補正は<b>「補正 ＋34%（日数を1.34倍）」</b>のように画面に出ます。<b>種まきの時期を標準の地域よりどれだけずらすとよいか</b>も出ます（例：北海道は4週間おそめ）。この設定は<b>次に開いたときも残ります</b><br>
@@ -4388,7 +4403,7 @@ body.dark {
             ・<b>🧪 肥料と配合</b>（v342から）：その野菜に合う<b>土づくり・元肥・追肥</b>を出します。<b>苦土石灰・完熟たい肥</b>の量、<b>化成肥料の配合（8-8-8 など）と量</b>、<b>土のpHの目安</b>つきです。<b>畑の広さ（㎡）</b>を入れると<b>全体で何g要るか</b>まで出ます（例：100〜150g/㎡ → 3㎡で 300〜450g）。追肥の欄には<b>この計画での追肥の日</b>も出ます。ジャガイモは石灰をまかない、サツマイモは追肥をしないなど、<b>野菜ごとのくせ</b>も書いてあります<br>
             ・<b>🦠 出やすい病気・害虫と農薬</b>（v342から）：その野菜で<b>出やすいもの</b>を、<b>見分け方・手当て・薬の例</b>の3つで並べます（例：うどんこ病／葉に白い粉をふいたようになる／こんだ葉をとって風通しをよくする／カリグリーン・サプロール乳剤）。<b>⚠ 農薬は野菜ごとに「使ってよい作物」と「収穫の何日前まで使えるか」が決まっています。使う前に必ずラベルで確かめてください</b><br>
             ・<b>⚠ 育てるときの注意</b>（v343から）：<b>株間・畝／水やり／手入れ／連作（何年あけるか）／とりごろ</b>の5つを出します（例 キュウリ：株間45cm・畝幅120cm／夏は毎日たっぷり／下から5〜6節のわき芽と雌花はとる／ウリ科は2〜3年あける／長さ20cmの若どり）<br>
-            ・<b>🖨 ぜんぶを1ページのPDFに</b>（v343から）：画面に出ている<b>予定表・カレンダー・肥料・注意・病気と農薬</b>を、<b>A4たて1枚</b>にまとめて印刷します。中身が多いときは<b>段を増やして自動で縮める</b>ので、何か月にわたる計画でも1枚に収まります。印刷の画面で<b>「PDFに保存」</b>を選べばPDFになります（畑に持って行く紙として使えます）<br>
+            ・<b>🖨 ぜんぶを1ページのPDFに</b>（v343から）：画面に出ている<b>予定表・カレンダー・肥料・注意・病気と農薬</b>を、<b>A4たて1枚</b>にまとめて印刷します。中身が多いときは<b>段を増やして自動で縮める</b>ので、何か月にわたる計画でも1枚に収まります。印刷の画面で<b>「PDFに保存」</b>を選べばPDFになります（畑に持って行く紙として使えます）。<b>🖼画像で保存・📤画像を共有</b>（v345から）で、同じ中身を<b>PNGの画像</b>にもできます（LINEやメールで送るときはこちらが手軽です）<br>
             ・<b>肥料・注意・病気・害虫も、▦予定表を表に入れる</b>で予定表のあとに一緒に書き出されます<br>
             ・<b>➕自分の野菜を登録する</b>で、育てている品種を自分で足せます（名前と、作業ごとの日数）。登録したものは<b>点線のふち</b>で並び、次に開いたときも残ります<br>
             ・日数は家庭菜園のふつうの目安です。<b>品種・地域・その年の天気で前後します</b>ので、種の袋の日数があればそちらを目安にしてください</div>
@@ -8057,10 +8072,94 @@ function vegInsertToSheet(){
 }
 function vegDateText(serial){ const {y,m,d}=serialToYMD(serial); return `${y}/${m}/${d}`; }
 
+/* ── 1ページのPDF・画像に書き出す共通のしくみ ──────────────────
+   #printArea に中身を組み立て、A4たて1枚に収まる幅をさがしてから、
+   そのまま印刷する（PDF）か、SVGの foreignObject を通してPNGにする。
+   幅を広げると段が増えて背が低くなる作りにしておけば、中身が多くても1枚に入る。 */
+const OP_PAGE_W=718, OP_PAGE_H=1046;   // A4たて・余白10mm のときの中身の大きさ（px, 96dpi）
+function opFit(el){
+  const fits=w=>{ el.style.width=w+'px'; return el.scrollHeight*(OP_PAGE_W/w)<=OP_PAGE_H; };
+  let w=OP_PAGE_W;
+  if(!fits(w)){
+    let lo=w, hi=w, ok=false;                      // lo＝入らない幅、hi＝入る幅
+    for(let i=0;i<8;i++){ hi=Math.min(2600, hi*1.25); if(fits(hi)){ ok=true; break; } lo=hi; }
+    if(ok) for(let i=0;i<8 && hi-lo>12; i++){ const mid=(lo+hi)/2; if(fits(mid)) hi=mid; else lo=mid; }
+    w=hi;
+  }
+  el.style.width=w+'px';
+  const k=OP_PAGE_W/w;
+  el.style.zoom=String(k);
+  return k;
+}
+/* 中身を置いて、画面の外で大きさを測れる状態にする */
+function opBuild(html){
+  let pa=document.getElementById('printArea');
+  if(!pa){ pa=document.createElement('div'); pa.id='printArea'; document.body.appendChild(pa); }
+  pa.innerHTML=html;
+  const meas=document.createElement('style');
+  meas.textContent='#printArea{display:block!important;position:fixed;left:-10000px;top:0;overflow:visible;}';
+  document.head.appendChild(meas);
+  const box=pa.firstElementChild;
+  const k=box?opFit(box):1;
+  return {pa, box, k, meas};
+}
+/* 印刷（そこから「PDFに保存」を選べる） */
+function opPrint(built){
+  if(built.meas) built.meas.remove();
+  let dyn=document.getElementById('printDynamicStyle');
+  if(!dyn){ dyn=document.createElement('style'); dyn.id='printDynamicStyle'; document.head.appendChild(dyn); }
+  dyn.textContent='@page{ size: A4 portrait; margin: 10mm; }';
+  toast('印刷の画面から「PDFに保存」を選んでください', 4200);
+  setTimeout(()=>{ try{ window.print(); }catch(e){ alert('印刷を開けませんでした'); } }, 250);
+}
+/* 画面の一部をそのままPNGにする。
+   SVGの foreignObject にHTMLとこのアプリのCSSを入れて、canvas に描く。
+   外から画像や書体を読み込まないので、そのまま toBlob できる。 */
+function opNodeToPng(node, w, h, scale){
+  return new Promise(resolve=>{
+    let inner;
+    try{ inner=new XMLSerializer().serializeToString(node); }catch(_){ resolve(null); return; }
+    const st=document.getElementById('appStyle');
+    const css=String((st&&st.textContent)||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      +'\n#printArea{display:block!important;position:static!important;}\n';
+    const doc='<div xmlns="http://www.w3.org/1999/xhtml" id="printArea"'
+      +' style="display:block;width:'+w+'px;background:#fff">'
+      +'<style>'+css+'</style>'+inner+'</div>';
+    const svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+Math.round(w*scale)+'" height="'+Math.round(h*scale)+'"'
+      +' viewBox="0 0 '+w+' '+h+'"><foreignObject x="0" y="0" width="'+w+'" height="'+h+'">'+doc+'</foreignObject></svg>';
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        const cv=document.createElement('canvas');
+        cv.width=Math.round(w*scale); cv.height=Math.round(h*scale);
+        const ctx=cv.getContext('2d');
+        ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,cv.width,cv.height);
+        ctx.drawImage(img,0,0,cv.width,cv.height);
+        cv.toBlob(b=>resolve(b), 'image/png');
+      }catch(_){ resolve(null); }
+    };
+    img.onerror=()=>resolve(null);
+    img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+  });
+}
+/* 組み立てたものをPNGとして保存・共有する。share=true なら端末の共有機能へ */
+async function opImage(built, prefix, share){
+  const box=built.box;
+  if(!box){ if(built.meas) built.meas.remove(); toast('書き出せませんでした'); return null; }
+  box.style.zoom='';                                        // 画像は縮めずに原寸で描く
+  const w=Math.ceil(parseFloat(box.style.width)||OP_PAGE_W);
+  const h=Math.ceil(box.getBoundingClientRect().height);
+  const blob=await opNodeToPng(box, w, h, 2);
+  if(built.meas) built.meas.remove();
+  if(!blob){ toast('この端末では画像にできませんでした。PDFをお使いください', 4600); return null; }
+  const fname = share ? `${prefix}_${shotStamp()}.png` : await shotFileName(prefix);
+  if(fname===null) return null;
+  shotDeliver(blob, fname, share);
+  return blob;
+}
 /* ── 育成計画を1ページのPDFにする ──────────────────────────
    画面に出ている内容（予定表・カレンダー・肥料・注意・病気）をまとめて
    #printArea に組み立て、A4の1ページに収まる倍率まで縮めてから印刷する。 */
-const VP_PAGE_W=718, VP_PAGE_H=1046;   // A4たて・余白10mm のときの中身の大きさ（px, 96dpi）
 /* 計画が続く月をぜんぶ並べる（長いものは12か月まで） */
 function vegPdfMonths(){
   const rows=vegRows(); if(!rows.length) return [];
@@ -8126,44 +8225,22 @@ function vegPdfHtml(){
   html+=`</div><div class="vp-foot">⚠ ${escHtml(VEG_MED_NOTE)}<br>`
     +`日数は家庭菜園のふつうの目安です。品種・地域・その年の天気で前後します。`
     +`　（表電卓 ${APP_VERSION}）</div>`;
-  return `<div class="vegpdf" id="vegPdfBox">${html}</div>`;
-}
-/* 横幅を広げながら、A4の1ページに収まる倍率を探す。
-   幅を広げると段が増えて背が低くなるので、
-   「入る幅」と「入らない幅」のあいだを詰めて、いちばん大きく出せる倍率にする。 */
-function vegPdfFit(el){
-  const fits=w=>{ el.style.width=w+'px'; return el.scrollHeight*(VP_PAGE_W/w)<=VP_PAGE_H; };
-  let w=VP_PAGE_W;
-  if(!fits(w)){
-    let lo=w, hi=w, ok=false;                      // lo＝入らない幅、hi＝入る幅
-    for(let i=0;i<8;i++){ hi=Math.min(2600, hi*1.25); if(fits(hi)){ ok=true; break; } lo=hi; }
-    if(ok) for(let i=0;i<8 && hi-lo>12; i++){ const mid=(lo+hi)/2; if(fits(mid)) hi=mid; else lo=mid; }
-    w=hi;
-  }
-  el.style.width=w+'px';
-  const k=VP_PAGE_W/w;
-  el.style.zoom=String(k);
-  return k;
+  return `<div class="op-doc" id="vegPdfBox">${html}</div>`;
 }
 function vegPdf(){
   if(!vegSel || vegSowSerial===null){ toast('野菜を選んでください'); return; }
-  let pa=document.getElementById('printArea');
-  if(!pa){ pa=document.createElement('div'); pa.id='printArea'; document.body.appendChild(pa); }
-  pa.innerHTML=vegPdfHtml();
-  // 画面の外に出して、印刷と同じ形で高さを測る
-  const meas=document.createElement('style');
-  meas.textContent='#printArea{display:block!important;position:fixed;left:-10000px;top:0;overflow:visible;}';
-  document.head.appendChild(meas);
-  const box=document.getElementById('vegPdfBox');
-  const k=vegPdfFit(box);
-  meas.remove();
-  let dyn=document.getElementById('printDynamicStyle');
-  if(!dyn){ dyn=document.createElement('style'); dyn.id='printDynamicStyle'; document.head.appendChild(dyn); }
-  dyn.textContent='@page{ size: A4 portrait; margin: 10mm; }';
+  const built=opBuild(vegPdfHtml());
   closeVeggie();
-  toast('印刷の画面から「PDFに保存」を選んでください', 4200);
-  setTimeout(()=>{ try{ window.print(); }catch(e){ alert('印刷を開けませんでした'); } }, 250);
-  return k;
+  opPrint(built);
+  return built.k;
+}
+/* 同じ中身を画像（PNG）で保存する。share=true なら端末の共有機能へ送る */
+async function vegImage(share){
+  if(!vegSel || vegSowSerial===null){ toast('野菜を選んでください'); return; }
+  const built=opBuild(vegPdfHtml());
+  const blob=await opImage(built, `育成計画_${vegSel.n}`, share);
+  if(blob) closeVeggie();
+  return blob;
 }
 /* ── 自分の野菜を登録する ── */
 function vegRenderMy(){
@@ -14316,6 +14393,71 @@ function tsxInsertToCell(){
   toast('推定単位水量をセルに入れました');
   closeTansui();
 }
+/* ── 単位水量試験の結果を1枚にまとめる（PDF・画像） ────────────
+   画面に出ている配合・試験値・結果・計算の途中経過を、そのまま報告書の形にする。 */
+function tsxReportHtml(){
+  const byKey={}; TS_FORM.forEach(f=>{ byKey[f.key]=f; });
+  const num=k=>{ const raw=tsxVals[k]; const v=parseFloat(raw);
+                 return (raw!==''&&raw!=null&&!isNaN(v))?v:null; };
+  const vals={W1:num('W1'), C:num('C'), S:num('S'), G:num('G'), P:num('P'), A1:num('A1'),
+              V:num('V'), m1:num('m1'), m2:num('m2'), A2:num('A2')};
+  const r=tsCompute(vals);
+  const nameOf=(kind,key)=>{
+    const no=String(tsxVals[key]!=null?tsxVals[key]:'').trim(); if(!no) return '';
+    const e=(tsRegs[kind]||[]).find(x=>x&&String(x.no!=null?x.no:'').trim()===no);
+    const nm=e?String(e.name!=null?e.name:'').trim():'';
+    return '番号'+no+(nm?'（'+nm+'）':'');
+  };
+  const t=new Date();
+  const stamp=`${t.getFullYear()}/${t.getMonth()+1}/${t.getDate()} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+  const rows=keys=>keys.map(k=>{ const f=byKey[k]; if(!f) return '';
+    const v=String(tsxVals[k]!=null?tsxVals[k]:'').trim();
+    return `<tr><td class="vp-k">${escHtml(f.label)}</td><td class="vp-when">${v===''?'—':escHtml(v)}</td>`
+      +`<td class="vp-af">${escHtml(f.unit||'')}</td></tr>`; }).join('');
+
+  let html=`<div class="vp-head">
+      <div class="vp-title">💧 単位水量試験 報告書</div>
+      <div class="vp-sub">土研法エアメータ法　W＝W1＋0.7×(γ1−γ2)　／　${escHtml(stamp)}`
+    +(nameOf('mix','mixNo')?`　／　配合 ${escHtml(nameOf('mix','mixNo'))}`:'')
+    +(nameOf('air','airNo')?`　／　エアメータ ${escHtml(nameOf('air','airNo'))}`:'')+`</div>`;
+  if(r.W!==null){
+    html+=`<div class="vp-big">推定単位水量 W ＝ <b>${escHtml(tsFmt(r.W,tsDp[3]))} kg/m³</b>`
+      +`　／　配合W1との差 <b>${escHtml(tsDeltaStr(r.derr))}</b>`
+      +`　／　判定 <b class="vp-j-${r.judge}">${escHtml(TS_JUDGE_TEXT[r.judge])}</b></div>`;
+  } else {
+    html+=`<div class="vp-big">配合と試験の値が足りないため、結果は出ていません</div>`;
+  }
+  html+=`</div><div class="vp-cols">`;
+  html+=`<div class="vp-box vp-w2"><div class="vp-h">配合</div><table class="vp-tbl">${rows(TSX_MIX_KEYS)}</table></div>`;
+  html+=`<div class="vp-box vp-w2"><div class="vp-h">試験値</div><table class="vp-tbl">${rows(TSX_TEST_KEYS)}</table></div>`;
+  html+=`<div class="vp-box"><div class="vp-h">判定のめやす</div><table class="vp-tbl">`
+    +`<tr><td class="vp-k">合格</td><td>配合W1との差が <b>±${escHtml(String(tsWarn))} kg/m³</b> 以内</td></tr>`
+    +`<tr><td class="vp-k">要注意</td><td>±${escHtml(String(tsWarn))} をこえ <b>±${escHtml(String(tsLimit))} kg/m³</b> まで</td></tr>`
+    +`<tr><td class="vp-k">不合格</td><td>±${escHtml(String(tsLimit))} kg/m³ をこえる（再試験）</td></tr>`
+    +`</table></div>`;
+  html+=`<div class="vp-box"><div class="vp-h">計算の途中経過</div><table class="vp-tbl">`
+    +TS_CALC.map(f=>{ const v=r[f.key], dp=(f.dp!=null)?tsDp[f.dp]:f.fixedDp;
+        return `<tr><td>${escHtml(f.label)}</td>`
+          +`<td class="vp-when">${(v!=null)?escHtml(tsFmt(v,dp)):'—'}</td>`
+          +`<td class="vp-af">${escHtml(f.unit)}</td></tr>`; }).join('')
+    +`</table></div>`;
+  html+=`</div><div class="vp-foot">配合はkg/m³、質量はg、容積はccで入れた値です。`
+    +`混和材Pが空のときは0として計算しています。`
+    +`　（表電卓 ${APP_VERSION}）</div>`;
+  return `<div class="op-doc" id="tsxRepBox">${html}</div>`;
+}
+function tsxPdf(){
+  const built=opBuild(tsxReportHtml());
+  closeTansui();
+  opPrint(built);
+  return built.k;
+}
+async function tsxImage(share){
+  const built=opBuild(tsxReportHtml());
+  const blob=await opImage(built, '単位水量試験', share);
+  if(blob) closeTansui();
+  return blob;
+}
 /* ── 配合・エアメータの登録（道具の中に持つぶん。⚙設定・登録の中で編集する） ── */
 const TSR_DEF={
   /* nameLb＝番号とは別に付けておける呼び名の見出し（配合なら 21-5-40BB など） */
@@ -15634,7 +15776,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v344';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v345';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

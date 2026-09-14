@@ -697,6 +697,72 @@ async function runRegPick(browser) {
   await ctx.close();
 }
 
+/* 1ページの書き出し（育成計画・単位水量試験のPDFと画像） */
+async function runReport(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 1ページの書き出し ──');
+  // 画像は保存名をたずねるので、ここでは組み立てとPNG化だけを確かめる
+  const toPng = async build => page.evaluate(async src => {
+    const built = opBuild(eval(src));
+    const box = built.box; const k = built.k;
+    box.style.zoom = '';
+    const w = Math.ceil(parseFloat(box.style.width)), h = Math.ceil(box.getBoundingClientRect().height);
+    const blob = await opNodeToPng(box, w, h, 2);
+    const txt = box.innerText.replace(/\s+/g, ' ');   // 画面の外に出しているうちに読む（隠すと行の区切りが消える）
+    built.meas.remove();
+    return { k, w, h, ok: !!blob, size: blob ? blob.size : 0,
+             type: blob ? blob.type : '', txt };
+  }, build);
+
+  // ── 育成計画 ──
+  await page.evaluate(() => { openVeggie();
+    const i = vegAll().findIndex(v => v.n === 'トマト'); vegPick(i);
+    document.getElementById('vegY').value = 2026;
+    document.getElementById('vegM').value = 3;
+    document.getElementById('vegD').value = 1; vegDateChange(); });
+  await page.waitForTimeout(300);
+  let r = await toPng('vegPdfHtml()');
+  check('  育成計画が画像になる', r.ok && r.type === 'image/png', true);
+  check('  画像は中身のある大きさ', r.w > 700 && r.h > 700 && r.size > 20000, true);
+  check('  画像はPDFと同じ幅で作る', r.w, Math.round(718 / r.k));
+  check('  画像にもぜんぶ入っている', /予定表 .*🧪 肥料と配合.*⚠ 育てるときの注意 .*🦠 出やすい病気・害虫と農薬 .*必ずラベルで確かめてください/
+        .test(r.txt), true);
+  check('  画像で保存・共有のボタンがある', await page.evaluate(() =>
+    ['vegPdfBtn', 'vegImgBtn', 'vegShareBtn'].map(id =>
+      (document.getElementById(id) || {}).textContent || '×').join('/')),
+    '🖨 ぜんぶを1ページのPDFに/🖼 画像で保存/📤 画像を共有');
+  await page.evaluate(() => closeVeggie()); await page.waitForTimeout(300);
+
+  // ── 単位水量試験 ──
+  await page.evaluate(() => { openTansui();
+    const v = { C: 320, W1: 175, S: 800, G: 950, P: 0, A1: 4.5, m2: 11500, A2: 4.8, V: 7000, m1: 4000 };
+    Object.keys(v).forEach(k => { tsxVals[k] = String(v[k]); });
+    tsxRenderInputs(); tsxCalc(); });
+  await page.waitForTimeout(300);
+  r = await toPng('tsxReportHtml()');
+  check('  試験の報告書が画像になる', r.ok && r.type === 'image/png', true);
+  check('  A4の1ページに収まる', r.h * r.k <= 1046, true);
+  check('  見出しと式', /💧 単位水量試験 報告書 土研法エアメータ法 W＝W1＋0.7×\(γ1−γ2\)/.test(r.txt), true);
+  check('  推定単位水量と差と判定を大きく出す',
+        /推定単位水量 W ＝ [\d,.]+ kg\/m³ ／ 配合W1との差 [+−±][\d,.]+ kg\/m³ ／ 判定 /.test(r.txt), true);
+  check('  配合・試験値・判定のめやす・途中経過が入る',
+        /配合 .*試験値 .*判定のめやす .*計算の途中経過 /.test(r.txt), true);
+  check('  途中経過は12こ', await page.evaluate(() => TS_CALC.length), 12);
+  check('  入れた値がそのまま出る', /セメント C 320 kg\/m³/.test(r.txt), true);
+  check('  結果が出ていないときは、そのことを書く', await page.evaluate(async () => {
+    const keep = tsxVals.m2; tsxVals.m2 = ''; tsxCalc();
+    const built = opBuild(tsxReportHtml());
+    const t = built.box.innerText.replace(/\s+/g, ' ');
+    built.meas.remove(); tsxVals.m2 = keep; tsxCalc();
+    return /配合と試験の値が足りないため、結果は出ていません/.test(t); }), true);
+  await page.evaluate(() => closeTansui()); await page.waitForTimeout(300);
+  await page.evaluate(() => { const pa = document.getElementById('printArea'); if (pa) pa.innerHTML = ''; });
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 /* 野菜の育成計画（種まきの日から予定日とカレンダーを出す道具） */
 async function runVeggie(browser) {
   const { ctx, page, errs } = await newPage(browser);
@@ -862,17 +928,11 @@ async function runVeggie(browser) {
   // ── ぜんぶを1ページのPDFに ──
   // 印刷そのものは出せないので、組み立てと「1ページに収まる倍率」までを確かめる
   const pdfFit = async name => { await plant(name, 2026, 3, 1); return page.evaluate(() => {
-      let pa = document.getElementById('printArea');
-      if (!pa) { pa = document.createElement('div'); pa.id = 'printArea'; document.body.appendChild(pa); }
-      pa.innerHTML = vegPdfHtml();
-      const meas = document.createElement('style');
-      meas.textContent = '#printArea{display:block!important;position:fixed;left:-10000px;top:0;overflow:visible;}';
-      document.head.appendChild(meas);
-      const box = document.getElementById('vegPdfBox');
-      const k = vegPdfFit(box);
-      const r = { k, h: box.scrollHeight, txt: box.innerText.replace(/\s+/g, ' '),
+      const built = opBuild(vegPdfHtml());
+      const box = built.box;
+      const r = { k: built.k, h: box.scrollHeight, txt: box.innerText.replace(/\s+/g, ' '),
                   months: box.querySelectorAll('.vp-cal').length };
-      meas.remove();
+      built.meas.remove();
       return r; }); };
   let pd = await pdfFit('トマト');
   check('  1ページに収まる', pd.h * pd.k <= 1046, true);
@@ -890,7 +950,7 @@ async function runVeggie(browser) {
   pd = await pdfFit('コマツナ');
   check('  短い計画は縮めない', pd.k, 1);
   check('  夜モードでも紙は白', await page.evaluate(() => {
-    toggleDark(); const c = getComputedStyle(document.querySelector('.vegpdf')).backgroundColor;
+    toggleDark(); const c = getComputedStyle(document.querySelector('.op-doc')).backgroundColor;
     toggleDark(); return c; }), 'rgb(255, 255, 255)');
   await page.evaluate(() => { const pa = document.getElementById('printArea'); if (pa) pa.innerHTML = ''; });
 
@@ -1569,6 +1629,7 @@ async function runDigit(browser) {
     if (!only || only === 'savelist') await runSaveList(browser);
     if (!only || only === 'topbar') await runTopBar(browser);
     if (!only || only === 'veggie') await runVeggie(browser);
+    if (!only || only === 'report') await runReport(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
