@@ -705,18 +705,28 @@ async function runCalcPage(browser) {
     const b = document.querySelector('[data-key="' + x + '"]'); if (b) b.click(); }, k);
     await page.waitForTimeout(110); };
   const seq = async ks => { for (const k of ks) await tap(k); };
+  const tapK = tap;
   const main = () => page.evaluate(() => document.getElementById('dtMain').textContent);
 
   check('  ページの名前が「電卓」', await page.evaluate(() => NP_ROW_MAIN.map(x => x[1]).join('/')),
         '書式・枠線/数字/記号/電卓');
-  check('  数字の並びは標準テンキーと同じ', await page.evaluate(() =>
-    ['dk_7','dk_8','dk_9','dk_4','dk_5','dk_6','dk_1','dk_2','dk_3','dk_0','dk_dot']
-      .every(k => !!document.querySelector('[data-key="' + k + '"]'))), true);
-  check('  セルのキーが電卓のキーに変わっている', await page.evaluate(() =>
-    ['dk_eq','dk_ac','dk_ce','dk_pct','dk_tax','dk_mc','dk_mplus','dk_mminus','dk_mr']
-      .every(k => !!document.querySelector('[data-key="' + k + '"]'))), true);
-  check('  段数は標準テンキーと同じ6段', await page.evaluate(() =>
+  check('  ふつうのスマホの電卓と同じ4列', await page.evaluate(() =>
+    getComputedStyle(document.getElementById('numpadPageSci')).gridTemplateColumns.split(' ').length), 4);
+  check('  段数は6段', await page.evaluate(() =>
     getComputedStyle(document.getElementById('numpadPageSci')).gridTemplateRows.split(' ').length), 6);
+  check('  キーの並び', await page.evaluate(() => {
+    const g = document.getElementById('numpadPageSci'), rows = {};
+    [...g.querySelectorAll('.btn')].forEach(b => { const r = Math.round(b.getBoundingClientRect().top);
+      (rows[r] = rows[r] || []).push(b.textContent.trim()); });
+    return Object.keys(rows).sort((a, b) => a - b).map(r => rows[r].join(' ')).join(' / ')
+      .replace('🧮電卓', '表／電卓').replace('▦表へ', '表／電卓');
+  }), '表／電卓 🎤 声 / AC （ ） ％ ÷ / 7 8 9 × / 4 5 6 − / 1 2 3 ＋ / 0 . ⌫ ＝');
+  check('  数字キーが標準テンキーより大きい', await page.evaluate(() => {
+    const a = document.querySelector('#numpadPageSci [data-key="dk_7"]').getBoundingClientRect();
+    const b = document.querySelector('#numpadPage1 [data-key="n7"]').getBoundingClientRect();
+    return a.width > b.width; }), true);
+  check('  メモリーはキーに割り当てて使える', await page.evaluate(() =>
+    ['a_memplus','a_memminus','a_memrecall','a_memclear'].map(k => KEY_FUNCS[k].label).join(' ')), 'M＋ M− MR MC');
 
   // 電卓モードに入ると自動で開き、表に戻ると数字ページへ
   check('  はじめは数字ページ', await page.evaluate(() => numpadPager.current()), 'null');
@@ -743,8 +753,11 @@ async function runCalcPage(browser) {
   await tab('数字');
   // スライドでも同じ
   const flick = async dx => {
-    const vp = await page.evaluate(() => { const v = document.getElementById('numpadViewport');
-      const r = v.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height * 0.55 }; });
+    // フリックはボタンの上から始める（ボタンの隙間からは始まらない作りのため）
+    const vp = await page.evaluate(() => {
+      const b = document.querySelector('#numpadViewport .numpad-grid:not(.numpad-overlay) .btn')
+             || document.querySelector('#numpadViewport .btn');
+      const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
     await page.mouse.move(vp.x, vp.y); await page.mouse.down();
     for (let i = 1; i <= 6; i++) { await page.mouse.move(vp.x + dx * i / 6, vp.y); await page.waitForTimeout(25); }
     await page.mouse.up(); await page.waitForTimeout(700);
@@ -791,26 +804,40 @@ async function runCalcPage(browser) {
   await page.evaluate(() => dtAllClear());
   await seq(['dk_1','dk_0','dk_0','dk_plus','dk_1','dk_0','dk_pct','dk_eq']);
   check('  100＋10％＝', await main(), '110');
-  await page.evaluate(() => dtAllClear());
-  await seq(['dk_1','dk_0','dk_0','dk_tax']);
-  check('  100 税込', await main(), '110');
+  await page.evaluate(() => { dtAllClear(); });
+  await seq(['dk_1','dk_0','dk_0']);
+  await page.evaluate(() => dtTax(1));
+  check('  100 税込（画面の税込ボタン）', await main(), '110');
 
-  // メモリー
+  // ⌫ と （ ）
+  await page.evaluate(() => dtAllClear());
+  await seq(['dk_1','dk_2','dk_3','dk_bs']);
+  check('  ⌫ で1文字消える', await main(), '12');
+  await page.evaluate(() => { dtStyle = 'simple'; dtAllClear(); document.getElementById('appToast').textContent = ''; });
+  await tapK('dk_par');
+  check('  ふつうの電卓では かっこ の使い方を知らせる', await page.evaluate(() =>
+    /式の優先順位どおり/.test(document.getElementById('appToast').textContent)), true);
+  await page.evaluate(() => { dtStyle = 'expr'; dtAllClear(); });
+  await seq(['dk_par','dk_1','dk_0','dk_0','dk_plus','dk_2','dk_0','dk_par','dk_mul','dk_3','dk_eq']);
+  check('  （100＋20）×3＝', await main(), '360');
+  await page.evaluate(() => { dtStyle = 'simple'; dtAllClear(); });
+
+  // メモリー（キーには出さないが、割り当てて使える）
   await page.evaluate(() => { dtMem = 0; dtAllClear(); });
-  await seq(['dk_1','dk_2','dk_mul','dk_3','dk_eq','dk_mplus']);
+  await seq(['dk_1','dk_2','dk_mul','dk_3','dk_eq']);
+  await page.evaluate(() => dtMemAdd(1));
   check('  M＋', await page.evaluate(() => fmtNum(dtMem)), '36');
-  check('  メモリーがあると印が付く', await page.evaluate(() =>
-    document.querySelector('[data-key="dk_mr"]').classList.contains('mem-on')), true);
-  await seq(['dk_1','dk_0','dk_mplus']);
+  await seq(['dk_1','dk_0']);
+  await page.evaluate(() => dtMemAdd(1));
   check('  続けてM＋', await page.evaluate(() => fmtNum(dtMem)), '46');
-  await seq(['dk_6','dk_mminus']);
+  await seq(['dk_6']);
+  await page.evaluate(() => dtMemAdd(-1));
   check('  M−', await page.evaluate(() => fmtNum(dtMem)), '40');
-  await seq(['dk_ac','dk_mr']);
+  await seq(['dk_ac']);
+  await page.evaluate(() => dtMemRecall());
   check('  AC のあと MR で呼び出せる', await main(), '40');
-  await seq(['dk_mc']);
+  await page.evaluate(() => dtMemClear());
   check('  MC で消える', await page.evaluate(() => fmtNum(dtMem)), '0');
-  check('  印も消える', await page.evaluate(() =>
-    document.querySelector('[data-key="dk_mr"]').classList.contains('mem-on')), false);
 
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
