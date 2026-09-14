@@ -999,6 +999,13 @@ body.resizer-off .numpad-resizer { display: none !important; }
   background: var(--cell-bg, #fff); color: var(--text);
 }
 .fs-in:disabled { background: transparent; border-style: dashed; color: var(--text-light); }
+.fs-swap {
+  flex-shrink: 0; width: 32px; height: 34px; margin-top: 12px; border-radius: var(--r-btn);
+  border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text-light);
+  font-size: 15px; cursor: pointer; touch-action: manipulation;
+}
+.fs-swap.on { background: var(--acc); border-color: var(--acc); color: var(--on-acc); }
+.fs-row.fs-picked { background: rgba(67,160,71,.12); border-radius: var(--r-btn); }
 /* 数字キーのフリックで出る記号の候補（v353）。キーの上に重ねて、上下左右とまん中を見せる */
 .npflick {
   position: fixed; z-index: 900; display: none; pointer-events: none;
@@ -1416,7 +1423,13 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
 .modal.modal-full {
   width: 100%; max-width: none; height: 100%; max-height: 100%;
   border-radius: 0;
+  /* 縦のスクロールはブラウザに任せ、横のなぞりはこちらで受け取る（となりの道具へ移るため）。
+     これが無いと、横になぞった時点でブラウザがスクロールとみなして pointercancel になり、
+     指を離したことがこちらに届かない（v356で判明） */
+  touch-action: pan-y;
 }
+/* 自分で指の動きを見ている中身（写真の拡大・線引きなど）は、そのまま任せる */
+.modal.modal-full canvas { touch-action: none; }
 .modal.modal-full .modal-body { padding: 12px 14px 16px; }
 @media (min-width: 700px) {   /* パソコンなど広い画面では、読みやすい幅で真ん中に */
   .modal.modal-full { width: 96%; max-width: 900px; height: 96%; border-radius: var(--r-card); }
@@ -3765,7 +3778,7 @@ body.dark {
       <span>⌨ フリックで入れる記号</span>
       <button class="modal-close" onclick="closeFlickSym()">✕</button>
     </div>
-    <div class="mode-hint">数字のキーを<b>少しだけ長押し</b>すると出る記号です。空にすると、その向きは使いません。<b>7・4・1・0</b>は左へフリックしにくいので、<b>上・右・下</b>だけです。</div>
+    <div class="mode-hint">数字のキーを<b>少しだけ長押し</b>すると出る記号です。空にすると、その向きは使いません。<b>7・4・1・0</b>は左へフリックしにくいので、<b>上・右・下</b>だけです。<br><b>⇄</b>を押してから相手のキーの<b>⇄</b>を押すと、<b>キーまるごと入れかえ</b>られます（例：1の中身と2の中身を交換）。</div>
     <div class="modal-body" id="flickSymBody"></div>
     <div class="save-toolbar">
       <button class="vol-insert veg-pdf-btn" onclick="resetNpFlick()">↺ 元にもどす</button>
@@ -4381,11 +4394,11 @@ body.dark {
               <tr><td><b>0</b></td><td>上 （ ／ 右 ） ／ 下 ㎥</td></tr>
             </table>
             <b>左はしの列（7・4・1・0）は左へフリックしにくい</b>ので、<b>上・右・下の3つだけ</b>にしてあります（v355から）。<br>
-            <b>記号は自分で変えられます</b>（v355から）：設定→<b>🎨見た目→くわしい設定</b>の<b>⌨ フリックで入れる記号</b>で、キーごとに上・左・右・下の記号を打ち直せます。<b>空にすればその向きは使いません</b>。<b>↺元にもどす</b>で既定に戻ります。<br>
+            <b>記号は自分で変えられます</b>（v355から）：設定→<b>🎨見た目→くわしい設定</b>の<b>⌨ フリックで入れる記号</b>で、キーごとに上・左・右・下の記号を打ち直せます。<b>空にすればその向きは使いません</b>。<b>↺元にもどす</b>で既定に戻ります。<b>⇄</b>を押してから相手のキーの<b>⇄</b>を押すと、<b>キーまるごと入れかえ</b>られます（例：1の中身と2の中身を交換。v356から）。7・4・1・0に移ったときは「左」が使えないので外れます。<br>
             そのため<b>数字キーの長押しで「ボタンの機能」を割り当てる操作はなくなりました</b>（数字以外のキーは今までどおり長押しで割り当てられます）。</div>
           <div class="help-li"><b>記号ページを出す／隠す</b>（v353から）：設定→<b>🎨見た目→くわしい設定</b>の<b>記号ページを出す</b>で切り替えます。隠すと<b>ページ名の並びからも、フリックの並びからも外れ</b>、数字ページの左どなりが電卓ページになります。記号は上のフリックで入れられるので、ページを減らしてすっきりさせたいときにどうぞ。</div>
           <div class="help-li"><b>テンキーの上に出す道具</b>（v352から）：設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーの上に出す道具</b>で、全画面で開く道具（<b>💧単位水量・🧪カンタブ・🌱野菜・📷容積・📝写真メモ・🔗リンク集・📄メモ・📋式テンプレ・📑決算テンプレ</b>）を選ぶと、テンキーの上の<b>ページ名の並びに足されます</b>（電卓の右）。<b>タップで開きます</b>。<b>↑↓で並び順</b>を変えられ、<b>電卓ページからさらに左へフリック</b>すると<b>いちばん上に並べた道具</b>が開きます（よく使うものを先頭にしておくと、フリックだけで開けます）。たくさん選んで入りきらないときは、ページ名の並びを<b>横にすべらせて</b>見られます（<b>▲登録</b>は右端に残ります）。<br>
-            <b>選んだ道具は全画面で開きます</b>（v354から）。開いているあいだに<b>横にフリック</b>すると、<b>となりの道具へそのまま移れます</b>（左＝次／右＝前）。<b>端でさらにフリック</b>すると閉じてテンキーに戻ります。入力欄・ボタンの上や、縦になぞったときは移りません（じゃまをしないため）。登録を外すと元の大きさに戻ります。</div>
+            <b>選んだ道具は全画面で開きます</b>（v354から）。開いているあいだに<b>横にフリック</b>すると、<b>となりの道具へそのまま移れます</b>（左＝次／右＝前）。<b>端でさらにフリック</b>すると閉じてテンキーに戻ります。入力欄・ボタン・写真の上や、縦になぞったときは移りません（じゃまをしないため）。登録を外すと元の大きさに戻ります。</div>
           <div class="help-li"><b>テンキーの上のページ表示</b>で、いまどのページに居るか分かります。<b>ページ名をタップ</b>するとそのページへ移動できます（数字の並びは「枠線・書式・数字・記号・関数」、右端の<b>▲登録</b>で登録ページの並びへ、<b>▼数字</b>で戻る）。設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーのページ表示</b>で消すこともできます（ページ名は<b>書式・枠線／数字／記号／電卓</b>）。</div>
           <div class="help-li"><b>フリックでも切り替わります</b>（数字ページが土台。数字ページは<b>どこからでもフリック開始OK</b>）：</div>
           <table class="help-tbl">
@@ -11017,7 +11030,7 @@ function loadNpFlick(){
 function saveNpFlick(){ try{ localStorage.setItem(NP_FLICK_KEY, JSON.stringify(npFlick)); }catch(_){} }
 /* ── フリックで入れる記号の割り当てを変える（v355） ── */
 function openFlickSym(){ renderFlickSym(); openDlg('flickSymOverlay'); }
-function closeFlickSym(){ closeDlg('flickSymOverlay'); }
+function closeFlickSym(){ npFlickSwapFrom=null; closeDlg('flickSymOverlay'); }
 function renderFlickSym(){
   const box=document.getElementById('flickSymBody'); if(!box) return;
   box.innerHTML=NP_FLICK_KEYS.map(k=>{
@@ -11029,8 +11042,33 @@ function renderFlickSym(){
         +(dis?' disabled placeholder="—"':` oninput="setNpFlick('${k}',${i},this.value)"`)
         +` onkeydown="event.stopPropagation()" aria-label="${k.slice(1)}の${lb}"></span>`;
     }).join('');
-    return `<div class="fs-row"><span class="fs-num">${k.slice(1)}</span>${cells}</div>`;
+    return `<div class="fs-row${npFlickSwapFrom===k?' fs-picked':''}">`
+      +`<span class="fs-num">${k.slice(1)}</span>${cells}`
+      +`<button class="fs-swap${npFlickSwapFrom===k?' on':''}" onclick="npFlickSwap('${k}')"`
+      +` aria-label="${k.slice(1)}の記号を他のキーと入れかえる">⇄</button></div>`;
   }).join('');
+}
+/* キーごとの記号を、まるごと別のキーと入れかえる（例：1の中身と2の中身を交換）。
+   ⇄を押して相手のキーの⇄を押すと入れかわる。同じキーをもう一度押すとやめる。 */
+let npFlickSwapFrom=null;
+function npFlickSwap(key){
+  if(!npFlick[key]) return;
+  if(npFlickSwapFrom===key){ npFlickSwapFrom=null; renderFlickSym(); return; }
+  if(!npFlickSwapFrom){
+    npFlickSwapFrom=key; renderFlickSym();
+    toast('入れかえる相手のキーで、もう一度 ⇄ を押してください', 4200);
+    return;
+  }
+  const a=npFlickSwapFrom, b=key;
+  const t=npFlick[a]; npFlick[a]=npFlick[b]; npFlick[b]=t;
+  let dropped=false;
+  [a,b].forEach(k=>{
+    if(NP_FLICK_LEFTCOL.indexOf(k)>=0 && npFlick[k][0]!==''){ npFlick[k][0]=''; dropped=true; }
+  });
+  npFlickSwapFrom=null;
+  saveNpFlick(); renderFlickSym();
+  toast(`${a.slice(1)} と ${b.slice(1)} の記号を入れかえました`
+    +(dropped?'（7・4・1・0では「左」が使えないので外しました）':''), 4600);
 }
 function setNpFlick(key, i, v){
   if(!npFlick[key]) return;
@@ -11039,6 +11077,7 @@ function setNpFlick(key, i, v){
   saveNpFlick();
 }
 function resetNpFlick(){
+  npFlickSwapFrom=null;
   try{ localStorage.removeItem(NP_FLICK_KEY); }catch(_){}
   loadNpFlick();
   renderFlickSym();
@@ -11317,29 +11356,39 @@ function npToolStep(dir){
 function bindNpToolSwipe(ovId){
   const ov=document.getElementById(ovId); if(!ov || ov.dataset.npSwipe) return;
   ov.dataset.npSwipe='1';
-  let x0=null, y0=0, id=null, ok=false;
+  let x0=null, y0=0, id=null, ok=false, lx=0, ly=0;
   const skip=el=>{
     for(let e=el; e && e!==ov; e=e.parentElement){
       const tag=e.tagName;
       if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||tag==='BUTTON'||tag==='A'||tag==='SUMMARY') return true;
-      if(e.scrollWidth>e.clientWidth+4) return true;      // 横にすべる箱（野菜の一覧など）
+      if(tag==='CANVAS') return true;                     // 写真の拡大・線引きなど、自分で指を見ている中身
+      if(e.scrollWidth>e.clientWidth+4) return true;      // 横にすべる箱
+      let ta=''; try{ ta=getComputedStyle(e).touchAction; }catch(_){}
+      if(ta==='none') return true;
     }
     return false;
   };
   ov.addEventListener('pointerdown', e=>{
     if(e.button!==undefined && e.button>0) return;
     if(x0!==null) return;
-    x0=e.clientX; y0=e.clientY; id=e.pointerId; ok=!skip(e.target);
+    x0=e.clientX; y0=e.clientY; lx=e.clientX; ly=e.clientY; id=e.pointerId; ok=!skip(e.target);
   });
-  ov.addEventListener('pointerup', e=>{
+  ov.addEventListener('pointermove', e=>{
     if(x0===null || e.pointerId!==id) return;
-    const dx=e.clientX-x0, dy=e.clientY-y0;
+    lx=e.clientX; ly=e.clientY;
+  });
+  /* 指を離したとき（pointerup）と、途中でブラウザに取られたとき（pointercancel）の両方で見る。
+     取られたときは最後に見えた位置で判断する。 */
+  const decide=(x, y)=>{
+    if(x0===null) return;
+    const dx=x-x0, dy=y-y0;
     x0=null;
     if(!ok) return;
     if(Math.abs(dx)<NP_SWIPE_MIN || Math.abs(dx)<Math.abs(dy)*1.5) return;   // はっきり横のときだけ
     npToolStep(dx<0 ? 1 : -1);
-  });
-  ov.addEventListener('pointercancel', ()=>{ x0=null; });
+  };
+  ov.addEventListener('pointerup', e=>{ if(e.pointerId===id) decide(e.clientX, e.clientY); });
+  ov.addEventListener('pointercancel', e=>{ if(e.pointerId===id) decide(lx, ly); });
 }
 function bindAllNpToolSwipe(){ NP_TOOLS.forEach(t=>{ if(t.ov) bindNpToolSwipe(t.ov); }); }
 
@@ -16434,7 +16483,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v355';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v356';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
