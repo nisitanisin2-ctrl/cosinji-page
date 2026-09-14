@@ -795,6 +795,46 @@ async function runSpeech(browser) {
   check('  🎤続けもキーに割り当てられる',
         await page.evaluate(() => KEY_FUNCS.a_voiceseq ? KEY_FUNCS.a_voiceseq.label : 'なし'), '🎤続け');
 
+  // ── 電卓モードでも声で計算できること ──
+  await page.evaluate(() => { window.__q = [];
+    window.SpeechRecognition = class {
+      start() { this._on = true; setTimeout(() => { if (!this._on) return;
+        const t = window.__q.shift(); if (t === undefined) return;
+        if (this.onresult) this.onresult({ resultIndex: 0,
+          results: [Object.assign([{ transcript: t }], { isFinal: true })] }); }, 30); }
+      abort() { this._on = false; } };
+  });
+  const sayDt = async t => { await page.evaluate(x => { window.__q = [x]; voiceStop(); voiceStart(); }, t);
+    await page.waitForTimeout(450); };
+  for (const style of ['simple', 'expr']) {
+    await page.evaluate(x => { voiceKeepGoing = false; switchMode('dentaku');
+      dtStyle = x; dtTape = []; dtExpr = ''; disp_val = '0'; dtRender(); }, style);
+    await page.waitForTimeout(400);
+    await sayDt('251かける68');
+    check(`  電卓(${style}) 声で計算できる`,
+          await page.evaluate(() => document.getElementById('dtMain').textContent), '17068');
+    check(`  電卓(${style}) 履歴に読みやすい形で残る`,
+          await page.evaluate(() => dtTape[dtTape.length - 1].e + '=' + dtTape[dtTape.length - 1].v), '251×68=17068');
+    await sayDt('かっこ100たす20かっことじかける3');
+    check(`  電卓(${style}) かっこも計算できる`,
+          await page.evaluate(() => document.getElementById('dtMain').textContent), '360');
+    await sayDt('みかん3個');
+    check(`  電卓(${style}) 式でないときは知らせる`,
+          await page.evaluate(() => /計算の形で言って/.test(document.getElementById('appToast').textContent)), true);
+  }
+  // 続けて入れる（電卓ではセルが無いので、聞き直すだけ）
+  await page.evaluate(() => { dtTape = []; dtRender();
+    window.__q = ['2かける3', '4かける5', '10わる4']; voiceStop(); voiceKeepGoing = true; voiceStart(); });
+  await page.waitForTimeout(2600);
+  check('  電卓でも続けて入れられる',
+        await page.evaluate(() => dtTape.map(x => x.e + '=' + x.v).join('/')), '2×3=6/4×5=20/10÷4=2.5');
+  await page.evaluate(() => voiceCancel()); await page.waitForTimeout(200);
+  // 表に戻れば、今までどおりセルへ入る
+  await page.evaluate(() => { switchMode('normal'); setCellVal(0, 0, ''); sel(0, 0); });
+  await page.waitForTimeout(500);
+  await sayDt('7かける8');
+  check('  表に戻ればセルに入る', await page.evaluate(() => data[0][0]), '=7*8');
+
   // ── 聞いている窓の中で「続けて入れる」を切り替えられること ──
   // テンキーの🎤声キーは長押しが「別の機能に変更」なので、長押しでは切り替えられない。
   await page.evaluate(() => { window.__q = [];
