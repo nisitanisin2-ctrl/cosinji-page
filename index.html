@@ -4369,7 +4369,7 @@ body.dark {
               <tr><td><span class="help-key">セルを指す</span></td><td>「<b>A1たすB2</b>」「<b>エー1たすビー2</b>」→ <code>=A1+B2</code></td></tr>
               <tr><td><span class="help-key">まとめて計算</span></td><td>「<b>A1からA5の合計</b>」→ <code>=SUM(A1:A5)</code>。<b>平均・最大・最小</b>も同じ言い方でできます</td></tr>
               <tr><td><span class="help-key">ルート・◯乗</span></td><td>「<b>ルート16かける3</b>」→ <code>=SQRT(16)*3</code>／「<b>2の10乗</b>」→ <code>=2^10</code></td></tr>
-              <tr><td><span class="help-key">続けて入れる</span></td><td>聞いている窓の中の<b>🔁続けて入れる</b>を押すと、1つ言うたびに<b>下のセルへ移って</b>また聞きます（もう一度押すとやめる。「左に式・右に答え」で入れているときも同じように下へ進み、いちばん下まで来たら行を足します）。やめるときは<b>窓の外をタップ</b>。<br>はじめから続けて入れたいときは、<b>⋯の🎤を長押し</b>するか、キーに「設定・機能→<b>🎤続け</b>」を割り当ててください。<b>テンキーの🎤声キーは長押しが「別の機能に変更」</b>なので、そちらでは切り替わりません（v333で窓の中に入れました）</td></tr>
+              <tr><td><span class="help-key">続けて入れる</span></td><td>聞いている窓の中の<b>🔁続けて入れる</b>を押すと、1つ言うたびに<b>下のセルへ移って</b>また聞きます（もう一度押すとやめる。「左に式・右に答え」で入れているときも同じように下へ進み、いちばん下まで来たら行を足します）。やめるときは<b>窓の外をタップ</b>。<b>入れ終わったら端末のキーボードは出ません</b>（v351。「文字」キーから声に切り替えたときも、そのまま表に戻ります）。<br>はじめから続けて入れたいときは、<b>⋯の🎤を長押し</b>するか、キーに「設定・機能→<b>🎤続け</b>」を割り当ててください。<b>テンキーの🎤声キーは長押しが「別の機能に変更」</b>なので、そちらでは切り替わりません（v333で窓の中に入れました）</td></tr>
               <tr><td><span class="help-key">移るだけ</span></td><td>「<b>次</b>」「下」「右」「左」「上」と言うと、入れずにそのセルへ移ります</td></tr>
               <tr><td><span class="help-key">入れかたを選ぶ</span></td><td><b>設定→🧮計算→声の入れかた</b>（v327から）。<b>「式を入れる」</b>＝選んだセルに <code>=251*68</code>（答えが出ます）。<b>「左に式・右に答え」</b>＝選んだセルに <b>251×68</b>（読むための文字）、<b>右のセルに答え</b>を入れます。右のセルは式なので、あとから数字を直せば答えも変わり、<b>Σ合計</b>にも入ります。右に列が無いときは1列増やします。<b>↶戻る</b>1回で両方戻せます。<br>
               <b>v344で直しました</b>：引き算の式（例「12ひく5」）が<b>日付（12月5日）と読まれて式が消える</b>ことがありました。式の見せ方を電卓と同じ <b>＋ − × ÷</b> にそろえて直しています。また、<b>右のセルが保護されているとき</b>（買物モードの自動計算列や、自分で保護したセル）は<b>その先の使えるセルに答えを入れる</b>ようにしました。どうしても入れる場所が無いときだけ、そのセルに式（答え）を入れ、<b>そのわけをお知らせに出します</b></td></tr>
@@ -13467,9 +13467,20 @@ function voiceAcceptDentaku(raw){
   speechSay(num);
 }
 
+/* 声で入れ終わったら、端末のキーボードが出ないように入力欄から手を離す。
+   窓を閉じると「開く前にフォーカスがあった場所」へ戻す作りなので、
+   「文字」キーなどで入力欄にフォーカスがあると、そこへ戻ってキーボードが出てしまう。
+   その戻しより後に効かせたいので、少し待ってから外す。 */
+function voiceDropFocus(){
+  setTimeout(()=>{
+    const el=document.activeElement;
+    if(el && (el.tagName==='INPUT' || el.tagName==='TEXTAREA')){ try{ el.blur(); }catch(_){} }
+  }, 0);
+}
 /* 聞き取れた言葉をセルへ入れる（式に見えれば式にして計算） */
 function voiceAccept(text){
   const raw=String(text).trim();
+  voiceDropFocus();
   if(typeof isDentaku==='function' && isDentaku()){
     voiceStop();
     if(raw) voiceAcceptDentaku(raw); else toast('聞き取れませんでした');
@@ -16003,7 +16014,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v350';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v351';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
