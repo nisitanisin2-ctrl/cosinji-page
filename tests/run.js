@@ -873,6 +873,64 @@ async function runVeggie(browser) {
     /その名前の野菜はありません/.test(document.getElementById('vegChips').textContent)), true);
   await page.fill('#vegFind', ''); await page.waitForTimeout(200);
 
+  // ── 育てている野菜の記録（上の一覧）と、種から／苗から ──
+  check('  一覧はいちばん上に出す', await page.evaluate(() => {
+    const body = document.querySelector('#veggieOverlay .modal-body');
+    return body.firstElementChild.querySelector('#vegPlotBody') ? 'top' : 'other'; }), 'top');
+  check('  はじめは案内だけ', await page.evaluate(() =>
+    /まだありません/.test(document.getElementById('vegPlotBody').textContent)), true);
+  await plant('トマト', 2026, 3, 1);
+  check('  種から育てる野菜は「苗から」も選べる', await page.evaluate(() =>
+    document.getElementById('vegAsRow').style.display !== 'none'), true);
+  check('  はじめは種から', await page.evaluate(() =>
+    vegAs + '/' + document.getElementById('vegDateLb').textContent), 'seed/種まき日');
+  await page.evaluate(() => vegSetAs('nae')); await page.waitForTimeout(200);
+  check('  苗からにすると数える起点が変わる', await page.evaluate(() =>
+    document.getElementById('vegDateLb').textContent), '苗を植えた日');
+  check('  苗からは植えるまでの作業を出さない', await plan(),
+        '苗を植える 3/1(日) 0日 / 花が咲く 3/16(月)〜3/31(火) 15〜30日 / 追肥 3/31(火)〜4/10(金) 30〜40日 / '
+        + '収穫はじめ 4/15(水)〜4/30(木) 45〜60日 / 収穫おわり 6/4(木)〜6/29(月) 95〜120日');
+  await page.evaluate(() => vegPlotAdd()); await page.waitForTimeout(200);
+  check('  登録すると一覧に並ぶ', await page.evaluate(() => vegPlots.length), 1);
+  check('  一覧の中身', await page.evaluate(() =>
+    document.getElementById('vegPlotBody').innerText.replace(/\s+/g, ' ').includes('トマト苗 2026/3/1 に植えた')), true);
+  check('  件数を見出しに出す', await page.evaluate(() =>
+    document.getElementById('vegPlotCount').textContent), '（1）');
+  await page.evaluate(() => vegSetAs('seed')); await page.waitForTimeout(150);
+  await plant('ダイコン', 2026, 9, 10);
+  check('  植えつけから数える野菜は「苗から」を出さない', await page.evaluate(() =>
+    (plant => document.getElementById('vegAsRow').style.display)()), 'none');
+  await page.evaluate(() => vegPlotAdd()); await page.waitForTimeout(200);
+  check('  2つめも登録できる', await page.evaluate(() => vegPlots.length), 2);
+  check('  同じものは二重に登録しない', await page.evaluate(() => {
+    vegPlotAdd(); return vegPlots.length; }), 2);
+  check('  つぎの作業と残り日数を出す', await page.evaluate(() =>
+    /(つぎ|いま|きょう) .+|予定はおわりました/.test(document.getElementById('vegPlotBody').innerText)), true);
+  // 選ぶと、その野菜と日付に戻る
+  await plant('キュウリ', 2026, 5, 1);
+  check('  選ぶ前はちがう野菜', await page.evaluate(() => vegSel.n), 'キュウリ');
+  await page.evaluate(() => vegPlotPick(vegPlots.find(x => x.n === 'トマト').id));
+  await page.waitForTimeout(300);
+  check('  一覧から選ぶと元の予定に戻る', await page.evaluate(() =>
+    vegSel.n + '/' + vegDateText(vegSowSerial) + '/' + vegAs), 'トマト/2026/3/1/nae');
+  check('  選んだものに印が付く', await page.evaluate(() =>
+    document.querySelectorAll('#vegPlotBody .veg-plot.on').length), 1);
+  await page.evaluate(() => vegPick(vegAll().findIndex(v => v.n === 'ナス'))); await page.waitForTimeout(200);
+  check('  自分で変えたら印は外れる', await page.evaluate(() =>
+    document.querySelectorAll('#vegPlotBody .veg-plot.on').length), 0);
+  // 開き直しても残る／消せる
+  await page.reload(); await page.waitForTimeout(900);
+  await open();
+  check('  開き直しても残る', await page.evaluate(() =>
+    vegPlots.map(x => x.n).sort().join(',')), 'ダイコン,トマト');
+  check('  地域の設定は記録によらず共通', await page.evaluate(() => {
+    const a = JSON.parse(localStorage.getItem('excalc_veg_area') || '{}');
+    return typeof a === 'object' && !('plots' in a) && !localStorage.getItem('excalc_veg_plots').includes('alt'); }), true);
+  await page.evaluate(() => vegPlotDel(vegPlots[0].id)); await page.waitForTimeout(200);
+  check('  消せる', await page.evaluate(() => vegPlots.length), 1);
+  await page.evaluate(() => { vegPlots = []; saveVegPlots(); vegRenderPlots(); vegSetAs('seed'); });
+  await page.waitForTimeout(150);
+
   // ── 地域・標高・寒冷地で日数を補正する ──
   const area = async (id, alt, cold) => { await page.evaluate(([id, alt, cold]) => {
       document.getElementById('vegAreaSel').value = id;

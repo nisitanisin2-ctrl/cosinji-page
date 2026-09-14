@@ -1347,7 +1347,15 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
 .dp-cell.sel { background: var(--acc); border-color: var(--acc); color: #fff; }
 .dp-foot { padding: 12px; display: flex; justify-content: center; }
 /* 野菜の育成計画（種まきの日から、間引き・追肥・収穫の予定をカレンダーで見る） */
-.veg-modal { max-width: 460px; }
+/* 育成計画は見るものが多いので全画面にする（v347） */
+.veg-modal {
+  width: 100%; max-width: none; height: 100%; max-height: 100%;
+  border-radius: 0;
+}
+.veg-modal .modal-body { padding: 12px 14px 16px; }
+@media (min-width: 700px) {   /* パソコンなど広い画面では、読みやすい幅で真ん中に */
+  .veg-modal { width: 96%; max-width: 900px; height: 96%; border-radius: var(--r-card); }
+}
 .veg-find { flex: 1; }
 .veg-pickbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .veg-lb { flex-shrink: 0; font-size: 13px; font-weight: bold; color: var(--text-light); }
@@ -1408,6 +1416,25 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
 .dp-cell.veg-on { color: #fff; font-weight: bold; border-color: transparent; }
 .dp-cell.veg-band { border-style: dashed; }
 .veg-note { font-size: 11px; color: var(--text-light); line-height: 1.5; margin: 8px 2px 10px; }
+.veg-plots { padding: 8px 10px 10px; margin-bottom: 12px; }
+#vegPlotBody { max-height: 38vh; overflow-y: auto; }
+.veg-plot-h { font-size: 14px; font-weight: bold; color: var(--text); margin-bottom: 6px; }
+.veg-plot { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
+.veg-plot-main {
+  flex: 1; min-width: 0; text-align: left; padding: 8px 10px; border-radius: var(--r-btn);
+  border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text);
+  cursor: pointer; touch-action: manipulation;
+}
+.veg-plot.on .veg-plot-main { border-color: var(--acc); background: rgba(67,160,71,.14); }
+.veg-plot-n { display: block; font-size: 14px; font-weight: bold; }
+.veg-plot-as {
+  display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px;
+  font-size: 11px; font-weight: bold; background: var(--pm-chip, rgba(120,132,156,.2)); color: var(--text-light);
+}
+.veg-plot-memo { margin-left: 6px; font-size: 12px; font-weight: normal; color: var(--text-light); }
+.veg-plot-sub { display: block; font-size: 12px; color: var(--text-light); margin-top: 2px; line-height: 1.4; }
+.veg-as { display: flex; gap: 4px; }
+.veg-as-btn.on { background: var(--acc); border-color: var(--acc); color: #fff; }
 .veg-sec { margin: 4px 0 10px; border: 1px solid var(--border); border-radius: var(--r-btn); }
 .veg-sec > summary {
   font-size: 14px; font-weight: bold; color: var(--text); cursor: pointer;
@@ -3678,6 +3705,11 @@ body.dark {
       <button class="modal-close" onclick="closeVeggie()">✕</button>
     </div>
     <div class="modal-body">
+      <div class="veg-sec veg-plots" open>
+        <div class="veg-plot-h">🪴 育てている野菜<span id="vegPlotCount"></span></div>
+        <div id="vegPlotBody"></div>
+        <button class="veg-my-add" onclick="vegPlotAdd()">＋ 下の内容（野菜と植えた日）を登録する</button>
+      </div>
       <div class="veg-pickbar">
         <span class="veg-lb">野菜</span>
         <input type="search" id="vegFind" class="regpick-input veg-find" placeholder="名前でさがす"
@@ -3693,6 +3725,10 @@ body.dark {
         <input type="number" class="veg-num" id="vegD" inputmode="numeric" onchange="vegDateChange()" aria-label="日">
         <span>日</span>
         <button class="veg-mini" onclick="vegToday()">今日</button>
+        <span class="veg-as" id="vegAsRow">
+          <button class="veg-mini veg-as-btn" id="vegAsSeed" onclick="vegSetAs('seed')">種から</button>
+          <button class="veg-mini veg-as-btn" id="vegAsNae" onclick="vegSetAs('nae')">苗から</button>
+        </span>
       </div>
       <div class="veg-row">
         <span class="veg-lb">地域</span>
@@ -4406,7 +4442,10 @@ body.dark {
           <div class="help-li"><b>💧単位水量</b>：土研法エアメータ法で、生コンの単位水量を推定します。<b>配合</b>（W1・セメント・細骨材・粗骨材・混和材・配合空気量）と<b>試験値</b>（容器+試料 m2・測定空気量 A2・容器容積 V・容器質量 m1）を入れると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で推定し、配合の W1 との<b>差</b>で合否を判定します。配合はkg/m³、質量はg、容積はccで入力。<b>推定単位水量と差を大きく並べて</b>出し、差は合否と同じ色（合格＝緑／要注意＝橙／不合格＝赤）になります。<b>🧮計算の途中経過</b>で⑦〜⑱の値も確認でき、いちばん下の<b>▦推定単位水量をセルに入れる</b>で選択中のセルへ入ります。入れた値は次に開いたときも残ります。<br>よく使う配合（30件まで）とエアメータ（5件まで）は<b>📋配合の登録</b>・<b>🧪エアメータの登録</b>（それぞれ別の画面）に入れておけて、<b>配合番号・エアメータ番号</b>に番号を入れるだけで呼び出せます。配合には番号とは別に<b>配合の呼び名</b>（例 21-5-40BB）を入れておけ、番号を入れると<b>どの配合を呼び出したか名前で確認</b>できます（番号が登録に無いときもその場で分かります）。<b>配合</b>の見出しを押すと配合の欄を<b>折りたためます</b>（閉じている間は見出しの右に呼び名が出ます）。許容差と小数桁は<b>⚙設定</b>で変えられます。 <b>🖨結果を1ページのPDFに</b>と<b>🖼画像で保存・📤画像を共有</b>（v345から）で、<b>配合・試験値・結果（推定単位水量・差・判定）・判定のめやす・計算の途中経過</b>をまとめた<b>報告書をA4たて1枚</b>に書き出せます。</div>
           <div class="help-li"><b>🌱野菜の育成計画</b>（v340から）：<b>野菜を選んで、種をまいた日（いも・苗は植えつけた日）を入れるだけ</b>で、<b>発芽・間引き・追肥・収穫</b>などの<b>予定日</b>が出ます。いちばん上に<b>「収穫は◯〜◯日後（◯月◯日〜◯月◯日）」</b>と大きく出るので、<b>何日後にとれるか</b>がひと目で分かります。<br>
             ・<b>カレンダー</b>にも色が付きます（<span style="color:#6d4c41">■</span>種まき・植えつけ／<span style="color:#7cb342">■</span>発芽・根づく／<span style="color:#1565c0">■</span>間引き・土寄せなどの手入れ／<span style="color:#ef6c00">■</span>追肥／<span style="color:#c2185b">■</span>花・受粉／<span style="color:#2e7d32">■</span>収穫）。濃い色が<b>その作業の初日</b>、薄い色は<b>そのあいだの期間</b>です。<b>‹ ›</b>で月を送り、<b>「種まきの月」</b>で戻ります<br>
-            ・<b>地域・標高・寒冷地</b>を選ぶと、<b>日数を補正</b>します（v341から）。寒いところほど育ちはゆっくりなので、日数に倍率をかけます。<b>地域</b>は沖縄〜北海道の7つ（関東・東海・近畿が標準）、<b>標高</b>は100mごとに約2%おそく（気温が約0.6℃下がるめやす）、<b>寒冷地（霜がおりる畑）</b>でさらに5%おそくします。いまかかっている補正は<b>「補正 ＋34%（日数を1.34倍）」</b>のように画面に出ます。<b>種まきの時期を標準の地域よりどれだけずらすとよいか</b>も出ます（例：北海道は4週間おそめ）。この設定は<b>次に開いたときも残ります</b><br>
+            ・<b>🪴 育てている野菜</b>（v347から）：画面のいちばん上に、<b>いつ・何を・種から／苗から 植えたか</b>の記録が並びます。<b>＋下の内容（野菜と植えた日）を登録する</b>で、いま出している内容をそのまま登録できます。行をタップすると<b>その予定に戻ります</b>（下の予定のところまで自動で送ります）。それぞれの行には<b>植えてから何日目か</b>と<b>つぎの作業とあと何日か</b>（例「つぎ 追肥 あと12日」「いま 発芽（1日まで）」）が出るので、いくつ育てていても一目で分かります。<b>✎</b>で畑や品種の名前を付けられ、<b>✕</b>で消せます。開き直しても残ります<br>
+            ・<b>種から／苗から</b>（v347から）：種から育てる野菜では、<b>苗から</b>を選ぶと<b>苗を植えた日を0日目</b>として数え直します（それより前の発芽・鉢上げなどは出しません）。いも・苗から育てるもの（ジャガイモ・イチゴなど）は、はじめから植えつけの日で数えるのでこの選びは出ません<br>
+            ・<b>画面は全画面</b>で開きます（v347から。見るものが多いため）<br>
+            ・<b>地域・標高・寒冷地</b>を選ぶと、<b>日数を補正</b>します（v341から）。<b>この設定は1つだけ持ち、登録したどの野菜にも共通でかかります</b>（1度入れておけば、あとは入れ直さなくて大丈夫です）。寒いところほど育ちはゆっくりなので、日数に倍率をかけます。<b>地域</b>は沖縄〜北海道の7つ（関東・東海・近畿が標準）、<b>標高</b>は100mごとに約2%おそく（気温が約0.6℃下がるめやす）、<b>寒冷地（霜がおりる畑）</b>でさらに5%おそくします。いまかかっている補正は<b>「補正 ＋34%（日数を1.34倍）」</b>のように画面に出ます。<b>種まきの時期を標準の地域よりどれだけずらすとよいか</b>も出ます（例：北海道は4週間おそめ）。この設定は<b>次に開いたときも残ります</b><br>
             ・野菜は<b>33種類</b>入っています。多いので<b>名前でさがす</b>欄も使えます<br>
             ・<b>▦ 予定表を表に入れる</b>を押すと、<b>選んでいるセルを左上にして</b>「作業／予定日／おわり／日数」の表が入ります。日付は<b>日付として</b>入るので、そのまま計算や並べ替えに使えます（<b>↶戻る</b>で元に戻せます）<br>
             ・<b>🧪 肥料と配合</b>（v342から）：その野菜に合う<b>土づくり・元肥・追肥</b>を出します。<b>苦土石灰・完熟たい肥</b>の量、<b>化成肥料の配合（8-8-8 など）と量</b>、<b>土のpHの目安</b>つきです。<b>畑の広さ（㎡）</b>を入れると<b>全体で何g要るか</b>まで出ます（例：100〜150g/㎡ → 3㎡で 300〜450g）。追肥の欄には<b>この計画での追肥の日</b>も出ます。ジャガイモは石灰をまかない、サツマイモは追肥をしないなど、<b>野菜ごとのくせ</b>も書いてあります<br>
@@ -7757,7 +7796,7 @@ function vegRenderFert(){
     </div>
     <div class="veg-fline"><span class="veg-fno">①</span><span class="veg-fwhat">土づくり</span>
       <span class="veg-fval">苦土石灰 ${escHtml(lime)}<br>完熟たい肥 ${escHtml(vegAmt(f.compost,'kg'))}<br>
-      <small>石灰は${escHtml(vegSel.from||'種まき')}の2週間前、たい肥と元肥は1週間前までに混ぜておきます</small></span></div>
+      <small>石灰は${escHtml(vegStartLabel())}の2週間前、たい肥と元肥は1週間前までに混ぜておきます</small></span></div>
     <div class="veg-fline"><span class="veg-fno">②</span><span class="veg-fwhat">元肥</span>
       <span class="veg-fval">化成肥料 <b>${escHtml(f.base.npk)}</b> を ${escHtml(vegAmt(f.base.g,'g'))}</span></div>
     <div class="veg-fline"><span class="veg-fno">③</span><span class="veg-fwhat">追肥</span>
@@ -7836,6 +7875,108 @@ function vegRenderTips(){
   box.innerHTML=VEG_TIP_LABELS.map(([k,lb])=>
     `<div class="veg-fline"><span class="veg-fwhat">${lb}</span><span class="veg-fval">${escHtml(t[k])}</span></div>`).join('');
 }
+/* ── 育てている野菜の記録（いつ・何を・種から/苗から 植えたか）──────
+   登録しておくと、一覧の上から選んですぐ予定を見直せる。
+   地域・標高・寒冷地の補正は1つだけ持ち、どの記録にも共通でかかる。 */
+const VEG_PLOT_KEY='excalc_veg_plots';
+let vegPlots=[];        // [{id, n:'トマト', as:'seed'|'nae', s:通し番号, memo:''}]
+let vegPlotSel=null;    // いま選んでいる記録のid
+let vegAs='seed';       // 'seed'＝種から／'nae'＝苗から
+function loadVegPlots(){
+  try{ const a=JSON.parse(localStorage.getItem(VEG_PLOT_KEY)||'[]'); vegPlots=Array.isArray(a)?a:[]; }catch(_){ vegPlots=[]; }
+}
+function saveVegPlots(){ try{ localStorage.setItem(VEG_PLOT_KEY, JSON.stringify(vegPlots)); }catch(_){} }
+/* 苗から植えられる野菜か（種から育てる計画に「畑に植える」があるもの） */
+function vegTransplantDay(){
+  if(!vegSel || (vegSel.from||'種まき')!=='種まき') return -1;
+  const i=(vegSel.s||[]).findIndex(x=>/畑に植える|植えつけ/.test(String(x[0])));
+  return (i<0)?-1:Math.max(0, Math.round(Number(vegSel.s[i][1])||0));
+}
+function vegCanNae(){ return vegTransplantDay()>=0; }
+/* 苗から始めたときに、何日目を0日とみなすか */
+function vegBaseDay(){ return (vegAs==='nae' && vegCanNae()) ? vegTransplantDay() : 0; }
+/* 数える起点の呼び名（種まき／植えつけ／苗を植える） */
+function vegStartLabel(){ return (vegAs==='nae' && vegCanNae()) ? '苗を植える' : (vegSel?(vegSel.from||'種まき'):'種まき'); }
+function vegSetAs(v){
+  vegAs=(v==='nae')?'nae':'seed'; vegPlotSel=null; vegRenderPlots();
+  vegRenderDate(); vegRenderPlan(); vegRenderCal(); vegRenderFert();
+}
+/* 一覧に出す一行ぶんの見出し（つぎの作業と、あと何日か） */
+function vegPlotNext(pl){
+  const keepSel=vegSel, keepS=vegSowSerial, keepAs=vegAs;
+  vegSel=vegAll().find(v=>v.n===pl.n)||keepSel; vegSowSerial=pl.s; vegAs=pl.as;
+  const rows=vegRows();
+  vegSel=keepSel; vegSowSerial=keepS; vegAs=keepAs;
+  if(!rows.length) return '';
+  const today=todaySerial();
+  const next=rows.find(r=>r.to>=today);
+  if(!next) return '予定はおわりました';
+  const d=next.from-today;
+  if(d>0)  return `つぎ ${next.what} あと${d}日`;
+  if(next.to>today) return `いま ${next.what}（${next.to-today}日まで）`;
+  return `きょう ${next.what}`;
+}
+function vegRenderPlots(){
+  const box=document.getElementById('vegPlotBody'), cnt=document.getElementById('vegPlotCount');
+  if(!box) return;
+  if(cnt) cnt.textContent=vegPlots.length?`（${vegPlots.length}）`:'';
+  if(!vegPlots.length){
+    box.innerHTML='<div class="veg-empty">まだありません。下で野菜と植えた日を決めて、<b>＋この内容を登録</b>を押すとここに並びます。</div>';
+    return;
+  }
+  const today=todaySerial();
+  const list=vegPlots.slice().sort((a,b)=>b.s-a.s);   // 新しく植えたものを上に
+  box.innerHTML=list.map(pl=>{
+    const v=vegAll().find(x=>x.n===pl.n);
+    const ico=v?(v.i||'🌱'):'🌱';
+    const days=today-pl.s;
+    return `<div class="veg-plot${pl.id===vegPlotSel?' on':''}">
+      <button class="veg-plot-main" onclick="vegPlotPick('${pl.id}')">
+        <span class="veg-plot-n">${ico} ${escHtml(pl.n)}<span class="veg-plot-as">${pl.as==='nae'?'苗':'種'}</span>${pl.memo?`<span class="veg-plot-memo">${escHtml(pl.memo)}</span>`:''}</span>
+        <span class="veg-plot-sub">${vegDateText(pl.s)} に${pl.as==='nae'?'植えた':'まいた'}（${days>=0?days+'日目':'あと'+(-days)+'日'}）　${escHtml(vegPlotNext(pl))}</span>
+      </button>
+      <button class="veg-mini" onclick="vegPlotMemo('${pl.id}')" aria-label="${escHtml(pl.n)}に名前を付ける">✎</button>
+      <button class="veg-my-del" onclick="vegPlotDel('${pl.id}')" aria-label="${escHtml(pl.n)}を消す">✕</button>
+    </div>`;
+  }).join('');
+}
+function vegPlotPick(id){
+  const pl=vegPlots.find(x=>x.id===id); if(!pl) return;
+  const v=vegAll().find(x=>x.n===pl.n);
+  if(v) vegSel=v;
+  vegSowSerial=pl.s;
+  vegAs=(pl.as==='nae')?'nae':'seed';
+  vegPlotSel=id;
+  vegCalHome();
+  vegRenderAll();
+  const head=document.getElementById('vegHead'), body=document.querySelector('#veggieOverlay .modal-body');
+  if(head&&body) body.scrollTop=Math.max(0, head.offsetTop-body.offsetTop-8);   // 予定のところまで送る
+  toast(`${pl.n}（${vegDateText(pl.s)}）の予定を出しました`);
+}
+function vegPlotAdd(){
+  if(!vegSel || vegSowSerial===null){ toast('野菜を選んでください'); return; }
+  const same=vegPlots.find(x=>x.n===vegSel.n && x.s===vegSowSerial && x.as===vegAs);
+  if(same){ vegPlotSel=same.id; vegRenderPlots(); toast('同じものがすでに登録されています'); return; }
+  const id='p'+Date.now().toString(36)+Math.floor(Math.random()*1000).toString(36);
+  vegPlots.push({id, n:vegSel.n, as:vegAs, s:vegSowSerial, memo:''});
+  vegPlotSel=id;
+  saveVegPlots(); vegRenderPlots();
+  toast(`${vegSel.n}（${vegDateText(vegSowSerial)}）を登録しました`);
+}
+async function vegPlotMemo(id){
+  const pl=vegPlots.find(x=>x.id===id); if(!pl) return;
+  const v=await appPrompt('畑や品種の名前（空でもOK）', pl.memo||'');
+  if(v===null) return;
+  pl.memo=String(v).trim().slice(0,20);
+  saveVegPlots(); vegRenderPlots();
+}
+function vegPlotDel(id){
+  const i=vegPlots.findIndex(x=>x.id===id); if(i<0) return;
+  vegPlots.splice(i,1);
+  if(vegPlotSel===id) vegPlotSel=null;
+  saveVegPlots(); vegRenderPlots();
+  toast('消しました');
+}
 const VEG_MY_KEY='excalc_veg_my';       // 自分で登録した野菜
 let vegMy=[];                            // [{n,i,from,sow,s:[[名前,はじめ,おわり],…]}]
 let vegSel=null;                         // 選んでいる野菜（VEG_PLANS か vegMy の要素）
@@ -7866,17 +8007,19 @@ function vegFmtDate(serial){
 /* 予定表の中身：[{what, from, to, d1, d2}]（from/to は通し番号） */
 function vegRows(){
   if(!vegSel || vegSowSerial===null) return [];
-  const f=vegFactor();
-  const rows=[{what:vegSel.from||'種まき', from:vegSowSerial, to:vegSowSerial, d1:0, d2:0}];
+  const f=vegFactor(), base=vegBaseDay();
+  const bf=Math.round(base*f);
+  const rows=[{what:vegStartLabel(), from:vegSowSerial, to:vegSowSerial, d1:0, d2:0}];
   (vegSel.s||[]).forEach(([what,a,b])=>{
     const b1=Math.max(0,Math.round(Number(a)||0)), b2=Math.max(b1,Math.round(Number(b)||b1));
-    const d1=Math.round(b1*f), d2=Math.max(d1, Math.round(b2*f));   // 地域・標高・寒冷地の補正
+    if(base>0 && b1<=base) return;                                  // 苗から始めたときは、植えるまでの作業は出さない
+    const d1=Math.max(0, Math.round(b1*f)-bf), d2=Math.max(d1, Math.round(b2*f)-bf);   // 地域・標高・寒冷地の補正
     rows.push({what, from:vegSowSerial+d1, to:vegSowSerial+d2, d1, d2});
   });
   return rows;
 }
 function openVeggie(){
-  loadVegMy(); loadVegArea();
+  loadVegMy(); loadVegArea(); loadVegPlots();
   if(!vegSel) vegSel=VEG_PLANS[0];
   if(vegSowSerial===null) vegSowSerial=todaySerial();
   const {y,m}=serialToYMD(vegSowSerial); vegCalY=y; vegCalM=m;
@@ -7886,7 +8029,7 @@ function openVeggie(){
 }
 function closeVeggie(){ document.getElementById('veggieOverlay').classList.remove('open'); releaseBackGuard(); }
 
-function vegRenderAll(){ vegRenderChips(); vegRenderDate(); vegRenderArea(); vegRenderPlan(); vegRenderCal(); vegRenderFert(); vegRenderTips(); vegRenderSick(); vegRenderMy(); }
+function vegRenderAll(){ vegRenderPlots(); vegRenderChips(); vegRenderDate(); vegRenderArea(); vegRenderPlan(); vegRenderCal(); vegRenderFert(); vegRenderTips(); vegRenderSick(); vegRenderMy(); }
 /* 地域・標高・寒冷地の欄と、いまかかっている補正の案内 */
 function vegRenderArea(){
   const selEl=document.getElementById('vegAreaSel'), alt=document.getElementById('vegAlt'),
@@ -7922,7 +8065,7 @@ function vegRenderChips(){
 }
 function vegPick(idx){
   const v=vegAll()[idx]; if(!v) return;
-  vegSel=v;
+  vegSel=v; vegPlotSel=null;
   vegCalHome();          // 選び直したら種まきの月へ戻す
   vegRenderAll();
 }
@@ -7932,17 +8075,23 @@ function vegRenderDate(){
   const set=(id,v)=>{ const e=document.getElementById(id); if(e) e.value=v; };
   set('vegY',y); set('vegM',m); set('vegD',d);
   const lb=document.getElementById('vegDateLb');
-  if(lb) lb.textContent=((vegSel&&vegSel.from)||'種まき')+'日';
+  if(lb) lb.textContent=vegStartLabel().replace('苗を植える','苗を植えた')+'日';
+  const row=document.getElementById('vegAsRow');
+  if(row) row.style.display=vegCanNae()?'':'none';        // 苗から植えられる野菜のときだけ出す
+  if(!vegCanNae()) vegAs='seed';
+  const a=document.getElementById('vegAsSeed'), n=document.getElementById('vegAsNae');
+  if(a) a.classList.toggle('on', vegAs!=='nae');
+  if(n) n.classList.toggle('on', vegAs==='nae');
 }
 function vegDateChange(){
   const num=id=>parseInt((document.getElementById(id)||{}).value,10);
   const s=mkSerial(num('vegY'), num('vegM'), num('vegD'));
   if(s===null){ toast('その日付はありません'); vegRenderDate(); return; }
-  vegSowSerial=s;
+  vegSowSerial=s; vegPlotSel=null;
   vegCalHome();
   vegRenderAll();
 }
-function vegToday(){ vegSowSerial=todaySerial(); vegCalHome(); vegRenderAll(); }
+function vegToday(){ vegSowSerial=todaySerial(); vegPlotSel=null; vegCalHome(); vegRenderAll(); }
 function vegCalHome(){ const {y,m}=serialToYMD(vegSowSerial!==null?vegSowSerial:todaySerial()); vegCalY=y; vegCalM=m; vegRenderCal(); }
 function vegMonthMove(delta){
   const mi=(vegCalY*12+(vegCalM-1))+delta;
@@ -7961,7 +8110,7 @@ function vegRenderPlan(){
   const span=(h.d1===h.d2)?`${h.d1}日後`:`${h.d1}〜${h.d2}日後`;
   const when=(h.from===h.to)?vegFmtDate(h.from):`${vegFmtDate(h.from)}〜${vegFmtDate(h.to)}`;
   head.innerHTML=`<div class="veg-head">${vegSel.i||'🌱'} ${escHtml(vegSel.n)}：${escHtml(h.what)}は <b>${span}</b>（${when}）`
-    +`<small>${escHtml(vegSel.from||'種まき')} ${vegFmtDate(vegSowSerial)} ／ ${escHtml(vegAreaText())}`
+    +`<small>${escHtml(vegStartLabel())} ${vegFmtDate(vegSowSerial)} ／ ${escHtml(vegAreaText())}`
     +(vegSel.sow?` ／ ${escHtml(vegSel.from||'種まき')}に向く時期 ${escHtml(vegSel.sow)}`
         +(vegShiftText()?`（${escHtml(vegShiftText())}）`:''):'')+`</small></div>`;
   box.innerHTML=rows.map(r=>{
@@ -8034,7 +8183,7 @@ function vegInsertToSheet(){
   out.push([`🧪 肥料（${f.n}／土のpH ${f.ph}／畑の広さ ${p}㎡）`,'','','']);
   out.push(['土づくり','苦土石灰', (f.lime[1]===0)?'まきません':vegAmt(f.lime,'g'),
             `完熟たい肥 ${vegAmt(f.compost,'kg')}`]);
-  out.push(['元肥', '化成肥料 '+f.base.npk, vegAmt(f.base.g,'g'), (vegSel.from||'種まき')+'の1週間前までに']);
+  out.push(['元肥', '化成肥料 '+f.base.npk, vegAmt(f.base.g,'g'), vegStartLabel()+'の1週間前までに']);
   out.push(f.side ? ['追肥', '化成肥料 '+f.side.npk, vegAmt(f.side.g,'g'), f.side.when]
                   : ['追肥', 'やりません', '', '肥料が多いと太らなくなります']);
   out.push(['', f.tip, '', '']);
@@ -8193,7 +8342,7 @@ function vegPdfHtml(){
 
   let html=`<div class="vp-head">
       <div class="vp-title">${vegSel.i||'🌱'} ${escHtml(vegSel.n)} の育成計画</div>
-      <div class="vp-sub">${escHtml(vegSel.from||'種まき')} ${vegDateText(vegSowSerial)}（${WDAY_JP[serialToYMD(vegSowSerial).w]}）`
+      <div class="vp-sub">${escHtml(vegStartLabel())} ${vegDateText(vegSowSerial)}（${WDAY_JP[serialToYMD(vegSowSerial).w]}）`
     +` ／ ${escHtml(vegAreaText())} ／ 補正 ${escHtml(vegFactorText())} ／ 畑の広さ ${p}㎡</div>
       <div class="vp-big">${escHtml(h.what)}は <b>${escHtml(span)}</b>（${escHtml(when)}）</div>
     </div><div class="vp-cols">`;
@@ -15830,7 +15979,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v346';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v347';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
