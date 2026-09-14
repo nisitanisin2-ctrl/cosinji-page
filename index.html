@@ -387,6 +387,21 @@ body.has-sheet-tabs .sheet-persist {
 /* 設定：上のバーのボタン表示/非表示トグル */
 /* 設定の中の、短い説明書き */
 .set-note { font-size: 12px; color: var(--text-light); line-height: 1.6; padding: 6px 2px 2px; }
+.nptool-list { display: flex; flex-direction: column; gap: 5px; padding: 0 16px 10px; }
+.nptool-row { display: flex; align-items: center; gap: 5px; }
+.nptool-btn {
+  flex: 1; min-width: 0; text-align: left; padding: 9px 11px; border-radius: var(--r-btn);
+  border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text-light);
+  font-size: 13px; font-weight: bold; cursor: pointer; touch-action: manipulation;
+}
+.nptool-btn.on { background: var(--acc); border-color: var(--acc); color: var(--on-acc); }
+.nptool-btn .nptool-chk { margin-right: 6px; }
+.nptool-mini {
+  width: 34px; padding: 9px 0; border-radius: var(--r-btn); font-size: 13px;
+  border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text-light);
+  cursor: pointer; touch-action: manipulation;
+}
+.nptool-mini:disabled { opacity: .35; cursor: default; }
 .topbtn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px; }
 .topbtn-toggle {
   box-sizing: border-box; padding: 10px 4px; border-radius: var(--r-btn);
@@ -974,7 +989,17 @@ body.resizer-off .numpad-resizer { display: none !important; }
 .numpad-pagebar {
   display: flex; align-items: center; gap: 4px;
   flex-shrink: 0; margin-bottom: 2px; min-width: 0;
+  /* 道具のタブを足すと入りきらないことがあるので、横にすべらせて見られるようにする */
+  overflow-x: auto; scrollbar-width: none;
 }
+.numpad-pagebar::-webkit-scrollbar { display: none; }
+.numpad-pagebar .np-page { flex-shrink: 0; }
+.numpad-pagebar .np-page.np-axis {
+  margin-left: auto; position: sticky; right: 0;
+  /* 道具のタブが増えて横に流れても、▲登録は右端に残す。下の文字が透けないよう地色を敷く */
+  background: #2c2c2c; box-shadow: -8px 0 8px -4px #2c2c2c;
+}
+.numpad-pagebar .np-page.np-axis:hover { background: #3a3a3a; }
 body.pagebar-off .numpad-pagebar { display: none; }
 /* テンキーを閉じているときは出さない（横向きは幅18pxまで縮むため） */
 body.numpad-off .numpad-pagebar { display: none; }
@@ -986,6 +1011,8 @@ body.numpad-off .numpad-pagebar { display: none; }
 }
 .np-page:hover { background: rgba(255,255,255,.10); color: #fff; }
 .np-page.on { background: var(--acc); color: var(--on-acc); }
+.np-page.np-tool { background: rgba(255,255,255,.07); color: #e8e8e8; }
+.np-page.np-tool:hover { background: rgba(255,255,255,.16); }
 .np-page.np-axis { margin-left: auto; background: rgba(255,255,255,.10); color: #ddd; }
 .np-page.np-axis:hover { background: rgba(255,255,255,.20); }
 /* テンキー：数字ページ(標準)は通常表示。関数電卓／関数記号／登録ページは
@@ -2827,6 +2854,9 @@ body.dark {
       <button class="topbtn-toggle" data-btn="defsize" onclick="toggleTopBtn('defsize')">▦ 既定の大きさ</button>
       <button class="topbtn-toggle" data-btn="reset"   onclick="toggleTopBtn('reset')">🧹 リセット</button>
     </div>
+    <div class="set-sec">テンキーの上に出す道具</div>
+    <div class="set-note">全画面で開く<b>道具</b>を、テンキーの上の<b>ページ名の並び</b>（書式・枠線／数字／記号／電卓）に足せます。<b>タップで開きます</b>。<b>電卓ページからさらに左へフリック</b>すると、いちばん上に並べた道具が開きます。<b>↑↓</b>で並び順を変えられます。</div>
+    <div class="nptool-list" id="npToolList"></div>
       </div>
     </details>
   </div>
@@ -4282,6 +4312,7 @@ body.dark {
           </div>
           <div class="help-li"><b>どのキーも長押しで好きな機能に変えられます</b>（設定・機能／表の操作など）。<b>電卓</b>は<b>⋯→🧮電卓</b>から出せます。キーに戻したいときは長押し→<b>🔧ボタンの機能→設定・機能→🧮電卓</b>。</div>
           <div class="help-li"><b>上のバーに出すボタン</b>（v319で復活）：設定→<b>🎨見た目→くわしい設定</b>で、<b>↷進む・📋リスト・🗂シート・⚙設定・▦既定の大きさ・🧹リセット</b> を上のバーに足せます（既定は出しません）。たくさん出すとバーが狭くなり、入りきらない分は横にスライドして出します。</div>
+          <div class="help-li"><b>テンキーの上に出す道具</b>（v352から）：設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーの上に出す道具</b>で、全画面で開く道具（<b>💧単位水量・🧪カンタブ・🌱野菜・📷容積・📝写真メモ・🔗リンク集・📄メモ・📋式テンプレ・📑決算テンプレ</b>）を選ぶと、テンキーの上の<b>ページ名の並びに足されます</b>（電卓の右）。<b>タップで開きます</b>。<b>↑↓で並び順</b>を変えられ、<b>電卓ページからさらに左へフリック</b>すると<b>いちばん上に並べた道具</b>が開きます（よく使うものを先頭にしておくと、フリックだけで開けます）。たくさん選んで入りきらないときは、ページ名の並びを<b>横にすべらせて</b>見られます（<b>▲登録</b>は右端に残ります）。</div>
           <div class="help-li"><b>テンキーの上のページ表示</b>で、いまどのページに居るか分かります。<b>ページ名をタップ</b>するとそのページへ移動できます（数字の並びは「枠線・書式・数字・記号・関数」、右端の<b>▲登録</b>で登録ページの並びへ、<b>▼数字</b>で戻る）。設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーのページ表示</b>で消すこともできます（ページ名は<b>書式・枠線／数字／記号／電卓</b>）。</div>
           <div class="help-li"><b>フリックでも切り替わります</b>（数字ページが土台。数字ページは<b>どこからでもフリック開始OK</b>）：</div>
           <table class="help-tbl">
@@ -10953,6 +10984,68 @@ let numpadPager=null;      // ページ表示から現在ページを読む／�
      登録の並び： 登録左 [登録] 登録右      ／ 右端＝▼数字 */
 const NP_ROW_MAIN=[['fmt','書式・枠線'],[null,'数字'],['func','記号'],['sci','電卓']];
 const NP_ROW_REG =[['regL','登録左'],['reg','登録'],['regR','登録右']];
+/* ── テンキーの上に出す道具（v352）──────────────────────────
+   全画面で開く道具を、テンキーの上のページ名の並びにタブとして足せる。
+   タップで開き、電卓ページからさらに左へフリックすると先頭の道具が開く。
+   並び順は設定の↑↓で変えられる。 */
+const NP_TOOLS=[
+  {id:'tansui',   label:'💧単位水量',   run:()=>openTansui()},
+  {id:'kantab',   label:'🧪カンタブ',   run:()=>openKantab()},
+  {id:'veggie',   label:'🌱野菜',       run:()=>openVeggie()},
+  {id:'volume',   label:'📷容積',       run:()=>openVolume()},
+  {id:'photomemo',label:'📝写真メモ',   run:()=>openPhotoMemo()},
+  {id:'linklist', label:'🔗リンク集',   run:()=>openLinkList()},
+  {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},
+  {id:'calctmpl', label:'📋式テンプレ', run:()=>openCalcTmpl()},
+  {id:'fintmpl',  label:'📑決算テンプレ',run:()=>openFinTmpl()},
+];
+const NP_TOOL_KEY='excalc_nptools';
+let npTools=[];                                  // 選んだ道具のid（この順に並ぶ）
+function npToolDef(id){ return NP_TOOLS.find(t=>t.id===id)||null; }
+function loadNpTools(){
+  npTools=loadList(NP_TOOL_KEY).filter(id=>npToolDef(id));
+}
+function saveNpTools(){ saveList(NP_TOOL_KEY, npTools); }
+function npToolToggle(id){
+  if(!npToolDef(id)) return;
+  const i=npTools.indexOf(id);
+  if(i>=0) npTools.splice(i,1); else npTools.push(id);
+  saveNpTools(); renderNpToolList(); renderNumpadPageBar();
+}
+function npToolMove(id, dir){
+  const i=npTools.indexOf(id), j=i+dir;
+  if(i<0 || j<0 || j>=npTools.length) return;
+  const t=npTools[i]; npTools[i]=npTools[j]; npTools[j]=t;
+  saveNpTools(); renderNpToolList(); renderNumpadPageBar();
+}
+function npToolRun(id){
+  const t=npToolDef(id); if(!t) return;
+  if(typeof closeSettingsPanel==='function') closeSettingsPanel();
+  t.run();
+}
+/* 電卓ページからさらに左へフリックしたときに開く道具（並びの先頭） */
+function npToolFlick(){
+  if(!npTools.length) return false;
+  npToolRun(npTools[0]);
+  return true;
+}
+/* 設定の一覧：選んだものを上に、その順に並べて出す */
+function renderNpToolList(){
+  const box=document.getElementById('npToolList'); if(!box) return;
+  const rest=NP_TOOLS.filter(t=>npTools.indexOf(t.id)<0).map(t=>t.id);
+  const order=npTools.concat(rest);
+  box.innerHTML=order.map(id=>{
+    const t=npToolDef(id); if(!t) return '';
+    const on=npTools.indexOf(id), n=npTools.length;
+    return `<div class="nptool-row">
+      <button class="nptool-btn${on>=0?' on':''}" onclick="npToolToggle('${id}')">
+        <span class="nptool-chk">${on>=0?'☑':'☐'}</span>${escHtml(t.label)}</button>
+      <button class="nptool-mini" onclick="npToolMove('${id}',-1)" ${on<=0?'disabled':''} aria-label="上へ">↑</button>
+      <button class="nptool-mini" onclick="npToolMove('${id}',1)" ${(on<0||on>=n-1)?'disabled':''} aria-label="下へ">↓</button>
+    </div>`;
+  }).join('');
+}
+
 (function setupNumpadPager(){
   const vp=document.getElementById('numpadViewport');
   const pgFmt=document.getElementById('numpadPageFmt');
@@ -11116,7 +11209,8 @@ const NP_ROW_REG =[['regL','登録左'],['reg','登録'],['regR','登録右']];
       else if(openWhich==='func')openWhich='sci';
       else if(openWhich==='reg') openWhich='regR';
       else if(openWhich==='regL')openWhich='reg';
-      // sci / regR は端なので据え置き
+      else if(openWhich==='sci'){ if(typeof npToolFlick==='function') npToolFlick(); }   // 電卓の先は道具
+      // regR は端なので据え置き
     } else {            // 前（右スワイプ相当）
       if(openWhich===null)       openWhich='fmt';
       else if(openWhich==='func')openWhich=null;
@@ -11147,6 +11241,7 @@ const NP_ROW_REG =[['regL','登録左'],['reg','登録'],['regR','登録右']];
         else if(dx<=-th) openWhich='sci';
       }
       else if(openWhich==='sci' && dx>=th){ openWhich='func'; }
+      else if(openWhich==='sci' && dx<=-th){ if(typeof npToolFlick==='function') npToolFlick(); }   // さらに左＝先頭の道具を開く
       else if(openWhich==='reg'){                              // 登録・中央：左＝右ページ／右＝左ページ
         if(dx<=-th) openWhich='regR';
         else if(dx>=th) openWhich='regL';
@@ -11212,16 +11307,23 @@ function renderNumpadPageBar(){
   const inReg=(cur==='reg'||cur==='regL'||cur==='regR');
   const row=inReg?NP_ROW_REG:NP_ROW_MAIN;
   const axis=inReg ? [null,'▼ 数字'] : ['reg','▲ 登録'];
+  const tools=inReg ? '' : npTools.map(id=>{
+      const t=npToolDef(id); return t ? '<button class="np-page np-tool" data-nptool="'+id+'">'+escHtml(t.label)+'</button>' : '';
+    }).join('');
   const html=row.map(([k,label])=>
       '<button class="np-page'+(k===cur?' on':'')+'" role="tab" aria-selected="'+(k===cur)+'"'+
       ' data-np="'+(k===null?'':k)+'">'+label+'</button>').join('')
+    + tools
     + '<button class="np-page np-axis" data-np="'+(axis[0]===null?'':axis[0])+'">'+axis[1]+'</button>';
   if(bar.dataset.html!==html){ bar.innerHTML=html; bar.dataset.html=html; }
 }
 (function setupNumpadPageBar(){
   const bar=document.getElementById('numpadPageBar'); if(!bar) return;
+  loadNpTools(); renderNpToolList();
   bar.addEventListener('click', e=>{
-    const b=e.target.closest && e.target.closest('.np-page'); if(!b||!numpadPager) return;
+    const b=e.target.closest && e.target.closest('.np-page'); if(!b) return;
+    if(b.dataset.nptool){ npToolRun(b.dataset.nptool); return; }   // 道具のタブは開くだけ（ページは動かさない）
+    if(!numpadPager) return;
     numpadPager.go(b.dataset.np===''?null:b.dataset.np);
   });
   renderNumpadPageBar();
@@ -16014,7 +16116,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v351';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v352';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
