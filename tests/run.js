@@ -609,15 +609,12 @@ async function runSaveList(browser) {
   await page.evaluate(() => setSaveSort('namez')); await page.waitForTimeout(300);
   check('  名前の逆順', await names(), '見積もり10/見積もり2/あさひ工区/4月の売上');
 
-  // 大きさ（小・中・大）
+  // アイコンの大きさは「小」で固定（v350で大きさの切り替えはやめた）
   const colw = () => page.evaluate(() => getComputedStyle(document.querySelector('.save-grid'))
     .getPropertyValue('--sf-col').trim());
-  await page.evaluate(() => setSaveSize('s')); await page.waitForTimeout(300);
-  check('  小さいアイコン', await colw(), '66px');
-  await page.evaluate(() => setSaveSize('m')); await page.waitForTimeout(300);
-  check('  ふつうのアイコン', await colw(), '88px');
-  await page.evaluate(() => setSaveSize('l')); await page.waitForTimeout(300);
-  check('  大きいアイコン', await colw(), '116px');
+  check('  アイコンは小さいまま', await colw(), '66px');
+  check('  大きさを変えるボタンは無い', await page.evaluate(() =>
+    !document.getElementById('saveSizeBar') && typeof setSaveSize === 'undefined'), true);
 
   // リスト表示にも戻せて、その選択は覚えている
   await page.evaluate(() => setSaveView('list')); await page.waitForTimeout(400);
@@ -625,12 +622,9 @@ async function runSaveList(browser) {
   check('  リストでも並べ替えは効く',
         await page.evaluate(() => [...document.querySelectorAll('.save-name')].map(e => e.textContent.trim()).join('/')),
         '見積もり10/見積もり2/あさひ工区/4月の売上');
-  check('  リストでは大きさのボタンを隠す',
-        await page.evaluate(() => getComputedStyle(document.getElementById('saveSizeBar')).display), 'none');
   await page.reload(); await page.waitForTimeout(900);
   check('  開き直しても表示を覚えている', await page.evaluate(() => saveView), 'list');
-  check('  大きさと並べ替えも覚えている',
-        await page.evaluate(() => saveSize + '/' + saveSort), 'l/namez');
+  check('  並べ替えも覚えている', await page.evaluate(() => saveSort), 'namez');
 
   // 保存するときの最初の名前は Book1・Book2…（日付ではない）
   const nn = arr => page.evaluate(a => nextBookName(a), arr);
@@ -867,6 +861,69 @@ async function runShared(browser) {
     wdayHeadHtml() === document.getElementById('datePickWdays').innerHTML), true);
   await page.evaluate(() => { setCellVal(0, 0, ''); cellStyles = {}; buildSheet(); });
   await page.waitForTimeout(200);
+
+  // ── 割合の計算も1か所に（v350）──
+  check('  1割は10％', await page.evaluate(() => wariToPct(1) + '/' + pctToWari(10)), '10/1');
+  check('  1000の20％', await page.evaluate(() => pctOf(1000, 20)), 200);
+  check('  20％足す・引く', await page.evaluate(() => pctAdd(1000, 20) + '/' + pctSub(1000, 20)), '1200/800');
+  check('  割合モードも同じ答え', await page.evaluate(async () => {
+    switchMode('wariai'); await new Promise(z => setTimeout(z, 300));
+    setCellVal(1, 0, '1000'); setCellVal(1, 1, '2'); recalcMode();
+    const r = [2, 3, 4, 5].map(c => document.getElementById('c1_' + c).textContent).join('/');
+    switchMode('normal'); await new Promise(z => setTimeout(z, 300)); return r; }), '20/200/1,200/800');
+
+  // ── 数と日付の見せ方も1か所に（v350）──
+  check('  3桁ごとのカンマ', await page.evaluate(() =>
+    withCommas('1234567') + '/' + withCommas('1234.5678') + '/' + withCommas('12')), '1,234,567/1,234.5678/12');
+  check('  単位水量の桁区切りも同じもの', await page.evaluate(() => tsFmt(1234.5, 1)), '1,234.5');
+  check('  日付の書き方はセルと同じもの', await page.evaluate(() => {
+    const s = dateToSerial(2026, 3, 1); return vegDateText(s) + '/' + formatDate(s, 'ymd'); }), '2026/3/1/2026/3/1');
+
+  // ── 表の大きさを変えるところも1か所に（v350）──
+  check('  大きさを変えると表示も保存も追いつく', await page.evaluate(() => {
+    setSheetSize(8, 4);
+    return ROWS + 'x' + COLS + '/' + document.getElementById('rowCount').textContent
+      + 'x' + document.getElementById('colCount').textContent
+      + '/' + localStorage.getItem('excalc_rows') + 'x' + localStorage.getItem('excalc_cols'); }), '8x4/8x4/8x4');
+  check('  行や列が0や大きすぎるときは直す', await page.evaluate(() => {
+    setSheetSize(0, 9999); const r = ROWS + 'x' + COLS; setSheetSize(15, 3); return r; }),
+    '1x' + 50);   // MAXCOLS まででとまる
+  check('  ▦既定も同じしくみを使う', await page.evaluate(() => {
+    setSheetSize(5, 2); applyDefaultSize(); return ROWS + 'x' + COLS; }), '15x3');
+
+  // ── 指の誤作動よけも1か所に（v350）──
+  check('  開いた直後は反応しない', await page.evaluate(() => {
+    openMoreMenu(); guardAfterOpen('moreMenuOverlay'); return dlgJustOpened('moreMenuOverlay'); }), true);
+  await page.waitForTimeout(500);
+  check('  少し待てば反応する', await page.evaluate(() => dlgJustOpened('moreMenuOverlay')), false);
+  await page.evaluate(() => closeMoreMenu()); await page.waitForTimeout(300);
+  check('  モード一覧も同じものさしを使う', await page.evaluate(async () => {
+    openModeMenu(); await new Promise(z => setTimeout(z, 50));
+    const a = mmGuardActive(); closeModeMenu(); return a; }), true);
+  await page.waitForTimeout(300);
+  // 背景タップで閉じる（押し始めも背景のときだけ）
+  await page.evaluate(() => { pushSnapshot('ため'); setCellVal(0, 0, 'あ'); openUndoList(); });
+  await page.waitForTimeout(600);
+  const bg = await page.evaluate(() => {
+    const r = document.getElementById('undoListOverlay').getBoundingClientRect();
+    return { x: r.left + 8, y: r.top + 8 }; });
+  await page.mouse.move(bg.x, bg.y); await page.mouse.down();
+  await page.waitForTimeout(60); await page.mouse.up(); await page.waitForTimeout(400);
+  check('  背景を押して離すと閉じる', await page.evaluate(() => isDlgOpen('undoListOverlay')), false);
+  await page.evaluate(() => { undoLast(); setCellVal(0, 0, ''); }); await page.waitForTimeout(200);
+
+  // ── 声の入れ方も1か所に（v350）──
+  check('  声の下ごしらえは式にする', await page.evaluate(() => {
+    setSpeechLayout('one'); const p = speechPrepare('251かける68', 0, 0);
+    return p.v + '/' + p.f + '/' + p.answerAt; }), '=251*68/=251*68/null');
+  check('  式でなければそのまま', await page.evaluate(() => {
+    const p = speechPrepare('こんにちは', 0, 0); return p.v + '/' + p.f; }), 'こんにちは/null');
+  check('  左に式・右に答えも同じところで決める', await page.evaluate(() => {
+    setSpeechLayout('split'); cellStyles = {};
+    for (let c = 0; c < COLS; c++) setCellVal(3, c, '');
+    const p = speechPrepare('12ひく5', 3, 0);
+    const r = p.v + '/' + (p.answerAt ? p.answerAt.join(',') : '×');
+    setSpeechLayout('one'); return r; }), '12−5/3,1');
 
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
