@@ -868,6 +868,7 @@ body.dark .cell.paste-flash { background: #1f5132 !important; }
   gap: 10px; align-items: center; flex-wrap: wrap;
 }
 .shop-tax-bar.open { display: flex; }
+.ys-hint { font-weight: normal; color: var(--text-light); }
 
 /* 合計（または平均）。入力欄と同じ帯の右側に置き、数値が無いときは丸ごと隠す。
    縦の帯を1本減らすため、以前の全幅バーからこの形にした。 */
@@ -2934,8 +2935,11 @@ body.dark {
 </div>
 
 <div class="shop-tax-bar youseki-bar" id="yousekiBar">
-  <span>合計容積 <b id="ysTotal">0</b> ㎥</span>
+  <span>面積 <b id="ysArea">0</b> ㎡</span>
+  <span>容積 <b id="ysTotal">0</b> ㎥</span>
   <span>= <b id="ysLiter">0</b> L</span>
+  <span>まわり <b id="ysPeri">0</b> m</span>
+  <span class="ys-hint">形の欄に「円」と入れると、たての欄を直径として円で計算します</span>
 </div>
 
 <div class="shop-tax-bar yosan-bar" id="yosanBar">
@@ -4375,9 +4379,14 @@ body.dark {
             <tr><td><b>割り勘</b></td><td>合計を人数で割る</td></tr>
             <tr><td><b>消費税</b></td><td>税抜→税込／税込→税抜＋消費税（税率は設定）</td></tr>
             <tr><td><b>割合計算</b></td><td>元の値と「割」か「％」を入れると、割合額・足す(＋)・引く(−)を計算（1割＝10%）</td></tr>
-            <tr><td><b>容積／予算配分</b></td><td>縦×横×高さ＝容積／予算と個数から最適な購入数</td></tr>
+            <tr><td><b>面積・容積</b></td><td>長方形や円の<b>面積㎡・容積㎥・まわりの長さm</b>を単位つきで計算（下記）</td></tr>
+            <tr><td><b>予算配分</b></td><td>予算と個数から最適な購入数</td></tr>
             <tr><td><b>時間計算</b></td><td>開始・終了・時間のうち2つで残りを自動計算（◯時間後/◯分前も）</td></tr>
           </table>
+          <div class="help-li"><b>面積・容積モード</b>（v346から）：列は <b>形／たて・直径m／よこm／高さm／面積㎡・容積㎥／まわりm</b> です。<b>たてとよこ</b>を入れると<b>面積（㎡）</b>、そこに<b>高さ</b>も入れると<b>容積（㎥）</b>が出ます。答えは <b>12 ㎡</b>・<b>24 ㎥</b>・<b>14 m</b> のように<b>単位つき</b>で出ます（セルの中は数値のままなので、<b>Σ合計</b>やExcelへの書き出しにもそのまま使えます）。<br>
+            ・<b>形の欄に「円」と入れる</b>と円で計算します（<b>丸・まる・○</b>でも同じ）。このとき<b>たての欄が直径</b>になり、面積＝π×(直径÷2)²、まわり＝π×直径 です。高さも入れれば<b>円柱の容積</b>になります<br>
+            ・下のバーに<b>面積・容積・リットル・まわりの長さ</b>の合計が出ます<br>
+            ・前の「容積モード」（縦×横×高さだけ）で作った表は、開いたときに<b>自動で新しい並びに移ります</b>（中身が1列ぶん右へずれ、形の欄は空＝長方形になります）</div>
           <div class="help-li"><b>電卓モード</b>：モードで<b>🧮電卓</b>を選ぶと、表のかわりに<b>ふつうの電卓</b>が出ます。テンキーはそのまま使えて、押すたびに答えが出ます。計算するたびに<b>履歴（テープ）</b>が残り、行を押すとその答えをもう一度使えます。履歴の下には<b>🎤 声で言った計算式の行</b>があり（v339から）、<b>声でどんな式として受け取ったか</b>がその場で分かります（例「251かける68」→ <b>251×68 ＝ 17068</b>、聞こえた言葉も小さく出ます）。式にできなかったときは<b>赤いふち</b>で聞こえた言葉だけ出るので、言い直す手がかりになります。<b>AC</b>を押すと消えます。<b>％・AC・▦表へ</b>はテンキーの<b>電卓ページ</b>にあります（<b>▦表へ</b>で元のモードに戻り、選んでいるセルに答えが入ります）。<b>🎤声</b>キーで<b>声で計算</b>できます（🎤 声で入れるの章をどうぞ）。「1＋2×3」の答えを<b>9（ふつうの電卓）</b>にするか<b>7（式の優先順位どおり）</b>にするかは、<b>設定→🧮計算</b>で選べます。</div>
           <div class="help-li"><b>📋計算式テンプレ／📑決算書テンプレ</b>（設定の「計算」タブ）：割引・利益率・BMI・速さ・複利・ローン・面積…約20種類のひな形や、損益計算書・貸借対照表・収支計算書のひな形。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
         </div>
@@ -5502,10 +5511,14 @@ function autoFitSheet(){
   }
   // 3) 列幅を設定（手動指定はそのまま、自動は baseW〜maxW にクランプ）
   const tsValMaxW=Math.round(baseW*1.5);   // 単位水量モードの「値」列は少し広めの上限にする
+  const ysShapeW=Math.round(baseW*0.62);   // 面積・容積モードの「形」列は「円」の1文字だけなので狭くする
   let total=0;
   for(let c=0;c<COLS;c++){
     const isTsVal=(isFormMode() && c===1);
-    const w=colWidths[c] ? Math.round(colWidths[c]*scale) : Math.min(Math.max(baseW,need[c]), isTsVal?tsValMaxW:maxW);
+    const isYsShape=(tableMode==='youseki' && c===0);
+    const w=colWidths[c] ? Math.round(colWidths[c]*scale)
+          : isYsShape ? ysShapeW
+          : Math.min(Math.max(baseW,need[c]), isTsVal?tsValMaxW:maxW);
     total+=w;
     const ch=document.getElementById('ch'+c); if(!ch) continue;
     // 単位水量モードは「項目」列を可変にして余白を吸収させ、行番号列を狭いまま保つ
@@ -13407,7 +13420,8 @@ const STRUCT_MODES={
   warikan: {cols:2, headers:['項目','金額'],               computed:[]},
   zei:     {cols:3, headers:['税抜','消費税','税込'],        computed:[1]},
   wariai:  {cols:6, headers:['元の値','割','％','割合額','足す','引く'], computed:[3,4,5]},
-  youseki: {cols:4, headers:['縦m','横m','高さm','容積㎥'], computed:[3]},   // v295 で「名称」列をやめた
+  // v346：長方形だけでなく円も出せるようにし、面積㎡・容積㎥・まわりmを単位つきで出す
+  youseki: {cols:6, headers:['形','たて・直径m','よこm','高さm','面積㎡・容積㎥','まわりm'], computed:[4,5]},
   yosan:   {cols:5, headers:['品名','単価','最低','個数','小計'], computed:[3,4]},
   jikan:   {cols:4, headers:['項目','開始','終了','時間'],         computed:[]},   // 開始・終了・時間のうち2つで残りを自動計算
 };
@@ -13490,7 +13504,7 @@ const MODE_MENU=[
   {key:'warikan', icon:'🍻', name:'割り勘', desc:'金額の合計を人数で割る'},
   {key:'zei',     icon:'🧾', name:'消費税', desc:'税抜→税込、税込→税抜＋消費税を計算（税率は設定）'},
   {key:'wariai',  icon:'％', name:'割合計算', desc:'元の値の何割・何％と、足す/引くを計算'},
-  {key:'youseki', icon:'📦', name:'容積',   desc:'縦×横×高さで容積(㎥)を計算'},
+  {key:'youseki', icon:'📦', name:'面積・容積', desc:'長方形や円の面積(㎡)・容積(㎥)・まわりの長さ(m)を単位つきで計算'},
   {key:'yosan',   icon:'🎯', name:'予算配分', desc:'予算と合計個数から各商品の最適な購入数を計算'},
   {key:'jikan',   icon:'⏱', name:'時間計算', desc:'開始・終了・時間のうち2つで残りを自動計算（◯時間後は何時、◯分前は何時も）'},
   {key:'dentaku', icon:'🧮', name:'電卓', desc:'ふつうの電卓。押すたびに答えが出て、履歴（テープ）も残る（％・消費税つき）'},
@@ -13992,17 +14006,33 @@ function recalcMode(){
     document.getElementById('wkPeople').textContent=warikanPeople;
     document.getElementById('wkPer').textContent='¥'+fmt(per);
   } else if(tableMode==='youseki'){
-    let total=0;
+    /* 列: 0=形 1=たて(円なら直径) 2=よこ 3=高さ 4=面積㎡または容積㎥ 5=まわりm。
+       高さが空なら面積、入っていれば容積を出す。data には数値だけを入れ、
+       画面には単位を付けて見せる（Σ合計や書き出しは数値のまま使える）。 */
+    let area=0, vol=0, peri=0;
     for(let r=1;r<ROWS;r++){
-      const a=parseFloat(data[r][0]), b=parseFloat(data[r][1]), h=parseFloat(data[r][2]);
-      const ok=data[r][0]!==''&&!isNaN(a)&&data[r][1]!==''&&!isNaN(b)&&data[r][2]!==''&&!isNaN(h);
-      const vol=ok?a*b*h:NaN;
-      data[r][3]=ok?String(vol):'';
-      const el=document.getElementById(`c${r}_3`); if(el) el.textContent=ok?fmt(vol):'';
-      if(ok) total+=vol;
+      const circle=isCircleShape(data[r][0]);
+      const a=parseFloat(data[r][1]), b=parseFloat(data[r][2]), h=parseFloat(data[r][3]);
+      const hasA=data[r][1]!==''&&!isNaN(a), hasB=data[r][2]!==''&&!isNaN(b), hasH=data[r][3]!==''&&!isNaN(h);
+      let ar=null, pe=null;
+      if(circle && hasA){ ar=Math.PI*(a/2)*(a/2); pe=Math.PI*a; }          // 円は「たて」を直径として使う
+      else if(!circle && hasA && hasB){ ar=a*b; pe=2*(a+b); }
+      const vo=(ar!==null && hasH)?ar*h:null;
+      const shown=(vo!==null)?vo:ar;
+      data[r][4]=(shown!==null)?String(shown):'';
+      data[r][5]=(pe!==null)?String(pe):'';
+      const e4=document.getElementById(`c${r}_4`);
+      if(e4) e4.textContent=(shown!==null)?(fmt(shown)+' '+((vo!==null)?'㎥':'㎡')):'';
+      const e5=document.getElementById(`c${r}_5`);
+      if(e5) e5.textContent=(pe!==null)?(fmt(pe)+' m'):'';
+      if(ar!==null) area+=ar;
+      if(vo!==null) vol+=vo;
+      if(pe!==null) peri+=pe;
     }
-    document.getElementById('ysTotal').textContent=fmt(total);
-    document.getElementById('ysLiter').textContent=fmt(total*1000);
+    document.getElementById('ysArea').textContent=fmt(area);
+    document.getElementById('ysTotal').textContent=fmt(vol);
+    document.getElementById('ysLiter').textContent=fmt(vol*1000);
+    document.getElementById('ysPeri').textContent=fmt(peri);
   } else if(tableMode==='yosan'){
     solveYosanMode();
   } else if(tableMode==='jikan'){
@@ -14874,9 +14904,33 @@ function migrateYousekiNoName(){
   for(const k in colWidths){ const c=+k; if(c===0) continue; nw[c-1]=colWidths[k]; }
   colWidths=nw;
 }
+/* 容積モードは v346 で先頭に「形」の列を足した。
+   古い並び（A列＝たて）の中身は、見出しを付け直す前に1列ぶん右へずらす。
+   見出し行の A列が「縦m」のままであることを目印にするので、1回しか動かない。 */
+function migrateYousekiShape(){
+  if(tableMode!=='youseki') return;
+  if(data[0][0]!=='縦m') return;
+  for(let r=0;r<MAXROWS;r++){
+    for(let c=MAXCOLS-1;c>0;c--) data[r][c]=data[r][c-1];
+    data[r][0]='';
+  }
+  const ns={};                       // セルの書式も一緒に右へ寄せる
+  for(const k in cellStyles){
+    const p=k.split(','), r=+p[0], c=+p[1];
+    if(c>=MAXCOLS-1) continue;
+    ns[r+','+(c+1)]=cellStyles[k];
+  }
+  cellStyles=ns;
+  const nw={};                       // 列幅も右へ
+  for(const k in colWidths){ const c=+k; if(c>=MAXCOLS-1) continue; nw[c+1]=colWidths[k]; }
+  colWidths=nw;
+}
+/* 形の欄が「円」かどうか（まる・○・えん・丸 も同じに扱う。空や他の言葉は長方形） */
+function isCircleShape(v){ return /^\s*(円|丸|まる|マル|えん|エン|○|◯|●|circle)\s*$/i.test(String(v||'')); }
 function normalizeStructLayout(){
   if(!isStructMode()) return;
   migrateYousekiNoName();
+  migrateYousekiShape();
   const m=STRUCT_MODES[tableMode];
   COLS=m.cols;
   m.headers.forEach((h,i)=>{ data[0][i]=h; });
@@ -15776,7 +15830,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v345';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v346';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
