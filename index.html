@@ -949,7 +949,7 @@ body.resizer-off .numpad-resizer { display: none !important; }
   .numpad-section { border-top: none; border-left: 2px solid var(--acc); position: relative; }
   /* 横向きはテンキーが左右に並ぶので、ページ表示は上端に重ねて置き、その分だけ上を空ける */
   body:not(.pagebar-off) .numpad-section { padding-top: calc(var(--np-top, 4px) + 20px); }
-  .numpad-pagebar {
+.numpad-pagebar {
     position: absolute; top: var(--np-top, 4px); left: 5px; right: 5px;
     height: 18px; margin: 0; overflow-x: auto; scrollbar-width: none;
   }
@@ -984,6 +984,29 @@ body.resizer-off .numpad-resizer { display: none !important; }
      端までドラッグしても軽く動く。ボタンの枠は残るので位置関係は保たれる。 */
   body.numpad-compact .numpad-grid .btn { font-size: 0 !important; }
 }
+/* 数字キーのフリックで出る記号の候補（v353）。キーの上に重ねて、上下左右とまん中を見せる */
+.npflick {
+  position: fixed; z-index: 900; display: none; pointer-events: none;
+  --npf-cell: 52px;
+  width: calc(var(--npf-cell) * 3); height: calc(var(--npf-cell) * 3);
+  transform: translate(-50%, -50%);
+  display: none;
+}
+.npflick.open { display: grid; grid-template-columns: repeat(3, var(--npf-cell)); grid-template-rows: repeat(3, var(--npf-cell)); }
+.npf-c {
+  display: flex; align-items: center; justify-content: center;
+  font-size: calc(var(--npf-cell) * 0.42); font-weight: bold;
+  border-radius: 10px; background: #3a3a3a; color: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,.45);
+}
+.npf-c.on { background: var(--acc); color: var(--on-acc); transform: scale(1.06); }
+.npf-c.npf-empty { background: transparent; box-shadow: none; }
+.npf-up    { grid-area: 1 / 2; }
+.npf-left  { grid-area: 2 / 1; }
+.npf-mid   { grid-area: 2 / 2; background: #555; }
+.npf-right { grid-area: 2 / 3; }
+.npf-down  { grid-area: 3 / 2; }
+
 /* テンキーのページ表示。キーのすぐ上に1行だけ置く。
    現在ページは緑で塗り、それ以外は控えめな文字。右端の1つは「もう一方の並びへの入口」。 */
 .numpad-pagebar {
@@ -2836,6 +2859,7 @@ body.dark {
       <span class="set-stepper"><button class="step-btn" onclick="changeNpad(-1)">−</button><span class="sc-val" id="npadSize">標準</span><button class="step-btn" onclick="changeNpad(1)">＋</button></span>
     </div>
     <button class="set-act" id="pageBarBtn" onclick="togglePageBar()" title="テンキーの上に出る「枠線・書式・数字・記号・関数／登録」のページ表示。タップでそのページへ移動できます">テンキーのページ表示</button>
+    <button class="set-act" id="funcPageBtn" onclick="toggleFuncPage()" title="記号・関数のページを出すかどうか。数字キーの少し長押し→フリックでも記号は入れられます">記号ページを出す</button>
     <button class="set-act" id="resizerBarBtn" onclick="toggleResizerBar()" title="テンキーの大きさを変える調整バー（テンキー上端／横向きは左端）の表示を切り替えます">調整バーを表示する</button>
     <div class="set-row">
       <span class="set-label" title="テンキーの大きさを変えるバー（テンキー上端／横向きは左端）の太さ">調整バーの太さ<small>大きさを変えるバー</small></span>
@@ -4312,6 +4336,21 @@ body.dark {
           </div>
           <div class="help-li"><b>どのキーも長押しで好きな機能に変えられます</b>（設定・機能／表の操作など）。<b>電卓</b>は<b>⋯→🧮電卓</b>から出せます。キーに戻したいときは長押し→<b>🔧ボタンの機能→設定・機能→🧮電卓</b>。</div>
           <div class="help-li"><b>上のバーに出すボタン</b>（v319で復活）：設定→<b>🎨見た目→くわしい設定</b>で、<b>↷進む・📋リスト・🗂シート・⚙設定・▦既定の大きさ・🧹リセット</b> を上のバーに足せます（既定は出しません）。たくさん出すとバーが狭くなり、入りきらない分は横にスライドして出します。</div>
+          <div class="help-li"><b>数字キーのフリックで記号を入れる</b>（v353から）：数字のキーを<b>少しだけ長押し</b>すると、そのキーのまわりに<b>記号の候補</b>が出ます。そのまま<b>上下左右へフリックして指を離す</b>と、その記号が入ります。<b>動かさずに離せば</b>ふだんどおり数字が入ります。早くなぞったときは今までどおり<b>ページのフリック</b>です。<br>
+            <table class="help-tbl">
+              <tr><td><b>1</b></td><td>左 ( ／ 上 [ ／ 右 ) ／ 下 ]</td></tr>
+              <tr><td><b>2</b></td><td>左 &lt; ／ 上 &lt;= ／ 右 &gt; ／ 下 &gt;=</td></tr>
+              <tr><td><b>3</b></td><td>左 = ／ 上 &lt;&gt; ／ 右 : ／ 下 ;</td></tr>
+              <tr><td><b>4</b></td><td>左 , ／ 上 . ／ 右 ％ ／ 下 $</td></tr>
+              <tr><td><b>5</b></td><td>左 &amp; ／ 上 ^ ／ 右 ! ／ 下 ?</td></tr>
+              <tr><td><b>6</b></td><td>左 " ／ 上 ' ／ 右 ~ ／ 下 |</td></tr>
+              <tr><td><b>7</b></td><td>左 「 ／ 上 『 ／ 右 」 ／ 下 』</td></tr>
+              <tr><td><b>8</b></td><td>左 、 ／ 上 ・ ／ 右 。 ／ 下 〜</td></tr>
+              <tr><td><b>9</b></td><td>左 ¥ ／ 上 ℃ ／ 右 ％ ／ 下 ㎡</td></tr>
+              <tr><td><b>0</b></td><td>左 （ ／ 上 【 ／ 右 ） ／ 下 】</td></tr>
+            </table>
+            そのため<b>数字キーの長押しで「ボタンの機能」を割り当てる操作はなくなりました</b>（数字以外のキーは今までどおり長押しで割り当てられます）。</div>
+          <div class="help-li"><b>記号ページを出す／隠す</b>（v353から）：設定→<b>🎨見た目→くわしい設定</b>の<b>記号ページを出す</b>で切り替えます。隠すと<b>ページ名の並びからも、フリックの並びからも外れ</b>、数字ページの左どなりが電卓ページになります。記号は上のフリックで入れられるので、ページを減らしてすっきりさせたいときにどうぞ。</div>
           <div class="help-li"><b>テンキーの上に出す道具</b>（v352から）：設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーの上に出す道具</b>で、全画面で開く道具（<b>💧単位水量・🧪カンタブ・🌱野菜・📷容積・📝写真メモ・🔗リンク集・📄メモ・📋式テンプレ・📑決算テンプレ</b>）を選ぶと、テンキーの上の<b>ページ名の並びに足されます</b>（電卓の右）。<b>タップで開きます</b>。<b>↑↓で並び順</b>を変えられ、<b>電卓ページからさらに左へフリック</b>すると<b>いちばん上に並べた道具</b>が開きます（よく使うものを先頭にしておくと、フリックだけで開けます）。たくさん選んで入りきらないときは、ページ名の並びを<b>横にすべらせて</b>見られます（<b>▲登録</b>は右端に残ります）。</div>
           <div class="help-li"><b>テンキーの上のページ表示</b>で、いまどのページに居るか分かります。<b>ページ名をタップ</b>するとそのページへ移動できます（数字の並びは「枠線・書式・数字・記号・関数」、右端の<b>▲登録</b>で登録ページの並びへ、<b>▼数字</b>で戻る）。設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーのページ表示</b>で消すこともできます（ページ名は<b>書式・枠線／数字／記号／電卓</b>）。</div>
           <div class="help-li"><b>フリックでも切り替わります</b>（数字ページが土台。数字ページは<b>どこからでもフリック開始OK</b>）：</div>
@@ -10904,6 +10943,89 @@ function pickKeyAssign(fid){
   saveKeyAssign(); applyKeyAssign(); closeKeyAssign();
   toast(fid?`ボタンを「${KEY_FUNCS[fid].label}」に変更しました`:'元のボタンに戻しました');
 }
+/* ── 数字キーのフリックで記号を入れる（v353）──────────────────
+   数字のボタンを「少しだけ長押し」すると、そのキーのまわりに記号の候補が出る。
+   そのままフリック（上下左右）して指を離すと、その記号が入る。
+   まん中（動かさずに離す）ならふだんどおり数字が入る。
+   並びは [左, 上, 右, 下]。 */
+const NP_FLICK={
+  n1:['(', '[', ')', ']'],
+  n2:['<', '<=', '>', '>='],
+  n3:['=', '<>', ':', ';'],
+  n4:[',', '.', '%', '$'],
+  n5:['&', '^', '!', '?'],
+  n6:['"', "'", '~', '|'],
+  n7:['「', '『', '」', '』'],
+  n8:['、', '・', '。', '〜'],
+  n9:['¥', '℃', '％', '㎡'],
+  n0:['（', '【', '）', '】'],
+};
+const NP_FLICK_HOLD_MS=180;      // これだけ押し続けると候補が出る
+const NP_FLICK_MOVE=26;          // この距離を超えて動かすと、その向きを選んだことにする
+let npFlickKey=null, npFlickDir=null, npFlickX=0, npFlickY=0;
+function npFlickSyms(key){ return NP_FLICK[key]||null; }
+/* 候補の窓を出す。キーの上に重ねて、上下左右とまん中を見せる */
+function npFlickShow(btn, key){
+  const syms=npFlickSyms(key); if(!syms) return false;
+  let pop=document.getElementById('npFlickPop');
+  if(!pop){
+    pop=document.createElement('div'); pop.id='npFlickPop'; pop.className='npflick';
+    pop.innerHTML='<span class="npf-c npf-up"></span><span class="npf-c npf-left"></span>'
+      +'<span class="npf-c npf-mid"></span><span class="npf-c npf-right"></span><span class="npf-c npf-down"></span>';
+    document.body.appendChild(pop);
+  }
+  const r=btn.getBoundingClientRect();
+  const cell=Math.max(40, Math.min(64, Math.round(r.width*0.9)));
+  pop.style.setProperty('--npf-cell', cell+'px');
+  // 画面の外にはみ出さないように、まん中の位置を内側へ寄せる
+  const half=cell*1.5, m=4;
+  const cx=Math.max(half+m, Math.min(window.innerWidth-half-m, r.left+r.width/2));
+  const cy=Math.max(half+m, Math.min(window.innerHeight-half-m, r.top+r.height/2));
+  pop.style.left=Math.round(cx)+'px';
+  pop.style.top=Math.round(cy)+'px';
+  pop.querySelector('.npf-mid').textContent=btn.textContent.trim();
+  [['.npf-left',0],['.npf-up',1],['.npf-right',2],['.npf-down',3]].forEach(([sel,i])=>{
+    const el=pop.querySelector(sel); el.textContent=syms[i]||''; el.classList.toggle('npf-empty', !syms[i]);
+  });
+  pop.classList.add('open');
+  npFlickKey=key; npFlickDir=null;
+  npFlickMark();
+  if(navigator.vibrate){ try{ navigator.vibrate(12); }catch(_){} }
+  if(typeof numpadPager!=='undefined' && numpadPager && numpadPager.cancelSwipe) numpadPager.cancelSwipe();
+  return true;
+}
+function npFlickMark(){
+  const pop=document.getElementById('npFlickPop'); if(!pop) return;
+  [['.npf-left','left'],['.npf-up','up'],['.npf-right','right'],['.npf-down','down'],['.npf-mid',null]]
+    .forEach(([sel,d])=>{ const el=pop.querySelector(sel); if(el) el.classList.toggle('on', npFlickDir===d); });
+}
+/* 指の動きから向きを決める（少ししか動いていなければ まん中） */
+function npFlickTrack(x, y){
+  if(!npFlickKey) return;
+  const dx=x-npFlickX, dy=y-npFlickY;
+  let d=null;
+  if(Math.max(Math.abs(dx),Math.abs(dy))>=NP_FLICK_MOVE){
+    d = (Math.abs(dx)>Math.abs(dy)) ? (dx<0?'left':'right') : (dy<0?'up':'down');
+    if(!npFlickSyms(npFlickKey)[{left:0,up:1,right:2,down:3}[d]]) d=null;   // 空きの向きは選べない
+  }
+  if(d!==npFlickDir){ npFlickDir=d; npFlickMark(); }
+}
+/* 指を離したとき：向きが決まっていればその記号を入れる。まん中なら何もしない（数字はふだんの経路で入る） */
+function npFlickEnd(){
+  if(!npFlickKey) return false;
+  const key=npFlickKey, dir=npFlickDir;
+  npFlickHide();
+  if(!dir) return false;                       // まん中＝数字（ふだんのクリックにまかせる）
+  const sym=npFlickSyms(key)[{left:0,up:1,right:2,down:3}[dir]];
+  if(sym && typeof fkey==='function') fkey(sym);
+  return true;                                 // 記号を入れたので、続くクリックは止める
+}
+function npFlickHide(){
+  const pop=document.getElementById('npFlickPop'); if(pop) pop.classList.remove('open');
+  npFlickKey=null; npFlickDir=null;
+}
+function npFlickActive(){ return npFlickKey!==null; }
+
 (function setupKeyAssign(){
   const vp=document.getElementById('numpadViewport'); if(!vp) return;
   let timer=null, sx=0, sy=0;
@@ -10914,6 +11036,13 @@ function pickKeyAssign(fid){
     if(!b || b.dataset.key==='sum') return;   // Σは長押し＝合計/平均メニューが既にあるため除外
     sx=e.clientX; sy=e.clientY; clearTimeout(timer);
     const key=b.dataset.key;
+    // 数字キーは「少しだけ長押し→まわりに記号が出て、フリックで選ぶ」（v353）。
+    // ボタンの機能を割り当てる長押しは、数字キーでは使わない。
+    if(npFlickSyms(key)){
+      npFlickX=e.clientX; npFlickY=e.clientY;
+      timer=setTimeout(()=>{ timer=null; npFlickShow(b, key); }, NP_FLICK_HOLD_MS);
+      return;
+    }
     // Enterの長押し＝確定後に進む向き（下⇄右）を切替（割り当てピッカーは開かない）
     if(key==='enter'||key==='fp_enter'||key==='sc_enter'){
       timer=setTimeout(()=>{ timer=null; kaSuppress=true; if(navigator.vibrate){try{navigator.vibrate(25);}catch(_){}}
@@ -10934,9 +11063,16 @@ function pickKeyAssign(fid){
     }
     timer=setTimeout(()=>{ timer=null; kaSuppress=true; if(navigator.vibrate){try{navigator.vibrate(25);}catch(_){}} openKeyAssign(b.dataset.key); }, 600);
   });
-  window.addEventListener('pointermove', e=>{ if(timer && (Math.abs(e.clientX-sx)>10||Math.abs(e.clientY-sy)>10)){ clearTimeout(timer); timer=null; } });
-  window.addEventListener('pointerup', ()=>{ if(timer){ clearTimeout(timer); timer=null; } setTimeout(()=>{ kaSuppress=false; }, 120); });
-  window.addEventListener('pointercancel', ()=>{ if(timer){ clearTimeout(timer); timer=null; } kaSuppress=false; });
+  window.addEventListener('pointermove', e=>{
+    if(npFlickActive()){ npFlickTrack(e.clientX, e.clientY); e.preventDefault(); return; }
+    if(timer && (Math.abs(e.clientX-sx)>10||Math.abs(e.clientY-sy)>10)){ clearTimeout(timer); timer=null; }
+  }, {passive:false});
+  window.addEventListener('pointerup', ()=>{
+    if(timer){ clearTimeout(timer); timer=null; }
+    if(npFlickEnd()) kaSuppress=true;             // 記号を入れたら、続くクリック（数字）は止める
+    setTimeout(()=>{ kaSuppress=false; }, 120);
+  });
+  window.addEventListener('pointercancel', ()=>{ if(timer){ clearTimeout(timer); timer=null; } npFlickHide(); kaSuppress=false; });
   /* 割り当て済みボタンのタップは元のonclickの代わりに割り当て機能を実行。
      長押し直後の合成クリックは1回無効化 */
   vp.addEventListener('click', e=>{
@@ -10984,6 +11120,20 @@ let numpadPager=null;      // ページ表示から現在ページを読む／�
      登録の並び： 登録左 [登録] 登録右      ／ 右端＝▼数字 */
 const NP_ROW_MAIN=[['fmt','書式・枠線'],[null,'数字'],['func','記号'],['sci','電卓']];
 const NP_ROW_REG =[['regL','登録左'],['reg','登録'],['regR','登録右']];
+/* ── 記号ページを出すかどうか（v353。数字キーのフリックでも記号は入れられるので隠せる） ── */
+let showFuncPage = localStorage.getItem('excalc_funcpage')!=='0';
+function syncFuncPageBtn(){
+  const b=document.getElementById('funcPageBtn'); if(b) b.classList.toggle('on', showFuncPage);
+}
+function toggleFuncPage(){
+  showFuncPage=!showFuncPage;
+  localStorage.setItem('excalc_funcpage', showFuncPage?'1':'0');
+  if(!showFuncPage && numpadPager && numpadPager.current()==='func') numpadPager.go(null);
+  syncFuncPageBtn();
+  if(typeof renderNumpadPageBar==='function') renderNumpadPageBar();
+  toast(showFuncPage?'記号ページを出します':'記号ページを隠しました（数字キーを少し長押し→フリックで記号が入れられます）', 4200);
+}
+
 /* ── テンキーの上に出す道具（v352）──────────────────────────
    全画面で開く道具を、テンキーの上のページ名の並びにタブとして足せる。
    タップで開き、電卓ページからさらに左へフリックすると先頭の道具が開く。
@@ -11110,7 +11260,7 @@ function renderNpToolList(){
       }
       // 2枚目(sci/bd)が開いている間は、その下の1枚目(func/fmt)も開いた位置に置いておく
       const isOpen=(el===pgFmt&&openWhich==='fmt')||
-                   (el===pgFunc&&(openWhich==='func'||openWhich==='sci'))||
+                   (el===pgFunc&&(openWhich==='func'||(openWhich==='sci'&&showFuncPage)))||
                    (el===pgSci&&openWhich==='sci');
       el.style.transform = isOpen ? 'translate(0,0)' : closedTransform(el);
     });
@@ -11136,6 +11286,7 @@ function renderNpToolList(){
     w=vp.offsetWidth||1; h=vp.offsetHeight||1;
   }
   function onMove(e){
+    if(typeof npFlickActive==='function' && npFlickActive()) return;   // 記号フリック中
     if(downX===null || e.pointerId!==downId) return;
     const dx=e.clientX-downX, dy=e.clientY-downY;
     if(!decided){
@@ -11150,7 +11301,7 @@ function renderNpToolList(){
       const horizDominant = Math.abs(dx) > Math.abs(dy)*1.3;
       const vertDominant  = Math.abs(dy) > Math.abs(dx)*1.3;
       if(openWhich===null){
-        if(horizDominant){ axis='h'; activeEl = dx<0 ? pgFunc : pgFmt; }         // 左＝関数記号／右＝セル書式
+        if(horizDominant){ axis='h'; activeEl = dx<0 ? (showFuncPage?pgFunc:pgSci) : pgFmt; }   // 左＝記号（隠していれば電卓）／右＝セル書式
         else if(vertDominant && dy<0){
           if(downTopRow) axis='block';                                          // 最上段からの上スワイプは無効（調整バーの取り違え対策）
           else { axis='v'; activeEl=regPageEl(lastRegPage); }                   // 上＝登録（最後に見ていたページ）
@@ -11204,7 +11355,7 @@ function renderNpToolList(){
   function pageStep(dir){
     const prev=openWhich;
     if(dir>0){          // 次（左スワイプ相当）
-      if(openWhich===null)       openWhich='func';
+      if(openWhich===null)       openWhich=(showFuncPage?'func':'sci');
       else if(openWhich==='fmt') openWhich=null;
       else if(openWhich==='func')openWhich='sci';
       else if(openWhich==='reg') openWhich='regR';
@@ -11214,7 +11365,7 @@ function renderNpToolList(){
     } else {            // 前（右スワイプ相当）
       if(openWhich===null)       openWhich='fmt';
       else if(openWhich==='func')openWhich=null;
-      else if(openWhich==='sci') openWhich='func';
+      else if(openWhich==='sci') openWhich=(showFuncPage?'func':null);
       else if(openWhich==='reg') openWhich='regL';
       else if(openWhich==='regR')openWhich='reg';
       // fmt / regL は端なので据え置き
@@ -11224,6 +11375,7 @@ function renderNpToolList(){
     restAll(true);
   }
   function onUp(e){
+    if(typeof npFlickActive==='function' && npFlickActive()) return;   // 記号フリック中
     if(downX===null || e.pointerId!==downId) return;
     const dx=(e.clientX!==undefined?e.clientX:downX)-downX;
     const dy=(e.clientY!==undefined?e.clientY:downY)-downY;
@@ -11231,7 +11383,7 @@ function renderNpToolList(){
     if(wasAxis==='h'){
       const th=Math.max(40, w*0.22);
       if(openWhich===null){
-        if(dx<=-th) openWhich='func';
+        if(dx<=-th) openWhich=(showFuncPage?'func':'sci');
         else if(dx>=th) openWhich='fmt';
       } else if(openWhich==='fmt'){
         if(dx<=-th) openWhich=null;
@@ -11240,7 +11392,7 @@ function renderNpToolList(){
         if(dx>=th) openWhich=null;
         else if(dx<=-th) openWhich='sci';
       }
-      else if(openWhich==='sci' && dx>=th){ openWhich='func'; }
+      else if(openWhich==='sci' && dx>=th){ openWhich=(showFuncPage?'func':null); }
       else if(openWhich==='sci' && dx<=-th){ if(typeof npToolFlick==='function') npToolFlick(); }   // さらに左＝先頭の道具を開く
       else if(openWhich==='reg'){                              // 登録・中央：左＝右ページ／右＝左ページ
         if(dx<=-th) openWhich='regR';
@@ -11286,6 +11438,8 @@ function renderNpToolList(){
   /* ページ表示からの移動。フリックと同じ経路（restAll）を通す。 */
   numpadPager={
     current(){ return openWhich; },
+    /* 記号フリックが始まったら、ページのスライドはやめる */
+    cancelSwipe(){ downX=null; axis=null; if(activeEl) activeEl.classList.remove('ov-dragging'); activeEl=null; numpadSwiping=false; },
     go(name){
       if(name===undefined) return;
       if(openWhich===name) return;
@@ -11305,7 +11459,7 @@ function renderNumpadPageBar(){
   const bar=document.getElementById('numpadPageBar'); if(!bar||!numpadPager) return;
   const cur=numpadPager.current();
   const inReg=(cur==='reg'||cur==='regL'||cur==='regR');
-  const row=inReg?NP_ROW_REG:NP_ROW_MAIN;
+  const row=(inReg?NP_ROW_REG:NP_ROW_MAIN).filter(([k])=> k!=='func' || showFuncPage);
   const axis=inReg ? [null,'▼ 数字'] : ['reg','▲ 登録'];
   const tools=inReg ? '' : npTools.map(id=>{
       const t=npToolDef(id); return t ? '<button class="np-page np-tool" data-nptool="'+id+'">'+escHtml(t.label)+'</button>' : '';
@@ -16116,7 +16270,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v352';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v353';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -17783,6 +17937,7 @@ setEnterDir(enterMoveDir);                 // Enterで進む向きを復元
   const stt=document.getElementById('sheetToggleBtn'); if(stt) stt.classList.toggle('on', showSheetTabs); }
 applyResizerBar();   // 調整バーの表示/非表示を復元
 applyPageBar();      // テンキーのページ表示の有無を復元
+syncFuncPageBtn();   // 記号ページを出すかどうかの見た目を合わせる
 loadTopBtnShown(); applyTopBtnShown();                       // 上のバーに出すボタンを復元
 if(typeof bindDefaultSizeBtn==='function') bindDefaultSizeBtn(document.getElementById('tbDefsize'));   // ▦は長押しで既定値を設定
 (function(){ const b=document.getElementById('speechAutoBtn'); if(b) b.classList.toggle('on', speechAutoOn); })();

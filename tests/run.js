@@ -996,6 +996,112 @@ async function runReport(browser) {
   await ctx.close();
 }
 
+/* 数字キーのフリックで記号を入れる／記号ページの表示・非表示 */
+async function runFlickSym(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 数字キーのフリック記号 ──');
+  const box = k => page.evaluate(x => {
+    const b = document.querySelector('#numpadPage1 [data-key="' + x + '"]');
+    const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, k);
+  const shown = () => page.evaluate(() =>
+    document.getElementById('formulaInput').value || String(disp_val || ''));
+  const reset = async () => { await page.evaluate(() => { ac(); sel(0, 0); setCellVal(0, 0, ''); });
+    await page.waitForTimeout(150); };
+  /* hold ミリ秒押してから (dx,dy) だけ動かして離す */
+  const press = async (k, dx = 0, dy = 0, hold = 320) => {
+    const c = await box(k);
+    await page.mouse.move(c.x, c.y); await page.mouse.down(); await page.waitForTimeout(hold);
+    if (dx || dy) { await page.mouse.move(c.x + dx, c.y + dy); await page.waitForTimeout(90); }
+    await page.mouse.up(); await page.waitForTimeout(250);
+  };
+
+  check('  10個の数字キーに4つずつ記号がある', await page.evaluate(() =>
+    Object.keys(NP_FLICK).length + '/' + Object.values(NP_FLICK).every(a => a.length === 4)), '10/true');
+  check('  1のまわりはカッコ', await page.evaluate(() => NP_FLICK.n1.join(' ')), '( [ ) ]');
+  check('  2のまわりは大小', await page.evaluate(() => NP_FLICK.n2.join(' ')), '< <= > >=');
+
+  // ふつうのタップは今までどおり数字
+  await reset(); await press('n1', 0, 0, 60);
+  check('  タップは数字のまま', await shown(), '1');
+  // 少しだけ長押しすると候補が出る
+  await reset();
+  let c = await box('n1');
+  await page.mouse.move(c.x, c.y); await page.mouse.down(); await page.waitForTimeout(320);
+  check('  少し長押しで候補が出る', await page.evaluate(() => {
+    const e = document.getElementById('npFlickPop');
+    return e && e.classList.contains('open') ? [...e.children].map(x => x.textContent).join('/') : 'なし';
+  }), '[/(/1/)/]');
+  check('  画面からはみ出さない', await page.evaluate(() => {
+    const r = document.getElementById('npFlickPop').getBoundingClientRect();
+    return r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight; }), true);
+  await page.mouse.move(c.x - 45, c.y); await page.waitForTimeout(90);
+  check('  動かした向きが選ばれる', await page.evaluate(() => npFlickDir), 'left');
+  await page.mouse.up(); await page.waitForTimeout(250);
+  check('  左フリックで (', await shown(), '=(');
+  check('  離すと候補は消える', await page.evaluate(() =>
+    document.getElementById('npFlickPop').classList.contains('open')), false);
+
+  await reset(); await press('n1', 45, 0);  check('  右フリックで )', await shown(), '=)');
+  await reset(); await press('n2', 0, -45); check('  上フリックで <=', await shown(), '=<=');
+  await reset(); await press('n2', 0, 45);  check('  下フリックで >=', await shown(), '=>=');
+  await reset(); await press('n4', -45, 0); check('  4の左は ,', await shown(), '=,');
+  await reset(); await press('n7', -45, 0); check('  7の左は 「', await shown(), '=「');
+  await reset(); await press('n9', 0, -45); check('  9の上は ℃', await shown(), '=℃');
+  await reset(); await press('n7', 0, 0);   check('  まん中で離すと数字', await shown(), '7');
+
+  // 数字キーの長押しでボタンの機能は割り当てない（v353でやめた）
+  await reset();
+  c = await box('n3');
+  await page.mouse.move(c.x, c.y); await page.mouse.down(); await page.waitForTimeout(750);
+  check('  数字キーの長押しで割り当ては開かない', await page.evaluate(() =>
+    isDlgOpen('keyAssignOverlay')), false);
+  await page.mouse.up(); await page.waitForTimeout(250);
+  // 数字以外のキーは今までどおり長押しで割り当て
+  const op = await page.evaluate(() => {
+    const b = document.querySelector('#numpadPage1 [data-key="mul"]') ||
+              document.querySelector('#numpadPage1 [data-key="plus"]');
+    const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await page.mouse.move(op.x, op.y); await page.mouse.down(); await page.waitForTimeout(750);
+  await page.mouse.up(); await page.waitForTimeout(300);
+  check('  数字以外は長押しで割り当てが開く', await page.evaluate(() =>
+    isDlgOpen('keyAssignOverlay')), true);
+  await page.evaluate(() => closeKeyAssign()); await page.waitForTimeout(300);
+
+  // 早くなぞればページのフリックは今までどおり
+  await reset();
+  c = await box('n5');
+  await page.mouse.move(c.x, c.y); await page.mouse.down();
+  for (let i = 1; i <= 6; i++) { await page.mouse.move(c.x - 120 * i / 6, c.y); await page.waitForTimeout(20); }
+  await page.mouse.up(); await page.waitForTimeout(700);
+  check('  早いフリックはページ移動のまま', await page.evaluate(() => String(numpadPager.current())), 'func');
+  await page.evaluate(() => numpadPager.go(null)); await page.waitForTimeout(500);
+
+  // ── 記号ページの表示・非表示 ──
+  const bar = () => page.evaluate(() =>
+    [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|'));
+  check('  はじめは記号ページを出す', await bar(), '書式・枠線|数字|記号|電卓|▲ 登録');
+  await page.evaluate(() => toggleFuncPage()); await page.waitForTimeout(300);
+  check('  隠すと並びから消える', await bar(), '書式・枠線|数字|電卓|▲ 登録');
+  const vp = await page.evaluate(() => {
+    const r = document.getElementById('numpadViewport').getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await page.mouse.move(vp.x, vp.y); await page.mouse.wheel(0, 120); await page.waitForTimeout(600);
+  check('  数字の次は電卓になる', await page.evaluate(() => String(numpadPager.current())), 'sci');
+  await page.mouse.wheel(0, -120); await page.waitForTimeout(600);
+  check('  戻ると数字へ', await page.evaluate(() => String(numpadPager.current())), 'null');
+  await page.reload(); await page.waitForTimeout(900);
+  check('  開き直しても隠れたまま', await page.evaluate(() => showFuncPage), false);
+  await page.evaluate(() => toggleFuncPage()); await page.waitForTimeout(300);
+  check('  戻すと並びに出る', await bar(), '書式・枠線|数字|記号|電卓|▲ 登録');
+  await page.mouse.move(vp.x, vp.y); await page.mouse.wheel(0, 120); await page.waitForTimeout(600);
+  check('  数字の次は記号に戻る', await page.evaluate(() => String(numpadPager.current())), 'func');
+  await page.evaluate(() => numpadPager.go(null)); await page.waitForTimeout(400);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 /* テンキーの上に出す道具（設定で選んでページ名の並びに足す） */
 async function runNpTools(browser) {
   const { ctx, page, errs } = await newPage(browser);
@@ -2001,6 +2107,7 @@ async function runDigit(browser) {
     if (!only || only === 'cellmenu') await runCellMenu(browser);
     if (!only || only === 'savelist') await runSaveList(browser);
     if (!only || only === 'topbar') await runTopBar(browser);
+    if (!only || only === 'flicksym') await runFlickSym(browser);
     if (!only || only === 'nptools') await runNpTools(browser);
     if (!only || only === 'veggie') await runVeggie(browser);
     if (!only || only === 'report') await runReport(browser);
