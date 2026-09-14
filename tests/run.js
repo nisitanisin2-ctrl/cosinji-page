@@ -314,6 +314,53 @@ async function runMode(browser) {
     await g.ctx.close();
   }
 
+  // ── 面積・容積モード（長方形と円。単位つきで出す） ──
+  {
+    const y = await newPage(browser);
+    const cell = (r, c) => y.page.evaluate(([r, c]) => {
+      const e = document.getElementById('c' + r + '_' + c); return e ? e.textContent : '?'; }, [r, c]);
+    const rowOf = async r => (await Promise.all([0, 1, 2, 3, 4, 5].map(c => cell(r, c)))).join('|');
+    const fill = async rows => { await y.page.evaluate(async rows => {
+        for (let r = 1; r < ROWS; r++) for (let c = 0; c < 4; c++) data[r][c] = '';
+        rows.forEach((v, i) => { [0, 1, 2, 3].forEach(c => { data[i + 1][c] = v[c]; }); });
+        recalcMode(); buildSheet(); recalcMode(); }, rows);
+      await y.page.waitForTimeout(200); };
+    await y.page.evaluate(() => switchMode('youseki')); await y.page.waitForTimeout(600);
+    check('  見出しに単位が入っている', await rowOf(0), '形|たて・直径m|よこm|高さm|面積㎡・容積㎥|まわりm');
+    await fill([['', '3', '4', ''], ['', '3', '4', '2'],
+                ['円', '2', '', ''], ['丸', '2', '', '5'], ['', '2', '', '']]);
+    check('  長方形の面積は㎡', await rowOf(1), '|3|4||12 ㎡|14 m');
+    check('  高さを入れると容積は㎥', await rowOf(2), '|3|4|2|24 ㎥|14 m');
+    check('  円の面積は直径から', await rowOf(3), '円|2|||3.142 ㎡|6.283 m');
+    check('  円柱の容積', await rowOf(4), '丸|2||5|15.708 ㎥|6.283 m');
+    check('  よこが空の長方形は出さない', await rowOf(5), '|2||||');
+    check('  合計も単位つきで出す', await y.page.evaluate(() =>
+      ['ysArea', 'ysTotal', 'ysLiter', 'ysPeri'].map(id => document.getElementById(id).textContent).join('|')),
+      '30.283|39.708|39,707.963|40.566');
+    check('  セルの中身は数値のまま（Σ合計に使える）', await y.page.evaluate(() =>
+      [1, 2, 3].map(r => Math.round(parseFloat(data[r][4]) * 1000) / 1000).join(',')), '12,24,3.142');
+    check('  円の言い方はどれでもよい', await y.page.evaluate(() =>
+      ['円', '丸', 'まる', '○', '◯', 'circle'].every(isCircleShape)
+      && !['', '長方形', '四角', '2'].some(isCircleShape)), true);
+    check('  答えとまわりは書き換えられない', await y.page.evaluate(() =>
+      isLockedCell(1, 4) && isLockedCell(1, 5) && !isLockedCell(1, 0)), true);
+    // 形の列が無かったころの表は、右へ1つずらして引っ越す
+    await y.page.evaluate(() => {
+      data[0][0] = '縦m'; data[0][1] = '横m'; data[0][2] = '高さm'; data[0][3] = '容積㎥';
+      data[1][0] = '3'; data[1][1] = '4'; data[1][2] = '2'; data[1][3] = '24';
+      for (let c = 4; c < COLS; c++) data[1][c] = '';
+      normalizeStructLayout(); recalcMode(); buildSheet(); recalcMode(); });
+    await y.page.waitForTimeout(300);
+    check('  古い並びは右へずらして引っ越す', await rowOf(1), '|3|4|2|24 ㎥|14 m');
+    check('  形の列はせまく出す', await y.page.evaluate(() => {
+      const a = document.getElementById('ch0').getBoundingClientRect().width;
+      const b = document.getElementById('ch1').getBoundingClientRect().width;
+      return a < b; }), true);
+    check('  面積・容積モードのJSエラーが出ていない', y.errs.length, 0);
+    if (y.errs.length) console.log('     ', y.errs);
+    await y.ctx.close();
+  }
+
   // ↶戻るの長押しで出る一覧が、指を離した分のクリックで閉じないこと
   {
     const u = await newPage(browser);
