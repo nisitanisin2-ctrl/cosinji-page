@@ -4057,6 +4057,7 @@ body.dark {
               <tr><td><span class="help-key">続けて入れる</span></td><td>聞いている窓の中の<b>🔁続けて入れる</b>を押すと、1つ言うたびに<b>下のセルへ移って</b>また聞きます（もう一度押すとやめる。「左に式・右に答え」で入れているときも同じように下へ進み、いちばん下まで来たら行を足します）。やめるときは<b>窓の外をタップ</b>。<br>はじめから続けて入れたいときは、<b>⋯の🎤を長押し</b>するか、キーに「設定・機能→<b>🎤続け</b>」を割り当ててください。<b>テンキーの🎤声キーは長押しが「別の機能に変更」</b>なので、そちらでは切り替わりません（v333で窓の中に入れました）</td></tr>
               <tr><td><span class="help-key">移るだけ</span></td><td>「<b>次</b>」「下」「右」「左」「上」と言うと、入れずにそのセルへ移ります</td></tr>
               <tr><td><span class="help-key">入れかたを選ぶ</span></td><td><b>設定→🧮計算→声の入れかた</b>（v327から）。<b>「式を入れる」</b>＝選んだセルに <code>=251*68</code>（答えが出ます）。<b>「左に式・右に答え」</b>＝選んだセルに <b>251×68</b>（読むための文字）、<b>右のセルに答え</b>を入れます。右のセルは式なので、あとから数字を直せば答えも変わり、<b>Σ合計</b>にも入ります。右に列が無いときは1列増やします。<b>↶戻る</b>1回で両方戻せます</td></tr>
+              <tr><td><span class="help-key">電卓モードでも</span></td><td><b>🧮電卓</b>のときも声で計算できます（v334から）。言った式をその場で計算して<b>大きい表示</b>に出し、<b>履歴（テープ）</b>にも <b>251×68 ＝ 17068</b> のように残ります。<b>ふつうの電卓／式の優先順位どおり</b>のどちらでも同じです。電卓には動く先が無いので、<b>続けて入れる</b>ときはその場で聞き直します。式の形で言わなかったときは「計算の形で言ってください」と出ます（セルのように文字を入れることはしません）</td></tr>
               <tr><td><span class="help-key">答えを読み上げ</span></td><td><b>設定→🧮計算→答えを声で読み上げる</b>で、計算した答えを声で返します（<b>全機種で使えます</b>。手がふさがっているときの確認に）</td></tr>
             </table>
           </div>
@@ -4092,7 +4093,7 @@ body.dark {
             <tr><td><b>容積／予算配分</b></td><td>縦×横×高さ＝容積／予算と個数から最適な購入数</td></tr>
             <tr><td><b>時間計算</b></td><td>開始・終了・時間のうち2つで残りを自動計算（◯時間後/◯分前も）</td></tr>
           </table>
-          <div class="help-li"><b>電卓モード</b>：モードで<b>🧮電卓</b>を選ぶと、表のかわりに<b>ふつうの電卓</b>が出ます。テンキーはそのまま使えて、押すたびに答えが出ます。計算するたびに<b>履歴（テープ）</b>が残り、行を押すとその答えをもう一度使えます。<b>％</b>（100＋10％→110）と<b>消費税</b>（税込・税抜。税率は設定のもの）のボタンつき。<b>▦ セルに入れる</b>を押すと元のモードに戻って、選んでいるセルに答えが入ります。「1＋2×3」の答えを<b>9（ふつうの電卓）</b>にするか<b>7（式の優先順位どおり）</b>にするかは、<b>設定→🧮計算</b>で選べます。</div>
+          <div class="help-li"><b>電卓モード</b>：モードで<b>🧮電卓</b>を選ぶと、表のかわりに<b>ふつうの電卓</b>が出ます。テンキーはそのまま使えて、押すたびに答えが出ます。計算するたびに<b>履歴（テープ）</b>が残り、行を押すとその答えをもう一度使えます。<b>％</b>（100＋10％→110）と<b>消費税</b>（税込・税抜。税率は設定のもの）のボタンつき。<b>▦ セルに入れる</b>を押すと元のモードに戻って、選んでいるセルに答えが入ります。<b>🎤声</b>キーで<b>声で計算</b>することもできます（🎤 声で入れるの章をどうぞ）。「1＋2×3」の答えを<b>9（ふつうの電卓）</b>にするか<b>7（式の優先順位どおり）</b>にするかは、<b>設定→🧮計算</b>で選べます。</div>
           <div class="help-li"><b>📋計算式テンプレ／📑決算書テンプレ</b>（設定の「計算」タブ）：割引・利益率・BMI・速さ・複利・ローン・面積…約20種類のひな形や、損益計算書・貸借対照表・収支計算書のひな形。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
         </div>
       </details>
@@ -11965,9 +11966,34 @@ function speechSay(text){
   }catch(_){}
 }
 
+/* 電卓モードのときは、セルではなく電卓に入れる。
+   言った式をその場で計算して、答えを大きい表示に出し、履歴（テープ）にも残す。 */
+function voiceAcceptDentaku(raw){
+  const f = speechAutoOn ? speechToFormula(raw) : null;
+  if(f===null){
+    toast('計算の形で言ってください（例「251かける68」）');
+    return;
+  }
+  let v; try{ v=evalFormula(f); }catch(_){ v=null; }
+  if(typeof v!=='number' || !isFinite(v)){ toast('計算できませんでした'); return; }
+  const num=fmtNum(v);
+  dtPush(formulaToReadable(f), num);          // 履歴には 251×68 のように読みやすい形で残す
+  if(dtStyle==='expr') dtExpr=num;
+  disp_val=num; op1=null; cur_op=null; waiting=false; dtSeq='';
+  dtRender();
+  toast(`「${raw}」＝ ${num}`, 4200);
+  speechSay(num);
+}
+
 /* 聞き取れた言葉をセルへ入れる（式に見えれば式にして計算） */
 function voiceAccept(text){
   const raw=String(text).trim();
+  if(typeof isDentaku==='function' && isDentaku()){
+    voiceStop();
+    if(raw) voiceAcceptDentaku(raw); else toast('聞き取れませんでした');
+    if(voiceKeepGoing) setTimeout(()=>{ if(voiceKeepGoing) voiceStart(); }, 450);   // 電卓は動く先が無いので聞き直すだけ
+    return;
+  }
   const move=speechMoveWord(raw);
   if(move){                      // 「次」だけ言ったときは、入れずに動くだけ
     voiceStop();
@@ -14413,7 +14439,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v333';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v334';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
