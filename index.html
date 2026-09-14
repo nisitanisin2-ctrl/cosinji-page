@@ -1270,6 +1270,16 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
   display: flex; align-items: center; justify-content: space-between;
   flex-shrink: 0;
 }
+/* ダイアログ見出しの「🗑削除」（✕の左） */
+.modal-del {
+  background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4);
+  color: #fff; font-size: 13px; font-weight: bold; line-height: 1;
+  border-radius: var(--r-btn); padding: 7px 10px; margin-left: auto;
+  cursor: pointer; touch-action: manipulation; white-space: nowrap;
+}
+.modal-del:hover  { background: var(--danger-dark); border-color: var(--danger); }
+.modal-del:active { background: var(--danger); }
+.modal-header .modal-del + .modal-close { margin-left: 6px; }
 .modal-close {
   background: rgba(255,255,255,0.2); color: white; border: none;
   border-radius: var(--r-btn); width: 28px; height: 28px; font-size: 17px;
@@ -3919,6 +3929,7 @@ body.dark {
   <div class="modal">
     <div class="modal-header">
       <span>テンキー登録</span>
+      <button class="modal-del" id="regPickDelBtn" onclick="regPickDelete()" title="このボタンの登録を消す">🗑 削除</button>
       <button class="modal-close" onclick="closeRegPick()">✕</button>
     </div>
     <div class="mode-hint">よく使う文字・数字を入力して登録します。戻る／進む・Enterなどの便利機能はオプションで選べます</div>
@@ -4006,7 +4017,7 @@ body.dark {
             <tr><td><span class="help-key">↑ 上へ</span></td><td><b>登録ページ</b>：紫ボタンを長押しで登録（下記）</td></tr>
             <tr><td><span class="help-key">↓ 下へ</span></td><td>数字ページに戻る</td></tr>
           </table>
-          <div class="help-li"><b>登録ページ</b>：紫ボタンを<b>長押し</b>で登録画面。よく使う<b>文字・数字</b>を入力して登録（数値の途中でタップすると連結。例 100→「円」で100円）。<b>🎨書式</b>を付ければその書式のまま入力、<b>📋セルから選ぶ</b>でセルの内容＋書式を取り込み、<b>🔧ボタンの機能</b>から便利機能（保存・リスト・PDF・📅日付〈カレンダー〉など）も登録できます。登録後は<b>タップで入力／実行</b>。<b>🔀移動</b>で位置入れ替え（別ページとも可）。<b>左右フリックで3ページ</b>（左・中央・右）、<b>下フリックで数字ページに戻る</b>。</div>
+          <div class="help-li"><b>登録ページ</b>：紫ボタンを<b>長押し</b>で登録画面（v337から、開いてもキーボードは出ません。<b>入力欄をタップ</b>すると出ます）。よく使う<b>文字・数字</b>を入力して登録（数値の途中でタップすると連結。例 100→「円」で100円）。<b>🎨書式</b>を付ければその書式のまま入力、<b>📋セルから選ぶ</b>でセルの内容＋書式を取り込み、<b>🔧ボタンの機能</b>から便利機能（保存・リスト・PDF・📅日付〈カレンダー〉など）も登録できます。登録後は<b>タップで入力／実行</b>。登録を消すときは、登録画面の右上（✕の左）の<b>🗑削除</b>を押します（v337から。空にして「登録」を押す方法もそのまま使えます）。<b>🔀移動</b>で位置入れ替え（別ページとも可）。<b>左右フリックで3ページ</b>（左・中央・右）、<b>下フリックで数字ページに戻る</b>。</div>
           <div class="help-li"><b>ボタン長押しで機能を割り当て</b>（数字・関数記号・電卓ページ）：別のキーや設定機能（保存・リスト・PDF・CSV・ナイト・テンプレ・📅日付…）、<b>「表の操作」</b>（行列の増減／挿入・削除／コピー・貼付・消去／A1へ移動／シート追加・切替）に変更できます。「↺元に戻す」でいつでも戻せます（Σは対象外）。</div>
           <div class="help-li"><b>テンキーの大きさ</b>：上端（横向きは左端）の<b>調整バーをドラッグ</b>で大小（端まで＝消える／バーで戻す）。調整バーは既定では出していないので、使うときは設定→<b>🎨見た目→くわしい設定</b>の<b>調整バーを表示する</b>をオンにしてください（太さも変えられます）。入力欄の右端の<b>▼</b>でワンタップ収納（▲で復帰）。設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーのボタン配置を編集</b>でボタン位置も入れ替え可。</div>
           <div class="help-note">💡 <b>パソコン</b>：テンキーの上でマウスの<b>ホイールを回す</b>と、横フリックと同じようにページを切り替えられます。ページ名のクリックでも移動できます。</div>
@@ -10246,13 +10257,17 @@ function renderRegPickBody(){
   }
   body.innerHTML=html;
   if(regFmtOpen) renderRegFmtSection();
+  syncRegPickDelBtn();
   const input=document.getElementById('regPickInput');
   if(input){
     input.addEventListener('keydown', e=>{
       e.stopPropagation();
       if(e.key==='Enter'){ e.preventDefault(); regPickTextSave(); }
     });
-    if(!actionsOpen && !regFmtOpen){ requestAnimationFrame(()=>{ input.focus(); input.select(); }); }
+    // 開いたときにキーボードを出すのはやめた（画面の半分が隠れて、
+    // 「セルから選ぶ」や「ボタンの機能」が見えなくなるため）。
+    // 入力欄をタップしたときだけ出す。中身があるときは、タップで選び直せるように全選択する。
+    input.addEventListener('focus', ()=>{ if(input.value) input.select(); });
   }
 }
 /* 書式セクション（文字色・背景・サイズ・装飾）を描画 */
@@ -10319,6 +10334,26 @@ function regPickTextSave(){
   userKeys[i]= fmt ? {type:'text', value:String(v), fmt} : {type:'text', value:String(v)};
   saveUserKeys(); renderUserKeys();
   closeRegPick();
+}
+/* ✕の左の「🗑削除」：このボタンの登録を消して、空のボタンに戻す */
+function regPickDelete(){
+  const i=regPickIndex;
+  const cur=regEntry(i);
+  if(!cur || cur.type==='none' || (cur.type==='text' && cur.value==='')){
+    toast('このボタンにはまだ何も登録されていません');
+    return;
+  }
+  userKeys[i]={type:'text', value:''};
+  saveUserKeys(); renderUserKeys();
+  closeRegPick();
+  toast('このボタンの登録を消しました');
+}
+/* 登録があるときだけ「削除」を出す */
+function syncRegPickDelBtn(){
+  const b=document.getElementById('regPickDelBtn'); if(!b) return;
+  const cur=regEntry(regPickIndex);
+  const has = cur && cur.type!=='none' && !(cur.type==='text' && cur.value==='');
+  b.style.display = has ? '' : 'none';
 }
 function regPickAction(id){
   const i=regPickIndex;
@@ -14548,7 +14583,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v336';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v337';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

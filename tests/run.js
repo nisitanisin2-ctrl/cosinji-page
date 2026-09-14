@@ -654,6 +654,49 @@ async function runTopBar(browser) {
   await ctx.close();
 }
 
+/* テンキー登録の画面 */
+async function runRegPick(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── テンキー登録の画面 ──');
+  const delBtn = () => page.evaluate(() => { const b = document.getElementById('regPickDelBtn');
+    return b ? (getComputedStyle(b).display === 'none' ? 'なし' : 'あり') : '無い'; });
+  const focused = () => page.evaluate(() =>
+    !!(document.activeElement && document.activeElement.id === 'regPickInput'));
+
+  // 開いただけではキーボードを出さない（入力欄にカーソルを入れない）
+  await page.evaluate(() => { userKeys = []; saveUserKeys(); registerUserKey(0); });
+  await page.waitForTimeout(400);
+  check('  開いても入力欄にカーソルが入らない', await focused(), false);
+  check('  登録が無いときは削除を出さない', await delBtn(), 'なし');
+  // 入力欄をタップすればカーソルが入る
+  await page.evaluate(() => document.getElementById('regPickInput').focus());
+  await page.waitForTimeout(200);
+  check('  入力欄をタップすればカーソルが入る', await focused(), true);
+
+  // 登録すると、開き直したときに削除が出る
+  await page.evaluate(() => { document.getElementById('regPickInput').value = '円'; regPickTextSave(); });
+  await page.waitForTimeout(300);
+  check('  文字を登録できる', await page.evaluate(() => JSON.stringify(userKeys[0])), '{"type":"text","value":"円"}');
+  await page.evaluate(() => registerUserKey(0)); await page.waitForTimeout(300);
+  check('  登録があると削除が出る', await delBtn(), 'あり');
+  check('  開き直してもカーソルは入らない', await focused(), false);
+  await page.evaluate(() => regPickDelete()); await page.waitForTimeout(300);
+  check('  削除で空になる', await page.evaluate(() => JSON.stringify(userKeys[0])), '{"type":"text","value":""}');
+  check('  削除したら画面が閉じる',
+        await page.evaluate(() => document.getElementById('regPickOverlay').classList.contains('open')), false);
+
+  // 機能を登録した場合も消せる
+  await page.evaluate(() => { registerUserKey(1); regPickAction('a_save'); }); await page.waitForTimeout(300);
+  await page.evaluate(() => registerUserKey(1)); await page.waitForTimeout(300);
+  check('  機能の登録でも削除が出る', await delBtn(), 'あり');
+  await page.evaluate(() => regPickDelete()); await page.waitForTimeout(300);
+  check('  機能の登録も消せる', await page.evaluate(() => JSON.stringify(userKeys[1])), '{"type":"text","value":""}');
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 /* 電卓ページ（いちばん右。v335で関数電卓ページから置き換え） */
 async function runCalcPage(browser) {
   const { ctx, page, errs } = await newPage(browser);
@@ -1197,6 +1240,7 @@ async function runDigit(browser) {
     if (!only || only === 'digit') await runDigit(browser);
     if (!only || only === 'speech') await runSpeech(browser);
     if (!only || only === 'calcpage') await runCalcPage(browser);
+    if (!only || only === 'regpick') await runRegPick(browser);
     if (!only || only === 'cellmenu') await runCellMenu(browser);
     if (!only || only === 'savelist') await runSaveList(browser);
     if (!only || only === 'topbar') await runTopBar(browser);
