@@ -1928,11 +1928,10 @@ body.dark .save-mode { background: #143a35; color: #7fcabd; }
    1件＝1つのファイル。タップで開く（読込）、⋯で名前の変更・削除など。 */
 .save-grid {
   display: grid; gap: 6px;
-  --sf-col: 88px; --sf-w: 46px; --sf-h: 54px; --sf-em: 19px; --sf-name: 11px;
+  /* アイコンの大きさは「小」で固定（v350。大きさの切り替えはやめた） */
+  --sf-col: 66px; --sf-w: 34px; --sf-h: 40px; --sf-em: 14px; --sf-name: 10px;
   grid-template-columns: repeat(auto-fill, minmax(var(--sf-col), 1fr));
 }
-.save-grid.sz-s { --sf-col: 66px; --sf-w: 34px; --sf-h: 40px; --sf-em: 14px; --sf-name: 10px; }
-.save-grid.sz-l { --sf-col: 116px; --sf-w: 62px; --sf-h: 72px; --sf-em: 26px; --sf-name: 13px; }
 .save-file {
   position: relative; display: flex; flex-direction: column; align-items: center;
   gap: 3px; padding: 8px 4px 6px; border: 1px solid transparent; border-radius: var(--r-btn);
@@ -2007,8 +2006,6 @@ body.dark .save-mode { background: #143a35; color: #7fcabd; }
   border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text-light);
   border-radius: var(--r-btn); padding: 4px 6px; font-size: 12px; max-width: 46%;
 }
-.save-sizebar { gap: 3px; padding-top: 0; }
-.save-sizebar .save-viewbtn { padding: 4px 12px; }
 .save-viewbar .sv-label { font-size: 12px; color: var(--text-light); margin-right: 3px; }
 .save-viewbtn {
   border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text-light);
@@ -2660,7 +2657,7 @@ body.dark {
      それ以外はここにまとめた。いちばん下の「リセット」だけ赤くして、
      消してしまう操作が日常の操作に紛れないようにしている。 -->
 <!-- ↶の長押しで出す「取り消せる操作」の一覧。どこまで戻すかを選べる -->
-<div class="modal-overlay" id="undoListOverlay" onpointerdown="this.dataset.downBg=(event.target===this)?'1':''" onclick="if(event.target===this&&this.dataset.downBg)closeUndoList()">
+<div class="modal-overlay" id="undoListOverlay">
   <div class="modal">
     <div class="modal-header">
       <span>↶ 取り消せる操作</span>
@@ -3495,12 +3492,6 @@ body.dark {
       <span class="sv-spacer"></span>
       <button class="save-viewbtn" id="saveViewIcon" onclick="setSaveView('icon')" title="ファイルのアイコンで並べます">⊞ アイコン</button>
       <button class="save-viewbtn" id="saveViewList" onclick="setSaveView('list')" title="1件ずつ、ボタン付きで並べます">☰ リスト</button>
-    </div>
-    <div class="save-viewbar save-sizebar" id="saveSizeBar">
-      <span class="sv-label">大きさ</span>
-      <button class="save-viewbtn" id="saveSizeS" onclick="setSaveSize('s')" title="小さいアイコン">小</button>
-      <button class="save-viewbtn" id="saveSizeM" onclick="setSaveSize('m')" title="ふつうのアイコン">中</button>
-      <button class="save-viewbtn" id="saveSizeL" onclick="setSaveSize('l')" title="大きいアイコン">大</button>
     </div>
     <div class="modal-body" id="saveListBody"></div>
     <div class="save-toolbar">
@@ -4476,6 +4467,10 @@ body.dark {
             <tr><td><b>上下の余白</b></td><td>テンキーの上下の隙間（「最小」でホームバー分も詰める）</td></tr>
           </table>
           <div class="help-li"><b>▦既定の大きさ</b>：タップで決めた行数・列数に一発変更、<b>長押しで既定値を設定</b>（設定→🎨見た目→くわしい設定→<b>上のバーに出すボタン</b>で上のバーにも出せます）。</div>
+          <div class="help-li"><b>▦通常 と ▦既定の大きさ のちがい</b>（似ているので）：<br>
+            ・<b>▦通常</b>は<b>モードを通常に戻す</b>ボタンです。すでに通常のときは、<b>ひな形なら消して</b>まっさらな表にし、<b>中身が空で小さいままなら</b>既定の大きさに戻します。<b>中身が入っているときは大きさを変えません</b>（作りかけの表を勝手に変えないため）<br>
+            ・<b>▦既定の大きさ</b>は<b>大きさだけ</b>を変えるボタンです。<b>中身はそのまま</b>で、行数・列数を決めた値にします<br>
+            ・つまり「空の表を既定に戻す」ときだけ、どちらを押しても同じになります</div>
           <div class="help-li"><b>テンキーのボタン配置を編集</b>（「くわしい設定」の中）：ドラッグでボタンを入れ替え（同じ大きさ同士。Enter・0は固定。関数・枠線ページも編集可）。「↺初期化」で元に戻せます。</div>
           <div class="help-li"><b>🔀モードの表示/非表示</b>：「モード」一覧に出す標準モードを選べます（「通常」は常に表示）。</div>
         </div>
@@ -4493,7 +4488,7 @@ body.dark {
           </table>
           <div class="help-li"><b>安全さは3段階あります</b>。①<b>いまの表</b>＝書き換えるたび端末に自動保存（閉じても戻る）／②<b>記録</b>＝名前を付けて残す（置き場所はやはり端末）／③<b>ファイルに書き出す</b>＝端末の外に残る。<b>ブラウザのデータを消しても戻せるのは③だけ</b>です。リストの<b>⬇書き出し</b>をときどき使ってください。<br>端末の空きが足りなくて保存できなかったときは、<b>はっきりお知らせします</b>（「保存しました」とは言いません）。</div>
           <div class="help-li"><b>保存</b>：タップで<b>上書き保存</b>、<b>長押しで「名前を付けて保存」</b>（記録を開いていない・🔒ロック中はタップでも名前を付けて保存）。上のバーに<b>今の記録名（📄）</b>が出て、未保存の変更があると<b>●</b>が付きます。<b>リスト</b>で保存データ一覧を開きます。よく使うものは設定→<b>🎨見た目→くわしい設定→「上のバーに出すボタン」</b>で上のバーに足せます。名前を付けて保存するときの<b>最初の名前は Book1・Book2…</b>です（v318から。以前は日付でした）。空いている番号が出るので、そのまま保存しても名前が重なりません。</div>
-          <div class="help-li"><b>記録の並べ方</b>（v315から）：保存データ一覧は<b>⊞アイコン</b>と<b>☰リスト</b>を切り替えられます。<b>アイコン</b>はエクスプローラーのようにファイルが並ぶ形で、<b>短くタップで開きます</b>（v320から確認は出ません。<b>↶戻る</b>で開く前の表に戻せます）。<b>⋯か長押し</b>でメニューが出て、<b>📂開く・✏名前の変更・⧉コピーを作る・🔒ロック・🔀モードへ登録・🗂他のタブへ移す・🗑削除</b>ができます（v317でコピーを追加）。長押しでメニューを出したときは、指を離しても<b>記録は開きません</b>。メニューの項目は<b>もう一度そこから押し直す</b>と動きます（v321。指の真下に出た項目が、離しただけで選ばれてしまうのを防ぐためです。セルの長押しメニューも同じです）。<b>コピー</b>は中身ごと複製した別の記録になるので、元をそのまま残して作りかえられます（名前は「◯◯ のコピー」）。絵は保存したときのモードのものになります（🔒はロック中、📂は今開いている記録）。アイコンの<b>大きさ</b>（小・中・大）と<b>並べ替え</b>（新しい順・古い順・名前順 あ→ん／ん→あ）も選べます。名前順は日本語の並びで、<b>見積もり2 → 見積もり10</b> のように数字も数の順になります（並べ替えはリスト表示にも効きます）。選んだ表示・大きさ・並び順は次に開いたときも残ります。</div>
+          <div class="help-li"><b>記録の並べ方</b>（v315から）：保存データ一覧は<b>⊞アイコン</b>と<b>☰リスト</b>を切り替えられます。<b>アイコン</b>はエクスプローラーのようにファイルが並ぶ形で、<b>短くタップで開きます</b>（v320から確認は出ません。<b>↶戻る</b>で開く前の表に戻せます）。<b>⋯か長押し</b>でメニューが出て、<b>📂開く・✏名前の変更・⧉コピーを作る・🔒ロック・🔀モードへ登録・🗂他のタブへ移す・🗑削除</b>ができます（v317でコピーを追加）。長押しでメニューを出したときは、指を離しても<b>記録は開きません</b>。メニューの項目は<b>もう一度そこから押し直す</b>と動きます（v321。指の真下に出た項目が、離しただけで選ばれてしまうのを防ぐためです。セルの長押しメニューも同じです）。<b>コピー</b>は中身ごと複製した別の記録になるので、元をそのまま残して作りかえられます（名前は「◯◯ のコピー」）。絵は保存したときのモードのものになります（🔒はロック中、📂は今開いている記録）。<b>並べ替え</b>（新しい順・古い順・名前順 あ→ん／ん→あ）も選べます。アイコンの<b>大きさは「小」で固定</b>です（v350。一度に見える数を多くするため、大きさの切り替えはやめました）。名前順は日本語の並びで、<b>見積もり2 → 見積もり10</b> のように数字も数の順になります（並べ替えはリスト表示にも効きます）。選んだ表示と並び順は次に開いたときも残ります。</div>
           <div class="help-li"><b>1記録＝全モードのスナップショット</b>：通常・買物・容積など全モードのシートをまとめて保存。読み込むと各モードがその記録に置き換わり、保存時のモードで開き直します（以前の「1モードだけの記録」も読み込めます）。リストで<b>今開いている記録</b>は緑でハイライトされ「📂開いています」と表示。</div>
           <div class="help-li"><b>リセット</b>は<b>今のシートだけ</b>を消去（記録との紐付けは保持）。まっさらにするときはリストの<b>🆕新規</b>ボタン。</div>
           <table class="help-tbl">
@@ -4834,7 +4829,7 @@ function cellDateFmt(r,c){ const s=cellStyles[`${r},${c}`]; return (s&&s.dfmt)?s
 function isDateSerialCell(r,c){ const raw=data[r][c]; return raw!=='' && !String(raw).startsWith('=') && !isNaN(String(raw).trim()); }
 /* 編集時に入力欄へ表示する文字列（日付セルは編集しやすい YYYY/M/D で表示） */
 function cellEditString(r,c){
-  if(cellDateFmt(r,c) && isDateSerialCell(r,c)){ const {y,m,d}=serialToYMD(Number(data[r][c])); return `${y}/${m}/${d}`; }
+  if(cellDateFmt(r,c) && isDateSerialCell(r,c)) return formatDate(Number(data[r][c]),'ymd');
   return data[r][c];
 }
 
@@ -6906,12 +6901,7 @@ function getDefaultCols(){ const v=parseInt(localStorage.getItem('excalc_default
 /* 既定の行数・列数に設定し直す */
 function applyDefaultSize(){
   if(isStructMode()){ toast('このモードでは行・列数を変更できません'); return; }
-  ROWS=getDefaultRows(); COLS=getDefaultCols();
-  document.getElementById('rowCount').textContent=ROWS;
-  document.getElementById('colCount').textContent=COLS;
-  localStorage.setItem('excalc_rows',ROWS);
-  localStorage.setItem('excalc_cols',COLS);
-  buildSheet();
+  setSheetSize(getDefaultRows(), getDefaultCols());
   sel(Math.min(selR,ROWS-1), Math.min(selC,COLS-1));
   persistModes();
   closeSettingsPanel();   // 規定に戻したら設定を閉じて表を見せる
@@ -7109,12 +7099,7 @@ function closeHeaderMenu(){ closeDlg('headerMenuOverlay'); }
 /* 背景タップで閉じるのは「背景の上でpointerdownして離した」ときだけにする。
    長押しでメニューを開いた直後、指を離した瞬間に発生する合成clickでは
    背景の上でpointerdownしていないので閉じない（＝出た瞬間に消える不具合を防ぐ）。 */
-(function initHeaderMenuBackdrop(){
-  const ov=document.getElementById('headerMenuOverlay'); if(!ov) return;
-  let downOnBackdrop=false;
-  ov.addEventListener('pointerdown', e=>{ downOnBackdrop=(e.target===ov); });
-  ov.addEventListener('click', e=>{ if(e.target===ov && downOnBackdrop) closeHeaderMenu(); downOnBackdrop=false; });
-})();
+(function initHeaderMenuBackdrop(){ bindBackdropClose('headerMenuOverlay', closeHeaderMenu); })();
 function hmDo(action, index){
   closeHeaderMenu();
   if(action==='insRowAbove') insertRowAt(index);
@@ -8014,9 +7999,10 @@ function vegKind(label){
   return {k:'plant', c:'#6d4c41'};
 }
 function vegFmtDate(serial){
-  const {y,m,d,w}=serialToYMD(serial);
+  const y=serialToYMD(serial).y;
   const base=(vegSowSerial!==null)?serialToYMD(vegSowSerial).y:y;
-  return (y===base?'':y+'年')+`${m}/${d}(${WDAY_JP[w]})`;   // 年をまたいだときだけ年も出す
+  // 年をまたいだときだけ年も出す（ふだんは 3/1(日) の形）
+  return (y===base?'':y+'年')+formatDate(serial,'md')+'('+WDAY_JP[serialToYMD(serial).w]+')';
 }
 /* 予定表の中身：[{what, from, to, d1, d2}]（from/to は通し番号） */
 function vegRows(){
@@ -8225,7 +8211,7 @@ function vegInsertToSheet(){
   closeVeggie();
   toast(locked ? `予定表を入れました（保護の${locked}個は除く）` : '予定表を表に入れました（↶戻るで元に戻せます）', 4200);
 }
-function vegDateText(serial){ const {y,m,d}=serialToYMD(serial); return `${y}/${m}/${d}`; }
+function vegDateText(serial){ return formatDate(serial,'ymd'); }
 
 /* ── 1ページのPDF・画像に書き出す共通のしくみ ──────────────────
    #printArea に中身を組み立て、A4たて1枚に収まる幅をさがしてから、
@@ -8572,6 +8558,14 @@ function taxAdd(v, pct){ return v*taxMul(pct); }                     // 税抜�
 function taxSub(v, pct){ return v/taxMul(pct); }                     // 税込→税抜（丸めなし）
 function taxOfEx(ex, pct){ return Math.floor(ex*((pct==null?taxPct:pct)/100) + 1e-6); }   // 税抜からの消費税額（円・切り捨て。1e-6は誤差の補正）
 function taxExOfInc(inc, pct){ return Math.floor(taxSub(inc,pct) + 1e-6); }               // 税込からの税抜（円・切り捨て）
+
+/* ── 割合（v350で1か所にまとめた）──────────────────────
+   1割＝10％。割合額・足す・引くの計算を、割合モードと電卓で共通に使う。 */
+function pctOf(v, pct){ return v*pct/100; }        // v の pct％ ぶん
+function pctAdd(v, pct){ return v+pctOf(v,pct); }  // pct％ 足す
+function pctSub(v, pct){ return v-pctOf(v,pct); }  // pct％ 引く
+function wariToPct(wari){ return wari*10; }        // 割 → ％
+function pctToWari(pct){ return pct/10; }          // ％ → 割
 
 /* ── 面積とまわりの長さ（v349で1か所にまとめた）────────────
    長方形と円の計算を、面積・容積モードと📷容積の道具で共通に使う。
@@ -10932,14 +10926,13 @@ function pickKeyAssign(fid){
   }, true);
   /* 背景タップで閉じる（背景でpointerdownした場合のみ＝長押し解放の合成クリックでは閉じない） */
   const ov=document.getElementById('keyAssignOverlay');
-  let downOnBackdrop=false;
-  ov.addEventListener('pointerdown', e=>{ downOnBackdrop=(e.target===ov); kaReady=true; });   // 押し直したら項目を有効化
+  ov.addEventListener('pointerdown', ()=>{ kaReady=true; });   // 押し直したら項目を有効化
   /* 開いた直後（押し直す前）のクリックは、項目・✕・背景のどこに落ちても1回無効化。
      長押しの指がピッカーのボタンの上で離れても誤動作しない */
   ov.addEventListener('click', e=>{
     if(!kaReady){ e.preventDefault(); e.stopPropagation(); return; }
   }, true);
-  ov.addEventListener('click', e=>{ if(e.target===ov && downOnBackdrop) closeKeyAssign(); downOnBackdrop=false; });
+  bindBackdropClose('keyAssignOverlay', closeKeyAssign);
   loadKeyAssign();
   if(keyAssign['bs']){ delete keyAssign['bs']; if(typeof saveKeyAssign==='function') saveKeyAssign(); }  // ⌫は常に「削除」（連続削除）に統一
   applyKeyAssign();
@@ -12201,12 +12194,15 @@ function setCellVal(r,c,v) {
 }
 
 /* ── 統計 ── */
+/* 3桁ごとのカンマを付ける（整数部だけ）。数の見せ方はここを通す */
+function withCommas(s){
+  const p=String(s).split('.');
+  p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  return p.join('.');
+}
 function fmt(n) {
   if (n===null||n===undefined||isNaN(n)) return '—';
-  const s=decPlaces>=0?n.toFixed(decPlaces):autoFmt(n);
-  const parts=s.split('.');
-  parts[0]=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');
-  return parts.join('.');
+  return withCommas(decPlaces>=0?n.toFixed(decPlaces):autoFmt(n));
 }
 
 /* 万進法の漢数字に変換（千は使わない。例: 15000 → 1万5000）。
@@ -12687,12 +12683,9 @@ function dtVoiceClear(){ dtVoiceShow('', '', ''); }
 function dtPercent(){
   if(dtStyle==='expr'){ dtExprAppend('/100'); return; }
   const cur=parseFloat(disp_val); if(!isFinite(cur)) return;
-  if(op1!==null&&cur_op){
-    const part=(cur_op==='+'||cur_op==='-') ? op1*cur/100 : cur/100;
-    disp_val=fmtNum(part);
-  } else {
-    disp_val=fmtNum(cur/100);
-  }
+  // ＋−のときは「元の値の◯％」、×÷のときは「そのまま◯％＝◯/100」
+  const part=(op1!==null&&cur_op&&(cur_op==='+'||cur_op==='-')) ? pctOf(op1,cur) : pctOf(1,cur);
+  disp_val=fmtNum(part);
   waiting=false; dtRender();
 }
 /* 消費税：dir=1 で税込、dir=-1 で税抜。税率は設定の taxPct をそのまま使う */
@@ -13244,22 +13237,30 @@ function speechToFormula(text){
 /* セルへ入れる直前に通す。式に見えたら数式にし、直したことをお知らせで伝える。
    言ったとおりの文字で残したいときのために「文字のままにする」を出す。 */
 let speechUndoInfo=null;    // {r,c,plain} 直前に変換したところ
-function speechCommit(v, r, c){
-  if(!speechAutoOn) return v;                 // 設定で切っているときは何もしない
-  const f=speechToFormula(v);
-  if(f===null) return v;
-  speechUndoInfo={ r, c, plain:String(v).trim() };
+/* 聞き取った言葉を、設定どおりの形にしてセルに入れる中身を決める（v350で1か所に）。
+   戻り値 v＝選んだセルに入れる中身、f＝式（式でなければ null）、
+   answerAt＝「左に式・右に答え」で答えを入れた場所（入れていなければ null）。 */
+function speechPrepare(raw, r, c){
+  const f = speechAutoOn ? speechToFormula(raw) : null;
+  if(f===null) return { v:raw, f:null, answerAt:null };
+  speechUndoInfo={ r, c, plain:raw };
   if(speechLayout==='split'){                 // 左に式・右に答え
-    const put=speechPutSplit(r, c, f, String(v).trim());
-    if(put) return put.left;                  // 左のセルに入れる文字を返す
+    const put=speechPutSplit(r, c, f, raw);
+    if(put) return { v:put.left, f, answerAt:[r, put.c] };
   }
+  return { v:f, f, answerAt:null };
+}
+function speechCommit(v, r, c){
+  const raw=String(v).trim();
+  const p=speechPrepare(raw, r, c);
+  if(p.f===null || p.answerAt) return p.v;    // 式でない／splitで入れた分は中で知らせている
   setTimeout(()=>{
     if(typeof toast==='function'){
-      toast(`「${speechUndoInfo.plain}」を ${formulaToReadable(f)} として計算しました`
+      toast(`「${raw}」を ${formulaToReadable(p.f)} として計算しました`
         +(speechSplitNote?`（${speechSplitNote}）`:'（もう一度言い直すか、↶戻る で戻せます）'), 4600);
     }
   }, 0);
-  return f;
+  return p.v;
 }
 
 /* 「左に式・右に答え」にできなかったときの理由。お知らせに足して伝える */
@@ -13486,13 +13487,8 @@ function voiceAccept(text){
   voiceStop();
   if(!raw){ toast('聞き取れませんでした'); return; }
   if(isLockedCell(selR,selC)){ toast('このセルは保護されています'); return; }
-  const f=speechAutoOn ? speechToFormula(raw) : null;
-  if(f!==null) speechUndoInfo={ r:selR, c:selC, plain:raw };
-  let v=(f===null)?raw:f, answerAt=null;
-  if(f!==null && speechLayout==='split'){        // 左に式・右に答え
-    const put=speechPutSplit(selR, selC, f, raw);
-    if(put){ v=put.left; answerAt=[selR, put.c]; }
-  }
+  const p=speechPrepare(raw, selR, selC);
+  const f=p.f, v=p.v, answerAt=p.answerAt;
   setCellVal(selR,selC,v);
   buildSheet(); sel(selR,selC);
   const el=document.getElementById('formulaInput'); if(el) el.value=data[selR][selC];
@@ -13886,14 +13882,9 @@ function restoreDefaultSizeIfEmpty(){
   if(ROWS===dr && COLS===dc) return;
   if(!isSheetEmpty()) return;
   pushSnapshot('既定の大きさに戻す');
-  ROWS=dr; COLS=dc;
-  localStorage.setItem('excalc_rows',ROWS); localStorage.setItem('excalc_cols',COLS);
-  const rc=document.getElementById('rowCount'), cc=document.getElementById('colCount');
-  if(rc) rc.textContent=ROWS; if(cc) cc.textContent=COLS;
   colWidths={}; rowHeights={}; if(typeof saveSheetSizes==='function') saveSheetSizes();
   hideAllBars();
-  syncRowColLabels();
-  buildSheet();
+  setSheetSize(dr, dc);
   sel(0,0);
   persistModes();
   if(typeof saveSheets==='function') saveSheets();
@@ -13908,14 +13899,9 @@ function plainTableFromTemplate(){
   for(let r=0;r<MAXROWS;r++) for(let c=0;c<MAXCOLS;c++) data[r][c]='';
   cellStyles={};
   colWidths={}; rowHeights={}; if(typeof saveSheetSizes==='function') saveSheetSizes();
-  ROWS=getDefaultRows(); COLS=getDefaultCols();       // 既定の大きさへ戻す（狭いままにしない）
-  localStorage.setItem('excalc_rows',ROWS); localStorage.setItem('excalc_cols',COLS);
-  const rc=document.getElementById('rowCount'), cc=document.getElementById('colCount');
-  if(rc) rc.textContent=ROWS; if(cc) cc.textContent=COLS;
   cellEditing=false; op1=null; cur_op=null; waiting=false; disp_val='0';
   hideAllBars();
-  syncRowColLabels();
-  buildSheet();
+  setSheetSize(getDefaultRows(), getDefaultCols());    // 既定の大きさへ戻す（狭いままにしない）
   sel(0,0);
   const fi=document.getElementById('formulaInput'); if(fi) fi.value=data[selR][selC];
   persistModes();
@@ -14104,6 +14090,15 @@ function syncRowColLabels(){
   document.getElementById('rowCount').textContent=ROWS;
   document.getElementById('colCount').textContent=COLS;
 }
+/* 表の大きさを変える（行数・列数の表示と保存、作り直しまで面倒を見る。v350で1か所に） */
+function setSheetSize(rows, cols){
+  ROWS=Math.max(1, Math.min(MAXROWS, rows));
+  COLS=Math.max(1, Math.min(MAXCOLS, cols));
+  localStorage.setItem('excalc_rows',ROWS);
+  localStorage.setItem('excalc_cols',COLS);
+  syncRowColLabels();
+  buildSheet();
+}
 
 /* 構造モードのEnter移動：自動計算列を飛ばして次の入力セルへ */
 function modeAdvance(){
@@ -14176,11 +14171,11 @@ function recalcMode(){
       const hasWari=wariRaw!==''&&!isNaN(parseFloat(wariRaw));
       const hasPct =pctRaw!==''&&!isNaN(parseFloat(pctRaw));
       let wari='', pct='', amount='', plus='', minus='';
-      if(hasWari){ wari=parseFloat(wariRaw); pct=wari*10; }
-      else if(hasPct){ pct=parseFloat(pctRaw); wari=pct/10; }
+      if(hasWari){ wari=parseFloat(wariRaw); pct=wariToPct(wari); }
+      else if(hasPct){ pct=parseFloat(pctRaw); wari=pctToWari(pct); }
       if(hasBase && (hasWari||hasPct)){
         const base=parseFloat(baseRaw);
-        amount=Math.round(base*pct/100*1e6)/1e6;   // 1e6: 浮動小数点誤差の補正
+        amount=Math.round(pctOf(base,pct)*1e6)/1e6;   // 1e6: 浮動小数点誤差の補正
         plus=base+amount;
         minus=base-amount;
       }
@@ -14403,9 +14398,7 @@ let tsDp=[3,1,1,1];            // 小数桁1..4（①配合の空気抜き容積
 /* 桁数指定つきの数値整形（3桁区切り＋小数n桁） */
 function tsFmt(x,n){
   if(x==null||!isFinite(x)) return '—';
-  const neg=x<0, s=Math.abs(x).toFixed(n), p=s.split('.');
-  p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');
-  return (neg?'−':'')+p.join('.');
+  return (x<0?'−':'')+withCommas(Math.abs(x).toFixed(n));
 }
 function applyTsTolLabels(){
   const w=document.getElementById('tsWarn'), l=document.getElementById('tsLimit');
@@ -15707,16 +15700,14 @@ function openModeMenu(){
     .map(k=>{ const o=modeItemByKey(k); return o?renderModeItem(o.item,o.custom):''; }).join('');
   bindModeDrag();
   openDlg('modeMenuOverlay');
-  mmOpenedAt=Date.now();   // 開いた直後の「押しっぱなしの指」で項目が反応しないように
+  guardAfterOpen('modeMenuOverlay');   // 開いた直後の「押しっぱなしの指」で項目が反応しないように
 }
 
 /* 一覧を開いた直後は、まだ「モード」キーを押した指が画面に残っている。
    一覧はその指の真下に出るので、そのまま項目が押されたことになって
    勝手にモードが変わったり、ひな形が読み込まれたりしていた。
-   開いてすぐの短い間は、項目を反応させない。 */
-let mmOpenedAt=0;
-const MM_GUARD_MS=400;
-function mmGuardActive(){ return Date.now()-mmOpenedAt < MM_GUARD_MS; }
+   開いてすぐの短い間は、項目を反応させない（guardAfterOpen と同じしくみ）。 */
+function mmGuardActive(){ return dlgJustOpened('modeMenuOverlay'); }
 
 /* ── 長押しドラッグでモードを並べ替え ── */
 let mdDrag=null;
@@ -15848,15 +15839,6 @@ function removeCustomMode(key){
   openModeMenu();
 }
 function closeModeMenu(){ closeDlg('modeMenuOverlay'); }
-/* ひな形のボタンなど、一覧の中のタップ全部を同じ間だけ止める
-   （項目と同じく、開いた直後の指で押されたことにならないように） */
-(function(){
-  const ov=document.getElementById('modeMenuOverlay');
-  if(!ov) return;
-  ov.addEventListener('click', e=>{
-    if(mmGuardActive()){ e.preventDefault(); e.stopPropagation(); }
-  }, true);
-})();
 function pickMode(key){ closeModeMenu(); switchMode(key); }
 
 (function(){
@@ -15911,6 +15893,21 @@ function toggleTopBtn(k){
    ↶戻るの一覧では、出た瞬間に指を離すと背景を押したことになって閉じていた。
    開いた直後のごく短い間だけ、その窓の中のタップを止める。 */
 const HOLD_OPEN_GUARD_MS=400;
+/* 開いた直後かどうか（指が乗ったままの誤作動よけ。guardAfterOpen と同じものさし） */
+function dlgJustOpened(overlayId){
+  const ov=document.getElementById(overlayId);
+  return !!(ov && Date.now()-(+ov.dataset.openedAt||0) < HOLD_OPEN_GUARD_MS);
+}
+/* 背景をタップして閉じる。押し始めも背景だったときだけ閉じるので、
+   長押しで開いた指を背景の上で離しても閉じない。 */
+function bindBackdropClose(overlayId, closeFn){
+  const ov=document.getElementById(overlayId); if(!ov) return;
+  if(ov.dataset.bgBound) return;              // 見張りは1回だけ付ける
+  ov.dataset.bgBound='1';
+  let down=false;
+  ov.addEventListener('pointerdown', e=>{ down=(e.target===ov); });
+  ov.addEventListener('click', e=>{ if(e.target===ov && down) closeFn(); down=false; });
+}
 function guardAfterOpen(overlayId){
   const ov=document.getElementById(overlayId); if(!ov) return;
   ov.dataset.openedAt=String(Date.now());
@@ -15952,6 +15949,7 @@ function openUndoList(){
     +`<span>↶</span>${escHtml(r.op)}${r.count>1?`<b class="undo-count">×${r.count}</b>`:''}</button>`).join('');
   openDlg('undoListOverlay');
   guardAfterOpen('undoListOverlay');   // 長押しの指を離した分で閉じないように
+  bindBackdropClose('undoListOverlay', closeUndoList);
 }
 function closeUndoList(){ closeDlg('undoListOverlay'); }
 function openMoreMenu(){ openDlg('moreMenuOverlay'); }
@@ -16005,7 +16003,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v349';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v350';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -17266,14 +17264,6 @@ function setSaveView(v){
   syncSaveViewBtns();
   renderSaveList();
 }
-/* アイコンの大きさ（小・中・大）。リスト表示のときは意味が無いので隠す。 */
-let saveSize = ['s','m','l'].includes(localStorage.getItem('excalc_savesize')) ? localStorage.getItem('excalc_savesize') : 'm';
-function setSaveSize(v){
-  saveSize = ['s','m','l'].includes(v) ? v : 'm';
-  localStorage.setItem('excalc_savesize', saveSize);
-  syncSaveViewBtns();
-  renderSaveList();
-}
 /* 並べ替え（新しい順・古い順・名前順）。アイコンでもリストでも同じ順に並ぶ。 */
 let saveSort = ['new','old','name','namez'].includes(localStorage.getItem('excalc_savesort')) ? localStorage.getItem('excalc_savesort') : 'new';
 function setSaveSort(v){
@@ -17297,11 +17287,6 @@ function syncSaveViewBtns(){
   const i=document.getElementById('saveViewIcon'), l=document.getElementById('saveViewList');
   if(i) i.classList.toggle('on', saveView==='icon');
   if(l) l.classList.toggle('on', saveView==='list');
-  const bar=document.getElementById('saveSizeBar');
-  if(bar) bar.style.display = (saveView==='icon') ? 'flex' : 'none';   // リストでは大きさは使わない
-  [['s','saveSizeS'],['m','saveSizeM'],['l','saveSizeL']].forEach(([k,id])=>{
-    const b=document.getElementById(id); if(b) b.classList.toggle('on', saveSize===k);
-  });
   const sel=document.getElementById('saveSortSel'); if(sel) sel.value=saveSort;
 }
 /* アイコンの絵：保存時のモードがあればその絵、無ければ紙 */
@@ -17310,7 +17295,7 @@ function saveFileIcon(s){
   return mi?mi.item.icon:'📄';
 }
 function renderSaveGrid(saves){
-  return `<div class="save-grid sz-${saveSize}">`+saves.map(s=>{
+  return `<div class="save-grid">`+saves.map(s=>{
     const locked=!!s.locked;
     const isCur=(s.id===currentSaveId);
     const d=new Date(s.timestamp);
