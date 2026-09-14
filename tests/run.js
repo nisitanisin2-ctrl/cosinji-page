@@ -1015,10 +1015,15 @@ async function runFlickSym(browser) {
     await page.mouse.up(); await page.waitForTimeout(250);
   };
 
-  check('  10個の数字キーに4つずつ記号がある', await page.evaluate(() =>
-    Object.keys(NP_FLICK).length + '/' + Object.values(NP_FLICK).every(a => a.length === 4)), '10/true');
-  check('  1のまわりはカッコ', await page.evaluate(() => NP_FLICK.n1.join(' ')), '( [ ) ]');
-  check('  2のまわりは大小', await page.evaluate(() => NP_FLICK.n2.join(' ')), '< <= > >=');
+  check('  10個の数字キーぶんある', await page.evaluate(() =>
+    Object.keys(npFlick).length + '/' + Object.values(npFlick).every(a => a.length === 4)), '10/true');
+  check('  1のまわりはカッコ', await page.evaluate(() => npFlick.n1.join('|')), '|(|)|[');
+  check('  2のまわりは大小', await page.evaluate(() => npFlick.n2.join('|')), '<|<=|>|>=');
+  // 左はしの列（7・4・1・0）は左へフリックしにくいので、上・右・下だけ（v355）
+  check('  左はしの列に「左」は無い', await page.evaluate(() =>
+    NP_FLICK_LEFTCOL.every(k => npFlick[k][0] === '')), true);
+  check('  まん中と右の列には「左」がある', await page.evaluate(() =>
+    ['n2','n3','n5','n6','n8','n9'].every(k => npFlick[k][0] !== '')), true);
 
   // ふつうのタップは今までどおり数字
   await reset(); await press('n1', 0, 0, 60);
@@ -1030,22 +1035,23 @@ async function runFlickSym(browser) {
   check('  少し長押しで候補が出る', await page.evaluate(() => {
     const e = document.getElementById('npFlickPop');
     return e && e.classList.contains('open') ? [...e.children].map(x => x.textContent).join('/') : 'なし';
-  }), '[/(/1/)/]');
+  }), '(//1/)/[');   // 上/左/まん中/右/下（左は空）
   check('  画面からはみ出さない', await page.evaluate(() => {
     const r = document.getElementById('npFlickPop').getBoundingClientRect();
     return r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight; }), true);
-  await page.mouse.move(c.x - 45, c.y); await page.waitForTimeout(90);
-  check('  動かした向きが選ばれる', await page.evaluate(() => npFlickDir), 'left');
+  await page.mouse.move(c.x, c.y - 45); await page.waitForTimeout(90);
+  check('  動かした向きが選ばれる', await page.evaluate(() => npFlickDir), 'up');
   await page.mouse.up(); await page.waitForTimeout(250);
-  check('  左フリックで (', await shown(), '=(');
+  check('  上フリックで (', await shown(), '=(');
   check('  離すと候補は消える', await page.evaluate(() =>
     document.getElementById('npFlickPop').classList.contains('open')), false);
 
   await reset(); await press('n1', 45, 0);  check('  右フリックで )', await shown(), '=)');
+  await reset(); await press('n1', -45, 0); check('  空いている左は数字のまま', await shown(), '1');
   await reset(); await press('n2', 0, -45); check('  上フリックで <=', await shown(), '=<=');
   await reset(); await press('n2', 0, 45);  check('  下フリックで >=', await shown(), '=>=');
-  await reset(); await press('n4', -45, 0); check('  4の左は ,', await shown(), '=,');
-  await reset(); await press('n7', -45, 0); check('  7の左は 「', await shown(), '=「');
+  await reset(); await press('n4', 0, -45); check('  4の上は ,', await shown(), '=,');
+  await reset(); await press('n7', 0, -45); check('  7の上は 「', await shown(), '=「');
   await reset(); await press('n9', 0, -45); check('  9の上は ℃', await shown(), '=℃');
   await reset(); await press('n7', 0, 0);   check('  まん中で離すと数字', await shown(), '7');
 
@@ -1096,6 +1102,34 @@ async function runFlickSym(browser) {
   await page.mouse.move(vp.x, vp.y); await page.mouse.wheel(0, 120); await page.waitForTimeout(600);
   check('  数字の次は記号に戻る', await page.evaluate(() => String(numpadPager.current())), 'func');
   await page.evaluate(() => numpadPager.go(null)); await page.waitForTimeout(400);
+
+  // ── 記号の割り当てを設定で変えられる（v355） ──
+  await page.evaluate(() => openFlickSym()); await page.waitForTimeout(400);
+  check('  設定の画面が開く', await page.evaluate(() => isDlgOpen('flickSymOverlay')), true);
+  check('  10行ならぶ', await page.evaluate(() =>
+    document.querySelectorAll('#flickSymBody .fs-row').length), 10);
+  check('  並びはテンキーと同じ', await page.evaluate(() =>
+    [...document.querySelectorAll('#flickSymBody .fs-num')].map(e => e.textContent).join('')), '7894561230');
+  check('  左はしの列の「左」は使えない', await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('#flickSymBody .fs-row')];
+    const left = k => rows.find(r => r.querySelector('.fs-num').textContent === k)
+      .querySelectorAll('.fs-in')[0].disabled;
+    return ['7','4','1','0'].every(left) && !['8','9','5'].some(left); }), true);
+  await page.evaluate(() => setNpFlick('n2', 1, '≦')); await page.waitForTimeout(150);
+  check('  変えると覚える', await page.evaluate(() =>
+    npFlick.n2[1] + '/' + JSON.parse(localStorage.getItem('excalc_flicksym')).n2[1]), '≦/≦');
+  await page.evaluate(() => closeFlickSym()); await page.waitForTimeout(300);
+  await reset(); await press('n2', 0, -45);
+  check('  変えた記号が入る', await shown(), '=≦');
+  check('  左はしの列は変えられない', await page.evaluate(() => {
+    setNpFlick('n1', 0, 'X'); return npFlick.n1[0]; }), '');
+  await page.reload(); await page.waitForTimeout(900);
+  check('  開き直しても覚えている', await page.evaluate(() => npFlick.n2[1]), '≦');
+  await page.evaluate(() => { openFlickSym(); resetNpFlick(); }); await page.waitForTimeout(400);
+  check('  元にもどせる', await page.evaluate(() => npFlick.n2[1]), '<=');
+  check('  もどすと保存も消える', await page.evaluate(() =>
+    localStorage.getItem('excalc_flicksym')), 'null');
+  await page.evaluate(() => closeFlickSym()); await page.waitForTimeout(300);
 
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
