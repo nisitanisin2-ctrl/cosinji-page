@@ -816,6 +816,53 @@ async function runVeggie(browser) {
   await page.evaluate(() => undoLast()); await page.waitForTimeout(400);
   check('  ↶戻る で元どおり', await page.evaluate(() => getCellDisplay(3, 1) + '/' + COLS), '/3');
 
+  // ── 肥料と、病気・害虫 ──
+  await open();
+  await plant('トマト', 2026, 3, 1);
+  await page.evaluate(() => { document.getElementById('vegPlot').value = 3; vegPlotChange(); });
+  await page.waitForTimeout(200);
+  const fert = () => page.evaluate(() => document.getElementById('vegFertBody').innerText.replace(/\s+/g, ' '));
+  check('  果菜の肥料が出る', /果菜（実をとるもの）／土のpH 6.0〜6.5/.test(await fert()), true);
+  check('  畑の広さをかけた量も出す', /苦土石灰 100〜150g\/㎡（3㎡で 300〜450g）/.test(await fert()), true);
+  check('  元肥の配合', /化成肥料 8-8-8 を 120〜150g\/㎡（3㎡で 360〜450g）/.test(await fert()), true);
+  check('  追肥の日は予定表から出す', /この計画では 追肥 5\/25\(月\)〜6\/4\(木\)/.test(await fert()), true);
+  check('  広さは開き直しても残る', await page.evaluate(() => {
+    const a = JSON.parse(localStorage.getItem('excalc_veg_area') || '{}'); return a.plot; }), 3);
+  check('  広さは0や大きすぎる数を直す', await page.evaluate(() => {
+    document.getElementById('vegPlot').value = 0; vegPlotChange(); const a = vegArea.plot;
+    document.getElementById('vegPlot').value = 5000; vegPlotChange(); return a + '/' + vegArea.plot; }), '1/1000');
+  await page.evaluate(() => { document.getElementById('vegPlot').value = 1; vegPlotChange(); });
+  await page.waitForTimeout(150);
+  const sick = () => page.evaluate(() => document.getElementById('vegSickBody').innerText.replace(/\s+/g, ' '));
+  check('  トマトの病気・害虫', await page.evaluate(() =>
+    [...document.querySelectorAll('.veg-sick-n')].map(x => x.textContent).join(',')),
+    '疫病,灰色かび病,青枯病,尻ぐされ症（病気ではない）,アブラムシ,コナジラミ');
+  check('  見分け方・手当て・薬の例を出す', /見分け方 .+ 手当て .+ 薬の例 /.test(await sick()), true);
+  check('  農薬の注意を必ず出す', /必ずラベルで確かめてください/.test(await sick()), true);
+  await plant('ジャガイモ', 2026, 3, 1);
+  check('  ジャガイモは石灰をまかない', /苦土石灰 まきません/.test(await fert()), true);
+  await plant('サツマイモ', 2026, 5, 1);
+  check('  サツマイモは追肥をしない', /追肥 やりません/.test(await fert()), true);
+  check('  すべての野菜に肥料と病気の目安がある', await page.evaluate(() =>
+    VEG_PLANS.filter(v => !VEG_CARE[v.n] || !VEG_FERT[VEG_CARE[v.n].f] || !VEG_CARE[v.n].k.length)
+      .map(v => v.n).join(',')), '');
+  check('  病気の名前はすべて辞書にある', await page.evaluate(() =>
+    Object.keys(VEG_CARE).flatMap(n => VEG_CARE[n].k).filter(k => !VEG_SICK[k]).join(',')), '');
+
+  // 肥料と病気も表に書き出す
+  await plant('トマト', 2026, 3, 1);
+  await page.evaluate(() => sel(0, 0)); await page.waitForTimeout(200);
+  await page.evaluate(() => vegInsertToSheet()); await page.waitForTimeout(500);
+  check('  表に肥料の段が入る', await page.evaluate(() => {
+    for (let r = 0; r < ROWS; r++) if (/^🧪 肥料/.test(getCellDisplay(r, 0)))
+      return [1, 2, 3].map(c => getCellDisplay(r + 2, c)).join('|');
+    return 'なし'; }), '化成肥料 8-8-8|120〜150g/㎡|種まきの1週間前までに');
+  check('  表に病気の段と注意が入る', await page.evaluate(() => {
+    const t = []; for (let r = 0; r < ROWS; r++) t.push(getCellDisplay(r, 0));
+    return t.some(x => /^🦠 出やすい病気・害虫/.test(x)) && t.some(x => /必ずラベルで確かめてください/.test(x)); }), true);
+  await page.evaluate(() => undoLast()); await page.waitForTimeout(400);
+  check('  ↶戻る で肥料の段も消える', await page.evaluate(() => getCellDisplay(0, 0) + '/' + ROWS), '/15');
+
   // 自分の野菜を登録する
   await open();
   await page.evaluate(() => { vegNew = { n: 'ゴーヤ', s: [['発芽', 6, 10], ['畑に植える', 30, 35], ['収穫', 70, 90]] };
