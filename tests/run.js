@@ -810,6 +810,64 @@ async function runShared(browser) {
   check('  全角を半角にする', await page.evaluate(() => toHalfAscii('１２３（Ａ）　＋')), '123(A) +');
   check('  日本語はそのまま', await page.evaluate(() => toHalfAscii('かける　ルート')), 'かける ルート');
 
+  // ここから先は履歴を使わない確かめ。上で「戻る」を何度も押しているので、
+  // 開き直して素の履歴からにする
+  await page.goto(INDEX); await page.waitForTimeout(900);
+
+  // ── 消費税の計算は1か所に（v349）──
+  check('  税抜→税込の倍率', await page.evaluate(() => taxMul(10) + '/' + taxMul(8)), '1.1/1.08');
+  check('  税率は設定のものを使う', await page.evaluate(() => {
+    const keep = taxPct; taxPct = 8; const r = taxMul(); taxPct = keep; return r; }), 1.08);
+  check('  税抜1000円の消費税（切り捨て）', await page.evaluate(() => taxOfEx(1000)), 100);
+  check('  税込2200円の税抜（切り捨て）', await page.evaluate(() => taxExOfInc(2200)), 2000);
+  check('  端数のある税抜', await page.evaluate(() => taxOfEx(199) + '/' + taxExOfInc(199)), '19/180');
+  check('  消費税モードも同じ答え', await page.evaluate(async () => {
+    switchMode('zei'); await new Promise(z => setTimeout(z, 300));
+    setCellVal(1, 0, '1000'); setCellVal(2, 2, '2200'); recalcMode();
+    const r = getCellDisplay(1, 1) + '/' + document.getElementById('c2_0').textContent;   // 税抜は画面に出るだけ（カンマ付き）
+    switchMode('normal'); await new Promise(z => setTimeout(z, 300)); return r; }), '100/2,000');
+  check('  電卓も同じ倍率を使う', await page.evaluate(async () => {
+    switchMode('dentaku'); await new Promise(z => setTimeout(z, 400));
+    dtStyle = 'simple'; dtAllClear(); disp_val = '1000'; dtTax(1);
+    const r = document.getElementById('dtMain').textContent;
+    dtAllClear(); switchMode('normal'); await new Promise(z => setTimeout(z, 400)); return r; }), '1100');
+
+  // ── 面積とまわりの長さも1か所に（v349）──
+  check('  長方形の面積', await page.evaluate(() => shapeArea(false, 3, 4)), 12);
+  check('  長方形のまわり', await page.evaluate(() => shapePeri(false, 3, 4)), 14);
+  check('  円の面積（直径2）', await page.evaluate(() => Math.round(shapeArea(true, 2) * 1000) / 1000), 3.142);
+  check('  円のまわり（直径2）', await page.evaluate(() => Math.round(shapePeri(true, 2) * 1000) / 1000), 6.283);
+  check('  📷容積の道具も同じ計算', await page.evaluate(() => {
+    const box = VOL_SHAPES.find(x => x.id === 'box').calc({ w: 2, d: 3, h: 4 });
+    const cyl = VOL_SHAPES.find(x => x.id === 'cyl').calc({ dia: 2, h: 5 });
+    const cone = VOL_SHAPES.find(x => x.id === 'cone').calc({ dia: 2, h: 3 });
+    return box + '/' + Math.round(cyl * 1000) / 1000 + '/' + Math.round(cone * 1000) / 1000;
+  }), '24/15.708/3.142');
+
+  // ── カレンダーのマス目も1か所に（v349）──
+  check('  日付を選ぶカレンダーは押せる', await page.evaluate(() => {
+    sel(0, 0); insertDatePick();
+    const g = document.getElementById('datePickGrid');
+    return (g.querySelector('[onclick]') ? '押せる' : '×')
+      + (g.querySelector('.today') ? '/今日' : '/×')
+      + (g.querySelector('.sel') ? '/選択' : '/×'); }), '押せる/今日/選択');
+  check('  押すとセルに日付が入る', await page.evaluate(() => {
+    datePickChoose(2026, 3, 15); return getCellDisplay(0, 0); }), '2026/3/15');
+  await page.waitForTimeout(250);   // 閉じたあとの履歴の始末を待つ
+  check('  育成計画のカレンダーは押せない（見るだけ）', await page.evaluate(async () => {
+    openVeggie(); await new Promise(z => setTimeout(z, 250));
+    const i = vegAll().findIndex(v => v.n === 'トマト'); vegPick(i);
+    document.getElementById('vegY').value = 2026; document.getElementById('vegM').value = 3;
+    document.getElementById('vegD').value = 1; vegDateChange();
+    const g = document.getElementById('vegGrid');
+    const r = (g.querySelector('[onclick]') ? '押せる' : '押せない') + '/' + g.querySelectorAll('.veg-on').length;
+    closeVeggie(); return r; }), '押せない/11');
+  await page.waitForTimeout(250);
+  check('  曜日の見出しも同じもの', await page.evaluate(() =>
+    wdayHeadHtml() === document.getElementById('datePickWdays').innerHTML), true);
+  await page.evaluate(() => { setCellVal(0, 0, ''); cellStyles = {}; buildSheet(); });
+  await page.waitForTimeout(200);
+
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();

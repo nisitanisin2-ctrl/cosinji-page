@@ -7505,26 +7505,44 @@ function datePickMove(delta){
   renderDatePick();
 }
 function datePickJumpToday(){ const {y,m}=serialToYMD(todaySerial()); dpYear=y; dpMonth=m; renderDatePick(); }
+/* ── ひと月ぶんのカレンダー（v349で1本にまとめた）──────────
+   日付を選ぶ画面と、野菜の育成計画の両方で使う。
+   opts.mark ＝ 通し番号→{what,band,c}（作業の色）
+   opts.today＝ 今日に印を付けるか
+   opts.sel  ＝ 選んでいる日（通し番号）
+   opts.click＝ 押したときに呼ぶ関数名（無ければ押せない） */
+function wdayHeadHtml(){
+  return WDAY_JP.map((w,i)=>`<div class="dp-wd ${i===0?'sun':i===6?'sat':''}">${w}</div>`).join('');
+}
+function monthGridHtml(y, m, opts){
+  const o=opts||{}, mark=o.mark||{};
+  const first=mkSerial(y,m,1);
+  const startW=serialToYMD(first).w;
+  const days=new Date(Date.UTC(y,m,0)).getUTCDate();
+  const todayS=o.today?todaySerial():null;
+  let html='';
+  for(let i=0;i<startW;i++) html+='<div class="dp-cell empty"></div>';
+  for(let d=1; d<=days; d++){
+    const s=first+(d-1), w=serialToYMD(s).w, mk=mark[s];
+    const cls=['dp-cell']; if(w===0) cls.push('sun'); if(w===6) cls.push('sat');
+    if(todayS!==null && s===todayS) cls.push('today');
+    if(o.sel!=null && s===o.sel) cls.push('sel');
+    let style='';
+    if(mk){
+      cls.push('veg-on'); if(mk.band) cls.push('veg-band');
+      style=` style="background:${mk.c}${mk.band?'55':''};${mk.band?'color:var(--text)':''}"`;
+    }
+    const click=o.click?` onclick="${o.click}(${y},${m},${d})"`:'';
+    html+=`<div class="${cls.join(' ')}"${style}${click}${mk?` title="${escHtml(mk.what)}"`:''}>${d}</div>`;
+  }
+  return html;
+}
 function renderDatePick(){
   document.getElementById('datePickTitle').textContent=`${dpYear}年 ${dpMonth}月`;
   const wd=document.getElementById('datePickWdays');
-  if(!wd.dataset.built){
-    wd.innerHTML=WDAY_JP.map((w,i)=>`<div class="dp-wd ${i===0?'sun':i===6?'sat':''}">${w}</div>`).join('');
-    wd.dataset.built='1';
-  }
-  const first=mkSerial(dpYear,dpMonth,1);
-  const startW=serialToYMD(first).w;   // 1日の曜日（0=日）
-  const daysInMonth=new Date(Date.UTC(dpYear,dpMonth,0)).getUTCDate();   // 当月の日数
-  const todayS=todaySerial();
-  let html='';
-  for(let i=0;i<startW;i++) html+='<div class="dp-cell empty"></div>';
-  for(let d=1; d<=daysInMonth; d++){
-    const s=first+(d-1); const w=serialToYMD(s).w;
-    const cls=['dp-cell']; if(w===0) cls.push('sun'); if(w===6) cls.push('sat');
-    if(s===todayS) cls.push('today'); if(s===dpSelSerial) cls.push('sel');
-    html+=`<div class="${cls.join(' ')}" onclick="datePickChoose(${dpYear},${dpMonth},${d})">${d}</div>`;
-  }
-  document.getElementById('datePickGrid').innerHTML=html;
+  if(!wd.dataset.built){ wd.innerHTML=wdayHeadHtml(); wd.dataset.built='1'; }
+  document.getElementById('datePickGrid').innerHTML=
+    monthGridHtml(dpYear, dpMonth, { today:true, sel:dpSelSerial, click:'datePickChoose' });
 }
 function datePickChoose(y,m,d){
   const r=dpTargetR, c=dpTargetC;
@@ -8132,34 +8150,14 @@ function vegMarkMap(){
   });
   return mark;
 }
-/* ひと月分のマス目。todayS を渡すと今日に印が付く */
 function vegMonthCells(y, m, mark, todayS){
-  const first=mkSerial(y,m,1);
-  const startW=serialToYMD(first).w;
-  const days=new Date(Date.UTC(y,m,0)).getUTCDate();
-  let html='';
-  for(let i=0;i<startW;i++) html+='<div class="dp-cell empty"></div>';
-  for(let d=1; d<=days; d++){
-    const s=first+(d-1), w=serialToYMD(s).w, mk=mark[s];
-    const cls=['dp-cell']; if(w===0) cls.push('sun'); if(w===6) cls.push('sat');
-    if(todayS!==null && s===todayS) cls.push('today');
-    let style='';
-    if(mk){
-      cls.push('veg-on'); if(mk.band) cls.push('veg-band');
-      style=` style="background:${mk.c}${mk.band?'55':''};${mk.band?'color:var(--text)':''}"`;
-    }
-    html+=`<div class="${cls.join(' ')}"${style}${mk?` title="${escHtml(mk.what)}"`:''}>${d}</div>`;
-  }
-  return html;
+  return monthGridHtml(y, m, { mark, today:(todayS!==null) });
 }
 function vegRenderCal(){
   const t=document.getElementById('vegCalTitle'), g=document.getElementById('vegGrid'), wd=document.getElementById('vegWdays');
   if(!t||!g||!wd) return;
   t.textContent=`${vegCalY}年 ${vegCalM}月`;
-  if(!wd.dataset.built){
-    wd.innerHTML=WDAY_JP.map((w,i)=>`<div class="dp-wd ${i===0?'sun':i===6?'sat':''}">${w}</div>`).join('');
-    wd.dataset.built='1';
-  }
+  if(!wd.dataset.built){ wd.innerHTML=wdayHeadHtml(); wd.dataset.built='1'; }
   g.innerHTML=vegMonthCells(vegCalY, vegCalM, vegMarkMap(), todaySerial());
 }
 /* 予定表を表（シート）に書き出す。選んでいるセルを左上にして、足りない行・列は増やす */
@@ -8332,7 +8330,7 @@ function vegPdfHtml(){
   const h=harv.length?harv[0]:rows[rows.length-1];
   const span=(h.d1===h.d2)?`${h.d1}日後`:`${h.d1}〜${h.d2}日後`;
   const when=(h.from===h.to)?vegFmtDate(h.from):`${vegFmtDate(h.from)}〜${vegFmtDate(h.to)}`;
-  const wd=WDAY_JP.map((w,i)=>`<div class="dp-wd ${i===0?'sun':i===6?'sat':''}">${w}</div>`).join('');
+  const wd=wdayHeadHtml();
   const mark=vegMarkMap();
 
   let html=`<div class="vp-head">
@@ -8457,10 +8455,10 @@ function vegMyDel(i){
 }
 /* ── 容積を計算（写真を撮って寸法を入れると容積が出る。結果をセルに入れられる） ── */
 const VOL_SHAPES=[
-  {id:'box',    name:'直方体', dims:[['w','縦'],['d','横'],['h','高さ']], calc:v=>v.w*v.d*v.h},
-  {id:'cyl',    name:'円柱',   dims:[['dia','直径'],['h','高さ']],       calc:v=>Math.PI*(v.dia/2)*(v.dia/2)*v.h},
+  {id:'box',    name:'直方体', dims:[['w','縦'],['d','横'],['h','高さ']], calc:v=>shapeArea(false,v.w,v.d)*v.h},
+  {id:'cyl',    name:'円柱',   dims:[['dia','直径'],['h','高さ']],       calc:v=>shapeArea(true,v.dia)*v.h},
   {id:'sphere', name:'球',     dims:[['dia','直径']],                    calc:v=>4/3*Math.PI*(v.dia/2)*(v.dia/2)*(v.dia/2)},
-  {id:'cone',   name:'円すい', dims:[['dia','直径'],['h','高さ']],       calc:v=>1/3*Math.PI*(v.dia/2)*(v.dia/2)*v.h},
+  {id:'cone',   name:'円すい', dims:[['dia','直径'],['h','高さ']],       calc:v=>shapeArea(true,v.dia)*v.h/3},
   {id:'conefr', name:'円すい台', dims:[['db','下径'],['dt','上径'],['h','高さ']],   // 上下の径が違う円柱＝円すい台（フラスタム）
     calc:v=>{ const Rb=v.db/2, Rt=v.dt/2; return Math.PI*v.h/3*(Rb*Rb + Rb*Rt + Rt*Rt); }},
   {id:'poly',   name:'多角柱', poly:true},   // 底面をなぞって（頂点を増やして）×高さ
@@ -8565,6 +8563,22 @@ function putToCell(val, msg, closeFn){
   if(closeFn) closeFn();
   return true;
 }
+/* ── 消費税（v349で1か所にまとめた）──────────────────────
+   税率は設定の taxPct（％）。パーセントから倍率を出すところと、
+   お金の端数（切り捨て）の決まりを、ここだけに置く。
+   電卓は「お金とはかぎらない」ので、丸め方だけそれぞれで決める。 */
+function taxMul(pct){ return 1+(pct==null?taxPct:pct)/100; }        // 税抜→税込の倍率
+function taxAdd(v, pct){ return v*taxMul(pct); }                     // 税抜→税込（丸めなし）
+function taxSub(v, pct){ return v/taxMul(pct); }                     // 税込→税抜（丸めなし）
+function taxOfEx(ex, pct){ return Math.floor(ex*((pct==null?taxPct:pct)/100) + 1e-6); }   // 税抜からの消費税額（円・切り捨て。1e-6は誤差の補正）
+function taxExOfInc(inc, pct){ return Math.floor(taxSub(inc,pct) + 1e-6); }               // 税込からの税抜（円・切り捨て）
+
+/* ── 面積とまわりの長さ（v349で1か所にまとめた）────────────
+   長方形と円の計算を、面積・容積モードと📷容積の道具で共通に使う。
+   円は a を直径として扱う（b は使わない）。 */
+function shapeArea(circle, a, b){ return circle ? Math.PI*(a/2)*(a/2) : a*b; }
+function shapePeri(circle, a, b){ return circle ? Math.PI*a : 2*(a+b); }
+
 /* 一覧の読み書き（リンク集・自分の野菜・育てている野菜・定型文などで共通） */
 function loadList(key){
   try{ const a=JSON.parse(localStorage.getItem(key)||'[]'); return Array.isArray(a)?a:[]; }
@@ -9197,6 +9211,13 @@ async function shotShareBlob(blob, fname){
   }catch(e){ if(e && e.name==='AbortError') return true; }   // 共有シートを閉じただけ＝成功扱い
   return false;
 }
+/* canvas を名前を決めてPNGで渡す（容積・写真メモ・プレビューで共通） */
+async function shotFromCanvas(cv, prefix, share){
+  if(!cv){ toast('書き出せませんでした'); return; }
+  const fname = share ? `${prefix}_${shotStamp()}.png` : await shotFileName(prefix);
+  if(fname===null) return;
+  cv.toBlob(blob=>shotDeliver(blob, fname, share), 'image/png');
+}
 /* PNGを保存または共有する共通処理 */
 function shotDeliver(blob, fname, share){
   if(!blob){ toast('書き出せませんでした'); return; }
@@ -9233,11 +9254,7 @@ function shotPrevClear(){
 function closeShotPreview(){ closeDlg('shotPrevOverlay', shotPrevClear); }
 async function shotPrevDeliver(share){
   if(!shotPrevBuild) return;
-  const fname = share ? `${shotPrevPrefix}_${shotStamp()}.png` : await shotFileName(shotPrevPrefix);
-  if(fname===null) return;
-  const cv=shotPrevBuild();   // 保存・共有は設定の画質（元のサイズ等）で作り直す
-  if(!cv){ toast('書き出せませんでした'); return; }
-  cv.toBlob(blob=>shotDeliver(blob, fname, share), 'image/png');
+  await shotFromCanvas(shotPrevBuild(), shotPrevPrefix, share);   // 保存・共有は設定の画質（元のサイズ等）で作り直す
 }
 /* 容積計算の書き出し画像（線・多角形入りの写真＋寸法・結果を1枚に）を作る。中身が無ければ null */
 function volBuildShotCanvas(){
@@ -9297,9 +9314,7 @@ function volBuildShotCanvas(){
 async function volScreenshot(share){
   const cv=volBuildShotCanvas();
   if(!cv){ toast('写真か計測がありません'); return; }
-  const fname = share ? `容積計算_${shotStamp()}.png` : await shotFileName('容積計算');
-  if(fname===null) return;
-  cv.toBlob(blob=>shotDeliver(blob, fname, share), 'image/png');
+  await shotFromCanvas(cv, '容積計算', share);
 }
 /* 容積計算の仕上がりをプレビューで確認（そこからスクショ・共有できる） */
 function volPreview(){
@@ -10694,9 +10709,7 @@ function pmBuildShotCanvas(outW){
 async function pmScreenshot(share){
   const cv=pmBuildShotCanvas();
   if(!cv){ toast('写真かメモを入れてください'); return; }
-  const fname = share ? `写真メモ_${shotStamp()}.png` : await shotFileName('写真メモ');
-  if(fname===null) return;
-  cv.toBlob(blob=>shotDeliver(blob, fname, share), 'image/png');
+  await shotFromCanvas(cv, '写真メモ', share);
 }
 /* 写真メモの仕上がりをプレビューで確認（そこからスクショ・共有できる） */
 function pmPreview(){
@@ -12684,10 +12697,9 @@ function dtPercent(){
 }
 /* 消費税：dir=1 で税込、dir=-1 で税抜。税率は設定の taxPct をそのまま使う */
 function dtTax(dir){
-  const rate=1+taxPct/100;
-  if(dtStyle==='expr'){ dtExprAppend(dir>0?('*'+rate):('/'+rate)); return; }
+  if(dtStyle==='expr'){ dtExprAppend((dir>0?'*':'/')+taxMul()); return; }
   const cur=parseFloat(disp_val); if(!isFinite(cur)) return;
-  const r=dir>0?cur*rate:cur/rate;
+  const r=dir>0?taxAdd(cur):taxSub(cur);
   const val=fmtNum(Math.round(r*100)/100);
   dtPush(fmtNum(cur)+(dir>0?' 税込':' 税抜')+taxPct+'%', val);
   dtSeq='';
@@ -14123,12 +14135,11 @@ function recalcMode(){
     let sub=0; for(let r=1;r<ROWS;r++){const v=parseFloat(data[r][3]); if(!isNaN(v)) sub+=v;}
     document.getElementById('shopSubtotal').textContent='¥'+fmt(sub);
     // 小計に軽減税率8%・標準税率10%をかけた税込額を参考表示（内税額の端数は切り捨て）
-    document.getElementById('shopTax8').textContent='¥'+fmt(Math.floor(sub*1.08));
-    document.getElementById('shopTax10').textContent='¥'+fmt(Math.floor(sub*1.10));
+    document.getElementById('shopTax8').textContent='¥'+fmt(Math.floor(taxAdd(sub,8)));
+    document.getElementById('shopTax10').textContent='¥'+fmt(Math.floor(taxAdd(sub,10)));
   } else if(tableMode==='zei'){
     /* 列: 0=税抜(入力) 1=消費税(自動) 2=税込(入力)。
        税抜と税込はどちらか一方を入力すると残りが計算される（入力時に他方はクリア済み）。*/
-    const rate=taxPct/100;
     let totInc=0, totTax=0;
     for(let r=1;r<ROWS;r++){
       const exRaw=data[r][0], incRaw=data[r][2];
@@ -14137,11 +14148,11 @@ function recalcMode(){
       let body='', tax='', inc='';
       if(hasEx){
         body=Math.round(parseFloat(exRaw)*1000)/1000;
-        tax=Math.floor(body*rate + 1e-6);        // 1e-6: 浮動小数点誤差の補正
+        tax=taxOfEx(body);
         inc=body+tax;
       } else if(hasInc){
         inc=Math.round(parseFloat(incRaw)*1000)/1000;
-        body=Math.floor(inc/(1+rate) + 1e-6);    // 同上（例: 2200/1.1=2000）
+        body=taxExOfInc(inc);                    // 例: 2200/1.1=2000
         tax=inc-body;
       }
       data[r][1]=(tax===''?'':String(tax));   // 消費税は確定列としてdataにも保持
@@ -14200,8 +14211,8 @@ function recalcMode(){
       const a=parseFloat(data[r][1]), b=parseFloat(data[r][2]), h=parseFloat(data[r][3]);
       const hasA=data[r][1]!==''&&!isNaN(a), hasB=data[r][2]!==''&&!isNaN(b), hasH=data[r][3]!==''&&!isNaN(h);
       let ar=null, pe=null;
-      if(circle && hasA){ ar=Math.PI*(a/2)*(a/2); pe=Math.PI*a; }          // 円は「たて」を直径として使う
-      else if(!circle && hasA && hasB){ ar=a*b; pe=2*(a+b); }
+      if(circle && hasA){ ar=shapeArea(true,a); pe=shapePeri(true,a); }     // 円は「たて」を直径として使う
+      else if(!circle && hasA && hasB){ ar=shapeArea(false,a,b); pe=shapePeri(false,a,b); }
       const vo=(ar!==null && hasH)?ar*h:null;
       const shown=(vo!==null)?vo:ar;
       data[r][4]=(shown!==null)?String(shown):'';
@@ -15994,7 +16005,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v348';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v349';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
