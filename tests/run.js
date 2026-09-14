@@ -1129,7 +1129,30 @@ async function runFlickSym(browser) {
   check('  元にもどせる', await page.evaluate(() => npFlick.n2[1]), '<=');
   check('  もどすと保存も消える', await page.evaluate(() =>
     localStorage.getItem('excalc_flicksym')), 'null');
-  await page.evaluate(() => closeFlickSym()); await page.waitForTimeout(300);
+  // ── キーまるごとの入れかえ（v356） ──
+  await page.evaluate(() => openFlickSym()); await page.waitForTimeout(350);
+  check('  入れかえのボタンが各行にある', await page.evaluate(() =>
+    document.querySelectorAll('#flickSymBody .fs-swap').length), 10);
+  const before = await page.evaluate(() => npFlick.n2.join('|') + ' / ' + npFlick.n3.join('|'));
+  await page.evaluate(() => npFlickSwap('n2')); await page.waitForTimeout(200);
+  check('  1つめを選ぶと印が付く', await page.evaluate(() =>
+    npFlickSwapFrom + '/' + document.querySelectorAll('#flickSymBody .fs-row.fs-picked').length), 'n2/1');
+  await page.evaluate(() => npFlickSwap('n3')); await page.waitForTimeout(200);
+  check('  2つめで入れかわる', await page.evaluate(() => npFlick.n2.join('|') + ' / ' + npFlick.n3.join('|')),
+        before.split(' / ').reverse().join(' / '));
+  check('  印は外れる', await page.evaluate(() => String(npFlickSwapFrom)), 'null');
+  check('  入れかえも覚える', await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('excalc_flicksym')).n2.join('|')), '=|<>|:|;');
+  // 同じキーをもう一度押すとやめる
+  await page.evaluate(() => { npFlickSwap('n5'); npFlickSwap('n5'); }); await page.waitForTimeout(200);
+  check('  同じキーでやめられる', await page.evaluate(() => String(npFlickSwapFrom)), 'null');
+  // 左はしの列と入れかえると「左」は外れる
+  await page.evaluate(() => { npFlickSwap('n9'); npFlickSwap('n1'); }); await page.waitForTimeout(250);
+  check('  左はしの列に移ると「左」は外れる', await page.evaluate(() => npFlick.n1[0]), '');
+  check('  中身は入れかわっている', await page.evaluate(() => npFlick.n1.slice(1).join('|')), '℃|％|㎡');
+  check('  相手には元の中身が入る', await page.evaluate(() => npFlick.n9.slice(1).join('|')), '(|)|[');
+  await page.evaluate(() => { resetNpFlick(); closeFlickSym(); }); await page.waitForTimeout(300);
+  check('  元にもどすと入れかえも消える', await page.evaluate(() => npFlick.n1.join('|')), '|(|)|[');
 
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
@@ -1194,6 +1217,19 @@ async function runNpTools(browser) {
     getComputedStyle(document.getElementById('numpadPageBar')).overflowX), 'auto');
   check('  本体は横にずれない', await page.evaluate(() =>
     document.documentElement.scrollWidth <= window.innerWidth), true);
+
+  // ── 指（タッチ）でも横フリックで行き来できる（v356で直した） ──
+  await page.evaluate(() => { npTools = ['tansui', 'veggie']; saveNpTools();
+    applyNpToolFull(); renderNumpadPageBar(); }); await page.waitForTimeout(250);
+  check('  全画面は縦だけブラウザに任せる', await page.evaluate(() => {
+    const m = document.getElementById('tansuiOverlay').querySelector('.modal');
+    return getComputedStyle(m).touchAction; }), 'pan-y');
+  check('  写真などの中身はそのまま任せる', await page.evaluate(() => {
+    const m = document.getElementById('volumeOverlay').querySelector('.modal');
+    m.classList.add('modal-full');
+    const c = m.querySelector('canvas');
+    const r = c ? getComputedStyle(c).touchAction : 'none';
+    m.classList.remove('modal-full'); return r; }), 'none');
 
   // ── 登録した道具は全画面で開き、横フリックで行き来できる（v354） ──
   await page.evaluate(() => { npTools = ['tansui', 'veggie', 'kantab']; saveNpTools();
