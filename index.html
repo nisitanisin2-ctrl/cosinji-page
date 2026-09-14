@@ -984,6 +984,21 @@ body.resizer-off .numpad-resizer { display: none !important; }
      端までドラッグしても軽く動く。ボタンの枠は残るので位置関係は保たれる。 */
   body.numpad-compact .numpad-grid .btn { font-size: 0 !important; }
 }
+/* フリック記号の割り当てを変える画面（v355） */
+.fs-row { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
+.fs-num {
+  flex-shrink: 0; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-btn); background: var(--save-item-bg); border: 1px solid var(--save-item-border);
+  font-size: 16px; font-weight: bold; color: var(--text);
+}
+.fs-cell { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.fs-lb { font-size: 10px; color: var(--text-light); }
+.fs-in {
+  width: 100%; padding: 6px 2px; font-size: 15px; text-align: center;
+  border: 1px solid var(--save-item-border); border-radius: var(--r-btn);
+  background: var(--cell-bg, #fff); color: var(--text);
+}
+.fs-in:disabled { background: transparent; border-style: dashed; color: var(--text-light); }
 /* 数字キーのフリックで出る記号の候補（v353）。キーの上に重ねて、上下左右とまん中を見せる */
 .npflick {
   position: fixed; z-index: 900; display: none; pointer-events: none;
@@ -2860,6 +2875,7 @@ body.dark {
     </div>
     <button class="set-act" id="pageBarBtn" onclick="togglePageBar()" title="テンキーの上に出る「枠線・書式・数字・記号・関数／登録」のページ表示。タップでそのページへ移動できます">テンキーのページ表示</button>
     <button class="set-act" id="funcPageBtn" onclick="toggleFuncPage()" title="記号・関数のページを出すかどうか。数字キーの少し長押し→フリックでも記号は入れられます">記号ページを出す</button>
+    <button class="set-act" onclick="openFlickSym()" title="数字キーを少し長押しして出る記号を、好きなものに変えられます">⌨ フリックで入れる記号</button>
     <button class="set-act" id="resizerBarBtn" onclick="toggleResizerBar()" title="テンキーの大きさを変える調整バー（テンキー上端／横向きは左端）の表示を切り替えます">調整バーを表示する</button>
     <div class="set-row">
       <span class="set-label" title="テンキーの大きさを変えるバー（テンキー上端／横向きは左端）の太さ">調整バーの太さ<small>大きさを変えるバー</small></span>
@@ -3742,6 +3758,21 @@ body.dark {
   </div>
 </div>
 
+<!-- 数字キーのフリック記号の割り当て（設定から開く） -->
+<div class="modal-overlay" id="flickSymOverlay" onclick="if(event.target===this)closeFlickSym()">
+  <div class="modal">
+    <div class="modal-header">
+      <span>⌨ フリックで入れる記号</span>
+      <button class="modal-close" onclick="closeFlickSym()">✕</button>
+    </div>
+    <div class="mode-hint">数字のキーを<b>少しだけ長押し</b>すると出る記号です。空にすると、その向きは使いません。<b>7・4・1・0</b>は左へフリックしにくいので、<b>上・右・下</b>だけです。</div>
+    <div class="modal-body" id="flickSymBody"></div>
+    <div class="save-toolbar">
+      <button class="vol-insert veg-pdf-btn" onclick="resetNpFlick()">↺ 元にもどす</button>
+    </div>
+  </div>
+</div>
+
 <!-- 野菜の育成計画（種まき日から、間引き・追肥・収穫などの予定日をカレンダーで見る） -->
 <div class="modal-overlay" id="veggieOverlay" onclick="if(event.target===this)closeVeggie()">
   <div class="modal veg-modal modal-full">
@@ -4338,17 +4369,19 @@ body.dark {
           <div class="help-li"><b>上のバーに出すボタン</b>（v319で復活）：設定→<b>🎨見た目→くわしい設定</b>で、<b>↷進む・📋リスト・🗂シート・⚙設定・▦既定の大きさ・🧹リセット</b> を上のバーに足せます（既定は出しません）。たくさん出すとバーが狭くなり、入りきらない分は横にスライドして出します。</div>
           <div class="help-li"><b>数字キーのフリックで記号を入れる</b>（v353から）：数字のキーを<b>少しだけ長押し</b>すると、そのキーのまわりに<b>記号の候補</b>が出ます。そのまま<b>上下左右へフリックして指を離す</b>と、その記号が入ります。<b>動かさずに離せば</b>ふだんどおり数字が入ります。早くなぞったときは今までどおり<b>ページのフリック</b>です。<br>
             <table class="help-tbl">
-              <tr><td><b>1</b></td><td>左 ( ／ 上 [ ／ 右 ) ／ 下 ]</td></tr>
-              <tr><td><b>2</b></td><td>左 &lt; ／ 上 &lt;= ／ 右 &gt; ／ 下 &gt;=</td></tr>
-              <tr><td><b>3</b></td><td>左 = ／ 上 &lt;&gt; ／ 右 : ／ 下 ;</td></tr>
-              <tr><td><b>4</b></td><td>左 , ／ 上 . ／ 右 ％ ／ 下 $</td></tr>
+              <tr><td><b>7</b></td><td>上 「 ／ 右 」 ／ 下 ・</td></tr>
+              <tr><td><b>8</b></td><td>左 、 ／ 上 。 ／ 右 〜 ／ 下 ※</td></tr>
+              <tr><td><b>9</b></td><td>左 ¥ ／ 上 ℃ ／ 右 ％ ／ 下 ㎡</td></tr>
+              <tr><td><b>4</b></td><td>上 , ／ 右 . ／ 下 ]</td></tr>
               <tr><td><b>5</b></td><td>左 &amp; ／ 上 ^ ／ 右 ! ／ 下 ?</td></tr>
               <tr><td><b>6</b></td><td>左 " ／ 上 ' ／ 右 ~ ／ 下 |</td></tr>
-              <tr><td><b>7</b></td><td>左 「 ／ 上 『 ／ 右 」 ／ 下 』</td></tr>
-              <tr><td><b>8</b></td><td>左 、 ／ 上 ・ ／ 右 。 ／ 下 〜</td></tr>
-              <tr><td><b>9</b></td><td>左 ¥ ／ 上 ℃ ／ 右 ％ ／ 下 ㎡</td></tr>
-              <tr><td><b>0</b></td><td>左 （ ／ 上 【 ／ 右 ） ／ 下 】</td></tr>
+              <tr><td><b>1</b></td><td>上 ( ／ 右 ) ／ 下 [</td></tr>
+              <tr><td><b>2</b></td><td>左 &lt; ／ 上 &lt;= ／ 右 &gt; ／ 下 &gt;=</td></tr>
+              <tr><td><b>3</b></td><td>左 = ／ 上 &lt;&gt; ／ 右 : ／ 下 ;</td></tr>
+              <tr><td><b>0</b></td><td>上 （ ／ 右 ） ／ 下 ㎥</td></tr>
             </table>
+            <b>左はしの列（7・4・1・0）は左へフリックしにくい</b>ので、<b>上・右・下の3つだけ</b>にしてあります（v355から）。<br>
+            <b>記号は自分で変えられます</b>（v355から）：設定→<b>🎨見た目→くわしい設定</b>の<b>⌨ フリックで入れる記号</b>で、キーごとに上・左・右・下の記号を打ち直せます。<b>空にすればその向きは使いません</b>。<b>↺元にもどす</b>で既定に戻ります。<br>
             そのため<b>数字キーの長押しで「ボタンの機能」を割り当てる操作はなくなりました</b>（数字以外のキーは今までどおり長押しで割り当てられます）。</div>
           <div class="help-li"><b>記号ページを出す／隠す</b>（v353から）：設定→<b>🎨見た目→くわしい設定</b>の<b>記号ページを出す</b>で切り替えます。隠すと<b>ページ名の並びからも、フリックの並びからも外れ</b>、数字ページの左どなりが電卓ページになります。記号は上のフリックで入れられるので、ページを減らしてすっきりさせたいときにどうぞ。</div>
           <div class="help-li"><b>テンキーの上に出す道具</b>（v352から）：設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーの上に出す道具</b>で、全画面で開く道具（<b>💧単位水量・🧪カンタブ・🌱野菜・📷容積・📝写真メモ・🔗リンク集・📄メモ・📋式テンプレ・📑決算テンプレ</b>）を選ぶと、テンキーの上の<b>ページ名の並びに足されます</b>（電卓の右）。<b>タップで開きます</b>。<b>↑↓で並び順</b>を変えられ、<b>電卓ページからさらに左へフリック</b>すると<b>いちばん上に並べた道具</b>が開きます（よく使うものを先頭にしておくと、フリックだけで開けます）。たくさん選んで入りきらないときは、ページ名の並びを<b>横にすべらせて</b>見られます（<b>▲登録</b>は右端に残ります）。<br>
@@ -10949,22 +10982,73 @@ function pickKeyAssign(fid){
    そのままフリック（上下左右）して指を離すと、その記号が入る。
    まん中（動かさずに離す）ならふだんどおり数字が入る。
    並びは [左, 上, 右, 下]。 */
-const NP_FLICK={
-  n1:['(', '[', ')', ']'],
+/* 左はしの列（7・4・1・0）は左へフリックしにくいので、上・右・下の3つだけにする（v355） */
+const NP_FLICK_LEFTCOL=['n7','n4','n1','n0'];
+const NP_FLICK_KEYS=['n7','n8','n9','n4','n5','n6','n1','n2','n3','n0'];
+const NP_FLICK_DIRS=[['左',0],['上',1],['右',2],['下',3]];
+const NP_FLICK_DEF={
+  n1:['', '(', ')', '['],
   n2:['<', '<=', '>', '>='],
   n3:['=', '<>', ':', ';'],
-  n4:[',', '.', '%', '$'],
+  n4:['', ',', '.', ']'],
   n5:['&', '^', '!', '?'],
   n6:['"', "'", '~', '|'],
-  n7:['「', '『', '」', '』'],
-  n8:['、', '・', '。', '〜'],
+  n7:['', '「', '」', '・'],
+  n8:['、', '。', '〜', '※'],
   n9:['¥', '℃', '％', '㎡'],
-  n0:['（', '【', '）', '】'],
+  n0:['', '（', '）', '㎥'],
 };
+const NP_FLICK_KEY='excalc_flicksym';
+let npFlick={};
+/* 設定から読み込む。入っていないものは既定のまま。左はしの列の「左」は使わない */
+function loadNpFlick(){
+  npFlick={};
+  let saved={};
+  try{ const o=JSON.parse(localStorage.getItem(NP_FLICK_KEY)||'null'); if(o&&typeof o==='object') saved=o; }catch(_){}
+  NP_FLICK_KEYS.forEach(k=>{
+    const def=NP_FLICK_DEF[k], got=Array.isArray(saved[k])?saved[k]:null;
+    npFlick[k]=[0,1,2,3].map(i=>{
+      if(i===0 && NP_FLICK_LEFTCOL.indexOf(k)>=0) return '';        // 左はしの列に「左」は無い
+      const v=got?String(got[i]==null?'':got[i]).slice(0,4):def[i];
+      return v;
+    });
+  });
+}
+function saveNpFlick(){ try{ localStorage.setItem(NP_FLICK_KEY, JSON.stringify(npFlick)); }catch(_){} }
+/* ── フリックで入れる記号の割り当てを変える（v355） ── */
+function openFlickSym(){ renderFlickSym(); openDlg('flickSymOverlay'); }
+function closeFlickSym(){ closeDlg('flickSymOverlay'); }
+function renderFlickSym(){
+  const box=document.getElementById('flickSymBody'); if(!box) return;
+  box.innerHTML=NP_FLICK_KEYS.map(k=>{
+    const noLeft=NP_FLICK_LEFTCOL.indexOf(k)>=0;
+    const cells=NP_FLICK_DIRS.map(([lb,i])=>{
+      const dis=(i===0&&noLeft);
+      return `<span class="fs-cell"><span class="fs-lb">${lb}</span>`
+        +`<input class="fs-in" type="text" maxlength="4" value="${escHtml(npFlick[k][i]||'')}"`
+        +(dis?' disabled placeholder="—"':` oninput="setNpFlick('${k}',${i},this.value)"`)
+        +` onkeydown="event.stopPropagation()" aria-label="${k.slice(1)}の${lb}"></span>`;
+    }).join('');
+    return `<div class="fs-row"><span class="fs-num">${k.slice(1)}</span>${cells}</div>`;
+  }).join('');
+}
+function setNpFlick(key, i, v){
+  if(!npFlick[key]) return;
+  if(i===0 && NP_FLICK_LEFTCOL.indexOf(key)>=0) return;
+  npFlick[key][i]=String(v||'').slice(0,4);
+  saveNpFlick();
+}
+function resetNpFlick(){
+  try{ localStorage.removeItem(NP_FLICK_KEY); }catch(_){}
+  loadNpFlick();
+  renderFlickSym();
+  toast('フリックで入れる記号を元にもどしました');
+}
+
 const NP_FLICK_HOLD_MS=180;      // これだけ押し続けると候補が出る
 const NP_FLICK_MOVE=26;          // この距離を超えて動かすと、その向きを選んだことにする
 let npFlickKey=null, npFlickDir=null, npFlickX=0, npFlickY=0;
-function npFlickSyms(key){ return NP_FLICK[key]||null; }
+function npFlickSyms(key){ return npFlick[key]||null; }
 /* 候補の窓を出す。キーの上に重ねて、上下左右とまん中を見せる */
 function npFlickShow(btn, key){
   const syms=npFlickSyms(key); if(!syms) return false;
@@ -10989,6 +11073,9 @@ function npFlickShow(btn, key){
     const el=pop.querySelector(sel); el.textContent=syms[i]||''; el.classList.toggle('npf-empty', !syms[i]);
   });
   pop.classList.add('open');
+  // 候補を出した時点で、このボタンのクリックは止める（数字も記号も npFlickEnd で入れる）。
+  // クリックが指を離す前に来ることがあるので、離してからでは間に合わない。
+  kaSuppress=true;
   npFlickKey=key; npFlickDir=null;
   npFlickMark();
   if(navigator.vibrate){ try{ navigator.vibrate(12); }catch(_){} }
@@ -11011,15 +11098,19 @@ function npFlickTrack(x, y){
   }
   if(d!==npFlickDir){ npFlickDir=d; npFlickMark(); }
 }
-/* 指を離したとき：向きが決まっていればその記号を入れる。まん中なら何もしない（数字はふだんの経路で入る） */
+/* 指を離したとき：向きが決まっていればその記号を、決まっていなければ数字を入れる。
+   少し動かしてから離すとボタンのクリックが出ないので、数字もここで入れる。 */
 function npFlickEnd(){
   if(!npFlickKey) return false;
   const key=npFlickKey, dir=npFlickDir;
   npFlickHide();
-  if(!dir) return false;                       // まん中＝数字（ふだんのクリックにまかせる）
+  if(!dir){                                    // まん中、または記号の無い向き＝数字
+    if(typeof num==='function') num(key.slice(1));
+    return true;
+  }
   const sym=npFlickSyms(key)[{left:0,up:1,right:2,down:3}[dir]];
   if(sym && typeof fkey==='function') fkey(sym);
-  return true;                                 // 記号を入れたので、続くクリックは止める
+  return true;                                 // 入れたので、続くクリックは止める
 }
 function npFlickHide(){
   const pop=document.getElementById('npFlickPop'); if(pop) pop.classList.remove('open');
@@ -11070,7 +11161,7 @@ function npFlickActive(){ return npFlickKey!==null; }
   }, {passive:false});
   window.addEventListener('pointerup', ()=>{
     if(timer){ clearTimeout(timer); timer=null; }
-    if(npFlickEnd()) kaSuppress=true;             // 記号を入れたら、続くクリック（数字）は止める
+    npFlickEnd();                                 // 記号か数字を入れる（クリックは候補を出した時点で止めてある）
     setTimeout(()=>{ kaSuppress=false; }, 120);
   });
   window.addEventListener('pointercancel', ()=>{ if(timer){ clearTimeout(timer); timer=null; } npFlickHide(); kaSuppress=false; });
@@ -16343,7 +16434,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v354';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v355';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -18009,6 +18100,7 @@ setEnterDir(enterMoveDir);                 // Enterで進む向きを復元
 { const stb=document.getElementById('sheetTabsBtn'); if(stb) stb.classList.toggle('on', showSheetTabs);
   const stt=document.getElementById('sheetToggleBtn'); if(stt) stt.classList.toggle('on', showSheetTabs); }
 applyResizerBar();   // 調整バーの表示/非表示を復元
+loadNpFlick();       // フリックで入れる記号の割り当てを復元
 applyPageBar();      // テンキーのページ表示の有無を復元
 syncFuncPageBtn();   // 記号ページを出すかどうかの見た目を合わせる
 loadTopBtnShown(); applyTopBtnShown();                       // 上のバーに出すボタンを復元
