@@ -1374,6 +1374,16 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
   border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text-light);
   cursor: pointer; touch-action: manipulation;
 }
+.veg-sel {
+  padding: 8px 6px; font-size: 14px; border: 1px solid var(--save-item-border);
+  border-radius: var(--r-btn); background: var(--cell-bg, #fff); color: var(--text); max-width: 190px;
+}
+.veg-chk { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--text-light); }
+.veg-chk input { width: 17px; height: 17px; }
+.veg-fix {
+  font-size: 12px; color: var(--text-light); margin: -4px 2px 10px; line-height: 1.5;
+}
+.veg-fix b { color: var(--text); }
 .veg-head {
   padding: 10px 12px; margin-bottom: 8px; border-radius: var(--r-btn);
   background: rgba(67,160,71,.14); border: 1px solid rgba(67,160,71,.5);
@@ -3596,6 +3606,15 @@ body.dark {
         <span>日</span>
         <button class="veg-mini" onclick="vegToday()">今日</button>
       </div>
+      <div class="veg-row">
+        <span class="veg-lb">地域</span>
+        <select class="veg-sel" id="vegAreaSel" onchange="vegAreaChange()" aria-label="地域"></select>
+        <span class="veg-lb">標高</span>
+        <input type="number" class="veg-num" id="vegAlt" inputmode="numeric" onchange="vegAreaChange()" aria-label="標高（メートル）">
+        <span>m</span>
+        <label class="veg-chk"><input type="checkbox" id="vegCold" onchange="vegAreaChange()">寒冷地（霜がおりる畑）</label>
+      </div>
+      <div class="veg-fix" id="vegFix"></div>
       <div id="vegHead"></div>
       <div class="veg-plan" id="vegPlan"></div>
       <div class="veg-cal-nav">
@@ -4276,7 +4295,8 @@ body.dark {
           <div class="help-li"><b>💧単位水量</b>：土研法エアメータ法で、生コンの単位水量を推定します。<b>配合</b>（W1・セメント・細骨材・粗骨材・混和材・配合空気量）と<b>試験値</b>（容器+試料 m2・測定空気量 A2・容器容積 V・容器質量 m1）を入れると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で推定し、配合の W1 との<b>差</b>で合否を判定します。配合はkg/m³、質量はg、容積はccで入力。<b>推定単位水量と差を大きく並べて</b>出し、差は合否と同じ色（合格＝緑／要注意＝橙／不合格＝赤）になります。<b>🧮計算の途中経過</b>で⑦〜⑱の値も確認でき、いちばん下の<b>▦推定単位水量をセルに入れる</b>で選択中のセルへ入ります。入れた値は次に開いたときも残ります。<br>よく使う配合（30件まで）とエアメータ（5件まで）は<b>📋配合の登録</b>・<b>🧪エアメータの登録</b>（それぞれ別の画面）に入れておけて、<b>配合番号・エアメータ番号</b>に番号を入れるだけで呼び出せます。配合には番号とは別に<b>配合の呼び名</b>（例 21-5-40BB）を入れておけ、番号を入れると<b>どの配合を呼び出したか名前で確認</b>できます（番号が登録に無いときもその場で分かります）。<b>配合</b>の見出しを押すと配合の欄を<b>折りたためます</b>（閉じている間は見出しの右に呼び名が出ます）。許容差と小数桁は<b>⚙設定</b>で変えられます。</div>
           <div class="help-li"><b>🌱野菜の育成計画</b>（v340から）：<b>野菜を選んで、種をまいた日（いも・苗は植えつけた日）を入れるだけ</b>で、<b>発芽・間引き・追肥・収穫</b>などの<b>予定日</b>が出ます。いちばん上に<b>「収穫は◯〜◯日後（◯月◯日〜◯月◯日）」</b>と大きく出るので、<b>何日後にとれるか</b>がひと目で分かります。<br>
             ・<b>カレンダー</b>にも色が付きます（<span style="color:#6d4c41">■</span>種まき・植えつけ／<span style="color:#7cb342">■</span>発芽・根づく／<span style="color:#1565c0">■</span>間引き・土寄せなどの手入れ／<span style="color:#ef6c00">■</span>追肥／<span style="color:#c2185b">■</span>花・受粉／<span style="color:#2e7d32">■</span>収穫）。濃い色が<b>その作業の初日</b>、薄い色は<b>そのあいだの期間</b>です。<b>‹ ›</b>で月を送り、<b>「種まきの月」</b>で戻ります<br>
-            ・野菜は<b>32種類</b>入っています。多いので<b>名前でさがす</b>欄も使えます<br>
+            ・<b>地域・標高・寒冷地</b>を選ぶと、<b>日数を補正</b>します（v341から）。寒いところほど育ちはゆっくりなので、日数に倍率をかけます。<b>地域</b>は沖縄〜北海道の7つ（関東・東海・近畿が標準）、<b>標高</b>は100mごとに約2%おそく（気温が約0.6℃下がるめやす）、<b>寒冷地（霜がおりる畑）</b>でさらに5%おそくします。いまかかっている補正は<b>「補正 ＋34%（日数を1.34倍）」</b>のように画面に出ます。<b>種まきの時期を標準の地域よりどれだけずらすとよいか</b>も出ます（例：北海道は4週間おそめ）。この設定は<b>次に開いたときも残ります</b><br>
+            ・野菜は<b>33種類</b>入っています。多いので<b>名前でさがす</b>欄も使えます<br>
             ・<b>▦ 予定表を表に入れる</b>を押すと、<b>選んでいるセルを左上にして</b>「作業／予定日／おわり／日数」の表が入ります。日付は<b>日付として</b>入るので、そのまま計算や並べ替えに使えます（<b>↶戻る</b>で元に戻せます）<br>
             ・<b>➕自分の野菜を登録する</b>で、育てている品種を自分で足せます（名前と、作業ごとの日数）。登録したものは<b>点線のふち</b>で並び、次に開いたときも残ります<br>
             ・日数は家庭菜園のふつうの目安です。<b>品種・地域・その年の天気で前後します</b>ので、種の袋の日数があればそちらを目安にしてください</div>
@@ -7375,6 +7395,7 @@ const VEG_PLANS=[
   {n:'ニンジン',    i:'🥕', from:'種まき',   sow:'3〜4月・7〜8月',s:[['発芽',7,12],['1回目の間引き',20,25],['2回目の間引き',40,45],['追肥',45,50],['収穫',100,130]]},
   {n:'カブ',        i:'🌱', from:'種まき',   sow:'3〜5月・9〜10月',s:[['発芽',3,5],['1回目の間引き',10,14],['2回目の間引き',20,25],['収穫',45,60]]},
   {n:'ラディッシュ',i:'🌱', from:'種まき',   sow:'3〜10月',      s:[['発芽',3,4],['間引き',8,12],['収穫',20,30]]},
+  {n:'ビーツ',      i:'🟣', from:'種まき',   sow:'3〜6月・9〜10月',s:[['発芽',5,10],['1回目の間引き',15,20],['2回目の間引き',30,35],['追肥',35,40],['収穫',60,80]]},
   {n:'ホウレンソウ',i:'🥬', from:'種まき',   sow:'9〜10月・3〜4月',s:[['発芽',4,7],['間引き',15,20],['追肥',20,25],['収穫',30,50]]},
   {n:'コマツナ',    i:'🥬', from:'種まき',   sow:'3〜10月',      s:[['発芽',3,4],['間引き',10,14],['収穫',30,40]]},
   {n:'ミズナ',      i:'🥬', from:'種まき',   sow:'9〜10月',      s:[['発芽',3,5],['間引き',12,16],['収穫',35,50]]},
@@ -7394,6 +7415,60 @@ const VEG_PLANS=[
   {n:'イチゴ',      i:'🍓', from:'植えつけ', sow:'9〜10月',      s:[['根づく',10,20],['追肥',150,160],['花が咲く',170,190],['収穫はじめ',195,215],['収穫おわり',240,260]]},
   {n:'シソ',        i:'🌿', from:'種まき',   sow:'4〜6月',       s:[['発芽',7,10],['間引き',20,25],['摘芯',40,45],['収穫はじめ',50,60],['収穫おわり',140,160]]},
 ];
+/* 地域・標高・寒冷地による補正。
+   寒いところほど育ちがゆっくりなので、日数に倍率をかける。
+   f＝地域の倍率、w＝春まきをどれだけずらすか（週。＋はおそめ） */
+const VEG_AREAS=[
+  {id:'okinawa',  n:'沖縄・南西諸島',        f:0.88, w:-3},
+  {id:'kyushu',   n:'九州・四国の南部',      f:0.93, w:-2},
+  {id:'chugoku',  n:'中国・四国',            f:0.97, w:-1},
+  {id:'kanto',    n:'関東・東海・近畿（標準）',f:1.00, w:0},
+  {id:'hokuriku', n:'北陸・甲信',            f:1.06, w:1},
+  {id:'tohoku',   n:'東北',                  f:1.12, w:2},
+  {id:'hokkaido', n:'北海道',                f:1.20, w:4},
+];
+const VEG_AREA_KEY='excalc_veg_area';
+let vegArea={id:'kanto', alt:0, cold:false};
+function vegAreaDef(){ return VEG_AREAS.find(a=>a.id===vegArea.id)||VEG_AREAS[3]; }
+function loadVegArea(){
+  try{
+    const a=JSON.parse(localStorage.getItem(VEG_AREA_KEY)||'null');
+    if(a && typeof a==='object'){
+      vegArea={ id:VEG_AREAS.some(x=>x.id===a.id)?a.id:'kanto',
+                alt:Math.max(0,Math.min(2000,Math.round(Number(a.alt)||0))),
+                cold:!!a.cold };
+    }
+  }catch(_){}
+}
+function saveVegArea(){ try{ localStorage.setItem(VEG_AREA_KEY, JSON.stringify(vegArea)); }catch(_){} }
+/* 日数にかける倍率。1.00 なら補正なし */
+function vegFactor(){
+  const alt=Math.max(0, Math.min(2000, Number(vegArea.alt)||0));
+  let f=vegAreaDef().f * (1 + alt/100*0.02);   // 標高100mごとに約2%おそく（気温が約0.6℃下がる目安）
+  if(vegArea.cold) f*=1.05;                    // 霜がおりる畑はさらに少しおそく
+  return Math.round(f*100)/100;
+}
+/* 「北海道・標高300m・寒冷地」のような短い言い方 */
+function vegAreaText(){
+  let t=vegAreaDef().n.replace('（標準）','');
+  const alt=Math.max(0,Math.round(Number(vegArea.alt)||0));
+  if(alt>0) t+='・標高'+alt+'m';
+  if(vegArea.cold) t+='・寒冷地';
+  return t;
+}
+function vegFactorText(){
+  const f=vegFactor();
+  if(f===1) return 'なし（そのままの日数）';
+  const pct=Math.round((f-1)*100);
+  return (pct>0?'＋':'−')+Math.abs(pct)+'%（日数を'+f.toFixed(2)+'倍）';
+}
+/* 春まきの時期をどれだけずらすとよいか */
+function vegShiftText(){
+  const w=vegAreaDef().w;
+  if(!w) return '';
+  return Math.abs(w)+'週間'+(w>0?'おそめ':'はやめ');
+}
+
 const VEG_MY_KEY='excalc_veg_my';       // 自分で登録した野菜
 let vegMy=[];                            // [{n,i,from,sow,s:[[名前,はじめ,おわり],…]}]
 let vegSel=null;                         // 選んでいる野菜（VEG_PLANS か vegMy の要素）
@@ -7416,19 +7491,25 @@ function vegKind(label){
   if(/花|受粉|結球|花蕾|雄穂|倒れる/.test(t))    return {k:'flower',  c:'#c2185b'};
   return {k:'plant', c:'#6d4c41'};
 }
-function vegFmtDate(serial){ const {m,d,w}=serialToYMD(serial); return `${m}/${d}(${WDAY_JP[w]})`; }
+function vegFmtDate(serial){
+  const {y,m,d,w}=serialToYMD(serial);
+  const base=(vegSowSerial!==null)?serialToYMD(vegSowSerial).y:y;
+  return (y===base?'':y+'年')+`${m}/${d}(${WDAY_JP[w]})`;   // 年をまたいだときだけ年も出す
+}
 /* 予定表の中身：[{what, from, to, d1, d2}]（from/to は通し番号） */
 function vegRows(){
   if(!vegSel || vegSowSerial===null) return [];
+  const f=vegFactor();
   const rows=[{what:vegSel.from||'種まき', from:vegSowSerial, to:vegSowSerial, d1:0, d2:0}];
   (vegSel.s||[]).forEach(([what,a,b])=>{
-    const d1=Math.max(0,Math.round(Number(a)||0)), d2=Math.max(d1,Math.round(Number(b)||d1));
+    const b1=Math.max(0,Math.round(Number(a)||0)), b2=Math.max(b1,Math.round(Number(b)||b1));
+    const d1=Math.round(b1*f), d2=Math.max(d1, Math.round(b2*f));   // 地域・標高・寒冷地の補正
     rows.push({what, from:vegSowSerial+d1, to:vegSowSerial+d2, d1, d2});
   });
   return rows;
 }
 function openVeggie(){
-  loadVegMy();
+  loadVegMy(); loadVegArea();
   if(!vegSel) vegSel=VEG_PLANS[0];
   if(vegSowSerial===null) vegSowSerial=todaySerial();
   const {y,m}=serialToYMD(vegSowSerial); vegCalY=y; vegCalM=m;
@@ -7438,7 +7519,29 @@ function openVeggie(){
 }
 function closeVeggie(){ document.getElementById('veggieOverlay').classList.remove('open'); releaseBackGuard(); }
 
-function vegRenderAll(){ vegRenderChips(); vegRenderDate(); vegRenderPlan(); vegRenderCal(); vegRenderMy(); }
+function vegRenderAll(){ vegRenderChips(); vegRenderDate(); vegRenderArea(); vegRenderPlan(); vegRenderCal(); vegRenderMy(); }
+/* 地域・標高・寒冷地の欄と、いまかかっている補正の案内 */
+function vegRenderArea(){
+  const selEl=document.getElementById('vegAreaSel'), alt=document.getElementById('vegAlt'),
+        cold=document.getElementById('vegCold'), fix=document.getElementById('vegFix');
+  if(!selEl||!alt||!cold||!fix) return;
+  if(!selEl.dataset.built){
+    selEl.innerHTML=VEG_AREAS.map(a=>`<option value="${a.id}">${escHtml(a.n)}</option>`).join('');
+    selEl.dataset.built='1';
+  }
+  selEl.value=vegArea.id; alt.value=vegArea.alt; cold.checked=!!vegArea.cold;
+  const shift=vegShiftText();
+  fix.innerHTML='補正 <b>'+escHtml(vegFactorText())+'</b>'
+    +(shift?'　／　種まきの時期は標準の地域より <b>'+escHtml(shift)+'</b>':'');
+}
+function vegAreaChange(){
+  const selEl=document.getElementById('vegAreaSel'), alt=document.getElementById('vegAlt'),
+        cold=document.getElementById('vegCold');
+  let a=parseInt((alt||{}).value,10); if(isNaN(a)||a<0) a=0; if(a>2000) a=2000;
+  vegArea={ id:(selEl||{}).value||'kanto', alt:a, cold:!!(cold&&cold.checked) };
+  saveVegArea();
+  vegRenderArea(); vegRenderPlan(); vegRenderCal();
+}
 
 function vegRenderChips(){
   const box=document.getElementById('vegChips'); if(!box) return;
@@ -7491,8 +7594,9 @@ function vegRenderPlan(){
   const span=(h.d1===h.d2)?`${h.d1}日後`:`${h.d1}〜${h.d2}日後`;
   const when=(h.from===h.to)?vegFmtDate(h.from):`${vegFmtDate(h.from)}〜${vegFmtDate(h.to)}`;
   head.innerHTML=`<div class="veg-head">${vegSel.i||'🌱'} ${escHtml(vegSel.n)}：${escHtml(h.what)}は <b>${span}</b>（${when}）`
-    +`<small>${escHtml(vegSel.from||'種まき')} ${vegFmtDate(vegSowSerial)}`
-    +(vegSel.sow?` ／ ${escHtml(vegSel.from||'種まき')}に向く時期 ${escHtml(vegSel.sow)}`:'')+`</small></div>`;
+    +`<small>${escHtml(vegSel.from||'種まき')} ${vegFmtDate(vegSowSerial)} ／ ${escHtml(vegAreaText())}`
+    +(vegSel.sow?` ／ ${escHtml(vegSel.from||'種まき')}に向く時期 ${escHtml(vegSel.sow)}`
+        +(vegShiftText()?`（${escHtml(vegShiftText())}）`:''):'')+`</small></div>`;
   box.innerHTML=rows.map(r=>{
     const kd=vegKind(r.what);
     const when=(r.from===r.to)?vegFmtDate(r.from):`${vegFmtDate(r.from)}〜${vegFmtDate(r.to)}`;
@@ -7552,7 +7656,7 @@ function vegInsertToSheet(){
   if(c0+4>COLS) COLS=Math.min(MAXCOLS, c0+4);
   if(r0+rows.length+2>ROWS) ROWS=Math.min(MAXROWS, r0+rows.length+2);
   localStorage.setItem('excalc_rows',ROWS); localStorage.setItem('excalc_cols',COLS);
-  const out=[[`${vegSel.i||'🌱'} ${vegSel.n} の育成計画`,'','',''],
+  const out=[[`${vegSel.i||'🌱'} ${vegSel.n} の育成計画（${vegAreaText()}）`,'','',''],
              ['作業','予定日','おわり','日数']];
   rows.forEach(r=>out.push([r.what, vegDateText(r.from), (r.from===r.to)?'':vegDateText(r.to),
                             (r.d1===r.d2)?`${r.d1}日`:`${r.d1}〜${r.d2}日`]));
@@ -15037,7 +15141,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v340';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v341';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
