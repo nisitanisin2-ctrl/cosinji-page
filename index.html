@@ -4002,7 +4002,7 @@ body.dark {
               ・<b>メモリー</b>：<b>M＋</b>足す／<b>M−</b>引く／<b>MR</b>呼び出す／<b>MC</b>消す（何か入っている間は MR・MC に黄色い印。閉じても覚えています）<br>
               ・<b>🧮電卓／▦表へ</b>：表のときは電卓モードへ、電卓のときは答えをセルに入れて表へ戻ります<br>
               ・<b>🎤声</b>でそのまましゃべって計算できます<br>
-              <b>電卓モードに入ると、このページが自動で開きます</b>（表に戻ると数字ページに戻ります）。<b>＝のあとに数字を押すと新しい数として打ち始めます</b>（v335で直しました。以前は前の答えに続けて打たれていました）</td></tr>
+              <b>このページとモードは連動します</b>（v336から）。<b>スライドで電卓ページへ行く</b>か、上の<b>ページ名の「電卓」をタップ</b>すると<b>電卓モードに切り替わります</b>。<b>スライドで出る・ページ名の「数字」をタップ・▦表へを押す</b>と、<b>元のモード</b>（買物などから行ったときはそのモード、ふつうは通常）に戻ります。⋯→🧮電卓から入ったときも、このページが開きます。<b>＝のあとに数字を押すと新しい数として打ち始めます</b>（v335で直しました。以前は前の答えに続けて打たれていました）</td></tr>
             <tr><td><span class="help-key">↑ 上へ</span></td><td><b>登録ページ</b>：紫ボタンを長押しで登録（下記）</td></tr>
             <tr><td><span class="help-key">↓ 下へ</span></td><td>数字ページに戻る</td></tr>
           </table>
@@ -9660,6 +9660,7 @@ const NP_ROW_REG =[['regL','登録左'],['reg','登録'],['regR','登録右']];
   const overlays=[pgFmt,pgFunc,pgSci,pgReg,pgRegL,pgRegR];
   const regPages=[pgReg,pgRegL,pgRegR];
   let openWhich=null;               // null=数字ページ／'fmt'(左＝書式・枠線)／'func'(右1)／'sci'(右2)／'reg'(下)／'regL'(登録左)／'regR'(登録右)
+  let lastSettled=null;             // 最後に落ち着いたページ（変わったときだけモードを合わせる）
   let lastRegPage='reg';            // 登録を再度開いたとき表示するページ（最後に見ていた登録ページ）
   let downX=null, downY=0, downId=null, axis=null, activeEl=null, decided=false, w=1, h=1, downT=0, downTopRow=false;
   const isReg=s=>s==='reg'||s==='regL'||s==='regR';
@@ -9717,6 +9718,11 @@ const NP_ROW_REG =[['regL','登録左'],['reg','登録'],['regR','登録右']];
     });
     // ページが変わる経路は必ずここを通るので、表示の更新もここ1か所で足りる
     if(typeof renderNumpadPageBar==='function') renderNumpadPageBar();
+    // 電卓ページとモードを連動させる（スライドでも、ページ名のタップでも同じ）
+    if(lastSettled!==openWhich){
+      const from=lastSettled; lastSettled=openWhich;
+      if(typeof syncModeToPage==='function') syncModeToPage(openWhich, from);
+    }
   }
   function onDown(e){
     if(e.button!==undefined && e.button>0) return;
@@ -11366,16 +11372,35 @@ function dtToCell(){
   setCellVal(selR,selC, fmtNum(num));
   toast('答えを '+ALPHA[selC]+(selR+1)+' に入れました');
 }
+/* ── 電卓ページとモードの連動 ──────────────────────────────────
+   電卓ページへ行ったら電卓モードに、電卓ページから出たら表のモードに戻す。
+   スライドでも、上のページ名のタップでも同じように動く。
+   モード側からもページを動かすので、呼び合って止まらなくならないよう印を立てる。 */
+let dtPageSyncing=false;
+function syncModeToPage(which){
+  if(dtPageSyncing) return;
+  dtPageSyncing=true;
+  try{
+    if(which==='sci'){
+      if(!isDentaku()){ dtPrevMode=tableMode; dtPrevSel={r:selR,c:selC}; switchMode('dentaku'); }
+    } else if(isDentaku()){
+      switchMode((dtPrevMode&&dtPrevMode!=='dentaku')?dtPrevMode:'normal');
+    }
+  } finally { dtPageSyncing=false; }
+}
 /* 電卓モードに入る・出るときの見た目の切り替え */
 function dtApplyMode(){
   document.body.classList.toggle('dentaku-mode', isDentaku());
   if(isDentaku()){ dtSyncTaxLabels(); dtRender(); }
   if(typeof dtSyncPageKeys==='function') dtSyncPageKeys();
   // 電卓モードに入ったら電卓ページを開き、表に戻ったら数字ページに戻す
-  if(typeof numpadPager!=='undefined' && numpadPager){
-    const cur=numpadPager.current();
-    if(isDentaku()){ if(cur!=='sci') numpadPager.go('sci'); }
-    else if(cur==='sci'){ numpadPager.go(null); }
+  if(!dtPageSyncing && typeof numpadPager!=='undefined' && numpadPager){
+    dtPageSyncing=true;
+    try{
+      const cur=numpadPager.current();
+      if(isDentaku()){ if(cur!=='sci') numpadPager.go('sci'); }
+      else if(cur==='sci'){ numpadPager.go(null); }
+    } finally { dtPageSyncing=false; }
   }
 }
 
@@ -14523,7 +14548,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v335';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v336';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

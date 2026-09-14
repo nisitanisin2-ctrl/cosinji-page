@@ -686,6 +686,53 @@ async function runCalcPage(browser) {
   check('  表では 🧮電卓 の表示', await page.evaluate(() =>
     document.querySelector('[data-key="dk_tosheet"]').textContent.trim()), '🧮電卓');
 
+  // ── 電卓ページとモードの連動（スライドでもページ名タップでも） ──
+  const tab = async name => { await page.evaluate(n => { const b=[...document.querySelectorAll('.np-page')]
+    .find(x => x.textContent.trim() === n); if (b) b.click(); }, name); await page.waitForTimeout(700); };
+  const now = () => page.evaluate(() => tableMode + '/' + String(numpadPager.current()));
+  await page.evaluate(() => switchMode('normal')); await page.waitForTimeout(600);
+  await tab('電卓');
+  check('  ページ名「電卓」で電卓モードになる', await now(), 'dentaku/sci');
+  await tab('数字');
+  check('  ページ名「数字」で表に戻る', await now(), 'normal/null');
+  await tab('記号');
+  check('  「記号」ではモードは変わらない', await now(), 'normal/func');
+  await tab('数字');
+  // スライドでも同じ
+  const flick = async dx => {
+    const vp = await page.evaluate(() => { const v = document.getElementById('numpadViewport');
+      const r = v.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height * 0.55 }; });
+    await page.mouse.move(vp.x, vp.y); await page.mouse.down();
+    for (let i = 1; i <= 6; i++) { await page.mouse.move(vp.x + dx * i / 6, vp.y); await page.waitForTimeout(25); }
+    await page.mouse.up(); await page.waitForTimeout(700);
+  };
+  await flick(-150); await flick(-150);
+  check('  スライドで電卓ページへ行くと電卓モード', await now(), 'dentaku/sci');
+  await flick(150);
+  check('  スライドで出ると表に戻る', await now(), 'normal/func');
+  await tab('数字');
+  // 元のモードへ戻る（通常以外から行ったとき）
+  await page.evaluate(() => switchMode('shopping')); await page.waitForTimeout(600);
+  await tab('電卓');
+  check('  買物からでも電卓へ行ける', await now(), 'dentaku/sci');
+  await tab('数字');
+  check('  戻ると元の買物モードへ', await now(), 'shopping/null');
+  await page.evaluate(() => switchMode('normal')); await page.waitForTimeout(600);
+  // 行ったり来たりしても止まらない
+  for (let i = 0; i < 3; i++) { await tab('電卓'); await tab('数字'); }
+  check('  行き来をくり返しても崩れない', await now(), 'normal/null');
+
+  // ▦表へ で表に戻り、答えがセルに入る
+  await page.evaluate(() => { sel(0, 0); setCellVal(0, 0, ''); }); await page.waitForTimeout(200);
+  await tab('電卓');
+  await page.evaluate(() => { dtAllClear();
+    ['dk_1','dk_2','dk_mul','dk_3','dk_eq'].forEach(k => document.querySelector('[data-key="' + k + '"]').click()); });
+  await page.waitForTimeout(400);
+  await page.evaluate(() => document.querySelector('[data-key="dk_tosheet"]').click());
+  await page.waitForTimeout(800);
+  check('  ▦表へ で表に戻る', await now(), 'normal/null');
+  check('  答えがセルに入る', await page.evaluate(() => data[0][0]), '36');
+
   // 計算（ふつうの電卓）
   await page.evaluate(() => { switchMode('dentaku'); dtStyle = 'simple'; dtTape = []; dtMem = 0; dtAllClear(); });
   await page.waitForTimeout(500);
