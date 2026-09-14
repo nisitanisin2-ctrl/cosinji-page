@@ -697,6 +697,109 @@ async function runRegPick(browser) {
   await ctx.close();
 }
 
+/* 野菜の育成計画（種まきの日から予定日とカレンダーを出す道具） */
+async function runVeggie(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 野菜の育成計画 ──');
+  const open = async () => { await page.evaluate(() => openVeggie()); await page.waitForTimeout(300); };
+  // 野菜を選んで、まく日を決める
+  const plant = async (name, y, m, d) => { await page.evaluate(([n, y, m, d]) => {
+      const i = vegAll().findIndex(v => v.n === n); vegPick(i);
+      document.getElementById('vegY').value = y;
+      document.getElementById('vegM').value = m;
+      document.getElementById('vegD').value = d;
+      vegDateChange(); }, [name, y, m, d]); await page.waitForTimeout(200); };
+  const plan = () => page.evaluate(() => [...document.querySelectorAll('.veg-line')]
+    .map(x => [...x.children].slice(1).map(y => y.textContent).join(' ')).join(' / '));
+
+  await open();
+  check('  キーに登録して開ける', await page.evaluate(() => KEY_FUNCS.a_veggie.label), '🌱野菜');
+  check('  はじめから入っている野菜の数', await page.evaluate(() => VEG_PLANS.length), 32);
+  check('  日数は はじめ≦おわり で、順に並んでいる', await page.evaluate(() =>
+    VEG_PLANS.every(v => v.s.every(([, a, b]) => a <= b) &&
+      v.s.every((st, i) => i === 0 || st[1] >= v.s[i - 1][1]))), true);
+  check('  どの野菜にも収穫がある', await page.evaluate(() =>
+    VEG_PLANS.filter(v => !v.s.some(st => /収穫|掘り/.test(st[0]))).map(v => v.n).join(',')), '');
+
+  await plant('コマツナ', 2026, 4, 1);
+  check('  コマツナの予定', await plan(),
+        '種まき 4/1(水) 0日 / 発芽 4/4(土)〜4/5(日) 3〜4日 / 間引き 4/11(土)〜4/15(水) 10〜14日 / 収穫 5/1(金)〜5/11(月) 30〜40日');
+  check('  何日後に収穫できるかを上に出す', await page.evaluate(() =>
+    document.querySelector('.veg-head').textContent.replace(/\s+/g, ' ').split('種まき 4/1')[0].trim()),
+        '🥬 コマツナ：収穫は 30〜40日後（5/1(金)〜5/11(月)）');
+  check('  まく日はカレンダーの月に合わせる', await page.evaluate(() =>
+    document.getElementById('vegCalTitle').textContent), '2026年 4月');
+  check('  4月の予定の日に色が付く', await page.evaluate(() =>
+    document.querySelectorAll('#vegGrid .veg-on').length), 8);   // 1 + 4,5 + 11〜15
+  await page.evaluate(() => vegMonthMove(1)); await page.waitForTimeout(200);
+  check('  次の月へ動かせる', await page.evaluate(() =>
+    document.getElementById('vegCalTitle').textContent), '2026年 5月');
+  check('  5月は収穫の日に色が付く', await page.evaluate(() =>
+    document.querySelectorAll('#vegGrid .veg-on').length), 11);  // 5/1〜5/11
+  await page.evaluate(() => vegCalHome()); await page.waitForTimeout(200);
+  check('  「種まきの月」で戻る', await page.evaluate(() =>
+    document.getElementById('vegCalTitle').textContent), '2026年 4月');
+  check('  無い日付は入れられない', await page.evaluate(() => {
+    document.getElementById('vegM').value = 2; document.getElementById('vegD').value = 30;
+    vegDateChange(); return document.getElementById('vegD').value; }), '1');
+
+  // いもや苗から育てるものは「植えつけ」から数える
+  await plant('ジャガイモ', 2026, 3, 1);
+  check('  ジャガイモは植えつけから数える', await page.evaluate(() =>
+    document.getElementById('vegDateLb').textContent), '植えつけ日');
+
+  // 名前でさがす
+  await page.fill('#vegFind', 'ナス'); await page.waitForTimeout(200);
+  check('  名前でさがせる', await page.evaluate(() =>
+    [...document.querySelectorAll('#vegChips .veg-chip')].map(x => x.textContent.trim()).join(',')), '🍆 ナス');
+  await page.fill('#vegFind', 'ぶどう'); await page.waitForTimeout(200);
+  check('  見つからないときは案内を出す', await page.evaluate(() =>
+    /その名前の野菜はありません/.test(document.getElementById('vegChips').textContent)), true);
+  await page.fill('#vegFind', ''); await page.waitForTimeout(200);
+
+  // 予定表を表に入れる
+  await plant('コマツナ', 2026, 4, 1);
+  await page.evaluate(() => sel(3, 1)); await page.waitForTimeout(200);   // 選んでいるセルが左上になる
+  await page.evaluate(() => vegInsertToSheet()); await page.waitForTimeout(500);
+  check('  入れたら閉じる', await page.evaluate(() =>
+    !document.getElementById('veggieOverlay').classList.contains('open')), true);
+  check('  足りない列は増やす', await page.evaluate(() => COLS), 5);
+  check('  表に入った中身', await page.evaluate(() => {
+    const o = []; for (let r = 3; r < 9; r++) o.push([1, 2, 3, 4].map(c => getCellDisplay(r, c)).join('|'));
+    return o.join(' / '); }),
+    '🥬 コマツナ の育成計画||| / 作業|予定日|おわり|日数 / 種まき|2026/4/1||0日 / '
+    + '発芽|2026/4/4|2026/4/5|3〜4日 / 間引き|2026/4/11|2026/4/15|10〜14日 / 収穫|2026/5/1|2026/5/11|30〜40日');
+  check('  日付は日付として入る（計算に使える）', await page.evaluate(() =>
+    String(data[5][2]) === String(dateToSerial(2026, 4, 1))), true);
+  check('  見出しは太字', await page.evaluate(() => !!(cellStyles['4,1'] && cellStyles['4,1'].bold)), true);
+  await page.evaluate(() => undoLast()); await page.waitForTimeout(400);
+  check('  ↶戻る で元どおり', await page.evaluate(() => getCellDisplay(3, 1) + '/' + COLS), '/3');
+
+  // 自分の野菜を登録する
+  await open();
+  await page.evaluate(() => { vegNew = { n: 'ゴーヤ', s: [['発芽', 6, 10], ['畑に植える', 30, 35], ['収穫', 70, 90]] };
+    vegMySave(); }); await page.waitForTimeout(300);
+  check('  登録した野菜が選ばれる', await page.evaluate(() => vegSel.n), 'ゴーヤ');
+  check('  登録した野菜も一覧に出る', await page.evaluate(() =>
+    document.querySelectorAll('#vegChips .veg-chip').length), 33);
+  await plant('ゴーヤ', 2026, 5, 1);
+  check('  登録した野菜の予定', await plan(),
+        '種まき 5/1(金) 0日 / 発芽 5/7(木)〜5/11(月) 6〜10日 / 畑に植える 5/31(日)〜6/5(金) 30〜35日 / 収穫 7/10(金)〜7/30(木) 70〜90日');
+  check('  名前がないと登録しない', await page.evaluate(() => {
+    const n = vegMy.length; vegNew = { n: '  ', s: [['収穫', 60, 80]] }; vegMySave(); return vegMy.length === n; }), true);
+  check('  作業がないと登録しない', await page.evaluate(() => {
+    const n = vegMy.length; vegNew = { n: 'テスト', s: [['', 60, 80]] }; vegMySave(); return vegMy.length === n; }), true);
+  await page.reload(); await page.waitForTimeout(900);
+  await open();
+  check('  開き直しても残っている', await page.evaluate(() => vegMy.map(v => v.n).join(',')), 'ゴーヤ');
+  await page.evaluate(() => vegMyDel(0)); await page.waitForTimeout(200);
+  check('  消せる', await page.evaluate(() => vegMy.length + '/' + vegSel.n), '0/トマト');
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 /* 電卓ページ（いちばん右。v335で関数電卓ページから置き換え） */
 async function runCalcPage(browser) {
   const { ctx, page, errs } = await newPage(browser);
@@ -1297,6 +1400,7 @@ async function runDigit(browser) {
     if (!only || only === 'cellmenu') await runCellMenu(browser);
     if (!only || only === 'savelist') await runSaveList(browser);
     if (!only || only === 'topbar') await runTopBar(browser);
+    if (!only || only === 'veggie') await runVeggie(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
