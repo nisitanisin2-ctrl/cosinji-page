@@ -1407,6 +1407,30 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
 .dp-cell.veg-on { color: #fff; font-weight: bold; border-color: transparent; }
 .dp-cell.veg-band { border-style: dashed; }
 .veg-note { font-size: 11px; color: var(--text-light); line-height: 1.5; margin: 8px 2px 10px; }
+.veg-sec { margin: 4px 0 10px; border: 1px solid var(--border); border-radius: var(--r-btn); }
+.veg-sec > summary {
+  font-size: 14px; font-weight: bold; color: var(--text); cursor: pointer;
+  padding: 9px 10px; background: var(--pm-chip, rgba(120,132,156,.13)); border-radius: var(--r-btn);
+}
+.veg-sec > div { padding: 8px 10px 10px; }
+.veg-sub { font-size: 12px; color: var(--text-light); }
+.veg-fline { display: flex; gap: 8px; padding: 7px 2px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.veg-fline:last-of-type { border-bottom: none; }
+.veg-fno { flex-shrink: 0; color: var(--text-light); }
+.veg-fwhat { flex-shrink: 0; width: 62px; font-weight: bold; color: var(--text-light); }
+.veg-fval { flex: 1; min-width: 0; color: var(--text); line-height: 1.6; }
+.veg-fval small { color: var(--text-light); font-size: 11px; }
+.veg-tip { font-size: 12px; color: var(--text-light); line-height: 1.55; margin-top: 8px; }
+.veg-sick { padding: 8px 2px; border-bottom: 1px solid var(--border); }
+.veg-sick:last-of-type { border-bottom: none; }
+.veg-sick-n { font-size: 14px; font-weight: bold; color: var(--text); margin-bottom: 3px; }
+.veg-sick-r { display: flex; gap: 7px; font-size: 12px; color: var(--text); line-height: 1.55; }
+.veg-sick-t { flex-shrink: 0; width: 52px; color: var(--text-light); font-weight: bold; }
+.veg-warn {
+  margin-top: 10px; padding: 9px 10px; border-radius: var(--r-btn);
+  background: rgba(192,57,43,.10); border: 1px solid rgba(192,57,43,.45);
+  font-size: 12px; color: var(--text); line-height: 1.55;
+}
 .veg-my { margin-top: 4px; border-top: 1px solid var(--border); padding-top: 8px; }
 .veg-my > summary { font-size: 13px; font-weight: bold; color: var(--text-light); cursor: pointer; padding: 6px 2px; }
 .veg-my-row { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
@@ -3625,6 +3649,14 @@ body.dark {
       </div>
       <div class="dp-wdays veg-wdays" id="vegWdays"></div>
       <div class="dp-grid veg-grid" id="vegGrid"></div>
+      <details class="veg-sec" open>
+        <summary>🧪 肥料と配合</summary>
+        <div id="vegFertBody"></div>
+      </details>
+      <details class="veg-sec" open>
+        <summary>🦠 出やすい病気・害虫と農薬</summary>
+        <div id="vegSickBody"></div>
+      </details>
       <div class="veg-note">日数は家庭菜園のふつうの目安です。<b>品種・地域・その年の天気で前後します</b>ので、種の袋に書いてある日数があればそちらを目安にしてください。</div>
       <button class="vol-insert" id="vegInsertBtn" onclick="vegInsertToSheet()">▦ 予定表を表に入れる</button>
       <details class="veg-my">
@@ -4298,6 +4330,9 @@ body.dark {
             ・<b>地域・標高・寒冷地</b>を選ぶと、<b>日数を補正</b>します（v341から）。寒いところほど育ちはゆっくりなので、日数に倍率をかけます。<b>地域</b>は沖縄〜北海道の7つ（関東・東海・近畿が標準）、<b>標高</b>は100mごとに約2%おそく（気温が約0.6℃下がるめやす）、<b>寒冷地（霜がおりる畑）</b>でさらに5%おそくします。いまかかっている補正は<b>「補正 ＋34%（日数を1.34倍）」</b>のように画面に出ます。<b>種まきの時期を標準の地域よりどれだけずらすとよいか</b>も出ます（例：北海道は4週間おそめ）。この設定は<b>次に開いたときも残ります</b><br>
             ・野菜は<b>33種類</b>入っています。多いので<b>名前でさがす</b>欄も使えます<br>
             ・<b>▦ 予定表を表に入れる</b>を押すと、<b>選んでいるセルを左上にして</b>「作業／予定日／おわり／日数」の表が入ります。日付は<b>日付として</b>入るので、そのまま計算や並べ替えに使えます（<b>↶戻る</b>で元に戻せます）<br>
+            ・<b>🧪 肥料と配合</b>（v342から）：その野菜に合う<b>土づくり・元肥・追肥</b>を出します。<b>苦土石灰・完熟たい肥</b>の量、<b>化成肥料の配合（8-8-8 など）と量</b>、<b>土のpHの目安</b>つきです。<b>畑の広さ（㎡）</b>を入れると<b>全体で何g要るか</b>まで出ます（例：100〜150g/㎡ → 3㎡で 300〜450g）。追肥の欄には<b>この計画での追肥の日</b>も出ます。ジャガイモは石灰をまかない、サツマイモは追肥をしないなど、<b>野菜ごとのくせ</b>も書いてあります<br>
+            ・<b>🦠 出やすい病気・害虫と農薬</b>（v342から）：その野菜で<b>出やすいもの</b>を、<b>見分け方・手当て・薬の例</b>の3つで並べます（例：うどんこ病／葉に白い粉をふいたようになる／こんだ葉をとって風通しをよくする／カリグリーン・サプロール乳剤）。<b>⚠ 農薬は野菜ごとに「使ってよい作物」と「収穫の何日前まで使えるか」が決まっています。使う前に必ずラベルで確かめてください</b><br>
+            ・<b>肥料と病気・害虫も、▦予定表を表に入れる</b>で予定表のあとに一緒に書き出されます<br>
             ・<b>➕自分の野菜を登録する</b>で、育てている品種を自分で足せます（名前と、作業ごとの日数）。登録したものは<b>点線のふち</b>で並び、次に開いたときも残ります<br>
             ・日数は家庭菜園のふつうの目安です。<b>品種・地域・その年の天気で前後します</b>ので、種の袋の日数があればそちらを目安にしてください</div>
           <div class="help-li"><b>カンタブ（塩化物イオン量）</b>：生コンの塩化物イオン量を、カンタブ（試験紙）の読み値から出します。<b>単位水量</b>と<b>読み値①〜③</b>を入れると、読み値ごとに<b>換算表の値(%)</b>と<b>塩化物含有量(kg/m³)</b>が並び、最後にその<b>平均値</b>で合否を判定します。平均値は<b>選択中のセルに入れる</b>こともできます。読み値から濃度への<b>換算表はカンタブの製品ごとに違う</b>ので、はじめに<b>⚙換算表・設定</b>でお使いの表を登録してください（読み値が表の間のときは前後から直線でおぎない、その旨を表示します）。換算表は<b>まとめて貼り付け</b>でも登録できます（1行に「読み値」と「濃度」の数字を2つ並べる。区切りはスペース・タブ・カンマのどれでもよく、全角の数字も読めます）。濃度は<b>小数4桁</b>まで扱えます。よく使う製品の表は<b>ひな形のボタン</b>でワンタップでも入れられます（写真から起こした値なので、入れたあと実物と見くらべてください）。管理値の既定は 0.30 kg/m³ で、設定で変えられます。</div>
@@ -7428,15 +7463,17 @@ const VEG_AREAS=[
   {id:'hokkaido', n:'北海道',                f:1.20, w:4},
 ];
 const VEG_AREA_KEY='excalc_veg_area';
-let vegArea={id:'kanto', alt:0, cold:false};
+let vegArea={id:'kanto', alt:0, cold:false, plot:1};
 function vegAreaDef(){ return VEG_AREAS.find(a=>a.id===vegArea.id)||VEG_AREAS[3]; }
 function loadVegArea(){
   try{
     const a=JSON.parse(localStorage.getItem(VEG_AREA_KEY)||'null');
     if(a && typeof a==='object'){
+      const plot=Number(a.plot);
       vegArea={ id:VEG_AREAS.some(x=>x.id===a.id)?a.id:'kanto',
                 alt:Math.max(0,Math.min(2000,Math.round(Number(a.alt)||0))),
-                cold:!!a.cold };
+                cold:!!a.cold,
+                plot:(isFinite(plot)&&plot>0)?Math.min(1000,plot):1 };
     }
   }catch(_){}
 }
@@ -7469,6 +7506,206 @@ function vegShiftText(){
   return Math.abs(w)+'週間'+(w>0?'おそめ':'はやめ');
 }
 
+/* ── 肥料と、出やすい病気・害虫 ──────────────────────────────
+   肥料は「1㎡あたり」の目安。畑の広さを入れると全体の量も出す。
+   lime＝苦土石灰 g/㎡、compost＝完熟たい肥 kg/㎡、base＝元肥、side＝追肥。 */
+const VEG_FERT={
+  fruit:{n:'果菜（実をとるもの）', ph:'6.0〜6.5', lime:[100,150], compost:[2,3],
+    base:{npk:'8-8-8', g:[120,150]}, side:{npk:'8-8-8', g:[20,30], when:'実がつきはじめてから2〜3週間おき'},
+    tip:'チッソが多すぎると葉ばかり茂って実がつきにくくなります（つるボケ）。追肥は実がつきはじめてからにしてください。'},
+  corn:{n:'トウモロコシ', ph:'6.0〜6.5', lime:[100,150], compost:[2,3],
+    base:{npk:'8-8-8', g:[150,200]}, side:{npk:'8-8-8', g:[30,30], when:'草丈50cmのころと、雄穂が出たころの2回'},
+    tip:'チッソを多めに好みます。実を太らせるため、追肥は遅れないようにしてください。'},
+  leaf:{n:'葉菜（葉をとるもの）', ph:'6.0〜6.5', lime:[100,150], compost:[2,3],
+    base:{npk:'8-8-8', g:[100,150]}, side:{npk:'8-8-8', g:[20,30], when:'間引きのあと、2〜3週間おき'},
+    tip:'育ちが早いので、元肥をきかせて一気に育てると やわらかく仕上がります。'},
+  root:{n:'根菜（根をとるもの）', ph:'6.0〜6.5', lime:[100,120], compost:[2,3],
+    base:{npk:'8-8-8', g:[80,120]}, side:{npk:'8-8-8', g:[20,20], when:'間引きのあと'},
+    tip:'たい肥は完熟のものを。未熟なたい肥や石が残っていると、根が又に分かれます。深くよく耕してください。'},
+  bean:{n:'豆類', ph:'6.5〜7.0', lime:[100,150], compost:[2,2],
+    base:{npk:'3-10-10', g:[60,80]}, side:{npk:'8-8-8', g:[20,20], when:'花が咲いたころ'},
+    tip:'根につく菌が自分でチッソを作るので、チッソはひかえめに。石灰はやや多めが好きです。'},
+  potato:{n:'ジャガイモ', ph:'5.5〜6.0', lime:[0,0], compost:[2,3],
+    base:{npk:'8-8-8', g:[100,150]}, side:{npk:'8-8-8', g:[30,30], when:'芽かきのときと、土寄せのとき'},
+    tip:'石灰はまきません。土がアルカリに寄ると「そうか病」でいもの表面がかさぶたになります。'},
+  taro:{n:'サトイモ', ph:'6.0〜6.5', lime:[100,150], compost:[3,4],
+    base:{npk:'8-8-8', g:[120,150]}, side:{npk:'8-8-8', g:[30,30], when:'土寄せのときに2回'},
+    tip:'乾燥に弱いので、夏はたっぷり水を。わらなどで株元をおおうとよく育ちます。'},
+  sweet:{n:'サツマイモ', ph:'5.5〜6.0', lime:[0,50], compost:[1,2],
+    base:{npk:'3-10-10', g:[40,60]}, side:null,
+    tip:'肥料、とくにチッソが多いと「つるボケ」になっていもが太りません。やせ気味の土でよく育ちます。'},
+  allium:{n:'ネギ類', ph:'6.0〜6.5', lime:[100,150], compost:[2,3],
+    base:{npk:'8-8-8', g:[120,150]}, side:{npk:'8-8-8', g:[20,30], when:'3〜4回に分けて'},
+    tip:'タマネギの追肥は3月まで。遅くまでやると、しまりの悪い玉になって日もちしません。'},
+  berry:{n:'イチゴ', ph:'5.5〜6.5', lime:[100,100], compost:[2,3],
+    base:{npk:'8-8-8', g:[80,100]}, side:{npk:'8-8-8', g:[20,20], when:'12月ごろと、2月ごろの2回'},
+    tip:'植えたては肥料をひかえめに。2月ごろの追肥（実肥）が実の大きさを決めます。'},
+};
+/* 出やすい病気・害虫。sign＝見分け方、care＝まず手当て、med＝家庭園芸で使われる薬の例 */
+const VEG_SICK={
+  udonko:{n:'うどんこ病', sign:'葉に白い粉をふいたようになる', care:'こんだ葉をとって風通しをよくする。病葉は畑の外へ',
+    med:'カリグリーン（炭酸水素カリウム）／サプロール乳剤／ベニカマイルドスプレー'},
+  beto:{n:'べと病', sign:'葉に黄色い角ばったしみ、裏に灰色のかび', care:'水はけと風通しをよくする。連作をさける',
+    med:'ダコニール1000／ジマンダイセン水和剤／Zボルドー（銅）'},
+  eki:{n:'疫病', sign:'葉や実が水がしみたように黒く腐る。雨つづきで一気に広がる', care:'雨よけ・敷きわら。病株はすぐ抜く',
+    med:'ダコニール1000／ランマンフロアブル／Zボルドー（銅）'},
+  haiiro:{n:'灰色かび病', sign:'花がらや実に灰色のかびがふく', care:'しおれた花がらをこまめにとる。株間をあける',
+    med:'ロブラール水和剤／ベンレート水和剤／カリグリーン'},
+  tanso:{n:'炭疽病', sign:'葉や実にへこんだ丸いしみができる', care:'雨のはねかえりを防ぐ（敷きわら）。病葉はとる',
+    med:'ダコニール1000／ベンレート水和剤'},
+  kappan:{n:'褐斑病', sign:'葉に茶色い丸いしみが増えていく', care:'下葉から出やすい。病葉はとって風通しをよくする',
+    med:'ダコニール1000／ベンレート水和剤'},
+  nanpu:{n:'軟腐病', sign:'株元からどろどろに溶けて、いやなにおいがする', care:'高うねにして水はけをよくする。傷をつけない',
+    med:'Zボルドー／コサイド3000（どちらも銅）'},
+  nekobu:{n:'根こぶ病', sign:'昼にしおれ、抜くと根に大小のこぶ', care:'石灰でpHを7近くに上げる。アブラナ科を続けて作らない',
+    med:'オラクル粉剤／ネビジン粉剤（植えつけ前の土に混ぜる）'},
+  tsuruware:{n:'つる割病', sign:'日中だけしおれ、やがて株全体が枯れる', care:'接ぎ木苗を使う。同じ場所でウリ科を続けない',
+    med:'土の病気で効く薬は少ない。フロンサイド粉剤（土壌処理）'},
+  aogare:{n:'青枯病', sign:'青いまま急にしおれて枯れる', care:'接ぎ木苗を使う。ナス科を続けて作らない。病株はすぐ抜く',
+    med:'治す薬はない。土の消毒（太陽熱）と輪作でふせぐ'},
+  tachigare:{n:'立枯病・苗立枯病', sign:'芽が出たての苗が株元でくびれて倒れる', care:'種まきは新しい用土で。まきすぎない・水のやりすぎに注意',
+    med:'タチガレン液剤／ベンレート水和剤'},
+  sabi:{n:'さび病', sign:'葉にオレンジ色の小さな粉のかたまり', care:'病葉はとる。チッソのやりすぎをさける',
+    med:'ストロビードライフロアブル／ダコニール1000'},
+  souka:{n:'そうか病', sign:'いもの表面がかさぶたのようにざらつく', care:'石灰をまかない（土をアルカリに寄せない）。種いもは健全なものを',
+    med:'フロンサイド粉剤（植えつけ前の土に混ぜる）'},
+  mosaic:{n:'モザイク病（ウイルス）', sign:'葉がまだらになり、縮れて育たなくなる', care:'治せないので病株は抜く。うつすアブラムシを防ぐ（シルバーマルチ）',
+    med:'病気自体に薬はない。アブラムシの薬でふせぐ'},
+  shirikusare:{n:'尻ぐされ症（病気ではない）', sign:'実のおしりが黒くへこむ', care:'カルシウム不足と水切れが原因。水を切らさず、チッソのやりすぎをさける',
+    med:'カルシウムの液肥を葉に散布'},
+  abura:{n:'アブラムシ', sign:'新芽や葉裏に小さな虫がびっしり', care:'見つけしだい払い落とす。シルバーマルチでよりにくくする',
+    med:'ベニカRスプレー／アーリーセーフ／粘着くん液剤／モスピラン粒剤'},
+  aomushi:{n:'アオムシ・コナガ', sign:'葉が穴だらけ、まわりに黒い粒のふん', care:'防虫ネットをかける。小さいうちに捕る',
+    med:'ゼンターリ顆粒水和剤（BT剤）／STゼンターリ'},
+  yotou:{n:'ヨトウムシ', sign:'夜のうちに葉が食べられる。昼は株元の土の中', care:'夜か明け方に見回って捕る。若いうちにたたく',
+    med:'ゼンターリ顆粒水和剤／フェニックス顆粒水和剤'},
+  nekiri:{n:'ネキリムシ', sign:'苗が株元で切られて倒れている', care:'朝、株元の土を浅く掘ると幼虫がいる',
+    med:'ネキリベイト／デナポンベイト（株元にまく）'},
+  konajirami:{n:'コナジラミ', sign:'葉をゆらすと白い小虫が舞う。葉がべたつく', care:'黄色い粘着トラップをつるす。下葉をとる',
+    med:'ベニカRスプレー／モスピラン粒剤'},
+  hadani:{n:'ハダニ', sign:'葉が白くかすれ、ひどいとクモの巣状', care:'乾燥すると増える。葉裏に水をかける',
+    med:'粘着くん液剤／サンクリスタル乳剤／アーリーセーフ'},
+  hamoguri:{n:'ハモグリバエ（エカキムシ）', sign:'葉に白い線の絵を描いたような跡', care:'線の先に幼虫がいるので、そこを指でつぶす・被害葉をとる',
+    med:'ベニカRスプレー'},
+  azamiuma:{n:'アザミウマ（スリップス）', sign:'葉や花が白くかすれ、実に傷が残る', care:'青い粘着トラップをつるす。雑草を刈る',
+    med:'スピノエース顆粒水和剤／ベニカRスプレー'},
+  uriha:{n:'ウリハムシ', sign:'黄色い小さな甲虫が葉を丸くかじる', care:'苗のうちはあんどん・ネットでおおう',
+    med:'ベニカ水溶剤／ベニカRスプレー'},
+  kamemushi:{n:'カメムシ', sign:'さやを吸われ、豆が育たない・しみになる', care:'防虫ネット。朝の涼しいうちに捕る',
+    med:'トレボン乳剤／ベニカRスプレー'},
+  tentou:{n:'ニジュウヤホシテントウ', sign:'葉が網目のようにかすれる。星の多いテントウムシ', care:'成虫も幼虫も見つけしだい捕る',
+    med:'ベニカRスプレー'},
+  awanomeiga:{n:'アワノメイガ', sign:'雄穂や実に入りこみ、ふんが出ている', care:'雄穂が出たら受粉後に切りとる',
+    med:'ゼンターリ顆粒水和剤（雄穂が出たころに散布）'},
+  senchu:{n:'ネコブセンチュウ', sign:'根に小さなこぶが数珠のようにつき、育ちが悪い', care:'マリーゴールドを植える・連作をさける',
+    med:'ネマトリンエース粒剤（植えつけ前の土に混ぜる）'},
+};
+/* どの野菜がどの肥料の組か／どの病気・害虫が出やすいか */
+const VEG_CARE={
+  'トマト':      {f:'fruit',  k:['eki','haiiro','aogare','shirikusare','abura','konajirami']},
+  'キュウリ':    {f:'fruit',  k:['udonko','beto','tsuruware','uriha','hadani']},
+  'ナス':        {f:'fruit',  k:['udonko','aogare','hadani','abura','hamoguri']},
+  'ピーマン':    {f:'fruit',  k:['udonko','aogare','tanso','abura','hadani']},
+  'オクラ':      {f:'fruit',  k:['udonko','abura','yotou','hadani']},
+  'トウモロコシ':{f:'corn',   k:['awanomeiga','abura','kamemushi','sabi']},
+  'エダマメ':    {f:'bean',   k:['kamemushi','abura','yotou','hadani']},
+  'カボチャ':    {f:'fruit',  k:['udonko','uriha','tsuruware','abura']},
+  'スイカ':      {f:'fruit',  k:['udonko','tsuruware','uriha','tanso']},
+  'ズッキーニ':  {f:'fruit',  k:['udonko','uriha','haiiro','abura']},
+  'ダイコン':    {f:'root',   k:['nekobu','nanpu','aomushi','yotou','senchu']},
+  'ニンジン':    {f:'root',   k:['tachigare','yotou','abura','senchu']},
+  'カブ':        {f:'root',   k:['nekobu','aomushi','abura','yotou']},
+  'ラディッシュ':{f:'root',   k:['nekobu','aomushi','abura']},
+  'ビーツ':      {f:'root',   k:['kappan','yotou','abura','senchu']},
+  'ホウレンソウ':{f:'leaf',   k:['beto','tachigare','abura','yotou']},
+  'コマツナ':    {f:'leaf',   k:['aomushi','abura','hamoguri','beto']},
+  'ミズナ':      {f:'leaf',   k:['aomushi','abura','nekobu']},
+  'シュンギク':  {f:'leaf',   k:['beto','abura','hamoguri']},
+  'レタス':      {f:'leaf',   k:['haiiro','nanpu','abura','yotou']},
+  'キャベツ':    {f:'leaf',   k:['aomushi','yotou','nekobu','nanpu','abura']},
+  'ハクサイ':    {f:'leaf',   k:['aomushi','yotou','nanpu','nekobu','abura']},
+  'ブロッコリー':{f:'leaf',   k:['aomushi','yotou','nekobu','abura']},
+  'シソ':        {f:'leaf',   k:['sabi','abura','hadani','yotou']},
+  'タマネギ':    {f:'allium', k:['beto','nanpu','sabi','azamiuma']},
+  'ネギ':        {f:'allium', k:['sabi','beto','azamiuma','abura']},
+  'ニンニク':    {f:'allium', k:['sabi','nanpu','azamiuma']},
+  'ジャガイモ':  {f:'potato', k:['eki','souka','tentou','abura']},
+  'サツマイモ':  {f:'sweet',  k:['senchu','yotou','nekiri']},
+  'サトイモ':    {f:'taro',   k:['abura','hadani','yotou']},
+  'エンドウ':    {f:'bean',   k:['udonko','abura','hamoguri','haiiro']},
+  'ソラマメ':    {f:'bean',   k:['abura','sabi','haiiro']},
+  'イチゴ':      {f:'berry',  k:['haiiro','udonko','hadani','azamiuma','abura']},
+};
+const VEG_MED_NOTE='農薬は野菜ごとに「使ってよい作物」と「収穫の何日前まで使えるか」が決まっています。使う前に必ずラベルで確かめてください。';
+/* 選んでいる野菜の肥料の組（自分で登録した野菜は葉菜あつかい） */
+function vegCare(){
+  const c=vegSel?VEG_CARE[vegSel.n]:null;
+  return c||{f:'leaf', k:[]};
+}
+function vegFertOf(){ return VEG_FERT[vegCare().f]||VEG_FERT.leaf; }
+function vegPlotSize(){ const p=Number(vegArea.plot); return (isFinite(p)&&p>0)?Math.min(1000,p):1; }
+/* 「100〜150g/㎡（3㎡で 300〜450g）」のような言い方にする */
+function vegAmt(range, unit){
+  if(!range) return '';
+  const a=range[0], b=range[1], p=vegPlotSize();
+  const one=(a===b)?`${a}${unit}/㎡`:`${a}〜${b}${unit}/㎡`;
+  if(p===1) return one;
+  const r=x=>Math.round(x*p*10)/10;
+  return one+`（${p}㎡で ${r(a)===r(b)?r(a):r(a)+'〜'+r(b)}${unit}）`;
+}
+/* 予定表のうち「追肥」の日を並べる（肥料の欄から日付が分かるように） */
+function vegFeedDays(){
+  return vegRows().filter(r=>/追肥|土寄せ/.test(r.what))
+    .map(r=>r.what+' '+((r.from===r.to)?vegFmtDate(r.from):vegFmtDate(r.from)+'〜'+vegFmtDate(r.to)))
+    .join('　／　');
+}
+function vegRenderFert(){
+  const box=document.getElementById('vegFertBody'); if(!box||!vegSel) return;
+  const f=vegFertOf(), p=vegPlotSize();
+  const lime=(f.lime[1]===0) ? 'まきません（土をアルカリに寄せないため）' : vegAmt(f.lime,'g');
+  const feed=vegFeedDays();
+  box.innerHTML=`<div class="veg-row">
+      <span class="veg-lb">畑の広さ</span>
+      <input type="number" class="veg-num" id="vegPlot" inputmode="decimal" value="${p}" onchange="vegPlotChange()" aria-label="畑の広さ（平方メートル）">
+      <span>㎡</span>
+      <span class="veg-sub">${escHtml(f.n)}／土のpH ${escHtml(f.ph)}</span>
+    </div>
+    <div class="veg-fline"><span class="veg-fno">①</span><span class="veg-fwhat">土づくり</span>
+      <span class="veg-fval">苦土石灰 ${escHtml(lime)}<br>完熟たい肥 ${escHtml(vegAmt(f.compost,'kg'))}<br>
+      <small>石灰は${escHtml(vegSel.from||'種まき')}の2週間前、たい肥と元肥は1週間前までに混ぜておきます</small></span></div>
+    <div class="veg-fline"><span class="veg-fno">②</span><span class="veg-fwhat">元肥</span>
+      <span class="veg-fval">化成肥料 <b>${escHtml(f.base.npk)}</b> を ${escHtml(vegAmt(f.base.g,'g'))}</span></div>
+    <div class="veg-fline"><span class="veg-fno">③</span><span class="veg-fwhat">追肥</span>
+      <span class="veg-fval">${f.side
+        ? `化成肥料 <b>${escHtml(f.side.npk)}</b> を ${escHtml(vegAmt(f.side.g,'g'))}<br><small>${escHtml(f.side.when)}</small>`
+          +(feed?`<br><small>この計画では　${escHtml(feed)}</small>`:'')
+        : 'やりません<br><small>肥料が多いと実（いも）が太らなくなります</small>'}</span></div>
+    <div class="veg-tip">💡 ${escHtml(f.tip)}</div>`;
+}
+function vegPlotChange(){
+  const e=document.getElementById('vegPlot');
+  let v=Number((e||{}).value); if(!isFinite(v)||v<=0) v=1; if(v>1000) v=1000;
+  vegArea.plot=Math.round(v*10)/10;
+  saveVegArea();
+  vegRenderFert();
+}
+function vegRenderSick(){
+  const box=document.getElementById('vegSickBody'); if(!box||!vegSel) return;
+  const keys=vegCare().k;
+  if(!keys.length){
+    box.innerHTML='<div class="veg-empty">自分で登録した野菜には、病気・害虫の目安は入っていません。似た野菜を選ぶと見られます。</div>';
+    return;
+  }
+  box.innerHTML=keys.map(k=>{
+    const d=VEG_SICK[k]; if(!d) return '';
+    return `<div class="veg-sick">
+      <div class="veg-sick-n">${escHtml(d.n)}</div>
+      <div class="veg-sick-r"><span class="veg-sick-t">見分け方</span>${escHtml(d.sign)}</div>
+      <div class="veg-sick-r"><span class="veg-sick-t">手当て</span>${escHtml(d.care)}</div>
+      <div class="veg-sick-r"><span class="veg-sick-t">薬の例</span>${escHtml(d.med)}</div>
+    </div>`;
+  }).join('')+`<div class="veg-warn">⚠ ${escHtml(VEG_MED_NOTE)}</div>`;
+}
 const VEG_MY_KEY='excalc_veg_my';       // 自分で登録した野菜
 let vegMy=[];                            // [{n,i,from,sow,s:[[名前,はじめ,おわり],…]}]
 let vegSel=null;                         // 選んでいる野菜（VEG_PLANS か vegMy の要素）
@@ -7519,7 +7756,7 @@ function openVeggie(){
 }
 function closeVeggie(){ document.getElementById('veggieOverlay').classList.remove('open'); releaseBackGuard(); }
 
-function vegRenderAll(){ vegRenderChips(); vegRenderDate(); vegRenderArea(); vegRenderPlan(); vegRenderCal(); vegRenderMy(); }
+function vegRenderAll(){ vegRenderChips(); vegRenderDate(); vegRenderArea(); vegRenderPlan(); vegRenderCal(); vegRenderFert(); vegRenderSick(); vegRenderMy(); }
 /* 地域・標高・寒冷地の欄と、いまかかっている補正の案内 */
 function vegRenderArea(){
   const selEl=document.getElementById('vegAreaSel'), alt=document.getElementById('vegAlt'),
@@ -7538,9 +7775,9 @@ function vegAreaChange(){
   const selEl=document.getElementById('vegAreaSel'), alt=document.getElementById('vegAlt'),
         cold=document.getElementById('vegCold');
   let a=parseInt((alt||{}).value,10); if(isNaN(a)||a<0) a=0; if(a>2000) a=2000;
-  vegArea={ id:(selEl||{}).value||'kanto', alt:a, cold:!!(cold&&cold.checked) };
+  vegArea={ id:(selEl||{}).value||'kanto', alt:a, cold:!!(cold&&cold.checked), plot:vegPlotSize() };
   saveVegArea();
-  vegRenderArea(); vegRenderPlan(); vegRenderCal();
+  vegRenderArea(); vegRenderPlan(); vegRenderCal(); vegRenderFert();
 }
 
 function vegRenderChips(){
@@ -7651,15 +7888,33 @@ function vegInsertToSheet(){
   if(!rows.length){ toast('野菜を選んでください'); return; }
   if(isStructMode()){ toast('このモードでは入れられません。▦通常に切り替えてください'); return; }
   const r0=selR, c0=selC;
-  if(c0+3>MAXCOLS || r0+rows.length+2>MAXROWS){ toast('表の右下すぎます。もう少し左上のセルを選んでください'); return; }
-  pushSnapshot('育成計画');
-  if(c0+4>COLS) COLS=Math.min(MAXCOLS, c0+4);
-  if(r0+rows.length+2>ROWS) ROWS=Math.min(MAXROWS, r0+rows.length+2);
-  localStorage.setItem('excalc_rows',ROWS); localStorage.setItem('excalc_cols',COLS);
+  const f=vegFertOf(), p=vegPlotSize();
   const out=[[`${vegSel.i||'🌱'} ${vegSel.n} の育成計画（${vegAreaText()}）`,'','',''],
              ['作業','予定日','おわり','日数']];
   rows.forEach(r=>out.push([r.what, vegDateText(r.from), (r.from===r.to)?'':vegDateText(r.to),
                             (r.d1===r.d2)?`${r.d1}日`:`${r.d1}〜${r.d2}日`]));
+  // 肥料
+  out.push(['','','','']);
+  out.push([`🧪 肥料（${f.n}／土のpH ${f.ph}／畑の広さ ${p}㎡）`,'','','']);
+  out.push(['土づくり','苦土石灰', (f.lime[1]===0)?'まきません':vegAmt(f.lime,'g'),
+            `完熟たい肥 ${vegAmt(f.compost,'kg')}`]);
+  out.push(['元肥', '化成肥料 '+f.base.npk, vegAmt(f.base.g,'g'), (vegSel.from||'種まき')+'の1週間前までに']);
+  out.push(f.side ? ['追肥', '化成肥料 '+f.side.npk, vegAmt(f.side.g,'g'), f.side.when]
+                  : ['追肥', 'やりません', '', '肥料が多いと太らなくなります']);
+  out.push(['', f.tip, '', '']);
+  // 病気・害虫
+  const keys=vegCare().k;
+  if(keys.length){
+    out.push(['','','','']);
+    out.push(['🦠 出やすい病気・害虫','見分け方','手当て','薬の例']);
+    keys.forEach(k=>{ const d=VEG_SICK[k]; if(d) out.push([d.n, d.sign, d.care, d.med]); });
+    out.push(['⚠ '+VEG_MED_NOTE,'','','']);
+  }
+  if(c0+3>MAXCOLS || r0+out.length>MAXROWS){ toast('表の右下すぎます。もう少し左上のセルを選んでください'); return; }
+  pushSnapshot('育成計画');
+  if(c0+4>COLS) COLS=Math.min(MAXCOLS, c0+4);
+  if(r0+out.length>ROWS) ROWS=Math.min(MAXROWS, r0+out.length);
+  localStorage.setItem('excalc_rows',ROWS); localStorage.setItem('excalc_cols',COLS);
   let locked=0;
   const wasUndoing=undoing; undoing=true;
   try{
@@ -7671,7 +7926,11 @@ function vegInsertToSheet(){
     }));
   } finally { undoing=wasUndoing; }
   cellStyles[`${r0},${c0}`]=Object.assign({}, cellStyles[`${r0},${c0}`], {bold:true});
-  for(let dc=0; dc<4; dc++){ const k=`${r0+1},${c0+dc}`; cellStyles[k]=Object.assign({}, cellStyles[k], {bold:true, bg:'#e6e6e6'}); }
+  out.forEach((line,dr)=>{
+    const head=(dr===1) || /^(🧪|🦠)/.test(String(line[0]));   // 表の見出しと、節の見出し
+    if(!head) return;
+    for(let dc=0; dc<4; dc++){ const k=`${r0+dr},${c0+dc}`; cellStyles[k]=Object.assign({}, cellStyles[k], {bold:true, bg:'#e6e6e6'}); }
+  });
   syncRowColLabels();
   recalcAll();
   buildSheet();
@@ -15141,7 +15400,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v341';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v342';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
