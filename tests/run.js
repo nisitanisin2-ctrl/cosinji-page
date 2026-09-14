@@ -1521,6 +1521,17 @@ async function runSpeech(browser) {
   check('  式でない言葉は文字のまま入る', await say('みかん3個'), 'みかん3個');
   check('  入れ終わったら窓が閉じる', await page.evaluate(() =>
     document.getElementById('voiceOverlay').classList.contains('open')), false);
+  // 入れ終わったあとに端末のキーボードが出ないこと（v351）
+  const focused = () => page.evaluate(() => {
+    const a = document.activeElement; return a ? a.tagName : 'null'; });
+  await page.evaluate(() => { setCellVal(0, 0, ''); document.getElementById('formulaInput').focus(); });
+  await page.waitForTimeout(150);
+  check('  入力欄にフォーカスがある状態から', await focused(), 'INPUT');
+  await say('251かける68');
+  await page.waitForTimeout(250);
+  check('  入れ終わったら入力欄から手を離す', await focused() === 'INPUT', false);
+  check('  それでもセルには入っている', await page.evaluate(() => getCellDisplay(0, 0)), '17068');
+  await page.evaluate(() => setCellVal(0, 0, ''));
 
   // 聞き取り中の窓が出て、タップで閉じられる
   await page.evaluate(() => { window.SpeechRecognition = class { start() {} abort() {} };
