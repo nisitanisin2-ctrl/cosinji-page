@@ -849,6 +849,51 @@ async function runVeggie(browser) {
   check('  病気の名前はすべて辞書にある', await page.evaluate(() =>
     Object.keys(VEG_CARE).flatMap(n => VEG_CARE[n].k).filter(k => !VEG_SICK[k]).join(',')), '');
 
+  // ── 育てるときの注意 ──
+  await plant('キュウリ', 2026, 4, 1);
+  check('  育てるときの注意の項目', await page.evaluate(() =>
+    [...document.querySelectorAll('#vegTipBody .veg-fwhat')].map(x => x.textContent).join(',')),
+    '株間・畝,水やり,手入れ,連作,とりごろ');
+  check('  キュウリの連作', await page.evaluate(() => VEG_TIPS['キュウリ'].c), 'ウリ科は2〜3年あける');
+  check('  すべての野菜に注意がある', await page.evaluate(() =>
+    VEG_PLANS.filter(v => { const t = VEG_TIPS[v.n];
+      return !t || VEG_TIP_LABELS.some(([k]) => !t[k]); }).map(v => v.n).join(',')), '');
+
+  // ── ぜんぶを1ページのPDFに ──
+  // 印刷そのものは出せないので、組み立てと「1ページに収まる倍率」までを確かめる
+  const pdfFit = async name => { await plant(name, 2026, 3, 1); return page.evaluate(() => {
+      let pa = document.getElementById('printArea');
+      if (!pa) { pa = document.createElement('div'); pa.id = 'printArea'; document.body.appendChild(pa); }
+      pa.innerHTML = vegPdfHtml();
+      const meas = document.createElement('style');
+      meas.textContent = '#printArea{display:block!important;position:fixed;left:-10000px;top:0;overflow:visible;}';
+      document.head.appendChild(meas);
+      const box = document.getElementById('vegPdfBox');
+      const k = vegPdfFit(box);
+      const r = { k, h: box.scrollHeight, txt: box.innerText.replace(/\s+/g, ' '),
+                  months: box.querySelectorAll('.vp-cal').length };
+      meas.remove();
+      return r; }); };
+  let pd = await pdfFit('トマト');
+  check('  1ページに収まる', pd.h * pd.k <= 1046, true);
+  check('  倍率は小さくしすぎない', pd.k > 0.35, true);
+  check('  見出しと収穫のまとめが入る', /🍅 トマト の育成計画 .* 収穫はじめは 100〜115日後/.test(pd.txt), true);
+  check('  予定表が入る', /予定表 .*種まき 3\/1\(日\) 0日/.test(pd.txt), true);
+  check('  カレンダーは計画の月ぶん入る', pd.months, 6);
+  check('  肥料が入る', /🧪 肥料と配合（果菜（実をとるもの）／土のpH 6.0〜6.5）/.test(pd.txt), true);
+  check('  育てるときの注意が入る', /⚠ 育てるときの注意 .* 株間45〜50cm/.test(pd.txt), true);
+  check('  病気・害虫が入る', /🦠 出やすい病気・害虫と農薬 .*疫病/.test(pd.txt), true);
+  check('  農薬の注意が最後に入る', /必ずラベルで確かめてください/.test(pd.txt), true);
+  pd = await pdfFit('タマネギ');
+  check('  長い計画でも1ページに収まる', pd.h * pd.k <= 1046, true);
+  check('  長い計画のカレンダー', pd.months, 9);
+  pd = await pdfFit('コマツナ');
+  check('  短い計画は縮めない', pd.k, 1);
+  check('  夜モードでも紙は白', await page.evaluate(() => {
+    toggleDark(); const c = getComputedStyle(document.querySelector('.vegpdf')).backgroundColor;
+    toggleDark(); return c; }), 'rgb(255, 255, 255)');
+  await page.evaluate(() => { const pa = document.getElementById('printArea'); if (pa) pa.innerHTML = ''; });
+
   // 肥料と病気も表に書き出す
   await plant('トマト', 2026, 3, 1);
   await page.evaluate(() => sel(0, 0)); await page.waitForTimeout(200);
@@ -860,6 +905,10 @@ async function runVeggie(browser) {
   check('  表に病気の段と注意が入る', await page.evaluate(() => {
     const t = []; for (let r = 0; r < ROWS; r++) t.push(getCellDisplay(r, 0));
     return t.some(x => /^🦠 出やすい病気・害虫/.test(x)) && t.some(x => /必ずラベルで確かめてください/.test(x)); }), true);
+  check('  表に育てるときの注意も入る', await page.evaluate(() => {
+    for (let r = 0; r < ROWS; r++) if (/^⚠ 育てるときの注意/.test(getCellDisplay(r, 0)))
+      return getCellDisplay(r + 1, 0) + '|' + getCellDisplay(r + 1, 1);
+    return 'なし'; }), '株間・畝|株間45〜50cm・畝幅120cm');
   await page.evaluate(() => undoLast()); await page.waitForTimeout(400);
   check('  ↶戻る で肥料の段も消える', await page.evaluate(() => getCellDisplay(0, 0) + '/' + ROWS), '/15');
 

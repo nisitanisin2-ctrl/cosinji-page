@@ -1431,6 +1431,11 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
   background: rgba(192,57,43,.10); border: 1px solid rgba(192,57,43,.45);
   font-size: 12px; color: var(--text); line-height: 1.55;
 }
+.veg-pdf-btn {
+  margin-bottom: 10px; background: var(--save-item-bg); color: var(--text);
+  border: 1px solid var(--acc); font-size: 14px;
+}
+.veg-pdf-btn:hover { background: var(--save-item-border); }
 .veg-my { margin-top: 4px; border-top: 1px solid var(--border); padding-top: 8px; }
 .veg-my > summary { font-size: 13px; font-weight: bold; color: var(--text-light); cursor: pointer; padding: 6px 2px; }
 .veg-my-row { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
@@ -2531,6 +2536,7 @@ body.dark .tsx-res-val.ng   { color: #ff8a80; }
 /* ── PDF出力（印刷）用の表示。細かな体裁はPDF設定ダイアログ→#printDynamicStyle で上書き ── */
 #printArea { display: none; }
 @media print {
+  body { background: #fff !important; }
   body > *:not(#printArea) { display: none !important; }
   #printArea { display: block !important; color: #000; }
   #printArea .pa-title { font-size: 17px; font-weight: bold; margin: 0 0 8px; }
@@ -2543,6 +2549,49 @@ body.dark .tsx-res-val.ng   { color: #ff8a80; }
   #printArea thead .pa-run, #printArea tfoot .pa-run { border: none !important; text-align: center; font-size: 11px; color: #000; padding: 4px 3px; }
   @page { margin: 12mm; }
 }
+
+/* 育成計画を1ページのPDFにするときの組み方（#printArea の中だけ。紙は白なので色は決め打ち） */
+#printArea .vegpdf {
+  color: #000; background: #fff; font-size: 11px; line-height: 1.5;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+#printArea .vegpdf .vp-head { border-bottom: 2px solid #2e7d32; padding-bottom: 6px; margin-bottom: 10px; }
+#printArea .vegpdf .vp-title { font-size: 20px; font-weight: bold; }
+#printArea .vegpdf .vp-sub { font-size: 11px; color: #555; margin-top: 2px; }
+#printArea .vegpdf .vp-big { font-size: 15px; font-weight: bold; color: #2e7d32; margin-top: 5px; }
+#printArea .vegpdf .vp-cols { columns: 330px; column-gap: 14px; }
+#printArea .vegpdf .vp-box {
+  break-inside: avoid; page-break-inside: avoid; margin: 0 0 10px;
+  border: 1px solid #bbb; border-radius: 5px; padding: 6px 8px 7px;
+}
+#printArea .vegpdf .vp-h { font-size: 12px; font-weight: bold; margin-bottom: 4px; border-bottom: 1px solid #ddd; padding-bottom: 3px; }
+#printArea .vegpdf .vp-tbl { width: 100%; border-collapse: collapse; }
+#printArea .vegpdf .vp-tbl td {
+  border: none; border-bottom: 1px solid #eee; padding: 3px 4px; font-size: 11px; vertical-align: top; color: #000;
+}
+#printArea .vegpdf .vp-tbl tr:last-child td { border-bottom: none; }
+#printArea .vegpdf .vp-dot { width: 12px; padding-right: 0; }
+#printArea .vegpdf .vp-dot span { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+#printArea .vegpdf .vp-when { text-align: right; white-space: nowrap; font-weight: bold; }
+#printArea .vegpdf .vp-af { text-align: right; white-space: nowrap; color: #555; }
+#printArea .vegpdf .vp-k { width: 58px; font-weight: bold; color: #555; }
+#printArea .vegpdf .vp-sick { padding: 4px 0; border-bottom: 1px solid #eee; }
+#printArea .vegpdf .vp-sick:last-child { border-bottom: none; }
+#printArea .vegpdf .vp-t { display: inline-block; width: 48px; color: #555; }
+#printArea .vegpdf .vp-foot {
+  margin-top: 8px; padding-top: 6px; border-top: 1px solid #bbb; font-size: 10px; color: #444; line-height: 1.5;
+}
+#printArea .vegpdf .dp-wdays, #printArea .vegpdf .dp-grid { padding: 0; gap: 2px; }
+#printArea .vegpdf .dp-wd { font-size: 9px; color: #555; }
+#printArea .vegpdf .dp-wd.sun { color: #c62828; } #printArea .vegpdf .dp-wd.sat { color: #1565c0; }
+#printArea .vegpdf .dp-cell {
+  aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center;
+  font-size: 10px; border: 1px solid #ddd; border-radius: 3px; background: #fff; color: #000;
+}
+#printArea .vegpdf .dp-cell.empty { border-color: transparent; }
+#printArea .vegpdf .dp-cell.sun { color: #c62828; } #printArea .vegpdf .dp-cell.sat { color: #1565c0; }
+#printArea .vegpdf .dp-cell.veg-on { color: #fff; font-weight: bold; border-color: transparent; }
+#printArea .vegpdf .dp-cell.veg-band { color: #000 !important; }
 
 /* ── 夜モードの手当て ──
    ツールバーと緑のボタンは色が固定だったため、夜は明るすぎた。少し落とす。 */
@@ -3654,11 +3703,16 @@ body.dark {
         <div id="vegFertBody"></div>
       </details>
       <details class="veg-sec" open>
+        <summary>⚠ 育てるときの注意</summary>
+        <div id="vegTipBody"></div>
+      </details>
+      <details class="veg-sec" open>
         <summary>🦠 出やすい病気・害虫と農薬</summary>
         <div id="vegSickBody"></div>
       </details>
       <div class="veg-note">日数は家庭菜園のふつうの目安です。<b>品種・地域・その年の天気で前後します</b>ので、種の袋に書いてある日数があればそちらを目安にしてください。</div>
       <button class="vol-insert" id="vegInsertBtn" onclick="vegInsertToSheet()">▦ 予定表を表に入れる</button>
+      <button class="vol-insert veg-pdf-btn" id="vegPdfBtn" onclick="vegPdf()">🖨 ぜんぶを1ページのPDFに</button>
       <details class="veg-my">
         <summary>➕ 自分の野菜を登録する</summary>
         <div id="vegMyBody"></div>
@@ -4332,7 +4386,9 @@ body.dark {
             ・<b>▦ 予定表を表に入れる</b>を押すと、<b>選んでいるセルを左上にして</b>「作業／予定日／おわり／日数」の表が入ります。日付は<b>日付として</b>入るので、そのまま計算や並べ替えに使えます（<b>↶戻る</b>で元に戻せます）<br>
             ・<b>🧪 肥料と配合</b>（v342から）：その野菜に合う<b>土づくり・元肥・追肥</b>を出します。<b>苦土石灰・完熟たい肥</b>の量、<b>化成肥料の配合（8-8-8 など）と量</b>、<b>土のpHの目安</b>つきです。<b>畑の広さ（㎡）</b>を入れると<b>全体で何g要るか</b>まで出ます（例：100〜150g/㎡ → 3㎡で 300〜450g）。追肥の欄には<b>この計画での追肥の日</b>も出ます。ジャガイモは石灰をまかない、サツマイモは追肥をしないなど、<b>野菜ごとのくせ</b>も書いてあります<br>
             ・<b>🦠 出やすい病気・害虫と農薬</b>（v342から）：その野菜で<b>出やすいもの</b>を、<b>見分け方・手当て・薬の例</b>の3つで並べます（例：うどんこ病／葉に白い粉をふいたようになる／こんだ葉をとって風通しをよくする／カリグリーン・サプロール乳剤）。<b>⚠ 農薬は野菜ごとに「使ってよい作物」と「収穫の何日前まで使えるか」が決まっています。使う前に必ずラベルで確かめてください</b><br>
-            ・<b>肥料と病気・害虫も、▦予定表を表に入れる</b>で予定表のあとに一緒に書き出されます<br>
+            ・<b>⚠ 育てるときの注意</b>（v343から）：<b>株間・畝／水やり／手入れ／連作（何年あけるか）／とりごろ</b>の5つを出します（例 キュウリ：株間45cm・畝幅120cm／夏は毎日たっぷり／下から5〜6節のわき芽と雌花はとる／ウリ科は2〜3年あける／長さ20cmの若どり）<br>
+            ・<b>🖨 ぜんぶを1ページのPDFに</b>（v343から）：画面に出ている<b>予定表・カレンダー・肥料・注意・病気と農薬</b>を、<b>A4たて1枚</b>にまとめて印刷します。中身が多いときは<b>段を増やして自動で縮める</b>ので、何か月にわたる計画でも1枚に収まります。印刷の画面で<b>「PDFに保存」</b>を選べばPDFになります（畑に持って行く紙として使えます）<br>
+            ・<b>肥料・注意・病気・害虫も、▦予定表を表に入れる</b>で予定表のあとに一緒に書き出されます<br>
             ・<b>➕自分の野菜を登録する</b>で、育てている品種を自分で足せます（名前と、作業ごとの日数）。登録したものは<b>点線のふち</b>で並び、次に開いたときも残ります<br>
             ・日数は家庭菜園のふつうの目安です。<b>品種・地域・その年の天気で前後します</b>ので、種の袋の日数があればそちらを目安にしてください</div>
           <div class="help-li"><b>カンタブ（塩化物イオン量）</b>：生コンの塩化物イオン量を、カンタブ（試験紙）の読み値から出します。<b>単位水量</b>と<b>読み値①〜③</b>を入れると、読み値ごとに<b>換算表の値(%)</b>と<b>塩化物含有量(kg/m³)</b>が並び、最後にその<b>平均値</b>で合否を判定します。平均値は<b>選択中のセルに入れる</b>こともできます。読み値から濃度への<b>換算表はカンタブの製品ごとに違う</b>ので、はじめに<b>⚙換算表・設定</b>でお使いの表を登録してください（読み値が表の間のときは前後から直線でおぎない、その旨を表示します）。換算表は<b>まとめて貼り付け</b>でも登録できます（1行に「読み値」と「濃度」の数字を2つ並べる。区切りはスペース・タブ・カンマのどれでもよく、全角の数字も読めます）。濃度は<b>小数4桁</b>まで扱えます。よく使う製品の表は<b>ひな形のボタン</b>でワンタップでも入れられます（写真から起こした値なので、入れたあと実物と見くらべてください）。管理値の既定は 0.30 kg/m³ で、設定で変えられます。</div>
@@ -7706,6 +7762,51 @@ function vegRenderSick(){
     </div>`;
   }).join('')+`<div class="veg-warn">⚠ ${escHtml(VEG_MED_NOTE)}</div>`;
 }
+/* 育てるときの注意。sp＝株間・畝、w＝水やり、p＝手入れ、c＝続けて作らない年数、h＝とりごろ */
+const VEG_TIPS={
+  'トマト':      {sp:'株間45〜50cm・畝幅120cm', w:'乾き気味に。実がつくころ急に水が増えると実が割れる', p:'支柱を立て、わき芽は小さいうちにかく。1本仕立てが作りやすい', c:'ナス科は3〜4年あける', h:'へたのきわまで赤くなったら'},
+  'キュウリ':    {sp:'株間45cm・畝幅120cm', w:'水をよく吸う。夏は毎日たっぷり。乾かすと曲がった実になる', p:'ネットか支柱に誘引。下から5〜6節のわき芽と雌花はとる', c:'ウリ科は2〜3年あける', h:'長さ20cmくらいの若どり'},
+  'ナス':        {sp:'株間50〜60cm・畝幅120cm', w:'水を好む。乾くと実がかたくなる', p:'3本仕立て。7月下旬に切り戻すと秋なすがとれる', c:'ナス科は3〜4年あける', h:'若どりが基本。とり遅れると株が疲れる'},
+  'ピーマン':    {sp:'株間45cm・畝幅100cm', w:'乾かさない', p:'一番花の下のわき芽はかいて3本仕立て。枝が折れやすいので支柱を', c:'ナス科は3〜4年あける', h:'花が咲いて15〜20日の若どり'},
+  'オクラ':      {sp:'株間30cm・畝幅70cm', w:'乾燥に強いが、実がつくころは水を', p:'とった節の下の葉を1〜2枚残して切ると風通しがよい', c:'1〜2年あける', h:'長さ7〜8cmの若どり。とり遅れるとかたい'},
+  'トウモロコシ':{sp:'株間30cm・2列以上まとめて植える（受粉のため）', w:'実が太るころは水を切らさない', p:'わき芽（分げつ）はとらなくてよい。2本目以降の実はヤングコーンに', c:'続けて作れるが1年あけると安心', h:'絹糸が茶色くなって10日ごろ'},
+  'エダマメ':    {sp:'株間25〜30cm・畝幅60cm', w:'花が咲いてさやが太るころは水切れ厳禁', p:'防虫ネットをかけてカメムシを防ぐ', c:'マメ科は2〜3年あける', h:'さやがふくらんで、指ではじける手前'},
+  'カボチャ':    {sp:'株間90〜100cm。広く場所をとる', w:'乾燥に強い。実が太るころだけ水を', p:'親づるは本葉5〜6枚で摘み、子づる2〜3本に。人工受粉が確実', c:'ウリ科は2〜3年あける', h:'受粉から40〜45日、へたがコルクのようになったら'},
+  'スイカ':      {sp:'株間100cm・畝幅200cm', w:'実が太るまではひかえめ、そのあとは乾かさない', p:'子づる3〜4本に。人工受粉して日付の札をつけておく', c:'ウリ科は4〜5年あける（接ぎ木苗なら短くてよい）', h:'受粉から35〜45日、たたくとにごった音'},
+  'ズッキーニ':  {sp:'株間80〜100cm', w:'乾いたらたっぷり', p:'人工受粉が確実。古い下葉はとって風通しよく', c:'ウリ科は2〜3年あける', h:'花が咲いて5〜7日、長さ20cmの若どり'},
+  'ダイコン':    {sp:'株間25〜30cm・条間30cm', w:'まいてから芽が出るまで乾かさない', p:'畑に直まき（移植しない）。石や未熟なたい肥は又根のもと', c:'アブラナ科は2年あける', h:'肩が地上に出て、太さ7〜8cm'},
+  'ニンジン':    {sp:'株間10〜12cm・条間25cm', w:'芽が出るまで乾かさない（ここがいちばんの山）', p:'光が当たると発芽するので、土はうすく5mmほどかける', c:'1〜2年あける', h:'肩の直径5cmほど'},
+  'カブ':        {sp:'株間10〜12cm・条間25cm', w:'乾かさない', p:'間引きは2回。遅れると形が悪くなる', c:'アブラナ科は2年あける', h:'直径5〜6cm。大きくしすぎると割れる'},
+  'ラディッシュ':{sp:'株間5cm・条間15cm', w:'乾かさない。水のむらで割れる', p:'間引きを遅らせない', c:'1年あける', h:'直径2〜3cm。とり遅れるとすが入る'},
+  'ビーツ':      {sp:'株間10〜12cm・条間25cm', w:'乾かさない', p:'種は数粒がかたまっているので必ず間引く。ホウ素が足りないと芯が黒くなる', c:'2年あける', h:'直径5〜7cm'},
+  'ホウレンソウ':{sp:'株間5〜6cm・条間20cm', w:'乾かさない', p:'酸性に弱いので石灰をしっかり（pH6.5前後）', c:'1〜2年あける', h:'草丈20〜25cm'},
+  'コマツナ':    {sp:'株間5cm・条間20cm', w:'乾かさない', p:'防虫ネットをかけると虫がほとんど入らない', c:'アブラナ科は1〜2年あける', h:'草丈20〜25cm'},
+  'ミズナ':      {sp:'株間20〜30cm（大株にするなら40cm）', w:'乾かさない', p:'外葉からかきとると長く使える', c:'アブラナ科は1〜2年あける', h:'草丈25cmほど'},
+  'シュンギク':  {sp:'株間15〜20cm・条間25cm', w:'乾かさない', p:'本葉7〜8枚で芯を摘むと、わき芽が伸びて長くとれる', c:'1〜2年あける', h:'草丈20〜25cm'},
+  'レタス':      {sp:'株間25〜30cm・畝幅60cm', w:'乾かさない', p:'光が当たると発芽するので土はうすく。暑いと芽が出にくい', c:'1〜2年あける', h:'玉を押してしまりが出たら（かたくなる前に）'},
+  'キャベツ':    {sp:'株間35〜40cm・畝幅60cm', w:'玉ができるころは水切れさせない', p:'防虫ネットは植えたらすぐ。追肥は玉ができる前に', c:'アブラナ科は2〜3年あける', h:'玉を押してかたくしまったら'},
+  'ハクサイ':    {sp:'株間40〜45cm・畝幅60cm', w:'玉ができるころは水切れさせない', p:'まく時期が遅れると玉になりません。時期を守るのがいちばん大事', c:'アブラナ科は2〜3年あける', h:'頭を押してかたくなったら。霜の前に外葉で包んで縛る'},
+  'ブロッコリー':{sp:'株間40cm・畝幅60cm', w:'乾かさない', p:'まん中のつぼみをとったあとも、わき芽のつぼみが長くとれる', c:'アブラナ科は2〜3年あける', h:'つぼみが締まっているうち（花が咲く前）'},
+  'シソ':        {sp:'株間25〜30cm', w:'乾かさない。半日陰でもよく育つ', p:'摘芯するとわき芽が増える。こぼれ種で毎年生える', c:'気にしなくてよい', h:'下の葉から順に。秋の穂じそも使える'},
+  'タマネギ':    {sp:'株間12〜15cm・条間20cm', w:'植えたあとと、春に玉が太るころ', p:'追肥は3月まで。深植えすると太らない（白い部分の根元を土の上に）', c:'1〜2年あける', h:'8割の葉が倒れたら、晴れた日に抜く'},
+  'ネギ':        {sp:'株間5cm（溝に植える）', w:'乾燥に強い', p:'育つのに合わせて3〜4回土寄せ。葉の分かれ目は埋めない', c:'1〜2年あける', h:'白い部分が30cmほどになったら'},
+  'ニンニク':    {sp:'株間15cm・条間20cm', w:'植えたあとと春先', p:'わき芽は1本に。花芽（芽ニンニク）は早めにとると玉が太る', c:'1〜2年あける', h:'葉の3分の1が枯れたら、晴れた日に'},
+  'ジャガイモ':  {sp:'株間30cm・畝幅70cm', w:'ほとんど要らない（多いと腐る）', p:'芽は1〜2本に。いもが日に当たると緑になるので土寄せをしっかり', c:'ナス科は3〜4年あける', h:'茎葉が黄色く枯れたら、晴れが2〜3日続いた日に'},
+  'サツマイモ':  {sp:'株間30〜35cm・畝は高く', w:'ほとんど要らない', p:'つるから出た根は切る（つる返し）。肥料はやらない', c:'続けて作れる', h:'試し掘りしてから。霜が降りる前に'},
+  'サトイモ':    {sp:'株間40cm・畝幅90cm', w:'乾燥に弱い。夏は毎日でも', p:'土寄せを2回。わらで株元をおおうと乾かない', c:'3〜4年あける', h:'茎葉が枯れはじめたら。霜が降りる前に'},
+  'エンドウ':    {sp:'株間30cm・畝幅60cm', w:'乾かしすぎない', p:'秋まきは大きくしすぎると冬に傷む（草丈10cm前後で冬越し）。支柱は春に', c:'マメ科は4〜5年あける', h:'さやえんどうは平らなうち、実えんどうはさやがふくらんだら'},
+  'ソラマメ':    {sp:'株間40cm・畝幅70cm', w:'乾かしすぎない', p:'わき芽は6〜7本に。先端を摘むとアブラムシが減って実が太る', c:'マメ科は4〜5年あける', h:'さやが下を向いて、背中の筋が黒くなったら'},
+  'イチゴ':      {sp:'株間30cm・畝幅60cm', w:'乾かさない。実には水をかけない', p:'クラウン（芽の付け根）を埋めない。ランナーの反対側に実がつく', c:'2〜3年あける', h:'へたのきわまで赤くなったら'},
+};
+const VEG_TIP_LABELS=[['sp','株間・畝'],['w','水やり'],['p','手入れ'],['c','連作'],['h','とりごろ']];
+function vegTips(){ return (vegSel && VEG_TIPS[vegSel.n]) || null; }
+function vegRenderTips(){
+  const box=document.getElementById('vegTipBody'); if(!box) return;
+  const t=vegTips();
+  if(!t){ box.innerHTML='<div class="veg-empty">自分で登録した野菜には、育てるときの注意は入っていません。似た野菜を選ぶと見られます。</div>'; return; }
+  box.innerHTML=VEG_TIP_LABELS.map(([k,lb])=>
+    `<div class="veg-fline"><span class="veg-fwhat">${lb}</span><span class="veg-fval">${escHtml(t[k])}</span></div>`).join('');
+}
 const VEG_MY_KEY='excalc_veg_my';       // 自分で登録した野菜
 let vegMy=[];                            // [{n,i,from,sow,s:[[名前,はじめ,おわり],…]}]
 let vegSel=null;                         // 選んでいる野菜（VEG_PLANS か vegMy の要素）
@@ -7756,7 +7857,7 @@ function openVeggie(){
 }
 function closeVeggie(){ document.getElementById('veggieOverlay').classList.remove('open'); releaseBackGuard(); }
 
-function vegRenderAll(){ vegRenderChips(); vegRenderDate(); vegRenderArea(); vegRenderPlan(); vegRenderCal(); vegRenderFert(); vegRenderSick(); vegRenderMy(); }
+function vegRenderAll(){ vegRenderChips(); vegRenderDate(); vegRenderArea(); vegRenderPlan(); vegRenderCal(); vegRenderFert(); vegRenderTips(); vegRenderSick(); vegRenderMy(); }
 /* 地域・標高・寒冷地の欄と、いまかかっている補正の案内 */
 function vegRenderArea(){
   const selEl=document.getElementById('vegAreaSel'), alt=document.getElementById('vegAlt'),
@@ -7845,15 +7946,8 @@ function vegRenderPlan(){
       +`<span class="veg-after">${after}</span></div>`;
   }).join('');
 }
-function vegRenderCal(){
-  const t=document.getElementById('vegCalTitle'), g=document.getElementById('vegGrid'), wd=document.getElementById('vegWdays');
-  if(!t||!g||!wd) return;
-  t.textContent=`${vegCalY}年 ${vegCalM}月`;
-  if(!wd.dataset.built){
-    wd.innerHTML=WDAY_JP.map((w,i)=>`<div class="dp-wd ${i===0?'sun':i===6?'sat':''}">${w}</div>`).join('');
-    wd.dataset.built='1';
-  }
-  // 通し番号 -> その日の作業（はじめの日は濃く、幅の途中は薄く）
+/* 通し番号 -> その日の作業（はじめの日は濃く、幅の途中は薄く） */
+function vegMarkMap(){
   const mark={};
   vegRows().forEach(r=>{
     for(let s=r.from; s<=r.to; s++){
@@ -7863,16 +7957,19 @@ function vegRenderCal(){
       else if(cur && cur.band===band) cur.what+='・'+r.what;
     }
   });
-  const first=mkSerial(vegCalY,vegCalM,1);
+  return mark;
+}
+/* ひと月分のマス目。todayS を渡すと今日に印が付く */
+function vegMonthCells(y, m, mark, todayS){
+  const first=mkSerial(y,m,1);
   const startW=serialToYMD(first).w;
-  const days=new Date(Date.UTC(vegCalY,vegCalM,0)).getUTCDate();
-  const todayS=todaySerial();
+  const days=new Date(Date.UTC(y,m,0)).getUTCDate();
   let html='';
   for(let i=0;i<startW;i++) html+='<div class="dp-cell empty"></div>';
   for(let d=1; d<=days; d++){
     const s=first+(d-1), w=serialToYMD(s).w, mk=mark[s];
     const cls=['dp-cell']; if(w===0) cls.push('sun'); if(w===6) cls.push('sat');
-    if(s===todayS) cls.push('today');
+    if(todayS!==null && s===todayS) cls.push('today');
     let style='';
     if(mk){
       cls.push('veg-on'); if(mk.band) cls.push('veg-band');
@@ -7880,7 +7977,17 @@ function vegRenderCal(){
     }
     html+=`<div class="${cls.join(' ')}"${style}${mk?` title="${escHtml(mk.what)}"`:''}>${d}</div>`;
   }
-  g.innerHTML=html;
+  return html;
+}
+function vegRenderCal(){
+  const t=document.getElementById('vegCalTitle'), g=document.getElementById('vegGrid'), wd=document.getElementById('vegWdays');
+  if(!t||!g||!wd) return;
+  t.textContent=`${vegCalY}年 ${vegCalM}月`;
+  if(!wd.dataset.built){
+    wd.innerHTML=WDAY_JP.map((w,i)=>`<div class="dp-wd ${i===0?'sun':i===6?'sat':''}">${w}</div>`).join('');
+    wd.dataset.built='1';
+  }
+  g.innerHTML=vegMonthCells(vegCalY, vegCalM, vegMarkMap(), todaySerial());
 }
 /* 予定表を表（シート）に書き出す。選んでいるセルを左上にして、足りない行・列は増やす */
 function vegInsertToSheet(){
@@ -7902,6 +8009,13 @@ function vegInsertToSheet(){
   out.push(f.side ? ['追肥', '化成肥料 '+f.side.npk, vegAmt(f.side.g,'g'), f.side.when]
                   : ['追肥', 'やりません', '', '肥料が多いと太らなくなります']);
   out.push(['', f.tip, '', '']);
+  // 育てるときの注意
+  const tips=vegTips();
+  if(tips){
+    out.push(['','','','']);
+    out.push(['⚠ 育てるときの注意','','','']);
+    VEG_TIP_LABELS.forEach(([k,lb])=>out.push([lb, tips[k], '', '']));
+  }
   // 病気・害虫
   const keys=vegCare().k;
   if(keys.length){
@@ -7927,7 +8041,7 @@ function vegInsertToSheet(){
   } finally { undoing=wasUndoing; }
   cellStyles[`${r0},${c0}`]=Object.assign({}, cellStyles[`${r0},${c0}`], {bold:true});
   out.forEach((line,dr)=>{
-    const head=(dr===1) || /^(🧪|🦠)/.test(String(line[0]));   // 表の見出しと、節の見出し
+    const head=(dr===1) || /^(🧪|⚠ 育てる|🦠)/.test(String(line[0]));   // 表の見出しと、節の見出し
     if(!head) return;
     for(let dc=0; dc<4; dc++){ const k=`${r0+dr},${c0+dc}`; cellStyles[k]=Object.assign({}, cellStyles[k], {bold:true, bg:'#e6e6e6'}); }
   });
@@ -7942,6 +8056,114 @@ function vegInsertToSheet(){
 }
 function vegDateText(serial){ const {y,m,d}=serialToYMD(serial); return `${y}/${m}/${d}`; }
 
+/* ── 育成計画を1ページのPDFにする ──────────────────────────
+   画面に出ている内容（予定表・カレンダー・肥料・注意・病気）をまとめて
+   #printArea に組み立て、A4の1ページに収まる倍率まで縮めてから印刷する。 */
+const VP_PAGE_W=718, VP_PAGE_H=1046;   // A4たて・余白10mm のときの中身の大きさ（px, 96dpi）
+/* 計画が続く月をぜんぶ並べる（長いものは12か月まで） */
+function vegPdfMonths(){
+  const rows=vegRows(); if(!rows.length) return [];
+  const a=serialToYMD(rows[0].from), b=serialToYMD(rows[rows.length-1].to);
+  const from=a.y*12+(a.m-1), to=Math.min(b.y*12+(b.m-1), from+11);
+  const out=[];
+  for(let i=from;i<=to;i++) out.push({y:Math.floor(i/12), m:(i%12)+1});
+  return out;
+}
+function vegPdfHtml(){
+  const rows=vegRows(), f=vegFertOf(), p=vegPlotSize(), tips=vegTips(), keys=vegCare().k;
+  const harv=rows.filter(r=>/収穫|掘り/.test(r.what));
+  const h=harv.length?harv[0]:rows[rows.length-1];
+  const span=(h.d1===h.d2)?`${h.d1}日後`:`${h.d1}〜${h.d2}日後`;
+  const when=(h.from===h.to)?vegFmtDate(h.from):`${vegFmtDate(h.from)}〜${vegFmtDate(h.to)}`;
+  const wd=WDAY_JP.map((w,i)=>`<div class="dp-wd ${i===0?'sun':i===6?'sat':''}">${w}</div>`).join('');
+  const mark=vegMarkMap();
+
+  let html=`<div class="vp-head">
+      <div class="vp-title">${vegSel.i||'🌱'} ${escHtml(vegSel.n)} の育成計画</div>
+      <div class="vp-sub">${escHtml(vegSel.from||'種まき')} ${vegDateText(vegSowSerial)}（${WDAY_JP[serialToYMD(vegSowSerial).w]}）`
+    +` ／ ${escHtml(vegAreaText())} ／ 補正 ${escHtml(vegFactorText())} ／ 畑の広さ ${p}㎡</div>
+      <div class="vp-big">${escHtml(h.what)}は <b>${escHtml(span)}</b>（${escHtml(when)}）</div>
+    </div><div class="vp-cols">`;
+
+  html+=`<div class="vp-box"><div class="vp-h">予定表</div><table class="vp-tbl">`
+    +rows.map(r=>{
+      const kd=vegKind(r.what);
+      const w2=(r.from===r.to)?vegFmtDate(r.from):`${vegFmtDate(r.from)}〜${vegFmtDate(r.to)}`;
+      const af=(r.d1===r.d2)?`${r.d1}日`:`${r.d1}〜${r.d2}日`;
+      return `<tr><td class="vp-dot"><span style="background:${kd.c}"></span></td>`
+        +`<td>${escHtml(r.what)}</td><td class="vp-when">${escHtml(w2)}</td><td class="vp-af">${escHtml(af)}</td></tr>`;
+    }).join('')+`</table></div>`;
+
+  vegPdfMonths().forEach(({y,m})=>{
+    html+=`<div class="vp-box vp-cal"><div class="vp-h">${y}年 ${m}月</div>`
+      +`<div class="dp-wdays">${wd}</div><div class="dp-grid veg-grid">${vegMonthCells(y,m,mark,null)}</div></div>`;
+  });
+
+  const lime=(f.lime[1]===0)?'まきません（土をアルカリに寄せないため）':vegAmt(f.lime,'g');
+  html+=`<div class="vp-box"><div class="vp-h">🧪 肥料と配合（${escHtml(f.n)}／土のpH ${escHtml(f.ph)}）</div><table class="vp-tbl">`
+    +`<tr><td class="vp-k">土づくり</td><td>苦土石灰 ${escHtml(lime)}<br>完熟たい肥 ${escHtml(vegAmt(f.compost,'kg'))}</td></tr>`
+    +`<tr><td class="vp-k">元肥</td><td>化成肥料 ${escHtml(f.base.npk)} を ${escHtml(vegAmt(f.base.g,'g'))}</td></tr>`
+    +`<tr><td class="vp-k">追肥</td><td>${f.side
+        ? `化成肥料 ${escHtml(f.side.npk)} を ${escHtml(vegAmt(f.side.g,'g'))}<br>${escHtml(f.side.when)}`
+        : 'やりません（肥料が多いと太らなくなります）'}</td></tr>`
+    +`<tr><td class="vp-k">ひとこと</td><td>${escHtml(f.tip)}</td></tr></table></div>`;
+
+  if(tips){
+    html+=`<div class="vp-box"><div class="vp-h">⚠ 育てるときの注意</div><table class="vp-tbl">`
+      +VEG_TIP_LABELS.map(([k,lb])=>`<tr><td class="vp-k">${lb}</td><td>${escHtml(tips[k])}</td></tr>`).join('')
+      +`</table></div>`;
+  }
+  if(keys.length){
+    html+=`<div class="vp-box"><div class="vp-h">🦠 出やすい病気・害虫と農薬</div>`
+      +keys.map(k=>{ const d=VEG_SICK[k]; if(!d) return '';
+        return `<div class="vp-sick"><b>${escHtml(d.n)}</b><br>`
+          +`<span class="vp-t">見分け方</span>${escHtml(d.sign)}<br>`
+          +`<span class="vp-t">手当て</span>${escHtml(d.care)}<br>`
+          +`<span class="vp-t">薬の例</span>${escHtml(d.med)}</div>`;
+      }).join('')+`</div>`;
+  }
+  html+=`</div><div class="vp-foot">⚠ ${escHtml(VEG_MED_NOTE)}<br>`
+    +`日数は家庭菜園のふつうの目安です。品種・地域・その年の天気で前後します。`
+    +`　（表電卓 ${APP_VERSION}）</div>`;
+  return `<div class="vegpdf" id="vegPdfBox">${html}</div>`;
+}
+/* 横幅を広げながら、A4の1ページに収まる倍率を探す。
+   幅を広げると段が増えて背が低くなるので、
+   「入る幅」と「入らない幅」のあいだを詰めて、いちばん大きく出せる倍率にする。 */
+function vegPdfFit(el){
+  const fits=w=>{ el.style.width=w+'px'; return el.scrollHeight*(VP_PAGE_W/w)<=VP_PAGE_H; };
+  let w=VP_PAGE_W;
+  if(!fits(w)){
+    let lo=w, hi=w, ok=false;                      // lo＝入らない幅、hi＝入る幅
+    for(let i=0;i<8;i++){ hi=Math.min(2600, hi*1.25); if(fits(hi)){ ok=true; break; } lo=hi; }
+    if(ok) for(let i=0;i<8 && hi-lo>12; i++){ const mid=(lo+hi)/2; if(fits(mid)) hi=mid; else lo=mid; }
+    w=hi;
+  }
+  el.style.width=w+'px';
+  const k=VP_PAGE_W/w;
+  el.style.zoom=String(k);
+  return k;
+}
+function vegPdf(){
+  if(!vegSel || vegSowSerial===null){ toast('野菜を選んでください'); return; }
+  let pa=document.getElementById('printArea');
+  if(!pa){ pa=document.createElement('div'); pa.id='printArea'; document.body.appendChild(pa); }
+  pa.innerHTML=vegPdfHtml();
+  // 画面の外に出して、印刷と同じ形で高さを測る
+  const meas=document.createElement('style');
+  meas.textContent='#printArea{display:block!important;position:fixed;left:-10000px;top:0;overflow:visible;}';
+  document.head.appendChild(meas);
+  const box=document.getElementById('vegPdfBox');
+  const k=vegPdfFit(box);
+  meas.remove();
+  let dyn=document.getElementById('printDynamicStyle');
+  if(!dyn){ dyn=document.createElement('style'); dyn.id='printDynamicStyle'; document.head.appendChild(dyn); }
+  dyn.textContent='@page{ size: A4 portrait; margin: 10mm; }';
+  closeVeggie();
+  toast('印刷の画面から「PDFに保存」を選んでください', 4200);
+  setTimeout(()=>{ try{ window.print(); }catch(e){ alert('印刷を開けませんでした'); } }, 250);
+  return k;
+}
 /* ── 自分の野菜を登録する ── */
 function vegRenderMy(){
   const box=document.getElementById('vegMyBody'); if(!box) return;
@@ -15400,7 +15622,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v342';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v343';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
