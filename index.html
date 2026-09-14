@@ -1397,14 +1397,14 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
 .dp-cell.sel { background: var(--acc); border-color: var(--acc); color: #fff; }
 .dp-foot { padding: 12px; display: flex; justify-content: center; }
 /* 野菜の育成計画（種まきの日から、間引き・追肥・収穫の予定をカレンダーで見る） */
-/* 育成計画は見るものが多いので全画面にする（v347） */
-.veg-modal {
+/* 全画面で開く画面（育成計画と、テンキーの上に登録した道具。v347/v354） */
+.modal.modal-full {
   width: 100%; max-width: none; height: 100%; max-height: 100%;
   border-radius: 0;
 }
-.veg-modal .modal-body { padding: 12px 14px 16px; }
+.modal.modal-full .modal-body { padding: 12px 14px 16px; }
 @media (min-width: 700px) {   /* パソコンなど広い画面では、読みやすい幅で真ん中に */
-  .veg-modal { width: 96%; max-width: 900px; height: 96%; border-radius: var(--r-card); }
+  .modal.modal-full { width: 96%; max-width: 900px; height: 96%; border-radius: var(--r-card); }
 }
 .veg-find { flex: 1; }
 .veg-pickbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -3744,7 +3744,7 @@ body.dark {
 
 <!-- 野菜の育成計画（種まき日から、間引き・追肥・収穫などの予定日をカレンダーで見る） -->
 <div class="modal-overlay" id="veggieOverlay" onclick="if(event.target===this)closeVeggie()">
-  <div class="modal veg-modal">
+  <div class="modal veg-modal modal-full">
     <div class="modal-header">
       <span>🌱 野菜の育成計画</span>
       <button class="modal-close" onclick="closeVeggie()">✕</button>
@@ -4351,7 +4351,8 @@ body.dark {
             </table>
             そのため<b>数字キーの長押しで「ボタンの機能」を割り当てる操作はなくなりました</b>（数字以外のキーは今までどおり長押しで割り当てられます）。</div>
           <div class="help-li"><b>記号ページを出す／隠す</b>（v353から）：設定→<b>🎨見た目→くわしい設定</b>の<b>記号ページを出す</b>で切り替えます。隠すと<b>ページ名の並びからも、フリックの並びからも外れ</b>、数字ページの左どなりが電卓ページになります。記号は上のフリックで入れられるので、ページを減らしてすっきりさせたいときにどうぞ。</div>
-          <div class="help-li"><b>テンキーの上に出す道具</b>（v352から）：設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーの上に出す道具</b>で、全画面で開く道具（<b>💧単位水量・🧪カンタブ・🌱野菜・📷容積・📝写真メモ・🔗リンク集・📄メモ・📋式テンプレ・📑決算テンプレ</b>）を選ぶと、テンキーの上の<b>ページ名の並びに足されます</b>（電卓の右）。<b>タップで開きます</b>。<b>↑↓で並び順</b>を変えられ、<b>電卓ページからさらに左へフリック</b>すると<b>いちばん上に並べた道具</b>が開きます（よく使うものを先頭にしておくと、フリックだけで開けます）。たくさん選んで入りきらないときは、ページ名の並びを<b>横にすべらせて</b>見られます（<b>▲登録</b>は右端に残ります）。</div>
+          <div class="help-li"><b>テンキーの上に出す道具</b>（v352から）：設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーの上に出す道具</b>で、全画面で開く道具（<b>💧単位水量・🧪カンタブ・🌱野菜・📷容積・📝写真メモ・🔗リンク集・📄メモ・📋式テンプレ・📑決算テンプレ</b>）を選ぶと、テンキーの上の<b>ページ名の並びに足されます</b>（電卓の右）。<b>タップで開きます</b>。<b>↑↓で並び順</b>を変えられ、<b>電卓ページからさらに左へフリック</b>すると<b>いちばん上に並べた道具</b>が開きます（よく使うものを先頭にしておくと、フリックだけで開けます）。たくさん選んで入りきらないときは、ページ名の並びを<b>横にすべらせて</b>見られます（<b>▲登録</b>は右端に残ります）。<br>
+            <b>選んだ道具は全画面で開きます</b>（v354から）。開いているあいだに<b>横にフリック</b>すると、<b>となりの道具へそのまま移れます</b>（左＝次／右＝前）。<b>端でさらにフリック</b>すると閉じてテンキーに戻ります。入力欄・ボタンの上や、縦になぞったときは移りません（じゃまをしないため）。登録を外すと元の大きさに戻ります。</div>
           <div class="help-li"><b>テンキーの上のページ表示</b>で、いまどのページに居るか分かります。<b>ページ名をタップ</b>するとそのページへ移動できます（数字の並びは「枠線・書式・数字・記号・関数」、右端の<b>▲登録</b>で登録ページの並びへ、<b>▼数字</b>で戻る）。設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーのページ表示</b>で消すこともできます（ページ名は<b>書式・枠線／数字／記号／電卓</b>）。</div>
           <div class="help-li"><b>フリックでも切り替わります</b>（数字ページが土台。数字ページは<b>どこからでもフリック開始OK</b>）：</div>
           <table class="help-tbl">
@@ -11139,15 +11140,15 @@ function toggleFuncPage(){
    タップで開き、電卓ページからさらに左へフリックすると先頭の道具が開く。
    並び順は設定の↑↓で変えられる。 */
 const NP_TOOLS=[
-  {id:'tansui',   label:'💧単位水量',   run:()=>openTansui()},
-  {id:'kantab',   label:'🧪カンタブ',   run:()=>openKantab()},
-  {id:'veggie',   label:'🌱野菜',       run:()=>openVeggie()},
-  {id:'volume',   label:'📷容積',       run:()=>openVolume()},
-  {id:'photomemo',label:'📝写真メモ',   run:()=>openPhotoMemo()},
-  {id:'linklist', label:'🔗リンク集',   run:()=>openLinkList()},
-  {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},
-  {id:'calctmpl', label:'📋式テンプレ', run:()=>openCalcTmpl()},
-  {id:'fintmpl',  label:'📑決算テンプレ',run:()=>openFinTmpl()},
+  {id:'tansui',   label:'💧単位水量',   ov:'tansuiOverlay',    run:()=>openTansui(),   close:()=>closeTansui()},
+  {id:'kantab',   label:'🧪カンタブ',   ov:'kantabOverlay',    run:()=>openKantab(),   close:()=>closeKantab()},
+  {id:'veggie',   label:'🌱野菜',       ov:'veggieOverlay',    run:()=>openVeggie(),   close:()=>closeVeggie()},
+  {id:'volume',   label:'📷容積',       ov:'volumeOverlay',    run:()=>openVolume(),   close:()=>closeVolume()},
+  {id:'photomemo',label:'📝写真メモ',   ov:'photoMemoOverlay', run:()=>openPhotoMemo(),close:()=>closePhotoMemo()},
+  {id:'linklist', label:'🔗リンク集',   ov:'linkListOverlay',  run:()=>openLinkList(), close:()=>closeLinkList()},
+  {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},                        // 別のタブで開くので全画面・フリックの対象外
+  {id:'calctmpl', label:'📋式テンプレ', ov:'calcTmplOverlay',  run:()=>openCalcTmpl(), close:()=>closeCalcTmpl()},
+  {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
 ];
 const NP_TOOL_KEY='excalc_nptools';
 let npTools=[];                                  // 選んだ道具のid（この順に並ぶ）
@@ -11160,7 +11161,7 @@ function npToolToggle(id){
   if(!npToolDef(id)) return;
   const i=npTools.indexOf(id);
   if(i>=0) npTools.splice(i,1); else npTools.push(id);
-  saveNpTools(); renderNpToolList(); renderNumpadPageBar();
+  saveNpTools(); renderNpToolList(); renderNumpadPageBar(); applyNpToolFull();
 }
 function npToolMove(id, dir){
   const i=npTools.indexOf(id), j=i+dir;
@@ -11168,10 +11169,16 @@ function npToolMove(id, dir){
   const t=npTools[i]; npTools[i]=npTools[j]; npTools[j]=t;
   saveNpTools(); renderNpToolList(); renderNumpadPageBar();
 }
+let npSwipeHinted=false;
 function npToolRun(id){
   const t=npToolDef(id); if(!t) return;
   if(typeof closeSettingsPanel==='function') closeSettingsPanel();
   t.run();
+  // はじめの1回だけ、横フリックで となりの道具へ行けることを知らせる
+  if(!npSwipeHinted && t.ov && npToolFlickable().length>1){
+    npSwipeHinted=true;
+    setTimeout(()=>toast('横にフリックすると、となりの道具へ移れます', 4200), 400);
+  }
 }
 /* 電卓ページからさらに左へフリックしたときに開く道具（並びの先頭） */
 function npToolFlick(){
@@ -11179,6 +11186,72 @@ function npToolFlick(){
   npToolRun(npTools[0]);
   return true;
 }
+/* 登録した道具は全画面で開く。登録を外したら元の大きさに戻す */
+function applyNpToolFull(){
+  NP_TOOLS.forEach(t=>{
+    if(!t.ov) return;
+    const ov=document.getElementById(t.ov); if(!ov) return;
+    const m=ov.querySelector('.modal'); if(!m) return;
+    if(m.classList.contains('veg-modal')) return;          // 育成計画はいつも全画面
+    m.classList.toggle('modal-full', npTools.indexOf(t.id)>=0);
+  });
+}
+/* 全画面で開いている道具のあいだを、フリックで行き来する（v354）。
+   左＝次の道具／右＝前の道具。端では閉じてテンキーに戻る。 */
+const NP_SWIPE_MIN=70;        // これだけ横に動かしたら移動とみなす
+function npToolFlickable(){ return npTools.filter(id=>{ const t=npToolDef(id); return t && t.ov; }); }
+function npToolOpenAt(i){
+  const list=npToolFlickable();
+  if(i<0 || i>=list.length) return false;
+  npToolRun(list[i]);
+  return true;
+}
+/* いま開いている道具の場所（登録の並びの中で何番目か）。開いていなければ -1 */
+function npToolCurrent(){
+  const list=npToolFlickable();
+  for(let i=0;i<list.length;i++){ const t=npToolDef(list[i]); if(t && isDlgOpen(t.ov)) return i; }
+  return -1;
+}
+function npToolStep(dir){
+  const i=npToolCurrent(); if(i<0) return false;
+  const list=npToolFlickable(), t=npToolDef(list[i]);
+  if(t && t.close) t.close(); else closeDlg(t.ov);
+  const j=i+dir;
+  if(j<0 || j>=list.length) return true;        // 端は閉じるだけ（テンキーに戻る）
+  npToolOpenAt(j);                              // 閉じたのと同じ間に開く（履歴の始末が打ち消し合う）
+  return true;
+}
+/* 道具のウィンドウに横フリックの見張りを付ける。
+   入力欄・ボタン・横にすべる箱の上から始めたときは、じゃまをしないよう見送る。 */
+function bindNpToolSwipe(ovId){
+  const ov=document.getElementById(ovId); if(!ov || ov.dataset.npSwipe) return;
+  ov.dataset.npSwipe='1';
+  let x0=null, y0=0, id=null, ok=false;
+  const skip=el=>{
+    for(let e=el; e && e!==ov; e=e.parentElement){
+      const tag=e.tagName;
+      if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||tag==='BUTTON'||tag==='A'||tag==='SUMMARY') return true;
+      if(e.scrollWidth>e.clientWidth+4) return true;      // 横にすべる箱（野菜の一覧など）
+    }
+    return false;
+  };
+  ov.addEventListener('pointerdown', e=>{
+    if(e.button!==undefined && e.button>0) return;
+    if(x0!==null) return;
+    x0=e.clientX; y0=e.clientY; id=e.pointerId; ok=!skip(e.target);
+  });
+  ov.addEventListener('pointerup', e=>{
+    if(x0===null || e.pointerId!==id) return;
+    const dx=e.clientX-x0, dy=e.clientY-y0;
+    x0=null;
+    if(!ok) return;
+    if(Math.abs(dx)<NP_SWIPE_MIN || Math.abs(dx)<Math.abs(dy)*1.5) return;   // はっきり横のときだけ
+    npToolStep(dx<0 ? 1 : -1);
+  });
+  ov.addEventListener('pointercancel', ()=>{ x0=null; });
+}
+function bindAllNpToolSwipe(){ NP_TOOLS.forEach(t=>{ if(t.ov) bindNpToolSwipe(t.ov); }); }
+
 /* 設定の一覧：選んだものを上に、その順に並べて出す */
 function renderNpToolList(){
   const box=document.getElementById('npToolList'); if(!box) return;
@@ -11473,7 +11546,7 @@ function renderNumpadPageBar(){
 }
 (function setupNumpadPageBar(){
   const bar=document.getElementById('numpadPageBar'); if(!bar) return;
-  loadNpTools(); renderNpToolList();
+  loadNpTools(); renderNpToolList(); applyNpToolFull(); bindAllNpToolSwipe();
   bar.addEventListener('click', e=>{
     const b=e.target.closest && e.target.closest('.np-page'); if(!b) return;
     if(b.dataset.nptool){ npToolRun(b.dataset.nptool); return; }   // 道具のタブは開くだけ（ページは動かさない）
@@ -16270,7 +16343,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v353';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v354';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

@@ -1161,6 +1161,72 @@ async function runNpTools(browser) {
   check('  本体は横にずれない', await page.evaluate(() =>
     document.documentElement.scrollWidth <= window.innerWidth), true);
 
+  // ── 登録した道具は全画面で開き、横フリックで行き来できる（v354） ──
+  await page.evaluate(() => { npTools = ['tansui', 'veggie', 'kantab']; saveNpTools();
+    applyNpToolFull(); renderNumpadPageBar(); }); await page.waitForTimeout(250);
+  const full = id => page.evaluate(x => {
+    const m = document.getElementById(x).querySelector('.modal');
+    return m.classList.contains('modal-full'); }, id);
+  const openedTool = () => page.evaluate(() =>
+    ['tansuiOverlay', 'veggieOverlay', 'kantabOverlay'].filter(isDlgOpen).join(',') || 'なし');
+  check('  登録した道具は全画面になる', await page.evaluate(() =>
+    ['tansuiOverlay', 'veggieOverlay', 'kantabOverlay', 'linkListOverlay']
+      .map(i => document.getElementById(i).querySelector('.modal').classList.contains('modal-full')).join('/')),
+    'true/true/true/false');
+
+  /* 開いている道具の上を、はっきり横になぞる */
+  const toolSwipe = async dx => {
+    const c = await page.evaluate(() => {
+      const ov = document.querySelector('.modal-overlay.open');
+      const h = ov.querySelector('.modal-header'); const r = h.getBoundingClientRect();
+      return { x: r.left + r.width * 0.4, y: r.top + r.height / 2 }; });
+    await page.mouse.move(c.x, c.y); await page.mouse.down();
+    for (let i = 1; i <= 6; i++) { await page.mouse.move(c.x + dx * i / 6, c.y); await page.waitForTimeout(20); }
+    await page.mouse.up(); await page.waitForTimeout(500);
+  };
+  await page.evaluate(() => openTansui()); await page.waitForTimeout(450);
+  check('  1つめが開く', await openedTool(), 'tansuiOverlay');
+  await toolSwipe(-130);
+  check('  左フリックで次の道具へ', await openedTool(), 'veggieOverlay');
+  await toolSwipe(-130);
+  check('  もう一度左で3つめへ', await openedTool(), 'kantabOverlay');
+  await toolSwipe(130);
+  check('  右フリックで前の道具へ', await openedTool(), 'veggieOverlay');
+  await toolSwipe(130);
+  check('  1つめまで戻る', await openedTool(), 'tansuiOverlay');
+  await toolSwipe(130);
+  check('  端でさらに右なら閉じる', await openedTool(), 'なし');
+  check('  アプリは生きている', await page.evaluate(() => typeof data).catch(() => 'DEAD'), 'object');
+  check('  見張りも残らない', await page.evaluate(() => backGuardStack.length), 0);
+
+  // 入力欄や縦のスクロールはじゃましない
+  await page.evaluate(() => openTansui()); await page.waitForTimeout(450);
+  const inp = await page.evaluate(() => {
+    const e = document.querySelector('#tansuiOverlay input'); const r = e.getBoundingClientRect();
+    return { x: r.left + r.width * 0.5, y: r.top + r.height / 2 }; });
+  await page.mouse.move(inp.x, inp.y); await page.mouse.down();
+  for (let i = 1; i <= 6; i++) { await page.mouse.move(inp.x - 130 * i / 6, inp.y); await page.waitForTimeout(20); }
+  await page.mouse.up(); await page.waitForTimeout(450);
+  check('  入力欄の上ではフリックしない', await openedTool(), 'tansuiOverlay');
+  const bd = await page.evaluate(() => {
+    const e = document.querySelector('#tansuiOverlay .modal-body'); const r = e.getBoundingClientRect();
+    return { x: r.left + r.width * 0.5, y: r.top + r.height * 0.5 }; });
+  await page.mouse.move(bd.x, bd.y); await page.mouse.down();
+  for (let i = 1; i <= 6; i++) { await page.mouse.move(bd.x, bd.y - 120 * i / 6); await page.waitForTimeout(20); }
+  await page.mouse.up(); await page.waitForTimeout(450);
+  check('  縦になぞっても移らない', await openedTool(), 'tansuiOverlay');
+  await page.evaluate(() => closeTansui()); await page.waitForTimeout(400);
+
+  // 登録を外すと全画面でなくなる
+  await page.evaluate(() => { npToolToggle('linklist'); }); await page.waitForTimeout(250);
+  check('  登録すると全画面になる', await full('linkListOverlay'), true);
+  await page.evaluate(() => { npToolToggle('linklist'); }); await page.waitForTimeout(250);
+  check('  外すと元の大きさに戻る', await full('linkListOverlay'), false);
+  await page.evaluate(() => { npTools = []; saveNpTools(); applyNpToolFull(); renderNumpadPageBar(); });
+  await page.waitForTimeout(200);
+  await page.evaluate(() => { npTools = ['kantab', 'veggie', 'tansui']; saveNpTools(); renderNumpadPageBar(); });
+  await page.waitForTimeout(200);
+
   // 登録ページでは道具のタブを出さない（並びが別のため）
   await page.evaluate(() => numpadPager.go('reg')); await page.waitForTimeout(500);
   check('  登録の並びには出さない', await page.evaluate(() =>
