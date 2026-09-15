@@ -2960,9 +2960,7 @@ body.dark {
     <button class="set-act" id="speechSpeakBtn" onclick="toggleSpeechSpeak()" title="計算した答えを声で読み上げます（手がふさがっているときの確認に）">答えを声で読み上げる</button>
     <button class="set-act" id="digitHintBtn" onclick="toggleDigitHint()" title="入力中の数字を「5,000,000 ＝ 500万」のように数式バーの下に出します（1万以上のときだけ）">入力中の数字の桁を出す</button>
     <div class="set-sec">📋 ひな形（テンプレ）とモード</div>
-    <div class="set-note">ひな形は<b>テンキーの「モード」キー</b>や<b>⋯→🎯用途から始める</b>からも選べます（目的別に並べてあります）。</div>
-    <button class="set-act" onclick="openCalcTmpl()" title="色々な計算式のひな形（約20種類）を選んで、値を入れるだけの状態にします">計算式テンプレ</button>
-    <button class="set-act" onclick="openFinTmpl()" title="損益計算書・貸借対照表・収支計算書のかんたんなひな形">決算書テンプレ</button>
+    <div class="set-note">ひな形（約20種類）は<b>テンキーの「モード」キー</b>や<b>⋯→🎯用途から始める</b>から選べます（目的別に並べてあります）。</div>
     <button class="set-act" onclick="openModeVis()" title="「モード」一覧に表示する標準モードを選びます">モードの表示/非表示</button>
   </div>
 
@@ -4539,7 +4537,7 @@ body.dark {
             ・下のバーに<b>面積・容積・リットル・まわりの長さ</b>の合計が出ます<br>
             ・前の「容積モード」（縦×横×高さだけ）で作った表は、開いたときに<b>自動で新しい並びに移ります</b>（中身が1列ぶん右へずれ、形の欄は空＝長方形になります）</div>
           <div class="help-li"><b>電卓モード</b>：モードで<b>🧮電卓</b>を選ぶと、表のかわりに<b>ふつうの電卓</b>が出ます。テンキーはそのまま使えて、押すたびに答えが出ます。計算するたびに<b>履歴（テープ）</b>が残り、行を押すとその答えをもう一度使えます。履歴の下には<b>🎤 声で言った計算式の行</b>があり（v339から）、<b>声でどんな式として受け取ったか</b>がその場で分かります（例「251かける68」→ <b>251×68 ＝ 17068</b>、聞こえた言葉も小さく出ます）。式にできなかったときは<b>赤いふち</b>で聞こえた言葉だけ出るので、言い直す手がかりになります。<b>AC</b>を押すと消えます。<b>％・AC・▦表へ</b>はテンキーの<b>電卓ページ</b>にあります（<b>▦表へ</b>で元のモードに戻り、選んでいるセルに答えが入ります）。<b>🎤声</b>キーで<b>声で計算</b>できます（🎤 声で入れるの章をどうぞ）。「1＋2×3」の答えを<b>9（ふつうの電卓）</b>にするか<b>7（式の優先順位どおり）</b>にするかは、<b>設定→🧮計算</b>で選べます。</div>
-          <div class="help-li"><b>📋計算式テンプレ／📑決算書テンプレ</b>（設定の「計算」タブ）：割引・利益率・BMI・速さ・複利・ローン・面積…約20種類のひな形や、損益計算書・貸借対照表・収支計算書のひな形。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
+          <div class="help-li"><b>📋計算式テンプレ／📑決算書テンプレ</b>（テンキーの<b>モード</b>キー、または<b>⋯→🎯用途から始める</b>）：割引・利益率・BMI・速さ・複利・ローン・面積…約20種類のひな形や、損益計算書・貸借対照表・収支計算書のひな形。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
         </div>
       </details>
 
@@ -13263,12 +13261,23 @@ function startFormula() {
   const fi=document.getElementById('formulaInput');
   fi.value='='; fi.classList.add('formula-mode'); refreshDisp();
 }
-/* 関数・記号ページのキー：数式に記号/関数を挿入（数式モードでなければ = で開始） */
+/* 数式モードでないときに、記号を「そのままの文字」としてセルに打ち込む（v358） */
+function symAppend(s){
+  if (!cellEditing) { disp_val=s; cellEditing=true; }
+  else if (waiting) { disp_val=s; waiting=false; }
+  else { disp_val=disp_val+s; }
+  refreshDisp();
+}
+/* 関数・記号ページのキー。関数と「=」だけが数式（=）を始める。ただの記号は記号だけ入る（v358） */
 function fkey(token){
   if (isDentaku()) { if(dtStyle==='expr') dtExprAppend(token); else toast('設定で「式の優先順位どおり」にすると使えます'); return; }
   if (editBlocked()) return;
-  if (!formulaEditMode) startFormula();
-  numpadAppend(token);
+  if (formulaEditMode) { numpadAppend(token); return; }
+  if (token==='=') { startFormula(); return; }                       // 「=」は今までどおり数式を始める
+  if (token.length>1 && token.slice(-1)==='(') {                     // SUM( などの関数は「=」が要る
+    startFormula(); numpadAppend(token); return;
+  }
+  symAppend(token);                                                  // (, ), ℃, 「 … は記号だけ入れる
 }
 function num(n) {
   // ふつうの電卓と同じで、＝のあとに数字を押したら新しい数として打ち始める
@@ -16499,7 +16508,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v357';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v358';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

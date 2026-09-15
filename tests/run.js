@@ -1042,18 +1042,33 @@ async function runFlickSym(browser) {
   await page.mouse.move(c.x, c.y - 45); await page.waitForTimeout(90);
   check('  動かした向きが選ばれる', await page.evaluate(() => npFlickDir), 'up');
   await page.mouse.up(); await page.waitForTimeout(250);
-  check('  上フリックで (', await shown(), '=(');
+  check('  上フリックで (', await shown(), '(');
   check('  離すと候補は消える', await page.evaluate(() =>
     document.getElementById('npFlickPop').classList.contains('open')), false);
 
-  await reset(); await press('n1', 45, 0);  check('  右フリックで )', await shown(), '=)');
+  await reset(); await press('n1', 45, 0);  check('  右フリックで )', await shown(), ')');
   await reset(); await press('n1', -45, 0); check('  空いている左は数字のまま', await shown(), '1');
-  await reset(); await press('n2', 0, -45); check('  上フリックで <=', await shown(), '=<=');
-  await reset(); await press('n2', 0, 45);  check('  下フリックで >=', await shown(), '=>=');
-  await reset(); await press('n4', 0, -45); check('  4の上は ,', await shown(), '=,');
-  await reset(); await press('n7', 0, -45); check('  7の上は 「', await shown(), '=「');
-  await reset(); await press('n9', 0, -45); check('  9の上は ℃', await shown(), '=℃');
+  await reset(); await press('n2', 0, -45); check('  上フリックで <=', await shown(), '<=');
+  await reset(); await press('n2', 0, 45);  check('  下フリックで >=', await shown(), '>=');
+  await reset(); await press('n4', 0, -45); check('  4の上は ,', await shown(), ',');
+  await reset(); await press('n7', 0, -45); check('  7の上は 「', await shown(), '「');
+  await reset(); await press('n9', 0, -45); check('  9の上は ℃', await shown(), '℃');
   await reset(); await press('n7', 0, 0);   check('  まん中で離すと数字', await shown(), '7');
+
+  // 記号は「記号だけ」入る。= は付けない（v358）
+  await reset(); await page.evaluate(() => fkey('('));
+  check('  記号は = を付けずに入る', await shown(), '(');
+  check('  記号だけなら数式モードにしない', await page.evaluate(() => formulaEditMode), false);
+  await reset(); await page.evaluate(() => { fkey('('); fkey(')'); });
+  check('  記号は続けて入る', await shown(), '()');
+  await reset(); await page.evaluate(() => { num('3'); fkey(':'); num('0'); num('0'); });
+  check('  数字のあとにも記号だけ足せる', await shown(), '3:00');
+  await reset(); await page.evaluate(() => fkey('SUM('));
+  check('  関数は今までどおり = で始まる', await shown(), '=SUM(');
+  await reset(); await page.evaluate(() => fkey('='));
+  check('  = キーは数式を始める', await shown() + '/' + await page.evaluate(() => formulaEditMode), '=/true');
+  await reset(); await page.evaluate(() => { fkey('='); fkey('('); });
+  check('  数式の途中では今までどおり', await shown(), '=(');
 
   // 数字キーの長押しでボタンの機能は割り当てない（v353でやめた）
   await reset();
@@ -1120,7 +1135,7 @@ async function runFlickSym(browser) {
     npFlick.n2[1] + '/' + JSON.parse(localStorage.getItem('excalc_flicksym')).n2[1]), '≦/≦');
   await page.evaluate(() => closeFlickSym()); await page.waitForTimeout(300);
   await reset(); await press('n2', 0, -45);
-  check('  変えた記号が入る', await shown(), '=≦');
+  check('  変えた記号が入る', await shown(), '≦');
   check('  左はしの列は変えられない', await page.evaluate(() => {
     setNpFlick('n1', 0, 'X'); return npFlick.n1[0]; }), '');
   await page.reload(); await page.waitForTimeout(900);
@@ -1234,11 +1249,13 @@ async function runNpTools(browser) {
       r.push(getComputedStyle(e).touchAction);
     closeVeggie();
     return r.every(x => x === 'pan-y'); }), true);
+  await page.waitForTimeout(250);   // 閉じたあとの「戻る」が済むのを待つ
   check('  ボタンの上からでもフリックできる（見送らない）', await page.evaluate(() => {
     openVeggie();
     const btn = document.querySelector('#vegChips .veg-chip');
     const ok = getComputedStyle(btn).touchAction === 'pan-y';
     closeVeggie(); return ok; }), true);
+  await page.waitForTimeout(250);
   check('  写真などの中身はそのまま任せる', await page.evaluate(() => {
     const m = document.getElementById('volumeOverlay').querySelector('.modal');
     m.classList.add('modal-full');
