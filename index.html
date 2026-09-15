@@ -1472,7 +1472,19 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
 .veg-after { width: 72px; text-align: right; color: var(--text-light); font-variant-numeric: tabular-nums; }
 .veg-line.veg-pick .veg-what, .veg-line.veg-pick .veg-when { color: #2e7d32; font-weight: bold; }
 .veg-cal-nav { display: flex; align-items: center; gap: 5px; padding: 4px 0 6px; }
-.veg-grid .dp-cell { cursor: default; font-size: 13px; }
+.veg-grid .dp-cell { cursor: pointer; font-size: 13px; }
+/* カレンダーのマス目に出す写真（v362） */
+.dp-cell.dp-photo {
+  background-size: cover; background-position: center; background-repeat: no-repeat;
+  align-items: flex-start; justify-content: flex-start; border-width: 2px;
+}
+.dp-cell.dp-photo .dp-n {
+  margin: 2px; padding: 0 3px; border-radius: 3px;
+  background: rgba(0,0,0,.58); color: #fff; font-size: 10px; line-height: 14px; font-weight: bold;
+}
+.veg-calhint { font-size: 11px; color: var(--text-light); line-height: 1.5; padding: 6px 2px 2px; }
+/* その日の画面では写真を大きく出す */
+.vd-big .vd-img { max-height: 70vh; }
 .veg-grid, .veg-wdays { padding: 0; }
 .dp-cell.veg-on { color: #fff; font-weight: bold; border-color: transparent; }
 .dp-cell.veg-band { border-style: dashed; }
@@ -3829,6 +3841,7 @@ body.dark {
       </div>
       <div class="dp-wdays veg-wdays" id="vegWdays"></div>
       <div class="dp-grid veg-grid" id="vegGrid"></div>
+      <div class="veg-calhint" id="vegCalHint"></div>
       <details class="veg-sec" open>
         <summary>🧪 肥料と配合</summary>
         <div id="vegFertBody"></div>
@@ -3852,6 +3865,28 @@ body.dark {
         <summary>➕ 自分の野菜を登録する</summary>
         <div id="vegMyBody"></div>
       </details>
+    </div>
+  </div>
+</div>
+
+<!-- カレンダーの日をタップして開く、その日の画面（写真をつける／大きく見る。v362） -->
+<div class="modal-overlay" id="vegDayOverlay" onclick="if(event.target===this)closeVegDay()">
+  <div class="modal veg-modal modal-full">
+    <div class="modal-header">
+      <span id="vegDayTitle">📅 その日の記録</span>
+      <button class="modal-close" onclick="closeVegDay()">✕</button>
+    </div>
+    <div class="modal-body vd-big">
+      <div class="vd-head" id="vegDayHead"></div>
+      <input type="file" id="vegDayCam" accept="image/*" capture="environment" style="display:none" onchange="vegDiaryPhoto(event)">
+      <input type="file" id="vegDayFile" accept="image/*" style="display:none" onchange="vegDiaryPhoto(event)">
+      <div class="vd-btns">
+        <button class="vol-photo-btn" onclick="document.getElementById('vegDayCam').click()">📷 写真をとる</button>
+        <button class="vol-photo-btn" onclick="document.getElementById('vegDayFile').click()">🖼 写真をえらぶ</button>
+        <button class="vol-photo-btn" onclick="vegDiaryAddText()">✎ 文だけ書く</button>
+      </div>
+      <div class="vd-list" id="vegDayBody"></div>
+      <button class="vol-insert veg-pdf-btn" onclick="openVegDiaryFromDay()">📓 この野菜の日記をぜんぶ見る</button>
     </div>
   </div>
 </div>
@@ -4570,6 +4605,7 @@ body.dark {
             ・<b>カレンダー</b>にも色が付きます（<span style="color:#6d4c41">■</span>種まき・植えつけ／<span style="color:#7cb342">■</span>発芽・根づく／<span style="color:#1565c0">■</span>間引き・土寄せなどの手入れ／<span style="color:#ef6c00">■</span>追肥／<span style="color:#c2185b">■</span>花・受粉／<span style="color:#2e7d32">■</span>収穫）。濃い色が<b>その作業の初日</b>、薄い色は<b>そのあいだの期間</b>です。<b>‹ ›</b>で月を送り、<b>「種まきの月」</b>で戻ります<br>
             ・<b>🪴 育てている野菜</b>（v347から）：画面のいちばん上に、<b>いつ・何を・種から／苗から 植えたか</b>の記録が並びます。<b>＋下の内容（野菜と植えた日）を登録する</b>で、いま出している内容をそのまま登録できます。行をタップすると<b>その予定に戻ります</b>（下の予定のところまで自動で送ります）。それぞれの行には<b>植えてから何日目か</b>と<b>つぎの作業とあと何日か</b>（例「つぎ 追肥 あと12日」「いま 発芽（1日まで）」）が出るので、いくつ育てていても一目で分かります。<b>✎</b>で畑や品種の名前を付けられ、<b>✕</b>で消せます。開き直しても残ります<br>
             ・<b>種から／苗から</b>（v347から）：種から育てる野菜では、<b>苗から</b>を選ぶと<b>苗を植えた日を0日目</b>として数え直します（それより前の発芽・鉢上げなどは出しません）。いも・苗から育てるもの（ジャガイモ・イチゴなど）は、はじめから植えつけの日で数えるのでこの選びは出ません。<b>苗から始められる野菜は19種類</b>です（v361で<b>ハクサイ・オクラ・トウモロコシ・エダマメ・ミズナ・シュンギク・シソ</b>を足しました。苗を買って植えることが多いものです）。<b>ダイコン・ニンジン・カブ・ラディッシュ・ビーツ・ホウレンソウ・コマツナ・エンドウ・ソラマメ</b>は、根や芽をいためると育たないので<b>畑に直接まく</b>もの。苗からの選びは出しません<br>
+            ・<b>📅 カレンダーの日をタップ</b>（v362から）：🪴に登録した野菜を出しているとき、<b>カレンダーの日をタップ</b>すると<b>その日の画面</b>が開きます。<b>📷写真をとる・🖼写真をえらぶ・✎文だけ書く</b>で、<b>その日づけのまま</b>記録できます（日づけを直す手間が要りません）。写真をつけた日は<b>カレンダーのマス目が写真になり</b>、日づけは小さく上にのります。<b>そのマス目をもう一度タップすると大きく見られます</b>。作業の日（追肥・収穫など）の色は<b>枠の色</b>として残るので、どの作業の日かも分かります。この写真は<b>🖨PDF・🖼画像の書き出しのカレンダーにも出ます</b><br>
             ・<b>📓 育成日記</b>（v361から）：🪴育てている野菜の行の<b>📓</b>を押すと、その野菜だけの日記が開きます。<b>📷写真をとる・🖼写真をえらぶ・✎文だけ書く</b>で、その日の様子を残せます。日づけは<b>今日</b>で入り、あとから<b>📅日づけ</b>で直せます。<b>植えてから何日目か</b>も一緒に出るので、去年と見くらべやすくなります。📓には<b>今ある件数</b>が付きます。<b>🖨日記をPDFに（写真つき）・🖼画像で保存・📤画像を共有</b>で、写真ごとまとめて出せます（日記は写真を小さくしたくないので、1ページに押し込めず<b>何ページかに分けて</b>出します）。<br>
             　<b>写真は端末の中だけ</b>に残ります（長いほうを900pxまで小さくしてからしまいます）。1つの野菜につき<b>80件</b>まで。<b>📋リストの⬇書き出し（JSON）では日記は移せない</b>ので、大事な写真は<b>画像で保存</b>して端末の写真フォルダに残しておいてください。野菜を<b>✕</b>で消すと、その日記も一緒に消えます<br>
             ・<b>画面は全画面</b>で開きます（v347から。見るものが多いため）<br>
@@ -7652,13 +7688,25 @@ function monthGridHtml(y, m, opts){
     const cls=['dp-cell']; if(w===0) cls.push('sun'); if(w===6) cls.push('sat');
     if(todayS!==null && s===todayS) cls.push('today');
     if(o.sel!=null && s===o.sel) cls.push('sel');
-    let style='';
+    const st=[];
     if(mk){
       cls.push('veg-on'); if(mk.band) cls.push('veg-band');
-      style=` style="background:${mk.c}${mk.band?'55':''};${mk.band?'color:var(--text)':''}"`;
+      st.push(`background:${mk.c}${mk.band?'55':''}`);
+      if(mk.band) st.push('color:var(--text)');
     }
+    // その日の写真があれば、マス目いっぱいに出して日づけは小さく上にのせる（v362）
+    const ph=o.photo && o.photo[s];
+    let inner=String(d);
+    if(ph){
+      cls.push('dp-photo');
+      st.push(`background-image:url(${ph})`);
+      if(mk) st.push(`border-color:${mk.c}`);         // 作業の色は枠で残す
+      inner=`<span class="dp-n">${d}</span>`;
+    }
+    const style=st.length?` style="${st.join(';')}"`:'';
     const click=o.click?` onclick="${o.click}(${y},${m},${d})"`:'';
-    html+=`<div class="${cls.join(' ')}"${style}${click}${mk?` title="${escHtml(mk.what)}"`:''}>${d}</div>`;
+    const tip=[mk?mk.what:'', ph?'写真あり':''].filter(Boolean).join('／');
+    html+=`<div class="${cls.join(' ')}"${style}${click}${tip?` title="${escHtml(tip)}"`:''}>${inner}</div>`;
   }
   return html;
 }
@@ -8126,6 +8174,7 @@ function vegPlotDel(id){
 const VEG_DIARY_KEY='excalc_veg_diary';
 const VEG_DIARY_MAX=80;          // 1つの野菜につき残せる数
 const VEG_DIARY_PX=900;          // 写真の長いほうの上限
+const VEG_THUMB_PX=150;          // カレンダーのマス目に出す小さな見本
 let vegDiary={};                 // { 登録したid: [{id, d:日づけ(通し番号), t:'ひとこと', p:'写真'}] }
 let vegDiaryId=null;             // いま開いている日記の野菜
 function loadVegDiary(){
@@ -8144,19 +8193,42 @@ function vegDiaryShrink(file){
   return new Promise(resolve=>{
     const url=URL.createObjectURL(file), img=new Image();
     img.onload=()=>{
-      try{
-        const k=Math.min(1, VEG_DIARY_PX/Math.max(img.width, img.height));
-        const w=Math.max(1,Math.round(img.width*k)), h=Math.max(1,Math.round(img.height*k));
-        const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
-        const cx=cv.getContext('2d');
-        cx.fillStyle='#fff'; cx.fillRect(0,0,w,h);      // 透明のところが黒くならないように
-        cx.drawImage(img,0,0,w,h);
-        resolve(cv.toDataURL('image/jpeg',0.72));
-      }catch(_){ resolve(''); }
+      try{ resolve(vegDrawTo(img, VEG_DIARY_PX, 0.72)); }catch(_){ resolve(''); }
       try{ URL.revokeObjectURL(url); }catch(_){}
     };
     img.onerror=()=>{ resolve(''); try{ URL.revokeObjectURL(url); }catch(_){} };
     img.src=url;
+  });
+}
+/* 絵を長いほう px まで縮めて JPEG の data URL にする */
+function vegDrawTo(img, px, q){
+  const k=Math.min(1, px/Math.max(img.width||img.naturalWidth, img.height||img.naturalHeight));
+  const w=Math.max(1,Math.round((img.width||img.naturalWidth)*k));
+  const h=Math.max(1,Math.round((img.height||img.naturalHeight)*k));
+  const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+  const cx=cv.getContext('2d');
+  cx.fillStyle='#fff'; cx.fillRect(0,0,w,h);        // 透明のところが黒くならないように
+  cx.drawImage(img,0,0,w,h);
+  return cv.toDataURL('image/jpeg',q);
+}
+/* カレンダーのマス目に出すための小さな見本（正方形に切り取る） */
+function vegDiaryThumb(dataUrl){
+  return new Promise(resolve=>{
+    if(!dataUrl){ resolve(''); return; }
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        const n=Math.min(img.naturalWidth, img.naturalHeight);
+        const sx=(img.naturalWidth-n)/2, sy=(img.naturalHeight-n)/2;
+        const cv=document.createElement('canvas'); cv.width=VEG_THUMB_PX; cv.height=VEG_THUMB_PX;
+        const cx=cv.getContext('2d');
+        cx.fillStyle='#fff'; cx.fillRect(0,0,VEG_THUMB_PX,VEG_THUMB_PX);
+        cx.drawImage(img, sx, sy, n, n, 0, 0, VEG_THUMB_PX, VEG_THUMB_PX);
+        resolve(cv.toDataURL('image/jpeg',0.6));
+      }catch(_){ resolve(''); }
+    };
+    img.onerror=()=>resolve('');
+    img.src=dataUrl;
   });
 }
 function openVegDiary(plotId){
@@ -8165,7 +8237,41 @@ function openVegDiary(plotId){
   vegDiaryRender();
   openDlg('vegDiaryOverlay');
 }
-function closeVegDiary(){ closeDlg('vegDiaryOverlay', ()=>{ vegDiaryId=null; vegRenderPlots(); }); }
+function closeVegDiary(){ closeDlg('vegDiaryOverlay', ()=>{ vegDiaryId=null; vegRenderPlots(); vegRenderCal(); }); }
+/* ── カレンダーの日をタップして開く「その日の画面」（v362） ── */
+let vegDaySerial=null;
+function openVegDay(plotId, serial){
+  const pl=vegPlots.find(x=>x.id===plotId); if(!pl) return;
+  vegDiaryId=plotId; vegDaySerial=serial;
+  vegDayRender();
+  openDlg('vegDayOverlay');
+}
+function closeVegDay(){ closeDlg('vegDayOverlay', ()=>{ vegDaySerial=null; vegRenderCal(); vegRenderPlots(); }); }
+function vegDayRender(){
+  const pl=vegPlots.find(x=>x.id===vegDiaryId);
+  const head=document.getElementById('vegDayHead'), box=document.getElementById('vegDayBody');
+  const ttl=document.getElementById('vegDayTitle');
+  if(!head||!box||!pl||vegDaySerial===null) return;
+  const v=vegAll().find(x=>x.n===pl.n), ico=v?(v.i||'🌱'):'🌱';
+  const ymd=serialToYMD(vegDaySerial);
+  if(ttl) ttl.textContent=`📅 ${ymd.m}月${ymd.d}日 の ${pl.n}`;
+  const mk=vegMarkMap()[vegDaySerial];
+  head.innerHTML=`<div class="vd-name">${ico} ${escHtml(pl.n)} ／ ${ymd.y}年${ymd.m}月${ymd.d}日（${WDAY_JP[ymd.w]}）</div>`
+    +`<div class="vd-sub">${escHtml(vegDiaryNth(pl, vegDaySerial))}`
+    +(mk?`　／　<b style="color:${mk.c}">${escHtml(mk.what)}</b>の日`:'')
+    +(vegDaySerial===todaySerial()?'　／　今日':'')+`</div>`;
+  const list=vegDiaryOf(vegDiaryId).filter(e=>e.d===vegDaySerial)
+    .sort((a,b)=>(a.id<b.id?-1:1));
+  box.innerHTML=list.length
+    ? list.map(e=>vegEntryHtml(pl, e, false)).join('')
+    : '<div class="veg-empty">この日の記録はまだありません。上の<b>📷写真をとる</b>などで残せます。</div>';
+}
+/* その日の画面から、日記ぜんぶへ */
+function openVegDiaryFromDay(){
+  const id=vegDiaryId;
+  closeVegDay();
+  openVegDiary(id);           // 同じ回のうちに開き直すと、端末の戻るの数が合う
+}
 /* 何日目か（植えた日を0日目ではなく1日目と数える。日記の言い方に合わせる） */
 function vegDiaryNth(pl, d){
   const n=d-pl.s;
@@ -8189,42 +8295,56 @@ function vegDiaryRender(){
     return;
   }
   const sorted=list.slice().sort((a,b)=>(b.d-a.d)||(b.id<a.id?-1:1));   // 新しい日づけを上に
-  box.innerHTML=sorted.map(e=>{
-    const ymd=serialToYMD(e.d);
-    return `<div class="vd-item">
-      <div class="vd-when">${ymd.y}年${ymd.m}月${ymd.d}日（${WDAY_JP[ymd.w]}）<span class="vd-nth">${escHtml(vegDiaryNth(pl,e.d))}</span></div>
-      ${e.p?`<img class="vd-img" src="${e.p}" alt="${escHtml(pl.n)}の写真">`:''}
-      ${e.t?`<div class="vd-text">${escHtml(e.t).replace(/\n/g,'<br>')}</div>`:''}
-      <div class="vd-acts">
+  box.innerHTML=sorted.map(e=>vegEntryHtml(pl, e, true)).join('');
+}
+/* 日記1件ぶんの見せ方（日記の一覧と、カレンダーから開く「その日の画面」で共通） */
+function vegEntryHtml(pl, e, showDate){
+  const ymd=serialToYMD(e.d);
+  return `<div class="vd-item">`
+    +(showDate?`<div class="vd-when">${ymd.y}年${ymd.m}月${ymd.d}日（${WDAY_JP[ymd.w]}）<span class="vd-nth">${escHtml(vegDiaryNth(pl,e.d))}</span></div>`:'')
+    +(e.p?`<img class="vd-img" src="${e.p}" alt="${escHtml(pl.n)}の写真">`:'')
+    +(e.t?`<div class="vd-text">${escHtml(e.t).replace(/\n/g,'<br>')}</div>`:'')
+    +`<div class="vd-acts">
         <button class="veg-mini" onclick="vegDiaryEdit('${e.id}')">✎ 文</button>
         <button class="veg-mini" onclick="vegDiaryWhen('${e.id}')">📅 日づけ</button>
         <button class="veg-my-del" onclick="vegDiaryDel('${e.id}')" aria-label="この日の記録を消す">✕</button>
-      </div>
-    </div>`;
-  }).join('');
+      </div></div>`;
 }
 /* 写真を1枚ぶん足す（カメラでもファイルでも同じ入口） */
+/* どの日に足すか。カレンダーから開いた「その日の画面」ならその日、日記の一覧なら今日 */
+function vegDiaryTargetDay(){
+  return (isDlgOpen('vegDayOverlay') && vegDaySerial!==null) ? vegDaySerial : todaySerial();
+}
+/* 開いている画面（日記・その日・カレンダー・一覧）をまとめて出し直す */
+function vegDiaryRefresh(){
+  if(isDlgOpen('vegDiaryOverlay')) vegDiaryRender();
+  if(isDlgOpen('vegDayOverlay')) vegDayRender();
+  if(isDlgOpen('veggieOverlay')){ vegRenderCal(); vegRenderPlots(); }
+}
 async function vegDiaryPhoto(ev){
   const f=ev.target.files && ev.target.files[0];
   ev.target.value='';
   if(!f || !vegDiaryId) return;
   const pl=vegPlots.find(x=>x.id===vegDiaryId); if(!pl) return;
   if(vegDiaryCount(vegDiaryId)>=VEG_DIARY_MAX){ toast(`この野菜の日記は${VEG_DIARY_MAX}件までです。古いものを消してください`); return; }
+  const day=vegDiaryTargetDay();
   toast('写真をしまっています…');
   const p=await vegDiaryShrink(f);
   if(!p){ toast('この写真は読めませんでした'); return; }
+  const th=await vegDiaryThumb(p);                    // カレンダーに出す小さな見本
   const t=await appPrompt('ひとこと（空でもOK）', '', true);
   if(t===null) return;
-  vegDiaryPush({ d:todaySerial(), t:String(t).trim().slice(0,400), p });
+  vegDiaryPush({ d:day, t:String(t).trim().slice(0,400), p, th });
 }
 async function vegDiaryAddText(){
   if(!vegDiaryId) return;
   if(vegDiaryCount(vegDiaryId)>=VEG_DIARY_MAX){ toast(`この野菜の日記は${VEG_DIARY_MAX}件までです。古いものを消してください`); return; }
-  const t=await appPrompt('今日の様子を書いてください', '', true);
+  const day=vegDiaryTargetDay();
+  const t=await appPrompt('その日の様子を書いてください', '', true);
   if(t===null) return;
   const txt=String(t).trim().slice(0,400);
   if(!txt){ toast('何も書かれていません'); return; }
-  vegDiaryPush({ d:todaySerial(), t:txt, p:'' });
+  vegDiaryPush({ d:day, t:txt, p:'' });
 }
 function vegDiaryPush(e){
   const arr=vegDiaryOf(vegDiaryId).slice();
@@ -8232,7 +8352,7 @@ function vegDiaryPush(e){
   const keep=vegDiary[vegDiaryId];
   vegDiary[vegDiaryId]=arr;
   if(!saveVegDiary()){ if(keep===undefined) delete vegDiary[vegDiaryId]; else vegDiary[vegDiaryId]=keep; return; }
-  vegDiaryRender();
+  vegDiaryRefresh();
   toast('日記に足しました');
 }
 function vegDiaryFind(eid){
@@ -8247,7 +8367,7 @@ async function vegDiaryEdit(eid){
   e.t=String(t).trim().slice(0,400);
   if(!e.t && !e.p){ e.t=before; toast('写真も文も無くなるので、✕で消してください'); return; }
   if(!saveVegDiary()){ e.t=before; return; }
-  vegDiaryRender();
+  vegDiaryRefresh();
 }
 async function vegDiaryWhen(eid){
   const { e }=vegDiaryFind(eid); if(!e) return;
@@ -8260,7 +8380,7 @@ async function vegDiaryWhen(eid){
   if(d===null || !isFinite(d)){ toast('日づけが読めませんでした'); return; }
   const before=e.d; e.d=d;
   if(!saveVegDiary()){ e.d=before; return; }
-  vegDiaryRender();
+  vegDiaryRefresh();
 }
 function vegDiaryDel(eid){
   const { arr }=vegDiaryFind(eid);
@@ -8269,7 +8389,7 @@ function vegDiaryDel(eid){
   arr.splice(i,1);
   vegDiary[vegDiaryId]=arr;
   if(!saveVegDiary()){ vegDiary[vegDiaryId]=keep; return; }
-  vegDiaryRender();
+  vegDiaryRefresh();
   toast('消しました');
 }
 /* 日記を1ページにまとめて書き出す（育成計画の書き出しと同じしくみ） */
@@ -8467,15 +8587,37 @@ function vegMarkMap(){
   });
   return mark;
 }
-function vegMonthCells(y, m, mark, todayS){
-  return monthGridHtml(y, m, { mark, today:(todayS!==null) });
+function vegMonthCells(y, m, mark, todayS, photo){
+  return monthGridHtml(y, m, { mark, today:(todayS!==null), photo, click:(photo!==undefined&&todayS!==null)?'vegCalTap':null });
+}
+/* いま画面に出している計画が、登録した野菜のどれにあたるか（野菜・植えた日・種/苗が同じもの） */
+function vegCurPlot(){
+  if(!vegSel || vegSowSerial===null) return null;
+  return vegPlots.find(x=>x.n===vegSel.n && x.s===vegSowSerial && x.as===vegAs) || null;
+}
+/* その野菜の、日ごとの写真（1日に何枚かあれば最初の1枚）。登録していなければ null */
+function vegPhotoMap(pl){
+  const t=pl||vegCurPlot(); if(!t) return null;
+  const map={};
+  for(const e of vegDiaryOf(t.id)){ if(e.p && !map[e.d]) map[e.d]=e.th||e.p; }
+  return map;
 }
 function vegRenderCal(){
   const t=document.getElementById('vegCalTitle'), g=document.getElementById('vegGrid'), wd=document.getElementById('vegWdays');
   if(!t||!g||!wd) return;
   t.textContent=`${vegCalY}年 ${vegCalM}月`;
   if(!wd.dataset.built){ wd.innerHTML=wdayHeadHtml(); wd.dataset.built='1'; }
-  g.innerHTML=vegMonthCells(vegCalY, vegCalM, vegMarkMap(), todaySerial());
+  g.innerHTML=vegMonthCells(vegCalY, vegCalM, vegMarkMap(), todaySerial(), vegPhotoMap()||{});
+  const hint=document.getElementById('vegCalHint');
+  if(hint) hint.textContent=vegCurPlot()
+    ? '日をタップすると、その日の写真をつけたり、つけた写真を大きく見たりできます'
+    : '🪴に登録すると、カレンダーの日をタップして写真を残せます（＋下の内容…）';
+}
+/* カレンダーの日をタップ：その日の画面を開く（写真をつける／大きく見る） */
+function vegCalTap(y, m, d){
+  const pl=vegCurPlot();
+  if(!pl){ toast('先に「＋下の内容（野菜と植えた日）を登録する」を押してください'); return; }
+  openVegDay(pl.id, mkSerial(y,m,d));
 }
 /* 予定表を表（シート）に書き出す。選んでいるセルを左上にして、足りない行・列は増やす */
 function vegInsertToSheet(){
@@ -8664,6 +8806,7 @@ function vegPdfHtml(){
   const when=(h.from===h.to)?vegFmtDate(h.from):`${vegFmtDate(h.from)}〜${vegFmtDate(h.to)}`;
   const wd=wdayHeadHtml();
   const mark=vegMarkMap();
+  const photos=vegPhotoMap()||undefined;      // 日記の写真があれば、書き出したカレンダーにも出す
 
   let html=`<div class="vp-head">
       <div class="vp-title">${vegSel.i||'🌱'} ${escHtml(vegSel.n)} の育成計画</div>
@@ -8683,7 +8826,7 @@ function vegPdfHtml(){
 
   vegPdfMonths().forEach(({y,m})=>{
     html+=`<div class="vp-box vp-cal"><div class="vp-h">${y}年 ${m}月</div>`
-      +`<div class="dp-wdays">${wd}</div><div class="dp-grid veg-grid">${vegMonthCells(y,m,mark,null)}</div></div>`;
+      +`<div class="dp-wdays">${wd}</div><div class="dp-grid veg-grid">${vegMonthCells(y,m,mark,null,photos)}</div></div>`;
   });
 
   const lime=(f.lime[1]===0)?'まきません（土をアルカリに寄せないため）':vegAmt(f.lime,'g');
@@ -16756,7 +16899,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v361';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v362';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
