@@ -2662,6 +2662,83 @@ async function runVegDiary(browser) {
   await page.evaluate(() => { openVeggie(); vegPlots.slice().forEach(p => vegPlotDel(p.id)); });
   await page.waitForTimeout(350);
 
+
+  // ── 気候の設定は閉じられる／カレンダーは横フリックで月送り（v363） ──
+  await page.evaluate(() => openVeggie()); await page.waitForTimeout(350);
+  check('  気候の設定ははじめ閉じている', await page.evaluate(() =>
+    document.getElementById('vegAreaAcc').open), false);
+  check('  閉じていても見出しに今の設定が出る', await page.evaluate(() =>
+    document.getElementById('vegAreaSum').textContent.replace(/\s+/g, '')), '🌡気候の設定関東・東海・近畿');
+  check('  変えると見出しも変わる', await page.evaluate(() => {
+    vegArea.id = 'hokkaido'; vegArea.alt = 300; vegArea.cold = true; saveVegArea(); vegRenderArea();
+    return document.getElementById('vegAreaSum').textContent.replace(/\s+/g, ''); }),
+    '🌡気候の設定北海道・標高300m・寒冷地');
+  await page.evaluate(() => { vegArea = { id: 'kanto', alt: 0, cold: false, plot: 1 }; saveVegArea(); vegRenderAll(); });
+  check('  開け閉めを覚える', await page.evaluate(async () => {
+    const el = document.getElementById('vegAreaAcc');
+    el.open = true; el.dispatchEvent(new Event('toggle'));
+    const saved = localStorage.getItem('excalc_veg_areaacc');
+    el.open = false; el.dispatchEvent(new Event('toggle'));
+    return saved + '/' + localStorage.getItem('excalc_veg_areaacc'); }), '1/0');
+  check('  開き直すと覚えた形で出る', await page.evaluate(() => {
+    localStorage.setItem('excalc_veg_areaacc', '1'); applyVegAreaAcc();
+    const a = document.getElementById('vegAreaAcc').open;
+    localStorage.setItem('excalc_veg_areaacc', '0'); applyVegAreaAcc();
+    return a + '/' + document.getElementById('vegAreaAcc').open; }), 'true/false');
+
+  // カレンダーは「横フリックに別の意味がある」印が付いていて、道具の行き来は手を出さない
+  check('  カレンダーに月送りの印が付く', await page.evaluate(() =>
+    document.getElementById('vegCalBox').dataset.hswipe), '1');
+  check('  日もカレンダーの中にある', await page.evaluate(() =>
+    !!document.getElementById('vegCalBox').querySelector('#vegGrid')), true);
+
+  // 指でのフリック（本物のタッチ）で月が変わる
+  const cdp = await page.context().newCDPSession(page);
+  const swipe = async (sel, dx) => {
+    const r = await page.evaluate(s => { const b = document.querySelector(s).getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; }, sel);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: r.x, y: r.y }] });
+    for (let i = 1; i <= 6; i++) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: r.x + dx * i / 6, y: r.y }] });
+      await page.waitForTimeout(16);
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForTimeout(350);
+  };
+  await page.evaluate(() => {
+    npTools = ['tansui', 'veggie', 'kantab']; saveNpTools(); applyNpToolFull(); renderNumpadPageBar();
+    vegSel = VEG_PLANS.find(v => v.n === 'ハクサイ'); vegSowSerial = todaySerial() - 20;
+    vegSetAs('nae'); vegPlotAdd(); vegRenderAll();
+    const g = document.getElementById('vegCalBox');
+    document.querySelector('#veggieOverlay .modal-body').scrollTop = g.offsetTop - 150; });
+  await page.waitForTimeout(400);
+  const month = () => page.evaluate(() => document.getElementById('vegCalTitle').textContent);
+  const m0 = await month();
+  await swipe('#vegGrid', -140);
+  const m1 = await month();
+  check('  左へ払うと次の月', m1 !== m0, true);
+  check('  月送りでは道具は変わらない', await page.evaluate(() => isDlgOpen('veggieOverlay')), true);
+  await swipe('#vegGrid', 140);
+  check('  右へ払うと前の月にもどる', await month(), m0);
+  await swipe('.veg-cal-nav', -140);
+  check('  上のバーの上でも月送り', (await month()) !== m0, true);
+  await page.evaluate(() => vegCalHome()); await page.waitForTimeout(250);
+
+  // フリックしたあとは、指を離した先の日が開かない
+  await swipe('#vegGrid', -140);
+  check('  月送りのあと日は開かない', await page.evaluate(() => isDlgOpen('vegDayOverlay')), false);
+  await page.evaluate(() => vegCalHome()); await page.waitForTimeout(250);
+
+  // カレンダー以外の本文は、今までどおり道具のあいだを移る
+  await page.evaluate(() => { document.querySelector('#veggieOverlay .modal-body').scrollTop = 0; });
+  await page.waitForTimeout(250);
+  await swipe('#vegChips', -140);
+  check('  本文を払うととなりの道具へ', await page.evaluate(() =>
+    ['tansuiOverlay', 'veggieOverlay', 'kantabOverlay'].filter(isDlgOpen).join(',') || 'なし'), 'kantabOverlay');
+  await page.evaluate(() => { const t = npToolDef('kantab'); if (t && t.close) t.close(); });
+  await page.waitForTimeout(350);
+  await page.evaluate(() => { npTools = []; saveNpTools(); applyNpToolFull(); });
+
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();

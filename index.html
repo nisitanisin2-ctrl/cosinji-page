@@ -1483,6 +1483,10 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
   background: rgba(0,0,0,.58); color: #fff; font-size: 10px; line-height: 14px; font-weight: bold;
 }
 .veg-calhint { font-size: 11px; color: var(--text-light); line-height: 1.5; padding: 6px 2px 2px; }
+/* カレンダーのひとまとまり。ここだけ横フリックが「月送り」になる（v363） */
+.veg-cal { margin-bottom: 10px; }
+/* 気候の設定は閉じられる。閉じていても見出しに今の設定を出す（v363） */
+.veg-area-acc > summary > small { display: block; font-weight: normal; font-size: 11px; color: var(--text-light); margin-top: 2px; }
 /* その日の画面では写真を大きく出す */
 .vd-big .vd-img { max-height: 70vh; }
 .veg-grid, .veg-wdays { padding: 0; }
@@ -3822,26 +3826,31 @@ body.dark {
           <button class="veg-mini veg-as-btn" id="vegAsNae" onclick="vegSetAs('nae')">苗から</button>
         </span>
       </div>
-      <div class="veg-row">
-        <span class="veg-lb">地域</span>
-        <select class="veg-sel" id="vegAreaSel" onchange="vegAreaChange()" aria-label="地域"></select>
-        <span class="veg-lb">標高</span>
-        <input type="number" class="veg-num" id="vegAlt" inputmode="numeric" onchange="vegAreaChange()" aria-label="標高（メートル）">
-        <span>m</span>
-        <label class="veg-chk"><input type="checkbox" id="vegCold" onchange="vegAreaChange()">寒冷地（霜がおりる畑）</label>
-      </div>
+      <details class="veg-sec veg-area-acc" id="vegAreaAcc" ontoggle="saveVegAreaAcc(this)">
+        <summary id="vegAreaSum">🌡 気候の設定</summary>
+        <div class="veg-row">
+          <span class="veg-lb">地域</span>
+          <select class="veg-sel" id="vegAreaSel" onchange="vegAreaChange()" aria-label="地域"></select>
+          <span class="veg-lb">標高</span>
+          <input type="number" class="veg-num" id="vegAlt" inputmode="numeric" onchange="vegAreaChange()" aria-label="標高（メートル）">
+          <span>m</span>
+          <label class="veg-chk"><input type="checkbox" id="vegCold" onchange="vegAreaChange()">寒冷地（霜がおりる畑）</label>
+        </div>
+      </details>
       <div class="veg-fix" id="vegFix"></div>
       <div id="vegHead"></div>
       <div class="veg-plan" id="vegPlan"></div>
-      <div class="veg-cal-nav">
-        <button class="dp-navbtn" onclick="vegMonthMove(-1)" aria-label="前の月">‹</button>
-        <span class="dp-title" id="vegCalTitle"></span>
-        <button class="dp-navbtn" onclick="vegMonthMove(1)" aria-label="次の月">›</button>
-        <button class="veg-mini" onclick="vegCalHome()">種まきの月</button>
+      <div class="veg-cal" id="vegCalBox" data-hswipe="1">
+        <div class="veg-cal-nav">
+          <button class="dp-navbtn" onclick="vegMonthMove(-1)" aria-label="前の月">‹</button>
+          <span class="dp-title" id="vegCalTitle"></span>
+          <button class="dp-navbtn" onclick="vegMonthMove(1)" aria-label="次の月">›</button>
+          <button class="veg-mini" onclick="vegCalHome()">種まきの月</button>
+        </div>
+        <div class="dp-wdays veg-wdays" id="vegWdays"></div>
+        <div class="dp-grid veg-grid" id="vegGrid"></div>
+        <div class="veg-calhint" id="vegCalHint"></div>
       </div>
-      <div class="dp-wdays veg-wdays" id="vegWdays"></div>
-      <div class="dp-grid veg-grid" id="vegGrid"></div>
-      <div class="veg-calhint" id="vegCalHint"></div>
       <details class="veg-sec" open>
         <summary>🧪 肥料と配合</summary>
         <div id="vegFertBody"></div>
@@ -4605,6 +4614,8 @@ body.dark {
             ・<b>カレンダー</b>にも色が付きます（<span style="color:#6d4c41">■</span>種まき・植えつけ／<span style="color:#7cb342">■</span>発芽・根づく／<span style="color:#1565c0">■</span>間引き・土寄せなどの手入れ／<span style="color:#ef6c00">■</span>追肥／<span style="color:#c2185b">■</span>花・受粉／<span style="color:#2e7d32">■</span>収穫）。濃い色が<b>その作業の初日</b>、薄い色は<b>そのあいだの期間</b>です。<b>‹ ›</b>で月を送り、<b>「種まきの月」</b>で戻ります<br>
             ・<b>🪴 育てている野菜</b>（v347から）：画面のいちばん上に、<b>いつ・何を・種から／苗から 植えたか</b>の記録が並びます。<b>＋下の内容（野菜と植えた日）を登録する</b>で、いま出している内容をそのまま登録できます。行をタップすると<b>その予定に戻ります</b>（下の予定のところまで自動で送ります）。それぞれの行には<b>植えてから何日目か</b>と<b>つぎの作業とあと何日か</b>（例「つぎ 追肥 あと12日」「いま 発芽（1日まで）」）が出るので、いくつ育てていても一目で分かります。<b>✎</b>で畑や品種の名前を付けられ、<b>✕</b>で消せます。開き直しても残ります<br>
             ・<b>種から／苗から</b>（v347から）：種から育てる野菜では、<b>苗から</b>を選ぶと<b>苗を植えた日を0日目</b>として数え直します（それより前の発芽・鉢上げなどは出しません）。いも・苗から育てるもの（ジャガイモ・イチゴなど）は、はじめから植えつけの日で数えるのでこの選びは出ません。<b>苗から始められる野菜は19種類</b>です（v361で<b>ハクサイ・オクラ・トウモロコシ・エダマメ・ミズナ・シュンギク・シソ</b>を足しました。苗を買って植えることが多いものです）。<b>ダイコン・ニンジン・カブ・ラディッシュ・ビーツ・ホウレンソウ・コマツナ・エンドウ・ソラマメ</b>は、根や芽をいためると育たないので<b>畑に直接まく</b>もの。苗からの選びは出しません<br>
+            ・<b>カレンダーは横フリックで月送り</b>（v363から）：カレンダーのところを<b>左へ払うと次の月／右へ払うと前の月</b>になります（<b>‹ ›</b>と同じです）。テンキーに登録した道具は本文を横に払うと<b>となりの道具</b>に移りますが、<b>カレンダーの上だけは月送り</b>になります。日を<b>タップ</b>したときは今までどおりその日の画面が開きます<br>
+            ・<b>🌡 気候の設定は閉じられます</b>（v363から）：地域・標高・寒冷地は1度入れたらあとは触らないので、<b>はじめは閉じて</b>あります。見出しに<b>今の設定（例：北海道・標高300m・寒冷地）</b>が出るので、閉じたままでも何にしてあるか分かります。開け閉めは<b>次に開いたときも残ります</b><br>
             ・<b>📅 カレンダーの日をタップ</b>（v362から）：🪴に登録した野菜を出しているとき、<b>カレンダーの日をタップ</b>すると<b>その日の画面</b>が開きます。<b>📷写真をとる・🖼写真をえらぶ・✎文だけ書く</b>で、<b>その日づけのまま</b>記録できます（日づけを直す手間が要りません）。写真をつけた日は<b>カレンダーのマス目が写真になり</b>、日づけは小さく上にのります。<b>そのマス目をもう一度タップすると大きく見られます</b>。作業の日（追肥・収穫など）の色は<b>枠の色</b>として残るので、どの作業の日かも分かります。この写真は<b>🖨PDF・🖼画像の書き出しのカレンダーにも出ます</b><br>
             ・<b>📓 育成日記</b>（v361から）：🪴育てている野菜の行の<b>📓</b>を押すと、その野菜だけの日記が開きます。<b>📷写真をとる・🖼写真をえらぶ・✎文だけ書く</b>で、その日の様子を残せます。日づけは<b>今日</b>で入り、あとから<b>📅日づけ</b>で直せます。<b>植えてから何日目か</b>も一緒に出るので、去年と見くらべやすくなります。📓には<b>今ある件数</b>が付きます。<b>🖨日記をPDFに（写真つき）・🖼画像で保存・📤画像を共有</b>で、写真ごとまとめて出せます（日記は写真を小さくしたくないので、1ページに押し込めず<b>何ページかに分けて</b>出します）。<br>
             　<b>写真は端末の中だけ</b>に残ります（長いほうを900pxまで小さくしてからしまいます）。1つの野菜につき<b>80件</b>まで。<b>📋リストの⬇書き出し（JSON）では日記は移せない</b>ので、大事な写真は<b>画像で保存</b>して端末の写真フォルダに残しておいてください。野菜を<b>✕</b>で消すと、その日記も一緒に消えます<br>
@@ -7793,6 +7804,14 @@ function loadVegArea(){
   }catch(_){}
 }
 function saveVegArea(){ try{ localStorage.setItem(VEG_AREA_KEY, JSON.stringify(vegArea)); }catch(_){} }
+/* 気候の設定の開け閉めを覚える（1度入れたらあとは触らないので、はじめは閉じておく） */
+const VEG_AREA_ACC_KEY='excalc_veg_areaacc';
+function saveVegAreaAcc(el){ try{ localStorage.setItem(VEG_AREA_ACC_KEY, el.open?'1':'0'); }catch(_){} }
+function applyVegAreaAcc(){
+  const el=document.getElementById('vegAreaAcc'); if(!el) return;
+  let v='0'; try{ v=localStorage.getItem(VEG_AREA_ACC_KEY)||'0'; }catch(_){}
+  el.open=(v==='1');
+}
 /* 日数にかける倍率。1.00 なら補正なし */
 function vegFactor(){
   const alt=Math.max(0, Math.min(2000, Number(vegArea.alt)||0));
@@ -8471,6 +8490,8 @@ function vegRows(){
 }
 function openVeggie(){
   loadVegMy(); loadVegArea(); loadVegPlots(); loadVegDiary();
+  applyVegAreaAcc();
+  bindHSwipe(document.getElementById('vegCalBox'), d=>vegMonthMove(d));
   if(!vegSel) vegSel=VEG_PLANS[0];
   if(vegSowSerial===null) vegSowSerial=todaySerial();
   const {y,m}=serialToYMD(vegSowSerial); vegCalY=y; vegCalM=m;
@@ -8490,6 +8511,8 @@ function vegRenderArea(){
     selEl.dataset.built='1';
   }
   selEl.value=vegArea.id; alt.value=vegArea.alt; cold.checked=!!vegArea.cold;
+  const sum=document.getElementById('vegAreaSum');
+  if(sum) sum.innerHTML='🌡 気候の設定<small>'+escHtml(vegAreaText())+'</small>';   // 閉じていても何にしてあるか分かる
   const shift=vegShiftText();
   fix.innerHTML='補正 <b>'+escHtml(vegFactorText())+'</b>'
     +(shift?'　／　種まきの時期は標準の地域より <b>'+escHtml(shift)+'</b>':'');
@@ -11742,6 +11765,7 @@ function bindNpToolSwipe(ovId){
       const tag=e.tagName;
       if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return true;   // 文字を選ぶ操作とぶつかる
       if(tag==='CANVAS') return true;                     // 写真の拡大・線引きなど、自分で指を見ている中身
+      if(e.dataset && e.dataset.hswipe) return true;      // 横フリックに別の意味があるところ（カレンダーの月送り）
       if(e.scrollWidth>e.clientWidth+4) return true;      // 横にすべる箱
       let ta=''; try{ ta=getComputedStyle(e).touchAction; }catch(_){}
       if(ta==='none') return true;
@@ -11772,6 +11796,30 @@ function bindNpToolSwipe(ovId){
   ov.addEventListener('pointercancel', e=>{ if(e.pointerId===id) decide(lx, ly); });
 }
 function bindAllNpToolSwipe(){ NP_TOOLS.forEach(t=>{ if(t.ov) bindNpToolSwipe(t.ov); }); }
+/* 横フリックに別の意味を持たせたいところ（カレンダーの月送りなど）に付ける。
+   道具のあいだの行き来（bindNpToolSwipe）は data-hswipe を見て手を出さない。 */
+function bindHSwipe(el, fn){
+  if(!el || el.dataset.hswipeBound) return;
+  el.dataset.hswipeBound='1';
+  let x0=null, y0=0, id=null, lx=0, ly=0;
+  const noGo=t=>{ for(let e=t; e && e!==el; e=e.parentElement){
+      const g=e.tagName; if(g==='INPUT'||g==='TEXTAREA'||g==='SELECT') return true; } return false; };
+  el.addEventListener('pointerdown', e=>{
+    if(e.button!==undefined && e.button>0) return;
+    if(x0!==null || noGo(e.target)) return;
+    x0=e.clientX; y0=e.clientY; lx=e.clientX; ly=e.clientY; id=e.pointerId;
+  });
+  el.addEventListener('pointermove', e=>{ if(x0!==null && e.pointerId===id){ lx=e.clientX; ly=e.clientY; } });
+  const decide=(x,y)=>{
+    if(x0===null) return;
+    const dx=x-x0, dy=y-y0; x0=null;
+    if(Math.abs(dx)<NP_SWIPE_MIN || Math.abs(dx)<Math.abs(dy)*1.5) return;   // はっきり横のときだけ
+    npSwipeBlockUntil=Date.now()+400;    // なぞった先の日が押されたことにならないように
+    fn(dx<0 ? 1 : -1);                   // 左へ払う＝次の月／右へ払う＝前の月
+  };
+  el.addEventListener('pointerup', e=>{ if(e.pointerId===id) decide(e.clientX, e.clientY); });
+  el.addEventListener('pointercancel', e=>{ if(e.pointerId===id) decide(lx, ly); });
+}
 
 /* 設定の一覧：選んだものを上に、その順に並べて出す */
 function renderNpToolList(){
@@ -16899,7 +16947,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v362';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v363';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
