@@ -2325,6 +2325,112 @@ async function runSetDedup(browser) {
   await ctx.close();
 }
 
+/* ひな形の単位表示と、単位の変換（v360） */
+async function runTmplUnit(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ひな形の単位 ──');
+
+  const load = id => page.evaluate(x => applyCalcTemplate(x), id);
+  const put = (r, v) => page.evaluate(a => setCellVal(a[0], 1, String(a[1])), [r, v]);
+  const labels = () => page.evaluate(() => {
+    const o = []; for (let r = 0; r < ROWS; r++) if (data[r][0]) o.push(data[r][0]); return o.join('/'); });
+  const val = r => page.evaluate(x => parseFloat(document.getElementById('c' + x + '_1').textContent), r);
+  const near = (a, b) => Math.abs(a - b) < Math.max(0.002, Math.abs(b) * 0.0005);
+
+  // ── かたちのひな形に単位が付いた ──
+  await load('rect'); await put(1, 2); await put(2, 3); await page.waitForTimeout(200);
+  check('  長方形は m と ㎡ が付く', await labels(),
+    '〔面積・周を求める／長さはm〕/縦(m)/横(m)/面積(㎡)/周の長さ(m)/坪/反(たん)/' +
+    '〔面積から辺を逆算〕/面積(㎡)/片方の辺(m)/もう片方の辺(m)');
+  check('  2m×3m は 6㎡', await val(3), 6);
+  check('  6㎡ は 1.815坪', near(await val(5), 1.815), true);
+  await put(8, 12); await put(9, 4); await page.waitForTimeout(200);
+  check('  逆算もずれていない（12㎡÷4m＝3m）', await val(10), 3);
+
+  await load('circle'); await put(2, 2); await page.waitForTimeout(200);
+  check('  円は m と ㎡', await labels(),
+    '〔半径か直径どちらかを入力／長さはm〕/半径(m)/直径(m)/面積(㎡)/円周(m)/' +
+    '〔円周から逆算〕/円周(m)/半径(m)/直径(m)');
+  check('  直径2mの円は 3.142㎡', near(await val(3), Math.PI), true);
+
+  await load('cylinder'); await put(2, 2); await put(3, 1); await page.waitForTimeout(200);
+  check('  円柱は ㎥ と L の両方', await labels(),
+    '〔半径か直径どちらかを入力／長さはm〕/半径(m)/直径(m)/高さ(m)/体積(㎥)/体積(L)/表面積(㎡)(側面含む)');
+  check('  直径2m高さ1mは 3.142㎥', near(await val(4), Math.PI), true);
+  check('  それは 3141.6L', near(await val(5), Math.PI * 1000), true);
+
+  await load('sphere'); await put(2, 2); await page.waitForTimeout(200);
+  check('  球も ㎥ と L', near(await val(3), 4 / 3 * Math.PI), true);
+  check('  球の表面積は ㎡', near(await val(5), 4 * Math.PI), true);
+
+  await load('tri'); await put(1, 4); await put(2, 3); await page.waitForTimeout(200);
+  check('  三角形は m と ㎡', await val(3), 6);
+  await load('pytha'); await put(1, 3); await put(2, 4); await page.waitForTimeout(200);
+  check('  三平方も m（3,4→5）', await val(3), 5);
+
+  // ── 面積の単位（㎡⇄坪・反） ──
+  await load('uarea'); await put(1, 1000); await put(10, 1); await put(14, 100);
+  await page.waitForTimeout(250);
+  check('  1000㎡ は 302.5坪', near(await val(2), 302.5), true);
+  check('  1000㎡ は 605畳', near(await val(3), 605), true);
+  check('  1000㎡ は 10.083畝', near(await val(4), 10.0833), true);
+  check('  1000㎡ は 1.008反', near(await val(5), 1.00833), true);
+  check('  1000㎡ は 0.101町', near(await val(6), 0.100833), true);
+  check('  1000㎡ は 10アール', await val(7), 10);
+  check('  1000㎡ は 0.1ヘクタール', await val(8), 0.1);
+  check('  1反 は 991.736㎡', near(await val(11), 991.7355), true);
+  check('  1反 は ちょうど300坪', near(await val(12), 300), true);
+  check('  100坪 は 330.579㎡', near(await val(15), 330.5785), true);
+  check('  100坪 は 0.333反', near(await val(16), 1 / 3), true);
+
+  // ── 長さの単位（m⇄尺・間） ──
+  await load('ulen'); await put(1, 1); await put(12, 1); await put(14, 1);
+  await page.waitForTimeout(250);
+  check('  1m は 100cm', await val(2), 100);
+  check('  1m は 33寸', near(await val(4), 33), true);
+  check('  1m は 3.3尺', near(await val(5), 3.3), true);
+  check('  1m は 0.55間', near(await val(6), 0.55), true);
+  check('  1m は 39.37インチ', near(await val(8), 39.3701), true);
+  check('  1m は 3.281フィート', near(await val(9), 3.28084), true);
+  check('  1尺 は 0.303m', near(await val(13), 10 / 33), true);
+  check('  1間 は 1.818m', near(await val(15), 60 / 33), true);
+
+  // ── 体積・重さの単位 ──
+  await load('uvol'); await put(1, 1); await put(7, 10); await page.waitForTimeout(250);
+  check('  1㎥ は 1000L', await val(2), 1000);
+  check('  1㎥ は 554.354升', near(await val(3), 1000 / 1.8039), true);
+  check('  1㎥ は 5.544石', near(await val(5), 1000 / 180.39), true);
+  check('  10kg は 10000g', await val(8), 10000);
+  check('  10kg は 2666.667匁', near(await val(10), 10000 / 3.75), true);
+  check('  10kg は 2.667貫', near(await val(12), 10 / 3.75), true);
+  check('  10kg は 22.046ポンド', near(await val(13), 10 / 0.45359237), true);
+
+  // ── 目的から選ぶ画面に「単位」が出る ──
+  await page.evaluate(() => openModeMenu()); await page.waitForTimeout(500);
+  check('  用途の一覧に「単位」がある', await page.evaluate(() =>
+    [...document.querySelectorAll('#tmplPickBody .tmpl-group-name')].map(e => e.textContent).join('/')),
+    'くらし/おかね/からだ・くるま/かたち/単位/帳票');
+  check('  単位のまとまりは4つ', await page.evaluate(() => {
+    const g = [...document.querySelectorAll('#tmplPickBody .tmpl-group')]
+      .find(x => x.querySelector('.tmpl-group-name').textContent === '単位');
+    return [...g.querySelectorAll('.tmpl-name')].map(e => e.textContent).join('/'); }),
+    '面積の単位（㎡⇄坪・反）/長さの単位（m⇄尺・間）/体積・重さの単位/温度換算（℃⇄℉）');
+  check('  計算式のひな形は25種類', await page.evaluate(() => CALC_TEMPLATES.length), 25);
+  check('  用途の一覧に全部出ている', await page.evaluate(() =>
+    TMPL_GROUPS.reduce((n, g) => n + (g.calc || []).length + (g.fin || []).length, 0)),
+    28);
+  await page.evaluate(() => closeModeMenu()); await page.waitForTimeout(300);
+
+  // ひな形だと見分けられる（ラベルを変えたので念のため）
+  await load('uarea'); await page.waitForTimeout(250);
+  check('  入れたあとひな形だと分かる', await page.evaluate(() =>
+    (currentTemplate() || {}).id), 'uarea');
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -2345,6 +2451,7 @@ async function runSetDedup(browser) {
     if (!only || only === 'report') await runReport(browser);
     if (!only || only === 'shared') await runShared(browser);
     if (!only || only === 'setdedup') await runSetDedup(browser);
+    if (!only || only === 'tmplunit') await runTmplUnit(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
