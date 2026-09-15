@@ -848,14 +848,15 @@ async function runShared(browser) {
   check('  押すとセルに日付が入る', await page.evaluate(() => {
     datePickChoose(2026, 3, 15); return getCellDisplay(0, 0); }), '2026/3/15');
   await page.waitForTimeout(250);   // 閉じたあとの履歴の始末を待つ
-  check('  育成計画のカレンダーは押せない（見るだけ）', await page.evaluate(async () => {
+  // 育成計画のカレンダーは v362 から押せる（その日の写真をつける・大きく見る）
+  check('  育成計画のカレンダーも同じ作り', await page.evaluate(async () => {
     openVeggie(); await new Promise(z => setTimeout(z, 250));
     const i = vegAll().findIndex(v => v.n === 'トマト'); vegPick(i);
     document.getElementById('vegY').value = 2026; document.getElementById('vegM').value = 3;
     document.getElementById('vegD').value = 1; vegDateChange();
     const g = document.getElementById('vegGrid');
-    const r = (g.querySelector('[onclick]') ? '押せる' : '押せない') + '/' + g.querySelectorAll('.veg-on').length;
-    closeVeggie(); return r; }), '押せない/11');
+    const r = (/vegCalTap/.test(g.innerHTML) ? '押せる' : '押せない') + '/' + g.querySelectorAll('.veg-on').length;
+    closeVeggie(); return r; }), '押せる/11');
   await page.waitForTimeout(250);
   check('  曜日の見出しも同じもの', await page.evaluate(() =>
     wdayHeadHtml() === document.getElementById('datePickWdays').innerHTML), true);
@@ -2563,6 +2564,103 @@ async function runVegDiary(browser) {
   await page.evaluate(() => { openVeggie(); vegPlotDel(vegPlots[0].id); }); await page.waitForTimeout(350);
   check('  野菜を消すと日記も消える', await page.evaluate(() =>
     JSON.stringify(vegDiary) + '/' + localStorage.getItem('excalc_veg_diary')), '{}/{}');
+
+
+  // ── カレンダーから写真をつける・大きく見る（v362） ──
+  await page.evaluate(() => { openVeggie();
+    vegSel = VEG_PLANS.find(v => v.n === 'ハクサイ');
+    vegSowSerial = todaySerial() - 20; vegSetAs('nae'); vegRenderAll(); });
+  await page.waitForTimeout(300);
+  check('  登録前は案内が出る', await page.evaluate(() =>
+    /登録すると/.test(document.getElementById('vegCalHint').textContent)), true);
+  check('  登録前にタップしても開かない', await page.evaluate(() => {
+    const t = serialToYMD(todaySerial()); vegCalTap(t.y, t.m, t.d);
+    return isDlgOpen('vegDayOverlay'); }), false);
+
+  await page.evaluate(() => { vegPlotAdd(); vegRenderAll(); }); await page.waitForTimeout(300);
+  check('  登録すると案内が変わる', await page.evaluate(() =>
+    /日をタップすると/.test(document.getElementById('vegCalHint').textContent)), true);
+  check('  いまの計画にあたる登録が分かる', await page.evaluate(() =>
+    (vegCurPlot() || {}).id === vegPlots[0].id), true);
+  check('  日をずらすと当てはまらなくなる', await page.evaluate(() => {
+    const keep = vegSowSerial; vegSowSerial = keep - 3;
+    const r = vegCurPlot(); vegSowSerial = keep; return r; }), null);
+
+  // その日の画面が開く
+  await page.evaluate(() => { const t = serialToYMD(todaySerial()); vegCalTap(t.y, t.m, t.d); });
+  await page.waitForTimeout(350);
+  check('  日をタップするとその日の画面', await page.evaluate(() => isDlgOpen('vegDayOverlay')), true);
+  check('  見出しに何日目と作業が出る', await page.evaluate(() => {
+    const t = document.getElementById('vegDayHead').textContent;
+    return /21日目/.test(t) && /今日/.test(t); }), true);
+  check('  はじめは空', await page.evaluate(() =>
+    /まだありません/.test(document.getElementById('vegDayBody').textContent)), true);
+
+  // その日づけのまま入る
+  await page.evaluate(() => { vegDiaryAddText(); });
+  await answer('結球がはじまった');
+  check('  その日づけで入る', await page.evaluate(() => {
+    const e = vegDiaryOf(vegPlots[0].id)[0]; return e.d === todaySerial() && e.t === '結球がはじまった'; }), true);
+  await page.evaluate(() => closeVegDay()); await page.waitForTimeout(350);
+
+  // 5日前の日にも、その日づけのまま入る
+  await page.evaluate(() => { const t = serialToYMD(todaySerial() - 5); vegCalTap(t.y, t.m, t.d); });
+  await page.waitForTimeout(350);
+  await page.evaluate(() => { vegDiaryAddText(); });
+  await answer('追肥した');
+  check('  5日前の日にはその日づけで入る', await page.evaluate(() =>
+    vegDiaryOf(vegPlots[0].id).some(e => e.d === todaySerial() - 5 && e.t === '追肥した')), true);
+  await page.evaluate(() => closeVegDay()); await page.waitForTimeout(350);
+
+  // 写真をつけるとカレンダーのマス目が写真になる
+  const cell = await page.evaluate(async () => {
+    const cv = document.createElement('canvas'); cv.width = 400; cv.height = 300;
+    const x = cv.getContext('2d'); x.fillStyle = '#6ab04c'; x.fillRect(0, 0, 400, 300);
+    const p = cv.toDataURL('image/jpeg', 0.8);
+    const th = await vegDiaryThumb(p);
+    const id = vegPlots[0].id;
+    vegDiary[id] = vegDiaryOf(id).concat([{ id: 'ph1', d: todaySerial() - 2, t: '外葉', p, th }]);
+    saveVegDiary(); vegRenderCal();
+    const c = [...document.querySelectorAll('#vegGrid .dp-photo')];
+    const cs = c.length ? getComputedStyle(c[0]) : null;
+    return { n: c.length, inner: c.length ? c[0].innerHTML : '',
+             img: cs ? (cs.backgroundImage !== 'none') : false,
+             border: cs ? cs.borderTopColor : '' };
+  });
+  check('  写真の日はマス目が写真になる', cell.n, 1);
+  check('  日づけは小さくのる', cell.inner, '<span class="dp-n">13</span>');
+  check('  写真がちゃんと入っている', cell.img, true);
+  check('  作業の色は枠に残る', cell.border, 'rgb(239, 108, 0)');
+  check('  見本は写真より小さい', await page.evaluate(() => {
+    const e = vegDiaryOf(vegPlots[0].id).find(x => x.id === 'ph1');
+    return e.th.length < e.p.length; }), true);
+  check('  見本は150pxの正方形', await page.evaluate(async () => {
+    const e = vegDiaryOf(vegPlots[0].id).find(x => x.id === 'ph1');
+    const im = new Image(); im.src = e.th;
+    await new Promise(r => { im.onload = r; im.onerror = r; });
+    return im.naturalWidth + 'x' + im.naturalHeight; }), '150x150');
+
+  // マス目をタップすると大きく見られる
+  await page.evaluate(() => document.querySelector('#vegGrid .dp-photo').click());
+  await page.waitForTimeout(350);
+  check('  マス目をタップで大きく見られる', await page.evaluate(() =>
+    isDlgOpen('vegDayOverlay') && document.querySelectorAll('#vegDayBody .vd-img').length === 1), true);
+  check('  その日のぶんだけ出る', await page.evaluate(() =>
+    document.querySelectorAll('#vegDayBody .vd-item').length), 1);
+  check('  大きく出す決まりが付いている', await page.evaluate(() =>
+    document.querySelector('#vegDayOverlay .modal-body').classList.contains('vd-big')), true);
+  check('  日記ぜんぶへ移れる', await page.evaluate(() => {
+    openVegDiaryFromDay();
+    return isDlgOpen('vegDiaryOverlay') + '/' + isDlgOpen('vegDayOverlay'); }), 'true/false');
+  check('  日記には3件ぜんぶ出る', await page.evaluate(() =>
+    document.querySelectorAll('#vegDiaryBody .vd-item').length), 3);
+  await page.evaluate(() => closeVegDiary()); await page.waitForTimeout(350);
+  check('  書き出したカレンダーにも写真が出る', await page.evaluate(() =>
+    (vegPdfHtml().match(/dp-photo/g) || []).length), 1);
+
+  // 片づけ
+  await page.evaluate(() => { openVeggie(); vegPlots.slice().forEach(p => vegPlotDel(p.id)); });
+  await page.waitForTimeout(350);
 
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
