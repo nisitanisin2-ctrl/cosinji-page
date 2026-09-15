@@ -1494,6 +1494,38 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
 }
 .veg-plot-memo { margin-left: 6px; font-size: 12px; font-weight: normal; color: var(--text-light); }
 .veg-plot-sub { display: block; font-size: 12px; color: var(--text-light); margin-top: 2px; line-height: 1.4; }
+/* 育成日記（v361） */
+.veg-diary-btn { position: relative; }
+.vd-badge {
+  position: absolute; top: -5px; right: -5px; min-width: 15px; padding: 0 3px;
+  background: var(--acc); color: #fff; border-radius: 8px;
+  font-size: 10px; line-height: 15px; font-weight: bold; text-align: center;
+}
+.vd-head { padding: 2px 2px 8px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+.vd-name { font-size: 16px; font-weight: bold; color: var(--text); }
+.vd-sub { font-size: 12px; color: var(--text-light); margin-top: 3px; line-height: 1.5; }
+.vd-btns { display: flex; gap: 6px; margin-bottom: 12px; }
+.vd-btns .vol-photo-btn { flex: 1; min-width: 0; padding: 12px 4px; font-size: 13px; white-space: nowrap; }
+.vd-item {
+  border: 1px solid var(--border); border-radius: var(--r-btn);
+  padding: 8px 10px 6px; margin-bottom: 10px; background: var(--panel);
+}
+.vd-when { font-size: 13px; font-weight: bold; color: var(--text); }
+.vd-nth { margin-left: 8px; font-size: 12px; font-weight: normal; color: var(--text-light); }
+.vd-img {
+  display: block; width: 100%; max-height: 420px; object-fit: contain;
+  margin: 7px 0; border-radius: 6px; background: #f2f2f2;
+}
+body.dark .vd-img { background: #1b2540; }
+.vd-text { font-size: 13px; color: var(--text); line-height: 1.6; white-space: normal; word-break: break-word; }
+.vd-acts { display: flex; justify-content: flex-end; gap: 5px; margin-top: 6px; }
+/* 書き出した1ページの中での日記のカード */
+.op-doc .vd-card { break-inside: avoid; }
+.op-doc .vd-pimg {
+  display: block; max-width: 100%; max-height: 210px; width: auto; height: auto;
+  border-radius: 4px; margin: 4px auto;
+}
+.op-doc .vd-ptext { font-size: 10px; line-height: 1.5; }
 .veg-as { display: flex; gap: 4px; }
 .veg-as-btn.on { background: var(--acc); border-color: var(--acc); color: #fff; }
 .veg-sec { margin: 4px 0 10px; border: 1px solid var(--border); border-radius: var(--r-btn); }
@@ -3824,6 +3856,33 @@ body.dark {
   </div>
 </div>
 
+<!-- 育成日記：登録した野菜ごとに、写真とひとことを日づけで残す（v361） -->
+<div class="modal-overlay" id="vegDiaryOverlay" onclick="if(event.target===this)closeVegDiary()">
+  <div class="modal veg-modal modal-full">
+    <div class="modal-header">
+      <span id="vegDiaryTitle">📓 育成日記</span>
+      <button class="modal-close" onclick="closeVegDiary()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="vd-head" id="vegDiaryHead"></div>
+      <input type="file" id="vegDiaryCam" accept="image/*" capture="environment" style="display:none" onchange="vegDiaryPhoto(event)">
+      <input type="file" id="vegDiaryFile" accept="image/*" style="display:none" onchange="vegDiaryPhoto(event)">
+      <div class="vd-btns">
+        <button class="vol-photo-btn" onclick="document.getElementById('vegDiaryCam').click()">📷 写真をとる</button>
+        <button class="vol-photo-btn" onclick="document.getElementById('vegDiaryFile').click()">🖼 写真をえらぶ</button>
+        <button class="vol-photo-btn" onclick="vegDiaryAddText()">✎ 文だけ書く</button>
+      </div>
+      <div class="vd-list" id="vegDiaryBody"></div>
+      <button class="vol-insert veg-pdf-btn" onclick="vegDiaryPdf()">🖨 日記をPDFに（写真つき）</button>
+      <div class="veg-outrow">
+        <button class="vol-insert veg-pdf-btn" onclick="vegDiaryImage(false)">🖼 画像で保存</button>
+        <button class="vol-insert veg-pdf-btn" onclick="vegDiaryImage(true)">📤 画像を共有</button>
+      </div>
+      <div class="veg-note">写真は端末の中だけに残ります。機種変えのときは 📋リストの<b>⬇書き出し</b>では移せないので、大事な写真は<b>画像で保存</b>しておいてください。</div>
+    </div>
+  </div>
+</div>
+
 <!-- 容積を計算（写真を撮って寸法を入れると容積が出る。結果をセルに入れられる） -->
 <div class="modal-overlay" id="volumeOverlay" onclick="if(event.target===this)closeVolume()">
   <div class="modal vol-modal">
@@ -4510,10 +4569,12 @@ body.dark {
           <div class="help-li"><b>🌱野菜の育成計画</b>（v340から）：<b>野菜を選んで、種をまいた日（いも・苗は植えつけた日）を入れるだけ</b>で、<b>発芽・間引き・追肥・収穫</b>などの<b>予定日</b>が出ます。いちばん上に<b>「収穫は◯〜◯日後（◯月◯日〜◯月◯日）」</b>と大きく出るので、<b>何日後にとれるか</b>がひと目で分かります。<br>
             ・<b>カレンダー</b>にも色が付きます（<span style="color:#6d4c41">■</span>種まき・植えつけ／<span style="color:#7cb342">■</span>発芽・根づく／<span style="color:#1565c0">■</span>間引き・土寄せなどの手入れ／<span style="color:#ef6c00">■</span>追肥／<span style="color:#c2185b">■</span>花・受粉／<span style="color:#2e7d32">■</span>収穫）。濃い色が<b>その作業の初日</b>、薄い色は<b>そのあいだの期間</b>です。<b>‹ ›</b>で月を送り、<b>「種まきの月」</b>で戻ります<br>
             ・<b>🪴 育てている野菜</b>（v347から）：画面のいちばん上に、<b>いつ・何を・種から／苗から 植えたか</b>の記録が並びます。<b>＋下の内容（野菜と植えた日）を登録する</b>で、いま出している内容をそのまま登録できます。行をタップすると<b>その予定に戻ります</b>（下の予定のところまで自動で送ります）。それぞれの行には<b>植えてから何日目か</b>と<b>つぎの作業とあと何日か</b>（例「つぎ 追肥 あと12日」「いま 発芽（1日まで）」）が出るので、いくつ育てていても一目で分かります。<b>✎</b>で畑や品種の名前を付けられ、<b>✕</b>で消せます。開き直しても残ります<br>
-            ・<b>種から／苗から</b>（v347から）：種から育てる野菜では、<b>苗から</b>を選ぶと<b>苗を植えた日を0日目</b>として数え直します（それより前の発芽・鉢上げなどは出しません）。いも・苗から育てるもの（ジャガイモ・イチゴなど）は、はじめから植えつけの日で数えるのでこの選びは出ません<br>
+            ・<b>種から／苗から</b>（v347から）：種から育てる野菜では、<b>苗から</b>を選ぶと<b>苗を植えた日を0日目</b>として数え直します（それより前の発芽・鉢上げなどは出しません）。いも・苗から育てるもの（ジャガイモ・イチゴなど）は、はじめから植えつけの日で数えるのでこの選びは出ません。<b>苗から始められる野菜は19種類</b>です（v361で<b>ハクサイ・オクラ・トウモロコシ・エダマメ・ミズナ・シュンギク・シソ</b>を足しました。苗を買って植えることが多いものです）。<b>ダイコン・ニンジン・カブ・ラディッシュ・ビーツ・ホウレンソウ・コマツナ・エンドウ・ソラマメ</b>は、根や芽をいためると育たないので<b>畑に直接まく</b>もの。苗からの選びは出しません<br>
+            ・<b>📓 育成日記</b>（v361から）：🪴育てている野菜の行の<b>📓</b>を押すと、その野菜だけの日記が開きます。<b>📷写真をとる・🖼写真をえらぶ・✎文だけ書く</b>で、その日の様子を残せます。日づけは<b>今日</b>で入り、あとから<b>📅日づけ</b>で直せます。<b>植えてから何日目か</b>も一緒に出るので、去年と見くらべやすくなります。📓には<b>今ある件数</b>が付きます。<b>🖨日記をPDFに（写真つき）・🖼画像で保存・📤画像を共有</b>で、写真ごとまとめて出せます（日記は写真を小さくしたくないので、1ページに押し込めず<b>何ページかに分けて</b>出します）。<br>
+            　<b>写真は端末の中だけ</b>に残ります（長いほうを900pxまで小さくしてからしまいます）。1つの野菜につき<b>80件</b>まで。<b>📋リストの⬇書き出し（JSON）では日記は移せない</b>ので、大事な写真は<b>画像で保存</b>して端末の写真フォルダに残しておいてください。野菜を<b>✕</b>で消すと、その日記も一緒に消えます<br>
             ・<b>画面は全画面</b>で開きます（v347から。見るものが多いため）<br>
             ・<b>地域・標高・寒冷地</b>を選ぶと、<b>日数を補正</b>します（v341から）。<b>この設定は1つだけ持ち、登録したどの野菜にも共通でかかります</b>（1度入れておけば、あとは入れ直さなくて大丈夫です）。寒いところほど育ちはゆっくりなので、日数に倍率をかけます。<b>地域</b>は沖縄〜北海道の7つ（関東・東海・近畿が標準）、<b>標高</b>は100mごとに約2%おそく（気温が約0.6℃下がるめやす）、<b>寒冷地（霜がおりる畑）</b>でさらに5%おそくします。いまかかっている補正は<b>「補正 ＋34%（日数を1.34倍）」</b>のように画面に出ます。<b>種まきの時期を標準の地域よりどれだけずらすとよいか</b>も出ます（例：北海道は4週間おそめ）。この設定は<b>次に開いたときも残ります</b><br>
-            ・野菜は<b>33種類</b>入っています。多いので<b>名前でさがす</b>欄も使えます<br>
+            ・野菜は<b>33種類</b>入っています。多いので<b>名前でさがす</b>欄も使えます（<b>➕自分の野菜を登録する</b>で足すこともできます）<br>
             ・<b>▦ 予定表を表に入れる</b>を押すと、<b>選んでいるセルを左上にして</b>「作業／予定日／おわり／日数」の表が入ります。日付は<b>日付として</b>入るので、そのまま計算や並べ替えに使えます（<b>↶戻る</b>で元に戻せます）<br>
             ・<b>🧪 肥料と配合</b>（v342から）：その野菜に合う<b>土づくり・元肥・追肥</b>を出します。<b>苦土石灰・完熟たい肥</b>の量、<b>化成肥料の配合（8-8-8 など）と量</b>、<b>土のpHの目安</b>つきです。<b>畑の広さ（㎡）</b>を入れると<b>全体で何g要るか</b>まで出ます（例：100〜150g/㎡ → 3㎡で 300〜450g）。追肥の欄には<b>この計画での追肥の日</b>も出ます。ジャガイモは石灰をまかない、サツマイモは追肥をしないなど、<b>野菜ごとのくせ</b>も書いてあります<br>
             ・<b>🦠 出やすい病気・害虫と農薬</b>（v342から）：その野菜で<b>出やすいもの</b>を、<b>見分け方・手当て・薬の例</b>の3つで並べます（例：うどんこ病／葉に白い粉をふいたようになる／こんだ葉をとって風通しをよくする／カリグリーン・サプロール乳剤）。<b>⚠ 農薬は野菜ごとに「使ってよい作物」と「収穫の何日前まで使えるか」が決まっています。使う前に必ずラベルで確かめてください</b><br>
@@ -7626,9 +7687,9 @@ const VEG_PLANS=[
   {n:'キュウリ',    i:'🥒', from:'種まき',   sow:'4〜6月',       s:[['発芽',3,5],['本葉が出る',12,16],['畑に植える',30,35],['花が咲く',40,48],['追肥',50,55],['収穫はじめ',50,60],['収穫おわり',90,110]]},
   {n:'ナス',        i:'🍆', from:'種まき',   sow:'2〜3月',       s:[['発芽',7,10],['本葉が出る',30,35],['畑に植える',70,80],['花が咲く',85,95],['追肥',100,110],['収穫はじめ',110,130],['収穫おわり',190,210]]},
   {n:'ピーマン',    i:'🫑', from:'種まき',   sow:'2〜3月',       s:[['発芽',6,10],['本葉が出る',30,35],['畑に植える',70,80],['花が咲く',85,95],['追肥',100,110],['収穫はじめ',110,130],['収穫おわり',190,210]]},
-  {n:'オクラ',      i:'🌿', from:'種まき',   sow:'5〜6月',       s:[['発芽',5,10],['間引き',20,25],['追肥',35,40],['花が咲く',50,60],['収穫はじめ',55,70],['収穫おわり',110,130]]},
-  {n:'トウモロコシ',i:'🌽', from:'種まき',   sow:'4〜6月',       s:[['発芽',4,7],['間引き',20,25],['追肥',35,40],['雄穂が出る',55,62],['収穫',85,100]]},
-  {n:'エダマメ',    i:'🫘', from:'種まき',   sow:'4〜6月',       s:[['発芽',4,7],['間引き',15,20],['追肥',30,35],['花が咲く',40,50],['収穫',80,95]]},
+  {n:'オクラ',      i:'🌿', from:'種まき',   sow:'5〜6月',       s:[['発芽',5,10],['間引き',20,25],['畑に植える',25,30],['追肥',35,40],['花が咲く',50,60],['収穫はじめ',55,70],['収穫おわり',110,130]]},
+  {n:'トウモロコシ',i:'🌽', from:'種まき',   sow:'4〜6月',       s:[['発芽',4,7],['間引き',20,25],['畑に植える',25,30],['追肥',35,40],['雄穂が出る',55,62],['収穫',85,100]]},
+  {n:'エダマメ',    i:'🫘', from:'種まき',   sow:'4〜6月',       s:[['発芽',4,7],['間引き',15,20],['畑に植える',20,25],['追肥',30,35],['花が咲く',40,50],['収穫',80,95]]},
   {n:'カボチャ',    i:'🎃', from:'種まき',   sow:'4〜5月',       s:[['発芽',5,7],['畑に植える',30,35],['つるの整理',45,50],['受粉',55,65],['収穫',95,115]]},
   {n:'スイカ',      i:'🍉', from:'種まき',   sow:'3〜5月',       s:[['発芽',4,7],['畑に植える',35,40],['つるの整理',50,55],['受粉',60,70],['収穫',100,115]]},
   {n:'ズッキーニ',  i:'🥒', from:'種まき',   sow:'4〜5月',       s:[['発芽',4,6],['畑に植える',25,30],['花が咲く',40,45],['収穫はじめ',50,60],['収穫おわり',90,100]]},
@@ -7639,11 +7700,11 @@ const VEG_PLANS=[
   {n:'ビーツ',      i:'🟣', from:'種まき',   sow:'3〜6月・9〜10月',s:[['発芽',5,10],['1回目の間引き',15,20],['2回目の間引き',30,35],['追肥',35,40],['収穫',60,80]]},
   {n:'ホウレンソウ',i:'🥬', from:'種まき',   sow:'9〜10月・3〜4月',s:[['発芽',4,7],['間引き',15,20],['追肥',20,25],['収穫',30,50]]},
   {n:'コマツナ',    i:'🥬', from:'種まき',   sow:'3〜10月',      s:[['発芽',3,4],['間引き',10,14],['収穫',30,40]]},
-  {n:'ミズナ',      i:'🥬', from:'種まき',   sow:'9〜10月',      s:[['発芽',3,5],['間引き',12,16],['収穫',35,50]]},
-  {n:'シュンギク',  i:'🥬', from:'種まき',   sow:'9〜10月',      s:[['発芽',4,7],['間引き',15,20],['収穫',40,60]]},
+  {n:'ミズナ',      i:'🥬', from:'種まき',   sow:'9〜10月',      s:[['発芽',3,5],['間引き',12,16],['畑に植える',18,22],['収穫',35,50]]},
+  {n:'シュンギク',  i:'🥬', from:'種まき',   sow:'9〜10月',      s:[['発芽',4,7],['間引き',15,20],['畑に植える',20,25],['収穫',40,60]]},
   {n:'レタス',      i:'🥬', from:'種まき',   sow:'8〜9月・2〜3月',s:[['発芽',3,5],['畑に植える',25,30],['追肥',40,45],['収穫',55,75]]},
   {n:'キャベツ',    i:'🥬', from:'種まき',   sow:'7〜8月・2〜3月',s:[['発芽',4,6],['畑に植える',30,35],['追肥',50,55],['結球はじめ',60,70],['収穫',90,120]]},
-  {n:'ハクサイ',    i:'🥬', from:'種まき',   sow:'8〜9月',       s:[['発芽',3,5],['間引き',15,20],['追肥',30,35],['結球はじめ',45,55],['収穫',65,90]]},
+  {n:'ハクサイ',    i:'🥬', from:'種まき',   sow:'8〜9月',       s:[['発芽',3,5],['畑に植える',20,25],['追肥',35,40],['結球はじめ',55,65],['収穫',80,110]]},
   {n:'ブロッコリー',i:'🥦', from:'種まき',   sow:'7〜8月・2〜3月',s:[['発芽',4,6],['畑に植える',30,35],['追肥',50,55],['花蕾が見える',70,80],['収穫',90,110]]},
   {n:'タマネギ',    i:'🧅', from:'種まき',   sow:'9〜10月',      s:[['発芽',7,12],['畑に植える',50,60],['追肥',120,150],['葉が倒れる',210,230],['収穫',220,250]]},
   {n:'ネギ',        i:'🌱', from:'種まき',   sow:'3〜4月・9〜10月',s:[['発芽',7,12],['畑に植える',60,80],['土寄せ',110,130],['収穫',200,240]]},
@@ -7654,7 +7715,7 @@ const VEG_PLANS=[
   {n:'サトイモ',    i:'🥔', from:'植えつけ', sow:'4〜5月',       s:[['芽が出る',25,40],['土寄せ・追肥',60,70],['2回目の土寄せ',90,100],['収穫',150,180]]},
   {n:'ニンニク',    i:'🧄', from:'植えつけ', sow:'9〜10月',      s:[['芽が出る',10,20],['追肥',60,70],['わき芽かき',150,170],['花芽をとる',200,215],['収穫',230,250]]},
   {n:'イチゴ',      i:'🍓', from:'植えつけ', sow:'9〜10月',      s:[['根づく',10,20],['追肥',150,160],['花が咲く',170,190],['収穫はじめ',195,215],['収穫おわり',240,260]]},
-  {n:'シソ',        i:'🌿', from:'種まき',   sow:'4〜6月',       s:[['発芽',7,10],['間引き',20,25],['摘芯',40,45],['収穫はじめ',50,60],['収穫おわり',140,160]]},
+  {n:'シソ',        i:'🌿', from:'種まき',   sow:'4〜6月',       s:[['発芽',7,10],['間引き',20,25],['畑に植える',25,30],['摘芯',40,45],['収穫はじめ',50,60],['収穫おわり',140,160]]},
 ];
 /* 地域・標高・寒冷地による補正。
    寒いところほど育ちがゆっくりなので、日数に倍率をかける。
@@ -8015,6 +8076,7 @@ function vegRenderPlots(){
         <span class="veg-plot-n">${ico} ${escHtml(pl.n)}<span class="veg-plot-as">${pl.as==='nae'?'苗':'種'}</span>${pl.memo?`<span class="veg-plot-memo">${escHtml(pl.memo)}</span>`:''}</span>
         <span class="veg-plot-sub">${vegDateText(pl.s)} に${pl.as==='nae'?'植えた':'まいた'}（${days>=0?days+'日目':'あと'+(-days)+'日'}）　${escHtml(vegPlotNext(pl))}</span>
       </button>
+      <button class="veg-mini veg-diary-btn" onclick="openVegDiary('${pl.id}')" aria-label="${escHtml(pl.n)}の育成日記">📓${vegDiaryCount(pl.id)?`<span class="vd-badge">${vegDiaryCount(pl.id)}</span>`:''}</button>
       <button class="veg-mini" onclick="vegPlotMemo('${pl.id}')" aria-label="${escHtml(pl.n)}に名前を付ける">✎</button>
       <button class="veg-my-del" onclick="vegPlotDel('${pl.id}')" aria-label="${escHtml(pl.n)}を消す">✕</button>
     </div>`;
@@ -8054,8 +8116,198 @@ function vegPlotDel(id){
   const i=vegPlots.findIndex(x=>x.id===id); if(i<0) return;
   vegPlots.splice(i,1);
   if(vegPlotSel===id) vegPlotSel=null;
+  if(vegDiary[id]){ delete vegDiary[id]; saveVegDiary(); }   // 日記も一緒に片づける
   saveVegPlots(); vegRenderPlots();
   toast('消しました');
+}
+/* ── 育成日記（v361）：登録した野菜ごとに、写真とひとことを日づけで残す ──
+   写真は端末の中（localStorage）に入れるので、大きいままだとすぐいっぱいになる。
+   長いほうを 900px までに縮めて JPEG にしてから しまう。 */
+const VEG_DIARY_KEY='excalc_veg_diary';
+const VEG_DIARY_MAX=80;          // 1つの野菜につき残せる数
+const VEG_DIARY_PX=900;          // 写真の長いほうの上限
+let vegDiary={};                 // { 登録したid: [{id, d:日づけ(通し番号), t:'ひとこと', p:'写真'}] }
+let vegDiaryId=null;             // いま開いている日記の野菜
+function loadVegDiary(){
+  try{ const o=JSON.parse(localStorage.getItem(VEG_DIARY_KEY)||'null'); vegDiary=(o&&typeof o==='object')?o:{}; }
+  catch(_){ vegDiary={}; }
+}
+/* しまえたら true。端末がいっぱいなら false を返して、書いた分を元にもどせるようにする */
+function saveVegDiary(){
+  try{ localStorage.setItem(VEG_DIARY_KEY, JSON.stringify(vegDiary)); return true; }
+  catch(e){ warnStorageFull('日記を保存できませんでした'); return false; }
+}
+function vegDiaryOf(plotId){ const a=vegDiary[plotId]; return Array.isArray(a)?a:[]; }
+function vegDiaryCount(plotId){ return vegDiaryOf(plotId).length; }
+/* 写真を小さくして data URL にする（縦横の比はそのまま） */
+function vegDiaryShrink(file){
+  return new Promise(resolve=>{
+    const url=URL.createObjectURL(file), img=new Image();
+    img.onload=()=>{
+      try{
+        const k=Math.min(1, VEG_DIARY_PX/Math.max(img.width, img.height));
+        const w=Math.max(1,Math.round(img.width*k)), h=Math.max(1,Math.round(img.height*k));
+        const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+        const cx=cv.getContext('2d');
+        cx.fillStyle='#fff'; cx.fillRect(0,0,w,h);      // 透明のところが黒くならないように
+        cx.drawImage(img,0,0,w,h);
+        resolve(cv.toDataURL('image/jpeg',0.72));
+      }catch(_){ resolve(''); }
+      try{ URL.revokeObjectURL(url); }catch(_){}
+    };
+    img.onerror=()=>{ resolve(''); try{ URL.revokeObjectURL(url); }catch(_){} };
+    img.src=url;
+  });
+}
+function openVegDiary(plotId){
+  const pl=vegPlots.find(x=>x.id===plotId); if(!pl){ toast('登録した野菜がありません'); return; }
+  vegDiaryId=plotId;
+  vegDiaryRender();
+  openDlg('vegDiaryOverlay');
+}
+function closeVegDiary(){ closeDlg('vegDiaryOverlay', ()=>{ vegDiaryId=null; vegRenderPlots(); }); }
+/* 何日目か（植えた日を0日目ではなく1日目と数える。日記の言い方に合わせる） */
+function vegDiaryNth(pl, d){
+  const n=d-pl.s;
+  return (n>=0) ? (n+1)+'日目' : '植える'+(-n)+'日前';
+}
+function vegDiaryRender(){
+  const pl=vegPlots.find(x=>x.id===vegDiaryId);
+  const head=document.getElementById('vegDiaryHead'), box=document.getElementById('vegDiaryBody');
+  const ttl=document.getElementById('vegDiaryTitle');
+  if(!head||!box) return;
+  if(!pl){ head.innerHTML=''; box.innerHTML='<div class="veg-empty">登録した野菜がありません</div>'; return; }
+  const v=vegAll().find(x=>x.n===pl.n);
+  const ico=v?(v.i||'🌱'):'🌱';
+  if(ttl) ttl.textContent='📓 '+pl.n+' の育成日記';
+  const list=vegDiaryOf(vegDiaryId);
+  head.innerHTML=`<div class="vd-name">${ico} ${escHtml(pl.n)}${pl.memo?`<span class="veg-plot-memo">${escHtml(pl.memo)}</span>`:''}</div>`
+    +`<div class="vd-sub">${vegDateText(pl.s)} に${pl.as==='nae'?'苗を植えた':'種をまいた'}`
+    +`　／　今日で ${escHtml(vegDiaryNth(pl, todaySerial()))}　／　${list.length}件</div>`;
+  if(!list.length){
+    box.innerHTML='<div class="veg-empty">まだありません。上の<b>📷写真をとる</b>か<b>✎文だけ書く</b>で、育ち具合を残せます。</div>';
+    return;
+  }
+  const sorted=list.slice().sort((a,b)=>(b.d-a.d)||(b.id<a.id?-1:1));   // 新しい日づけを上に
+  box.innerHTML=sorted.map(e=>{
+    const ymd=serialToYMD(e.d);
+    return `<div class="vd-item">
+      <div class="vd-when">${ymd.y}年${ymd.m}月${ymd.d}日（${WDAY_JP[ymd.w]}）<span class="vd-nth">${escHtml(vegDiaryNth(pl,e.d))}</span></div>
+      ${e.p?`<img class="vd-img" src="${e.p}" alt="${escHtml(pl.n)}の写真">`:''}
+      ${e.t?`<div class="vd-text">${escHtml(e.t).replace(/\n/g,'<br>')}</div>`:''}
+      <div class="vd-acts">
+        <button class="veg-mini" onclick="vegDiaryEdit('${e.id}')">✎ 文</button>
+        <button class="veg-mini" onclick="vegDiaryWhen('${e.id}')">📅 日づけ</button>
+        <button class="veg-my-del" onclick="vegDiaryDel('${e.id}')" aria-label="この日の記録を消す">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+/* 写真を1枚ぶん足す（カメラでもファイルでも同じ入口） */
+async function vegDiaryPhoto(ev){
+  const f=ev.target.files && ev.target.files[0];
+  ev.target.value='';
+  if(!f || !vegDiaryId) return;
+  const pl=vegPlots.find(x=>x.id===vegDiaryId); if(!pl) return;
+  if(vegDiaryCount(vegDiaryId)>=VEG_DIARY_MAX){ toast(`この野菜の日記は${VEG_DIARY_MAX}件までです。古いものを消してください`); return; }
+  toast('写真をしまっています…');
+  const p=await vegDiaryShrink(f);
+  if(!p){ toast('この写真は読めませんでした'); return; }
+  const t=await appPrompt('ひとこと（空でもOK）', '', true);
+  if(t===null) return;
+  vegDiaryPush({ d:todaySerial(), t:String(t).trim().slice(0,400), p });
+}
+async function vegDiaryAddText(){
+  if(!vegDiaryId) return;
+  if(vegDiaryCount(vegDiaryId)>=VEG_DIARY_MAX){ toast(`この野菜の日記は${VEG_DIARY_MAX}件までです。古いものを消してください`); return; }
+  const t=await appPrompt('今日の様子を書いてください', '', true);
+  if(t===null) return;
+  const txt=String(t).trim().slice(0,400);
+  if(!txt){ toast('何も書かれていません'); return; }
+  vegDiaryPush({ d:todaySerial(), t:txt, p:'' });
+}
+function vegDiaryPush(e){
+  const arr=vegDiaryOf(vegDiaryId).slice();
+  arr.push(Object.assign({ id:'d'+Date.now().toString(36)+Math.floor(Math.random()*1000).toString(36) }, e));
+  const keep=vegDiary[vegDiaryId];
+  vegDiary[vegDiaryId]=arr;
+  if(!saveVegDiary()){ if(keep===undefined) delete vegDiary[vegDiaryId]; else vegDiary[vegDiaryId]=keep; return; }
+  vegDiaryRender();
+  toast('日記に足しました');
+}
+function vegDiaryFind(eid){
+  const arr=vegDiaryOf(vegDiaryId);
+  return { arr, e:arr.find(x=>x.id===eid) };
+}
+async function vegDiaryEdit(eid){
+  const { e }=vegDiaryFind(eid); if(!e) return;
+  const t=await appPrompt('ひとこと（空にすると消えます）', e.t||'', true);
+  if(t===null) return;
+  const before=e.t;
+  e.t=String(t).trim().slice(0,400);
+  if(!e.t && !e.p){ e.t=before; toast('写真も文も無くなるので、✕で消してください'); return; }
+  if(!saveVegDiary()){ e.t=before; return; }
+  vegDiaryRender();
+}
+async function vegDiaryWhen(eid){
+  const { e }=vegDiaryFind(eid); if(!e) return;
+  const o=serialToYMD(e.d);
+  const v=await appPrompt('日づけ（例 '+o.y+'/'+o.m+'/'+o.d+'）', o.y+'/'+o.m+'/'+o.d);
+  if(v===null) return;
+  const m=String(v).replace(/[^0-9]+/g,'/').split('/').filter(x=>x!=='').map(Number);
+  if(m.length<3 || !isFinite(m[0]) || !isFinite(m[1]) || !isFinite(m[2])){ toast('日づけが読めませんでした'); return; }
+  const d=mkSerial(m[0], m[1], m[2]);
+  if(d===null || !isFinite(d)){ toast('日づけが読めませんでした'); return; }
+  const before=e.d; e.d=d;
+  if(!saveVegDiary()){ e.d=before; return; }
+  vegDiaryRender();
+}
+function vegDiaryDel(eid){
+  const { arr }=vegDiaryFind(eid);
+  const i=arr.findIndex(x=>x.id===eid); if(i<0) return;
+  const keep=arr.slice();
+  arr.splice(i,1);
+  vegDiary[vegDiaryId]=arr;
+  if(!saveVegDiary()){ vegDiary[vegDiaryId]=keep; return; }
+  vegDiaryRender();
+  toast('消しました');
+}
+/* 日記を1ページにまとめて書き出す（育成計画の書き出しと同じしくみ） */
+function vegDiaryHtml(){
+  const pl=vegPlots.find(x=>x.id===vegDiaryId); if(!pl) return '';
+  const v=vegAll().find(x=>x.n===pl.n);
+  const list=vegDiaryOf(vegDiaryId).slice().sort((a,b)=>(a.d-b.d)||(a.id<b.id?-1:1));   // 古い順にならべる
+  let html=`<div class="vp-head">
+      <div class="vp-title">${v?(v.i||'🌱'):'🌱'} ${escHtml(pl.n)} の育成日記</div>
+      <div class="vp-sub">${vegDateText(pl.s)} に${pl.as==='nae'?'苗を植えた':'種をまいた'}`
+    +`${pl.memo?' ／ '+escHtml(pl.memo):''} ／ ${escHtml(vegAreaText())} ／ ${list.length}件</div>
+    </div><div class="vp-cols">`;
+  html+=list.map(e=>{
+    const ymd=serialToYMD(e.d);
+    return `<div class="vp-box vd-card">`
+      +`<div class="vp-h">${ymd.y}/${ymd.m}/${ymd.d}（${WDAY_JP[ymd.w]}）　${escHtml(vegDiaryNth(pl,e.d))}</div>`
+      +(e.p?`<img class="vd-pimg" src="${e.p}">`:'')
+      +(e.t?`<div class="vd-ptext">${escHtml(e.t).replace(/\n/g,'<br>')}</div>`:'')
+      +`</div>`;
+  }).join('');
+  html+=`</div><div class="vp-foot">育てた記録です。日づけは自分で直せます。　（表電卓 ${APP_VERSION}）</div>`;
+  return `<div class="op-doc" id="vegDiaryBox">${html}</div>`;
+}
+async function vegDiaryPdf(){
+  if(!vegDiaryCount(vegDiaryId)){ toast('日記がまだありません'); return; }
+  const built=opBuild(vegDiaryHtml(), true);      // 写真が小さくなりすぎないよう、縮めずに何ページかに分ける
+  await opWaitImages(built.box);
+  closeVegDiary();
+  opPrint(built);
+  return built.k;
+}
+async function vegDiaryImage(share){
+  if(!vegDiaryCount(vegDiaryId)){ toast('日記がまだありません'); return; }
+  const pl=vegPlots.find(x=>x.id===vegDiaryId);
+  const built=opBuild(vegDiaryHtml(), true);
+  const blob=await opImage(built, `育成日記_${pl?pl.n:'野菜'}`, share);
+  if(blob) closeVegDiary();
+  return blob;
 }
 const VEG_MY_KEY='excalc_veg_my';       // 自分で登録した野菜
 let vegMy=[];                            // [{n,i,from,sow,s:[[名前,はじめ,おわり],…]}]
@@ -8098,7 +8350,7 @@ function vegRows(){
   return rows;
 }
 function openVeggie(){
-  loadVegMy(); loadVegArea(); loadVegPlots();
+  loadVegMy(); loadVegArea(); loadVegPlots(); loadVegDiary();
   if(!vegSel) vegSel=VEG_PLANS[0];
   if(vegSowSerial===null) vegSowSerial=todaySerial();
   const {y,m}=serialToYMD(vegSowSerial); vegCalY=y; vegCalM=m;
@@ -8312,7 +8564,7 @@ function opFit(el){
   return k;
 }
 /* 中身を置いて、画面の外で大きさを測れる状態にする */
-function opBuild(html){
+function opBuild(html, noFit){
   let pa=document.getElementById('printArea');
   if(!pa){ pa=document.createElement('div'); pa.id='printArea'; document.body.appendChild(pa); }
   pa.innerHTML=html;
@@ -8320,8 +8572,21 @@ function opBuild(html){
   meas.textContent='#printArea{display:block!important;position:fixed;left:-10000px;top:0;overflow:visible;}';
   document.head.appendChild(meas);
   const box=pa.firstElementChild;
-  const k=box?opFit(box):1;
+  let k=1;
+  if(box){
+    if(noFit){ box.style.width=OP_PAGE_W+'px'; box.style.zoom=''; }   // 縮めずに、何ページかに分けて印刷する
+    else k=opFit(box);
+  }
   return {pa, box, k, meas};
+}
+/* 中に写真があると、読み込み終わるまで高さが分からない。描く前に待つ */
+function opWaitImages(box){
+  const imgs=box?[...box.querySelectorAll('img')]:[];
+  if(!imgs.length) return Promise.resolve();
+  return Promise.all(imgs.map(im=>{
+    if(im.complete && im.naturalWidth) return Promise.resolve();
+    return new Promise(r=>{ im.addEventListener('load',r,{once:true}); im.addEventListener('error',r,{once:true}); });
+  })).then(()=>new Promise(r=>requestAnimationFrame(()=>r())));
 }
 /* 印刷（そこから「PDFに保存」を選べる） */
 function opPrint(built){
@@ -8367,9 +8632,11 @@ async function opImage(built, prefix, share){
   const box=built.box;
   if(!box){ if(built.meas) built.meas.remove(); toast('書き出せませんでした'); return null; }
   box.style.zoom='';                                        // 画像は縮めずに原寸で描く
+  await opWaitImages(box);                                  // 写真が入ってから高さを測る
   const w=Math.ceil(parseFloat(box.style.width)||OP_PAGE_W);
-  const h=Math.ceil(box.getBoundingClientRect().height);
-  const blob=await opNodeToPng(box, w, h, 2);
+  const h=Math.ceil(box.scrollHeight||box.getBoundingClientRect().height);
+  const scale=(Math.max(w,h)*2>12000)?1:2;                  // 長い紙のときは倍率を下げて、描けなくなるのを防ぐ
+  const blob=await opNodeToPng(box, w, h, scale);
   if(built.meas) built.meas.remove();
   if(!blob){ toast('この端末では画像にできませんでした。PDFをお使いください', 4600); return null; }
   const fname = share ? `${prefix}_${shotStamp()}.png` : await shotFileName(prefix);
@@ -16489,7 +16756,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v360';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v361';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -17505,7 +17772,7 @@ function warnStorageFull(what){
 /* window.prompt はElectron(exe版)では使えないため、自前のモーダルで入力を受け取る。
    ブラウザ・exe版どちらでも動く。OKでtrim前の文字列、キャンセルでnullを返す。 */
 let appModalOpen=false;   // モーダル表示中は電卓のキー処理を止めるためのフラグ
-function appPrompt(message, defaultValue=''){
+function appPrompt(message, defaultValue='', multiline=false){
   return new Promise(resolve=>{
     appModalOpen=true;
     const ov=document.createElement('div');
@@ -17515,9 +17782,11 @@ function appPrompt(message, defaultValue=''){
     box.style.cssText='background:var(--panel,#fff);color:var(--text,#222);min-width:280px;max-width:90vw;padding:18px;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.35);font-size:15px';
     const msg=document.createElement('div');
     msg.textContent=message; msg.style.cssText='margin-bottom:10px;font-weight:600';
-    const input=document.createElement('input');
-    input.type='text'; input.value=defaultValue;
-    input.style.cssText='width:100%;box-sizing:border-box;padding:8px 10px;font-size:15px;border:1px solid #999;border-radius:6px;background:var(--cell-bg,#fff);color:var(--text,#222)';
+    const input=document.createElement(multiline?'textarea':'input');
+    if(multiline){ input.rows=5; } else { input.type='text'; }
+    input.value=defaultValue;
+    input.style.cssText='width:100%;box-sizing:border-box;padding:8px 10px;font-size:15px;border:1px solid #999;border-radius:6px;background:var(--cell-bg,#fff);color:var(--text,#222)'
+      +(multiline?';resize:vertical;line-height:1.5;font-family:inherit':'');
     const row=document.createElement('div');
     row.style.cssText='display:flex;justify-content:flex-end;gap:8px;margin-top:14px';
     const cancel=document.createElement('button');
@@ -17532,7 +17801,7 @@ function appPrompt(message, defaultValue=''){
     // モーダル内のキーはここで止め、電卓側のグローバルハンドラに渡さない（数字キー等の横取り防止）
     input.addEventListener('keydown',e=>{
       e.stopPropagation();
-      if(e.key==='Enter'){ e.preventDefault(); close(input.value); }
+      if(e.key==='Enter' && !multiline){ e.preventDefault(); close(input.value); }   // 何行も書ける入れ物では改行させる
       else if(e.key==='Escape'){ e.preventDefault(); close(null); }
     });
     ov.addEventListener('mousedown',e=>{ if(e.target===ov) close(null); });
@@ -17540,8 +17809,8 @@ function appPrompt(message, defaultValue=''){
     box.appendChild(msg); box.appendChild(input); box.appendChild(row);
     ov.appendChild(box); document.body.appendChild(ov);
     // Electronではモーダル生成直後のfocus()が効かないことがあるため次フレームでも当てる
-    input.focus(); input.select();
-    requestAnimationFrame(()=>{ input.focus(); input.select(); });
+    input.focus(); if(!multiline) input.select();
+    requestAnimationFrame(()=>{ input.focus(); if(!multiline) input.select(); });
   });
 }
 

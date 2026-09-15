@@ -2431,6 +2431,144 @@ async function runTmplUnit(browser) {
   await ctx.close();
 }
 
+/* 育成日記と、苗から始められる野菜（v361） */
+async function runVegDiary(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 育成日記 ──');
+  await page.evaluate(() => openVeggie()); await page.waitForTimeout(300);
+
+  // ── 苗から始められる野菜が増えた ──
+  const nae = () => page.evaluate(() => {
+    const keep = vegSel, out = [];
+    for (const v of VEG_PLANS) { vegSel = v; if (vegCanNae()) out.push(v.n); }
+    vegSel = keep; return out;
+  });
+  const list = await nae();
+  check('  苗から始められるのは19種類', list.length, 19);
+  check('  白菜が苗から始められる', list.includes('ハクサイ'), true);
+  check('  v361で足したものが入っている',
+    ['ハクサイ', 'オクラ', 'トウモロコシ', 'エダマメ', 'ミズナ', 'シュンギク', 'シソ'].every(n => list.includes(n)), true);
+  check('  前からのものも残っている',
+    ['トマト', 'キュウリ', 'ナス', 'ピーマン', 'キャベツ', 'ブロッコリー', 'レタス', 'タマネギ', 'ネギ'].every(n => list.includes(n)), true);
+  check('  直まきの根菜は苗から始められない',
+    ['ダイコン', 'ニンジン', 'カブ', 'ラディッシュ', 'ビーツ', 'ホウレンソウ', 'コマツナ', 'エンドウ', 'ソラマメ']
+      .some(n => list.includes(n)), false);
+
+  // 白菜を苗から数え直すと、定植の日が0日目になる
+  check('  白菜は苗を植えてから収穫まで60〜90日', await page.evaluate(() => {
+    vegSel = VEG_PLANS.find(v => v.n === 'ハクサイ'); vegAs = 'nae';
+    const r = vegRows().find(x => x.what === '収穫');
+    const s = vegRows()[0];
+    return s.what + '/' + s.d1 + '/' + r.d1 + '〜' + r.d2; }), '苗を植える/0/60〜90');
+  check('  種からのときは種まきが0日目', await page.evaluate(() => {
+    vegAs = 'seed';
+    const r = vegRows().find(x => x.what === '収穫');
+    return vegRows()[0].what + '/' + r.d1 + '〜' + r.d2; }), '種まき/80〜110');
+  check('  足した段は日数の順に並んでいる', await page.evaluate(() =>
+    VEG_PLANS.every(v => v.s.every((x, i) => i === 0 || x[1] >= v.s[i - 1][1]))), true);
+
+  // ── 日記 ──
+  const pid = await page.evaluate(() => {
+    vegSel = VEG_PLANS.find(v => v.n === 'ハクサイ');
+    vegSowSerial = todaySerial() - 20; vegSetAs('nae'); vegPlotAdd();
+    return vegPlots[0].id; });
+  await page.evaluate(x => openVegDiary(x), pid); await page.waitForTimeout(350);
+  check('  📓で日記が開く', await page.evaluate(() => isDlgOpen('vegDiaryOverlay')), true);
+  check('  見出しに植えた日と何日目かが出る', await page.evaluate(() =>
+    /苗を植えた/.test(document.getElementById('vegDiaryHead').textContent) &&
+    /21日目/.test(document.getElementById('vegDiaryHead').textContent)), true);
+  check('  はじめは空', await page.evaluate(() =>
+    /まだありません/.test(document.getElementById('vegDiaryBody').textContent)), true);
+
+  // 文だけ足す
+  const answer = async (text) => {
+    await page.waitForTimeout(200);
+    await page.evaluate(t => { const el = document.querySelector('div[style*="99999"] textarea, div[style*="99999"] input');
+      if (el) el.value = t; }, text);
+    await page.evaluate(() => { const b = [...document.querySelectorAll('div[style*="99999"] button')]
+      .find(x => x.textContent === 'OK'); if (b) b.click(); });
+    await page.waitForTimeout(300);
+  };
+  await page.evaluate(() => { vegDiaryAddText(); });
+  check('  本文は何行も書ける入れ物', await page.evaluate(() =>
+    !!document.querySelector('div[style*="99999"] textarea')), true);
+  await answer('本葉がそろった。\n虫はまだいない。');
+  check('  1件入った', await page.evaluate(() => vegDiaryCount(vegPlots[0].id)), 1);
+  check('  改行がそのまま出る', await page.evaluate(() =>
+    document.querySelector('.vd-text').innerHTML.includes('<br>')), true);
+  check('  日づけは今日・何日目も出る', await page.evaluate(() =>
+    /21日目/.test(document.querySelector('.vd-when').textContent)), true);
+
+  // 写真を足す（小さな画像を作って、縮める処理に通す）
+  const shrunk = await page.evaluate(async () => {
+    const cv = document.createElement('canvas'); cv.width = 1600; cv.height = 1200;
+    const c = cv.getContext('2d'); c.fillStyle = '#6ab04c'; c.fillRect(0, 0, 1600, 1200);
+    const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+    const p = await vegDiaryShrink(new File([blob], 'a.png', { type: 'image/png' }));
+    const im = new Image(); im.src = p;
+    await new Promise(r => { im.onload = r; im.onerror = r; });
+    return { head: p.slice(0, 15), w: im.naturalWidth, h: im.naturalHeight };
+  });
+  check('  写真はJPEGにして小さくする', shrunk.head, 'data:image/jpeg');
+  check('  長いほうは900pxまで', shrunk.w + 'x' + shrunk.h, '900x675');
+
+  await page.evaluate(async () => {
+    const id = vegPlots[0].id;
+    vegDiary[id] = vegDiaryOf(id).concat([{ id: 'dz', d: todaySerial() - 10, t: '追肥した', p: 'data:image/jpeg;base64,x' }]);
+    saveVegDiary(); vegDiaryRender(); });
+  await page.waitForTimeout(250);
+  check('  2件になった', await page.evaluate(() => vegDiaryCount(vegPlots[0].id)), 2);
+  check('  新しい日づけが上', await page.evaluate(() =>
+    [...document.querySelectorAll('.vd-when')].map(e => e.textContent.match(/(\d+)日目/)[1]).join(',')), '21,11');
+  check('  写真がある行には画像が出る', await page.evaluate(() =>
+    document.querySelectorAll('#vegDiaryBody .vd-img').length), 1);
+
+  // 日づけを直す
+  await page.evaluate(() => { vegDiaryWhen('dz'); });
+  await answer('2020/1/2');
+  check('  日づけを直せる', await page.evaluate(() => {
+    const e = vegDiaryOf(vegPlots[0].id).find(x => x.id === 'dz');
+    const o = serialToYMD(e.d); return o.y + '/' + o.m + '/' + o.d; }), '2020/1/2');
+  check('  植える前は「植える◯日前」', await page.evaluate(() => {
+    const pl = vegPlots[0]; return vegDiaryNth(pl, pl.s - 3); }), '植える3日前');
+
+  // 文を直す・消す
+  await page.evaluate(() => { vegDiaryEdit('dz'); });
+  await answer('追肥した（化成8-8-8）');
+  check('  文を直せる', await page.evaluate(() =>
+    vegDiaryOf(vegPlots[0].id).find(x => x.id === 'dz').t), '追肥した（化成8-8-8）');
+  await page.evaluate(() => vegDiaryDel('dz')); await page.waitForTimeout(250);
+  check('  1件消せる', await page.evaluate(() => vegDiaryCount(vegPlots[0].id)), 1);
+
+  // 覚えている
+  await page.reload(); await page.waitForTimeout(900);
+  check('  開き直しても残っている', await page.evaluate(() => {
+    loadVegPlots(); loadVegDiary(); return vegDiaryCount(vegPlots[0].id); }), 1);
+  await page.evaluate(() => openVeggie()); await page.waitForTimeout(350);
+  check('  一覧の📓に件数が付く', await page.evaluate(() => {
+    const b = document.querySelector('#vegPlotBody .vd-badge'); return b ? b.textContent : 'なし'; }), '1');
+
+  // 書き出し（写真つきなので1ページに押し込めない）
+  await page.evaluate(() => openVegDiary(vegPlots[0].id)); await page.waitForTimeout(300);
+  check('  日記の書き出しは縮めない', await page.evaluate(() => {
+    const built = opBuild(vegDiaryHtml(), true);
+    const w = built.box.style.width, z = built.box.style.zoom;
+    if (built.meas) built.meas.remove();
+    return w + '/' + (z || 'なし') + '/' + built.k; }), '718px/なし/1');
+  check('  日記の中身が入っている', await page.evaluate(() => {
+    const h = vegDiaryHtml();
+    return /育成日記/.test(h) && /本葉がそろった/.test(h) && /日目/.test(h); }), true);
+
+  // 野菜を消すと日記も消える
+  await page.evaluate(() => { openVeggie(); vegPlotDel(vegPlots[0].id); }); await page.waitForTimeout(350);
+  check('  野菜を消すと日記も消える', await page.evaluate(() =>
+    JSON.stringify(vegDiary) + '/' + localStorage.getItem('excalc_veg_diary')), '{}/{}');
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -2452,6 +2590,7 @@ async function runTmplUnit(browser) {
     if (!only || only === 'shared') await runShared(browser);
     if (!only || only === 'setdedup') await runSetDedup(browser);
     if (!only || only === 'tmplunit') await runTmplUnit(browser);
+    if (!only || only === 'vegdiary') await runVegDiary(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
