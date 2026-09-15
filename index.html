@@ -1474,14 +1474,27 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
 .veg-cal-nav { display: flex; align-items: center; gap: 5px; padding: 4px 0 6px; }
 .veg-grid .dp-cell { cursor: pointer; font-size: 13px; }
 /* カレンダーのマス目に出す写真（v362） */
+/* 写真や文を残した日のマス目：日づけは小さく上に、文は下に出す（v362／文はv364） */
+.dp-cell.dp-log {
+  flex-direction: column; align-items: stretch; justify-content: flex-start;
+  overflow: hidden; padding: 0;
+}
 .dp-cell.dp-photo {
   background-size: cover; background-position: center; background-repeat: no-repeat;
-  align-items: flex-start; justify-content: flex-start; border-width: 2px;
+  border-width: 2px;
 }
-.dp-cell.dp-photo .dp-n {
-  margin: 2px; padding: 0 3px; border-radius: 3px;
-  background: rgba(0,0,0,.58); color: #fff; font-size: 10px; line-height: 14px; font-weight: bold;
+.dp-cell.dp-log .dp-n {
+  align-self: flex-start; margin: 2px; padding: 0 3px; border-radius: 3px;
+  font-size: 10px; line-height: 14px; font-weight: bold;
 }
+.dp-cell.dp-photo .dp-n { background: rgba(0,0,0,.58); color: #fff; }
+.dp-note {
+  margin-top: auto; padding: 1px 2px; font-size: 9px; line-height: 1.15; font-weight: normal;
+  max-height: 2.35em; overflow: hidden; text-align: left; word-break: break-all;
+}
+.dp-cell.dp-photo .dp-note { background: rgba(0,0,0,.58); color: #fff; }
+/* 文を出す月は、マス目を少しだけ縦長にして読みやすくする（画面のときだけ。書き出しは正方形のまま） */
+.veg-grid.has-note .dp-cell { aspect-ratio: 1 / 1.3; }
 .veg-calhint { font-size: 11px; color: var(--text-light); line-height: 1.5; padding: 6px 2px 2px; }
 /* カレンダーのひとまとまり。ここだけ横フリックが「月送り」になる（v363） */
 .veg-cal { margin-bottom: 10px; }
@@ -2732,6 +2745,21 @@ body.dark .tsx-res-val.ng   { color: #ff8a80; }
 #printArea .op-doc .dp-cell.sun { color: #c62828; } #printArea .op-doc .dp-cell.sat { color: #1565c0; }
 #printArea .op-doc .dp-cell.veg-on { color: #fff; font-weight: bold; border-color: transparent; }
 #printArea .op-doc .dp-cell.veg-band { color: #000 !important; }
+/* 書き出したカレンダーでも、写真と書いた文を出す（v362／文はv364） */
+#printArea .op-doc .dp-cell.dp-log {
+  flex-direction: column; align-items: stretch; justify-content: flex-start; overflow: hidden; padding: 0;
+}
+#printArea .op-doc .dp-cell.dp-photo { background-size: cover; background-position: center; background-repeat: no-repeat; }
+#printArea .op-doc .dp-cell.dp-log .dp-n {
+  align-self: flex-start; margin: 1px; padding: 0 2px; border-radius: 2px;
+  font-size: 8px; line-height: 11px; font-weight: bold;
+}
+#printArea .op-doc .dp-cell.dp-photo .dp-n { background: rgba(0,0,0,.58); color: #fff; }
+#printArea .op-doc .dp-note {
+  margin-top: auto; padding: 1px; font-size: 7px; line-height: 1.12;
+  max-height: 2.3em; overflow: hidden; text-align: left; word-break: break-all;
+}
+#printArea .op-doc .dp-cell.dp-photo .dp-note { background: rgba(0,0,0,.58); color: #fff; }
 
 /* ── 夜モードの手当て ──
    ツールバーと緑のボタンは色が固定だったため、夜は明るすぎた。少し落とす。 */
@@ -4616,7 +4644,7 @@ body.dark {
             ・<b>種から／苗から</b>（v347から）：種から育てる野菜では、<b>苗から</b>を選ぶと<b>苗を植えた日を0日目</b>として数え直します（それより前の発芽・鉢上げなどは出しません）。いも・苗から育てるもの（ジャガイモ・イチゴなど）は、はじめから植えつけの日で数えるのでこの選びは出ません。<b>苗から始められる野菜は19種類</b>です（v361で<b>ハクサイ・オクラ・トウモロコシ・エダマメ・ミズナ・シュンギク・シソ</b>を足しました。苗を買って植えることが多いものです）。<b>ダイコン・ニンジン・カブ・ラディッシュ・ビーツ・ホウレンソウ・コマツナ・エンドウ・ソラマメ</b>は、根や芽をいためると育たないので<b>畑に直接まく</b>もの。苗からの選びは出しません<br>
             ・<b>カレンダーは横フリックで月送り</b>（v363から）：カレンダーのところを<b>左へ払うと次の月／右へ払うと前の月</b>になります（<b>‹ ›</b>と同じです）。テンキーに登録した道具は本文を横に払うと<b>となりの道具</b>に移りますが、<b>カレンダーの上だけは月送り</b>になります。日を<b>タップ</b>したときは今までどおりその日の画面が開きます<br>
             ・<b>🌡 気候の設定は閉じられます</b>（v363から）：地域・標高・寒冷地は1度入れたらあとは触らないので、<b>はじめは閉じて</b>あります。見出しに<b>今の設定（例：北海道・標高300m・寒冷地）</b>が出るので、閉じたままでも何にしてあるか分かります。開け閉めは<b>次に開いたときも残ります</b><br>
-            ・<b>📅 カレンダーの日をタップ</b>（v362から）：🪴に登録した野菜を出しているとき、<b>カレンダーの日をタップ</b>すると<b>その日の画面</b>が開きます。<b>📷写真をとる・🖼写真をえらぶ・✎文だけ書く</b>で、<b>その日づけのまま</b>記録できます（日づけを直す手間が要りません）。写真をつけた日は<b>カレンダーのマス目が写真になり</b>、日づけは小さく上にのります。<b>そのマス目をもう一度タップすると大きく見られます</b>。作業の日（追肥・収穫など）の色は<b>枠の色</b>として残るので、どの作業の日かも分かります。この写真は<b>🖨PDF・🖼画像の書き出しのカレンダーにも出ます</b><br>
+            ・<b>📅 カレンダーの日をタップ</b>（v362から）：🪴に登録した野菜を出しているとき、<b>カレンダーの日をタップ</b>すると<b>その日の画面</b>が開きます。<b>📷写真をとる・🖼写真をえらぶ・✎文だけ書く</b>で、<b>その日づけのまま</b>記録できます（日づけを直す手間が要りません）。写真をつけた日は<b>カレンダーのマス目が写真になり</b>、日づけは小さく上にのります。<b>書いた文も、そのままマス目の下に出ます</b>（v364から。1行目を24字まで。1日に何件か書いたときは「／」でつなぎます。文を出す月はマス目が少し縦長になります）。<b>そのマス目をもう一度タップすると大きく見られます</b>（全文もそこで読めます）。作業の日（追肥・収穫など）の色は<b>枠の色</b>として残るので、どの作業の日かも分かります。この写真は<b>🖨PDF・🖼画像の書き出しのカレンダーにも出ます</b><br>
             ・<b>📓 育成日記</b>（v361から）：🪴育てている野菜の行の<b>📓</b>を押すと、その野菜だけの日記が開きます。<b>📷写真をとる・🖼写真をえらぶ・✎文だけ書く</b>で、その日の様子を残せます。日づけは<b>今日</b>で入り、あとから<b>📅日づけ</b>で直せます。<b>植えてから何日目か</b>も一緒に出るので、去年と見くらべやすくなります。📓には<b>今ある件数</b>が付きます。<b>🖨日記をPDFに（写真つき）・🖼画像で保存・📤画像を共有</b>で、写真ごとまとめて出せます（日記は写真を小さくしたくないので、1ページに押し込めず<b>何ページかに分けて</b>出します）。<br>
             　<b>写真は端末の中だけ</b>に残ります（長いほうを900pxまで小さくしてからしまいます）。1つの野菜につき<b>80件</b>まで。<b>📋リストの⬇書き出し（JSON）では日記は移せない</b>ので、大事な写真は<b>画像で保存</b>して端末の写真フォルダに残しておいてください。野菜を<b>✕</b>で消すと、その日記も一緒に消えます<br>
             ・<b>画面は全画面</b>で開きます（v347から。見るものが多いため）<br>
@@ -7707,16 +7735,21 @@ function monthGridHtml(y, m, opts){
     }
     // その日の写真があれば、マス目いっぱいに出して日づけは小さく上にのせる（v362）
     const ph=o.photo && o.photo[s];
+    const nt=o.note && o.note[s];
     let inner=String(d);
-    if(ph){
-      cls.push('dp-photo');
-      st.push(`background-image:url(${ph})`);
-      if(mk) st.push(`border-color:${mk.c}`);         // 作業の色は枠で残す
-      inner=`<span class="dp-n">${d}</span>`;
+    if(ph || nt){
+      cls.push('dp-log');                             // 日づけを小さく上に出す形
+      if(ph){
+        cls.push('dp-photo');
+        st.push(`background-image:url(${ph})`);
+        if(mk) st.push(`border-color:${mk.c}`);       // 作業の色は枠で残す
+      }
+      inner=`<span class="dp-n">${d}</span>`
+        +(nt?`<span class="dp-note">${escHtml(nt)}</span>`:'');
     }
     const style=st.length?` style="${st.join(';')}"`:'';
     const click=o.click?` onclick="${o.click}(${y},${m},${d})"`:'';
-    const tip=[mk?mk.what:'', ph?'写真あり':''].filter(Boolean).join('／');
+    const tip=[mk?mk.what:'', ph?'写真あり':'', nt||''].filter(Boolean).join('／');
     html+=`<div class="${cls.join(' ')}"${style}${click}${tip?` title="${escHtml(tip)}"`:''}>${inner}</div>`;
   }
   return html;
@@ -8610,8 +8643,9 @@ function vegMarkMap(){
   });
   return mark;
 }
-function vegMonthCells(y, m, mark, todayS, photo){
-  return monthGridHtml(y, m, { mark, today:(todayS!==null), photo, click:(photo!==undefined&&todayS!==null)?'vegCalTap':null });
+function vegMonthCells(y, m, mark, todayS, photo, note){
+  return monthGridHtml(y, m, { mark, today:(todayS!==null), photo, note,
+                               click:(photo!==undefined&&todayS!==null)?'vegCalTap':null });
 }
 /* いま画面に出している計画が、登録した野菜のどれにあたるか（野菜・植えた日・種/苗が同じもの） */
 function vegCurPlot(){
@@ -8625,16 +8659,30 @@ function vegPhotoMap(pl){
   for(const e of vegDiaryOf(t.id)){ if(e.p && !map[e.d]) map[e.d]=e.th||e.p; }
   return map;
 }
+/* その野菜の、日ごとに書いた文（1日に何件かあれば「／」でつなぐ）。登録していなければ null */
+function vegNoteMap(pl){
+  const t=pl||vegCurPlot(); if(!t) return null;
+  const map={};
+  for(const e of vegDiaryOf(t.id)){
+    if(!e.t) continue;
+    const one=String(e.t).split('\n')[0].trim();     // 1行目だけをマス目に出す
+    if(!one) continue;
+    map[e.d]=map[e.d] ? (map[e.d]+'／'+one) : one;
+  }
+  for(const k in map) map[k]=map[k].slice(0,24);      // マス目は小さいので短く
+  return map;
+}
 function vegRenderCal(){
   const t=document.getElementById('vegCalTitle'), g=document.getElementById('vegGrid'), wd=document.getElementById('vegWdays');
   if(!t||!g||!wd) return;
   t.textContent=`${vegCalY}年 ${vegCalM}月`;
   if(!wd.dataset.built){ wd.innerHTML=wdayHeadHtml(); wd.dataset.built='1'; }
-  g.innerHTML=vegMonthCells(vegCalY, vegCalM, vegMarkMap(), todaySerial(), vegPhotoMap()||{});
+  g.innerHTML=vegMonthCells(vegCalY, vegCalM, vegMarkMap(), todaySerial(), vegPhotoMap()||{}, vegNoteMap()||{});
+  g.classList.toggle('has-note', !!g.querySelector('.dp-note'));   // 文がある月だけ縦長に
   const hint=document.getElementById('vegCalHint');
   if(hint) hint.textContent=vegCurPlot()
-    ? '日をタップすると、その日の写真をつけたり、つけた写真を大きく見たりできます'
-    : '🪴に登録すると、カレンダーの日をタップして写真を残せます（＋下の内容…）';
+    ? '日をタップすると、その日の写真や文を残せます。残したものはカレンダーに出て、もう一度タップすると大きく見られます'
+    : '🪴に登録すると、カレンダーの日をタップして写真や文を残せます（＋下の内容…）';
 }
 /* カレンダーの日をタップ：その日の画面を開く（写真をつける／大きく見る） */
 function vegCalTap(y, m, d){
@@ -8829,7 +8877,8 @@ function vegPdfHtml(){
   const when=(h.from===h.to)?vegFmtDate(h.from):`${vegFmtDate(h.from)}〜${vegFmtDate(h.to)}`;
   const wd=wdayHeadHtml();
   const mark=vegMarkMap();
-  const photos=vegPhotoMap()||undefined;      // 日記の写真があれば、書き出したカレンダーにも出す
+  const photos=vegPhotoMap()||undefined;      // 日記の写真や文があれば、書き出したカレンダーにも出す
+  const notes=vegNoteMap()||undefined;
 
   let html=`<div class="vp-head">
       <div class="vp-title">${vegSel.i||'🌱'} ${escHtml(vegSel.n)} の育成計画</div>
@@ -8849,7 +8898,7 @@ function vegPdfHtml(){
 
   vegPdfMonths().forEach(({y,m})=>{
     html+=`<div class="vp-box vp-cal"><div class="vp-h">${y}年 ${m}月</div>`
-      +`<div class="dp-wdays">${wd}</div><div class="dp-grid veg-grid">${vegMonthCells(y,m,mark,null,photos)}</div></div>`;
+      +`<div class="dp-wdays">${wd}</div><div class="dp-grid veg-grid">${vegMonthCells(y,m,mark,null,photos,notes)}</div></div>`;
   });
 
   const lime=(f.lime[1]===0)?'まきません（土をアルカリに寄せないため）':vegAmt(f.lime,'g');
@@ -16947,7 +16996,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v363';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v364';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

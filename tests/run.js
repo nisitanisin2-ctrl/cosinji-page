@@ -2628,7 +2628,8 @@ async function runVegDiary(browser) {
              border: cs ? cs.borderTopColor : '' };
   });
   check('  写真の日はマス目が写真になる', cell.n, 1);
-  check('  日づけは小さくのる', cell.inner, '<span class="dp-n">13</span>');
+  check('  日づけは小さくのり、書いた文も付く', cell.inner,
+    '<span class="dp-n">13</span><span class="dp-note">外葉</span>');
   check('  写真がちゃんと入っている', cell.img, true);
   check('  作業の色は枠に残る', cell.border, 'rgb(239, 108, 0)');
   check('  見本は写真より小さい', await page.evaluate(() => {
@@ -2738,6 +2739,73 @@ async function runVegDiary(browser) {
   await page.evaluate(() => { const t = npToolDef('kantab'); if (t && t.close) t.close(); });
   await page.waitForTimeout(350);
   await page.evaluate(() => { npTools = []; saveNpTools(); applyNpToolFull(); });
+
+
+  // ── 書いた文がカレンダーのマス目に出る（v364） ──
+  await page.evaluate(() => { vegDiary = {}; saveVegDiary(); vegPlots = []; saveVegPlots();
+    openVeggie();
+    vegSel = VEG_PLANS.find(v => v.n === 'ハクサイ'); vegSowSerial = todaySerial() - 20;
+    vegSetAs('nae'); vegPlotAdd(); vegRenderAll();
+    const t = serialToYMD(todaySerial()); vegCalY = t.y; vegCalM = t.m; vegRenderCal(); });
+  await page.waitForTimeout(400);
+  check('  はじめは文のマスは無い', await page.evaluate(() =>
+    document.querySelectorAll('#vegGrid .dp-note').length), 0);
+
+  // カレンダーの日をタップして文を書くと、その日のマスに出る
+  await page.evaluate(() => { const t = serialToYMD(todaySerial()); vegCalTap(t.y, t.m, t.d); });
+  await page.waitForTimeout(350);
+  await page.evaluate(() => { vegDiaryAddText(); });
+  await answer('結球がはじまった\n明日みてみる');
+  await page.evaluate(() => closeVegDay()); await page.waitForTimeout(400);
+  check('  書いた文がマスに出る', await page.evaluate(() => {
+    const n = document.querySelectorAll('#vegGrid .dp-note');
+    return n.length + '/' + (n[0] ? n[0].textContent : ''); }), '1/結球がはじまった');
+  check('  日づけは小さく上にのる', await page.evaluate(() => {
+    const c = document.querySelector('#vegGrid .dp-log');
+    return c ? c.querySelector('.dp-n').textContent : 'マスなし'; }), String(new Date().getDate()));
+  check('  マスの説明にも全部入る', await page.evaluate(() => {
+    const c = document.querySelector('#vegGrid .dp-log');
+    return !!c && /結球がはじまった/.test(c.title); }), true);
+  check('  文がある月はマスを縦長にする', await page.evaluate(() =>
+    document.getElementById('vegGrid').classList.contains('has-note')), true);
+
+  // 1日に2件、長い文、写真と両方
+  await page.evaluate(async () => {
+    const cv = document.createElement('canvas'); cv.width = 400; cv.height = 300;
+    const x = cv.getContext('2d'); x.fillStyle = '#6ab04c'; x.fillRect(0, 0, 400, 300);
+    const p = cv.toDataURL('image/jpeg', 0.8); const th = await vegDiaryThumb(p);
+    const id = vegPlots[0].id;
+    vegDiary[id] = vegDiaryOf(id).concat([
+      { id: 'n1', d: todaySerial() - 3, t: '追肥した', p: '', th: '' },
+      { id: 'n2', d: todaySerial() - 3, t: '土寄せもした', p: '', th: '' },
+      { id: 'n3', d: todaySerial() - 5, t: 'とても長い文章をここに入れてみてマス目でどうなるかを確かめます', p: '', th: '' },
+      { id: 'n4', d: todaySerial() - 7, t: 'アオムシを2匹とった', p, th }]);
+    saveVegDiary(); vegRenderCal(); });
+  await page.waitForTimeout(350);
+  const noteOf = off => page.evaluate(o => {
+    const d = String(serialToYMD(todaySerial() + o).d);
+    const c = [...document.querySelectorAll('#vegGrid .dp-log')]
+      .find(x => x.querySelector('.dp-n').textContent === d);
+    return c && c.querySelector('.dp-note') ? c.querySelector('.dp-note').textContent : 'なし'; }, off);
+  check('  1日に2件は「／」でつなぐ', await noteOf(-3), '追肥した／土寄せもした');
+  check('  長い文は24字までにする', (await noteOf(-5)).length, 24);
+  check('  1行目だけを出す', await noteOf(0), '結球がはじまった');
+  check('  写真の日にも文をのせる', await page.evaluate(() => {
+    const c = document.querySelector('#vegGrid .dp-photo');
+    return (c.querySelector('.dp-note') ? c.querySelector('.dp-note').textContent : 'なし')
+      + '/' + (getComputedStyle(c).backgroundImage !== 'none'); }), 'アオムシを2匹とった/true');
+  check('  マスからはみ出さない', await page.evaluate(() =>
+    [...document.querySelectorAll('#vegGrid .dp-cell')].every(c => c.scrollHeight <= c.clientHeight + 1)), true);
+  check('  書き出したカレンダーにも文が出る', await page.evaluate(() =>
+    (vegPdfHtml().match(/dp-note/g) || []).length), 4);
+
+  // 文を消すとマスからも消える
+  await page.evaluate(() => { vegDiaryId = vegPlots[0].id;
+    ['n1', 'n2'].forEach(i => vegDiaryDel(i)); vegRenderCal(); });
+  await page.waitForTimeout(300);
+  check('  消すとマスからも消える', await noteOf(-3), 'なし');
+  await page.evaluate(() => { openVeggie(); vegPlots.slice().forEach(p => vegPlotDel(p.id)); });
+  await page.waitForTimeout(350);
 
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
