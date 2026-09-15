@@ -2261,6 +2261,70 @@ async function runDigit(browser) {
   await ctx.close();
 }
 
+/* 設定のボタンの重複を減らした（v359） */
+async function runSetDedup(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 設定の重複を減らす ──');
+
+  check('  設定は3つのタブ', await page.evaluate(() =>
+    [...document.querySelectorAll('.settings-tab')].map(b => b.textContent.trim()).join('/')),
+    '📐 表/🎨 見た目/🧮 計算');
+  check('  ページも3枚', await page.evaluate(() =>
+    document.querySelectorAll('.set-page').length), 3);
+  check('  ⋯と同じボタンは設定から消えた', await page.evaluate(() =>
+    ['setPage3', 'darkBtn', 'sheetTabsBtn', 'defaultSizeBtn']
+      .filter(i => document.getElementById(i)).join(',') || 'なし'), 'なし');
+  check('  行・列の追加/削除のボタンも消えた', await page.evaluate(() =>
+    document.querySelectorAll('#setPage0 .btn-ins, #setPage0 .btn-del').length), 0);
+
+  // タブの記憶が「データ」のままでも落ちない
+  await page.evaluate(() => localStorage.setItem('excalc_settings_tab', '3'));
+  await page.reload(); await page.waitForTimeout(900);
+  check('  前の「データ」タブを覚えていても開ける', await page.evaluate(() =>
+    settingsTab + '/' + [...document.querySelectorAll('.set-page.open')].map(e => e.id).join(',')),
+    '2/setPage2');
+  check('  端をこえて選んでも収まる', await page.evaluate(() => {
+    setSettingsTab(9); const a = settingsTab; setSettingsTab(-3); return a + '/' + settingsTab; }), '2/0');
+
+  // 消した分は ⋯ にそろっている
+  const more = () => page.evaluate(() =>
+    [...document.querySelectorAll('#moreMenuOverlay .more-item')].map(b => b.textContent.trim()).join('/'));
+  check('  書き出し・読み込みは⋯にそろっている', await page.evaluate(() =>
+    ['PDF', 'CSV出力', 'Excel出力', '説明書', 'CSV読込', 'Excel読込']
+      .every(t => [...document.querySelectorAll('#moreMenuOverlay .more-item')]
+        .some(b => b.textContent.trim().includes(t)))), true);
+  check('  読み込む欄も残っている', await page.evaluate(() =>
+    ['importCSVInput', 'importXLSXInput'].every(i => document.getElementById(i))), true);
+
+  // ナイトモードの今の状態は ⋯ のボタンに出る
+  const darkBtn = () => page.evaluate(() => {
+    const b = document.getElementById('darkMoreBtn');
+    return b.textContent.trim() + '/' + b.classList.contains('on') + '/' + document.body.classList.contains('dark'); });
+  check('  はじめは昼', await darkBtn(), '🌙ナイトモード/false/false');
+  await page.evaluate(() => toggleDark());
+  check('  押すと夜になって表示も変わる', await darkBtn(), '☀ライトに戻す/true/true');
+  await page.reload(); await page.waitForTimeout(900);
+  check('  開き直しても夜のまま', await darkBtn(), '☀ライトに戻す/true/true');
+  await page.evaluate(() => toggleDark());
+  check('  もう一度押すと昼に戻る', await darkBtn(), '🌙ナイトモード/false/false');
+
+  // シートのタブの印も ⋯ のボタンに出る
+  await page.evaluate(() => toggleSheetTabs()); await page.waitForTimeout(200);
+  check('  シートのタブの印が⋯に付く', await page.evaluate(() =>
+    document.getElementById('sheetToggleBtn').classList.contains('on')), true);
+  await page.evaluate(() => toggleSheetTabs()); await page.waitForTimeout(200);
+  check('  もう一度押すと印が消える', await page.evaluate(() =>
+    document.getElementById('sheetToggleBtn').classList.contains('on')), false);
+
+  // 既定の大きさは⋯と上のバーに残っている
+  check('  既定の大きさは⋯と上のバーにある', await page.evaluate(() =>
+    ['defsizeTopBtn', 'tbDefsize'].every(i => document.getElementById(i))), true);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -2280,6 +2344,7 @@ async function runDigit(browser) {
     if (!only || only === 'veggie') await runVeggie(browser);
     if (!only || only === 'report') await runReport(browser);
     if (!only || only === 'shared') await runShared(browser);
+    if (!only || only === 'setdedup') await runSetDedup(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }

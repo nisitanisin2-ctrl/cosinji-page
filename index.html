@@ -303,6 +303,7 @@ body.numpad-off .numpad-section { display: none; }
 .undo-item { justify-content: flex-start; margin-bottom: 6px; }
 .undo-count { margin-left: auto; font-size: 12px; color: var(--text-light); flex-shrink: 0; }
 .more-danger-sec { color: var(--danger); }
+.more-item.on { box-shadow: inset 0 0 0 2px var(--acc); }
 .more-item.more-danger { border-color: var(--danger); color: var(--danger); }
 body.dark .more-item.more-danger { color: #ff8a80; border-color: #ff8a80; }
 /* 横向きは高さが足りないので、4列にして「リセット」まで一目で見えるようにする */
@@ -413,7 +414,7 @@ body.has-sheet-tabs .sheet-persist {
 .topbtn-toggle.on { background: var(--acc); color: #fff; border-color: var(--acc); }
 .topbtn-toggle.on::before { content: '✓ 表示'; opacity: 0.95; }
 
-/* 設定：タブ式のモーダル。「表・見た目・計算・データ」の4タブに分類し、
+/* 設定：タブ式のモーダル。「表・見た目・計算」の3タブに分類し、
    1行に1項目の白いカードで見やすくする */
 /* 設定は項目が多いので画面をめいっぱい使う。あとに出てくる .modal の 75vh に
    負けないよう .modal を付けて強さを上げる（以前は88vhが効いていなかった）。 */
@@ -432,15 +433,6 @@ body.has-sheet-tabs .sheet-persist {
   padding: 10px; overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1;
 }
 body.dark .settings-tabbar, body.dark .settings-body { background: #141d33; }
-/* タブの外側（常に表示）の共通ボタン：どのタブでも押せる */
-.settings-footer {
-  display: flex; gap: 8px; padding: 8px 10px;
-  background: #f0f0f0; border-top: 1px solid var(--save-item-border);
-  flex-shrink: 0;
-}
-body.dark .settings-footer { background: #141d33; }
-.settings-footer .set-act { width: auto; flex: 1; margin: 0; font-size: 12px; padding: 12px 6px; justify-content: center; text-align: center; }
-.settings-footer .set-act::after { content: ""; margin: 0; }
 /* ── 電卓モード ──
    表のかわりに大きな電卓画面を出す。テンキーは共通のものをそのまま使う。 */
 .dt-pane { display: none; flex: 1; flex-direction: column; min-height: 0; gap: 8px; padding: 8px 10px 10px; }
@@ -555,27 +547,11 @@ body.dentaku-mode .formula-bar { display: none !important; }
 .set-act:hover { background: var(--cell-hover); }
 .set-act.on { box-shadow: inset 0 0 0 2px var(--acc); }
 .set-act.armed { box-shadow: inset 0 0 0 2px var(--armed); }
-/* 目立たせる緑ボタン（例：既定の行数・列数にもどす）。中央寄せ・大きめで押しやすく */
-.set-act.set-act-primary {
-  justify-content: center; text-align: center;
-  background: var(--acc); color: #fff; border-color: var(--acc);
-  font-size: 15px; padding: 15px 12px; margin: 4px 0 10px;
-  box-shadow: var(--elev-1);
-}
-.set-act.set-act-primary::after { content: ""; margin: 0; }
-.set-act.set-act-primary:hover { background: var(--acc-dark); }
-.set-act.set-act-primary:active { background: var(--acc-darker); }
-.set-act.set-act-primary.armed { box-shadow: inset 0 0 0 2px var(--armed); }
-/* 行・列の挿入／削除など、緑＋赤の2つ並びボタン */
-.set-pair { display: flex; gap: 8px; margin-bottom: 8px; }
-.btn-ins, .btn-del {
+.btn-del {
   flex: 1; color:#fff; border:none; border-radius: var(--r-btn); padding:12px 8px;
   font-size: 13px; font-weight:bold; cursor:pointer; touch-action:manipulation;
-  white-space:nowrap;
+  white-space:nowrap; background:var(--danger);
 }
-.btn-ins { background:var(--acc); }
-.btn-ins:active { background:var(--acc-darker); }
-.btn-del { background:var(--danger); }
 .btn-del:active { background:var(--danger-dark); }
 /* 簡易トースト通知 */
 .app-toast {
@@ -2783,17 +2759,21 @@ body.dark {
         <button class="more-item menu-item" id="settingsBtn" onclick="moreDo(toggleSettings)"><span>⚙</span>設定</button>
         <button class="more-item" id="voiceMoreBtn" onclick="moreDo(voiceStart)" style="display:none" title="タップで1つ入れる／長押しで続けて入れる"><span>🎤</span>声で入れる</button>
       </div>
-      <div class="more-sec">書き出す</div>
+      <div class="more-sec">書き出す・読み込む</div>
       <div class="more-grid">
-        <button class="more-item" onclick="moreDo(exportPDF)"><span>🖨</span>PDF</button>
-        <button class="more-item" onclick="moreDo(exportCSV)"><span>📄</span>CSV</button>
-        <button class="more-item" onclick="moreDo(exportXLSX)"><span>📊</span>Excel</button>
+        <button class="more-item" onclick="moreDo(exportPDF)" title="今の表を印刷画面から「PDFに保存」で書き出せます"><span>🖨</span>PDF</button>
+        <button class="more-item" onclick="moreDo(exportCSV)"><span>📄</span>CSV出力</button>
+        <button class="more-item" onclick="moreDo(exportXLSX)" title="値・数式・書式（色・枠線・太字・寄せ・結合）をエクセル形式で書き出します"><span>📊</span>Excel出力</button>
         <button class="more-item" onclick="moreDo(openHelp)"><span>📖</span>説明書</button>
+        <button class="more-item" onclick="document.getElementById('importCSVInput').click();closeMoreMenu()" title="CSVファイルを今の表に読み込みます（上書き）"><span>📥</span>CSV読込</button>
+        <button class="more-item" onclick="document.getElementById('importXLSXInput').click();closeMoreMenu()" title="エクセル(.xlsx)ファイルを今の表に読み込みます（上書き）"><span>📥</span>Excel読込</button>
       </div>
+      <input id="importCSVInput" type="file" accept=".csv,text/csv" style="display:none" onchange="importCSV(event)">
+      <input id="importXLSXInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onchange="importXLSX(event)">
       <div class="more-sec">表を整える</div>
       <div class="more-grid">
         <button class="more-item menu-item" id="defsizeTopBtn" title="タップで既定の行数・列数に／長押しで既定値を設定"><span>▦</span>既定の大きさ</button>
-        <button class="more-item" onclick="moreDo(toggleDark)"><span>🌙</span>ナイトモード</button>
+        <button class="more-item" id="darkMoreBtn" onclick="moreDo(toggleDark)"><span>🌙</span>ナイトモード</button>
       </div>
       <div class="more-sec">切り替える</div>
       <div class="more-grid">
@@ -2823,7 +2803,6 @@ body.dark {
     <button class="settings-tab active" onclick="setSettingsTab(0)">📐 表</button>
     <button class="settings-tab" onclick="setSettingsTab(1)">🎨 見た目</button>
     <button class="settings-tab" onclick="setSettingsTab(2)">🧮 計算</button>
-    <button class="settings-tab" onclick="setSettingsTab(3)">📄 データ</button>
   </div>
   <div class="settings-body">
 
@@ -2837,15 +2816,7 @@ body.dark {
       <span class="set-label">列の数</span>
       <span class="set-stepper"><button class="step-btn" onclick="changeCols(-1)">−</button><span class="sc-val" id="colCount">3</span><button class="step-btn" onclick="changeCols(1)">＋</button></span>
     </div>
-    <div class="set-sec">選択中のセルの行・列</div>
-    <div class="set-pair">
-      <button class="btn-ins" onclick="insertRowAtSel()" title="選択セルの上に行を挿入">＋ 上に行を追加</button>
-      <button class="btn-del" onclick="deleteRowAtSel()" title="選択セルの行を削除">行を削除</button>
-    </div>
-    <div class="set-pair">
-      <button class="btn-ins" onclick="insertColAtSel()" title="選択セルの左に列を挿入">＋ 左に列を追加</button>
-      <button class="btn-del" onclick="deleteColAtSel()" title="選択セルの列を削除">列を削除</button>
-    </div>
+    <div class="set-note">行や列を1本ずつ足す・消すときは、<b>行番号（1・2・3…）や列名（A・B・C…）を長押し</b>すると、上下・左右のどちらに足すかを選べます。</div>
     <div class="set-sec">Enterで進む向き</div>
     <div class="enterdir-seg" id="enterDirSeg">
       <button class="enterdir-btn on" data-dir="down" onclick="setEnterDir('down')">↓ 下へ</button>
@@ -2868,8 +2839,7 @@ body.dark {
       <span class="set-label">テンキーの大きさ</span>
       <span class="set-stepper"><button class="step-btn" onclick="changeKeySize(-1)">−</button><span class="sc-val" id="keySize">大</span><button class="step-btn" onclick="changeKeySize(1)">＋</button></span>
     </div>
-    <button class="set-act" id="darkBtn" onclick="toggleDark()">ナイトモード</button>
-    <button class="set-act" id="sheetTabsBtn" onclick="toggleSheetTabs()">シートのタブを常に表示</button>
+    <div class="set-note">🌙<b>ナイトモード</b>・🗂<b>シートのタブ</b>・▦<b>既定の大きさ</b>・書き出し／読み込みは、上のバーの <b>⋯</b> にまとめてあります（よく使うものは下の「上のバーに出すボタン」で出しておけます）。</div>
     <details class="help-acc set-acc" id="setDetailAcc" ontoggle="saveSetDetail(this)">
       <summary>くわしい設定</summary>
       <div class="help-acc-body set-acc-body">
@@ -2964,22 +2934,6 @@ body.dark {
     <button class="set-act" onclick="openModeVis()" title="「モード」一覧に表示する標準モードを選びます">モードの表示/非表示</button>
   </div>
 
-  <div class="set-page" id="setPage3">
-    <div class="set-sec">📤 書き出し・読み込み</div>
-    <button class="set-act" onclick="exportPDF()" title="今の表を印刷画面から「PDFに保存」で書き出せます">PDF出力（印刷）</button>
-    <button class="set-act" onclick="exportCSV()">CSV出力</button>
-    <button class="set-act" onclick="document.getElementById('importCSVInput').click()" title="CSVファイルを現在の表に読み込みます（上書き）">CSV読込</button>
-    <input id="importCSVInput" type="file" accept=".csv,text/csv" style="display:none" onchange="importCSV(event)">
-    <button class="set-act" onclick="exportXLSX()" title="値・数式・書式（色・枠線・太字・寄せ・結合）をエクセル形式で書き出します">Excel出力（.xlsx）</button>
-    <button class="set-act" onclick="document.getElementById('importXLSXInput').click()" title="エクセル(.xlsx)ファイルを現在の表に読み込みます（上書き）">Excel読込（.xlsx）</button>
-    <input id="importXLSXInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onchange="importXLSX(event)">
-    <div class="set-sec">📖 ヘルプ</div>
-    <button class="set-act" onclick="openHelp()">説明書（使い方）</button>
-  </div>
-
-  </div>
-  <div class="settings-footer">
-    <button class="set-act set-act-primary" id="defaultSizeBtn" title="タップで既定の行数・列数に／長押しで既定値を設定">既定の行数・列数にもどす</button>
   </div>
  </div>
 </div>
@@ -4575,7 +4529,7 @@ body.dark {
       <details class="help-acc" id="h-settings">
         <summary>⚙️ 設定</summary>
         <div class="help-acc-body">
-          <div class="help-li"><b>4つのタブ</b>に分かれています（<b>📐表</b>＝行と列・Enterの向き／<b>🎨見た目</b>＝文字や画面の大きさ／<b>🧮計算</b>＝小数桁・税率・日付／<b>📄データ</b>＝テンプレ・PDF・CSV・Excel・説明書）。<b>本文を横にフリック</b>してもタブを移動できます。</div>
+          <div class="help-li"><b>3つのタブ</b>に分かれています（<b>📐表</b>＝行と列・Enterの向き／<b>🎨見た目</b>＝文字や画面の大きさ・上のバー・テンキー／<b>🧮計算</b>＝小数桁・税率・日付・声）。<b>本文を横にフリック</b>してもタブを移動できます。書き出し・読み込み・説明書・ナイトモード・シートのタブ・既定の大きさは、<b>設定ではなく上のバーの ⋯</b> にまとめてあります（v359。同じボタンが2か所にあるのをやめました）。</div>
           <div class="help-li"><b>テンキーを細かく変えたいとき</b>は、設定→<b>🎨見た目→くわしい設定→「テンキーを自分好みにする」</b>を開いてください（v303から。ふだんは触らなくて大丈夫なので、たたんであります）。<b>数字キーの大きさ・上下の余白・ページ表示・調整バー・ボタン配置の編集</b>がここにまとまっています。</div>
           <div class="help-li"><b>🎨見た目</b>は、よく使う<b>セルの文字・画面の幅・テンキーの大きさ・ナイトモード・シートのタブ</b>を先に出しています。それ以外は<b>「くわしい設定」</b>をタップすると出てきます（小計や上のバーの文字、数字キーの大きさ、テンキーの余白とページ表示、調整バー、ボタン配置の編集、<b>上のバーに出すボタン</b>）。開いたまま／閉じたままの状態は次回も覚えています。</div>
           <table class="help-tbl">
@@ -4620,7 +4574,7 @@ body.dark {
             <tr><td><b>↶戻る／↷進む</b></td><td>直前の操作を元に戻す／やり直す（<b>↶</b>は上のバー、<b>↷</b>は<b>⋯</b>の中。使えないときは薄く出ます）。<b>↶を長押し</b>すると、取り消せる操作が新しい順に出て、<b>タップしたところまでまとめて戻せます</b></td></tr>
             <tr><td><b>⬇書き出し／⬆読み込み</b></td><td>リスト下部。保存データをファイルに出力→別端末で復元（<b>バックアップ・引っ越し</b>）</td></tr>
           </table>
-          <div class="help-li"><b>📄CSV／📊Excel／🖨PDF</b>（設定の「データ」タブ）：CSVは表の値（文字コード自動判別）。<b>Excel(.xlsx)</b>は数式・太字・色・枠線・寄せ・結合・列幅まで保ったまま入出力。<b>PDF出力</b>は印刷前の設定ダイアログで、タイトル・向き・拡大縮小（1ページに収める）・余白・文字サイズ・枠線を指定でき、プレビューを横フリックで複数ページ確認。「印刷／PDFに保存」で書き出せます。</div>
+          <div class="help-li"><b>📄CSV／📊Excel／🖨PDF</b>（上のバーの <b>⋯</b>）：CSVは表の値（文字コード自動判別）。<b>Excel(.xlsx)</b>は数式・太字・色・枠線・寄せ・結合・列幅まで保ったまま入出力。<b>PDF出力</b>は印刷前の設定ダイアログで、タイトル・向き・拡大縮小（1ページに収める）・余白・文字サイズ・枠線を指定でき、プレビューを横フリックで複数ページ確認。「印刷／PDFに保存」で書き出せます。</div>
           <div class="help-li"><b>🌙</b>ダークモード切替。</div>
         </div>
       </details>
@@ -6991,12 +6945,16 @@ function a11yInit(){
 }
 
 /* ── ダークモード ── */
+/* ⋯ の中のナイトモードのボタンに、今どちらなのかを出す */
+function refreshDarkBtn(){
+  const b=document.getElementById('darkMoreBtn'); if(!b) return;
+  b.innerHTML=darkMode?'<span>☀</span>ライトに戻す':'<span>🌙</span>ナイトモード';
+  b.classList.toggle('on',darkMode);
+}
 function toggleDark() {
   darkMode=!darkMode;
   document.body.classList.toggle('dark',darkMode);
-  const b=document.getElementById('darkBtn');
-  b.textContent=darkMode?'☀ ライトに戻す':'🌙 ナイトモード';
-  b.classList.toggle('on',darkMode);
+  refreshDarkBtn();
   localStorage.setItem('excalc_dark',darkMode?'1':'0');
 }
 
@@ -7064,7 +7022,6 @@ function bindDefaultSizeBtn(b){
   b.addEventListener('pointercancel', ()=>{ clear(); down=false; longed=false; b.classList.remove('armed'); });
   b.addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); }, true);  // pointerで処理
 }
-bindDefaultSizeBtn(document.getElementById('defaultSizeBtn'));
 bindDefaultSizeBtn(document.getElementById('defsizeTopBtn'));
 
 /* ── 行・列の挿入／削除 ── */
@@ -16089,7 +16046,6 @@ function commitSheetReorder(bar){
 function toggleSheetTabs(){
   showSheetTabs=!showSheetTabs;
   localStorage.setItem('excalc_show_sheettabs', showSheetTabs?'1':'0');
-  const btn=document.getElementById('sheetTabsBtn'); if(btn) btn.classList.toggle('on', showSheetTabs);
   const top=document.getElementById('sheetToggleBtn'); if(top) top.classList.toggle('on', showSheetTabs);
   renderSheetPersist();
 }
@@ -16476,14 +16432,14 @@ function applySetDetail(){
   const el=document.getElementById('setDetailAcc'); if(!el) return;
   el.open = localStorage.getItem('excalc_set_detail')==='1';
 }
-/* 設定のタブ切替（表・見た目・計算・データ）。開いたタブを記憶する */
+/* 設定のタブ切替（表・見た目・計算）。開いたタブを記憶する */
 let settingsTab=0;
-const SETTINGS_TAB_MAX=3;
+const SETTINGS_TAB_MAX=2;
 function setSettingsTab(i){
   i=Math.max(0, Math.min(SETTINGS_TAB_MAX, i));
   settingsTab=i;
   document.querySelectorAll('.settings-tab').forEach((b,idx)=>b.classList.toggle('active',idx===i));
-  for(let p=0;p<4;p++){ const el=document.getElementById('setPage'+p); if(el) el.classList.toggle('open',p===i); }
+  for(let p=0;p<=SETTINGS_TAB_MAX;p++){ const el=document.getElementById('setPage'+p); if(el) el.classList.toggle('open',p===i); }
   localStorage.setItem('excalc_settings_tab',String(i));
 }
 /* 設定本体を横フリックしてタブを切替（左＝次、右＝前）。縦スクロールやボタンのタップは邪魔しない */
@@ -16508,7 +16464,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v358';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v359';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -18136,9 +18092,8 @@ initSaveLocation();
 /* ── 初期化 ── */
 if(localStorage.getItem('excalc_dark')==='1'){
   darkMode=true; document.body.classList.add('dark');
-  const b=document.getElementById('darkBtn');
-  b.textContent='☀ ライトに戻す'; b.classList.add('on');
 }
+refreshDarkBtn();
 const savedKeyScale=parseFloat(localStorage.getItem('excalc_keyscale'));
 if(!isNaN(savedKeyScale)){
   keyScale=savedKeyScale;
@@ -18168,11 +18123,10 @@ bindKeypadDrag();
 loadUserKeys();
 renderUserKeys();
 loadSaveTabNames();
-setSettingsTab(Math.min(3,Math.max(0,parseInt(localStorage.getItem('excalc_settings_tab')||'0',10)||0)));
+setSettingsTab(Math.min(SETTINGS_TAB_MAX,Math.max(0,parseInt(localStorage.getItem('excalc_settings_tab')||'0',10)||0)));
 attachSettingsSwipe();
 setEnterDir(enterMoveDir);                 // Enterで進む向きを復元
-{ const stb=document.getElementById('sheetTabsBtn'); if(stb) stb.classList.toggle('on', showSheetTabs);
-  const stt=document.getElementById('sheetToggleBtn'); if(stt) stt.classList.toggle('on', showSheetTabs); }
+{ const stt=document.getElementById('sheetToggleBtn'); if(stt) stt.classList.toggle('on', showSheetTabs); }
 applyResizerBar();   // 調整バーの表示/非表示を復元
 loadNpFlick();       // フリックで入れる記号の割り当てを復元
 applyPageBar();      // テンキーのページ表示の有無を復元
