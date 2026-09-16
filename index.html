@@ -2919,6 +2919,11 @@ body.dark {
       <span class="set-label">テンキーの大きさ</span>
       <span class="set-stepper"><button class="step-btn" onclick="changeKeySize(-1)">−</button><span class="sc-val" id="keySize">大</span><button class="step-btn" onclick="changeKeySize(1)">＋</button></span>
     </div>
+    <div class="set-sec">はじめに開くページ</div>
+    <div class="set-row">
+      <span class="set-label">アプリを開いたとき<small>次に開いたときから効きます</small></span>
+      <select class="fmt-select" id="startPageSel" onchange="setStartPage(this.value)" style="flex-shrink:0"></select>
+    </div>
     <div class="set-note">🌙<b>ナイトモード</b>・🗂<b>シートのタブ</b>・▦<b>既定の大きさ</b>・書き出し／読み込みは、上のバーの <b>⋯</b> にまとめてあります（よく使うものは下の「上のバーに出すボタン」で出しておけます）。</div>
     <details class="help-acc set-acc" id="setDetailAcc" ontoggle="saveSetDetail(this)">
       <summary>くわしい設定</summary>
@@ -4669,6 +4674,7 @@ body.dark {
       <details class="help-acc" id="h-settings">
         <summary>⚙️ 設定</summary>
         <div class="help-acc-body">
+          <div class="help-li"><b>はじめに開くページ</b>（v366から）：設定→<b>🎨見た目</b>の<b>「アプリを開いたとき」</b>で、開いた直後に出すものを選べます。<b>前回のつづき</b>（はじめの状態。閉じたときのまま開きます）／<b>▦通常の表</b>／<b>🧮電卓</b>／<b>💧単位水量・🧪カンタブ・🌱野菜・📷容積・📝写真メモ・🔗リンク集・📋式テンプレ・📑決算テンプレ</b>から選べます。道具を選んだときは<b>その画面が上に開く</b>だけなので、<b>✕で閉じれば</b>下の表がそのまま使えます。<b>次に開いたときから</b>効きます</div>
           <div class="help-li"><b>3つのタブ</b>に分かれています（<b>📐表</b>＝行と列・Enterの向き／<b>🎨見た目</b>＝文字や画面の大きさ・上のバー・テンキー／<b>🧮計算</b>＝小数桁・税率・日付・声）。<b>本文を横にフリック</b>してもタブを移動できます。書き出し・読み込み・説明書・ナイトモード・シートのタブ・既定の大きさは、<b>設定ではなく上のバーの ⋯</b> にまとめてあります（v359。同じボタンが2か所にあるのをやめました）。</div>
           <div class="help-li"><b>テンキーを細かく変えたいとき</b>は、設定→<b>🎨見た目→くわしい設定→「テンキーを自分好みにする」</b>を開いてください（v303から。ふだんは触らなくて大丈夫なので、たたんであります）。<b>数字キーの大きさ・上下の余白・ページ表示・調整バー・ボタン配置の編集</b>がここにまとまっています。</div>
           <div class="help-li"><b>🎨見た目</b>は、よく使う<b>セルの文字・画面の幅・テンキーの大きさ・ナイトモード・シートのタブ</b>を先に出しています。それ以外は<b>「くわしい設定」</b>をタップすると出てきます（小計や上のバーの文字、数字キーの大きさ、テンキーの余白とページ表示、調整バー、ボタン配置の編集、<b>上のバーに出すボタン</b>）。開いたまま／閉じたままの状態は次回も覚えています。</div>
@@ -11775,6 +11781,38 @@ const NP_TOOLS=[
   {id:'calctmpl', label:'📋式テンプレ', ov:'calcTmplOverlay',  run:()=>openCalcTmpl(), close:()=>closeCalcTmpl()},
   {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
 ];
+/* ── はじめに開くページ（v366）──
+   アプリを開いたときに、表・電卓・道具のどれを出すかを選べる。
+   「前回のつづき」なら今までどおり、閉じたときのままで開く。 */
+const START_PAGE_KEY='excalc_startpage';
+let startPage='last';
+function startPageOptions(){
+  return [['last','前回のつづき'],['normal','▦ 通常の表'],['dentaku','🧮 電卓']]
+    .concat(NP_TOOLS.filter(t=>t.ov).map(t=>[t.id, t.label]));   // 別のタブで開く「メモ」は出さない
+}
+function loadStartPage(){
+  let v='last'; try{ v=localStorage.getItem(START_PAGE_KEY)||'last'; }catch(_){}
+  startPage=startPageOptions().some(o=>o[0]===v)?v:'last';
+}
+function setStartPage(v){
+  startPage=startPageOptions().some(o=>o[0]===v)?v:'last';
+  try{ localStorage.setItem(START_PAGE_KEY, startPage); }catch(_){}
+  renderStartPage();                       // 欄の表示も合わせる
+  const lb=(startPageOptions().find(o=>o[0]===startPage)||[])[1]||'前回のつづき';
+  toast(`次に開いたときは「${lb}」から始まります`);
+}
+function renderStartPage(){
+  const el=document.getElementById('startPageSel'); if(!el) return;
+  el.innerHTML=startPageOptions().map(([v,l])=>`<option value="${v}">${escHtml(l)}</option>`).join('');
+  el.value=startPage;
+}
+/* 開いたときに1回だけ呼ぶ。道具は全画面で開くので、閉じれば下の表がそのまま使える */
+function applyStartPage(){
+  if(startPage==='last') return;
+  if(startPage==='normal' || startPage==='dentaku'){ switchMode(startPage); return; }
+  const t=npToolDef(startPage);
+  if(t && t.ov && typeof t.run==='function') t.run();
+}
 const NP_TOOL_KEY='excalc_nptools';
 let npTools=[];                                  // 選んだ道具のid（この順に並ぶ）
 function npToolDef(id){ return NP_TOOLS.find(t=>t.id===id)||null; }
@@ -17047,7 +17085,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v365';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v366';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -18828,6 +18866,11 @@ if(isFormMode()) sel(1,1); else sel(initCellOfMode(),0);
 
 fitNumpadLabels();
 window.addEventListener('load', fitNumpadLabels);
+
+/* はじめに開くページ。ぜんぶ組み立て終わってから出す */
+loadStartPage();
+renderStartPage();
+setTimeout(()=>{ try{ applyStartPage(); }catch(_){} }, 0);
 
 if("serviceWorker" in navigator){
   let swRefreshing=false;
