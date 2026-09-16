@@ -2866,6 +2866,59 @@ async function runVegDiary(browser) {
   await ctx.close();
 }
 
+/* はじめに開くページ（v366） */
+async function runStartPage(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── はじめに開くページ ──');
+
+  check('  はじめは前回のつづき', await page.evaluate(() =>
+    startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
+  check('  表・電卓・道具から選べる', await page.evaluate(() =>
+    startPageOptions().map(o => o[0]).join(',')),
+    'last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,calctmpl,fintmpl');
+  check('  別のタブで開くメモは出さない', await page.evaluate(() =>
+    startPageOptions().some(o => o[0] === 'memo')), false);
+  check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
+    document.getElementById('startPageSel').options.length), 11);
+
+  const opened = () => page.evaluate(() => {
+    const ovs = ['tansuiOverlay', 'kantabOverlay', 'veggieOverlay', 'volumeOverlay',
+                 'photoMemoOverlay', 'linkListOverlay'].filter(isDlgOpen);
+    return (ovs.join(',') || 'なし') + '/' + (isDentaku() ? '電卓' : tableMode); });
+  const pick = async v => { await page.evaluate(x => setStartPage(x), v);
+    await page.reload(); await page.waitForTimeout(1200); };
+
+  await pick('dentaku');
+  check('  電卓を選ぶと電卓で開く', await opened(), 'なし/電卓');
+  await pick('normal');
+  check('  通常の表を選ぶと表で開く', await opened(), 'なし/normal');
+  await pick('veggie');
+  check('  野菜を選ぶと野菜が開く', await opened(), 'veggieOverlay/normal');
+  check('  ✕で閉じれば下の表が使える', await page.evaluate(async () => {
+    closeVeggie(); await new Promise(r => setTimeout(r, 300));
+    return isDlgOpen('veggieOverlay') + '/' + tableMode; }), 'false/normal');
+  await pick('tansui');
+  check('  単位水量を選ぶと単位水量が開く', await opened(), 'tansuiOverlay/normal');
+  await pick('photomemo');
+  check('  写真メモを選ぶと写真メモが開く', await opened(), 'photoMemoOverlay/normal');
+  await pick('last');
+  check('  前回のつづきなら何も開かない', await opened(), 'なし/normal');
+
+  // 覚える／おかしな値でも落ちない
+  check('  選んだものを覚える', await page.evaluate(() => {
+    setStartPage('kantab'); return localStorage.getItem('excalc_startpage'); }), 'kantab');
+  check('  選び直すと欄の表示も合う', await page.evaluate(() =>
+    document.getElementById('startPageSel').value), 'kantab');
+  await page.evaluate(() => localStorage.setItem('excalc_startpage', 'なにこれ'));
+  await page.reload(); await page.waitForTimeout(1200);
+  check('  知らない値は前回のつづきに戻す', await page.evaluate(() => startPage), 'last');
+  check('  そのとき何も開かない', await opened(), 'なし/normal');
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -2888,6 +2941,7 @@ async function runVegDiary(browser) {
     if (!only || only === 'setdedup') await runSetDedup(browser);
     if (!only || only === 'tmplunit') await runTmplUnit(browser);
     if (!only || only === 'vegdiary') await runVegDiary(browser);
+    if (!only || only === 'startpage') await runStartPage(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
