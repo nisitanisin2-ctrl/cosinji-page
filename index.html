@@ -1495,6 +1495,10 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
 .dp-cell.dp-photo .dp-note { background: rgba(0,0,0,.58); color: #fff; }
 /* 文を出す月は、マス目を少しだけ縦長にして読みやすくする（画面のときだけ。書き出しは正方形のまま） */
 .veg-grid.has-note .dp-cell { aspect-ratio: 1 / 1.3; }
+/* 畑の広さ：縦×横から出す（v365） */
+.veg-plot-eq { font-size: 13px; color: var(--text); white-space: nowrap; }
+.veg-plot-alt { margin-top: 2px; }
+.veg-lb2 { font-size: 11px; color: var(--text-light); flex-shrink: 0; }
 .veg-calhint { font-size: 11px; color: var(--text-light); line-height: 1.5; padding: 6px 2px 2px; }
 /* カレンダーのひとまとまり。ここだけ横フリックが「月送り」になる（v363） */
 .veg-cal { margin-bottom: 10px; }
@@ -4651,7 +4655,7 @@ body.dark {
             ・<b>地域・標高・寒冷地</b>を選ぶと、<b>日数を補正</b>します（v341から）。<b>この設定は1つだけ持ち、登録したどの野菜にも共通でかかります</b>（1度入れておけば、あとは入れ直さなくて大丈夫です）。寒いところほど育ちはゆっくりなので、日数に倍率をかけます。<b>地域</b>は沖縄〜北海道の7つ（関東・東海・近畿が標準）、<b>標高</b>は100mごとに約2%おそく（気温が約0.6℃下がるめやす）、<b>寒冷地（霜がおりる畑）</b>でさらに5%おそくします。いまかかっている補正は<b>「補正 ＋34%（日数を1.34倍）」</b>のように画面に出ます。<b>種まきの時期を標準の地域よりどれだけずらすとよいか</b>も出ます（例：北海道は4週間おそめ）。この設定は<b>次に開いたときも残ります</b><br>
             ・野菜は<b>33種類</b>入っています。多いので<b>名前でさがす</b>欄も使えます（<b>➕自分の野菜を登録する</b>で足すこともできます）<br>
             ・<b>▦ 予定表を表に入れる</b>を押すと、<b>選んでいるセルを左上にして</b>「作業／予定日／おわり／日数」の表が入ります。日付は<b>日付として</b>入るので、そのまま計算や並べ替えに使えます（<b>↶戻る</b>で元に戻せます）<br>
-            ・<b>🧪 肥料と配合</b>（v342から）：その野菜に合う<b>土づくり・元肥・追肥</b>を出します。<b>苦土石灰・完熟たい肥</b>の量、<b>化成肥料の配合（8-8-8 など）と量</b>、<b>土のpHの目安</b>つきです。<b>畑の広さ（㎡）</b>を入れると<b>全体で何g要るか</b>まで出ます（例：100〜150g/㎡ → 3㎡で 300〜450g）。追肥の欄には<b>この計画での追肥の日</b>も出ます。ジャガイモは石灰をまかない、サツマイモは追肥をしないなど、<b>野菜ごとのくせ</b>も書いてあります<br>
+            ・<b>🧪 肥料と配合</b>（v342から）：その野菜に合う<b>土づくり・元肥・追肥</b>を出します。<b>苦土石灰・完熟たい肥</b>の量、<b>化成肥料の配合（8-8-8 など）と量</b>、<b>土のpHの目安</b>つきです。<b>畑の広さ</b>を入れると<b>全体でどれだけ要るか</b>まで出ます（例：100〜150g/㎡ → 12㎡で 1.2〜1.8kg）。広さは<b>縦◯m×横◯m</b>で入れれば自動でかけ算します（v365から。㎡と<b>坪</b>の両方が出ます）。広さだけ分かっているときは、下の<b>㎡の欄</b>に直接入れられます（そのときは縦・横は消えます）。全体の量は大きくなると<b>g→kg→t</b>に繰り上がるので、1反（約1,000㎡）のような広さでも読みやすくしてあります。<b>1ha（10,000㎡）</b>まで入ります。追肥の欄には<b>この計画での追肥の日</b>も出ます。ジャガイモは石灰をまかない、サツマイモは追肥をしないなど、<b>野菜ごとのくせ</b>も書いてあります<br>
             ・<b>🦠 出やすい病気・害虫と農薬</b>（v342から）：その野菜で<b>出やすいもの</b>を、<b>見分け方・手当て・薬の例</b>の3つで並べます（例：うどんこ病／葉に白い粉をふいたようになる／こんだ葉をとって風通しをよくする／カリグリーン・サプロール乳剤）。<b>⚠ 農薬は野菜ごとに「使ってよい作物」と「収穫の何日前まで使えるか」が決まっています。使う前に必ずラベルで確かめてください</b><br>
             ・<b>⚠ 育てるときの注意</b>（v343から）：<b>株間・畝／水やり／手入れ／連作（何年あけるか）／とりごろ</b>の5つを出します（例 キュウリ：株間45cm・畝幅120cm／夏は毎日たっぷり／下から5〜6節のわき芽と雌花はとる／ウリ科は2〜3年あける／長さ20cmの若どり）<br>
             ・<b>🖨 ぜんぶを1ページのPDFに</b>（v343から）：画面に出ている<b>予定表・カレンダー・肥料・注意・病気と農薬</b>を、<b>A4たて1枚</b>にまとめて印刷します。中身が多いときは<b>段を増やして自動で縮める</b>ので、何か月にわたる計画でも1枚に収まります。印刷の画面で<b>「PDFに保存」</b>を選べばPDFになります（畑に持って行く紙として使えます）。<b>🖼画像で保存・📤画像を共有</b>（v345から）で、同じ中身を<b>PNGの画像</b>にもできます（LINEやメールで送るときはこちらが手軽です）<br>
@@ -7822,17 +7826,21 @@ const VEG_AREAS=[
   {id:'hokkaido', n:'北海道',                f:1.20, w:4},
 ];
 const VEG_AREA_KEY='excalc_veg_area';
-let vegArea={id:'kanto', alt:0, cold:false, plot:1};
+const VEG_PLOT_MAX=10000;     // 畑の広さの上限（㎡）。1ha まで
+const VEG_SIDE_MAX=300;       // 縦・横の1辺の上限（m）
+let vegArea={id:'kanto', alt:0, cold:false, plot:1, w:0, d:0};
 function vegAreaDef(){ return VEG_AREAS.find(a=>a.id===vegArea.id)||VEG_AREAS[3]; }
 function loadVegArea(){
   try{
     const a=JSON.parse(localStorage.getItem(VEG_AREA_KEY)||'null');
     if(a && typeof a==='object'){
-      const plot=Number(a.plot);
+      const plot=Number(a.plot), w=Number(a.w), d=Number(a.d);
       vegArea={ id:VEG_AREAS.some(x=>x.id===a.id)?a.id:'kanto',
                 alt:Math.max(0,Math.min(2000,Math.round(Number(a.alt)||0))),
                 cold:!!a.cold,
-                plot:(isFinite(plot)&&plot>0)?Math.min(1000,plot):1 };
+                plot:(isFinite(plot)&&plot>0)?Math.min(VEG_PLOT_MAX,plot):1,
+                w:(isFinite(w)&&w>0)?Math.min(VEG_SIDE_MAX,w):0,
+                d:(isFinite(d)&&d>0)?Math.min(VEG_SIDE_MAX,d):0 };
     }
   }catch(_){}
 }
@@ -8010,15 +8018,36 @@ function vegCare(){
   return c||{f:'leaf', k:[]};
 }
 function vegFertOf(){ return VEG_FERT[vegCare().f]||VEG_FERT.leaf; }
-function vegPlotSize(){ const p=Number(vegArea.plot); return (isFinite(p)&&p>0)?Math.min(1000,p):1; }
+/* 畑の広さ（㎡）。縦と横が入っていればかけ算、入っていなければ㎡で入れた値 */
+function vegPlotSize(){
+  const w=Number(vegArea.w), d=Number(vegArea.d);
+  if(isFinite(w)&&w>0&&isFinite(d)&&d>0) return Math.min(VEG_PLOT_MAX, Math.round(w*d*10)/10);
+  const p=Number(vegArea.plot); return (isFinite(p)&&p>0)?Math.min(VEG_PLOT_MAX,p):1;
+}
+/* 「12㎡（3.6坪）」のような言い方。1坪＝400/121㎡ */
+function vegPlotText(){
+  const p=vegPlotSize();
+  const tsubo=Math.round(p*121/400*10)/10;
+  return withCommas(p)+'㎡'+(tsubo>=0.1?`（${withCommas(tsubo)}坪）`:'');
+}
+/* 「縦4m×横3m」。入っていなければ空 */
+function vegPlotWD(){
+  const w=Number(vegArea.w), d=Number(vegArea.d);
+  return (isFinite(w)&&w>0&&isFinite(d)&&d>0) ? `縦${w}m×横${d}m` : '';
+}
 /* 「100〜150g/㎡（3㎡で 300〜450g）」のような言い方にする */
 function vegAmt(range, unit){
   if(!range) return '';
   const a=range[0], b=range[1], p=vegPlotSize();
   const one=(a===b)?`${a}${unit}/㎡`:`${a}〜${b}${unit}/㎡`;
   if(p===1) return one;
-  const r=x=>Math.round(x*p*10)/10;
-  return one+`（${p}㎡で ${r(a)===r(b)?r(a):r(a)+'〜'+r(b)}${unit}）`;
+  // 全体の量は、大きくなったら g→kg→t に繰り上げる（100,000g より 100kg の方が分かりやすい）
+  let ta=Math.round(a*p*10)/10, tb=Math.round(b*p*10)/10, u=unit;
+  for(const [from,to] of [['g','kg'],['kg','t']]){
+    if(u===from && Math.min(ta,tb)>=1000){ ta=Math.round(ta/100)/10; tb=Math.round(tb/100)/10; u=to; }
+  }
+  const r=x=>withCommas(x);
+  return one+`（${withCommas(p)}㎡で ${r(ta)===r(tb)?r(ta):r(ta)+'〜'+r(tb)}${u}）`;
 }
 /* 予定表のうち「追肥」の日を並べる（肥料の欄から日付が分かるように） */
 function vegFeedDays(){
@@ -8033,6 +8062,16 @@ function vegRenderFert(){
   const feed=vegFeedDays();
   box.innerHTML=`<div class="veg-row">
       <span class="veg-lb">畑の広さ</span>
+      <input type="number" class="veg-num" id="vegPlotW" inputmode="decimal" value="${vegArea.w||''}" placeholder="縦"
+             onchange="vegPlotWDChange()" aria-label="畑の縦の長さ（メートル）">
+      <span>m ×</span>
+      <input type="number" class="veg-num" id="vegPlotD" inputmode="decimal" value="${vegArea.d||''}" placeholder="横"
+             onchange="vegPlotWDChange()" aria-label="畑の横の長さ（メートル）">
+      <span>m</span>
+      <span class="veg-plot-eq">＝ <b>${escHtml(vegPlotText())}</b></span>
+    </div>
+    <div class="veg-row veg-plot-alt">
+      <span class="veg-lb2">広さが分かっているとき</span>
       <input type="number" class="veg-num" id="vegPlot" inputmode="decimal" value="${p}" onchange="vegPlotChange()" aria-label="畑の広さ（平方メートル）">
       <span>㎡</span>
       <span class="veg-sub">${escHtml(f.n)}／土のpH ${escHtml(f.ph)}</span>
@@ -8049,9 +8088,20 @@ function vegRenderFert(){
         : 'やりません<br><small>肥料が多いと実（いも）が太らなくなります</small>'}</span></div>
     <div class="veg-tip">💡 ${escHtml(f.tip)}</div>`;
 }
+/* 縦・横から広さを出す。どちらかが空なら㎡で入れた値のまま */
+function vegPlotWDChange(){
+  const num=id=>{ const e=document.getElementById(id); const v=Number((e||{}).value);
+                  return (isFinite(v)&&v>0)?Math.min(VEG_SIDE_MAX,Math.round(v*100)/100):0; };
+  vegArea.w=num('vegPlotW'); vegArea.d=num('vegPlotD');
+  if(vegArea.w>0 && vegArea.d>0) vegArea.plot=vegPlotSize();   // ㎡の欄にも同じ広さを入れておく
+  saveVegArea();
+  vegRenderFert();
+}
+/* ㎡で直に入れたときは、縦・横は消す（食い違わないように） */
 function vegPlotChange(){
   const e=document.getElementById('vegPlot');
-  let v=Number((e||{}).value); if(!isFinite(v)||v<=0) v=1; if(v>1000) v=1000;
+  let v=Number((e||{}).value); if(!isFinite(v)||v<=0) v=1; if(v>VEG_PLOT_MAX) v=VEG_PLOT_MAX;
+  vegArea.w=0; vegArea.d=0;
   vegArea.plot=Math.round(v*10)/10;
   saveVegArea();
   vegRenderFert();
@@ -8554,7 +8604,8 @@ function vegAreaChange(){
   const selEl=document.getElementById('vegAreaSel'), alt=document.getElementById('vegAlt'),
         cold=document.getElementById('vegCold');
   let a=parseInt((alt||{}).value,10); if(isNaN(a)||a<0) a=0; if(a>2000) a=2000;
-  vegArea={ id:(selEl||{}).value||'kanto', alt:a, cold:!!(cold&&cold.checked), plot:vegPlotSize() };
+  vegArea={ id:(selEl||{}).value||'kanto', alt:a, cold:!!(cold&&cold.checked),
+            plot:vegPlotSize(), w:vegArea.w||0, d:vegArea.d||0 };
   saveVegArea();
   vegRenderArea(); vegRenderPlan(); vegRenderCal(); vegRenderFert();
 }
@@ -8703,7 +8754,7 @@ function vegInsertToSheet(){
                             (r.d1===r.d2)?`${r.d1}日`:`${r.d1}〜${r.d2}日`]));
   // 肥料
   out.push(['','','','']);
-  out.push([`🧪 肥料（${f.n}／土のpH ${f.ph}／畑の広さ ${p}㎡）`,'','','']);
+  out.push([`🧪 肥料（${f.n}／土のpH ${f.ph}／畑の広さ ${vegPlotText()}${vegPlotWD()?'　'+vegPlotWD():''}）`,'','','']);
   out.push(['土づくり','苦土石灰', (f.lime[1]===0)?'まきません':vegAmt(f.lime,'g'),
             `完熟たい肥 ${vegAmt(f.compost,'kg')}`]);
   out.push(['元肥', '化成肥料 '+f.base.npk, vegAmt(f.base.g,'g'), vegStartLabel()+'の1週間前までに']);
@@ -8883,7 +8934,7 @@ function vegPdfHtml(){
   let html=`<div class="vp-head">
       <div class="vp-title">${vegSel.i||'🌱'} ${escHtml(vegSel.n)} の育成計画</div>
       <div class="vp-sub">${escHtml(vegStartLabel())} ${vegDateText(vegSowSerial)}（${WDAY_JP[serialToYMD(vegSowSerial).w]}）`
-    +` ／ ${escHtml(vegAreaText())} ／ 補正 ${escHtml(vegFactorText())} ／ 畑の広さ ${p}㎡</div>
+    +` ／ ${escHtml(vegAreaText())} ／ 補正 ${escHtml(vegFactorText())} ／ 畑の広さ ${escHtml(vegPlotText())}${vegPlotWD()?'（'+escHtml(vegPlotWD())+'）':''}</div>
       <div class="vp-big">${escHtml(h.what)}は <b>${escHtml(span)}</b>（${escHtml(when)}）</div>
     </div><div class="vp-cols">`;
 
@@ -8902,7 +8953,7 @@ function vegPdfHtml(){
   });
 
   const lime=(f.lime[1]===0)?'まきません（土をアルカリに寄せないため）':vegAmt(f.lime,'g');
-  html+=`<div class="vp-box"><div class="vp-h">🧪 肥料と配合（${escHtml(f.n)}／土のpH ${escHtml(f.ph)}）</div><table class="vp-tbl">`
+  html+=`<div class="vp-box"><div class="vp-h">🧪 肥料と配合（${escHtml(f.n)}／土のpH ${escHtml(f.ph)}／畑 ${escHtml(vegPlotText())}）</div><table class="vp-tbl">`
     +`<tr><td class="vp-k">土づくり</td><td>苦土石灰 ${escHtml(lime)}<br>完熟たい肥 ${escHtml(vegAmt(f.compost,'kg'))}</td></tr>`
     +`<tr><td class="vp-k">元肥</td><td>化成肥料 ${escHtml(f.base.npk)} を ${escHtml(vegAmt(f.base.g,'g'))}</td></tr>`
     +`<tr><td class="vp-k">追肥</td><td>${f.side
@@ -16996,7 +17047,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v364';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v365';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

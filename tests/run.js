@@ -1533,7 +1533,7 @@ async function runVeggie(browser) {
     const a = JSON.parse(localStorage.getItem('excalc_veg_area') || '{}'); return a.plot; }), 3);
   check('  広さは0や大きすぎる数を直す', await page.evaluate(() => {
     document.getElementById('vegPlot').value = 0; vegPlotChange(); const a = vegArea.plot;
-    document.getElementById('vegPlot').value = 5000; vegPlotChange(); return a + '/' + vegArea.plot; }), '1/1000');
+    document.getElementById('vegPlot').value = 50000; vegPlotChange(); return a + '/' + vegArea.plot; }), '1/10000');
   await page.evaluate(() => { document.getElementById('vegPlot').value = 1; vegPlotChange(); });
   await page.waitForTimeout(150);
   const sick = () => page.evaluate(() => document.getElementById('vegSickBody').innerText.replace(/\s+/g, ' '));
@@ -1577,7 +1577,7 @@ async function runVeggie(browser) {
   check('  見出しと収穫のまとめが入る', /🍅 トマト の育成計画 .* 収穫はじめは 100〜115日後/.test(pd.txt), true);
   check('  予定表が入る', /予定表 .*種まき 3\/1\(日\) 0日/.test(pd.txt), true);
   check('  カレンダーは計画の月ぶん入る', pd.months, 6);
-  check('  肥料が入る', /🧪 肥料と配合（果菜（実をとるもの）／土のpH 6.0〜6.5）/.test(pd.txt), true);
+  check('  肥料が入る', /🧪 肥料と配合（果菜（実をとるもの）／土のpH 6\.0〜6\.5／畑 [\d,.]+㎡/.test(pd.txt), true);
   check('  育てるときの注意が入る', /⚠ 育てるときの注意 .* 株間45〜50cm/.test(pd.txt), true);
   check('  病気・害虫が入る', /🦠 出やすい病気・害虫と農薬 .*疫病/.test(pd.txt), true);
   check('  農薬の注意が最後に入る', /必ずラベルで確かめてください/.test(pd.txt), true);
@@ -2624,12 +2624,13 @@ async function runVegDiary(browser) {
     const c = [...document.querySelectorAll('#vegGrid .dp-photo')];
     const cs = c.length ? getComputedStyle(c[0]) : null;
     return { n: c.length, inner: c.length ? c[0].innerHTML : '',
+             day: String(serialToYMD(todaySerial() - 2).d),
              img: cs ? (cs.backgroundImage !== 'none') : false,
              border: cs ? cs.borderTopColor : '' };
   });
   check('  写真の日はマス目が写真になる', cell.n, 1);
   check('  日づけは小さくのり、書いた文も付く', cell.inner,
-    '<span class="dp-n">13</span><span class="dp-note">外葉</span>');
+    `<span class="dp-n">${cell.day}</span><span class="dp-note">外葉</span>`);
   check('  写真がちゃんと入っている', cell.img, true);
   check('  作業の色は枠に残る', cell.border, 'rgb(239, 108, 0)');
   check('  見本は写真より小さい', await page.evaluate(() => {
@@ -2806,6 +2807,59 @@ async function runVegDiary(browser) {
   check('  消すとマスからも消える', await noteOf(-3), 'なし');
   await page.evaluate(() => { openVeggie(); vegPlots.slice().forEach(p => vegPlotDel(p.id)); });
   await page.waitForTimeout(350);
+
+
+  // ── 畑の広さを 縦×横 から出す（v365） ──
+  await page.evaluate(() => { openVeggie(); vegSel = VEG_PLANS.find(v => v.n === 'ハクサイ');
+    vegArea = { id: 'kanto', alt: 0, cold: false, plot: 1, w: 0, d: 0 }; saveVegArea(); vegRenderAll(); });
+  await page.waitForTimeout(350);
+  const setWD = (w, d) => page.evaluate(a => {
+    document.getElementById('vegPlotW').value = a[0];
+    document.getElementById('vegPlotD').value = a[1]; vegPlotWDChange(); }, [w, d]);
+  const eq = () => page.evaluate(() => document.querySelector('.veg-plot-eq').textContent.replace(/\s+/g, ''));
+  const fert = () => page.evaluate(() =>
+    [...document.querySelectorAll('#vegFertBody .veg-fval')].map(e => e.textContent).join(' '));
+
+  check('  はじめは1㎡', await eq(), '＝1㎡（0.3坪）');
+  await setWD(4, 3);
+  check('  縦4m×横3mで12㎡', await eq(), '＝12㎡（3.6坪）');
+  check('  広さも覚える', await page.evaluate(() => vegArea.plot + '/' + vegArea.w + '/' + vegArea.d), '12/4/3');
+  check('  肥料の量が広さぶんになる', /12㎡で 1\.2〜1\.8kg/.test(await fert()), true);
+  check('  ㎡の欄も同じ広さになる', await page.evaluate(() =>
+    document.getElementById('vegPlot').value), '12');
+
+  await setWD(20, 50);
+  check('  1反ぐらいでも出る', await eq(), '＝1,000㎡（302.5坪）');
+  check('  大きい量は kg に繰り上がる', /1,000㎡で 100〜150kg/.test(await fert()), true);
+  check('  もっと大きいと t に繰り上がる', /1,000㎡で 2〜3t/.test(await fert()), true);
+
+  check('  片方が空なら広さはそのまま', await (async () => { await setWD(4, ''); return eq(); })(),
+    '＝1,000㎡（302.5坪）');
+  check('  ㎡で直に入れると縦・横は消える', await page.evaluate(() => {
+    document.getElementById('vegPlot').value = 200; vegPlotChange();
+    return vegPlotSize() + '/' + vegArea.w + '/' + vegArea.d; }), '200/0/0');
+
+  await setWD(6, 2.5);
+  check('  小数の辺も使える', await eq(), '＝15㎡（4.5坪）');
+  await page.reload(); await page.waitForTimeout(900);
+  await page.evaluate(() => { openVeggie(); vegSel = VEG_PLANS.find(v => v.n === 'ハクサイ'); vegRenderAll(); });
+  await page.waitForTimeout(350);
+  check('  開き直しても覚えている', await page.evaluate(() =>
+    document.getElementById('vegPlotW').value + '×' + document.getElementById('vegPlotD').value), '6×2.5');
+  check('  地域を変えても縦・横は残る', await page.evaluate(() => {
+    document.getElementById('vegAreaSel').value = 'tohoku'; vegAreaChange();
+    return vegArea.w + '/' + vegArea.d + '/' + vegPlotSize(); }), '6/2.5/15');
+  check('  1辺は300mまで', await (async () => { await setWD(999, 1); return eq(); })(), '＝300㎡（90.8坪）');
+  check('  広さは1haまで', await (async () => { await setWD(300, 300); return eq(); })(), '＝10,000㎡（3,025坪）');
+
+  await setWD(4, 3);
+  check('  書き出しにも広さが出る', await page.evaluate(() =>
+    /畑 12㎡（3\.6坪）/.test(vegPdfHtml())), true);
+  check('  表への書き出しにも縦×横が出る', await page.evaluate(() => {
+    sel(0, 0); vegInsertToSheet();
+    for (let r = 0; r < ROWS; r++) if (String(data[r][0]).indexOf('🧪') === 0) return data[r][0];
+    return 'なし'; }), '🧪 肥料（葉菜（葉をとるもの）／土のpH 6.0〜6.5／畑の広さ 12㎡（3.6坪）　縦4m×横3m）');
+  await page.evaluate(() => { vegArea = { id: 'kanto', alt: 0, cold: false, plot: 1, w: 0, d: 0 }; saveVegArea(); });
 
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
