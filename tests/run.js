@@ -1657,7 +1657,7 @@ async function runCalcPage(browser) {
       (rows[r] = rows[r] || []).push(b.textContent.trim()); });
     return Object.keys(rows).sort((a, b) => a - b).map(r => rows[r].join(' ')).join(' / ')
       .replace('🧮電卓', '表／電卓').replace('▦表へ', '表／電卓');
-  }), '表／電卓 🎤 声 / AC （ ） ％ ÷ / 7 8 9 × / 4 5 6 − / 1 2 3 ＋ / 0 . ⌫ ＝');
+  }), '表／電卓 桁 自 🎤 声 / AC （ ） ％ ÷ / 7 8 9 × / 4 5 6 − / 1 2 3 ＋ / 0 . ⌫ ＝');
   check('  数字キーが標準テンキーより大きい', await page.evaluate(() => {
     const a = document.querySelector('#numpadPageSci [data-key="dk_7"]').getBoundingClientRect();
     const b = document.querySelector('#numpadPage1 [data-key="n7"]').getBoundingClientRect();
@@ -2919,6 +2919,90 @@ async function runStartPage(browser) {
   await ctx.close();
 }
 
+/* 電卓の答えの桁と、はしたの数の処理（v367） */
+async function runDtDec(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 電卓の答えの桁 ──');
+  await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(350);
+
+  check('  ▦表へは半分・桁が増えた・声はそのまま', await page.evaluate(() =>
+    [...document.querySelectorAll('#numpadPageSci .btn.util')]
+      .map(b => b.dataset.key + ':' + getComputedStyle(b).gridColumn).join(' ')),
+    'dk_tosheet:span 1 dk_dec:span 1 dk_voice:span 2');
+  check('  はじめは自動・四捨五入', await page.evaluate(() => dtDec + '/' + dtRound), '-1/round');
+  check('  はじめは札を出さない', await page.evaluate(() =>
+    document.getElementById('dtDecTag').hidden), true);
+  check('  キーに今の桁が出る', await page.evaluate(() =>
+    document.querySelector('[data-key="dk_dec"]').textContent), '桁 自');
+
+  const set = (d, r) => page.evaluate(a => { setDtDec(a[0]); setDtRound(a[1]); }, [d, r]);
+  const calc = async seq => { await page.evaluate(s => { dtAllClear();
+      for (const t of s) { if (t === '=') eq(); else if (t.length === 1 && '+-*/'.indexOf(t) >= 0) op(t);
+                           else if (t === '.') dot(); else num(t); } }, seq);
+    await page.waitForTimeout(120);
+    return page.evaluate(() => document.getElementById('dtMain').textContent); };
+
+  // 10 ÷ 3
+  await set(-1, 'round'); check('  自動は今までどおり', await calc(['1','0','/','3','=']), '3.3333333333');
+  await set(2, 'round');  check('  2桁・四捨五入', await calc(['1','0','/','3','=']), '3.33');
+  await set(2, 'up');     check('  2桁・切り上げ', await calc(['1','0','/','3','=']), '3.34');
+  await set(2, 'down');   check('  2桁・切り下げ', await calc(['1','0','/','3','=']), '3.33');
+  await set(0, 'round');  check('  0桁・四捨五入', await calc(['1','0','/','3','=']), '3');
+  await set(0, 'up');     check('  0桁・切り上げ', await calc(['1','0','/','3','=']), '4');
+  await set(0, 'down');   check('  0桁・切り下げ', await calc(['1','0','/','3','=']), '3');
+  await set(2, 'round');  check('  桁を決めると0もそろえる', await calc(['6','/','2','=']), '3.00');
+
+  // マイナスは0から遠い方・近い方
+  await set(0, 'up');
+  check('  −1.5は切り上げで−2', await page.evaluate(() => dtFmtNum(-1.5)), '-2');
+  await set(0, 'down');
+  check('  −1.5は切り下げで−1', await page.evaluate(() => dtFmtNum(-1.5)), '-1');
+
+  // 途中の答えも決めた桁のまま続く（実務電卓と同じ）
+  await set(2, 'down');
+  check('  途中の答えも桁どおりに続く', await calc(['1','0','/','3','*','3','=']), '9.99');
+  await set(-1, 'round');
+  check('  自動なら途中で丸めない', await calc(['1','0','/','3','*','3','=']), '9.9999999999');
+
+  // 表へ入れる値も同じ
+  await set(2, 'down');
+  await calc(['1','0','/','3','=']);
+  await page.evaluate(() => { dtPrevSel = { r: 0, c: 0 }; dtToCell(); }); await page.waitForTimeout(350);
+  check('  ▦表へで入る値も同じ', await page.evaluate(() =>
+    getCellValue(0, 0) + '/' + getCellDisplay(0, 0)), '3.33/3.33');
+
+  // 札・キー・覚える
+  await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(300);
+  check('  札に今の決まりが出る', await page.evaluate(() => {
+    const t = document.getElementById('dtDecTag'); return t.hidden ? 'なし' : t.textContent; }),
+    '小数2桁・切り下げ');
+  check('  キーにも桁が出る', await page.evaluate(() =>
+    document.querySelector('[data-key="dk_dec"]').textContent), '桁 2');
+  await page.reload(); await page.waitForTimeout(1100);
+  check('  開き直しても覚えている', await page.evaluate(() =>
+    dtDec + '/' + dtRound + '/' + document.querySelector('[data-key="dk_dec"]').textContent), '2/down/桁 2');
+
+  // 画面
+  await page.evaluate(() => { switchMode('dentaku'); openDtDec(); }); await page.waitForTimeout(400);
+  check('  桁のキーで画面が開く', await page.evaluate(() => isDlgOpen('dtDecOverlay')), true);
+  check('  選んでいるものに印が付く', await page.evaluate(() =>
+    document.querySelector('#dtDecSeg .enterdir-btn.on').dataset.v + '/' +
+    document.querySelector('#dtRoundSeg .enterdir-btn.on').dataset.v), '2/down');
+  check('  例が出る', await page.evaluate(() =>
+    /3\.333333 → .*3\.33/.test(document.getElementById('dtDecEx').textContent)), true);
+  await page.evaluate(() => closeDtDec()); await page.waitForTimeout(300);
+
+  // 表のときは今までどおり丸めない
+  await page.evaluate(() => { switchMode('normal'); sel(0, 0); dtAllClear(); });
+  await page.waitForTimeout(300);
+  check('  表の計算には効かない', await page.evaluate(() => {
+    num('1'); num('0'); op('/'); num('3'); op('*'); return disp_val; }), '3.3333333333');
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -2942,6 +3026,7 @@ async function runStartPage(browser) {
     if (!only || only === 'tmplunit') await runTmplUnit(browser);
     if (!only || only === 'vegdiary') await runVegDiary(browser);
     if (!only || only === 'startpage') await runStartPage(browser);
+    if (!only || only === 'dtdec') await runDtDec(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
