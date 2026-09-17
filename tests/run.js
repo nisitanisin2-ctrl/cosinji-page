@@ -3745,6 +3745,27 @@ async function runSkin(browser) {
   check('  テンキーにも同じもよう', await page.evaluate(() =>
     getComputedStyle(document.querySelector('.numpad-section')).backgroundImage !== 'none'), true);
 
+  // 背景を出す場所（両方／表だけ／テンキーだけ）v380
+  const where = async () => page.evaluate(() => [
+    getComputedStyle(document.body).backgroundImage === 'none' ? '-' : '表',
+    getComputedStyle(document.querySelector('.numpad-section')).backgroundImage === 'none' ? '-' : 'キー',
+  ].join('/'));
+  check('  場所の選びは3つ', await page.evaluate(() =>
+    document.querySelectorAll('#skinWhereSeg .skin-seg-btn').length), 3);
+  check('  はじめは両方', await page.evaluate(() => skinWhere), 'both');
+  check('  両方に出る', await where(), '表/キー');
+  await page.evaluate(() => setSkinWhere('sheet'));
+  check('  表だけにできる', await where(), '表/-');
+  check('  表だけのときは skin-keys が付かない', await page.evaluate(() =>
+    document.body.classList.contains('skin-keys')), false);
+  await page.evaluate(() => setSkinWhere('keys'));
+  check('  テンキーだけにできる', await where(), '-/キー');
+  check('  テンキーだけならマス目は透かさない', await cssVar('--sheet-cell-bg'), '');
+  check('  テンキーだけのときは skin-bg が付かない', await page.evaluate(() =>
+    document.body.classList.contains('skin-bg')), false);
+  await page.evaluate(() => setSkinWhere('both'));
+  check('  両方に戻せる', await where(), '表/キー');
+
   // 濃さ
   const before = await page.evaluate(() => getComputedStyle(document.body).backgroundImage);
   await page.evaluate(() => changeSkinStr(1));
@@ -3784,6 +3805,15 @@ async function runSkin(browser) {
     document.getElementById('skinPhotoDel').style.display), '');
   check('  ボタンの字が「選びなおす」になる', await page.evaluate(() =>
     document.getElementById('skinPhotoBtn').textContent.includes('選びなおす')), true);
+  await page.evaluate(() => setSkinWhere('sheet')); await settle();
+  check('  写真も表だけにできる', await page.evaluate(() =>
+    getComputedStyle(document.querySelector('.numpad-section')).backgroundImage), 'none');
+  check('  表だけならキーは透けない', await bgOf('.btn[data-key="n1"]'), 'rgb(74, 74, 74)');
+  await page.evaluate(() => setSkinWhere('keys')); await settle();
+  check('  写真もテンキーだけにできる', await page.evaluate(() =>
+    getComputedStyle(document.body).backgroundImage), 'none');
+  check('  テンキーだけでもキーは透ける', await bgOf('.btn[data-key="n1"]'), 'rgba(74, 74, 74, 0.74)');
+  await page.evaluate(() => setSkinWhere('both')); await settle();
 
   // 濃さで透かし具合が変わる
   const sa = () => page.evaluate(() =>
@@ -3805,7 +3835,7 @@ async function runSkin(browser) {
   // 覚えている
   await page.reload(); await page.waitForTimeout(700);
   check('  開き直しても覚えている', await page.evaluate(() =>
-    [skinTheme, skinKeyTone, skinBg, skinStr, skinPhoto.length > 100].join('/')), 'blue/dark/photo/1/true');
+    [skinTheme, skinKeyTone, skinBg, skinStr, skinWhere, skinPhoto.length > 100].join('/')), 'blue/dark/photo/1/both/true');
   check('  開き直しても色が出ている', await cssVar('--acc'), '#1565c0');
 
   // 写真を消す
@@ -3815,10 +3845,10 @@ async function runSkin(browser) {
   check('  端末からも消えている', await page.evaluate(() => localStorage.getItem(SKIN_PHOTO_KEY)), null);
 
   // もとに戻す
-  await page.evaluate(() => { setSkinTheme('pink'); setSkinKeyTone('light'); setSkinBg('dot'); changeSkinStr(1); });
+  await page.evaluate(() => { setSkinTheme('pink'); setSkinKeyTone('light'); setSkinBg('dot'); changeSkinStr(1); setSkinWhere('keys'); });
   await page.evaluate(() => resetSkin()); await settle();
   check('  もとの色に戻せる', await page.evaluate(() =>
-    [skinTheme, skinKeyTone, skinBg, skinStr].join('/')), 'green/dark/none/1');
+    [skinTheme, skinKeyTone, skinBg, skinStr, skinWhere].join('/')), 'green/dark/none/1/both');
   check('  戻すと緑になる', await cssVar('--acc'), '#217346');
   check('  戻すとキーも黒に', await bgOf('.btn[data-key="n1"]'), 'rgb(74, 74, 74)');
 
