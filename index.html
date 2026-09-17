@@ -41,6 +41,16 @@
   --elev-2: 0 8px 28px rgba(0,0,0,.28);
   /* 動きの時間は1つ */
   --dur: .14s;
+  /* テンキーの色（着せかえで差し替える）。個々のキーではここを見る。 */
+  --kp-bg: #2c2c2c;          /* テンキーの地 */
+  --kp-key: #4a4a4a;         /* ふつうのキー */
+  --kp-key-h: #666;          /* 指を乗せたとき */
+  --kp-key-a: #888;          /* 押した瞬間 */
+  --kp-sub: #b9b9b9;         /* ページ表示のふだんの文字 */
+  --kp-sub2: #e8e8e8;        /* ページ表示の道具・▲登録の文字 */
+  --kp-ink: #fff;            /* 指を乗せたときの文字 */
+  --kp-veil: rgba(255,255,255,.10);   /* 地の上に薄く敷く色 */
+  --kp-veil2: rgba(255,255,255,.07);
 }
 body.dark {
   --acc-text: var(--acc-on-dark);
@@ -95,6 +105,52 @@ body.dark {
   --save-item-border: #334466;
   --modal-bg: #1e2a45;
 }
+
+/* ── 着せかえ（配色・背景） ──
+   色そのものは JS が body に直接入れる（body.dark の指定より強い）。
+   ここは背景もようを敷くための受け皿だけを用意する。 */
+body.skin-bg {
+  background-image: var(--skin-img);
+  background-size: var(--skin-size, auto);
+  background-repeat: var(--skin-rep, repeat);
+  background-position: center;
+}
+/* もようが見えるように、表の下地は透かす（マス目そのものは不透明のまま） */
+body.skin-bg .sheet-wrap { background: transparent; }
+/* スマホのキーボードと同じように、テンキーの地にも同じもよう（写真）を敷く。
+   テンキーは暗い地なので、もようは表とは別の色（白／黒）で描いたものを使う。 */
+body.skin-bg .numpad-section,
+body.skin-bg .numpad-overlay {
+  background-image: var(--skin-kimg, none);
+  background-size: var(--skin-ksize, auto);
+  background-repeat: var(--skin-krep, repeat);
+  background-position: center;
+}
+
+/* 設定：色えらびの丸チップ */
+.skin-sw { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 2px 2px; }
+.skin-chip {
+  width: 38px; height: 38px; border-radius: var(--r-pill); cursor: pointer;
+  border: 2px solid transparent; box-shadow: var(--elev-1);
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  position: relative; flex: none; transition: transform var(--dur);
+}
+.skin-chip:active { transform: scale(0.92); }
+.skin-chip.on { border-color: var(--text); }
+.skin-chip.on::after {
+  content: '✓'; position: absolute; inset: 0; display: flex;
+  align-items: center; justify-content: center; color: #fff;
+  font-size: 18px; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,.45);
+}
+/* 設定：キーの色を選ぶ3つ並び（Enterで進む向きと同じ作り） */
+.skin-seg { display: flex; gap: 6px; padding: 2px; }
+.skin-seg .skin-seg-btn {
+  flex: 1; padding: 9px 4px; border-radius: var(--r-btn); cursor: pointer;
+  border: 1px solid var(--save-item-border); background: var(--save-item-bg);
+  color: var(--text); font-size: 13px; font-weight: bold;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.skin-seg .skin-seg-btn.on { background: var(--acc); border-color: var(--acc); color: var(--on-acc); }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -516,7 +572,7 @@ body.dentaku-mode .formula-bar { display: none !important; }
 .dt-tape {
   flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
   border: 1px solid var(--cell-border, #ddd); border-radius: var(--r-card);
-  background: var(--cell-bg, #fff); padding: 6px 8px;
+  background: var(--sheet-cell-bg, var(--cell-bg, #fff)); padding: 6px 8px;
 }
 .dt-tape-row {
   display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
@@ -847,7 +903,7 @@ table.sheet {
 }
 
 .ch {
-  background: var(--ch-bg); color: var(--ch-color);
+  background: var(--sheet-ch-bg, var(--ch-bg)); color: var(--ch-color);
   font-size: calc(11px * var(--cell-scale, 1)); font-weight: bold; text-align: center;
   width: auto; height: calc(26px * var(--cell-scale, 1));
   border-right: 1px solid var(--cell-border); border-bottom: 1px solid var(--cell-border);
@@ -857,7 +913,7 @@ table.sheet {
 .ch:hover:not(.sel) { background: var(--cell-hover); }
 
 .rh {
-  background: var(--ch-bg); color: var(--ch-color);
+  background: var(--sheet-ch-bg, var(--ch-bg)); color: var(--ch-color);
   font-size: calc(11px * var(--cell-scale, 1)); text-align: center;
   width: 48px; height: calc(32px * var(--cell-scale, 1));
   border-right: 1px solid var(--cell-border); border-bottom: 1px solid var(--cell-border);
@@ -870,7 +926,7 @@ table.sheet {
   height: calc(32px * var(--cell-scale, 1)); width: calc(60px * var(--cell-scale, 1)); padding: 1px 4px;
   font-size: calc(14px * var(--cell-scale, 1) * var(--dsize, 1) * var(--fit, 1)); text-align: right; cursor: cell;
   border-right: 1px solid var(--cell-border); border-bottom: 1px solid var(--cell-border);
-  background: var(--cell-bg);
+  background: var(--sheet-cell-bg, var(--cell-bg));
   color: var(--text);
   white-space: nowrap; overflow: hidden;
   vertical-align: middle; touch-action: manipulation;
@@ -878,7 +934,7 @@ table.sheet {
 .cell:hover { background: var(--cell-hover); }
 .cell.active {
   border: 2px solid var(--acc) !important;
-  outline: none; background: var(--cell-bg);
+  outline: none; background: var(--sheet-cell-bg, var(--cell-bg));
   z-index: 1; position: relative;
 }
 /* ユーザーが保護（ロック）したセル：セル内にはマークを表示しない。
@@ -964,7 +1020,7 @@ body.dark .cell.paste-flash { background: #1f5132 !important; }
 
 
 .numpad-section {
-  flex-shrink: 0; background: #2c2c2c; padding: 4px; --key-scale: 1.3;
+  flex-shrink: 0; background: var(--kp-bg); padding: 4px; --key-scale: 1.3;
   /* 表の終わりを示す線。以前は合計バーの上線がこの役目をしていた */
   border-top: 2px solid var(--acc);
   /* 上下の余白は設定で調整可（--np-top/--np-bottom）。iPhoneのホームバー分は
@@ -1088,30 +1144,30 @@ body.resizer-off .numpad-resizer { display: none !important; }
 .numpad-pagebar .np-page.np-axis {
   margin-left: auto; position: sticky; right: 0;
   /* 道具のタブが増えて横に流れても、▲登録は右端に残す。下の文字が透けないよう地色を敷く */
-  background: #2c2c2c; box-shadow: -8px 0 8px -4px #2c2c2c;
+  background: var(--kp-bg); box-shadow: -8px 0 8px -4px var(--kp-bg);
 }
-.numpad-pagebar .np-page.np-axis:hover { background: #3a3a3a; }
+.numpad-pagebar .np-page.np-axis:hover { background: var(--kp-key); }
 body.pagebar-off .numpad-pagebar { display: none; }
 /* テンキーを閉じているときは出さない（横向きは幅18pxまで縮むため） */
 body.numpad-off .numpad-pagebar { display: none; }
 .np-page {
   flex: 0 0 auto; padding: 2px 7px; border: none; border-radius: var(--r-pill);
-  background: transparent; color: #b9b9b9;
+  background: transparent; color: var(--kp-sub);
   font-size: 10px; font-weight: bold; line-height: 1.35; white-space: nowrap;
   cursor: pointer; touch-action: manipulation;
 }
-.np-page:hover { background: rgba(255,255,255,.10); color: #fff; }
+.np-page:hover { background: var(--kp-veil); color: var(--kp-ink); }
 .np-page.on { background: var(--acc); color: var(--on-acc); }
-.np-page.np-tool { background: rgba(255,255,255,.07); color: #e8e8e8; }
-.np-page.np-tool:hover { background: rgba(255,255,255,.16); }
-.np-page.np-axis { margin-left: auto; background: rgba(255,255,255,.10); color: #ddd; }
-.np-page.np-axis:hover { background: rgba(255,255,255,.20); }
+.np-page.np-tool { background: var(--kp-veil2); color: var(--kp-sub2); }
+.np-page.np-tool:hover { background: var(--kp-veil); }
+.np-page.np-axis { margin-left: auto; background: var(--kp-veil2); color: var(--kp-sub2); }
+.np-page.np-axis:hover { background: var(--kp-veil); }
 /* テンキー：数字ページ(標準)は通常表示。関数電卓／関数記号／登録ページは
    数字ページの上に重なってスライドインするオーバーレイ（フリックで開閉） */
 .numpad-viewport { position: relative; overflow: hidden; touch-action: none; }
 .numpad-overlay {
   position: absolute; inset: 0; z-index: 5;
-  background: #2c2c2c;
+  background: var(--kp-bg);
   transition: transform var(--dur) ease;
   will-change: transform;
 }
@@ -1225,7 +1281,7 @@ body.numpad-off .numpad-pagebar { display: none; }
   gap: 5px;
 }
 .btn {
-  background: #4a4a4a; color: white; border: none;
+  background: var(--kp-key); color: white; border: none;
   border-radius: var(--r-btn);
   padding: calc(9px * var(--key-scale, 1.3)) 4px;
   font-size: calc(15px * var(--key-scale, 1.3));
@@ -1238,8 +1294,8 @@ body.numpad-off .numpad-pagebar { display: none; }
 .btn.fx { background: #5d4037; font-size: calc(12px * var(--key-scale, 1.3)); }
 .btn.fx:hover { background: #795548; }
 .btn.text-on { background: #1a5276 !important; box-shadow: inset 0 0 0 2px #5dade2; }
-.btn:hover  { background: #666; }
-.btn:active { transform: scale(0.95); background: #888; }
+.btn:hover  { background: var(--kp-key-h); }
+.btn:active { transform: scale(0.95); background: var(--kp-key-a); }
 .btn.op     { background: var(--acc-dark); }
 .btn.op:hover { background: var(--acc); }
 .btn.clr    { background: var(--danger-dark); }
@@ -3004,6 +3060,23 @@ body.dark {
       <span class="set-label">テンキーの大きさ</span>
       <span class="set-stepper"><button class="step-btn" onclick="changeKeySize(-1)">−</button><span class="sc-val" id="keySize">大</span><button class="step-btn" onclick="changeKeySize(1)">＋</button></span>
     </div>
+    <div class="set-sec">色と背景（着せかえ）</div>
+    <div class="set-note">スマホのキーボードのように、<b>色</b>と<b>背景</b>を自分好みに変えられます。選んだらすぐに変わります。<b>🌙ナイトモード</b>とは別なので、夜モードのままでも色は変えられます。</div>
+    <div class="skin-sw" id="skinSw"></div>
+    <div class="set-sec">キーの色<small style="font-weight:normal;margin-left:6px">テンキーの地とボタン</small></div>
+    <div class="skin-seg" id="skinKeySeg"></div>
+    <div class="set-row">
+      <span class="set-label">背景<small>表の下地とテンキーの地</small></span>
+      <select class="fmt-select" id="skinBgSel" onchange="setSkinBg(this.value)" style="flex-shrink:0"></select>
+    </div>
+    <div class="set-row">
+      <span class="set-label">背景の濃さ</span>
+      <span class="set-stepper"><button class="step-btn" onclick="changeSkinStr(-1)">−</button><span class="sc-val" id="skinStrVal">ふつう</span><button class="step-btn" onclick="changeSkinStr(1)">＋</button></span>
+    </div>
+    <button class="set-act" id="skinPhotoBtn" onclick="skinPickPhoto()" title="手持ちの写真を背景にします。長い辺 1280px まで縮めて保存します">🖼 背景の写真を選ぶ</button>
+    <button class="set-act" id="skinPhotoDel" onclick="skinDropPhoto()" style="display:none" title="背景にした写真を消します">🗑 背景の写真を消す</button>
+    <button class="set-act" onclick="resetSkin()" title="色・背景をはじめの緑に戻します">↩ もとの色に戻す</button>
+    <input type="file" id="skinPhotoInput" accept="image/*" style="display:none" onchange="skinPhotoChange(event)">
     <div class="set-sec">はじめに開くページ</div>
     <div class="set-row">
       <span class="set-label">アプリを開いたとき<small>次に開いたときから効きます</small></span>
@@ -4894,9 +4967,11 @@ body.dark {
         <summary>⚙️ 設定</summary>
         <div class="help-acc-body">
           <div class="help-li"><b>はじめに開くページ</b>（v366から）：設定→<b>🎨見た目</b>の<b>「アプリを開いたとき」</b>で、開いた直後に出すものを選べます。<b>前回のつづき</b>（はじめの状態。閉じたときのまま開きます）／<b>▦通常の表</b>／<b>🧮電卓</b>／<b>💧単位水量・🧪カンタブ・🌱野菜・📷容積・📝写真メモ・🔗リンク集・📋式テンプレ・📑決算テンプレ</b>から選べます。道具を選んだときは<b>その画面が上に開く</b>だけなので、<b>✕で閉じれば</b>下の表がそのまま使えます。<b>次に開いたときから</b>効きます</div>
-          <div class="help-li"><b>3つのタブ</b>に分かれています（<b>📐表</b>＝行と列・Enterの向き／<b>🎨見た目</b>＝文字や画面の大きさ・上のバー・テンキー／<b>🧮計算</b>＝小数桁・税率・日付・声）。<b>本文を横にフリック</b>してもタブを移動できます。書き出し・読み込み・説明書・ナイトモード・シートのタブ・既定の大きさは、<b>設定ではなく上のバーの ⋯</b> にまとめてあります（v359。同じボタンが2か所にあるのをやめました）。</div>
+          <div class="help-li"><b>色と背景（着せかえ）</b>（v379から）：設定→<b>🎨見た目</b>の<b>「色と背景」</b>で、スマホのキーボードのように見た目を変えられます。<b>色</b>は丸いチップから<b>10色</b>（みどり・あお・こん・みずいろ・むらさき・さくら・あか・だいだい・つち・すみ）。選ぶと<b>ボタン・見出し・枠線・スマホの上の帯</b>まで一度に変わります。<b>キーの色</b>は<b>くろ／テーマ色／あかるい</b>の3つ。<b>背景</b>は<b>なし・ぼかし・方眼・水玉・ななめ線・自分の写真</b>から選べ、<b>表の下地とテンキーの地の両方</b>に敷かれます。<b>背景の濃さ</b>（うすい／ふつう／こい）で見え方を調整できます。<b>🌙ナイトモードとは別</b>なので、夜モードのままでも色は変えられます。<b>↩ もとの色に戻す</b>ではじめの緑に戻ります。</div>
+          <div class="help-li"><b>好きな写真や絵を背景にする</b>（v379から）：設定→<b>🎨見た目→🖼 背景の写真を選ぶ</b>で、端末の写真やイラストを背景にできます。写真は<b>白（夜モードでは黒）を重ねて透かして</b>出すので、表の数字が読みにくくなりません。<b>表のマス目も少しだけ透ける</b>ので、写真が全体にうっすら見えます。<b>テンキーの地にも同じ写真</b>が敷かれ、<b>キーも半透明</b>になります。透かし具合は<b>背景の濃さ</b>で変えられます（こい＝写真がはっきり）。写真は長い辺 1280px まで自動で縮めて入れます。入れた写真の大きさは<b>⋯→🧹端末の空き具合</b>で「背景の写真」として見られ、そこからも消せます（設定の<b>🗑 背景の写真を消す</b>でも消せます）。</div>
+          <div class="help-li"><b>3つのタブ</b>に分かれています（<b>📐表</b>＝行と列・Enterの向き／<b>🎨見た目</b>＝色と背景・文字や画面の大きさ・上のバー・テンキー／<b>🧮計算</b>＝小数桁・税率・日付・声）。<b>本文を横にフリック</b>してもタブを移動できます。書き出し・読み込み・説明書・ナイトモード・シートのタブ・既定の大きさは、<b>設定ではなく上のバーの ⋯</b> にまとめてあります（v359。同じボタンが2か所にあるのをやめました）。</div>
           <div class="help-li"><b>テンキーを細かく変えたいとき</b>は、設定→<b>🎨見た目→くわしい設定→「テンキーを自分好みにする」</b>を開いてください（v303から。ふだんは触らなくて大丈夫なので、たたんであります）。<b>数字キーの大きさ・上下の余白・ページ表示・調整バー・ボタン配置の編集</b>がここにまとまっています。</div>
-          <div class="help-li"><b>🎨見た目</b>は、よく使う<b>セルの文字・画面の幅・テンキーの大きさ・ナイトモード・シートのタブ</b>を先に出しています。それ以外は<b>「くわしい設定」</b>をタップすると出てきます（小計や上のバーの文字、数字キーの大きさ、テンキーの余白とページ表示、調整バー、ボタン配置の編集、<b>上のバーに出すボタン</b>）。開いたまま／閉じたままの状態は次回も覚えています。</div>
+          <div class="help-li"><b>🎨見た目</b>は、よく使う<b>セルの文字・画面の幅・テンキーの大きさ・色と背景（着せかえ）・はじめに開くページ</b>を先に出しています。それ以外は<b>「くわしい設定」</b>をタップすると出てきます（小計や上のバーの文字、数字キーの大きさ、テンキーの余白とページ表示、調整バー、ボタン配置の編集、<b>上のバーに出すボタン</b>）。開いたまま／閉じたままの状態は次回も覚えています。</div>
           <table class="help-tbl">
             <tr><td><b>行／列</b></td><td>表の大きさ</td></tr>
             <tr><td><b>小数</b></td><td>小数点以下の桁（自＝自動）</td></tr>
@@ -7321,6 +7396,251 @@ function toggleDark() {
   document.body.classList.toggle('dark',darkMode);
   refreshDarkBtn();
   localStorage.setItem('excalc_dark',darkMode?'1':'0');
+  applySkin();                                 // 薄い塗り・写真の白黒の重ねを夜/昼に合わせる
+}
+
+/* ── 着せかえ（配色・背景） ──
+   スマホのキーボードのように、色と背景を選べるようにする。
+   色は CSS 変数を body に直接入れる。body.dark の指定より強いので、
+   夜モードのままでも上書きできる（薄い塗りの濃さだけ夜かどうかで変える）。 */
+const SKIN_THEMES=[
+  {id:'green',  n:'みどり',   a:'#217346', d:'#1a5c35', dd:'#0f4a26', l:'#2d8659', o:'#6cc492'},
+  {id:'blue',   n:'あお',     a:'#1565c0', d:'#0d47a1', dd:'#0a3880', l:'#1e88e5', o:'#7cb6f0'},
+  {id:'indigo', n:'こん',     a:'#3949ab', d:'#283593', dd:'#1e2870', l:'#5c6bc0', o:'#9fa8e8'},
+  {id:'teal',   n:'みずいろ', a:'#00796b', d:'#00695c', dd:'#004d40', l:'#26a69a', o:'#6fd3c6'},
+  {id:'purple', n:'むらさき', a:'#6a3f9e', d:'#56308a', dd:'#41246b', l:'#8256bb', o:'#bb9be0'},
+  {id:'pink',   n:'さくら',   a:'#c2185b', d:'#a01449', dd:'#7d0f39', l:'#e0457f', o:'#f090b4'},
+  {id:'red',    n:'あか',     a:'#c0392b', d:'#a02f23', dd:'#80251b', l:'#d9534f', o:'#f0958c'},
+  {id:'orange', n:'だいだい', a:'#d97706', d:'#b45f05', dd:'#8c4a04', l:'#f59b2b', o:'#f5be78'},
+  {id:'brown',  n:'つち',     a:'#795548', d:'#5d4037', dd:'#46302a', l:'#8d6e63', o:'#c8a99c'},
+  {id:'gray',   n:'すみ',     a:'#455a64', d:'#37474f', dd:'#263238', l:'#607d8b', o:'#b0bec5'},
+];
+const SKIN_KEYS=[{id:'dark',n:'くろ'},{id:'tint',n:'テーマ色'},{id:'light',n:'あかるい'}];
+const SKIN_BGS=[
+  {id:'none',   n:'なし（無地）'},
+  {id:'grad',   n:'ぼかし'},
+  {id:'grid',   n:'方眼'},
+  {id:'dot',    n:'水玉'},
+  {id:'stripe', n:'ななめ線'},
+  {id:'photo',  n:'自分の写真'},
+];
+const SKIN_STR=[{n:'うすい',k:.55,sa:.72},{n:'ふつう',k:1,sa:.55},{n:'こい',k:1.7,sa:.32}];
+const SKIN_KEY='excalc_skin', SKIN_PHOTO_KEY='excalc_skin_photo', SKIN_PHOTO_PX=1280;
+let skinTheme='green', skinKeyTone='dark', skinBg='none', skinStr=1, skinPhoto='';
+
+function skinHex(h){
+  h=String(h||'').replace('#','');
+  return [parseInt(h.slice(0,2),16)||0, parseInt(h.slice(2,4),16)||0, parseInt(h.slice(4,6),16)||0];
+}
+function skinRgb(h){ return skinHex(h).join(','); }
+/* 2色を混ぜる（t=0 で h1、t=1 で h2） */
+function skinMix(h1,h2,t){
+  const a=skinHex(h1), b=skinHex(h2);
+  return '#'+[0,1,2].map(i=>Math.round(a[i]+(b[i]-a[i])*t).toString(16).padStart(2,'0')).join('');
+}
+function skinTheme_(){ return SKIN_THEMES.find(x=>x.id===skinTheme)||SKIN_THEMES[0]; }
+/* もようを1つ作る。rgb は「R,G,B」の文字、k は濃さ、m は場所ごとの効き具合 */
+function skinPat(pat, rgb, k, m){
+  const A=v=>Math.round(Math.min(.92, v*k*m)*1000)/1000;
+  if(pat==='grad') return {
+    img:'linear-gradient(160deg, rgba('+rgb+','+A(.22)+') 0%, rgba('+rgb+','+A(.03)+') 52%, rgba('+rgb+','+A(.18)+') 100%)',
+    size:'cover', rep:'no-repeat' };
+  if(pat==='grid') return {
+    img:'linear-gradient(rgba('+rgb+','+A(.16)+') 1px, transparent 1px), linear-gradient(90deg, rgba('+rgb+','+A(.16)+') 1px, transparent 1px)',
+    size:'22px 22px', rep:'repeat' };
+  if(pat==='dot') return {
+    img:'radial-gradient(rgba('+rgb+','+A(.24)+') 1.7px, transparent 1.8px)',
+    size:'18px 18px', rep:'repeat' };
+  if(pat==='stripe') return {
+    img:'repeating-linear-gradient(45deg, rgba('+rgb+','+A(.13)+') 0 6px, transparent 6px 15px)',
+    size:'auto', rep:'repeat' };
+  return { img:'', size:'auto', rep:'repeat' };
+}
+
+function applySkin(){
+  const th=skinTheme_(), b=document.body; if(!b) return;
+  const st=b.style, dark=b.classList.contains('dark'), rgb=skinRgb(th.a);
+  st.setProperty('--acc',th.a);
+  st.setProperty('--acc-dark',th.d);
+  st.setProperty('--acc-darker',th.dd);
+  st.setProperty('--acc-light',th.l);
+  st.setProperty('--acc-on-dark',th.o);
+  st.setProperty('--acc-weak','rgba('+rgb+','+(dark?.30:.12)+')');
+  st.setProperty('--pm-soft','rgba('+rgb+','+(dark?.30:.12)+')');
+
+  /* キーの色 */
+  let kb,kk,kh,ka;
+  if(skinKeyTone==='tint'){
+    kb=skinMix(th.a,'#000000',.74); kk=skinMix(th.a,'#000000',.50);
+    kh=skinMix(th.a,'#000000',.34); ka=skinMix(th.a,'#000000',.18);
+  }else if(skinKeyTone==='light'){
+    kb='#aab2bd'; kk='#6e7885'; kh='#828b98'; ka='#99a1ad';
+  }else{
+    kb='#2c2c2c'; kk='#4a4a4a'; kh='#666666'; ka='#888888';
+  }
+  st.setProperty('--kp-bg',kb);
+  /* 明るいキーのときは、ページ表示の文字と薄い敷き色を黒系にして読めるようにする */
+  if(skinKeyTone==='light'){
+    st.setProperty('--kp-sub','#3c444f'); st.setProperty('--kp-sub2','#222a34');
+    st.setProperty('--kp-ink','#111'); st.setProperty('--kp-veil','rgba(0,0,0,.12)');
+    st.setProperty('--kp-veil2','rgba(0,0,0,.07)');
+  }else{
+    ['--kp-sub','--kp-sub2','--kp-ink','--kp-veil','--kp-veil2'].forEach(v=>st.removeProperty(v));
+  }
+
+  /* 背景のもよう */
+  const sr=SKIN_STR[skinStr]||SKIN_STR[1];
+  const pat=(skinBg==='photo' && !skinPhoto) ? 'none' : skinBg;
+  const photo=(pat==='photo');
+  /* 表の下地はテーマ色で、テンキーの地は白（明るいキーのときは黒）で描く */
+  const pSheet=skinPat(pat, rgb, sr.k, 1);
+  const kRgb=(skinKeyTone==='light')?'0,0,0':'255,255,255';
+  const pKeys=skinPat(pat, kRgb, sr.k, (skinKeyTone==='light')?.62:.78);
+  const img=photo
+    ? 'linear-gradient(rgba('+(dark?'0,0,0':'255,255,255')+','+sr.sa+'), rgba('+(dark?'0,0,0':'255,255,255')+','+sr.sa+')), url("'+skinPhoto+'")'
+    : pSheet.img;
+  const size=photo?'cover':pSheet.size, rp=photo?'no-repeat':pSheet.rep;
+  if(img){
+    st.setProperty('--skin-img',img); st.setProperty('--skin-size',size); st.setProperty('--skin-rep',rp);
+  }else{
+    st.removeProperty('--skin-img'); st.removeProperty('--skin-size'); st.removeProperty('--skin-rep');
+  }
+  if(photo){
+    /* テンキーは文字が読めることが第一。写真の上に、キーの色に合わせた薄い幕を敷く */
+    const ks=(skinKeyTone==='light')?'rgba(255,255,255,.58)':'rgba(0,0,0,.46)';
+    st.setProperty('--skin-kimg','linear-gradient('+ks+','+ks+'), url("'+skinPhoto+'")');
+    st.setProperty('--skin-ksize','cover'); st.setProperty('--skin-krep','no-repeat');
+  }else if(pKeys.img){
+    st.setProperty('--skin-kimg',pKeys.img); st.setProperty('--skin-ksize',pKeys.size); st.setProperty('--skin-krep',pKeys.rep);
+  }else{
+    st.removeProperty('--skin-kimg'); st.removeProperty('--skin-ksize'); st.removeProperty('--skin-krep');
+  }
+  b.classList.toggle('skin-bg', !!img);
+  b.classList.toggle('skin-photo', photo);
+  /* もようや写真が見えるように、表のマス目と見出しも少しだけ透かす。
+     濃さを上げるほど透ける（数字が読めなくならない範囲で止める）。 */
+  if(img){
+    const ca=[.94,.84,.70][skinStr]||.84;
+    st.setProperty('--sheet-cell-bg','rgba('+(dark?'30,42,69':'255,255,255')+','+ca+')');
+    st.setProperty('--sheet-ch-bg','rgba('+(dark?'26,42,58':'242,242,242')+','+ca+')');
+  }else{
+    st.removeProperty('--sheet-cell-bg'); st.removeProperty('--sheet-ch-bg');
+  }
+  /* 写真のときは、キーを少し透かして写真が見えるようにする */
+  if(photo){
+    st.setProperty('--kp-key','rgba('+skinRgb(kk)+',.74)');
+    st.setProperty('--kp-key-h','rgba('+skinRgb(kh)+',.86)');
+    st.setProperty('--kp-key-a','rgba('+skinRgb(ka)+',.93)');
+  }else{
+    st.setProperty('--kp-key',kk); st.setProperty('--kp-key-h',kh); st.setProperty('--kp-key-a',ka);
+  }
+  const mt=document.querySelector('meta[name="theme-color"]');
+  if(mt) mt.setAttribute('content',th.a);
+  refreshSkinUI();
+}
+function saveSkin(){
+  try{ localStorage.setItem(SKIN_KEY, JSON.stringify({t:skinTheme,k:skinKeyTone,b:skinBg,s:skinStr})); }catch(_){}
+}
+function loadSkin(){
+  try{ skinPhoto=localStorage.getItem(SKIN_PHOTO_KEY)||''; }catch(_){ skinPhoto=''; }
+  let o=null;
+  try{ o=JSON.parse(localStorage.getItem(SKIN_KEY)||'null'); }catch(_){}
+  if(o && typeof o==='object'){
+    if(SKIN_THEMES.some(x=>x.id===o.t)) skinTheme=o.t;
+    if(SKIN_KEYS.some(x=>x.id===o.k)) skinKeyTone=o.k;
+    if(SKIN_BGS.some(x=>x.id===o.b)) skinBg=o.b;
+    const n=parseInt(o.s,10); if(!isNaN(n)&&n>=0&&n<SKIN_STR.length) skinStr=n;
+  }
+}
+/* 設定の中の見た目（チップ・3つ並び・えらび欄）を今の値に合わせる */
+function refreshSkinUI(){
+  const sw=document.getElementById('skinSw');
+  if(sw){
+    if(sw.children.length!==SKIN_THEMES.length){
+      sw.innerHTML=SKIN_THEMES.map(t=>
+        '<button class="skin-chip" data-skin="'+t.id+'" title="'+t.n+'" aria-label="'+t.n+'" '+
+        'style="background:linear-gradient(135deg,'+t.l+','+t.a+' 55%,'+t.dd+')" onclick="setSkinTheme(\''+t.id+'\')"></button>'
+      ).join('');
+    }
+    Array.from(sw.children).forEach(el=>el.classList.toggle('on', el.dataset.skin===skinTheme));
+  }
+  const seg=document.getElementById('skinKeySeg');
+  if(seg){
+    if(seg.children.length!==SKIN_KEYS.length){
+      seg.innerHTML=SKIN_KEYS.map(k=>
+        '<button class="skin-seg-btn" data-key="'+k.id+'" onclick="setSkinKeyTone(\''+k.id+'\')">'+k.n+'</button>'
+      ).join('');
+    }
+    Array.from(seg.children).forEach(el=>el.classList.toggle('on', el.dataset.key===skinKeyTone));
+  }
+  const sel=document.getElementById('skinBgSel');
+  if(sel){
+    if(sel.options.length!==SKIN_BGS.length){
+      sel.innerHTML=SKIN_BGS.map(x=>'<option value="'+x.id+'">'+x.n+'</option>').join('');
+    }
+    sel.value=skinBg;
+  }
+  const sv=document.getElementById('skinStrVal');
+  if(sv) sv.textContent=(SKIN_STR[skinStr]||SKIN_STR[1]).n;
+  const pb=document.getElementById('skinPhotoBtn');
+  if(pb) pb.innerHTML=skinPhoto?'🖼 背景の写真を選びなおす':'🖼 背景の写真を選ぶ';
+  const pd=document.getElementById('skinPhotoDel');
+  if(pd) pd.style.display=skinPhoto?'':'none';
+}
+function setSkinTheme(id){
+  if(!SKIN_THEMES.some(x=>x.id===id)) return;
+  skinTheme=id; saveSkin(); applySkin();
+}
+function setSkinKeyTone(id){
+  if(!SKIN_KEYS.some(x=>x.id===id)) return;
+  skinKeyTone=id; saveSkin(); applySkin();
+}
+function setSkinBg(id){
+  if(!SKIN_BGS.some(x=>x.id===id)) return;
+  skinBg=id; saveSkin(); applySkin();
+  if(id==='photo' && !skinPhoto) toast('「背景の写真を選ぶ」から写真をえらんでください');
+}
+function changeSkinStr(d){
+  const n=skinStr+d; if(n<0||n>=SKIN_STR.length) return;
+  skinStr=n; saveSkin(); applySkin();
+}
+function resetSkin(){
+  skinTheme='green'; skinKeyTone='dark'; skinBg='none'; skinStr=1;
+  saveSkin(); applySkin(); toast('もとの色に戻しました');
+}
+function skinPickPhoto(){
+  const el=document.getElementById('skinPhotoInput'); if(el) el.click();
+}
+async function skinPhotoChange(ev){
+  const f=ev.target.files && ev.target.files[0];
+  ev.target.value='';
+  if(!f) return;
+  toast('写真を用意しています…');
+  const data=await skinShrink(f);
+  if(!data){ toast('この写真は読めませんでした'); return; }
+  const keep=skinPhoto;
+  try{ localStorage.setItem(SKIN_PHOTO_KEY,data); }
+  catch(_){ toast('端末のすき間が足りません。⋯→端末の空き具合 で片づけてください'); return; }
+  skinPhoto=data; skinBg='photo'; saveSkin(); applySkin();
+  toast(keep?'背景の写真を変えました':'背景を写真にしました');
+}
+function skinShrink(file){
+  return new Promise(resolve=>{
+    const url=URL.createObjectURL(file), img=new Image();
+    img.onload=()=>{
+      try{ resolve(vegDrawTo(img, SKIN_PHOTO_PX, 0.7)); }catch(_){ resolve(''); }
+      try{ URL.revokeObjectURL(url); }catch(_){}
+    };
+    img.onerror=()=>{ resolve(''); try{ URL.revokeObjectURL(url); }catch(_){} };
+    img.src=url;
+  });
+}
+function skinDropPhoto(){
+  if(!skinPhoto) return;
+  try{ localStorage.removeItem(SKIN_PHOTO_KEY); }catch(_){}
+  skinPhoto='';
+  if(skinBg==='photo') skinBg='none';
+  saveSkin(); applySkin(); toast('背景の写真を消しました');
 }
 
 function changeRows(delta) {
@@ -18212,7 +18532,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v378';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v379';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -19717,6 +20037,7 @@ const ST_GROUPS=[
   {k:'excalc_kantab_table', n:'カンタブの換算表'},
   {k:'excalc_ts_regs',    n:'配合・エアメータの登録'},
   {k:'excalc_veg_plots',  n:'育てている野菜'},
+  {k:'excalc_skin_photo', n:'背景の写真',           how:'clear'},
   {k:'excalc_links',      n:'リンク集'},
   {k:'excalc_userkeys',   n:'登録キー'},
   {k:'excalc_custommodes',n:'登録モード'},
@@ -19833,6 +20154,7 @@ async function stClear(key, name){
   if(!key) return;
   if(!await appConfirm(`「${name}」を消します。よろしいですか`)) return;
   try{ localStorage.removeItem(key); }catch(_){}
+  if(key===SKIN_PHOTO_KEY){ skinPhoto=''; if(skinBg==='photo') skinBg='none'; saveSkin(); applySkin(); }
   renderStorage();
   toast(`「${name}」を消しました`);
 }
@@ -20105,6 +20427,7 @@ if(localStorage.getItem('excalc_dark')==='1'){
   darkMode=true; document.body.classList.add('dark');
 }
 refreshDarkBtn();
+loadSkin(); applySkin();
 const savedKeyScale=parseFloat(localStorage.getItem('excalc_keyscale'));
 if(!isNaN(savedKeyScale)){
   keyScale=savedKeyScale;

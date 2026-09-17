@@ -3694,6 +3694,143 @@ async function runExport(browser) {
   await ctx.close();
 }
 
+/* ── 着せかえ（配色・背景）v379 ── */
+async function runSkin(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 着せかえ（配色・背景） ──');
+  const cssVar = k => page.evaluate(x => getComputedStyle(document.body).getPropertyValue(x).trim(), k);
+  const bgOf = sel => page.evaluate(s => getComputedStyle(document.querySelector(s)).backgroundColor, sel);
+  const settle = () => page.waitForTimeout(260);   // 色の移り変わり（.14s）が終わるのを待つ
+
+  check('  色は10種ある', await page.evaluate(() => SKIN_THEMES.length), 10);
+  check('  はじめは緑', await cssVar('--acc'), '#217346');
+  check('  はじめはもようなし', await page.evaluate(() => document.body.classList.contains('skin-bg')), false);
+  check('  設定にチップが10個出る', await page.evaluate(() =>
+    document.querySelectorAll('#skinSw .skin-chip').length), 10);
+  check('  えらんだ色に印が付く', await page.evaluate(() =>
+    document.querySelector('#skinSw .skin-chip.on').dataset.skin), 'green');
+
+  // 色を変える
+  await page.evaluate(() => setSkinTheme('blue')); await settle();
+  check('  あおにできる', await cssVar('--acc'), '#1565c0');
+  check('  濃い色・明るい色もそろう', [await cssVar('--acc-dark'), await cssVar('--acc-light')].join('/'), '#0d47a1/#1e88e5');
+  check('  上のバーの色も変わる', await page.evaluate(() =>
+    getComputedStyle(document.querySelector('.numpad-section')).borderTopColor), 'rgb(21, 101, 192)');
+  check('  スマホの上の帯の色も変わる', await page.evaluate(() =>
+    document.querySelector('meta[name="theme-color"]').content), '#1565c0');
+  check('  印が移る', await page.evaluate(() =>
+    document.querySelector('#skinSw .skin-chip.on').dataset.skin), 'blue');
+
+  // キーの色
+  check('  はじめのキーは黒', await bgOf('.btn[data-key="n1"]'), 'rgb(74, 74, 74)');
+  await page.evaluate(() => setSkinKeyTone('tint')); await settle();
+  check('  テーマ色のキーになる', await bgOf('.btn[data-key="n1"]'), 'rgb(11, 51, 96)');
+  check('  テンキーの地も濃くなる', await bgOf('.numpad-section'), 'rgb(5, 26, 50)');
+  await page.evaluate(() => setSkinKeyTone('light')); await settle();
+  check('  あかるいキーになる', await bgOf('.btn[data-key="n1"]'), 'rgb(110, 120, 133)');
+  check('  あかるいときは文字が黒系', await cssVar('--kp-sub'), '#3c444f');
+  await page.evaluate(() => setSkinKeyTone('dark')); await settle();
+  check('  黒に戻せる', await cssVar('--kp-sub'), '#b9b9b9');
+
+  // 背景のもよう
+  for (const [id, want] of [['grad', 'linear-gradient'], ['grid', 'linear-gradient'],
+                            ['dot', 'radial-gradient'], ['stripe', 'repeating-linear-gradient']]) {
+    await page.evaluate(x => setSkinBg(x), id);
+    check('  背景「' + id + '」が敷かれる', await page.evaluate(() =>
+      getComputedStyle(document.body).backgroundImage.slice(0, 40)).then(v => v.startsWith(want)), true);
+  }
+  check('  もよう中は skin-bg が付く', await page.evaluate(() => document.body.classList.contains('skin-bg')), true);
+  check('  表の下地は透ける', await bgOf('.sheet-wrap'), 'rgba(0, 0, 0, 0)');
+  check('  マス目も少し透ける', await cssVar('--sheet-cell-bg'), 'rgba(255,255,255,0.84)');
+  check('  テンキーにも同じもよう', await page.evaluate(() =>
+    getComputedStyle(document.querySelector('.numpad-section')).backgroundImage !== 'none'), true);
+
+  // 濃さ
+  const before = await page.evaluate(() => getComputedStyle(document.body).backgroundImage);
+  await page.evaluate(() => changeSkinStr(1));
+  check('  濃さを上げると変わる', await page.evaluate(() =>
+    getComputedStyle(document.body).backgroundImage) !== before, true);
+  check('  濃さの名前が出る', await page.evaluate(() => document.getElementById('skinStrVal').textContent), 'こい');
+  check('  マス目はもっと透ける', await cssVar('--sheet-cell-bg'), 'rgba(255,255,255,0.7)');
+  await page.evaluate(() => changeSkinStr(1));
+  check('  濃さはこれ以上上がらない', await page.evaluate(() => skinStr), 2);
+  await page.evaluate(() => { changeSkinStr(-1); changeSkinStr(-1); changeSkinStr(-1); });
+  check('  濃さはこれ以下に下がらない', await page.evaluate(() => skinStr), 0);
+  await page.evaluate(() => changeSkinStr(1));
+
+  // 写真がないうちは写真背景にならない
+  await page.evaluate(() => setSkinBg('photo'));
+  check('  写真がなければもようなし', await page.evaluate(() => document.body.classList.contains('skin-photo')), false);
+  check('  消すボタンは隠れている', await page.evaluate(() =>
+    document.getElementById('skinPhotoDel').style.display), 'none');
+
+  // 写真を入れる（カメラの代わりに絵を作って入れる）
+  await page.evaluate(() => {
+    const cv = document.createElement('canvas'); cv.width = 400; cv.height = 700;
+    const x = cv.getContext('2d'); x.fillStyle = '#3a7bd5'; x.fillRect(0, 0, 400, 700);
+    x.fillStyle = '#f6c343'; x.beginPath(); x.arc(280, 160, 80, 0, 7); x.fill();
+    skinPhoto = cv.toDataURL('image/jpeg', .7);
+    localStorage.setItem(SKIN_PHOTO_KEY, skinPhoto); setSkinBg('photo');
+  });
+  await settle();
+  check('  写真を背景にできる', await page.evaluate(() => document.body.classList.contains('skin-photo')), true);
+  check('  写真は透かして敷く', await page.evaluate(() =>
+    /^linear-gradient\(rgba\(255, 255, 255, 0\.\d+\).*url\(/.test(getComputedStyle(document.body).backgroundImage)), true);
+  check('  テンキーにも写真', await page.evaluate(() =>
+    getComputedStyle(document.querySelector('.numpad-section')).backgroundImage.includes('url(')), true);
+  check('  キーが半透明になる', await page.evaluate(() =>
+    getComputedStyle(document.querySelector('.btn[data-key="n1"]')).backgroundColor), 'rgba(74, 74, 74, 0.74)');
+  check('  消すボタンが出る', await page.evaluate(() =>
+    document.getElementById('skinPhotoDel').style.display), '');
+  check('  ボタンの字が「選びなおす」になる', await page.evaluate(() =>
+    document.getElementById('skinPhotoBtn').textContent.includes('選びなおす')), true);
+
+  // 濃さで透かし具合が変わる
+  const sa = () => page.evaluate(() =>
+    (getComputedStyle(document.body).backgroundImage.match(/rgba\(255, 255, 255, ([\d.]+)\)/) || [])[1]);
+  const m1 = await sa(); await page.evaluate(() => changeSkinStr(1)); await settle();
+  const m2 = await sa();
+  check('  濃くすると写真がはっきりする', parseFloat(m2) < parseFloat(m1), true);
+  await page.evaluate(() => changeSkinStr(-1));
+
+  // ナイトモードと両立する
+  await page.evaluate(() => toggleDark()); await settle();
+  check('  夜でも色はそのまま', await cssVar('--acc'), '#1565c0');
+  check('  夜は薄い塗りが濃くなる', await cssVar('--acc-weak'), 'rgba(21,101,192,0.3)');
+  check('  夜は写真を黒で透かす', await page.evaluate(() =>
+    getComputedStyle(document.body).backgroundImage.startsWith('linear-gradient(rgba(0, 0, 0,')), true);
+  check('  夜はマス目も夜の色', await cssVar('--sheet-cell-bg'), 'rgba(30,42,69,0.84)');
+  await page.evaluate(() => toggleDark()); await settle();
+
+  // 覚えている
+  await page.reload(); await page.waitForTimeout(700);
+  check('  開き直しても覚えている', await page.evaluate(() =>
+    [skinTheme, skinKeyTone, skinBg, skinStr, skinPhoto.length > 100].join('/')), 'blue/dark/photo/1/true');
+  check('  開き直しても色が出ている', await cssVar('--acc'), '#1565c0');
+
+  // 写真を消す
+  await page.evaluate(() => skinDropPhoto()); await settle();
+  check('  写真を消せる', await page.evaluate(() => [skinPhoto, skinBg].join('/')), '/none');
+  check('  消したら地の色に戻る', await page.evaluate(() => document.body.classList.contains('skin-bg')), false);
+  check('  端末からも消えている', await page.evaluate(() => localStorage.getItem(SKIN_PHOTO_KEY)), null);
+
+  // もとに戻す
+  await page.evaluate(() => { setSkinTheme('pink'); setSkinKeyTone('light'); setSkinBg('dot'); changeSkinStr(1); });
+  await page.evaluate(() => resetSkin()); await settle();
+  check('  もとの色に戻せる', await page.evaluate(() =>
+    [skinTheme, skinKeyTone, skinBg, skinStr].join('/')), 'green/dark/none/1');
+  check('  戻すと緑になる', await cssVar('--acc'), '#217346');
+  check('  戻すとキーも黒に', await bgOf('.btn[data-key="n1"]'), 'rgb(74, 74, 74)');
+
+  // 端末の空き具合にも出る
+  check('  空き具合に背景の写真が並ぶ', await page.evaluate(() =>
+    ST_GROUPS.some(g => g.k === 'excalc_skin_photo')), true);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -3723,6 +3860,7 @@ async function runExport(browser) {
     if (!only || only === 'voicesay') await runVoiceSay(browser);
     if (!only || only === 'storage') await runStorage(browser);
     if (!only || only === 'export') await runExport(browser);
+    if (!only || only === 'skin') await runSkin(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
