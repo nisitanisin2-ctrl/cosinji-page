@@ -433,6 +433,17 @@ body.has-sheet-tabs .sheet-persist {
   padding: 10px; overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1;
 }
 body.dark .settings-tabbar, body.dark .settings-body { background: #141d33; }
+/* 電卓の画面に出す「小数2桁・四捨五入」の小さな札（v367） */
+.dt-dectag {
+  align-self: flex-end; margin-top: 2px;
+  font-size: 11px; font-weight: bold; color: var(--acc-text);
+  background: rgba(67,160,71,.16); border-radius: 4px; padding: 1px 6px;
+}
+.dt-dec-ex {
+  margin-top: 10px; padding: 8px 10px; border-radius: var(--r-btn);
+  background: var(--save-item-bg); border: 1px solid var(--save-item-border);
+  font-size: 13px; line-height: 1.7; color: var(--text);
+}
 /* ── 電卓モード ──
    表のかわりに大きな電卓画面を出す。テンキーは共通のものをそのまま使う。 */
 .dt-pane { display: none; flex: 1; flex-direction: column; min-height: 0; gap: 8px; padding: 8px 10px 10px; }
@@ -1055,6 +1066,8 @@ body.numpad-off .numpad-pagebar { display: none; }
 #numpadPageSci .btn { font-size: calc(21px * var(--key-scale, 1.3)); }
 /* 上の段（表へ・声）は低い段にして、そのぶん数字のキーを大きくする */
 #numpadPageSci .btn.dk-wide { grid-column: span 2; font-size: calc(13px * var(--key-scale, 1.3)); }
+/* 表へ・桁は1列ぶん。字は小さめにして入りきるようにする（v367） */
+#numpadPageSci .btn.dk-half { grid-column: span 1; font-size: calc(12px * var(--key-scale, 1.3)); }
 #numpadPageSci .btn.enter { grid-row: auto; }   /* ＝は1段ぶん（右下） */
 /* 登録ページのボタン（紫）。長押しで登録・タップで入力 */
 .btn.ubtn {
@@ -3052,6 +3065,7 @@ body.dark {
   <div class="dt-disp">
     <div class="dt-sub" id="dtSub"></div>
     <div class="dt-main" id="dtMain">0</div>
+    <div class="dt-dectag" id="dtDecTag" hidden></div>
   </div>
   <!-- 声で言った計算式を出す行。何を式として受け取ったかがその場で分かる -->
   <div class="dt-voice" id="dtVoice" aria-live="polite">
@@ -3490,7 +3504,8 @@ body.dark {
     <!-- 電卓ページ（記号ページからさらに左フリック、または上の「電卓」をタップ）。
          ふつうのスマホの電卓と同じ4列の並びにして、キーを大きくしてある（v338）。
          上の段だけ、表へ戻るキーと声のキー（それぞれ2列ぶん）。 -->
-    <button class="btn util dk-wide" data-key="dk_tosheet" onclick="dtToCellOrBack()" title="表に戻る（電卓モードのときは答えをセルに入れます）">▦表へ</button>
+    <button class="btn util dk-half" data-key="dk_tosheet" onclick="dtToCellOrBack()" title="表に戻る（電卓モードのときは答えをセルに入れます）">▦表へ</button>
+    <button class="btn util dk-half" data-key="dk_dec" onclick="openDtDec()" title="電卓の答えの小数点以下の桁数と、四捨五入・切り上げ・切り下げを選びます">桁 自</button>
     <button class="btn util dk-wide" data-key="dk_voice" onclick="voiceStart()" title="声で計算する（例「251かける68」）">🎤 声</button>
     <button class="btn clr" data-key="dk_ac"  onclick="dtAllClear()" title="ぜんぶ消す">AC</button>
     <button class="btn op"  data-key="dk_par" onclick="dtParen()" title="かっこ（設定で「式の優先順位どおり」のときに使えます）">（ ）</button>
@@ -3911,6 +3926,37 @@ body.dark {
         <summary>➕ 自分の野菜を登録する</summary>
         <div id="vegMyBody"></div>
       </details>
+    </div>
+  </div>
+</div>
+
+<!-- 電卓の答えの桁数と端数の処理（v367） -->
+<div class="modal-overlay" id="dtDecOverlay" onclick="if(event.target===this)closeDtDec()">
+  <div class="modal">
+    <div class="modal-header">
+      <span>🔢 電卓の答えの桁</span>
+      <button class="modal-close" onclick="closeDtDec()">✕</button>
+    </div>
+    <div class="mode-hint">電卓の<b>答えの出し方</b>を決めます。ここで決めた桁で計算を続けるので、<b>▦表へ</b>でセルに入れる値も同じになります。<b>表のセルの表示</b>は 設定→🧮計算 の「小数点以下の桁数」で別に決められます。</div>
+    <div class="modal-body">
+      <div class="set-sec">小数点以下の桁数</div>
+      <div class="enterdir-seg dt-seg" id="dtDecSeg">
+        <button class="enterdir-btn" data-v="-1" onclick="setDtDec(-1)">自動</button>
+        <button class="enterdir-btn" data-v="0" onclick="setDtDec(0)">0</button>
+        <button class="enterdir-btn" data-v="1" onclick="setDtDec(1)">1</button>
+        <button class="enterdir-btn" data-v="2" onclick="setDtDec(2)">2</button>
+        <button class="enterdir-btn" data-v="3" onclick="setDtDec(3)">3</button>
+        <button class="enterdir-btn" data-v="4" onclick="setDtDec(4)">4</button>
+      </div>
+      <div class="set-note">「自動」は今までどおり、割り切れるところまで出します。桁を決めると <b>3.00</b> のように<b>0も出して</b>そろえます。</div>
+      <div class="set-sec">はしたの数の処理</div>
+      <div class="enterdir-seg dt-seg" id="dtRoundSeg">
+        <button class="enterdir-btn" data-v="round" onclick="setDtRound('round')">四捨五入</button>
+        <button class="enterdir-btn" data-v="up" onclick="setDtRound('up')">切り上げ</button>
+        <button class="enterdir-btn" data-v="down" onclick="setDtRound('down')">切り下げ</button>
+      </div>
+      <div class="set-note">切り上げ・切り下げは<b>0から遠い方・0に近い方</b>に寄せます（エクセルの ROUNDUP／ROUNDDOWN と同じ）。マイナスの数では −1.5 が <b>切り上げで −2</b>、<b>切り下げで −1</b> になります。</div>
+      <div class="dt-dec-ex" id="dtDecEx"></div>
     </div>
   </div>
 </div>
@@ -4511,10 +4557,11 @@ body.dark {
             <tr><td><span class="help-key">← 左へ</span></td><td><b>関数・記号ページ</b>：( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 を数式に挿入</td></tr>
             <tr><td><span class="help-key">左→左</span></td><td><b>電卓ページ</b>（v335から。以前は関数電卓ページでした）：<b>ふつうのスマホの電卓と同じ4列</b>の並びで、キーも大きくしてあります（v338）<br>
               <table class="help-tbl" style="margin:4px 0 0">
-                <tr><td colspan="2" style="text-align:center">▦表へ／🧮電卓　｜　🎤 声</td></tr>
+                <tr><td colspan="2" style="text-align:center">▦表へ／🧮電卓　｜　桁　｜　🎤 声</td></tr>
                 <tr><td colspan="2" style="text-align:center">AC　（ ）　％　÷<br>7 8 9 ×　／　4 5 6 −　／　1 2 3 ＋　／　0 . ⌫ ＝</td></tr>
               </table>
               ・<b>▦表へ／🧮電卓</b>：表のときは電卓モードへ、電卓のときは答えをセルに入れて表へ戻ります<br>
+              ・<b>桁</b>（v367から）：電卓の答えの<b>小数点以下の桁数</b>と<b>四捨五入・切り上げ・切り下げ</b>を選びます<br>
               ・<b>🎤声</b>：そのまましゃべって計算（「251かける68」）<br>
               ・<b>（ ）</b>は、設定→🧮計算で<b>「式の優先順位どおり（×÷が先）」</b>にしているときに使えます（開いていなければ開き、開いていれば閉じます）<br>
               ・<b>税込・税抜</b>と<b>メモリー（M＋ M− MR MC）</b>は、キーの長押し→<b>🔧ボタンの機能→設定・機能</b>から好きなキーに割り当てて使えます<br>
@@ -4630,7 +4677,7 @@ body.dark {
             ・<b>形の欄に「円」と入れる</b>と円で計算します（<b>丸・まる・○</b>でも同じ）。このとき<b>たての欄が直径</b>になり、面積＝π×(直径÷2)²、まわり＝π×直径 です。高さも入れれば<b>円柱の容積</b>になります<br>
             ・下のバーに<b>面積・容積・リットル・まわりの長さ</b>の合計が出ます<br>
             ・前の「容積モード」（縦×横×高さだけ）で作った表は、開いたときに<b>自動で新しい並びに移ります</b>（中身が1列ぶん右へずれ、形の欄は空＝長方形になります）</div>
-          <div class="help-li"><b>電卓モード</b>：モードで<b>🧮電卓</b>を選ぶと、表のかわりに<b>ふつうの電卓</b>が出ます。テンキーはそのまま使えて、押すたびに答えが出ます。計算するたびに<b>履歴（テープ）</b>が残り、行を押すとその答えをもう一度使えます。履歴の下には<b>🎤 声で言った計算式の行</b>があり（v339から）、<b>声でどんな式として受け取ったか</b>がその場で分かります（例「251かける68」→ <b>251×68 ＝ 17068</b>、聞こえた言葉も小さく出ます）。式にできなかったときは<b>赤いふち</b>で聞こえた言葉だけ出るので、言い直す手がかりになります。<b>AC</b>を押すと消えます。<b>％・AC・▦表へ</b>はテンキーの<b>電卓ページ</b>にあります（<b>▦表へ</b>で元のモードに戻り、選んでいるセルに答えが入ります）。<b>🎤声</b>キーで<b>声で計算</b>できます（🎤 声で入れるの章をどうぞ）。「1＋2×3」の答えを<b>9（ふつうの電卓）</b>にするか<b>7（式の優先順位どおり）</b>にするかは、<b>設定→🧮計算</b>で選べます。</div>
+          <div class="help-li"><b>電卓モード</b>：モードで<b>🧮電卓</b>を選ぶと、表のかわりに<b>ふつうの電卓</b>が出ます。テンキーはそのまま使えて、押すたびに答えが出ます。計算するたびに<b>履歴（テープ）</b>が残り、行を押すとその答えをもう一度使えます。履歴の下には<b>🎤 声で言った計算式の行</b>があり（v339から）、<b>声でどんな式として受け取ったか</b>がその場で分かります（例「251かける68」→ <b>251×68 ＝ 17068</b>、聞こえた言葉も小さく出ます）。式にできなかったときは<b>赤いふち</b>で聞こえた言葉だけ出るので、言い直す手がかりになります。<b>AC</b>を押すと消えます。<b>％・AC・▦表へ・桁</b>はテンキーの<b>電卓ページ</b>にあります（<b>▦表へ</b>で元のモードに戻り、選んでいるセルに答えが入ります）。<b>桁</b>（v367から）を押すと、<b>小数点以下の桁数</b>（自動・0〜4）と<b>はしたの数の処理</b>（<b>四捨五入・切り上げ・切り下げ</b>）を選べます。実務電卓の小数点セレクタと同じで、<b>決めた桁で答えを作り、その値のまま計算を続けます</b>（例：小数2桁・切り下げなら 10÷3×3 ＝ <b>9.99</b>。自動なら 10）。桁を決めると <b>3.00</b> のように0もそろえて出し、<b>▦表へ</b>でセルに入れる値も同じになります。今の決まりは電卓の画面の右下に<b>小さな札</b>で出ます。<b>表のセルの表示</b>は 設定→🧮計算 の「小数点以下の桁数」で別に決められます。<b>🎤声</b>キーで<b>声で計算</b>できます（🎤 声で入れるの章をどうぞ）。「1＋2×3」の答えを<b>9（ふつうの電卓）</b>にするか<b>7（式の優先順位どおり）</b>にするかは、<b>設定→🧮計算</b>で選べます。</div>
           <div class="help-li"><b>📋計算式テンプレ／📑決算書テンプレ</b>（テンキーの<b>モード</b>キー、または<b>⋯→🎯用途から始める</b>）：割引・利益率・BMI・速さ・複利・ローン・面積・単位の変換…25種類のひな形や、損益計算書・貸借対照表・収支計算書のひな形。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
         </div>
       </details>
@@ -13570,6 +13617,7 @@ function dtRender(){
     m.textContent=(disp_val===''?'0':disp_val);
   }
   m.classList.toggle('dt-err', m.textContent==='Error');
+  dtDecSync();
   dtRenderTape();
 }
 function dtRenderTape(){
@@ -13605,7 +13653,7 @@ function dtEquals(){
     const e=dtExpr.trim(); if(!e) return;
     let v;
     try{ v=evalFormula('='+e); }catch(_){ v=null; }
-    const num=(typeof v==='number'&&isFinite(v))?fmtNum(v):null;
+    const num=(typeof v==='number'&&isFinite(v))?dtFmtNum(v):null;
     if(num===null){ document.getElementById('dtMain').textContent='Error'; document.getElementById('dtMain').classList.add('dt-err'); return; }
     dtPush(e, num);
     dtExpr=num; disp_val=num; dtFresh=true;
@@ -13621,7 +13669,7 @@ function dtEquals(){
     dtRender(); return;
   }
   const r=calc(a,b,o);
-  const val=fmtNum(r);
+  const val=dtFmtNum(r);
   const e=dtSeq ? (dtSeq+' '+fmtNum(b)) : (fmtNum(a)+' '+dtOpSign(o)+' '+fmtNum(b));
   dtPush(e, val);
   dtSeq='';
@@ -13874,7 +13922,12 @@ function op(o) {
   if (editBlocked()) return;
   cellEditing=true;
   const cur=parseFloat(disp_val);
-  if (op1!==null&&!waiting) { const r=calc(op1,cur,cur_op); disp_val=fmtNum(r); op1=r; }
+  // 電卓では、途中の答えも決めた桁で作って、その値のまま計算を続ける（実務電卓と同じ）
+  if (op1!==null&&!waiting) {
+    const r=calc(op1,cur,cur_op);
+    if(isDentaku()){ disp_val=dtFmtNum(r); op1=parseFloat(disp_val); }
+    else { disp_val=fmtNum(r); op1=r; }
+  }
   else { op1=isNaN(cur)?0:cur; }
   cur_op=o; waiting=true; refreshDisp();
 }
@@ -13889,6 +13942,59 @@ function calc(a,b,o) {
   return b;
 }
 function fmtNum(n) { return parseFloat(n.toFixed(10)).toString(); }
+/* ── 電卓の答えの桁（v367）──
+   実務電卓の「小数点セレクタ＋ラウンドセレクタ」と同じ考え方。
+   決めた桁で答えを作り、その値のまま計算を続ける（表のセルの表示とは別もの）。 */
+const DT_DEC_KEY='excalc_dt_dec', DT_ROUND_KEY='excalc_dt_round';
+let dtDec=-1;              // -1＝自動、0〜4＝小数点以下の桁数
+let dtRound='round';       // 'round'＝四捨五入／'up'＝切り上げ／'down'＝切り下げ
+function loadDtDec(){
+  let d=-1, r='round';
+  try{ d=parseInt(localStorage.getItem(DT_DEC_KEY),10); }catch(_){}
+  try{ r=localStorage.getItem(DT_ROUND_KEY)||'round'; }catch(_){}
+  dtDec=(isFinite(d)&&d>=0&&d<=4)?d:-1;
+  dtRound=(r==='up'||r==='down')?r:'round';
+}
+function saveDtDec(){
+  try{ localStorage.setItem(DT_DEC_KEY,String(dtDec)); localStorage.setItem(DT_ROUND_KEY,dtRound); }catch(_){}
+}
+/* 電卓の答えを、決めた桁・決めた処理で文字にする */
+function dtFmtNum(n){
+  if(!isFinite(n)) return fmtNum(n);
+  if(dtDec<0) return (dtRound==='round') ? fmtNum(n) : fmtNum(roundAt(n, 0, dtRound));
+  return roundAt(n, dtDec, dtRound).toFixed(dtDec);      // 3.00 のように0もそろえて出す
+}
+const DT_ROUND_LABEL={round:'四捨五入', up:'切り上げ', down:'切り下げ'};
+function dtDecLabel(){ return (dtDec<0?'自動':('小数'+dtDec+'桁'))+'・'+DT_ROUND_LABEL[dtRound]; }
+/* テンキーの「桁」キーと、電卓の画面の札を今の決まりに合わせる */
+function dtDecSync(){
+  const b=document.querySelector('[data-key="dk_dec"]');
+  if(b){ b.textContent='桁 '+(dtDec<0?'自':dtDec); b.title='電卓の答え：'+dtDecLabel()+'（押すと変えられます）'; }
+  const tag=document.getElementById('dtDecTag');
+  if(tag){
+    const on=(dtDec>=0 || dtRound!=='round');
+    tag.hidden=!on;
+    if(on) tag.textContent=dtDecLabel();
+  }
+}
+function openDtDec(){ renderDtDec(); openDlg('dtDecOverlay'); }
+function closeDtDec(){ closeDlg('dtDecOverlay'); }
+function renderDtDec(){
+  document.querySelectorAll('#dtDecSeg .enterdir-btn').forEach(b=>
+    b.classList.toggle('on', Number(b.dataset.v)===dtDec));
+  document.querySelectorAll('#dtRoundSeg .enterdir-btn').forEach(b=>
+    b.classList.toggle('on', b.dataset.v===dtRound));
+  const ex=document.getElementById('dtDecEx');
+  if(ex){
+    ex.innerHTML='いまの決まり：<b>'+escHtml(dtDecLabel())+'</b><br>'
+      +[10/3, -10/3, 1.005].map(v=>{
+          const src=String(parseFloat(v.toFixed(6)));
+          return escHtml(src)+' → <b>'+escHtml(dtFmtNum(v))+'</b>';
+        }).join('　／　');
+  }
+}
+function setDtDec(d){ dtDec=(isFinite(d)&&d>=0&&d<=4)?d:-1; saveDtDec(); renderDtDec(); dtDecSync(); dtRender(); }
+function setDtRound(r){ dtRound=(r==='up'||r==='down')?r:'round'; saveDtDec(); renderDtDec(); dtDecSync(); dtRender(); }
 function ac() {
   clearSumRange();
   sumSelectMode=false;
@@ -17085,7 +17191,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v366';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v367';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -18866,6 +18972,8 @@ if(isFormMode()) sel(1,1); else sel(initCellOfMode(),0);
 
 fitNumpadLabels();
 window.addEventListener('load', fitNumpadLabels);
+
+loadDtDec(); dtDecSync();   // 電卓の答えの桁の決まりを復元
 
 /* はじめに開くページ。ぜんぶ組み立て終わってから出す */
 loadStartPage();
