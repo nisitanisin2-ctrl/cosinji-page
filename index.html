@@ -4573,6 +4573,7 @@ body.dark {
               </table>
               ・<b>▦表へ／🧮電卓</b>：表のときは電卓モードへ、電卓のときは答えをセルに入れて表へ戻ります<br>
               ・<b>桁</b>（v367から）：電卓の答えの<b>小数点以下の桁数</b>と<b>四捨五入・切り上げ・切り下げ</b>を選びます<br>
+              ・<b>声で分数・方程式</b>（v369から）：<b>🎤声</b>で「<b>3分の2たす4分の1</b>」と言うと <b>11/12</b>（＝0.9166…）、「<b>2エックスたす3は7</b>」と言うと <b>x＝2</b> が出ます<br>
               ・<b>🎤声</b>：そのまましゃべって計算（「251かける68」）<br>
               ・<b>（ ）</b>は、設定→🧮計算で<b>「式の優先順位どおり（×÷が先）」</b>にしているときに使えます（開いていなければ開き、開いていれば閉じます）<br>
               ・<b>税込・税抜</b>と<b>メモリー（M＋ M− MR MC）</b>は、キーの長押し→<b>🔧ボタンの機能→設定・機能</b>から好きなキーに割り当てて使えます<br>
@@ -4688,7 +4689,7 @@ body.dark {
             ・<b>形の欄に「円」と入れる</b>と円で計算します（<b>丸・まる・○</b>でも同じ）。このとき<b>たての欄が直径</b>になり、面積＝π×(直径÷2)²、まわり＝π×直径 です。高さも入れれば<b>円柱の容積</b>になります<br>
             ・下のバーに<b>面積・容積・リットル・まわりの長さ</b>の合計が出ます<br>
             ・前の「容積モード」（縦×横×高さだけ）で作った表は、開いたときに<b>自動で新しい並びに移ります</b>（中身が1列ぶん右へずれ、形の欄は空＝長方形になります）</div>
-          <div class="help-li"><b>電卓モード</b>：モードで<b>🧮電卓</b>を選ぶと、表のかわりに<b>ふつうの電卓</b>が出ます。テンキーはそのまま使えて、押すたびに答えが出ます。計算するたびに<b>履歴（テープ）</b>が残り、行を押すとその答えをもう一度使えます。履歴の下には<b>🎤 声で言った計算式の行</b>があり（v339から）、<b>声でどんな式として受け取ったか</b>がその場で分かります（例「251かける68」→ <b>251×68 ＝ 17068</b>、聞こえた言葉も小さく出ます）。式にできなかったときは<b>赤いふち</b>で聞こえた言葉だけ出るので、言い直す手がかりになります。<b>AC</b>を押すと消えます。<b>％・AC・▦表へ・桁</b>はテンキーの<b>電卓ページ</b>にあります（<b>▦表へ</b>で元のモードに戻り、選んでいるセルに答えが入ります）。<b>桁</b>（v367から）を押すと、<b>小数点以下の桁数</b>（自動・0〜4）と<b>はしたの数の処理</b>（<b>四捨五入・切り上げ・切り下げ</b>）を選べます。実務電卓の小数点セレクタと同じで、<b>決めた桁で答えを作り、その値のまま計算を続けます</b>（例：小数2桁・切り下げなら 10÷3×3 ＝ <b>9.99</b>。自動なら 10）。桁を決めると <b>3.00</b> のように0もそろえて出し、<b>▦表へ</b>でセルに入れる値も同じになります。今の決まりは電卓の画面の右下に<b>小さな札</b>で出ます。<b>表のセルの表示</b>は 設定→🧮計算 の「小数点以下の桁数」で別に決められます。<b>🎤声</b>キーで<b>声で計算</b>できます（🎤 声で入れるの章をどうぞ）。「1＋2×3」の答えを<b>9（ふつうの電卓）</b>にするか<b>7（式の優先順位どおり）</b>にするかは、<b>設定→🧮計算</b>で選べます。</div>
+          <div class="help-li"><b>電卓モード</b>：モードで<b>🧮電卓</b>を選ぶと、表のかわりに<b>ふつうの電卓</b>が出ます。テンキーはそのまま使えて、押すたびに答えが出ます。計算するたびに<b>履歴（テープ）</b>が残り、行を押すとその答えをもう一度使えます。<b>声で分数と方程式</b>（v369から）：<b>分数</b>は日本語のまま「<b>3分の2</b>」（＝2/3）と言えて、帯分数「<b>2と3分の1</b>」も使えます。答えは<b>約分した分数</b>でも出ます（「3分の2たす4分の1」→ <b>11/12 ＝ 0.9166666667</b>）。<b>方程式</b>は「<b>2エックスたす3は7</b>」→ <b>x＝2</b> のように解きます。<b>1次と2次</b>まで対応していて、2次は「<b>エックスの2乗ひく5エックスたす6は0</b>」→ <b>x＝2、x＝3</b> と<b>2つとも</b>出ます（電卓の表示には小さい方が入ります）。両辺にエックスがあっても大丈夫です（「3エックスたす2はエックスたす8」→ x＝3）。実数の解が無いときは<b>「実数の解なし」</b>と出します。うしろに「<b>エックスはいくつ</b>」「<b>エックスを求めて</b>」を付けても構いません。<b>方程式は電卓モードのときだけ</b>です（表では「エックス」が<b>X列のセル</b>と見分けが付かないため）。分数は表モードでも使えます。<br>履歴の下には<b>🎤 声で言った計算式の行</b>があり（v339から）、<b>声でどんな式として受け取ったか</b>がその場で分かります（例「251かける68」→ <b>251×68 ＝ 17068</b>、聞こえた言葉も小さく出ます）。式にできなかったときは<b>赤いふち</b>で聞こえた言葉だけ出るので、言い直す手がかりになります。<b>AC</b>を押すと消えます。<b>％・AC・▦表へ・桁</b>はテンキーの<b>電卓ページ</b>にあります（<b>▦表へ</b>で元のモードに戻り、選んでいるセルに答えが入ります）。<b>桁</b>（v367から）を押すと、<b>小数点以下の桁数</b>（自動・0〜4）と<b>はしたの数の処理</b>（<b>四捨五入・切り上げ・切り下げ</b>）を選べます。実務電卓の小数点セレクタと同じで、<b>決めた桁で答えを作り、その値のまま計算を続けます</b>（例：小数2桁・切り下げなら 10÷3×3 ＝ <b>9.99</b>。自動なら 10）。桁を決めると <b>3.00</b> のように0もそろえて出し、<b>▦表へ</b>でセルに入れる値も同じになります。今の決まりは電卓の画面の右下に<b>小さな札</b>で出ます。<b>表のセルの表示</b>は 設定→🧮計算 の「小数点以下の桁数」で別に決められます。<b>🎤声</b>キーで<b>声で計算</b>できます（🎤 声で入れるの章をどうぞ）。「1＋2×3」の答えを<b>9（ふつうの電卓）</b>にするか<b>7（式の優先順位どおり）</b>にするかは、<b>設定→🧮計算</b>で選べます。</div>
           <div class="help-li"><b>📋計算式テンプレ／📑決算書テンプレ</b>（テンキーの<b>モード</b>キー、または<b>⋯→🎯用途から始める</b>）：割引・利益率・BMI・速さ・複利・ローン・面積・単位の変換…25種類のひな形や、損益計算書・貸借対照表・収支計算書のひな形。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
         </div>
       </details>
@@ -14356,6 +14357,48 @@ const SPEECH_WORDS=[
   [/(の)?(三乗|3乗|さんじょう)/g, '^3'],
   [/(の)?(\d+)(じょう|乗)/g, '^$2'],
 ];
+/* 「3ぶんの2」→(2/3)、「2と3ぶんの1」→(2+1/3)。
+   日本語は「分母ぶんの分子」の順なので、入れかえて式にする（v369）。
+   数字が続くときだけ直すので、「30分の作業」のような言い方は触らない。 */
+function speechFrac(t){
+  let hit=false;
+  // 帯分数（2と3分の1）を先に。あとから分数だけを直す
+  t=t.replace(/(\d+(?:\.\d+)?)と(\d+(?:\.\d+)?)(?:ぶんの|分の)(\d+(?:\.\d+)?)/g,
+    (m,a,b,c)=>{ hit=true; return '('+a+'+'+c+'/'+b+')'; });
+  t=t.replace(/(\d+(?:\.\d+)?)(?:ぶんの|分の)(\d+(?:\.\d+)?)/g,
+    (m,b,a)=>{ hit=true; return '('+a+'/'+b+')'; });
+  return { t, hit };
+}
+/* 小数を「いちばん簡単な分数」に直す。ぴったり合う分数が無ければ null。
+   連分数で近づけるので、(2/3)+(1/4) は 11/12 のように約分済みで出る。
+   分母を 10000 までにして、ほぼ誤差ゼロのときだけ返す。そうしないと
+   円周率のような割り切れない数まで「312689/99532」のように化けてしまう。 */
+function toFraction(v, maxDen){
+  if(!isFinite(v)) return null;
+  const sign=v<0?-1:1, x=Math.abs(v);
+  if(x>1e12) return null;
+  const lim=maxDen||10000;
+  let h1=1,h0=0,k1=0,k0=1,b=x;
+  for(let i=0;i<40;i++){
+    const a=Math.floor(b);
+    const h2=a*h1+h0, k2=a*k1+k0;
+    if(k2>lim) break;
+    h0=h1; h1=h2; k0=k1; k1=k2;
+    if(Math.abs(h1/k1-x)<=1e-12*Math.max(1,x)) break;
+    const f=b-a; if(f<1e-12) break;
+    b=1/f;
+  }
+  if(!k1 || Math.abs(h1/k1-x)>1e-12*Math.max(1,x)) return null;
+  return { n:sign*h1, d:k1 };
+}
+/* 「11/12」「2と1/3」のような言い方にする。整数のときは null（分数で出す意味が無い） */
+function fracText(v){
+  const f=toFraction(v); if(!f || f.d===1) return null;
+  const s=f.n<0?'-':'', n=Math.abs(f.n), d=f.d;
+  let t=s+n+'/'+d;
+  if(n>d){ const w=Math.floor(n/d), r=n-w*d; t+='（'+s+w+'と'+r+'/'+d+'）'; }
+  return t;
+}
 /* 前後の言い回しを落とす（「〜は？」「計算して」など） */
 const SPEECH_TRIM=[
   /^(えーと|ええと|あの|それでは|じゃあ|ねえ|ねぇ)+/,
@@ -14364,8 +14407,11 @@ const SPEECH_TRIM=[
   /(は|わ|イコール|いこーる|＝|=)?(いくつ|幾つ|なんぼ|何|？|\?)*$/,
   /(です|でーす|ですか|になります|ください|下さい|。|、)+$/,
 ];
+/* しゃべった言葉に分数が入っていたか（答えを分数でも出すために覚えておく） */
+let speechLastFrac=false;
 /* しゃべった文字 → 数式。式に見えなければ null */
 function speechToFormula(text){
+  speechLastFrac=false;
   if(text==null) return null;
   let t=String(text).trim();
   if(t==='' || t.startsWith('=')) return null;        // 空・すでに数式は触らない
@@ -14378,6 +14424,7 @@ function speechToFormula(text){
   t=t.replace(/[\s,，]/g,'');                          // 空白・読点は落とす
   for(const re of SPEECH_TRIM) t=t.replace(re,'');
   t=kanjiNumsToDigits(t);
+  const fr=speechFrac(t); t=fr.t; speechLastFrac=fr.hit;   // 「3分の2」→(2/3)
   t=speechLettersToRefs(t.toUpperCase().replace(/([A-Z])\s+(?=\d)/g,'$1'));   // エー1 → A1
   const rangeF=speechRangeFormula(t);            // 「A1からA5の合計」はここで決まり
   if(rangeF) return rangeF;
@@ -14398,6 +14445,77 @@ function speechToFormula(text){
   const open=(t.match(/\(/g)||[]).length, close=(t.match(/\)/g)||[]).length;
   if(open!==close) return null;                       // かっこが合わない
   return '='+t;
+}
+/* ── 方程式（v369。電卓モードのときだけ使う）──
+   「2エックスたす3は7」のように言うと x を求める。1次と2次まで。
+   表モードでは使わない。声の「エックス」は X列のセル参照と見分けが付かないため。 */
+function speechToEquation(text){
+  if(text==null) return null;
+  let t=String(text).trim();
+  if(t===''||t.startsWith('=')) return null;
+  t=toHalfAscii(t);
+  if(!/(エックス|えっくす|ｘ|x|X)/.test(t)) return null;          // 未知数が無ければ方程式ではない
+  t=t.replace(/[\s,，、。]/g,'');
+  // 「〜、エックスはいくつ？」のような、うしろの問いかけを先に落とす。
+  // うしろがただの「エックス」のときは落とさない（「3は2たすエックス」を壊さないため）
+  t=t.replace(/(エックス|えっくす|X|ｘ|x)の(値|あたい|答え|こたえ)(は|を|が)?(いくつ|幾つ|なんぼ|なに|何)?(ですか|です|か)?(？|\?)?$/,'');
+  t=t.replace(/(エックス|えっくす|X|ｘ|x)(は|わ|を)((いくつ|幾つ|なんぼ|なに|何|求めて|もとめて|解いて|といて)(ください|下さい)?(ですか|です|か)?(？|\?)?|(？|\?))$/,'');
+  t=t.replace(/(を?(求めて|もとめて|解いて|といて)(ください|下さい)?)$/,'');
+  for(const re of SPEECH_TRIM) t=t.replace(re,'');
+  t=t.replace(/(エックス|えっくす)/g,'X');
+  t=kanjiNumsToDigits(t);
+  t=speechFrac(t).t;
+  t=t.replace(/(ルート|るーと|√)\s*(\d+(\.\d+)?)/g,'SQRT($2)');
+  t=t.replace(/(イコール|いこーる|＝|=)/g,'=');
+  t=t.replace(/は/g,'=');                                       // 「〜は〜」の「は」＝イコール
+  for(const [re,rep2] of SPEECH_WORDS) t=t.replace(re,rep2);
+  t=t.replace(/[×✕☓]/g,'*').replace(/[÷／]/g,'/').replace(/[−–—ー]/g,'-');
+  t=t.replace(/[。、]/g,'');
+  t=t.toUpperCase();
+  // 2X → 2*X のように、くっついている掛け算を補う
+  t=t.replace(/(\d)(X)/g,'$1*$2').replace(/(X)(\d)/g,'$1*$2')
+     .replace(/\)(X)/g,')*$1').replace(/(X)\(/g,'$1*(').replace(/\)(\d)/g,')*$1');
+  if(!/X/.test(t)) return null;
+  if((t.match(/=/g)||[]).length!==1) return null;                // イコールがちょうど1つ
+  if(!/^[-+*/^().0-9X=SQRT]+$/.test(t)) return null;
+  const i=t.indexOf('=');
+  const L=t.slice(0,i), R=t.slice(i+1);
+  if(!L||!R) return null;
+  // 左辺−右辺を x=0,1,2 で見て、2次式の係数を出す
+  const at=x=>{
+    const put=s2=>s2.replace(/X/g,'('+x+')');
+    let a,b2;
+    try{ a=evalFormula('='+put(L)); b2=evalFormula('='+put(R)); }catch(_){ return null; }
+    if(typeof a!=='number'||typeof b2!=='number'||!isFinite(a)||!isFinite(b2)) return null;
+    return a-b2;
+  };
+  const f0=at(0), f1=at(1), f2=at(2);
+  if(f0===null||f1===null||f2===null) return null;
+  const A=(f2-2*f1+f0)/2, B=f1-f0-A, C=f0;
+  const scale=Math.max(1, Math.abs(A), Math.abs(B), Math.abs(C));
+  const eps=1e-9*scale;
+  let roots=[];
+  if(Math.abs(A)<=eps){
+    if(Math.abs(B)<=eps) return null;                            // x が消える＝解が無い／いくつでも合う
+    roots=[-C/B];
+  } else {
+    const D=B*B-4*A*C;
+    if(D<-1e-9*scale*scale) return { l:L, r:R, roots:[], none:true };   // 実数の解は無い
+    const sq=Math.sqrt(Math.max(0,D));
+    roots=(sq<=1e-9*scale) ? [-B/(2*A)] : [(-B+sq)/(2*A), (-B-sq)/(2*A)];
+  }
+  // 出した答えを入れ直して、ほんとうに合っているか確かめる（3次以上を取りこぼさないため）
+  for(const x of roots){
+    const v=at(x);
+    if(v===null || Math.abs(v)>1e-6*Math.max(1,Math.abs(x))*scale) return null;
+  }
+  roots=roots.map(x=>+x.toFixed(10)).sort((a,b)=>a-b);
+  return { l:L, r:R, roots, none:false };
+}
+/* 「2X+3 ＝ 7」のように読みやすくする */
+function eqReadable(e){
+  const r=s2=>String(s2).replace(/\*/g,'×').replace(/\//g,'÷').replace(/\+/g,'＋').replace(/-/g,'−');
+  return r(e.l)+' ＝ '+r(e.r);
 }
 /* セルへ入れる直前に通す。式に見えたら数式にし、直したことをお知らせで伝える。
    言ったとおりの文字で残したいときのために「文字のままにする」を出す。 */
@@ -14610,10 +14728,14 @@ function speechSay(text){
 /* 電卓モードのときは、セルではなく電卓に入れる。
    言った式をその場で計算して、答えを大きい表示に出し、履歴（テープ）にも残す。 */
 function voiceAcceptDentaku(raw){
+  // まず方程式として読めるか見る（電卓のときだけ。表では X列のセルと見分けが付かない）
+  const eq = speechAutoOn ? speechToEquation(raw) : null;
+  if(eq) return voiceAcceptEquation(eq, raw);
   const f = speechAutoOn ? speechToFormula(raw) : null;
+  const wasFrac = speechLastFrac;
   if(f===null){
     dtVoiceShow('計算の形になりませんでした', raw, 'ng');
-    toast('計算の形で言ってください（例「251かける68」）');
+    toast('計算の形で言ってください（例「251かける68」「3分の2たす4分の1」「2エックスたす3は7」）', 5200);
     return;
   }
   const shown=formulaToReadable(f);           // 251×68 のように読みやすい形
@@ -14622,14 +14744,37 @@ function voiceAcceptDentaku(raw){
     dtVoiceShow(shown, raw, 'ng');
     toast('計算できませんでした'); return;
   }
-  const num=fmtNum(v);
-  dtVoiceShow(shown+' ＝ '+num, raw, 'on');   // 受け取った式を電卓の行に出す
-  dtPush(shown, num);                         // 履歴には 251×68 のように読みやすい形で残す
+  const num=dtFmtNum(v);
+  const fr=wasFrac?fracText(v):null;          // 分数で言われたら、分数の形を先に出す
+  const ans=(fr?(fr+'　＝ '):'')+num;
+  dtVoiceShow(shown+' ＝ '+ans, raw, 'on');   // 受け取った式を電卓の行に出す
+  dtPush(shown, ans);                         // 履歴には 251×68 のように読みやすい形で残す
   if(dtStyle==='expr') dtExpr=num;
   disp_val=num; op1=null; cur_op=null; waiting=false; dtSeq=''; dtFresh=true;
   dtRender();
-  toast(`「${raw}」＝ ${num}`, 4200);
-  speechSay(num);
+  toast(`「${raw}」＝ ${ans}`, 4200);
+  speechSay(fr?(fr.replace('/','分の').replace(/（.*/,'')):num);
+}
+/* 方程式として受け取ったとき（1次・2次まで） */
+function voiceAcceptEquation(eq, raw){
+  const shown=eqReadable(eq);
+  if(eq.none || !eq.roots.length){
+    dtVoiceShow(shown+' → 実数の解なし', raw, 'ng');
+    toast(`${shown} … 実数の解はありません`, 4600);
+    return;
+  }
+  const one=x=>{ const f=fracText(x); return 'x＝'+dtFmtNum(x)+(f?('（'+f.replace(/（.*/,'')+'）'):''); };
+  const ansTxt=eq.roots.map(one).join('　');
+  dtVoiceShow(shown+' → '+ansTxt, raw, 'on');
+  // 履歴は「2×X＋3 ＝ 7　x ＝ 2」のように読める形にする（テープは e ＝ v の形で出る）
+  dtPush(shown+'　x', eq.roots.map(x=>dtFmtNum(x)).join('、'));
+  const first=eq.roots[0];
+  const num=dtFmtNum(first);
+  if(dtStyle==='expr') dtExpr=num;
+  disp_val=num; op1=null; cur_op=null; waiting=false; dtSeq=''; dtFresh=true;
+  dtRender();
+  toast(`${shown} → ${ansTxt}`+(eq.roots.length>1?'（電卓には小さい方を入れました）':''), 5200);
+  speechSay(eq.roots.map(x=>'エックスは'+dtFmtNum(x)).join('、'));
 }
 
 /* 声で入れ終わったら、端末のキーボードが出ないように入力欄から手を離す。
@@ -17253,7 +17398,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v368';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v369';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

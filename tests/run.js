@@ -3089,6 +3089,91 @@ async function runTsxLock(browser) {
   await ctx.close();
 }
 
+/* 声で分数・方程式（v369） */
+async function runVoiceMath(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 声で分数・方程式 ──');
+
+  const f = t => page.evaluate(x => String(speechToFormula(x)), t);
+  const val = t => page.evaluate(x => { const g = speechToFormula(x);
+    try { return g ? evalFormula(g) : null; } catch (_) { return null; } }, t);
+
+  // ── 分数 ──
+  check('  3分の2は 2/3', await f('3分の2'), '=(2/3)');
+  check('  ひらがなでも読む', await f('3ぶんの2'), '=(2/3)');
+  check('  漢数字でも読む', await f('三分の二'), '=(2/3)');
+  check('  足し算もできる', await f('3分の2たす4分の1'), '=(2/3)+(1/4)');
+  check('  答えは 0.9166…', Math.abs(await val('3分の2たす4分の1') - 11 / 12) < 1e-12, true);
+  check('  帯分数も読む', await f('2と3分の1'), '=(2+1/3)');
+  check('  帯分数の計算', await val('2と3分の1かける3'), 7);
+  check('  かけ算・わり算もできる', await f('3分の2かける4分の3'), '=(2/3)*(3/4)');
+  check('  「30分の作業」は式にしない', await f('30分の作業'), 'null');
+
+  // 約分した分数に直す
+  const fr = v => page.evaluate(x => String(fracText(x)), v);
+  check('  11/12 に約分する', await fr(11 / 12), '11/12');
+  check('  2/4 は 1/2 になる', await fr(0.5), '1/2');
+  check('  1より大きいと帯分数も出す', await fr(7 / 4), '7/4（1と3/4）');
+  check('  マイナスも出す', await fr(-2 / 3), '-2/3');
+  check('  整数は分数にしない', await fr(7), 'null');
+  check('  割り切れない数は分数にしない', await fr(Math.PI), 'null');
+  check('  分数で言ったことを覚えている', await page.evaluate(() => {
+    speechToFormula('3分の2'); const a = speechLastFrac;
+    speechToFormula('2たす3'); return a + '/' + speechLastFrac; }), 'true/false');
+
+  // ── 方程式 ──
+  const eq = t => page.evaluate(x => { const e = speechToEquation(x);
+    return e ? (eqReadable(e) + ' / ' + (e.none ? 'なし' : e.roots.join(','))) : 'null'; }, t);
+  check('  1次方程式', await eq('2エックスたす3は7'), '2×X＋3 ＝ 7 / 2');
+  check('  両辺にエックス', await eq('3エックスたす2はエックスたす8'), '3×X＋2 ＝ X＋8 / 3');
+  check('  わり算のエックス', await eq('エックスわる4は5'), 'X÷4 ＝ 5 / 20');
+  check('  分数とまぜてもよい', await eq('3分の2エックスは4'), '(2÷3)×X ＝ 4 / 6');
+  check('  2次方程式は2つとも出す', await eq('エックスの2乗は9'), 'X^2 ＝ 9 / -3,3');
+  check('  2次のふつうの形', await eq('エックス2乗ひく5エックスたす6は0'), 'X^2−5×X＋6 ＝ 0 / 2,3');
+  check('  重なる解は1つ', await eq('エックスの2乗ひく2エックスたす1は0'), 'X^2−2×X＋1 ＝ 0 / 1');
+  check('  実数の解が無いとき', await eq('エックスの2乗たす1は0'), 'X^2＋1 ＝ 0 / なし');
+  check('  3次は受け取らない', await eq('エックスの3乗は8'), 'null');
+  check('  エックスが消える式は受け取らない', await eq('エックスたす1はエックスたす1'), 'null');
+  check('  ふつうの計算は方程式にしない', await eq('251かける68'), 'null');
+  check('  エックスが無ければ方程式にしない', await eq('2たす3は5'), 'null');
+
+  // うしろの問いかけを落とす
+  for (const [t, want] of [['2エックスたす3は7エックスはいくつ', '2'], ['2エックスたす3は7、エックスは？', '2'],
+                           ['2エックスたす3は7エックスを求めて', '2'], ['2エックスたす3は7エックスの値は', '2'],
+                           ['2エックスたす3は7ですか', '2']]) {
+    check('  うしろの問いかけを落とす（' + t.slice(9) + '）', (await eq(t)).split(' / ')[1], want);
+  }
+  check('  うしろのエックスは落とさない', await eq('3は2たすエックス'), '3 ＝ 2＋X / 1');
+
+  // ── 電卓で受け取る ──
+  await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(350);
+  const say = async t => { await page.evaluate(x => { dtAllClear(); voiceAcceptDentaku(x); }, t);
+    await page.waitForTimeout(150);
+    return page.evaluate(() => document.getElementById('dtVoiceF').textContent
+      + '｜' + document.getElementById('dtMain').textContent); };
+  check('  分数は約分した形でも出す', await say('3分の2たす4分の1'),
+    '(2÷3)＋(1÷4) ＝ 11/12　＝ 0.9166666667｜0.9166666667');
+  check('  1次方程式を解く', await say('2エックスたす3は7'), '2×X＋3 ＝ 7 → x＝2｜2');
+  check('  2次は2つとも出して小さい方を表示', await say('エックス2乗ひく5エックスたす6は0'),
+    'X^2−5×X＋6 ＝ 0 → x＝2　x＝3｜2');
+  check('  実数の解が無いときは知らせる', await say('エックスの2乗たす1は0'),
+    'X^2＋1 ＝ 0 → 実数の解なし｜0');
+  check('  ふつうの計算は今までどおり', await say('251かける68'), '251×68 ＝ 17068｜17068');
+  check('  式にならないときは知らせる', await say('ねこ'), '計算の形になりませんでした｜0');
+  check('  履歴にも残る', await page.evaluate(() => dtTape.map(x => x.e + '＝' + x.v).join(' / ')),
+    '(2÷3)＋(1÷4)＝11/12　＝ 0.9166666667 / 2×X＋3 ＝ 7　x＝2 / X^2−5×X＋6 ＝ 0　x＝2、3 / 251×68＝17068');
+
+  // 表モードでは方程式にしない（X列のセルと見分けが付かないため）
+  await page.evaluate(() => switchMode('normal')); await page.waitForTimeout(300);
+  check('  表では分数は使える', await f('3分の2たす4分の1'), '=(2/3)+(1/4)');
+  check('  表では方程式の道は通らない', await page.evaluate(() =>
+    typeof voiceAcceptDentaku === 'function' && !isDentaku()), true);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -3114,6 +3199,7 @@ async function runTsxLock(browser) {
     if (!only || only === 'startpage') await runStartPage(browser);
     if (!only || only === 'dtdec') await runDtDec(browser);
     if (!only || only === 'tsxlock') await runTsxLock(browser);
+    if (!only || only === 'voicemath') await runVoiceMath(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
