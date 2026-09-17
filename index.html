@@ -433,6 +433,32 @@ body.has-sheet-tabs .sheet-persist {
   padding: 10px; overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1;
 }
 body.dark .settings-tabbar, body.dark .settings-body { background: #141d33; }
+/* 🎤 言い方の早見表（v372） */
+.dt-say-btn {
+  flex-shrink: 0; align-self: flex-start; margin-left: 6px;
+  padding: 4px 8px; border: 1px solid var(--save-item-border); border-radius: var(--r-btn);
+  background: var(--save-item-bg); color: var(--text); font-size: 11px; font-weight: bold;
+  cursor: pointer; touch-action: manipulation; white-space: nowrap;
+}
+.voice-say-btn { margin-top: 8px; }
+.say-g {
+  font-size: 13px; font-weight: bold; color: var(--text);
+  background: var(--pm-chip, rgba(120,132,156,.13));
+  border-radius: var(--r-btn); padding: 7px 10px; margin: 10px 0 5px;
+}
+.say-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; text-align: left; margin-bottom: 5px; padding: 9px 10px;
+  border: 1px solid var(--save-item-border); border-radius: var(--r-btn);
+  background: var(--save-item-bg); color: var(--text);
+  font-size: 13px; cursor: pointer; touch-action: manipulation;
+}
+.say-row:active { opacity: .7; }
+.say-ex { flex: 1; min-width: 0; word-break: break-all; }
+.say-ans { flex-shrink: 0; font-weight: bold; color: var(--acc-text); font-size: 13px; }
+body.dark .say-ans { color: #7fd6a3; }
+/* 「もしかして」が出ているときは押せると分かるようにする */
+.dt-voice.dt-voice-guess { cursor: pointer; box-shadow: inset 0 0 0 2px var(--acc); }
 /* 電卓の画面に出す「小数2桁・四捨五入」の小さな札（v367） */
 .dt-dectag {
   align-self: flex-end; margin-top: 2px;
@@ -2841,6 +2867,7 @@ body.dark {
          テンキーの🎤声キーは長押しが「別の機能に変更」なので、そちらでは切り替えられないため。 -->
     <button class="voice-seq" id="voiceSeqBtn" onclick="event.stopPropagation();voiceToggleKeepGoing()">🔁 続けて入れる</button>
     <div class="voice-hint">式は「251かける68」のように言ってください／窓の外をタップでやめる</div>
+    <button class="voice-seq voice-say-btn" onclick="event.stopPropagation();voiceCancel();setTimeout(openSayHelp,80)">📖 こう言えます</button>
   </div>
 </div>
 
@@ -3074,12 +3101,13 @@ body.dark {
     <div class="dt-dectag" id="dtDecTag" hidden></div>
   </div>
   <!-- 声で言った計算式を出す行。何を式として受け取ったかがその場で分かる -->
-  <div class="dt-voice" id="dtVoice" aria-live="polite">
+  <div class="dt-voice" id="dtVoice" aria-live="polite" onclick="dtVoiceGuessTry()">
     <span class="dt-voice-ico">🎤</span>
     <span class="dt-voice-body">
       <span class="dt-voice-f" id="dtVoiceF">声で言った計算式がここに出ます</span>
       <span class="dt-voice-raw" id="dtVoiceRaw"></span>
     </span>
+    <button class="dt-say-btn" onclick="event.stopPropagation();openSayHelp()">📖 言い方</button>
   </div>
 </div>
 
@@ -3941,6 +3969,25 @@ body.dark {
   </div>
 </div>
 
+<!-- 🎤 言い方の早見表（v372） -->
+<div class="modal-overlay" id="sayHelpOverlay" onclick="if(event.target===this)closeSayHelp()">
+  <div class="modal veg-modal modal-full">
+    <div class="modal-header">
+      <span>📖 声でこう言えます</span>
+      <button class="modal-close" onclick="closeSayHelp()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="mode-hint">🎤声キーを押して、下のように言うとそのまま答えが出ます。<b>行を押すとその場で試せます</b>（電卓に切り替わります）。数は自分のものに置きかえて言ってください。</div>
+      <div class="veg-pickbar">
+        <span class="veg-lb">さがす</span>
+        <input type="search" id="sayHelpFind" class="regpick-input veg-find" placeholder="円・平米・時間 など"
+               oninput="sayHelpFind(this.value)" onkeydown="event.stopPropagation()" aria-label="言い方をさがす">
+      </div>
+      <div id="sayHelpBody"></div>
+    </div>
+  </div>
+</div>
+
 <!-- 電卓の答えの桁数と端数の処理（v367） -->
 <div class="modal-overlay" id="dtDecOverlay" onclick="if(event.target===this)closeDtDec()">
   <div class="modal">
@@ -4691,7 +4738,9 @@ body.dark {
             ・<b>形の欄に「円」と入れる</b>と円で計算します（<b>丸・まる・○</b>でも同じ）。このとき<b>たての欄が直径</b>になり、面積＝π×(直径÷2)²、まわり＝π×直径 です。高さも入れれば<b>円柱の容積</b>になります<br>
             ・下のバーに<b>面積・容積・リットル・まわりの長さ</b>の合計が出ます<br>
             ・前の「容積モード」（縦×横×高さだけ）で作った表は、開いたときに<b>自動で新しい並びに移ります</b>（中身が1列ぶん右へずれ、形の欄は空＝長方形になります）</div>
-          <div class="help-li"><b>電卓モード</b>：モードで<b>🧮電卓</b>を選ぶと、表のかわりに<b>ふつうの電卓</b>が出ます。テンキーはそのまま使えて、押すたびに答えが出ます。計算するたびに<b>履歴（テープ）</b>が残り、行を押すとその答えをもう一度使えます。<b>声でふだんの言い方のまま計算</b>（v370から）：式にしなくても、下のような言い方でそのまま答えが出ます（電卓モードのとき）。答えの下には<b>おまけの数</b>（消費税の額・1個あたり・坪・使うガソリンの量など）も出ます。<br>
+          <div class="help-li"><b>電卓モード</b>：モードで<b>🧮電卓</b>を選ぶと、表のかわりに<b>ふつうの電卓</b>が出ます。テンキーはそのまま使えて、押すたびに答えが出ます。計算するたびに<b>履歴（テープ）</b>が残り、行を押すとその答えをもう一度使えます。<b>📖 言い方の早見表</b>（v372から）：電卓の声の行にある<b>📖言い方</b>（または🎤で聞いている窓の<b>📖こう言えます</b>）を押すと、<b>言える形が答え付きで一覧</b>で出ます。<b>行を押すとその場で試せます</b>（電卓に切り替わって計算されます）。<b>さがす</b>欄に「円」「平米」などと入れてしぼれます。言い方を足すと<b>自動でここにも並びます</b>。<br>
+            <b>もしかして</b>（v372から）：言い方が外れたときは、いちばん近いお手本を<b>「もしかして『◯◯』？」</b>と出します。<b>その行を押すとそのまま試せます</b>。<br>
+            <b>声でふだんの言い方のまま計算</b>（v370から）：式にしなくても、下のような言い方でそのまま答えが出ます（電卓モードのとき）。答えの下には<b>おまけの数</b>（消費税の額・1個あたり・坪・使うガソリンの量など）も出ます。<br>
             　<b>割合</b>「5000円の18パーセント」→900円／「5000円の2割」も同じ　<b>値引き</b>「12800円を15パーセント引き」→10,880円（「2割引き」「2割5分引き」もOK）　<b>増し</b>「1000円を3パーセント増し」<br>
             　<b>消費税</b>「5000円に消費税10パーセント」→5,500円（税率を言わなければ設定の税率）／「5000円の税抜」→4,545円　<b>割り勘</b>「12800円を4人で割って」→3,200円<br>
             　<b>単価</b>「10個398円、1個いくら」→39.8円　<b>くらべる</b>「5個600円と8個880円、どっちが安い」→8個880円のほうが安い（1個10円おとく）<br>
@@ -13792,7 +13841,19 @@ function dtVoiceShow(formula, raw, state){
   box.classList.toggle('dt-voice-on', state==='on');
   box.classList.toggle('dt-voice-ng', state==='ng');
 }
-function dtVoiceClear(){ dtVoiceShow('', '', ''); }
+function dtVoiceClear(){ dtVoiceShow('', '', ''); dtVoiceGuess(null); }
+/* 「もしかして」を押したらその場で試せるようにする */
+let dtVoiceGuessEx=null;
+function dtVoiceGuess(ex){
+  dtVoiceGuessEx=ex||null;
+  const box=document.getElementById('dtVoice');
+  if(box) box.classList.toggle('dt-voice-guess', !!dtVoiceGuessEx);
+}
+function dtVoiceGuessTry(){
+  if(!dtVoiceGuessEx) return;
+  const ex=dtVoiceGuessEx; dtVoiceGuess(null);
+  voiceAcceptDentaku(ex);
+}
 /* ％：演算が保留中なら「前の値に対する割合」、そうでなければ 100 で割る */
 function dtPercent(){
   if(dtStyle==='expr'){ dtExprAppend('/100'); return; }
@@ -14517,7 +14578,7 @@ function srNum(v, dp){
 function srYen(v){ return withCommas(String(+v.toFixed(2)))+'円'; }
 const SPEECH_RECIPES=[
   /* ① 5個600円と8個880円、どっちが安い */
-  {id:'compare', re:new RegExp(SR_N+'(?:個|本|枚|袋|kg|キロ)(?:で|が)?'+SR_N+'円.*?(?:と|、)'+SR_N+'(?:個|本|枚|袋|kg|キロ)(?:で|が)?'+SR_N+'円'),
+  {id:'compare', g:'お金', ex:'5個600円と8個880円、どっちが安い', re:new RegExp(SR_N+'(?:個|本|枚|袋|kg|キロ)(?:で|が)?'+SR_N+'円.*?(?:と|、)'+SR_N+'(?:個|本|枚|袋|kg|キロ)(?:で|が)?'+SR_N+'円'),
    run:m=>{
      const q1=+m[1], p1=+m[2], q2=+m[3], p2=+m[4];
      if(!q1||!q2) return null;
@@ -14531,18 +14592,18 @@ const SPEECH_RECIPES=[
                   +(same?'同じ値段':`${win} のほうが安い（1個 ${srNum(diff)}円 おとく）`) };
    }},
   /* ② 10個398円、1個いくら */
-  {id:'unitprice', re:new RegExp(SR_N+'(?:個|本|枚|袋)(?:で|が)?'+SR_N+'円'),
+  {id:'unitprice', g:'お金', ex:'10個398円、1個いくら', re:new RegExp(SR_N+'(?:個|本|枚|袋)(?:で|が)?'+SR_N+'円'),
    run:m=>{ const q=+m[1], p=+m[2]; if(!q) return null;
      return { e:`${m[1]}個 ${withCommas(m[2])}円 の 1個ぶん`, v:p/q, u:'円',
               sub:`10個なら ${srYen(p/q*10)}` }; }},
   /* ③ ガソリン170円、燃費18キロ、200キロ走る */
-  {id:'fuel', re:new RegExp('(?:ガソリン|燃料|軽油)(?:代|だい)?(?:が|は)?'+SR_N+'円.*?燃費(?:が|は)?'+SR_N+'(?:キロ|km).*?'+SR_N+'(?:キロ|km)(?:走|はし|乗)'),
+  {id:'fuel', g:'くるま', ex:'ガソリン170円、燃費18キロ、200キロ走る', re:new RegExp('(?:ガソリン|燃料|軽油)(?:代|だい)?(?:が|は)?'+SR_N+'円.*?燃費(?:が|は)?'+SR_N+'(?:キロ|km).*?'+SR_N+'(?:キロ|km)(?:走|はし|乗)'),
    run:m=>{ const yen=+m[1], km1=+m[2], dist=+m[3]; if(!km1) return null;
      const use=dist/km1;
      return { e:`ガソリン ${withCommas(m[1])}円/L・燃費 ${m[2]}km/L で ${withCommas(m[3])}km 走る`,
               v:use*yen, u:'円', sub:`使う量 ${srNum(use,2)}L` }; }},
   /* ④ 300万円、金利2.5%、5年（元利均等の毎月返済） */
-  {id:'loan', re:new RegExp(SR_N+'円.*?(?:金利|利率|年利)(?:が|は)?'+SR_N+SR_P+'.*?'+SR_N+'年'),
+  {id:'loan', g:'お金', ex:'300万円、金利2.5パーセント、5年', re:new RegExp(SR_N+'円.*?(?:金利|利率|年利)(?:が|は)?'+SR_N+SR_P+'.*?'+SR_N+'年'),
    run:m=>{ const P0=+m[1], rate=+m[2], yr=+m[3]; if(!P0||!yr) return null;
      const r=rate/100/12, n=yr*12;
      const pay=(r>0)? P0*r/(1-Math.pow(1+r,-n)) : P0/n;
@@ -14551,7 +14612,7 @@ const SPEECH_RECIPES=[
               v:pay, u:'円/月',
               sub:`総返済 ${srYen(total)}／利息 ${srYen(total-P0)}（${n}回）` }; }},
   /* ⑤ 8時15分から17時30分、休憩1時間 */
-  {id:'time', re:new RegExp('(\\d{1,2})(?:時|:)(\\d{1,2})?分?から(\\d{1,2})(?:時|:)(\\d{1,2})?分?'),
+  {id:'time', g:'単位・時間', ex:'8時15分から17時30分、休憩1時間', re:new RegExp('(\\d{1,2})(?:時|:)(\\d{1,2})?分?から(\\d{1,2})(?:時|:)(\\d{1,2})?分?'),
    run:(m,t)=>{
      const s=(+m[1])*60+(+(m[2]||0)), e0=(+m[3])*60+(+(m[4]||0));
      let d=e0-s; if(d<0) d+=24*60;
@@ -14566,26 +14627,26 @@ const SPEECH_RECIPES=[
               sub:`${hh}時間${mm}分（${w}分）` }; }},
   /* ── ここから現場でよく使う計算（v371）───────────────────── */
   /* 体積・コンクリート量「縦5メートル、横3メートル、厚さ15センチ」 */
-  {id:'volume', re:new RegExp('(?:縦|たて|幅|よこ|横|長さ)?'+SR_LEN+'(?:、|と|かける|×|に)?(?:横|よこ|縦|たて|長さ|ながさ|奥行き|おくゆき)?'+SR_LEN+'(?:、|と|かける|×|に)?(?:厚さ|あつさ|厚み|深さ|ふかさ|高さ|たかさ)'+SR_LEN),
+  {id:'volume', g:'現場', ex:'縦5メートル、横3メートル、厚さ15センチ', re:new RegExp('(?:縦|たて|幅|よこ|横|長さ)?'+SR_LEN+'(?:、|と|かける|×|に)?(?:横|よこ|縦|たて|長さ|ながさ|奥行き|おくゆき)?'+SR_LEN+'(?:、|と|かける|×|に)?(?:厚さ|あつさ|厚み|深さ|ふかさ|高さ|たかさ)'+SR_LEN),
    run:m=>{ const a=srLen(m[1],m[2]), b2=srLen(m[3],m[4]), c=srLen(m[5],m[6]);
      if(a==null||b2==null||c==null) return null;
      const v=a*b2*c;
      return { e:`${srNum(a,3)}m × ${srNum(b2,3)}m × ${srNum(c,3)}m`, v, u:'㎥', dp:3,
               sub:`ロス5%込みで ${srNum(v*1.05,3)}㎥／面積 ${srNum(a*b2,2)}㎡` }; }},
   /* 生コン車の台数「12立米を4.5立米車で」 */
-  {id:'mixer', re:new RegExp(SR_N+'(?:立米|立方メートル|㎥|m3)(?:を|は|、)?'+SR_N+'(?:立米|立方メートル|㎥|m3)(?:の)?(?:車|ミキサー|積み|だて)'),
+  {id:'mixer', g:'現場', ex:'12立米を4.5立米車で', re:new RegExp(SR_N+'(?:立米|立方メートル|㎥|m3)(?:を|は|、)?'+SR_N+'(?:立米|立方メートル|㎥|m3)(?:の)?(?:車|ミキサー|積み|だて)'),
    run:m=>{ const v=+m[1], cap=+m[2]; if(!cap) return null;
      const n=Math.ceil(v/cap), last=v-cap*(n-1);
      return { e:`${m[1]}㎥ を ${m[2]}㎥車で運ぶ`, v:n, u:'台',
               sub:`最後の車は ${srNum(last,2)}㎥（満載 ${n-1}台）` }; }},
   /* 水セメント比「水175、セメント320の水セメント比」 */
-  {id:'wc', re:new RegExp('水(?:が|は|量)?'+SR_N+'.*?セメント(?:が|は|量)?'+SR_N),
+  {id:'wc', g:'現場', ex:'水175、セメント320の水セメント比', re:new RegExp('水(?:が|は|量)?'+SR_N+'.*?セメント(?:が|は|量)?'+SR_N),
    test:t=>/(水セメント比|水セメント|W\/C|wc比)/i.test(t),
    run:m=>{ const w=+m[1], c=+m[2]; if(!c) return null;
      return { e:`水 ${m[1]} ／ セメント ${m[2]} の水セメント比`, v:w/c*100, u:'%', dp:1,
               sub:`セメント1に対して水 ${srNum(w/c,3)}` }; }},
   /* 勾配「10メートルで20センチ下がる」 */
-  {id:'slope', re:new RegExp(SR_LEN+'(?:で|に|につき|あたり|当たり)'+SR_LEN+'(?:下が|さが|上が|あが|落と|おと)?[るりす]?(?:の)?(?:勾配|こうばい)?'),
+  {id:'slope', g:'現場', ex:'10メートルで20センチ下がる勾配', re:new RegExp(SR_LEN+'(?:で|に|につき|あたり|当たり)'+SR_LEN+'(?:下が|さが|上が|あが|落と|おと)?[るりす]?(?:の)?(?:勾配|こうばい)?'),
    test:t=>/(勾配|こうばい|下が|さが|上が|あが|落と|おと)/.test(t),
    run:m=>{ const run2=srLen(m[1],m[2]), rise=srLen(m[3],m[4]);
      if(run2==null||rise==null||!run2) return null;
@@ -14593,7 +14654,7 @@ const SPEECH_RECIPES=[
      return { e:`${srNum(run2,3)}m で ${srNum(rise*100,1)}cm の勾配`, v:pct, u:'%', dp:2,
               sub:`1/${srNum(run2/rise,1)}（${srNum(rise/run2*10,2)}寸勾配）` }; }},
   /* 斜辺・法長「底辺3メートル、高さ4メートルの斜辺」 */
-  {id:'hyp', re:new RegExp('(?:底辺|そこ|水平|よこ|横|長さ)?'+SR_LEN+'(?:、|と)?(?:高さ|たかさ|垂直|たて|縦)'+SR_LEN),
+  {id:'hyp', g:'現場', ex:'底辺3メートル、高さ4メートルの斜辺', re:new RegExp('(?:底辺|そこ|水平|よこ|横|長さ)?'+SR_LEN+'(?:、|と)?(?:高さ|たかさ|垂直|たて|縦)'+SR_LEN),
    test:t=>/(斜辺|しゃへん|斜め|ななめ|法長|のりちょう|対角)/.test(t),
    run:m=>{ const a=srLen(m[1],m[2]), b2=srLen(m[3],m[4]);
      if(a==null||b2==null) return null;
@@ -14601,13 +14662,13 @@ const SPEECH_RECIPES=[
      return { e:`底辺 ${srNum(a,3)}m・高さ ${srNum(b2,3)}m の斜辺`, v:h, u:'m', dp:3,
               sub:`勾配 1:${srNum(a/b2,2)}（高さ1に対して底辺 ${srNum(a/b2,2)}）` }; }},
   /* 希釈「1000倍で20リットル」 */
-  {id:'dilute', re:new RegExp(SR_N+'倍(?:希釈|きしゃく)?(?:で|に|、|の)?'+SR_N+'(?:リットル|l)'),
+  {id:'dilute', g:'畑・材料', ex:'1000倍で20リットル', re:new RegExp(SR_N+'倍(?:希釈|きしゃく)?(?:で|に|、|の)?'+SR_N+'(?:リットル|l)'),
    run:m=>{ const x=+m[1], L=+m[2]; if(!x) return null;
      const ml=L*1000/x;
      return { e:`${withCommas(m[1])}倍希釈で ${m[2]}L 作る`, v:ml, u:'mL', dp:2,
               sub:`薬 ${srNum(ml,2)}mL＋水 ${srNum(L*1000-ml,0)}mL` }; }},
   /* 単位あたりの必要量「100平米に1平米あたり3キロ」 */
-  {id:'perarea', re:new RegExp(SR_N+'(平米|㎡|m2|坪|反|アール|a|ha)(?:に|で|、|は)?(?:1|１)?(?:平米|㎡|m2|坪|反|アール|a|ha)?(?:あたり|当たり|につき)'+SR_N+'(キロ|kg|グラム|g|リットル|l|袋|本|個|円)'),
+  {id:'perarea', g:'畑・材料', ex:'100平米に1平米あたり3キロ', re:new RegExp(SR_N+'(平米|㎡|m2|坪|反|アール|a|ha)(?:に|で|、|は)?(?:1|１)?(?:平米|㎡|m2|坪|反|アール|a|ha)?(?:あたり|当たり|につき)'+SR_N+'(キロ|kg|グラム|g|リットル|l|袋|本|個|円)'),
    run:m=>{ const area=+m[1], rate=+m[3];
      const au=m[2].replace(/^(平米|m2)$/,'㎡').replace(/^a$/,'アール');
      const tot=area*rate;
@@ -14618,45 +14679,45 @@ const SPEECH_RECIPES=[
      if(u==='kg'&&tot>=1000) sub+=`（${srNum(tot/1000,2)}t）`;
      return { e:`${withCommas(m[1])}${au} に 1${au}あたり ${m[3]}${u}`, v:tot, u, dp:2, sub }; }},
   /* ピッチの本数「5メートルに200ミリピッチ」 */
-  {id:'pitch', re:new RegExp(SR_LEN+'(?:に|を|で|の間に)'+SR_LEN+'(?:ピッチ|間隔|かんかく|ごと|おき|とび)'),
+  {id:'pitch', g:'現場', ex:'5メートルに200ミリピッチ', re:new RegExp(SR_LEN+'(?:に|を|で|の間に)'+SR_LEN+'(?:ピッチ|間隔|かんかく|ごと|おき|とび)'),
    run:m=>{ const L=srLen(m[1],m[2]), p=srLen(m[3],m[4]);
      if(L==null||p==null||!p) return null;
      const gaps=Math.floor(L/p+1e-9), n=gaps+1;
      return { e:`${srNum(L,3)}m に ${srNum(p*1000,0)}mm ピッチ`, v:n, u:'本',
               sub:`間隔 ${gaps}／端の余り ${srNum((L-gaps*p)*1000,0)}mm` }; }},
   /* 枚数「10平米、1枚0.09平米」 */
-  {id:'sheets', re:new RegExp(SR_N+'(?:平米|㎡|m2)(?:、|を|に|は)?(?:1|１)?(枚|個|本|ブロック)(?:あたり|当たり)?'+SR_N+'(?:平米|㎡|m2)'),
+  {id:'sheets', g:'現場', ex:'10平米、1枚0.09平米', re:new RegExp(SR_N+'(?:平米|㎡|m2)(?:、|を|に|は)?(?:1|１)?(枚|個|本|ブロック)(?:あたり|当たり)?'+SR_N+'(?:平米|㎡|m2)'),
    run:m=>{ const a=+m[1], one=+m[3]; if(!one) return null;
      const n=Math.ceil(a/one);
      return { e:`${m[1]}㎡ を 1${m[2]} ${m[3]}㎡ で`, v:n, u:m[2],
               sub:`ぴったりなら ${srNum(a/one,2)}${m[2]}／5%の予備を入れて ${Math.ceil(n*1.05)}${m[2]}` }; }},
   /* 人工「3人で5日、1人1日18000円」 */
-  {id:'ninku', re:new RegExp(SR_N+'(?:人|にん)(?:で|が|、)?'+SR_N+'(?:日|にち|日間)(?:、|で)?(?:1人|ひとり)?(?:1日|いちにち)?(?:あたり|当たり)?'+SR_N+'円'),
+  {id:'ninku', g:'お金', ex:'3人で5日、1人1日18000円', re:new RegExp(SR_N+'(?:人|にん)(?:で|が|、)?'+SR_N+'(?:日|にち|日間)(?:、|で)?(?:1人|ひとり)?(?:1日|いちにち)?(?:あたり|当たり)?'+SR_N+'円'),
    run:m=>{ const p=+m[1], d=+m[2], y=+m[3];
      const nin=p*d;
      return { e:`${m[1]}人 × ${m[2]}日 × ${withCommas(m[3])}円`, v:nin*y, u:'円',
               sub:`のべ ${srNum(nin,1)}人工（にんく）` }; }},
   /* 日数「100平米を1日30平米で」 */
-  {id:'days', re:new RegExp(SR_N+'(平米|㎡|m2|本|個|枚|立米|㎥|m|メートル)(?:を|は|、)?(?:1日|いちにち|1にち)(?:あたり|当たり|に)?'+SR_N),
+  {id:'days', g:'現場', ex:'100平米を1日30平米で', re:new RegExp(SR_N+'(平米|㎡|m2|本|個|枚|立米|㎥|m|メートル)(?:を|は|、)?(?:1日|いちにち|1にち)(?:あたり|当たり|に)?'+SR_N),
    run:m=>{ const tot=+m[1], per=+m[3]; if(!per) return null;
      const d=tot/per;
      const du=m[2].replace(/^(平米|m2)$/,'㎡').replace(/^(立米|m3)$/,'㎥').replace(/^(m|メートル)$/,'m');
      return { e:`${withCommas(m[1])}${du} を 1日 ${m[3]}${du} で`, v:d, u:'日', dp:2,
               sub:`${Math.ceil(d)}日かかります（${srNum(d,2)}日ぶん）` }; }},
   /* 袋数「セメント300キロ、25キロ袋で」 */
-  {id:'bags', re:new RegExp(SR_N+'(?:キロ|kg)(?:、|を|は|の)?'+SR_N+'(?:キロ|kg)(?:入り)?(?:の)?袋'),
+  {id:'bags', g:'畑・材料', ex:'セメント300キロ、25キロ袋で', re:new RegExp(SR_N+'(?:キロ|kg)(?:、|を|は|の)?'+SR_N+'(?:キロ|kg)(?:入り)?(?:の)?袋'),
    run:m=>{ const tot=+m[1], one=+m[2]; if(!one) return null;
      const n=Math.ceil(tot/one);
      return { e:`${withCommas(m[1])}kg を ${m[2]}kg 袋で`, v:n, u:'袋',
               sub:`${n}袋で ${srNum(n*one,1)}kg（${srNum(n*one-tot,1)}kg 多い）` }; }},
   /* 比重「2.5立米、比重2.3」 */
-  {id:'density', re:new RegExp(SR_N+'(?:立米|立方メートル|㎥|m3)(?:、|の|で|は)?(?:比重|ひじゅう|単位体積重量|密度)(?:が|は)?'+SR_N),
+  {id:'density', g:'現場', ex:'2.5立米、比重2.3', re:new RegExp(SR_N+'(?:立米|立方メートル|㎥|m3)(?:、|の|で|は)?(?:比重|ひじゅう|単位体積重量|密度)(?:が|は)?'+SR_N),
    run:m=>{ const v=+m[1], d=+m[2];
      const t=v*d;
      return { e:`${m[1]}㎥ × 比重 ${m[2]}`, v:t, u:'t', dp:3,
               sub:`${srNum(t*1000,0)}kg` }; }},
   /* ㎡（坪）単価「60平米で900万円、1平米いくら」 */
-  {id:'sqmprice', re:new RegExp(SR_N+'(平米|㎡|m2|坪)(?:で|が|は|、)?'+SR_N+'円'),
+  {id:'sqmprice', g:'お金', ex:'60平米で900万円、1平米いくら', re:new RegExp(SR_N+'(平米|㎡|m2|坪)(?:で|が|は|、)?'+SR_N+'円'),
    run:m=>{ const a=+m[1], y=+m[3]; if(!a) return null;
      const per=y/a;
      const other=(m[2]==='坪')?null:per*400/121;
@@ -14665,21 +14726,21 @@ const SPEECH_RECIPES=[
               v:per, u:'円', dp:2,
               sub:(m[2]==='坪')?`1㎡ ${srYen(per*121/400)}`:`1坪 ${srYen(other)}` }; }},
   /* ロス込み「100本、ロス5パーセント」 */
-  {id:'loss', re:new RegExp(SR_N+'(本|枚|個|袋|kg|キロ|平米|㎡|立米|㎥|m|メートル|台|人)?(?:、|に|で|は)?(?:ロス|余裕|予備|割増|わりまし)(?:率|分)?(?:が|は|を)?'+SR_N+SR_P),
+  {id:'loss', g:'畑・材料', ex:'100本、ロス5パーセント', re:new RegExp(SR_N+'(本|枚|個|袋|kg|キロ|平米|㎡|立米|㎥|m|メートル|台|人)?(?:、|に|で|は)?(?:ロス|余裕|予備|割増|わりまし)(?:率|分)?(?:が|は|を)?'+SR_N+SR_P),
    run:m=>{ const a=+m[1], r=+m[3], u=m[2]||'';
      const v=a*(1+r/100);
      return { e:`${withCommas(m[1])}${u} に ロス${m[3]}% を足す`, v, u, dp:2,
               sub:`足す分 ${srNum(v-a,2)}${u}／切り上げ ${withCommas(Math.ceil(v))}${u}` }; }},
   /* 温度「25度を華氏に」 */
-  {id:'tempF', re:new RegExp(SR_N+'(?:度|℃|°c|c)(?:を|は|が|の)?(?:華氏|かし|℉|°f|f)'),
+  {id:'tempF', g:'単位・時間', ex:'25度を華氏に', re:new RegExp(SR_N+'(?:度|℃|°c|c)(?:を|は|が|の)?(?:華氏|かし|℉|°f|f)'),
    run:m=>{ const c=+m[1];
      return { e:`${m[1]}℃ を 華氏に`, v:c*9/5+32, u:'℉', dp:1, sub:'摂氏×9÷5＋32' }; }},
-  {id:'tempC', re:new RegExp(SR_N+'(?:度|℉|°f|華氏)(?:を|は|が|の)?(?:摂氏|せっし|℃|°c)'),
+  {id:'tempC', g:'単位・時間', ex:'77度を摂氏に', re:new RegExp(SR_N+'(?:度|℉|°f|華氏)(?:を|は|が|の)?(?:摂氏|せっし|℃|°c)'),
    run:m=>{ const f=+m[1];
      return { e:`${m[1]}℉ を 摂氏に`, v:(f-32)*5/9, u:'℃', dp:1, sub:'（華氏−32）×5÷9' }; }},
   /* ── ここまで現場でよく使う計算 ───────────────────────── */
   /* ⑥ 25キロをトンに */
-  {id:'unit', re:new RegExp(SR_N+'('+SR_UNIT_WORDS+')(?:を|は|が)?('+SR_UNIT_WORDS+')(?:に|で|だと|は)'),
+  {id:'unit', g:'単位・時間', ex:'25キロをトンに', re:new RegExp(SR_N+'('+SR_UNIT_WORDS+')(?:を|は|が)?('+SR_UNIT_WORDS+')(?:に|で|だと|は)'),
    run:m=>{
      const to=srUnit(m[3]); if(!to) return null;
      const from=srUnit(m[2], to.dim); if(!from) return null;
@@ -14689,12 +14750,12 @@ const SPEECH_RECIPES=[
      return { e:`${withCommas(m[1])}${from.lb} を ${to.lb} に`, v, u:to.lb, dp,
               sub:`${from.dim}の単位` }; }},
   /* ⑦ 幅3.5メートル、長さ12メートル */
-  {id:'area', re:new RegExp('(?:幅|よこ|横|たて|縦)?'+SR_N+'(?:メートル|m)(?:、|と|かける|×)?(?:長さ|ながさ|奥行き|おくゆき|たて|縦|よこ|横)?'+SR_N+'(?:メートル|m)'),
+  {id:'area', g:'単位・時間', ex:'幅3.5メートル、長さ12メートル', re:new RegExp('(?:幅|よこ|横|たて|縦)?'+SR_N+'(?:メートル|m)(?:、|と|かける|×)?(?:長さ|ながさ|奥行き|おくゆき|たて|縦|よこ|横)?'+SR_N+'(?:メートル|m)'),
    run:m=>{ const a=+m[1], b2=+m[2]; const ar=a*b2;
      return { e:`${m[1]}m × ${m[2]}m`, v:ar, u:'㎡',
               sub:`${srNum(ar*121/400,2)}坪／まわり ${srNum((a+b2)*2,2)}m` }; }},
   /* ⑧ 20パーセント増で600、元はいくら（逆算） */
-  {id:'reverse', re:new RegExp(SR_N+SR_P+'(増し?|アップ|引き|びき|オフ|減)(?:で|に|して)'+SR_N+'円?'),
+  {id:'reverse', g:'お金', ex:'20パーセント増で600、元はいくら', re:new RegExp(SR_N+SR_P+'(増し?|アップ|引き|びき|オフ|減)(?:で|に|して)'+SR_N+'円?'),
    run:m=>{ const r=+m[1], v2=+m[3];
      const up=/増|アップ/.test(m[2]);
      const base=up? v2/(1+r/100) : v2/(1-r/100);
@@ -14702,13 +14763,13 @@ const SPEECH_RECIPES=[
      return { e:`${m[1]}%${up?'増し':'引き'}で ${withCommas(m[3])} になる元の数`, v:base, u:'',
               sub:`差は ${srNum(Math.abs(v2-base),2)}` }; }},
   /* ⑨ 120から150は何パーセント増 */
-  {id:'change', re:new RegExp(SR_N+'(?:から|が)'+SR_N+'(?:に|は|へ)?(?:なっ|増え|減っ)?.*?(?:何|なん|いくつ)'+SR_P),
+  {id:'change', g:'お金', ex:'120から150は何パーセント増', re:new RegExp(SR_N+'(?:から|が)'+SR_N+'(?:に|は|へ)?(?:なっ|増え|減っ)?.*?(?:何|なん|いくつ)'+SR_P),
    run:m=>{ const a=+m[1], b2=+m[2]; if(!a) return null;
      const p=(b2-a)/a*100;
      return { e:`${withCommas(m[1])} → ${withCommas(m[2])} の増減`, v:p, u:'%',
               sub:(p>=0?`${srNum(p,2)}% ふえた`:`${srNum(-p,2)}% へった`)+`（差 ${srNum(b2-a,2)}）` }; }},
   /* ⑩ 5000円に消費税10パーセント／5000円の税込・税抜 */
-  {id:'tax', re:new RegExp(SR_N+'円?(?:に|の|を)?(?:消費税|税)(?:込|こみ|抜|ぬき)?(?:が|は|で)?('+SR_N.slice(1,-1)+')?'+SR_P+'?'),
+  {id:'tax', g:'お金', ex:'5000円に消費税10パーセント', re:new RegExp(SR_N+'円?(?:に|の|を)?(?:消費税|税)(?:込|こみ|抜|ぬき)?(?:が|は|で)?('+SR_N.slice(1,-1)+')?'+SR_P+'?'),
    test:t=>/(消費税|税込|税こみ|税抜|税ぬき)/.test(t),
    run:(m,t)=>{ const a=+m[1];
      const r=(m[2]!=null&&m[2]!=='')?+m[2]:(typeof taxPct==='number'?taxPct:10);
@@ -14721,21 +14782,21 @@ const SPEECH_RECIPES=[
      return { e:`${withCommas(m[1])}円 に 消費税${r}%`, v:inc, u:'円',
               sub:`消費税 ${srYen(inc-a)}` }; }},
   /* ⑪ 12800円を15パーセント引き／増し */
-  {id:'offon', re:new RegExp(SR_N+'円?(?:を|から|に)?'+SR_N+SR_P+'(引き|びき|オフ|off|値引き|増し|まし|アップ|up)'),
+  {id:'offon', g:'お金', ex:'12800円を15パーセント引き', re:new RegExp(SR_N+'円?(?:を|から|に)?'+SR_N+SR_P+'(引き|びき|オフ|off|値引き|増し|まし|アップ|up)'),
    run:m=>{ const a=+m[1], r=+m[2];
      const up=/増|まし|アップ|up/i.test(m[3]);
      const v=up? a*(1+r/100) : a*(1-r/100);
      return { e:`${withCommas(m[1])}円 の ${m[2]}%${up?'増し':'引き'}`, v, u:'円',
               sub:`${up?'足した':'引いた'}分 ${srYen(Math.abs(v-a))}` }; }},
   /* ⑫ 12800円を4人で割って（割り勘） */
-  {id:'split', re:new RegExp(SR_N+'円?(?:を|は)?'+SR_N+'(?:人|にん)(?:で|に)?(?:割|わ|分|わけ|頭|あたま)'),
+  {id:'split', g:'お金', ex:'12800円を4人で割って', re:new RegExp(SR_N+'円?(?:を|は)?'+SR_N+'(?:人|にん)(?:で|に)?(?:割|わ|分|わけ|頭|あたま)'),
    run:m=>{ const a=+m[1], n=+m[2]; if(!n) return null;
      const per=a/n, up=Math.ceil(per);
      return { e:`${withCommas(m[1])}円 を ${m[2]}人で割り勘`, v:per, u:'円',
               sub:(per===up?`ちょうど割り切れます`
                    :`1人 ${withCommas(up)}円ずつ集めると ${withCommas(up*n-a)}円 多い`) }; }},
   /* ⑬ 5000円の18パーセント（割合） */
-  {id:'pctof', re:new RegExp(SR_N+'円?の'+SR_N+SR_P),
+  {id:'pctof', g:'お金', ex:'5000円の18パーセント', re:new RegExp(SR_N+'円?の'+SR_N+SR_P),
    run:m=>{ const a=+m[1], r=+m[2];
      return { e:`${withCommas(m[1])}円 の ${m[2]}%`, v:a*r/100, u:'円',
               sub:`残りの ${srNum(100-r,2)}% は ${srYen(a*(100-r)/100)}` }; }},
@@ -14759,6 +14820,98 @@ function speechRecipe(text){
     if(r && typeof r.v==='number' && isFinite(r.v)) return Object.assign({id:rc.id}, r);
   }
   return null;
+}
+/* ── 🎤 言い方の早見表（v372）───────────────────────────
+   言える形が増えたので、説明書を読まなくても分かるように一覧で出す。
+   お手本はレシピ自身が持っている ex なので、機能を足せば自動でここに並ぶ。 */
+const SAY_EXTRA=[
+  {g:'ふつうの計算', ex:'251かける68'},
+  {g:'ふつうの計算', ex:'1たす2かける3'},
+  {g:'ふつうの計算', ex:'10わる3'},
+  {g:'ふつうの計算', ex:'ルート16'},
+  {g:'ふつうの計算', ex:'2の3乗'},
+  {g:'分数', ex:'3分の2たす4分の1'},
+  {g:'分数', ex:'2と3分の1'},
+  {g:'方程式（電卓のみ）', ex:'2エックスたす3は7'},
+  {g:'方程式（電卓のみ）', ex:'エックス2乗ひく5エックスたす6は0'},
+];
+const SAY_GROUPS=['ふつうの計算','分数','方程式（電卓のみ）','お金','現場','畑・材料','単位・時間','くるま'];
+const SAY_ICON={'ふつうの計算':'🧮','分数':'½','方程式（電卓のみ）':'✖','お金':'💰',
+  '現場':'🏗','畑・材料':'🌱','単位・時間':'📏','くるま':'⛽'};
+/* 一覧に出すもの（レシピ＋そのほか）をまとめる */
+function sayList(){
+  const out=SPEECH_RECIPES.filter(r=>r.ex).map(r=>({g:r.g, ex:r.ex}));
+  return SAY_EXTRA.concat(out);
+}
+/* お手本を計算して「＝ 答え」を作る。出せないときは空 */
+function sayAnswer(ex){
+  try{
+    const rc=speechRecipe(ex);
+    if(rc) return srNum(rc.v, rc.dp)+(rc.u||'');
+    const eq=speechToEquation(ex);
+    if(eq) return eq.none?'実数の解なし':eq.roots.map(x=>'x＝'+fmtNum(x)).join('　');
+    const f=speechToFormula(ex);
+    if(f){ const v=evalFormula(f);
+      if(typeof v==='number'&&isFinite(v)){
+        const fr=speechLastFrac?fracText(v):null;
+        return (fr?fr+'　＝ ':'')+fmtNum(v);
+      } }
+  }catch(_){}
+  return '';
+}
+let sayFind='';
+function openSayHelp(){ sayFind=''; renderSayHelp(); openDlg('sayHelpOverlay'); }
+function closeSayHelp(){ closeDlg('sayHelpOverlay'); }
+function sayHelpFind(v){ sayFind=String(v||'').trim(); renderSayHelp(true); }
+function renderSayHelp(keepInput){
+  const box=document.getElementById('sayHelpBody'); if(!box) return;
+  const q=sayFind;
+  const all=sayList().filter(x=>!q || x.ex.indexOf(q)>=0 || x.g.indexOf(q)>=0);
+  if(!all.length){ box.innerHTML='<div class="veg-empty">見つかりませんでした</div>'; return; }
+  let html='';
+  SAY_GROUPS.forEach(g=>{
+    const list=all.filter(x=>x.g===g); if(!list.length) return;
+    html+=`<div class="say-g">${SAY_ICON[g]||'・'} ${escHtml(g)}</div>`;
+    html+=list.map(x=>{
+      const a=sayAnswer(x.ex);
+      return `<button class="say-row" onclick="sayTry('${escHtml(x.ex).replace(/'/g,"\\'")}')">`
+        +`<span class="say-ex">「${escHtml(x.ex)}」</span>`
+        +(a?`<span class="say-ans">${escHtml(a)}</span>`:'')+`</button>`;
+    }).join('');
+  });
+  box.innerHTML=html;
+  if(!keepInput){ const el=document.getElementById('sayHelpFind'); if(el) el.value=''; }
+}
+/* お手本をタップ：電卓に切り替えて、その場で計算して見せる */
+function sayTry(ex){
+  closeSayHelp();
+  const go=()=>{ if(typeof voiceAcceptDentaku==='function') voiceAcceptDentaku(ex); };
+  if(typeof isDentaku==='function' && isDentaku()){ go(); return; }
+  switchMode('dentaku');
+  setTimeout(go, 60);
+}
+/* ── もしかして（v372）────────────────────────────────
+   式にも言い回しにもならなかったとき、いちばん近いお手本をすすめる。
+   2文字のつながりがどれだけ重なっているかで近さを見る（余分な表は持たない）。 */
+function sayBigrams(t){
+  const s2=String(t).replace(/[\s,，、。]/g,'');
+  const out=[];
+  for(let i=0;i<s2.length-1;i++) out.push(s2.slice(i,i+2));
+  return out;
+}
+function speechGuess(raw){
+  const a=sayBigrams(raw);
+  if(a.length<2) return null;
+  let best=null, bestSc=0;
+  for(const x of sayList()){
+    const b=sayBigrams(x.ex);
+    if(!b.length) continue;
+    const set=new Set(b);
+    let hit=0; for(const g of a) if(set.has(g)) hit++;
+    const sc=hit/Math.max(a.length, b.length);
+    if(sc>bestSc){ bestSc=sc; best=x.ex; }
+  }
+  return (bestSc>=0.28) ? best : null;
 }
 /* ── 方程式（v369。電卓モードのときだけ使う）──
    「2エックスたす3は7」のように言うと x を求める。1次と2次まで。
@@ -15051,8 +15204,11 @@ function voiceAcceptDentaku(raw){
   const f = speechAutoOn ? speechToFormula(raw) : null;
   const wasFrac = speechLastFrac;
   if(f===null){
-    dtVoiceShow('計算の形になりませんでした', raw, 'ng');
-    toast('計算の形で言ってください（例「251かける68」「3分の2たす4分の1」「2エックスたす3は7」）', 5200);
+    const g=speechGuess(raw);
+    dtVoiceShow(g?('もしかして「'+g+'」？'):'計算の形になりませんでした', raw, 'ng');
+    dtVoiceGuess(g);
+    toast(g?`もしかして「${g}」ですか（下の行を押すと試せます）`
+           :'計算の形で言ってください。📖言い方 で言える形を見られます', 5200);
     return;
   }
   const shown=formulaToReadable(f);           // 251×68 のように読みやすい形
@@ -17727,7 +17883,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v371';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v372';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
