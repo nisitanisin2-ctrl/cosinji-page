@@ -433,6 +433,30 @@ body.has-sheet-tabs .sheet-persist {
   padding: 10px; overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1;
 }
 body.dark .settings-tabbar, body.dark .settings-body { background: #141d33; }
+/* 📦 端末の空き具合（v373） */
+.st-total { margin-bottom: 12px; }
+.st-bar {
+  height: 14px; border-radius: 7px; overflow: hidden;
+  background: var(--save-item-border); margin-bottom: 5px;
+}
+.st-bar span { display: block; height: 100%; border-radius: 7px; }
+.st-bar .st-ok { background: var(--acc); }
+.st-bar .st-warn { background: #ef6c00; }
+.st-bar .st-ng { background: var(--danger); }
+.st-total-t { font-size: 13px; color: var(--text); }
+.st-alert {
+  font-size: 12px; line-height: 1.6; color: var(--danger); font-weight: bold;
+  border: 1px solid var(--danger); border-radius: var(--r-btn);
+  padding: 7px 9px; margin-bottom: 10px;
+}
+.st-row { margin-bottom: 9px; }
+.st-row-h { display: flex; align-items: center; gap: 7px; }
+.st-n { flex: 1; min-width: 0; font-size: 13px; font-weight: bold; color: var(--text); word-break: break-all; }
+.st-b { flex-shrink: 0; font-size: 13px; color: var(--text-light); }
+.st-sub { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+.st-mini { height: 5px; border-radius: 3px; background: var(--save-item-border); margin-top: 4px; overflow: hidden; }
+.st-mini span { display: block; height: 100%; background: var(--acc); border-radius: 3px; }
+.st-real { font-size: 11px; color: var(--text-light); margin-top: 12px; line-height: 1.5; }
 /* 🎤 言い方の早見表（v372） */
 .dt-say-btn {
   flex-shrink: 0; align-self: flex-start; margin-left: 6px;
@@ -3678,6 +3702,7 @@ body.dark {
     <div class="save-toolbar">
       <button class="save-tool-btn" onclick="exportSaves()" title="保存データをファイルに書き出して他の端末へ移せます">⬇ 書き出し</button>
       <button class="save-tool-btn" onclick="document.getElementById('importSavesInput').click()" title="書き出したファイルから保存データを読み込みます">⬆ 読み込み</button>
+      <button class="save-tool-btn" onclick="openStorage()" title="この端末に何がどれだけ入っているかを見て、大きいものから片づけます">📦 空き具合</button>
       <button class="save-tool-btn" id="saveLocBtn" onclick="changeSaveLocation()" style="display:none" title="保存データを書き込むフォルダを指定します（exe版のみ）">📁 保存場所</button>
       <input id="importSavesInput" type="file" accept="application/json,.json" style="display:none" onchange="importSaves(event)">
     </div>
@@ -3966,6 +3991,33 @@ body.dark {
         <div id="vegMyBody"></div>
       </details>
     </div>
+  </div>
+</div>
+
+<!-- 📦 端末の空き具合と片づけ（v373） -->
+<div class="modal-overlay" id="storageOverlay" onclick="if(event.target===this)closeStorage()">
+  <div class="modal veg-modal modal-full">
+    <div class="modal-header">
+      <span>📦 端末の空き具合</span>
+      <button class="modal-close" onclick="closeStorage()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="mode-hint">この端末（ブラウザ）に入れてあるものです。<b>いっぱいになると保存できなくなる</b>ので、大きいものから片づけられます。消す前に<b>📋リストの⬇書き出し</b>でファイルに残しておくと安心です。</div>
+      <div id="storageBody"></div>
+      <div class="st-real" id="storageReal"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 育成日記の写真を野菜ごとに片づける（v373） -->
+<div class="modal-overlay" id="stDiaryOverlay" onclick="if(event.target===this)closeStDiary()">
+  <div class="modal">
+    <div class="modal-header">
+      <span>📓 日記の写真を片づける</span>
+      <button class="modal-close" onclick="closeStDiary()">✕</button>
+    </div>
+    <div class="mode-hint">野菜ごとの写真の重さです。<b>写真だけ消して、書いた文は残せます</b>。大事な写真は先に<b>🖼画像で保存</b>しておいてください。</div>
+    <div class="modal-body" id="stDiaryBody"></div>
   </div>
 </div>
 
@@ -4835,7 +4887,7 @@ body.dark {
             <tr><td><b>⚠（橙）</b></td><td><b>ファイルへの書き出しをおすすめします</b>。まだ一度も書き出していないか、最後の書き出しから14日以上経っています</td></tr>
           </table>
           <div class="help-li"><b>安全さは3段階あります</b>。①<b>いまの表</b>＝書き換えるたび端末に自動保存（閉じても戻る）／②<b>記録</b>＝名前を付けて残す（置き場所はやはり端末）／③<b>ファイルに書き出す</b>＝端末の外に残る。<b>ブラウザのデータを消しても戻せるのは③だけ</b>です。リストの<b>⬇書き出し</b>をときどき使ってください。<br>端末の空きが足りなくて保存できなかったときは、<b>はっきりお知らせします</b>（「保存しました」とは言いません）。</div>
-          <div class="help-li"><b>保存</b>：タップで<b>上書き保存</b>、<b>長押しで「名前を付けて保存」</b>（記録を開いていない・🔒ロック中はタップでも名前を付けて保存）。上のバーに<b>今の記録名（📄）</b>が出て、未保存の変更があると<b>●</b>が付きます。<b>リスト</b>で保存データ一覧を開きます。よく使うものは設定→<b>🎨見た目→くわしい設定→「上のバーに出すボタン」</b>で上のバーに足せます。名前を付けて保存するときの<b>最初の名前は Book1・Book2…</b>です（v318から。以前は日付でした）。空いている番号が出るので、そのまま保存しても名前が重なりません。</div>
+          <div class="help-li"><b>保存</b>：タップで<b>上書き保存</b>、<b>長押しで「名前を付けて保存」</b>（記録を開いていない・🔒ロック中はタップでも名前を付けて保存）。上のバーに<b>今の記録名（📄）</b>が出て、未保存の変更があると<b>●</b>が付きます。<b>リスト</b>で保存データ一覧を開きます。一覧の下には<b>⬇書き出し・⬆読み込み</b>と<b>📦空き具合</b>（v373から）があります。<b>📦空き具合</b>を押すと、<b>この端末に何がどれだけ入っているか</b>が大きい順に出て、いっぱいになる前に片づけられます。<b>育成日記の写真</b>は<b>📓写真を片づける</b>から<b>野菜ごとに、文を残して写真だけ</b>消せます（写真1枚で100KBほど使うので、いちばん効きます）。<b>写真メモの下書き・容積の写真・電卓の履歴</b>は🧹でその場で消せます。目安の上限は<b>5MB</b>で、<b>85%を超えると赤い注意</b>が出ます。消す前に<b>⬇書き出し</b>でファイルに残しておくと安心です。よく使うものは設定→<b>🎨見た目→くわしい設定→「上のバーに出すボタン」</b>で上のバーに足せます。名前を付けて保存するときの<b>最初の名前は Book1・Book2…</b>です（v318から。以前は日付でした）。空いている番号が出るので、そのまま保存しても名前が重なりません。</div>
           <div class="help-li"><b>記録の並べ方</b>（v315から）：保存データ一覧は<b>⊞アイコン</b>と<b>☰リスト</b>を切り替えられます。<b>アイコン</b>はエクスプローラーのようにファイルが並ぶ形で、<b>短くタップで開きます</b>（v320から確認は出ません。<b>↶戻る</b>で開く前の表に戻せます）。<b>⋯か長押し</b>でメニューが出て、<b>📂開く・✏名前の変更・⧉コピーを作る・🔒ロック・🔀モードへ登録・🗂他のタブへ移す・🗑削除</b>ができます（v317でコピーを追加）。長押しでメニューを出したときは、指を離しても<b>記録は開きません</b>。メニューの項目は<b>もう一度そこから押し直す</b>と動きます（v321。指の真下に出た項目が、離しただけで選ばれてしまうのを防ぐためです。セルの長押しメニューも同じです）。<b>コピー</b>は中身ごと複製した別の記録になるので、元をそのまま残して作りかえられます（名前は「◯◯ のコピー」）。絵は保存したときのモードのものになります（🔒はロック中、📂は今開いている記録）。<b>並べ替え</b>（新しい順・古い順・名前順 あ→ん／ん→あ）も選べます。アイコンの<b>大きさは「小」で固定</b>です（v350。一度に見える数を多くするため、大きさの切り替えはやめました）。名前順は日本語の並びで、<b>見積もり2 → 見積もり10</b> のように数字も数の順になります（並べ替えはリスト表示にも効きます）。選んだ表示と並び順は次に開いたときも残ります。</div>
           <div class="help-li"><b>1記録＝全モードのスナップショット</b>：通常・買物・容積など全モードのシートをまとめて保存。読み込むと各モードがその記録に置き換わり、保存時のモードで開き直します（以前の「1モードだけの記録」も読み込めます）。リストで<b>今開いている記録</b>は緑でハイライトされ「📂開いています」と表示。</div>
           <div class="help-li"><b>リセット</b>は<b>今のシートだけ</b>を消去（記録との紐付けは保持）。まっさらにするときはリストの<b>🆕新規</b>ボタン。</div>
@@ -17883,7 +17935,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v372';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v373';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -18891,7 +18943,7 @@ function persistSaves(saves){
 let storageWarned=false;
 function warnStorageFull(what){
   const msg=what+'。端末の空き（ブラウザの保存領域）がいっぱいのようです。\n\n'
-    +'リストの「⬇ 書き出し」でファイルに残してから、いらない記録を消してください。';
+    +'リストの「⬇ 書き出し」でファイルに残してから、「📦 空き具合」で大きいものを片づけてください。';
   if(!storageWarned){ storageWarned=true; try{ alert(msg); }catch(_){} }
   else if(typeof toast==='function') toast(what+'（端末の空きがいっぱいです）', 4000);
 }
@@ -19307,6 +19359,142 @@ function toggleSaveLock(id) {
   if(!entry.locked) delete entry.locked;
   persistSaves(saves);
   renderSaveList();
+}
+
+/* ── 📦 端末の空き具合と片づけ（v373）─────────────────────
+   日記の写真などで、ブラウザの保存領域（5MBくらい）が埋まることがある。
+   満杯になってから知らせるのでは遅いので、何がどれだけ入っているかを
+   いつでも見られるようにして、大きいものから片づけられるようにする。 */
+const ST_LIMIT=5*1024*1024;      // ブラウザのおおよその上限（5MB）
+const ST_GROUPS=[
+  {k:'excalc_saves',      n:'保存した記録',         how:'list'},
+  {k:'excalc_veg_diary',  n:'育成日記（写真）',     how:'diary'},
+  {k:'excalc_sheets',     n:'いま開いている表'},
+  {k:'excalc_pm_draft',   n:'写真メモの下書き',     how:'clear'},
+  {k:'excalc_photomemo',  n:'写真メモ',             how:'clear'},
+  {k:'excalc_volcal',     n:'容積（写真つき）',     how:'clear'},
+  {k:'excalc_calc_tape',  n:'電卓の履歴',           how:'clear'},
+  {k:'excalc_kantab_table', n:'カンタブの換算表'},
+  {k:'excalc_ts_regs',    n:'配合・エアメータの登録'},
+  {k:'excalc_veg_plots',  n:'育てている野菜'},
+  {k:'excalc_links',      n:'リンク集'},
+  {k:'excalc_userkeys',   n:'登録キー'},
+  {k:'excalc_custommodes',n:'登録モード'},
+];
+/* localStorage は1文字2バイトで数える端末が多いので、それに合わせる */
+function stSize(key){
+  let v=null; try{ v=localStorage.getItem(key); }catch(_){}
+  return (v==null)?0:(key.length+v.length)*2;
+}
+function stFmt(b){
+  if(b>=1024*1024) return (Math.round(b/1024/1024*100)/100)+'MB';
+  if(b>=1024) return (Math.round(b/1024*10)/10)+'KB';
+  return b+'B';
+}
+/* いま入っているものを、大きい順に並べる */
+function stScan(){
+  const rows=[], seen={};
+  ST_GROUPS.forEach(g=>{ seen[g.k]=1; const b=stSize(g.k); if(b) rows.push(Object.assign({}, g, {b})); });
+  let other=0;
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(!k || seen[k]) continue;
+      other+=stSize(k);
+    }
+  }catch(_){}
+  if(other) rows.push({k:'', n:'設定など（細かいもの）', b:other});
+  rows.sort((a,b)=>b.b-a.b);
+  const total=rows.reduce((n,r)=>n+r.b,0);
+  return { rows, total };
+}
+/* 育成日記の、野菜ごとの写真の重さ */
+function stDiaryRows(){
+  loadVegPlots(); loadVegDiary();
+  const out=[];
+  for(const id in vegDiary){
+    const arr=vegDiaryOf(id);
+    let b=0, pics=0;
+    arr.forEach(e=>{ b+=((e.p||'').length+(e.th||'').length)*2; if(e.p) pics++; });
+    const pl=vegPlots.find(x=>x.id===id);
+    out.push({ id, n:pl?pl.n:'（消した野菜）', memo:(pl&&pl.memo)||'', all:arr.length, pics, b });
+  }
+  out.sort((a,b)=>b.b-a.b);
+  return out;
+}
+/* 混み具合の色。60%で注意、85%で警告 */
+function stLevel(pct){ return (pct>=85)?'st-ng':((pct>=60)?'st-warn':'st-ok'); }
+function openStorage(){ renderStorage(); openDlg('storageOverlay'); }
+function closeStorage(){ closeDlg('storageOverlay'); }
+function renderStorage(){
+  const box=document.getElementById('storageBody'); if(!box) return;
+  const scan=stScan(), rows=scan.rows, total=scan.total;
+  const pct=Math.min(100, Math.round(total/ST_LIMIT*1000)/10);
+  const cls=stLevel(pct);
+  let html=`<div class="st-total">
+      <div class="st-bar"><span class="${cls}" style="width:${Math.max(1,pct)}%"></span></div>
+      <div class="st-total-t">ぜんぶで <b>${stFmt(total)}</b>（目安の上限 ${stFmt(ST_LIMIT)} の <b>${pct}%</b>）</div>
+    </div>`;
+  if(pct>=85) html+=`<div class="st-alert">⚠ そろそろいっぱいです。<b>⬇書き出し</b>でファイルに残してから、下の<b>🧹</b>で片づけてください</div>`;
+  const top=rows.length?rows[0].b:1;
+  html+=rows.map(r=>{
+    const act=(r.how==='list')?`<button class="veg-mini" onclick="stGoList()">📋 一覧へ</button>`
+      :(r.how==='diary')?`<button class="veg-mini" onclick="stOpenDiary()">📓 写真を片づける</button>`
+      :(r.how==='clear')?`<button class="veg-my-del" onclick="stClear('${r.k}','${escHtml(r.n)}')" aria-label="${escHtml(r.n)}を消す">🧹</button>`
+      :'';
+    const w=Math.max(2, Math.round(r.b/Math.max(1,top)*100));
+    return `<div class="st-row">
+      <div class="st-row-h"><span class="st-n">${escHtml(r.n)}</span><span class="st-b">${stFmt(r.b)}</span>${act}</div>
+      <div class="st-mini"><span style="width:${w}%"></span></div>
+    </div>`;
+  }).join('');
+  box.innerHTML=html;
+  // 端末が本当のところを教えてくれるならそれも出す
+  const e2=document.getElementById('storageReal');
+  if(e2 && navigator.storage && navigator.storage.estimate){
+    navigator.storage.estimate().then(o=>{
+      if(!o || !o.usage) return;
+      e2.textContent=`このサイトが端末で使っている分（アプリ本体もふくむ）：${stFmt(o.usage)}`
+        +(o.quota?`／使えるめやす ${stFmt(o.quota)}`:'');
+    }).catch(function(){});
+  }
+}
+function stGoList(){ closeStorage(); setTimeout(showSaveList, 60); }
+function stOpenDiary(){ renderStDiary(); openDlg('stDiaryOverlay'); }
+function closeStDiary(){ closeDlg('stDiaryOverlay', function(){ renderStorage(); }); }
+function renderStDiary(){
+  const box=document.getElementById('stDiaryBody'); if(!box) return;
+  const rows=stDiaryRows();
+  if(!rows.length){ box.innerHTML='<div class="veg-empty">日記はまだありません</div>'; return; }
+  box.innerHTML=rows.map(r=>`<div class="st-row">
+      <div class="st-row-h">
+        <span class="st-n">${escHtml(r.n)}${r.memo?`<span class="veg-plot-memo">${escHtml(r.memo)}</span>`:''}</span>
+        <span class="st-b">${stFmt(r.b)}</span>
+        <button class="veg-mini" onclick="stDropPics('${r.id}')" ${r.pics?'':'disabled'}>写真だけ消す</button>
+      </div>
+      <div class="st-sub">${r.all}件（写真 ${r.pics}枚）</div>
+    </div>`).join('');
+}
+/* 文は残して、写真だけ消す（いちばん効く片づけ） */
+async function stDropPics(id){
+  const arr=vegDiaryOf(id); if(!arr.length) return;
+  const pics=arr.filter(e=>e.p).length;
+  if(!pics){ toast('写真はありません'); return; }
+  if(!await appConfirm(`この野菜の写真 ${pics}枚 を消します（書いた文は残ります）。よろしいですか`)) return;
+  const keep=JSON.parse(JSON.stringify(arr));
+  const next=arr.map(e=>{ const x=Object.assign({}, e); delete x.p; delete x.th; return x; })
+                .filter(e=>e.t);          // 写真も文も無くなる行は落とす
+  vegDiary[id]=next;
+  if(!saveVegDiary()){ vegDiary[id]=keep; return; }
+  renderStDiary();
+  toast(`写真 ${pics}枚 を消しました`);
+}
+async function stClear(key, name){
+  if(!key) return;
+  if(!await appConfirm(`「${name}」を消します。よろしいですか`)) return;
+  try{ localStorage.removeItem(key); }catch(_){}
+  renderStorage();
+  toast(`「${name}」を消しました`);
 }
 
 /* 保存データをJSONファイルに書き出し（別端末への移動・バックアップ用） */
