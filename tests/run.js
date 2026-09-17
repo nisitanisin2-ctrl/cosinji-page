@@ -3003,6 +3003,92 @@ async function runDtDec(browser) {
   await ctx.close();
 }
 
+/* 単位水量：呼び出し中は直せない／重さと空気量の下に結果（v368） */
+async function runTsxLock(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 単位水量の呼び出しと並び ──');
+
+  await page.evaluate(() => {
+    tsRegs = { mix: [{ no: '1', name: '21-5-40BB', C: 280, W1: 165, S: 800, G: 1000, P: 0, A1: 4.5 }],
+               air: [{ no: '1', name: '1号機', V: 7060, m1: 5500 }] };
+    tsRegsSave(); tsxVals = {}; tsxSaveVals(); openTansui(); });
+  await page.waitForTimeout(450);
+
+  const locked = () => page.evaluate(() => ['C', 'W1', 'S', 'G', 'P', 'A1', 'V', 'm1', 'm2', 'A2']
+    .filter(k => { const e = document.getElementById('tsxIn_' + k); return e && e.readOnly; }).join(','));
+  check('  呼び出す前はどれも直せる', await locked(), '');
+
+  await page.evaluate(() => tsxInput('mixNo', '1')); await page.waitForTimeout(250);
+  check('  配合を呼び出すと配合が鍵', await locked(), 'C,W1,S,G,P,A1');
+  await page.evaluate(() => tsxInput('airNo', '1')); await page.waitForTimeout(250);
+  check('  エアメータも呼び出すと鍵', await locked(), 'C,W1,S,G,P,A1,V,m1');
+  check('  毎回はかる欄は鍵をかけない', await page.evaluate(() =>
+    document.getElementById('tsxIn_m2').readOnly + '/' + document.getElementById('tsxIn_A2').readOnly),
+    'false/false');
+  check('  登録の値が入る', await page.evaluate(() => ['C', 'W1', 'S', 'G', 'A1', 'V', 'm1']
+    .map(k => document.getElementById('tsxIn_' + k).value).join(',')), '280,165,800,1000,4.5,7060,5500');
+  check('  鍵の印が付く', await page.evaluate(() =>
+    document.querySelectorAll('#tsxMixRows .tsx-lock, #tsxAirRows .tsx-lock').length), 8);
+  check('  どこで直すかの案内が出る', await page.evaluate(() => {
+    const m = document.getElementById('tsxMixNote'), a = document.getElementById('tsxAirNote');
+    return (!m.hidden && /配合の登録/.test(m.textContent)) + '/' + (!a.hidden && /エアメータの登録/.test(a.textContent)); }),
+    'true/true');
+
+  check('  呼び出し中は直そうとしても変わらない', await page.evaluate(() => {
+    tsxInput('W1', '999'); tsxInput('V', '1'); return tsxVals.W1 + '/' + tsxVals.V; }), '165/7060');
+
+  // 番号を消せばその場で入れられる
+  await page.evaluate(() => tsxInput('mixNo', '')); await page.waitForTimeout(250);
+  check('  番号を消すと配合の鍵が外れる', await locked(), 'V,m1');
+  check('  外れたら直せる', await page.evaluate(() => { tsxInput('W1', '170'); return tsxVals.W1; }), '170');
+  await page.evaluate(() => tsxInput('mixNo', '1')); await page.waitForTimeout(250);
+  check('  呼び直すと登録の値に戻って鍵もかかる', await page.evaluate(() =>
+    tsxVals.W1 + '/' + document.getElementById('tsxIn_W1').readOnly), '165/true');
+
+  // 登録の画面では直せる
+  check('  登録の画面の欄は直せる', await page.evaluate(async () => {
+    openTsMixReg(); await new Promise(r => setTimeout(r, 300));
+    const n = [...document.querySelectorAll('#tsMixOverlay input')].filter(i => !i.readOnly).length;
+    closeTsMixReg(); return n > 0; }), true);
+  await page.waitForTimeout(400);
+  check('  登録を直すと呼び出し先にも届く', await page.evaluate(async () => {
+    tsRegs.mix[0].W1 = 168; tsRegsSave(); tsxAfterReg();
+    await new Promise(r => setTimeout(r, 200));
+    return tsxVals.W1 + '/' + document.getElementById('tsxIn_W1').value; }), '168/168');
+
+  // 並び：重さ・測定空気量のすぐ下に結果
+  check('  重さと空気量の下に結果が出る', await page.evaluate(() => {
+    const body = document.querySelector('#tansuiOverlay .modal-body');
+    return [...body.children].map(e => {
+      if (e.id === 'tsxTestRows') return '試験値';
+      if (e.id === 'tsxAirRows') return 'エアメータ';
+      if (e.id === 'tsxMixRows') return '配合';
+      if (e.classList.contains('vol-result')) return '結果';
+      if (e.classList.contains('kt-judge-row')) return '合否';
+      return null; }).filter(Boolean).join('→'); }), '試験値→結果→合否→エアメータ→配合');
+  check('  毎回はかるのは重さと空気量だけ', await page.evaluate(() =>
+    [...document.querySelectorAll('#tsxTestRows .kt-in-lb')].map(e => e.textContent).join(',')),
+    '容器+試料 m2,測定空気量 A2');
+  check('  エアメータはV・m1', await page.evaluate(() =>
+    [...document.querySelectorAll('#tsxAirRows .kt-in-lb')].map(e => e.textContent).join(',')),
+    '容器の容積 V,容器質量 m1');
+
+  // 2つ入れると結果が出る
+  await page.evaluate(() => { tsRegs.mix[0].W1 = 165; tsRegsSave(); tsxAfterReg();
+    tsxInput('m2', '21300'); tsxInput('A2', '4.6'); });
+  await page.waitForTimeout(300);
+  check('  2つ入れると結果が出る', await page.evaluate(() =>
+    document.getElementById('tsxW').textContent + '/' + document.getElementById('tsxJudge').textContent),
+    '173.6kg/m³/合格');
+  check('  書き出しにも全部の欄が入る', await page.evaluate(() => {
+    const h = tsxReportHtml();
+    return ['容器+試料 m2', '測定空気量 A2', '容器の容積 V', '容器質量 m1'].every(k => h.indexOf(k) >= 0); }), true);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -3027,6 +3113,7 @@ async function runDtDec(browser) {
     if (!only || only === 'vegdiary') await runVegDiary(browser);
     if (!only || only === 'startpage') await runStartPage(browser);
     if (!only || only === 'dtdec') await runDtDec(browser);
+    if (!only || only === 'tsxlock') await runTsxLock(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
