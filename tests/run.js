@@ -3286,6 +3286,41 @@ async function runVoiceSay(browser) {
   check('  温度（摂氏→華氏）', await v('25度を華氏に'), '77℉');
   check('  温度（華氏→摂氏）', await v('77度を摂氏に'), '25℃');
 
+  // ── 値段×数・単位×数（v376） ──
+  check('  180円を4個', await v('180円を4個'), '720円');
+  check('  1個あたりも出す', (await r('180円を4個')).split('|')[3], '1個あたり 180円');
+  check('  1個180円を4個', await v('1個180円を4個'), '720円');
+  check('  180円が4本', await v('180円が4本'), '720円');
+  check('  180円の4枚', await v('180円の4枚'), '720円');
+  check('  180円×4個', await v('180円×4個'), '720円');
+  check('  180円のもの4個', await v('180円のもの4個'), '720円');
+  check('  4個で180円ずつ', await v('4個で180円ずつ'), '720円');
+  check('  数えかたが無くても かける なら計算する', await v('180円かける4'), '720円');
+  check('  180円×4', await v('180円×4'), '720円');
+  check('  単価と数量', await v('単価180円、数量4'), '720円');
+  check('  単価と個数', await v('単価180円で個数4'), '720円');
+  check('  いろいろな数えかた', await page.evaluate(() =>
+    ['1500円を3人', '1200円を2箱', '980円を12パック', '250円を6玉', '180円を4つ']
+      .map(x => { const o = speechRecipe(x); return o ? srNum(o.v, o.dp) : 'null'; }).join('/')),
+    '4,500/2,400/11,760/1,500/720');
+
+  check('  3メートルを4本', await v('3メートルを4本'), '12m');
+  check('  25キロを8袋', await v('25キロを8袋'), '200kg');
+  check('  2.5立米を3台', await v('2.5立米を3台'), '7.5㎥');
+  check('  1平米1200円を60平米', await v('1平米1200円を60平米'), '72,000円');
+
+  // 前からの言い方を取らないこと
+  check('  割り勘は今までどおり', await id('12800円を4人で割って'), 'split');
+  check('  単価は今までどおり', await id('10個398円、1個いくら'), 'unitprice');
+  check('  くらべるは今までどおり', await id('5個600円と8個880円、どっちが安い'), 'compare');
+  check('  ㎡単価は今までどおり', await id('60平米で900万円、1平米いくら'), 'sqmprice');
+  check('  パーセント引きは今までどおり', await id('12800円を15パーセント引き'), 'offon');
+  check('  〜の何パーセントは今までどおり', await id('5000円の18パーセント'), 'pctof');
+  check('  生コン車は今までどおり', await id('12立米を4.5立米車で'), 'mixer');
+  check('  比重は今までどおり', await id('2.5立米、比重2.3'), 'density');
+  check('  袋数は今までどおり', await id('セメント300キロ、25キロ袋で'), 'bags');
+  check('  立米もふつうの単位変換に使える', await v('1立米をリットルに'), '1,000L');
+
   // ── 📖 言い方の早見表と「もしかして」（v372） ──
   await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(300);
   check('  早見表は言い方ぜんぶを出す', await page.evaluate(() => sayList().length),
