@@ -507,7 +507,7 @@ async function runSaveList(browser) {
   check('  メニューの中身',
         await page.evaluate(() => [...document.querySelectorAll('#saveFileMenu button')]
           .map(b => b.textContent.trim().split(' ').pop()).join('/')),
-        '開く/名前の変更/コピーを作る/ロック/モードへ登録/タブ1へ移す/タブ2へ移す/削除');
+        '開く/名前の変更/コピーを作る/書き出し/ロック/モードへ登録/タブ1へ移す/タブ2へ移す/削除');
   check('  ロック中は名前の変更と削除ができない',
         await page.evaluate(() => { hideSaveFileMenu();
           showSaveFileMenu(1001, document.querySelector('.sf-more'));
@@ -3436,6 +3436,113 @@ async function runStorage(browser) {
   await ctx.close();
 }
 
+/* 記録を1件だけ書き出す／日記の写真も持っていく（v374） */
+async function runExport(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true, acceptDownloads: true });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+  page.on('dialog', d => d.accept());
+  await page.goto(INDEX); await page.waitForTimeout(300);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload(); await page.waitForTimeout(900);
+  console.log('\n── 書き出し ──');
+  const ans = async w => { await page.waitForTimeout(250);
+    await page.evaluate(x => { const b = [...document.querySelectorAll('div[style*="99999"] button')]
+      .find(y => y.textContent.indexOf(x) >= 0); if (b) b.click(); }); 
+    await page.waitForTimeout(400); };
+  const ansBtn = async w => { await page.waitForTimeout(250);
+    await page.evaluate(x => { const b = [...document.querySelectorAll('div[style*="99999"] button')]
+      .find(y => y.textContent.indexOf(x) >= 0); if (b) b.click(); }, w);
+    await page.waitForTimeout(400); };
+  const grab = async fn => { const d = page.waitForEvent('download', { timeout: 9000 }).catch(() => null);
+    await page.evaluate(fn); return d; };
+
+  await page.evaluate(async () => {
+    setCellVal(0, 0, '項目'); setCellVal(0, 1, '金額');
+    setCellVal(1, 0, 'あ,い'); setCellVal(1, 1, '100');
+    setCellVal(2, 0, '合計'); setCellVal(2, 1, '=SUM(B2:B2)');
+    const saves = getSaves();
+    saves.unshift({ id: 111, name: '見積もり', timestamp: Date.now(), rows: 3, cols: 2, decPlaces: -1,
+      mode: 'normal', data: data.map(r => [...r]), styles: { ...cellStyles }, tab: 0,
+      modeSheets: makeAllModesSnap(), curMode: 'normal' });
+    persistSaves(saves);
+    openVeggie(); vegSel = VEG_PLANS.find(v => v.n === 'ハクサイ');
+    vegSowSerial = todaySerial() - 20; vegSetAs('nae'); vegPlotAdd();
+    const cv = document.createElement('canvas'); cv.width = 400; cv.height = 300;
+    const x = cv.getContext('2d'); x.fillStyle = '#6ab04c'; x.fillRect(0, 0, 400, 300);
+    const p = cv.toDataURL('image/jpeg', .72); const th = await vegDiaryThumb(p);
+    vegDiary[vegPlots[0].id] = [{ id: 'a', d: todaySerial(), t: 'ようす', p, th }];
+    saveVegDiary(); closeVeggie(); });
+  await page.waitForTimeout(500);
+
+  // ── 1件だけ書き出す ──
+  check('  ⋯に書き出しがある', await page.evaluate(() => {
+    showSaveFileMenu(111, document.body);
+    const t = document.getElementById('saveFileMenu').textContent;
+    hideSaveFileMenu(); return /⬇ 書き出し/.test(t); }), true);
+  await page.evaluate(() => openSaveExp(111)); await page.waitForTimeout(350);
+  check('  4つから選べる', await page.evaluate(() =>
+    document.querySelectorAll('#saveExpOverlay .set-act').length), 4);
+  check('  記録の名前が出る', await page.evaluate(() =>
+    document.getElementById('saveExpTitle').textContent), '⬇ 「見積もり」を書き出す');
+
+  const d1 = await grab(() => saveExpJson());
+  check('  1件だけJSONに出せる', !!d1, true);
+  if (d1) { const f = '/tmp/claude-0/one-test.json'; await d1.saveAs(f);
+    const j = JSON.parse(require('fs').readFileSync(f, 'utf8'));
+    check('  その1件だけが入る', j.saves.length + '/' + j.saves[0].name, '1/見積もり');
+    check('  読み込みで戻せる形', j.app + '/' + j.type, 'hyodenki/saves'); }
+
+  await page.evaluate(() => openSaveExp(111)); await page.waitForTimeout(300);
+  const d2 = await grab(() => saveExpCsv());
+  check('  CSVにも出せる', !!d2, true);
+  if (d2) { const f = '/tmp/claude-0/one-test.csv'; await d2.saveAs(f);
+    check('  カンマは引用符でくるむ', require('fs').readFileSync(f, 'utf8'),
+      '﻿項目,金額\r\n"あ,い",100\r\n合計,=SUM(B2:B2)'); }
+  check('  開かずに出すので今の表はそのまま', await page.evaluate(() => getCellDisplay(0, 0)), '項目');
+
+  // ── ぜんぶ書き出し：写真ごと／写真ぬき ──
+  check('  日記の写真の重さが分かる', await page.evaluate(() => vegPicBytes() > 1000), true);
+  const d3 = await (async () => { const d = page.waitForEvent('download', { timeout: 9000 }).catch(() => null);
+    await page.evaluate(() => { exportSaves(); }); await ansBtn('はい'); return d; })();
+  check('  写真ごと書き出せる', !!d3, true);
+  let withFile = null;
+  if (d3) { withFile = '/tmp/claude-0/all-pics-test.json'; await d3.saveAs(withFile);
+    const j = JSON.parse(require('fs').readFileSync(withFile, 'utf8'));
+    const pid = Object.keys(j.veg.diary)[0];
+    check('  写真が入っている', j.vegPics + '/' + !!j.veg.diary[pid][0].p, 'true/true');
+    check('  育てている野菜も入る', j.veg.plots.length, 1); }
+
+  const d4 = await (async () => { const d = page.waitForEvent('download', { timeout: 9000 }).catch(() => null);
+    await page.evaluate(() => { exportSaves(); }); await ansBtn('いいえ'); return d; })();
+  if (d4) { const f = '/tmp/claude-0/all-nopics-test.json'; await d4.saveAs(f);
+    const j = JSON.parse(require('fs').readFileSync(f, 'utf8'));
+    const pid = Object.keys(j.veg.diary)[0];
+    check('  写真ぬきなら写真は入らない', j.vegPics + '/' + !!(j.veg.diary[pid][0] || {}).p, 'false/false');
+    check('  文は残る', (j.veg.diary[pid][0] || {}).t, 'ようす'); }
+
+  // ── 読み込みで戻る ──
+  await page.evaluate(() => { localStorage.removeItem('excalc_veg_diary');
+    localStorage.removeItem('excalc_veg_plots'); loadVegDiary(); loadVegPlots(); });
+  check('  いったん消した', await page.evaluate(() =>
+    vegPlots.length + '/' + Object.keys(vegDiary).length), '0/0');
+  if (withFile) {
+    await page.setInputFiles('#importSavesInput', withFile);
+    await page.waitForTimeout(700);
+    await ansBtn('はい');
+    check('  読み込むと写真ごと戻る', await page.evaluate(() => {
+      loadVegPlots(); loadVegDiary();
+      const id = vegPlots[0] && vegPlots[0].id;
+      return vegPlots.length + '/' + (id ? vegDiaryOf(id).length : 0) + '/' +
+             (id ? vegDiaryOf(id).filter(e => e.p).length : 0); }), '1/1/1');
+  }
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -3464,6 +3571,7 @@ async function runStorage(browser) {
     if (!only || only === 'voicemath') await runVoiceMath(browser);
     if (!only || only === 'voicesay') await runVoiceSay(browser);
     if (!only || only === 'storage') await runStorage(browser);
+    if (!only || only === 'export') await runExport(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
