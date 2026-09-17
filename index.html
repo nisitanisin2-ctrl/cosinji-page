@@ -3994,6 +3994,23 @@ body.dark {
   </div>
 </div>
 
+<!-- 記録を1件だけ書き出す（v374） -->
+<div class="modal-overlay" id="saveExpOverlay" onclick="if(event.target===this)closeSaveExp()">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="saveExpTitle">⬇ 書き出す</span>
+      <button class="modal-close" onclick="closeSaveExp()">✕</button>
+    </div>
+    <div class="mode-hint">この記録だけをファイルにします。<b>JSONとCSVは開かずに</b>そのまま出せます。<b>ExcelとPDFは開いてから</b>出します（今の表は<b>↶戻る</b>で戻せます）。</div>
+    <div class="modal-body">
+      <button class="set-act" onclick="saveExpOpenThen('xlsx')" title="値・数式・書式をエクセル形式で（開いてから書き出します）">📊 Excel（.xlsx）<small>式・色・枠線も残る／開いてから</small></button>
+      <button class="set-act" onclick="saveExpCsv()" title="表の値だけをCSVで（開かずに出せます）">📄 CSV<small>値だけ／開かずに出せます</small></button>
+      <button class="set-act" onclick="saveExpOpenThen('pdf')" title="印刷画面から「PDFに保存」で（開いてから書き出します）">🖨 PDF（印刷）<small>見た目そのまま／開いてから</small></button>
+      <button class="set-act" onclick="saveExpJson()" title="この1件だけをJSONで（別の端末へ移せます）">💾 この1件をJSON<small>中身も書式もぜんぶ／読み込みで戻せます</small></button>
+    </div>
+  </div>
+</div>
+
 <!-- 📦 端末の空き具合と片づけ（v373） -->
 <div class="modal-overlay" id="storageOverlay" onclick="if(event.target===this)closeStorage()">
   <div class="modal veg-modal modal-full">
@@ -4887,8 +4904,8 @@ body.dark {
             <tr><td><b>⚠（橙）</b></td><td><b>ファイルへの書き出しをおすすめします</b>。まだ一度も書き出していないか、最後の書き出しから14日以上経っています</td></tr>
           </table>
           <div class="help-li"><b>安全さは3段階あります</b>。①<b>いまの表</b>＝書き換えるたび端末に自動保存（閉じても戻る）／②<b>記録</b>＝名前を付けて残す（置き場所はやはり端末）／③<b>ファイルに書き出す</b>＝端末の外に残る。<b>ブラウザのデータを消しても戻せるのは③だけ</b>です。リストの<b>⬇書き出し</b>をときどき使ってください。<br>端末の空きが足りなくて保存できなかったときは、<b>はっきりお知らせします</b>（「保存しました」とは言いません）。</div>
-          <div class="help-li"><b>保存</b>：タップで<b>上書き保存</b>、<b>長押しで「名前を付けて保存」</b>（記録を開いていない・🔒ロック中はタップでも名前を付けて保存）。上のバーに<b>今の記録名（📄）</b>が出て、未保存の変更があると<b>●</b>が付きます。<b>リスト</b>で保存データ一覧を開きます。一覧の下には<b>⬇書き出し・⬆読み込み</b>と<b>📦空き具合</b>（v373から）があります。<b>📦空き具合</b>を押すと、<b>この端末に何がどれだけ入っているか</b>が大きい順に出て、いっぱいになる前に片づけられます。<b>育成日記の写真</b>は<b>📓写真を片づける</b>から<b>野菜ごとに、文を残して写真だけ</b>消せます（写真1枚で100KBほど使うので、いちばん効きます）。<b>写真メモの下書き・容積の写真・電卓の履歴</b>は🧹でその場で消せます。目安の上限は<b>5MB</b>で、<b>85%を超えると赤い注意</b>が出ます。消す前に<b>⬇書き出し</b>でファイルに残しておくと安心です。よく使うものは設定→<b>🎨見た目→くわしい設定→「上のバーに出すボタン」</b>で上のバーに足せます。名前を付けて保存するときの<b>最初の名前は Book1・Book2…</b>です（v318から。以前は日付でした）。空いている番号が出るので、そのまま保存しても名前が重なりません。</div>
-          <div class="help-li"><b>記録の並べ方</b>（v315から）：保存データ一覧は<b>⊞アイコン</b>と<b>☰リスト</b>を切り替えられます。<b>アイコン</b>はエクスプローラーのようにファイルが並ぶ形で、<b>短くタップで開きます</b>（v320から確認は出ません。<b>↶戻る</b>で開く前の表に戻せます）。<b>⋯か長押し</b>でメニューが出て、<b>📂開く・✏名前の変更・⧉コピーを作る・🔒ロック・🔀モードへ登録・🗂他のタブへ移す・🗑削除</b>ができます（v317でコピーを追加）。長押しでメニューを出したときは、指を離しても<b>記録は開きません</b>。メニューの項目は<b>もう一度そこから押し直す</b>と動きます（v321。指の真下に出た項目が、離しただけで選ばれてしまうのを防ぐためです。セルの長押しメニューも同じです）。<b>コピー</b>は中身ごと複製した別の記録になるので、元をそのまま残して作りかえられます（名前は「◯◯ のコピー」）。絵は保存したときのモードのものになります（🔒はロック中、📂は今開いている記録）。<b>並べ替え</b>（新しい順・古い順・名前順 あ→ん／ん→あ）も選べます。アイコンの<b>大きさは「小」で固定</b>です（v350。一度に見える数を多くするため、大きさの切り替えはやめました）。名前順は日本語の並びで、<b>見積もり2 → 見積もり10</b> のように数字も数の順になります（並べ替えはリスト表示にも効きます）。選んだ表示と並び順は次に開いたときも残ります。</div>
+          <div class="help-li"><b>保存</b>：タップで<b>上書き保存</b>、<b>長押しで「名前を付けて保存」</b>（記録を開いていない・🔒ロック中はタップでも名前を付けて保存）。上のバーに<b>今の記録名（📄）</b>が出て、未保存の変更があると<b>●</b>が付きます。<b>リスト</b>で保存データ一覧を開きます。一覧の下には<b>⬇書き出し・⬆読み込み</b>と<b>📦空き具合</b>（v373から）があります。<b>⬇書き出し</b>は全部の記録をJSON1つにまとめます。<b>野菜の育成日記に写真があるときは、写真ごと持っていくか聞きます</b>（v374から。「はい」なら機種変えでも写真が残り、「いいえ」なら日づけと文だけで軽くなります）。育てている野菜・自分で登録した野菜・気候の設定も一緒に入ります。<b>⬆読み込み</b>で戻すときも、野菜のデータを入れるかどうか聞きます。<b>📦空き具合</b>を押すと、<b>この端末に何がどれだけ入っているか</b>が大きい順に出て、いっぱいになる前に片づけられます。<b>育成日記の写真</b>は<b>📓写真を片づける</b>から<b>野菜ごとに、文を残して写真だけ</b>消せます（写真1枚で100KBほど使うので、いちばん効きます）。<b>写真メモの下書き・容積の写真・電卓の履歴</b>は🧹でその場で消せます。目安の上限は<b>5MB</b>で、<b>85%を超えると赤い注意</b>が出ます。消す前に<b>⬇書き出し</b>でファイルに残しておくと安心です。よく使うものは設定→<b>🎨見た目→くわしい設定→「上のバーに出すボタン」</b>で上のバーに足せます。名前を付けて保存するときの<b>最初の名前は Book1・Book2…</b>です（v318から。以前は日付でした）。空いている番号が出るので、そのまま保存しても名前が重なりません。</div>
+          <div class="help-li"><b>記録の並べ方</b>（v315から）：保存データ一覧は<b>⊞アイコン</b>と<b>☰リスト</b>を切り替えられます。<b>アイコン</b>はエクスプローラーのようにファイルが並ぶ形で、<b>短くタップで開きます</b>（v320から確認は出ません。<b>↶戻る</b>で開く前の表に戻せます）。<b>⋯か長押し</b>でメニューが出て、<b>📂開く・✏名前の変更・⧉コピーを作る・⬇書き出し・🔒ロック・🔀モードへ登録・🗂他のタブへ移す・🗑削除</b>ができます（v317でコピー、v374で書き出しを追加）。<b>⬇書き出し</b>はその<b>1件だけ</b>を <b>📊Excel・📄CSV・🖨PDF・💾JSON</b> にできます。<b>CSVとJSONは開かずに</b>そのまま出るので今の表はそのままです（JSONは<b>⬆読み込み</b>でそのまま戻せます）。<b>ExcelとPDFは開いてから</b>出します（<b>↶戻る</b>で元の表に戻せます）。長押しでメニューを出したときは、指を離しても<b>記録は開きません</b>。メニューの項目は<b>もう一度そこから押し直す</b>と動きます（v321。指の真下に出た項目が、離しただけで選ばれてしまうのを防ぐためです。セルの長押しメニューも同じです）。<b>コピー</b>は中身ごと複製した別の記録になるので、元をそのまま残して作りかえられます（名前は「◯◯ のコピー」）。絵は保存したときのモードのものになります（🔒はロック中、📂は今開いている記録）。<b>並べ替え</b>（新しい順・古い順・名前順 あ→ん／ん→あ）も選べます。アイコンの<b>大きさは「小」で固定</b>です（v350。一度に見える数を多くするため、大きさの切り替えはやめました）。名前順は日本語の並びで、<b>見積もり2 → 見積もり10</b> のように数字も数の順になります（並べ替えはリスト表示にも効きます）。選んだ表示と並び順は次に開いたときも残ります。</div>
           <div class="help-li"><b>1記録＝全モードのスナップショット</b>：通常・買物・容積など全モードのシートをまとめて保存。読み込むと各モードがその記録に置き換わり、保存時のモードで開き直します（以前の「1モードだけの記録」も読み込めます）。リストで<b>今開いている記録</b>は緑でハイライトされ「📂開いています」と表示。</div>
           <div class="help-li"><b>リセット</b>は<b>今のシートだけ</b>を消去（記録との紐付けは保持）。まっさらにするときはリストの<b>🆕新規</b>ボタン。</div>
           <table class="help-tbl">
@@ -17935,7 +17952,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v373';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v374';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -19283,6 +19300,7 @@ function showSaveFileMenu(id, el){
      `<button onclick="saveFileMenuAct(${id},'load')">📂 開く</button>`
     +`<button onclick="saveFileMenuAct(${id},'rename')"${locked?' disabled':''}>✏ 名前の変更</button>`
     +`<button onclick="saveFileMenuAct(${id},'dup')">⧉ コピーを作る</button>`
+    +`<button onclick="saveFileMenuAct(${id},'export')">⬇ 書き出し</button>`
     +`<button onclick="saveFileMenuAct(${id},'lock')">${locked?'🔓 ロックを解除':'🔒 ロック'}</button>`
     +`<button onclick="saveFileMenuAct(${id},'tomode')">🔀 モードへ登録</button>`
     + tabOpts
@@ -19312,6 +19330,7 @@ function saveFileMenuAct(id, a, arg){
   if(a==='load') loadSave(id);
   else if(a==='rename') renameSave(id);
   else if(a==='dup') duplicateSave(id);
+  else if(a==='export') openSaveExp(id);
   else if(a==='lock') toggleSaveLock(id);
   else if(a==='tomode') registerSaveAsMode(id);
   else if(a==='tab') setSaveItemTab(id, arg);
@@ -19359,6 +19378,67 @@ function toggleSaveLock(id) {
   if(!entry.locked) delete entry.locked;
   persistSaves(saves);
   renderSaveList();
+}
+
+/* ── 記録を1件だけ書き出す（v374）──────────────────────
+   一覧の⋯から、その記録を Excel・CSV・PDF・JSON で出せるようにする。
+   JSON と CSV はその記録の中身だけで作れるので、今の表はそのまま。
+   Excel と PDF は今ある書き出しのしくみを使うので、いちど開いてから出す。 */
+let saveExpId=null;
+function openSaveExp(id){
+  const s=getSaves().find(x=>x.id===id); if(!s) return;
+  saveExpId=id;
+  const t=document.getElementById('saveExpTitle');
+  if(t) t.textContent='⬇ 「'+s.name+'」を書き出す';
+  openDlg('saveExpOverlay');
+}
+function closeSaveExp(){ closeDlg('saveExpOverlay', ()=>{ saveExpId=null; }); }
+/* ファイル名に使えない文字を落とす */
+function expSafeName(n){ return String(n||'表電卓').replace(/[\\/:*?"<>|]/g,'_').slice(0,60) || '表電卓'; }
+function expDownload(blob, fname){
+  const url=URL.createObjectURL(blob);
+  const a=Object.assign(document.createElement('a'),{href:url, download:fname});
+  a.click(); setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(_){} }, 1000);
+}
+/* その記録だけを JSON に（読み込みでそのまま戻せる形） */
+function saveExpJson(){
+  const s=getSaves().find(x=>x.id===saveExpId); if(!s) return;
+  const payload={ app:'hyodenki', type:'saves', version:1, exportedAt:Date.now(), saves:[s] };
+  expDownload(new Blob([JSON.stringify(payload)],{type:'application/json;charset=utf-8;'}),
+              expSafeName(s.name)+'.json');
+  closeSaveExp();
+  toast('「'+s.name+'」を1件だけ書き出しました');
+}
+/* その記録の表を CSV に（開いているシートの中身。式は文字のまま） */
+function saveExpCsv(){
+  const s=getSaves().find(x=>x.id===saveExpId); if(!s) return;
+  const rows=[];
+  const R=Math.max(1, s.rows||1), C=Math.max(1, s.cols||1);
+  for(let r=0;r<R;r++){
+    const cells=[];
+    for(let c=0;c<C;c++){
+      const v=(s.data && s.data[r] && s.data[r][c]!=null)?String(s.data[r][c]):'';
+      cells.push((v.indexOf(',')>=0||v.indexOf('"')>=0||v.indexOf('\n')>=0)
+        ? '"'+v.replace(/"/g,'""')+'"' : v);
+    }
+    rows.push(cells.join(','));
+  }
+  expDownload(new Blob(['﻿'+rows.join('\r\n')],{type:'text/csv;charset=utf-8;'}),
+              expSafeName(s.name)+'.csv');
+  closeSaveExp();
+  toast('「'+s.name+'」をCSVにしました（式は文字のままです）');
+}
+/* Excel・PDF は今の書き出しのしくみを使うので、いちど開いてから出す */
+async function saveExpOpenThen(kind){
+  const s=getSaves().find(x=>x.id===saveExpId); if(!s) return;
+  const what=(kind==='xlsx')?'Excel(.xlsx)':'PDF';
+  if(!await appConfirm(`${what}にするには「${s.name}」を開く必要があります。\n今の表は ↶戻る で戻せます。開いて書き出しますか`)) return;
+  const id=saveExpId;
+  closeSaveExp();
+  setTimeout(()=>{
+    loadSave(id);
+    setTimeout(()=>{ if(kind==='xlsx') exportXLSX(); else exportPDF(); }, 260);
+  }, 120);
 }
 
 /* ── 📦 端末の空き具合と片づけ（v373）─────────────────────
@@ -19497,11 +19577,52 @@ async function stClear(key, name){
   toast(`「${name}」を消しました`);
 }
 
+/* 書き出したファイルの野菜まわりを取り込む */
+function importVegBundle(veg){
+  try{
+    if(Array.isArray(veg.plots)){ vegPlots=veg.plots; saveVegPlots(); }
+    if(veg.diary && typeof veg.diary==='object'){ vegDiary=veg.diary; saveVegDiary(); }
+    if(Array.isArray(veg.my)){ vegMy=veg.my; saveVegMy(); }
+    if(veg.area && typeof veg.area==='object'){ vegArea=Object.assign({}, vegArea, veg.area); saveVegArea(); }
+  }catch(_){}
+}
+/* 野菜まわり（育てている野菜・日記・自分の野菜・気候）をひとまとめにする（v374）。
+   日記の写真は大きいので、書き出すかどうかは聞いてから決める。 */
+function vegBundle(withPics){
+  loadVegPlots(); loadVegDiary(); loadVegMy(); loadVegArea();
+  let diary=vegDiary;
+  if(!withPics){
+    diary={};
+    for(const k in vegDiary){
+      diary[k]=vegDiaryOf(k).map(e=>{ const x=Object.assign({}, e); delete x.p; delete x.th; return x; })
+                            .filter(e=>e.t);
+    }
+  }
+  return { plots:vegPlots, diary, my:vegMy, area:vegArea };
+}
+/* 日記の写真の重さ（聞くときに見せる） */
+function vegPicBytes(){
+  loadVegDiary();
+  let b=0;
+  for(const k in vegDiary) vegDiaryOf(k).forEach(e=>{ b+=((e.p||'').length+(e.th||'').length)*2; });
+  return b;
+}
 /* 保存データをJSONファイルに書き出し（別端末への移動・バックアップ用） */
-function exportSaves() {
+async function exportSaves() {
   const saves=getSaves();
   if(saves.length===0){ alert('保存データがありません'); return; }
-  const payload={ app:'hyodenki', type:'saves', version:1, exportedAt:Date.now(), saves };
+  // 野菜の日記に写真があれば、いっしょに持っていくか聞く（v374）
+  const pics=vegPicBytes();
+  let withPics=false;
+  if(pics>0){
+    withPics=await appConfirm(
+      `野菜の育成日記の写真（${stFmt(pics)}）も いっしょに書き出しますか\n\n`
+      +`「はい」＝写真ごと（機種変えでも写真が残ります／ファイルは大きくなります）\n`
+      +`「いいえ」＝写真ぬき（日づけと文だけ／ファイルは軽くなります）`,
+      'はい（写真ごと）', 'いいえ（写真ぬき）');
+  }
+  const payload={ app:'hyodenki', type:'saves', version:1, exportedAt:Date.now(), saves,
+                  veg:vegBundle(withPics), vegPics:withPics };
   const blob=new Blob([JSON.stringify(payload)],{type:'application/json;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
   const a=Object.assign(document.createElement('a'),{
@@ -19510,7 +19631,8 @@ function exportSaves() {
   });
   a.click(); URL.revokeObjectURL(url);
   markBackedUp();                       // 端末の外に出せた日を覚えておく
-  if(typeof toast==='function') toast('保存データを書き出しました（'+saves.length+'件）');
+  if(typeof toast==='function') toast('保存データを書き出しました（'+saves.length+'件'
+    +(pics>0?(withPics?'／日記の写真ごと':'／日記の写真はぬき'):'')+'）');
   renderSaveStateBanner();
 }
 
@@ -19542,6 +19664,26 @@ function importSaves(ev) {
     });
     persistSaves(existing);
     renderSaveList();
+    // 野菜まわりが入っていれば、それも取り込むか聞く（v374）
+    const veg=parsed && parsed.veg;
+    const hasVeg=veg && (Array.isArray(veg.plots)&&veg.plots.length || (veg.diary&&Object.keys(veg.diary).length));
+    if(hasVeg){
+      setTimeout(async ()=>{
+        const n=(veg.plots||[]).length;
+        let pics=0;
+        for(const k in (veg.diary||{})) (veg.diary[k]||[]).forEach(e=>{ if(e&&e.p) pics++; });
+        if(await appConfirm(
+            `野菜のデータも入っています（育てている野菜 ${n}件／日記の写真 ${pics}枚）。\n`
+            +`いっしょに読み込みますか（今の野菜のデータは置きかえます）`,
+            'はい','いいえ')){
+          importVegBundle(veg);
+          alert(`${added}件の保存データと、野菜のデータを読み込みました`);
+        } else {
+          alert(`${added}件の保存データを読み込みました`);
+        }
+      }, 60);
+      return;
+    }
     alert(`${added}件の保存データを読み込みました`);
   };
   reader.onerror=()=>alert('ファイルの読み込みに失敗しました');
