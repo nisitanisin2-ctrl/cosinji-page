@@ -3538,6 +3538,50 @@ async function runExport(browser) {
              (id ? vegDiaryOf(id).filter(e => e.p).length : 0); }), '1/1/1');
   }
 
+  // ── ⋯メニューの整理（v375） ──
+  await page.evaluate(() => openMoreMenu()); await page.waitForTimeout(400);
+  check('  項目の数は変わっていない', await page.evaluate(() =>
+    document.querySelectorAll('#moreMenuOverlay .more-item').length), 17);
+  check('  はじめは畳んである', await page.evaluate(() =>
+    document.getElementById('moreAccOut').open + '/' + document.getElementById('moreAccMisc').open),
+    'false/false');
+  check('  すぐ見えるのはよく使うものだけ', await page.evaluate(() =>
+    [...document.querySelectorAll('#moreMenuOverlay .more-item')]
+      .filter(x => !x.closest('.more-acc')).map(x => x.textContent.trim()).join('/')),
+    '↷進む/📋リスト/⚙設定/🎤声で入れる/🎯用途から始める/▦通常の表/🧮電卓/🧹リセット（戻るで元に戻せます）');
+  check('  書き出しは畳んだ中', await page.evaluate(() =>
+    [...document.querySelectorAll('#moreAccOut .more-item')].map(x => x.textContent.trim()).join('/')),
+    '🖨PDF/📄CSV出力/📊Excel出力/📥CSV読込/📥Excel読込');
+  check('  そのほかも畳んだ中', await page.evaluate(() =>
+    [...document.querySelectorAll('#moreAccMisc .more-item')].map(x => x.textContent.trim()).join('/')),
+    '🗂シート/▦既定の大きさ/🌙ナイトモード/📖説明書');
+  check('  スクロールしなくても収まる', await page.evaluate(() => {
+    const b = document.querySelector('#moreMenuOverlay .modal-body');
+    return b.scrollHeight <= b.clientHeight + 1; }), true);
+  check('  開け閉めを覚える', await page.evaluate(async () => {
+    const e = document.getElementById('moreAccOut');
+    e.open = true; e.dispatchEvent(new Event('toggle'));
+    closeMoreMenu(); await new Promise(z => setTimeout(z, 350));
+    openMoreMenu();
+    const a = document.getElementById('moreAccOut').open;
+    const e2 = document.getElementById('moreAccOut');
+    e2.open = false; e2.dispatchEvent(new Event('toggle'));
+    return a; }), true);
+  await page.waitForTimeout(300);
+  // 畳んだ中のボタンもこれまでどおり効く
+  check('  畳んでも既定の大きさは登録されたまま', await page.evaluate(() =>
+    !!document.getElementById('defsizeTopBtn')), true);
+  check('  畳んでもシートの印は付く', await page.evaluate(() => { toggleSheetTabs();
+    const r = document.getElementById('sheetToggleBtn').classList.contains('on');
+    toggleSheetTabs(); return r; }), true);
+  check('  畳んでもナイトモードの表示は変わる', await page.evaluate(() => { toggleDark();
+    const r = document.getElementById('darkMoreBtn').textContent.trim(); toggleDark(); return r; }),
+    '☀ライトに戻す');
+  check('  上のバーへの登録もこれまでどおり', await page.evaluate(() => { toggleTopBtn('defsize');
+    const r = getComputedStyle(document.getElementById('tbDefsize')).display !== 'none';
+    toggleTopBtn('defsize'); return r; }), true);
+  await page.evaluate(() => closeMoreMenu()); await page.waitForTimeout(350);
+
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();
