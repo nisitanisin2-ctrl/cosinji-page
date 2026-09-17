@@ -4825,6 +4825,10 @@ body.dark {
           <div class="help-li"><b>電卓モード</b>：モードで<b>🧮電卓</b>を選ぶと、表のかわりに<b>ふつうの電卓</b>が出ます。テンキーはそのまま使えて、押すたびに答えが出ます。計算するたびに<b>履歴（テープ）</b>が残り、行を押すとその答えをもう一度使えます。<b>📖 言い方の早見表</b>（v372から）：電卓の声の行にある<b>📖言い方</b>（または🎤で聞いている窓の<b>📖こう言えます</b>）を押すと、<b>言える形が答え付きで一覧</b>で出ます。<b>行を押すとその場で試せます</b>（電卓に切り替わって計算されます）。<b>さがす</b>欄に「円」「平米」などと入れてしぼれます。言い方を足すと<b>自動でここにも並びます</b>。<br>
             <b>もしかして</b>（v372から）：言い方が外れたときは、いちばん近いお手本を<b>「もしかして『◯◯』？」</b>と出します。<b>その行を押すとそのまま試せます</b>。<br>
             <b>声でふだんの言い方のまま計算</b>（v370から）：式にしなくても、下のような言い方でそのまま答えが出ます（電卓モードのとき）。答えの下には<b>おまけの数</b>（消費税の額・1個あたり・坪・使うガソリンの量など）も出ます。<br>
+            　<b>時間の計算</b>（v377から）「<b>2時間30分たす1時間45分</b>」→4時間15分／「8時間ひく1時間30分」「8時間から1時間30分ひく」→6時間30分／「<b>2時間30分を3日</b>」→7時間30分／「2時間30分は何分」→150分／「90分は何時間」→1時間30分<br>
+            　<b>時給・時刻</b>（v377から）「<b>時給1200円で7時間30分</b>」→9,000円／「<b>8時15分の8時間後</b>」→16時15分／「17時の45分前」→16時15分（日をまたぐと「次の日」と出ます）<br>
+            　<b>単位の足し引き</b>（v377から）「<b>25キロたす500グラム</b>」→25.5kg／「3メートルたす50センチ」→3.5m／「25キロひく500グラム」→24.5kg（同じ区分なら単位がまざってもOK）<br>
+            　<b>分ける・単価</b>（v377から）「<b>200キロを8袋に分ける</b>」→25kg／「<b>1キロ380円で2.5キロ</b>」→950円／「1平米1200円で60平米」→72,000円<br>
             　<b>値段×数</b>（v376から）「<b>180円を4個</b>」→720円／「180円が4本」「180円の4枚」「180円×4個」「1個180円を4個」「4個で180円ずつ」「180円かける4」「単価180円、数量4」も同じ。数えかたは<b>個・本・枚・袋・台・人・箱・ケース・パック・束・玉・株・缶・つ</b>などが使えます<br>
             　<b>単位×数</b>（v376から）「<b>3メートルを4本</b>」→12m／「25キロを8袋」→200kg／「2.5立米を3台」→7.5㎥<br>
             　<b>割合</b>「5000円の18パーセント」→900円／「5000円の2割」も同じ　<b>値引き</b>「12800円を15パーセント引き」→10,880円（「2割引き」「2割5分引き」もOK）　<b>増し</b>「1000円を3パーセント増し」<br>
@@ -14626,6 +14630,25 @@ function srCntLabel(u){
   if(/^(つ)$/.test(t)) return 'つ';
   const x=srUnit(t); return x?x.lb:t;
 }
+/* 「3分の2」のような分数かどうか。「15分の8時間後」は分数ではない（v377） */
+function srIsFrac(t){ return /\d分の\d+(?!時間|分|秒|日|時|個|本|円|台|人|㎡|平米)/.test(String(t||'')); }
+/* 「2時間30分」「90分」「1.5時間」のような言い方（v377） */
+const SR_HM='(?:\\d+(?:\\.\\d+)?時間)?(?:\\d+(?:\\.\\d+)?分)?';
+/* その言い方を「時間」の数にする。時間も分も無ければ null */
+function srHM(t){
+  const s2=String(t||'');
+  const h=s2.match(/(\d+(?:\.\d+)?)時間/), m=s2.match(/(\d+(?:\.\d+)?)分/);
+  if(!h && !m) return null;
+  return (h?+h[1]:0)+(m?+m[1]/60:0);
+}
+/* 時間の数を「2時間30分」のような言い方にする */
+function srHMText(v){
+  const neg=v<0; const x=Math.abs(v);
+  const tot=Math.round(x*60);
+  const h=Math.floor(tot/60), m=tot-h*60;
+  const t=(h&&m)?`${withCommas(h)}時間${m}分`:(h?`${withCommas(h)}時間`:`${m}分`);
+  return (neg?'−':'')+t;
+}
 /* 長さ・重さ・かさ・面積の言い方（3メートルを4本 の「メートル」の部分） */
 const SR_MU='ミリメートル|ミリ|mm|センチメートル|センチ|cm|メートル|キロメートル|キロ|グラム|トン|リットル|ミリリットル|立方メートル|立米|平方メートル|平米|坪|km|kg|mL|ml|㎡|㎥|m3|m2|g|t|L|l|m';
 /* 長さの言い回しをメートルにする */
@@ -14703,6 +14726,98 @@ const SPEECH_RECIPES=[
    run:m=>{ const y=+m[1], q=+m[2];
      return { e:`単価 ${withCommas(m[1])}円 × 数量 ${withCommas(m[2])}`, v:y*q, u:'円', dp:2,
               sub:`1つあたり ${srYen(y)}` }; }},
+  /* ── 時間の計算（v377）──────────────────────────────
+     「2時間30分たす1時間45分」のように、時間と分をまぜたまま計算できる。
+     分数の「3分の2」とまぎれないよう、「分の」が入る言い方は見送る。 */
+  {id:'timeadd', g:'単位・時間', ex:'2時間30分たす1時間45分',
+   test:t=>!srIsFrac(t),
+   re:new RegExp('('+SR_HM+')(?:たす|足す|と|プラス|＋|\\+)('+SR_HM+')'),
+   run:m=>{ const a=srHM(m[1]), b2=srHM(m[2]);
+     if(a==null||b2==null) return null;
+     return { e:`${srHMText(a)} ＋ ${srHMText(b2)}`, v:a+b2, u:'時間', dp:4,
+              sub:`${srHMText(a+b2)}（${srNum((a+b2)*60,0)}分）` }; }},
+  {id:'timesub', g:'単位・時間', ex:'8時間ひく1時間30分',
+   test:t=>!srIsFrac(t),
+   re:new RegExp('('+SR_HM+')(?:から)?(?:ひく|引く|マイナス|−|-)('+SR_HM+')'),
+   run:m=>{ const a=srHM(m[1]), b2=srHM(m[2]);
+     if(a==null||b2==null) return null;
+     const v=a-b2;
+     return { e:`${srHMText(a)} − ${srHMText(b2)}`, v, u:'時間', dp:4,
+              sub:(v<0?'マイナス ':'')+`${srHMText(Math.abs(v))}（${srNum(Math.abs(v)*60,0)}分）` }; }},
+  {id:'timesub2', g:'単位・時間', ex:'8時間から1時間30分ひく',
+   test:t=>!srIsFrac(t),
+   re:new RegExp('('+SR_HM+')から('+SR_HM+')(?:を)?(?:ひく|引く|マイナス|とる|取る)'),
+   run:m=>{ const a=srHM(m[1]), b2=srHM(m[2]);
+     if(a==null||b2==null) return null;
+     const v=a-b2;
+     return { e:`${srHMText(a)} − ${srHMText(b2)}`, v, u:'時間', dp:4,
+              sub:(v<0?'マイナス ':'')+`${srHMText(Math.abs(v))}（${srNum(Math.abs(v)*60,0)}分）` }; }},
+  {id:'timemul', g:'単位・時間', ex:'2時間30分を3日',
+   test:t=>!srIsFrac(t),
+   re:new RegExp('('+SR_HM+')(?:を|かける|×|の)'+SR_N+'(日|回|人|日間|本|個|か所|箇所|現場)?(?!(?:分|時間))'),
+   run:m=>{ const a=srHM(m[1]); const q=+m[2];
+     if(a==null||!q) return null;
+     const lb=m[3]||'つ';
+     return { e:`${srHMText(a)} × ${withCommas(m[2])}${lb}`, v:a*q, u:'時間', dp:4,
+              sub:`${srHMText(a*q)}（${srNum(a*q*60,0)}分）` }; }},
+  {id:'timeconv', g:'単位・時間', ex:'2時間30分は何分',
+   test:t=>!srIsFrac(t),
+   re:new RegExp('('+SR_HM+')(?:は|を|が|で)?(?:何|なん|いくつ)?(分|時間|時)(?:に|です|ですか)?(?:\\?|？)?$'),
+   run:m=>{ const a=srHM(m[1]); if(a==null) return null;
+     if(m[2]==='分') return { e:`${srHMText(a)} を 分に`, v:a*60, u:'分', dp:2,
+                              sub:`${srHMText(a)}` };
+     return { e:`${srHMText(a)} を 時間に`, v:a, u:'時間', dp:4,
+              sub:`${srHMText(a)}（${srNum(a*60,0)}分）` }; }},
+  {id:'wage', g:'お金', ex:'時給1200円で7時間30分',
+   test:t=>!srIsFrac(t),
+   re:new RegExp('(?:時給|じきゅう|1時間|１時間)(?:が|は)?'+SR_N+'円(?:で|、|を|の)?('+SR_HM+')'),
+   run:m=>{ const y=+m[1], h=srHM(m[2]);
+     if(h==null||!h) return null;
+     return { e:`時給 ${withCommas(m[1])}円 × ${srHMText(h)}`, v:y*h, u:'円', dp:0,
+              sub:`${srHMText(h)}＝${srNum(h,2)}時間` }; }},
+  {id:'timeshift', g:'単位・時間', ex:'8時15分の8時間後',
+   test:t=>!srIsFrac(t),
+   re:new RegExp('(\\d{1,2})時(?:(\\d{1,2})分)?(?:の|から)('+SR_HM+')(後|あと|前|まえ)'),
+   run:m=>{ const base=(+m[1])*60+(+(m[2]||0)); const d=srHM(m[3]);
+     if(d==null||!d) return null;
+     const back=/前|まえ/.test(m[4]);
+     let t2=Math.round(base+(back?-1:1)*d*60);
+     const day=(t2<0)?-1:(t2>=24*60?1:0);
+     t2=((t2%(24*60))+24*60)%(24*60);
+     const hh=Math.floor(t2/60), mm=t2%60;
+     return { e:`${m[1]}:${String(+(m[2]||0)).padStart(2,'0')} の ${srHMText(d)}${back?'前':'後'}`,
+              v:hh+mm/60, u:'時', dp:4,
+              sub:`${hh}時${mm}分`+(day<0?'（前の日）':(day>0?'（次の日）':'')) }; }},
+  /* ── 単位どうしの足し引き・分けかた（v377）────────────────
+     「25キロたす500グラム」のように、同じ区分なら単位がまざっていてもよい。 */
+  {id:'unitadd', g:'単位・時間', ex:'25キロたす500グラム',
+   re:new RegExp(SR_N+'('+SR_MU+')(?:たす|足す|と|プラス|＋)'+SR_N+'('+SR_MU+')'),
+   run:m=>{ const u1=srUnit(m[2]); if(!u1) return null;
+     const u2=srUnit(m[4], u1.dim); if(!u2) return null;
+     const v=(+m[1])+(+m[3])*u2.f/u1.f;
+     return { e:`${withCommas(m[1])}${u1.lb} ＋ ${withCommas(m[3])}${u2.lb}`, v, u:u1.lb, dp:3,
+              sub:`${u1.dim}の足し算` }; }},
+  {id:'unitsub', g:'単位・時間', ex:'25キロひく500グラム',
+   re:new RegExp(SR_N+'('+SR_MU+')(?:から)?(?:ひく|引く|マイナス)'+SR_N+'('+SR_MU+')'),
+   run:m=>{ const u1=srUnit(m[2]); if(!u1) return null;
+     const u2=srUnit(m[4], u1.dim); if(!u2) return null;
+     const v=(+m[1])-(+m[3])*u2.f/u1.f;
+     return { e:`${withCommas(m[1])}${u1.lb} − ${withCommas(m[3])}${u2.lb}`, v, u:u1.lb, dp:3,
+              sub:`${u1.dim}の引き算` }; }},
+  {id:'unitdiv', g:'現場', ex:'200キロを8袋に分ける',
+   re:new RegExp(SR_N+'('+SR_MU+')(?:を|は)'+SR_N+'(個|本|枚|袋|台|人|箱|ケース|パック|束|回|日)(?:に|で|ずつ)?(?:分け|わけ|割|配|くば)'),
+   run:m=>{ const u1=srUnit(m[2]); if(!u1) return null;
+     const q=+m[3]; if(!q) return null;
+     const lb=srCntLabel(m[4]);
+     return { e:`${withCommas(m[1])}${u1.lb} を ${withCommas(m[3])}${lb}に分ける`, v:(+m[1])/q, u:u1.lb, dp:3,
+              sub:`1${lb}あたり` }; }},
+  {id:'unitprice3', g:'お金', ex:'1キロ380円で2.5キロ',
+   re:new RegExp('(?:1|１)('+SR_MU+')'+SR_N+'円(?:で|を|の|が|×|かける)'+SR_N+'('+SR_MU+')'),
+   run:m=>{ const u1=srUnit(m[1]); if(!u1) return null;
+     const u2=srUnit(m[4], u1.dim); if(!u2) return null;
+     const y=+m[2], q=(+m[3])*u2.f/u1.f;
+     return { e:`1${u1.lb} ${withCommas(m[2])}円 × ${withCommas(m[3])}${u2.lb}`, v:y*q, u:'円', dp:2,
+              sub:`${srNum(q,3)}${u1.lb}ぶん` }; }},
   /* ⑤ 3メートルを4本 → 12m（長さ・重さ・かさ × 数） */
   {id:'qtyunit', g:'現場', ex:'3メートルを4本',
    re:new RegExp(SR_N+'('+SR_MU+')(?:を|の|が|×|かける)'+SR_N+'(個|本|枚|袋|台|束|箱|ケース|パック|巻|缶|ヶ|つ)'),
@@ -18026,7 +18141,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v376';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v377';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
