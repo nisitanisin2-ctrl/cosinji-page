@@ -3356,6 +3356,41 @@ async function runVoiceSay(browser) {
   check('  単位変換は今までどおり', await id('25キロをトンに'), 'unit');
   check('  ㎡あたりは今までどおり', await id('100平米に1平米あたり3キロ'), 'perarea');
 
+  // ── 面積・体積の言い方（v378） ──
+  check('  円柱・タンク', await v('直径2メートル、高さ3メートルの円柱'), '9.425㎥');
+  check('  円柱はリットルと底の面積も', (await r('直径2メートル、高さ3メートルの円柱')).split('|')[3],
+    '9,425L／そこの面積 3.142㎡');
+  check('  ますや深さでも同じ', await v('直径1.2メートル、深さ2メートルのます'), '2.262㎥');
+  check('  円の面積', await v('直径3メートルの円の面積'), '7.069㎡');
+  check('  半径でも言える', await v('半径1.5メートルの円'), '7.069㎡');
+  check('  円周は面積と取りちがえない', await id('直径3メートルの円周'), 'circum');
+  check('  円周の長さ', await v('直径3メートルの円周'), '9.425m');
+  check('  「まわり」でも同じ', await id('直径3メートルのまわり'), 'circum');
+  check('  三角形', await v('底辺4メートル、高さ3メートルの三角形'), '6㎡');
+  check('  台形（水路・法面の断面）', await v('上辺3メートル、下辺5メートル、高さ2メートルの台形'), '8㎡');
+  check('  台形は1mあたりの体積も', (await r('上辺3メートル、下辺5メートル、高さ2メートルの台形')).split('|')[3],
+    '1mあたりの体積 8㎥／2.42坪');
+  check('  面積×厚さ', await v('20平米に厚さ10センチ'), '2㎥');
+  check('  ロス込みとLも出す', (await r('20平米に厚さ10センチ')).split('|')[3],
+    'ロス5%込みで 2.1㎥／2,000L');
+  check('  坪でも言える', await v('30坪に厚さ15センチ'), '14.876㎥');
+  check('  ほぐし率', await v('50立米をほぐし率1.2で'), '60㎥');
+  check('  ほぐしたら何台ぶんかも', (await r('50立米をほぐし率1.2で')).split('|')[3],
+    'ふえる分 10㎥／4t車(約3㎥)で 20台');
+  check('  「は何坪」で聞ける', await v('1000平米は何坪'), '302.5坪');
+  check('  「は何リットル」でも', await v('2.5立米は何リットル'), '2,500L');
+  check('  「は何平米」でも', await v('1反は何平米'), '991.74㎡');
+  check('  面積どうしの足し算', await v('10平米たす5平米'), '15㎡');
+
+  // 前からの言い方を取らないこと
+  check('  幅と長さだけは今までどおり面積', await id('幅3.5メートル、長さ12メートル'), 'area');
+  check('  3つの長さは今までどおり体積', await id('縦5メートル、横3メートル、厚さ15センチ'), 'volume');
+  check('  斜辺は今までどおり', await id('底辺3メートル、高さ4メートルの斜辺'), 'hyp');
+  check('  生コン車は今までどおり', await id('12立米を4.5立米車で'), 'mixer');
+  check('  比重は今までどおり', await id('2.5立米、比重2.3'), 'density');
+  check('  「を〜に」の単位変換も今までどおり', await id('25キロをトンに'), 'unit');
+  check('  1枚あたりの枚数は今までどおり', await id('10平米、1枚0.09平米'), 'sheets');
+
   // ── 📖 言い方の早見表と「もしかして」（v372） ──
   await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(300);
   check('  早見表は言い方ぜんぶを出す', await page.evaluate(() => sayList().length),
@@ -3370,7 +3405,7 @@ async function runVoiceSay(browser) {
     [...document.querySelectorAll('#sayHelpBody .say-row')].filter(r => !r.querySelector('.say-ans')).length), 0);
   check('  さがすでしぼれる', await page.evaluate(() => { sayHelpFind('立米');
     return [...document.querySelectorAll('#sayHelpBody .say-ex')].map(e => e.textContent).join('/'); }),
-    '「12立米を4.5立米車で」/「2.5立米、比重2.3」');
+    '「12立米を4.5立米車で」/「2.5立米、比重2.3」/「50立米をほぐし率1.2で」');
   check('  見つからないときは知らせる', await page.evaluate(() => { sayHelpFind('ねこねこ');
     return /見つかりません/.test(document.getElementById('sayHelpBody').textContent); }), true);
   await page.evaluate(() => sayHelpFind(''));
@@ -3558,6 +3593,7 @@ async function runExport(browser) {
     document.getElementById('saveExpTitle').textContent), '⬇ 「見積もり」を書き出す');
 
   const d1 = await grab(() => saveExpJson());
+  await page.waitForTimeout(350);          // 閉じたあとの「戻る」が済むのを待つ
   check('  1件だけJSONに出せる', !!d1, true);
   if (d1) { const f = '/tmp/claude-0/one-test.json'; await d1.saveAs(f);
     const j = JSON.parse(require('fs').readFileSync(f, 'utf8'));
@@ -3566,6 +3602,7 @@ async function runExport(browser) {
 
   await page.evaluate(() => openSaveExp(111)); await page.waitForTimeout(300);
   const d2 = await grab(() => saveExpCsv());
+  await page.waitForTimeout(350);
   check('  CSVにも出せる', !!d2, true);
   if (d2) { const f = '/tmp/claude-0/one-test.csv'; await d2.saveAs(f);
     check('  カンマは引用符でくるむ', require('fs').readFileSync(f, 'utf8'),
