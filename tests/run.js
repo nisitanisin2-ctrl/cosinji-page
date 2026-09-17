@@ -3334,6 +3334,108 @@ async function runVoiceSay(browser) {
   await ctx.close();
 }
 
+/* 📦 端末の空き具合と片づけ（v373） */
+async function runStorage(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 端末の空き具合 ──');
+  const ok = async () => { await page.waitForTimeout(250);
+    await page.evaluate(() => { const b = [...document.querySelectorAll('div[style*="99999"] button')]
+      .find(x => x.textContent === 'OK'); if (b) b.click(); });
+    await page.waitForTimeout(350); };
+
+  // 写真つきの日記を2件分つくる
+  await page.evaluate(async () => {
+    openVeggie();
+    vegSel = VEG_PLANS.find(v => v.n === 'ハクサイ'); vegSowSerial = todaySerial() - 20; vegSetAs('nae'); vegPlotAdd();
+    vegSel = VEG_PLANS.find(v => v.n === 'トマト'); vegSowSerial = todaySerial() - 40; vegSetAs('nae'); vegPlotAdd();
+    const mk = async () => { const cv = document.createElement('canvas'); cv.width = 600; cv.height = 450;
+      const x = cv.getContext('2d'); x.fillStyle = '#6ab04c'; x.fillRect(0, 0, 600, 450);
+      for (let i = 0; i < 200; i++) { x.fillStyle = 'rgba(255,255,255,' + Math.random() * .3 + ')';
+        x.fillRect(Math.random() * 600, Math.random() * 450, 8, 8); }
+      const p = cv.toDataURL('image/jpeg', .72); return { p, th: await vegDiaryThumb(p) }; };
+    for (const pl of vegPlots) { const arr = [];
+      for (let i = 0; i < 3; i++) { const q = await mk();
+        arr.push({ id: 'x' + pl.id + i, d: todaySerial() - i * 3, t: 'ようす' + i, p: q.p, th: q.th }); }
+      vegDiary[pl.id] = arr; }
+    saveVegDiary(); closeVeggie(); });
+  await page.waitForTimeout(600);
+
+  check('  大きさの言い方', await page.evaluate(() =>
+    [stFmt(500), stFmt(2048), stFmt(3 * 1024 * 1024)].join('/')), '500B/2KB/3MB');
+  check('  1文字2バイトで数える', await page.evaluate(() => {
+    localStorage.setItem('excalc_zz_test', 'abcde');
+    const b = stSize('excalc_zz_test'); localStorage.removeItem('excalc_zz_test');
+    return b; }), ('excalc_zz_test'.length + 5) * 2);
+
+  await page.evaluate(() => openStorage()); await page.waitForTimeout(400);
+  check('  📦空き具合が開く', await page.evaluate(() => isDlgOpen('storageOverlay')), true);
+  check('  日記がいちばん大きい', await page.evaluate(() =>
+    document.querySelector('#storageBody .st-n').textContent.trim()), '育成日記（写真）');
+  check('  大きい順に並ぶ', await page.evaluate(() => {
+    const r = stScan().rows; return r.every((x, i) => i === 0 || r[i - 1].b >= x.b); }), true);
+  check('  合計と割合が出る', await page.evaluate(() =>
+    /ぜんぶで .+（目安の上限 5MB の .+%）/.test(document.querySelector('.st-total-t').textContent)), true);
+  check('  知らないキーは「設定など」にまとめる', await page.evaluate(() =>
+    stScan().rows.some(r => r.n === '設定など（細かいもの）')), true);
+  check('  片づけのボタンが付く', await page.evaluate(() =>
+    !!document.querySelector('#storageBody .veg-mini')), true);
+
+  // 日記の片づけ
+  await page.evaluate(() => stOpenDiary()); await page.waitForTimeout(400);
+  check('  野菜ごとに出る', await page.evaluate(() =>
+    document.querySelectorAll('#stDiaryBody .st-row').length), 2);
+  check('  件数と写真の数が出る', await page.evaluate(() =>
+    /3件（写真 3枚）/.test(document.querySelector('#stDiaryBody .st-sub').textContent)), true);
+  const before = await page.evaluate(() => stSize('excalc_veg_diary'));
+  await page.evaluate(() => { stDropPics(Object.keys(vegDiary)[0]); });
+  await ok();
+  const after = await page.evaluate(() => stSize('excalc_veg_diary'));
+  check('  写真だけ消すと軽くなる', after < before * 0.7, true);
+  check('  書いた文は残る', await page.evaluate(() => { const a = vegDiaryOf(Object.keys(vegDiary)[0]);
+    return a.length + '/' + a.filter(e => e.p).length + '/' + a.filter(e => e.t).length; }), '3/0/3');
+  check('  開き直しても消えたまま', await page.evaluate(() => {
+    loadVegDiary(); return vegDiaryOf(Object.keys(vegDiary)[0]).filter(e => e.p).length; }), 0);
+  await page.evaluate(() => closeStDiary()); await page.waitForTimeout(400);
+
+  // 個別に消す
+  await page.evaluate(() => { localStorage.setItem('excalc_calc_tape',
+    JSON.stringify(Array(50).fill({ e: '1+1', v: '2' }))); renderStorage(); });
+  await page.waitForTimeout(200);
+  check('  電卓の履歴も出る', await page.evaluate(() =>
+    /電卓の履歴/.test(document.getElementById('storageBody').textContent)), true);
+  await page.evaluate(() => { stClear('excalc_calc_tape', '電卓の履歴'); });
+  await ok();
+  check('  🧹で消せる', await page.evaluate(() =>
+    localStorage.getItem('excalc_calc_tape') + '/' +
+    /電卓の履歴/.test(document.getElementById('storageBody').textContent)), 'null/false');
+
+  // 空いているとき・混んできたとき・いっぱいのときの見せ方
+  check('  空いていれば緑', await page.evaluate(() =>
+    !!document.querySelector('.st-bar .st-ok')), true);
+  check('  混み具合の色の決め方', await page.evaluate(() =>
+    [0, 59.9, 60, 84.9, 85, 100].map(stLevel).join('/')),
+    'st-ok/st-ok/st-warn/st-warn/st-ng/st-ng');
+  check('  ほんとうに入れると色が変わる', await page.evaluate(() => {
+    let r = '—';
+    try {
+      localStorage.setItem('excalc_zz_big', 'x'.repeat(1800 * 1024));   // 約3.6MB（1文字2バイト）
+      renderStorage();
+      r = document.querySelector('.st-bar span').className;
+    } catch (_) { r = '入れられなかった'; }
+    try { localStorage.removeItem('excalc_zz_big'); } catch (_) {}
+    renderStorage();
+    return r; }), 'st-warn');
+  check('  いっぱいなら注意を出す', await page.evaluate(() => {
+    // 上限に対する割合だけを見るので、見せ方は stLevel と合わせて確かめる
+    return stLevel(90) === 'st-ng'; }), true);
+  check('  片づけたら緑に戻る', await page.evaluate(() =>
+    !!document.querySelector('.st-bar .st-ok')), true);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -3361,6 +3463,7 @@ async function runVoiceSay(browser) {
     if (!only || only === 'tsxlock') await runTsxLock(browser);
     if (!only || only === 'voicemath') await runVoiceMath(browser);
     if (!only || only === 'voicesay') await runVoiceSay(browser);
+    if (!only || only === 'storage') await runStorage(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
