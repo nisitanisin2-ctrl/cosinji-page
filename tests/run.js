@@ -3286,6 +3286,49 @@ async function runVoiceSay(browser) {
   check('  温度（摂氏→華氏）', await v('25度を華氏に'), '77℉');
   check('  温度（華氏→摂氏）', await v('77度を摂氏に'), '25℃');
 
+  // ── 📖 言い方の早見表と「もしかして」（v372） ──
+  await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(300);
+  check('  早見表は言い方ぜんぶを出す', await page.evaluate(() => sayList().length),
+    await page.evaluate(() => SPEECH_RECIPES.filter(x => x.ex).length + SAY_EXTRA.length));
+  check('  どのお手本も自分の言い方に当たる', await page.evaluate(() =>
+    SPEECH_RECIPES.filter(x => x.ex).every(x => { const o = speechRecipe(x.ex); return o && o.id === x.id; })), true);
+  await page.evaluate(() => openSayHelp()); await page.waitForTimeout(350);
+  check('  📖言い方で開く', await page.evaluate(() => isDlgOpen('sayHelpOverlay')), true);
+  check('  まとまりごとに並ぶ', await page.evaluate(() =>
+    [...document.querySelectorAll('#sayHelpBody .say-g')].length), 8);
+  check('  どの行にも答えが出る', await page.evaluate(() =>
+    [...document.querySelectorAll('#sayHelpBody .say-row')].filter(r => !r.querySelector('.say-ans')).length), 0);
+  check('  さがすでしぼれる', await page.evaluate(() => { sayHelpFind('立米');
+    return [...document.querySelectorAll('#sayHelpBody .say-ex')].map(e => e.textContent).join('/'); }),
+    '「12立米を4.5立米車で」/「2.5立米、比重2.3」');
+  check('  見つからないときは知らせる', await page.evaluate(() => { sayHelpFind('ねこねこ');
+    return /見つかりません/.test(document.getElementById('sayHelpBody').textContent); }), true);
+  await page.evaluate(() => sayHelpFind(''));
+  check('  行を押すとその場で計算される', await page.evaluate(async () => {
+    [...document.querySelectorAll('#sayHelpBody .say-row')].find(r => /5000円の18/.test(r.textContent)).click();
+    await new Promise(z => setTimeout(z, 300));
+    return isDlgOpen('sayHelpOverlay') + '/' + document.getElementById('dtMain').textContent; }), 'false/900');
+  await page.waitForTimeout(250);
+
+  check('  外れたときは近いお手本をすすめる', await page.evaluate(() => {
+    dtAllClear(); voiceAcceptDentaku('ガソリン代170円で200キロ');
+    return document.getElementById('dtVoiceF').textContent; }),
+    'もしかして「ガソリン170円、燃費18キロ、200キロ走る」？');
+  check('  そのとき行を押せる印が付く', await page.evaluate(() =>
+    document.getElementById('dtVoice').classList.contains('dt-voice-guess')), true);
+  check('  押すとそのまま試せる', await page.evaluate(async () => {
+    document.getElementById('dtVoice').click();
+    await new Promise(z => setTimeout(z, 200));
+    return document.getElementById('dtMain').textContent; }), '1888.8888888889');
+  check('  近いものが無ければすすめない', await page.evaluate(() => {
+    dtAllClear(); voiceAcceptDentaku('ねこ');
+    return document.getElementById('dtVoiceF').textContent + '/' +
+      document.getElementById('dtVoice').classList.contains('dt-voice-guess'); }),
+    '計算の形になりませんでした/false');
+  check('  ちゃんと通る言い方はすすめない', await page.evaluate(() => {
+    dtAllClear(); voiceAcceptDentaku('12800円を4人でわけたい');
+    return document.getElementById('dtVoice').classList.contains('dt-voice-guess'); }), false);
+
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();
