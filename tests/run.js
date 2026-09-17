@@ -3174,6 +3174,80 @@ async function runVoiceMath(browser) {
   await ctx.close();
 }
 
+/* 声でふだんの言い方のまま計算（v370） */
+async function runVoiceSay(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 声でふだんの言い方 ──');
+  const r = t => page.evaluate(x => { const o = speechRecipe(x);
+    return o ? (o.id + '|' + o.e + '|' + srNum(o.v, o.dp) + (o.u || '') + '|' + o.sub) : 'null'; }, t);
+  const v = async t => (await r(t)).split('|')[2];
+  const id = async t => (await r(t)).split('|')[0];
+
+  // ── ご要望の15通り ──
+  check('  基本計算は式のまま', await r('1250かける18'), 'null');
+  check('  それを式にすると 22500', await page.evaluate(() => evalFormula(speechToFormula('1250かける18'))), 22500);
+  check('  連続計算も式のまま', await page.evaluate(() => evalFormula(speechToFormula('500足す300引く120'))), 680);
+  check('  割合', await v('5000円の18パーセント'), '900円');
+  check('  値引き', await v('12800円を15パーセント引き'), '10,880円');
+  check('  消費税', await v('5000円に消費税10パーセント'), '5,500円');
+  check('  割り勘', await v('12800円を4人で割って'), '3,200円');
+  check('  単価', await v('10個398円、1個いくら'), '39.8円');
+  check('  くらべる', (await r('5個600円と8個880円、どっちが安い')).split('|')[3],
+    '1個あたり 120円 と 110円 → 8個880円 のほうが安い（1個 10円 おとく）');
+  check('  単位変換', await v('25キロをトンに'), '0.025t');
+  check('  面積', await v('幅3.5メートル、長さ12メートル'), '42㎡');
+  check('  時間', (await r('8時15分から17時30分、休憩1時間')).split('|')[3], '8時間15分（495分）');
+  check('  燃費', await v('ガソリン170円、燃費18キロ、200キロ走る'), '1,889円');
+  check('  ローン', await v('300万円、金利2.5パーセント、5年'), '53,242円/月');
+  check('  増減率', await v('120から150は何パーセント増'), '25%');
+  check('  逆算', await v('20パーセント増で600、元はいくら'), '500');
+
+  // ── おまけの数 ──
+  check('  消費税の額も出す', (await r('5000円に消費税10パーセント')).split('|')[3], '消費税 500円');
+  check('  税率を言わなければ設定の税率', await v('5000円に消費税'), '5,500円');
+  check('  税抜きの逆算もできる', await v('5000円の税抜'), '4,545.45円');
+  check('  面積は坪とまわりも出す', (await r('幅3.5メートル、長さ12メートル')).split('|')[3],
+    '12.71坪／まわり 31m');
+  check('  燃費は使う量も出す', (await r('ガソリン170円、燃費18キロ、200キロ走る')).split('|')[3], '使う量 11.11L');
+  check('  ローンは総返済と利息も出す', /総返済 3,194,525.09円／利息 194,525.09円（60回）/
+    .test((await r('300万円、金利2.5パーセント、5年')).split('|')[3]), true);
+  check('  割り勘は集める額も出す', (await r('1000円を3人で割って')).split('|')[3],
+    '1人 334円ずつ集めると 2円 多い');
+
+  // ── 「割」の言い方 ──
+  check('  2割引き', await v('12800円を2割引き'), '10,240円');
+  check('  2割5分引き', await v('12800円を2割5分引き'), '9,600円');
+  check('  〜の2割', await v('5000円の2割'), '1,000円');
+  check('  「3割る5」はわり算のまま', await r('3割る5'), 'null');
+  check('  それは 0.6', await page.evaluate(() => evalFormula(speechToFormula('3割る5'))), 0.6);
+
+  // ── 単位の表 ──
+  check('  キロは行き先で決まる（重さ）', await v('25キロをグラムに'), '25,000g');
+  check('  キロは行き先で決まる（長さ）', await v('5キロをメートルに'), '5,000m');
+  check('  坪から㎡', await v('100坪を平米に'), '330.58㎡');
+  check('  反から㎡', await v('1反を平米に'), '991.74㎡');
+  check('  升からリットル', await v('1升をリットルに'), '1.8039L');
+  check('  知らない単位は受け取らない', await r('25ぴょんをトンに'), 'null');
+
+  // ── 電卓で受け取る ──
+  await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(350);
+  const say = async t => { await page.evaluate(x => { dtAllClear(); voiceAcceptDentaku(x); }, t);
+    await page.waitForTimeout(140);
+    return page.evaluate(() => document.getElementById('dtVoiceF').textContent
+      + '｜' + document.getElementById('dtMain').textContent); };
+  check('  電卓に答えが入る', await say('5000円の18パーセント'),
+    '5,000円 の 18% ＝ 900円　／　残りの 82% は 4,100円｜900');
+  check('  くらべるも受け取る', (await say('5個600円と8個880円、どっちが安い')).split('｜')[1], '110');
+  check('  ふつうの計算は今までどおり', await say('1250かける18'), '1250×18 ＝ 22500｜22500');
+  check('  方程式も今までどおり', (await say('2エックスたす3は7')).split('｜')[1], '2');
+  check('  分数も今までどおり', (await say('3分の2たす4分の1')).split('｜')[1], '0.9166666667');
+  check('  履歴にも残る', await page.evaluate(() => dtTape.length >= 5), true);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -3200,6 +3274,7 @@ async function runVoiceMath(browser) {
     if (!only || only === 'dtdec') await runDtDec(browser);
     if (!only || only === 'tsxlock') await runTsxLock(browser);
     if (!only || only === 'voicemath') await runVoiceMath(browser);
+    if (!only || only === 'voicesay') await runVoiceSay(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
