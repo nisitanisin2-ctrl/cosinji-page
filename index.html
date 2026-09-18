@@ -2,7 +2,9 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<!-- 指で広げて拡大できるようにしてある（v385）。以前は user-scalable=no で拡げられなかった。
+     入力欄をタップしたときの勝手な拡大は、欄の文字を16px以上にすることで防ぐ。 -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#217346">
 <meta name="mobile-web-app-capable" content="yes">
@@ -169,6 +171,70 @@ body.skin-keys .numpad-overlay {
 }
 .notice-bar .nb-no { border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text-sub); }
 .notice-bar .nb-yes { border: none; background: var(--acc); color: var(--on-acc); }
+
+/* 指で拡大できるようにした代わりの手当て（v385）。
+   iPhone は「文字が16pxより小さい入力欄」に触れると画面を勝手に拡大し、
+   そのあと自分では戻らない。触れているあいだだけ16pxにしておくと、
+   その勝手な拡大が起きない。指での拡大・縮小はこれまでどおりできる。 */
+@media (pointer: coarse) {
+  input:focus, textarea:focus, select:focus { font-size: 16px; }
+}
+
+/* 新しくなったこと（v385） */
+.wn-acc { margin-bottom: 8px; }
+.wn-ul { margin: 0; padding-left: 20px; }
+.wn-ul li { font-size: 13px; line-height: 1.8; color: var(--text); margin-bottom: 4px; }
+.wn-ul li b { color: var(--acc-text); }
+
+/* はじめて開くときの読み込み表示（v385） */
+#appSplash {
+  position: fixed; inset: 0; z-index: 12000;
+  background: linear-gradient(150deg, #2a8a55, #217346 55%, #0f4a26);
+  color: #fff; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px;
+  transition: opacity .28s ease;
+}
+#appSplash.gone { opacity: 0; pointer-events: none; }
+#appSplash .sp-ico { font-size: 62px; line-height: 1; }
+#appSplash .sp-n { font-size: 26px; font-weight: bold; letter-spacing: .06em; }
+#appSplash .sp-b { width: 132px; height: 4px; border-radius: 99px; background: rgba(255,255,255,.28); overflow: hidden; }
+#appSplash .sp-b span { display: block; width: 40%; height: 100%; border-radius: 99px; background: #fff; animation: spSlide 1.1s ease-in-out infinite; }
+@keyframes spSlide { 0% { transform: translateX(-110%); } 100% { transform: translateX(360%); } }
+@media (prefers-reduced-motion: reduce) { #appSplash .sp-b span { animation: none; width: 100%; } }
+
+/* ── はじめての案内（v384） ──
+   だれでも「とばす」で閉じられるようにして、一度見たらもう出さない。 */
+.tour-card {
+  background: var(--modal-bg); border-radius: var(--r-card);
+  width: 90%; max-width: 380px; box-shadow: var(--elev-2);
+  padding: 22px 20px 16px; display: flex; flex-direction: column; gap: 14px;
+}
+.tour-skip {
+  position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 14px;
+  padding: 8px 14px; border-radius: var(--r-pill); border: none;
+  background: rgba(255,255,255,.22); color: #fff; font-size: 13px; font-weight: bold;
+  cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.tour-ico { font-size: 52px; text-align: center; line-height: 1.1; }
+.tour-h { font-size: 19px; font-weight: bold; text-align: center; color: var(--text); line-height: 1.45; }
+.tour-b { font-size: 14px; line-height: 1.85; color: var(--text-sub); }
+.tour-b b { color: var(--text); }
+.tour-ex {
+  background: var(--save-item-bg); border: 1px solid var(--save-item-border);
+  border-radius: var(--r-btn); padding: 10px 12px; font-size: 14px; line-height: 1.7; color: var(--text);
+}
+.tour-dots { display: flex; gap: 7px; justify-content: center; padding-top: 2px; }
+.tour-dots i { width: 7px; height: 7px; border-radius: var(--r-pill); background: var(--save-item-border); }
+.tour-dots i.on { background: var(--acc); width: 18px; }
+.tour-row { display: flex; gap: 8px; }
+.tour-row button {
+  flex: 1; padding: 12px 10px; font-size: 15px; font-weight: bold;
+  border-radius: var(--r-btn); cursor: pointer; touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.tour-row .t-back { flex: 0 0 auto; min-width: 84px; border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text-sub); }
+.tour-row .t-next { border: none; background: var(--acc); color: var(--on-acc); }
+.tour-row .t-sub { border: 1px solid var(--acc); background: transparent; color: var(--acc-text); }
 
 /* 端末の空き具合：データが消えないようにできているかの行 */
 .st-persist {
@@ -2967,6 +3033,14 @@ body.dark {
 </head>
 <body>
 
+<!-- はじめて開くときだけ見える読み込み中の表示（v385）。
+     中身が組み上がったら splashDone() で消す。 -->
+<div id="appSplash" aria-hidden="true">
+  <div class="sp-ico">📊</div>
+  <div class="sp-n">表電卓</div>
+  <div class="sp-b"><span></span></div>
+</div>
+
 <div class="toolbar" id="mainToolbar">
   <span class="toolbar-title" id="recordTitle" onclick="showSaveList()" title="今開いている記録（タップでリストを開く）">📄 未保存</span>
   <button class="btn-save menu-item" id="saveBtn" onclick="saveData()" title="上書き保存／長押しで名前を付けて保存">保存</button>
@@ -4738,6 +4812,21 @@ body.dark {
   </div>
 </div>
 
+<!-- 新しくなったこと（v385） -->
+<div class="modal-overlay" id="whatsNewOverlay" onclick="if(event.target===this)closeWhatsNew()">
+  <div class="modal">
+    <div class="modal-header"><span>🆕 新しくなったこと</span>
+      <button class="modal-close" onclick="closeWhatsNew()">✕</button></div>
+    <div class="modal-body" id="whatsNewBody"></div>
+  </div>
+</div>
+
+<!-- はじめての案内（v384）。いつでも「とばす」で閉じられる -->
+<div class="modal-overlay" id="tourOverlay">
+  <button class="tour-skip" onclick="tourSkip()">とばす ✕</button>
+  <div class="tour-card" id="tourCard"></div>
+</div>
+
 <div class="modal-overlay" id="helpOverlay" onclick="if(event.target===this)closeHelp()">
   <div class="modal help-modal">
     <div class="modal-header">
@@ -5090,6 +5179,9 @@ body.dark {
           <div class="help-li"><b>消したいとき</b>：<b>⋯→🧹端末の空き具合</b>で、何がどれだけ入っているかを見ながら<b>種類ごとに消せます</b>（育成日記の写真・写真メモ・容積の写真・電卓の履歴・背景の写真）。記録そのものはリストから消せます。ぜんぶ消すなら、ブラウザの設定でこのサイトのデータを削除してください。<b>消したものは戻せません</b>ので、先に⬇書き出しをおすすめします。</div>
         </div>
       </details>
+
+      <button class="set-act" style="margin-top:14px" onclick="closeHelp(); setTimeout(openWhatsNew, 320);">🆕 新しくなったことを見る</button>
+      <button class="set-act" onclick="closeHelp(); setTimeout(openTour, 320);">🚀 はじめての案内をもう一度見る</button>
 
       <div class="help-ver" id="helpVer"></div>
     </div>
@@ -6411,7 +6503,8 @@ function clearSelection(){
   entries.forEach(({r,c})=>{ data[r][c]=''; const el=document.getElementById(`c${r}_${c}`); if(el) setCellDisp(el, r,c); });
   recalcAll(); if(isStructMode()) recalcMode();
   document.getElementById('formulaInput').value=cellEditString(selR,selC);
-  updateStats(selC); persistModes(); if(typeof saveSheets==='function') saveSheets();
+  updateStats(selC); persistModes();
+  if(typeof saveSheets==='function'){ if(saveSheets()) saveOk(); else saveFailed('いまの表の自動保存'); }
 }
 /* メニューの「📥貼り付け」：スマホの貼り付けと同じく、まず端末のコピー内容を見る。
    読めないとき（許可されない・空）は、アプリの中でコピーした内容を貼る。
@@ -7640,7 +7733,8 @@ function applySkin(){
   refreshSkinUI();
 }
 function saveSkin(){
-  try{ localStorage.setItem(SKIN_KEY, JSON.stringify({t:skinTheme,k:skinKeyTone,b:skinBg,s:skinStr,w:skinWhere})); }catch(_){}
+  try{ localStorage.setItem(SKIN_KEY, JSON.stringify({t:skinTheme,k:skinKeyTone,b:skinBg,s:skinStr,w:skinWhere})); }
+  catch(_){ toast('色の設定を覚えられませんでした。端末の空きを確かめてください'); }
 }
 function loadSkin(){
   try{ skinPhoto=localStorage.getItem(SKIN_PHOTO_KEY)||''; }catch(_){ skinPhoto=''; }
@@ -7840,6 +7934,171 @@ function maybeAskBackup(){
     onNo:()=>{ bkSnooze(); },
   });
   return true;
+}
+
+/* ── 保存に失敗したときに黙らない（v385） ──
+   端末がいっぱいのときに「押したのに何も起きない」となるのがいちばん困るので、
+   自動保存が通らなくなったら一度だけはっきり伝える。直ったらまた伝えられる。 */
+let saveFailTold=false;
+function saveFailed(what){
+  if(saveFailTold) return;
+  saveFailTold=true;
+  toast((what||'保存')+'ができませんでした。⋯→🧹端末の空き具合 で片づけてください', 4200);
+}
+function saveOk(){ saveFailTold=false; }
+
+/* ── 新しくなったこと（v385） ──
+   更新はよくあるので、全画面では出さずに下のバーで知らせるだけにする。
+   「あとで」でもその版は見たことにして、しつこく出さない。 */
+const SEEN_VER_KEY='excalc_seen_ver';
+const WHATSNEW=[
+  { v:'v385', t:'見やすく、うまくいかないときも分かるように', li:[
+    '指で広げて<b>画面を拡大</b>できるようになりました',
+    'はじめて開くときに<b>読み込み中の表示</b>が出ます',
+    '端末がいっぱいで<b>保存できなかったとき</b>に、黙らずお知らせします',
+    'この<b>「新しくなったこと」</b>が見られるようになりました（説明書からいつでも）',
+  ]},
+  { v:'v384', t:'はじめての案内と、電波の知らせ', li:[
+    'はじめて開いた人に<b>4枚の案内</b>が出ます（<b>「とばす」でいつでも閉じられます</b>。一度きりで、更新しても出直しません）',
+    '<b>見本の表</b>（見積り）をワンタップで入れられます（↶戻るで消せます）',
+    '<b>電波が切れたとき</b>に「このまま使えます」とお知らせします',
+  ]},
+  { v:'v383', t:'アイコンと、リンクの見え方', li:[
+    'ホーム画面のアイコンが<b>丸く切られても欠けなく</b>なりました',
+    'アイコンを<b>長押しすると、電卓・表・単位水量・写真メモ</b>へすぐ飛べます',
+    'リンクを送ったときに<b>中身が分かるカード</b>で出ます',
+  ]},
+  { v:'v382', t:'データの守り', li:[
+    '<b>データが勝手に消されないよう</b>端末にお願いするようにしました（⋯→🧹端末の空き具合 で状態が見られます）',
+    '更新で<b>勝手に画面が飛ばなく</b>なりました（「いま更新／あとで」を選べます）',
+    'しばらく書き出していないと<b>バックアップのおすすめ</b>が出ます',
+    '説明書に<b>🔒データとプライバシー</b>の節を足しました',
+  ]},
+  { v:'v381', t:'背景が色に合う・水玉がまばらに', li:[
+    '背景に<b>「色に合わせる」</b>が増えました',
+    '<b>水玉</b>が大きさのまばらな散らばりになりました',
+  ]},
+  { v:'v380', t:'背景を出す場所', li:[
+    '背景を<b>両方／表だけ／テンキーだけ</b>から選べます',
+  ]},
+  { v:'v379', t:'色と背景（着せかえ）', li:[
+    '<b>10色</b>から選べて、ボタンも枠線も一度に変わります',
+    '<b>好きな写真や絵</b>を、透かして背景にできます',
+  ]},
+];
+function seenVer(){ try{ return localStorage.getItem(SEEN_VER_KEY)||''; }catch(_){ return ''; } }
+function markSeenVer(){ try{ localStorage.setItem(SEEN_VER_KEY, APP_VERSION); }catch(_){} }
+function openWhatsNew(){ renderWhatsNew(); openDlg('whatsNewOverlay'); markSeenVer(); }
+function closeWhatsNew(){ closeDlg('whatsNewOverlay'); }
+function renderWhatsNew(){
+  const box=document.getElementById('whatsNewBody'); if(!box) return;
+  box.innerHTML=WHATSNEW.map((w,i)=>`<details class="help-acc wn-acc"${i===0?' open':''}>
+      <summary>${w.v}　${escHtml(w.t)}</summary>
+      <div class="help-acc-body"><ul class="wn-ul">${w.li.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+    </details>`).join('');
+}
+/* 前に使っていた版と違っていたら、下のバーで一度だけ知らせる。
+   はじめて入れた人（前の版を知らない人）には出さない。 */
+function maybeTellWhatsNew(){
+  const prev=seenVer();
+  if(!prev){ markSeenVer(); return false; }        // はじめての人。案内のほうを見てもらう
+  if(prev===APP_VERSION) return false;
+  if(!WHATSNEW.some(w=>w.v===APP_VERSION)){ markSeenVer(); return false; }
+  const w=WHATSNEW.find(x=>x.v===APP_VERSION);
+  showNotice({
+    title:APP_VERSION+' に新しくなりました',
+    sub:w.t, yes:'見る', no:'あとで',
+    onYes:()=>{ openWhatsNew(); },
+    onNo:()=>{ markSeenVer(); },
+  });
+  return true;
+}
+
+/* ── はじめての案内（v384） ──
+   はじめて開いた人だけに一度出す。更新はよくあるので、
+   版が上がっても出し直さない（見た／とばした、を覚えるだけ）。
+   どのページでも右上の「とばす ✕」でいつでも閉じられる。 */
+const TOUR_KEY='excalc_tour_done';
+const TOUR_PAGES=[
+  { ico:'📊🧮', h:'表と電卓、どちらも使えます',
+    b:'表に数字を入れて<b>合計や数式</b>で計算するのも、<b>ふつうの電卓</b>として叩くのも、同じアプリの中です。',
+    ex:'画面を<b>横にスッとなぞる</b>と行き来できます。テンキーの上の<b>「書式・枠線／数字／記号／電卓」</b>を押しても移れます。' },
+  { ico:'🎤', h:'口で言うだけでも計算できます',
+    b:'<b>🎤声</b>のキーを押して、ふだんのことばで言うだけです。',
+    ex:'「<b>180円を4個</b>」→ 720円<br>「<b>20平米に厚さ10センチ</b>」→ 2㎥<br>「<b>12800円を4人で割って</b>」→ 3,200円<br><b>📖言い方の早見表</b>に、言える形が63とおり並んでいます。' },
+  { ico:'🧰', h:'現場と畑の道具がそろっています',
+    b:'上のバーの<b>⋯</b>から開けます。テンキーの上に出しておくこともできます。',
+    ex:'💧単位水量試験　🧪カンタブ　📷容積　📝写真メモ<br>🌱野菜づくり（育成日記・カレンダー）　🔗リンク集' },
+  { ico:'📶🔒', h:'電波がなくても、そのまま使えます',
+    b:'一度開いておけば、<b>電波の入らない現場でも</b>いつもどおり動きます。入れたものは<b>この端末の中だけ</b>に残り、どこにも送りません。',
+    ex:'困ったときは <b>⋯ → 📖説明書</b>。この案内は<b>説明書のいちばん下</b>からいつでも見直せます。' },
+];
+let tourIdx=0;
+function tourSeen(){ try{ return localStorage.getItem(TOUR_KEY)==='1'; }catch(_){ return true; } }
+function tourMarkSeen(){ try{ localStorage.setItem(TOUR_KEY,'1'); }catch(_){} }
+function openTour(){ tourIdx=0; renderTour(); openDlg('tourOverlay'); }
+function closeTour(){ closeDlg('tourOverlay'); }
+function tourSkip(){ tourMarkSeen(); closeTour(); }
+function tourGo(d){
+  const n=tourIdx+d;
+  if(n<0) return;
+  if(n>=TOUR_PAGES.length){ tourDone(); return; }
+  tourIdx=n; renderTour();
+}
+function tourDone(){ tourMarkSeen(); closeTour(); toast('いつでも 説明書 から見直せます'); }
+function renderTour(){
+  const box=document.getElementById('tourCard'); if(!box) return;
+  const p=TOUR_PAGES[tourIdx], last=(tourIdx===TOUR_PAGES.length-1);
+  let html=`<div class="tour-ico">${p.ico}</div>
+    <div class="tour-h">${p.h}</div>
+    <div class="tour-b">${p.b}</div>
+    ${p.ex?`<div class="tour-ex">${p.ex}</div>`:''}
+    <div class="tour-dots">${TOUR_PAGES.map((_,i)=>`<i class="${i===tourIdx?'on':''}"></i>`).join('')}</div>
+    <div class="tour-row">`;
+  if(tourIdx>0) html+=`<button class="t-back" onclick="tourGo(-1)">戻る</button>`;
+  if(last){
+    html+=`<button class="t-sub" onclick="tourSample()">見本を入れる</button>
+      <button class="t-next" onclick="tourDone()">はじめる</button>`;
+  }else{
+    html+=`<button class="t-next" onclick="tourGo(1)">つぎへ</button>`;
+  }
+  html+=`</div>`;
+  box.innerHTML=html;
+}
+/* 見本の表（v384）。何ができるアプリなのかを一目で分かるようにする。
+   ↶戻る で消せるよう、ふつうの操作と同じように記録しておく。 */
+function tourSample(){
+  tourMarkSeen(); closeTour();
+  setTimeout(()=>{ insertSampleSheet(); }, 320);
+}
+function insertSampleSheet(){
+  try{
+    if(typeof pushSnapshot==='function') pushSnapshot('見本の表を入れる');
+    const rows=[
+      ['品名','数量','単価','金額'],
+      ['生コン 21-8-20', 12, 16800, '=B2*C2'],
+      ['ポンプ車',        1, 58000, '=B3*C3'],
+      ['型枠',           85,  1450, '=B4*C4'],
+      ['鉄筋 D13',      1.8, 92000, '=B5*C5'],
+      ['合計','','','=SUM(D2:D5)'],
+    ];
+    if(ROWS<rows.length) ROWS=rows.length;
+    if(COLS<4) COLS=4;
+    rows.forEach((r,i)=>r.forEach((v,j)=>{ data[i][j]=v; }));
+    buildSheet(); sel(5,3);
+    if(typeof persistModes==='function') persistModes();
+    if(typeof saveSheets==='function') saveSheets();
+    toast('見本の表を入れました（↶戻る で消せます）');
+  }catch(_){ toast('見本を入れられませんでした'); }
+}
+
+/* ── 電波がないときのお知らせ（v384） ──
+   オフラインでも使えることは強みなので、切れたときに一度だけ伝える。 */
+let netWasOffline=false;
+function netInit(){
+  netWasOffline=(navigator.onLine===false);
+  window.addEventListener('offline', ()=>{ netWasOffline=true; toast('電波が切れました。このまま使えます', 2600); });
+  window.addEventListener('online',  ()=>{ if(netWasOffline){ netWasOffline=false; toast('電波が戻りました', 1600); } });
 }
 
 function changeRows(delta) {
@@ -17923,7 +18182,7 @@ function persistModes(){
     localStorage.setItem(MODE_STORE_KEY, JSON.stringify({
       current:tableMode, rows:ROWS, warikanPeople, states
     }));
-  }catch(e){}
+  }catch(e){ saveFailed('いまの表の自動保存'); }
 }
 function restoreModeStore(){
   let s; try{ s=JSON.parse(localStorage.getItem(MODE_STORE_KEY)||'null'); }catch(e){ s=null; }
@@ -18738,7 +18997,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v383';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v385';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -20847,6 +21106,22 @@ if("serviceWorker" in navigator){
     });
   }).catch(function(){});
 }
+
+netInit();
+/* 組み上がったので読み込み表示を消す（v385） */
+function splashDone(){
+  const el=document.getElementById('appSplash'); if(!el) return;
+  el.classList.add('gone');
+  setTimeout(()=>{ if(el.parentNode) el.parentNode.removeChild(el); }, 400);
+}
+requestAnimationFrame(()=>setTimeout(splashDone, 120));
+
+/* 更新があったら、下のバーで一度だけ知らせる（v385） */
+setTimeout(()=>{ try{ maybeTellWhatsNew(); }catch(_){} }, 2200);
+
+/* はじめて開いた人にだけ、案内を出す（v384）。
+   組み立てが終わってから出したいので、少しだけ待つ。 */
+if(!tourSeen()) setTimeout(()=>{ try{ if(!tourSeen()) openTour(); }catch(_){} }, 700);
 
 /* 起動して落ち着いてから、データの守りとバックアップのおすすめ（v382） */
 setTimeout(()=>{ stInitPersist(); }, 1200);

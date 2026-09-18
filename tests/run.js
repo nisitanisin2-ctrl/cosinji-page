@@ -36,7 +36,10 @@ async function newPage(browser) {
   page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
   page.on('dialog', d => { dialogs.push(d.message().split('\n')[0]); d.accept(); });
   await page.goto(INDEX); await page.waitForTimeout(300);
-  await page.evaluate(() => localStorage.clear());
+  // はじめての案内（v384）は初回だけ全画面で出る。ふつうの組では
+  // 「もう見た人」として開き、画面をふさがないようにする
+  // （案内そのものは onboard の組で、まっさらな端末から確かめている）。
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
   await page.reload(); await page.waitForTimeout(900);
   return { ctx, page, errs, dialogs };
 }
@@ -4078,6 +4081,176 @@ async function runPackaging(browser) {
   await ctx.close();
 }
 
+/* ── はじめての案内・見本の表・電波 v384 ── */
+async function runOnboard(browser) {
+  // この組だけは「まっさらな端末で初めて開く」ところを見たいので、自前で開く
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+  console.log('\n── はじめての案内 ──');
+  await page.goto(INDEX); await page.waitForTimeout(300);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload(); await page.waitForTimeout(1400);
+
+  const open = () => page.evaluate(() => isDlgOpen('tourOverlay'));
+  const head = () => page.evaluate(() => document.querySelector('.tour-h').textContent);
+  check('  はじめて開いたら案内が出る', await open(), true);
+  check('  4枚ある', await page.evaluate(() => TOUR_PAGES.length), 4);
+  check('  1枚目は表と電卓', await head(), '表と電卓、どちらも使えます');
+  check('  いまどこか分かる丸', await page.evaluate(() =>
+    [...document.querySelectorAll('.tour-dots i')].findIndex(x => x.classList.contains('on'))), 0);
+  check('  とばすボタンが出ている', await page.evaluate(() =>
+    document.querySelector('.tour-skip').textContent.trim()), 'とばす ✕');
+  check('  1枚目に戻るボタンはない', await page.evaluate(() =>
+    !document.querySelector('.tour-row .t-back')), true);
+
+  await page.evaluate(() => tourGo(1)); await page.waitForTimeout(200);
+  check('  つぎへで進む', await head(), '口で言うだけでも計算できます');
+  check('  言い方の見本が出る', await page.evaluate(() =>
+    document.querySelector('.tour-ex').textContent.includes('180円を4個')), true);
+  await page.evaluate(() => tourGo(-1)); await page.waitForTimeout(200);
+  check('  戻るで戻れる', await head(), '表と電卓、どちらも使えます');
+  await page.evaluate(() => { tourGo(1); tourGo(1); tourGo(1); }); await page.waitForTimeout(250);
+  check('  4枚目は電波とデータ', await head(), '電波がなくても、そのまま使えます');
+  check('  さいごは 見本／はじめる', await page.evaluate(() =>
+    [...document.querySelectorAll('.tour-row button')].map(x => x.textContent).join('/')), '戻る/見本を入れる/はじめる');
+  check('  行き過ぎない', await page.evaluate(() => { tourGo(-1); tourGo(-1); tourGo(-1); tourGo(-1); return tourIdx; }), 0);
+
+  // とばせる／一度きり
+  await page.evaluate(() => tourSkip()); await page.waitForTimeout(400);
+  check('  とばすと閉じる', await open(), false);
+  check('  とばしたことを覚える', await page.evaluate(() => tourSeen()), true);
+  await page.reload(); await page.waitForTimeout(1400);
+  check('  二度目は出さない', await open(), false);
+  check('  版が上がっても出し直さない', await page.evaluate(() => {
+    // 覚えているのは「見た」だけで、版の番号は持たない
+    return localStorage.getItem(TOUR_KEY) === '1' && !/v\d/.test(localStorage.getItem(TOUR_KEY)); }), true);
+
+  // あとから見直せる
+  await page.evaluate(() => openTour()); await page.waitForTimeout(300);
+  check('  あとから見直せる', await open(), true);
+  check('  見直すと1枚目から', await page.evaluate(() => tourIdx), 0);
+  await page.evaluate(() => tourSkip()); await page.waitForTimeout(350);
+  await page.evaluate(() => openHelp()); await page.waitForTimeout(400);
+  check('  説明書に入口がある', await page.evaluate(() =>
+    [...document.querySelectorAll('#helpOverlay button')].some(b => b.textContent.includes('はじめての案内'))), true);
+  await page.evaluate(() => closeHelp()); await page.waitForTimeout(350);
+
+  // 見本の表
+  await page.evaluate(() => { openTour(); tourGo(1); tourGo(1); tourGo(1); }); await page.waitForTimeout(300);
+  await page.evaluate(() => tourSample()); await page.waitForTimeout(800);
+  check('  見本を入れると閉じる', await open(), false);
+  check('  見出しが入る', await page.evaluate(() => [data[0][0], data[0][3]].join('/')), '品名/金額');
+  check('  品物が入る', await page.evaluate(() => data[1][0]), '生コン 21-8-20');
+  check('  かけ算の式が入る', await page.evaluate(() => data[1][3]), '=B2*C2');
+  check('  合計の式が入る', await page.evaluate(() => data[5][3]), '=SUM(D2:D5)');
+  check('  ちゃんと計算される', await page.evaluate(() => getCellValue(5, 3)), 548450);
+  check('  列は4つ以上ある', await page.evaluate(() => COLS >= 4), true);
+  check('  ↶戻る で消せる', await page.evaluate(() => { undoLast(); return data[1][0]; }), '');
+  check('  見本を入れたら案内はもう出ない', await page.evaluate(() => tourSeen()), true);
+
+  // 電波
+  check('  電波の見張りがある', await page.evaluate(() => typeof netInit === 'function'), true);
+  await ctx.setOffline(true); await page.waitForTimeout(500);
+  check('  切れたら伝える', await page.evaluate(() => document.getElementById('appToast').textContent),
+    '電波が切れました。このまま使えます');
+  check('  そのまま使えると伝える', await page.evaluate(() =>
+    document.getElementById('appToast').textContent.includes('このまま使えます')), true);
+  await ctx.setOffline(false); await page.waitForTimeout(700);
+  check('  戻ったら伝える', await page.evaluate(() => document.getElementById('appToast').textContent), '電波が戻りました');
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
+/* ── 磨き込み（新しくなったこと・拡大・読み込み表示・失敗の知らせ）v385 ── */
+async function runPolish(browser) {
+  const fs = require('fs'), pathmod = require('path');
+  const root = pathmod.join(__dirname, '..');
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 磨き込み ──');
+
+  // 指で拡大できる
+  const vp = await page.evaluate(() => document.querySelector('meta[name=viewport]').content);
+  check('  指で拡大できる', /user-scalable=yes/.test(vp), true);
+  check('  5倍まで拡げられる', /maximum-scale=5/.test(vp), true);
+  check('  切りかけを防ぐ指定は残す', /viewport-fit=cover/.test(vp), true);
+  check('  触れた入力欄は16pxにする', await page.evaluate(() => {
+    // iPhone が勝手に拡大しないための手当て
+    return [...document.styleSheets[0].cssRules].some(r =>
+      r.conditionText && r.conditionText.includes('coarse') &&
+      [...(r.cssRules || [])].some(x => x.selectorText && x.selectorText.includes('input:focus')));
+  }), true);
+
+  // 読み込み表示
+  const raw = fs.readFileSync(pathmod.join(root, 'index.html'), 'utf8');
+  check('  読み込み表示が書いてある', raw.includes('id="appSplash"'), true);
+  check('  消すしくみがある', await page.evaluate(() => typeof splashDone === 'function'), true);
+  check('  組み上がったら消えている', await page.evaluate(() =>
+    !document.getElementById('appSplash')), true);
+
+  // 新しくなったこと
+  check('  いまの版の分が書いてある', await page.evaluate(() =>
+    WHATSNEW.some(w => w.v === APP_VERSION)), true);
+  check('  新しい順に並ぶ', await page.evaluate(() => WHATSNEW[0].v), await page.evaluate(() => APP_VERSION));
+  check('  どの版にも中身がある', await page.evaluate(() =>
+    WHATSNEW.every(w => w.t && w.li.length > 0)), true);
+  await page.evaluate(() => localStorage.removeItem(SEEN_VER_KEY));
+  check('  はじめての人には出さない', await page.evaluate(() => maybeTellWhatsNew()), false);
+  check('  でも版は覚えておく', await page.evaluate(() => seenVer()), await page.evaluate(() => APP_VERSION));
+  check('  同じ版なら出さない', await page.evaluate(() => maybeTellWhatsNew()), false);
+  check('  版が上がったら知らせる', await page.evaluate(() => {
+    localStorage.setItem(SEEN_VER_KEY, 'v380'); return maybeTellWhatsNew(); }), true);
+  await page.waitForTimeout(300);
+  check('  見出しに版が入る', await page.evaluate(() =>
+    document.querySelector('#noticeBar .nb-t').textContent), await page.evaluate(() => APP_VERSION + ' に新しくなりました'));
+  await page.click('#noticeBar .nb-yes'); await page.waitForTimeout(450);
+  check('  「見る」で開く', await page.evaluate(() => isDlgOpen('whatsNewOverlay')), true);
+  check('  版ごとに畳んである', await page.evaluate(() =>
+    document.querySelectorAll('#whatsNewBody details').length), await page.evaluate(() => WHATSNEW.length));
+  check('  いちばん新しいのは開いている', await page.evaluate(() =>
+    document.querySelector('#whatsNewBody details').open), true);
+  check('  見たら覚える', await page.evaluate(() => seenVer()), await page.evaluate(() => APP_VERSION));
+  await page.evaluate(() => closeWhatsNew()); await page.waitForTimeout(400);
+  await page.evaluate(() => { localStorage.setItem(SEEN_VER_KEY, 'v380'); maybeTellWhatsNew(); });
+  await page.waitForTimeout(300);
+  await page.click('#noticeBar .nb-no'); await page.waitForTimeout(300);
+  check('  「あとで」でも覚える', await page.evaluate(() => seenVer()), await page.evaluate(() => APP_VERSION));
+  check('  しつこく出さない', await page.evaluate(() => maybeTellWhatsNew()), false);
+  await page.evaluate(() => openHelp()); await page.waitForTimeout(400);
+  check('  説明書から見られる', await page.evaluate(() =>
+    [...document.querySelectorAll('#helpOverlay button')].some(b => b.textContent.includes('新しくなったこと'))), true);
+  await page.evaluate(() => closeHelp()); await page.waitForTimeout(350);
+
+  // 保存に失敗したときに黙らない
+  check('  失敗を伝えるしくみ', await page.evaluate(() =>
+    typeof saveFailed === 'function' && typeof saveOk === 'function'), true);
+  check('  何ができなかったか言う', await page.evaluate(() => {
+    saveOk(); saveFailed('ためし'); return document.getElementById('appToast').textContent; }),
+    'ためしができませんでした。⋯→🧹端末の空き具合 で片づけてください');
+  check('  同じことを何度も言わない', await page.evaluate(() => {
+    const t = document.getElementById('appToast'); t.textContent = 'x'; saveFailed('ためし'); return t.textContent; }), 'x');
+  check('  直ったらまた言える', await page.evaluate(() => {
+    saveOk(); saveFailed('ためし2'); return document.getElementById('appToast').textContent.includes('ためし2'); }), true);
+  check('  自動保存の失敗につないである', raw.includes("saveFailed('いまの表の自動保存')"), true);
+  check('  色の設定の失敗も伝える', raw.includes('色の設定を覚えられませんでした'), true);
+
+  // README
+  const rd = fs.readFileSync(pathmod.join(root, 'README.md'), 'utf8');
+  check('  READMEが何のアプリか言う', rd.includes('表計算のできる電卓'), true);
+  check('  READMEが誰向けか言う', rd.includes('現場'), true);
+  check('  READMEに使いはじめがある', rd.includes('## 使いはじめ'), true);
+  check('  READMEに配り方がある', rd.includes('## 配る'), true);
+  check('  版をそろえる注意がある', rd.includes('APP_VERSION') && rd.includes('CACHE'), true);
+  check('  READMEにテストの通し方がある', rd.includes('node tests/run.js'), true);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -4110,6 +4283,8 @@ async function runPackaging(browser) {
     if (!only || only === 'skin') await runSkin(browser);
     if (!only || only === 'safety') await runSafety(browser);
     if (!only || only === 'packaging') await runPackaging(browser);
+    if (!only || only === 'onboard') await runOnboard(browser);
+    if (!only || only === 'polish') await runPolish(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
