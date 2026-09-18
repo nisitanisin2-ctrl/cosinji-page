@@ -236,7 +236,7 @@ async function runMode(browser) {
                     TMPL_BACK_TO_PLAIN, TMPL_KEEPS_PLAIN, TMPL_FROM_OTHER_MODE,
                     TMPL_MODE_ROUNDTRIP, TMPL_MODE_THEN_PLAIN, HISTORY_PER_MODE,
                     TMPL_TO_DEFAULT_SIZE, TMPL_RESET_THEN_PLAIN, SMALL_TABLE_KEPT]) {
-    await page.evaluate(() => { localStorage.clear(); });
+    await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
     await page.reload(); await page.waitForTimeout(900);
     for (const step of sc.steps) {
       if (step.do) { await page.evaluate(src => eval(src), step.do); await page.waitForTimeout(700); }
@@ -253,7 +253,7 @@ async function runMode(browser) {
   }
   // ひな形の表で「通常」を押したとき、確認窓を出さない
   // （モードを選ぶ流れに確認窓が割り込むと、モードが選べなくなるため）
-  await page.evaluate(() => { localStorage.clear(); });
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
   await page.reload(); await page.waitForTimeout(900);
   dialogs.length = 0;
   await page.evaluate(() => applyTemplateObj(CALC_TEMPLATES[0], () => {}));
@@ -408,7 +408,7 @@ async function runCellMenu(browser) {
   page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
   page.on('dialog', d => d.accept());
   await page.goto(INDEX); await page.waitForTimeout(300);
-  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
   await page.reload(); await page.waitForTimeout(900);
   console.log('\n── セルの長押しメニュー ──');
 
@@ -660,7 +660,7 @@ async function runTopBar(browser) {
   page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
   page.on('dialog', d => d.accept());
   await page.goto(INDEX); await page.waitForTimeout(300);
-  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
   await page.reload(); await page.waitForTimeout(900);
   console.log('\n── 上のバーに出すボタン ──');
 
@@ -3552,7 +3552,7 @@ async function runExport(browser) {
   page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
   page.on('dialog', d => d.accept());
   await page.goto(INDEX); await page.waitForTimeout(300);
-  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
   await page.reload(); await page.waitForTimeout(900);
   console.log('\n── 書き出し ──');
   const ans = async w => { await page.waitForTimeout(250);

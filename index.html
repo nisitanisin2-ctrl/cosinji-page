@@ -4822,7 +4822,7 @@ body.dark {
 </div>
 
 <!-- はじめての案内（v384）。いつでも「とばす」で閉じられる -->
-<div class="modal-overlay" id="tourOverlay">
+<div class="modal-overlay" id="tourOverlay" role="dialog" aria-modal="true" aria-labelledby="tourTitle">
   <button class="tour-skip" onclick="tourSkip()">とばす ✕</button>
   <div class="tour-card" id="tourCard"></div>
 </div>
@@ -8050,7 +8050,7 @@ function renderTour(){
   const box=document.getElementById('tourCard'); if(!box) return;
   const p=TOUR_PAGES[tourIdx], last=(tourIdx===TOUR_PAGES.length-1);
   let html=`<div class="tour-ico">${p.ico}</div>
-    <div class="tour-h">${p.h}</div>
+    <div class="tour-h" id="tourTitle">${p.h}</div>
     <div class="tour-b">${p.b}</div>
     ${p.ex?`<div class="tour-ex">${p.ex}</div>`:''}
     <div class="tour-dots">${TOUR_PAGES.map((_,i)=>`<i class="${i===tourIdx?'on':''}"></i>`).join('')}</div>
