@@ -3889,6 +3889,195 @@ async function runSkin(browser) {
   await ctx.close();
 }
 
+/* ── データの守り・更新の出し方・プライバシー v382 ── */
+async function runSafety(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── データの守りと更新 ──');
+  const shown = () => page.evaluate(() => {
+    const el = document.getElementById('noticeBar');
+    return !!(el && el.classList.contains('show'));
+  });
+  const title = () => page.evaluate(() => {
+    const el = document.querySelector('#noticeBar .nb-t'); return el ? el.textContent : '';
+  });
+
+  // お知らせバー
+  check('  はじめは出ていない', await shown(), false);
+  await page.evaluate(() => { window.__y = 0; window.__n = 0;
+    showNotice({ title: 'ためし', sub: 'そえ書き', yes: 'する', no: 'しない',
+      onYes: () => window.__y = 1, onNo: () => window.__n = 1 }); });
+  await page.waitForTimeout(300);
+  check('  お知らせバーが出る', await shown(), true);
+  check('  見出しが出る', await title(), 'ためし');
+  check('  そえ書きも出る', await page.evaluate(() =>
+    document.querySelector('#noticeBar .nb-s').textContent), 'そえ書き');
+  check('  ボタンは2つ（あとで・する）', await page.evaluate(() =>
+    [...document.querySelectorAll('#noticeBar button')].map(x => x.textContent).join('/')), 'しない/する');
+  await page.click('#noticeBar .nb-no'); await page.waitForTimeout(300);
+  check('  「しない」で閉じる', await shown(), false);
+  check('  「しない」が呼ばれる', await page.evaluate(() => window.__n), 1);
+  await page.evaluate(() => showNotice({ title: 'ためし2', onYes: () => window.__y = 2 }));
+  await page.waitForTimeout(300);
+  await page.click('#noticeBar .nb-yes'); await page.waitForTimeout(300);
+  check('  「する」が呼ばれる', await page.evaluate(() => window.__y), 2);
+  check('  押したら閉じる', await shown(), false);
+
+  // データが消えないようにする
+  check('  端末に聞くしくみがある', await page.evaluate(() =>
+    typeof stCheckPersist === 'function' && typeof stAskPersist === 'function'), true);
+  check('  いまの状態を読める', await page.evaluate(() =>
+    stCheckPersist().then(v => v === true || v === false || v === null)), true);
+  await page.evaluate(() => { stPersisted = false; openStorage(); });
+  await page.waitForTimeout(400);
+  check('  ⚠のときは注意が出る', await page.evaluate(() =>
+    !!document.querySelector('.st-persist.warn')), true);
+  check('  消えないようにするボタンがある', await page.evaluate(() => {
+    const b = document.querySelector('.st-persist .stp-btn'); return b ? b.textContent.trim() : ''; }), '🔒 消えないようにする');
+  check('  7日で消えることに触れている', await page.evaluate(() =>
+    document.querySelector('.st-persist.warn').textContent.includes('7日')), true);
+  await page.evaluate(() => { stPersisted = true; renderStorage(); });
+  await page.waitForTimeout(250);
+  check('  🔒のときは注意を出さない', await page.evaluate(() =>
+    !!document.querySelector('.st-persist') && !document.querySelector('.st-persist.warn')), true);
+  await page.evaluate(() => { stPersisted = null; renderStorage(); });
+  await page.waitForTimeout(250);
+  check('  分からないときは何も出さない', await page.evaluate(() =>
+    !document.querySelector('.st-persist')), true);
+  await page.evaluate(() => closeStorage()); await page.waitForTimeout(350);
+
+  // バックアップのおすすめ
+  await page.evaluate(() => { localStorage.removeItem('excalc_saves');
+    localStorage.removeItem(BK_SNOOZE_KEY); });
+  check('  記録がなければ出さない', await page.evaluate(() => maybeAskBackup()), false);
+  await page.evaluate(() => localStorage.setItem('excalc_saves',
+    JSON.stringify([{ id: 1, name: '見積り', at: Date.now() }])));
+  check('  書き出していなければ出す', await page.evaluate(() => maybeAskBackup()), true);
+  await page.waitForTimeout(300);
+  check('  バックアップのおすすめ', await title(), '大事な記録をファイルに残しておきませんか');
+  check('  理由を添える', await page.evaluate(() =>
+    document.querySelector('#noticeBar .nb-s').textContent.includes('まだ一度も')), true);
+  await page.click('#noticeBar .nb-no'); await page.waitForTimeout(300);
+  check('  「あとで」で寝かせる', await page.evaluate(() => bkSnoozed()), true);
+  check('  寝かせたら出さない', await page.evaluate(() => maybeAskBackup()), false);
+  check('  7日たてばまた出す', await page.evaluate(() => {
+    localStorage.setItem(BK_SNOOZE_KEY, String(Date.now() - 8 * 86400000));
+    return bkSnoozed(); }), false);
+
+  // 更新のおすすめ
+  await page.evaluate(() => { swUpdateDeclined = false; window.__msg = null;
+    swOfferUpdate({ postMessage: m => window.__msg = m }); });
+  await page.waitForTimeout(300);
+  check('  更新のおすすめが出る', await title(), '新しい版が用意できました');
+  check('  書きかけに触れている', await page.evaluate(() =>
+    document.querySelector('#noticeBar .nb-s').textContent.includes('書きかけ')), true);
+  check('  ボタンは あとで／いま更新', await page.evaluate(() =>
+    [...document.querySelectorAll('#noticeBar button')].map(x => x.textContent).join('/')), 'あとで/いま更新');
+  await page.click('#noticeBar .nb-yes'); await page.waitForTimeout(300);
+  check('  いま更新で入れ替えを頼む', await page.evaluate(() => window.__msg), 'SKIP_WAITING');
+  await page.evaluate(() => { swUpdateDeclined = false; swOfferUpdate({ postMessage: () => {} }); });
+  await page.waitForTimeout(300);
+  await page.click('#noticeBar .nb-no'); await page.waitForTimeout(300);
+  check('  あとでを押したら断ったことを覚える', await page.evaluate(() => swUpdateDeclined), true);
+  await page.evaluate(() => swOfferUpdate({ postMessage: () => {} }));
+  await page.waitForTimeout(300);
+  check('  断ったらもう出さない', await shown(), false);
+
+  // 説明書のプライバシー
+  await page.evaluate(() => openHelp()); await page.waitForTimeout(400);
+  check('  データとプライバシーの節がある', await page.evaluate(() =>
+    document.querySelector('#h-privacy summary').textContent.trim()), '🔒 データとプライバシー');
+  check('  目次からも行ける', await page.evaluate(() =>
+    [...document.querySelectorAll('.help-nav a')].some(a => a.textContent.includes('データ'))), true);
+  const pv = await page.evaluate(() => document.getElementById('h-privacy').textContent);
+  for (const w of ['端末の中だけ', 'カメラ', 'マイク', 'アカウントもログインもありません', '広告', '7日', '書き出し'])
+    check('  「' + w + '」に触れている', pv.includes(w), true);
+  check('  項目は7つ', await page.evaluate(() =>
+    document.querySelectorAll('#h-privacy .help-li').length), 7);
+  await page.evaluate(() => closeHelp()); await page.waitForTimeout(350);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
+/* ── 見え方・アイコン・manifest v383 ── */
+async function runPackaging(browser) {
+  const fs = require('fs'), pathmod = require('path');
+  const root = pathmod.join(__dirname, '..');
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── アイコンと manifest ──');
+
+  const mf = JSON.parse(fs.readFileSync(pathmod.join(root, 'manifest.json'), 'utf8'));
+  check('  名前が中身を表している', mf.name.includes('電卓'), true);
+  check('  説明が十分に書いてある', mf.description.length > 60, true);
+  check('  ことばは日本語', mf.lang, 'ja');
+  check('  分類が入っている', Array.isArray(mf.categories) && mf.categories.length > 0, true);
+  check('  display_override がある', Array.isArray(mf.display_override), true);
+
+  const any = mf.icons.filter(i => i.purpose === 'any');
+  const msk = mf.icons.filter(i => i.purpose === 'maskable');
+  check('  ふつうのアイコンが2つ', any.length, 2);
+  check('  丸く切られる用が2つ', msk.length, 2);
+  check('  両者は別のファイル', any.every(a => msk.every(m => m.src !== a.src)), true);
+  for (const i of mf.icons)
+    check('  ' + i.src + ' がある', fs.existsSync(pathmod.join(root, i.src)), true);
+  check('  apple-touch-icon がある', fs.existsSync(pathmod.join(root, 'apple-touch-icon.png')), true);
+  // 大きい画像は軽くしておく（読み込みが遅くならないように）
+  for (const f of ['icon-192.png', 'icon-maskable-192.png', 'apple-touch-icon.png'])
+    check('  ' + f + 'は50KB未満', fs.statSync(pathmod.join(root, f)).size < 50 * 1024, true);
+
+  check('  ショートカットが4つ', mf.shortcuts.length, 4);
+  check('  ショートカットに ?p= が付く', mf.shortcuts.every(s2 => /\?p=[a-z]+$/.test(s2.url)), true);
+  check('  スクリーンショットが4枚', mf.screenshots.length, 4);
+  check('  縦向きが3枚', mf.screenshots.filter(s2 => s2.form_factor === 'narrow').length, 3);
+  check('  横向きが1枚', mf.screenshots.filter(s2 => s2.form_factor === 'wide').length, 1);
+  for (const s2 of mf.screenshots) {
+    check('  ' + s2.src + ' がある', fs.existsSync(pathmod.join(root, s2.src)), true);
+    check('  ' + s2.src + ' に説明が付く', !!s2.label, true);
+  }
+
+  await page.goto(INDEX);
+  await page.waitForTimeout(500);
+  const meta = n => page.evaluate(x => {
+    const el = document.querySelector('meta[name="' + x + '"],meta[property="' + x + '"]');
+    return el ? el.getAttribute('content') : null; }, n);
+  check('  ページの説明がある', await meta('description').then(v => (v || '').length > 40), true);
+  check('  リンクを送ったときの題', await meta('og:title').then(v => (v || '').includes('表電卓')), true);
+  check('  リンクを送ったときの説明', await meta('og:description').then(v => (v || '').length > 20), true);
+  check('  カード画像', await meta('og:image'), 'ogp.png');
+  check('  カード画像のファイルがある', fs.existsSync(pathmod.join(root, 'ogp.png')), true);
+  check('  Twitter用の指定もある', await meta('twitter:card'), 'summary_large_image');
+  check('  日本語のページとして出す', await meta('og:locale'), 'ja_JP');
+  check('  夜と昼どちらも対応と伝える', await meta('color-scheme'), 'light dark');
+  check('  題に中身が分かる言葉がある', await page.title(), '表電卓 — 表計算のできる電卓');
+  check('  apple-touch-icon を指している', await page.evaluate(() =>
+    document.querySelector('link[rel="apple-touch-icon"]').getAttribute('href')), 'apple-touch-icon.png');
+
+  // ショートカットで開く画面が変わる
+  check('  ?p= を読み取るしくみ', await page.evaluate(() => typeof startPageFromUrl === 'function'), true);
+  await page.goto(INDEX + '?p=dentaku');
+  await page.waitForTimeout(700);
+  check('  ?p=dentaku で電卓から始まる', await page.evaluate(() =>
+    document.body.classList.contains('dentaku-mode')), true);
+  check('  設定そのものは書き換えない', await page.evaluate(() =>
+    localStorage.getItem('excalc_startpage')), null);
+  await page.goto(INDEX + '?p=あやしい');
+  await page.waitForTimeout(600);
+  check('  知らない指定は無視する', await page.evaluate(() => startPageFromUrl()), '');
+
+  // service-worker は勝手に入れ替わらない
+  const sw = fs.readFileSync(pathmod.join(root, 'service-worker.js'), 'utf8');
+  const inst = sw.slice(sw.indexOf("addEventListener('install'"), sw.indexOf("addEventListener('message'"));
+  check('  入れる時点では入れ替えない', inst.includes('skipWaiting'), false);
+  check('  頼まれたときだけ入れ替える', sw.includes("e.data === 'SKIP_WAITING'"), true);
+  check('  アイコンもオフラインで持つ', sw.includes('icon-maskable-512.png'), true);
+  check('  版の名前が合っている', sw.includes("'excalc-" + (await page.evaluate(() => APP_VERSION)) + "'"), true);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -3919,6 +4108,8 @@ async function runSkin(browser) {
     if (!only || only === 'storage') await runStorage(browser);
     if (!only || only === 'export') await runExport(browser);
     if (!only || only === 'skin') await runSkin(browser);
+    if (!only || only === 'safety') await runSafety(browser);
+    if (!only || only === 'packaging') await runPackaging(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }

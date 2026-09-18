@@ -9,8 +9,27 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="表電卓">
-<link rel="apple-touch-icon" href="icon-192.png">
-<title>表電卓</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+<link rel="icon" href="icon-512.png" sizes="512x512" type="image/png">
+<title>表電卓 — 表計算のできる電卓</title>
+<!-- 検索やリンクを送ったときの見え方（v383） -->
+<meta name="description" content="表に数字を入れて、合計・数式・単位の計算までできる電卓アプリです。「180円を4個」のように声で言っても計算できます。電波のない現場でも使え、入れたものは端末の中だけに残ります。">
+<meta name="author" content="表電卓">
+<meta name="color-scheme" content="light dark">
+<meta name="format-detection" content="telephone=no">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="表電卓">
+<meta property="og:title" content="表電卓 — 表計算のできる電卓">
+<meta property="og:description" content="表に数字を入れて、合計・数式・単位の計算まで。「180円を4個」と声で言っても計算できます。電波がなくても使えます。">
+<meta property="og:image" content="ogp.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="表電卓 — 表計算のできる電卓">
+<meta name="twitter:description" content="表に数字を入れて、合計・数式・単位の計算まで。声でも計算できます。電波がなくても使えます。">
+<meta name="twitter:image" content="ogp.png">
 <style id="appStyle">
 /* ── 見た目の土台（デザイントークン） ──
    色・角丸・影・時間はここに集約する。個々の部品では直書きせず var() を使う。
@@ -126,6 +145,42 @@ body.skin-keys .numpad-overlay {
   background-size: var(--skin-ksize, auto);
   background-repeat: var(--skin-krep, repeat);
   background-position: var(--skin-kpos, center);
+}
+
+/* ── 画面の下から出るお知らせバー（更新・バックアップのすすめ） ──
+   トーストと違って自分では消えず、ボタンを押すまで残る。 */
+.notice-bar {
+  position: fixed; left: 8px; right: 8px; z-index: 9800;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  max-width: 520px; margin-inline: auto;
+  background: var(--modal-bg); color: var(--text);
+  border: 1px solid var(--save-item-border); border-radius: var(--r-card);
+  box-shadow: var(--elev-2); padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 10px;
+  transform: translateY(160%); transition: transform .22s ease;
+}
+.notice-bar.show { transform: translateY(0); }
+.notice-bar .nb-t { font-size: 14px; font-weight: bold; line-height: 1.5; }
+.notice-bar .nb-s { font-size: 12px; color: var(--text-sub); line-height: 1.6; margin-top: -4px; }
+.notice-bar .nb-row { display: flex; gap: 8px; justify-content: flex-end; }
+.notice-bar button {
+  padding: 9px 16px; font-size: 14px; font-weight: bold; border-radius: var(--r-btn);
+  cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.notice-bar .nb-no { border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text-sub); }
+.notice-bar .nb-yes { border: none; background: var(--acc); color: var(--on-acc); }
+
+/* 端末の空き具合：データが消えないようにできているかの行 */
+.st-persist {
+  margin: 4px 0 10px; padding: 10px 12px; border-radius: var(--r-btn);
+  background: var(--save-item-bg); border: 1px solid var(--save-item-border);
+  font-size: 13px; line-height: 1.7; color: var(--text);
+}
+.st-persist.warn { border-color: var(--warn); background: rgba(230,126,34,.10); }
+.st-persist .stp-btn {
+  margin-top: 8px; padding: 8px 14px; font-size: 13px; font-weight: bold;
+  border: none; border-radius: var(--r-btn); background: var(--acc); color: var(--on-acc);
+  cursor: pointer; touch-action: manipulation;
 }
 
 /* 設定：色えらびの丸チップ */
@@ -4703,6 +4758,7 @@ body.dark {
         <a onclick="helpJump('h-tools')">🧰 道具</a>
         <a onclick="helpJump('h-settings')">⚙️ 設定</a>
         <a onclick="helpJump('h-save')">💾 保存</a>
+        <a onclick="helpJump('h-privacy')">🔒 データ</a>
       </div>
 
       <details class="help-acc" id="h-basic" open>
@@ -5019,6 +5075,19 @@ body.dark {
           </table>
           <div class="help-li"><b>📄CSV／📊Excel／🖨PDF</b>（上のバーの <b>⋯</b>）：CSVは表の値（文字コード自動判別）。<b>Excel(.xlsx)</b>は数式・太字・色・枠線・寄せ・結合・列幅まで保ったまま入出力。<b>PDF出力</b>は印刷前の設定ダイアログで、タイトル・向き・拡大縮小（1ページに収める）・余白・文字サイズ・枠線を指定でき、プレビューを横フリックで複数ページ確認。「印刷／PDFに保存」で書き出せます。</div>
           <div class="help-li"><b>🌙</b>ダークモード切替。</div>
+        </div>
+      </details>
+
+      <details class="help-acc" id="h-privacy">
+        <summary>🔒 データとプライバシー</summary>
+        <div class="help-acc-body">
+          <div class="help-li"><b>入れたものは、ぜんぶこの端末の中だけにあります</b>。表・記録・写真メモ・容積の写真・育成日記の写真・背景の写真・声で言った言葉・設定のどれも、<b>どこかに送ることはありません</b>。よそのサーバーに預けたり、他の人に見せたりするしくみ自体がありません。アカウントもログインもありません。</div>
+          <div class="help-li"><b>カメラと写真</b>：写真メモ・容積・育成日記・背景の写真で使います。<b>押したときだけ</b>端末のカメラや写真を開き、<b>選んだ1枚だけ</b>をアプリの中に取り込みます。勝手に見に行くことはありません。取り込んだ写真は端末の中に置いたままで、送信もアップロードもしません。</div>
+          <div class="help-li"><b>声で入れる</b>：マイクは<b>🎤を押しているあいだだけ</b>使います。聞き取りは端末（ブラウザ）のしくみに任せています。使う端末によっては、その聞き取りのために音声がブラウザの提供元に送られることがあります（これはこのアプリではなく、端末やブラウザの作りによるものです）。気になるときは、声を使わずキーで入れてください。</div>
+          <div class="help-li"><b>インターネットはいりません</b>。一度開いておけば、<b>電波のない現場でもそのまま使えます</b>。更新があるときだけ、開いたときに新しい版を取りに行きます。広告も、人の動きを集めるしくみ（アクセス解析）も入っていません。</div>
+          <div class="help-li"><b>消えることもあります</b>：ブラウザは、端末の空きが減ったときや<b>しばらく開かないサイト</b>のデータを自動で消すことがあります（とくに<b>iPhoneのSafariでは、7日ほど開かないと消える</b>ことがあります）。これを防ぐために、アプリは起動のたびに<b>「このデータは消さないでください」と端末にお願い</b>しています（v382から）。いまどうなっているかは <b>⋯→🧹端末の空き具合</b> のいちばん上で見られます。<b>🔒</b>なら守られていて、<b>⚠</b>なら消えることがあります。⚠のときは、そこの<b>「消えないようにする」</b>を押すか、<b>ホーム画面に追加</b>して使うと守られやすくなります。</div>
+          <div class="help-li"><b>いちばん確かなのは書き出しです</b>。リストの<b>⬇書き出し</b>でファイルに残せば、端末を変えても初期化しても戻せます。しばらく書き出していないときは、起動してすこし経ってから<b>下に一度だけおすすめ</b>が出ます（v382から。「あとで」を押すと7日は出ません）。</div>
+          <div class="help-li"><b>消したいとき</b>：<b>⋯→🧹端末の空き具合</b>で、何がどれだけ入っているかを見ながら<b>種類ごとに消せます</b>（育成日記の写真・写真メモ・容積の写真・電卓の履歴・背景の写真）。記録そのものはリストから消せます。ぜんぶ消すなら、ブラウザの設定でこのサイトのデータを削除してください。<b>消したものは戻せません</b>ので、先に⬇書き出しをおすすめします。</div>
         </div>
       </details>
 
@@ -7687,6 +7756,90 @@ function skinDropPhoto(){
   skinPhoto='';
   if(skinBg==='photo') skinBg='none';
   saveSkin(); applySkin(); toast('背景の写真を消しました');
+}
+
+/* ── 画面の下から出るお知らせバー（v382） ──
+   トーストは数秒で消えるので、「押してほしいこと」はこちらで出す。
+   一度に1つだけ出し、後から来たものは前のを置きかえる。 */
+function showNotice(opt){
+  let el=document.getElementById('noticeBar');
+  if(!el){
+    el=document.createElement('div'); el.id='noticeBar'; el.className='notice-bar';
+    el.setAttribute('role','status'); el.setAttribute('aria-live','polite');
+    document.body.appendChild(el);
+  }
+  el.innerHTML='';
+  const t=document.createElement('div'); t.className='nb-t'; t.textContent=opt.title; el.appendChild(t);
+  if(opt.sub){ const sb=document.createElement('div'); sb.className='nb-s'; sb.textContent=opt.sub; el.appendChild(sb); }
+  const row=document.createElement('div'); row.className='nb-row';
+  const no=document.createElement('button'); no.className='nb-no'; no.textContent=opt.no||'あとで';
+  no.onclick=()=>{ hideNotice(); if(opt.onNo) opt.onNo(); };
+  const yes=document.createElement('button'); yes.className='nb-yes'; yes.textContent=opt.yes||'OK';
+  yes.onclick=()=>{ hideNotice(); if(opt.onYes) opt.onYes(); };
+  row.appendChild(no); row.appendChild(yes); el.appendChild(row);
+  requestAnimationFrame(()=>el.classList.add('show'));
+}
+function hideNotice(){
+  const el=document.getElementById('noticeBar'); if(el) el.classList.remove('show');
+}
+
+/* ── データが消えないようにする（v382） ──
+   ふつうのブラウザの保存領域は、端末の空きが減ったときや
+   「しばらく使っていないサイト」として自動で消されることがある。
+   端末に「消さないでください」とお願いしておくと、その対象から外れる。 */
+let stPersisted=null;                 // true=消えない / false=消えることがある / null=分からない
+async function stCheckPersist(){
+  try{
+    if(!navigator.storage || !navigator.storage.persisted){ stPersisted=null; return null; }
+    stPersisted=await navigator.storage.persisted();
+    return stPersisted;
+  }catch(_){ stPersisted=null; return null; }
+}
+async function stAskPersist(){
+  try{
+    if(!navigator.storage || !navigator.storage.persist){ stPersisted=null; return null; }
+    stPersisted=await navigator.storage.persist();
+    return stPersisted;
+  }catch(_){ stPersisted=null; return null; }
+}
+/* 起動して少し経ってから、そっとお願いしておく（画面には何も出さない） */
+async function stInitPersist(){
+  const now=await stCheckPersist();
+  if(now===false) await stAskPersist();
+}
+/* 空き具合の画面で押したとき。結果をその場で伝える */
+async function stPersistNow(){
+  const ok=await stAskPersist();
+  if(ok===true) toast('この端末では消えないようになりました');
+  else if(ok===false) toast('この端末では設定できませんでした。ときどき⬇書き出しをしてください');
+  else toast('この端末では確かめられませんでした');
+  renderStorage();
+}
+
+/* ── バックアップのおすすめ（v382） ──
+   記録があるのに一度も書き出していない／しばらく経っているときだけ、
+   起動して少ししてから一度出す。「あとで」を押したら7日は出さない。 */
+const BK_SNOOZE_KEY='excalc_backup_snooze', BK_SNOOZE_DAYS=7;
+function bkSnoozed(){
+  try{ const t=parseInt(localStorage.getItem(BK_SNOOZE_KEY),10);
+    return !isNaN(t) && (Date.now()-t) < BK_SNOOZE_DAYS*86400000;
+  }catch(_){ return false; }
+}
+function bkSnooze(){ try{ localStorage.setItem(BK_SNOOZE_KEY, String(Date.now())); }catch(_){} }
+function maybeAskBackup(){
+  if(bkSnoozed()) return false;
+  if(typeof backupWanted!=='function' || !backupWanted()) return false;
+  if(document.getElementById('noticeBar') && document.getElementById('noticeBar').classList.contains('show')) return false;
+  const d=(typeof daysSinceBackup==='function')?daysSinceBackup():null;
+  showNotice({
+    title:'大事な記録をファイルに残しておきませんか',
+    sub:(d===null?'まだ一度もファイルに書き出していません。':'最後の書き出しから'+d+'日たちました。')
+        +'端末のデータを消すと記録も消えます。',
+    yes:'書き出す', no:'あとで',
+    onYes:()=>{ bkSnooze(); try{ exportSaves(); }catch(_){ toast('書き出せませんでした'); } },
+    onNo:()=>{ bkSnooze(); },
+  });
+  return true;
 }
 
 function changeRows(delta) {
@@ -12391,11 +12544,18 @@ function renderStartPage(){
   el.innerHTML=startPageOptions().map(([v,l])=>`<option value="${v}">${escHtml(l)}</option>`).join('');
   el.value=startPage;
 }
+/* ホーム画面のアイコンを長押しして出るショートカット（?p=dentaku など）用。
+   設定の「はじめに開くページ」は書き換えず、その一回だけそこから始める。 */
+function startPageFromUrl(){
+  let v=''; try{ v=new URLSearchParams(location.search).get('p')||''; }catch(_){}
+  return startPageOptions().some(o=>o[0]===v && v!=='last') ? v : '';
+}
 /* 開いたときに1回だけ呼ぶ。道具は全画面で開くので、閉じれば下の表がそのまま使える */
 function applyStartPage(){
-  if(startPage==='last') return;
-  if(startPage==='normal' || startPage==='dentaku'){ switchMode(startPage); return; }
-  const t=npToolDef(startPage);
+  const v=startPageFromUrl()||startPage;
+  if(v==='last') return;
+  if(v==='normal' || v==='dentaku'){ switchMode(v); return; }
+  const t=npToolDef(v);
   if(t && t.ov && typeof t.run==='function') t.run();
 }
 const NP_TOOL_KEY='excalc_nptools';
@@ -18578,7 +18738,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v381';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v383';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -20131,7 +20291,10 @@ function stDiaryRows(){
 }
 /* 混み具合の色。60%で注意、85%で警告 */
 function stLevel(pct){ return (pct>=85)?'st-ng':((pct>=60)?'st-warn':'st-ok'); }
-function openStorage(){ renderStorage(); openDlg('storageOverlay'); }
+function openStorage(){
+  renderStorage(); openDlg('storageOverlay');
+  stCheckPersist().then(()=>{ if(isDlgOpen('storageOverlay')) renderStorage(); });
+}
 function closeStorage(){ closeDlg('storageOverlay'); }
 function renderStorage(){
   const box=document.getElementById('storageBody'); if(!box) return;
@@ -20143,6 +20306,18 @@ function renderStorage(){
       <div class="st-total-t">ぜんぶで <b>${stFmt(total)}</b>（目安の上限 ${stFmt(ST_LIMIT)} の <b>${pct}%</b>）</div>
     </div>`;
   if(pct>=85) html+=`<div class="st-alert">⚠ そろそろいっぱいです。<b>⬇書き出し</b>でファイルに残してから、下の<b>🧹</b>で片づけてください</div>`;
+  // データが勝手に消されない状態かどうか（v382）
+  if(stPersisted===true){
+    html+=`<div class="st-persist">🔒 <b>この端末では、データが勝手に消されないようになっています</b>。
+      それでも端末をなくしたり初期化したりすると消えるので、ときどき<b>⬇書き出し</b>をしてください。</div>`;
+  }else if(stPersisted===false){
+    html+=`<div class="st-persist warn">⚠ <b>データが消えることがあります</b>。
+      ブラウザは、端末の空きが減ったときや<b>しばらく開かないサイト</b>のデータを自動で消すことがあります
+      （iPhoneのSafariでは<b>7日ほど開かないと消える</b>ことがあります）。
+      下のボタンで「消さないでください」と端末にお願いできます。うまくいかないときは、
+      <b>ホーム画面に追加</b>して使うか、ときどき<b>⬇書き出し</b>をしてください。
+      <button class="stp-btn" onclick="stPersistNow()">🔒 消えないようにする</button></div>`;
+  }
   const top=rows.length?rows[0].b:1;
   html+=rows.map(r=>{
     const act=(r.how==='list')?`<button class="veg-mini" onclick="stGoList()">📋 一覧へ</button>`
@@ -20631,10 +20806,25 @@ loadStartPage();
 renderStartPage();
 setTimeout(()=>{ try{ applyStartPage(); }catch(_){} }, 0);
 
+/* ── 更新のしかた（v382） ──
+   以前は新しい版が来ると勝手に読み込み直していたので、入力の途中や
+   ダイアログを開いている最中でも画面が飛んでしまった。
+   これからは「新しい版があります」と下に出して、押されたときだけ入れ替える。
+   断られたら、そのあいだは出さない（次にアプリを開き直したときにまた聞く）。 */
+let swUpdateDeclined=false;
+function swOfferUpdate(worker){
+  if(!worker || swUpdateDeclined) return;
+  showNotice({
+    title:'新しい版が用意できました',
+    sub:'「いま更新」を押すと読み込み直します。書きかけのものがあるときは「あとで」を選んでください。',
+    yes:'いま更新', no:'あとで',
+    onYes:()=>{ try{ worker.postMessage('SKIP_WAITING'); }catch(_){ location.reload(); } },
+    onNo:()=>{ swUpdateDeclined=true; },
+  });
+}
 if("serviceWorker" in navigator){
   let swRefreshing=false;
-  // 新しいservice-workerが制御を引き継いだら自動でリロードし、インストール版（スマホ等）でも
-  // 更新をすぐ反映する（ブラウザ任せの更新チェックだけだと、しばらく古い版のままになるため）
+  // 入れ替わったら読み込み直す。入れ替わるのは上で「いま更新」を押したときだけ
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if(swRefreshing) return;
     swRefreshing = true;
@@ -20645,8 +20835,22 @@ if("serviceWorker" in navigator){
     document.addEventListener('visibilitychange', () => {
       if(document.visibilityState === 'visible') reg.update();
     });
-  });
+    // すでに新しい版が待っている（前回「あとで」を押したまま開き直した）
+    if(reg.waiting && navigator.serviceWorker.controller) swOfferUpdate(reg.waiting);
+    reg.addEventListener('updatefound', () => {
+      const nw=reg.installing; if(!nw) return;
+      nw.addEventListener('statechange', () => {
+        // controller があるのは「前からこのアプリを使っていた」ということ。
+        // 初めて入れたときは待たせずそのまま使ってもらう
+        if(nw.state==='installed' && navigator.serviceWorker.controller) swOfferUpdate(nw);
+      });
+    });
+  }).catch(function(){});
 }
+
+/* 起動して落ち着いてから、データの守りとバックアップのおすすめ（v382） */
+setTimeout(()=>{ stInitPersist(); }, 1200);
+setTimeout(()=>{ try{ maybeAskBackup(); }catch(_){} }, 4500);
 </script>
 </body>
 </html>
