@@ -4251,6 +4251,92 @@ async function runPolish(browser) {
   await ctx.close();
 }
 
+/* ── iPhone の時計・電池の帯を避ける v386 ── */
+async function runSafeArea(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 画面のふちを避ける ──');
+  const BAND = 47;                       // ホーム画面から開いた iPhone の上の帯くらい
+  const band = v => page.evaluate(x => {
+    document.documentElement.style.setProperty('--safe-top', x);
+    document.documentElement.style.setProperty('--safe-bottom', x === '0px' ? '0px' : '34px');
+  }, v);
+  // ✕ の当たり判定（まん中を押したとき、本当に✕に当たるか）
+  const xInfo = id => page.evaluate(i => {
+    const ov = document.getElementById(i);
+    const b = ov.querySelector('.modal-close');
+    const r = b.getBoundingClientRect();
+    const mid = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return { top: Math.round(r.top), pad: getComputedStyle(ov.querySelector('.modal-header')).paddingTop,
+             onX: mid === b || b.contains(mid) };
+  }, id);
+
+  check('  帯の大きさを1か所で持つ', await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue('--safe-top').trim() !== ''), true);
+
+  // 帯があるとき：全画面の見出しは帯のぶん下がる
+  await band(BAND + 'px'); await page.waitForTimeout(200);
+  await page.evaluate(() => openSayHelp()); await page.waitForTimeout(600);
+  let x = await xInfo('sayHelpOverlay');
+  check('  早見表の見出しが帯のぶん下がる', x.pad, (12 + BAND) + 'px');
+  check('  早見表の✕が帯より下にある', x.top >= BAND, true);
+  check('  早見表の✕が押せる', x.onX, true);
+  await page.evaluate(() => closeSayHelp()); await page.waitForTimeout(400);
+
+  // ほかの全画面の道具でも同じ
+  // 全画面で開くほかの画面（道具・写真メモ・容積）でも同じ
+  const topBtn = (id, sel) => page.evaluate(([i, s2]) => {
+    const ov = document.getElementById(i);
+    const b = ov.querySelector(s2);
+    const r = b.getBoundingClientRect();
+    const mid = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return { top: Math.round(r.top), onIt: mid === b || b.contains(mid) };
+  }, [id, sel]);
+  for (const [name, openFn, id, sel] of [
+        ['野菜',     'openVeggie',    'veggieOverlay',    '.modal-close'],
+        ['写真メモ', 'openPhotoMemo', 'photoMemoOverlay', '.hdr-back'],
+        ['容積',     'openVolume',    'volumeOverlay',    '.modal-close']]) {
+    const ok = await page.evaluate(f => typeof window[f] === 'function', openFn);
+    if (!ok) { check('  ' + name + 'を開ける', ok, true); continue; }
+    await page.evaluate(f => window[f](), openFn); await page.waitForTimeout(600);
+    const r = await topBtn(id, sel);
+    check('  ' + name + 'の閉じるボタンが帯より下', r.top >= BAND, true);
+    check('  ' + name + 'の閉じるボタンが押せる', r.onIt, true);
+    await page.evaluate(([i, s2]) => { const b = document.getElementById(i).querySelector(s2); if (b) b.click(); }, [id, sel]);
+    await page.waitForTimeout(500);
+  }
+
+  // 帯がないとき（パソコンやふつうのブラウザ）は今までどおり
+  await band('0px'); await page.waitForTimeout(200);
+  await page.evaluate(() => openSayHelp()); await page.waitForTimeout(500);
+  x = await xInfo('sayHelpOverlay');
+  check('  帯がなければ余白は増やさない', x.pad, '12px');
+  check('  帯がなくても✕は押せる', x.onX, true);
+
+  // ✕ は見た目そのままで、指の当たりだけ広い
+  check('  ✕の見た目は28px', await page.evaluate(() => {
+    const r = document.querySelector('#sayHelpOverlay .modal-close').getBoundingClientRect();
+    return Math.round(r.width) + 'x' + Math.round(r.height); }), '28x28');
+  check('  少し外しても✕に当たる', await page.evaluate(() => {
+    const b = document.querySelector('#sayHelpOverlay .modal-close');
+    const r = b.getBoundingClientRect();
+    const el = document.elementFromPoint(r.left - 5, r.top + r.height / 2);
+    return el === b || b.contains(el); }), true);
+  // 本当に閉じられる
+  await page.click('#sayHelpOverlay .modal-close'); await page.waitForTimeout(450);
+  check('  ✕を押すと閉じる', await page.evaluate(() => isDlgOpen('sayHelpOverlay')), false);
+
+  // 下のホームバーも避ける
+  await band(BAND + 'px'); await page.waitForTimeout(200);
+  await page.evaluate(() => openSayHelp()); await page.waitForTimeout(500);
+  check('  中身の下もホームバーを避ける', await page.evaluate(() =>
+    getComputedStyle(document.querySelector('#sayHelpOverlay .modal-body')).paddingBottom), '50px');
+  await page.evaluate(() => closeSayHelp()); await page.waitForTimeout(400);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -4285,6 +4371,7 @@ async function runPolish(browser) {
     if (!only || only === 'packaging') await runPackaging(browser);
     if (!only || only === 'onboard') await runOnboard(browser);
     if (!only || only === 'polish') await runPolish(browser);
+    if (!only || only === 'safearea') await runSafeArea(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
