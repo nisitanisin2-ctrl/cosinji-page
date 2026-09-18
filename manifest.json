@@ -1,38 +1,34 @@
 {
-  "name": "表電卓",
+  "name": "表電卓 — 表計算のできる電卓",
   "short_name": "表電卓",
-  "description": "スプレッドシート風電卓アプリ",
+  "description": "表に数字を入れて、合計・数式・単位の計算までできる電卓です。「180円を4個」のように声で言っても計算できます。現場でよく使う計算（配合・面積・体積・時間・単価）や、野菜づくりの記録もひとまとめ。電波がなくても使え、入れたものは端末の中だけに残ります。",
   "id": "/excalc",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#217346",
   "theme_color": "#217346",
   "orientation": "any",
+  "lang": "ja",
+  "dir": "ltr",
+  "categories": ["productivity", "utilities", "business"],
   "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "電卓", "short_name": "電卓", "description": "電卓の画面から始める", "url": "./index.html?p=dentaku", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] },
+    { "name": "通常の表", "short_name": "表", "description": "まっさらな表から始める", "url": "./index.html?p=normal", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] },
+    { "name": "単位水量", "short_name": "単位水量", "description": "単位水量試験の画面から始める", "url": "./index.html?p=tansui", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] },
+    { "name": "写真メモ", "short_name": "写真メモ", "description": "写真メモの画面から始める", "url": "./index.html?p=photomemo", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] }
+  ],
+  "screenshots": [
+    { "src": "shot-sheet.png", "sizes": "540x1170", "type": "image/png", "form_factor": "narrow", "label": "表に数字を入れて計算する" },
+    { "src": "shot-calc.png", "sizes": "540x1170", "type": "image/png", "form_factor": "narrow", "label": "電卓。声でも計算できる" },
+    { "src": "shot-say.png", "sizes": "540x1170", "type": "image/png", "form_factor": "narrow", "label": "声の言い方の早見表" },
+    { "src": "shot-wide.png", "sizes": "1280x720", "type": "image/png", "form_factor": "wide", "label": "パソコンでも使えます" }
   ]
 }
