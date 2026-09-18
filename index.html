@@ -113,7 +113,7 @@ body.skin-bg {
   background-image: var(--skin-img);
   background-size: var(--skin-size, auto);
   background-repeat: var(--skin-rep, repeat);
-  background-position: center;
+  background-position: var(--skin-pos, center);
 }
 /* もようが見えるように、表の下地は透かす（マス目そのものは不透明のまま） */
 body.skin-bg .sheet-wrap { background: transparent; }
@@ -125,7 +125,7 @@ body.skin-keys .numpad-overlay {
   background-image: var(--skin-kimg, none);
   background-size: var(--skin-ksize, auto);
   background-repeat: var(--skin-krep, repeat);
-  background-position: center;
+  background-position: var(--skin-kpos, center);
 }
 
 /* 設定：色えらびの丸チップ */
@@ -4970,7 +4970,7 @@ body.dark {
         <summary>⚙️ 設定</summary>
         <div class="help-acc-body">
           <div class="help-li"><b>はじめに開くページ</b>（v366から）：設定→<b>🎨見た目</b>の<b>「アプリを開いたとき」</b>で、開いた直後に出すものを選べます。<b>前回のつづき</b>（はじめの状態。閉じたときのまま開きます）／<b>▦通常の表</b>／<b>🧮電卓</b>／<b>💧単位水量・🧪カンタブ・🌱野菜・📷容積・📝写真メモ・🔗リンク集・📋式テンプレ・📑決算テンプレ</b>から選べます。道具を選んだときは<b>その画面が上に開く</b>だけなので、<b>✕で閉じれば</b>下の表がそのまま使えます。<b>次に開いたときから</b>効きます</div>
-          <div class="help-li"><b>色と背景（着せかえ）</b>（v379から）：設定→<b>🎨見た目</b>の<b>「色と背景」</b>で、スマホのキーボードのように見た目を変えられます。<b>色</b>は丸いチップから<b>10色</b>（みどり・あお・こん・みずいろ・むらさき・さくら・あか・だいだい・つち・すみ）。選ぶと<b>ボタン・見出し・枠線・スマホの上の帯</b>まで一度に変わります。<b>キーの色</b>は<b>くろ／テーマ色／あかるい</b>の3つ。<b>背景</b>は<b>なし・ぼかし・方眼・水玉・ななめ線・自分の写真</b>から選べます。<b>背景を出す場所</b>は<b>両方／表だけ／テンキーだけ</b>の3つ（v380から。たとえば「テンキーだけ写真、表は無地のまま」もできます）。<b>背景の濃さ</b>（うすい／ふつう／こい）で見え方を調整できます。<b>🌙ナイトモードとは別</b>なので、夜モードのままでも色は変えられます。<b>↩ もとの色に戻す</b>ではじめの緑に戻ります。</div>
+          <div class="help-li"><b>色と背景（着せかえ）</b>（v379から）：設定→<b>🎨見た目</b>の<b>「色と背景」</b>で、スマホのキーボードのように見た目を変えられます。<b>色</b>は丸いチップから<b>10色</b>（みどり・あお・こん・みずいろ・むらさき・さくら・あか・だいだい・つち・すみ）。選ぶと<b>ボタン・見出し・枠線・スマホの上の帯</b>まで一度に変わります。<b>キーの色</b>は<b>くろ／テーマ色／あかるい</b>の3つ。<b>背景</b>は<b>なし・色に合わせる・ぼかし・方眼・水玉・ななめ線・自分の写真</b>から選べます。<b>もようの色は、上で選んだ色に自動で合います</b>（あおにすれば方眼も水玉もあおくなります）。<b>「色に合わせる」</b>（v381から）は、もようなしで<b>画面ぜんたいを選んだ色にうっすら染める</b>もので、色を変えるとそのまま背景の色も変わります。<b>水玉</b>は大きさのちがう玉がまばらに散らばります（v381から）。<b>背景を出す場所</b>は<b>両方／表だけ／テンキーだけ</b>の3つ（v380から。たとえば「テンキーだけ写真、表は無地のまま」もできます）。<b>背景の濃さ</b>（うすい／ふつう／こい）で見え方を調整できます。<b>🌙ナイトモードとは別</b>なので、夜モードのままでも色は変えられます。<b>↩ もとの色に戻す</b>ではじめの緑に戻ります。</div>
           <div class="help-li"><b>好きな写真や絵を背景にする</b>（v379から）：設定→<b>🎨見た目→🖼 背景の写真を選ぶ</b>で、端末の写真やイラストを背景にできます。写真は<b>白（夜モードでは黒）を重ねて透かして</b>出すので、表の数字が読みにくくなりません。<b>表のマス目も少しだけ透ける</b>ので、写真が全体にうっすら見えます。<b>テンキーの地にも同じ写真</b>が敷かれ、<b>キーも半透明</b>になります。<b>背景を出す場所</b>（v380から）で<b>両方／表だけ／テンキーだけ</b>を選べるので、<b>スマホのキーボードのようにテンキーだけ写真にして、表は今までどおり白いまま</b>にもできます。透かし具合は<b>背景の濃さ</b>で変えられます（こい＝写真がはっきり）。写真は長い辺 1280px まで自動で縮めて入れます。入れた写真の大きさは<b>⋯→🧹端末の空き具合</b>で「背景の写真」として見られ、そこからも消せます（設定の<b>🗑 背景の写真を消す</b>でも消せます）。</div>
           <div class="help-li"><b>3つのタブ</b>に分かれています（<b>📐表</b>＝行と列・Enterの向き／<b>🎨見た目</b>＝色と背景・文字や画面の大きさ・上のバー・テンキー／<b>🧮計算</b>＝小数桁・税率・日付・声）。<b>本文を横にフリック</b>してもタブを移動できます。書き出し・読み込み・説明書・ナイトモード・シートのタブ・既定の大きさは、<b>設定ではなく上のバーの ⋯</b> にまとめてあります（v359。同じボタンが2か所にあるのをやめました）。</div>
           <div class="help-li"><b>テンキーを細かく変えたいとき</b>は、設定→<b>🎨見た目→くわしい設定→「テンキーを自分好みにする」</b>を開いてください（v303から。ふだんは触らなくて大丈夫なので、たたんであります）。<b>数字キーの大きさ・上下の余白・ページ表示・調整バー・ボタン配置の編集</b>がここにまとまっています。</div>
@@ -7421,6 +7421,7 @@ const SKIN_THEMES=[
 const SKIN_KEYS=[{id:'dark',n:'くろ'},{id:'tint',n:'テーマ色'},{id:'light',n:'あかるい'}];
 const SKIN_BGS=[
   {id:'none',   n:'なし（無地）'},
+  {id:'tint',   n:'色に合わせる'},
   {id:'grad',   n:'ぼかし'},
   {id:'grid',   n:'方眼'},
   {id:'dot',    n:'水玉'},
@@ -7445,21 +7446,35 @@ function skinMix(h1,h2,t){
 }
 function skinTheme_(){ return SKIN_THEMES.find(x=>x.id===skinTheme)||SKIN_THEMES[0]; }
 /* もようを1つ作る。rgb は「R,G,B」の文字、k は濃さ、m は場所ごとの効き具合 */
+/* 水玉は大きさをばらばらにする。玉の大きさ・並ぶ間隔・置き始めの位置を
+   5組つくり、間隔どうしが割り切れない数（37/43/53/71/97）になるように選ぶ。
+   こうすると重なりの繰り返しがとても長くなり、まばらに散らばって見える。 */
+const SKIN_DOTS=[
+  { r:3.4, tile:71, pos:'0px 0px',    a:.20 },
+  { r:2.2, tile:53, pos:'19px 31px',  a:.26 },
+  { r:1.3, tile:37, pos:'44px 11px',  a:.30 },
+  { r:4.3, tile:97, pos:'33px 62px',  a:.15 },
+  { r:1.8, tile:43, pos:'8px 47px',   a:.23 },
+];
 function skinPat(pat, rgb, k, m){
   const A=v=>Math.round(Math.min(.92, v*k*m)*1000)/1000;
+  if(pat==='tint') return {
+    img:'linear-gradient(rgba('+rgb+','+A(.14)+'), rgba('+rgb+','+A(.14)+'))',
+    size:'cover', rep:'no-repeat', pos:'center' };
   if(pat==='grad') return {
     img:'linear-gradient(160deg, rgba('+rgb+','+A(.22)+') 0%, rgba('+rgb+','+A(.03)+') 52%, rgba('+rgb+','+A(.18)+') 100%)',
-    size:'cover', rep:'no-repeat' };
+    size:'cover', rep:'no-repeat', pos:'center' };
   if(pat==='grid') return {
     img:'linear-gradient(rgba('+rgb+','+A(.16)+') 1px, transparent 1px), linear-gradient(90deg, rgba('+rgb+','+A(.16)+') 1px, transparent 1px)',
-    size:'22px 22px', rep:'repeat' };
+    size:'22px 22px', rep:'repeat', pos:'center' };
   if(pat==='dot') return {
-    img:'radial-gradient(rgba('+rgb+','+A(.24)+') 1.7px, transparent 1.8px)',
-    size:'18px 18px', rep:'repeat' };
+    img:SKIN_DOTS.map(d=>'radial-gradient(rgba('+rgb+','+A(d.a)+') '+d.r+'px, transparent '+(d.r+0.6)+'px)').join(', '),
+    size:SKIN_DOTS.map(d=>d.tile+'px '+d.tile+'px').join(', '),
+    rep:'repeat', pos:SKIN_DOTS.map(d=>d.pos).join(', ') };
   if(pat==='stripe') return {
     img:'repeating-linear-gradient(45deg, rgba('+rgb+','+A(.13)+') 0 6px, transparent 6px 15px)',
-    size:'auto', rep:'repeat' };
-  return { img:'', size:'auto', rep:'repeat' };
+    size:'auto', rep:'repeat', pos:'center' };
+  return { img:'', size:'auto', rep:'repeat', pos:'center' };
 }
 
 function applySkin(){
@@ -7499,8 +7514,11 @@ function applySkin(){
   const photo=(pat==='photo');
   /* 表の下地はテーマ色で、テンキーの地は白（明るいキーのときは黒）で描く */
   const pSheet=skinPat(pat, rgb, sr.k, 1);
-  const kRgb=(skinKeyTone==='light')?'0,0,0':'255,255,255';
-  const pKeys=skinPat(pat, kRgb, sr.k, (skinKeyTone==='light')?.62:.78);
+  /* 「色に合わせる」だけは、テンキーの地もテーマ色そのもので染める（暗い地でも色が出るよう濃いめに）。
+     もようは暗い地の上では色が見えないので、白（明るいキーのときは黒）で描く。 */
+  const kRgb=(pat==='tint')?rgb:((skinKeyTone==='light')?'0,0,0':'255,255,255');
+  const kM=(pat==='tint')?2.2:((skinKeyTone==='light')?.62:.78);
+  const pKeys=skinPat(pat, kRgb, sr.k, kM);
   const img=photo
     ? 'linear-gradient(rgba('+(dark?'0,0,0':'255,255,255')+','+sr.sa+'), rgba('+(dark?'0,0,0':'255,255,255')+','+sr.sa+')), url("'+skinPhoto+'")'
     : pSheet.img;
@@ -7510,20 +7528,23 @@ function applySkin(){
   const sheetOn=!!img && onSheet, keysOn=onKeys && (photo || !!pKeys.img);
   if(sheetOn){
     st.setProperty('--skin-img',img); st.setProperty('--skin-size',size); st.setProperty('--skin-rep',rp);
+    st.setProperty('--skin-pos', photo?'center':pSheet.pos);
   }else{
-    st.removeProperty('--skin-img'); st.removeProperty('--skin-size'); st.removeProperty('--skin-rep');
+    ['--skin-img','--skin-size','--skin-rep','--skin-pos'].forEach(v=>st.removeProperty(v));
   }
   if(!keysOn){
-    st.removeProperty('--skin-kimg'); st.removeProperty('--skin-ksize'); st.removeProperty('--skin-krep');
+    ['--skin-kimg','--skin-ksize','--skin-krep','--skin-kpos'].forEach(v=>st.removeProperty(v));
   }else if(photo){
     /* テンキーは文字が読めることが第一。写真の上に、キーの色に合わせた薄い幕を敷く */
     const ks=(skinKeyTone==='light')?'rgba(255,255,255,.58)':'rgba(0,0,0,.46)';
     st.setProperty('--skin-kimg','linear-gradient('+ks+','+ks+'), url("'+skinPhoto+'")');
     st.setProperty('--skin-ksize','cover'); st.setProperty('--skin-krep','no-repeat');
+    st.setProperty('--skin-kpos','center');
   }else if(pKeys.img){
-    st.setProperty('--skin-kimg',pKeys.img); st.setProperty('--skin-ksize',pKeys.size); st.setProperty('--skin-krep',pKeys.rep);
+    st.setProperty('--skin-kimg',pKeys.img); st.setProperty('--skin-ksize',pKeys.size);
+    st.setProperty('--skin-krep',pKeys.rep); st.setProperty('--skin-kpos',pKeys.pos);
   }else{
-    st.removeProperty('--skin-kimg'); st.removeProperty('--skin-ksize'); st.removeProperty('--skin-krep');
+    ['--skin-kimg','--skin-ksize','--skin-krep','--skin-kpos'].forEach(v=>st.removeProperty(v));
   }
   b.classList.toggle('skin-bg', sheetOn);
   b.classList.toggle('skin-keys', keysOn);
@@ -18557,7 +18578,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v380';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v381';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

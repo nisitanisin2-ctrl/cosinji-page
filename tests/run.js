@@ -3733,13 +3733,41 @@ async function runSkin(browser) {
   check('  黒に戻せる', await cssVar('--kp-sub'), '#b9b9b9');
 
   // 背景のもよう
-  for (const [id, want] of [['grad', 'linear-gradient'], ['grid', 'linear-gradient'],
+  check('  背景は7とおり', await page.evaluate(() => SKIN_BGS.length), 7);
+  for (const [id, want] of [['tint', 'linear-gradient'], ['grad', 'linear-gradient'], ['grid', 'linear-gradient'],
                             ['dot', 'radial-gradient'], ['stripe', 'repeating-linear-gradient']]) {
     await page.evaluate(x => setSkinBg(x), id);
     check('  背景「' + id + '」が敷かれる', await page.evaluate(() =>
       getComputedStyle(document.body).backgroundImage.slice(0, 40)).then(v => v.startsWith(want)), true);
   }
   check('  もよう中は skin-bg が付く', await page.evaluate(() => document.body.classList.contains('skin-bg')), true);
+
+  // もようの色は、えらんだ色に自動で合う（v381）
+  await page.evaluate(() => { setSkinTheme('blue'); setSkinBg('dot'); });
+  check('  水玉はえらんだ色になる', await page.evaluate(() =>
+    getComputedStyle(document.body).backgroundImage.includes('rgba(21, 101, 192')), true);
+  await page.evaluate(() => setSkinTheme('orange'));
+  check('  色を変えると水玉も変わる', await page.evaluate(() =>
+    getComputedStyle(document.body).backgroundImage.includes('rgba(217, 119, 6')), true);
+  // 水玉は大きさがまばら（v381）
+  check('  水玉は5とおりの大きさ', await page.evaluate(() =>
+    getComputedStyle(document.body).backgroundImage.split('radial-gradient').length - 1), 5);
+  check('  玉の間隔がそれぞれ違う', await page.evaluate(() =>
+    getComputedStyle(document.body).backgroundSize), '71px 71px, 53px 53px, 37px 37px, 97px 97px, 43px 43px');
+  check('  置き始めもずらしてある', await page.evaluate(() =>
+    getComputedStyle(document.body).backgroundPosition), '0px 0px, 19px 31px, 44px 11px, 33px 62px, 8px 47px');
+  check('  玉の大きさは重ならない', await page.evaluate(() =>
+    new Set(SKIN_DOTS.map(d => d.r)).size), 5);
+  // 「色に合わせる」は、色を変えると背景の色もそのまま変わる（v381）
+  await page.evaluate(() => { setSkinBg('tint'); setSkinTheme('purple'); });
+  check('  色に合わせるはテーマ色で染める', await page.evaluate(() =>
+    getComputedStyle(document.body).backgroundImage.startsWith('linear-gradient(rgba(106, 63, 158')), true);
+  check('  テンキーもテーマ色で染まる', await page.evaluate(() =>
+    getComputedStyle(document.querySelector('.numpad-section')).backgroundImage.includes('rgba(106, 63, 158')), true);
+  await page.evaluate(() => setSkinTheme('teal'));
+  check('  色を変えると背景も変わる', await page.evaluate(() =>
+    getComputedStyle(document.body).backgroundImage.startsWith('linear-gradient(rgba(0, 121, 107')), true);
+  await page.evaluate(() => { setSkinTheme('blue'); setSkinBg('dot'); });
   check('  表の下地は透ける', await bgOf('.sheet-wrap'), 'rgba(0, 0, 0, 0)');
   check('  マス目も少し透ける', await cssVar('--sheet-cell-bg'), 'rgba(255,255,255,0.84)');
   check('  テンキーにも同じもよう', await page.evaluate(() =>
