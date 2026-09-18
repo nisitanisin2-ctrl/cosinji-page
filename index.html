@@ -738,11 +738,19 @@ body.dentaku-mode .formula-bar { display: none !important; }
 }
 .dt-voice.dt-voice-on { border-color: var(--acc); }
 .dt-voice.dt-voice-ng { border-color: var(--danger); }
-.dt-voice-ico { font-size: 18px; flex-shrink: 0; opacity: .75; }
+/* 🎤 は押すと声入力が始まるボタン（v387）。テンキーの「声」まで手を伸ばさずに済む */
+.dt-voice-mic {
+  flex-shrink: 0; width: 38px; height: 38px; border-radius: var(--r-pill);
+  border: none; background: var(--acc); color: var(--on-acc); font-size: 19px;
+  line-height: 1; cursor: pointer; touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent; transition: transform var(--dur);
+}
+.dt-voice-mic:active { transform: scale(.92); }
 .dt-voice-body { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .dt-voice-f {
   font-size: 17px; font-weight: bold; color: var(--text-light);
-  word-break: break-all; line-height: 1.3;
+  /* 折り返しは必要なときだけ、切りのよいところで（数字のまん中で割らない。v387） */
+  overflow-wrap: anywhere; word-break: normal; line-height: 1.3;
   /* 長い式でも履歴をつぶさないよう3行まで（全文は履歴に残る） */
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
 }
@@ -1600,6 +1608,37 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
   display: flex; align-items: center; justify-content: space-between;
   flex-shrink: 0;
 }
+/* ── せまい画面で詰める（v387） ──
+   iPhone SE のように背の低い画面だと、電卓の答え・声の行・履歴が入りきらず
+   情報量が減ってしまう。文字と余白を少しずつ詰めて、見える量を増やす。
+   設定→🎨見た目→「画面の詰め方」で 自動／ふつう／詰める を選べる。 */
+body.compact .dt-pane { gap: 5px; padding: 5px 8px 6px; }
+body.compact .dt-disp { padding: 5px 9px 6px; }
+body.compact .dt-sub { font-size: 13px; }
+body.compact .dt-main { font-size: 30px; }
+body.compact .dt-main.dt-err { font-size: 21px; }
+body.compact .dt-voice { padding: 6px 8px; min-height: 38px; gap: 6px; }
+body.compact .dt-voice-mic { width: 32px; height: 32px; font-size: 16px; }
+body.compact .dt-voice-f { font-size: 14px; -webkit-line-clamp: 2; }
+body.compact .dt-voice-raw { font-size: 11px; }
+body.compact .dt-say-btn { font-size: 10px; padding: 3px 6px; margin-left: 4px; }
+body.compact .dt-tape { padding: 4px 6px; }
+body.compact .dt-tape-row { padding: 4px 3px; }
+body.compact .dt-tape-e { font-size: 12px; }
+body.compact .dt-tape-v { font-size: 15px; }
+body.compact .dt-tape-empty { font-size: 12px; padding: 5px 3px; line-height: 1.6; }
+body.compact .dt-tape-clr { padding: 4px 11px; font-size: 11px; }
+/* 上のバーとテンキーのページ表示も少し詰める（帯を避ける余白はそのまま） */
+body.compact .toolbar { padding-bottom: 3px; font-size: 14px; }
+body.compact .toolbar { padding-top: calc(3px + var(--safe-top)); }
+body.compact .numpad-pagebar { margin-bottom: 1px; }
+body.compact .np-page { padding: 1px 6px; }
+/* ダイアログの中身も詰める（1画面に入る行を増やす） */
+body.compact .modal-header { padding: 9px 13px; font-size: 14px; }
+body.compact .modal.modal-full > .modal-header { padding-top: calc(9px + var(--safe-top)); }
+body.compact .modal-body { padding: 8px; }
+body.compact .modal.modal-full .modal-body { padding: 9px 10px calc(12px + var(--safe-bottom)); }
+
 /* ── 全画面のダイアログは、画面のいちばん上から始まる（v386） ──
    iPhone をホーム画面から開くと、中身は時計・電池の帯の下まで広がるので、
    見出しをその帯のぶんだけ下げないと ✕ や「戻る」が帯に隠れて押せなくなる。
@@ -3221,6 +3260,9 @@ body.dark {
       <span class="set-label">テンキーの大きさ</span>
       <span class="set-stepper"><button class="step-btn" onclick="changeKeySize(-1)">−</button><span class="sc-val" id="keySize">大</span><button class="step-btn" onclick="changeKeySize(1)">＋</button></span>
     </div>
+    <div class="set-sec">画面の詰め方<small style="font-weight:normal;margin-left:6px">せまい画面で表示量を増やす</small></div>
+    <div class="set-note">iPhone SE のように<b>背の低い画面</b>だと、電卓の答えや履歴が入りきらないことがあります。<b>詰める</b>にすると文字と余白を少しずつ縮めて、<b>1画面に見える量を増やします</b>。<b>自動</b>は画面の大きさで決めます。<span id="compactNow"></span></div>
+    <div class="skin-seg" id="compactSeg"></div>
     <div class="set-sec">色と背景（着せかえ）</div>
     <div class="set-note">スマホのキーボードのように、<b>色</b>と<b>背景</b>を自分好みに変えられます。選んだらすぐに変わります。<b>🌙ナイトモード</b>とは別なので、夜モードのままでも色は変えられます。</div>
     <div class="skin-sw" id="skinSw"></div>
@@ -3376,10 +3418,11 @@ body.dark {
     <div class="dt-dectag" id="dtDecTag" hidden></div>
   </div>
   <!-- 声で言った計算式を出す行。何を式として受け取ったかがその場で分かる -->
-  <div class="dt-voice" id="dtVoice" aria-live="polite" onclick="dtVoiceGuessTry()">
-    <span class="dt-voice-ico">🎤</span>
+  <div class="dt-voice" id="dtVoice" aria-live="polite" onclick="dtVoiceRowTap()">
+    <button class="dt-voice-mic" onclick="event.stopPropagation();voiceStart()"
+            title="押すと声で入れられます" aria-label="声で入れる">🎤</button>
     <span class="dt-voice-body">
-      <span class="dt-voice-f" id="dtVoiceF">声で言った計算式がここに出ます</span>
+      <span class="dt-voice-f" id="dtVoiceF">🎤を押すと、声で計算できます</span>
       <span class="dt-voice-raw" id="dtVoiceRaw"></span>
     </span>
     <button class="dt-say-btn" onclick="event.stopPropagation();openSayHelp()">📖 言い方</button>
@@ -7983,6 +8026,11 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v387', t:'せまい画面でも見やすく、声はマイクから', li:[
+    '電卓の<b>式の行にある🎤を押すと、その場で声入力が始まります</b>（テンキーの「声」まで手を伸ばさなくてよくなりました）',
+    '設定→🎨見た目に<b>「画面の詰め方」</b>を足しました。<b>iPhone SE のような背の低い画面</b>では文字と余白を詰めて、<b>1画面に見える量を増やします</b>（自動／ふつう／詰める）',
+    '長い式が<b>数字のまん中で折り返されない</b>ようになりました',
+  ]},
   { v:'v386', t:'全画面の画面が閉じられなかったのを直しました', li:[
     'iPhoneでホーム画面から開いたとき、<b>早見表・野菜・写真メモ・単位水量・容積</b>などの<b>✕（閉じる）が時計・電池の帯に隠れて押せなかった</b>のを直しました',
     '横向きのときの<b>カメラ側</b>と、下の<b>ホームバー</b>も避けるようにしました',
@@ -8048,6 +8096,52 @@ function maybeTellWhatsNew(){
     onNo:()=>{ markSeenVer(); },
   });
   return true;
+}
+
+/* ── 声の行をタップしたとき（v387） ──
+   「もしかして」が出ているならそれを試す。何も無いときは声入力を始める。 */
+function dtVoiceRowTap(){
+  if(dtVoiceGuessEx){ dtVoiceGuessTry(); return; }
+  voiceStart();
+}
+
+/* ── せまい画面で詰める（v387） ──
+   iPhone SE のように背の低い画面では、文字と余白を少しずつ詰めて
+   1画面に入る量を増やす。自動／ふつう／詰める から選べる。 */
+const COMPACT_KEY='excalc_compact';
+const COMPACT_MODES=[{id:'auto',n:'自動'},{id:'off',n:'ふつう'},{id:'on',n:'詰める'}];
+let compactMode='auto';
+/* 「自動」のときにせまいとみなす目安。iPhone SE は 375×667 */
+function compactWanted(){
+  if(compactMode==='on') return true;
+  if(compactMode==='off') return false;
+  return (window.innerHeight<=700 || window.innerWidth<=380);
+}
+function applyCompact(){
+  document.body.classList.toggle('compact', compactWanted());
+  renderCompact();
+}
+function loadCompact(){
+  let v='auto'; try{ v=localStorage.getItem(COMPACT_KEY)||'auto'; }catch(_){}
+  compactMode=COMPACT_MODES.some(m=>m.id===v)?v:'auto';
+}
+function setCompact(v){
+  if(!COMPACT_MODES.some(m=>m.id===v)) return;
+  compactMode=v;
+  try{ localStorage.setItem(COMPACT_KEY, compactMode); }catch(_){}
+  applyCompact();
+  toast(compactWanted()?'画面を詰めて出します':'ふつうの大きさで出します');
+}
+function renderCompact(){
+  const seg=document.getElementById('compactSeg'); if(!seg) return;
+  if(seg.children.length!==COMPACT_MODES.length){
+    seg.innerHTML=COMPACT_MODES.map(m=>
+      '<button class="skin-seg-btn" data-cmp="'+m.id+'" onclick="setCompact(\''+m.id+'\')">'+m.n+'</button>'
+    ).join('');
+  }
+  Array.from(seg.children).forEach(el=>el.classList.toggle('on', el.dataset.cmp===compactMode));
+  const nt=document.getElementById('compactNow');
+  if(nt) nt.textContent=compactWanted()?'いまは「詰める」で出ています':'いまは「ふつう」で出ています';
 }
 
 /* ── はじめての案内（v384） ──
@@ -19033,7 +19127,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v386';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v387';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -21144,6 +21238,13 @@ if("serviceWorker" in navigator){
 }
 
 netInit();
+loadCompact(); applyCompact();
+/* 向きを変えたり画面の大きさが変わったら、詰めるかどうかを見直す（v387） */
+let cmpTimer=null;
+window.addEventListener('resize', ()=>{
+  clearTimeout(cmpTimer);
+  cmpTimer=setTimeout(()=>{ if(compactMode==='auto') applyCompact(); }, 200);
+});
 /* 組み上がったので読み込み表示を消す（v385） */
 function splashDone(){
   const el=document.getElementById('appSplash'); if(!el) return;
