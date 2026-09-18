@@ -62,6 +62,12 @@
   --elev-2: 0 8px 28px rgba(0,0,0,.28);
   /* 動きの時間は1つ */
   --dur: .14s;
+  /* iPhone の時計・電池の帯やホームバー、横向きのカメラ側を避けるための余白。
+     全画面の画面はここを見て見出しを下げる（v386）。 */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
   /* テンキーの色（着せかえで差し替える）。個々のキーではここを見る。 */
   --kp-bg: #2c2c2c;          /* テンキーの地 */
   --kp-key: #4a4a4a;         /* ふつうのキー */
@@ -210,7 +216,7 @@ body.skin-keys .numpad-overlay {
   padding: 22px 20px 16px; display: flex; flex-direction: column; gap: 14px;
 }
 .tour-skip {
-  position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 14px;
+  position: absolute; top: calc(12px + var(--safe-top)); right: 14px;
   padding: 8px 14px; border-radius: var(--r-pill); border: none;
   background: rgba(255,255,255,.22); color: #fff; font-size: 13px; font-weight: bold;
   cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
@@ -350,9 +356,9 @@ body.numpad-off .numpad-section { display: none; }
   color: white;
   padding: 5px 7px;
   /* iPhoneホーム画面アプリ：カメラ/ノッチ/Dynamic Island を避けてメニューを下げる */
-  padding-top: calc(5px + env(safe-area-inset-top));
-  padding-left: calc(7px + env(safe-area-inset-left));
-  padding-right: calc(7px + env(safe-area-inset-right));
+  padding-top: calc(5px + var(--safe-top));
+  padding-left: calc(7px + var(--safe-left));
+  padding-right: calc(7px + var(--safe-right));
   font-size: 15px;
   font-weight: bold;
   flex-shrink: 0;
@@ -982,7 +988,7 @@ body.dark .date-badge { border-top-color: #82b1ff; }
 /* ピック中の案内バー（画面上部固定） */
 .pick-banner {
   display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 60;
-  background: var(--info); color: #fff; padding: calc(8px + env(safe-area-inset-top)) 10px 8px;
+  background: var(--info); color: #fff; padding: calc(8px + var(--safe-top)) 10px 8px;
   box-shadow: var(--elev-1);
   flex-direction: column; gap: 6px;
 }
@@ -1594,6 +1600,22 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
   display: flex; align-items: center; justify-content: space-between;
   flex-shrink: 0;
 }
+/* ── 全画面のダイアログは、画面のいちばん上から始まる（v386） ──
+   iPhone をホーム画面から開くと、中身は時計・電池の帯の下まで広がるので、
+   見出しをその帯のぶんだけ下げないと ✕ や「戻る」が帯に隠れて押せなくなる。
+   横向きのときのカメラ側（左右）も同じように避ける。
+   真ん中に浮くふつうのダイアログは画面のふちに接しないので、そのままでよい。 */
+.modal.modal-full > .modal-header,
+.pm-modal > .modal-header,
+.vol-modal > .modal-header {
+  padding-top: calc(12px + var(--safe-top));
+  padding-left: calc(16px + var(--safe-left));
+  padding-right: calc(16px + var(--safe-right));
+}
+@media (min-width: 700px) {   /* パソコンなど広い画面では真ん中に浮くので、避ける必要がない */
+  .modal.modal-full > .modal-header { padding: 12px 16px; }
+}
+
 /* ダイアログ見出しの「🗑削除」（✕の左） */
 .modal-del {
   background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4);
@@ -1608,6 +1630,11 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
   background: rgba(255,255,255,0.2); color: white; border: none;
   border-radius: var(--r-btn); width: 28px; height: 28px; font-size: 17px;
   cursor: pointer; touch-action: manipulation;
+  /* 画面を閉じるための逃げ道なので、見た目は同じまま指の当たりを広げる（v386） */
+  position: relative;
+}
+.modal-close::before {
+  content: ''; position: absolute; top: -8px; right: -8px; bottom: -8px; left: -8px;
 }
 .modal-close:hover { background: rgba(255,255,255,0.35); }
 /* 保存リストの「新規」ボタン（まっさらから始める） */
@@ -1663,9 +1690,10 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
 .modal.modal-full .pm-strip,  .modal.modal-full .pm-strip *,
 .modal.modal-full .pick-sheets, .modal.modal-full .pick-sheets * { touch-action: auto; }
 .modal.modal-full .modal-body canvas, .modal.modal-full canvas { touch-action: none; }
-.modal.modal-full .modal-body { padding: 12px 14px 16px; }
+.modal.modal-full .modal-body { padding: 12px 14px calc(16px + var(--safe-bottom)); }
 @media (min-width: 700px) {   /* パソコンなど広い画面では、読みやすい幅で真ん中に */
   .modal.modal-full { width: 96%; max-width: 900px; height: 96%; border-radius: var(--r-card); }
+  .modal.modal-full .modal-body { padding: 12px 14px 16px; }
 }
 .veg-find { flex: 1; }
 .veg-pickbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -2175,7 +2203,10 @@ body[data-pm="xs"] .pm-editbtn .pm-editlb { font-size: 11px; }
 body[data-pm="xs"] .pm-cbtn { min-width: 30px; padding: 5px 7px; font-size: 11px; }
 body[data-pm="xs"] .pm-memowrap { min-height: 48px; }
 body[data-pm="xs"] .hdr-btn { padding: 4px 9px; font-size: 12px; }
-body[data-pm="xs"] .pm-modal .modal-header { padding: 7px 12px; font-size: 13px; }
+body[data-pm="xs"] .pm-modal > .modal-header {
+  padding: calc(7px + var(--safe-top)) calc(12px + var(--safe-right)) 7px calc(12px + var(--safe-left));
+  font-size: 13px;
+}
 /* 操作ボタンとタブは、狭い画面でも折り返して2段にならないようにする */
 .pm-shot { white-space: nowrap; }
 .pm-tabbar { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
@@ -7952,6 +7983,11 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v386', t:'全画面の画面が閉じられなかったのを直しました', li:[
+    'iPhoneでホーム画面から開いたとき、<b>早見表・野菜・写真メモ・単位水量・容積</b>などの<b>✕（閉じる）が時計・電池の帯に隠れて押せなかった</b>のを直しました',
+    '横向きのときの<b>カメラ側</b>と、下の<b>ホームバー</b>も避けるようにしました',
+    '<b>✕が少し押しやすく</b>なりました（見た目は同じで、指の当たりだけ広げています）',
+  ]},
   { v:'v385', t:'見やすく、うまくいかないときも分かるように', li:[
     '指で広げて<b>画面を拡大</b>できるようになりました',
     'はじめて開くときに<b>読み込み中の表示</b>が出ます',
@@ -18997,7 +19033,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v385';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v386';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
