@@ -4337,6 +4337,108 @@ async function runSafeArea(browser) {
   await ctx.close();
 }
 
+/* ── せまい画面で詰める・声の行のマイク v387 ── */
+async function runCompact(browser) {
+  // iPhone SE と同じ大きさで開く
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 667 }, hasTouch: true });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+  console.log('\n── せまい画面と声のマイク ──');
+  await page.goto(INDEX); await page.waitForTimeout(300);
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.reload(); await page.waitForTimeout(1000);
+  const on = () => page.evaluate(() => document.body.classList.contains('compact'));
+
+  // 自動で詰まる
+  check('  はじめは自動', await page.evaluate(() => compactMode), 'auto');
+  check('  SEの大きさなら詰める', await on(), true);
+  await page.setViewportSize({ width: 900, height: 1000 }); await page.waitForTimeout(400);
+  check('  広い画面なら詰めない', await on(), false);
+  await page.setViewportSize({ width: 375, height: 667 }); await page.waitForTimeout(400);
+  check('  せまくなったらまた詰める', await on(), true);
+
+  // 自分で選べる
+  await page.evaluate(() => setCompact('off')); await page.waitForTimeout(250);
+  check('  ふつうにできる', await on(), false);
+  await page.evaluate(() => setCompact('on')); await page.waitForTimeout(250);
+  check('  いつでも詰められる', await on(), true);
+  await page.setViewportSize({ width: 900, height: 1000 }); await page.waitForTimeout(400);
+  check('  「詰める」は広い画面でも効く', await on(), true);
+  await page.setViewportSize({ width: 375, height: 667 }); await page.waitForTimeout(400);
+  await page.reload(); await page.waitForTimeout(1000);
+  check('  開き直しても覚えている', await page.evaluate(() => compactMode), 'on');
+  await page.evaluate(() => setCompact('auto')); await page.waitForTimeout(250);
+
+  // 詰めると1画面に入る量が増える
+  await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(500);
+  const sz = () => page.evaluate(() => ({
+    main: parseFloat(getComputedStyle(document.getElementById('dtMain')).fontSize),
+    vf: parseFloat(getComputedStyle(document.getElementById('dtVoiceF')).fontSize),
+    tape: Math.round(document.getElementById('dtTape').getBoundingClientRect().height),
+  }));
+  const tight = await sz();
+  await page.evaluate(() => setCompact('off')); await page.waitForTimeout(400);
+  const loose = await sz();
+  check('  詰めると答えの字が小さくなる', tight.main < loose.main, true);
+  check('  詰めると声の行も小さくなる', tight.vf < loose.vf, true);
+  check('  詰めると履歴が広くなる', tight.tape > loose.tape, true);
+  check('  でも答えは読める大きさ', tight.main >= 26, true);
+  await page.evaluate(() => setCompact('auto')); await page.waitForTimeout(400);
+
+  // 設定の3つ並び
+  await page.evaluate(() => { toggleSettings(); setSettingsTab(1); }); await page.waitForTimeout(500);
+  check('  設定に3つ並ぶ', await page.evaluate(() =>
+    [...document.querySelectorAll('#compactSeg button')].map(x => x.textContent).join('/')), '自動/ふつう/詰める');
+  check('  いま選んでいるものに印', await page.evaluate(() =>
+    document.querySelector('#compactSeg .on').dataset.cmp), 'auto');
+  check('  いまどちらで出ているか言う', await page.evaluate(() =>
+    document.getElementById('compactNow').textContent), 'いまは「詰める」で出ています');
+  await page.evaluate(() => toggleSettings()); await page.waitForTimeout(400);
+
+  // 声の行のマイク
+  await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(400);
+  check('  マイクのボタンがある', await page.evaluate(() => !!document.querySelector('.dt-voice-mic')), true);
+  check('  指で押せる大きさ', await page.evaluate(() => {
+    const r = document.querySelector('.dt-voice-mic').getBoundingClientRect();
+    return Math.min(r.width, r.height) >= 30; }), true);
+  check('  はじめの案内が押すよう促す', await page.evaluate(() =>
+    document.getElementById('dtVoiceF').textContent), '🎤を押すと、声で計算できます');
+  await page.evaluate(() => { window.__vs = 0; window.__realVoice = window.voiceStart;
+    window.voiceStart = () => { window.__vs++; }; });
+  await page.click('.dt-voice-mic'); await page.waitForTimeout(250);
+  check('  マイクで声入力が始まる', await page.evaluate(() => window.__vs), 1);
+  await page.evaluate(() => { dtVoiceGuessEx = null; document.getElementById('dtVoice').click(); });
+  await page.waitForTimeout(250);
+  check('  行を押しても始まる', await page.evaluate(() => window.__vs), 2);
+  // 「もしかして」が出ているときは、そちらを先に試す
+  await page.evaluate(() => { window.__try = 0; dtVoiceGuessEx = '1+1';
+    window.__realTry = window.dtVoiceGuessTry; window.dtVoiceGuessTry = () => { window.__try++; };
+    document.getElementById('dtVoice').click(); });
+  await page.waitForTimeout(250);
+  check('  もしかしてが出ていればそれを試す', await page.evaluate(() =>
+    [window.__try, window.__vs].join('/')), '1/2');
+  await page.evaluate(() => { window.voiceStart = window.__realVoice;
+    window.dtVoiceGuessTry = window.__realTry; dtVoiceGuessEx = null; });
+
+  // 長い式が数字のまん中で折れない
+  check('  数字のまん中で折らない', await page.evaluate(() =>
+    getComputedStyle(document.getElementById('dtVoiceF')).wordBreak), 'normal');
+  await page.evaluate(() => { try { voiceAcceptDentaku('700かける34'); } catch (_) {} });
+  await page.waitForTimeout(600);
+  check('  式は1行におさまる', await page.evaluate(() => {
+    const el = document.getElementById('dtVoiceF');
+    const lh = parseFloat(getComputedStyle(el).lineHeight) || 18;
+    return Math.round(el.getBoundingClientRect().height / lh); }), 1);
+  check('  聞こえた言葉も見えている', await page.evaluate(() => {
+    const raw = document.getElementById('dtVoiceRaw'), box = document.getElementById('dtVoice');
+    return raw.textContent !== '' && raw.getBoundingClientRect().bottom <= box.getBoundingClientRect().bottom + 1; }), true);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -4372,6 +4474,7 @@ async function runSafeArea(browser) {
     if (!only || only === 'onboard') await runOnboard(browser);
     if (!only || only === 'polish') await runPolish(browser);
     if (!only || only === 'safearea') await runSafeArea(browser);
+    if (!only || only === 'compact') await runCompact(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
