@@ -2438,6 +2438,12 @@ body.dark .save-mode { background: #143a35; color: #7fcabd; }
 @keyframes voicePulse { 0%,100%{ transform: scale(1); opacity: 1; } 50%{ transform: scale(1.14); opacity: .6; } }
 .voice-text { margin-top: 12px; font-size: 18px; font-weight: bold; color: var(--text); min-height: 1.4em; word-break: break-all; }
 .voice-hint { margin-top: 10px; font-size: 12px; color: var(--text-light); line-height: 1.5; }
+/* 「…と聞こえました」の行の上に入りきらないときだけ、窓を小さくする（v390） */
+.voice-box.voice-tight { padding: 12px 14px; }
+.voice-box.voice-tight .voice-mic { font-size: 30px; }
+.voice-box.voice-tight .voice-text { margin-top: 6px; font-size: 15px; }
+.voice-box.voice-tight .voice-hint { display: none; }
+.voice-box.voice-tight .voice-seq { margin-top: 8px; padding: 6px 12px; font-size: 12px; }
 /* 聞いている窓の中の「続けて入れる」切り替え */
 .voice-seq {
   margin-top: 12px; padding: 9px 16px; font-size: 14px; font-weight: bold;
@@ -8033,6 +8039,12 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v390', t:'希釈の聞き取りと、聞いている窓の場所を直しました', li:[
+    '「<b>100倍で4L</b>」のように<b>単位が大文字（L・KG など）</b>で聞き取られると計算できなかったのを直しました',
+    '<b>「もしかして」が、言っていない数で計算してしまう</b>ことがあったのを直しました。これからは<b>自分が言った数</b>が入ります',
+    '数が足りないときは押せないようにして、<b>「こう言うと計算できます」</b>と言い方だけ見せます',
+    '<b>「聞いています…」の窓が、「…と聞こえました」の行にかぶらない</b>ようになりました。何と聞こえたかを見ながら言い直せます',
+  ]},
   { v:'v389', t:'「電卓だけ」でフリックしても下のテンキーが見えないように', li:[
     '「電卓だけにする」のときに<b>指を横に動かすと、下の数字のテンキーがちらっと見えていた</b>のを直しました',
     '<b>左へフリックして道具（🌱野菜・💧単位水量など）を開く</b>のは、これまでどおりできます',
@@ -14908,6 +14920,26 @@ function dtAllClear(){ dtExpr=''; dtSeq=''; disp_val='0'; op1=null; cur_op=null;
 /* ── 声で言った計算式の行 ──────────────────────────────────
    電卓モードで声を使ったとき、何を式として受け取ったかをその場で見せる。
    state: 'on'＝式になった / 'ng'＝式にできなかった / ''＝まだ何も言っていない */
+/* ── 聞いている窓の置き場所（v390） ──
+   まん中に置くと、電卓の「…と聞こえました」の行にちょうどかぶってしまい、
+   何と聞こえたかを見ながら言い直せなかった。その行が出ているときは、
+   行より上の空いたところの中央に置く。上が狭いときだけ上寄せにする。 */
+function voicePlace(){
+  const ov=document.getElementById('voiceOverlay'); if(!ov) return;
+  const box=ov.querySelector('.voice-box');
+  ov.style.paddingBottom=''; ov.style.paddingTop=''; ov.style.alignItems='';
+  if(box) box.classList.remove('voice-tight');
+  const row=document.getElementById('dtVoice');
+  if(!row || !row.getClientRects().length) return;      // 表モードなど、行が無いときはまん中のまま
+  const top=row.getBoundingClientRect().top;
+  const avail=top-16;                                   // 行の上に使える高さ
+  if(box && box.offsetHeight>avail) box.classList.add('voice-tight');   // 入らなければ窓を小さくする
+  const bh=(box && box.offsetHeight) ? box.offsetHeight : 240;
+  if(bh>avail){ ov.style.alignItems='flex-start'; ov.style.paddingTop='calc(8px + var(--safe-top))'; }
+  else { ov.style.paddingBottom=Math.max(0, Math.round(window.innerHeight-top+10))+'px'; }
+}
+window.addEventListener('resize', ()=>{ if(isDlgOpen('voiceOverlay')) voicePlace(); });
+
 function dtVoiceShow(formula, raw, state){
   const box=document.getElementById('dtVoice');
   const f=document.getElementById('dtVoiceF'), r=document.getElementById('dtVoiceRaw');
@@ -16110,6 +16142,9 @@ function speechRecipe(text){
   let t=String(text).trim();
   if(t==='') return null;
   t=toHalfAscii(t).replace(/[\s,，]/g,'').replace(/[％]/g,'%');
+  // 聞き取りは「20 L」「4KG」のように大文字で返ってくることがある。
+  // 言い方の決まりは小文字（l・kg・m…）で書いてあるので、ここで小文字にそろえる（v390）。
+  t=t.replace(/[A-Z]/g, c=>c.toLowerCase());
   t=kanjiNumsToDigits(t);
   // 「2割引き」「2割5分」も％に直す。「3割る5」（わり算）は直さない
   t=t.replace(/(\d+)割(\d+)分(?!の)/g, (m,a,b2)=>String(+a*10 + +b2)+'%');
@@ -16202,6 +16237,33 @@ function sayBigrams(t){
   for(let i=0;i<s2.length-1;i++) out.push(s2.slice(i,i+2));
   return out;
 }
+/* 見本の数字を、その人が言った数字に入れかえる（v390）。
+   入れかえた形がちゃんと計算できるときだけ返す。数の個数が合わなければ出さない。
+   これをしないと、見本そのままの数（例：1000倍で20リットル）で計算してしまい、
+   「もしかして」を押すたびに言っていない答えが出てしまう。 */
+function sayFitNumbers(raw, ex){
+  let t=toHalfAscii(String(raw||'')).replace(/[\s,，]/g,'');
+  t=kanjiNumsToDigits(t);
+  const mine=t.match(/\d+(?:\.\d+)?/g)||[];
+  const slots=ex.match(/\d+(?:\.\d+)?/g)||[];
+  if(!slots.length || mine.length!==slots.length) return null;
+  let i=0;
+  const out=ex.replace(/\d+(?:\.\d+)?/g, ()=>mine[i++]);
+  return sayUnderstands(out) ? out : null;
+}
+/* その言い方をアプリが受け取れるか（式・言い回し・方程式のどれかで読めるか） */
+function sayUnderstands(t){
+  try{ if(speechRecipe(t)) return true; }catch(_){}
+  try{ if(speechToFormula(t)!==null) return true; }catch(_){}
+  try{ if(speechToEquation(t)) return true; }catch(_){}
+  return false;
+}
+/* 近い言い方をさがす（v390で作り直し）。
+   返すのは { fit, ex } の2つ。
+     fit … 言った数をそのまま当てはめられた形。押せばその場で計算できる
+     ex  … 言い方の見本そのもの。数の個数が合わないときはこれだけ返す
+   数が合わないのに押せてしまうと、言っていない数（見本の数）で計算した答えが
+   出てしまうので、そのときは押せないようにして「こう言ってください」と見せるだけにする。 */
 function speechGuess(raw){
   const a=sayBigrams(raw);
   if(a.length<2) return null;
@@ -16214,7 +16276,8 @@ function speechGuess(raw){
     const sc=hit/Math.max(a.length, b.length);
     if(sc>bestSc){ bestSc=sc; best=x.ex; }
   }
-  return (bestSc>=0.28) ? best : null;
+  if(bestSc<0.28 || !best) return null;
+  return { fit: sayFitNumbers(raw, best), ex: best };
 }
 /* ── 方程式（v369。電卓モードのときだけ使う）──
    「2エックスたす3は7」のように言うと x を求める。1次と2次まで。
@@ -16421,6 +16484,7 @@ function voiceStart(){
   if(ov){
     openDlg('voiceOverlay');
     syncVoiceSeqBtn();
+    voicePlace();                                 // 「…と聞こえました」の行にかぶせない（v390）
     // この窓は画面いっぱいに広がるので、キーを押した指がそのまま窓の上にある。
     // 指を離した分のクリックで、開いた瞬間に閉じてしまっていた（テンキーの🎤声キー）。
     // 「押し直すまで反応しない」ようにして、開いてすぐ閉じるのを止める。
@@ -16508,10 +16572,21 @@ function voiceAcceptDentaku(raw){
   const wasFrac = speechLastFrac;
   if(f===null){
     const g=speechGuess(raw);
-    dtVoiceShow(g?('もしかして「'+g+'」？'):'計算の形になりませんでした', raw, 'ng');
-    dtVoiceGuess(g);
-    toast(g?`もしかして「${g}」ですか（下の行を押すと試せます）`
-           :'計算の形で言ってください。📖言い方 で言える形を見られます', 5200);
+    if(g && g.fit){
+      // 言った数をそのまま当てはめられた＝押せばその人の数で計算できる
+      dtVoiceShow('もしかして「'+g.fit+'」？', raw, 'ng');
+      dtVoiceGuess(g.fit);
+      toast(`もしかして「${g.fit}」ですか（下の行を押すと試せます）`, 5200);
+    }else if(g){
+      // 数の個数が合わない＝見本の数で計算すると言っていない答えが出るので、押せなくする
+      dtVoiceShow('こう言うと計算できます：「'+g.ex+'」', raw, 'ng');
+      dtVoiceGuess(null);
+      toast(`「${g.ex}」のように、数をぜんぶ入れて言ってください`, 5200);
+    }else{
+      dtVoiceShow('計算の形になりませんでした', raw, 'ng');
+      dtVoiceGuess(null);
+      toast('計算の形で言ってください。📖言い方 で言える形を見られます', 5200);
+    }
     return;
   }
   const shown=formulaToReadable(f);           // 251×68 のように読みやすい形
@@ -19195,7 +19270,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v389';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v390';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

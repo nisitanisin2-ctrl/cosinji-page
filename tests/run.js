@@ -3418,16 +3418,43 @@ async function runVoiceSay(browser) {
     return isDlgOpen('sayHelpOverlay') + '/' + document.getElementById('dtMain').textContent; }), 'false/900');
   await page.waitForTimeout(250);
 
-  check('  外れたときは近いお手本をすすめる', await page.evaluate(() => {
+  // 数が足りないときは、見本を「言い方」として見せるだけ（押せない）。v390
+  // 押せてしまうと、言っていない数（見本の燃費18）で計算した答えが出てしまうため。
+  check('  数が足りないときは言い方を見せる', await page.evaluate(() => {
     dtAllClear(); voiceAcceptDentaku('ガソリン代170円で200キロ');
     return document.getElementById('dtVoiceF').textContent; }),
-    'もしかして「ガソリン170円、燃費18キロ、200キロ走る」？');
-  check('  そのとき行を押せる印が付く', await page.evaluate(() =>
-    document.getElementById('dtVoice').classList.contains('dt-voice-guess')), true);
-  check('  押すとそのまま試せる', await page.evaluate(async () => {
+    'こう言うと計算できます：「ガソリン170円、燃費18キロ、200キロ走る」');
+  check('  そのときは押せないままにする', await page.evaluate(() =>
+    document.getElementById('dtVoice').classList.contains('dt-voice-guess')), false);
+  check('  押しても見本の数で計算しない', await page.evaluate(async () => {
+    const before = document.getElementById('dtMain').textContent;
     document.getElementById('dtVoice').click();
-    await new Promise(z => setTimeout(z, 200));
-    return document.getElementById('dtMain').textContent; }), '1888.8888888889');
+    await new Promise(z => setTimeout(z, 250));
+    return document.getElementById('dtMain').textContent === before; }), true);
+  // 言った数がそのまま当てはまるときは、これまでどおり押して試せる
+  check('  数がそろえば押して試せる', await page.evaluate(() => {
+    dtAllClear(); voiceAcceptDentaku('1000ばいで20リットル');
+    return document.getElementById('dtVoiceF').textContent + '/' +
+      document.getElementById('dtVoice').classList.contains('dt-voice-guess'); }),
+    'もしかして「1000倍で20リットル」？/true');
+  check('  押すと自分の数で計算される', await page.evaluate(async () => {
+    document.getElementById('dtVoice').click();
+    await new Promise(z => setTimeout(z, 250));
+    return document.getElementById('dtMain').textContent; }), '20');
+  // 聞き取りが大文字で返ってきても計算できる（v390）
+  for (const [say, want] of [['1000倍で20 L', 20], ['100倍で4 L', 40], ['200倍で4 L', 20],
+                             ['50倍で4 L', 80], ['1000倍で20リットル', 20]])
+    check('  「' + say + '」が計算できる', await page.evaluate(x => {
+      const r = speechRecipe(x); return r ? r.v : null; }, say), want);
+  check('  大文字でも小文字でも同じ答え', await page.evaluate(() =>
+    [speechRecipe('100倍で4L').v, speechRecipe('100倍で4l').v,
+     speechRecipe('100倍で4リットル').v].join('/')), '40/40/40');
+  check('  もしかしては自分の数で出す', await page.evaluate(() => {
+    const g = speechGuess('100倍で4エル'); return g ? g.fit : null; }), '100倍で4リットル');
+  check('  数が合わなければ押せる形にしない', await page.evaluate(() => {
+    const g = speechGuess('ガソリン代170円で200キロ');
+    return g ? String(g.fit) + '/' + !!g.ex : null; }), 'null/true');
+
   check('  近いものが無ければすすめない', await page.evaluate(() => {
     dtAllClear(); voiceAcceptDentaku('ねこ');
     return document.getElementById('dtVoiceF').textContent + '/' +
@@ -4568,6 +4595,50 @@ async function runCalcOnly(browser) {
   await ctx.close();
 }
 
+/* ── 聞いている窓の置き場所 v390 ── */
+async function runVoicePlace(browser) {
+  console.log('\n── 聞いている窓の置き場所 ──');
+  for (const [w, h, name] of [[412, 900, 'ふつうの画面'], [375, 667, 'iPhone SE']]) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true });
+    const page = await ctx.newPage();
+    const errs = [];
+    page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+    await page.goto(INDEX); await page.waitForTimeout(300);
+    await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+    await page.reload(); await page.waitForTimeout(1000);
+    await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(400);
+    await page.evaluate(() => { try { voiceAcceptDentaku('100倍で4 L'); } catch (_) {} });
+    await page.waitForTimeout(400);
+    await page.evaluate(() => { openDlg('voiceOverlay'); voicePlace(); });
+    await page.waitForTimeout(350);
+    const r = await page.evaluate(() => {
+      const box = document.querySelector('#voiceOverlay .voice-box').getBoundingClientRect();
+      const row = document.getElementById('dtVoice').getBoundingClientRect();
+      return { over: box.bottom > row.top && box.top < row.bottom,
+               above: box.bottom <= row.top, inScreen: box.top >= 0,
+               tight: document.querySelector('#voiceOverlay .voice-box').classList.contains('voice-tight') };
+    });
+    check('  ' + name + '：聞こえました の行にかぶらない', r.over, false);
+    check('  ' + name + '：行より上に置く', r.above, true);
+    check('  ' + name + '：画面からはみ出さない', r.inScreen, true);
+    check('  ' + name + '：聞こえた言葉が読める', await page.evaluate(() =>
+      document.getElementById('dtVoiceRaw').textContent), '「100倍で4 L」と聞こえました');
+    if (name === 'iPhone SE') check('  せまい画面では窓を小さくする', r.tight, true);
+    if (name === 'ふつうの画面') check('  広い画面ではそのままの大きさ', r.tight, false);
+    // 表モードのときは、行が無いのでまん中のまま
+    await page.evaluate(() => { closeDlg('voiceOverlay'); }); await page.waitForTimeout(400);
+    await page.evaluate(() => switchMode('normal')); await page.waitForTimeout(400);
+    await page.evaluate(() => { openDlg('voiceOverlay'); voicePlace(); }); await page.waitForTimeout(300);
+    check('  ' + name + '：表のときはまん中のまま', await page.evaluate(() => {
+      const ov = document.getElementById('voiceOverlay');
+      return ov.style.paddingBottom === '' && ov.style.alignItems === ''; }), true);
+    await page.evaluate(() => { closeDlg('voiceOverlay'); }); await page.waitForTimeout(400);
+    check('  ' + name + '：JSエラーが出ていない', errs.length, 0);
+    if (errs.length) console.log('    ', errs);
+    await ctx.close();
+  }
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -4605,6 +4676,7 @@ async function runCalcOnly(browser) {
     if (!only || only === 'safearea') await runSafeArea(browser);
     if (!only || only === 'compact') await runCompact(browser);
     if (!only || only === 'calconly') await runCalcOnly(browser);
+    if (!only || only === 'voiceplace') await runVoicePlace(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
