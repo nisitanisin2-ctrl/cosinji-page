@@ -8033,6 +8033,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v389', t:'「電卓だけ」でフリックしても下のテンキーが見えないように', li:[
+    '「電卓だけにする」のときに<b>指を横に動かすと、下の数字のテンキーがちらっと見えていた</b>のを直しました',
+    '<b>左へフリックして道具（🌱野菜・💧単位水量など）を開く</b>のは、これまでどおりできます',
+  ]},
   { v:'v388', t:'電卓だけにできます', li:[
     '設定→🎨見た目に<b>「電卓だけにする」</b>を足しました。テンキーが<b>電卓のページから動かなくなり</b>、書式・枠線／数字／記号／登録へは行きません',
     '<b>設定で選んだ道具（🌱野菜・💧単位水量など）は、そのまま開けます</b>',
@@ -13185,6 +13189,9 @@ function renderNpToolList(){
   /* その向きにはもうページが無い＝端か。
      端ではページを一切動かさない（動かすと裏の別ページが見えて、めくれたように誤解させるため）。 */
   function atEdge(ax, d){
+    // 「電卓だけ」のあいだは、どの向きに指を動かしてもページを1pxも動かさない。
+    // 動かすと、離した時には戻るとはいえ、下の数字ページがちらっと見えてしまう（v389）
+    if(typeof calcOnly!=='undefined' && calcOnly) return true;
     if(ax==='h'){
       if(openWhich==='fmt')  return d>0;   // 書式・枠線より左は無い
       if(openWhich==='sci')  return d<0;   // 関数電卓より右は無い
@@ -19188,7 +19195,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v388';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v389';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

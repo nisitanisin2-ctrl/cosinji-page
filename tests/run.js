@@ -4491,6 +4491,29 @@ async function runCalcOnly(browser) {
     vp.dispatchEvent(new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true })); });
   await page.waitForTimeout(350);
   check('  ホイールでも動かない', await cur(), 'sci');
+  // 指を動かしているあいだも、下の数字ページがちらっとも見えない（v389）
+  const dragPeek = async (dx) => {
+    const r = await page.evaluate(() => { const b = document.getElementById('numpadViewport').getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: r.x, y: r.y }] });
+    let worst = 0;
+    for (let i = 1; i <= 6; i++) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: r.x + dx * i / 6, y: r.y }] });
+      await page.waitForTimeout(30);
+      const d = await page.evaluate(() => {
+        const sci = document.getElementById('numpadPageSci').getBoundingClientRect();
+        const vp = document.getElementById('numpadViewport').getBoundingClientRect();
+        return Math.round(Math.abs(sci.left - vp.left)); });
+      if (d > worst) worst = d;
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForTimeout(500);
+    return worst;
+  };
+  check('  右へ指を動かしても1pxも動かない', await dragPeek(220), 0);
+  check('  左へ指を動かしても1pxも動かない', await dragPeek(-220), 0);
+  await closeTools();
+
   await swipe(220, 0);
   check('  右フリックでも動かない', await cur(), 'sci');
   await swipe(0, -320);
@@ -4520,6 +4543,8 @@ async function runCalcOnly(browser) {
   check('  タブがぜんぶ戻る', await tabs(), '書式・枠線/数字/記号/電卓/🌱野菜/💧単位水量/▲ 登録');
   check('  ▦表へも戻る', await page.evaluate(() =>
     getComputedStyle(document.querySelector('#numpadPageSci [data-key="dk_tosheet"]')).display !== 'none'), true);
+  await page.evaluate(() => numpadPager.go('sci')); await page.waitForTimeout(400);
+  check('  戻せばフリックで動くようになる', await dragPeek(220) > 0, true);
   await page.evaluate(() => numpadPager.go('fmt')); await page.waitForTimeout(400);
   check('  ほかのページへ行ける', await cur(), 'fmt');
   await swipe(-220, 0);
