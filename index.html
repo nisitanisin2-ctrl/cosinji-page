@@ -1320,6 +1320,10 @@ body.numpad-off .numpad-pagebar { display: none; }
 /* 表へ・桁は1列ぶん。字は小さめにして入りきるようにする（v367） */
 #numpadPageSci .btn.dk-half { grid-column: span 1; font-size: calc(12px * var(--key-scale, 1.3)); }
 #numpadPageSci .btn.enter { grid-row: auto; }   /* ＝は1段ぶん（右下） */
+/* 「電卓だけ」のあいだは表へ行かない（表に移ると数字のテンキーになってしまうため）。
+   空いた1列ぶんは「桁」を広げて埋める（v388） */
+body.calc-only #numpadPageSci .btn[data-key="dk_tosheet"] { display: none; }
+body.calc-only #numpadPageSci .btn[data-key="dk_dec"] { grid-column: span 2; }
 /* 登録ページのボタン（紫）。長押しで登録・タップで入力 */
 .btn.ubtn {
   background: #5b3a86; padding: 4px 3px;
@@ -3263,6 +3267,9 @@ body.dark {
     <div class="set-sec">画面の詰め方<small style="font-weight:normal;margin-left:6px">せまい画面で表示量を増やす</small></div>
     <div class="set-note">iPhone SE のように<b>背の低い画面</b>だと、電卓の答えや履歴が入りきらないことがあります。<b>詰める</b>にすると文字と余白を少しずつ縮めて、<b>1画面に見える量を増やします</b>。<b>自動</b>は画面の大きさで決めます。<span id="compactNow"></span></div>
     <div class="skin-seg" id="compactSeg"></div>
+    <div class="set-sec">電卓だけにする</div>
+    <div class="set-note">テンキーを<b>電卓のページから動かないように</b>します。<b>書式・枠線／数字／記号／登録</b>へは行かなくなり、フリックしても切り替わりません。かんたんな電卓として人に渡すときに使えます。<br><b>設定で選んだ道具（🌱野菜・💧単位水量など）は、そのまま開けます</b>（上のタブを押すか、電卓から左へフリック）。<br>表は使えなくなるので、<b>▦表へ</b>のキーは隠れます。ここをもう一度押せばいつでも戻せます。</div>
+    <button class="set-act" id="calcOnlyBtn" onclick="toggleCalcOnly()" title="テンキーを電卓のページに固定します">🧮 電卓だけにする</button>
     <div class="set-sec">色と背景（着せかえ）</div>
     <div class="set-note">スマホのキーボードのように、<b>色</b>と<b>背景</b>を自分好みに変えられます。選んだらすぐに変わります。<b>🌙ナイトモード</b>とは別なので、夜モードのままでも色は変えられます。</div>
     <div class="skin-sw" id="skinSw"></div>
@@ -8026,6 +8033,11 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v388', t:'電卓だけにできます', li:[
+    '設定→🎨見た目に<b>「電卓だけにする」</b>を足しました。テンキーが<b>電卓のページから動かなくなり</b>、書式・枠線／数字／記号／登録へは行きません',
+    '<b>設定で選んだ道具（🌱野菜・💧単位水量など）は、そのまま開けます</b>',
+    'かんたんな電卓として人に渡すときにどうぞ。<b>いつでも戻せます</b>',
+  ]},
   { v:'v387', t:'せまい画面でも見やすく、声はマイクから', li:[
     '電卓の<b>式の行にある🎤を押すと、その場で声入力が始まります</b>（テンキーの「声」まで手を伸ばさなくてよくなりました）',
     '設定→🎨見た目に<b>「画面の詰め方」</b>を足しました。<b>iPhone SE のような背の低い画面</b>では文字と余白を詰めて、<b>1画面に見える量を増やします</b>（自動／ふつう／詰める）',
@@ -8103,6 +8115,39 @@ function maybeTellWhatsNew(){
 function dtVoiceRowTap(){
   if(dtVoiceGuessEx){ dtVoiceGuessTry(); return; }
   voiceStart();
+}
+
+/* ── 電卓だけにする（v388） ──
+   簡易電卓として渡したいとき用。テンキーは電卓のページから動かなくなり、
+   書式・枠線／数字／記号／登録には行かない。
+   設定で選んだ道具（野菜・単位水量など）は、そのまま開ける。 */
+const CALCONLY_KEY='excalc_calconly';
+let calcOnly=false;
+function loadCalcOnly(){
+  try{ calcOnly=localStorage.getItem(CALCONLY_KEY)==='1'; }catch(_){ calcOnly=false; }
+}
+function applyCalcOnly(){
+  document.body.classList.toggle('calc-only', calcOnly);
+  if(calcOnly && numpadPager && numpadPager.current()!=='sci'){
+    // go() は「電卓だけ」だと弾くので、いったん解いてから電卓ページへ移る
+    calcOnly=false; numpadPager.go('sci'); calcOnly=true;
+    document.body.classList.add('calc-only');
+  }
+  if(typeof renderNumpadPageBar==='function') renderNumpadPageBar();
+  renderCalcOnly();
+}
+function toggleCalcOnly(){
+  calcOnly=!calcOnly;
+  try{ localStorage.setItem(CALCONLY_KEY, calcOnly?'1':'0'); }catch(_){}
+  applyCalcOnly();
+  toast(calcOnly
+    ? '電卓だけにしました（設定→🎨見た目 で戻せます）'
+    : 'ほかのテンキーも使えるようにしました');
+}
+function renderCalcOnly(){
+  const b=document.getElementById('calcOnlyBtn'); if(!b) return;
+  b.classList.toggle('on', calcOnly);
+  b.innerHTML=calcOnly ? '🧮 電卓だけにしている（押すと戻す）' : '🧮 電卓だけにする';
 }
 
 /* ── せまい画面で詰める（v387） ──
@@ -13267,6 +13312,8 @@ function renderNpToolList(){
   /* 横フリック1回分と同じページ遷移（dir=+1:次＝右のページへ／dir=-1:前＝左のページへ）。
      PCのマウスホイール用。onUp の横フリック遷移表と同じ内容。 */
   function pageStep(dir){
+    // 「電卓だけ」のあいだは、ホイールや矢印でページを動かさない（v388）
+    if(typeof calcOnly!=='undefined' && calcOnly) return;
     const prev=openWhich;
     if(dir>0){          // 次（左スワイプ相当）
       if(openWhich===null)       openWhich=(showFuncPage?'func':'sci');
@@ -13296,6 +13343,15 @@ function renderNpToolList(){
     const wasAxis=axis;
     if(wasAxis==='h'){
       const th=Math.max(40, w*0.22);
+      // 「電卓だけ」のあいだは、ほかのテンキーへは移らない。
+      // ただし左フリックで道具（野菜・単位水量など）を開くのはそのまま使える（v388）
+      if(typeof calcOnly!=='undefined' && calcOnly){
+        if(dx<=-th && typeof npToolFlick==='function') npToolFlick();
+        restAll(true);
+        downX=null; axis=null; activeEl=null;
+        setTimeout(()=>{ numpadSwiping=false; }, 50);
+        return;
+      }
       if(openWhich===null){
         if(dx<=-th) openWhich=(showFuncPage?'func':'sci');
         else if(dx>=th) openWhich='fmt';
@@ -13318,7 +13374,8 @@ function renderNpToolList(){
       restAll(true);
     } else if(wasAxis==='v'){
       const thV=Math.max(40, h*0.22);
-      if(openWhich===null && dy<=-thV) openWhich=lastRegPage;       // 最後に見ていた登録ページを開く
+      if(typeof calcOnly!=='undefined' && calcOnly){ restAll(true); }   // 登録ページへも行かない（v388）
+      else if(openWhich===null && dy<=-thV) openWhich=lastRegPage;       // 最後に見ていた登録ページを開く
       else if(isReg(openWhich) && dy>=thV){ openWhich=null; if(typeof cancelRegMove==='function') cancelRegMove(); }  // 閉じたら移動モードも解除
       restAll(true);
     }
@@ -13356,6 +13413,8 @@ function renderNpToolList(){
     cancelSwipe(){ downX=null; axis=null; if(activeEl) activeEl.classList.remove('ov-dragging'); activeEl=null; numpadSwiping=false; },
     go(name){
       if(name===undefined) return;
+      // 「電卓だけ」のあいだは、電卓ページから動かさない（v388）
+      if(typeof calcOnly!=='undefined' && calcOnly && name!=='sci') return;
       if(openWhich===name) return;
       openWhich=name;
       if(isReg(openWhich)) lastRegPage=openWhich;
@@ -13373,16 +13432,18 @@ function renderNumpadPageBar(){
   const bar=document.getElementById('numpadPageBar'); if(!bar||!numpadPager) return;
   const cur=numpadPager.current();
   const inReg=(cur==='reg'||cur==='regL'||cur==='regR');
-  const row=(inReg?NP_ROW_REG:NP_ROW_MAIN).filter(([k])=> k!=='func' || showFuncPage);
+  // 「電卓だけ」のあいだは、電卓と道具のタブだけを出す（v388）
+  const row=calcOnly ? [['sci','電卓']]
+    : (inReg?NP_ROW_REG:NP_ROW_MAIN).filter(([k])=> k!=='func' || showFuncPage);
   const axis=inReg ? [null,'▼ 数字'] : ['reg','▲ 登録'];
-  const tools=inReg ? '' : npTools.map(id=>{
+  const tools=(inReg && !calcOnly) ? '' : npTools.map(id=>{
       const t=npToolDef(id); return t ? '<button class="np-page np-tool" data-nptool="'+id+'">'+escHtml(t.label)+'</button>' : '';
     }).join('');
   const html=row.map(([k,label])=>
       '<button class="np-page'+(k===cur?' on':'')+'" role="tab" aria-selected="'+(k===cur)+'"'+
       ' data-np="'+(k===null?'':k)+'">'+label+'</button>').join('')
     + tools
-    + '<button class="np-page np-axis" data-np="'+(axis[0]===null?'':axis[0])+'">'+axis[1]+'</button>';
+    + (calcOnly ? '' : '<button class="np-page np-axis" data-np="'+(axis[0]===null?'':axis[0])+'">'+axis[1]+'</button>');
   if(bar.dataset.html!==html){ bar.innerHTML=html; bar.dataset.html=html; }
 }
 (function setupNumpadPageBar(){
@@ -19127,7 +19188,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v387';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v388';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -21238,6 +21299,7 @@ if("serviceWorker" in navigator){
 }
 
 netInit();
+loadCalcOnly(); applyCalcOnly();
 loadCompact(); applyCompact();
 /* 向きを変えたり画面の大きさが変わったら、詰めるかどうかを見直す（v387） */
 let cmpTimer=null;

@@ -4439,6 +4439,110 @@ async function runCompact(browser) {
   await ctx.close();
 }
 
+/* ── 電卓だけにする v388 ── */
+async function runCalcOnly(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 電卓だけにする ──');
+  const cdp = await page.context().newCDPSession(page);
+  const swipe = async (dx, dy) => {
+    const r = await page.evaluate(() => { const b = document.getElementById('numpadViewport').getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: r.x, y: r.y }] });
+    for (let i = 1; i <= 6; i++) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove',
+        touchPoints: [{ x: r.x + (dx || 0) * i / 6, y: r.y + (dy || 0) * i / 6 }] });
+      await page.waitForTimeout(16);
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForTimeout(500);
+  };
+  const cur = () => page.evaluate(() => numpadPager.current());
+  const tabs = () => page.evaluate(() =>
+    [...document.querySelectorAll('#numpadPageBar .np-page')].map(x => x.textContent).join('/'));
+  const closeTools = async () => { await page.evaluate(() => {
+    if (isDlgOpen('veggieOverlay')) closeVeggie();
+    if (isDlgOpen('tansuiOverlay')) closeTansui(); }); await page.waitForTimeout(500); };
+
+  // 道具を2つ登録しておく
+  await page.evaluate(() => { npTools = ['veggie', 'tansui']; saveNpTools(); applyNpToolFull(); renderNumpadPageBar(); });
+  await page.waitForTimeout(300);
+  check('  はじめはオフ', await page.evaluate(() => calcOnly), false);
+  check('  はじめは全部のタブ', await tabs(), '書式・枠線/数字/記号/電卓/🌱野菜/💧単位水量/▲ 登録');
+
+  // オンにする
+  await page.evaluate(() => toggleCalcOnly()); await page.waitForTimeout(700);
+  check('  オンにできる', await page.evaluate(() => calcOnly), true);
+  check('  電卓ページへ移る', await cur(), 'sci');
+  check('  電卓モードになる', await page.evaluate(() => document.body.classList.contains('dentaku-mode')), true);
+  check('  タブは電卓と道具だけ', await tabs(), '電卓/🌱野菜/💧単位水量');
+  check('  ▲登録のタブも出さない', await page.evaluate(() =>
+    !document.querySelector('#numpadPageBar .np-axis')), true);
+  check('  ▦表へのキーは隠す', await page.evaluate(() =>
+    getComputedStyle(document.querySelector('#numpadPageSci [data-key="dk_tosheet"]')).display), 'none');
+  check('  空いた分は「桁」で埋める', await page.evaluate(() =>
+    getComputedStyle(document.querySelector('#numpadPageSci [data-key="dk_dec"]')).gridColumn), 'span 2');
+
+  // どこからも動かない
+  for (const t of ['fmt', null, 'func', 'reg', 'regL', 'regR']) {
+    await page.evaluate(x => numpadPager.go(x), t); await page.waitForTimeout(120);
+  }
+  check('  タブや go() で動かない', await cur(), 'sci');
+  await page.evaluate(() => { const vp = document.getElementById('numpadViewport');
+    vp.dispatchEvent(new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true })); });
+  await page.waitForTimeout(350);
+  check('  ホイールでも動かない', await cur(), 'sci');
+  await swipe(220, 0);
+  check('  右フリックでも動かない', await cur(), 'sci');
+  await swipe(0, -320);
+  check('  上フリック（登録）でも動かない', await cur(), 'sci');
+  check('  表モードにもならない', await page.evaluate(() => document.body.classList.contains('dentaku-mode')), true);
+
+  // 道具はそのまま開ける
+  await swipe(-220, 0);
+  check('  左フリックで道具が開く', await page.evaluate(() => isDlgOpen('veggieOverlay')), true);
+  check('  道具を開いてもページは電卓', await cur(), 'sci');
+  await closeTools();
+  await page.evaluate(() => { const b = [...document.querySelectorAll('#numpadPageBar .np-tool')]
+    .find(x => x.dataset.nptool === 'tansui'); if (b) b.click(); });
+  await page.waitForTimeout(700);
+  check('  タブからも道具が開く', await page.evaluate(() => isDlgOpen('tansuiOverlay')), true);
+  await closeTools();
+
+  // 覚えている
+  await page.reload(); await page.waitForTimeout(1200);
+  check('  開き直しても覚えている', await page.evaluate(() => calcOnly), true);
+  check('  開き直しても電卓ページ', await cur(), 'sci');
+  check('  開き直してもタブは2種', await tabs(), '電卓/🌱野菜/💧単位水量');
+
+  // 戻せる
+  await page.evaluate(() => toggleCalcOnly()); await page.waitForTimeout(600);
+  check('  戻せる', await page.evaluate(() => calcOnly), false);
+  check('  タブがぜんぶ戻る', await tabs(), '書式・枠線/数字/記号/電卓/🌱野菜/💧単位水量/▲ 登録');
+  check('  ▦表へも戻る', await page.evaluate(() =>
+    getComputedStyle(document.querySelector('#numpadPageSci [data-key="dk_tosheet"]')).display !== 'none'), true);
+  await page.evaluate(() => numpadPager.go('fmt')); await page.waitForTimeout(400);
+  check('  ほかのページへ行ける', await cur(), 'fmt');
+  await swipe(-220, 0);
+  check('  フリックも効く', await cur(), null);
+
+  // 設定のボタン
+  await page.evaluate(() => { toggleSettings(); setSettingsTab(1); }); await page.waitForTimeout(500);
+  check('  設定にボタンがある', await page.evaluate(() =>
+    document.getElementById('calcOnlyBtn').textContent.trim()), '🧮 電卓だけにする');
+  check('  オフのときは印なし', await page.evaluate(() =>
+    document.getElementById('calcOnlyBtn').classList.contains('on')), false);
+  await page.evaluate(() => toggleCalcOnly()); await page.waitForTimeout(500);
+  check('  オンにすると字が変わる', await page.evaluate(() =>
+    document.getElementById('calcOnlyBtn').textContent.trim()), '🧮 電卓だけにしている（押すと戻す）');
+  check('  オンのときは印が付く', await page.evaluate(() =>
+    document.getElementById('calcOnlyBtn').classList.contains('on')), true);
+  await page.evaluate(() => { toggleCalcOnly(); toggleSettings(); }); await page.waitForTimeout(450);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -4475,6 +4579,7 @@ async function runCompact(browser) {
     if (!only || only === 'polish') await runPolish(browser);
     if (!only || only === 'safearea') await runSafeArea(browser);
     if (!only || only === 'compact') await runCompact(browser);
+    if (!only || only === 'calconly') await runCalcOnly(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
