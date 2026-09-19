@@ -1793,7 +1793,7 @@ async function runCalcPage(browser) {
     document.querySelectorAll('#dentakuPane .dt-key').length + ':' +
     (document.getElementById('dtVoice') ? 1 : 0)), '0:1');
   await page.evaluate(() => { dtAllClear(); dtTape = []; });
-  check('  はじめは案内だけ', await vline(), '声で言った計算式がここに出ます ｜  ｜ −');
+  check('  はじめは案内だけ', await vline(), '🎤を押すと、声で計算できます ｜  ｜ −');
   await page.evaluate(() => voiceAcceptDentaku('251かける68'));
   await page.waitForTimeout(200);
   check('  声で言った式が出る', await vline(), '251×68 ＝ 17068 ｜ 「251かける68」と聞こえました ｜ 緑');
@@ -1803,7 +1803,7 @@ async function runCalcPage(browser) {
   check('  式にできないときは聞こえた言葉を残す', await vline(),
         '計算の形になりませんでした ｜ 「こんにちは」と聞こえました ｜ 赤');
   await page.evaluate(() => dtAllClear());
-  check('  AC で消える', await vline(), '声で言った計算式がここに出ます ｜  ｜ −');
+  check('  AC で消える', await vline(), '🎤を押すと、声で計算できます ｜  ｜ −');
 
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
