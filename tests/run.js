@@ -4723,6 +4723,81 @@ async function runVoiceFull(browser) {
   await ctx.close();
 }
 
+/* ── ▦既定の大きさ のボタン v392 ── */
+async function runDefSize(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 既定の大きさのボタン ──');
+  const size = () => page.evaluate(() => ROWS + 'x' + COLS);
+  const openMenu = async () => { await page.evaluate(() => {
+    openMoreMenu(); const d = document.getElementById('moreAccMisc'); if (d) d.open = true; });
+    await page.waitForTimeout(500); };
+  const tapDef = async (id) => {
+    await openMenu();
+    const b = await page.evaluate(i => { const r = document.getElementById(i).getBoundingClientRect();
+      return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; }, id);
+    await page.mouse.click(b.x, b.y); await page.waitForTimeout(600);
+  };
+
+  check('  はじめの大きさ', await size(), '15x3');
+  // タップしたら設定が開く（表はまだ変わらない）
+  await tapDef('defsizeTopBtn');
+  check('  タップで設定が開く', await page.evaluate(() => isDlgOpen('defaultSizeOverlay')), true);
+  check('  押しただけでは表を変えない', await size(), '15x3');
+  check('  いまの既定が入っている', await page.evaluate(() =>
+    document.getElementById('defRowsInput').value + '/' + document.getElementById('defColsInput').value), '15/3');
+  check('  中に「いまの表を…」のボタンがある', await page.evaluate(() =>
+    [...document.querySelectorAll('#defaultSizeOverlay button')].map(x => x.textContent.trim()).join('|')),
+    '✕|この内容で保存|▦ いまの表をこの大きさにする');
+
+  // 保存しても、いまの表は変わらない
+  await page.evaluate(() => { document.getElementById('defRowsInput').value = '20';
+    document.getElementById('defColsInput').value = '5'; saveDefaultSize(); });
+  await page.waitForTimeout(500);
+  check('  既定だけが変わる', await page.evaluate(() => getDefaultRows() + 'x' + getDefaultCols()), '20x5');
+  check('  いまの表はそのまま', await size(), '15x3');
+  check('  保存したら閉じる', await page.evaluate(() => isDlgOpen('defaultSizeOverlay')), false);
+
+  // 中のボタンで、いまの表だけを変える（中身は残る）
+  await page.evaluate(() => { data[0][0] = 'のこす'; buildSheet(); });
+  await tapDef('defsizeTopBtn');
+  await page.evaluate(() => applyDefaultSizeNow()); await page.waitForTimeout(600);
+  check('  いまの表を変えられる', await size(), '20x5');
+  check('  中身は消えない', await page.evaluate(() => data[0][0]), 'のこす');
+  check('  終わったら閉じる', await page.evaluate(() => isDlgOpen('defaultSizeOverlay')), false);
+
+  // 長押ししても同じ（設定が開くだけ）
+  await openMenu();
+  const bx = await page.evaluate(() => { const r = document.getElementById('defsizeTopBtn').getBoundingClientRect();
+    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; });
+  await page.mouse.move(bx.x, bx.y); await page.mouse.down(); await page.waitForTimeout(900);
+  await page.mouse.up(); await page.waitForTimeout(700);
+  check('  長押しでも設定が開く', await page.evaluate(() => isDlgOpen('defaultSizeOverlay')), true);
+  check('  長押しでも表は変わらない', await size(), '20x5');
+  await page.evaluate(() => closeDefaultSizeDlg()); await page.waitForTimeout(500);
+
+  // 上のバーに出した ▦ でも同じ（⋯の窓は閉じてから押す）
+  await page.evaluate(() => { if (isDlgOpen('moreMenuOverlay')) closeMoreMenu(); });
+  await page.waitForTimeout(500);
+  await page.evaluate(() => toggleTopBtn('defsize')); await page.waitForTimeout(400);
+  const tb = await page.evaluate(() => { const r = document.getElementById('tbDefsize').getBoundingClientRect();
+    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; });
+  await page.mouse.click(tb.x, tb.y); await page.waitForTimeout(600);
+  check('  上のバーの▦でも設定が開く', await page.evaluate(() => isDlgOpen('defaultSizeOverlay')), true);
+  await page.evaluate(() => { closeDefaultSizeDlg(); toggleTopBtn('defsize'); }); await page.waitForTimeout(500);
+
+  // ▦通常 とのちがい（中身があれば大きさは変えない／空なら既定に戻す）
+  await page.evaluate(() => { setSheetSize(5, 2); data[0][0] = 'のこす'; buildSheet(); switchMode('normal'); });
+  await page.waitForTimeout(500);
+  check('  ▦通常は中身があれば大きさを変えない', await size(), '5x2');
+  await page.evaluate(() => { data[0][0] = ''; buildSheet(); switchMode('normal'); });
+  await page.waitForTimeout(500);
+  check('  ▦通常は空なら既定に戻す', await size(), '20x5');
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -4762,6 +4837,7 @@ async function runVoiceFull(browser) {
     if (!only || only === 'calconly') await runCalcOnly(browser);
     if (!only || only === 'voiceplace') await runVoicePlace(browser);
     if (!only || only === 'voicefull') await runVoiceFull(browser);
+    if (!only || only === 'defsize') await runDefSize(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }

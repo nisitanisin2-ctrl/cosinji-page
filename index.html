@@ -3148,7 +3148,7 @@ body.dark {
   <button class="btn-top-extra menu-item" id="tbList"    onclick="showSaveList()" style="display:none" title="保存データ一覧">📋</button>
   <button class="btn-top-extra menu-item" id="tbSheet"   onclick="toggleSheetTabs()" style="display:none" title="シートのタブを表示/非表示">🗂</button>
   <button class="btn-top-extra menu-item" id="tbSet"     onclick="toggleSettings()" style="display:none" title="設定">⚙</button>
-  <button class="btn-top-extra menu-item" id="tbDefsize" style="display:none" title="タップで既定の行数・列数に／長押しで既定値を設定">▦</button>
+  <button class="btn-top-extra menu-item" id="tbDefsize" style="display:none" title="新しい表や ▦通常 に戻したときの行数・列数を決めます">▦</button>
   <button class="btn-top-extra btn-top-reset menu-item" id="tbReset" onclick="resetAll()" style="display:none" title="表の中身を消す（戻るで元に戻せます）">🧹</button>
   <button class="btn-more" id="moreBtn" onclick="openMoreMenu()" title="そのほかの操作">⋯</button>
   <div class="sheet-bar" id="sheetBar"></div>
@@ -3224,7 +3224,7 @@ body.dark {
         <summary>🛠 そのほか<small>シート・既定の大きさ・ナイトモード・説明書</small></summary>
         <div class="more-grid">
           <button class="more-item menu-item" id="sheetToggleBtn" onclick="moreDo(toggleSheetTabs)" title="シートのタブバーを表示/非表示"><span>🗂</span>シート</button>
-          <button class="more-item menu-item" id="defsizeTopBtn" title="タップで既定の行数・列数に／長押しで既定値を設定"><span>▦</span>既定の大きさ</button>
+          <button class="more-item menu-item" id="defsizeTopBtn" title="新しい表や ▦通常 に戻したときの行数・列数を決めます"><span>▦</span>既定の大きさ</button>
           <button class="more-item" id="darkMoreBtn" onclick="moreDo(toggleDark)"><span>🌙</span>ナイトモード</button>
           <button class="more-item" onclick="moreDo(openHelp)"><span>📖</span>説明書</button>
         </div>
@@ -4163,11 +4163,13 @@ body.dark {
       <span>デフォルトの行数・列数</span>
       <button class="modal-close" onclick="closeDefaultSizeDlg()">✕</button>
     </div>
-    <div class="mode-hint">「▦ デフォルト」ボタンをタップしたときに設定する行数・列数を指定します。</div>
+    <div class="mode-hint">新しく表を作るときや、<b>▦通常</b>でまっさらに戻したときの<b>行数・列数</b>を決めます。</div>
     <div class="modal-body">
       <div class="defsize-row"><label for="defRowsInput">行数（1〜250）</label><input type="number" id="defRowsInput" class="defsize-input" min="1" max="250" inputmode="numeric"></div>
       <div class="defsize-row"><label for="defColsInput">列数（1〜50）</label><input type="number" id="defColsInput" class="defsize-input" min="1" max="50" inputmode="numeric"></div>
       <button class="regpick-save" style="width:100%;padding:10px;margin-top:6px" onclick="saveDefaultSize()">この内容で保存</button>
+      <button class="set-act" style="margin-top:10px" onclick="applyDefaultSizeNow()" title="いま開いている表の行数・列数を、上の値にします（中身はそのまま）">▦ いまの表をこの大きさにする</button>
+      <div class="set-note">いまの表の行数・列数だけを変えます。<b>中身はそのまま</b>です。<br><b>▦通常</b>は「モードを通常に戻す」ボタンで、<b>表が空のときだけ</b>この大きさに戻します。</div>
     </div>
   </div>
 </div>
@@ -5236,11 +5238,11 @@ body.dark {
             <tr><td><b>調整バー</b></td><td>大きさを変えるバーの太さ、表示/非表示を切替（「くわしい設定」の中）</td></tr>
             <tr><td><b>上下の余白</b></td><td>テンキーの上下の隙間（「最小」でホームバー分も詰める）</td></tr>
           </table>
-          <div class="help-li"><b>▦既定の大きさ</b>：タップで決めた行数・列数に一発変更、<b>長押しで既定値を設定</b>（設定→🎨見た目→くわしい設定→<b>上のバーに出すボタン</b>で上のバーにも出せます）。</div>
+          <div class="help-li"><b>▦既定の大きさ</b>（v392から）：<b>タップすると設定が開きます</b>。新しく表を作るときや <b>▦通常</b> でまっさらに戻したときの<b>行数・列数</b>をここで決めます（初期値15行×3列）。<b>いま開いている表だけ</b>をその大きさにしたいときは、同じ画面の<b>「▦ いまの表をこの大きさにする」</b>を押してください（中身はそのままです）。<br>v391までは<b>タップが「いまの表を変える」・長押しが設定</b>でしたが、タップの動きが <b>▦通常</b> とまぎらわしかったので入れかえました（設定→🎨見た目→くわしい設定→<b>上のバーに出すボタン</b>で上のバーにも出せます）。</div>
           <div class="help-li"><b>▦通常 と ▦既定の大きさ のちがい</b>（似ているので）：<br>
             ・<b>▦通常</b>は<b>モードを通常に戻す</b>ボタンです。すでに通常のときは、<b>ひな形なら消して</b>まっさらな表にし、<b>中身が空で小さいままなら</b>既定の大きさに戻します。<b>中身が入っているときは大きさを変えません</b>（作りかけの表を勝手に変えないため）<br>
-            ・<b>▦既定の大きさ</b>は<b>大きさだけ</b>を変えるボタンです。<b>中身はそのまま</b>で、行数・列数を決めた値にします<br>
-            ・つまり「空の表を既定に戻す」ときだけ、どちらを押しても同じになります</div>
+            ・<b>▦既定の大きさ</b>は<b>設定を開く</b>ボタンです（v392から）。そこで決めた行数・列数が、新しい表や ▦通常 のときに使われます。<b>いまの表だけ</b>を変えたいときは、その中の<b>「▦ いまの表をこの大きさにする」</b>（<b>中身はそのまま</b>で大きさだけ変わります）<br>
+            ・v391までは ▦既定の大きさ のタップが「いまの表を変える」だったので、<b>空の表では ▦通常 とまったく同じ</b>になっていました。それをやめて、押したらまず設定が開くようにしています</div>
           <div class="help-li"><b>テンキーのボタン配置を編集</b>（「くわしい設定」の中）：ドラッグでボタンを入れ替え（同じ大きさ同士。Enter・0は固定。関数・枠線ページも編集可）。「↺初期化」で元に戻せます。</div>
           <div class="help-li"><b>🔀モードの表示/非表示</b>：「モード」一覧に出す標準モードを選べます（「通常」は常に表示）。</div>
         </div>
@@ -8058,6 +8060,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v392', t:'▦既定の大きさ のボタンを分かりやすくしました', li:[
+    '<b>▦既定の大きさ</b>を押すと、これまで<b>長押ししないと出せなかった設定</b>がすぐ開くようになりました',
+    'これまでのタップの動き（いまの表を既定の大きさにする）は、<b>▦通常</b>とまぎらわしかったので、<b>設定の中のボタン</b>に移しました',
+  ]},
   { v:'v391', t:'長い式や聞き取りを、タップで全部見られます', li:[
     '声で言った式や「…と聞こえました」が長いと途中で切れていたのを、<b>タップすると全部出る</b>ようにしました',
     '入りきらないときだけ右に<b>「⌄」</b>が出ます。押すと開き、もう一度押すと短く戻ります',
@@ -8353,6 +8359,13 @@ function openDefaultSizeDlg(){
   document.getElementById('defColsInput').value=getDefaultCols();
   openDlg('defaultSizeOverlay');
 }
+/* ダイアログの中の「いまの表をこの大きさにする」（v392）。
+   入力欄の値をそのまま使いたいので、先に保存してから当てる。 */
+function applyDefaultSizeNow(){
+  if(isStructMode()){ toast('このモードでは行・列数を変更できません'); return; }
+  saveDefaultSize();                    // 入力欄の値を保存してダイアログを閉じる
+  applyDefaultSize();
+}
 function closeDefaultSizeDlg(){ closeDlg('defaultSizeOverlay'); }
 function saveDefaultSize(){
   let r=parseInt(document.getElementById('defRowsInput').value);
@@ -8364,24 +8377,16 @@ function saveDefaultSize(){
   closeDefaultSizeDlg();
   toast(`デフォルトを${r}行×${c}列に設定しました`);
 }
-/* タップ＝デフォルト適用／長押し＝既定値の設定ダイアログ（設定内・上バーの両ボタン共通） */
+/* タップ＝既定値の設定ダイアログ（v392）。
+   以前はタップで「いまの表を既定の大きさにする」だったが、それは ▦通常 が
+   （表が空のときに）同じことをしていて紛らわしかった。長押ししないと出せなかった
+   設定のほうをタップに移し、「いまの表をこの大きさにする」はダイアログの中に置いた。 */
 function bindDefaultSizeBtn(b){
   if(!b) return;
-  let timer=null, longed=false, sx=0, sy=0, down=false;
-  const clear=()=>{ if(timer){ clearTimeout(timer); timer=null; } };
-  b.addEventListener('pointerdown', e=>{
-    down=true; longed=false; sx=e.clientX; sy=e.clientY; clear();
-    timer=setTimeout(()=>{ longed=true; b.classList.add('armed'); if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} }, 500);
+  b.addEventListener('click', e=>{
+    e.preventDefault(); e.stopPropagation();
+    openDefaultSizeDlg();
   });
-  b.addEventListener('pointermove', e=>{ if(down && Math.hypot(e.clientX-sx,e.clientY-sy)>10) clear(); });
-  b.addEventListener('pointerup', ()=>{
-    if(!down) return;
-    clear(); const wasLong=longed; down=false; longed=false; b.classList.remove('armed');
-    if(wasLong){ setTimeout(openDefaultSizeDlg, 160); return; }   // 長押し→離してから設定ダイアログ（合成クリック対策）
-    applyDefaultSize();
-  });
-  b.addEventListener('pointercancel', ()=>{ clear(); down=false; longed=false; b.classList.remove('armed'); });
-  b.addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); }, true);  // pointerで処理
 }
 bindDefaultSizeBtn(document.getElementById('defsizeTopBtn'));
 
@@ -19322,7 +19327,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v391';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v392';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -21271,7 +21276,7 @@ loadNpFlick();       // フリックで入れる記号の割り当てを復元
 applyPageBar();      // テンキーのページ表示の有無を復元
 syncFuncPageBtn();   // 記号ページを出すかどうかの見た目を合わせる
 loadTopBtnShown(); applyTopBtnShown();                       // 上のバーに出すボタンを復元
-if(typeof bindDefaultSizeBtn==='function') bindDefaultSizeBtn(document.getElementById('tbDefsize'));   // ▦は長押しで既定値を設定
+if(typeof bindDefaultSizeBtn==='function') bindDefaultSizeBtn(document.getElementById('tbDefsize'));   // ▦を押すと既定の大きさの設定が開く
 (function(){ const b=document.getElementById('speechAutoBtn'); if(b) b.classList.toggle('on', speechAutoOn); })();
 (function(){ const b=document.getElementById('speechSpeakBtn'); if(b) b.classList.toggle('on', speechSpeakOn); })();
 (function(){ const el=document.getElementById('speechLayoutSel'); if(el) el.value=speechLayout; })();
