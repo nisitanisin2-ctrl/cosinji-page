@@ -4639,6 +4639,90 @@ async function runVoicePlace(browser) {
   }
 }
 
+/* ── 長い式・長い聞き取りを全部見る v391 ── */
+async function runVoiceFull(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 667 }, hasTouch: true });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+  console.log('\n── 長い声の結果を全部見る ──');
+  await page.goto(INDEX); await page.waitForTimeout(300);
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.reload(); await page.waitForTimeout(1000);
+  await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(400);
+
+  const LONG_F = '上辺3メートル、下辺5メートル、高さ2メートルの台形 ＝ 8㎡　／　1mあたり 8㎥（水路や法面の断面に使えます）';
+  const LONG_R = 'うわへん3メートル、したへん5メートル、たかさ2メートルのだいけい、みずろのだんめんをけいさんして';
+  const st = () => page.evaluate(() => {
+    const f = document.getElementById('dtVoiceF'), box = document.getElementById('dtVoice'),
+          btn = document.getElementById('dtVoiceMore'), raw = document.getElementById('dtVoiceRaw');
+    return { full: box.classList.contains('dt-voice-full'),
+             btn: btn.hidden ? 'なし' : btn.textContent,
+             fClip: f.scrollHeight > f.clientHeight + 1,
+             rClip: raw.scrollHeight > raw.clientHeight + 1,
+             h: Math.round(box.getBoundingClientRect().height) };
+  });
+  const show = (f, r) => page.evaluate(([a, b2]) => dtVoiceShow(a, b2, 'on'), [f, r]);
+
+  let a = await st();
+  check('  はじめはボタンを出さない', a.btn, 'なし');
+  await show('251×68 ＝ 17068', '251かける68'); await page.waitForTimeout(300);
+  a = await st();
+  check('  短い結果でもボタンは出ない', a.btn, 'なし');
+  check('  短い結果は切れていない', a.fClip, false);
+
+  await show(LONG_F, LONG_R); await page.waitForTimeout(400);
+  const short = await st();
+  check('  長いと途中で切れる', short.fClip, true);
+  check('  切れたら⌄が出る', short.btn, '⌄');
+
+  await page.click('#dtVoiceMore'); await page.waitForTimeout(400);
+  const full = await st();
+  check('  ⌄を押すと開く', full.full, true);
+  check('  開くと式が全部見える', full.fClip, false);
+  check('  開くと聞こえた言葉も全部見える', full.rClip, false);
+  check('  開くと箱が高くなる', full.h > short.h, true);
+  check('  開いたら⌃に変わる', full.btn, '⌃');
+  check('  読み上げの名前も変わる', await page.evaluate(() =>
+    document.getElementById('dtVoiceMore').getAttribute('aria-label')), '短くする');
+
+  await page.click('#dtVoiceMore'); await page.waitForTimeout(350);
+  check('  ⌃で元に戻る', await st().then(x => [x.full, x.btn].join('/')), 'false/⌄');
+
+  // 行そのものを押しても開け閉めできる
+  await page.evaluate(() => document.getElementById('dtVoice').click()); await page.waitForTimeout(350);
+  check('  行を押しても開く', await st().then(x => x.full), true);
+  await page.evaluate(() => document.getElementById('dtVoice').click()); await page.waitForTimeout(350);
+  check('  もう一度押すと閉じる', await st().then(x => x.full), false);
+
+  // 新しい結果は短い形から
+  await page.evaluate(() => document.getElementById('dtVoice').click()); await page.waitForTimeout(300);
+  await show('251×68 ＝ 17068', '251かける68'); await page.waitForTimeout(350);
+  check('  新しい結果は短い形に戻る', await st().then(x => [x.full, x.btn].join('/')), 'false/なし');
+
+  // 🎤 と 📖 は今までどおり
+  await page.evaluate(() => { window.__vs = 0; window.__rv = window.voiceStart; window.voiceStart = () => window.__vs++; });
+  await page.click('.dt-voice-mic'); await page.waitForTimeout(250);
+  check('  🎤は声入力のまま', await page.evaluate(() => window.__vs), 1);
+  await show(LONG_F, LONG_R); await page.waitForTimeout(350);
+  await page.click('.dt-voice-mic'); await page.waitForTimeout(250);
+  check('  長くても🎤は声入力', await page.evaluate(() => window.__vs), 2);
+  check('  🎤では開かない', await st().then(x => x.full), false);
+  await page.evaluate(() => { window.voiceStart = window.__rv; });
+
+  // 「もしかして」が出ているときは、そちらが先
+  await page.evaluate(() => { dtAllClear(); voiceAcceptDentaku('1000ばいで20リットル'); });
+  await page.waitForTimeout(400);
+  check('  もしかしてのときは試すほうが先', await page.evaluate(async () => {
+    document.getElementById('dtVoice').click();
+    await new Promise(z => setTimeout(z, 250));
+    return document.getElementById('dtMain').textContent; }), '20');
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -4677,6 +4761,7 @@ async function runVoicePlace(browser) {
     if (!only || only === 'compact') await runCompact(browser);
     if (!only || only === 'calconly') await runCalcOnly(browser);
     if (!only || only === 'voiceplace') await runVoicePlace(browser);
+    if (!only || only === 'voicefull') await runVoiceFull(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }

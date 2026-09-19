@@ -756,8 +756,25 @@ body.dentaku-mode .formula-bar { display: none !important; }
 }
 .dt-voice.dt-voice-on .dt-voice-f { color: var(--text); }
 .dt-voice.dt-voice-ng .dt-voice-f { color: var(--danger); }
-.dt-voice-raw { font-size: 12px; color: var(--text-light); word-break: break-all; line-height: 1.3; }
+.dt-voice-raw { font-size: 12px; color: var(--text-light); word-break: break-all; line-height: 1.3;
+  /* 聞こえた言葉も、長いときは2行までにして「全部を見る」で開く（v391） */
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .dt-voice-raw:empty { display: none; }
+/* 入りきらないときだけ出る「⌄ 全部を見る」（v391） */
+.dt-voice-more {
+  flex-shrink: 0; align-self: flex-start; width: 26px; height: 26px; margin-left: 2px;
+  border: 1px solid var(--save-item-border); border-radius: var(--r-pill);
+  background: var(--save-item-bg); color: var(--text-sub);
+  font-size: 13px; font-weight: bold; line-height: 1;
+  cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.dt-voice-more[hidden] { display: none; }
+/* 開いたとき：行の制限を外し、長ければこの中だけ指で送れるようにする */
+.dt-voice.dt-voice-full { align-items: flex-start; max-height: 42vh; overflow-y: auto; }
+.dt-voice.dt-voice-full .dt-voice-f,
+.dt-voice.dt-voice-full .dt-voice-raw {
+  display: block; -webkit-line-clamp: unset; overflow: visible;
+}
 .dt-keys { flex-shrink: 0; display: flex; gap: 6px; }
 .dt-key {
   flex: 1 1 0; min-width: 0; padding: 12px 4px; border: none; border-radius: var(--r-btn);
@@ -3438,6 +3455,8 @@ body.dark {
       <span class="dt-voice-f" id="dtVoiceF">🎤を押すと、声で計算できます</span>
       <span class="dt-voice-raw" id="dtVoiceRaw"></span>
     </span>
+    <button class="dt-voice-more" id="dtVoiceMore" hidden
+            onclick="event.stopPropagation();dtVoiceToggleFull()" title="全部を見る" aria-label="全部を見る">⌄</button>
     <button class="dt-say-btn" onclick="event.stopPropagation();openSayHelp()">📖 言い方</button>
   </div>
 </div>
@@ -8039,6 +8058,11 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v391', t:'長い式や聞き取りを、タップで全部見られます', li:[
+    '声で言った式や「…と聞こえました」が長いと途中で切れていたのを、<b>タップすると全部出る</b>ようにしました',
+    '入りきらないときだけ右に<b>「⌄」</b>が出ます。押すと開き、もう一度押すと短く戻ります',
+    '行そのものを押しても開きます（「もしかして」が出ているときは、そちらが先です）',
+  ]},
   { v:'v390', t:'希釈の聞き取りと、聞いている窓の場所を直しました', li:[
     '「<b>100倍で4L</b>」のように<b>単位が大文字（L・KG など）</b>で聞き取られると計算できなかったのを直しました',
     '<b>「もしかして」が、言っていない数で計算してしまう</b>ことがあったのを直しました。これからは<b>自分が言った数</b>が入ります',
@@ -8130,6 +8154,9 @@ function maybeTellWhatsNew(){
    「もしかして」が出ているならそれを試す。何も無いときは声入力を始める。 */
 function dtVoiceRowTap(){
   if(dtVoiceGuessEx){ dtVoiceGuessTry(); return; }
+  // 入りきっていない（または開いている）ときは、全文の出し入れにする
+  const box=document.getElementById('dtVoice');
+  if(box && (box.classList.contains('dt-voice-full') || dtVoiceClipped())){ dtVoiceToggleFull(); return; }
   voiceStart();
 }
 
@@ -14944,11 +14971,36 @@ function dtVoiceShow(formula, raw, state){
   const box=document.getElementById('dtVoice');
   const f=document.getElementById('dtVoiceF'), r=document.getElementById('dtVoiceRaw');
   if(!box||!f||!r) return;
-  f.textContent=formula||'声で言った計算式がここに出ます';
+  f.textContent=formula||'🎤を押すと、声で計算できます';
   r.textContent=raw?('「'+raw+'」と聞こえました'):'';
   box.classList.toggle('dt-voice-on', state==='on');
   box.classList.toggle('dt-voice-ng', state==='ng');
+  box.classList.remove('dt-voice-full');            // 新しい結果は短い形から（v391）
+  requestAnimationFrame(dtVoiceSyncMore);
 }
+/* ── 長い式・長い聞き取りを、タップで全部見られるようにする（v391） ──
+   式は3行（詰めているときは2行）、聞こえた言葉は2行までしか出ないので、
+   入りきらないときだけ「⌄」を出し、押すと制限を外して全部見せる。 */
+function dtVoiceClipped(){
+  const over=el=>!!(el && el.scrollHeight > el.clientHeight+1);
+  return over(document.getElementById('dtVoiceF')) || over(document.getElementById('dtVoiceRaw'));
+}
+function dtVoiceSyncMore(){
+  const box=document.getElementById('dtVoice'), btn=document.getElementById('dtVoiceMore');
+  if(!box||!btn) return;
+  if(box.classList.contains('dt-voice-full')){
+    btn.hidden=false; btn.textContent='⌃'; btn.title='短くする'; btn.setAttribute('aria-label','短くする');
+    return;
+  }
+  const clipped=dtVoiceClipped();
+  btn.hidden=!clipped; btn.textContent='⌄'; btn.title='全部を見る'; btn.setAttribute('aria-label','全部を見る');
+}
+function dtVoiceToggleFull(){
+  const box=document.getElementById('dtVoice'); if(!box) return;
+  box.classList.toggle('dt-voice-full');
+  dtVoiceSyncMore();
+}
+window.addEventListener('resize', ()=>{ setTimeout(dtVoiceSyncMore, 60); });
 function dtVoiceClear(){ dtVoiceShow('', '', ''); dtVoiceGuess(null); }
 /* 「もしかして」を押したらその場で試せるようにする */
 let dtVoiceGuessEx=null;
@@ -19270,7 +19322,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v390';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v391';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
