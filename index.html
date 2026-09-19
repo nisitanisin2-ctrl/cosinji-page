@@ -7629,7 +7629,16 @@ function a11yAnnounceCell(r, c){
   const td=document.getElementById(`c${r}_${c}`);
   if(td){ a11yCellLabel(td, r, c); td.setAttribute('aria-selected','true'); td.tabIndex=0;
           const live=document.getElementById('a11yLive');
-          if(live) live.textContent=td.getAttribute('aria-label')||''; }
+          if(live) live.textContent=td.getAttribute('aria-label')||'';
+          // パソコン：セルをクリックするとそのセルにフォーカスが残る。そのあと矢印キーで
+          // 動かしても選んだ印（緑の枠）だけが動き、フォーカスは元のセルに居残るので、
+          // キー操作になった時点でブラウザが元のセルに黒い枠を描いてしまっていた（v393）。
+          // 選びなおしたセルへフォーカスも一緒に移して、居残りをなくす。
+          // 表の外（入力欄・ダイアログ等）にフォーカスがあるときは横取りしない。
+          const act=document.activeElement;
+          if(act && act!==td && act.classList && act.classList.contains('cell')){
+            try{ td.focus({preventScroll:true}); }catch(_){}
+          } }
 }
 function a11yUnselectCell(r, c){
   const td=document.getElementById(`c${r}_${c}`);
@@ -8060,6 +8069,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v393', t:'パソコンで、前のセルに黒い枠が残らないように', li:[
+    'セルを<b>クリックしたあと矢印キーで動かす</b>と、<b>元のセルに黒い囲みが残っていた</b>のを直しました',
+    '選んだ印は<b>緑の枠だけ</b>になり、いまどこにいるかが分かりやすくなります',
+  ]},
   { v:'v392', t:'▦既定の大きさ のボタンを分かりやすくしました', li:[
     '<b>▦既定の大きさ</b>を押すと、これまで<b>長押ししないと出せなかった設定</b>がすぐ開くようになりました',
     'これまでのタップの動き（いまの表を既定の大きさにする）は、<b>▦通常</b>とまぎらわしかったので、<b>設定の中のボタン</b>に移しました',
@@ -19327,7 +19340,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v392';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v393';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

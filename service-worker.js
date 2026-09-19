@@ -1,4 +1,4 @@
-const CACHE = 'excalc-v392';
+const CACHE = 'excalc-v393';
 const CACHE_PREFIX = 'excalc-';   // このアプリのキャッシュだけを見分けるための名前
 const ASSETS = ['./', './index.html', './manifest.json',
   './icon-192.png', './icon-512.png',

@@ -4798,6 +4798,56 @@ async function runDefSize(browser) {
   await ctx.close();
 }
 
+/* ── パソコン：セルのフォーカス居残り v393 ── */
+async function runCellFocus(browser) {
+  // パソコンの使い方を見たいので、指ではなくマウスとキーボードで操作する
+  const ctx = await browser.newContext({ viewport: { width: 1100, height: 800 } });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+  console.log('\n── セルのフォーカス居残り ──');
+  await page.goto(INDEX); await page.waitForTimeout(300);
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.reload(); await page.waitForTimeout(1000);
+
+  const at = () => page.evaluate(() => (document.activeElement && document.activeElement.id) || '');
+  const selAt = () => page.evaluate(() => selR + ',' + selC);
+  // ブラウザが黒い枠を描いているセル（:focus-visible かつ outline が消されていないもの）
+  const ringed = () => page.evaluate(() => [...document.querySelectorAll('.cell')]
+    .filter(e => e.matches(':focus-visible') && getComputedStyle(e).outlineStyle !== 'none')
+    .map(e => e.id).join(',') || 'なし');
+
+  await page.click('#c2_2'); await page.waitForTimeout(300);
+  check('  クリックでそのセルが選ばれる', await selAt(), '2,2');
+  check('  クリックでそのセルにフォーカスが行く', await at(), 'c2_2');
+  check('  クリックだけでは黒枠は出ない', await ringed(), 'なし');
+
+  await page.keyboard.press('ArrowDown'); await page.waitForTimeout(250);
+  check('  ↓で選んだセルが動く', await selAt(), '3,2');
+  check('  フォーカスも一緒に動く', await at(), 'c3_2');
+  check('  元のセルに黒枠が残らない', await ringed(), 'なし');
+
+  await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowLeft');
+  await page.waitForTimeout(300);
+  check('  続けて動かしても残らない', await ringed(), 'なし');
+  check('  そのときもフォーカスは選んだセル', [await selAt(), await at()].join(' / '), '4,1 / c4_1');
+
+  // 選んだセルには緑の枠が付く（見分けが付かなくならない）
+  check('  選んだセルは緑の枠で分かる', await page.evaluate(() => {
+    const e = document.getElementById('c4_1');
+    return e.classList.contains('active') && getComputedStyle(e).borderTopWidth === '2px'; }), true);
+
+  // 表の外にフォーカスがあるときは横取りしない
+  await page.evaluate(() => { document.getElementById('formulaInput').focus(); sel(1, 1); });
+  await page.waitForTimeout(250);
+  check('  入力欄のフォーカスは横取りしない', await at(), 'formulaInput');
+  check('  それでも選んだセルは動く', await selAt(), '1,1');
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -4838,6 +4888,7 @@ async function runDefSize(browser) {
     if (!only || only === 'voiceplace') await runVoicePlace(browser);
     if (!only || only === 'voicefull') await runVoiceFull(browser);
     if (!only || only === 'defsize') await runDefSize(browser);
+    if (!only || only === 'cellfocus') await runCellFocus(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
