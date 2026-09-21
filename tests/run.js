@@ -5015,6 +5015,21 @@ async function runKaikei(browser) {
   check('  タブで画面が変わる', ui.shown, true);
   check('  えらんだタブが分かる', ui.sel, 'true');
 
+  // 読めない形のファイルは、どうすればよいかを言う（古い .xls を渡されがちなので）
+  const kinds = await page.evaluate(() => {
+    const mk = bytes => new Uint8Array(bytes).buffer;
+    return {
+      xls: (fileKindProblem(mk([0xD0, 0xCF, 0x11, 0xE0, 0, 0, 0, 0]), 'kaikei.xls') || '').split('\n')[0],
+      zip: fileKindProblem(mk([0x50, 0x4B, 3, 4, 0, 0, 0, 0]), 'kaikei.xlsm'),
+      csv: (fileKindProblem(mk([0x31, 0x2C, 0x32, 0x0A, 0, 0, 0, 0]), 'kaikei.csv') || '').split('\n')[0],
+      other: (fileKindProblem(mk([0x25, 0x50, 0x44, 0x46, 0, 0, 0, 0]), 'a.pdf') || '').split('\n')[0],
+    };
+  });
+  check('  古い .xls は、そう言って直し方を出す', kinds.xls, 'これは古い .xls 形式のファイルです。');
+  check('  マクロつき(.xlsm)はそのまま読む', kinds.zip, null);
+  check('  CSV も直し方を出す', kinds.csv, 'これは CSV ファイルです。');
+  check('  ぜんぜん違う形は、読めないと言う', kinds.other, 'この形のファイルは読めません。');
+
   // まるごと入れ替える（パソコン側で消した分を、こちらにも反映する）
   const prune = await page.evaluate(() => {
     const mk = (id, date, amt) => ({ id, date, kind: 'out', cat: '雑費', note: id, amt, pay: 'cash', memo: '', ts: 1 });

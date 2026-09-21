@@ -318,8 +318,9 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 
   <div class="card">
     <h2>パソコンから受け取る（読み込み）</h2>
-    <p class="muted">パソコン版が出した Excel を選ぶと、中身を見くらべて、足りない分だけを入れます。同じ伝票は二重に入りません。</p>
-    <input id="impFile" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onchange="onImportFile(event)">
+    <p class="muted">パソコン版が出した Excel を選ぶと、中身を見くらべて、足りない分だけを入れます。同じ伝票は二重に入りません。<br>
+      マクロつきのブック（<b>.xlsm</b>）もそのまま読めます。<b>.xls</b>（古い形式）のときは、パソコンの Excel で開いて <b>.xlsx</b> で保存しなおしてください。</p>
+    <input id="impFile" type="file" accept=".xlsx,.xlsm,.xltx,.xltm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled.12" style="display:none" onchange="onImportFile(event)">
     <button class="btn big wide" onclick="document.getElementById('impFile').click()">📥 Excelを読み込む</button>
     <div class="muted" id="impState" style="margin-top:8px"></div>
   </div>
@@ -1429,14 +1430,29 @@ function mergeItems(existing, incoming, policy, opts){
 
 /* ── 読み込みの画面まわり ────────────────────────────────── */
 let IMP=null;     /* いま読み込もうとしている Excel の中身 */
+/* ファイルの頭のしるしを見て、読めない形なら「どうすればよいか」を返す。
+   .xlsx / .xlsm は ZIP（PK）、古い .xls は OLE2（D0 CF 11 E0）で始まる。 */
+function fileKindProblem(buf, name){
+  const u=new Uint8Array(buf.slice(0,8));
+  if(u[0]===0xD0&&u[1]===0xCF&&u[2]===0x11&&u[3]===0xE0)
+    return 'これは古い .xls 形式のファイルです。\n\nパソコンの Excel で開いて、「名前を付けて保存」で\n「Excel ブック (.xlsx)」を選んで保存しなおしてから、もう一度読み込んでください。';
+  if(/\.csv$/i.test(name||''))
+    return 'これは CSV ファイルです。\n\nパソコンの Excel で開いて、「名前を付けて保存」で\n「Excel ブック (.xlsx)」を選んで保存しなおしてから、もう一度読み込んでください。';
+  if(!(u[0]===0x50&&u[1]===0x4B))
+    return 'この形のファイルは読めません。\n\nExcel の .xlsx（または .xlsm）を選んでください。';
+  return null;
+}
 async function onImportFile(ev){
   const file=ev.target.files&&ev.target.files[0];
   ev.target.value='';
   if(!file) return;
   toast('Excel を開いています…');
   let sheets;
-  try{ sheets=await readWorkbook(await file.arrayBuffer()); }
-  catch(e){ alert('この Excel は開けませんでした。\n.xlsx 形式（Excel 2007 以降）で保存しなおしてみてください。'); return; }
+  const buf=await file.arrayBuffer();
+  const why=fileKindProblem(buf, file.name);
+  if(why){ alert(why); return; }
+  try{ sheets=await readWorkbook(buf); }
+  catch(e){ alert('この Excel は開けませんでした。\nパソコンの Excel で開いて、「名前を付けて保存」から .xlsx で保存しなおしてみてください。'); return; }
   if(!sheets.length){ alert('中身のあるシートが見つかりませんでした。'); return; }
   /* いちばん帳面らしいシートを選んでおく */
   let bestI=0, bestScore=-1;
