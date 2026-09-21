@@ -5244,6 +5244,34 @@ async function runKaikei(browser) {
   check('  繰越はその年度のものになる', mig3.has2026, '{"現金":1000,"農協":2000}');
   check('  古い持ちかたは消える', mig3.oldGone, true);
 
+  // ── 読み込んだファイルの年度に切り替える ──
+  // 出している年度と違う年度のファイルを読むと、入ったのに画面が空のままに見えていた
+  const impYr = await page.evaluate(async ({ tx, tr, sum }) => {
+    localStorage.clear(); S = blank(); S.year = 2025; saveNow(); renderAll();
+    const book = await buildXlsx([{ name: '概要・残高', xml: sum }, { name: '取引一覧', xml: tx },
+                                  { name: '振替', xml: tr }]);
+    const sheets = await readWorkbook(await book.arrayBuffer());
+    // onImportFile と同じ組み立て
+    IMP = { file: 't.xlsx', sheets, si: 1, policy: 'newer', prune: false,
+            trI: 2, trOn: true, accRows: gridToAccounts(sheets[0].grid), accOn: true };
+    applyDetect();
+    const { got, tr: trRead } = impPreview();
+    const before = { year: S.year, years: impYears(got, trRead).join(',') };
+    doImport();
+    const a = accountSummary();
+    return { before, year: S.year, begin: a.sum.begin, now: a.sum.now,
+             items: yearItems().length, head: document.getElementById('hdTotal').textContent,
+             begins: Object.keys(S.begins).join(',') };
+  }, { tx: T.PC_TX_XML, tr: T.PC_TR_XML, sum: T.PC_SUM_XML });
+  check('  ファイルの年度を読み取る', impYr.before.years, '2026');
+  check('  読み込む前は2025年度を出していた', impYr.before.year, 2025);
+  check('  読み込んだ年度に切り替わる', impYr.year, 2026);
+  check('  期首残高はその年度に入る', impYr.begins, '2026');
+  // 見本の「概要・残高」は 現金・農協・信用金庫・定期預金 の4口座
+  check('  期首残高が出る', impYr.begin, 120698 + 915473 + 1243299 + 2100779);
+  check('  記帳もその年度に出る', impYr.items, 5);
+  check('  上の帯にも出る', impYr.head !== '0', true);
+
   // ── CSVを読み込むと、科目・口座・行事が登録される ──
   const reg = await page.evaluate(async () => {
     localStorage.clear(); S = blank(); S.year = 2026; saveNow();
