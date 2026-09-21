@@ -13,6 +13,7 @@ const os = require('os');
 
 const ROOT = path.resolve(__dirname, '..');
 const INDEX = 'file://' + path.join(ROOT, 'index.html');
+const KAIKEI = 'file://' + path.join(ROOT, 'kaikei', 'index.html');
 const CHROME = process.env.CHROMIUM || '/opt/pw-browsers/chromium';
 let chromium;
 try { ({ chromium } = require('/opt/node22/lib/node_modules/playwright')); }
@@ -4848,6 +4849,209 @@ async function runCellFocus(browser) {
   await ctx.close();
 }
 
+
+/* ── 自治会会計（kaikei/）──
+   スマホ版とパソコン版の Excel のやりとりで、伝票が二重にならない・消えないことを見る。 */
+async function runKaikei(browser) {
+  const { PARSE_DATE, PARSE_MONEY, FOREIGN_SHEET, FOREIGN_EXPECT, MINE, POLICY_CASES } = require('./kaikei.test.js');
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true, acceptDownloads: true });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+  page.on('dialog', d => d.accept());
+  await page.goto(KAIKEI);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload(); await page.waitForTimeout(400);
+  console.log('\n── 自治会会計 ──');
+
+  // 日付と金額の読み取り
+  const parsed = await page.evaluate(({ d, m }) => ({
+    dates: d.map(([v]) => parseAnyDate(v, false)),
+    moneys: m.map(([v]) => parseMoney(v)),
+  }), { d: PARSE_DATE, m: PARSE_MONEY });
+  PARSE_DATE.forEach(([v, want], i) => check(`  日付 ${JSON.stringify(v)}`, parsed.dates[i], want));
+  PARSE_MONEY.forEach(([v, want], i) => check(`  金額 ${JSON.stringify(v)}`, parsed.moneys[i], want));
+
+  // 記帳すると残高が動く（現金と口座は別に持つ）
+  const bal = await page.evaluate(() => {
+    S.beginCash = 50000; S.beginBank = 200000; S.year = 2026;
+    S.items = [
+      { id: 'a-1', date: '2026-04-05', kind: 'in',  cat: '会費',   note: '', amt: 12000, pay: 'cash', memo: '', ts: 1 },
+      { id: 'a-2', date: '2026-05-10', kind: 'out', cat: '会議費', note: '', amt: 3240,  pay: 'bank', memo: '', ts: 2 },
+      { id: 'a-3', date: '2026-03-31', kind: 'in',  cat: '会費',   note: '', amt: 99999, pay: 'cash', memo: '', ts: 3 },  // 前の年度
+    ];
+    const b = balanceOf(yearItems(2026), S.beginCash, S.beginBank);
+    return { cash: b.cash, bank: b.bank, total: b.total, inYear: yearItems(2026).length };
+  });
+  check('  年度は4月はじまり（3月分は入らない）', bal.inYear, 2);
+  check('  現金の残高', bal.cash, 62000);
+  check('  口座の残高', bal.bank, 196760);
+  check('  合わせた残高', bal.total, 258760);
+
+  // 自分で書き出した Excel を読み直しても、1件も増えない
+  const round = await page.evaluate(async () => {
+    const items = [
+      { id: 'aa1-x-1', date: '2026-04-05', kind: 'in',  cat: '会費',         note: '4月分 会費 12軒', amt: 12000, pay: 'cash', memo: '',         ts: 1000 },
+      { id: 'aa1-x-2', date: '2026-05-10', kind: 'out', cat: '会議費',       note: '総会 & <お茶代>', amt: 3240,  pay: 'bank', memo: '領収書あり', ts: 1000 },
+      { id: 'aa1-x-3', date: '2026-06-01', kind: 'out', cat: '街路灯電気代', note: '6月分',           amt: 8800,  pay: 'bank', memo: '',         ts: 1000 },
+    ];
+    const opt = { name: '桜町自治会', year: 2026, beginCash: 50000, beginBank: 200000, budget: {}, dev: 'aa1' };
+    const sheets = await readWorkbook(await (await buildXlsx(buildStdSheets(items, opt))).arrayBuffer());
+    const det = detectHeader(sheets[0].grid);
+    const got = gridToItems(sheets[0].grid, det.row, det.map);
+    const again = mergeItems(items, got.items, 'newer');
+    const fresh = mergeItems([], got.items, 'newer');
+    return {
+      names: sheets.map(s => s.name).join(','),
+      read: got.items.length,
+      note: got.items[1] ? got.items[1].note : '',
+      memo: got.items[1] ? got.items[1].memo : '',
+      again: `${again.added}/${again.updated}/${again.same}`,
+      fresh: fresh.added,
+    };
+  });
+  check('  4枚のシートで書き出す', round.names, '出納帳,科目別集計,決算報告,やりとり');
+  check('  書き出した3件を読み戻せる', round.read, 3);
+  check('  記号（&・<>）のある摘要もそのまま', round.note, '総会 & <お茶代>');
+  check('  メモも残る', round.memo, '領収書あり');
+  check('  同じものを読み直しても増えない（足/直/同）', round.again, '0/0/3');
+  check('  まっさらな端末なら3件入る', round.fresh, 3);
+
+  // よその帳面（見出しの言い方も並びも違う・表題2行・合計行つき）
+  const foreign = await page.evaluate(async ({ rows, mine }) => {
+    const sheets = await readWorkbook(await (await buildXlsx([{ name: '出納帳', rows }])).arrayBuffer());
+    const det = detectHeader(sheets[0].grid);
+    const got = gridToItems(sheets[0].grid, det.row, det.map);
+    const first = mergeItems([], got.items, 'newer');
+    const second = mergeItems(first.items, got.items, 'newer');
+    // 伝票番号のない帳面として読んだ場合も、二度読みで増えないこと
+    const noId = Object.assign({}, det.map); delete noId.id;
+    const gotNoId = gridToItems(sheets[0].grid, det.row, noId);
+    const n1 = mergeItems([], gotNoId.items, 'newer');
+    const n2 = mergeItems(n1.items, gotNoId.items, 'newer');
+    // すでに同じ伝票を手で入れてあるスマホへ読み込む
+    const onMine = mergeItems(mine, got.items, 'newer');
+    // 取り込んだ形を覚えて、その形で書き出して、また読む
+    const layout = { headers: det.headers, map: det.map, sheetName: sheets[0].name, headerRow: det.row };
+    const back = await readWorkbook(await (await buildXlsx(buildPcSheets(first.items, layout, { beginCash: 250000, beginBank: 0 }))).arrayBuffer());
+    const det2 = detectHeader(back[0].grid);
+    const got2 = gridToItems(back[0].grid, det2.row, det2.map);
+    const again = mergeItems(first.items, got2.items, 'newer');
+    return {
+      headerRow: det.row,
+      fields: Object.keys(det.map).join(','),
+      items: got.items.map(i => [i.id, i.date, i.kind, i.cat, i.amt, i.pay, i.note, i.memo]),
+      skipped: got.skipped.length,
+      first: first.added,
+      second: `${second.added}/${second.updated}/${second.same}`,
+      noId: `${n1.added}/${n2.added}`,
+      onMine: `${onMine.added}/${onMine.updated}/${onMine.same}`,
+      pcHead: back[0].grid[0].map(c => c && c.v).join(','),
+      pcNo: back[0].grid[1][0].v,
+      againPc: `${again.added}/${again.updated}/${again.same}`,
+    };
+  }, { rows: FOREIGN_SHEET, mine: MINE });
+  check('  見出しの行を当てる', foreign.headerRow, FOREIGN_EXPECT.headerRow);
+  check('  どの列が何かを当てる', foreign.fields, FOREIGN_EXPECT.fields.join(','));
+  FOREIGN_EXPECT.items.forEach((want, i) => check(`  ${i + 1}件目を読み取る`, JSON.stringify(foreign.items[i]), JSON.stringify(want)));
+  check('  合計行は読み飛ばす', foreign.skipped, FOREIGN_EXPECT.skipped);
+  check('  はじめは3件入る', foreign.first, 3);
+  check('  二度読みしても増えない（足/直/同）', foreign.second, '0/0/3');
+  check('  伝票番号の無い帳面でも二度読みで増えない', foreign.noId, '3/0');
+  check('  手で入れてある2件は重ならず、新しい1件だけ入る（足/直/同）', foreign.onMine, '1/0/2');
+  check('  パソコン版の見出しのまま書き出せる', foreign.pcHead, 'No,年月日,勘定科目,摘要,収入金額,支出金額,差引残高,支払方法,備考');
+  check('  伝票番号は元の No に戻して書く', String(foreign.pcNo), '1');
+  check('  その形で書き出して読み直しても増えない', foreign.againPc, '0/0/3');
+
+  // 食い違ったときの決めごと
+  const pol = await page.evaluate(({ mine, cases }) => cases.map(c => {
+    const incoming = mine.map(i => Object.assign({}, i, i.cat === '会議費' ? { amt: 4000, ts: c.incomingTs } : { ts: c.incomingTs }));
+    const r = mergeItems(mine, incoming, c.policy);
+    const hit = r.items.find(i => i.cat === '会議費');
+    return { tally: `${r.added}/${r.updated}/${r.same}`, amt: hit ? hit.amt : 0 };
+  }), { mine: MINE, cases: POLICY_CASES });
+  POLICY_CASES.forEach((c, i) => {
+    check(`  ${c.policy}（更新 ${c.incomingTs}）の件数`, pol[i].tally, `${c.want.added}/${c.want.updated}/${c.want.same}`);
+    check(`  ${c.policy}（更新 ${c.incomingTs}）の金額`, pol[i].amt, c.wantAmt);
+  });
+
+  // 別の年度の「No.1」を、同じ伝票と取り違えない
+  const idq = await page.evaluate(() => {
+    S.year = 2027;
+    const a = qualifyId('1', '2026-04-05'), b = qualifyId('1', '2027-04-05');
+    const keep = qualifyId('aa1-lz1-3', '2026-04-05');
+    return { a, b, same: a === b, keep, plain: plainId(a) };
+  });
+  check('  よその No は年度で分ける', idq.a, 'x2026-1');
+  check('  年度が違えば別の伝票', idq.same, false);
+  check('  このアプリの伝票番号はそのまま', idq.keep, 'aa1-lz1-3');
+  check('  書き出すときは元の No に戻す', idq.plain, '1');
+
+  // 一部だけの書き出しでは、残高の列に数を出さない（この表だけでは出せないため）
+  const part = await page.evaluate(async () => {
+    const items = [{ id: 'a-9', date: '2026-07-01', kind: 'out', cat: '雑費', note: '', amt: 500, pay: 'cash', memo: '', ts: 1 }];
+    const opt = { name: '', year: 2026, beginCash: 50000, beginBank: 0, budget: {}, dev: 'a' };
+    const full = await readWorkbook(await (await buildXlsx(buildStdSheets(items, opt))).arrayBuffer());
+    const cut = await readWorkbook(await (await buildXlsx(buildStdSheets(items, Object.assign({ partial: true }, opt)))).arrayBuffer());
+    const cell = g => { const c = g[1][7]; return c == null || c.v === '' ? '' : String(c.v); };
+    return { full: cell(full[0].grid), cut: cell(cut[0].grid) };
+  });
+  check('  ぜんぶ出すときは残高が入る', part.full, '49500');
+  check('  一部だけのときは残高は空', part.cut, '');
+
+  // 画面まわり：ボタンの名前が取れること・タブが動くこと
+  const ui = await page.evaluate(() => {
+    const noName = Array.from(document.querySelectorAll('button')).filter(b => {
+      if (b.closest('dialog') && !b.closest('dialog').open) return false;
+      return !(b.getAttribute('aria-label') || b.textContent.trim());
+    }).length;
+    go('xls');
+    const shown = document.getElementById('pg-xls').classList.contains('on');
+    const sel = document.querySelector('nav.tabs button[data-pg="xls"]').getAttribute('aria-selected');
+    go('entry');
+    return { noName, shown, sel };
+  });
+  check('  名前の取れないボタンは0件', ui.noName, 0);
+  check('  タブで画面が変わる', ui.shown, true);
+  check('  えらんだタブが分かる', ui.sel, 'true');
+
+  // まるごと入れ替える（パソコン側で消した分を、こちらにも反映する）
+  const prune = await page.evaluate(() => {
+    const mk = (id, date, amt) => ({ id, date, kind: 'out', cat: '雑費', note: id, amt, pay: 'cash', memo: '', ts: 1 });
+    const mine = [mk('a-1', '2026-04-05', 100), mk('a-2', '2026-05-05', 200), mk('a-3', '2027-05-05', 300)];
+    const excel = [mk('a-1', '2026-04-05', 100)];                 // a-2 はパソコンで消された
+    const off = mergeItems(mine, excel, 'newer');
+    const on = mergeItems(mine, excel, 'newer', { prune: true });
+    return {
+      off: `${off.added}/${off.updated}/${off.same}/${off.removed || 0}/${off.items.length}`,
+      on: `${on.added}/${on.updated}/${on.same}/${on.removed}/${on.items.length}`,
+      left: on.items.map(i => i.id).join(','),
+    };
+  });
+  check('  ふだんは消さない（足/直/同/消/残り）', prune.off, '0/0/1/0/3');
+  check('  入れ替えなら消す（足/直/同/消/残り）', prune.on, '0/0/1/1/2');
+  check('  別の年度の伝票は消さない', prune.left, 'a-1,a-3');
+
+  // 書き出すファイルの名前。日本語が混じると、ブラウザによっては名前ごと捨てられて
+  // 拡張子の無い「download」になり、パソコンで開けなくなる（作っている途中に踏んだ）。
+  await page.evaluate(() => {
+    S.name = '桜町自治会'; S.year = 2026;
+    S.items = [{ id: 'a-1', date: '2026-04-05', kind: 'in', cat: '会費', note: '', amt: 1000, pay: 'cash', memo: '', ts: 1 }];
+    saveNow(); go('xls');
+  });
+  const [dl] = await Promise.all([
+    page.waitForEvent('download'),
+    page.click('button:has-text("Excelに書き出す")'),
+  ]);
+  const fname = dl.suggestedFilename();
+  check('  書き出す名前は英数字だけ', /^[0-9A-Za-z_.-]+$/.test(fname), true);
+  check('  書き出す名前は .xlsx で終わる', /\.xlsx$/.test(fname), true);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -4889,6 +5093,7 @@ async function runCellFocus(browser) {
     if (!only || only === 'voicefull') await runVoiceFull(browser);
     if (!only || only === 'defsize') await runDefSize(browser);
     if (!only || only === 'cellfocus') await runCellFocus(browser);
+    if (!only || only === 'kaikei') await runKaikei(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }

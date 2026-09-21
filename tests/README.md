@@ -11,6 +11,7 @@ node tests/run.js formula    数式だけ
 node tests/run.js xlsx       Excel の読み書きだけ
 node tests/run.js a11y       読み上げ・キーボードだけ
 node tests/run.js mode       モードの行き来だけ
+node tests/run.js kaikei     自治会会計（kaikei/）だけ
 ```
 
 Chromium で `index.html` をそのまま開いて確かめます。ビルドは要りません。
@@ -28,6 +29,7 @@ Playwright は同じ場所に入れず、`/opt/node22` にあるものを使い�
 | `zip.js` | テスト用の最小の zip 読み書き。`.xlsx` を組み立てたり、書き出された `.xlsx` の中を覗いたりします。本体では使いません |
 | `a11y.test.js` | 読み上げ・キーボードで見るところの一覧。名前の取れないボタンが0件か、ダイアログが閉じられるか、表のセルが読み上げられるか など |
 | `mode.test.js` | モードを往復しても元に戻れるか。v304 で直した「容積から通常へ戻れない」不具合の手順そのものを固定してあります |
+| `kaikei.test.js` | 自治会会計（`kaikei/`）の読み取りの一覧と、よその帳面の見本。Excelの往復・二重取り込み・食い違いの決めごとを見ています |
 | `run.js` | 実行係 |
 
 ## 足すとき
