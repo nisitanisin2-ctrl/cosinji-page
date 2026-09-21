@@ -1,40 +1,37 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Excel(.xlsx/.xlsm) 取り込み
+
+スマホ版「自治会会計」が書き出した Excel や、このアプリが「今すぐ外部フォルダへ出力」
+で出した Excel（概要・残高／取引一覧／振替／科目別集計）を読み込んで帳簿に入れる。
+
+「CSVを取り込み」(main.import_csv) と同じ考え方だが、次の3つが違う:
+
+  1. 見出しの行を自分でさがす（表題が上に何行あってもよい）。見出しの言い方が
+     違っても当てはめる（年月日／勘定科目／収入金額／支払方法 など）。
+  2. 重複の判定に摘要も入れ、**同じ内容が何件あるか**で突き合わせる。
+     まったく同じ内容の取引が2件ある帳面が実際にあるため、1件に丸めない
+     （count_similar_transaction は摘要を見ないので、ここでは使わない）。
+  3. 「概要・残高」シートがあれば期首残高も取り込む。
+
+読み取り部（read_workbook / examine）は **Tk に依存しない**ので、
+tests から直接呼べる。画面は ExcelImportMixin だけが持つ。
+
+main.py への足しかた（3か所）:
+
+    from excel_import import ExcelImportMixin              # import のところ
+
+    class JichikaiApp(ReportsMixin, ExcelImportMixin):     # クラス宣言
+
+    # _show_data_menu の「CSVを取り込み」の下
+    menu.add_command(label='Excelを取り込み', command=self.import_excel)
 """
-Excel(.xlsx/.xlsm) 取り込み — 自治会会計管理システム（パソコン版）用
 
-スマホ版「自治会会計」が書き出した Excel や、このアプリ自身が出した Excel
-（概要・残高／取引一覧／振替／科目別集計）を読み込んで、kaikei.db に入れる。
-
-・見出しの行は自分でさがす（表題が上に何行あってもよい）
-・見出しの言い方が違っても当てはめる（年月日／勘定科目／収入金額／支払方法 …）
-・日付は 2026-04-05・2026/4/5・R8.6.1・令和8年6月1日・Excelの日付 のどれでも読む
-・金額は 8,800・¥8,800・▲5,000・(5,000)・全角 も読む
-・すでに入っている取引は二重に入れない。ただし、まったく同じ内容の取引が
-  2件ある帳面もあるので、「何件あるか」で数えて突き合わせる（1件に丸めない）
-・新しい科目・口座は自動で足す
-・途中で失敗したら、ぜんぶ取り消す（中途半端に入らない）
-
-main.py からの使い方（2か所だけ）:
-
-    from excel_import import import_excel_dialog        # ファイルの先頭あたり
-
-    # 「データ ▼」メニューに1行足す（CSV取り込みの下あたり）
-    menu.add_command(label='Excelを取り込み', command=lambda: import_excel_dialog(self))
-
-app には .root / .db / .current_fy（IntVar）があればよい。
-取り込みのあと、あれば refresh_list・refresh_summary・refresh_balance を呼ぶ。
-"""
-
+import os
 import re
 import unicodedata
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
-try:
-    import openpyxl
-    EXCEL_AVAILABLE = True
-except ImportError:                                   # openpyxl が無い環境でも import は通す
-    EXCEL_AVAILABLE = False
+from xlsx_helpers import excel_available
 
 
 # ============================================================
@@ -58,18 +55,22 @@ ALIASES = {
     'from':  ['振替元', '振替元口座', '出金元', '引出元', '移動元'],
     'to':    ['振替先', '振替先口座', '入金先', '預入先', '移動先'],
     'tramt': ['振替額', '振替金額', '移動額'],
-    'opening': ['期首残高', '期首', '前期繰越', '前年度繰越', '繰越金'],
+    'opening': ['期首残高', '期首', '前期繰越', '前年度繰越'],
 }
 TX_FIELDS = ('date', 'acc', 'kind', 'cat', 'note', 'income', 'expense',
              'amount', 'balance', 'event', 'memo')
 TR_FIELDS = ('date', 'from', 'to', 'amount', 'tramt', 'note', 'memo')
 
-WAREKI = {'令和': 2018, 'r': 2018, '平成': 1988, 'h': 1988,
-          '昭和': 1925, 's': 1925, '大正': 1911, 't': 1911, '明治': 1867, 'm': 1867}
+# 和暦（元号, 元年の前年）
+_WAREKI = {'令和': 2018, 'r': 2018, '平成': 1988, 'h': 1988,
+           '昭和': 1925, 's': 1925, '大正': 1911, 't': 1911, '明治': 1867, 'm': 1867}
+
+MAX_ROWS = 20000          # 1シートから読む上限
+MAX_COLS = 64
 
 
 def _norm(s):
-    """見出しをくらべるための形にそろえる（全角→半角・空き・かっこを落とす）"""
+    """見出しをくらべる形にそろえる（全角→半角・空き・かっこを落とす）"""
     if s is None:
         return ''
     s = unicodedata.normalize('NFKC', str(s))
@@ -82,20 +83,20 @@ def _field_of(header, allow):
     n = _norm(header)
     if not n:
         return None
-    for f in allow:                                   # まず、ぴったり同じ言い方
+    for f in allow:                                    # まず、ぴったり同じ言い方
         if any(_norm(a) == n for a in ALIASES.get(f, [])):
             return f
-    for f in allow:                                   # つぎに、含んでいるもの
+    for f in allow:                                    # つぎに、含んでいるもの
         if any(len(_norm(a)) >= 2 and _norm(a) in n for a in ALIASES.get(f, [])):
             return f
     return None
 
 
 # ============================================================
-# 値の読み取り
+# 値の読み取り（Tk に依存しない）
 # ============================================================
-def parse_date(v, fiscal_year=None):
-    """いろいろな書き方の日付を 'YYYY-MM-DD' にする。読めなければ ''"""
+def parse_date_cell(v, fiscal_year=None):
+    """セルの値を 'YYYY-MM-DD' にする。読めなければ ''"""
     if v is None or v == '':
         return ''
     if isinstance(v, datetime):
@@ -104,34 +105,39 @@ def parse_date(v, fiscal_year=None):
         return v.strftime('%Y-%m-%d')
     if isinstance(v, (int, float)):
         n = float(v)
-        if 20000 <= n <= 80000:                       # Excel の日付（1899-12-30 からの日数）
-            from datetime import timedelta
+        if 20000 <= n <= 80000:                        # Excel の日付（1899-12-30 からの日数）
             return (datetime(1899, 12, 30) + timedelta(days=int(n))).strftime('%Y-%m-%d')
-        if 19000101 <= n <= 21001231:                 # 20260405 のような8けた
+        if 19000101 <= n <= 21001231:                  # 20260405 のような8けた
             s = str(int(n))
-            return f'{s[0:4]}-{s[4:6]}-{s[6:8]}'
+            return _ymd(s[0:4], s[4:6], s[6:8])
         return ''
     s = unicodedata.normalize('NFKC', str(v)).strip()
     m = re.match(r'^(\d{4})[-/年.](\d{1,2})[-/月.](\d{1,2})', s)
     if m:
-        return f'{int(m.group(1)):04d}-{int(m.group(2)):02d}-{int(m.group(3)):02d}'
-    m = re.match(r'^(令和|平成|昭和|大正|明治|[RrHhSsTtMm])\s*(\d{1,2}|元)[-/年.](\d{1,2})[-/月.](\d{1,2})', s)
+        return _ymd(m.group(1), m.group(2), m.group(3))
+    m = re.match(r'^(令和|平成|昭和|大正|明治|[RrHhSsTtMm])\s*(\d{1,2}|元)'
+                 r'[-/年.](\d{1,2})[-/月.](\d{1,2})', s)
     if m:
-        base = WAREKI.get(m.group(1).lower())
+        base = _WAREKI.get(m.group(1).lower())
         if base:
             yy = 1 if m.group(2) == '元' else int(m.group(2))
-            return f'{base + yy:04d}-{int(m.group(3)):02d}-{int(m.group(4)):02d}'
-    m = re.match(r'^(\d{1,2})[-/月.](\d{1,2})', s)     # 年のない「4/5」は年度から補う
+            return _ymd(base + yy, m.group(3), m.group(4))
+    m = re.match(r'^(\d{1,2})[-/月.](\d{1,2})', s)      # 年のない「4/5」は年度から補う
     if m and fiscal_year:
-        mo, da = int(m.group(1)), int(m.group(2))
-        if 1 <= mo <= 12 and 1 <= da <= 31:
-            y = fiscal_year if mo >= 4 else fiscal_year + 1
-            return f'{y:04d}-{mo:02d}-{da:02d}'
+        mo = int(m.group(1))
+        return _ymd(fiscal_year if mo >= 4 else fiscal_year + 1, mo, m.group(2))
     return ''
 
 
-def parse_money(v):
-    """8,800 / ¥8,800 / ▲5,000 / (5,000) / 全角 を int にする"""
+def _ymd(y, m, d):
+    try:
+        return date(int(y), int(m), int(d)).strftime('%Y-%m-%d')
+    except (ValueError, TypeError):
+        return ''
+
+
+def parse_amount_cell(v):
+    """セルの値を整数(円)にする。8,800 / ¥8,800 / ▲5,000 / (5,000) / 全角 に対応"""
     if v is None or v == '':
         return 0
     if isinstance(v, (int, float)):
@@ -149,7 +155,8 @@ def parse_money(v):
         return 0
 
 
-def parse_kind(v):
+def parse_kind_cell(v):
+    """「収入」「支出」などの区分欄を 'in' / 'out' にする"""
     s = _norm(v)
     if not s:
         return None
@@ -172,23 +179,20 @@ def fiscal_year_of(date_str):
 # ============================================================
 # シートを読む
 # ============================================================
-def _grid(ws, max_rows=20000, max_cols=64):
-    rows = []
-    for r in ws.iter_rows(min_row=1, max_row=min(ws.max_row, max_rows),
-                          max_col=min(ws.max_column, max_cols), values_only=True):
-        rows.append(list(r))
-    return rows
+def _grid(ws):
+    return [list(r) for r in ws.iter_rows(
+        min_row=1, max_row=min(ws.max_row or 0, MAX_ROWS),
+        max_col=min(ws.max_column or 0, MAX_COLS), values_only=True)]
 
 
 def _detect_header(grid, allow, need):
     """見出しの行と、どの列が何かを当てる。戻り: (行番号, {項目: 列番号}, 手ごたえ)"""
     best = (-1, {}, 0)
     for r in range(min(len(grid), 30)):
-        row = grid[r]
         mapping, used, score = {}, set(), 0
-        for c, cell in enumerate(row):
+        for c, cell in enumerate(grid[r]):
             if cell is None or cell == '' or isinstance(cell, (int, float)):
-                continue
+                continue                               # 数字の行は見出しではない
             f = _field_of(cell, allow)
             if f and f not in mapping and c not in used:
                 mapping[f] = c
@@ -210,9 +214,7 @@ def _need_tr(m):
 
 def _cell(row, mapping, field):
     c = mapping.get(field)
-    if c is None or c >= len(row):
-        return None
-    return row[c]
+    return None if c is None or c >= len(row) else row[c]
 
 
 def _text(row, mapping, field):
@@ -221,25 +223,25 @@ def _text(row, mapping, field):
 
 
 def read_transactions(grid, header_row, mapping, fiscal_year=None):
-    """取引の表 → [{date, account, category, details, income, expense, event, memo}]"""
+    """取引の表 → ([{date, account, category, details, income, expense, event, memo}], 読み飛ばし)"""
     out, skipped = [], []
     for r in range(header_row + 1, len(grid)):
         row = grid[r]
         if not any(c is not None and c != '' for c in row):
             continue
-        d = parse_date(_cell(row, mapping, 'date'), fiscal_year)
-        inc = parse_money(_cell(row, mapping, 'income')) if 'income' in mapping else 0
-        exp = parse_money(_cell(row, mapping, 'expense')) if 'expense' in mapping else 0
+        d = parse_date_cell(_cell(row, mapping, 'date'), fiscal_year)
+        inc = parse_amount_cell(_cell(row, mapping, 'income')) if 'income' in mapping else 0
+        exp = parse_amount_cell(_cell(row, mapping, 'expense')) if 'expense' in mapping else 0
         if inc <= 0 and exp <= 0 and 'amount' in mapping:
-            a = parse_money(_cell(row, mapping, 'amount'))
-            k = parse_kind(_cell(row, mapping, 'kind')) if 'kind' in mapping else None
+            a = parse_amount_cell(_cell(row, mapping, 'amount'))
+            k = parse_kind_cell(_cell(row, mapping, 'kind')) if 'kind' in mapping else None
             if a:
                 if k == 'out' or (k is None and a < 0):
                     exp = abs(a)
                 else:
                     inc = abs(a)
-        if 'kind' in mapping and (inc > 0 or exp > 0):
-            k = parse_kind(_cell(row, mapping, 'kind'))
+        elif 'kind' in mapping and (inc > 0 or exp > 0):
+            k = parse_kind_cell(_cell(row, mapping, 'kind'))
             if k == 'out' and inc > 0:
                 inc, exp = 0, inc
             elif k == 'in' and exp > 0:
@@ -250,30 +252,28 @@ def read_transactions(grid, header_row, mapping, fiscal_year=None):
         if inc <= 0 and exp <= 0:
             skipped.append((r + 1, '金額がありません'))
             continue
-        out.append({
-            'date':     d,
-            'account':  _text(row, mapping, 'acc'),
-            'category': _text(row, mapping, 'cat'),
-            'details':  _text(row, mapping, 'note'),
-            'income':   inc if inc > 0 else 0,
-            'expense':  exp if exp > 0 else 0,
-            'event':    _text(row, mapping, 'event'),
-            'memo':     _text(row, mapping, 'memo'),
-            'row':      r + 1,
-        })
+        out.append({'date': d,
+                    'account':  _text(row, mapping, 'acc'),
+                    'category': _text(row, mapping, 'cat'),
+                    'details':  _text(row, mapping, 'note'),
+                    'income':   max(inc, 0),
+                    'expense':  max(exp, 0),
+                    'event':    _text(row, mapping, 'event'),
+                    'memo':     _text(row, mapping, 'memo'),
+                    'row': r + 1})
     return out, skipped
 
 
 def read_transfers(grid, header_row, mapping, fiscal_year=None):
-    """振替の表 → [{date, from_account, to_account, amount, details, memo}]"""
+    """振替の表 → ([{date, from_account, to_account, amount, details, memo}], 読み飛ばし)"""
     out, skipped = [], []
     for r in range(header_row + 1, len(grid)):
         row = grid[r]
         if not any(c is not None and c != '' for c in row):
             continue
-        d = parse_date(_cell(row, mapping, 'date'), fiscal_year)
-        amt = abs(parse_money(_cell(row, mapping, 'tramt') if 'tramt' in mapping
-                              else _cell(row, mapping, 'amount')))
+        d = parse_date_cell(_cell(row, mapping, 'date'), fiscal_year)
+        amt = abs(parse_amount_cell(
+            _cell(row, mapping, 'tramt') if 'tramt' in mapping else _cell(row, mapping, 'amount')))
         fr, to = _text(row, mapping, 'from'), _text(row, mapping, 'to')
         if not d:
             skipped.append((r + 1, '日付が読めません'))
@@ -282,8 +282,8 @@ def read_transfers(grid, header_row, mapping, fiscal_year=None):
             skipped.append((r + 1, '振替元・振替先・金額がそろっていません'))
             continue
         out.append({'date': d, 'from_account': fr, 'to_account': to, 'amount': amt,
-                    'details': _text(row, mapping, 'note'), 'memo': _text(row, mapping, 'memo'),
-                    'row': r + 1})
+                    'details': _text(row, mapping, 'note'),
+                    'memo': _text(row, mapping, 'memo'), 'row': r + 1})
     return out, skipped
 
 
@@ -300,7 +300,7 @@ def read_opening_balances(grid):
                 name = '' if not rr or rr[0] is None else str(rr[0]).strip()
                 if not name or _norm(name) == '合計':
                     break
-                out[name] = parse_money(rr[1] if len(rr) > 1 else 0)
+                out[name] = parse_amount_cell(rr[1] if len(rr) > 1 else 0)
             return out
     return {}
 
@@ -315,12 +315,13 @@ class ImportPlan:
         self.transactions = []
         self.transfers = []
         self.openings = {}
-        self.skipped = []
+        self.skipped = []          # [(取引|振替, 行番号, 理由)]
         self.fiscal_years = set()
         self.new_categories = []
         self.new_accounts = []
         self.dup_transactions = 0
         self.dup_transfers = 0
+        self.locked_years = []     # 確定済みで入れられない年度
 
     @property
     def add_transactions(self):
@@ -332,9 +333,10 @@ class ImportPlan:
 
 
 def read_workbook(path, fiscal_year=None):
-    """.xlsx/.xlsm を読んで ImportPlan（重複の数はまだ入らない）を返す"""
-    if not EXCEL_AVAILABLE:
+    """.xlsx/.xlsm を読んで ImportPlan を返す（重複の数は examine() で入る）"""
+    if not excel_available():
         raise RuntimeError('openpyxl が入っていないため、Excel を読み込めません。')
+    import openpyxl
     wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
     plan = ImportPlan()
     tx_best = (None, -1)
@@ -357,17 +359,15 @@ def read_workbook(path, fiscal_year=None):
 
     if tx_best[0]:
         grid, hr, mp = tx_best[0]
-        plan.transactions, sk = read_transactions(grid, hr, mp, fiscal_year)
+        rows, sk = read_transactions(grid, hr, mp, fiscal_year)
+        plan.transactions = rows
         plan.skipped += [('取引', r, w) for r, w in sk]
     if tr_best[0]:
         grid, hr, mp = tr_best[0]
-        plan.transfers, sk = read_transfers(grid, hr, mp, fiscal_year)
+        rows, sk = read_transfers(grid, hr, mp, fiscal_year)
+        plan.transfers = rows
         plan.skipped += [('振替', r, w) for r, w in sk]
-    for t in plan.transactions:
-        y = fiscal_year_of(t['date'])
-        if y is not None:
-            plan.fiscal_years.add(y)
-    for t in plan.transfers:
+    for t in plan.transactions + plan.transfers:
         y = fiscal_year_of(t['date'])
         if y is not None:
             plan.fiscal_years.add(y)
@@ -375,63 +375,51 @@ def read_workbook(path, fiscal_year=None):
 
 
 # ============================================================
-# いまの中身とくらべる
+# いまの帳簿とくらべる
 # ============================================================
 def _tx_key(t):
     return (t['date'], (t.get('account') or '').strip(), (t.get('category') or '').strip(),
-            (t.get('details') or '').strip(), int(round(t.get('income') or 0)),
-            int(round(t.get('expense') or 0)))
+            (t.get('details') or '').strip(),
+            int(t.get('income') or 0), int(t.get('expense') or 0))
 
 
 def _tr_key(t):
     return (t['date'], (t.get('from_account') or '').strip(),
-            (t.get('to_account') or '').strip(), int(round(t.get('amount') or 0)))
-
-
-def _db_tx_key(r):
-    return (str(r['date']), (r['account_type'] or '').strip(), (r['category'] or '').strip(),
-            (r['details'] or '').strip(), int(round(r['income'] or 0)),
-            int(round(r['expense'] or 0)))
-
-
-def _db_tr_key(r):
-    return (str(r['date']), (r['from_account'] or '').strip(),
-            (r['to_account'] or '').strip(), int(round(r['amount'] or 0)))
+            (t.get('to_account') or '').strip(), int(t.get('amount') or 0))
 
 
 def examine(db, plan):
-    """すでに入っているものと突き合わせて、重複の数と、新しい科目・口座を数える。
+    """重複の数・新しい科目や口座・確定済み年度を数える
 
-    まったく同じ内容の取引が2件ある帳面があるので、「いくつあるか」で数える。
+    同じ内容の取引が2件ある帳面があるので、「いくつあるか」で突き合わせる。
     すでに1件あって Excel に2件あるなら、足りない1件だけを入れる。
     """
     from collections import Counter
     have_tx, have_tr = Counter(), Counter()
     for y in sorted(plan.fiscal_years):
         for r in db.get_transactions(y):
-            have_tx[_db_tx_key(r)] += 1
+            have_tx[_tx_key({'date': r['date'], 'account': r['account_type'],
+                             'category': r['category'], 'details': r['details'],
+                             'income': r['income'], 'expense': r['expense']})] += 1
         for r in db.get_transfers(y):
-            have_tr[_db_tr_key(r)] += 1
+            have_tr[_tr_key({'date': r['date'], 'from_account': r['from_account'],
+                             'to_account': r['to_account'], 'amount': r['amount']})] += 1
 
-    plan.dup_transactions = 0
+    plan.dup_transactions = plan.dup_transfers = 0
     for t in plan.transactions:
         k = _tx_key(t)
-        if have_tx[k] > 0:
+        t['dup'] = have_tx[k] > 0
+        if t['dup']:
             have_tx[k] -= 1
-            t['dup'] = True
             plan.dup_transactions += 1
-        else:
-            t['dup'] = False
-    plan.dup_transfers = 0
     for t in plan.transfers:
         k = _tr_key(t)
-        if have_tr[k] > 0:
+        t['dup'] = have_tr[k] > 0
+        if t['dup']:
             have_tr[k] -= 1
-            t['dup'] = True
             plan.dup_transfers += 1
-        else:
-            t['dup'] = False
 
+    # 新しい科目・口座（CSV取り込みと同じく、口座は年度で絞らず全部と見くらべる）
     cats = set(db.get_category_names())
     accs = set(db.get_account_names())
     new_cats, new_accs = [], []
@@ -455,175 +443,193 @@ def examine(db, plan):
             new_accs.append(a)
     plan.new_categories = new_cats
     plan.new_accounts = new_accs
+
+    plan.locked_years = [y for y in sorted(plan.fiscal_years) if db.is_year_closed(y)]
     return plan
 
 
 # ============================================================
-# 入れる
+# 帳簿に入れる
 # ============================================================
-def _columns(conn, table):
-    return {r[1] for r in conn.execute(f'PRAGMA table_info({table})').fetchall()}
-
-
 def apply_plan(db, plan, take_openings=True):
-    """まとめて入れる。途中で失敗したらぜんぶ取り消す。戻り: 入れた件数の内訳"""
-    conn = db.conn
-    tx_cols = _columns(conn, 'transactions')
-    tr_cols = _columns(conn, 'transfers')
-    has_event = 'event' in tx_cols                     # 新しい版には「行事」の列がある
+    """まとめて入れる。途中で失敗したらぜんぶ取り消す
+
+    db.add_transaction / add_transfer をそのまま使うので、確定済み年度の判定
+    （Database._assert_open）と変更履歴（audit_log）はアプリと同じように働く。
+    commit=False で積んで、最後に1回だけ commit する。
+    """
     added_tx = added_tr = 0
+    prev_prefix = getattr(db, '_log_prefix', '')
     try:
-        conn.execute('BEGIN')
+        db._log_prefix = 'Excel取込: '
+    except Exception:
+        pass
+    try:
         for name in plan.new_categories:
-            conn.execute('INSERT OR IGNORE INTO categories (name,sort_order)'
-                         ' VALUES (?,(SELECT COALESCE(MAX(sort_order)+1,0) FROM categories))',
-                         (name,))
+            try:
+                db.add_category(name, commit=False)
+            except Exception:
+                pass                                   # すでにある等は気にしない
         for name in plan.new_accounts:
-            conn.execute('INSERT OR IGNORE INTO accounts (name,sort_order)'
-                         ' VALUES (?,(SELECT COALESCE(MAX(sort_order)+1,0) FROM accounts))',
-                         (name,))
+            try:
+                db.add_account(name, commit=False)
+            except Exception:
+                pass
         for y in sorted(plan.fiscal_years):
-            conn.execute('INSERT OR IGNORE INTO fiscal_years (year) VALUES (?)', (y,))
+            db.get_or_create_fiscal_year(y, commit=False)
 
         for t in plan.transactions:
             if t.get('dup'):
                 continue
-            cols = ['fiscal_year', 'date', 'account_type', 'category', 'details',
-                    'income', 'expense', 'memo']
-            vals = [fiscal_year_of(t['date']), t['date'], t['account'], t['category'],
-                    t['details'], t['income'], t['expense'], t['memo']]
-            if has_event:
-                cols.append('event')
-                vals.append(t.get('event', ''))
-            conn.execute(f"INSERT INTO transactions ({','.join(cols)})"
-                         f" VALUES ({','.join('?' * len(cols))})", vals)
+            db.add_transaction(fiscal_year_of(t['date']), t['date'], t['account'],
+                               t['category'], t['details'], t['income'], t['expense'],
+                               t['memo'], t['event'], commit=False)
             added_tx += 1
-
         for t in plan.transfers:
             if t.get('dup'):
                 continue
-            cols = ['fiscal_year', 'date', 'from_account', 'to_account', 'amount', 'details']
-            vals = [fiscal_year_of(t['date']), t['date'], t['from_account'], t['to_account'],
-                    t['amount'], t['details']]
-            if 'memo' in tr_cols:
-                cols.append('memo')
-                vals.append(t.get('memo', ''))
-            conn.execute(f"INSERT INTO transfers ({','.join(cols)})"
-                         f" VALUES ({','.join('?' * len(cols))})", vals)
+            db.add_transfer(fiscal_year_of(t['date']), t['date'], t['from_account'],
+                            t['to_account'], t['amount'], t['details'], t['memo'],
+                            commit=False)
             added_tr += 1
+        db.conn.commit()
+    except Exception:
+        db.conn.rollback()
+        try:
+            db._log_prefix = prev_prefix
+        except Exception:
+            pass
+        raise
 
+    # 期首残高は set_opening_balances 自身が commit するので、本体のあとに入れる
+    # （変更履歴の前置きは、ここまで付けたままにする）
+    opened = 0
+    try:
         if take_openings and plan.openings:
             for y in sorted(plan.fiscal_years):
-                for name, amount in plan.openings.items():
-                    conn.execute(
-                        'INSERT INTO account_balances (fiscal_year,account_name,balance)'
-                        ' VALUES (?,?,?)'
-                        ' ON CONFLICT(fiscal_year,account_name)'
-                        ' DO UPDATE SET balance=excluded.balance',
-                        (y, name, amount))
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
+                try:
+                    db.set_opening_balances(y, plan.openings)
+                    opened += 1
+                except Exception:
+                    pass                               # 確定済み年度などは飛ばす
+    finally:
+        try:
+            db._log_prefix = prev_prefix
+        except Exception:
+            pass
     return {'transactions': added_tx, 'transfers': added_tr,
             'dup_transactions': plan.dup_transactions, 'dup_transfers': plan.dup_transfers,
             'new_categories': plan.new_categories, 'new_accounts': plan.new_accounts,
-            'openings': len(plan.openings) if take_openings else 0}
+            'opening_years': opened}
 
 
 # ============================================================
-# 画面（tkinter）
+# 画面（JichikaiApp に混ぜる）
 # ============================================================
-def import_excel_dialog(app, path=None):
-    """「データ ▼ → Excelを取り込み」から呼ぶ。app は .root / .db / .current_fy を持つもの"""
-    from tkinter import filedialog, messagebox
+class ExcelImportMixin:
+    """「データ ▼ → Excelを取り込み」"""
 
-    root = getattr(app, 'root', None)
-    db = app.db
-    if not EXCEL_AVAILABLE:
-        messagebox.showerror('Excel取込',
-                             'openpyxl が入っていないため、Excel を読み込めません。',
-                             parent=root)
-        return
+    def import_excel(self):
+        from tkinter import filedialog, messagebox
 
-    if path is None:
+        if not self._year_editable(what='Excelの取り込み'):
+            return
+        if not excel_available():
+            messagebox.showerror(
+                'Excel取込',
+                'openpyxl が入っていないため、Excel を読み込めません。', parent=self.root)
+            return
+
         path = filedialog.askopenfilename(
-            title='取り込む Excel ファイルを選択',
+            title='取り込むExcelファイルを選択',
             filetypes=[('Excel ブック', '*.xlsx *.xlsm'), ('すべてのファイル', '*.*')],
-            parent=root)
-    if not path:
-        return
+            parent=self.root)
+        if not path:
+            return
 
-    try:
-        fy = app.current_fy.get() if hasattr(app, 'current_fy') else None
-    except Exception:
-        fy = None
+        try:
+            plan = read_workbook(path, self.current_fy.get())
+        except Exception as e:
+            messagebox.showerror(
+                'Excel取込',
+                'ファイルを読み込めませんでした。\n\n'
+                '.xlsx か .xlsm を選んでください。\n'
+                '（.xls のときは Excel で開いて .xlsx で保存しなおしてください）\n\n'
+                f'{e}', parent=self.root)
+            return
 
-    try:
-        plan = read_workbook(path, fy)
-    except Exception as e:
-        messagebox.showerror('Excel取込',
-                             'ファイルを読み込めませんでした。\n\n'
-                             '.xlsx か .xlsm を選んでください。\n'
-                             '（.xls のときは Excel で開いて .xlsx で保存しなおしてください）\n\n'
-                             f'{e}', parent=root)
-        return
+        if not plan.transactions and not plan.transfers:
+            messagebox.showinfo(
+                'Excel取込',
+                '取り込める有効な行がありませんでした。\n\n'
+                '「日付」と「収入・支出（または金額）」の見出しがある表を入れてください。',
+                parent=self.root)
+            return
 
-    if not plan.transactions and not plan.transfers:
-        messagebox.showwarning('Excel取込',
-                               '取り込める行が見つかりませんでした。\n\n'
-                               '「日付」と「収入・支出（または金額）」の見出しがある表を'
-                               '入れてください。', parent=root)
-        return
+        examine(self.db, plan)
 
-    examine(db, plan)
+        if plan.locked_years:
+            messagebox.showwarning(
+                '確定済みの年度',
+                f'{"、".join(f"{y}年度" for y in plan.locked_years)}は確定済みのため、'
+                '取り込めません。\n\n「年度 ▼」→「確定を解除する」で解除してから'
+                '操作してください。', parent=self.root)
+            return
 
-    years = '・'.join(f'{y}年度' for y in sorted(plan.fiscal_years)) or '（年度不明）'
-    msg = [f'{years} のデータを取り込みます。', '']
-    msg.append(f'取引 {plan.add_transactions} 件、振替 {plan.add_transfers} 件 を追加します。')
-    if plan.dup_transactions or plan.dup_transfers:
-        msg.append(f'すでに入っている 取引 {plan.dup_transactions} 件、'
-                   f'振替 {plan.dup_transfers} 件 はスキップします。')
-    if plan.skipped:
-        msg.append(f'{len(plan.skipped)} 行は形式不正のためスキップします'
-                   '（表題や合計の行なら、そのままで大丈夫です）。')
-    if plan.new_categories:
-        msg.append('新しい科目を追加: ' + '、'.join(plan.new_categories))
-    if plan.new_accounts:
-        msg.append('新しい口座を追加: ' + '、'.join(plan.new_accounts))
-    if plan.openings:
-        msg.append('期首残高も取り込みます: '
-                   + '、'.join(f'{k} {v:,}' for k, v in plan.openings.items()))
-    msg += ['', '念のため取込前のバックアップを推奨します。', '', '続けますか？']
+        years = '、'.join(f'{y}年度' for y in sorted(plan.fiscal_years))
+        msg = f'{os.path.basename(path)}\n\n'
+        if years:
+            msg += f'{years} のデータです。\n'
+        msg += f'取引 {plan.add_transactions}件、振替 {plan.add_transfers}件 を取り込みます。\n'
+        if plan.dup_transactions or plan.dup_transfers:
+            msg += (f'（すでにある 取引 {plan.dup_transactions}件、'
+                    f'振替 {plan.dup_transfers}件 はスキップ）\n')
+        if plan.skipped:
+            msg += f'（{len(plan.skipped)}件は形式不正のためスキップ）\n'
+        if plan.new_categories:
+            msg += f'新しい科目を追加: {"、".join(plan.new_categories)}\n'
+        if plan.new_accounts:
+            msg += f'新しい口座を追加: {"、".join(plan.new_accounts)}\n'
+        if plan.openings:
+            msg += ('期首残高も取り込みます: '
+                    + '、'.join(f'{k} {v:,}' for k, v in plan.openings.items()) + '\n')
+        msg += ('\n重複（同一日付・口座・科目・摘要・金額）は自動でスキップします。\n'
+                '念のため取込前のバックアップを推奨します。\n\n続けますか？')
+        if not messagebox.askyesno('Excel取込の確認', msg, parent=self.root):
+            return
 
-    if not messagebox.askyesno('Excel取込の確認', '\n'.join(msg), parent=root):
-        return
+        try:
+            res = apply_plan(self.db, plan)
+        except Exception as e:
+            messagebox.showerror(
+                'Excel取込',
+                f'取込中にエラーが発生したため、すべて取り消しました。\n\n{e}',
+                parent=self.root)
+            return
 
-    try:
-        res = apply_plan(db, plan)
-    except Exception as e:
-        messagebox.showerror('Excel取込',
-                             f'取込中にエラーが発生したため、すべて取り消しました。\n\n{e}',
-                             parent=root)
-        return
+        added = res['transactions'] + res['transfers']
+        for name in ('refresh_category_combos', 'refresh_account_combos', '_update_fy_list',
+                     '_update_cmp_combo', 'refresh_list', 'refresh_balance', 'refresh_summary',
+                     'refresh_cash_book', 'refresh_budget'):
+            fn = getattr(self, name, None)
+            if callable(fn):
+                try:
+                    fn()
+                except Exception:
+                    pass
+        if hasattr(self, '_set_status'):
+            self._set_status(f'✓ Excel取込: {added}件追加')
 
-    for name in ('refresh_list', 'refresh_summary', 'refresh_balance',
-                 'refresh_category_combos', 'refresh_account_combos', 'refresh_compare_list'):
-        fn = getattr(app, name, None)
-        if callable(fn):
-            try:
-                fn()
-            except Exception:
-                pass
-
-    done = [f"取引 {res['transactions']} 件、振替 {res['transfers']} 件 を取り込みました。"]
-    if res['dup_transactions'] or res['dup_transfers']:
-        done.append(f"重複スキップ: 取引 {res['dup_transactions']} 件、"
-                    f"振替 {res['dup_transfers']} 件")
-    if plan.skipped:
-        done.append(f'形式不正スキップ: {len(plan.skipped)} 行')
-    if res['new_categories']:
-        done.append('追加した科目: ' + '、'.join(res['new_categories']))
-    if res['new_accounts']:
-        done.append('追加した口座: ' + '、'.join(res['new_accounts']))
-    messagebox.showinfo('Excel取込完了', '\n'.join(done), parent=root)
+        extra = ''
+        if res['new_categories']:
+            extra += f'\n新しい科目を追加: {"、".join(res["new_categories"])}'
+        if res['new_accounts']:
+            extra += f'\n新しい口座を追加: {"、".join(res["new_accounts"])}'
+        if res['opening_years']:
+            extra += '\n期首残高を取り込みました'
+        skipped = res['dup_transactions'] + res['dup_transfers']
+        messagebox.showinfo(
+            'Excel取込完了',
+            f'{added}件を取り込みました。\n重複スキップ: {skipped}件'
+            + (f'\n形式不正スキップ: {len(plan.skipped)}件' if plan.skipped else '')
+            + extra, parent=self.root)

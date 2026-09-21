@@ -88,8 +88,10 @@
 ## パソコン版に Excel の読み込みを足す
 
 パソコン版（Python + tkinter + SQLite）に**そのまま置ける取り込みモジュール**を
-[`pc/excel_import.py`](pc/excel_import.py) に入れてあります。`main.py` に2行足すだけで、
-「データ ▼ → Excelを取り込み」が使えるようになります。くわしくは [pc/README.md](pc/README.md)。
+[`pc/excel_import.py`](pc/excel_import.py) に入れてあります。`main.py` を3か所直すだけで、
+「データ ▼ → Excelを取り込み」が使えるようになります。確定済み年度の拒否・変更履歴（audit_log）・
+1トランザクションでの取り消しまで、パソコン版の決まりに合わせてあります。
+くわしくは [pc/README.md](pc/README.md)。
 
 ## 気をつけること（正直なところ）
 
