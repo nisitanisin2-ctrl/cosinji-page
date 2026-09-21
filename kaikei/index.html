@@ -353,6 +353,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
         <option value="pcstd">パソコン版と同じ形（概要・残高／取引一覧／振替／科目別集計）</option>
         <option value="full">控え用のくわしい形（伝票番号・更新つき／決算報告も）</option>
         <option value="learned">前に読み込んだ Excel と同じ並び</option>
+        <option value="csv">パソコン版の「CSVを取り込み」用（.csv）</option>
       </select>
       <small class="muted" id="expFormNote"></small>
     </label>
@@ -363,8 +364,8 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   <div class="card">
     <h2>パソコンから受け取る（読み込み）</h2>
     <p class="muted">パソコン版が出した Excel を選ぶと、中身を見くらべて、足りない分だけを入れます。同じ伝票は二重に入りません。<br>
-      マクロつきのブック（<b>.xlsm</b>）もそのまま読めます。<b>.xls</b>（古い形式）のときは、パソコンの Excel で開いて <b>.xlsx</b> で保存しなおしてください。</p>
-    <input id="impFile" type="file" accept=".xlsx,.xlsm,.xltx,.xltm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled.12" style="display:none" onchange="onImportFile(event)">
+      マクロつきのブック（<b>.xlsm</b>）と、パソコン版の「CSVに出力」で作った <b>.csv</b> も読めます。<b>.xls</b>（古い形式）のときは、パソコンの Excel で開いて <b>.xlsx</b> で保存しなおしてください。</p>
+    <input id="impFile" type="file" accept=".xlsx,.xlsm,.xltx,.xltm,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled.12" style="display:none" onchange="onImportFile(event)">
     <button class="btn big wide" onclick="document.getElementById('impFile').click()">📥 Excelを読み込む</button>
     <div class="muted" id="impState" style="margin-top:8px"></div>
   </div>
@@ -1237,6 +1238,7 @@ const ALIASES={
   event:['行事','行事名','事業','事業名','イベント'],
   memo: ['備考','メモ','注記','コメント'],
   ts:   ['更新','更新日時','更新日','最終更新'],
+  tramt:['振替額','振替金額','移動額'],
   from: ['振替元','振替元口座','出金元','引出元','移動元','from'],
   to:   ['振替先','振替先口座','入金先','預入先','移動先','to'],
 };
@@ -1485,6 +1487,31 @@ function buildLearnedSheets(items, layout, opt){
   return [{name:layout.sheetName||'取引一覧', rows, opts:{freeze:(layout.headerRow||0)+1}}];
 }
 
+/* ══ パソコン版の「CSVを取り込み」用の CSV ══════════════
+   パソコン版は「CSV出力」で作った形（種別・日付・口座・科目・摘要・収入・支出・
+   振替元・振替先・振替額・備考・行事）しか受け取らない。同じ並びで書き出す。
+   取引の行は 種別=取引、振替の行は 種別=振替。
+   文字コードは UTF-8（BOM つき）。パソコン版はこれを先に試し、だめなら cp932 で読む。 */
+const CSV_HEADERS=['種別','日付','口座','科目','摘要','収入','支出','振替元','振替先','振替額','備考','行事'];
+function csvCell(v){
+  const s=String(v==null?'':v);
+  return /[",\r\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+function buildCsv(items, transfers){
+  const rows=[CSV_HEADERS];
+  const all=sortByDate(items.map(i=>({d:i.date, t:'i', o:i})).concat(transfers.map(t=>({d:t.date, t:'t', o:t})))
+    .map(r=>Object.assign({date:r.d, ts:r.o.ts||0}, r)));
+  all.forEach(r=>{
+    const o=r.o;
+    if(r.t==='i') rows.push(['取引', o.date, o.acc||'', o.cat||'', o.note||'',
+      o.kind==='in'?(Number(o.amt)||0):'', o.kind==='out'?(Number(o.amt)||0):'',
+      '', '', '', o.memo||'', o.event||'']);
+    else rows.push(['振替', o.date, '', '', o.note||'', '', '',
+      o.from||'', o.to||'', Number(o.amt)||0, o.memo||'', '']);
+  });
+  return '\ufeff'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n')+'\r\n';
+}
+
 /* 書き出すファイルの名前。
    ブラウザによっては、名前に日本語が混じると名前ごと捨てられて
    「download」（拡張子なし）で保存されてしまう。そうなるとパソコンで開けないので、
@@ -1516,6 +1543,14 @@ async function doExport(){
     const partial=!(ys.size<=1 && ys.has(S.year) && items.length===yearItems().length);
     const opt={name:S.name, year:S.year, accounts:S.accounts, begin:S.begin, budget:S.budget, dev:S.dev, partial};
     const form=$('expForm').value;
+    if(form==='csv'){
+      const csv=buildCsv(items, transfers);
+      const fname=safeName(`kaikei_${S.year}_${todayStr()}`, 'csv');
+      download(new Blob([csv],{type:'text/csv;charset=utf-8'}), fname);
+      S.lastExport=Date.now(); save(); renderXls();
+      toast(`${items.length+transfers.length}件を「${fname}」に書き出しました`);
+      return;
+    }
     let sheets;
     if(form==='learned'&&S.layout&&S.layout.headers&&S.layout.headers.length) sheets=buildLearnedSheets(items,S.layout,opt);
     else if(form==='full') sheets=buildFullSheets(items,transfers,opt);
@@ -1582,6 +1617,40 @@ function sheetToGrid(xml, shared, styles){
   for(let i=0;i<grid.length;i++) if(!grid[i]) grid[i]=[];
   return grid;
 }
+/* CSV の文字列 → 表のかたまり（Excel と同じ形にして、同じ道で読む） */
+function csvToGrid(text){
+  if(text.charCodeAt(0)===0xFEFF) text=text.slice(1);      /* BOM を落とす */
+  const grid=[]; let row=[], cell='', q=false;
+  const endCell=()=>{ row.push({v:cell, isDate:false}); cell=''; };
+  const endRow=()=>{ endCell(); grid.push(row); row=[]; };
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){
+      if(c==='"'){ if(text[i+1]==='"'){ cell+='"'; i++; } else q=false; }
+      else cell+=c;
+    }else if(c==='"') q=true;
+    else if(c===',') endCell();
+    else if(c==='\r'){ if(text[i+1]==='\n') i++; endRow(); }
+    else if(c==='\n') endRow();
+    else cell+=c;
+  }
+  if(cell!==''||row.length) endRow();
+  /* 数字に見えるものは数として持つ（金額の読み取りのため） */
+  grid.forEach(r=>r.forEach(c2=>{ const t=String(c2.v).trim(); if(t!==''&&/^-?[\d,]+(\.\d+)?$/.test(t)) c2.v=Number(t.replace(/,/g,'')); }));
+  while(grid.length&&!grid[grid.length-1].some(c3=>c3.v!=='')) grid.pop();
+  return grid;
+}
+/* CSV を1枚のシートとして開く。文字コードは UTF-8 →（読めなければ）Shift_JIS */
+function readCsvFile(buf){
+  let text;
+  try{
+    text=new TextDecoder('utf-8',{fatal:true}).decode(buf);
+  }catch(_){
+    try{ text=new TextDecoder('shift_jis').decode(buf); }
+    catch(__){ text=new TextDecoder('utf-8').decode(buf); }
+  }
+  return [{name:'CSV', grid:csvToGrid(text)}];
+}
 async function readWorkbook(buf){
   const map=await xlUnzip(buf), dec=new TextDecoder(), names=Array.from(map.keys());
   const shared=[];
@@ -1639,9 +1708,9 @@ function detectHeader(grid, allow, need){
   return {row:best.row, score:best.score, map:best.map, headers:(grid[best.row]||[]).map(c=>c?String(c.v):'')};
 }
 const TX_FIELDS_ALLOW=['id','date','acc','kind','cat','note','in','out','amt','bal','event','memo','ts'];
-const TR_FIELDS_ALLOW=['id','date','from','to','amt','note','memo','ts'];
+const TR_FIELDS_ALLOW=['id','date','from','to','amt','tramt','note','memo','ts'];
 const needTx=m=>m.date!=null&&(m.in!=null||m.out!=null||m.amt!=null);
-const needTr=m=>m.date!=null&&m.from!=null&&m.to!=null&&m.amt!=null;
+const needTr=m=>m.date!=null&&m.from!=null&&m.to!=null&&(m.amt!=null||m.tramt!=null);
 
 /* 取引の表 → 記帳のかたち */
 function gridToItems(grid, headerRow, map){
@@ -1685,7 +1754,7 @@ function gridToTransfers(grid, headerRow, map){
     if(!row.some(c=>c&&c.v!=='')) continue;
     const dCell=get(row,'date');
     const date=dCell?parseAnyDate(dCell.v, dCell.isDate):'';
-    const amt=Math.abs(parseMoney((get(row,'amt')||{}).v));
+    const amt=Math.abs(parseMoney((get(row,'tramt')||get(row,'amt')||{}).v));
     const txt=(f)=>{ const c=get(row,f); return (c&&c.v!=null)?String(c.v).trim():''; };
     const from=txt('from'), to=txt('to');
     if(!date||!amt||!from||!to){ skipped.push({row:r+1, why:!date?'日付が読めません':(!amt?'金額がありません':'振替元／振替先がありません')}); continue; }
@@ -1777,14 +1846,14 @@ function mergeTransfers(existing, incoming, policy, opts){ return mergeRecords(e
 let IMP=null;     /* いま読み込もうとしている Excel の中身 */
 /* ファイルの頭のしるしを見て、読めない形なら「どうすればよいか」を返す。
    .xlsx / .xlsm は ZIP（PK）、古い .xls は OLE2（D0 CF 11 E0）で始まる。 */
+function isCsvName(name){ return /\.(csv|txt)$/i.test(String(name||'')); }
 function fileKindProblem(buf, name){
+  if(isCsvName(name)) return null;                         /* CSV はそのまま読める */
   const u=new Uint8Array(buf.slice(0,8));
   if(u[0]===0xD0&&u[1]===0xCF&&u[2]===0x11&&u[3]===0xE0)
     return 'これは古い .xls 形式のファイルです。\n\nパソコンの Excel で開いて、「名前を付けて保存」で\n「Excel ブック (.xlsx)」を選んで保存しなおしてから、もう一度読み込んでください。';
-  if(/\.csv$/i.test(name||''))
-    return 'これは CSV ファイルです。\n\nパソコンの Excel で開いて、「名前を付けて保存」で\n「Excel ブック (.xlsx)」を選んで保存しなおしてから、もう一度読み込んでください。';
   if(!(u[0]===0x50&&u[1]===0x4B))
-    return 'この形のファイルは読めません。\n\nExcel の .xlsx（または .xlsm）を選んでください。';
+    return 'この形のファイルは読めません。\n\nExcel の .xlsx・.xlsm か、CSV を選んでください。';
   return null;
 }
 async function onImportFile(ev){
@@ -1796,8 +1865,8 @@ async function onImportFile(ev){
   const why=fileKindProblem(buf, file.name);
   if(why){ alert(why); return; }
   let sheets;
-  try{ sheets=await readWorkbook(buf); }
-  catch(e){ alert('この Excel は開けませんでした。\nパソコンの Excel で開いて、「名前を付けて保存」から .xlsx で保存しなおしてみてください。'); return; }
+  try{ sheets=isCsvName(file.name)?readCsvFile(buf):await readWorkbook(buf); }
+  catch(e){ alert('このファイルは開けませんでした。\nパソコンの Excel で開いて、「名前を付けて保存」から .xlsx で保存しなおしてみてください。'); return; }
   if(!sheets.length){ alert('中身のあるシートが見つかりませんでした。'); return; }
 
   /* いちばん帳面らしいシート／振替のシート／口座と期首残高の表 をさがす */
@@ -1949,7 +2018,8 @@ function renderXls(){
   if($('expForm').value==='learned'&&!learned) $('expForm').value='pcstd';
   const note=$('expFormNote');
   const v=$('expForm').value;
-  if(v==='pcstd') note.textContent='パソコン版がいつも出しているのと同じ4枚・同じ並びで書き出します。';
+  if(v==='csv') note.textContent='パソコン版の「データ ▼ → CSVを取り込み」で、そのまま読み込める形です。取引も振替も1つのファイルに入ります。';
+  else if(v==='pcstd') note.textContent='パソコン版がいつも出しているのと同じ4枚・同じ並びで書き出します。';
   else if(v==='full') note.textContent='伝票番号と更新の時刻まで入れた形です。スマホどうしのやりとりや、控えに向いています。';
   else note.textContent=learned?`覚えている並び：「${S.layout.sheetName}」（${S.layout.headers.filter(Boolean).slice(0,6).join('・')}…）`
     :'パソコン版の Excel をまだ読み込んでいないので、この形はまだ使えません。';

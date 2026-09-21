@@ -5025,6 +5025,54 @@ async function runKaikei(browser) {
     check(`  ${label}：口座も残る`, rt.accs, '信用金庫,現金,農協,農協,現金');
   }
 
+  // パソコン版の「CSVを取り込み」用の CSV。見出しの並びと、取引・振替の入り方を固定する
+  const csv = await page.evaluate(() => {
+    const items = [
+      { id: 'a-1', date: '2026-04-06', kind: 'in',  cat: '雑収入', note: '自販機', amt: 3250, acc: '信用金庫', event: '', memo: '', ts: 1 },
+      { id: 'a-2', date: '2026-05-18', kind: 'out', cat: '行事費', note: 'お茶, お菓子', amt: 24800, acc: '現金', event: '秋祭り', memo: '3', ts: 2 },
+    ];
+    const trs = [{ id: 't-1', date: '2026-05-11', from: '農協', to: '現金', amt: 100000, note: '繰入', memo: '', ts: 3 }];
+    const text = buildCsv(items, trs);
+    const lines = text.replace(/^\ufeff/, '').split('\r\n');
+    // 日付の順に並ぶので 04-06(取引) → 05-11(振替) → 05-18(取引)
+    return { bom: text.charCodeAt(0) === 0xFEFF, head: lines[0], tx: lines[1], tr: lines[2], ev: lines[3], n: lines.filter(Boolean).length };
+  });
+  check('  CSVはBOMつき（パソコン版が文字化けしない）', csv.bom, true);
+  check('  CSVの見出しはパソコン版と同じ並び', csv.head, '種別,日付,口座,科目,摘要,収入,支出,振替元,振替先,振替額,備考,行事');
+  check('  取引の行', csv.tx, '取引,2026-04-06,信用金庫,雑収入,自販機,3250,,,,,,');
+  check('  カンマのある摘要は "" でくくる', csv.ev, '取引,2026-05-18,現金,行事費,"お茶, お菓子",,24800,,,,3,秋祭り');
+  check('  振替の行（摘要はそのまま持つ）', csv.tr, '振替,2026-05-11,,,繰入,,,農協,現金,100000,,');
+  check('  見出し＋3行', csv.n, 4);
+
+  // その CSV を読み戻せる（パソコン版の「CSVに出力」も同じ形）
+  const csvBack = await page.evaluate(() => {
+    const items = [
+      { id: 'a-1', date: '2026-04-06', kind: 'in',  cat: '雑収入', note: '自販機', amt: 3250, acc: '信用金庫', event: '', memo: '', ts: 1 },
+      { id: 'a-2', date: '2026-05-18', kind: 'out', cat: '行事費', note: 'お茶, お菓子', amt: 24800, acc: '現金', event: '秋祭り', memo: '3', ts: 2 },
+    ];
+    const trs = [{ id: 't-1', date: '2026-05-11', from: '農協', to: '現金', amt: 100000, note: '繰入', memo: '', ts: 3 }];
+    const sheets = [{ name: 'CSV', grid: csvToGrid(buildCsv(items, trs)) }];
+    const d = detectHeader(sheets[0].grid, TX_FIELDS_ALLOW, needTx);
+    const got = gridToItems(sheets[0].grid, d.row, d.map);
+    const d2 = detectHeader(sheets[0].grid, TR_FIELDS_ALLOW, needTr);
+    const gotTr = gridToTransfers(sheets[0].grid, d2.row, d2.map);
+    const m = mergeItems(items, got.items, 'newer');
+    const mt = mergeTransfers(trs, gotTr.items, 'newer');
+    return {
+      items: got.items.map(i => [i.date, i.kind, i.acc, i.cat, i.note, i.amt, i.event, i.memo]),
+      trs: gotTr.items.map(t => [t.date, t.from, t.to, t.amt, t.note]),
+      merge: `${m.added}/${m.updated}/${m.same}`,
+      mergeTr: `${mt.added}/${mt.updated}/${mt.same}`,
+    };
+  });
+  check('  CSVから取引を読み戻す', JSON.stringify(csvBack.items),
+    JSON.stringify([['2026-04-06','in','信用金庫','雑収入','自販機',3250,'',''],
+                    ['2026-05-18','out','現金','行事費','お茶, お菓子',24800,'秋祭り','3']]));
+  check('  CSVから振替を読み戻す（振替の行は取引に混ざらない）', JSON.stringify(csvBack.trs),
+    JSON.stringify([['2026-05-11','農協','現金',100000,'繰入']]));
+  check('  CSVを読み戻しても増えない（足/直/同）', csvBack.merge, '0/0/2');
+  check('  振替も増えない（足/直/同）', csvBack.mergeTr, '0/0/1');
+
   // 空のセルの書き方で、金額が別の列に入らないこと（v1 で踏んだところ）
   const tight = await page.evaluate(async () => {
     const mk = sp => `<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>` +
@@ -5061,13 +5109,13 @@ async function runKaikei(browser) {
     return {
       xls: (fileKindProblem(mk([0xD0, 0xCF, 0x11, 0xE0, 0, 0, 0, 0]), 'kaikei.xls') || '').split('\n')[0],
       zip: fileKindProblem(mk([0x50, 0x4B, 3, 4, 0, 0, 0, 0]), 'kaikei.xlsm'),
-      csv: (fileKindProblem(mk([0x31, 0x2C, 0x32, 0x0A, 0, 0, 0, 0]), 'kaikei.csv') || '').split('\n')[0],
+      csv: fileKindProblem(mk([0x31, 0x2C, 0x32, 0x0A, 0, 0, 0, 0]), 'kaikei.csv'),
       other: (fileKindProblem(mk([0x25, 0x50, 0x44, 0x46, 0, 0, 0, 0]), 'a.pdf') || '').split('\n')[0],
     };
   });
   check('  古い .xls は、そう言って直し方を出す', kinds.xls, 'これは古い .xls 形式のファイルです。');
   check('  マクロつき(.xlsm)はそのまま読む', kinds.zip, null);
-  check('  CSV も直し方を出す', kinds.csv, 'これは CSV ファイルです。');
+  check('  CSV はそのまま読む', kinds.csv, null);
   check('  ぜんぜん違う形は、読めないと言う', kinds.other, 'この形のファイルは読めません。');
 
   // 指で入れる：ふつうの記帳と、口座から口座への振替
