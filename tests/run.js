@@ -13,6 +13,7 @@ const os = require('os');
 
 const ROOT = path.resolve(__dirname, '..');
 const INDEX = 'file://' + path.join(ROOT, 'index.html');
+const KAIKEI = 'file://' + path.join(ROOT, 'kaikei', 'index.html');
 const CHROME = process.env.CHROMIUM || '/opt/pw-browsers/chromium';
 let chromium;
 try { ({ chromium } = require('/opt/node22/lib/node_modules/playwright')); }
@@ -1187,14 +1188,38 @@ async function runNpTools(browser) {
 
   check('  はじめは道具のタブを出さない', await bar(), '書式・枠線|数字|記号|電卓|▲ 登録');
   check('  設定に選べる道具が並ぶ', await page.evaluate(() =>
-    document.querySelectorAll('#npToolList .nptool-row').length), 9);
+    document.querySelectorAll('#npToolList .nptool-row').length), 10);
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,photomemo,linklist,memo,calctmpl,fintmpl');
+    'tansui,kantab,veggie,volume,photomemo,linklist,memo,calctmpl,fintmpl,kaikei');
+
+  // 自治会会計は、メモと同じく別のタブで開く別アプリ（全画面・フリックの対象外）
+  check('  自治会会計はタブのタイトルつきで並ぶ', await page.evaluate(() =>
+    (NP_TOOLS.find(t => t.id === 'kaikei') || {}).label), '🧾自治会会計');
+  check('  自治会会計は全画面の画面を持たない', await page.evaluate(() =>
+    !(NP_TOOLS.find(t => t.id === 'kaikei') || {}).ov), true);
+  check('  はじめに開くページには出さない', await page.evaluate(() =>
+    startPageOptions().some(o => o[0] === 'kaikei')), false);
+  check('  ▲登録の一覧にある', await page.evaluate(() =>
+    !!(KEY_FUNCS.a_kaikei && KEY_FUNCS.a_kaikei.label === '🧾自治会会計')), true);
+  check('  登録したらその場で開く（新しいタブなので）', await page.evaluate(() =>
+    REG_GESTURE_ACTIONS.has('a_kaikei')), true);
+  check('  開く先は kaikei/ ', await page.evaluate(() => {
+    let got = ''; const real = window.openRegLink;
+    window.openRegLink = u => { got = u; };
+    try { openKaikeiApp(); } finally { window.openRegLink = real; }
+    return /\/kaikei\/$/.test(got);
+  }), true);
 
   // チェックすると並びに足される
   await page.evaluate(() => { npToolToggle('tansui'); npToolToggle('veggie'); }); await page.waitForTimeout(250);
   check('  チェックした道具が電卓の右に並ぶ', await bar(), '書式・枠線|数字|記号|電卓|💧単位水量|🌱野菜|▲ 登録');
+  check('  自治会会計もタブに足せる', await page.evaluate(async () => {
+    npToolToggle('kaikei'); await new Promise(r => setTimeout(r, 200));
+    const on = [...document.querySelectorAll('#numpadPageBar .np-page')].some(b => /自治会会計/.test(b.textContent));
+    npToolToggle('kaikei'); await new Promise(r => setTimeout(r, 200));
+    return on;
+  }), true);
   check('  もう一度押すと外れる', await page.evaluate(() => {
     npToolToggle('tansui'); return npTools.join(','); }), 'veggie');
   await page.evaluate(() => { npToolToggle('tansui'); npToolToggle('kantab'); }); await page.waitForTimeout(250);
@@ -4848,6 +4873,341 @@ async function runCellFocus(browser) {
   await ctx.close();
 }
 
+
+/* ── 自治会会計（kaikei/）──
+   スマホ版とパソコン版の Excel のやりとりで、伝票が二重にならない・消えない・
+   金額が別の列に入らないことを見る。見本は実物のパソコン版の出し方に合わせてある。 */
+async function runKaikei(browser) {
+  const T = require('./kaikei.test.js');
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true, acceptDownloads: true });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+  page.on('dialog', d => d.accept());
+  await page.goto(KAIKEI);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload(); await page.waitForTimeout(400);
+  console.log('\n── 自治会会計 ──');
+
+  // 日付と金額の読み取り
+  const parsed = await page.evaluate(({ d, m }) => ({
+    dates: d.map(([v]) => parseAnyDate(v, false)),
+    moneys: m.map(([v]) => parseMoney(v)),
+  }), { d: T.PARSE_DATE, m: T.PARSE_MONEY });
+  T.PARSE_DATE.forEach(([v, want], i) => check(`  日付 ${JSON.stringify(v)}`, parsed.dates[i], want));
+  T.PARSE_MONEY.forEach(([v, want], i) => check(`  金額 ${JSON.stringify(v)}`, parsed.moneys[i], want));
+
+  // 年度は4月はじまり
+  const fy = await page.evaluate(() => [fyOfStr('2026-03-31'), fyOfStr('2026-04-01')].join(','));
+  check('  年度は4月はじまり', fy, '2025,2026');
+
+  // ── パソコン版が出す Excel の見本を、そのまま読む ──
+  const pc = await page.evaluate(async ({ tx, tr, sum }) => {
+    const book = await buildXlsx([
+      { name: '概要・残高', xml: sum }, { name: '取引一覧', xml: tx },
+      { name: '振替', xml: tr }, { name: '科目別集計', rows: [['科目', '収入', '支出']] },
+    ]);
+    const sheets = await readWorkbook(await book.arrayBuffer());
+    const t = sheets.find(s => s.name === '取引一覧');
+    const det = detectHeader(t.grid, TX_FIELDS_ALLOW, needTx);
+    const got = gridToItems(t.grid, det.row, det.map);
+    const trS = sheets.find(s => s.name === '振替');
+    const dt = detectHeader(trS.grid, TR_FIELDS_ALLOW, needTr);
+    const gotTr = gridToTransfers(trS.grid, dt.row, dt.map);
+    const accs = gridToAccounts(sheets.find(s => s.name === '概要・残高').grid);
+    return {
+      headerRow: det.row,
+      fields: Object.keys(det.map).join(','),
+      items: got.items.map(i => [i.date, i.kind, i.acc, i.cat, i.note, i.amt, i.event, i.memo]),
+      skipped: got.skipped.length,
+      transfers: gotTr.items.map(t2 => [t2.date, t2.from, t2.to, t2.amt, t2.note]),
+      accs: accs.map(a => [a.acc, a.begin]),
+    };
+  }, { tx: T.PC_TX_XML, tr: T.PC_TR_XML, sum: T.PC_SUM_XML });
+  check('  見出しの行を当てる', pc.headerRow, T.PC_EXPECT.headerRow);
+  check('  どの列が何かを当てる', pc.fields, T.PC_EXPECT.fields.join(','));
+  check('  読み取れた件数', pc.items.length, T.PC_EXPECT.items.length);
+  T.PC_EXPECT.items.forEach((want, i) => check(`  ${i + 1}件目`, JSON.stringify(pc.items[i]), JSON.stringify(want)));
+  check('  合計行は読み飛ばす', pc.skipped, T.PC_EXPECT.skipped);
+  check('  振替も読める', JSON.stringify(pc.transfers), JSON.stringify(T.PC_EXPECT.transfers));
+  check('  口座と期首残高も読める', JSON.stringify(pc.accs), JSON.stringify(T.PC_EXPECT.accounts));
+
+  // 取り込んだあとの口座ごとの残高が、パソコン版の「現在残高」と合う
+  const bal = await page.evaluate(async ({ tx, tr, sum }) => {
+    const book = await buildXlsx([{ name: '概要・残高', xml: sum }, { name: '取引一覧', xml: tx }, { name: '振替', xml: tr }]);
+    const sheets = await readWorkbook(await book.arrayBuffer());
+    const t = sheets[1], d = detectHeader(t.grid, TX_FIELDS_ALLOW, needTx);
+    const items = gridToItems(t.grid, d.row, d.map).items;
+    const d2 = detectHeader(sheets[2].grid, TR_FIELDS_ALLOW, needTr);
+    const trs = gridToTransfers(sheets[2].grid, d2.row, d2.map).items;
+    S.year = 2026; S.items = []; S.transfers = []; S.accounts = []; S.begin = {};
+    gridToAccounts(sheets[0].grid).forEach(a => { S.accounts.push(a.acc); S.begin[a.acc] = a.begin; });
+    S.items = mergeItems([], items, 'newer').items;
+    S.transfers = mergeTransfers([], trs, 'newer').items;
+    const a = accountSummary();
+    return { rows: a.list.map(r => [r.acc, r.now]), total: a.sum.now, inSum: a.sum.in, outSum: a.sum.out };
+  }, { tx: T.PC_TX_XML, tr: T.PC_TR_XML, sum: T.PC_SUM_XML });
+  T.PC_EXPECT.balances.forEach(([acc, want], i) => check(`  ${acc}の残高`, JSON.stringify(bal.rows[i]), JSON.stringify([acc, want])));
+  check('  残高の合計', bal.total, T.PC_EXPECT.balances.reduce((a, b) => a + b[1], 0));
+  check('  収入合計（振替は入れない）', bal.inSum, 3250);
+  check('  支出合計（振替は入れない）', bal.outSum, 30308);
+
+  // 二度読みしても増えない。まったく同じ内容の2件は、2件のまま
+  const twice = await page.evaluate(async ({ tx }) => {
+    const sheets = await readWorkbook(await (await buildXlsx([{ name: '取引一覧', xml: tx }])).arrayBuffer());
+    const d = detectHeader(sheets[0].grid, TX_FIELDS_ALLOW, needTx);
+    const items = gridToItems(sheets[0].grid, d.row, d.map).items;
+    const first = mergeItems([], items, 'newer');
+    const second = mergeItems(first.items, items, 'newer');
+    const third = mergeItems(second.items, items, 'newer');
+    return {
+      first: `${first.added}/${first.same}`,
+      second: `${second.added}/${second.updated}/${second.same}`,
+      third: third.items.length,
+      dup: third.items.filter(i => i.note === '上水道 3月分').length,
+    };
+  }, { tx: T.PC_TX_XML });
+  check('  はじめは5件入る（足/同）', twice.first, '5/0');
+  check('  二度読みしても増えない（足/直/同）', twice.second, '0/0/5');
+  check('  三度読んでも5件のまま', twice.third, 5);
+  check('  同じ内容の2件は、1件に丸めない', twice.dup, 2);
+
+  // すでに手で入れてある2件は重ならず、残りだけ入る
+  const onMine = await page.evaluate(async ({ tx, mine }) => {
+    const sheets = await readWorkbook(await (await buildXlsx([{ name: '取引一覧', xml: tx }])).arrayBuffer());
+    const d = detectHeader(sheets[0].grid, TX_FIELDS_ALLOW, needTx);
+    const items = gridToItems(sheets[0].grid, d.row, d.map).items;
+    const r = mergeItems(mine, items, 'newer');
+    return `${r.added}/${r.updated}/${r.same}/${r.items.length}`;
+  }, { tx: T.PC_TX_XML, mine: T.MINE });
+  check('  手で入れた2件は重ならない（足/直/同/残り）', onMine, '3/0/2/5');
+
+  // 食い違ったときの決めごと
+  const pol = await page.evaluate(({ mine, cases }) => cases.map(c => {
+    const incoming = mine.map(i => Object.assign({}, i, i.note === 'コンパネ' ? { amt: 4000, ts: c.incomingTs } : { ts: c.incomingTs }));
+    const r = mergeItems(mine, incoming, c.policy);
+    const hit = r.items.find(i => i.note === 'コンパネ');
+    return { tally: `${r.added}/${r.updated}/${r.same}`, amt: hit ? hit.amt : 0 };
+  }), { mine: T.MINE, cases: T.POLICY_CASES });
+  T.POLICY_CASES.forEach((c, i) => {
+    check(`  ${c.policy}（更新 ${c.incomingTs}）の件数`, pol[i].tally, `${c.want.added}/${c.want.updated}/${c.want.same}`);
+    check(`  ${c.policy}（更新 ${c.incomingTs}）の金額`, pol[i].amt, c.wantAmt);
+  });
+
+  // まるごと入れ替える（パソコン側で消した分を、こちらにも反映する）
+  const prune = await page.evaluate(() => {
+    const mk = (id, date, amt) => ({ id, date, kind: 'out', cat: '雑費', note: id, amt, acc: '現金', event: '', memo: '', ts: 1 });
+    const mine = [mk('a-1', '2026-04-05', 100), mk('a-2', '2026-05-05', 200), mk('a-3', '2027-05-05', 300)];
+    const excel = [mk('a-1', '2026-04-05', 100)];
+    const off = mergeItems(mine, excel, 'newer');
+    const on = mergeItems(mine, excel, 'newer', { prune: true });
+    return {
+      off: `${off.added}/${off.same}/${off.removed || 0}/${off.items.length}`,
+      on: `${on.added}/${on.same}/${on.removed}/${on.items.length}`,
+      left: on.items.map(i => i.id).join(','),
+    };
+  });
+  check('  ふだんは消さない（足/同/消/残り）', prune.off, '0/1/0/3');
+  check('  入れ替えなら消す（足/同/消/残り）', prune.on, '0/1/1/2');
+  check('  別の年度の伝票は消さない', prune.left, 'a-1,a-3');
+
+  // 書き出し → 読み戻し が、どの形でもぴったり合う
+  for (const [form, label] of [['pcstd', 'パソコン版と同じ形'], ['full', '控え用のくわしい形']]) {
+    const rt = await page.evaluate(async ({ tx, tr, sum, form }) => {
+      const book = await buildXlsx([{ name: '概要・残高', xml: sum }, { name: '取引一覧', xml: tx }, { name: '振替', xml: tr }]);
+      const sheets = await readWorkbook(await book.arrayBuffer());
+      const d = detectHeader(sheets[1].grid, TX_FIELDS_ALLOW, needTx);
+      const items = mergeItems([], gridToItems(sheets[1].grid, d.row, d.map).items, 'newer').items;
+      const d2 = detectHeader(sheets[2].grid, TR_FIELDS_ALLOW, needTr);
+      const trs = mergeTransfers([], gridToTransfers(sheets[2].grid, d2.row, d2.map).items, 'newer').items;
+      const accs = {}; gridToAccounts(sheets[0].grid).forEach(a => accs[a.acc] = a.begin);
+      const opt = { name: '○○区', year: 2026, accounts: Object.keys(accs), begin: accs, budget: {}, dev: 'aa1' };
+      const out = (form === 'full') ? buildFullSheets(items, trs, opt) : buildPcStandard(items, trs, opt);
+      const back = await readWorkbook(await (await buildXlsx(out)).arrayBuffer());
+      const names = back.map(s => s.name);
+      const bi = back.findIndex(s => /取引一覧|出納帳/.test(s.name));
+      const dd = detectHeader(back[bi].grid, TX_FIELDS_ALLOW, needTx);
+      const again = gridToItems(back[bi].grid, dd.row, dd.map);
+      const m = mergeItems(items, again.items, 'newer');
+      const ti = back.findIndex(s => s.name === '振替');
+      const dt = detectHeader(back[ti].grid, TR_FIELDS_ALLOW, needTr);
+      const mt = mergeTransfers(trs, gridToTransfers(back[ti].grid, dt.row, dt.map).items, 'newer');
+      return {
+        names: names.join(','),
+        merge: `${m.added}/${m.updated}/${m.same}`,
+        tr: `${mt.added}/${mt.updated}/${mt.same}`,
+        dup: again.items.filter(i => i.note === '上水道 3月分').length,
+        kinds: again.items.map(i => i.kind).join(','),
+        accs: again.items.map(i => i.acc).join(','),
+      };
+    }, { tx: T.PC_TX_XML, tr: T.PC_TR_XML, sum: T.PC_SUM_XML, form });
+    check(`  ${label}：シートの名前`, rt.names, form === 'full' ? '出納帳,振替,決算報告,やりとり' : '概要・残高,取引一覧,振替,科目別集計');
+    check(`  ${label}：読み戻しても増えない（足/直/同）`, rt.merge, '0/0/5');
+    check(`  ${label}：振替も増えない（足/直/同）`, rt.tr, '0/0/2');
+    check(`  ${label}：同じ内容の2件も2件のまま`, rt.dup, 2);
+    check(`  ${label}：収入と支出が入れかわらない`, rt.kinds, 'in,out,out,out,out');
+    check(`  ${label}：口座も残る`, rt.accs, '信用金庫,現金,農協,農協,現金');
+  }
+
+  // パソコン版の「CSVを取り込み」用の CSV。見出しの並びと、取引・振替の入り方を固定する
+  const csv = await page.evaluate(() => {
+    const items = [
+      { id: 'a-1', date: '2026-04-06', kind: 'in',  cat: '雑収入', note: '自販機', amt: 3250, acc: '信用金庫', event: '', memo: '', ts: 1 },
+      { id: 'a-2', date: '2026-05-18', kind: 'out', cat: '行事費', note: 'お茶, お菓子', amt: 24800, acc: '現金', event: '秋祭り', memo: '3', ts: 2 },
+    ];
+    const trs = [{ id: 't-1', date: '2026-05-11', from: '農協', to: '現金', amt: 100000, note: '繰入', memo: '', ts: 3 }];
+    const text = buildCsv(items, trs);
+    const lines = text.replace(/^\ufeff/, '').split('\r\n');
+    // 日付の順に並ぶので 04-06(取引) → 05-11(振替) → 05-18(取引)
+    return { bom: text.charCodeAt(0) === 0xFEFF, head: lines[0], tx: lines[1], tr: lines[2], ev: lines[3], n: lines.filter(Boolean).length };
+  });
+  check('  CSVはBOMつき（パソコン版が文字化けしない）', csv.bom, true);
+  check('  CSVの見出しはパソコン版と同じ並び', csv.head, '種別,日付,口座,科目,摘要,収入,支出,振替元,振替先,振替額,備考,行事');
+  check('  取引の行', csv.tx, '取引,2026-04-06,信用金庫,雑収入,自販機,3250,,,,,,');
+  check('  カンマのある摘要は "" でくくる', csv.ev, '取引,2026-05-18,現金,行事費,"お茶, お菓子",,24800,,,,3,秋祭り');
+  check('  振替の行（摘要はそのまま持つ）', csv.tr, '振替,2026-05-11,,,繰入,,,農協,現金,100000,,');
+  check('  見出し＋3行', csv.n, 4);
+
+  // その CSV を読み戻せる（パソコン版の「CSVに出力」も同じ形）
+  const csvBack = await page.evaluate(() => {
+    const items = [
+      { id: 'a-1', date: '2026-04-06', kind: 'in',  cat: '雑収入', note: '自販機', amt: 3250, acc: '信用金庫', event: '', memo: '', ts: 1 },
+      { id: 'a-2', date: '2026-05-18', kind: 'out', cat: '行事費', note: 'お茶, お菓子', amt: 24800, acc: '現金', event: '秋祭り', memo: '3', ts: 2 },
+    ];
+    const trs = [{ id: 't-1', date: '2026-05-11', from: '農協', to: '現金', amt: 100000, note: '繰入', memo: '', ts: 3 }];
+    const sheets = [{ name: 'CSV', grid: csvToGrid(buildCsv(items, trs)) }];
+    const d = detectHeader(sheets[0].grid, TX_FIELDS_ALLOW, needTx);
+    const got = gridToItems(sheets[0].grid, d.row, d.map);
+    const d2 = detectHeader(sheets[0].grid, TR_FIELDS_ALLOW, needTr);
+    const gotTr = gridToTransfers(sheets[0].grid, d2.row, d2.map);
+    const m = mergeItems(items, got.items, 'newer');
+    const mt = mergeTransfers(trs, gotTr.items, 'newer');
+    return {
+      items: got.items.map(i => [i.date, i.kind, i.acc, i.cat, i.note, i.amt, i.event, i.memo]),
+      trs: gotTr.items.map(t => [t.date, t.from, t.to, t.amt, t.note]),
+      merge: `${m.added}/${m.updated}/${m.same}`,
+      mergeTr: `${mt.added}/${mt.updated}/${mt.same}`,
+    };
+  });
+  check('  CSVから取引を読み戻す', JSON.stringify(csvBack.items),
+    JSON.stringify([['2026-04-06','in','信用金庫','雑収入','自販機',3250,'',''],
+                    ['2026-05-18','out','現金','行事費','お茶, お菓子',24800,'秋祭り','3']]));
+  check('  CSVから振替を読み戻す（振替の行は取引に混ざらない）', JSON.stringify(csvBack.trs),
+    JSON.stringify([['2026-05-11','農協','現金',100000,'繰入']]));
+  check('  CSVを読み戻しても増えない（足/直/同）', csvBack.merge, '0/0/2');
+  check('  振替も増えない（足/直/同）', csvBack.mergeTr, '0/0/1');
+
+  // 空のセルの書き方で、金額が別の列に入らないこと（v1 で踏んだところ）
+  const tight = await page.evaluate(async () => {
+    const mk = sp => `<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>` +
+      `<row r="1"><c r="A1" t="inlineStr"><is><t>日付</t></is></c><c r="B1" t="inlineStr"><is><t>収入</t></is></c><c r="C1" t="inlineStr"><is><t>支出</t></is></c><c r="D1" t="inlineStr"><is><t>科目</t></is></c></row>` +
+      `<row r="2"><c r="A2" t="inlineStr"><is><t>2026-04-05</t></is></c><c r="B2" t="n"${sp}/><c r="C2" t="n"><v>500</v></c><c r="D2" t="inlineStr"><is><t>雑費</t></is></c></row>` +
+      `</sheetData></worksheet>`;
+    const out = [];
+    for (const sp of ['', ' ']) {
+      const sheets = await readWorkbook(await (await buildXlsx([{ name: 'x', xml: mk(sp) }])).arrayBuffer());
+      const d = detectHeader(sheets[0].grid, TX_FIELDS_ALLOW, needTx);
+      const it = gridToItems(sheets[0].grid, d.row, d.map).items[0];
+      out.push(it ? `${it.kind}:${it.amt}` : 'なし');
+    }
+    return out.join(' / ');
+  });
+  check('  空のセルの閉じ方が違っても、支出は支出のまま', tight, 'out:500 / out:500');
+
+  // v1（現金・口座しか持てなかった版）の控えを開ける
+  const mig = await page.evaluate(() => {
+    const old = { v: 1, name: '旧', year: 2026, beginCash: 1000, beginBank: 2000,
+      items: [{ id: 'a', date: '2026-04-05', kind: 'in', cat: '会費', note: '', amt: 500, pay: 'bank', memo: '', ts: 1 }],
+      cats: { in: ['会費'], out: ['雑費'] }, budget: {}, dev: 'zzz', seq: 1 };
+    const m = migrate(JSON.parse(JSON.stringify(old)));
+    return { accounts: m.accounts.join(','), begin: JSON.stringify(m.begin), acc: m.items[0].acc, pay: m.items[0].pay, v: m.v };
+  });
+  check('  v1の口座は現金と口座になる', mig.accounts, '現金,口座');
+  check('  v1の繰越は期首残高になる', mig.begin, '{"現金":1000,"口座":2000}');
+  check('  v1の記帳の口座が移る', mig.acc, '口座');
+  check('  古い持ちかたは消える', mig.pay, undefined);
+
+  // 読めない形のファイルは、どうすればよいかを言う
+  const kinds = await page.evaluate(() => {
+    const mk = bytes => new Uint8Array(bytes).buffer;
+    return {
+      xls: (fileKindProblem(mk([0xD0, 0xCF, 0x11, 0xE0, 0, 0, 0, 0]), 'kaikei.xls') || '').split('\n')[0],
+      zip: fileKindProblem(mk([0x50, 0x4B, 3, 4, 0, 0, 0, 0]), 'kaikei.xlsm'),
+      csv: fileKindProblem(mk([0x31, 0x2C, 0x32, 0x0A, 0, 0, 0, 0]), 'kaikei.csv'),
+      other: (fileKindProblem(mk([0x25, 0x50, 0x44, 0x46, 0, 0, 0, 0]), 'a.pdf') || '').split('\n')[0],
+    };
+  });
+  check('  古い .xls は、そう言って直し方を出す', kinds.xls, 'これは古い .xls 形式のファイルです。');
+  check('  マクロつき(.xlsm)はそのまま読む', kinds.zip, null);
+  check('  CSV はそのまま読む', kinds.csv, null);
+  check('  ぜんぜん違う形は、読めないと言う', kinds.other, 'この形のファイルは読めません。');
+
+  // 指で入れる：ふつうの記帳と、口座から口座への振替
+  await page.evaluate(() => {
+    localStorage.clear();
+    S = blank(); S.year = 2026; S.accounts = ['現金', '農協']; S.begin = { 現金: 10000, 農協: 50000 };
+    saveNow(); renderAccChips(); renderTrSelects(); renderHead(); renderCatChips(); renderRecent(); go('entry');
+  });
+  await page.click('.kindsel button[data-kind="out"]');     // 先に「出した」にしてから科目を選ぶ
+  await page.fill('#inAmount', '3000');
+  await page.fill('#inDate', '2026-04-05');
+  await page.click('#accChips button:has-text("農協")');
+  await page.click('#catChips button:has-text("会議費")');
+  await page.fill('#inNote', '役員会');
+  await page.click('#saveBtn');
+  await page.click('.kindsel button[data-kind="tr"]');
+  await page.fill('#inAmount', '20000');
+  await page.selectOption('#inFrom', '農協');
+  await page.selectOption('#inTo', '現金');
+  await page.click('#saveBtn');
+  await page.waitForTimeout(200);
+  const ui = await page.evaluate(() => {
+    const a = accountSummary();
+    return {
+      items: S.items.length, trs: S.transfers.length,
+      cash: a.list.find(r => r.acc === '現金').now,
+      ja: a.list.find(r => r.acc === '農協').now,
+      total: a.sum.now,
+      head: document.getElementById('hdTotal').textContent,
+    };
+  });
+  check('  記帳が1件入る', ui.items, 1);
+  check('  振替が1件入る', ui.trs, 1);
+  check('  現金は振替でふえる', ui.cash, 30000);
+  check('  農協は支出と振替でへる', ui.ja, 27000);
+  check('  合わせた残高は支出のぶんだけへる', ui.total, 57000);
+  check('  上の帯にも出る', ui.head, '57,000');
+
+  // 画面まわり：ボタンの名前が取れること・タブが動くこと
+  const a11y = await page.evaluate(() => {
+    const noName = Array.from(document.querySelectorAll('button')).filter(b => {
+      if (b.closest('dialog') && !b.closest('dialog').open) return false;
+      return !(b.getAttribute('aria-label') || b.textContent.trim());
+    }).length;
+    go('xls');
+    const shown = document.getElementById('pg-xls').classList.contains('on');
+    const sel = document.querySelector('nav.tabs button[data-pg="xls"]').getAttribute('aria-selected');
+    return { noName, shown, sel };
+  });
+  check('  名前の取れないボタンは0件', a11y.noName, 0);
+  check('  タブで画面が変わる', a11y.shown, true);
+  check('  えらんだタブが分かる', a11y.sel, 'true');
+
+  // 書き出すファイルの名前。日本語が混じると、ブラウザによっては名前ごと捨てられて
+  // 拡張子の無い「download」になり、パソコンで開けなくなる（作っている途中に踏んだ）。
+  const [dl] = await Promise.all([
+    page.waitForEvent('download'),
+    page.click('button:has-text("Excelに書き出す")'),
+  ]);
+  const fname = dl.suggestedFilename();
+  check('  書き出す名前は英数字だけ', /^[0-9A-Za-z_.-]+$/.test(fname), true);
+  check('  書き出す名前は .xlsx で終わる', /\.xlsx$/.test(fname), true);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -4889,6 +5249,7 @@ async function runCellFocus(browser) {
     if (!only || only === 'voicefull') await runVoiceFull(browser);
     if (!only || only === 'defsize') await runDefSize(browser);
     if (!only || only === 'cellfocus') await runCellFocus(browser);
+    if (!only || only === 'kaikei') await runKaikei(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
