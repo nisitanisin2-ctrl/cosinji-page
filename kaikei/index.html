@@ -517,7 +517,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
    ・お金の場所（口座）は「現金・農協・信用金庫・定期預金…」と名前で持つ。
      口座から口座へ移すのは「振替」として、収入・支出とは別に数える。
    ══════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v3';
+const APP_VERSION='v4';
 const KEY='jk_kaikei_v1';
 
 const DEF_CATS={
@@ -583,7 +583,12 @@ function load(){
 function beginOf(y){
   y=(y==null)?S.year:y;
   const m=S.begins[String(y)];
-  return (m&&typeof m==='object')?m:{};
+  if(m&&typeof m==='object') return m;
+  /* 古い持ちかた（年度で分けていなかったころ）の控えを開いたときの拾い上げ */
+  if(y===S.year && S.begin && typeof S.begin==='object' && Object.keys(S.begin).length){
+    S.begins[String(y)]=S.begin; delete S.begin; return S.begins[String(y)];
+  }
+  return {};
 }
 function setBeginOf(y, map){ S.begins[String(y==null?S.year:y)]=map; }
 /* 帳面に出てくる年度（記帳・振替・期首残高から集める） */
@@ -1022,6 +1027,16 @@ function renderSettings(){
   });
   const add=document.createElement('button'); add.className='btn sub wide'; add.textContent='＋ 口座を足す';
   add.onclick=()=>openNewName('acc'); ae.appendChild(add);
+  /* いまの年度には入っていないが、ほかの年度には入っている、を分かるようにする */
+  const hasNow=Object.values(beginOf()).some(v=>Number(v));
+  const others=Object.keys(S.begins||{}).filter(y=>+y!==S.year&&Object.values(S.begins[y]||{}).some(v=>Number(v)));
+  if(!hasNow&&others.length){
+    const note=document.createElement('div'); note.className='warn-box'; note.style.marginTop='10px';
+    note.innerHTML=`${S.year}年度の期首残高は、まだ入っていません。`+
+      `<b>${others.sort().map(y=>y+'年度').join('・')}</b> には入っています（期首残高は年度ごとに持ちます）。`+
+      `上の帯の「年度 ▼」で切り替えて確かめてください。`;
+    ae.appendChild(note);
+  }
 
   ['in','out'].forEach(k=>{
     const box=$(k==='in'?'catEditIn':'catEditOut'); box.innerHTML='';
@@ -1982,11 +1997,24 @@ function impPreview(){
   }
   return {got, dry, tr, trDry};
 }
+/* そのファイルが扱っている年度 */
+function impYears(got, tr){
+  const set=new Set();
+  (got?got.items:[]).forEach(i=>{ const y=fyOfStr(i.date); if(y!=null) set.add(y); });
+  if(tr) tr.items.forEach(t=>{ const y=fyOfStr(t.date); if(y!=null) set.add(y); });
+  return Array.from(set).sort((a,b)=>a-b);
+}
 function renderImp(){
   const {got, dry, tr, trDry}=impPreview();
+  const years=impYears(got, IMP.trOn?tr:null);
+  const otherYear=years.length&&!years.includes(S.year);
   const body=$('dlgImpBody');
   body.innerHTML=`
     <div class="muted" style="margin-bottom:8px">${escHtml(IMP.file)}</div>
+    ${years.length?`<div class="${otherYear?'warn-box':'note-box'}" style="margin-bottom:10px">
+      このファイルは <b>${years.map(y=>y+'年度').join('・')}</b> のものです。
+      ${otherYear?`いま出しているのは <b>${S.year}年度</b> なので、読み込んだあと <b>${years[years.length-1]}年度</b> に切り替えます。`:''}
+    </div>`:''}
     <label class="fld"><span>取引の入っているシート</span>
       <select id="impSheet">${IMP.sheets.map((s,i)=>`<option value="${i}"${i===IMP.si?' selected':''}>${escHtml(s.name)}（${s.grid.length}行）</option>`).join('')}</select></label>
     <label class="fld"><span>見出しの行</span>
@@ -2073,6 +2101,10 @@ function doImport(){
   syncAccounts();
   const newAccs=S.accounts.filter(a=>!accBefore.includes(a));
   S.layout={headers:(IMP.headers||[]).slice(), map:Object.assign({},IMP.map), sheetName:IMP.sheets[IMP.si].name, headerRow:IMP.headerRow};
+  /* 読み込んだ年度に切り替える。そうしないと、入ったのに画面が空のままに見える */
+  const years=impYears(got, IMP.trOn?tr:null);
+  let moved=0;
+  if(years.length&&!years.includes(S.year)){ moved=years[years.length-1]; S.year=moved; }
   S.lastImport=Date.now();
   saveNow();
   dlgImp.close();
@@ -2082,7 +2114,8 @@ function doImport(){
     +(gone?`\n\n消えた：${gone}件`:'')
     +(newCats.length?`\n\n科目を登録しました（${newCats.length}）：\n${newCats.join('、')}`:'')
     +(newAccs.length?`\n\n口座を登録しました（${newAccs.length}）：\n${newAccs.join('、')}`:'')
-    +(newEvents.length?`\n\n行事を登録しました（${newEvents.length}）：\n${newEvents.join('、')}`:''));
+    +(newEvents.length?`\n\n行事を登録しました（${newEvents.length}）：\n${newEvents.join('、')}`:'')
+    +(moved?`\n\n${moved}年度のデータでしたので、${moved}年度に切り替えました。`:''));
 }
 
 /* ══ 年度の切り替え ══════════════════════════════════════
