@@ -62,7 +62,24 @@ header{
 }
 .hd-row{display:flex;align-items:baseline;gap:8px}
 .hd-name{font-weight:700;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hd-year{font-size:12px;opacity:.85;white-space:nowrap}
+.hd-year{
+  font-size:12px;color:#fff;opacity:.95;white-space:nowrap;flex:none;
+  background:rgba(255,255,255,.16);border-radius:var(--r-pill);
+  padding:4px 10px;min-height:32px;display:flex;align-items:center;gap:4px;
+}
+.hd-year:hover{background:rgba(255,255,255,.26)}
+.hd-year .caret{font-size:10px;opacity:.9}
+/* 年度えらびの並び */
+.yr-row{
+  display:flex;align-items:center;gap:10px;width:100%;padding:12px 10px;
+  border-bottom:1px solid var(--line);min-height:var(--tap);text-align:left;
+}
+.yr-row:last-of-type{border-bottom:none}
+.yr-row .y{font-weight:700;font-size:16px;flex:none;width:96px}
+.yr-row .d{font-size:12px;color:var(--sub);flex:1;min-width:0}
+.yr-row .b{font-weight:700;white-space:nowrap}
+.yr-row[aria-current="true"]{background:var(--acc-weak);border-radius:var(--r-btn)}
+.yr-row[aria-current="true"] .y{color:var(--acc)}
 .hd-bal{display:flex;gap:14px;margin-top:4px;align-items:baseline;flex-wrap:wrap}
 .hd-bal b{font-size:22px;font-weight:700}
 .hd-bal small{font-size:11px;opacity:.85}
@@ -216,7 +233,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 <header>
   <div class="hd-row">
     <div class="hd-name" id="hdName">自治会会計</div>
-    <div class="hd-year" id="hdYear"></div>
+    <button class="hd-year" id="hdYear" onclick="openYearPick()" aria-label="表示する年度を切り替える"></button>
   </div>
   <div class="hd-bal">
     <span><b class="num" id="hdTotal">0</b><small> 円</small></span>
@@ -396,13 +413,15 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   <div class="card">
     <h2>この帳面のこと</h2>
     <label class="fld"><span>自治会の名前</span><input id="stName" type="text" placeholder="○○区"></label>
-    <label class="fld"><span>年度（4月はじまり）</span><input id="stYear" class="num" type="number" inputmode="numeric" min="1990" max="2100"></label>
+    <label class="fld"><span>年度（4月はじまり）</span><input id="stYear" class="num" type="number" inputmode="numeric" min="1990" max="2100">
+      <small class="muted">上の帯の「年度 ▼」からも切り替えられます</small></label>
     <button class="btn wide" onclick="saveSettings()">この内容で保存する</button>
   </div>
 
   <div class="card">
-    <h2>口座と期首残高</h2>
-    <p class="muted">現金・農協・信用金庫・定期預金など、お金のある場所ごとに分けて持てます。名前は<b>パソコン版と同じ字</b>にそろえてください。</p>
+    <h2>口座と<span id="stBeginYear"></span>期首残高</h2>
+    <p class="muted">現金・農協・信用金庫・定期預金など、お金のある場所ごとに分けて持てます。名前は<b>パソコン版と同じ字</b>にそろえてください。<br>
+      <b>期首残高は年度ごと</b>です。いま出ているのは<b id="stBeginYear2"></b>のぶんです。</p>
     <div id="accEdit"></div>
     <button class="btn wide" onclick="saveAccounts()">口座と期首残高を保存する</button>
   </div>
@@ -469,6 +488,14 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   </div>
 </dialog>
 
+<dialog id="dlgYear">
+  <div class="dlg-hd"><h2>年度を切り替える</h2><button class="x" onclick="dlgYear.close()" aria-label="閉じる">✕</button></div>
+  <div class="dlg-bd" id="dlgYearBody"></div>
+  <div class="dlg-ft">
+    <button class="btn sub" onclick="dlgYear.close()">閉じる</button>
+  </div>
+</dialog>
+
 <dialog id="dlgCat">
   <div class="dlg-hd"><h2 id="dlgCatTitle">科目を足す</h2><button class="x" onclick="dlgCat.close()" aria-label="閉じる">✕</button></div>
   <div class="dlg-bd">
@@ -490,7 +517,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
    ・お金の場所（口座）は「現金・農協・信用金庫・定期預金…」と名前で持つ。
      口座から口座へ移すのは「振替」として、収入・支出とは別に数える。
    ══════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v2';
+const APP_VERSION='v3';
 const KEY='jk_kaikei_v1';
 
 const DEF_CATS={
@@ -499,8 +526,8 @@ const DEF_CATS={
 };
 
 function blank(){
-  return { v:2, name:'', year:fiscalYearOf(new Date()),
-           accounts:['現金'], begin:{'現金':0},
+  return { v:3, name:'', year:fiscalYearOf(new Date()),
+           accounts:['現金'], begins:{},
            items:[], transfers:[],
            cats:{in:DEF_CATS.in.slice(), out:DEF_CATS.out.slice()}, events:[],
            budget:{}, layout:null, dev:randDev(), seq:0, lastExport:0, lastImport:0 };
@@ -513,8 +540,19 @@ function randDev(){
   (self.crypto||{getRandomValues:x=>{for(let i=0;i<x.length;i++)x[i]=Math.floor(Math.random()*256);return x;}}).getRandomValues(a);
   return Array.from(a).map(n=>n.toString(36).padStart(2,'0')).join('').slice(0,3);
 }
-/* v1（現金・口座の2つしか持てなかった版）からの引き上げ */
+/* 古い版からの引き上げ */
 function migrate(o){
+  o=migrateV1(o);
+  /* v2 → v3：期首残高を年度ごとに持つようにする（年度を切り替えても正しく出すため） */
+  if(o && o.v===2){
+    o.begins={};
+    if(o.begin && Object.keys(o.begin).length) o.begins[String(o.year)]=o.begin;
+    delete o.begin;
+    o.v=3;
+  }
+  return o;
+}
+function migrateV1(o){
   if(!o||o.v>=2) return o;
   const accs=[], begin={};
   const used=new Set((o.items||[]).map(i=>i.pay==='bank'?'口座':'現金'));
@@ -535,11 +573,28 @@ function load(){
   if(!S.dev) S.dev=randDev();
   if(!S.cats||!Array.isArray(S.cats.in)) S.cats={in:DEF_CATS.in.slice(),out:DEF_CATS.out.slice()};
   if(!Array.isArray(S.accounts)||!S.accounts.length) S.accounts=['現金'];
-  if(!S.begin) S.begin={};
+  if(!S.begins) S.begins={};
   if(!Array.isArray(S.transfers)) S.transfers=[];
   if(!Array.isArray(S.events)) S.events=[];
   syncAccounts();
 }
+/* その年度の期首残高 {口座名: 金額}。無い年度は空。
+   年度ごとに持つので、年度を切り替えても前の年度の期首が出てこない。 */
+function beginOf(y){
+  y=(y==null)?S.year:y;
+  const m=S.begins[String(y)];
+  return (m&&typeof m==='object')?m:{};
+}
+function setBeginOf(y, map){ S.begins[String(y==null?S.year:y)]=map; }
+/* 帳面に出てくる年度（記帳・振替・期首残高から集める） */
+function knownYears(){
+  const set=new Set([S.year]);
+  S.items.forEach(i=>{ const y=fyOfStr(i.date); if(y!=null) set.add(y); });
+  S.transfers.forEach(t=>{ const y=fyOfStr(t.date); if(y!=null) set.add(y); });
+  Object.keys(S.begins||{}).forEach(k=>{ const y=parseInt(k,10); if(!isNaN(y)) set.add(y); });
+  return Array.from(set).sort((a,b)=>b-a);
+}
+
 /* 記帳や振替に出てくる口座は、一覧にも並べておく（読み込みで増えることがある） */
 function syncAccounts(){
   const add=n=>{ if(n&&!S.accounts.includes(n)) S.accounts.push(n); };
@@ -601,7 +656,8 @@ function accountSummary(y){
   const items=yearItems(y), trs=yearTransfers(y);
   items.forEach(i=>add(i.acc)); trs.forEach(t=>{ add(t.from); add(t.to); });
   const rows={};
-  accs.forEach(a=>rows[a]={acc:a, begin:Number(S.begin[a])||0, in:0, out:0, tr:0});
+  const bg=beginOf(y);
+  accs.forEach(a=>rows[a]={acc:a, begin:Number(bg[a])||0, in:0, out:0, tr:0});
   items.forEach(i=>{ const r=rows[i.acc]||(rows[i.acc]={acc:i.acc,begin:0,in:0,out:0,tr:0}); r[i.kind]+=Number(i.amt)||0; });
   trs.forEach(t=>{
     const f=rows[t.from], to=rows[t.to];
@@ -626,7 +682,7 @@ function go(pg){
 }
 function renderHead(){
   $('hdName').textContent=S.name||'自治会会計';
-  $('hdYear').textContent=`${S.year}年度`;
+  $('hdYear').innerHTML=`${S.year}年度<span class="caret">▼</span>`;
   const a=accountSummary();
   $('hdTotal').textContent=yen(a.sum.now);
   $('hdAccs').innerHTML=a.list.map(r=>`<span>${escHtml(r.acc)} <b class="num">${yen(r.now)}</b></span>`).join('');
@@ -704,7 +760,7 @@ function addCatOk(){
   const v=($('newCat').value||'').trim();
   if(!v){ dlgCat.close(); return; }
   if(newNameFor==='acc'){
-    if(!S.accounts.includes(v)){ S.accounts.push(v); if(S.begin[v]==null) S.begin[v]=0; }
+    if(!S.accounts.includes(v)) S.accounts.push(v);
     uiAcc=v; renderAccChips(); renderTrSelects(); renderHead();
   }else{
     if(!S.cats[uiKind].includes(v)) S.cats[uiKind].push(v);
@@ -733,6 +789,11 @@ function saveEntry(){
   if(!amt){ toast('金額を入れてください'); $('inAmount').focus(); return; }
   const date=$('inDate').value||todayStr();
   const note=($('inNote').value||'').trim(), memo=($('inMemo').value||'').trim();
+  /* いま出している年度の外の日付だと、入れても一覧に出てこない。先に気づけるようにする */
+  const dy=fyOfStr(date);
+  if(dy!=null && dy!==S.year &&
+     !confirm(`入れた日付 ${date} は ${S.year}年度（${S.year}年4月〜${S.year+1}年3月）の外です。\n`+
+              `${dy}年度の記帳になり、いまの画面には出てきません。\n\nこのまま記帳しますか？`)) return;
 
   if(uiKind==='tr'){
     const from=$('inFrom').value, to=$('inTo').value;
@@ -848,7 +909,7 @@ function renderBook(){
   const mo=$('fMonth').value, cat=$('fCat').value, acc=$('fAcc').value, q=($('fText').value||'').trim();
   const all=rowsOfYear();
   /* 残高は年度のはじめから順に足していく（しぼり込んでも、その行までの本当の残高を出す） */
-  const bal={}; S.accounts.forEach(a=>bal[a]=Number(S.begin[a])||0);
+  const bg=beginOf(); const bal={}; S.accounts.forEach(a=>bal[a]=Number(bg[a])||0);
   const total=()=>Object.keys(bal).reduce((a,k)=>a+bal[k],0);
   const rows=[];
   for(const r of all){
@@ -939,6 +1000,8 @@ function renderSum(){
 /* ══ 設定 ═════════════════════════════════════════════════ */
 function renderSettings(){
   $('stName').value=S.name||''; $('stYear').value=S.year;
+  if($('stBeginYear')) $('stBeginYear').textContent=`${S.year}年度の`;
+  if($('stBeginYear2')) $('stBeginYear2').textContent=`${S.year}年度`;
   $('stDev').textContent=S.dev; $('stVer').textContent=APP_VERSION;
 
   const ae=$('accEdit'); ae.innerHTML='';
@@ -953,7 +1016,7 @@ function renderSettings(){
     r1.append(nm,up,del);
     const r2=document.createElement('div'); r2.className='row'; r2.style.marginTop='4px';
     const lb=document.createElement('span'); lb.className='muted'; lb.style.flex='none'; lb.style.width='76px'; lb.textContent='期首残高';
-    const bg=document.createElement('input'); bg.type='text'; bg.inputMode='numeric'; bg.className='grow num'; bg.value=yen(S.begin[a]||0); bg.dataset.beginFor=a; bg.setAttribute('aria-label',a+'の期首残高');
+    const bg=document.createElement('input'); bg.type='text'; bg.inputMode='numeric'; bg.className='grow num'; bg.value=yen(beginOf()[a]||0); bg.dataset.beginFor=a; bg.setAttribute('aria-label',`${S.year}年度の${a}の期首残高`);
     r2.append(lb,bg);
     row.append(r1,r2); ae.appendChild(row);
   });
@@ -990,13 +1053,14 @@ function delAccount(a){
   const used=S.items.filter(i=>i.acc===a).length+S.transfers.filter(t=>t.from===a||t.to===a).length;
   if(used){ alert(`口座「${a}」は ${used}件の記帳で使われているので消せません。\n先にその記帳を直してください。`); return; }
   if(!confirm(`口座「${a}」を消します。よろしいですか？`)) return;
-  S.accounts=S.accounts.filter(x=>x!==a); delete S.begin[a];
+  S.accounts=S.accounts.filter(x=>x!==a);
+  Object.keys(S.begins).forEach(y=>{ if(S.begins[y]) delete S.begins[y][a]; });
   saveNow(); renderSettings(); renderAccChips(); renderHead();
 }
 function saveSettings(){
   S.name=($('stName').value||'').trim();
   const y=parseInt($('stYear').value,10); if(y>=1990&&y<=2100) S.year=y;
-  saveNow(); renderHead(); renderBook(); toast('保存しました');
+  saveNow(); renderAll(); toast('保存しました');
 }
 function saveAccounts(){
   /* 名前を変えたら、記帳のほうの口座名もいっしょに変える */
@@ -1007,7 +1071,9 @@ function saveAccounts(){
     if(v!==old){
       S.items.forEach(it=>{ if(it.acc===old) it.acc=v; });
       S.transfers.forEach(t=>{ if(t.from===old) t.from=v; if(t.to===old) t.to=v; });
-      if(S.begin[old]!=null){ S.begin[v]=S.begin[old]; delete S.begin[old]; }
+      Object.keys(S.begins).forEach(y=>{
+        const m=S.begins[y]; if(m&&m[old]!=null){ m[v]=m[old]; delete m[old]; }
+      });
     }
     names[i]=v;
   });
@@ -1015,7 +1081,7 @@ function saveAccounts(){
   $('accEdit').querySelectorAll('input[data-begin-for]').forEach(inp=>{
     const a0=inp.dataset.beginFor, i=S.accounts.indexOf(a0);
     const name=(i>=0)?a0:(names[Array.from($('accEdit').querySelectorAll('input[data-begin-for]')).indexOf(inp)]||a0);
-    S.begin[name]=Number(String(inp.value).replace(/[^\d-]/g,''))||0;
+    const m=beginOf(); m[name]=Number(String(inp.value).replace(/[^\d-]/g,''))||0; setBeginOf(S.year, m);
   });
   saveNow(); renderSettings(); renderAccChips(); renderTrSelects(); renderHead(); toast('保存しました');
 }
@@ -1541,7 +1607,7 @@ async function doExport(){
     if(!items.length&&!transfers.length){ toast('書き出すものがありません'); return; }
     const ys=new Set(items.map(i=>fyOfStr(i.date)));
     const partial=!(ys.size<=1 && ys.has(S.year) && items.length===yearItems().length);
-    const opt={name:S.name, year:S.year, accounts:S.accounts, begin:S.begin, budget:S.budget, dev:S.dev, partial};
+    const opt={name:S.name, year:S.year, accounts:S.accounts, begin:beginOf(), budget:S.budget, dev:S.dev, partial};
     const form=$('expForm').value;
     if(form==='csv'){
       const csv=buildCsv(items, transfers);
@@ -1979,11 +2045,16 @@ function renderImp(){
 function doImport(){
   const {got, tr}=impPreview();
   if(!got.items.length){ toast('読み取れた行がありません'); return; }
-  /* 口座と期首残高（先に入れておく。記帳の口座名と結びつけるため） */
+  /* 口座と期首残高（先に入れておく。記帳の口座名と結びつけるため）。
+     期首残高は年度ごとに持つので、このファイルが扱っている年度に入れる。 */
   if(IMP.accOn&&IMP.accRows.length){
-    IMP.accRows.forEach(a=>{
-      if(!S.accounts.includes(a.acc)) S.accounts.push(a.acc);
-      S.begin[a.acc]=a.begin;
+    const years=new Set(got.items.map(i=>fyOfStr(i.date)).filter(y=>y!=null));
+    if(!years.size) years.add(S.year);
+    IMP.accRows.forEach(a=>{ if(!S.accounts.includes(a.acc)) S.accounts.push(a.acc); });
+    years.forEach(y=>{
+      const m=beginOf(y);
+      IMP.accRows.forEach(a=>{ m[a.acc]=a.begin; });
+      setBeginOf(y, m);
     });
   }
   const res=mergeItems(S.items, got.items, IMP.policy, {prune:IMP.prune});
@@ -1992,20 +2063,71 @@ function doImport(){
   if(gone && !confirm(`この Excel に載っていない ${gone} 件を消します。\n消したものは戻せません。\n\nよろしいですか？`)) return;
   S.items=res.items;
   if(trRes) S.transfers=trRes.items;
-  /* 科目・口座・行事は、読み込んだ帳面のものも覚えておく */
+  /* 科目・口座・行事は、読み込んだ帳面のものも覚えておく（次から ふだ で選べる） */
+  const newCats=[], newEvents=[];
   got.items.forEach(i=>{
-    if(i.cat&&!S.cats[i.kind].includes(i.cat)) S.cats[i.kind].push(i.cat);
-    if(i.event&&!S.events.includes(i.event)) S.events.push(i.event);
+    if(i.cat&&!S.cats[i.kind].includes(i.cat)){ S.cats[i.kind].push(i.cat); newCats.push(i.cat); }
+    if(i.event&&!S.events.includes(i.event)){ S.events.push(i.event); newEvents.push(i.event); }
   });
+  const accBefore=S.accounts.slice();
   syncAccounts();
+  const newAccs=S.accounts.filter(a=>!accBefore.includes(a));
   S.layout={headers:(IMP.headers||[]).slice(), map:Object.assign({},IMP.map), sheetName:IMP.sheets[IMP.si].name, headerRow:IMP.headerRow};
   S.lastImport=Date.now();
   saveNow();
   dlgImp.close();
-  renderHead(); renderRecent(); renderBook(); renderCatChips(); renderAccChips(); renderTrSelects(); renderXls();
+  renderAll();
   alert(`読み込みました。\n\n新しく入った：${res.added}件\n書きかわった：${res.updated}件\nそのまま：${res.same}件`
     +(trRes?`\n\n振替：新しく ${trRes.added}件／そのまま ${trRes.same}件`:'')
-    +(gone?`\n\n消えた：${gone}件`:''));
+    +(gone?`\n\n消えた：${gone}件`:'')
+    +(newCats.length?`\n\n科目を登録しました（${newCats.length}）：\n${newCats.join('、')}`:'')
+    +(newAccs.length?`\n\n口座を登録しました（${newAccs.length}）：\n${newAccs.join('、')}`:'')
+    +(newEvents.length?`\n\n行事を登録しました（${newEvents.length}）：\n${newEvents.join('、')}`:''));
+}
+
+/* ══ 年度の切り替え ══════════════════════════════════════
+   上の帯の「2026年度 ▼」を押すと出る。帳面に出てくる年度を並べ、
+   その年度の件数と残高を見ながら選べる。無い年度も作れる。 */
+function openYearPick(){ renderYearPick(); dlgYear.showModal(); }
+function renderYearPick(){
+  const years=knownYears();
+  const rows=years.map(y=>{
+    const a=accountSummary(y);
+    const n=yearItems(y).length+yearTransfers(y).length;
+    return `<button class="yr-row" aria-current="${y===S.year}" onclick="setYear(${y})">
+      <span class="y">${y}年度</span>
+      <span class="d">${n?`${n}件　${y}年4月〜${y+1}年3月`:'まだ記帳がありません'}</span>
+      <span class="b num">${yen(a.sum.now)}</span>
+    </button>`;
+  }).join('');
+  const next=Math.max(...years)+1, prev=Math.min(...years)-1;
+  $('dlgYearBody').innerHTML=rows+
+    `<div class="sub-head" style="margin-top:14px">ほかの年度を開く</div>
+     <div class="row" style="gap:8px">
+       <button class="btn sub grow" onclick="setYear(${prev})">${prev}年度</button>
+       <button class="btn sub grow" onclick="setYear(${next})">${next}年度</button>
+     </div>
+     <label class="fld" style="margin-top:10px"><span>年度を直に入れる</span>
+       <div class="row">
+         <input id="yrInput" class="num grow" type="number" inputmode="numeric" min="1990" max="2100" value="${S.year}" aria-label="開く年度">
+         <button class="btn" onclick="setYear(parseInt(document.getElementById('yrInput').value,10))">開く</button>
+       </div></label>
+     <div class="note-box" style="margin-top:10px">年度は4月はじまりです（${S.year}年度＝${S.year}年4月〜${S.year+1}年3月）。
+       期首残高・予算は年度ごとに持っています。</div>`;
+}
+function setYear(y){
+  if(!(y>=1990&&y<=2100)){ toast('年度は1990〜2100で入れてください'); return; }
+  if(y===S.year){ dlgYear.close(); return; }
+  S.year=y; saveNow();
+  if(dlgYear.open) dlgYear.close();
+  renderAll();
+  toast(`${y}年度を表示しています`);
+}
+
+/* 画面をぜんぶ描き直す（年度を切り替えたとき・読み込んだあと） */
+function renderAll(){
+  renderHead(); renderCatChips(); renderAccChips(); renderTrSelects();
+  renderRecent(); renderHints(); renderBook(); renderSum(); renderSettings(); renderXls();
 }
 
 /* ── やりとりの画面 ─────────────────────────────────────── */

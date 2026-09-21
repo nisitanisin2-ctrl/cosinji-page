@@ -4940,8 +4940,10 @@ async function runKaikei(browser) {
     const items = gridToItems(t.grid, d.row, d.map).items;
     const d2 = detectHeader(sheets[2].grid, TR_FIELDS_ALLOW, needTr);
     const trs = gridToTransfers(sheets[2].grid, d2.row, d2.map).items;
-    S.year = 2026; S.items = []; S.transfers = []; S.accounts = []; S.begin = {};
-    gridToAccounts(sheets[0].grid).forEach(a => { S.accounts.push(a.acc); S.begin[a.acc] = a.begin; });
+    S.year = 2026; S.items = []; S.transfers = []; S.accounts = []; S.begins = {};
+    const bg = {};
+    gridToAccounts(sheets[0].grid).forEach(a => { S.accounts.push(a.acc); bg[a.acc] = a.begin; });
+    setBeginOf(2026, bg);
     S.items = mergeItems([], items, 'newer').items;
     S.transfers = mergeTransfers([], trs, 'newer').items;
     const a = accountSummary();
@@ -5120,10 +5122,11 @@ async function runKaikei(browser) {
       items: [{ id: 'a', date: '2026-04-05', kind: 'in', cat: '会費', note: '', amt: 500, pay: 'bank', memo: '', ts: 1 }],
       cats: { in: ['会費'], out: ['雑費'] }, budget: {}, dev: 'zzz', seq: 1 };
     const m = migrate(JSON.parse(JSON.stringify(old)));
-    return { accounts: m.accounts.join(','), begin: JSON.stringify(m.begin), acc: m.items[0].acc, pay: m.items[0].pay, v: m.v };
+    return { accounts: m.accounts.join(','), begins: JSON.stringify(m.begins['2026']),
+             acc: m.items[0].acc, pay: m.items[0].pay, v: m.v };
   });
   check('  v1の口座は現金と口座になる', mig.accounts, '現金,口座');
-  check('  v1の繰越は期首残高になる', mig.begin, '{"現金":1000,"口座":2000}');
+  check('  v1の繰越はその年度の期首残高になる', mig.begins, '{"現金":1000,"口座":2000}');
   check('  v1の記帳の口座が移る', mig.acc, '口座');
   check('  古い持ちかたは消える', mig.pay, undefined);
 
@@ -5145,7 +5148,8 @@ async function runKaikei(browser) {
   // 指で入れる：ふつうの記帳と、口座から口座への振替
   await page.evaluate(() => {
     localStorage.clear();
-    S = blank(); S.year = 2026; S.accounts = ['現金', '農協']; S.begin = { 現金: 10000, 農協: 50000 };
+    S = blank(); S.year = 2026; S.accounts = ['現金', '農協'];
+    setBeginOf(2026, { 現金: 10000, 農協: 50000 });
     saveNow(); renderAccChips(); renderTrSelects(); renderHead(); renderCatChips(); renderRecent(); go('entry');
   });
   await page.click('.kindsel button[data-kind="out"]');     // 先に「出した」にしてから科目を選ぶ
@@ -5177,6 +5181,107 @@ async function runKaikei(browser) {
   check('  農協は支出と振替でへる', ui.ja, 27000);
   check('  合わせた残高は支出のぶんだけへる', ui.total, 57000);
   check('  上の帯にも出る', ui.head, '57,000');
+
+  // ── 年度の切り替え ──
+  const yr = await page.evaluate(() => {
+    localStorage.clear();
+    S = blank(); S.name = '○○区'; S.year = 2026; S.accounts = ['現金', '農協'];
+    S.begins = { '2025': { 現金: 10000, 農協: 50000 }, '2026': { 現金: 120698, 農協: 915473 } };
+    const mk = (id, d, k, c, a, acc) => ({ id, date: d, kind: k, cat: c, note: c, amt: a, acc, event: '', memo: '', ts: 1 });
+    S.items = [mk('a', '2025-05-01', 'in', '会費', 50000, '現金'),
+               mk('b', '2025-06-01', 'out', '会議費', 3000, '現金'),
+               mk('c', '2026-04-05', 'in', '会費', 96000, '現金'),
+               mk('d', '2026-05-10', 'out', '会議費', 3240, '農協')];
+    S.transfers = [{ id: 't', date: '2026-06-01', from: '農協', to: '現金', amt: 20000, note: '', memo: '', ts: 1 }];
+    saveNow(); renderAll();
+    const out = { years: knownYears().join(','), head2026: document.getElementById('hdTotal').textContent };
+    const a26 = accountSummary();
+    out.begin2026 = a26.sum.begin; out.now2026 = a26.sum.now; out.n2026 = yearItems().length;
+    setYear(2025);
+    const a25 = accountSummary();
+    out.head2025 = document.getElementById('hdTotal').textContent;
+    out.begin2025 = a25.sum.begin; out.now2025 = a25.sum.now; out.n2025 = yearItems().length;
+    out.yearLabel = document.getElementById('hdYear').textContent;
+    out.bookRows = document.querySelectorAll('#bookList li').length;
+    setYear(2026);
+    out.backTotal = document.getElementById('hdTotal').textContent;
+    return out;
+  });
+  check('  帳面に出てくる年度を並べる', yr.years, '2026,2025');
+  check('  2026年度の期首（年度ごと）', yr.begin2026, 1036171);
+  check('  2026年度の残高', yr.now2026, 1036171 + 96000 - 3240);
+  check('  2026年度の件数', yr.n2026, 2);
+  check('  2025年度に切り替わる', yr.yearLabel.indexOf('2025年度'), 0);
+  check('  2025年度の期首は別に持つ', yr.begin2025, 60000);
+  check('  2025年度の残高', yr.now2025, 60000 + 50000 - 3000);
+  check('  2025年度の件数', yr.n2025, 2);
+  check('  出納帳も切り替わる', yr.bookRows, 2);
+  check('  上の帯も切り替わる', yr.head2025, '107,000');
+  check('  戻せる', yr.backTotal, '1,128,931');
+
+  // 年度を押したら窓が出て、その年度の残高が見える
+  await page.evaluate(() => openYearPick());
+  await page.waitForTimeout(250);
+  const ypick = await page.evaluate(() => ({
+    open: document.getElementById('dlgYear').open,
+    rows: [...document.querySelectorAll('#dlgYearBody .yr-row')].map(r => r.querySelector('.y').textContent).join(','),
+    cur: (document.querySelector('#dlgYearBody .yr-row[aria-current="true"] .y') || {}).textContent,
+  }));
+  check('  年度えらびの窓が開く', ypick.open, true);
+  check('  年度が並ぶ', ypick.rows, '2026年度,2025年度');
+  check('  いまの年度に印が付く', ypick.cur, '2026年度');
+  await page.evaluate(() => dlgYear.close());
+
+  // 期首残高を年度ごとに持つ（v2の控えからの引き上げ）
+  const mig3 = await page.evaluate(() => {
+    const old = { v: 2, name: '旧', year: 2026, accounts: ['現金', '農協'],
+      begin: { 現金: 1000, 農協: 2000 }, items: [], transfers: [],
+      cats: { in: [], out: [] }, budget: {}, dev: 'zzz', seq: 1 };
+    const m = migrate(JSON.parse(JSON.stringify(old)));
+    return { v: m.v, has2026: JSON.stringify(m.begins['2026']), oldGone: m.begin === undefined };
+  });
+  check('  v2は v3 に上がる', mig3.v, 3);
+  check('  繰越はその年度のものになる', mig3.has2026, '{"現金":1000,"農協":2000}');
+  check('  古い持ちかたは消える', mig3.oldGone, true);
+
+  // ── CSVを読み込むと、科目・口座・行事が登録される ──
+  const reg = await page.evaluate(async () => {
+    localStorage.clear(); S = blank(); S.year = 2026; saveNow();
+    const csv = '\ufeff' + [
+      '種別,日付,口座,科目,摘要,収入,支出,振替元,振替先,振替額,備考,行事',
+      '取引,2026-04-06,信用金庫,〇仮受金,自販機,3250,,,,,,',
+      '取引,2026-04-08,現金,●立替金,コンパネ,,2068,,,,,',
+      '取引,2026-05-18,現金,街路灯電気代,6月分,,8351,,,,,秋祭り',
+      '振替,2026-05-11,,,,,,農協,現金,100000,,',
+    ].join('\r\n') + '\r\n';
+    const sheets = [{ name: 'CSV', grid: csvToGrid(csv) }];
+    const d = detectHeader(sheets[0].grid, TX_FIELDS_ALLOW, needTx);
+    const got = gridToItems(sheets[0].grid, d.row, d.map);
+    const d2 = detectHeader(sheets[0].grid, TR_FIELDS_ALLOW, needTr);
+    const tr = gridToTransfers(sheets[0].grid, d2.row, d2.map);
+    // doImport と同じ後始末をする
+    S.items = mergeItems([], got.items, 'newer').items;
+    S.transfers = mergeTransfers([], tr.items, 'newer').items;
+    const newCats = [];
+    got.items.forEach(i => {
+      if (i.cat && !S.cats[i.kind].includes(i.cat)) { S.cats[i.kind].push(i.cat); newCats.push(i.cat); }
+      if (i.event && !S.events.includes(i.event)) S.events.push(i.event);
+    });
+    const before = S.accounts.slice();
+    syncAccounts();
+    return {
+      newCats: newCats.join(','),
+      inCats: S.cats.in.includes('〇仮受金'),
+      outCats: S.cats.out.filter(c => ['●立替金', '街路灯電気代'].includes(c)).join(','),
+      newAccs: S.accounts.filter(a => !before.includes(a)).join(','),
+      events: S.events.join(','),
+    };
+  });
+  check('  CSVの科目を登録する', reg.newCats, '〇仮受金,●立替金,街路灯電気代');
+  check('  収入の科目は収入側へ', reg.inCats, true);
+  check('  支出の科目は支出側へ', reg.outCats, '●立替金,街路灯電気代');
+  check('  口座も登録する（振替の口座もふくむ）', reg.newAccs, '信用金庫,農協');
+  check('  行事も登録する', reg.events, '秋祭り');
 
   // 画面まわり：ボタンの名前が取れること・タブが動くこと
   const a11y = await page.evaluate(() => {
