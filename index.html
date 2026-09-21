@@ -5013,7 +5013,7 @@ body.dark {
             <b>記号は自分で変えられます</b>（v355から）：設定→<b>🎨見た目→くわしい設定</b>の<b>⌨ フリックで入れる記号</b>で、キーごとに上・左・右・下の記号を打ち直せます。<b>空にすればその向きは使いません</b>。<b>↺元にもどす</b>で既定に戻ります。<b>⇄</b>を押してから相手のキーの<b>⇄</b>を押すと、<b>キーまるごと入れかえ</b>られます（例：1の中身と2の中身を交換。v356から）。7・4・1・0に移ったときは「左」が使えないので外れます。<br>
             そのため<b>数字キーの長押しで「ボタンの機能」を割り当てる操作はなくなりました</b>（数字以外のキーは今までどおり長押しで割り当てられます）。</div>
           <div class="help-li"><b>記号ページを出す／隠す</b>（v353から）：設定→<b>🎨見た目→くわしい設定</b>の<b>記号ページを出す</b>で切り替えます。隠すと<b>ページ名の並びからも、フリックの並びからも外れ</b>、数字ページの左どなりが電卓ページになります。記号は上のフリックで入れられるので、ページを減らしてすっきりさせたいときにどうぞ。</div>
-          <div class="help-li"><b>テンキーの上に出す道具</b>（v352から）：設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーの上に出す道具</b>で、全画面で開く道具（<b>💧単位水量・🧪カンタブ・🌱野菜・📷容積・📝写真メモ・🔗リンク集・📄メモ・📋式テンプレ・📑決算テンプレ</b>）を選ぶと、テンキーの上の<b>ページ名の並びに足されます</b>（電卓の右）。<b>タップで開きます</b>。<b>↑↓で並び順</b>を変えられ、<b>電卓ページからさらに左へフリック</b>すると<b>いちばん上に並べた道具</b>が開きます（よく使うものを先頭にしておくと、フリックだけで開けます）。たくさん選んで入りきらないときは、ページ名の並びを<b>横にすべらせて</b>見られます（<b>▲登録</b>は右端に残ります）。<br>
+          <div class="help-li"><b>テンキーの上に出す道具</b>（v352から）：設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーの上に出す道具</b>で、全画面で開く道具（<b>💧単位水量・🧪カンタブ・🌱野菜・📷容積・📝写真メモ・🔗リンク集・📄メモ・📋式テンプレ・📑決算テンプレ・🧾自治会会計</b>）を選ぶと、テンキーの上の<b>ページ名の並びに足されます</b>（電卓の右）。<b>タップで開きます</b>。<b>↑↓で並び順</b>を変えられ、<b>電卓ページからさらに左へフリック</b>すると<b>いちばん上に並べた道具</b>が開きます（よく使うものを先頭にしておくと、フリックだけで開けます）。たくさん選んで入りきらないときは、ページ名の並びを<b>横にすべらせて</b>見られます（<b>▲登録</b>は右端に残ります）。<br>
             <b>選んだ道具は全画面で開きます</b>（v354から）。開いているあいだに<b>横にフリック</b>すると、<b>となりの道具へそのまま移れます</b>（左＝次／右＝前）。<b>端でさらにフリック</b>すると閉じてテンキーに戻ります。入力欄・ボタン・写真の上や、縦になぞったときは移りません（じゃまをしないため）。登録を外すと元の大きさに戻ります。</div>
           <div class="help-li"><b>テンキーの上のページ表示</b>で、いまどのページに居るか分かります。<b>ページ名をタップ</b>するとそのページへ移動できます（数字の並びは「枠線・書式・数字・記号・関数」、右端の<b>▲登録</b>で登録ページの並びへ、<b>▼数字</b>で戻る）。設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーのページ表示</b>で消すこともできます（ページ名は<b>書式・枠線／数字／記号／電卓</b>）。</div>
           <div class="help-li"><b>フリックでも切り替わります</b>（数字ページが土台。数字ページは<b>どこからでもフリック開始OK</b>）：</div>
@@ -8069,6 +8069,11 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v394', t:'🧾自治会会計を、道具として登録できます', li:[
+    '自治会・町内会の会計を、<b>スマホでその場で記帳</b>して、<b>Excel や CSV でパソコンの会計ソフトとやりとり</b>できるアプリを足しました',
+    '設定→<b>🎨見た目→くわしい設定→テンキーの上に出す道具</b>で<b>🧾自治会会計</b>を選ぶと、<b>野菜や写真メモと同じように</b>ページ名の並びから開けます',
+    '<b>▲登録</b>のジェスチャーや<b>上のバーのボタン</b>にも入れられます（メモと同じく<b>別のタブ</b>で開きます）',
+  ]},
   { v:'v393', t:'パソコンで、前のセルに黒い枠が残らないように', li:[
     'セルを<b>クリックしたあと矢印キーで動かす</b>と、<b>元のセルに黒い囲みが残っていた</b>のを直しました',
     '選んだ印は<b>緑の枠だけ</b>になり、いまどこにいるかが分かりやすくなります',
@@ -8898,6 +8903,7 @@ const KEY_FUNCS={
   a_veggie:{g:'設定・機能',label:'🌱野菜',short:'野菜',run:()=>openVeggie()},
   a_linklist:{g:'設定・機能',label:'🔗リンク集',short:'リンク',run:()=>openLinkList()},
   a_memo:{g:'設定・機能',label:'📄メモ',short:'メモ',run:()=>openNotesApp()},
+  a_kaikei:{g:'設定・機能',label:'🧾自治会会計',short:'会計',run:()=>openKaikeiApp()},
   a_websearch:{g:'設定・機能',label:'🔍Web検索',short:'W検索',run:()=>webSearchCell()},
   a_lookup:{g:'設定・機能',label:'🔍照合',run:()=>openLookupDlg()},
   a_find:{g:'設定・機能',label:'🔎検索',run:()=>openFindDlg()},
@@ -12685,7 +12691,7 @@ function appConfirm(message, yes='OK', no='キャンセル'){
 /* 登録ボタンから実行するとき、指の操作（ユーザー操作）が生きているうちに呼ばないと
    開かない機能（ネイティブのファイル選択）。これらは遅延させずその場で実行する。
    （カレンダーは自前モーダルなので通常の遅延パスでよい＝含めない） */
-const REG_GESTURE_ACTIONS = new Set(['a_csvin','a_xlsxin','a_websearch','a_memo']);   // Web検索・メモは新しいタブを開くため即時実行
+const REG_GESTURE_ACTIONS = new Set(['a_csvin','a_xlsxin','a_websearch','a_memo','a_kaikei']);   // Web検索・メモは新しいタブを開くため即時実行
 let keyAssign={}, kaTargetKey=null, kaSuppress=false;
 let kaReady=false;   // ピッカー表示後、新しく押し直すまで項目を無効化（長押しの指を離した時の誤タップ防止）
 function loadKeyAssign(){ try{ keyAssign=JSON.parse(localStorage.getItem('excalc_key_assign')||'{}'); }catch(_){ keyAssign={}; } }
@@ -13013,6 +13019,7 @@ const NP_TOOLS=[
   {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},                        // 別のタブで開くので全画面・フリックの対象外
   {id:'calctmpl', label:'📋式テンプレ', ov:'calcTmplOverlay',  run:()=>openCalcTmpl(), close:()=>closeCalcTmpl()},
   {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
+  {id:'kaikei',   label:'🧾自治会会計', run:()=>openKaikeiApp()},                       // 別のタブで開くので全画面・フリックの対象外
 ];
 /* ── はじめに開くページ（v366）──
    アプリを開いたときに、表・電卓・道具のどれを出すかを選べる。
@@ -13673,6 +13680,13 @@ function openRegLink(url){
 function openNotesApp(){
   let u='notes/';
   try{ u=new URL('notes/', location.href).href; }catch(_){}
+  openRegLink(u);
+}
+/* 自治会会計（kaikei/）。メモと同じく別のタブで開く別アプリ。
+   入れたものはあちらの端末の中だけで、こちらの表とは行き来しない。 */
+function openKaikeiApp(){
+  let u='kaikei/';
+  try{ u=new URL('kaikei/', location.href).href; }catch(_){}
   openRegLink(u);
 }
 /* ── リンク集：名前付きでURLを登録し、一覧から開く ── */
@@ -19340,7 +19354,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v393';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v394';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

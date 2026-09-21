@@ -1188,14 +1188,38 @@ async function runNpTools(browser) {
 
   check('  はじめは道具のタブを出さない', await bar(), '書式・枠線|数字|記号|電卓|▲ 登録');
   check('  設定に選べる道具が並ぶ', await page.evaluate(() =>
-    document.querySelectorAll('#npToolList .nptool-row').length), 9);
+    document.querySelectorAll('#npToolList .nptool-row').length), 10);
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,photomemo,linklist,memo,calctmpl,fintmpl');
+    'tansui,kantab,veggie,volume,photomemo,linklist,memo,calctmpl,fintmpl,kaikei');
+
+  // 自治会会計は、メモと同じく別のタブで開く別アプリ（全画面・フリックの対象外）
+  check('  自治会会計はタブのタイトルつきで並ぶ', await page.evaluate(() =>
+    (NP_TOOLS.find(t => t.id === 'kaikei') || {}).label), '🧾自治会会計');
+  check('  自治会会計は全画面の画面を持たない', await page.evaluate(() =>
+    !(NP_TOOLS.find(t => t.id === 'kaikei') || {}).ov), true);
+  check('  はじめに開くページには出さない', await page.evaluate(() =>
+    startPageOptions().some(o => o[0] === 'kaikei')), false);
+  check('  ▲登録の一覧にある', await page.evaluate(() =>
+    !!(KEY_FUNCS.a_kaikei && KEY_FUNCS.a_kaikei.label === '🧾自治会会計')), true);
+  check('  登録したらその場で開く（新しいタブなので）', await page.evaluate(() =>
+    REG_GESTURE_ACTIONS.has('a_kaikei')), true);
+  check('  開く先は kaikei/ ', await page.evaluate(() => {
+    let got = ''; const real = window.openRegLink;
+    window.openRegLink = u => { got = u; };
+    try { openKaikeiApp(); } finally { window.openRegLink = real; }
+    return /\/kaikei\/$/.test(got);
+  }), true);
 
   // チェックすると並びに足される
   await page.evaluate(() => { npToolToggle('tansui'); npToolToggle('veggie'); }); await page.waitForTimeout(250);
   check('  チェックした道具が電卓の右に並ぶ', await bar(), '書式・枠線|数字|記号|電卓|💧単位水量|🌱野菜|▲ 登録');
+  check('  自治会会計もタブに足せる', await page.evaluate(async () => {
+    npToolToggle('kaikei'); await new Promise(r => setTimeout(r, 200));
+    const on = [...document.querySelectorAll('#numpadPageBar .np-page')].some(b => /自治会会計/.test(b.textContent));
+    npToolToggle('kaikei'); await new Promise(r => setTimeout(r, 200));
+    return on;
+  }), true);
   check('  もう一度押すと外れる', await page.evaluate(() => {
     npToolToggle('tansui'); return npTools.join(','); }), 'veggie');
   await page.evaluate(() => { npToolToggle('tansui'); npToolToggle('kantab'); }); await page.waitForTimeout(250);
