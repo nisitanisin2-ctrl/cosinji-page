@@ -28,7 +28,7 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 | `manifest.json` | ホーム画面に追加したときの見え方 |
 | `icon-*.png` / `apple-touch-icon.png` / `ogp.png` | アイコンと、リンクを送ったときのカード画像 |
 | `shot-*.png` | ホーム画面に追加するときに出る見本の画面 |
-| `kaikei/` | 自治会会計（スマホ版）。Excelでパソコン版とやりとりします → [kaikei/README.md](kaikei/README.md) |
+| `kaikei/` | 自治会会計（スマホ版）。口座ごとの記帳と振替、Excelでパソコン版とやりとり → [kaikei/README.md](kaikei/README.md) |
 | `tests/` | 固定テスト（配布物には入れません） |
 | `notes/` | メモ（手元だけに保存） |
 
