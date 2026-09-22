@@ -236,6 +236,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .acc-total{display:flex;align-items:baseline;gap:8px;padding:12px 0 2px;border-top:2px solid var(--line);font-weight:700}
 .acc-total b{margin-left:auto;font-size:19px}
 /* 一般的な科目のえらび方（分野べつの一覧） */
+#dlgStdCatBody .kindsel button{min-height:46px;font-size:15px}
 .std-g{border:1px solid var(--line);border-radius:var(--r-btn);margin-bottom:10px;overflow:hidden}
 .std-g-hd{display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--acc-weak);flex-wrap:wrap}
 .std-g-hd b{flex:1;min-width:120px;font-size:14px}
@@ -243,9 +244,6 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .std-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:0 8px;padding:4px 8px 8px;align-items:start}
 .std-item{display:flex;align-items:center;gap:7px;padding:7px 2px;min-height:var(--tap);cursor:pointer;font-size:14px}
 .std-item input{width:22px;height:22px;min-height:22px;flex:none;margin:0}
-.std-item .k{flex:none;font-size:10px;font-weight:700;border-radius:var(--r-pill);padding:1px 6px}
-.std-item .k.in{color:var(--in);background:var(--in-weak)}
-.std-item .k.out{color:var(--out);background:var(--out-weak)}
 .std-item .nm{min-width:0;line-height:1.3}
 .std-item.had{opacity:.45}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -549,7 +547,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
    ・お金の場所（口座）は「現金・農協・信用金庫・定期預金…」と名前で持つ。
      口座から口座へ移すのは「振替」として、収入・支出とは別に数える。
    ══════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v9';
+const APP_VERSION='v10';
 const KEY='jk_kaikei_v1';
 
 const DEF_CATS={
@@ -837,28 +835,35 @@ const STD_CAT_GROUPS=[
 ];
 const stdKey=(kind,name)=>kind+'\u0001'+name;
 let stdSel=new Set();                       /* チェックしたもの */
+let stdKind='in';                           /* いま出している一覧（入るお金／出るお金）*/
 
 function stdHas(kind,name){ return (S.cats[kind]||[]).includes(name); }
 function openStdCats(){
-  stdSel=new Set();
+  stdSel=new Set(); stdKind='in';
   renderStdCats();
   dlgStdCat.showModal();
 }
+function stdSetKind(k){ stdKind=k; renderStdCats(); }
 function stdToggle(kind,name){
   const k=stdKey(kind,name);
   if(stdSel.has(k)) stdSel.delete(k); else stdSel.add(k);
   renderStdCats();
 }
-function stdGroupAll(gi,on){
-  const g=STD_CAT_GROUPS[gi];
-  ['in','out'].forEach(kind=>(g[kind]||[]).forEach(n=>{
+function stdGroupAll(gi,on,kind){
+  kind=kind||stdKind;
+  (STD_CAT_GROUPS[gi][kind]||[]).forEach(n=>{
     if(stdHas(kind,n)) return;
     const k=stdKey(kind,n);
     if(on) stdSel.add(k); else stdSel.delete(k);
-  }));
+  });
   renderStdCats();
 }
-function stdAllGroups(on){ STD_CAT_GROUPS.forEach((g,i)=>stdGroupAll(i,on)); }
+function stdAllGroups(on,kind){ STD_CAT_GROUPS.forEach((g,i)=>stdGroupAll(i,on,kind||stdKind)); }
+function stdCount(kind){
+  let n=0;
+  STD_CAT_GROUPS.forEach(g=>(g[kind]||[]).forEach(nm=>{ if(stdSel.has(stdKey(kind,nm))) n++; }));
+  return n;
+}
 function stdSelected(){
   const out={in:[],out:[]};
   STD_CAT_GROUPS.forEach(g=>['in','out'].forEach(kind=>(g[kind]||[]).forEach(n=>{
@@ -867,25 +872,34 @@ function stdSelected(){
   return out;
 }
 function renderStdCats(){
-  const sel=stdSelected(), n=sel.in.length+sel.out.length;
-  let html=`<p class="muted">使う分野のところで、入れたい科目に<b>チェック</b>を入れてください。
+  const nIn=stdCount('in'), nOut=stdCount('out'), n=nIn+nOut;
+  const kind=stdKind, isIn=(kind==='in');
+  /* 収入と支出は別の一覧にする（同じ並びに混ぜるとややこしいため） */
+  let html=`<div class="kindsel" role="group" aria-label="入るお金か出るお金か">
+      <button type="button" data-kind="in"  aria-pressed="${isIn}"  onclick="stdSetKind('in')">
+        ＋ 入るお金${nIn?`（${nIn}）`:''}</button>
+      <button type="button" data-kind="out" aria-pressed="${!isIn}" onclick="stdSetKind('out')">
+        − 出るお金${nOut?`（${nOut}）`:''}</button>
+    </div>
+    <p class="muted">使う分野のところで、入れたい科目に<b>チェック</b>を入れてください。
     <b>チェックしたものだけ</b>が入ります。いまある科目は消えません。<br>
     <span style="opacity:.6">うすい行は、もう入っている科目です。</span></p>
     <div class="row wrap" style="gap:8px;margin-bottom:10px">
-      <button class="btn sub grow" onclick="stdAllGroups(true)">ぜんぶ選ぶ</button>
+      <button class="btn sub grow" onclick="stdAllGroups(true)">この一覧をぜんぶ選ぶ</button>
       <button class="btn sub grow" onclick="stdAllGroups(false)">ぜんぶ外す</button>
     </div>`;
   STD_CAT_GROUPS.forEach((g,gi)=>{
-    const items=['in','out'].map(kind=>(g[kind]||[]).map(nm=>{
+    const names=g[kind]||[];
+    if(!names.length) return;
+    const items=names.map(nm=>{
       const has=stdHas(kind,nm), on=stdSel.has(stdKey(kind,nm));
       return `<label class="std-item${has?' had':''}"${has?' title="すでに入っています"':''}>
         <input type="checkbox" ${has?'checked disabled':(on?'checked':'')}
           onchange="stdToggle('${kind}','${nm.replace(/'/g,"\\'")}')"
-          aria-label="${kind==='in'?'入るお金':'出るお金'} ${escHtml(nm)}${has?'（すでに入っています）':''}">
-        <span class="k ${kind}">${kind==='in'?'入':'出'}</span>
+          aria-label="${isIn?'入るお金':'出るお金'} ${escHtml(nm)}${has?'（すでに入っています）':''}">
         <span class="nm">${escHtml(nm)}</span>
       </label>`;
-    }).join('')).join('');
+    }).join('');
     html+=`<div class="std-g">
       <div class="std-g-hd"><b>${escHtml(g.g)}</b>
         <button class="btn sub std-g-all" onclick="stdGroupAll(${gi},true)">この分野をぜんぶ</button>
@@ -894,7 +908,8 @@ function renderStdCats(){
       <div class="std-list">${items}</div></div>`;
   });
   $('dlgStdCatBody').innerHTML=html;
-  $('stdAddBtn').textContent=n?`チェックした ${n}件 を入れる`:'チェックしてください';
+  const label=n?`チェックした ${n}件`+((nIn&&nOut)?`（入${nIn}・出${nOut}）`:'')+' を入れる':'チェックしてください';
+  $('stdAddBtn').textContent=label;
   $('stdAddBtn').disabled=!n;
   $('stdRepBtn').disabled=!n;
 }
@@ -913,6 +928,14 @@ function applyStdCats(mode){
                 ...(S.cats.out||[]).filter(c=>!sel.out.includes(c))];
     const used=new Set(S.items.map(i=>i.cat).filter(Boolean));
     const lostUsed=lost.filter(c=>used.has(c));
+    /* 一覧を分けたので、片方だけチェックして入れ替えると、もう片方が丸ごと消える。
+       消えることは下の一覧にも出るが、気づきにくいので先に言う。 */
+    if(!sel.in.length||!sel.out.length){
+      const empty=sel.in.length?'出るお金':'入るお金';
+      if(!confirm(`「${empty}」の科目が1つも選ばれていません。\n\n`+
+                  `このまま入れ替えると、${empty}の科目が無くなります。\n`+
+                  `（上の「${empty}」に切り替えて選べます）\n\nそれでも続けますか？`)) return;
+    }
     if(!confirm(`チェックした ${n}件 だけにして、いまの科目を入れ替えます。\n\n`+
                 `一覧から消える科目：${lost.length}件\n`+
                 (lost.length?`（${lost.slice(0,10).join('、')}${lost.length>10?' ほか':''}）\n`:'')+

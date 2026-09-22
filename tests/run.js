@@ -5285,26 +5285,46 @@ async function runKaikei(browser) {
       had: document.querySelectorAll('.std-item.had').length,
       selected: stdSelected().in.length + stdSelected().out.length,
       btnOff: document.getElementById('stdAddBtn').disabled,
+      kind: stdKind,
+      mixedIn: [...document.querySelectorAll('.std-item .nm')].some(e =>
+        ['消耗品費', '種苗費', '仕入高'].includes(e.textContent)),
     };
   });
   check('  窓が開く', std.open, true);
   check('  開いただけでは科目は変わらない', std.cats, std.before);
   check('  分野の数', std.groups, 12);
-  check('  一覧に出る科目の数', std.items, 126);
+  check('  入るお金の一覧に出る数', std.items, 40);
   check('  もう入っているものは印がつく', std.had > 0, true);
+  check('  はじめは「入るお金」の一覧', std.kind, 'in');
+  check('  入るお金の一覧に支出の科目は出ない', std.mixedIn, false);
   check('  はじめは何も選ばれていない', std.selected, 0);
   check('  選ぶまで入れられない', std.btnOff, true);
 
-  // 分野ごとに選べる（農業だけ）
+  // 出るお金の一覧に切り替えられる
+  const outTab = await page.evaluate(() => {
+    stdSetKind('out');
+    return { kind: stdKind,
+             items: document.querySelectorAll('.std-item').length,
+             mixed: [...document.querySelectorAll('.std-item .nm')].some(e =>
+               ['売上高', '会費', '部費'].includes(e.textContent)) };
+  });
+  check('  出るお金に切り替わる', outTab.kind, 'out');
+  check('  出るお金の一覧に出る数', outTab.items, 86);
+  check('  出るお金の一覧に収入の科目は出ない', outTab.mixed, false);
+
+  // 分野ごとに選べる（農業だけ）。入るお金・出るお金それぞれで選ぶ
   const pick = await page.evaluate(() => {
     const gi = STD_CAT_GROUPS.findIndex(g => g.g === '農業');
-    stdGroupAll(gi, true);
+    stdSetKind('in'); stdGroupAll(gi, true);
+    stdSetKind('out'); stdGroupAll(gi, true);
     const sel = stdSelected();
     return { n: sel.in.length + sel.out.length, btn: document.getElementById('stdAddBtn').textContent,
-             inCats: sel.in.join(','), only農業: sel.out.includes('種苗費') && !sel.out.includes('食材仕入高') };
+             inCats: sel.in.join(','), only農業: sel.out.includes('種苗費') && !sel.out.includes('食材仕入高'),
+             tabs: [...document.querySelectorAll('#dlgStdCatBody .kindsel button')].map(b => b.textContent.trim()).join(' / ') };
   });
   check('  分野をまとめて選べる', pick.n, 12);
-  check('  ボタンに件数が出る', pick.btn, 'チェックした 12件 を入れる');
+  check('  切り替えのところに件数が出る', pick.tabs, '＋ 入るお金（3） / − 出るお金（9）');
+  check('  ボタンに内わけが出る', pick.btn, 'チェックした 12件（入3・出9） を入れる');
   check('  その分野のものだけ', pick.only農業, true);
   check('  収入の科目も選ばれる', pick.inCats, '農産物売上高,共済金収入,交付金収入');
 
@@ -5327,7 +5347,7 @@ async function runKaikei(browser) {
 
   // もう一度開くと、入れたものは「もう入っている」印
   const again = await page.evaluate(() => {
-    openStdCats();
+    openStdCats(); stdSetKind('out');
     const had = [...document.querySelectorAll('.std-item.had .nm')].map(e => e.textContent);
     return { hasSeed: had.includes('種苗費'), sel: stdSelected().in.length + stdSelected().out.length };
   });
@@ -5336,9 +5356,11 @@ async function runKaikei(browser) {
 
   // 「チェックしたものだけにする」は入れ替え
   const stdRep = await page.evaluate(() => {
-    stdAllGroups(false);
+    stdSetKind('in'); stdAllGroups(false);
+    stdSetKind('out'); stdAllGroups(false);
     const gi = STD_CAT_GROUPS.findIndex(g => g.g === 'どの帳面でも使う');
-    stdGroupAll(gi, true);
+    stdSetKind('in'); stdGroupAll(gi, true);
+    stdSetKind('out'); stdGroupAll(gi, true);
     // すでに入っているものは選べないので、入れ替え後はチェックしたものだけになる
     const want = stdSelected();
     applyStdCats('replace');
