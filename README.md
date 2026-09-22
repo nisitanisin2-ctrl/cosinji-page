@@ -24,7 +24,8 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 
 | | |
 |---|---|
-| `index.html` | アプリ本体（1ファイル。組み立て作業はいりません） |
+| `index.html` | アプリ本体（組み立て作業はいりません） |
+| `help.js` | 📖説明書の中身。開いたときだけ読み込みます（v401 から別のファイル） |
 | `service-worker.js` | 電波がなくても動くようにするしくみ |
 | `manifest.json` | ホーム画面に追加したときの見え方 |
 | `icon-*.png` / `apple-touch-icon.png` / `ogp.png` | アイコンと、リンクを送ったときのカード画像 |
@@ -35,7 +36,8 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 
 ## 配る
 
-`index.html` `service-worker.js` `manifest.json` と、`icon-*.png` `apple-touch-icon.png` `ogp.png` `shot-*.png` を置くだけです。サーバー側の用意はいりません。
+`index.html` `help.js` `service-worker.js` `manifest.json` と、`icon-*.png` `apple-touch-icon.png` `ogp.png` `shot-*.png` を置くだけです。サーバー側の用意はいりません。
+`help.js` を置き忘れると、説明書だけが「読み込めませんでした」になります（ほかはそのまま動きます）。パソコン版（exe）に入れるときも `index.html` と同じ場所に置いてください。
 
 `kaikei/` `notes/` は、それぞれ1つのアプリとして独立しています。フォルダごと置けばそのまま動きます。
 

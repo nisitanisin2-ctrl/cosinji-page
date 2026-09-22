@@ -1,6 +1,6 @@
-const CACHE = 'excalc-v400';
+const CACHE = 'excalc-v401';
 const CACHE_PREFIX = 'excalc-';   // このアプリのキャッシュだけを見分けるための名前
-const ASSETS = ['./', './index.html', './manifest.json',
+const ASSETS = ['./', './index.html', './help.js', './manifest.json',
   './icon-192.png', './icon-512.png',
   './icon-maskable-192.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 
@@ -36,7 +36,10 @@ self.addEventListener('fetch', e => {
       }
       return res;
     }).catch(() =>
-      caches.match(e.request).then(cached => cached || caches.match('./index.html'))
+      // 電波がないときは持っている分を返す。持っていないときに index.html で代わりを
+      // するのは画面を開くとき（navigate）だけ。説明書（help.js）などに HTML を返すと壊れるため
+      caches.match(e.request).then(cached => cached ||
+        (e.request.mode === 'navigate' ? caches.match('./index.html') : Response.error()))
     )
   );
 });

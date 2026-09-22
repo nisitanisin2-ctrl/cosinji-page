@@ -6325,6 +6325,40 @@ async function runBrush3(browser) {
   await ctx.close();
 }
 
+async function runHelpSplit(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 説明書を別のファイルに（v401） ──');
+  const raw = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  check('  index.html に説明書の中身を持たない', raw.includes('id="h-privacy"'), false);
+  check('  help.js に中身がある', fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('id=\\"h-privacy\\"'), true);
+  const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
+  check('  電波がなくても読めるよう先に持つ', sw.includes("'./help.js'"), true);
+  check('  画面を開くとき以外は index.html で代わりをしない', sw.includes("e.request.mode === 'navigate'"), true);
+  check('  開くまでは読まない', await page.evaluate(() =>
+    !document.getElementById('h-privacy') && typeof window.EXCALC_HELP_HTML), 'undefined');
+  check('  開けば読み込まれる', await page.evaluate(async () => { await openHelp();
+    return !!document.getElementById('h-privacy') && document.getElementById('helpVer').textContent; }), 'バージョン ' + await page.evaluate(() => APP_VERSION));
+  check('  使いかたの表も入る', await page.evaluate(() =>
+    document.querySelectorAll('#helpBody .help-li').length > 50), true);
+  await page.evaluate(() => closeHelp()); await page.waitForTimeout(400);
+  check('  2回目は読み込み直さない', await page.evaluate(async () => { await openHelp();
+    return document.querySelectorAll('script[src="help.js"]').length; }), 1);
+  await page.evaluate(() => closeHelp()); await page.waitForTimeout(400);
+  // 読めなかったときは、そう知らせて、次に開いたときにもう一度読みにいく
+  check('  読めないときは知らせる', await page.evaluate(async () => {
+    const body = document.getElementById('helpBody'); const keep = body.innerHTML;
+    const saved = window.EXCALC_HELP_HTML; delete window.EXCALC_HELP_HTML;
+    body.innerHTML = ''; const orig = document.head.appendChild.bind(document.head);
+    document.head.appendChild = el => { if (el.tagName === 'SCRIPT') { setTimeout(() => el.onerror && el.onerror(), 0); return el; } return orig(el); };
+    const ok = await loadHelp();
+    const msg = body.textContent.includes('読み込めませんでした');
+    document.head.appendChild = orig; window.EXCALC_HELP_HTML = saved; body.innerHTML = keep;
+    return !ok && msg; }), true);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -6371,6 +6405,9 @@ async function runBrush3(browser) {
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
     if (!only || only === 'brush3') await runBrush3(browser);
+    if (!only || only === 'help') await runHelpSplit(browser);
+    // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
+    if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
