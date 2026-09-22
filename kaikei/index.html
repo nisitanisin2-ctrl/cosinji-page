@@ -60,8 +60,11 @@ header{
   position:sticky;top:0;z-index:30;background:var(--acc);color:#fff;
   padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;box-shadow:var(--elev-1);
 }
-.hd-row{display:flex;align-items:baseline;gap:8px}
-.hd-name{font-weight:700;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hd-row{display:flex;align-items:center;gap:8px}
+.hd-name{font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 合計は目じるし程度に小さく。見たいのは口座ごとの残高なので、そちらを大きくする */
+.hd-total{margin-left:auto;font-size:11px;opacity:.85;white-space:nowrap;flex:none}
+.hd-total b{font-size:13px;font-weight:700}
 .hd-year{
   font-size:12px;color:#fff;opacity:.95;white-space:nowrap;flex:none;
   background:rgba(255,255,255,.16);border-radius:var(--r-pill);
@@ -80,9 +83,17 @@ header{
 .yr-row .b{font-weight:700;white-space:nowrap}
 .yr-row[aria-current="true"]{background:var(--acc-weak);border-radius:var(--r-btn)}
 .yr-row[aria-current="true"] .y{color:var(--acc)}
-.hd-bal{display:flex;gap:14px;margin-top:4px;align-items:baseline;flex-wrap:wrap}
-.hd-bal b{font-size:22px;font-weight:700}
-.hd-bal small{font-size:11px;opacity:.85}
+/* 口座ごとの残高（主役）。数が増えたら折り返す */
+.hd-accs{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));
+  gap:2px 12px;margin-top:6px;
+  max-height:150px;overflow-y:auto;scrollbar-width:none;
+}
+.hd-accs::-webkit-scrollbar{display:none}
+.hd-acc{min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.hd-acc .n{font-size:11px;opacity:.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hd-acc .v{font-size:19px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hd-acc.zero .v{opacity:.55;font-weight:600}
 
 /* ── 本体 ── */
 main{padding:12px 12px calc(84px + env(safe-area-inset-bottom));max-width:720px;margin:0 auto}
@@ -139,7 +150,8 @@ label.fld>span{display:block;font-size:12px;color:var(--sub);margin-bottom:4px}
 .list li:last-child{border-bottom:none}
 .li-main{flex:1;min-width:0}
 .li-top{display:flex;gap:8px;align-items:baseline}
-.li-date{font-size:12px;color:var(--sub);flex:none;width:52px}
+/* 日付は、めくって探すときのいちばんの手がかりなので、ほかの字より大きめに */
+.li-date{font-size:15px;font-weight:600;color:var(--text);flex:none;width:58px;letter-spacing:.01em}
 .li-cat{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .li-note{font-size:12px;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .li-amt{font-weight:700;text-align:right;white-space:nowrap}
@@ -214,10 +226,6 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .kindsel button[aria-pressed="true"][data-kind="tr"]{border-color:var(--acc);background:var(--acc-weak);color:var(--acc)}
 .li-amt.tr{color:var(--acc)}
 .fld.hide{display:none}
-.accbar{display:flex;gap:12px;margin-top:4px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-.accbar::-webkit-scrollbar{display:none}
-.accbar span{font-size:11px;opacity:.9;white-space:nowrap}
-.accbar b{font-size:12px;font-weight:700}
 .sub-head{font-size:12px;color:var(--sub);margin:12px 0 4px}
 .acc-card{padding:10px 0;border-bottom:1px solid var(--line)}
 .acc-card:last-child{border-bottom:none}
@@ -234,11 +242,9 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   <div class="hd-row">
     <div class="hd-name" id="hdName">自治会会計</div>
     <button class="hd-year" id="hdYear" onclick="openYearPick()" aria-label="表示する年度を切り替える"></button>
+    <div class="hd-total">合計 <b class="num" id="hdTotal">0</b> 円</div>
   </div>
-  <div class="hd-bal">
-    <span><b class="num" id="hdTotal">0</b><small> 円</small></span>
-  </div>
-  <div class="accbar" id="hdAccs"></div>
+  <div class="hd-accs" id="hdAccs"></div>
 </header>
 
 <main>
@@ -517,7 +523,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
    ・お金の場所（口座）は「現金・農協・信用金庫・定期預金…」と名前で持つ。
      口座から口座へ移すのは「振替」として、収入・支出とは別に数える。
    ══════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v4';
+const APP_VERSION='v5';
 const KEY='jk_kaikei_v1';
 
 const DEF_CATS={
@@ -690,7 +696,11 @@ function renderHead(){
   $('hdYear').innerHTML=`${S.year}年度<span class="caret">▼</span>`;
   const a=accountSummary();
   $('hdTotal').textContent=yen(a.sum.now);
-  $('hdAccs').innerHTML=a.list.map(r=>`<span>${escHtml(r.acc)} <b class="num">${yen(r.now)}</b></span>`).join('');
+  $('hdAccs').innerHTML=a.list.map(r=>
+    `<div class="hd-acc${r.now?'':' zero'}" title="${escHtml(r.acc)} ${yen(r.now)}円">
+       <span class="n">${escHtml(r.acc)}</span>
+       <b class="v num">${yen(r.now)}</b>
+     </div>`).join('');
 }
 
 /* ══ 記帳 ══════════════════════════════════════════════════ */
@@ -1375,6 +1385,15 @@ function parseMoney(v){
   const n=parseFloat(s);
   return isFinite(n)?Math.round(n)*sign:0;
 }
+/* パソコン版の CSV は、期首残高を「種別＝期首残高／日付＝年度初日／収入＝金額」の
+   行として先頭に置く。これを取引として数えると、収入が期首残高のぶんふくらむ。 */
+function isOpeningKind(v){
+  const s=normHead(v);
+  return s==='期首残高'||s==='期首'||s==='前期繰越'||s==='繰越残高';
+}
+/* 1枚に取引と振替が混ざっている帳面（パソコン版のCSV）で、振替の行を
+   取引として読み飛ばすときに「形式不正」と数えないための見分け */
+function isTransferKind(v){ return normHead(v)==='振替'; }
 function parseKind(v){
   const s=normHead(v);
   if(!s) return null;
@@ -1578,8 +1597,18 @@ function csvCell(v){
   const s=String(v==null?'':v);
   return /[",\r\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
 }
-function buildCsv(items, transfers){
+function buildCsv(items, transfers, years){
   const rows=[CSV_HEADERS];
+  /* 期首残高は、パソコン版と同じ形で先頭に置く
+     （種別＝期首残高／日付＝年度初日／金額は収入の列／科目は空）。
+     こうしておくと、パソコン版の「CSVを取り込み」が残高まで戻せる。 */
+  const ys=(years&&years.length)?years:[S.year];
+  ys.forEach(y=>{
+    const bg=beginOf(y);
+    S.accounts.forEach(acc=>{
+      rows.push(['期首残高', `${y}-04-01`, acc, '', '期首残高', Number(bg[acc])||0, '', '', '', '', '', '']);
+    });
+  });
   const all=sortByDate(items.map(i=>({d:i.date, t:'i', o:i})).concat(transfers.map(t=>({d:t.date, t:'t', o:t})))
     .map(r=>Object.assign({date:r.d, ts:r.o.ts||0}, r)));
   all.forEach(r=>{
@@ -1625,7 +1654,8 @@ async function doExport(){
     const opt={name:S.name, year:S.year, accounts:S.accounts, begin:beginOf(), budget:S.budget, dev:S.dev, partial};
     const form=$('expForm').value;
     if(form==='csv'){
-      const csv=buildCsv(items, transfers);
+      const cys=Array.from(new Set(items.map(i=>fyOfStr(i.date)).filter(y=>y!=null))).sort();
+      const csv=buildCsv(items, transfers, cys.length?cys:[S.year]);
       const fname=safeName(`kaikei_${S.year}_${todayStr()}`, 'csv');
       download(new Blob([csv],{type:'text/csv;charset=utf-8'}), fname);
       S.lastExport=Date.now(); save(); renderXls();
@@ -1803,6 +1833,8 @@ function gridToItems(grid, headerRow, map){
     const dCell=get(row,'date');
     const date=dCell?parseAnyDate(dCell.v, dCell.isDate):'';
     const inV=get(row,'in'), outV=get(row,'out'), amtV=get(row,'amt'), kCell=get(row,'kind');
+    /* 期首残高の行と振替の行は、別のところで読む（形式不正には数えない） */
+    if(kCell&&(isOpeningKind(kCell.v)||isTransferKind(kCell.v))) continue;
     let kind=null, amt=0;
     if(inV&&parseMoney(inV.v)>0){ kind='in'; amt=parseMoney(inV.v); }
     else if(outV&&parseMoney(outV.v)>0){ kind='out'; amt=parseMoney(outV.v); }
@@ -1843,6 +1875,26 @@ function gridToTransfers(grid, headerRow, map){
   }
   return {items:list, skipped};
 }
+/* 「種別＝期首残高」の行 → [{acc, begin, year}]（パソコン版のCSV） */
+function gridToOpeningRows(grid, headerRow, map){
+  const out=[];
+  if(map.kind==null) return out;
+  const get=(row,f)=>{ const c=map[f]; if(c==null||c<0) return null; return row[c]||null; };
+  for(let r=headerRow+1;r<grid.length;r++){
+    const row=grid[r]||[]; const kCell=get(row,'kind');
+    if(!kCell||!isOpeningKind(kCell.v)) continue;
+    const acc=(()=>{ const c=get(row,'acc'); return (c&&c.v!=null)?String(c.v).trim():''; })();
+    if(!acc) continue;
+    const dCell=get(row,'date');
+    const y=fyOfStr(parseAnyDate(dCell?dCell.v:'', (dCell||{}).isDate));
+    /* 金額は収入の列に入っている（支出・金額の列も念のため見る） */
+    let v=parseMoney((get(row,'in')||{}).v);
+    if(!v) v=parseMoney((get(row,'amt')||{}).v);
+    out.push({acc, begin:v, year:(y==null?null:y)});
+  }
+  return out;
+}
+
 /* 「口座／期首残高」の表 → 口座と期首残高 */
 function gridToAccounts(grid){
   const out=[];
@@ -1959,6 +2011,12 @@ async function onImportFile(ev){
     if(needTr(tr.map)&&tr.score>trBest){ trBest=tr.score; trI=i; }
     if(accI<0){ const a=gridToAccounts(s.grid); if(a.length){ accI=i; accRows=a; } }
   });
+  /* パソコン版のCSV／Excelが「種別＝期首残高」の行で出しているときも拾う */
+  if(!accRows.length){
+    const g=sheets[txI].grid, d=detectHeader(g, TX_FIELDS_ALLOW, needTx);
+    const rows=gridToOpeningRows(g, d.row, d.map);
+    if(rows.length){ accI=txI; accRows=rows; }
+  }
   IMP={file:file.name, sheets, si:txI, policy:'newer', prune:false,
        trI, trOn:trI>=0, accRows, accOn:accRows.length>0};
   applyDetect();
@@ -2076,13 +2134,18 @@ function doImport(){
   /* 口座と期首残高（先に入れておく。記帳の口座名と結びつけるため）。
      期首残高は年度ごとに持つので、このファイルが扱っている年度に入れる。 */
   if(IMP.accOn&&IMP.accRows.length){
-    const years=new Set(got.items.map(i=>fyOfStr(i.date)).filter(y=>y!=null));
-    if(!years.size) years.add(S.year);
+    const fileYears=new Set(got.items.map(i=>fyOfStr(i.date)).filter(y=>y!=null));
+    if(!fileYears.size) fileYears.add(S.year);
     IMP.accRows.forEach(a=>{ if(!S.accounts.includes(a.acc)) S.accounts.push(a.acc); });
-    years.forEach(y=>{
-      const m=beginOf(y);
-      IMP.accRows.forEach(a=>{ m[a.acc]=a.begin; });
-      setBeginOf(y, m);
+    /* 行が年度を持っていれば（パソコン版のCSVの期首残高の行）その年度へ、
+       持っていなければ（概要・残高の表）このファイルが扱っている年度へ入れる */
+    const byYear={};
+    IMP.accRows.forEach(a=>{
+      const ys=(a.year!=null)?[a.year]:Array.from(fileYears);
+      ys.forEach(y=>{ (byYear[y]=byYear[y]||{})[a.acc]=a.begin; });
+    });
+    Object.keys(byYear).forEach(y=>{
+      const m=beginOf(+y); Object.assign(m, byYear[y]); setBeginOf(+y, m);
     });
   }
   const res=mergeItems(S.items, got.items, IMP.policy, {prune:IMP.prune});

@@ -95,6 +95,19 @@ const PC_EXPECT = {
   ],
 };
 
+/* パソコン版が「CSVに出力」で作る CSV（期首残高の行つき）。
+   期首残高は 種別＝期首残高／日付＝年度初日／金額は収入の列／科目は空 で先頭に置かれる。
+   これを取引として数えると、収入が期首残高のぶんふくらんでしまう。 */
+const PC_CSV = [
+  '種別,日付,口座,科目,摘要,収入,支出,振替元,振替先,振替額,備考,行事',
+  '期首残高,2026-04-01,現金,,期首残高,120698,,,,,,',
+  '期首残高,2026-04-01,農協,,期首残高,915473,,,,,,',
+  '取引,2026-04-06,信用金庫,雑収入,自販機,3250,,,,,,',
+  '取引,2026-04-08,現金,備品・消耗品費,コンパネ,,2068,,,,,',
+  '取引,2026-05-18,現金,行事費,景品代,,24800,,,,3,秋祭り',
+  '振替,2026-05-11,,,,,,農協,現金,100000,,',
+].join('\r\n') + '\r\n';
+
 /* スマホ側にある伝票（ここへ上の Excel を読み込む） */
 const MINE = [
   {id:'aa1-k-1', date:'2026-04-06', kind:'in',  cat:'雑収入',        note:'自販機',   amt:3250, acc:'信用金庫', event:'', memo:'', ts:1000},
@@ -109,4 +122,5 @@ const POLICY_CASES = [
   { policy:'keep',     incomingTs:9000, want:{added:0, updated:0, same:2}, wantAmt:2068 },
 ];
 
-module.exports = { PARSE_DATE, PARSE_MONEY, PC_TX_XML, PC_TR_XML, PC_SUM_XML, PC_EXPECT, MINE, POLICY_CASES };
+module.exports = { PARSE_DATE, PARSE_MONEY, PC_TX_XML, PC_TR_XML, PC_SUM_XML, PC_EXPECT,
+                   PC_CSV, MINE, POLICY_CASES };

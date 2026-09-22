@@ -5059,9 +5059,12 @@ async function runKaikei(browser) {
     ];
     const trs = [{ id: 't-1', date: '2026-05-11', from: '農協', to: '現金', amt: 100000, note: '繰入', memo: '', ts: 3 }];
     const text = buildCsv(items, trs);
-    const lines = text.replace(/^\ufeff/, '').split('\r\n');
-    // 日付の順に並ぶので 04-06(取引) → 05-11(振替) → 05-18(取引)
-    return { bom: text.charCodeAt(0) === 0xFEFF, head: lines[0], tx: lines[1], tr: lines[2], ev: lines[3], n: lines.filter(Boolean).length };
+    const lines = text.replace(/^\ufeff/, '').split('\r\n').filter(Boolean);
+    // 先頭に期首残高の行が入る。そのあとが日付の順で 04-06(取引) → 05-11(振替) → 05-18(取引)
+    const rest = lines.slice(1).filter(l => !l.startsWith('期首残高'));
+    return { bom: text.charCodeAt(0) === 0xFEFF, head: lines[0],
+             ob: lines.filter(l => l.startsWith('期首残高')).length,
+             tx: rest[0], tr: rest[1], ev: rest[2], n: rest.length + 1 };
   });
   check('  CSVはBOMつき（パソコン版が文字化けしない）', csv.bom, true);
   check('  CSVの見出しはパソコン版と同じ並び', csv.head, '種別,日付,口座,科目,摘要,収入,支出,振替元,振替先,振替額,備考,行事');
@@ -5069,6 +5072,7 @@ async function runKaikei(browser) {
   check('  カンマのある摘要は "" でくくる', csv.ev, '取引,2026-05-18,現金,行事費,"お茶, お菓子",,24800,,,,3,秋祭り');
   check('  振替の行（摘要はそのまま持つ）', csv.tr, '振替,2026-05-11,,,繰入,,,農協,現金,100000,,');
   check('  見出し＋3行', csv.n, 4);
+  check('  期首残高の行も入る', csv.ob > 0, true);
 
   // その CSV を読み戻せる（パソコン版の「CSVに出力」も同じ形）
   const csvBack = await page.evaluate(() => {
@@ -5180,7 +5184,16 @@ async function runKaikei(browser) {
   check('  現金は振替でふえる', ui.cash, 30000);
   check('  農協は支出と振替でへる', ui.ja, 27000);
   check('  合わせた残高は支出のぶんだけへる', ui.total, 57000);
-  check('  上の帯にも出る', ui.head, '57,000');
+  check('  上の帯の合計', ui.head, '57,000');
+  check('  上の帯は口座ごとの残高を主役にする', await page.evaluate(() =>
+    [...document.querySelectorAll('#hdAccs .hd-acc')].map(d =>
+      d.querySelector('.n').textContent + '=' + d.querySelector('.v').textContent).join(' ')),
+    '現金=30,000 農協=27,000');
+  check('  合計の字は口座の字より小さい', await page.evaluate(() => {
+    const t = parseFloat(getComputedStyle(document.querySelector('.hd-total b')).fontSize);
+    const v = parseFloat(getComputedStyle(document.querySelector('.hd-acc .v')).fontSize);
+    return t < v;
+  }), true);
 
   // ── 年度の切り替え ──
   const yr = await page.evaluate(() => {
@@ -5271,6 +5284,64 @@ async function runKaikei(browser) {
   check('  期首残高が出る', impYr.begin, 120698 + 915473 + 1243299 + 2100779);
   check('  記帳もその年度に出る', impYr.items, 5);
   check('  上の帯にも出る', impYr.head !== '0', true);
+
+  // ── パソコン版のCSVの「期首残高」の行 ──
+  const ob = await page.evaluate(({ csv }) => {
+    localStorage.clear(); S = blank(); S.year = 2026; saveNow();
+    const sheets = [{ name: 'CSV', grid: csvToGrid('\ufeff' + csv) }];
+    const d = detectHeader(sheets[0].grid, TX_FIELDS_ALLOW, needTx);
+    const got = gridToItems(sheets[0].grid, d.row, d.map);
+    const rows = gridToOpeningRows(sheets[0].grid, d.row, d.map);
+    const d2 = detectHeader(sheets[0].grid, TR_FIELDS_ALLOW, needTr);
+    const tr = gridToTransfers(sheets[0].grid, d2.row, d2.map);
+    return {
+      items: got.items.length,
+      kinds: got.items.map(i => i.kind).join(','),
+      inSum: got.items.filter(i => i.kind === 'in').reduce((a, i) => a + i.amt, 0),
+      outSum: got.items.filter(i => i.kind === 'out').reduce((a, i) => a + i.amt, 0),
+      skipped: got.skipped.length,
+      openings: rows.map(r => `${r.year}:${r.acc}=${r.begin}`).join(' '),
+      trs: tr.items.length,
+    };
+  }, { csv: T.PC_CSV });
+  check('  期首残高の行は取引にしない', ob.items, 3);
+  check('  収入に足されない', ob.inSum, 3250);
+  check('  支出はそのまま', ob.outSum, 2068 + 24800);
+  check('  形式不正にもしない（振替の行もふくめて）', ob.skipped, 0);
+  check('  期首残高として読む', ob.openings, '2026:現金=120698 2026:農協=915473');
+  check('  振替も読める', ob.trs, 1);
+
+  // 書き出した CSV にも、同じ形で期首残高の行が入る
+  const obOut = await page.evaluate(() => {
+    S = blank(); S.year = 2026; S.accounts = ['現金', '農協'];
+    setBeginOf(2026, { 現金: 120698, 農協: 915473 });
+    const items = [{ id: 'a', date: '2026-04-06', kind: 'in', cat: '雑収入', note: '自販機',
+                     amt: 3250, acc: '現金', event: '', memo: '', ts: 1 }];
+    const lines = buildCsv(items, [], [2026]).replace(/^\ufeff/, '').split('\r\n');
+    return { head: lines[0], ob1: lines[1], ob2: lines[2], tx: lines[3] };
+  });
+  check('  書き出しも同じ見出し', obOut.head, '種別,日付,口座,科目,摘要,収入,支出,振替元,振替先,振替額,備考,行事');
+  check('  期首残高の行を先頭に置く', obOut.ob1, '期首残高,2026-04-01,現金,,期首残高,120698,,,,,,');
+  check('  口座ごとに1行', obOut.ob2, '期首残高,2026-04-01,農協,,期首残高,915473,,,,,,');
+  check('  そのあとに取引', obOut.tx, '取引,2026-04-06,現金,雑収入,自販機,3250,,,,,,');
+
+  // 読み戻すと、期首残高まで同じになる
+  const obRound = await page.evaluate(() => {
+    S = blank(); S.year = 2026; S.accounts = ['現金', '農協'];
+    setBeginOf(2026, { 現金: 120698, 農協: 915473 });
+    const items = [{ id: 'a', date: '2026-04-06', kind: 'in', cat: '雑収入', note: '自販機',
+                     amt: 3250, acc: '現金', event: '', memo: '', ts: 1 }];
+    const csv = buildCsv(items, [], [2026]);
+    const g = csvToGrid(csv.replace(/^\ufeff/, ''));
+    const d = detectHeader(g, TX_FIELDS_ALLOW, needTx);
+    const got = gridToItems(g, d.row, d.map);
+    const rows = gridToOpeningRows(g, d.row, d.map);
+    const m = mergeItems(items, got.items, 'newer');
+    return { merge: `${m.added}/${m.updated}/${m.same}`,
+             openings: rows.map(r => `${r.acc}=${r.begin}`).join(' ') };
+  });
+  check('  読み戻しても増えない（足/直/同）', obRound.merge, '0/0/1');
+  check('  期首残高も戻る', obRound.openings, '現金=120698 農協=915473');
 
   // ── CSVを読み込むと、科目・口座・行事が登録される ──
   const reg = await page.evaluate(async () => {
