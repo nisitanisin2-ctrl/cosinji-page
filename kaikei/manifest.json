@@ -1,7 +1,7 @@
 {
-  "name": "自治会会計",
-  "short_name": "自治会会計",
-  "description": "自治会・町内会の会計をスマホで記帳し、Excelでパソコン版とやりとりします",
+  "name": "会計アプリ",
+  "short_name": "会計",
+  "description": "現金と口座の出入りをスマホで記帳し、Excel・CSVでパソコンの会計ソフトとやりとりします",
   "id": "/jichikai-kaikei",
   "start_url": "./index.html",
   "scope": "./",
