@@ -5649,6 +5649,98 @@ async function runKaikei(browser) {
   check('  書類に日づけが出る', finKeep.onPaper, true);
   check('  書類に会計担当者が出る', finKeep.maker, true);
 
+  // 作成日をえらべること（きょう／年度末）
+  const finDate = await page.evaluate(() => {
+    const out = {};
+    finSetDate('end');
+    out.end = S.fin.date;
+    out.onPaperEnd = document.getElementById('finPaper').textContent.includes('2027年3月31日');
+    finSetDate('today');
+    out.today = S.fin.date === todayStr();
+    out.fieldIsToday = document.getElementById('finDate').value === todayStr();
+    finField('date', '2027-05-01');
+    out.picked = document.getElementById('finPaper').textContent.includes('2027年5月1日');
+    finField('date', '');
+    out.emptyIsToday = document.getElementById('finPaper').textContent.includes(jpDate(todayStr()));
+    return out;
+  });
+  check('  年度末をえらべる', finDate.end, '2027-03-31');
+  check('  年度末が紙に出る', finDate.onPaperEnd, true);
+  check('  きょうをえらべる', finDate.today, true);
+  check('  えらんだ日が欄にも入る', finDate.fieldIsToday, true);
+  check('  えらんだ日が紙に出る', finDate.picked, true);
+  check('  空ならきょうの日づけ', finDate.emptyIsToday, true);
+
+  // 1つの書類は、署名欄まで紙1枚に収める（科目が多いときは印刷で縮める）
+  const finFit = await page.evaluate(({ st }) => {
+    const mk = n => {
+      S = blank(); S.year = st.year; S.name = st.name; S.accounts = ['現金'];
+      setBeginOf(st.year, { 現金: 120698 });
+      S.cats = { in: [], out: [] }; S.items = []; S.budget = {};
+      for (let i = 0; i < n; i++) {
+        S.cats.in.push('収入科目' + i); S.cats.out.push('支出科目' + i);
+        S.budget['収入科目' + i] = 10000 * (i + 1);
+        S.items.push({ id: 'i' + i, date: '2026-05-11', kind: 'in', cat: '収入科目' + i, note: 'あ', amt: 1000 + i, acc: '現金', event: '', memo: '', ts: i });
+        S.items.push({ id: 'o' + i, date: '2026-06-11', kind: 'out', cat: '支出科目' + i, note: 'い', amt: 500 + i, acc: '現金', event: '', memo: '', ts: i });
+      }
+      finOpt().maker = '会計 太郎';
+    };
+    const zoomOf = () => Array.from(document.querySelectorAll('#finPaper .fin-doc[data-fit]'))
+      .map(d => Number(d.style.getPropertyValue('--fin-zoom')));
+    mk(4); finOpt().docs = { settle: true, budget: true, twocol: false, assets: true, detail: false, audit: true };
+    renderAll(); go('fin');
+    const few = { zoom: zoomOf(), note: document.getElementById('finFitNote').style.display };
+    mk(30); finOpt().docs = { settle: true, budget: true, twocol: false, assets: true, detail: false, audit: true };
+    renderAll(); go('fin');
+    const many = { zoom: zoomOf(), note: document.getElementById('finFitNote').textContent };
+    finToggle('twocol', true);
+    const two = { zoom: zoomOf(), sums: null };
+    // 左右2段では、左の合計と右の合計がかならず同じ額になる
+    const d = finData();
+    two.sums = [d.begin + d.tIn, d.tOut + d.end];
+    two.cols = Array.from(document.querySelectorAll('#finPaper .fin-doc:first-of-type .fin-two > table')).length;
+    // 明細は何ページになってもよいので、縮めない
+    finOpt().docs = { settle: false, budget: false, twocol: false, assets: false, detail: true, audit: false };
+    renderFin();
+    const detail = document.querySelectorAll('#finPaper .fin-doc[data-fit]').length;
+    return { few, many, two, detail };
+  }, { st: T.FIN_STATE });
+  check('  科目が少なければ、そのままの大きさ', JSON.stringify(finFit.few.zoom), JSON.stringify([1, 1, 1]));
+  check('  そのときはお知らせを出さない', finFit.few.note, 'none');
+  check('  科目が多いと、印刷で縮める', finFit.many.zoom[0] < 1, true);
+  check('  短い書類は縮めない', JSON.stringify(finFit.many.zoom.slice(1)), JSON.stringify([1, 1]));
+  check('  縮めることをお知らせする', /1ページに収まる/.test(finFit.many.note), true);
+  check('  左右2段をすすめる', /左右にならべる/.test(finFit.many.note), true);
+  check('  左右2段のほうが大きい字で収まる', finFit.two.zoom[0] > finFit.many.zoom[0], true);
+  check('  左右2段は表が2つ', finFit.two.cols, 2);
+  check('  左右の合計は同じ額', finFit.two.sums[0], finFit.two.sums[1]);
+  check('  明細は1ページに押しこめない', finFit.detail, 0);
+
+  // 紙1枚に収まっているか、PDF のページ数で確かめる（書類3つ＝3ページ）
+  const finPdf = await page.evaluate(() => {
+    finOpt().docs = { settle: true, budget: true, twocol: false, assets: true, detail: false, audit: true };
+    renderFin();
+    return document.querySelectorAll('#finPaper .fin-doc').length;
+  });
+  check('  書類は3つ', finPdf, 3);
+  const pdfBuf = await page.pdf({ format: 'A4', margin: { top: '14mm', bottom: '14mm', left: '14mm', right: '14mm' } });
+  const pdfTxt = pdfBuf.toString('latin1');
+  const pages = pdfTxt.split('/Type /Page').length - 1 - (pdfTxt.split('/Type /Pages').length - 1);
+  check('  印刷すると3ページ（1つの書類＝1ページ）', pages, 3);
+
+  // 差引がマイナスのときは △ で出す（会計の紙の書きかた）
+  const finMinus = await page.evaluate(() => {
+    S = blank(); S.year = 2026; S.accounts = ['現金']; S.cats = { in: ['会費'], out: [] };
+    S.budget = { 会費: 100000 };
+    S.items = [{ id: 'x', date: '2026-05-01', kind: 'in', cat: '会費', note: 'a', amt: 130000, acc: '現金', event: '', memo: '', ts: 1 }];
+    finOpt().docs = { settle: true, budget: true, twocol: false, assets: false, detail: false, audit: false };
+    renderAll(); go('fin');
+    const tr = Array.from(document.querySelectorAll('#finPaper tr')).find(r => r.cells[0] && r.cells[0].textContent === '会費');
+    return { cells: Array.from(tr.cells).map(c => c.textContent.trim()), yenD: [yenD(-1234), yenD(0), yenD(1234)].join('/') };
+  });
+  check('  予算を超えたら△で出す', JSON.stringify(finMinus.cells), JSON.stringify(['会費', '100,000', '130,000', '△30,000', '1件']));
+  check('  △のつけかた', finMinus.yenD, '△1,234/0/1,234');
+
   // 印刷のときは、帯もタブもえらぶところも消えて、紙だけが白く出る
   await page.emulateMedia({ media: 'print' });
   const finPrint = await page.evaluate(() => ({

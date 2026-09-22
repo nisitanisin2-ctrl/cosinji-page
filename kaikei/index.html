@@ -106,7 +106,8 @@ main{padding:12px 12px calc(84px + env(safe-area-inset-bottom));max-width:720px;
 .row.wrap{flex-wrap:wrap}
 .grow{flex:1;min-width:0}
 label.fld{display:block;margin-bottom:10px}
-label.fld>span{display:block;font-size:12px;color:var(--sub);margin-bottom:4px}
+label.fld>span,.fld-nm{display:block;font-size:12px;color:var(--sub);margin-bottom:4px}
+div.fld{margin-bottom:10px}
 
 /* ボタン */
 .btn{background:var(--acc);color:#fff;border-radius:var(--r-btn);padding:11px 16px;font-weight:700;min-height:var(--tap);transition:background var(--dur)}
@@ -263,14 +264,16 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .fin-doc h3{font-size:19px;text-align:center;margin:0 0 5px;letter-spacing:.18em;color:#1a1a1a}
 .fin-doc .fin-sub{text-align:center;font-size:12px;color:#555;margin:0 0 12px}
 .fin-doc p{font-size:13px;margin:0 0 10px}
-table.fin-t{width:100%;border-collapse:collapse;font-size:13px;min-width:320px}
-table.fin-t th,table.fin-t td{border:1px solid #9a9a9a;padding:5px 7px;text-align:right;font-variant-numeric:tabular-nums}
+table.fin-t{width:100%;border-collapse:collapse;font-size:13px;line-height:1.35;min-width:300px}
+table.fin-t th,table.fin-t td{border:1px solid #9a9a9a;padding:4px 7px;text-align:right;font-variant-numeric:tabular-nums}
 table.fin-t th{background:#ececec;text-align:center;font-weight:700;font-size:12px;color:#1a1a1a;white-space:nowrap}
 table.fin-t th.l,table.fin-t td.l{text-align:left}
 table.fin-t tr.sec td{background:#f3f3f3;font-weight:700;text-align:left;letter-spacing:.06em}
 table.fin-t tr.tot td{font-weight:700;background:#fafafa}
 table.fin-t tr.big td{font-size:14px}
 table.fin-t td.sml,.fin-doc .sml{font-size:11px;color:#555}
+.fin-two{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start}
+.fin-two>table{flex:1 1 300px}
 .fin-sign{margin-top:14px;font-size:13px;line-height:2.1}
 .fin-sign .ln{display:inline-block;min-width:140px;border-bottom:1px solid #444;text-align:center;margin:0 4px}
 .fin-note{font-size:11px;color:#555;margin-top:8px;line-height:1.6}
@@ -286,7 +289,12 @@ table.fin-t td.sml,.fin-doc .sml{font-size:11px;color:#555}
   #pg-fin{display:block!important}
   .fin-paper{box-shadow:none;border:none;border-radius:0;padding:0;overflow:visible}
   .fin-doc+.fin-doc{margin-top:0;padding-top:0;border-top:none;break-before:page;page-break-before:always}
+  /* 1つの書類は、署名欄まで1ページに収める（はみ出すぶんだけ縮める） */
+  .fin-doc[data-fit]{zoom:var(--fin-zoom,1);break-inside:avoid;page-break-inside:avoid}
+  .fin-sign{break-inside:avoid;page-break-inside:avoid}
   table.fin-t{min-width:0}
+  .fin-two{flex-wrap:nowrap}
+  .fin-two>table{flex:1 1 0;min-width:0}
   table.fin-t tr{break-inside:avoid;page-break-inside:avoid}
   @page{margin:14mm}
 }
@@ -432,14 +440,21 @@ table.fin-t td.sml,.fin-doc .sml{font-size:11px;color:#555}
       <label class="fld grow" style="min-width:140px"><span>監査人（1人め）</span><input id="finAud1" type="text" placeholder="監査 一郎" oninput="finField('aud1',this.value)"></label>
       <label class="fld grow" style="min-width:140px"><span>監査人（2人め）</span><input id="finAud2" type="text" placeholder="なければ空のまま" oninput="finField('aud2',this.value)"></label>
     </div>
-    <label class="fld"><span>書類の日づけ</span><input id="finDate" type="date" onchange="finField('date',this.value)">
-      <small class="muted">空のままだと、きょうの日づけが入ります</small></label>
+    <div class="fld"><span class="fld-nm">作成日（書類に出る日づけ）</span>
+      <div class="row wrap">
+        <input id="finDate" class="grow" style="min-width:150px" type="date" aria-label="作成日" onchange="finField('date',this.value)">
+        <button class="btn sub" onclick="finSetDate('today')">きょう</button>
+        <button class="btn sub" onclick="finSetDate('end')" id="finDateEnd">年度末</button>
+      </div>
+      <small class="muted">えらんだ日が、収支決算書の「上記のとおり報告します」と監査報告書に出ます。<span id="finDateShow"></span></small>
+    </div>
     <button class="btn big wide" onclick="finPrint()">🖨 印刷する（PDFでも保存できます）</button>
     <div class="row wrap" style="margin-top:8px">
       <button class="btn sub grow" onclick="finExcel()">📄 決算書類をExcelにする</button>
       <button class="btn sub grow" onclick="finCopy()">📋 文字でコピー</button>
     </div>
-    <p class="muted" style="margin-top:8px">印刷の窓で「PDFに保存」をえらぶと、そのまま PDF になります。うまく出ないときは、Excel か「文字でコピー」をお使いください。</p>
+    <p class="muted" id="finFitNote" style="margin-top:8px;display:none"></p>
+    <p class="muted" style="margin-top:8px">印刷の窓で「PDFに保存」をえらぶと、そのまま PDF になります。1つの書類が1ページに収まるようにしています。うまく出ないときは、Excel か「文字でコピー」をお使いください。</p>
   </div>
   <div id="finPaper" class="fin-paper"></div>
 </section>
@@ -621,7 +636,7 @@ table.fin-t td.sml,.fin-doc .sml{font-size:11px;color:#555}
    ・お金の場所（口座）は「現金・農協・信用金庫・定期預金…」と名前で持つ。
      口座から口座へ移すのは「振替」として、収入・支出とは別に数える。
    ══════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v11';
+const APP_VERSION='v12';
 const KEY='jk_kaikei_v1';
 
 const DEF_CATS={
@@ -635,7 +650,8 @@ function blank(){
            items:[], transfers:[],
            cats:{in:DEF_CATS.in.slice(), out:DEF_CATS.out.slice()}, events:[],
            budget:{}, fin:{maker:'', aud1:'', aud2:'', date:'',
-                          docs:{settle:true, budget:false, assets:true, detail:false, audit:false}},
+                          docs:{settle:true, budget:false, twocol:false,
+                                assets:true, detail:false, audit:false}},
            layout:null, dev:randDev(), seq:0, lastExport:0, lastImport:0 };
 }
 let S=blank();
@@ -1300,11 +1316,12 @@ function renderSum(){
 const FIN_DOCS=[
   {k:'settle', nm:'収支決算書',             ds:'科目ごとの収入・支出と、前年度からの繰越・次年度への繰越'},
   {k:'budget', nm:'予算とくらべる欄を入れる', ds:'収支決算書に「予算・差引」の列を足します（設定で入れた予算を使います）'},
+  {k:'twocol', nm:'収入と支出を左右にならべる', ds:'総会の資料でよく使う形。科目が多くても、紙1枚に収まりやすくなります'},
   {k:'assets', nm:'財産目録',               ds:'年度おわりの、現金と口座ごとの残高'},
   {k:'detail', nm:'科目べつの明細',          ds:'どの科目に、どの記帳が入っているかの一覧（振替もつきます）'},
   {k:'audit',  nm:'監査報告書',             ds:'監査の人が確かめて署名するための紙'},
 ];
-const FIN_DEF={settle:true, budget:false, assets:true, detail:false, audit:false};
+const FIN_DEF={settle:true, budget:false, twocol:false, assets:true, detail:false, audit:false};
 
 function finOpt(){
   if(!S.fin||typeof S.fin!=='object') S.fin={};
@@ -1316,7 +1333,15 @@ function finOpt(){
 function hasBudget(){ return Object.keys(S.budget||{}).some(k=>Number(S.budget[k])>0); }
 function finField(k,v){ finOpt()[k]=String(v||''); save(); renderFinPaper(); }
 function finToggle(k,on){ finOpt().docs[k]=!!on; save(); renderFin(); }
+/* 作成日をえらぶ。「きょう」と「年度末（3月31日）」はよく使うので、押すだけで入るようにする */
+function finSetDate(which){
+  finOpt().date = (which==='end') ? `${S.year+1}-03-31` : todayStr();
+  save(); renderFin();
+  toast(`作成日を ${finDateStr()} にしました`);
+}
 /* 2026-03-31 → 2026年3月31日 */
+/* 決算書の「差引」はマイナスになることがある。会計の紙では △ を使うのがふつう */
+function yenD(n){ n=Math.round(Number(n)||0); return n<0?('△'+yen(-n)):yen(n); }
 function jpDate(s){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s||'')); return m?`${+m[1]}年${+m[2]}月${+m[3]}日`:''; }
 function finDateStr(){ const f=finOpt(); return jpDate(f.date||todayStr()); }
 
@@ -1352,37 +1377,75 @@ function finHead(d, title, sub){
   return `<h3>${escHtml(title)}</h3><div class="fin-sub">${sub}</div>`;
 }
 function finDocSettle(d, bud){
+  const sign=`<div class="fin-sign">上記のとおり報告します。<br>`+
+    `${finDateStr()}　${escHtml(d.name)}　会計担当者 <span class="ln">${escHtml(finOpt().maker)}</span> 印</div>`;
+  const noBud=(bud&&!(d.budIn+d.budOut))
+    ? `<div class="fin-note">※ 予算がまだ入っていません。設定の「予算」で入れると、この欄が埋まります。</div>` : '';
+  const head=finHead(d,'収支決算書', `${escHtml(d.name)}　${d.year}年度（${jpDate(d.from)} 〜 ${jpDate(d.to)}）`);
+  const body=finOpt().docs.twocol ? finSettleTwo(d,bud) : finSettleOne(d,bud);
+  return `<section class="fin-doc" data-fit="1">`+head+body+sign+noBud+`</section>`;
+}
+/* ふつうの形：上から下へ、収入の部 → 支出の部 */
+function finSettleOne(d, bud){
   const cols=bud?5:3;
   const money=n=>`<td class="num">${yen(n)}</td>`;
   const em=bud?'<td></td>':'';
   /* 予算のある無しで列の数が変わるので、繰越などの行もそろえて組み立てる */
   const plain=(nm,v)=>`<tr class="tot"><td class="l">${nm}</td>${em}${money(v)}${em}<td></td></tr>`;
+  const plainD=(nm,v)=>`<tr class="tot"><td class="l">${nm}</td>${em}<td class="num">${yenD(v)}</td>${em}<td></td></tr>`;
   const row=r=>`<tr><td class="l">${escHtml(r.cat)}</td>`+
     (bud?`<td class="num">${r.bud?yen(r.bud):'—'}</td>`:'')+
     `<td class="num">${yen(r.amt)}</td>`+
-    (bud?`<td class="num">${r.bud?yen(r.bud-r.amt):'—'}</td>`:'')+
+    (bud?`<td class="num">${r.bud?yenD(r.bud-r.amt):'—'}</td>`:'')+
     `<td class="l sml">${r.n}件</td></tr>`;
   const none=`<tr><td class="l" colspan="${cols}">（ありません）</td></tr>`;
-  return `<section class="fin-doc">`+
-    finHead(d,'収支決算書', `${escHtml(d.name)}　${d.year}年度（${jpDate(d.from)} 〜 ${jpDate(d.to)}）`)+
-    `<table class="fin-t"><thead><tr><th class="l">科目</th>`+
+  return `<table class="fin-t"><thead><tr><th class="l">科目</th>`+
       (bud?'<th>予算</th>':'')+`<th>決算額</th>`+(bud?'<th>差引</th>':'')+`<th class="l">件数</th></tr></thead><tbody>`+
     plain('前年度からの繰越金', d.begin)+
     `<tr class="sec"><td colspan="${cols}">収入の部</td></tr>`+
     (d.inRows.length?d.inRows.map(row).join(''):none)+
     `<tr class="tot"><td class="l">収入合計</td>`+(bud?`<td class="num">${d.budIn?yen(d.budIn):'—'}</td>`:'')+
-      money(d.tIn)+(bud?`<td class="num">${d.budIn?yen(d.budIn-d.tIn):'—'}</td>`:'')+`<td></td></tr>`+
+      money(d.tIn)+(bud?`<td class="num">${d.budIn?yenD(d.budIn-d.tIn):'—'}</td>`:'')+`<td></td></tr>`+
     `<tr class="sec"><td colspan="${cols}">支出の部</td></tr>`+
     (d.outRows.length?d.outRows.map(row).join(''):none)+
     `<tr class="tot"><td class="l">支出合計</td>`+(bud?`<td class="num">${d.budOut?yen(d.budOut):'—'}</td>`:'')+
-      money(d.tOut)+(bud?`<td class="num">${d.budOut?yen(d.budOut-d.tOut):'—'}</td>`:'')+`<td></td></tr>`+
-    plain('当期収支差額（収入合計−支出合計）', d.tIn-d.tOut)+
+      money(d.tOut)+(bud?`<td class="num">${d.budOut?yenD(d.budOut-d.tOut):'—'}</td>`:'')+`<td></td></tr>`+
+    plainD('当期収支差額（収入合計−支出合計）', d.tIn-d.tOut)+
     plain('次年度への繰越金', d.end).replace('class="tot"','class="tot big"')+
-    `</tbody></table>`+
-    `<div class="fin-sign">上記のとおり報告します。<br>`+
-      `${finDateStr()}　${escHtml(d.name)}　会計担当者 <span class="ln">${escHtml(finOpt().maker)}</span> 印</div>`+
-    (bud&&!(d.budIn+d.budOut)?`<div class="fin-note">※ 予算がまだ入っていません。設定の「予算」で入れると、この欄が埋まります。</div>`:'')+
-    `</section>`;
+    `</tbody></table>`;
+}
+/* 左右2段の形（総会の資料でよく使われる形）。
+   左は「前年度からの繰越＋収入」、右は「支出＋次年度への繰越」。
+   左右の合計はかならず同じ額になるので、そのまま検算にもなる。
+   科目が多くても、紙1枚に収まりやすい。                                */
+function finSettleTwo(d, bud){
+  const cols=bud?4:2;
+  const th=`<tr><th class="l">科目</th>`+(bud?'<th>予算</th>':'')+
+    `<th>決算額</th>`+(bud?'<th>差引</th>':'')+`</tr>`;
+  const row=r=>`<tr><td class="l">${escHtml(r.cat)}</td>`+
+    (bud?`<td class="num">${r.bud?yen(r.bud):'—'}</td>`:'')+
+    `<td class="num">${yen(r.amt)}</td>`+
+    (bud?`<td class="num">${r.bud?yenD(r.bud-r.amt):'—'}</td>`:'')+`</tr>`;
+  const em=bud?'<td></td>':'';
+  const plain=(cls,nm,v)=>`<tr class="${cls}"><td class="l">${nm}</td>${em}<td class="num">${yen(v)}</td>${em}</tr>`;
+  const sum=(nm,v,b)=>`<tr class="tot"><td class="l">${nm}</td>`+
+    (bud?`<td class="num">${b?yen(b):'—'}</td>`:'')+`<td class="num">${yen(v)}</td>`+
+    (bud?`<td class="num">${b?yenD(b-v):'—'}</td>`:'')+`</tr>`;
+  const none=`<tr><td class="l" colspan="${cols}">（ありません）</td></tr>`;
+  const left=`<table class="fin-t"><thead><tr class="sec"><td colspan="${cols}">収入の部</td></tr>${th}</thead><tbody>`+
+    plain('tot','前年度からの繰越金', d.begin)+
+    (d.inRows.length?d.inRows.map(row).join(''):none)+
+    sum('収入合計', d.tIn, d.budIn)+
+    plain('tot big','合計（繰越＋収入）', d.begin+d.tIn)+
+    `</tbody></table>`;
+  const right=`<table class="fin-t"><thead><tr class="sec"><td colspan="${cols}">支出の部</td></tr>${th}</thead><tbody>`+
+    (d.outRows.length?d.outRows.map(row).join(''):none)+
+    sum('支出合計', d.tOut, d.budOut)+
+    plain('tot','次年度への繰越金', d.end)+
+    plain('tot big','合計（支出＋繰越）', d.tOut+d.end)+
+    `</tbody></table>`;
+  return `<div class="fin-two">${left}${right}</div>`+
+    `<div class="fin-note">※ 左右の合計はかならず同じ額（${yen(d.begin+d.tIn)}円）になります。ちがっていたら、どこかが合っていません。</div>`;
 }
 function finDocAssets(d){
   const rows=d.accs.map(r=>{
@@ -1390,7 +1453,7 @@ function finDocAssets(d){
     return `<tr><td class="l">${escHtml(r.acc)}</td><td class="num">${yen(r.begin)}</td>`+
       `<td class="num">${(mv>0?'+':mv<0?'−':'')+yen(Math.abs(mv))}</td><td class="num">${yen(r.now)}</td></tr>`;
   }).join('');
-  return `<section class="fin-doc">`+
+  return `<section class="fin-doc" data-fit="1">`+
     finHead(d,'財産目録', `${escHtml(d.name)}　${jpDate(d.to)} 現在`)+
     `<table class="fin-t"><thead><tr><th class="l">区分</th><th>期首残高</th><th>この年度の増減</th><th>残高</th></tr></thead><tbody>`+
     (rows||`<tr><td class="l" colspan="4">（口座がありません）</td></tr>`)+
@@ -1428,7 +1491,7 @@ function finDocDetail(d){
 function finDocAudit(d){
   const f=finOpt();
   const line=(k,v)=>`<tr><td class="l">${k}</td><td class="num">${yen(v)}</td></tr>`;
-  return `<section class="fin-doc">`+
+  return `<section class="fin-doc" data-fit="1">`+
     finHead(d,'監査報告書', `${escHtml(d.name)}　${d.year}年度`)+
     `<p>${d.year}年度の会計帳簿・証ひょう書類および収支決算書を監査したところ、次のとおりでした。</p>`+
     `<table class="fin-t"><tbody>`+
@@ -1596,11 +1659,53 @@ function renderFin(){
   if($('finAud1').value!==f.aud1) $('finAud1').value=f.aud1;
   if($('finAud2').value!==f.aud2) $('finAud2').value=f.aud2;
   if($('finDate').value!==(f.date||todayStr())) $('finDate').value=f.date||todayStr();
+  if($('finDateEnd')) $('finDateEnd').setAttribute('aria-label', `作成日を ${S.year+1}年3月31日（年度末）にする`);
+  if($('finDateShow')) $('finDateShow').textContent=
+    `いまは ${finDateStr()}${f.date?'':'（きょうの日づけ）'} で出ます。`;
   renderFinPaper();
 }
 function renderFinPaper(){
   const el=$('finPaper'); if(!el) return;
   el.innerHTML=finPaperHtml();
+  finFitPages();
+}
+/* 紙1枚に収める。
+   A4の書ける幅（210−余白28 ＝ 182mm ≒ 688px）で組んだときの高さを測り、
+   はみ出すぶんだけ印刷のときに縮める（報告者の署名欄まで同じ紙に入れるため）。
+   高さは A4 と レター のせまいほう（279.4−28 ＝ 251.4mm ≒ 950px）に合わせておく。 */
+const FIN_PAGE_W=688, FIN_PAGE_H=950, FIN_MIN_ZOOM=.4;
+function finFitPages(){
+  const docs=Array.from(document.querySelectorAll('#finPaper .fin-doc[data-fit]'));
+  let small=1;
+  if(docs.length){
+    const box=document.createElement('div');
+    box.className='fin-paper';
+    box.style.cssText='position:absolute;left:-10000px;top:0;width:'+FIN_PAGE_W+'px;'+
+      'padding:0;border:none;box-shadow:none;visibility:hidden';
+    document.body.appendChild(box);
+    docs.forEach(doc=>{
+      doc.style.removeProperty('--fin-zoom');
+      box.innerHTML=doc.outerHTML;
+      const h=box.firstElementChild?box.firstElementChild.getBoundingClientRect().height:0;
+      const z=(h>FIN_PAGE_H)?Math.max(FIN_MIN_ZOOM, Math.floor(FIN_PAGE_H/h*100)/100):1;
+      doc.style.setProperty('--fin-zoom', String(z));
+      if(z<small) small=z;
+    });
+    box.remove();
+  }
+  const note=$('finFitNote');
+  if(note){
+    const pct=Math.round(small*100);
+    let msg='';
+    if(small<1){
+      msg=`※ 中身が多いので、印刷では字を ${pct}% に縮めて、1つの書類が1ページに収まるようにします。`;
+      if(small<.75 && !finOpt().docs.twocol && finOpt().docs.settle)
+        msg+='「収入と支出を左右にならべる」にチェックを入れると、もう少し大きな字のまま収まります。';
+    }
+    note.textContent=msg;
+    note.style.display = msg ? '' : 'none';
+  }
+  return small;
 }
 function finPrint(){
   renderFin();
