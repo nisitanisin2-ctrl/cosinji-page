@@ -255,6 +255,107 @@ body.skin-keys .numpad-overlay {
   cursor: pointer; touch-action: manipulation;
 }
 
+/* ── 📅当番表（v394）──
+   ごみ当番・掃除当番などの持ち回りを、半年分のカレンダーにして配れるようにする。
+   日づけの下の枠に名簿の番号を入れると、その人の名前が出る。 */
+.tb-titles { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.tb-title-in {
+  width: 100%; padding: 8px 10px; font-size: 18px; font-weight: bold; text-align: center;
+  border: 1px solid var(--save-item-border); border-radius: var(--r-btn);
+  background: var(--cell-bg, #fff); color: var(--text);
+}
+.tb-sub-in {
+  width: 100%; padding: 6px 10px; font-size: 13px; text-align: center;
+  border: 1px solid var(--save-item-border); border-radius: var(--r-btn);
+  background: var(--cell-bg, #fff); color: var(--text-sub);
+}
+.tb-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.tb-seg { display: flex; gap: 6px; flex: 1; min-width: 0; }
+.tb-seg button {
+  flex: 1; padding: 8px 4px; font-size: 13px; font-weight: bold; border-radius: var(--r-btn);
+  border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text);
+  cursor: pointer; touch-action: manipulation; white-space: nowrap;
+}
+.tb-seg button.on { background: var(--acc); border-color: var(--acc); color: var(--on-acc); }
+.tb-next {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  padding: 8px 10px; margin-bottom: 10px; border-radius: var(--r-btn);
+  background: var(--acc-weak); font-size: 14px; color: var(--text);
+}
+.tb-next .tb-tag { font-size: 11px; font-weight: bold; color: var(--acc-text); flex: none; }
+.tb-next .tb-d { font-size: 17px; font-weight: bold; font-variant-numeric: tabular-nums; }
+.tb-next .tb-n { font-weight: bold; }
+.tb-months { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 700px) { .tb-months { grid-template-columns: 1fr 1fr; } }
+.tb-month { border: 1px solid var(--cell-border); border-radius: var(--r-btn); overflow: hidden; }
+.tb-mhead {
+  text-align: center; padding: 4px 0; font-weight: bold; font-size: 15px;
+  background: var(--ch-bg); color: var(--ch-color); border-bottom: 1px solid var(--cell-border);
+}
+.tb-mhead small { font-weight: normal; font-size: 11px; color: var(--text-light); margin-left: 6px; }
+.tb-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+.tb-dow {
+  font-size: 11px; font-weight: bold; text-align: center; padding: 2px 0;
+  border-right: 1px solid var(--cell-border); border-bottom: 1px solid var(--cell-border);
+  background: var(--ch-bg); color: var(--ch-color);
+}
+.tb-dow:nth-child(7n) { border-right: 0; }
+.tb-dow.d0 { color: var(--danger); }
+.tb-dow.d6 { color: var(--info); }
+.tb-cell {
+  min-height: 52px; padding: 2px 1px 3px; display: flex; flex-direction: column; align-items: center; gap: 1px;
+  border-right: 1px solid var(--cell-border); border-bottom: 1px solid var(--cell-border);
+  background: var(--cell-bg);
+}
+.tb-cell:nth-child(7n) { border-right: 0; }
+.tb-cell.d0 { background: rgba(192,57,43,.10); }
+.tb-cell.d6 { background: rgba(30,136,229,.10); }
+.tb-cell.blank { background: transparent; }
+.tb-cell.today { box-shadow: inset 0 0 0 2px var(--acc); }
+.tb-dn { font-size: 13px; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.15; }
+.tb-cell.d0 .tb-dn, .tb-cell.hol .tb-dn { color: var(--danger); }
+.tb-cell.d6 .tb-dn { color: var(--info); }
+.tb-hn { font-size: 9px; color: var(--danger); line-height: 1.1; text-align: center; overflow-wrap: anywhere; }
+.tb-slot { margin-top: auto; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.tb-no {
+  width: 2.8em; text-align: center; font-size: 12px; padding: 1px 0;
+  border: 1px solid var(--cell-border); border-radius: 3px;
+  background: var(--acc-weak); color: var(--text); font-variant-numeric: tabular-nums;
+}
+.tb-cell.duty .tb-no { border-color: var(--acc); }
+.tb-cell.d0 .tb-no, .tb-cell.d6 .tb-no, .tb-cell.blank .tb-no { opacity: .25; }
+.tb-nm { font-size: 11px; line-height: 1.15; text-align: center; overflow-wrap: anywhere; color: var(--text); }
+.tb-nm.bad { color: var(--danger); font-size: 10px; }
+.tb-rlist { list-style: none; margin: 0; padding: 0; }
+.tb-rlist li {
+  display: flex; align-items: center; gap: 6px; padding: 4px 0;
+  border-bottom: 1px solid var(--save-item-border);
+}
+.tb-rno {
+  width: 2em; height: 2em; flex: none; display: grid; place-items: center;
+  background: var(--acc-weak); color: var(--acc-text); font-size: 12px; font-weight: bold;
+  border-radius: 3px; font-variant-numeric: tabular-nums;
+}
+.tb-rlist input {
+  flex: 1; min-width: 0; padding: 5px 7px; font-size: 14px;
+  border: 1px solid var(--save-item-border); border-radius: var(--r-btn);
+  background: var(--cell-bg, #fff); color: var(--text);
+}
+.tb-rmeta { font-size: 10px; color: var(--text-light); flex: none; text-align: right; min-width: 4.2em; font-variant-numeric: tabular-nums; }
+.tb-rmini {
+  border: none; background: transparent; color: var(--text-light); cursor: pointer;
+  font-size: 14px; padding: 3px 4px; flex: none; touch-action: manipulation;
+}
+.tb-rmini:active { color: var(--acc-text); }
+.tb-chips { display: flex; gap: 4px; }
+.tb-chip {
+  width: 2.1em; height: 2.1em; border: 1px solid var(--save-item-border); background: var(--save-item-bg);
+  color: var(--text); font-size: 13px; cursor: pointer; display: grid; place-items: center;
+  padding: 0; border-radius: 3px; touch-action: manipulation;
+}
+.tb-chip.on { background: var(--acc); border-color: var(--acc); color: var(--on-acc); font-weight: bold; }
+.tb-empty { font-size: 13px; color: var(--text-light); padding: 10px 2px; line-height: 1.7; }
+
 /* 設定：色えらびの丸チップ */
 .skin-sw { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 2px 2px; }
 .skin-chip {
@@ -3061,6 +3162,25 @@ body.dark .tsx-res-val.ng   { color: #ff8a80; }
   color: #000; background: #fff; font-size: 11px; line-height: 1.5;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
+/* 📅当番表（v394）。紙は白なので色は決め打ち */
+#printArea .tp-doc .tp-title { font-size: 21px; font-weight: bold; text-align: center; }
+#printArea .tp-doc .tp-sub { font-size: 11px; text-align: center; margin-top: 3px; white-space: pre-line; }
+#printArea .tp-doc .tp-range { font-size: 11px; color: #555; text-align: center; margin: 3px 0 9px; }
+#printArea .tp-doc .tp-ms { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 9px; }
+#printArea .tp-doc .tp-m { border: 1px solid #000; break-inside: avoid; page-break-inside: avoid; }
+#printArea .tp-doc .tp-mh { text-align: center; font-weight: bold; font-size: 12px; padding: 1px 0 2px; border-bottom: 1px solid #000; }
+#printArea .tp-doc .tp-t { width: 100%; border-collapse: collapse; table-layout: fixed; }
+#printArea .tp-doc .tp-h { font-size: 9px; font-weight: bold; padding: 1px 0; border: 1px solid #bfbfbf; border-top: none; }
+#printArea .tp-doc .tp-c { height: 34px; vertical-align: top; border: 1px solid #bfbfbf; padding: 1px 1px 2px; text-align: center; }
+#printArea .tp-doc .tp-sun { background: #f8cbac; }
+#printArea .tp-doc .tp-sat { background: #bed7ee; }
+#printArea .tp-doc .tp-dn { font-size: 10px; line-height: 1.1; }
+#printArea .tp-doc .tp-r { color: #ff0000; }
+#printArea .tp-doc .tp-bl { color: #0070c0; }
+#printArea .tp-doc .tp-hn { font-size: 6px; color: #ff0000; line-height: 1.05; }
+#printArea .tp-doc .tp-nm { font-size: 9px; line-height: 1.12; overflow-wrap: anywhere; margin-top: 1px; }
+#printArea .tp-doc .tp-foot { font-size: 9px; color: #666; margin-top: 7px; text-align: right; }
+
 #printArea .op-doc .vp-head { border-bottom: 2px solid #2e7d32; padding-bottom: 6px; margin-bottom: 10px; }
 #printArea .op-doc .vp-title { font-size: 20px; font-weight: bold; }
 #printArea .op-doc .vp-sub { font-size: 11px; color: #555; margin-top: 2px; }
@@ -4920,6 +5040,78 @@ body.dark {
   </div>
 </div>
 
+<!-- ── 📅当番表（v394）──
+     ごみ当番・掃除当番などの持ち回りを、半年分のカレンダーにして配れるようにする。
+     名前（見出し）は書き換えられる。名簿と割り当ては空から始める。 -->
+<div class="modal-overlay" id="toubanOverlay" onclick="if(event.target===this)closeTouban()">
+  <div class="modal vol-modal">
+    <div class="modal-header">
+      <span id="toubanHdr">📅 当番表</span>
+      <span class="hdr-right">
+        <button class="hdr-btn" onclick="openTbSet()">⚙ 名簿・設定</button>
+        <button class="hdr-btn" onclick="tbPrint()">🖨 印刷</button>
+        <button class="modal-close" onclick="closeTouban()">✕</button>
+      </span>
+    </div>
+    <div class="modal-body">
+      <div class="tb-titles">
+        <input type="text" class="tb-title-in" id="tbTitle" maxlength="40" placeholder="当番表"
+               aria-label="表の名前" oninput="tbSetTitle(this.value)" onkeydown="event.stopPropagation()">
+        <input type="text" class="tb-sub-in" id="tbSub" maxlength="60" placeholder="そえ書き（自治会名や、お願いごと）"
+               aria-label="そえ書き" oninput="tbSetSub(this.value)" onkeydown="event.stopPropagation()">
+      </div>
+      <div class="tb-bar">
+        <div class="tb-seg" id="tbHalfSeg">
+          <button onclick="tbSetHalf('H1')">上期 4〜9月</button>
+          <button onclick="tbSetHalf('H2')">下期 10〜3月</button>
+        </div>
+      </div>
+      <div class="tb-next" id="tbNext"></div>
+      <div class="mode-hint">日づけの下の枠に<b>名簿の番号</b>を入れると、その人の名前が入ります。名簿は<b>⚙名簿・設定</b>から登録してください。</div>
+      <div class="tb-months" id="tbMonths"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="tbSetOverlay" onclick="if(event.target===this)closeTbSet()">
+  <div class="modal vol-modal">
+    <div class="modal-header">
+      <span>⚙ 名簿・設定</span>
+      <button class="modal-close" onclick="closeTbSet()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="set-sec">年度と当番の日</div>
+      <div class="set-row">
+        <span class="set-label">年度<small id="tbEra"></small></span>
+        <span class="set-stepper"><button class="step-btn" onclick="tbChangeYear(-1)">−</button><span class="sc-val" id="tbYearVal">2026</span><button class="step-btn" onclick="tbChangeYear(1)">＋</button></span>
+      </div>
+      <div class="set-row"><span class="set-label">当番の曜日</span></div>
+      <div class="tb-chips" id="tbDowChips"></div>
+      <div class="set-sec">祝日のあつかい</div>
+      <div class="tb-seg" id="tbHolSeg">
+        <button onclick="tbSetHol('shift')">翌日にずらす</button>
+        <button onclick="tbSetHol('skip')">当番なし</button>
+      </div>
+      <button class="set-act" id="tbNYBtn" onclick="tbToggleNY()">🎍 年末年始（12/31〜1/3）は当番なし</button>
+
+      <div class="set-sec">順番に割り当てる</div>
+      <div class="set-note">名簿の順に、当番の日へ番号を送りながら入れます。<b>すでに入っている番号は消えます</b>。</div>
+      <div class="set-row">
+        <span class="set-label">はじめの番号<small id="tbStartName"></small></span>
+        <span class="set-stepper"><button class="step-btn" onclick="tbChangeStart(-1)">−</button><span class="sc-val" id="tbStartVal">1</span><button class="step-btn" onclick="tbChangeStart(1)">＋</button></span>
+      </div>
+      <button class="set-act" onclick="tbAssign('year')">📅 1年ぶんに割り当てる</button>
+      <button class="set-act" onclick="tbAssign('half')">📆 いま見ている半年だけ</button>
+      <button class="set-act" onclick="tbClearHalf()">🧹 いま見ている半年の番号を消す</button>
+
+      <div class="set-sec">名簿<small id="tbRosterCount"></small></div>
+      <div class="set-note">この<b>並び順が番号</b>になります。順番を入れ替えると、番号の指す人も変わります。</div>
+      <ol class="tb-rlist" id="tbRoster"></ol>
+      <button class="set-act" onclick="tbAddMember()">＋ 人を足す</button>
+    </div>
+  </div>
+</div>
+
 <!-- 新しくなったこと（v385） -->
 <div class="modal-overlay" id="whatsNewOverlay" onclick="if(event.target===this)closeWhatsNew()">
   <div class="modal">
@@ -5238,6 +5430,7 @@ body.dark {
             <tr><td><b>調整バー</b></td><td>大きさを変えるバーの太さ、表示/非表示を切替（「くわしい設定」の中）</td></tr>
             <tr><td><b>上下の余白</b></td><td>テンキーの上下の隙間（「最小」でホームバー分も詰める）</td></tr>
           </table>
+          <div class="help-li"><b>📅当番表</b>（v394から）：<b>ごみ当番・掃除当番</b>などの持ち回りを、半年分のカレンダーにして配れます。<b>⚙名簿・設定</b>で人を順に登録し（<b>並び順がそのまま番号</b>になります）、<b>当番の曜日</b>を選んでから<b>「1年ぶんに割り当てる」</b>を押すと、名簿の順に番号が入ります。<b>日づけの下の枠に番号を入れて手で直す</b>こともできます（Enterで次の当番日へ進みます）。<b>祝日は自動で出ます</b>（<b>翌日にずらす／当番なし</b>を選べます。年末年始をとばすこともできます）。<b>表の名前は書き換えられます</b>（はじめは「当番表」。そえ書きも入れられます）。<b>🖨印刷</b>で半年分が1枚に入ります。設定→🎨見た目→くわしい設定→<b>テンキーの上に出す道具</b>から出しておけます。入れたものは<b>この端末の中だけ</b>に残ります。</div>
           <div class="help-li"><b>▦既定の大きさ</b>（v392から）：<b>タップすると設定が開きます</b>。新しく表を作るときや <b>▦通常</b> でまっさらに戻したときの<b>行数・列数</b>をここで決めます（初期値15行×3列）。<b>いま開いている表だけ</b>をその大きさにしたいときは、同じ画面の<b>「▦ いまの表をこの大きさにする」</b>を押してください（中身はそのままです）。<br>v391までは<b>タップが「いまの表を変える」・長押しが設定</b>でしたが、タップの動きが <b>▦通常</b> とまぎらわしかったので入れかえました（設定→🎨見た目→くわしい設定→<b>上のバーに出すボタン</b>で上のバーにも出せます）。</div>
           <div class="help-li"><b>▦通常 と ▦既定の大きさ のちがい</b>（似ているので）：<br>
             ・<b>▦通常</b>は<b>モードを通常に戻す</b>ボタンです。すでに通常のときは、<b>ひな形なら消して</b>まっさらな表にし、<b>中身が空で小さいままなら</b>既定の大きさに戻します。<b>中身が入っているときは大きさを変えません</b>（作りかけの表を勝手に変えないため）<br>
@@ -8069,6 +8262,13 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v396', t:'📅当番表が使えるようになりました', li:[
+    'ごみ当番・掃除当番などの<b>持ち回りのカレンダー</b>を作れる道具を足しました',
+    '<b>名簿に人を登録</b>して<b>曜日</b>を決めると、<b>順番に割り当て</b>られます。日づけの枠に番号を入れて手で直すこともできます',
+    '<b>祝日は自動</b>で出ます（翌日にずらす／当番なし が選べます）。年末年始をとばすこともできます',
+    '<b>表の名前は自由に書き換えられます</b>（はじめは「当番表」）。そえ書きも入れられます',
+    '<b>🖨印刷</b>で半年ぶんが1枚に入ります。設定→🎨見た目→くわしい設定→<b>テンキーの上に出す道具</b>から出せます',
+  ]},
   { v:'v395', t:'🧾自治会会計は「🧾会計アプリ」になりました', li:[
     '自治会だけでなく、<b>サークル・小さな事業所</b>などでも使えるようにしたので、名前を<b>会計アプリ</b>に変えました',
     '中身はそのままです。<b>入れた記録も、そのまま使えます</b>',
@@ -8187,6 +8387,391 @@ function dtVoiceRowTap(){
   const box=document.getElementById('dtVoice');
   if(box && (box.classList.contains('dt-voice-full') || dtVoiceClipped())){ dtVoiceToggleFull(); return; }
   voiceStart();
+}
+
+/* ══ 📅当番表（v394）═══════════════════════════════════════════
+   ごみ当番・掃除当番などの持ち回りを、半年分のカレンダーにして配れるようにする。
+   日づけの下の枠に名簿の番号を入れると、その人の名前が出る。
+   名前（見出し）とそえ書きは書き換えられる。名簿も割り当ても空から始める。
+   入れたものはこの端末の中だけ（excalc_touban）。 */
+const TB_KEY='excalc_touban';
+const TB_WD=['日','月','火','水','木','金','土'];
+let touban={ title:'当番表', sub:'', year:0, half:'H1',
+             cfg:{ days:[2,5], holiday:'shift', skipNY:true },
+             roster:[], assign:{}, start:1 };
+
+/* ── 日づけの道具 ── */
+const tbP2=n=>String(n).padStart(2,'0');
+const tbIso=d=>d.getFullYear()+'-'+tbP2(d.getMonth()+1)+'-'+tbP2(d.getDate());
+const tbMk=(y,m,d)=>new Date(y,m-1,d);
+function tbParse(k){ const a=String(k).split('-').map(Number); return tbMk(a[0],a[1],a[2]); }
+/* 年度は4月はじまり。1〜3月は前の年の年度 */
+function tbThisFiscalYear(){ const n=new Date(); return (n.getMonth()+1>=4)?n.getFullYear():n.getFullYear()-1; }
+
+/* ── 祝日（いまの法律で計算する。表を持たないので何年でも出せる）── */
+const tbHolCache={};
+function tbHolidays(year){
+  if(tbHolCache[year]) return tbHolCache[year];
+  const base={};
+  const set=(m,d,name)=>{ base[tbIso(tbMk(year,m,d))]=name; };
+  const nthMon=(m,n)=>{ const f=tbMk(year,m,1); return 1+(8-f.getDay())%7+7*(n-1); };
+  const eq=a=>Math.floor(a+0.242194*(year-1980)-Math.floor((year-1980)/4));
+  set(1,1,'元旦');
+  set(1,nthMon(1,2),'成人の日');
+  set(2,11,'建国記念の日');
+  if(year>=2020) set(2,23,'天皇誕生日');
+  set(3,eq(20.8431),'春分の日');
+  set(4,29,'昭和の日');
+  set(5,3,'憲法記念日'); set(5,4,'みどりの日'); set(5,5,'こどもの日');
+  set(7,nthMon(7,3),'海の日');
+  set(8,11,'山の日');
+  set(9,nthMon(9,3),'敬老の日');
+  set(9,eq(23.2488),'秋分の日');
+  set(10,nthMon(10,2),'スポーツの日');
+  set(11,3,'文化の日');
+  set(11,23,'勤労感謝の日');
+  if(year<2020) set(12,23,'天皇誕生日');
+  const all=Object.assign({},base);
+  Object.keys(base).forEach(k=>{                       // 国民の休日（祝日にはさまれた平日）
+    const d=tbParse(k), n=new Date(d); n.setDate(n.getDate()+2);
+    const mid=new Date(d); mid.setDate(mid.getDate()+1);
+    if(base[tbIso(n)] && !base[tbIso(mid)] && mid.getDay()!==0) all[tbIso(mid)]='国民の休日';
+  });
+  Object.keys(base).forEach(k=>{                       // 振替休日（日曜と重なったとき）
+    if(tbParse(k).getDay()!==0) return;
+    const d=tbParse(k);
+    do{ d.setDate(d.getDate()+1); }while(base[tbIso(d)]);
+    all[tbIso(d)]='振替休日';
+  });
+  tbHolCache[year]=all;
+  return all;
+}
+function tbHolName(d){ return tbHolidays(d.getFullYear())[tbIso(d)]||''; }
+
+/* ── しまう・出す ── */
+function loadTouban(){
+  let o=null;
+  try{ o=JSON.parse(localStorage.getItem(TB_KEY)||'null'); }catch(_){}
+  if(!touban.year) touban.year=tbThisFiscalYear();
+  if(o && typeof o==='object'){
+    if(typeof o.title==='string') touban.title=o.title;
+    if(typeof o.sub==='string') touban.sub=o.sub;
+    if(Number.isFinite(o.year)) touban.year=o.year;
+    if(o.half==='H1'||o.half==='H2') touban.half=o.half;
+    if(o.cfg && Array.isArray(o.cfg.days)){
+      touban.cfg={ days:o.cfg.days.slice().filter(x=>x>=0&&x<=6).sort(),
+                   holiday:(o.cfg.holiday==='skip')?'skip':'shift',
+                   skipNY:o.cfg.skipNY!==false };
+    }
+    if(Array.isArray(o.roster)) touban.roster=o.roster.map(m=>({name:String((m&&m.name)||'')}));
+    if(o.assign && typeof o.assign==='object') touban.assign=Object.assign({},o.assign);
+    if(Number.isFinite(o.start)) touban.start=Math.max(1,o.start);
+  }else{
+    // はじめて開いたときは、いまの月に合う期から見せる
+    const m=new Date().getMonth()+1;
+    touban.half=(m>=4&&m<=9)?'H1':'H2';
+  }
+}
+function saveTouban(){
+  try{ localStorage.setItem(TB_KEY, JSON.stringify(touban)); return true; }
+  catch(_){ saveFailed('当番表の保存'); return false; }
+}
+
+/* ── 当番の日を出す（1年ぶん）── */
+function tbMonths(){
+  const y=touban.year;
+  return touban.half==='H1' ? [[y,4],[y,5],[y,6],[y,7],[y,8],[y,9]]
+                            : [[y,10],[y,11],[y,12],[y+1,1],[y+1,2],[y+1,3]];
+}
+function tbHalfRange(){
+  const y=touban.year;
+  return touban.half==='H1' ? [tbIso(tbMk(y,4,1)), tbIso(tbMk(y,9,30))]
+                            : [tbIso(tbMk(y,10,1)), tbIso(tbMk(y+1,3,31))];
+}
+function tbInHalf(k){ const r=tbHalfRange(); return k>=r[0] && k<=r[1]; }
+function tbIsNY(d){
+  return touban.cfg.skipNY && ((d.getMonth()===11 && d.getDate()===31) || (d.getMonth()===0 && d.getDate()<=3));
+}
+function tbDutyDates(){
+  const out=[], seen=new Set(), y=touban.year;
+  if(!touban.cfg.days.length) return out;
+  const end=tbMk(y+1,3,31);
+  for(let d=tbMk(y,4,1); d<=end; d.setDate(d.getDate()+1)){
+    if(!touban.cfg.days.includes(d.getDay())) continue;
+    let t=new Date(d);
+    if(tbIsNY(t)) continue;
+    if(tbHolName(t)){
+      if(touban.cfg.holiday==='skip') continue;
+      const n=new Date(t); n.setDate(n.getDate()+1);
+      if(n.getMonth()!==t.getMonth() || tbIsNY(n)) continue;   // 月をまたぐならやめる
+      t=n;
+    }
+    const k=tbIso(t);
+    if(!seen.has(k)){ seen.add(k); out.push(k); }
+  }
+  return out.sort();
+}
+function tbNameOf(no){ const m=touban.roster[no-1]; return m?m.name:null; }
+
+/* ── 開く・閉じる ── */
+function openTouban(){ loadTouban(); renderTouban(); openDlg('toubanOverlay'); }
+function closeTouban(){ closeDlg('toubanOverlay'); }
+function openTbSet(){ renderTbSet(); openDlg('tbSetOverlay'); }
+function closeTbSet(){ closeDlg('tbSetOverlay', ()=>renderTouban()); }
+
+/* ── 画面を作る ── */
+let tbDutySet=new Set();
+function renderTouban(){
+  tbDutySet=new Set(tbDutyDates());
+  const t=document.getElementById('tbTitle'), sb=document.getElementById('tbSub');
+  if(t && document.activeElement!==t) t.value=touban.title;
+  if(sb && document.activeElement!==sb) sb.value=touban.sub;
+  const hdr=document.getElementById('toubanHdr');
+  if(hdr) hdr.textContent='📅 '+(touban.title||'当番表');
+  const seg=document.getElementById('tbHalfSeg');
+  if(seg) Array.from(seg.children).forEach((b,i)=>b.classList.toggle('on', (i===0)===(touban.half==='H1')));
+  tbRenderNext();
+  tbRenderMonths();
+}
+function tbRenderNext(){
+  const box=document.getElementById('tbNext'); if(!box) return;
+  const today=tbIso(new Date());
+  const keys=Object.keys(touban.assign).filter(k=>k>=today).sort();
+  if(!touban.roster.length){
+    box.innerHTML='<span class="tb-tag">まずは名簿から</span><span class="tb-n">⚙名簿・設定 で人を登録してください</span>';
+    return;
+  }
+  if(keys.length){
+    const k=keys[0], d=tbParse(k), nm=tbNameOf(touban.assign[k]);
+    box.innerHTML='<span class="tb-tag">'+(k===today?'今日の当番':'次の当番')+'</span>'+
+      '<span class="tb-d">'+(d.getMonth()+1)+'/'+d.getDate()+'（'+TB_WD[d.getDay()]+'）</span>'+
+      '<span class="tb-n">'+escHtml(nm||('番号 '+touban.assign[k]+'：名簿にありません'))+'</span>';
+  }else{
+    box.innerHTML='<span class="tb-tag">次の当番</span><span class="tb-n">この先の予定はまだありません</span>';
+  }
+}
+function tbRenderMonths(){
+  const box=document.getElementById('tbMonths'); if(!box) return;
+  const today=tbIso(new Date());
+  let html='';
+  for(const ym of tbMonths()){
+    const y=ym[0], m=ym[1];
+    const first=tbMk(y,m,1), last=tbMk(y,m+1,0);
+    let cells='';
+    for(let i=0;i<first.getDay();i++) cells+='<div class="tb-cell blank d'+i+'"></div>';
+    for(let day=1; day<=last.getDate(); day++){
+      const d=tbMk(y,m,day), k=tbIso(d), hn=tbHolName(d), no=touban.assign[k];
+      const cls=['tb-cell','d'+d.getDay()];
+      if(hn) cls.push('hol');
+      if(tbDutySet.has(k)) cls.push('duty');
+      if(k===today) cls.push('today');
+      const nm=(no!=null)?tbNameOf(no):null;
+      cells+='<div class="'+cls.join(' ')+'" data-d="'+k+'">'+
+        '<span class="tb-dn">'+day+'</span>'+
+        (hn?'<span class="tb-hn">'+escHtml(hn)+'</span>':'')+
+        '<div class="tb-slot"><input class="tb-no" inputmode="numeric" autocomplete="off" value="'+(no!=null?no:'')+
+        '" aria-label="'+m+'月'+day+'日の当番の番号" onkeydown="event.stopPropagation()">'+
+        '<span class="tb-nm'+((no!=null&&!nm)?' bad':'')+'">'+(no!=null?escHtml(nm||'名簿にありません'):'')+'</span></div></div>';
+    }
+    const tail=(7-(first.getDay()+last.getDate())%7)%7;
+    for(let i=0;i<tail;i++) cells+='<div class="tb-cell blank d'+((7-tail+i)%7)+'"></div>';
+    const cnt=Object.keys(touban.assign).filter(k=>k.startsWith(y+'-'+tbP2(m))).length;
+    html+='<section class="tb-month"><div class="tb-mhead">'+m+'月<small>'+y+'・'+cnt+'日</small></div>'+
+      '<div class="tb-grid">'+TB_WD.map((w,i)=>'<div class="tb-dow d'+i+'">'+w+'</div>').join('')+cells+'</div></section>';
+  }
+  box.innerHTML=html;
+}
+/* 1マスだけ書き直す（番号を打つたびに全部作り直さない） */
+function tbPatchCell(k){
+  const box=document.getElementById('tbMonths'); if(!box) return;
+  const cell=box.querySelector('.tb-cell[data-d="'+k+'"]'); if(!cell) return;
+  const no=touban.assign[k], nm=(no!=null)?tbNameOf(no):null;
+  const el=cell.querySelector('.tb-nm');
+  el.textContent=(no!=null)?(nm||'名簿にありません'):'';
+  el.classList.toggle('bad', no!=null && !nm);
+}
+
+/* ── 手で番号を入れる ── */
+(function setupTouban(){
+  const box=document.getElementById('tbMonths'); if(!box) return;
+  box.addEventListener('input', e=>{
+    const inp=e.target.closest && e.target.closest('.tb-no'); if(!inp) return;
+    const cell=inp.closest('.tb-cell'); if(!cell) return;
+    const k=cell.dataset.d;
+    const v=inp.value.replace(/[^0-9]/g,'').slice(0,3);
+    if(inp.value!==v) inp.value=v;
+    if(v==='') delete touban.assign[k]; else touban.assign[k]=parseInt(v,10);
+    tbPatchCell(k); tbRenderNext(); saveTouban();
+  });
+  // Enter で次の当番の日へ移る
+  box.addEventListener('keydown', e=>{
+    if(e.key!=='Enter' || !(e.target.closest && e.target.closest('.tb-no'))) return;
+    e.preventDefault();
+    const list=[...box.querySelectorAll('.tb-cell.duty .tb-no')];
+    const i=list.indexOf(e.target);
+    if(i>-1 && list[i+1]) list[i+1].focus();
+  });
+})();
+
+/* ── 見出し・期・設定 ── */
+function tbSetTitle(v){ touban.title=String(v||'').slice(0,40);
+  const h=document.getElementById('toubanHdr'); if(h) h.textContent='📅 '+(touban.title||'当番表');
+  saveTouban(); }
+function tbSetSub(v){ touban.sub=String(v||'').slice(0,60); saveTouban(); }
+function tbSetHalf(h){ touban.half=(h==='H2')?'H2':'H1'; saveTouban(); renderTouban(); }
+function tbChangeYear(d){
+  const y=touban.year+d; if(y<2000||y>2099) return;
+  touban.year=y; saveTouban(); renderTbSet(); renderTouban();
+}
+function tbSetHol(v){ touban.cfg.holiday=(v==='skip')?'skip':'shift'; saveTouban(); renderTbSet(); renderTouban(); }
+function tbToggleNY(){ touban.cfg.skipNY=!touban.cfg.skipNY; saveTouban(); renderTbSet(); renderTouban(); }
+function tbToggleDow(i){
+  const set=new Set(touban.cfg.days);
+  if(set.has(i)) set.delete(i); else set.add(i);
+  touban.cfg.days=[...set].sort();
+  saveTouban(); renderTbSet(); renderTouban();
+}
+function tbChangeStart(d){
+  const n=touban.start+d;
+  if(n<1 || n>Math.max(1,touban.roster.length)) return;
+  touban.start=n; saveTouban(); renderTbSet();
+}
+function renderTbSet(){
+  const y=document.getElementById('tbYearVal'); if(y) y.textContent=touban.year;
+  const era=document.getElementById('tbEra');
+  if(era) era.textContent='令和'+(touban.year-2018)+'年度（'+touban.year+'年4月〜'+(touban.year+1)+'年3月）';
+  const ch=document.getElementById('tbDowChips');
+  if(ch) ch.innerHTML=TB_WD.map((w,i)=>
+    '<button class="tb-chip'+(touban.cfg.days.includes(i)?' on':'')+'" onclick="tbToggleDow('+i+')" aria-pressed="'+touban.cfg.days.includes(i)+'">'+w+'</button>').join('');
+  const hs=document.getElementById('tbHolSeg');
+  if(hs) Array.from(hs.children).forEach((b,i)=>b.classList.toggle('on', (i===0)===(touban.cfg.holiday==='shift')));
+  const ny=document.getElementById('tbNYBtn'); if(ny) ny.classList.toggle('on', touban.cfg.skipNY);
+  const sv=document.getElementById('tbStartVal'); if(sv) sv.textContent=touban.start;
+  const sn=document.getElementById('tbStartName');
+  if(sn){ const nm=tbNameOf(touban.start); sn.textContent=nm?('→ '+nm+' から'):''; }
+  tbRenderRoster();
+}
+
+/* ── 名簿 ── */
+function tbRenderRoster(){
+  const box=document.getElementById('tbRoster'); if(!box) return;
+  const cnt=document.getElementById('tbRosterCount');
+  if(cnt) cnt.textContent=touban.roster.length?('　'+touban.roster.length+'人'):'';
+  if(!touban.roster.length){
+    box.innerHTML='<div class="tb-empty">まだ誰も登録されていません。下の<b>＋ 人を足す</b>から、当番に入る人を順に足してください。<br>ここに並べた<b>順番がそのまま番号</b>になります。</div>';
+    return;
+  }
+  const today=tbIso(new Date());
+  const counts={}, next={};
+  Object.keys(touban.assign).sort().forEach(k=>{
+    const no=touban.assign[k];
+    counts[no]=(counts[no]||0)+1;
+    if(k>=today && next[no]==null) next[no]=k;
+  });
+  box.innerHTML=touban.roster.map((mem,i)=>{
+    const no=i+1, nx=next[no]?tbParse(next[no]):null;
+    return '<li data-i="'+i+'"><span class="tb-rno">'+no+'</span>'+
+      '<input value="'+escHtml(mem.name)+'" placeholder="お名前" aria-label="'+no+'番のお名前"'+
+      ' oninput="tbRename('+i+',this.value)" onkeydown="event.stopPropagation()">'+
+      '<span class="tb-rmeta">'+(counts[no]?('×'+counts[no]):'—')+(nx?('<br>次 '+(nx.getMonth()+1)+'/'+nx.getDate()):'')+'</span>'+
+      '<button class="tb-rmini" onclick="tbMove('+i+',-1)" title="上へ" aria-label="'+no+'番を上へ">↑</button>'+
+      '<button class="tb-rmini" onclick="tbMove('+i+',1)" title="下へ" aria-label="'+no+'番を下へ">↓</button>'+
+      '<button class="tb-rmini" onclick="tbDelMember('+i+')" title="はずす" aria-label="'+no+'番をはずす">✕</button></li>';
+  }).join('');
+}
+function tbRename(i,v){
+  if(!touban.roster[i]) return;
+  touban.roster[i].name=String(v||'').slice(0,30);
+  saveTouban();
+}
+function tbMove(i,d){
+  const j=i+d;
+  if(j<0 || j>=touban.roster.length) return;
+  const a=touban.roster;
+  const t=a[i]; a[i]=a[j]; a[j]=t;
+  saveTouban(); renderTbSet();
+}
+async function tbDelMember(i){
+  const m=touban.roster[i]; if(!m) return;
+  if(!await appConfirm('「'+(m.name||((i+1)+'番'))+'」を名簿からはずします。\nこのあとの人の番号が1つずつ繰り上がります。よろしいですか')) return;
+  touban.roster.splice(i,1);
+  if(touban.start>touban.roster.length) touban.start=Math.max(1,touban.roster.length);
+  saveTouban(); renderTbSet();
+}
+function tbAddMember(){
+  if(touban.roster.length>=200){ toast('名簿は200人までです'); return; }
+  touban.roster.push({name:''});
+  saveTouban(); renderTbSet();
+  const box=document.getElementById('tbRoster');
+  if(box){ const ins=box.querySelectorAll('input'); const last=ins[ins.length-1]; if(last) last.focus(); }
+}
+
+/* ── 順番に割り当てる ── */
+async function tbAssign(scope){
+  const len=touban.roster.length;
+  if(!len){ toast('先に名簿へ人を登録してください'); return; }
+  if(!touban.cfg.days.length){ toast('当番の曜日を選んでください'); return; }
+  const n0=Math.max(1, Math.min(len, touban.start));
+  const all=tbDutyDates();
+  const target=(scope==='year')?all:all.filter(tbInHalf);
+  if(!target.length){ toast('当番の日がありません'); return; }
+  const what=(scope==='year')?'1年ぶん':'いま見ている半年';
+  if(!await appConfirm(what+'（'+target.length+'日）に、'+n0+'番から順に割り当てます。\nいま入っている番号は消えます。よろしいですか')) return;
+  if(scope==='year') touban.assign={};
+  else Object.keys(touban.assign).forEach(k=>{ if(tbInHalf(k)) delete touban.assign[k]; });
+  let n=n0;
+  target.forEach(k=>{ touban.assign[k]=n; n=n%len+1; });
+  saveTouban(); renderTbSet(); renderTouban();
+  toast(target.length+'日に割り当てました');
+}
+async function tbClearHalf(){
+  const half=(touban.half==='H1')?'上期':'下期';
+  if(!await appConfirm(half+'の番号をすべて消します。よろしいですか')) return;
+  Object.keys(touban.assign).forEach(k=>{ if(tbInHalf(k)) delete touban.assign[k]; });
+  saveTouban(); renderTbSet(); renderTouban();
+  toast(half+'の番号を消しました');
+}
+
+/* ── 印刷（半年ぶんを1枚に）── */
+function tbPrintHtml(){
+  let months='';
+  for(const ym of tbMonths()){
+    const y=ym[0], m=ym[1];
+    const first=tbMk(y,m,1), last=tbMk(y,m+1,0);
+    const cells=[];
+    for(let i=0;i<first.getDay();i++) cells.push('<td class="tp-c"></td>');
+    for(let day=1; day<=last.getDate(); day++){
+      const d=tbMk(y,m,day), k=tbIso(d), hn=tbHolName(d), no=touban.assign[k], w=d.getDay();
+      const nm=(no!=null)?tbNameOf(no):null;
+      const bg=(w===0)?' tp-sun':((w===6)?' tp-sat':'');
+      const dcl=(w===0||hn)?' tp-r':(w===6?' tp-bl':'');
+      cells.push('<td class="tp-c'+bg+'">'+
+        '<div class="tp-dn'+dcl+'">'+day+'</div>'+
+        (hn?'<div class="tp-hn">'+escHtml(hn)+'</div>':'')+
+        '<div class="tp-nm">'+((no!=null)?escHtml(nm||('番号'+no)):'')+'</div></td>');
+    }
+    while(cells.length%7) cells.push('<td class="tp-c"></td>');
+    let rows='';
+    for(let i=0;i<cells.length;i+=7) rows+='<tr>'+cells.slice(i,i+7).join('')+'</tr>';
+    months+='<div class="tp-m"><div class="tp-mh">'+m+'月</div>'+
+      '<table class="tp-t"><tr>'+
+      TB_WD.map((w,i)=>'<th class="tp-h'+(i===0?' tp-r':(i===6?' tp-bl':''))+'">'+w+'</th>').join('')+
+      '</tr>'+rows+'</table></div>';
+  }
+  const r=tbHalfRange(), a=tbParse(r[0]), b=tbParse(r[1]), n=new Date();
+  return '<div class="op-doc tp-doc">'+
+    '<div class="tp-title">'+escHtml(touban.title||'当番表')+'</div>'+
+    (touban.sub?'<div class="tp-sub">'+escHtml(touban.sub)+'</div>':'')+
+    '<div class="tp-range">'+a.getFullYear()+'年'+(a.getMonth()+1)+'月 〜 '+b.getFullYear()+'年'+(b.getMonth()+1)+'月</div>'+
+    '<div class="tp-ms">'+months+'</div>'+
+    '<div class="tp-foot">当番の日 '+Object.keys(touban.assign).filter(tbInHalf).length+'日　／　'+
+      n.getFullYear()+'/'+(n.getMonth()+1)+'/'+n.getDate()+' 現在</div></div>';
+}
+function tbPrint(){
+  const built=opBuild(tbPrintHtml());
+  closeTouban();
+  opPrint(built);
+  return built.k;
 }
 
 /* ── 電卓だけにする（v388） ──
@@ -13021,6 +13606,7 @@ const NP_TOOLS=[
   {id:'volume',   label:'📷容積',       ov:'volumeOverlay',    run:()=>openVolume(),   close:()=>closeVolume()},
   {id:'photomemo',label:'📝写真メモ',   ov:'photoMemoOverlay', run:()=>openPhotoMemo(),close:()=>closePhotoMemo()},
   {id:'linklist', label:'🔗リンク集',   ov:'linkListOverlay',  run:()=>openLinkList(), close:()=>closeLinkList()},
+  {id:'touban',   label:'📅当番表',     ov:'toubanOverlay',    run:()=>openTouban(),   close:()=>closeTouban()},
   {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},                        // 別のタブで開くので全画面・フリックの対象外
   {id:'calctmpl', label:'📋式テンプレ', ov:'calcTmplOverlay',  run:()=>openCalcTmpl(), close:()=>closeCalcTmpl()},
   {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
@@ -19359,7 +19945,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v395';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v396';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -20865,6 +21451,7 @@ const ST_GROUPS=[
   {k:'excalc_ts_regs',    n:'配合・エアメータの登録'},
   {k:'excalc_veg_plots',  n:'育てている野菜'},
   {k:'excalc_skin_photo', n:'背景の写真',           how:'clear'},
+  {k:'excalc_touban',     n:'当番表'},
   {k:'excalc_links',      n:'リンク集'},
   {k:'excalc_userkeys',   n:'登録キー'},
   {k:'excalc_custommodes',n:'登録モード'},
