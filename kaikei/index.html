@@ -524,7 +524,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
    ・お金の場所（口座）は「現金・農協・信用金庫・定期預金…」と名前で持つ。
      口座から口座へ移すのは「振替」として、収入・支出とは別に数える。
    ══════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v6';
+const APP_VERSION='v7';
 const KEY='jk_kaikei_v1';
 
 const DEF_CATS={
@@ -863,13 +863,17 @@ function itemRow(r, bal){
   const md=it.date.slice(5).replace('-','/');
   const balHtml=(bal&&bal.acc!=null)
     ? `<div class="li-bal num"><span class="ba">${escHtml(bal.acc)}</span> ${yen(bal.amount)}</div>` : '';
+  /* 残高のところに口座名が出ているときは、科目の横には出さない（同じことを2回出さない）。
+     振替は「農協 → 現金」で、残高だけでは片側しか分からないので残す。 */
+  const showTag=tr||!(bal&&bal.acc!=null);
   li.innerHTML=`<div class="li-main">
-      <div class="li-top"><span class="li-date num">${md}</span><span class="li-cat"></span><span class="pay-tag"></span></div>
+      <div class="li-top"><span class="li-date num">${md}</span><span class="li-cat"></span>${showTag?'<span class="pay-tag"></span>':''}</div>
       <div class="li-note"></div>
     </div>
     <div><div class="li-amt num ${r.kind}">${tr?'⇄':(r.kind==='in'?'+':'−')}${yen(it.amt)}</div>${balHtml}</div>`;
   li.querySelector('.li-cat').textContent=tr?'ふりかえ':(it.cat||'（科目なし）');
-  li.querySelector('.pay-tag').textContent=tr?`${it.from} → ${it.to}`:(it.acc||'');
+  const tag=li.querySelector('.pay-tag');
+  if(tag) tag.textContent=tr?`${it.from} → ${it.to}`:(it.acc||'');
   li.querySelector('.li-note').textContent=[it.note, it.event?`【${it.event}】`:'', it.memo?`（${it.memo}）`:''].filter(Boolean).join(' ');
   li.onclick=()=>openItem(it.id, r.kind);
   li.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openItem(it.id, r.kind); } };
