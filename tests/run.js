@@ -1193,15 +1193,15 @@ async function runNpTools(browser) {
     NP_TOOLS.map(t => t.id).join(',')),
     'tansui,kantab,veggie,volume,photomemo,linklist,memo,calctmpl,fintmpl,kaikei');
 
-  // 自治会会計は、メモと同じく別のタブで開く別アプリ（全画面・フリックの対象外）
-  check('  自治会会計はタブのタイトルつきで並ぶ', await page.evaluate(() =>
-    (NP_TOOLS.find(t => t.id === 'kaikei') || {}).label), '🧾自治会会計');
-  check('  自治会会計は全画面の画面を持たない', await page.evaluate(() =>
+  // 会計アプリは、メモと同じく別のタブで開く別アプリ（全画面・フリックの対象外）
+  check('  会計アプリはタブのタイトルつきで並ぶ', await page.evaluate(() =>
+    (NP_TOOLS.find(t => t.id === 'kaikei') || {}).label), '🧾会計アプリ');
+  check('  会計アプリは全画面の画面を持たない', await page.evaluate(() =>
     !(NP_TOOLS.find(t => t.id === 'kaikei') || {}).ov), true);
   check('  はじめに開くページには出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'kaikei')), false);
   check('  ▲登録の一覧にある', await page.evaluate(() =>
-    !!(KEY_FUNCS.a_kaikei && KEY_FUNCS.a_kaikei.label === '🧾自治会会計')), true);
+    !!(KEY_FUNCS.a_kaikei && KEY_FUNCS.a_kaikei.label === '🧾会計アプリ')), true);
   check('  登録したらその場で開く（新しいタブなので）', await page.evaluate(() =>
     REG_GESTURE_ACTIONS.has('a_kaikei')), true);
   check('  開く先は kaikei/ ', await page.evaluate(() => {
@@ -1214,9 +1214,9 @@ async function runNpTools(browser) {
   // チェックすると並びに足される
   await page.evaluate(() => { npToolToggle('tansui'); npToolToggle('veggie'); }); await page.waitForTimeout(250);
   check('  チェックした道具が電卓の右に並ぶ', await bar(), '書式・枠線|数字|記号|電卓|💧単位水量|🌱野菜|▲ 登録');
-  check('  自治会会計もタブに足せる', await page.evaluate(async () => {
+  check('  会計アプリもタブに足せる', await page.evaluate(async () => {
     npToolToggle('kaikei'); await new Promise(r => setTimeout(r, 200));
-    const on = [...document.querySelectorAll('#numpadPageBar .np-page')].some(b => /自治会会計/.test(b.textContent));
+    const on = [...document.querySelectorAll('#numpadPageBar .np-page')].some(b => /会計アプリ/.test(b.textContent));
     npToolToggle('kaikei'); await new Promise(r => setTimeout(r, 200));
     return on;
   }), true);
@@ -4874,7 +4874,7 @@ async function runCellFocus(browser) {
 }
 
 
-/* ── 自治会会計（kaikei/）──
+/* ── 会計アプリ（kaikei/）──
    スマホ版とパソコン版の Excel のやりとりで、伝票が二重にならない・消えない・
    金額が別の列に入らないことを見る。見本は実物のパソコン版の出し方に合わせてある。 */
 async function runKaikei(browser) {
@@ -4887,7 +4887,7 @@ async function runKaikei(browser) {
   await page.goto(KAIKEI);
   await page.evaluate(() => localStorage.clear());
   await page.reload(); await page.waitForTimeout(400);
-  console.log('\n── 自治会会計 ──');
+  console.log('\n── 会計アプリ ──');
 
   // 日付と金額の読み取り
   const parsed = await page.evaluate(({ d, m }) => ({
@@ -5267,6 +5267,56 @@ async function runKaikei(browser) {
   check('  期首残高の行は出納帳に出ない', obBook.hasOpening, false);
   check('  取引と振替だけが出る', obBook.rows, 4);
   check('  期首残高は期首残高として入る', obBook.begin, 120698 + 915473);
+
+  // ── 一般的な科目を入れる ──
+  const std = await page.evaluate(() => {
+    localStorage.clear(); S = blank(); S.year = 2026;
+    S.cats.out.push('街路灯電気代');
+    S.items = [{ id: 'x', date: '2026-04-05', kind: 'out', cat: '街路灯電気代', note: '', amt: 100, acc: '現金', event: '', memo: '', ts: 1 }];
+    saveNow(); renderAll(); go('set');
+    const before = S.cats.in.length + S.cats.out.length;
+    openStdCats();                                  // 開いただけでは変わらない
+    const opened = { open: document.getElementById('dlgStdCat').open,
+                     cats: S.cats.in.length + S.cats.out.length };
+    const nw = stdCatsNew();
+    return { before, opened, newIn: nw.in.length, newOut: nw.out.length,
+             stdIn: STD_CATS.in.length, stdOut: STD_CATS.out.length };
+  });
+  check('  窓が開く', std.opened.open, true);
+  check('  開いただけでは科目は変わらない', std.opened.cats, std.before);
+  check('  一般的な科目の数', `${std.stdIn}/${std.stdOut}`, '9/23');
+  check('  足りないものだけ数える', `${std.newIn}/${std.newOut}`, '8/17');
+
+  const stdAdd = await page.evaluate(() => {
+    applyStdCats('add');                            // 確認は自動で「はい」
+    return { in: S.cats.in.length, out: S.cats.out.length,
+             keptOld: S.cats.out.includes('街路灯電気代'),
+             hasStd: S.cats.in.includes('売上高') && S.cats.out.includes('旅費交通費'),
+             again: (() => { const n = stdCatsNew(); return n.in.length + n.out.length; })() };
+  });
+  check('  足したあとの数（収入）', stdAdd.in, 6 + 8);
+  check('  足したあとの数（支出）', stdAdd.out, 9 + 1 + 17);
+  check('  もとからの科目は残る', stdAdd.keptOld, true);
+  check('  一般的な科目が入る', stdAdd.hasStd, true);
+  check('  二度押しても増えない', stdAdd.again, 0);
+
+  const stdRep = await page.evaluate(() => {
+    applyStdCats('replace');
+    return { in: S.cats.in.length, out: S.cats.out.length,
+             oldGone: !S.cats.out.includes('街路灯電気代'),
+             itemKept: S.items[0].cat };
+  });
+  check('  入れ替えたら一般的な科目だけ', `${stdRep.in}/${stdRep.out}`, '9/23');
+  check('  もとの科目は一覧から消える', stdRep.oldGone, true);
+  check('  記帳した中身は消えない', stdRep.itemKept, '街路灯電気代');
+
+  // 名前は「会計アプリ」
+  const naming = await page.evaluate(() => {
+    localStorage.clear(); S = blank(); saveNow(); renderAll();
+    return { title: document.title, head: document.getElementById('hdName').textContent };
+  });
+  check('  タイトルは会計アプリ', naming.title, '会計アプリ');
+  check('  上の帯も会計アプリ', naming.head, '会計アプリ');
 
   // ── 年度の切り替え ──
   const yr = await page.evaluate(() => {

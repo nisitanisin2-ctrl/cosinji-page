@@ -8,10 +8,10 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="自治会会計">
-<meta name="description" content="自治会・町内会の会計を、スマホで記帳して Excel でパソコンとやりとりするアプリ。通信なし・アカウントなし。">
+<meta name="apple-mobile-web-app-title" content="会計アプリ">
+<meta name="description" content="現金と口座の出入りを、スマホで記帳して Excel・CSV でパソコンとやりとりする会計アプリ。自治会・サークル・小さな事業所に。通信なし・アカウントなし。">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>自治会会計</title>
+<title>会計アプリ</title>
 <style>
 /* ── 見た目の土台 ──
    会計の帳面なので、色は落ち着いた藍色。入るお金は緑、出るお金は赤の1系統だけで通す。 */
@@ -55,7 +55,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--acc);outline-off
 h2{font-size:17px;margin:0 0 10px}
 .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
 
-/* ── 上の帯（自治会名と、いまの残高） ── */
+/* ── 上の帯（団体の名前と、いまの残高） ── */
 header{
   position:sticky;top:0;z-index:30;background:var(--acc);color:#fff;
   padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;box-shadow:var(--elev-1);
@@ -241,7 +241,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 <body>
 <header>
   <div class="hd-row">
-    <div class="hd-name" id="hdName">自治会会計</div>
+    <div class="hd-name" id="hdName">会計アプリ</div>
     <button class="hd-year" id="hdYear" onclick="openYearPick()" aria-label="表示する年度を切り替える"></button>
     <div class="hd-total">合計 <b class="num" id="hdTotal">0</b> 円</div>
   </div>
@@ -419,7 +419,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 <section class="page" id="pg-set" aria-label="設定">
   <div class="card">
     <h2>この帳面のこと</h2>
-    <label class="fld"><span>自治会の名前</span><input id="stName" type="text" placeholder="○○区"></label>
+    <label class="fld"><span>団体・事業所の名前</span><input id="stName" type="text" placeholder="○○区、○○クラブ など"></label>
     <label class="fld"><span>年度（4月はじまり）</span><input id="stYear" class="num" type="number" inputmode="numeric" min="1990" max="2100">
       <small class="muted">上の帯の「年度 ▼」からも切り替えられます</small></label>
     <button class="btn wide" onclick="saveSettings()">この内容で保存する</button>
@@ -436,6 +436,8 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   <div class="card">
     <h2>科目</h2>
     <p class="muted">よく使う順に並べかえられます。名前はパソコン版と同じ字にそろえておくと、読み込みのときに迷いません。</p>
+    <button class="btn sub wide" onclick="openStdCats()">📋 一般的な科目を入れる</button>
+    <p class="muted" style="margin-top:6px">簿記でよく使う勘定科目を、まとめて入れられます。押してもすぐには変わりません（何を入れるか確かめてから決められます）。</p>
     <div class="sub-head">入るお金</div>
     <div id="catEditIn"></div>
     <div class="sub-head">出るお金</div>
@@ -503,6 +505,16 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   </div>
 </dialog>
 
+<dialog id="dlgStdCat">
+  <div class="dlg-hd"><h2>一般的な科目を入れる</h2><button class="x" onclick="dlgStdCat.close()" aria-label="閉じる">✕</button></div>
+  <div class="dlg-bd" id="dlgStdCatBody"></div>
+  <div class="dlg-ft" style="flex-wrap:wrap">
+    <button class="btn sub" onclick="dlgStdCat.close()">やめる</button>
+    <button class="btn" id="stdAddBtn" onclick="applyStdCats('add')">いまの科目に足す</button>
+    <button class="btn danger" style="flex:1 0 100%" onclick="applyStdCats('replace')">入れ替える（いまの科目を消す）</button>
+  </div>
+</dialog>
+
 <dialog id="dlgCat">
   <div class="dlg-hd"><h2 id="dlgCatTitle">科目を足す</h2><button class="x" onclick="dlgCat.close()" aria-label="閉じる">✕</button></div>
   <div class="dlg-bd">
@@ -517,14 +529,14 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 <script>
 'use strict';
 /* ══════════════════════════════════════════════════════════════════
-   自治会会計（スマホ版）
+   会計アプリ（スマホ版）
    ・入れたものは localStorage だけ。通信は一切しない。
    ・パソコン版とのやりとりは Excel(.xlsx) ファイルの受け渡しで行う。
      外部ライブラリは使わず、ZIP＋XML をこのファイルの中で組み立てて読む。
    ・お金の場所（口座）は「現金・農協・信用金庫・定期預金…」と名前で持つ。
      口座から口座へ移すのは「振替」として、収入・支出とは別に数える。
    ══════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v7';
+const APP_VERSION='v8';
 const KEY='jk_kaikei_v1';
 
 const DEF_CATS={
@@ -693,7 +705,7 @@ function go(pg){
   if(pg==='xls') renderXls();
 }
 function renderHead(){
-  $('hdName').textContent=S.name||'自治会会計';
+  $('hdName').textContent=S.name||'会計アプリ';
   $('hdYear').innerHTML=`${S.year}年度<span class="caret">▼</span>`;
   const a=accountSummary();
   $('hdTotal').textContent=yen(a.sum.now);
@@ -765,6 +777,62 @@ function renderTrSelects(){
   if(kt&&S.accounts.includes(kt)) t.value=kt;
   else if(S.accounts.length>1&&t.value===f.value) t.value=S.accounts.find(a=>a!==f.value)||'';
 }
+/* 簿記でよく使う勘定科目。自治会・サークル・小さな事業所のどれでも使える並びにしてある。
+   これを入れても、いま記帳ずみのものの科目は変わらない（一覧に並ぶ名前が増えるだけ）。 */
+const STD_CATS={
+  in:['売上高','受取手数料','受取利息','受取配当金','雑収入','補助金・助成金','会費収入','寄付金','前期繰越金'],
+  out:['仕入高','外注費','給料手当','法定福利費','福利厚生費','旅費交通費','通信費','水道光熱費',
+       '消耗品費','事務用品費','修繕費','地代家賃','賃借料','保険料','租税公課','広告宣伝費',
+       '接待交際費','会議費','新聞図書費','支払手数料','諸会費','減価償却費','雑費']
+};
+function stdCatsNew(){
+  return { in: STD_CATS.in.filter(c=>!(S.cats.in||[]).includes(c)),
+           out: STD_CATS.out.filter(c=>!(S.cats.out||[]).includes(c)) };
+}
+function openStdCats(){ renderStdCats(); dlgStdCat.showModal(); }
+function renderStdCats(){
+  const nw=stdCatsNew();
+  const used=new Set(S.items.map(i=>i.cat).filter(Boolean));
+  const lost=[...(S.cats.in||[]),...(S.cats.out||[])].filter(c=>!STD_CATS.in.includes(c)&&!STD_CATS.out.includes(c));
+  const lostUsed=lost.filter(c=>used.has(c));
+  const list=(t,a)=>a.length?`<div class="sub-head">${t}（${a.length}）</div><div class="prev" style="white-space:normal">${a.map(escHtml).join('、')}</div>`:'';
+  $('dlgStdCatBody').innerHTML=
+    `<p class="muted">簿記でよく使う勘定科目です。<b>収入 ${STD_CATS.in.length}／支出 ${STD_CATS.out.length}</b>。</p>`+
+    (nw.in.length+nw.out.length===0
+      ? '<div class="note-box">一般的な科目は、もうぜんぶ入っています。</div>'
+      : list('新しく足す（入るお金）', nw.in)+list('新しく足す（出るお金）', nw.out))+
+    `<div class="note-box" style="margin-top:12px"><b>いまの科目に足す</b>：いまある科目はそのまま残り、足りないものだけ増えます。</div>`+
+    (lost.length?`<div class="warn-box" style="margin-top:8px"><b>入れ替える</b>：いまの科目のうち
+        <b>${lost.length}件</b>（${escHtml(lost.slice(0,8).join('、'))}${lost.length>8?' ほか':''}）が一覧から消えます。`+
+       (lostUsed.length?`<br>このうち <b>${lostUsed.length}件</b> は記帳で使っています
+          （${escHtml(lostUsed.slice(0,6).join('、'))}${lostUsed.length>6?' ほか':''}）。
+          <b>記帳した中身は消えません</b>が、ふだの一覧からは消えます。`:'')+
+       `</div>`:'');
+  $('stdAddBtn').disabled=(nw.in.length+nw.out.length===0);
+}
+function applyStdCats(mode){
+  const nw=stdCatsNew();
+  if(mode==='add'){
+    if(!nw.in.length&&!nw.out.length){ dlgStdCat.close(); return; }
+    if(!confirm(`一般的な科目を、いまの科目に足します。\n\n入るお金：${nw.in.length}件\n出るお金：${nw.out.length}件\n\n`+
+                `いまある科目はそのまま残ります。よろしいですか？`)) return;
+    S.cats.in=(S.cats.in||[]).concat(nw.in);
+    S.cats.out=(S.cats.out||[]).concat(nw.out);
+    toast(`科目を ${nw.in.length+nw.out.length}件 足しました`);
+  }else{
+    const lost=[...(S.cats.in||[]),...(S.cats.out||[])].filter(c=>!STD_CATS.in.includes(c)&&!STD_CATS.out.includes(c));
+    if(!confirm(`いまの科目を消して、一般的な科目に入れ替えます。\n\n`+
+                `一覧から消える科目：${lost.length}件\n`+
+                (lost.length?`（${lost.slice(0,10).join('、')}${lost.length>10?' ほか':''}）\n`:'')+
+                `\n記帳した中身は消えませんが、ふだの一覧からは消えます。\n元に戻せません。\n\nよろしいですか？`)) return;
+    if(!confirm('本当に入れ替えてよろしいですか？')) return;
+    S.cats.in=STD_CATS.in.slice();
+    S.cats.out=STD_CATS.out.slice();
+    toast('一般的な科目に入れ替えました');
+  }
+  saveNow(); dlgStdCat.close(); renderSettings(); renderCatChips();
+}
+
 let newNameFor='cat';
 function openNewName(what){
   newNameFor=what;
@@ -1559,8 +1627,8 @@ function buildFullSheets(items, transfers, opt){
   ];
   const meta=[
     [{v:'この Excel について', st:1},{v:'', st:1}],
-    ['アプリ','自治会会計（スマホ版） '+APP_VERSION],
-    ['自治会名',opt.name||''],['年度',String(opt.year)],
+    ['アプリ','会計アプリ（スマホ版） '+APP_VERSION],
+    ['団体名',opt.name||''],['年度',String(opt.year)],
     ['書き出した日時',new Date().toLocaleString('ja-JP')],
     ['端末の印',opt.dev||''],['取引の件数',items.length],['振替の件数',transfers.length],
     [{v:'※ 伝票番号の列を残したまま保存すれば、スマホ版に戻したときに同じ伝票が二重に入りません。', st:7}],
@@ -1641,7 +1709,7 @@ function buildCsv(items, transfers, years){
 /* 書き出すファイルの名前。
    ブラウザによっては、名前に日本語が混じると名前ごと捨てられて
    「download」（拡張子なし）で保存されてしまう。そうなるとパソコンで開けないので、
-   名前は英数字だけで作り、自治会名や年度はファイルの中に持たせる。 */
+   名前は英数字だけで作り、団体の名前や年度はファイルの中に持たせる。 */
 function safeName(base, ext){
   const b=String(base).replace(/[^0-9A-Za-z_-]/g,'').slice(0,40)||'kaikei';
   return `${b}.${ext}`;
