@@ -157,7 +157,8 @@ label.fld>span{display:block;font-size:12px;color:var(--sub);margin-bottom:4px}
 .li-amt{font-weight:700;text-align:right;white-space:nowrap}
 .li-amt.in{color:var(--in)}
 .li-amt.out{color:var(--out)}
-.li-bal{font-size:11px;color:var(--sub);text-align:right;white-space:nowrap}
+.li-bal{font-size:12px;color:var(--sub);text-align:right;white-space:nowrap}
+.li-bal .ba{font-size:11px;opacity:.85}
 .pay-tag{font-size:10px;border:1px solid var(--line);border-radius:var(--r-pill);padding:1px 7px;color:var(--sub);flex:none}
 .empty{text-align:center;color:var(--sub);padding:26px 10px;font-size:14px}
 
@@ -523,7 +524,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
    ・お金の場所（口座）は「現金・農協・信用金庫・定期預金…」と名前で持つ。
      口座から口座へ移すのは「振替」として、収入・支出とは別に数える。
    ══════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v5';
+const APP_VERSION='v6';
 const KEY='jk_kaikei_v1';
 
 const DEF_CATS={
@@ -853,16 +854,20 @@ function renderRecent(){
   if(!list.length){ ul.innerHTML='<li style="cursor:default"><div class="empty">まだ何も記帳していません</div></li>'; return; }
   list.forEach(r=>ul.appendChild(itemRow(r)));
 }
+/* bal は {acc, amount}。その行でお金が動いた口座の、その時点の残高を出す。
+   （合計の残高より、「現金はいくら残っているか」のほうが日ごろ見たいもの） */
 function itemRow(r, bal){
   const it=r.it, tr=(r.kind==='tr');
   const li=document.createElement('li');
   li.tabIndex=0; li.setAttribute('role','button');
   const md=it.date.slice(5).replace('-','/');
+  const balHtml=(bal&&bal.acc!=null)
+    ? `<div class="li-bal num"><span class="ba">${escHtml(bal.acc)}</span> ${yen(bal.amount)}</div>` : '';
   li.innerHTML=`<div class="li-main">
       <div class="li-top"><span class="li-date num">${md}</span><span class="li-cat"></span><span class="pay-tag"></span></div>
       <div class="li-note"></div>
     </div>
-    <div><div class="li-amt num ${r.kind}">${tr?'⇄':(r.kind==='in'?'+':'−')}${yen(it.amt)}</div>${bal!=null?`<div class="li-bal num">残 ${yen(bal)}</div>`:''}</div>`;
+    <div><div class="li-amt num ${r.kind}">${tr?'⇄':(r.kind==='in'?'+':'−')}${yen(it.amt)}</div>${balHtml}</div>`;
   li.querySelector('.li-cat').textContent=tr?'ふりかえ':(it.cat||'（科目なし）');
   li.querySelector('.pay-tag').textContent=tr?`${it.from} → ${it.to}`:(it.acc||'');
   li.querySelector('.li-note').textContent=[it.note, it.event?`【${it.event}】`:'', it.memo?`（${it.memo}）`:''].filter(Boolean).join(' ');
@@ -925,18 +930,25 @@ function renderBook(){
   const all=rowsOfYear();
   /* 残高は年度のはじめから順に足していく（しぼり込んでも、その行までの本当の残高を出す） */
   const bg=beginOf(); const bal={}; S.accounts.forEach(a=>bal[a]=Number(bg[a])||0);
-  const total=()=>Object.keys(bal).reduce((a,k)=>a+bal[k],0);
   const rows=[];
   for(const r of all){
     const it=r.it;
-    if(r.kind==='tr'){ bal[it.from]=(bal[it.from]||0)-it.amt; bal[it.to]=(bal[it.to]||0)+it.amt; }
-    else bal[it.acc]=(bal[it.acc]||0)+(r.kind==='in'?1:-1)*it.amt;
+    /* その行でお金が動いた口座。振替は、入った側（振替先）の残高を出す。
+       ただし口座でしぼっているときは、その口座の残高を出す。 */
+    let shown;
+    if(r.kind==='tr'){
+      bal[it.from]=(bal[it.from]||0)-it.amt; bal[it.to]=(bal[it.to]||0)+it.amt;
+      shown=(acc&&it.from===acc)?it.from:it.to;
+    }else{
+      bal[it.acc]=(bal[it.acc]||0)+(r.kind==='in'?1:-1)*it.amt;
+      shown=it.acc;
+    }
     const text=[it.cat,it.note,it.event,it.memo,it.from,it.to].filter(Boolean).join(' ');
     const hit=(!mo||it.date.startsWith(mo))
       && (!cat||it.cat===cat)
       && (!acc||it.acc===acc||it.from===acc||it.to===acc)
       && (!q||text.includes(q));
-    if(hit) rows.push({r, bal:total()});
+    if(hit) rows.push({r, bal:{acc:shown, amount:bal[shown]||0}});
   }
   const sumIn=rows.filter(x=>x.r.kind==='in').reduce((a,x)=>a+x.r.it.amt,0);
   const sumOut=rows.filter(x=>x.r.kind==='out').reduce((a,x)=>a+x.r.it.amt,0);
@@ -2131,6 +2143,7 @@ function renderImp(){
 function doImport(){
   const {got, tr}=impPreview();
   if(!got.items.length){ toast('読み取れた行がありません'); return; }
+  let obShown='';
   /* 口座と期首残高（先に入れておく。記帳の口座名と結びつけるため）。
      期首残高は年度ごとに持つので、このファイルが扱っている年度に入れる。 */
   if(IMP.accOn&&IMP.accRows.length){
@@ -2146,6 +2159,8 @@ function doImport(){
     });
     Object.keys(byYear).forEach(y=>{
       const m=beginOf(+y); Object.assign(m, byYear[y]); setBeginOf(+y, m);
+      obShown+=(obShown?'\n':'')+`${y}年度　`+
+        Object.keys(byYear[y]).map(a=>`${a} ${yen(byYear[y][a])}`).join('、');
     });
   }
   const res=mergeItems(S.items, got.items, IMP.policy, {prune:IMP.prune});
@@ -2178,6 +2193,7 @@ function doImport(){
     +(newCats.length?`\n\n科目を登録しました（${newCats.length}）：\n${newCats.join('、')}`:'')
     +(newAccs.length?`\n\n口座を登録しました（${newAccs.length}）：\n${newAccs.join('、')}`:'')
     +(newEvents.length?`\n\n行事を登録しました（${newEvents.length}）：\n${newEvents.join('、')}`:'')
+    +(obShown?`\n\n期首残高を入れました：\n${obShown}`:'')
     +(moved?`\n\n${moved}年度のデータでしたので、${moved}年度に切り替えました。`:''));
 }
 

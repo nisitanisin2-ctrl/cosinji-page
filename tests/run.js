@@ -5195,6 +5195,60 @@ async function runKaikei(browser) {
     return t < v;
   }), true);
 
+  // ── 出納帳の残高は、その取引をした口座の残高 ──
+  const bookBal = await page.evaluate(() => {
+    localStorage.clear(); S = blank(); S.year = 2026; S.accounts = ['現金', '農協'];
+    setBeginOf(2026, { 現金: 100000, 農協: 500000 });
+    const mk = (id, d, k, c, a, acc) => ({ id, date: d, kind: k, cat: c, note: c, amt: a, acc, event: '', memo: '', ts: 1 });
+    S.items = [mk('a', '2026-04-05', 'in', '会費', 30000, '現金'),
+               mk('b', '2026-04-10', 'out', '会議費', 5000, '現金'),
+               mk('c', '2026-04-20', 'out', '水道光熱費', 8000, '農協')];
+    S.transfers = [{ id: 't', date: '2026-05-01', from: '農協', to: '現金', amt: 50000, note: '', memo: '', ts: 1 }];
+    saveNow(); renderAll(); go('book');
+    const read = () => [...document.querySelectorAll('#bookList li')].map(li => {
+      const b = li.querySelector('.li-bal');
+      return li.querySelector('.li-date').textContent + ' ' + (b ? b.textContent.trim().replace(/\s+/g, ' ') : '-');
+    }).join(' | ');
+    const all = read();
+    document.getElementById('fAcc').value = '農協'; renderBook();
+    const ja = read();
+    document.getElementById('fAcc').value = '現金'; renderBook();
+    const cash = read();
+    document.getElementById('fAcc').value = ''; renderBook();
+    return { all, ja, cash, total: accountSummary().sum.now };
+  });
+  check('  その口座の残高を出す（合計ではない）', bookBal.all,
+    '05/01 現金 175,000 | 04/20 農協 492,000 | 04/10 現金 125,000 | 04/05 現金 130,000');
+  check('  振替は入った側の残高を出す', bookBal.all.indexOf('05/01 現金 175,000'), 0);
+  check('  農協でしぼると農協の残高', bookBal.ja, '05/01 農協 442,000 | 04/20 農協 492,000');
+  check('  現金でしぼると現金の残高', bookBal.cash,
+    '05/01 現金 175,000 | 04/10 現金 125,000 | 04/05 現金 130,000');
+  check('  合計は上の帯のまま', bookBal.total, 617000);
+
+  // CSVの期首残高の行は、出納帳に出ない
+  const obBook = await page.evaluate(({ csv }) => {
+    localStorage.clear(); S = blank(); S.year = 2026; saveNow();
+    const g = csvToGrid('\ufeff' + csv);
+    const d = detectHeader(g, TX_FIELDS_ALLOW, needTx);
+    const got = gridToItems(g, d.row, d.map);
+    const rows = gridToOpeningRows(g, d.row, d.map);
+    S.items = mergeItems([], got.items, 'newer').items;
+    const d2 = detectHeader(g, TR_FIELDS_ALLOW, needTr);
+    S.transfers = mergeTransfers([], gridToTransfers(g, d2.row, d2.map).items, 'newer').items;
+    S.accounts = ['現金', '農協', '信用金庫'];
+    const m = {}; rows.forEach(r => { m[r.acc] = r.begin; }); setBeginOf(2026, m);
+    renderAll(); go('book');
+    return {
+      rows: [...document.querySelectorAll('#bookList li')].length,
+      hasOpening: [...document.querySelectorAll('#bookList li')]
+        .some(li => /期首残高/.test(li.textContent)),
+      begin: accountSummary().sum.begin,
+    };
+  }, { csv: T.PC_CSV });
+  check('  期首残高の行は出納帳に出ない', obBook.hasOpening, false);
+  check('  取引と振替だけが出る', obBook.rows, 4);
+  check('  期首残高は期首残高として入る', obBook.begin, 120698 + 915473);
+
   // ── 年度の切り替え ──
   const yr = await page.evaluate(() => {
     localStorage.clear();
