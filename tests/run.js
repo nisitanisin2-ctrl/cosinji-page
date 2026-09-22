@@ -670,7 +670,7 @@ async function runTopBar(browser) {
                     return el && getComputedStyle(el).display !== 'none'; }).join(','));
   check('  はじめは何も出さない', await shown(), '');
   check('  設定に選ぶところがある',
-        await page.evaluate(() => document.querySelectorAll('#topBtnToggles .topbtn-toggle').length), 6);
+        await page.evaluate(() => document.querySelectorAll('#topBtnToggles .topbtn-toggle').length), 7);   // v399 で ⌨テンキー を足した
 
   await page.evaluate(() => { if (typeof toggleTopBtn !== 'function') return;
     toggleTopBtn('list'); toggleTopBtn('redo'); toggleTopBtn('reset'); });
@@ -6125,6 +6125,104 @@ async function runBrush1(browser) {
   await narrow.close();
 }
 
+async function runBrush2(browser) {
+  console.log('\n── ブラッシュアップ第2弾 ──');
+  const open = async (w, h, pre) => {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h } });
+    const page = await ctx.newPage();
+    const errs = []; page.on('pageerror', e => errs.push(e.message));
+    await page.goto(INDEX);
+    await page.evaluate((pre) => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1');
+      for (const k in (pre || {})) localStorage.setItem(k, pre[k]); }, pre);
+    await page.reload(); await page.waitForTimeout(1000);
+    return { ctx, page, errs };
+  };
+  const side = page => page.evaluate(() => document.body.classList.contains('np-side'));
+
+  // パソコン：テンキーは右
+  let { ctx, page, errs } = await open(1280, 800);
+  check('  パソコンではテンキーが右', await side(page), true);
+  const g = await page.evaluate(() => {
+    const ns = document.getElementById('numpadSection').getBoundingClientRect();
+    const sw = document.querySelector('.sheet-wrap').getBoundingClientRect();
+    const rows = [...document.querySelectorAll('#sheet tr')].filter(tr => tr.getBoundingClientRect().bottom <= innerHeight).length - 1;
+    return { right: ns.left >= sw.right - 1, full: sw.bottom >= innerHeight - 2, rows };
+  });
+  check('  表の右どなりに並ぶ', g.right, true);
+  check('  表が画面の下まで使える', g.full, true);
+  check('  15行ぜんぶ見える', g.rows >= 15, true);
+  check('  収納の矢印は右向き', await page.evaluate(() => document.getElementById('numpadEdgeBtn').textContent), '▶');
+  check('  上のバーに⌨が出る', await page.evaluate(() =>
+    getComputedStyle(document.getElementById('tbNumpad')).display !== 'none'), true);
+  await page.click('#tbNumpad'); await page.waitForTimeout(400);
+  check('  ⌨でテンキーをしまえる', await page.evaluate(() =>
+    numpadHidden && document.getElementById('numpadSection').getBoundingClientRect().width <= 20), true);
+  check('  しまった帯にキーが覗かない', await page.evaluate(() =>
+    getComputedStyle(document.getElementById('numpadViewport')).visibility), 'hidden');
+  await page.click('#tbNumpad'); await page.waitForTimeout(400);
+  check('  ⌨でまた出せる', await page.evaluate(() => !numpadHidden), true);
+  await page.click('#c0_0'); await page.click('#numpadPage1 .btn[data-key="n5"]'); await page.click('#numpadPage1 .btn[data-key="enter"]'); await page.waitForTimeout(300);
+  check('  右に置いてもキーで入る', await page.evaluate(() => String(data[0][0])), '5');
+  // 置き場所を「下」に
+  await page.evaluate(() => setNpPlace('bottom')); await page.waitForTimeout(400);
+  check('  「下」にすると下へ戻る', await side(page), false);
+  check('  ⌨は既定では消える', await page.evaluate(() =>
+    getComputedStyle(document.getElementById('tbNumpad')).display), 'none');
+  await page.reload(); await page.waitForTimeout(1000);
+  check('  置き場所を覚えている', await side(page), false);
+  await page.evaluate(() => { toggleSettings(); setSettingsTab(1); }); await page.waitForTimeout(400);
+  check('  設定に置き場所の選択がある', await page.evaluate(() =>
+    [...document.querySelectorAll('#npPlaceSeg .skin-seg-btn')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join('/')),
+    '自動/下*/右');
+  check('  JSエラーが出ていない（パソコン）', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+
+  // スマホ縦・タブレット縦は下のまま、スマホ横は今までどおり
+  ({ ctx, page, errs } = await open(390, 844));
+  check('  スマホ縦は下のまま', await side(page), false);
+  check('  スマホ縦は矢印が下向き', await page.evaluate(() => document.getElementById('numpadEdgeBtn').textContent), '▼');
+  await ctx.close();
+  ({ ctx, page, errs } = await open(768, 1024));
+  check('  タブレット縦は下のまま', await side(page), false);
+  await ctx.close();
+  ({ ctx, page, errs } = await open(844, 390));
+  check('  スマホ横は今までの横並び（np-side は使わない）', await side(page), false);
+  check('  スマホ横もテンキーは右', await page.evaluate(() =>
+    document.getElementById('numpadSection').getBoundingClientRect().left > 300), true);
+  await ctx.close();
+  ({ ctx, page, errs } = await open(1024, 768, { excalc_np_place: 'bottom' }));
+  check('  「下」を選んだ人はタブレット横でも下', await side(page), false);
+  await ctx.close();
+  ({ ctx, page, errs } = await open(800, 600, { excalc_np_place: 'side' }));
+  check('  「右」を選べば小さめの横長でも右', await side(page), true);
+  await ctx.close();
+
+  // 夜のバーと色の見やすさ
+  ({ ctx, page, errs } = await open(390, 844));
+  const bar = await page.evaluate(() => {
+    const a = getComputedStyle(document.querySelector('.toolbar')).backgroundColor;
+    toggleDark(); const b = getComputedStyle(document.querySelector('.toolbar')).backgroundColor;
+    const h = getComputedStyle(document.querySelector('#settingsPanel .modal-header')).backgroundColor;
+    toggleDark(); const c = getComputedStyle(document.querySelector('.toolbar')).backgroundColor;
+    return { a, b, h, c };
+  });
+  check('  夜は上のバーを沈める', bar.a !== bar.b, true);
+  check('  窓の見出しも同じ色', bar.h, bar.b);
+  check('  昼に戻すと元の色', bar.c, bar.a);
+  const cr = await page.evaluate(() => SKIN_THEMES.map(t => {
+    skinTheme = t.id; applySkin();
+    const cs = getComputedStyle(document.body);
+    return [t.id, skinContrastWhite(cs.getPropertyValue('--acc').trim()), skinContrastWhite(cs.getPropertyValue('--acc-light').trim())];
+  }));
+  check('  どの色でも白い字が読める（4.5以上）', cr.filter(x => x[1] < 4.5).map(x => x[0]).join(','), '');
+  check('  明るいボタン色も3以上', cr.filter(x => x[2] < 3).map(x => x[0]).join(','), '');
+  check('  みどりは元の色のまま', await page.evaluate(() => { skinTheme = 'green'; applySkin();
+    return getComputedStyle(document.body).getPropertyValue('--acc').trim(); }), '#217346');
+  check('  JSエラーが出ていない（色）', errs.length, 0);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -6169,6 +6267,7 @@ async function runBrush1(browser) {
     if (!only || only === 'kaikei') await runKaikei(browser);
     if (!only || only === 'touban') await runTouban(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
+    if (!only || only === 'brush2') await runBrush2(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
