@@ -5568,6 +5568,114 @@ async function runKaikei(browser) {
   check('  口座も登録する（振替の口座もふくむ）', reg.newAccs, '信用金庫,農協');
   check('  行事も登録する', reg.events, '秋祭り');
 
+  // ── 決算書類 ──────────────────────────────────────────
+  // 入れた中身から、そのまま総会に出せる紙が作れること。
+  // 数えかたは集計の画面と同じ（振替は収入・支出に入れない）。
+  const fin = await page.evaluate(({ st }) => {
+    localStorage.clear(); S = blank();
+    S.year = st.year; S.name = st.name; S.accounts = st.accounts.slice();
+    setBeginOf(st.year, Object.assign({}, st.begins));
+    S.cats = { in: st.cats.in.slice(), out: st.cats.out.slice() };
+    S.budget = Object.assign({}, st.budget);
+    S.items = st.items.map(i => Object.assign({}, i));
+    S.transfers = st.transfers.map(t => Object.assign({}, t));
+    finOpt().docs = { settle: true, budget: true, assets: true, detail: true, audit: true };
+    renderAll(); go('fin');
+    const d = finData();
+    const rowOf = nm => {
+      const tr = Array.from(document.querySelectorAll('#finPaper .fin-doc:first-of-type tr'))
+        .find(r => r.cells[0] && r.cells[0].textContent.trim() === nm);
+      return tr ? Array.from(tr.cells).map(c => c.textContent.trim()) : null;
+    };
+    return {
+      begin: d.begin, tIn: d.tIn, tOut: d.tOut, end: d.end, gap: d.gap, now: d.sum.now,
+      inRows: d.inRows.map(r => `${r.cat}:${r.amt}:${r.n}`).join(','),
+      outRows: d.outRows.map(r => `${r.cat}:${r.amt}:${r.n}`).join(','),
+      accs: d.accs.map(r => `${r.acc}:${r.now}`).join(','),
+      heads: Array.from(document.querySelectorAll('#finPaper .fin-doc:first-of-type thead th')).map(t => t.textContent.trim()).join(','),
+      carry: rowOf('前年度からの繰越金'),
+      kaihi: rowOf('会費'),
+      titles: Array.from(document.querySelectorAll('#finPaper .fin-doc h3')).map(h => h.textContent).join('|'),
+      sheets: buildFinSheets().map(s => s.name).join(','),
+      text: finTextOut(),
+    };
+  }, { st: T.FIN_STATE });
+  check('  期首残高', fin.begin, T.FIN_EXPECT.begin);
+  check('  収入合計（振替は入れない）', fin.tIn, T.FIN_EXPECT.tIn);
+  check('  支出合計（振替は入れない）', fin.tOut, T.FIN_EXPECT.tOut);
+  check('  次年度への繰越金', fin.end, T.FIN_EXPECT.end);
+  check('  財産目録の合計と合う', fin.now, T.FIN_EXPECT.now);
+  check('  食い違いは0', fin.gap, 0);
+  check('  収入の科目（設定の順）', fin.inRows, T.FIN_EXPECT.inRows);
+  check('  支出の科目（設定に無いものは後ろ）', fin.outRows, T.FIN_EXPECT.outRows);
+  check('  口座ごとの残高', fin.accs, T.FIN_EXPECT.accs);
+  check('  4つの書類が出る', fin.titles, '収支決算書|財産目録|科目べつの明細|監査報告書');
+  check('  Excelも4枚', fin.sheets, '収支決算書,財産目録,明細,監査報告書');
+  // 予算の列を出したとき、金額がとなりの列にずれないこと（作っている途中に踏んだ）
+  check('  見出しの並び', fin.heads, '科目,予算,決算額,差引,件数');
+  check('  繰越の金額は決算額の列', JSON.stringify(fin.carry), JSON.stringify(['前年度からの繰越金', '', '1,036,171', '', '']));
+  check('  科目の行は予算・決算額・差引', JSON.stringify(fin.kaihi), JSON.stringify(['会費', '900,000', '850,000', '50,000', '1件']));
+  check('  文字でも出せる', /次年度への繰越金\s+1,885,133 円/.test(fin.text), true);
+  check('  文字にも財産目録が入る', fin.text.includes('【財産目録（2027年3月31日 現在）】'), true);
+
+  // チェックを外した書類は出ない
+  const finPick = await page.evaluate(() => {
+    finOpt().docs = { settle: false, budget: false, assets: true, detail: false, audit: false };
+    renderFin();
+    return {
+      titles: Array.from(document.querySelectorAll('#finPaper .fin-doc h3')).map(h => h.textContent).join('|'),
+      sheets: buildFinSheets().map(s => s.name).join(','),
+      empty: (finOpt().docs = { settle: false, budget: false, assets: false, detail: false, audit: false },
+              renderFin(), document.getElementById('finPaper').textContent.trim()),
+    };
+  });
+  check('  チェックしたものだけ出る', finPick.titles, '財産目録');
+  check('  Excelもチェックしたものだけ', finPick.sheets, '財産目録');
+  check('  ぜんぶ外したら、そう言う', finPick.empty, '出す書類にチェックを入れてください');
+
+  // 書類の名前と日づけは、次に開いたときも残る
+  const finKeep = await page.evaluate(() => {
+    finOpt().docs = { settle: true, budget: false, assets: true, detail: false, audit: true };
+    finField('maker', '会計 太郎'); finField('aud1', '監査 一郎'); finField('date', '2027-04-20');
+    saveNow();
+    const before = JSON.stringify(S.fin);
+    S = blank(); load();
+    renderFin();
+    return { same: JSON.stringify(S.fin) === before,
+             onPaper: document.getElementById('finPaper').textContent.includes('2027年4月20日'),
+             maker: document.getElementById('finPaper').textContent.includes('会計 太郎') };
+  });
+  check('  名前と日づけが残る', finKeep.same, true);
+  check('  書類に日づけが出る', finKeep.onPaper, true);
+  check('  書類に会計担当者が出る', finKeep.maker, true);
+
+  // 印刷のときは、帯もタブもえらぶところも消えて、紙だけが白く出る
+  await page.emulateMedia({ media: 'print' });
+  const finPrint = await page.evaluate(() => ({
+    header: getComputedStyle(document.querySelector('header')).display,
+    tabs: getComputedStyle(document.querySelector('nav.tabs')).display,
+    card: getComputedStyle(document.querySelector('#pg-fin .no-print')).display,
+    fin: getComputedStyle(document.getElementById('pg-fin')).display,
+    other: getComputedStyle(document.getElementById('pg-book')).display,
+    paper: getComputedStyle(document.getElementById('finPaper')).backgroundColor,
+  }));
+  await page.emulateMedia({ media: 'screen' });
+  check('  印刷では帯を出さない', finPrint.header, 'none');
+  check('  印刷ではタブを出さない', finPrint.tabs, 'none');
+  check('  印刷では操作の欄を出さない', finPrint.card, 'none');
+  check('  印刷でも決算の画面は出る', finPrint.fin, 'block');
+  check('  ほかの画面は出さない', finPrint.other, 'none');
+  check('  紙は白いまま', finPrint.paper, 'rgb(255, 255, 255)');
+
+  // 決算書類の Excel（ファイルの名前は英数字だけ）
+  const [finDl] = await Promise.all([
+    page.waitForEvent('download'),
+    page.evaluate(() => { go('fin'); finOpt().docs.settle = true; renderFin(); }).then(() =>
+      page.click('button:has-text("決算書類をExcelにする")')),
+  ]);
+  check('  決算の名前は英数字だけ', /^[0-9A-Za-z_.-]+\.xlsx$/.test(finDl.suggestedFilename()), true);
+  check('  決算とわかる名前', /^kessan_2026_/.test(finDl.suggestedFilename()), true);
+
   // 画面まわり：ボタンの名前が取れること・タブが動くこと
   const a11y = await page.evaluate(() => {
     const noName = Array.from(document.querySelectorAll('button')).filter(b => {

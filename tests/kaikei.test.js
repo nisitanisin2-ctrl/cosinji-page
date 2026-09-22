@@ -122,5 +122,36 @@ const POLICY_CASES = [
   { policy:'keep',     incomingTs:9000, want:{added:0, updated:0, same:2}, wantAmt:2068 },
 ];
 
+
+/* ── 決算書類の見本 ──
+   期首・収入・支出・振替が、ひととおり入った小さな1年ぶん。
+   科目が空の記帳（「（科目なし）」に入る）も1件まぜてある。 */
+const FIN_STATE = {
+  year: 2026, name: 'みどり区',
+  accounts: ['現金', '農協'],
+  begins: { 現金: 120698, 農協: 915473 },
+  cats: { in: ['会費', '雑収入'], out: ['会議費', '水道光熱費'] },
+  budget: { 会費: 900000, 水道光熱費: 20000 },
+  items: [
+    {id:'f1', date:'2026-04-06', kind:'in',  cat:'会費',       note:'4月分',   amt:850000, acc:'農協', event:'',     memo:'', ts:1},
+    {id:'f2', date:'2026-04-10', kind:'in',  cat:'雑収入',     note:'自販機',  amt:3250,   acc:'現金', event:'',     memo:'', ts:2},
+    {id:'f3', date:'2026-05-02', kind:'out', cat:'水道光熱費', note:'上水道',  amt:1720,   acc:'農協', event:'',     memo:'', ts:3},
+    {id:'f4', date:'2026-05-18', kind:'out', cat:'会議費',     note:'お茶',    amt:2068,   acc:'現金', event:'総会', memo:'', ts:4},
+    {id:'f5', date:'2026-06-01', kind:'out', cat:'',           note:'科目なし',amt:500,    acc:'現金', event:'',     memo:'', ts:5},
+  ],
+  transfers: [
+    {id:'ft1', date:'2026-05-11', from:'農協', to:'現金', amt:100000, note:'', memo:'', ts:6},
+  ],
+};
+/* 手で数えた答え。
+   期首 1,036,171 ＋ 収入 853,250 − 支出 4,288 ＝ 次年度への繰越 1,885,133。
+   振替は収入・支出に入れない（口座ごとの残高にだけ効く）。 */
+const FIN_EXPECT = {
+  begin: 1036171, tIn: 853250, tOut: 4288, end: 1885133, now: 1885133,
+  inRows:  '会費:850000:1,雑収入:3250:1',
+  outRows: '会議費:2068:1,水道光熱費:1720:1,（科目なし）:500:1',
+  accs:    '現金:221380,農協:1663753',
+};
+
 module.exports = { PARSE_DATE, PARSE_MONEY, PC_TX_XML, PC_TR_XML, PC_SUM_XML, PC_EXPECT,
-                   PC_CSV, MINE, POLICY_CASES };
+                   PC_CSV, MINE, POLICY_CASES, FIN_STATE, FIN_EXPECT };
