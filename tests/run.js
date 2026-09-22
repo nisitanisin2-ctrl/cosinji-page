@@ -5225,6 +5225,25 @@ async function runKaikei(browser) {
     '05/01 現金 175,000 | 04/10 現金 125,000 | 04/05 現金 130,000');
   check('  合計は上の帯のまま', bookBal.total, 617000);
 
+  // 残高のところに口座名が出るので、科目の横には出さない（振替と、残高の無い一覧は残す）
+  const tags = await page.evaluate(() => {
+    go('book'); document.getElementById('fAcc').value = ''; renderBook();
+    const book = [...document.querySelectorAll('#bookList li')].map(li => {
+      const t = li.querySelector('.pay-tag');
+      return (li.querySelector('.li-cat').textContent) + ':' + (t ? t.textContent : 'なし');
+    }).join(' | ');
+    go('entry');
+    const recent = [...document.querySelectorAll('#recentList li')].map(li => {
+      const t = li.querySelector('.pay-tag');
+      return (li.querySelector('.li-cat').textContent) + ':' + (t ? t.textContent : 'なし');
+    }).join(' | ');
+    return { book, recent };
+  });
+  check('  出納帳では科目の横に口座を出さない', tags.book,
+    'ふりかえ:農協 → 現金 | 水道光熱費:なし | 会議費:なし | 会費:なし');
+  check('  記帳の一覧は残高が無いので口座を残す', tags.recent,
+    'ふりかえ:農協 → 現金 | 水道光熱費:農協 | 会議費:現金 | 会費:現金');
+
   // CSVの期首残高の行は、出納帳に出ない
   const obBook = await page.evaluate(({ csv }) => {
     localStorage.clear(); S = blank(); S.year = 2026; saveNow();
