@@ -598,6 +598,23 @@ body.numpad-off .numpad-section { display: none; }
 }
 .more-acc > summary > small { display: block; font-weight: normal; font-size: 11px; color: var(--text-light); margin-top: 2px; }
 .more-acc > .more-grid { margin-top: 6px; }
+/* 空の表の手がかり（v398） */
+.sheet-wrap { position: relative; }
+.empty-hint {
+  position: absolute; left: var(--eh-x, 50%); top: 40%; transform: translate(-50%, -50%);
+  width: min(84%, 330px); text-align: center; pointer-events: none; z-index: 1;
+  color: var(--text-light); padding: 12px 14px; border-radius: 12px;
+  background: color-mix(in srgb, var(--sheet-bg, #fff) 92%, transparent);
+  box-shadow: 0 1px 6px rgba(0,0,0,.08); border: 1px dashed var(--cell-border, #ccc);
+}
+.empty-hint[hidden] { display: none; }
+.empty-hint .eh-big { font-size: 17px; font-weight: bold; margin-bottom: 6px; }
+.empty-hint .eh-sub { font-size: 12.5px; line-height: 1.6; }
+.empty-hint b { color: var(--acc); }
+body.dark .empty-hint b { color: var(--acc-on-dark); }
+.more-grid.more-tools { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.more-tools .more-item { padding: 9px 8px; font-size: 13px; gap: 6px; }
+.more-tools .more-item span { font-size: 16px; }
 .more-item.more-danger { border-color: var(--danger); color: var(--danger); }
 body.dark .more-item.more-danger { color: #ff8a80; border-color: #ff8a80; }
 /* 横向きは高さが足りないので、4列にして「リセット」まで一目で見えるようにする */
@@ -3261,7 +3278,7 @@ body.dark {
 </div>
 
 <div class="toolbar" id="mainToolbar">
-  <span class="toolbar-title" id="recordTitle" onclick="showSaveList()" title="今開いている記録（タップでリストを開く）">📄 未保存</span>
+  <span class="toolbar-title" id="recordTitle" onclick="showSaveList()" title="今開いている記録（タップでリストを開く）">📄 自動保存</span>
   <button class="btn-save menu-item" id="saveBtn" onclick="saveData()" title="上書き保存／長押しで名前を付けて保存">保存</button>
   <button class="btn-undo menu-item" id="undoBtn" onclick="undoLast()" disabled title="元に戻す">↶</button>
   <!-- ここから下は、設定「上のバーに出すボタン」で選んだものだけ出る（既定は全部しまってある）。
@@ -3322,6 +3339,7 @@ body.dark {
         <button class="more-item menu-item" id="redoBtn" onclick="moreDo(redoLast)" disabled><span>↷</span>進む</button>
         <button class="more-item menu-item" id="listBtn" onclick="moreDo(showSaveList)"><span>📋</span>リスト</button>
         <button class="more-item menu-item" id="settingsBtn" onclick="moreDo(toggleSettings)"><span>⚙</span>設定</button>
+        <button class="more-item" id="darkMoreBtn" onclick="moreDo(toggleDark)"><span>🌙</span>ナイトモード</button>
         <button class="more-item" id="voiceMoreBtn" onclick="moreDo(voiceStart)" style="display:none" title="タップで1つ入れる／長押しで続けて入れる"><span>🎤</span>声で入れる</button>
       </div>
       <div class="more-sec">切り替える</div>
@@ -3330,6 +3348,11 @@ body.dark {
         <button class="more-item" onclick="moreDo(()=>switchMode('normal'))"><span>▦</span>通常の表</button>
         <button class="more-item" onclick="moreDo(()=>switchMode('dentaku'))"><span>🧮</span>電卓</button>
       </div>
+      <!-- 道具の一覧（v398）。テンキーのページをめくらなくても、ここから全部開ける -->
+      <details class="more-acc" id="moreAccTools" ontoggle="saveMoreAcc(this)">
+        <summary>🧰 道具<small id="moreToolsSum"></small></summary>
+        <div class="more-grid more-tools" id="moreToolsGrid"></div>
+      </details>
       <details class="more-acc" id="moreAccOut" ontoggle="saveMoreAcc(this)">
         <summary>📤 書き出す・読み込む<small>PDF・CSV・Excel</small></summary>
         <div class="more-grid">
@@ -3343,11 +3366,10 @@ body.dark {
       <input id="importCSVInput" type="file" accept=".csv,text/csv" style="display:none" onchange="importCSV(event)">
       <input id="importXLSXInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onchange="importXLSX(event)">
       <details class="more-acc" id="moreAccMisc" ontoggle="saveMoreAcc(this)">
-        <summary>🛠 そのほか<small>シート・既定の大きさ・ナイトモード・説明書</small></summary>
+        <summary>🛠 そのほか<small>シート・既定の大きさ・説明書</small></summary>
         <div class="more-grid">
           <button class="more-item menu-item" id="sheetToggleBtn" onclick="moreDo(toggleSheetTabs)" title="シートのタブバーを表示/非表示"><span>🗂</span>シート</button>
           <button class="more-item menu-item" id="defsizeTopBtn" title="新しい表や ▦通常 に戻したときの行数・列数を決めます"><span>▦</span>既定の大きさ</button>
-          <button class="more-item" id="darkMoreBtn" onclick="moreDo(toggleDark)"><span>🌙</span>ナイトモード</button>
           <button class="more-item" onclick="moreDo(openHelp)"><span>📖</span>説明書</button>
         </div>
       </details>
@@ -3392,6 +3414,9 @@ body.dark {
       <button class="enterdir-btn on" data-dir="down" onclick="setEnterDir('down')">↓ 下へ</button>
       <button class="enterdir-btn" data-dir="right" onclick="setEnterDir('right')">→ 右へ</button>
     </div>
+    <div class="set-sec">使いかた</div>
+    <button class="set-act" id="setTourBtn" onclick="toggleSettings(); setTimeout(openTour, 320);">🚀 はじめての案内をもう一度見る</button>
+    <button class="set-act" onclick="toggleSettings(); setTimeout(openHelp, 320);">📖 説明書を開く</button>
   </div>
 
   <div class="set-page" id="setPage1">
@@ -3559,6 +3584,11 @@ body.dark {
 
 <div class="sheet-wrap">
   <table class="sheet" id="sheet" role="grid" aria-label="表"></table>
+  <!-- 表がまっさらなときだけ出す手がかり（v398）。何か入れると消える。押しても何も起きない -->
+  <div class="empty-hint" id="emptyHint" hidden aria-hidden="true">
+    <div class="eh-big">数字を入れて <b>Enter</b></div>
+    <div class="eh-sub">下の <b>Σ合計</b> で縦に足し算できます<br>見積もり・割り勘などは <b>⋯ → 🎯用途から始める</b></div>
+  </div>
 </div>
 
 <!-- 電卓モードの画面。body.dentaku-mode のときだけ表のかわりに出る（テンキーはそのまま使う） -->
@@ -6382,6 +6412,32 @@ function recalcAll() {
         if (el) setCellDisp(el, r,c);
       }
   autoFitSheet();
+  updateEmptyHint();
+}
+/* ── 空の表の手がかり（v398）──
+   はじめて開いた人は、まっさらなマス目だけでは何をすればよいか分からない。
+   ふつうの表で、どのセルも空のときだけ薄く出す。1つでも入れば消える。 */
+function sheetIsEmpty(){
+  if(typeof data==='undefined' || !data) return false;
+  for(let r=0;r<ROWS;r++){ const row=data[r]; if(!row) continue;
+    for(let c=0;c<COLS;c++){ const v=row[c]; if(v!==''&&v!=null) return false; } }
+  return true;
+}
+let emptyHintRaf=0;
+function updateEmptyHint(){
+  if(emptyHintRaf) return;
+  emptyHintRaf=requestAnimationFrame(()=>{
+    emptyHintRaf=0;
+    const el=document.getElementById('emptyHint'); if(!el) return;
+    const show=(typeof tableMode==='undefined' || tableMode==='normal') &&
+      !document.body.classList.contains('dentaku-mode') && sheetIsEmpty();
+    el.hidden=!show;
+    if(show){   // 広い画面では表が左に寄るので、表のまん中に置く
+      const t=document.getElementById('sheet');
+      if(t && t.style.width) el.style.setProperty('--eh-x', Math.round(t.offsetWidth/2+24)+'px');
+      else el.style.removeProperty('--eh-x');
+    }
+  });
 }
 
 /* ── セル結合 ──
@@ -6503,6 +6559,7 @@ function buildSheet() {
   }
   if (isStructMode()) recalcMode();
   autoFitSheet();
+  if(typeof updateEmptyHint==="function") updateEmptyHint();
 }
 
 /* ── セル自動フィット ──
@@ -6564,12 +6621,21 @@ function autoFitSheet(){
     const availW = t.parentElement ? t.parentElement.clientWidth : 0;
     const surplus = availW - (rhW + total);
     if(surplus > COLS){
+      // 広い画面（パソコン・タブレット横）で列が 400px も伸びると、表がスカスカに見える。
+      // 1列は COL_WIDE_CAP までにして、残りは右に空けておく（v398）
+      const cap = Math.round(COL_WIDE_CAP*scale);
       const add = surplus / COLS;
+      let sum = rhW, capped = false;
       for(let c=0;c<COLS;c++){
         const ch=document.getElementById('ch'+c); if(!ch) continue;
         const cur = parseFloat(ch.style.width) || baseW;
-        ch.style.width = Math.round(cur + add) + 'px';
+        let w = Math.round(cur + add);
+        if(w > cap && cur <= cap){ w = cap; capped = true; }
+        else if(cur > cap){ w = Math.round(cur); capped = true; }
+        ch.style.width = w + 'px';
+        sum += w;
       }
+      if(capped) t.style.width = sum + 'px';
     }
   }
   // 4) 拡大しても収まらないセルは文字を縮小
@@ -6595,6 +6661,7 @@ window.addEventListener('resize', ()=>{
 
 /* ── 列幅・行高の手動変更（表の端をドラッグ／スライド） ── */
 const COL_MIN=30,  COL_MAX=400;
+const COL_WIDE_CAP=220;   // 広い画面で自動で伸ばすときの1列の上限（v398）
 const ROW_MIN=22,  ROW_MAX=200;
 let colWidths={};   // c -> px（手動指定。倍率100%基準で保存し、適用時に cellScale を掛ける）
 let rowHeights={};  // r -> px（手動指定。同上）
@@ -8275,6 +8342,15 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v398', t:'見やすく・迷いにくく（第1弾）', li:[
+    '表がまっさらなときは、<b>何をすればよいかの手がかり</b>がうすく出ます（何か入れると消えます）',
+    '上のバーの「未保存」は<b>「自動保存」</b>に変えました。記録を開いていなくても、いまの表は端末に残っています',
+    '<b>⋯</b>に<b>🧰道具</b>の一覧を足しました。当番表・野菜・単位水量などを、テンキーをめくらずに開けます',
+    '<b>🌙ナイトモード</b>を<b>⋯</b>のすぐ見えるところへ出しました',
+    'パソコンなど広い画面で、<b>列が横に間延びしない</b>ようにしました',
+    '⚙設定の📐表に<b>「はじめての案内をもう一度」</b>と<b>説明書</b>を置きました',
+    '⋯からリストや道具を開いて閉じたとき、<b>アプリの外（前のページ）へ戻ってしまうことがある</b>のを直しました',
+  ]},
   { v:'v397', t:'当番表：登録キーと、印刷のしかた', li:[
     '<b>📅当番表</b>を<b>登録キー</b>にも割り当てられるようになりました（▲登録のページや、キーの長押しから選べます）',
     '⚙名簿・設定に<b>「印刷のしかた」</b>が増えました。<b>文字の大きさ</b>（小／ふつう／大／特大）を変えられます',
@@ -15362,6 +15438,7 @@ function pushHistory(entries, op) {
   if(typeof markSaveDirty==='function') markSaveDirty();   // 記録に未保存の変更あり
 }
 function updateUndoBtn() {
+  if(typeof updateEmptyHint==='function') updateEmptyHint();
   const btn=document.getElementById('undoBtn');
   if (btn) btn.disabled=history.length===0;
 }
@@ -19938,13 +20015,23 @@ function openUndoList(){
   bindBackdropClose('undoListOverlay', closeUndoList);
 }
 function closeUndoList(){ closeDlg('undoListOverlay'); }
-function openMoreMenu(){ applyMoreAcc(); openDlg('moreMenuOverlay'); }
+function openMoreMenu(){ renderMoreTools(); applyMoreAcc(); openDlg('moreMenuOverlay'); }
+/* ⋯の「🧰道具」（v398）。NP_TOOLS から作るので、道具を足せば自動でここにも並ぶ */
+function renderMoreTools(){
+  const g=document.getElementById('moreToolsGrid'); if(!g) return;
+  const sp=l=>{ const m=/^(\p{Extended_Pictographic}\uFE0F?)(.*)$/u.exec(l); return m?[m[1],m[2]]:['🧰',l]; };
+  g.innerHTML=NP_TOOLS.map((t,i)=>{ const [ic,tx]=sp(t.label);
+    return '<button class="more-item" data-tool="'+t.id+'" onclick="moreDo(NP_TOOLS['+i+'].run)"'+
+      (t.ov?'':' title="別のタブで開きます"')+'><span>'+ic+'</span>'+escHtml(tx)+(t.ov?'':' ↗')+'</button>'; }).join('');
+  const sum=document.getElementById('moreToolsSum');
+  if(sum) sum.textContent=NP_TOOLS.map(t=>sp(t.label)[1]).slice(0,5).join('・')+' ほか 全'+NP_TOOLS.length+'つ';
+}
 function closeMoreMenu(){ closeDlg('moreMenuOverlay'); }
 /* メニューの項目：先に閉じてから実行する（設定など別の画面が開くものがあるため） */
 /* ⋯の畳んだところの開け閉けを覚える（v375） */
 function saveMoreAcc(el){ try{ localStorage.setItem('excalc_'+el.id, el.open?'1':'0'); }catch(_){} }
 function applyMoreAcc(){
-  ['moreAccOut','moreAccMisc'].forEach(id=>{
+  ['moreAccTools','moreAccOut','moreAccMisc'].forEach(id=>{
     const el=document.getElementById(id); if(!el) return;
     let v='0'; try{ v=localStorage.getItem('excalc_'+id)||'0'; }catch(_){}
     el.open=(v==='1');
@@ -19952,7 +20039,11 @@ function applyMoreAcc(){
 }
 function moreDo(fn){
   closeMoreMenu();
-  setTimeout(()=>{ try{ fn(); }catch(e){ if(typeof toast==='function') toast('うまく開けませんでした'); } }, 0);
+  // 閉じたすぐあと（同じ流れの中）で実行する。⋯を閉じた分の「戻る」と、次に開く画面の分が
+  // 打ち消し合って、履歴がそのまま使い回される（armBackGuard）。
+  // 以前は setTimeout で後回しにしていたため、⋯の分の history.back() が先に走り、
+  // 次の画面を閉じたときにもう1つ戻って、アプリの外（前のページ）へ出てしまっていた（v398で修正）。
+  try{ fn(); }catch(e){ if(typeof toast==='function') toast('うまく開けませんでした'); }
 }
 /* 「くわしい設定」の開閉を覚える（次に設定を開いたときも同じ状態にする） */
 function saveSetDetail(el){ try{ localStorage.setItem('excalc_set_detail', el.open?'1':'0'); }catch(_){} }
@@ -19998,7 +20089,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v397';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v398';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -20977,7 +21068,9 @@ function updateRecordTitle(){
   const el=document.getElementById('recordTitle'); if(!el) return;
   const cur=(currentSaveId!=null)?getSaves().find(s=>s.id===currentSaveId):null;
   const st=saveStateInfo();
-  el.textContent=(cur?'📄 '+cur.name:'📄 未保存')+' '+st.mark;
+  // 記録を開いていないときも、いまの表は端末に残っている。「未保存」と出すと
+  // 消えそうに見えるので「自動保存」と出す（v398）
+  el.textContent=(cur?'📄 '+cur.name:'📄 自動保存')+' '+st.mark;
   el.title=st.text+'／タップでリストを開く';
   el.classList.remove('dirty','nobackup','saved');
   el.classList.add(st.cls);
@@ -21975,7 +22068,8 @@ applySetDetail();    // 「くわしい設定」の開閉を復元
 applySetKeypadAcc(); // その中の「テンキーを自分好みにする」の開閉を復元（既定は閉じたまま）
 a11yInit();          // 読み上げ・キーボード操作の下ごしらえ（見た目は変えない）
 { const dd=document.getElementById('defDateFmt'); if(dd) dd.value=defaultDateFmt; }   // 日付の既定表示形式を復元
-saveDirty=false; updateRecordTitle();   // 起動直後は「📄 未保存」（記録は開いていない）
+saveDirty=false; updateRecordTitle();   // 起動直後は「📄 自動保存」（記録は開いていない）
+setTimeout(updateEmptyHint, 0);           // 起動直後の表が空なら手がかりを出す（v398）
 if(localStorage.getItem('excalc_trigmode')==='rad') trigMode='rad';
 applyTrigModeBtn();
 restoreSheetSizes();

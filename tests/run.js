@@ -3702,21 +3702,21 @@ async function runExport(browser) {
 
   // ── ⋯メニューの整理（v375） ──
   await page.evaluate(() => openMoreMenu()); await page.waitForTimeout(400);
-  check('  項目の数は変わっていない', await page.evaluate(() =>
-    document.querySelectorAll('#moreMenuOverlay .more-item').length), 17);
+  check('  項目の数は変わっていない（道具の一覧を除く）', await page.evaluate(() =>
+    document.querySelectorAll('#moreMenuOverlay .more-item:not(#moreToolsGrid .more-item)').length), 17);
   check('  はじめは畳んである', await page.evaluate(() =>
     document.getElementById('moreAccOut').open + '/' + document.getElementById('moreAccMisc').open),
     'false/false');
   check('  すぐ見えるのはよく使うものだけ', await page.evaluate(() =>
     [...document.querySelectorAll('#moreMenuOverlay .more-item')]
       .filter(x => !x.closest('.more-acc')).map(x => x.textContent.trim()).join('/')),
-    '↷進む/📋リスト/⚙設定/🎤声で入れる/🎯用途から始める/▦通常の表/🧮電卓/🧹リセット（戻るで元に戻せます）');
+    '↷進む/📋リスト/⚙設定/🌙ナイトモード/🎤声で入れる/🎯用途から始める/▦通常の表/🧮電卓/🧹リセット（戻るで元に戻せます）');
   check('  書き出しは畳んだ中', await page.evaluate(() =>
     [...document.querySelectorAll('#moreAccOut .more-item')].map(x => x.textContent.trim()).join('/')),
     '🖨PDF/📄CSV出力/📊Excel出力/📥CSV読込/📥Excel読込');
   check('  そのほかも畳んだ中', await page.evaluate(() =>
     [...document.querySelectorAll('#moreAccMisc .more-item')].map(x => x.textContent.trim()).join('/')),
-    '🗂シート/▦既定の大きさ/🌙ナイトモード/📖説明書');
+    '🗂シート/▦既定の大きさ/📖説明書');
   check('  スクロールしなくても収まる', await page.evaluate(() => {
     const b = document.querySelector('#moreMenuOverlay .modal-body');
     return b.scrollHeight <= b.clientHeight + 1; }), true);
@@ -3736,7 +3736,7 @@ async function runExport(browser) {
   check('  畳んでもシートの印は付く', await page.evaluate(() => { toggleSheetTabs();
     const r = document.getElementById('sheetToggleBtn').classList.contains('on');
     toggleSheetTabs(); return r; }), true);
-  check('  畳んでもナイトモードの表示は変わる', await page.evaluate(() => { toggleDark();
+  check('  ナイトモードの表示は変わる', await page.evaluate(() => { toggleDark();
     const r = document.getElementById('darkMoreBtn').textContent.trim(); toggleDark(); return r; }),
     '☀ライトに戻す');
   check('  上のバーへの登録もこれまでどおり', await page.evaluate(() => { toggleTopBtn('defsize');
@@ -6036,6 +6036,95 @@ async function runTouban(browser) {
   await ctx.close();
 }
 
+async function runBrush1(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ブラッシュアップ第1弾 ──');
+
+  // 空の表の手がかり
+  check('  空の表に手がかりが出る', await page.evaluate(() =>
+    !document.getElementById('emptyHint').hidden), true);
+  check('  手がかりは押しても邪魔しない', await page.evaluate(() =>
+    getComputedStyle(document.getElementById('emptyHint')).pointerEvents), 'none');
+  await page.click('#c0_0'); await page.keyboard.type('5'); await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+  check('  入れると消える', await page.evaluate(() =>
+    document.getElementById('emptyHint').hidden), true);
+  await page.evaluate(() => undoLast()); await page.waitForTimeout(300);
+  check('  戻して空になるとまた出る', await page.evaluate(() =>
+    !document.getElementById('emptyHint').hidden), true);
+  await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(400);
+  check('  電卓のときは出ない', await page.evaluate(() =>
+    getComputedStyle(document.getElementById('emptyHint')).display === 'none' ||
+    document.getElementById('emptyHint').offsetParent === null), true);
+  await page.evaluate(() => switchMode('normal')); await page.waitForTimeout(400);
+
+  // 自動保存の表示
+  check('  記録を開いていないときは「自動保存」', await page.evaluate(() =>
+    document.getElementById('recordTitle').textContent.startsWith('📄 自動保存')), true);
+  check('  「未保存」とは出さない', await page.evaluate(() =>
+    document.getElementById('recordTitle').textContent.includes('未保存')), false);
+
+  // ⋯の道具の一覧
+  await page.evaluate(() => openMoreMenu()); await page.waitForTimeout(400);
+  check('  道具が全部並ぶ', await page.evaluate(() =>
+    document.querySelectorAll('#moreToolsGrid .more-item').length === NP_TOOLS.length), true);
+  check('  はじめは畳んである', await page.evaluate(() =>
+    document.getElementById('moreAccTools').open), false);
+  check('  別のタブで開くものには印', await page.evaluate(() =>
+    document.querySelector('#moreToolsGrid [data-tool=kaikei]').textContent.includes('↗')), true);
+  check('  ナイトモードは畳まずに出ている', await page.evaluate(() =>
+    !document.getElementById('darkMoreBtn').closest('.more-acc')), true);
+  await page.evaluate(() => document.querySelector('#moreToolsGrid [data-tool=touban]').click());
+  await page.waitForTimeout(700);
+  check('  一覧から道具が開く', await page.evaluate(() => isDlgOpen('toubanOverlay')), true);
+  check('  開くと⋯は閉じる', await page.evaluate(() => isDlgOpen('moreMenuOverlay')), false);
+  await page.evaluate(() => closeTouban()); await page.waitForTimeout(400);
+
+  check('  道具を閉じてもアプリの外に出ない', await page.evaluate(() =>
+    location.href.endsWith('index.html') && typeof toggleSettings === 'function'), true);
+  // ⋯ → リスト → 閉じる で、前のページへ戻ってしまっていた（v398で修正）
+  await page.evaluate(() => openMoreMenu()); await page.waitForTimeout(400);
+  await page.click('#listBtn'); await page.waitForTimeout(600);
+  check('  ⋯からリストが開く', await page.evaluate(() => isDlgOpen('saveListOverlay')), true);
+  await page.evaluate(() => closeSaveList()); await page.waitForTimeout(600);
+  check('  リストを閉じてもアプリの外に出ない', await page.evaluate(() =>
+    location.href.endsWith('index.html') && typeof toggleSettings === 'function'), true);
+
+  // 設定からも案内をもう一度
+  await page.evaluate(() => toggleSettings()); await page.waitForTimeout(400);
+  check('  設定に案内のボタンがある', await page.evaluate(() =>
+    !!document.getElementById('setTourBtn')), true);
+  await page.evaluate(() => document.getElementById('setTourBtn').click()); await page.waitForTimeout(800);
+  check('  押すと案内が開く', await page.evaluate(() => isDlgOpen('tourOverlay')), true);
+  check('  設定は閉じる', await page.evaluate(() => isDlgOpen('settingsPanel')), false);
+  await page.evaluate(() => { const b = [...document.querySelectorAll('#tourOverlay button')]
+    .find(x => /とばす|スキップ|閉じる|✕/.test(x.textContent)); if (b) b.click(); });
+  await page.waitForTimeout(500);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+
+  // 広い画面で列が間延びしない
+  const wide = await browser.newContext({ viewport: { width: 1400, height: 800 } });
+  const wp = await wide.newPage();
+  await wp.goto(INDEX); await wp.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await wp.reload(); await wp.waitForTimeout(1000);
+  const cw = await wp.evaluate(() => ({ w: document.getElementById('ch0').getBoundingClientRect().width,
+    cap: COL_WIDE_CAP * (cellScale || 1) }));
+  check('  パソコンでは1列が上限まで', cw.w <= cw.cap + 1, true);
+  check('  それでも狭すぎない', cw.w >= 150, true);
+  await wide.close();
+  const narrow = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const np = await narrow.newPage();
+  await np.goto(INDEX); await np.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await np.reload(); await np.waitForTimeout(1000);
+  check('  スマホでは今までどおり画面いっぱい', await np.evaluate(() => {
+    const t = document.getElementById('sheet');
+    return Math.abs(t.getBoundingClientRect().width - t.parentElement.clientWidth) <= 2; }), true);
+  await narrow.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -6079,6 +6168,7 @@ async function runTouban(browser) {
     if (!only || only === 'cellfocus') await runCellFocus(browser);
     if (!only || only === 'kaikei') await runKaikei(browser);
     if (!only || only === 'touban') await runTouban(browser);
+    if (!only || only === 'brush1') await runBrush1(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
