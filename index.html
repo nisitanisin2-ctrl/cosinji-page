@@ -604,6 +604,18 @@ body.np-side.numpad-compact .numpad-grid .btn { font-size: 0 !important; }
   flex-shrink: 0; padding: 0 10px;
 }
 .btn-more:hover { background: rgba(255,255,255,0.28); }
+/* ── 押せる所の大きさをそろえる（v400）──
+   上のバーや小さな切り替えは、見た目を変えずに指の当たりだけを広げる（✕ と同じやり方）。
+   ⋯ は他のボタンと高さをそろえる（前は20pxで、押し外しやすかった）。 */
+.btn-more { min-height: 30px; min-width: 44px; }
+.toolbar > button, .toolbar > .toolbar-title, .stat-edge, .save-new-btn, .save-viewbtn, .hdr-btn { position: relative; }
+.toolbar > button::before, .toolbar > .toolbar-title::before,
+.save-new-btn::before, .save-viewbtn::before, .hdr-btn::before {
+  content: ''; position: absolute; left: 0; right: 0; top: -7px; bottom: -7px;
+}
+.stat-edge::before { content: ''; position: absolute; inset: -10px -8px; }
+.fmt-select, .save-sortsel { min-height: 36px; }
+.tsx-sec-btn { min-height: 36px; align-items: center; }
 .btn-more:active { background: rgba(255,255,255,0.4); }
 /* 「⋯」の中身 */
 .modal.more-modal { width: 100%; max-width: 420px; max-height: 90vh; }
@@ -635,6 +647,17 @@ body.np-side.numpad-compact .numpad-grid .btn { font-size: 0 !important; }
 }
 .more-acc > summary > small { display: block; font-weight: normal; font-size: 11px; color: var(--text-light); margin-top: 2px; }
 .more-acc > .more-grid { margin-top: 6px; }
+/* 印刷のしかた（v400） */
+.prn-open {
+  display: block; width: 100%; margin: 6px 0 2px; padding: 9px 10px; min-height: 40px;
+  border: 1px dashed var(--save-item-border); border-radius: var(--r-btn);
+  background: transparent; color: var(--text-light); font-size: 13px; font-weight: bold; cursor: pointer;
+}
+.prn-modal { width: 100%; max-width: 440px; }
+#prnOverlay { z-index: 1005; }   /* 道具の窓や、その設定の窓の上に開くので一段上に置く */
+.prn-go { display: flex; gap: 8px; margin-top: 10px; }
+.prn-go > * { flex: 1; margin: 0; }
+#tbPrOpen small { display: block; font-weight: normal; font-size: 11px; color: var(--text-light); margin-top: 2px; }
 /* 空の表の手がかり（v398） */
 .sheet-wrap { position: relative; }
 .empty-hint {
@@ -781,6 +804,31 @@ body.has-sheet-tabs .sheet-persist {
   padding: 10px; overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1;
 }
 body.dark .settings-tabbar, body.dark .settings-body { background: #141d33; }
+/* 設定をさがす（v400） */
+.set-find { position: relative; padding: 8px 10px 0; background: #f0f0f0; flex-shrink: 0; }
+body.dark .set-find { background: #141d33; }
+.set-find-in {
+  width: 100%; box-sizing: border-box; padding: 9px 12px; min-height: 40px; font-size: 15px;
+  border: 1px solid var(--save-item-border); border-radius: 20px;
+  background: var(--save-item-bg); color: var(--text);
+}
+.set-find-res {
+  position: absolute; left: 10px; right: 10px; top: calc(100% + 2px); z-index: 5;
+  max-height: 55vh; overflow-y: auto; padding: 4px;
+  background: var(--save-item-bg); border: 1px solid var(--save-item-border); border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.18);
+}
+.set-find-res[hidden] { display: none; }
+.set-find-hit {
+  display: block; width: 100%; text-align: left; padding: 9px 10px; min-height: 44px;
+  border: none; border-radius: 8px; background: transparent; color: var(--text); cursor: pointer;
+}
+.set-find-hit:hover, .set-find-hit:focus { background: var(--cell-hover, rgba(0,0,0,.05)); }
+.set-find-hit b { display: block; font-size: 14px; }
+.set-find-hit small { display: block; font-size: 11px; color: var(--text-light); margin-top: 1px; }
+.set-find-none { padding: 12px 10px; font-size: 13px; color: var(--text-light); }
+.set-flash { animation: setFlash 1.6s ease; border-radius: 8px; }
+@keyframes setFlash { 0%, 60% { box-shadow: 0 0 0 3px var(--acc); } 100% { box-shadow: 0 0 0 0 transparent; } }
 /* 📦 端末の空き具合（v373） */
 .st-total { margin-bottom: 12px; }
 .st-bar {
@@ -2464,6 +2512,11 @@ body[data-pm="xs"] .pm-modal > .modal-header {
 /* ボタン割り当てピッカー（テンキーのボタン長押しで開く） */
 .ka-sec { font-size: 11px; font-weight: bold; color: var(--text-light); margin: 10px 2px 6px; }
 .ka-sec:first-child { margin-top: 0; }
+.ka-find {
+  width: 100%; box-sizing: border-box; margin: 0 0 8px; padding: 8px 12px; min-height: 40px; font-size: 15px;
+  border: 1px solid var(--save-item-border); border-radius: 20px; background: var(--save-item-bg); color: var(--text);
+}
+.ka-none { font-size: 13px; color: var(--text-light); padding: 8px 4px; }
 .ka-grid { display: flex; flex-wrap: wrap; gap: 6px; }
 .ka-item {
   flex: 0 0 calc((100% - 24px)/5);
@@ -3237,6 +3290,10 @@ body.dark .tsx-res-val.ng   { color: #ff8a80; }
 #printArea .tp-doc .tp-nm { font-size: calc(9px * var(--tp-k, 1)); line-height: 1.12; overflow-wrap: anywhere; margin-top: 1px; }
 #printArea .tp-doc .tp-foot { font-size: calc(9px * var(--tp-k, 1)); color: #666; margin-top: 7px; text-align: right; }
 
+/* 共通の「印刷のしかた」（v400）。当番表以外は、中身をまとめて拡大・縮小する。
+   紙の幅はそのままで、中身だけ大きく組み直すので「同じ紙に大きな字」になる */
+#printArea .prn-doc > * { zoom: var(--prn-z, 1); }
+#printArea .prn-doc.prn-nofoot .vp-foot { display: none; }
 #printArea .op-doc .vp-head { border-bottom: 2px solid #2e7d32; padding-bottom: 6px; margin-bottom: 10px; }
 #printArea .op-doc .vp-title { font-size: 20px; font-weight: bold; }
 #printArea .op-doc .vp-sub { font-size: 11px; color: #555; margin-top: 2px; }
@@ -3428,6 +3485,12 @@ body.dark {
   <div class="modal-header">
     <span>⚙ 設定</span>
     <button class="modal-close" onclick="toggleSettings()">✕</button>
+  </div>
+  <!-- 設定をさがす（v400）。項目が増えたので、言葉で探して飛べるようにする -->
+  <div class="set-find">
+    <input type="search" id="setFindIn" class="set-find-in" placeholder="🔍 設定をさがす（例：夜・色・テンキー）"
+           autocomplete="off" oninput="setFind(this.value)" onkeydown="event.stopPropagation(); if(event.key==='Enter') setFindGo(0)">
+    <div class="set-find-res" id="setFindRes" hidden></div>
   </div>
   <div class="settings-tabbar">
     <button class="settings-tab active" onclick="setSettingsTab(0)">📐 表</button>
@@ -3719,7 +3782,7 @@ body.dark {
     <div class="modal-header">
       <span>💧 単位水量試験</span>
       <span class="hdr-right">
-        <button class="hdr-btn" onclick="openTsSettings()">⚙ 設定</button>
+        <button class="hdr-btn" onclick="openTsSettings()" title="許容差・小数の桁・配合とエアメータの登録">⚙ 設定</button>
         <button class="modal-close" onclick="closeTansui()">✕</button>
       </span>
     </div>
@@ -3769,6 +3832,7 @@ body.dark {
         <button class="vol-insert veg-pdf-btn" onclick="tsxImage(false)">🖼 画像で保存</button>
         <button class="vol-insert veg-pdf-btn" onclick="tsxImage(true)">📤 画像を共有</button>
       </div>
+      <button class="prn-open" onclick="openPrn('tsx')">🖨 印刷のしかた（文字の大きさ・1枚に収める など）</button>
     </div>
   </div>
 </div>
@@ -3789,7 +3853,7 @@ body.dark {
     <div class="modal-header">
       <span>🧪 カンタブ試験</span>
       <span class="hdr-right">
-        <button class="hdr-btn" onclick="openKtSettings()">⚙ 換算表・設定</button>
+        <button class="hdr-btn" onclick="openKtSettings()" title="換算表の登録・判定の決まり">⚙ 設定</button>
         <button class="modal-close" onclick="closeKantab()">✕</button>
       </span>
     </div>
@@ -3810,7 +3874,7 @@ body.dark {
       </div>
       <div class="kt-judge-row"><span class="ts-judge" id="ktJudge">—</span></div>
       <button class="vol-insert" id="ktInsertBtn" onclick="ktInsertToCell()" disabled>▦ 平均値をセルに入れる</button>
-      <div class="vol-hint">読み値ごとに<b>換算表</b>で塩化物イオン濃度(%)に直し、<b>単位水量</b>を掛けて塩化物含有量(kg/m³)を出します。最後にその<b>平均</b>で判定します（①〜③のうち<b>入れた分だけ</b>で平均します）。<br>換算表はカンタブの製品ごとに違うため、はじめに<b>⚙換算表・設定</b>でお使いの表を登録してください。読み値が表の行と行の間のときは前後から直線でおぎない、その値に<b>*</b>を付けます。表の範囲外のときは「範囲外」と出し、平均には入れません。</div>
+      <div class="vol-hint">読み値ごとに<b>換算表</b>で塩化物イオン濃度(%)に直し、<b>単位水量</b>を掛けて塩化物含有量(kg/m³)を出します。最後にその<b>平均</b>で判定します（①〜③のうち<b>入れた分だけ</b>で平均します）。<br>換算表はカンタブの製品ごとに違うため、はじめに<b>⚙設定</b>でお使いの表を登録してください。読み値が表の行と行の間のときは前後から直線でおぎない、その値に<b>*</b>を付けます。表の範囲外のときは「範囲外」と出し、平均には入れません。</div>
     </div>
   </div>
 </div>
@@ -4508,6 +4572,7 @@ body.dark {
         <button class="vol-insert veg-pdf-btn" id="vegImgBtn" onclick="vegImage(false)">🖼 画像で保存</button>
         <button class="vol-insert veg-pdf-btn" id="vegShareBtn" onclick="vegImage(true)">📤 画像を共有</button>
       </div>
+      <button class="prn-open" onclick="openPrn('veg')">🖨 印刷のしかた（文字の大きさ・1枚に収める など）</button>
       <details class="veg-my">
         <summary>➕ 自分の野菜を登録する</summary>
         <div id="vegMyBody"></div>
@@ -4654,6 +4719,7 @@ body.dark {
         <button class="vol-insert veg-pdf-btn" onclick="vegDiaryImage(false)">🖼 画像で保存</button>
         <button class="vol-insert veg-pdf-btn" onclick="vegDiaryImage(true)">📤 画像を共有</button>
       </div>
+      <button class="prn-open" onclick="openPrn('vegdiary')">🖨 印刷のしかた（文字の大きさ・1枚に収める など）</button>
       <div class="veg-note">写真は端末の中だけに残ります。機種変えのときは 📋リストの<b>⬇書き出し</b>では移せないので、大事な写真は<b>画像で保存</b>しておいてください。</div>
     </div>
   </div>
@@ -4726,7 +4792,7 @@ body.dark {
       <span class="hdr-title">📝 写真メモ</span>
       <span class="hdr-right">
         <span class="hdr-rotrow" id="pmRotRow" style="display:none"><button class="hdr-btn hdr-rot" onclick="pmRotatePhoto(-1)" title="左に90°回す">↺</button><button class="hdr-btn hdr-rot" onclick="pmRotatePhoto(1)" title="右に90°回す">↻</button></span>
-        <button class="hdr-btn" onclick="pmOpenSaveSet()">⚙ 保存設定</button>
+        <button class="hdr-btn" onclick="pmOpenSaveSet()" title="書き出す画像の大きさ・画質">⚙ 設定</button>
       </span>
     </div>
     <div class="pm-body">
@@ -5030,7 +5096,7 @@ body.dark {
   <div class="modal">
     <div class="modal-header">
       <button class="hdr-back" onclick="pmCloseSaveSet()" title="前の画面にもどる"><span class="hdr-back-ar">←</span>戻る</button>
-      <span class="hdr-title">⚙ 保存設定</span>
+      <span class="hdr-title">📝 写真メモの設定</span>
     </div>
     <div class="shotprev-body">
       <div class="mode-hint">スクショ・共有で書き出す画像の大きさです。「元のサイズ」なら写真の画質そのままで保存できます（元より大きくは引き伸ばしません）。</div>
@@ -5122,7 +5188,7 @@ body.dark {
     <div class="modal-header">
       <span id="toubanHdr">📅 当番表</span>
       <span class="hdr-right">
-        <button class="hdr-btn" onclick="openTbSet()">⚙ 名簿・設定</button>
+        <button class="hdr-btn" onclick="openTbSet()" title="名簿・当番の日・割り当て・印刷のしかた">⚙ 設定</button>
         <button class="hdr-btn" onclick="tbPrint()">🖨 印刷</button>
         <button class="modal-close" onclick="closeTouban()">✕</button>
       </span>
@@ -5141,8 +5207,30 @@ body.dark {
         </div>
       </div>
       <div class="tb-next" id="tbNext"></div>
-      <div class="mode-hint">日づけの下の枠に<b>名簿の番号</b>を入れると、その人の名前が入ります。名簿は<b>⚙名簿・設定</b>から登録してください。</div>
+      <div class="mode-hint">日づけの下の枠に<b>名簿の番号</b>を入れると、その人の名前が入ります。名簿は<b>⚙設定</b>から登録してください。</div>
       <div class="tb-months" id="tbMonths"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 🖨 印刷のしかた（v400）。紙と画像に出すときの決めごとを、道具ごとに同じ形で選ぶ -->
+<div class="modal-overlay" id="prnOverlay" onclick="if(event.target===this)closePrn()">
+  <div class="modal prn-modal">
+    <div class="modal-header">
+      <span id="prnTitle">🖨 印刷のしかた</span>
+      <button class="modal-close" onclick="closePrn()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="set-row">
+        <span class="set-label">文字の大きさ<small>読みづらい・入りきらないときに</small></span>
+        <span class="set-stepper"><button class="step-btn" onclick="prnSize(-1)">−</button><span class="sc-val" id="prnSizeVal">ふつう</span><button class="step-btn" onclick="prnSize(1)">＋</button></span>
+      </div>
+      <div id="prnToggles"></div>
+      <div class="set-note">ここで決めたことは<b>紙と画像に出すときだけ</b>効きます。画面の見え方は変わりません。<b>1枚に収める</b>を外すと、選んだ大きさのまま出して、入りきらなければ2枚以上になります。</div>
+      <div class="prn-go">
+        <button class="vol-insert veg-pdf-btn" id="prnPrintBtn" onclick="prnRun('print')">🖨 印刷・PDF</button>
+        <button class="vol-insert veg-pdf-btn" id="prnImageBtn" onclick="prnRun('image')">🖼 画像で保存</button>
+      </div>
     </div>
   </div>
 </div>
@@ -5150,7 +5238,7 @@ body.dark {
 <div class="modal-overlay" id="tbSetOverlay" onclick="if(event.target===this)closeTbSet()">
   <div class="modal vol-modal">
     <div class="modal-header">
-      <span>⚙ 名簿・設定</span>
+      <span>📅 当番表の設定</span>
       <button class="modal-close" onclick="closeTbSet()">✕</button>
     </div>
     <div class="modal-body">
@@ -5179,15 +5267,7 @@ body.dark {
       <button class="set-act" onclick="tbClearHalf()">🧹 いま見ている半年の番号を消す</button>
 
       <div class="set-sec">印刷のしかた</div>
-      <div class="set-row">
-        <span class="set-label">文字の大きさ<small>名前が読みづらいときに</small></span>
-        <span class="set-stepper"><button class="step-btn" onclick="tbChangePSize(-1)">−</button><span class="sc-val" id="tbPSizeVal">ふつう</span><button class="step-btn" onclick="tbChangePSize(1)">＋</button></span>
-      </div>
-      <button class="set-act" id="tbPrFit" onclick="tbTogglePr('fit')" title="外すと、選んだ文字の大きさのまま出します（入りきらなければ2枚になります）">📄 半年ぶんを1枚に収める</button>
-      <button class="set-act" id="tbPrFoot" onclick="tbTogglePr('foot')" title="紙のいちばん下に出る「当番の日 ◯日 ／ ◯/◯ 現在」">📅 下に日づけと日数を出す</button>
-      <button class="set-act" id="tbPrSub" onclick="tbTogglePr('sub')" title="題の下に出るそえ書き">✍ そえ書きを出す</button>
-      <button class="set-act" id="tbPrHol" onclick="tbTogglePr('hol')" title="こどもの日・振替休日などの名前">🎌 祝日の名前を出す</button>
-      <div class="set-note">ここで決めたことは<b>紙に出すときだけ</b>効きます。画面の見え方は変わりません。</div>
+      <button class="set-act" id="tbPrOpen" onclick="openPrn('touban')">🖨 印刷のしかた<small id="tbPrSum"></small></button>
 
       <div class="set-sec">名簿<small id="tbRosterCount"></small></div>
       <div class="set-note">この<b>並び順が番号</b>になります。順番を入れ替えると、番号の指す人も変わります。</div>
@@ -5492,7 +5572,7 @@ body.dark {
             ・<b>肥料・注意・病気・害虫も、▦予定表を表に入れる</b>で予定表のあとに一緒に書き出されます<br>
             ・<b>➕自分の野菜を登録する</b>で、育てている品種を自分で足せます（名前と、作業ごとの日数）。登録したものは<b>点線のふち</b>で並び、次に開いたときも残ります<br>
             ・日数は家庭菜園のふつうの目安です。<b>品種・地域・その年の天気で前後します</b>ので、種の袋の日数があればそちらを目安にしてください</div>
-          <div class="help-li"><b>カンタブ（塩化物イオン量）</b>：生コンの塩化物イオン量を、カンタブ（試験紙）の読み値から出します。<b>単位水量</b>と<b>読み値①〜③</b>を入れると、読み値ごとに<b>換算表の値(%)</b>と<b>塩化物含有量(kg/m³)</b>が並び、最後にその<b>平均値</b>で合否を判定します。平均値は<b>選択中のセルに入れる</b>こともできます。読み値から濃度への<b>換算表はカンタブの製品ごとに違う</b>ので、はじめに<b>⚙換算表・設定</b>でお使いの表を登録してください（読み値が表の間のときは前後から直線でおぎない、その旨を表示します）。換算表は<b>まとめて貼り付け</b>でも登録できます（1行に「読み値」と「濃度」の数字を2つ並べる。区切りはスペース・タブ・カンマのどれでもよく、全角の数字も読めます）。濃度は<b>小数4桁</b>まで扱えます。よく使う製品の表は<b>ひな形のボタン</b>でワンタップでも入れられます（写真から起こした値なので、入れたあと実物と見くらべてください）。管理値の既定は 0.30 kg/m³ で、設定で変えられます。</div>
+          <div class="help-li"><b>カンタブ（塩化物イオン量）</b>：生コンの塩化物イオン量を、カンタブ（試験紙）の読み値から出します。<b>単位水量</b>と<b>読み値①〜③</b>を入れると、読み値ごとに<b>換算表の値(%)</b>と<b>塩化物含有量(kg/m³)</b>が並び、最後にその<b>平均値</b>で合否を判定します。平均値は<b>選択中のセルに入れる</b>こともできます。読み値から濃度への<b>換算表はカンタブの製品ごとに違う</b>ので、はじめに<b>⚙設定</b>でお使いの表を登録してください（読み値が表の間のときは前後から直線でおぎない、その旨を表示します）。換算表は<b>まとめて貼り付け</b>でも登録できます（1行に「読み値」と「濃度」の数字を2つ並べる。区切りはスペース・タブ・カンマのどれでもよく、全角の数字も読めます）。濃度は<b>小数4桁</b>まで扱えます。よく使う製品の表は<b>ひな形のボタン</b>でワンタップでも入れられます（写真から起こした値なので、入れたあと実物と見くらべてください）。管理値の既定は 0.30 kg/m³ で、設定で変えられます。</div>
         </div>
       </details>
 
@@ -5515,7 +5595,7 @@ body.dark {
             <tr><td><b>調整バー</b></td><td>大きさを変えるバーの太さ、表示/非表示を切替（「くわしい設定」の中）</td></tr>
             <tr><td><b>上下の余白</b></td><td>テンキーの上下の隙間（「最小」でホームバー分も詰める）</td></tr>
           </table>
-          <div class="help-li"><b>📅当番表</b>（v394から）：<b>ごみ当番・掃除当番</b>などの持ち回りを、半年分のカレンダーにして配れます。<b>⚙名簿・設定</b>で人を順に登録し（<b>並び順がそのまま番号</b>になります）、<b>当番の曜日</b>を選んでから<b>「1年ぶんに割り当てる」</b>を押すと、名簿の順に番号が入ります。<b>日づけの下の枠に番号を入れて手で直す</b>こともできます（Enterで次の当番日へ進みます）。<b>祝日は自動で出ます</b>（<b>翌日にずらす／当番なし</b>を選べます。年末年始をとばすこともできます）。<b>表の名前は書き換えられます</b>（はじめは「当番表」。そえ書きも入れられます）。<b>🖨印刷</b>で半年分が1枚に入ります。設定→🎨見た目→くわしい設定→<b>テンキーの上に出す道具</b>から出しておけます。入れたものは<b>この端末の中だけ</b>に残ります。</div>
+          <div class="help-li"><b>📅当番表</b>（v394から）：<b>ごみ当番・掃除当番</b>などの持ち回りを、半年分のカレンダーにして配れます。<b>⚙設定</b>で人を順に登録し（<b>並び順がそのまま番号</b>になります）、<b>当番の曜日</b>を選んでから<b>「1年ぶんに割り当てる」</b>を押すと、名簿の順に番号が入ります。<b>日づけの下の枠に番号を入れて手で直す</b>こともできます（Enterで次の当番日へ進みます）。<b>祝日は自動で出ます</b>（<b>翌日にずらす／当番なし</b>を選べます。年末年始をとばすこともできます）。<b>表の名前は書き換えられます</b>（はじめは「当番表」。そえ書きも入れられます）。<b>🖨印刷</b>で半年分が1枚に入ります。設定→🎨見た目→くわしい設定→<b>テンキーの上に出す道具</b>から出しておけます。入れたものは<b>この端末の中だけ</b>に残ります。</div>
           <div class="help-li"><b>▦既定の大きさ</b>（v392から）：<b>タップすると設定が開きます</b>。新しく表を作るときや <b>▦通常</b> でまっさらに戻したときの<b>行数・列数</b>をここで決めます（初期値15行×3列）。<b>いま開いている表だけ</b>をその大きさにしたいときは、同じ画面の<b>「▦ いまの表をこの大きさにする」</b>を押してください（中身はそのままです）。<br>v391までは<b>タップが「いまの表を変える」・長押しが設定</b>でしたが、タップの動きが <b>▦通常</b> とまぎらわしかったので入れかえました（設定→🎨見た目→くわしい設定→<b>上のバーに出すボタン</b>で上のバーにも出せます）。</div>
           <div class="help-li"><b>▦通常 と ▦既定の大きさ のちがい</b>（似ているので）：<br>
             ・<b>▦通常</b>は<b>モードを通常に戻す</b>ボタンです。すでに通常のときは、<b>ひな形なら消して</b>まっさらな表にし、<b>中身が空で小さいままなら</b>既定の大きさに戻します。<b>中身が入っているときは大きさを変えません</b>（作りかけの表を勝手に変えないため）<br>
@@ -8402,6 +8482,13 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v400', t:'さがせる・そろえる（第3弾）', li:[
+    '⚙設定のいちばん上に<b>🔍 設定をさがす</b>欄を足しました。「夜」「色」「テンキー」のように打つと、その項目へ飛んで光ります（ひらがなでも探せます）',
+    'ボタンの長押しの割り当てと、▲登録の「ボタンの機能から選ぶ」にも<b>🔍 さがす欄</b>を付けました。97種類の中からすぐ見つかります',
+    '📅当番表・💧単位水量・🌱育成計画・📓育成日記の<b>印刷のしかた</b>を、同じ<b>🖨 印刷のしかた</b>の窓で選べるようにしました（文字の大きさ・1枚に収める・下の注記）',
+    '道具の上の帯の設定ボタンは、どれも<b>「⚙ 設定」</b>にそろえました',
+    '上のバーのボタンと <b>⋯</b> を押しやすくしました（見た目はそのまま、指の当たりを広げました）',
+  ]},
   { v:'v399', t:'パソコンで見やすく・夜にまぶしくなく（第2弾）', li:[
     'パソコンやタブレットの横向きでは、<b>テンキーを表の右に縦に置く</b>ようにしました。表が上から下まで見えます',
     '置き場所は ⚙設定 → 🎨見た目 の<b>「テンキーの置き場所」</b>で 自動／下／右 から選べます',
@@ -8710,7 +8797,7 @@ function tbRenderNext(){
   const today=tbIso(new Date());
   const keys=Object.keys(touban.assign).filter(k=>k>=today).sort();
   if(!touban.roster.length){
-    box.innerHTML='<span class="tb-tag">まずは名簿から</span><span class="tb-n">⚙名簿・設定 で人を登録してください</span>';
+    box.innerHTML='<span class="tb-tag">まずは名簿から</span><span class="tb-n">⚙設定 で人を登録してください</span>';
     return;
   }
   if(keys.length){
@@ -8946,27 +9033,97 @@ function tbPrintHtml(){
 }
 function tbPrint(){
   // 「1枚に収める」を外すと、選んだ文字の大きさのまま出す（入りきらなければ2枚になる）
+  if(isDlgOpen('prnOverlay')) closePrn();          // 上に重なった窓から順に閉じる（戻るの履歴を崩さない）
+  if(isDlgOpen('tbSetOverlay')) closeTbSet();
   const built=opBuild(tbPrintHtml(), !touban.pr.fit);
   closeTouban();
   opPrint(built);
   return built.k;
 }
 /* ── 印刷のしかた（v397）── */
-function tbChangePSize(d){
-  const n=touban.pr.k+d;
-  if(n<0 || n>=TB_PSIZE.length) return;
-  touban.pr.k=n; saveTouban(); renderTbSet();
-}
-function tbTogglePr(key){
-  if(!(key in touban.pr)) return;
-  touban.pr[key]=!touban.pr[key]; saveTouban(); renderTbSet();
-}
+function tbChangePSize(d){ prnTool='touban'; prnSize(d); }
+function tbTogglePr(key){ prnTool='touban'; prnToggle(key); }
 function renderTbPrint(){
-  const v=document.getElementById('tbPSizeVal');
-  if(v) v.textContent=(TB_PSIZE[touban.pr.k]||TB_PSIZE[1]).n;
-  [['tbPrFit','fit'],['tbPrFoot','foot'],['tbPrSub','sub'],['tbPrHol','hol']].forEach(([id,key])=>{
-    const b=document.getElementById(id); if(b) b.classList.toggle('on', !!touban.pr[key]);
-  });
+  const el=document.getElementById('tbPrSum'); if(!el) return;
+  el.textContent=prnSummary('touban');
+}
+
+/* ── 🖨 印刷のしかた（v400）──
+   道具ごとに「文字の大きさ・1枚に収める・下の注記」を同じ窓で選ぶ。
+   当番表は v397 からの touban.pr をそのまま使い、ほかは excalc_prn に道具ごとに覚える。 */
+const PRN_KEY='excalc_prn';
+const PRN_SIZES=TB_PSIZE;   // 小・ふつう・大・特大
+const PRN_TOOLS={
+  touban:  { n:'📅 当番表',     fitLb:'📄 半年ぶんを1枚に収める', footLb:'📅 下に日づけと日数を出す',
+             extras:[['sub','✍ そえ書きを出す'],['hol','🎌 祝日の名前を出す']],
+             print:()=>tbPrint() },
+  tsx:     { n:'💧 単位水量試験', fit:true,  footLb:'📝 下の注記（単位の説明）を出す',
+             print:()=>tsxPdf(), image:()=>tsxImage(false) },
+  veg:     { n:'🌱 育成計画',     fit:true,  footLb:'📝 下の注記（目安の説明）を出す',
+             print:()=>vegPdf(), image:()=>vegImage(false) },
+  vegdiary:{ n:'📓 育成日記',     fit:false, footLb:'📝 下の注記を出す',
+             print:()=>vegDiaryPdf(), image:()=>vegDiaryImage(false) },
+};
+let prnTool='touban';
+let prnStore={};
+try{ const o=JSON.parse(localStorage.getItem(PRN_KEY)||'{}'); if(o&&typeof o==='object') prnStore=o; }catch(_){}
+function prnOpts(tool){
+  if(tool==='touban') return touban.pr;
+  const def=PRN_TOOLS[tool]||{};
+  const o=prnStore[tool]||(prnStore[tool]={});
+  if(!(Number.isInteger(o.k) && o.k>=0 && o.k<PRN_SIZES.length)) o.k=1;
+  if(typeof o.fit!=='boolean') o.fit=!!def.fit;
+  if(typeof o.foot!=='boolean') o.foot=true;
+  return o;
+}
+function prnSave(tool){
+  if(tool==='touban'){ saveTouban(); if(isDlgOpen('tbSetOverlay')) renderTbSet(); return; }
+  try{ localStorage.setItem(PRN_KEY, JSON.stringify(prnStore)); }catch(_){}
+}
+function prnSummary(tool){
+  const o=prnOpts(tool), t=PRN_TOOLS[tool];
+  const a=['文字 '+PRN_SIZES[o.k].n, o.fit?'1枚に収める':'大きさそのまま'];
+  if(!o.foot) a.push('下の注記なし');
+  (t.extras||[]).forEach(([k,lb])=>{ if(!o[k]) a.push(lb.replace(/^\S+\s/,'').replace('を出す','')+'なし'); });
+  return a.join('・');
+}
+function openPrn(tool){
+  if(!PRN_TOOLS[tool]) return;
+  prnTool=tool; renderPrn(); openDlg('prnOverlay');
+}
+function closePrn(){ closeDlg('prnOverlay'); }
+function renderPrn(){
+  const t=PRN_TOOLS[prnTool], o=prnOpts(prnTool);
+  const tt=document.getElementById('prnTitle'); if(tt) tt.textContent='🖨 印刷のしかた ─ '+t.n.replace(/^\S+\s/,'');
+  const v=document.getElementById('prnSizeVal'); if(v) v.textContent=PRN_SIZES[o.k].n;
+  const rows=[['fit', t.fitLb||'📄 1枚に収める'], ['foot', t.footLb||'📝 下の注記を出す']].concat(t.extras||[]);
+  const box=document.getElementById('prnToggles');
+  if(box) box.innerHTML=rows.map(([k,lb])=>
+    '<button class="set-act'+(o[k]?' on':'')+'" data-prn="'+k+'" onclick="prnToggle(\''+k+'\')">'+lb+'</button>').join('');
+  const ib=document.getElementById('prnImageBtn'); if(ib) ib.style.display=t.image?'':'none';
+  renderTbPrint();
+}
+function prnSize(d){
+  const o=prnOpts(prnTool), n=o.k+d;
+  if(n<0 || n>=PRN_SIZES.length) return;
+  o.k=n; prnSave(prnTool); renderPrn();
+}
+function prnToggle(key){
+  const o=prnOpts(prnTool);
+  if(!(key in o)) return;
+  o[key]=!o[key]; prnSave(prnTool); renderPrn();
+}
+/* 当番表以外の中身に、決めた大きさと注記の出し分けを付ける */
+function prnDoc(tool, html){
+  const o=prnOpts(tool), z=PRN_SIZES[o.k].k;
+  return html.replace('<div class="op-doc"', '<div class="op-doc prn-doc'+(o.foot?'':' prn-nofoot')+'" style="--prn-z:'+z+'"');
+}
+function prnBuild(tool, html){ return opBuild(prnDoc(tool, html), !prnOpts(tool).fit); }
+function prnRun(kind){
+  const t=PRN_TOOLS[prnTool]; if(!t) return;
+  const fn=(kind==='image')?t.image:t.print; if(!fn) return;
+  closePrn();
+  fn();
 }
 
 /* ── 電卓だけにする（v388） ──
@@ -10593,7 +10750,7 @@ function vegDiaryHtml(){
 }
 async function vegDiaryPdf(){
   if(!vegDiaryCount(vegDiaryId)){ toast('日記がまだありません'); return; }
-  const built=opBuild(vegDiaryHtml(), true);      // 写真が小さくなりすぎないよう、縮めずに何ページかに分ける
+  const built=prnBuild('vegdiary', vegDiaryHtml());   // 既定は写真が小さくなりすぎないよう、縮めずに何ページかに分ける
   await opWaitImages(built.box);
   closeVegDiary();
   opPrint(built);
@@ -10602,7 +10759,7 @@ async function vegDiaryPdf(){
 async function vegDiaryImage(share){
   if(!vegDiaryCount(vegDiaryId)){ toast('日記がまだありません'); return; }
   const pl=vegPlots.find(x=>x.id===vegDiaryId);
-  const built=opBuild(vegDiaryHtml(), true);
+  const built=prnBuild('vegdiary', vegDiaryHtml());
   const blob=await opImage(built, `育成日記_${pl?pl.n:'野菜'}`, share);
   if(blob) closeVegDiary();
   return blob;
@@ -11058,7 +11215,7 @@ function vegPdfHtml(){
 }
 function vegPdf(){
   if(!vegSel || vegSowSerial===null){ toast('野菜を選んでください'); return; }
-  const built=opBuild(vegPdfHtml());
+  const built=prnBuild('veg', vegPdfHtml());
   closeVeggie();
   opPrint(built);
   return built.k;
@@ -11066,7 +11223,7 @@ function vegPdf(){
 /* 同じ中身を画像（PNG）で保存する。share=true なら端末の共有機能へ送る */
 async function vegImage(share){
   if(!vegSel || vegSowSerial===null){ toast('野菜を選んでください'); return; }
-  const built=opBuild(vegPdfHtml());
+  const built=prnBuild('veg', vegPdfHtml());
   const blob=await opImage(built, `育成計画_${vegSel.n}`, share);
   if(blob) closeVeggie();
   return blob;
@@ -13543,10 +13700,10 @@ function openKeyAssign(dataKey){
   const cur=keyAssign[dataKey]||'';
   const groups={};
   Object.entries(KEY_FUNCS).forEach(([id,f])=>{ (groups[f.g]=groups[f.g]||[]).push([id,f]); });
-  let html='';
+  let html=kaFindHtml();
   for(const g of ['標準キー','記号・関数','表の操作','設定・機能']){
     html+=`<div class="ka-sec">${g}</div><div class="ka-grid">`;
-    (groups[g]||[]).forEach(([id,f])=>{ html+=`<button class="ka-item${id===cur?' cur':''}" onclick="pickKeyAssign('${id}')">${escHtml(f.label)}</button>`; });
+    (groups[g]||[]).forEach(([id,f])=>{ html+=`<button class="ka-item${id===cur?' cur':''}" data-find="${escHtml(g+' '+(f.short||''))}" onclick="pickKeyAssign('${id}')">${escHtml(f.label)}</button>`; });
     html+='</div>';
   }
   html+='<button class="ka-reset" onclick="pickKeyAssign(null)">↺ 元のボタンに戻す</button>';
@@ -13555,6 +13712,29 @@ function openKeyAssign(dataKey){
   openDlg('keyAssignOverlay');
 }
 function closeKeyAssign(){ closeDlg('keyAssignOverlay'); }
+/* 機能の一覧（97種）をしぼる（v400）。長押しの割り当てと ▲登録 の「ボタンの機能から選ぶ」で共通 */
+function kaFindHtml(){
+  return '<input type="search" class="ka-find" placeholder="🔍 機能をさがす（例：合計・税・当番）" autocomplete="off"'+
+    ' oninput="kaFind(this)" onkeydown="event.stopPropagation()">';
+}
+function kaFind(inp){
+  const box=inp.parentElement, q=findNorm(inp.value), ws=findWords(inp.value);
+  let hit=0;
+  box.querySelectorAll('.ka-grid').forEach(g=>{
+    let n=0;
+    g.querySelectorAll('.ka-item').forEach(b=>{
+      const t=findNorm(b.textContent+' '+(b.dataset.find||''));
+      const ok=!q || ws.some(w=>w && t.includes(w));
+      b.style.display=ok?'':'none'; if(ok) n++;
+    });
+    g.style.display=n?'':'none';
+    const sec=g.previousElementSibling; if(sec && sec.classList.contains('ka-sec')) sec.style.display=n?'':'none';
+    hit+=n;
+  });
+  let none=box.querySelector('.ka-none');
+  if(!hit && q){ if(!none){ none=document.createElement('div'); none.className='ka-none'; none.textContent='見つかりませんでした'; inp.after(none); } }
+  else if(none) none.remove();
+}
 function pickKeyAssign(fid){
   if(!kaTargetKey) return;
   if(fid) keyAssign[kaTargetKey]=fid; else delete keyAssign[kaTargetKey];
@@ -14673,11 +14853,12 @@ function renderRegPickBody(){
   // テンキー長押しの割り当てと同じ機能一覧（KEY_FUNCS）をグループ表示
   const groups={};
   Object.entries(KEY_FUNCS).forEach(([id,f])=>{ (groups[f.g]=groups[f.g]||[]).push([id,f]); });
+  html+=kaFindHtml();
   for(const g of ['標準キー','記号・関数','表の操作','設定・機能']){
     html+=`<div class="ka-sec">${g}</div><div class="ka-grid">`;
     (groups[g]||[]).forEach(([id,f])=>{
       const active=(cur.type==='action'&&cur.value===id);
-      html+=`<button class="ka-item${active?' cur':''}" onclick="regPickAction('${id}')">${escHtml(f.label)}</button>`;
+      html+=`<button class="ka-item${active?' cur':''}" data-find="${escHtml(g+' '+(f.short||''))}" onclick="regPickAction('${id}')">${escHtml(f.label)}</button>`;
     });
     html+='</div>';
   }
@@ -18840,13 +19021,13 @@ function tsxReportHtml(){
   return `<div class="op-doc" id="tsxRepBox">${html}</div>`;
 }
 function tsxPdf(){
-  const built=opBuild(tsxReportHtml());
+  const built=prnBuild('tsx', tsxReportHtml());
   closeTansui();
   opPrint(built);
   return built.k;
 }
 async function tsxImage(share){
-  const built=opBuild(tsxReportHtml());
+  const built=prnBuild('tsx', tsxReportHtml());
   const blob=await opImage(built, '単位水量試験', share);
   if(blob) closeTansui();
   return blob;
@@ -19027,7 +19208,7 @@ function ktCalc(){
     btn.disabled=false;
   } else {
     vEl.textContent='—'; jEl.textContent='—'; btn.disabled=true;
-    if(noTable) sEl.textContent='換算表がまだ登録されていません。「⚙換算表・設定」でお使いのカンタブの表を入れてください';
+    if(noTable) sEl.textContent='換算表がまだ登録されていません。「⚙設定」でお使いのカンタブの表を入れてください';
     else if(nRead===0) sEl.textContent='読み値を入れてください（①〜③のうち入れた分だけで平均します）';
     else if(nOut===nRead) sEl.textContent='読み値がどれも登録した換算表の範囲外です（表に行を足すか、読み値を確かめてください）';
     else sEl.textContent='単位水量を入れてください（換算表の値までは出ています）';
@@ -20183,6 +20364,100 @@ function applySetDetail(){
 /* 設定のタブ切替（表・見た目・計算）。開いたタブを記憶する */
 let settingsTab=0;
 const SETTINGS_TAB_MAX=2;
+/* ── 設定をさがす（v400）──
+   ひらがな・カタカナ・全角半角・大文字小文字の違いは気にせず探す。
+   設定の中の見出し・項目・ボタンに加え、⋯ や道具にあるものも拾う（そちらは開くだけ）。 */
+function findNorm(t){
+  return String(t||'').normalize('NFKC').toLowerCase()
+    .replace(/[\u30a1-\u30f6]/g, c=>String.fromCharCode(c.charCodeAt(0)-0x60))
+    .replace(/[\s・、。（）()「」]/g,'');
+}
+/* 言いかえ。左の言葉で探したら右の言葉でも探す */
+const FIND_SYN={ 'ダーク':'ナイトモード', '夜':'ナイトモード', '暗':'ナイトモード', 'くら':'ナイトモード',
+  'テーマ':'色', 'カラー':'色', '配色':'色', '壁紙':'背景', '写真':'背景', 'フォント':'文字', '字':'文字',
+  '大きく':'大きさ', '小さく':'大きさ', 'キーボード':'テンキー', '電卓':'電卓', 'パソコン':'置き場所', 'pc':'置き場所',
+  'ボタン':'ボタン', 'ヘルプ':'説明書', '使い方':'説明書', 'チュートリアル':'案内', '保存':'書き出す',
+  'エクセル':'excel', 'バックアップ':'書き出す', '消費税':'税', '端数':'小数', '四捨五入':'小数', '丸め':'小数',
+  /* ひらがなで打ったとき用（漢字の見出しに当てる） */
+  'よる':'ナイトモード', 'いろ':'色', 'はいけい':'背景', 'もじ':'文字', 'おおきさ':'大きさ', 'まるめ':'小数',
+  'ぜい':'税', 'けた':'桁', 'しょうすう':'小数', 'ひょう':'表', 'れつ':'列', 'ぎょう':'行', 'でんたく':'電卓',
+  'おきば':'置き場所', 'ばしょ':'場所', 'ごうけい':'合計', 'へいきん':'平均', 'とうばん':'当番', 'やさい':'野菜',
+  'あんない':'案内', 'せつめい':'説明書', 'つめ':'詰め', 'はば':'幅', 'よはく':'余白', 'きせかえ':'着せかえ' };
+/* 探す言葉（打った言葉＋言いかえ）。どれか1つに当たれば出す */
+function findWords(q){
+  const n=findNorm(q), w=[n];
+  if(!n) return [];
+  for(const k in FIND_SYN){ const nk=findNorm(k); if(n.includes(nk) || (nk.length>=2 && nk.startsWith(n))) w.push(findNorm(FIND_SYN[k])); }
+  return w;
+}
+function setFindIndex(){
+  const out=[];
+  const tabs=[...document.querySelectorAll('#settingsPanel .settings-tab')].map(b=>b.textContent.trim());
+  for(let p=0;p<=SETTINGS_TAB_MAX;p++){
+    const page=document.getElementById('setPage'+p); if(!page) continue;
+    let sec='', secEl=null, secText='';
+    const flush=()=>{ if(secEl) out.push({ tab:p, where:tabs[p], label:sec, el:secEl, text:secText }); };
+    page.querySelectorAll('.set-sec, .set-note, .set-row, .set-act, .topbtn-toggle, .skin-seg, .enterdir-seg, summary').forEach(el=>{
+      const t=el.textContent.replace(/\s+/g,' ').trim(); if(!t) return;
+      if(el.classList.contains('set-sec') || el.tagName==='SUMMARY'){
+        flush(); sec=(el.firstChild && el.firstChild.nodeType===3 ? el.firstChild.textContent : t).trim(); secEl=el; secText=t; return;
+      }
+      secText+=' '+t;
+      // 説明の文と、自動／下／右 のような選択肢の並びは、見出しの中身として探すだけにする
+      if(el.classList.contains('set-note') || el.classList.contains('skin-seg') || el.classList.contains('enterdir-seg')) return;
+      const le=el.classList.contains('set-row') ? (el.querySelector('.set-label')||el) : el;
+      const lb=((le.firstChild && le.firstChild.nodeType===3 && le.firstChild.textContent.trim()) ? le.firstChild.textContent : le.textContent)
+        .replace(/\s+/g,' ').trim();   // 下に小さく添えた説明は名前に含めない
+      out.push({ tab:p, where:tabs[p]+(sec?' › '+sec:''), label:lb, el, text:lb+' '+sec });
+    });
+    flush();
+  }
+  // 設定の外にあるもの
+  out.push({ where:'⋯', label:'🌙 ナイトモード', text:'ナイトモード 夜 ダーク 暗い', run:()=>toggleDark() });
+  out.push({ where:'⋯', label:'📖 説明書', text:'説明書 ヘルプ 使い方', run:()=>openHelp() });
+  out.push({ where:'⋯', label:'📤 書き出す・読み込む', text:'書き出す 読み込む PDF CSV Excel エクセル バックアップ',
+             run:()=>{ openMoreMenu(); const d=document.getElementById('moreAccOut'); if(d) d.open=true; } });
+  out.push({ where:'⋯', label:'🗂 シート', text:'シート タブ', run:()=>toggleSheetTabs() });
+  out.push({ where:'📋', label:'📦 端末の空き具合', text:'空き具合 容量 いっぱい 片づけ', run:()=>openStorage() });
+  NP_TOOLS.forEach(t=>out.push({ where:'🧰 道具', label:t.label, text:t.label+' 道具', run:t.run }));
+  return out;
+}
+let setFindHits=[];
+function setFind(q){
+  const res=document.getElementById('setFindRes'); if(!res) return;
+  const raw=String(q||'').trim();
+  if(!raw){ res.hidden=true; res.innerHTML=''; setFindHits=[]; return; }
+  const words=findWords(raw);
+  const seen=new Set();
+  setFindHits=setFindIndex().filter(x=>{
+    const t=findNorm(x.text+' '+x.label);
+    if(!words.some(w=>w && t.includes(w))) return false;
+    const key=x.where+'|'+x.label; if(seen.has(key)) return false; seen.add(key); return true;
+  }).map((x,i)=>{
+    // 名前そのものに当たったものを先に、説明の中だけで当たったものは後に
+    const l=findNorm(x.label);
+    x._s=(words.some(w=>w && l.includes(w))?0:2)+(x.el && x.el.classList.contains('set-sec')?0:1)+i/1000;
+    return x;
+  }).sort((a,b)=>a._s-b._s).slice(0,12);
+  res.hidden=false;
+  res.innerHTML=setFindHits.length
+    ? setFindHits.map((x,i)=>'<button class="set-find-hit" onclick="setFindGo('+i+')"><b>'+escHtml(x.label)+'</b><small>'+escHtml(x.where)+'</small></button>').join('')
+    : '<div class="set-find-none">見つかりませんでした。ちがう言い方でも探してみてください</div>';
+}
+function setFindGo(i){
+  const x=setFindHits[i]; if(!x) return;
+  const inp=document.getElementById('setFindIn'); if(inp){ inp.value=''; inp.blur(); }
+  setFind('');
+  if(x.run){ toggleSettings(); x.run(); return; }
+  setSettingsTab(x.tab);
+  // 畳んだ中にあれば開く
+  for(let d=x.el.parentElement; d; d=d.parentElement){ if(d.tagName==='DETAILS') d.open=true; }
+  requestAnimationFrame(()=>{
+    try{ x.el.scrollIntoView({block:'center', behavior:'smooth'}); }catch(_){ x.el.scrollIntoView(); }
+    x.el.classList.remove('set-flash'); void x.el.offsetWidth; x.el.classList.add('set-flash');
+    setTimeout(()=>x.el.classList.remove('set-flash'), 1800);
+  });
+}
 function setSettingsTab(i){
   i=Math.max(0, Math.min(SETTINGS_TAB_MAX, i));
   settingsTab=i;
@@ -20212,7 +20487,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v399';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v400';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
