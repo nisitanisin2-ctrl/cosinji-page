@@ -235,6 +235,19 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .acc-card .det{font-size:12px;color:var(--sub);display:flex;gap:10px;flex-wrap:wrap;margin-top:2px}
 .acc-total{display:flex;align-items:baseline;gap:8px;padding:12px 0 2px;border-top:2px solid var(--line);font-weight:700}
 .acc-total b{margin-left:auto;font-size:19px}
+/* 一般的な科目のえらび方（分野べつの一覧） */
+.std-g{border:1px solid var(--line);border-radius:var(--r-btn);margin-bottom:10px;overflow:hidden}
+.std-g-hd{display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--acc-weak);flex-wrap:wrap}
+.std-g-hd b{flex:1;min-width:120px;font-size:14px}
+.std-g-all{padding:6px 10px;min-height:36px;font-size:12px;font-weight:600}
+.std-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:0 8px;padding:4px 8px 8px;align-items:start}
+.std-item{display:flex;align-items:center;gap:7px;padding:7px 2px;min-height:var(--tap);cursor:pointer;font-size:14px}
+.std-item input{width:22px;height:22px;min-height:22px;flex:none;margin:0}
+.std-item .k{flex:none;font-size:10px;font-weight:700;border-radius:var(--r-pill);padding:1px 6px}
+.std-item .k.in{color:var(--in);background:var(--in-weak)}
+.std-item .k.out{color:var(--out);background:var(--out-weak)}
+.std-item .nm{min-width:0;line-height:1.3}
+.std-item.had{opacity:.45}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
 </head>
@@ -437,7 +450,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <h2>科目</h2>
     <p class="muted">よく使う順に並べかえられます。名前はパソコン版と同じ字にそろえておくと、読み込みのときに迷いません。</p>
     <button class="btn sub wide" onclick="openStdCats()">📋 一般的な科目を入れる</button>
-    <p class="muted" style="margin-top:6px">簿記でよく使う勘定科目を、まとめて入れられます。押してもすぐには変わりません（何を入れるか確かめてから決められます）。</p>
+    <p class="muted" style="margin-top:6px">自治会・サークル・商店・農業など<b>分野べつの一覧</b>から、<b>チェックしたものだけ</b>を入れられます。押してもすぐには変わりません。</p>
     <div class="sub-head">入るお金</div>
     <div id="catEditIn"></div>
     <div class="sub-head">出るお金</div>
@@ -510,8 +523,8 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   <div class="dlg-bd" id="dlgStdCatBody"></div>
   <div class="dlg-ft" style="flex-wrap:wrap">
     <button class="btn sub" onclick="dlgStdCat.close()">やめる</button>
-    <button class="btn" id="stdAddBtn" onclick="applyStdCats('add')">いまの科目に足す</button>
-    <button class="btn danger" style="flex:1 0 100%" onclick="applyStdCats('replace')">入れ替える（いまの科目を消す）</button>
+    <button class="btn" id="stdAddBtn" onclick="applyStdCats('add')">チェックしてください</button>
+    <button class="btn danger" id="stdRepBtn" style="flex:1 0 100%" onclick="applyStdCats('replace')">チェックしたものだけにする（いまの科目を消す）</button>
   </div>
 </dialog>
 
@@ -536,7 +549,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
    ・お金の場所（口座）は「現金・農協・信用金庫・定期預金…」と名前で持つ。
      口座から口座へ移すのは「振替」として、収入・支出とは別に数える。
    ══════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v8';
+const APP_VERSION='v9';
 const KEY='jk_kaikei_v1';
 
 const DEF_CATS={
@@ -777,58 +790,137 @@ function renderTrSelects(){
   if(kt&&S.accounts.includes(kt)) t.value=kt;
   else if(S.accounts.length>1&&t.value===f.value) t.value=S.accounts.find(a=>a!==f.value)||'';
 }
-/* 簿記でよく使う勘定科目。自治会・サークル・小さな事業所のどれでも使える並びにしてある。
-   これを入れても、いま記帳ずみのものの科目は変わらない（一覧に並ぶ名前が増えるだけ）。 */
-const STD_CATS={
-  in:['売上高','受取手数料','受取利息','受取配当金','雑収入','補助金・助成金','会費収入','寄付金','前期繰越金'],
-  out:['仕入高','外注費','給料手当','法定福利費','福利厚生費','旅費交通費','通信費','水道光熱費',
-       '消耗品費','事務用品費','修繕費','地代家賃','賃借料','保険料','租税公課','広告宣伝費',
-       '接待交際費','会議費','新聞図書費','支払手数料','諸会費','減価償却費','雑費']
-};
-function stdCatsNew(){
-  return { in: STD_CATS.in.filter(c=>!(S.cats.in||[]).includes(c)),
-           out: STD_CATS.out.filter(c=>!(S.cats.out||[]).includes(c)) };
+/* ══ 一般的な科目（分野べつ）══════════════════════════════
+   どの分野の帳面でも使えるように、よくある勘定科目を分野ごとに並べてある。
+   窓でチェックしたものだけが入る。押しただけでは何も変わらない。
+   同じ名前が分野をまたいで出てくることがあるので、入れるときは名前で重複を除く。 */
+const STD_CAT_GROUPS=[
+  { g:'どの帳面でも使う',
+    in:['前期繰越金','雑収入','受取利息','寄付金'],
+    out:['消耗品費','事務用品費','通信費','水道光熱費','旅費交通費','支払手数料',
+         '保険料','租税公課','会議費','雑費'] },
+  { g:'自治会・町内会',
+    in:['会費','市町村補助金','助成金','集会所使用料','廃品回収収入','賛助金'],
+    out:['街路灯電気代','集会所維持費','行事費','慶弔費','防災費','環境衛生費',
+         '広報費','分担金','役員手当'] },
+  { g:'サークル・同好会・部活',
+    in:['部費','参加費','販売収入','協賛金'],
+    out:['会場使用料','用具費','大会参加費','交通費補助','記念品費','懇親会費'] },
+  { g:'PTA・学校関係',
+    in:['PTA会費','学校補助金','バザー収入'],
+    out:['学年活動費','広報紙発行費','研修費','図書費','卒業記念品費'] },
+  { g:'マンション管理組合',
+    in:['管理費収入','修繕積立金収入','駐車場使用料','専用使用料'],
+    out:['管理委託費','清掃費','植栽管理費','エレベーター保守費','共用部電気代','損害保険料'] },
+  { g:'NPO・ボランティア団体',
+    in:['会費収入','寄付金収入','助成金収入','事業収入','受託収入'],
+    out:['事業費','管理費','謝金','印刷製本費','ボランティア費'] },
+  { g:'商店・小さな事業所',
+    in:['売上高','受取手数料','受取配当金'],
+    out:['仕入高','外注費','給料手当','法定福利費','福利厚生費','広告宣伝費','接待交際費',
+         '荷造運賃','地代家賃','賃借料','修繕費','減価償却費','支払利息','新聞図書費','諸会費'] },
+  { g:'飲食店',
+    in:['店内売上高','持帰り売上高'],
+    out:['食材仕入高','酒類仕入高','容器包装費','厨房備品費','衛生費','リース料'] },
+  { g:'製造・建設',
+    in:['完成工事高','製品売上高'],
+    out:['材料費','労務費','外注工事費','機械リース料','現場経費','安全衛生費','工具器具費'] },
+  { g:'農業',
+    in:['農産物売上高','共済金収入','交付金収入'],
+    out:['種苗費','肥料費','農薬費','飼料費','農具費','農機具修繕費','燃料費','出荷経費','土地改良費'] },
+  { g:'不動産賃貸',
+    in:['家賃収入','礼金・更新料','駐車場収入'],
+    out:['管理委託費','固定資産税','借入金利息','原状回復費'] },
+  { g:'個人事業・フリーランス',
+    in:['報酬収入'],
+    out:['研修費','取材費','システム利用料','家事按分費'] },
+];
+const stdKey=(kind,name)=>kind+'\u0001'+name;
+let stdSel=new Set();                       /* チェックしたもの */
+
+function stdHas(kind,name){ return (S.cats[kind]||[]).includes(name); }
+function openStdCats(){
+  stdSel=new Set();
+  renderStdCats();
+  dlgStdCat.showModal();
 }
-function openStdCats(){ renderStdCats(); dlgStdCat.showModal(); }
+function stdToggle(kind,name){
+  const k=stdKey(kind,name);
+  if(stdSel.has(k)) stdSel.delete(k); else stdSel.add(k);
+  renderStdCats();
+}
+function stdGroupAll(gi,on){
+  const g=STD_CAT_GROUPS[gi];
+  ['in','out'].forEach(kind=>(g[kind]||[]).forEach(n=>{
+    if(stdHas(kind,n)) return;
+    const k=stdKey(kind,n);
+    if(on) stdSel.add(k); else stdSel.delete(k);
+  }));
+  renderStdCats();
+}
+function stdAllGroups(on){ STD_CAT_GROUPS.forEach((g,i)=>stdGroupAll(i,on)); }
+function stdSelected(){
+  const out={in:[],out:[]};
+  STD_CAT_GROUPS.forEach(g=>['in','out'].forEach(kind=>(g[kind]||[]).forEach(n=>{
+    if(stdSel.has(stdKey(kind,n)) && !out[kind].includes(n)) out[kind].push(n);
+  })));
+  return out;
+}
 function renderStdCats(){
-  const nw=stdCatsNew();
-  const used=new Set(S.items.map(i=>i.cat).filter(Boolean));
-  const lost=[...(S.cats.in||[]),...(S.cats.out||[])].filter(c=>!STD_CATS.in.includes(c)&&!STD_CATS.out.includes(c));
-  const lostUsed=lost.filter(c=>used.has(c));
-  const list=(t,a)=>a.length?`<div class="sub-head">${t}（${a.length}）</div><div class="prev" style="white-space:normal">${a.map(escHtml).join('、')}</div>`:'';
-  $('dlgStdCatBody').innerHTML=
-    `<p class="muted">簿記でよく使う勘定科目です。<b>収入 ${STD_CATS.in.length}／支出 ${STD_CATS.out.length}</b>。</p>`+
-    (nw.in.length+nw.out.length===0
-      ? '<div class="note-box">一般的な科目は、もうぜんぶ入っています。</div>'
-      : list('新しく足す（入るお金）', nw.in)+list('新しく足す（出るお金）', nw.out))+
-    `<div class="note-box" style="margin-top:12px"><b>いまの科目に足す</b>：いまある科目はそのまま残り、足りないものだけ増えます。</div>`+
-    (lost.length?`<div class="warn-box" style="margin-top:8px"><b>入れ替える</b>：いまの科目のうち
-        <b>${lost.length}件</b>（${escHtml(lost.slice(0,8).join('、'))}${lost.length>8?' ほか':''}）が一覧から消えます。`+
-       (lostUsed.length?`<br>このうち <b>${lostUsed.length}件</b> は記帳で使っています
-          （${escHtml(lostUsed.slice(0,6).join('、'))}${lostUsed.length>6?' ほか':''}）。
-          <b>記帳した中身は消えません</b>が、ふだの一覧からは消えます。`:'')+
-       `</div>`:'');
-  $('stdAddBtn').disabled=(nw.in.length+nw.out.length===0);
+  const sel=stdSelected(), n=sel.in.length+sel.out.length;
+  let html=`<p class="muted">使う分野のところで、入れたい科目に<b>チェック</b>を入れてください。
+    <b>チェックしたものだけ</b>が入ります。いまある科目は消えません。<br>
+    <span style="opacity:.6">うすい行は、もう入っている科目です。</span></p>
+    <div class="row wrap" style="gap:8px;margin-bottom:10px">
+      <button class="btn sub grow" onclick="stdAllGroups(true)">ぜんぶ選ぶ</button>
+      <button class="btn sub grow" onclick="stdAllGroups(false)">ぜんぶ外す</button>
+    </div>`;
+  STD_CAT_GROUPS.forEach((g,gi)=>{
+    const items=['in','out'].map(kind=>(g[kind]||[]).map(nm=>{
+      const has=stdHas(kind,nm), on=stdSel.has(stdKey(kind,nm));
+      return `<label class="std-item${has?' had':''}"${has?' title="すでに入っています"':''}>
+        <input type="checkbox" ${has?'checked disabled':(on?'checked':'')}
+          onchange="stdToggle('${kind}','${nm.replace(/'/g,"\\'")}')"
+          aria-label="${kind==='in'?'入るお金':'出るお金'} ${escHtml(nm)}${has?'（すでに入っています）':''}">
+        <span class="k ${kind}">${kind==='in'?'入':'出'}</span>
+        <span class="nm">${escHtml(nm)}</span>
+      </label>`;
+    }).join('')).join('');
+    html+=`<div class="std-g">
+      <div class="std-g-hd"><b>${escHtml(g.g)}</b>
+        <button class="btn sub std-g-all" onclick="stdGroupAll(${gi},true)">この分野をぜんぶ</button>
+        <button class="btn sub std-g-all" onclick="stdGroupAll(${gi},false)">外す</button>
+      </div>
+      <div class="std-list">${items}</div></div>`;
+  });
+  $('dlgStdCatBody').innerHTML=html;
+  $('stdAddBtn').textContent=n?`チェックした ${n}件 を入れる`:'チェックしてください';
+  $('stdAddBtn').disabled=!n;
+  $('stdRepBtn').disabled=!n;
 }
 function applyStdCats(mode){
-  const nw=stdCatsNew();
+  const sel=stdSelected(), n=sel.in.length+sel.out.length;
+  if(!n) return;
+  const line=k=>sel[k].length?`${k==='in'?'入るお金':'出るお金'}：${sel[k].join('、')}\n`:'';
   if(mode==='add'){
-    if(!nw.in.length&&!nw.out.length){ dlgStdCat.close(); return; }
-    if(!confirm(`一般的な科目を、いまの科目に足します。\n\n入るお金：${nw.in.length}件\n出るお金：${nw.out.length}件\n\n`+
+    if(!confirm(`チェックした ${n}件 の科目を入れます。\n\n${line('in')}${line('out')}\n`+
                 `いまある科目はそのまま残ります。よろしいですか？`)) return;
-    S.cats.in=(S.cats.in||[]).concat(nw.in);
-    S.cats.out=(S.cats.out||[]).concat(nw.out);
-    toast(`科目を ${nw.in.length+nw.out.length}件 足しました`);
+    sel.in.forEach(c=>{ if(!stdHas('in',c)) S.cats.in.push(c); });
+    sel.out.forEach(c=>{ if(!stdHas('out',c)) S.cats.out.push(c); });
+    toast(`科目を ${n}件 入れました`);
   }else{
-    const lost=[...(S.cats.in||[]),...(S.cats.out||[])].filter(c=>!STD_CATS.in.includes(c)&&!STD_CATS.out.includes(c));
-    if(!confirm(`いまの科目を消して、一般的な科目に入れ替えます。\n\n`+
+    const lost=[...(S.cats.in||[]).filter(c=>!sel.in.includes(c)),
+                ...(S.cats.out||[]).filter(c=>!sel.out.includes(c))];
+    const used=new Set(S.items.map(i=>i.cat).filter(Boolean));
+    const lostUsed=lost.filter(c=>used.has(c));
+    if(!confirm(`チェックした ${n}件 だけにして、いまの科目を入れ替えます。\n\n`+
                 `一覧から消える科目：${lost.length}件\n`+
                 (lost.length?`（${lost.slice(0,10).join('、')}${lost.length>10?' ほか':''}）\n`:'')+
+                (lostUsed.length?`うち ${lostUsed.length}件 は記帳で使っています。\n`:'')+
                 `\n記帳した中身は消えませんが、ふだの一覧からは消えます。\n元に戻せません。\n\nよろしいですか？`)) return;
     if(!confirm('本当に入れ替えてよろしいですか？')) return;
-    S.cats.in=STD_CATS.in.slice();
-    S.cats.out=STD_CATS.out.slice();
-    toast('一般的な科目に入れ替えました');
+    S.cats.in=sel.in.slice(); S.cats.out=sel.out.slice();
+    toast(`科目を ${n}件 に入れ替えました`);
   }
   saveNow(); dlgStdCat.close(); renderSettings(); renderCatChips();
 }

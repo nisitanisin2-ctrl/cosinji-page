@@ -5268,7 +5268,7 @@ async function runKaikei(browser) {
   check('  取引と振替だけが出る', obBook.rows, 4);
   check('  期首残高は期首残高として入る', obBook.begin, 120698 + 915473);
 
-  // ── 一般的な科目を入れる ──
+  // ── 一般的な科目を入れる（分野べつ・チェックしたものだけ）──
   const std = await page.evaluate(() => {
     localStorage.clear(); S = blank(); S.year = 2026;
     S.cats.out.push('街路灯電気代');
@@ -5276,37 +5276,78 @@ async function runKaikei(browser) {
     saveNow(); renderAll(); go('set');
     const before = S.cats.in.length + S.cats.out.length;
     openStdCats();                                  // 開いただけでは変わらない
-    const opened = { open: document.getElementById('dlgStdCat').open,
-                     cats: S.cats.in.length + S.cats.out.length };
-    const nw = stdCatsNew();
-    return { before, opened, newIn: nw.in.length, newOut: nw.out.length,
-             stdIn: STD_CATS.in.length, stdOut: STD_CATS.out.length };
+    return {
+      before,
+      open: document.getElementById('dlgStdCat').open,
+      cats: S.cats.in.length + S.cats.out.length,
+      groups: STD_CAT_GROUPS.length,
+      items: document.querySelectorAll('.std-item').length,
+      had: document.querySelectorAll('.std-item.had').length,
+      selected: stdSelected().in.length + stdSelected().out.length,
+      btnOff: document.getElementById('stdAddBtn').disabled,
+    };
   });
-  check('  窓が開く', std.opened.open, true);
-  check('  開いただけでは科目は変わらない', std.opened.cats, std.before);
-  check('  一般的な科目の数', `${std.stdIn}/${std.stdOut}`, '9/23');
-  check('  足りないものだけ数える', `${std.newIn}/${std.newOut}`, '8/17');
+  check('  窓が開く', std.open, true);
+  check('  開いただけでは科目は変わらない', std.cats, std.before);
+  check('  分野の数', std.groups, 12);
+  check('  一覧に出る科目の数', std.items, 126);
+  check('  もう入っているものは印がつく', std.had > 0, true);
+  check('  はじめは何も選ばれていない', std.selected, 0);
+  check('  選ぶまで入れられない', std.btnOff, true);
+
+  // 分野ごとに選べる（農業だけ）
+  const pick = await page.evaluate(() => {
+    const gi = STD_CAT_GROUPS.findIndex(g => g.g === '農業');
+    stdGroupAll(gi, true);
+    const sel = stdSelected();
+    return { n: sel.in.length + sel.out.length, btn: document.getElementById('stdAddBtn').textContent,
+             inCats: sel.in.join(','), only農業: sel.out.includes('種苗費') && !sel.out.includes('食材仕入高') };
+  });
+  check('  分野をまとめて選べる', pick.n, 12);
+  check('  ボタンに件数が出る', pick.btn, 'チェックした 12件 を入れる');
+  check('  その分野のものだけ', pick.only農業, true);
+  check('  収入の科目も選ばれる', pick.inCats, '農産物売上高,共済金収入,交付金収入');
 
   const stdAdd = await page.evaluate(() => {
     applyStdCats('add');                            // 確認は自動で「はい」
     return { in: S.cats.in.length, out: S.cats.out.length,
              keptOld: S.cats.out.includes('街路灯電気代'),
-             hasStd: S.cats.in.includes('売上高') && S.cats.out.includes('旅費交通費'),
-             again: (() => { const n = stdCatsNew(); return n.in.length + n.out.length; })() };
+             keptDefault: S.cats.in.includes('会費'),
+             got: S.cats.out.includes('種苗費') && S.cats.in.includes('農産物売上高'),
+             notPicked: !S.cats.out.includes('食材仕入高'),
+             closed: !document.getElementById('dlgStdCat').open };
   });
-  check('  足したあとの数（収入）', stdAdd.in, 6 + 8);
-  check('  足したあとの数（支出）', stdAdd.out, 9 + 1 + 17);
+  check('  チェックした分だけ入る（収入）', stdAdd.in, 6 + 3);
+  check('  チェックした分だけ入る（支出）', stdAdd.out, 9 + 1 + 9);
   check('  もとからの科目は残る', stdAdd.keptOld, true);
-  check('  一般的な科目が入る', stdAdd.hasStd, true);
-  check('  二度押しても増えない', stdAdd.again, 0);
+  check('  既定の科目も残る', stdAdd.keptDefault, true);
+  check('  選んだ科目が入る', stdAdd.got, true);
+  check('  選んでいない分野は入らない', stdAdd.notPicked, true);
+  check('  入れたら窓は閉じる', stdAdd.closed, true);
 
+  // もう一度開くと、入れたものは「もう入っている」印
+  const again = await page.evaluate(() => {
+    openStdCats();
+    const had = [...document.querySelectorAll('.std-item.had .nm')].map(e => e.textContent);
+    return { hasSeed: had.includes('種苗費'), sel: stdSelected().in.length + stdSelected().out.length };
+  });
+  check('  入れた科目には印がつく', again.hasSeed, true);
+  check('  チェックは外れている', again.sel, 0);
+
+  // 「チェックしたものだけにする」は入れ替え
   const stdRep = await page.evaluate(() => {
+    stdAllGroups(false);
+    const gi = STD_CAT_GROUPS.findIndex(g => g.g === 'どの帳面でも使う');
+    stdGroupAll(gi, true);
+    // すでに入っているものは選べないので、入れ替え後はチェックしたものだけになる
+    const want = stdSelected();
     applyStdCats('replace');
     return { in: S.cats.in.length, out: S.cats.out.length,
+             wanted: want.in.length + want.out.length,
              oldGone: !S.cats.out.includes('街路灯電気代'),
              itemKept: S.items[0].cat };
   });
-  check('  入れ替えたら一般的な科目だけ', `${stdRep.in}/${stdRep.out}`, '9/23');
+  check('  入れ替えるとチェックしたものだけ', `${stdRep.in}/${stdRep.out}`, `${stdRep.wanted - stdRep.out}/${stdRep.out}`);
   check('  もとの科目は一覧から消える', stdRep.oldGone, true);
   check('  記帳した中身は消えない', stdRep.itemKept, '街路灯電気代');
 
