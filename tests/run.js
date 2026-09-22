@@ -5930,6 +5930,99 @@ async function runTouban(browser) {
   check('  印刷にも祝日', pr.hol, true);
   check('  週の形が崩れない', pr.cells, 0);
 
+  // 登録キーからも開ける（v397）
+  check('  登録キーに当番表がある', await page.evaluate(() =>
+    !!(KEY_FUNCS.a_touban && KEY_FUNCS.a_touban.label.includes('当番表'))), true);
+  check('  登録キーは設定・機能の仲間', await page.evaluate(() =>
+    KEY_FUNCS.a_touban.g), '設定・機能');
+  check('  なぞって即実行にはしない', await page.evaluate(() =>
+    REG_GESTURE_ACTIONS.has('a_touban')), false);
+  await page.evaluate(() => closeTouban()); await page.waitForTimeout(400);
+  await page.evaluate(() => KEY_FUNCS.a_touban.run()); await page.waitForTimeout(600);
+  check('  登録キーから開く', await page.evaluate(() => isDlgOpen('toubanOverlay')), true);
+
+  // 印刷のしかた（v397）
+  await page.evaluate(() => { openTbSet(); }); await page.waitForTimeout(500);
+  check('  印刷のしかたの項目が出る', await page.evaluate(() =>
+    ['tbPSizeVal', 'tbPrFit', 'tbPrFoot', 'tbPrSub', 'tbPrHol']
+      .every(id => !!document.getElementById(id))), true);
+  check('  はじめは「ふつう」', await page.evaluate(() =>
+    document.getElementById('tbPSizeVal').textContent), 'ふつう');
+  check('  4つとも入になっている', await page.evaluate(() =>
+    ['tbPrFit', 'tbPrFoot', 'tbPrSub', 'tbPrHol']
+      .every(id => document.getElementById(id).classList.contains('on'))), true);
+  await page.evaluate(() => { tbChangePSize(1); }); await page.waitForTimeout(200);
+  check('  大きくできる', await page.evaluate(() =>
+    document.getElementById('tbPSizeVal').textContent), '大');
+  await page.evaluate(() => { tbChangePSize(1); tbChangePSize(1); }); await page.waitForTimeout(200);
+  check('  特大より上には行かない', await page.evaluate(() =>
+    touban.pr.k + '/' + document.getElementById('tbPSizeVal').textContent), '3/特大');
+  await page.evaluate(() => { for (let i = 0; i < 5; i++) tbChangePSize(-1); }); await page.waitForTimeout(200);
+  check('  小より下には行かない', await page.evaluate(() =>
+    touban.pr.k + '/' + document.getElementById('tbPSizeVal').textContent), '0/小');
+
+  // 文字の大きさが紙に効く
+  const psz = await page.evaluate(() => {
+    const meas = () => {
+      const built = opBuild(tbPrintHtml(), !touban.pr.fit);
+      const nm = document.querySelector('#printArea .tp-nm');
+      const c = document.querySelector('#printArea .tp-c');
+      const r = [parseFloat(getComputedStyle(nm).fontSize), parseFloat(getComputedStyle(c).height),
+                 built.box.scrollHeight];
+      built.meas.remove(); document.getElementById('printArea').innerHTML = '';
+      return r;
+    };
+    touban.pr.k = 0; const small = meas();
+    touban.pr.k = 3; const big = meas();
+    touban.pr.k = 1;
+    return { small, big };
+  });
+  check('  小さくすると字も小さい', psz.small[0] < 9, true);
+  check('  特大にすると字が大きい', psz.big[0] > 11, true);
+  check('  マスの高さも変わる', psz.big[1] > psz.small[1] + 10, true);
+  check('  紙の中身の高さも変わる', psz.big[2] > psz.small[2] + 100, true);
+
+  // 出し分け
+  const off = await page.evaluate(() => {
+    const has = () => { const h = tbPrintHtml();
+      return { sub: /tp-sub/.test(h), foot: /tp-foot/.test(h), hol: /tp-hn/.test(h) }; };
+    const on = has();
+    tbTogglePr('sub'); tbTogglePr('foot'); tbTogglePr('hol');
+    return { on, off: has() };
+  });
+  await page.waitForTimeout(200);
+  check('  はじめは全部出る', [off.on.sub, off.on.foot, off.on.hol].join('/'), 'true/true/true');
+  check('  そえ書きを消せる', off.off.sub, false);
+  check('  下の日づけを消せる', off.off.foot, false);
+  check('  祝日の名前を消せる', off.off.hol, false);
+  check('  消すとボタンも切になる', await page.evaluate(() =>
+    ['tbPrFoot', 'tbPrSub', 'tbPrHol'].some(id =>
+      document.getElementById(id).classList.contains('on'))), false);
+
+  // 1枚に収める
+  const fit = await page.evaluate(() => {
+    const w = () => { const built = opBuild(tbPrintHtml(), !touban.pr.fit);
+      const r = { w: built.box.style.width, z: built.box.style.zoom,
+                  h: built.box.scrollHeight * (parseFloat(built.box.style.zoom || '1') || 1) };
+      built.meas.remove(); document.getElementById('printArea').innerHTML = ''; return r; };
+    touban.pr.fit = true; const on = w();
+    touban.pr.fit = false; const offw = w();
+    return { on, off: offw };
+  });
+  check('  収めないときは紙の幅のまま', fit.off.w + '/' + fit.off.z, '718px/');
+  check('  収めるときは縮め率が付く', parseFloat(fit.on.z) > 0, true);
+  check('  収めるとき1枚に入る', fit.on.h <= 1046 + 1, true);
+
+  // 覚えている
+  await page.evaluate(() => { touban.pr.k = 2; touban.pr.fit = true; saveTouban(); });
+  await page.reload(); await page.waitForTimeout(1100);
+  await page.evaluate(() => openTouban()); await page.waitForTimeout(600);
+  check('  印刷のしかたも覚えている', await page.evaluate(() =>
+    [touban.pr.k, touban.pr.fit, touban.pr.foot, touban.pr.sub, touban.pr.hol].join('/')),
+    '2/true/false/false/false');
+  check('  名簿はそのまま', await page.evaluate(() => touban.roster.length), 5);
+  await page.evaluate(() => { touban.pr = { k: 1, fit: true, foot: true, sub: true, hol: true }; saveTouban(); });
+
   // 人をはずす
   await page.evaluate(() => { openTbSet(); }); await page.waitForTimeout(500);
   await page.evaluate(() => { tbDelMember(0); }); await ok();

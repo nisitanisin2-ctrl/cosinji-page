@@ -3163,23 +3163,25 @@ body.dark .tsx-res-val.ng   { color: #ff8a80; }
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
 /* 📅当番表（v394）。紙は白なので色は決め打ち */
-#printArea .tp-doc .tp-title { font-size: 21px; font-weight: bold; text-align: center; }
-#printArea .tp-doc .tp-sub { font-size: 11px; text-align: center; margin-top: 3px; white-space: pre-line; }
-#printArea .tp-doc .tp-range { font-size: 11px; color: #555; text-align: center; margin: 3px 0 9px; }
+/* 文字の大きさは --tp-k（印刷のしかたで決める）で割り増しする。
+   名前が読みづらい・入りきらないときに、印刷だけ大きくできる。 */
+#printArea .tp-doc .tp-title { font-size: calc(21px * var(--tp-k, 1)); font-weight: bold; text-align: center; }
+#printArea .tp-doc .tp-sub { font-size: calc(11px * var(--tp-k, 1)); text-align: center; margin-top: 3px; white-space: pre-line; }
+#printArea .tp-doc .tp-range { font-size: calc(11px * var(--tp-k, 1)); color: #555; text-align: center; margin: 3px 0 9px; }
 #printArea .tp-doc .tp-ms { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 9px; }
 #printArea .tp-doc .tp-m { border: 1px solid #000; break-inside: avoid; page-break-inside: avoid; }
-#printArea .tp-doc .tp-mh { text-align: center; font-weight: bold; font-size: 12px; padding: 1px 0 2px; border-bottom: 1px solid #000; }
+#printArea .tp-doc .tp-mh { text-align: center; font-weight: bold; font-size: calc(12px * var(--tp-k, 1)); padding: 1px 0 2px; border-bottom: 1px solid #000; }
 #printArea .tp-doc .tp-t { width: 100%; border-collapse: collapse; table-layout: fixed; }
-#printArea .tp-doc .tp-h { font-size: 9px; font-weight: bold; padding: 1px 0; border: 1px solid #bfbfbf; border-top: none; }
-#printArea .tp-doc .tp-c { height: 34px; vertical-align: top; border: 1px solid #bfbfbf; padding: 1px 1px 2px; text-align: center; }
+#printArea .tp-doc .tp-h { font-size: calc(9px * var(--tp-k, 1)); font-weight: bold; padding: 1px 0; border: 1px solid #bfbfbf; border-top: none; }
+#printArea .tp-doc .tp-c { height: calc(34px * var(--tp-k, 1)); vertical-align: top; border: 1px solid #bfbfbf; padding: 1px 1px 2px; text-align: center; }
 #printArea .tp-doc .tp-sun { background: #f8cbac; }
 #printArea .tp-doc .tp-sat { background: #bed7ee; }
-#printArea .tp-doc .tp-dn { font-size: 10px; line-height: 1.1; }
+#printArea .tp-doc .tp-dn { font-size: calc(10px * var(--tp-k, 1)); line-height: 1.1; }
 #printArea .tp-doc .tp-r { color: #ff0000; }
 #printArea .tp-doc .tp-bl { color: #0070c0; }
-#printArea .tp-doc .tp-hn { font-size: 6px; color: #ff0000; line-height: 1.05; }
-#printArea .tp-doc .tp-nm { font-size: 9px; line-height: 1.12; overflow-wrap: anywhere; margin-top: 1px; }
-#printArea .tp-doc .tp-foot { font-size: 9px; color: #666; margin-top: 7px; text-align: right; }
+#printArea .tp-doc .tp-hn { font-size: calc(6px * var(--tp-k, 1)); color: #ff0000; line-height: 1.05; }
+#printArea .tp-doc .tp-nm { font-size: calc(9px * var(--tp-k, 1)); line-height: 1.12; overflow-wrap: anywhere; margin-top: 1px; }
+#printArea .tp-doc .tp-foot { font-size: calc(9px * var(--tp-k, 1)); color: #666; margin-top: 7px; text-align: right; }
 
 #printArea .op-doc .vp-head { border-bottom: 2px solid #2e7d32; padding-bottom: 6px; margin-bottom: 10px; }
 #printArea .op-doc .vp-title { font-size: 20px; font-weight: bold; }
@@ -5103,6 +5105,17 @@ body.dark {
       <button class="set-act" onclick="tbAssign('year')">📅 1年ぶんに割り当てる</button>
       <button class="set-act" onclick="tbAssign('half')">📆 いま見ている半年だけ</button>
       <button class="set-act" onclick="tbClearHalf()">🧹 いま見ている半年の番号を消す</button>
+
+      <div class="set-sec">印刷のしかた</div>
+      <div class="set-row">
+        <span class="set-label">文字の大きさ<small>名前が読みづらいときに</small></span>
+        <span class="set-stepper"><button class="step-btn" onclick="tbChangePSize(-1)">−</button><span class="sc-val" id="tbPSizeVal">ふつう</span><button class="step-btn" onclick="tbChangePSize(1)">＋</button></span>
+      </div>
+      <button class="set-act" id="tbPrFit" onclick="tbTogglePr('fit')" title="外すと、選んだ文字の大きさのまま出します（入りきらなければ2枚になります）">📄 半年ぶんを1枚に収める</button>
+      <button class="set-act" id="tbPrFoot" onclick="tbTogglePr('foot')" title="紙のいちばん下に出る「当番の日 ◯日 ／ ◯/◯ 現在」">📅 下に日づけと日数を出す</button>
+      <button class="set-act" id="tbPrSub" onclick="tbTogglePr('sub')" title="題の下に出るそえ書き">✍ そえ書きを出す</button>
+      <button class="set-act" id="tbPrHol" onclick="tbTogglePr('hol')" title="こどもの日・振替休日などの名前">🎌 祝日の名前を出す</button>
+      <div class="set-note">ここで決めたことは<b>紙に出すときだけ</b>効きます。画面の見え方は変わりません。</div>
 
       <div class="set-sec">名簿<small id="tbRosterCount"></small></div>
       <div class="set-note">この<b>並び順が番号</b>になります。順番を入れ替えると、番号の指す人も変わります。</div>
@@ -8262,6 +8275,12 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v397', t:'当番表：登録キーと、印刷のしかた', li:[
+    '<b>📅当番表</b>を<b>登録キー</b>にも割り当てられるようになりました（▲登録のページや、キーの長押しから選べます）',
+    '⚙名簿・設定に<b>「印刷のしかた」</b>が増えました。<b>文字の大きさ</b>（小／ふつう／大／特大）を変えられます',
+    '<b>下の日づけ・そえ書き・祝日の名前</b>を、紙に出すかどうか選べます',
+    '<b>「半年ぶんを1枚に収める」</b>を外すと、選んだ大きさのまま出します（入りきらなければ2枚になります）',
+  ]},
   { v:'v396', t:'📅当番表が使えるようになりました', li:[
     'ごみ当番・掃除当番などの<b>持ち回りのカレンダー</b>を作れる道具を足しました',
     '<b>名簿に人を登録</b>して<b>曜日</b>を決めると、<b>順番に割り当て</b>られます。日づけの枠に番号を入れて手で直すこともできます',
@@ -8396,9 +8415,13 @@ function dtVoiceRowTap(){
    入れたものはこの端末の中だけ（excalc_touban）。 */
 const TB_KEY='excalc_touban';
 const TB_WD=['日','月','火','水','木','金','土'];
+/* pr＝印刷のしかた（v397）。
+   k=文字の大きさ（0〜3）／fit=1枚に収める／foot=下の日付／sub=そえ書き／hol=祝日の名前 */
+const TB_PSIZE=[{n:'小',k:0.85},{n:'ふつう',k:1},{n:'大',k:1.15},{n:'特大',k:1.3}];
 let touban={ title:'当番表', sub:'', year:0, half:'H1',
              cfg:{ days:[2,5], holiday:'shift', skipNY:true },
-             roster:[], assign:{}, start:1 };
+             roster:[], assign:{}, start:1,
+             pr:{ k:1, fit:true, foot:true, sub:true, hol:true } };
 
 /* ── 日づけの道具 ── */
 const tbP2=n=>String(n).padStart(2,'0');
@@ -8466,6 +8489,12 @@ function loadTouban(){
     if(Array.isArray(o.roster)) touban.roster=o.roster.map(m=>({name:String((m&&m.name)||'')}));
     if(o.assign && typeof o.assign==='object') touban.assign=Object.assign({},o.assign);
     if(Number.isFinite(o.start)) touban.start=Math.max(1,o.start);
+    if(o.pr && typeof o.pr==='object'){
+      const n=parseInt(o.pr.k,10);
+      touban.pr={ k:(!isNaN(n)&&n>=0&&n<TB_PSIZE.length)?n:1,
+                  fit:o.pr.fit!==false, foot:o.pr.foot!==false,
+                  sub:o.pr.sub!==false, hol:o.pr.hol!==false };
+    }
   }else{
     // はじめて開いたときは、いまの月に合う期から見せる
     const m=new Date().getMonth()+1;
@@ -8649,6 +8678,7 @@ function renderTbSet(){
   const sv=document.getElementById('tbStartVal'); if(sv) sv.textContent=touban.start;
   const sn=document.getElementById('tbStartName');
   if(sn){ const nm=tbNameOf(touban.start); sn.textContent=nm?('→ '+nm+' から'):''; }
+  renderTbPrint();
   tbRenderRoster();
 }
 
@@ -8747,7 +8777,7 @@ function tbPrintHtml(){
       const dcl=(w===0||hn)?' tp-r':(w===6?' tp-bl':'');
       cells.push('<td class="tp-c'+bg+'">'+
         '<div class="tp-dn'+dcl+'">'+day+'</div>'+
-        (hn?'<div class="tp-hn">'+escHtml(hn)+'</div>':'')+
+        ((hn && touban.pr.hol)?'<div class="tp-hn">'+escHtml(hn)+'</div>':'')+
         '<div class="tp-nm">'+((no!=null)?escHtml(nm||('番号'+no)):'')+'</div></td>');
     }
     while(cells.length%7) cells.push('<td class="tp-c"></td>');
@@ -8759,19 +8789,41 @@ function tbPrintHtml(){
       '</tr>'+rows+'</table></div>';
   }
   const r=tbHalfRange(), a=tbParse(r[0]), b=tbParse(r[1]), n=new Date();
-  return '<div class="op-doc tp-doc">'+
+  const k=(TB_PSIZE[touban.pr.k]||TB_PSIZE[1]).k;
+  return '<div class="op-doc tp-doc" style="--tp-k:'+k+'">'+
     '<div class="tp-title">'+escHtml(touban.title||'当番表')+'</div>'+
-    (touban.sub?'<div class="tp-sub">'+escHtml(touban.sub)+'</div>':'')+
+    ((touban.sub && touban.pr.sub)?'<div class="tp-sub">'+escHtml(touban.sub)+'</div>':'')+
     '<div class="tp-range">'+a.getFullYear()+'年'+(a.getMonth()+1)+'月 〜 '+b.getFullYear()+'年'+(b.getMonth()+1)+'月</div>'+
     '<div class="tp-ms">'+months+'</div>'+
-    '<div class="tp-foot">当番の日 '+Object.keys(touban.assign).filter(tbInHalf).length+'日　／　'+
-      n.getFullYear()+'/'+(n.getMonth()+1)+'/'+n.getDate()+' 現在</div></div>';
+    (touban.pr.foot
+      ? '<div class="tp-foot">当番の日 '+Object.keys(touban.assign).filter(tbInHalf).length+'日　／　'+
+        n.getFullYear()+'/'+(n.getMonth()+1)+'/'+n.getDate()+' 現在</div>'
+      : '')+
+    '</div>';
 }
 function tbPrint(){
-  const built=opBuild(tbPrintHtml());
+  // 「1枚に収める」を外すと、選んだ文字の大きさのまま出す（入りきらなければ2枚になる）
+  const built=opBuild(tbPrintHtml(), !touban.pr.fit);
   closeTouban();
   opPrint(built);
   return built.k;
+}
+/* ── 印刷のしかた（v397）── */
+function tbChangePSize(d){
+  const n=touban.pr.k+d;
+  if(n<0 || n>=TB_PSIZE.length) return;
+  touban.pr.k=n; saveTouban(); renderTbSet();
+}
+function tbTogglePr(key){
+  if(!(key in touban.pr)) return;
+  touban.pr[key]=!touban.pr[key]; saveTouban(); renderTbSet();
+}
+function renderTbPrint(){
+  const v=document.getElementById('tbPSizeVal');
+  if(v) v.textContent=(TB_PSIZE[touban.pr.k]||TB_PSIZE[1]).n;
+  [['tbPrFit','fit'],['tbPrFoot','foot'],['tbPrSub','sub'],['tbPrHol','hol']].forEach(([id,key])=>{
+    const b=document.getElementById(id); if(b) b.classList.toggle('on', !!touban.pr[key]);
+  });
 }
 
 /* ── 電卓だけにする（v388） ──
@@ -9492,6 +9544,7 @@ const KEY_FUNCS={
   a_tansui:{g:'設定・機能',label:'💧単位水量',short:'水量',run:()=>openTansui()},
   a_veggie:{g:'設定・機能',label:'🌱野菜',short:'野菜',run:()=>openVeggie()},
   a_linklist:{g:'設定・機能',label:'🔗リンク集',short:'リンク',run:()=>openLinkList()},
+  a_touban:{g:'設定・機能',label:'📅当番表',short:'当番',run:()=>openTouban()},
   a_memo:{g:'設定・機能',label:'📄メモ',short:'メモ',run:()=>openNotesApp()},
   a_kaikei:{g:'設定・機能',label:'🧾会計アプリ',short:'会計',run:()=>openKaikeiApp()},
   a_websearch:{g:'設定・機能',label:'🔍Web検索',short:'W検索',run:()=>webSearchCell()},
@@ -19945,7 +19998,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v396';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v397';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
