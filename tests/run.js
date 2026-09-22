@@ -1188,10 +1188,10 @@ async function runNpTools(browser) {
 
   check('  はじめは道具のタブを出さない', await bar(), '書式・枠線|数字|記号|電卓|▲ 登録');
   check('  設定に選べる道具が並ぶ', await page.evaluate(() =>
-    document.querySelectorAll('#npToolList .nptool-row').length), 10);
+    document.querySelectorAll('#npToolList .nptool-row').length), 11);
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,photomemo,linklist,memo,calctmpl,fintmpl,kaikei');
+    'tansui,kantab,veggie,volume,photomemo,linklist,touban,memo,calctmpl,fintmpl,kaikei');
 
   // 会計アプリは、メモと同じく別のタブで開く別アプリ（全画面・フリックの対象外）
   check('  会計アプリはタブのタイトルつきで並ぶ', await page.evaluate(() =>
@@ -2904,11 +2904,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,calctmpl,fintmpl');
+    'last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 11);
+    document.getElementById('startPageSel').options.length), 12);
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'veggieOverlay', 'volumeOverlay',
@@ -5798,6 +5798,151 @@ async function runKaikei(browser) {
   await ctx.close();
 }
 
+/* ── 📅当番表 v396 ── */
+async function runTouban(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 当番表 ──');
+  const ok = async () => { await page.waitForTimeout(220);
+    await page.evaluate(() => { const b = [...document.querySelectorAll('div[style*="99999"] button')]
+      .find(x => x.textContent === 'OK'); if (b) b.click(); });
+    await page.waitForTimeout(350); };
+
+  // 道具として登録されている
+  check('  道具に入っている', await page.evaluate(() =>
+    NP_TOOLS.some(t => t.id === 'touban' && t.ov === 'toubanOverlay')), true);
+  check('  はじめに開くページにも出る', await page.evaluate(() =>
+    startPageOptions().some(o => o[0] === 'touban')), true);
+  check('  端末の空き具合にも並ぶ', await page.evaluate(() =>
+    ST_GROUPS.some(g => g.k === 'excalc_touban')), true);
+
+  // 空から始まる
+  await page.evaluate(() => openTouban()); await page.waitForTimeout(600);
+  check('  開ける', await page.evaluate(() => isDlgOpen('toubanOverlay')), true);
+  check('  名簿は空', await page.evaluate(() => touban.roster.length), 0);
+  check('  割り当ても空', await page.evaluate(() => Object.keys(touban.assign).length), 0);
+  check('  名前ははじめ「当番表」', await page.evaluate(() =>
+    document.getElementById('tbTitle').value), '当番表');
+  check('  半年ぶん6か月出る', await page.evaluate(() =>
+    document.querySelectorAll('#tbMonths .tb-month').length), 6);
+  check('  まず名簿からと案内する', await page.evaluate(() =>
+    document.getElementById('tbNext').textContent.includes('名簿')), true);
+
+  // 名前を書き換えられる
+  await page.evaluate(() => tbSetTitle('ごみ庫そうじ当番')); await page.waitForTimeout(250);
+  check('  名前を書き換えられる', await page.evaluate(() => touban.title), 'ごみ庫そうじ当番');
+  check('  見出しにも出る', await page.evaluate(() =>
+    document.getElementById('toubanHdr').textContent), '📅 ごみ庫そうじ当番');
+  await page.evaluate(() => tbSetSub('◯◯自治会'));
+  check('  そえ書きも入れられる', await page.evaluate(() => touban.sub), '◯◯自治会');
+
+  // 名簿
+  await page.evaluate(() => openTbSet()); await page.waitForTimeout(500);
+  check('  名簿が空なら案内を出す', await page.evaluate(() =>
+    !!document.querySelector('#tbRoster .tb-empty')), true);
+  await page.evaluate(() => { ['田中', '鈴木', '佐藤', '高橋', '伊藤'].forEach(n => {
+    tbAddMember(); tbRename(touban.roster.length - 1, n); }); renderTbSet(); });
+  await page.waitForTimeout(400);
+  check('  人を足せる', await page.evaluate(() => touban.roster.map(m => m.name).join('/')), '田中/鈴木/佐藤/高橋/伊藤');
+  check('  番号は並び順', await page.evaluate(() => tbNameOf(3)), '佐藤');
+  await page.evaluate(() => tbMove(0, 1)); await page.waitForTimeout(250);
+  check('  入れ替えると番号も動く', await page.evaluate(() => tbNameOf(1) + '/' + tbNameOf(2)), '鈴木/田中');
+  await page.evaluate(() => tbMove(1, -1)); await page.waitForTimeout(250);
+
+  // 当番の日（曜日・祝日）
+  check('  はじめは火と金', await page.evaluate(() =>
+    touban.cfg.days.map(i => TB_WD[i]).join('')), '火金');
+  const n0 = await page.evaluate(() => tbDutyDates().length);
+  check('  1年ぶんの当番日が出る', n0 > 90 && n0 < 110, true);
+  await page.evaluate(() => tbToggleDow(2)); await page.waitForTimeout(250);
+  check('  曜日を減らすと日も減る', await page.evaluate(() => tbDutyDates().length) < n0, true);
+  await page.evaluate(() => tbToggleDow(2)); await page.waitForTimeout(250);
+  check('  祝日が分かる', await page.evaluate(() => tbHolName(tbMk(2026, 5, 5))), 'こどもの日');
+  check('  振替休日も出る', await page.evaluate(() => tbHolName(tbMk(2026, 5, 6))), '振替休日');
+  check('  春分・秋分も計算する', await page.evaluate(() =>
+    [tbHolName(tbMk(2026, 3, 20)), tbHolName(tbMk(2026, 9, 23))].join('/')), '春分の日/秋分の日');
+  check('  祝日そのものは当番にしない', await page.evaluate(() =>
+    tbDutyDates().includes(tbIso(tbMk(2026, 5, 5)))), false);
+  check('  翌日にずらす', await page.evaluate(() =>
+    tbDutyDates().includes(tbIso(tbMk(2026, 5, 6)))), true);
+  await page.evaluate(() => tbSetHol('skip')); await page.waitForTimeout(250);
+  check('  「当番なし」ならずらさない', await page.evaluate(() =>
+    tbDutyDates().includes(tbIso(tbMk(2026, 5, 6)))), false);
+  await page.evaluate(() => tbSetHol('shift')); await page.waitForTimeout(250);
+  check('  年末年始はとばす', await page.evaluate(() =>
+    tbDutyDates().some(k => /-(12-31|01-0[123])$/.test(k))), false);
+
+  // 割り当て
+  await page.evaluate(() => { touban.year = 2026; saveTouban(); renderTbSet(); });
+  // tbAssign は中で確認窓を待つので、返り値の約束は受け取らない（受け取ると噛み合って止まる）
+  await page.evaluate(() => { tbAssign('year'); }); await ok();
+  const cnt = await page.evaluate(() => Object.keys(touban.assign).length);
+  check('  1年ぶんに割り当てられる', cnt, await page.evaluate(() => tbDutyDates().length));
+  check('  名簿の順に回る', await page.evaluate(() =>
+    Object.keys(touban.assign).sort().slice(0, 7).map(k => touban.assign[k]).join(',')), '1,2,3,4,5,1,2');
+  await page.evaluate(() => closeTbSet()); await page.waitForTimeout(500);
+  check('  カレンダーに名前が入る', await page.evaluate(() =>
+    [...document.querySelectorAll('#tbMonths .tb-nm')].filter(e => e.textContent).length > 30), true);
+
+  // 手で直す
+  await page.evaluate(() => {
+    const k = Object.keys(touban.assign).sort()[0];
+    const inp = document.querySelector('#tbMonths .tb-cell[data-d="' + k + '"] .tb-no');
+    inp.value = '3'; inp.dispatchEvent(new Event('input', { bubbles: true })); });
+  await page.waitForTimeout(400);
+  check('  番号を手で直せる', await page.evaluate(() => {
+    const k = Object.keys(touban.assign).sort()[0];
+    return touban.assign[k] + '/' + document.querySelector('#tbMonths .tb-cell[data-d="' + k + '"] .tb-nm').textContent;
+  }), '3/佐藤');
+  check('  名簿にない番号は赤で知らせる', await page.evaluate(() => {
+    const k = Object.keys(touban.assign).sort()[1];
+    const inp = document.querySelector('#tbMonths .tb-cell[data-d="' + k + '"] .tb-no');
+    inp.value = '99'; inp.dispatchEvent(new Event('input', { bubbles: true }));
+    const nm = document.querySelector('#tbMonths .tb-cell[data-d="' + k + '"] .tb-nm');
+    return nm.classList.contains('bad') + '/' + nm.textContent; }), 'true/名簿にありません');
+
+  // 上期と下期
+  await page.evaluate(() => tbSetHalf('H2')); await page.waitForTimeout(400);
+  check('  下期に移れる', await page.evaluate(() =>
+    [...document.querySelectorAll('#tbMonths .tb-mhead')].map(e => parseInt(e.textContent)).join(',')), '10,11,12,1,2,3');
+  await page.evaluate(() => tbSetHalf('H1')); await page.waitForTimeout(400);
+  check('  上期に戻れる', await page.evaluate(() =>
+    [...document.querySelectorAll('#tbMonths .tb-mhead')].map(e => parseInt(e.textContent)).join(',')), '4,5,6,7,8,9');
+
+  // 覚えている
+  await page.reload(); await page.waitForTimeout(1100);
+  await page.evaluate(() => openTouban()); await page.waitForTimeout(500);
+  check('  開き直しても覚えている', await page.evaluate(() =>
+    [touban.title, touban.roster.length, Object.keys(touban.assign).length > 0].join('/')), 'ごみ庫そうじ当番/5/true');
+
+  // 印刷の中身
+  const pr = await page.evaluate(() => {
+    const d = document.createElement('div'); d.innerHTML = tbPrintHtml();
+    return { m: d.querySelectorAll('.tp-m').length,
+             names: [...d.querySelectorAll('.tp-nm')].filter(e => e.textContent).length,
+             title: d.querySelector('.tp-title').textContent,
+             sub: d.querySelector('.tp-sub') ? d.querySelector('.tp-sub').textContent : '',
+             hol: [...d.querySelectorAll('.tp-hn')].map(e => e.textContent).includes('こどもの日'),
+             cells: d.querySelectorAll('.tp-c').length % 7 };
+  });
+  check('  印刷は6か月ぶん', pr.m, 6);
+  check('  印刷に名前が入る', pr.names > 30, true);
+  check('  印刷に題とそえ書き', [pr.title, pr.sub].join('/'), 'ごみ庫そうじ当番/◯◯自治会');
+  check('  印刷にも祝日', pr.hol, true);
+  check('  週の形が崩れない', pr.cells, 0);
+
+  // 人をはずす
+  await page.evaluate(() => { openTbSet(); }); await page.waitForTimeout(500);
+  await page.evaluate(() => { tbDelMember(0); }); await ok();
+  check('  人をはずせる', await page.evaluate(() => touban.roster.map(m => m.name).join('/')), '鈴木/佐藤/高橋/伊藤');
+  check('  はずすと番号が繰り上がる', await page.evaluate(() => tbNameOf(1)), '鈴木');
+  await page.evaluate(() => closeTbSet()); await page.waitForTimeout(500);
+  await page.evaluate(() => closeTouban()); await page.waitForTimeout(400);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -5840,6 +5985,7 @@ async function runKaikei(browser) {
     if (!only || only === 'defsize') await runDefSize(browser);
     if (!only || only === 'cellfocus') await runCellFocus(browser);
     if (!only || only === 'kaikei') await runKaikei(browser);
+    if (!only || only === 'touban') await runTouban(browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }
