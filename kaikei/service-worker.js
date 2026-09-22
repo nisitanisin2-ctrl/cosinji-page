@@ -1,7 +1,7 @@
 // このアプリ（kaikei/）専用のキャッシュ。同じサイトにある別アプリの分を消さないよう、
 // 名前の頭で自分の分だけを見分ける。
 // index.html の APP_VERSION を上げたら、ここの CACHE も必ずそろえること。
-const CACHE = 'kaikei-v10';
+const CACHE = 'kaikei-v11';
 const CACHE_PREFIX = 'kaikei-';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
