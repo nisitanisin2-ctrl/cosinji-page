@@ -670,7 +670,7 @@ async function runTopBar(browser) {
                     return el && getComputedStyle(el).display !== 'none'; }).join(','));
   check('  はじめは何も出さない', await shown(), '');
   check('  設定に選ぶところがある',
-        await page.evaluate(() => document.querySelectorAll('#topBtnToggles .topbtn-toggle').length), 6);
+        await page.evaluate(() => document.querySelectorAll('#topBtnToggles .topbtn-toggle').length), 7);   // v399 で ⌨テンキー を足した
 
   await page.evaluate(() => { if (typeof toggleTopBtn !== 'function') return;
     toggleTopBtn('list'); toggleTopBtn('redo'); toggleTopBtn('reset'); });
@@ -3702,21 +3702,21 @@ async function runExport(browser) {
 
   // ── ⋯メニューの整理（v375） ──
   await page.evaluate(() => openMoreMenu()); await page.waitForTimeout(400);
-  check('  項目の数は変わっていない', await page.evaluate(() =>
-    document.querySelectorAll('#moreMenuOverlay .more-item').length), 17);
+  check('  項目の数は変わっていない（道具の一覧を除く）', await page.evaluate(() =>
+    document.querySelectorAll('#moreMenuOverlay .more-item:not(#moreToolsGrid .more-item)').length), 17);
   check('  はじめは畳んである', await page.evaluate(() =>
     document.getElementById('moreAccOut').open + '/' + document.getElementById('moreAccMisc').open),
     'false/false');
   check('  すぐ見えるのはよく使うものだけ', await page.evaluate(() =>
     [...document.querySelectorAll('#moreMenuOverlay .more-item')]
       .filter(x => !x.closest('.more-acc')).map(x => x.textContent.trim()).join('/')),
-    '↷進む/📋リスト/⚙設定/🎤声で入れる/🎯用途から始める/▦通常の表/🧮電卓/🧹リセット（戻るで元に戻せます）');
+    '↷進む/📋リスト/⚙設定/🌙ナイトモード/🎤声で入れる/🎯用途から始める/▦通常の表/🧮電卓/🧹リセット（戻るで元に戻せます）');
   check('  書き出しは畳んだ中', await page.evaluate(() =>
     [...document.querySelectorAll('#moreAccOut .more-item')].map(x => x.textContent.trim()).join('/')),
     '🖨PDF/📄CSV出力/📊Excel出力/📥CSV読込/📥Excel読込');
   check('  そのほかも畳んだ中', await page.evaluate(() =>
     [...document.querySelectorAll('#moreAccMisc .more-item')].map(x => x.textContent.trim()).join('/')),
-    '🗂シート/▦既定の大きさ/🌙ナイトモード/📖説明書');
+    '🗂シート/▦既定の大きさ/📖説明書');
   check('  スクロールしなくても収まる', await page.evaluate(() => {
     const b = document.querySelector('#moreMenuOverlay .modal-body');
     return b.scrollHeight <= b.clientHeight + 1; }), true);
@@ -3736,7 +3736,7 @@ async function runExport(browser) {
   check('  畳んでもシートの印は付く', await page.evaluate(() => { toggleSheetTabs();
     const r = document.getElementById('sheetToggleBtn').classList.contains('on');
     toggleSheetTabs(); return r; }), true);
-  check('  畳んでもナイトモードの表示は変わる', await page.evaluate(() => { toggleDark();
+  check('  ナイトモードの表示は変わる', await page.evaluate(() => { toggleDark();
     const r = document.getElementById('darkMoreBtn').textContent.trim(); toggleDark(); return r; }),
     '☀ライトに戻す');
   check('  上のバーへの登録もこれまでどおり', await page.evaluate(() => { toggleTopBtn('defsize');
@@ -5941,25 +5941,28 @@ async function runTouban(browser) {
   await page.evaluate(() => KEY_FUNCS.a_touban.run()); await page.waitForTimeout(600);
   check('  登録キーから開く', await page.evaluate(() => isDlgOpen('toubanOverlay')), true);
 
-  // 印刷のしかた（v397）
+  // 印刷のしかた（v397。v400 から共通の「🖨 印刷のしかた」の窓で選ぶ）
   await page.evaluate(() => { openTbSet(); }); await page.waitForTimeout(500);
-  check('  印刷のしかたの項目が出る', await page.evaluate(() =>
-    ['tbPSizeVal', 'tbPrFit', 'tbPrFoot', 'tbPrSub', 'tbPrHol']
-      .every(id => !!document.getElementById(id))), true);
+  check('  設定に印刷のしかたの入口がある', await page.evaluate(() =>
+    !!document.getElementById('tbPrOpen')), true);
+  await page.evaluate(() => document.getElementById('tbPrOpen').click()); await page.waitForTimeout(400);
+  check('  共通の窓が開く', await page.evaluate(() => isDlgOpen('prnOverlay') && prnTool), 'touban');
+  const prOn = () => page.evaluate(() => [...document.querySelectorAll('#prnToggles .set-act')]
+    .map(b => b.dataset.prn + (b.classList.contains('on') ? '+' : '-')).join(' '));
+  check('  印刷のしかたの項目が出る', await prOn(), 'fit+ foot+ sub+ hol+');
   check('  はじめは「ふつう」', await page.evaluate(() =>
-    document.getElementById('tbPSizeVal').textContent), 'ふつう');
-  check('  4つとも入になっている', await page.evaluate(() =>
-    ['tbPrFit', 'tbPrFoot', 'tbPrSub', 'tbPrHol']
-      .every(id => document.getElementById(id).classList.contains('on'))), true);
+    document.getElementById('prnSizeVal').textContent), 'ふつう');
   await page.evaluate(() => { tbChangePSize(1); }); await page.waitForTimeout(200);
   check('  大きくできる', await page.evaluate(() =>
-    document.getElementById('tbPSizeVal').textContent), '大');
+    document.getElementById('prnSizeVal').textContent), '大');
   await page.evaluate(() => { tbChangePSize(1); tbChangePSize(1); }); await page.waitForTimeout(200);
   check('  特大より上には行かない', await page.evaluate(() =>
-    touban.pr.k + '/' + document.getElementById('tbPSizeVal').textContent), '3/特大');
+    touban.pr.k + '/' + document.getElementById('prnSizeVal').textContent), '3/特大');
   await page.evaluate(() => { for (let i = 0; i < 5; i++) tbChangePSize(-1); }); await page.waitForTimeout(200);
   check('  小より下には行かない', await page.evaluate(() =>
-    touban.pr.k + '/' + document.getElementById('tbPSizeVal').textContent), '0/小');
+    touban.pr.k + '/' + document.getElementById('prnSizeVal').textContent), '0/小');
+  check('  設定の入口にも今の決めごとが出る', await page.evaluate(() =>
+    document.getElementById('tbPrSum').textContent.includes('小')), true);
 
   // 文字の大きさが紙に効く
   const psz = await page.evaluate(() => {
@@ -5995,9 +5998,8 @@ async function runTouban(browser) {
   check('  そえ書きを消せる', off.off.sub, false);
   check('  下の日づけを消せる', off.off.foot, false);
   check('  祝日の名前を消せる', off.off.hol, false);
-  check('  消すとボタンも切になる', await page.evaluate(() =>
-    ['tbPrFoot', 'tbPrSub', 'tbPrHol'].some(id =>
-      document.getElementById(id).classList.contains('on'))), false);
+  check('  消すとボタンも切になる', await prOn(), 'fit+ foot- sub- hol-');
+  await page.evaluate(() => closePrn()); await page.waitForTimeout(400);
 
   // 1枚に収める
   const fit = await page.evaluate(() => {
@@ -6031,6 +6033,327 @@ async function runTouban(browser) {
   await page.evaluate(() => closeTbSet()); await page.waitForTimeout(500);
   await page.evaluate(() => closeTouban()); await page.waitForTimeout(400);
 
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
+async function runBrush1(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ブラッシュアップ第1弾 ──');
+
+  // 空の表の手がかり
+  check('  空の表に手がかりが出る', await page.evaluate(() =>
+    !document.getElementById('emptyHint').hidden), true);
+  check('  手がかりは押しても邪魔しない', await page.evaluate(() =>
+    getComputedStyle(document.getElementById('emptyHint')).pointerEvents), 'none');
+  await page.click('#c0_0'); await page.keyboard.type('5'); await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+  check('  入れると消える', await page.evaluate(() =>
+    document.getElementById('emptyHint').hidden), true);
+  await page.evaluate(() => undoLast()); await page.waitForTimeout(300);
+  check('  戻して空になるとまた出る', await page.evaluate(() =>
+    !document.getElementById('emptyHint').hidden), true);
+  await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(400);
+  check('  電卓のときは出ない', await page.evaluate(() =>
+    getComputedStyle(document.getElementById('emptyHint')).display === 'none' ||
+    document.getElementById('emptyHint').offsetParent === null), true);
+  await page.evaluate(() => switchMode('normal')); await page.waitForTimeout(400);
+
+  // 自動保存の表示
+  check('  記録を開いていないときは「自動保存」', await page.evaluate(() =>
+    document.getElementById('recordTitle').textContent.startsWith('📄 自動保存')), true);
+  check('  「未保存」とは出さない', await page.evaluate(() =>
+    document.getElementById('recordTitle').textContent.includes('未保存')), false);
+
+  // ⋯の道具の一覧
+  await page.evaluate(() => openMoreMenu()); await page.waitForTimeout(400);
+  check('  道具が全部並ぶ', await page.evaluate(() =>
+    document.querySelectorAll('#moreToolsGrid .more-item').length === NP_TOOLS.length), true);
+  check('  はじめは畳んである', await page.evaluate(() =>
+    document.getElementById('moreAccTools').open), false);
+  check('  別のタブで開くものには印', await page.evaluate(() =>
+    document.querySelector('#moreToolsGrid [data-tool=kaikei]').textContent.includes('↗')), true);
+  check('  ナイトモードは畳まずに出ている', await page.evaluate(() =>
+    !document.getElementById('darkMoreBtn').closest('.more-acc')), true);
+  await page.evaluate(() => document.querySelector('#moreToolsGrid [data-tool=touban]').click());
+  await page.waitForTimeout(700);
+  check('  一覧から道具が開く', await page.evaluate(() => isDlgOpen('toubanOverlay')), true);
+  check('  開くと⋯は閉じる', await page.evaluate(() => isDlgOpen('moreMenuOverlay')), false);
+  await page.evaluate(() => closeTouban()); await page.waitForTimeout(400);
+
+  check('  道具を閉じてもアプリの外に出ない', await page.evaluate(() =>
+    location.href.endsWith('index.html') && typeof toggleSettings === 'function'), true);
+  // ⋯ → リスト → 閉じる で、前のページへ戻ってしまっていた（v398で修正）
+  await page.evaluate(() => openMoreMenu()); await page.waitForTimeout(400);
+  await page.click('#listBtn'); await page.waitForTimeout(600);
+  check('  ⋯からリストが開く', await page.evaluate(() => isDlgOpen('saveListOverlay')), true);
+  await page.evaluate(() => closeSaveList()); await page.waitForTimeout(600);
+  check('  リストを閉じてもアプリの外に出ない', await page.evaluate(() =>
+    location.href.endsWith('index.html') && typeof toggleSettings === 'function'), true);
+
+  // 設定からも案内をもう一度
+  await page.evaluate(() => toggleSettings()); await page.waitForTimeout(400);
+  check('  設定に案内のボタンがある', await page.evaluate(() =>
+    !!document.getElementById('setTourBtn')), true);
+  await page.evaluate(() => document.getElementById('setTourBtn').click()); await page.waitForTimeout(800);
+  check('  押すと案内が開く', await page.evaluate(() => isDlgOpen('tourOverlay')), true);
+  check('  設定は閉じる', await page.evaluate(() => isDlgOpen('settingsPanel')), false);
+  await page.evaluate(() => { const b = [...document.querySelectorAll('#tourOverlay button')]
+    .find(x => /とばす|スキップ|閉じる|✕/.test(x.textContent)); if (b) b.click(); });
+  await page.waitForTimeout(500);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+
+  // 広い画面で列が間延びしない
+  const wide = await browser.newContext({ viewport: { width: 1400, height: 800 } });
+  const wp = await wide.newPage();
+  await wp.goto(INDEX); await wp.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await wp.reload(); await wp.waitForTimeout(1000);
+  const cw = await wp.evaluate(() => ({ w: document.getElementById('ch0').getBoundingClientRect().width,
+    cap: COL_WIDE_CAP * (cellScale || 1) }));
+  check('  パソコンでは1列が上限まで', cw.w <= cw.cap + 1, true);
+  check('  それでも狭すぎない', cw.w >= 150, true);
+  await wide.close();
+  const narrow = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const np = await narrow.newPage();
+  await np.goto(INDEX); await np.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await np.reload(); await np.waitForTimeout(1000);
+  check('  スマホでは今までどおり画面いっぱい', await np.evaluate(() => {
+    const t = document.getElementById('sheet');
+    return Math.abs(t.getBoundingClientRect().width - t.parentElement.clientWidth) <= 2; }), true);
+  await narrow.close();
+}
+
+async function runBrush2(browser) {
+  console.log('\n── ブラッシュアップ第2弾 ──');
+  const open = async (w, h, pre) => {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h } });
+    const page = await ctx.newPage();
+    const errs = []; page.on('pageerror', e => errs.push(e.message));
+    await page.goto(INDEX);
+    await page.evaluate((pre) => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1');
+      for (const k in (pre || {})) localStorage.setItem(k, pre[k]); }, pre);
+    await page.reload(); await page.waitForTimeout(1000);
+    return { ctx, page, errs };
+  };
+  const side = page => page.evaluate(() => document.body.classList.contains('np-side'));
+
+  // パソコン：テンキーは右
+  let { ctx, page, errs } = await open(1280, 800);
+  check('  パソコンではテンキーが右', await side(page), true);
+  const g = await page.evaluate(() => {
+    const ns = document.getElementById('numpadSection').getBoundingClientRect();
+    const sw = document.querySelector('.sheet-wrap').getBoundingClientRect();
+    const rows = [...document.querySelectorAll('#sheet tr')].filter(tr => tr.getBoundingClientRect().bottom <= innerHeight).length - 1;
+    return { right: ns.left >= sw.right - 1, full: sw.bottom >= innerHeight - 2, rows };
+  });
+  check('  表の右どなりに並ぶ', g.right, true);
+  check('  表が画面の下まで使える', g.full, true);
+  check('  15行ぜんぶ見える', g.rows >= 15, true);
+  check('  収納の矢印は右向き', await page.evaluate(() => document.getElementById('numpadEdgeBtn').textContent), '▶');
+  check('  上のバーに⌨が出る', await page.evaluate(() =>
+    getComputedStyle(document.getElementById('tbNumpad')).display !== 'none'), true);
+  await page.click('#tbNumpad'); await page.waitForTimeout(400);
+  check('  ⌨でテンキーをしまえる', await page.evaluate(() =>
+    numpadHidden && document.getElementById('numpadSection').getBoundingClientRect().width <= 20), true);
+  check('  しまった帯にキーが覗かない', await page.evaluate(() =>
+    getComputedStyle(document.getElementById('numpadViewport')).visibility), 'hidden');
+  await page.click('#tbNumpad'); await page.waitForTimeout(400);
+  check('  ⌨でまた出せる', await page.evaluate(() => !numpadHidden), true);
+  await page.click('#c0_0'); await page.click('#numpadPage1 .btn[data-key="n5"]'); await page.click('#numpadPage1 .btn[data-key="enter"]'); await page.waitForTimeout(300);
+  check('  右に置いてもキーで入る', await page.evaluate(() => String(data[0][0])), '5');
+  // 置き場所を「下」に
+  await page.evaluate(() => setNpPlace('bottom')); await page.waitForTimeout(400);
+  check('  「下」にすると下へ戻る', await side(page), false);
+  check('  ⌨は既定では消える', await page.evaluate(() =>
+    getComputedStyle(document.getElementById('tbNumpad')).display), 'none');
+  await page.reload(); await page.waitForTimeout(1000);
+  check('  置き場所を覚えている', await side(page), false);
+  await page.evaluate(() => { toggleSettings(); setSettingsTab(1); }); await page.waitForTimeout(400);
+  check('  設定に置き場所の選択がある', await page.evaluate(() =>
+    [...document.querySelectorAll('#npPlaceSeg .skin-seg-btn')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join('/')),
+    '自動/下*/右');
+  check('  JSエラーが出ていない（パソコン）', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+
+  // スマホ縦・タブレット縦は下のまま、スマホ横は今までどおり
+  ({ ctx, page, errs } = await open(390, 844));
+  check('  スマホ縦は下のまま', await side(page), false);
+  check('  スマホ縦は矢印が下向き', await page.evaluate(() => document.getElementById('numpadEdgeBtn').textContent), '▼');
+  await ctx.close();
+  ({ ctx, page, errs } = await open(768, 1024));
+  check('  タブレット縦は下のまま', await side(page), false);
+  await ctx.close();
+  ({ ctx, page, errs } = await open(844, 390));
+  check('  スマホ横は今までの横並び（np-side は使わない）', await side(page), false);
+  check('  スマホ横もテンキーは右', await page.evaluate(() =>
+    document.getElementById('numpadSection').getBoundingClientRect().left > 300), true);
+  await ctx.close();
+  ({ ctx, page, errs } = await open(1024, 768, { excalc_np_place: 'bottom' }));
+  check('  「下」を選んだ人はタブレット横でも下', await side(page), false);
+  await ctx.close();
+  ({ ctx, page, errs } = await open(800, 600, { excalc_np_place: 'side' }));
+  check('  「右」を選べば小さめの横長でも右', await side(page), true);
+  await ctx.close();
+
+  // 夜のバーと色の見やすさ
+  ({ ctx, page, errs } = await open(390, 844));
+  const bar = await page.evaluate(() => {
+    const a = getComputedStyle(document.querySelector('.toolbar')).backgroundColor;
+    toggleDark(); const b = getComputedStyle(document.querySelector('.toolbar')).backgroundColor;
+    const h = getComputedStyle(document.querySelector('#settingsPanel .modal-header')).backgroundColor;
+    toggleDark(); const c = getComputedStyle(document.querySelector('.toolbar')).backgroundColor;
+    return { a, b, h, c };
+  });
+  check('  夜は上のバーを沈める', bar.a !== bar.b, true);
+  check('  窓の見出しも同じ色', bar.h, bar.b);
+  check('  昼に戻すと元の色', bar.c, bar.a);
+  const cr = await page.evaluate(() => SKIN_THEMES.map(t => {
+    skinTheme = t.id; applySkin();
+    const cs = getComputedStyle(document.body);
+    return [t.id, skinContrastWhite(cs.getPropertyValue('--acc').trim()), skinContrastWhite(cs.getPropertyValue('--acc-light').trim())];
+  }));
+  check('  どの色でも白い字が読める（4.5以上）', cr.filter(x => x[1] < 4.5).map(x => x[0]).join(','), '');
+  check('  明るいボタン色も3以上', cr.filter(x => x[2] < 3).map(x => x[0]).join(','), '');
+  check('  みどりは元の色のまま', await page.evaluate(() => { skinTheme = 'green'; applySkin();
+    return getComputedStyle(document.body).getPropertyValue('--acc').trim(); }), '#217346');
+  check('  JSエラーが出ていない（色）', errs.length, 0);
+  await ctx.close();
+}
+
+async function runBrush3(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ブラッシュアップ第3弾 ──');
+  await page.evaluate(() => { window.print = () => { window.__printed = (window.__printed || 0) + 1; }; });
+
+  // 設定をさがす
+  await page.evaluate(() => toggleSettings()); await page.waitForTimeout(400);
+  check('  設定にさがす欄がある', await page.evaluate(() => !!document.getElementById('setFindIn')), true);
+  const find = async q => { await page.fill('#setFindIn', q); await page.waitForTimeout(150);
+    return page.evaluate(() => setFindHits.map(x => x.label)); };
+  check('  カタカナでもひらがなでも見つかる', (await find('てんきー')).includes('テンキーの置き場所'), true);
+  check('  言いかえで見つかる（夜→ナイトモード）', (await find('夜'))[0], '🌙 ナイトモード');
+  check('  ひらがなで漢字の見出しに届く', (await find('はいけい')).some(x => x.includes('背景')), true);
+  check('  道具も見つかる', (await find('当番')).includes('📅当番表'), true);
+  await find('zzzz');
+  check('  見つからないときは知らせる', await page.evaluate(() =>
+    !!document.querySelector('#setFindRes .set-find-none')), true);
+  await find('置き場所');
+  await page.evaluate(() => setFindGo(0)); await page.waitForTimeout(600);
+  check('  押すとそのタブへ移る', await page.evaluate(() => settingsTab), 1);
+  check('  その項目が光る', await page.evaluate(() => !!document.querySelector('#settingsPanel .set-flash')), true);
+  check('  さがす欄は空に戻る', await page.evaluate(() =>
+    document.getElementById('setFindIn').value + '|' + document.getElementById('setFindRes').hidden), '|true');
+  await find('くわしい');
+  await find('上下の余白');
+  await page.evaluate(() => setFindGo(0)); await page.waitForTimeout(500);
+  check('  畳んだ中の項目なら開いて見せる', await page.evaluate(() => {
+    const el = document.querySelector('#settingsPanel .set-flash');
+    let d = el; while (d && d.tagName !== 'DETAILS') d = d.parentElement;
+    return !!el && (!d || d.open); }), true);
+  await find('説明書');
+  const hi = await page.evaluate(() => setFindHits.findIndex(x => x.where === '⋯'));
+  await page.evaluate(i => setFindGo(i), hi); await page.waitForTimeout(600);
+  check('  設定の外のものは、そこを開く', await page.evaluate(() =>
+    isDlgOpen('helpOverlay') && !isDlgOpen('settingsPanel')), true);
+  await page.evaluate(() => closeHelp()); await page.waitForTimeout(500);
+  check('  閉じてもアプリの外に出ない', await page.evaluate(() => location.href.endsWith('index.html')), true);
+
+  // 登録キーの機能をさがす
+  await page.evaluate(() => openKeyAssign('n5')); await page.waitForTimeout(500);
+  check('  長押しの割り当てにさがす欄', await page.evaluate(() =>
+    !!document.querySelector('#keyAssignBody .ka-find')), true);
+  await page.fill('#keyAssignBody .ka-find', '当番'); await page.waitForTimeout(150);
+  const vis = () => page.evaluate(() => [...document.querySelectorAll('#keyAssignBody .ka-item')]
+    .filter(b => b.style.display !== 'none').map(b => b.textContent).join('/'));
+  check('  しぼり込める', await vis(), '📅当番表');
+  check('  当たらない見出しは隠れる', await page.evaluate(() =>
+    [...document.querySelectorAll('#keyAssignBody .ka-sec')].filter(e => e.style.display !== 'none').map(e => e.textContent).join('/')), '設定・機能');
+  await page.fill('#keyAssignBody .ka-find', 'ぜい'); await page.waitForTimeout(150);
+  check('  ひらがなでも当たる', (await vis()).includes('税込'), true);
+  await page.fill('#keyAssignBody .ka-find', ''); await page.waitForTimeout(150);
+  check('  空にすると全部に戻る', await page.evaluate(() =>
+    [...document.querySelectorAll('#keyAssignBody .ka-item')].every(b => b.style.display !== 'none')), true);
+  await page.evaluate(() => closeKeyAssign()); await page.waitForTimeout(400);
+
+  // 共通の印刷のしかた（単位水量）
+  await page.evaluate(() => openTansui()); await page.waitForTimeout(500);
+  check('  道具に印刷のしかたの入口', await page.evaluate(() =>
+    !!document.querySelector('#tansuiOverlay .prn-open')), true);
+  await page.evaluate(() => document.querySelector('#tansuiOverlay .prn-open').click()); await page.waitForTimeout(400);
+  check('  窓の名前に道具の名前', await page.evaluate(() =>
+    document.getElementById('prnTitle').textContent.includes('単位水量')), true);
+  check('  画像で保存も選べる', await page.evaluate(() =>
+    getComputedStyle(document.getElementById('prnImageBtn')).display !== 'none'), true);
+  await page.evaluate(() => { prnSize(2); prnToggle('foot'); }); await page.waitForTimeout(200);
+  const doc = await page.evaluate(() => { const b = prnBuild('tsx', tsxReportHtml());
+    const r = { z: getComputedStyle(b.box.firstElementChild).zoom,
+      foot: b.box.querySelector('.vp-foot') ? getComputedStyle(b.box.querySelector('.vp-foot')).display : 'なし' };
+    b.meas.remove(); document.getElementById('printArea').innerHTML = ''; return r; });
+  check('  特大で中身が大きくなる', doc.z, '1.3');
+  check('  下の注記を消せる', doc.foot, 'none');
+  await page.evaluate(() => document.getElementById('prnPrintBtn').click()); await page.waitForTimeout(700);
+  check('  窓から印刷できる', await page.evaluate(() => window.__printed), 1);
+  check('  印刷すると道具も閉じる', await page.evaluate(() =>
+    isDlgOpen('prnOverlay') + '/' + isDlgOpen('tansuiOverlay')), 'false/false');
+  await page.reload(); await page.waitForTimeout(1000);
+  check('  道具ごとに覚えている', await page.evaluate(() =>
+    [prnOpts('tsx').k, prnOpts('tsx').foot, prnOpts('veg').k, prnOpts('vegdiary').fit].join('/')), '3/false/1/false');
+
+  // 設定の入口の名前をそろえた
+  check('  道具の設定の入口は「⚙ 設定」にそろう', await page.evaluate(() =>
+    [...document.querySelectorAll('.hdr-btn')].filter(b => /設定/.test(b.textContent))
+      .every(b => b.textContent.trim() === '⚙ 設定' && !!b.title)), true);
+
+  // 押せる所の大きさ
+  const hit = await page.evaluate(() => {
+    const at = (id, y) => { const e = document.getElementById(id), r = e.getBoundingClientRect();
+      const h = document.elementFromPoint(r.left + r.width / 2, y(r)); return !!h && (h === e || e.contains(h)); };
+    const tb = document.querySelector('.toolbar').getBoundingClientRect();
+    return { save: at('saveBtn', () => tb.bottom - 1), more: at('moreBtn', () => tb.bottom - 1),
+      moreH: Math.round(document.getElementById('moreBtn').getBoundingClientRect().height) };
+  });
+  check('  上のバーのボタンは帯の下の端でも押せる', hit.save && hit.more, true);
+  check('  ⋯は他のボタンと同じ高さ', hit.moreH >= 30, true);
+
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
+async function runHelpSplit(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 説明書を別のファイルに（v401） ──');
+  const raw = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  check('  index.html に説明書の中身を持たない', raw.includes('id="h-privacy"'), false);
+  check('  help.js に中身がある', fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('id=\\"h-privacy\\"'), true);
+  const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
+  check('  電波がなくても読めるよう先に持つ', sw.includes("'./help.js'"), true);
+  check('  画面を開くとき以外は index.html で代わりをしない', sw.includes("e.request.mode === 'navigate'"), true);
+  check('  開くまでは読まない', await page.evaluate(() =>
+    !document.getElementById('h-privacy') && typeof window.EXCALC_HELP_HTML), 'undefined');
+  check('  開けば読み込まれる', await page.evaluate(async () => { await openHelp();
+    return !!document.getElementById('h-privacy') && document.getElementById('helpVer').textContent; }), 'バージョン ' + await page.evaluate(() => APP_VERSION));
+  check('  使いかたの表も入る', await page.evaluate(() =>
+    document.querySelectorAll('#helpBody .help-li').length > 50), true);
+  await page.evaluate(() => closeHelp()); await page.waitForTimeout(400);
+  check('  2回目は読み込み直さない', await page.evaluate(async () => { await openHelp();
+    return document.querySelectorAll('script[src="help.js"]').length; }), 1);
+  await page.evaluate(() => closeHelp()); await page.waitForTimeout(400);
+  // 読めなかったときは、そう知らせて、次に開いたときにもう一度読みにいく
+  check('  読めないときは知らせる', await page.evaluate(async () => {
+    const body = document.getElementById('helpBody'); const keep = body.innerHTML;
+    const saved = window.EXCALC_HELP_HTML; delete window.EXCALC_HELP_HTML;
+    body.innerHTML = ''; const orig = document.head.appendChild.bind(document.head);
+    document.head.appendChild = el => { if (el.tagName === 'SCRIPT') { setTimeout(() => el.onerror && el.onerror(), 0); return el; } return orig(el); };
+    const ok = await loadHelp();
+    const msg = body.textContent.includes('読み込めませんでした');
+    document.head.appendChild = orig; window.EXCALC_HELP_HTML = saved; body.innerHTML = keep;
+    return !ok && msg; }), true);
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();
@@ -6079,6 +6402,12 @@ async function runTouban(browser) {
     if (!only || only === 'cellfocus') await runCellFocus(browser);
     if (!only || only === 'kaikei') await runKaikei(browser);
     if (!only || only === 'touban') await runTouban(browser);
+    if (!only || only === 'brush1') await runBrush1(browser);
+    if (!only || only === 'brush2') await runBrush2(browser);
+    if (!only || only === 'brush3') await runBrush3(browser);
+    if (!only || only === 'help') await runHelpSplit(browser);
+    // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
+    if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }

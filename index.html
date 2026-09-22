@@ -452,8 +452,45 @@ input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-ca
 /* テンキーを閉じた状態：既定（縦向きなど）はテンキー領域ごと非表示 */
 body.numpad-off .numpad-section { display: none; }
 
+/* ── 広い横長の画面（パソコン・タブレット横）：テンキーを右に縦置き（v399）──
+   下に置くと画面の4割をテンキーが占め、表が9行しか見えなかった。
+   上のバーは横いっぱいのまま、その下を「表｜テンキー」に分ける。
+   テンキーは右下に寄せ、背が高くなりすぎないよう上限を付ける（キーが縦長にならない）。 */
+body.np-side {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--numpad-w, 380px);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "toolbar toolbar" "main numpad";
+}
+body.np-side .toolbar { grid-area: toolbar; }
+body.np-side .left-pane { grid-area: main; min-height: 0; }
+body.np-side .numpad-section {
+  grid-area: numpad; min-height: 0; overflow: hidden; position: relative;
+  display: grid; grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto min(calc(100% - 30px), 560px);
+  border-top: none; border-left: 2px solid var(--acc);
+}
+body.np-side .kp-edit-bar { grid-column: 1 / -1; grid-row: 1; align-self: end; }
+body.np-side .numpad-resizer {
+  grid-column: 1; grid-row: 1 / -1; height: auto; width: calc(13px * var(--bar-scale, 1));
+  margin: 0 4px 0 -3px; cursor: ew-resize;
+}
+body.np-side .numpad-resizer-grip { width: calc(5px * var(--bar-scale, 1)); height: 46px; }
+body.np-side .numpad-pagebar { grid-column: 2; grid-row: 2; }
+body.np-side .numpad-viewport { grid-column: 2; grid-row: 3; min-width: 0; min-height: 0; }
+body.np-side .numpad-grid { height: 100%; grid-auto-rows: 1fr; gap: 5px; }
+body.np-side #numpadPage1 { grid-template-rows: 0.66fr repeat(5, 1fr); }
+body.np-side .numpad-section .numpad-grid .btn.util { height: auto; line-height: 1; }
+body.np-side .numpad-section .numpad-grid .btn { padding-top: 2px; padding-bottom: 2px; min-height: 0; }
+/* 閉じたときは列を端(18px)まで詰めて、つまみだけ残す（スマホ横向きと同じ） */
+body.np-side.numpad-off { grid-template-columns: minmax(0, 1fr) 18px; }
+body.np-side.numpad-off .numpad-section { display: grid !important; overflow: hidden; }
+body.np-side.numpad-off .numpad-viewport,
+body.np-side.numpad-off .numpad-pagebar { visibility: hidden; }   /* 細い帯にキーの端が覗かないように */
+body.np-side.numpad-compact .numpad-grid .btn { font-size: 0 !important; }
+
 .toolbar {
-  background: var(--acc);
+  background: var(--bar-bg, var(--acc));
   color: white;
   padding: 5px 7px;
   /* iPhoneホーム画面アプリ：カメラ/ノッチ/Dynamic Island を避けてメニューを下げる */
@@ -567,6 +604,18 @@ body.numpad-off .numpad-section { display: none; }
   flex-shrink: 0; padding: 0 10px;
 }
 .btn-more:hover { background: rgba(255,255,255,0.28); }
+/* ── 押せる所の大きさをそろえる（v400）──
+   上のバーや小さな切り替えは、見た目を変えずに指の当たりだけを広げる（✕ と同じやり方）。
+   ⋯ は他のボタンと高さをそろえる（前は20pxで、押し外しやすかった）。 */
+.btn-more { min-height: 30px; min-width: 44px; }
+.toolbar > button, .toolbar > .toolbar-title, .stat-edge, .save-new-btn, .save-viewbtn, .hdr-btn { position: relative; }
+.toolbar > button::before, .toolbar > .toolbar-title::before,
+.save-new-btn::before, .save-viewbtn::before, .hdr-btn::before {
+  content: ''; position: absolute; left: 0; right: 0; top: -7px; bottom: -7px;
+}
+.stat-edge::before { content: ''; position: absolute; inset: -10px -8px; }
+.fmt-select, .save-sortsel { min-height: 36px; }
+.tsx-sec-btn { min-height: 36px; align-items: center; }
 .btn-more:active { background: rgba(255,255,255,0.4); }
 /* 「⋯」の中身 */
 .modal.more-modal { width: 100%; max-width: 420px; max-height: 90vh; }
@@ -598,6 +647,36 @@ body.numpad-off .numpad-section { display: none; }
 }
 .more-acc > summary > small { display: block; font-weight: normal; font-size: 11px; color: var(--text-light); margin-top: 2px; }
 .more-acc > .more-grid { margin-top: 6px; }
+/* 説明書を読み込んでいるあいだ（v401） */
+.help-loading { padding: 28px 12px; text-align: center; color: var(--text-light); font-size: 14px; line-height: 1.7; }
+/* 印刷のしかた（v400） */
+.prn-open {
+  display: block; width: 100%; margin: 6px 0 2px; padding: 9px 10px; min-height: 40px;
+  border: 1px dashed var(--save-item-border); border-radius: var(--r-btn);
+  background: transparent; color: var(--text-light); font-size: 13px; font-weight: bold; cursor: pointer;
+}
+.prn-modal { width: 100%; max-width: 440px; }
+#prnOverlay { z-index: 1005; }   /* 道具の窓や、その設定の窓の上に開くので一段上に置く */
+.prn-go { display: flex; gap: 8px; margin-top: 10px; }
+.prn-go > * { flex: 1; margin: 0; }
+#tbPrOpen small { display: block; font-weight: normal; font-size: 11px; color: var(--text-light); margin-top: 2px; }
+/* 空の表の手がかり（v398） */
+.sheet-wrap { position: relative; }
+.empty-hint {
+  position: absolute; left: var(--eh-x, 50%); top: 40%; transform: translate(-50%, -50%);
+  width: min(84%, 330px); text-align: center; pointer-events: none; z-index: 1;
+  color: var(--text-light); padding: 12px 14px; border-radius: 12px;
+  background: color-mix(in srgb, var(--sheet-bg, #fff) 92%, transparent);
+  box-shadow: 0 1px 6px rgba(0,0,0,.08); border: 1px dashed var(--cell-border, #ccc);
+}
+.empty-hint[hidden] { display: none; }
+.empty-hint .eh-big { font-size: 17px; font-weight: bold; margin-bottom: 6px; }
+.empty-hint .eh-sub { font-size: 12.5px; line-height: 1.6; }
+.empty-hint b { color: var(--acc); }
+body.dark .empty-hint b { color: var(--acc-on-dark); }
+.more-grid.more-tools { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.more-tools .more-item { padding: 9px 8px; font-size: 13px; gap: 6px; }
+.more-tools .more-item span { font-size: 16px; }
 .more-item.more-danger { border-color: var(--danger); color: var(--danger); }
 body.dark .more-item.more-danger { color: #ff8a80; border-color: #ff8a80; }
 /* 横向きは高さが足りないので、4列にして「リセット」まで一目で見えるようにする */
@@ -727,6 +806,31 @@ body.has-sheet-tabs .sheet-persist {
   padding: 10px; overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1;
 }
 body.dark .settings-tabbar, body.dark .settings-body { background: #141d33; }
+/* 設定をさがす（v400） */
+.set-find { position: relative; padding: 8px 10px 0; background: #f0f0f0; flex-shrink: 0; }
+body.dark .set-find { background: #141d33; }
+.set-find-in {
+  width: 100%; box-sizing: border-box; padding: 9px 12px; min-height: 40px; font-size: 15px;
+  border: 1px solid var(--save-item-border); border-radius: 20px;
+  background: var(--save-item-bg); color: var(--text);
+}
+.set-find-res {
+  position: absolute; left: 10px; right: 10px; top: calc(100% + 2px); z-index: 5;
+  max-height: 55vh; overflow-y: auto; padding: 4px;
+  background: var(--save-item-bg); border: 1px solid var(--save-item-border); border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.18);
+}
+.set-find-res[hidden] { display: none; }
+.set-find-hit {
+  display: block; width: 100%; text-align: left; padding: 9px 10px; min-height: 44px;
+  border: none; border-radius: 8px; background: transparent; color: var(--text); cursor: pointer;
+}
+.set-find-hit:hover, .set-find-hit:focus { background: var(--cell-hover, rgba(0,0,0,.05)); }
+.set-find-hit b { display: block; font-size: 14px; }
+.set-find-hit small { display: block; font-size: 11px; color: var(--text-light); margin-top: 1px; }
+.set-find-none { padding: 12px 10px; font-size: 13px; color: var(--text-light); }
+.set-flash { animation: setFlash 1.6s ease; border-radius: 8px; }
+@keyframes setFlash { 0%, 60% { box-shadow: 0 0 0 3px var(--acc); } 100% { box-shadow: 0 0 0 0 transparent; } }
 /* 📦 端末の空き具合（v373） */
 .st-total { margin-bottom: 12px; }
 .st-bar {
@@ -1725,7 +1829,7 @@ body.fill-active, body.fill-active * { -webkit-user-select: none; user-select: n
    （空タブでモーダルが急に縮んで位置がずれるのを緩和） */
 #saveListBody { min-height: 42vh; }
 .modal-header {
-  background: var(--acc); color: white;
+  background: var(--bar-bg, var(--acc)); color: white;
   padding: 12px 16px; font-size: 15px; font-weight: bold;
   display: flex; align-items: center; justify-content: space-between;
   flex-shrink: 0;
@@ -2410,6 +2514,11 @@ body[data-pm="xs"] .pm-modal > .modal-header {
 /* ボタン割り当てピッカー（テンキーのボタン長押しで開く） */
 .ka-sec { font-size: 11px; font-weight: bold; color: var(--text-light); margin: 10px 2px 6px; }
 .ka-sec:first-child { margin-top: 0; }
+.ka-find {
+  width: 100%; box-sizing: border-box; margin: 0 0 8px; padding: 8px 12px; min-height: 40px; font-size: 15px;
+  border: 1px solid var(--save-item-border); border-radius: 20px; background: var(--save-item-bg); color: var(--text);
+}
+.ka-none { font-size: 13px; color: var(--text-light); padding: 8px 4px; }
 .ka-grid { display: flex; flex-wrap: wrap; gap: 6px; }
 .ka-item {
   flex: 0 0 calc((100% - 24px)/5);
@@ -3183,6 +3292,10 @@ body.dark .tsx-res-val.ng   { color: #ff8a80; }
 #printArea .tp-doc .tp-nm { font-size: calc(9px * var(--tp-k, 1)); line-height: 1.12; overflow-wrap: anywhere; margin-top: 1px; }
 #printArea .tp-doc .tp-foot { font-size: calc(9px * var(--tp-k, 1)); color: #666; margin-top: 7px; text-align: right; }
 
+/* 共通の「印刷のしかた」（v400）。当番表以外は、中身をまとめて拡大・縮小する。
+   紙の幅はそのままで、中身だけ大きく組み直すので「同じ紙に大きな字」になる */
+#printArea .prn-doc > * { zoom: var(--prn-z, 1); }
+#printArea .prn-doc.prn-nofoot .vp-foot { display: none; }
 #printArea .op-doc .vp-head { border-bottom: 2px solid #2e7d32; padding-bottom: 6px; margin-bottom: 10px; }
 #printArea .op-doc .vp-title { font-size: 20px; font-weight: bold; }
 #printArea .op-doc .vp-sub { font-size: 11px; color: #555; margin-top: 2px; }
@@ -3261,7 +3374,7 @@ body.dark {
 </div>
 
 <div class="toolbar" id="mainToolbar">
-  <span class="toolbar-title" id="recordTitle" onclick="showSaveList()" title="今開いている記録（タップでリストを開く）">📄 未保存</span>
+  <span class="toolbar-title" id="recordTitle" onclick="showSaveList()" title="今開いている記録（タップでリストを開く）">📄 自動保存</span>
   <button class="btn-save menu-item" id="saveBtn" onclick="saveData()" title="上書き保存／長押しで名前を付けて保存">保存</button>
   <button class="btn-undo menu-item" id="undoBtn" onclick="undoLast()" disabled title="元に戻す">↶</button>
   <!-- ここから下は、設定「上のバーに出すボタン」で選んだものだけ出る（既定は全部しまってある）。
@@ -3271,6 +3384,7 @@ body.dark {
   <button class="btn-top-extra menu-item" id="tbSheet"   onclick="toggleSheetTabs()" style="display:none" title="シートのタブを表示/非表示">🗂</button>
   <button class="btn-top-extra menu-item" id="tbSet"     onclick="toggleSettings()" style="display:none" title="設定">⚙</button>
   <button class="btn-top-extra menu-item" id="tbDefsize" style="display:none" title="新しい表や ▦通常 に戻したときの行数・列数を決めます">▦</button>
+  <button class="btn-top-extra menu-item" id="tbNumpad" onclick="toggleNumpadEdge()" style="display:none" title="テンキーを隠す／出す">⌨</button>
   <button class="btn-top-extra btn-top-reset menu-item" id="tbReset" onclick="resetAll()" style="display:none" title="表の中身を消す（戻るで元に戻せます）">🧹</button>
   <button class="btn-more" id="moreBtn" onclick="openMoreMenu()" title="そのほかの操作">⋯</button>
   <div class="sheet-bar" id="sheetBar"></div>
@@ -3322,6 +3436,7 @@ body.dark {
         <button class="more-item menu-item" id="redoBtn" onclick="moreDo(redoLast)" disabled><span>↷</span>進む</button>
         <button class="more-item menu-item" id="listBtn" onclick="moreDo(showSaveList)"><span>📋</span>リスト</button>
         <button class="more-item menu-item" id="settingsBtn" onclick="moreDo(toggleSettings)"><span>⚙</span>設定</button>
+        <button class="more-item" id="darkMoreBtn" onclick="moreDo(toggleDark)"><span>🌙</span>ナイトモード</button>
         <button class="more-item" id="voiceMoreBtn" onclick="moreDo(voiceStart)" style="display:none" title="タップで1つ入れる／長押しで続けて入れる"><span>🎤</span>声で入れる</button>
       </div>
       <div class="more-sec">切り替える</div>
@@ -3330,6 +3445,11 @@ body.dark {
         <button class="more-item" onclick="moreDo(()=>switchMode('normal'))"><span>▦</span>通常の表</button>
         <button class="more-item" onclick="moreDo(()=>switchMode('dentaku'))"><span>🧮</span>電卓</button>
       </div>
+      <!-- 道具の一覧（v398）。テンキーのページをめくらなくても、ここから全部開ける -->
+      <details class="more-acc" id="moreAccTools" ontoggle="saveMoreAcc(this)">
+        <summary>🧰 道具<small id="moreToolsSum"></small></summary>
+        <div class="more-grid more-tools" id="moreToolsGrid"></div>
+      </details>
       <details class="more-acc" id="moreAccOut" ontoggle="saveMoreAcc(this)">
         <summary>📤 書き出す・読み込む<small>PDF・CSV・Excel</small></summary>
         <div class="more-grid">
@@ -3343,11 +3463,10 @@ body.dark {
       <input id="importCSVInput" type="file" accept=".csv,text/csv" style="display:none" onchange="importCSV(event)">
       <input id="importXLSXInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onchange="importXLSX(event)">
       <details class="more-acc" id="moreAccMisc" ontoggle="saveMoreAcc(this)">
-        <summary>🛠 そのほか<small>シート・既定の大きさ・ナイトモード・説明書</small></summary>
+        <summary>🛠 そのほか<small>シート・既定の大きさ・説明書</small></summary>
         <div class="more-grid">
           <button class="more-item menu-item" id="sheetToggleBtn" onclick="moreDo(toggleSheetTabs)" title="シートのタブバーを表示/非表示"><span>🗂</span>シート</button>
           <button class="more-item menu-item" id="defsizeTopBtn" title="新しい表や ▦通常 に戻したときの行数・列数を決めます"><span>▦</span>既定の大きさ</button>
-          <button class="more-item" id="darkMoreBtn" onclick="moreDo(toggleDark)"><span>🌙</span>ナイトモード</button>
           <button class="more-item" onclick="moreDo(openHelp)"><span>📖</span>説明書</button>
         </div>
       </details>
@@ -3368,6 +3487,12 @@ body.dark {
   <div class="modal-header">
     <span>⚙ 設定</span>
     <button class="modal-close" onclick="toggleSettings()">✕</button>
+  </div>
+  <!-- 設定をさがす（v400）。項目が増えたので、言葉で探して飛べるようにする -->
+  <div class="set-find">
+    <input type="search" id="setFindIn" class="set-find-in" placeholder="🔍 設定をさがす（例：夜・色・テンキー）"
+           autocomplete="off" oninput="setFind(this.value)" onkeydown="event.stopPropagation(); if(event.key==='Enter') setFindGo(0)">
+    <div class="set-find-res" id="setFindRes" hidden></div>
   </div>
   <div class="settings-tabbar">
     <button class="settings-tab active" onclick="setSettingsTab(0)">📐 表</button>
@@ -3392,6 +3517,9 @@ body.dark {
       <button class="enterdir-btn on" data-dir="down" onclick="setEnterDir('down')">↓ 下へ</button>
       <button class="enterdir-btn" data-dir="right" onclick="setEnterDir('right')">→ 右へ</button>
     </div>
+    <div class="set-sec">使いかた</div>
+    <button class="set-act" id="setTourBtn" onclick="toggleSettings(); setTimeout(openTour, 320);">🚀 はじめての案内をもう一度見る</button>
+    <button class="set-act" onclick="toggleSettings(); setTimeout(openHelp, 320);">📖 説明書を開く</button>
   </div>
 
   <div class="set-page" id="setPage1">
@@ -3409,6 +3537,9 @@ body.dark {
       <span class="set-label">テンキーの大きさ</span>
       <span class="set-stepper"><button class="step-btn" onclick="changeKeySize(-1)">−</button><span class="sc-val" id="keySize">大</span><button class="step-btn" onclick="changeKeySize(1)">＋</button></span>
     </div>
+    <div class="set-sec">テンキーの置き場所<small style="font-weight:normal;margin-left:6px">パソコンなど横に広い画面向け</small></div>
+    <div class="set-note"><b>右</b>にすると、表の右にテンキーを縦に置きます。表が上から下まで見えるので、パソコンやタブレットの横向きに向いています。<b>自動</b>は横に広い画面のときだけ右に置きます。スマホの横向きは、いつも右です。<span id="npPlaceNow"></span></div>
+    <div class="skin-seg" id="npPlaceSeg"></div>
     <div class="set-sec">画面の詰め方<small style="font-weight:normal;margin-left:6px">せまい画面で表示量を増やす</small></div>
     <div class="set-note">iPhone SE のように<b>背の低い画面</b>だと、電卓の答えや履歴が入りきらないことがあります。<b>詰める</b>にすると文字と余白を少しずつ縮めて、<b>1画面に見える量を増やします</b>。<b>自動</b>は画面の大きさで決めます。<span id="compactNow"></span></div>
     <div class="skin-seg" id="compactSeg"></div>
@@ -3482,6 +3613,7 @@ body.dark {
       <button class="topbtn-toggle" data-btn="sheet"   onclick="toggleTopBtn('sheet')">🗂 シート</button>
       <button class="topbtn-toggle" data-btn="settings" onclick="toggleTopBtn('settings')">⚙ 設定</button>
       <button class="topbtn-toggle" data-btn="defsize" onclick="toggleTopBtn('defsize')">▦ 既定の大きさ</button>
+      <button class="topbtn-toggle" data-btn="numpad"  onclick="toggleTopBtn('numpad')">⌨ テンキー</button>
       <button class="topbtn-toggle" data-btn="reset"   onclick="toggleTopBtn('reset')">🧹 リセット</button>
     </div>
     <div class="set-sec">テンキーの上に出す道具</div>
@@ -3559,6 +3691,11 @@ body.dark {
 
 <div class="sheet-wrap">
   <table class="sheet" id="sheet" role="grid" aria-label="表"></table>
+  <!-- 表がまっさらなときだけ出す手がかり（v398）。何か入れると消える。押しても何も起きない -->
+  <div class="empty-hint" id="emptyHint" hidden aria-hidden="true">
+    <div class="eh-big">数字を入れて <b>Enter</b></div>
+    <div class="eh-sub">下の <b>Σ合計</b> で縦に足し算できます<br>見積もり・割り勘などは <b>⋯ → 🎯用途から始める</b></div>
+  </div>
 </div>
 
 <!-- 電卓モードの画面。body.dentaku-mode のときだけ表のかわりに出る（テンキーはそのまま使う） -->
@@ -3647,7 +3784,7 @@ body.dark {
     <div class="modal-header">
       <span>💧 単位水量試験</span>
       <span class="hdr-right">
-        <button class="hdr-btn" onclick="openTsSettings()">⚙ 設定</button>
+        <button class="hdr-btn" onclick="openTsSettings()" title="許容差・小数の桁・配合とエアメータの登録">⚙ 設定</button>
         <button class="modal-close" onclick="closeTansui()">✕</button>
       </span>
     </div>
@@ -3697,6 +3834,7 @@ body.dark {
         <button class="vol-insert veg-pdf-btn" onclick="tsxImage(false)">🖼 画像で保存</button>
         <button class="vol-insert veg-pdf-btn" onclick="tsxImage(true)">📤 画像を共有</button>
       </div>
+      <button class="prn-open" onclick="openPrn('tsx')">🖨 印刷のしかた（文字の大きさ・1枚に収める など）</button>
     </div>
   </div>
 </div>
@@ -3717,7 +3855,7 @@ body.dark {
     <div class="modal-header">
       <span>🧪 カンタブ試験</span>
       <span class="hdr-right">
-        <button class="hdr-btn" onclick="openKtSettings()">⚙ 換算表・設定</button>
+        <button class="hdr-btn" onclick="openKtSettings()" title="換算表の登録・判定の決まり">⚙ 設定</button>
         <button class="modal-close" onclick="closeKantab()">✕</button>
       </span>
     </div>
@@ -3738,7 +3876,7 @@ body.dark {
       </div>
       <div class="kt-judge-row"><span class="ts-judge" id="ktJudge">—</span></div>
       <button class="vol-insert" id="ktInsertBtn" onclick="ktInsertToCell()" disabled>▦ 平均値をセルに入れる</button>
-      <div class="vol-hint">読み値ごとに<b>換算表</b>で塩化物イオン濃度(%)に直し、<b>単位水量</b>を掛けて塩化物含有量(kg/m³)を出します。最後にその<b>平均</b>で判定します（①〜③のうち<b>入れた分だけ</b>で平均します）。<br>換算表はカンタブの製品ごとに違うため、はじめに<b>⚙換算表・設定</b>でお使いの表を登録してください。読み値が表の行と行の間のときは前後から直線でおぎない、その値に<b>*</b>を付けます。表の範囲外のときは「範囲外」と出し、平均には入れません。</div>
+      <div class="vol-hint">読み値ごとに<b>換算表</b>で塩化物イオン濃度(%)に直し、<b>単位水量</b>を掛けて塩化物含有量(kg/m³)を出します。最後にその<b>平均</b>で判定します（①〜③のうち<b>入れた分だけ</b>で平均します）。<br>換算表はカンタブの製品ごとに違うため、はじめに<b>⚙設定</b>でお使いの表を登録してください。読み値が表の行と行の間のときは前後から直線でおぎない、その値に<b>*</b>を付けます。表の範囲外のときは「範囲外」と出し、平均には入れません。</div>
     </div>
   </div>
 </div>
@@ -4436,6 +4574,7 @@ body.dark {
         <button class="vol-insert veg-pdf-btn" id="vegImgBtn" onclick="vegImage(false)">🖼 画像で保存</button>
         <button class="vol-insert veg-pdf-btn" id="vegShareBtn" onclick="vegImage(true)">📤 画像を共有</button>
       </div>
+      <button class="prn-open" onclick="openPrn('veg')">🖨 印刷のしかた（文字の大きさ・1枚に収める など）</button>
       <details class="veg-my">
         <summary>➕ 自分の野菜を登録する</summary>
         <div id="vegMyBody"></div>
@@ -4582,6 +4721,7 @@ body.dark {
         <button class="vol-insert veg-pdf-btn" onclick="vegDiaryImage(false)">🖼 画像で保存</button>
         <button class="vol-insert veg-pdf-btn" onclick="vegDiaryImage(true)">📤 画像を共有</button>
       </div>
+      <button class="prn-open" onclick="openPrn('vegdiary')">🖨 印刷のしかた（文字の大きさ・1枚に収める など）</button>
       <div class="veg-note">写真は端末の中だけに残ります。機種変えのときは 📋リストの<b>⬇書き出し</b>では移せないので、大事な写真は<b>画像で保存</b>しておいてください。</div>
     </div>
   </div>
@@ -4654,7 +4794,7 @@ body.dark {
       <span class="hdr-title">📝 写真メモ</span>
       <span class="hdr-right">
         <span class="hdr-rotrow" id="pmRotRow" style="display:none"><button class="hdr-btn hdr-rot" onclick="pmRotatePhoto(-1)" title="左に90°回す">↺</button><button class="hdr-btn hdr-rot" onclick="pmRotatePhoto(1)" title="右に90°回す">↻</button></span>
-        <button class="hdr-btn" onclick="pmOpenSaveSet()">⚙ 保存設定</button>
+        <button class="hdr-btn" onclick="pmOpenSaveSet()" title="書き出す画像の大きさ・画質">⚙ 設定</button>
       </span>
     </div>
     <div class="pm-body">
@@ -4958,7 +5098,7 @@ body.dark {
   <div class="modal">
     <div class="modal-header">
       <button class="hdr-back" onclick="pmCloseSaveSet()" title="前の画面にもどる"><span class="hdr-back-ar">←</span>戻る</button>
-      <span class="hdr-title">⚙ 保存設定</span>
+      <span class="hdr-title">📝 写真メモの設定</span>
     </div>
     <div class="shotprev-body">
       <div class="mode-hint">スクショ・共有で書き出す画像の大きさです。「元のサイズ」なら写真の画質そのままで保存できます（元より大きくは引き伸ばしません）。</div>
@@ -5050,7 +5190,7 @@ body.dark {
     <div class="modal-header">
       <span id="toubanHdr">📅 当番表</span>
       <span class="hdr-right">
-        <button class="hdr-btn" onclick="openTbSet()">⚙ 名簿・設定</button>
+        <button class="hdr-btn" onclick="openTbSet()" title="名簿・当番の日・割り当て・印刷のしかた">⚙ 設定</button>
         <button class="hdr-btn" onclick="tbPrint()">🖨 印刷</button>
         <button class="modal-close" onclick="closeTouban()">✕</button>
       </span>
@@ -5069,8 +5209,30 @@ body.dark {
         </div>
       </div>
       <div class="tb-next" id="tbNext"></div>
-      <div class="mode-hint">日づけの下の枠に<b>名簿の番号</b>を入れると、その人の名前が入ります。名簿は<b>⚙名簿・設定</b>から登録してください。</div>
+      <div class="mode-hint">日づけの下の枠に<b>名簿の番号</b>を入れると、その人の名前が入ります。名簿は<b>⚙設定</b>から登録してください。</div>
       <div class="tb-months" id="tbMonths"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 🖨 印刷のしかた（v400）。紙と画像に出すときの決めごとを、道具ごとに同じ形で選ぶ -->
+<div class="modal-overlay" id="prnOverlay" onclick="if(event.target===this)closePrn()">
+  <div class="modal prn-modal">
+    <div class="modal-header">
+      <span id="prnTitle">🖨 印刷のしかた</span>
+      <button class="modal-close" onclick="closePrn()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="set-row">
+        <span class="set-label">文字の大きさ<small>読みづらい・入りきらないときに</small></span>
+        <span class="set-stepper"><button class="step-btn" onclick="prnSize(-1)">−</button><span class="sc-val" id="prnSizeVal">ふつう</span><button class="step-btn" onclick="prnSize(1)">＋</button></span>
+      </div>
+      <div id="prnToggles"></div>
+      <div class="set-note">ここで決めたことは<b>紙と画像に出すときだけ</b>効きます。画面の見え方は変わりません。<b>1枚に収める</b>を外すと、選んだ大きさのまま出して、入りきらなければ2枚以上になります。</div>
+      <div class="prn-go">
+        <button class="vol-insert veg-pdf-btn" id="prnPrintBtn" onclick="prnRun('print')">🖨 印刷・PDF</button>
+        <button class="vol-insert veg-pdf-btn" id="prnImageBtn" onclick="prnRun('image')">🖼 画像で保存</button>
+      </div>
     </div>
   </div>
 </div>
@@ -5078,7 +5240,7 @@ body.dark {
 <div class="modal-overlay" id="tbSetOverlay" onclick="if(event.target===this)closeTbSet()">
   <div class="modal vol-modal">
     <div class="modal-header">
-      <span>⚙ 名簿・設定</span>
+      <span>📅 当番表の設定</span>
       <button class="modal-close" onclick="closeTbSet()">✕</button>
     </div>
     <div class="modal-body">
@@ -5107,15 +5269,7 @@ body.dark {
       <button class="set-act" onclick="tbClearHalf()">🧹 いま見ている半年の番号を消す</button>
 
       <div class="set-sec">印刷のしかた</div>
-      <div class="set-row">
-        <span class="set-label">文字の大きさ<small>名前が読みづらいときに</small></span>
-        <span class="set-stepper"><button class="step-btn" onclick="tbChangePSize(-1)">−</button><span class="sc-val" id="tbPSizeVal">ふつう</span><button class="step-btn" onclick="tbChangePSize(1)">＋</button></span>
-      </div>
-      <button class="set-act" id="tbPrFit" onclick="tbTogglePr('fit')" title="外すと、選んだ文字の大きさのまま出します（入りきらなければ2枚になります）">📄 半年ぶんを1枚に収める</button>
-      <button class="set-act" id="tbPrFoot" onclick="tbTogglePr('foot')" title="紙のいちばん下に出る「当番の日 ◯日 ／ ◯/◯ 現在」">📅 下に日づけと日数を出す</button>
-      <button class="set-act" id="tbPrSub" onclick="tbTogglePr('sub')" title="題の下に出るそえ書き">✍ そえ書きを出す</button>
-      <button class="set-act" id="tbPrHol" onclick="tbTogglePr('hol')" title="こどもの日・振替休日などの名前">🎌 祝日の名前を出す</button>
-      <div class="set-note">ここで決めたことは<b>紙に出すときだけ</b>効きます。画面の見え方は変わりません。</div>
+      <button class="set-act" id="tbPrOpen" onclick="openPrn('touban')">🖨 印刷のしかた<small id="tbPrSum"></small></button>
 
       <div class="set-sec">名簿<small id="tbRosterCount"></small></div>
       <div class="set-note">この<b>並び順が番号</b>になります。順番を入れ替えると、番号の指す人も変わります。</div>
@@ -5146,358 +5300,8 @@ body.dark {
       <span>📖 表電卓の使い方</span>
       <button class="modal-close" onclick="closeHelp()">✕</button>
     </div>
-    <div class="modal-body">
-      <p class="help-lead">スプレッドシート風の電卓です。表に数値を入れて、合計・平均・数式や各種モードで素早く計算できます。<b>口で「251かける68」と言って計算</b>することもできます（🎤 声で入れる）。入力内容は自動保存され、次回も続きから使えます。</p>
-
-      <div class="help-nav">
-        <a onclick="helpJump('h-basic')">✏️ 基本</a>
-        <a onclick="helpJump('h-keys')">🔢 テンキー</a>
-        <a onclick="helpJump('h-sum')">Σ 合計</a>
-        <a onclick="helpJump('h-formula')">🧮 数式</a>
-        <a onclick="helpJump('h-voice')">🎤 声</a>
-        <a onclick="helpJump('h-format')">🎨 書式</a>
-        <a onclick="helpJump('h-mode')">🔀 モード</a>
-        <a onclick="helpJump('h-tools')">🧰 道具</a>
-        <a onclick="helpJump('h-settings')">⚙️ 設定</a>
-        <a onclick="helpJump('h-save')">💾 保存</a>
-        <a onclick="helpJump('h-privacy')">🔒 データ</a>
-      </div>
-
-      <details class="help-acc" id="h-basic" open>
-        <summary>✏️ 基本の使い方</summary>
-        <div class="help-acc-body">
-          <div class="help-li"><b>いちばん上のバー</b>は <b>記録名｜保存｜↶戻る｜⋯</b> の4つです（v299から）。<b>記録名</b>をタップすると保存した記録のリストが開きます。<b>⋯</b>の中に <b>↷進む・📋リスト・🗂シート・⚙設定・🎤声で入れる・🖨PDF・📄CSV・📊Excel・📖説明書・▦既定の大きさ・🌙ナイトモード・🎯用途から始める・▦通常の表・🧮電卓</b>と、いちばん下に赤い <b>🧹リセット</b> があります（消してしまう操作だけ離して置いています）。よく使うものは<b>上のバーにも出せます</b>（設定→🎨見た目→くわしい設定→<b>上のバーに出すボタン</b>）。</div>
-          <div class="help-li">セルをタップして選び、テンキーで入力 → <b>Enter</b>で確定（下のセルへ移動）。<b>いちばん下の行でEnter</b>で<b>行が1つ自動追加</b>されます（通常・簡易モード、最大250行）。</div>
-          <div class="help-li"><b>入力中の数字の桁</b>（v312から）：1万以上の数字を入れていると、入力欄の下に <b>500万</b> のように読みが出ます。打っている途中から出るので、0の数を数えなくてもすみます。数式のセルを選んだときは<b>計算結果</b>の桁を出します。いらないときは<b>設定→🧮計算→入力中の数字の桁を出す</b>で消せます。</div>
-          <div class="help-li">上部の入力欄から直接入力／編集もできます。数字を入れたあと<b>「文字」</b>キーで日本語も足せます（前に入れた数字は消えません）。</div>
-          <table class="help-tbl">
-            <tr><td><span class="help-key">Enter長押し</span></td><td>確定後に進む向きを <b>⇩下 ⇄ ⇨右</b> で切替（Enterボタン下の矢印で今の向きを確認）</td></tr>
-            <tr><td><span class="help-key">リセット</span></td><td>表の中身を消す（<b>戻る</b>で元に戻せます）。テンキーの道具の段と、上のバーの両方にあります</td></tr>
-            <tr><td><span class="help-key">見出し／行番号タップ</span></td><td>その列・行を選択（入力欄の右に合計が出ます）</td></tr>
-            <tr><td><span class="help-key">端をドラッグ</span></td><td>見出しの右端・行番号の下端で、列幅／行高を変更（ダブルタップで自動に戻す）</td></tr>
-            <tr><td><span class="help-key">見出し／行番号 長押し</span></td><td>その場所に行・列を追加／削除するメニュー（上下・左右に追加、または削除）</td></tr>
-            <tr><td><span class="help-key">セルからスライド</span></td><td>選択中のセルからなぞると<b>範囲選択</b>。右フリックの書式ページでまとめて書式を付けられます（他のセルからは画面スクロール）</td></tr>
-            <tr><td><span class="help-key">⤢スワイプ／2本指ピンチ</span></td><td>表示倍率をまとめて変更（コーナーはダブルタップで100%）。設定の「セル文字」＋−でも変更できます</td></tr>
-          </table>
-        </div>
-      </details>
-
-      <details class="help-acc" id="h-keys">
-        <summary>🔢 テンキーとページ切替</summary>
-        <div class="help-acc-body">
-          <table class="help-tbl">
-            <tr><td><span class="help-tag">CE</span></td><td>入力中の値をクリア</td></tr>
-            <tr><td><span class="help-tag">⌫</span></td><td>1文字消す（<b>押し続けると連続</b>で消せます）</td></tr>
-            <tr><td><span class="help-tag">±</span></td><td>符号（＋/−）を反転</td></tr>
-            <tr><td><span class="help-tag">fx=</span></td><td>数式入力を開始（先頭が <b>=</b> になる）</td></tr>
-            <tr><td><span class="help-tag">文字</span></td><td>文字（テキスト）を入力</td></tr>
-            <tr><td><span class="help-tag">モード</span></td><td>計算モードを切替</td></tr>
-          </table>
-          <div class="help-li"><b>いちばん上の「道具の段」</b>は <b>🎤声・進む・戻る・リセット・▦通常</b> の5つです（v328から）。入力用のキーより低く、色も分けてあります。
-            <table class="help-tbl">
-              <tr><td><span class="help-tag">🎤声</span></td><td>そのまましゃべって入れる（<b>🎤 声で入れる</b>の章をどうぞ）</td></tr>
-              <tr><td><span class="help-tag">▦通常</span></td><td>ふつうの表に戻る。ひな形の表のときは<b>まっさらな表</b>に戻ります（確認は出ません。<b>↶戻る</b>で戻せます）</td></tr>
-            </table>
-          </div>
-          <div class="help-li"><b>どのキーも長押しで好きな機能に変えられます</b>（設定・機能／表の操作など）。<b>電卓</b>は<b>⋯→🧮電卓</b>から出せます。キーに戻したいときは長押し→<b>🔧ボタンの機能→設定・機能→🧮電卓</b>。</div>
-          <div class="help-li"><b>上のバーに出すボタン</b>（v319で復活）：設定→<b>🎨見た目→くわしい設定</b>で、<b>↷進む・📋リスト・🗂シート・⚙設定・▦既定の大きさ・🧹リセット</b> を上のバーに足せます（既定は出しません）。たくさん出すとバーが狭くなり、入りきらない分は横にスライドして出します。</div>
-          <div class="help-li"><b>数字キーのフリックで記号を入れる</b>（v353から）：数字のキーを<b>少しだけ長押し</b>すると、そのキーのまわりに<b>記号の候補</b>が出ます。そのまま<b>上下左右へフリックして指を離す</b>と、その記号が入ります。<b>動かさずに離せば</b>ふだんどおり数字が入ります。早くなぞったときは今までどおり<b>ページのフリック</b>です。<br>
-            <table class="help-tbl">
-              <tr><td><b>7</b></td><td>上 「 ／ 右 」 ／ 下 ・</td></tr>
-              <tr><td><b>8</b></td><td>左 、 ／ 上 。 ／ 右 〜 ／ 下 ※</td></tr>
-              <tr><td><b>9</b></td><td>左 ¥ ／ 上 ℃ ／ 右 ％ ／ 下 ㎡</td></tr>
-              <tr><td><b>4</b></td><td>上 , ／ 右 . ／ 下 ]</td></tr>
-              <tr><td><b>5</b></td><td>左 &amp; ／ 上 ^ ／ 右 ! ／ 下 ?</td></tr>
-              <tr><td><b>6</b></td><td>左 " ／ 上 ' ／ 右 ~ ／ 下 |</td></tr>
-              <tr><td><b>1</b></td><td>上 ( ／ 右 ) ／ 下 [</td></tr>
-              <tr><td><b>2</b></td><td>左 &lt; ／ 上 &lt;= ／ 右 &gt; ／ 下 &gt;=</td></tr>
-              <tr><td><b>3</b></td><td>左 = ／ 上 &lt;&gt; ／ 右 : ／ 下 ;</td></tr>
-              <tr><td><b>0</b></td><td>上 （ ／ 右 ） ／ 下 ㎥</td></tr>
-            </table>
-            <b>左はしの列（7・4・1・0）は左へフリックしにくい</b>ので、<b>上・右・下の3つだけ</b>にしてあります（v355から）。<br>
-            <b>記号は自分で変えられます</b>（v355から）：設定→<b>🎨見た目→くわしい設定</b>の<b>⌨ フリックで入れる記号</b>で、キーごとに上・左・右・下の記号を打ち直せます。<b>空にすればその向きは使いません</b>。<b>↺元にもどす</b>で既定に戻ります。<b>⇄</b>を押してから相手のキーの<b>⇄</b>を押すと、<b>キーまるごと入れかえ</b>られます（例：1の中身と2の中身を交換。v356から）。7・4・1・0に移ったときは「左」が使えないので外れます。<br>
-            そのため<b>数字キーの長押しで「ボタンの機能」を割り当てる操作はなくなりました</b>（数字以外のキーは今までどおり長押しで割り当てられます）。</div>
-          <div class="help-li"><b>記号ページを出す／隠す</b>（v353から）：設定→<b>🎨見た目→くわしい設定</b>の<b>記号ページを出す</b>で切り替えます。隠すと<b>ページ名の並びからも、フリックの並びからも外れ</b>、数字ページの左どなりが電卓ページになります。記号は上のフリックで入れられるので、ページを減らしてすっきりさせたいときにどうぞ。</div>
-          <div class="help-li"><b>テンキーの上に出す道具</b>（v352から）：設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーの上に出す道具</b>で、全画面で開く道具（<b>💧単位水量・🧪カンタブ・🌱野菜・📷容積・📝写真メモ・🔗リンク集・📄メモ・📋式テンプレ・📑決算テンプレ・🧾会計アプリ</b>）を選ぶと、テンキーの上の<b>ページ名の並びに足されます</b>（電卓の右）。<b>タップで開きます</b>。<b>↑↓で並び順</b>を変えられ、<b>電卓ページからさらに左へフリック</b>すると<b>いちばん上に並べた道具</b>が開きます（よく使うものを先頭にしておくと、フリックだけで開けます）。たくさん選んで入りきらないときは、ページ名の並びを<b>横にすべらせて</b>見られます（<b>▲登録</b>は右端に残ります）。<br>
-            <b>選んだ道具は全画面で開きます</b>（v354から）。開いているあいだに<b>横にフリック</b>すると、<b>となりの道具へそのまま移れます</b>（左＝次／右＝前）。<b>端でさらにフリック</b>すると閉じてテンキーに戻ります。入力欄・ボタン・写真の上や、縦になぞったときは移りません（じゃまをしないため）。登録を外すと元の大きさに戻ります。</div>
-          <div class="help-li"><b>テンキーの上のページ表示</b>で、いまどのページに居るか分かります。<b>ページ名をタップ</b>するとそのページへ移動できます（数字の並びは「枠線・書式・数字・記号・関数」、右端の<b>▲登録</b>で登録ページの並びへ、<b>▼数字</b>で戻る）。設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーのページ表示</b>で消すこともできます（ページ名は<b>書式・枠線／数字／記号／電卓</b>）。</div>
-          <div class="help-li"><b>フリックでも切り替わります</b>（数字ページが土台。数字ページは<b>どこからでもフリック開始OK</b>）：</div>
-          <table class="help-tbl">
-            <tr><td><span class="help-key">右へ →</span></td><td><b>書式・枠線ページ</b>（6段×5列の1ページにまとめました）<br>
-              <b>地色で分かれています</b>：<b>青み＝枠線</b>（上3段と「囲む」）／<b>緑み＝文字</b>（太字・寄せ・大小・くわしく）／<b>赤み＝消す</b>の3種類だけ。境目には細い区切り線が入ります。はっきり目立つ<b>黄色いふち</b>は「いま選ばれている線の種類・線の色」です<br>
-              ・<b>いちばん上の低い段</b>＝線の種類（細・普通・太・二重）と<b>線を消す</b><br>
-              ・<b>太字・斜体・下線／寄せ3種</b>、右2列は<b>文字色／背景色</b>で<b>縦にスライド</b>すると各20色（原色含む）。先頭の<b>標準／なし</b>で色を戻せます<br>
-              ・<b>線の色</b>（黒赤青緑紫。ボタンの<b>下辺の帯</b>がその色です）を選び、<b>上・下・左・右・格子・囲む</b>で枠線（PDFにも反映）<br>
-              ・<b>A−／A＋</b>で文字の大小、<b>書式消す</b>で書式を消去、<b>くわしく</b>で小数点・結合・保護などのくわしい設定<br>
-              ・<b>セルの保護</b>は<b>セルを長押し→🔒保護</b>か、この<b>くわしく</b>から</td></tr>
-            <tr><td><span class="help-key">← 左へ</span></td><td><b>関数・記号ページ</b>：( ) , : ・SUM・AVERAGE・MAX・MIN・SQRT・ABS・ROUND・COUNT・IF・比較記号 を数式に挿入</td></tr>
-            <tr><td><span class="help-key">左→左</span></td><td><b>電卓ページ</b>（v335から。以前は関数電卓ページでした）：<b>ふつうのスマホの電卓と同じ4列</b>の並びで、キーも大きくしてあります（v338）<br>
-              <table class="help-tbl" style="margin:4px 0 0">
-                <tr><td colspan="2" style="text-align:center">▦表へ／🧮電卓　｜　桁　｜　🎤 声</td></tr>
-                <tr><td colspan="2" style="text-align:center">AC　（ ）　％　÷<br>7 8 9 ×　／　4 5 6 −　／　1 2 3 ＋　／　0 . ⌫ ＝</td></tr>
-              </table>
-              ・<b>▦表へ／🧮電卓</b>：表のときは電卓モードへ、電卓のときは答えをセルに入れて表へ戻ります<br>
-              ・<b>桁</b>（v367から）：電卓の答えの<b>小数点以下の桁数</b>と<b>四捨五入・切り上げ・切り下げ</b>を選びます<br>
-              ・<b>声で分数・方程式</b>（v369から）：<b>🎤声</b>で「<b>3分の2たす4分の1</b>」と言うと <b>11/12</b>（＝0.9166…）、「<b>2エックスたす3は7</b>」と言うと <b>x＝2</b> が出ます<br>
-              ・<b>声でふだんの言い方</b>（v370から）：「<b>5000円の18パーセント</b>」「<b>12800円を4人で割って</b>」「<b>25キロをトンに</b>」「<b>8時15分から17時30分、休憩1時間</b>」なども、そのまま答えが出ます<br>
-              ・<b>現場の計算</b>（v371から）：「<b>縦5メートル、横3メートル、厚さ15センチ</b>」「<b>12立米を4.5立米車で</b>」「<b>1000倍で20リットル</b>」「<b>5メートルに200ミリピッチ</b>」「<b>3人で5日、1人1日18000円</b>」なども言えます<br>
-              ・<b>🎤声</b>：そのまましゃべって計算（「251かける68」）<br>
-              ・<b>（ ）</b>は、設定→🧮計算で<b>「式の優先順位どおり（×÷が先）」</b>にしているときに使えます（開いていなければ開き、開いていれば閉じます）<br>
-              ・<b>税込・税抜</b>と<b>メモリー（M＋ M− MR MC）</b>は、キーの長押し→<b>🔧ボタンの機能→設定・機能</b>から好きなキーに割り当てて使えます<br>
-              <b>このページとモードは連動します</b>（v336から）。<b>スライドで電卓ページへ行く</b>か、上の<b>ページ名の「電卓」をタップ</b>すると<b>電卓モードに切り替わります</b>。<b>スライドで出る・ページ名の「数字」をタップ・▦表へを押す</b>と、<b>元のモード</b>（買物などから行ったときはそのモード、ふつうは通常）に戻ります。<b>＝のあとに数字を押すと新しい数として打ち始めます</b></td></tr>
-            <tr><td><span class="help-key">↑ 上へ</span></td><td><b>登録ページ</b>：紫ボタンを長押しで登録（下記）</td></tr>
-            <tr><td><span class="help-key">↓ 下へ</span></td><td>数字ページに戻る</td></tr>
-          </table>
-          <div class="help-li"><b>登録ページ</b>：紫ボタンを<b>長押し</b>で登録画面（v337から、開いてもキーボードは出ません。<b>入力欄をタップ</b>すると出ます）。よく使う<b>文字・数字</b>を入力して登録（数値の途中でタップすると連結。例 100→「円」で100円）。<b>🎨書式</b>を付ければその書式のまま入力、<b>📋セルから選ぶ</b>でセルの内容＋書式を取り込み、<b>🔧ボタンの機能</b>から便利機能（保存・リスト・PDF・📅日付〈カレンダー〉など）も登録できます。登録後は<b>タップで入力／実行</b>。登録を消すときは、登録画面の右上（✕の左）の<b>🗑削除</b>を押します（v337から。空にして「登録」を押す方法もそのまま使えます）。<b>🔀移動</b>で位置入れ替え（別ページとも可）。<b>左右フリックで3ページ</b>（左・中央・右）、<b>下フリックで数字ページに戻る</b>。</div>
-          <div class="help-li"><b>ボタン長押しで機能を割り当て</b>（数字・関数記号・電卓ページ）：別のキーや設定機能（保存・リスト・PDF・CSV・ナイト・テンプレ・📅日付…）、<b>「表の操作」</b>（行列の増減／挿入・削除／コピー・貼付・消去／A1へ移動／シート追加・切替）に変更できます。「↺元に戻す」でいつでも戻せます（Σは対象外）。</div>
-          <div class="help-li"><b>テンキーの大きさ</b>：上端（横向きは左端）の<b>調整バーをドラッグ</b>で大小（端まで＝消える／バーで戻す）。調整バーは既定では出していないので、使うときは設定→<b>🎨見た目→くわしい設定</b>の<b>調整バーを表示する</b>をオンにしてください（太さも変えられます）。入力欄の右端の<b>▼</b>でワンタップ収納（▲で復帰）。設定→<b>🎨見た目→くわしい設定</b>の<b>テンキーのボタン配置を編集</b>でボタン位置も入れ替え可。</div>
-          <div class="help-note">💡 <b>パソコン</b>：テンキーの上でマウスの<b>ホイールを回す</b>と、横フリックと同じようにページを切り替えられます。ページ名のクリックでも移動できます。</div>
-        </div>
-      </details>
-
-      <details class="help-acc" id="h-sum">
-        <summary>Σ 合計・平均</summary>
-        <div class="help-acc-body">
-          <div class="help-li"><span class="help-tag">Σ</span> を押すと隣の連続データを自動で合計し <b>=SUM(範囲)</b> を作成 → <b>Enter</b>で確定。</div>
-          <div class="help-li">押した後に<b>セルを始点→終点までスライド</b>で合計範囲を指定できます（タップで1セル）。</div>
-          <div class="help-li"><b>Σを長押し</b>で「合計／平均」を選べます（選んだ方を記憶し、ボタン表示も変わります）。</div>
-          <div class="help-li"><b>入力欄の右の合計</b>：列・行を選ぶと合計を表示（数値が無いときは出ません）。<b>「合計」タップで合計⇄平均</b>／<b>「¥」タップで数字⇄漢数字</b>（兆・億・万）／<b>数値タップでコピー</b>。</div>
-        </div>
-      </details>
-
-      <details class="help-acc" id="h-formula">
-        <summary>🧮 数式・関数・照合</summary>
-        <div class="help-acc-body">
-          <div class="help-li">先頭を <b>=</b> にすると数式。セルは A1 のように指定（<b>入力中にセルをタップ</b>するとセル名が入ります）。</div>
-          <table class="help-tbl">
-            <tr><td><b>=A1+B1*2</b></td><td>四則演算（×÷も可）。<b>^</b>＝べき乗、<b>!</b>＝階乗、<b>%</b>＝÷100</td></tr>
-            <tr><td><b>=A1&amp;"円"</b></td><td><b>&amp;</b>＝文字をつなぐ（12 → 12円）</td></tr>
-          </table>
-          <div class="help-li"><b>使える関数はこれだけです</b>（この一覧に無い関数を書くと <b>#NAME?</b> になります）。</div>
-          <table class="help-tbl" id="helpFuncTbl"></table>
-          <div class="help-li"><b>シート間の連携</b>：他のシートのセルは <b>=シート名!A1</b>（例 <b>=商品!C2</b>）で参照。範囲（例 <b>=SUM(商品!A1:A5)</b>）にも使えます。<br><b>シートはモード毎に独立</b>し、モードを切り替えるとそのモード専用のタブ一式に入れ替わります。保存・読込では全モードのシートがまとめて保存・復元されます。</div>
-          <div class="help-li"><b>🔍照合（VLOOKUP／XLOOKUP）</b>：テンキーのボタンに長押しで割り当てて使えます。押すと<b>画面の案内どおり</b>に作れ、範囲や探す値は<b>「セルを選ぶ／範囲を選ぶ」→表をタップ</b>で指定（手で式を打たなくてOK。他シートの表も切り替えて選べます）。</div>
-          <table class="help-tbl">
-            <tr><td><b>=VLOOKUP</b></td><td>(探す値, 範囲, 何列目, 0)…範囲の左端から探し、その行の指定列を返す（末尾0で完全一致）。例 <b>=VLOOKUP(A1, 商品!A2:C9, 2, 0)</b></td></tr>
-            <tr><td><b>=XLOOKUP</b></td><td>(探す値, 検索範囲, 戻す範囲, "見つからない時")…対応する値を返す（文字も可）</td></tr>
-          </table>
-          <div class="help-li">日本語名の <b>=V参照(…)／=X参照(…)</b> でも同じです（Excel出力時に自動で VLOOKUP／XLOOKUP へ変換）。</div>
-          <div class="help-li"><b>計算できないときは、赤い字でその理由を出します</b>（v296から）。以前はどれも <b>0</b> と表示していたため、計算できた0と見分けがつきませんでした。<b>セルをタップ</b>すると説明が出ます。</div>
-          <table class="help-tbl">
-            <tr><td><b>#DIV/0!</b></td><td>0 で割っています。割る数のセルが空か 0 になっていないか確かめてください</td></tr>
-            <tr><td><b>#CYCLE!</b></td><td>式どうしがぐるぐる参照しています（自分の答えを自分で使っている状態）</td></tr>
-            <tr><td><b>#NAME?</b></td><td>この表では扱えない関数名か、セル名として読めない文字が入っています。<b>使える関数は上の表のとおり</b>です</td></tr>
-            <tr><td><b>#REF!</b></td><td>無いシートやセルを見ています</td></tr>
-            <tr><td><b>#VALUE!</b></td><td>式の形が読み取れません（記号の並びや括弧を確かめてください）</td></tr>
-            <tr><td><b>#NUM!</b></td><td>答えが大きすぎるか、計算できない値になりました（負の数の平方根など）</td></tr>
-          </table>
-          <div class="help-li"><b>合計・平均</b>は、エラーのセルを<b>0として混ぜずに飛ばします</b>。飛ばしたときは値の横に <b>⚠</b> が付きます。<br><b>Excelに書き出す</b>ときも、エラーの式はエラーのまま書き出します（0では書き出しません）。<br><b>=IF(…)</b> の使わなかった側にエラーがあっても、答えには影響しません（例：<b>=IF(B1&gt;0, 100/B1, 0)</b> は B1 が空でも 0 になります）。</div>
-        </div>
-      </details>
-
-      <details class="help-acc" id="h-voice">
-        <summary>🎤 声で入れる（音声入力）</summary>
-        <div class="help-acc-body">
-          <div class="help-li"><b>口で言った計算を、そのまま式にして計算します</b>（v324〜v331）。入れかたは2とおりあります。
-            <table class="help-tbl">
-              <tr><td><span class="help-key">① キーボードのマイク</span></td><td><b>文字</b>キーで入力欄を出し、お使いの<b>キーボードのマイク</b>でしゃべる。<b>どの端末でも使えます</b></td></tr>
-              <tr><td><span class="help-key">② アプリの🎤</span></td><td>テンキー左上の<b>🎤声</b>キー（または<b>⋯→🎤声で入れる</b>）。キーボードを出さずにしゃべれます。<b>使える端末だけ</b>に出ます</td></tr>
-            </table>
-          </div>
-          <div class="help-li"><b>しゃべった式を計算する</b>（v324から）：<b>文字</b>キーで入力欄を出し、<b>キーボードのマイク</b>で「<b>251かける68</b>」のように言うと、<b>=251*68</b> に直して計算します。<b>かける・わる・たす・ひく・プラス・マイナス・かっこ・てん（小数点）</b>と、<b>×÷＋−</b>の記号、<b>全角の数字</b>、<b>漢数字</b>（二百五十一／一万二千三百）に対応します。「〜は？」「計算して」などの前後の言い回しは落とします。<b>式に見えないときは今までどおり文字のまま</b>入ります（「みかん3個」はそのまま）。直したときはお知らせが出て、<b>↶戻る</b>で戻せます。いらないときは<b>設定→🧮計算→しゃべった式を計算する</b>で切れます。</div>
-          <div class="help-li"><b>🎤声で入れる</b>（v325から）：キーボードを出さずに、<b>⋯→🎤声で入れる</b>でそのまましゃべれます。テンキーのボタンを<b>長押し→🔧ボタンの機能→設定・機能→🎤声</b>に変えれば、ワンタップで呼び出せます。聞き取り中は🎤の窓が出て、聞こえた言葉がその場に出ます（<b>画面をタップでやめる</b>）。聞き取れた言葉は上と同じ決まりで式に直します。<br>この機能は<b>端末しだい</b>です。Androidのブラウザでは使えますが、<b>iPhoneのホーム画面アプリでは使えないことがあります</b>。使えない端末では🎤を出さず、押したときは「<b>文字</b>キー＋キーボードのマイク」を案内します。<b>マイクの許可</b>が必要で、聞き取りは端末・ブラウザの音声サービス（ネット経由のことがあります）で行われます。<br>うまくいかないときは、出てくる言葉で理由が分かります（v329から）。<b>マイクが使えません</b>＝ブラウザの鍵マークや端末の設定で許可／<b>マイクが見つかりません</b>＝ほかのアプリがマイクを使っている／<b>ネットにつながって…</b>＝通信が無い／<b>すぐに終わってしまいました</b>＝聞き取りを始められていない。どの場合も<b>「文字」キー＋キーボードのマイク</b>なら入れられます。</div>
-          <div class="help-li"><b>声でできること（v326から）</b>：
-            <table class="help-tbl">
-              <tr><td><span class="help-key">セルを指す</span></td><td>「<b>A1たすB2</b>」「<b>エー1たすビー2</b>」→ <code>=A1+B2</code></td></tr>
-              <tr><td><span class="help-key">まとめて計算</span></td><td>「<b>A1からA5の合計</b>」→ <code>=SUM(A1:A5)</code>。<b>平均・最大・最小</b>も同じ言い方でできます</td></tr>
-              <tr><td><span class="help-key">ルート・◯乗</span></td><td>「<b>ルート16かける3</b>」→ <code>=SQRT(16)*3</code>／「<b>2の10乗</b>」→ <code>=2^10</code></td></tr>
-              <tr><td><span class="help-key">続けて入れる</span></td><td>聞いている窓の中の<b>🔁続けて入れる</b>を押すと、1つ言うたびに<b>下のセルへ移って</b>また聞きます（もう一度押すとやめる。「左に式・右に答え」で入れているときも同じように下へ進み、いちばん下まで来たら行を足します）。やめるときは<b>窓の外をタップ</b>。<b>入れ終わったら端末のキーボードは出ません</b>（v351。「文字」キーから声に切り替えたときも、そのまま表に戻ります）。<br>はじめから続けて入れたいときは、<b>⋯の🎤を長押し</b>するか、キーに「設定・機能→<b>🎤続け</b>」を割り当ててください。<b>テンキーの🎤声キーは長押しが「別の機能に変更」</b>なので、そちらでは切り替わりません（v333で窓の中に入れました）</td></tr>
-              <tr><td><span class="help-key">移るだけ</span></td><td>「<b>次</b>」「下」「右」「左」「上」と言うと、入れずにそのセルへ移ります</td></tr>
-              <tr><td><span class="help-key">入れかたを選ぶ</span></td><td><b>設定→🧮計算→声の入れかた</b>（v327から）。<b>「式を入れる」</b>＝選んだセルに <code>=251*68</code>（答えが出ます）。<b>「左に式・右に答え」</b>＝選んだセルに <b>251×68</b>（読むための文字）、<b>右のセルに答え</b>を入れます。右のセルは式なので、あとから数字を直せば答えも変わり、<b>Σ合計</b>にも入ります。右に列が無いときは1列増やします。<b>↶戻る</b>1回で両方戻せます。<br>
-              <b>v344で直しました</b>：引き算の式（例「12ひく5」）が<b>日付（12月5日）と読まれて式が消える</b>ことがありました。式の見せ方を電卓と同じ <b>＋ − × ÷</b> にそろえて直しています。また、<b>右のセルが保護されているとき</b>（買物モードの自動計算列や、自分で保護したセル）は<b>その先の使えるセルに答えを入れる</b>ようにしました。どうしても入れる場所が無いときだけ、そのセルに式（答え）を入れ、<b>そのわけをお知らせに出します</b></td></tr>
-              <tr><td><span class="help-key">電卓モードでも</span></td><td><b>🧮電卓</b>のときも声で計算できます（v334から）。言った式をその場で計算して<b>大きい表示</b>に出し、<b>履歴（テープ）</b>にも <b>251×68 ＝ 17068</b> のように残ります。履歴の下の<b>🎤の行</b>には<b>受け取った計算式</b>がそのまま出るので（v339から）、<b>聞きまちがいがすぐ分かります</b>。式にできなかったときも、聞こえた言葉がその行に残ります。<b>ふつうの電卓／式の優先順位どおり</b>のどちらでも同じです。電卓には動く先が無いので、<b>続けて入れる</b>ときはその場で聞き直します。式の形で言わなかったときは「計算の形で言ってください」と出ます（セルのように文字を入れることはしません）</td></tr>
-              <tr><td><span class="help-key">答えを読み上げ</span></td><td><b>設定→🧮計算→答えを声で読み上げる</b>で、計算した答えを声で返します（<b>全機種で使えます</b>。手がふさがっているときの確認に）</td></tr>
-            </table>
-          </div>
-        </div>
-      </details>
-
-      <details class="help-acc" id="h-format">
-        <summary>🎨 書式・保護・コピー</summary>
-        <div class="help-acc-body">
-          <div class="help-li"><b>書式変更</b>：上部の「<b>A1</b>」（セル名）をタップすると、小数点桁・太字/斜体/下線・文字色・背景色・大きさを変更できます（テンキーを<b>右フリック</b>の書式・枠線ページでもワンタップ）。</div>
-          <table class="help-tbl">
-            <tr><td><span class="help-key">セル長押し（約1秒）</span></td><td>枠が<b>紫</b>になったら離す＝<b>メニュー</b>（📥貼り付け・⧉コピー・🔒保護・🧹消去・🎨書式）。スマホのふつうの長押しと同じです（v314から。以前は長押しが保護の切替でしたが、保護はメニューの中に入れました）</td></tr>
-            <tr><td><span class="help-key">📥貼り付け</span></td><td><b>端末でコピーした文字</b>もそのまま貼れます。エクセルやメモから<b>複数のセル</b>をコピーしていれば、その形のまま広がります（1回の操作なので<b>↶戻る</b>1回で戻せます）</td></tr>
-            <tr><td><span class="help-key">🔒保護</span></td><td>メニューから切り替えます（保護中は右上のセル番号枠が赤で知らせ）。テンキーのボタンに<b>長押し→🔧ボタンの機能→表の操作→🔒保護</b>を割り当てることもできます</td></tr>
-            <tr><td><span class="help-key">フィル</span></td><td>セルを<b>長押し→スライド</b>で値（数式は自動でずらして）を隣へコピー。PCは長めにクリック→色が変わったらドラッグ</td></tr>
-            <tr><td><span class="help-key">コピペ</span></td><td>セルを<b>2回タップ</b>でコピー → 別セルを2回タップで貼り付け</td></tr>
-          </table>
-          <div class="help-note">💻 <b>パソコン</b>：Ctrl+C / Ctrl+V でコピー・貼り付け、Ctrl+Z で元に戻す。</div>
-        </div>
-      </details>
-
-      <details class="help-acc" id="h-mode">
-        <summary>🔀 モード（「モード」ボタン）</summary>
-        <div class="help-acc-body">
-          <div class="help-li"><b>テンキーの「モード」キー</b>（または<b>⋯→🎯用途から始める</b>）で<b>「用途から始める」</b>が開きます（v305から）。上が<b>表のかたちを変える</b>（下のモード一覧）、下が<b>ひな形から始める</b>で、<b>くらし・おかね・からだ&thinsp;/&thinsp;くるま・かたち・帳票</b>の目的別に25種のひな形が並びます。ひな形を選ぶと、項目と計算式の入った表になります（<b>確認は出ません</b>。今の表は上書きされますが、<b>↶戻る</b>で元の表に戻せます）。ひな形をやめてふつうの表に戻したいときは、<b>▦通常</b>（またはモード一覧の「通常」）を押すと<b>まっさらな表</b>に戻ります。行数・列数は<b>「▦既定の大きさ」で決めた大きさ</b>（初期値15行×3列）に戻るので、ひな形の小さい表のままになりません（v322から）。ひな形を<b>リセット</b>で消したあとのように、<b>表が空なのに小さいまま</b>のときも、<b>▦通常</b>で既定の大きさに戻せます（中身が入っているときは何もしないので、作りかけの表は消えません。v323から）。</div>
-          <div class="help-li">切替後も各モードの内容は<b>リセットするまで保持</b>されます。</div>
-          <table class="help-tbl">
-            <tr><td><b>通常／簡易</b></td><td>標準の表／列少なめ・大きな表示</td></tr>
-            <tr><td><b>買物</b></td><td>単価×個数で小計</td></tr>
-            <tr><td><b>割り勘</b></td><td>合計を人数で割る</td></tr>
-            <tr><td><b>消費税</b></td><td>税抜→税込／税込→税抜＋消費税（税率は設定）</td></tr>
-            <tr><td><b>割合計算</b></td><td>元の値と「割」か「％」を入れると、割合額・足す(＋)・引く(−)を計算（1割＝10%）</td></tr>
-            <tr><td><b>面積・容積</b></td><td>長方形や円の<b>面積㎡・容積㎥・まわりの長さm</b>を単位つきで計算（下記）</td></tr>
-            <tr><td><b>予算配分</b></td><td>予算と個数から最適な購入数</td></tr>
-            <tr><td><b>時間計算</b></td><td>開始・終了・時間のうち2つで残りを自動計算（◯時間後/◯分前も）</td></tr>
-          </table>
-          <div class="help-li"><b>面積・容積モード</b>（v346から）：列は <b>形／たて・直径m／よこm／高さm／面積㎡・容積㎥／まわりm</b> です。<b>たてとよこ</b>を入れると<b>面積（㎡）</b>、そこに<b>高さ</b>も入れると<b>容積（㎥）</b>が出ます。答えは <b>12 ㎡</b>・<b>24 ㎥</b>・<b>14 m</b> のように<b>単位つき</b>で出ます（セルの中は数値のままなので、<b>Σ合計</b>やExcelへの書き出しにもそのまま使えます）。<br>
-            ・<b>形の欄に「円」と入れる</b>と円で計算します（<b>丸・まる・○</b>でも同じ）。このとき<b>たての欄が直径</b>になり、面積＝π×(直径÷2)²、まわり＝π×直径 です。高さも入れれば<b>円柱の容積</b>になります<br>
-            ・下のバーに<b>面積・容積・リットル・まわりの長さ</b>の合計が出ます<br>
-            ・前の「容積モード」（縦×横×高さだけ）で作った表は、開いたときに<b>自動で新しい並びに移ります</b>（中身が1列ぶん右へずれ、形の欄は空＝長方形になります）</div>
-          <div class="help-li"><b>電卓モード</b>：モードで<b>🧮電卓</b>を選ぶと、表のかわりに<b>ふつうの電卓</b>が出ます。テンキーはそのまま使えて、押すたびに答えが出ます。計算するたびに<b>履歴（テープ）</b>が残り、行を押すとその答えをもう一度使えます。<b>📖 言い方の早見表</b>（v372から）：電卓の声の行にある<b>📖言い方</b>（または🎤で聞いている窓の<b>📖こう言えます</b>）を押すと、<b>言える形が答え付きで一覧</b>で出ます。<b>行を押すとその場で試せます</b>（電卓に切り替わって計算されます）。<b>さがす</b>欄に「円」「平米」などと入れてしぼれます。言い方を足すと<b>自動でここにも並びます</b>。<br>
-            <b>もしかして</b>（v372から）：言い方が外れたときは、いちばん近いお手本を<b>「もしかして『◯◯』？」</b>と出します。<b>その行を押すとそのまま試せます</b>。<br>
-            <b>声でふだんの言い方のまま計算</b>（v370から）：式にしなくても、下のような言い方でそのまま答えが出ます（電卓モードのとき）。答えの下には<b>おまけの数</b>（消費税の額・1個あたり・坪・使うガソリンの量など）も出ます。<br>
-            　<b>丸いもの・三角・台形</b>（v378から）「<b>直径2メートル、高さ3メートルの円柱</b>」→9.425㎥（9,425L）／「<b>直径3メートルの円の面積</b>」→7.069㎡／「直径3メートルの円周」→9.425m／「<b>底辺4メートル、高さ3メートルの三角形</b>」→6㎡／「<b>上辺3メートル、下辺5メートル、高さ2メートルの台形</b>」→8㎡（水路や法面の断面に。1mあたりの体積も出ます）<br>
-            　<b>面積×厚さ</b>（v378から）「<b>20平米に厚さ10センチ</b>」→2㎥（ロス5%込みとLも）／坪でも言えます　<b>ほぐし率</b>「<b>50立米をほぐし率1.2で</b>」→60㎥（4t車で何台かも）<br>
-            　<b>「は何◯」の聞き方</b>（v378から）「<b>1000平米は何坪</b>」→302.5坪／「2.5立米は何リットル」→2,500L／「1反は何平米」→991.74㎡<br>
-            　<b>時間の計算</b>（v377から）「<b>2時間30分たす1時間45分</b>」→4時間15分／「8時間ひく1時間30分」「8時間から1時間30分ひく」→6時間30分／「<b>2時間30分を3日</b>」→7時間30分／「2時間30分は何分」→150分／「90分は何時間」→1時間30分<br>
-            　<b>時給・時刻</b>（v377から）「<b>時給1200円で7時間30分</b>」→9,000円／「<b>8時15分の8時間後</b>」→16時15分／「17時の45分前」→16時15分（日をまたぐと「次の日」と出ます）<br>
-            　<b>単位の足し引き</b>（v377から）「<b>25キロたす500グラム</b>」→25.5kg／「3メートルたす50センチ」→3.5m／「25キロひく500グラム」→24.5kg（同じ区分なら単位がまざってもOK）<br>
-            　<b>分ける・単価</b>（v377から）「<b>200キロを8袋に分ける</b>」→25kg／「<b>1キロ380円で2.5キロ</b>」→950円／「1平米1200円で60平米」→72,000円<br>
-            　<b>値段×数</b>（v376から）「<b>180円を4個</b>」→720円／「180円が4本」「180円の4枚」「180円×4個」「1個180円を4個」「4個で180円ずつ」「180円かける4」「単価180円、数量4」も同じ。数えかたは<b>個・本・枚・袋・台・人・箱・ケース・パック・束・玉・株・缶・つ</b>などが使えます<br>
-            　<b>単位×数</b>（v376から）「<b>3メートルを4本</b>」→12m／「25キロを8袋」→200kg／「2.5立米を3台」→7.5㎥<br>
-            　<b>割合</b>「5000円の18パーセント」→900円／「5000円の2割」も同じ　<b>値引き</b>「12800円を15パーセント引き」→10,880円（「2割引き」「2割5分引き」もOK）　<b>増し</b>「1000円を3パーセント増し」<br>
-            　<b>消費税</b>「5000円に消費税10パーセント」→5,500円（税率を言わなければ設定の税率）／「5000円の税抜」→4,545円　<b>割り勘</b>「12800円を4人で割って」→3,200円<br>
-            　<b>単価</b>「10個398円、1個いくら」→39.8円　<b>くらべる</b>「5個600円と8個880円、どっちが安い」→8個880円のほうが安い（1個10円おとく）<br>
-            　<b>単位変換</b>「25キロをトンに」→0.025t（重さ・長さ・面積・体積。坪・反・尺・升なども）　<b>面積</b>「幅3.5メートル、長さ12メートル」→42㎡（12.71坪・まわり31m）<br>
-            　<b>時間</b>「8時15分から17時30分、休憩1時間」→8時間15分　<b>燃費</b>「ガソリン170円、燃費18キロ、200キロ走る」→1,889円（11.11L）<br>
-            　<b>ローン</b>「300万円、金利2.5パーセント、5年」→月53,242円（総返済319万・利息19万）　<b>増減率</b>「120から150は何パーセント増」→25%　<b>逆算</b>「20パーセント増で600、元はいくら」→500<br>
-            　<b>現場でよく使うもの</b>（v371から）<br>
-            　<b>体積・生コン量</b>「縦5メートル、横3メートル、厚さ15センチ」→2.25㎥（ロス5%込み2.363㎥・面積15㎡）　<b>生コン車</b>「12立米を4.5立米車で」→3台（最後の車は3㎥）<br>
-            　<b>水セメント比</b>「水175、セメント320の水セメント比」→54.7%　<b>勾配</b>「10メートルで20センチ下がる勾配」→2%（1/50・0.2寸勾配）　<b>斜辺・法長</b>「底辺3メートル、高さ4メートルの斜辺」→5m（勾配1:0.75）<br>
-            　<b>希釈</b>「1000倍で20リットル」→薬20mL＋水19,980mL　<b>㎡あたりの必要量</b>「100平米に1平米あたり3キロ」→300kg（坪・反でも）<br>
-            　<b>ピッチの本数</b>「5メートルに200ミリピッチ」→26本（間隔25・端の余り0mm）　<b>枚数</b>「10平米、1枚0.09平米」→112枚（予備5%で118枚）<br>
-            　<b>人工（にんく）</b>「3人で5日、1人1日18000円」→270,000円（のべ15人工）　<b>日数</b>「100平米を1日30平米で」→4日かかります<br>
-            　<b>袋数</b>「セメント300キロ、25キロ袋で」→12袋　<b>比重</b>「2.5立米、比重2.3」→5.75t　<b>㎡単価</b>「60平米で900万円、1平米いくら」→150,000円（1坪495,868円）<br>
-            　<b>ロス込み</b>「100本、ロス5パーセント」→105本　<b>温度</b>「25度を華氏に」→77℉／「77度を摂氏に」→25℃<br>
-            <b>声で分数と方程式</b>（v369から）：<b>分数</b>は日本語のまま「<b>3分の2</b>」（＝2/3）と言えて、帯分数「<b>2と3分の1</b>」も使えます。答えは<b>約分した分数</b>でも出ます（「3分の2たす4分の1」→ <b>11/12 ＝ 0.9166666667</b>）。<b>方程式</b>は「<b>2エックスたす3は7</b>」→ <b>x＝2</b> のように解きます。<b>1次と2次</b>まで対応していて、2次は「<b>エックスの2乗ひく5エックスたす6は0</b>」→ <b>x＝2、x＝3</b> と<b>2つとも</b>出ます（電卓の表示には小さい方が入ります）。両辺にエックスがあっても大丈夫です（「3エックスたす2はエックスたす8」→ x＝3）。実数の解が無いときは<b>「実数の解なし」</b>と出します。うしろに「<b>エックスはいくつ</b>」「<b>エックスを求めて</b>」を付けても構いません。<b>方程式は電卓モードのときだけ</b>です（表では「エックス」が<b>X列のセル</b>と見分けが付かないため）。分数は表モードでも使えます。<br>履歴の下には<b>🎤 声で言った計算式の行</b>があり（v339から）、<b>声でどんな式として受け取ったか</b>がその場で分かります（例「251かける68」→ <b>251×68 ＝ 17068</b>、聞こえた言葉も小さく出ます）。式にできなかったときは<b>赤いふち</b>で聞こえた言葉だけ出るので、言い直す手がかりになります。<b>AC</b>を押すと消えます。<b>％・AC・▦表へ・桁</b>はテンキーの<b>電卓ページ</b>にあります（<b>▦表へ</b>で元のモードに戻り、選んでいるセルに答えが入ります）。<b>桁</b>（v367から）を押すと、<b>小数点以下の桁数</b>（自動・0〜4）と<b>はしたの数の処理</b>（<b>四捨五入・切り上げ・切り下げ</b>）を選べます。実務電卓の小数点セレクタと同じで、<b>決めた桁で答えを作り、その値のまま計算を続けます</b>（例：小数2桁・切り下げなら 10÷3×3 ＝ <b>9.99</b>。自動なら 10）。桁を決めると <b>3.00</b> のように0もそろえて出し、<b>▦表へ</b>でセルに入れる値も同じになります。今の決まりは電卓の画面の右下に<b>小さな札</b>で出ます。<b>表のセルの表示</b>は 設定→🧮計算 の「小数点以下の桁数」で別に決められます。<b>🎤声</b>キーで<b>声で計算</b>できます（🎤 声で入れるの章をどうぞ）。「1＋2×3」の答えを<b>9（ふつうの電卓）</b>にするか<b>7（式の優先順位どおり）</b>にするかは、<b>設定→🧮計算</b>で選べます。</div>
-          <div class="help-li"><b>📋計算式テンプレ／📑決算書テンプレ</b>（テンキーの<b>モード</b>キー、または<b>⋯→🎯用途から始める</b>）：割引・利益率・BMI・速さ・複利・ローン・面積・単位の変換…25種類のひな形や、損益計算書・貸借対照表・収支計算書のひな形。<b>黄色のセル</b>に値を入れるだけで答えが出ます。</div>
-        </div>
-      </details>
-
-      <details class="help-acc" id="h-tools">
-        <summary>🧰 道具（キーに登録して使う）</summary>
-        <div class="help-acc-body">
-          <div class="help-li"><b>道具</b>は、モードに入らずに<b>その場で開いて計算する画面</b>です。表とは別に開き、出た答えは<b>選択中のセルに入れる</b>ことができます。<b>登録ページ</b>の<b>🔧ボタンの機能から選ぶ</b>か、テンキーの<b>長押し</b>でキーに登録すると、そのキーで開けます。</div>
-          <table class="help-tbl">
-            <tr><td><b>💧単位水量</b></td><td>土研法エアメータ法で生コンの単位水量を推定（下記）</td></tr>
-            <tr><td><b>🧪カンタブ</b></td><td>読み値から生コンの塩化物イオン量を計算（下記）</td></tr>
-            <tr><td><b>📷容積</b></td><td>縦×横×高さで容積を計算。写真に測った線を残せます</td></tr>
-            <tr><td><b>📝写真メモ</b></td><td>写真に<b>文字</b>を入れて保存（図形・矢印・手書き・日付も）</td></tr>
-            <tr><td><b>🌱野菜</b></td><td>種をまいた日から、間引き・追肥・<b>収穫の予定日</b>をカレンダーで出す（下記）</td></tr>
-          </table>
-          <div class="help-li"><b>💧単位水量</b>：土研法エアメータ法で、生コンの単位水量を推定します。<b>配合</b>（W1・セメント・細骨材・粗骨材・混和材・配合空気量）と<b>試験値</b>（容器+試料 m2・測定空気量 A2・容器容積 V・容器質量 m1）を入れると、γ1・γ2から <b>W＝W1＋0.7×(γ1−γ2)</b> で推定し、配合の W1 との<b>差</b>で合否を判定します。配合はkg/m³、質量はg、容積はccで入力。<b>推定単位水量と差を大きく並べて</b>出し、差は合否と同じ色（合格＝緑／要注意＝橙／不合格＝赤）になります。<b>🧮計算の途中経過</b>で⑦〜⑱の値も確認でき、いちばん下の<b>▦推定単位水量をセルに入れる</b>で選択中のセルへ入ります。入れた値は次に開いたときも残ります。<br>よく使う配合（30件まで）とエアメータ（5件まで）は<b>📋配合の登録</b>・<b>🧪エアメータの登録</b>（それぞれ別の画面）に入れておけて、<b>配合番号・エアメータ番号</b>に番号を入れるだけで呼び出せます。配合には番号とは別に<b>配合の呼び名</b>（例 21-5-40BB）を入れておけ、番号を入れると<b>どの配合を呼び出したか名前で確認</b>できます（番号が登録に無いときもその場で分かります）。<b>配合</b>の見出しを押すと配合の欄を<b>折りたためます</b>（閉じている間は見出しの右に呼び名が出ます）。<br>
-            ・<b>並びと鍵</b>（v368から）：毎回はかるのは<b>重さ m2 と 測定空気量 A2 の2つだけ</b>なので、その<b>すぐ下に結果</b>（推定単位水量・差・合否）が出ます。<b>エアメータ</b>（V・m1）と<b>配合</b>は結果の下にまとめてあります。<b>番号で呼び出しているあいだ、その欄は 🔒 が付いて直せません</b>。登録した値と手元の値が食い違わないようにするためです。直すときは<b>📋配合の登録・🧪エアメータの登録</b>の画面から直してください（直すとすぐ反映されます）。その場だけ別の値で計算したいときは、<b>番号を消せば</b>今までどおり打ち込めます。許容差と小数桁は<b>⚙設定</b>で変えられます。 <b>🖨結果を1ページのPDFに</b>と<b>🖼画像で保存・📤画像を共有</b>（v345から）で、<b>配合・試験値・結果（推定単位水量・差・判定）・判定のめやす・計算の途中経過</b>をまとめた<b>報告書をA4たて1枚</b>に書き出せます。</div>
-          <div class="help-li"><b>🌱野菜の育成計画</b>（v340から）：<b>野菜を選んで、種をまいた日（いも・苗は植えつけた日）を入れるだけ</b>で、<b>発芽・間引き・追肥・収穫</b>などの<b>予定日</b>が出ます。いちばん上に<b>「収穫は◯〜◯日後（◯月◯日〜◯月◯日）」</b>と大きく出るので、<b>何日後にとれるか</b>がひと目で分かります。<br>
-            ・<b>カレンダー</b>にも色が付きます（<span style="color:#6d4c41">■</span>種まき・植えつけ／<span style="color:#7cb342">■</span>発芽・根づく／<span style="color:#1565c0">■</span>間引き・土寄せなどの手入れ／<span style="color:#ef6c00">■</span>追肥／<span style="color:#c2185b">■</span>花・受粉／<span style="color:#2e7d32">■</span>収穫）。濃い色が<b>その作業の初日</b>、薄い色は<b>そのあいだの期間</b>です。<b>‹ ›</b>で月を送り、<b>「種まきの月」</b>で戻ります<br>
-            ・<b>🪴 育てている野菜</b>（v347から）：画面のいちばん上に、<b>いつ・何を・種から／苗から 植えたか</b>の記録が並びます。<b>＋下の内容（野菜と植えた日）を登録する</b>で、いま出している内容をそのまま登録できます。行をタップすると<b>その予定に戻ります</b>（下の予定のところまで自動で送ります）。それぞれの行には<b>植えてから何日目か</b>と<b>つぎの作業とあと何日か</b>（例「つぎ 追肥 あと12日」「いま 発芽（1日まで）」）が出るので、いくつ育てていても一目で分かります。<b>✎</b>で畑や品種の名前を付けられ、<b>✕</b>で消せます。開き直しても残ります<br>
-            ・<b>種から／苗から</b>（v347から）：種から育てる野菜では、<b>苗から</b>を選ぶと<b>苗を植えた日を0日目</b>として数え直します（それより前の発芽・鉢上げなどは出しません）。いも・苗から育てるもの（ジャガイモ・イチゴなど）は、はじめから植えつけの日で数えるのでこの選びは出ません。<b>苗から始められる野菜は19種類</b>です（v361で<b>ハクサイ・オクラ・トウモロコシ・エダマメ・ミズナ・シュンギク・シソ</b>を足しました。苗を買って植えることが多いものです）。<b>ダイコン・ニンジン・カブ・ラディッシュ・ビーツ・ホウレンソウ・コマツナ・エンドウ・ソラマメ</b>は、根や芽をいためると育たないので<b>畑に直接まく</b>もの。苗からの選びは出しません<br>
-            ・<b>カレンダーは横フリックで月送り</b>（v363から）：カレンダーのところを<b>左へ払うと次の月／右へ払うと前の月</b>になります（<b>‹ ›</b>と同じです）。テンキーに登録した道具は本文を横に払うと<b>となりの道具</b>に移りますが、<b>カレンダーの上だけは月送り</b>になります。日を<b>タップ</b>したときは今までどおりその日の画面が開きます<br>
-            ・<b>🌡 気候の設定は閉じられます</b>（v363から）：地域・標高・寒冷地は1度入れたらあとは触らないので、<b>はじめは閉じて</b>あります。見出しに<b>今の設定（例：北海道・標高300m・寒冷地）</b>が出るので、閉じたままでも何にしてあるか分かります。開け閉めは<b>次に開いたときも残ります</b><br>
-            ・<b>📅 カレンダーの日をタップ</b>（v362から）：🪴に登録した野菜を出しているとき、<b>カレンダーの日をタップ</b>すると<b>その日の画面</b>が開きます。<b>📷写真をとる・🖼写真をえらぶ・✎文だけ書く</b>で、<b>その日づけのまま</b>記録できます（日づけを直す手間が要りません）。写真をつけた日は<b>カレンダーのマス目が写真になり</b>、日づけは小さく上にのります。<b>書いた文も、そのままマス目の下に出ます</b>（v364から。1行目を24字まで。1日に何件か書いたときは「／」でつなぎます。文を出す月はマス目が少し縦長になります）。<b>そのマス目をもう一度タップすると大きく見られます</b>（全文もそこで読めます）。作業の日（追肥・収穫など）の色は<b>枠の色</b>として残るので、どの作業の日かも分かります。この写真は<b>🖨PDF・🖼画像の書き出しのカレンダーにも出ます</b><br>
-            ・<b>📓 育成日記</b>（v361から）：🪴育てている野菜の行の<b>📓</b>を押すと、その野菜だけの日記が開きます。<b>📷写真をとる・🖼写真をえらぶ・✎文だけ書く</b>で、その日の様子を残せます。日づけは<b>今日</b>で入り、あとから<b>📅日づけ</b>で直せます。<b>植えてから何日目か</b>も一緒に出るので、去年と見くらべやすくなります。📓には<b>今ある件数</b>が付きます。<b>🖨日記をPDFに（写真つき）・🖼画像で保存・📤画像を共有</b>で、写真ごとまとめて出せます（日記は写真を小さくしたくないので、1ページに押し込めず<b>何ページかに分けて</b>出します）。<br>
-            　<b>写真は端末の中だけ</b>に残ります（長いほうを900pxまで小さくしてからしまいます）。1つの野菜につき<b>80件</b>まで。<b>📋リストの⬇書き出し（JSON）では日記は移せない</b>ので、大事な写真は<b>画像で保存</b>して端末の写真フォルダに残しておいてください。野菜を<b>✕</b>で消すと、その日記も一緒に消えます<br>
-            ・<b>画面は全画面</b>で開きます（v347から。見るものが多いため）<br>
-            ・<b>地域・標高・寒冷地</b>を選ぶと、<b>日数を補正</b>します（v341から）。<b>この設定は1つだけ持ち、登録したどの野菜にも共通でかかります</b>（1度入れておけば、あとは入れ直さなくて大丈夫です）。寒いところほど育ちはゆっくりなので、日数に倍率をかけます。<b>地域</b>は沖縄〜北海道の7つ（関東・東海・近畿が標準）、<b>標高</b>は100mごとに約2%おそく（気温が約0.6℃下がるめやす）、<b>寒冷地（霜がおりる畑）</b>でさらに5%おそくします。いまかかっている補正は<b>「補正 ＋34%（日数を1.34倍）」</b>のように画面に出ます。<b>種まきの時期を標準の地域よりどれだけずらすとよいか</b>も出ます（例：北海道は4週間おそめ）。この設定は<b>次に開いたときも残ります</b><br>
-            ・野菜は<b>33種類</b>入っています。多いので<b>名前でさがす</b>欄も使えます（<b>➕自分の野菜を登録する</b>で足すこともできます）<br>
-            ・<b>▦ 予定表を表に入れる</b>を押すと、<b>選んでいるセルを左上にして</b>「作業／予定日／おわり／日数」の表が入ります。日付は<b>日付として</b>入るので、そのまま計算や並べ替えに使えます（<b>↶戻る</b>で元に戻せます）<br>
-            ・<b>🧪 肥料と配合</b>（v342から）：その野菜に合う<b>土づくり・元肥・追肥</b>を出します。<b>苦土石灰・完熟たい肥</b>の量、<b>化成肥料の配合（8-8-8 など）と量</b>、<b>土のpHの目安</b>つきです。<b>畑の広さ</b>を入れると<b>全体でどれだけ要るか</b>まで出ます（例：100〜150g/㎡ → 12㎡で 1.2〜1.8kg）。広さは<b>縦◯m×横◯m</b>で入れれば自動でかけ算します（v365から。㎡と<b>坪</b>の両方が出ます）。広さだけ分かっているときは、下の<b>㎡の欄</b>に直接入れられます（そのときは縦・横は消えます）。全体の量は大きくなると<b>g→kg→t</b>に繰り上がるので、1反（約1,000㎡）のような広さでも読みやすくしてあります。<b>1ha（10,000㎡）</b>まで入ります。追肥の欄には<b>この計画での追肥の日</b>も出ます。ジャガイモは石灰をまかない、サツマイモは追肥をしないなど、<b>野菜ごとのくせ</b>も書いてあります<br>
-            ・<b>🦠 出やすい病気・害虫と農薬</b>（v342から）：その野菜で<b>出やすいもの</b>を、<b>見分け方・手当て・薬の例</b>の3つで並べます（例：うどんこ病／葉に白い粉をふいたようになる／こんだ葉をとって風通しをよくする／カリグリーン・サプロール乳剤）。<b>⚠ 農薬は野菜ごとに「使ってよい作物」と「収穫の何日前まで使えるか」が決まっています。使う前に必ずラベルで確かめてください</b><br>
-            ・<b>⚠ 育てるときの注意</b>（v343から）：<b>株間・畝／水やり／手入れ／連作（何年あけるか）／とりごろ</b>の5つを出します（例 キュウリ：株間45cm・畝幅120cm／夏は毎日たっぷり／下から5〜6節のわき芽と雌花はとる／ウリ科は2〜3年あける／長さ20cmの若どり）<br>
-            ・<b>🖨 ぜんぶを1ページのPDFに</b>（v343から）：画面に出ている<b>予定表・カレンダー・肥料・注意・病気と農薬</b>を、<b>A4たて1枚</b>にまとめて印刷します。中身が多いときは<b>段を増やして自動で縮める</b>ので、何か月にわたる計画でも1枚に収まります。印刷の画面で<b>「PDFに保存」</b>を選べばPDFになります（畑に持って行く紙として使えます）。<b>🖼画像で保存・📤画像を共有</b>（v345から）で、同じ中身を<b>PNGの画像</b>にもできます（LINEやメールで送るときはこちらが手軽です）<br>
-            ・<b>肥料・注意・病気・害虫も、▦予定表を表に入れる</b>で予定表のあとに一緒に書き出されます<br>
-            ・<b>➕自分の野菜を登録する</b>で、育てている品種を自分で足せます（名前と、作業ごとの日数）。登録したものは<b>点線のふち</b>で並び、次に開いたときも残ります<br>
-            ・日数は家庭菜園のふつうの目安です。<b>品種・地域・その年の天気で前後します</b>ので、種の袋の日数があればそちらを目安にしてください</div>
-          <div class="help-li"><b>カンタブ（塩化物イオン量）</b>：生コンの塩化物イオン量を、カンタブ（試験紙）の読み値から出します。<b>単位水量</b>と<b>読み値①〜③</b>を入れると、読み値ごとに<b>換算表の値(%)</b>と<b>塩化物含有量(kg/m³)</b>が並び、最後にその<b>平均値</b>で合否を判定します。平均値は<b>選択中のセルに入れる</b>こともできます。読み値から濃度への<b>換算表はカンタブの製品ごとに違う</b>ので、はじめに<b>⚙換算表・設定</b>でお使いの表を登録してください（読み値が表の間のときは前後から直線でおぎない、その旨を表示します）。換算表は<b>まとめて貼り付け</b>でも登録できます（1行に「読み値」と「濃度」の数字を2つ並べる。区切りはスペース・タブ・カンマのどれでもよく、全角の数字も読めます）。濃度は<b>小数4桁</b>まで扱えます。よく使う製品の表は<b>ひな形のボタン</b>でワンタップでも入れられます（写真から起こした値なので、入れたあと実物と見くらべてください）。管理値の既定は 0.30 kg/m³ で、設定で変えられます。</div>
-        </div>
-      </details>
-
-      <details class="help-acc" id="h-settings">
-        <summary>⚙️ 設定</summary>
-        <div class="help-acc-body">
-          <div class="help-li"><b>はじめに開くページ</b>（v366から）：設定→<b>🎨見た目</b>の<b>「アプリを開いたとき」</b>で、開いた直後に出すものを選べます。<b>前回のつづき</b>（はじめの状態。閉じたときのまま開きます）／<b>▦通常の表</b>／<b>🧮電卓</b>／<b>💧単位水量・🧪カンタブ・🌱野菜・📷容積・📝写真メモ・🔗リンク集・📋式テンプレ・📑決算テンプレ</b>から選べます。道具を選んだときは<b>その画面が上に開く</b>だけなので、<b>✕で閉じれば</b>下の表がそのまま使えます。<b>次に開いたときから</b>効きます</div>
-          <div class="help-li"><b>色と背景（着せかえ）</b>（v379から）：設定→<b>🎨見た目</b>の<b>「色と背景」</b>で、スマホのキーボードのように見た目を変えられます。<b>色</b>は丸いチップから<b>10色</b>（みどり・あお・こん・みずいろ・むらさき・さくら・あか・だいだい・つち・すみ）。選ぶと<b>ボタン・見出し・枠線・スマホの上の帯</b>まで一度に変わります。<b>キーの色</b>は<b>くろ／テーマ色／あかるい</b>の3つ。<b>背景</b>は<b>なし・色に合わせる・ぼかし・方眼・水玉・ななめ線・自分の写真</b>から選べます。<b>もようの色は、上で選んだ色に自動で合います</b>（あおにすれば方眼も水玉もあおくなります）。<b>「色に合わせる」</b>（v381から）は、もようなしで<b>画面ぜんたいを選んだ色にうっすら染める</b>もので、色を変えるとそのまま背景の色も変わります。<b>水玉</b>は大きさのちがう玉がまばらに散らばります（v381から）。<b>背景を出す場所</b>は<b>両方／表だけ／テンキーだけ</b>の3つ（v380から。たとえば「テンキーだけ写真、表は無地のまま」もできます）。<b>背景の濃さ</b>（うすい／ふつう／こい）で見え方を調整できます。<b>🌙ナイトモードとは別</b>なので、夜モードのままでも色は変えられます。<b>↩ もとの色に戻す</b>ではじめの緑に戻ります。</div>
-          <div class="help-li"><b>好きな写真や絵を背景にする</b>（v379から）：設定→<b>🎨見た目→🖼 背景の写真を選ぶ</b>で、端末の写真やイラストを背景にできます。写真は<b>白（夜モードでは黒）を重ねて透かして</b>出すので、表の数字が読みにくくなりません。<b>表のマス目も少しだけ透ける</b>ので、写真が全体にうっすら見えます。<b>テンキーの地にも同じ写真</b>が敷かれ、<b>キーも半透明</b>になります。<b>背景を出す場所</b>（v380から）で<b>両方／表だけ／テンキーだけ</b>を選べるので、<b>スマホのキーボードのようにテンキーだけ写真にして、表は今までどおり白いまま</b>にもできます。透かし具合は<b>背景の濃さ</b>で変えられます（こい＝写真がはっきり）。写真は長い辺 1280px まで自動で縮めて入れます。入れた写真の大きさは<b>⋯→🧹端末の空き具合</b>で「背景の写真」として見られ、そこからも消せます（設定の<b>🗑 背景の写真を消す</b>でも消せます）。</div>
-          <div class="help-li"><b>3つのタブ</b>に分かれています（<b>📐表</b>＝行と列・Enterの向き／<b>🎨見た目</b>＝色と背景・文字や画面の大きさ・上のバー・テンキー／<b>🧮計算</b>＝小数桁・税率・日付・声）。<b>本文を横にフリック</b>してもタブを移動できます。書き出し・読み込み・説明書・ナイトモード・シートのタブ・既定の大きさは、<b>設定ではなく上のバーの ⋯</b> にまとめてあります（v359。同じボタンが2か所にあるのをやめました）。</div>
-          <div class="help-li"><b>テンキーを細かく変えたいとき</b>は、設定→<b>🎨見た目→くわしい設定→「テンキーを自分好みにする」</b>を開いてください（v303から。ふだんは触らなくて大丈夫なので、たたんであります）。<b>数字キーの大きさ・上下の余白・ページ表示・調整バー・ボタン配置の編集</b>がここにまとまっています。</div>
-          <div class="help-li"><b>🎨見た目</b>は、よく使う<b>セルの文字・画面の幅・テンキーの大きさ・色と背景（着せかえ）・はじめに開くページ</b>を先に出しています。それ以外は<b>「くわしい設定」</b>をタップすると出てきます（小計や上のバーの文字、数字キーの大きさ、テンキーの余白とページ表示、調整バー、ボタン配置の編集、<b>上のバーに出すボタン</b>）。開いたまま／閉じたままの状態は次回も覚えています。</div>
-          <table class="help-tbl">
-            <tr><td><b>行／列</b></td><td>表の大きさ</td></tr>
-            <tr><td><b>小数</b></td><td>小数点以下の桁（自＝自動）</td></tr>
-            <tr><td><b>日付の表示</b></td><td>新しく入れる日付の既定の形式（2026/7/7・年月日・月日・曜日・和暦…）</td></tr>
-            <tr><td><b>税率</b></td><td>消費税モードの税率</td></tr>
-            <tr><td><b>文字サイズ</b></td><td>テンキー／セル文字／小計文字の大きさ</td></tr>
-            <tr><td><b>数字キーの大きさ</b></td><td>標準テンキーの0〜9（と「.」）だけを大きく（枠も広がり押しやすく／右側キーはやや狭く）</td></tr>
-            <tr><td><b>調整バー</b></td><td>大きさを変えるバーの太さ、表示/非表示を切替（「くわしい設定」の中）</td></tr>
-            <tr><td><b>上下の余白</b></td><td>テンキーの上下の隙間（「最小」でホームバー分も詰める）</td></tr>
-          </table>
-          <div class="help-li"><b>📅当番表</b>（v394から）：<b>ごみ当番・掃除当番</b>などの持ち回りを、半年分のカレンダーにして配れます。<b>⚙名簿・設定</b>で人を順に登録し（<b>並び順がそのまま番号</b>になります）、<b>当番の曜日</b>を選んでから<b>「1年ぶんに割り当てる」</b>を押すと、名簿の順に番号が入ります。<b>日づけの下の枠に番号を入れて手で直す</b>こともできます（Enterで次の当番日へ進みます）。<b>祝日は自動で出ます</b>（<b>翌日にずらす／当番なし</b>を選べます。年末年始をとばすこともできます）。<b>表の名前は書き換えられます</b>（はじめは「当番表」。そえ書きも入れられます）。<b>🖨印刷</b>で半年分が1枚に入ります。設定→🎨見た目→くわしい設定→<b>テンキーの上に出す道具</b>から出しておけます。入れたものは<b>この端末の中だけ</b>に残ります。</div>
-          <div class="help-li"><b>▦既定の大きさ</b>（v392から）：<b>タップすると設定が開きます</b>。新しく表を作るときや <b>▦通常</b> でまっさらに戻したときの<b>行数・列数</b>をここで決めます（初期値15行×3列）。<b>いま開いている表だけ</b>をその大きさにしたいときは、同じ画面の<b>「▦ いまの表をこの大きさにする」</b>を押してください（中身はそのままです）。<br>v391までは<b>タップが「いまの表を変える」・長押しが設定</b>でしたが、タップの動きが <b>▦通常</b> とまぎらわしかったので入れかえました（設定→🎨見た目→くわしい設定→<b>上のバーに出すボタン</b>で上のバーにも出せます）。</div>
-          <div class="help-li"><b>▦通常 と ▦既定の大きさ のちがい</b>（似ているので）：<br>
-            ・<b>▦通常</b>は<b>モードを通常に戻す</b>ボタンです。すでに通常のときは、<b>ひな形なら消して</b>まっさらな表にし、<b>中身が空で小さいままなら</b>既定の大きさに戻します。<b>中身が入っているときは大きさを変えません</b>（作りかけの表を勝手に変えないため）<br>
-            ・<b>▦既定の大きさ</b>は<b>設定を開く</b>ボタンです（v392から）。そこで決めた行数・列数が、新しい表や ▦通常 のときに使われます。<b>いまの表だけ</b>を変えたいときは、その中の<b>「▦ いまの表をこの大きさにする」</b>（<b>中身はそのまま</b>で大きさだけ変わります）<br>
-            ・v391までは ▦既定の大きさ のタップが「いまの表を変える」だったので、<b>空の表では ▦通常 とまったく同じ</b>になっていました。それをやめて、押したらまず設定が開くようにしています</div>
-          <div class="help-li"><b>テンキーのボタン配置を編集</b>（「くわしい設定」の中）：ドラッグでボタンを入れ替え（同じ大きさ同士。Enter・0は固定。関数・枠線ページも編集可）。「↺初期化」で元に戻せます。</div>
-          <div class="help-li"><b>🔀モードの表示/非表示</b>：「モード」一覧に出す標準モードを選べます（「通常」は常に表示）。</div>
-        </div>
-      </details>
-
-      <details class="help-acc" id="h-save">
-        <summary>💾 保存・記録（上部メニュー）</summary>
-        <div class="help-acc-body">
-          <div class="help-li"><b>戻せるのは「操作」の単位です</b>（v301から）。入力・消去のほかに、<b>書式・枠線・保護・テンプレートの読み込み・リセット・行や列の増減</b>も1つの操作として戻せます。戻すと「『テンプレート「割引計算」』を元に戻しました」のように<b>何を戻したか</b>を出します。<b>↶の長押し</b>（約0.4秒）で一覧から選べば、そこまでまとめて戻せます（最大50件）。一覧が出たら指は離して大丈夫です。</div>
-          <div class="help-li"><b>いま中身がどこまで安全か</b>は、上のバーの<b>記録名の右の印</b>で分かります（v300から）。タップして開くリストの上には、もっとくわしい説明が出ます。</div>
-          <table class="help-tbl">
-            <tr><td><b>✓（白い枠）</b></td><td><b>いまの表は端末に自動保存されています</b>。アプリを閉じても戻ってきます</td></tr>
-            <tr><td><b>●（黄色）</b></td><td>開いている記録に<b>未保存の変更</b>があります。<b>保存</b>で上書きできます</td></tr>
-            <tr><td><b>⚠（橙）</b></td><td><b>ファイルへの書き出しをおすすめします</b>。まだ一度も書き出していないか、最後の書き出しから14日以上経っています</td></tr>
-          </table>
-          <div class="help-li"><b>安全さは3段階あります</b>。①<b>いまの表</b>＝書き換えるたび端末に自動保存（閉じても戻る）／②<b>記録</b>＝名前を付けて残す（置き場所はやはり端末）／③<b>ファイルに書き出す</b>＝端末の外に残る。<b>ブラウザのデータを消しても戻せるのは③だけ</b>です。リストの<b>⬇書き出し</b>をときどき使ってください。<br>端末の空きが足りなくて保存できなかったときは、<b>はっきりお知らせします</b>（「保存しました」とは言いません）。</div>
-          <div class="help-li"><b>保存</b>：タップで<b>上書き保存</b>、<b>長押しで「名前を付けて保存」</b>（記録を開いていない・🔒ロック中はタップでも名前を付けて保存）。上のバーに<b>今の記録名（📄）</b>が出て、未保存の変更があると<b>●</b>が付きます。<b>リスト</b>で保存データ一覧を開きます。一覧の下には<b>⬇書き出し・⬆読み込み</b>と<b>📦空き具合</b>（v373から）があります。<b>⬇書き出し</b>は全部の記録をJSON1つにまとめます。<b>野菜の育成日記に写真があるときは、写真ごと持っていくか聞きます</b>（v374から。「はい」なら機種変えでも写真が残り、「いいえ」なら日づけと文だけで軽くなります）。育てている野菜・自分で登録した野菜・気候の設定も一緒に入ります。<b>⬆読み込み</b>で戻すときも、野菜のデータを入れるかどうか聞きます。<b>📦空き具合</b>を押すと、<b>この端末に何がどれだけ入っているか</b>が大きい順に出て、いっぱいになる前に片づけられます。<b>育成日記の写真</b>は<b>📓写真を片づける</b>から<b>野菜ごとに、文を残して写真だけ</b>消せます（写真1枚で100KBほど使うので、いちばん効きます）。<b>写真メモの下書き・容積の写真・電卓の履歴</b>は🧹でその場で消せます。目安の上限は<b>5MB</b>で、<b>85%を超えると赤い注意</b>が出ます。消す前に<b>⬇書き出し</b>でファイルに残しておくと安心です。よく使うものは設定→<b>🎨見た目→くわしい設定→「上のバーに出すボタン」</b>で上のバーに足せます。名前を付けて保存するときの<b>最初の名前は Book1・Book2…</b>です（v318から。以前は日付でした）。空いている番号が出るので、そのまま保存しても名前が重なりません。</div>
-          <div class="help-li"><b>記録の並べ方</b>（v315から）：保存データ一覧は<b>⊞アイコン</b>と<b>☰リスト</b>を切り替えられます。<b>アイコン</b>はエクスプローラーのようにファイルが並ぶ形で、<b>短くタップで開きます</b>（v320から確認は出ません。<b>↶戻る</b>で開く前の表に戻せます）。<b>⋯か長押し</b>でメニューが出て、<b>📂開く・✏名前の変更・⧉コピーを作る・⬇書き出し・🔒ロック・🔀モードへ登録・🗂他のタブへ移す・🗑削除</b>ができます（v317でコピー、v374で書き出しを追加）。<b>⬇書き出し</b>はその<b>1件だけ</b>を <b>📊Excel・📄CSV・🖨PDF・💾JSON</b> にできます。<b>CSVとJSONは開かずに</b>そのまま出るので今の表はそのままです（JSONは<b>⬆読み込み</b>でそのまま戻せます）。<b>ExcelとPDFは開いてから</b>出します（<b>↶戻る</b>で元の表に戻せます）。長押しでメニューを出したときは、指を離しても<b>記録は開きません</b>。メニューの項目は<b>もう一度そこから押し直す</b>と動きます（v321。指の真下に出た項目が、離しただけで選ばれてしまうのを防ぐためです。セルの長押しメニューも同じです）。<b>コピー</b>は中身ごと複製した別の記録になるので、元をそのまま残して作りかえられます（名前は「◯◯ のコピー」）。絵は保存したときのモードのものになります（🔒はロック中、📂は今開いている記録）。<b>並べ替え</b>（新しい順・古い順・名前順 あ→ん／ん→あ）も選べます。アイコンの<b>大きさは「小」で固定</b>です（v350。一度に見える数を多くするため、大きさの切り替えはやめました）。名前順は日本語の並びで、<b>見積もり2 → 見積もり10</b> のように数字も数の順になります（並べ替えはリスト表示にも効きます）。選んだ表示と並び順は次に開いたときも残ります。</div>
-          <div class="help-li"><b>1記録＝全モードのスナップショット</b>：通常・買物・容積など全モードのシートをまとめて保存。読み込むと各モードがその記録に置き換わり、保存時のモードで開き直します（以前の「1モードだけの記録」も読み込めます）。リストで<b>今開いている記録</b>は緑でハイライトされ「📂開いています」と表示。</div>
-          <div class="help-li"><b>リセット</b>は<b>今のシートだけ</b>を消去（記録との紐付けは保持）。まっさらにするときはリストの<b>🆕新規</b>ボタン。</div>
-          <table class="help-tbl">
-            <tr><td><b>タブ</b></td><td>🗂記録／📌タブ1／📌タブ2／🔀モード。保存はまず「記録」へ。振り分けは<b>アイコンの⋯（または長押し）→🗂◯◯へ移す</b>、リスト表示ではタブ選択欄から。タブ名は長押しで変更</td></tr>
-            <tr><td><b>モードへ</b></td><td>記録をモードに登録（自動で「モード」タブへ移動・保護）</td></tr>
-            <tr><td><b>🔓ロック</b></td><td>タップで🔒保護（削除・改名を防止。もう一度で解除）</td></tr>
-            <tr><td><b>↶戻る／↷進む</b></td><td>直前の操作を元に戻す／やり直す（<b>↶</b>は上のバー、<b>↷</b>は<b>⋯</b>の中。使えないときは薄く出ます）。<b>↶を長押し</b>すると、取り消せる操作が新しい順に出て、<b>タップしたところまでまとめて戻せます</b></td></tr>
-            <tr><td><b>⬇書き出し／⬆読み込み</b></td><td>リスト下部。保存データをファイルに出力→別端末で復元（<b>バックアップ・引っ越し</b>）</td></tr>
-          </table>
-          <div class="help-li"><b>📄CSV／📊Excel／🖨PDF</b>（上のバーの <b>⋯</b>）：CSVは表の値（文字コード自動判別）。<b>Excel(.xlsx)</b>は数式・太字・色・枠線・寄せ・結合・列幅まで保ったまま入出力。<b>PDF出力</b>は印刷前の設定ダイアログで、タイトル・向き・拡大縮小（1ページに収める）・余白・文字サイズ・枠線を指定でき、プレビューを横フリックで複数ページ確認。「印刷／PDFに保存」で書き出せます。</div>
-          <div class="help-li"><b>🌙</b>ダークモード切替。</div>
-        </div>
-      </details>
-
-      <details class="help-acc" id="h-privacy">
-        <summary>🔒 データとプライバシー</summary>
-        <div class="help-acc-body">
-          <div class="help-li"><b>入れたものは、ぜんぶこの端末の中だけにあります</b>。表・記録・写真メモ・容積の写真・育成日記の写真・背景の写真・声で言った言葉・設定のどれも、<b>どこかに送ることはありません</b>。よそのサーバーに預けたり、他の人に見せたりするしくみ自体がありません。アカウントもログインもありません。</div>
-          <div class="help-li"><b>カメラと写真</b>：写真メモ・容積・育成日記・背景の写真で使います。<b>押したときだけ</b>端末のカメラや写真を開き、<b>選んだ1枚だけ</b>をアプリの中に取り込みます。勝手に見に行くことはありません。取り込んだ写真は端末の中に置いたままで、送信もアップロードもしません。</div>
-          <div class="help-li"><b>声で入れる</b>：マイクは<b>🎤を押しているあいだだけ</b>使います。聞き取りは端末（ブラウザ）のしくみに任せています。使う端末によっては、その聞き取りのために音声がブラウザの提供元に送られることがあります（これはこのアプリではなく、端末やブラウザの作りによるものです）。気になるときは、声を使わずキーで入れてください。</div>
-          <div class="help-li"><b>インターネットはいりません</b>。一度開いておけば、<b>電波のない現場でもそのまま使えます</b>。更新があるときだけ、開いたときに新しい版を取りに行きます。広告も、人の動きを集めるしくみ（アクセス解析）も入っていません。</div>
-          <div class="help-li"><b>消えることもあります</b>：ブラウザは、端末の空きが減ったときや<b>しばらく開かないサイト</b>のデータを自動で消すことがあります（とくに<b>iPhoneのSafariでは、7日ほど開かないと消える</b>ことがあります）。これを防ぐために、アプリは起動のたびに<b>「このデータは消さないでください」と端末にお願い</b>しています（v382から）。いまどうなっているかは <b>⋯→🧹端末の空き具合</b> のいちばん上で見られます。<b>🔒</b>なら守られていて、<b>⚠</b>なら消えることがあります。⚠のときは、そこの<b>「消えないようにする」</b>を押すか、<b>ホーム画面に追加</b>して使うと守られやすくなります。</div>
-          <div class="help-li"><b>いちばん確かなのは書き出しです</b>。リストの<b>⬇書き出し</b>でファイルに残せば、端末を変えても初期化しても戻せます。しばらく書き出していないときは、起動してすこし経ってから<b>下に一度だけおすすめ</b>が出ます（v382から。「あとで」を押すと7日は出ません）。</div>
-          <div class="help-li"><b>消したいとき</b>：<b>⋯→🧹端末の空き具合</b>で、何がどれだけ入っているかを見ながら<b>種類ごとに消せます</b>（育成日記の写真・写真メモ・容積の写真・電卓の履歴・背景の写真）。記録そのものはリストから消せます。ぜんぶ消すなら、ブラウザの設定でこのサイトのデータを削除してください。<b>消したものは戻せません</b>ので、先に⬇書き出しをおすすめします。</div>
-        </div>
-      </details>
-
-      <button class="set-act" style="margin-top:14px" onclick="closeHelp(); setTimeout(openWhatsNew, 320);">🆕 新しくなったことを見る</button>
-      <button class="set-act" onclick="closeHelp(); setTimeout(openTour, 320);">🚀 はじめての案内をもう一度見る</button>
-
-      <div class="help-ver" id="helpVer"></div>
+    <div class="modal-body" id="helpBody">
+      <div class="help-loading" id="helpLoading">📖 説明書を読み込んでいます…</div>
     </div>
   </div>
 </div>
@@ -6382,6 +6186,32 @@ function recalcAll() {
         if (el) setCellDisp(el, r,c);
       }
   autoFitSheet();
+  updateEmptyHint();
+}
+/* ── 空の表の手がかり（v398）──
+   はじめて開いた人は、まっさらなマス目だけでは何をすればよいか分からない。
+   ふつうの表で、どのセルも空のときだけ薄く出す。1つでも入れば消える。 */
+function sheetIsEmpty(){
+  if(typeof data==='undefined' || !data) return false;
+  for(let r=0;r<ROWS;r++){ const row=data[r]; if(!row) continue;
+    for(let c=0;c<COLS;c++){ const v=row[c]; if(v!==''&&v!=null) return false; } }
+  return true;
+}
+let emptyHintRaf=0;
+function updateEmptyHint(){
+  if(emptyHintRaf) return;
+  emptyHintRaf=requestAnimationFrame(()=>{
+    emptyHintRaf=0;
+    const el=document.getElementById('emptyHint'); if(!el) return;
+    const show=(typeof tableMode==='undefined' || tableMode==='normal') &&
+      !document.body.classList.contains('dentaku-mode') && sheetIsEmpty();
+    el.hidden=!show;
+    if(show){   // 広い画面では表が左に寄るので、表のまん中に置く
+      const t=document.getElementById('sheet');
+      if(t && t.style.width) el.style.setProperty('--eh-x', Math.round(t.offsetWidth/2+24)+'px');
+      else el.style.removeProperty('--eh-x');
+    }
+  });
 }
 
 /* ── セル結合 ──
@@ -6503,6 +6333,7 @@ function buildSheet() {
   }
   if (isStructMode()) recalcMode();
   autoFitSheet();
+  if(typeof updateEmptyHint==="function") updateEmptyHint();
 }
 
 /* ── セル自動フィット ──
@@ -6564,12 +6395,21 @@ function autoFitSheet(){
     const availW = t.parentElement ? t.parentElement.clientWidth : 0;
     const surplus = availW - (rhW + total);
     if(surplus > COLS){
+      // 広い画面（パソコン・タブレット横）で列が 400px も伸びると、表がスカスカに見える。
+      // 1列は COL_WIDE_CAP までにして、残りは右に空けておく（v398）
+      const cap = Math.round(COL_WIDE_CAP*scale);
       const add = surplus / COLS;
+      let sum = rhW, capped = false;
       for(let c=0;c<COLS;c++){
         const ch=document.getElementById('ch'+c); if(!ch) continue;
         const cur = parseFloat(ch.style.width) || baseW;
-        ch.style.width = Math.round(cur + add) + 'px';
+        let w = Math.round(cur + add);
+        if(w > cap && cur <= cap){ w = cap; capped = true; }
+        else if(cur > cap){ w = Math.round(cur); capped = true; }
+        ch.style.width = w + 'px';
+        sum += w;
       }
+      if(capped) t.style.width = sum + 'px';
     }
   }
   // 4) 拡大しても収まらないセルは文字を縮小
@@ -6595,6 +6435,7 @@ window.addEventListener('resize', ()=>{
 
 /* ── 列幅・行高の手動変更（表の端をドラッグ／スライド） ── */
 const COL_MIN=30,  COL_MAX=400;
+const COL_WIDE_CAP=220;   // 広い画面で自動で伸ばすときの1列の上限（v398）
 const ROW_MIN=22,  ROW_MAX=200;
 let colWidths={};   // c -> px（手動指定。倍率100%基準で保存し、適用時に cellScale を掛ける）
 let rowHeights={};  // r -> px（手動指定。同上）
@@ -7930,6 +7771,18 @@ function skinMix(h1,h2,t){
   return '#'+[0,1,2].map(i=>Math.round(a[i]+(b[i]-a[i])*t).toString(16).padStart(2,'0')).join('');
 }
 function skinTheme_(){ return SKIN_THEMES.find(x=>x.id===skinTheme)||SKIN_THEMES[0]; }
+/* 白い字との見やすさ（明るさの比。WCAG の式）。4.5 あればふつうの字でも読める */
+function skinLum(h){
+  return skinHex(h).map(v=>{ v/=255; return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); })
+    .reduce((s,v,i)=>s+v*[0.2126,0.7152,0.0722][i], 0);
+}
+function skinContrastWhite(h){ return 1.05/(skinLum(h)+0.05); }
+/* 足りなければ、少しずつ黒に寄せて min に届く色を返す（色みはそのまま） */
+function skinReadable(h, min){
+  let c=h;
+  for(let i=0;i<20 && skinContrastWhite(c)<min;i++) c=skinMix(c,'#000000',.06);
+  return c;
+}
 /* もようを1つ作る。rgb は「R,G,B」の文字、k は濃さ、m は場所ごとの効き具合 */
 /* 水玉は大きさをばらばらにする。玉の大きさ・並ぶ間隔・置き始めの位置を
    5組つくり、間隔どうしが割り切れない数（37/43/53/71/97）になるように選ぶ。
@@ -7965,10 +7818,16 @@ function skinPat(pat, rgb, k, m){
 function applySkin(){
   const th=skinTheme_(), b=document.body; if(!b) return;
   const st=b.style, dark=b.classList.contains('dark'), rgb=skinRgb(th.a);
-  st.setProperty('--acc',th.a);
+  /* 色の上に白い字が乗るので、読める濃さを保つ（v399）。
+     だいだい・みずいろ などの明るい色は、足りない分だけ少し暗くして使う */
+  const acc=skinReadable(th.a, 4.5), accL=skinReadable(th.l, 3);
+  st.setProperty('--acc',acc);
   st.setProperty('--acc-dark',th.d);
   st.setProperty('--acc-darker',th.dd);
-  st.setProperty('--acc-light',th.l);
+  st.setProperty('--acc-light',accL);
+  /* 夜は上のバーと窓の見出しを沈めて、画面の上だけまぶしくならないようにする（v399） */
+  if(dark) st.setProperty('--bar-bg', skinMix(acc, '#0d0d18', .5));
+  else st.removeProperty('--bar-bg');
   st.setProperty('--acc-on-dark',th.o);
   st.setProperty('--acc-weak','rgba('+rgb+','+(dark?.30:.12)+')');
   st.setProperty('--pm-soft','rgba('+rgb+','+(dark?.30:.12)+')');
@@ -8275,6 +8134,34 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v401', t:'起動を軽く・崩れに気づけるように', li:[
+    '<b>📖説明書</b>の中身を別のファイル（help.js）に分けて、<b>開いたときだけ読む</b>ようにしました。アプリを開くたびに読む量が約6%減りました。電波がなくても、一度開いたことがあればそのまま読めます',
+    '電波がないときに、説明書などの部品の代わりに本体の画面を返してしまうことがあったのを直しました',
+    '主な13の画面の<b>見た目のテスト</b>を足しました。ボタンが重なる・✕ が隠れる といった崩れを、出す前に見つけられます',
+  ]},
+  { v:'v400', t:'さがせる・そろえる（第3弾）', li:[
+    '⚙設定のいちばん上に<b>🔍 設定をさがす</b>欄を足しました。「夜」「色」「テンキー」のように打つと、その項目へ飛んで光ります（ひらがなでも探せます）',
+    'ボタンの長押しの割り当てと、▲登録の「ボタンの機能から選ぶ」にも<b>🔍 さがす欄</b>を付けました。97種類の中からすぐ見つかります',
+    '📅当番表・💧単位水量・🌱育成計画・📓育成日記の<b>印刷のしかた</b>を、同じ<b>🖨 印刷のしかた</b>の窓で選べるようにしました（文字の大きさ・1枚に収める・下の注記）',
+    '道具の上の帯の設定ボタンは、どれも<b>「⚙ 設定」</b>にそろえました',
+    '上のバーのボタンと <b>⋯</b> を押しやすくしました（見た目はそのまま、指の当たりを広げました）',
+  ]},
+  { v:'v399', t:'パソコンで見やすく・夜にまぶしくなく（第2弾）', li:[
+    'パソコンやタブレットの横向きでは、<b>テンキーを表の右に縦に置く</b>ようにしました。表が上から下まで見えます',
+    '置き場所は ⚙設定 → 🎨見た目 の<b>「テンキーの置き場所」</b>で 自動／下／右 から選べます',
+    '右に置いているときは、上のバーに<b>⌨</b>が出ます。押すとテンキーをしまえます（物理キーで打つとき用）。⚙設定の「上のバーに出すボタン」でいつでも出し入れできます',
+    '<b>🌙ナイトモード</b>では、上のバーと窓の見出しの色を落ち着かせて、画面の上だけまぶしくならないようにしました',
+    '着せかえの色は、<b>白い字が読める濃さを自動で保つ</b>ようにしました（だいだいが少し濃くなります）',
+  ]},
+  { v:'v398', t:'見やすく・迷いにくく（第1弾）', li:[
+    '表がまっさらなときは、<b>何をすればよいかの手がかり</b>がうすく出ます（何か入れると消えます）',
+    '上のバーの「未保存」は<b>「自動保存」</b>に変えました。記録を開いていなくても、いまの表は端末に残っています',
+    '<b>⋯</b>に<b>🧰道具</b>の一覧を足しました。当番表・野菜・単位水量などを、テンキーをめくらずに開けます',
+    '<b>🌙ナイトモード</b>を<b>⋯</b>のすぐ見えるところへ出しました',
+    'パソコンなど広い画面で、<b>列が横に間延びしない</b>ようにしました',
+    '⚙設定の📐表に<b>「はじめての案内をもう一度」</b>と<b>説明書</b>を置きました',
+    '⋯からリストや道具を開いて閉じたとき、<b>アプリの外（前のページ）へ戻ってしまうことがある</b>のを直しました',
+  ]},
   { v:'v397', t:'当番表：登録キーと、印刷のしかた', li:[
     '<b>📅当番表</b>を<b>登録キー</b>にも割り当てられるようになりました（▲登録のページや、キーの長押しから選べます）',
     '⚙名簿・設定に<b>「印刷のしかた」</b>が増えました。<b>文字の大きさ</b>（小／ふつう／大／特大）を変えられます',
@@ -8567,7 +8454,7 @@ function tbRenderNext(){
   const today=tbIso(new Date());
   const keys=Object.keys(touban.assign).filter(k=>k>=today).sort();
   if(!touban.roster.length){
-    box.innerHTML='<span class="tb-tag">まずは名簿から</span><span class="tb-n">⚙名簿・設定 で人を登録してください</span>';
+    box.innerHTML='<span class="tb-tag">まずは名簿から</span><span class="tb-n">⚙設定 で人を登録してください</span>';
     return;
   }
   if(keys.length){
@@ -8803,27 +8690,97 @@ function tbPrintHtml(){
 }
 function tbPrint(){
   // 「1枚に収める」を外すと、選んだ文字の大きさのまま出す（入りきらなければ2枚になる）
+  if(isDlgOpen('prnOverlay')) closePrn();          // 上に重なった窓から順に閉じる（戻るの履歴を崩さない）
+  if(isDlgOpen('tbSetOverlay')) closeTbSet();
   const built=opBuild(tbPrintHtml(), !touban.pr.fit);
   closeTouban();
   opPrint(built);
   return built.k;
 }
 /* ── 印刷のしかた（v397）── */
-function tbChangePSize(d){
-  const n=touban.pr.k+d;
-  if(n<0 || n>=TB_PSIZE.length) return;
-  touban.pr.k=n; saveTouban(); renderTbSet();
-}
-function tbTogglePr(key){
-  if(!(key in touban.pr)) return;
-  touban.pr[key]=!touban.pr[key]; saveTouban(); renderTbSet();
-}
+function tbChangePSize(d){ prnTool='touban'; prnSize(d); }
+function tbTogglePr(key){ prnTool='touban'; prnToggle(key); }
 function renderTbPrint(){
-  const v=document.getElementById('tbPSizeVal');
-  if(v) v.textContent=(TB_PSIZE[touban.pr.k]||TB_PSIZE[1]).n;
-  [['tbPrFit','fit'],['tbPrFoot','foot'],['tbPrSub','sub'],['tbPrHol','hol']].forEach(([id,key])=>{
-    const b=document.getElementById(id); if(b) b.classList.toggle('on', !!touban.pr[key]);
-  });
+  const el=document.getElementById('tbPrSum'); if(!el) return;
+  el.textContent=prnSummary('touban');
+}
+
+/* ── 🖨 印刷のしかた（v400）──
+   道具ごとに「文字の大きさ・1枚に収める・下の注記」を同じ窓で選ぶ。
+   当番表は v397 からの touban.pr をそのまま使い、ほかは excalc_prn に道具ごとに覚える。 */
+const PRN_KEY='excalc_prn';
+const PRN_SIZES=TB_PSIZE;   // 小・ふつう・大・特大
+const PRN_TOOLS={
+  touban:  { n:'📅 当番表',     fitLb:'📄 半年ぶんを1枚に収める', footLb:'📅 下に日づけと日数を出す',
+             extras:[['sub','✍ そえ書きを出す'],['hol','🎌 祝日の名前を出す']],
+             print:()=>tbPrint() },
+  tsx:     { n:'💧 単位水量試験', fit:true,  footLb:'📝 下の注記（単位の説明）を出す',
+             print:()=>tsxPdf(), image:()=>tsxImage(false) },
+  veg:     { n:'🌱 育成計画',     fit:true,  footLb:'📝 下の注記（目安の説明）を出す',
+             print:()=>vegPdf(), image:()=>vegImage(false) },
+  vegdiary:{ n:'📓 育成日記',     fit:false, footLb:'📝 下の注記を出す',
+             print:()=>vegDiaryPdf(), image:()=>vegDiaryImage(false) },
+};
+let prnTool='touban';
+let prnStore={};
+try{ const o=JSON.parse(localStorage.getItem(PRN_KEY)||'{}'); if(o&&typeof o==='object') prnStore=o; }catch(_){}
+function prnOpts(tool){
+  if(tool==='touban') return touban.pr;
+  const def=PRN_TOOLS[tool]||{};
+  const o=prnStore[tool]||(prnStore[tool]={});
+  if(!(Number.isInteger(o.k) && o.k>=0 && o.k<PRN_SIZES.length)) o.k=1;
+  if(typeof o.fit!=='boolean') o.fit=!!def.fit;
+  if(typeof o.foot!=='boolean') o.foot=true;
+  return o;
+}
+function prnSave(tool){
+  if(tool==='touban'){ saveTouban(); if(isDlgOpen('tbSetOverlay')) renderTbSet(); return; }
+  try{ localStorage.setItem(PRN_KEY, JSON.stringify(prnStore)); }catch(_){}
+}
+function prnSummary(tool){
+  const o=prnOpts(tool), t=PRN_TOOLS[tool];
+  const a=['文字 '+PRN_SIZES[o.k].n, o.fit?'1枚に収める':'大きさそのまま'];
+  if(!o.foot) a.push('下の注記なし');
+  (t.extras||[]).forEach(([k,lb])=>{ if(!o[k]) a.push(lb.replace(/^\S+\s/,'').replace('を出す','')+'なし'); });
+  return a.join('・');
+}
+function openPrn(tool){
+  if(!PRN_TOOLS[tool]) return;
+  prnTool=tool; renderPrn(); openDlg('prnOverlay');
+}
+function closePrn(){ closeDlg('prnOverlay'); }
+function renderPrn(){
+  const t=PRN_TOOLS[prnTool], o=prnOpts(prnTool);
+  const tt=document.getElementById('prnTitle'); if(tt) tt.textContent='🖨 印刷のしかた ─ '+t.n.replace(/^\S+\s/,'');
+  const v=document.getElementById('prnSizeVal'); if(v) v.textContent=PRN_SIZES[o.k].n;
+  const rows=[['fit', t.fitLb||'📄 1枚に収める'], ['foot', t.footLb||'📝 下の注記を出す']].concat(t.extras||[]);
+  const box=document.getElementById('prnToggles');
+  if(box) box.innerHTML=rows.map(([k,lb])=>
+    '<button class="set-act'+(o[k]?' on':'')+'" data-prn="'+k+'" onclick="prnToggle(\''+k+'\')">'+lb+'</button>').join('');
+  const ib=document.getElementById('prnImageBtn'); if(ib) ib.style.display=t.image?'':'none';
+  renderTbPrint();
+}
+function prnSize(d){
+  const o=prnOpts(prnTool), n=o.k+d;
+  if(n<0 || n>=PRN_SIZES.length) return;
+  o.k=n; prnSave(prnTool); renderPrn();
+}
+function prnToggle(key){
+  const o=prnOpts(prnTool);
+  if(!(key in o)) return;
+  o[key]=!o[key]; prnSave(prnTool); renderPrn();
+}
+/* 当番表以外の中身に、決めた大きさと注記の出し分けを付ける */
+function prnDoc(tool, html){
+  const o=prnOpts(tool), z=PRN_SIZES[o.k].k;
+  return html.replace('<div class="op-doc"', '<div class="op-doc prn-doc'+(o.foot?'':' prn-nofoot')+'" style="--prn-z:'+z+'"');
+}
+function prnBuild(tool, html){ return opBuild(prnDoc(tool, html), !prnOpts(tool).fit); }
+function prnRun(kind){
+  const t=PRN_TOOLS[prnTool]; if(!t) return;
+  const fn=(kind==='image')?t.image:t.print; if(!fn) return;
+  closePrn();
+  fn();
 }
 
 /* ── 電卓だけにする（v388） ──
@@ -9401,8 +9358,53 @@ function changeNpad(delta){
    縦持ち：最小サイズよりさらに下へドラッグした分をビューポートの高さから
    差し引く（0になるとテンキーが消え、調整バーだけが残る）。 */
 function numpadIsLandscape(){
-  return window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  return window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches ||
+    document.body.classList.contains('np-side');
 }
+/* ── テンキーの置き場所（v399）──
+   auto＝横に広い画面（幅1000px以上で横長）だけ右に置く／bottom＝いつも下／side＝横長なら右。
+   スマホの横向き（高さ500px以下）は、もとから右に置く決まりなので触らない。 */
+const NP_PLACE_KEY='excalc_np_place';
+const NP_PLACES=[{id:'auto',n:'自動'},{id:'bottom',n:'下'},{id:'side',n:'右'}];
+let npPlace='auto';
+try{ const v=localStorage.getItem(NP_PLACE_KEY); if(NP_PLACES.some(m=>m.id===v)) npPlace=v; }catch(_){}
+function npSideWanted(){
+  if(window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches) return false;
+  const w=window.innerWidth, h=window.innerHeight;
+  if(npPlace==='bottom') return false;
+  if(npPlace==='side') return w>=640 && w>h;
+  return w>=1000 && w>=h*1.25;
+}
+function applyNpPlace(force){
+  const want=npSideWanted(), b=document.body;
+  if(!force && b.classList.contains('np-side')===want){ renderNpPlace(); return; }
+  b.classList.toggle('np-side', want);
+  if(typeof applyNumpadCollapse==='function') applyNumpadCollapse();
+  if(typeof updateNumpadEdgeBtn==='function') updateNumpadEdgeBtn();
+  if(typeof applyTopBtnShown==='function') applyTopBtnShown();
+  requestAnimationFrame(()=>{
+    if(typeof fitNumpadLabels==='function') fitNumpadLabels();
+    if(typeof autoFitSheet==='function') autoFitSheet();
+  });
+  renderNpPlace();
+}
+function setNpPlace(v){
+  if(!NP_PLACES.some(m=>m.id===v)) return;
+  npPlace=v; try{ localStorage.setItem(NP_PLACE_KEY, v); }catch(_){}
+  applyNpPlace(true);
+  toast(npSideWanted()?'テンキーを右に置きます':(v==='side'?'この画面は縦長なので、テンキーは下のままです':'テンキーを下に置きます'));
+}
+function renderNpPlace(){
+  const seg=document.getElementById('npPlaceSeg'); if(!seg) return;
+  if(seg.children.length!==NP_PLACES.length){
+    seg.innerHTML=NP_PLACES.map(m=>
+      '<button class="skin-seg-btn" data-np="'+m.id+'" onclick="setNpPlace(\''+m.id+'\')">'+m.n+'</button>').join('');
+  }
+  Array.from(seg.children).forEach(el=>el.classList.toggle('on', el.dataset.np===npPlace));
+  const nt=document.getElementById('npPlaceNow');
+  if(nt) nt.textContent=document.body.classList.contains('np-side')?'いまは「右」で出ています':'いまは「下」で出ています';
+}
+window.addEventListener('resize', ()=>applyNpPlace());   // 最初の1回は起動の終わりで（下の方の変数がそろってから）
 let numpadCollapsePx=Math.max(0, parseFloat(localStorage.getItem('excalc_numpad_collapse'))||0);
 function applyNumpadCollapse(){
   const vp=document.getElementById('numpadViewport'); if(!vp) return;
@@ -10405,7 +10407,7 @@ function vegDiaryHtml(){
 }
 async function vegDiaryPdf(){
   if(!vegDiaryCount(vegDiaryId)){ toast('日記がまだありません'); return; }
-  const built=opBuild(vegDiaryHtml(), true);      // 写真が小さくなりすぎないよう、縮めずに何ページかに分ける
+  const built=prnBuild('vegdiary', vegDiaryHtml());   // 既定は写真が小さくなりすぎないよう、縮めずに何ページかに分ける
   await opWaitImages(built.box);
   closeVegDiary();
   opPrint(built);
@@ -10414,7 +10416,7 @@ async function vegDiaryPdf(){
 async function vegDiaryImage(share){
   if(!vegDiaryCount(vegDiaryId)){ toast('日記がまだありません'); return; }
   const pl=vegPlots.find(x=>x.id===vegDiaryId);
-  const built=opBuild(vegDiaryHtml(), true);
+  const built=prnBuild('vegdiary', vegDiaryHtml());
   const blob=await opImage(built, `育成日記_${pl?pl.n:'野菜'}`, share);
   if(blob) closeVegDiary();
   return blob;
@@ -10870,7 +10872,7 @@ function vegPdfHtml(){
 }
 function vegPdf(){
   if(!vegSel || vegSowSerial===null){ toast('野菜を選んでください'); return; }
-  const built=opBuild(vegPdfHtml());
+  const built=prnBuild('veg', vegPdfHtml());
   closeVeggie();
   opPrint(built);
   return built.k;
@@ -10878,7 +10880,7 @@ function vegPdf(){
 /* 同じ中身を画像（PNG）で保存する。share=true なら端末の共有機能へ送る */
 async function vegImage(share){
   if(!vegSel || vegSowSerial===null){ toast('野菜を選んでください'); return; }
-  const built=opBuild(vegPdfHtml());
+  const built=prnBuild('veg', vegPdfHtml());
   const blob=await opImage(built, `育成計画_${vegSel.n}`, share);
   if(blob) closeVeggie();
   return blob;
@@ -13355,10 +13357,10 @@ function openKeyAssign(dataKey){
   const cur=keyAssign[dataKey]||'';
   const groups={};
   Object.entries(KEY_FUNCS).forEach(([id,f])=>{ (groups[f.g]=groups[f.g]||[]).push([id,f]); });
-  let html='';
+  let html=kaFindHtml();
   for(const g of ['標準キー','記号・関数','表の操作','設定・機能']){
     html+=`<div class="ka-sec">${g}</div><div class="ka-grid">`;
-    (groups[g]||[]).forEach(([id,f])=>{ html+=`<button class="ka-item${id===cur?' cur':''}" onclick="pickKeyAssign('${id}')">${escHtml(f.label)}</button>`; });
+    (groups[g]||[]).forEach(([id,f])=>{ html+=`<button class="ka-item${id===cur?' cur':''}" data-find="${escHtml(g+' '+(f.short||''))}" onclick="pickKeyAssign('${id}')">${escHtml(f.label)}</button>`; });
     html+='</div>';
   }
   html+='<button class="ka-reset" onclick="pickKeyAssign(null)">↺ 元のボタンに戻す</button>';
@@ -13367,6 +13369,29 @@ function openKeyAssign(dataKey){
   openDlg('keyAssignOverlay');
 }
 function closeKeyAssign(){ closeDlg('keyAssignOverlay'); }
+/* 機能の一覧（97種）をしぼる（v400）。長押しの割り当てと ▲登録 の「ボタンの機能から選ぶ」で共通 */
+function kaFindHtml(){
+  return '<input type="search" class="ka-find" placeholder="🔍 機能をさがす（例：合計・税・当番）" autocomplete="off"'+
+    ' oninput="kaFind(this)" onkeydown="event.stopPropagation()">';
+}
+function kaFind(inp){
+  const box=inp.parentElement, q=findNorm(inp.value), ws=findWords(inp.value);
+  let hit=0;
+  box.querySelectorAll('.ka-grid').forEach(g=>{
+    let n=0;
+    g.querySelectorAll('.ka-item').forEach(b=>{
+      const t=findNorm(b.textContent+' '+(b.dataset.find||''));
+      const ok=!q || ws.some(w=>w && t.includes(w));
+      b.style.display=ok?'':'none'; if(ok) n++;
+    });
+    g.style.display=n?'':'none';
+    const sec=g.previousElementSibling; if(sec && sec.classList.contains('ka-sec')) sec.style.display=n?'':'none';
+    hit+=n;
+  });
+  let none=box.querySelector('.ka-none');
+  if(!hit && q){ if(!none){ none=document.createElement('div'); none.className='ka-none'; none.textContent='見つかりませんでした'; inp.after(none); } }
+  else if(none) none.remove();
+}
 function pickKeyAssign(fid){
   if(!kaTargetKey) return;
   if(fid) keyAssign[kaTargetKey]=fid; else delete keyAssign[kaTargetKey];
@@ -14485,11 +14510,12 @@ function renderRegPickBody(){
   // テンキー長押しの割り当てと同じ機能一覧（KEY_FUNCS）をグループ表示
   const groups={};
   Object.entries(KEY_FUNCS).forEach(([id,f])=>{ (groups[f.g]=groups[f.g]||[]).push([id,f]); });
+  html+=kaFindHtml();
   for(const g of ['標準キー','記号・関数','表の操作','設定・機能']){
     html+=`<div class="ka-sec">${g}</div><div class="ka-grid">`;
     (groups[g]||[]).forEach(([id,f])=>{
       const active=(cur.type==='action'&&cur.value===id);
-      html+=`<button class="ka-item${active?' cur':''}" onclick="regPickAction('${id}')">${escHtml(f.label)}</button>`;
+      html+=`<button class="ka-item${active?' cur':''}" data-find="${escHtml(g+' '+(f.short||''))}" onclick="regPickAction('${id}')">${escHtml(f.label)}</button>`;
     });
     html+='</div>';
   }
@@ -14698,6 +14724,7 @@ function applyNumpad() {
   if (b) b.textContent = numpadHidden?'⌨ テンキー表示':'⌨ テンキー非表示';
   localStorage.setItem('excalc_numpad_hidden', numpadHidden?'1':'0');
   updateNumpadEdgeBtn();
+  if (typeof syncNumpadTopBtn==='function') syncNumpadTopBtn();
   if (!numpadHidden) fitNumpadLabels();
 }
 function toggleNumpad() { numpadHidden=!numpadHidden; applyNumpad(); closeSettingsPanel(); }
@@ -14710,6 +14737,11 @@ function updateNumpadEdgeBtn() {
   b.title = numpadHidden ? 'テンキーを元のサイズに戻す' : 'テンキーを閉じる（端まで収納）';
 }
 function toggleNumpadEdge() { numpadHidden=!numpadHidden; applyNumpad(); }
+function syncNumpadTopBtn(){
+  const t=document.getElementById('tbNumpad'); if(!t) return;
+  t.classList.toggle('on', !numpadHidden);
+  t.title=numpadHidden?'テンキーを出す':'テンキーを隠す';
+}
 window.addEventListener('resize', updateNumpadEdgeBtn);   // 画面の向きが変わったら矢印の向きも更新
 
 /* ── テンキーのボタン配置（ドラッグで自由に入れ替え） ──
@@ -15362,6 +15394,7 @@ function pushHistory(entries, op) {
   if(typeof markSaveDirty==='function') markSaveDirty();   // 記録に未保存の変更あり
 }
 function updateUndoBtn() {
+  if(typeof updateEmptyHint==='function') updateEmptyHint();
   const btn=document.getElementById('undoBtn');
   if (btn) btn.disabled=history.length===0;
 }
@@ -18645,13 +18678,13 @@ function tsxReportHtml(){
   return `<div class="op-doc" id="tsxRepBox">${html}</div>`;
 }
 function tsxPdf(){
-  const built=opBuild(tsxReportHtml());
+  const built=prnBuild('tsx', tsxReportHtml());
   closeTansui();
   opPrint(built);
   return built.k;
 }
 async function tsxImage(share){
-  const built=opBuild(tsxReportHtml());
+  const built=prnBuild('tsx', tsxReportHtml());
   const blob=await opImage(built, '単位水量試験', share);
   if(blob) closeTansui();
   return blob;
@@ -18832,7 +18865,7 @@ function ktCalc(){
     btn.disabled=false;
   } else {
     vEl.textContent='—'; jEl.textContent='—'; btn.disabled=true;
-    if(noTable) sEl.textContent='換算表がまだ登録されていません。「⚙換算表・設定」でお使いのカンタブの表を入れてください';
+    if(noTable) sEl.textContent='換算表がまだ登録されていません。「⚙設定」でお使いのカンタブの表を入れてください';
     else if(nRead===0) sEl.textContent='読み値を入れてください（①〜③のうち入れた分だけで平均します）';
     else if(nOut===nRead) sEl.textContent='読み値がどれも登録した換算表の範囲外です（表に行を足すか、読み値を確かめてください）';
     else sEl.textContent='単位水量を入れてください（換算表の値までは出ています）';
@@ -19846,9 +19879,14 @@ function closeSettingsPanel(){
    v299 で上のバーを4つに絞ったとき、この選択ごと無くしてしまっていた。
    「記録名・保存・↶・⋯」は常に出したまま、よく使うものだけを足せるようにする。
    既定はどれも出さない（今までと同じ見た目）。 */
-const TOPBTN_IDS={ redo:'tbRedo', list:'tbList', sheet:'tbSheet', settings:'tbSet', defsize:'tbDefsize', reset:'tbReset' };
+const TOPBTN_IDS={ redo:'tbRedo', list:'tbList', sheet:'tbSheet', settings:'tbSet', defsize:'tbDefsize', numpad:'tbNumpad', reset:'tbReset' };
 let topBtnShown={};
-function topBtnIsShown(k){ return !!topBtnShown[k]; }
+/* ⌨（テンキーを隠す・出す）は、決めていなければテンキーを右に置いているときだけ出す（v399）。
+   パソコンは物理キーで数字を打てるので、テンキーをしまいたい場面が多い */
+function topBtnIsShown(k){
+  if(k==='numpad' && !(k in topBtnShown)) return document.body.classList.contains('np-side');
+  return !!topBtnShown[k];
+}
 function loadTopBtnShown(){
   try{ topBtnShown=JSON.parse(localStorage.getItem('excalc_topbtn_shown')||'{}')||{}; }catch(_){ topBtnShown={}; }
 }
@@ -19863,7 +19901,7 @@ function applyTopBtnShown(){
 }
 function toggleTopBtn(k){
   if(!(k in TOPBTN_IDS)) return;
-  topBtnShown[k]=!topBtnIsShown(k);
+  topBtnShown[k]=!topBtnIsShown(k);   // 既定のまま（未決定）なら、いまの見え方の逆に決める
   try{ localStorage.setItem('excalc_topbtn_shown', JSON.stringify(topBtnShown)); }catch(_){}
   applyTopBtnShown();
 }
@@ -19938,13 +19976,23 @@ function openUndoList(){
   bindBackdropClose('undoListOverlay', closeUndoList);
 }
 function closeUndoList(){ closeDlg('undoListOverlay'); }
-function openMoreMenu(){ applyMoreAcc(); openDlg('moreMenuOverlay'); }
+function openMoreMenu(){ renderMoreTools(); applyMoreAcc(); openDlg('moreMenuOverlay'); }
+/* ⋯の「🧰道具」（v398）。NP_TOOLS から作るので、道具を足せば自動でここにも並ぶ */
+function renderMoreTools(){
+  const g=document.getElementById('moreToolsGrid'); if(!g) return;
+  const sp=l=>{ const m=/^(\p{Extended_Pictographic}\uFE0F?)(.*)$/u.exec(l); return m?[m[1],m[2]]:['🧰',l]; };
+  g.innerHTML=NP_TOOLS.map((t,i)=>{ const [ic,tx]=sp(t.label);
+    return '<button class="more-item" data-tool="'+t.id+'" onclick="moreDo(NP_TOOLS['+i+'].run)"'+
+      (t.ov?'':' title="別のタブで開きます"')+'><span>'+ic+'</span>'+escHtml(tx)+(t.ov?'':' ↗')+'</button>'; }).join('');
+  const sum=document.getElementById('moreToolsSum');
+  if(sum) sum.textContent=NP_TOOLS.map(t=>sp(t.label)[1]).slice(0,5).join('・')+' ほか 全'+NP_TOOLS.length+'つ';
+}
 function closeMoreMenu(){ closeDlg('moreMenuOverlay'); }
 /* メニューの項目：先に閉じてから実行する（設定など別の画面が開くものがあるため） */
 /* ⋯の畳んだところの開け閉けを覚える（v375） */
 function saveMoreAcc(el){ try{ localStorage.setItem('excalc_'+el.id, el.open?'1':'0'); }catch(_){} }
 function applyMoreAcc(){
-  ['moreAccOut','moreAccMisc'].forEach(id=>{
+  ['moreAccTools','moreAccOut','moreAccMisc'].forEach(id=>{
     const el=document.getElementById(id); if(!el) return;
     let v='0'; try{ v=localStorage.getItem('excalc_'+id)||'0'; }catch(_){}
     el.open=(v==='1');
@@ -19952,7 +20000,11 @@ function applyMoreAcc(){
 }
 function moreDo(fn){
   closeMoreMenu();
-  setTimeout(()=>{ try{ fn(); }catch(e){ if(typeof toast==='function') toast('うまく開けませんでした'); } }, 0);
+  // 閉じたすぐあと（同じ流れの中）で実行する。⋯を閉じた分の「戻る」と、次に開く画面の分が
+  // 打ち消し合って、履歴がそのまま使い回される（armBackGuard）。
+  // 以前は setTimeout で後回しにしていたため、⋯の分の history.back() が先に走り、
+  // 次の画面を閉じたときにもう1つ戻って、アプリの外（前のページ）へ出てしまっていた（v398で修正）。
+  try{ fn(); }catch(e){ if(typeof toast==='function') toast('うまく開けませんでした'); }
 }
 /* 「くわしい設定」の開閉を覚える（次に設定を開いたときも同じ状態にする） */
 function saveSetDetail(el){ try{ localStorage.setItem('excalc_set_detail', el.open?'1':'0'); }catch(_){} }
@@ -19969,6 +20021,100 @@ function applySetDetail(){
 /* 設定のタブ切替（表・見た目・計算）。開いたタブを記憶する */
 let settingsTab=0;
 const SETTINGS_TAB_MAX=2;
+/* ── 設定をさがす（v400）──
+   ひらがな・カタカナ・全角半角・大文字小文字の違いは気にせず探す。
+   設定の中の見出し・項目・ボタンに加え、⋯ や道具にあるものも拾う（そちらは開くだけ）。 */
+function findNorm(t){
+  return String(t||'').normalize('NFKC').toLowerCase()
+    .replace(/[\u30a1-\u30f6]/g, c=>String.fromCharCode(c.charCodeAt(0)-0x60))
+    .replace(/[\s・、。（）()「」]/g,'');
+}
+/* 言いかえ。左の言葉で探したら右の言葉でも探す */
+const FIND_SYN={ 'ダーク':'ナイトモード', '夜':'ナイトモード', '暗':'ナイトモード', 'くら':'ナイトモード',
+  'テーマ':'色', 'カラー':'色', '配色':'色', '壁紙':'背景', '写真':'背景', 'フォント':'文字', '字':'文字',
+  '大きく':'大きさ', '小さく':'大きさ', 'キーボード':'テンキー', '電卓':'電卓', 'パソコン':'置き場所', 'pc':'置き場所',
+  'ボタン':'ボタン', 'ヘルプ':'説明書', '使い方':'説明書', 'チュートリアル':'案内', '保存':'書き出す',
+  'エクセル':'excel', 'バックアップ':'書き出す', '消費税':'税', '端数':'小数', '四捨五入':'小数', '丸め':'小数',
+  /* ひらがなで打ったとき用（漢字の見出しに当てる） */
+  'よる':'ナイトモード', 'いろ':'色', 'はいけい':'背景', 'もじ':'文字', 'おおきさ':'大きさ', 'まるめ':'小数',
+  'ぜい':'税', 'けた':'桁', 'しょうすう':'小数', 'ひょう':'表', 'れつ':'列', 'ぎょう':'行', 'でんたく':'電卓',
+  'おきば':'置き場所', 'ばしょ':'場所', 'ごうけい':'合計', 'へいきん':'平均', 'とうばん':'当番', 'やさい':'野菜',
+  'あんない':'案内', 'せつめい':'説明書', 'つめ':'詰め', 'はば':'幅', 'よはく':'余白', 'きせかえ':'着せかえ' };
+/* 探す言葉（打った言葉＋言いかえ）。どれか1つに当たれば出す */
+function findWords(q){
+  const n=findNorm(q), w=[n];
+  if(!n) return [];
+  for(const k in FIND_SYN){ const nk=findNorm(k); if(n.includes(nk) || (nk.length>=2 && nk.startsWith(n))) w.push(findNorm(FIND_SYN[k])); }
+  return w;
+}
+function setFindIndex(){
+  const out=[];
+  const tabs=[...document.querySelectorAll('#settingsPanel .settings-tab')].map(b=>b.textContent.trim());
+  for(let p=0;p<=SETTINGS_TAB_MAX;p++){
+    const page=document.getElementById('setPage'+p); if(!page) continue;
+    let sec='', secEl=null, secText='';
+    const flush=()=>{ if(secEl) out.push({ tab:p, where:tabs[p], label:sec, el:secEl, text:secText }); };
+    page.querySelectorAll('.set-sec, .set-note, .set-row, .set-act, .topbtn-toggle, .skin-seg, .enterdir-seg, summary').forEach(el=>{
+      const t=el.textContent.replace(/\s+/g,' ').trim(); if(!t) return;
+      if(el.classList.contains('set-sec') || el.tagName==='SUMMARY'){
+        flush(); sec=(el.firstChild && el.firstChild.nodeType===3 ? el.firstChild.textContent : t).trim(); secEl=el; secText=t; return;
+      }
+      secText+=' '+t;
+      // 説明の文と、自動／下／右 のような選択肢の並びは、見出しの中身として探すだけにする
+      if(el.classList.contains('set-note') || el.classList.contains('skin-seg') || el.classList.contains('enterdir-seg')) return;
+      const le=el.classList.contains('set-row') ? (el.querySelector('.set-label')||el) : el;
+      const lb=((le.firstChild && le.firstChild.nodeType===3 && le.firstChild.textContent.trim()) ? le.firstChild.textContent : le.textContent)
+        .replace(/\s+/g,' ').trim();   // 下に小さく添えた説明は名前に含めない
+      out.push({ tab:p, where:tabs[p]+(sec?' › '+sec:''), label:lb, el, text:lb+' '+sec });
+    });
+    flush();
+  }
+  // 設定の外にあるもの
+  out.push({ where:'⋯', label:'🌙 ナイトモード', text:'ナイトモード 夜 ダーク 暗い', run:()=>toggleDark() });
+  out.push({ where:'⋯', label:'📖 説明書', text:'説明書 ヘルプ 使い方', run:()=>openHelp() });
+  out.push({ where:'⋯', label:'📤 書き出す・読み込む', text:'書き出す 読み込む PDF CSV Excel エクセル バックアップ',
+             run:()=>{ openMoreMenu(); const d=document.getElementById('moreAccOut'); if(d) d.open=true; } });
+  out.push({ where:'⋯', label:'🗂 シート', text:'シート タブ', run:()=>toggleSheetTabs() });
+  out.push({ where:'📋', label:'📦 端末の空き具合', text:'空き具合 容量 いっぱい 片づけ', run:()=>openStorage() });
+  NP_TOOLS.forEach(t=>out.push({ where:'🧰 道具', label:t.label, text:t.label+' 道具', run:t.run }));
+  return out;
+}
+let setFindHits=[];
+function setFind(q){
+  const res=document.getElementById('setFindRes'); if(!res) return;
+  const raw=String(q||'').trim();
+  if(!raw){ res.hidden=true; res.innerHTML=''; setFindHits=[]; return; }
+  const words=findWords(raw);
+  const seen=new Set();
+  setFindHits=setFindIndex().filter(x=>{
+    const t=findNorm(x.text+' '+x.label);
+    if(!words.some(w=>w && t.includes(w))) return false;
+    const key=x.where+'|'+x.label; if(seen.has(key)) return false; seen.add(key); return true;
+  }).map((x,i)=>{
+    // 名前そのものに当たったものを先に、説明の中だけで当たったものは後に
+    const l=findNorm(x.label);
+    x._s=(words.some(w=>w && l.includes(w))?0:2)+(x.el && x.el.classList.contains('set-sec')?0:1)+i/1000;
+    return x;
+  }).sort((a,b)=>a._s-b._s).slice(0,12);
+  res.hidden=false;
+  res.innerHTML=setFindHits.length
+    ? setFindHits.map((x,i)=>'<button class="set-find-hit" onclick="setFindGo('+i+')"><b>'+escHtml(x.label)+'</b><small>'+escHtml(x.where)+'</small></button>').join('')
+    : '<div class="set-find-none">見つかりませんでした。ちがう言い方でも探してみてください</div>';
+}
+function setFindGo(i){
+  const x=setFindHits[i]; if(!x) return;
+  const inp=document.getElementById('setFindIn'); if(inp){ inp.value=''; inp.blur(); }
+  setFind('');
+  if(x.run){ toggleSettings(); x.run(); return; }
+  setSettingsTab(x.tab);
+  // 畳んだ中にあれば開く
+  for(let d=x.el.parentElement; d; d=d.parentElement){ if(d.tagName==='DETAILS') d.open=true; }
+  requestAnimationFrame(()=>{
+    try{ x.el.scrollIntoView({block:'center', behavior:'smooth'}); }catch(_){ x.el.scrollIntoView(); }
+    x.el.classList.remove('set-flash'); void x.el.offsetWidth; x.el.classList.add('set-flash');
+    setTimeout(()=>x.el.classList.remove('set-flash'), 1800);
+  });
+}
 function setSettingsTab(i){
   i=Math.max(0, Math.min(SETTINGS_TAB_MAX, i));
   settingsTab=i;
@@ -19998,7 +20144,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v397';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v401';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -20010,11 +20156,44 @@ function renderHelpFuncTable(){
   rows.push('<tr><td><b>PI</b> / <b>E</b></td><td>円周率 / 自然対数の底（括弧なしで書きます）</td></tr>');
   tb.innerHTML=rows.join('');
 }
+/* 説明書の中身は help.js にある（v401）。はじめて開いたときに読み込む。
+   script タグで読むので、ファイルを直接開いたとき（file://）でも読める。 */
+let helpLoading=null;
+function loadHelp(){
+  const body=document.getElementById('helpBody');
+  if(!body) return Promise.resolve(false);
+  if(document.getElementById('helpVer')) return Promise.resolve(true);    // もう入っている
+  const fill=()=>{
+    if(typeof window.EXCALC_HELP_HTML!=='string') return false;
+    body.innerHTML=window.EXCALC_HELP_HTML;
+    return true;
+  };
+  if(fill()) return Promise.resolve(true);
+  if(helpLoading) return helpLoading;
+  helpLoading=new Promise(res=>{
+    const sc=document.createElement('script');
+    sc.src='help.js';
+    const fail=()=>{
+      helpLoading=null; sc.remove();      // 次に開いたときにもう一度読みにいく
+      body.innerHTML='<div class="help-loading">説明書を読み込めませんでした。<br>'+
+        'インターネットにつながるところで、一度アプリを開き直してください（そのあとは電波がなくても読めます）。</div>';
+      res(false);
+    };
+    sc.onload=()=>{ if(fill()){ helpLoading=null; res(true); } else fail(); };
+    sc.onerror=fail;
+    document.head.appendChild(sc);
+  });
+  return helpLoading;
+}
 function openHelp(){
-  renderHelpFuncTable();
-  const ver=document.getElementById('helpVer');
-  if(ver) ver.textContent='バージョン '+APP_VERSION;
   openDlg('helpOverlay');
+  return loadHelp().then(ok=>{
+    if(!ok) return false;
+    renderHelpFuncTable();
+    const ver=document.getElementById('helpVer');
+    if(ver) ver.textContent='バージョン '+APP_VERSION;
+    return true;
+  });
 }
 function closeHelp(){ closeDlg('helpOverlay'); }
 /* 説明書：クイックナビのチップから、その項目を開いてスクロール */
@@ -20977,7 +21156,9 @@ function updateRecordTitle(){
   const el=document.getElementById('recordTitle'); if(!el) return;
   const cur=(currentSaveId!=null)?getSaves().find(s=>s.id===currentSaveId):null;
   const st=saveStateInfo();
-  el.textContent=(cur?'📄 '+cur.name:'📄 未保存')+' '+st.mark;
+  // 記録を開いていないときも、いまの表は端末に残っている。「未保存」と出すと
+  // 消えそうに見えるので「自動保存」と出す（v398）
+  el.textContent=(cur?'📄 '+cur.name:'📄 自動保存')+' '+st.mark;
   el.title=st.text+'／タップでリストを開く';
   el.classList.remove('dirty','nobackup','saved');
   el.classList.add(st.cls);
@@ -21975,7 +22156,9 @@ applySetDetail();    // 「くわしい設定」の開閉を復元
 applySetKeypadAcc(); // その中の「テンキーを自分好みにする」の開閉を復元（既定は閉じたまま）
 a11yInit();          // 読み上げ・キーボード操作の下ごしらえ（見た目は変えない）
 { const dd=document.getElementById('defDateFmt'); if(dd) dd.value=defaultDateFmt; }   // 日付の既定表示形式を復元
-saveDirty=false; updateRecordTitle();   // 起動直後は「📄 未保存」（記録は開いていない）
+saveDirty=false; updateRecordTitle();   // 起動直後は「📄 自動保存」（記録は開いていない）
+setTimeout(updateEmptyHint, 0);           // 起動直後の表が空なら手がかりを出す（v398）
+applyNpPlace(true);                        // テンキーの置き場所（v399）
 if(localStorage.getItem('excalc_trigmode')==='rad') trigMode='rad';
 applyTrigModeBtn();
 restoreSheetSizes();
