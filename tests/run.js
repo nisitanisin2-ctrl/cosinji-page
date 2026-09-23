@@ -6042,23 +6042,9 @@ async function runBrush1(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── ブラッシュアップ第1弾 ──');
 
-  // 空の表の手がかり
-  check('  空の表に手がかりが出る', await page.evaluate(() =>
-    !document.getElementById('emptyHint').hidden), true);
-  check('  手がかりは押しても邪魔しない', await page.evaluate(() =>
-    getComputedStyle(document.getElementById('emptyHint')).pointerEvents), 'none');
-  await page.click('#c0_0'); await page.keyboard.type('5'); await page.keyboard.press('Enter');
-  await page.waitForTimeout(300);
-  check('  入れると消える', await page.evaluate(() =>
-    document.getElementById('emptyHint').hidden), true);
-  await page.evaluate(() => undoLast()); await page.waitForTimeout(300);
-  check('  戻して空になるとまた出る', await page.evaluate(() =>
-    !document.getElementById('emptyHint').hidden), true);
-  await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(400);
-  check('  電卓のときは出ない', await page.evaluate(() =>
-    getComputedStyle(document.getElementById('emptyHint')).display === 'none' ||
-    document.getElementById('emptyHint').offsetParent === null), true);
-  await page.evaluate(() => switchMode('normal')); await page.waitForTimeout(400);
+  // 空の表の手がかり（v398 で足したが、v403 でやめた）
+  check('  空の表に手がかりは出さない', await page.evaluate(() =>
+    !document.getElementById('emptyHint') && typeof updateEmptyHint), 'undefined');
 
   // 自動保存の表示
   check('  記録を開いていないときは「自動保存」', await page.evaluate(() =>
@@ -6452,6 +6438,68 @@ async function runBackKey(browser) {
   await c2.close();
 }
 
+async function runTbColor(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 当番表の色（v403） ──');
+  await page.evaluate(() => { localStorage.setItem('excalc_touban', JSON.stringify({ title: '当番', sub: '', year: 2026, half: 'H1',
+    cfg: { days: [2, 5], holiday: 'shift', skipNY: true }, roster: [{ name: '佐藤' }], assign: { '2026-04-07': 1 }, start: 1 })); });
+  await page.reload(); await page.waitForTimeout(900);
+  await page.evaluate(() => openTouban()); await page.waitForTimeout(400);
+  const bg = k => page.evaluate(k => { const e = document.querySelector('#tbMonths .tb-cell[data-d="' + k + '"]');
+    return e ? getComputedStyle(e).backgroundColor : '-'; }, k);
+  const def = { wd: await bg('2026-04-08'), sat: await bg('2026-04-11') };
+  check('  はじめはもとの色', await page.evaluate(() => Object.values(touban.col).join('')), '');
+  await page.evaluate(() => openTbSet()); await page.waitForTimeout(400);
+  check('  設定に色の節がある', await page.evaluate(() =>
+    document.querySelectorAll('#tbColBox .tbc-row').length), 5);
+  check('  はじめは畳んである', await page.evaluate(() => document.getElementById('tbColAcc').open), false);
+  check('  見本の色と、ほかの色をえらぶ所がある', await page.evaluate(() => {
+    const r = document.querySelector('#tbColBox .tbc-row');
+    return r.querySelectorAll('.tbc-sw button').length + '/' + !!r.querySelector('input[type=color]'); }), (1 + 13) + '/true');
+  await page.evaluate(() => { tbSetCol('bg', '#fff8e1'); tbSetCol('duty', '#c8e6c9'); tbSetCol('sat', '#e3f2fd');
+    tbSetCol('sun', '#fce4ec'); tbSetCol('hol', '#ffe0b2'); });
+  await page.waitForTimeout(200);
+  check('  えらんだ色が印になる', await page.evaluate(() =>
+    document.querySelector('#tbColBox [data-col=bg] .tbc-sw button.on').style.background.replace(/\s/g, '')), 'rgb(255,248,225)');
+  check('  畳んだ見出しにも、変えた色が出る', await page.evaluate(() =>
+    document.getElementById('tbColSum').textContent.includes('当番の日')), true);
+  await page.evaluate(() => closeTbSet()); await page.waitForTimeout(400);
+  check('  平日のマス', await bg('2026-04-08'), 'rgb(255, 248, 225)');
+  check('  当番の日', await bg('2026-04-07'), 'rgb(200, 230, 201)');
+  check('  土曜', await bg('2026-04-11'), 'rgb(227, 242, 253)');
+  check('  日曜', await bg('2026-04-12'), 'rgb(252, 228, 236)');
+  check('  祝日（平日）', await bg('2026-04-29'), 'rgb(255, 224, 178)');
+  check('  日曜の祝日も祝日の色', await bg('2026-05-03'), 'rgb(255, 224, 178)');
+  check('  空きマスは塗らない', await page.evaluate(() =>
+    getComputedStyle(document.querySelector('#tbMonths .tb-cell.blank')).backgroundColor), 'rgba(0, 0, 0, 0)');
+  const pr = await page.evaluate(() => { const b = opBuild(tbPrintHtml());
+    const g = sel => { const e = document.querySelector('#printArea ' + sel); return e ? getComputedStyle(e).backgroundColor : '-'; };
+    const r = { duty: g('.tp-duty'), sat: g('.tp-sat'), sun: g('.tp-sun'), hol: g('.tp-hol'), x: g('.tp-x'),
+      wd: g('.tp-c:not(.tp-x):not(.tp-sun):not(.tp-sat):not(.tp-hol):not(.tp-duty)') };
+    b.meas.remove(); document.getElementById('printArea').innerHTML = ''; return r; });
+  check('  紙にも同じ色（当番の日）', pr.duty, 'rgb(200, 230, 201)');
+  check('  紙にも同じ色（土・日・祝）', [pr.sat, pr.sun, pr.hol].join('|'), 'rgb(227, 242, 253)|rgb(252, 228, 236)|rgb(255, 224, 178)');
+  check('  紙にも同じ色（平日）', pr.wd, 'rgb(255, 248, 225)');
+  check('  紙の空きマスは白のまま', pr.x, 'rgba(0, 0, 0, 0)');
+  await page.evaluate(() => tbSetCol('duty', '#1a237e')); await page.waitForTimeout(200);
+  check('  暗い色では名前を白い字に', await page.evaluate(() =>
+    getComputedStyle(document.querySelector('#tbMonths .tb-cell.duty .tb-nm')).color), 'rgb(255, 255, 255)');
+  await page.evaluate(() => tbSetCol('duty', 'red; background:url(x)')); await page.waitForTimeout(100);
+  check('  色でないものは受け付けない', await page.evaluate(() => touban.col.duty), '');
+  await page.reload(); await page.waitForTimeout(900);
+  await page.evaluate(() => openTouban()); await page.waitForTimeout(400);
+  check('  開き直しても覚えている', await page.evaluate(() => touban.col.bg + '/' + touban.col.sat), '#fff8e1/#e3f2fd');
+  await page.evaluate(() => { openTbSet(); tbColReset(); }); await page.waitForTimeout(300);
+  await page.evaluate(() => { const b = [...document.querySelectorAll('div[style*="99999"] button')].find(x => x.textContent === 'OK'); if (b) b.click(); });
+  await page.waitForTimeout(400);
+  await page.evaluate(() => closeTbSet()); await page.waitForTimeout(400);
+  check('  もとに戻すと全部もとの色', await page.evaluate(() => Object.values(touban.col).join('')), '');
+  check('  画面ももとの色', [await bg('2026-04-08'), await bg('2026-04-11')].join('|'), [def.wd, def.sat].join('|'));
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -6495,6 +6543,7 @@ async function runBackKey(browser) {
     if (!only || only === 'cellfocus') await runCellFocus(browser);
     if (!only || only === 'kaikei') await runKaikei(browser);
     if (!only || only === 'touban') await runTouban(browser);
+    if (!only || only === 'tbcolor') await runTbColor(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
     if (!only || only === 'brush3') await runBrush3(browser);

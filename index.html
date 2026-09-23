@@ -312,6 +312,41 @@ body.skin-keys .numpad-overlay {
 .tb-cell.d6 { background: rgba(30,136,229,.10); }
 .tb-cell.blank { background: transparent; }
 .tb-cell.today { box-shadow: inset 0 0 0 2px var(--acc); }
+/* 選んだ色（v403）。平日 < 土・日 < 祝日 < 当番の日 の順に上書きする。
+   夜は地の色に薄く混ぜて、明るすぎないようにする */
+#toubanOverlay.tbc-has-bg .tb-cell:not(.blank) { background: var(--tbc-bg); }
+#toubanOverlay.tbc-has-sat .tb-cell.d6:not(.blank) { background: var(--tbc-sat); }
+#toubanOverlay.tbc-has-sun .tb-cell.d0:not(.blank) { background: var(--tbc-sun); }
+#toubanOverlay.tbc-has-hol .tb-cell.hol:not(.blank) { background: var(--tbc-hol); }
+#toubanOverlay.tbc-has-duty .tb-cell.duty:not(.blank) { background: var(--tbc-duty); }
+/* 暗い色を選んだマスは字を白に（昼だけ。夜は地に薄く混ぜるので、ふだんの字の色のまま読める） */
+body:not(.dark) #toubanOverlay.tbc-has-bg .tb-cell:not(.blank):not(.d0):not(.d6):not(.hol):not(.duty) .tb-dn,
+body:not(.dark) #toubanOverlay.tbc-has-bg .tb-cell:not(.blank):not(.d0):not(.d6):not(.hol):not(.duty) .tb-nm { color: var(--tbc-bg-ink); }
+body:not(.dark) #toubanOverlay.tbc-has-duty .tb-cell.duty .tb-nm { color: var(--tbc-duty-ink); }
+body.dark #toubanOverlay.tbc-has-bg .tb-cell:not(.blank) { background: color-mix(in srgb, var(--tbc-bg) 22%, var(--cell-bg)); }
+body.dark #toubanOverlay.tbc-has-sat .tb-cell.d6:not(.blank) { background: color-mix(in srgb, var(--tbc-sat) 30%, var(--cell-bg)); }
+body.dark #toubanOverlay.tbc-has-sun .tb-cell.d0:not(.blank) { background: color-mix(in srgb, var(--tbc-sun) 30%, var(--cell-bg)); }
+body.dark #toubanOverlay.tbc-has-hol .tb-cell.hol:not(.blank) { background: color-mix(in srgb, var(--tbc-hol) 30%, var(--cell-bg)); }
+body.dark #toubanOverlay.tbc-has-duty .tb-cell.duty:not(.blank) { background: color-mix(in srgb, var(--tbc-duty) 34%, var(--cell-bg)); }
+/* 色えらび（設定の中） */
+.tbc-acc { margin: 10px 0 4px; }
+.tbc-row { padding: 8px 10px; border: 1px solid var(--save-item-border); border-radius: var(--r-btn);
+  background: var(--save-item-bg); margin-bottom: 6px; }
+.tbc-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.tbc-top b { font-size: 14px; }
+.tbc-top small { font-size: 11px; color: var(--text-light); flex: 1; min-width: 0; }
+.tbc-now { width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--save-item-border); flex: none; }
+.tbc-now.def { background: repeating-linear-gradient(45deg, transparent 0 4px, rgba(0,0,0,.08) 4px 8px); }
+.tbc-sw { display: flex; flex-wrap: wrap; gap: 6px; }
+.tbc-sw button, .tbc-sw label {
+  width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgba(0,0,0,.18); cursor: pointer;
+  padding: 0; position: relative; flex: none;
+}
+.tbc-sw button.on { box-shadow: 0 0 0 3px var(--acc); }
+.tbc-sw .tbc-def { background: var(--cell-bg); font-size: 10px; font-weight: bold; color: var(--text-light); }
+.tbc-sw label { display: flex; align-items: center; justify-content: center; font-size: 15px;
+  background: conic-gradient(#f44336, #ffeb3b, #4caf50, #03a9f4, #9c27b0, #f44336); }
+.tbc-sw label input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
 .tb-dn { font-size: 13px; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.15; }
 .tb-cell.d0 .tb-dn, .tb-cell.hol .tb-dn { color: var(--danger); }
 .tb-cell.d6 .tb-dn { color: var(--info); }
@@ -660,20 +695,6 @@ body.np-side.numpad-compact .numpad-grid .btn { font-size: 0 !important; }
 .prn-go { display: flex; gap: 8px; margin-top: 10px; }
 .prn-go > * { flex: 1; margin: 0; }
 #tbPrOpen small { display: block; font-weight: normal; font-size: 11px; color: var(--text-light); margin-top: 2px; }
-/* 空の表の手がかり（v398） */
-.sheet-wrap { position: relative; }
-.empty-hint {
-  position: absolute; left: var(--eh-x, 50%); top: 40%; transform: translate(-50%, -50%);
-  width: min(84%, 330px); text-align: center; pointer-events: none; z-index: 1;
-  color: var(--text-light); padding: 12px 14px; border-radius: 12px;
-  background: color-mix(in srgb, var(--sheet-bg, #fff) 92%, transparent);
-  box-shadow: 0 1px 6px rgba(0,0,0,.08); border: 1px dashed var(--cell-border, #ccc);
-}
-.empty-hint[hidden] { display: none; }
-.empty-hint .eh-big { font-size: 17px; font-weight: bold; margin-bottom: 6px; }
-.empty-hint .eh-sub { font-size: 12.5px; line-height: 1.6; }
-.empty-hint b { color: var(--acc); }
-body.dark .empty-hint b { color: var(--acc-on-dark); }
 .more-grid.more-tools { grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .more-tools .more-item { padding: 9px 8px; font-size: 13px; gap: 6px; }
 .more-tools .more-item span { font-size: 16px; }
@@ -3285,6 +3306,14 @@ body.dark .tsx-res-val.ng   { color: #ff8a80; }
 #printArea .tp-doc .tp-c { height: calc(34px * var(--tp-k, 1)); vertical-align: top; border: 1px solid #bfbfbf; padding: 1px 1px 2px; text-align: center; }
 #printArea .tp-doc .tp-sun { background: #f8cbac; }
 #printArea .tp-doc .tp-sat { background: #bed7ee; }
+/* 選んだ色（v403）。平日 < 土・日 < 祝日 < 当番の日 の順に上書きする。空きマスは白のまま */
+#printArea .tp-doc.tpc-has-bg .tp-c:not(.tp-x) { background: var(--tpc-bg); }
+#printArea .tp-doc.tpc-has-sat .tp-sat:not(.tp-x) { background: var(--tpc-sat); }
+#printArea .tp-doc.tpc-has-sun .tp-sun:not(.tp-x) { background: var(--tpc-sun); }
+#printArea .tp-doc.tpc-has-hol .tp-hol:not(.tp-x) { background: var(--tpc-hol); }
+#printArea .tp-doc.tpc-has-duty .tp-duty:not(.tp-x) { background: var(--tpc-duty); }
+#printArea .tp-doc.tpc-has-bg .tp-c:not(.tp-x):not(.tp-sun):not(.tp-sat):not(.tp-hol):not(.tp-duty) .tp-nm { color: var(--tpc-bg-ink); }
+#printArea .tp-doc.tpc-has-duty .tp-duty .tp-nm { color: var(--tpc-duty-ink); }
 #printArea .tp-doc .tp-dn { font-size: calc(10px * var(--tp-k, 1)); line-height: 1.1; }
 #printArea .tp-doc .tp-r { color: #ff0000; }
 #printArea .tp-doc .tp-bl { color: #0070c0; }
@@ -3691,11 +3720,6 @@ body.dark {
 
 <div class="sheet-wrap">
   <table class="sheet" id="sheet" role="grid" aria-label="表"></table>
-  <!-- 表がまっさらなときだけ出す手がかり（v398）。何か入れると消える。押しても何も起きない -->
-  <div class="empty-hint" id="emptyHint" hidden aria-hidden="true">
-    <div class="eh-big">数字を入れて <b>Enter</b></div>
-    <div class="eh-sub">下の <b>Σ合計</b> で縦に足し算できます<br>見積もり・割り勘などは <b>⋯ → 🎯用途から始める</b></div>
-  </div>
 </div>
 
 <!-- 電卓モードの画面。body.dentaku-mode のときだけ表のかわりに出る（テンキーはそのまま使う） -->
@@ -5268,6 +5292,12 @@ body.dark {
       <button class="set-act" onclick="tbAssign('half')">📆 いま見ている半年だけ</button>
       <button class="set-act" onclick="tbClearHalf()">🧹 いま見ている半年の番号を消す</button>
 
+      <details class="more-acc tbc-acc" id="tbColAcc">
+        <summary>🎨 色<small id="tbColSum">平日・当番の日・土曜・日曜・祝日（画面にも紙にも同じ色で出ます）</small></summary>
+        <div id="tbColBox" style="margin-top:8px"></div>
+        <button class="set-act" onclick="tbColReset()">↩ 色をぜんぶもとに戻す</button>
+      </details>
+
       <div class="set-sec">印刷のしかた</div>
       <button class="set-act" id="tbPrOpen" onclick="openPrn('touban')">🖨 印刷のしかた<small id="tbPrSum"></small></button>
 
@@ -6186,34 +6216,7 @@ function recalcAll() {
         if (el) setCellDisp(el, r,c);
       }
   autoFitSheet();
-  updateEmptyHint();
 }
-/* ── 空の表の手がかり（v398）──
-   はじめて開いた人は、まっさらなマス目だけでは何をすればよいか分からない。
-   ふつうの表で、どのセルも空のときだけ薄く出す。1つでも入れば消える。 */
-function sheetIsEmpty(){
-  if(typeof data==='undefined' || !data) return false;
-  for(let r=0;r<ROWS;r++){ const row=data[r]; if(!row) continue;
-    for(let c=0;c<COLS;c++){ const v=row[c]; if(v!==''&&v!=null) return false; } }
-  return true;
-}
-let emptyHintRaf=0;
-function updateEmptyHint(){
-  if(emptyHintRaf) return;
-  emptyHintRaf=requestAnimationFrame(()=>{
-    emptyHintRaf=0;
-    const el=document.getElementById('emptyHint'); if(!el) return;
-    const show=(typeof tableMode==='undefined' || tableMode==='normal') &&
-      !document.body.classList.contains('dentaku-mode') && sheetIsEmpty();
-    el.hidden=!show;
-    if(show){   // 広い画面では表が左に寄るので、表のまん中に置く
-      const t=document.getElementById('sheet');
-      if(t && t.style.width) el.style.setProperty('--eh-x', Math.round(t.offsetWidth/2+24)+'px');
-      else el.style.removeProperty('--eh-x');
-    }
-  });
-}
-
 /* ── セル結合 ──
    結合情報は cellStyles に持たせる（保存・モード切替に自動で同梱される）。
    ・左上(アンカー)セル: cellStyles["r,c"].merge = {rs, cs}（行数・列数）
@@ -6333,7 +6336,6 @@ function buildSheet() {
   }
   if (isStructMode()) recalcMode();
   autoFitSheet();
-  if(typeof updateEmptyHint==="function") updateEmptyHint();
 }
 
 /* ── セル自動フィット ──
@@ -8134,6 +8136,11 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v403', t:'当番表の色をえらべるように', li:[
+    '📅当番表の ⚙設定 に<b>「色」</b>を足しました。<b>平日のマス・当番の日・土曜・日曜・祝日</b>の色を選べます。画面にも紙にも同じ色で出ます',
+    '13色から選ぶほか、🎨で好きな色も選べます。「元」でもとの色に戻ります。暗い色を選んだときは、名前を白い字で出します',
+    '表がまっさらなときに出していた手がかりの表示はやめました',
+  ]},
   { v:'v402', t:'スマホの「戻る」でいきなり閉じないように', li:[
     '<b>🧾会計アプリ</b>と<b>📄メモ</b>は、新しいタブではなく<b>同じ画面で開く</b>ようにしました。「戻る」で表電卓に帰ってこられます（表の中身は自動保存されています）',
     '会計アプリの中でも「戻る」が効くようにしました。入力の窓は窓だけを閉じ、出納帳・集計・決算などの画面からは記帳に戻ります',
@@ -8315,7 +8322,21 @@ const TB_PSIZE=[{n:'小',k:0.85},{n:'ふつう',k:1},{n:'大',k:1.15},{n:'特大
 let touban={ title:'当番表', sub:'', year:0, half:'H1',
              cfg:{ days:[2,5], holiday:'shift', skipNY:true },
              roster:[], assign:{}, start:1,
-             pr:{ k:1, fit:true, foot:true, sub:true, hol:true } };
+             pr:{ k:1, fit:true, foot:true, sub:true, hol:true },
+             col:{ bg:'', duty:'', sat:'', sun:'', hol:'' } };   // 空＝もとの色（v403）
+/* ── 当番表の色（v403）──
+   平日のマス・当番の日・土曜・日曜・祝日の色を選べる。画面にも紙にも同じ色を使う。
+   空のときはもとの色（画面は薄い赤・青、紙はオレンジ・水色）のまま。 */
+const TB_COLS=[
+  { k:'bg',   n:'平日のマス',  hint:'カレンダーの地の色' },
+  { k:'duty', n:'当番の日',    hint:'当番が入る日のマス' },
+  { k:'sat',  n:'土曜',        hint:'' },
+  { k:'sun',  n:'日曜',        hint:'' },
+  { k:'hol',  n:'祝日',        hint:'日曜と同じにしたいときも、ここで選ぶ' },
+];
+const TB_SWATCH=['#ffffff','#fff8e1','#fff59d','#ffe0b2','#f8cbac','#fce4ec','#f3e5f5',
+                 '#e3f2fd','#bed7ee','#e0f7fa','#e8f5e9','#c8e6c9','#eeeeee'];
+const TB_COL_RE=/^#[0-9a-f]{6}$/i;
 
 /* ── 日づけの道具 ── */
 const tbP2=n=>String(n).padStart(2,'0');
@@ -8383,6 +8404,9 @@ function loadTouban(){
     if(Array.isArray(o.roster)) touban.roster=o.roster.map(m=>({name:String((m&&m.name)||'')}));
     if(o.assign && typeof o.assign==='object') touban.assign=Object.assign({},o.assign);
     if(Number.isFinite(o.start)) touban.start=Math.max(1,o.start);
+    if(o.col && typeof o.col==='object'){
+      TB_COLS.forEach(c=>{ const v=o.col[c.k]; touban.col[c.k]=(typeof v==='string' && TB_COL_RE.test(v))?v.toLowerCase():''; });
+    }
     if(o.pr && typeof o.pr==='object'){
       const n=parseInt(o.pr.k,10);
       touban.pr={ k:(!isNaN(n)&&n>=0&&n<TB_PSIZE.length)?n:1,
@@ -8444,7 +8468,33 @@ function closeTbSet(){ closeDlg('tbSetOverlay', ()=>renderTouban()); }
 
 /* ── 画面を作る ── */
 let tbDutySet=new Set();
+/* 暗い色を選んだときは、そのマスの字を白にする */
+function tbInk(hex){
+  const h=hex.replace('#',''), c=[0,2,4].map(i=>parseInt(h.substr(i,2),16)/255)
+    .map(v=>v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4));
+  return (0.2126*c[0]+0.7152*c[1]+0.0722*c[2])<0.2 ? '#ffffff' : '#111111';
+}
+/* 選んだ色を、画面（#toubanOverlay）と紙（.tp-doc）に付ける印と変数にする */
+function tbColVars(prefix){
+  const st=[], cls=[];
+  TB_COLS.forEach(c=>{
+    const v=touban.col[c.k]; if(!v) return;
+    st.push('--'+prefix+'-'+c.k+':'+v, '--'+prefix+'-'+c.k+'-ink:'+tbInk(v));
+    cls.push(prefix+'-has-'+c.k);
+  });
+  return { style:st.join(';'), cls:cls.join(' ') };
+}
+function tbApplyColors(){
+  const ov=document.getElementById('toubanOverlay'); if(!ov) return;
+  TB_COLS.forEach(c=>{
+    const v=touban.col[c.k];
+    ov.classList.toggle('tbc-has-'+c.k, !!v);
+    if(v){ ov.style.setProperty('--tbc-'+c.k, v); ov.style.setProperty('--tbc-'+c.k+'-ink', tbInk(v)); }
+    else { ov.style.removeProperty('--tbc-'+c.k); ov.style.removeProperty('--tbc-'+c.k+'-ink'); }
+  });
+}
 function renderTouban(){
+  tbApplyColors();
   tbDutySet=new Set(tbDutyDates());
   const t=document.getElementById('tbTitle'), sb=document.getElementById('tbSub');
   if(t && document.activeElement!==t) t.value=touban.title;
@@ -8559,7 +8609,40 @@ function tbChangeStart(d){
   if(n<1 || n>Math.max(1,touban.roster.length)) return;
   touban.start=n; saveTouban(); renderTbSet();
 }
+function renderTbColors(){
+  const sum=document.getElementById('tbColSum');
+  if(sum){
+    const set=TB_COLS.filter(c=>touban.col[c.k]).map(c=>c.n);
+    sum.textContent=set.length?('変えた色：'+set.join('・')):'平日・当番の日・土曜・日曜・祝日（画面にも紙にも同じ色で出ます）';
+  }
+  const box=document.getElementById('tbColBox'); if(!box) return;
+  box.innerHTML=TB_COLS.map(c=>{
+    const v=touban.col[c.k];
+    return '<div class="tbc-row" data-col="'+c.k+'"><div class="tbc-top">'+
+      '<span class="tbc-now'+(v?'':' def')+'"'+(v?' style="background:'+v+'"':'')+'></span>'+
+      '<b>'+c.n+'</b><small>'+(v?v:'もとの色')+(c.hint?'　'+c.hint:'')+'</small></div>'+
+      '<div class="tbc-sw">'+
+      '<button class="tbc-def'+(v?'':' on')+'" onclick="tbSetCol(\''+c.k+'\',\'\')" title="もとの色" aria-label="'+c.n+'をもとの色に">元</button>'+
+      TB_SWATCH.map(h=>'<button class="'+(v===h?'on':'')+'" style="background:'+h+'" onclick="tbSetCol(\''+c.k+'\',\''+h+'\')" aria-label="'+c.n+'を'+h+'に"></button>').join('')+
+      '<label title="ほかの色をえらぶ" aria-label="'+c.n+'をほかの色に">🎨<input type="color" value="'+(v||'#ffffff')+'" onchange="tbSetCol(\''+c.k+'\',this.value)"></label>'+
+      '</div></div>';
+  }).join('');
+}
+function tbSetCol(k, v){
+  if(!TB_COLS.some(c=>c.k===k)) return;
+  v=String(v||'').toLowerCase();
+  touban.col[k]=TB_COL_RE.test(v)?v:'';
+  saveTouban(); renderTbColors(); renderTouban();
+}
+async function tbColReset(){
+  if(!TB_COLS.some(c=>touban.col[c.k])){ toast('もとの色のままです'); return; }
+  if(!await appConfirm('当番表の色を、ぜんぶもとの色に戻しますか？')) return;
+  TB_COLS.forEach(c=>{ touban.col[c.k]=''; });
+  saveTouban(); renderTbColors(); renderTouban();
+  toast('色をもとに戻しました');
+}
 function renderTbSet(){
+  renderTbColors();
   const y=document.getElementById('tbYearVal'); if(y) y.textContent=touban.year;
   const era=document.getElementById('tbEra');
   if(era) era.textContent='令和'+(touban.year-2018)+'年度（'+touban.year+'年4月〜'+(touban.year+1)+'年3月）';
@@ -8657,24 +8740,26 @@ async function tbClearHalf(){
 }
 
 /* ── 印刷（半年ぶんを1枚に）── */
+let tbPrDuty=new Set();
 function tbPrintHtml(){
+  tbPrDuty=new Set(tbDutyDates());
   let months='';
   for(const ym of tbMonths()){
     const y=ym[0], m=ym[1];
     const first=tbMk(y,m,1), last=tbMk(y,m+1,0);
     const cells=[];
-    for(let i=0;i<first.getDay();i++) cells.push('<td class="tp-c"></td>');
+    for(let i=0;i<first.getDay();i++) cells.push('<td class="tp-c tp-x"></td>');
     for(let day=1; day<=last.getDate(); day++){
       const d=tbMk(y,m,day), k=tbIso(d), hn=tbHolName(d), no=touban.assign[k], w=d.getDay();
       const nm=(no!=null)?tbNameOf(no):null;
-      const bg=(w===0)?' tp-sun':((w===6)?' tp-sat':'');
+      const bg=((w===0)?' tp-sun':((w===6)?' tp-sat':''))+(hn?' tp-hol':'')+(tbPrDuty.has(k)?' tp-duty':'');
       const dcl=(w===0||hn)?' tp-r':(w===6?' tp-bl':'');
       cells.push('<td class="tp-c'+bg+'">'+
         '<div class="tp-dn'+dcl+'">'+day+'</div>'+
         ((hn && touban.pr.hol)?'<div class="tp-hn">'+escHtml(hn)+'</div>':'')+
         '<div class="tp-nm">'+((no!=null)?escHtml(nm||('番号'+no)):'')+'</div></td>');
     }
-    while(cells.length%7) cells.push('<td class="tp-c"></td>');
+    while(cells.length%7) cells.push('<td class="tp-c tp-x"></td>');
     let rows='';
     for(let i=0;i<cells.length;i+=7) rows+='<tr>'+cells.slice(i,i+7).join('')+'</tr>';
     months+='<div class="tp-m"><div class="tp-mh">'+m+'月</div>'+
@@ -8684,7 +8769,8 @@ function tbPrintHtml(){
   }
   const r=tbHalfRange(), a=tbParse(r[0]), b=tbParse(r[1]), n=new Date();
   const k=(TB_PSIZE[touban.pr.k]||TB_PSIZE[1]).k;
-  return '<div class="op-doc tp-doc" style="--tp-k:'+k+'">'+
+  const cv=tbColVars('tpc');
+  return '<div class="op-doc tp-doc '+cv.cls+'" style="--tp-k:'+k+(cv.style?';'+cv.style:'')+'">'+
     '<div class="tp-title">'+escHtml(touban.title||'当番表')+'</div>'+
     ((touban.sub && touban.pr.sub)?'<div class="tp-sub">'+escHtml(touban.sub)+'</div>':'')+
     '<div class="tp-range">'+a.getFullYear()+'年'+(a.getMonth()+1)+'月 〜 '+b.getFullYear()+'年'+(b.getMonth()+1)+'月</div>'+
@@ -15451,7 +15537,6 @@ function pushHistory(entries, op) {
   if(typeof markSaveDirty==='function') markSaveDirty();   // 記録に未保存の変更あり
 }
 function updateUndoBtn() {
-  if(typeof updateEmptyHint==='function') updateEmptyHint();
   const btn=document.getElementById('undoBtn');
   if (btn) btn.disabled=history.length===0;
 }
@@ -20201,7 +20286,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v402';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v403';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -22214,7 +22299,6 @@ applySetKeypadAcc(); // その中の「テンキーを自分好みにする」�
 a11yInit();          // 読み上げ・キーボード操作の下ごしらえ（見た目は変えない）
 { const dd=document.getElementById('defDateFmt'); if(dd) dd.value=defaultDateFmt; }   // 日付の既定表示形式を復元
 saveDirty=false; updateRecordTitle();   // 起動直後は「📄 自動保存」（記録は開いていない）
-setTimeout(updateEmptyHint, 0);           // 起動直後の表が空なら手がかりを出す（v398）
 applyNpPlace(true);                        // テンキーの置き場所（v399）
 if(localStorage.getItem('excalc_trigmode')==='rad') trigMode='rad';
 applyTrigModeBtn();
