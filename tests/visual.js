@@ -63,6 +63,8 @@ const SCREENS = [
       assign: { '2026-04-07': 1, '2026-04-10': 2 },
       col: { bg: '#fff8e1', duty: '#c8e6c9', sat: '#e3f2fd', sun: '#fce4ec', hol: '#ffe0b2' } })) },
     act: p => p.evaluate(() => openTouban()) },
+  /* テンキーの左の書式・枠線のページ（v407 で Excel の形に） */
+  { name: 'fmt-page', vp: PHONE, act: p => p.evaluate(() => numpadPager.go('fmt')) },
 ];
 
 async function shoot(browser, sc) {

@@ -3703,7 +3703,7 @@ async function runExport(browser) {
   // ── ⋯メニューの整理（v375） ──
   await page.evaluate(() => openMoreMenu()); await page.waitForTimeout(400);
   check('  項目の数は変わっていない（道具の一覧を除く）', await page.evaluate(() =>
-    document.querySelectorAll('#moreMenuOverlay .more-item:not(#moreToolsGrid .more-item)').length), 17);
+    document.querySelectorAll('#moreMenuOverlay .more-item:not(#moreToolsGrid .more-item)').length), 18);   // v408 で 📱QRで共有 を足した
   check('  はじめは畳んである', await page.evaluate(() =>
     document.getElementById('moreAccOut').open + '/' + document.getElementById('moreAccMisc').open),
     'false/false');
@@ -3716,7 +3716,7 @@ async function runExport(browser) {
     '🖨PDF/📄CSV出力/📊Excel出力/📥CSV読込/📥Excel読込');
   check('  そのほかも畳んだ中', await page.evaluate(() =>
     [...document.querySelectorAll('#moreAccMisc .more-item')].map(x => x.textContent.trim()).join('/')),
-    '🗂シート/▦既定の大きさ/📖説明書');
+    '🗂シート/▦既定の大きさ/📖説明書/📱QRで共有');
   check('  スクロールしなくても収まる', await page.evaluate(() => {
     const b = document.querySelector('#moreMenuOverlay .modal-body');
     return b.scrollHeight <= b.clientHeight + 1; }), true);
@@ -6630,6 +6630,129 @@ async function runTbSave(browser) {
   await ctx.close();
 }
 
+async function runFmtPage(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, acceptDownloads: true });
+  const page = await ctx.newPage();
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto(INDEX); await page.waitForTimeout(300);
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.reload(); await page.waitForTimeout(900);
+  console.log('\n── 書式・枠線のページ（v407） ──');
+  await page.evaluate(() => numpadPager.go('fmt')); await page.waitForTimeout(500);
+  const key = k => '#numpadPageFmt [data-key=' + k + ']';
+  const on = k => page.evaluate(k => document.querySelector('#numpadPageFmt [data-key=' + k + ']').classList.contains('kf-on'), k);
+  check('  6列にした', await page.evaluate(() =>
+    getComputedStyle(document.getElementById('numpadPageFmt')).gridTemplateColumns.split(' ').length), 6);
+  check('  ボタンは白い地（明るい）', await page.evaluate(() =>
+    getComputedStyle(document.querySelector('#numpadPageFmt [data-key=kf_bold]')).backgroundColor), 'rgb(255, 255, 255)');
+  check('  Excel と同じ B・I・U・ab が並ぶ', await page.evaluate(() =>
+    ['kf_bold', 'kf_italic', 'kf_under', 'kf_strike'].map(k => document.querySelector('#numpadPageFmt [data-key=' + k + ']').textContent.trim()).join(' ')), 'B I U ab');
+  check('  揃え（左・中央・右／上・中・下）・結合・書式のコピーがある', await page.evaluate(() =>
+    ['kf_left', 'kf_center', 'kf_right', 'kf_vtop', 'kf_vmid', 'kf_vbot', 'kf_merge', 'kf_paint']
+      .every(k => { const b = document.querySelector('#numpadPageFmt [data-key=' + k + ']'); return b && b.title; })), true);
+  check('  ボタンが重ならずに並ぶ', await page.evaluate(() => {
+    const r = [...document.querySelectorAll('#numpadPageFmt > .btn, #numpadPageFmt > .kf-vcol')].map(e => e.getBoundingClientRect());
+    for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++) {
+      const a = r[i], b = r[j];
+      if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) return false; }
+    return true; }), true);
+  // 結合して中央揃え
+  await page.evaluate(() => { setCellVal(0, 0, '見出し'); sel(0, 0); rangeR1 = 0; rangeC1 = 0; rangeR2 = 0; rangeC2 = 2; });
+  await page.click(key('kf_merge')); await page.waitForTimeout(400);
+  check('  範囲を選んで結合できる', await page.evaluate(() =>
+    JSON.stringify(mergeAt(0, 0)) + '/' + document.getElementById('c0_0').colSpan + '/' + cellStyles['0,0'].align), '{"rs":1,"cs":3}/3/center');
+  check('  結合したセルでは結合ボタンが灰色', await on('kf_merge'), true);
+  await page.click(key('kf_merge')); await page.waitForTimeout(400);
+  check('  もう一度押すと解除', await page.evaluate(() => mergeAt(0, 0) + '/' + document.getElementById('c0_0').colSpan), 'null/1');
+  await page.evaluate(() => undoLast()); await page.waitForTimeout(300);
+  check('  戻るで結合した形に戻る', await page.evaluate(() => JSON.stringify(mergeAt(0, 0))), '{"rs":1,"cs":3}');
+  await page.evaluate(() => undoLast()); await page.waitForTimeout(300);
+  check('  もう一度戻ると結合前', await page.evaluate(() => mergeAt(0, 0)), null);
+  await page.evaluate(() => { clearRangeSelection(); sel(5, 0); });
+  await page.click(key('kf_merge')); await page.waitForTimeout(300);
+  check('  1つだけ選んで押しても何も起きない', await page.evaluate(() => mergeAt(5, 0)), null);
+  await page.evaluate(() => { setCellVal(1, 0, 'a'); setCellVal(1, 1, 'b'); sel(1, 0); rangeR1 = 1; rangeC1 = 0; rangeR2 = 1; rangeC2 = 1; });
+  await page.click(key('kf_merge')); await page.waitForTimeout(300);
+  check('  値が消えるときは先に聞く', await page.evaluate(() => {
+    const ov = document.querySelector('div[style*="99999"]'); return !!ov && ov.textContent.includes('左上のセルの値だけ'); }), true);
+  await page.evaluate(() => { const b = [...document.querySelectorAll('div[style*="99999"] button')].find(x => x.textContent === 'やめる'); if (b) b.click(); });
+  await page.waitForTimeout(300);
+  check('  やめたら結合しない', await page.evaluate(() => mergeAt(1, 0) + '/' + data[1][1]), 'null/b');
+  // 取り消し線・今の状態の印
+  await page.evaluate(() => { clearRangeSelection(); setCellVal(2, 0, 'x'); sel(2, 0); });
+  await page.click(key('kf_strike')); await page.click(key('kf_bold')); await page.waitForTimeout(300);
+  check('  取り消し線が付く', await page.evaluate(() => getComputedStyle(document.getElementById('c2_0')).textDecorationLine), 'line-through');
+  check('  付いている書式のボタンが灰色（Excel と同じ）', [await on('kf_strike'), await on('kf_bold'), await on('kf_italic')].join(','), 'true,true,false');
+  await page.evaluate(() => sel(3, 0)); await page.waitForTimeout(100);
+  check('  別のセルに移ると印も変わる', await on('kf_bold'), false);
+  // 上下の揃え
+  await page.evaluate(() => sel(2, 0)); await page.click(key('kf_vmid')); await page.waitForTimeout(200);
+  check('  上下中央揃え', await page.evaluate(() => getComputedStyle(document.getElementById('c2_0')).verticalAlign), 'middle');
+  // 書式のコピー/貼り付け
+  await page.click(key('kf_paint')); await page.waitForTimeout(100);
+  check('  1回目で書式を写す', await on('kf_paint'), true);
+  await page.evaluate(() => sel(4, 1)); await page.click(key('kf_paint')); await page.waitForTimeout(300);
+  check('  2回目で貼る', await page.evaluate(() => JSON.stringify(cellStyles['4,1'])), '{"strike":true,"bold":true,"valign":"middle"}');
+  // Excel の読み書き（取り消し線）
+  check('  Excel の取り消し線を読める', await page.evaluate(() => {
+    const st = parseXlsxStyles('<styleSheet><fonts count="2"><font><sz val="11"/></font><font><strike/><sz val="11"/></font></fonts>' +
+      '<fills count="1"><fill><patternFill patternType="none"/></fill></fills><borders count="1"><border/></borders>' +
+      '<cellXfs count="2"><xf fontId="0"/><xf fontId="1" applyFont="1"/></cellXfs></styleSheet>');
+    const s1 = st.styleForIdx(1); return !!(s1 && s1.strike); }), true);
+  const dl = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.evaluate(() => exportXLSX())]).then(a => a[0]).catch(() => null);
+  if (dl) {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fmt-'));
+    const f = path.join(tmp, 'o.xlsx'); await dl.saveAs(f);
+    const { readZipEntry } = require('./zip.js');
+    check('  Excel に書き出すと取り消し線が付く', String(readZipEntry(f, 'xl/styles.xml')).includes('<strike/>'), true);
+    fs.rmSync(tmp, { recursive: true, force: true });
+  } else check('  Excel に書き出すと取り消し線が付く', 'ダウンロードされず', true);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
+/* QR コード（v408）。見本の並びは、実際の読み取り器（zxing-cpp）で読めることを確かめたもの */
+const QR_GOLDEN = { text: 'https://example.com/hyo/', version: 2, mask: 1,
+  rows: '1111111011100010001111111100000100011011010100000110111010111111001010111011011101001010110001011101101110100011001000101110110000010100000100010000011111111010101010101111111000000000011101110000000010100011010110101001001011110110001111101011101011101101101001100101001110110010101000110101001010001110001001110001101100001001111011000010110110001111000010101101111110011010010000110000000110111000111111100101100011111001000000000101011101000100011111111011001110101010001100000100111101110001000010111010010010011111100101011101001000100010010110101110101101000111011101110000010011110111111100001111111010101010101001001' };
+async function runQrShare(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── アプリを QR コードで共有（v408） ──');
+  const g = await page.evaluate(t => { const q = qrEncode(t, 'M');
+    return { v: q.version, m: q.mask, rows: q.modules.map(r => r.map(x => x ? 1 : 0).join('')).join('') }; }, QR_GOLDEN.text);
+  check('  QR の型番', g.v, QR_GOLDEN.version);
+  check('  QR のマスク', g.m, QR_GOLDEN.mask);
+  check('  QR のマス目が、読み取れると確かめた見本と同じ', g.rows === QR_GOLDEN.rows, true);
+  check('  長いアドレスでも大きな型番で作れる（segno と同じ型番）', await page.evaluate(() => qrEncode('https://example.com/' + 'x'.repeat(300), 'M').version), 13);
+  check('  日本語のアドレスも作れる', await page.evaluate(() => !!qrEncode('https://例え.jp/表電卓/', 'M')), true);
+  check('  入りきらないときは null', await page.evaluate(() => qrEncode('x'.repeat(3000), 'M')), null);
+  // 画面
+  await page.evaluate(() => { openMoreMenu(); document.getElementById('moreAccMisc').open = true; }); await page.waitForTimeout(300);
+  await page.click('#moreAccMisc .more-item[onclick*=openQrShare]'); await page.waitForTimeout(500);
+  check('  ⋯ のそのほかから開く', await page.evaluate(() => isDlgOpen('qrShareOverlay')), true);
+  check('  表電卓のアドレスを出す（index.html は付けない）', await page.evaluate(() =>
+    document.getElementById('qrUrl').textContent.endsWith('/') && !/index\.html/.test(document.getElementById('qrUrl').textContent)), true);
+  check('  ファイルで開いているときは、ほかのスマホでは開けないと知らせる', await page.evaluate(() =>
+    !document.getElementById('qrWarn').hidden), true);
+  check('  QR が描かれる（白い地の上に黒いマス）', await page.evaluate(() => {
+    const cv = document.getElementById('qrCanvas'), cx = cv.getContext('2d');
+    const d = cx.getImageData(0, 0, cv.width, cv.height).data; let dark = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i] < 50) dark++;
+    return cv.width > 200 && d[0] === 255 && dark > 1000; }), true);
+  await page.evaluate(() => qrSetWhich('kaikei')); await page.waitForTimeout(200);
+  check('  会計アプリにも切りかえられる', await page.evaluate(() => document.getElementById('qrUrl').textContent.endsWith('/kaikei/')), true);
+  check('  アドレスのコピー・画像で保存がある', await page.evaluate(() =>
+    typeof qrCopyUrl === 'function' && typeof qrSaveImage === 'function'), true);
+  await page.evaluate(() => closeQrShare()); await page.waitForTimeout(400);
+  check('  登録キーにもある', await page.evaluate(() => !!KEY_FUNCS.a_qrshare), true);
+  await page.evaluate(() => toggleSettings()); await page.waitForTimeout(300);
+  await page.fill('#setFindIn', 'QR'); await page.waitForTimeout(150);
+  check('  設定のさがす欄で見つかる', await page.evaluate(() => setFindHits.some(x => x.label.includes('QR'))), true);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -6676,6 +6799,8 @@ async function runTbSave(browser) {
     if (!only || only === 'tbcolor') await runTbColor(browser);
     if (!only || only === 'tbroster') await runTbRoster(browser);
     if (!only || only === 'tbsave') await runTbSave(browser);
+    if (!only || only === 'fmtpage') await runFmtPage(browser);
+    if (!only || only === 'qrshare') await runQrShare(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
     if (!only || only === 'brush3') await runBrush3(browser);
