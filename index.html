@@ -365,6 +365,22 @@ body.dark #toubanOverlay.tbc-has-duty .tb-cell.has:not(.blank) { background: col
 .tb-nm.bad { color: var(--danger); font-size: 10px; }
 .tb-rlist { list-style: none; margin: 0; padding: 0; }
 .tb-addbar { display: flex; gap: 6px; margin: 2px 0 4px; }
+/* 当番表の保存（v406） */
+.tb-savebtn.dirty::after { content: '●'; color: #ffd23f; font-size: 10px; margin-left: 3px; vertical-align: top; }
+.tbs-state { font-size: 13px; line-height: 1.6; padding: 8px 10px; margin-bottom: 8px;
+  border-radius: var(--r-btn); background: var(--acc-weak); color: var(--text); }
+.tbs-warn { color: var(--danger); font-weight: bold; }
+.tbs-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.tbs-btn { flex: 1; min-height: 44px; border-radius: var(--r-btn); border: 1px solid var(--save-item-border);
+  background: var(--save-item-bg); color: var(--text); font-size: 14px; font-weight: bold; cursor: pointer; }
+.tbs-btn.main { background: var(--acc); border-color: var(--acc); color: var(--on-acc); }
+.tbs-btn:disabled { opacity: .4; cursor: default; }
+.tbs-item { display: flex; align-items: center; gap: 4px; padding: 4px 0; border-bottom: 1px solid var(--save-item-border); }
+.tbs-item.cur { background: var(--acc-weak); border-radius: 6px; }
+.tbs-open { flex: 1; min-width: 0; min-height: 44px; text-align: left; background: none; border: none; padding: 4px 6px;
+  color: var(--text); cursor: pointer; font: inherit; }
+.tbs-open b { display: block; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tbs-open small { display: block; font-size: 11px; color: var(--text-light); }
 .tb-addin {
   flex: 1; min-width: 0; min-height: 44px; padding: 8px 12px; font-size: 16px; box-sizing: border-box;
   border: 2px solid var(--acc); border-radius: var(--r-btn); background: var(--cell-bg); color: var(--text);
@@ -5230,6 +5246,7 @@ body.dark {
     <div class="modal-header">
       <span id="toubanHdr">📅 当番表</span>
       <span class="hdr-right">
+        <button class="hdr-btn tb-savebtn" id="tbSaveBtn" onclick="openTbSaves()" title="保存・一覧">💾 保存</button>
         <button class="hdr-btn" onclick="openTbSet()" title="名簿・当番の日・割り当て・印刷のしかた">⚙ 設定</button>
         <button class="hdr-btn" onclick="tbPrint()">🖨 印刷</button>
         <button class="modal-close" onclick="closeTouban()">✕</button>
@@ -5273,6 +5290,35 @@ body.dark {
         <button class="vol-insert veg-pdf-btn" id="prnPrintBtn" onclick="prnRun('print')">🖨 印刷・PDF</button>
         <button class="vol-insert veg-pdf-btn" id="prnImageBtn" onclick="prnRun('image')">🖼 画像で保存</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 当番表の保存（v406） -->
+<div class="modal-overlay" id="tbSaveOverlay" onclick="if(event.target===this)closeTbSaves()">
+  <div class="modal vol-modal">
+    <div class="modal-header">
+      <span>💾 当番表の保存</span>
+      <button class="modal-close" onclick="closeTbSaves()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="tbs-state" id="tbSaveState"></div>
+      <div class="tbs-row">
+        <button class="tbs-btn main" id="tbSaveOver" onclick="tbSaveOver()">💾 上書き保存</button>
+        <button class="tbs-btn" onclick="tbSaveAs()">📝 名前を付けて保存</button>
+      </div>
+      <button class="set-act" onclick="tbNewTouban()">📄 新しい当番表をつくる</button>
+      <div class="set-sec">保存した当番表<small id="tbSaveCount"></small></div>
+      <div id="tbSaveList"></div>
+      <div class="set-sec">ファイル</div>
+      <div class="tbs-row">
+        <button class="tbs-btn" onclick="tbExportFile()">⬇ 書き出す</button>
+        <button class="tbs-btn" onclick="document.getElementById('tbImportIn').click()">⬆ 読み込む</button>
+      </div>
+      <input type="file" id="tbImportIn" accept=".json,application/json" style="display:none" onchange="tbImportFile(event)">
+      <div class="set-note">当番表は書きかえるたびに<b>自動で残っています</b>（アプリを閉じても消えません）。
+        <b>名前を付けて保存</b>すると、いくつもの当番表を持っておけて、あとで<b>押すだけで開き直せます</b>。
+        <b>⬇ 書き出す</b>でファイルにすれば、機種変えやほかの人のスマホにも持っていけます（読み込むと、この一覧に足されます）。</div>
     </div>
   </div>
 </div>
@@ -8162,6 +8208,12 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v406', t:'当番表の保存', li:[
+    '📅当番表の上の帯に<b>💾 保存</b>を足しました。<b>名前を付けて保存</b>すると、いくつもの当番表（ごみ当番・掃除当番・来年度の分など）を持っておけて、<b>押すだけで開き直せます</b>',
+    '<b>上書き保存・名前の変更・コピー・消す・新しい当番表をつくる</b>ができます。保存していない変更があると 💾 に<b>●</b>が付き、切りかえる前に聞きます',
+    '<b>⬇ 書き出す／⬆ 読み込む</b>で、当番表をファイルにして機種変えやほかの人のスマホに持っていけます',
+    '📋リストの<b>⬇書き出し</b>（全体のバックアップ）にも当番表が入るようになりました',
+  ]},
   { v:'v405', t:'当番表の名簿を入れやすく', li:[
     '📅当番表の ⚙設定 で、<b>名簿をいちばん上</b>に移しました',
     '名簿の上に<b>名前の欄</b>を置きました。名前を入れて <b>Enter</b> で足せて、そのまま続けて次の人を入れられます',
@@ -8425,6 +8477,10 @@ function tbHolName(d){ return tbHolidays(d.getFullYear())[tbIso(d)]||''; }
 function loadTouban(){
   let o=null;
   try{ o=JSON.parse(localStorage.getItem(TB_KEY)||'null'); }catch(_){}
+  tbApplyObj(o);
+}
+/* 中身（保存したもの・ファイルから読んだもの）を、確かめながら当てはめる */
+function tbApplyObj(o){
   if(!touban.year) touban.year=tbThisFiscalYear();
   if(o && typeof o==='object'){
     if(typeof o.title==='string') touban.title=o.title;
@@ -8455,8 +8511,217 @@ function loadTouban(){
   }
 }
 function saveTouban(){
-  try{ localStorage.setItem(TB_KEY, JSON.stringify(touban)); return true; }
+  try{ localStorage.setItem(TB_KEY, JSON.stringify(touban)); }
   catch(_){ saveFailed('当番表の保存'); return false; }
+  if(typeof tbSyncSaveMark==='function') tbSyncSaveMark();
+  return true;
+}
+
+/* ── 当番表の保存（v406）──────────────────────────────────
+   いま開いている当番表は、書きかえるたびに excalc_touban に自動で残る（前からのしくみ）。
+   それとは別に「名前を付けて保存」すると、いくつもの当番表（ごみ当番・掃除当番・来年度の分…）を
+   持っておき、あとで開き直せる。置き場所は excalc_touban_saves（この端末の中）。
+   ファイルに書き出せば、機種変えやほかの人のスマホにも持っていける。 */
+const TB_SAVES_KEY='excalc_touban_saves';
+const TB_CUR_KEY='excalc_touban_cur';      // いま開いている保存の id（まだ保存していなければ無し）
+const TB_SAVES_MAX=100;
+function tbDefaults(){
+  const m=new Date().getMonth()+1;
+  return { title:'当番表', sub:'', year:tbThisFiscalYear(), half:(m>=4&&m<=9)?'H1':'H2',
+           cfg:{ days:[2,5], holiday:'shift', skipNY:true }, roster:[], assign:{}, start:1,
+           pr:{ k:1, fit:true, foot:true, sub:true, hol:true },
+           col:{ bg:'', duty:'', sat:'', sun:'', hol:'' } };
+}
+/* 中身をまるごと入れかえる（開く・新しくする・読み込む） */
+function tbReplaceWith(o){
+  const d=tbDefaults();
+  Object.keys(touban).forEach(k=>{ delete touban[k]; });
+  Object.assign(touban, d);
+  tbApplyObj(o||null);
+  if(!o) touban.half=d.half;
+}
+function tbSnapJson(){ return JSON.stringify(touban); }
+function tbGetSaves(){
+  try{ const a=JSON.parse(localStorage.getItem(TB_SAVES_KEY)||'[]'); return Array.isArray(a)?a.filter(x=>x&&x.id&&x.data):[]; }
+  catch(_){ return []; }
+}
+function tbPutSaves(a){
+  try{ localStorage.setItem(TB_SAVES_KEY, JSON.stringify(a)); return true; }
+  catch(_){ saveFailed('当番表の保存'); return false; }
+}
+function tbCurId(){ try{ return localStorage.getItem(TB_CUR_KEY)||''; }catch(_){ return ''; } }
+function tbSetCurId(id){ try{ if(id) localStorage.setItem(TB_CUR_KEY, id); else localStorage.removeItem(TB_CUR_KEY); }catch(_){} }
+function tbCurSave(){ const id=tbCurId(); return id ? tbGetSaves().find(x=>x.id===id)||null : null; }
+/* 保存していない変更があるか */
+function tbDirty(){
+  const cur=tbCurSave();
+  if(cur) return JSON.stringify(cur.data)!==tbSnapJson();
+  return tbHasContent();
+}
+function tbHasContent(){
+  return touban.roster.length>0 || Object.keys(touban.assign).length>0 || (touban.sub||'')!=='' || touban.title!=='当番表';
+}
+/* 上の帯の 💾 に、保存していない変更の印（●）を付ける */
+function tbSyncSaveMark(){
+  const b=document.getElementById('tbSaveBtn'); if(!b) return;
+  const d=tbDirty(), cur=tbCurSave();
+  b.classList.toggle('dirty', d);
+  b.title=cur ? ('「'+cur.name+'」'+(d?'：保存していない変更があります':'：保存済み')) : (d?'まだ名前を付けて保存していません':'保存・一覧');
+  if(isDlgOpen('tbSaveOverlay')) renderTbSaves();
+}
+function tbFmtAt(t){ const d=new Date(t); return (d.getMonth()+1)+'/'+d.getDate()+' '+d.getHours()+':'+String(d.getMinutes()).padStart(2,'0'); }
+function openTbSaves(){ renderTbSaves(); openDlg('tbSaveOverlay'); }
+function closeTbSaves(){ closeDlg('tbSaveOverlay'); }
+function renderTbSaves(){
+  const cur=tbCurSave(), d=tbDirty(), list=tbGetSaves();
+  const st=document.getElementById('tbSaveState');
+  if(st){
+    st.innerHTML=cur
+      ? ('いま開いている：<b>'+escHtml(cur.name)+'</b><br>'+(d?'<span class="tbs-warn">● 保存していない変更があります</span>':'✓ 保存済み（'+tbFmtAt(cur.at)+'）'))
+      : ('いま開いている当番表は<b>まだ名前を付けて保存していません</b>'+(tbHasContent()?'':'（空）'));
+  }
+  const ow=document.getElementById('tbSaveOver'); if(ow) ow.disabled=!cur;
+  const box=document.getElementById('tbSaveList'); if(!box) return;
+  const cnt=document.getElementById('tbSaveCount'); if(cnt) cnt.textContent=list.length?('　'+list.length+'件'):'';
+  if(!list.length){ box.innerHTML='<div class="tb-empty">保存した当番表はまだありません。上の<b>📝 名前を付けて保存</b>で残せます。</div>'; return; }
+  box.innerHTML=list.map(x=>{
+    const dd=x.data||{}, n=Array.isArray(dd.roster)?dd.roster.length:0;
+    const isCur=cur && cur.id===x.id;
+    return '<div class="tbs-item'+(isCur?' cur':'')+'" data-id="'+escHtml(x.id)+'">'+
+      '<button class="tbs-open" onclick="tbOpenSave(\''+escHtml(x.id)+'\')">'+
+        '<b>'+(isCur?'📂 ':'📄 ')+escHtml(x.name)+'</b>'+
+        '<small>'+(dd.year?dd.year+'年度・':'')+n+'人・保存 '+tbFmtAt(x.at)+'</small></button>'+
+      '<button class="tb-rmini" onclick="tbRenameSave(\''+escHtml(x.id)+'\')" title="名前を変える" aria-label="名前を変える">✏</button>'+
+      '<button class="tb-rmini" onclick="tbCopySave(\''+escHtml(x.id)+'\')" title="コピーを作る" aria-label="コピーを作る">⧉</button>'+
+      '<button class="tb-rmini" onclick="tbDeleteSave(\''+escHtml(x.id)+'\')" title="消す" aria-label="消す">🗑</button>'+
+      '</div>';
+  }).join('');
+}
+function tbNewId(){ return 'tb'+Date.now().toString(36)+Math.floor(Math.random()*1e6).toString(36); }
+function tbSaveOver(){
+  const cur=tbCurSave();
+  if(!cur){ tbSaveAs(); return; }
+  const list=tbGetSaves(), i=list.findIndex(x=>x.id===cur.id);
+  list[i]={ ...list[i], data:JSON.parse(tbSnapJson()), at:Date.now() };
+  if(!tbPutSaves(list)) return;
+  tbSyncSaveMark(); renderTbSaves();
+  toast('「'+cur.name+'」に上書き保存しました');
+}
+async function tbSaveAs(){
+  const list=tbGetSaves();
+  if(list.length>=TB_SAVES_MAX){ toast('保存できるのは'+TB_SAVES_MAX+'件までです。いらないものを消してください'); return; }
+  const def=(touban.title||'当番表')+'（'+touban.year+'年度）';
+  let name=await appPrompt('保存する名前', def);
+  if(name==null) return;
+  name=String(name).trim().slice(0,40) || def;
+  const id=tbNewId();
+  list.unshift({ id, name, at:Date.now(), data:JSON.parse(tbSnapJson()) });
+  if(!tbPutSaves(list)) return;
+  tbSetCurId(id);
+  tbSyncSaveMark(); renderTbSaves();
+  toast('「'+name+'」として保存しました');
+}
+/* 開く・新しくする前に、保存していない変更があれば聞く */
+async function tbOkToLeave(){
+  if(!tbDirty()) return true;
+  const cur=tbCurSave();
+  return await appConfirm((cur?'「'+cur.name+'」に':'いまの当番表に')+'保存していない変更があります。\n保存しないで切りかえますか',
+    '切りかえる','やめる');
+}
+async function tbOpenSave(id){
+  const x=tbGetSaves().find(s=>s.id===id); if(!x) return;
+  if(tbCurId()===id && !tbDirty()){ closeTbSaves(); return; }
+  if(!await tbOkToLeave()) return;
+  tbReplaceWith(x.data);
+  tbSetCurId(id); saveTouban();
+  closeTbSaves(); renderTouban();
+  toast('「'+x.name+'」を開きました');
+}
+async function tbNewTouban(){
+  if(!await tbOkToLeave()) return;
+  tbReplaceWith(null);
+  tbSetCurId(''); saveTouban();
+  closeTbSaves(); renderTouban();
+  toast('新しい当番表にしました。まずは ⚙設定 で名簿を入れてください');
+}
+async function tbRenameSave(id){
+  const list=tbGetSaves(), x=list.find(s=>s.id===id); if(!x) return;
+  const v=await appPrompt('新しい名前', x.name);
+  if(v==null) return;
+  const name=String(v).trim().slice(0,40); if(!name) return;
+  x.name=name; tbPutSaves(list); renderTbSaves(); tbSyncSaveMark();
+}
+function tbCopySave(id){
+  const list=tbGetSaves(), x=list.find(s=>s.id===id); if(!x) return;
+  if(list.length>=TB_SAVES_MAX){ toast('保存できるのは'+TB_SAVES_MAX+'件までです'); return; }
+  const i=list.indexOf(x);
+  list.splice(i+1, 0, { id:tbNewId(), name:(x.name+' のコピー').slice(0,40), at:Date.now(), data:JSON.parse(JSON.stringify(x.data)) });
+  tbPutSaves(list); renderTbSaves();
+  toast('コピーを作りました');
+}
+async function tbDeleteSave(id){
+  const list=tbGetSaves(), x=list.find(s=>s.id===id); if(!x) return;
+  if(!await appConfirm('「'+x.name+'」を消します。よろしいですか\n（いま画面に出ている当番表は消えません）','消す','やめる')) return;
+  tbPutSaves(list.filter(s=>s.id!==id));
+  if(tbCurId()===id) tbSetCurId('');
+  renderTbSaves(); tbSyncSaveMark();
+  toast('消しました');
+}
+/* 全体のバックアップに入れる分・戻す分 */
+function tbBundle(){
+  let cur=null; try{ cur=JSON.parse(localStorage.getItem(TB_KEY)||'null'); }catch(_){}
+  return { cur, saves:tbGetSaves() };
+}
+function tbBundleHas(b){ return !!(b && ((b.saves&&b.saves.length) || (b.cur && Array.isArray(b.cur.roster) && b.cur.roster.length))); }
+function tbRestoreBundle(b){
+  if(!tbBundleHas(b)) return 0;
+  const list=tbGetSaves(), have=new Set(list.map(x=>x.id));
+  let n=0;
+  (b.saves||[]).forEach(x=>{ if(x && x.data && !have.has(x.id)){ list.push({ id:x.id||tbNewId(), name:String(x.name||'当番表').slice(0,40), at:x.at||Date.now(), data:x.data }); n++; } });
+  // いまの当番表は、保存の一覧に「読み込んだ当番表」として足す（いまの分は置きかえない）
+  if(b.cur && Array.isArray(b.cur.roster) && b.cur.roster.length){
+    list.unshift({ id:tbNewId(), name:String((b.cur.title||'当番表')+'（読み込み）').slice(0,40), at:Date.now(), data:b.cur }); n++;
+  }
+  tbPutSaves(list.slice(0, TB_SAVES_MAX));
+  return n;
+}
+/* ファイルに書き出す（いま開いている当番表1つ） */
+function tbExportFile(){
+  const cur=tbCurSave();
+  const name=cur?cur.name:(touban.title||'当番表');
+  const payload={ app:'hyodenki', type:'touban', version:1, exportedAt:Date.now(), name, data:JSON.parse(tbSnapJson()) };
+  const blob=new Blob([JSON.stringify(payload)],{type:'application/json;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const safe=String(name).replace(/[\\/:*?"<>|]/g,'_');
+  const a=Object.assign(document.createElement('a'),{ href:url, download:'当番表_'+safe+'.json' });
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  toast('ファイルに書き出しました');
+}
+/* ファイルから読み込む：保存の一覧に足す（いまの当番表はそのまま） */
+function tbImportFile(ev){
+  const file=ev.target.files && ev.target.files[0];
+  ev.target.value='';
+  if(!file) return;
+  const fr=new FileReader();
+  fr.onload=()=>{
+    let o=null; try{ o=JSON.parse(fr.result); }catch(_){}
+    const items=[];
+    if(o && o.type==='touban' && o.data && typeof o.data==='object') items.push({ name:o.name, data:o.data });
+    else if(o && o.type==='touban-all' && Array.isArray(o.saves)) o.saves.forEach(x=>{ if(x&&x.data) items.push({ name:x.name, data:x.data }); });
+    else if(o && Array.isArray(o.roster)) items.push({ name:o.title, data:o });   // 中身だけのファイル
+    if(!items.length){ alert('当番表のファイルではないようです'); return; }
+    const list=tbGetSaves();
+    items.forEach(it=>{
+      // 読み込んだ中身は、いつもの決まりで確かめてから入れる
+      const keep=JSON.stringify(touban); tbReplaceWith(it.data); const clean=JSON.parse(tbSnapJson());
+      tbReplaceWith(JSON.parse(keep));
+      list.unshift({ id:tbNewId(), name:String(it.name||clean.title||'当番表').slice(0,40), at:Date.now(), data:clean });
+    });
+    if(!tbPutSaves(list.slice(0, TB_SAVES_MAX))) return;
+    renderTbSaves();
+    toast(items.length+'件を保存の一覧に足しました。押すと開けます');
+  };
+  fr.readAsText(file);
 }
 
 /* ── 当番の日を出す（1年ぶん）── */
@@ -8530,6 +8795,7 @@ function tbApplyColors(){
 }
 function renderTouban(){
   tbApplyColors();
+  tbSyncSaveMark();
   tbDutySet=new Set(tbDutyDates());
   const t=document.getElementById('tbTitle'), sb=document.getElementById('tbSub');
   if(t && document.activeElement!==t) t.value=touban.title;
@@ -20361,7 +20627,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v405';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v406';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -21903,6 +22169,7 @@ const ST_GROUPS=[
   {k:'excalc_veg_plots',  n:'育てている野菜'},
   {k:'excalc_skin_photo', n:'背景の写真',           how:'clear'},
   {k:'excalc_touban',     n:'当番表'},
+  {k:'excalc_touban_saves', n:'保存した当番表'},
   {k:'excalc_links',      n:'リンク集'},
   {k:'excalc_userkeys',   n:'登録キー'},
   {k:'excalc_custommodes',n:'登録モード'},
@@ -22084,7 +22351,8 @@ async function exportSaves() {
       'はい（写真ごと）', 'いいえ（写真ぬき）');
   }
   const payload={ app:'hyodenki', type:'saves', version:1, exportedAt:Date.now(), saves,
-                  veg:vegBundle(withPics), vegPics:withPics };
+                  veg:vegBundle(withPics), vegPics:withPics,
+                  touban:tbBundle() };   // 当番表（いまの分と、保存した分）も入れる（v406）
   const blob=new Blob([JSON.stringify(payload)],{type:'application/json;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
   const a=Object.assign(document.createElement('a'),{
@@ -22126,6 +22394,9 @@ function importSaves(ev) {
     });
     persistSaves(existing);
     renderSaveList();
+    // 当番表が入っていれば、当番表の保存の一覧に足す（いまの当番表は置きかえない。v406）
+    const tbN=tbRestoreBundle(parsed && parsed.touban);
+    const tbMsg=tbN?`\n当番表 ${tbN}件は、当番表の 💾保存 の一覧に足しました`:'';
     // 野菜まわりが入っていれば、それも取り込むか聞く（v374）
     const veg=parsed && parsed.veg;
     const hasVeg=veg && (Array.isArray(veg.plots)&&veg.plots.length || (veg.diary&&Object.keys(veg.diary).length));
@@ -22139,14 +22410,14 @@ function importSaves(ev) {
             +`いっしょに読み込みますか（今の野菜のデータは置きかえます）`,
             'はい','いいえ')){
           importVegBundle(veg);
-          alert(`${added}件の保存データと、野菜のデータを読み込みました`);
+          alert(`${added}件の保存データと、野菜のデータを読み込みました`+tbMsg);
         } else {
-          alert(`${added}件の保存データを読み込みました`);
+          alert(`${added}件の保存データを読み込みました`+tbMsg);
         }
       }, 60);
       return;
     }
-    alert(`${added}件の保存データを読み込みました`);
+    alert(`${added}件の保存データを読み込みました`+tbMsg);
   };
   reader.onerror=()=>alert('ファイルの読み込みに失敗しました');
   reader.readAsText(file);

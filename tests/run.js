@@ -6546,6 +6546,90 @@ async function runTbRoster(browser) {
   await ctx.close();
 }
 
+async function runTbSave(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, acceptDownloads: true });
+  const page = await ctx.newPage();
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto(INDEX); await page.waitForTimeout(300);
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.reload(); await page.waitForTimeout(900);
+  console.log('\n── 当番表の保存（v406） ──');
+  // appPrompt / appConfirm に答える
+  const ans = async (val, btn) => { await page.waitForTimeout(250);
+    await page.evaluate(({ val, btn }) => { const ov = document.querySelector('div[style*="99999"]'); if (!ov) return;
+      const inp = ov.querySelector('input,textarea'); if (inp && val != null) inp.value = val;
+      const b = [...ov.querySelectorAll('button')].find(x => x.textContent === btn); if (b) b.click(); }, { val, btn });
+    await page.waitForTimeout(350); };
+  const saves = () => page.evaluate(() => tbGetSaves().map(x => x.name).join('/'));
+
+  await page.evaluate(() => openTouban()); await page.waitForTimeout(300);
+  check('  上の帯に 💾保存 がある', await page.evaluate(() => !!document.getElementById('tbSaveBtn')), true);
+  check('  空のときは印なし', await page.evaluate(() => document.getElementById('tbSaveBtn').classList.contains('dirty')), false);
+  await page.evaluate(() => tbAddNames(['佐藤', '鈴木'])); await page.waitForTimeout(150);
+  check('  書きかえると ● が付く', await page.evaluate(() => document.getElementById('tbSaveBtn').classList.contains('dirty')), true);
+  await page.click('#tbSaveBtn'); await page.waitForTimeout(400);
+  check('  押すと保存の窓が開く', await page.evaluate(() => isDlgOpen('tbSaveOverlay')), true);
+  check('  まだ保存していないと言う', await page.evaluate(() =>
+    document.getElementById('tbSaveState').textContent.includes('まだ名前を付けて保存していません')), true);
+  check('  上書き保存はまだ押せない', await page.evaluate(() => document.getElementById('tbSaveOver').disabled), true);
+  await page.evaluate(() => { tbSaveAs(); }); await ans('ごみ当番', 'OK');
+  check('  名前を付けて保存できる', await saves(), 'ごみ当番');
+  check('  保存すると ● が消える', await page.evaluate(() =>
+    document.getElementById('tbSaveBtn').classList.contains('dirty') + '/' + tbDirty()), 'false/false');
+  check('  いま開いているものとして出る', await page.evaluate(() =>
+    document.getElementById('tbSaveState').textContent.includes('ごみ当番')), true);
+  await page.evaluate(() => { touban.title = '掃除当番'; saveTouban(); });
+  check('  保存したあとに変えると ● ', await page.evaluate(() => tbDirty()), true);
+  await page.evaluate(() => { tbSaveAs(); }); await ans('掃除当番', 'OK');
+  check('  いくつも持てる（新しい順）', await saves(), '掃除当番/ごみ当番');
+  const gid = await page.evaluate(() => tbGetSaves().find(x => x.name === 'ごみ当番').id);
+  await page.evaluate(id => { tbOpenSave(id); }, gid); await page.waitForTimeout(400);
+  check('  押すと開き直せる', await page.evaluate(() => touban.title + '/' + tbCurSave().name + '/' + isDlgOpen('tbSaveOverlay')), '当番表/ごみ当番/false');
+  // 保存していない変更があるときは聞く
+  await page.evaluate(() => tbAddNames(['高橋'])); await page.waitForTimeout(150);
+  const sid = await page.evaluate(() => tbGetSaves().find(x => x.name === '掃除当番').id);
+  await page.evaluate(() => openTbSaves()); await page.waitForTimeout(300);
+  await page.evaluate(id => { tbOpenSave(id); }, sid);
+  await ans(null, 'やめる');
+  check('  変更があれば切りかえる前に聞く（やめたらそのまま）', await page.evaluate(() => touban.title + '/' + touban.roster.length), '当番表/3');
+  await page.evaluate(() => tbSaveOver()); await page.waitForTimeout(200);
+  check('  上書き保存', await page.evaluate(() => tbGetSaves().find(x => x.name === 'ごみ当番').data.roster.length + '/' + tbDirty()), '3/false');
+  // 名前の変更・コピー・消す
+  await page.evaluate(id => { tbRenameSave(id); }, sid); await ans('掃除当番（2026）', 'OK');
+  check('  名前を変えられる', await saves(), '掃除当番（2026）/ごみ当番');
+  await page.evaluate(id => tbCopySave(id), gid); await page.waitForTimeout(200);
+  check('  コピーを作れる', await saves(), '掃除当番（2026）/ごみ当番/ごみ当番 のコピー');
+  const cid = await page.evaluate(() => tbGetSaves().find(x => x.name === 'ごみ当番 のコピー').id);
+  await page.evaluate(id => { tbDeleteSave(id); }, cid); await ans(null, '消す');
+  check('  消せる', await saves(), '掃除当番（2026）/ごみ当番');
+  check('  消しても画面の当番表はそのまま', await page.evaluate(() => touban.roster.length), 3);
+  // ファイルに書き出す・読み込む
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.evaluate(() => tbExportFile())]);
+  const txt = fs.readFileSync(await dl.path(), 'utf8');
+  const j = JSON.parse(txt);
+  check('  ファイルに書き出せる', j.type + '/' + j.name + '/' + j.data.roster.length, 'touban/ごみ当番/3');
+  await page.setInputFiles('#tbImportIn', { name: 't.json', mimeType: 'application/json', buffer: Buffer.from(txt) });
+  await page.waitForTimeout(500);
+  check('  読み込むと一覧に足される', await saves(), 'ごみ当番/掃除当番（2026）/ごみ当番');
+  check('  読み込んでもいまの当番表は変わらない', await page.evaluate(() => tbCurSave().name + '/' + touban.roster.length), 'ごみ当番/3');
+  await page.setInputFiles('#tbImportIn', { name: 'x.json', mimeType: 'application/json', buffer: Buffer.from('{"a":1}') });
+  await page.waitForTimeout(400);
+  // 新しい当番表
+  await page.evaluate(() => { tbNewTouban(); }); await page.waitForTimeout(400);
+  check('  新しい当番表をつくれる', await page.evaluate(() => touban.title + '/' + touban.roster.length + '/' + (tbCurId() || '無し')), '当番表/0/無し');
+  await page.reload(); await page.waitForTimeout(900);
+  check('  開き直しても保存は残る', await saves(), 'ごみ当番/掃除当番（2026）/ごみ当番');
+  // 全体のバックアップにも入る
+  check('  全体のバックアップに当番表が入る', await page.evaluate(() => { const b = tbBundle(); return b.saves.length; }), 3);
+  const n = await page.evaluate(() => { localStorage.removeItem('excalc_touban_saves');
+    return tbRestoreBundle({ saves: [{ id: 'x1', name: '戻した分', at: 1, data: { title: 'A', roster: [{ name: 'a' }] } }], cur: null }); });
+  check('  バックアップから戻すと保存の一覧に足す', n + '/' + await saves(), '1/戻した分');
+  check('  端末の空き具合にも並ぶ', await page.evaluate(() => ST_GROUPS.some(g => g.k === 'excalc_touban_saves')), true);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -6591,6 +6675,7 @@ async function runTbRoster(browser) {
     if (!only || only === 'touban') await runTouban(browser);
     if (!only || only === 'tbcolor') await runTbColor(browser);
     if (!only || only === 'tbroster') await runTbRoster(browser);
+    if (!only || only === 'tbsave') await runTbSave(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
     if (!only || only === 'brush3') await runBrush3(browser);
