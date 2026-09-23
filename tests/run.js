@@ -6650,6 +6650,16 @@ async function runFmtPage(browser) {
   check('  揃え（左・中央・右／上・中・下）・結合・書式のコピーがある', await page.evaluate(() =>
     ['kf_left', 'kf_center', 'kf_right', 'kf_vtop', 'kf_vmid', 'kf_vbot', 'kf_merge', 'kf_paint']
       .every(k => { const b = document.querySelector('#numpadPageFmt [data-key=' + k + ']'); return b && b.title; })), true);
+  // v409：2重線を選んだとき、場所ボタンの線のすき間がボタンの地色（白）になる（紺だと3本に見えた）
+  await page.evaluate(() => bdSetType('double', document.querySelector('#numpadPageFmt [data-key=bd_double]')));
+  check('  2重線のすき間はボタンの地色', await page.evaluate(() => {
+    const b = document.querySelector('#numpadPageFmt [data-key=bd_top]');
+    return getComputedStyle(b.querySelector('.s2')).stroke === getComputedStyle(b).backgroundColor; }), true);
+  await page.evaluate(() => { toggleDark(); }); await page.waitForTimeout(600);   // 地色は少しかけて変わる
+  check('  夜もすき間はボタンの地色', await page.evaluate(() => {
+    const b = document.querySelector('#numpadPageFmt [data-key=bd_box]');
+    return getComputedStyle(b.querySelector('.s2')).stroke === getComputedStyle(b).backgroundColor; }), true);
+  await page.evaluate(() => { toggleDark(); bdSetType('normal', document.querySelector('#numpadPageFmt [data-key=bd_normal]')); });
   check('  ボタンが重ならずに並ぶ', await page.evaluate(() => {
     const r = [...document.querySelectorAll('#numpadPageFmt > .btn, #numpadPageFmt > .kf-vcol')].map(e => e.getBoundingClientRect());
     for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++) {

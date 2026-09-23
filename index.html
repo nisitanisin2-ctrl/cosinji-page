@@ -1770,8 +1770,8 @@ body.calc-only #numpadPageSci .btn[data-key="dk_dec"] { grid-column: span 2; }
 .btn.g-kf:hover { background: #3e5a4c; }
 /* 罫線アイコンのすきま色。.btn.op / .btn.fx が後ろで --bd-gap を上書きしてしまうので、
    id を足した強い指定でグループの地色にそろえる（囲む＝fx、場所5つ＝op） */
-#numpadPageFmt .btn.g-bd { --bd-gap: #2b4a66; }
-#numpadPageFmt .btn.g-kf { --bd-gap: #31493d; }
+#numpadPageFmt .btn.g-bd, #numpadPageFmt .btn.g-kf { --bd-gap: var(--fp-key); }   /* v409：白いボタンになったので白に（紺のままだと2重線が紺の3本に見えた） */
+#numpadPageFmt .btn.g-bd:hover, #numpadPageFmt .btn.g-kf:hover { --bd-gap: var(--fp-hover); }
 /* このページはラベルの文字数が1〜4文字とばらばらで、幅に合わせて縮める仕組みだと
    1文字のボタンだけが極端に大きくなり、大小が入り乱れて散らかって見える。
    基準を少し下げて、どのボタンもだいたい同じ大きさの文字でそろうようにする。 */
@@ -1802,8 +1802,8 @@ body.calc-only #numpadPageSci .btn[data-key="dk_dec"] { grid-column: span 2; }
 #numpadPageFmt[data-bd="thin"]   .bd-ico { --bd-sw: 1.3; }
 #numpadPageFmt[data-bd="normal"] .bd-ico { --bd-sw: 2.4; }
 #numpadPageFmt[data-bd="thick"]  .bd-ico { --bd-sw: 4.4; }
-#numpadPageFmt[data-bd="double"] .bd-ico { --bd-sw: 5; }
-#numpadPageFmt[data-bd="double"] .bd-ico .s2 { stroke-width: 1.9; }
+#numpadPageFmt[data-bd="double"] .bd-ico { --bd-sw: 5.4; }
+#numpadPageFmt[data-bd="double"] .bd-ico .s2 { stroke-width: 2.2; }
 .btn.op { --bd-gap: var(--acc-dark); }
 .btn.fx { --bd-gap: #5d4037; }
 .btn.bd-place { display: flex; align-items: center; justify-content: center; }
@@ -8305,6 +8305,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v409', t:'2重線のボタンの表示を直しました', li:[
+    '書式・枠線のページで<b>2重線</b>を選んだとき、枠線の場所のボタンの線が<b>紺色の線をはさんだ太い線</b>に見えていたのを、<b>2本の線</b>に見えるように直しました',
+  ]},
   { v:'v408', t:'アプリを QR コードで共有', li:[
     '<b>⋯ → 🛠そのほか → 📱QRで共有</b>（⚙設定の「使いかた」からも）で、<b>アプリのアドレスの QR コード</b>を出せるようにしました。相手のスマホのカメラで読み取ると、表電卓が開きます',
     '<b>会計アプリ</b>の QR コードにも切りかえられます。<b>アドレスのコピー・共有・QRコードを画像で保存</b>もできます',
@@ -20997,7 +21000,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v408';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v409';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
