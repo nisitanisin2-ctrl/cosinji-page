@@ -313,21 +313,23 @@ body.skin-keys .numpad-overlay {
 .tb-cell.blank { background: transparent; }
 .tb-cell.today { box-shadow: inset 0 0 0 2px var(--acc); }
 /* 選んだ色（v403）。平日 < 土・日 < 祝日 < 当番の日 の順に上書きする。
+   「当番の日」の色は、番号が入っているマス（.has）に付ける。曜日から決めた当番の日（.duty）ではない。
+   割り当てたあとに番号を別の日へ移すと、色もいっしょに移る（v404）。
    夜は地の色に薄く混ぜて、明るすぎないようにする */
 #toubanOverlay.tbc-has-bg .tb-cell:not(.blank) { background: var(--tbc-bg); }
 #toubanOverlay.tbc-has-sat .tb-cell.d6:not(.blank) { background: var(--tbc-sat); }
 #toubanOverlay.tbc-has-sun .tb-cell.d0:not(.blank) { background: var(--tbc-sun); }
 #toubanOverlay.tbc-has-hol .tb-cell.hol:not(.blank) { background: var(--tbc-hol); }
-#toubanOverlay.tbc-has-duty .tb-cell.duty:not(.blank) { background: var(--tbc-duty); }
+#toubanOverlay.tbc-has-duty .tb-cell.has:not(.blank) { background: var(--tbc-duty); }
 /* 暗い色を選んだマスは字を白に（昼だけ。夜は地に薄く混ぜるので、ふだんの字の色のまま読める） */
-body:not(.dark) #toubanOverlay.tbc-has-bg .tb-cell:not(.blank):not(.d0):not(.d6):not(.hol):not(.duty) .tb-dn,
-body:not(.dark) #toubanOverlay.tbc-has-bg .tb-cell:not(.blank):not(.d0):not(.d6):not(.hol):not(.duty) .tb-nm { color: var(--tbc-bg-ink); }
-body:not(.dark) #toubanOverlay.tbc-has-duty .tb-cell.duty .tb-nm { color: var(--tbc-duty-ink); }
+body:not(.dark) #toubanOverlay.tbc-has-bg .tb-cell:not(.blank):not(.d0):not(.d6):not(.hol):not(.has) .tb-dn,
+body:not(.dark) #toubanOverlay.tbc-has-bg .tb-cell:not(.blank):not(.d0):not(.d6):not(.hol):not(.has) .tb-nm { color: var(--tbc-bg-ink); }
+body:not(.dark) #toubanOverlay.tbc-has-duty .tb-cell.has .tb-nm { color: var(--tbc-duty-ink); }
 body.dark #toubanOverlay.tbc-has-bg .tb-cell:not(.blank) { background: color-mix(in srgb, var(--tbc-bg) 22%, var(--cell-bg)); }
 body.dark #toubanOverlay.tbc-has-sat .tb-cell.d6:not(.blank) { background: color-mix(in srgb, var(--tbc-sat) 30%, var(--cell-bg)); }
 body.dark #toubanOverlay.tbc-has-sun .tb-cell.d0:not(.blank) { background: color-mix(in srgb, var(--tbc-sun) 30%, var(--cell-bg)); }
 body.dark #toubanOverlay.tbc-has-hol .tb-cell.hol:not(.blank) { background: color-mix(in srgb, var(--tbc-hol) 30%, var(--cell-bg)); }
-body.dark #toubanOverlay.tbc-has-duty .tb-cell.duty:not(.blank) { background: color-mix(in srgb, var(--tbc-duty) 34%, var(--cell-bg)); }
+body.dark #toubanOverlay.tbc-has-duty .tb-cell.has:not(.blank) { background: color-mix(in srgb, var(--tbc-duty) 34%, var(--cell-bg)); }
 /* 色えらび（設定の中） */
 .tbc-acc { margin: 10px 0 4px; }
 .tbc-row { padding: 8px 10px; border: 1px solid var(--save-item-border); border-radius: var(--r-btn);
@@ -8136,6 +8138,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v404', t:'当番の日の色が、番号といっしょに移るように', li:[
+    '📅当番表で、割り当てたあとに番号を別の日へ移しても、<b>当番の日の色</b>が元の日に残っていたのを直しました。色は<b>番号が入っている日</b>に付きます（紙も同じ）',
+  ]},
   { v:'v403', t:'当番表の色をえらべるように', li:[
     '📅当番表の ⚙設定 に<b>「色」</b>を足しました。<b>平日のマス・当番の日・土曜・日曜・祝日</b>の色を選べます。画面にも紙にも同じ色で出ます',
     '13色から選ぶほか、🎨で好きな色も選べます。「元」でもとの色に戻ります。暗い色を選んだときは、名前を白い字で出します',
@@ -8329,7 +8334,7 @@ let touban={ title:'当番表', sub:'', year:0, half:'H1',
    空のときはもとの色（画面は薄い赤・青、紙はオレンジ・水色）のまま。 */
 const TB_COLS=[
   { k:'bg',   n:'平日のマス',  hint:'カレンダーの地の色' },
-  { k:'duty', n:'当番の日',    hint:'当番が入る日のマス' },
+  { k:'duty', n:'当番の日',    hint:'番号が入っているマス（番号を移すと色も移ります）' },
   { k:'sat',  n:'土曜',        hint:'' },
   { k:'sun',  n:'日曜',        hint:'' },
   { k:'hol',  n:'祝日',        hint:'日曜と同じにしたいときも、ここで選ぶ' },
@@ -8537,6 +8542,7 @@ function tbRenderMonths(){
       const cls=['tb-cell','d'+d.getDay()];
       if(hn) cls.push('hol');
       if(tbDutySet.has(k)) cls.push('duty');
+      if(no!=null) cls.push('has');                 // 番号が入っている（当番の日の色はこちらに付ける）
       if(k===today) cls.push('today');
       const nm=(no!=null)?tbNameOf(no):null;
       cells+='<div class="'+cls.join(' ')+'" data-d="'+k+'">'+
@@ -8559,6 +8565,7 @@ function tbPatchCell(k){
   const box=document.getElementById('tbMonths'); if(!box) return;
   const cell=box.querySelector('.tb-cell[data-d="'+k+'"]'); if(!cell) return;
   const no=touban.assign[k], nm=(no!=null)?tbNameOf(no):null;
+  cell.classList.toggle('has', no!=null);         // 番号を入れた・消したら、当番の日の色もついてくる
   const el=cell.querySelector('.tb-nm');
   el.textContent=(no!=null)?(nm||'名簿にありません'):'';
   el.classList.toggle('bad', no!=null && !nm);
@@ -8740,9 +8747,7 @@ async function tbClearHalf(){
 }
 
 /* ── 印刷（半年ぶんを1枚に）── */
-let tbPrDuty=new Set();
 function tbPrintHtml(){
-  tbPrDuty=new Set(tbDutyDates());
   let months='';
   for(const ym of tbMonths()){
     const y=ym[0], m=ym[1];
@@ -8752,7 +8757,7 @@ function tbPrintHtml(){
     for(let day=1; day<=last.getDate(); day++){
       const d=tbMk(y,m,day), k=tbIso(d), hn=tbHolName(d), no=touban.assign[k], w=d.getDay();
       const nm=(no!=null)?tbNameOf(no):null;
-      const bg=((w===0)?' tp-sun':((w===6)?' tp-sat':''))+(hn?' tp-hol':'')+(tbPrDuty.has(k)?' tp-duty':'');
+      const bg=((w===0)?' tp-sun':((w===6)?' tp-sat':''))+(hn?' tp-hol':'')+((no!=null)?' tp-duty':'');   // 番号が入っている日
       const dcl=(w===0||hn)?' tp-r':(w===6?' tp-bl':'');
       cells.push('<td class="tp-c'+bg+'">'+
         '<div class="tp-dn'+dcl+'">'+day+'</div>'+
@@ -20286,7 +20291,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v403';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v404';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

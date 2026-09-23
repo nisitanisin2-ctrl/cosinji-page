@@ -6481,9 +6481,19 @@ async function runTbColor(browser) {
   check('  紙にも同じ色（土・日・祝）', [pr.sat, pr.sun, pr.hol].join('|'), 'rgb(227, 242, 253)|rgb(252, 228, 236)|rgb(255, 224, 178)');
   check('  紙にも同じ色（平日）', pr.wd, 'rgb(255, 248, 225)');
   check('  紙の空きマスは白のまま', pr.x, 'rgba(0, 0, 0, 0)');
+  // 番号を別の日へ移すと、当番の日の色もついてくる（v404。以前は曜日で決めた日に残っていた）
+  await page.fill('#tbMonths .tb-cell[data-d="2026-04-07"] .tb-no', ''); await page.waitForTimeout(150);
+  await page.fill('#tbMonths .tb-cell[data-d="2026-04-08"] .tb-no', '1'); await page.waitForTimeout(150);
+  check('  番号を消した日は当番の色が消える', await bg('2026-04-07'), 'rgb(255, 248, 225)');
+  check('  番号を入れた日に当番の色が付く', await bg('2026-04-08'), 'rgb(200, 230, 201)');
+  const mv = await page.evaluate(() => { const b = opBuild(tbPrintHtml());
+    const c = [...document.querySelectorAll('#printArea .tp-m')][0].querySelectorAll('.tp-c:not(.tp-x)');
+    const r = [c[6].classList.contains('tp-duty'), c[7].classList.contains('tp-duty')].join('/');
+    b.meas.remove(); document.getElementById('printArea').innerHTML = ''; return r; });
+  check('  紙でも色が移る', mv, 'false/true');
   await page.evaluate(() => tbSetCol('duty', '#1a237e')); await page.waitForTimeout(200);
   check('  暗い色では名前を白い字に', await page.evaluate(() =>
-    getComputedStyle(document.querySelector('#tbMonths .tb-cell.duty .tb-nm')).color), 'rgb(255, 255, 255)');
+    getComputedStyle(document.querySelector('#tbMonths .tb-cell.has .tb-nm')).color), 'rgb(255, 255, 255)');
   await page.evaluate(() => tbSetCol('duty', 'red; background:url(x)')); await page.waitForTimeout(100);
   check('  色でないものは受け付けない', await page.evaluate(() => touban.col.duty), '');
   await page.reload(); await page.waitForTimeout(900);
