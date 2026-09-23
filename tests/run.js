@@ -6655,6 +6655,9 @@ async function runFmtPage(browser) {
   check('  2重線のすき間はボタンの地色', await page.evaluate(() => {
     const b = document.querySelector('#numpadPageFmt [data-key=bd_top]');
     return getComputedStyle(b.querySelector('.s2')).stroke === getComputedStyle(b).backgroundColor; }), true);
+  check('  2重線の上・下・左・右は端を閉じない（v410）', await page.evaluate(() =>
+    ['bd_top', 'bd_bottom', 'bd_left', 'bd_right'].every(k => getComputedStyle(document.querySelector('#numpadPageFmt [data-key=' + k + '] .s')).strokeLinecap === 'butt')
+    && getComputedStyle(document.querySelector('#numpadPageFmt [data-key=bd_box] .s')).strokeLinecap === 'square'), true);
   await page.evaluate(() => { toggleDark(); }); await page.waitForTimeout(600);   // 地色は少しかけて変わる
   check('  夜もすき間はボタンの地色', await page.evaluate(() => {
     const b = document.querySelector('#numpadPageFmt [data-key=bd_box]');

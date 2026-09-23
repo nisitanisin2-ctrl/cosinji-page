@@ -1804,6 +1804,9 @@ body.calc-only #numpadPageSci .btn[data-key="dk_dec"] { grid-column: span 2; }
 #numpadPageFmt[data-bd="thick"]  .bd-ico { --bd-sw: 4.4; }
 #numpadPageFmt[data-bd="double"] .bd-ico { --bd-sw: 5.4; }
 #numpadPageFmt[data-bd="double"] .bd-ico .s2 { stroke-width: 2.2; }
+/* 1本だけの線（上・下・左・右）は、端を閉じずに2本の平行線に見せる（v410） */
+#numpadPageFmt[data-bd="double"] :is([data-key=bd_top],[data-key=bd_bottom],[data-key=bd_left],[data-key=bd_right]) .bd-ico .s { stroke-linecap: butt; }
+#numpadPageFmt[data-bd="double"] :is([data-key=bd_top],[data-key=bd_bottom],[data-key=bd_left],[data-key=bd_right]) .bd-ico .s2 { stroke-linecap: square; }
 .btn.op { --bd-gap: var(--acc-dark); }
 .btn.fx { --bd-gap: #5d4037; }
 .btn.bd-place { display: flex; align-items: center; justify-content: center; }
@@ -8305,6 +8308,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v410', t:'2重線のボタンの絵を見やすく', li:[
+    '2重線を選んだとき、上・下・左・右の罫線ボタンの線を、端を閉じない<b>2本の平行線</b>にしました',
+  ]},
   { v:'v409', t:'2重線のボタンの表示を直しました', li:[
     '書式・枠線のページで<b>2重線</b>を選んだとき、枠線の場所のボタンの線が<b>紺色の線をはさんだ太い線</b>に見えていたのを、<b>2本の線</b>に見えるように直しました',
   ]},
@@ -21000,7 +21006,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v409';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v410';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
