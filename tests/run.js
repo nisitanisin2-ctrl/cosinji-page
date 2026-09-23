@@ -6510,6 +6510,42 @@ async function runTbColor(browser) {
   await ctx.close();
 }
 
+async function runTbRoster(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 当番表の名簿を入れやすく（v405） ──');
+  await page.evaluate(() => openTouban()); await page.waitForTimeout(400);
+  check('  名簿が空なら、当番表の画面から押して開ける', await page.evaluate(() =>
+    !!document.querySelector('#tbNext .tb-next-go')), true);
+  await page.click('#tbNext .tb-next-go'); await page.waitForTimeout(500);
+  check('  押すと設定が開いて名前の欄に入る', await page.evaluate(() =>
+    isDlgOpen('tbSetOverlay') + '/' + (document.activeElement && document.activeElement.id)), 'true/tbNewName');
+  check('  名簿は設定のいちばん上', await page.evaluate(() =>
+    document.querySelector('#tbSetOverlay .modal-body .set-sec').textContent.startsWith('名簿')), true);
+  await page.keyboard.type('佐藤'); await page.keyboard.press('Enter'); await page.waitForTimeout(150);
+  await page.keyboard.type('鈴木'); await page.keyboard.press('Enter'); await page.waitForTimeout(150);
+  check('  Enter で続けて足せる', await page.evaluate(() => touban.roster.map(m => m.name).join('/')), '佐藤/鈴木');
+  check('  足したあとも欄にとどまり、空になる', await page.evaluate(() =>
+    document.activeElement.id + '|' + document.getElementById('tbNewName').value), 'tbNewName|');
+  check('  足した人は名簿の後ろに並ぶ', await page.evaluate(() =>
+    [...document.querySelectorAll('#tbRoster li input')].map(i => i.value).join('/')), '佐藤/鈴木');
+  await page.evaluate(() => { const inp = document.getElementById('tbNewName'); const dt = new DataTransfer();
+    dt.setData('text', '高橋\n田中、伊藤\n\n'); inp.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); });
+  await page.waitForTimeout(200);
+  check('  まとめて貼り付けると1人ずつに分けて足す', await page.evaluate(() => touban.roster.map(m => m.name).join('/')), '佐藤/鈴木/高橋/田中/伊藤');
+  await page.fill('#tbNewName', '  木村   一郎  '); await page.click('.tb-addbtn'); await page.waitForTimeout(150);
+  check('  ＋足す でも足せる（前後の空白は取る）', await page.evaluate(() => touban.roster[5].name), '木村 一郎');
+  await page.fill('#tbNewName', '   '); await page.click('.tb-addbtn'); await page.waitForTimeout(150);
+  check('  空のときは足さない', await page.evaluate(() => touban.roster.length), 6);
+  await page.reload(); await page.waitForTimeout(900);
+  await page.evaluate(() => openTouban()); await page.waitForTimeout(300);
+  check('  覚えている', await page.evaluate(() => touban.roster.length), 6);
+  check('  名簿があれば、画面の案内はふつうに戻る', await page.evaluate(() =>
+    !document.querySelector('#tbNext .tb-next-go')), true);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -6554,6 +6590,7 @@ async function runTbColor(browser) {
     if (!only || only === 'kaikei') await runKaikei(browser);
     if (!only || only === 'touban') await runTouban(browser);
     if (!only || only === 'tbcolor') await runTbColor(browser);
+    if (!only || only === 'tbroster') await runTbRoster(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
     if (!only || only === 'brush3') await runBrush3(browser);
