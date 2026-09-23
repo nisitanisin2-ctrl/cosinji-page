@@ -364,6 +364,20 @@ body.dark #toubanOverlay.tbc-has-duty .tb-cell.has:not(.blank) { background: col
 .tb-nm { font-size: 11px; line-height: 1.15; text-align: center; overflow-wrap: anywhere; color: var(--text); }
 .tb-nm.bad { color: var(--danger); font-size: 10px; }
 .tb-rlist { list-style: none; margin: 0; padding: 0; }
+.tb-addbar { display: flex; gap: 6px; margin: 2px 0 4px; }
+.tb-addin {
+  flex: 1; min-width: 0; min-height: 44px; padding: 8px 12px; font-size: 16px; box-sizing: border-box;
+  border: 2px solid var(--acc); border-radius: var(--r-btn); background: var(--cell-bg); color: var(--text);
+}
+.tb-addbtn {
+  flex: none; min-height: 44px; padding: 0 14px; border: none; border-radius: var(--r-btn);
+  background: var(--acc); color: var(--on-acc); font-size: 15px; font-weight: bold; cursor: pointer;
+}
+.tb-rlist li.tb-new { animation: tbNew 1.4s ease; }
+@keyframes tbNew { 0% { background: var(--acc-weak); } 100% { background: transparent; } }
+.tb-next-go { display: flex; align-items: center; gap: 8px; width: 100%; background: none; border: none;
+  padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.tb-next-go .tb-n { text-decoration: underline; text-underline-offset: 3px; }
 .tb-rlist li {
   display: flex; align-items: center; gap: 6px; padding: 4px 0;
   border-bottom: 1px solid var(--save-item-border);
@@ -5270,6 +5284,20 @@ body.dark {
       <button class="modal-close" onclick="closeTbSet()">✕</button>
     </div>
     <div class="modal-body">
+      <!-- 名簿はいちばんよく入れるところなので、いちばん上に置く（v405） -->
+      <div class="set-sec">名簿<small id="tbRosterCount"></small></div>
+      <div class="tb-addbar">
+        <input type="text" id="tbNewName" class="tb-addin" placeholder="名前を入れて Enter" maxlength="30"
+               autocomplete="off" enterkeyhint="next" aria-label="名簿に足す人の名前"
+               onkeydown="event.stopPropagation(); if(event.key==='Enter' && !event.isComposing){ event.preventDefault(); tbAddFromInput(); }"
+               onpaste="tbAddPaste(event)">
+        <button class="tb-addbtn" onclick="tbAddFromInput()">＋ 足す</button>
+      </div>
+      <div class="set-note">名前を入れて <b>Enter</b> で名簿のいちばん後ろに足します（続けて入れられます）。
+        改行や「、」で区切った名前は、<b>まとめて貼り付け</b>ても足せます。<br>
+        この<b>並び順が番号</b>になります。</div>
+      <ol class="tb-rlist" id="tbRoster"></ol>
+
       <div class="set-sec">年度と当番の日</div>
       <div class="set-row">
         <span class="set-label">年度<small id="tbEra"></small></span>
@@ -5303,10 +5331,6 @@ body.dark {
       <div class="set-sec">印刷のしかた</div>
       <button class="set-act" id="tbPrOpen" onclick="openPrn('touban')">🖨 印刷のしかた<small id="tbPrSum"></small></button>
 
-      <div class="set-sec">名簿<small id="tbRosterCount"></small></div>
-      <div class="set-note">この<b>並び順が番号</b>になります。順番を入れ替えると、番号の指す人も変わります。</div>
-      <ol class="tb-rlist" id="tbRoster"></ol>
-      <button class="set-act" onclick="tbAddMember()">＋ 人を足す</button>
     </div>
   </div>
 </div>
@@ -8138,6 +8162,12 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v405', t:'当番表の名簿を入れやすく', li:[
+    '📅当番表の ⚙設定 で、<b>名簿をいちばん上</b>に移しました',
+    '名簿の上に<b>名前の欄</b>を置きました。名前を入れて <b>Enter</b> で足せて、そのまま続けて次の人を入れられます',
+    '何人かを<b>まとめて貼り付け</b>ても足せます（改行や「、」で区切ってあれば1人ずつに分けます）',
+    '名簿が空のときは、当番表の画面の<b>「まずは名簿から」を押すと</b>、すぐ名前の欄が開きます',
+  ]},
   { v:'v404', t:'当番の日の色が、番号といっしょに移るように', li:[
     '📅当番表で、割り当てたあとに番号を別の日へ移しても、<b>当番の日の色</b>が元の日に残っていたのを直しました。色は<b>番号が入っている日</b>に付きます（紙も同じ）',
   ]},
@@ -8516,7 +8546,8 @@ function tbRenderNext(){
   const today=tbIso(new Date());
   const keys=Object.keys(touban.assign).filter(k=>k>=today).sort();
   if(!touban.roster.length){
-    box.innerHTML='<span class="tb-tag">まずは名簿から</span><span class="tb-n">⚙設定 で人を登録してください</span>';
+    box.innerHTML='<button class="tb-next-go" onclick="openTbRoster()"><span class="tb-tag">まずは名簿から</span>'+
+      '<span class="tb-n">ここを押して、当番に入る人を登録してください</span></button>';
     return;
   }
   if(keys.length){
@@ -8672,7 +8703,7 @@ function tbRenderRoster(){
   const cnt=document.getElementById('tbRosterCount');
   if(cnt) cnt.textContent=touban.roster.length?('　'+touban.roster.length+'人'):'';
   if(!touban.roster.length){
-    box.innerHTML='<div class="tb-empty">まだ誰も登録されていません。下の<b>＋ 人を足す</b>から、当番に入る人を順に足してください。<br>ここに並べた<b>順番がそのまま番号</b>になります。</div>';
+    box.innerHTML='<div class="tb-empty">まだ誰も登録されていません。上の欄に名前を入れて <b>Enter</b> で、当番に入る人を順に足してください。<br>ここに並べた<b>順番がそのまま番号</b>になります。</div>';
     return;
   }
   const today=tbIso(new Date());
@@ -8711,6 +8742,45 @@ async function tbDelMember(i){
   touban.roster.splice(i,1);
   if(touban.start>touban.roster.length) touban.start=Math.max(1,touban.roster.length);
   saveTouban(); renderTbSet();
+}
+/* 名前の欄から足す（v405）。足したあとも欄にとどまるので、続けて入れられる */
+function tbAddNames(names){
+  let added=0;
+  for(const raw of names){
+    const nm=String(raw||'').replace(/\s+/g,' ').trim().slice(0,30);
+    if(!nm) continue;
+    if(touban.roster.length>=200){ toast('名簿は200人までです'); break; }
+    touban.roster.push({name:nm}); added++;
+  }
+  if(!added) return 0;
+  saveTouban(); renderTbSet();
+  const box=document.getElementById('tbRoster');
+  const last=box && box.lastElementChild;
+  if(last){ last.classList.add('tb-new'); try{ last.scrollIntoView({block:'nearest'}); }catch(_){} }
+  const n=touban.roster.length;
+  toast(added===1 ? '「'+touban.roster[n-1].name+'」を '+n+'番に足しました' : added+'人を足しました（'+(n-added+1)+'〜'+n+'番）');
+  return added;
+}
+function tbAddFromInput(){
+  const inp=document.getElementById('tbNewName'); if(!inp) return;
+  const v=inp.value;
+  if(!v.trim()){ inp.focus(); return; }
+  if(tbAddNames(v.split(/[\n\r、,，;；]+/))){ inp.value=''; }
+  inp.focus();                                   // 続けて次の人を入れられるように
+}
+/* 何人かまとめて貼り付けたとき（改行入りの文は、ふつうの入力欄では1行につぶれるので先に受け取る） */
+function tbAddPaste(e){
+  const t=(e.clipboardData||window.clipboardData);
+  const text=t ? t.getData('text') : '';
+  if(!/[\n\r、,，;；]/.test(text)) return;       // 1人ぶんなら、ふつうに貼り付ける
+  e.preventDefault();
+  const inp=e.target;
+  if(tbAddNames(((inp.value||'')+text).split(/[\n\r、,，;；]+/))) inp.value='';
+}
+/* 当番表の画面から、名簿を入れるところをすぐ開く */
+function openTbRoster(){
+  openTbSet();
+  setTimeout(()=>{ const inp=document.getElementById('tbNewName'); if(inp){ try{ inp.focus(); }catch(_){} } }, 200);
 }
 function tbAddMember(){
   if(touban.roster.length>=200){ toast('名簿は200人までです'); return; }
@@ -20291,7 +20361,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v404';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v405';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
