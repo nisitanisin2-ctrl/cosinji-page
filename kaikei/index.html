@@ -636,7 +636,7 @@ table.fin-t td.sml,.fin-doc .sml{font-size:11px;color:#555}
    ・お金の場所（口座）は「現金・農協・信用金庫・定期預金…」と名前で持つ。
      口座から口座へ移すのは「振替」として、収入・支出とは別に数える。
    ══════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v12';
+const APP_VERSION='v13';
 const KEY='jk_kaikei_v1';
 
 const DEF_CATS={
@@ -798,8 +798,83 @@ function accountSummary(y){
   return {list, sum};
 }
 
+/* ── スマホの「戻る」（v13）──────────────────────────────────
+   以前は「戻る」を押すと、どの画面にいてもアプリ（表電卓から開いたときはそのタブ）ごと閉じていた。
+   ・入力の窓（dialog）が開いていれば、窓だけを閉じる
+   ・記帳以外の画面（出納帳・集計・決算…）にいれば、記帳に戻る
+   ・記帳の画面で押したら、ふつうに前へ戻る（表電卓から開いたときは表電卓へ帰る）。
+     このアプリだけを開いたときは「もう一度押すと閉じます」と一度知らせる
+   開くたびに履歴を1つ積み、戻る（popstate）でいちばん上の分だけ閉じる。
+   Chrome は一度も触れていないページが積んだ履歴を「戻る」で飛ばすので、そのときははじめて触れたときに積む。 */
+const KB={ stack:[], skip:0, pending:0, deferred:0, base:false,
+  // 表電卓など同じサイトの画面から来たときは、そこへ帰れば良いので「いちばん下の分」は積まない。
+  // このアプリだけを開いたとき（ホーム画面のアイコンなど）は、どこからも来ていない
+  // 表電卓は #from=hyo を付けて開く（ファイルを直接開いたときは referrer が空になるため、しるしで見分ける）
+  wantBase: (()=>{
+    if(/(^|[#&])from=hyo\b/.test(location.hash)){
+      try{ history.replaceState(null,'',location.pathname+location.search); }catch(_){}   // しるしはアドレスに残さない
+      return false;
+    }
+    try{ return !document.referrer || new URL(document.referrer).origin!==location.origin; }catch(_){ return true; }
+  })() };
+function kbActed(){ const u=navigator.userActivation; return !u || u.hasBeenActive; }
+function kbPush(){
+  if(!kbActed()){ KB.deferred++; return; }
+  try{ history.pushState({kk:1},''); }catch(_){}
+}
+function kbOpen(fn){
+  KB.stack.push(fn);
+  if(KB.pending){ KB.pending--; return; }      // 直前に閉じた分と打ち消し合う（履歴はそのまま）
+  kbPush();
+}
+function kbRelease(){
+  if(!KB.stack.length) return;
+  KB.stack.pop();
+  if(KB.deferred>0){ KB.deferred--; return; }  // 積めていなかった分なので戻す分も無い
+  KB.pending++;
+  setTimeout(()=>{                            // 閉じてすぐ開いたときに打ち消せるよう、少し待つ
+    if(!KB.pending) return;
+    KB.pending--; KB.skip++;
+    try{ history.back(); }catch(_){ KB.skip--; }
+  }, 0);
+}
+window.addEventListener('popstate', e=>{
+  if(KB.skip>0){ KB.skip--; return; }
+  const st=e.state||{};
+  KB.base=!!(st.kkBase||st.kk);
+  const f=KB.stack.pop();
+  if(f){ f(); return; }                        // 下の画面は、それぞれ自分の分を積んである
+  if(KB.wantBase && !st.kkBase && !st.kk) toast('もう一度「戻る」を押すと閉じます');
+});
+function kbOnAct(){
+  if(KB.pending) return;
+  if(KB.wantBase && !KB.base){ try{ history.pushState({kkBase:1},''); KB.base=true; }catch(_){} }
+  while(KB.deferred>0){ KB.deferred--; try{ history.pushState({kk:1},''); }catch(_){} }
+}
+['pointerup','touchend','keydown','mousedown'].forEach(t=>window.addEventListener(t, kbOnAct, true));
+/* 入力の窓：showModal で開いたら積み、どんな閉じ方でも（✕・やめる・Esc・端末の戻る）1つ返す */
+function kbWatchDialogs(){
+  document.querySelectorAll('dialog').forEach(d=>{
+    const show=d.showModal.bind(d);
+    d.showModal=function(){ show(); d._kb=true; kbOpen(()=>{ d._kbBack=true; if(d.open) d.close(); }); };
+    d.addEventListener('close', ()=>{
+      if(!d._kb) return;
+      d._kb=false;
+      if(d._kbBack){ d._kbBack=false; return; }  // 「戻る」で閉じた＝もう履歴は戻っている
+      kbRelease();
+    });
+  });
+}
+let curPg='entry';
+
 /* ── 画面の切り替え ─────────────────────────────────────── */
 function go(pg){
+  // 記帳から別の画面へ行くときだけ積む（別の画面どうしの行き来では積まない）
+  if(!go._back){
+    if(curPg==='entry' && pg!=='entry') kbOpen(()=>{ go._back=true; go('entry'); go._back=false; });
+    else if(curPg!=='entry' && pg==='entry') kbRelease();
+  }
+  curPg=pg;
   document.querySelectorAll('.page').forEach(s=>s.classList.toggle('on', s.id==='pg-'+pg));
   document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-selected', String(b.dataset.pg===pg)));
   window.scrollTo(0,0);
@@ -3014,6 +3089,7 @@ function backupIn(ev){
 
 /* ── はじめに ─────────────────────────────────────────── */
 function init(){
+  kbWatchDialogs();
   load();
   setToday(); setKind('in'); renderAccChips(); renderTrSelects();
   renderHead(); renderCatChips(); renderRecent(); renderHints(); renderXls();

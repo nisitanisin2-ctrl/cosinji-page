@@ -8134,6 +8134,13 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v402', t:'スマホの「戻る」でいきなり閉じないように', li:[
+    '<b>🧾会計アプリ</b>と<b>📄メモ</b>は、新しいタブではなく<b>同じ画面で開く</b>ようにしました。「戻る」で表電卓に帰ってこられます（表の中身は自動保存されています）',
+    '会計アプリの中でも「戻る」が効くようにしました。入力の窓は窓だけを閉じ、出納帳・集計・決算などの画面からは記帳に戻ります',
+    '「はじめに開くページ」を道具にしていると、最初の「戻る」でアプリごと閉じていたのを直しました',
+    '何も開いていないところで「戻る」を押すと、<b>「もう一度「戻る」を押すと閉じます」</b>と一度知らせるようにしました',
+    'ブラウザの決まりで、開いてまだ一度も画面に触れていないうちの「戻る」だけは止められません',
+  ]},
   { v:'v401', t:'起動を軽く・崩れに気づけるように', li:[
     '<b>📖説明書</b>の中身を別のファイル（help.js）に分けて、<b>開いたときだけ読む</b>ようにしました。アプリを開くたびに読む量が約6%減りました。電波がなくても、一度開いたことがあればそのまま読めます',
     '電波がないときに、説明書などの部品の代わりに本体の画面を返してしまうことがあったのを直しました',
@@ -10993,12 +11000,45 @@ let backGuardSkip=0;       // 自分で history.back() した分（popstate を1
 /* 履歴に積むのは「何か開いている間ずっと1つだけ」。
    画面ごとに積むと、閉じてすぐ開けたときに history.back() が後から効いて
    アプリごと戻ってしまう（back は非同期、pushState は即時のため）。 */
-function backGuardPush(){ try{ window.history.pushState({excalcModal:1},''); }catch(_){} }
-window.addEventListener('popstate', ()=>{
+/* ── 画面に触れる前に積んだ履歴は、ブラウザが「戻る」で飛ばす（v402）──
+   Chrome は、利用者が画面に触れないうちに足された履歴を「戻る」のときに読み飛ばす
+   （勝手に戻れなくするページを防ぐ決まり）。起動と同時に道具を開いたとき（はじめに開くページ）に
+   それが起きて、最初の「戻る」でアプリごと閉じていた。
+   （飛ばされるのは「一度も触れていない」ページが積んだ分。一度でも触れていれば、あとで積んだ分も効く）
+   そこで、まだ一度も触れていないときは積まずに覚えておき、はじめて触れたときに積む。
+   あわせて、何も開いていないときも1つ（いちばん下の分）を積んでおき、それが「戻る」で
+   消えたら「もう一度押すと閉じます」と知らせる。押し間違いでアプリが閉じないようにするため。
+   ブラウザは「戻る」を完全に止めることを許していないので、2回目はそのまま閉じる。 */
+let backGuardDeferred=false;   // 積みたかったが、まだ積めていない（次に触れたときに積む）
+let backGuardBase=false;       // いちばん下の分（何も開いていないとき用）が積んであるか
+function backGuardActed(){ const u=navigator.userActivation; return !u || u.hasBeenActive; }
+function backGuardPush(){
+  if(!backGuardActed()){ backGuardDeferred=true; return; }
+  try{ window.history.pushState({excalcModal:1},''); }catch(_){}
+}
+window.addEventListener('popstate', e=>{
   if(backGuardSkip>0){ backGuardSkip--; return; }
-  const f=backGuardStack.pop(); if(f) f();
-  if(backGuardStack.length) backGuardPush();   // まだ下に開いている画面があるので積み直す
+  const st=e.state||{};
+  backGuardBase=!!(st.excalcBase||st.excalcModal);   // 戻った先がいちばん下の分より上なら、まだ残っている
+  const f=backGuardStack.pop();
+  if(f){
+    f();
+    if(backGuardStack.length) backGuardPush();   // まだ下に開いている画面があるので積み直す
+    return;
+  }
+  // 何も開いていないところで「戻る」：いちばん下の分を使い切った
+  if(!st.excalcBase && !st.excalcModal && typeof toast==='function') toast('もう一度「戻る」を押すと閉じます', 2600);
 });
+/* 画面に触れたとき（ブラウザが「利用者の操作」と認めるとき）に、積めていなかった分を積む */
+function backGuardOnAct(){
+  if(backGuardPending) return;                 // 閉じた分の back がこれから走る。いま積むと取られてしまう
+  if(!backGuardBase){ try{ window.history.pushState({excalcBase:1},''); backGuardBase=true; }catch(_){} }
+  if(backGuardDeferred){
+    backGuardDeferred=false;
+    if(backGuardStack.length){ try{ window.history.pushState({excalcModal:1},''); }catch(_){} }
+  }
+}
+['pointerup','touchend','keydown','mousedown'].forEach(t=>window.addEventListener(t, backGuardOnAct, true));
 /* 閉じたときの history.back() は少し待ってから出す。
    閉じてすぐ開く（声の窓を開き直すなど）と、back は非同期・pushState は即時なので
    順番が入れかわってアプリごと戻ってしまう。待つあいだに開き直したら、打ち消し合う。 */
@@ -11012,6 +11052,7 @@ function releaseBackGuard(){
   if(!backGuardStack.length) return;
   backGuardStack.pop();
   if(backGuardStack.length) return;            // まだ開いている画面があるので、履歴はそのまま
+  if(backGuardDeferred){ backGuardDeferred=false; return; }   // 積めていなかったので戻す分も無い
   backGuardPending++;
   setTimeout(()=>{
     if(!backGuardPending) return;              // 開き直したので取り消し
@@ -13685,10 +13726,10 @@ const NP_TOOLS=[
   {id:'photomemo',label:'📝写真メモ',   ov:'photoMemoOverlay', run:()=>openPhotoMemo(),close:()=>closePhotoMemo()},
   {id:'linklist', label:'🔗リンク集',   ov:'linkListOverlay',  run:()=>openLinkList(), close:()=>closeLinkList()},
   {id:'touban',   label:'📅当番表',     ov:'toubanOverlay',    run:()=>openTouban(),   close:()=>closeTouban()},
-  {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},                        // 別のタブで開くので全画面・フリックの対象外
+  {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},                        // 別のアプリとして開くので全画面・フリックの対象外
   {id:'calctmpl', label:'📋式テンプレ', ov:'calcTmplOverlay',  run:()=>openCalcTmpl(), close:()=>closeCalcTmpl()},
   {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
-  {id:'kaikei',   label:'🧾会計アプリ', run:()=>openKaikeiApp()},                       // 別のタブで開くので全画面・フリックの対象外
+  {id:'kaikei',   label:'🧾会計アプリ', run:()=>openKaikeiApp()},                       // 別のアプリとして開くので全画面・フリックの対象外
 ];
 /* ── はじめに開くページ（v366）──
    アプリを開いたときに、表・電卓・道具のどれを出すかを選べる。
@@ -13697,7 +13738,7 @@ const START_PAGE_KEY='excalc_startpage';
 let startPage='last';
 function startPageOptions(){
   return [['last','前回のつづき'],['normal','▦ 通常の表'],['dentaku','🧮 電卓']]
-    .concat(NP_TOOLS.filter(t=>t.ov).map(t=>[t.id, t.label]));   // 別のタブで開く「メモ」は出さない
+    .concat(NP_TOOLS.filter(t=>t.ov).map(t=>[t.id, t.label]));   // 別のアプリとして開く「メモ」は出さない
 }
 function loadStartPage(){
   let v='last'; try{ v=localStorage.getItem(START_PAGE_KEY)||'last'; }catch(_){}
@@ -14346,17 +14387,33 @@ function openRegLink(url){
 }
 /* 同じ置き場所にある「メモ」（notes/）を新しい画面で開く。
    場所は今のURLから組み立てるので、サイトの置き場所が変わってもそのまま付いてくる。 */
-function openNotesApp(){
-  let u='notes/';
-  try{ u=new URL('notes/', location.href).href; }catch(_){}
-  openRegLink(u);
+/* 同じ置き場所にある別のアプリの場所。ファイルを直接開いているとき（file://。パソコン版など）は、
+   フォルダだけでは中身が開かないので index.html まで付ける */
+function sideAppUrl(dir, hash){
+  const rel=dir+'/'+(location.protocol==='file:'?'index.html':'')+(hash||'');
+  try{ return new URL(rel, location.href).href; }catch(_){ return rel; }
 }
-/* 会計アプリ（kaikei/）。メモと同じく別のタブで開く別アプリ。
+function openNotesApp(){ openSameWindow(sideAppUrl('notes')); }
+/* 同じ置き場所にある別のアプリ（会計・メモ）は、同じウィンドウで開く（v402）。
+   以前は新しいタブで開いていたので、スマホの「戻る」でタブごと閉じていた。
+   同じウィンドウなら「戻る」で表電卓に帰ってこられる（表の中身は自動保存してある）。 */
+function openSameWindow(u){
+  try{ if(typeof saveSheets==='function') saveSheets(); }catch(_){}
+  // ⋯などを閉じた分の「戻る」が済んでから移る（済む前に移ると、移った先で戻ってしまう）
+  setTimeout(()=>{
+    try{
+      // いちばん下の分（「もう一度押すと閉じます」用）の上にいるなら、それと入れかえる。
+      // そうしないと、帰ってきたあと「戻る」を余分に押すことになる
+      if(!backGuardStack.length && backGuardBase && !backGuardPending){ backGuardBase=false; location.replace(u); }
+      else location.href=u;
+    }catch(_){ openRegLink(u); }
+  }, 250);
+}
+/* 会計アプリ（kaikei/）。メモと同じく別のアプリ。同じウィンドウで開く（v402）。
    入れたものはあちらの端末の中だけで、こちらの表とは行き来しない。 */
 function openKaikeiApp(){
-  let u='kaikei/';
-  try{ u=new URL('kaikei/', location.href).href; }catch(_){}
-  openRegLink(u);
+  // #from=hyo：表電卓から開いたしるし。あちらは「戻る」でここへ帰れると分かる
+  openSameWindow(sideAppUrl('kaikei', '#from=hyo'));
 }
 /* ── リンク集：名前付きでURLを登録し、一覧から開く ── */
 let linkList=[], linkEditIdx=-1;
@@ -19983,7 +20040,7 @@ function renderMoreTools(){
   const sp=l=>{ const m=/^(\p{Extended_Pictographic}\uFE0F?)(.*)$/u.exec(l); return m?[m[1],m[2]]:['🧰',l]; };
   g.innerHTML=NP_TOOLS.map((t,i)=>{ const [ic,tx]=sp(t.label);
     return '<button class="more-item" data-tool="'+t.id+'" onclick="moreDo(NP_TOOLS['+i+'].run)"'+
-      (t.ov?'':' title="別のタブで開きます"')+'><span>'+ic+'</span>'+escHtml(tx)+(t.ov?'':' ↗')+'</button>'; }).join('');
+      (t.ov?'':' title="別のアプリとして開きます（「戻る」で表電卓に帰れます）"')+'><span>'+ic+'</span>'+escHtml(tx)+(t.ov?'':' ↗')+'</button>'; }).join('');
   const sum=document.getElementById('moreToolsSum');
   if(sum) sum.textContent=NP_TOOLS.map(t=>sp(t.label)[1]).slice(0,5).join('・')+' ほか 全'+NP_TOOLS.length+'つ';
 }
@@ -20144,7 +20201,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v401';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v402';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
