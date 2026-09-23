@@ -1202,13 +1202,13 @@ async function runNpTools(browser) {
     startPageOptions().some(o => o[0] === 'kaikei')), false);
   check('  ▲登録の一覧にある', await page.evaluate(() =>
     !!(KEY_FUNCS.a_kaikei && KEY_FUNCS.a_kaikei.label === '🧾会計アプリ')), true);
-  check('  登録したらその場で開く（新しいタブなので）', await page.evaluate(() =>
+  check('  登録したらその場で開く（別のアプリなので）', await page.evaluate(() =>
     REG_GESTURE_ACTIONS.has('a_kaikei')), true);
   check('  開く先は kaikei/ ', await page.evaluate(() => {
-    let got = ''; const real = window.openRegLink;
-    window.openRegLink = u => { got = u; };
-    try { openKaikeiApp(); } finally { window.openRegLink = real; }
-    return /\/kaikei\/$/.test(got);
+    let got = ''; const real = window.openSameWindow;
+    window.openSameWindow = u => { got = u; };   // v402 から同じウィンドウで開く
+    try { openKaikeiApp(); } finally { window.openSameWindow = real; }
+    return /\/kaikei\/(index\.html)?#from=hyo$/.test(got);   // 表電卓から来たしるし付き（v402）
   }), true);
 
   // チェックすると並びに足される
@@ -6359,6 +6359,99 @@ async function runHelpSplit(browser) {
   await ctx.close();
 }
 
+async function runBackKey(browser) {
+  console.log('\n── スマホの「戻る」（v402） ──');
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  const page = await ctx.newPage();
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('about:blank');
+  await page.goto(INDEX); await page.waitForTimeout(300);
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.reload(); await page.waitForTimeout(900);
+  const alive = () => page.evaluate(() => typeof data).catch(() => 'DEAD');
+  const back = async () => { await page.goBack({ waitUntil: 'commit' }).catch(() => {}); await page.waitForTimeout(450); };
+  const len = () => page.evaluate(() => window.history.length);
+
+  // 3. 画面に一度も触れていないときは積まない（起動と同時に道具を開いたとき）
+  await page.evaluate(() => { window._acted = backGuardActed; window.backGuardActed = () => false; });
+  const l0 = await len();
+  await page.evaluate(() => openTouban()); await page.waitForTimeout(300);
+  check('  触れる前に開いた分は積まずに覚えておく', await page.evaluate(() => backGuardDeferred), true);
+  check('  履歴は増えない', await len(), l0);
+  await page.evaluate(() => closeTouban()); await page.waitForTimeout(400);
+  check('  触れる前に閉じても戻りすぎない', await alive(), 'object');
+  check('  覚えていた分も消える', await page.evaluate(() => backGuardDeferred), false);
+  await page.evaluate(() => openTouban()); await page.waitForTimeout(300);
+  await page.evaluate(() => { window.backGuardActed = window._acted; });
+  await page.tap('#toubanHdr'); await page.waitForTimeout(300);
+  check('  触れたときに、いちばん下の分と道具の分を積む', await page.evaluate(() =>
+    backGuardBase + '/' + backGuardDeferred), 'true/false');
+  check('  履歴が2つ増える', await len(), l0 + 2);
+  await back();
+  check('  戻る1回で道具だけ閉じる', await page.evaluate(() => isDlgOpen('toubanOverlay')), false);
+  check('  アプリは生きている', await alive(), 'object');
+  // 4. いちばん上で「戻る」
+  await back();
+  check('  もう一度押すと閉じますと知らせる', await page.evaluate(() =>
+    [...document.querySelectorAll('div')].some(d => d.textContent === 'もう一度「戻る」を押すと閉じます')), true);
+  check('  知らせたときはまだ閉じない', await alive(), 'object');
+  await page.tap('#c0_0'); await page.waitForTimeout(200);
+  check('  また触れると、いちばん下の分を積み直す', await page.evaluate(() => backGuardBase), true);
+  // 重ねて開いたときは上から1つずつ
+  await page.tap('#moreBtn'); await page.waitForTimeout(300);
+  await page.evaluate(() => { toggleSettings(); }); await page.waitForTimeout(300);
+  await back();
+  check('  重ねたときは戻るで上だけ閉じる', await page.evaluate(() =>
+    !isDlgOpen('settingsPanel') && isDlgOpen('moreMenuOverlay')), true);
+  await back();
+  check('  もう一度で下も閉じる', await page.evaluate(() => isDlgOpen('moreMenuOverlay')), false);
+  check('  まだアプリの中', await alive(), 'object');
+
+  // 1. 会計アプリは同じウィンドウで開き、戻るで帰ってくる
+  check('  ファイルで開いているときは index.html まで付ける', await page.evaluate(() =>
+    sideAppUrl('kaikei', '#from=hyo').endsWith('/kaikei/index.html#from=hyo')), true);
+  await page.evaluate(() => openKaikeiApp()); await page.waitForTimeout(1300);
+  check('  会計アプリが同じウィンドウで開く', /\/kaikei\/index\.html$/.test(page.url()), true);
+  check('  表電卓から来たしるしは消える', await page.evaluate(() => location.hash), '');
+  check('  表電卓から来たときは、いちばん下の分を積まない', await page.evaluate(() => KB.wantBase), false);
+  // 2. 会計アプリの中の「戻る」
+  await page.tap('nav.tabs button[data-pg=sum]'); await page.waitForTimeout(300);
+  await back();
+  check('  集計から戻ると記帳へ', await page.evaluate(() => curPg + '|' + location.pathname.endsWith('/kaikei/index.html')), 'entry|true');
+  await page.tap('nav.tabs button[data-pg=set]'); await page.waitForTimeout(300);
+  await page.tap('#hdYear'); await page.waitForTimeout(300);
+  check('  窓が開く', await page.evaluate(() => dlgYear.open), true);
+  await back();
+  check('  戻るで窓だけ閉じる', await page.evaluate(() => !dlgYear.open && curPg), 'set');
+  await back();
+  check('  もう一度で記帳へ', await page.evaluate(() => curPg), 'entry');
+  await page.tap('#hdYear'); await page.waitForTimeout(300);
+  await page.evaluate(() => dlgYear.close()); await page.waitForTimeout(300);
+  check('  ✕で閉じても履歴が残らない', await page.evaluate(() => KB.stack.length), 0);
+  await page.tap('nav.tabs button[data-pg=book]'); await page.waitForTimeout(200);
+  await page.tap('nav.tabs button[data-pg=entry]'); await page.waitForTimeout(400);
+  check('  タブで記帳に戻っても履歴が残らない', await page.evaluate(() => KB.stack.length), 0);
+  await back();
+  check('  記帳で戻ると表電卓へ帰る', /\/index\.html$/.test(page.url()) && !/kaikei/.test(page.url()), true);
+  await page.waitForTimeout(600);
+  check('  表電卓は動いている', await alive(), 'object');
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+
+  // 会計アプリだけを開いたとき
+  const c2 = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  const p2 = await c2.newPage();
+  await p2.goto(KAIKEI); await p2.waitForTimeout(900);
+  check('  会計アプリだけのときは、いちばん下の分を使う', await p2.evaluate(() => KB.wantBase), true);
+  await p2.tap('nav.tabs button[data-pg=book]'); await p2.waitForTimeout(300);
+  await p2.goBack({ waitUntil: 'commit' }).catch(() => {}); await p2.waitForTimeout(400);
+  await p2.goBack({ waitUntil: 'commit' }).catch(() => {}); await p2.waitForTimeout(400);
+  check('  記帳で戻ると一度知らせる', await p2.evaluate(() => document.getElementById('toast').textContent).catch(() => 'DEAD'),
+    'もう一度「戻る」を押すと閉じます');
+  await c2.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -6406,6 +6499,7 @@ async function runHelpSplit(browser) {
     if (!only || only === 'brush2') await runBrush2(browser);
     if (!only || only === 'brush3') await runBrush3(browser);
     if (!only || only === 'help') await runHelpSplit(browser);
+    if (!only || only === 'backkey') await runBackKey(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
   } finally { await browser.close(); }
