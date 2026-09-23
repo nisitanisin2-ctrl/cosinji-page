@@ -6630,6 +6630,88 @@ async function runTbSave(browser) {
   await ctx.close();
 }
 
+async function runFmtPage(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, acceptDownloads: true });
+  const page = await ctx.newPage();
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto(INDEX); await page.waitForTimeout(300);
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.reload(); await page.waitForTimeout(900);
+  console.log('\n── 書式・枠線のページ（v407） ──');
+  await page.evaluate(() => numpadPager.go('fmt')); await page.waitForTimeout(500);
+  const key = k => '#numpadPageFmt [data-key=' + k + ']';
+  const on = k => page.evaluate(k => document.querySelector('#numpadPageFmt [data-key=' + k + ']').classList.contains('kf-on'), k);
+  check('  6列にした', await page.evaluate(() =>
+    getComputedStyle(document.getElementById('numpadPageFmt')).gridTemplateColumns.split(' ').length), 6);
+  check('  ボタンは白い地（明るい）', await page.evaluate(() =>
+    getComputedStyle(document.querySelector('#numpadPageFmt [data-key=kf_bold]')).backgroundColor), 'rgb(255, 255, 255)');
+  check('  Excel と同じ B・I・U・ab が並ぶ', await page.evaluate(() =>
+    ['kf_bold', 'kf_italic', 'kf_under', 'kf_strike'].map(k => document.querySelector('#numpadPageFmt [data-key=' + k + ']').textContent.trim()).join(' ')), 'B I U ab');
+  check('  揃え（左・中央・右／上・中・下）・結合・書式のコピーがある', await page.evaluate(() =>
+    ['kf_left', 'kf_center', 'kf_right', 'kf_vtop', 'kf_vmid', 'kf_vbot', 'kf_merge', 'kf_paint']
+      .every(k => { const b = document.querySelector('#numpadPageFmt [data-key=' + k + ']'); return b && b.title; })), true);
+  check('  ボタンが重ならずに並ぶ', await page.evaluate(() => {
+    const r = [...document.querySelectorAll('#numpadPageFmt > .btn, #numpadPageFmt > .kf-vcol')].map(e => e.getBoundingClientRect());
+    for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++) {
+      const a = r[i], b = r[j];
+      if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) return false; }
+    return true; }), true);
+  // 結合して中央揃え
+  await page.evaluate(() => { setCellVal(0, 0, '見出し'); sel(0, 0); rangeR1 = 0; rangeC1 = 0; rangeR2 = 0; rangeC2 = 2; });
+  await page.click(key('kf_merge')); await page.waitForTimeout(400);
+  check('  範囲を選んで結合できる', await page.evaluate(() =>
+    JSON.stringify(mergeAt(0, 0)) + '/' + document.getElementById('c0_0').colSpan + '/' + cellStyles['0,0'].align), '{"rs":1,"cs":3}/3/center');
+  check('  結合したセルでは結合ボタンが灰色', await on('kf_merge'), true);
+  await page.click(key('kf_merge')); await page.waitForTimeout(400);
+  check('  もう一度押すと解除', await page.evaluate(() => mergeAt(0, 0) + '/' + document.getElementById('c0_0').colSpan), 'null/1');
+  await page.evaluate(() => undoLast()); await page.waitForTimeout(300);
+  check('  戻るで結合した形に戻る', await page.evaluate(() => JSON.stringify(mergeAt(0, 0))), '{"rs":1,"cs":3}');
+  await page.evaluate(() => undoLast()); await page.waitForTimeout(300);
+  check('  もう一度戻ると結合前', await page.evaluate(() => mergeAt(0, 0)), null);
+  await page.evaluate(() => { clearRangeSelection(); sel(5, 0); });
+  await page.click(key('kf_merge')); await page.waitForTimeout(300);
+  check('  1つだけ選んで押しても何も起きない', await page.evaluate(() => mergeAt(5, 0)), null);
+  await page.evaluate(() => { setCellVal(1, 0, 'a'); setCellVal(1, 1, 'b'); sel(1, 0); rangeR1 = 1; rangeC1 = 0; rangeR2 = 1; rangeC2 = 1; });
+  await page.click(key('kf_merge')); await page.waitForTimeout(300);
+  check('  値が消えるときは先に聞く', await page.evaluate(() => {
+    const ov = document.querySelector('div[style*="99999"]'); return !!ov && ov.textContent.includes('左上のセルの値だけ'); }), true);
+  await page.evaluate(() => { const b = [...document.querySelectorAll('div[style*="99999"] button')].find(x => x.textContent === 'やめる'); if (b) b.click(); });
+  await page.waitForTimeout(300);
+  check('  やめたら結合しない', await page.evaluate(() => mergeAt(1, 0) + '/' + data[1][1]), 'null/b');
+  // 取り消し線・今の状態の印
+  await page.evaluate(() => { clearRangeSelection(); setCellVal(2, 0, 'x'); sel(2, 0); });
+  await page.click(key('kf_strike')); await page.click(key('kf_bold')); await page.waitForTimeout(300);
+  check('  取り消し線が付く', await page.evaluate(() => getComputedStyle(document.getElementById('c2_0')).textDecorationLine), 'line-through');
+  check('  付いている書式のボタンが灰色（Excel と同じ）', [await on('kf_strike'), await on('kf_bold'), await on('kf_italic')].join(','), 'true,true,false');
+  await page.evaluate(() => sel(3, 0)); await page.waitForTimeout(100);
+  check('  別のセルに移ると印も変わる', await on('kf_bold'), false);
+  // 上下の揃え
+  await page.evaluate(() => sel(2, 0)); await page.click(key('kf_vmid')); await page.waitForTimeout(200);
+  check('  上下中央揃え', await page.evaluate(() => getComputedStyle(document.getElementById('c2_0')).verticalAlign), 'middle');
+  // 書式のコピー/貼り付け
+  await page.click(key('kf_paint')); await page.waitForTimeout(100);
+  check('  1回目で書式を写す', await on('kf_paint'), true);
+  await page.evaluate(() => sel(4, 1)); await page.click(key('kf_paint')); await page.waitForTimeout(300);
+  check('  2回目で貼る', await page.evaluate(() => JSON.stringify(cellStyles['4,1'])), '{"strike":true,"bold":true,"valign":"middle"}');
+  // Excel の読み書き（取り消し線）
+  check('  Excel の取り消し線を読める', await page.evaluate(() => {
+    const st = parseXlsxStyles('<styleSheet><fonts count="2"><font><sz val="11"/></font><font><strike/><sz val="11"/></font></fonts>' +
+      '<fills count="1"><fill><patternFill patternType="none"/></fill></fills><borders count="1"><border/></borders>' +
+      '<cellXfs count="2"><xf fontId="0"/><xf fontId="1" applyFont="1"/></cellXfs></styleSheet>');
+    const s1 = st.styleForIdx(1); return !!(s1 && s1.strike); }), true);
+  const dl = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.evaluate(() => exportXLSX())]).then(a => a[0]).catch(() => null);
+  if (dl) {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fmt-'));
+    const f = path.join(tmp, 'o.xlsx'); await dl.saveAs(f);
+    const { readZipEntry } = require('./zip.js');
+    check('  Excel に書き出すと取り消し線が付く', String(readZipEntry(f, 'xl/styles.xml')).includes('<strike/>'), true);
+    fs.rmSync(tmp, { recursive: true, force: true });
+  } else check('  Excel に書き出すと取り消し線が付く', 'ダウンロードされず', true);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -6676,6 +6758,7 @@ async function runTbSave(browser) {
     if (!only || only === 'tbcolor') await runTbColor(browser);
     if (!only || only === 'tbroster') await runTbRoster(browser);
     if (!only || only === 'tbsave') await runTbSave(browser);
+    if (!only || only === 'fmtpage') await runFmtPage(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
     if (!only || only === 'brush3') await runBrush3(browser);

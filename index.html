@@ -1804,6 +1804,57 @@ body.calc-only #numpadPageSci .btn[data-key="dk_dec"] { grid-column: span 2; }
 .kf-vcol { position: relative; grid-row: 2 / span 2; }
 /* 色の帯の先頭に置く「標準に戻す／なし」 */
 .kf-none { font-size: calc(11px * var(--key-scale, 1.3)); }
+/* ── 書式・枠線ページを明るく、Excel（スマホ版）の「ホーム」の見た目に（v407）──
+   白い地に濃い灰色のアイコン、ボタンどうしは細い灰色の線で区切るだけ（角ばった板にしない）。
+   選んでいる線の種類・色、今のセルに付いている B・I・U・揃え・結合は、Excel と同じく灰色に塗って示す。
+   夜は目にやさしいよう、少し落とした明るさにする。 */
+#numpadPageFmt {
+  --fp-bg: #d9dce0; --fp-key: #ffffff; --fp-hover: #f3f3f3; --fp-ink: #3b3b3b; --fp-on: #d2d2d2;
+  background: var(--fp-bg); grid-template-columns: repeat(6, 1fr); gap: 1px !important; padding: 1px;
+}
+body.dark #numpadPageFmt { --fp-bg: #1e2227; --fp-key: #d6d9dd; --fp-hover: #c9cdd2; --fp-ink: #1f2328; --fp-on: #a9aeb5; }
+#numpadPageFmt .btn {
+  background: var(--fp-key); color: var(--fp-ink); border: none; border-radius: 0; box-shadow: none; --bd-gap: var(--fp-key);
+  font-size: calc(12px * var(--key-scale, 1.3)); font-weight: normal;
+}
+#numpadPageFmt .btn:hover { background: var(--fp-hover); }
+/* 余白を詰めて、字を小さくしなくても収まるようにする（アイコンの大きさもそろう） */
+#numpadPageFmt .btn { padding-left: 2px; padding-right: 2px; }
+#numpadPageFmt .kf-ico { width: calc(17px * var(--key-scale, 1.3)); height: calc(17px * var(--key-scale, 1.3)); }
+#numpadPageFmt .btn.g-bd, #numpadPageFmt .btn.clr { background: var(--fp-key); }
+#numpadPageFmt .btn.clr { color: #c62828; }
+#numpadPageFmt .btn.bd-on, #numpadPageFmt .btn.kf-on { background: var(--fp-on); --bd-gap: var(--fp-on); box-shadow: none; }
+#numpadPageFmt .btn.g-bd.bd-color { border-bottom: 5px solid #101010; }
+#numpadPageFmt .btn.g-bd[data-key="bd_red"]    { border-bottom-color: #e53935; }
+#numpadPageFmt .btn.g-bd[data-key="bd_blue"]   { border-bottom-color: #1e88e5; }
+#numpadPageFmt .btn.g-bd[data-key="bd_green"]  { border-bottom-color: #2e7d32; }
+#numpadPageFmt .btn.g-bd[data-key="bd_purple"] { border-bottom-color: #8e24aa; }
+#numpadPageFmt .bd-ln { display: inline-block; width: 62%; }
+#numpadPageFmt .kf-b { font-size: 1.35em; font-weight: 900; font-family: Arial, sans-serif; }
+#numpadPageFmt .kf-i { font-size: 1.35em; font-family: Georgia, 'Times New Roman', serif; }
+#numpadPageFmt .kf-u { font-size: 1.3em; font-family: Arial, sans-serif; text-underline-offset: 3px; }
+#numpadPageFmt .kf-s { font-size: 1.2em; font-family: Arial, sans-serif; }
+#numpadPageFmt .btn small { font-size: .62em; margin-left: 1px; }
+.kf-ico { width: 1.6em; height: 1.6em; display: block; margin: 0 auto; pointer-events: none;
+  fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+#numpadPageFmt .kf-merge { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; line-height: 1; }
+#numpadPageFmt .kf-merge .kf-ico { width: calc(15px * var(--key-scale, 1.3)); height: calc(15px * var(--key-scale, 1.3)); stroke: #1e73be; }
+#numpadPageFmt .kf-merge span { font-size: .78em; }
+#numpadPageFmt .kf-merge .kf-ico, #numpadPageFmt .kf-head .kf-ico, #numpadPageFmt .kf-head .kf-a { flex: none; }   /* 縦に並べたとき縮まないように */
+#numpadPageFmt .kf-paint .kf-ico { stroke: #d9822b; }
+/* 塗りつぶしの色・フォントの色の見出し（Excel の、色の帯つきアイコン） */
+#numpadPageFmt .kf-head { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; gap: 2px; }
+#numpadPageFmt .kf-head small { font-size: .7em; color: #666; margin: 0; }
+#numpadPageFmt .kf-a { font-family: Arial, sans-serif; font-size: 1.2em; padding: 0 .25em; border-bottom: 4px solid #e53935; }
+#numpadPageFmt .kf-bucket { width: calc(15px * var(--key-scale, 1.3)); height: calc(15px * var(--key-scale, 1.3)); border-bottom: 4px solid #ffeb3b; stroke: #444; }
+/* フォントの色：「A に色の下線」 */
+#numpadPageFmt .kf-fc span { font-family: Arial, sans-serif; font-size: 1.15em; font-weight: bold; color: var(--fc);
+  border-bottom: 4px solid var(--fc); line-height: 1; padding: 0 .2em; }
+#numpadPageFmt .kf-fc-w { background: #6b7480; }
+/* 塗りつぶしの色：色そのもの */
+#numpadPageFmt .kf-fill { background: var(--fl) !important; }
+#numpadPageFmt .kf-vcol-in { gap: 1px; }
+#numpadPageFmt .kf-vcol-in .btn { flex: 0 0 calc((100% - 2px)/3); }
 /* 書式・枠線ページは6段。1段目は線の種類を選ぶだけなので、
    数字ページの道具の段と同じ低さ（他の段の約2/3）にする。 */
 #numpadPageFmt { grid-template-rows: 0.66fr repeat(5, 1fr); }
@@ -4062,87 +4113,95 @@ body.dark {
   <div class="numpad-pagebar" id="numpadPageBar" role="tablist" aria-label="テンキーのページ"></div>
   <div class="numpad-viewport" id="numpadViewport">
     <div class="numpad-grid numpad-overlay ov-left" id="numpadPageFmt" data-bd="normal">
-    <!-- 書式・枠線ページ（数字ページから右フリックで表示）。選択中のセル（スライドで範囲選択して
-         いれば範囲全体）の書式と枠線をここでまとめて変える。6段×5列。
-           上から 低い段＝線の種類／2段目＝線の色／3段目＝線を引く場所
-           4段目＝囲む｜太字・斜体・下線・書式消す（ここが枠線と文字の境目）
-           5段目＝寄せ3つ＋文字色・背景色の帯（帯は5〜6段目の2段ぶん）／6段目＝文字の大小とくわしく
-         地色は 青み＝枠線／緑み＝文字／赤み＝消す の3種類だけ。
-         セルの保護はセルの長押しメニュー（📥貼り付け・⧉コピー・🔒保護・🧹消去・🎨書式）か「くわしく」から。 -->
-    <button class="btn bd-type g-bd" data-key="bd_thin" onclick="bdSetType('thin',this)" title="細い線"><span style="display:inline-block;width:70%;border-bottom:1px solid #fff"></span></button>
-    <button class="btn bd-type bd-on g-bd" data-key="bd_normal" onclick="bdSetType('normal',this)" title="ふつうの線"><span style="display:inline-block;width:70%;border-bottom:2px solid #fff"></span></button>
-    <button class="btn bd-type g-bd" data-key="bd_thick" onclick="bdSetType('thick',this)" title="太い線"><span style="display:inline-block;width:70%;border-bottom:5px solid #fff"></span></button>
-    <button class="btn bd-type g-bd" data-key="bd_double" onclick="bdSetType('double',this)" title="二重線"><span style="display:inline-block;width:70%;border-bottom:6px double #fff"></span></button>
-    <button class="btn clr" data-key="bd_clear" onclick="bdApply('clear')" title="選択範囲の枠線を消す">線を消す</button>
-    <button class="btn g-kf g-sep-t g-sep-l" data-key="kf_bold" style="font-weight:bold" onclick="kfmtToggle('bold')" title="太字">太字</button>
-    <button class="btn g-kf g-sep-t" data-key="kf_italic" style="font-style:italic" onclick="kfmtToggle('italic')" title="斜体">斜体</button>
-    <button class="btn g-kf g-sep-t" data-key="kf_under" style="text-decoration:underline" onclick="kfmtToggle('underline')" title="下線">下線</button>
-    <div class="kf-vcol" style="grid-column:4;grid-row:5/span 2" title="文字色（縦にスライドすると他の色が出ます）">
+    <!-- 書式・枠線ページ（数字ページから右フリックで表示）。v407 で Excel（スマホ版）の「ホーム」の見た目と並びに寄せた。6段×6列。
+           1段目（低い段）＝罫線の種類・書式設定・書式のクリア
+           2段目＝罫線を引く場所（上・下・左・右・格子・外枠）
+           3段目＝線の色・枠なし
+           4段目＝フォント（B・I・U・取り消し線・文字の大小）
+           5段目＝左・中央・右揃え・結合／右の2列は塗りつぶしの色とフォントの色（縦にスライドで続きの色）
+           6段目＝上・上下中央・下揃え・書式のコピー/貼り付け
+         選んでいるセル（スライドで範囲を選んでいれば範囲全体）にまとめて効く。
+         今のセルに付いている B・I・U・揃え・結合は、Excel と同じく灰色に塗って示す。 -->
+    <button class="btn bd-type g-bd" data-key="bd_thin" onclick="bdSetType('thin',this)" title="細い線"><span class="bd-ln" style="border-bottom:1px solid currentColor"></span></button>
+    <button class="btn bd-type bd-on g-bd" data-key="bd_normal" onclick="bdSetType('normal',this)" title="ふつうの線"><span class="bd-ln" style="border-bottom:2px solid currentColor"></span></button>
+    <button class="btn bd-type g-bd" data-key="bd_thick" onclick="bdSetType('thick',this)" title="太い線"><span class="bd-ln" style="border-bottom:4px solid currentColor"></span></button>
+    <button class="btn bd-type g-bd" data-key="bd_double" onclick="bdSetType('double',this)" title="二重線"><span class="bd-ln" style="border-bottom:5px double currentColor"></span></button>
+    <button class="btn g-kf" data-key="kf_more" onclick="openCellFmt()" title="セルの書式設定（小数点・日付・結合の大きさ・保護など）">設定</button>
+    <button class="btn clr" data-key="kf_clear" onclick="kfmtClear()" title="書式のクリア（選んでいるセルの書式をすべて消す）">クリア</button>
+    <button class="btn bd-place g-bd" data-key="bd_top" onclick="bdApply('top')" title="上罫線（範囲の上側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 4H20"/><path class="s2" d="M4 4H20"/></svg></button>
+    <button class="btn bd-place g-bd" data-key="bd_bottom" onclick="bdApply('bottom')" title="下罫線（範囲の下側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 20H20"/><path class="s2" d="M4 20H20"/></svg></button>
+    <button class="btn bd-place g-bd" data-key="bd_left" onclick="bdApply('left')" title="左罫線（範囲の左側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 4V20"/><path class="s2" d="M4 4V20"/></svg></button>
+    <button class="btn bd-place g-bd" data-key="bd_right" onclick="bdApply('right')" title="右罫線（範囲の右側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M20 4V20"/><path class="s2" d="M20 4V20"/></svg></button>
+    <button class="btn bd-place g-bd" data-key="bd_grid" onclick="bdApply('grid')" title="格子（全セルの全部の辺に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="s" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s2" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/></svg></button>
+    <button class="btn bd-place g-bd" data-key="bd_box" onclick="bdApply('box')" title="外枠（選んでいる範囲のまわりを囲む）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 12H20M12 4V20"/><path class="s" d="M4 4H20M4 20H20M4 4V20M20 4V20"/><path class="s2" d="M4 4H20M4 20H20M4 4V20M20 4V20"/></svg></button>
+    <button class="btn bd-color bd-on g-bd" data-key="bd_black" onclick="bdSetColor('#000000',this)" title="線の色：黒">黒</button>
+    <button class="btn bd-color g-bd" data-key="bd_red" onclick="bdSetColor('#e53935',this)" title="線の色：赤">赤</button>
+    <button class="btn bd-color g-bd" data-key="bd_blue" onclick="bdSetColor('#1e88e5',this)" title="線の色：青">青</button>
+    <button class="btn bd-color g-bd" data-key="bd_green" onclick="bdSetColor('#2e7d32',this)" title="線の色：緑">緑</button>
+    <button class="btn bd-color g-bd" data-key="bd_purple" onclick="bdSetColor('#8e24aa',this)" title="線の色：紫">紫</button>
+    <button class="btn clr" data-key="bd_clear" onclick="bdApply('clear')" title="枠なし（選んでいる範囲の罫線を消す）">枠なし</button>
+    <button class="btn g-kf kf-t" data-key="kf_bold" onclick="kfmtToggle('bold')" title="太字" aria-label="太字"><b class="kf-b">B</b></button>
+    <button class="btn g-kf kf-t" data-key="kf_italic" onclick="kfmtToggle('italic')" title="斜体" aria-label="斜体"><i class="kf-i">I</i></button>
+    <button class="btn g-kf kf-t" data-key="kf_under" onclick="kfmtToggle('underline')" title="下線" aria-label="下線"><u class="kf-u">U</u></button>
+    <button class="btn g-kf kf-t" data-key="kf_strike" onclick="kfmtToggle('strike')" title="取り消し線" aria-label="取り消し線"><s class="kf-s">ab</s></button>
+    <button class="btn g-kf" data-key="kf_bigger" onclick="kfmtSize(1)" title="フォントサイズの拡大" aria-label="文字を大きく">A<small>▲</small></button>
+    <button class="btn g-kf" data-key="kf_smaller" onclick="kfmtSize(-1)" title="フォントサイズの縮小" aria-label="文字を小さく">A<small>▼</small></button>
+    <button class="btn g-kf kf-t" data-key="kf_left" onclick="kfmtAlign('left')" title="左揃え" aria-label="左揃え"><svg class="kf-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5H21M3 9.5H14M3 14H21M3 18.5H14"/></svg></button>
+    <button class="btn g-kf kf-t" data-key="kf_center" onclick="kfmtAlign('center')" title="中央揃え" aria-label="中央揃え"><svg class="kf-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5H21M7 9.5H17M3 14H21M7 18.5H17"/></svg></button>
+    <button class="btn g-kf kf-t" data-key="kf_right" onclick="kfmtAlign('right')" title="右揃え" aria-label="右揃え"><svg class="kf-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5H21M10 9.5H21M3 14H21M10 18.5H21"/></svg></button>
+    <button class="btn g-kf kf-t kf-merge" data-key="kf_merge" onclick="kfmtMerge()" title="セルを結合して中央揃え（結合したセルでもう一度押すと解除）" aria-label="セルを結合して中央揃え"><svg class="kf-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6V18H21V6ZM8 12H16M8 12L10.5 9.5M8 12L10.5 14.5M16 12L13.5 9.5M16 12L13.5 14.5"/></svg><span>結合</span></button>
+    <div class="kf-vcol" style="grid-column:5;grid-row:5/span 2" title="塗りつぶしの色（縦にスライドすると他の色が出ます）">
       <div class="kf-vcol-in">
-      <button class="btn kf-none" onclick="kfmtColor('color','')" title="文字色を標準に戻す">標準</button>
-      <button class="btn" style="color:#ff8a80" onclick="kfmtColor('color','#e53935')" title="文字を赤に">あ</button>
-      <button class="btn" style="color:#ffcc80" onclick="kfmtColor('color','#fb8c00')" title="文字をだいだい色に">あ</button>
-      <button class="btn" style="color:#fff59d" onclick="kfmtColor('color','#f9a825')" title="文字を黄色に">あ</button>
-      <button class="btn" style="color:#b9f6ca" onclick="kfmtColor('color','#2e7d32')" title="文字を緑に">あ</button>
-      <button class="btn" style="color:#84ffff" onclick="kfmtColor('color','#00acc1')" title="文字を水色に">あ</button>
-      <button class="btn" style="color:#82b1ff" onclick="kfmtColor('color','#1e88e5')" title="文字を青に">あ</button>
-      <button class="btn" style="color:#ea80fc" onclick="kfmtColor('color','#8e24aa')" title="文字を紫に">あ</button>
-      <button class="btn" style="color:#ff80ab" onclick="kfmtColor('color','#e91e63')" title="文字を桃色に">あ</button>
-      <button class="btn" style="color:#bcaaa4" onclick="kfmtColor('color','#6d4c41')" title="文字を茶色に">あ</button>
-      <button class="btn" onclick="kfmtColor('color','#000000')" title="文字を黒に">黒</button>
-      <button class="btn" style="color:#ffffff" onclick="kfmtColor('color','#ffffff')" title="文字を白に">白</button>
-      <button class="btn" style="color:#ff5252" onclick="kfmtColor('color','#ff0000')" title="文字を原色の赤に">あ</button>
-      <button class="btn" style="color:#ff9e40" onclick="kfmtColor('color','#ff6600')" title="文字を原色のだいだい色に">あ</button>
-      <button class="btn" style="color:#ffff00" onclick="kfmtColor('color','#ffff00')" title="文字を原色の黄色に">あ</button>
-      <button class="btn" style="color:#69f069" onclick="kfmtColor('color','#00b300')" title="文字を原色の緑に">あ</button>
-      <button class="btn" style="color:#7a7aff" onclick="kfmtColor('color','#0000ff')" title="文字を原色の青に">あ</button>
-      <button class="btn" style="color:#ff66ff" onclick="kfmtColor('color','#ff00ff')" title="文字を原色の赤紫（マゼンタ）に">あ</button>
-      <button class="btn" style="color:#66ffff" onclick="kfmtColor('color','#00ffff')" title="文字を原色の水色（シアン）に">あ</button>
-      <button class="btn" style="color:#b0b0b0" onclick="kfmtColor('color','#808080')" title="文字を灰色に">あ</button>
+      <button class="btn kf-none kf-head" onclick="kfmtColor('bg','')" title="塗りつぶしの色（押すとなしに戻す／縦にスライドで色をえらぶ）"><svg class="kf-ico kf-bucket" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11L11 5L17 11L11 17Z"/><path d="M11 5L9 3"/><path d="M18 13C18 13 20 15.5 20 16.5A2 2 0 0 1 16 16.5C16 15.5 18 13 18 13Z"/></svg><small>なし</small></button>
+      <button class="btn kf-fill" style="--fl:#fff59d" onclick="kfmtColor('bg','#fff59d')" title="背景を黄色に"></button>
+      <button class="btn kf-fill" style="--fl:#ffe0b2" onclick="kfmtColor('bg','#ffe0b2')" title="背景をだいだい色に"></button>
+      <button class="btn kf-fill" style="--fl:#c8e6c9" onclick="kfmtColor('bg','#c8e6c9')" title="背景を緑に"></button>
+      <button class="btn kf-fill" style="--fl:#b2ebf2" onclick="kfmtColor('bg','#b2ebf2')" title="背景を水色に"></button>
+      <button class="btn kf-fill" style="--fl:#bbdefb" onclick="kfmtColor('bg','#bbdefb')" title="背景を青に"></button>
+      <button class="btn kf-fill" style="--fl:#e1bee7" onclick="kfmtColor('bg','#e1bee7')" title="背景を紫に"></button>
+      <button class="btn kf-fill" style="--fl:#f8bbd0" onclick="kfmtColor('bg','#f8bbd0')" title="背景を桃色に"></button>
+      <button class="btn kf-fill" style="--fl:#ffcdd2" onclick="kfmtColor('bg','#ffcdd2')" title="背景を赤に"></button>
+      <button class="btn kf-fill" style="--fl:#cfd8dc" onclick="kfmtColor('bg','#cfd8dc')" title="背景を灰色に"></button>
+      <button class="btn kf-fill" style="--fl:#d7ccc8" onclick="kfmtColor('bg','#d7ccc8')" title="背景を茶色に"></button>
+      <button class="btn kf-fill" style="--fl:#ffffff" onclick="kfmtColor('bg','#ffffff')" title="背景を白に"></button>
+      <button class="btn kf-fill" style="--fl:#ff0000" onclick="kfmtColor('bg','#ff0000')" title="背景を原色の赤に"></button>
+      <button class="btn kf-fill" style="--fl:#ff9100" onclick="kfmtColor('bg','#ff9100')" title="背景を原色のだいだい色に"></button>
+      <button class="btn kf-fill" style="--fl:#ffff00" onclick="kfmtColor('bg','#ffff00')" title="背景を原色の黄色に"></button>
+      <button class="btn kf-fill" style="--fl:#00ff00" onclick="kfmtColor('bg','#00ff00')" title="背景を原色の緑に"></button>
+      <button class="btn kf-fill" style="--fl:#0000ff" onclick="kfmtColor('bg','#0000ff')" title="背景を原色の青に"></button>
+      <button class="btn kf-fill" style="--fl:#ff00ff" onclick="kfmtColor('bg','#ff00ff')" title="背景を原色の赤紫（マゼンタ）に"></button>
+      <button class="btn kf-fill" style="--fl:#00ffff" onclick="kfmtColor('bg','#00ffff')" title="背景を原色の水色（シアン）に"></button>
+      <button class="btn kf-fill" style="--fl:#212121" onclick="kfmtColor('bg','#212121')" title="背景を黒に"></button>
       </div>
     </div>
-    <div class="kf-vcol" style="grid-column:5;grid-row:5/span 2" title="背景色（縦にスライドすると他の色が出ます）">
+    <div class="kf-vcol" style="grid-column:6;grid-row:5/span 2" title="フォントの色（縦にスライドすると他の色が出ます）">
       <div class="kf-vcol-in">
-      <button class="btn kf-none" onclick="kfmtColor('bg','')" title="背景色をなしに戻す">なし</button>
-      <button class="btn" style="background:#fff59d;color:#333" onclick="kfmtColor('bg','#fff59d')" title="背景を黄色に">黄</button>
-      <button class="btn" style="background:#ffe0b2;color:#333" onclick="kfmtColor('bg','#ffe0b2')" title="背景をだいだい色に">橙</button>
-      <button class="btn" style="background:#c8e6c9;color:#333" onclick="kfmtColor('bg','#c8e6c9')" title="背景を緑に">緑</button>
-      <button class="btn" style="background:#b2ebf2;color:#333" onclick="kfmtColor('bg','#b2ebf2')" title="背景を水色に">水</button>
-      <button class="btn" style="background:#bbdefb;color:#333" onclick="kfmtColor('bg','#bbdefb')" title="背景を青に">青</button>
-      <button class="btn" style="background:#e1bee7;color:#333" onclick="kfmtColor('bg','#e1bee7')" title="背景を紫に">紫</button>
-      <button class="btn" style="background:#f8bbd0;color:#333" onclick="kfmtColor('bg','#f8bbd0')" title="背景を桃色に">桃</button>
-      <button class="btn" style="background:#ffcdd2;color:#333" onclick="kfmtColor('bg','#ffcdd2')" title="背景を赤に">赤</button>
-      <button class="btn" style="background:#cfd8dc;color:#333" onclick="kfmtColor('bg','#cfd8dc')" title="背景を灰色に">灰</button>
-      <button class="btn" style="background:#d7ccc8;color:#333" onclick="kfmtColor('bg','#d7ccc8')" title="背景を茶色に">茶</button>
-      <button class="btn" style="background:#ffffff;color:#333" onclick="kfmtColor('bg','#ffffff')" title="背景を白に">白</button>
-      <button class="btn" style="background:#ff0000;color:#fff" onclick="kfmtColor('bg','#ff0000')" title="背景を原色の赤に">赤</button>
-      <button class="btn" style="background:#ff9100;color:#333" onclick="kfmtColor('bg','#ff9100')" title="背景を原色のだいだい色に">橙</button>
-      <button class="btn" style="background:#ffff00;color:#333" onclick="kfmtColor('bg','#ffff00')" title="背景を原色の黄色に">黄</button>
-      <button class="btn" style="background:#00ff00;color:#333" onclick="kfmtColor('bg','#00ff00')" title="背景を原色の緑に">緑</button>
-      <button class="btn" style="background:#0000ff;color:#fff" onclick="kfmtColor('bg','#0000ff')" title="背景を原色の青に">青</button>
-      <button class="btn" style="background:#ff00ff;color:#fff" onclick="kfmtColor('bg','#ff00ff')" title="背景を原色の赤紫（マゼンタ）に">紫</button>
-      <button class="btn" style="background:#00ffff;color:#333" onclick="kfmtColor('bg','#00ffff')" title="背景を原色の水色（シアン）に">水</button>
-      <button class="btn" style="background:#212121;color:#fff" onclick="kfmtColor('bg','#212121')" title="背景を黒に">黒</button>
+      <button class="btn kf-none kf-head" onclick="kfmtColor('color','')" title="フォントの色（押すと自動に戻す／縦にスライドで色をえらぶ）"><span class="kf-a">A</span><small>自動</small></button>
+      <button class="btn kf-fc" style="--fc:#e53935" onclick="kfmtColor('color','#e53935')" title="文字を赤に"><span>A</span></button>
+      <button class="btn kf-fc" style="--fc:#fb8c00" onclick="kfmtColor('color','#fb8c00')" title="文字をだいだいに"><span>A</span></button>
+      <button class="btn kf-fc" style="--fc:#f9a825" onclick="kfmtColor('color','#f9a825')" title="文字を黄に"><span>A</span></button>
+      <button class="btn kf-fc" style="--fc:#2e7d32" onclick="kfmtColor('color','#2e7d32')" title="文字を緑に"><span>A</span></button>
+      <button class="btn kf-fc" style="--fc:#00acc1" onclick="kfmtColor('color','#00acc1')" title="文字を水色に"><span>A</span></button>
+      <button class="btn kf-fc" style="--fc:#1e88e5" onclick="kfmtColor('color','#1e88e5')" title="文字を青に"><span>A</span></button>
+      <button class="btn kf-fc" style="--fc:#8e24aa" onclick="kfmtColor('color','#8e24aa')" title="文字を紫に"><span>A</span></button>
+      <button class="btn kf-fc" style="--fc:#e91e63" onclick="kfmtColor('color','#e91e63')" title="文字を桃に"><span>A</span></button>
+      <button class="btn kf-fc" style="--fc:#6d4c41" onclick="kfmtColor('color','#6d4c41')" title="文字を茶に"><span>A</span></button>
+      <button class="btn kf-fc" style="--fc:#000000" onclick="kfmtColor('color','#000000')" title="文字を黒に"><span>A</span></button>
+      <button class="btn kf-fc kf-fc-w" style="--fc:#ffffff" onclick="kfmtColor('color','#ffffff')" title="文字を白に"><span>A</span></button>
+      <button class="btn kf-fc" style="--fc:#ff0000" onclick="kfmtColor('color','#ff0000')" title="文字を原色の赤に"><span>A</span></button>
+      <button class="btn kf-fc" style="--fc:#ff6600" onclick="kfmtColor('color','#ff6600')" title="文字を原色のだいだいに"><span>A</span></button>
+      <button class="btn kf-fc" style="--fc:#ffff00" onclick="kfmtColor('color','#ffff00')" title="文字を原色の黄に"><span>A</span></button>
+      <button class="btn kf-fc" style="--fc:#00b300" onclick="kfmtColor('color','#00b300')" title="文字を原色の緑に"><span>A</span></button>
+      <button class="btn kf-fc" style="--fc:#0000ff" onclick="kfmtColor('color','#0000ff')" title="文字を原色の青に"><span>A</span></button>
+      <button class="btn kf-fc" style="--fc:#ff00ff" onclick="kfmtColor('color','#ff00ff')" title="文字をマゼンタに"><span>A</span></button>
+      <button class="btn kf-fc" style="--fc:#00ffff" onclick="kfmtColor('color','#00ffff')" title="文字をシアンに"><span>A</span></button>
+      <button class="btn kf-fc" style="--fc:#808080" onclick="kfmtColor('color','#808080')" title="文字を灰に"><span>A</span></button>
       </div>
     </div>
-    <button class="btn op g-kf" data-key="kf_left" onclick="kfmtAlign('left')" title="左寄せ">⬅寄</button>
-    <button class="btn op g-kf" data-key="kf_center" onclick="kfmtAlign('center')" title="中央寄せ">中央</button>
-    <button class="btn op g-kf" data-key="kf_right" onclick="kfmtAlign('right')" title="右寄せ">寄➡</button>
-    <button class="btn bd-color bd-on g-bd" data-key="bd_black" onclick="bdSetColor('#000000',this)" title="黒い線">黒</button>
-    <button class="btn bd-color g-bd" data-key="bd_red" onclick="bdSetColor('#e53935',this)" title="赤い線">赤</button>
-    <button class="btn bd-color g-bd" data-key="bd_blue" onclick="bdSetColor('#1e88e5',this)" title="青い線">青</button>
-    <button class="btn bd-color g-bd" data-key="bd_green" onclick="bdSetColor('#2e7d32',this)" title="緑の線">緑</button>
-    <button class="btn bd-color g-bd" data-key="bd_purple" onclick="bdSetColor('#8e24aa',this)" title="紫の線">紫</button>
-    <button class="btn op bd-place g-bd" data-key="bd_top" onclick="bdApply('top')" title="上罫線（範囲の上側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 4H20"/><path class="s2" d="M4 4H20"/></svg></button>
-    <button class="btn op bd-place g-bd" data-key="bd_bottom" onclick="bdApply('bottom')" title="下罫線（範囲の下側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 20H20"/><path class="s2" d="M4 20H20"/></svg></button>
-    <button class="btn op bd-place g-bd" data-key="bd_left" onclick="bdApply('left')" title="左罫線（範囲の左側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 4V20"/><path class="s2" d="M4 4V20"/></svg></button>
-    <button class="btn op bd-place g-bd" data-key="bd_right" onclick="bdApply('right')" title="右罫線（範囲の右側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M20 4V20"/><path class="s2" d="M20 4V20"/></svg></button>
-    <button class="btn op bd-place g-bd" data-key="bd_grid" onclick="bdApply('grid')" title="格子（全セルの全部の辺に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="s" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s2" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/></svg></button>
-    <button class="btn fx bd-place bd-wide g-bd g-sep-b" data-key="bd_box" onclick="bdApply('box')" title="外枠（選択範囲のまわりを囲む）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 12H20M12 4V20"/><path class="s" d="M4 4H20M4 20H20M4 4V20M20 4V20"/><path class="s2" d="M4 4H20M4 20H20M4 4V20M20 4V20"/></svg>囲む</button>
-    <button class="btn op g-kf" data-key="kf_smaller" onclick="kfmtSize(-1)" title="文字を小さく">A−</button>
-    <button class="btn op g-kf" data-key="kf_bigger" onclick="kfmtSize(1)" title="文字を大きく">A＋</button>
-    <button class="btn clr g-sep-t" data-key="kf_clear" onclick="kfmtClear()" title="このセルの書式をすべて消す">書式消す</button>
-    <button class="btn fx g-kf" data-key="kf_more" onclick="openCellFmt()" title="小数点・結合・保護などのくわしい書式設定を開く">くわしく</button>
+    <button class="btn g-kf kf-t" data-key="kf_vtop" onclick="kfmtVAlign('top')" title="上揃え" aria-label="上揃え"><svg class="kf-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3H21M8 8H16M8 12H16"/></svg></button>
+    <button class="btn g-kf kf-t" data-key="kf_vmid" onclick="kfmtVAlign('middle')" title="上下中央揃え" aria-label="上下中央揃え"><svg class="kf-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3H21M8 10H16M8 14H16M3 21H21"/></svg></button>
+    <button class="btn g-kf kf-t" data-key="kf_vbot" onclick="kfmtVAlign('bottom')" title="下揃え" aria-label="下揃え"><svg class="kf-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 12H16M8 16H16M3 21H21"/></svg></button>
+    <button class="btn g-kf kf-paint" data-key="kf_paint" onclick="kfmtPainter()" title="書式のコピー/貼り付け（1回目で選んでいるセルの書式を写し、貼りたいセルを選んで2回目で貼る）" aria-label="書式のコピー/貼り付け"><svg class="kf-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4H16V9H4Z"/><path d="M16 6.5H19V12H10.5V15"/><path d="M9 15H12V21H9Z"/></svg></button>
     </div>
     <div class="numpad-grid" id="numpadPage1">
     <!-- 既定の並び。各ボタンの位置は data-key を使って自由に入れ替えできる（設定→ボタン配置を編集） -->
@@ -7261,7 +7320,7 @@ function parseXlsxStyles(xml){
   const seg=(name)=>(xml.match(new RegExp(`<${name}\\b[^>]*>([\\s\\S]*?)</${name}>`))||[])[1]||'';
   const fonts=xlSegments(seg('fonts'),'font').map(f=>{
     const cm=/<color\b[^>]*rgb="([0-9A-Fa-f]{6,8})"/.exec(f.inner);
-    return { bold:/<b\b/.test(f.inner), italic:/<i\b/.test(f.inner), underline:/<u\b/.test(f.inner), color:cm?xlRgb6(cm[1]):'' };
+    return { bold:/<b\b/.test(f.inner), italic:/<i\b/.test(f.inner), underline:/<u\b/.test(f.inner), strike:/<strike\b/.test(f.inner), color:cm?xlRgb6(cm[1]):'' };
   });
   const fills=xlSegments(seg('fills'),'fill').map(f=>{
     if(!/patternType="solid"/.test(f.inner)) return '';
@@ -7306,7 +7365,7 @@ function parseXlsxStyles(xml){
   return { styleForIdx:(n)=>{
     const xf=xfs[n]; if(!xf) return null; const st={};
     const f=fonts[xf.fontId];
-    if(xf.fontId>0 && f){ if(f.bold)st.bold=true; if(f.italic)st.italic=true; if(f.underline)st.underline=true; if(f.color)st.color=f.color; }
+    if(xf.fontId>0 && f){ if(f.bold)st.bold=true; if(f.italic)st.italic=true; if(f.underline)st.underline=true; if(f.strike)st.strike=true; if(f.color)st.color=f.color; }
     if(xf.fillId>1 && fills[xf.fillId]) st.bg=fills[xf.fillId];
     if(xf.borderId>0 && borders[xf.borderId]) st.bd=borders[xf.borderId];
     if(xf.align==='left'||xf.align==='center'||xf.align==='right') st.align=xf.align;
@@ -7327,8 +7386,8 @@ async function exportXLSX(){
     const numFmtDefs=[], numFmtKey=new Map(); let nextNumFmtId=176;
     const regNumFmt=dfmt=>{ const code=XL_DATE_CODE[dfmt]||XL_DATE_CODE.ymd; if(numFmtKey.has(code)) return numFmtKey.get(code);
       const id=nextNumFmtId++; numFmtDefs.push(`<numFmt numFmtId="${id}" formatCode="${xlEsc(code)}"/>`); numFmtKey.set(code,id); return id; };
-    const regFont=s=>{ const key=JSON.stringify([!!s.bold,!!s.italic,!!s.underline,s.color||'']); if(fontKey.has(key)) return fontKey.get(key);
-      let f='<font>'; if(s.bold)f+='<b/>'; if(s.italic)f+='<i/>'; if(s.underline)f+='<u/>'; f+='<sz val="11"/>'; if(s.color)f+=`<color rgb="FF${s.color.replace('#','').toUpperCase()}"/>`; f+='<name val="Calibri"/></font>';
+    const regFont=s=>{ const key=JSON.stringify([!!s.bold,!!s.italic,!!s.underline,!!s.strike,s.color||'']); if(fontKey.has(key)) return fontKey.get(key);
+      let f='<font>'; if(s.bold)f+='<b/>'; if(s.italic)f+='<i/>'; if(s.strike)f+='<strike/>'; if(s.underline)f+='<u/>'; f+='<sz val="11"/>'; if(s.color)f+=`<color rgb="FF${s.color.replace('#','').toUpperCase()}"/>`; f+='<name val="Calibri"/></font>';
       const id=fonts.length; fonts.push(f); fontKey.set(key,id); return id; };
     const regFill=bg=>{ if(!bg) return 0; if(fillKey.has(bg)) return fillKey.get(bg); const id=fills.length; fills.push(`<fill><patternFill patternType="solid"><fgColor rgb="FF${bg.replace('#','').toUpperCase()}"/><bgColor indexed="64"/></patternFill></fill>`); fillKey.set(bg,id); return id; };
     const regBorder=bd=>{ if(!bd||!(bd.t||bd.b||bd.l||bd.r)) return 0; const key=JSON.stringify(bd); if(borderKey.has(key)) return borderKey.get(key);
@@ -7352,7 +7411,7 @@ async function exportXLSX(){
         for(let c=0;c<COLS;c++){
           if(coverOf(r,c)) continue;
           const ref=xlColLetter(c)+(r+1), raw=data[r][c]??'', s=cellStyles[`${r},${c}`]||{};
-          const styled=!!(s.bold||s.italic||s.underline||s.color||s.bg||s.bd||s.align||s.dfmt);
+          const styled=!!(s.bold||s.italic||s.underline||s.strike||s.color||s.bg||s.bd||s.align||s.dfmt);
           const sIdx=styled?regXf(s):0, sAttr=sIdx?` s="${sIdx}"`:'';
           const mg=mergeAt(r,c);
           if(mg&&(mg.rs>1||mg.cs>1)) merges.push(`${ref}:${xlColLetter(Math.min(MAXCOLS-1,c+mg.cs-1))}${Math.min(MAXROWS,r+mg.rs)}`);
@@ -8208,6 +8267,13 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v407', t:'書式・枠線のページを明るく、Excel の形に', li:[
+    'テンキーの左の<b>書式・枠線</b>のページを、<b>明るい色</b>にして <b>Excel（スマホ版）の「ホーム」</b>と同じ形にしました（<b>B</b>・<i>I</i>・<u>U</u>・<s>ab</s>、塗りつぶしの色、フォントの色、揃え、罫線、枠なし、書式のクリア）',
+    '<b>セルを結合して中央揃え</b>を足しました。スライドで範囲を選んで<b>結合</b>を押します。結合したセルでもう一度押すと解除します（↶戻るでも戻せます）',
+    '<b>取り消し線</b>・<b>上揃え／上下中央／下揃え</b>・<b>書式のコピー/貼り付け</b>（1回目で写して、貼りたいセルを選んで2回目で貼る）も足しました',
+    '選んでいるセルに付いている太字・揃え・結合などは、Excel と同じくボタンが<b>灰色</b>になって分かります',
+    '取り消し線は Excel への書き出し・読み込みにも入ります。このページを自分で並べ替えていた場合は、新しい並びに戻ります',
+  ]},
   { v:'v406', t:'当番表の保存', li:[
     '📅当番表の上の帯に<b>💾 保存</b>を足しました。<b>名前を付けて保存</b>すると、いくつもの当番表（ごみ当番・掃除当番・来年度の分など）を持っておけて、<b>押すだけで開き直せます</b>',
     '<b>上書き保存・名前の変更・コピー・消す・新しい当番表をつくる</b>ができます。保存していない変更があると 💾 に<b>●</b>が付き、切りかえる前に聞きます',
@@ -15252,14 +15318,13 @@ const KEYPAD_DEFAULT_POS2={
 /* 書式・枠線ページ（数字から右フリック）の既定配置。6段×5列。
    r1＝低い段（線の種類・枠線消し）。r2-r3 の c4,c5 は色の帯が占める。 */
 const KEYPAD_DEFAULT_POS_FMT={
-  /* 上3段＋r4c1 が枠線（青）、r4c2 から下が文字（緑）。r5-r6 の c4,c5 は色の帯。 */
-  bd_thin:{r:1,c:1,u:1}, bd_normal:{r:1,c:2,u:1}, bd_thick:{r:1,c:3,u:1}, bd_double:{r:1,c:4,u:1}, bd_clear:{r:1,c:5,u:1},
-  bd_black:{r:2,c:1}, bd_red:{r:2,c:2}, bd_blue:{r:2,c:3}, bd_green:{r:2,c:4}, bd_purple:{r:2,c:5},
-  bd_top:{r:3,c:1}, bd_bottom:{r:3,c:2}, bd_left:{r:3,c:3}, bd_right:{r:3,c:4}, bd_grid:{r:3,c:5},
-  bd_box:{r:4,c:1},
-  kf_bold:{r:4,c:2}, kf_italic:{r:4,c:3}, kf_under:{r:4,c:4}, kf_clear:{r:4,c:5},
-  kf_left:{r:5,c:1}, kf_center:{r:5,c:2}, kf_right:{r:5,c:3},
-  kf_smaller:{r:6,c:1}, kf_bigger:{r:6,c:2}, kf_more:{r:6,c:3}
+  /* v407 で Excel（スマホ版）の「ホーム」の並びに寄せて 6段×6列にした。r5-r6 の c5,c6 は色の帯（塗りつぶし・フォントの色）。 */
+  bd_thin:{r:1,c:1,u:1}, bd_normal:{r:1,c:2,u:1}, bd_thick:{r:1,c:3,u:1}, bd_double:{r:1,c:4,u:1}, kf_more:{r:1,c:5,u:1}, kf_clear:{r:1,c:6,u:1},
+  bd_top:{r:2,c:1}, bd_bottom:{r:2,c:2}, bd_left:{r:2,c:3}, bd_right:{r:2,c:4}, bd_grid:{r:2,c:5}, bd_box:{r:2,c:6},
+  bd_black:{r:3,c:1}, bd_red:{r:3,c:2}, bd_blue:{r:3,c:3}, bd_green:{r:3,c:4}, bd_purple:{r:3,c:5}, bd_clear:{r:3,c:6},
+  kf_bold:{r:4,c:1}, kf_italic:{r:4,c:2}, kf_under:{r:4,c:3}, kf_strike:{r:4,c:4}, kf_bigger:{r:4,c:5}, kf_smaller:{r:4,c:6},
+  kf_left:{r:5,c:1}, kf_center:{r:5,c:2}, kf_right:{r:5,c:3}, kf_merge:{r:5,c:4},
+  kf_vtop:{r:6,c:1}, kf_vmid:{r:6,c:2}, kf_vbot:{r:6,c:3}, kf_paint:{r:6,c:4}
 };
 /* 編集対象のページ一覧（各ページが独自の既定配置・保存キー・現在配置を持つ） */
 const KP_PAGES=[
@@ -15272,7 +15337,7 @@ const KP_PAGES=[
   {sel:'#numpadPage1', def:KEYPAD_DEFAULT_POS,  skey:'excalc_keypad_pos_v2', pos:{}, oldKey:'excalc_keypad_pos', shiftRow:1,
    renamed:{u_normal:'u_save', u_voice:'u_dentaku'}},
   {sel:'#numpadPage2', def:KEYPAD_DEFAULT_POS2, skey:'excalc_keypad_pos2', pos:{}},
-  {sel:'#numpadPageFmt', def:KEYPAD_DEFAULT_POS_FMT, skey:'excalc_keypad_posfmt2', pos:{}}
+  {sel:'#numpadPageFmt', def:KEYPAD_DEFAULT_POS_FMT, skey:'excalc_keypad_posfmt3', pos:{}}   // v407 で6列にしたので新しいキー
 ];
 let keypadEditing=false;
 let kpDrag=null;
@@ -15552,6 +15617,7 @@ function sel(r,c) {
   a11yAnnounceCell(r,c);   // 選んだセルを読み上げ用の欄に出す
   tellCellError(r,c);  // エラーのセルなら、なぜそうなったかを一言出す
   document.getElementById(`c${r}_${c}`).scrollIntoView({block:'nearest',inline:'nearest'});
+  if(typeof kfmtSyncState==='function') kfmtSyncState();   // 書式ページの B・I・U などの印（v407）
 }
 
 function highlightCol(c,on) {
@@ -20627,7 +20693,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v406';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v407';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -20782,12 +20848,12 @@ function applyCellStyle(td, r, c){
   td.style.boxShadow='';
   td.style.removeProperty('--dsize');
   td.classList.remove('cell-locked');
-  if(r===selR && c===selC) updateDateBadge();   // 選択セルの日付書式が変わったらセル番号枠の印を更新
+  if(r===selR && c===selC){ updateDateBadge(); if(typeof kfmtSyncState==='function') kfmtSyncState(); }   // 選択セルの書式が変わったら印を更新
   const s=cellStyles[`${r},${c}`]; if(!s) return;
   if(s.locked)    td.classList.add('cell-locked');
   if(s.bold)      td.style.fontWeight='bold';
   if(s.italic)    td.style.fontStyle='italic';
-  if(s.underline) td.style.textDecoration='underline';
+  if(s.underline||s.strike) td.style.textDecoration=[s.underline?'underline':'', s.strike?'line-through':''].join(' ').trim();   // 取り消し線（v407）
   if(s.color)     td.style.color=s.color;
   if(s.bg)        td.style.background=s.bg;
   if(s.align)     td.style.textAlign=s.align;        // 文字の横位置（左/中央/右）
@@ -21177,6 +21243,73 @@ function kfmtAlign(v){
   const s0=cellStyles[`${cells[0][0]},${cells[0][1]}`];
   const clear=(s0&&s0.align===v);   // 同じ寄せをもう一度＝解除
   kfmtApply(s=>{ if(clear) delete s.align; else s.align=v; });
+}
+function kfmtVAlign(v){
+  const cells=kfmtCells();
+  const s0=cellStyles[`${cells[0][0]},${cells[0][1]}`];
+  const clear=(s0&&s0.valign===v);   // 同じ揃えをもう一度＝解除
+  kfmtApply(s=>{ if(clear) delete s.valign; else s.valign=v; });
+}
+/* セルを結合して中央揃え（Excel と同じ）。範囲を選んでいれば結合、
+   結合したセルを選んで押せば解除。左上以外の値は消えるので、あれば先に聞く */
+async function kfmtMerge(){
+  if(isStructMode()){ toast('このモードではセル結合はできません'); return; }
+  const cells=kfmtCells();
+  const r1=Math.min(...cells.map(x=>x[0])), r2=Math.max(...cells.map(x=>x[0]));
+  const c1=Math.min(...cells.map(x=>x[1])), c2=Math.max(...cells.map(x=>x[1]));
+  if(cells.some(([r,c])=>isUserLocked(r,c))){ toast('ロックされたセルは結合できません'); return; }
+  if(cells.length===1){
+    const [ar,ac]=anchorOf(r1,c1);
+    if(!mergeAt(ar,ac)){ toast('結合するセルを、スライドして範囲で選んでください'); return; }
+    pushSnapshot('結合の解除');
+    applyMerge(ar,ac,1,1);
+    clearRangeSelection(); sel(ar,ac);
+    toast('結合を解除しました');
+    kfmtSyncState();
+    return;
+  }
+  const lost=cells.filter(([r,c])=>!(r===r1&&c===c1) && String(data[r][c]??'')!=='');
+  if(lost.length && !await appConfirm('結合すると、左上のセルの値だけが残ります（ほか '+lost.length+'個の値は消えます）。\n結合しますか','結合する','やめる')) return;
+  pushSnapshot('セルの結合');
+  applyMerge(r1,c1,r2-r1+1,c2-c1+1);
+  clearRangeSelection(); sel(r1,c1);
+  if(typeof recalcAll==='function') recalcAll();
+  toast('結合しました（'+(r2-r1+1)+'行 × '+(c2-c1+1)+'列）');
+  kfmtSyncState();
+}
+/* 書式のコピー/貼り付け（Excel の刷毛）。1回目＝選んでいるセルの書式を写す、
+   貼りたいセル（範囲）を選んで2回目＝貼る。結合は写さない（形が変わってしまうため） */
+let kfPaintStyle=null;
+function kfmtPainter(){
+  const b=document.querySelector('#numpadPageFmt .kf-paint');
+  if(!kfPaintStyle){
+    const src=cellStyles[`${selR},${selC}`]||{};
+    const cp=JSON.parse(JSON.stringify(src)); delete cp.merge; delete cp.cover; delete cp.locked;
+    kfPaintStyle=cp;
+    if(b) b.classList.add('kf-on');
+    toast('書式をコピーしました。貼りたいセルを選んで、もう一度押してください', 3200);
+    return;
+  }
+  const st=kfPaintStyle; kfPaintStyle=null;
+  if(b) b.classList.remove('kf-on');
+  kfmtApply(s=>{
+    ['bold','italic','underline','strike','color','bg','size','align','valign','bd','dec','dfmt'].forEach(k=>{ delete s[k]; });
+    Object.assign(s, JSON.parse(JSON.stringify(st)));
+  });
+  toast('書式を貼り付けました');
+}
+/* 選んでいるセルの今の書式に合わせて、B・I・U・揃え・結合のボタンに印を付ける（Excel のリボンと同じ） */
+function kfmtSyncState(){
+  const pg=document.getElementById('numpadPageFmt'); if(!pg) return;
+  if(typeof selR!=='number' || selR<0) return;
+  const s=cellStyles[`${selR},${selC}`]||{};
+  const on={ kf_bold:!!s.bold, kf_italic:!!s.italic, kf_under:!!s.underline, kf_strike:!!s.strike,
+             kf_left:s.align==='left', kf_center:s.align==='center', kf_right:s.align==='right',
+             kf_vtop:s.valign==='top', kf_vmid:s.valign==='middle', kf_vbot:s.valign==='bottom',
+             kf_merge:!!s.merge };
+  pg.querySelectorAll('.btn.kf-t[data-key]').forEach(b=>{
+    const k=b.dataset.key; b.classList.toggle('kf-on', !!on[k]); b.setAttribute('aria-pressed', String(!!on[k]));
+  });
 }
 function kfmtSize(d){
   kfmtApply(s=>{
