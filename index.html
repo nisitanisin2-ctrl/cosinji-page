@@ -630,6 +630,13 @@ body.np-side.numpad-compact .numpad-grid .btn { font-size: 0 !important; }
   touch-action: manipulation;
 }
 .btn-save   { background: var(--acc-dark); }
+/* v414：保存ボタンは、そのときの動き（上書き保存／名前を付けて保存）を2行で出す */
+.btn-save.sv2 { line-height: 1.1; font-size: 11px; padding-left: 8px; padding-right: 8px; white-space: nowrap; }
+/* v414：キーの名前を「記号＋小さな説明」の2行で出す（＝ 数式・あ 文字 など） */
+.kl2 { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.05; pointer-events: none; }
+.kl2 b { font-size: 1.05em; }
+.kl2 small { font-size: .6em; font-weight: bold; opacity: .9; margin-top: 1px; }
+.kl1s { font-size: .74em; white-space: nowrap; letter-spacing: -.02em; pointer-events: none; }   /* 背の低い段の5文字の名前 */
 .btn-save:hover  { background: var(--acc); }
 .btn-save:active { background: var(--acc-darker); }
 .btn-list   { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.35); }
@@ -1233,6 +1240,15 @@ body:not(.cg-excel) #cellMenu .cm-xl { display: none; }
 body.cg-excel #cellMenu.show { display: grid; grid-template-columns: repeat(3, auto); gap: 2px; }
 body.cg-excel #cellMenu button { padding: 10px 10px; font-size: 14px; text-align: center; }
 /* 選んだセルの右下の ●（引っぱるとフィル）。Excel と同じ操作のときだけ */
+/* ダブルタップで直している間（v414）：テンキーを隠して、その場所にスマホのキーボードを出す */
+body.kb-edit .numpad-section { display: none !important; }
+body.kb-edit { grid-template-columns: 1fr !important; }
+/* 直している間のメニューは、キーボード（テンキー）の上に横一列の帯で出す */
+#cellMenu.edit-bar.show { display: flex !important; position: fixed; left: 0; right: 0; top: auto !important; min-width: 0;
+  border-radius: 0; border-width: 1px 0 0; padding: 4px 6px; gap: 2px; overflow-x: auto; flex-wrap: nowrap;
+  box-shadow: 0 -2px 8px rgba(0,0,0,.12); -webkit-overflow-scrolling: touch; }
+#cellMenu.edit-bar button { flex: none; width: auto; padding: 9px 11px; font-size: 13px; text-align: center; }
+#cellMenu.edit-bar .cm-edit { display: none; }
 body.cg-excel .cell.active::after {
   content: ''; position: absolute; right: 1px; bottom: 1px; width: 9px; height: 9px;
   border-radius: 50%; background: var(--acc); box-shadow: 0 0 0 1.5px #fff; pointer-events: none;
@@ -3538,7 +3554,7 @@ body.dark {
 
 <div class="toolbar" id="mainToolbar">
   <span class="toolbar-title" id="recordTitle" onclick="showSaveList()" title="今開いている記録（タップでリストを開く）">📄 自動保存</span>
-  <button class="btn-save menu-item" id="saveBtn" onclick="saveData()" title="上書き保存／長押しで名前を付けて保存">保存</button>
+  <button class="btn-save menu-item sv2" id="saveBtn" onclick="saveData()" title="名前を付けて保存">名前を付けて<br>保存</button>
   <button class="btn-undo menu-item" id="undoBtn" onclick="undoLast()" disabled title="元に戻す">↶</button>
   <!-- ここから下は、設定「上のバーに出すボタン」で選んだものだけ出る（既定は全部しまってある）。
        中身は⋯メニューと同じ働きで、よく使うものを表に出しておける。 -->
@@ -3686,7 +3702,7 @@ body.dark {
       <button class="skin-seg-btn" data-cg="excel" onclick="setCellGesture('excel')">Excel と同じ</button>
       <button class="skin-seg-btn" data-cg="old" onclick="setCellGesture('old')">以前の表電卓</button>
     </div>
-    <div class="set-note"><b>Excel と同じ</b>：ダブルタップで<b>中身を直す</b>、長押しで<b>メニュー</b>（切り取り・コピー・貼り付け・行や列の挿入など）、選んだセルの右下の<b>●</b>を引っぱると<b>フィル</b>。<br><b>以前の表電卓</b>：ダブルタップで<b>コピー／貼り付け</b>、長押ししてから動かすと<b>フィル</b>、約1秒の長押しで<b>メニュー</b>。</div>
+    <div class="set-note"><b>Excel と同じ</b>：ダブルタップで<b>中身を直す</b>（スマホではテンキーの場所にキーボードが出て、その上に<b>切り取り・コピー・貼り付け・行や列の挿入など</b>の帯が出ます）、選んだセルの右下の<b>●</b>を引っぱると<b>フィル</b>。<br><b>以前の表電卓</b>：ダブルタップで<b>コピー／貼り付け</b>、長押ししてから動かすと<b>フィル</b>、約1秒の長押しで<b>メニュー</b>。</div>
     <div class="set-sec">使いかた</div>
     <button class="set-act" id="setTourBtn" onclick="toggleSettings(); setTimeout(openTour, 320);">🚀 はじめての案内をもう一度見る</button>
     <button class="set-act" onclick="toggleSettings(); setTimeout(openHelp, 320);">📖 説明書を開く</button>
@@ -4204,8 +4220,8 @@ body.dark {
     <button class="btn bd-type bd-on g-bd" data-key="bd_normal" onclick="bdSetType('normal',this)" title="ふつうの線"><span class="bd-ln" style="border-bottom:2px solid currentColor"></span></button>
     <button class="btn bd-type g-bd" data-key="bd_thick" onclick="bdSetType('thick',this)" title="太い線"><span class="bd-ln" style="border-bottom:4px solid currentColor"></span></button>
     <button class="btn bd-type g-bd" data-key="bd_double" onclick="bdSetType('double',this)" title="二重線"><span class="bd-ln" style="border-bottom:5px double currentColor"></span></button>
-    <button class="btn g-kf" data-key="kf_more" onclick="openCellFmt()" title="セルの書式設定（小数点・日付・結合の大きさ・保護など）">設定</button>
-    <button class="btn clr" data-key="kf_clear" onclick="kfmtClear()" title="書式のクリア（選んでいるセルの書式をすべて消す）">クリア</button>
+    <button class="btn g-kf" data-key="kf_more" onclick="openCellFmt()" title="セルの書式設定（小数点・日付・結合の大きさ・保護など）"><span class="kl1s">セルの書式</span></button>
+    <button class="btn clr" data-key="kf_clear" onclick="kfmtClear()" title="書式のクリア（選んでいるセルの書式をすべて消す）"><span class="kl1s">書式を消す</span></button>
     <button class="btn bd-place g-bd" data-key="bd_top" onclick="bdApply('top')" title="上罫線（範囲の上側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 4H20"/><path class="s2" d="M4 4H20"/></svg></button>
     <button class="btn bd-place g-bd" data-key="bd_bottom" onclick="bdApply('bottom')" title="下罫線（範囲の下側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 20H20"/><path class="s2" d="M4 20H20"/></svg></button>
     <button class="btn bd-place g-bd" data-key="bd_left" onclick="bdApply('left')" title="左罫線（範囲の左側に線）"><svg class="bd-ico" viewBox="0 0 24 24"><path class="d" d="M4 4H20M4 12H20M4 20H20M4 4V20M12 4V20M20 4V20"/><path class="s" d="M4 4V20"/><path class="s2" d="M4 4V20"/></svg></button>
@@ -4312,8 +4328,8 @@ body.dark {
     <button class="btn fx"  data-key="sum"  id="autoSumBtn">Σ合計</button>
     <button class="btn span2" data-key="n0" onclick="num('0')">0</button>
     <button class="btn"     data-key="dot"  onclick="dot()">.</button>
-    <button class="btn fx"  data-key="fx"   onclick="startFormula()">fx=</button>
-    <button class="btn fx"  data-key="text" id="textBtn" onclick="toggleTextInput()">文字</button>
+    <button class="btn fx"  data-key="fx"   onclick="startFormula()" title="数式を入れる（＝から始まる式。Excel と同じ）"><span class="kl2"><b>＝</b><small>数式</small></span></button>
+    <button class="btn fx"  data-key="text" id="textBtn" onclick="toggleTextInput()" title="文字を入れる（スマホのキーボードが出ます）"><span class="kl2"><b>あ</b><small>文字</small></span></button>
     </div>
     <div class="numpad-grid numpad-overlay ov-right" id="numpadPage2">
     <!-- 関数・記号ページ（数字ページから左フリックで表示。数字ページの上に重なってスライドイン）。数式に記号・関数を挿入する。data-keyで配置編集に対応 -->
@@ -5610,11 +5626,11 @@ body.dark {
 
 <!-- セル長押しメニュー（貼り付け・コピー・保護・消去・書式） -->
 <div class="cellmenu-backdrop" id="cellMenuBackdrop" onclick="hideCellMenu()"></div>
-<div class="cell-menu" id="cellMenu">
+<div class="cell-menu" id="cellMenu" onpointerdown="if(this.classList.contains('edit-bar')) event.preventDefault()" onmousedown="if(this.classList.contains('edit-bar')) event.preventDefault()">
   <button onclick="cellMenuAct('cut')" class="cm-xl">✂ 切り取り</button>
   <button onclick="cellMenuAct('copy')">⧉ コピー</button>
   <button onclick="cellMenuAct('paste')">📥 貼り付け</button>
-  <button onclick="cellMenuAct('edit')" class="cm-xl">✏ 編集</button>
+  <button onclick="cellMenuAct('edit')" class="cm-xl cm-edit">✏ 編集</button>
   <button onclick="cellMenuAct('clear')">🧹 消去</button>
   <button onclick="cellMenuAct('fmt')">🎨 書式</button>
   <button onclick="cellMenuAct('insrow')" class="cm-xl">➕ 行を挿入</button>
@@ -6854,10 +6870,47 @@ function editCellInBar(r,c){
   fi.value=v;
   formulaEditMode=String(v).startsWith('=');   // 数式なら、ほかのセルを押すとその番地が入る（Excel と同じ）
   fi.classList.toggle('formula-mode', formulaEditMode);
+  // スマホ・タブレットでは、テンキーを隠してその場所にキーボードを出す（v414）
+  if (isTouchUI()) document.body.classList.add('kb-edit');
   fi.focus();
   try { fi.setSelectionRange(fi.value.length, fi.value.length); } catch(e) {}
   const btn=document.getElementById('textBtn'); if (btn && !formulaEditMode) btn.classList.add('text-on');
+  showEditBar();
 }
+function isTouchUI(){
+  try{ return matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints||0)>0; }catch(_){ return false; }
+}
+/* 直している間、切り取り・コピーなどを横一列の帯にして、キーボード（パソコンではテンキー）のすぐ上に出す（v414） */
+function showEditBar(){
+  const menu=document.getElementById('cellMenu'); if(!menu) return;
+  const lockBtn=document.getElementById('cellMenuLock');
+  if(lockBtn) lockBtn.textContent = isLockedCell(selR,selC) ? '🔓 保護をやめる' : '🔒 保護';
+  document.getElementById('cellMenuBackdrop').classList.remove('show');
+  menu.classList.add('edit-bar','show');
+  menu.dataset.ready='1';
+  menu.style.left=''; menu.style.top='';
+  placeEditBar();
+  setTimeout(placeEditBar, 350);   // キーボードが出きってから置き直す
+}
+function placeEditBar(){
+  const menu=document.getElementById('cellMenu'); if(!menu || !menu.classList.contains('edit-bar')) return;
+  let bottom=0;
+  const vv=window.visualViewport;
+  if(document.body.classList.contains('kb-edit') && vv){
+    bottom=Math.max(0, window.innerHeight-(vv.offsetTop+vv.height));   // キーボードの高さ
+  }else{
+    const np=document.getElementById('numpadSection');
+    const r=np && np.offsetParent ? np.getBoundingClientRect() : null;
+    if(r && r.height>0 && !document.body.classList.contains('np-side')) bottom=Math.max(0, window.innerHeight-r.top);
+  }
+  menu.style.bottom=bottom+'px';
+}
+function hideEditBar(){
+  const menu=document.getElementById('cellMenu'); if(!menu || !menu.classList.contains('edit-bar')) return;
+  menu.classList.remove('edit-bar','show'); menu.style.bottom='';
+}
+function endKbEdit(){ document.body.classList.remove('kb-edit'); hideEditBar(); }
+if(window.visualViewport){ window.visualViewport.addEventListener('resize', ()=>placeEditBar()); window.visualViewport.addEventListener('scroll', ()=>placeEditBar()); }
 /* 切り取り（v413）：コピーして印を付け、貼り付けたら元を消す */
 let cutR=-1, cutC=-1;
 function clearCut(){
@@ -6870,7 +6923,7 @@ function cutCell(){
   copyCell();
   cutR=selR; cutC=selC;
   const el=document.getElementById(`c${cutR}_${cutC}`); if(el) el.classList.add('copy-src');
-  toast('切り取りました。貼り付けたいセルを長押しして「貼り付け」');
+  toast(cellGesture==='excel'?'切り取りました。貼り付けたいセルをダブルタップして「貼り付け」':'切り取りました');
 }
 /* 貼り付けのあとに呼ぶ。切り取り中なら元のセルを消す（同じセルに貼ったときは何もしない） */
 function finishCut(){
@@ -6919,6 +6972,7 @@ function showCellMenu(r,c){
   const menu=document.getElementById('cellMenu'), back=document.getElementById('cellMenuBackdrop');
   const lockBtn=document.getElementById('cellMenuLock');
   lockBtn.textContent = isLockedCell(r,c) ? '🔓 保護をやめる' : '🔒 保護';
+  menu.classList.remove('edit-bar'); menu.style.bottom='';
   back.classList.add('show'); menu.classList.add('show');
   armOnRepress(menu); armOnRepress(back);   // 長押しの指を離しただけでは選ばれない／閉じない
   // セルの近く（下側優先、はみ出すなら上側）に配置
@@ -6934,6 +6988,8 @@ function hideCellMenu(){
   document.getElementById('cellMenuBackdrop').classList.remove('show');
 }
 function cellMenuAct(a){
+  const fromBar=document.getElementById('cellMenu').classList.contains('edit-bar');
+  if(fromBar){ const fi=document.getElementById('formulaInput'); if(document.activeElement===fi) fi.blur(); endKbEdit(); }   // 打ちかけの中身を確定してから
   hideCellMenu();
   if(a==='fmt'){ openCellFmt(); }
   else if(a==='copy'){ clearCut(); copyCell(); if(typeof toast==='function') toast('コピーしました'); }
@@ -8548,9 +8604,14 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v414', t:'ボタンの名前を分かりやすく', li:[
+    '上のバーの「保存」を、そのときの動きに合わせて<b>「名前を付けて保存」</b>（記録を開いていないとき）／<b>「上書き保存」</b>（開いているとき）と出すようにしました',
+    'テンキーの「fx=」を<b>「＝ 数式」</b>、「文字」を<b>「あ 文字」</b>にしました',
+    '書式・枠線のページの「設定」を<b>「セルの書式」</b>、「クリア」を<b>「書式を消す」</b>にしました',
+  ]},
   { v:'v413', t:'セルの操作を Excel と同じにしました', li:[
-    '<b>ダブルタップ</b>で、そのセルの<b>中身を直せます</b>（数式バーにいまの中身が入ります）',
-    '<b>長押し</b>で<b>メニュー</b>が出ます（✂切り取り・⧉コピー・📥貼り付け・✏編集・🧹消去・🎨書式・➕行／列を挿入・🔒保護）',
+    '<b>ダブルタップ</b>で、そのセルの<b>中身を直せます</b>（数式バーにいまの中身が入ります）。スマホでは<b>テンキーの場所にキーボード</b>が出ます',
+    '直している間は、キーボード（テンキー）のすぐ上に<b>✂切り取り・⧉コピー・📥貼り付け・🧹消去・🎨書式・➕行／列を挿入・🔒保護</b>の帯が出ます',
     '選んだセルの<b>右下の ●</b> を引っぱると、下や横へ<b>コピー（フィル）</b>できます',
     '前の操作（ダブルタップでコピー／貼り付け）がよければ、⚙設定 → 📐表 → <b>セルの操作</b> で「以前の表電卓」を選んでください',
   ]},
@@ -10575,7 +10636,7 @@ const KEY_FUNCS={
   k_div:{g:'標準キー',label:'÷',run:()=>op('/')}, k_bs:{g:'標準キー',label:'⌫',run:()=>bs()},
   k_ce:{g:'標準キー',label:'CE',run:()=>ce()}, k_sign:{g:'標準キー',label:'±',run:()=>toggleSign()},
   k_enter:{g:'標準キー',label:'Enter',run:()=>eq()}, k_sum:{g:'標準キー',label:'Σ合計',run:()=>autoSum()},
-  k_fx:{g:'標準キー',label:'fx=',run:()=>startFormula()}, k_text:{g:'標準キー',label:'文字',run:()=>toggleTextInput()},
+  k_fx:{g:'標準キー',label:'＝数式',run:()=>startFormula()}, k_text:{g:'標準キー',label:'あ文字',run:()=>toggleTextInput()},
   k_mode:{g:'標準キー',label:'モード',run:()=>onModeBtnClick()},
   /* 記号・関数（数式に挿入） */
   f_lp:{g:'記号・関数',label:'(',run:()=>fkey('(')}, f_rp:{g:'記号・関数',label:')',run:()=>fkey(')')},
@@ -17313,6 +17374,8 @@ function toCell() {
   fi.addEventListener('blur', ()=>{
     const btn=document.getElementById('textBtn');
     if(btn) btn.classList.remove('text-on');
+    // 直し終わり：帯を消してテンキーを戻す（v414）。帯のボタンを押した分で外れたときも押せるよう、少し待つ
+    setTimeout(()=>{ if(document.activeElement!==fi) endKbEdit(); }, 350);
     // 別セルのタップやテンキー操作でフォーカスが外れた時も、入力内容を確定する。
     // （数式組み立て中＝「=」始まりはセルタップで blur しない設計なので影響しない）
     if(fiDirty){
@@ -21270,7 +21333,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v413';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v414';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -22053,7 +22116,6 @@ let lpFromActive=false;   // 選択中(アクティブ)セルから押し始め�
 let rangeDragging=false;  // スライドで範囲選択中
 let lpFillTimer=null, lpMenuTimer=null;
 const LP_FILL_MS=550, LP_MENU_MS=1000, LP_MOVE_TOL=8;
-const LP_MENU_MS_XL=500;   // Excel と同じ操作のときの長押し（メニュー）の長さ（v413）
 /* 選んだセルの右下の ● （フィルの取っ手）の上か。指で押しやすいよう、見た目より広めにとる */
 function onFillHandle(r,c,x,y){
   const td=document.getElementById(`c${r}_${c}`); if(!td) return false;
@@ -22072,9 +22134,9 @@ function startCellPress(r,c,x,y){
   lpFromActive=(r===selR && c===selC); rangeDragging=false;
   lpClearTimers();
   if(cellGesture==='excel'){
-    // Excel と同じ：選んだセルの右下の ● から引っぱるとフィル。それ以外の長押しはメニュー
-    if(lpFromActive && onFillHandle(r,c,x,y)){ fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; return; }
-    lpMenuTimer=setTimeout(()=>{ lpMenuTimer=null; if(lpMoved) return; lpStage=2; lpSetArmVisual('setgs-arm'); if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} }, LP_MENU_MS_XL);
+    // Excel と同じ：選んだセルの右下の ● から引っぱるとフィル
+    // メニューは長押しでは出さず、ダブルタップで直すときにキーボード（テンキー）の上に出す
+    if(lpFromActive && onFillHandle(r,c,x,y)){ fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; }
     return;
   }
   lpFillTimer=setTimeout(()=>{ lpFillTimer=null; if(!lpMoved){ fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; } }, LP_FILL_MS);
@@ -22365,11 +22427,26 @@ function updateRecordTitle(){
   // 記録を開いていないときも、いまの表は端末に残っている。「未保存」と出すと
   // 消えそうに見えるので「自動保存」と出す（v398）
   el.textContent=(cur?'📄 '+cur.name:'📄 自動保存')+' '+st.mark;
+  updateSaveBtnLabel(cur);
   el.title=st.text+'／タップでリストを開く';
   el.classList.remove('dirty','nobackup','saved');
   el.classList.add(st.cls);
   const banner=document.getElementById('saveStateBanner');
   if(banner) renderSaveStateBanner();
+}
+/* 保存ボタンの名前（v414）。記録を開いていれば「上書き保存」、そうでなければ「名前を付けて保存」 */
+function updateSaveBtnLabel(cur){
+  const b=document.getElementById('saveBtn'); if(!b || b.dataset.flash) return;
+  if(cur===undefined) cur=(currentSaveId!=null)?getSaves().find(s=>s.id===currentSaveId):null;
+  const over=!!(cur && !cur.locked);
+  b.classList.add('sv2');
+  b.innerHTML=over?'上書き<br>保存':'名前を付けて<br>保存';
+  b.title=over?'タップで「'+cur.name+'」に上書き保存／長押しで名前を付けて保存':'名前を付けて保存（リストに残します。いまの表は自動で端末に残っています）';
+}
+function flashSaveBtn(t){
+  const b=document.getElementById('saveBtn'); if(!b) return;
+  b.dataset.flash='1'; b.textContent=t;
+  setTimeout(()=>{ delete b.dataset.flash; updateSaveBtnLabel(); },1200);
 }
 function markSaveDirty(){ if(!saveDirty){ saveDirty=true; } updateRecordTitle(); }
 
@@ -22469,7 +22546,7 @@ async function saveData() {
     if(!persistSaves(saves)) return;   // 書けていないのに「保存しました」と言わない
     saveDirty=false; updateRecordTitle();
     toast(`「${cur.name}」に上書き保存しました`);
-    if(btn){ btn.textContent='✓ 上書き'; setTimeout(()=>{btn.textContent='保存';},1200); }
+    if(btn) flashSaveBtn('✓ 上書き');
     return;
   }
   await saveAsData();
@@ -22500,7 +22577,7 @@ async function saveAsData() {
   if(!persistSaves(saves)) return;           // 書けていないのに「保存済み」にしない
   currentSaveId=id;                          // 以後この記録に上書きできるようにする
   saveDirty=false; updateRecordTitle();
-  if(btn){ btn.textContent='✓ 保存済'; setTimeout(()=>{btn.textContent='保存';},1200); }
+  if(btn) flashSaveBtn('✓ 保存済');
 }
 /* 保存ボタンの長押し＝名前を付けて保存 */
 (function(){
@@ -22515,7 +22592,6 @@ async function saveAsData() {
   b.addEventListener('pointerup', clr);
   b.addEventListener('pointercancel', ()=>{ clearTimeout(timer); longed=false; });
   b.addEventListener('click', e=>{ if(longed){ longed=false; e.preventDefault(); e.stopImmediatePropagation(); } }, true);
-  b.title='タップで上書き保存／長押しで名前を付けて保存';
 })();
 
 /* ↶戻るの長押し＝取り消せる操作の一覧（保存ボタンと同じ作り） */

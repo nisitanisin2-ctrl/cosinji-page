@@ -412,6 +412,7 @@ async function runCellMenu(browser) {
   await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
   await page.reload(); await page.waitForTimeout(900);
   console.log('\n── セルの長押しメニュー ──');
+  await page.evaluate(() => setCellGesture('old'));   // 長押しのメニューは「以前の表電卓」の操作（v414 から Excel と同じ操作ではダブルタップで出す）
 
   // 1秒の長押しでメニューが出る（保護にはならない）
   const bx = await page.evaluate(() => {
@@ -424,10 +425,10 @@ async function runCellMenu(browser) {
   check('  長押しでメニューが出る',
         await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show')), true);
   check('  長押しでは保護にならない', await page.evaluate(() => isLockedCell(1, 1)), false);
-  check('  並びは Excel と同じ 切り取り→コピー→貼り付け→編集→消去→書式→挿入→保護（v413）',
-        await page.evaluate(() => [...document.querySelectorAll('#cellMenu button')]
+  check('  並びは コピー→貼り付け→消去→書式→保護',
+        await page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent)
           .map(b => b.textContent.trim().split(' ').pop()).join('/')),
-        '切り取り/コピー/貼り付け/編集/消去/書式/行を挿入/列を挿入/保護');
+        'コピー/貼り付け/消去/書式/保護');
 
   // 端末でコピーした文字を貼れる
   await page.evaluate(() => navigator.clipboard.writeText('こんにちは'));
@@ -6656,13 +6657,29 @@ async function runCellXl(browser) {
   await tap(1, 0); await page.waitForTimeout(60); await tap(1, 0); await page.waitForTimeout(200);
   check('  数式のセルは数式を直す', await page.evaluate(() => document.getElementById('formulaInput').value + '|' + formulaEditMode), '=A1*2|true');
   await page.keyboard.press('Escape'); await page.waitForTimeout(100);
-  // 長押し＝メニュー（0.5秒ほど）
+  // 長押しではメニューを出さない（v414）。ダブルタップで直すときに、キーボード（テンキー）の上に帯で出す
   let p = await ctr(3, 1);
-  await page.mouse.move(p.x, p.y); await page.mouse.down(); await page.waitForTimeout(650); await page.mouse.up(); await page.waitForTimeout(300);
-  check('  0.5秒ほどの長押しでメニュー', await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show')), true);
-  check('  メニューは3列', await page.evaluate(() => getComputedStyle(document.getElementById('cellMenu')).gridTemplateColumns.split(' ').length), 3);
-  check('  切り取り・編集・挿入が出ている', await page.evaluate(() => [...document.querySelectorAll('#cellMenu .cm-xl')].every(b => b.offsetParent)), true);
-  await page.evaluate(() => hideCellMenu());
+  await page.mouse.move(p.x, p.y); await page.mouse.down(); await page.waitForTimeout(1200); await page.mouse.up(); await page.waitForTimeout(300);
+  check('  長押しではメニューは出ない', await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show')), false);
+  await page.waitForTimeout(500);   // 長押しの分のタップの数えが消えるまで待つ
+  await tap(3, 1); await page.waitForTimeout(60); await tap(3, 1); await page.waitForTimeout(400);
+  check('  ダブルタップでメニューが帯で出る', await page.evaluate(() => { const m = document.getElementById('cellMenu'); return m.classList.contains('show') + '/' + m.classList.contains('edit-bar'); }), 'true/true');
+  check('  帯は横一列で画面の幅いっぱい', await page.evaluate(() => { const b = document.getElementById('cellMenu').getBoundingClientRect(); return getComputedStyle(document.getElementById('cellMenu')).display + '/' + (Math.round(b.width) === innerWidth); }), 'flex/true');
+  check('  帯はテンキーのすぐ上', await page.evaluate(() => {
+    const m = document.getElementById('cellMenu').getBoundingClientRect();
+    if (document.body.classList.contains('kb-edit')) return 'kb';   // スマホ扱いの画面ではテンキーを隠している
+    return Math.abs(m.bottom - document.getElementById('numpadSection').getBoundingClientRect().top) <= 2 ? 'kb' : 'ずれ ' + m.bottom; }), 'kb');
+  check('  スマホではテンキーを隠す（キーボードがその場所に出る）', await page.evaluate(() => document.body.classList.contains('kb-edit') === isTouchUI()
+    && (!isTouchUI() || getComputedStyle(document.getElementById('numpadSection')).display === 'none')), true);
+  check('  帯には切り取り・コピー・貼り付け（編集は出さない）', await page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent).map(b => b.textContent.trim().split(' ').pop()).join('/')),
+    '切り取り/コピー/貼り付け/消去/書式/行を挿入/列を挿入/保護');
+  await page.keyboard.type('たまご');
+  await page.evaluate(() => cellMenuAct('copy')); await page.waitForTimeout(450);
+  check('  帯のボタンを押すと、打ちかけの中身を確定してから働く', await page.evaluate(() => data[3][1] + '|' + clipData.val), 'たまご|たまご');
+  check('  押したら帯は消えてテンキーが戻る', await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show') + '/' + document.body.classList.contains('kb-edit')), 'false/false');
+  await tap(3, 1); await page.waitForTimeout(60); await tap(3, 1); await page.waitForTimeout(300);
+  await page.keyboard.press('Enter'); await page.waitForTimeout(500);
+  check('  Enter で直し終えると帯は消える', await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show') + '/' + document.body.classList.contains('kb-edit')), 'false/false');
   // 長押しして動かしてもフィルにならない（右下の ● から引っぱる）
   p = await ctr(0, 0);
   await page.evaluate(() => sel(5, 1));
@@ -6698,7 +6715,7 @@ async function runCellXl(browser) {
   check('  以前の操作ではダブルタップ＝コピー', await page.evaluate(() => document.getElementById('c1_0').classList.contains('copy-src')), true);
   await page.evaluate(() => clearCopySrc());
   await page.evaluate(() => showCellMenu(2, 2)); await page.waitForTimeout(100);
-  check('  以前の操作のメニューは5つ', await page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent).length), 5);
+  check('  以前の操作の長押しメニューは5つ', await page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent).length), 5);
   await page.evaluate(() => hideCellMenu());
   await page.reload(); await page.waitForTimeout(900);
   check('  開き直しても以前の操作のまま', await page.evaluate(() => cellGesture), 'old');
