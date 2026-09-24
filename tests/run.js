@@ -412,6 +412,7 @@ async function runCellMenu(browser) {
   await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
   await page.reload(); await page.waitForTimeout(900);
   console.log('\n── セルの長押しメニュー ──');
+  await page.evaluate(() => setCellGesture('old'));   // 長押しのメニューは「以前の表電卓」の操作（v414 から Excel と同じ操作ではダブルタップで出す）
 
   // 1秒の長押しでメニューが出る（保護にはならない）
   const bx = await page.evaluate(() => {
@@ -424,10 +425,10 @@ async function runCellMenu(browser) {
   check('  長押しでメニューが出る',
         await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show')), true);
   check('  長押しでは保護にならない', await page.evaluate(() => isLockedCell(1, 1)), false);
-  check('  並びは 貼り付け→コピー→保護→消去→書式',
-        await page.evaluate(() => [...document.querySelectorAll('#cellMenu button')]
+  check('  並びは コピー→貼り付け→消去→書式→保護',
+        await page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent)
           .map(b => b.textContent.trim().split(' ').pop()).join('/')),
-        '貼り付け/コピー/保護/消去/書式');
+        'コピー/貼り付け/消去/書式/保護');
 
   // 端末でコピーした文字を貼れる
   await page.evaluate(() => navigator.clipboard.writeText('こんにちは'));
@@ -6630,6 +6631,100 @@ async function runTbSave(browser) {
   await ctx.close();
 }
 
+/* v413：セルの操作を Excel と同じに（ダブルタップ＝編集・長押し＝メニュー・右下の ● でフィル）。以前の操作も選べる */
+async function runCellXl(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true, permissions: ['clipboard-read', 'clipboard-write'] });
+  const page = await ctx.newPage();
+  const errs = []; page.on('pageerror', e => errs.push(e.message)); page.on('dialog', d => d.accept());
+  await page.goto(INDEX); await page.waitForTimeout(300);
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.reload(); await page.waitForTimeout(900);
+  console.log('\n── セルの操作を Excel と同じに（v413） ──');
+  const ctr = (r, c, dx = 0.5, dy = 0.5) => page.evaluate(([r, c, dx, dy]) => {
+    const b = document.getElementById('c' + r + '_' + c).getBoundingClientRect();
+    return { x: b.left + b.width * dx, y: b.top + b.height * dy }; }, [r, c, dx, dy]);
+  const tap = async (r, c) => { const p = await ctr(r, c); await page.mouse.click(p.x, p.y); };
+  check('  既定は Excel と同じ', await page.evaluate(() => cellGesture + '/' + document.body.classList.contains('cg-excel')), 'excel/true');
+  await page.evaluate(() => { setCellVal(0, 0, '1200'); setCellVal(1, 0, '=A1*2'); sel(2, 0); });
+  // ダブルタップ＝中身を直す
+  await tap(0, 0); await page.waitForTimeout(60); await tap(0, 0); await page.waitForTimeout(200);
+  check('  ダブルタップで数式バーに中身が入る', await page.evaluate(() => document.getElementById('formulaInput').value), '1200');
+  check('  そのまま打てる（数式バーが選ばれている）', await page.evaluate(() => document.activeElement.id), 'formulaInput');
+  check('  コピーの印は付かない', await page.evaluate(() => document.querySelectorAll('.copy-src').length), 0);
+  await page.keyboard.press('End'); await page.keyboard.type('5'); await page.keyboard.press('Enter'); await page.waitForTimeout(200);
+  check('  続きを打って Enter で直せる', await page.evaluate(() => data[0][0]), '12005');
+  // 数式のセルは数式を直す。ほかのセルを押すと番地が入る
+  await tap(1, 0); await page.waitForTimeout(60); await tap(1, 0); await page.waitForTimeout(200);
+  check('  数式のセルは数式を直す', await page.evaluate(() => document.getElementById('formulaInput').value + '|' + formulaEditMode), '=A1*2|true');
+  await page.keyboard.press('Escape'); await page.waitForTimeout(100);
+  // 長押しではメニューを出さない（v414）。ダブルタップで直すときに、キーボード（テンキー）の上に帯で出す
+  let p = await ctr(3, 1);
+  await page.mouse.move(p.x, p.y); await page.mouse.down(); await page.waitForTimeout(1200); await page.mouse.up(); await page.waitForTimeout(300);
+  check('  長押しではメニューは出ない', await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show')), false);
+  await page.waitForTimeout(500);   // 長押しの分のタップの数えが消えるまで待つ
+  await tap(3, 1); await page.waitForTimeout(60); await tap(3, 1); await page.waitForTimeout(400);
+  check('  ダブルタップでメニューが帯で出る', await page.evaluate(() => { const m = document.getElementById('cellMenu'); return m.classList.contains('show') + '/' + m.classList.contains('edit-bar'); }), 'true/true');
+  check('  帯は横一列で画面の幅いっぱい', await page.evaluate(() => { const b = document.getElementById('cellMenu').getBoundingClientRect(); return getComputedStyle(document.getElementById('cellMenu')).display + '/' + (Math.round(b.width) === innerWidth); }), 'flex/true');
+  check('  帯はテンキーのすぐ上', await page.evaluate(() => {
+    const m = document.getElementById('cellMenu').getBoundingClientRect();
+    if (document.body.classList.contains('kb-edit')) return 'kb';   // スマホ扱いの画面ではテンキーを隠している
+    return Math.abs(m.bottom - document.getElementById('numpadSection').getBoundingClientRect().top) <= 2 ? 'kb' : 'ずれ ' + m.bottom; }), 'kb');
+  check('  スマホではテンキーを隠す（キーボードがその場所に出る）', await page.evaluate(() => document.body.classList.contains('kb-edit') === isTouchUI()
+    && (!isTouchUI() || getComputedStyle(document.getElementById('numpadSection')).display === 'none')), true);
+  check('  帯には切り取り・コピー・貼り付け（編集は出さない）', await page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent).map(b => b.textContent.trim().split(' ').pop()).join('/')),
+    '切り取り/コピー/貼り付け/消去/書式/行を挿入/列を挿入/保護');
+  await page.keyboard.type('たまご');
+  await page.evaluate(() => cellMenuAct('copy')); await page.waitForTimeout(450);
+  check('  帯のボタンを押すと、打ちかけの中身を確定してから働く', await page.evaluate(() => data[3][1] + '|' + clipData.val), 'たまご|たまご');
+  check('  押したら帯は消えてテンキーが戻る', await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show') + '/' + document.body.classList.contains('kb-edit')), 'false/false');
+  await tap(3, 1); await page.waitForTimeout(60); await tap(3, 1); await page.waitForTimeout(300);
+  await page.keyboard.press('Enter'); await page.waitForTimeout(500);
+  check('  Enter で直し終えると帯は消える', await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show') + '/' + document.body.classList.contains('kb-edit')), 'false/false');
+  // 長押しして動かしてもフィルにならない（右下の ● から引っぱる）
+  p = await ctr(0, 0);
+  await page.evaluate(() => sel(5, 1));
+  await page.mouse.move(p.x, p.y); await page.mouse.down(); await page.waitForTimeout(700);
+  let q = await ctr(3, 0); await page.mouse.move(q.x, q.y, { steps: 5 }); await page.mouse.up(); await page.waitForTimeout(300);
+  check('  長押しして動かしてもフィルにならない', await page.evaluate(() => data[3][0]), '');
+  check('  選んだセルの右下に ●', await page.evaluate(() => { sel(0, 0); return getComputedStyle(document.getElementById('c0_0'), '::after').content; }), '""');
+  p = await ctr(0, 0, 0.93, 0.9);
+  await page.mouse.move(p.x, p.y); await page.mouse.down();
+  q = await ctr(3, 0); await page.mouse.move(q.x, q.y, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(300);
+  check('  ● を引っぱるとフィル', await page.evaluate(() => [data[1][0], data[2][0], data[3][0]].join('/')), '12005/12005/12005');
+  await page.evaluate(() => hideSeqBtn());
+  // 選んだセルの真ん中からなぞると範囲選択
+  await page.evaluate(() => sel(0, 1));
+  p = await ctr(0, 1); await page.mouse.move(p.x, p.y); await page.mouse.down();
+  q = await ctr(2, 2); await page.mouse.move(q.x, q.y, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(200);
+  check('  選んだセルからなぞると範囲選択', await page.evaluate(() => [rangeR1, rangeC1, rangeR2, rangeC2].join(',')), '0,1,2,2');
+  await page.evaluate(() => clearRangeSelection());
+  // 切り取り → 貼り付けで元が消える
+  await page.evaluate(() => { setCellVal(6, 0, 'うつす'); sel(6, 0); cellMenuAct('cut'); });
+  check('  切り取るとコピーの印', await page.evaluate(() => document.getElementById('c6_0').classList.contains('copy-src')), true);
+  await page.evaluate(async () => { sel(6, 2); await pasteCellSmart(); }); await page.waitForTimeout(300);
+  check('  貼り付けると移る', await page.evaluate(() => data[6][2] + '|' + data[6][0]), 'うつす|');
+  check('  印は消える', await page.evaluate(() => document.querySelectorAll('.copy-src').length), 0);
+  // 行を挿入
+  await page.evaluate(() => { sel(0, 0); cellMenuAct('insrow'); }); await page.waitForTimeout(200);
+  check('  行を挿入できる', await page.evaluate(() => data[0][0] + '|' + data[1][0]), '|12005');
+  // 以前の表電卓
+  await page.evaluate(() => setCellGesture('old')); await page.waitForTimeout(100);
+  check('  以前の表電卓を選べる', await page.evaluate(() => cellGesture + '/' + localStorage.getItem('excalc_cellgesture')), 'old/old');
+  check('  以前の操作では右下の ● を出さない', await page.evaluate(() => { sel(1, 0); return getComputedStyle(document.getElementById('c1_0'), '::after').content; }), 'none');
+  await tap(1, 0); await page.waitForTimeout(60); await tap(1, 0); await page.waitForTimeout(200);
+  check('  以前の操作ではダブルタップ＝コピー', await page.evaluate(() => document.getElementById('c1_0').classList.contains('copy-src')), true);
+  await page.evaluate(() => clearCopySrc());
+  await page.evaluate(() => showCellMenu(2, 2)); await page.waitForTimeout(100);
+  check('  以前の操作の長押しメニューは5つ', await page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent).length), 5);
+  await page.evaluate(() => hideCellMenu());
+  await page.reload(); await page.waitForTimeout(900);
+  check('  開き直しても以前の操作のまま', await page.evaluate(() => cellGesture), 'old');
+  await page.evaluate(() => setCellGesture('excel'));
+  check('  Excel と同じに戻すと覚えた値は消える', await page.evaluate(() => localStorage.getItem('excalc_cellgesture')), null);
+  check('  設定の📐表にセルの操作がある', await page.evaluate(() => !!document.querySelector('#setPage0 #cellGestureSeg [data-cg=excel].on')), true);
+  check('  エラーが出ない', errs.join(' | '), '');
+  await ctx.close();
+}
 /* v411：書式・枠線のテンキーの色／見た目の設定を4つの組に */
 async function runFmtCol(browser) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
@@ -6641,7 +6736,7 @@ async function runFmtCol(browser) {
   console.log('\n── 書式・枠線のテンキーの色／見た目の設定の組（v411） ──');
   const bg = sel => page.evaluate(s => getComputedStyle(document.querySelector(s)).backgroundColor, sel);
   const KB = '#numpadPageFmt [data-key=kf_bold]';
-  check('  はじめは白', await bg(KB), 'rgb(255, 255, 255)');
+  check('  はじめは すみ（v412）', await bg(KB), 'rgb(55, 71, 79)');
   await page.evaluate(() => { toggleSettings(); setSettingsTab(1); }); await page.waitForTimeout(300);
   check('  見た目は4つの組', await page.evaluate(() => [...document.querySelectorAll('#setPage1 .set-grp')].map(d => d.querySelector('.set-grp-t b').textContent).join('/')),
     '色と背景/文字と大きさ/テンキー/画面と上のバー');
@@ -6651,7 +6746,7 @@ async function runFmtCol(browser) {
      'calcOnlyBtn', 'pageBarBtn', 'funcPageBtn', 'resizerBarBtn', 'barSize', 'keypadEditBtn', 'npToolList', 'topBtnToggles', 'startPageSel', 'compactSeg', 'fpcBox']
       .filter(id => { const e = document.getElementById(id); return !e || !e.closest('.set-grp'); }).join(',')), '');
   check('  書式・枠線のテンキーの色は「色と背景」の組', await page.evaluate(() => document.getElementById('fpcBox').closest('.set-grp').id), 'setGrpColor');
-  check('  組み合わせは8つ', await page.evaluate(() => document.querySelectorAll('#fpcPresets .fpc-pre').length), 8);
+  check('  組み合わせは8つ（元＝すみ・白 …）', await page.evaluate(() => document.querySelectorAll('#fpcPresets .fpc-pre').length), 8);
   await page.evaluate(() => { const d = document.getElementById('setGrpColor'); d.open = true; }); await page.waitForTimeout(100);
   await page.click('#fpcPresets [data-pre=sky]'); await page.waitForTimeout(400);   // 地の色は少しかけて変わる
   check('  水色を選ぶとボタンの地が水色', await bg(KB), 'rgb(227, 242, 253)');
@@ -6659,11 +6754,14 @@ async function runFmtCol(browser) {
   check('  区切り線（地）も変わる', await bg('#numpadPageFmt'), 'rgb(179, 205, 232)');
   check('  選んだ組み合わせに印', await page.evaluate(() => document.querySelector('#fpcPresets .on').dataset.pre), 'sky');
   check('  覚える', await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_fmtcol')).key), '#e3f2fd');
+  await page.click('#fpcPresets [data-pre=white]'); await page.waitForTimeout(400);
+  check('  白を選ぶと白', await bg(KB), 'rgb(255, 255, 255)');
+  await page.click('#fpcPresets [data-pre=sky]'); await page.waitForTimeout(400);
   // 1つずつ変える
   await page.evaluate(() => fpcSet('key', '#1f1f1f')); await page.waitForTimeout(400);
   check('  地だけ黒にすると、組み合わせの印は消える', await page.evaluate(() => document.querySelectorAll('#fpcPresets .on').length), 0);
   await page.evaluate(() => fpcSet('ink', '')); await page.waitForTimeout(50);
-  check('  文字を元にすると、黒い地には白っぽい字', await page.evaluate(() => getComputedStyle(document.querySelector('#numpadPageFmt [data-key=kf_bold]')).color), 'rgb(241, 243, 245)');
+  check('  文字を元にすると、黒い地には白っぽい字', await page.evaluate(() => getComputedStyle(document.querySelector('#numpadPageFmt [data-key=kf_bold]')).color), 'rgb(236, 239, 241)');
   check('  #rrggbb 以外は受け付けない', await page.evaluate(() => { fpcSet('line', 'red;x'); return fmtCol.line; }), '');
   // 開き直しても残る・組の開閉も残る
   await page.reload(); await page.waitForTimeout(900);
@@ -6673,10 +6771,10 @@ async function runFmtCol(browser) {
   await page.evaluate(() => toggleDark()); await page.waitForTimeout(600);
   check('  夜でも選んだ色', await bg(KB), 'rgb(31, 31, 31)');
   await page.evaluate(() => fpcReset()); await page.waitForTimeout(600);
-  check('  元に戻すと夜のふだんの色', await bg(KB), 'rgb(214, 217, 221)');
+  check('  元に戻すと夜も すみ', await bg(KB), 'rgb(55, 71, 79)');
   check('  元に戻すと覚えた色は消える', await page.evaluate(() => localStorage.getItem('excalc_fmtcol')), null);
   await page.evaluate(() => toggleDark()); await page.waitForTimeout(600);
-  check('  昼に戻すと白', await bg(KB), 'rgb(255, 255, 255)');
+  check('  昼に戻しても すみ', await bg(KB), 'rgb(55, 71, 79)');
   // 設定をさがす
   await page.evaluate(() => { toggleSettings(); setFind('書式・枠線のテンキーの色'); }); await page.waitForTimeout(100);
   check('  さがす欄で見つかる', await page.evaluate(() => setFindHits.some(x => /書式・枠線のテンキーの色/.test(x.label))), true);
@@ -6699,8 +6797,8 @@ async function runFmtPage(browser) {
   const on = k => page.evaluate(k => document.querySelector('#numpadPageFmt [data-key=' + k + ']').classList.contains('kf-on'), k);
   check('  6列にした', await page.evaluate(() =>
     getComputedStyle(document.getElementById('numpadPageFmt')).gridTemplateColumns.split(' ').length), 6);
-  check('  ボタンは白い地（明るい）', await page.evaluate(() =>
-    getComputedStyle(document.querySelector('#numpadPageFmt [data-key=kf_bold]')).backgroundColor), 'rgb(255, 255, 255)');
+  check('  ボタンの地は すみ（v412）', await page.evaluate(() =>
+    getComputedStyle(document.querySelector('#numpadPageFmt [data-key=kf_bold]')).backgroundColor), 'rgb(55, 71, 79)');
   check('  Excel と同じ B・I・U・ab が並ぶ', await page.evaluate(() =>
     ['kf_bold', 'kf_italic', 'kf_under', 'kf_strike'].map(k => document.querySelector('#numpadPageFmt [data-key=' + k + ']').textContent.trim()).join(' ')), 'B I U ab');
   check('  揃え（左・中央・右／上・中・下）・結合・書式のコピーがある', await page.evaluate(() =>
@@ -6871,6 +6969,7 @@ async function runQrShare(browser) {
     if (!only || only === 'fmtpage') await runFmtPage(browser);
     if (!only || only === 'qrshare') await runQrShare(browser);
     if (!only || only === 'fmtcol') await runFmtCol(browser);
+    if (!only || only === 'cellxl') await runCellXl(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
     if (!only || only === 'brush3') await runBrush3(browser);
