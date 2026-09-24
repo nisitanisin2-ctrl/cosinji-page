@@ -4172,7 +4172,7 @@ async function runOnboard(browser) {
   await page.evaluate(() => tourGo(1)); await page.waitForTimeout(200);
   check('  つぎへで進む（2枚目は操作）', await head(), '表の操作は Excel と同じです');
   check('  ダブルタップ・右下の ● などの操作が書いてある', await page.evaluate(() => {
-    const t = document.querySelector('.tour-ex').textContent; return ['ダブルタップ', '右下の ●', 'なぞる', '長押し', '＝数式', 'あ文字'].every(w => t.includes(w)); }), true);
+    const t = document.querySelector('.tour-ex').textContent; return ['ダブルタップ', '右下の ■', 'なぞる', '長押し', '＝数式', 'あ文字'].every(w => t.includes(w)); }), true);
   await page.evaluate(() => tourGo(1)); await page.waitForTimeout(200);
   check('  3枚目は声', await head(), '口で言うだけでも計算できます');
   check('  言い方の見本が出る', await page.evaluate(() =>
@@ -4202,7 +4202,7 @@ async function runOnboard(browser) {
   await page.evaluate(() => tourSkip()); await page.waitForTimeout(350);
   await page.evaluate(() => openHelp()); await page.waitForTimeout(400);
   check('  説明書に Excel とのちがいの早見表（v415）', await page.evaluate(() => {
-    const d = document.getElementById('h-excel'); return !!d && d.querySelectorAll('tr').length >= 12 && d.textContent.includes('右下の ●'); }), true);
+    const d = document.getElementById('h-excel'); return !!d && d.querySelectorAll('tr').length >= 12 && d.textContent.includes('右下の ■'); }), true);
   check('  説明書に入口がある', await page.evaluate(() =>
     [...document.querySelectorAll('#helpOverlay button')].some(b => b.textContent.includes('はじめての案内'))), true);
   await page.evaluate(() => closeHelp()); await page.waitForTimeout(350);
@@ -6780,7 +6780,13 @@ async function runCellXl(browser) {
   await page.mouse.move(p.x, p.y); await page.mouse.down(); await page.waitForTimeout(700);
   let q = await ctr(3, 0); await page.mouse.move(q.x, q.y, { steps: 5 }); await page.mouse.up(); await page.waitForTimeout(300);
   check('  長押しして動かしてもフィルにならない', await page.evaluate(() => data[3][0]), '');
-  check('  選んだセルの右下に ●', await page.evaluate(() => { sel(0, 0); return getComputedStyle(document.getElementById('c0_0'), '::after').content; }), '""');
+  check('  選んだセルの枠の右下の角に小さな四角（v421）', await page.evaluate(() => {
+    sel(0, 0); const h = document.getElementById('fillHandle'), hb = h.getBoundingClientRect(), tb = document.getElementById('c0_0').getBoundingClientRect();
+    return getComputedStyle(h).display + '/' + Math.round(hb.width) + '/' + (Math.abs((hb.left + hb.width / 2) - (tb.right - 1)) <= 1.5 && Math.abs((hb.top + hb.height / 2) - (tb.bottom - 1)) <= 1.5); }), 'block/7/true');
+  check('  別のセルを選ぶと四角も移る', await page.evaluate(() => {
+    sel(2, 1); const hb = document.getElementById('fillHandle').getBoundingClientRect(), tb = document.getElementById('c2_1').getBoundingClientRect();
+    const ok = Math.abs((hb.left + 3.5) - (tb.right - 1)) <= 1.5 && Math.abs((hb.top + 3.5) - (tb.bottom - 1)) <= 1.5; sel(0, 0); return ok; }), true);
+  check('  セルの中の丸は出さない', await page.evaluate(() => getComputedStyle(document.getElementById('c0_0'), '::after').content), 'none');
   p = await ctr(0, 0, 0.93, 0.9);
   await page.mouse.move(p.x, p.y); await page.mouse.down();
   q = await ctr(3, 0); await page.mouse.move(q.x, q.y, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(300);
@@ -6809,7 +6815,7 @@ async function runCellXl(browser) {
   // 以前の表電卓
   await page.evaluate(() => setCellGesture('old')); await page.waitForTimeout(100);
   check('  以前の表電卓を選べる', await page.evaluate(() => cellGesture + '/' + localStorage.getItem('excalc_cellgesture')), 'old/old');
-  check('  以前の操作では右下の ● を出さない', await page.evaluate(() => { sel(1, 0); return getComputedStyle(document.getElementById('c1_0'), '::after').content; }), 'none');
+  check('  以前の操作では右下の四角を出さない', await page.evaluate(() => { sel(1, 0); return getComputedStyle(document.getElementById('fillHandle')).display; }), 'none');
   await tap(1, 0); await page.waitForTimeout(60); await tap(1, 0); await page.waitForTimeout(200);
   check('  以前の操作ではダブルタップ＝コピー', await page.evaluate(() => document.getElementById('c1_0').classList.contains('copy-src')), true);
   await page.evaluate(() => clearCopySrc());

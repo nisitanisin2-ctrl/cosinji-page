@@ -1239,7 +1239,7 @@ body.dark .date-badge { border-top-color: #82b1ff; }
 body:not(.cg-excel) #cellMenu .cm-xl { display: none; }
 body.cg-excel #cellMenu.show { display: grid; grid-template-columns: repeat(3, auto); gap: 2px; }
 body.cg-excel #cellMenu button { padding: 10px 10px; font-size: 14px; text-align: center; }
-/* 選んだセルの右下の ●（引っぱるとフィル）。Excel と同じ操作のときだけ */
+/* 選んだセルの右下の ■（引っぱるとフィル）。Excel と同じ操作のときだけ */
 /* ダブルタップで直している間（v414）：テンキーを隠して、その場所にスマホのキーボードを出す */
 body.kb-edit .numpad-section { display: none !important; }
 body.kb-edit { grid-template-columns: 1fr !important; }
@@ -1249,11 +1249,13 @@ body.kb-edit { grid-template-columns: 1fr !important; }
   box-shadow: 0 -2px 8px rgba(0,0,0,.12); -webkit-overflow-scrolling: touch; }
 #cellMenu.edit-bar button { flex: none; width: auto; padding: 9px 11px; font-size: 13px; text-align: center; }
 #cellMenu.edit-bar:not(.bar-nokb) .cm-edit { display: none; }
-body.cg-excel .cell.active::after {
-  content: ''; position: absolute; right: 1px; bottom: 1px; width: 9px; height: 9px;
-  border-radius: 50%; background: var(--acc); box-shadow: 0 0 0 1.5px #fff; pointer-events: none;
-}
-body.cg-excel.fill-active .cell.active::after { display: none; }
+/* 選んだセルの枠の右下の角に置く小さな四角（v421。Excel のパソコン版と同じ形）。引っぱるとフィル。
+   セルは中身がはみ出さないよう枠の内側で切っているので、四角は表の上に1つだけ別に置いて、角に合わせて動かす */
+.sheet-wrap { position: relative; }
+#fillHandle { position: absolute; width: 7px; height: 7px; background: var(--acc); z-index: 1;
+  box-shadow: 0 0 0 1px var(--sheet-cell-bg, var(--cell-bg)); pointer-events: none; display: none; }
+body.cg-excel #fillHandle.on { display: block; }
+body.fill-active #fillHandle { display: none; }
 .cell-menu button:active { background: var(--cell-border); }
 /* フィル後の連番ボタン */
 .seq-btn {
@@ -3706,7 +3708,7 @@ body.dark {
       <button class="skin-seg-btn" data-cg="excel" onclick="setCellGesture('excel')">Excel と同じ</button>
       <button class="skin-seg-btn" data-cg="old" onclick="setCellGesture('old')">以前の表電卓</button>
     </div>
-    <div class="set-note"><b>Excel と同じ</b>：ダブルタップで<b>中身を直す</b>（スマホではテンキーの場所にキーボードが出て、その上に<b>切り取り・コピー・貼り付け・行や列の挿入など</b>の帯が出ます）、選んだセルの右下の<b>●</b>を引っぱると<b>フィル</b>。<br><b>以前の表電卓</b>：ダブルタップで<b>コピー／貼り付け</b>、長押ししてから動かすと<b>フィル</b>、約1秒の長押しで<b>メニュー</b>。</div>
+    <div class="set-note"><b>Excel と同じ</b>：ダブルタップで<b>中身を直す</b>（スマホではテンキーの場所にキーボードが出て、その上に<b>切り取り・コピー・貼り付け・行や列の挿入など</b>の帯が出ます）、選んだセルの右下の<b>■</b>を引っぱると<b>フィル</b>。<br><b>以前の表電卓</b>：ダブルタップで<b>コピー／貼り付け</b>、長押ししてから動かすと<b>フィル</b>、約1秒の長押しで<b>メニュー</b>。</div>
     <div class="set-sec">使いかた</div>
     <button class="set-act" id="setTourBtn" onclick="toggleSettings(); setTimeout(openTour, 320);">🚀 はじめての案内をもう一度見る</button>
     <button class="set-act" onclick="toggleSettings(); setTimeout(openHelp, 320);">📖 説明書を開く</button>
@@ -3900,6 +3902,7 @@ body.dark {
 </div>
 
 <div class="sheet-wrap">
+  <div id="fillHandle" aria-hidden="true"></div>
   <table class="sheet" id="sheet" role="grid" aria-label="表"></table>
 </div>
 
@@ -6876,14 +6879,25 @@ function clearCopySrc() {
 
 /* ── セルの操作のしかた（v413）──
    'excel'（既定）：Excel と同じ。ダブルタップ＝中身を直す、長押し＝メニュー、
-                    選んだセルの右下の ● を引っぱる＝フィル、選んだセルからなぞる＝範囲選択。
+                    選んだセルの右下の ■ を引っぱる＝フィル、選んだセルからなぞる＝範囲選択。
    'old'          ：以前の表電卓。ダブルタップ＝コピー／貼り付け、長押しして動かす＝フィル、
                     約1秒の長押し＝メニュー。 */
 const CELL_GESTURE_KEY='excalc_cellgesture';
 let cellGesture='excel';
 try{ if(localStorage.getItem(CELL_GESTURE_KEY)==='old') cellGesture='old'; }catch(_){}
+/* 右下の四角を、選んだセルの枠の右下の角に合わせる（v421） */
+function updateFillHandle(){
+  const h=document.getElementById('fillHandle'); if(!h) return;
+  const td=document.getElementById(`c${selR}_${selC}`), wrap=h.parentElement;
+  if(cellGesture!=='excel' || !td || !td.offsetParent || !wrap){ h.classList.remove('on'); return; }
+  const t=td.getBoundingClientRect(), w=wrap.getBoundingClientRect();
+  h.style.left=(t.right-w.left+wrap.scrollLeft-4.5)+'px';   // 四角の真ん中を枠の線の角に
+  h.style.top=(t.bottom-w.top+wrap.scrollTop-4.5)+'px';
+  h.classList.add('on');
+}
 function applyCellGesture(){
   document.body.classList.toggle('cg-excel', cellGesture==='excel');
+  updateFillHandle();
   document.querySelectorAll('#cellGestureSeg [data-cg]').forEach(b=>b.classList.toggle('on', b.dataset.cg===cellGesture));
 }
 function setCellGesture(v){
@@ -8685,6 +8699,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v421', t:'右下の丸を小さな四角に', li:[
+    '選んだセルの右下の<b>丸</b>を、<b>枠の角の小さな四角</b>にしました（Excel のパソコン版と同じ形）。数字に重ならず、目立ちにくくなります',
+    'つまめる場所は前と同じです。四角を引っぱると、下や横へコピー（フィル）できます',
+  ]},
   { v:'v420', t:'起動を軽く・iPhone のキーボードの上の帯', li:[
     '<b>📝写真メモ</b>の中身を別のファイルに分けて、<b>開いたときだけ読む</b>ようにしました。アプリを開くたびに読む量が約6%減りました（電波がなくても、一度開いたことがあればそのまま使えます）',
     'ダブルタップで直すときの帯を、<b>iPhone でもキーボードのすぐ上</b>に出やすくしました（キーボードが出る動きに合わせて置き直します）',
@@ -10100,7 +10118,7 @@ const TOUR_PAGES=[
     ex:'画面を<b>横にスッとなぞる</b>と行き来できます。テンキーの上の<b>「書式・枠線／数字／記号／電卓」</b>を押しても移れます。' },
   { ico:'👆', h:'表の操作は Excel と同じです',
     b:'セルを<b>タップ</b>で選び、<b>テンキー</b>で数字を打って <b>Enter</b>。',
-    ex:'<b>ダブルタップ</b> … 中身を直す（切り取り・コピー・貼り付けもここ）<br><b>右下の ● を引っぱる</b> … 下や横へコピー<br><b>選んだセルからなぞる</b> … 範囲を選ぶ<br><b>行番号・列名を長押し</b> … 行や列を足す・消す<br><b>＝数式</b> … 数式を入れる　<b>あ文字</b> … 文字を入れる'},
+    ex:'<b>ダブルタップ</b> … 中身を直す（切り取り・コピー・貼り付けもここ）<br><b>右下の ■ を引っぱる</b> … 下や横へコピー<br><b>選んだセルからなぞる</b> … 範囲を選ぶ<br><b>行番号・列名を長押し</b> … 行や列を足す・消す<br><b>＝数式</b> … 数式を入れる　<b>あ文字</b> … 文字を入れる'},
   { ico:'🎤', h:'口で言うだけでも計算できます',
     b:'<b>🎤声</b>のキーを押して、ふだんのことばで言うだけです。',
     ex:'「<b>180円を4個</b>」→ 720円<br>「<b>20平米に厚さ10センチ</b>」→ 2㎥<br>「<b>12800円を4人で割って</b>」→ 3,200円<br><b>📖言い方の早見表</b>に、言える形が63とおり並んでいます。' },
@@ -14898,6 +14916,7 @@ function sel(r,c) {
   tellCellError(r,c);  // エラーのセルなら、なぜそうなったかを一言出す
   document.getElementById(`c${r}_${c}`).scrollIntoView({block:'nearest',inline:'nearest'});
   if(typeof kfmtSyncState==='function') kfmtSyncState();   // 書式ページの B・I・U などの印（v407）
+  updateFillHandle();   // 右下の四角を選んだセルの角へ（v421）
 }
 
 function highlightCol(c,on) {
@@ -19986,7 +20005,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v420';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v421';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -20769,7 +20788,7 @@ let lpFromActive=false;   // 選択中(アクティブ)セルから押し始め�
 let rangeDragging=false;  // スライドで範囲選択中
 let lpFillTimer=null, lpMenuTimer=null;
 const LP_FILL_MS=550, LP_MENU_MS=1000, LP_MOVE_TOL=8;
-/* 選んだセルの右下の ● （フィルの取っ手）の上か。指で押しやすいよう、見た目より広めにとる */
+/* 選んだセルの右下の ■ （フィルの取っ手）の上か。指で押しやすいよう、見た目より広めにとる */
 function onFillHandle(r,c,x,y){
   const td=document.getElementById(`c${r}_${c}`); if(!td) return false;
   const b=td.getBoundingClientRect(), k=Math.min(26, b.width*0.45, b.height*0.7);
@@ -20787,7 +20806,7 @@ function startCellPress(r,c,x,y){
   lpFromActive=(r===selR && c===selC); rangeDragging=false;
   lpClearTimers();
   if(cellGesture==='excel'){
-    // Excel と同じ：選んだセルの右下の ● から引っぱるとフィル
+    // Excel と同じ：選んだセルの右下の ■ から引っぱるとフィル
     // メニューは長押しでは出さず、ダブルタップで直すときにキーボード（テンキー）の上に出す
     if(lpFromActive && onFillHandle(r,c,x,y)){ fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; }
     return;
@@ -22135,6 +22154,14 @@ if(typeof bindDefaultSizeBtn==='function') bindDefaultSizeBtn(document.getElemen
   if(typeof updateDigitHint==='function') updateDigitHint(); })();   // 桁の表示を復元
 applySetGrp();       // 見た目の設定の組の開閉を復元（v411。既定はぜんぶ閉じる）
 applyCellGesture();  // セルの操作（Excel と同じ／以前の表電卓）を反映（v413）
+/* 表の大きさが変わったら（列幅・拡大・行や列の追加・中身で幅が伸びた）右下の四角を合わせ直す（v421） */
+(function(){
+  const t=document.getElementById('sheet'); let raf=0;
+  const again=()=>{ if(raf) return; raf=requestAnimationFrame(()=>{ raf=0; updateFillHandle(); }); };
+  if(t && window.ResizeObserver) new ResizeObserver(again).observe(t);
+  window.addEventListener('resize', again);
+  document.addEventListener('transitionend', again, true);
+})();
 a11yInit();          // 読み上げ・キーボード操作の下ごしらえ（見た目は変えない）
 { const dd=document.getElementById('defDateFmt'); if(dd) dd.value=defaultDateFmt; }   // 日付の既定表示形式を復元
 saveDirty=false; updateRecordTitle();   // 起動直後は「📄 自動保存」（記録は開いていない）
