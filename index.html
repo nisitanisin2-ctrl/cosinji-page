@@ -8678,6 +8678,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v419', t:'設定もバックアップに', li:[
+    '📋リストの <b>⬇書き出し</b>（バックアップ）に、<b>設定</b>（色・テンキーの配置と大きさ・キーの割り当て・マイキー・セルの操作・リンク集など）も入れるようにしました',
+    '<b>⬆読み込み</b>で設定が入っていると、いっしょに読み込むか聞きます。機種を変えても同じ使い心地に戻せます（背景の写真は入りません）',
+  ]},
   { v:'v418', t:'キーボードを出さずにコピーできるように', li:[
     '<b>選んでいるセルをもう一度タップ</b>すると、キーボードを出さずに<b>切り取り・コピー・貼り付けなどの帯</b>が出ます（Excel と同じ）。帯の<b>✏編集</b>で直すこともできます',
     '<b>なぞって範囲を選ぶ</b>と、帯が出ます。選んだ範囲の中をタップしても出ます',
@@ -21440,7 +21444,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v418';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v419';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -23239,6 +23243,38 @@ function vegPicBytes(){
   for(const k in vegDiary) vegDiaryOf(k).forEach(e=>{ b+=((e.p||'').length+(e.th||'').length)*2; });
   return b;
 }
+/* 設定のバックアップ（v419）。機種変えでも同じ使い心地に戻せるよう、書き出しに設定も入れる。
+   表の中身・記録・当番表・野菜は別に入れているので、ここは「使い方の決めごと」だけ。
+   背景の写真（大きい）と、画面の一時的な状態（前に見たタブなど）は入れない。 */
+const SETTINGS_BACKUP_KEYS=[
+  'excalc_appwidth','excalc_barsize','excalc_calc_style','excalc_calconly','excalc_cellgesture','excalc_cellscale','excalc_cellsize',
+  'excalc_compact','excalc_custommodes','excalc_dark','excalc_dec','excalc_default_cols','excalc_default_datefmt','excalc_default_rows',
+  'excalc_digithint','excalc_dt_dec','excalc_dt_round','excalc_enterdir','excalc_flicksym','excalc_fmtcol','excalc_formulasize',
+  'excalc_funcpage','excalc_hiddenmodes','excalc_infosize','excalc_kantab_limit','excalc_kantab_table','excalc_kantab_warn',
+  'excalc_key_assign','excalc_keypad_pos','excalc_keypad_pos2','excalc_keypad_pos_v2','excalc_keypad_posfmt3','excalc_keyscale',
+  'excalc_keysize','excalc_links','excalc_modeorder','excalc_np_place','excalc_npad','excalc_nptools','excalc_numpad_hidden',
+  'excalc_numpad_landw','excalc_numscale','excalc_pagebar','excalc_pdf_settings','excalc_pm_custom_colors','excalc_pm_phrases',
+  'excalc_pm_prefs','excalc_prn','excalc_savesort','excalc_savetabnames','excalc_saveview','excalc_show_resizerbar',
+  'excalc_show_sheettabs','excalc_skin','excalc_speechauto','excalc_speechlayout','excalc_speechspeak','excalc_startpage',
+  'excalc_sumfunc','excalc_taxrate','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
+  'excalc_ts_warn','excalc_userkeys',
+];
+function settingsBundle(){
+  const o={};
+  SETTINGS_BACKUP_KEYS.forEach(k=>{ try{ const v=localStorage.getItem(k); if(v!=null) o[k]=v; }catch(_){} });
+  return o;
+}
+/* 読み込んだ設定を書き込む。決めた名前・文字だけを受け付ける。書いた数を返す */
+function restoreSettingsBundle(o){
+  if(!o || typeof o!=='object') return 0;
+  let n=0;
+  SETTINGS_BACKUP_KEYS.forEach(k=>{
+    const v=o[k];
+    if(typeof v==='string' && v.length<=500000){ try{ localStorage.setItem(k,v); n++; }catch(_){} }
+  });
+  return n;
+}
+function settingsBundleCount(o){ return (o && typeof o==='object') ? SETTINGS_BACKUP_KEYS.filter(k=>typeof o[k]==='string').length : 0; }
 /* 保存データをJSONファイルに書き出し（別端末への移動・バックアップ用） */
 async function exportSaves() {
   const saves=getSaves();
@@ -23255,7 +23291,8 @@ async function exportSaves() {
   }
   const payload={ app:'hyodenki', type:'saves', version:1, exportedAt:Date.now(), saves,
                   veg:vegBundle(withPics), vegPics:withPics,
-                  touban:tbBundle() };   // 当番表（いまの分と、保存した分）も入れる（v406）
+                  touban:tbBundle(),     // 当番表（いまの分と、保存した分）も入れる（v406）
+                  settings:settingsBundle() };   // 設定（色・テンキーの配置・マイキー・リンク集など）も入れる（v419）
   const blob=new Blob([JSON.stringify(payload)],{type:'application/json;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
   const a=Object.assign(document.createElement('a'),{
@@ -23265,7 +23302,7 @@ async function exportSaves() {
   a.click(); URL.revokeObjectURL(url);
   markBackedUp();                       // 端末の外に出せた日を覚えておく
   if(typeof toast==='function') toast('保存データを書き出しました（'+saves.length+'件'
-    +(pics>0?(withPics?'／日記の写真ごと':'／日記の写真はぬき'):'')+'）');
+    +(pics>0?(withPics?'／日記の写真ごと':'／日記の写真はぬき'):'')+'／設定も入れました）');
   renderSaveStateBanner();
 }
 
@@ -23300,6 +23337,17 @@ function importSaves(ev) {
     // 当番表が入っていれば、当番表の保存の一覧に足す（いまの当番表は置きかえない。v406）
     const tbN=tbRestoreBundle(parsed && parsed.touban);
     const tbMsg=tbN?`\n当番表 ${tbN}件は、当番表の 💾保存 の一覧に足しました`:'';
+    // 設定が入っていれば、最後に読み込むか聞く（v419）。読み込んだら開き直して効かせる
+    const setN=settingsBundleCount(parsed && parsed.settings);
+    const alertDone=async msg=>{
+      alert(msg);
+      if(!setN) return;
+      if(await appConfirm('設定（色・テンキーの配置・マイキー・リンク集など）も入っています。\n'
+          +'いっしょに読み込みますか（今の設定は置きかえます。読み込むとアプリを開き直します）','はい','いいえ')){
+        restoreSettingsBundle(parsed.settings);
+        location.reload();
+      }
+    };
     // 野菜まわりが入っていれば、それも取り込むか聞く（v374）
     const veg=parsed && parsed.veg;
     const hasVeg=veg && (Array.isArray(veg.plots)&&veg.plots.length || (veg.diary&&Object.keys(veg.diary).length));
@@ -23313,14 +23361,14 @@ function importSaves(ev) {
             +`いっしょに読み込みますか（今の野菜のデータは置きかえます）`,
             'はい','いいえ')){
           importVegBundle(veg);
-          alert(`${added}件の保存データと、野菜のデータを読み込みました`+tbMsg);
+          await alertDone(`${added}件の保存データと、野菜のデータを読み込みました`+tbMsg);
         } else {
-          alert(`${added}件の保存データを読み込みました`+tbMsg);
+          await alertDone(`${added}件の保存データを読み込みました`+tbMsg);
         }
       }, 60);
       return;
     }
-    alert(`${added}件の保存データを読み込みました`+tbMsg);
+    alertDone(`${added}件の保存データを読み込みました`+tbMsg);
   };
   reader.onerror=()=>alert('ファイルの読み込みに失敗しました');
   reader.readAsText(file);

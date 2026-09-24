@@ -3667,6 +3667,7 @@ async function runExport(browser) {
 
   // ── ぜんぶ書き出し：写真ごと／写真ぬき ──
   check('  日記の写真の重さが分かる', await page.evaluate(() => vegPicBytes() > 1000), true);
+  await page.evaluate(() => { localStorage.setItem('excalc_taxrate', '8'); localStorage.setItem('excalc_userkeys', '[{"label":"テスト"}]'); });
   const d3 = await (async () => { const d = page.waitForEvent('download', { timeout: 9000 }).catch(() => null);
     await page.evaluate(() => { exportSaves(); }); await ansBtn('はい'); return d; })();
   check('  写真ごと書き出せる', !!d3, true);
@@ -3675,7 +3676,9 @@ async function runExport(browser) {
     const j = JSON.parse(require('fs').readFileSync(withFile, 'utf8'));
     const pid = Object.keys(j.veg.diary)[0];
     check('  写真が入っている', j.vegPics + '/' + !!j.veg.diary[pid][0].p, 'true/true');
-    check('  育てている野菜も入る', j.veg.plots.length, 1); }
+    check('  育てている野菜も入る', j.veg.plots.length, 1);
+    check('  設定も入る（v419）', (j.settings || {}).excalc_taxrate + '/' + (j.settings || {}).excalc_userkeys, '8/[{"label":"テスト"}]');
+    check('  背景の写真・表の中身は設定に入れない', ['excalc_skin_photo', 'excalc_saves', 'excalc_sheets', 'excalc_touban'].some(k => k in (j.settings || {})), false); }
 
   const d4 = await (async () => { const d = page.waitForEvent('download', { timeout: 9000 }).catch(() => null);
     await page.evaluate(() => { exportSaves(); }); await ansBtn('いいえ'); return d; })();
@@ -3699,7 +3702,15 @@ async function runExport(browser) {
       const id = vegPlots[0] && vegPlots[0].id;
       return vegPlots.length + '/' + (id ? vegDiaryOf(id).length : 0) + '/' +
              (id ? vegDiaryOf(id).filter(e => e.p).length : 0); }), '1/1/1');
+    await page.waitForTimeout(300);
+    check('  設定も入っていれば、読み込むか聞く（v419）', await page.evaluate(() => {
+      const ov = document.querySelector('div[style*="99999"]'); return !!ov && ov.textContent.includes('設定'); }), true);
+    await ansBtn('いいえ');
+    check('  いいえなら設定はそのまま', await page.evaluate(() => localStorage.getItem('excalc_taxrate')), '8');
   }
+  check('  設定を戻せる（決めた名前だけ）', await page.evaluate(() => {
+    const n = restoreSettingsBundle({ excalc_taxrate: '10', excalc_saves: 'こわす', other_key: 'x', excalc_dark: 1 });
+    return n + '/' + localStorage.getItem('excalc_taxrate') + '/' + (localStorage.getItem('excalc_saves') !== 'こわす') + '/' + localStorage.getItem('other_key'); }), '1/10/true/null');
 
   // ── ⋯メニューの整理（v375） ──
   await page.evaluate(() => openMoreMenu()); await page.waitForTimeout(400);
