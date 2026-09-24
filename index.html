@@ -1413,6 +1413,7 @@ body.dark .cell.sel-range {
   background: #1a3a5c !important;
   outline: 1px solid #4488cc;
 }
+.cell.clip-src { outline: 2px dashed var(--warn) !important; outline-offset: -2px; }   /* コピー・切り取りした範囲（v417） */
 .cell.copy-src {
   outline: 2px dashed var(--warn) !important;
   outline-offset: -2px;
@@ -6189,6 +6190,7 @@ function evalFormula(formula) {
 }
 
 function parseArith(s) {
+  if(s.indexOf('$')>=0) s=stripAbsRefs(s);   // 絶対参照 $A$1・A$1・$A1 は A1 として読む（v417）
   // 日本語名の関数を内部名に正規化（V参照/X参照。従来の英語名もそのまま使える）
   if(s.indexOf('参照')>=0) s=s.replace(/[VvＶ]参照\s*\(/g,'VLOOKUP(').replace(/[XxＸ]参照\s*\(/g,'XLOOKUP(');
   let pos = 0;
@@ -6827,9 +6829,29 @@ function extendRange(r,c) {
 }
 
 /* ── コピー＆ペースト ── */
-function copyCell() {
-  clipData={val:data[selR][selC]};
-  (navigator.clipboard?navigator.clipboard.writeText(clipData.val):Promise.resolve()).catch(()=>{});
+/* 選んでいる範囲（なければ選んでいるセル）。{r1,c1,r2,c2} */
+function selRect(){
+  if (rangeR1>=0) return { r1:Math.min(rangeR1,rangeR2), c1:Math.min(rangeC1,rangeC2), r2:Math.max(rangeR1,rangeR2), c2:Math.max(rangeC1,rangeC2) };
+  return { r1:selR, c1:selC, r2:selR, c2:selC };
+}
+/* コピー（v417）：範囲の形のまま中身を覚える。端末へは見えている値をタブ・改行で区切って渡す
+   （メモや Excel に貼れる）。貼り付けで端末の中身がこれと同じなら、覚えた中身（数式）を使う */
+function copyCell(cut) {
+  const g=selRect(), rows=[], shown=[];
+  for (let r=g.r1;r<=g.r2;r++){
+    const row=[], srow=[];
+    for (let c=g.c1;c<=g.c2;c++){
+      const raw=data[r][c]; row.push(raw);
+      srow.push(String((String(raw).startsWith('=')||cellDateFmt(r,c)) ? getCellDisplay(r,c) : (raw??'')));
+    }
+    rows.push(row); shown.push(srow.join('\t'));
+  }
+  const text=(rows.length===1 && rows[0].length===1) ? String(rows[0][0]) : shown.join('\n');
+  const cd={ val:rows[0][0], rows, r0:g.r1, c0:g.c1, text, cut:!!cut, written:false };
+  clipData=cd;
+  markClipSrc();
+  // 端末に書けたと分かるまでは、貼り付けでこのコピーを使う（書けないときも、古い中身を貼ってしまわない）
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(()=>{ cd.written=true; }).catch(()=>{});
 }
 
 /* ── トリプルタップでコピー＆貼付（コピー元を持ち上げ→別セルで貼付） ── */
@@ -6914,26 +6936,42 @@ function hideEditBar(){
 }
 function endKbEdit(){ document.body.classList.remove('kb-edit'); hideEditBar(); }
 if(window.visualViewport){ window.visualViewport.addEventListener('resize', ()=>placeEditBar()); window.visualViewport.addEventListener('scroll', ()=>placeEditBar()); }
-/* 切り取り（v413）：コピーして印を付け、貼り付けたら元を消す */
-let cutR=-1, cutC=-1;
+/* 切り取り（v413・v417 で範囲も）：コピーして印を付け、貼り付けたら元を消す */
 function clearCut(){
-  if (cutR>=0){ const el=document.getElementById(`c${cutR}_${cutC}`); if(el) el.classList.remove('copy-src'); }
-  cutR=cutC=-1;
+  document.querySelectorAll('.clip-src').forEach(el=>el.classList.remove('clip-src'));
+  if (clipData) clipData.cut=false;
+}
+function markClipSrc(){
+  document.querySelectorAll('.clip-src').forEach(el=>el.classList.remove('clip-src'));
+  if (!clipData || clipData.r0==null) return;
+  const rows=clipData.rows||[[clipData.val]];
+  for (let i=0;i<rows.length;i++) for (let j=0;j<rows[0].length;j++){
+    const el=document.getElementById(`c${clipData.r0+i}_${clipData.c0+j}`); if(el) el.classList.add('clip-src');
+  }
 }
 function cutCell(){
-  if (isLockedCell(selR,selC)) { toast('このセルは保護されています'); return; }
-  clearCopySrc(); clearCut();
-  copyCell();
-  cutR=selR; cutC=selC;
-  const el=document.getElementById(`c${cutR}_${cutC}`); if(el) el.classList.add('copy-src');
+  const g=selRect();
+  for (let r=g.r1;r<=g.r2;r++) for (let c=g.c1;c<=g.c2;c++) if (isLockedCell(r,c)) { toast('保護されたセルがあるので切り取れません'); return; }
+  clearCopySrc();
+  copyCell(true);
   toast(cellGesture==='excel'?'切り取りました。貼り付けたいセルをダブルタップして「貼り付け」':'切り取りました');
 }
-/* 貼り付けのあとに呼ぶ。切り取り中なら元のセルを消す（同じセルに貼ったときは何もしない） */
-function finishCut(){
-  if (cutR<0) return;
-  const r=cutR, c=cutC; clearCut();
-  if (r===selR && c===selC) return;
-  if (!isLockedCell(r,c) && data[r][c]!=='') setCellVal(r,c,'');
+/* 貼り付けのあとに呼ぶ。切り取り中なら、貼った先と重ならない元のセルを消す */
+function finishCut(dest){
+  if (!clipData || !clipData.cut) { document.querySelectorAll('.clip-src').forEach(el=>el.classList.remove('clip-src')); return; }
+  const cd=clipData, rows=cd.rows||[[cd.val]];
+  const d=dest||{r1:selR,c1:selC,r2:selR+rows.length-1,c2:selC+rows[0].length-1};
+  clearCut();
+  if (cd.r0===d.r1 && cd.c0===d.c1) return;
+  const wasUndoing=undoing; undoing=true;   // 貼り付けと同じ1回の操作として戻せるように（控えは貼り付けの前に積んである）
+  try{
+    for (let i=0;i<rows.length;i++) for (let j=0;j<rows[0].length;j++){
+      const r=cd.r0+i, c=cd.c0+j;
+      if (r>=d.r1 && r<=d.r2 && c>=d.c1 && c<=d.c2) continue;
+      if (!isLockedCell(r,c) && data[r][c]!=='') setCellVal(r,c,'');
+    }
+  } finally { undoing=wasUndoing; }
+  recalcAll(); buildSheet();
 }
 /* 同じセルを素早く2回タップ（ダブルタップ）でコピー／貼付を起動 */
 let tapR=-1, tapC=-1, tapCount=0, tapTimer=null;
@@ -6961,7 +6999,7 @@ function doubleTapCopyPaste(r,c) {
   } else if (r===copySrcR && c===copySrcC) {
     clearCopySrc();
   } else {
-    sel(r,c); pasteCell();
+    sel(r,c); pasteCell(); finishCut();
     const el=document.getElementById(`c${r}_${c}`);
     if (el) { el.classList.add('paste-flash'); setTimeout(()=>el.classList.remove('paste-flash'),450); }
     clearCopySrc();   // 一度貼り付けたらコピー状態を解除する
@@ -6995,7 +7033,7 @@ function cellMenuAct(a){
   if(fromBar){ const fi=document.getElementById('formulaInput'); if(document.activeElement===fi) fi.blur(); endKbEdit(); }   // 打ちかけの中身を確定してから
   hideCellMenu();
   if(a==='fmt'){ openCellFmt(); }
-  else if(a==='copy'){ clearCut(); copyCell(); if(typeof toast==='function') toast('コピーしました'); }
+  else if(a==='copy'){ clearCut(); copyCell(); if(typeof toast==='function') toast(clipData && clipData.rows && (clipData.rows.length>1||clipData.rows[0].length>1) ? `${clipData.rows.length}行×${clipData.rows[0].length}列をコピーしました` : 'コピーしました'); }
   else if(a==='cut'){ cutCell(); }
   else if(a==='edit'){ editCellInBar(selR,selC); }
   else if(a==='insrow'){ insertRowAt(selR); }
@@ -7031,14 +7069,16 @@ async function pasteCellSmart(){
   try{
     if (navigator.clipboard && navigator.clipboard.readText) text=await navigator.clipboard.readText();
   }catch(_){ text=null; }   // 許可されなかった場合もここに来る
-  if (text!=null && String(text).length){
+  // 端末の中身が、このアプリでコピーしたものと同じなら、覚えた中身（数式など）を貼る（v417）
+  const mine = clipData && clipData.text!=null && (!clipData.written || (text!=null && String(text).replace(/\r\n?/g,'\n')===String(clipData.text)));
+  if (text!=null && String(text).length && !mine){
     pasteText(String(text));
     finishCut();
     return;
   }
   if (!clipData){ toast('貼り付けるものがありません（先にコピーしてください）'); return; }
-  pasteCell();
-  finishCut();
+  const dest=pasteCell();
+  finishCut(dest);
   toast('貼り付けました');
 }
 /* 文字列を貼る。タブ＝右へ、改行＝下へ広げる（表計算からのコピーをそのまま受けられる） */
@@ -7070,17 +7110,32 @@ function pasteText(text){
          : '貼り付けられるセルがありませんでした');
 }
 
+/* 貼り付け（v417）。数式は、コピー元から動いた分だけ番地をずらす（$ の付いたところはそのまま）。
+   切り取ったものは番地をずらさずに動かす。1つのセルを範囲に貼ると、範囲のどのセルにも入る（Excel と同じ）。
+   貼った範囲 {r1,c1,r2,c2} を返す */
 function pasteCell() {
-  if (!clipData) return;
-  if (rangeR1>=0) {
-    const r1=Math.min(rangeR1,rangeR2), r2=Math.max(rangeR1,rangeR2);
-    const c1=Math.min(rangeC1,rangeC2), c2=Math.max(rangeC1,rangeC2);
-    for (let r=r1;r<=r2;r++) for (let c=c1;c<=c2;c++) {
-      setCellVal(r,c,clipData.val);
-    }
+  if (!clipData) return null;
+  const cd=clipData, rows=cd.rows||[[cd.val]], h=rows.length, w=rows[0].length;
+  const move=(v,r,c)=> (cd.cut || cd.r0==null) ? v : adjustFormula(v, r-cd.r0, c-cd.c0);
+  const targets=[];
+  if (h===1 && w===1 && rangeR1>=0){
+    const g=selRect();
+    for (let r=g.r1;r<=g.r2;r++) for (let c=g.c1;c<=g.c2;c++) targets.push([r,c,move(rows[0][0],r,c)]);
   } else {
-    setCellVal(selR,selC,clipData.val);
+    for (let i=0;i<h;i++) for (let j=0;j<w;j++){
+      const r=selR+i, c=selC+j; if (r>=ROWS || c>=COLS) continue;
+      targets.push([r,c,move(rows[i][j],r-i,c-j)]);
+    }
   }
+  if (!targets.length) return null;
+  const dest={ r1:Math.min(...targets.map(t=>t[0])), c1:Math.min(...targets.map(t=>t[1])), r2:Math.max(...targets.map(t=>t[0])), c2:Math.max(...targets.map(t=>t[1])) };
+  if (targets.length===1 && !cd.cut){ setCellVal(targets[0][0],targets[0][1],targets[0][2]); return dest; }
+  pushSnapshot(cd.cut?'切り取り・貼り付け':'貼り付け');   // 何セルでも ↶戻る 1回で戻せる
+  const wasUndoing=undoing; undoing=true;
+  try{ targets.forEach(([r,c,v])=>{ if(!isLockedCell(r,c)) setCellVal(r,c,v); }); }
+  finally { undoing=wasUndoing; }
+  recalcAll(); buildSheet();
+  return dest;
 }
 
 /* ── CSVエクスポート ── */
@@ -8607,6 +8662,11 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v417', t:'コピー・貼り付けを Excel と同じに', li:[
+    '数式をコピーして貼ると、Excel と同じく<b>番地がずれます</b>（A1 の <b>=A1*2</b> を下に貼ると <b>=A2*2</b>）。<b>$A$1</b> のように <b>$</b> を付けたところはずれません',
+    'なぞって選んだ<b>範囲をまとめてコピー・切り取り・貼り付け</b>できるようになりました。↶戻る 1回で戻せます',
+    '1つのセルをコピーして範囲に貼ると、範囲のどのセルにも入ります',
+  ]},
   { v:'v416', t:'言葉をそろえました', li:[
     'テンキーの「モード」キーを、開く画面の名前に合わせて<b>「用途」</b>にしました。中は<b>表のかたち</b>（買物・割り勘など自動で計算する表）と<b>ひな形</b>（項目と式が入った表）です',
     '保存リストの「モード」タブも<b>「用途」</b>、記録のメニューの「モードへ登録」は<b>「用途の一覧に登録」</b>です',
@@ -10163,14 +10223,26 @@ function toast(msg, ms){
 }
 /* 数式内のセル参照を写像で変換。mapFn(r0,c0)→[r2,c2] または null(=参照先が消滅) */
 function remapFormulaRefs(formula, mapFn){
-  const s=String(formula);
-  if(!s.startsWith('=')) return formula;
-  return s.replace(/([A-Za-z])(\d+)/g,(m,col,row)=>{
-    const ci=ALPHA.indexOf(col.toUpperCase()); if(ci<0) return m;
-    const res=mapFn(parseInt(row)-1, ci);
-    if(!res || res[0]<0 || res[0]>MAXROWS-1 || res[1]<0 || res[1]>MAXCOLS-1) return '#REF';
-    return `${ALPHA[res[1]]}${res[0]+1}`;
-  });
+  return mapFormulaRefs(formula, (r,c)=>mapFn(r,c));   // 行・列の挿入／削除は $ の付いた番地も動かす（Excel と同じ）
+}
+/* 数式の中の番地を1つずつ書きかえる共通の処理（v417）。
+   ・"…" の中の文字は触らない　・AA〜AX の2文字の列も読む　・LOG10 などの関数名の一部は番地にしない
+   fn(行, 列, 行に$, 列に$) → [新しい行, 新しい列]（0始まり）。null や表の外なら #REF! */
+const FORMULA_REF_RE=/(?<![A-Za-z0-9_$.])(\$?)([A-Za-z]{1,2})(\$?)(\d+)(?![\d(A-Za-z_])/g;
+function mapFormulaRefs(formula, fn){
+  const s=String(formula); if(!s.startsWith('=')) return formula;
+  return s.split(/("[^"]*")/).map((seg,k)=> (k%2) ? seg : seg.replace(FORMULA_REF_RE,(m,ac,col,ar,row)=>{
+    const ci=ALPHA.indexOf(col), ri=parseInt(row,10)-1;
+    if(ci<0 || ci>=MAXCOLS || ri<0 || ri>=MAXROWS) return m;
+    const res=fn(ri,ci,!!ar,!!ac);
+    if(!res || res[0]<0 || res[0]>=MAXROWS || res[1]<0 || res[1]>=MAXCOLS) return '#REF!';
+    return ac+ALPHA[res[1]]+ar+(res[0]+1);
+  })).join('');
+}
+/* 計算の前に番地の $ を外す（$A$1 → A1）。"…" の中はそのまま */
+function stripAbsRefs(expr){
+  return String(expr).split(/("[^"]*")/).map((seg,k)=> (k%2) ? seg
+    : seg.replace(/(?<![A-Za-z0-9_])\$?([A-Za-z]{1,2})\$?(\d+)(?![\d(A-Za-z_])/g, (m,col,row)=> (m.indexOf('$')<0 ? m : col+row))).join('');
 }
 function remapAllFormulas(mapFn){
   for(let r=0;r<MAXROWS;r++) for(let c=0;c<MAXCOLS;c++){
@@ -21348,7 +21420,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v416';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v417';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -22224,13 +22296,10 @@ function fillUpdateTo(clientX, clientY){
 function clearFillPreview() {
   document.querySelectorAll('.fill-preview').forEach(el=>el.classList.remove('fill-preview'));
 }
+/* 数式の番地を dr 行・dc 列ずらす（フィル・コピー）。$ の付いた列・行はずらさない。
+   表の外へ出てしまう番地は Excel と同じく #REF! にする（v417） */
 function adjustFormula(formula,dr,dc) {
-  const s=String(formula); if(!s.startsWith('=')) return formula;
-  return s.replace(/([A-Z])(\d+)/g,(match,col,row)=>{
-    const ci=ALPHA.indexOf(col),rn=parseInt(row);
-    if(ci===-1||rn<1||rn>MAXROWS) return match;
-    return `${ALPHA[Math.min(MAXCOLS-1,Math.max(0,ci+dc))]}${Math.min(MAXROWS,Math.max(1,rn+dr))}`;
-  });
+  return mapFormulaRefs(formula, (r,c,absR,absC)=>[absR?r:r+dr, absC?c:c+dc]);
 }
 function commitFill() {
   fillMode=false;

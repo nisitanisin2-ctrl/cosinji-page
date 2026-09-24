@@ -6637,6 +6637,51 @@ async function runTbSave(browser) {
   await ctx.close();
 }
 
+/* v417：コピー・貼り付けで数式の番地をずらす・範囲のコピー／切り取り・絶対参照 $ */
+async function runClip(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, permissions: ['clipboard-read', 'clipboard-write'] });
+  const page = await ctx.newPage();
+  const errs = []; page.on('pageerror', e => errs.push(e.message)); page.on('dialog', d => d.accept());
+  await page.goto(INDEX); await page.waitForTimeout(300);
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.reload(); await page.waitForTimeout(900);
+  console.log('\n── コピー・貼り付け（番地をずらす・範囲・$）（v417） ──');
+  const ev = f => page.evaluate(f);
+  await ev(() => { setCellVal(0, 0, '5'); setCellVal(1, 0, '7'); setCellVal(2, 0, '9'); setCellVal(0, 1, '=A1*2'); setCellVal(0, 2, '=$A$1+A1'); recalcAll(); });
+  check('  $A$1 を計算できる', await ev(() => getCellDisplay(0, 2)), '10');
+  check('  A$1・$A1 も計算できる', await ev(() => { setCellVal(5, 2, '=A$1+$A2'); recalcAll(); return getCellDisplay(5, 2); }), '12');
+  check('  "…" の中の $ はそのまま', await ev(() => { setCellVal(6, 2, '="$A$1"&A1'); recalcAll(); return getCellDisplay(6, 2); }), '$A$15');
+  check('  ずらす：$ の付いたところはそのまま', await ev(() => adjustFormula('=$A$1+A1+A$1+$A1', 1, 1)), '=$A$1+B2+B$1+$A2');
+  check('  ずらす：範囲・2文字の列も', await ev(() => adjustFormula('=SUM(A1:B2)+Z1', 0, 1)), '=SUM(B1:C2)+AA1');
+  check('  ずらす：関数名や "…" の中は変えない', await ev(() => adjustFormula('=LOG(A1)+ATAN2(A1,1)+"A1"', 1, 0)), '=LOG(A2)+ATAN2(A2,1)+"A1"');
+  check('  表の外へ出る番地は #REF!', await ev(() => adjustFormula('=A1', -1, 0)), '=#REF!');
+  // 1つのセル：番地がずれる
+  await ev(async () => { clearRangeSelection(); sel(0, 1); copyCell(); clearRangeSelection(); sel(1, 1); await pasteCellSmart(); });
+  check('  数式をコピーして下に貼ると番地がずれる', await ev(() => data[1][1] + '=' + getCellDisplay(1, 1)), '=A2*2=14');
+  // 範囲
+  await ev(async () => { clearRangeSelection(); sel(0, 1); extendRange(0, 2); copyCell(); });
+  check('  範囲をコピーすると形のまま覚える', await ev(() => clipData.rows.length + 'x' + clipData.rows[0].length), '1x2');
+  check('  端末へは見えている値をタブで区切って渡す', await ev(() => clipData.text), '10\t10');
+  check('  コピーした範囲に点線の印', await ev(() => document.querySelectorAll('.clip-src').length), 2);
+  await ev(async () => { clearRangeSelection(); sel(2, 1); await pasteCellSmart(); });
+  check('  範囲を貼ると形のまま入って番地がずれる', await ev(() => data[2][1] + '|' + data[2][2]), '=A3*2|=$A$1+A3');
+  await ev(() => undoLast());
+  check('  ↶戻る 1回で範囲の貼り付けを戻せる', await ev(() => data[2][1] + '|' + data[2][2]), '|');
+  // 1つのセルを範囲に貼る
+  await ev(async () => { setCellVal(5, 0, '=A1+1'); clearRangeSelection(); sel(5, 0); copyCell(); clearRangeSelection(); sel(6, 0); extendRange(8, 0); await pasteCellSmart(); });
+  check('  1つのセルを範囲に貼ると、どのセルにもずらして入る', await ev(() => [data[6][0], data[7][0], data[8][0]].join(',')), '=A2+1,=A3+1,=A4+1');
+  // 切り取り（範囲）
+  await ev(async () => { clearRangeSelection(); sel(0, 0); extendRange(2, 0); cutCell(); clearRangeSelection(); sel(10, 1); await pasteCellSmart(); });
+  check('  範囲を切り取って貼ると移る', await ev(() => [data[10][1], data[11][1], data[12][1]].join(',') + ' 元:' + [data[0][0], data[1][0], data[2][0]].join(',')), '5,7,9 元:,,');
+  check('  切り取りの印は消える', await ev(() => document.querySelectorAll('.clip-src').length), 0);
+  await ev(() => undoLast());
+  check('  ↶戻る 1回で切り取りも戻せる', await ev(() => [data[0][0], data[1][0], data[2][0], data[10][1]].join(',')), '5,7,9,');
+  // 端末のほかの中身は今までどおり
+  await ev(async () => { await navigator.clipboard.writeText('りんご\t3'); clipData.written = true; clearRangeSelection(); sel(13, 0); await pasteCellSmart(); });
+  check('  ほかのアプリでコピーした表はそのまま貼れる', await ev(() => data[13][0] + '|' + data[13][1]), 'りんご|3');
+  check('  エラーが出ない', errs.join(' | '), '');
+  await ctx.close();
+}
 /* v413：セルの操作を Excel と同じに（ダブルタップ＝編集・長押し＝メニュー・右下の ● でフィル）。以前の操作も選べる */
 async function runCellXl(browser) {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true, permissions: ['clipboard-read', 'clipboard-write'] });
@@ -6706,10 +6751,10 @@ async function runCellXl(browser) {
   await page.evaluate(() => clearRangeSelection());
   // 切り取り → 貼り付けで元が消える
   await page.evaluate(() => { setCellVal(6, 0, 'うつす'); sel(6, 0); cellMenuAct('cut'); });
-  check('  切り取るとコピーの印', await page.evaluate(() => document.getElementById('c6_0').classList.contains('copy-src')), true);
+  check('  切り取るとコピーの印', await page.evaluate(() => document.getElementById('c6_0').classList.contains('clip-src')), true);
   await page.evaluate(async () => { sel(6, 2); await pasteCellSmart(); }); await page.waitForTimeout(300);
   check('  貼り付けると移る', await page.evaluate(() => data[6][2] + '|' + data[6][0]), 'うつす|');
-  check('  印は消える', await page.evaluate(() => document.querySelectorAll('.copy-src').length), 0);
+  check('  印は消える', await page.evaluate(() => document.querySelectorAll('.clip-src, .copy-src').length), 0);
   // 行を挿入
   await page.evaluate(() => { sel(0, 0); cellMenuAct('insrow'); }); await page.waitForTimeout(200);
   check('  行を挿入できる', await page.evaluate(() => data[0][0] + '|' + data[1][0]), '|12005');
@@ -6976,6 +7021,7 @@ async function runQrShare(browser) {
     if (!only || only === 'qrshare') await runQrShare(browser);
     if (!only || only === 'fmtcol') await runFmtCol(browser);
     if (!only || only === 'cellxl') await runCellXl(browser);
+    if (!only || only === 'clip') await runClip(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
     if (!only || only === 'brush3') await runBrush3(browser);
