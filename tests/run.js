@@ -6337,6 +6337,15 @@ async function runHelpSplit(browser) {
   check('  help.js に中身がある', fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('id=\\"h-privacy\\"'), true);
   const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
   check('  電波がなくても読めるよう先に持つ', sw.includes("'./help.js'"), true);
+  check('  写真メモも先に持つ（v420）', sw.includes("'./photomemo.js'"), true);
+  check('  写真メモははじめは読まない（v420）', await page.evaluate(() => typeof pmRedraw + '/' + !!window.PM_PART_LOADED), 'undefined/false');
+  await page.evaluate(() => openPhotoMemo()); await page.waitForTimeout(800);
+  check('  開くと読み込んで開く', await page.evaluate(() => typeof pmRedraw + '/' + isDlgOpen('photoMemoOverlay')), 'function/true');
+  await page.evaluate(() => closePhotoMemo()); await page.waitForTimeout(400);
+  check('  閉じられる', await page.evaluate(() => isDlgOpen('photoMemoOverlay')), false);
+  await page.evaluate(() => openPhotoMemo()); await page.waitForTimeout(400);
+  check('  2回目も開く（読み込みは1回だけ）', await page.evaluate(() => isDlgOpen('photoMemoOverlay') + '/' + document.querySelectorAll('script[src="photomemo.js"]').length), 'true/1');
+  await page.evaluate(() => closePhotoMemo()); await page.waitForTimeout(400);
   check('  画面を開くとき以外は index.html で代わりをしない', sw.includes("e.request.mode === 'navigate'"), true);
   check('  開くまでは読まない', await page.evaluate(() =>
     !document.getElementById('h-privacy') && typeof window.EXCALC_HELP_HTML), 'undefined');
@@ -6751,6 +6760,15 @@ async function runCellXl(browser) {
   check('  そのときキーボードは出さない', await page.evaluate(() => document.activeElement.id !== 'formulaInput' && !document.body.classList.contains('kb-edit')), true);
   check('  帯に ✏編集 も出る', await page.evaluate(() => !!document.querySelector('#cellMenu .cm-edit').offsetParent), true);
   check('  帯はテンキーのすぐ上', await page.evaluate(() => Math.abs(document.getElementById('cellMenu').getBoundingClientRect().bottom - document.getElementById('numpadSection').getBoundingClientRect().top) <= 2), true);
+  check('  キーボードが出たら、見えている画面の下の端に置く（v420。iPhone のずれも見る）', await page.evaluate(() => {
+    const real = Object.getOwnPropertyDescriptor(window, 'visualViewport');
+    Object.defineProperty(window, 'visualViewport', { configurable: true, value: { offsetTop: 120, offsetLeft: 0, height: 380, width: innerWidth, addEventListener() {} } });
+    document.body.classList.add('kb-edit'); placeEditBar();
+    const m = document.getElementById('cellMenu'), b = m.getBoundingClientRect();
+    const ok = Math.abs(b.bottom - 500) <= 1;
+    document.body.classList.remove('kb-edit');
+    if (real) Object.defineProperty(window, 'visualViewport', real); else delete window.visualViewport;
+    placeEditBar(); return ok ? 'ok' : 'ずれ ' + b.bottom; }), 'ok');
   await page.evaluate(() => document.querySelector('#numpadSection [data-key=n1]').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
   check('  テンキーを押すと帯は消える', await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show')), false);
   await tap(5, 1); await page.waitForTimeout(100);
