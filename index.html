@@ -3053,6 +3053,9 @@ body.dark .help-acc > summary::after { color: var(--acc-on-dark); }
 .set-acc-body .set-sec:first-child { margin-top: 2px; }
 .help-acc-body .help-li:first-child { margin-top: 4px; }
 /* 早見表（ボタン・操作・モードなど） */
+/* Excel とのちがいの早見表（v415）：左の見出しの列を狭くして、説明を読みやすく */
+.help-tbl.help-tbl-x td:first-child { width: 34%; white-space: normal; }
+.help-tbl-x .help-key { white-space: normal; line-height: 1.3; }
 .help-tbl { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 12px; }
 .help-tbl td { padding: 6px; border-bottom: 1px solid var(--cell-border); color: var(--text); vertical-align: top; line-height: 1.5; }
 .help-tbl tr:last-child td { border-bottom: none; }
@@ -3867,9 +3870,9 @@ body.dark {
     </div>
     <button class="set-act" id="speechSpeakBtn" onclick="toggleSpeechSpeak()" title="計算した答えを声で読み上げます（手がふさがっているときの確認に）">答えを声で読み上げる</button>
     <button class="set-act" id="digitHintBtn" onclick="toggleDigitHint()" title="入力中の数字を「5,000,000 ＝ 500万」のように数式バーの下に出します（1万以上のときだけ）">入力中の数字の桁を出す</button>
-    <div class="set-sec">📋 ひな形（テンプレ）とモード</div>
-    <div class="set-note">ひな形（25種類）は<b>テンキーの「モード」キー</b>や<b>⋯→🎯用途から始める</b>から選べます（目的別に並べてあります）。</div>
-    <button class="set-act" onclick="openModeVis()" title="「モード」一覧に表示する標準モードを選びます">モードの表示/非表示</button>
+    <div class="set-sec">🎯 用途から始める（表のかたち・ひな形）</div>
+    <div class="set-note"><b>表のかたち</b>（買物・割り勘など、自動で計算する表）と<b>ひな形</b>（項目と式が入った表・25種類）は、<b>テンキーの「用途」キー</b>や<b>⋯→🎯用途から始める</b>から選べます（目的別に並べてあります）。</div>
+    <button class="set-act" onclick="openModeVis()" title="「用途から始める」に出す表のかたちを選びます">用途の一覧に出すもの</button>
   </div>
 
   </div>
@@ -4306,8 +4309,8 @@ body.dark {
     <button class="btn util" data-key="u_redo"  onclick="redoLast()" title="元に戻した入力をやり直す／長押しで別の機能に変更">進む</button>
     <button class="btn util" data-key="u_undo"  onclick="undoLast()" title="直前の入力を元に戻す／長押しで別の機能に変更">戻る</button>
     <button class="btn util" data-key="u_reset" onclick="resetAll()" title="表の中身を消す（戻るで元に戻せます）／長押しで別の機能に変更">リセット</button>
-    <button class="btn util" data-key="u_normal" onclick="switchMode('normal')" title="通常モード（ふつうの表）に戻す／長押しで別の機能に変更">▦通常</button>
-    <button class="btn clr" data-key="mode" id="shoppingBtn" onclick="onModeBtnClick()">モード</button>
+    <button class="btn util" data-key="u_normal" onclick="switchMode('normal')" title="ふつうの表に戻す／長押しで別の機能に変更">▦通常</button>
+    <button class="btn clr" data-key="mode" id="shoppingBtn" onclick="onModeBtnClick()">用途</button>
     <button class="btn clr" data-key="ce"   onclick="ce()">CE</button>
     <button class="btn op"  data-key="bs"   onclick="bs()">⌫</button>
     <button class="btn op"  data-key="div"  onclick="op('/')">÷</button>
@@ -4414,7 +4417,7 @@ body.dark {
     <button class="btn ubtn" data-uk="23"></button>
     <button class="btn ubtn" data-uk="24"></button>
     </div>
-    <div class="numpad-grid numpad-overlay ov-down numpad-regpage" id="numpadPageRegL" title="登録ページ（左）：長押しで登録／タップで入力">
+    <div class="numpad-grid numpad-overlay ov-down numpad-regpage" id="numpadPageRegL" title="マイキー（左）：長押しで登録／タップで入力">
     <!-- 登録ページ・左（登録ページから右フリックで表示）。data-uk 25〜49 -->
     <button class="btn ubtn" data-uk="25"></button>
     <button class="btn ubtn" data-uk="26"></button>
@@ -4442,7 +4445,7 @@ body.dark {
     <button class="btn ubtn" data-uk="48"></button>
     <button class="btn ubtn" data-uk="49"></button>
     </div>
-    <div class="numpad-grid numpad-overlay ov-down numpad-regpage" id="numpadPageRegR" title="登録ページ（右）：長押しで登録／タップで入力">
+    <div class="numpad-grid numpad-overlay ov-down numpad-regpage" id="numpadPageRegR" title="マイキー（右）：長押しで登録／タップで入力">
     <!-- 登録ページ・右（登録ページから左フリックで表示）。data-uk 50〜74 -->
     <button class="btn ubtn" data-uk="50"></button>
     <button class="btn ubtn" data-uk="51"></button>
@@ -4638,7 +4641,7 @@ body.dark {
       <div class="defsize-row"><label for="defColsInput">列数（1〜50）</label><input type="number" id="defColsInput" class="defsize-input" min="1" max="50" inputmode="numeric"></div>
       <button class="regpick-save" style="width:100%;padding:10px;margin-top:6px" onclick="saveDefaultSize()">この内容で保存</button>
       <button class="set-act" style="margin-top:10px" onclick="applyDefaultSizeNow()" title="いま開いている表の行数・列数を、上の値にします（中身はそのまま）">▦ いまの表をこの大きさにする</button>
-      <div class="set-note">いまの表の行数・列数だけを変えます。<b>中身はそのまま</b>です。<br><b>▦通常</b>は「モードを通常に戻す」ボタンで、<b>表が空のときだけ</b>この大きさに戻します。</div>
+      <div class="set-note">いまの表の行数・列数だけを変えます。<b>中身はそのまま</b>です。<br><b>▦通常</b>（ふつうの表に戻すボタン）では、<b>表が空のときだけ</b>この大きさに戻します。</div>
     </div>
   </div>
 </div>
@@ -4661,10 +4664,10 @@ body.dark {
 <div class="modal-overlay" id="modeVisOverlay" onclick="if(event.target===this)closeModeVis()">
   <div class="modal">
     <div class="modal-header">
-      <span>🔀 モードの表示/非表示</span>
+      <span>🎯 用途の一覧に出すもの</span>
       <button class="modal-close" onclick="closeModeVis()">✕</button>
     </div>
-    <div class="mode-hint">チェックを外したモードは「モード」一覧に表示されません（内容は保持されます）。「通常」は常に表示します。</div>
+    <div class="mode-hint">チェックを外した表のかたちは「用途から始める」に出ません（中身は残ります）。「通常」はいつも出ます。</div>
     <div class="modal-body" id="modeVisBody"></div>
   </div>
 </div>
@@ -8604,6 +8607,15 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v416', t:'言葉をそろえました', li:[
+    'テンキーの「モード」キーを、開く画面の名前に合わせて<b>「用途」</b>にしました。中は<b>表のかたち</b>（買物・割り勘など自動で計算する表）と<b>ひな形</b>（項目と式が入った表）です',
+    '保存リストの「モード」タブも<b>「用途」</b>、記録のメニューの「モードへ登録」は<b>「用途の一覧に登録」</b>です',
+    'テンキーの右上の「▲ 登録」を<b>「▲ マイキー」</b>にしました（自分で作るキーのページです）',
+  ]},
+  { v:'v415', t:'操作の案内と Excel とのちがい', li:[
+    '<b>はじめての案内</b>に「表の操作は Excel と同じです」のページを足しました（⚙設定 → 📐表 → 使いかた →「はじめての案内をもう一度見る」から見られます）',
+    '📖説明書のいちばん上に<b>🔁 Excel とのちがい（早見表）</b>を足しました。やりたいことごとに、表電卓でのやり方が分かります',
+  ]},
   { v:'v414', t:'ボタンの名前を分かりやすく', li:[
     '上のバーの「保存」を、そのときの動きに合わせて<b>「名前を付けて保存」</b>（記録を開いていないとき）／<b>「上書き保存」</b>（開いているとき）と出すようにしました',
     'テンキーの「fx=」を<b>「＝ 数式」</b>、「文字」を<b>「あ 文字」</b>にしました',
@@ -9991,6 +10003,9 @@ const TOUR_PAGES=[
   { ico:'📊🧮', h:'表と電卓、どちらも使えます',
     b:'表に数字を入れて<b>合計や数式</b>で計算するのも、<b>ふつうの電卓</b>として叩くのも、同じアプリの中です。',
     ex:'画面を<b>横にスッとなぞる</b>と行き来できます。テンキーの上の<b>「書式・枠線／数字／記号／電卓」</b>を押しても移れます。' },
+  { ico:'👆', h:'表の操作は Excel と同じです',
+    b:'セルを<b>タップ</b>で選び、<b>テンキー</b>で数字を打って <b>Enter</b>。',
+    ex:'<b>ダブルタップ</b> … 中身を直す（切り取り・コピー・貼り付けもここ）<br><b>右下の ● を引っぱる</b> … 下や横へコピー<br><b>選んだセルからなぞる</b> … 範囲を選ぶ<br><b>行番号・列名を長押し</b> … 行や列を足す・消す<br><b>＝数式</b> … 数式を入れる　<b>あ文字</b> … 文字を入れる'},
   { ico:'🎤', h:'口で言うだけでも計算できます',
     b:'<b>🎤声</b>のキーを押して、ふだんのことばで言うだけです。',
     ex:'「<b>180円を4個</b>」→ 720円<br>「<b>20平米に厚さ10センチ</b>」→ 2㎥<br>「<b>12800円を4人で割って</b>」→ 3,200円<br><b>📖言い方の早見表</b>に、言える形が63とおり並んでいます。' },
@@ -10091,7 +10106,7 @@ function getDefaultRows(){ const v=parseInt(localStorage.getItem('excalc_default
 function getDefaultCols(){ const v=parseInt(localStorage.getItem('excalc_default_cols')); return (!isNaN(v)&&v>=1&&v<=MAXCOLS)?v:3; }
 /* 既定の行数・列数に設定し直す */
 function applyDefaultSize(){
-  if(isStructMode()){ toast('このモードでは行・列数を変更できません'); return; }
+  if(isStructMode()){ toast('この表のかたちでは行・列の数を変えられません'); return; }
   setSheetSize(getDefaultRows(), getDefaultCols());
   sel(Math.min(selR,ROWS-1), Math.min(selC,COLS-1));
   persistModes();
@@ -10106,7 +10121,7 @@ function openDefaultSizeDlg(){
 /* ダイアログの中の「いまの表をこの大きさにする」（v392）。
    入力欄の値をそのまま使いたいので、先に保存してから当てる。 */
 function applyDefaultSizeNow(){
-  if(isStructMode()){ toast('このモードでは行・列数を変更できません'); return; }
+  if(isStructMode()){ toast('この表のかたちでは行・列の数を変えられません'); return; }
   saveDefaultSize();                    // 入力欄の値を保存してダイアログを閉じる
   applyDefaultSize();
 }
@@ -10181,7 +10196,7 @@ function remapIndexMap(obj, mapFn){
 }
 /* 構造化モード（買物・税計算など）は固定レイアウトのため不可 */
 function structOpBlocked(){
-  if(isStructMode()){ toast('このモードでは行・列の追加／削除はできません'); return true; }
+  if(isStructMode()){ toast('この表のかたちでは行・列を足したり消したりできません'); return true; }
   return false;
 }
 /* 構造変更後の後処理：履歴クリア・保存・再描画・再選択 */
@@ -10264,7 +10279,7 @@ function deleteColAtSel(){ deleteColAt(selC); }
 /* ── 見出し長押しメニュー（行・列の追加/削除） ── */
 let headerPressFired=false;   // 長押しでメニューを出した直後の click(セル選択) を1回無効化するフラグ
 function openHeaderMenu(kind, index){
-  if(isStructMode()){ toast('このモードでは行・列の追加／削除はできません'); return; }
+  if(isStructMode()){ toast('この表のかたちでは行・列を足したり消したりできません'); return; }
   const title=document.getElementById('headerMenuTitle');
   const body=document.getElementById('headerMenuBody');
   if(kind==='row'){
@@ -10637,7 +10652,7 @@ const KEY_FUNCS={
   k_ce:{g:'標準キー',label:'CE',run:()=>ce()}, k_sign:{g:'標準キー',label:'±',run:()=>toggleSign()},
   k_enter:{g:'標準キー',label:'Enter',run:()=>eq()}, k_sum:{g:'標準キー',label:'Σ合計',run:()=>autoSum()},
   k_fx:{g:'標準キー',label:'＝数式',run:()=>startFormula()}, k_text:{g:'標準キー',label:'あ文字',run:()=>toggleTextInput()},
-  k_mode:{g:'標準キー',label:'モード',run:()=>onModeBtnClick()},
+  k_mode:{g:'標準キー',label:'用途',run:()=>onModeBtnClick()},
   /* 記号・関数（数式に挿入） */
   f_lp:{g:'記号・関数',label:'(',run:()=>fkey('(')}, f_rp:{g:'記号・関数',label:')',run:()=>fkey(')')},
   f_comma:{g:'記号・関数',label:',',run:()=>fkey(',')}, f_colon:{g:'記号・関数',label:':',run:()=>fkey(':')},
@@ -10662,7 +10677,7 @@ const KEY_FUNCS={
   a_taxin:{g:'設定・機能',label:'税込',run:()=>dtTax(1)}, a_taxout:{g:'設定・機能',label:'税抜',run:()=>dtTax(-1)},
   a_voiceseq:{g:'設定・機能',label:'🎤続け',run:()=>voiceStartContinuous()},
   a_calctmpl:{g:'設定・機能',label:'📋式テン',run:()=>openCalcTmpl()}, a_fintmpl:{g:'設定・機能',label:'📑決算',run:()=>openFinTmpl()},
-  a_qrshare:{g:'設定・機能',label:'📱QR共有',run:()=>openQrShare()}, a_modevis:{g:'設定・機能',label:'🔀表示',run:()=>openModeVis()}, a_help:{g:'設定・機能',label:'📖説明',run:()=>openHelp()},
+  a_qrshare:{g:'設定・機能',label:'📱QR共有',run:()=>openQrShare()}, a_modevis:{g:'設定・機能',label:'🎯一覧',run:()=>openModeVis()}, a_help:{g:'設定・機能',label:'📖説明',run:()=>openHelp()},
   a_defsize:{g:'設定・機能',label:'▦既定',run:()=>applyDefaultSize()}, a_cellfmt:{g:'設定・機能',label:'🎨書式',run:()=>openCellFmt()},
   a_numpadhide:{g:'設定・機能',label:'⌨隠す',run:()=>toggleNumpad()},
   a_today:{g:'設定・機能',label:'📅今日',run:()=>insertTodayDate()},
@@ -11762,7 +11777,7 @@ function vegCalTap(y, m, d){
 function vegInsertToSheet(){
   const rows=vegRows();
   if(!rows.length){ toast('野菜を選んでください'); return; }
-  if(isStructMode()){ toast('このモードでは入れられません。▦通常に切り替えてください'); return; }
+  if(isStructMode()){ toast('この表のかたちでは入れられません。▦通常に切り替えてください'); return; }
   const r0=selR, c0=selC;
   const f=vegFertOf(), p=vegPlotSize();
   const out=[[`${vegSel.i||'🌱'} ${vegSel.n} の育成計画（${vegAreaText()}）`,'','',''],
@@ -14819,7 +14834,7 @@ let numpadPager=null;      // ページ表示から現在ページを読む／�
      数字の並び： 枠線 書式 [数字] 記号 関数 ／ 右端＝▲登録
      登録の並び： 登録左 [登録] 登録右      ／ 右端＝▼数字 */
 const NP_ROW_MAIN=[['fmt','書式・枠線'],[null,'数字'],['func','記号'],['sci','電卓']];
-const NP_ROW_REG =[['regL','登録左'],['reg','登録'],['regR','登録右']];
+const NP_ROW_REG =[['regL','マイキー左'],['reg','マイキー'],['regR','マイキー右']];
 /* ── 記号ページを出すかどうか（v353。数字キーのフリックでも記号は入れられるので隠せる） ── */
 let showFuncPage = localStorage.getItem('excalc_funcpage')!=='0';
 function syncFuncPageBtn(){
@@ -15336,7 +15351,7 @@ function renderNumpadPageBar(){
   // 「電卓だけ」のあいだは、電卓と道具のタブだけを出す（v388）
   const row=calcOnly ? [['sci','電卓']]
     : (inReg?NP_ROW_REG:NP_ROW_MAIN).filter(([k])=> k!=='func' || showFuncPage);
-  const axis=inReg ? [null,'▼ 数字'] : ['reg','▲ 登録'];
+  const axis=inReg ? [null,'▼ 数字'] : ['reg','▲ マイキー'];
   const tools=(inReg && !calcOnly) ? '' : npTools.map(id=>{
       const t=npToolDef(id); return t ? '<button class="np-page np-tool" data-nptool="'+id+'">'+escHtml(t.label)+'</button>' : '';
     }).join('');
@@ -15437,11 +15452,11 @@ const REG_ACTIONS=[
   {id:'redo',  icon:'↪', name:'進む',       desc:'元に戻した操作をやり直す'},
   {id:'save',  icon:'💾', name:'保存',       desc:'名前を付けて保存'},
   {id:'list',  icon:'🗂', name:'リスト',     desc:'保存データの一覧を開く'},
-  {id:'reset', icon:'🗑', name:'リセット',   desc:'今のモードの内容を消去'},
+  {id:'reset', icon:'🗑', name:'リセット',   desc:'今の表のかたちの中身を消す'},
   {id:'csv',   icon:'📄', name:'CSV出力',    desc:'表をCSVファイルに書き出す'},
   {id:'csvin', icon:'📥', name:'CSV読込',    desc:'CSVファイルを表に読み込む（上書き）'},
   {id:'dark',  icon:'🌙', name:'ナイト',     desc:'ダークモードを切替'},
-  {id:'mode',  icon:'🔀', name:'モード',     desc:'モード選択メニューを開く'},
+  {id:'mode',  icon:'🎯', name:'用途',       desc:'用途から始める（表のかたち・ひな形）を開く'},
 ];
 const REG_ACTION_FN={ enter:eq, bs:bs, undo:undoLast, redo:redoLast, save:()=>saveData(), list:showSaveList,
                        reset:resetAll, csv:exportCSV, csvin:()=>document.getElementById('importCSVInput').click(),
@@ -18812,7 +18827,7 @@ const FORM_MODES={};
 function isFormMode(){ return !!FORM_MODES[tableMode]; }
 function formDef(){ return FORM_MODES[tableMode]; }
 
-const MODE_LABELS={normal:'モード', simple:'簡易中', shopping:'買物中', warikan:'割勘中', zei:'税計中', wariai:'割合中', youseki:'容積中', yosan:'予算中', jikan:'時間中', dentaku:'電卓中'};
+const MODE_LABELS={normal:'用途', simple:'簡易中', shopping:'買物中', warikan:'割勘中', zei:'税計中', wariai:'割合中', youseki:'容積中', yosan:'予算中', jikan:'時間中', dentaku:'電卓中'};
 const MODE_MENU=[
   {key:'normal',  icon:'▦',  name:'通常',   desc:'標準のスプレッドシート'},
   {key:'simple',  icon:'⬛',  name:'簡易',   desc:'列を少なく・セルを大きく見やすく'},
@@ -19102,7 +19117,7 @@ function isValidMode(key){ return MODE_MENU.some(m=>m.key===key) || !!findCustom
 /* モード選択メニュー等で使う表示名 */
 function modeDisplayName(key){
   const b=MODE_MENU.find(m=>m.key===key); if(b) return b.name;
-  const c=findCustomMode(key); return c?c.name:'このモード';
+  const c=findCustomMode(key); return c?c.name:'この表のかたち';
 }
 /* テンキーのモードボタンに出す短い表示 */
 function modeButtonLabel(key){
@@ -19120,7 +19135,7 @@ function isUserLocked(r,c){
 }
 /* 選択セルの保護（ロック）を切替（セルの長押しで使用） */
 function toggleUserLock(r,c){
-  if(isStructMode() && isStructLocked(r,c)){ toast('このモードの固定セルは保護を変更できません'); return; }
+  if(isStructMode() && isStructLocked(r,c)){ toast('この表のかたちの決まったセルは、保護を変えられません'); return; }
   const k=`${r},${c}`;
   pushStyleHistory([k], '保護の切替');
   const s=cellStyles[k] || (cellStyles[k]={});
@@ -20839,7 +20854,7 @@ function modeItemByKey(key){
   const b=MODE_MENU.find(m=>m.key===key);
   if(b) return {item:b, custom:false};
   const c=findCustomMode(key);
-  if(c) return {item:{key:c.key, icon:c.icon||'🗂', name:c.name, desc:'保存リストから登録したモード'}, custom:true};
+  if(c) return {item:{key:c.key, icon:c.icon||'🗂', name:c.name, desc:'保存リストから登録したもの'}, custom:true};
   return null;
 }
 
@@ -20855,7 +20870,7 @@ function renderModeItem(m, isCustom){
         <span class="mode-desc">${escHtml(m.desc)}</span>
       </span>
       ${active?'<span class="mode-check">✓</span>':''}
-      ${isCustom?`<span class="mode-remove" onclick="event.stopPropagation();removeCustomMode('${m.key}')" title="この登録モードを解除">✕</span>`:''}
+      ${isCustom?`<span class="mode-remove" onclick="event.stopPropagation();removeCustomMode('${m.key}')" title="この登録を外す">✕</span>`:''}
     </div>`;
 }
 /* ひな形を「何がしたいか」でまとめる。中身は既存のテンプレそのままで、
@@ -20989,7 +21004,7 @@ function registerSaveAsMode(id){
   const exist=customModes.find(m=>m.sourceId===id);
   if(exist){ closeSaveList(); switchMode(exist.key); return; }   // 登録済みなら移動するだけ
   if(customModes.length>=CUSTOM_MODE_MAX){
-    alert(`モードへの登録は${CUSTOM_MODE_MAX}個までです。\nモード選択メニューで不要な登録モードを「✕」で解除してから追加してください。`);
+    alert(`用途の一覧への登録は${CUSTOM_MODE_MAX}個までです。\n「用途から始める」で要らない登録を「✕」で外してから足してください。`);
     return;
   }
   const key='cm_'+id;
@@ -21005,7 +21020,7 @@ function registerSaveAsMode(id){
   persistSaves(saves);
   closeSaveList();
   switchMode(key);
-  toast(`「${entry.name}」をモードに登録し、「${saveTabLabel(SAVE_TAB_MODE)}」タブへ移動・保護しました`);
+  toast(`「${entry.name}」を用途の一覧に登録し、「${saveTabLabel(SAVE_TAB_MODE)}」タブへ移して保護しました`);
 }
 /* 既にモード登録済みだが、旧仕様のため「モード」タブへ未移動・未保護のままの記録を
    一度だけ揃える（この機能を追加する前から使っているユーザー向けの移行処理） */
@@ -21027,7 +21042,7 @@ function migrateModeRegisteredSaves(){
 /* 登録モードを解除（元の保存記録は消えない） */
 function removeCustomMode(key){
   const cm=findCustomMode(key); if(!cm) return;
-  if(!confirm(`登録モード「${cm.name}」を解除しますか？\n（保存リストの記録自体は消えません）`)) return;
+  if(!confirm(`用途の一覧から「${cm.name}」を外しますか？\n（保存リストの記録は消えません）`)) return;
   if(workspaceMode===key) switchMode('normal');   // 退避してから通常へ
   const idx=customModes.findIndex(m=>m.key===key);
   if(idx>=0) customModes.splice(idx,1);
@@ -21333,7 +21348,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v414';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v416';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -21448,7 +21463,7 @@ function resetSheets(){
 /* 新規：全モードのシートを空にして、まっさらな状態から始める（記録との紐付けも解除）。
    保存済みの記録はリストに残る。登録済みのカスタムモード定義は残す（内容だけ新規化）。 */
 function newWorkspace(){
-  if(!confirm('新しく始めますか？\n今のすべての内容（全モードのシート）が消えます。\n保存した記録はリストに残ります。')) return;
+  if(!confirm('新しく始めますか？\n今のすべての内容（すべての表のかたちのシート）が消えます。\n保存した記録はリストに残ります。')) return;
   for(const k in modeSheets) delete modeSheets[k];
   for(const k in modeStates) delete modeStates[k];
   colWidths={}; rowHeights={};
@@ -21893,7 +21908,7 @@ function kfmtVAlign(v){
 /* セルを結合して中央揃え（Excel と同じ）。範囲を選んでいれば結合、
    結合したセルを選んで押せば解除。左上以外の値は消えるので、あれば先に聞く */
 async function kfmtMerge(){
-  if(isStructMode()){ toast('このモードではセル結合はできません'); return; }
+  if(isStructMode()){ toast('この表のかたちではセルを結合できません'); return; }
   const cells=kfmtCells();
   const r1=Math.min(...cells.map(x=>x[0])), r2=Math.max(...cells.map(x=>x[0]));
   const c1=Math.min(...cells.map(x=>x[1])), c2=Math.max(...cells.map(x=>x[1]));
@@ -22057,7 +22072,7 @@ function applyMerge(ar,ac,rs,cs){
 }
 /* 書式モーダル：結合する横(cs)・縦(rs)のセル数を増減 */
 function fmtMergeSpan(dim, delta){
-  if(isStructMode()){ toast('このモードではセル結合はできません'); return; }
+  if(isStructMode()){ toast('この表のかたちではセルを結合できません'); return; }
   const ar=fmtR, ac=fmtC;
   if(isUserLocked(ar,ac)){ toast('ロックされたセルは結合できません'); return; }
   const cur=mergeAt(ar,ac)||{rs:1,cs:1};
@@ -22614,8 +22629,8 @@ async function saveAsData() {
 let saveActiveTab=0;
 /* タブ3「モード」は登録専用（モードへ登録した記録が自動で移動・保護される）。
    名前は変更できるが、記録を手動でこのタブへ振り分けることはできない。 */
-const SAVE_TAB_DEF=['記録','タブ1','タブ2','モード'];
-const SAVE_TAB_ICON=['🗂','📌','📌','🔀'];
+const SAVE_TAB_DEF=['記録','タブ1','タブ2','用途'];
+const SAVE_TAB_ICON=['🗂','📌','📌','🎯'];
 const SAVE_TAB_MODE=3;
 let saveTabNames=[null,null,null,null];   // null=既定名を使う
 function loadSaveTabNames(){
@@ -22811,7 +22826,7 @@ function showSaveFileMenu(id, el){
     +`<button onclick="saveFileMenuAct(${id},'dup')">⧉ コピーを作る</button>`
     +`<button onclick="saveFileMenuAct(${id},'export')">⬇ 書き出し</button>`
     +`<button onclick="saveFileMenuAct(${id},'lock')">${locked?'🔓 ロックを解除':'🔒 ロック'}</button>`
-    +`<button onclick="saveFileMenuAct(${id},'tomode')">🔀 モードへ登録</button>`
+    +`<button onclick="saveFileMenuAct(${id},'tomode')">🎯 用途の一覧に登録</button>`
     + tabOpts
     +`<button onclick="saveFileMenuAct(${id},'delete')"${locked?' disabled':''}>🗑 削除</button>`;
   back.classList.add('show'); menu.classList.add('show');
@@ -22872,7 +22887,7 @@ function renderSaveList() {
       </select>
       <button class="btn-lock"   onclick="toggleSaveLock(${s.id})" title="${locked?'ロックを解除':'ロック（削除・改名を防止）'}">${locked?'🔒':'🔓'}</button>
       <button class="btn-rename" onclick="renameSave(${s.id})" ${locked?'disabled':''} title="${locked?'ロック中は改名できません':'名前を変更'}">✏</button>
-      <button class="btn-tomode" onclick="registerSaveAsMode(${s.id})" title="この記録をモードに登録して移動（最大10個）">モードへ</button>
+      <button class="btn-tomode" onclick="registerSaveAsMode(${s.id})" title="この記録を用途の一覧に登録して移す（最大10個）">用途へ</button>
       <button class="btn-load"   onclick="loadSave(${s.id})">読込</button>
       <button class="btn-del"    onclick="deleteSave(${s.id})" ${locked?'disabled':''} title="${locked?'ロック中は削除できません':'削除'}">削除</button>
     </div>`;
@@ -22970,8 +22985,8 @@ const ST_GROUPS=[
   {k:'excalc_touban',     n:'当番表'},
   {k:'excalc_touban_saves', n:'保存した当番表'},
   {k:'excalc_links',      n:'リンク集'},
-  {k:'excalc_userkeys',   n:'登録キー'},
-  {k:'excalc_custommodes',n:'登録モード'},
+  {k:'excalc_userkeys',   n:'マイキー'},
+  {k:'excalc_custommodes',n:'用途の一覧に登録したもの'},
 ];
 /* localStorage は1文字2バイトで数える端末が多いので、それに合わせる */
 function stSize(key){
