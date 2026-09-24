@@ -1248,7 +1248,7 @@ body.kb-edit { grid-template-columns: 1fr !important; }
   border-radius: 0; border-width: 1px 0 0; padding: 4px 6px; gap: 2px; overflow-x: auto; flex-wrap: nowrap;
   box-shadow: 0 -2px 8px rgba(0,0,0,.12); -webkit-overflow-scrolling: touch; }
 #cellMenu.edit-bar button { flex: none; width: auto; padding: 9px 11px; font-size: 13px; text-align: center; }
-#cellMenu.edit-bar .cm-edit { display: none; }
+#cellMenu.edit-bar:not(.bar-nokb) .cm-edit { display: none; }
 body.cg-excel .cell.active::after {
   content: ''; position: absolute; right: 1px; bottom: 1px; width: 9px; height: 9px;
   border-radius: 50%; background: var(--acc); box-shadow: 0 0 0 1.5px #fff; pointer-events: none;
@@ -6588,8 +6588,18 @@ function buildSheet() {
           refreshDisp(); return;
         }
         formulaEditMode=false; fi.classList.remove('formula-mode');
+        // v418：Excel と同じ操作のとき、選んでいる範囲の中をタップしたら範囲はそのままで帯を出す
+        if (cellGesture==='excel' && rangeR1>=0 && document.activeElement!==fi){
+          const g=selRect();
+          if (r>=g.r1 && r<=g.r2 && c>=g.c1 && c<=g.c2){ showEditBar(true); return; }
+        }
+        const wasSel=(r===selR && c===selC && rangeR1<0);
         clearRangeSelection(); sel(r,c);
         registerTap(r,c);
+        // v418：選んでいるセルをもう一度タップ＝キーボードを出さずに帯だけ出す（Excel と同じ）
+        if (cellGesture==='excel' && document.activeElement!==fi){
+          if (wasSel && tapCount===1) showEditBar(true); else hideEditBar();
+        }
       });
       td.addEventListener('dblclick', e => { e.preventDefault(); });
     }
@@ -6906,8 +6916,9 @@ function isTouchUI(){
   try{ return matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints||0)>0; }catch(_){ return false; }
 }
 /* 直している間、切り取り・コピーなどを横一列の帯にして、キーボード（パソコンではテンキー）のすぐ上に出す（v414） */
-function showEditBar(){
+function showEditBar(noKb){
   const menu=document.getElementById('cellMenu'); if(!menu) return;
+  menu.classList.toggle('bar-nokb', !!noKb);   // キーボードなしで出したときは「✏ 編集」も出す
   const lockBtn=document.getElementById('cellMenuLock');
   if(lockBtn) lockBtn.textContent = isLockedCell(selR,selC) ? '🔓 保護をやめる' : '🔒 保護';
   document.getElementById('cellMenuBackdrop').classList.remove('show');
@@ -6932,9 +6943,14 @@ function placeEditBar(){
 }
 function hideEditBar(){
   const menu=document.getElementById('cellMenu'); if(!menu || !menu.classList.contains('edit-bar')) return;
-  menu.classList.remove('edit-bar','show'); menu.style.bottom='';
+  menu.classList.remove('edit-bar','show','bar-nokb'); menu.style.bottom='';
 }
 function endKbEdit(){ document.body.classList.remove('kb-edit'); hideEditBar(); }
+/* テンキーを押したら、キーボードなしで出した帯は消す（打ち始めた＝メニューは要らない） */
+document.addEventListener('pointerdown', e=>{
+  const m=document.getElementById('cellMenu');
+  if(m && m.classList.contains('bar-nokb') && e.target.closest && e.target.closest('#numpadSection')) hideEditBar();
+}, true);
 if(window.visualViewport){ window.visualViewport.addEventListener('resize', ()=>placeEditBar()); window.visualViewport.addEventListener('scroll', ()=>placeEditBar()); }
 /* 切り取り（v413・v417 で範囲も）：コピーして印を付け、貼り付けたら元を消す */
 function clearCut(){
@@ -8662,6 +8678,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v418', t:'キーボードを出さずにコピーできるように', li:[
+    '<b>選んでいるセルをもう一度タップ</b>すると、キーボードを出さずに<b>切り取り・コピー・貼り付けなどの帯</b>が出ます（Excel と同じ）。帯の<b>✏編集</b>で直すこともできます',
+    '<b>なぞって範囲を選ぶ</b>と、帯が出ます。選んだ範囲の中をタップしても出ます',
+  ]},
   { v:'v417', t:'コピー・貼り付けを Excel と同じに', li:[
     '数式をコピーして貼ると、Excel と同じく<b>番地がずれます</b>（A1 の <b>=A1*2</b> を下に貼ると <b>=A2*2</b>）。<b>$A$1</b> のように <b>$</b> を付けたところはずれません',
     'なぞって選んだ<b>範囲をまとめてコピー・切り取り・貼り付け</b>できるようになりました。↶戻る 1回で戻せます',
@@ -21420,7 +21440,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v417';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v418';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -22264,7 +22284,7 @@ function endCellPress(){
   lpClearTimers(); lpClearArmVisual();
   lpR=lpC=-1; lpStage=0; lpMoved=false;
   if(fillMode && moved){ fillJustCommitted=true; commitFill(); return; }   // ドラッグ＝フィル確定
-  if(rangeDragging && moved){ rangeDragging=false; fillJustCommitted=true; return; }   // スライド＝範囲選択を確定（次のclickを1回無効化）
+  if(rangeDragging && moved){ rangeDragging=false; fillJustCommitted=true; if(cellGesture==='excel') showEditBar(true); return; }   // スライド＝範囲選択を確定（次のclickを1回無効化）。v418：帯を出す
   rangeDragging=false;
   fillMode=false; document.body.classList.remove('fill-active');
   fillSrcR=fillSrcC=fillEndR=fillEndC=-1;

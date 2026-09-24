@@ -40,7 +40,7 @@ const SCREENS = [
       for (const [r, v] of [[0, '1200'], [1, '350'], [2, '4800']]) {
         await p.click('#c' + r + '_0'); await p.keyboard.type(v); await p.keyboard.press('Enter');
       }
-      await p.click('#c3_0'); await p.evaluate(() => autoSum());
+      await p.click('#c3_0'); await p.evaluate(() => { hideEditBar(); autoSum(); });   // 選んでいるセルを押すと出る帯（v418）は見本に入れない
     } },
   { name: 'phone-more', vp: PHONE, act: p => p.evaluate(() => openMoreMenu()) },
   { name: 'phone-set0', vp: PHONE, act: p => p.evaluate(() => { toggleSettings(); setSettingsTab(0); }) },

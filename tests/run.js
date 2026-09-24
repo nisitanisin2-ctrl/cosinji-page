@@ -6731,6 +6731,20 @@ async function runCellXl(browser) {
   await tap(3, 1); await page.waitForTimeout(60); await tap(3, 1); await page.waitForTimeout(300);
   await page.keyboard.press('Enter'); await page.waitForTimeout(500);
   check('  Enter で直し終えると帯は消える', await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show') + '/' + document.body.classList.contains('kb-edit')), 'false/false');
+  // v418：選んでいるセルをもう一度タップ＝キーボードなしで帯だけ
+  await page.evaluate(() => { document.activeElement.blur(); hideEditBar(); clearRangeSelection(); });
+  await tap(9, 2); await page.waitForTimeout(600);
+  check('  選んでいないセルのタップでは帯は出ない', await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show')), false);
+  await tap(9, 2); await page.waitForTimeout(600);   // ダブルタップにならないよう間をあける
+  check('  選んでいるセルをもう一度タップで帯が出る', await page.evaluate(() => { const m = document.getElementById('cellMenu'); return m.classList.contains('show') + '/' + m.classList.contains('bar-nokb'); }), 'true/true');
+  check('  そのときキーボードは出さない', await page.evaluate(() => document.activeElement.id !== 'formulaInput' && !document.body.classList.contains('kb-edit')), true);
+  check('  帯に ✏編集 も出る', await page.evaluate(() => !!document.querySelector('#cellMenu .cm-edit').offsetParent), true);
+  check('  帯はテンキーのすぐ上', await page.evaluate(() => Math.abs(document.getElementById('cellMenu').getBoundingClientRect().bottom - document.getElementById('numpadSection').getBoundingClientRect().top) <= 2), true);
+  await page.evaluate(() => document.querySelector('#numpadSection [data-key=n1]').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  check('  テンキーを押すと帯は消える', await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show')), false);
+  await tap(5, 1); await page.waitForTimeout(100);
+  check('  別のセルを押すと帯は出ない', await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show')), false);
+  await page.waitForTimeout(500);
   // 長押しして動かしてもフィルにならない（右下の ● から引っぱる）
   p = await ctr(0, 0);
   await page.evaluate(() => sel(5, 1));
@@ -6748,6 +6762,11 @@ async function runCellXl(browser) {
   p = await ctr(0, 1); await page.mouse.move(p.x, p.y); await page.mouse.down();
   q = await ctr(2, 2); await page.mouse.move(q.x, q.y, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(200);
   check('  選んだセルからなぞると範囲選択', await page.evaluate(() => [rangeR1, rangeC1, rangeR2, rangeC2].join(',')), '0,1,2,2');
+  check('  範囲を選ぶと帯が出る（v418）', await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show')), true);
+  await page.waitForTimeout(500);
+  await tap(1, 2); await page.waitForTimeout(200);
+  check('  範囲の中をタップしても範囲は外れず帯が出る', await page.evaluate(() => [rangeR1, rangeC1, rangeR2, rangeC2].join(',') + '/' + document.getElementById('cellMenu').classList.contains('show')), '0,1,2,2/true');
+  await page.evaluate(() => hideEditBar());
   await page.evaluate(() => clearRangeSelection());
   // 切り取り → 貼り付けで元が消える
   await page.evaluate(() => { setCellVal(6, 0, 'うつす'); sel(6, 0); cellMenuAct('cut'); });
