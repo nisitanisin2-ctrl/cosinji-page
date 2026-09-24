@@ -1822,10 +1822,10 @@ body.calc-only #numpadPageSci .btn[data-key="dk_dec"] { grid-column: span 2; }
    選んでいる線の種類・色、今のセルに付いている B・I・U・揃え・結合は、Excel と同じく灰色に塗って示す。
    夜は目にやさしいよう、少し落とした明るさにする。 */
 #numpadPageFmt {
-  --fp-bg: #d9dce0; --fp-key: #ffffff; --fp-hover: #f3f3f3; --fp-ink: #3b3b3b; --fp-on: #d2d2d2;
+  --fp-bg: #263238; --fp-key: #37474f; --fp-hover: #49585f; --fp-ink: #eceff1; --fp-on: #6a767c;   /* 元は すみ（v412） */
   background: var(--fp-bg); grid-template-columns: repeat(6, 1fr); gap: 1px !important; padding: 1px;
 }
-body.dark #numpadPageFmt { --fp-bg: #1e2227; --fp-key: #d6d9dd; --fp-hover: #c9cdd2; --fp-ink: #1f2328; --fp-on: #a9aeb5; }
+body.dark #numpadPageFmt { --fp-bg: #263238; --fp-key: #37474f; --fp-hover: #49585f; --fp-ink: #eceff1; --fp-on: #6a767c; }
 #numpadPageFmt .btn {
   background: var(--fp-key); color: var(--fp-ink); border: none; border-radius: 0; box-shadow: none; --bd-gap: var(--fp-key);
   font-size: calc(12px * var(--key-scale, 1.3)); font-weight: normal;
@@ -3703,11 +3703,11 @@ body.dark {
     <button class="set-act" onclick="resetSkin()" title="色・背景をはじめの緑に戻します">↩ もとの色に戻す</button>
     <input type="file" id="skinPhotoInput" accept="image/*" style="display:none" onchange="skinPhotoChange(event)">
     <div class="set-sec">書式・枠線のテンキーの色<small style="font-weight:normal;margin-left:6px">テンキーの左のページ</small></div>
-    <div class="set-note">罫線や <b>B・I・U</b> の並ぶページの色です。<b>組み合わせ</b>から選ぶか、下で1つずつ変えられます。<b>元</b>はふだんの白（夜は少し暗い灰色）です。</div>
+    <div class="set-note">罫線や <b>B・I・U</b> の並ぶページの色です。<b>組み合わせ</b>から選ぶか、下で1つずつ変えられます。<b>元</b>は<b>すみ</b>（濃い青みの灰色）です。白がよければ<b>白</b>を選んでください。</div>
     <div class="fpc-prev" id="fpcPrev" aria-hidden="true"><span>B</span><span><i>I</i></span><span><u>U</u></span><span>≡</span><span>結合</span><span>設定</span></div>
     <div class="fpc-presets" id="fpcPresets"></div>
     <div class="tbc-box" id="fpcBox"></div>
-    <button class="set-act" onclick="fpcReset()" title="書式・枠線のテンキーの色をもとの白に戻します">↩ 書式・枠線のテンキーの色を元に戻す</button>
+    <button class="set-act" onclick="fpcReset()" title="書式・枠線のテンキーの色を元の すみ に戻します">↩ 書式・枠線のテンキーの色を元に戻す</button>
     <button class="set-act" onclick="fpcShow()" title="設定を閉じて、書式・枠線のページを出します">👀 テンキーで見る</button>
       </div>
     </details>
@@ -8139,21 +8139,23 @@ function applySkin(){
 /* ── 書式・枠線のテンキーの色（v411）──
    テンキーの左のページ（#numpadPageFmt）の地・文字・区切り線の色を選べる。
    ボタンの地・文字・区切り線の3つを覚え、なぞったとき・選ばれているときの色はそこから作る。
-   空のものは「元」：地はふだんの白（夜は少し暗い灰色）、文字は地の明るさから黒か白、区切り線は地と文字の間。 */
+   空のものは「元」：地は すみ（v412。前は白）、文字は地の明るさから黒か白、区切り線は地と文字の間。 */
 const FPC_KEY='excalc_fmtcol', FPC_RE=/^#[0-9a-f]{6}$/i;   // 当番表の TB_COL_RE は後ろで決まるので、自前で持つ
 const FPC_PARTS=[
   { k:'key',  n:'ボタンの地',       hint:'' },
   { k:'ink',  n:'文字・アイコン',   hint:'元＝地の色に合わせて黒か白' },
   { k:'line', n:'区切り線',         hint:'元＝地と文字の間の色' },
 ];
+/* 「元」の色（v412 で白から すみ に）。昼も夜も同じ */
+const FPC_BASE={ key:'#37474f', ink:'#eceff1', line:'#263238' };
 const FPC_PRESETS=[
-  { id:'def',   n:'元（白）',  key:'',        ink:'',        line:'' },
+  { id:'def',   n:'元（すみ）', key:'',       ink:'',        line:'' },
+  { id:'white', n:'白',        key:'#ffffff', ink:'#3b3b3b', line:'#d9dce0' },
   { id:'gray',  n:'うす灰',    key:'#eceff1', ink:'',        line:'#c9ced3' },
   { id:'cream', n:'クリーム',  key:'#fff8e1', ink:'#5d4037', line:'#e6d6a8' },
   { id:'sky',   n:'水色',      key:'#e3f2fd', ink:'#0d47a1', line:'#b3cde8' },
   { id:'mint',  n:'ミント',    key:'#e8f5e9', ink:'#1b5e20', line:'#b9d8bb' },
   { id:'sakura',n:'さくら',    key:'#fce4ec', ink:'#880e4f', line:'#eab8c9' },
-  { id:'slate', n:'すみ',      key:'#37474f', ink:'#eceff1', line:'#263238' },
   { id:'black', n:'くろ',      key:'#1f1f1f', ink:'#f1f1f1', line:'#000000' },
 ];
 const FPC_SWATCH=['#ffffff','#f5f5f5','#eceff1','#fff8e1','#fff59d','#ffe0b2','#fce4ec','#f3e5f5',
@@ -8174,11 +8176,10 @@ function saveFmtCol(){
 }
 /* いまの設定から、実際に使う5つの色を出す（夜かどうかで「元」の地が変わる） */
 function fmtColResolved(){
-  const dark=document.body && document.body.classList.contains('dark');
-  const key=fmtCol.key || (dark?'#d6d9dd':'#ffffff');
-  const ink=fmtCol.ink || (skinLum(key)>0.35 ? (dark?'#1f2328':'#3b3b3b') : '#f1f3f5');
+  const key=fmtCol.key || FPC_BASE.key;
   const lightKey=skinLum(key)>0.35;
-  const line=fmtCol.line || (fmtCol.key||fmtCol.ink ? skinMix(key, ink, .22) : (dark?'#1e2227':'#d9dce0'));
+  const ink=fmtCol.ink || (fmtCol.key ? (lightKey?'#3b3b3b':FPC_BASE.ink) : FPC_BASE.ink);
+  const line=fmtCol.line || (fmtCol.key||fmtCol.ink ? skinMix(key, ink, .22) : FPC_BASE.line);
   return { key, ink, line, hover:skinMix(key, ink, lightKey?.05:.1), on:skinMix(key, ink, lightKey?.18:.28) };
 }
 function applyFmtCol(){
@@ -8187,13 +8188,12 @@ function applyFmtCol(){
   /* ページの style はめくる処理が書きかえるので、色は専用の <style> に書く（夜の指定より強い形で） */
   let tag=document.getElementById('fpcStyle');
   if(!tag){ tag=document.createElement('style'); tag.id='fpcStyle'; document.head.appendChild(tag); }
-  if(custom){
-    const c=fmtColResolved();
-    tag.textContent='html body #numpadPageFmt.fpc-custom{--fp-key:'+c.key+';--fp-ink:'+c.ink+';--fp-bg:'+c.line+';--fp-hover:'+c.hover+';--fp-on:'+c.on+'}';
-  }else tag.textContent='';
+  const c=fmtColResolved();   // 選んでいないときも「元」（すみ）の色を書く（v412）
+  tag.textContent='html body #numpadPageFmt.fpc-custom{--fp-key:'+c.key+';--fp-ink:'+c.ink+';--fp-bg:'+c.line+';--fp-hover:'+c.hover+';--fp-on:'+c.on+'}';
   if(pg){
-    pg.classList.toggle('fpc-custom', custom);
-    pg.classList.toggle('fpc-darkkey', custom && skinLum(fmtColResolved().key)<=0.35);
+    pg.classList.add('fpc-custom');
+    pg.classList.toggle('fpc-darkkey', skinLum(c.key)<=0.35);
+    pg.dataset.fpc=custom?'1':'';
   }
   renderFmtColUI();
 }
@@ -8205,7 +8205,7 @@ function renderFmtColUI(){
   if(pr){
     pr.innerHTML=FPC_PRESETS.map(p=>{
       const on=FPC_PARTS.every(x=>(fmtCol[x.k]||'')===(p[x.k]||''));
-      const k=p.key||'#ffffff', i=p.ink||(skinLum(k)>0.35?'#3b3b3b':'#f1f3f5'), l=p.line||'#d9dce0';
+      const k=p.key||FPC_BASE.key, i=p.ink||FPC_BASE.ink, l=p.line||FPC_BASE.line;
       return '<button class="fpc-pre'+(on?' on':'')+'" data-pre="'+p.id+'" onclick="fpcPreset(\''+p.id+'\')" style="background:'+k+';color:'+i+';border-color:'+l+'">'+
         '<b>B</b><small>'+p.n+'</small></button>';
     }).join('');
@@ -8465,6 +8465,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v412', t:'書式・枠線のテンキーを すみ 色に', li:[
+    'テンキーの左の<b>書式・枠線のページ</b>の色を、ふだんから<b>すみ</b>（濃い青みの灰色）にしました',
+    '白がよければ、⚙設定 → 🎨見た目 → 色と背景 → 書式・枠線のテンキーの色 で<b>白</b>を選んでください',
+  ]},
   { v:'v411', t:'書式・枠線のテンキーの色を選べるように・見た目の設定をまとめました', li:[
     '⚙設定 → 🎨見た目 → <b>色と背景</b>で、<b>書式・枠線のテンキーの色</b>（ボタンの地・文字とアイコン・区切り線）を選べるようにしました。<b>クリーム・水色・すみ・くろ</b>などの組み合わせからも選べます',
     '🎨見た目のタブを、<b>色と背景／文字と大きさ／テンキー／画面と上のバー</b>の4つの組にまとめました。押すと開き、開いた組は次も開いたままです',
@@ -21177,7 +21181,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v411';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v412';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

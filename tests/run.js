@@ -6641,7 +6641,7 @@ async function runFmtCol(browser) {
   console.log('\n── 書式・枠線のテンキーの色／見た目の設定の組（v411） ──');
   const bg = sel => page.evaluate(s => getComputedStyle(document.querySelector(s)).backgroundColor, sel);
   const KB = '#numpadPageFmt [data-key=kf_bold]';
-  check('  はじめは白', await bg(KB), 'rgb(255, 255, 255)');
+  check('  はじめは すみ（v412）', await bg(KB), 'rgb(55, 71, 79)');
   await page.evaluate(() => { toggleSettings(); setSettingsTab(1); }); await page.waitForTimeout(300);
   check('  見た目は4つの組', await page.evaluate(() => [...document.querySelectorAll('#setPage1 .set-grp')].map(d => d.querySelector('.set-grp-t b').textContent).join('/')),
     '色と背景/文字と大きさ/テンキー/画面と上のバー');
@@ -6651,7 +6651,7 @@ async function runFmtCol(browser) {
      'calcOnlyBtn', 'pageBarBtn', 'funcPageBtn', 'resizerBarBtn', 'barSize', 'keypadEditBtn', 'npToolList', 'topBtnToggles', 'startPageSel', 'compactSeg', 'fpcBox']
       .filter(id => { const e = document.getElementById(id); return !e || !e.closest('.set-grp'); }).join(',')), '');
   check('  書式・枠線のテンキーの色は「色と背景」の組', await page.evaluate(() => document.getElementById('fpcBox').closest('.set-grp').id), 'setGrpColor');
-  check('  組み合わせは8つ', await page.evaluate(() => document.querySelectorAll('#fpcPresets .fpc-pre').length), 8);
+  check('  組み合わせは8つ（元＝すみ・白 …）', await page.evaluate(() => document.querySelectorAll('#fpcPresets .fpc-pre').length), 8);
   await page.evaluate(() => { const d = document.getElementById('setGrpColor'); d.open = true; }); await page.waitForTimeout(100);
   await page.click('#fpcPresets [data-pre=sky]'); await page.waitForTimeout(400);   // 地の色は少しかけて変わる
   check('  水色を選ぶとボタンの地が水色', await bg(KB), 'rgb(227, 242, 253)');
@@ -6659,11 +6659,14 @@ async function runFmtCol(browser) {
   check('  区切り線（地）も変わる', await bg('#numpadPageFmt'), 'rgb(179, 205, 232)');
   check('  選んだ組み合わせに印', await page.evaluate(() => document.querySelector('#fpcPresets .on').dataset.pre), 'sky');
   check('  覚える', await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_fmtcol')).key), '#e3f2fd');
+  await page.click('#fpcPresets [data-pre=white]'); await page.waitForTimeout(400);
+  check('  白を選ぶと白', await bg(KB), 'rgb(255, 255, 255)');
+  await page.click('#fpcPresets [data-pre=sky]'); await page.waitForTimeout(400);
   // 1つずつ変える
   await page.evaluate(() => fpcSet('key', '#1f1f1f')); await page.waitForTimeout(400);
   check('  地だけ黒にすると、組み合わせの印は消える', await page.evaluate(() => document.querySelectorAll('#fpcPresets .on').length), 0);
   await page.evaluate(() => fpcSet('ink', '')); await page.waitForTimeout(50);
-  check('  文字を元にすると、黒い地には白っぽい字', await page.evaluate(() => getComputedStyle(document.querySelector('#numpadPageFmt [data-key=kf_bold]')).color), 'rgb(241, 243, 245)');
+  check('  文字を元にすると、黒い地には白っぽい字', await page.evaluate(() => getComputedStyle(document.querySelector('#numpadPageFmt [data-key=kf_bold]')).color), 'rgb(236, 239, 241)');
   check('  #rrggbb 以外は受け付けない', await page.evaluate(() => { fpcSet('line', 'red;x'); return fmtCol.line; }), '');
   // 開き直しても残る・組の開閉も残る
   await page.reload(); await page.waitForTimeout(900);
@@ -6673,10 +6676,10 @@ async function runFmtCol(browser) {
   await page.evaluate(() => toggleDark()); await page.waitForTimeout(600);
   check('  夜でも選んだ色', await bg(KB), 'rgb(31, 31, 31)');
   await page.evaluate(() => fpcReset()); await page.waitForTimeout(600);
-  check('  元に戻すと夜のふだんの色', await bg(KB), 'rgb(214, 217, 221)');
+  check('  元に戻すと夜も すみ', await bg(KB), 'rgb(55, 71, 79)');
   check('  元に戻すと覚えた色は消える', await page.evaluate(() => localStorage.getItem('excalc_fmtcol')), null);
   await page.evaluate(() => toggleDark()); await page.waitForTimeout(600);
-  check('  昼に戻すと白', await bg(KB), 'rgb(255, 255, 255)');
+  check('  昼に戻しても すみ', await bg(KB), 'rgb(55, 71, 79)');
   // 設定をさがす
   await page.evaluate(() => { toggleSettings(); setFind('書式・枠線のテンキーの色'); }); await page.waitForTimeout(100);
   check('  さがす欄で見つかる', await page.evaluate(() => setFindHits.some(x => /書式・枠線のテンキーの色/.test(x.label))), true);
@@ -6699,8 +6702,8 @@ async function runFmtPage(browser) {
   const on = k => page.evaluate(k => document.querySelector('#numpadPageFmt [data-key=' + k + ']').classList.contains('kf-on'), k);
   check('  6列にした', await page.evaluate(() =>
     getComputedStyle(document.getElementById('numpadPageFmt')).gridTemplateColumns.split(' ').length), 6);
-  check('  ボタンは白い地（明るい）', await page.evaluate(() =>
-    getComputedStyle(document.querySelector('#numpadPageFmt [data-key=kf_bold]')).backgroundColor), 'rgb(255, 255, 255)');
+  check('  ボタンの地は すみ（v412）', await page.evaluate(() =>
+    getComputedStyle(document.querySelector('#numpadPageFmt [data-key=kf_bold]')).backgroundColor), 'rgb(55, 71, 79)');
   check('  Excel と同じ B・I・U・ab が並ぶ', await page.evaluate(() =>
     ['kf_bold', 'kf_italic', 'kf_under', 'kf_strike'].map(k => document.querySelector('#numpadPageFmt [data-key=' + k + ']').textContent.trim()).join(' ')), 'B I U ab');
   check('  揃え（左・中央・右／上・中・下）・結合・書式のコピーがある', await page.evaluate(() =>
