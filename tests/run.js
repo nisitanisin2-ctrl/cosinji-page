@@ -512,7 +512,7 @@ async function runSaveList(browser) {
   check('  メニューの中身',
         await page.evaluate(() => [...document.querySelectorAll('#saveFileMenu button')]
           .map(b => b.textContent.trim().split(' ').pop()).join('/')),
-        '開く/名前の変更/コピーを作る/書き出し/ロック/モードへ登録/タブ1へ移す/タブ2へ移す/削除');
+        '開く/名前の変更/コピーを作る/書き出し/ロック/用途の一覧に登録/タブ1へ移す/タブ2へ移す/削除');
   check('  ロック中は名前の変更と削除ができない',
         await page.evaluate(() => { hideSaveFileMenu();
           showSaveFileMenu(1001, document.querySelector('.sf-more'));
@@ -1106,9 +1106,9 @@ async function runFlickSym(browser) {
   // ── 記号ページの表示・非表示 ──
   const bar = () => page.evaluate(() =>
     [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|'));
-  check('  はじめは記号ページを出す', await bar(), '書式・枠線|数字|記号|電卓|▲ 登録');
+  check('  はじめは記号ページを出す', await bar(), '書式・枠線|数字|記号|電卓|▲ マイキー');
   await page.evaluate(() => toggleFuncPage()); await page.waitForTimeout(300);
-  check('  隠すと並びから消える', await bar(), '書式・枠線|数字|電卓|▲ 登録');
+  check('  隠すと並びから消える', await bar(), '書式・枠線|数字|電卓|▲ マイキー');
   const vp = await page.evaluate(() => {
     const r = document.getElementById('numpadViewport').getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
@@ -1119,7 +1119,7 @@ async function runFlickSym(browser) {
   await page.reload(); await page.waitForTimeout(900);
   check('  開き直しても隠れたまま', await page.evaluate(() => showFuncPage), false);
   await page.evaluate(() => toggleFuncPage()); await page.waitForTimeout(300);
-  check('  戻すと並びに出る', await bar(), '書式・枠線|数字|記号|電卓|▲ 登録');
+  check('  戻すと並びに出る', await bar(), '書式・枠線|数字|記号|電卓|▲ マイキー');
   await page.mouse.move(vp.x, vp.y); await page.mouse.wheel(0, 120); await page.waitForTimeout(600);
   check('  数字の次は記号に戻る', await page.evaluate(() => String(numpadPager.current())), 'func');
   await page.evaluate(() => numpadPager.go(null)); await page.waitForTimeout(400);
@@ -1187,7 +1187,7 @@ async function runNpTools(browser) {
   const bar = () => page.evaluate(() =>
     [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|'));
 
-  check('  はじめは道具のタブを出さない', await bar(), '書式・枠線|数字|記号|電卓|▲ 登録');
+  check('  はじめは道具のタブを出さない', await bar(), '書式・枠線|数字|記号|電卓|▲ マイキー');
   check('  設定に選べる道具が並ぶ', await page.evaluate(() =>
     document.querySelectorAll('#npToolList .nptool-row').length), 11);
   check('  中身は全画面で開く道具', await page.evaluate(() =>
@@ -1214,7 +1214,7 @@ async function runNpTools(browser) {
 
   // チェックすると並びに足される
   await page.evaluate(() => { npToolToggle('tansui'); npToolToggle('veggie'); }); await page.waitForTimeout(250);
-  check('  チェックした道具が電卓の右に並ぶ', await bar(), '書式・枠線|数字|記号|電卓|💧単位水量|🌱野菜|▲ 登録');
+  check('  チェックした道具が電卓の右に並ぶ', await bar(), '書式・枠線|数字|記号|電卓|💧単位水量|🌱野菜|▲ マイキー');
   check('  会計アプリもタブに足せる', await page.evaluate(async () => {
     npToolToggle('kaikei'); await new Promise(r => setTimeout(r, 200));
     const on = [...document.querySelectorAll('#numpadPageBar .np-page')].some(b => /会計アプリ/.test(b.textContent));
@@ -1231,7 +1231,7 @@ async function runNpTools(browser) {
   check('  ↑で上げられる', await page.evaluate(() => npTools.join(',')), 'veggie,kantab,tansui');
   await page.evaluate(() => npToolMove('veggie', 1)); await page.waitForTimeout(250);
   check('  ↓で下げられる', await page.evaluate(() => npTools.join(',')), 'kantab,veggie,tansui');
-  check('  並びはタブにも出る', await bar(), '書式・枠線|数字|記号|電卓|🧪カンタブ|🌱野菜|💧単位水量|▲ 登録');
+  check('  並びはタブにも出る', await bar(), '書式・枠線|数字|記号|電卓|🧪カンタブ|🌱野菜|💧単位水量|▲ マイキー');
   check('  端では動かない', await page.evaluate(() => {
     npToolMove('kantab', -1); npToolMove('tansui', 1); return npTools.join(','); }), 'kantab,veggie,tansui');
 
@@ -1257,7 +1257,7 @@ async function runNpTools(browser) {
   // 開き直しても覚えている
   await page.reload(); await page.waitForTimeout(900);
   check('  開き直しても覚えている', await page.evaluate(() => npTools.join(',')), 'kantab,veggie,tansui');
-  check('  タブも出たまま', await bar(), '書式・枠線|数字|記号|電卓|🧪カンタブ|🌱野菜|💧単位水量|▲ 登録');
+  check('  タブも出たまま', await bar(), '書式・枠線|数字|記号|電卓|🧪カンタブ|🌱野菜|💧単位水量|▲ マイキー');
   check('  横に流して見られる', await page.evaluate(() =>
     getComputedStyle(document.getElementById('numpadPageBar')).overflowX), 'auto');
   check('  本体は横にずれない', await page.evaluate(() =>
@@ -4526,7 +4526,7 @@ async function runCalcOnly(browser) {
   await page.evaluate(() => { npTools = ['veggie', 'tansui']; saveNpTools(); applyNpToolFull(); renderNumpadPageBar(); });
   await page.waitForTimeout(300);
   check('  はじめはオフ', await page.evaluate(() => calcOnly), false);
-  check('  はじめは全部のタブ', await tabs(), '書式・枠線/数字/記号/電卓/🌱野菜/💧単位水量/▲ 登録');
+  check('  はじめは全部のタブ', await tabs(), '書式・枠線/数字/記号/電卓/🌱野菜/💧単位水量/▲ マイキー');
 
   // オンにする
   await page.evaluate(() => toggleCalcOnly()); await page.waitForTimeout(700);
@@ -4599,7 +4599,7 @@ async function runCalcOnly(browser) {
   // 戻せる
   await page.evaluate(() => toggleCalcOnly()); await page.waitForTimeout(600);
   check('  戻せる', await page.evaluate(() => calcOnly), false);
-  check('  タブがぜんぶ戻る', await tabs(), '書式・枠線/数字/記号/電卓/🌱野菜/💧単位水量/▲ 登録');
+  check('  タブがぜんぶ戻る', await tabs(), '書式・枠線/数字/記号/電卓/🌱野菜/💧単位水量/▲ マイキー');
   check('  ▦表へも戻る', await page.evaluate(() =>
     getComputedStyle(document.querySelector('#numpadPageSci [data-key="dk_tosheet"]')).display !== 'none'), true);
   await page.evaluate(() => numpadPager.go('sci')); await page.waitForTimeout(400);
