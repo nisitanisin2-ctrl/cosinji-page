@@ -4149,7 +4149,7 @@ async function runOnboard(browser) {
   const open = () => page.evaluate(() => isDlgOpen('tourOverlay'));
   const head = () => page.evaluate(() => document.querySelector('.tour-h').textContent);
   check('  はじめて開いたら案内が出る', await open(), true);
-  check('  4枚ある', await page.evaluate(() => TOUR_PAGES.length), 4);
+  check('  5枚ある', await page.evaluate(() => TOUR_PAGES.length), 5);
   check('  1枚目は表と電卓', await head(), '表と電卓、どちらも使えます');
   check('  いまどこか分かる丸', await page.evaluate(() =>
     [...document.querySelectorAll('.tour-dots i')].findIndex(x => x.classList.contains('on'))), 0);
@@ -4159,16 +4159,20 @@ async function runOnboard(browser) {
     !document.querySelector('.tour-row .t-back')), true);
 
   await page.evaluate(() => tourGo(1)); await page.waitForTimeout(200);
-  check('  つぎへで進む', await head(), '口で言うだけでも計算できます');
+  check('  つぎへで進む（2枚目は操作）', await head(), '表の操作は Excel と同じです');
+  check('  ダブルタップ・右下の ● などの操作が書いてある', await page.evaluate(() => {
+    const t = document.querySelector('.tour-ex').textContent; return ['ダブルタップ', '右下の ●', 'なぞる', '長押し', '＝数式', 'あ文字'].every(w => t.includes(w)); }), true);
+  await page.evaluate(() => tourGo(1)); await page.waitForTimeout(200);
+  check('  3枚目は声', await head(), '口で言うだけでも計算できます');
   check('  言い方の見本が出る', await page.evaluate(() =>
     document.querySelector('.tour-ex').textContent.includes('180円を4個')), true);
-  await page.evaluate(() => tourGo(-1)); await page.waitForTimeout(200);
+  await page.evaluate(() => { tourGo(-1); tourGo(-1); }); await page.waitForTimeout(200);
   check('  戻るで戻れる', await head(), '表と電卓、どちらも使えます');
-  await page.evaluate(() => { tourGo(1); tourGo(1); tourGo(1); }); await page.waitForTimeout(250);
-  check('  4枚目は電波とデータ', await head(), '電波がなくても、そのまま使えます');
+  await page.evaluate(() => { tourGo(1); tourGo(1); tourGo(1); tourGo(1); }); await page.waitForTimeout(250);
+  check('  5枚目は電波とデータ', await head(), '電波がなくても、そのまま使えます');
   check('  さいごは 見本／はじめる', await page.evaluate(() =>
     [...document.querySelectorAll('.tour-row button')].map(x => x.textContent).join('/')), '戻る/見本を入れる/はじめる');
-  check('  行き過ぎない', await page.evaluate(() => { tourGo(-1); tourGo(-1); tourGo(-1); tourGo(-1); return tourIdx; }), 0);
+  check('  行き過ぎない', await page.evaluate(() => { for (let i = 0; i < 6; i++) tourGo(-1); return tourIdx; }), 0);
 
   // とばせる／一度きり
   await page.evaluate(() => tourSkip()); await page.waitForTimeout(400);
@@ -4186,12 +4190,14 @@ async function runOnboard(browser) {
   check('  見直すと1枚目から', await page.evaluate(() => tourIdx), 0);
   await page.evaluate(() => tourSkip()); await page.waitForTimeout(350);
   await page.evaluate(() => openHelp()); await page.waitForTimeout(400);
+  check('  説明書に Excel とのちがいの早見表（v415）', await page.evaluate(() => {
+    const d = document.getElementById('h-excel'); return !!d && d.querySelectorAll('tr').length >= 12 && d.textContent.includes('右下の ●'); }), true);
   check('  説明書に入口がある', await page.evaluate(() =>
     [...document.querySelectorAll('#helpOverlay button')].some(b => b.textContent.includes('はじめての案内'))), true);
   await page.evaluate(() => closeHelp()); await page.waitForTimeout(350);
 
   // 見本の表
-  await page.evaluate(() => { openTour(); tourGo(1); tourGo(1); tourGo(1); }); await page.waitForTimeout(300);
+  await page.evaluate(() => { openTour(); tourGo(1); tourGo(1); tourGo(1); tourGo(1); }); await page.waitForTimeout(300);
   await page.evaluate(() => tourSample()); await page.waitForTimeout(800);
   check('  見本を入れると閉じる', await open(), false);
   check('  見出しが入る', await page.evaluate(() => [data[0][0], data[0][3]].join('/')), '品名/金額');

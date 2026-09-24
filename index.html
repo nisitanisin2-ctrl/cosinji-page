@@ -3053,6 +3053,9 @@ body.dark .help-acc > summary::after { color: var(--acc-on-dark); }
 .set-acc-body .set-sec:first-child { margin-top: 2px; }
 .help-acc-body .help-li:first-child { margin-top: 4px; }
 /* 早見表（ボタン・操作・モードなど） */
+/* Excel とのちがいの早見表（v415）：左の見出しの列を狭くして、説明を読みやすく */
+.help-tbl.help-tbl-x td:first-child { width: 34%; white-space: normal; }
+.help-tbl-x .help-key { white-space: normal; line-height: 1.3; }
 .help-tbl { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 12px; }
 .help-tbl td { padding: 6px; border-bottom: 1px solid var(--cell-border); color: var(--text); vertical-align: top; line-height: 1.5; }
 .help-tbl tr:last-child td { border-bottom: none; }
@@ -8604,6 +8607,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v415', t:'操作の案内と Excel とのちがい', li:[
+    '<b>はじめての案内</b>に「表の操作は Excel と同じです」のページを足しました（⚙設定 → 📐表 → 使いかた →「はじめての案内をもう一度見る」から見られます）',
+    '📖説明書のいちばん上に<b>🔁 Excel とのちがい（早見表）</b>を足しました。やりたいことごとに、表電卓でのやり方が分かります',
+  ]},
   { v:'v414', t:'ボタンの名前を分かりやすく', li:[
     '上のバーの「保存」を、そのときの動きに合わせて<b>「名前を付けて保存」</b>（記録を開いていないとき）／<b>「上書き保存」</b>（開いているとき）と出すようにしました',
     'テンキーの「fx=」を<b>「＝ 数式」</b>、「文字」を<b>「あ 文字」</b>にしました',
@@ -9991,6 +9998,9 @@ const TOUR_PAGES=[
   { ico:'📊🧮', h:'表と電卓、どちらも使えます',
     b:'表に数字を入れて<b>合計や数式</b>で計算するのも、<b>ふつうの電卓</b>として叩くのも、同じアプリの中です。',
     ex:'画面を<b>横にスッとなぞる</b>と行き来できます。テンキーの上の<b>「書式・枠線／数字／記号／電卓」</b>を押しても移れます。' },
+  { ico:'👆', h:'表の操作は Excel と同じです',
+    b:'セルを<b>タップ</b>で選び、<b>テンキー</b>で数字を打って <b>Enter</b>。',
+    ex:'<b>ダブルタップ</b> … 中身を直す（切り取り・コピー・貼り付けもここ）<br><b>右下の ● を引っぱる</b> … 下や横へコピー<br><b>選んだセルからなぞる</b> … 範囲を選ぶ<br><b>行番号・列名を長押し</b> … 行や列を足す・消す<br><b>＝数式</b> … 数式を入れる　<b>あ文字</b> … 文字を入れる'},
   { ico:'🎤', h:'口で言うだけでも計算できます',
     b:'<b>🎤声</b>のキーを押して、ふだんのことばで言うだけです。',
     ex:'「<b>180円を4個</b>」→ 720円<br>「<b>20平米に厚さ10センチ</b>」→ 2㎥<br>「<b>12800円を4人で割って</b>」→ 3,200円<br><b>📖言い方の早見表</b>に、言える形が63とおり並んでいます。' },
@@ -21333,7 +21343,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v414';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v415';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
