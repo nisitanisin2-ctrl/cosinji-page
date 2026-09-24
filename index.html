@@ -1228,6 +1228,16 @@ body.dark .date-badge { border-top-color: #82b1ff; }
   cursor: pointer; touch-action: manipulation; border-radius: var(--r-btn); white-space: nowrap;
 }
 .cell-menu button:hover { background: var(--cell-hover); }
+/* v413：Excel と同じ操作のときは、切り取り・編集・挿入も出して3列に並べる */
+body:not(.cg-excel) #cellMenu .cm-xl { display: none; }
+body.cg-excel #cellMenu.show { display: grid; grid-template-columns: repeat(3, auto); gap: 2px; }
+body.cg-excel #cellMenu button { padding: 10px 10px; font-size: 14px; text-align: center; }
+/* 選んだセルの右下の ●（引っぱるとフィル）。Excel と同じ操作のときだけ */
+body.cg-excel .cell.active::after {
+  content: ''; position: absolute; right: 1px; bottom: 1px; width: 9px; height: 9px;
+  border-radius: 50%; background: var(--acc); box-shadow: 0 0 0 1.5px #fff; pointer-events: none;
+}
+body.cg-excel.fill-active .cell.active::after { display: none; }
 .cell-menu button:active { background: var(--cell-border); }
 /* フィル後の連番ボタン */
 .seq-btn {
@@ -3671,6 +3681,12 @@ body.dark {
       <button class="enterdir-btn on" data-dir="down" onclick="setEnterDir('down')">↓ 下へ</button>
       <button class="enterdir-btn" data-dir="right" onclick="setEnterDir('right')">→ 右へ</button>
     </div>
+    <div class="set-sec">セルの操作</div>
+    <div class="skin-seg" id="cellGestureSeg">
+      <button class="skin-seg-btn" data-cg="excel" onclick="setCellGesture('excel')">Excel と同じ</button>
+      <button class="skin-seg-btn" data-cg="old" onclick="setCellGesture('old')">以前の表電卓</button>
+    </div>
+    <div class="set-note"><b>Excel と同じ</b>：ダブルタップで<b>中身を直す</b>、長押しで<b>メニュー</b>（切り取り・コピー・貼り付け・行や列の挿入など）、選んだセルの右下の<b>●</b>を引っぱると<b>フィル</b>。<br><b>以前の表電卓</b>：ダブルタップで<b>コピー／貼り付け</b>、長押ししてから動かすと<b>フィル</b>、約1秒の長押しで<b>メニュー</b>。</div>
     <div class="set-sec">使いかた</div>
     <button class="set-act" id="setTourBtn" onclick="toggleSettings(); setTimeout(openTour, 320);">🚀 はじめての案内をもう一度見る</button>
     <button class="set-act" onclick="toggleSettings(); setTimeout(openHelp, 320);">📖 説明書を開く</button>
@@ -5595,11 +5611,15 @@ body.dark {
 <!-- セル長押しメニュー（貼り付け・コピー・保護・消去・書式） -->
 <div class="cellmenu-backdrop" id="cellMenuBackdrop" onclick="hideCellMenu()"></div>
 <div class="cell-menu" id="cellMenu">
-  <button onclick="cellMenuAct('paste')">📥 貼り付け</button>
+  <button onclick="cellMenuAct('cut')" class="cm-xl">✂ 切り取り</button>
   <button onclick="cellMenuAct('copy')">⧉ コピー</button>
-  <button onclick="cellMenuAct('lock')" id="cellMenuLock">🔒 保護</button>
+  <button onclick="cellMenuAct('paste')">📥 貼り付け</button>
+  <button onclick="cellMenuAct('edit')" class="cm-xl">✏ 編集</button>
   <button onclick="cellMenuAct('clear')">🧹 消去</button>
   <button onclick="cellMenuAct('fmt')">🎨 書式</button>
+  <button onclick="cellMenuAct('insrow')" class="cm-xl">➕ 行を挿入</button>
+  <button onclick="cellMenuAct('inscol')" class="cm-xl">➕ 列を挿入</button>
+  <button onclick="cellMenuAct('lock')" id="cellMenuLock">🔒 保護</button>
 </div>
 
 <!-- 🔎セルの検索・移動 -->
@@ -6803,6 +6823,62 @@ function clearCopySrc() {
   copySrcR=copySrcC=-1;
 }
 
+/* ── セルの操作のしかた（v413）──
+   'excel'（既定）：Excel と同じ。ダブルタップ＝中身を直す、長押し＝メニュー、
+                    選んだセルの右下の ● を引っぱる＝フィル、選んだセルからなぞる＝範囲選択。
+   'old'          ：以前の表電卓。ダブルタップ＝コピー／貼り付け、長押しして動かす＝フィル、
+                    約1秒の長押し＝メニュー。 */
+const CELL_GESTURE_KEY='excalc_cellgesture';
+let cellGesture='excel';
+try{ if(localStorage.getItem(CELL_GESTURE_KEY)==='old') cellGesture='old'; }catch(_){}
+function applyCellGesture(){
+  document.body.classList.toggle('cg-excel', cellGesture==='excel');
+  document.querySelectorAll('#cellGestureSeg [data-cg]').forEach(b=>b.classList.toggle('on', b.dataset.cg===cellGesture));
+}
+function setCellGesture(v){
+  cellGesture=(v==='old')?'old':'excel';
+  try{ if(cellGesture==='old') localStorage.setItem(CELL_GESTURE_KEY,'old'); else localStorage.removeItem(CELL_GESTURE_KEY); }catch(_){}
+  clearCopySrc(); clearCut();
+  applyCellGesture();
+  toast(cellGesture==='excel' ? 'セルの操作を Excel と同じにしました' : 'セルの操作を以前の表電卓にしました');
+}
+/* ダブルタップで中身を直す（Excel と同じ）。数式バーにいまの中身を入れて、続きから打てる */
+function editCellInBar(r,c){
+  if (typeof isDentaku==='function' && isDentaku()) return;
+  if (isLockedCell(r,c)) { flashLocked(r,c); toast('このセルは保護されています'); return; }
+  if (editBlocked()) return;
+  sel(r,c);
+  const fi=document.getElementById('formulaInput');
+  cellEditing=false; op1=null; cur_op=null; waiting=false;
+  const v=cellEditString(r,c);
+  fi.value=v;
+  formulaEditMode=String(v).startsWith('=');   // 数式なら、ほかのセルを押すとその番地が入る（Excel と同じ）
+  fi.classList.toggle('formula-mode', formulaEditMode);
+  fi.focus();
+  try { fi.setSelectionRange(fi.value.length, fi.value.length); } catch(e) {}
+  const btn=document.getElementById('textBtn'); if (btn && !formulaEditMode) btn.classList.add('text-on');
+}
+/* 切り取り（v413）：コピーして印を付け、貼り付けたら元を消す */
+let cutR=-1, cutC=-1;
+function clearCut(){
+  if (cutR>=0){ const el=document.getElementById(`c${cutR}_${cutC}`); if(el) el.classList.remove('copy-src'); }
+  cutR=cutC=-1;
+}
+function cutCell(){
+  if (isLockedCell(selR,selC)) { toast('このセルは保護されています'); return; }
+  clearCopySrc(); clearCut();
+  copyCell();
+  cutR=selR; cutC=selC;
+  const el=document.getElementById(`c${cutR}_${cutC}`); if(el) el.classList.add('copy-src');
+  toast('切り取りました。貼り付けたいセルを長押しして「貼り付け」');
+}
+/* 貼り付けのあとに呼ぶ。切り取り中なら元のセルを消す（同じセルに貼ったときは何もしない） */
+function finishCut(){
+  if (cutR<0) return;
+  const r=cutR, c=cutC; clearCut();
+  if (r===selR && c===selC) return;
+  if (!isLockedCell(r,c) && data[r][c]!=='') setCellVal(r,c,'');
+}
 /* 同じセルを素早く2回タップ（ダブルタップ）でコピー／貼付を起動 */
 let tapR=-1, tapC=-1, tapCount=0, tapTimer=null;
 function registerTap(r,c) {
@@ -6812,7 +6888,8 @@ function registerTap(r,c) {
   clearTimeout(tapTimer);
   if (tapCount>=2) {
     tapCount=0; tapR=tapC=-1;
-    doubleTapCopyPaste(r,c);
+    if (cellGesture==='excel') editCellInBar(r,c);   // v413：Excel と同じく、ダブルタップ＝中身を直す
+    else doubleTapCopyPaste(r,c);                     // 以前の表電卓：ダブルタップ＝コピー／貼り付け
     return;
   }
   tapTimer=setTimeout(()=>{ tapCount=0; tapR=tapC=-1; }, 450);
@@ -6859,7 +6936,11 @@ function hideCellMenu(){
 function cellMenuAct(a){
   hideCellMenu();
   if(a==='fmt'){ openCellFmt(); }
-  else if(a==='copy'){ copyCell(); if(typeof toast==='function') toast('コピーしました'); }
+  else if(a==='copy'){ clearCut(); copyCell(); if(typeof toast==='function') toast('コピーしました'); }
+  else if(a==='cut'){ cutCell(); }
+  else if(a==='edit'){ editCellInBar(selR,selC); }
+  else if(a==='insrow'){ insertRowAt(selR); }
+  else if(a==='inscol'){ insertColAt(selC); }
   else if(a==='paste'){ pasteCellSmart(); }
   else if(a==='clear'){ clearSelection(); }
   else if(a==='lock'){ toggleUserLock(selR,selC); }
@@ -6893,10 +6974,12 @@ async function pasteCellSmart(){
   }catch(_){ text=null; }   // 許可されなかった場合もここに来る
   if (text!=null && String(text).length){
     pasteText(String(text));
+    finishCut();
     return;
   }
   if (!clipData){ toast('貼り付けるものがありません（先にコピーしてください）'); return; }
   pasteCell();
+  finishCut();
   toast('貼り付けました');
 }
 /* 文字列を貼る。タブ＝右へ、改行＝下へ広げる（表計算からのコピーをそのまま受けられる） */
@@ -8465,6 +8548,12 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v413', t:'セルの操作を Excel と同じにしました', li:[
+    '<b>ダブルタップ</b>で、そのセルの<b>中身を直せます</b>（数式バーにいまの中身が入ります）',
+    '<b>長押し</b>で<b>メニュー</b>が出ます（✂切り取り・⧉コピー・📥貼り付け・✏編集・🧹消去・🎨書式・➕行／列を挿入・🔒保護）',
+    '選んだセルの<b>右下の ●</b> を引っぱると、下や横へ<b>コピー（フィル）</b>できます',
+    '前の操作（ダブルタップでコピー／貼り付け）がよければ、⚙設定 → 📐表 → <b>セルの操作</b> で「以前の表電卓」を選んでください',
+  ]},
   { v:'v412', t:'書式・枠線のテンキーを すみ 色に', li:[
     'テンキーの左の<b>書式・枠線のページ</b>の色を、ふだんから<b>すみ</b>（濃い青みの灰色）にしました',
     '白がよければ、⚙設定 → 🎨見た目 → 色と背景 → 書式・枠線のテンキーの色 で<b>白</b>を選んでください',
@@ -21181,7 +21270,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v412';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v413';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -21964,6 +22053,13 @@ let lpFromActive=false;   // 選択中(アクティブ)セルから押し始め�
 let rangeDragging=false;  // スライドで範囲選択中
 let lpFillTimer=null, lpMenuTimer=null;
 const LP_FILL_MS=550, LP_MENU_MS=1000, LP_MOVE_TOL=8;
+const LP_MENU_MS_XL=500;   // Excel と同じ操作のときの長押し（メニュー）の長さ（v413）
+/* 選んだセルの右下の ● （フィルの取っ手）の上か。指で押しやすいよう、見た目より広めにとる */
+function onFillHandle(r,c,x,y){
+  const td=document.getElementById(`c${r}_${c}`); if(!td) return false;
+  const b=td.getBoundingClientRect(), k=Math.min(26, b.width*0.45, b.height*0.7);
+  return x>=b.right-k && x<=b.right+6 && y>=b.bottom-k && y<=b.bottom+6;
+}
 function lpClearTimers(){ clearTimeout(lpFillTimer); clearTimeout(lpMenuTimer); lpFillTimer=lpMenuTimer=null; }
 function lpSetArmVisual(cls){
   const el=document.getElementById(`c${lpR}_${lpC}`);
@@ -21975,6 +22071,12 @@ function startCellPress(r,c,x,y){
   lpR=r; lpC=c; lpX=x; lpY=y; lpMoved=false; lpStage=0;
   lpFromActive=(r===selR && c===selC); rangeDragging=false;
   lpClearTimers();
+  if(cellGesture==='excel'){
+    // Excel と同じ：選んだセルの右下の ● から引っぱるとフィル。それ以外の長押しはメニュー
+    if(lpFromActive && onFillHandle(r,c,x,y)){ fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; return; }
+    lpMenuTimer=setTimeout(()=>{ lpMenuTimer=null; if(lpMoved) return; lpStage=2; lpSetArmVisual('setgs-arm'); if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} }, LP_MENU_MS_XL);
+    return;
+  }
   lpFillTimer=setTimeout(()=>{ lpFillTimer=null; if(!lpMoved){ fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; } }, LP_FILL_MS);
   lpMenuTimer=setTimeout(()=>{ lpMenuTimer=null; if(lpMoved) return; lpStage=2; lpSetArmVisual('setgs-arm'); if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} }, LP_MENU_MS);
 }
@@ -23262,6 +23364,7 @@ if(typeof bindDefaultSizeBtn==='function') bindDefaultSizeBtn(document.getElemen
   if(b) b.classList.toggle('on', digitHintOn);
   if(typeof updateDigitHint==='function') updateDigitHint(); })();   // 桁の表示を復元
 applySetGrp();       // 見た目の設定の組の開閉を復元（v411。既定はぜんぶ閉じる）
+applyCellGesture();  // セルの操作（Excel と同じ／以前の表電卓）を反映（v413）
 a11yInit();          // 読み上げ・キーボード操作の下ごしらえ（見た目は変えない）
 { const dd=document.getElementById('defDateFmt'); if(dd) dd.value=defaultDateFmt; }   // 日付の既定表示形式を復元
 saveDirty=false; updateRecordTitle();   // 起動直後は「📄 自動保存」（記録は開いていない）
