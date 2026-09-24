@@ -2990,6 +2990,34 @@ body.dark .help-acc > summary::after { color: var(--acc-on-dark); }
 .help-acc-body { padding: 8px 14px 14px; }
 /* 設定の「くわしい設定」。説明書のアコーディオンと同じ見た目を使い、中身の余白だけ詰める */
 /* 「くわしい設定」の中の、もう一段たたんだところ（テンキーの細かい設定） */
+/* 見た目の設定の組（v411）。見出しに中身を小さく並べ、押すと開く */
+.set-grp-lead { margin-bottom: 8px; }
+.set-grp { margin: 0 0 8px; border: 1px solid var(--save-item-border); border-radius: var(--r-btn); background: var(--cell-bg); overflow: hidden; }
+.set-grp > summary { display: flex; align-items: center; gap: 10px; padding: 11px 12px; cursor: pointer; list-style: none; }
+.set-grp > summary::-webkit-details-marker { display: none; }
+.set-grp > summary::after { content: '▸'; margin-left: auto; color: var(--text-light); transition: transform .15s; }
+.set-grp[open] > summary::after { transform: rotate(90deg); }
+.set-grp[open] > summary { border-bottom: 1px solid var(--save-item-border); background: rgba(0,0,0,.035); }
+.set-grp-ic { font-size: 22px; line-height: 1; flex: none; }
+.set-grp-t { display: flex; flex-direction: column; min-width: 0; }
+.set-grp-t b { font-size: 15px; }
+.set-grp-t small { font-size: 11px; color: var(--text-light); margin-top: 2px; line-height: 1.35; }
+.set-grp-body { padding: 2px 10px 10px; }
+.set-grp-body > .set-sec:first-child { margin-top: 8px; }
+/* 書式・枠線のテンキーの色（v411） */
+.fpc-prev { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px; padding: 1px; margin: 4px 0 8px;
+  background: var(--fp-bg, #d9dce0); border-radius: 6px; overflow: hidden; }
+.fpc-prev span { background: var(--fp-key, #fff); color: var(--fp-ink, #3b3b3b); text-align: center; padding: 8px 0; font: 15px Arial, sans-serif; }
+.fpc-prev span:first-child { font-weight: 900; }
+.fpc-prev span:last-child { background: var(--fp-on, #d2d2d2); font-size: 12px; }
+.fpc-presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
+.fpc-pre { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 2px; border: 2px solid; border-radius: 8px; cursor: pointer; font-family: inherit; }
+.fpc-pre b { font: 900 16px Arial, sans-serif; }
+.fpc-pre small { font-size: 10px; }
+.fpc-pre.on { box-shadow: 0 0 0 3px var(--acc); }
+#numpadPageFmt.fpc-custom .kf-head small { color: inherit; opacity: .7; }
+#numpadPageFmt.fpc-custom .kf-bucket { stroke: currentColor; }
+#numpadPageFmt.fpc-darkkey .btn.clr { color: #ff8a80; }
 .set-acc2 { margin: 6px 0 4px; border: 1px solid var(--save-item-border); border-radius: var(--r-btn); }
 .set-acc2 > summary { padding: 10px 12px; font-size: 14px; }
 .set-acc2 > summary small { display: block; font-weight: normal; font-size: 11px; color: var(--text-light); margin-top: 2px; }
@@ -3650,29 +3678,11 @@ body.dark {
   </div>
 
   <div class="set-page" id="setPage1">
-    <!-- よく使うものだけ出し、めったに触らないものは「くわしい設定」に畳む。
-         折りたたみは説明書と同じ <details> の作り（.help-acc と同居する .set-acc）。 -->
-    <div class="set-row">
-      <span class="set-label">セルの文字</span>
-      <span class="set-stepper"><button class="step-btn" onclick="changeCellSize(-1)">−</button><span class="sc-val" id="cellSize">120%</span><button class="step-btn" onclick="changeCellSize(1)">＋</button></span>
-    </div>
-    <div class="set-row">
-      <span class="set-label">画面の幅</span>
-      <span class="set-stepper"><button class="step-btn" onclick="changeAppWidth(-1)">−</button><span class="sc-val" id="appWidth">全幅</span><button class="step-btn" onclick="changeAppWidth(1)">＋</button></span>
-    </div>
-    <div class="set-row">
-      <span class="set-label">テンキーの大きさ</span>
-      <span class="set-stepper"><button class="step-btn" onclick="changeKeySize(-1)">−</button><span class="sc-val" id="keySize">大</span><button class="step-btn" onclick="changeKeySize(1)">＋</button></span>
-    </div>
-    <div class="set-sec">テンキーの置き場所<small style="font-weight:normal;margin-left:6px">パソコンなど横に広い画面向け</small></div>
-    <div class="set-note"><b>右</b>にすると、表の右にテンキーを縦に置きます。表が上から下まで見えるので、パソコンやタブレットの横向きに向いています。<b>自動</b>は横に広い画面のときだけ右に置きます。スマホの横向きは、いつも右です。<span id="npPlaceNow"></span></div>
-    <div class="skin-seg" id="npPlaceSeg"></div>
-    <div class="set-sec">画面の詰め方<small style="font-weight:normal;margin-left:6px">せまい画面で表示量を増やす</small></div>
-    <div class="set-note">iPhone SE のように<b>背の低い画面</b>だと、電卓の答えや履歴が入りきらないことがあります。<b>詰める</b>にすると文字と余白を少しずつ縮めて、<b>1画面に見える量を増やします</b>。<b>自動</b>は画面の大きさで決めます。<span id="compactNow"></span></div>
-    <div class="skin-seg" id="compactSeg"></div>
-    <div class="set-sec">電卓だけにする</div>
-    <div class="set-note">テンキーを<b>電卓のページから動かないように</b>します。<b>書式・枠線／数字／記号／登録</b>へは行かなくなり、フリックしても切り替わりません。かんたんな電卓として人に渡すときに使えます。<br><b>設定で選んだ道具（🌱野菜・💧単位水量など）は、そのまま開けます</b>（上のタブを押すか、電卓から左へフリック）。<br>表は使えなくなるので、<b>▦表へ</b>のキーは隠れます。ここをもう一度押せばいつでも戻せます。</div>
-    <button class="set-act" id="calcOnlyBtn" onclick="toggleCalcOnly()" title="テンキーを電卓のページに固定します">🧮 電卓だけにする</button>
+    <!-- v411：見た目・自分好みにする設定を、4つの畳める組にまとめた。開き閉めは組ごとに覚える（saveSetGrp） -->
+    <div class="set-note set-grp-lead">自分好みにする設定を<b>4つの組</b>にまとめています。押すと開きます。</div>
+    <details class="set-grp" id="setGrpColor" ontoggle="saveSetGrp(this)">
+      <summary><span class="set-grp-ic">🎨</span><span class="set-grp-t"><b>色と背景</b><small>着せかえの色・キーの色・背景・写真・書式・枠線のテンキーの色</small></span></summary>
+      <div class="set-grp-body">
     <div class="set-sec">色と背景（着せかえ）</div>
     <div class="set-note">スマホのキーボードのように、<b>色</b>と<b>背景</b>を自分好みに変えられます。選んだらすぐに変わります。<b>🌙ナイトモード</b>とは別なので、夜モードのままでも色は変えられます。</div>
     <div class="skin-sw" id="skinSw"></div>
@@ -3692,16 +3702,31 @@ body.dark {
     <button class="set-act" id="skinPhotoDel" onclick="skinDropPhoto()" style="display:none" title="背景にした写真を消します">🗑 背景の写真を消す</button>
     <button class="set-act" onclick="resetSkin()" title="色・背景をはじめの緑に戻します">↩ もとの色に戻す</button>
     <input type="file" id="skinPhotoInput" accept="image/*" style="display:none" onchange="skinPhotoChange(event)">
-    <div class="set-sec">はじめに開くページ</div>
+    <div class="set-sec">書式・枠線のテンキーの色<small style="font-weight:normal;margin-left:6px">テンキーの左のページ</small></div>
+    <div class="set-note">罫線や <b>B・I・U</b> の並ぶページの色です。<b>組み合わせ</b>から選ぶか、下で1つずつ変えられます。<b>元</b>はふだんの白（夜は少し暗い灰色）です。</div>
+    <div class="fpc-prev" id="fpcPrev" aria-hidden="true"><span>B</span><span><i>I</i></span><span><u>U</u></span><span>≡</span><span>結合</span><span>設定</span></div>
+    <div class="fpc-presets" id="fpcPresets"></div>
+    <div class="tbc-box" id="fpcBox"></div>
+    <button class="set-act" onclick="fpcReset()" title="書式・枠線のテンキーの色をもとの白に戻します">↩ 書式・枠線のテンキーの色を元に戻す</button>
+    <button class="set-act" onclick="fpcShow()" title="設定を閉じて、書式・枠線のページを出します">👀 テンキーで見る</button>
+      </div>
+    </details>
+    <details class="set-grp" id="setGrpSize" ontoggle="saveSetGrp(this)">
+      <summary><span class="set-grp-ic">🔠</span><span class="set-grp-t"><b>文字と大きさ</b><small>セルの文字・画面の幅・テンキーの大きさ・小計や上のバーの文字・数字キー・余白</small></span></summary>
+      <div class="set-grp-body">
     <div class="set-row">
-      <span class="set-label">アプリを開いたとき<small>次に開いたときから効きます</small></span>
-      <select class="fmt-select" id="startPageSel" onchange="setStartPage(this.value)" style="flex-shrink:0"></select>
+      <span class="set-label">セルの文字</span>
+      <span class="set-stepper"><button class="step-btn" onclick="changeCellSize(-1)">−</button><span class="sc-val" id="cellSize">120%</span><button class="step-btn" onclick="changeCellSize(1)">＋</button></span>
     </div>
-    <div class="set-note">🌙<b>ナイトモード</b>・🗂<b>シートのタブ</b>・▦<b>既定の大きさ</b>・書き出し／読み込みは、上のバーの <b>⋯</b> にまとめてあります（よく使うものは下の「上のバーに出すボタン」で出しておけます）。</div>
-    <details class="help-acc set-acc" id="setDetailAcc" ontoggle="saveSetDetail(this)">
-      <summary>くわしい設定</summary>
-      <div class="help-acc-body set-acc-body">
-        <div class="set-sec">文字の大きさ</div>
+    <div class="set-row">
+      <span class="set-label">画面の幅</span>
+      <span class="set-stepper"><button class="step-btn" onclick="changeAppWidth(-1)">−</button><span class="sc-val" id="appWidth">全幅</span><button class="step-btn" onclick="changeAppWidth(1)">＋</button></span>
+    </div>
+    <div class="set-row">
+      <span class="set-label">テンキーの大きさ</span>
+      <span class="set-stepper"><button class="step-btn" onclick="changeKeySize(-1)">−</button><span class="sc-val" id="keySize">大</span><button class="step-btn" onclick="changeKeySize(1)">＋</button></span>
+    </div>
+    <div class="set-sec">文字の大きさ</div>
     <div class="set-row">
       <span class="set-label">小計の文字</span>
       <span class="set-stepper"><button class="step-btn" onclick="changeInfoSize(-1)">−</button><span class="sc-val" id="infoSize">標準</span><button class="step-btn" onclick="changeInfoSize(1)">＋</button></span>
@@ -3710,9 +3735,7 @@ body.dark {
       <span class="set-label">上のバー<small>セル番号・入力欄</small></span>
       <span class="set-stepper"><button class="step-btn" onclick="changeFormulaSize(-1)">−</button><span class="sc-val" id="formulaSize">標準</span><button class="step-btn" onclick="changeFormulaSize(1)">＋</button></span>
     </div>
-    <details class="help-acc set-acc set-acc2" id="setKeypadAcc" ontoggle="saveSetKeypadAcc(this)">
-      <summary>テンキーを自分好みにする<small>ふだんは触らなくて大丈夫です</small></summary>
-      <div class="help-acc-body set-acc-body">
+    <div class="set-sec">テンキーの大きさ・余白</div>
     <div class="set-row">
       <span class="set-label" title="標準テンキーの 0〜9 のキーだけを大きくします">数字キーの大きさ<small>0〜9のキーだけ</small></span>
       <span class="set-stepper"><button class="step-btn" onclick="changeNumSize(-1)">−</button><span class="sc-val" id="numSize">標準</span><button class="step-btn" onclick="changeNumSize(1)">＋</button></span>
@@ -3721,6 +3744,18 @@ body.dark {
       <span class="set-label">テンキーの上下の余白<small>下の隙間・上のスペース</small></span>
       <span class="set-stepper"><button class="step-btn" onclick="changeNpad(-1)">−</button><span class="sc-val" id="npadSize">標準</span><button class="step-btn" onclick="changeNpad(1)">＋</button></span>
     </div>
+      </div>
+    </details>
+    <details class="set-grp" id="setGrpKeys" ontoggle="saveSetGrp(this)">
+      <summary><span class="set-grp-ic">⌨</span><span class="set-grp-t"><b>テンキー</b><small>置き場所・電卓だけ・ページの表示・記号・調整バー・ボタンの配置・上に出す道具</small></span></summary>
+      <div class="set-grp-body">
+    <div class="set-sec">テンキーの置き場所<small style="font-weight:normal;margin-left:6px">パソコンなど横に広い画面向け</small></div>
+    <div class="set-note"><b>右</b>にすると、表の右にテンキーを縦に置きます。表が上から下まで見えるので、パソコンやタブレットの横向きに向いています。<b>自動</b>は横に広い画面のときだけ右に置きます。スマホの横向きは、いつも右です。<span id="npPlaceNow"></span></div>
+    <div class="skin-seg" id="npPlaceSeg"></div>
+    <div class="set-sec">電卓だけにする</div>
+    <div class="set-note">テンキーを<b>電卓のページから動かないように</b>します。<b>書式・枠線／数字／記号／登録</b>へは行かなくなり、フリックしても切り替わりません。かんたんな電卓として人に渡すときに使えます。<br><b>設定で選んだ道具（🌱野菜・💧単位水量など）は、そのまま開けます</b>（上のタブを押すか、電卓から左へフリック）。<br>表は使えなくなるので、<b>▦表へ</b>のキーは隠れます。ここをもう一度押せばいつでも戻せます。</div>
+    <button class="set-act" id="calcOnlyBtn" onclick="toggleCalcOnly()" title="テンキーを電卓のページに固定します">🧮 電卓だけにする</button>
+    <div class="set-sec">テンキーのページと部品</div>
     <button class="set-act" id="pageBarBtn" onclick="togglePageBar()" title="テンキーの上に出る「枠線・書式・数字・記号・関数／登録」のページ表示。タップでそのページへ移動できます">テンキーのページ表示</button>
     <button class="set-act" id="funcPageBtn" onclick="toggleFuncPage()" title="記号・関数のページを出すかどうか。数字キーの少し長押し→フリックでも記号は入れられます">記号ページを出す</button>
     <button class="set-act" onclick="openFlickSym()" title="数字キーを少し長押しして出る記号を、好きなものに変えられます">⌨ フリックで入れる記号</button>
@@ -3730,8 +3765,14 @@ body.dark {
       <span class="set-stepper"><button class="step-btn" onclick="changeBarSize(-1)">−</button><span class="sc-val" id="barSize">標準</span><button class="step-btn" onclick="changeBarSize(1)">＋</button></span>
     </div>
     <button class="set-act" id="keypadEditBtn" onclick="toggleKeypadEdit()" title="テンキーのボタンをドラッグして好きな位置に入れ替えます（同じ大きさのボタン同士）">テンキーのボタン配置を編集</button>
+    <div class="set-sec">テンキーの上に出す道具</div>
+    <div class="set-note">全画面で開く<b>道具</b>を、テンキーの上の<b>ページ名の並び</b>（書式・枠線／数字／記号／電卓）に足せます。<b>タップで開きます</b>。<b>電卓ページからさらに左へフリック</b>すると、いちばん上に並べた道具が開きます。<b>↑↓</b>で並び順を変えられます。</div>
+    <div class="nptool-list" id="npToolList"></div>
       </div>
     </details>
+    <details class="set-grp" id="setGrpScreen" ontoggle="saveSetGrp(this)">
+      <summary><span class="set-grp-ic">📱</span><span class="set-grp-t"><b>画面と上のバー</b><small>上のバーのボタン・はじめに開くページ・画面の詰め方</small></span></summary>
+      <div class="set-grp-body">
     <div class="set-sec">上のバーに出すボタン</div>
     <div class="set-note">上のバーはふだん <b>記録名・保存・↶戻る・⋯</b> の4つです。<b>⋯</b>の中は、よく使うもの（<b>↷進む・📋リスト・⚙設定・🎤声</b>と<b>切り替える</b>）をすぐ見えるところに置き、たまにしか使わない<b>📤書き出す・読み込む</b>と<b>🛠そのほか</b>（シート・既定の大きさ・ナイトモード・説明書）は<b>畳んで</b>あります（v375から。開け閉めは覚えます）。よく使うものは、ここで選んで<b>上のバーに出しておけます</b>（どれも <b>⋯</b> の中にも入っています）。出しすぎるとバーが狭くなるので、必要なものだけどうぞ。</div>
     <div class="topbtn-grid" id="topBtnToggles">
@@ -3743,9 +3784,15 @@ body.dark {
       <button class="topbtn-toggle" data-btn="numpad"  onclick="toggleTopBtn('numpad')">⌨ テンキー</button>
       <button class="topbtn-toggle" data-btn="reset"   onclick="toggleTopBtn('reset')">🧹 リセット</button>
     </div>
-    <div class="set-sec">テンキーの上に出す道具</div>
-    <div class="set-note">全画面で開く<b>道具</b>を、テンキーの上の<b>ページ名の並び</b>（書式・枠線／数字／記号／電卓）に足せます。<b>タップで開きます</b>。<b>電卓ページからさらに左へフリック</b>すると、いちばん上に並べた道具が開きます。<b>↑↓</b>で並び順を変えられます。</div>
-    <div class="nptool-list" id="npToolList"></div>
+    <div class="set-sec">はじめに開くページ</div>
+    <div class="set-row">
+      <span class="set-label">アプリを開いたとき<small>次に開いたときから効きます</small></span>
+      <select class="fmt-select" id="startPageSel" onchange="setStartPage(this.value)" style="flex-shrink:0"></select>
+    </div>
+    <div class="set-sec">画面の詰め方<small style="font-weight:normal;margin-left:6px">せまい画面で表示量を増やす</small></div>
+    <div class="set-note">iPhone SE のように<b>背の低い画面</b>だと、電卓の答えや履歴が入りきらないことがあります。<b>詰める</b>にすると文字と余白を少しずつ縮めて、<b>1画面に見える量を増やします</b>。<b>自動</b>は画面の大きさで決めます。<span id="compactNow"></span></div>
+    <div class="skin-seg" id="compactSeg"></div>
+    <div class="set-note">🌙<b>ナイトモード</b>・🗂<b>シートのタブ</b>・▦<b>既定の大きさ</b>・書き出し／読み込みは、上のバーの <b>⋯</b> にまとめてあります（よく使うものは下の「上のバーに出すボタン」で出しておけます）。</div>
       </div>
     </details>
   </div>
@@ -8087,7 +8134,117 @@ function applySkin(){
   const mt=document.querySelector('meta[name="theme-color"]');
   if(mt) mt.setAttribute('content',th.a);
   refreshSkinUI();
+  applyFmtCol();   // 書式・枠線のテンキーの色も、夜/昼に合わせて組み直す（v411）
 }
+/* ── 書式・枠線のテンキーの色（v411）──
+   テンキーの左のページ（#numpadPageFmt）の地・文字・区切り線の色を選べる。
+   ボタンの地・文字・区切り線の3つを覚え、なぞったとき・選ばれているときの色はそこから作る。
+   空のものは「元」：地はふだんの白（夜は少し暗い灰色）、文字は地の明るさから黒か白、区切り線は地と文字の間。 */
+const FPC_KEY='excalc_fmtcol', FPC_RE=/^#[0-9a-f]{6}$/i;   // 当番表の TB_COL_RE は後ろで決まるので、自前で持つ
+const FPC_PARTS=[
+  { k:'key',  n:'ボタンの地',       hint:'' },
+  { k:'ink',  n:'文字・アイコン',   hint:'元＝地の色に合わせて黒か白' },
+  { k:'line', n:'区切り線',         hint:'元＝地と文字の間の色' },
+];
+const FPC_PRESETS=[
+  { id:'def',   n:'元（白）',  key:'',        ink:'',        line:'' },
+  { id:'gray',  n:'うす灰',    key:'#eceff1', ink:'',        line:'#c9ced3' },
+  { id:'cream', n:'クリーム',  key:'#fff8e1', ink:'#5d4037', line:'#e6d6a8' },
+  { id:'sky',   n:'水色',      key:'#e3f2fd', ink:'#0d47a1', line:'#b3cde8' },
+  { id:'mint',  n:'ミント',    key:'#e8f5e9', ink:'#1b5e20', line:'#b9d8bb' },
+  { id:'sakura',n:'さくら',    key:'#fce4ec', ink:'#880e4f', line:'#eab8c9' },
+  { id:'slate', n:'すみ',      key:'#37474f', ink:'#eceff1', line:'#263238' },
+  { id:'black', n:'くろ',      key:'#1f1f1f', ink:'#f1f1f1', line:'#000000' },
+];
+const FPC_SWATCH=['#ffffff','#f5f5f5','#eceff1','#fff8e1','#fff59d','#ffe0b2','#fce4ec','#f3e5f5',
+                  '#e3f2fd','#e0f7fa','#e8f5e9','#37474f','#1f1f1f','#3b3b3b','#0d47a1','#1b5e20','#880e4f','#b71c1c'];
+let fmtCol={ key:'', ink:'', line:'' };
+function loadFmtCol(){
+  fmtCol={ key:'', ink:'', line:'' };
+  try{
+    const o=JSON.parse(localStorage.getItem(FPC_KEY)||'null');
+    if(o && typeof o==='object') FPC_PARTS.forEach(p=>{ const v=o[p.k]; if(typeof v==='string' && FPC_RE.test(v)) fmtCol[p.k]=v.toLowerCase(); });
+  }catch(_){}
+}
+function saveFmtCol(){
+  try{
+    if(FPC_PARTS.some(p=>fmtCol[p.k])) localStorage.setItem(FPC_KEY, JSON.stringify(fmtCol));
+    else localStorage.removeItem(FPC_KEY);
+  }catch(_){ toast('色の設定を覚えられませんでした。端末の空きを確かめてください'); }
+}
+/* いまの設定から、実際に使う5つの色を出す（夜かどうかで「元」の地が変わる） */
+function fmtColResolved(){
+  const dark=document.body && document.body.classList.contains('dark');
+  const key=fmtCol.key || (dark?'#d6d9dd':'#ffffff');
+  const ink=fmtCol.ink || (skinLum(key)>0.35 ? (dark?'#1f2328':'#3b3b3b') : '#f1f3f5');
+  const lightKey=skinLum(key)>0.35;
+  const line=fmtCol.line || (fmtCol.key||fmtCol.ink ? skinMix(key, ink, .22) : (dark?'#1e2227':'#d9dce0'));
+  return { key, ink, line, hover:skinMix(key, ink, lightKey?.05:.1), on:skinMix(key, ink, lightKey?.18:.28) };
+}
+function applyFmtCol(){
+  const pg=document.getElementById('numpadPageFmt');
+  const custom=FPC_PARTS.some(p=>fmtCol[p.k]);
+  /* ページの style はめくる処理が書きかえるので、色は専用の <style> に書く（夜の指定より強い形で） */
+  let tag=document.getElementById('fpcStyle');
+  if(!tag){ tag=document.createElement('style'); tag.id='fpcStyle'; document.head.appendChild(tag); }
+  if(custom){
+    const c=fmtColResolved();
+    tag.textContent='html body #numpadPageFmt.fpc-custom{--fp-key:'+c.key+';--fp-ink:'+c.ink+';--fp-bg:'+c.line+';--fp-hover:'+c.hover+';--fp-on:'+c.on+'}';
+  }else tag.textContent='';
+  if(pg){
+    pg.classList.toggle('fpc-custom', custom);
+    pg.classList.toggle('fpc-darkkey', custom && skinLum(fmtColResolved().key)<=0.35);
+  }
+  renderFmtColUI();
+}
+function renderFmtColUI(){
+  const c=fmtColResolved();
+  const pv=document.getElementById('fpcPrev');
+  if(pv){ pv.style.setProperty('--fp-key',c.key); pv.style.setProperty('--fp-ink',c.ink); pv.style.setProperty('--fp-bg',c.line); pv.style.setProperty('--fp-on',c.on); }
+  const pr=document.getElementById('fpcPresets');
+  if(pr){
+    pr.innerHTML=FPC_PRESETS.map(p=>{
+      const on=FPC_PARTS.every(x=>(fmtCol[x.k]||'')===(p[x.k]||''));
+      const k=p.key||'#ffffff', i=p.ink||(skinLum(k)>0.35?'#3b3b3b':'#f1f3f5'), l=p.line||'#d9dce0';
+      return '<button class="fpc-pre'+(on?' on':'')+'" data-pre="'+p.id+'" onclick="fpcPreset(\''+p.id+'\')" style="background:'+k+';color:'+i+';border-color:'+l+'">'+
+        '<b>B</b><small>'+p.n+'</small></button>';
+    }).join('');
+  }
+  const box=document.getElementById('fpcBox'); if(!box) return;
+  box.innerHTML=FPC_PARTS.map(p=>{
+    const v=fmtCol[p.k];
+    return '<div class="tbc-row" data-fpc="'+p.k+'"><div class="tbc-top">'+
+      '<span class="tbc-now'+(v?'':' def')+'"'+(v?' style="background:'+v+'"':'')+'></span>'+
+      '<b>'+p.n+'</b><small>'+(v?v:'元')+(p.hint?'　'+p.hint:'')+'</small></div>'+
+      '<div class="tbc-sw">'+
+      '<button class="tbc-def'+(v?'':' on')+'" onclick="fpcSet(\''+p.k+'\',\'\')" title="元の色" aria-label="'+p.n+'を元の色に">元</button>'+
+      FPC_SWATCH.map(h=>'<button class="'+(v===h?'on':'')+'" style="background:'+h+'" onclick="fpcSet(\''+p.k+'\',\''+h+'\')" aria-label="'+p.n+'を'+h+'に"></button>').join('')+
+      '<label title="ほかの色をえらぶ" aria-label="'+p.n+'をほかの色に">🎨<input type="color" value="'+(v||c[p.k])+'" onchange="fpcSet(\''+p.k+'\',this.value)"></label>'+
+      '</div></div>';
+  }).join('');
+}
+function fpcSet(k, v){
+  if(!FPC_PARTS.some(p=>p.k===k)) return;
+  v=String(v||'').toLowerCase();
+  fmtCol[k]=FPC_RE.test(v)?v:'';
+  saveFmtCol(); applyFmtCol();
+}
+function fpcPreset(id){
+  const p=FPC_PRESETS.find(x=>x.id===id); if(!p) return;
+  FPC_PARTS.forEach(x=>{ fmtCol[x.k]=p[x.k]||''; });
+  saveFmtCol(); applyFmtCol();
+}
+function fpcReset(){
+  if(!FPC_PARTS.some(p=>fmtCol[p.k])){ toast('元の色のままです'); return; }
+  FPC_PARTS.forEach(p=>{ fmtCol[p.k]=''; });
+  saveFmtCol(); applyFmtCol(); toast('書式・枠線のテンキーの色を元に戻しました');
+}
+/* 設定を閉じて、書式・枠線のページを出す（色を見て確かめる用） */
+function fpcShow(){
+  toggleSettings();
+  setTimeout(()=>{ try{ if(typeof calcOnly!=='undefined' && calcOnly){ toast('「電卓だけにする」のあいだは書式・枠線のページに行けません'); return; } numpadPager.go('fmt'); }catch(_){} }, 320);
+}
+loadFmtCol();
 function saveSkin(){
   try{ localStorage.setItem(SKIN_KEY, JSON.stringify({t:skinTheme,k:skinKeyTone,b:skinBg,s:skinStr,w:skinWhere})); }
   catch(_){ toast('色の設定を覚えられませんでした。端末の空きを確かめてください'); }
@@ -8308,6 +8465,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v411', t:'書式・枠線のテンキーの色を選べるように・見た目の設定をまとめました', li:[
+    '⚙設定 → 🎨見た目 → <b>色と背景</b>で、<b>書式・枠線のテンキーの色</b>（ボタンの地・文字とアイコン・区切り線）を選べるようにしました。<b>クリーム・水色・すみ・くろ</b>などの組み合わせからも選べます',
+    '🎨見た目のタブを、<b>色と背景／文字と大きさ／テンキー／画面と上のバー</b>の4つの組にまとめました。押すと開き、開いた組は次も開いたままです',
+  ]},
   { v:'v410', t:'2重線のボタンの絵を見やすく', li:[
     '2重線を選んだとき、上・下・左・右の罫線ボタンの線を、端を閉じない<b>2本の平行線</b>にしました',
   ]},
@@ -20875,6 +21036,15 @@ function applySetKeypadAcc(){
   const el=document.getElementById('setKeypadAcc'); if(!el) return;
   el.open = localStorage.getItem('excalc_set_keypad')==='1';
 }
+/* 見た目の設定の組（v411）の開閉を、組ごとに覚える */
+const SET_GRP_KEY='excalc_set_grp';
+function saveSetGrp(el){
+  try{ const o=JSON.parse(localStorage.getItem(SET_GRP_KEY)||'{}')||{}; o[el.id]=el.open?1:0; localStorage.setItem(SET_GRP_KEY, JSON.stringify(o)); }catch(_){}
+}
+function applySetGrp(){
+  let o={}; try{ o=JSON.parse(localStorage.getItem(SET_GRP_KEY)||'{}')||{}; }catch(_){}
+  document.querySelectorAll('#setPage1 .set-grp').forEach(d=>{ d.open=o[d.id]===1; });
+}
 function applySetDetail(){
   const el=document.getElementById('setDetailAcc'); if(!el) return;
   el.open = localStorage.getItem('excalc_set_detail')==='1';
@@ -20918,7 +21088,8 @@ function setFindIndex(){
     page.querySelectorAll('.set-sec, .set-note, .set-row, .set-act, .topbtn-toggle, .skin-seg, .enterdir-seg, summary').forEach(el=>{
       const t=el.textContent.replace(/\s+/g,' ').trim(); if(!t) return;
       if(el.classList.contains('set-sec') || el.tagName==='SUMMARY'){
-        flush(); sec=(el.firstChild && el.firstChild.nodeType===3 ? el.firstChild.textContent : t).trim(); secEl=el; secText=t; return;
+        const gb=el.querySelector('.set-grp-t b');   // 見た目の組の見出しは、太字の名前だけを見出しにする
+        flush(); sec=(gb ? gb.textContent : (el.firstChild && el.firstChild.nodeType===3 ? el.firstChild.textContent : t)).trim(); secEl=el; secText=t; return;
       }
       secText+=' '+t;
       // 説明の文と、自動／下／右 のような選択肢の並びは、見出しの中身として探すだけにする
@@ -21006,7 +21177,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v410';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v411';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -23086,8 +23257,7 @@ if(typeof bindDefaultSizeBtn==='function') bindDefaultSizeBtn(document.getElemen
 (function(){ const b=document.getElementById('digitHintBtn');
   if(b) b.classList.toggle('on', digitHintOn);
   if(typeof updateDigitHint==='function') updateDigitHint(); })();   // 桁の表示を復元
-applySetDetail();    // 「くわしい設定」の開閉を復元
-applySetKeypadAcc(); // その中の「テンキーを自分好みにする」の開閉を復元（既定は閉じたまま）
+applySetGrp();       // 見た目の設定の組の開閉を復元（v411。既定はぜんぶ閉じる）
 a11yInit();          // 読み上げ・キーボード操作の下ごしらえ（見た目は変えない）
 { const dd=document.getElementById('defDateFmt'); if(dd) dd.value=defaultDateFmt; }   // 日付の既定表示形式を復元
 saveDirty=false; updateRecordTitle();   // 起動直後は「📄 自動保存」（記録は開いていない）
