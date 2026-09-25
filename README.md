@@ -32,6 +32,7 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 | `icon-*.png` / `apple-touch-icon.png` / `ogp.png` | アイコンと、リンクを送ったときのカード画像 |
 | `shot-*.png` | ホーム画面に追加するときに出る見本の画面 |
 | `kaikei/` | 会計アプリ（スマホ版）。口座ごとの記帳と振替、Excel・CSVでパソコン版とやりとり → [kaikei/README.md](kaikei/README.md) |
+| `koe/` | 🎙声の計算帳。話しかけて計算する別のアプリ（会話でつなげる計算・足し上げ・予算・割り勘・家計簿・時間と日付・暗算の練習） → [koe/README.md](koe/README.md) |
 | `tests/` | 固定テスト（配布物には入れません） |
 | `notes/` | メモ（手元だけに保存） |
 
@@ -42,7 +43,7 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 
 GitHub Pages の公開（Actions の「pages build and deployment」）が `Failed to get ID Token … Request timeout` で失敗したときは、GitHub 側の一時的な通信の不具合です。その実行を「Re-run jobs」でやり直すか、main に次の変更を入れれば公開し直されます。
 
-`kaikei/` `notes/` は、それぞれ1つのアプリとして独立しています。フォルダごと置けばそのまま動きます。
+`kaikei/` `koe/` `notes/` は、それぞれ1つのアプリとして独立しています。フォルダごと置けばそのまま動きます。
 
 版を上げるときは、`index.html` の `APP_VERSION` と `service-worker.js` の `CACHE` を**必ずそろえて**ください。ずれていると、古い版がいつまでも残ります。
 
