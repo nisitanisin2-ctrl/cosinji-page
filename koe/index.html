@@ -229,6 +229,10 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
     <div id="varList"></div>
     <div class="sec">記録</div>
     <button class="act danger" onclick="clearLog()">🗑 会話の記録と計算を消す</button>
+    <div class="sec">バックアップ</div>
+    <div class="note">家計簿・名前を付けた数・設定・会話・うまくいかなかった言葉を、1つのファイルに書き出します。機種を変えるときは、新しい端末で読み込んでください。表電卓の 📋リスト → ⬇書き出し にも入ります。</div>
+    <div class="miss-btns"><button class="act" onclick="koeExport()">⬇ 書き出す</button><button class="act" onclick="$('koeImportFile').click()">⬆ 読み込む</button></div>
+    <input type="file" id="koeImportFile" accept=".json,application/json" hidden onchange="koeImport(event)">
     <div class="sec">うまくいかなかった言葉<small id="missCount"></small></div>
     <div class="note">計算できなかった言葉・分からない言葉があった言い方を、この端末の中に残しています。コピーして伝えてもらえれば、言えるように直す手がかりになります。</div>
     <div id="missList"></div>
@@ -290,7 +294,7 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
    ・足し上げ／予算／練習のときは、言葉の受け取り方が変わる（state.mode）
    ・入れたものは この端末の中だけ（localStorage の koe_*）に残る
    ════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v12';
+const APP_VERSION='v13';
 const LS_STATE='koe_state', LS_VARS='koe_vars', LS_SET='koe_settings', LS_BOOK='koe_book';
 
 /* ── 設定 ── */
@@ -1632,6 +1636,35 @@ function copyMisses(){
   const t=missText(); if(!t){ toast('うまくいかなかった言葉はありません'); return; }
   const done=()=>toast('コピーしました（'+loadMisses().length+'件）');
   try{ navigator.clipboard.writeText(t).then(done, ()=>{ prompt('コピーしてください', t); }); }catch(_){ prompt('コピーしてください', t); }
+}
+/* バックアップ（v13）：koe_* をまとめて書き出す／読み込む。表電卓の書き出しファイルも読める */
+const KOE_KEYS=['koe_book','koe_vars','koe_settings','koe_state','koe_misses'];
+function koeExport(){
+  saveState(); saveBook(); saveVars(); saveSettings();
+  const data={}; KOE_KEYS.forEach(k=>{ try{ const v=localStorage.getItem(k); if(v!=null) data[k]=v; }catch(_){} });
+  const blob=new Blob([JSON.stringify({app:'koe', type:'koe', version:1, exportedAt:Date.now(), data})],{type:'application/json;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=Object.assign(document.createElement('a'),{href:url, download:'声の計算帳_'+isoDay(today())+'.json'});
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  toast('書き出しました（家計簿 '+book.length+'件）');
+}
+function koeImport(ev){
+  const file=ev.target.files && ev.target.files[0]; ev.target.value='';
+  if(!file) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    let p; try{ p=JSON.parse(rd.result); }catch(_){ toast('ファイルを読めませんでした'); return; }
+    const d=p && (p.type==='koe' ? p.data : p.koe);
+    if(!d || typeof d!=='object'){ toast('声の計算帳のデータが入っていません'); return; }
+    let nb=0; try{ nb=(JSON.parse(d.koe_book||'[]')||[]).length; }catch(_){}
+    if(!confirm('家計簿 '+nb+'件などを読み込みます。いまのデータは置きかわります。よろしいですか？')) return;
+    let n=0;
+    KOE_KEYS.forEach(k=>{ const v=d[k]; if(typeof v!=='string' || v.length>3000000) return; try{ JSON.parse(v); localStorage.setItem(k, v); n++; }catch(_){} });
+    if(!n){ toast('読み込めるデータがありませんでした'); return; }
+    toast('読み込みました。開き直します');
+    setTimeout(()=>location.reload(), 600);
+  };
+  rd.readAsText(file);
 }
 function clearMisses(){ if(!loadMisses().length) return; if(!confirm('うまくいかなかった言葉の一覧を消しますか？')) return; try{ localStorage.removeItem(LS_MISS); }catch(_){} renderMisses(); toast('消しました'); }
 function toggleSet(k){

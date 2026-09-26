@@ -6952,6 +6952,48 @@ async function runKoeListen(browser, ua) {
   if (errs.length) console.log('    ', errs);
   await ctx.close();
 }
+/* v425 / 声の計算帳 v13：声の計算帳のデータもバックアップに入れる */
+async function runKoeBackup(browser) {
+  const ctx = await browser.newContext({ acceptDownloads: true });
+  const page = await ctx.newPage();
+  const errs = []; page.on('pageerror', e => errs.push(e.message)); page.on('dialog', d => d.accept());
+  console.log('\n── 🎙声の計算帳のバックアップ（v425・koe v13） ──');
+  await page.goto('file://' + path.join(ROOT, 'index.html')); await page.waitForTimeout(800);
+  const BOOK = JSON.stringify([{ id: 1, d: '2026-09-25', amt: 3280, cat: '食費', memo: 'スーパー' }, { id: 2, d: '2026-09-25', amt: 1800, cat: '交通費', memo: 'タクシー' }]);
+  await page.evaluate(BOOK => { localStorage.setItem('koe_book', BOOK); localStorage.setItem('koe_vars', JSON.stringify({ 単価: { v: 2800, u: '' } }));
+    localStorage.setItem('koe_settings', JSON.stringify({ wait: 'long' })); localStorage.setItem('koe_misses', JSON.stringify([{ q: 'こんにちは', k: 'ng', t: 1 }])); }, BOOK);
+  // 表電卓の書き出しに入る
+  const dl = await Promise.all([page.waitForEvent('download', { timeout: 9000 }), page.evaluate(() => { window.appConfirm = async () => true; return exportSaves(); })]).then(a => a[0]).catch(() => null);
+  let payload = null;
+  if (dl) { const fp = await dl.path(); payload = JSON.parse(fs.readFileSync(fp, 'utf8')); }
+  check('  表電卓の書き出しに声の計算帳が入る', payload && payload.koe ? Object.keys(payload.koe).sort().join(',') : 'なし', 'koe_book,koe_misses,koe_settings,koe_vars');
+  // 消してから読み込むと戻る（聞かれて「はい」）
+  const back = await page.evaluate(async p => {
+    ['koe_book', 'koe_vars', 'koe_settings', 'koe_misses'].forEach(k => localStorage.removeItem(k));
+    let asked = ''; window.appConfirm = async m => { asked += m.slice(0, 12) + '|'; return /声の計算帳/.test(m); }; window.alert = () => {};
+    importSaves({ target: { files: [new File([JSON.stringify(p)], 'b.json')], value: '' } });
+    await new Promise(r => setTimeout(r, 800));
+    return (JSON.parse(localStorage.getItem('koe_book') || '[]').length) + '/' + JSON.parse(localStorage.getItem('koe_settings') || '{}').wait + '/' + /声の計算帳/.test(asked); }, payload);
+  check('  読み込むと聞いてから戻す', back, '2/long/true');
+  // 声の計算帳だけの書き出しファイルも、表電卓で読める
+  const only = await page.evaluate(async () => {
+    localStorage.removeItem('koe_book'); window.appConfirm = async () => true; window.alert = () => {};
+    const f = { app: 'koe', type: 'koe', version: 1, data: { koe_book: JSON.stringify([{ id: 9, d: '2026-09-01', amt: 500, cat: '雑費', memo: '' }]) } };
+    importSaves({ target: { files: [new File([JSON.stringify(f)], 'k.json')], value: '' } });
+    await new Promise(r => setTimeout(r, 600)); return JSON.parse(localStorage.getItem('koe_book') || '[]').length; });
+  check('  声の計算帳だけのファイルも表電卓で読める', only, 1);
+  check('  変な中身は受け取らない', await page.evaluate(() => restoreKoeBundle({ koe_book: 'こわれた', koe_other: '[]' })), 0);
+  // 声の計算帳の中でも書き出し・読み込み
+  const kp = await ctx.newPage(); kp.on('pageerror', e => errs.push(e.message)); kp.on('dialog', d => d.accept());
+  await kp.goto('file://' + path.join(ROOT, 'koe', 'index.html')); await kp.waitForTimeout(500);
+  const kd = await Promise.all([kp.waitForEvent('download', { timeout: 9000 }), kp.evaluate(() => koeExport())]).then(a => a[0]).catch(() => null);
+  let kj = null; if (kd) kj = JSON.parse(fs.readFileSync(await kd.path(), 'utf8'));
+  check('  声の計算帳の設定から書き出せる', kj ? kj.type + '/' + (JSON.parse(kj.data.koe_book).length) : 'なし', 'koe/1');
+  check('  設定に書き出し・読み込みのボタン', await kp.evaluate(() => { openPanel('set'); const t = document.getElementById('p-set').textContent; return /⬇ 書き出す/.test(t) && /⬆ 読み込む/.test(t); }), true);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
 /* v424：電卓モードの声も、声の計算帳と同じ言い方（koe/phrase.js）で計算する */
 async function runDtPhrase(browser) {
   const { ctx, page, errs } = await newPage(browser);
@@ -7417,6 +7459,7 @@ async function runQrShare(browser) {
     if (!only || only === 'koe' || only === 'koelisten') await runKoeListen(browser);
     if (!only || only === 'koe' || only === 'koelisten') await runKoeListen(browser, 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Mobile Safari/537.36');
     if (!only || only === 'dtphrase') await runDtPhrase(browser);
+    if (!only || only === 'koebackup') await runKoeBackup(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
     if (!only || only === 'brush3') await runBrush3(browser);

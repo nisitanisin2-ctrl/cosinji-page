@@ -8700,6 +8700,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v425', t:'声の計算帳もバックアップに', li:[
+    '📋リストの <b>⬇書き出し</b> に、<b>🎙声の計算帳</b>の家計簿・名前を付けた数・設定なども入れるようにしました。読み込むときに、入れるかどうかを聞きます',
+  ]},
   { v:'v424', t:'電卓の声が、いろいろな言い方に', li:[
     '電卓モードで声を使うと、<b>🎙声の計算帳と同じ言い方</b>で計算できるようになりました。「8と3の差」「17を5で割った余り」「30坪は何平米」「時速60キロで2時間半」「300万円を金利2%で5年ローン毎月の返済」「昭和55年生まれは何歳」「半径3の円の面積」など',
     '答えは電卓の表示に出るので、そのままキーで続けて計算できます。言える形は 🎤 の <b>📖言い方</b> の「🎙 いろいろな言い方」にも並べました',
@@ -20076,7 +20079,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v424';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v425';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -21712,6 +21715,8 @@ const ST_GROUPS=[
   {k:'excalc_links',      n:'リンク集'},
   {k:'excalc_userkeys',   n:'マイキー'},
   {k:'excalc_custommodes',n:'用途の一覧に登録したもの'},
+  {k:'koe_book',          n:'声の計算帳の家計簿'},
+  {k:'koe_state',         n:'声の計算帳の会話と計算'},
 ];
 /* localStorage は1文字2バイトで数える端末が多いので、それに合わせる */
 function stSize(key){
@@ -21906,11 +21911,30 @@ function restoreSettingsBundle(o){
   });
   return n;
 }
+/* 🎙声の計算帳のデータ（同じサイトの koe_*）も書き出しに入れる（v425）。
+   家計簿・名前を付けた数・設定・会話・うまくいかなかった言葉。読み込むときは聞く */
+const KOE_BACKUP_KEYS=['koe_book','koe_vars','koe_settings','koe_state','koe_misses'];
+function koeBundle(){
+  const o={}; let n=0;
+  KOE_BACKUP_KEYS.forEach(k=>{ try{ const v=localStorage.getItem(k); if(v!=null){ o[k]=v; n++; } }catch(_){} });
+  return n ? o : null;
+}
+function koeBundleBooks(o){ try{ const b=JSON.parse(o && o.koe_book || '[]'); return Array.isArray(b)?b.length:0; }catch(_){ return 0; } }
+function restoreKoeBundle(o){
+  if(!o || typeof o!=='object') return 0;
+  let n=0;
+  KOE_BACKUP_KEYS.forEach(k=>{
+    const v=o[k];
+    if(typeof v!=='string' || v.length>3000000) return;
+    try{ JSON.parse(v); localStorage.setItem(k, v); n++; }catch(_){}
+  });
+  return n;
+}
 function settingsBundleCount(o){ return (o && typeof o==='object') ? SETTINGS_BACKUP_KEYS.filter(k=>typeof o[k]==='string').length : 0; }
 /* 保存データをJSONファイルに書き出し（別端末への移動・バックアップ用） */
 async function exportSaves() {
   const saves=getSaves();
-  if(saves.length===0){ alert('保存データがありません'); return; }
+  if(saves.length===0 && !koeBundle()){ alert('保存データがありません'); return; }
   // 野菜の日記に写真があれば、いっしょに持っていくか聞く（v374）
   const pics=vegPicBytes();
   let withPics=false;
@@ -21924,7 +21948,8 @@ async function exportSaves() {
   const payload={ app:'hyodenki', type:'saves', version:1, exportedAt:Date.now(), saves,
                   veg:vegBundle(withPics), vegPics:withPics,
                   touban:tbBundle(),     // 当番表（いまの分と、保存した分）も入れる（v406）
-                  settings:settingsBundle() };   // 設定（色・テンキーの配置・マイキー・リンク集など）も入れる（v419）
+                  settings:settingsBundle(),     // 設定（色・テンキーの配置・マイキー・リンク集など）も入れる（v419）
+                  koe:koeBundle() };             // 🎙声の計算帳の家計簿なども入れる（v425）
   const blob=new Blob([JSON.stringify(payload)],{type:'application/json;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
   const a=Object.assign(document.createElement('a'),{
@@ -21933,7 +21958,7 @@ async function exportSaves() {
   });
   a.click(); URL.revokeObjectURL(url);
   markBackedUp();                       // 端末の外に出せた日を覚えておく
-  if(typeof toast==='function') toast('保存データを書き出しました（'+saves.length+'件'
+  if(typeof toast==='function') toast('保存データを書き出しました（'+saves.length+'件'+(payload.koe?'／声の計算帳も':'')
     +(pics>0?(withPics?'／日記の写真ごと':'／日記の写真はぬき'):'')+'／設定も入れました）');
   renderSaveStateBanner();
 }
@@ -21948,11 +21973,13 @@ function importSaves(ev) {
     let parsed;
     try{ parsed=JSON.parse(reader.result); }
     catch(e){ alert('読み込みに失敗しました：ファイルを解析できません'); return; }
+    // 声の計算帳だけで書き出したファイル（type:'koe'）も受け取る（v425）
+    const koeIn=parsed && (parsed.type==='koe' ? parsed.data : parsed.koe);
     const incoming=Array.isArray(parsed)?parsed
-      :(parsed && Array.isArray(parsed.saves)?parsed.saves:null);
+      :(parsed && Array.isArray(parsed.saves)?parsed.saves:(koeIn?[]:null));
     if(!incoming){ alert('保存データの形式ではありません'); return; }
     const valid=incoming.filter(s=>s && Array.isArray(s.data));
-    if(valid.length===0){ alert('取り込める保存データが見つかりませんでした'); return; }
+    if(valid.length===0 && !koeIn){ alert('取り込める保存データが見つかりませんでした'); return; }
     const existing=getSaves();
     const usedIds=new Set(existing.map(s=>s.id));
     let added=0;
@@ -21972,7 +21999,13 @@ function importSaves(ev) {
     // 設定が入っていれば、最後に読み込むか聞く（v419）。読み込んだら開き直して効かせる
     const setN=settingsBundleCount(parsed && parsed.settings);
     const alertDone=async msg=>{
-      alert(msg);
+      if(valid.length || !koeIn) alert(msg);
+      // 声の計算帳のデータが入っていれば、読み込むか聞く（v425）
+      if(koeIn && await appConfirm('🎙声の計算帳のデータ（家計簿 '+koeBundleBooks(koeIn)+'件・名前を付けた数・設定など）も入っています。\n'
+          +'読み込みますか（今の声の計算帳のデータは置きかえます）','はい','いいえ')){
+        const kn=restoreKoeBundle(koeIn);
+        if(typeof toast==='function') toast(kn?'声の計算帳のデータを読み込みました':'声の計算帳のデータを読み込めませんでした');
+      }
       if(!setN) return;
       if(await appConfirm('設定（色・テンキーの配置・マイキー・リンク集など）も入っています。\n'
           +'いっしょに読み込みますか（今の設定は置きかえます。読み込むとアプリを開き直します）','はい','いいえ')){
