@@ -3429,7 +3429,7 @@ async function runVoiceSay(browser) {
   await page.evaluate(() => openSayHelp()); await page.waitForTimeout(350);
   check('  📖言い方で開く', await page.evaluate(() => isDlgOpen('sayHelpOverlay')), true);
   check('  まとまりごとに並ぶ', await page.evaluate(() =>
-    [...document.querySelectorAll('#sayHelpBody .say-g')].length), 8);
+    [...document.querySelectorAll('#sayHelpBody .say-g')].length), 9);   // v424 で「いろいろな言い方」を足した
   check('  どの行にも答えが出る', await page.evaluate(() =>
     [...document.querySelectorAll('#sayHelpBody .say-row')].filter(r => !r.querySelector('.say-ans')).length), 0);
   check('  さがすでしぼれる', await page.evaluate(() => { sayHelpFind('立米');
