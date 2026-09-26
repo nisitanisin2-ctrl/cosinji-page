@@ -240,6 +240,7 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
     <button class="act" onclick="closePanel(); setTimeout(openVoiceOnly,60)">👂 声だけで使う（画面を見ない）</button>
     <div class="row" onclick="toggleSet('voF')"><div>声だけのとき、式も読み上げる<small>「1280円 かける 3つ。3840円 です」のように、答えの前に式を読みます</small></div><span class="sw" data-set="voF"></span></div>
     <div class="sec">計算</div>
+    <div class="row" onclick="toggleSet('mulFirst')"><div>かけ算・わり算を先に計算する<small>電卓と同じ順番です。「1200足す350かける2」は、オフだと左から順に 3100、オンだと 1900 になります</small></div><span class="sw" data-set="mulFirst"></span></div>
     <div class="row"><div>消費税</div><div class="seg" id="taxSeg"><button data-tax="10" onclick="setTax(10)">10%</button><button data-tax="8" onclick="setTax(8)">8%</button></div></div>
     <div class="sec">名前を付けた数<small></small></div>
     <div id="varList"></div>
@@ -322,11 +323,11 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
    ・足し上げ／予算／練習のときは、言葉の受け取り方が変わる（state.mode）
    ・入れたものは この端末の中だけ（localStorage の koe_*）に残る
    ════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v14';
+const APP_VERSION='v15';
 const LS_STATE='koe_state', LS_VARS='koe_vars', LS_SET='koe_settings', LS_BOOK='koe_book';
 
 /* ── 設定 ── */
-const SET_DEF={ speak:true, rate:1, beep:true, vib:true, big:false, tax:10, handsFree:false, wake:false, drillLv:'kuku', wait:'normal', voF:true };
+const SET_DEF={ speak:true, rate:1, beep:true, vib:true, big:false, tax:10, handsFree:false, wake:false, drillLv:'kuku', wait:'normal', voF:true, mulFirst:false };
 let settings=Object.assign({}, SET_DEF);
 function loadSettings(){
   try{ const o=JSON.parse(localStorage.getItem(LS_SET)||'{}'); if(o && typeof o==='object') settings=Object.assign({}, SET_DEF, o); }catch(_){}
@@ -448,8 +449,36 @@ function applyMod(x,k){
   return x;
 }
 /* トークンの並びを左から計算する。startV があれば、それに続けて計算する（「それに…」） */
+/* かけ算・わり算を先に計算する（電卓と同じ。設定でオン。v15）。
+   足す・引くとかける・割るがまざった式だけこちらで計算する（割引や消費税などの「のせる」言葉がある式は、左から順のまま） */
+function evalToksPrec(toks, startV, startU){
+  const items=[], ops=[]; let pend=null;
+  if(startV!=null) items.push({v:startV, u:startU||'', lab:''});
+  for(const k of toks){
+    if(k.t==='op'){ pend=k.op; continue; }
+    if(k.t!=='num') continue;
+    if(items.length){ ops.push(pend || (isCount(k.u)?'*':'+')); }
+    pend=null; items.push(k);
+  }
+  if(!items.length) return {v:null, unit:'', f:'', per:false, nums:0};
+  const show=k=>(k.lab||fmt(k.v))+(k.u==='%'?'%':(k.u||''));
+  let f=show(items[0]); ops.forEach((o,i)=>{ f+=' '+SYM[o]+' '+show(items[i+1]); });
+  let vals=items.map(k=>k.v), os=ops.slice();
+  const pass=set=>{ for(let i=0;i<os.length;){ if(set.includes(os[i])){ vals.splice(i,2,applyOp(vals[i],os[i],vals[i+1])); os.splice(i,1); } else i++; } };
+  pass(['^']); pass(['*','/']); pass(['+','-']);
+  let unit=''; if(items.some(k=>k.u==='円')) unit='円'; else if(items[0].u && items[0].u!=='人' && items[0].u!=='%') unit=items[0].u;
+  const per=ops.some((o,i)=>o==='/' && items[i+1].u==='人');
+  return {v:vals[0], unit, f, per, nums:items.length};
+}
 function evalToks(toks, startV, startU){
+  if(settings.mulFirst && !toks.some(k=>k.t==='mod')){
+    // 数と数のあいだの演算（言わなかったところは、個数なら ×、ほかは ＋）をならべて、まざっているかを見る
+    const os=[]; let pend=null, n=startV!=null?1:0;
+    for(const k of toks){ if(k.t==='op'){ pend=k.op; continue; } if(k.t!=='num') continue; if(n) os.push(pend || (isCount(k.u)?'*':'+')); pend=null; n++; }
+    if(os.some(o=>o==='+'||o==='-') && os.some(o=>o==='*'||o==='/'||o==='^')) return evalToksPrec(toks, startV, startU);
+  }
   let acc=null, unit='', pend=null, f='', lastAdd=false, per=false, nums=0;
+  let before=0, term=0, sign=1;   // 足し引きの前までの値・いまの項・その符号（「120円を3個と80円を2個」の 2個 は 80円 にだけかける。v15）
   if(startV!=null){ acc=startV; unit=startU||''; f=fmtU(startV,unit); }
   for(const k of toks){
     if(k.t==='num'){
@@ -458,7 +487,14 @@ function evalToks(toks, startV, startU){
       if(acc===null){ acc=k.v; if(!unit && k.u && k.u!=='人' && k.u!=='%') unit=k.u; f=(k.lab||fmt(k.v))+(k.u==='%'?'%':k.u); continue; }
       let op=pend; pend=null;
       if(!op) op=isCount(k.u)?'*':'+';
+      if(op==='*' && lastAdd && isCount(k.u)){
+        // 個数は、すぐ前の品物の値段にだけかける
+        term*=k.v; acc=before+sign*term;
+        f+=' × '+(k.lab||fmt(k.v))+k.u;
+        continue;
+      }
       if((op==='*'||op==='/'||op==='^') && lastAdd) f='('+f+')';
+      if(op==='+'||op==='-'){ before=acc; term=k.v; sign=op==='+'?1:-1; }
       acc=applyOp(acc,op,k.v);
       f+=' '+SYM[op]+' '+(k.lab||fmt(k.v))+(k.u&&k.u!=='円'?k.u:(k.u==='円'?'円':''));
       lastAdd=(op==='+'||op==='-');
@@ -1725,6 +1761,7 @@ function koeImport(ev){
 function clearMisses(){ if(!loadMisses().length) return; if(!confirm('うまくいかなかった言葉の一覧を消しますか？')) return; try{ localStorage.removeItem(LS_MISS); }catch(_){} renderMisses(); toast('消しました'); }
 function toggleSet(k){
   settings[k]=!settings[k]; saveSettings();
+  if(k==='mulFirst'){ recomputeAll(); saveState(); render(); toast(settings[k]?'かけ算・わり算を先に計算します':'左から順に計算します'); }
   applySettings(); renderSet();
 }
 function setWait(w){ settings.wait=w; saveSettings(); renderSet(); toast('話し終わりを '+({short:'約1秒',normal:'約2秒',long:'約3秒'})[w]+' 待ちます'); }
@@ -1785,7 +1822,7 @@ const HELP=[
 ];
 function renderHelp(){
   $('helpBody').innerHTML='<div class="note">下の例を押すと、その言葉で計算します。声でも同じように言えます。'
-    +'聞き取った言葉は左から順に計算します（「1200足す350かける2」は (1200＋350)×2）。'
+    +'聞き取った言葉は左から順に計算します（「1200足す350かける2」は (1200＋350)×2）。⚙ の「かけ算・わり算を先に計算する」をオンにすると、電卓と同じ順番になります。'
     +'話している途中で間があいても、話し終わるまで待ってから計算します（待つ時間は ⚙ で変えられます。🎙 をもう一度押すとすぐ計算）。</div>'
     +(()=>{ try{ const st=phraseStats(); return '<div class="note">決まった言い回し：<b>'+st.types+'の型</b>、数字と単位の付け方を除いて <b>約'+Math.round(st.forms/10000).toLocaleString('ja-JP')+'万通り</b>（語尾の「〜はいくら」「〜は何ですか」なども付けられます）。型に合わないときは、ふつうの式として読みます。</div>'; }catch(_){ return ''; } })()
     +HELP.map(g=>'<div class="ex-group"><h3>'+g.h+'</h3><p>'+g.p+'</p>'

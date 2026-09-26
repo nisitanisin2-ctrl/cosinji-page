@@ -6838,6 +6838,13 @@ async function runKoe(browser) {
   const csvTxt = csvDl ? fs.readFileSync(await csvDl.path(), 'utf8') : '';
   check('  この月を CSV で書き出す', csvDl ? csvTxt.split('\r\n')[0] + '|' + csvTxt.includes('"2026-09-25","日用品","3300","ドラッグストア"') + '|' + csvTxt.split('\r\n').length : 'なし', '\ufeff"日付","分類","金額","メモ"|true|4');   // 名前は file:// の試験では付かないので中身で見る
   await page.evaluate(() => { closeTop(); book = []; saveBook(); catBudget = {}; saveCatBudget(); });
+  // 計算の順番（v15）：個数はすぐ前の品物にかける／設定で「かけ算・わり算を先に」
+  const ord = (q, mf) => page.evaluate(([q, mf]) => { settings.mulFirst = mf; state.entries = []; recomputeAll(); const r = koeRun(q); settings.mulFirst = false; return r.a + ' | ' + r.f; }, [q, mf]);
+  check('  個数はすぐ前の品物にだけかける', await ord('120円を3個と80円を2個', false), '520円 | 120円 × 3個 ＋ 80円 × 2個 ＝ 520円');
+  check('  ふだんは左から順', await ord('1200足す350かける2', false), '3,100 | (1,200 ＋ 350) × 2 ＝ 3,100');
+  check('  設定をオンにすると、かけ算・わり算が先', await ord('1200足す350かける2', true), '1,900 | 1,200 ＋ 350 × 2 ＝ 1,900');
+  check('  オンでも、消費税などは左から順', await ord('1000円足す500円に消費税', true), '1,650円 | (1,000円 ＋ 500円) × 1.1（消費税10%） ＝ 1,650円');
+  check('  切りかえると今の答えも計算し直す', await page.evaluate(() => { state.entries = []; recomputeAll(); koeRun('1200足す350かける2'); settings.mulFirst = false; toggleSet('mulFirst'); const a = state.lastV; toggleSet('mulFirst'); return a + '/' + state.lastV; }), '1900/3100');
   // 読み飛ばした計算の言葉があるときは、答えを決めずに確かめる（v12）
   const sk2 = await page.evaluate(() => { state.entries = []; state.log = []; recomputeAll(); const r = koeRun('原価800円に3割のせて'); return { say: r.say, sug: r.sug, lit: r.lit, litA: r.litA, n: state.entries.length }; });
   check('  分からない言葉を言い、答えは決めない', sk2.say + '/' + sk2.n, '「原価」が分かりませんでした/0');
