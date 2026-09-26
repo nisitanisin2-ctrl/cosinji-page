@@ -6822,6 +6822,70 @@ async function runKoe(browser) {
   check('  表電卓：QR で共有できる', await h.page.evaluate(() => { qrSetWhich('koe'); return /\/koe\/$/.test(qrAppUrl('koe')) && QR_NAMES.koe; }), '声の計算帳');
   await h.ctx.close();
 }
+/* 声の計算帳 v7：話している途中で聞き取りが切れても、つなげて、話し終わってから計算する。
+   端末の聞き取りのかわりに、途中で切れる「にせの聞き取り」を入れて確かめる */
+async function runKoeListen(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await ctx.newPage();
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.addInitScript(() => {
+    window.__recs = [];
+    class FakeRec {
+      constructor() { this.on = false; window.__recs.push(this); }
+      start() { this.on = true; setTimeout(() => this.onstart && this.onstart(), 5); }
+      stop() { if (!this.on) return; this.on = false; if (this.pending) { this.say(this.pending, true); this.pending = null; } setTimeout(() => this.onend && this.onend(), 10); }
+      abort() { this.on = false; setTimeout(() => this.onend && this.onend(), 5); }
+      say(t, fin) { const r = [{ transcript: t }]; r.isFinal = !!fin; if (!fin) this.pending = t; else this.pending = null; this.onresult && this.onresult({ resultIndex: 0, results: [r] }); }
+      cut() { this.on = false; this.onend && this.onend(); }   // 端末が勝手に切る
+    }
+    window.webkitSpeechRecognition = FakeRec; window.SpeechRecognition = FakeRec;
+    try { localStorage.setItem('koe_settings', JSON.stringify({ speak: false, beep: false, vib: false, wait: 'short' })); } catch (_) {}
+  });
+  await page.goto('file://' + path.join(ROOT, 'koe', 'index.html')); await page.waitForTimeout(400);
+  console.log('\n── 🎙声の計算帳：話し終わるまで待つ（v7） ──');
+  const cur = () => page.evaluate(() => window.__recs[window.__recs.length - 1]);
+  const last = () => page.evaluate(() => { const m = state.log[state.log.length - 1]; return m ? m.q + ' → ' + m.a : ''; });
+  const W = 1000;   // 短め
+  // 途中で切れても聞き直して、つなげて計算する
+  await page.evaluate(() => { state.entries = []; state.log = []; recomputeAll(); micTap(); }); await page.waitForTimeout(60);
+  await page.evaluate(() => { const r = window.__recs.at(-1); r.say('1280円を', true); r.cut(); }); await page.waitForTimeout(250);
+  check('  途中で切れたら聞き直す', await page.evaluate(() => window.__recs.length + '/' + state.log.length + '/' + recOn), '2/0/true');
+  check('  聞こえたところまでを出す', await page.evaluate(() => $('heard').textContent), '🎙 1280円を …');
+  await page.evaluate(() => window.__recs.at(-1).say('3つ', true)); await page.waitForTimeout(W + 400);
+  check('  つなげて、話し終わってから計算する', await last(), '1280円を3つ → 3,840円');
+  check('  計算したら聞くのをやめる', await page.evaluate(() => recOn + '/' + wantListen), 'false/false');
+  // 言いかけ（「1280円を」）で止まったら倍待つ
+  await page.evaluate(() => { micTap(); }); await page.waitForTimeout(60);
+  await page.evaluate(() => window.__recs.at(-1).say('それに', true)); await page.waitForTimeout(W + 300);
+  check('  言いかけのときは、まだ計算しない', await page.evaluate(() => state.log.length), 1);
+  await page.evaluate(() => window.__recs.at(-1).say('消費税', true)); await page.waitForTimeout(W + 400);
+  check('  続きを言えば、つなげて計算する', await last(), 'それに消費税 → 4,224円');
+  // まだ確定していない言葉も、待ったあとで受け取る
+  await page.evaluate(() => { micTap(); }); await page.waitForTimeout(60);
+  await page.evaluate(() => window.__recs.at(-1).say('4人で割って', false)); await page.waitForTimeout(W + 400);
+  check('  確定前の言葉も受け取って計算する', await last(), '4人で割って → 1人あたり 1,056円');
+  // 🎙 をもう一度押すと、待たずにすぐ計算する
+  await page.evaluate(() => { micTap(); }); await page.waitForTimeout(60);
+  await page.evaluate(() => { window.__recs.at(-1).say('100円を2つ', true); micTap(); }); await page.waitForTimeout(150);
+  check('  もう一度押すとすぐ計算する', await last(), '100円を2つ → 200円');
+  // 何も言わずに押し直すと、やめる
+  const n0 = await page.evaluate(() => state.log.length);
+  await page.evaluate(() => { micTap(); }); await page.waitForTimeout(60);
+  await page.evaluate(() => { micTap(); }); await page.waitForTimeout(150);
+  check('  何も言わずに押し直すとやめる', await page.evaluate(n0 => state.log.length === n0 && !recOn && !wantListen, n0), true);
+  // 待つ時間を選べる
+  check('  待つ時間を選べる', await page.evaluate(() => { setWait('long'); const a = settings.wait; setWait('short'); return a + '/' + JSON.parse(localStorage.getItem('koe_settings')).wait; }), 'long/short');
+  // 聞きっぱなし：間をあけて2回に分かれても、1つの言葉として計算する
+  await page.evaluate(() => { state.entries = []; state.log = []; recomputeAll(); toggleHandsFree(); }); await page.waitForTimeout(700);
+  await page.evaluate(() => { const r = window.__recs.at(-1); r.say('500円を', true); r.cut(); }); await page.waitForTimeout(250);
+  await page.evaluate(() => window.__recs.at(-1).say('4つ', true)); await page.waitForTimeout(W + 400);
+  check('  聞きっぱなしでも、つなげて計算する', await last(), '500円を4つ → 2,000円');
+  check('  聞きっぱなしは、計算のあとまた聞く', await page.evaluate(async () => { await new Promise(r => setTimeout(r, 400)); return recOn; }), true);
+  await page.evaluate(() => { toggleHandsFree(); }); await page.waitForTimeout(200);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
 /* v424：電卓モードの声も、声の計算帳と同じ言い方（koe/phrase.js）で計算する */
 async function runDtPhrase(browser) {
   const { ctx, page, errs } = await newPage(browser);
@@ -7284,6 +7348,7 @@ async function runQrShare(browser) {
     if (!only || only === 'cellxl') await runCellXl(browser);
     if (!only || only === 'clip') await runClip(browser);
     if (!only || only === 'koe') await runKoe(browser);
+    if (!only || only === 'koe' || only === 'koelisten') await runKoeListen(browser);
     if (!only || only === 'dtphrase') await runDtPhrase(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);

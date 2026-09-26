@@ -86,7 +86,10 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
 
 /* ── 下の操作 ── */
 .dock{position:sticky;bottom:0;z-index:20;background:var(--bg);border-top:1px solid var(--line);padding:6px max(10px, calc((100% - 740px) / 2)) calc(env(safe-area-inset-bottom) + 8px)}
-.heard{min-height:1.5em;font-size:13px;color:var(--acc);text-align:center;margin-bottom:4px;word-break:break-all}
+.heard{min-height:1.5em;font-size:13px;color:var(--acc);text-align:center;margin-bottom:4px;word-break:break-all;position:relative}
+.wait-bar{height:3px;margin:3px auto 0;max-width:220px;border-radius:2px;background:var(--acc);transform-origin:left center;animation:waitShrink linear forwards}
+@keyframes waitShrink{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+@media (prefers-reduced-motion:reduce){.wait-bar{animation:none;opacity:.5}}
 .dock-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .dbtn{flex:1;min-height:var(--tap);border-radius:var(--r-btn);background:var(--card);border:1px solid var(--line);font-weight:700;color:var(--sub);font-size:14px}
 .dbtn.on{background:var(--acc-weak);border-color:var(--acc);color:var(--acc)}
@@ -199,6 +202,8 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
     <div class="row" onclick="toggleSet('speak')"><div>答えを読み上げる<small>イヤホンをつなげば、まわりに聞こえません</small></div><span class="sw" data-set="speak"></span></div>
     <div class="row"><div>読み上げの速さ</div><div class="seg" id="rateSeg">
       <button data-rate="0.8" onclick="setRate(0.8)">ゆっくり</button><button data-rate="1" onclick="setRate(1)">ふつう</button><button data-rate="1.25" onclick="setRate(1.25)">はやい</button></div></div>
+    <div class="row"><div>話し終わりを待つ時間<small>話している途中で間があいても、ここで決めた時間だけ待ってから計算します。「1280円を」のような言いかけのときは倍待ちます。🎙 をもう一度押すと、待たずに計算します</small></div><div class="seg" id="waitSeg">
+      <button data-wait="short" onclick="setWait('short')">短め</button><button data-wait="normal" onclick="setWait('normal')">ふつう</button><button data-wait="long" onclick="setWait('long')">長め</button></div></div>
     <div class="row" onclick="toggleSet('beep')"><div>聞き取れたら「ピッ」と鳴らす</div><span class="sw" data-set="beep"></span></div>
     <div class="row" onclick="toggleSet('vib')"><div>ふるえて知らせる<small>聞き取れたら短く、計算できないときは2回</small></div><span class="sw" data-set="vib"></span></div>
     <div class="sec">手がふさがっているとき</div>
@@ -269,15 +274,16 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
    ・足し上げ／予算／練習のときは、言葉の受け取り方が変わる（state.mode）
    ・入れたものは この端末の中だけ（localStorage の koe_*）に残る
    ════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v6';
+const APP_VERSION='v7';
 const LS_STATE='koe_state', LS_VARS='koe_vars', LS_SET='koe_settings', LS_BOOK='koe_book';
 
 /* ── 設定 ── */
-const SET_DEF={ speak:true, rate:1, beep:true, vib:true, big:false, tax:10, handsFree:false, wake:false, drillLv:'kuku' };
+const SET_DEF={ speak:true, rate:1, beep:true, vib:true, big:false, tax:10, handsFree:false, wake:false, drillLv:'kuku', wait:'normal' };
 let settings=Object.assign({}, SET_DEF);
 function loadSettings(){
   try{ const o=JSON.parse(localStorage.getItem(LS_SET)||'{}'); if(o && typeof o==='object') settings=Object.assign({}, SET_DEF, o); }catch(_){}
   if(![8,10].includes(+settings.tax)) settings.tax=10;
+  if(!['short','normal','long'].includes(settings.wait)) settings.wait='normal';
 }
 function saveSettings(){ try{ localStorage.setItem(LS_SET, JSON.stringify(settings)); }catch(_){} }
 const taxF=()=>1+(+settings.tax)/100;
@@ -1175,7 +1181,7 @@ function render(){
     vo.textContent=bigT; $('voSub').textContent=labT==='いまの答え'?'':labT;
     const last=state.log[state.log.length-1];
     $('voF').textContent=state.drill?'':(last && last.f ? last.f : (state.mode==='normal' && state.lastF && state.lastV!=null ? state.lastF+' ＝ '+bigT : subT));   // 式（いちばん新しい答えの式）
-    if(!recOn) $('voHeard').textContent=last && last.q ? '「'+last.q+'」' : '';
+    if(!recOn && !wantListen) $('voHeard').textContent=last && last.q ? '「'+last.q+'」' : '';
   }
   document.querySelectorAll('#modes .chip').forEach(c=>{
     const m=c.dataset.m;
@@ -1270,13 +1276,82 @@ if('speechSynthesis' in window){ try{ speechSynthesis.onvoiceschanged=()=>{ jaVo
    キーボードのマイク（スマホの音声入力）で入れてもらう。 */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 let rec=null, recOn=false, hfWanted=false, pauseForSpeak=false, stopByUser=false;
+/* 話し終わるまで待ってから計算する（v7）
+   端末の聞き取りは、少し間があくと「言い終わった」とみなして切れてしまう（Android の Chrome は特に早い）。
+   そこで、切れても聞き直して聞こえた言葉をつなげておき、話し終わってから少し待って計算する。
+   「1280円を」「それに」のような言いかけで止まったときは、倍の時間待つ。
+   🎙（声だけの画面ではどこでも）をもう一度押すと、待たずにすぐ計算する。 */
+const WAIT_MS={short:1000, normal:1800, long:3000};
+const NO_SPEECH_MS=8000;                // 何も聞こえないまま、この時間たったらやめる（押して話すとき）
+let wantListen=false;                   // 押して話すとき：計算するまで聞き続けたい
+let utter=[], utterInterim='', utterTimer=null, finishing=false, finishFallback=null, noSpeechTimer=null;
 function setHeard(s){ const h=$('heard'); if(h) h.textContent=s||''; const vh=$('voHeard'); if(vh && s) vh.textContent=s; }
 function syncMicUi(){
-  $('micBtn').classList.toggle('listening', recOn);
-  $('micBtn').setAttribute('aria-label', recOn?'聞いています（押すと止めます）':'話す');
+  const on=recOn||wantListen;
+  $('micBtn').classList.toggle('listening', on);
+  $('micBtn').setAttribute('aria-label', on?(utterText()?'聞いています（押すとすぐ計算します）':'聞いています（押すとやめます）'):'話す');
   $('hfBtn').classList.toggle('on', !!settings.handsFree);
-  const vo=$('voice-only'); if(vo) vo.classList.toggle('listening', recOn);
+  const vo=$('voice-only'); if(vo) vo.classList.toggle('listening', on);
   document.querySelectorAll('.sw[data-set="handsFree"]').forEach(s=>s.classList.toggle('on', !!settings.handsFree));
+}
+function utterText(){ return (utter.join('')+utterInterim).trim(); }
+/* 言いかけか（このあとに続きがありそう） */
+const UNFINISHED_RE=/(?:を|に|で|と|から|の|は|が|、|,|より|対|:|(?:\d|円|個|つ|本|枚)(?:足す|たす|プラス|引く|ひく|マイナス|かける|掛ける|割る|わる|×|÷|\+|-)|じゃなくて|ではなくて|えーと|えっと|あの|単価|予算|時速|分速|秒速|半径|直径|縦|横|底辺|高さ|身長|体重|月給|年収|日給|時給|毎月|毎日|毎週|年利|金利|定価|原価|売値|税込み|税込)$/;   // 「4人で割って」のような、て形で終わるものは言い終わりとみなす
+function waitMs(){
+  const base=WAIT_MS[settings.wait]||WAIT_MS.normal;
+  const t=norm(utterText());
+  return UNFINISHED_RE.test(t) ? base*2 : base;
+}
+/* 待っている時間を、聞こえた言葉の下の細い線で見せる */
+function showWait(ms){
+  const h=$('heard'); if(!h) return;
+  let bar=h.querySelector('.wait-bar');
+  if(bar) bar.remove();
+  if(!ms) return;
+  bar=document.createElement('div'); bar.className='wait-bar'; bar.style.animationDuration=ms+'ms';
+  h.appendChild(bar);
+}
+function showUtter(){
+  const txt=utterText();
+  if(!txt) return;
+  setHeard('🎙 '+txt+' …');
+}
+function armFinish(){
+  clearTimeout(utterTimer); clearTimeout(noSpeechTimer);
+  if(!utterText()){ showWait(0); return; }
+  const ms=waitMs();
+  showUtter(); showWait(ms);
+  utterTimer=setTimeout(finishUtter, ms);
+}
+/* 話し終わった：聞き取りを止めて、残っている言葉も受け取ってから計算する */
+function finishUtter(){
+  if(finishing) return;
+  clearTimeout(utterTimer); clearTimeout(noSpeechTimer);
+  finishing=true; showWait(0);
+  if(recOn){ try{ rec.stop(); }catch(_){} clearTimeout(finishFallback); finishFallback=setTimeout(doFinish, 1200); }
+  else doFinish();
+}
+function doFinish(){
+  if(!finishing) return;
+  finishing=false; clearTimeout(finishFallback);
+  let text=utterText();
+  utter=[]; utterInterim='';
+  if(!settings.handsFree) wantListen=false;
+  syncMicUi();
+  if(!text){ if(!settings.handsFree) setHeard(''); else restartHandsFree(); return; }
+  if(settings.handsFree && settings.wake){
+    const m=text.match(WAKE_RE);
+    if(!m){ setHeard('（「けいさん」で始まらないので聞き流しました：'+text+'）'); restartHandsFree(); return; }
+    text=text.slice(m[0].length);
+    if(!text){ beep(true); setHeard('🎙 どうぞ'); restartHandsFree(); return; }
+  }
+  setHeard('「'+text+'」');
+  beep(true);
+  const res=runText(text, true);
+  if(settings.handsFree && (!res || !res.say || !settings.speak)) restartHandsFree();
+}
+function restartHandsFree(){
+  if(settings.handsFree && hfWanted && !document.hidden) setTimeout(()=>{ if(!recOn && !speaking) startListen(); }, 250);
 }
 function startListen(){
   if(!SR){
@@ -1285,51 +1360,63 @@ function startListen(){
   }
   if(recOn) return;
   if(speaking){ try{ speechSynthesis.cancel(); }catch(_){} speaking=false; }
+  const fresh=!wantListen && !utterText();
+  if(!settings.handsFree) wantListen=true;
   try{
     rec=new SR();
-    rec.lang='ja-JP'; rec.interimResults=true; rec.maxAlternatives=3; rec.continuous=!!settings.handsFree;
-    rec.onstart=()=>{ recOn=true; syncMicUi(); setHeard(settings.handsFree&&settings.wake?'🎙「けいさん」に続けて話してください':'🎙 どうぞ'); };
+    rec.lang='ja-JP'; rec.interimResults=true; rec.maxAlternatives=3; rec.continuous=true;
+    rec.onstart=()=>{ recOn=true; syncMicUi();
+      if(!utterText()) setHeard(settings.handsFree&&settings.wake?'🎙「けいさん」に続けて話してください':'🎙 どうぞ（話し終わると計算します）');
+      if(fresh && !settings.handsFree){ clearTimeout(noSpeechTimer); noSpeechTimer=setTimeout(()=>{ if(!utterText() && wantListen){ stopListen(); setHeard('聞こえませんでした。もう一度 🎙 を押してください'); } }, NO_SPEECH_MS); }
+    };
     rec.onresult=e=>{
       let interim='';
       for(let i=e.resultIndex;i<e.results.length;i++){
         const r=e.results[i];
-        if(r.isFinal) handleHeard(r); else interim+=r[0].transcript;
+        if(r.isFinal){ const t=pickAlt(r); if(t) utter.push(t); }
+        else interim+=r[0].transcript;
       }
-      if(interim) setHeard('🎙 '+interim);
+      utterInterim=interim.trim();
+      if(finishing) return;
+      armFinish();
     };
     rec.onerror=e=>{
-      if(e.error==='not-allowed'||e.error==='service-not-allowed'){ settings.handsFree=false; hfWanted=false; saveSettings(); toast('マイクが使えません。ブラウザの設定でマイクを許してください'); }
-      else if(e.error==='network') toast('聞き取りにはインターネットが要ります。電波のあるところで使うか、下の欄に打ってください');
-      else if(e.error==='no-speech' && !settings.handsFree) setHeard('聞こえませんでした。もう一度 🎙 を押してください');
+      if(e.error==='not-allowed'||e.error==='service-not-allowed'){ settings.handsFree=false; hfWanted=false; wantListen=false; saveSettings(); toast('マイクが使えません。ブラウザの設定でマイクを許してください'); }
+      else if(e.error==='network'){ wantListen=false; toast('聞き取りにはインターネットが要ります。電波のあるところで使うか、下の欄に打ってください'); }
     };
     rec.onend=()=>{
-      recOn=false; syncMicUi();
+      recOn=false;
+      if(finishing){ doFinish(); return; }
       const resume=pauseForSpeak; pauseForSpeak=false;
-      if(settings.handsFree && hfWanted && !stopByUser && !document.hidden && !resume && !speaking) setTimeout(()=>{ if(!recOn && !speaking) startListen(); }, 300);
-      if(!settings.handsFree && $('heard').textContent.startsWith('🎙 どうぞ')) setHeard('');
+      // 途中で切れた：聞きたいあいだは、聞いた言葉を持ったまま聞き直す
+      const keep=settings.handsFree ? (hfWanted && !resume && !speaking) : wantListen;
+      if(keep && !stopByUser && !document.hidden){ setTimeout(()=>{ if(!recOn && !speaking && !finishing) startListen(); }, 120); return; }
+      if(utterText() && !stopByUser){ finishUtter(); return; }
+      wantListen=false; syncMicUi();
+      if(!settings.handsFree && /^🎙 どうぞ/.test($('heard').textContent)) setHeard('');
     };
     rec.start();
-  }catch(_){ toast('聞き取りを始められませんでした'); }
+  }catch(_){ wantListen=false; syncMicUi(); toast('聞き取りを始められませんでした'); }
 }
+/* やめる（聞いた言葉は捨てる） */
 function stopListen(){
-  stopByUser=true;
+  stopByUser=true; wantListen=false;
+  clearTimeout(utterTimer); clearTimeout(noSpeechTimer); showWait(0);
+  utter=[]; utterInterim=''; finishing=false;
   try{ rec && rec.stop(); }catch(_){}
+  syncMicUi();
   setTimeout(()=>{ stopByUser=false; }, 500);
+}
+/* 🎙 を押したとき：聞いていなければ聞く。聞いていて言葉があれば、待たずにすぐ計算する。何もなければやめる */
+function micTap(){
+  if(recOn || wantListen){ if(utterText()) finishUtter(); else stopListen(); }
+  else startListen();
 }
 /* 聞き取れた言葉のうち、計算に向いたもの（数を含むもの）を選ぶ */
 const WAKE_RE=/^(けいさん|計算|ケイサン|けーさん)[、。,\s]*/;
-function handleHeard(r){
+function pickAlt(r){
   const alts=[]; for(let i=0;i<r.length;i++) alts.push(String(r[i].transcript||'').trim());
-  let text=alts.find(a=>/[0-9０-９一二三四五六七八九十百千万]/.test(a)) || alts[0] || '';
-  if(settings.handsFree && settings.wake){
-    const m=text.match(WAKE_RE);
-    if(!m){ setHeard('（「けいさん」で始まらないので聞き流しました：'+text+'）'); return; }
-    text=text.slice(m[0].length);
-    if(!text){ beep(true); setHeard('🎙 どうぞ'); return; }
-  }
-  setHeard('「'+text+'」');
-  beep(true);
-  runText(text, true);
+  return alts.find(a=>/[0-9０-９一二三四五六七八九十百千万]/.test(a)) || alts[0] || '';
 }
 function toggleHandsFree(){
   settings.handsFree=!settings.handsFree; saveSettings();
@@ -1364,6 +1451,7 @@ window.addEventListener('popstate', ()=>{ if(panelStack.length) closeTop(); });
 function renderSet(){
   document.querySelectorAll('.sw[data-set]').forEach(s=>s.classList.toggle('on', !!settings[s.dataset.set]));
   document.querySelectorAll('#rateSeg button').forEach(b=>b.classList.toggle('on', +b.dataset.rate===+settings.rate));
+  document.querySelectorAll('#waitSeg button').forEach(b=>b.classList.toggle('on', b.dataset.wait===settings.wait));
   document.querySelectorAll('#taxSeg button').forEach(b=>b.classList.toggle('on', +b.dataset.tax===+settings.tax));
   const names=Object.keys(vars);
   $('varList').innerHTML=names.length
@@ -1375,6 +1463,7 @@ function toggleSet(k){
   settings[k]=!settings[k]; saveSettings();
   applySettings(); renderSet();
 }
+function setWait(w){ settings.wait=w; saveSettings(); renderSet(); toast('話し終わりを '+({short:'約1秒',normal:'約2秒',long:'約3秒'})[w]+' 待ちます'); }
 function setRate(r){ settings.rate=r; saveSettings(); renderSet(); speak('この速さで読みます'); }
 function setTax(n){ settings.tax=n; saveSettings(); renderSet(); toast('消費税を '+n+'% にしました'); }
 function delVar(n){ delete vars[n]; saveVars(); renderSet(); toast(n+' を忘れました'); }
@@ -1432,7 +1521,8 @@ const HELP=[
 ];
 function renderHelp(){
   $('helpBody').innerHTML='<div class="note">下の例を押すと、その言葉で計算します。声でも同じように言えます。'
-    +'聞き取った言葉は左から順に計算します（「1200足す350かける2」は (1200＋350)×2）。</div>'
+    +'聞き取った言葉は左から順に計算します（「1200足す350かける2」は (1200＋350)×2）。'
+    +'話している途中で間があいても、話し終わるまで待ってから計算します（待つ時間は ⚙ で変えられます。🎙 をもう一度押すとすぐ計算）。</div>'
     +(()=>{ try{ const st=phraseStats(); return '<div class="note">決まった言い回し：<b>'+st.types+'の型</b>、数字と単位の付け方を除いて <b>約'+Math.round(st.forms/10000).toLocaleString('ja-JP')+'万通り</b>（語尾の「〜はいくら」「〜は何ですか」なども付けられます）。型に合わないときは、ふつうの式として読みます。</div>'; }catch(_){ return ''; } })()
     +HELP.map(g=>'<div class="ex-group"><h3>'+g.h+'</h3><p>'+g.p+'</p>'
       +g.ex.map(x=>'<button class="ex" onclick="tryEx(this)">'+escHtml(x)+'</button>').join('')+'</div>').join('')
@@ -1502,7 +1592,7 @@ function closeVoiceOnly(e){ if(e) e.stopPropagation(); closePanel(); }
     if(e.target.closest('.vo-exit')) return;
     clearTimeout(voTimer);
     if(voLong) return;
-    if(recOn) stopListen(); else startListen();
+    micTap();
   });
   el.addEventListener('pointercancel', ()=>clearTimeout(voTimer));
 })();
@@ -1523,7 +1613,7 @@ function init(){
   $('backHyo').hidden=!fromHyo;
   applySettings(); render();
   const mic=$('micBtn');
-  mic.addEventListener('click', ()=>{ if(recOn) stopListen(); else startListen(); });
+  mic.addEventListener('click', micTap);
   $('typeIn').addEventListener('input', ()=>{ $('typeIn').placeholder='打っても計算できます（例：1280円を3つ）'; });
   if('serviceWorker' in navigator && /^https?:/.test(location.protocol)){
     // 新しい版は、開いたときと画面に戻ったときにたしかめる。前から使っていて（controller がある）
