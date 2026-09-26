@@ -218,6 +218,7 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
     <div class="sec">見やすさ</div>
     <div class="row" onclick="toggleSet('big')"><div>答えを大きく</div><span class="sw" data-set="big"></span></div>
     <button class="act" onclick="closePanel(); setTimeout(openVoiceOnly,60)">👂 声だけで使う（画面を見ない）</button>
+    <div class="row" onclick="toggleSet('voF')"><div>声だけのとき、式も読み上げる<small>「1280円 かける 3つ。3840円 です」のように、答えの前に式を読みます</small></div><span class="sw" data-set="voF"></span></div>
     <div class="sec">計算</div>
     <div class="row"><div>消費税</div><div class="seg" id="taxSeg"><button data-tax="10" onclick="setTax(10)">10%</button><button data-tax="8" onclick="setTax(8)">8%</button></div></div>
     <div class="sec">名前を付けた数<small></small></div>
@@ -281,11 +282,11 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
    ・足し上げ／予算／練習のときは、言葉の受け取り方が変わる（state.mode）
    ・入れたものは この端末の中だけ（localStorage の koe_*）に残る
    ════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v10';
+const APP_VERSION='v11';
 const LS_STATE='koe_state', LS_VARS='koe_vars', LS_SET='koe_settings', LS_BOOK='koe_book';
 
 /* ── 設定 ── */
-const SET_DEF={ speak:true, rate:1, beep:true, vib:true, big:false, tax:10, handsFree:false, wake:false, drillLv:'kuku', wait:'normal' };
+const SET_DEF={ speak:true, rate:1, beep:true, vib:true, big:false, tax:10, handsFree:false, wake:false, drillLv:'kuku', wait:'normal', voF:true };
 let settings=Object.assign({}, SET_DEF);
 function loadSettings(){
   try{ const o=JSON.parse(localStorage.getItem(LS_SET)||'{}'); if(o && typeof o==='object') settings=Object.assign({}, SET_DEF, o); }catch(_){}
@@ -1308,7 +1309,13 @@ function runText(text, fromVoice){
   if(res.book && $('p-book').classList.contains('open')) renderBook();
   // 練習や聞き返しのときは、読み上げが終わったら続けて聞く
   const again=fromVoice && (state.drill || state.ask) ;
-  speak(res.say, again?()=>{ if(!recOn) startListen(); }:null);
+  let say=res.say;
+  // 声だけの画面では、式も読み上げる（設定で切れる。v11）。「もう一回」「長押し」でも式から読む
+  if(voOpen() && settings.voF && res.cls!=='err' && !res.drill){
+    const fs=formulaSpeech(res.f);
+    if(fs){ say=fs+'。'+res.say; state.lastSay=say; saveState(); }
+  }
+  speak(say, again?()=>{ if(!recOn) startListen(); }:null);
   return res;
 }
 function submitType(){
@@ -1338,6 +1345,21 @@ function pickVoice(){
   if(jaVoice) return jaVoice;
   try{ jaVoice=(speechSynthesis.getVoices()||[]).find(v=>/^ja/i.test(v.lang))||null; }catch(_){}
   return jaVoice;
+}
+/* 声だけの画面：式を読みやすい言葉にする（「1,280円 × 3つ ＝ 3,840円」→「1280円 かける 3つ」）。
+   答えは別に読むので「＝ 答え」は外す。計算の記号がない式（今月の食費 など）は読まない */
+function voOpen(){ const v=$('voice-only'); return !!(v && v.classList.contains('open')); }
+function formulaSpeech(f){
+  let t=String(f||'').trim();
+  if(!t || /^(もしかして|言い方の例)/.test(t)) return '';
+  if(!/[＋−×÷√^→²³π]|\d+\s*[+\-*/]\s*\d/.test(t)) return '';
+  t=t.replace(/\s*＝\s*[^＝]*$/,'');                                   // 答えの部分を外す
+  t=t.replace(/[×÷]\s*[\d.,]+（([^）]+)）/g,'の$1');                  // × 0.8（2割引き） → の2割引き
+  t=t.replace(/（[^）]*）/g,'');                                         // そのほかの（注）は読まない
+  t=t.replace(/(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)/g,'$2ぶんの$1');                       // 2/3 → 3ぶんの2
+  t=t.replace(/√\s*/g,'ルート').replace(/²/g,'の2乗').replace(/³/g,'の3乗').replace(/π/g,'パイ').replace(/\^\s*([\d.]+)/g,'の$1乗').replace(/\^\s*/g,'の').replace(/→/g,'を')
+     .replace(/\s*\(\s*/g,' かっこ ').replace(/\s*\)\s*/g,' かっことじ ').replace(/\s*\/\s*/g,'ぶんの');
+  return sayText(t).replace(/\s+/g,' ').trim();
 }
 function sayText(s){
   return String(s||'').replace(/[✅👍📒❌⭕🎙👂📦👛🧠]/gu,'').replace(/×/g,'かける').replace(/÷/g,'わる').replace(/＋/g,'たす').replace(/−/g,'ひく')

@@ -6822,6 +6822,18 @@ async function runKoe(browser) {
     const b = document.querySelector('#log .sug'); if (!b) return 'no button'; b.click(); return state.log[state.log.length - 1].q + ' → ' + state.log[state.log.length - 1].a; }), '底辺6高さ4の3角形の面積 → 面積 12');
   check('  試しても家計簿や記録は変わらない', await page.evaluate(() => { const n = book.length, l = localStorage.getItem('koe_book'); suggestFor('スーパーで3280円くらい使った気がする'); return book.length === n && localStorage.getItem('koe_book') === l && !DRY; }), true);
   check('  前の答えがないときも、たとえばの式は読まない', (await one('それに消費税')).say, '前の答えがありません');
+  // 声だけの画面で式も読む（v11）。設定で切れる
+  check('  式を読みやすい言葉に', await page.evaluate(() => [formulaSpeech('1,280円 × 3つ ＝ 3,840円'), formulaSpeech('(1,200 ＋ 350) × 2 ＝ 3,100'), formulaSpeech('1,500円 × 0.8（2割引き） ＝ 1,200円'),
+    formulaSpeech('2 ^ 10 ＝ 1,024'), formulaSpeech('2/3 × 9 ＝ 6'), formulaSpeech('今月の食費 3,280円'), formulaSpeech('もしかして「8と3の差」？')].join('|')),
+    '1280円 かける 3つ|かっこ 1200 たす 350 かっことじ かける 2|1500円 の2割引き|2 の10乗|3ぶんの2 かける 9||');
+  const saidVo = await page.evaluate(() => { const sp = window.speak; let said = ''; window.speak = t => { said = t; };
+    state.entries = []; state.log = []; recomputeAll(); openPanel('vo'); settings.voF = true; runText('1280円を3つ', false); const on = said + '|' + state.lastSay;
+    settings.voF = false; runText('4人で割って', false); const off = said; settings.voF = true; closeTop(); runText('それに2をかけて', false); const normal = said;
+    window.speak = sp; return [on, off, normal].join(' / '); });
+  check('  声だけの画面で、式も読む（もう一回でも）', saidVo.split(' / ')[0], '1280円 かける 3つ。3840円 です|1280円 かける 3つ。3840円 です');
+  check('  設定を切ると、答えだけ読む', saidVo.split(' / ')[1], 'ひとり 960円 です');
+  check('  ふつうの画面では、答えだけ読む', saidVo.split(' / ')[2], '1920円 です');
+  check('  設定に「式も読み上げる」がある', await page.evaluate(() => !!document.querySelector('.sw[data-set="voF"]') && SET_DEF.voF === true), true);
   // 新しい版がすぐ届くように（koe v3・表電卓 v423・会計アプリ v14）
   for (const [nm, p] of [['表電卓', 'service-worker.js'], ['声の計算帳', 'koe/service-worker.js'], ['会計アプリ', 'kaikei/service-worker.js']]) {
     const s = fs.readFileSync(path.join(ROOT, p), 'utf8');
