@@ -636,7 +636,7 @@ table.fin-t td.sml,.fin-doc .sml{font-size:11px;color:#555}
    ・お金の場所（口座）は「現金・農協・信用金庫・定期預金…」と名前で持つ。
      口座から口座へ移すのは「振替」として、収入・支出とは別に数える。
    ══════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v13';
+const APP_VERSION='v14';
 const KEY='jk_kaikei_v1';
 
 const DEF_CATS={
@@ -3099,7 +3099,11 @@ function init(){
   window.addEventListener('beforeunload', saveNow);
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') saveNow(); });
   if('serviceWorker' in navigator && location.protocol!=='file:'){
-    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+    // 新しい版は開いたときと画面に戻ったときにたしかめる（入れ替わるのは次に開いたとき）
+    navigator.serviceWorker.register('service-worker.js').then(reg=>{
+      reg.update();
+      document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') reg.update(); });
+    }).catch(()=>{});
   }
 }
 init();

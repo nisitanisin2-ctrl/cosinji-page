@@ -1,4 +1,4 @@
-const CACHE = 'excalc-v422';
+const CACHE = 'excalc-v423';
 const CACHE_PREFIX = 'excalc-';   // このアプリのキャッシュだけを見分けるための名前
 const ASSETS = ['./', './index.html', './help.js', './photomemo.js', './manifest.json',
   './icon-192.png', './icon-512.png',
@@ -7,7 +7,7 @@ const ASSETS = ['./', './index.html', './help.js', './photomemo.js', './manifest
 // 新しい版が用意できても、すぐには入れ替わらない（作業中に画面が飛ばないように）。
 // アプリ側が「いま更新」を押したときだけ SKIP_WAITING が届いて入れ替わる。
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' })))));
 });
 
 self.addEventListener('message', e => {
@@ -24,12 +24,20 @@ self.addEventListener('activate', e => {
   );
 });
 
+// GitHub Pages はブラウザに10分ほど控えを持たせるので、そのまま取ると古い版が返ることがある。
+// 自分のサイトの分は、毎回サーバーに新しくなっていないかたしかめて取る（no-cache）。
+function netFetch(req){
+  if (new URL(req.url).origin === self.location.origin)
+    return fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' });
+  return fetch(req);
+}
+
 // ネットワーク優先：オンライン時は常に最新版を取得してキャッシュも更新する。
 // オフライン時のみキャッシュから返す（更新が確実に反映されるようにするため）。
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   e.respondWith(
-    fetch(e.request).then(res => {
+    netFetch(e.request).then(res => {
       if (res && res.ok) {
         const copy = res.clone();
         caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});

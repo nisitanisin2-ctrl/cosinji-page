@@ -268,7 +268,7 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
    ・足し上げ／予算／練習のときは、言葉の受け取り方が変わる（state.mode）
    ・入れたものは この端末の中だけ（localStorage の koe_*）に残る
    ════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v2';
+const APP_VERSION='v3';
 const LS_STATE='koe_state', LS_VARS='koe_vars', LS_SET='koe_settings', LS_BOOK='koe_book';
 
 /* ── 設定 ── */
@@ -1513,7 +1513,19 @@ function init(){
   mic.addEventListener('click', ()=>{ if(recOn) stopListen(); else startListen(); });
   $('typeIn').addEventListener('input', ()=>{ $('typeIn').placeholder='打っても計算できます（例：1280円を3つ）'; });
   if('serviceWorker' in navigator && /^https?:/.test(location.protocol)){
-    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+    // 新しい版は、開いたときと画面に戻ったときにたしかめる。前から使っていて（controller がある）
+    // 入れ替わったら読み込み直す。聞いている・読み上げているときは、終わってから
+    const hadCtl=!!navigator.serviceWorker.controller;
+    let swReload=false;
+    const reloadWhenIdle=()=>{ if(recOn || speaking){ setTimeout(reloadWhenIdle, 1500); return; } location.reload(); };
+    navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+      if(!hadCtl || swReload) return;
+      swReload=true; reloadWhenIdle();
+    });
+    navigator.serviceWorker.register('service-worker.js').then(reg=>{
+      reg.update();
+      document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') reg.update(); });
+    }).catch(()=>{});
   }
 }
 window.koeRun=koeRun;   // テスト用

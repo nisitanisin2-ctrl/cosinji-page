@@ -6761,6 +6761,15 @@ async function runKoe(browser) {
   check('  リセットのあと計算したら、取り消しは計算のほう', await page.evaluate(() => { koeRun('100円を2つ'); return koeRun('取り消し').say; }), '取り消しました。まだ計算していません');
   await run('7680円');
   check('  消費税の率を変えられる', (await run('消費税は8%')) + '/' + (await run('1000円に消費税')), '消費税 8%/1,080円');
+  // 新しい版がすぐ届くように（koe v3・表電卓 v423・会計アプリ v14）
+  for (const [nm, p] of [['表電卓', 'service-worker.js'], ['声の計算帳', 'koe/service-worker.js'], ['会計アプリ', 'kaikei/service-worker.js']]) {
+    const s = fs.readFileSync(path.join(ROOT, p), 'utf8');
+    check('  ' + nm + '：毎回サーバーにたしかめて取る', s.includes("cache: 'no-cache'") && s.includes('netFetch(e.request)'), true);
+    check('  ' + nm + '：入れるときも新しく取る', s.includes("cache: 'reload'"), true);
+  }
+  const koeRaw = fs.readFileSync(path.join(ROOT, 'koe/index.html'), 'utf8');
+  check('  声の計算帳：入れ替わったら読み込み直す', koeRaw.includes("addEventListener('controllerchange'") && koeRaw.includes('reloadWhenIdle'), true);
+  check('  声の計算帳：版の名前が合っている', fs.readFileSync(path.join(ROOT, 'koe/service-worker.js'), 'utf8').includes("'koe-" + await page.evaluate(() => APP_VERSION) + "'"), true);
   check('  エラーが出ない', errs.join(' | '), '');
   await ctx.close();
   // 表電卓からの入口

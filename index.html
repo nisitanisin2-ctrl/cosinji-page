@@ -8700,6 +8700,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v423', t:'新しい版がすぐ届くように', li:[
+    '新しい版を出したあと、しばらく<b>古い画面のまま</b>になることがありました（ブラウザが前の分を10分ほど覚えていたため）。いつもサーバーにたしかめて取るようにしました',
+    '<b>🎙声の計算帳</b>・<b>会計アプリ</b>も同じように直しました。声の計算帳は、開いたままでも新しい版が来ると読み込み直します',
+  ]},
   { v:'v422', t:'🎙声の計算帳（新しいアプリ）', li:[
     '話しかけるだけで計算できる別のアプリ<b>「🎙声の計算帳」</b>を作りました。<b>⋯ → 🧰道具 → 🎙声の計算帳</b> から開けます',
     '「1280円を3つ」→「それに消費税」→「4人で割って」のように<b>会話でつなげて計算</b>できます。「1280じゃなくて1300」で言い直しもできます',
@@ -20016,7 +20020,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v422';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v423';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
