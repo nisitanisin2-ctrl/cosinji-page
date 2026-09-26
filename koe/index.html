@@ -323,7 +323,7 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
    ・足し上げ／予算／練習のときは、言葉の受け取り方が変わる（state.mode）
    ・入れたものは この端末の中だけ（localStorage の koe_*）に残る
    ════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v16';
+const APP_VERSION='v17';
 const LS_STATE='koe_state', LS_VARS='koe_vars', LS_SET='koe_settings', LS_BOOK='koe_book';
 
 /* ── 設定 ── */
@@ -469,6 +469,20 @@ function evalToksPrec(toks, startV, startU){
   let unit=''; if(items.some(k=>k.u==='円')) unit='円'; else if(items[0].u && items[0].u!=='人' && items[0].u!=='%') unit=items[0].u;
   const per=ops.some((o,i)=>o==='/' && items[i+1].u==='人');
   return {v:vals[0], unit, f, per, nums:items.length};
+}
+/* 言っていない「たす」で、単位のちがう数どうしをつないでいるところを探す（v17）。
+   「1200円 350円」のように同じ単位ならつなげてよい。個数（×）・％・人 は前からの決まりどおり */
+function unitClash(toks){
+  let prev=null, pend=null;
+  const lab=k=>(k.lab||fmt(k.v))+(k.u==='%'?'%':(k.u||''));
+  for(const k of toks){
+    if(k.t==='op'){ pend=k.op; continue; }
+    if(k.t==='mod'){ prev=null; pend=null; continue; }
+    if(k.t!=='num') continue;
+    if(prev && !pend && !isCount(k.u) && k.u!=='%' && k.u!=='人' && (prev.u||'')!==(k.u||'') && (prev.u||k.u)) return [lab(prev), lab(k)];
+    prev=k; pend=null;
+  }
+  return null;
 }
 function evalToks(toks, startV, startU){
   if(settings.mulFirst && !toks.some(k=>k.t==='mod')){
@@ -702,6 +716,17 @@ function dryRun(text){
   const o=JSON.parse(snap); state=o.s; book=o.b; vars=o.v; settings=o.st;
   return r ? Object.assign({}, r, {dv:v}) : null;
 }
+/* 例の数の枠に、言った数を当てはめる（v17）。数のすぐあとの単位（円・%・年・人・個・倍 など）が
+   同じ枠を先に埋め、残りは言った順に入れる（「年利3%で100万円を10年」→「100万円を年利3%で10年複利」） */
+function fitNums(said, ex){
+  const suf=(s,i,len)=>{ const m=s.slice(i+len).match(/^(円|%|パーセント|年|人|個|本|枚|倍|割|時間|分|秒|日|回|キロ|km|メートル|m|センチ|cm|グラム|g|kg|リットル|L|ml|cc|歳|度)/); return m?m[1]:''; };
+  const nums=s=>{ const out=[]; const re=/\d+(?:\.\d+)?/g; let m; while((m=re.exec(s))) out.push({v:m[0], u:suf(s,m.index,m[0].length)}); return out; };
+  const mine=nums(said), slots=nums(ex), used=new Array(mine.length).fill(false), put=new Array(slots.length).fill(null);
+  slots.forEach((sl,j)=>{ if(!sl.u) return; const i=mine.findIndex((x,k)=>!used[k] && x.u===sl.u); if(i>=0){ used[i]=true; put[j]=mine[i].v; } });
+  slots.forEach((sl,j)=>{ if(put[j]!=null) return; const i=used.findIndex(x=>!x); if(i>=0){ used[i]=true; put[j]=mine[i].v; } });
+  const man=v=>{ const n=+v; return n>=10000 && n%10000===0 ? String(n/10000)+'万' : v; };   // 1000000円 → 100万円（見やすく）
+  let j=0; return ex.replace(/\d+(?:\.\d+)?/g, x=>man(put[j++]??x));
+}
 function suggestFor(raw){
   const said=norm(raw), mine=said.match(/\d+(?:\.\d+)?/g)||[];
   if(DRY) return null;
@@ -710,7 +735,7 @@ function suggestFor(raw){
     if(sc<0.4) break;                                  // 遠い文例に数を当てはめると、おかしな言い方になる
     const slots=norm(ex).match(/\d+(?:\.\d+)?/g)||[];
     if(!slots.length || slots.length!==mine.length) continue;
-    let i=0; const fit=norm(ex).replace(/\d+(?:\.\d+)?/g,()=>mine[i++]);
+    const fit=fitNums(said, norm(ex));
     const r=dryRun(fit);
     if(r && r.cls!=='err') return {text:fit, fit:true, v:r.dv};
   }
@@ -1201,6 +1226,10 @@ function hReverse(t){
     const orig=p/(1-r);
     return R_ok('元の値段は '+sayU(orig,'円')+' です','元の値段 '+fmtU(Math.round(orig*100)/100,'円'), fmtU(p,'円')+' ÷ '+fmt(1-r), {v:orig,u:'円'});
   }
+  if((m=t.match(/(\d+(?:\.\d+)?)(割|%|パーセント)(?:増し|増|高|高い|アップ|値上げ)(?:で|して|後が?|の値段が|になって)?(\d+(?:\.\d+)?)円?.*?(?:元|定価|もと|最初|はじめ|本来|前)/))){   // 割増しの元の値段（v17）
+    const r=m[2]==='割'?(+m[1])/10:(+m[1])/100, p=+m[3], orig=p/(1+r);
+    return R_ok('元の値段は '+sayU(orig,'円')+' です','元の値段 '+fmtU(Math.round(orig*100)/100,'円'), fmtU(p,'円')+' ÷ '+fmt(1+r), {v:orig,u:'円'});
+  }
   if((m=t.match(/(?:税込み|税込)(?:で|の)?(\d+(?:\.\d+)?)円?(?:の|は|って)?(?:税抜き|税抜|本体|税別|税なし)/)) || (m=t.match(/(\d+(?:\.\d+)?)円?(?:は|が|って)?(?:税込み|税込)(?:で|の|だと)?(?:税抜き|税抜|本体|税別|税なし)/))){
     const v=(+m[1])/taxF();
     return R_ok('税抜きは '+sayU(v,'円')+' です','税抜き '+fmtU(Math.round(v*100)/100,'円'), fmtU(+m[1],'円')+' ÷ '+fmt(taxF())+'（消費税'+settings.tax+'%）', {v,u:'円'});
@@ -1339,6 +1368,17 @@ function hExpr(t0){
   // 「面積」「広さ」「原価」のような計算の言葉を読み飛ばしたときは、答えを決めずに確かめる（v12）。
   // 近い言い方があれば「もしかして」、そのままの式で良ければ「このまま計算」を押してもらう
   const skipped=cont||LITERAL||DRY ? [] : skippedWords(tk.unknown);
+  // 単位のちがう数を、言っていない「たす」でつないだとき（「1個120円のを15個」「100g 198円 350g」）は、
+  // 足しても意味がないので答えを決めない。近い言い方があれば「もしかして」を出す（v17）
+  const clash=LITERAL||DRY ? null : unitClash(toks);
+  if(!skipped.length && clash){
+    const lit=evalToks(toks, null, '');
+    const sg=suggestFor(t0);
+    noteMiss(t0, 'clash');
+    return {cls:'info', say:'計算のしかたが分かりませんでした', a:'「'+clash[0]+'」と「'+clash[1]+'」をどう計算するか分かりませんでした',
+      f:sg?(sg.fit?'もしかして「'+sg.text+'」？':'言い方の例：「'+sg.text+'」'):'', sug:sg&&sg.fit?sg.text:'',
+      lit:(lit.v!=null && isFinite(lit.v)) ? t0 : '', litA:(lit.v!=null && isFinite(lit.v)) ? fmtU(lit.v,lit.unit)+'（'+lit.f+'）' : ''};
+  }
   if(skipped.length){
     const lit=evalToks(toks, null, '');
     const sg=suggestFor(t0);
@@ -1789,7 +1829,7 @@ const HELP=[
   {h:'🏷 名前を付けて使う', p:'よく使う数に名前を付けると、式の中で名前で呼べます。',
    ex:['単価は2800','単価かける45','単価はいくら']},
   {h:'🔁 逆から計算', p:'「いくらにすればいい？」「何個買える？」を、そのまま聞けます。',
-   ex:['原価800円で利益3割の売値','3000円は12000円の何パーセント','2割引きで1600円の元の値段','税込み3300円の税抜き','5000円で380円のものは何個','時給1200円で50000円稼ぐには何時間']},
+   ex:['原価800円で利益3割の売値','3000円は12000円の何パーセント','2割引きで1600円の元の値段','2割増しで1200円の元の値段','税込み3300円の税抜き','5000円で380円のものは何個','時給1200円で50000円稼ぐには何時間']},
   {h:'〰 だいたい', p:'「だいたい」「ざっと」を付けると、上2けたに丸めて答えます。', ex:['だいたい12800を3で割って']},
   {h:'📦 足し上げ（検品・棚卸し）', p:'品物と数や金額を言うたびに、復唱して合計を足していきます。伝票の合計と読み合わせもできます。',
    ex:['足し上げ開始','セメント12袋単価850円','砂3立米12000円','何件','伝票の合計は22200円','おしまい']},
@@ -1813,6 +1853,8 @@ const HELP=[
    ex:['時速60キロで2時間半','120キロを時速80キロで行くと何時間','100キロを2時間で走ったら時速何キロ','300キロ走ってガソリン20リットル使ったら燃費は','燃費15キロで300キロ走るとガソリン代は1リットル170円']},
   {h:'💴 給料・貯金・ローン・買い物', p:'年収・日給・積み立て・利息（複利・単利）・ローンの毎月の返済・分割払い・比で分ける・1個あたり・利益率・お金を数える。',
    ex:['月給25万円でボーナス2か月分の年収','時給1200円で1日8時間月20日','毎月3万円を5年貯金したら','100万円を年利3%で10年複利','300万円を金利2%で5年ローン毎月の返済','12万円を12回払い','10000円を3対2で分ける','5個で600円なら1個いくら','原価600円で売値1000円の利益率','100円玉が23枚と10円玉が15枚']},
+  {h:'🧪 薄める・分ける・両替', p:'何倍に薄めるときの原液の量、割り勘・等分、1個や100gあたりの値段から、両替（レートを言います）、時間を分に。',
+   ex:['100倍で4リットル','1000倍希釈で20L','水10Lに500倍なら原液は何ml','3人で12000円を割り勘','2.5キロを8等分','1個120円のを15個','3個で450円なら5個','100gあたり198円で350g','1ドル150円で200ドル','1ドル150円で3000円は何ドル','3時間45分は何分','華氏72度は摂氏何度']},
   {h:'📅 年齢・和暦・時刻', p:'何歳・何年生まれ・西暦と和暦・何時間後の時刻。',
    ex:['昭和55年生まれは何歳','30歳は何年生まれ','平成31年は西暦','2026年は令和何年','14時の3時間半後']},
   {h:'📐 図形・からだ', p:'円・長方形・三角形・台形の面積、円周、体積、対角線、BMI と標準体重。',
