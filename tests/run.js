@@ -6822,6 +6822,48 @@ async function runKoe(browser) {
   check('  表電卓：QR で共有できる', await h.page.evaluate(() => { qrSetWhich('koe'); return /\/koe\/$/.test(qrAppUrl('koe')) && QR_NAMES.koe; }), '声の計算帳');
   await h.ctx.close();
 }
+/* v424：電卓モードの声も、声の計算帳と同じ言い方（koe/phrase.js）で計算する */
+async function runDtPhrase(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 電卓の声：いろいろな言い方（v424） ──');
+  check('  はじめは読み込まない（起動を軽く）', await page.evaluate(() => !!window.KoePhrase), false);
+  check('  声を使うときに読み込む', await page.evaluate(async () => { switchMode('dentaku'); return await loadKoePhrase(); }), true);
+  await page.evaluate(() => { window.speechSay = () => {}; taxPct = 10; });
+  const PHR = require('./koe-phrases.js');
+  // 電卓はかけ算を先に計算する（声の計算帳は左から順）。この1件だけ答えがちがうのが決まり
+  const DT_DIFF = { '1200足す350かける2': 1900 };
+  let n = 0;
+  for (const [cat, list] of Object.entries(PHR)) {
+    const bad = [];
+    for (const [q, want0] of list) {
+      const want = q in DT_DIFF ? DT_DIFF[q] : want0;
+      const r = await page.evaluate(q => { disp_val = '0'; voiceAcceptDentaku(q); return { d: disp_val, t: (document.getElementById('dtVoice') || {}).textContent || '' }; }, q);
+      const v = parseFloat(String(r.d).replace(/,/g, ''));
+      const ok = typeof want === 'number' ? Math.abs(v - want) <= Math.max(0.01, 1e-4 * Math.abs(want)) : r.t.includes(want);
+      if (!ok) bad.push(q + ' → ' + r.d);
+      n++;
+    }
+    check('  電卓の声：' + cat + '（' + list.length + '件）', bad.join(' / '), '');
+  }
+  check('  文例の数', n >= 300, true);
+  // 前から言えた言い方（📖言い方 の見本）は、型を読み込む前と答えが変わらない
+  const diff = await page.evaluate(() => { const bad = [];
+    for (const x of sayList().filter(x => x.g !== 'いろいろな言い方')) {
+      const K = window.KoePhrase; window.KoePhrase = undefined; disp_val = '0'; voiceAcceptDentaku(x.ex); const a = disp_val;
+      window.KoePhrase = K; disp_val = '0'; voiceAcceptDentaku(x.ex); if (disp_val !== a) bad.push(x.ex + ' ' + a + '→' + disp_val); }
+    return bad.join(' / '); });
+  check('  前からの言い方の答えは変わらない', diff, '');
+  check('  答えは表示に出て、続けてキーで計算できる', await page.evaluate(() => { voiceAcceptDentaku('8と3の差'); return disp_val; }), '5');
+  check('  履歴に式と答えが残る', await page.evaluate(() => { voiceAcceptDentaku('5キロは何メートル'); return dtTape[dtTape.length - 1].e + ' ＝ ' + dtTape[dtTape.length - 1].v; }), '5キロ × 1,000 ＝ 5,000メートル');
+  check('  文字の答え（余り）も出す', await page.evaluate(() => { voiceAcceptDentaku('17を5で割った商と余り'); return document.getElementById('dtVoice').textContent.includes('3 余り 2') + '/' + disp_val; }), 'true/3');
+  check('  できないときは理由を出す', await page.evaluate(() => { voiceAcceptDentaku('5を0で割る'); return /割れません/.test(document.getElementById('dtVoice').textContent); }), true);
+  check('  📖言い方 に「いろいろな言い方」が並び、答えも出る', await page.evaluate(() => { openSayHelp(); const t = document.getElementById('sayHelpBody').textContent; closeSayHelp(); return t.includes('いろいろな言い方') && t.includes('30坪は何平米') && t.includes('99.17'); }), true);
+  check('  消費税の率は電卓の設定に合わせる', await page.evaluate(() => { taxPct = 8; voiceAcceptDentaku('1000円の消費税額'); const d = disp_val; taxPct = 10; return d; }), '80');
+  check('  service-worker が先に持つ', fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8').includes("'./koe/phrase.js'") && fs.readFileSync(path.join(ROOT, 'koe', 'service-worker.js'), 'utf8').includes("'./phrase.js'"), true);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
 /* v417：コピー・貼り付けで数式の番地をずらす・範囲のコピー／切り取り・絶対参照 $ */
 async function runClip(browser) {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, permissions: ['clipboard-read', 'clipboard-write'] });
@@ -7242,6 +7284,7 @@ async function runQrShare(browser) {
     if (!only || only === 'cellxl') await runCellXl(browser);
     if (!only || only === 'clip') await runClip(browser);
     if (!only || only === 'koe') await runKoe(browser);
+    if (!only || only === 'dtphrase') await runDtPhrase(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
     if (!only || only === 'brush3') await runBrush3(browser);
