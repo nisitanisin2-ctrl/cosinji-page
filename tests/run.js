@@ -6677,6 +6677,8 @@ async function runKoe(browser) {
   check('  言い直すと最後まで計算し直す', await run('1280じゃなくて1300'), '1,280 → 1,300　1人あたり 1,072.5円');
   check('  いまいくら（お金は1円に丸めて読む）', await say('いまいくら'), 'いまの答えは ひとり 約1073円 です');
   check('  取り消し', await say('取り消し'), '取り消しました。いまの答えは 4290円 です');
+  const logQ = () => page.evaluate(() => state.log.map(m => m.q).join('|'));
+  check('  取り消した吹き出しは画面から消える（v4）', await logQ(), '1280円を3つ|それに消費税|1280じゃなくて1300|いまいくら');
   check('  左から順に計算する', await page.evaluate(() => koeRun('1200足す350かける2').f), '(1,200 ＋ 350) × 2 ＝ 3,100');
   check('  漢数字も読む', await run('二百五十一かける六十八'), '17,068');
   check('  割引・割合', (await run('1500円の2割引き')) + '/' + (await run('2000円の3割')) + '/' + (await run('1500円を2割5分引き')), '1,200円/600円/1,125円');
@@ -6761,6 +6763,18 @@ async function runKoe(browser) {
   check('  リセットのあと計算したら、取り消しは計算のほう', await page.evaluate(() => { koeRun('100円を2つ'); return koeRun('取り消し').say; }), '取り消しました。まだ計算していません');
   await run('7680円');
   check('  消費税の率を変えられる', (await run('消費税は8%')) + '/' + (await run('1000円に消費税')), '消費税 8%/1,080円');
+  // 取り消しで、その計算の吹き出しと言い直しも消える（v4）
+  await page.evaluate(() => { resetAll(); state.resetSnap = null; });
+  await run('500円を2つ'); await run('それに300円足して'); await run('500じゃなくて600');
+  check('  言い直しは元の計算に付く', await logQ(), '500円を2つ|それに300円足して|500じゃなくて600');
+  await run('取り消し');
+  check('  1つ目の取り消し：足した分だけ消える', await logQ(), '500円を2つ|500じゃなくて600');
+  await run('取り消し');
+  check('  2つ目の取り消し：言い直しも一緒に消える', await logQ(), '');
+  check('  もう取り消せないときは、そう言う', (await say('取り消し')) + '/' + await logQ(), '取り消せるものはありません/取り消し');
+  await page.evaluate(() => { koeRun('100円を3つ'); render(); koeRun('取り消し'); runText('200円を2つ'); runText('取り消し'); });
+  check('  画面の吹き出しからも消え、知らせを出す', await page.evaluate(() => document.querySelectorAll('#log .msg.me').length + '/' + /取り消しました/.test(document.body.innerText)), '1/true');
+  check('  もう一回で取り消しの答えを読む', await say('もう一回'), '取り消しました。まだ計算していません');
   // 新しい版がすぐ届くように（koe v3・表電卓 v423・会計アプリ v14）
   for (const [nm, p] of [['表電卓', 'service-worker.js'], ['声の計算帳', 'koe/service-worker.js'], ['会計アプリ', 'kaikei/service-worker.js']]) {
     const s = fs.readFileSync(path.join(ROOT, p), 'utf8');
