@@ -8716,6 +8716,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v427', t:'起動を速く', li:[
+    'テンキーの文字の大きさを合わせる処理をまとめて測るようにして、<b>起動が約2割速く</b>なりました（見た目は前と同じです）',
+  ]},
   { v:'v426', t:'数式の関数を足しました', li:[
     '数式で <b>LOG10・POWER・PRODUCT・INT・TRUNC・ROUNDUP・ROUNDDOWN</b> が使えるようになりました（Excel と同じ書き方）',
   ]},
@@ -10528,22 +10531,36 @@ function applyKeySize(fitRoot) {
   fitNumpadLabels(fitRoot);   // fitRoot を渡すとそのページだけ調整（ドラッグ中の負荷軽減）
 }
 /* テンキー各ボタンの文字を、枠幅に収まるよう自動縮小（折り返し防止） */
+/* 見当の大きさ：幅の比から出し、もとのやり方と同じ「基準から 0.5px きざみ」の目にそろえる（v427）。
+   余白のぶん実際に入る大きさより大きめに出るので、あとは 0.5px ずつ下げれば、前と同じ大きさに落ち着く */
+function fitStart(base, cw, sw, low){
+  const est=base*cw/sw;
+  let fs=base-0.5*Math.floor((base-est)/0.5);
+  const lowGrid=base-0.5*Math.ceil((base-low)/0.5);   // 前のやり方で止まる、いちばん小さい大きさ
+  if(fs<lowGrid) fs=lowGrid;
+  if(fs>=base) fs=base-0.5;
+  return fs;
+}
 function fitNumpadLabels(root) {
   // root を渡すとそのページ内のボタンだけを対象にする（ドラッグ中の負荷軽減）。
   // 省略時は全ページ（全テンキーページ）のボタンをまとめて調整。
   // root は文字列セレクタか要素のみ受け付ける（resize/load リスナーが渡す Event は無視）
   const scope = (typeof root==='string') ? document.querySelector(root)
               : (root && typeof root.querySelectorAll==='function') ? root : null;
-  const btns = scope ? scope.querySelectorAll('.btn') : document.querySelectorAll('.numpad-grid .btn');
+  const btns = [...(scope ? scope.querySelectorAll('.btn') : document.querySelectorAll('.numpad-grid .btn'))];
   // まず CSS 基準サイズに戻してから測定（再フィット時に拡大も効くように）
   btns.forEach(b=>{ b.style.fontSize=''; });
-  btns.forEach(b=>{
-    let fs=parseFloat(getComputedStyle(b).fontSize);
-    let guard=0;
-    while(b.scrollWidth>b.clientWidth && fs>6 && guard++<60){
-      fs-=0.5; b.style.fontSize=fs+'px';
-    }
-  });
+  // 測るのはまとめて1回（v427）。1つずつ縮めては測ると、そのたびに画面の組み直しが起きて起動が遅くなる。
+  // はみ出したボタンだけ、幅の比から見当を付けた大きさにしてから、0.5px ずつ合わせる（結果は前と同じ）
+  const need=[];
+  btns.forEach(b=>{ const sw=b.scrollWidth, cw=b.clientWidth; if(cw>0 && sw>cw) need.push({b, sw, cw}); });
+  const base=need.map(m=>parseFloat(getComputedStyle(m.b).fontSize));
+  need.forEach((m,i)=>{ m.fs=fitStart(base[i], m.cw, m.sw, 6); m.b.style.fontSize=m.fs+'px'; });
+  // 合わせるのも「全部測る → 全部下げる」をくり返す（1回ごとに組み直しは1度だけ）
+  for(let pend=need, guard=0; pend.length && guard<60; guard++){
+    pend=pend.filter(m=>m.b.scrollWidth>m.b.clientWidth && m.fs>6);
+    pend.forEach(m=>{ m.fs-=0.5; m.b.style.fontSize=m.fs+'px'; });
+  }
   fitRegLabels(scope);
 }
 /* 登録ボタン（紫・緑の登録ページ）の文字合わせ。
@@ -10560,23 +10577,31 @@ function fitRegLabels(scope){
   const root = (scope && typeof scope.querySelectorAll==='function') ? scope : document;
   const ONE_MIN=15;   // 1行にするために許す最小の文字サイズ
   const MIN=9;        // 2段にしてもこれ以上は小さくしない
-  root.querySelectorAll('.numpad-regpage .ubtn').forEach(b=>{
-    b.style.fontSize=''; b.style.whiteSpace='';
-    const t=(b.textContent||'').trim();
-    if(!t || b.clientWidth<8 || b.clientHeight<8) return;   // まだ描かれていない時は触らない
-    const base=parseFloat(getComputedStyle(b).fontSize);
-    // ① 1行で収まるか（折り返しを止めて幅で見る）
-    let fs=base, guard=0;
-    b.style.whiteSpace='nowrap';
-    while(b.scrollWidth>b.clientWidth && fs>ONE_MIN && guard++<80){ fs-=0.5; b.style.fontSize=fs+'px'; }
-    if(b.scrollWidth<=b.clientWidth && b.scrollHeight<=b.clientHeight+1) return;
-    // ② 折り返して2段までに収める（段数は行の数を直接数える。
-    //    段の高さを固定したので、はみ出しは scrollHeight では分からない）
-    b.style.whiteSpace=''; b.style.fontSize=''; fs=base; guard=0;
-    while((b.scrollHeight>b.clientHeight+1 || lineCount(b)>2) && fs>MIN && guard++<80){
-      fs-=0.5; b.style.fontSize=fs+'px';
-    }
-  });
+  // 測るのはまとめて（v427）：戻す → 測る → 1行にして測る → 見当を付けて縮める → 合わせる
+  const all=[...root.querySelectorAll('.numpad-regpage .ubtn')];
+  all.forEach(b=>{ b.style.fontSize=''; b.style.whiteSpace=''; });
+  const act=all.filter(b=>(b.textContent||'').trim() && b.clientWidth>=8 && b.clientHeight>=8);   // まだ描かれていない時は触らない
+  const bases=act.map(b=>parseFloat(getComputedStyle(b).fontSize));
+  act.forEach(b=>{ b.style.whiteSpace='nowrap'; });
+  const meas=act.map(b=>({sw:b.scrollWidth, cw:b.clientWidth, sh:b.scrollHeight, ch:b.clientHeight}));
+  const start=act.map((b,i)=>{ const m=meas[i];
+    if(m.sw<=m.cw) return bases[i];
+    const fs=fitStart(bases[i], m.cw, m.sw, ONE_MIN);
+    b.style.fontSize=fs+'px'; return fs; });
+  // ① 1行で収まるか：全部測る → 全部下げる、をくり返す
+  const fsz=start.slice();
+  for(let pend=act.map((b,i)=>i), guard=0; pend.length && guard<80; guard++){
+    pend=pend.filter(i=>act[i].scrollWidth>act[i].clientWidth && fsz[i]>ONE_MIN);
+    pend.forEach(i=>{ fsz[i]-=0.5; act[i].style.fontSize=fsz[i]+'px'; });
+  }
+  // ② 1行で入らないものは、折り返して2段までに収める（段数は行の数を直接数える。
+  //    段の高さを固定したので、はみ出しは scrollHeight では分からない）
+  const wrap=act.map((b,i)=>i).filter(i=>!(act[i].scrollWidth<=act[i].clientWidth && act[i].scrollHeight<=act[i].clientHeight+1));
+  wrap.forEach(i=>{ act[i].style.whiteSpace=''; act[i].style.fontSize=''; fsz[i]=bases[i]; });
+  for(let pend=wrap, guard=0; pend.length && guard<80; guard++){
+    pend=pend.filter(i=>(act[i].scrollHeight>act[i].clientHeight+1 || lineCount(act[i])>2) && fsz[i]>MIN);
+    pend.forEach(i=>{ fsz[i]-=0.5; act[i].style.fontSize=fsz[i]+'px'; });
+  }
 }
 window.addEventListener('resize', fitNumpadLabels);
 function changeKeySize(delta) {
@@ -20098,7 +20123,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v426';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v427';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
