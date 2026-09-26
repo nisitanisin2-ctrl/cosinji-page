@@ -65,6 +65,9 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
 /* ── 答え ── */
 .answer{margin:6px auto;width:calc(100% - 20px);max-width:740px;padding:12px 16px;border-radius:var(--r-card);background:var(--card);box-shadow:var(--elev-1);text-align:right}
 .ans-label{font-size:12px;color:var(--sub);text-align:left;display:flex;justify-content:space-between;gap:8px}
+.ans-right{display:flex;align-items:center;gap:8px}
+.rst{min-height:32px;padding:0 12px;border-radius:var(--r-pill);background:var(--bg);border:1px solid var(--line);color:var(--sub);font-weight:700;font-size:12.5px}
+.rst:active{background:var(--acc-weak)}
 .ans-big{font-size:var(--ans);font-weight:800;line-height:1.15;letter-spacing:-.01em;word-break:break-all}
 .ans-big.err{color:var(--err)}
 .ans-sub{font-size:12.5px;color:var(--sub);min-height:1.4em;word-break:break-all}
@@ -140,6 +143,8 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
 #voice-only.open{display:flex}
 #voice-only .vo-big{font-size:clamp(40px,14vw,96px);font-weight:800;line-height:1.1;word-break:break-all}
 #voice-only .vo-sub{font-size:20px;color:#b9d6d1;margin-top:12px;min-height:1.4em}
+#voice-only .vo-heard{font-size:22px;color:#ffe9a8;margin-bottom:14px;min-height:1.4em;word-break:break-all;max-width:100%}
+#voice-only .vo-f{font-size:clamp(16px,4.6vw,24px);color:#b9d6d1;margin-top:10px;min-height:1.4em;word-break:break-all;max-width:100%}
 #voice-only .vo-hint{position:absolute;bottom:calc(env(safe-area-inset-bottom) + 24px);left:16px;right:16px;font-size:16px;color:#8fb2ac}
 #voice-only.listening{background:#3a1511}
 #voice-only .vo-exit{position:absolute;top:calc(env(safe-area-inset-top) + 10px);right:10px;min-height:44px;padding:0 14px;border-radius:var(--r-btn);background:rgba(255,255,255,.14);color:#fff;font-weight:700}
@@ -166,7 +171,7 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
 </nav>
 
 <section class="answer" aria-live="polite">
-  <div class="ans-label"><span id="ansLabel">いまの答え</span><span id="ansMode"></span></div>
+  <div class="ans-label"><span id="ansLabel">いまの答え</span><span class="ans-right"><span id="ansMode"></span><button class="rst" onclick="resetScreen()" aria-label="画面の会話と計算をリセット">🧹 リセット</button></span></div>
   <div class="ans-big num" id="ansBig">—</div>
   <div class="ans-sub num" id="ansSub"></div>
 </section>
@@ -246,7 +251,9 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
 <!-- 声だけで使う -->
 <div id="voice-only" role="dialog" aria-label="声だけで使う">
   <button class="vo-exit" onclick="closeVoiceOnly(event)">✕ 画面を使う</button>
+  <div class="vo-heard" id="voHeard"></div>
   <div class="vo-big num" id="voBig">—</div>
+  <div class="vo-f num" id="voF"></div>
   <div class="vo-sub" id="voSub"></div>
   <div class="vo-hint">画面のどこでも押すと聞きます。長く押すともう一度読み上げます。</div>
 </div>
@@ -261,7 +268,7 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
    ・足し上げ／予算／練習のときは、言葉の受け取り方が変わる（state.mode）
    ・入れたものは この端末の中だけ（localStorage の koe_*）に残る
    ════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v1';
+const APP_VERSION='v2';
 const LS_STATE='koe_state', LS_VARS='koe_vars', LS_SET='koe_settings', LS_BOOK='koe_book';
 
 /* ── 設定 ── */
@@ -629,6 +636,7 @@ function koeRun(raw, opt){
 }
 function finish(raw,res){
   res.q=String(raw).trim();
+  if(state.entries.length) state.resetSnap=null;   // リセットのあと計算を始めたら、元には戻さない
   if(!res.noLog){
     if(res.say) state.lastSay=res.say;
     state.log.push({q:res.q, a:res.a, f:res.f||'', c:res.cls||'ok', t:Date.now()});
@@ -637,6 +645,13 @@ function finish(raw,res){
   return res;
 }
 
+/* 画面に残っている会話と計算を消す（v2）。家計簿と名前を付けた数は残す。
+   直後の「取り消し」で1回だけ元に戻せるよう、消す前のものを覚えておく */
+function resetAll(){
+  state.resetSnap={ entries:state.entries, log:state.log, lastSay:state.lastSay };
+  state.entries=[]; state.log=[]; state.drill=null; state.ask=null; state.lastSay='';
+  recomputeAll();
+}
 /* 取り消し・もう一回・いまいくら など */
 function hControl(t){
   if(RE_HELP.test(t)) return R_info('言い方の例は、右上の「？」に並べてあります。「1280円を3つ」「それに消費税」「4人で割って」のように、ふつうに話してください',
@@ -645,6 +660,12 @@ function hControl(t){
   if(RE_SLOW.test(t)){ settings.rate=0.8; saveSettings(); return {say:state.lastSay||'ゆっくり読みます', a:'ゆっくり読みます', cls:'info', noLog:true}; }
   if(RE_FAST.test(t)){ settings.rate=1.25; saveSettings(); return {say:state.lastSay||'はやく読みます', a:'はやく読みます', cls:'info', noLog:true}; }
   if(RE_UNDO.test(t)){
+    if(state.resetSnap && !state.entries.length){                 // リセットした直後なら、リセットの前に戻す
+      const sn=state.resetSnap; state.resetSnap=null;
+      state.entries=sn.entries; state.log=sn.log; state.lastSay=sn.lastSay;
+      recomputeAll();
+      return R_info('リセットの前に戻しました。'+currentSay());
+    }
     const e=state.entries.pop();
     if(!e) return R_info('取り消せるものはありません');
     if(e.k==='book'){ book=book.filter(b=>b.id!==e.id); saveBook(); }
@@ -653,8 +674,8 @@ function hControl(t){
     return R_info('取り消しました。'+currentSay());
   }
   if(RE_CLEAR.test(t)){
-    state.entries=[]; state.drill=null; recomputeAll();
-    return R_info('全部消しました。ゼロから始めます');
+    resetAll();
+    return R_info('リセットしました。ゼロから始めます（「取り消し」で元に戻せます）');
   }
   if(RE_NOW.test(t)) return R_info(currentSay());
   if(RE_COUNT.test(t)){
@@ -1155,7 +1176,12 @@ function render(){
     if(state.lastV!=null){ bigT=fmtU(state.lastV,state.lastU); subT=state.lastF||''; if(state.lastPer) labT='1人あたり'; }
   }
   lab.textContent=labT; md.textContent=mdT; big.textContent=bigT; sub.textContent=subT;
-  const vo=$('voBig'); if(vo){ vo.textContent=bigT; $('voSub').textContent=labT==='いまの答え'?'':labT; }
+  const vo=$('voBig'); if(vo){
+    vo.textContent=bigT; $('voSub').textContent=labT==='いまの答え'?'':labT;
+    const last=state.log[state.log.length-1];
+    $('voF').textContent=state.drill?'':(last && last.f ? last.f : (state.mode==='normal' && state.lastF && state.lastV!=null ? state.lastF+' ＝ '+bigT : subT));   // 式（いちばん新しい答えの式）
+    if(!recOn) $('voHeard').textContent=last && last.q ? '「'+last.q+'」' : '';
+  }
   document.querySelectorAll('#modes .chip').forEach(c=>{
     const m=c.dataset.m;
     c.classList.toggle('on', state.drill ? m==='drill' : m===state.mode);
@@ -1248,7 +1274,7 @@ if('speechSynthesis' in window){ try{ speechSynthesis.onvoiceschanged=()=>{ jaVo
    キーボードのマイク（スマホの音声入力）で入れてもらう。 */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 let rec=null, recOn=false, hfWanted=false, pauseForSpeak=false, stopByUser=false;
-function setHeard(s){ const h=$('heard'); if(h) h.textContent=s||''; const vs=$('voSub'); if(vs && s) vs.textContent=s; }
+function setHeard(s){ const h=$('heard'); if(h) h.textContent=s||''; const vh=$('voHeard'); if(vh && s) vh.textContent=s; }
 function syncMicUi(){
   $('micBtn').classList.toggle('listening', recOn);
   $('micBtn').setAttribute('aria-label', recOn?'聞いています（押すと止めます）':'話す');
@@ -1357,6 +1383,13 @@ function setRate(r){ settings.rate=r; saveSettings(); renderSet(); speak('この
 function setTax(n){ settings.tax=n; saveSettings(); renderSet(); toast('消費税を '+n+'% にしました'); }
 function delVar(n){ delete vars[n]; saveVars(); renderSet(); toast(n+' を忘れました'); }
 function applySettings(){ document.body.classList.toggle('big', !!settings.big); syncMicUi(); }
+/* 🧹リセット：画面に残っている会話と計算を消す（家計簿と名前を付けた数は残す） */
+function resetScreen(){
+  if(!state.log.length && !state.entries.length && !state.drill){ toast('消すものはありません'); return; }
+  resetAll(); saveState(); setHeard(''); render();
+  toast('リセットしました。「取り消し」で元に戻せます');
+  speak('リセットしました');
+}
 function clearLog(){
   if(!confirm('会話の記録と、いまの計算を消しますか？（家計簿と名前を付けた数は残ります）')) return;
   state.entries=[]; state.log=[]; state.drill=null; state.ask=null; state.lastSay='';
@@ -1366,7 +1399,7 @@ function clearLog(){
 /* ── 使い方（例を押すと、その言葉で計算します） ── */
 const HELP=[
   {h:'💬 会話でつなげる', p:'前の答えを「それ」で受けて、続けて計算できます。言い直しや取り消しも声でできます。',
-   ex:['1280円を3つ','それに消費税','4人で割って','1280じゃなくて1300','いまいくら','取り消し','もう一回']},
+   ex:['1280円を3つ','それに消費税','4人で割って','1280じゃなくて1300','いまいくら','取り消し','もう一回','リセット']},
   {h:'🏷 名前を付けて使う', p:'よく使う数に名前を付けると、式の中で名前で呼べます。',
    ex:['単価は2800','単価かける45','単価はいくら']},
   {h:'🔁 逆から計算', p:'「いくらにすればいい？」「何個買える？」を、そのまま聞けます。',

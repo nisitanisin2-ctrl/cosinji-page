@@ -1,7 +1,7 @@
 // このアプリ（koe/）専用のキャッシュ。同じサイトにある別アプリの分を消さないよう、
 // 名前の頭で自分の分だけを見分ける。
 // index.html の APP_VERSION を上げたら、ここの CACHE も必ずそろえること。
-const CACHE = 'koe-v1';
+const CACHE = 'koe-v2';
 const CACHE_PREFIX = 'koe-';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 

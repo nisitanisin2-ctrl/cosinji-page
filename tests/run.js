@@ -6744,11 +6744,22 @@ async function runKoe(browser) {
   check('  声だけの画面に大きな答え', await page.evaluate(() => document.getElementById('voice-only').classList.contains('open') + '|' + document.getElementById('voBig').textContent), 'true|3,840円');
   await page.evaluate(() => closeVoiceOnly()); await page.waitForTimeout(300);
   check('  声だけの画面を閉じる', await page.evaluate(() => document.getElementById('voice-only').classList.contains('open')), false);
+  check('  声だけ：聞き取った言葉と式も出す', await page.evaluate(() => { openVoiceOnly(); const r = [document.getElementById('voHeard').textContent, document.getElementById('voF').textContent]; closeVoiceOnly(); return r.join('|'); }),
+    '「おしまい」|1,280円 × 3つ ＝ 3,840円');   // いちばん新しく聞いた言葉と、いまの答えの式
+  await page.waitForTimeout(300);
   // 開き直しても残る
   await page.reload(); await page.waitForTimeout(500);
   check('  開き直しても答え・記録・家計簿・名前が残る', await page.evaluate(() =>
     document.getElementById('ansBig').textContent + '|' + (state.log.length > 50) + '|' + book.length + '|' + (vars['単価'] || {}).v), '3,840円|true|1|2800');
   check('  続きから計算できる', await run('それを2倍'), '7,680円');
+  // 🧹リセット（v2）
+  await page.evaluate(() => resetScreen()); await page.waitForTimeout(100);
+  check('  リセットで画面の会話と答えが消える', await page.evaluate(() => state.log.length + '|' + document.getElementById('ansBig').textContent + '|' + !!document.querySelector('#log .log-empty')), '0|—|true');
+  check('  リセットしても家計簿と名前は残る', await page.evaluate(() => book.length + '|' + (vars['単価'] || {}).v), '1|2800');
+  check('  すぐあとの取り消しで元に戻る', await say('取り消し'), 'リセットの前に戻しました。いまの答えは 7680円 です');
+  check('  声の「リセット」でも消える', await page.evaluate(() => { koeRun('リセット'); return state.entries.length + '|' + state.lastV; }), '0|null');
+  check('  リセットのあと計算したら、取り消しは計算のほう', await page.evaluate(() => { koeRun('100円を2つ'); return koeRun('取り消し').say; }), '取り消しました。まだ計算していません');
+  await run('7680円');
   check('  消費税の率を変えられる', (await run('消費税は8%')) + '/' + (await run('1000円に消費税')), '消費税 8%/1,080円');
   check('  エラーが出ない', errs.join(' | '), '');
   await ctx.close();
