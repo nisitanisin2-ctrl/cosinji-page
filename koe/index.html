@@ -90,6 +90,8 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
 .bk-mic{border:0;border-radius:24px;padding:10px 22px;font-size:16px;font-weight:700;color:#fff;background:var(--acc);cursor:pointer}
 .bk-mic.listening{background:var(--err)}
 #bkHeard{margin-top:6px}
+.msg .sug{display:block;margin-top:6px;border:1px dashed var(--acc);background:transparent;color:var(--acc);border-radius:10px;padding:6px 10px;font-size:14px;text-align:left;cursor:pointer}
+.msg .sug b{font-size:12px;margin-left:4px}
 .heard{min-height:1.5em;font-size:13px;color:var(--acc);text-align:center;margin-bottom:4px;word-break:break-all;position:relative}
 .wait-bar{height:3px;margin:3px auto 0;max-width:220px;border-radius:2px;background:var(--acc);transform-origin:left center;animation:waitShrink linear forwards}
 @keyframes waitShrink{from{transform:scaleX(1)}to{transform:scaleX(0)}}
@@ -279,7 +281,7 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
    ・足し上げ／予算／練習のときは、言葉の受け取り方が変わる（state.mode）
    ・入れたものは この端末の中だけ（localStorage の koe_*）に残る
    ════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v9';
+const APP_VERSION='v10';
 const LS_STATE='koe_state', LS_VARS='koe_vars', LS_SET='koe_settings', LS_BOOK='koe_book';
 
 /* ── 設定 ── */
@@ -290,7 +292,8 @@ function loadSettings(){
   if(![8,10].includes(+settings.tax)) settings.tax=10;
   if(!['short','normal','long'].includes(settings.wait)) settings.wait='normal';
 }
-function saveSettings(){ try{ localStorage.setItem(LS_SET, JSON.stringify(settings)); }catch(_){} }
+let DRY=false;   // 「もしかして」を試すあいだは何も書き残さない
+function saveSettings(){ if(DRY) return; try{ localStorage.setItem(LS_SET, JSON.stringify(settings)); }catch(_){} }
 const taxF=()=>1+(+settings.tax)/100;
 
 /* ── 数の見せ方 ── */
@@ -447,6 +450,7 @@ function loadState(){
   recomputeAll();
 }
 function saveState(){
+  if(DRY) return;
   // たまりすぎたら古いものから捨てる（続きの計算は、捨てる前の答えから始まるようにしておく）
   if(state.entries.length>300){
     const cut=state.entries.length-250;
@@ -458,7 +462,7 @@ function saveState(){
   if(state.log.length>200) state.log=state.log.slice(-200);
   try{ localStorage.setItem(LS_STATE, JSON.stringify({entries:state.entries, log:state.log, lastSay:state.lastSay})); }catch(_){}
 }
-function saveVars(){ try{ localStorage.setItem(LS_VARS, JSON.stringify(vars)); }catch(_){} }
+function saveVars(){ if(DRY) return; try{ localStorage.setItem(LS_VARS, JSON.stringify(vars)); }catch(_){} }
 /* 最初から計算し直す（言い直し・取り消しのあと） */
 function recomputeAll(){
   let lastV=null, lastU='', lastF='', lastPer=false, mode='normal', sum=0, cnt=0, sumU=null, budget=0;
@@ -510,7 +514,7 @@ function loadBook(){ try{ const b=JSON.parse(localStorage.getItem(LS_BOOK)||'[]'
   // v8 のとき、スマホで「ガソリン代ガソリン代…」と繰り返したメモが残っていることがあるので整える（v9）
   book.forEach(x=>{ if(x.memo) x.memo=bookMemo(collapseRepeats(x.memo)); });
 }
-function saveBook(){ try{ localStorage.setItem(LS_BOOK, JSON.stringify(book)); }catch(_){} }
+function saveBook(){ if(DRY) return; try{ localStorage.setItem(LS_BOOK, JSON.stringify(book)); }catch(_){} }
 function today(){ return window.KOE_TODAY ? new Date(window.KOE_TODAY) : new Date(); }
 function ymKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 function isoDay(d){ return ymKey(d)+'-'+String(d.getDate()).padStart(2,'0'); }
@@ -581,6 +585,42 @@ function R_ok(say,a,f,extra){ return Object.assign({say, a:a||say, f:f||'', cls:
 function R_err(say){ return {say, a:say, f:'', cls:'err'}; }
 function R_info(say,a,f){ return {say, a:a||say, f:f||'', cls:'info'}; }
 
+/* ── もしかして（v10） ──────────────────────────────
+   計算できなかった言葉に、言い方がいちばん近い文例（使い方の「？」の例）を選ぶ。
+   近さは、数字を # にそろえて2文字ずつのつながりがどれだけ重なるかで見る。
+   言った数を文例に当てはめて計算できれば、押すとその数で計算できるようにする（fit）。
+   当てはめられないときは、言い方の例として見せるだけ（見本の数で計算してしまわないように） */
+function sugKey(t){ return norm(t).replace(/\d+(?:\.\d+)?/g,'#').replace(/[、。？?]/g,''); }
+function sugGrams(t){ const s=sugKey(t), g=new Set(); for(let i=0;i<s.length-1;i++) g.add(s.slice(i,i+2)); return g; }
+function sugScore(a,b){ const A=sugGrams(a), B=sugGrams(b); if(!A.size||!B.size) return 0; let n=0; A.forEach(x=>{ if(B.has(x)) n++; }); return 2*n/(A.size+B.size); }
+/* 式として読めなかった言葉に、これが入っていたら「計算の言葉を読み飛ばした」とみなす */
+const SKIPPED_CALC_RE=/(割合|値段|面積|広さ|体積|容積|半径|直径|円周|底辺|高さ|対角線|斜辺|売値|原価|利益|年収|月収|月給|日給|ボーナス|貯金|積み立て|積立|年利|金利|利息|返済|ローン|分割|平均|余り|差|倍|何歳|生まれ|西暦|昭和|平成|令和|時速|分速|秒速|距離|燃費|身長|体重|肥満|BMI|四捨五入|切り上げ|切り捨て|割引|何割|何パーセント|換算|何メートル|何キロ|何グラム|何リットル|何分|何時間|坪|平米|畳|源泉|手取り|税込|税抜|最大|最小|公約数|公倍数|素数|約数|進数|階乗|逆数|立方根|平方根)/;
+const SUG_SKIP=/^(取り消し|もう一回|リセット|ゆっくり|はやく|おしまい|いまいくら|何件|足し上げ開始|予算\d*円?|九九の練習|.*の練習)$/;
+function sugPool(){ const out=[]; HELP.forEach(g=>g.ex.forEach(x=>{ if(!SUG_SKIP.test(x) && !out.includes(x)) out.push(x); })); return out; }
+/* 書き残さずに試す（家計簿や名前を付けた数も元に戻す） */
+function dryRun(text){
+  const snap=JSON.stringify({s:state, b:book, v:vars, st:settings});
+  const wasDry=DRY; DRY=true; let r=null, v=null;
+  try{ r=koeRun(text, {noSuggest:true}); v=state.lastV; }catch(_){ r=null; }
+  DRY=wasDry;
+  const o=JSON.parse(snap); state=o.s; book=o.b; vars=o.v; settings=o.st;
+  return r ? Object.assign({}, r, {dv:v}) : null;
+}
+function suggestFor(raw){
+  const said=norm(raw), mine=said.match(/\d+(?:\.\d+)?/g)||[];
+  if(DRY) return null;
+  const ranked=sugPool().map(ex=>({ex, sc:sugScore(said, ex)})).filter(x=>x.sc>=0.3).sort((a,b)=>b.sc-a.sc).slice(0,6);
+  for(const {ex, sc} of ranked){
+    if(sc<0.4) break;                                  // 遠い文例に数を当てはめると、おかしな言い方になる
+    const slots=norm(ex).match(/\d+(?:\.\d+)?/g)||[];
+    if(!slots.length || slots.length!==mine.length) continue;
+    let i=0; const fit=norm(ex).replace(/\d+(?:\.\d+)?/g,()=>mine[i++]);
+    const r=dryRun(fit);
+    if(r && r.cls!=='err') return {text:fit, fit:true, v:r.dv};
+  }
+  return ranked.length && ranked[0].sc>=0.35 ? {text:ranked[0].ex, fit:false} : null;
+}
+
 const RE_UNDO=/^(取り消し|とりけし|取消|ひとつ戻して|1つ戻して|一つ戻して|戻して|もどして|今のなし|いまのなし|キャンセル|やり直し)$/;
 const RE_CLEAR=/^(全部消して|ぜんぶ消して|全部けして|クリア|リセット|最初から|はじめから|ゼロから)$/;
 const RE_REPEAT=/^(もう一回|もう1回|もういっかい|もう一度|もう1度|もういちど|繰り返して|くりかえして|なんて|何て|え[?？]?|聞こえない|聞こえなかった)$/;
@@ -625,7 +665,10 @@ function koeRun(raw, opt){
   if((state.mode==='sum'||state.mode==='budget') && (res=hItem(t))) return finish(raw,res);
   if((res=hVars(t))) return finish(raw,res);
   if((res=hExpr(t))) return finish(raw,res);
-  return finish(raw, R_err('「'+String(raw).trim()+'」は計算できませんでした。たとえば「1280円を3つ」のように言ってください'));
+  // 計算できないときは、たとえばの式は読まない。近い言い方があれば「もしかして」を出す（v10）
+  const sug=opt.noSuggest ? null : suggestFor(raw);
+  return finish(raw, Object.assign(R_err('計算できませんでした'), {a:'「'+String(raw).trim()+'」は計算できませんでした',
+    f: sug ? (sug.fit ? 'もしかして「'+sug.text+'」？' : '言い方の例：「'+sug.text+'」') : '', sug: sug && sug.fit ? sug.text : '', hint: sug && !sug.fit ? sug.text : ''}));
 }
 function finish(raw,res){
   res.q=String(raw).trim();
@@ -640,7 +683,7 @@ function finish(raw,res){
     // この言葉で増えた計算（または言い直した計算）に印を付けて、取り消したときに画面の吹き出しも一緒に消す（v4）
     let eid=res.eid||null;
     if(!eid && state.entries.length>runN0) eid=entryLid(state.entries[state.entries.length-1]);
-    state.log.push({q:res.q, a:res.a, f:res.f||'', c:res.cls||'ok', t:Date.now(), eid:eid||undefined});
+    state.log.push({q:res.q, a:res.a, f:res.f||'', c:res.cls||'ok', t:Date.now(), eid:eid||undefined, sug:res.sug||undefined});
   }
   saveState();
   return res;
@@ -1157,7 +1200,11 @@ function hExpr(t0){
   if(!cont && toks.length && toks[0].t!=='num') cont=true;           // 「に消費税」「4人で割って」「×3」など、前の答えに続ける
   if(cont && state.lastV==null){
     if(toks.length && toks[0].t==='num') cont=false;
-    else return R_err('前の答えがありません。先に「1280円を3つ」のように言ってください');
+    else {   // たとえばの式は読まない。数を言っていれば、近い言い方を「もしかして」で出す（v10）
+      const sg=/\d/.test(t0) && !DRY ? suggestFor(t0) : null;
+      if(sg) return Object.assign(R_err('計算できませんでした'), {a:'「'+t0+'」は計算できませんでした', f:sg.fit?'もしかして「'+sg.text+'」？':'言い方の例：「'+sg.text+'」', sug:sg.fit?sg.text:''});
+      return Object.assign(R_err('前の答えがありません'), {a:'前の答えがありません。先に「1280円を3つ」のように言ってください'});
+    }
   }
   // 知らない言葉が多いときは、計算ではないとみなす（名前らしいものは許す）
   const unk=tk.unknown.replace(/[ぁ-ゖ]/g,'');
@@ -1175,6 +1222,11 @@ function hExpr(t0){
   if(e.v==null || !isFinite(e.v)){ state.entries.pop(); recomputeAll(); return R_err(/÷ 0/.test(e.f||'')?'0 では割れません':'計算できませんでした'); }
   const lead=(tk.unknown && /[一-龯ァ-ヶ]/.test(tk.unknown) && !cont) ? tk.unknown.replace(/[をがはのにでと、]+$/,'')+' ' : '';
   const ans=(e.per?'ひとり ':'')+sayU(e.v,e.u,rough);
+  // 「面積」「年収」「売値」のような計算の言葉を読み飛ばしたときは、ちがう答えになる近い言い方を「もしかして」で出す（v10）
+  if(!cont && !DRY && SKIPPED_CALC_RE.test(tk.unknown||'')){
+    const sg=suggestFor(t0);
+    if(sg && sg.fit && sg.v!=null && Math.abs(sg.v-e.v)>1e-9) return Object.assign(R_ok(lead+ans+' です', (e.per?'1人あたり ':'')+fmtU(e.v,e.u), e.f+' ＝ '+fmtU(e.v,e.u)), {sug:sg.text});
+  }
   return R_ok(lead+ans+' です', (e.per?'1人あたり ':'')+(rough?'約 '+fmtU(roughly(e.v),e.u)+'（'+fmtU(e.v,e.u)+'）':fmtU(e.v,e.u)), (cont&&base!=null?'':'')+e.f+' ＝ '+fmtU(e.v,e.u));
 }
 
@@ -1235,11 +1287,13 @@ function renderLog(){
     const idx=state.log.length-arr.length+i;
     return (m.q?'<div class="msg me">'+escHtml(m.q)+'</div>':'')
       +'<div class="msg app '+(m.c||'')+'" onclick="sayLog('+idx+')"><span class="a">'+escHtml(m.a)+'</span>'
-      +(m.f?'<span class="f num">'+escHtml(m.f)+'</span>':'')+'</div>';
+      +(m.f && !(m.sug && /^もしかして/.test(m.f)) ? '<span class="f num">'+escHtml(m.f)+'</span>' : '')
+      +(m.sug ? '<button class="sug" onclick="event.stopPropagation();trySug('+idx+')">もしかして「'+escHtml(m.sug)+'」？ <b>押すと計算</b></button>' : '')+'</div>';
   }).join('');
   box.scrollTop=box.scrollHeight;
 }
 function sayLog(i){ const m=state.log[i]; if(m) speak(m.a); }
+function trySug(i){ const m=state.log[i]; if(m && m.sug) runText(m.sug, false); }
 
 /* ── 言葉を受け取って答える ── */
 let lastFromVoice=false;
