@@ -268,7 +268,7 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
    ・足し上げ／予算／練習のときは、言葉の受け取り方が変わる（state.mode）
    ・入れたものは この端末の中だけ（localStorage の koe_*）に残る
    ════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v3';
+const APP_VERSION='v4';
 const LS_STATE='koe_state', LS_VARS='koe_vars', LS_SET='koe_settings', LS_BOOK='koe_book';
 
 /* ── 設定 ── */
@@ -604,10 +604,12 @@ const RE_SUM_START=/^(足し上げ|たしあげ|足していって|たしてい�
 const RE_BUDGET=/^(?:予算|よさん)(?:は|を|が)?(\d+(?:\.\d+)?)円?(?:で|にして|です|から|スタート|開始)?(?:始めて|はじめて|お願い)?$/;
 const RE_DRILL=/(練習|れんしゅう|問題を出して|問題出して|クイズ)/;
 
+let runN0=0;   // 言われる前の計算の数（この言葉で計算が増えたかを見る）
 function koeRun(raw, opt){
   opt=opt||{};
   const t=norm(raw);
   if(!t) return null;
+  runN0=state.entries.length;
   let res=null;
   const prevMode=state.mode;
   // 練習中は、答えの数を先に受け取る
@@ -637,13 +639,18 @@ function koeRun(raw, opt){
 function finish(raw,res){
   res.q=String(raw).trim();
   if(state.entries.length) state.resetSnap=null;   // リセットのあと計算を始めたら、元には戻さない
+  if(res.say) state.lastSay=res.say;
   if(!res.noLog){
-    if(res.say) state.lastSay=res.say;
-    state.log.push({q:res.q, a:res.a, f:res.f||'', c:res.cls||'ok', t:Date.now()});
+    // この言葉で増えた計算（または言い直した計算）に印を付けて、取り消したときに画面の吹き出しも一緒に消す（v4）
+    let eid=res.eid||null;
+    if(!eid && state.entries.length>runN0) eid=entryLid(state.entries[state.entries.length-1]);
+    state.log.push({q:res.q, a:res.a, f:res.f||'', c:res.cls||'ok', t:Date.now(), eid:eid||undefined});
   }
   saveState();
   return res;
 }
+
+function entryLid(e){ if(!e.lid) e.lid=Date.now().toString(36)+Math.random().toString(36).slice(2,7); return e.lid; }
 
 /* 画面に残っている会話と計算を消す（v2）。家計簿と名前を付けた数は残す。
    直後の「取り消し」で1回だけ元に戻せるよう、消す前のものを覚えておく */
@@ -664,14 +671,20 @@ function hControl(t){
       const sn=state.resetSnap; state.resetSnap=null;
       state.entries=sn.entries; state.log=sn.log; state.lastSay=sn.lastSay;
       recomputeAll();
-      return R_info('リセットの前に戻しました。'+currentSay());
+      return Object.assign(R_info('リセットの前に戻しました。'+currentSay()), {noLog:true, toast:true});
     }
     const e=state.entries.pop();
     if(!e) return R_info('取り消せるものはありません');
     if(e.k==='book'){ book=book.filter(b=>b.id!==e.id); saveBook(); }
     if(e.k==='var'){ if(e.prev==null) delete vars[e.name]; else vars[e.name]=e.prev; saveVars(); }
     recomputeAll();
-    return R_info('取り消しました。'+currentSay());
+    // 取り消した計算の吹き出し（言った言葉と答え・言い直し）を画面から消す。
+    // 消せたときは「取り消し」のやりとりも残さず、知らせだけ出す
+    const n=state.log.length;
+    if(e.lid) state.log=state.log.filter(m=>m.eid!==e.lid);
+    const res=R_info('取り消しました。'+currentSay());
+    if(state.log.length<n){ res.noLog=true; res.toast=true; }
+    return res;
   }
   if(RE_CLEAR.test(t)){
     resetAll();
@@ -701,7 +714,7 @@ function hCorrect(t){
     if(hit){
       const old=hit.v; hit.v=b; hit.lab='';
       recomputeAll();
-      return R_ok(fmt(old)+' を '+fmt(b)+' に直しました。'+currentSay(), fmt(old)+' → '+fmt(b)+'　'+(state.mode==='normal'?(state.lastPer?'1人あたり ':'')+fmtU(state.lastV,state.lastU):''), state.mode==='normal'?state.lastF:'');
+      return Object.assign(R_ok(fmt(old)+' を '+fmt(b)+' に直しました。'+currentSay(), fmt(old)+' → '+fmt(b)+'　'+(state.mode==='normal'?(state.lastPer?'1人あたり ':'')+fmtU(state.lastV,state.lastU):''), state.mode==='normal'?state.lastF:''), {eid:entryLid(e)});
     }
   }
   return R_err(a==null ? '直すものが見つかりませんでした' : fmt(a)+' が見つかりませんでした');
@@ -1215,6 +1228,7 @@ function runText(text, fromVoice){
   if(res.cls==='err'){ beep(false); vib([60,80,60]); } else vib(25);
   render();
   if(res.open) setTimeout(()=>openPanel(res.open), 50);
+  if(res.toast) toast(res.a);
   if(res.book && $('p-book').classList.contains('open')) renderBook();
   // 練習や聞き返しのときは、読み上げが終わったら続けて聞く
   const again=fromVoice && (state.drill || state.ask) ;
