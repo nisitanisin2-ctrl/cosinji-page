@@ -6,7 +6,9 @@
 ## 動かし方
 
 ```
-node tests/run.js            すべて
+node tests/run-par.js        すべて（組ごとに同時に流す。早い）
+JOBS=2 node tests/run-par.js 同時に流す数を決める（はじめは CPU の数、4まで）
+node tests/run.js            すべて（1組ずつ順に）
 node tests/run.js formula    数式だけ
 node tests/run.js xlsx       Excel の読み書きだけ
 node tests/run.js a11y       読み上げ・キーボードだけ
@@ -14,6 +16,8 @@ node tests/run.js mode       モードの行き来だけ
 node tests/run.js kaikei     会計アプリ（kaikei/）だけ
 node tests/run.js koe        声の計算帳（koe/）だけ
 node tests/run.js dtphrase   電卓モードの声（声の計算帳と同じ言い方・koe/phrase.js）だけ
+node tests/run.js koebackup  声の計算帳のバックアップだけ
+node tests/run.js fx426      数式の関数（LOG10 など）だけ
 node tests/run.js visual     見た目の見比べだけ
 node tests/visual.js --update   見た目の見本を撮り直す（わざと見た目を変えたときだけ）
 ```
