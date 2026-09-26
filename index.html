@@ -5986,6 +5986,19 @@ const FORMULA_FUNCS={
   LN:  {sig:'(値)', desc:'自然対数', calc:1,
         run:v=>{ if(!v.length) fErr('#VALUE!','LN'); if(v[0]<=0) fErr('#NUM!','LN'); return Math.log(v[0]); }},
   EXP: {sig:'(値)', desc:'e の累乗', calc:1, run:v=>v.length?Math.exp(v[0]):0},
+  /* Excel でよく使うもの（v426） */
+  LOG10:{sig:'(値)', desc:'常用対数（LOG と同じ）',
+        run:v=>{ if(!v.length) fErr('#VALUE!','LOG10'); if(v[0]<=0) fErr('#NUM!','LOG10'); return Math.log10(v[0]); }},
+  POWER:{sig:'(値, 指数)', desc:'累乗（^ と同じ）',
+        run:v=>{ if(v.length<2) fErr('#VALUE!','POWER'); const r=Math.pow(v[0],v[1]); if(!isFinite(r)) fErr('#NUM!','POWER'); return r; }},
+  PRODUCT:{sig:'(範囲/値…)', desc:'かけ算した答え', run:v=>v.length?v.reduce((a,b)=>a*b,1):0},
+  INT:  {sig:'(値)', desc:'小さいほうの整数に切り捨て（-2.5 は -3）', run:v=>{ if(!v.length) fErr('#VALUE!','INT'); return Math.floor(v[0]); }},
+  TRUNC:{sig:'(値[, 小数桁])', desc:'指定の桁で切り捨て（0 に近いほうへ）',
+        run:v=>{ if(!v.length) fErr('#VALUE!','TRUNC'); const p=Math.pow(10, v.length>=2?v[1]:0); return Math.trunc(+(v[0]*p).toFixed(9))/p; }},
+  ROUNDUP:{sig:'(値, 小数桁)', desc:'切り上げ（0 から遠いほうへ）',
+        run:v=>{ if(!v.length) fErr('#VALUE!','ROUNDUP'); const p=Math.pow(10, v.length>=2?v[1]:0), x=+(v[0]*p).toFixed(9); return (x<0?-Math.ceil(-x):Math.ceil(x))/p; }},
+  ROUNDDOWN:{sig:'(値, 小数桁)', desc:'切り捨て（0 に近いほうへ）',
+        run:v=>{ if(!v.length) fErr('#VALUE!','ROUNDDOWN'); const p=Math.pow(10, v.length>=2?v[1]:0); return Math.trunc(+(v[0]*p).toFixed(9))/p; }},
   /* 下の3つは引数の読み方が特別なので、解析器の中で直接扱う（run は持たない） */
   IF:     {sig:'(条件, 真のとき, 偽のとき)', desc:'条件で答えを変える', special:1},
   VLOOKUP:{sig:'(探す値, 範囲, 何列目, 0)', desc:'範囲の左端から探して、その行の指定列を返す（末尾0で完全一致）。=V参照(…) でも可', special:1},
@@ -6380,6 +6393,9 @@ function parseArith(s) {
     if (/[A-Za-z]/.test(s[pos])) {
       let name='';
       while (pos<s.length && /[A-Za-z]/.test(s[pos])) name+=s[pos++].toUpperCase();
+      // LOG10( のように、名前のうしろに数字が付いて「(」が続くものは関数名（A1 のようなセルとは分ける。v426）
+      { let j=pos; while(j<s.length && /[0-9]/.test(s[j])) j++;
+        if(j>pos && s[j]==='(' && formulaFunc(name+s.slice(pos,j))){ name+=s.slice(pos,j); pos=j; } }
       ws();
       if (pos<s.length && s[pos]==='(') {
         pos++;
@@ -8700,6 +8716,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v426', t:'数式の関数を足しました', li:[
+    '数式で <b>LOG10・POWER・PRODUCT・INT・TRUNC・ROUNDUP・ROUNDDOWN</b> が使えるようになりました（Excel と同じ書き方）',
+  ]},
   { v:'v425', t:'声の計算帳もバックアップに', li:[
     '📋リストの <b>⬇書き出し</b> に、<b>🎙声の計算帳</b>の家計簿・名前を付けた数・設定なども入れるようにしました。読み込むときに、入れるかどうかを聞きます',
   ]},
@@ -20079,7 +20098,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v425';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v426';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

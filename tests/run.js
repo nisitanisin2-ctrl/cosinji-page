@@ -6975,6 +6975,22 @@ async function runKoeListen(browser, ua) {
   if (errs.length) console.log('    ', errs);
   await ctx.close();
 }
+/* v426：数式に LOG10 など Excel でよく使う関数を足す */
+async function runFx426(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 数式の関数（v426） ──');
+  const fx = f => page.evaluate(f => { setCellVal(0, 0, '1000'); setCellVal(1, 1, f); buildSheet(); return getCellDisplay(1, 1); }, f);
+  check('  LOG10', (await fx('=LOG10(100)')) + '/' + (await fx('=LOG10(A1)')) + '/' + (await fx('=LOG10(0)')), '2/3/#NUM!');
+  check('  POWER・PRODUCT', (await fx('=POWER(2,10)')) + '/' + (await fx('=PRODUCT(2,3,4)')) + '/' + (await fx('=PRODUCT(A1,2)')), '1024/24/2000');
+  check('  INT・TRUNC', (await fx('=INT(-2.5)')) + '/' + (await fx('=TRUNC(-2.57,1)')), '-3/-2.5');
+  check('  ROUNDUP・ROUNDDOWN', (await fx('=ROUNDUP(2.121,2)')) + '/' + (await fx('=ROUNDUP(-2.121,1)')) + '/' + (await fx('=ROUNDDOWN(2.129,2)')), '2.13/-2.2/2.12');
+  check('  セルの番地はこれまでどおり', (await fx('=A1*2')) + '/' + (await fx('=LOG(A1)')), '2000/3');
+  check('  コピーしても関数名は番地にならない', await page.evaluate(() => adjustFormula('=LOG10(A1)+POWER(B2,2)', 1, 0)), '=LOG10(A2)+POWER(B3,2)');
+  check('  説明書の関数の一覧に出る', await page.evaluate(() => Object.keys(FORMULA_FUNCS).filter(k => ['LOG10', 'POWER', 'PRODUCT', 'INT', 'TRUNC', 'ROUNDUP', 'ROUNDDOWN'].includes(k)).length), 7);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
 /* v425 / 声の計算帳 v13：声の計算帳のデータもバックアップに入れる */
 async function runKoeBackup(browser) {
   const ctx = await browser.newContext({ acceptDownloads: true });
@@ -7483,6 +7499,7 @@ async function runQrShare(browser) {
     if (!only || only === 'koe' || only === 'koelisten') await runKoeListen(browser, 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Mobile Safari/537.36');
     if (!only || only === 'dtphrase') await runDtPhrase(browser);
     if (!only || only === 'koebackup') await runKoeBackup(browser);
+    if (!only || only === 'fx426') await runFx426(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
     if (!only || only === 'brush3') await runBrush3(browser);
