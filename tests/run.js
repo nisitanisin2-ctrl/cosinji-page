@@ -6833,25 +6833,29 @@ async function runKoe(browser) {
 }
 /* 声の計算帳 v7：話している途中で聞き取りが切れても、つなげて、話し終わってから計算する。
    端末の聞き取りのかわりに、途中で切れる「にせの聞き取り」を入れて確かめる */
-async function runKoeListen(browser) {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+async function runKoeListen(browser, ua) {
+  const ctx = await browser.newContext(Object.assign({ viewport: { width: 390, height: 844 } }, ua ? { userAgent: ua } : {}));
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', e => errs.push(e.message));
   await page.addInitScript(() => {
     window.__recs = [];
     class FakeRec {
-      constructor() { this.on = false; window.__recs.push(this); }
+      constructor() { this.on = false; this.list = []; window.__recs.push(this); }
       start() { this.on = true; setTimeout(() => this.onstart && this.onstart(), 5); }
       stop() { if (!this.on) return; this.on = false; if (this.pending) { this.say(this.pending, true); this.pending = null; } setTimeout(() => this.onend && this.onend(), 10); }
       abort() { this.on = false; setTimeout(() => this.onend && this.onend(), 5); }
-      say(t, fin) { const r = [{ transcript: t }]; r.isFinal = !!fin; if (!fin) this.pending = t; else this.pending = null; this.onresult && this.onresult({ resultIndex: 0, results: [r] }); }
+      // 本物と同じく、この回で聞いた言葉の一覧をまるごと渡す（確定前のものは最後の1つ）
+      say(t, fin) { const r = [{ transcript: t }]; r.isFinal = !!fin; const lastOpen = this.list.length && !this.list[this.list.length - 1].isFinal;
+        const idx = lastOpen ? this.list.length - 1 : this.list.length; this.list[idx] = r; this.pending = fin ? null : t;
+        this.onresult && this.onresult({ resultIndex: idx, results: this.list }); }
+      resend() { this.onresult && this.onresult({ resultIndex: 0, results: this.list }); }   // Android：同じ一覧をもう一度送ってくる
       cut() { this.on = false; this.onend && this.onend(); }   // 端末が勝手に切る
     }
     window.webkitSpeechRecognition = FakeRec; window.SpeechRecognition = FakeRec;
     try { localStorage.setItem('koe_settings', JSON.stringify({ speak: false, beep: false, vib: false, wait: 'short' })); } catch (_) {}
   });
   await page.goto('file://' + path.join(ROOT, 'koe', 'index.html')); await page.waitForTimeout(400);
-  console.log('\n── 🎙声の計算帳：話し終わるまで待つ（v7） ──');
+  console.log('\n── 🎙声の計算帳：話し終わるまで待つ（v7）' + (ua ? '・Android' : '') + ' ──');
   const cur = () => page.evaluate(() => window.__recs[window.__recs.length - 1]);
   const last = () => page.evaluate(() => { const m = state.log[state.log.length - 1]; return m ? m.q + ' → ' + m.a : ''; });
   const W = 1000;   // 短め
@@ -6884,6 +6888,14 @@ async function runKoeListen(browser) {
   check('  何も言わずに押し直すとやめる', await page.evaluate(n0 => state.log.length === n0 && !recOn && !wantListen, n0), true);
   // 待つ時間を選べる
   check('  待つ時間を選べる', await page.evaluate(() => { setWait('long'); const a = settings.wait; setWait('short'); return a + '/' + JSON.parse(localStorage.getItem('koe_settings')).wait; }), 'long/short');
+  // Android の Chrome のように、同じ言葉を何度も返しても1回だけ数える（v9）
+  await page.evaluate(() => { state.entries = []; state.log = []; recomputeAll(); book = []; saveBook(); micTap(); }); await page.waitForTimeout(60);
+  await page.evaluate(() => { const r = window.__recs.at(-1); r.say('ガソリン代', true); r.resend(); r.resend(); r.say('ガソリン代ガソリン代 2480円', true); r.resend(); });
+  check('  同じ言葉が何度届いても1回だけ', await page.evaluate(() => utterText()), 'ガソリン代 2480円');
+  await page.waitForTimeout(W + 400);
+  check('  家計簿にも1回だけ付く', await page.evaluate(() => book.length + '/' + (book[0] && book[0].amt) + '/' + (book[0] && book[0].memo)), '1/2480/');
+  check('  続けて繰り返された言葉は1つにまとめる', await page.evaluate(() => collapseRepeats('ガソリン代ガソリン代ガソリン代 1280円') + '/' + collapseRepeats('1212円')), 'ガソリン代 1280円/1212円');
+  check('  スマホでは続けて聞く方式を使わない', await page.evaluate(ua => MOBILE === !!ua && window.__recs.at(-1).continuous === !ua, ua), true);
   // 家計簿の画面からも声で付けられる（v8）
   await page.evaluate(() => { book = []; saveBook(); openPanel('book'); }); await page.waitForTimeout(200);
   check('  家計簿の画面に 🎙 がある', await page.evaluate(() => { const b = document.getElementById('bkMic'); return !!b && b.offsetParent !== null; }), true);
@@ -7366,6 +7378,7 @@ async function runQrShare(browser) {
     if (!only || only === 'clip') await runClip(browser);
     if (!only || only === 'koe') await runKoe(browser);
     if (!only || only === 'koe' || only === 'koelisten') await runKoeListen(browser);
+    if (!only || only === 'koe' || only === 'koelisten') await runKoeListen(browser, 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Mobile Safari/537.36');
     if (!only || only === 'dtphrase') await runDtPhrase(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
