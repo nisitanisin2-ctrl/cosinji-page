@@ -3593,6 +3593,19 @@ body.dark {
   </div>
 </div>
 
+<!-- 🧰 道具の一覧（v429）。マイキー・テンキーの長押しに割り当てた「🧰道具」から開く -->
+<div class="modal-overlay" id="toolsListOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <span>🧰 道具</span>
+      <button class="modal-close" onclick="closeToolsList()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="more-grid more-tools" id="toolsListGrid"></div>
+    </div>
+  </div>
+</div>
+
 <!-- 🎤で聞き取っている間だけ出す小さな窓。タップでやめられる -->
 <div class="modal-overlay" id="voiceOverlay" onclick="voiceCancel()">
   <div class="voice-box">
@@ -8716,6 +8729,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v429', t:'🧰道具のボタン', li:[
+    '▲マイキー（とテンキーの長押し）に <b>🧰道具</b> を割り当てられるようにしました。押すと道具の一覧が開き、そこから当番表・野菜・写真メモなどを開けます',
+  ]},
   { v:'v428', t:'面積・体積の単位', li:[
     '声の計算で「縦1.7m 横2.3m 高さ50cm の容積」のように<b>辺ごとに単位がちがう</b>とき、大きい単位にそろえて計算するようにしました（1.955㎥。前は 50cm を 50m として計算していました）',
   ]},
@@ -10879,6 +10895,7 @@ const KEY_FUNCS={
   a_veggie:{g:'設定・機能',label:'🌱野菜',short:'野菜',run:()=>openVeggie()},
   a_linklist:{g:'設定・機能',label:'🔗リンク集',short:'リンク',run:()=>openLinkList()},
   a_touban:{g:'設定・機能',label:'📅当番表',short:'当番',run:()=>openTouban()},
+  a_tools:{g:'設定・機能',label:'🧰道具',short:'道具',run:()=>openToolsList()},   // 道具の一覧を開く（v429）
   a_memo:{g:'設定・機能',label:'📄メモ',short:'メモ',run:()=>openNotesApp()},
   a_kaikei:{g:'設定・機能',label:'🧾会計アプリ',short:'会計',run:()=>openKaikeiApp()},
   a_koe:{g:'設定・機能',label:'🎙声の計算帳',short:'声計算',run:()=>openKoeApp()},
@@ -19949,16 +19966,35 @@ function openUndoList(){
 function closeUndoList(){ closeDlg('undoListOverlay'); }
 function openMoreMenu(){ renderMoreTools(); applyMoreAcc(); openDlg('moreMenuOverlay'); }
 /* ⋯の「🧰道具」（v398）。NP_TOOLS から作るので、道具を足せば自動でここにも並ぶ */
+const toolLabelSplit=l=>{ const m=/^(\p{Extended_Pictographic}\uFE0F?)(.*)$/u.exec(l); return m?[m[1],m[2]]:['🧰',l]; };
+/* 道具のボタンを並べる。doer は押したときに先に窓を閉じてから実行する役（moreDo／toolsListDo） */
+function toolButtonsHtml(doer){
+  return NP_TOOLS.map((t,i)=>{ const [ic,tx]=toolLabelSplit(t.label);
+    return '<button class="more-item" data-tool="'+t.id+'" onclick="'+doer+'(NP_TOOLS['+i+'].run)"'+
+      (t.ov?'':' title="別のアプリとして開きます（「戻る」で表電卓に帰れます）"')+'><span>'+ic+'</span>'+escHtml(tx)+(t.ov?'':' ↗')+'</button>'; }).join('');
+}
 function renderMoreTools(){
   const g=document.getElementById('moreToolsGrid'); if(!g) return;
-  const sp=l=>{ const m=/^(\p{Extended_Pictographic}\uFE0F?)(.*)$/u.exec(l); return m?[m[1],m[2]]:['🧰',l]; };
-  g.innerHTML=NP_TOOLS.map((t,i)=>{ const [ic,tx]=sp(t.label);
-    return '<button class="more-item" data-tool="'+t.id+'" onclick="moreDo(NP_TOOLS['+i+'].run)"'+
-      (t.ov?'':' title="別のアプリとして開きます（「戻る」で表電卓に帰れます）"')+'><span>'+ic+'</span>'+escHtml(tx)+(t.ov?'':' ↗')+'</button>'; }).join('');
+  const sp=toolLabelSplit;
+  g.innerHTML=toolButtonsHtml('moreDo');
   const sum=document.getElementById('moreToolsSum');
   if(sum) sum.textContent=NP_TOOLS.map(t=>sp(t.label)[1]).slice(0,5).join('・')+' ほか 全'+NP_TOOLS.length+'つ';
 }
 function closeMoreMenu(){ closeDlg('moreMenuOverlay'); }
+/* 🧰道具の一覧の窓（v429）。マイキー・長押しの割り当て「🧰道具」から開く。中身は ⋯ の「🧰道具」と同じ */
+function openToolsList(){
+  const g=document.getElementById('toolsListGrid'); if(!g) return;
+  g.innerHTML=toolButtonsHtml('toolsListDo');
+  openDlg('toolsListOverlay');
+  guardAfterOpen('toolsListOverlay');   // 長押しの指を離した分で閉じないように
+  bindBackdropClose('toolsListOverlay', closeToolsList);
+}
+function closeToolsList(){ closeDlg('toolsListOverlay'); }
+/* moreDo と同じく、閉じたすぐあと（同じ流れの中）で開く。「戻る」の履歴が打ち消し合うように */
+function toolsListDo(fn){
+  closeToolsList();
+  try{ fn(); }catch(e){ if(typeof toast==='function') toast('うまく開けませんでした'); }
+}
 /* メニューの項目：先に閉じてから実行する（設定など別の画面が開くものがあるため） */
 /* ⋯の畳んだところの開け閉けを覚える（v375） */
 function saveMoreAcc(el){ try{ localStorage.setItem('excalc_'+el.id, el.open?'1':'0'); }catch(_){} }
@@ -20126,7 +20162,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v428';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v429';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

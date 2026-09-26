@@ -6991,6 +6991,22 @@ async function runFx426(browser) {
   if (errs.length) console.log('    ', errs);
   await ctx.close();
 }
+/* v429：マイキーに割り当てられる「🧰道具」（道具の一覧を開く） */
+async function runToolsKey(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🧰道具のボタン（v429） ──');
+  check('  機能の一覧にある', await page.evaluate(() => !!KEY_FUNCS.a_tools && KEY_FUNCS.a_tools.label + '/' + KEY_FUNCS.a_tools.g), '🧰道具/設定・機能');
+  await page.evaluate(() => { userKeys[3] = { type: 'action', value: 'a_tools' }; saveUserKeys(); renderUserKeys(); userKey(3); });
+  await page.waitForTimeout(400);
+  check('  マイキーで押すと道具の一覧が開く', await page.evaluate(() => document.getElementById('toolsListOverlay').classList.contains('show') || getComputedStyle(document.getElementById('toolsListOverlay')).display !== 'none'), true);
+  check('  道具がぜんぶ並ぶ', await page.evaluate(() => document.querySelectorAll('#toolsListGrid .more-item').length === NP_TOOLS.length), true);
+  await page.click('#toolsListGrid [data-tool="touban"]'); await page.waitForTimeout(600);
+  check('  押した道具が開き、一覧は閉じる', await page.evaluate(() => [getComputedStyle(document.getElementById('toubanOverlay')).display !== 'none',
+    getComputedStyle(document.getElementById('toolsListOverlay')).display === 'none'].join('/')), 'true/true');
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
 /* v425 / 声の計算帳 v13：声の計算帳のデータもバックアップに入れる */
 async function runKoeBackup(browser) {
   const ctx = await browser.newContext({ acceptDownloads: true });
@@ -7500,6 +7516,7 @@ async function runQrShare(browser) {
     if (!only || only === 'dtphrase') await runDtPhrase(browser);
     if (!only || only === 'koebackup') await runKoeBackup(browser);
     if (!only || only === 'fx426') await runFx426(browser);
+    if (!only || only === 'toolskey') await runToolsKey(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
     if (!only || only === 'brush3') await runBrush3(browser);
