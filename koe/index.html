@@ -86,6 +86,10 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
 
 /* ── 下の操作 ── */
 .dock{position:sticky;bottom:0;z-index:20;background:var(--bg);border-top:1px solid var(--line);padding:6px max(10px, calc((100% - 740px) / 2)) calc(env(safe-area-inset-bottom) + 8px)}
+.bk-voice{margin:8px 0 12px;text-align:center}
+.bk-mic{border:0;border-radius:24px;padding:10px 22px;font-size:16px;font-weight:700;color:#fff;background:var(--acc);cursor:pointer}
+.bk-mic.listening{background:var(--err)}
+#bkHeard{margin-top:6px}
 .heard{min-height:1.5em;font-size:13px;color:var(--acc);text-align:center;margin-bottom:4px;word-break:break-all;position:relative}
 .wait-bar{height:3px;margin:3px auto 0;max-width:220px;border-radius:2px;background:var(--acc);transform-origin:left center;animation:waitShrink linear forwards}
 @keyframes waitShrink{from{transform:scaleX(1)}to{transform:scaleX(0)}}
@@ -234,7 +238,8 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
 <div class="panel" id="p-book" role="dialog" aria-label="家計簿">
   <div class="panel-head"><button class="hbtn" onclick="closePanel()">✕</button><h2>📒 家計簿</h2></div>
   <div class="panel-body">
-    <div class="note">「スーパー 3280円 食費」のように、<b>どこで・いくら・何に</b>を言うと付けられます。「今月の食費はいくら」で合計を答えます。</div>
+    <div class="note">「スーパー 3280円 食費」のように、<b>どこで・いくら・何に</b>を言うと付けられます。「スーパーで3280円」「電車 420円」のように、お店や行き先からも分類を決めます。「今月の食費はいくら」で合計を答えます。</div>
+    <div class="bk-voice"><button class="bk-mic" id="bkMic" onclick="micTap()" aria-label="声で付ける">🎙 声で付ける</button><div class="heard" id="bkHeard" aria-live="polite"></div></div>
     <div class="bk-month"><button class="hbtn" style="background:var(--acc)" onclick="bookMove(-1)">◀</button><b id="bkMonth"></b><button class="hbtn" style="background:var(--acc)" onclick="bookMove(1)">▶</button></div>
     <div class="bk-total num" id="bkTotal"></div>
     <div id="bkCats"></div>
@@ -274,7 +279,7 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
    ・足し上げ／予算／練習のときは、言葉の受け取り方が変わる（state.mode）
    ・入れたものは この端末の中だけ（localStorage の koe_*）に残る
    ════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v7';
+const APP_VERSION='v8';
 const LS_STATE='koe_state', LS_VARS='koe_vars', LS_SET='koe_settings', LS_BOOK='koe_book';
 
 /* ── 設定 ── */
@@ -507,6 +512,27 @@ function today(){ return window.KOE_TODAY ? new Date(window.KOE_TODAY) : new Dat
 function ymKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 function isoDay(d){ return ymKey(d)+'-'+String(d.getDate()).padStart(2,'0'); }
 function bookFind(t){ for(const w of BOOK_WORDS){ if(t.includes(w)) return {w, cat:BOOK_ALIAS[w]||w}; } return null; }
+/* お店や行き先から分類を決める（v8）。「スーパーで3280円」のように分類を言わなくても付けられる */
+const BOOK_STORE={'スーパー':'食費','コンビニ':'食費','八百屋':'食費','肉屋':'食費','魚屋':'食費','パン屋':'食費','お弁当':'食費','弁当':'食費',
+  'レストラン':'外食','ラーメン':'外食','カフェ':'外食','喫茶店':'外食','居酒屋':'外食','ファミレス':'外食','マクドナルド':'外食','マック':'外食','牛丼':'外食','寿司':'外食','お寿司':'外食','焼肉':'外食','うどん':'外食','そば':'外食','定食':'外食',
+  'ドラッグストア':'日用品','100均':'日用品','百均':'日用品','ダイソー':'日用品','ホームセンター':'日用品','洗剤':'日用品','ティッシュ':'日用品','トイレットペーパー':'日用品',
+  '薬局':'医療費','歯医者':'医療費','クリニック':'医療費','電車':'交通費','バス代':'交通費','タクシー':'交通費','新幹線':'交通費','切符':'交通費','定期':'交通費','高速':'車','ガソリンスタンド':'車','車検':'車','洗車':'車',
+  '美容室':'美容','映画':'娯楽','カラオケ':'娯楽','ゲーム':'娯楽','本屋':'娯楽','旅行':'娯楽','ホテル':'娯楽','プレゼント':'交際費','ご祝儀':'交際費','お祝い':'交際費','香典':'交際費','服屋':'衣服','靴':'衣服',
+  '水道':'光熱費','スマホ':'通信費','携帯':'通信費','塾':'教育費','保険料':'保険'};
+const STORE_WORDS=Object.keys(BOOK_STORE).sort((a,b)=>b.length-a.length);
+function storeFind(t){ for(const w of STORE_WORDS){ if(t.includes(w)) return {w, cat:BOOK_STORE[w], store:true}; } return null; }
+const BOOK_CALC_RE=/(を\d|ずつ|かけ|掛け|足し|足す|たす|引い|引く|ひく|割っ|割る|わる|×|÷|\+|何|いくら|なんぼ|どっち|どちら|得|お釣り|おつり|割り勘|わりかん|人で|平均|差|合計)/;
+/* メモから、言い方の切れはし（です・でした・払った・として など）を外す */
+function bookMemo(s){
+  let m=String(s||'').replace(/家計簿(に|へ|で|を)?/g,'、');
+  for(let i=0;i<4;i++){
+    const b=m;
+    m=m.replace(/(でしたね|でした|です|ました|した|として|払いました|払った|払う|使いました|使った|使う|買いました|買った|買う|買い物|かいもの|支払い|付けて|つけて|入れて|記録して|記録|付け|つけ|代|分|ね|よ|、|を|に|で|が|は|の|と)+$/,'')
+       .replace(/^(として|、|で|に|は|を|が|の|と)+/,'');
+    if(m===b) break;
+  }
+  return m.replace(/、+/g,' ').trim();
+}
 function bookSum(pred){ let s=0; for(const b of book) if(pred(b)) s+=b.amt; return s; }
 
 /* ── 日付と時間 ── */
@@ -773,7 +799,7 @@ function hTaxSet(t){
 
 /* 家計簿：「スーパー 3280円 食費」→ 付ける。「今月の食費はいくら」→ 合計 */
 function hBook(t){
-  const c=bookFind(t);
+  let c=bookFind(t);
   const per=t.match(/(今月|先月|今日|今年)/);
   const q=/(いくら|何円|なんぼ|合計|使った|つかった|どれくらい|どのくらい)/.test(t);
   if(q && (per || (c && !/\d/.test(t)))){
@@ -794,13 +820,18 @@ function hBook(t){
     return R_info(label+'使ったのは '+sayU(s,'円')+(top.length?'。多いのは '+top.map(([k,v])=>k+' '+sayU(v,'円')).join('、'):''),
       label+' '+fmtU(s,'円'), top.map(([k,v])=>k+' '+fmtU(v,'円')).join('・'));
   }
+  let cc=c;
+  if(!cc && !q && state.mode==='normal' && /\d+(?:\.\d+)?円/.test(t) && !BOOK_CALC_RE.test(t)){   // 予算・足し上げの品物は取らない
+    cc=storeFind(t) || (/家計簿/.test(t) ? {w:'', cat:'雑費'} : null);     // 分類を言わなくても、お店や「家計簿」で付ける
+  }
+  c=cc;
   if(!c || q) return null;
   if(/どっち|どちら|割り勘|わりかん|お釣り|おつり|人で/.test(t)) return null;
-  const rest=t.replace(c.w,'、');
-  const m=rest.match(/(\d+(?:\.\d+)?)円?/);
+  const rest=c.store||!c.w ? t : t.replace(c.w,'、');                      // お店の名前はメモに残す
+  const m=rest.match(/(\d+(?:\.\d+)?)円/) || rest.match(/(\d+(?:\.\d+)?)/);   // 「2点で500円」は円の付いた数を金額に
   if(!m) return null;
   const amt=+m[1];
-  const memo=rest.replace(m[0],'').replace(/^(家計簿に?|で|に|は|を|、)+|(を|に|で|、|付けて|つけて|入れて|記録して|代)+$/g,'').replace(/、+/g,' ').trim();
+  const memo=bookMemo(rest.replace(m[0],'、'));
   const id=Date.now()+Math.floor(Math.random()*1000);
   book.push({id, d:isoDay(today()), amt, cat:c.cat, memo});
   saveBook();
@@ -1285,10 +1316,11 @@ const WAIT_MS={short:1000, normal:1800, long:3000};
 const NO_SPEECH_MS=8000;                // 何も聞こえないまま、この時間たったらやめる（押して話すとき）
 let wantListen=false;                   // 押して話すとき：計算するまで聞き続けたい
 let utter=[], utterInterim='', utterTimer=null, finishing=false, finishFallback=null, noSpeechTimer=null;
-function setHeard(s){ const h=$('heard'); if(h) h.textContent=s||''; const vh=$('voHeard'); if(vh && s) vh.textContent=s; }
+function setHeard(s){ const h=$('heard'); if(h) h.textContent=s||''; const vh=$('voHeard'); if(vh && s) vh.textContent=s; const bh=$('bkHeard'); if(bh) bh.textContent=s||''; }
 function syncMicUi(){
   const on=recOn||wantListen;
   $('micBtn').classList.toggle('listening', on);
+  const bm=$('bkMic'); if(bm){ bm.classList.toggle('listening', on); bm.textContent=on?(utterText()?'✔ すぐ付ける':'■ やめる'):'🎙 声で付ける'; }
   $('micBtn').setAttribute('aria-label', on?(utterText()?'聞いています（押すとすぐ計算します）':'聞いています（押すとやめます）'):'話す');
   $('hfBtn').classList.toggle('on', !!settings.handsFree);
   const vo=$('voice-only'); if(vo) vo.classList.toggle('listening', on);
@@ -1320,7 +1352,7 @@ function armFinish(){
   clearTimeout(utterTimer); clearTimeout(noSpeechTimer);
   if(!utterText()){ showWait(0); return; }
   const ms=waitMs();
-  showUtter(); showWait(ms);
+  showUtter(); showWait(ms); syncMicUi();
   utterTimer=setTimeout(finishUtter, ms);
 }
 /* 話し終わった：聞き取りを止めて、残っている言葉も受け取ってから計算する */

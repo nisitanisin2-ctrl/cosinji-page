@@ -6800,6 +6800,15 @@ async function runKoe(browser) {
       state.entries = []; state.log = []; state.mode = 'normal'; state.drill = null; recomputeAll(); const r = koeRun(x); if (!r || r.cls === 'err') bad.push(x); }
     state.entries = []; state.log = []; recomputeAll(); return bad.join(' / '); });
   check('  使い方の例はどれも計算できる', helpBad, '');
+  // 家計簿（v8）：お店から分類を決める・言い方の切れはしをメモに残さない・予算の品物は取らない
+  const bk = q => page.evaluate(q => { state.entries = []; state.log = []; state.mode = 'normal'; recomputeAll(); const r = koeRun(q); return r ? r.a : ''; }, q);
+  check('  家計簿：お店から分類', await bk('スーパーで3280円使いました'), '📒 食費 3,280円（スーパー）');
+  check('  家計簿：行き先から分類', await bk('タクシーで1800円'), '📒 交通費 1,800円（タクシー）');
+  check('  家計簿：「家計簿」と言えば分類なしでも付ける', await bk('家計簿に1500円'), '📒 雑費 1,500円');
+  check('  家計簿：語尾をメモに残さない', (await bk('食費3280円です')) + '/' + (await bk('食費として3280円')) + '/' + (await bk('電気代は8000円でした')), '📒 食費 3,280円/📒 食費 3,280円/📒 光熱費 8,000円');
+  check('  家計簿：円の付いた数を金額に', await bk('食費 2点で 500円'), '📒 食費 500円（2点）');
+  check('  家計簿：計算の言い方は取らない', await bk('スーパーで300円を3つ'), '900円');
+  check('  家計簿：予算の品物は取らない', await page.evaluate(() => { state.entries = []; state.log = []; recomputeAll(); koeRun('予算5000円'); const r = koeRun('コンビニで498円'); const a = r.a + '/' + state.mode; koeRun('おしまい'); return a; }), 'コンビニで　498円/budget');
   // 新しい版がすぐ届くように（koe v3・表電卓 v423・会計アプリ v14）
   for (const [nm, p] of [['表電卓', 'service-worker.js'], ['声の計算帳', 'koe/service-worker.js'], ['会計アプリ', 'kaikei/service-worker.js']]) {
     const s = fs.readFileSync(path.join(ROOT, p), 'utf8');
@@ -6875,6 +6884,14 @@ async function runKoeListen(browser) {
   check('  何も言わずに押し直すとやめる', await page.evaluate(n0 => state.log.length === n0 && !recOn && !wantListen, n0), true);
   // 待つ時間を選べる
   check('  待つ時間を選べる', await page.evaluate(() => { setWait('long'); const a = settings.wait; setWait('short'); return a + '/' + JSON.parse(localStorage.getItem('koe_settings')).wait; }), 'long/short');
+  // 家計簿の画面からも声で付けられる（v8）
+  await page.evaluate(() => { book = []; saveBook(); openPanel('book'); }); await page.waitForTimeout(200);
+  check('  家計簿の画面に 🎙 がある', await page.evaluate(() => { const b = document.getElementById('bkMic'); return !!b && b.offsetParent !== null; }), true);
+  await page.evaluate(() => document.getElementById('bkMic').click()); await page.waitForTimeout(60);
+  check('  押すと聞いて、画面に聞こえた言葉を出す', await page.evaluate(() => { window.__recs.at(-1).say('スーパーで3280円', true); return $('bkMic').textContent + '/' + $('bkHeard').textContent; }), '✔ すぐ付ける/🎙 スーパーで3280円 …');
+  await page.waitForTimeout(W + 400);
+  check('  家計簿の画面で付けたものが、すぐ一覧に出る', await page.evaluate(() => book.length + '/' + /3,280円/.test($('bkList').textContent)), '1/true');
+  await page.evaluate(() => closePanel()); await page.waitForTimeout(200);
   // 聞きっぱなし：間をあけて2回に分かれても、1つの言葉として計算する
   await page.evaluate(() => { state.entries = []; state.log = []; recomputeAll(); toggleHandsFree(); }); await page.waitForTimeout(700);
   await page.evaluate(() => { const r = window.__recs.at(-1); r.say('500円を', true); r.cut(); }); await page.waitForTimeout(250);
