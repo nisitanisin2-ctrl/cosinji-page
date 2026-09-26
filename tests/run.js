@@ -6775,6 +6775,31 @@ async function runKoe(browser) {
   await page.evaluate(() => { koeRun('100円を3つ'); render(); koeRun('取り消し'); runText('200円を2つ'); runText('取り消し'); });
   check('  画面の吹き出しからも消え、知らせを出す', await page.evaluate(() => document.querySelectorAll('#log .msg.me').length + '/' + /取り消しました/.test(document.body.innerText)), '1/true');
   check('  もう一回で取り消しの答えを読む', await say('もう一回'), '取り消しました。まだ計算していません');
+  // いろいろな言い方（v5）：tests/koe-phrases.js の文例を、1つずつまっさらな状態で確かめる
+  const PHR = require('./koe-phrases.js');
+  await page.evaluate(() => { settings.tax = 10; saveSettings(); });   // 文例は消費税 10% で書いてある
+  let phrN = 0;
+  for (const [cat, list] of Object.entries(PHR)) {
+    const bad = [];
+    for (const [q, want] of list) {
+      const r = await page.evaluate(q => { state.entries = []; state.log = []; state.drill = null; state.ask = null; recomputeAll();
+        const r = koeRun(q); return { a: r && r.a, cls: r && r.cls, v: state.lastV }; }, q);
+      const ok = typeof want === 'number' ? (r.v != null && Math.abs(r.v - want) <= Math.max(0.005, 1e-4 * Math.abs(want))) : String(r.a || '').includes(want);
+      if (!ok) bad.push(q + ' → ' + (r.a || '—') + '（' + want + ' のはず）');
+      phrN++;
+    }
+    check('  言い方：' + cat + '（' + list.length + '件）', bad.join(' / '), '');
+  }
+  check('  文例の数', phrN >= 300, true);
+  check('  型の数と言い回しの数を数えられる', await page.evaluate(() => { const s = phraseStats(); return s.types >= 140 && s.forms > 1e6; }), true);
+  check('  型の答えも「それに…」で続けられる', await page.evaluate(() => { state.entries = []; recomputeAll(); koeRun('8と3の差'); return koeRun('それに2をかけて').a; }), '10');   // 「2をかけて」のように、数のあとに言った「かける」も前の答えにかける
+  check('  型の答えも言い直せる', await page.evaluate(() => koeRun('8じゃなくて9').a), '8 → 9　12');
+  check('  換算の答えも取り消せる', await page.evaluate(() => { state.entries = []; state.log = []; recomputeAll(); koeRun('5キロは何メートル'); koeRun('取り消し'); return state.lastV + '/' + state.log.length; }), 'null/0');
+  const helpBad = await page.evaluate(() => { const bad = [];
+    for (const g of HELP) for (const x of g.ex) { if (/それに|人で割って|じゃなくて|練習|おしまい|取り消し|もう一回|リセット|ゆっくり|はやく|何件|いまいくら|足し上げ開始|予算5000円|伝票/.test(x)) continue;
+      state.entries = []; state.log = []; state.mode = 'normal'; state.drill = null; recomputeAll(); const r = koeRun(x); if (!r || r.cls === 'err') bad.push(x); }
+    state.entries = []; state.log = []; recomputeAll(); return bad.join(' / '); });
+  check('  使い方の例はどれも計算できる', helpBad, '');
   // 新しい版がすぐ届くように（koe v3・表電卓 v423・会計アプリ v14）
   for (const [nm, p] of [['表電卓', 'service-worker.js'], ['声の計算帳', 'koe/service-worker.js'], ['会計アプリ', 'kaikei/service-worker.js']]) {
     const s = fs.readFileSync(path.join(ROOT, p), 'utf8');
