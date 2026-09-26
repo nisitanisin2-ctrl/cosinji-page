@@ -279,7 +279,7 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
    ・足し上げ／予算／練習のときは、言葉の受け取り方が変わる（state.mode）
    ・入れたものは この端末の中だけ（localStorage の koe_*）に残る
    ════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v8';
+const APP_VERSION='v9';
 const LS_STATE='koe_state', LS_VARS='koe_vars', LS_SET='koe_settings', LS_BOOK='koe_book';
 
 /* ── 設定 ── */
@@ -506,7 +506,10 @@ const BOOK_ALIAS={'食料品':'食費','食べ物':'食費','外食費':'外食'
   '家賃':'住居費','趣味':'娯楽','レジャー':'娯楽','学費':'教育費','習い事':'教育費','その他':'雑費'};
 const BOOK_WORDS=Object.keys(BOOK_ALIAS).concat(BOOK_CATS).sort((a,b)=>b.length-a.length);
 let book=[];
-function loadBook(){ try{ const b=JSON.parse(localStorage.getItem(LS_BOOK)||'[]'); if(Array.isArray(b)) book=b.filter(x=>x && isFinite(x.amt)); }catch(_){} }
+function loadBook(){ try{ const b=JSON.parse(localStorage.getItem(LS_BOOK)||'[]'); if(Array.isArray(b)) book=b.filter(x=>x && isFinite(x.amt)); }catch(_){}
+  // v8 のとき、スマホで「ガソリン代ガソリン代…」と繰り返したメモが残っていることがあるので整える（v9）
+  book.forEach(x=>{ if(x.memo) x.memo=bookMemo(collapseRepeats(x.memo)); });
+}
 function saveBook(){ try{ localStorage.setItem(LS_BOOK, JSON.stringify(book)); }catch(_){} }
 function today(){ return window.KOE_TODAY ? new Date(window.KOE_TODAY) : new Date(); }
 function ymKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
@@ -1315,7 +1318,7 @@ let rec=null, recOn=false, hfWanted=false, pauseForSpeak=false, stopByUser=false
 const WAIT_MS={short:1000, normal:1800, long:3000};
 const NO_SPEECH_MS=8000;                // 何も聞こえないまま、この時間たったらやめる（押して話すとき）
 let wantListen=false;                   // 押して話すとき：計算するまで聞き続けたい
-let utter=[], utterInterim='', utterTimer=null, finishing=false, finishFallback=null, noSpeechTimer=null;
+let utter=[], sess=[], utterInterim='', utterTimer=null, finishing=false, finishFallback=null, noSpeechTimer=null;
 function setHeard(s){ const h=$('heard'); if(h) h.textContent=s||''; const vh=$('voHeard'); if(vh && s) vh.textContent=s; const bh=$('bkHeard'); if(bh) bh.textContent=s||''; }
 function syncMicUi(){
   const on=recOn||wantListen;
@@ -1326,7 +1329,19 @@ function syncMicUi(){
   const vo=$('voice-only'); if(vo) vo.classList.toggle('listening', on);
   document.querySelectorAll('.sw[data-set="handsFree"]').forEach(s=>s.classList.toggle('on', !!settings.handsFree));
 }
-function utterText(){ return (utter.join('')+utterInterim).trim(); }
+/* Android の Chrome は、同じ言葉を何度も返したり、前の言葉をまるごと含めて返したりする（v9）。
+   つなげるときに、含まれているものは置きかえ、続けて繰り返された言葉は1つにまとめる */
+function joinSeg(a,b){
+  a=String(a||''); b=String(b||'').trim();
+  if(!b) return a;
+  const ac=a.replace(/\s/g,''), bc=b.replace(/\s/g,'');
+  if(bc.startsWith(ac)) return b;          // 前の言葉をまるごと含んで届いた
+  if(ac.endsWith(bc)) return a;            // 同じものがもう一度届いた
+  return a+b;
+}
+function collapseRepeats(t){ return String(t).replace(/([^\d\s、。]{2,12}?)(?:\s*\1)+/g,'$1'); }
+function utterText(){ return collapseRepeats(utter.concat(sess.filter(Boolean), [utterInterim]).reduce(joinSeg,'')).trim(); }
+const MOBILE=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||'');
 /* 言いかけか（このあとに続きがありそう） */
 const UNFINISHED_RE=/(?:を|に|で|と|から|の|は|が|、|,|より|対|:|(?:\d|円|個|つ|本|枚)(?:足す|たす|プラス|引く|ひく|マイナス|かける|掛ける|割る|わる|×|÷|\+|-)|じゃなくて|ではなくて|えーと|えっと|あの|単価|予算|時速|分速|秒速|半径|直径|縦|横|底辺|高さ|身長|体重|月給|年収|日給|時給|毎月|毎日|毎週|年利|金利|定価|原価|売値|税込み|税込)$/;   // 「4人で割って」のような、て形で終わるものは言い終わりとみなす
 function waitMs(){
@@ -1367,7 +1382,7 @@ function doFinish(){
   if(!finishing) return;
   finishing=false; clearTimeout(finishFallback);
   let text=utterText();
-  utter=[]; utterInterim='';
+  utter=[]; sess=[]; utterInterim='';
   if(!settings.handsFree) wantListen=false;
   syncMicUi();
   if(!text){ if(!settings.handsFree) setHeard(''); else restartHandsFree(); return; }
@@ -1396,17 +1411,19 @@ function startListen(){
   if(!settings.handsFree) wantListen=true;
   try{
     rec=new SR();
-    rec.lang='ja-JP'; rec.interimResults=true; rec.maxAlternatives=3; rec.continuous=true;
+    rec.lang='ja-JP'; rec.interimResults=true; rec.maxAlternatives=3; rec.continuous=!MOBILE;   // スマホは続けて聞く方式だと同じ言葉を何度も返すので、1回ずつ聞いて切れたら聞き直す
+    sess=[];
     rec.onstart=()=>{ recOn=true; syncMicUi();
       if(!utterText()) setHeard(settings.handsFree&&settings.wake?'🎙「けいさん」に続けて話してください':'🎙 どうぞ（話し終わると計算します）');
       if(fresh && !settings.handsFree){ clearTimeout(noSpeechTimer); noSpeechTimer=setTimeout(()=>{ if(!utterText() && wantListen){ stopListen(); setHeard('聞こえませんでした。もう一度 🎙 を押してください'); } }, NO_SPEECH_MS); }
     };
     rec.onresult=e=>{
+      // 届いた一覧を毎回はじめから見て、同じ番号の言葉は1回だけ数える（同じものが何度届いても増えない）
       let interim='';
-      for(let i=e.resultIndex;i<e.results.length;i++){
+      for(let i=0;i<e.results.length;i++){
         const r=e.results[i];
-        if(r.isFinal){ const t=pickAlt(r); if(t) utter.push(t); }
-        else interim+=r[0].transcript;
+        if(r.isFinal){ const t=pickAlt(r); if(t) sess[i]=t; }
+        else if(i>=e.resultIndex) interim+=r[0].transcript;
       }
       utterInterim=interim.trim();
       if(finishing) return;
@@ -1418,6 +1435,7 @@ function startListen(){
     };
     rec.onend=()=>{
       recOn=false;
+      utter=utter.concat(sess.filter(Boolean)); sess=[];   // この回で聞いた言葉を持ち越す
       if(finishing){ doFinish(); return; }
       const resume=pauseForSpeak; pauseForSpeak=false;
       // 途中で切れた：聞きたいあいだは、聞いた言葉を持ったまま聞き直す
@@ -1434,7 +1452,7 @@ function startListen(){
 function stopListen(){
   stopByUser=true; wantListen=false;
   clearTimeout(utterTimer); clearTimeout(noSpeechTimer); showWait(0);
-  utter=[]; utterInterim=''; finishing=false;
+  utter=[]; sess=[]; utterInterim=''; finishing=false;
   try{ rec && rec.stop(); }catch(_){}
   syncMicUi();
   setTimeout(()=>{ stopByUser=false; }, 500);
