@@ -13,6 +13,7 @@ node tests/run.js a11y       読み上げ・キーボードだけ
 node tests/run.js mode       モードの行き来だけ
 node tests/run.js kaikei     会計アプリ（kaikei/）だけ
 node tests/run.js koe        声の計算帳（koe/）だけ
+node tests/run.js dtphrase   電卓モードの声（声の計算帳と同じ言い方・koe/phrase.js）だけ
 node tests/run.js visual     見た目の見比べだけ
 node tests/visual.js --update   見た目の見本を撮り直す（わざと見た目を変えたときだけ）
 ```

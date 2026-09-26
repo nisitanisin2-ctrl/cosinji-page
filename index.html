@@ -8700,6 +8700,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v424', t:'電卓の声が、いろいろな言い方に', li:[
+    '電卓モードで声を使うと、<b>🎙声の計算帳と同じ言い方</b>で計算できるようになりました。「8と3の差」「17を5で割った余り」「30坪は何平米」「時速60キロで2時間半」「300万円を金利2%で5年ローン毎月の返済」「昭和55年生まれは何歳」「半径3の円の面積」など',
+    '答えは電卓の表示に出るので、そのままキーで続けて計算できます。言える形は 🎤 の <b>📖言い方</b> の「🎙 いろいろな言い方」にも並べました',
+  ]},
   { v:'v423', t:'新しい版がすぐ届くように', li:[
     '新しい版を出したあと、しばらく<b>古い画面のまま</b>になることがありました（ブラウザが前の分を10分ほど覚えていたため）。いつもサーバーにたしかめて取るようにしました',
     '<b>🎙声の計算帳</b>・<b>会計アプリ</b>も同じように直しました。声の計算帳は、開いたままでも新しい版が来ると読み込み直します',
@@ -13155,6 +13159,27 @@ const openPhotoMemoLoader=function(...a){
   });
 };
 window.openPhotoMemo=openPhotoMemoLoader;
+/* 声の計算帳と共通の「いろいろな言い方」（koe/phrase.js。v424）。
+   電卓で声を使うときのために、起動が落ち着いてから読んでおく（file:// でも読める） */
+let koePhraseLoading=null;
+function loadKoePhrase(){
+  if(window.KoePhrase) return Promise.resolve(true);
+  if(koePhraseLoading) return koePhraseLoading;
+  koePhraseLoading=new Promise(res=>{
+    const sc=document.createElement('script');
+    sc.src='koe/phrase.js';
+    sc.onload=()=>{ koePhraseLoading=null; res(!!window.KoePhrase); };
+    sc.onerror=()=>{ koePhraseLoading=null; sc.remove(); res(false); };
+    document.head.appendChild(sc);
+  });
+  return koePhraseLoading;
+}
+setTimeout(()=>{ loadKoePhrase(); }, 3000);
+/* 型に合えば答え（{say, a, f, v, cls}）。読み込む前や合わないときは null */
+function dtPhrase(raw){
+  if(!window.KoePhrase) return null;
+  try{ return window.KoePhrase.match(raw, {tax:taxPct, today:()=>new Date()}); }catch(_){ return null; }
+}
 window.closePhotoMemo=function(){ /* まだ読み込んでいない＝開いていない */ };
 /* はい／いいえを聞く小さな画面（画面の上寄りに出す） */
 function appConfirm(message, yes='OK', no='キャンセル'){
@@ -16798,9 +16823,15 @@ const SAY_EXTRA=[
   {g:'分数', ex:'2と3分の1'},
   {g:'方程式（電卓のみ）', ex:'2エックスたす3は7'},
   {g:'方程式（電卓のみ）', ex:'エックス2乗ひく5エックスたす6は0'},
+  // 声の計算帳と同じ言い方（koe/phrase.js。v424）
+  ...['8と3の差','17を5で割った余り','80と90と70の平均','15は3の何倍','12と18の最大公約数','97は素数',
+      '1000円から1200円に上がったら何パーセントアップ','定価3000円で売値2400円は何割引き','税込み1100円の消費税','10万円の源泉徴収',
+      '1234を十の位で四捨五入','30坪は何平米','3合は何ミリリットル','時速36キロは秒速何メートル','時速60キロで2時間半',
+      '月給25万円でボーナス2か月分の年収','300万円を金利2%で5年ローン毎月の返済','100万円を年利3%で10年複利','10000円を3対2で分ける',
+      '昭和55年生まれは何歳','2026年は令和何年','半径3の円の面積','身長170センチ体重65キロのBMI'].map(ex=>({g:'いろいろな言い方', ex})),
 ];
-const SAY_GROUPS=['ふつうの計算','分数','方程式（電卓のみ）','お金','現場','畑・材料','単位・時間','くるま'];
-const SAY_ICON={'ふつうの計算':'🧮','分数':'½','方程式（電卓のみ）':'✖','お金':'💰',
+const SAY_GROUPS=['ふつうの計算','分数','方程式（電卓のみ）','いろいろな言い方','お金','現場','畑・材料','単位・時間','くるま'];
+const SAY_ICON={'いろいろな言い方':'🎙','ふつうの計算':'🧮','分数':'½','方程式（電卓のみ）':'✖','お金':'💰',
   '現場':'🏗','畑・材料':'🌱','単位・時間':'📏','くるま':'⛽'};
 /* 一覧に出すもの（レシピ＋そのほか）をまとめる */
 function sayList(){
@@ -16810,6 +16841,8 @@ function sayList(){
 /* お手本を計算して「＝ 答え」を作る。出せないときは空 */
 function sayAnswer(ex){
   try{
+    const ph=dtPhrase(ex);
+    if(ph && ph.cls!=='err' && !speechToEquation(ex)) return String(ph.a||'');
     const rc=speechRecipe(ex);
     if(rc) return srNum(rc.v, rc.dp)+(rc.u||'');
     const eq=speechToEquation(ex);
@@ -16824,7 +16857,8 @@ function sayAnswer(ex){
   return '';
 }
 let sayFind='';
-function openSayHelp(){ sayFind=''; renderSayHelp(); openDlg('sayHelpOverlay'); }
+function openSayHelp(){ sayFind=''; renderSayHelp(); openDlg('sayHelpOverlay');
+  if(!window.KoePhrase) loadKoePhrase().then(ok=>{ if(ok) renderSayHelp(true); }); }
 function closeSayHelp(){ closeDlg('sayHelpOverlay'); }
 function sayHelpFind(v){ sayFind=String(v||'').trim(); renderSayHelp(true); }
 function renderSayHelp(keepInput){
@@ -16879,6 +16913,7 @@ function sayFitNumbers(raw, ex){
 }
 /* その言い方をアプリが受け取れるか（式・言い回し・方程式のどれかで読めるか） */
 function sayUnderstands(t){
+  try{ const ph=dtPhrase(t); if(ph && ph.cls!=='err') return true; }catch(_){}
   try{ if(speechRecipe(t)) return true; }catch(_){}
   try{ if(speechToFormula(t)!==null) return true; }catch(_){}
   try{ if(speechToEquation(t)) return true; }catch(_){}
@@ -17095,6 +17130,7 @@ function voiceStop(){
 /* 画面タップ＝やめる（続けて入れるモードも終わる） */
 function voiceCancel(){ voiceKeepGoing=false; voiceStop(); }
 function voiceStart(){
+  loadKoePhrase();
   const Ctor=speechRecCtor();
   if(!Ctor){
     toast('この端末ではアプリから直接は聞き取れません。「文字」キーを押して、キーボードのマイクでどうぞ', 5200);
@@ -17191,6 +17227,9 @@ function voiceAcceptDentaku(raw){
   // まず方程式として読めるか見る（電卓のときだけ。表では X列のセルと見分けが付かない）
   const eq = speechAutoOn ? speechToEquation(raw) : null;
   if(eq) return voiceAcceptEquation(eq, raw);
+  // 声の計算帳と同じ「いろいろな言い方」（型）。文全体が型に合ったときだけ使う（v424）
+  const ph = speechAutoOn ? dtPhrase(raw) : null;
+  if(ph) return voiceAcceptPhrase(ph, raw);
   // つぎに「5000円の18パーセント」のような言い回し
   const rc = speechAutoOn ? speechRecipe(raw) : null;
   if(rc) return voiceAcceptRecipe(rc, raw);
@@ -17231,6 +17270,23 @@ function voiceAcceptDentaku(raw){
   dtRender();
   toast(`「${raw}」＝ ${ans}`, 4200);
   speechSay(fr?(fr.replace('/','分の').replace(/（.*/,'')):num);
+}
+/* 型として受け取ったとき（v424）。答えが数なら電卓の表示に出して、続けてキーで計算できる。
+   「3 余り 2」「9時15分」「素数です」のような答えは、行と履歴に文字で出す */
+function voiceAcceptPhrase(ph, raw){
+  if(ph.cls==='err'){ dtVoiceShow(ph.a, raw, 'ng'); dtVoiceGuess(null); toast(ph.a, 4200); speechSay(ph.say||ph.a); return; }
+  const e=ph.f||raw, shownA=String(ph.a||'');
+  dtVoiceShow(e+'　→ '+shownA, raw, 'on');
+  dtPush(e, shownA);
+  const dv=(typeof ph.dv==='number') ? ph.dv : ph.v;   // 時刻は 16時15分 → 16.25 のように数にして表示へ
+  if(typeof dv==='number' && isFinite(dv)){
+    const num=dtFmtNum(dv);
+    if(dtStyle==='expr') dtExpr=num;
+    disp_val=num; op1=null; cur_op=null; waiting=false; dtSeq=''; dtFresh=true;
+    dtRender();
+  }
+  toast(shownA+(ph.f?'（'+ph.f+'）':''), 5200);
+  speechSay(ph.say||shownA);
 }
 /* 言い回しとして受け取ったとき（割合・割り勘・単価・単位変換など） */
 function voiceAcceptRecipe(rc, raw){
@@ -20020,7 +20076,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v423';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v424';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

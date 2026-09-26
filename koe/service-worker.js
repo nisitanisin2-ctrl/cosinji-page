@@ -1,9 +1,9 @@
 // このアプリ（koe/）専用のキャッシュ。同じサイトにある別アプリの分を消さないよう、
 // 名前の頭で自分の分だけを見分ける。
 // index.html の APP_VERSION を上げたら、ここの CACHE も必ずそろえること。
-const CACHE = 'koe-v5';
+const CACHE = 'koe-v6';
 const CACHE_PREFIX = 'koe-';
-const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+const ASSETS = ['./', './index.html', './phrase.js', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
