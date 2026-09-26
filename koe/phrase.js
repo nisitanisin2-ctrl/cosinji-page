@@ -241,6 +241,7 @@ const pList=s=>(s.match(/\d+(?:\.\d+)?/g)||[]).map(Number);
 const pUnitOf=s=>{ const m=String(s||'').match(/\d(円)/); return m?'円':''; };
 function pOut(v,u,opt){
   opt=opt||{};
+  if(typeof v==='number' && isFinite(v) && v!==0) v=+v.toPrecision(15);   // 1.9549999999999998 → 1.955
   const a=opt.a||((opt.pre||'')+fmtU(v,u));
   const say=opt.say||((opt.sayPre||'')+sayU(v,u)+' です');
   return R_ok(say, a, opt.f||'', {v, u:u||''});
@@ -276,6 +277,18 @@ const lenM=(v,u)=>/^(キロ|km|キロメートル)$/.test(u)?v*1000:/^(mm|ミリ
 const areaU=u=>/^(cm|センチ)$/.test(u||'')?'cm²':/^(m|メートル)$/.test(u||'')?'㎡':/^(mm|ミリ)$/.test(u||'')?'mm²':/^(km|キロ)$/.test(u||'')?'km²':'';
 const volU=u=>/^(cm|センチ)$/.test(u||'')?'cm³':/^(m|メートル)$/.test(u||'')?'㎥':/^(mm|ミリ)$/.test(u||'')?'mm³':'';
 const lenU=u=>/^(cm|センチ)$/.test(u||'')?'cm':/^(m|メートル)$/.test(u||'')?'m':/^(mm|ミリ)$/.test(u||'')?'mm':/^(km|キロ)$/.test(u||'')?'km':'';
+// 図形の長さをそろえる：辺ごとに単位がちがう（1.7m と 50cm など）ときは、言った中でいちばん大きい単位に直す。
+// 単位を言わなかった辺は、前（なければ後ろ）の辺の単位とみなす。→ {v:[数…], u:単位}
+const LEN_F={mm:0.001,cm:0.01,m:1,km:1000};
+const lenKey=u=>/^(mm|ミリ)$/.test(u||'')?'mm':/^(cm|センチ)$/.test(u||'')?'cm':/^(m|メートル)$/.test(u||'')?'m':/^(km|キロ)$/.test(u||'')?'km':'';
+function dimsU(pairs){
+  const ks=pairs.map(p=>lenKey(p[1]));
+  for(let i=1;i<ks.length;i++) if(!ks[i]) ks[i]=ks[i-1];
+  for(let i=ks.length-2;i>=0;i--) if(!ks[i]) ks[i]=ks[i+1];
+  let T=''; ks.forEach(k=>{ if(k && (!T || LEN_F[k]>LEN_F[T])) T=k; });
+  const v=pairs.map((p,i)=>{ const x=pn(p[0]); return T&&ks[i]&&ks[i]!==T ? +(x*LEN_F[ks[i]]/LEN_F[T]).toPrecision(12) : x; });
+  return {v, u:T};
+}
 function tokArith(a,op,b,ua,ub){
   return {toks:[{t:'num',v:a,u:ua||''},{t:'op',op},{t:'num',v:b,u:ub||''}]};
 }
@@ -487,20 +500,20 @@ const PHRASES=[
   {c:'図形', p:['(直径|ちょっけい){d}<LU@u>?(の)?<EN>?(の)?<MENSEKI>'], f:g=>{ const r=pn(g.d)/2; return pOut(Math.PI*r*r,areaU(g.u),{pre:'面積 ', sayPre:'面積は ', f:'π × '+fmt(r)+'²'}); }},
   {c:'図形', p:['(半径|はんけい){r}<LU@u>?(の)?<EN>?(の)?<ENSHU>'], f:g=>{ const r=pn(g.r); return pOut(2*Math.PI*r,lenU(g.u),{pre:'円周 ', sayPre:'円周は ', f:'2 × π × '+fmt(r)}); }},
   {c:'図形', p:['(直径|ちょっけい){d}<LU@u>?(の)?<EN>?(の)?<ENSHU>'], f:g=>{ const d=pn(g.d); return pOut(Math.PI*d,lenU(g.u),{pre:'円周 ', sayPre:'円周は ', f:'π × '+fmt(d)}); }},
-  {c:'図形', p:['(縦|たて){a}<LU@u>?(、)?(横|よこ){b}<LU>?(の)?<CHOHO>?(の)?<MENSEKI>','(横|よこ){b}<LU@u>?(、)?(縦|たて){a}<LU>?(の)?<CHOHO>?(の)?<MENSEKI>'],
-   f:g=>{ const a=pn(g.a), b=pn(g.b); return pOut(a*b,areaU(g.u),{pre:'面積 ', sayPre:'面積は ', f:fmt(a)+' × '+fmt(b)}); }},
+  {c:'図形', p:['(縦|たて){a}<LU@ua>?(、)?(横|よこ){b}<LU@ub>?(の)?<CHOHO>?(の)?<MENSEKI>','(横|よこ){b}<LU@ub>?(、)?(縦|たて){a}<LU@ua>?(の)?<CHOHO>?(の)?<MENSEKI>'],
+   f:g=>{ const D=dimsU([[g.a,g.ua],[g.b,g.ub]]), [a,b]=D.v; return pOut(a*b,areaU(D.u),{pre:'面積 ', sayPre:'面積は ', f:fmt(a)+' × '+fmt(b)}); }},
   {c:'図形', p:['(1辺|1辺が|1辺の長さが|1辺の長さ){a}<LU@u>?(の)?(正方形)(の)?<MENSEKI>','{a}<LU@u>?(4方|四方)(の)?<MENSEKI>?'],
    f:g=>{ const a=pn(g.a); return pOut(a*a,areaU(g.u),{pre:'面積 ', sayPre:'面積は ', f:fmt(a)+' × '+fmt(a)}); }},
-  {c:'図形', p:['底辺{a}<LU@u>?(、)?高さ{b}<LU>?(の)?(3角形|3角)?(の)?<MENSEKI>'], f:g=>{ const a=pn(g.a), b=pn(g.b); return pOut(a*b/2,areaU(g.u),{pre:'面積 ', sayPre:'面積は ', f:fmt(a)+' × '+fmt(b)+' ÷ 2'}); }},
-  {c:'図形', p:['上底{a}<LU@u>?(、)?下底{b}<LU>?(、)?高さ{h}<LU>?(の)?(台形)?(の)?<MENSEKI>'], f:g=>{ const a=pn(g.a), b=pn(g.b), h=pn(g.h); return pOut((a+b)*h/2,areaU(g.u),{pre:'面積 ', sayPre:'面積は ', f:'('+fmt(a)+' ＋ '+fmt(b)+') × '+fmt(h)+' ÷ 2'}); }},
-  {c:'図形', p:['(縦|たて){a}<LU@u>?(、)?(横|よこ){b}<LU>?(、)?(高さ|奥行き|奥行){c}<LU>?(の)?(直方体|箱|部屋|水槽)?(の)?<TAISEKI>'], f:g=>{ const a=pn(g.a), b=pn(g.b), c=pn(g.c); return pOut(a*b*c,volU(g.u),{pre:'体積 ', sayPre:'体積は ', f:fmt(a)+' × '+fmt(b)+' × '+fmt(c)}); }},
+  {c:'図形', p:['底辺{a}<LU@ua>?(、)?高さ{b}<LU@ub>?(の)?(3角形|3角)?(の)?<MENSEKI>'], f:g=>{ const D=dimsU([[g.a,g.ua],[g.b,g.ub]]), [a,b]=D.v; return pOut(a*b/2,areaU(D.u),{pre:'面積 ', sayPre:'面積は ', f:fmt(a)+' × '+fmt(b)+' ÷ 2'}); }},
+  {c:'図形', p:['上底{a}<LU@ua>?(、)?下底{b}<LU@ub>?(、)?高さ{h}<LU@uh>?(の)?(台形)?(の)?<MENSEKI>'], f:g=>{ const D=dimsU([[g.a,g.ua],[g.b,g.ub],[g.h,g.uh]]), [a,b,h]=D.v; return pOut((a+b)*h/2,areaU(D.u),{pre:'面積 ', sayPre:'面積は ', f:'('+fmt(a)+' ＋ '+fmt(b)+') × '+fmt(h)+' ÷ 2'}); }},
+  {c:'図形', p:['(縦|たて){a}<LU@ua>?(、)?(横|よこ){b}<LU@ub>?(、)?(高さ|奥行き|奥行){c}<LU@uc>?(の)?(直方体|箱|部屋|水槽)?(の)?<TAISEKI>'], f:g=>{ const D=dimsU([[g.a,g.ua],[g.b,g.ub],[g.c,g.uc]]), [a,b,c]=D.v; return pOut(a*b*c,volU(D.u),{pre:'体積 ', sayPre:'体積は ', f:fmt(a)+' × '+fmt(b)+' × '+fmt(c)}); }},
   {c:'図形', p:['(1辺|1辺が|1辺の長さが){a}<LU@u>?(の)?(立方体|サイコロ)(の)?<TAISEKI>'], f:g=>{ const a=pn(g.a); return pOut(a*a*a,volU(g.u),{pre:'体積 ', sayPre:'体積は ', f:fmt(a)+'³'}); }},
   {c:'図形', p:['(半径){r}<LU@u>?(の)?(球|ボール)(の)?<TAISEKI>'], f:g=>{ const r=pn(g.r); return pOut(4/3*Math.PI*r*r*r,volU(g.u),{pre:'体積 ', sayPre:'体積は ', f:'4/3 × π × '+fmt(r)+'³'}); }},
   {c:'図形', p:['(半径){r}<LU@u>?(の)?(球|ボール)(の)?(表面積)'], f:g=>{ const r=pn(g.r); return pOut(4*Math.PI*r*r,areaU(g.u),{pre:'表面積 ', sayPre:'表面積は ', f:'4 × π × '+fmt(r)+'²'}); }},
-  {c:'図形', p:['(半径){r}<LU@u>?(、)?(高さ){h}<LU>?(の)?(円柱|円筒|缶)(の)?<TAISEKI>'], f:g=>{ const r=pn(g.r), h=pn(g.h); return pOut(Math.PI*r*r*h,volU(g.u),{pre:'体積 ', sayPre:'体積は ', f:'π × '+fmt(r)+'² × '+fmt(h)}); }},
-  {c:'図形', p:['(半径){r}<LU@u>?(、)?(高さ){h}<LU>?(の)?(円すい|円錐)(の)?<TAISEKI>'], f:g=>{ const r=pn(g.r), h=pn(g.h); return pOut(Math.PI*r*r*h/3,volU(g.u),{pre:'体積 ', sayPre:'体積は ', f:'π × '+fmt(r)+'² × '+fmt(h)+' ÷ 3'}); }},
-  {c:'図形', p:['(縦|たて){a}<LU@u>?(、)?(横|よこ){b}<LU>?(の)?(長方形の)?(対角線)(の長さ)?','(直角を挟む|直角をはさむ)?(2辺が)?{a}<LU@u>?と{b}<LU>?(の)?(直角3角形の)?(斜辺)(の長さ)?'],
-   f:g=>{ const a=pn(g.a), b=pn(g.b); return pOut(Math.hypot(a,b),lenU(g.u),{f:'√('+fmt(a)+'² ＋ '+fmt(b)+'²)'}); }},
+  {c:'図形', p:['(半径){r}<LU@ur>?(、)?(高さ){h}<LU@uh>?(の)?(円柱|円筒|缶)(の)?<TAISEKI>'], f:g=>{ const D=dimsU([[g.r,g.ur],[g.h,g.uh]]), [r,h]=D.v; return pOut(Math.PI*r*r*h,volU(D.u),{pre:'体積 ', sayPre:'体積は ', f:'π × '+fmt(r)+'² × '+fmt(h)}); }},
+  {c:'図形', p:['(半径){r}<LU@ur>?(、)?(高さ){h}<LU@uh>?(の)?(円すい|円錐)(の)?<TAISEKI>'], f:g=>{ const D=dimsU([[g.r,g.ur],[g.h,g.uh]]), [r,h]=D.v; return pOut(Math.PI*r*r*h/3,volU(D.u),{pre:'体積 ', sayPre:'体積は ', f:'π × '+fmt(r)+'² × '+fmt(h)+' ÷ 3'}); }},
+  {c:'図形', p:['(縦|たて){a}<LU@ua>?(、)?(横|よこ){b}<LU@ub>?(の)?(長方形の)?(対角線)(の長さ)?','(直角を挟む|直角をはさむ)?(2辺が)?{a}<LU@ua>?と{b}<LU@ub>?(の)?(直角3角形の)?(斜辺)(の長さ)?'],
+   f:g=>{ const D=dimsU([[g.a,g.ua],[g.b,g.ub]]), [a,b]=D.v; return pOut(Math.hypot(a,b),lenU(D.u),{f:'√('+fmt(a)+'² ＋ '+fmt(b)+'²)'}); }},
   // ── からだ ──
   {c:'からだ', p:['身長{h}<HU@hu>?(、|で)?体重{w}<WU2>?(の|で|だと|なら|の人の)?<BMI>'],
    f:g=>{ let h=pn(g.h); if(/^(センチ|cm)$/.test(g.hu||'')||h>3) h/=100; const w=pn(g.w); if(!h) return R_err('身長が 0 です'); const v=w/(h*h);

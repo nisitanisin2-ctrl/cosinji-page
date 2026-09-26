@@ -8716,6 +8716,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v428', t:'面積・体積の単位', li:[
+    '声の計算で「縦1.7m 横2.3m 高さ50cm の容積」のように<b>辺ごとに単位がちがう</b>とき、大きい単位にそろえて計算するようにしました（1.955㎥。前は 50cm を 50m として計算していました）',
+  ]},
   { v:'v427', t:'起動を速く', li:[
     'テンキーの文字の大きさを合わせる処理をまとめて測るようにして、<b>起動が約2割速く</b>なりました（見た目は前と同じです）',
   ]},
@@ -20123,7 +20126,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v427';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v428';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
