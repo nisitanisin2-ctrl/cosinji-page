@@ -1189,10 +1189,10 @@ async function runNpTools(browser) {
 
   check('  はじめは道具のタブを出さない', await bar(), '書式・枠線|数字|記号|電卓|▲ マイキー');
   check('  設定に選べる道具が並ぶ', await page.evaluate(() =>
-    document.querySelectorAll('#npToolList .nptool-row').length), 11);
+    document.querySelectorAll('#npToolList .nptool-row').length), 12);   // v422 で 🎙声の計算帳 を足した
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,photomemo,linklist,touban,memo,calctmpl,fintmpl,kaikei');
+    'tansui,kantab,veggie,volume,photomemo,linklist,touban,memo,calctmpl,fintmpl,kaikei,koe');
 
   // 会計アプリは、メモと同じく別のタブで開く別アプリ（全画面・フリックの対象外）
   check('  会計アプリはタブのタイトルつきで並ぶ', await page.evaluate(() =>
@@ -6657,6 +6657,112 @@ async function runTbSave(browser) {
   await ctx.close();
 }
 
+/* 🎙声の計算帳（koe/。v422 の別アプリ）：話し言葉の計算・会話・足し上げ・予算・くらしの計算・練習・画面 */
+async function runKoe(browser) {
+  const KOE = 'file://' + path.join(ROOT, 'koe', 'index.html');
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  const page = await ctx.newPage();
+  const errs = []; page.on('pageerror', e => errs.push(e.message)); page.on('dialog', d => d.accept());
+  await page.goto(KOE + '#from=hyo'); await page.waitForTimeout(300);
+  await page.evaluate(() => { localStorage.clear(); try { sessionStorage.clear(); } catch (_) {} });
+  await page.addInitScript(() => { window.KOE_TODAY = '2026-09-25T10:00:00'; });
+  await page.reload(); await page.waitForTimeout(500);
+  console.log('\n── 🎙声の計算帳（koe/） ──');
+  const run = t => page.evaluate(t => { const r = koeRun(t); return r ? r.a : null; }, t);
+  const say = t => page.evaluate(t => { const r = koeRun(t); return r ? r.say : null; }, t);
+  // A 会話
+  check('  「1280円を3つ」', await run('1280円を3つ'), '3,840円');
+  check('  「それに消費税」で前の答えに続ける', await run('それに消費税'), '4,224円');
+  check('  「4人で割って」は1人あたり', await run('4人で割って'), '1人あたり 1,056円');
+  check('  言い直すと最後まで計算し直す', await run('1280じゃなくて1300'), '1,280 → 1,300　1人あたり 1,072.5円');
+  check('  いまいくら（お金は1円に丸めて読む）', await say('いまいくら'), 'いまの答えは ひとり 約1073円 です');
+  check('  取り消し', await say('取り消し'), '取り消しました。いまの答えは 4290円 です');
+  check('  左から順に計算する', await page.evaluate(() => koeRun('1200足す350かける2').f), '(1,200 ＋ 350) × 2 ＝ 3,100');
+  check('  漢数字も読む', await run('二百五十一かける六十八'), '17,068');
+  check('  割引・割合', (await run('1500円の2割引き')) + '/' + (await run('2000円の3割')) + '/' + (await run('1500円を2割5分引き')), '1,200円/600円/1,125円');
+  check('  四捨五入（「四」「五」を数字にしない）', await run('1234を100円単位で四捨五入'), '1,200');
+  check('  だいたい', await say('だいたい12800を3で割って'), '約4300 です');
+  check('  名前を付けて覚える', await run('単価は2800'), '単価 ＝ 2,800');
+  check('  名前で計算', await run('単価かける45'), '126,000');
+  check('  逆算：売値', await run('原価800円で利益3割の売値'), '売値 1,143円');
+  check('  逆算：何パーセント', await run('3000円は12000円の何パーセント'), '25%');
+  check('  逆算：元の値段', await run('2割引きで1600円の元の値段'), '元の値段 2,000円');
+  check('  逆算：税抜き', await run('税込み3300円の税抜き'), '税抜き 3,000円');
+  check('  逆算：何個買える', await run('5000円で380円のものは何個'), '13個（余り 60円）');
+  check('  計算できない言葉は、そう言う', await page.evaluate(() => koeRun('こんにちは').cls), 'err');
+  // B 足し上げ・読み合わせ
+  await run('足し上げ開始');
+  check('  足し上げ：単価×数', await run('セメント12袋単価850円'), 'セメント　12袋 × 850円　10,200円');
+  check('  足し上げ：数と金額', await say('砂3立米12000円'), '砂 3立米 12000円。合計 22200円');
+  check('  足し上げの中で言い直す', await say('12000じゃなくて12500'), '12,000 を 12,500 に直しました。合計は 22700円、2件です');
+  check('  何件', await say('何件'), '2件です。合計は 22700円、2件です');
+  check('  読み合わせ：合っている', await run('伝票の合計は22700円'), '✅ 合っています（22,700円）');
+  check('  読み合わせ：合わない', await page.evaluate(() => koeRun('伝票の合計は23000円').say), '合いません。伝票は 23000円、読み上げの合計は 22700円、差は 300円 です');
+  check('  おしまい', await run('おしまい'), '合計 22,700円（2件）');
+  check('  締めた合計に続けて計算できる', await run('それに消費税'), '24,970円');
+  // D くらし
+  await run('予算5000円');
+  check('  予算：残りを言う', await say('498円'), '498円。残り 4502円');
+  check('  予算：数も言える', await say('牛乳238円を2本'), '牛乳 476円。残り 4026円');
+  check('  予算：こえたら知らせる', await page.evaluate(() => koeRun('5000円').cls), 'err');
+  await run('おしまい');
+  check('  どっちが得', await run('300グラム498円と500グラム798円どっちが得'), '👍 500グラム 798円 のほうが得');
+  check('  割り勘（条件つき）', await say('12800円を4人で割り勘、1人は2割引き、100円単位'), 'ふつうの人は ひとり 3400円、幹事は 3300円、2割引きの人は 2700円 です');
+  check('  割り勘（割り切れないと幹事が端数）', await run('10000円を3人で割り勘'), '3,334円 × 2人　幹事 3,332円');
+  check('  お釣り', await run('3280円を1万円で払ったらお釣り'), 'お釣り 6,720円');
+  check('  家計簿に付ける', await run('スーパー 3280円 食費'), '📒 食費 3,280円（スーパー）');
+  await run('ガソリン 5000円');
+  check('  家計簿の合計', await say('今月いくら使った'), '今月使ったのは 8280円。多いのは 車 5000円、食費 3280円');
+  check('  家計簿は取り消しで消える', await page.evaluate(() => { koeRun('取り消し'); return book.length; }), 1);
+  check('  働いた時間と日給', await run('8時半から17時15分 休憩1時間 時給1200円'), '実働 7時間45分（7.75時間）　日給 9,300円');
+  check('  夜をまたぐ', await run('22時から翌6時 休憩1時間'), '実働 7時間');
+  check('  時間の足し算', await run('2時間45分と1時間30分'), '4時間15分（4.25時間）');
+  check('  何日後', await run('今日から90日後'), '2026年12月24日（木）');
+  check('  あと何日', await run('12月25日まであと何日'), 'あと 91日');
+  check('  何曜日', await run('3月3日は何曜日'), '2026年3月3日（火）');
+  // F 練習
+  const q = await page.evaluate(() => { koeRun('九九の練習'); return state.drill.q; });
+  check('  練習：九九を出す', q.op + '/' + (q.a >= 1 && q.a <= 9), '*/true');
+  check('  練習：正しい答えは せいかい', await page.evaluate(a => koeRun(String(a)).say.slice(0, 5), q.ans), 'せいかい！');
+  check('  練習：おしまいで数を言う', await say('おしまい'), '練習おしまい。1問中 1問 せいかいでした');
+  // 画面
+  await page.evaluate(() => { runText('1280円を3つ'); });
+  check('  答えの欄に出る', await page.evaluate(() => document.getElementById('ansBig').textContent), '3,840円');
+  check('  会話の記録に出る', await page.evaluate(() => { const m = [...document.querySelectorAll('#log .msg')]; return m[m.length - 2].textContent + '|' + m[m.length - 1].querySelector('.a').textContent; }), '1280円を3つ|3,840円');
+  await page.fill('#typeIn', '足し上げ開始'); await page.press('#typeIn', 'Enter'); await page.waitForTimeout(100);
+  check('  打っても計算できる／足し上げのチップが光る', await page.evaluate(() => document.querySelector('#modes .chip.on').dataset.m + '|' + document.getElementById('ansLabel').textContent), 'sum|📦 足し上げ中');
+  await page.evaluate(() => runText('おしまい'));
+  check('  表電卓から来たら戻るボタン', await page.evaluate(() => !document.getElementById('backHyo').hidden), true);
+  await page.evaluate(() => openPanel('help')); await page.waitForTimeout(150);
+  check('  使い方の例が並ぶ', await page.evaluate(() => document.querySelectorAll('#helpBody .ex').length > 40), true);
+  await page.goBack(); await page.waitForTimeout(300);
+  check('  「戻る」で窓だけ閉じる', await page.evaluate(() => document.getElementById('p-help').classList.contains('open') + '|' + location.pathname.endsWith('/koe/index.html')), 'false|true');
+  await page.evaluate(() => openPanel('book')); await page.waitForTimeout(150);
+  check('  家計簿の窓に今月の分', await page.evaluate(() => document.getElementById('bkTotal').textContent + '|' + document.querySelectorAll('#bkList .bk-item').length), '3,280円|1');
+  await page.evaluate(() => closePanel()); await page.waitForTimeout(300);
+  await page.evaluate(() => openVoiceOnly()); await page.waitForTimeout(150);
+  check('  声だけの画面に大きな答え', await page.evaluate(() => document.getElementById('voice-only').classList.contains('open') + '|' + document.getElementById('voBig').textContent), 'true|3,840円');
+  await page.evaluate(() => closeVoiceOnly()); await page.waitForTimeout(300);
+  check('  声だけの画面を閉じる', await page.evaluate(() => document.getElementById('voice-only').classList.contains('open')), false);
+  // 開き直しても残る
+  await page.reload(); await page.waitForTimeout(500);
+  check('  開き直しても答え・記録・家計簿・名前が残る', await page.evaluate(() =>
+    document.getElementById('ansBig').textContent + '|' + (state.log.length > 50) + '|' + book.length + '|' + (vars['単価'] || {}).v), '3,840円|true|1|2800');
+  check('  続きから計算できる', await run('それを2倍'), '7,680円');
+  check('  消費税の率を変えられる', (await run('消費税は8%')) + '/' + (await run('1000円に消費税')), '消費税 8%/1,080円');
+  check('  エラーが出ない', errs.join(' | '), '');
+  await ctx.close();
+  // 表電卓からの入口
+  const h = await newPage(browser);
+  check('  表電卓：道具の一覧にある', await h.page.evaluate(() => !!NP_TOOLS.find(t => t.id === 'koe') && !!(KEY_FUNCS.a_koe && REG_GESTURE_ACTIONS.has('a_koe'))), true);
+  check('  表電卓：開く先は koe/（戻れるしるし付き）', await h.page.evaluate(() => {
+    let got = ''; const real = window.openSameWindow;
+    window.openSameWindow = u => { got = u; };
+    try { openKoeApp(); } finally { window.openSameWindow = real; }
+    return /\/koe\/(index\.html)?#from=hyo$/.test(got); }), true);
+  check('  表電卓：QR で共有できる', await h.page.evaluate(() => { qrSetWhich('koe'); return /\/koe\/$/.test(qrAppUrl('koe')) && QR_NAMES.koe; }), '声の計算帳');
+  await h.ctx.close();
+}
 /* v417：コピー・貼り付けで数式の番地をずらす・範囲のコピー／切り取り・絶対参照 $ */
 async function runClip(browser) {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, permissions: ['clipboard-read', 'clipboard-write'] });
@@ -7076,6 +7182,7 @@ async function runQrShare(browser) {
     if (!only || only === 'fmtcol') await runFmtCol(browser);
     if (!only || only === 'cellxl') await runCellXl(browser);
     if (!only || only === 'clip') await runClip(browser);
+    if (!only || only === 'koe') await runKoe(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
     if (!only || only === 'brush3') await runBrush3(browser);

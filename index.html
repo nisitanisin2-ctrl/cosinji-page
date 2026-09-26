@@ -5465,6 +5465,7 @@ body.dark {
       <div class="tb-seg qr-seg" id="qrWhichSeg">
         <button data-qr="hyo" onclick="qrSetWhich('hyo')">🧮 表電卓</button>
         <button data-qr="kaikei" onclick="qrSetWhich('kaikei')">🧾 会計アプリ</button>
+        <button data-qr="koe" onclick="qrSetWhich('koe')">🎙 声の計算帳</button>
       </div>
       <div class="qr-box"><canvas id="qrCanvas" width="10" height="10" role="img" aria-label="アプリのアドレスの QR コード"></canvas></div>
       <div class="qr-url" id="qrUrl"></div>
@@ -8699,6 +8700,11 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v422', t:'🎙声の計算帳（新しいアプリ）', li:[
+    '話しかけるだけで計算できる別のアプリ<b>「🎙声の計算帳」</b>を作りました。<b>⋯ → 🧰道具 → 🎙声の計算帳</b> から開けます',
+    '「1280円を3つ」→「それに消費税」→「4人で割って」のように<b>会話でつなげて計算</b>できます。「1280じゃなくて1300」で言い直しもできます',
+    '<b>足し上げ（検品）・予算・どっちが得・割り勘・お釣り・家計簿・時間と日付・暗算の練習</b>、画面を見ずに使う<b>「声だけ」</b>もあります',
+  ]},
   { v:'v421', t:'右下の丸を小さな四角に', li:[
     '選んだセルの右下の<b>丸</b>を、<b>枠の角の小さな四角</b>にしました（Excel のパソコン版と同じ形）。数字に重ならず、目立ちにくくなります',
     'つまめる場所は前と同じです。四角を引っぱると、下や横へコピー（フィル）できます',
@@ -9282,11 +9288,12 @@ function qrAppUrl(which){
   let base='';
   try{ base=new URL('./', location.href).href; }catch(_){ base=location.href.replace(/[^/]*$/,''); }
   base=base.replace(/[?#].*$/,'');
-  return which==='kaikei' ? base+'kaikei/' : base;
+  return which==='kaikei' ? base+'kaikei/' : which==='koe' ? base+'koe/' : base;
 }
 function openQrShare(){ renderQrShare(); openDlg('qrShareOverlay'); }
 function closeQrShare(){ closeDlg('qrShareOverlay'); }
-function qrSetWhich(w){ qrWhich=(w==='kaikei')?'kaikei':'hyo'; renderQrShare(); }
+function qrSetWhich(w){ qrWhich=(w==='kaikei'||w==='koe')?w:'hyo'; renderQrShare(); }
+const QR_NAMES={hyo:'表電卓', kaikei:'会計アプリ', koe:'声の計算帳'};
 function qrDraw(cv, text, scale){
   const q=qrEncode(text, 'M'); if(!q || !cv) return null;
   const quiet=4, n=q.size+quiet*2, sc=scale||8;
@@ -9318,7 +9325,7 @@ async function qrCopyUrl(){
 }
 async function qrShareUrl(){
   const url=qrAppUrl(qrWhich);
-  const title=(qrWhich==='kaikei')?'会計アプリ':'表電卓';
+  const title=QR_NAMES[qrWhich]||'表電卓';
   if(!navigator.share){ qrCopyUrl(); return; }
   try{ await navigator.share({ title, text:title+'（表計算のできる電卓）', url }); }catch(_){}
 }
@@ -9326,7 +9333,7 @@ function qrSaveImage(){
   const url=qrAppUrl(qrWhich);
   const cv=document.createElement('canvas');
   if(!qrDraw(cv, url, 12)){ toast('QRコードを作れませんでした'); return; }
-  const name=((qrWhich==='kaikei')?'会計アプリ':'表電卓')+'_QRコード.png';
+  const name=(QR_NAMES[qrWhich]||'表電卓')+'_QRコード.png';
   cv.toBlob(b=>{
     if(!b){ toast('画像にできませんでした'); return; }
     const a=Object.assign(document.createElement('a'),{ href:URL.createObjectURL(b), download:name });
@@ -10816,6 +10823,7 @@ const KEY_FUNCS={
   a_touban:{g:'設定・機能',label:'📅当番表',short:'当番',run:()=>openTouban()},
   a_memo:{g:'設定・機能',label:'📄メモ',short:'メモ',run:()=>openNotesApp()},
   a_kaikei:{g:'設定・機能',label:'🧾会計アプリ',short:'会計',run:()=>openKaikeiApp()},
+  a_koe:{g:'設定・機能',label:'🎙声の計算帳',short:'声計算',run:()=>openKoeApp()},
   a_websearch:{g:'設定・機能',label:'🔍Web検索',short:'W検索',run:()=>webSearchCell()},
   a_lookup:{g:'設定・機能',label:'🔍照合',run:()=>openLookupDlg()},
   a_find:{g:'設定・機能',label:'🔎検索',run:()=>openFindDlg()},
@@ -13168,7 +13176,7 @@ function appConfirm(message, yes='OK', no='キャンセル'){
 /* 登録ボタンから実行するとき、指の操作（ユーザー操作）が生きているうちに呼ばないと
    開かない機能（ネイティブのファイル選択）。これらは遅延させずその場で実行する。
    （カレンダーは自前モーダルなので通常の遅延パスでよい＝含めない） */
-const REG_GESTURE_ACTIONS = new Set(['a_csvin','a_xlsxin','a_websearch','a_memo','a_kaikei']);   // Web検索・メモは新しいタブを開くため即時実行
+const REG_GESTURE_ACTIONS = new Set(['a_csvin','a_xlsxin','a_websearch','a_memo','a_kaikei','a_koe']);   // Web検索・メモは新しいタブを開くため即時実行
 let keyAssign={}, kaTargetKey=null, kaSuppress=false;
 let kaReady=false;   // ピッカー表示後、新しく押し直すまで項目を無効化（長押しの指を離した時の誤タップ防止）
 function loadKeyAssign(){ try{ keyAssign=JSON.parse(localStorage.getItem('excalc_key_assign')||'{}'); }catch(_){ keyAssign={}; } }
@@ -13521,6 +13529,7 @@ const NP_TOOLS=[
   {id:'calctmpl', label:'📋式テンプレ', ov:'calcTmplOverlay',  run:()=>openCalcTmpl(), close:()=>closeCalcTmpl()},
   {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
   {id:'kaikei',   label:'🧾会計アプリ', run:()=>openKaikeiApp()},                       // 別のアプリとして開くので全画面・フリックの対象外
+  {id:'koe',      label:'🎙声の計算帳', run:()=>openKoeApp()},                          // 同じく別のアプリ（v422）
 ];
 /* ── はじめに開くページ（v366）──
    アプリを開いたときに、表・電卓・道具のどれを出すかを選べる。
@@ -14206,6 +14215,8 @@ function openKaikeiApp(){
   // #from=hyo：表電卓から開いたしるし。あちらは「戻る」でここへ帰れると分かる
   openSameWindow(sideAppUrl('kaikei', '#from=hyo'));
 }
+/* 声の計算帳（koe/）。話しかけて計算する別のアプリ（v422）。会計アプリと同じく同じウィンドウで開く */
+function openKoeApp(){ openSameWindow(sideAppUrl('koe', '#from=hyo')); }
 /* ── リンク集：名前付きでURLを登録し、一覧から開く ── */
 let linkList=[], linkEditIdx=-1;
 function loadLinkList(){
@@ -20005,7 +20016,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v421';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v422';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
