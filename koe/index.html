@@ -132,6 +132,20 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
 .act{display:block;width:100%;min-height:var(--tap);border-radius:var(--r-btn);background:var(--card);border:1px solid var(--line);font-weight:700;margin-bottom:6px;text-align:left;padding:0 14px}
 .act.danger{color:var(--err)}
 .note{font-size:13px;color:var(--sub);margin:6px 4px 10px;line-height:1.7}
+/* 📚 文例（v18） */
+.exf{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;margin:0 -2px;scrollbar-width:none}
+.exf::-webkit-scrollbar{display:none}
+.exf .chip{min-height:34px;padding:0 12px;font-size:13px}
+.ex-find{width:100%;min-height:42px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-btn);background:var(--card);color:var(--text);font-size:15px;margin-bottom:8px}
+.ex.pick{background:var(--acc);color:#fff}
+.ex-count{font-size:12px;color:var(--sub);font-weight:400;margin-left:6px}
+.guide{display:flex;align-items:center;gap:8px;margin:0 0 6px;padding:6px 6px 6px 12px;border-radius:var(--r-btn);background:var(--acc-weak);color:var(--acc);font-size:14px}
+.guide[hidden]{display:none}
+.guide .gt{flex:1;min-width:0;line-height:1.4}
+.guide .gt small{display:block;font-size:11.5px;font-weight:400;opacity:.85}
+.guide b{word-break:break-all}
+.guide button{flex:none;min-width:36px;min-height:36px;border-radius:50%;background:rgba(0,0,0,.06);color:var(--acc);font-weight:700}
+.msg.me small{display:block;font-size:11.5px;opacity:.75;margin-top:2px}
 .ex-group{background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);padding:10px 12px;margin-bottom:10px}
 .ex-group h3{margin:0 0 6px;font-size:15px}
 .ex-group p{margin:0 0 8px;font-size:13px;color:var(--sub)}
@@ -186,6 +200,7 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
 <header>
   <button class="hbtn" id="backHyo" hidden onclick="backToHyo()" aria-label="表電卓へ戻る">← 表電卓</button>
   <h1>🎙 声の計算帳</h1>
+  <button class="hbtn" onclick="openPanel('ex')" aria-label="文例">📚 文例</button>
   <button class="hbtn" onclick="openPanel('help')" aria-label="使い方">？</button>
   <button class="hbtn" onclick="openPanel('set')" aria-label="設定">⚙</button>
 </header>
@@ -208,6 +223,7 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
 <main id="log" aria-label="会話の記録"></main>
 
 <div class="dock">
+  <div class="guide" id="guide" hidden><div class="gt"><small>この言い方で話すと、数をこの文例に当てはめて計算します</small><b id="guideTx"></b></div><button onclick="setGuide('')" aria-label="文例をやめる">✕</button></div>
   <div class="heard" id="heard" aria-live="polite"></div>
   <div class="dock-row">
     <button class="dbtn" onclick="runText('取り消し')">↶ 取り消し</button>
@@ -266,6 +282,17 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
   <div class="panel-body" id="helpBody"></div>
 </div>
 
+<!-- 📚 文例（v18）：言葉で計算できる言い方を、ジャンルごとにぜんぶ見せる。押すと「この言い方で」に出すだけ（計算はしない） -->
+<div class="panel" id="p-ex" role="dialog" aria-label="文例">
+  <div class="panel-head"><button class="hbtn" onclick="closePanel()">✕</button><h2>📚 文例</h2></div>
+  <div class="panel-body">
+    <div class="note">文例を押すと、下の 🎙 の上に<b>「この言い方で」</b>と出ます（ここでは計算しません）。その言い方に合わせて、数だけ変えて話してください。聞き取った数をその文例に当てはめて計算するので、うまく聞き取れないときも答えが合いやすくなります。</div>
+    <input class="ex-find" id="exFind" type="search" placeholder="🔍 さがす（例：割引・坪・時速）" oninput="renderEx()" aria-label="文例をさがす">
+    <div class="exf" id="exGenres" role="tablist" aria-label="ジャンル"></div>
+    <div id="exBody"></div>
+  </div>
+</div>
+
 <!-- 家計簿 -->
 <div class="panel" id="p-book" role="dialog" aria-label="家計簿">
   <div class="panel-head"><button class="hbtn" onclick="closePanel()">✕</button><h2>📒 家計簿</h2></div>
@@ -314,6 +341,7 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
 
 <div id="toast" role="status"></div>
 <script src="phrase.js"></script>
+<script src="examples.js"></script>
 <script>
 'use strict';
 /* ════════════════════════════════════════════════════════════════
@@ -323,7 +351,7 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
    ・足し上げ／予算／練習のときは、言葉の受け取り方が変わる（state.mode）
    ・入れたものは この端末の中だけ（localStorage の koe_*）に残る
    ════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v16';
+const APP_VERSION='v18';
 const LS_STATE='koe_state', LS_VARS='koe_vars', LS_SET='koe_settings', LS_BOOK='koe_book';
 
 /* ── 設定 ── */
@@ -469,6 +497,20 @@ function evalToksPrec(toks, startV, startU){
   let unit=''; if(items.some(k=>k.u==='円')) unit='円'; else if(items[0].u && items[0].u!=='人' && items[0].u!=='%') unit=items[0].u;
   const per=ops.some((o,i)=>o==='/' && items[i+1].u==='人');
   return {v:vals[0], unit, f, per, nums:items.length};
+}
+/* 言っていない「たす」で、単位のちがう数どうしをつないでいるところを探す（v17）。
+   「1200円 350円」のように同じ単位ならつなげてよい。個数（×）・％・人 は前からの決まりどおり */
+function unitClash(toks){
+  let prev=null, pend=null;
+  const lab=k=>(k.lab||fmt(k.v))+(k.u==='%'?'%':(k.u||''));
+  for(const k of toks){
+    if(k.t==='op'){ pend=k.op; continue; }
+    if(k.t==='mod'){ prev=null; pend=null; continue; }
+    if(k.t!=='num') continue;
+    if(prev && !pend && !isCount(k.u) && k.u!=='%' && k.u!=='人' && (prev.u||'')!==(k.u||'') && (prev.u||k.u)) return [lab(prev), lab(k)];
+    prev=k; pend=null;
+  }
+  return null;
 }
 function evalToks(toks, startV, startU){
   if(settings.mulFirst && !toks.some(k=>k.t==='mod')){
@@ -692,7 +734,13 @@ function sugScore(a,b){ const A=sugGrams(a), B=sugGrams(b); if(!A.size||!B.size)
 const SKIPPED_CALC_RE=/(割合|値段|面積|広さ|体積|容積|半径|直径|円周|底辺|高さ|対角線|斜辺|売値|原価|利益|年収|月収|月給|日給|ボーナス|貯金|積み立て|積立|年利|金利|利息|返済|ローン|分割|平均|余り|差|倍|何歳|生まれ|西暦|昭和|平成|令和|時速|分速|秒速|距離|燃費|身長|体重|肥満|BMI|四捨五入|切り上げ|切り捨て|割引|何割|何パーセント|換算|何メートル|何キロ|何グラム|何リットル|何分|何時間|坪|平米|畳|源泉|手取り|税込|税抜|最大|最小|公約数|公倍数|素数|約数|進数|階乗|逆数|立方根|平方根)/;
 function skippedWords(unk){ const out=[]; const re=new RegExp(SKIPPED_CALC_RE.source,'g'); let m; while((m=re.exec(String(unk||'')))){ if(!out.includes(m[1])) out.push(m[1]); } return out; }
 const SUG_SKIP=/^(取り消し|もう一回|リセット|ゆっくり|はやく|おしまい|いまいくら|何件|足し上げ開始|予算\d*円?|九九の練習|.*の練習)$/;
-function sugPool(){ const out=[]; HELP.forEach(g=>g.ex.forEach(x=>{ if(!SUG_SKIP.test(x) && !out.includes(x)) out.push(x); })); return out; }
+function sugPool(){
+  if(sugPool._c) return sugPool._c;
+  const out=[]; const add=x=>{ if(!SUG_SKIP.test(x) && !out.includes(x)) out.push(x); };
+  HELP.forEach(g=>g.ex.forEach(add));
+  (window.KOE_EXAMPLES||[]).forEach(g=>{ if(!/^(talk|sum|budget|book|drill|name)$/.test(g.id)) g.ex.forEach(x=>add(exText(x))); });   // 📚 文例も「もしかして」の候補に（v18）
+  return (sugPool._c=out);
+}
 /* 書き残さずに試す（家計簿や名前を付けた数も元に戻す） */
 function dryRun(text){
   const snap=JSON.stringify({s:state, b:book, v:vars, st:settings});
@@ -702,6 +750,17 @@ function dryRun(text){
   const o=JSON.parse(snap); state=o.s; book=o.b; vars=o.v; settings=o.st;
   return r ? Object.assign({}, r, {dv:v}) : null;
 }
+/* 例の数の枠に、言った数を当てはめる（v17）。数のすぐあとの単位（円・%・年・人・個・倍 など）が
+   同じ枠を先に埋め、残りは言った順に入れる（「年利3%で100万円を10年」→「100万円を年利3%で10年複利」） */
+function fitNums(said, ex, info){
+  const suf=(s,i,len)=>{ const m=s.slice(i+len).match(/^(円|%|パーセント|年|人|個|本|枚|倍|割|時間|分|秒|日|回|キロ|km|メートル|m|センチ|cm|グラム|g|kg|リットル|L|ml|cc|歳|度)/); return m?m[1]:''; };
+  const nums=s=>{ const out=[]; const re=/\d+(?:\.\d+)?/g; let m; while((m=re.exec(s))) out.push({v:m[0], u:suf(s,m.index,m[0].length)}); return out; };
+  const mine=nums(said), slots=nums(ex), used=new Array(mine.length).fill(false), put=new Array(slots.length).fill(null);
+  slots.forEach((sl,j)=>{ if(!sl.u) return; const i=mine.findIndex((x,k)=>!used[k] && x.u===sl.u); if(i>=0){ used[i]=true; put[j]=mine[i].v; } });
+  slots.forEach((sl,j)=>{ if(put[j]!=null) return; const i=used.findIndex(x=>!x); if(i>=0){ used[i]=true; put[j]=mine[i].v; if(info && mine[i].u && sl.u && mine[i].u!==sl.u) info.clash=true; } });   // 円 を キロ の枠へ、のような入れ方
+  const man=v=>{ const n=+v; return n>=10000 && n%10000===0 ? String(n/10000)+'万' : v; };   // 1000000円 → 100万円（見やすく）
+  let j=0; return ex.replace(/\d+(?:\.\d+)?/g, x=>man(put[j++]??x));
+}
 function suggestFor(raw){
   const said=norm(raw), mine=said.match(/\d+(?:\.\d+)?/g)||[];
   if(DRY) return null;
@@ -710,7 +769,7 @@ function suggestFor(raw){
     if(sc<0.4) break;                                  // 遠い文例に数を当てはめると、おかしな言い方になる
     const slots=norm(ex).match(/\d+(?:\.\d+)?/g)||[];
     if(!slots.length || slots.length!==mine.length) continue;
-    let i=0; const fit=norm(ex).replace(/\d+(?:\.\d+)?/g,()=>mine[i++]);
+    const fit=fitNums(said, norm(ex));
     const r=dryRun(fit);
     if(r && r.cls!=='err') return {text:fit, fit:true, v:r.dv};
   }
@@ -1201,6 +1260,10 @@ function hReverse(t){
     const orig=p/(1-r);
     return R_ok('元の値段は '+sayU(orig,'円')+' です','元の値段 '+fmtU(Math.round(orig*100)/100,'円'), fmtU(p,'円')+' ÷ '+fmt(1-r), {v:orig,u:'円'});
   }
+  if((m=t.match(/(\d+(?:\.\d+)?)(割|%|パーセント)(?:増し|増|高|高い|アップ|値上げ)(?:で|して|後が?|の値段が|になって)?(\d+(?:\.\d+)?)円?.*?(?:元|定価|もと|最初|はじめ|本来|前)/))){   // 割増しの元の値段（v17）
+    const r=m[2]==='割'?(+m[1])/10:(+m[1])/100, p=+m[3], orig=p/(1+r);
+    return R_ok('元の値段は '+sayU(orig,'円')+' です','元の値段 '+fmtU(Math.round(orig*100)/100,'円'), fmtU(p,'円')+' ÷ '+fmt(1+r), {v:orig,u:'円'});
+  }
   if((m=t.match(/(?:税込み|税込)(?:で|の)?(\d+(?:\.\d+)?)円?(?:の|は|って)?(?:税抜き|税抜|本体|税別|税なし)/)) || (m=t.match(/(\d+(?:\.\d+)?)円?(?:は|が|って)?(?:税込み|税込)(?:で|の|だと)?(?:税抜き|税抜|本体|税別|税なし)/))){
     const v=(+m[1])/taxF();
     return R_ok('税抜きは '+sayU(v,'円')+' です','税抜き '+fmtU(Math.round(v*100)/100,'円'), fmtU(+m[1],'円')+' ÷ '+fmt(taxF())+'（消費税'+settings.tax+'%）', {v,u:'円'});
@@ -1339,6 +1402,17 @@ function hExpr(t0){
   // 「面積」「広さ」「原価」のような計算の言葉を読み飛ばしたときは、答えを決めずに確かめる（v12）。
   // 近い言い方があれば「もしかして」、そのままの式で良ければ「このまま計算」を押してもらう
   const skipped=cont||LITERAL||DRY ? [] : skippedWords(tk.unknown);
+  // 単位のちがう数を、言っていない「たす」でつないだとき（「1個120円のを15個」「100g 198円 350g」）は、
+  // 足しても意味がないので答えを決めない。近い言い方があれば「もしかして」を出す（v17）
+  const clash=LITERAL||DRY ? null : unitClash(toks);
+  if(!skipped.length && clash){
+    const lit=evalToks(toks, null, '');
+    const sg=suggestFor(t0);
+    noteMiss(t0, 'clash');
+    return {cls:'info', say:'計算のしかたが分かりませんでした', a:'「'+clash[0]+'」と「'+clash[1]+'」をどう計算するか分かりませんでした',
+      f:sg?(sg.fit?'もしかして「'+sg.text+'」？':'言い方の例：「'+sg.text+'」'):'', sug:sg&&sg.fit?sg.text:'',
+      lit:(lit.v!=null && isFinite(lit.v)) ? t0 : '', litA:(lit.v!=null && isFinite(lit.v)) ? fmtU(lit.v,lit.unit)+'（'+lit.f+'）' : ''};
+  }
   if(skipped.length){
     const lit=evalToks(toks, null, '');
     const sg=suggestFor(t0);
@@ -1409,12 +1483,12 @@ function renderLog(){
   if(!state.log.length){
     box.innerHTML='<div class="log-empty">🎙 を押して、話しかけてください。<br><br>'
       +'<b>「1280円を3つ」</b> → <b>「それに消費税」</b> → <b>「4人で割って」</b><br>のように、会話でつなげて計算できます。<br><br>'
-      +'言い方の例は、右上の <b>？</b> にあります。</div>';
+      +'言える言い方は、右上の <b>📚 文例</b> にジャンルごとに全部あります。選んでおくと、その言い方に合わせて聞き取ります。</div>';
     return;
   }
   box.innerHTML=state.log.slice(-120).map((m,i,arr)=>{
     const idx=state.log.length-arr.length+i;
-    return (m.q?'<div class="msg me">'+escHtml(m.q)+'</div>':'')
+    return (m.q?'<div class="msg me">'+escHtml(m.q)+(m.og?'<small>聞こえた言葉：'+escHtml(m.og)+'（文例に当てはめ）</small>':'')+'</div>':'')
       +'<div class="msg app '+(m.c||'')+'" onclick="sayLog('+idx+')"><span class="a">'+escHtml(m.a)+'</span>'
       +(m.f && !(m.sug && /^もしかして/.test(m.f)) ? '<span class="f num">'+escHtml(m.f)+'</span>' : '')
       +(m.sug ? '<button class="sug" onclick="event.stopPropagation();trySug('+idx+')">もしかして「'+escHtml(m.sug)+'」？ <b>押すと計算</b></button>' : '')
@@ -1429,8 +1503,11 @@ function tryLit(i){ const m=state.log[i]; if(m && m.lit) runText(m.lit, false, {
 /* ── 言葉を受け取って答える ── */
 let lastFromVoice=false;
 function runText(text, fromVoice, opt){
-  const res=koeRun(text, opt);
+  opt=opt||{};
+  const fitted=opt.guide ? guidedText(text) : null;   // 選んだ文例に沿って読む（v18）
+  const res=koeRun(fitted||text, opt);
   if(!res) return null;
+  if(fitted){ const m=state.log[state.log.length-1]; if(m && m.q===fitted.trim()){ m.og=String(text).trim(); saveState(); } setHeard('「'+text+'」→ 文例に当てはめて「'+fitted+'」'); }
   lastFromVoice=!!fromVoice;
   if(res.cls==='err'){ beep(false); vib([60,80,60]); } else vib(25);
   render();
@@ -1452,7 +1529,7 @@ function submitType(){
   const inp=$('typeIn'); const v=inp.value.trim();
   if(!v) return;
   inp.value='';
-  runText(v, false);
+  runText(v, false, {guide:true});
 }
 
 /* ── 音 ── */
@@ -1600,7 +1677,7 @@ function doFinish(){
   }
   setHeard('「'+text+'」');
   beep(true);
-  const res=runText(text, true);
+  const res=runText(text, true, {guide:true});
   if(settings.handsFree && (!res || !res.say || !settings.speak)) restartHandsFree();
 }
 function restartHandsFree(){
@@ -1694,6 +1771,7 @@ function openPanel(id){
   if(!el || el.classList.contains('open')) return;
   if(id==='book'){ bookOfs=0; renderBook(); }
   if(id==='help') renderHelp();
+  if(id==='ex') renderEx();
   if(id==='set') renderSet();
   if(id==='drill') renderDrillPanel();
   el.classList.add('open'); panelStack.push(el);
@@ -1782,6 +1860,49 @@ function clearLog(){
   recomputeAll(); saveState(); render(); closePanel(); toast('消しました');
 }
 
+/* ── 📚 文例（v18）：ジャンルを選んで見る。押すと「この言い方で」に出すだけで、計算はしない ── */
+const exText=x=>Array.isArray(x)?x[0]:x;
+function exGroups(){ return (window.KOE_EXAMPLES||[]); }
+let exGenre='all';
+function renderEx(){
+  const gs=exGroups(), all=gs.reduce((n,g)=>n+g.ex.length,0);
+  $('exGenres').innerHTML='<button class="chip'+(exGenre==='all'?' on':'')+'" onclick="pickGenre(\'all\')">すべて '+all+'</button>'
+    +gs.map(g=>'<button class="chip'+(exGenre===g.id?' on':'')+'" onclick="pickGenre(\''+g.id+'\')">'+g.ic+' '+escHtml(g.g.replace(/（.*）$/,''))+' '+g.ex.length+'</button>').join('');
+  const q=norm(($('exFind')||{}).value||'');
+  const show=gs.filter(g=>exGenre==='all'||g.id===exGenre).map(g=>{
+    const ex=g.ex.map(exText).filter(t=>!q || norm(t).includes(q) || norm(g.g).includes(q));
+    if(!ex.length) return '';
+    return '<div class="ex-group"><h3>'+g.ic+' '+escHtml(g.g)+'<span class="ex-count">'+ex.length+'</span></h3>'
+      +ex.map(t=>'<button class="ex'+(t===guideEx?' pick':'')+'" onclick="pickEx(this)">'+escHtml(t)+'</button>').join('')+'</div>';
+  }).join('');
+  $('exBody').innerHTML=show||'<div class="note">見つかりませんでした。</div>';
+}
+function pickGenre(id){ exGenre=id; renderEx(); const b=$('exBody'); if(b) b.scrollIntoView({block:'start'}); }
+function pickEx(btn){ setGuide(btn.textContent); closePanel(); toast('「'+btn.textContent+'」の言い方で話してください'); }
+/* 選んだ文例（この言い方で）。数を当てはめる元にする。端末に覚えておく */
+let guideEx='';
+try{ guideEx=localStorage.getItem('koe_guide')||''; }catch(_){}
+function setGuide(t){
+  guideEx=String(t||'');
+  try{ if(guideEx) localStorage.setItem('koe_guide', guideEx); else localStorage.removeItem('koe_guide'); }catch(_){}
+  renderGuide();
+}
+function renderGuide(){ const g=$('guide'); if(!g) return; g.hidden=!guideEx; $('guideTx').textContent=guideEx?'「'+guideEx+'」':''; }
+/* 選んだ文例に沿って読む：数の数が同じなら、言った数を文例の数のところへ当てはめる。
+   言った言葉が文例と遠いのに、そのままで計算できるとき（「4人で割って」など）は当てはめない */
+function guidedText(text){
+  if(!guideEx) return null;
+  const s=norm(text), gs=norm(guideEx);
+  const mine=s.match(/\d+(?:\.\d+)?/g)||[], slots=gs.match(/\d+(?:\.\d+)?/g)||[];
+  if(!mine.length || mine.length!==slots.length) return null;
+  const info={}, fit=fitNums(s, gs, info);
+  if(info.clash || norm(fit)===s) return null;   // 言った単位と文例の単位がちがう（「1000円」を「5キロは何メートル」へ）ときは当てはめない
+  // 前の答えに続ける言い方（「4人で割って」「に消費税」）は、そのまま読む
+  if(state.lastV!=null){ const tk=tokenize(s); if(tk.toks.length && tk.toks[0].t!=='num') return null; }
+  const r=dryRun(fit);
+  return r && r.cls!=='err' ? fit : null;
+}
+
 /* ── 使い方（例を押すと、その言葉で計算します） ── */
 const HELP=[
   {h:'💬 会話でつなげる', p:'前の答えを「それ」で受けて、続けて計算できます。言い直しや取り消しも声でできます。',
@@ -1789,7 +1910,7 @@ const HELP=[
   {h:'🏷 名前を付けて使う', p:'よく使う数に名前を付けると、式の中で名前で呼べます。',
    ex:['単価は2800','単価かける45','単価はいくら']},
   {h:'🔁 逆から計算', p:'「いくらにすればいい？」「何個買える？」を、そのまま聞けます。',
-   ex:['原価800円で利益3割の売値','3000円は12000円の何パーセント','2割引きで1600円の元の値段','税込み3300円の税抜き','5000円で380円のものは何個','時給1200円で50000円稼ぐには何時間']},
+   ex:['原価800円で利益3割の売値','3000円は12000円の何パーセント','2割引きで1600円の元の値段','2割増しで1200円の元の値段','税込み3300円の税抜き','5000円で380円のものは何個','時給1200円で50000円稼ぐには何時間']},
   {h:'〰 だいたい', p:'「だいたい」「ざっと」を付けると、上2けたに丸めて答えます。', ex:['だいたい12800を3で割って']},
   {h:'📦 足し上げ（検品・棚卸し）', p:'品物と数や金額を言うたびに、復唱して合計を足していきます。伝票の合計と読み合わせもできます。',
    ex:['足し上げ開始','セメント12袋単価850円','砂3立米12000円','何件','伝票の合計は22200円','おしまい']},
@@ -1813,6 +1934,8 @@ const HELP=[
    ex:['時速60キロで2時間半','120キロを時速80キロで行くと何時間','100キロを2時間で走ったら時速何キロ','300キロ走ってガソリン20リットル使ったら燃費は','燃費15キロで300キロ走るとガソリン代は1リットル170円']},
   {h:'💴 給料・貯金・ローン・買い物', p:'年収・日給・積み立て・利息（複利・単利）・ローンの毎月の返済・分割払い・比で分ける・1個あたり・利益率・お金を数える。',
    ex:['月給25万円でボーナス2か月分の年収','時給1200円で1日8時間月20日','毎月3万円を5年貯金したら','100万円を年利3%で10年複利','300万円を金利2%で5年ローン毎月の返済','12万円を12回払い','10000円を3対2で分ける','5個で600円なら1個いくら','原価600円で売値1000円の利益率','100円玉が23枚と10円玉が15枚']},
+  {h:'🧪 薄める・分ける・両替', p:'何倍に薄めるときの原液の量、割り勘・等分、1個や100gあたりの値段から、両替（レートを言います）、時間を分に。',
+   ex:['100倍で4リットル','1000倍希釈で20L','水10Lに500倍なら原液は何ml','3人で12000円を割り勘','2.5キロを8等分','1個120円のを15個','3個で450円なら5個','100gあたり198円で350g','1ドル150円で200ドル','1ドル150円で3000円は何ドル','3時間45分は何分','華氏72度は摂氏何度']},
   {h:'📅 年齢・和暦・時刻', p:'何歳・何年生まれ・西暦と和暦・何時間後の時刻。',
    ex:['昭和55年生まれは何歳','30歳は何年生まれ','平成31年は西暦','2026年は令和何年','14時の3時間半後']},
   {h:'📐 図形・からだ', p:'円・長方形・三角形・台形の面積、円周、体積、対角線、BMI と標準体重。',
@@ -1957,7 +2080,7 @@ function init(){
   if(settings.handsFree){ settings.handsFree=false; saveSettings(); }
   try{ if(/from=hyo/.test(location.hash)) sessionStorage.setItem('koe_from_hyo','1'); fromHyo=sessionStorage.getItem('koe_from_hyo')==='1'; }catch(_){}
   $('backHyo').hidden=!fromHyo;
-  applySettings(); render();
+  applySettings(); render(); renderGuide();
   const mic=$('micBtn');
   mic.addEventListener('click', micTap);
   $('typeIn').addEventListener('input', ()=>{ $('typeIn').placeholder='打っても計算できます（例：1280円を3つ）'; });

@@ -6854,6 +6854,31 @@ async function runKoe(browser) {
   check('  品名だけを答えの前に読む', await page.evaluate(() => { state.entries = []; recomputeAll(); return koeRun('ナントカ1280円を3つだよね').say; }), 'ナントカ 3840円 です');
   check('  「3個で300円」は1個あたりも言う', await page.evaluate(() => { state.entries = []; recomputeAll(); const r = koeRun('みかん3個で300円'); return r.a + '/' + state.lastV; }), 'みかん 3個で 300円（1個 100円）/300');
   check('  足し上げのときは品物として受け取る', await page.evaluate(() => { state.entries = []; recomputeAll(); koeRun('足し上げ開始'); const r = koeRun('みかん3個で300円'); const a = r.a + '/' + state.sum; koeRun('おしまい'); return a; }), 'みかん　3個　300円/300');
+  // v17：単位のちがう数を黙って足さない・数は単位の合う枠へ当てはめる
+  const k17 = q => page.evaluate(q => { state.entries = []; state.log = []; state.mode = 'normal'; recomputeAll(); const r = koeRun(q); return r.cls + '|' + r.a + '|' + (r.sug || ''); }, q);
+  check('  1個120円のを15個', await k17('1個120円のを15個'), 'ok|1,800円|');
+  check('  3個で450円なら5個', await k17('りんご3個で450円なら5個'), 'ok|5個 750円|');
+  check('  100gあたり198円で350g', await k17('100gあたり198円で350g'), 'ok|350g 693円|');
+  check('  100倍で4L（原液の量）', await k17('100倍で4L'), 'ok|原液 40ml（水 3.96L）|');
+  check('  単位のちがう数は足さずに確かめる', (await k17('120グラム300円')).split('|').slice(0, 2).join('|'), 'info|「120グラム」と「300円」をどう計算するか分かりませんでした');
+  check('  同じ単位なら続けて足す', await k17('1200円350円'), 'ok|1,550円|');
+  check('  数は単位の合う枠へ当てはめる', await page.evaluate(() => fitNums(norm('3%で100万円を10年'), '1000000円を年利3%で10年複利')), '100万円を年利3%で10年複利');
+  // v18：📚 文例（ジャンルごとにぜんぶ・押すと「この言い方で」に出すだけ）と、文例に沿って読む
+  check('  文例のジャンル', await page.evaluate(() => KOE_EXAMPLES.length >= 20 && KOE_EXAMPLES.reduce((n, g) => n + g.ex.length, 0) >= 390), true);
+  check('  1つだけで計算できる文例は、どれも計算できる', await page.evaluate(() => { const bad = []; for (const g of KOE_EXAMPLES) { if (/^(talk|sum|budget|book|drill|name)$/.test(g.id)) continue;
+    for (const x of g.ex) { const t = Array.isArray(x) ? x[0] : x; state.entries = []; state.log = []; state.mode = 'normal'; recomputeAll(); const r = dryRun(t); if (!r || r.cls === 'err' || r.cls === 'info' && !/素数|約数|曜日/.test(t)) bad.push(t); } } return bad.join(','); }), '');
+  check('  文例を押しても計算しない・この言い方でに出る', await page.evaluate(() => { state.entries = []; state.log = []; recomputeAll(); render(); openPanel('ex'); pickGenre('dilute');
+    const b = [...document.querySelectorAll('#exBody .ex')].find(x => x.textContent === '100倍で4リットル'); b.click(); closeTop();
+    return [state.log.length, $('guide').hidden, $('guideTx').textContent].join('/'); }), '0/false/「100倍で4リットル」');
+  check('  ジャンルで絞る・さがす', await page.evaluate(() => { openPanel('ex'); pickGenre('conv'); const n1 = document.querySelectorAll('#exBody .ex-group').length;
+    pickGenre('all'); $('exFind').value = '坪'; renderEx(); const t = [...document.querySelectorAll('#exBody .ex')].every(x => /坪/.test(norm(x.textContent)) || true); const n2 = document.querySelectorAll('#exBody .ex').length; $('exFind').value = ''; closeTop(); return n1 + '/' + (n2 > 0 && n2 < 20); }), '1/true');
+  const gd = (g, t) => page.evaluate(([g, t]) => { state.entries = []; state.log = []; recomputeAll(); setGuide(g); const r = runText(t, true, { guide: true }); const m = state.log[state.log.length - 1]; return m.q + ' → ' + r.a; }, [g, t]);
+  check('  文例に沿って読む（数を当てはめる）', await gd('30坪は何平米', '25つぼ'), '25坪は何平米 → 82.6446平米');
+  check('  文例に沿って読む（単位の合う枠へ）', await gd('100万円を年利3%で10年複利', '年利 2% 50万 5年'), '50万円を年利2%で5年複利 → 複利で 552,040.4円');
+  check('  前の答えに続ける言い方はそのまま', await page.evaluate(() => { state.entries = []; state.log = []; recomputeAll(); setGuide('5キロは何メートル'); runText('1000円', true, { guide: true }); const r = runText('4人で割って', true, { guide: true }); return r.a; }), '1人あたり 250円');
+  check('  聞こえた言葉も残す', await page.evaluate(() => { state.entries = []; state.log = []; recomputeAll(); setGuide('30坪は何平米'); runText('25つぼ', true, { guide: true }); render(); const e = document.querySelector('#log .msg.me small'); return e ? e.textContent : 'none'; }), '聞こえた言葉：25つぼ（文例に当てはめ）');
+  check('  間をあけた数はつなげない', await page.evaluate(() => norm('時速 40 3時間') + '/' + norm('50万 5年')), '時速40、3時間/500000、5年');
+  await page.evaluate(() => setGuide(''));
   // うまくいかなかった言葉を残す（v12）
   check('  うまくいかなかった言葉を残す', await page.evaluate(() => { localStorage.removeItem('koe_misses'); koeRun('こんにちは'); koeRun('縦3メートルと横4メートルの広さ'); koeRun('こんにちは'); dryRun('ぴよぴよ'); return loadMisses().map(x => x.q + ':' + x.k).join(','); }), 'こんにちは:ng,縦3メートルと横4メートルの広さ:skip');
   check('  設定に一覧が出て、コピー用の文にできる', await page.evaluate(() => { openPanel('set'); const t = $('missList').textContent + '|' + $('missCount').textContent; closeTop(); return t.includes('縦3メートル') + '/' + missText().split('\n').length; }), 'true/2');
