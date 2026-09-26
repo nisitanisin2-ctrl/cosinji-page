@@ -6822,6 +6822,18 @@ async function runKoe(browser) {
     const b = document.querySelector('#log .sug'); if (!b) return 'no button'; b.click(); return state.log[state.log.length - 1].q + ' → ' + state.log[state.log.length - 1].a; }), '底辺6高さ4の3角形の面積 → 面積 12');
   check('  試しても家計簿や記録は変わらない', await page.evaluate(() => { const n = book.length, l = localStorage.getItem('koe_book'); suggestFor('スーパーで3280円くらい使った気がする'); return book.length === n && localStorage.getItem('koe_book') === l && !DRY; }), true);
   check('  前の答えがないときも、たとえばの式は読まない', (await one('それに消費税')).say, '前の答えがありません');
+  // 読み飛ばした計算の言葉があるときは、答えを決めずに確かめる（v12）
+  const sk2 = await page.evaluate(() => { state.entries = []; state.log = []; recomputeAll(); const r = koeRun('原価800円に3割のせて'); return { say: r.say, sug: r.sug, lit: r.lit, litA: r.litA, n: state.entries.length }; });
+  check('  分からない言葉を言い、答えは決めない', sk2.say + '/' + sk2.n, '「原価」が分かりませんでした/0');
+  check('  「もしかして」と「このまま計算」を出す', sk2.sug + ' | ' + sk2.litA, '原価800円で利益3割の売値 | 1,040円（800円 × 1.3（3割増し））');
+  check('  「このまま計算」を押すと、そのままの式で計算する', await page.evaluate(() => { render(); const b = document.querySelector('#log .sug.lit'); if (!b) return 'no button'; b.click(); return state.lastV + '/' + state.entries.length; }), '1040/1');
+  check('  近い言い方がなくても、読み飛ばして答えない', await page.evaluate(() => { state.entries = []; state.log = []; recomputeAll(); const r = koeRun('縦3メートルと横4メートルの広さ'); return r.say + '/' + state.lastV; }), '「広さ」が分かりませんでした/null');
+  check('  品名だけを答えの前に読む', await page.evaluate(() => { state.entries = []; recomputeAll(); return koeRun('ナントカ1280円を3つだよね').say; }), 'ナントカ 3840円 です');
+  check('  「3個で300円」は1個あたりも言う', await page.evaluate(() => { state.entries = []; recomputeAll(); const r = koeRun('みかん3個で300円'); return r.a + '/' + state.lastV; }), 'みかん 3個で 300円（1個 100円）/300');
+  check('  足し上げのときは品物として受け取る', await page.evaluate(() => { state.entries = []; recomputeAll(); koeRun('足し上げ開始'); const r = koeRun('みかん3個で300円'); const a = r.a + '/' + state.sum; koeRun('おしまい'); return a; }), 'みかん　3個　300円/300');
+  // うまくいかなかった言葉を残す（v12）
+  check('  うまくいかなかった言葉を残す', await page.evaluate(() => { localStorage.removeItem('koe_misses'); koeRun('こんにちは'); koeRun('縦3メートルと横4メートルの広さ'); koeRun('こんにちは'); dryRun('ぴよぴよ'); return loadMisses().map(x => x.q + ':' + x.k).join(','); }), 'こんにちは:ng,縦3メートルと横4メートルの広さ:skip');
+  check('  設定に一覧が出て、コピー用の文にできる', await page.evaluate(() => { openPanel('set'); const t = $('missList').textContent + '|' + $('missCount').textContent; closeTop(); return t.includes('縦3メートル') + '/' + missText().split('\n').length; }), 'true/2');
   // 声だけの画面で式も読む（v11）。設定で切れる
   check('  式を読みやすい言葉に', await page.evaluate(() => [formulaSpeech('1,280円 × 3つ ＝ 3,840円'), formulaSpeech('(1,200 ＋ 350) × 2 ＝ 3,100'), formulaSpeech('1,500円 × 0.8（2割引き） ＝ 1,200円'),
     formulaSpeech('2 ^ 10 ＝ 1,024'), formulaSpeech('2/3 × 9 ＝ 6'), formulaSpeech('今月の食費 3,280円'), formulaSpeech('もしかして「8と3の差」？')].join('|')),

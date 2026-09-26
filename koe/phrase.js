@@ -205,6 +205,7 @@ function phraseCompile(p){
         if(nm[0]==='*'){ const nu='(?:'+alt(PW.NU)+')?'; re+='(?<![\\d.])(?<'+nm.slice(1)+'>'+PNUM+nu+'(?:'+PLIST_SEP+PNUM+nu+')+)'; count*=2; }
         else if(nm[0]==='%'){ re+='(?<'+nm.slice(1)+'>'+PTIME_RE+')'; count*=4; }
         else if(nm[0]==='&'){ re+='(?<'+nm.slice(1)+'>[0-9A-Za-z]+)'; }
+        else if(nm[0]==='~'){ re+='(?<'+nm.slice(1)+'>[^\\d、]{0,12}?)'; }   // 品名（なくてもよい）
         else re+='(?<![\\d.])(?<'+nm+'>'+PNUM+')(?![\\d.])';
         i=j+1; continue;
       }
@@ -280,6 +281,7 @@ function tokArith(a,op,b,ua,ub){
 }
 
 /* 型の一覧。c：分類  p：型（いくつでも）  f：答えを作る（g は受け取った数と言葉、t は言葉全体）
+   item：足し上げ・予算のときは使わない（品物として受け取る）
    dt：表電卓だけで使う（声の計算帳は同じ言い方を式として読み、言い直しもできるため） */
 const PHRASES=[
   // ── 四則 ──
@@ -448,6 +450,8 @@ const PHRASES=[
    f:g=>{ const a=pn(g.a), b=pn(g.b), c=pn(g.c); if(!a) return R_err('0 の比は出せません'); return pOut(c*b/a,'',{f:fmt(a)+' ： '+fmt(b)+' ＝ '+fmt(c)+' ： x'}); }},
   {c:'お金', p:['{n}<QU@q>(で|が|、|入り|入りで)?{p}円(なら|だと|の|で|は|の時|のとき)?(1<QU>|ひとつ|単価)<ATARI>?','{p}円(で|の|が)?{n}<QU@q>(入り|なら|だと|の|で|は)?(1<QU>|ひとつ|単価)<ATARI>?','{n}<QU@q>(で|が)?{p}円(の|なら|だと)?(あたり|当たり)(の値段|の単価|単価)?'],
    f:g=>{ const n=pn(g.n), p=pn(g.p); if(!n) return R_err('0個では割れません'); return pOut(p/n,'円',{pre:'1'+g.q+' ', sayPre:'1'+g.q+'あたり ', f:fmtU(p,'円')+' ÷ '+fmt(n)+g.q}); }},
+  {c:'お金', item:1, p:['{~nm}{n}<QU@q>(で|が|、|入り|入りで)?{p}円','{~nm}{p}円(で|の)?{n}<QU@q>(入り)?'],
+   f:g=>{ const n=pn(g.n), p=pn(g.p); if(!n) return null; const nm=(g.nm||'').replace(/(は|が|を|の|、)+$/,''); return pOut(p,'円',{pre:'', a:(nm?nm+' ':'')+fmt(n)+g.q+'で '+fmtU(p,'円')+'（1'+g.q+' '+fmtU(Math.round(p/n*100)/100,'円')+'）', say:fmt(n)+g.q+'で '+sayU(p,'円')+'、1'+g.q+'あたり '+sayU(p/n,'円')+' です', f:fmtU(p,'円')+' ÷ '+fmt(n)+g.q}); }},
   {c:'お金', p:['{n}<WU@u>(で|が|、|入り)?{p}円(の|なら|だと|で|は)?{m}<WU@u2>(あたり|当たり|分|の値段|なら|だと|では)','{p}円(で|の)?{n}<WU@u>(の|なら|だと|で|は)?{m}<WU@u2>(あたり|当たり|分|の値段|なら|だと)'],
    f:g=>{ let bu=null, bu2=null; for(const x of convCands(g.u)) for(const y of convCands(g.u2)) if(!bu && x[0]===y[0]){ bu=x; bu2=y; } if(!bu) return R_err('量の単位がそろっていません'); const q=pn(g.n)*bu[2], q2=pn(g.m)*bu2[2]; if(!q) return R_err('量が 0 です');
      const v=pn(g.p)/q*q2; return pOut(v,'円',{pre:fmt(pn(g.m))+g.u2+'あたり ', sayPre:fmt(pn(g.m))+g.u2+'あたり ', f:fmtU(pn(g.p),'円')+' ÷ '+fmt(pn(g.n))+g.u+' × '+fmt(pn(g.m))+g.u2}); }},
@@ -589,7 +593,7 @@ function hCoins(t){
 
 let PHRASE_C=null;
 function phraseCompiled(){
-  if(!PHRASE_C) PHRASE_C=PHRASES.map(ph=>({c:ph.c, f:ph.f, dt:!!ph.dt, ps:ph.p.map(phraseCompile)}));
+  if(!PHRASE_C) PHRASE_C=PHRASES.map(ph=>({c:ph.c, f:ph.f, dt:!!ph.dt, item:!!ph.item, ps:ph.p.map(phraseCompile)}));
   return PHRASE_C;
 }
 /* 語尾（「〜はいくら」「〜は何ですか」「〜を求めて」）を外す */
@@ -611,7 +615,8 @@ function hPhrase(t0){
     if((res=hConvert(s))) return res;
     if((res=hCoins(s))) return res;
     for(const ph of phraseCompiled()){
-      if(ph.dt && OPT.app==='koe') continue;    // 声の計算帳は、これらを式として読む（言い直しができる）
+      if(ph.dt && OPT.app==='koe') continue;
+      if(ph.item && OPT.mode && OPT.mode!=='normal') continue;   // 足し上げ・予算では品物として受け取る    // 声の計算帳は、これらを式として読む（言い直しができる）
       for(const p of ph.ps){
         const m=s.match(p.re); if(!m) continue;
         const g=Object.assign({__m:m[0]}, m.groups||{});
