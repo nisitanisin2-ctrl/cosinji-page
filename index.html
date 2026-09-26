@@ -5986,6 +5986,19 @@ const FORMULA_FUNCS={
   LN:  {sig:'(値)', desc:'自然対数', calc:1,
         run:v=>{ if(!v.length) fErr('#VALUE!','LN'); if(v[0]<=0) fErr('#NUM!','LN'); return Math.log(v[0]); }},
   EXP: {sig:'(値)', desc:'e の累乗', calc:1, run:v=>v.length?Math.exp(v[0]):0},
+  /* Excel でよく使うもの（v426） */
+  LOG10:{sig:'(値)', desc:'常用対数（LOG と同じ）',
+        run:v=>{ if(!v.length) fErr('#VALUE!','LOG10'); if(v[0]<=0) fErr('#NUM!','LOG10'); return Math.log10(v[0]); }},
+  POWER:{sig:'(値, 指数)', desc:'累乗（^ と同じ）',
+        run:v=>{ if(v.length<2) fErr('#VALUE!','POWER'); const r=Math.pow(v[0],v[1]); if(!isFinite(r)) fErr('#NUM!','POWER'); return r; }},
+  PRODUCT:{sig:'(範囲/値…)', desc:'かけ算した答え', run:v=>v.length?v.reduce((a,b)=>a*b,1):0},
+  INT:  {sig:'(値)', desc:'小さいほうの整数に切り捨て（-2.5 は -3）', run:v=>{ if(!v.length) fErr('#VALUE!','INT'); return Math.floor(v[0]); }},
+  TRUNC:{sig:'(値[, 小数桁])', desc:'指定の桁で切り捨て（0 に近いほうへ）',
+        run:v=>{ if(!v.length) fErr('#VALUE!','TRUNC'); const p=Math.pow(10, v.length>=2?v[1]:0); return Math.trunc(+(v[0]*p).toFixed(9))/p; }},
+  ROUNDUP:{sig:'(値, 小数桁)', desc:'切り上げ（0 から遠いほうへ）',
+        run:v=>{ if(!v.length) fErr('#VALUE!','ROUNDUP'); const p=Math.pow(10, v.length>=2?v[1]:0), x=+(v[0]*p).toFixed(9); return (x<0?-Math.ceil(-x):Math.ceil(x))/p; }},
+  ROUNDDOWN:{sig:'(値, 小数桁)', desc:'切り捨て（0 に近いほうへ）',
+        run:v=>{ if(!v.length) fErr('#VALUE!','ROUNDDOWN'); const p=Math.pow(10, v.length>=2?v[1]:0); return Math.trunc(+(v[0]*p).toFixed(9))/p; }},
   /* 下の3つは引数の読み方が特別なので、解析器の中で直接扱う（run は持たない） */
   IF:     {sig:'(条件, 真のとき, 偽のとき)', desc:'条件で答えを変える', special:1},
   VLOOKUP:{sig:'(探す値, 範囲, 何列目, 0)', desc:'範囲の左端から探して、その行の指定列を返す（末尾0で完全一致）。=V参照(…) でも可', special:1},
@@ -6380,6 +6393,9 @@ function parseArith(s) {
     if (/[A-Za-z]/.test(s[pos])) {
       let name='';
       while (pos<s.length && /[A-Za-z]/.test(s[pos])) name+=s[pos++].toUpperCase();
+      // LOG10( のように、名前のうしろに数字が付いて「(」が続くものは関数名（A1 のようなセルとは分ける。v426）
+      { let j=pos; while(j<s.length && /[0-9]/.test(s[j])) j++;
+        if(j>pos && s[j]==='(' && formulaFunc(name+s.slice(pos,j))){ name+=s.slice(pos,j); pos=j; } }
       ws();
       if (pos<s.length && s[pos]==='(') {
         pos++;
@@ -8700,6 +8716,15 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v427', t:'起動を速く', li:[
+    'テンキーの文字の大きさを合わせる処理をまとめて測るようにして、<b>起動が約2割速く</b>なりました（見た目は前と同じです）',
+  ]},
+  { v:'v426', t:'数式の関数を足しました', li:[
+    '数式で <b>LOG10・POWER・PRODUCT・INT・TRUNC・ROUNDUP・ROUNDDOWN</b> が使えるようになりました（Excel と同じ書き方）',
+  ]},
+  { v:'v425', t:'声の計算帳もバックアップに', li:[
+    '📋リストの <b>⬇書き出し</b> に、<b>🎙声の計算帳</b>の家計簿・名前を付けた数・設定なども入れるようにしました。読み込むときに、入れるかどうかを聞きます',
+  ]},
   { v:'v424', t:'電卓の声が、いろいろな言い方に', li:[
     '電卓モードで声を使うと、<b>🎙声の計算帳と同じ言い方</b>で計算できるようになりました。「8と3の差」「17を5で割った余り」「30坪は何平米」「時速60キロで2時間半」「300万円を金利2%で5年ローン毎月の返済」「昭和55年生まれは何歳」「半径3の円の面積」など',
     '答えは電卓の表示に出るので、そのままキーで続けて計算できます。言える形は 🎤 の <b>📖言い方</b> の「🎙 いろいろな言い方」にも並べました',
@@ -10506,22 +10531,36 @@ function applyKeySize(fitRoot) {
   fitNumpadLabels(fitRoot);   // fitRoot を渡すとそのページだけ調整（ドラッグ中の負荷軽減）
 }
 /* テンキー各ボタンの文字を、枠幅に収まるよう自動縮小（折り返し防止） */
+/* 見当の大きさ：幅の比から出し、もとのやり方と同じ「基準から 0.5px きざみ」の目にそろえる（v427）。
+   余白のぶん実際に入る大きさより大きめに出るので、あとは 0.5px ずつ下げれば、前と同じ大きさに落ち着く */
+function fitStart(base, cw, sw, low){
+  const est=base*cw/sw;
+  let fs=base-0.5*Math.floor((base-est)/0.5);
+  const lowGrid=base-0.5*Math.ceil((base-low)/0.5);   // 前のやり方で止まる、いちばん小さい大きさ
+  if(fs<lowGrid) fs=lowGrid;
+  if(fs>=base) fs=base-0.5;
+  return fs;
+}
 function fitNumpadLabels(root) {
   // root を渡すとそのページ内のボタンだけを対象にする（ドラッグ中の負荷軽減）。
   // 省略時は全ページ（全テンキーページ）のボタンをまとめて調整。
   // root は文字列セレクタか要素のみ受け付ける（resize/load リスナーが渡す Event は無視）
   const scope = (typeof root==='string') ? document.querySelector(root)
               : (root && typeof root.querySelectorAll==='function') ? root : null;
-  const btns = scope ? scope.querySelectorAll('.btn') : document.querySelectorAll('.numpad-grid .btn');
+  const btns = [...(scope ? scope.querySelectorAll('.btn') : document.querySelectorAll('.numpad-grid .btn'))];
   // まず CSS 基準サイズに戻してから測定（再フィット時に拡大も効くように）
   btns.forEach(b=>{ b.style.fontSize=''; });
-  btns.forEach(b=>{
-    let fs=parseFloat(getComputedStyle(b).fontSize);
-    let guard=0;
-    while(b.scrollWidth>b.clientWidth && fs>6 && guard++<60){
-      fs-=0.5; b.style.fontSize=fs+'px';
-    }
-  });
+  // 測るのはまとめて1回（v427）。1つずつ縮めては測ると、そのたびに画面の組み直しが起きて起動が遅くなる。
+  // はみ出したボタンだけ、幅の比から見当を付けた大きさにしてから、0.5px ずつ合わせる（結果は前と同じ）
+  const need=[];
+  btns.forEach(b=>{ const sw=b.scrollWidth, cw=b.clientWidth; if(cw>0 && sw>cw) need.push({b, sw, cw}); });
+  const base=need.map(m=>parseFloat(getComputedStyle(m.b).fontSize));
+  need.forEach((m,i)=>{ m.fs=fitStart(base[i], m.cw, m.sw, 6); m.b.style.fontSize=m.fs+'px'; });
+  // 合わせるのも「全部測る → 全部下げる」をくり返す（1回ごとに組み直しは1度だけ）
+  for(let pend=need, guard=0; pend.length && guard<60; guard++){
+    pend=pend.filter(m=>m.b.scrollWidth>m.b.clientWidth && m.fs>6);
+    pend.forEach(m=>{ m.fs-=0.5; m.b.style.fontSize=m.fs+'px'; });
+  }
   fitRegLabels(scope);
 }
 /* 登録ボタン（紫・緑の登録ページ）の文字合わせ。
@@ -10538,23 +10577,31 @@ function fitRegLabels(scope){
   const root = (scope && typeof scope.querySelectorAll==='function') ? scope : document;
   const ONE_MIN=15;   // 1行にするために許す最小の文字サイズ
   const MIN=9;        // 2段にしてもこれ以上は小さくしない
-  root.querySelectorAll('.numpad-regpage .ubtn').forEach(b=>{
-    b.style.fontSize=''; b.style.whiteSpace='';
-    const t=(b.textContent||'').trim();
-    if(!t || b.clientWidth<8 || b.clientHeight<8) return;   // まだ描かれていない時は触らない
-    const base=parseFloat(getComputedStyle(b).fontSize);
-    // ① 1行で収まるか（折り返しを止めて幅で見る）
-    let fs=base, guard=0;
-    b.style.whiteSpace='nowrap';
-    while(b.scrollWidth>b.clientWidth && fs>ONE_MIN && guard++<80){ fs-=0.5; b.style.fontSize=fs+'px'; }
-    if(b.scrollWidth<=b.clientWidth && b.scrollHeight<=b.clientHeight+1) return;
-    // ② 折り返して2段までに収める（段数は行の数を直接数える。
-    //    段の高さを固定したので、はみ出しは scrollHeight では分からない）
-    b.style.whiteSpace=''; b.style.fontSize=''; fs=base; guard=0;
-    while((b.scrollHeight>b.clientHeight+1 || lineCount(b)>2) && fs>MIN && guard++<80){
-      fs-=0.5; b.style.fontSize=fs+'px';
-    }
-  });
+  // 測るのはまとめて（v427）：戻す → 測る → 1行にして測る → 見当を付けて縮める → 合わせる
+  const all=[...root.querySelectorAll('.numpad-regpage .ubtn')];
+  all.forEach(b=>{ b.style.fontSize=''; b.style.whiteSpace=''; });
+  const act=all.filter(b=>(b.textContent||'').trim() && b.clientWidth>=8 && b.clientHeight>=8);   // まだ描かれていない時は触らない
+  const bases=act.map(b=>parseFloat(getComputedStyle(b).fontSize));
+  act.forEach(b=>{ b.style.whiteSpace='nowrap'; });
+  const meas=act.map(b=>({sw:b.scrollWidth, cw:b.clientWidth, sh:b.scrollHeight, ch:b.clientHeight}));
+  const start=act.map((b,i)=>{ const m=meas[i];
+    if(m.sw<=m.cw) return bases[i];
+    const fs=fitStart(bases[i], m.cw, m.sw, ONE_MIN);
+    b.style.fontSize=fs+'px'; return fs; });
+  // ① 1行で収まるか：全部測る → 全部下げる、をくり返す
+  const fsz=start.slice();
+  for(let pend=act.map((b,i)=>i), guard=0; pend.length && guard<80; guard++){
+    pend=pend.filter(i=>act[i].scrollWidth>act[i].clientWidth && fsz[i]>ONE_MIN);
+    pend.forEach(i=>{ fsz[i]-=0.5; act[i].style.fontSize=fsz[i]+'px'; });
+  }
+  // ② 1行で入らないものは、折り返して2段までに収める（段数は行の数を直接数える。
+  //    段の高さを固定したので、はみ出しは scrollHeight では分からない）
+  const wrap=act.map((b,i)=>i).filter(i=>!(act[i].scrollWidth<=act[i].clientWidth && act[i].scrollHeight<=act[i].clientHeight+1));
+  wrap.forEach(i=>{ act[i].style.whiteSpace=''; act[i].style.fontSize=''; fsz[i]=bases[i]; });
+  for(let pend=wrap, guard=0; pend.length && guard<80; guard++){
+    pend=pend.filter(i=>(act[i].scrollHeight>act[i].clientHeight+1 || lineCount(act[i])>2) && fsz[i]>MIN);
+    pend.forEach(i=>{ fsz[i]-=0.5; act[i].style.fontSize=fsz[i]+'px'; });
+  }
 }
 window.addEventListener('resize', fitNumpadLabels);
 function changeKeySize(delta) {
@@ -20076,7 +20123,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v424';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v427';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -21712,6 +21759,8 @@ const ST_GROUPS=[
   {k:'excalc_links',      n:'リンク集'},
   {k:'excalc_userkeys',   n:'マイキー'},
   {k:'excalc_custommodes',n:'用途の一覧に登録したもの'},
+  {k:'koe_book',          n:'声の計算帳の家計簿'},
+  {k:'koe_state',         n:'声の計算帳の会話と計算'},
 ];
 /* localStorage は1文字2バイトで数える端末が多いので、それに合わせる */
 function stSize(key){
@@ -21906,11 +21955,30 @@ function restoreSettingsBundle(o){
   });
   return n;
 }
+/* 🎙声の計算帳のデータ（同じサイトの koe_*）も書き出しに入れる（v425）。
+   家計簿・名前を付けた数・設定・会話・うまくいかなかった言葉。読み込むときは聞く */
+const KOE_BACKUP_KEYS=['koe_book','koe_vars','koe_settings','koe_state','koe_misses','koe_catbudget'];
+function koeBundle(){
+  const o={}; let n=0;
+  KOE_BACKUP_KEYS.forEach(k=>{ try{ const v=localStorage.getItem(k); if(v!=null){ o[k]=v; n++; } }catch(_){} });
+  return n ? o : null;
+}
+function koeBundleBooks(o){ try{ const b=JSON.parse(o && o.koe_book || '[]'); return Array.isArray(b)?b.length:0; }catch(_){ return 0; } }
+function restoreKoeBundle(o){
+  if(!o || typeof o!=='object') return 0;
+  let n=0;
+  KOE_BACKUP_KEYS.forEach(k=>{
+    const v=o[k];
+    if(typeof v!=='string' || v.length>3000000) return;
+    try{ JSON.parse(v); localStorage.setItem(k, v); n++; }catch(_){}
+  });
+  return n;
+}
 function settingsBundleCount(o){ return (o && typeof o==='object') ? SETTINGS_BACKUP_KEYS.filter(k=>typeof o[k]==='string').length : 0; }
 /* 保存データをJSONファイルに書き出し（別端末への移動・バックアップ用） */
 async function exportSaves() {
   const saves=getSaves();
-  if(saves.length===0){ alert('保存データがありません'); return; }
+  if(saves.length===0 && !koeBundle()){ alert('保存データがありません'); return; }
   // 野菜の日記に写真があれば、いっしょに持っていくか聞く（v374）
   const pics=vegPicBytes();
   let withPics=false;
@@ -21924,7 +21992,8 @@ async function exportSaves() {
   const payload={ app:'hyodenki', type:'saves', version:1, exportedAt:Date.now(), saves,
                   veg:vegBundle(withPics), vegPics:withPics,
                   touban:tbBundle(),     // 当番表（いまの分と、保存した分）も入れる（v406）
-                  settings:settingsBundle() };   // 設定（色・テンキーの配置・マイキー・リンク集など）も入れる（v419）
+                  settings:settingsBundle(),     // 設定（色・テンキーの配置・マイキー・リンク集など）も入れる（v419）
+                  koe:koeBundle() };             // 🎙声の計算帳の家計簿なども入れる（v425）
   const blob=new Blob([JSON.stringify(payload)],{type:'application/json;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
   const a=Object.assign(document.createElement('a'),{
@@ -21933,7 +22002,7 @@ async function exportSaves() {
   });
   a.click(); URL.revokeObjectURL(url);
   markBackedUp();                       // 端末の外に出せた日を覚えておく
-  if(typeof toast==='function') toast('保存データを書き出しました（'+saves.length+'件'
+  if(typeof toast==='function') toast('保存データを書き出しました（'+saves.length+'件'+(payload.koe?'／声の計算帳も':'')
     +(pics>0?(withPics?'／日記の写真ごと':'／日記の写真はぬき'):'')+'／設定も入れました）');
   renderSaveStateBanner();
 }
@@ -21948,11 +22017,13 @@ function importSaves(ev) {
     let parsed;
     try{ parsed=JSON.parse(reader.result); }
     catch(e){ alert('読み込みに失敗しました：ファイルを解析できません'); return; }
+    // 声の計算帳だけで書き出したファイル（type:'koe'）も受け取る（v425）
+    const koeIn=parsed && (parsed.type==='koe' ? parsed.data : parsed.koe);
     const incoming=Array.isArray(parsed)?parsed
-      :(parsed && Array.isArray(parsed.saves)?parsed.saves:null);
+      :(parsed && Array.isArray(parsed.saves)?parsed.saves:(koeIn?[]:null));
     if(!incoming){ alert('保存データの形式ではありません'); return; }
     const valid=incoming.filter(s=>s && Array.isArray(s.data));
-    if(valid.length===0){ alert('取り込める保存データが見つかりませんでした'); return; }
+    if(valid.length===0 && !koeIn){ alert('取り込める保存データが見つかりませんでした'); return; }
     const existing=getSaves();
     const usedIds=new Set(existing.map(s=>s.id));
     let added=0;
@@ -21972,7 +22043,13 @@ function importSaves(ev) {
     // 設定が入っていれば、最後に読み込むか聞く（v419）。読み込んだら開き直して効かせる
     const setN=settingsBundleCount(parsed && parsed.settings);
     const alertDone=async msg=>{
-      alert(msg);
+      if(valid.length || !koeIn) alert(msg);
+      // 声の計算帳のデータが入っていれば、読み込むか聞く（v425）
+      if(koeIn && await appConfirm('🎙声の計算帳のデータ（家計簿 '+koeBundleBooks(koeIn)+'件・名前を付けた数・設定など）も入っています。\n'
+          +'読み込みますか（今の声の計算帳のデータは置きかえます）','はい','いいえ')){
+        const kn=restoreKoeBundle(koeIn);
+        if(typeof toast==='function') toast(kn?'声の計算帳のデータを読み込みました':'声の計算帳のデータを読み込めませんでした');
+      }
       if(!setN) return;
       if(await appConfirm('設定（色・テンキーの配置・マイキー・リンク集など）も入っています。\n'
           +'いっしょに読み込みますか（今の設定は置きかえます。読み込むとアプリを開き直します）','はい','いいえ')){

@@ -6822,6 +6822,41 @@ async function runKoe(browser) {
     const b = document.querySelector('#log .sug'); if (!b) return 'no button'; b.click(); return state.log[state.log.length - 1].q + ' → ' + state.log[state.log.length - 1].a; }), '底辺6高さ4の3角形の面積 → 面積 12');
   check('  試しても家計簿や記録は変わらない', await page.evaluate(() => { const n = book.length, l = localStorage.getItem('koe_book'); suggestFor('スーパーで3280円くらい使った気がする'); return book.length === n && localStorage.getItem('koe_book') === l && !DRY; }), true);
   check('  前の答えがないときも、たとえばの式は読まない', (await one('それに消費税')).say, '前の答えがありません');
+  // 家計簿：分類ごとの予算・直す・CSV（v14）
+  const bk2 = q => page.evaluate(q => { state.mode = 'normal'; const r = koeRun(q); return r ? r.say : ''; }, q);
+  await page.evaluate(() => { book = []; saveBook(); catBudget = {}; saveCatBudget(); state.entries = []; state.log = []; recomputeAll(); });
+  check('  分類ごとの予算を決める', await bk2('食費の予算は3万円'), '食費の予算を 月30000円 にしました。今月は 0円 使いました。食費の残りは 30000円 です');
+  check('  付けるたびに残りを言う', await bk2('スーパーで3280円'), '食費 3280円 を家計簿に付けました。今月の食費は 3280円 です。食費の残りは 26720円 です');
+  check('  「食費はあといくら」', await bk2('食費はあといくら'), '食費の残りは 26720円 です');
+  check('  こえたら、こえた分を言う', (await bk2('外食の予算は5000円')) && await bk2('ラーメン 5800円'), '外食 5800円 を家計簿に付けました。今月の外食は 5800円 です。外食は予算を 800円 こえています');
+  check('  予算をやめる', (await bk2('外食の予算をやめて')) + '/' + (await bk2('外食はあといくら')), '外食の予算をやめました/外食の予算はまだ決めていません');
+  check('  家計簿の画面に「使った分／予算」を出す', await page.evaluate(() => { openPanel('book'); const t = $('bkCats').textContent; return /3,280円 \/ 30,000円/.test(t); }), true);
+  check('  押すと直す窓が開き、直せる', await page.evaluate(() => { const it = document.querySelector('#bkList .bk-item'); it.click(); const open = !$('bkEdit').hidden;
+    $('bkEAmt').value = '3,300'; $('bkECat').value = '日用品'; $('bkEMemo').value = 'ドラッグストア'; saveBookEdit();
+    const b = book.find(x => x.memo === 'ドラッグストア'); return open + '/' + (b && b.amt + ' ' + b.cat) + '/' + $('bkEdit').hidden; }), 'true/3300 日用品/true');
+  const csvDl = await Promise.all([page.waitForEvent('download', { timeout: 9000 }), page.evaluate(() => bookCsv())]).then(a => a[0]).catch(() => null);
+  const csvTxt = csvDl ? fs.readFileSync(await csvDl.path(), 'utf8') : '';
+  check('  この月を CSV で書き出す', csvDl ? csvTxt.split('\r\n')[0] + '|' + csvTxt.includes('"2026-09-25","日用品","3300","ドラッグストア"') + '|' + csvTxt.split('\r\n').length : 'なし', '\ufeff"日付","分類","金額","メモ"|true|4');   // 名前は file:// の試験では付かないので中身で見る
+  await page.evaluate(() => { closeTop(); book = []; saveBook(); catBudget = {}; saveCatBudget(); });
+  // 計算の順番（v15）：個数はすぐ前の品物にかける／設定で「かけ算・わり算を先に」
+  const ord = (q, mf) => page.evaluate(([q, mf]) => { settings.mulFirst = mf; state.entries = []; recomputeAll(); const r = koeRun(q); settings.mulFirst = false; return r.a + ' | ' + r.f; }, [q, mf]);
+  check('  個数はすぐ前の品物にだけかける', await ord('120円を3個と80円を2個', false), '520円 | 120円 × 3個 ＋ 80円 × 2個 ＝ 520円');
+  check('  ふだんは左から順', await ord('1200足す350かける2', false), '3,100 | (1,200 ＋ 350) × 2 ＝ 3,100');
+  check('  設定をオンにすると、かけ算・わり算が先', await ord('1200足す350かける2', true), '1,900 | 1,200 ＋ 350 × 2 ＝ 1,900');
+  check('  オンでも、消費税などは左から順', await ord('1000円足す500円に消費税', true), '1,650円 | (1,000円 ＋ 500円) × 1.1（消費税10%） ＝ 1,650円');
+  check('  切りかえると今の答えも計算し直す', await page.evaluate(() => { state.entries = []; recomputeAll(); koeRun('1200足す350かける2'); settings.mulFirst = false; toggleSet('mulFirst'); const a = state.lastV; toggleSet('mulFirst'); return a + '/' + state.lastV; }), '1900/3100');
+  // 読み飛ばした計算の言葉があるときは、答えを決めずに確かめる（v12）
+  const sk2 = await page.evaluate(() => { state.entries = []; state.log = []; recomputeAll(); const r = koeRun('原価800円に3割のせて'); return { say: r.say, sug: r.sug, lit: r.lit, litA: r.litA, n: state.entries.length }; });
+  check('  分からない言葉を言い、答えは決めない', sk2.say + '/' + sk2.n, '「原価」が分かりませんでした/0');
+  check('  「もしかして」と「このまま計算」を出す', sk2.sug + ' | ' + sk2.litA, '原価800円で利益3割の売値 | 1,040円（800円 × 1.3（3割増し））');
+  check('  「このまま計算」を押すと、そのままの式で計算する', await page.evaluate(() => { render(); const b = document.querySelector('#log .sug.lit'); if (!b) return 'no button'; b.click(); return state.lastV + '/' + state.entries.length; }), '1040/1');
+  check('  近い言い方がなくても、読み飛ばして答えない', await page.evaluate(() => { state.entries = []; state.log = []; recomputeAll(); const r = koeRun('縦3メートルと横4メートルの広さ'); return r.say + '/' + state.lastV; }), '「広さ」が分かりませんでした/null');
+  check('  品名だけを答えの前に読む', await page.evaluate(() => { state.entries = []; recomputeAll(); return koeRun('ナントカ1280円を3つだよね').say; }), 'ナントカ 3840円 です');
+  check('  「3個で300円」は1個あたりも言う', await page.evaluate(() => { state.entries = []; recomputeAll(); const r = koeRun('みかん3個で300円'); return r.a + '/' + state.lastV; }), 'みかん 3個で 300円（1個 100円）/300');
+  check('  足し上げのときは品物として受け取る', await page.evaluate(() => { state.entries = []; recomputeAll(); koeRun('足し上げ開始'); const r = koeRun('みかん3個で300円'); const a = r.a + '/' + state.sum; koeRun('おしまい'); return a; }), 'みかん　3個　300円/300');
+  // うまくいかなかった言葉を残す（v12）
+  check('  うまくいかなかった言葉を残す', await page.evaluate(() => { localStorage.removeItem('koe_misses'); koeRun('こんにちは'); koeRun('縦3メートルと横4メートルの広さ'); koeRun('こんにちは'); dryRun('ぴよぴよ'); return loadMisses().map(x => x.q + ':' + x.k).join(','); }), 'こんにちは:ng,縦3メートルと横4メートルの広さ:skip');
+  check('  設定に一覧が出て、コピー用の文にできる', await page.evaluate(() => { openPanel('set'); const t = $('missList').textContent + '|' + $('missCount').textContent; closeTop(); return t.includes('縦3メートル') + '/' + missText().split('\n').length; }), 'true/2');
   // 声だけの画面で式も読む（v11）。設定で切れる
   check('  式を読みやすい言葉に', await page.evaluate(() => [formulaSpeech('1,280円 × 3つ ＝ 3,840円'), formulaSpeech('(1,200 ＋ 350) × 2 ＝ 3,100'), formulaSpeech('1,500円 × 0.8（2割引き） ＝ 1,200円'),
     formulaSpeech('2 ^ 10 ＝ 1,024'), formulaSpeech('2/3 × 9 ＝ 6'), formulaSpeech('今月の食費 3,280円'), formulaSpeech('もしかして「8と3の差」？')].join('|')),
@@ -6936,6 +6971,64 @@ async function runKoeListen(browser, ua) {
   check('  聞きっぱなしでも、つなげて計算する', await last(), '500円を4つ → 2,000円');
   check('  聞きっぱなしは、計算のあとまた聞く', await page.evaluate(async () => { await new Promise(r => setTimeout(r, 400)); return recOn; }), true);
   await page.evaluate(() => { toggleHandsFree(); }); await page.waitForTimeout(200);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+/* v426：数式に LOG10 など Excel でよく使う関数を足す */
+async function runFx426(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 数式の関数（v426） ──');
+  const fx = f => page.evaluate(f => { setCellVal(0, 0, '1000'); setCellVal(1, 1, f); buildSheet(); return getCellDisplay(1, 1); }, f);
+  check('  LOG10', (await fx('=LOG10(100)')) + '/' + (await fx('=LOG10(A1)')) + '/' + (await fx('=LOG10(0)')), '2/3/#NUM!');
+  check('  POWER・PRODUCT', (await fx('=POWER(2,10)')) + '/' + (await fx('=PRODUCT(2,3,4)')) + '/' + (await fx('=PRODUCT(A1,2)')), '1024/24/2000');
+  check('  INT・TRUNC', (await fx('=INT(-2.5)')) + '/' + (await fx('=TRUNC(-2.57,1)')), '-3/-2.5');
+  check('  ROUNDUP・ROUNDDOWN', (await fx('=ROUNDUP(2.121,2)')) + '/' + (await fx('=ROUNDUP(-2.121,1)')) + '/' + (await fx('=ROUNDDOWN(2.129,2)')), '2.13/-2.2/2.12');
+  check('  セルの番地はこれまでどおり', (await fx('=A1*2')) + '/' + (await fx('=LOG(A1)')), '2000/3');
+  check('  コピーしても関数名は番地にならない', await page.evaluate(() => adjustFormula('=LOG10(A1)+POWER(B2,2)', 1, 0)), '=LOG10(A2)+POWER(B3,2)');
+  check('  説明書の関数の一覧に出る', await page.evaluate(() => Object.keys(FORMULA_FUNCS).filter(k => ['LOG10', 'POWER', 'PRODUCT', 'INT', 'TRUNC', 'ROUNDUP', 'ROUNDDOWN'].includes(k)).length), 7);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+/* v425 / 声の計算帳 v13：声の計算帳のデータもバックアップに入れる */
+async function runKoeBackup(browser) {
+  const ctx = await browser.newContext({ acceptDownloads: true });
+  const page = await ctx.newPage();
+  const errs = []; page.on('pageerror', e => errs.push(e.message)); page.on('dialog', d => d.accept());
+  console.log('\n── 🎙声の計算帳のバックアップ（v425・koe v13） ──');
+  await page.goto('file://' + path.join(ROOT, 'index.html')); await page.waitForTimeout(800);
+  const BOOK = JSON.stringify([{ id: 1, d: '2026-09-25', amt: 3280, cat: '食費', memo: 'スーパー' }, { id: 2, d: '2026-09-25', amt: 1800, cat: '交通費', memo: 'タクシー' }]);
+  await page.evaluate(BOOK => { localStorage.setItem('koe_book', BOOK); localStorage.setItem('koe_vars', JSON.stringify({ 単価: { v: 2800, u: '' } }));
+    localStorage.setItem('koe_settings', JSON.stringify({ wait: 'long' })); localStorage.setItem('koe_misses', JSON.stringify([{ q: 'こんにちは', k: 'ng', t: 1 }])); }, BOOK);
+  // 表電卓の書き出しに入る
+  const dl = await Promise.all([page.waitForEvent('download', { timeout: 9000 }), page.evaluate(() => { window.appConfirm = async () => true; return exportSaves(); })]).then(a => a[0]).catch(() => null);
+  let payload = null;
+  if (dl) { const fp = await dl.path(); payload = JSON.parse(fs.readFileSync(fp, 'utf8')); }
+  check('  表電卓の書き出しに声の計算帳が入る', payload && payload.koe ? Object.keys(payload.koe).sort().join(',') : 'なし', 'koe_book,koe_misses,koe_settings,koe_vars');   // 決めたものだけ（koe_catbudget なども入る）
+  // 消してから読み込むと戻る（聞かれて「はい」）
+  const back = await page.evaluate(async p => {
+    ['koe_book', 'koe_vars', 'koe_settings', 'koe_misses'].forEach(k => localStorage.removeItem(k));
+    let asked = ''; window.appConfirm = async m => { asked += m.slice(0, 12) + '|'; return /声の計算帳/.test(m); }; window.alert = () => {};
+    importSaves({ target: { files: [new File([JSON.stringify(p)], 'b.json')], value: '' } });
+    await new Promise(r => setTimeout(r, 800));
+    return (JSON.parse(localStorage.getItem('koe_book') || '[]').length) + '/' + JSON.parse(localStorage.getItem('koe_settings') || '{}').wait + '/' + /声の計算帳/.test(asked); }, payload);
+  check('  読み込むと聞いてから戻す', back, '2/long/true');
+  // 声の計算帳だけの書き出しファイルも、表電卓で読める
+  const only = await page.evaluate(async () => {
+    localStorage.removeItem('koe_book'); window.appConfirm = async () => true; window.alert = () => {};
+    const f = { app: 'koe', type: 'koe', version: 1, data: { koe_book: JSON.stringify([{ id: 9, d: '2026-09-01', amt: 500, cat: '雑費', memo: '' }]) } };
+    importSaves({ target: { files: [new File([JSON.stringify(f)], 'k.json')], value: '' } });
+    await new Promise(r => setTimeout(r, 600)); return JSON.parse(localStorage.getItem('koe_book') || '[]').length; });
+  check('  声の計算帳だけのファイルも表電卓で読める', only, 1);
+  check('  変な中身は受け取らない', await page.evaluate(() => restoreKoeBundle({ koe_book: 'こわれた', koe_other: '[]' })), 0);
+  // 声の計算帳の中でも書き出し・読み込み
+  const kp = await ctx.newPage(); kp.on('pageerror', e => errs.push(e.message)); kp.on('dialog', d => d.accept());
+  await kp.goto('file://' + path.join(ROOT, 'koe', 'index.html')); await kp.waitForTimeout(500);
+  const kd = await Promise.all([kp.waitForEvent('download', { timeout: 9000 }), kp.evaluate(() => koeExport())]).then(a => a[0]).catch(() => null);
+  let kj = null; if (kd) kj = JSON.parse(fs.readFileSync(await kd.path(), 'utf8'));
+  check('  声の計算帳の設定から書き出せる', kj ? kj.type + '/' + (JSON.parse(kj.data.koe_book).length) : 'なし', 'koe/1');
+  check('  設定に書き出し・読み込みのボタン', await kp.evaluate(() => { openPanel('set'); const t = document.getElementById('p-set').textContent; return /⬇ 書き出す/.test(t) && /⬆ 読み込む/.test(t); }), true);
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();
@@ -7405,6 +7498,8 @@ async function runQrShare(browser) {
     if (!only || only === 'koe' || only === 'koelisten') await runKoeListen(browser);
     if (!only || only === 'koe' || only === 'koelisten') await runKoeListen(browser, 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Mobile Safari/537.36');
     if (!only || only === 'dtphrase') await runDtPhrase(browser);
+    if (!only || only === 'koebackup') await runKoeBackup(browser);
+    if (!only || only === 'fx426') await runFx426(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
     if (!only || only === 'brush3') await runBrush3(browser);
