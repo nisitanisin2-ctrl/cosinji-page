@@ -6822,6 +6822,22 @@ async function runKoe(browser) {
     const b = document.querySelector('#log .sug'); if (!b) return 'no button'; b.click(); return state.log[state.log.length - 1].q + ' → ' + state.log[state.log.length - 1].a; }), '底辺6高さ4の3角形の面積 → 面積 12');
   check('  試しても家計簿や記録は変わらない', await page.evaluate(() => { const n = book.length, l = localStorage.getItem('koe_book'); suggestFor('スーパーで3280円くらい使った気がする'); return book.length === n && localStorage.getItem('koe_book') === l && !DRY; }), true);
   check('  前の答えがないときも、たとえばの式は読まない', (await one('それに消費税')).say, '前の答えがありません');
+  // 家計簿：分類ごとの予算・直す・CSV（v14）
+  const bk2 = q => page.evaluate(q => { state.mode = 'normal'; const r = koeRun(q); return r ? r.say : ''; }, q);
+  await page.evaluate(() => { book = []; saveBook(); catBudget = {}; saveCatBudget(); state.entries = []; state.log = []; recomputeAll(); });
+  check('  分類ごとの予算を決める', await bk2('食費の予算は3万円'), '食費の予算を 月30000円 にしました。今月は 0円 使いました。食費の残りは 30000円 です');
+  check('  付けるたびに残りを言う', await bk2('スーパーで3280円'), '食費 3280円 を家計簿に付けました。今月の食費は 3280円 です。食費の残りは 26720円 です');
+  check('  「食費はあといくら」', await bk2('食費はあといくら'), '食費の残りは 26720円 です');
+  check('  こえたら、こえた分を言う', (await bk2('外食の予算は5000円')) && await bk2('ラーメン 5800円'), '外食 5800円 を家計簿に付けました。今月の外食は 5800円 です。外食は予算を 800円 こえています');
+  check('  予算をやめる', (await bk2('外食の予算をやめて')) + '/' + (await bk2('外食はあといくら')), '外食の予算をやめました/外食の予算はまだ決めていません');
+  check('  家計簿の画面に「使った分／予算」を出す', await page.evaluate(() => { openPanel('book'); const t = $('bkCats').textContent; return /3,280円 \/ 30,000円/.test(t); }), true);
+  check('  押すと直す窓が開き、直せる', await page.evaluate(() => { const it = document.querySelector('#bkList .bk-item'); it.click(); const open = !$('bkEdit').hidden;
+    $('bkEAmt').value = '3,300'; $('bkECat').value = '日用品'; $('bkEMemo').value = 'ドラッグストア'; saveBookEdit();
+    const b = book.find(x => x.memo === 'ドラッグストア'); return open + '/' + (b && b.amt + ' ' + b.cat) + '/' + $('bkEdit').hidden; }), 'true/3300 日用品/true');
+  const csvDl = await Promise.all([page.waitForEvent('download', { timeout: 9000 }), page.evaluate(() => bookCsv())]).then(a => a[0]).catch(() => null);
+  const csvTxt = csvDl ? fs.readFileSync(await csvDl.path(), 'utf8') : '';
+  check('  この月を CSV で書き出す', csvDl ? csvTxt.split('\r\n')[0] + '|' + csvTxt.includes('"2026-09-25","日用品","3300","ドラッグストア"') + '|' + csvTxt.split('\r\n').length : 'なし', '\ufeff"日付","分類","金額","メモ"|true|4');   // 名前は file:// の試験では付かないので中身で見る
+  await page.evaluate(() => { closeTop(); book = []; saveBook(); catBudget = {}; saveCatBudget(); });
   // 読み飛ばした計算の言葉があるときは、答えを決めずに確かめる（v12）
   const sk2 = await page.evaluate(() => { state.entries = []; state.log = []; recomputeAll(); const r = koeRun('原価800円に3割のせて'); return { say: r.say, sug: r.sug, lit: r.lit, litA: r.litA, n: state.entries.length }; });
   check('  分からない言葉を言い、答えは決めない', sk2.say + '/' + sk2.n, '「原価」が分かりませんでした/0');
@@ -6966,7 +6982,7 @@ async function runKoeBackup(browser) {
   const dl = await Promise.all([page.waitForEvent('download', { timeout: 9000 }), page.evaluate(() => { window.appConfirm = async () => true; return exportSaves(); })]).then(a => a[0]).catch(() => null);
   let payload = null;
   if (dl) { const fp = await dl.path(); payload = JSON.parse(fs.readFileSync(fp, 'utf8')); }
-  check('  表電卓の書き出しに声の計算帳が入る', payload && payload.koe ? Object.keys(payload.koe).sort().join(',') : 'なし', 'koe_book,koe_misses,koe_settings,koe_vars');
+  check('  表電卓の書き出しに声の計算帳が入る', payload && payload.koe ? Object.keys(payload.koe).sort().join(',') : 'なし', 'koe_book,koe_misses,koe_settings,koe_vars');   // 決めたものだけ（koe_catbudget なども入る）
   // 消してから読み込むと戻る（聞かれて「はい」）
   const back = await page.evaluate(async p => {
     ['koe_book', 'koe_vars', 'koe_settings', 'koe_misses'].forEach(k => localStorage.removeItem(k));

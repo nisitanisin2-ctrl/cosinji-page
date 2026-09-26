@@ -21913,7 +21913,7 @@ function restoreSettingsBundle(o){
 }
 /* 🎙声の計算帳のデータ（同じサイトの koe_*）も書き出しに入れる（v425）。
    家計簿・名前を付けた数・設定・会話・うまくいかなかった言葉。読み込むときは聞く */
-const KOE_BACKUP_KEYS=['koe_book','koe_vars','koe_settings','koe_state','koe_misses'];
+const KOE_BACKUP_KEYS=['koe_book','koe_vars','koe_settings','koe_state','koe_misses','koe_catbudget'];
 function koeBundle(){
   const o={}; let n=0;
   KOE_BACKUP_KEYS.forEach(k=>{ try{ const v=localStorage.getItem(k); if(v!=null){ o[k]=v; n++; } }catch(_){} });

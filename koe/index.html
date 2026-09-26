@@ -140,7 +140,23 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
 .bk-month b{font-size:17px}
 .bk-total{font-size:28px;font-weight:800;text-align:right;margin:4px 0 10px}
 .bk-cat{display:grid;grid-template-columns:5.5em 1fr auto;align-items:center;gap:8px;margin-bottom:6px;font-size:14px}
-.bk-bar{height:10px;border-radius:5px;background:var(--acc);min-width:2px}
+.bk-bar{height:10px;border-radius:5px;background:var(--acc);min-width:2px;position:relative;display:block}
+.bk-track{position:relative;display:block}
+.bk-lim{position:absolute;top:-4px;width:0;height:18px;border-left:2px solid var(--text);opacity:.55}
+.bk-track{height:10px;border-radius:5px;background:var(--line)}
+.bk-edit-box .act{text-align:center;justify-content:center}
+.bk-cat{cursor:pointer}
+.bk-cat small{color:var(--sub);font-weight:400}
+.bk-cat.over .bk-bar{background:var(--err)}
+.bk-cat.over .num{color:var(--err)}
+.bk-item{cursor:pointer}
+.bk-edit{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+.bk-edit[hidden]{display:none}
+.bk-edit-box{background:var(--card);border-radius:14px;padding:16px;width:100%;max-width:360px}
+.bk-edit-box h3{margin:0 0 10px;font-size:17px}
+.bk-edit-box label{display:block;font-size:13px;color:var(--sub);margin-bottom:10px}
+.bk-edit-box input,.bk-edit-box select{display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px 10px;font-size:16px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text)}
+.act.primary{background:var(--acc);color:#fff}
 .bk-item{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-btn);padding:8px 10px;margin-bottom:5px;font-size:14px}
 .bk-item .d{color:var(--sub);font-size:12px;width:3.2em;flex:none}
 .bk-item .c{flex:1;min-width:0}
@@ -258,8 +274,20 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
     <div class="bk-month"><button class="hbtn" style="background:var(--acc)" onclick="bookMove(-1)">◀</button><b id="bkMonth"></b><button class="hbtn" style="background:var(--acc)" onclick="bookMove(1)">▶</button></div>
     <div class="bk-total num" id="bkTotal"></div>
     <div id="bkCats"></div>
-    <div class="sec">付けたもの</div>
+    <div class="sec">付けたもの<small>押すと直せます</small></div>
     <div id="bkList"></div>
+    <button class="act" onclick="bookCsv()">📄 この月を CSV で書き出す</button>
+    <div class="note">分類を押すと、その分類の1か月の予算を決められます。「食費の予算は3万円」「食費はあといくら」と声でも言えます。</div>
+    <div class="bk-edit" id="bkEdit" hidden>
+      <div class="bk-edit-box">
+        <h3>付けたものを直す</h3>
+        <label>金額（円）<input id="bkEAmt" inputmode="decimal"></label>
+        <label>分類<select id="bkECat"></select></label>
+        <label>メモ<input id="bkEMemo" maxlength="40"></label>
+        <label>日付<input id="bkEDate" type="date"></label>
+        <div class="miss-btns"><button class="act" onclick="closeBookEdit()">やめる</button><button class="act primary" onclick="saveBookEdit()">直す</button></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -294,7 +322,7 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
    ・足し上げ／予算／練習のときは、言葉の受け取り方が変わる（state.mode）
    ・入れたものは この端末の中だけ（localStorage の koe_*）に残る
    ════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v13';
+const APP_VERSION='v14';
 const LS_STATE='koe_state', LS_VARS='koe_vars', LS_SET='koe_settings', LS_BOOK='koe_book';
 
 /* ── 設定 ── */
@@ -523,6 +551,7 @@ const BOOK_ALIAS={'食料品':'食費','食べ物':'食費','外食費':'外食'
   '家賃':'住居費','趣味':'娯楽','レジャー':'娯楽','学費':'教育費','習い事':'教育費','その他':'雑費'};
 const BOOK_WORDS=Object.keys(BOOK_ALIAS).concat(BOOK_CATS).sort((a,b)=>b.length-a.length);
 let book=[];
+function loadBookAll(){ loadBook(); loadCatBudget(); }
 function loadBook(){ try{ const b=JSON.parse(localStorage.getItem(LS_BOOK)||'[]'); if(Array.isArray(b)) book=b.filter(x=>x && isFinite(x.amt)); }catch(_){}
   // v8 のとき、スマホで「ガソリン代ガソリン代…」と繰り返したメモが残っていることがあるので整える（v9）
   book.forEach(x=>{ if(x.memo) x.memo=bookMemo(collapseRepeats(x.memo)); });
@@ -537,6 +566,13 @@ function noteMiss(q, k){
   a.unshift({q, k, t:Date.now()});
   try{ localStorage.setItem(LS_MISS, JSON.stringify(a.slice(0,100))); }catch(_){}
 }
+/* 分類ごとの予算（v14）：{食費:30000, …}。月ごとにくり返し使う */
+const LS_CATB='koe_catbudget';
+let catBudget={};
+function loadCatBudget(){ try{ const o=JSON.parse(localStorage.getItem(LS_CATB)||'{}'); catBudget=(o && typeof o==='object')?o:{}; }catch(_){ catBudget={}; } }
+function saveCatBudget(){ if(DRY) return; try{ localStorage.setItem(LS_CATB, JSON.stringify(catBudget)); }catch(_){} }
+function monthCat(cat, ofs){ const d=today(), k=ymKey(new Date(d.getFullYear(), d.getMonth()+(ofs||0), 1)); return bookSum(b=>b.d.slice(0,7)===k && b.cat===cat); }
+function budgetLeftSay(cat){ const b=catBudget[cat]; if(!b) return ''; const r=b-monthCat(cat); return r>=0 ? cat+'の残りは '+sayU(r,'円')+' です' : cat+'は予算を '+sayU(-r,'円')+' こえています'; }
 function saveBook(){ if(DRY) return; try{ localStorage.setItem(LS_BOOK, JSON.stringify(book)); }catch(_){} }
 function today(){ return window.KOE_TODAY ? new Date(window.KOE_TODAY) : new Date(); }
 function ymKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
@@ -872,6 +908,25 @@ function hTaxSet(t){
 
 /* 家計簿：「スーパー 3280円 食費」→ 付ける。「今月の食費はいくら」→ 合計 */
 function hBook(t){
+  let m0;
+  // 分類ごとの予算（v14）：「食費の予算は3万円」「食費はあといくら」「食費の予算をやめて」
+  if((m0=t.match(/^(.+?)の?(?:予算|よさん)(?:は|を|が)?(\d+(?:\.\d+)?)円?(?:にして|にする|に|で|です|だよ)?$/))){
+    const c0=bookFind(m0[1]); if(c0){
+      catBudget[c0.cat]=+m0[2]; saveCatBudget();
+      const used=monthCat(c0.cat);
+      return R_ok(c0.cat+'の予算を 月'+sayU(+m0[2],'円')+' にしました。今月は '+sayU(used,'円')+' 使いました。'+budgetLeftSay(c0.cat), '💰 '+c0.cat+'の予算 月'+fmtU(+m0[2],'円'), '今月 '+fmtU(used,'円')+' 使った', {book:true});
+    }
+  }
+  if((m0=t.match(/^(.+?)(?:の予算)?(?:を|は)?(?:やめて|消して|けして|なしにして|なしで)$/)) && /予算/.test(t)){
+    const c0=bookFind(m0[1]); if(c0 && catBudget[c0.cat]){ delete catBudget[c0.cat]; saveCatBudget(); return Object.assign(R_info(c0.cat+'の予算をやめました'), {book:true}); }
+  }
+  if((m0=t.match(/^(.+?)(?:の予算)?(?:は|って|の)?(?:あと|残り|のこり)(?:は)?(?:いくら|何円|なんぼ|どれくらい)?[?？]?$/))){
+    const c0=bookFind(m0[1]); if(c0){
+      if(!catBudget[c0.cat]) return R_info(c0.cat+'の予算はまだ決めていません', c0.cat+'の予算はまだ決めていません', '「'+c0.cat+'の予算は3万円」のように言うと決められます');
+      const r=catBudget[c0.cat]-monthCat(c0.cat);
+      return Object.assign(R_info(budgetLeftSay(c0.cat), (r>=0?c0.cat+'の残り ':c0.cat+' 予算オーバー ')+fmtU(Math.abs(r),'円'), '予算 '+fmtU(catBudget[c0.cat],'円')+' − 今月 '+fmtU(monthCat(c0.cat),'円')), {v:r, u:'円'});
+    }
+  }
   let c=bookFind(t);
   const per=t.match(/(今月|先月|今日|今年)/);
   const q=/(いくら|何円|なんぼ|合計|使った|つかった|どれくらい|どのくらい)/.test(t);
@@ -910,7 +965,8 @@ function hBook(t){
   saveBook();
   state.entries.push({k:'book', id});
   const mon=bookSum(b=>b.d.slice(0,7)===ymKey(today()) && b.cat===c.cat);
-  return R_ok(c.cat+' '+sayU(amt,'円')+' を家計簿に付けました。今月の'+c.cat+'は '+sayU(mon,'円')+' です',
+  const bl=budgetLeftSay(c.cat);
+  return R_ok(c.cat+' '+sayU(amt,'円')+' を家計簿に付けました。今月の'+c.cat+'は '+sayU(mon,'円')+' です'+(bl?'。'+bl:''),
     '📒 '+c.cat+' '+fmtU(amt,'円')+(memo?'（'+memo+'）':''), '今月の'+c.cat+' '+fmtU(mon,'円'), {book:true});
 }
 
@@ -1638,7 +1694,7 @@ function copyMisses(){
   try{ navigator.clipboard.writeText(t).then(done, ()=>{ prompt('コピーしてください', t); }); }catch(_){ prompt('コピーしてください', t); }
 }
 /* バックアップ（v13）：koe_* をまとめて書き出す／読み込む。表電卓の書き出しファイルも読める */
-const KOE_KEYS=['koe_book','koe_vars','koe_settings','koe_state','koe_misses'];
+const KOE_KEYS=['koe_book','koe_vars','koe_settings','koe_state','koe_misses','koe_catbudget'];
 function koeExport(){
   saveState(); saveBook(); saveVars(); saveSettings();
   const data={}; KOE_KEYS.forEach(k=>{ try{ const v=localStorage.getItem(k); if(v!=null) data[k]=v; }catch(_){} });
@@ -1704,8 +1760,8 @@ const HELP=[
    ex:['予算5000円','498円','牛乳238円を2本','いまいくら','おしまい']},
   {h:'🛒 くらしの計算', p:'どっちが得・割り勘・お釣り。',
    ex:['300グラム498円と500グラム798円どっちが得','12800円を4人で割り勘、1人は2割引き、100円単位','3280円を1万円で払ったらお釣り']},
-  {h:'📒 家計簿', p:'どこで・いくら・何に（食費・日用品・交通費・光熱費など）を言うと付けます。',
-   ex:['スーパー 3280円 食費','ガソリン 5000円','今月の食費はいくら','今月いくら使った']},
+  {h:'📒 家計簿', p:'どこで・いくら・何に（食費・日用品・交通費・光熱費など）を言うと付けます。お店や行き先からも分類を決めます。分類ごとに1か月の予算を決めると、残りを答えます。家計簿の画面では、押して直したり、CSV で書き出したりできます。',
+   ex:['スーパー 3280円 食費','スーパーで3280円','ガソリン 5000円','今月の食費はいくら','今月いくら使った','食費の予算は3万円','食費はあといくら']},
   {h:'⏰ 時間と日付', p:'働いた時間・日給、何日後、あと何日、何曜日。',
    ex:['8時半から17時15分 休憩1時間 時給1200円','2時間45分と1時間30分','今日から90日後','12月25日まであと何日','4月1日から7月20日まで','3月3日は何曜日']},
   {h:'🔢 算数・数学', p:'差・積・商・余り・平均・いちばん大きい数・何倍・累乗や根・分数・約数や素数・2進数や16進数。',
@@ -1748,12 +1804,57 @@ function renderBook(){
   const total=items.reduce((a,b)=>a+b.amt,0);
   $('bkTotal').textContent=fmtU(total,'円');
   const by={}; items.forEach(b=>{ by[b.cat]=(by[b.cat]||0)+b.amt; });
-  const cats=Object.entries(by).sort((a,b)=>b[1]-a[1]), max=cats.length?cats[0][1]:1;
-  $('bkCats').innerHTML=cats.map(([c,v])=>'<div class="bk-cat"><span>'+escHtml(c)+'</span><span class="bk-bar" style="width:'+Math.max(2,Math.round(v/max*100))+'%"></span><span class="num">'+fmtU(v,'円')+'</span></div>').join('');
-  $('bkList').innerHTML=items.length ? items.map(b=>'<div class="bk-item"><span class="d">'+(+b.d.slice(5,7))+'/'+(+b.d.slice(8,10))+'</span>'
+  Object.keys(catBudget).forEach(c=>{ if(!(c in by)) by[c]=0; });              // 予算を決めた分類は、使っていなくても出す
+  const cats=Object.entries(by).sort((a,b)=>b[1]-a[1]), max=Math.max(1, ...cats.map(([c,v])=>Math.max(v, catBudget[c]||0)));
+  // 予算を決めた分類は「使った分／予算」。こえたら赤。分類を押すと予算を決め直せる（v14）
+  $('bkCats').innerHTML=cats.map(([c,v])=>{ const bd=catBudget[c], over=bd && v>bd;
+    return '<div class="bk-cat'+(over?' over':'')+'" onclick="askCatBudget(\''+escHtml(c)+'\')"><span>'+escHtml(c)+'</span>'
+      +'<span class="bk-track">'+(bd?'<span class="bk-lim" style="left:'+Math.min(99,Math.round(bd/max*100))+'%"></span>':'')+'<span class="bk-bar" style="width:'+Math.max(2,Math.round(v/max*100))+'%"></span></span>'
+      +'<span class="num">'+fmtU(v,'円')+(bd?'<small> / '+fmtU(bd,'円')+'</small>':'')+'</span></div>'; }).join('');
+  $('bkList').innerHTML=items.length ? items.map(b=>'<div class="bk-item" onclick="editBook('+b.id+')"><span class="d">'+(+b.d.slice(5,7))+'/'+(+b.d.slice(8,10))+'</span>'
       +'<span class="c">'+escHtml(b.cat)+(b.memo?'<br><small>'+escHtml(b.memo)+'</small>':'')+'</span><span class="m num">'+fmtU(b.amt,'円')+'</span>'
-      +'<button class="bk-del" onclick="delBook('+b.id+')" aria-label="消す">✕</button></div>').join('')
+      +'<button class="bk-del" onclick="event.stopPropagation();delBook('+b.id+')" aria-label="消す">✕</button></div>').join('')
     : '<div class="note">この月は、まだ付けていません。</div>';
+}
+/* 付けたものを直す（v14）：押すと金額・分類・メモ・日付の窓 */
+let bkEditId=null;
+function editBook(id){
+  const b=book.find(x=>x.id===id); if(!b) return;
+  bkEditId=id;
+  $('bkEAmt').value=b.amt; $('bkEMemo').value=b.memo||''; $('bkEDate').value=b.d;
+  $('bkECat').innerHTML=BOOK_CATS.concat(BOOK_CATS.includes(b.cat)?[]:[b.cat]).map(c=>'<option'+(c===b.cat?' selected':'')+'>'+escHtml(c)+'</option>').join('');
+  $('bkEdit').hidden=false; setTimeout(()=>$('bkEAmt').focus(), 50);
+}
+function closeBookEdit(){ bkEditId=null; $('bkEdit').hidden=true; }
+function saveBookEdit(){
+  const b=book.find(x=>x.id===bkEditId); if(!b){ closeBookEdit(); return; }
+  const amt=+String($('bkEAmt').value).replace(/[,，円\s]/g,'');
+  if(!isFinite(amt) || amt<0){ toast('金額を数で入れてください'); return; }
+  const d=$('bkEDate').value;
+  b.amt=amt; b.cat=$('bkECat').value||b.cat; b.memo=$('bkEMemo').value.trim().slice(0,40);
+  if(/^\d{4}-\d{2}-\d{2}$/.test(d)) b.d=d;
+  saveBook(); closeBookEdit(); renderBook(); toast('直しました');
+}
+function askCatBudget(c){
+  const cur=catBudget[c]||'';
+  const v=prompt(c+'の1か月の予算（円）。空にすると予算をやめます', cur);
+  if(v===null) return;
+  const n=+String(v).replace(/[,，円\s]/g,'');
+  if(String(v).trim()==='' || !n){ delete catBudget[c]; } else if(isFinite(n) && n>0){ catBudget[c]=n; } else { toast('金額を数で入れてください'); return; }
+  saveCatBudget(); renderBook();
+}
+/* この月の分を CSV で書き出す（Excel で開けるよう BOM つき） */
+function bookCsv(){
+  const now=today(), d=new Date(now.getFullYear(), now.getMonth()+bookOfs, 1), key=ymKey(d);
+  const items=book.filter(b=>b.d.slice(0,7)===key).sort((a,b)=>a.d.localeCompare(b.d)||a.id-b.id);
+  if(!items.length){ toast('この月は、まだ付けていません'); return; }
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const rows=[['日付','分類','金額','メモ']].concat(items.map(b=>[b.d,b.cat,b.amt,b.memo||'']));
+  const csv='\ufeff'+rows.map(r=>r.map(q).join(',')).join('\r\n')+'\r\n';
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  const a=Object.assign(document.createElement('a'),{href:url, download:'家計簿_'+key+'.csv'});
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  toast(items.length+'件を書き出しました');
 }
 function delBook(id){
   const b=book.find(x=>x.id===id); if(!b) return;
@@ -1814,7 +1915,7 @@ function backToHyo(){
 
 /* ── はじめ ── */
 function init(){
-  loadSettings(); loadBook(); loadState();
+  loadSettings(); loadBookAll(); loadState();
   hfWanted=false;                                   // 開いてすぐは聞かない（押してから）
   if(settings.handsFree){ settings.handsFree=false; saveSettings(); }
   try{ if(/from=hyo/.test(location.hash)) sessionStorage.setItem('koe_from_hyo','1'); fromHyo=sessionStorage.getItem('koe_from_hyo')==='1'; }catch(_){}
