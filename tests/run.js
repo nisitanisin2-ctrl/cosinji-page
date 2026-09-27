@@ -7028,6 +7028,19 @@ async function runToolsKey(browser) {
   await page.click('#toolsListGrid [data-tool="touban"]'); await page.waitForTimeout(600);
   check('  押した道具が開き、一覧は閉じる', await page.evaluate(() => [getComputedStyle(document.getElementById('toubanOverlay')).display !== 'none',
     getComputedStyle(document.getElementById('toolsListOverlay')).display === 'none'].join('/')), 'true/true');
+  // v434：道具ボタンに並べる道具を設定で選ぶ
+  await page.evaluate(() => { closeTouban(); toolsBtnToggle('veggie'); toolsBtnToggle('kaikei'); });
+  check('  隠した道具は並ばない', await page.evaluate(() => { openToolsList(); const n = document.querySelectorAll('#toolsListGrid .more-item').length;
+    const v = !!document.querySelector('#toolsListGrid [data-tool=veggie]'); closeToolsList(); return (NP_TOOLS.length - n) + '/' + v; }), '2/false');
+  check('  覚える・⋯の道具には全部出る', await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_toolsbtn_hide')).join(',') + '/' + (renderMoreTools(), document.querySelectorAll('#moreToolsGrid .more-item').length === NP_TOOLS.length)), 'veggie,kaikei/true');
+  check('  設定の一覧に☑☐で出る', await page.evaluate(() => [...document.querySelectorAll('#toolsBtnList [data-toolbtn]')].filter(b => b.classList.contains('on')).length === NP_TOOLS.length - 2), true);
+  check('  ひとつは残す', await page.evaluate(() => { NP_TOOLS.forEach(t => { if (!toolsBtnHidden.includes(t.id)) toolsBtnToggle(t.id); }); return NP_TOOLS.length - toolsBtnHidden.length; }), 1);
+  await page.evaluate(() => { toolsBtnAll(); openToolsList(); openToolsBtnSettings(); }); await page.waitForTimeout(400);
+  check('  窓から設定へ移る', await page.evaluate(() => isDlgOpen('toolsListOverlay') + '/' + isDlgOpen('settingsPanel') + '/' + (document.getElementById('toolsBtnSec').offsetParent !== null) + '/' + toolsBtnHidden.length), 'false/true/true/0');
+  await page.evaluate(() => { toggleSettings(); toolsBtnToggle('koe'); });
+  await page.reload(); await page.waitForTimeout(900);
+  check('  開き直しても覚えている', await page.evaluate(() => toolsBtnHidden.join(',') + '/' + document.querySelector('#toolsBtnList [data-toolbtn=koe]').classList.contains('on')), 'koe/false');
+  check('  バックアップの設定に入る', await page.evaluate(() => SETTINGS_BACKUP_KEYS.includes('excalc_toolsbtn_hide')), true);
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();
