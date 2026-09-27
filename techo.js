@@ -80,7 +80,10 @@ function tcClean(o){
     lastRole:ids.includes(u.lastRole)?u.lastRole:ids[0],
     splitH:tcSplitVal('h', u.splitH), splitV:tcSplitVal('v', u.splitV) };
   if(ui.hidden.length>=ids.length) ui.hidden=[];      // 全部かくれていたら出す
-  return {v:1, roles, items, ui};
+  // 消した印（共有ファイルで、ほかの端末にも消したことを伝える）
+  const dels=(Array.isArray(o.dels)?o.dels:[]).filter(d=>d && typeof d.id==='string' && d.id && d.id.length<=40 && +d.t>0)
+    .map(d=>({id:d.id, t:+d.t})).slice(-3000);
+  return {v:1, roles, items, ui, dels};
 }
 function tcLoad(){
   let o=null;
@@ -90,6 +93,14 @@ function tcLoad(){
 function tcSave(){
   try{ localStorage.setItem(TC_KEY, JSON.stringify(tc)); }
   catch(_){ toast('端末の空きが足りず、業務手帳をしまえませんでした'); }
+  tcShOnSave();
+}
+/* 消したときに印を残す（共有ファイルで、ほかの端末からも消えるように） */
+function tcTomb(id){
+  if(!tc || !id) return;
+  if(!Array.isArray(tc.dels)) tc.dels=[];
+  tc.dels=tc.dels.filter(d=>d.id!==id); tc.dels.push({id, t:Date.now()});
+  if(tc.dels.length>3000) tc.dels=tc.dels.slice(-3000);
 }
 /* 📋リストの読み込みなどで、外から中身が変わったとき（index.html の techoMergeBundle から呼ぶ） */
 window.tcReload=function(){ tcLoad(); if(isDlgOpen('techoOverlay')) tcRender(); };
@@ -317,6 +328,14 @@ body.dark .tc-plus{ color:var(--acc-text,#7cc68b); border-color:var(--acc-text,#
 .tc-snack{ position:absolute; left:8px; right:8px; bottom:calc(60px + var(--safe-bottom,0px)); z-index:6; background:rgba(20,30,28,.95); color:#fff;
   border-radius:12px; padding:8px 8px 8px 14px; display:flex; align-items:center; gap:6px; font-size:13px; box-shadow:0 8px 28px rgba(0,0,0,.3); }
 .tc-snack[hidden]{ display:none; }
+.tc-shbar{ flex:none; display:flex; align-items:center; gap:8px; padding:6px 10px; font-size:12.5px; background:#fff8e1; color:#5d4037; border-bottom:1px solid rgba(120,132,156,.25); }
+.tc-shbar[hidden]{ display:none; }
+.tc-shbar.err{ background:#ffebee; color:#b71c1c; }
+body.dark .tc-shbar{ background:#3e3420; color:#ffe0a3; } body.dark .tc-shbar.err{ background:#4a2020; color:#ffb4ab; }
+.tc-shbar span{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tc-shbar button{ flex:none; height:30px; padding:0 12px; border-radius:15px; border:none; background:var(--acc); color:#fff; font-weight:bold; font-size:12.5px; cursor:pointer; }
+.tc-shbar button.x{ background:transparent; color:inherit; padding:0 6px; }
+.tc-shcur{ font-size:13px; line-height:1.6; padding:6px 10px; border-radius:8px; background:rgba(120,132,156,.10); margin-bottom:6px; overflow-wrap:anywhere; }
 .tc-snack .tc-st{ flex:1; min-width:0; line-height:1.4; }
 .tc-snack button{ flex:none; height:32px; padding:0 11px; border-radius:16px; border:1px solid rgba(255,255,255,.55); background:transparent; color:#fff; font-weight:bold; font-size:12.5px; cursor:pointer; }
 @media (min-width:900px), (orientation:landscape) and (min-width:560px){
@@ -445,6 +464,7 @@ function tcEnsureDom(){
         <button class="modal-close" onclick="closeTecho()" aria-label="閉じる">✕</button>
       </span>
     </div>
+    <div class="tc-shbar" id="tcShBar" hidden></div>
     <div class="tc-body">
       <section class="tc-cal" id="tcCal" data-hswipe="1" aria-label="月のカレンダー">
         <div class="tc-calnav">
@@ -548,7 +568,10 @@ function tcEnsureDom(){
     bindHSwipe(document.getElementById('tcCal'), d=>tcMonthMove(d));
     bindHSwipe(document.getElementById('tcScroll'), d=>tcDayMove(d));
   }
-  document.addEventListener('visibilitychange', ()=>{ if(document.hidden) tcStopListen(); });
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden) tcStopListen();
+    else if(isDlgOpen('techoOverlay')) tcShInit(true);   // 画面に戻ったら共有ファイルと合わせ直す
+  });
 }
 
 /* ── 開く・閉じる ── */
@@ -562,6 +585,7 @@ function openTecho(){
   openDlg('techoOverlay', tcOnClosed);
   tcBindSplit();
   tcRender();
+  tcShInit(false);
   clearInterval(tcNowTimer);
   tcNowTimer=setInterval(()=>{ if(!isDlgOpen('techoOverlay')) return; if(tc.ui.dayMode==='list'){ if(tcSel===tcTodayIso()){ const sc=document.getElementById('tcScroll'), t=sc?sc.scrollTop:0; tcRenderDay(); if(sc) sc.scrollTop=t; } } else tcPlaceNow(); }, 60000);
 }
@@ -1079,10 +1103,10 @@ async function tcEdDelete(){
     if(k<0) return;
     if(k===0){ orig.rep.ex.push(occ); orig.upd=Date.now(); }
     else if(k===1 && occ>orig.date){ orig.rep.until=tcAdd(occ,-1); orig.upd=Date.now(); }
-    else tc.items=tc.items.filter(x=>x!==orig);
+    else { tc.items=tc.items.filter(x=>x!==orig); tcTomb(orig.id); }
   } else {
     if(!await appConfirm('「'+(orig.title||'（件名なし）')+'」を消しますか', '消す', 'やめる')) return;
-    tc.items=tc.items.filter(x=>x!==orig);
+    tc.items=tc.items.filter(x=>x!==orig); tcTomb(orig.id);
   }
   tcSave(); tcCloseEdit(); tcRender(); toast('消しました');
 }
@@ -1127,7 +1151,7 @@ function tcSnackEdit(){ const id=tcSnackId; tcHideSnack(); const it=tc.items.fin
 function tcSnackUndo(){
   const id=tcSnackId; tcHideSnack();
   const n=tc.items.length; tc.items=tc.items.filter(x=>x.id!==id);
-  if(tc.items.length<n){ tcSave(); tcRender(); toast('取り消しました'); }
+  if(tc.items.length<n){ tcTomb(id); tcSave(); tcRender(); toast('取り消しました'); }
 }
 
 /* ── 声・文から読む：「明日の10時から11時 営業でA社訪問」→ 日付・時刻・業務・件名 ── */
@@ -1564,11 +1588,12 @@ function tcRenderSet(){
     <div class="tc-sec">週の始まり</div><div class="tc-segw"><button class="${tc.ui.wkStart===0?'on':''}" onclick="tcSetWk(0)">日曜</button><button class="${tc.ui.wkStart===1?'on':''}" onclick="tcSetWk(1)">月曜</button></div>
     <div class="tc-sec">声や文で入れたとき</div><div class="tc-segw"><button class="${!tc.ui.confirm?'on':''}" onclick="tcSetConfirm(false)">すぐ登録</button><button class="${tc.ui.confirm?'on':''}" onclick="tcSetConfirm(true)">確かめてから登録</button></div>
     <div class="tc-note">「すぐ登録」は、登録したあと下に <b>直す／取り消し</b> を出します。「確かめてから」は、聞き取った内容を入力画面に入れて見せます。</div>
+    <div class="tc-sec">📄 共有ファイル（Excel）</div>${tcShSetHtml()}
     <div class="tc-sec">書き出し・読み込み</div>
     <div class="tc-edbtns"><button onclick="tcCsvMonth()">📄 この月を CSV</button><button onclick="tcExport()">⬇ 書き出す</button><button onclick="document.getElementById('tcImportFile').click()">⬆ 読み込む</button></div>
     <input type="file" id="tcImportFile" accept=".json,application/json" hidden onchange="tcImport(event)">
     <div class="tc-note">CSV は Excel で開けます（${tcMon.y}年${tcMon.m}月の予定とメモ）。<b>書き出す</b>は業務手帳だけのバックアップです（📋リストの ⬇書き出し にも入ります）。<b>読み込む</b>と、いまの中身に足します（同じものは重なりません）。<br>
-    入れたものは、この端末の中だけに残ります。どこにも送りません（声の聞き取りは、端末によってはインターネットを使います）。</div>`;
+    入れたものは、この端末の中だけに残ります（共有ファイルを決めたときは、そのファイルにも書きます）。ほかへは送りません（声の聞き取りは、端末によってはインターネットを使います）。</div>`;
 }
 function tcRoleSet(id, key, v){
   const r=tcRole(id); if(!r) return;
@@ -1654,6 +1679,346 @@ function tcImport(ev){
     toast(n ? '業務手帳に '+n+'件を足しました' : '足すものはありませんでした（もう入っています）');
   };
   rd.readAsText(f);
+}
+
+/* ── 📄 共有ファイル（Excel）：ほかのパソコンと、ファイルを通して予定を受け渡す ──
+   「予定」シート：1行＝1件（ID・種類・日付・終日・開始・終了・業務・件名・くわしいメモ・済み・くり返し・更新・消した）。
+   「業務」シート：業務の名前・色・呼び名・聞き分ける言葉・列。
+   合わせ方：同じ ID は「更新」が新しい方を残す。更新が同じ（または空）で中身がちがうときは、
+   Excel で直したものとみなしてファイルの方を取る。「消した」に ○ の行は、ほかの端末でも消す。
+   パソコンの Chrome・Edge では、決めたファイルを覚えておき（File System Access）、開くたびに読んで、
+   変えるたびに「読む→合わせる→書く」をする。覚えられない端末は、書き出す／読み込むで受け渡す。 */
+const TC_SH_KEY='excalc_techo_share';       // {name, at}（最後に合わせた時刻）
+const TC_SH_HEAD=['ID','種類','日付','終日','開始','終了','業務','件名','くわしいメモ','済み','くり返し','くり返しの設定','更新','消した'];
+const TC_SH_ROLEHEAD=['ID','名前','色','ほかの呼び名','聞き分ける言葉','列'];
+const TC_SH_TYPES=[{description:'Excel ブック', accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}];
+let tcShHandle=null, tcShLoaded=false, tcShBusy=false, tcShAgain=false, tcShTimer=null, tcShSig='', tcShState='';
+const tcShOK=()=>typeof window.showOpenFilePicker==='function' && typeof window.showSaveFilePicker==='function';
+function tcShMeta(){ try{ return JSON.parse(localStorage.getItem(TC_SH_KEY)||'null')||{}; }catch(_){ return {}; } }
+function tcShSetMeta(m){ try{ if(m) localStorage.setItem(TC_SH_KEY, JSON.stringify(m)); else localStorage.removeItem(TC_SH_KEY); }catch(_){} }
+
+/* ファイルの「持ち手」は IndexedDB に覚える（localStorage には入らないため） */
+function tcShDb(){
+  return new Promise((res, rej)=>{
+    try{ const rq=indexedDB.open('excalc_techo_fs', 1);
+      rq.onupgradeneeded=()=>rq.result.createObjectStore('h');
+      rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); }catch(e){ rej(e); }
+  });
+}
+async function tcShDbGet(){ try{ const db=await tcShDb(); return await new Promise(r=>{ const q=db.transaction('h').objectStore('h').get('share'); q.onsuccess=()=>r(q.result||null); q.onerror=()=>r(null); }); }catch(_){ return null; } }
+async function tcShDbPut(h){ try{ const db=await tcShDb(); await new Promise(r=>{ const t=db.transaction('h','readwrite'); if(h) t.objectStore('h').put(h,'share'); else t.objectStore('h').delete('share'); t.oncomplete=r; t.onerror=r; }); }catch(_){} }
+
+/* ── 表にする・表から読む ── */
+const tcShSec=ms=>Math.floor((+ms||0)/1000);
+function tcShStamp(ms){ const d=new Date(+ms||Date.now()); return tcIso(d)+' '+tcP2(d.getHours())+':'+tcP2(d.getMinutes())+':'+tcP2(d.getSeconds()); }
+function tcShRoleNames(ids, roles){ return ids.map(id=>{ const r=roles.find(x=>x.id===id); return r?r.name:id; }).join('・'); }
+function tcShRows(){
+  const rows=[TC_SH_HEAD];
+  const items=tc.items.slice().sort((a,b)=>a.date.localeCompare(b.date) || String(a.start||'').localeCompare(String(b.start||'')) || a.cre-b.cre);
+  items.forEach(it=>{
+    const rk=tcRepKey(it.rep), rl=rk ? (TC_REPS.find(x=>x[0]===rk)||['',''])[1] : '';
+    rows.push([it.id, it.kind==='memo'?'メモ':'予定', it.date, it.kind==='ev' && it.allDay?'○':'', it.start||'', it.end||'',
+      tcShRoleNames(it.roles, tc.roles), it.title, it.note, it.kind==='memo' && it.done?'○':'', rl, it.rep?JSON.stringify(it.rep):'',
+      tcShStamp(it.upd), '']);
+  });
+  (tc.dels||[]).forEach(d=>{ if(!tc.items.some(x=>x.id===d.id)) rows.push([d.id,'','','','','','','','','','','',tcShStamp(d.t),'○']); });
+  return rows;
+}
+function tcShSheetXml(rows, widths){
+  const P='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+  const cols='<cols>'+widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')+'</cols>';
+  const body=rows.map((r,ri)=>`<row r="${ri+1}">`+r.map((v,ci)=>{
+    v=v==null?'':String(v); if(v==='') return '';
+    return `<c r="${xlColLetter(ci)}${ri+1}" t="inlineStr"${ri===0?' s="1"':''}><is><t xml:space="preserve">${xlEsc(v)}</t></is></c>`;
+  }).join('')+'</row>').join('');
+  return `${P}<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>${cols}<sheetData>${body}</sheetData></worksheet>`;
+}
+async function tcShBuild(){
+  const enc=new TextEncoder(), P='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+  const roleRows=[TC_SH_ROLEHEAD].concat(tc.roles.map(r=>[r.id, r.name, r.color, r.al||'', r.kw||'', String(r.col)]));
+  const help=[['業務手帳の共有ファイル'],['「予定」シートの1行が、予定・メモ1件です。Excel で直したり、行を足したりしても、業務手帳で読み込むと入ります。'],
+    ['足すときは ID を空のままにしてください（読み込んだときに付けます）。日付は 2026-10-01、時刻は 10:00 のように入れます。'],
+    ['業務は名前で入れます（いくつかあるときは「・」で区切る）。知らない名前は新しい業務として足します。'],
+    ['消すときは、行を消さずに「消した」に ○ を入れてください（ほかの端末からも消えます）。'],
+    ['「くり返しの設定」「更新」は業務手帳が使います。直さないでください。']];
+  const sheets=[['予定', tcShSheetXml(tcShRows(), [16,6,12,6,7,7,14,28,36,6,12,10,20,7])],
+    ['業務', tcShSheetXml(roleRows, [12,12,10,20,40,6])], ['使い方', tcShSheetXml(help, [110])]];
+  const styles=`${P}<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE8F5E9"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  const wb=`${P}<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((x,i)=>`<sheet name="${xlEsc(x[0])}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets></workbook>`;
+  const wbRels=`${P}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((x,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+  const rootRels=`${P}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+  const ct=`${P}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheets.map((x,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`;
+  const files=[{name:'[Content_Types].xml', u8:enc.encode(ct)}, {name:'_rels/.rels', u8:enc.encode(rootRels)},
+    {name:'xl/workbook.xml', u8:enc.encode(wb)}, {name:'xl/_rels/workbook.xml.rels', u8:enc.encode(wbRels)}, {name:'xl/styles.xml', u8:enc.encode(styles)}];
+  sheets.forEach((x,i)=>files.push({name:`xl/worksheets/sheet${i+1}.xml`, u8:enc.encode(x[1])}));
+  return await xlsxZip(files);
+}
+/* シートの XML → 文字の2次元の表 */
+function tcShGrid(xml, shared){
+  const rows=[]; const re=/<c\b([^>]*?)(\/>|>([\s\S]*?)<\/c>)/g; let m;
+  while((m=re.exec(xml))){
+    const a=m[1], inner=m[3]||''; const rm=/r="([A-Z]+)(\d+)"/.exec(a); if(!rm) continue;
+    const c=xlColToIdx(rm[1]), r=parseInt(rm[2],10)-1; if(r<0 || c<0 || r>20000 || c>60) continue;
+    const t=(/t="([^"]+)"/.exec(a)||[])[1]||'', v=(/<v>([\s\S]*?)<\/v>/.exec(inner)||[])[1];
+    let val='';
+    if(t==='inlineStr') val=xlsxRichText(inner);
+    else if(t==='s') val=shared[parseInt(v,10)]||'';
+    else if(t==='b') val=v==='1'?'TRUE':'';
+    else if(v!=null) val=xlUnesc(v);
+    (rows[r]=rows[r]||[])[c]=val;
+  }
+  return rows;
+}
+async function tcShReadBook(buf){
+  const map=await xlsxUnzip(buf), names=[...map.keys()], dec=new TextDecoder();
+  const shared=[]; const ss=names.find(n=>/sharedStrings\.xml$/i.test(n));
+  if(ss){ const x=dec.decode(map.get(ss)); const re=/<si\b[^>]*>([\s\S]*?)<\/si>/g; let mm; while((mm=re.exec(x))) shared.push(xlsxRichText(mm[1])); }
+  const out={}; xlsxWorkbookSheets(map, names, dec).forEach(sh=>{ out[sh.name]=tcShGrid(sh.xml, shared); });
+  return out;
+}
+/* Excel で直したときの形のゆれを直す（日付の通し番号・2026/10/1・0.375＝9:00 など） */
+function tcShDate(v){
+  v=String(v==null?'':v).trim(); if(!v) return '';
+  if(/^\d{4,6}(\.\d+)?$/.test(v) && +v>20000 && +v<80000){ const d=new Date(1899, 11, 30+Math.floor(+v)); return tcIso(d); }
+  const m=v.match(/^(\d{4})[-\/年.](\d{1,2})[-\/月.](\d{1,2})日?/);
+  if(m){ const s=m[1]+'-'+tcP2(+m[2])+'-'+tcP2(+m[3]); return tcIsDate(s)?s:''; }
+  return '';
+}
+function tcShTime(v){
+  v=String(v==null?'':v).trim(); if(!v) return '';
+  if(/^0?\.\d+$|^0$/.test(v)){ const mm=Math.round(+v*24*60); return mm>=0 && mm<24*60 ? tcP2(Math.floor(mm/60))+':'+tcP2(mm%60) : ''; }
+  let m=v.match(/^(\d{1,2})[:：時](\d{1,2})?/);
+  if(m){ const h=+m[1], mi=+(m[2]||0); return h<24 && mi<60 ? tcP2(h)+':'+tcP2(mi) : ''; }
+  return '';
+}
+function tcShStampMs(v){
+  v=String(v==null?'':v).trim(); if(!v) return 0;
+  if(/^\d{4,6}(\.\d+)?$/.test(v) && +v>20000 && +v<80000) return new Date(1899, 11, 30).getTime()+Math.round(+v*86400000);   // Excel の日時の通し番号
+  const m=v.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  return m ? new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +(m[6]||0)).getTime() : 0;
+}
+const tcShYes=v=>/^(○|〇|◯|✓|✔|1|true|yes|はい|済|済み|終日|x|ｘ|×)$/i.test(String(v==null?'':v).trim());
+/* 読んだブック → {items:[{it, upd, del}], roles:[…]} */
+function tcShParse(book){
+  const g=book['予定'] || Object.values(book)[0] || [];
+  const head=(g[0]||[]).map(x=>String(x||'').trim());
+  const col=n=>head.indexOf(n);
+  if(col('日付')<0 || col('件名')<0) throw new Error('予定の見出し（日付・件名）が見つかりません');
+  const rg=book['業務']||[], rh=(rg[0]||[]).map(x=>String(x||'').trim());
+  const roles=rg.slice(1).filter(Boolean).map(r=>({id:r[rh.indexOf('ID')]||'', name:String(r[rh.indexOf('名前')]||'').trim(), color:r[rh.indexOf('色')]||'',
+    al:r[rh.indexOf('ほかの呼び名')]||'', kw:r[rh.indexOf('聞き分ける言葉')]||'', col:parseInt(r[rh.indexOf('列')],10)||0})).filter(r=>r.name);
+  const rows=[];
+  g.slice(1).forEach(r=>{
+    if(!r) return;
+    const get=n=>{ const i=col(n); return i<0 ? '' : (r[i]==null?'':String(r[i])); };
+    const id=get('ID').trim(), del=tcShYes(get('消した')), upd=tcShStampMs(get('更新'));
+    if(del){ if(id) rows.push({id, del:true, upd}); return; }
+    const date=tcShDate(get('日付')), title=get('件名').trim();
+    if(!date || (!title && !get('くわしいメモ').trim())) return;
+    const kind=/メモ|memo/i.test(get('種類')) ? 'memo' : 'ev';
+    const start=tcShTime(get('開始')), end=tcShTime(get('終了'));
+    let rep=null; try{ rep=tcCleanRep(JSON.parse(get('くり返しの設定')||'null')); }catch(_){ rep=null; }
+    if(!rep){ const lb=get('くり返し').trim(); const k=(TC_REPS.find(x=>x[0] && (x[1]===lb || x[1].replace(/（.*/,'')===lb))||[])[0];
+      if(k) rep={f:k==='w2'?'w':k, n:k==='w2'?2:1, until:null, ex:[], dd:[]}; }
+    rows.push({id, del:false, upd, names:get('業務').split(/[・,、，\/／\s]+/).map(x=>x.trim()).filter(Boolean),
+      it:{kind, date, allDay:kind==='ev' && (tcShYes(get('終日')) || !start), start:start||null, end:end||null, title, note:get('くわしいメモ').replace(/\r\n?/g,'\n'),
+        done:kind==='memo' && tcShYes(get('済み')), rep}});
+  });
+  return {rows, roles};
+}
+/* 名前 → 業務の id（知らない名前はファイルの「業務」シートの色で新しく足す） */
+function tcShRoleIds(names, fileRoles){
+  const ids=[];
+  names.forEach(nm=>{
+    const low=nm.toLowerCase();
+    let r=tc.roles.find(x=>x.name===nm) || tc.roles.find(x=>String(x.al||'').split(/[,、，]/).map(a=>a.trim().toLowerCase()).includes(low));
+    if(!r && tc.roles.length<TC_MAX_ROLES){
+      const fr=(fileRoles||[]).find(x=>x.name===nm)||{};
+      const used=new Set(tc.roles.map(x=>x.color));
+      let id=/^[\w-]{1,24}$/.test(fr.id||'') && !tc.roles.some(x=>x.id===fr.id) ? fr.id : 'r'+Date.now().toString(36)+tc.roles.length;
+      r={id, name:nm.slice(0,12), color:/^#[0-9a-f]{6}$/i.test(fr.color||'') ? fr.color.toLowerCase() : (TC_COLORS.find(c=>!used.has(c))||TC_COLORS[0]),
+        kw:String(fr.kw||'').slice(0,300), al:String(fr.al||'').slice(0,120), col:Math.min(TC_MAX_ROLES, Math.max(1, fr.col||tc.roles.length+1))};
+      tc.roles.push(r);
+    }
+    if(r && !ids.includes(r.id)) ids.push(r.id);
+  });
+  return ids;
+}
+const tcShBody=it=>JSON.stringify([it.kind, it.date, !!it.allDay, it.start||'', it.end||'', it.roles.slice().sort(), it.title, it.note, !!it.done, it.rep||null]);
+/* 読んだ中身を手帳に合わせる。{add, upd, del, needWrite} を返す */
+function tcShMerge(inc){
+  const res={add:0, upd:0, del:0, needWrite:false};
+  const seen=new Set(), now=Date.now();
+  if(!Array.isArray(tc.dels)) tc.dels=[];
+  inc.rows.forEach(row=>{
+    if(row.id) seen.add(row.id);
+    const i=row.id ? tc.items.findIndex(x=>x.id===row.id) : -1, cur=i>=0 ? tc.items[i] : null;
+    const tomb=row.id ? tc.dels.find(d=>d.id===row.id) : null;
+    if(row.del){
+      if(cur && tcShSec(row.upd||now)>=tcShSec(cur.upd)){ tc.items.splice(i,1); res.del++; tcTomb(row.id); tc.dels[tc.dels.length-1].t=row.upd||now; }
+      else if(cur) res.needWrite=true;
+      else if(!tomb) tc.dels.push({id:row.id, t:row.upd||now});
+      return;
+    }
+    const roles=tcShRoleIds(row.names, inc.roles);
+    const base=Object.assign({}, row.it, {roles:roles.length?roles:[(cur&&cur.roles[0])||tc.ui.lastRole||tc.roles[0].id]});
+    if(!cur){
+      if(tomb && tcShSec(tomb.t)>=tcShSec(row.upd)){ res.needWrite=true; return; }   // こちらで消したもの
+      const it=tcCleanItem(Object.assign({id:row.id||tcNewId(), cre:row.upd||now, upd:row.upd||now}, base), tc.roles.map(r=>r.id));
+      if(!it) return;
+      if(tomb) tc.dels=tc.dels.filter(d=>d.id!==it.id);
+      tc.items.push(it); res.add++;
+      if(!row.id || !row.upd) res.needWrite=true;   // ID・更新を書き足す
+      return;
+    }
+    const fs=tcShSec(row.upd), ls=tcShSec(cur.upd);
+    const cand=tcCleanItem(Object.assign({id:cur.id, cre:cur.cre, upd:row.upd||now}, base), tc.roles.map(r=>r.id));
+    if(!cand) return;
+    // くり返しの「この日だけ消す・済み」は、ファイルに設定がなければ手元を残す
+    if(cand.rep && cur.rep && !cand.rep.ex.length && !cand.rep.dd.length && cand.rep.f===cur.rep.f){ cand.rep.ex=cur.rep.ex.slice(); cand.rep.dd=cur.rep.dd.slice(); }
+    const differ=tcShBody(cand)!==tcShBody(cur);
+    if(fs>ls || ((fs===ls || !fs) && differ)){
+      if(differ){ if(!fs || fs===ls) cand.upd=Math.max(now, cur.upd+1000); tc.items[i]=cand; res.upd++; if(!fs || fs===ls) res.needWrite=true; }
+    } else if(fs<ls && differ) res.needWrite=true;
+  });
+  // 手元にあってファイルにないもの・手元で消したものは書き足す
+  if(tc.items.some(it=>!seen.has(it.id)) || tc.dels.some(d=>!seen.has(d.id))) res.needWrite=true;
+  return res;
+}
+const tcShDataSig=()=>JSON.stringify([tc.items, tc.roles.map(r=>[r.id,r.name,r.color,r.al,r.kw,r.col]), tc.dels||[]]);
+
+/* ── ファイルとのやりとり ── */
+async function tcShPerm(ask){
+  if(!tcShHandle) return 'none';
+  try{
+    const o={mode:'readwrite'};
+    let p=tcShHandle.queryPermission ? await tcShHandle.queryPermission(o) : 'granted';
+    if(p!=='granted' && ask && tcShHandle.requestPermission) p=await tcShHandle.requestPermission(o);
+    return p;
+  }catch(_){ return 'denied'; }
+}
+async function tcShSync(opt){
+  opt=opt||{};
+  if(!tcShHandle || !tc) return null;
+  if(tcShBusy){ tcShAgain=true; return null; }
+  tcShBusy=true; clearTimeout(tcShTimer);
+  let res=null;
+  try{
+    const p=await tcShPerm(!!opt.ask);
+    if(p!=='granted'){ tcShState='need'; tcShBar(); return null; }
+    const f=await tcShHandle.getFile();
+    res={add:0, upd:0, del:0, needWrite:true};
+    if(f.size>0){ res=tcShMerge(tcShParse(await tcShReadBook(await f.arrayBuffer()))); }
+    const changed=res.add+res.upd+res.del>0;
+    if(changed){ try{ localStorage.setItem(TC_KEY, JSON.stringify(tc)); }catch(_){} }
+    if(res.needWrite || changed || opt.force){
+      const w=await tcShHandle.createWritable(); await w.write(await tcShBuild()); await w.close();
+    }
+    tcShSig=tcShDataSig(); tcShState='ok';
+    const m=tcShMeta(); m.name=tcShHandle.name||m.name||''; m.at=Date.now(); tcShSetMeta(m);
+    tcShBar();
+    if(changed){
+      if(isDlgOpen('techoOverlay')) tcRender();
+      if(isDlgOpen('techoBoardOverlay')) tcRenderBoard();
+      const t=[res.add?'足した '+res.add+'件':'', res.upd?'直した '+res.upd+'件':'', res.del?'消した '+res.del+'件':''].filter(Boolean).join('・');
+      toast('共有ファイルから取り込みました（'+t+'）', 3500);
+    } else if(opt.say) toast('共有ファイルと合わせました（変わったものはありません）');
+  }catch(e){
+    tcShState='err'; tcShBar(e && e.message);
+  }finally{
+    tcShBusy=false;
+    if(isDlgOpen('techoSetOverlay')) tcRenderSet();
+    if(tcShAgain){ tcShAgain=false; tcShSchedule(); }
+  }
+  return res;
+}
+function tcShSchedule(){ clearTimeout(tcShTimer); tcShTimer=setTimeout(()=>tcShSync(), 1200); }
+/* 手帳をしまうたびに：中身（予定・メモ・業務・消した印）が変わっていれば、少し待ってファイルへ */
+function tcShOnSave(){
+  if(!tcShHandle || tcShState!=='ok' || !tc) return;
+  const sig=tcShDataSig(); if(sig===tcShSig) return;
+  tcShSchedule();
+}
+/* 開いたとき：覚えているファイルがあれば読む（読んでよいか聞く必要があれば上に帯を出す） */
+async function tcShInit(again){
+  if(!tcShOK()) { tcShBar(); return; }
+  if(!tcShLoaded){ tcShLoaded=true; const h=await tcShDbGet(); if(h && !tcShHandle) tcShHandle=h; }
+  if(!tcShHandle){ tcShBar(); return; }
+  const p=await tcShPerm(false);
+  if(p==='granted') await tcShSync();
+  else { tcShState='need'; tcShBar(); }
+}
+function tcShBar(msg){
+  const el=document.getElementById('tcShBar'); if(!el) return;
+  const nm=tcEsc((tcShHandle && tcShHandle.name) || tcShMeta().name || '');
+  if(tcShHandle && tcShState==='need'){
+    el.className='tc-shbar'; el.hidden=false;
+    el.innerHTML=`<span>📄 共有ファイル「${nm}」を読み込みます</span><button onclick="tcShSync({ask:true, say:true})">読み込む</button>`;
+  } else if(tcShHandle && tcShState==='err'){
+    el.className='tc-shbar err'; el.hidden=false;
+    el.innerHTML=`<span>⚠ 共有ファイル「${nm}」を読み書きできませんでした${msg?'（'+tcEsc(msg)+'）':''}</span><button onclick="tcShSync({ask:true, say:true})">もう一度</button><button class="x" onclick="this.parentNode.hidden=true" aria-label="閉じる">✕</button>`;
+  } else { el.hidden=true; el.innerHTML=''; }
+}
+/* ── 設定の「📄 共有ファイル」 ── */
+function tcShSetHtml(){
+  const m=tcShMeta(), at=m.at ? tcShStamp(m.at).slice(5,16).replace('-','/') : '';
+  let h='';
+  if(tcShOK()){
+    if(tcShHandle){
+      const st=tcShState==='ok' ? '（最後に合わせた：'+at+'）' : tcShState==='need' ? '（読み込むには「いま合わせる」を押してください）' : tcShState==='err' ? '（読み書きできませんでした）' : '';
+      h+=`<div class="tc-shcur">使っているファイル：<b>${tcEsc(tcShHandle.name||m.name||'')}</b> ${st}</div>
+        <div class="tc-edbtns"><button onclick="tcShSync({ask:true, say:true})">⇅ いま合わせる</button><button onclick="tcShUnlink()">解除</button></div>`;
+    } else {
+      h+=`<div class="tc-edbtns"><button onclick="tcShLink(true)">📄 新しく共有ファイルを作る</button><button onclick="tcShLink(false)">📂 ある共有ファイルを使う</button></div>`;
+    }
+    h+=`<div class="tc-note">OneDrive・Google ドライブ・社内の共有フォルダなど、みんなが開ける場所のファイルを決めると、手帳を開くたびに読み込み、変えるたびに書き込みます（ほかの人の変更と合わせてから書くので、消えません）。ブラウザを開き直したあとは、上に出る「読み込む」を1回押してください。</div>`;
+  } else {
+    h+=`<div class="tc-note">この端末のブラウザは、決めたファイルを覚えておけません（パソコンの Chrome・Edge なら覚えておけます）。下の <b>Excelに書き出す</b>／<b>Excelから読み込む</b> で受け渡してください。</div>`;
+  }
+  h+=`<div class="tc-edbtns"><button onclick="tcShExport()">⬇ Excelに書き出す</button><button onclick="document.getElementById('tcShFile').click()">⬆ Excelから読み込む</button></div>
+    <input type="file" id="tcShFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onchange="tcShImport(event)">
+    <div class="tc-note">Excel の「予定」シートは1行が1件です。Excel で直したり行を足したりしても、読み込むと入ります（消すときは行を消さずに「消した」に ○）。同じ予定は、あとで直した方を残します。</div>`;
+  return h;
+}
+async function tcShLink(create){
+  try{
+    let h;
+    if(create) h=await window.showSaveFilePicker({suggestedName:'業務手帳_共有.xlsx', types:TC_SH_TYPES});
+    else { const a=await window.showOpenFilePicker({types:TC_SH_TYPES, multiple:false}); h=a && a[0]; }
+    if(!h) return;
+    tcShHandle=h; tcShLoaded=true; tcShState='';
+    await tcShDbPut(h);
+    tcShSetMeta({name:h.name||'', at:0});
+    const r=await tcShSync({ask:true, force:create});
+    if(r) toast(create ? '共有ファイル「'+(h.name||'')+'」を作りました' : '共有ファイル「'+(h.name||'')+'」を使います');
+    if(isDlgOpen('techoSetOverlay')) tcRenderSet();
+  }catch(e){ if(!(e && e.name==='AbortError')) toast('共有ファイルを決められませんでした'); }
+}
+async function tcShUnlink(){
+  if(!tcShHandle) return;
+  if(!await appConfirm('共有ファイルの設定を外しますか（ファイルはそのまま残ります）', '外す', 'やめる')) return;
+  tcShHandle=null; tcShState=''; clearTimeout(tcShTimer);
+  await tcShDbPut(null); tcShSetMeta(null); tcShBar(); tcRenderSet();
+  toast('共有ファイルの設定を外しました');
+}
+async function tcShExport(){
+  try{
+    const blob=await tcShBuild();
+    const url=URL.createObjectURL(blob);
+    const a=Object.assign(document.createElement('a'), {href:url, download:'業務手帳_共有_'+tcTodayIso()+'.xlsx'});
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(_){} }, 1500);
+    toast('Excel に書き出しました（'+tc.items.length+'件）');
+  }catch(_){ toast('Excel に書き出せませんでした'); }
+}
+async function tcShImport(ev){
+  const f=ev.target.files && ev.target.files[0]; ev.target.value=''; if(!f) return;
+  try{
+    const res=tcShMerge(tcShParse(await tcShReadBook(await f.arrayBuffer())));
+    tcSave(); tcRender(); if(isDlgOpen('techoSetOverlay')) tcRenderSet();
+    const t=[res.add?'足した '+res.add+'件':'', res.upd?'直した '+res.upd+'件':'', res.del?'消した '+res.del+'件':''].filter(Boolean).join('・');
+    toast(t ? 'Excel から取り込みました（'+t+'）' : '取り込むものはありませんでした（もう入っています）', 3500);
+  }catch(e){ toast('Excel を読み込めませんでした'+(e && e.message && /見出し/.test(e.message) ? '（'+e.message+'）' : '（業務手帳の共有ファイルか確かめてください）'), 4000); }
 }
 
 /* ── 🖨 印刷（共通の「印刷のしかた」に乗せる） ── */

@@ -7336,6 +7336,75 @@ async function runTecho(browser) {
   check('  隠した業務の件名は出さない', await tt(), 'true/監査,朝礼,午後の商談,見積の確認');
   await page.evaluate(() => { tcToggleRole('factory'); tcSetSplit('v', 0); }); await page.waitForTimeout(200);
   check('  元の大きさに戻すと点に戻る', (await tt()).split('/')[0], 'false');
+  // 📄 共有ファイル（Excel）で、ほかのパソコンと予定を受け渡す（v440）
+  const sh = await page.evaluate(async () => {
+    window.__file = { blob: new Blob([]), perm: 'granted', writes: 0 };
+    const H = { name: '共有.xlsx', kind: 'file', async getFile() { return new File([__file.blob], this.name); },
+      async createWritable() { const parts = []; return { async write(d) { parts.push(d); }, async close() { __file.blob = new Blob(parts); __file.writes++; } }; },
+      async queryPermission() { return __file.perm; }, async requestPermission() { __file.perm = 'granted'; return 'granted'; } };
+    window.showSaveFilePicker = async () => H; window.showOpenFilePicker = async () => [H];
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    tc.items = [
+      { id: 'a', kind: 'ev', roles: ['sales'], date: '2026-09-27', allDay: false, start: '10:00', end: '11:00', title: 'A社訪問', note: '見積\n2行目', done: false, rep: null, upd: 1790000000000, cre: 1 },
+      { id: 'b', kind: 'memo', roles: ['qc', 'sales'], date: '2026-09-28', allDay: false, start: null, end: null, title: '校正', note: '', done: true, rep: null, upd: 1790000000000, cre: 1 },
+      { id: 'c', kind: 'ev', roles: ['factory'], date: '2026-09-29', allDay: true, start: null, end: null, title: '朝礼', note: '', done: false, rep: { f: 'w', n: 1, until: null, ex: ['2026-10-06'], dd: [] }, upd: 1790000000000, cre: 1 }];
+    tc.dels = []; tc.roles = tc.roles.filter(r => ['sales', 'factory', 'qc'].includes(r.id)); tcSave();
+    const o = {};
+    const book = await tcShReadBook(await (await tcShBuild()).arrayBuffer());
+    o.sheets = Object.keys(book).join(',') + '/' + book['予定'][0].join('|');
+    o.row = book['予定'][1].slice(0, 12).join('|');
+    const before = JSON.stringify(tc.items); const m = tcShMerge(tcShParse(book));
+    o.rt = m.add + m.upd + m.del + '/' + m.needWrite + '/' + (JSON.stringify(tc.items) === before);
+    await tcShLink(true); await wait(150);
+    o.link = __file.writes + '/' + tcShState + '/' + (await tcShReadBook(await __file.blob.arrayBuffer()))['予定'].length;
+    const a = tc.items.find(x => x.id === 'a'); a.title = 'A社訪問（変更）'; a.upd = Date.now(); tcSave();
+    await wait(1700);
+    let bk = await tcShReadBook(await __file.blob.arrayBuffer());
+    o.auto = __file.writes + '/' + bk['予定'].slice(1).map(r => r[7]).join(',');
+    // ほかのパソコン・Excel で：件名を直す（更新はそのまま）・消した に ○・ID なしの行（日付と時刻は Excel の通し番号・知らない業務）
+    const g = bk['予定'], hd = g[0], ci = n => hd.indexOf(n);
+    const rows = g.map(r => hd.map((_, i) => r[i] == null ? '' : r[i]));
+    rows.find(r => r[0] === 'b')[ci('件名')] = '校正（Excelで直した）';
+    rows.find(r => r[0] === 'c')[ci('消した')] = '○';
+    const nr = hd.map(() => ''); nr[ci('日付')] = '46296'; nr[ci('開始')] = '0.375'; nr[ci('業務')] = '総務'; nr[ci('件名')] = '健康診断'; rows.push(nr);
+    const keep = tcShRows; tcShRows = () => rows; __file.blob = await tcShBuild(); tcShRows = keep;
+    const r = await tcShSync();
+    o.sync = [r.add, r.upd, r.del].join(',');
+    o.after = tc.items.map(i => i.title + '@' + i.date + '@' + (i.start || '終日') + '@' + tcRoleNames(i.roles)).join(' | ');
+    o.roles = tc.roles.map(x => x.name).join(',') + '/' + tc.dels.map(d => d.id).join(',');
+    bk = await tcShReadBook(await __file.blob.arrayBuffer());
+    o.file = bk['予定'].slice(1).map(x => (x[0] ? 'id' : '-') + ':' + (x[7] || '') + (x[13] ? '(消)' : '')).join(',');
+    // 手元で消すと、ファイルにも「消した」が入る
+    const ac = appConfirm; appConfirm = async () => true; tcOpenItem('a'); await wait(50); await tcEdDelete(); appConfirm = ac; await wait(300);
+    await wait(1600);
+    bk = await tcShReadBook(await __file.blob.arrayBuffer());
+    o.delw = bk['予定'].slice(1).filter(x => x[13]).map(x => x[0]).sort().join(',');
+    // ブラウザを開き直したあと：読んでよいか聞く帯
+    __file.perm = 'prompt'; tcShState = ''; await tcShInit(true);
+    const bar = document.getElementById('tcShBar');
+    o.bar = bar.hidden + '/' + bar.querySelector('span').textContent;
+    bar.querySelector('button').click(); await wait(300);
+    o.bar2 = bar.hidden + '/' + tcShState;
+    tcOpenSet(); o.set = document.querySelector('#tcSetBody .tc-shcur').textContent.replace(/（.*/, '');
+    tcCloseSet();
+    return o;
+  });
+  await page.waitForTimeout(100);
+  check('  共有：シートと見出し', sh.sheets, '予定,業務,使い方/ID|種類|日付|終日|開始|終了|業務|件名|くわしいメモ|済み|くり返し|くり返しの設定|更新|消した');
+  check('  共有：1行＝1件（くわしいメモの改行も）', sh.row, 'a|予定|2026-09-27||10:00|11:00|営業|A社訪問|見積\n2行目|||');
+  check('  共有：書いて読むと同じ（変わらない）', sh.rt, '0/false/true');
+  check('  共有：新しく作ると書き込む', sh.link, '1/ok/4');
+  check('  共有：変えると少し待って書き込む', sh.auto, '2/A社訪問（変更）,校正,朝礼');
+  check('  共有：ほかで足した・直した・消したを取り込む', sh.sync, '1,1,1');
+  check('  共有：Excel の日付・時刻の通し番号も読む', sh.after, 'A社訪問（変更）@2026-09-27@10:00@営業 | 校正（Excelで直した）@2026-09-28@終日@品質管理・営業 | 健康診断@2026-10-01@09:00@総務');
+  check('  共有：知らない業務は足す・消した印を覚える', sh.roles, '営業,工場,品質管理,総務/c');
+  check('  共有：ID を付けて書き戻す', sh.file, 'id:A社訪問（変更）,id:校正（Excelで直した）,id:健康診断,id:(消)');
+  check('  共有：手元で消すとファイルにも消した印', sh.delw, 'a,c');
+  check('  共有：開き直したあとは帯で聞く→押すと読む', sh.bar + '|' + sh.bar2, 'false/📄 共有ファイル「共有.xlsx」を読み込みます|true/ok');
+  check('  共有：設定に使っているファイル', sh.set, '使っているファイル：共有.xlsx ');
+  check('  共有：覚えられない端末は書き出す・読み込むだけ', await page.evaluate(() => { const a = window.showOpenFilePicker; delete window.showOpenFilePicker; window.showOpenFilePicker = undefined;
+    const h = tcShSetHtml(); window.showOpenFilePicker = a; return /覚えておけません/.test(h) + '/' + /Excelに書き出す/.test(h) + '/' + /新しく共有ファイル/.test(h); }), 'true/true/false');
+  await page.evaluate(async () => { tcShHandle = null; tcShState = ''; tcShBar(); });
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();
