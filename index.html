@@ -603,6 +603,28 @@ body.np-side.numpad-compact .numpad-grid .btn { font-size: 0 !important; }
   cursor: pointer; touch-action: manipulation;
 }
 .toolbar-title.dirty { border-color: #ffd23f; color: #ffe9a8; }   /* 未保存の変更あり */
+/* 上のバーをたたむ（v443）：バーを消し、セル番号の左に ☰ を出す。iPhone のカメラ・時計の下から始める */
+body.tb-fold { padding-top: var(--safe-top); }
+body.tb-fold::before { content: ''; position: fixed; left: 0; right: 0; top: 0; height: var(--safe-top); background: var(--bar-bg, var(--acc)); z-index: 5; pointer-events: none; }
+body.tb-fold .toolbar:not(.sheets-open) { display: none; }
+.fb-menu { display: none; }
+body.tb-fold .fb-menu { display: flex; align-items: center; justify-content: center; position: relative; flex: none;
+  width: calc(36px * var(--formula-scale, 1)); height: calc(30px * var(--formula-scale, 1)); border-radius: var(--r-btn);
+  border: none; background: var(--bar-bg, var(--acc)); color: #fff; font-size: calc(17px * var(--formula-scale, 1)); font-weight: bold; cursor: pointer; }
+body.tb-fold.rec-dirty .fb-menu::after { content: ''; position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: #ffd23f; box-shadow: 0 0 0 1.5px var(--bar-bg, var(--acc)); }
+body.tb-fold .formula-bar { padding-left: calc(6px + var(--safe-left)); }
+.more-fold { display: none; }
+body.tb-fold .more-fold { display: block; margin-bottom: 8px; }
+.more-rec { display: block; width: 100%; text-align: left; padding: 8px 10px; margin-bottom: 6px; border-radius: var(--r-btn); border: 1px solid var(--cell-border, #ddd);
+  background: var(--sheet-cell-bg, var(--cell-bg, #fff)); color: var(--text, #222); font-weight: bold; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.more-rec.dirty { border-color: #f5a300; }
+.more-item:disabled { opacity: .4; }
+.dt-fold-menu { display: none; }
+body.tb-fold .dt-pane { position: relative; }
+body.tb-fold .dt-fold-menu { display: flex; align-items: center; justify-content: center; position: absolute; top: 12px; left: 14px; z-index: 3;
+  width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--cell-border, #ddd); background: var(--sheet-cell-bg, var(--cell-bg, #fff));
+  color: var(--acc-text); font-size: 18px; font-weight: bold; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+body.tb-fold .dt-tape { padding-left: 48px; }
 
 .btn-settings, .btn-dark, .btn-csv {
   background: rgba(255,255,255,0.15);
@@ -3626,10 +3648,18 @@ body.dark {
 <div class="modal-overlay" id="moreMenuOverlay" onclick="if(event.target===this)closeMoreMenu()">
   <div class="modal more-modal">
     <div class="modal-header">
-      <span>⋯ そのほか</span>
+      <span id="moreTitle">⋯ そのほか</span>
       <button class="modal-close" onclick="closeMoreMenu()">✕</button>
     </div>
     <div class="modal-body">
+      <!-- 上のバーをたたんだとき（v443）：上のバーにあった記録名・保存・↶戻す をいちばん上に出す -->
+      <div class="more-fold" id="moreFold">
+        <button class="more-rec" id="moreRec" onclick="moreDo(showSaveList)" title="いま開いている記録（押すとリスト）"></button>
+        <div class="more-grid">
+          <button class="more-item" id="moreSave" onclick="moreDo(saveData)"><span>💾</span><b id="moreSaveLb">保存</b></button>
+          <button class="more-item" id="moreUndo" onclick="moreDo(undoLast)"><span>↶</span>戻す</button>
+        </div>
+      </div>
       <!-- よく使うものだけ出し、たまにしか使わないものは畳む（v375）。
            畳んだ中身も DOM には残るので、上のバーへの登録や長押しはそのまま効く -->
       <div class="more-grid">
@@ -3840,6 +3870,9 @@ body.dark {
       <button class="topbtn-toggle" data-btn="numpad"  onclick="toggleTopBtn('numpad')">⌨ テンキー</button>
       <button class="topbtn-toggle" data-btn="reset"   onclick="toggleTopBtn('reset')">🧹 リセット</button>
     </div>
+    <div class="set-sec">上のバーをたたむ</div>
+    <div class="set-note"><b>たたむ</b>と、上のバー（記録名・保存・↶・⋯）を消して、その分<b>表を画面の上から大きく</b>出します。いちばん左上（セル番号の左）の <b>☰</b> を押すと、保存・↶戻す・リスト・設定・道具などの<b>メニュー</b>が出ます。電卓のときも左上に ☰ が出ます。保存していない変更があると ☰ に ● が付きます。</div>
+    <div class="skin-seg" id="tbFoldSeg"><button data-f="0" onclick="setTbFold(false)">出す（いまのまま）</button><button data-f="1" onclick="setTbFold(true)">たたむ（☰ にまとめる）</button></div>
     <div class="set-sec">はじめに開くページ</div>
     <div class="set-row">
       <span class="set-label">アプリを開いたとき<small>次に開いたときから効きます</small></span>
@@ -3903,6 +3936,7 @@ body.dark {
 <!-- セル番号・入力欄・合計を1本にまとめた帯（以前は入力欄と合計欄で2本使っていた）。
      合計は数値があるときだけ右側に出る。▼ はテンキーの開閉。 -->
 <div class="formula-bar">
+  <button class="fb-menu" id="fbMenu" onclick="openMoreMenu()" aria-label="メニュー" title="メニュー（保存・戻す・リスト・設定・道具など）">☰</button>
   <span class="cellref-wrap">
     <input id="cellRef" type="text" value="A1" readonly onclick="openCellFmt()" title="タップでこのセルの書式設定（小数点・装飾・色・大きさ）">
     <span id="dateBadge" class="date-badge" title="日付書式のセル"></span>
@@ -3926,6 +3960,7 @@ body.dark {
 
 <!-- 電卓モードの画面。body.dentaku-mode のときだけ表のかわりに出る（テンキーはそのまま使う） -->
 <div class="dt-pane" id="dentakuPane">
+  <button class="dt-fold-menu" id="dtFoldMenu" onclick="openMoreMenu()" aria-label="メニュー" title="メニュー（保存・戻す・設定など）">☰</button>
   <div class="dt-tape" id="dtTape"></div>
   <div class="dt-disp">
     <div class="dt-sub" id="dtSub"></div>
@@ -8760,6 +8795,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v443', t:'上のバーをたたんで表を大きく', li:[
+    '⚙設定 → 🎨見た目 → 画面と上のバー に<b>「上のバーをたたむ」</b>。たたむと上のバー（記録名・保存・↶・⋯）を消して、表を画面の上から大きく出します',
+    'たたんだときは、<b>いちばん左上の ☰</b>（セル番号の左。電卓では左上）でメニューが出ます。いちばん上に記録名・保存・↶戻す があります。保存していない変更があると ☰ に ● が付きます',
+  ]},
   { v:'v442', t:'📔業務手帳を画面いっぱいに', li:[
     '📔業務手帳の上のタイトルバーをやめ、さがす・メモ一覧・印刷・設定・閉じるを、月の ▲ の右の <b>☰</b> のメニューにまとめました。その分カレンダーを上まで広く使います',
     'iPhone のカメラ（画面上の切り欠き）や角の丸みにボタンがかからないよう、安全な範囲の内側に並べます（横向きのときも）',
@@ -19991,6 +20030,20 @@ function applyTopBtnShown(){
   document.querySelectorAll('#topBtnToggles .topbtn-toggle')
     .forEach(b=>b.classList.toggle('on', topBtnIsShown(b.dataset.btn)));
   if(typeof updateRedoBtn==='function') updateRedoBtn();   // ↷は履歴があるときだけ押せる
+  applyTbFold();
+}
+/* 上のバーをたたむ（v443）。たたむと、左上の ☰（セル番号の左・電卓の左上）から ⋯ のメニューを出す */
+function tbFoldOn(){ try{ return localStorage.getItem('excalc_tbfold')==='1'; }catch(_){ return false; } }
+function applyTbFold(){
+  const on=tbFoldOn();
+  document.body.classList.toggle('tb-fold', on);
+  document.querySelectorAll('#tbFoldSeg button').forEach(b=>b.classList.toggle('on', (b.dataset.f==='1')===on));
+}
+function setTbFold(on){
+  try{ localStorage.setItem('excalc_tbfold', on?'1':'0'); }catch(_){}
+  applyTbFold();
+  try{ window.dispatchEvent(new Event('resize')); }catch(_){}
+  toast(on ? '上のバーをたたみました。左上の ☰ でメニューが出ます' : '上のバーを出しました');
 }
 function toggleTopBtn(k){
   if(!(k in TOPBTN_IDS)) return;
@@ -20069,7 +20122,20 @@ function openUndoList(){
   bindBackdropClose('undoListOverlay', closeUndoList);
 }
 function closeUndoList(){ closeDlg('undoListOverlay'); }
-function openMoreMenu(){ renderMoreTools(); applyMoreAcc(); openDlg('moreMenuOverlay'); }
+function openMoreMenu(){
+  renderMoreTools(); applyMoreAcc();
+  const fold=document.body.classList.contains('tb-fold');
+  const tt=document.getElementById('moreTitle'); if(tt) tt.textContent=fold?'☰ メニュー':'⋯ そのほか';
+  if(fold){   // 上のバーにあった記録名・保存・↶ を写す
+    const rt=document.getElementById('recordTitle'), rec=document.getElementById('moreRec');
+    if(rt && rec){ rec.textContent=rt.textContent; rec.title=rt.title; rec.classList.toggle('dirty', rt.classList.contains('dirty')); }
+    const sb=document.getElementById('saveBtn'), lb=document.getElementById('moreSaveLb');
+    if(sb && lb) lb.textContent=(sb.innerText||sb.textContent).replace(/\s+/g,'');
+    const ub=document.getElementById('undoBtn'), mu=document.getElementById('moreUndo');
+    if(ub && mu) mu.disabled=ub.disabled;
+  }
+  openDlg('moreMenuOverlay');
+}
 /* ⋯の「🧰道具」（v398）。NP_TOOLS から作るので、道具を足せば自動でここにも並ぶ */
 const toolLabelSplit=l=>{ const m=/^(\p{Extended_Pictographic}\uFE0F?)(.*)$/u.exec(l); return m?[m[1],m[2]]:['🧰',l]; };
 /* 道具のボタンを並べる。doer は押したときに先に窓を閉じてから実行する役（moreDo／toolsListDo） */
@@ -20306,7 +20372,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v442';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v443';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -21401,6 +21467,7 @@ function updateRecordTitle(){
   el.title=st.text+'／タップでリストを開く';
   el.classList.remove('dirty','nobackup','saved');
   el.classList.add(st.cls);
+  document.body.classList.toggle('rec-dirty', st.cls==='dirty');   // たたんだときの ☰ の ●
   const banner=document.getElementById('saveStateBanner');
   if(banner) renderSaveStateBanner();
 }
@@ -22121,7 +22188,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_numpad_landw','excalc_numscale','excalc_pagebar','excalc_pdf_settings','excalc_pm_custom_colors','excalc_pm_phrases',
   'excalc_pm_prefs','excalc_prn','excalc_savesort','excalc_savetabnames','excalc_saveview','excalc_show_resizerbar',
   'excalc_show_sheettabs','excalc_skin','excalc_speechauto','excalc_speechlayout','excalc_speechspeak','excalc_startpage',
-  'excalc_sumfunc','excalc_taxrate','excalc_toolsbtn_hide','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
+  'excalc_sumfunc','excalc_taxrate','excalc_tbfold','excalc_toolsbtn_hide','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
   'excalc_ts_warn','excalc_userkeys',
 ];
 function settingsBundle(){
