@@ -23,6 +23,7 @@
     { "name": "電卓", "short_name": "電卓", "description": "電卓の画面から始める", "url": "./index.html?p=dentaku", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] },
     { "name": "通常の表", "short_name": "表", "description": "まっさらな表から始める", "url": "./index.html?p=normal", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] },
     { "name": "単位水量", "short_name": "単位水量", "description": "単位水量試験の画面から始める", "url": "./index.html?p=tansui", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] },
+    { "name": "業務手帳", "short_name": "業務手帳", "description": "業務手帳の画面から始める", "url": "./index.html?p=techo", "icons": [{ "src": "techo/icon-192.png", "sizes": "192x192" }] },
     { "name": "写真メモ", "short_name": "写真メモ", "description": "写真メモの画面から始める", "url": "./index.html?p=photomemo", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] }
   ],
   "screenshots": [

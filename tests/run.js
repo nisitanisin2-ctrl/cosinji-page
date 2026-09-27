@@ -4093,7 +4093,7 @@ async function runPackaging(browser) {
   for (const f of ['icon-192.png', 'icon-maskable-192.png', 'apple-touch-icon.png'])
     check('  ' + f + 'は50KB未満', fs.statSync(pathmod.join(root, f)).size < 50 * 1024, true);
 
-  check('  ショートカットが4つ', mf.shortcuts.length, 4);
+  check('  ショートカットが5つ（業務手帳を足した v447）', mf.shortcuts.length, 5);
   check('  ショートカットに ?p= が付く', mf.shortcuts.every(s2 => /\?p=[a-z]+$/.test(s2.url)), true);
   check('  スクリーンショットが4枚', mf.screenshots.length, 4);
   check('  縦向きが3枚', mf.screenshots.filter(s2 => s2.form_factor === 'narrow').length, 3);
@@ -7078,6 +7078,47 @@ async function runFx426(browser) {
 }
 /* v429：マイキーに割り当てられる「🧰道具」（道具の一覧を開く） */
 /* 上のバーをたたむ（v443）：バーを消して、左上の ☰ からメニュー */
+async function runTechoApp(browser) {
+  console.log('\n── 📔業務手帳だけのアプリ（v447） ──');
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 780 }, hasTouch: true });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+  await page.goto(INDEX + '?app=techo'); await page.waitForTimeout(300);
+  await page.evaluate(() => localStorage.clear());   // まっさらな端末でも表電卓の案内を出さない
+  await page.reload(); await page.waitForTimeout(1500);
+  const r = await page.evaluate(() => ({
+    open: isDlgOpen('techoOverlay'), tour: isDlgOpen('tourOverlay'),
+    man: document.querySelector('link[rel="manifest"]').getAttribute('href') + '|' + document.querySelector('link[rel="apple-touch-icon"]').getAttribute('href') + '|' + document.querySelector('meta[name="apple-mobile-web-app-title"]').content + '|' + document.title,
+    full: document.querySelector('#techoOverlay .modal').classList.contains('modal-full'),
+    closeBtn: document.querySelector('#tcMenu .tc-menux').hidden, swipe: !document.getElementById('techoOverlay').dataset.npSwipe,
+    home: !!document.querySelector('#tcSetBody') }));
+  check('  ?app=techo で業務手帳が開く（表電卓の案内は出さない）', r.open + '/' + r.tour, 'true/false');
+  check('  ホーム画面に足すときの名前・アイコン', r.man, 'techo/manifest.json|techo/apple-touch-icon.png|業務手帳|📔 業務手帳');
+  check('  いつも全画面・閉じるは出さない・ほかの道具へ移らない', r.full + '/' + r.closeBtn + '/' + r.swipe, 'true/true/true');
+  await page.mouse.click(200, 300); await page.waitForTimeout(100);
+  await page.evaluate(() => { tcOpenSet(); }); await page.waitForTimeout(150);
+  const set = await page.evaluate(() => { const t = document.getElementById('tcSetBody').textContent; return t.includes('ホーム画面のアイコンから開く') + '/' + t.includes('いまは業務手帳だけで開いています') + '/' + !document.querySelector('#tcSetBody [onclick="tcHomeOpen()"]'); });
+  check('  設定にホーム画面の案内（業務手帳だけのときは開くボタンなし）', set, 'true/true/true');
+  await page.goBack().catch(() => {}); await page.waitForTimeout(400);
+  check('  戻るで設定だけ閉じる', await page.evaluate(() => isDlgOpen('techoSetOverlay') + '/' + isDlgOpen('techoOverlay')), 'false/true');
+  await page.goBack().catch(() => {}); await page.waitForTimeout(400);
+  check('  いちばん下で戻っても業務手帳は閉じない', await page.evaluate(() => isDlgOpen('techoOverlay') + '/' + location.search), 'true/?app=techo');
+  await page.evaluate(() => closeTecho()); await page.waitForTimeout(100);
+  check('  閉じる処理でも閉じない', await page.evaluate(() => isDlgOpen('techoOverlay')), true);
+  // 表電卓から：設定に「業務手帳だけの画面を開く」
+  await page.goto(INDEX); await page.waitForTimeout(900);
+  const main = await page.evaluate(async () => { openTecho(); await new Promise(r => setTimeout(r, 500)); tcOpenSet(); await new Promise(r => setTimeout(r, 100));
+    return !!document.querySelector('#tcSetBody [onclick="tcHomeOpen()"]') + '/' + document.querySelector('link[rel="manifest"]').getAttribute('href') + '/' + !!document.querySelector('#tcMenu .tc-menux:not([hidden])'); });
+  check('  表電卓の中では開くボタンあり・manifest は表電卓のまま・閉じるあり', main, 'true/manifest.json/true');
+  const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..');
+  const m = JSON.parse(fs.readFileSync(path.join(dir, 'techo/manifest.json'), 'utf8'));
+  const sw = fs.readFileSync(path.join(dir, 'service-worker.js'), 'utf8');
+  check('  manifest：アイコン・始まり・範囲', m.id + '|' + m.start_url + '|' + m.scope + '|' + m.icons.every(i => fs.existsSync(path.join(dir, 'techo', i.src))), '/techo|../index.html?app=techo|../index.html|true');
+  check('  入り口のページとアイコンを service-worker が持つ', ['techo/index.html', 'techo/manifest.json', 'techo/icon-192.png', 'techo/apple-touch-icon.png'].every(f => sw.includes("'./" + f + "'") && fs.existsSync(path.join(dir, f))), true);
+  check('  入り口のページは ?app=techo へ移る', fs.readFileSync(path.join(dir, 'techo/index.html'), 'utf8').includes("location.replace('../index.html?app=techo'"), true);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runTbFold(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── ☰ 上のバーをたたむ（v443） ──');
@@ -8079,6 +8120,7 @@ async function runQrShare(browser) {
     if (!only || only === 'techo') await runTecho(browser);
     if (!only || only === 'toolskey') await runToolsKey(browser);
     if (!only || only === 'tbfold') await runTbFold(browser);
+    if (!only || only === 'techoapp') await runTechoApp(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
     if (!only || only === 'brush3') await runBrush3(browser);
