@@ -7533,13 +7533,20 @@ async function runTecho(browser) {
     const it2 = tcRegisterText('来週月曜 営業 A者と打ち合わせ', true); o.reg2 = it2.title + '/' + tc.heard[tc.heard.length - 1].a;
     o.typed = tcRegisterText('明後日 営業 A者へ電話').title + '/' + tc.heard.length;   // 打ったものも言いかえるが、聞き取った言葉には残さない
     tcOpenSet(); await w(40);
-    o.set = document.querySelectorAll('#tcSetBody .tc-alrow').length;
+    o.set = document.querySelectorAll('#tcSetBody .tc-alrow').length + '/' + (document.getElementById('tcAlOpen') || {}).textContent;
+    tcAliasListOpen(); await w(40);
+    o.list = isDlgOpen('tcAlList') + '/' + document.querySelectorAll('#tcAlListBody .tc-alrow').length;
+    document.getElementById('tcAlQ').value = 'ａ者'; document.getElementById('tcAlQ').dispatchEvent(new Event('input'));
+    o.q = document.querySelectorAll('#tcAlListBody .tc-alrow').length;
+    document.getElementById('tcAlQ').value = ''; document.getElementById('tcAlQ').dispatchEvent(new Event('input'));
     tcAliasEdit(-1, '明日9時 工場 てんけん'); await w(40);
     document.getElementById('tcAlFrom').value = 'てんけん'; document.getElementById('tcAlTo').value = '点検'; tcAliasHint();
     o.hint = document.getElementById('tcAlHint').textContent;
     tcAliasOk(); o.alias2 = tc.alias.map(a => a.from + '>' + a.to).join(',') + '/' + JSON.parse(localStorage.getItem('excalc_techo')).alias.length;
     tcAliasEdit(0); document.getElementById('tcAlTo').value = 'A社さん'; tcAliasOk(); o.edit = tc.alias[0].to;
+    o.listAfter = document.querySelectorAll('#tcAlListBody .tc-alrow').length + '/' + (document.getElementById('tcAlOpen') || {}).textContent.includes('登録 2件');
     tcAliasDel(1); o.del = tc.alias.length;
+    o.back = await (async () => { window.history.back(); await w(300); return isDlgOpen('tcAlList') + '/' + isDlgOpen('techoSetOverlay'); })();
     o.diff = [['A者訪問', 'A社訪問'], ['品管の会議', '品質管理の会議'], ['打ち合わせ', '打合せ'], ['同じ', '同じ']].map(([a, b]) => { const d = tcAliasDiff(a, b); return d ? d.from + '>' + d.to : '-'; }).join(',');
     o.clean = tcClean({ alias: [{ from: 'x', to: 'y' }, { from: '', to: 'z' }, 5], heard: [{ q: 'aa' }, {}] }).alias.length + '/' + tcClean({ heard: [{ q: 'aa' }, {}] }).heard.length;
     tcCloseSet(); return o; });
@@ -7547,7 +7554,11 @@ async function runTecho(browser) {
   check('  言いかえ：声で登録したあと件名を直すと、覚えるか聞く', al.ask + '/' + al.alias, 'true/A者>A社');
   check('  言いかえ：次から置きかえて登録する', al.reg2, 'A社と打ち合わせ/来週月曜 営業 A社と打ち合わせ');
   check('  言いかえ：打った文にも効く（聞き取った言葉には残さない）', al.typed, 'A社へ電話/2');
-  check('  言いかえ：設定に一覧と聞き取った言葉', al.set, 3);
+  check('  言いかえ：設定には件数だけ（一覧は別の窓）', al.set, '0/🗣 言いかえの一覧を開く登録 1件・聞き取った言葉 2件›');
+  check('  言いかえ：別の窓に一覧と聞き取った言葉', al.list, 'true/3');
+  check('  言いかえ：言葉でさがせる（全角・半角を気にしない）', al.q, 3);
+  check('  言いかえ：足すと一覧と件数が直る', al.listAfter, '4/true');
+  check('  言いかえ：戻るで一覧の窓だけ閉じる', al.back, 'false/true');
   check('  言いかえ：どう登録されるかを見せて足す', al.hint + ' | ' + al.alias2, '→「明日9時 工場 点検」→ 9/26(土) 09:00〜10:00 工場「点検」 と登録します | A者>A社,てんけん>点検/2');
   check('  言いかえ：直す・消す', al.edit + '/' + al.del, 'A社さん/1');
   check('  言いかえ：直したところだけを取り出す', al.diff, 'A者>A社,品管>品質管理,ち合わ>合,-');
