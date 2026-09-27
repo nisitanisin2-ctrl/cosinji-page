@@ -202,6 +202,18 @@ body.dark .tc-modal{ --tc-line:rgba(150,170,210,.28); --tc-line2:rgba(150,170,21
   --tc-sel:rgba(76,175,80,.32); --tc-sun:#ff8a80; --tc-sat:#82b1ff; }
 .tc-modal .modal-header .hdr-right{ gap:6px; }
 .tc-modal .tc-hb{ padding:6px 9px; }
+/* 上のタイトルバーは出さず、☰ のメニューにまとめる（v442）。iPhone のカメラ・角の丸みにかからないよう、安全な範囲の内側に置く */
+#techoOverlay .tc-modal{ padding-top:var(--safe-top,env(safe-area-inset-top,0px)); padding-left:var(--safe-left,env(safe-area-inset-left,0px)); padding-right:var(--safe-right,env(safe-area-inset-right,0px)); box-sizing:border-box; }
+.tc-menubtn{ font-size:16px; padding:0 11px; }
+.tc-menuov{ position:fixed; inset:0; z-index:99990; display:none; background:rgba(0,0,0,.18); }
+.tc-menuov.open{ display:block; }
+.tc-menu{ position:absolute; min-width:220px; max-width:calc(100vw - 16px); background:var(--modal-bg,#fff); color:var(--text,#333); border-radius:12px;
+  box-shadow:0 10px 36px rgba(0,0,0,.28); padding:6px; display:flex; flex-direction:column; }
+.tc-menutt{ font-size:12px; font-weight:bold; color:var(--text-light,#888); padding:6px 10px 4px; }
+.tc-menu button{ height:44px; text-align:left; padding:0 12px; border:none; border-radius:8px; background:transparent; color:inherit; font-size:15px; font-weight:bold; cursor:pointer; }
+.tc-menu button:hover,.tc-menu button:focus-visible{ background:rgba(120,132,156,.14); }
+.tc-menu button[hidden]{ display:none; }
+.tc-menu .tc-menux{ border-top:1px solid rgba(120,132,156,.25); border-radius:0 0 8px 8px; margin-top:4px; color:#d32f2f; }
 .tc-body{ flex:1; min-height:0; display:flex; flex-direction:column; color:var(--tc-ink); }
 .tc-cal{ flex:none; padding:3px 8px 2px; display:flex; flex-direction:column; min-height:0; }
 .tc-body.sv .tc-cal:not(.fold){ height:var(--tc-calh); overflow-y:auto; }
@@ -454,16 +466,6 @@ function tcEnsureDom(){
   box.innerHTML=`
 <div class="modal-overlay" id="techoOverlay">
   <div class="modal vol-modal tc-modal">
-    <div class="modal-header">
-      <span>📔 業務手帳</span>
-      <span class="hdr-right">
-        <button class="hdr-btn tc-hb" onclick="tcOpenFind()" aria-label="さがす" title="さがす">🔍</button>
-        <button class="hdr-btn tc-hb" onclick="tcOpenBoard()" aria-label="メモ一覧" title="メモ一覧（業務ごとの付せん）">📝</button>
-        <button class="hdr-btn tc-hb" onclick="tcOpenPrint()" aria-label="印刷" title="印刷・PDF・画像">🖨</button>
-        <button class="hdr-btn tc-hb" onclick="tcOpenSet()" aria-label="設定" title="業務・週の始まり・書き出し">⚙</button>
-        <button class="modal-close" onclick="closeTecho()" aria-label="閉じる">✕</button>
-      </span>
-    </div>
     <div class="tc-shbar" id="tcShBar" hidden></div>
     <div class="tc-body">
       <section class="tc-cal" id="tcCal" data-hswipe="1" aria-label="月のカレンダー">
@@ -474,6 +476,7 @@ function tcEnsureDom(){
           <span class="tc-sp"></span>
           <button class="tc-mini" onclick="tcGoToday()">今日</button>
           <button class="tc-mini" id="tcFoldBtn" onclick="tcToggleFold()" aria-label="月を畳む">▲</button>
+          <button class="tc-mini tc-menubtn" id="tcMenuBtn" onclick="tcMenuOpen()" aria-label="メニュー" aria-haspopup="menu" title="さがす・メモ一覧・印刷・設定・閉じる">☰</button>
         </div>
         <div class="tc-wd" id="tcWd"></div>
         <div class="tc-grid" id="tcGrid"></div>
@@ -500,6 +503,17 @@ function tcEnsureDom(){
       </section>
     </div>
     <div class="tc-snack" id="tcSnack" hidden></div>
+    <div class="tc-menuov" id="tcMenuOv" onclick="if(event.target===this) tcMenuClose()">
+      <div class="tc-menu" id="tcMenu" role="menu" aria-label="業務手帳のメニュー">
+        <div class="tc-menutt">📔 業務手帳</div>
+        <button role="menuitem" onclick="tcMenuDo(tcOpenFind)">🔍 さがす</button>
+        <button role="menuitem" onclick="tcMenuDo(tcOpenBoard)">📝 メモ一覧</button>
+        <button role="menuitem" onclick="tcMenuDo(tcOpenPrint)">🖨 印刷・PDF・画像</button>
+        <button role="menuitem" onclick="tcMenuDo(tcOpenSet)">⚙ 設定</button>
+        <button role="menuitem" id="tcMenuSync" onclick="tcMenuDo(()=>tcShSync({ask:true, say:true}))" hidden>⇅ 共有ファイルと合わせる</button>
+        <button role="menuitem" class="tc-menux" onclick="tcMenuDo(closeTecho)">✕ 業務手帳を閉じる</button>
+      </div>
+    </div>
     <form class="tc-add" id="tcAddForm" onsubmit="event.preventDefault(); tcAddSubmit();">
       <button type="button" class="tc-mic" id="tcMic" onclick="tcMicTap('add')" aria-label="声で登録">🎤</button>
       <input id="tcAddIn" type="text" enterkeyhint="done" autocomplete="off" maxlength="300" placeholder="例：明日10時 営業 A社訪問" aria-label="予定やメモを文で入れる">
@@ -592,8 +606,24 @@ function openTecho(){
 function tcOnClosed(){
   tcStopListen(); clearInterval(tcNowTimer); tcNowTimer=null; tcHideSnack();
 }
+/* ☰ メニュー：▲ の右のボタンの下に出す。戻る・外を押す・もう一度 ☰ で閉じる */
+function tcMenuOpen(){
+  const ov=document.getElementById('tcMenuOv'), m=document.getElementById('tcMenu'), b=document.getElementById('tcMenuBtn');
+  if(!ov || !m || !b) return;
+  if(isDlgOpen('tcMenuOv')){ tcMenuClose(); return; }
+  document.getElementById('tcMenuSync').hidden=!(typeof tcShHandle!=='undefined' && tcShHandle);
+  document.body.appendChild(ov);   // いちばん上に重ねる
+  openDlg('tcMenuOv');
+  const r=b.getBoundingClientRect(), mw=m.offsetWidth||230;
+  m.style.top=Math.round(r.bottom+4)+'px';
+  m.style.left=Math.round(Math.max(8, Math.min(window.innerWidth-mw-8, r.right-mw)))+'px';
+  const f=m.querySelector('button:not([hidden])'); if(f) try{ f.focus({preventScroll:true}); }catch(_){}
+}
+function tcMenuClose(){ closeDlg('tcMenuOv'); }
+function tcMenuDo(fn){ tcMenuClose(); try{ fn(); }catch(_){ toast('うまく開けませんでした'); } }
 function closeTecho(){
   if(!isDlgOpen('techoOverlay')) return;
+  tcMenuClose();
   // 上に開いている窓から順に閉じる（戻るの履歴を崩さない）
   if(typeof closePrn==='function' && isDlgOpen('prnOverlay')) closePrn();
   tcCloseEdit(); tcCloseSet(); tcCloseFind(); tcCloseBoard();

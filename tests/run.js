@@ -7465,6 +7465,25 @@ async function runTecho(browser) {
   check('  共有：覚えられない端末は書き出す・読み込むだけ', await page.evaluate(() => { const a = window.showOpenFilePicker; delete window.showOpenFilePicker; window.showOpenFilePicker = undefined;
     const h = tcShSetHtml(); window.showOpenFilePicker = a; return /覚えておけません/.test(h) + '/' + /Excelに書き出す/.test(h) + '/' + /新しく共有ファイル/.test(h); }), 'true/true/false');
   await page.evaluate(async () => { tcShHandle = null; tcShState = ''; tcShBar(); });
+  // 上のタイトルバーをやめて ☰ メニューに（v442）
+  await page.evaluate(() => { if (!isDlgOpen('techoOverlay')) openTecho(); });
+  check('  上のタイトルバーは出さない・▲ の右に ☰', await page.evaluate(() => !document.querySelector('#techoOverlay .modal-header') + '/' + (document.getElementById('tcFoldBtn').nextElementSibling.id)), 'true/tcMenuBtn');
+  check('  いちばん上は iPhone の安全な範囲の内側', await page.evaluate(() => { const st = getComputedStyle(document.querySelector('#techoOverlay .tc-modal')); document.documentElement.style.setProperty('--safe-top', '47px'); const t = getComputedStyle(document.querySelector('#techoOverlay .tc-modal')).paddingTop; document.documentElement.style.removeProperty('--safe-top'); return t; }), '47px');
+  await page.click('#tcMenuBtn'); await page.waitForTimeout(80);
+  check('  ☰ でメニューが出る', await page.evaluate(() => isDlgOpen('tcMenuOv') + '/' + [...document.querySelectorAll('#tcMenu button:not([hidden])')].map(b => b.textContent.replace(/^\S+\s/, '')).join(',')), 'true/さがす,メモ一覧,印刷・PDF・画像,設定,業務手帳を閉じる');
+  await page.goBack({ waitUntil: 'commit' }).catch(() => {}); await page.waitForTimeout(400);
+  check('  戻るでメニューだけ閉じる', await page.evaluate(() => isDlgOpen('tcMenuOv') + '/' + isDlgOpen('techoOverlay')), 'false/true');
+  await page.click('#tcMenuBtn'); await page.waitForTimeout(80);
+  await page.click('#tcMenu button:has-text("設定")'); await page.waitForTimeout(150);
+  check('  メニューから設定を開く', await page.evaluate(() => isDlgOpen('tcMenuOv') + '/' + isDlgOpen('techoSetOverlay')), 'false/true');
+  await page.goBack({ waitUntil: 'commit' }).catch(() => {}); await page.waitForTimeout(400);
+  check('  設定を戻ると手帳に戻る', await page.evaluate(() => isDlgOpen('techoSetOverlay') + '/' + isDlgOpen('techoOverlay')), 'false/true');
+  await page.click('#tcMenuBtn'); await page.waitForTimeout(80);
+  await page.mouse.click(5, 800); await page.waitForTimeout(80);
+  check('  外を押すとメニューを閉じる', await page.evaluate(() => isDlgOpen('tcMenuOv')), false);
+  await page.click('#tcMenuBtn'); await page.waitForTimeout(80);
+  await page.click('#tcMenu .tc-menux'); await page.waitForTimeout(200);
+  check('  メニューから閉じる', await page.evaluate(() => isDlgOpen('tcMenuOv') + '/' + isDlgOpen('techoOverlay')), 'false/false');
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();
