@@ -624,7 +624,8 @@ body.tb-fold .dt-pane { position: relative; }
 body.tb-fold .dt-fold-menu { display: flex; align-items: center; justify-content: center; position: absolute; top: 12px; left: 14px; z-index: 3;
   width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--cell-border, #ddd); background: var(--sheet-cell-bg, var(--cell-bg, #fff));
   color: var(--acc-text); font-size: 18px; font-weight: bold; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
-body.tb-fold .dt-tape { padding-left: 48px; }
+body.tb-fold.dentaku-mode .dt-pane .dt-tape { padding-left: 50px; }   /* ☰ の分をあける（詰める設定の余白より強く） */
+body.tb-fold.dentaku-mode .dt-pane .dt-tape-empty { min-height: 38px; }
 
 .btn-settings, .btn-dark, .btn-csv {
   background: rgba(255,255,255,0.15);
@@ -8795,6 +8796,14 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v445', t:'📔業務手帳の声の聞き違いを直す', li:[
+    '📔業務手帳の ⚙設定 に<b>「🗣 自分の言いかえ」</b>。「A者」→「A社」、「てんけん」→「点検」のように登録すると、声や文を読む前に置きかえます。登録するとき、どう登録されるか（日付・時刻・業務・件名）を見ながら決められます',
+    '声ですぐ登録したあとに件名を直すと、<b>「『A者』を『A社』と覚えますか？」</b>と聞きます。「覚える」を押すと、次から自動で直ります',
+    '設定に<b>最近聞き取った言葉</b>を出します。押すとそこから言いかえを登録できます。言いかえは業務手帳の書き出し・📋リストのバックアップにも入ります',
+  ]},
+  { v:'v444', t:'電卓の履歴が ☰ に隠れないように', li:[
+    '上のバーをたたんだときの電卓で、履歴の説明や計算の行が左上の <b>☰</b> に隠れていたのを直しました（iPhone SE など、詰めて表示する画面で起きていました）',
+  ]},
   { v:'v443', t:'上のバーをたたんで表を大きく', li:[
     '⚙設定 → 🎨見た目 → 画面と上のバー に<b>「上のバーをたたむ」</b>。たたむと上のバー（記録名・保存・↶・⋯）を消して、表を画面の上から大きく出します',
     'たたんだときは、<b>いちばん左上の ☰</b>（セル番号の左。電卓では左上）でメニューが出ます。いちばん上に記録名・保存・↶戻す があります。保存していない変更があると ☰ に ● が付きます',
@@ -20372,7 +20381,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v443';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v445';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -22223,6 +22232,9 @@ function techoMergeBundle(inc){
     if(!Array.isArray(cur.roles)) cur.roles=[];
     const ids=new Set(cur.roles.map(r=>r&&r.id));
     (Array.isArray(inc.roles)?inc.roles:[]).forEach(r=>{ if(r && typeof r.id==='string' && !ids.has(r.id)){ cur.roles.push(r); ids.add(r.id); } });
+    // 自分の言いかえ（v445）：まだない言葉だけ足す
+    if(!Array.isArray(cur.alias)) cur.alias=[];
+    (Array.isArray(inc.alias)?inc.alias:[]).forEach(a=>{ if(a && typeof a.from==='string' && !cur.alias.some(x=>x.from===a.from)) cur.alias.push(a); });
   }
   const at=new Map(); cur.items.forEach((it,i)=>{ if(it && typeof it.id==='string') at.set(it.id, i); });
   let n=0;

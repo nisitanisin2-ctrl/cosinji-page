@@ -83,7 +83,12 @@ function tcClean(o){
   // 消した印（共有ファイルで、ほかの端末にも消したことを伝える）
   const dels=(Array.isArray(o.dels)?o.dels:[]).filter(d=>d && typeof d.id==='string' && d.id && d.id.length<=40 && +d.t>0)
     .map(d=>({id:d.id, t:+d.t})).slice(-3000);
-  return {v:1, roles, items, ui, dels};
+  // 自分の言いかえ（声の聞き違いを直す）と、最近聞き取った言葉（v445）
+  const alias=(Array.isArray(o.alias)?o.alias:[]).filter(a=>a && typeof a.from==='string' && a.from.trim() && typeof a.to==='string')
+    .map(a=>({from:a.from.trim().slice(0,60), to:a.to.trim().slice(0,120)})).slice(0,300);
+  const heard=(Array.isArray(o.heard)?o.heard:[]).filter(h=>h && typeof h.q==='string' && h.q)
+    .map(h=>({q:h.q.slice(0,300), a:String(h.a||'').slice(0,300), title:String(h.title||'').slice(0,200), id:typeof h.id==='string'?h.id.slice(0,40):'', at:+h.at||0})).slice(-30);
+  return {v:1, roles, items, ui, dels, alias, heard};
 }
 function tcLoad(){
   let o=null;
@@ -342,6 +347,16 @@ body.dark .tc-plus{ color:var(--acc-text,#7cc68b); border-color:var(--acc-text,#
 .tc-snack[hidden]{ display:none; }
 .tc-shbar{ flex:none; display:flex; align-items:center; gap:8px; padding:6px 10px; font-size:12.5px; background:#fff8e1; color:#5d4037; border-bottom:1px solid rgba(120,132,156,.25); }
 .tc-shbar[hidden]{ display:none; }
+.tc-alrow{ display:flex; align-items:center; gap:8px; padding:8px 10px; margin-bottom:5px; border-radius:8px; background:rgba(120,132,156,.10); cursor:pointer; font-size:13.5px; }
+.tc-alrow span{ flex:1; min-width:0; overflow-wrap:anywhere; }
+.tc-alrow small{ display:block; font-size:12px; color:var(--text-light,#888); }
+.tc-alrow button{ flex:none; width:32px; height:32px; border:none; border-radius:50%; background:transparent; color:#d32f2f; font-size:15px; cursor:pointer; }
+.tc-aldlg{ position:fixed; inset:0; z-index:99999; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.45); }
+.tc-aldlg.open{ display:flex; }
+.tc-alsrc{ font-size:13px; background:rgba(120,132,156,.12); border-radius:8px; padding:6px 10px; margin-bottom:8px; overflow-wrap:anywhere; }
+.tc-alf{ display:block; font-size:12px; font-weight:bold; color:var(--text-light,#888); margin:6px 0; }
+.tc-alf input{ display:block; width:100%; box-sizing:border-box; margin-top:4px; height:40px; padding:0 10px; font-size:16px; border:1px solid rgba(120,132,156,.45); border-radius:8px; background:var(--modal-bg,#fff); color:var(--text,#222); }
+.tc-alhint{ font-size:12.5px; line-height:1.6; min-height:2.4em; margin:8px 0 0; color:var(--text,#333); overflow-wrap:anywhere; }
 .tc-shbar.err{ background:#ffebee; color:#b71c1c; }
 body.dark .tc-shbar{ background:#3e3420; color:#ffe0a3; } body.dark .tc-shbar.err{ background:#4a2020; color:#ffb4ab; }
 .tc-shbar span{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -626,6 +641,7 @@ function closeTecho(){
   tcMenuClose();
   // 上に開いている窓から順に閉じる（戻るの履歴を崩さない）
   if(typeof closePrn==='function' && isDlgOpen('prnOverlay')) closePrn();
+  if(isDlgOpen('tcAlDlg')) tcAliasClose();
   tcCloseEdit(); tcCloseSet(); tcCloseFind(); tcCloseBoard();
   closeDlg('techoOverlay', tcOnClosed);
 }
@@ -942,7 +958,7 @@ function tcOpenItem(id, ds){
 }
 function tcOpenEdit(it, occ, heard){
   tcStopListen();
-  tcEd={id:it.id, occ, heard, it};
+  tcEd={id:it.id, occ, heard, it, learn:heard ? it.title : (it.id && tcLearnSrc[it.id]) || null};
   const $=id=>document.getElementById(id);
   $('tcEdHdr').textContent=it.id ? (it.kind==='memo'?'メモを直す':'予定を直す') : (it.kind==='memo'?'メモを足す':'予定を足す');
   const hd=$('tcEdHeard'); hd.hidden=!heard; hd.textContent=heard ? '聞き取った言葉：「'+heard+'」' : '';
@@ -1079,7 +1095,17 @@ function tcChoose(msg, opts){
   });
 }
 const TC_SCOPES=['この日だけ','この日から先','ぜんぶ'];
+/* 声で登録したものの件名を直したら、その直し方を言いかえとして覚えるか聞く（v445） */
 async function tcEdSave(){
+  const lf=tcEd && tcEd.learn, id0=tcEd && tcEd.id;
+  const nt=(document.getElementById('tcEdT')||{}).value;
+  await tcEdSave0();
+  if(lf && typeof nt==='string' && !isDlgOpen('techoEditOverlay')){
+    if(id0) delete tcLearnSrc[id0];
+    const t=nt.trim(); if(t && t!==lf) await tcLearnPropose(lf, t);
+  }
+}
+async function tcEdSave0(){
   if(!tcEd) return;
   const it=tcEdCollect(); if(!it) return;
   const now=Date.now();
@@ -1359,13 +1385,17 @@ function tcParse(text, baseDs){
   return out;
 }
 /* 読んだものを登録する（設定で「確かめてから」なら入力画面を開く） */
-function tcRegisterText(text){
+function tcRegisterText(text, fromVoice){
   const src=String(text||'').trim(); if(!src) return null;
-  const p=tcParse(src, tcSel);
+  const al=tcApplyAlias(src);                 // 自分の言いかえ（v445）
+  const p=tcParse(al, tcSel);
   const it={id:null, kind:p.kind, roles:p.roles, date:p.date, allDay:p.allDay, start:p.start, end:p.end, title:p.title, note:'', done:false, rep:p.rep};
-  if(tc.ui.confirm){ tcOpenEdit(it, null, src); return it; }
+  const note=h=>{ if(!fromVoice) return; tc.heard=(tc.heard||[]).concat([h]).slice(-30); };
+  if(tc.ui.confirm){ note({q:src, a:al!==src?al:'', title:p.title, id:'', at:Date.now()}); tcSave(); tcOpenEdit(it, null, al!==src ? src+'」→「'+al : src); return it; }
   const now=Date.now();
   Object.assign(it, {id:tcNewId(), cre:now, upd:now});
+  tcLearnSrc[it.id]=p.title;                  // 直したら「覚えますか」と聞くため
+  note({q:src, a:al!==src?al:'', title:p.title, id:it.id, at:now});
   tc.items.push(it); tc.ui.lastRole=it.roles[0]; tcSave();
   tcShownDay='';
   tcPick(it.date); tcFlash(it.id); tcShowSnack(it, it.date);
@@ -1378,6 +1408,99 @@ function tcAddSubmit(){
   if(!v){ tcNewItem('ev', tcSel, null, null); return; }
   inp.value='';
   tcRegisterText(v);
+}
+
+/* ── 🗣 自分の言いかえ（v445）：声の聞き違いを、読む前に置きかえる ── */
+let tcLearnSrc={};   // 声・文ですぐ登録した予定の、登録したときの件名（直したら覚えるか聞く）
+function tcApplyAlias(src, extra){
+  let s=String(src==null?'':src);
+  const list=(tc && tc.alias ? tc.alias : []).concat(extra||[]).slice().sort((a,b)=>b.from.length-a.from.length);
+  for(const a of list){
+    if(!a.from) continue;
+    if(s.includes(a.from)){ s=s.split(a.from).join(a.to); continue; }
+    const nf=a.from.normalize('NFKC'), ns=s.normalize('NFKC');
+    if(nf && ns.includes(nf)) s=ns.split(nf).join(a.to);   // 全角・半角のちがいは気にしない
+  }
+  return s;
+}
+/* 直す前と直したあとの件名から、ちがうところだけを取り出す（「A者訪問」→「A社訪問」なら 者→社。1文字だけなら前の字も付ける） */
+function tcAliasDiff(a, b){
+  a=String(a); b=String(b);
+  if(a===b) return null;
+  let p=0; while(p<a.length && p<b.length && a[p]===b[p]) p++;
+  let q=0; while(q<a.length-p && q<b.length-p && a[a.length-1-q]===b[b.length-1-q]) q++;
+  let from=a.slice(p, a.length-q), to=b.slice(p, b.length-q);
+  if(from.length<2 && p>0){ from=a[p-1]+from; to=a[p-1]+to; p--; }
+  if(from.length<2 && q>0){ from=from+a[a.length-q]; to=to+a[a.length-q]; }
+  if(!from || from.length>30 || to.length>60) return null;
+  return {from, to};
+}
+async function tcLearnPropose(before, after){
+  const d=tcAliasDiff(before, after); if(!d) return;
+  if((tc.alias||[]).some(a=>a.from===d.from)) return;
+  const k=await tcChoose('「'+d.from+'」を「'+d.to+'」と覚えますか？ 次から声や文で「'+d.from+'」と入ったら「'+d.to+'」に置きかえます', ['覚える']);
+  if(k!==0) return;
+  tc.alias=(tc.alias||[]).concat([d]); tcSave();
+  toast('「'+d.from+'」→「'+d.to+'」を覚えました（⚙設定の「自分の言いかえ」で直せます）', 3500);
+  if(isDlgOpen('techoSetOverlay')) tcRenderSet();
+}
+function tcAliasSetHtml(){
+  const al=tc.alias||[], hd=(tc.heard||[]).slice().reverse();
+  let h='<div class="tc-note">声の聞き違い（「A者」「てんけん」など）や、自分の言い方を登録すると、読む前にその言葉に置きかえます。声ですぐ登録したあとに件名を直すと、覚えるか聞きます。</div>';
+  h+=al.length ? al.map((a,i)=>`<div class="tc-alrow" onclick="tcAliasEdit(${i})"><span>「${tcEsc(a.from)}」<small>→「${tcEsc(a.to)}」と読む</small></span><button onclick="event.stopPropagation();tcAliasDel(${i})" aria-label="「${tcEsc(a.from)}」の言いかえを消す">✕</button></div>`).join('')
+    : '<div class="tc-note">まだありません。</div>';
+  h+='<div class="tc-edbtns"><button onclick="tcAliasEdit(-1)">＋ 言いかえを足す</button></div>';
+  h+='<div class="tc-sec">聞き取った言葉（最近）<small>押すと、そこから言いかえを登録できます</small></div>';
+  h+=hd.length ? hd.slice(0,10).map((x,i)=>`<div class="tc-alrow" data-q="${tcEsc(x.q)}" onclick="tcAliasEdit(-1,this.dataset.q)"><span>「${tcEsc(x.q)}」<small>${x.a?'言いかえ →「'+tcEsc(x.a)+'」／':''}件名「${tcEsc(x.title||'')}」</small></span></div>`).join('')
+    : '<div class="tc-note">まだありません（🎤で登録すると、ここに残ります）。</div>';
+  return h;
+}
+function tcAliasDel(i){
+  const a=(tc.alias||[])[i]; if(!a) return;
+  tc.alias.splice(i,1); tcSave(); tcRenderSet(); toast('「'+a.from+'」の言いかえを消しました');
+}
+/* 言いかえを足す・直す窓。元の言葉（聞き取った言葉）があれば、置きかえてどう登録されるかを見せる */
+let tcAlEd=null;
+function tcAliasEdit(i, src){
+  const a=i>=0 ? tc.alias[i] : {from:'', to:''};
+  if(!a) return;
+  tcAlEd={i, src:String(src||'')};
+  let ov=document.getElementById('tcAlDlg');
+  if(!ov){ ov=document.createElement('div'); ov.id='tcAlDlg'; ov.className='tc-aldlg'; document.body.appendChild(ov); }
+  ov.innerHTML=`<div class="tc-tp" role="dialog" aria-label="言いかえ">
+    <div class="tc-tphd"><span>${i>=0?'言いかえを直す':'言いかえを足す'}</span></div>
+    ${tcAlEd.src?`<div class="tc-alsrc">聞き取った言葉：「${tcEsc(tcAlEd.src)}」</div>`:''}
+    <label class="tc-alf">この言葉を<input id="tcAlFrom" maxlength="60" value="${tcEsc(a.from)}" oninput="tcAliasHint()" placeholder="例：A者・てんけん"></label>
+    <label class="tc-alf">こう読む<input id="tcAlTo" maxlength="120" value="${tcEsc(a.to)}" oninput="tcAliasHint()" placeholder="例：A社・点検"></label>
+    <div class="tc-alhint" id="tcAlHint"></div>
+    <div class="tc-tpft">${i>=0?`<button type="button" onclick="tcAliasClose();tcAliasDel(${i})">🗑</button>`:''}<button type="button" onclick="tcAliasClose()">やめる</button><button type="button" class="tc-tpok" onclick="tcAliasOk()">決める</button></div></div>`;
+  openDlg('tcAlDlg', ()=>{ tcAlEd=null; });
+  tcAliasHint();
+  setTimeout(()=>{ const e=document.getElementById(a.from||!tcAlEd||!tcAlEd.src?'tcAlTo':'tcAlFrom'); if(e){ e.focus(); try{ e.select(); }catch(_){} } }, 60);
+}
+function tcAliasHint(){
+  const h=document.getElementById('tcAlHint'); if(!h || !tcAlEd) return;
+  const f=document.getElementById('tcAlFrom').value.trim(), t=document.getElementById('tcAlTo').value.trim();
+  if(!f){ h.textContent=''; return; }
+  const base=tcAlEd.src && tcAlEd.src.includes(f) ? tcAlEd.src : '';
+  if(!base){ h.textContent='「'+f+'」と入ったら「'+t+'」と読みます'; return; }
+  const others=(tc.alias||[]).filter((x,k)=>k!==tcAlEd.i && x.from!==f);
+  const save=tc.alias; tc.alias=others;
+  const txt=tcApplyAlias(base, [{from:f, to:t}]); tc.alias=save;
+  const p=tcParse(txt, tcSel);
+  const when=tcMDs(p.date)+' '+(p.kind==='memo'?'メモ':(p.allDay?'終日':p.start+'〜'+p.end))+(p.rep?' ↻':'');
+  h.innerHTML='→「'+tcEsc(txt)+'」<br>→ <b>'+tcEsc(when)+' '+tcEsc(tcRoleNames(p.roles))+'「'+tcEsc(p.title)+'」</b> と登録します';
+}
+function tcAliasClose(){ closeDlg('tcAlDlg', ()=>{ tcAlEd=null; }); }
+function tcAliasOk(){
+  if(!tcAlEd) return;
+  const f=document.getElementById('tcAlFrom').value.trim(), t=document.getElementById('tcAlTo').value.trim();
+  if(!f){ toast('置きかえる言葉を入れてください'); return; }
+  if(f===t){ toast('同じ言葉です'); return; }
+  const list=(tc.alias||[]).filter((x,k)=>k!==tcAlEd.i && x.from!==f);   // 同じ言葉の言いかえは1つにする
+  list.splice(tcAlEd.i>=0 ? Math.min(tcAlEd.i, list.length) : list.length, 0, {from:f, to:t});
+  tc.alias=list; tcSave(); tcAliasClose(); tcRenderSet();
+  toast('「'+f+'」を「'+t+'」と読みます');
 }
 
 /* ── 聞き取り（声の計算帳 v7/v9 と同じ考え）──
@@ -1501,10 +1624,10 @@ function tcDoFinish(){
   tcSyncMic();
   if(tg==='add'){
     const i=document.getElementById('tcAddIn'); if(i) i.value='';
-    if(text) tcRegisterText(text);
+    if(text) tcRegisterText(text, true);
   } else {
     const el=tcFieldEl(tg);
-    if(el && text) el.value=tcBase+(tcBase ? (tg==='n'?'\n':' ') : '')+text;
+    if(el && text) el.value=tcBase+(tcBase ? (tg==='n'?'\n':' ') : '')+tcApplyAlias(text);
   }
 }
 /* やめる（聞いた言葉は捨てる。入力画面の欄は聞く前にもどす） */
@@ -1604,7 +1727,8 @@ function tcRenderSet(){
       <input class="tc-rk" type="text" maxlength="300" value="${tcEsc(r.kw)}" placeholder="聞き分ける言葉（例：見積、客先）" aria-label="${tcEsc(r.name)}の聞き分ける言葉" onchange="tcRoleSet('${r.id}','kw',this.value)">
     </div>`).join('')
     +(n<TC_MAX_ROLES ? `<div class="tc-edbtns"><button onclick="tcRoleAdd()">＋ 業務を足す</button></div>` : '')
-    +`<div class="tc-sec">月と1日の仕切り</div>
+    +`<div class="tc-sec">🗣 自分の言いかえ（声の聞き違いを直す）</div>${tcAliasSetHtml()}
+    <div class="tc-sec">月と1日の仕切り</div>
     <div class="tc-slrow"><span>横並びのとき <b>月の幅</b></span><b class="tc-slv" id="tcSplitHV">${tc.ui.splitH?tc.ui.splitH+'%':'自動'}</b></div>
     <div class="tc-slrow"><input type="range" id="tcSplitHR" min="${TC_SPLIT.h[0]}" max="${TC_SPLIT.h[1]}" step="1" value="${tc.ui.splitH||40}" aria-label="横並びのときの月の幅" oninput="tcSetSplit('h',this.value)"><button class="tc-mini" onclick="tcSetSplit('h',0)">自動</button></div>
     <div class="tc-slrow"><span>縦並びのとき <b>月の高さ</b></span><b class="tc-slv" id="tcSplitVV">${tc.ui.splitV?tc.ui.splitV+'%':'自動'}</b></div>
