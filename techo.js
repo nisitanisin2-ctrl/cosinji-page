@@ -218,8 +218,21 @@ body.dark .tc-modal{ --tc-line:rgba(150,170,210,.28); --tc-line2:rgba(150,170,21
 .tc-d.sel{ background:var(--tc-sel); } .tc-d.sel .tc-dn{ font-weight:bold; }
 .tc-dots{ display:flex; gap:2px; height:5px; margin-top:1px; }
 .tc-dots i{ width:5px; height:5px; border-radius:50%; background:var(--c); }
+/* マスが大きいとき（仕切りで月を広げた・広い画面）は、点の代わりに件名を小さく出す */
+.tc-dts{ display:none; flex:1; min-height:0; width:100%; flex-direction:column; gap:1px; overflow:hidden; padding:0 1px 1px; box-sizing:border-box; }
+.tc-cal .tc-grid{ min-height:0; }
+.tc-grid.tt .tc-d{ overflow:hidden; justify-content:flex-start; }
+.tc-grid.tt .tc-dn{ width:18px; height:18px; line-height:18px; flex:none; font-size:12px; }
+.tc-grid.tt .tc-dts{ display:flex; }
+.tc-grid.tt .tc-dots{ display:none; }
+.tc-dts i{ flex:none; display:block; font-style:normal; font-size:8.5px; line-height:11px; height:11px; white-space:nowrap; overflow:hidden; text-align:left;
+  border-left:2px solid var(--c); background:var(--bgc); border-radius:2px; padding-left:2px; color:var(--tc-ink); font-weight:normal; }
+.tc-dts i.dn{ text-decoration:line-through; opacity:.55; }
 .tc-day{ flex:1; min-height:0; display:flex; flex-direction:column; padding:0 6px; }
 .tc-daybar{ padding:3px 2px 1px; }
+.tc-day{ min-width:0; }
+.tc-chiprow{ flex-wrap:wrap; row-gap:3px; }
+.tc-chiprow .tc-dm{ margin-left:auto; }
 .tc-seg{ flex:none; display:inline-flex; border:1px solid var(--tc-line); border-radius:15px; overflow:hidden; }
 .tc-seg button{ height:28px; padding:0 9px; border:none; background:transparent; color:var(--tc-sub); font-size:12px; font-weight:bold; cursor:pointer; }
 .tc-seg button.on{ background:var(--acc); color:#fff; }
@@ -233,11 +246,12 @@ body.dark .tc-modal{ --tc-line:rgba(150,170,210,.28); --tc-line2:rgba(150,170,21
 .tc-list{ display:grid; grid-template-columns:repeat(var(--n,1),minmax(0,1fr)); min-height:100%; }
 .tc-lcol{ border-left:1px solid var(--tc-line2); padding:4px; display:flex; flex-direction:column; gap:4px; min-width:0; }
 .tc-lcol:first-child{ border-left:none; }
-.tc-card{ display:flex; align-items:flex-start; gap:2px; border-left:3px solid var(--c); background:var(--bgc); border-radius:6px; min-width:0; }
+.tc-card{ position:relative; display:flex; align-items:flex-start; gap:2px; border-left:3px solid var(--c); background:var(--bgc); border-radius:6px; min-width:0; }
 .tc-card.past{ opacity:.6; }
 .tc-card.done .tc-cb{ text-decoration:line-through; opacity:.55; }
 .tc-cbtn{ flex:1; min-width:0; border:none; background:transparent; color:var(--tc-ink); text-align:left; padding:3px 6px 4px; cursor:pointer; }
-.tc-card .tc-ck{ margin-top:14px; }
+.tc-card .tc-ck{ position:absolute; top:1px; right:1px; width:20px; height:20px; font-size:13px; }
+.tc-card .tc-ck + .tc-cbtn .tc-ct{ padding-right:18px; }
 .tc-ct{ display:block; font-size:10.5px; font-weight:bold; color:var(--tc-sub); line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .tc-ct i{ display:inline-block; width:7px; height:7px; border-radius:50%; margin-left:3px; vertical-align:middle; }
 .tc-cb{ display:block; font-size:12.5px; font-weight:bold; line-height:1.3; overflow-wrap:anywhere; }
@@ -245,8 +259,9 @@ body.dark .tc-modal{ --tc-line:rgba(150,170,210,.28); --tc-line2:rgba(150,170,21
 .tc-lnow{ position:relative; height:2px; background:#e53935; margin:2px 0 2px 5px; flex:none; }
 .tc-lnow::before{ content:''; position:absolute; left:-5px; top:-4px; width:10px; height:10px; border-radius:50%; background:#e53935; }
 .tc-lnone{ font-size:11px; color:var(--tc-sub); text-align:center; padding:6px 0; }
-.tc-ladd{ display:flex; gap:4px; }
-.tc-ladd .tc-madd{ flex:1; min-width:0; }
+.tc-ladd{ display:flex; flex-wrap:wrap; gap:4px; }
+.tc-ladd .tc-madd{ flex:1 1 42px; min-width:0; white-space:nowrap; padding:0 2px; }
+.tc-cbtn{ padding:3px 5px 4px; }
 .tc-chips{ flex:none; display:flex; gap:5px; overflow-x:auto; padding:3px 2px 5px; scrollbar-width:none; }
 .tc-chips::-webkit-scrollbar{ display:none; }
 .tc-chip{ flex:none; height:26px; padding:0 10px 0 8px; border-radius:13px; border:1.5px solid var(--c); background:var(--bgc);
@@ -313,6 +328,7 @@ body.dark .tc-plus{ color:var(--acc-text,#7cc68b); border-color:var(--acc-text,#
   .tc-split::before{ left:5px; right:auto; top:0; bottom:0; width:1px; height:auto; }
   .tc-split::after{ left:4px; top:50%; width:4px; height:40px; margin:-20px 0 0; }
   .tc-day{ padding:4px 8px 0 2px; }
+  .tc-daybar{ flex-wrap:wrap; row-gap:3px; }
 }
 @media (min-width:900px){ .tc-cal,.tc-body.sv .tc-cal:not(.fold){ padding:8px 12px; } }
 /* 入力画面・メモ一覧・さがす・設定 */
@@ -659,9 +675,25 @@ function tcRenderCal(){
     const cls=['tc-d', w===0?'sun':'', w===6?'sat':'', hol?'hol':'', ds===today?'today':'', ds===tcSel?'sel':'',
       (!fold && d.getMonth()+1!==tcMon.m)?'out':''].filter(Boolean).join(' ');
     const lb=(d.getMonth()+1)+'月'+d.getDate()+'日 '+TC_WD[w]+'曜'+(hol?' '+hol:'')+(its.length?' '+its.length+'件':'');
-    h+=`<button class="${cls}" onclick="tcPick('${ds}')" aria-label="${tcEsc(lb)}"${hol?` title="${tcEsc(hol)}"`:''}><span class="tc-dn">${d.getDate()}</span><span class="tc-dots">${dots}</span></button>`;
+    const shown=its.filter(it=>it.roles.some(id=>!tc.ui.hidden.includes(id)))
+      .sort((a,b)=>(a.kind==='memo')-(b.kind==='memo') || (b.allDay?1:0)-(a.allDay?1:0) || String(a.start||'').localeCompare(String(b.start||'')) || a.cre-b.cre);
+    const tts=shown.slice(0,8).map(it=>{ const r=tc.roles.find(x=>it.roles.includes(x.id) && !tc.ui.hidden.includes(x.id)), c=r?r.color:'#888';
+      return `<i class="${it.kind==='memo' && tcDoneOn(it, ds)?'dn':''}" style="--c:${c};--bgc:${tcTint(c,.16)}">${tcEsc(it.title||'（件名なし）')}</i>`; }).join('');
+    h+=`<button class="${cls}" onclick="tcPick('${ds}')" aria-label="${tcEsc(lb)}"${hol?` title="${tcEsc(hol)}"`:''}><span class="tc-dn">${d.getDate()}</span><span class="tc-dots">${dots}</span><span class="tc-dts" aria-hidden="true">${tts}</span></button>`;
   }
   document.getElementById('tcGrid').innerHTML=h;
+  tcFitCalTitles();
+}
+/* マスの高さが件名1行ぶん入る大きさなら、件名を出す（なければ点のまま） */
+function tcFitCalTitles(){
+  const g=document.getElementById('tcGrid'); if(!g) return;
+  const d=g.querySelector('.tc-d'); if(!d) return;
+  const h=d.getBoundingClientRect().height;
+  if(h>0) g.classList.toggle('tt', h>=34);
+  if(!g._tcRO && typeof ResizeObserver!=='undefined'){
+    g._tcRO=new ResizeObserver(()=>{ requestAnimationFrame(tcFitCalTitles); });
+    g._tcRO.observe(g);
+  }
 }
 function tcRenderDay(){
   document.getElementById('tcDayTitle').textContent=tcMD(tcSel)+(tcSel===tcTodayIso()?' 今日':'');
