@@ -75,7 +75,7 @@ function tcClean(o){
   const u=(o.ui && typeof o.ui==='object') ? o.ui : {};
   const ui={ view:['split','merge','group'].includes(u.view)?u.view:'split',
     hidden:Array.isArray(u.hidden) ? u.hidden.filter(id=>ids.includes(id)) : [],
-    wkStart:u.wkStart===1?1:0, confirm:u.confirm===true, calCollapsed:u.calCollapsed===true,
+    wkStart:u.wkStart===1?1:0, confirm:u.confirm===true, calCollapsed:u.calCollapsed===true, dayMode:u.dayMode==='list'?'list':'time',
     lastRole:ids.includes(u.lastRole)?u.lastRole:ids[0],
     splitH:tcSplitVal('h', u.splitH), splitV:tcSplitVal('v', u.splitV) };
   if(ui.hidden.length>=ids.length) ui.hidden=[];      // 全部かくれていたら出す
@@ -222,6 +222,30 @@ body.dark .tc-modal{ --tc-line:rgba(150,170,210,.28); --tc-line2:rgba(150,170,21
 .tc-seg{ flex:none; display:inline-flex; border:1px solid var(--tc-line); border-radius:15px; overflow:hidden; }
 .tc-seg button{ height:28px; padding:0 9px; border:none; background:transparent; color:var(--tc-sub); font-size:12px; font-weight:bold; cursor:pointer; }
 .tc-seg button.on{ background:var(--acc); color:#fff; }
+.tc-chiprow{ flex:none; display:flex; align-items:center; gap:6px; min-width:0; }
+.tc-chiprow .tc-chips{ flex:1; min-width:0; }
+.tc-dm button{ padding:0 8px; white-space:nowrap; }
+.tc-cols.lm .tc-row{ grid-template-columns:repeat(var(--n,1),minmax(0,1fr)); }
+.tc-cols.lm .tc-colhead > div:first-child{ display:none; }
+.tc-cols.lm .tc-colhead > div:nth-child(2){ border-left:none; }
+.tc-cols.lm .tc-memorow{ display:none; }
+.tc-list{ display:grid; grid-template-columns:repeat(var(--n,1),minmax(0,1fr)); min-height:100%; }
+.tc-lcol{ border-left:1px solid var(--tc-line2); padding:4px; display:flex; flex-direction:column; gap:4px; min-width:0; }
+.tc-lcol:first-child{ border-left:none; }
+.tc-card{ display:flex; align-items:flex-start; gap:2px; border-left:3px solid var(--c); background:var(--bgc); border-radius:6px; min-width:0; }
+.tc-card.past{ opacity:.6; }
+.tc-card.done .tc-cb{ text-decoration:line-through; opacity:.55; }
+.tc-cbtn{ flex:1; min-width:0; border:none; background:transparent; color:var(--tc-ink); text-align:left; padding:3px 6px 4px; cursor:pointer; }
+.tc-card .tc-ck{ margin-top:14px; }
+.tc-ct{ display:block; font-size:10.5px; font-weight:bold; color:var(--tc-sub); line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tc-ct i{ display:inline-block; width:7px; height:7px; border-radius:50%; margin-left:3px; vertical-align:middle; }
+.tc-cb{ display:block; font-size:12.5px; font-weight:bold; line-height:1.3; overflow-wrap:anywhere; }
+.tc-cn2{ display:block; font-size:11px; color:var(--tc-sub); line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tc-lnow{ position:relative; height:2px; background:#e53935; margin:2px 0 2px 5px; flex:none; }
+.tc-lnow::before{ content:''; position:absolute; left:-5px; top:-4px; width:10px; height:10px; border-radius:50%; background:#e53935; }
+.tc-lnone{ font-size:11px; color:var(--tc-sub); text-align:center; padding:6px 0; }
+.tc-ladd{ display:flex; gap:4px; }
+.tc-ladd .tc-madd{ flex:1; min-width:0; }
 .tc-chips{ flex:none; display:flex; gap:5px; overflow-x:auto; padding:3px 2px 5px; scrollbar-width:none; }
 .tc-chips::-webkit-scrollbar{ display:none; }
 .tc-chip{ flex:none; height:26px; padding:0 10px 0 8px; border-radius:13px; border:1.5px solid var(--c); background:var(--bgc);
@@ -429,7 +453,8 @@ function tcEnsureDom(){
             <button data-v="split" onclick="tcSetView('split')">分ける</button><button data-v="merge" onclick="tcSetView('merge')">まとめる</button><button data-v="group" onclick="tcSetView('group')">組合せ</button>
           </span>
         </div>
-        <div class="tc-chips" id="tcChips" role="group" aria-label="出す業務"></div>
+        <div class="tc-chiprow"><div class="tc-chips" id="tcChips" role="group" aria-label="出す業務"></div>
+          <span class="tc-seg tc-dm" id="tcDayModeSeg" role="group" aria-label="1日の見せ方"><button data-m="time" onclick="tcSetDayMode('time')" title="時間の目に予定を置く">🕘時間</button><button data-m="list" onclick="tcSetDayMode('list')" title="時間の目なしで、順番に並べる">☰個別</button></span></div>
         <div class="tc-cols" id="tcCols">
           <div class="tc-row tc-colhead" id="tcColHead"></div>
           <div class="tc-row tc-memorow" id="tcMemoRow"></div>
@@ -521,7 +546,7 @@ function openTecho(){
   tcBindSplit();
   tcRender();
   clearInterval(tcNowTimer);
-  tcNowTimer=setInterval(()=>{ if(isDlgOpen('techoOverlay')) tcPlaceNow(); }, 60000);
+  tcNowTimer=setInterval(()=>{ if(!isDlgOpen('techoOverlay')) return; if(tc.ui.dayMode==='list'){ if(tcSel===tcTodayIso()){ const sc=document.getElementById('tcScroll'), t=sc?sc.scrollTop:0; tcRenderDay(); if(sc) sc.scrollTop=t; } } else tcPlaceNow(); }, 60000);
 }
 function tcOnClosed(){
   tcStopListen(); clearInterval(tcNowTimer); tcNowTimer=null; tcHideSnack();
@@ -650,7 +675,10 @@ function tcRenderDay(){
   wrap.style.setProperty('--n', n); wrap.style.setProperty('--h', H+'px');
   document.getElementById('tcColHead').innerHTML='<div></div>'+cols.map(c=>
     `<div>${c.roles.map(r=>`<i style="--c:${r.color}"></i>`).join('')}<span class="tc-cn">${tcEsc(c.name)}</span></div>`).join('');
-  const its=tcItemsOn(tcSel, true);
+  const its=tcItemsOn(tcSel, true), lm=tc.ui.dayMode==='list';
+  wrap.classList.toggle('lm', lm);
+  document.querySelectorAll('#tcDayModeSeg button').forEach(b=>{ const on=b.dataset.m===(lm?'list':'time'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  if(lm){ tcRenderList(cols, its); return; }
   // メモと終日の予定
   let mh='<div class="tc-lab">メモ<br>終日</div>';
   cols.forEach((c, ci)=>{
@@ -687,6 +715,45 @@ function tcRenderDay(){
   tg.innerHTML=cols.length ? hh : '<div class="tc-empty">出す業務がありません。上の業務を押して出してください。</div>';
   tcPlaceNow();
   if(tcShownDay!==tcSel){ tcShownDay=tcSel; tcScrollDay(its); }
+}
+/* 個別の見せ方：時間の目なしで、列ごとに 終日 → 時刻の順の予定 → メモ の順に並べ、頭の上に時刻を出す */
+function tcRenderList(cols, its){
+  document.getElementById('tcMemoRow').innerHTML='';
+  const today=tcSel===tcTodayIso(), nowM=today ? (()=>{ const n=tcNow(); return n.getHours()*60+n.getMinutes(); })() : -1;
+  const note=it=>{ const l=(it.note||'').split('\n').find(x=>x.trim()); return l ? `<span class="tc-cn2">${tcEsc(l.trim())}</span>` : ''; };
+  let h='<div class="tc-list">';
+  cols.forEach((c, ci)=>{
+    const mine=its.filter(it=>it.roles.some(id=>c.ids.includes(id)));
+    const ad=mine.filter(it=>it.kind==='ev' && it.allDay).sort((a,b)=>a.cre-b.cre);
+    const tm=mine.filter(it=>it.kind==='ev' && !it.allDay).sort((a,b)=>a.start.localeCompare(b.start) || a.end.localeCompare(b.end) || a.cre-b.cre);
+    const mm=mine.filter(it=>it.kind==='memo').sort((a,b)=>tcDoneOn(a,tcSel)-tcDoneOn(b,tcSel) || a.cre-b.cre);
+    const card=(it, head, past)=>{
+      const cs=tcColOf(it, c.ids), c0=cs[0]||'#888';
+      const more=cs.slice(1).map(x=>`<i style="background:${x}"></i>`).join('');
+      const memo=it.kind==='memo', dn=memo && tcDoneOn(it, tcSel);
+      return `<div class="tc-card${past?' past':''}${dn?' done':''}" data-id="${it.id}" style="--c:${c0};--bgc:${tcTint(c0, memo?.12:.18)}">`
+        +(memo ? `<button class="tc-ck" onclick="tcToggleDone('${it.id}','${tcSel}')" aria-label="${dn?'済みをやめる':'済みにする'}">${dn?'☑':'☐'}</button>` : '')
+        +`<button class="tc-cbtn" onclick="tcOpenItem('${it.id}','${tcSel}')"><span class="tc-ct">${head}${it.rep?' ↻':''}${more}</span>`
+        +`<span class="tc-cb">${tcEsc(it.title||'（件名なし）')}</span>${note(it)}</button></div>`;
+    };
+    let b='';
+    ad.forEach(it=>{ b+=card(it, '終日', false); });
+    let nowDone=!today;
+    tm.forEach(it=>{
+      if(!nowDone && tcMin(it.start)>nowM){ b+='<div class="tc-lnow" role="img" aria-label="いま"></div>'; nowDone=true; }
+      b+=card(it, it.start+'〜'+it.end, today && tcMin(it.end)<=nowM);
+    });
+    if(!nowDone && tm.length) b+='<div class="tc-lnow" role="img" aria-label="いま"></div>';
+    mm.forEach(it=>{ b+=card(it, 'メモ', false); });
+    if(!mine.length) b+='<div class="tc-lnone">予定・メモなし</div>';
+    b+=`<div class="tc-ladd"><button class="tc-madd" onclick="tcNewItem('ev','${tcSel}',${ci})" aria-label="${tcEsc(c.name)}に予定を足す">＋予定</button><button class="tc-madd" onclick="tcNewItem('memo','${tcSel}',${ci})" aria-label="${tcEsc(c.name)}にメモを足す">＋メモ</button></div>`;
+    h+=`<div class="tc-lcol">${b}</div>`;
+  });
+  h+='</div>';
+  const tg=document.getElementById('tcTGrid');
+  tg.style.height='';
+  tg.innerHTML=cols.length ? h : '<div class="tc-empty">出す業務がありません。上の業務を押して出してください。</div>';
+  if(tcShownDay!==tcSel){ tcShownDay=tcSel; const sc=document.getElementById('tcScroll'); if(sc) sc.scrollTop=0; }
 }
 /* 重なった予定を、列の中で横に並べる */
 function tcLayout(evs){
@@ -737,6 +804,10 @@ function tcToggleFold(){
   tc.ui.calCollapsed=!tc.ui.calCollapsed; tcSave();
   if(!tc.ui.calCollapsed) tcMon={y:+tcSel.slice(0,4), m:+tcSel.slice(5,7)};
   tcRender();
+}
+/* 1日の見せ方：time＝時間の目に置く（前から）／list＝個別（時間の目なしで順番に並べ、頭の上に時刻） */
+function tcSetDayMode(m){
+  tc.ui.dayMode=m==='list'?'list':'time'; tcShownDay=''; tcSave(); tcRenderDay();
 }
 function tcSetView(v){
   if(!['split','merge','group'].includes(v)) return;
