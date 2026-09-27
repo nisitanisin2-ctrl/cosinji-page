@@ -745,6 +745,7 @@ body.np-side.numpad-compact .numpad-grid .btn { font-size: 0 !important; }
 .prn-go > * { flex: 1; margin: 0; }
 #tbPrOpen small { display: block; font-weight: normal; font-size: 11px; color: var(--text-light); margin-top: 2px; }
 .more-grid.more-tools { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.tools-pick-btn { width: 100%; margin-top: 10px; }
 .more-tools .more-item { padding: 9px 8px; font-size: 13px; gap: 6px; }
 .more-tools .more-item span { font-size: 16px; }
 .more-item.more-danger { border-color: var(--danger); color: var(--danger); }
@@ -3602,6 +3603,7 @@ body.dark {
     </div>
     <div class="modal-body">
       <div class="more-grid more-tools" id="toolsListGrid"></div>
+      <button class="set-act tools-pick-btn" onclick="openToolsBtnSettings()">⚙ 並べる道具を選ぶ</button>
     </div>
   </div>
 </div>
@@ -3819,6 +3821,9 @@ body.dark {
     <div class="set-sec">テンキーの上に出す道具</div>
     <div class="set-note">全画面で開く<b>道具</b>を、テンキーの上の<b>ページ名の並び</b>（書式・枠線／数字／記号／電卓）に足せます。<b>タップで開きます</b>。<b>電卓ページからさらに左へフリック</b>すると、いちばん上に並べた道具が開きます。<b>↑↓</b>で並び順を変えられます。</div>
     <div class="nptool-list" id="npToolList"></div>
+    <div class="set-sec" id="toolsBtnSec">🧰道具ボタンに出す道具</div>
+    <div class="set-note"><b>🧰道具</b>ボタン（▲マイキーやテンキーの長押しに割り当てたもの）を押したときに並べる道具を選びます。<b>☑の道具だけ</b>が並びます。⋯ の「🧰道具」には、これまでどおり全部出ます。</div>
+    <div class="nptool-list" id="toolsBtnList"></div>
       </div>
     </details>
     <details class="set-grp" id="setGrpScreen" ontoggle="saveSetGrp(this)">
@@ -8755,6 +8760,14 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v434', t:'🧰道具ボタンに並べる道具を選べる', li:[
+    '▲マイキーなどに割り当てた <b>🧰道具</b> ボタンで並べる道具を、⚙設定の <b>「🧰道具ボタンに出す道具」</b>で選べるようにしました（道具の窓の「⚙ 並べる道具を選ぶ」からも行けます）',
+  ]},
+  { v:'v433', t:'📔業務手帳', li:[
+    '新しい道具 <b>📔業務手帳</b>：営業・工場・品質管理のような<b>業務ごとに予定とメモを分けたり、まとめたり</b>して見る手帳です。上に月のカレンダー、下にその日の予定を業務ごとの列で出します',
+    '<b>「明日10時 営業 A社訪問」</b>と声（🎤）や文で言うと、日付・時刻・業務・件名に分けてすぐ登録します。くり返しの予定・メモ一覧・さがす・印刷・CSV もあります',
+    '⋯ → 🧰道具、🧰道具キー、テンキーの上の道具、はじめに開くページ から開けます',
+  ]},
   { v:'v432', t:'iPhone の下の隙間（その2）', li:[
     'v431 で直らなかった iPhone（SE など）のテンキーの下の隙間を、画面の実際の大きさに合わせて直しました',
   ]},
@@ -10930,6 +10943,7 @@ const KEY_FUNCS={
   a_veggie:{g:'設定・機能',label:'🌱野菜',short:'野菜',run:()=>openVeggie()},
   a_linklist:{g:'設定・機能',label:'🔗リンク集',short:'リンク',run:()=>openLinkList()},
   a_touban:{g:'設定・機能',label:'📅当番表',short:'当番',run:()=>openTouban()},
+  a_techo:{g:'設定・機能',label:'📔業務手帳',short:'手帳',run:()=>openTecho()},   // v433
   a_tools:{g:'設定・機能',label:'🧰道具',short:'道具',run:()=>openToolsList()},   // 道具の一覧を開く（v429）
   a_memo:{g:'設定・機能',label:'📄メモ',short:'メモ',run:()=>openNotesApp()},
   a_kaikei:{g:'設定・機能',label:'🧾会計アプリ',short:'会計',run:()=>openKaikeiApp()},
@@ -13261,6 +13275,31 @@ const openPhotoMemoLoader=function(...a){
   });
 };
 window.openPhotoMemo=openPhotoMemoLoader;
+/* ── 📔業務手帳（v433。techo.js に分けてある）──
+   営業・工場・品質管理のような業務ごとに、予定とメモを分けたり、まとめたりして見る手帳。
+   処理も画面（HTML・CSS）も techo.js が持ち、はじめて開いたときに script タグで読んで差し込む。
+   読み込むと techo.js の openTecho / closeTecho が、ここの読み込み役と入れかわる。 */
+let techoPartLoading=null;
+function loadTechoPart(){
+  if(window.TECHO_PART_LOADED) return Promise.resolve(true);
+  if(techoPartLoading) return techoPartLoading;
+  techoPartLoading=new Promise(res=>{
+    const sc=document.createElement('script');
+    sc.src='techo.js';
+    sc.onload=()=>{ window.TECHO_PART_LOADED=true; techoPartLoading=null; res(true); };
+    sc.onerror=()=>{ techoPartLoading=null; sc.remove(); res(false); };
+    document.head.appendChild(sc);
+  });
+  return techoPartLoading;
+}
+const openTechoLoader=function(...a){
+  return loadTechoPart().then(ok=>{
+    if(!ok){ toast('業務手帳を読み込めませんでした。インターネットにつながるところで、一度アプリを開き直してください'); return; }
+    if(window.openTecho!==openTechoLoader) return window.openTecho(...a);
+  });
+};
+window.openTecho=openTechoLoader;
+window.closeTecho=function(){};                    // 読み込む前は開いていない
 /* 声の計算帳と共通の「いろいろな言い方」（koe/phrase.js。v424）。
    電卓で声を使うときのために、起動が落ち着いてから読んでおく（file:// でも読める） */
 let koePhraseLoading=null;
@@ -13656,6 +13695,7 @@ const NP_TOOLS=[
   {id:'photomemo',label:'📝写真メモ',   ov:'photoMemoOverlay', run:()=>openPhotoMemo(),close:()=>closePhotoMemo()},
   {id:'linklist', label:'🔗リンク集',   ov:'linkListOverlay',  run:()=>openLinkList(), close:()=>closeLinkList()},
   {id:'touban',   label:'📅当番表',     ov:'toubanOverlay',    run:()=>openTouban(),   close:()=>closeTouban()},
+  {id:'techo',    label:'📔業務手帳',   ov:'techoOverlay',     run:()=>openTecho(),    close:()=>closeTecho()},    // techo.js（開いたときに読む。v433）
   {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},                        // 別のアプリとして開くので全画面・フリックの対象外
   {id:'calctmpl', label:'📋式テンプレ', ov:'calcTmplOverlay',  run:()=>openCalcTmpl(), close:()=>closeCalcTmpl()},
   {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
@@ -14161,6 +14201,7 @@ function renderNumpadPageBar(){
 (function setupNumpadPageBar(){
   const bar=document.getElementById('numpadPageBar'); if(!bar) return;
   loadNpTools(); renderNpToolList(); applyNpToolFull(); bindAllNpToolSwipe();
+  loadToolsBtn(); renderToolsBtnList();
   bar.addEventListener('click', e=>{
     const b=e.target.closest && e.target.closest('.np-page'); if(!b) return;
     if(b.dataset.nptool){ npToolRun(b.dataset.nptool); return; }   // 道具のタブは開くだけ（ページは動かさない）
@@ -20003,8 +20044,9 @@ function openMoreMenu(){ renderMoreTools(); applyMoreAcc(); openDlg('moreMenuOve
 /* ⋯の「🧰道具」（v398）。NP_TOOLS から作るので、道具を足せば自動でここにも並ぶ */
 const toolLabelSplit=l=>{ const m=/^(\p{Extended_Pictographic}\uFE0F?)(.*)$/u.exec(l); return m?[m[1],m[2]]:['🧰',l]; };
 /* 道具のボタンを並べる。doer は押したときに先に窓を閉じてから実行する役（moreDo／toolsListDo） */
-function toolButtonsHtml(doer){
-  return NP_TOOLS.map((t,i)=>{ const [ic,tx]=toolLabelSplit(t.label);
+function toolButtonsHtml(doer, onlyBtn){
+  return NP_TOOLS.map((t,i)=>{
+    if(onlyBtn && toolsBtnHidden.includes(t.id)) return ''; const [ic,tx]=toolLabelSplit(t.label);
     return '<button class="more-item" data-tool="'+t.id+'" onclick="'+doer+'(NP_TOOLS['+i+'].run)"'+
       (t.ov?'':' title="別のアプリとして開きます（「戻る」で表電卓に帰れます）"')+'><span>'+ic+'</span>'+escHtml(tx)+(t.ov?'':' ↗')+'</button>'; }).join('');
 }
@@ -20019,12 +20061,50 @@ function closeMoreMenu(){ closeDlg('moreMenuOverlay'); }
 /* 🧰道具の一覧の窓（v429）。マイキー・長押しの割り当て「🧰道具」から開く。中身は ⋯ の「🧰道具」と同じ */
 function openToolsList(){
   const g=document.getElementById('toolsListGrid'); if(!g) return;
-  g.innerHTML=toolButtonsHtml('toolsListDo');
+  g.innerHTML=toolButtonsHtml('toolsListDo', true);
   openDlg('toolsListOverlay');
   guardAfterOpen('toolsListOverlay');   // 長押しの指を離した分で閉じないように
   bindBackdropClose('toolsListOverlay', closeToolsList);
 }
 function closeToolsList(){ closeDlg('toolsListOverlay'); }
+/* 🧰道具ボタンに並べる道具（v434）。隠した道具を覚える（あとから足した道具は、はじめから並ぶ） */
+var TOOLSBTN_KEY='excalc_toolsbtn_hide';   // var：起動の途中（この行より前）で読むため
+var toolsBtnHidden=toolsBtnHidden||[];
+function loadToolsBtn(){ toolsBtnHidden=loadList('excalc_toolsbtn_hide').filter(id=>npToolDef(id)); }
+function toolsBtnToggle(id){
+  if(!npToolDef(id)) return;
+  const i=toolsBtnHidden.indexOf(id);
+  if(i>=0) toolsBtnHidden.splice(i,1);
+  else {
+    if(NP_TOOLS.length-toolsBtnHidden.length<=1){ toast('ひとつは並べておきます'); return; }
+    toolsBtnHidden.push(id);
+  }
+  saveList(TOOLSBTN_KEY, toolsBtnHidden); renderToolsBtnList();
+  if(isDlgOpen('toolsListOverlay')) document.getElementById('toolsListGrid').innerHTML=toolButtonsHtml('toolsListDo', true);
+}
+function toolsBtnAll(){ toolsBtnHidden=[]; saveList(TOOLSBTN_KEY, toolsBtnHidden); renderToolsBtnList(); }
+function renderToolsBtnList(){
+  const box=document.getElementById('toolsBtnList'); if(!box) return;
+  box.innerHTML=NP_TOOLS.map(t=>{
+    const on=!toolsBtnHidden.includes(t.id);
+    return `<div class="nptool-row"><button class="nptool-btn${on?' on':''}" data-toolbtn="${t.id}" onclick="toolsBtnToggle('${t.id}')" aria-pressed="${on}">`
+      +`<span class="nptool-chk">${on?'☑':'☐'}</span>${escHtml(t.label)}</button></div>`;
+  }).join('')+(toolsBtnHidden.length?`<div class="nptool-row"><button class="nptool-btn" onclick="toolsBtnAll()">↺ ぜんぶ並べる</button></div>`:'');
+}
+/* 道具の窓から、設定の「🧰道具ボタンに出す道具」へ移る */
+function openToolsBtnSettings(){
+  closeToolsList();
+  if(!isDlgOpen('settingsPanel')) toggleSettings();
+  const el=document.getElementById('toolsBtnSec'); if(!el) return;
+  const page=el.closest('[id^="setPage"]'); if(page) setSettingsTab(+page.id.replace('setPage',''));
+  for(let d=el.parentElement; d; d=d.parentElement){ if(d.tagName==='DETAILS') d.open=true; }
+  renderToolsBtnList();
+  requestAnimationFrame(()=>{
+    try{ el.scrollIntoView({block:'start', behavior:'smooth'}); }catch(_){ el.scrollIntoView(); }
+    el.classList.remove('set-flash'); void el.offsetWidth; el.classList.add('set-flash');
+    setTimeout(()=>el.classList.remove('set-flash'), 1800);
+  });
+}
 /* moreDo と同じく、閉じたすぐあと（同じ流れの中）で開く。「戻る」の履歴が打ち消し合うように */
 function toolsListDo(fn){
   closeToolsList();
@@ -20197,7 +20277,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v432';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v434';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -21830,6 +21910,7 @@ const ST_GROUPS=[
   {k:'excalc_skin_photo', n:'背景の写真',           how:'clear'},
   {k:'excalc_touban',     n:'当番表'},
   {k:'excalc_touban_saves', n:'保存した当番表'},
+  {k:'excalc_techo',      n:'業務手帳'},
   {k:'excalc_links',      n:'リンク集'},
   {k:'excalc_userkeys',   n:'マイキー'},
   {k:'excalc_custommodes',n:'用途の一覧に登録したもの'},
@@ -22011,7 +22092,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_numpad_landw','excalc_numscale','excalc_pagebar','excalc_pdf_settings','excalc_pm_custom_colors','excalc_pm_phrases',
   'excalc_pm_prefs','excalc_prn','excalc_savesort','excalc_savetabnames','excalc_saveview','excalc_show_resizerbar',
   'excalc_show_sheettabs','excalc_skin','excalc_speechauto','excalc_speechlayout','excalc_speechspeak','excalc_startpage',
-  'excalc_sumfunc','excalc_taxrate','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
+  'excalc_sumfunc','excalc_taxrate','excalc_toolsbtn_hide','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
   'excalc_ts_warn','excalc_userkeys',
 ];
 function settingsBundle(){
@@ -22031,6 +22112,34 @@ function restoreSettingsBundle(o){
 }
 /* 🎙声の計算帳のデータ（同じサイトの koe_*）も書き出しに入れる（v425）。
    家計簿・名前を付けた数・設定・会話・うまくいかなかった言葉。読み込むときは聞く */
+/* 📔業務手帳のデータ（v433）。techo.js を読んでいなくても、書き出し・読み込みで受け渡せるようにここに置く */
+const TECHO_KEY='excalc_techo';
+function techoBundle(){
+  try{ const o=JSON.parse(localStorage.getItem(TECHO_KEY)||'null'); return (o && typeof o==='object' && Array.isArray(o.items)) ? o : null; }catch(_){ return null; }
+}
+function techoCount(){ const o=techoBundle(); return o ? o.items.length : 0; }
+/* 読み込んだ業務手帳を、いまの中身に足す（予定・メモ・業務は id で見分ける。同じ id は新しい方）。足した・新しくした件数を返す */
+function techoMergeBundle(inc){
+  if(!inc || typeof inc!=='object' || !Array.isArray(inc.items)) return 0;
+  let cur=techoBundle();
+  if(!cur) cur={v:1, roles:Array.isArray(inc.roles)?inc.roles.slice():[], items:[], ui:(inc.ui&&typeof inc.ui==='object')?inc.ui:{}};
+  else {
+    if(!Array.isArray(cur.roles)) cur.roles=[];
+    const ids=new Set(cur.roles.map(r=>r&&r.id));
+    (Array.isArray(inc.roles)?inc.roles:[]).forEach(r=>{ if(r && typeof r.id==='string' && !ids.has(r.id)){ cur.roles.push(r); ids.add(r.id); } });
+  }
+  const at=new Map(); cur.items.forEach((it,i)=>{ if(it && typeof it.id==='string') at.set(it.id, i); });
+  let n=0;
+  inc.items.forEach(it=>{
+    if(!it || typeof it!=='object' || typeof it.id!=='string') return;
+    if(at.has(it.id)){ const i=at.get(it.id); if((+it.upd||0)>(+(cur.items[i]||{}).upd||0)){ cur.items[i]=it; n++; } }
+    else { at.set(it.id, cur.items.length); cur.items.push(it); n++; }
+  });
+  if(!n && techoBundle()) return 0;
+  try{ localStorage.setItem(TECHO_KEY, JSON.stringify(cur)); }catch(_){ toast('端末の空きが足りず、業務手帳を読み込めませんでした'); return 0; }
+  if(typeof window.tcReload==='function') window.tcReload();
+  return n;
+}
 const KOE_BACKUP_KEYS=['koe_book','koe_vars','koe_settings','koe_state','koe_misses','koe_catbudget'];
 function koeBundle(){
   const o={}; let n=0;
@@ -22052,7 +22161,7 @@ function settingsBundleCount(o){ return (o && typeof o==='object') ? SETTINGS_BA
 /* 保存データをJSONファイルに書き出し（別端末への移動・バックアップ用） */
 async function exportSaves() {
   const saves=getSaves();
-  if(saves.length===0 && !koeBundle()){ alert('保存データがありません'); return; }
+  if(saves.length===0 && !koeBundle() && !techoCount()){ alert('保存データがありません'); return; }
   // 野菜の日記に写真があれば、いっしょに持っていくか聞く（v374）
   const pics=vegPicBytes();
   let withPics=false;
@@ -22067,7 +22176,8 @@ async function exportSaves() {
                   veg:vegBundle(withPics), vegPics:withPics,
                   touban:tbBundle(),     // 当番表（いまの分と、保存した分）も入れる（v406）
                   settings:settingsBundle(),     // 設定（色・テンキーの配置・マイキー・リンク集など）も入れる（v419）
-                  koe:koeBundle() };             // 🎙声の計算帳の家計簿なども入れる（v425）
+                  koe:koeBundle(),               // 🎙声の計算帳の家計簿なども入れる（v425）
+                  techo:techoBundle() };         // 📔業務手帳の予定・メモ・業務（v433）
   const blob=new Blob([JSON.stringify(payload)],{type:'application/json;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
   const a=Object.assign(document.createElement('a'),{
@@ -22076,7 +22186,7 @@ async function exportSaves() {
   });
   a.click(); URL.revokeObjectURL(url);
   markBackedUp();                       // 端末の外に出せた日を覚えておく
-  if(typeof toast==='function') toast('保存データを書き出しました（'+saves.length+'件'+(payload.koe?'／声の計算帳も':'')
+  if(typeof toast==='function') toast('保存データを書き出しました（'+saves.length+'件'+(payload.koe?'／声の計算帳も':'')+(payload.techo?'／業務手帳も':'')
     +(pics>0?(withPics?'／日記の写真ごと':'／日記の写真はぬき'):'')+'／設定も入れました）');
   renderSaveStateBanner();
 }
@@ -22093,11 +22203,13 @@ function importSaves(ev) {
     catch(e){ alert('読み込みに失敗しました：ファイルを解析できません'); return; }
     // 声の計算帳だけで書き出したファイル（type:'koe'）も受け取る（v425）
     const koeIn=parsed && (parsed.type==='koe' ? parsed.data : parsed.koe);
+    // 業務手帳だけで書き出したファイル（type:'techo'）も受け取る（v433）
+    const techoIn=parsed && (parsed.type==='techo' ? parsed.data : parsed.techo);
     const incoming=Array.isArray(parsed)?parsed
-      :(parsed && Array.isArray(parsed.saves)?parsed.saves:(koeIn?[]:null));
+      :(parsed && Array.isArray(parsed.saves)?parsed.saves:((koeIn||techoIn)?[]:null));
     if(!incoming){ alert('保存データの形式ではありません'); return; }
     const valid=incoming.filter(s=>s && Array.isArray(s.data));
-    if(valid.length===0 && !koeIn){ alert('取り込める保存データが見つかりませんでした'); return; }
+    if(valid.length===0 && !koeIn && !techoIn){ alert('取り込める保存データが見つかりませんでした'); return; }
     const existing=getSaves();
     const usedIds=new Set(existing.map(s=>s.id));
     let added=0;
@@ -22113,7 +22225,9 @@ function importSaves(ev) {
     renderSaveList();
     // 当番表が入っていれば、当番表の保存の一覧に足す（いまの当番表は置きかえない。v406）
     const tbN=tbRestoreBundle(parsed && parsed.touban);
-    const tbMsg=tbN?`\n当番表 ${tbN}件は、当番表の 💾保存 の一覧に足しました`:'';
+    // 業務手帳が入っていれば、いまの中身に足す（同じものは重ならない。v433）
+    const tcN=techoMergeBundle(techoIn);
+    const tbMsg=(tbN?`\n当番表 ${tbN}件は、当番表の 💾保存 の一覧に足しました`:'')+(tcN?`\n業務手帳 ${tcN}件を足しました`:'');
     // 設定が入っていれば、最後に読み込むか聞く（v419）。読み込んだら開き直して効かせる
     const setN=settingsBundleCount(parsed && parsed.settings);
     const alertDone=async msg=>{
@@ -22151,7 +22265,7 @@ function importSaves(ev) {
       }, 60);
       return;
     }
-    alertDone(`${added}件の保存データを読み込みました`+tbMsg);
+    alertDone((added || !techoIn) ? `${added}件の保存データを読み込みました`+tbMsg : (tbMsg.trim()||'業務手帳に足すものはありませんでした（もう入っています）'));
   };
   reader.onerror=()=>alert('ファイルの読み込みに失敗しました');
   reader.readAsText(file);

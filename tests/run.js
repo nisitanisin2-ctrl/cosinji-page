@@ -1189,10 +1189,10 @@ async function runNpTools(browser) {
 
   check('  はじめは道具のタブを出さない', await bar(), '書式・枠線|数字|記号|電卓|▲ マイキー');
   check('  設定に選べる道具が並ぶ', await page.evaluate(() =>
-    document.querySelectorAll('#npToolList .nptool-row').length), 12);   // v422 で 🎙声の計算帳 を足した
+    document.querySelectorAll('#npToolList .nptool-row').length), 13);   // v422 で 🎙声の計算帳、v433 で 📔業務手帳 を足した
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,photomemo,linklist,touban,memo,calctmpl,fintmpl,kaikei,koe');
+    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,memo,calctmpl,fintmpl,kaikei,koe');
 
   // 会計アプリは、メモと同じく別のタブで開く別アプリ（全画面・フリックの対象外）
   check('  会計アプリはタブのタイトルつきで並ぶ', await page.evaluate(() =>
@@ -2905,11 +2905,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,calctmpl,fintmpl');
+    'last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 12);
+    document.getElementById('startPageSel').options.length), 13);
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'veggieOverlay', 'volumeOverlay',
@@ -7028,6 +7028,209 @@ async function runToolsKey(browser) {
   await page.click('#toolsListGrid [data-tool="touban"]'); await page.waitForTimeout(600);
   check('  押した道具が開き、一覧は閉じる', await page.evaluate(() => [getComputedStyle(document.getElementById('toubanOverlay')).display !== 'none',
     getComputedStyle(document.getElementById('toolsListOverlay')).display === 'none'].join('/')), 'true/true');
+  // v434：道具ボタンに並べる道具を設定で選ぶ
+  await page.evaluate(() => { closeTouban(); toolsBtnToggle('veggie'); toolsBtnToggle('kaikei'); });
+  check('  隠した道具は並ばない', await page.evaluate(() => { openToolsList(); const n = document.querySelectorAll('#toolsListGrid .more-item').length;
+    const v = !!document.querySelector('#toolsListGrid [data-tool=veggie]'); closeToolsList(); return (NP_TOOLS.length - n) + '/' + v; }), '2/false');
+  check('  覚える・⋯の道具には全部出る', await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_toolsbtn_hide')).join(',') + '/' + (renderMoreTools(), document.querySelectorAll('#moreToolsGrid .more-item').length === NP_TOOLS.length)), 'veggie,kaikei/true');
+  check('  設定の一覧に☑☐で出る', await page.evaluate(() => [...document.querySelectorAll('#toolsBtnList [data-toolbtn]')].filter(b => b.classList.contains('on')).length === NP_TOOLS.length - 2), true);
+  check('  ひとつは残す', await page.evaluate(() => { NP_TOOLS.forEach(t => { if (!toolsBtnHidden.includes(t.id)) toolsBtnToggle(t.id); }); return NP_TOOLS.length - toolsBtnHidden.length; }), 1);
+  await page.evaluate(() => { toolsBtnAll(); openToolsList(); openToolsBtnSettings(); }); await page.waitForTimeout(400);
+  check('  窓から設定へ移る', await page.evaluate(() => isDlgOpen('toolsListOverlay') + '/' + isDlgOpen('settingsPanel') + '/' + (document.getElementById('toolsBtnSec').offsetParent !== null) + '/' + toolsBtnHidden.length), 'false/true/true/0');
+  await page.evaluate(() => { toggleSettings(); toolsBtnToggle('koe'); });
+  await page.reload(); await page.waitForTimeout(900);
+  check('  開き直しても覚えている', await page.evaluate(() => toolsBtnHidden.join(',') + '/' + document.querySelector('#toolsBtnList [data-toolbtn=koe]').classList.contains('on')), 'koe/false');
+  check('  バックアップの設定に入る', await page.evaluate(() => SETTINGS_BACKUP_KEYS.includes('excalc_toolsbtn_hide')), true);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+/* v433：📔業務手帳（techo.js）。今日は 2026-09-25（金）10:20 に決めて確かめる */
+async function runTecho(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, acceptDownloads: true });
+  const page = await ctx.newPage();
+  const errs = []; page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+  page.on('dialog', d => d.accept());
+  await page.addInitScript(() => {
+    window.TECHO_TODAY = '2026-09-25T10:20:00';
+    window.__recs = [];
+    class FakeRec {
+      constructor() { this.on = false; this.list = []; window.__recs.push(this); }
+      start() { this.on = true; setTimeout(() => this.onstart && this.onstart(), 5); }
+      stop() { if (!this.on) return; this.on = false; if (this.pending) { this.say(this.pending, true); this.pending = null; } setTimeout(() => this.onend && this.onend(), 10); }
+      abort() { this.on = false; setTimeout(() => this.onend && this.onend(), 5); }
+      say(t, fin) { const r = [{ transcript: t }]; r.isFinal = !!fin; const lastOpen = this.list.length && !this.list[this.list.length - 1].isFinal;
+        const idx = lastOpen ? this.list.length - 1 : this.list.length; this.list[idx] = r; this.pending = fin ? null : t;
+        this.onresult && this.onresult({ resultIndex: idx, results: this.list }); }
+      cut() { this.on = false; this.onend && this.onend(); }
+    }
+    window.webkitSpeechRecognition = FakeRec; window.SpeechRecognition = FakeRec;
+  });
+  await page.goto(INDEX); await page.waitForTimeout(300);
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.reload(); await page.waitForTimeout(900);
+  console.log('\n── 📔業務手帳（v433） ──');
+  check('  道具に並ぶ', await page.evaluate(() => { const t = NP_TOOLS.find(x => x.id === 'techo'); return !!t && t.ov + '/' + t.label + '/' + KEY_FUNCS.a_techo.label + '/' + startPageOptions().some(o => o[0] === 'techo'); }), 'techoOverlay/📔業務手帳/📔業務手帳/true');
+  check('  開くまで techo.js は読まない', await page.evaluate(() => document.querySelectorAll('script[src="techo.js"]').length), 0);
+  await page.evaluate(() => openTecho()); await page.waitForTimeout(400);
+  check('  開くと1回だけ読む・画面が出る', await page.evaluate(() => isDlgOpen('techoOverlay') + '/' + document.querySelectorAll('script[src="techo.js"]').length), 'true/1');
+  check('  はじめの業務は3つ・分けると3列', await page.evaluate(() => tc.roles.map(r => r.name).join(',') + '/' + document.querySelectorAll('#tcTGrid .tc-tcol').length), '営業,工場,品質管理/3');
+  check('  月カレンダーは今日を選んでいる・祝日が赤', await page.evaluate(() => tcSel + '/' + document.querySelector('#tcGrid .tc-d.today.sel .tc-dn').textContent + '/' + [...document.querySelectorAll('#tcGrid .tc-d.hol')].map(b => b.textContent.replace(/\D/g, '')).join(',')), '2026-09-25/25/21,22,23');
+  const P = t => page.evaluate(t => { const x = tcParse(t, '2026-09-25'); return [x.kind, x.date, x.allDay ? '終日' : (x.start ? x.start + '-' + x.end : ''), x.rep ? x.rep.f + x.rep.n : '', x.roles.join('+'), x.title].join('|'); }, t);
+  const cases = [
+    ['明日の10時から11時 営業でA社訪問', 'ev|2026-09-26|10:00-11:00||sales|A社訪問'],
+    ['明日10時 営業 A社訪問の予定を入れて', 'ev|2026-09-26|10:00-11:00||sales|A社訪問'],
+    ['明後日の午後二時半から一時間 営業と品質管理の打ち合わせ', 'ev|2026-09-27|14:30-15:30||sales+qc|打ち合わせ'],
+    ['3時から品質会議', 'ev|2026-09-25|15:00-16:00||qc|品質会議'],
+    ['10月3日 午前10時 工場 設備点検', 'ev|2026-10-03|10:00-11:00||factory|設備点検'],
+    ['10/3 工場長と面談', 'ev|2026-10-03|終日||factory|工場長と面談'],
+    ['来週火曜 終日 工場 棚卸', 'ev|2026-09-29|終日||factory|棚卸'],
+    ['来週の月曜日 9時 朝礼', 'ev|2026-09-28|09:00-10:00||factory|朝礼'],
+    ['毎週月曜9時から工場で朝礼', 'ev|2026-09-28|09:00-10:00|w1|factory|朝礼'],
+    ['隔週水曜 15時 品質 会議', 'ev|2026-09-30|15:00-16:00|w2|qc|会議'],
+    ['毎月15日 営業 請求書を出す', 'memo|2026-10-15||m1|sales|請求書を出す'],
+    ['平日8時半 工場 始業点検', 'ev|2026-09-25|08:30-09:30|wd1|factory|始業点検'],
+    ['毎年 4月1日 入社式', 'ev|2027-04-01|終日|y1|sales|入社式'],
+    ['3日後 営業 B社に電話', 'memo|2026-09-28|||sales|B社に電話'],
+    ['15日 品質 メモ 校正の期限', 'memo|2026-10-15|||qc|校正の期限'],
+    ['見積を送る', 'memo|2026-09-25|||sales|見積を送る'],
+    ['クレーム対応でA社訪問 明日14時', 'ev|2026-09-26|14:00-15:00||sales+qc|クレーム対応でA社訪問'],
+    ['忘れずに 明日 安全書類を提出', 'memo|2026-09-26|||sales|安全書類を提出'],
+    ['十時から十一時 営業 定例', 'ev|2026-09-25|10:00-11:00||sales|定例'],
+    ['正午から 昼礼', 'ev|2026-09-25|12:00-13:00||sales|昼礼'],
+    ['午後3時から午後5時 研修', 'ev|2026-09-25|15:00-17:00||sales|研修'],
+    ['9:30-10:15 品管 検査の立会い', 'ev|2026-09-25|09:30-10:15||qc|検査の立会い'],
+    ['明日 一時停止の確認', 'memo|2026-09-26|||sales|一時停止の確認'],
+    ['月末 在庫の締め', 'memo|2026-09-30|||factory|在庫の締め'],
+    ['来月5日 営業 展示会', 'ev|2026-10-05|終日||sales|展示会'],
+    ['水曜 夕方6時 懇親会', 'ev|2026-09-30|18:00-19:00||sales|懇親会'],
+    ['今日の夜7時 QC 報告書', 'ev|2026-09-25|19:00-20:00||qc|報告書'],
+    ['12/24 営業 年末挨拶の予定を登録して', 'ev|2026-12-24|終日||sales|年末挨拶'],
+    ['明日の午後 客先へ納品', 'ev|2026-09-26|13:00-17:00||sales|客先へ納品'],
+    ['明日 16時から30分 工程会議', 'ev|2026-09-26|16:00-16:30||factory|工程会議'],
+    ['毎日 17時 日報', 'ev|2026-09-25|17:00-18:00|d1|sales|日報'],
+    ['2026年11月3日 工場 休み', 'ev|2026-11-03|終日||factory|休み'],
+    ['1週間後 品質管理 監査', 'ev|2026-10-02|終日||qc|監査'],
+    ['きのう 営業 日報を出した', 'memo|2026-09-24|||sales|日報を出した'],
+    ['今度の金曜 10時 営業 C社', 'ev|2026-10-02|10:00-11:00||sales|C社'],
+    ['来週 工場 レイアウト変更のメモ', 'memo|2026-09-28|||factory|レイアウト変更'],
+    ['朝8時 ライン立ち上げ', 'ev|2026-09-25|08:00-09:00||factory|ライン立ち上げ'],
+    ['1時から3時 営業 商談', 'ev|2026-09-25|13:00-15:00||sales|商談'],
+    ['10時から3時 工場 段取り替え', 'ev|2026-09-25|10:00-15:00||factory|段取り替え'],
+    ['明日10時半から2時間 品質 講習', 'ev|2026-09-26|10:30-12:30||qc|講習'],
+  ];
+  for (const [t, want] of cases) check('  読む：' + t, await P(t), want);
+  // すぐ登録（はじめ）：その日へ移り、知らせに直す・取り消し
+  await page.evaluate(() => { document.getElementById('tcAddIn').value = '明日10時から11時半 営業 A社訪問'; tcAddSubmit(); }); await page.waitForTimeout(200);
+  check('  文で入れるとすぐ登録してその日へ', await page.evaluate(() => tcSel + '/' + tc.items.length + '/' + JSON.parse(localStorage.getItem('excalc_techo')).items[0].title + '/' + !document.getElementById('tcSnack').hidden), '2026-09-26/1/A社訪問/true');
+  check('  分けた列の営業に、正しい高さで出る', await page.evaluate(() => { const cols = document.querySelectorAll('#tcTGrid .tc-tcol'); const b = cols[0].querySelector('.tc-ev'); return !!b && parseFloat(b.style.top) === 10 * tcHourPx() && cols[1].querySelectorAll('.tc-ev').length === 0; }), true);
+  await page.evaluate(() => tcSnackUndo()); await page.waitForTimeout(100);
+  check('  取り消しで消える', await page.evaluate(() => tc.items.length + '/' + document.querySelectorAll('#tcTGrid .tc-ev').length), '0/0');
+  // 確かめてから（設定）：入力画面に入って、保存で登録
+  await page.evaluate(() => { tcSetConfirm(true); tcRegisterText('明日14時から16時 クレーム対応で客先訪問'); }); await page.waitForTimeout(150);
+  check('  確かめてから：入力画面に入る', await page.evaluate(() => isDlgOpen('techoEditOverlay') + '/' + document.getElementById('tcEdT').value + '/' + document.getElementById('tcEdS').value + '/' + document.querySelectorAll('#tcEdRoles .tc-chip:not(.off)').length + '/' + document.getElementById('tcEdHeard').textContent), 'true/クレーム対応で客先訪問/14:00/2/聞き取った言葉：「明日14時から16時 クレーム対応で客先訪問」');
+  await page.evaluate(() => tcEdSave()); await page.waitForTimeout(150);
+  check('  保存すると両方の業務の列に出る', await page.evaluate(() => { const cols = document.querySelectorAll('#tcTGrid .tc-tcol'); return [...cols].map(c => c.querySelectorAll('.tc-ev').length).join(','); }), '1,0,1');
+  await page.evaluate(() => tcSetView('merge')); await page.waitForTimeout(100);
+  check('  まとめると1列に1つ', await page.evaluate(() => document.querySelectorAll('#tcTGrid .tc-tcol').length + '/' + document.querySelectorAll('#tcTGrid .tc-ev').length), '1/1');
+  await page.evaluate(() => { tc.roles[2].col = 1; tcSave(); tcSetView('group'); }); await page.waitForTimeout(100);
+  check('  組み合わせ：営業＋品質管理／工場の2列', await page.evaluate(() => [...document.querySelectorAll('#tcColHead .tc-cn')].map(e => e.textContent).join(',') + '/' + document.querySelectorAll('#tcTGrid .tc-ev').length), '営業＋品質管理,工場/1');
+  await page.evaluate(() => { tcSetView('split'); tcSetConfirm(false); tcToggleRole('qc'); }); await page.waitForTimeout(100);
+  check('  業務を隠すと列が減る', await page.evaluate(() => document.querySelectorAll('#tcTGrid .tc-tcol').length + '/' + tc.ui.hidden.join(',')), '2/qc');
+  check('  ひとつは残す', await page.evaluate(() => { tcToggleRole('sales'); tcToggleRole('factory'); return tc.ui.hidden.length; }), 2);
+  await page.evaluate(() => { tc.ui.hidden = []; tcSave(); tcRender(); });
+  check('  月の点：その日に業務の色', await page.evaluate(() => { const b = [...document.querySelectorAll('#tcGrid .tc-d')].find(x => x.getAttribute('onclick').includes('2026-09-26')); return b.querySelectorAll('.tc-dots i').length; }), 2);
+  // 入力画面で予定を足す（時間の表の空いたところを押す）
+  await page.evaluate(() => { tcPick('2026-09-28'); const col = document.querySelectorAll('#tcTGrid .tc-tcol')[1]; const r = col.getBoundingClientRect();
+    col.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: r.left + 10, clientY: r.top + 9.6 * tcHourPx() })); });
+  await page.waitForTimeout(150);
+  check('  空いたところを押すと、その業務・その時刻で', await page.evaluate(() => document.getElementById('tcEdS').value + '/' + [...document.querySelectorAll('#tcEdRoles .tc-chip:not(.off)')].map(b => b.textContent).join(',')), '09:30/工場');
+  await page.evaluate(() => { document.getElementById('tcEdT').value = '朝礼'; document.getElementById('tcEdRep').value = 'w'; tcEdSync(); tcEdSave(); }); await page.waitForTimeout(150);
+  const occ = ds => page.evaluate(ds => tcItemsOn(ds, false).map(i => i.title).sort().join(','), ds);
+  check('  くり返し（毎週）：次の週にも出る', (await occ('2026-10-05')) + '/' + (await occ('2026-10-06')), '朝礼/');
+  // この日だけ消す
+  await page.evaluate(() => { const it = tc.items.find(x => x.title === '朝礼'); tcOpenItem(it.id, '2026-10-05'); });
+  await page.waitForTimeout(100);
+  const choose = i => page.evaluate(i => { const bs = [...document.querySelectorAll('.tc-choose button')]; bs[i].click(); }, i);
+  await page.evaluate(() => { tcEdDelete(); }); await page.waitForTimeout(100); await choose(0); await page.waitForTimeout(150);
+  check('  この日だけ消す', (await occ('2026-10-05')) + '/' + (await occ('2026-10-12')), '/朝礼');
+  // この日から先を変える
+  await page.evaluate(() => { const it = tc.items.find(x => x.title === '朝礼'); tcOpenItem(it.id, '2026-10-19'); document.getElementById('tcEdT').value = '朝礼（新）'; tcEdSave(); });
+  await page.waitForTimeout(100); await choose(1); await page.waitForTimeout(150);
+  check('  この日から先を変える', (await occ('2026-10-12')) + '/' + (await occ('2026-10-19')) + '/' + (await occ('2026-10-26')), '朝礼/朝礼（新）/朝礼（新）');
+  // ぜんぶ変える（時刻）
+  await page.evaluate(() => { const it = tc.items.find(x => x.title === '朝礼（新）'); tcOpenItem(it.id, '2026-10-26'); document.getElementById('tcEdS').value = '08:30'; document.getElementById('tcEdE').value = '08:45'; tcEdSave(); });
+  await page.waitForTimeout(100); await choose(2); await page.waitForTimeout(150);
+  check('  ぜんぶ変える', await page.evaluate(() => { const it = tc.items.find(x => x.title === '朝礼（新）'); return it.date + '/' + it.start + '-' + it.end; }), '2026-10-19/08:30-08:45');
+  check('  平日・毎月・隔週の出る日', await page.evaluate(() => {
+    const mk = (f, n, date) => ({ id: 'x', kind: 'ev', roles: ['sales'], date, allDay: true, rep: { f, n, until: null, ex: [], dd: [] } });
+    const wd = mk('wd', 1, '2026-09-25'), m = mk('m', 1, '2026-09-30'), w2 = mk('w', 2, '2026-09-30');
+    return [tcOccurs(wd, '2026-09-26'), tcOccurs(wd, '2026-09-28'), tcOccurs(m, '2026-10-30'), tcOccurs(m, '2026-11-30'), tcOccurs(m, '2026-10-31'), tcOccurs(w2, '2026-10-07'), tcOccurs(w2, '2026-10-14')].join(',');
+  }), 'false,true,true,true,false,false,true');
+  // メモ：足す・済み（くり返しは日ごと）
+  await page.evaluate(() => { tcPick('2026-09-25'); tcRegisterText('品質 メモ 校正の期限を確認'); tcRegisterText('毎週金曜 営業 週報を出す'); }); await page.waitForTimeout(150);
+  check('  メモはメモの段に出る', await page.evaluate(() => [...document.querySelectorAll('#tcMemoRow .tc-mcell')].map(c => c.querySelectorAll('.tc-m').length).join(',')), '1,0,1');
+  await page.evaluate(() => { const it = tc.items.find(x => x.title === '週報を出す'); tcToggleDone(it.id, '2026-09-25'); });
+  check('  くり返しのメモは日ごとに済み', await page.evaluate(() => { const it = tc.items.find(x => x.title === '週報を出す'); return tcDoneOn(it, '2026-09-25') + '/' + tcDoneOn(it, '2026-10-02'); }), 'true/false');
+  // メモ一覧
+  await page.evaluate(() => { tcOpenBoard(); tcBdSet('week'); }); await page.waitForTimeout(100);
+  check('  メモ一覧：業務ごとの列', await page.evaluate(() => [...document.querySelectorAll('#tcBd .tc-bcol')].map(c => c.querySelectorAll('.tc-card').length).join(',')), '1,0,1');
+  await page.evaluate(() => { document.getElementById('tcBdUndone').checked = true; tcRenderBoard(); });
+  check('  未済だけ', await page.evaluate(() => [...document.querySelectorAll('#tcBd .tc-bcol')].map(c => c.querySelectorAll('.tc-card').length).join(',')), '0,0,1');
+  await page.evaluate(() => { document.getElementById('tcBdUndone').checked = false; tcCloseBoard(); });
+  // さがす
+  await page.evaluate(() => { tcOpenFind(); document.getElementById('tcFindIn').value = 'クレーム'; tcRenderFind(); }); await page.waitForTimeout(150);
+  check('  さがす：見つかる', await page.evaluate(() => document.querySelectorAll('#tcFindRes .tc-fr').length), 1);
+  await page.evaluate(() => document.querySelector('#tcFindRes .tc-fr').click()); await page.waitForTimeout(200);
+  check('  押すとその日へ移って開く', await page.evaluate(() => tcSel + '/' + isDlgOpen('techoFindOverlay') + '/' + document.getElementById('tcEdT').value), '2026-09-26/false/クレーム対応で客先訪問');
+  await page.evaluate(() => tcCloseEdit()); await page.waitForTimeout(100);
+  // 動かす
+  check('  次の月・前の日・今日・畳む', await page.evaluate(() => { tcMonthMove(1); const a = tcSel + ':' + document.getElementById('tcMonTitle').textContent; tcDayMove(-1); const b = tcSel; tcGoToday(); const c = tcSel; tcToggleFold(); const d = document.querySelectorAll('#tcGrid .tc-d').length; tcToggleFold(); return [a, b, c, d, document.querySelectorAll('#tcGrid .tc-d').length].join('/'); }), '2026-10-26:2026年10月/2026-10-25/2026-09-25/7/42');
+  check('  週の始まりを月曜に', await page.evaluate(() => { tcSetWk(1); const a = document.querySelector('#tcWd span').textContent; tcSetWk(0); return a + document.querySelector('#tcWd span').textContent; }), '月日');
+  // 設定：業務の名前・足す・消す（予定を移す）
+  await page.evaluate(() => { tcOpenSet(); tcRoleSet('factory', 'name', '製造'); tcRoleAdd(); });
+  check('  名前を変える・足す', await page.evaluate(() => tc.roles.map(r => r.name).join(',') + '/' + document.querySelectorAll('#tcTGrid .tc-tcol').length), '営業,製造,品質管理,業務4/4');
+  await page.evaluate(() => { tcRoleDel('factory'); }); await page.waitForTimeout(100);
+  await page.evaluate(() => { const b = [...document.querySelectorAll('body > div button')].find(x => x.textContent === '消す'); if (b) b.click(); }); await page.waitForTimeout(150);
+  check('  消すと、その業務だけの予定は先頭の業務へ', await page.evaluate(() => tc.roles.map(r => r.name).join(',') + '/' + tc.items.filter(i => /朝礼/.test(i.title)).map(i => i.roles.join('+')).join(',')), '営業,品質管理,業務4/sales,sales');
+  await page.evaluate(() => tcCloseSet());
+  // 声で登録（途中で切れてもつなげる）
+  await page.evaluate(() => { tcPick('2026-09-25'); tcMicTap('add'); }); await page.waitForTimeout(60);
+  await page.evaluate(() => { const r = window.__recs.at(-1); r.say('明日の15時から', true); r.cut(); }); await page.waitForTimeout(250);
+  check('  声：途中で切れたら聞き直す', await page.evaluate(() => window.__recs.length + '/' + document.getElementById('tcAddIn').value + '/' + tcWant), '2/明日の15時から/true');
+  const n0 = await page.evaluate(() => tc.items.length);
+  await page.evaluate(() => window.__recs.at(-1).say('営業で見積の打ち合わせ', true)); await page.waitForTimeout(2300);
+  check('  声：話し終わるとつなげて登録', await page.evaluate(n0 => { const it = tc.items[tc.items.length - 1]; return (tc.items.length - n0) + '/' + it.date + '/' + it.start + '/' + it.roles.join('+') + '/' + it.title + '/' + tcWant; }, n0), '1/2026-09-26/15:00/sales/見積の打ち合わせ/false');
+  await page.evaluate(() => { tcMicTap('add'); }); await page.waitForTimeout(60);
+  await page.evaluate(() => { window.__recs.at(-1).say('品質 メモ 治具の点検', true); tcMicTap('add'); }); await page.waitForTimeout(150);
+  check('  声：もう一度押すとすぐ登録', await page.evaluate(() => { const it = tc.items[tc.items.length - 1]; return it.kind + '/' + it.title + '/' + tcWant; }), 'memo/治具の点検/false');
+  // 入力画面のメモ欄に声を足す
+  await page.evaluate(() => { tcNewItem('memo', tcSel, 0); document.getElementById('tcEdN').value = '一行目'; tcMicTap('n'); }); await page.waitForTimeout(60);
+  await page.evaluate(() => { window.__recs.at(-1).say('二行目を足す', true); tcMicTap('n'); }); await page.waitForTimeout(150);
+  check('  声：メモ欄に足していく', await page.evaluate(() => document.getElementById('tcEdN').value), '一行目\n二行目を足す');
+  await page.evaluate(() => tcCloseEdit());
+  // 印刷の中身（この日／この週）と CSV
+  check('  印刷：この日は業務ごとの列', await page.evaluate(() => { tcPick('2026-09-26'); const h = tcPrintHtml(); return (h.match(/<th>/g) || []).length + '/' + h.includes('クレーム対応で客先訪問') + '/' + h.includes('2026年9月26日'); }), '3/true/true');
+  check('  印刷：1週間ぶん', await page.evaluate(() => { const o = prnOpts('techo'); o.week = true; const h = tcPrintHtml(); o.week = false; return (h.match(/<tr>/g) || []).length; }), 8);
+  check('  印刷のしかたに業務手帳', await page.evaluate(() => { tcOpenPrint(); const t = document.getElementById('prnTitle').textContent; const n = document.querySelectorAll('#prnToggles button').length; closePrn(); return t + '/' + n; }), '🖨 印刷のしかた ─ 業務手帳/5');
+  check('  CSV：BOM・見出し・行', await page.evaluate(() => { const t = tcCsvText(2026, 9); const lines = t.split('\r\n'); return (t.charCodeAt(0) === 0xFEFF) + '/' + lines[0].slice(1) + '/' + lines.some(l => l.startsWith('2026/09/26,土,14:00,16:00,,予定,営業・品質管理,クレーム対応で客先訪問')); }),
+    'true/日付,曜日,開始,終了,終日,種類,業務,件名,くわしいメモ,済み,くり返し/true');
+  // バックアップ
+  check('  全体の書き出しに入る', await page.evaluate(() => { const b = techoBundle(); return !!b && b.items.length === tc.items.length && techoCount() > 0; }), true);
+  check('  読み込みで重ならずに足す', await page.evaluate(() => { const inc = JSON.parse(localStorage.getItem('excalc_techo')); const n0 = tc.items.length;
+    const a = techoMergeBundle(inc); inc.items.push({ id: 'imp1', kind: 'memo', roles: ['qc'], date: '2026-09-30', title: '読み込んだメモ', upd: 1 });
+    const b = techoMergeBundle(inc); return a + '/' + b + '/' + (tc.items.length - n0) + '/' + !!tc.items.find(i => i.title === '読み込んだメモ'); }), '0/1/1/true');
+  check('  端末の空き具合に出る', await page.evaluate(() => typeof ST_KEYS !== 'undefined' ? ST_KEYS.some(k => k.k === 'excalc_techo') : document.documentElement.innerHTML.includes("excalc_techo")), true);
+  check('  壊れた中身は捨てる', await page.evaluate(() => { const o = tcClean({ roles: [{ id: 'a', name: 'A', color: 'red' }, { id: 'a', name: 'dup' }], items: [{ id: '1', date: '2026-02-30', title: 'x' }, { id: '2', date: '2026-02-03', start: '25:00', roles: ['zz'], title: '<b>' }], ui: { view: 'zzz' } });
+    return o.roles.length + '/' + o.roles[0].color + '/' + o.items.length + '/' + o.items[0].allDay + '/' + o.items[0].roles.join() + '/' + o.ui.view; }), '1/#1e88e5/1/true/a/split');
+  // 「戻る」で上の窓から閉じる
+  await page.evaluate(() => { tcNewItem('ev', tcSel, 0, '09:00'); }); await page.waitForTimeout(100);
+  await page.goBack().catch(() => {}); await page.waitForTimeout(300);
+  check('  戻る：入力画面だけ閉じる', await page.evaluate(() => isDlgOpen('techoEditOverlay') + '/' + isDlgOpen('techoOverlay')), 'false/true');
+  await page.goBack().catch(() => {}); await page.waitForTimeout(300);
+  check('  戻る：業務手帳も閉じる', await page.evaluate(() => isDlgOpen('techoOverlay')), false);
+  check('  名前の取れないボタンがない', await page.evaluate(() => { openTecho(); return [...document.querySelectorAll('#techoOverlay button, #techoEditOverlay button, #techoSetOverlay button, #techoBoardOverlay button, #techoFindOverlay button')]
+    .filter(b => !(b.getAttribute('aria-label') || b.textContent.trim())).length; }), 0);
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();
@@ -7541,6 +7744,7 @@ async function runQrShare(browser) {
     if (!only || only === 'dtphrase') await runDtPhrase(browser);
     if (!only || only === 'koebackup') await runKoeBackup(browser);
     if (!only || only === 'fx426') await runFx426(browser);
+    if (!only || only === 'techo') await runTecho(browser);
     if (!only || only === 'toolskey') await runToolsKey(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);

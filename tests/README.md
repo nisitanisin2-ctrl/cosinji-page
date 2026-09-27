@@ -18,6 +18,7 @@ node tests/run.js koe        声の計算帳（koe/）だけ
 node tests/run.js dtphrase   電卓モードの声（声の計算帳と同じ言い方・koe/phrase.js）だけ
 node tests/run.js koebackup  声の計算帳のバックアップだけ
 node tests/run.js fx426      数式の関数（LOG10 など）だけ
+node tests/run.js techo      📔業務手帳（techo.js）だけ
 node tests/run.js visual     見た目の見比べだけ
 node tests/visual.js --update   見た目の見本を撮り直す（わざと見た目を変えたときだけ）
 ```
