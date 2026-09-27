@@ -8760,6 +8760,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v441', t:'🎙声の計算帳 v19', li:[
+    '🎙<b>声の計算帳</b>に、自分の言いかえ（聞き取りにくい言葉を登録）・☆お気に入りの言い方・足し上げの一覧（直す・税・共有）・大きな金額の確かめ・<b>読み上げの声の選択（速さ・高さ・大きさ）</b>を足しました。表電卓のバックアップにも入ります',
+  ]},
   { v:'v440', t:'📔業務手帳を Excel ファイルで共有', li:[
     '📔業務手帳の ⚙設定 に<b>「📄 共有ファイル（Excel）」</b>。OneDrive・Google ドライブ・社内の共有フォルダなどに置いた Excel ファイルを通して、ほかのパソコンと予定・メモを受け渡せます',
     'パソコンの Chrome・Edge では、決めたファイルを覚えておき、<b>手帳を開くたびに読み込み、変えるたびに書き込みます</b>（ほかの人の変更と合わせてから書きます。ブラウザを開き直したあとは、上の「読み込む」を1回押します）',
@@ -20299,7 +20302,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v440';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v441';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -22162,7 +22165,7 @@ function techoMergeBundle(inc){
   if(typeof window.tcReload==='function') window.tcReload();
   return n;
 }
-const KOE_BACKUP_KEYS=['koe_book','koe_vars','koe_settings','koe_state','koe_misses','koe_catbudget'];
+const KOE_BACKUP_KEYS=['koe_book','koe_vars','koe_settings','koe_state','koe_misses','koe_catbudget','koe_alias','koe_fav','koe_recent'];
 function koeBundle(){
   const o={}; let n=0;
   KOE_BACKUP_KEYS.forEach(k=>{ try{ const v=localStorage.getItem(k); if(v!=null){ o[k]=v; n++; } }catch(_){} });
