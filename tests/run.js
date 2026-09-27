@@ -7312,6 +7312,20 @@ async function runTecho(browser) {
   check('  開き直しても個別のまま', await page.evaluate(() => document.querySelectorAll('#tcTGrid .tc-lcol').length > 0 && tc.ui.dayMode), 'list');
   await page.click('#tcDayModeSeg button[data-m="time"]'); await page.waitForTimeout(80);
   check('  時間に戻す', await page.evaluate(() => document.querySelectorAll('#tcTGrid .tc-tcol').length + '/' + tc.ui.dayMode), '3/time');
+  // 時間の表示で、はじめに見せる時刻（v438）
+  const top = () => page.evaluate(() => Math.round((document.getElementById('tcScroll').scrollTop + 4) / tcHourPx() * 60));
+  await page.evaluate(() => { tcSetDayMode('time'); closeTecho(); openTecho(); tcPick('2026-09-25'); tcShownDay = ''; tcRenderDay(); });
+  check('  はじめは今の時刻（今日は1時間前から）', await page.evaluate(() => tc.ui.dayTop) + '/' + await top(), 'now/560');
+  await page.evaluate(() => tcOpenSet()); await page.waitForTimeout(100);
+  check('  設定に時刻の選び', await page.evaluate(() => document.querySelectorAll('#tcDayTopSel option').length + '/' + document.getElementById('tcDayTopSel').value), '25/now');
+  await page.selectOption('#tcDayTopSel', '7'); await page.waitForTimeout(80);
+  check('  7時を選ぶと7時から見せる・覚える', await page.evaluate(() => tc.ui.dayTop + '/' + JSON.parse(localStorage.getItem('excalc_techo')).ui.dayTop) + '/' + await top(), '7/7/420');
+  await page.evaluate(() => { tcCloseSet(); tcDayMove(1); });
+  check('  ほかの日へ移っても7時から', await top(), 420);
+  await page.evaluate(() => { closeTecho(); openTecho(); });
+  check('  開き直しても7時から', await top(), 420);
+  await page.evaluate(() => tcSetDayTop('now'));
+  check('  今の時刻に戻す／おかしな値は今の時刻', await page.evaluate(() => tc.ui.dayTop + '/' + tcClean({ ui: { dayTop: 30 } }).ui.dayTop + '/' + tcClean({ ui: { dayTop: 8 } }).ui.dayTop), 'now/now/8');
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();
