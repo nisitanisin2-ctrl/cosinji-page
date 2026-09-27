@@ -6731,6 +6731,20 @@ function autoFitSheet(){
   }
   applyRowHeights();
 }
+/* iPhone のホーム画面から開いたとき（上のバーの下まで画面を使う black-translucent）、100vh / 100dvh が
+   上のバーの分だけ短くなり、テンキーの下に隙間が出る（iPhone SE など。v431）。実際の高さ（innerHeight）に合わせる */
+function fitStandaloneHeight(){
+  const b=document.body; if(!b) return;
+  const standalone=navigator.standalone===true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+  b.style.height='';
+  if(!standalone) return;
+  const h=window.innerHeight, bh=b.getBoundingClientRect().height;
+  if(h>bh+1) b.style.height=h+'px';
+}
+fitStandaloneHeight();
+window.addEventListener('resize', fitStandaloneHeight);
+window.addEventListener('orientationchange', ()=>setTimeout(fitStandaloneHeight, 300));
+window.addEventListener('pageshow', fitStandaloneHeight);
 // 画面サイズ・向きが変わったら列幅を再フィット（余白の配り直しで行番号列を広げないため）
 let refitTimer=null;
 window.addEventListener('resize', ()=>{
@@ -8729,6 +8743,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v431', t:'iPhone の下の隙間', li:[
+    'iPhone（SE など）でホーム画面から開いたとき、テンキーの下に白い隙間ができていたのを直しました',
+  ]},
   { v:'v430', t:'声の計算の言い方を増やしました', li:[
     '電卓の声でも「<b>100倍で4リットル</b>」（原液の量）・「3人で12000円を割り勘」・「1個120円のを15個」・「100gあたり198円で350g」・「1ドル150円で200ドル」・「3時間45分は何分」などが計算できるようになりました',
   ]},
@@ -20165,7 +20182,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v430';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v431';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
