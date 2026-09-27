@@ -7098,6 +7098,11 @@ async function runTbFold(browser) {
   check('  戻るでメニューを閉じる', await page.evaluate(() => isDlgOpen('moreMenuOverlay')), false);
   await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(200);
   check('  電卓でも左上に ☰', await vis('#dtFoldMenu'), true);
+  check('  電卓の履歴の説明が ☰ に隠れない（詰める設定でも）', await page.evaluate(() => { const res = [];
+    for (const c of [false, true]) { document.body.classList.toggle('compact', c);
+      const btn = document.getElementById('dtFoldMenu').getBoundingClientRect(), t = document.getElementById('dtTape');
+      const left = t.getBoundingClientRect().left + parseFloat(getComputedStyle(t).paddingLeft); res.push(left >= btn.right); }
+    document.body.classList.remove('compact'); if (typeof applyCompact === 'function') applyCompact(); return res.join(','); }), 'true,true');
   await page.click('#dtFoldMenu'); await page.waitForTimeout(200);
   check('  電卓の ☰ でもメニュー', await page.evaluate(() => isDlgOpen('moreMenuOverlay')), true);
   await page.evaluate(() => closeMoreMenu()); await page.waitForTimeout(300);
