@@ -8760,6 +8760,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v439', t:'📔業務手帳の月に件名', li:[
+    '📔業務手帳の月カレンダーのマスが大きいとき（仕切りで月を広げた・広い画面）は、色の点の代わりに<b>予定・メモの件名を小さな文字</b>で出すようにしました',
+  ]},
   { v:'v438', t:'📔業務手帳ではじめに見せる時刻を選べる', li:[
     '📔業務手帳の ⚙設定 に<b>「1日の時間の表示で、はじめに見せる時刻」</b>。<b>今の時刻</b>（これまでどおり。今日以外はその日の最初の予定）か、<b>0時〜23時</b>のどこから見せるかを選べます',
   ]},
@@ -20291,7 +20294,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v438';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v439';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

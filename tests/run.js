@@ -7326,6 +7326,16 @@ async function runTecho(browser) {
   check('  開き直しても7時から', await top(), 420);
   await page.evaluate(() => tcSetDayTop('now'));
   check('  今の時刻に戻す／おかしな値は今の時刻', await page.evaluate(() => tc.ui.dayTop + '/' + tcClean({ ui: { dayTop: 30 } }).ui.dayTop + '/' + tcClean({ ui: { dayTop: 8 } }).ui.dayTop), 'now/now/8');
+  // 月のマスが大きいときは件名を小さく出す（v439）
+  const tt = () => page.evaluate(() => document.getElementById('tcGrid').classList.contains('tt') + '/' + [...document.querySelectorAll('#tcGrid .tc-d.sel .tc-dts i')].map(e => e.textContent).join(','));
+  await page.evaluate(() => { tc.ui.splitV = 0; tc.ui.hidden = []; tcSave(); tcPick('2026-09-25'); }); await page.waitForTimeout(150);
+  check('  ふつうの大きさでは点だけ', (await tt()).split('/')[0], 'false');
+  await page.evaluate(() => tcSetSplit('v', 65)); await page.waitForTimeout(200);
+  check('  月を広げると件名が出る（終日→時刻の順→メモ）', await tt(), 'true/監査,朝礼,点検,午後の商談,見積の確認');
+  await page.evaluate(() => tcToggleRole('factory')); await page.waitForTimeout(150);
+  check('  隠した業務の件名は出さない', await tt(), 'true/監査,朝礼,午後の商談,見積の確認');
+  await page.evaluate(() => { tcToggleRole('factory'); tcSetSplit('v', 0); }); await page.waitForTimeout(200);
+  check('  元の大きさに戻すと点に戻る', (await tt()).split('/')[0], 'false');
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();
