@@ -3715,13 +3715,13 @@ async function runExport(browser) {
   // ── ⋯メニューの整理（v375） ──
   await page.evaluate(() => openMoreMenu()); await page.waitForTimeout(400);
   check('  項目の数は変わっていない（道具の一覧を除く）', await page.evaluate(() =>
-    document.querySelectorAll('#moreMenuOverlay .more-item:not(#moreToolsGrid .more-item)').length), 18);   // v408 で 📱QRで共有 を足した
+    document.querySelectorAll('#moreMenuOverlay .more-item:not(#moreToolsGrid .more-item):not(#moreFold .more-item)').length), 18);   // たたんだときだけの 保存・↶ は数えない（v443）   // v408 で 📱QRで共有 を足した
   check('  はじめは畳んである', await page.evaluate(() =>
     document.getElementById('moreAccOut').open + '/' + document.getElementById('moreAccMisc').open),
     'false/false');
   check('  すぐ見えるのはよく使うものだけ', await page.evaluate(() =>
     [...document.querySelectorAll('#moreMenuOverlay .more-item')]
-      .filter(x => !x.closest('.more-acc')).map(x => x.textContent.trim()).join('/')),
+      .filter(x => !x.closest('.more-acc') && !x.closest('#moreFold')).map(x => x.textContent.trim()).join('/')),
     '↷進む/📋リスト/⚙設定/🌙ナイトモード/🎤声で入れる/🎯用途から始める/▦通常の表/🧮電卓/🧹リセット（戻るで元に戻せます）');
   check('  書き出しは畳んだ中', await page.evaluate(() =>
     [...document.querySelectorAll('#moreAccOut .more-item')].map(x => x.textContent.trim()).join('/')),
@@ -7077,6 +7077,39 @@ async function runFx426(browser) {
   await ctx.close();
 }
 /* v429：マイキーに割り当てられる「🧰道具」（道具の一覧を開く） */
+/* 上のバーをたたむ（v443）：バーを消して、左上の ☰ からメニュー */
+async function runTbFold(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ☰ 上のバーをたたむ（v443） ──');
+  const vis = sel => page.evaluate(sel => { const e = document.querySelector(sel); return !!e && getComputedStyle(e).display !== 'none'; }, sel);
+  check('  はじめは上のバーを出す・☰ は出さない', (await vis('#mainToolbar')) + '/' + (await vis('#fbMenu')), 'true/false');
+  const top0 = await page.evaluate(() => document.querySelector('.formula-bar').getBoundingClientRect().top);
+  await page.evaluate(() => { toggleSettings(); document.querySelector('#tbFoldSeg button[data-f="1"]').click(); });
+  await page.waitForTimeout(200);
+  const top1 = await page.evaluate(() => document.querySelector('.formula-bar').getBoundingClientRect().top);
+  check('  たたむとバーが消えて、表が上に広がる', (await vis('#mainToolbar')) + '/' + (await vis('#fbMenu')) + '/' + (top1 < top0 - 20) + '/' + await page.evaluate(() => localStorage.getItem('excalc_tbfold')), 'false/true/true/1');
+  check('  ☰ はいちばん左上', await page.evaluate(() => { const r = document.getElementById('fbMenu').getBoundingClientRect(); return r.left < 20 && r.top < 20; }), true);
+  check('  カメラの下から始める（safe-area）', await page.evaluate(() => { document.documentElement.style.setProperty('--safe-top', '47px'); const t = getComputedStyle(document.body).paddingTop; document.documentElement.style.removeProperty('--safe-top'); return t; }), '47px');
+  await page.evaluate(() => { if (isDlgOpen('settingsPanel')) toggleSettings(); });
+  await page.waitForTimeout(300);
+  await page.click('#fbMenu'); await page.waitForTimeout(200);
+  check('  ☰ でメニュー（記録名・保存・戻すが上に）', await page.evaluate(() => isDlgOpen('moreMenuOverlay') + '/' + document.getElementById('moreTitle').textContent + '/' + (getComputedStyle(document.getElementById('moreFold')).display !== 'none') + '/' + document.getElementById('moreSaveLb').textContent + '/' + /自動保存|📄/.test(document.getElementById('moreRec').textContent)), 'true/☰ メニュー/true/名前を付けて保存/true');
+  await page.goBack({ waitUntil: 'commit' }).catch(() => {}); await page.waitForTimeout(400);
+  check('  戻るでメニューを閉じる', await page.evaluate(() => isDlgOpen('moreMenuOverlay')), false);
+  await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(200);
+  check('  電卓でも左上に ☰', await vis('#dtFoldMenu'), true);
+  await page.click('#dtFoldMenu'); await page.waitForTimeout(200);
+  check('  電卓の ☰ でもメニュー', await page.evaluate(() => isDlgOpen('moreMenuOverlay')), true);
+  await page.evaluate(() => closeMoreMenu()); await page.waitForTimeout(300);
+  await page.evaluate(() => switchMode('normal')); await page.waitForTimeout(200);
+  await page.reload(); await page.waitForTimeout(900);
+  check('  開き直してもたたんだまま', (await vis('#mainToolbar')) + '/' + (await vis('#fbMenu')), 'false/true');
+  check('  設定のバックアップに入る', await page.evaluate(() => SETTINGS_BACKUP_KEYS.includes('excalc_tbfold')), true);
+  await page.evaluate(() => setTbFold(false)); await page.waitForTimeout(150);
+  check('  出すと元どおり', (await vis('#mainToolbar')) + '/' + (await vis('#fbMenu')), 'true/false');
+  check('  JSエラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runToolsKey(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🧰道具のボタン（v429） ──');
@@ -7999,6 +8032,7 @@ async function runQrShare(browser) {
     if (!only || only === 'fx426') await runFx426(browser);
     if (!only || only === 'techo') await runTecho(browser);
     if (!only || only === 'toolskey') await runToolsKey(browser);
+    if (!only || only === 'tbfold') await runTbFold(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
     if (!only || only === 'brush3') await runBrush3(browser);
