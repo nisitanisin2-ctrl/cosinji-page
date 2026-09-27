@@ -353,6 +353,20 @@ body.dark .tc-plus{ color:var(--acc-text,#7cc68b); border-color:var(--acc-text,#
 .tc-alrow button{ flex:none; width:32px; height:32px; border:none; border-radius:50%; background:transparent; color:#d32f2f; font-size:15px; cursor:pointer; }
 .tc-aldlg{ position:fixed; inset:0; z-index:99999; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.45); }
 .tc-aldlg.open{ display:flex; }
+.tc-allist{ z-index:99998; }
+.tc-alpanel{ background:var(--modal-bg,#fff); color:var(--text,#222); width:520px; max-width:calc(100vw - 16px - var(--safe-left,0px) - var(--safe-right,0px));
+  height:calc(100% - 24px - var(--safe-top,0px) - var(--safe-bottom,0px)); max-height:760px; margin-top:calc(var(--safe-top,0px) - var(--safe-bottom,0px));
+  display:flex; flex-direction:column; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,.35); overflow:hidden; }
+.tc-alphd{ flex:none; display:flex; align-items:center; justify-content:space-between; padding:10px 8px 6px 14px; font-size:16px; }
+.tc-alphd button{ width:38px; height:38px; border:none; border-radius:50%; background:transparent; color:var(--text,#222); font-size:18px; cursor:pointer; }
+.tc-alptool{ flex:none; display:flex; gap:8px; padding:0 12px 8px; border-bottom:1px solid rgba(120,132,156,.25); }
+.tc-alptool input{ flex:1; min-width:0; height:40px; padding:0 10px; font-size:16px; border:1px solid rgba(120,132,156,.45); border-radius:8px; background:var(--modal-bg,#fff); color:var(--text,#222); }
+.tc-alptool button{ flex:none; height:40px; padding:0 14px; border-radius:8px; border:1px solid var(--acc); background:var(--acc); color:#fff; font-weight:bold; font-size:14px; cursor:pointer; }
+.tc-alpbody{ flex:1; min-height:0; overflow:auto; -webkit-overflow-scrolling:touch; padding:8px 12px calc(12px + var(--safe-bottom,0px)); }
+.tc-alopen{ display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:10px 12px; margin-bottom:6px; border-radius:8px; border:1px solid rgba(120,132,156,.35); background:rgba(120,132,156,.10); color:var(--text,#222); font-size:14px; font-weight:bold; cursor:pointer; }
+.tc-alopen span{ flex:1; min-width:0; }
+.tc-alopen small{ display:block; font-size:12px; font-weight:normal; color:var(--text-light,#888); }
+.tc-alopen b{ font-size:20px; color:var(--text-light,#888); }
 .tc-alsrc{ font-size:13px; background:rgba(120,132,156,.12); border-radius:8px; padding:6px 10px; margin-bottom:8px; overflow-wrap:anywhere; }
 .tc-alf{ display:block; font-size:12px; font-weight:bold; color:var(--text-light,#888); margin:6px 0; }
 .tc-alf input{ display:block; width:100%; box-sizing:border-box; margin-top:4px; height:40px; padding:0 10px; font-size:16px; border:1px solid rgba(120,132,156,.45); border-radius:8px; background:var(--modal-bg,#fff); color:var(--text,#222); }
@@ -642,6 +656,7 @@ function closeTecho(){
   // 上に開いている窓から順に閉じる（戻るの履歴を崩さない）
   if(typeof closePrn==='function' && isDlgOpen('prnOverlay')) closePrn();
   if(isDlgOpen('tcAlDlg')) tcAliasClose();
+  if(isDlgOpen('tcAlList')) tcAliasListClose();
   tcCloseEdit(); tcCloseSet(); tcCloseFind(); tcCloseBoard();
   closeDlg('techoOverlay', tcOnClosed);
 }
@@ -1442,22 +1457,54 @@ async function tcLearnPropose(before, after){
   if(k!==0) return;
   tc.alias=(tc.alias||[]).concat([d]); tcSave();
   toast('「'+d.from+'」→「'+d.to+'」を覚えました（⚙設定の「自分の言いかえ」で直せます）', 3500);
-  if(isDlgOpen('techoSetOverlay')) tcRenderSet();
+  tcAliasRefresh();
 }
+/* 設定には件数だけを出し、一覧は別の窓で開く（増えても下の設定が見えなくならないように） */
 function tcAliasSetHtml(){
-  const al=tc.alias||[], hd=(tc.heard||[]).slice().reverse();
-  let h='<div class="tc-note">声の聞き違い（「A者」「てんけん」など）や、自分の言い方を登録すると、読む前にその言葉に置きかえます。声ですぐ登録したあとに件名を直すと、覚えるか聞きます。</div>';
-  h+=al.length ? al.map((a,i)=>`<div class="tc-alrow" onclick="tcAliasEdit(${i})"><span>「${tcEsc(a.from)}」<small>→「${tcEsc(a.to)}」と読む</small></span><button onclick="event.stopPropagation();tcAliasDel(${i})" aria-label="「${tcEsc(a.from)}」の言いかえを消す">✕</button></div>`).join('')
-    : '<div class="tc-note">まだありません。</div>';
-  h+='<div class="tc-edbtns"><button onclick="tcAliasEdit(-1)">＋ 言いかえを足す</button></div>';
+  const n=(tc.alias||[]).length, m=(tc.heard||[]).length;
+  return `<button class="tc-alopen" id="tcAlOpen" onclick="tcAliasListOpen()"><span>🗣 言いかえの一覧を開く<small>登録 ${n}件・聞き取った言葉 ${m}件</small></span><b aria-hidden="true">›</b></button>
+    <div class="tc-note">声の聞き違い（「A者」「てんけん」など）や、自分の言い方を登録すると、読む前にその言葉に置きかえます。</div>`;
+}
+let tcAlQ='';
+function tcAliasListOpen(){
+  let ov=document.getElementById('tcAlList');
+  if(!ov){ ov=document.createElement('div'); ov.id='tcAlList'; ov.className='tc-aldlg tc-allist'; document.body.appendChild(ov);
+    ov.addEventListener('click', e=>{ if(e.target===ov) tcAliasListClose(); }); }
+  tcAlQ='';
+  ov.innerHTML=`<div class="tc-alpanel" role="dialog" aria-label="自分の言いかえ">
+    <div class="tc-alphd"><b>🗣 自分の言いかえ</b><button type="button" onclick="tcAliasListClose()" aria-label="閉じる">✕</button></div>
+    <div class="tc-alptool"><input type="search" id="tcAlQ" placeholder="🔍 言葉でさがす" aria-label="言いかえをさがす" oninput="tcAlQ=this.value.trim();tcAliasListRender()"><button type="button" class="tc-tpok" onclick="tcAliasEdit(-1)">＋ 足す</button></div>
+    <div class="tc-alpbody" id="tcAlListBody"></div></div>`;
+  openDlg('tcAlList', ()=>{ tcAlQ=''; });
+  tcAliasListRender();
+}
+function tcAliasListClose(){
+  if(isDlgOpen('tcAlDlg')) tcAliasClose();
+  closeDlg('tcAlList', ()=>{ tcAlQ=''; });
+}
+function tcAliasListRender(){
+  const b=document.getElementById('tcAlListBody'); if(!b) return;
+  const q=tcAlQ.normalize('NFKC').toLowerCase(), hit=(...v)=>!q || v.some(x=>String(x||'').normalize('NFKC').toLowerCase().includes(q));
+  const al=(tc.alias||[]).map((a,i)=>({a,i})).filter(({a})=>hit(a.from,a.to));
+  const hd=(tc.heard||[]).slice().reverse().filter(x=>hit(x.q,x.a,x.title));
+  let h='<div class="tc-note">声の聞き違いや、自分の言い方を登録すると、読む前にその言葉に置きかえます。声ですぐ登録したあとに件名を直すと、覚えるか聞きます。</div>';
+  h+=`<div class="tc-sec">登録した言いかえ <small>${q?al.length+' / ':''}${(tc.alias||[]).length}件・押すと直せます</small></div>`;
+  h+=al.length ? al.map(({a,i})=>`<div class="tc-alrow" onclick="tcAliasEdit(${i})"><span>「${tcEsc(a.from)}」<small>→「${tcEsc(a.to)}」と読む</small></span><button onclick="event.stopPropagation();tcAliasDel(${i})" aria-label="「${tcEsc(a.from)}」の言いかえを消す">✕</button></div>`).join('')
+    : `<div class="tc-note">${q?'見つかりません。':'まだありません。上の「＋ 足す」で登録できます。'}</div>`;
   h+='<div class="tc-sec">聞き取った言葉（最近）<small>押すと、そこから言いかえを登録できます</small></div>';
-  h+=hd.length ? hd.slice(0,10).map((x,i)=>`<div class="tc-alrow" data-q="${tcEsc(x.q)}" onclick="tcAliasEdit(-1,this.dataset.q)"><span>「${tcEsc(x.q)}」<small>${x.a?'言いかえ →「'+tcEsc(x.a)+'」／':''}件名「${tcEsc(x.title||'')}」</small></span></div>`).join('')
-    : '<div class="tc-note">まだありません（🎤で登録すると、ここに残ります）。</div>';
-  return h;
+  h+=hd.length ? hd.map(x=>`<div class="tc-alrow" data-q="${tcEsc(x.q)}" onclick="tcAliasEdit(-1,this.dataset.q)"><span>「${tcEsc(x.q)}」<small>${x.a?'言いかえ →「'+tcEsc(x.a)+'」／':''}件名「${tcEsc(x.title||'')}」</small></span></div>`).join('')
+    : `<div class="tc-note">${q?'見つかりません。':'まだありません（🎤で登録すると、ここに残ります）。'}</div>`;
+  b.innerHTML=h;
+}
+/* 言いかえが変わったら、開いている一覧と設定の件数を直す */
+function tcAliasRefresh(){
+  if(isDlgOpen('tcAlList')) tcAliasListRender();
+  const o=document.getElementById('tcAlOpen');
+  if(o && isDlgOpen('techoSetOverlay')){ const t=document.createElement('div'); t.innerHTML=tcAliasSetHtml(); o.replaceWith(t.firstElementChild); }
 }
 function tcAliasDel(i){
   const a=(tc.alias||[])[i]; if(!a) return;
-  tc.alias.splice(i,1); tcSave(); tcRenderSet(); toast('「'+a.from+'」の言いかえを消しました');
+  tc.alias.splice(i,1); tcSave(); tcAliasRefresh(); toast('「'+a.from+'」の言いかえを消しました');
 }
 /* 言いかえを足す・直す窓。元の言葉（聞き取った言葉）があれば、置きかえてどう登録されるかを見せる */
 let tcAlEd=null;
@@ -1499,7 +1546,7 @@ function tcAliasOk(){
   if(f===t){ toast('同じ言葉です'); return; }
   const list=(tc.alias||[]).filter((x,k)=>k!==tcAlEd.i && x.from!==f);   // 同じ言葉の言いかえは1つにする
   list.splice(tcAlEd.i>=0 ? Math.min(tcAlEd.i, list.length) : list.length, 0, {from:f, to:t});
-  tc.alias=list; tcSave(); tcAliasClose(); tcRenderSet();
+  tc.alias=list; tcSave(); tcAliasClose(); tcAliasRefresh();
   toast('「'+f+'」を「'+t+'」と読みます');
 }
 

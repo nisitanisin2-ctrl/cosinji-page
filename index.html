@@ -8796,6 +8796,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v446', t:'📔業務手帳：言いかえの一覧を別の窓に', li:[
+    '⚙設定の「🗣 自分の言いかえ」は件数だけを出し、押すと<b>別の窓</b>で一覧を開くようにしました。たくさん登録しても、下の設定がすぐ見られます',
+    '一覧の窓では<b>🔍言葉でさがす</b>ことができ、聞き取った言葉も最近30件まで見られます' ]},
   { v:'v445', t:'📔業務手帳の声の聞き違いを直す', li:[
     '📔業務手帳の ⚙設定 に<b>「🗣 自分の言いかえ」</b>。「A者」→「A社」、「てんけん」→「点検」のように登録すると、声や文を読む前に置きかえます。登録するとき、どう登録されるか（日付・時刻・業務・件名）を見ながら決められます',
     '声ですぐ登録したあとに件名を直すと、<b>「『A者』を『A社』と覚えますか？」</b>と聞きます。「覚える」を押すと、次から自動で直ります',
@@ -20381,7 +20384,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v445';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v446';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
