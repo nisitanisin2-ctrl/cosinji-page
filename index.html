@@ -6731,20 +6731,32 @@ function autoFitSheet(){
   }
   applyRowHeights();
 }
-/* iPhone のホーム画面から開いたとき（上のバーの下まで画面を使う black-translucent）、100vh / 100dvh が
-   上のバーの分だけ短くなり、テンキーの下に隙間が出る（iPhone SE など。v431）。実際の高さ（innerHeight）に合わせる */
+/* iPhone のホーム画面から開いたとき（上のバーの下まで画面を使う black-translucent）、100vh / 100dvh も
+   innerHeight も上のバーの分（SE で 20px）だけ短く出る iOS があり、テンキーの下に隙間が出る（v431→v432）。
+   ホーム画面のアプリは画面いっぱいに出るので、画面の実寸（screen）に合わせる。横幅が画面と同じとき
+   （iPad の画面分割などではない）だけ。念のため下の地の色もテンキーと同じ色にして、残っても目立たないように */
 function fitStandaloneHeight(){
   const b=document.body; if(!b) return;
-  const standalone=navigator.standalone===true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+  const iosSA=navigator.standalone===true;
+  const standalone=iosSA || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
   b.style.height='';
+  document.documentElement.style.background='';
   if(!standalone) return;
-  const h=window.innerHeight, bh=b.getBoundingClientRect().height;
+  const portrait=window.innerWidth<=window.innerHeight;
+  const sw=Math.min(screen.width, screen.height), sh=Math.max(screen.width, screen.height);
+  const fullW=portrait ? sw : sh, fullH=portrait ? sh : sw;
+  let h=window.innerHeight;
+  if(iosSA && Math.abs(window.innerWidth-fullW)<=1 && fullH>h) h=fullH;
+  const bh=b.getBoundingClientRect().height;
   if(h>bh+1) b.style.height=h+'px';
+  const np=document.querySelector('.numpad-section');
+  if(np){ const c=getComputedStyle(np).backgroundColor; if(c && c!=='rgba(0, 0, 0, 0)') document.documentElement.style.background=c; }
 }
 fitStandaloneHeight();
 window.addEventListener('resize', fitStandaloneHeight);
 window.addEventListener('orientationchange', ()=>setTimeout(fitStandaloneHeight, 300));
 window.addEventListener('pageshow', fitStandaloneHeight);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTimeout(fitStandaloneHeight, 100); });
 // 画面サイズ・向きが変わったら列幅を再フィット（余白の配り直しで行番号列を広げないため）
 let refitTimer=null;
 window.addEventListener('resize', ()=>{
@@ -8743,6 +8755,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v432', t:'iPhone の下の隙間（その2）', li:[
+    'v431 で直らなかった iPhone（SE など）のテンキーの下の隙間を、画面の実際の大きさに合わせて直しました',
+  ]},
   { v:'v431', t:'iPhone の下の隙間', li:[
     'iPhone（SE など）でホーム画面から開いたとき、テンキーの下に白い隙間ができていたのを直しました',
   ]},
@@ -20182,7 +20197,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v431';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v432';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
