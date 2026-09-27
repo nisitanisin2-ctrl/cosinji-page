@@ -7283,6 +7283,35 @@ async function runTecho(browser) {
   check('  縦でもなぞって変わる', await page.evaluate(() => tc.ui.splitV), 40);
   check('  おかしな値は直す', await page.evaluate(() => { const u = tcClean({ ui: { splitH: 999, splitV: 'x' } }).ui, w = tcClean({ ui: { splitH: 10, splitV: 45.4 } }).ui; return [u.splitH, u.splitV, w.splitH, w.splitV].join(','); }), '60,0,25,45');
   await page.evaluate(() => { tcSetSplit('v', 0); });
+  // 1日の見せ方：時間／個別（v437）
+  await page.evaluate(() => { closeTecho(); localStorage.setItem('excalc_techo', JSON.stringify({ v: 1, items: [
+    { id: 'l1', kind: 'ev', roles: ['sales'], date: '2026-09-25', start: '14:00', end: '15:00', title: '午後の商談', note: '\n資料を持つ\n2行目' },
+    { id: 'l2', kind: 'ev', roles: ['sales'], date: '2026-09-25', start: '08:30', end: '09:00', title: '朝礼' },
+    { id: 'l3', kind: 'memo', roles: ['sales'], date: '2026-09-25', title: '見積の確認' },
+    { id: 'l4', kind: 'ev', roles: ['sales', 'qc'], date: '2026-09-25', allDay: true, title: '監査' },
+    { id: 'l5', kind: 'ev', roles: ['factory'], date: '2026-09-25', start: '11:00', end: '12:00', title: '点検' } ], ui: {} })); openTecho(); tcPick('2026-09-25'); });
+  await page.waitForTimeout(150);
+  check('  はじめは時間の見せ方', await page.evaluate(() => tc.ui.dayMode + '/' + document.querySelector('#tcDayModeSeg .on').dataset.m + '/' + document.querySelectorAll('#tcTGrid .tc-tcol').length), 'time/time/3');
+  await page.click('#tcDayModeSeg button[data-m="list"]'); await page.waitForTimeout(100);
+  check('  個別：時間の目もメモの段も出さない', await page.evaluate(() => document.querySelectorAll('#tcTGrid .tc-tcol, #tcTGrid .tc-hours').length + '/' + getComputedStyle(document.getElementById('tcMemoRow')).display + '/' + document.querySelectorAll('#tcTGrid .tc-lcol').length + '/' + JSON.parse(localStorage.getItem('excalc_techo')).ui.dayMode), '0/none/3/list');
+  check('  個別：終日→時刻の順→メモ、頭の上に時刻', await page.evaluate(() => [...document.querySelectorAll('#tcTGrid .tc-lcol')[0].querySelectorAll('.tc-card')].map(c => c.querySelector('.tc-ct').textContent + ':' + c.querySelector('.tc-cb').textContent).join(' | ')),
+    '終日:監査 | 08:30〜09:00:朝礼 | 14:00〜15:00:午後の商談 | メモ:見積の確認');
+  check('  個別：くわしいメモの頭の行も出る・2つの業務は両方の列', await page.evaluate(() => document.querySelector('#tcTGrid .tc-card[data-id="l1"] .tc-cn2').textContent + '/' + document.querySelectorAll('#tcTGrid .tc-card[data-id="l4"]').length), '資料を持つ/2');
+  check('  個別：今日は今の位置に線・過ぎた予定はうすく', await page.evaluate(() => { const c = [...document.querySelectorAll('#tcTGrid .tc-lcol')[0].children]; return c.findIndex(e => e.classList.contains('tc-lnow')) + '/' + document.querySelector('.tc-card[data-id="l2"]').classList.contains('past') + '/' + document.querySelector('.tc-card[data-id="l1"]').classList.contains('past'); }), '2/true/false');
+  await page.click('#tcTGrid .tc-card[data-id="l3"] .tc-ck'); await page.waitForTimeout(80);
+  check('  個別：メモを済みにできる', await page.evaluate(() => tc.items.find(x => x.id === 'l3').done + '/' + document.querySelector('.tc-card[data-id="l3"]').classList.contains('done')), 'true/true');
+  await page.click('#tcTGrid .tc-card[data-id="l5"] .tc-cbtn'); await page.waitForTimeout(100);
+  check('  個別：押すと直す画面', await page.evaluate(() => isDlgOpen('techoEditOverlay') + '/' + document.getElementById('tcEdT').value), 'true/点検');
+  await page.evaluate(() => tcCloseEdit());
+  await page.evaluate(() => document.querySelectorAll('#tcTGrid .tc-lcol')[1].querySelector('.tc-madd').click()); await page.waitForTimeout(100);
+  check('  個別：列の＋予定でその業務の予定を足す', await page.evaluate(() => isDlgOpen('techoEditOverlay') + '/' + tcEd.it.kind + '/' + tcEd.it.roles.join()), 'true/ev/factory');
+  await page.evaluate(() => tcCloseEdit());
+  await page.evaluate(() => { tcSetView('merge'); });
+  check('  個別でもまとめると1列', await page.evaluate(() => document.querySelectorAll('#tcTGrid .tc-lcol').length + '/' + document.querySelectorAll('#tcTGrid .tc-card').length), '1/5');
+  await page.evaluate(() => { tcSetView('split'); closeTecho(); openTecho(); });
+  check('  開き直しても個別のまま', await page.evaluate(() => document.querySelectorAll('#tcTGrid .tc-lcol').length > 0 && tc.ui.dayMode), 'list');
+  await page.click('#tcDayModeSeg button[data-m="time"]'); await page.waitForTimeout(80);
+  check('  時間に戻す', await page.evaluate(() => document.querySelectorAll('#tcTGrid .tc-tcol').length + '/' + tc.ui.dayMode), '3/time');
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();

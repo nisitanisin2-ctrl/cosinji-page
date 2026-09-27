@@ -8760,6 +8760,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v437', t:'📔業務手帳の1日を「個別」でも見られる', li:[
+    '📔業務手帳の1日の表示を <b>🕘時間</b>（時間の目に予定を置く、これまでの見せ方）と <b>☰個別</b> から選べるようにしました（業務のボタンの右）',
+    '<b>☰個別</b>は時間の目を出さずに、業務の列ごとに <b>終日 → 時刻の順の予定 → メモ</b> と順番に並べます。件名の上に時刻を出し、今日は今の位置に赤い線を引きます',
+  ]},
   { v:'v436', t:'📔業務手帳の横表示・仕切り', li:[
     '📔業務手帳：スマホを<b>横にすると、左に月・右に1日</b>を並べるようにしました',
     '月と1日のあいだの<b>仕切りの線を指でなぞる</b>と、月の大きさを変えられます（横は幅、縦は高さを別々に覚えます）。⚙設定の<b>「月と1日の仕切り」</b>でも変えられ、線を<b>ダブルタップ</b>すると元に戻ります',
@@ -20284,7 +20288,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v436';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v437';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
