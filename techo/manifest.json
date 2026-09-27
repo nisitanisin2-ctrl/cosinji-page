@@ -1,0 +1,19 @@
+{
+  "name": "業務手帳",
+  "short_name": "業務手帳",
+  "description": "営業・工場・品質管理のような業務ごとに、予定とメモを分けたり、まとめたりして見る手帳。声や文でそのまま登録できます。",
+  "id": "/techo",
+  "start_url": "../index.html?app=techo",
+  "scope": "../index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#217346",
+  "orientation": "any",
+  "lang": "ja",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

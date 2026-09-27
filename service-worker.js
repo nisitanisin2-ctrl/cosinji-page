@@ -1,8 +1,9 @@
-const CACHE = 'excalc-v446';
+const CACHE = 'excalc-v447';
 const CACHE_PREFIX = 'excalc-';   // このアプリのキャッシュだけを見分けるための名前
 const ASSETS = ['./', './index.html', './help.js', './photomemo.js', './techo.js', './koe/phrase.js', './manifest.json',
   './icon-192.png', './icon-512.png',
-  './icon-maskable-192.png', './icon-maskable-512.png', './apple-touch-icon.png'];
+  './icon-maskable-192.png', './icon-maskable-512.png', './apple-touch-icon.png',
+  './techo/index.html', './techo/manifest.json', './techo/icon-192.png', './techo/icon-512.png', './techo/apple-touch-icon.png'];
 
 // 新しい版が用意できても、すぐには入れ替わらない（作業中に画面が飛ばないように）。
 // アプリ側が「いま更新」を押したときだけ SKIP_WAITING が届いて入れ替わる。

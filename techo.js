@@ -540,7 +540,7 @@ function tcEnsureDom(){
         <button role="menuitem" onclick="tcMenuDo(tcOpenPrint)">🖨 印刷・PDF・画像</button>
         <button role="menuitem" onclick="tcMenuDo(tcOpenSet)">⚙ 設定</button>
         <button role="menuitem" id="tcMenuSync" onclick="tcMenuDo(()=>tcShSync({ask:true, say:true}))" hidden>⇅ 共有ファイルと合わせる</button>
-        <button role="menuitem" class="tc-menux" onclick="tcMenuDo(closeTecho)">✕ 業務手帳を閉じる</button>
+        <button role="menuitem" class="tc-menux" onclick="tcMenuDo(closeTecho)"${window.APP_TECHO?' hidden':''}>✕ 業務手帳を閉じる</button>
       </div>
     </div>
     <form class="tc-add" id="tcAddForm" onsubmit="event.preventDefault(); tcAddSubmit();">
@@ -605,7 +605,7 @@ function tcEnsureDom(){
     el.addEventListener('keydown', e=>{ if(e.key!=='Escape' && e.key!=='Tab') e.stopPropagation(); });
   });
   document.getElementById('tcAddIn').addEventListener('keydown', e=>{ if(e.key==='Enter' && e.isComposing) e.stopPropagation(); });
-  if(typeof bindNpToolSwipe==='function') bindNpToolSwipe('techoOverlay');
+  if(typeof bindNpToolSwipe==='function' && !window.APP_TECHO) bindNpToolSwipe('techoOverlay');   // 業務手帳だけのアプリでは、ほかの道具へ移らない
   if(typeof applyNpToolFull==='function') applyNpToolFull();
   if(typeof bindHSwipe==='function'){
     bindHSwipe(document.getElementById('tcCal'), d=>tcMonthMove(d));
@@ -625,7 +625,9 @@ function openTecho(){
   if(!tcIsDate(tcSel)) tcSel=tcTodayIso();
   tcMon={y:+tcSel.slice(0,4), m:+tcSel.slice(5,7)};
   tcShownDay='';
-  openDlg('techoOverlay', tcOnClosed);
+  // 業務手帳だけのアプリ（?app=techo）では戻るで閉じない。いちばん下で戻ると、表電卓と同じく「もう一度でアプリを閉じる」
+  if(window.APP_TECHO){ document.getElementById('techoOverlay').classList.add('open'); if(typeof applyNpToolFull==='function') applyNpToolFull(); }
+  else openDlg('techoOverlay', tcOnClosed);
   tcBindSplit();
   tcRender();
   tcShInit(false);
@@ -658,6 +660,7 @@ function closeTecho(){
   if(isDlgOpen('tcAlDlg')) tcAliasClose();
   if(isDlgOpen('tcAlList')) tcAliasListClose();
   tcCloseEdit(); tcCloseSet(); tcCloseFind(); tcCloseBoard();
+  if(window.APP_TECHO) return;                        // 業務手帳だけのアプリでは、業務手帳そのものは閉じない
   closeDlg('techoOverlay', tcOnClosed);
 }
 
@@ -1459,6 +1462,22 @@ async function tcLearnPropose(before, after){
   toast('「'+d.from+'」→「'+d.to+'」を覚えました（⚙設定の「自分の言いかえ」で直せます）', 3500);
   tcAliasRefresh();
 }
+/* 業務手帳だけのアプリ（v447）：techo/ を開いてホーム画面に足すと、アイコンから業務手帳だけが開く */
+function tcHomeUrl(){ try{ return new URL('techo/', location.href).href; }catch(_){ return 'techo/'; } }
+function tcHomeSetHtml(){
+  const u=tcHomeUrl();
+  return `<div class="tc-note">業務手帳だけを<b>アイコンから直接</b>開けます。${window.APP_TECHO?'いまは業務手帳だけで開いています。':'下のボタンで業務手帳だけの画面を開き、そこでホーム画面に足してください。'}<br>
+    ・iPhone：Safari の <b>共有（□↑）→「ホーム画面に追加」</b><br>・Android：Chrome の <b>⋮ →「ホーム画面に追加」</b>（または「アプリをインストール」）<br>
+    予定は表電卓の中の業務手帳と同じものを見ます（同じ端末・同じブラウザのとき）。</div>
+    <div class="tc-slrow"><input type="text" readonly value="${tcEsc(u)}" aria-label="業務手帳だけのアドレス" style="flex:1;min-width:0;height:36px;border-radius:8px;border:1px solid rgba(120,132,156,.4);background:var(--modal-bg,#fff);color:var(--text,#333);font-size:13px;padding:0 8px" onclick="this.select()"><button class="tc-mini" onclick="tcHomeCopy()">コピー</button></div>
+    ${window.APP_TECHO?'':'<div class="tc-edbtns"><button onclick="tcHomeOpen()">📔 業務手帳だけの画面を開く</button></div>'}`;
+}
+function tcHomeCopy(){
+  const u=tcHomeUrl();
+  const done=()=>toast('アドレスをコピーしました');
+  try{ navigator.clipboard.writeText(u).then(done, ()=>toast(u, 4000)); }catch(_){ toast(u, 4000); }
+}
+function tcHomeOpen(){ location.href='index.html?app=techo'; }
 /* 設定には件数だけを出し、一覧は別の窓で開く（増えても下の設定が見えなくならないように） */
 function tcAliasSetHtml(){
   const n=(tc.alias||[]).length, m=(tc.heard||[]).length;
@@ -1790,6 +1809,7 @@ function tcRenderSet(){
     <div class="tc-sec">声や文で入れたとき</div><div class="tc-segw"><button class="${!tc.ui.confirm?'on':''}" onclick="tcSetConfirm(false)">すぐ登録</button><button class="${tc.ui.confirm?'on':''}" onclick="tcSetConfirm(true)">確かめてから登録</button></div>
     <div class="tc-note">「すぐ登録」は、登録したあと下に <b>直す／取り消し</b> を出します。「確かめてから」は、聞き取った内容を入力画面に入れて見せます。</div>
     <div class="tc-sec">📄 共有ファイル（Excel）</div>${tcShSetHtml()}
+    <div class="tc-sec">📱 ホーム画面のアイコンから開く</div>${tcHomeSetHtml()}
     <div class="tc-sec">書き出し・読み込み</div>
     <div class="tc-edbtns"><button onclick="tcCsvMonth()">📄 この月を CSV</button><button onclick="tcExport()">⬇ 書き出す</button><button onclick="document.getElementById('tcImportFile').click()">⬆ 読み込む</button></div>
     <input type="file" id="tcImportFile" accept=".json,application/json" hidden onchange="tcImport(event)">
