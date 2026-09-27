@@ -7522,6 +7522,36 @@ async function runTecho(browser) {
   await page.click('#tcMenuBtn'); await page.waitForTimeout(80);
   await page.click('#tcMenu .tc-menux'); await page.waitForTimeout(200);
   check('  メニューから閉じる', await page.evaluate(() => isDlgOpen('tcMenuOv') + '/' + isDlgOpen('techoOverlay')), 'false/false');
+  // 🗣 自分の言いかえ（v445）
+  const al = await page.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms)); const o = {};
+    if (!isDlgOpen('techoOverlay')) openTecho(); tc.ui.confirm = false; tc.alias = []; tc.heard = []; tcSave();
+    const it = tcRegisterText('明日10時 営業 A者訪問', true); o.reg = it.title + '/' + tc.heard.length + '/' + tc.heard[0].q;
+    tcSnackEdit(); await w(80); document.getElementById('tcEdT').value = 'A社訪問'; tcEdSave(); await w(200);
+    o.ask = ((document.querySelector('.tc-choose') || {}).textContent || '').includes('「A者」を「A社」と覚えますか');
+    const bt = [...document.querySelectorAll('.tc-choose button')].find(b => b.textContent === '覚える'); if (bt) bt.click(); await w(80);
+    o.alias = tc.alias.map(a => a.from + '>' + a.to).join(',');
+    const it2 = tcRegisterText('来週月曜 営業 A者と打ち合わせ', true); o.reg2 = it2.title + '/' + tc.heard[tc.heard.length - 1].a;
+    o.typed = tcRegisterText('明後日 営業 A者へ電話').title + '/' + tc.heard.length;   // 打ったものも言いかえるが、聞き取った言葉には残さない
+    tcOpenSet(); await w(40);
+    o.set = document.querySelectorAll('#tcSetBody .tc-alrow').length;
+    tcAliasEdit(-1, '明日9時 工場 てんけん'); await w(40);
+    document.getElementById('tcAlFrom').value = 'てんけん'; document.getElementById('tcAlTo').value = '点検'; tcAliasHint();
+    o.hint = document.getElementById('tcAlHint').textContent;
+    tcAliasOk(); o.alias2 = tc.alias.map(a => a.from + '>' + a.to).join(',') + '/' + JSON.parse(localStorage.getItem('excalc_techo')).alias.length;
+    tcAliasEdit(0); document.getElementById('tcAlTo').value = 'A社さん'; tcAliasOk(); o.edit = tc.alias[0].to;
+    tcAliasDel(1); o.del = tc.alias.length;
+    o.diff = [['A者訪問', 'A社訪問'], ['品管の会議', '品質管理の会議'], ['打ち合わせ', '打合せ'], ['同じ', '同じ']].map(([a, b]) => { const d = tcAliasDiff(a, b); return d ? d.from + '>' + d.to : '-'; }).join(',');
+    o.clean = tcClean({ alias: [{ from: 'x', to: 'y' }, { from: '', to: 'z' }, 5], heard: [{ q: 'aa' }, {}] }).alias.length + '/' + tcClean({ heard: [{ q: 'aa' }, {}] }).heard.length;
+    tcCloseSet(); return o; });
+  check('  言いかえ：声で登録すると聞き取った言葉に残る', al.reg, 'A者訪問/1/明日10時 営業 A者訪問');
+  check('  言いかえ：声で登録したあと件名を直すと、覚えるか聞く', al.ask + '/' + al.alias, 'true/A者>A社');
+  check('  言いかえ：次から置きかえて登録する', al.reg2, 'A社と打ち合わせ/来週月曜 営業 A社と打ち合わせ');
+  check('  言いかえ：打った文にも効く（聞き取った言葉には残さない）', al.typed, 'A社へ電話/2');
+  check('  言いかえ：設定に一覧と聞き取った言葉', al.set, 3);
+  check('  言いかえ：どう登録されるかを見せて足す', al.hint + ' | ' + al.alias2, '→「明日9時 工場 点検」→ 9/26(土) 09:00〜10:00 工場「点検」 と登録します | A者>A社,てんけん>点検/2');
+  check('  言いかえ：直す・消す', al.edit + '/' + al.del, 'A社さん/1');
+  check('  言いかえ：直したところだけを取り出す', al.diff, 'A者>A社,品管>品質管理,ち合わ>合,-');
+  check('  言いかえ：おかしな値は捨てる', al.clean, '1/1');
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();
