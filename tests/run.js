@@ -7242,6 +7242,47 @@ async function runTecho(browser) {
   check('  戻る：業務手帳も閉じる', await page.evaluate(() => isDlgOpen('techoOverlay')), false);
   check('  名前の取れないボタンがない', await page.evaluate(() => { openTecho(); return [...document.querySelectorAll('#techoOverlay button, #techoEditOverlay button, #techoSetOverlay button, #techoBoardOverlay button, #techoFindOverlay button')]
     .filter(b => !(b.getAttribute('aria-label') || b.textContent.trim())).length; }), 0);
+  // 横表示（左に月・右に1日）と、月と1日の仕切り（v436）
+  const geo = () => page.evaluate(() => { const b = document.querySelector('#techoOverlay .tc-body').getBoundingClientRect(), c = document.getElementById('tcCal').getBoundingClientRect(), d = document.querySelector('#techoOverlay .tc-day').getBoundingClientRect();
+    return { row: getComputedStyle(document.querySelector('#techoOverlay .tc-body')).flexDirection, bw: b.width, bh: b.height, cw: c.width, ch: c.height, dl: d.left, dt: d.top, cr: c.right, cb: c.bottom }; });
+  await page.evaluate(() => { tc.ui.calCollapsed = false; tc.ui.splitH = 0; tc.ui.splitV = 0; tcSave(); tcRender(); });
+  await page.setViewportSize({ width: 667, height: 375 }); await page.waitForTimeout(250);
+  let g = await geo();
+  check('  横向き：左に月・右に1日', g.row + '/' + (g.dl >= g.cr) + '/' + (g.cw > 200 && g.cw < 360), 'row/true/true');
+  check('  横向き：6週が月の中に収まる', await page.evaluate(() => { const c = document.getElementById('tcCal'), l = [...document.querySelectorAll('#tcGrid .tc-d')].pop(); return document.querySelectorAll('#tcGrid .tc-d').length + '/' + (l.getBoundingClientRect().bottom <= c.getBoundingClientRect().bottom + 1); }), '42/true');
+  await page.evaluate(() => tcOpenSet()); await page.waitForTimeout(150);
+  await page.evaluate(() => { const r = document.getElementById('tcSplitHR'); r.value = 50; r.dispatchEvent(new Event('input', { bubbles: true })); });
+  g = await geo();
+  check('  設定：横並びの月の幅 50%', Math.round(g.cw / g.bw * 100) + '/' + await page.evaluate(() => document.getElementById('tcSplitHV').textContent + '/' + JSON.parse(localStorage.getItem('excalc_techo')).ui.splitH), '50/50%/50');
+  await page.evaluate(() => document.getElementById('tcSplitHR').nextElementSibling.click());
+  check('  設定：自動に戻す', await page.evaluate(() => tc.ui.splitH + '/' + document.getElementById('tcSplitHV').textContent), '0/自動');
+  await page.evaluate(() => tcCloseSet()); await page.waitForTimeout(100);
+  // 仕切りをなぞる（横）
+  let sb = await page.locator('#tcSplit').boundingBox(); g = await geo();
+  await page.mouse.move(sb.x + 6, sb.y + sb.height / 2); await page.mouse.down();
+  await page.mouse.move(sb.x + 40, sb.y + sb.height / 2, { steps: 4 }); await page.mouse.move(Math.round(g.bw * 0.55) + 6, sb.y + sb.height / 2, { steps: 4 }); await page.mouse.up();
+  g = await geo();
+  check('  なぞる：月の幅が変わって覚える', await page.evaluate(() => tc.ui.splitH + '/' + JSON.parse(localStorage.getItem('excalc_techo')).ui.splitH) + '/' + Math.abs(Math.round(g.cw / g.bw * 100) - 55), '55/55/0');
+  sb = await page.locator('#tcSplit').boundingBox();
+  await page.mouse.click(sb.x + 6, sb.y + sb.height / 2); await page.mouse.click(sb.x + 6, sb.y + sb.height / 2);
+  check('  ダブルタップで自動に戻る', await page.evaluate(() => tc.ui.splitH), 0);
+  await page.focus('#tcSplit'); await page.keyboard.press('ArrowRight');
+  check('  キーでも動かせる', await page.evaluate(() => tc.ui.splitH > 25 && tc.ui.splitH <= 60), true);
+  await page.evaluate(() => { tc.ui.calCollapsed = true; tcRender(); }); g = await geo();
+  check('  横向きで畳むと1週だけ', await page.evaluate(() => document.querySelectorAll('#tcGrid .tc-d').length + '/' + document.getElementById('tcCal').classList.contains('fold')), '7/true');
+  await page.evaluate(() => { tc.ui.calCollapsed = false; tc.ui.splitH = 0; tcSave(); tcRender(); });
+  // 縦
+  await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(250);
+  g = await geo();
+  check('  縦向き：上に月・下に1日', g.row + '/' + (g.dt >= g.cb), 'column/true');
+  await page.evaluate(() => tcSetSplit('v', 60)); g = await geo();
+  check('  縦並びの月の高さ 60%', Math.round(g.ch / g.bh * 100), 60);
+  sb = await page.locator('#tcSplit').boundingBox();
+  await page.mouse.move(sb.x + sb.width / 2, sb.y + 6); await page.mouse.down();
+  await page.mouse.move(sb.x + sb.width / 2, sb.y - 30, { steps: 3 }); await page.mouse.move(sb.x + sb.width / 2, g.bh * 0.4 + (await page.evaluate(() => document.querySelector('#techoOverlay .tc-body').getBoundingClientRect().top)) + 6, { steps: 3 }); await page.mouse.up();
+  check('  縦でもなぞって変わる', await page.evaluate(() => tc.ui.splitV), 40);
+  check('  おかしな値は直す', await page.evaluate(() => { const u = tcClean({ ui: { splitH: 999, splitV: 'x' } }).ui, w = tcClean({ ui: { splitH: 10, splitV: 45.4 } }).ui; return [u.splitH, u.splitV, w.splitH, w.splitV].join(','); }), '60,0,25,45');
+  await page.evaluate(() => { tcSetSplit('v', 0); });
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();

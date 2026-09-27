@@ -8760,6 +8760,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v436', t:'📔業務手帳の横表示・仕切り', li:[
+    '📔業務手帳：スマホを<b>横にすると、左に月・右に1日</b>を並べるようにしました',
+    '月と1日のあいだの<b>仕切りの線を指でなぞる</b>と、月の大きさを変えられます（横は幅、縦は高さを別々に覚えます）。⚙設定の<b>「月と1日の仕切り」</b>でも変えられ、線を<b>ダブルタップ</b>すると元に戻ります',
+  ]},
   { v:'v435', t:'📔業務手帳の時刻が選びやすく', li:[
     '📔業務手帳の入力画面で時刻を押すと、<b>時と分を押して「決定」</b>で選ぶ窓が出るようにしました（端末の時刻選びに決定ボタンが無く、選べないことがあったため）。はじまりを変えると、おわりも同じ長さだけずれます',
   ]},
@@ -20280,7 +20284,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v435';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v436';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
