@@ -81,6 +81,7 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
 .msg.app.info{color:var(--info)}
 .msg .f{display:block;font-size:12px;color:var(--sub);margin-top:2px}
 .msg .a{font-weight:700}
+.msg.me small{display:block;font-size:11.5px;color:var(--sub);margin-top:2px}
 .log-empty{color:var(--sub);text-align:center;padding:24px 12px;font-size:14px}
 .log-empty b{color:var(--text)}
 
@@ -94,6 +95,42 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
 .msg .sug b{font-size:12px;margin-left:4px}
 .msg .sug.lit{border-style:solid;border-color:var(--line,#ccc);color:inherit}
 .miss-btns{display:flex;gap:8px}
+.vc-box{background:var(--card);border:1px solid var(--line);border-radius:var(--r-btn);padding:10px 12px;margin-bottom:6px}
+.vc-h{font-weight:800;margin-bottom:6px}
+.vc-l{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;margin:10px 0 2px}
+.vc-l b{color:var(--acc);min-width:2.2em}
+label.vc-l{display:block}
+label.vc-l select,.cf-sel{display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:8px 10px;font-size:15px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text)}
+.cf-sel{width:auto;flex:none;max-width:48%}
+.vc-eng{font-size:12px;color:var(--sub);margin-top:4px}
+.vc-rs{margin-left:auto;min-height:30px;padding:0 12px;border-radius:var(--r-pill);background:var(--bg);border:1px solid var(--line);font-size:12px;font-weight:700;color:var(--sub)}
+.vc-sl{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub)}
+.vc-sl input{flex:1;accent-color:var(--acc);min-width:0}
+.vc-test{display:block;width:100%;box-sizing:border-box;margin:12px 0 6px;padding:9px 10px;font-size:15px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text)}
+.vc-play{text-align:center}
+.favs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none}
+.favs::-webkit-scrollbar{display:none}
+.favs button{flex:none;min-height:34px;max-width:70vw;padding:0 12px;border-radius:var(--r-pill);background:var(--acc-weak);color:var(--acc);font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.favs button.pick{background:var(--acc);color:#fff}
+.ex-row{display:inline-flex;align-items:stretch;margin:0 6px 6px 0;max-width:100%}
+.ex-row .ex{margin:0;border-radius:var(--r-pill) 0 0 var(--r-pill)}
+.ex-star,.ex-run{min-width:36px;padding:0 8px;background:var(--acc-weak);color:var(--sub);font-size:15px;border-left:1px solid var(--bg)}
+.ex-row>:last-child{border-radius:0 var(--r-pill) var(--r-pill) 0}
+.ex-star.on{color:#f5a300}
+.row.tap{cursor:pointer}
+.row.tap:active{background:var(--acc-weak)}
+.kd-hint{font-size:12.5px;color:var(--sub);min-height:1.4em;margin:-4px 0 10px;word-break:break-all}
+.sum-row{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-btn);padding:8px 12px;margin-bottom:6px;cursor:pointer}
+.sum-row .n{flex:1;min-width:0}
+.sum-row .n small{display:block;color:var(--sub);font-size:12px}
+.sum-row .v{font-weight:800;white-space:nowrap}
+.sum-row .tx{font-size:11px;font-weight:700;color:#fff;background:var(--acc);border-radius:6px;padding:1px 5px;margin-left:4px}
+.sum-tot{background:var(--card);border:2px solid var(--acc);border-radius:var(--r-btn);padding:10px 12px;margin:10px 0}
+.sum-tot div{display:flex;justify-content:space-between;font-size:13.5px;color:var(--sub);margin:2px 0}
+.sum-tot div.big{font-size:20px;font-weight:800;color:var(--text);margin-top:6px}
+.msg .yn{display:flex;gap:8px;margin-top:8px}
+.msg .yn button{flex:1;min-height:40px;border-radius:10px;font-weight:800;border:1px solid var(--acc);color:var(--acc);background:transparent}
+.msg .yn button.y{background:var(--acc);color:#fff}
 .miss-btns .act{flex:1}
 .row.miss small{display:block}
 .heard{min-height:1.5em;font-size:13px;color:var(--acc);text-align:center;margin-bottom:4px;word-break:break-all;position:relative}
@@ -215,7 +252,7 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
 </nav>
 
 <section class="answer" aria-live="polite">
-  <div class="ans-label"><span id="ansLabel">いまの答え</span><span class="ans-right"><span id="ansMode"></span><button class="rst" onclick="resetScreen()" aria-label="画面の会話と計算をリセット">🧹 リセット</button></span></div>
+  <div class="ans-label"><span id="ansLabel">いまの答え</span><span class="ans-right"><span id="ansMode"></span><button class="rst" id="sumListBtn" hidden onclick="openPanel('sum')" aria-label="足し上げの一覧">📋 一覧</button><button class="rst" onclick="resetScreen()" aria-label="画面の会話と計算をリセット">🧹 リセット</button></span></div>
   <div class="ans-big num" id="ansBig">—</div>
   <div class="ans-sub num" id="ansSub"></div>
 </section>
@@ -223,6 +260,7 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
 <main id="log" aria-label="会話の記録"></main>
 
 <div class="dock">
+  <div class="favs" id="favs" hidden aria-label="お気に入りの言い方"></div>
   <div class="guide" id="guide" hidden><div class="gt"><small>この言い方で話すと、数をこの文例に当てはめて計算します</small><b id="guideTx"></b></div><button onclick="setGuide('')" aria-label="文例をやめる">✕</button></div>
   <div class="heard" id="heard" aria-live="polite"></div>
   <div class="dock-row">
@@ -242,8 +280,20 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
   <div class="panel-body">
     <div class="sec">声</div>
     <div class="row" onclick="toggleSet('speak')"><div>答えを読み上げる<small>イヤホンをつなげば、まわりに聞こえません</small></div><span class="sw" data-set="speak"></span></div>
-    <div class="row"><div>読み上げの速さ</div><div class="seg" id="rateSeg">
-      <button data-rate="0.8" onclick="setRate(0.8)">ゆっくり</button><button data-rate="1" onclick="setRate(1)">ふつう</button><button data-rate="1.25" onclick="setRate(1.25)">はやい</button></div></div>
+    <div class="vc-box" id="vcBox">
+      <div class="vc-h">🔈 読み上げの声</div>
+      <label class="vc-l">読み上げ音声<select id="vcVoice" onchange="setVoice(this.value)" aria-label="読み上げ音声"></select></label>
+      <div class="vc-eng" id="vcEng"></div>
+      <div class="vc-l">読む速さ <b class="num" id="vcRateV"></b><button class="vc-rs" onclick="setVc('rate',1)">リセット</button></div>
+      <div class="vc-sl"><span>遅い</span><input type="range" id="vcRate" min="0.5" max="2" step="0.1" oninput="setVc('rate',this.value,true)" onchange="setVc('rate',this.value)" aria-label="読む速さ"><span>速い</span></div>
+      <div class="vc-l">声の高さ <b class="num" id="vcPitchV"></b><button class="vc-rs" onclick="setVc('pitch',1)">リセット</button></div>
+      <div class="vc-sl"><span>低い</span><input type="range" id="vcPitch" min="0.5" max="2" step="0.1" oninput="setVc('pitch',this.value,true)" onchange="setVc('pitch',this.value)" aria-label="声の高さ"><span>高い</span></div>
+      <div class="vc-l">音の大きさ <b class="num" id="vcVolV"></b><button class="vc-rs" onclick="setVc('vol',1)">リセット</button></div>
+      <div class="vc-sl"><span>小さい</span><input type="range" id="vcVol" min="0" max="1" step="0.1" oninput="setVc('vol',this.value,true)" onchange="setVc('vol',this.value)" aria-label="音の大きさ"><span>大きい</span></div>
+      <input class="vc-test" id="vcTest" value="1280円を3つで、3840円です" aria-label="テストで読む言葉">
+      <button class="act vc-play" onclick="testVoice()">▶ テスト再生</button>
+      <div class="note">読み上げの仕組み（エンジン）は、端末の設定で変えます（Android：設定 → システム → 言語と入力 → 音声出力／iPhone：設定 → アクセシビリティ → 読み上げコンテンツ → 声）。入れた声が出ないときは、アプリを開き直してください。</div>
+    </div>
     <div class="row"><div>話し終わりを待つ時間<small>話している途中で間があいても、ここで決めた時間だけ待ってから計算します。「1280円を」のような言いかけのときは倍待ちます。🎙 をもう一度押すと、待たずに計算します</small></div><div class="seg" id="waitSeg">
       <button data-wait="short" onclick="setWait('short')">短め</button><button data-wait="normal" onclick="setWait('normal')">ふつう</button><button data-wait="long" onclick="setWait('long')">長め</button></div></div>
     <div class="row" onclick="toggleSet('beep')"><div>聞き取れたら「ピッ」と鳴らす</div><span class="sw" data-set="beep"></span></div>
@@ -258,8 +308,15 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
     <div class="sec">計算</div>
     <div class="row" onclick="toggleSet('mulFirst')"><div>かけ算・わり算を先に計算する<small>電卓と同じ順番です。「1200足す350かける2」は、オフだと左から順に 3100、オンだと 1900 になります</small></div><span class="sw" data-set="mulFirst"></span></div>
     <div class="row"><div>消費税</div><div class="seg" id="taxSeg"><button data-tax="10" onclick="setTax(10)">10%</button><button data-tax="8" onclick="setTax(8)">8%</button></div></div>
-    <div class="sec">名前を付けた数<small></small></div>
+    <div class="row"><div>大きな金額は確かめる<small>家計簿に付けるときと、足し上げ・予算で数えるとき、この金額より大きいと「〇〇円でよいですか」と聞きます（聞きまちがいで大きな数が入るのを防ぎます）</small></div>
+      <select class="cf-sel" id="confirmSel" onchange="setConfirmAmt(this.value)" aria-label="確かめる金額"><option value="0">聞かない</option><option value="10000">1万円より上</option><option value="30000">3万円より上</option><option value="50000">5万円より上</option><option value="100000">10万円より上</option></select></div>
+    <div class="sec">名前を付けた数<small>押すと直せます</small></div>
     <div id="varList"></div>
+    <button class="act" onclick="editVar('')">＋ 名前を付けた数を足す</button>
+    <div class="sec">自分の言いかえ<small id="aliasCount"></small></div>
+    <div class="note">うまく聞き取れない言葉や、自分の言い方を登録すると、計算する前にその言葉に置きかえます。例：「ぜいこみ」→「税込み」、「いつものランチ」→「850円」。下の「うまくいかなかった言葉」を押しても登録できます。</div>
+    <div id="aliasList"></div>
+    <button class="act" onclick="editAlias(-1,'')">＋ 言いかえを足す</button>
     <div class="sec">記録</div>
     <button class="act danger" onclick="clearLog()">🗑 会話の記録と計算を消す</button>
     <div class="sec">バックアップ</div>
@@ -267,7 +324,7 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
     <div class="miss-btns"><button class="act" onclick="koeExport()">⬇ 書き出す</button><button class="act" onclick="$('koeImportFile').click()">⬆ 読み込む</button></div>
     <input type="file" id="koeImportFile" accept=".json,application/json" hidden onchange="koeImport(event)">
     <div class="sec">うまくいかなかった言葉<small id="missCount"></small></div>
-    <div class="note">計算できなかった言葉・分からない言葉があった言い方を、この端末の中に残しています。コピーして伝えてもらえれば、言えるように直す手がかりになります。</div>
+    <div class="note">計算できなかった言葉・分からない言葉があった言い方を、この端末の中に残しています。<b>押すと、その言葉の言いかえを登録できます。</b>コピーして伝えてもらえれば、言えるように直す手がかりにもなります。</div>
     <div id="missList"></div>
     <div class="miss-btns"><button class="act" onclick="copyMisses()">📋 コピー</button><button class="act danger" onclick="clearMisses()">🗑 消す</button></div>
     <div class="note">入れたものは、この端末の中だけに残ります。どこにも送りません。<br>
@@ -319,6 +376,20 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
   </div>
 </div>
 
+<!-- 小さな入力の窓（言いかえ・名前を付けた数・足し上げの品物） -->
+<div class="bk-edit" id="kdlg" hidden><div class="bk-edit-box" id="kdlgBox"></div></div>
+
+<!-- 📦 足し上げの一覧（v19）：直す・消す・税・共有 -->
+<div class="panel" id="p-sum" role="dialog" aria-label="足し上げの一覧">
+  <div class="panel-head"><button class="hbtn" onclick="closePanel()">✕</button><h2 id="sumTitle">📦 足し上げの一覧</h2></div>
+  <div class="panel-body">
+    <div class="note">品物を押すと、名前・金額・税を直したり消したりできます。「牛乳 238円 軽減」「洗剤 398円 10%」のように言うと、税も付けて数えます。</div>
+    <div id="sumList"></div>
+    <div id="sumTotal"></div>
+    <div class="miss-btns"><button class="act" onclick="shareSum()">📤 文字で共有</button><button class="act" onclick="sumImage()">🖼 画像で保存</button></div>
+  </div>
+</div>
+
 <!-- 練習 -->
 <div class="panel" id="p-drill" role="dialog" aria-label="暗算の練習">
   <div class="panel-head"><button class="hbtn" onclick="closePanel()">✕</button><h2>🧠 暗算の練習</h2></div>
@@ -351,16 +422,20 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
    ・足し上げ／予算／練習のときは、言葉の受け取り方が変わる（state.mode）
    ・入れたものは この端末の中だけ（localStorage の koe_*）に残る
    ════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v18';
+const APP_VERSION='v19';
 const LS_STATE='koe_state', LS_VARS='koe_vars', LS_SET='koe_settings', LS_BOOK='koe_book';
 
 /* ── 設定 ── */
-const SET_DEF={ speak:true, rate:1, beep:true, vib:true, big:false, tax:10, handsFree:false, wake:false, drillLv:'kuku', wait:'normal', voF:true, mulFirst:false };
+const SET_DEF={ speak:true, rate:1, pitch:1, vol:1, voice:'', beep:true, vib:true, big:false, tax:10, handsFree:false, wake:false, drillLv:'kuku', wait:'normal', voF:true, mulFirst:false, confirmAmt:0 };
 let settings=Object.assign({}, SET_DEF);
 function loadSettings(){
   try{ const o=JSON.parse(localStorage.getItem(LS_SET)||'{}'); if(o && typeof o==='object') settings=Object.assign({}, SET_DEF, o); }catch(_){}
   if(![8,10].includes(+settings.tax)) settings.tax=10;
   if(!['short','normal','long'].includes(settings.wait)) settings.wait='normal';
+  const clampN=(v,a,b,d)=>{ v=+v; return isFinite(v) ? Math.min(b, Math.max(a, Math.round(v*10)/10)) : d; };
+  settings.rate=clampN(settings.rate, 0.5, 2, 1); settings.pitch=clampN(settings.pitch, 0.5, 2, 1); settings.vol=clampN(settings.vol, 0, 1, 1);
+  if(typeof settings.voice!=='string') settings.voice='';
+  if(![0,10000,30000,50000,100000].includes(+settings.confirmAmt)) settings.confirmAmt=0;
 }
 let DRY=false;   // 「もしかして」を試すあいだは何も書き残さない
 function saveSettings(){ if(DRY) return; try{ localStorage.setItem(LS_SET, JSON.stringify(settings)); }catch(_){} }
@@ -597,8 +672,11 @@ function recomputeAll(){
     }else if(e.k==='item'){
       const r=evalToks(e.toks,null,'');
       e.v=r.v; e.u=r.unit; e.f=r.f;
+      const tx=(e.tx===8||e.tx===10) && (!r.unit || r.unit==='円') ? e.tx : 0;
+      e.tax=(r.v!=null && isFinite(r.v) && tx) ? Math.floor(r.v*tx/100+1e-9) : 0;   // 税は品物ごとに切り捨て
+      e.vt=(r.v!=null && isFinite(r.v)) ? r.v+e.tax : r.v;
       if(r.v!=null && isFinite(r.v)){
-        sum+=r.v; cnt++;
+        sum+=e.vt; cnt++;
         sumU = (sumU===null) ? r.unit : (sumU===r.unit ? sumU : '');
       }
       e.sumAfter=sum;
@@ -789,11 +867,31 @@ const RE_SUM_START=/^(足し上げ|たしあげ|足していって|たしてい�
 const RE_BUDGET=/^(?:予算|よさん)(?:は|を|が)?(\d+(?:\.\d+)?)円?(?:で|にして|です|から|スタート|開始)?(?:始めて|はじめて|お願い)?$/;
 const RE_DRILL=/(練習|れんしゅう|問題を出して|問題出して|クイズ)/;
 
-let runN0=0;   // 言われる前の計算の数（この言葉で計算が増えたかを見る）
+let runN0=0;
+let aliasNote='';      // 言いかえで置きかえた言葉（吹き出しに小さく出す）
+let CONFIRMED=false;   // 「はい」と答えたあとに付け直すあいだ
+const RE_YES=/^(はい|ハイ|うん|ええ|オッケー|OK|ok|おっけー|いいよ|いいです|大丈夫|だいじょうぶ|それで|それでいい|お願いします|おねがいします|付けて|つけて|入れて|いれて)[。！!]?$/;
+const RE_NO=/^(いいえ|いや|いえ|ちがう|違う|ちがいます|違います|だめ|ダメ|やめて|やめる|キャンセル|なし|取り消し)[。！!]?$/;
+function needConfirm(amt){ return !CONFIRMED && !DRY && +settings.confirmAmt>0 && Math.abs(+amt)>+settings.confirmAmt; }   // 言われる前の計算の数（この言葉で計算が増えたかを見る）
 let LITERAL=false;   // 「このまま計算」：読み飛ばした言葉があっても、そのまま式として計算する
 function koeRun(raw, opt){
   opt=opt||{};
-  const t=norm(raw);
+  const al=applyAliases(raw);                 // 自分の言いかえ（v19）
+  aliasNote=al!==String(raw) ? al : '';
+  const t=norm(al);
+  // 大きな金額を確かめているとき（v19）：「はい」で付ける、「いいえ」でやめる。ほかの言葉なら新しく読む
+  // （「はい」は言葉のつなぎとして norm で消えるので、元の言葉で見る）
+  if(state.ask && state.ask.k==='confirm'){
+    const a0=String(al).trim().replace(/[、。．.,！!？?\s]+$/,'');
+    const q=state.ask; state.ask=null;
+    if(RE_YES.test(a0) || RE_YES.test(t)){
+      CONFIRMED=true; let r=null;
+      try{ r=koeRun(q.t, opt); } finally{ CONFIRMED=false; }
+      const m=state.log[state.log.length-1]; if(r && m && !r.noLog){ m.q=String(raw).trim(); saveState(); }
+      return r;
+    }
+    if(RE_NO.test(a0) || RE_NO.test(t)) return finish(raw, R_info('やめました。'+currentSay()));
+  }
   if(!t) return null;
   LITERAL=!!opt.literal;
   runN0=state.entries.length;
@@ -841,7 +939,8 @@ function finish(raw,res){
     // この言葉で増えた計算（または言い直した計算）に印を付けて、取り消したときに画面の吹き出しも一緒に消す（v4）
     let eid=res.eid||null;
     if(!eid && state.entries.length>runN0) eid=entryLid(state.entries[state.entries.length-1]);
-    state.log.push({q:res.q, a:res.a, f:res.f||'', c:res.cls||'ok', t:Date.now(), eid:eid||undefined, sug:res.sug||undefined, lit:res.lit||undefined, litA:res.litA||undefined});
+    state.log.push({q:res.q, a:res.a, f:res.f||'', c:res.cls||'ok', t:Date.now(), eid:eid||undefined, sug:res.sug||undefined, lit:res.lit||undefined, litA:res.litA||undefined,
+      al:aliasNote||undefined, yn:res.yn||undefined});
   }
   saveState();
   return res;
@@ -1049,12 +1148,15 @@ function hBook(t){
   }
   c=cc;
   if(!c || q) return null;
+  // 「家賃かける8」のような計算や、名前を付けた数を使う言い方は、家計簿に付けない（v19）
+  if(BOOK_CALC_RE.test(t) || Object.keys(vars).some(n=>n.length>=2 && t.includes(n))) return null;
   if(/どっち|どちら|割り勘|わりかん|お釣り|おつり|人で/.test(t)) return null;
   const rest=c.store||!c.w ? t : t.replace(c.w,'、');                      // お店の名前はメモに残す
   const m=rest.match(/(\d+(?:\.\d+)?)円/) || rest.match(/(\d+(?:\.\d+)?)/);   // 「2点で500円」は円の付いた数を金額に
   if(!m) return null;
   const amt=+m[1];
   const memo=bookMemo(rest.replace(m[0],'、'));
+  if(needConfirm(amt)){ state.ask={k:'confirm', t}; return Object.assign(R_info(c.cat+' '+sayU(amt,'円')+' を家計簿に付けますか？「はい」か「いいえ」で答えてください', '📒 '+c.cat+' '+fmtU(amt,'円')+' を付けますか？', '大きな金額なので確かめています'), {yn:true}); }
   const id=Date.now()+Math.floor(Math.random()*1000);
   book.push({id, d:isoDay(today()), amt, cat:c.cat, memo});
   saveBook();
@@ -1293,6 +1395,15 @@ function hItem(t){
   let name=nm[1].replace(/^(次は?|つぎは?|あと|それから|それと|で|と)、?/,'').replace(/(は|が|を|の|、|,)+$/,'');
   let rest=t.slice(nm[1].length);
   const um=name.match(/(単価|@)$/); if(um){ name=name.slice(0,-um[1].length).replace(/(は|が|を|の|、)+$/,''); rest=um[1]+rest; }
+  // 税（v19）：「238円 軽減」「398円 10%」→ その品物に税を付けて数える
+  let tx=0; const txm=rest.match(/[、,\s]*(?:の|で)?(軽減(?:税率)?(?:対象)?|8%|8パーセント|10%|10パーセント)(?:の?税(?:率)?)?(?:対象|で|付き|つき|込みで)?$/);
+  if(txm && txm.index>0){ tx=/10/.test(txm[1])?10:8; rest=rest.slice(0,txm.index); }
+  const parsed=itemToks(rest, state.mode==='budget');
+  if(!parsed) return null;
+  return addItem(name, rest, parsed, tx, t);
+}
+/* 品物の金額の言い方 → 式（「3個で単価120円」「単価120円の3個」「2本で500円」など） */
+function itemToks(rest, budget){
   let toks=null, show='', m;
   const re_up=new RegExp('^'+NUM+'('+QTY+'|'+MEAS+')(?:で|が|の|、)?(?:単価|1個|1つ|ひとつ|@)'+NUM+'円?$');
   const re_up2=new RegExp('^(?:単価|@)'+NUM+'円?(?:の|で|を|が|、)?'+NUM+'('+QTY+'|'+MEAS+')$');
@@ -1305,18 +1416,28 @@ function hItem(t){
     if(!tk.toks.some(k=>k.t==='num')) return null;
     toks=tk.toks;
   }
-  if(state.mode==='budget' && !toks.some(k=>k.u==='円')) toks.forEach(k=>{ if(k.t==='num' && !k.u){ k.u='円'; } });
-  state.entries.push({k:'item', name, toks, show, text:t});
+  if(budget && !toks.some(k=>k.u==='円')) toks.forEach(k=>{ if(k.t==='num' && !k.u){ k.u='円'; } });
+  return {toks, show};
+}
+function addItem(name, rest, parsed, tx, t){
+  const {toks, show}=parsed;
+  state.entries.push({k:'item', name, toks, show, text:t, rest, tx:tx||undefined});
   recomputeAll();
   const e=state.entries[state.entries.length-1];
   if(e.v==null || !isFinite(e.v)){ state.entries.pop(); recomputeAll(); return R_err('「'+t+'」の金額が分かりませんでした'); }
+  if(needConfirm(e.vt)){
+    state.entries.pop(); recomputeAll();
+    state.ask={k:'confirm', t};
+    return Object.assign(R_info((name?name+' ':'')+sayU(e.vt,e.u)+' でよいですか？「はい」か「いいえ」で答えてください', (name?name+'　':'')+fmtU(e.vt,e.u)+' でよいですか？', '大きな金額なので確かめています'), {yn:true});
+  }
+  const txs=e.tx ? '（税'+e.tx+'%込み）' : '';
   const head=(name?name+' ':'')+(show&&!/×/.test(show)?show+' ':'');
   if(state.mode==='budget'){
     const rest2=state.budget-state.sum;
-    const say=head+sayU(e.v,e.u)+'。'+(rest2>=0?'残り '+sayU(rest2,'円'):'予算を '+sayU(-rest2,'円')+' こえました');
-    return Object.assign(R_ok(say, (name?name+'　':'')+fmtU(e.v,e.u), (rest2>=0?'残り '+fmtU(rest2,'円'):'予算をこえた '+fmtU(-rest2,'円'))+'（'+state.cnt+'件）'), rest2<0?{cls:'err'}:{});
+    const say=head+sayU(e.vt,e.u)+'。'+(rest2>=0?'残り '+sayU(rest2,'円'):'予算を '+sayU(-rest2,'円')+' こえました');
+    return Object.assign(R_ok(say, (name?name+'　':'')+fmtU(e.vt,e.u)+txs, (rest2>=0?'残り '+fmtU(rest2,'円'):'予算をこえた '+fmtU(-rest2,'円'))+'（'+state.cnt+'件）'), rest2<0?{cls:'err'}:{});
   }
-  return R_ok(head+sayU(e.v,e.u)+'。合計 '+sayU(state.sum,state.sumU), (name?name+'　':'')+(show?show+'　':'')+fmtU(e.v,e.u), '合計 '+fmtU(state.sum,state.sumU)+'（'+state.cnt+'件）');
+  return R_ok(head+sayU(e.vt,e.u)+'。合計 '+sayU(state.sum,state.sumU), (name?name+'　':'')+(show?show+'　':'')+fmtU(e.vt,e.u)+txs, '合計 '+fmtU(state.sum,state.sumU)+'（'+state.cnt+'件）');
 }
 
 /* 名前を付けた数：「単価は2800」「単価を2800にして」→ あとで「単価×45」 */
@@ -1466,6 +1587,9 @@ function render(){
     if(state.lastV!=null){ bigT=fmtU(state.lastV,state.lastU); subT=state.lastF||''; if(state.lastPer) labT='1人あたり'; }
   }
   lab.textContent=labT; md.textContent=mdT; big.textContent=bigT; sub.textContent=subT;
+  const slb=$('sumListBtn'); if(slb) slb.hidden=!(state.mode==='sum' || state.mode==='budget' || sumSession().items.length);
+  if($('p-sum') && $('p-sum').classList.contains('open')) renderSum();
+  renderFavs();
   const vo=$('voBig'); if(vo){
     vo.textContent=bigT; $('voSub').textContent=labT==='いまの答え'?'':labT;
     const last=state.log[state.log.length-1];
@@ -1488,11 +1612,13 @@ function renderLog(){
   }
   box.innerHTML=state.log.slice(-120).map((m,i,arr)=>{
     const idx=state.log.length-arr.length+i;
-    return (m.q?'<div class="msg me">'+escHtml(m.q)+(m.og?'<small>聞こえた言葉：'+escHtml(m.og)+'（文例に当てはめ）</small>':'')+'</div>':'')
+    const ynNow=m.yn && idx===state.log.length-1 && state.ask && state.ask.k==='confirm';
+    return (m.q?'<div class="msg me">'+escHtml(m.q)+(m.og?'<small>聞こえた言葉：'+escHtml(m.og)+'（文例に当てはめ）</small>':'')+(m.al?'<small>言いかえ：'+escHtml(m.al)+'</small>':'')+'</div>':'')
       +'<div class="msg app '+(m.c||'')+'" onclick="sayLog('+idx+')"><span class="a">'+escHtml(m.a)+'</span>'
       +(m.f && !(m.sug && /^もしかして/.test(m.f)) ? '<span class="f num">'+escHtml(m.f)+'</span>' : '')
       +(m.sug ? '<button class="sug" onclick="event.stopPropagation();trySug('+idx+')">もしかして「'+escHtml(m.sug)+'」？ <b>押すと計算</b></button>' : '')
-      +(m.lit ? '<button class="sug lit" onclick="event.stopPropagation();tryLit('+idx+')">このまま計算：'+escHtml(m.litA||'')+'</button>' : '')+'</div>';
+      +(m.lit ? '<button class="sug lit" onclick="event.stopPropagation();tryLit('+idx+')">このまま計算：'+escHtml(m.litA||'')+'</button>' : '')
+      +(ynNow ? '<div class="yn"><button class="y" onclick="event.stopPropagation();runText(\'はい\')">はい</button><button onclick="event.stopPropagation();runText(\'いいえ\')">いいえ</button></div>' : '')+'</div>';
   }).join('');
   box.scrollTop=box.scrollHeight;
 }
@@ -1509,6 +1635,7 @@ function runText(text, fromVoice, opt){
   if(!res) return null;
   if(fitted){ const m=state.log[state.log.length-1]; if(m && m.q===fitted.trim()){ m.og=String(text).trim(); saveState(); } setHeard('「'+text+'」→ 文例に当てはめて「'+fitted+'」'); }
   lastFromVoice=!!fromVoice;
+  if(res.cls==='ok' && !res.noLog && !res.mode && !res.yn && /\d/.test(res.q||'')) noteRecent(fitted||res.q);   // 最近使った言い方（v19）
   if(res.cls==='err'){ beep(false); vib([60,80,60]); } else vib(25);
   render();
   if(res.open) setTimeout(()=>openPanel(res.open), 50);
@@ -1550,7 +1677,10 @@ function vib(p){ if(settings.vib && navigator.vibrate){ try{ navigator.vibrate(p
 let speaking=false, jaVoice=null;
 function pickVoice(){
   if(jaVoice) return jaVoice;
-  try{ jaVoice=(speechSynthesis.getVoices()||[]).find(v=>/^ja/i.test(v.lang))||null; }catch(_){}
+  try{
+    const vs=speechSynthesis.getVoices()||[];
+    jaVoice=(settings.voice && vs.find(v=>v.voiceURI===settings.voice)) || vs.find(v=>/^ja/i.test(v.lang)) || null;   // 選んだ声（v19）→ なければ日本語の声
+  }catch(_){}
   return jaVoice;
 }
 /* 声だけの画面：式を読みやすい言葉にする（「1,280円 × 3つ ＝ 3,840円」→「1280円 かける 3つ」）。
@@ -1572,21 +1702,21 @@ function sayText(s){
   return String(s||'').replace(/[✅👍📒❌⭕🎙👂📦👛🧠]/gu,'').replace(/×/g,'かける').replace(/÷/g,'わる').replace(/＋/g,'たす').replace(/−/g,'ひく')
     .replace(/%/g,'パーセント').replace(/(\d),(?=\d{3})/g,'$1').replace(/＝/g,'は').replace(/「|」/g,'');
 }
-function speak(text, after){
+function speak(text, after, force){
   const done=()=>{ speaking=false; if(after) after(); else if(settings.handsFree && !recOn && hfWanted) setTimeout(()=>{ if(!recOn && !speaking) startListen(); }, 250); };
-  if(!text || !settings.speak || !('speechSynthesis' in window)){ if(after) setTimeout(after,50); return; }
+  if(!text || (!settings.speak && !force) || !('speechSynthesis' in window)){ if(after) setTimeout(after,50); return; }
   try{
     speechSynthesis.cancel();
     const u=new SpeechSynthesisUtterance(sayText(text));
-    u.lang='ja-JP'; u.rate=+settings.rate||1;
-    const v=pickVoice(); if(v) u.voice=v;
+    u.lang='ja-JP'; u.rate=+settings.rate||1; u.pitch=+settings.pitch||1; u.volume=settings.vol==null?1:+settings.vol;
+    const v=pickVoice(); if(v){ u.voice=v; u.lang=v.lang||'ja-JP'; }
     speaking=true;
     if(recOn){ pauseForSpeak=true; try{ rec.abort(); }catch(_){} }   // 自分の声を聞き取らないように止める
     u.onend=done; u.onerror=done;
     speechSynthesis.speak(u);
   }catch(_){ done(); }
 }
-if('speechSynthesis' in window){ try{ speechSynthesis.onvoiceschanged=()=>{ jaVoice=null; pickVoice(); }; }catch(_){} }
+if('speechSynthesis' in window){ try{ speechSynthesis.onvoiceschanged=()=>{ jaVoice=null; pickVoice(); if($('p-set') && $('p-set').classList.contains('open')) renderVoice(); }; }catch(_){} }
 
 /* ── 聞き取り ──
    ブラウザの音声認識（Web Speech API）を使う。使えない端末では、下の欄に打つか、
@@ -1774,6 +1904,7 @@ function openPanel(id){
   if(id==='ex') renderEx();
   if(id==='set') renderSet();
   if(id==='drill') renderDrillPanel();
+  if(id==='sum') renderSum();
   el.classList.add('open'); panelStack.push(el);
   try{ history.pushState({koe:id},''); }catch(_){}
 }
@@ -1784,13 +1915,14 @@ window.addEventListener('popstate', ()=>{ if(panelStack.length) closeTop(); });
 /* ── 設定 ── */
 function renderSet(){
   document.querySelectorAll('.sw[data-set]').forEach(s=>s.classList.toggle('on', !!settings[s.dataset.set]));
-  document.querySelectorAll('#rateSeg button').forEach(b=>b.classList.toggle('on', +b.dataset.rate===+settings.rate));
   document.querySelectorAll('#waitSeg button').forEach(b=>b.classList.toggle('on', b.dataset.wait===settings.wait));
   document.querySelectorAll('#taxSeg button').forEach(b=>b.classList.toggle('on', +b.dataset.tax===+settings.tax));
   const names=Object.keys(vars);
   $('varList').innerHTML=names.length
-    ? names.map(n=>'<div class="row"><div>'+escHtml(n)+'<small>'+escHtml(fmtU(vars[n].v,vars[n].u))+'</small></div><button class="bk-del" onclick="delVar(\''+escHtml(n).replace(/'/g,"\\'")+'\')" aria-label="'+escHtml(n)+'を忘れる">✕</button></div>').join('')
+    ? names.map(n=>'<div class="row tap" data-n="'+escHtml(n)+'" onclick="editVar(this.dataset.n)"><div>'+escHtml(n)+'<small>'+escHtml(fmtU(vars[n].v,vars[n].u))+'</small></div><button class="bk-del" data-n="'+escHtml(n)+'" onclick="event.stopPropagation();delVar(this.dataset.n)" aria-label="'+escHtml(n)+'を忘れる">✕</button></div>').join('')
     : '<div class="note">まだありません。「単価は2800」のように言うと覚えます。</div>';
+  const cs=$('confirmSel'); if(cs) cs.value=String(+settings.confirmAmt||0);
+  renderAliases(); renderVoice();
   $('verNote').textContent='声の計算帳 '+APP_VERSION;
   renderMisses();
 }
@@ -1798,7 +1930,7 @@ const MISS_KIND={ng:'計算できない', sug:'もしかして', skip:'分から
 function renderMisses(){
   const a=loadMisses(), box=$('missList'); if(!box) return;
   $('missCount').textContent=a.length?'（'+a.length+'件）':'';
-  box.innerHTML=a.length ? a.slice(0,30).map(x=>'<div class="row miss"><div>'+escHtml(x.q)+'<small>'+(MISS_KIND[x.k]||'')+'</small></div></div>').join('')+(a.length>30?'<div class="note">ほか '+(a.length-30)+'件（コピーにはぜんぶ入ります）</div>':'')
+  box.innerHTML=a.length ? a.slice(0,30).map(x=>'<div class="row miss tap" data-q="'+escHtml(x.q)+'" onclick="editAlias(-1,this.dataset.q)"><div>'+escHtml(x.q)+'<small>'+(MISS_KIND[x.k]||'')+' ・ 押すと言いかえを登録</small></div></div>').join('')+(a.length>30?'<div class="note">ほか '+(a.length-30)+'件（コピーにはぜんぶ入ります）</div>':'')
     : '<div class="note">いまはありません。</div>';
 }
 function missText(){ return loadMisses().map(x=>x.q+'\t'+(MISS_KIND[x.k]||'')).join('\n'); }
@@ -1808,7 +1940,7 @@ function copyMisses(){
   try{ navigator.clipboard.writeText(t).then(done, ()=>{ prompt('コピーしてください', t); }); }catch(_){ prompt('コピーしてください', t); }
 }
 /* バックアップ（v13）：koe_* をまとめて書き出す／読み込む。表電卓の書き出しファイルも読める */
-const KOE_KEYS=['koe_book','koe_vars','koe_settings','koe_state','koe_misses','koe_catbudget'];
+const KOE_KEYS=['koe_book','koe_vars','koe_settings','koe_state','koe_misses','koe_catbudget','koe_alias','koe_fav','koe_recent'];
 function koeExport(){
   saveState(); saveBook(); saveVars(); saveSettings();
   const data={}; KOE_KEYS.forEach(k=>{ try{ const v=localStorage.getItem(k); if(v!=null) data[k]=v; }catch(_){} });
@@ -1843,9 +1975,9 @@ function toggleSet(k){
   applySettings(); renderSet();
 }
 function setWait(w){ settings.wait=w; saveSettings(); renderSet(); toast('話し終わりを '+({short:'約1秒',normal:'約2秒',long:'約3秒'})[w]+' 待ちます'); }
-function setRate(r){ settings.rate=r; saveSettings(); renderSet(); speak('この速さで読みます'); }
+
 function setTax(n){ settings.tax=n; saveSettings(); renderSet(); toast('消費税を '+n+'% にしました'); }
-function delVar(n){ delete vars[n]; saveVars(); renderSet(); toast(n+' を忘れました'); }
+function delVar(n){ if(!(n in vars)) return; delete vars[n]; saveVars(); renderSet(); toast(n+' を忘れました'); }
 function applySettings(){ document.body.classList.toggle('big', !!settings.big); syncMicUi(); }
 /* 🧹リセット：画面に残っている会話と計算を消す（家計簿と名前を付けた数は残す） */
 function resetScreen(){
@@ -1869,13 +2001,19 @@ function renderEx(){
   $('exGenres').innerHTML='<button class="chip'+(exGenre==='all'?' on':'')+'" onclick="pickGenre(\'all\')">すべて '+all+'</button>'
     +gs.map(g=>'<button class="chip'+(exGenre===g.id?' on':'')+'" onclick="pickGenre(\''+g.id+'\')">'+g.ic+' '+escHtml(g.g.replace(/（.*）$/,''))+' '+g.ex.length+'</button>').join('');
   const q=norm(($('exFind')||{}).value||'');
+  const fav=loadList(LS_FAV), rec=loadList(LS_RECENT).filter(t=>!fav.includes(t));
+  const row=(t, run)=>'<span class="ex-row"><button class="ex'+(t===guideEx?' pick':'')+'" onclick="pickEx(this)">'+escHtml(t)+'</button>'
+    +'<button class="ex-star'+(fav.includes(t)?' on':'')+'" data-t="'+escHtml(t)+'" onclick="toggleFav(this.dataset.t)" aria-label="お気に入り'+(fav.includes(t)?'から外す':'に入れる')+'">'+(fav.includes(t)?'★':'☆')+'</button>'
+    +(run?'<button class="ex-run" data-t="'+escHtml(t)+'" onclick="runFav(this.dataset.t)" aria-label="すぐ計算">▶</button>':'')+'</span>';
+  const mine=(title, list)=>{ const l=list.filter(t=>!q || norm(t).includes(q)); return l.length ? '<div class="ex-group"><h3>'+title+'<span class="ex-count">'+l.length+'</span></h3>'+l.map(t=>row(t,true)).join('')+'</div>' : ''; };
+  const top=exGenre==='all' ? mine('☆ お気に入り', fav)+mine('🕘 最近使った言い方', rec) : '';
   const show=gs.filter(g=>exGenre==='all'||g.id===exGenre).map(g=>{
     const ex=g.ex.map(exText).filter(t=>!q || norm(t).includes(q) || norm(g.g).includes(q));
     if(!ex.length) return '';
     return '<div class="ex-group"><h3>'+g.ic+' '+escHtml(g.g)+'<span class="ex-count">'+ex.length+'</span></h3>'
-      +ex.map(t=>'<button class="ex'+(t===guideEx?' pick':'')+'" onclick="pickEx(this)">'+escHtml(t)+'</button>').join('')+'</div>';
+      +ex.map(t=>row(t,false)).join('')+'</div>';
   }).join('');
-  $('exBody').innerHTML=show||'<div class="note">見つかりませんでした。</div>';
+  $('exBody').innerHTML=(top+show)||'<div class="note">見つかりませんでした。</div>';
 }
 function pickGenre(id){ exGenre=id; renderEx(); const b=$('exBody'); if(b) b.scrollIntoView({block:'start'}); }
 function pickEx(btn){ setGuide(btn.textContent); closePanel(); toast('「'+btn.textContent+'」の言い方で話してください'); }
@@ -1883,7 +2021,7 @@ function pickEx(btn){ setGuide(btn.textContent); closePanel(); toast('「'+btn.t
 let guideEx='';
 try{ guideEx=localStorage.getItem('koe_guide')||''; }catch(_){}
 function setGuide(t){
-  guideEx=String(t||'');
+  guideEx=String(t||''); renderFavs();
   try{ if(guideEx) localStorage.setItem('koe_guide', guideEx); else localStorage.removeItem('koe_guide'); }catch(_){}
   renderGuide();
 }
@@ -1912,7 +2050,7 @@ const HELP=[
   {h:'🔁 逆から計算', p:'「いくらにすればいい？」「何個買える？」を、そのまま聞けます。',
    ex:['原価800円で利益3割の売値','3000円は12000円の何パーセント','2割引きで1600円の元の値段','2割増しで1200円の元の値段','税込み3300円の税抜き','5000円で380円のものは何個','時給1200円で50000円稼ぐには何時間']},
   {h:'〰 だいたい', p:'「だいたい」「ざっと」を付けると、上2けたに丸めて答えます。', ex:['だいたい12800を3で割って']},
-  {h:'📦 足し上げ（検品・棚卸し）', p:'品物と数や金額を言うたびに、復唱して合計を足していきます。伝票の合計と読み合わせもできます。',
+  {h:'📦 足し上げ（検品・棚卸し）', p:'品物と数や金額を言うたびに、復唱して合計を足していきます。伝票の合計と読み合わせもできます。「牛乳 238円 軽減」「洗剤 398円 10%」のように言うと、税を付けて数えます。答えの上の「📋 一覧」で、品物を直す・消す・文字や画像で共有ができます。',
    ex:['足し上げ開始','セメント12袋単価850円','砂3立米12000円','何件','伝票の合計は22200円','おしまい']},
   {h:'👛 予算', p:'予算を言ってから、かごに入れるたびに値段を言うと、残りを答えます。',
    ex:['予算5000円','498円','牛乳238円を2本','いまいくら','おしまい']},
@@ -2066,6 +2204,237 @@ function closeVoiceOnly(e){ if(e) e.stopPropagation(); closePanel(); }
   el.addEventListener('pointercancel', ()=>clearTimeout(voTimer));
 })();
 
+/* ── v19：自分に合わせて育つ ── */
+/* 自分の言いかえ：計算の前に、登録した言葉を置きかえる（長い言葉から） */
+const LS_ALIAS='koe_alias', LS_FAV='koe_fav', LS_RECENT='koe_recent';
+let aliases=[];
+function loadAliases(){
+  try{ const a=JSON.parse(localStorage.getItem(LS_ALIAS)||'[]');
+    aliases=Array.isArray(a) ? a.filter(x=>x && typeof x.from==='string' && x.from.trim() && typeof x.to==='string').map(x=>({from:x.from.trim().slice(0,60), to:x.to.trim().slice(0,120)})).slice(0,300) : []; }
+  catch(_){ aliases=[]; }
+}
+function saveAliases(){ if(DRY) return; try{ localStorage.setItem(LS_ALIAS, JSON.stringify(aliases)); }catch(_){} }
+function applyAliases(raw){
+  let s=String(raw==null?'':raw);
+  if(!aliases.length) return s;
+  const list=aliases.slice().sort((a,b)=>b.from.length-a.from.length);
+  for(const a of list){
+    if(s.includes(a.from)){ s=s.split(a.from).join(a.to); continue; }
+    const nf=norm(a.from);
+    if(nf && norm(s).includes(nf)) s=norm(s).split(nf).join(a.to);   // 全角・漢数字などの書き方がちがっても当てる
+  }
+  return s;
+}
+function renderAliases(){
+  const box=$('aliasList'); if(!box) return;
+  $('aliasCount').textContent=aliases.length?'（'+aliases.length+'件）':'';
+  box.innerHTML=aliases.length ? aliases.map((a,i)=>'<div class="row tap" onclick="editAlias('+i+')"><div>「'+escHtml(a.from)+'」<small>→ 「'+escHtml(a.to)+'」と読みます</small></div>'
+    +'<button class="bk-del" onclick="event.stopPropagation();delAlias('+i+')" aria-label="「'+escHtml(a.from)+'」の言いかえを消す">✕</button></div>').join('')
+    : '<div class="note">まだありません。</div>';
+}
+/* 小さな入力の窓 */
+let kdlgSave=null;
+function openKdlg(html, onSave, focusId){
+  $('kdlgBox').innerHTML=html; kdlgSave=onSave; $('kdlg').hidden=false;
+  if(focusId) setTimeout(()=>{ const e=$(focusId); if(e){ e.focus(); try{ e.select(); }catch(_){} } }, 60);
+}
+function closeKdlg(){ $('kdlg').hidden=true; kdlgSave=null; }
+function kdlgOk(){ if(kdlgSave && kdlgSave()!==false) closeKdlg(); }
+const kdlgBtns=(del)=>'<div class="miss-btns">'+(del?'<button class="act danger" onclick="'+del+'">🗑 消す</button>':'')+'<button class="act" onclick="closeKdlg()">やめる</button><button class="act primary" onclick="kdlgOk()">決める</button></div>';
+let aliasSrc='';   // 言いかえを登録するもとになった言葉（うまくいかなかった言葉）。試しの計算に使う
+function editAlias(i, from){
+  const a=i>=0 ? aliases[i] : {from:String(from||''), to:''};
+  if(!a) return;
+  aliasSrc=i>=0 ? '' : String(from||'');
+  openKdlg('<h3>'+(i>=0?'言いかえを直す':'言いかえを足す')+'</h3>'
+    +'<label>この言葉を<input id="alFrom" maxlength="60" value="'+escHtml(a.from)+'" oninput="aliasHint()"></label>'
+    +'<label>こう読む<input id="alTo" maxlength="120" value="'+escHtml(a.to)+'" placeholder="例：税込み・850円・かける" oninput="aliasHint()"></label>'
+    +'<div class="kd-hint" id="alHint"></div>'+kdlgBtns(i>=0?'closeKdlg();delAlias('+i+')':''),
+    ()=>{
+      const f=$('alFrom').value.trim(), t=$('alTo').value.trim();
+      if(!f){ toast('置きかえる言葉を入れてください'); return false; }
+      if(f===t){ toast('同じ言葉です'); return false; }
+      const j=aliases.findIndex((x,k)=>x.from===f && k!==i);
+      if(j>=0) aliases.splice(j,1);
+      const k=i>=0 && j>=0 && j<i ? i-1 : i;
+      if(k>=0) aliases[k]={from:f, to:t}; else aliases.push({from:f, to:t});
+      saveAliases(); renderAliases(); toast('「'+f+'」を「'+t+'」と読みます');
+    }, i>=0 ? 'alTo' : (a.from ? 'alTo' : 'alFrom'));
+  aliasHint();
+}
+/* いま置きかえると、その言葉がどう計算されるかを見せる（元の言葉があるとき） */
+function aliasHint(){
+  const h=$('alHint'); if(!h) return;
+  const f=$('alFrom').value.trim(), t=$('alTo').value.trim();
+  if(!f || !t){ h.textContent=''; return; }
+  const src=aliasSrc && aliasSrc.includes(f) ? aliasSrc : '';
+  if(!src){ h.textContent='「'+f+'」と言ったら「'+t+'」と読みます'; return; }
+  const save=aliases; aliases=aliases.concat([{from:f, to:t}]);
+  const txt=applyAliases(src); aliases=save;
+  const r=dryRun(txt);
+  h.textContent='「'+src+'」→「'+txt+'」→ '+(r && r.cls!=='err' ? r.a : 'まだ計算できません');
+}
+function delAlias(i){
+  const a=aliases[i]; if(!a) return;
+  aliases.splice(i,1); saveAliases(); renderAliases(); toast('「'+a.from+'」の言いかえを消しました');
+}
+/* 名前を付けた数：一覧から足す・直す */
+function editVar(n){
+  const cur=n && vars[n] ? vars[n] : null;
+  openKdlg('<h3>'+(cur?'名前を付けた数を直す':'名前を付けた数を足す')+'</h3>'
+    +'<label>名前<input id="vrName" maxlength="10" value="'+escHtml(n||'')+'" placeholder="例：単価・時給・家賃"></label>'
+    +'<label>数（円・個 などを付けてもよい）<input id="vrVal" maxlength="20" value="'+(cur?escHtml(String(cur.v)+(cur.u||'')):'')+'" placeholder="例：2800円"></label>'
+    +'<div class="kd-hint">「'+escHtml(n||'単価')+'かける3」のように、計算で使えます。</div>'+kdlgBtns(cur?'closeKdlg();delVar(\''+escHtml(n).replace(/'/g,"\\'")+'\')':''),
+    ()=>{
+      const name=$('vrName').value.trim(), vv=norm($('vrVal').value);
+      const m=vv.match(new RegExp('^'+NUM+'(円|'+QTY+'|'+MEAS+')?$'));
+      if(!name){ toast('名前を入れてください'); return false; }
+      if(/\d/.test(name) || VAR_NG.test(name) || /(足|引|かけ|掛|割|税|倍|円)/.test(name)){ toast('その名前は使えません（数や計算の言葉が入っています）'); return false; }
+      if(!m){ toast('数を入れてください（例：2800円）'); return false; }
+      if(n && n!==name) delete vars[n];
+      vars[name]={v:+m[1], u:m[2]||''}; saveVars(); renderSet(); toast(name+' を '+fmtU(+m[1],m[2]||'')+' と覚えました');
+    }, cur?'vrVal':'vrName');
+}
+/* ☆お気に入り・🕘最近使った言い方 */
+function loadList(k){ try{ const a=JSON.parse(localStorage.getItem(k)||'[]'); return Array.isArray(a) ? a.filter(x=>typeof x==='string' && x.trim()).slice(0,60) : []; }catch(_){ return []; } }
+function saveList(k, a){ if(DRY) return; try{ localStorage.setItem(k, JSON.stringify(a)); }catch(_){} }
+function noteRecent(t){
+  t=String(t||'').trim(); if(!t || t.length>80 || DRY) return;
+  const a=loadList(LS_RECENT).filter(x=>x!==t); a.unshift(t); saveList(LS_RECENT, a.slice(0,15));
+}
+function toggleFav(t){
+  const a=loadList(LS_FAV), i=a.indexOf(t);
+  if(i>=0){ a.splice(i,1); toast('お気に入りから外しました'); }
+  else { if(a.length>=40){ toast('お気に入りは40までです'); return; } a.push(t); toast('☆ お気に入りに入れました（下のボタンからすぐ選べます）'); }
+  saveList(LS_FAV, a); renderEx(); renderFavs();
+}
+function runFav(t){ closePanel(); setTimeout(()=>runText(t, false), 80); }
+/* 下の🎙の上に、お気に入りを並べる。押すと「この言い方で」にする（もう一度押すとやめる） */
+function renderFavs(){
+  const box=$('favs'); if(!box) return;
+  const a=loadList(LS_FAV);
+  box.hidden=!a.length;
+  box.innerHTML=a.map(t=>'<button class="'+(t===guideEx?'pick':'')+'" data-t="'+escHtml(t)+'" onclick="favTap(this.dataset.t)" title="'+escHtml(t)+'">☆ '+escHtml(t)+'</button>').join('');
+}
+function favTap(t){
+  if(guideEx===t){ setGuide(''); toast('「この言い方で」をやめました'); return; }
+  setGuide(t); toast('「'+t+'」の言い方で話してください');
+}
+/* 📦 足し上げの一覧：いまの（なければ最後の）足し上げ・予算の品物 */
+function sumSession(){
+  let start=-1, end=state.entries.length;
+  for(let i=state.entries.length-1;i>=0;i--){
+    const e=state.entries[i];
+    if(e.k==='mode' && (e.to==='sum'||e.to==='budget')){ start=i; break; }
+  }
+  if(start<0) return {items:[], start:-1, budget:false};
+  for(let i=start+1;i<state.entries.length;i++){ if(state.entries[i].k==='mode'){ end=i; break; } }
+  const items=[]; for(let i=start+1;i<end;i++){ if(state.entries[i].k==='item') items.push(state.entries[i]); }
+  return {items, start, end, budget:state.entries[start].to==='budget', b:state.entries[start].budget||0, open:end===state.entries.length && state.mode!=='normal'};
+}
+function sumTotals(items){
+  const g={0:{base:0,tax:0},8:{base:0,tax:0},10:{base:0,tax:0}}; let total=0, u=null;
+  items.forEach(e=>{ if(e.v==null || !isFinite(e.v)) return; const k=e.tax?e.tx:0; g[k].base+=e.v; g[k].tax+=e.tax||0; total+=e.vt; u=u===null?e.u:(u===e.u?u:''); });
+  return {g, total, u:u||''};
+}
+function renderSum(){
+  const ss=sumSession(), box=$('sumList'); if(!box) return;
+  $('sumTitle').textContent=(ss.budget?'👛 予算の一覧':'📦 足し上げの一覧')+(ss.open?'':'（終わった分）');
+  box.innerHTML=ss.items.length ? ss.items.map((e,i)=>'<div class="sum-row" onclick="editItem('+i+')"><div class="n">'+escHtml(e.name||'（品名なし）')
+    +(e.tax?'<span class="tx">'+e.tx+'%</span>':'')+'<small>'+escHtml(e.show||e.f||'')+'</small></div><div class="v num">'+escHtml(fmtU(e.vt,e.u))+'</div></div>').join('')
+    : '<div class="note">まだ何もありません。「牛乳 238円」のように言ってください。</div>';
+  const t=sumTotals(ss.items);
+  let h='<div class="sum-tot">';
+  [8,10].forEach(k=>{ if(t.g[k].base) h+='<div><span>'+k+'%対象 '+escHtml(fmtU(t.g[k].base,'円'))+'</span><span>消費税 '+escHtml(fmtU(t.g[k].tax,'円'))+'</span></div>'; });
+  if((t.g[8].base||t.g[10].base) && t.g[0].base) h+='<div><span>税のないもの・税込み</span><span>'+escHtml(fmtU(t.g[0].base,t.u))+'</span></div>';
+  h+='<div class="big"><span>合計（'+ss.items.length+'件）</span><span class="num">'+escHtml(fmtU(t.total,t.u))+'</span></div>';
+  if(ss.budget){ const r=ss.b-t.total; h+='<div><span>予算 '+escHtml(fmtU(ss.b,'円'))+'</span><span>'+(r>=0?'残り ':'こえた ')+escHtml(fmtU(Math.abs(r),'円'))+'</span></div>'; }
+  $('sumTotal').innerHTML=h+'</div>';
+}
+function editItem(i){
+  const ss=sumSession(), e=ss.items[i]; if(!e) return;
+  const amt=e.rest!=null ? e.rest : (e.show || fmt(e.v)+(e.u||''));
+  openKdlg('<h3>品物を直す</h3>'
+    +'<label>品名<input id="itName" maxlength="30" value="'+escHtml(e.name||'')+'"></label>'
+    +'<label>金額の言い方<input id="itAmt" maxlength="40" value="'+escHtml(amt)+'" placeholder="例：238円・3個で単価120円・2本で500円"></label>'
+    +'<label>消費税<select id="itTax"><option value="0">付けない（税込み・税なし）</option><option value="8">8%（軽減）を付ける</option><option value="10">10% を付ける</option></select></label>'
+    +kdlgBtns('closeKdlg();delItem('+i+')'),
+    ()=>{
+      const cur=sumSession().items[i]; if(!cur) return;
+      const rest=norm($('itAmt').value), p=itemToks(rest, sumSession().budget);
+      if(!p){ toast('金額が分かりませんでした（例：238円）'); return false; }
+      const save={name:cur.name, toks:cur.toks, show:cur.show, rest:cur.rest, tx:cur.tx};
+      cur.name=$('itName').value.trim().slice(0,30); cur.toks=p.toks; cur.show=p.show; cur.rest=rest; cur.tx=+$('itTax').value||undefined;
+      recomputeAll();
+      if(cur.v==null || !isFinite(cur.v)){ Object.assign(cur, save); recomputeAll(); toast('金額が分かりませんでした'); return false; }
+      saveState(); render(); toast('直しました。合計 '+fmtU(state.mode==='normal'?sumTotals(sumSession().items).total:state.sum, state.sumU||cur.u));
+    }, 'itAmt');
+  $('itTax').value=String(e.tx||0);
+}
+function delItem(i){
+  const e=sumSession().items[i]; if(!e) return;
+  state.entries=state.entries.filter(x=>x!==e); recomputeAll(); saveState(); render();
+  toast((e.name||'品物')+' を消しました');
+}
+function sumText(){
+  const ss=sumSession(), t=sumTotals(ss.items), d=today();
+  const L=[(ss.budget?'👛 予算の記録':'📦 足し上げ')+'（'+d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日）'];
+  ss.items.forEach(e=>L.push((e.name||'品物')+'　'+fmtU(e.vt,e.u)+(e.tax?'（'+e.tx+'%込み）':'')+(e.show && /×/.test(e.show)?'　'+e.show:'')));
+  L.push('――――――――');
+  [8,10].forEach(k=>{ if(t.g[k].base) L.push(k+'%対象 '+fmtU(t.g[k].base,'円')+'（消費税 '+fmtU(t.g[k].tax,'円')+'）'); });
+  L.push('合計 '+fmtU(t.total,t.u)+'（'+ss.items.length+'件）');
+  if(ss.budget){ const r=ss.b-t.total; L.push('予算 '+fmtU(ss.b,'円')+'　'+(r>=0?'残り ':'こえた ')+fmtU(Math.abs(r),'円')); }
+  return L.join('\n');
+}
+function shareSum(){
+  if(!sumSession().items.length){ toast('まだ何もありません'); return; }
+  const text=sumText();
+  const copy=()=>{ try{ navigator.clipboard.writeText(text).then(()=>toast('コピーしました。LINE やメールに貼り付けられます'), ()=>prompt('コピーしてください', text)); }catch(_){ prompt('コピーしてください', text); } };
+  if(navigator.share){ navigator.share({title:'足し上げ', text}).catch(e=>{ if(!(e && e.name==='AbortError')) copy(); }); }
+  else copy();
+}
+function sumImage(){
+  if(!sumSession().items.length){ toast('まだ何もありません'); return; }
+  const lines=sumText().split('\n'), W=720, P=40, LH=44;
+  const c=document.createElement('canvas'); c.width=W; c.height=P*2+LH*lines.length;
+  const g=c.getContext('2d');
+  g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height);
+  lines.forEach((l,i)=>{ g.fillStyle=i===0||/^合計/.test(l)?'#111':'#333'; g.font=(i===0||/^合計/.test(l)?'bold ':'')+'28px sans-serif'; g.fillText(l, P, P+LH*i+30); });
+  const name='足し上げ_'+isoDay(today())+'.png';
+  c.toBlob(b=>{
+    if(!b){ toast('画像を作れませんでした'); return; }
+    const f=new File([b], name, {type:'image/png'});
+    if(navigator.canShare && navigator.canShare({files:[f]})){ navigator.share({files:[f], title:'足し上げ'}).catch(()=>{}); return; }
+    const url=URL.createObjectURL(b), a=Object.assign(document.createElement('a'),{href:url, download:name});
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 1000);
+    toast('画像を保存しました');
+  }, 'image/png');
+}
+/* 大きな金額を確かめる */
+function setConfirmAmt(v){ settings.confirmAmt=+v||0; saveSettings(); toast(settings.confirmAmt ? fmtU(settings.confirmAmt,'円')+'より大きいときは確かめます' : '確かめないで付けます'); }
+/* 🔈 読み上げの声（端末の声の中から選ぶ・速さ・高さ・大きさ・テスト再生） */
+function jaVoices(){ try{ const vs=speechSynthesis.getVoices()||[]; const ja=vs.filter(v=>/^ja/i.test(v.lang)); return ja.length?ja:vs; }catch(_){ return []; } }
+function renderVoice(){
+  const sel=$('vcVoice'); if(!sel) return;
+  const ok='speechSynthesis' in window, vs=ok?jaVoices():[];
+  sel.innerHTML='<option value="">おまかせ（日本語の声）</option>'+vs.map((v,i)=>'<option value="'+escHtml(v.voiceURI)+'">'+String(i+1).padStart(2,'0')+'_'+escHtml(v.name)+' ('+escHtml(v.lang)+')'+(v.localService===false?' ・ネット':'')+'</option>').join('');
+  sel.value=vs.some(v=>v.voiceURI===settings.voice) ? settings.voice : '';
+  const cur=pickVoice();
+  $('vcEng').textContent=!ok ? 'この端末では読み上げを使えません' : cur ? 'いまの声：'+cur.name+(cur.localService===false?'（インターネットを使う声）':'（端末の中の声）') : (vs.length?'':'日本語の声が見つかりません（端末の設定で日本語の音声データを入れてください）');
+  [['rate','vcRate','vcRateV'],['pitch','vcPitch','vcPitchV'],['vol','vcVol','vcVolV']].forEach(([k,id,lb])=>{ $(id).value=settings[k]; $(lb).textContent=(+settings[k]).toFixed(1); });
+}
+function setVoice(uri){ settings.voice=uri||''; jaVoice=null; saveSettings(); renderVoice(); speak('この声で読みます', null, true); }
+function setVc(k, v, live){
+  const lim={rate:[0.5,2], pitch:[0.5,2], vol:[0,1]}[k]; if(!lim) return;
+  v=Math.min(lim[1], Math.max(lim[0], Math.round((+v)*10)/10)); if(!isFinite(v)) return;
+  settings[k]=v;
+  const lb={rate:'vcRateV', pitch:'vcPitchV', vol:'vcVolV'}[k]; if($(lb)) $(lb).textContent=v.toFixed(1);
+  if(live) return;
+  saveSettings(); renderVoice();
+  speak({rate:'この速さで読みます', pitch:'この高さで読みます', vol:'この大きさで読みます'}[k], null, true);
+}
+function testVoice(){ const t=($('vcTest').value||'').trim()||'1280円を3つで、3840円です'; speak(t, null, true); }
+
 /* ── 表電卓から開いたとき ── */
 let fromHyo=false;
 function backToHyo(){
@@ -2075,7 +2444,7 @@ function backToHyo(){
 
 /* ── はじめ ── */
 function init(){
-  loadSettings(); loadBookAll(); loadState();
+  loadSettings(); loadBookAll(); loadAliases(); loadState();
   hfWanted=false;                                   // 開いてすぐは聞かない（押してから）
   if(settings.handsFree){ settings.handsFree=false; saveSettings(); }
   try{ if(/from=hyo/.test(location.hash)) sessionStorage.setItem('koe_from_hyo','1'); fromHyo=sessionStorage.getItem('koe_from_hyo')==='1'; }catch(_){}
