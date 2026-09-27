@@ -7145,6 +7145,17 @@ async function runTecho(browser) {
     col.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: r.left + 10, clientY: r.top + 9.6 * tcHourPx() })); });
   await page.waitForTimeout(150);
   check('  空いたところを押すと、その業務・その時刻で', await page.evaluate(() => document.getElementById('tcEdS').value + '/' + [...document.querySelectorAll('#tcEdRoles .tc-chip:not(.off)')].map(b => b.textContent).join(',')), '09:30/工場');
+  // 時刻は自前の窓で選ぶ（決定ボタンあり）。はじまりを変えると、おわりも同じ長さだけずれる
+  await page.click('#tcEdS'); await page.waitForTimeout(100);
+  check('  時刻の窓が開き、決定ボタンがある', await page.evaluate(() => isDlgOpen('tcTimePick') + '/' + document.querySelector('#tcTimePick .tc-tpok').textContent + '/' + document.getElementById('tcTpNow').textContent), 'true/決定/09:30');
+  await page.click('#tcTimePick .tc-tpg >> nth=0 >> button:text-is("10")'); await page.click('#tcTimePick .tc-tpg >> nth=2 >> button:text-is("15")');
+  await page.click('#tcTimePick .tc-tpok'); await page.waitForTimeout(80);
+  check('  決定で入り、おわりもずれる', await page.evaluate(() => isDlgOpen('tcTimePick') + '/' + document.getElementById('tcEdS').value + '/' + document.getElementById('tcEdE').value), 'false/10:15/11:15');
+  await page.click('#tcEdE'); await page.click('#tcTimePick .tc-tpg >> nth=1 >> button:text-is("12")'); await page.click('#tcTimePick button:text-is("やめる")'); await page.waitForTimeout(80);
+  check('  やめると変わらない', await page.evaluate(() => isDlgOpen('tcTimePick') + '/' + isDlgOpen('techoEditOverlay') + '/' + document.getElementById('tcEdE').value), 'false/true/11:15');
+  await page.click('#tcEdS'); await page.waitForTimeout(80); await page.goBack({ waitUntil: 'commit' }).catch(() => {}); await page.waitForTimeout(450);
+  check('  戻るで時刻の窓だけ閉じる', await page.evaluate(() => isDlgOpen('tcTimePick') + '/' + isDlgOpen('techoEditOverlay')), 'false/true');
+  await page.evaluate(() => { document.getElementById('tcEdS').value = '09:30'; document.getElementById('tcEdE').value = '10:30'; });
   await page.evaluate(() => { document.getElementById('tcEdT').value = '朝礼'; document.getElementById('tcEdRep').value = 'w'; tcEdSync(); tcEdSave(); }); await page.waitForTimeout(150);
   const occ = ds => page.evaluate(ds => tcItemsOn(ds, false).map(i => i.title).sort().join(','), ds);
   check('  くり返し（毎週）：次の週にも出る', (await occ('2026-10-05')) + '/' + (await occ('2026-10-06')), '朝礼/');

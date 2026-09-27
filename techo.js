@@ -290,6 +290,19 @@ body.dark .tc-plus{ color:var(--acc-text,#7cc68b); border-color:var(--acc-text,#
 .tc-rolepick .tc-chip{ height:32px; font-size:13.5px; padding:0 12px 0 10px; }
 .tc-time{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .tc-time input[type=time]{ width:112px; }
+.tc-tfield{ width:86px; text-align:center; cursor:pointer; font-weight:bold; font-size:16px; caret-color:transparent; }
+#tcTimePick{ position:fixed; inset:0; z-index:99999; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.45); }
+#tcTimePick.open{ display:flex; }
+.tc-tp{ background:var(--modal-bg,#fff); color:var(--text,#222); width:340px; max-width:94vw; max-height:94vh; overflow:auto; padding:14px; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,.35); }
+.tc-tphd{ display:flex; align-items:baseline; justify-content:space-between; font-weight:bold; margin-bottom:8px; }
+.tc-tpnow{ font-size:30px; font-variant-numeric:tabular-nums; color:var(--acc); }
+.tc-tpl{ font-size:12px; font-weight:bold; opacity:.7; margin:8px 0 4px; }
+.tc-tpg{ display:grid; grid-template-columns:repeat(6,1fr); gap:4px; }
+.tc-tpg button{ height:36px; border-radius:7px; border:1px solid rgba(120,132,156,.4); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:14px; font-weight:bold; cursor:pointer; padding:0; font-variant-numeric:tabular-nums; }
+.tc-tpg button.on{ background:var(--acc); border-color:var(--acc); color:#fff; }
+.tc-tpft{ display:flex; gap:8px; margin-top:12px; }
+.tc-tpft button{ flex:1; height:44px; border-radius:8px; border:1px solid rgba(120,132,156,.45); background:rgba(120,132,156,.12); color:var(--text,#222); font-weight:bold; font-size:15px; cursor:pointer; }
+.tc-tpft .tc-tpok{ background:var(--acc); border-color:var(--acc); color:#fff; }
 .tc-chk{ display:inline-flex; align-items:center; gap:6px; font-size:14px; font-weight:bold; cursor:pointer; }
 .tc-chk input{ width:20px; height:20px; }
 .tc-edbtns{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:6px; }
@@ -446,7 +459,7 @@ function tcEnsureDom(){
       <div class="tc-f"><span class="tc-fl">日付</span><input type="date" id="tcEdDate" aria-label="日付"></div>
       <div class="tc-f" id="tcEdTimeW"><span class="tc-fl">時間</span><div class="tc-time">
         <label class="tc-chk"><input type="checkbox" id="tcEdAll" onchange="tcEdSync()"> 終日</label>
-        <span id="tcEdTimes"><input type="time" id="tcEdS" step="300" aria-label="はじまり"> 〜 <input type="time" id="tcEdE" step="300" aria-label="おわり"></span></div></div>
+        <span id="tcEdTimes"><input type="text" id="tcEdS" class="tc-tfield" readonly inputmode="none" onclick="tcTimePick('tcEdS')" aria-label="はじまり（押して選ぶ）"> 〜 <input type="text" id="tcEdE" class="tc-tfield" readonly inputmode="none" onclick="tcTimePick('tcEdE')" aria-label="おわり（押して選ぶ）"></span></div></div>
       <div class="tc-f" id="tcEdDoneW"><label class="tc-chk"><input type="checkbox" id="tcEdDone"> 済み</label></div>
       <div class="tc-f"><span class="tc-fl">くり返し</span><div class="tc-time"><select id="tcEdRep" onchange="tcEdSync()" aria-label="くり返し">${TC_REPS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>
         <span id="tcEdUntilW">いつまで <input type="date" id="tcEdUntil" aria-label="いつまで"></span></div></div>
@@ -742,6 +755,51 @@ function tcEdCollect(){
     it.rep={f:rk==='w2'?'w':rk, n:rk==='w2'?2:1, until:tcIsDate(until)&&until>=ds?until:null, ex:old?old.ex.slice():[], dd:old?old.dd.slice():[]};
   } else it.rep=null;
   return it;
+}
+/* 時刻を選ぶ窓（端末の時刻選びは閉じ方が分かりにくいので、自前で「決定」ボタンを出す）。
+   時と分（5分きざみ）を押して「決定」。はじまりを変えたら、おわりも同じ長さだけずらす。 */
+let tcTp=null;
+function tcTimePick(id){
+  const f=document.getElementById(id); if(!f) return;
+  const v=tcIsTime(f.value) ? f.value : '09:00';
+  tcTp={id, h:+v.slice(0,2), m:Math.min(55, Math.round(+v.slice(3)/5)*5), m0:+v.slice(3)};
+  if(tcTp.m0%5) tcTp.m=null;   // 5分きざみでない分はそのまま残す
+  let ov=document.getElementById('tcTimePick');
+  if(!ov){
+    ov=document.createElement('div'); ov.id='tcTimePick';
+    ov.addEventListener('click', e=>{ if(e.target===ov) tcTimePickClose(); });
+    document.body.appendChild(ov);
+  }
+  tcTimePickRender();
+  openDlg('tcTimePick', ()=>{ tcTp=null; });
+}
+function tcTimePickRender(){
+  const ov=document.getElementById('tcTimePick'); if(!ov || !tcTp) return;
+  const mm=tcTp.m==null ? tcTp.m0 : tcTp.m;
+  const hb=(h)=>`<button type="button" class="${h===tcTp.h?'on':''}" onclick="tcTpSet('h',${h})">${h}</button>`;
+  const mb=(m)=>`<button type="button" class="${m===tcTp.m?'on':''}" onclick="tcTpSet('m',${m})">${tcP2(m)}</button>`;
+  ov.innerHTML=`<div class="tc-tp" role="dialog" aria-label="時刻を選ぶ">
+    <div class="tc-tphd"><span>${tcTp.id==='tcEdS'?'はじまり':'おわり'}の時刻</span><span class="tc-tpnow" id="tcTpNow">${tcP2(tcTp.h)}:${tcP2(mm)}</span></div>
+    <div class="tc-tpl">時（午前）</div><div class="tc-tpg">${[0,1,2,3,4,5,6,7,8,9,10,11].map(hb).join('')}</div>
+    <div class="tc-tpl">時（午後）</div><div class="tc-tpg">${[12,13,14,15,16,17,18,19,20,21,22,23].map(hb).join('')}</div>
+    <div class="tc-tpl">分</div><div class="tc-tpg">${[0,5,10,15,20,25,30,35,40,45,50,55].map(mb).join('')}</div>
+    <div class="tc-tpft"><button type="button" onclick="tcTimePickClose()">やめる</button><button type="button" class="tc-tpok" onclick="tcTimePickOk()">決定</button></div></div>`;
+}
+function tcTpSet(k, v){ if(!tcTp) return; tcTp[k]=v; tcTimePickRender(); }
+function tcTimePickClose(){ closeDlg('tcTimePick', ()=>{ tcTp=null; }); }
+function tcTimePickOk(){
+  if(!tcTp) return;
+  const $=id=>document.getElementById(id);
+  const v=tcP2(tcTp.h)+':'+tcP2(tcTp.m==null ? tcTp.m0 : tcTp.m);
+  if(tcTp.id==='tcEdS'){
+    const s0=$('tcEdS').value, e0=$('tcEdE').value;
+    const dur=(tcIsTime(s0) && tcIsTime(e0) && e0>s0) ? tcMin(e0)-tcMin(s0) : 60;
+    $('tcEdS').value=v; $('tcEdE').value=tcAddMin(v, dur);
+  } else {
+    $('tcEdE').value=v;
+    if(tcIsTime($('tcEdS').value) && v<=$('tcEdS').value) toast('おわりが、はじまりより前です（保存すると1時間にします）');
+  }
+  tcTimePickClose();
 }
 function tcChoose(msg, opts){
   return new Promise(res=>{
