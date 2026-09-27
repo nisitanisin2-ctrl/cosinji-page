@@ -76,6 +76,7 @@ function tcClean(o){
   const ui={ view:['split','merge','group'].includes(u.view)?u.view:'split',
     hidden:Array.isArray(u.hidden) ? u.hidden.filter(id=>ids.includes(id)) : [],
     wkStart:u.wkStart===1?1:0, confirm:u.confirm===true, calCollapsed:u.calCollapsed===true, dayMode:u.dayMode==='list'?'list':'time',
+    dayTop:(Number.isInteger(u.dayTop) && u.dayTop>=0 && u.dayTop<=23) ? u.dayTop : 'now',
     lastRole:ids.includes(u.lastRole)?u.lastRole:ids[0],
     splitH:tcSplitVal('h', u.splitH), splitV:tcSplitVal('v', u.splitV) };
   if(ui.hidden.length>=ids.length) ui.hidden=[];      // 全部かくれていたら出す
@@ -777,7 +778,8 @@ function tcPlaceNow(){
 function tcScrollDay(its){
   const sc=document.getElementById('tcScroll'); if(!sc) return;
   let m=8*60;
-  if(tcSel===tcTodayIso()){ const n=tcNow(); m=Math.max(0, n.getHours()*60+n.getMinutes()-60); }
+  if(tc.ui.dayTop!=='now') m=tc.ui.dayTop*60;   // 設定で決めた時刻から見せる
+  else if(tcSel===tcTodayIso()){ const n=tcNow(); m=Math.max(0, n.getHours()*60+n.getMinutes()-60); }
   else { const t=(its||[]).filter(it=>it.kind==='ev' && !it.allDay).map(it=>tcMin(it.start)); if(t.length) m=Math.max(0, Math.min(...t)-30); }
   sc.scrollTop=Math.max(0, m/60*tcHourPx()-4);
 }
@@ -1522,6 +1524,11 @@ function tcRenderSet(){
     <div class="tc-slrow"><span>縦並びのとき <b>月の高さ</b></span><b class="tc-slv" id="tcSplitVV">${tc.ui.splitV?tc.ui.splitV+'%':'自動'}</b></div>
     <div class="tc-slrow"><input type="range" id="tcSplitVR" min="${TC_SPLIT.v[0]}" max="${TC_SPLIT.v[1]}" step="1" value="${tc.ui.splitV||40}" aria-label="縦並びのときの月の高さ" oninput="tcSetSplit('v',this.value)"><button class="tc-mini" onclick="tcSetSplit('v',0)">自動</button></div>
     <div class="tc-note">スマホを横にすると、左に月・右に1日を並べます。月と1日のあいだの<b>仕切りの線を指でなぞっても</b>動かせます（線を<b>ダブルタップ</b>すると自動に戻ります）。</div>
+    <div class="tc-sec">1日の時間の表示で、はじめに見せる時刻</div>
+    <div class="tc-slrow"><select id="tcDayTopSel" aria-label="はじめに見せる時刻" onchange="tcSetDayTop(this.value)" style="flex:1;height:36px;border-radius:8px;border:1px solid rgba(120,132,156,.4);background:var(--modal-bg,#fff);color:var(--text,#333);font-size:14px;padding:0 8px">
+      <option value="now"${tc.ui.dayTop==='now'?' selected':''}>今の時刻（今日以外は、その日の最初の予定）</option>
+      ${Array.from({length:24},(_,h)=>`<option value="${h}"${tc.ui.dayTop===h?' selected':''}>${h}時から</option>`).join('')}</select></div>
+    <div class="tc-note">🕘時間の見せ方で、日を開いたときにどの時刻のあたりを見せるかを決めます。上下になぞれば、ほかの時刻も見られます。</div>
     <div class="tc-sec">週の始まり</div><div class="tc-segw"><button class="${tc.ui.wkStart===0?'on':''}" onclick="tcSetWk(0)">日曜</button><button class="${tc.ui.wkStart===1?'on':''}" onclick="tcSetWk(1)">月曜</button></div>
     <div class="tc-sec">声や文で入れたとき</div><div class="tc-segw"><button class="${!tc.ui.confirm?'on':''}" onclick="tcSetConfirm(false)">すぐ登録</button><button class="${tc.ui.confirm?'on':''}" onclick="tcSetConfirm(true)">確かめてから登録</button></div>
     <div class="tc-note">「すぐ登録」は、登録したあと下に <b>直す／取り消し</b> を出します。「確かめてから」は、聞き取った内容を入力画面に入れて見せます。</div>
@@ -1566,6 +1573,10 @@ async function tcRoleDel(id){
   tc.roles=rest; tc.ui.hidden=tc.ui.hidden.filter(x=>x!==id);
   if(tc.ui.lastRole===id) tc.ui.lastRole=to.id;
   tcSave(); tcRenderSet(); tcRender();
+}
+function tcSetDayTop(v){
+  tc.ui.dayTop=v==='now' ? 'now' : Math.min(23, Math.max(0, parseInt(v,10)||0));
+  tcSave(); tcShownDay=''; tcRenderDay();
 }
 function tcSetWk(v){ tc.ui.wkStart=v===1?1:0; tcSave(); tcRenderSet(); tcRender(); }
 function tcSetConfirm(v){ tc.ui.confirm=!!v; tcSave(); tcRenderSet(); }
