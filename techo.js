@@ -11,6 +11,8 @@ const TC_WD=['日','月','火','水','木','金','土'];
 const TC_WDMAP={'日':0,'月':1,'火':2,'水':3,'木':4,'金':5,'土':6};
 const TC_COLORS=['#1e88e5','#43a047','#e53935','#fb8c00','#8e24aa','#00897b','#6d4c41','#546e7a','#d81b60','#c0a000'];
 const TC_MAX_ROLES=8;
+const TC_SIDE_MQ='(min-width:900px), (orientation:landscape) and (min-width:560px)';   // 月と1日を横に並べるとき
+const TC_SPLIT={h:[25,60], v:[25,70]};   // 仕切りの位置（%）の範囲。h＝横並びの月の幅、v＝縦並びの月の高さ。0 は自動
 const TC_REPS=[['','なし'],['d','毎日'],['wd','平日（月〜金）'],['w','毎週'],['w2','隔週'],['m','毎月'],['y','毎年']];
 function tcDefRoles(){
   return [
@@ -61,6 +63,10 @@ function tcCleanRoles(a){
   });
   return out.length ? out : tcDefRoles();
 }
+function tcSplitVal(k, v){
+  v=Math.round(+v); if(!isFinite(v) || v<=0) return 0;
+  return Math.min(TC_SPLIT[k][1], Math.max(TC_SPLIT[k][0], v));
+}
 function tcClean(o){
   o=(o && typeof o==='object') ? o : {};
   const roles=tcCleanRoles(o.roles), ids=roles.map(r=>r.id);
@@ -70,7 +76,8 @@ function tcClean(o){
   const ui={ view:['split','merge','group'].includes(u.view)?u.view:'split',
     hidden:Array.isArray(u.hidden) ? u.hidden.filter(id=>ids.includes(id)) : [],
     wkStart:u.wkStart===1?1:0, confirm:u.confirm===true, calCollapsed:u.calCollapsed===true,
-    lastRole:ids.includes(u.lastRole)?u.lastRole:ids[0] };
+    lastRole:ids.includes(u.lastRole)?u.lastRole:ids[0],
+    splitH:tcSplitVal('h', u.splitH), splitV:tcSplitVal('v', u.splitV) };
   if(ui.hidden.length>=ids.length) ui.hidden=[];      // 全部かくれていたら出す
   return {v:1, roles, items, ui};
 }
@@ -184,7 +191,14 @@ body.dark .tc-modal{ --tc-line:rgba(150,170,210,.28); --tc-line2:rgba(150,170,21
 .tc-modal .modal-header .hdr-right{ gap:6px; }
 .tc-modal .tc-hb{ padding:6px 9px; }
 .tc-body{ flex:1; min-height:0; display:flex; flex-direction:column; color:var(--tc-ink); }
-.tc-cal{ flex:none; padding:3px 8px 2px; border-bottom:1px solid var(--tc-line); }
+.tc-cal{ flex:none; padding:3px 8px 2px; display:flex; flex-direction:column; min-height:0; }
+.tc-body.sv .tc-cal:not(.fold){ height:var(--tc-calh); overflow-y:auto; }
+.tc-body.sv .tc-cal:not(.fold) .tc-grid{ flex:1; grid-auto-rows:minmax(28px,1fr); }
+.tc-body.sv .tc-cal:not(.fold) .tc-d{ height:auto; }
+.tc-split{ flex:none; height:12px; position:relative; cursor:row-resize; touch-action:none; user-select:none; -webkit-user-select:none; outline:none; }
+.tc-split::before{ content:''; position:absolute; left:0; right:0; top:5px; height:1px; background:var(--tc-line); }
+.tc-split::after{ content:''; position:absolute; left:50%; top:4px; width:40px; height:4px; margin-left:-20px; border-radius:2px; background:var(--tc-sub); opacity:.5; }
+.tc-split:hover::after,.tc-split:focus-visible::after,.tc-split.drag::after{ opacity:1; background:var(--acc); }
 .tc-calnav,.tc-daybar{ display:flex; align-items:center; gap:4px; min-height:32px; }
 .tc-calnav b,.tc-daybar b{ font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
 .tc-daybar small{ font-size:11px; color:var(--tc-sun); font-weight:bold; white-space:nowrap; }
@@ -265,12 +279,17 @@ body.dark .tc-plus{ color:var(--acc-text,#7cc68b); border-color:var(--acc-text,#
 .tc-snack[hidden]{ display:none; }
 .tc-snack .tc-st{ flex:1; min-width:0; line-height:1.4; }
 .tc-snack button{ flex:none; height:32px; padding:0 11px; border-radius:16px; border:1px solid rgba(255,255,255,.55); background:transparent; color:#fff; font-weight:bold; font-size:12.5px; cursor:pointer; }
-@media (min-width:900px){
+@media (min-width:900px), (orientation:landscape) and (min-width:560px){
   .tc-body{ flex-direction:row; }
-  .tc-cal{ width:360px; flex:none; border-bottom:none; border-right:1px solid var(--tc-line); overflow-y:auto; padding:8px 12px; }
-  .tc-d{ height:46px; }
-  .tc-day{ padding:4px 10px 0; }
+  .tc-cal,.tc-body.sv .tc-cal:not(.fold){ width:var(--tc-calw, min(360px, 42%)); height:auto; flex:none; overflow-y:auto; padding:4px 8px; }
+  .tc-cal:not(.fold) .tc-grid{ flex:1; grid-auto-rows:minmax(28px,1fr); }
+  .tc-cal:not(.fold) .tc-d{ height:auto; }
+  .tc-split{ width:12px; height:auto; cursor:col-resize; }
+  .tc-split::before{ left:5px; right:auto; top:0; bottom:0; width:1px; height:auto; }
+  .tc-split::after{ left:4px; top:50%; width:4px; height:40px; margin:-20px 0 0; }
+  .tc-day{ padding:4px 8px 0 2px; }
 }
+@media (min-width:900px){ .tc-cal,.tc-body.sv .tc-cal:not(.fold){ padding:8px 12px; } }
 /* 入力画面・メモ一覧・さがす・設定 */
 .tc-edm{ max-width:470px; max-height:90vh; }
 .tc-edm .modal-body,.tc-setm .modal-body{ color:var(--text,#333); }
@@ -290,6 +309,19 @@ body.dark .tc-plus{ color:var(--acc-text,#7cc68b); border-color:var(--acc-text,#
 .tc-rolepick .tc-chip{ height:32px; font-size:13.5px; padding:0 12px 0 10px; }
 .tc-time{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .tc-time input[type=time]{ width:112px; }
+.tc-tfield{ width:86px; text-align:center; cursor:pointer; font-weight:bold; font-size:16px; caret-color:transparent; }
+#tcTimePick{ position:fixed; inset:0; z-index:99999; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.45); }
+#tcTimePick.open{ display:flex; }
+.tc-tp{ background:var(--modal-bg,#fff); color:var(--text,#222); width:340px; max-width:94vw; max-height:94vh; overflow:auto; padding:14px; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,.35); }
+.tc-tphd{ display:flex; align-items:baseline; justify-content:space-between; font-weight:bold; margin-bottom:8px; }
+.tc-tpnow{ font-size:30px; font-variant-numeric:tabular-nums; color:var(--acc); }
+.tc-tpl{ font-size:12px; font-weight:bold; opacity:.7; margin:8px 0 4px; }
+.tc-tpg{ display:grid; grid-template-columns:repeat(6,1fr); gap:4px; }
+.tc-tpg button{ height:36px; border-radius:7px; border:1px solid rgba(120,132,156,.4); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:14px; font-weight:bold; cursor:pointer; padding:0; font-variant-numeric:tabular-nums; }
+.tc-tpg button.on{ background:var(--acc); border-color:var(--acc); color:#fff; }
+.tc-tpft{ display:flex; gap:8px; margin-top:12px; }
+.tc-tpft button{ flex:1; height:44px; border-radius:8px; border:1px solid rgba(120,132,156,.45); background:rgba(120,132,156,.12); color:var(--text,#222); font-weight:bold; font-size:15px; cursor:pointer; }
+.tc-tpft .tc-tpok{ background:var(--acc); border-color:var(--acc); color:#fff; }
 .tc-chk{ display:inline-flex; align-items:center; gap:6px; font-size:14px; font-weight:bold; cursor:pointer; }
 .tc-chk input{ width:20px; height:20px; }
 .tc-edbtns{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:6px; }
@@ -335,6 +367,10 @@ body.dark .tc-edbtns .tc-del{ color:#ff8a80; }
 .tc-rbtn button:disabled{ opacity:.35; }
 .tc-note{ font-size:12px; color:var(--text-light,#888); line-height:1.6; margin:8px 0; }
 .tc-segw{ display:flex; gap:6px; flex-wrap:wrap; }
+.tc-slrow{ display:flex; align-items:center; gap:8px; font-size:13px; margin:4px 0; }
+.tc-slrow > span{ flex:1; }
+.tc-slrow input[type=range]{ flex:1; min-width:0; accent-color:var(--acc); }
+.tc-slv{ min-width:3em; text-align:right; }
 .tc-segw button{ height:34px; padding:0 12px; border-radius:17px; border:1px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#333);
   font-weight:bold; font-size:13px; cursor:pointer; }
 .tc-segw button.on{ background:var(--acc); border-color:var(--acc); color:#fff; }
@@ -381,6 +417,7 @@ function tcEnsureDom(){
         <div class="tc-wd" id="tcWd"></div>
         <div class="tc-grid" id="tcGrid"></div>
       </section>
+      <div class="tc-split" id="tcSplit" role="separator" tabindex="0" aria-label="月と1日の仕切り（なぞって動かす・ダブルタップで元に戻す）" title="なぞって動かす・ダブルタップで元に戻す"></div>
       <section class="tc-day" aria-label="その日の予定とメモ">
         <div class="tc-daybar">
           <button class="tc-nb" onclick="tcDayMove(-1)" aria-label="前の日">◀</button>
@@ -446,7 +483,7 @@ function tcEnsureDom(){
       <div class="tc-f"><span class="tc-fl">日付</span><input type="date" id="tcEdDate" aria-label="日付"></div>
       <div class="tc-f" id="tcEdTimeW"><span class="tc-fl">時間</span><div class="tc-time">
         <label class="tc-chk"><input type="checkbox" id="tcEdAll" onchange="tcEdSync()"> 終日</label>
-        <span id="tcEdTimes"><input type="time" id="tcEdS" step="300" aria-label="はじまり"> 〜 <input type="time" id="tcEdE" step="300" aria-label="おわり"></span></div></div>
+        <span id="tcEdTimes"><input type="text" id="tcEdS" class="tc-tfield" readonly inputmode="none" onclick="tcTimePick('tcEdS')" aria-label="はじまり（押して選ぶ）"> 〜 <input type="text" id="tcEdE" class="tc-tfield" readonly inputmode="none" onclick="tcTimePick('tcEdE')" aria-label="おわり（押して選ぶ）"></span></div></div>
       <div class="tc-f" id="tcEdDoneW"><label class="tc-chk"><input type="checkbox" id="tcEdDone"> 済み</label></div>
       <div class="tc-f"><span class="tc-fl">くり返し</span><div class="tc-time"><select id="tcEdRep" onchange="tcEdSync()" aria-label="くり返し">${TC_REPS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>
         <span id="tcEdUntilW">いつまで <input type="date" id="tcEdUntil" aria-label="いつまで"></span></div></div>
@@ -481,6 +518,7 @@ function openTecho(){
   tcMon={y:+tcSel.slice(0,4), m:+tcSel.slice(5,7)};
   tcShownDay='';
   openDlg('techoOverlay', tcOnClosed);
+  tcBindSplit();
   tcRender();
   clearInterval(tcNowTimer);
   tcNowTimer=setInterval(()=>{ if(isDlgOpen('techoOverlay')) tcPlaceNow(); }, 60000);
@@ -497,7 +535,84 @@ function closeTecho(){
 }
 
 /* ── 描く ── */
-function tcRender(){ tcRenderCal(); tcRenderDay(); }
+function tcRender(){ tcApplySplit(); tcRenderCal(); tcRenderDay(); }
+
+/* ── 月と1日の仕切り（横並びでは月の幅、縦並びでは月の高さ。なぞる・設定・ダブルタップで自動） ── */
+function tcSide(){ return window.matchMedia(TC_SIDE_MQ).matches; }
+function tcApplySplit(){
+  const body=document.querySelector('#techoOverlay .tc-body'); if(!body || !tc) return;
+  const u=tc.ui, side=tcSide();
+  body.style.setProperty('--tc-calw', u.splitH ? u.splitH+'%' : '');
+  if(!u.splitH) body.style.removeProperty('--tc-calw');
+  body.style.setProperty('--tc-calh', (u.splitV||0)+'%');
+  body.classList.toggle('sv', !!u.splitV);
+  const cal=document.getElementById('tcCal'); if(cal) cal.classList.toggle('fold', !!u.calCollapsed);
+  const sp=document.getElementById('tcSplit');
+  if(sp){
+    const k=side?'h':'v', v=side?u.splitH:u.splitV;
+    sp.setAttribute('aria-orientation', side?'vertical':'horizontal');
+    sp.setAttribute('aria-valuemin', TC_SPLIT[k][0]); sp.setAttribute('aria-valuemax', TC_SPLIT[k][1]);
+    sp.setAttribute('aria-valuenow', v || tcSplitNow());
+    sp.setAttribute('aria-valuetext', v ? v+'%' : '自動');
+  }
+}
+/* いまの月の幅・高さ（%）。自動のときの見えている大きさから */
+function tcSplitNow(){
+  const body=document.querySelector('#techoOverlay .tc-body'), cal=document.getElementById('tcCal');
+  if(!body || !cal) return 40;
+  const br=body.getBoundingClientRect(), cr=cal.getBoundingClientRect(), side=tcSide();
+  const tot=side?br.width:br.height; if(!tot) return 40;
+  const k=side?'h':'v';
+  return Math.min(TC_SPLIT[k][1], Math.max(TC_SPLIT[k][0], Math.round((side?cr.width:cr.height)/tot*100)));
+}
+function tcSetSplit(k, v, quiet){
+  if(!tc) return;
+  v=tcSplitVal(k, v);
+  if(k==='v' && v && tc.ui.calCollapsed){ tc.ui.calCollapsed=false; tcMon={y:+tcSel.slice(0,4), m:+tcSel.slice(5,7)}; tc.ui.splitV=v; tcRender(); }
+  if(k==='h') tc.ui.splitH=v; else tc.ui.splitV=v;
+  tcApplySplit();
+  if(!quiet) tcSave();
+  const lab=document.getElementById(k==='h'?'tcSplitHV':'tcSplitVV'); if(lab) lab.textContent=v ? v+'%' : '自動';
+  const rg=document.getElementById(k==='h'?'tcSplitHR':'tcSplitVR'); if(rg && v && +rg.value!==v) rg.value=v;
+}
+function tcBindSplit(){
+  const sp=document.getElementById('tcSplit'); if(!sp || sp._tcBound) return; sp._tcBound=true;
+  let drag=null, lastUp=0;
+  sp.addEventListener('pointerdown', e=>{
+    if(e.button>0) return;
+    e.preventDefault();
+    const body=sp.parentElement.getBoundingClientRect();
+    drag={id:e.pointerId, x:e.clientX, y:e.clientY, moved:false, side:tcSide(), body};
+    try{ sp.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  sp.addEventListener('pointermove', e=>{
+    if(!drag || e.pointerId!==drag.id) return;
+    if(!drag.moved && Math.abs(e.clientX-drag.x)+Math.abs(e.clientY-drag.y)<4) return;
+    drag.moved=true; sp.classList.add('drag');
+    const b=drag.body, half=6;
+    const pct=drag.side ? (e.clientX-half-b.left)/b.width*100 : (e.clientY-half-b.top)/b.height*100;
+    tcSetSplit(drag.side?'h':'v', Math.round(pct), true);
+  });
+  const end=e=>{
+    if(!drag || e.pointerId!==drag.id) return;
+    const d=drag; drag=null; sp.classList.remove('drag');
+    if(d.moved){ tcSave(); lastUp=0; return; }
+    const now=Date.now();
+    if(now-lastUp<400){ lastUp=0; tcSetSplit(d.side?'h':'v', 0); toast('仕切りを元に戻しました'); }
+    else lastUp=now;
+  };
+  sp.addEventListener('pointerup', end);
+  sp.addEventListener('pointercancel', e=>{ if(drag && e.pointerId===drag.id){ drag=null; sp.classList.remove('drag'); tcSave(); } });
+  sp.addEventListener('keydown', e=>{
+    const side=tcSide(), k=side?'h':'v';
+    const d={ArrowLeft:side?-2:0, ArrowRight:side?2:0, ArrowUp:side?0:-2, ArrowDown:side?0:2}[e.key];
+    if(e.key==='Home'){ e.preventDefault(); e.stopPropagation(); tcSetSplit(k, 0); return; }
+    if(!d) return;
+    e.preventDefault(); e.stopPropagation();
+    tcSetSplit(k, ((side?tc.ui.splitH:tc.ui.splitV) || tcSplitNow())+d);
+  });
+  window.addEventListener('resize', ()=>{ if(isDlgOpen('techoOverlay')) tcApplySplit(); });
+}
 function tcRenderCal(){
   const today=tcTodayIso(), fold=tc.ui.calCollapsed;
   const wk=[0,1,2,3,4,5,6].map(i=>(i+tc.ui.wkStart)%7);
@@ -742,6 +857,51 @@ function tcEdCollect(){
     it.rep={f:rk==='w2'?'w':rk, n:rk==='w2'?2:1, until:tcIsDate(until)&&until>=ds?until:null, ex:old?old.ex.slice():[], dd:old?old.dd.slice():[]};
   } else it.rep=null;
   return it;
+}
+/* 時刻を選ぶ窓（端末の時刻選びは閉じ方が分かりにくいので、自前で「決定」ボタンを出す）。
+   時と分（5分きざみ）を押して「決定」。はじまりを変えたら、おわりも同じ長さだけずらす。 */
+let tcTp=null;
+function tcTimePick(id){
+  const f=document.getElementById(id); if(!f) return;
+  const v=tcIsTime(f.value) ? f.value : '09:00';
+  tcTp={id, h:+v.slice(0,2), m:Math.min(55, Math.round(+v.slice(3)/5)*5), m0:+v.slice(3)};
+  if(tcTp.m0%5) tcTp.m=null;   // 5分きざみでない分はそのまま残す
+  let ov=document.getElementById('tcTimePick');
+  if(!ov){
+    ov=document.createElement('div'); ov.id='tcTimePick';
+    ov.addEventListener('click', e=>{ if(e.target===ov) tcTimePickClose(); });
+    document.body.appendChild(ov);
+  }
+  tcTimePickRender();
+  openDlg('tcTimePick', ()=>{ tcTp=null; });
+}
+function tcTimePickRender(){
+  const ov=document.getElementById('tcTimePick'); if(!ov || !tcTp) return;
+  const mm=tcTp.m==null ? tcTp.m0 : tcTp.m;
+  const hb=(h)=>`<button type="button" class="${h===tcTp.h?'on':''}" onclick="tcTpSet('h',${h})">${h}</button>`;
+  const mb=(m)=>`<button type="button" class="${m===tcTp.m?'on':''}" onclick="tcTpSet('m',${m})">${tcP2(m)}</button>`;
+  ov.innerHTML=`<div class="tc-tp" role="dialog" aria-label="時刻を選ぶ">
+    <div class="tc-tphd"><span>${tcTp.id==='tcEdS'?'はじまり':'おわり'}の時刻</span><span class="tc-tpnow" id="tcTpNow">${tcP2(tcTp.h)}:${tcP2(mm)}</span></div>
+    <div class="tc-tpl">時（午前）</div><div class="tc-tpg">${[0,1,2,3,4,5,6,7,8,9,10,11].map(hb).join('')}</div>
+    <div class="tc-tpl">時（午後）</div><div class="tc-tpg">${[12,13,14,15,16,17,18,19,20,21,22,23].map(hb).join('')}</div>
+    <div class="tc-tpl">分</div><div class="tc-tpg">${[0,5,10,15,20,25,30,35,40,45,50,55].map(mb).join('')}</div>
+    <div class="tc-tpft"><button type="button" onclick="tcTimePickClose()">やめる</button><button type="button" class="tc-tpok" onclick="tcTimePickOk()">決定</button></div></div>`;
+}
+function tcTpSet(k, v){ if(!tcTp) return; tcTp[k]=v; tcTimePickRender(); }
+function tcTimePickClose(){ closeDlg('tcTimePick', ()=>{ tcTp=null; }); }
+function tcTimePickOk(){
+  if(!tcTp) return;
+  const $=id=>document.getElementById(id);
+  const v=tcP2(tcTp.h)+':'+tcP2(tcTp.m==null ? tcTp.m0 : tcTp.m);
+  if(tcTp.id==='tcEdS'){
+    const s0=$('tcEdS').value, e0=$('tcEdE').value;
+    const dur=(tcIsTime(s0) && tcIsTime(e0) && e0>s0) ? tcMin(e0)-tcMin(s0) : 60;
+    $('tcEdS').value=v; $('tcEdE').value=tcAddMin(v, dur);
+  } else {
+    $('tcEdE').value=v;
+    if(tcIsTime($('tcEdS').value) && v<=$('tcEdS').value) toast('おわりが、はじまりより前です（保存すると1時間にします）');
+  }
+  tcTimePickClose();
 }
 function tcChoose(msg, opts){
   return new Promise(res=>{
@@ -1285,7 +1445,13 @@ function tcRenderSet(){
       <input class="tc-rk" type="text" maxlength="300" value="${tcEsc(r.kw)}" placeholder="聞き分ける言葉（例：見積、客先）" aria-label="${tcEsc(r.name)}の聞き分ける言葉" onchange="tcRoleSet('${r.id}','kw',this.value)">
     </div>`).join('')
     +(n<TC_MAX_ROLES ? `<div class="tc-edbtns"><button onclick="tcRoleAdd()">＋ 業務を足す</button></div>` : '')
-    +`<div class="tc-sec">週の始まり</div><div class="tc-segw"><button class="${tc.ui.wkStart===0?'on':''}" onclick="tcSetWk(0)">日曜</button><button class="${tc.ui.wkStart===1?'on':''}" onclick="tcSetWk(1)">月曜</button></div>
+    +`<div class="tc-sec">月と1日の仕切り</div>
+    <div class="tc-slrow"><span>横並びのとき <b>月の幅</b></span><b class="tc-slv" id="tcSplitHV">${tc.ui.splitH?tc.ui.splitH+'%':'自動'}</b></div>
+    <div class="tc-slrow"><input type="range" id="tcSplitHR" min="${TC_SPLIT.h[0]}" max="${TC_SPLIT.h[1]}" step="1" value="${tc.ui.splitH||40}" aria-label="横並びのときの月の幅" oninput="tcSetSplit('h',this.value)"><button class="tc-mini" onclick="tcSetSplit('h',0)">自動</button></div>
+    <div class="tc-slrow"><span>縦並びのとき <b>月の高さ</b></span><b class="tc-slv" id="tcSplitVV">${tc.ui.splitV?tc.ui.splitV+'%':'自動'}</b></div>
+    <div class="tc-slrow"><input type="range" id="tcSplitVR" min="${TC_SPLIT.v[0]}" max="${TC_SPLIT.v[1]}" step="1" value="${tc.ui.splitV||40}" aria-label="縦並びのときの月の高さ" oninput="tcSetSplit('v',this.value)"><button class="tc-mini" onclick="tcSetSplit('v',0)">自動</button></div>
+    <div class="tc-note">スマホを横にすると、左に月・右に1日を並べます。月と1日のあいだの<b>仕切りの線を指でなぞっても</b>動かせます（線を<b>ダブルタップ</b>すると自動に戻ります）。</div>
+    <div class="tc-sec">週の始まり</div><div class="tc-segw"><button class="${tc.ui.wkStart===0?'on':''}" onclick="tcSetWk(0)">日曜</button><button class="${tc.ui.wkStart===1?'on':''}" onclick="tcSetWk(1)">月曜</button></div>
     <div class="tc-sec">声や文で入れたとき</div><div class="tc-segw"><button class="${!tc.ui.confirm?'on':''}" onclick="tcSetConfirm(false)">すぐ登録</button><button class="${tc.ui.confirm?'on':''}" onclick="tcSetConfirm(true)">確かめてから登録</button></div>
     <div class="tc-note">「すぐ登録」は、登録したあと下に <b>直す／取り消し</b> を出します。「確かめてから」は、聞き取った内容を入力画面に入れて見せます。</div>
     <div class="tc-sec">書き出し・読み込み</div>
