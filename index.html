@@ -8814,6 +8814,8 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v448', t:'📔業務手帳の月を指でめくる', li:[
+    '業務手帳の月カレンダーを<b>左右になぞると</b>、指について動いて次・前の月に入れかわります（左へ＝次の月、右へ＝前の月）。スマホで月が変わらないことがあったのを直しました' ]},
   { v:'v447', t:'📔業務手帳をホーム画面のアイコンから直接開く', li:[
     '業務手帳だけを<b>アプリのように</b>ホーム画面に置けるようになりました。📔業務手帳の ⚙設定 →「📱 ホーム画面のアイコンから開く」の <b>業務手帳だけの画面を開く</b> で開き、iPhone は Safari の共有 →「ホーム画面に追加」、Android は Chrome の ⋮ →「ホーム画面に追加」',
     'アドレスは <b>…/cosinji-page/techo/</b> です。予定は表電卓の中の業務手帳と同じものを見ます（同じ端末・同じブラウザのとき）',
@@ -20408,7 +20410,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v447';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v448';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

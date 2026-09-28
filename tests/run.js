@@ -7095,6 +7095,23 @@ async function runTechoApp(browser) {
   check('  ?app=techo で業務手帳が開く（表電卓の案内は出さない）', r.open + '/' + r.tour, 'true/false');
   check('  ホーム画面に足すときの名前・アイコン', r.man, 'techo/manifest.json|techo/apple-touch-icon.png|業務手帳|📔 業務手帳');
   check('  いつも全画面・閉じるは出さない・ほかの道具へ移らない', r.full + '/' + r.closeBtn + '/' + r.swipe, 'true/true/true');
+  // 月カレンダーを指でめくる（v448）
+  const cdp = await ctx.newCDPSession(page);
+  const swipe = async (x1, x2, y, y2 = y, cancel = false) => {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x1, y }] });
+    for (let i = 1; i <= 10; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x1 + (x2 - x1) * i / 10, y: y + (y2 - y) * i / 10 }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: cancel ? 'touchCancel' : 'touchEnd', touchPoints: [] }); await page.waitForTimeout(450); };
+  const mon = () => page.evaluate(() => tcMon.y + '-' + tcMon.m + '/' + tcSel.slice(8));
+  const m0 = await mon(), swr = [];
+  await swipe(300, 100, 200); swr.push(await mon());
+  await swipe(100, 300, 200); await swipe(100, 300, 200); swr.push(await mon());
+  await swipe(200, 225, 200); swr.push(await mon());
+  await swipe(200, 210, 150, 300); swr.push(await mon());
+  await swipe(300, 100, 200, 200, true); swr.push(await mon());
+  const ym = (k) => { const [y, m] = m0.split('/')[0].split('-').map(Number); const d = new Date(y, m - 1 + k, 1); return d.getFullYear() + '-' + (d.getMonth() + 1); };
+  check('  月をなぞってめくる（左＝次・右＝前、少し・縦は動かない、指の知らせが途中で切れてもめくる）', swr.map(x => x.split('/')[0]).join(','), [ym(1), ym(-1), ym(-1), ym(-1), ym(0)].join(','));
+  check('  めくっても、なぞりはじめた日は選ばない', swr.every(x => x.split('/')[1] === m0.split('/')[1]), true);
+  check('  めくり終わると元の位置・濃さに戻る', await page.evaluate(() => { const g = document.getElementById('tcGrid'); return g.style.transform + '|' + g.style.opacity; }), '|');
   await page.mouse.click(200, 300); await page.waitForTimeout(100);
   await page.evaluate(() => { tcOpenSet(); }); await page.waitForTimeout(150);
   const set = await page.evaluate(() => { const t = document.getElementById('tcSetBody').textContent; return t.includes('ホーム画面のアイコンから開く') + '/' + t.includes('いまは業務手帳だけで開いています') + '/' + !document.querySelector('#tcSetBody [onclick="tcHomeOpen()"]'); });
