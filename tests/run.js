@@ -4145,7 +4145,8 @@ async function runPackaging(browser) {
   // service-worker は勝手に入れ替わらない
   const sw = fs.readFileSync(pathmod.join(root, 'service-worker.js'), 'utf8');
   const inst = sw.slice(sw.indexOf("addEventListener('install'"), sw.indexOf("addEventListener('message'"));
-  check('  入れる時点では入れ替えない', inst.includes('skipWaiting'), false);
+  check('  入れる時点では入れ替えない（前に置いた別のアプリの控えがあるときだけ入れ替える v451）', inst.replace(/if \(keys\.some\(isLegacy\)\) return self\.skipWaiting\(\);/, '').includes('skipWaiting') + '/' + /if \(keys\.some\(isLegacy\)\) return self\.skipWaiting\(\)/.test(inst), 'false/true');
+  check('  前に置いた英単語マスターの控え（tango-master-）を消す', /LEGACY_PREFIXES = \['tango-master-'\]/.test(sw) && /\|\| isLegacy\(k\)\)\.map\(k => caches\.delete\(k\)\)/.test(sw), true);
   check('  頼まれたときだけ入れ替える', sw.includes("e.data === 'SKIP_WAITING'"), true);
   check('  アイコンもオフラインで持つ', sw.includes('icon-maskable-512.png'), true);
   check('  版の名前が合っている', sw.includes("'excalc-" + (await page.evaluate(() => APP_VERSION)) + "'"), true);
