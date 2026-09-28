@@ -1,4 +1,4 @@
-const CACHE = 'excalc-v450';
+const CACHE = 'excalc-v451';
 const CACHE_PREFIX = 'excalc-';   // このアプリのキャッシュだけを見分けるための名前
 const ASSETS = ['./', './index.html', './help.js', './photomemo.js', './techo.js', './koe/phrase.js', './manifest.json',
   './icon-192.png', './icon-512.png',
@@ -7,8 +7,14 @@ const ASSETS = ['./', './index.html', './help.js', './photomemo.js', './techo.js
 
 // 新しい版が用意できても、すぐには入れ替わらない（作業中に画面が飛ばないように）。
 // アプリ側が「いま更新」を押したときだけ SKIP_WAITING が届いて入れ替わる。
+// 同じ場所に前に置いてあった別のアプリ（英単語マスターの古い版 など）の控え。
+// それらは「控えを先に返す」作りなので、残っていると新しく置いた表電卓が出てこない。
+// 見つけたら待たずに入れ替わり、その控えを消す。次に開いたときから表電卓が出る（v451）。
+const LEGACY_PREFIXES = ['tango-master-'];
+const isLegacy = k => LEGACY_PREFIXES.some(p => k.startsWith(p));
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' })))));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' }))))
+    .then(() => caches.keys()).then(keys => { if (keys.some(isLegacy)) return self.skipWaiting(); }));
 });
 
 self.addEventListener('message', e => {
@@ -20,7 +26,7 @@ self.addEventListener('activate', e => {
     caches.keys().then(keys =>
       // 自分の古いキャッシュだけを消す。キャッシュは「サイト（オリジン）ごと」に
       // 共通なので、名前で絞らないと同じサイトにある別のアプリの分まで消してしまう。
-      Promise.all(keys.filter(k => k !== CACHE && k.startsWith(CACHE_PREFIX)).map(k => caches.delete(k)))
+      Promise.all(keys.filter(k => (k !== CACHE && k.startsWith(CACHE_PREFIX)) || isLegacy(k)).map(k => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });

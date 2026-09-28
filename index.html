@@ -8814,6 +8814,8 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v451', t:'前に置いたアプリと入れかわらないことがあったのを直す', li:[
+    '同じ場所に前に英単語マスターを置いていたとき、表電卓を置き直しても古い英単語マスターが出つづけることがあったのを直しました（一度開くと裏で入れかわり、次に開いたときから表電卓が出ます）' ]},
   { v:'v450', t:'上のバーをはじめから ☰ にたたむ', li:[
     '表と電卓の上のバーを、はじめから<b>左上の ☰</b> にたたんで、その分表や電卓を大きく出すようにしました。ボタンは ☰ のメニューにあります',
     '上に出したいときは <b>⚙設定 → 🎨見た目 → 画面と上のバー → 上のバーをたたむ</b>で「上に出す」を選んでください（選んだものは覚えます）' ]},
@@ -20419,7 +20421,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v450';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v451';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
