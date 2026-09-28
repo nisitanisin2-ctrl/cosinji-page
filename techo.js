@@ -220,7 +220,7 @@ body.dark .tc-modal{ --tc-line:rgba(150,170,210,.28); --tc-line2:rgba(150,170,21
 .tc-menu button[hidden]{ display:none; }
 .tc-menu .tc-menux{ border-top:1px solid rgba(120,132,156,.25); border-radius:0 0 8px 8px; margin-top:4px; color:#d32f2f; }
 .tc-body{ flex:1; min-height:0; display:flex; flex-direction:column; color:var(--tc-ink); }
-.tc-cal{ flex:none; padding:3px 8px 2px; display:flex; flex-direction:column; min-height:0; }
+.tc-cal{ flex:none; padding:3px 8px 2px; display:flex; flex-direction:column; min-height:0; overflow-x:clip; touch-action:pan-y pinch-zoom; }   /* 横の動きは月めくりに使う（v448） */
 .tc-body.sv .tc-cal:not(.fold){ height:var(--tc-calh); overflow-y:auto; }
 .tc-body.sv .tc-cal:not(.fold) .tc-grid{ flex:1; grid-auto-rows:minmax(28px,1fr); }
 .tc-body.sv .tc-cal:not(.fold) .tc-d{ height:auto; }
@@ -607,8 +607,8 @@ function tcEnsureDom(){
   document.getElementById('tcAddIn').addEventListener('keydown', e=>{ if(e.key==='Enter' && e.isComposing) e.stopPropagation(); });
   if(typeof bindNpToolSwipe==='function' && !window.APP_TECHO) bindNpToolSwipe('techoOverlay');   // 業務手帳だけのアプリでは、ほかの道具へ移らない
   if(typeof applyNpToolFull==='function') applyNpToolFull();
+  tcBindCalSwipe();
   if(typeof bindHSwipe==='function'){
-    bindHSwipe(document.getElementById('tcCal'), d=>tcMonthMove(d));
     bindHSwipe(document.getElementById('tcScroll'), d=>tcDayMove(d));
   }
   document.addEventListener('visibilitychange', ()=>{
@@ -636,6 +636,50 @@ function openTecho(){
 }
 function tcOnClosed(){
   tcStopListen(); clearInterval(tcNowTimer); tcNowTimer=null; tcHideSnack();
+}
+/* 月カレンダーを指で左右にめくる（v448）。指について動き、離すと次・前の月へすべって入れかわる。
+   横に動かしはじめたら指をつかまえ（ブラウザに横の動きを取られると、途中で指の知らせが切れるため）、
+   縦に動かしたときは何もしない（画面のスクロールのじゃまをしない） */
+function tcBindCalSwipe(){
+  const cal=document.getElementById('tcCal'), g=document.getElementById('tcGrid');
+  if(!cal || !g || cal.dataset.cswipe) return;
+  cal.dataset.cswipe='1';
+  let x0=null, y0=0, id=null, dir=0, t0=0, lx=0;
+  const put=(x, op, tr)=>{ g.style.transition=tr||'none'; g.style.transform=x?`translateX(${x}px)`:''; g.style.opacity=op==null?'':String(op); };
+  cal.addEventListener('pointerdown', e=>{
+    if((e.button!==undefined && e.button>0) || x0!==null) return;
+    if(e.target.closest && e.target.closest('.tc-calnav, input, select, textarea')) return;   // ◀▶・今日・☰ はそのまま押せる
+    x0=e.clientX; y0=e.clientY; lx=x0; id=e.pointerId; dir=0; t0=Date.now();
+  });
+  cal.addEventListener('pointermove', e=>{
+    if(x0===null || e.pointerId!==id) return;
+    const dx=e.clientX-x0, dy=e.clientY-y0; lx=e.clientX;
+    if(!dir){
+      if(Math.abs(dx)<8 && Math.abs(dy)<8) return;
+      dir=Math.abs(dx)>Math.abs(dy)*1.2 ? 1 : 2;
+      if(dir===1) try{ cal.setPointerCapture(id); }catch(_){}
+    }
+    if(dir!==1) return;
+    put(dx, 1-Math.min(.6, Math.abs(dx)/(g.offsetWidth||300)));
+  });
+  const end=(e, cancel)=>{
+    if(x0===null || e.pointerId!==id) return;
+    const dx=(cancel?lx:e.clientX)-x0, fast=Math.abs(dx)>30 && Date.now()-t0<260, was=dir;
+    x0=null; id=null; dir=0;
+    if(was!==1) return;
+    try{ npSwipeBlockUntil=Date.now()+400; }catch(_){}   // なぞった先の日が押されたことにならないように
+    const w=g.offsetWidth||300;
+    if(Math.abs(dx)<Math.min(70, w*.22) && !fast){ put(0, null, 'transform .18s ease-out, opacity .18s'); return; }   // 足りなければ戻す
+    const d=dx<0 ? 1 : -1;                                // 左へ払う＝次の月／右へ払う＝前の月
+    put(-d*w, 0, 'transform .14s ease-in, opacity .14s');
+    setTimeout(()=>{
+      tcMonthMove(d);
+      put(d*w*.5, 0); void g.offsetWidth;               // 反対側から入ってくる
+      put(0, null, 'transform .2s ease-out, opacity .2s');
+    }, 140);
+  };
+  cal.addEventListener('pointerup', e=>end(e, false));
+  cal.addEventListener('pointercancel', e=>end(e, true));
 }
 /* ☰ メニュー：▲ の右のボタンの下に出す。戻る・外を押す・もう一度 ☰ で閉じる */
 function tcMenuOpen(){
