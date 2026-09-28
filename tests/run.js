@@ -1189,10 +1189,20 @@ async function runNpTools(browser) {
 
   check('  はじめは道具のタブを出さない', await bar(), '書式・枠線|数字|記号|電卓|▲ マイキー');
   check('  設定に選べる道具が並ぶ', await page.evaluate(() =>
-    document.querySelectorAll('#npToolList .nptool-row').length), 13);   // v422 で 🎙声の計算帳、v433 で 📔業務手帳 を足した
+    document.querySelectorAll('#npToolList .nptool-row').length), 14);   // v422 で 🎙声の計算帳、v433 で 📔業務手帳、v449 で 📚英単語 を足した
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,memo,calctmpl,fintmpl,kaikei,koe');
+    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,memo,calctmpl,fintmpl,kaikei,koe,eigo');
+  {
+    // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
+    const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
+    const sw = fs.readFileSync(path.join(dir, 'service-worker.js'), 'utf8'), html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
+    const files = ['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'css/style.css', 'js/app.js', 'js/jhistory.js', 'js/passages.js', 'js/stories.js', 'js/words.js'];
+    check('  英単語：ファイルがそろい、service-worker が持つ', files.every(f => fs.existsSync(path.join(dir, f)) && sw.includes("'./" + f + "'")), true);
+    check('  英単語：控えは自分の分（eigo-）だけ消す・ネット優先', /k\.startsWith\(CACHE_PREFIX\)/.test(sw) && sw.includes("CACHE_PREFIX = 'eigo-'") && sw.includes('netFetch(e.request)'), true);
+    check('  英単語：下の 🧮電卓 は表電卓へ（古い写しは持たない）', html.includes("location.href='../index.html'") && !html.includes('tool/index.html') && !fs.existsSync(path.join(dir, 'tool')), true);
+    check('  英単語：表電卓の道具・マイキーから開く', await page.evaluate(() => { const u = sideAppUrl('eigo', '#from=hyo'); return !!KEY_FUNCS.a_eigo && REG_GESTURE_ACTIONS.has('a_eigo') && /eigo\/(index\.html)?#from=hyo$/.test(u); }), true);
+  }
 
   // 会計アプリは、メモと同じく別のタブで開く別アプリ（全画面・フリックの対象外）
   check('  会計アプリはタブのタイトルつきで並ぶ', await page.evaluate(() =>

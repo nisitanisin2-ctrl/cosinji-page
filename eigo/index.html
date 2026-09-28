@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1565c0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="英語学習">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>英単語マスター</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <header id="app-header">
+    <div class="header-inner">
+      <div class="app-logo">📚 英単語マスター</div>
+      <div class="header-right">
+        <span id="streak-badge">🔥 <span id="streak-num">0</span>日</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- ホーム -->
+    <section id="screen-home" class="screen active">
+      <div class="container">
+        <div class="home-stats card">
+          <div class="stat-box">
+            <div class="stat-num" id="home-mastered">0</div>
+            <div class="stat-lbl">習得済み</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num" id="home-today">0</div>
+            <div class="stat-lbl">今日学んだ</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num" id="home-accuracy">-</div>
+            <div class="stat-lbl">正解率</div>
+          </div>
+        </div>
+        <div class="progress-wrap card">
+          <div class="progress-label">
+            <span>全体進捗</span>
+            <span id="home-progress-text">0 / 0</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" id="home-progress-bar" style="width:0%"></div></div>
+        </div>
+        <button class="mode-btn mode-btn-wide" onclick="App.startChant()">
+          <span class="mode-icon">🗣️</span>
+          <span class="mode-name">日常チャンク</span>
+          <span class="mode-desc">日常フレーズを聞いて・声に出して覚える</span>
+        </button>
+        <button class="mode-btn mode-btn-wide" onclick="App.startFreqMode()">
+          <span class="mode-icon">📊</span>
+          <span class="mode-name">頻度順フラッシュ</span>
+          <span class="mode-desc">頻度順に100語ずつ・短い単語から学習</span>
+        </button>
+        <button class="mode-btn mode-btn-wide" onclick="App.startHSMode()">
+          <span class="mode-icon">📗</span>
+          <span class="mode-name">高校英語レベル別</span>
+          <span class="mode-desc">高1〜高3・易/標準/発展の9段階で学習</span>
+        </button>
+        <button class="mode-btn mode-btn-wide" onclick="App.startRDMode()">
+          <span class="mode-icon">🎧</span>
+          <span class="mode-name">高校英語 長文リスニング</span>
+          <span class="mode-desc">長文を1語ずつ音読・意味を確認しながら読む</span>
+        </button>
+        <button class="mode-btn mode-btn-wide" onclick="App.startJHMode()">
+          <span class="mode-icon">🏯</span>
+          <span class="mode-name">日本史 英語リスニング</span>
+          <span class="mode-desc">日本史の長文を英語で聴いて学ぶ・全9時代36本</span>
+        </button>
+        <button class="mode-btn mode-btn-wide" onclick="App.startAllWords()">
+          <span class="mode-icon">📋</span>
+          <span class="mode-name">全単語フラッシュカード</span>
+          <span class="mode-desc">登録済み全 <strong id="all-words-count"></strong> 語を自由に閲覧</span>
+        </button>
+        <button class="mode-btn mode-btn-wide" onclick="App.startSFC()">
+          <span class="mode-icon">🔤</span>
+          <span class="mode-name">文章ワードフラッシュ</span>
+          <span class="mode-desc">例文を1語ずつめくって意味を確認</span>
+        </button>
+        <button class="mode-btn mode-btn-wide" onclick="App.startStory()">
+          <span class="mode-icon">📖</span>
+          <span class="mode-name">名作ストーリー</span>
+          <span class="mode-desc">著作権フリーの名作を1語ずつ読む</span>
+        </button>
+        <div class="mode-grid">
+          <button class="mode-btn" onclick="App.startMode('flashcard')">
+            <span class="mode-icon">🃏</span>
+            <span class="mode-name">フラッシュカード</span>
+            <span class="mode-desc">単語をめくって覚える</span>
+          </button>
+          <button class="mode-btn" onclick="App.startMode('quiz')">
+            <span class="mode-icon">🎯</span>
+            <span class="mode-name">4択クイズ</span>
+            <span class="mode-desc">4つの選択肢から選ぶ</span>
+          </button>
+          <button class="mode-btn" onclick="App.startMode('typing')">
+            <span class="mode-icon">⌨️</span>
+            <span class="mode-name">スペル練習</span>
+            <span class="mode-desc">英単語を入力する</span>
+          </button>
+          <button class="mode-btn" onclick="App.startMode('listen')">
+            <span class="mode-icon">🔊</span>
+            <span class="mode-name">リスニング</span>
+            <span class="mode-desc">音を聞いて答える</span>
+          </button>
+        </div>
+        <div id="review-box" class="review-card card" style="display:none">
+          <span>📅 復習が必要: <strong id="review-count">0</strong>語</span>
+          <button class="btn-sm btn-accent" onclick="App.startReview()">今すぐ復習</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- フラッシュカード -->
+    <section id="screen-flashcard" class="screen">
+      <div class="container">
+        <div class="study-nav">
+          <button class="back-btn" onclick="App.goHome()">← 戻る</button>
+          <div class="study-counter"><span id="fc-idx">1</span>/<span id="fc-total">10</span></div>
+          <button class="sound-btn" onclick="App.speak()" id="fc-speak">🔊</button>
+          <button class="fc-again-btn" id="fc-again-btn" onclick="App.flipBack()" style="display:none">もう一度</button>
+        </div>
+        <!-- 全単語モード専用ツールバー -->
+        <div id="all-words-toolbar" style="display:none" class="aw-toolbar">
+          <div class="aw-toolbar-r1">
+            <button class="aw-prev-btn" onclick="App.fcPrev()">← 前へ</button>
+            <select id="aw-sort" class="aw-sort" onchange="App.awSort(this.value)">
+              <option value="level">レベル順</option>
+              <option value="id">登録順</option>
+              <option value="alpha">アルファベット順</option>
+              <option value="random">ランダム</option>
+            </select>
+            <button class="aw-shuffle-btn" onclick="App.awSort('random')" title="ランダムに並び替え">🔀</button>
+            <button class="aw-unmastered-btn" id="aw-unmastered-btn" onclick="App.awToggleUnmastered()">未覚え優先</button>
+            <button class="aw-next-btn" onclick="App.fcNext()">次へ →</button>
+          </div>
+          <div class="aw-toolbar-r2">
+            <span class="aw-filter-info" id="aw-filter-info"></span>
+            <button class="aw-filter-change-btn" onclick="App.openAWFilterModal()">絞り込みを変更</button>
+          </div>
+        </div>
+        <!-- 頻度順フラッシュ専用ツールバー -->
+        <div id="freq-fc-toolbar" style="display:none" class="aw-toolbar">
+          <button class="freq-prev-btn" onclick="App.fcPrev()">← 前へ</button>
+          <span id="freq-fc-info" class="freq-fc-info"></span>
+          <button class="freq-unmastered-btn" id="freq-unmastered-btn" onclick="App.freqToggleUnmastered()">未覚え優先</button>
+          <button class="freq-next-btn" onclick="App.fcNext()">次へ →</button>
+          <button class="freq-list-btn" onclick="App.goFreqBack()">一覧</button>
+        </div>
+        <!-- 高校英語レベル別ツールバー -->
+        <div id="hs-fc-toolbar" style="display:none" class="aw-toolbar">
+          <button class="hs-prev-btn" onclick="App.fcPrev()">← 前へ</button>
+          <span id="hs-fc-info" class="freq-fc-info"></span>
+          <button class="aw-unmastered-btn" id="hs-unmastered-btn" onclick="App.hsToggleUnmastered()">未覚え優先</button>
+          <button class="hs-next-btn" onclick="App.fcNext()">次へ →</button>
+          <button class="freq-list-btn" onclick="App.goHSBack()">一覧</button>
+        </div>
+        <div class="fc-wrap">
+          <div class="flashcard" id="flashcard" onclick="App.clickCard(event)">
+            <div class="fc-front">
+              <div class="fc-level-badge" id="fc-badge"></div>
+              <div class="fc-pos" id="fc-pos-front"></div>
+              <div class="fc-main" id="fc-japanese"></div>
+              <div class="fc-tap-hint">← 前へ｜右タップで英語を確認 →</div>
+            </div>
+            <div class="fc-back">
+              <div class="fc-pos" id="fc-pos-back"></div>
+              <div class="fc-main fc-english" id="fc-word"></div>
+              <div class="fc-reading" id="fc-reading"></div>
+              <div class="fc-example-wrap" id="fc-example-wrap" style="display:none">
+                <div class="fc-example" id="fc-example"></div>
+                <button class="fc-ex-speak-btn" onclick="event.stopPropagation(); App.speakExample()">🔊 例文を聞く</button>
+              </div>
+              <button class="fc-mastered-btn" id="fc-mastered-btn" onclick="event.stopPropagation(); App.toggleMastered()">
+                <span id="fc-mastered-label">☐ 覚えた</span>
+              </button>
+              <div class="fc-tap-hint fc-back-hint" id="fc-back-hint">← 日本語に戻る｜次へ →</div>
+            </div>
+          </div>
+        </div>
+        <div class="rating-area" id="rating-area" style="display:none">
+          <p class="rating-label">どのくらい覚えていましたか？</p>
+          <div class="rating-btns">
+            <button class="rate-btn rate-hard" onclick="App.rate(1)">😓<br>難しい</button>
+            <button class="rate-btn rate-ok"   onclick="App.rate(2)">😐<br>普通</button>
+            <button class="rate-btn rate-easy" onclick="App.rate(3)">😊<br>簡単</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- クイズ -->
+    <section id="screen-quiz" class="screen">
+      <div class="container">
+        <div class="study-nav">
+          <button class="back-btn" onclick="App.goHome()">← 戻る</button>
+          <div class="quiz-score-disp">正解: <span id="quiz-correct">0</span> / <span id="quiz-done">0</span></div>
+        </div>
+        <div class="quiz-card card">
+          <div class="quiz-type-label" id="quiz-type-label">日本語 → 英語</div>
+          <div class="quiz-q" id="quiz-q"></div>
+          <div class="quiz-opts" id="quiz-opts">
+            <button class="quiz-opt" id="qopt0" onclick="App.pickOpt(0)"></button>
+            <button class="quiz-opt" id="qopt1" onclick="App.pickOpt(1)"></button>
+            <button class="quiz-opt" id="qopt2" onclick="App.pickOpt(2)"></button>
+            <button class="quiz-opt" id="qopt3" onclick="App.pickOpt(3)"></button>
+          </div>
+          <div class="quiz-fb" id="quiz-fb" style="display:none">
+            <div class="fb-msg" id="quiz-fb-msg"></div>
+            <button class="btn-primary" onclick="App.nextQuiz()">次へ →</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- タイピング -->
+    <section id="screen-typing" class="screen">
+      <div class="container">
+        <div class="study-nav">
+          <button class="back-btn" onclick="App.goHome()">← 戻る</button>
+          <div class="quiz-score-disp">正解: <span id="type-correct">0</span> / <span id="type-done">0</span></div>
+        </div>
+        <div class="typing-card card">
+          <div class="typing-label">この意味の英単語は？</div>
+          <div class="typing-q" id="typing-q"></div>
+          <div class="typing-q-reading" id="typing-q-reading"></div>
+          <input type="text" id="type-input" class="type-input"
+            placeholder="英単語を入力..." autocomplete="off" autocorrect="off"
+            autocapitalize="off" spellcheck="false"
+            onkeydown="if(event.key==='Enter')App.checkType()">
+          <div class="type-btns">
+            <button class="btn-primary" onclick="App.checkType()">確認</button>
+            <button class="btn-secondary" onclick="App.skipType()">ヒント</button>
+          </div>
+          <div class="type-fb" id="type-fb" style="display:none">
+            <div class="fb-msg" id="type-fb-msg"></div>
+            <button class="btn-primary" onclick="App.nextType()">次へ →</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 文章ワードフラッシュ / 名作ストーリー -->
+    <section id="screen-sentence-fc" class="screen">
+      <div class="rd-wrap">
+        <div class="rd-topbar">
+          <button class="back-btn rd-back-btn" onclick="App.sfcGoBack()">← 戻る</button>
+          <div class="rd-title-area">
+            <span class="rd-passage-title" id="sfc-rd-title"></span>
+            <span class="rd-passage-nav" id="sfc-rd-nav"></span>
+          </div>
+        </div>
+        <div class="rd-word-card" id="sfc-rd-word-card">
+          <div class="rd-wc-left">
+            <div class="rd-wc-word" id="sfc-rd-word">---</div>
+            <div class="rd-wc-reading" id="sfc-rd-reading"></div>
+            <div class="rd-wc-base" id="sfc-rd-base"></div>
+          </div>
+          <div class="rd-wc-right">
+            <span class="rd-wc-pos" id="sfc-rd-pos"></span>
+            <span class="rd-wc-ja" id="sfc-rd-ja"></span>
+          </div>
+        </div>
+        <div class="rd-passage-area" id="sfc-rd-passage-area">
+          <div class="rd-passage" id="sfc-rd-passage"></div>
+          <div class="rd-passage-ja" id="sfc-rd-passage-ja" style="display:none"></div>
+        </div>
+        <div class="rd-controls">
+          <div class="rd-ctrl-row rd-pass-row">
+            <button class="rd-pass-btn" id="sfc-rd-prev-btn" onclick="App.sfcPrevPassage()">◀ 前の文</button>
+            <span class="rd-info" id="sfc-rd-info">1 / 0 語</span>
+            <button class="rd-pass-btn" id="sfc-rd-next-btn" onclick="App.sfcNextPassage()">次の文 ▶</button>
+          </div>
+          <div class="rd-ctrl-row rd-play-row">
+            <button class="rd-step-btn" onclick="App.sfcPrevWord()">⏮ 前</button>
+            <button class="rd-play-btn" id="sfc-rd-play-btn" onclick="App.sfcTogglePlay()">▶ 再生</button>
+            <button class="rd-step-btn" onclick="App.sfcNextWord()">次 ⏭</button>
+          </div>
+          <div class="rd-ctrl-row">
+            <button class="rd-bulk-btn" id="sfc-rd-bulk-btn" onclick="App.sfcBulkPlay()">⏩ 一括再生</button>
+            <button class="rd-ja-btn" id="sfc-rd-ja-btn" onclick="App.sfcToggleJa()">訳を表示</button>
+          </div>
+          <div class="rd-ctrl-row rd-speed-row">
+            <span class="rd-speed-lbl">速度</span>
+            <button class="rd-speed-btn" onclick="App.sfcSpeedDown()">−</button>
+            <span class="rd-speed-val" id="sfc-rd-speed-val">1.0x</span>
+            <button class="rd-speed-btn" onclick="App.sfcSpeedUp()">＋</button>
+            <span class="rd-speed-lbl" style="margin-left:10px">間隔</span>
+            <button class="rd-speed-btn" onclick="App.sfcPauseDown()">−</button>
+            <span class="rd-speed-val" id="sfc-rd-pause-val">0.3s</span>
+            <button class="rd-speed-btn" onclick="App.sfcPauseUp()">＋</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- リスニング -->
+    <section id="screen-listen" class="screen">
+      <div class="container">
+        <div class="study-nav">
+          <button class="back-btn" onclick="App.goHome()">← 戻る</button>
+          <div class="quiz-score-disp">正解: <span id="listen-correct">0</span> / <span id="listen-done">0</span></div>
+        </div>
+        <div class="typing-card card">
+          <div class="typing-label">聞こえた英単語を入力してください</div>
+          <button class="play-sound-btn" id="listen-play-btn" onclick="App.playListen()">🔊 もう一度聞く</button>
+          <input type="text" id="listen-input" class="type-input"
+            placeholder="英単語を入力..." autocomplete="off" autocorrect="off"
+            autocapitalize="off" spellcheck="false"
+            onkeydown="if(event.key==='Enter')App.checkListen()">
+          <div class="type-btns">
+            <button class="btn-primary" onclick="App.checkListen()">確認</button>
+            <button class="btn-secondary" onclick="App.skipListen()">スキップ</button>
+          </div>
+          <div class="type-fb" id="listen-fb" style="display:none">
+            <div class="fb-msg" id="listen-fb-msg"></div>
+            <button id="listen-next-btn" class="btn-primary" onclick="App.nextListen()">次へ →</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 単語一覧 -->
+    <section id="screen-words" class="screen">
+      <div class="container">
+        <div class="words-header">
+          <input type="text" id="word-search" class="search-input"
+            placeholder="🔍 単語を検索..." oninput="App.searchWords(this.value)">
+          <div class="word-filters">
+            <select id="lv-filter" onchange="App.filterWords()">
+              <option value="0">全レベル</option>
+              <option value="1">Lv.1</option>
+              <option value="2">Lv.2</option>
+              <option value="3">Lv.3</option>
+              <option value="4">Lv.4</option>
+              <option value="5">Lv.5</option>
+            </select>
+            <select id="ps-filter" onchange="App.filterWords()">
+              <option value="">全品詞</option>
+              <option value="v">動詞</option>
+              <option value="n">名詞</option>
+              <option value="adj">形容詞</option>
+              <option value="adv">副詞</option>
+            </select>
+            <select id="status-filter" onchange="App.filterWords()">
+              <option value="">すべて</option>
+              <option value="mastered">習得済み</option>
+              <option value="learning">学習中</option>
+              <option value="new">未学習</option>
+            </select>
+          </div>
+        </div>
+        <div class="wl-legend">
+          <span class="leg-item"><span>✅</span>習得済み</span>
+          <span class="leg-item"><span>⭕</span>正解のみ</span>
+          <span class="leg-item"><span>△</span>学習中</span>
+          <span class="leg-item"><span>❌</span>不正解多</span>
+          <span class="leg-item"><span>—</span>未挑戦</span>
+        </div>
+        <div class="words-count" id="words-count"></div>
+        <div class="word-list" id="word-list"></div>
+      </div>
+    </section>
+
+    <!-- 長文リスニング レベル選択 -->
+    <section id="screen-reading-select" class="screen">
+      <div class="container">
+        <div class="study-nav">
+          <button class="back-btn" onclick="App.goHome()">← 戻る</button>
+          <div class="study-title">🎧 高校英語 長文</div>
+        </div>
+        <p class="hs-intro">学年・レベルを選択してください。<br>長文を1語ずつ発音しながら、単語の意味を確認できます。</p>
+        <div id="rd-select-grid"></div>
+      </div>
+    </section>
+
+    <!-- 長文リスニング 読み画面 -->
+    <section id="screen-reading" class="screen">
+      <div class="rd-wrap">
+        <div class="rd-topbar">
+          <button class="back-btn rd-back-btn" onclick="App.rdGoBack()">← 戻る</button>
+          <div class="rd-title-area">
+            <span class="rd-passage-title" id="rd-passage-title"></span>
+            <span class="rd-passage-nav" id="rd-passage-nav"></span>
+          </div>
+        </div>
+        <div class="rd-word-card" id="rd-word-card">
+          <div class="rd-wc-left">
+            <div class="rd-wc-word" id="rd-word-display">---</div>
+            <div class="rd-wc-reading" id="rd-word-reading"></div>
+            <div class="rd-wc-base" id="rd-word-base"></div>
+          </div>
+          <div class="rd-wc-right">
+            <span class="rd-wc-pos" id="rd-word-pos"></span>
+            <span class="rd-wc-ja" id="rd-word-ja"></span>
+          </div>
+        </div>
+        <div class="rd-passage-area" id="rd-passage-area">
+          <div class="rd-passage" id="rd-passage"></div>
+          <div class="rd-passage-ja" id="rd-passage-ja" style="display:none"></div>
+        </div>
+        <div class="rd-controls">
+          <div class="rd-ctrl-row rd-pass-row">
+            <button class="rd-pass-btn" id="rd-prev-pass-btn" onclick="App.rdPrevPassage()">◀ 前の文章</button>
+            <span class="rd-info" id="rd-info">1 / 0 語</span>
+            <button class="rd-pass-btn" id="rd-next-pass-btn" onclick="App.rdNextPassage()">次の文章 ▶</button>
+          </div>
+          <div class="rd-ctrl-row rd-play-row">
+            <button class="rd-step-btn" onclick="App.rdPrevWord()">⏮ 前</button>
+            <button class="rd-play-btn" id="rd-play-btn" onclick="App.rdTogglePlay()">▶ 再生</button>
+            <button class="rd-step-btn" onclick="App.rdNextWord()">次 ⏭</button>
+          </div>
+          <div class="rd-ctrl-row">
+            <button class="rd-bulk-btn" id="rd-bulk-btn" onclick="App.rdBulkPlay()">⏩ 一括再生</button>
+            <button class="rd-ja-btn" id="rd-ja-btn" onclick="App.rdToggleJa()">訳を表示</button>
+          </div>
+          <div class="rd-ctrl-row rd-speed-row">
+            <span class="rd-speed-lbl">速度</span>
+            <button class="rd-speed-btn" onclick="App.rdSpeedDown()">−</button>
+            <span class="rd-speed-val" id="rd-speed-val">1.0x</span>
+            <button class="rd-speed-btn" onclick="App.rdSpeedUp()">＋</button>
+            <span class="rd-speed-lbl" style="margin-left:10px">間隔</span>
+            <button class="rd-speed-btn" onclick="App.rdPauseDown()">−</button>
+            <span class="rd-speed-val" id="rd-pause-val">0.3s</span>
+            <button class="rd-speed-btn" onclick="App.rdPauseUp()">＋</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 高校英語レベル別 -->
+    <section id="screen-highschool" class="screen">
+      <div class="container">
+        <div class="study-nav">
+          <button class="back-btn" onclick="App.goHome()">← 戻る</button>
+          <div class="study-title">📗 高校英語レベル別</div>
+        </div>
+        <p class="hs-intro">学年とレベルを選んで学習しましょう。<br>進捗バーは覚えた単語数を表します。</p>
+        <div id="hs-level-grid"></div>
+      </div>
+    </section>
+
+    <!-- 頻度順フラッシュ グループ選択 -->
+    <section id="screen-freq" class="screen">
+
+      <!-- view 1: グループ一覧 -->
+      <div id="freq-view-groups">
+        <div class="container">
+          <div class="study-nav">
+            <button class="back-btn" onclick="App.goHome()">← 戻る</button>
+            <div class="study-title">📊 頻度順フラッシュ</div>
+          </div>
+          <p class="freq-desc">頻度順に100語ずつ。グループを選ぶと文字数ごとに練習できます。</p>
+          <div class="freq-groups" id="freq-groups"></div>
+        </div>
+      </div>
+
+      <!-- view 2: 文字数選択 -->
+      <div id="freq-view-lengths" style="display:none">
+        <div class="container">
+          <div class="study-nav">
+            <button class="back-btn" onclick="App.showFreqGroups()">← 一覧</button>
+            <div class="study-title" id="freq-detail-title">グループ 1</div>
+          </div>
+          <div id="freq-all-wrap"></div>
+          <p class="freq-desc" style="margin:10px 0 6px">文字数で絞り込む</p>
+          <div class="freq-groups" id="freq-lengths"></div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- 日本史リスニング 時代選択 -->
+    <section id="screen-jh-menu" class="screen">
+      <div class="container">
+        <div class="study-nav">
+          <button class="back-btn" onclick="App.goHome()">← 戻る</button>
+          <div class="study-title">🏯 日本史 英語リスニング</div>
+        </div>
+        <p class="hs-intro">時代を選んで英語の長文リスニングで学びましょう。<br>各時代4本・計36本の英文パッセージを収録。</p>
+        <div class="jh-era-grid" id="jh-era-grid"></div>
+      </div>
+    </section>
+
+    <!-- 日本史リスニング 読み画面 -->
+    <section id="screen-jh" class="screen">
+      <div class="rd-wrap">
+        <div class="rd-topbar">
+          <button class="back-btn rd-back-btn" onclick="App.jhGoBack()">← 戻る</button>
+          <div class="rd-title-area">
+            <span class="rd-passage-title" id="jh-passage-title"></span>
+            <span class="rd-passage-nav" id="jh-passage-nav"></span>
+          </div>
+        </div>
+        <div class="rd-word-card" id="jh-word-card">
+          <div class="rd-wc-left">
+            <div class="rd-wc-word" id="jh-word-display">---</div>
+            <div class="rd-wc-reading" id="jh-word-reading"></div>
+            <div class="rd-wc-base" id="jh-word-base"></div>
+          </div>
+          <div class="rd-wc-right">
+            <span class="rd-wc-pos" id="jh-word-pos"></span>
+            <span class="rd-wc-ja" id="jh-word-ja"></span>
+          </div>
+        </div>
+        <div class="rd-passage-area" id="jh-passage-area">
+          <div class="rd-passage" id="jh-passage"></div>
+          <div class="rd-passage-ja" id="jh-passage-ja" style="display:none"></div>
+        </div>
+        <div class="rd-controls">
+          <div class="rd-ctrl-row rd-pass-row">
+            <button class="rd-pass-btn" id="jh-prev-pass-btn" onclick="App.jhPrevPassage()">◀ 前の文章</button>
+            <span class="rd-info" id="jh-info">1 / 0 語</span>
+            <button class="rd-pass-btn" id="jh-next-pass-btn" onclick="App.jhNextPassage()">次の文章 ▶</button>
+          </div>
+          <div class="rd-ctrl-row rd-play-row">
+            <button class="rd-step-btn" onclick="App.jhPrevWord()">⏮ 前</button>
+            <button class="rd-play-btn" id="jh-play-btn" onclick="App.jhTogglePlay()">▶ 再生</button>
+            <button class="rd-step-btn" onclick="App.jhNextWord()">次 ⏭</button>
+          </div>
+          <div class="rd-ctrl-row">
+            <button class="rd-bulk-btn" id="jh-bulk-btn" onclick="App.jhBulkPlay()">⏩ 一括再生</button>
+            <button class="rd-ja-btn" id="jh-ja-btn" onclick="App.jhToggleJa()">訳を表示</button>
+          </div>
+          <div class="rd-ctrl-row rd-speed-row">
+            <span class="rd-speed-lbl">速度</span>
+            <button class="rd-speed-btn" onclick="App.jhSpeedDown()">−</button>
+            <span class="rd-speed-val" id="jh-speed-val">1.0x</span>
+            <button class="rd-speed-btn" onclick="App.jhSpeedUp()">＋</button>
+            <span class="rd-speed-lbl" style="margin-left:10px">間隔</span>
+            <button class="rd-speed-btn" onclick="App.jhPauseDown()">−</button>
+            <span class="rd-speed-val" id="jh-pause-val">0.3s</span>
+            <button class="rd-speed-btn" onclick="App.jhPauseUp()">＋</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 統計 -->
+    <section id="screen-stats" class="screen">
+      <div class="container">
+        <h2 class="section-title">学習統計</h2>
+        <div class="stats-grid-2">
+          <div class="stat-card card">
+            <div class="sc-icon">📚</div>
+            <div class="sc-num" id="st-mastered">0</div>
+            <div class="sc-lbl">習得単語数</div>
+          </div>
+          <div class="stat-card card">
+            <div class="sc-icon">🔥</div>
+            <div class="sc-num" id="st-streak">0</div>
+            <div class="sc-lbl">連続学習日数</div>
+          </div>
+          <div class="stat-card card">
+            <div class="sc-icon">🎯</div>
+            <div class="sc-num" id="st-accuracy">-</div>
+            <div class="sc-lbl">全体正解率</div>
+          </div>
+          <div class="stat-card card">
+            <div class="sc-icon">📝</div>
+            <div class="sc-num" id="st-sessions">0</div>
+            <div class="sc-lbl">学習セッション数</div>
+          </div>
+        </div>
+        <div class="lv-progress card">
+          <h3>レベル別進捗</h3>
+          <div id="lv-bars"></div>
+        </div>
+        <div class="recently-learned card">
+          <h3>最近覚えた単語</h3>
+          <div id="recent-list"></div>
+        </div>
+        <!-- 表示モード -->
+        <div class="layout-mode-section">
+          <h3>🖥️ 表示モード</h3>
+          <div class="layout-mode-grid">
+            <button class="lm-btn" data-lm="lm-pc" onclick="App.applyLayoutMode('lm-pc')">
+              <span class="lm-btn-icon">💻</span>
+              <span class="lm-btn-name">PC / Mac</span>
+              <span class="lm-btn-desc">デスクトップ・ノートPC</span>
+            </button>
+            <button class="lm-btn" data-lm="lm-tablet" onclick="App.applyLayoutMode('lm-tablet')">
+              <span class="lm-btn-icon">🗒️</span>
+              <span class="lm-btn-name">タブレット</span>
+              <span class="lm-btn-desc">iPad・Androidタブ</span>
+            </button>
+            <button class="lm-btn" data-lm="lm-lg" onclick="App.applyLayoutMode('lm-lg')">
+              <span class="lm-btn-icon">📲</span>
+              <span class="lm-btn-name">スマホ 大</span>
+              <span class="lm-btn-desc">Galaxy・Pixel Pro</span>
+            </button>
+            <button class="lm-btn" data-lm="lm-std" onclick="App.applyLayoutMode('lm-std')">
+              <span class="lm-btn-icon">📱</span>
+              <span class="lm-btn-name">スマホ 標準</span>
+              <span class="lm-btn-desc">iPhone・Galaxy S</span>
+            </button>
+            <button class="lm-btn" data-lm="lm-xs" onclick="App.applyLayoutMode('lm-xs')">
+              <span class="lm-btn-icon">🤏</span>
+              <span class="lm-btn-name">コンパクト</span>
+              <span class="lm-btn-desc">iPhone SE・Xperia</span>
+            </button>
+          </div>
+        </div>
+
+        <div style="margin-top:24px;text-align:center">
+          <button class="btn-danger" onclick="App.resetAll()">🗑️ 進捗をリセット</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <nav id="bottom-nav">
+    <button class="nav-btn active" data-s="home" onclick="App.showScreen('home')">
+      <span>🏠</span><span>ホーム</span>
+    </button>
+    <button class="nav-btn" data-s="words" onclick="App.showScreen('words')">
+      <span>📖</span><span>単語帳</span>
+    </button>
+    <button class="nav-btn" data-s="stats" onclick="App.showScreen('stats')">
+      <span>⚙️</span><span>設定</span>
+    </button>
+    <button class="nav-btn" onclick="location.href='../index.html'">
+      <span>🧮</span><span>電卓</span>
+    </button>
+  </nav>
+
+  <!-- 全単語フラッシュカード フィルター選択 -->
+  <div id="aw-filter-modal" class="modal-bg" style="display:none">
+    <div class="modal-box aw-filter-box">
+      <div class="aw-filter-title">📋 全単語フラッシュカード</div>
+      <div class="aw-filter-section-title">レベル</div>
+      <div class="aw-filter-level-row">
+        <button class="aw-filter-lv-btn active" data-lv="0" onclick="App.setAWFilterLevel(0)">全レベル</button>
+        <button class="aw-filter-lv-btn" data-lv="1" onclick="App.setAWFilterLevel(1)">Lv.1</button>
+        <button class="aw-filter-lv-btn" data-lv="2" onclick="App.setAWFilterLevel(2)">Lv.2</button>
+        <button class="aw-filter-lv-btn" data-lv="3" onclick="App.setAWFilterLevel(3)">Lv.3</button>
+        <button class="aw-filter-lv-btn" data-lv="4" onclick="App.setAWFilterLevel(4)">Lv.4</button>
+      </div>
+      <div class="aw-filter-section-title">ジャンル</div>
+      <div class="aw-filter-genre-grid">
+        <button class="aw-filter-genre-btn active" data-genre="" onclick="App.setAWFilterGenre('')">すべて</button>
+        <button class="aw-filter-genre-btn" data-genre="verb" onclick="App.setAWFilterGenre('verb')">動詞</button>
+        <button class="aw-filter-genre-btn" data-genre="noun" onclick="App.setAWFilterGenre('noun')">名詞</button>
+        <button class="aw-filter-genre-btn" data-genre="adj" onclick="App.setAWFilterGenre('adj')">形容詞</button>
+        <button class="aw-filter-genre-btn" data-genre="adv" onclick="App.setAWFilterGenre('adv')">副詞</button>
+        <button class="aw-filter-genre-btn" data-genre="history" onclick="App.setAWFilterGenre('history')">歴史</button>
+        <button class="aw-filter-genre-btn" data-genre="academic" onclick="App.setAWFilterGenre('academic')">学術</button>
+        <button class="aw-filter-genre-btn" data-genre="nature" onclick="App.setAWFilterGenre('nature')">自然</button>
+        <button class="aw-filter-genre-btn" data-genre="business" onclick="App.setAWFilterGenre('business')">ビジネス</button>
+        <button class="aw-filter-genre-btn" data-genre="tech" onclick="App.setAWFilterGenre('tech')">テック</button>
+        <button class="aw-filter-genre-btn" data-genre="country-place" onclick="App.setAWFilterGenre('country-place')">国・地名</button>
+        <button class="aw-filter-genre-btn" data-genre="food" onclick="App.setAWFilterGenre('food')">食べ物</button>
+        <button class="aw-filter-genre-btn" data-genre="body" onclick="App.setAWFilterGenre('body')">身体</button>
+        <button class="aw-filter-genre-btn" data-genre="emotion" onclick="App.setAWFilterGenre('emotion')">感情</button>
+        <button class="aw-filter-genre-btn" data-genre="animal" onclick="App.setAWFilterGenre('animal')">動物</button>
+        <button class="aw-filter-genre-btn" data-genre="other" onclick="App.setAWFilterGenre('other')">その他</button>
+      </div>
+      <div class="aw-filter-count" id="aw-filter-count">0 語</div>
+      <button class="btn-primary" onclick="App.startAllWordsWithFilter()">開始</button>
+      <button class="btn-secondary sfc-scene-cancel" style="margin-top:8px" onclick="App.closeAWFilterModal()">キャンセル</button>
+    </div>
+  </div>
+
+  <!-- 文章ワードフラッシュ シチュエーション選択 -->
+  <div id="sfc-scene-modal" class="modal-bg" style="display:none">
+    <div class="modal-box sfc-scene-box">
+      <div class="sfc-scene-title">シチュエーションを選択</div>
+      <div class="sfc-scene-grid">
+        <button class="sfc-scene-btn" onclick="App.startSFCWithScene('all')"><span>🌐</span><span>すべて</span></button>
+        <button class="sfc-scene-btn" onclick="App.startSFCWithScene('greeting')"><span>👋</span><span>挨拶・自己紹介</span></button>
+        <button class="sfc-scene-btn" onclick="App.startSFCWithScene('shopping')"><span>🛒</span><span>ショッピング</span></button>
+        <button class="sfc-scene-btn" onclick="App.startSFCWithScene('school')"><span>📚</span><span>学校・勉強</span></button>
+        <button class="sfc-scene-btn" onclick="App.startSFCWithScene('work')"><span>💼</span><span>仕事・職場</span></button>
+        <button class="sfc-scene-btn" onclick="App.startSFCWithScene('travel')"><span>✈️</span><span>旅行・交通</span></button>
+        <button class="sfc-scene-btn" onclick="App.startSFCWithScene('dining')"><span>🍽️</span><span>食事・レストラン</span></button>
+        <button class="sfc-scene-btn" onclick="App.startSFCWithScene('daily')"><span>💬</span><span>日常会話</span></button>
+      </div>
+      <button class="btn-secondary sfc-scene-cancel" onclick="App.closeSFCSceneModal()">キャンセル</button>
+    </div>
+  </div>
+
+  <!-- 日常チャンク カテゴリ選択モーダル -->
+  <div id="chant-modal" class="modal-bg" style="display:none">
+    <div class="modal-box chant-modal-box">
+      <div class="chant-modal-title">🗣️ 日常チャンク</div>
+      <div class="chant-modal-sub">カテゴリを選んで練習しましょう</div>
+      <div class="chant-cat-grid" id="chant-cat-grid"></div>
+      <button class="btn-secondary sfc-scene-cancel" onclick="App.closeChantModal()">キャンセル</button>
+    </div>
+  </div>
+
+  <!-- 日常チャンク 練習スクリーン -->
+  <section id="screen-chant" class="screen">
+    <div class="chant-wrap">
+      <div class="chant-topbar">
+        <button class="back-btn" onclick="App.chantGoBack()">← 戻る</button>
+        <div class="chant-title-area">
+          <span class="chant-mode-title">🗣️ 日常チャンク</span>
+          <span class="chant-cat-label" id="chant-cat-label"></span>
+        </div>
+        <span class="chant-progress"><span id="chant-idx">1</span>/<span id="chant-total">1</span></span>
+      </div>
+
+      <div class="chant-card-area">
+        <div class="chant-card" id="chant-card" onclick="App.chantReveal()">
+          <div class="chant-ja" id="chant-ja"></div>
+          <div class="chant-divider" id="chant-divider"></div>
+          <div class="chant-en" id="chant-en" style="opacity:0"></div>
+          <div class="chant-hint" id="chant-hint">タップして英語を確認</div>
+        </div>
+        <div class="chant-btn-row">
+          <button class="chant-nav-btn" onclick="App.chantPrev()">◀ 前へ</button>
+          <button class="chant-nav-btn" onclick="App.chantNext()">次へ ▶</button>
+        </div>
+      </div>
+
+      <div class="chant-reveal-hint" id="chant-reveal-hint">カードをタップすると英語が表示されます</div>
+    </div>
+  </section>
+
+  <!-- 名作ストーリー選択モーダル -->
+  <div id="story-modal" class="modal-bg" style="display:none">
+    <div class="modal-box story-modal-box">
+      <div class="sfc-scene-title">📖 名作ストーリーを選択</div>
+      <div class="story-list" id="story-list"></div>
+      <button class="btn-secondary sfc-scene-cancel" onclick="App.closeStoryModal()">キャンセル</button>
+    </div>
+  </div>
+
+  <!-- セッション完了モーダル -->
+  <div id="session-modal" class="modal-bg" style="display:none">
+    <div class="modal-box">
+      <div class="modal-emoji" id="modal-emoji">🎉</div>
+      <div class="modal-title" id="modal-title">セッション完了！</div>
+      <div class="modal-body" id="modal-body"></div>
+      <button class="btn-primary" onclick="App.closeModal()">ホームに戻る</button>
+    </div>
+  </div>
+
+</div>
+<script src="js/words.js"></script>
+<script src="js/stories.js"></script>
+<script src="js/passages.js"></script>
+<script src="js/jhistory.js"></script>
+<script src="js/app.js"></script>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./service-worker.js");
+}
+</script>
+</body>
+</html>
