@@ -40,7 +40,7 @@ async function newPage(browser) {
   // はじめての案内（v384）は初回だけ全画面で出る。ふつうの組では
   // 「もう見た人」として開き、画面をふさがないようにする
   // （案内そのものは onboard の組で、まっさらな端末から確かめている）。
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); });   // 上のバーを出した画面で確かめる（たたむのは tbfold の組で）
   await page.reload(); await page.waitForTimeout(900);
   return { ctx, page, errs, dialogs };
 }
@@ -237,7 +237,7 @@ async function runMode(browser) {
                     TMPL_BACK_TO_PLAIN, TMPL_KEEPS_PLAIN, TMPL_FROM_OTHER_MODE,
                     TMPL_MODE_ROUNDTRIP, TMPL_MODE_THEN_PLAIN, HISTORY_PER_MODE,
                     TMPL_TO_DEFAULT_SIZE, TMPL_RESET_THEN_PLAIN, SMALL_TABLE_KEPT]) {
-    await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+    await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); });
     await page.reload(); await page.waitForTimeout(900);
     for (const step of sc.steps) {
       if (step.do) { await page.evaluate(src => eval(src), step.do); await page.waitForTimeout(700); }
@@ -254,7 +254,7 @@ async function runMode(browser) {
   }
   // ひな形の表で「通常」を押したとき、確認窓を出さない
   // （モードを選ぶ流れに確認窓が割り込むと、モードが選べなくなるため）
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); });
   await page.reload(); await page.waitForTimeout(900);
   dialogs.length = 0;
   await page.evaluate(() => applyTemplateObj(CALC_TEMPLATES[0], () => {}));
@@ -409,7 +409,7 @@ async function runCellMenu(browser) {
   page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
   page.on('dialog', d => d.accept());
   await page.goto(INDEX); await page.waitForTimeout(300);
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); });
   await page.reload(); await page.waitForTimeout(900);
   console.log('\n── セルの長押しメニュー ──');
   await page.evaluate(() => setCellGesture('old'));   // 長押しのメニューは「以前の表電卓」の操作（v414 から Excel と同じ操作ではダブルタップで出す）
@@ -662,7 +662,7 @@ async function runTopBar(browser) {
   page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
   page.on('dialog', d => d.accept());
   await page.goto(INDEX); await page.waitForTimeout(300);
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); });
   await page.reload(); await page.waitForTimeout(900);
   console.log('\n── 上のバーに出すボタン ──');
 
@@ -1189,10 +1189,20 @@ async function runNpTools(browser) {
 
   check('  はじめは道具のタブを出さない', await bar(), '書式・枠線|数字|記号|電卓|▲ マイキー');
   check('  設定に選べる道具が並ぶ', await page.evaluate(() =>
-    document.querySelectorAll('#npToolList .nptool-row').length), 13);   // v422 で 🎙声の計算帳、v433 で 📔業務手帳 を足した
+    document.querySelectorAll('#npToolList .nptool-row').length), 14);   // v422 で 🎙声の計算帳、v433 で 📔業務手帳、v449 で 📚英単語 を足した
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,memo,calctmpl,fintmpl,kaikei,koe');
+    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,memo,calctmpl,fintmpl,kaikei,koe,eigo');
+  {
+    // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
+    const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
+    const sw = fs.readFileSync(path.join(dir, 'service-worker.js'), 'utf8'), html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
+    const files = ['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'css/style.css', 'js/app.js', 'js/jhistory.js', 'js/passages.js', 'js/stories.js', 'js/words.js'];
+    check('  英単語：ファイルがそろい、service-worker が持つ', files.every(f => fs.existsSync(path.join(dir, f)) && sw.includes("'./" + f + "'")), true);
+    check('  英単語：控えは自分の分（eigo-）だけ消す・ネット優先', /k\.startsWith\(CACHE_PREFIX\)/.test(sw) && sw.includes("CACHE_PREFIX = 'eigo-'") && sw.includes('netFetch(e.request)'), true);
+    check('  英単語：下の 🧮電卓 は表電卓へ（古い写しは持たない）', html.includes("location.href='../index.html'") && !html.includes('tool/index.html') && !fs.existsSync(path.join(dir, 'tool')), true);
+    check('  英単語：表電卓の道具・マイキーから開く', await page.evaluate(() => { const u = sideAppUrl('eigo', '#from=hyo'); return !!KEY_FUNCS.a_eigo && REG_GESTURE_ACTIONS.has('a_eigo') && /eigo\/(index\.html)?#from=hyo$/.test(u); }), true);
+  }
 
   // 会計アプリは、メモと同じく別のタブで開く別アプリ（全画面・フリックの対象外）
   check('  会計アプリはタブのタイトルつきで並ぶ', await page.evaluate(() =>
@@ -3605,7 +3615,7 @@ async function runExport(browser) {
   page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
   page.on('dialog', d => d.accept());
   await page.goto(INDEX); await page.waitForTimeout(300);
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); });
   await page.reload(); await page.waitForTimeout(900);
   console.log('\n── 書き出し ──');
   const ans = async w => { await page.waitForTimeout(250);
@@ -4416,7 +4426,7 @@ async function runCompact(browser) {
   page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
   console.log('\n── せまい画面と声のマイク ──');
   await page.goto(INDEX); await page.waitForTimeout(300);
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); });
   await page.reload(); await page.waitForTimeout(1000);
   const on = () => page.evaluate(() => document.body.classList.contains('compact'));
 
@@ -4647,7 +4657,7 @@ async function runVoicePlace(browser) {
     const errs = [];
     page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
     await page.goto(INDEX); await page.waitForTimeout(300);
-    await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+    await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); });
     await page.reload(); await page.waitForTimeout(1000);
     await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(400);
     await page.evaluate(() => { try { voiceAcceptDentaku('100倍で4 L'); } catch (_) {} });
@@ -4690,7 +4700,7 @@ async function runVoiceFull(browser) {
   page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
   console.log('\n── 長い声の結果を全部見る ──');
   await page.goto(INDEX); await page.waitForTimeout(300);
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); });
   await page.reload(); await page.waitForTimeout(1000);
   await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(400);
 
@@ -4850,7 +4860,7 @@ async function runCellFocus(browser) {
   page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
   console.log('\n── セルのフォーカス居残り ──');
   await page.goto(INDEX); await page.waitForTimeout(300);
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); });
   await page.reload(); await page.waitForTimeout(1000);
 
   const at = () => page.evaluate(() => (document.activeElement && document.activeElement.id) || '');
@@ -6114,7 +6124,7 @@ async function runBrush1(browser) {
   // 広い画面で列が間延びしない
   const wide = await browser.newContext({ viewport: { width: 1400, height: 800 } });
   const wp = await wide.newPage();
-  await wp.goto(INDEX); await wp.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await wp.goto(INDEX); await wp.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); });
   await wp.reload(); await wp.waitForTimeout(1000);
   const cw = await wp.evaluate(() => ({ w: document.getElementById('ch0').getBoundingClientRect().width,
     cap: COL_WIDE_CAP * (cellScale || 1) }));
@@ -6123,7 +6133,7 @@ async function runBrush1(browser) {
   await wide.close();
   const narrow = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const np = await narrow.newPage();
-  await np.goto(INDEX); await np.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await np.goto(INDEX); await np.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); });
   await np.reload(); await np.waitForTimeout(1000);
   check('  スマホでは今までどおり画面いっぱい', await np.evaluate(() => {
     const t = document.getElementById('sheet');
@@ -6138,7 +6148,7 @@ async function runBrush2(browser) {
     const page = await ctx.newPage();
     const errs = []; page.on('pageerror', e => errs.push(e.message));
     await page.goto(INDEX);
-    await page.evaluate((pre) => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1');
+    await page.evaluate((pre) => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0');
       for (const k in (pre || {})) localStorage.setItem(k, pre[k]); }, pre);
     await page.reload(); await page.waitForTimeout(1000);
     return { ctx, page, errs };
@@ -6379,7 +6389,7 @@ async function runBackKey(browser) {
   const errs = []; page.on('pageerror', e => errs.push(e.message));
   await page.goto('about:blank');
   await page.goto(INDEX); await page.waitForTimeout(300);
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); });
   await page.reload(); await page.waitForTimeout(900);
   const alive = () => page.evaluate(() => typeof data).catch(() => 'DEAD');
   const back = async () => { await page.goBack({ waitUntil: 'commit' }).catch(() => {}); await page.waitForTimeout(450); };
@@ -6578,7 +6588,7 @@ async function runTbSave(browser) {
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', e => errs.push(e.message));
   await page.goto(INDEX); await page.waitForTimeout(300);
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); });
   await page.reload(); await page.waitForTimeout(900);
   console.log('\n── 当番表の保存（v406） ──');
   // appPrompt / appConfirm に答える
@@ -7140,7 +7150,13 @@ async function runTbFold(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── ☰ 上のバーをたたむ（v443） ──');
   const vis = sel => page.evaluate(sel => { const e = document.querySelector(sel); return !!e && getComputedStyle(e).display !== 'none'; }, sel);
-  check('  はじめは上のバーを出す・☰ は出さない', (await vis('#mainToolbar')) + '/' + (await vis('#fbMenu')), 'true/false');
+  // v450 から、決めていなければたたむ（☰）
+  await page.evaluate(() => { localStorage.removeItem('excalc_tbfold'); applyTbFold(); }); await page.waitForTimeout(150);
+  check('  はじめは ☰ にたたむ（上のバーは出さない）', (await vis('#mainToolbar')) + '/' + (await vis('#fbMenu')) + '/' + await page.evaluate(() => document.querySelector('#tbFoldSeg button.on') && document.querySelector('#tbFoldSeg button.on').dataset.f), 'false/true/1');
+  await page.evaluate(() => { switchMode('dentaku'); }); await page.waitForTimeout(200);
+  check('  電卓でも ☰', await page.evaluate(() => document.body.classList.contains('tb-fold') && getComputedStyle(document.getElementById('dtFoldMenu')).display !== 'none'), true);
+  await page.evaluate(() => { switchMode('normal'); setTbFold(false); }); await page.waitForTimeout(200);
+  check('  上に出すを選ぶと上のバーを出す・☰ は出さない', (await vis('#mainToolbar')) + '/' + (await vis('#fbMenu')) + '/' + await page.evaluate(() => localStorage.getItem('excalc_tbfold')), 'true/false/0');
   const top0 = await page.evaluate(() => document.querySelector('.formula-bar').getBoundingClientRect().top);
   await page.evaluate(() => { toggleSettings(); document.querySelector('#tbFoldSeg button[data-f="1"]').click(); });
   await page.waitForTimeout(200);
@@ -7223,7 +7239,7 @@ async function runTecho(browser) {
     window.webkitSpeechRecognition = FakeRec; window.SpeechRecognition = FakeRec;
   });
   await page.goto(INDEX); await page.waitForTimeout(300);
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); });
   await page.reload(); await page.waitForTimeout(900);
   console.log('\n── 📔業務手帳（v433） ──');
   check('  道具に並ぶ', await page.evaluate(() => { const t = NP_TOOLS.find(x => x.id === 'techo'); return !!t && t.ov + '/' + t.label + '/' + KEY_FUNCS.a_techo.label + '/' + startPageOptions().some(o => o[0] === 'techo'); }), 'techoOverlay/📔業務手帳/📔業務手帳/true');
@@ -7715,7 +7731,7 @@ async function runClip(browser) {
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', e => errs.push(e.message)); page.on('dialog', d => d.accept());
   await page.goto(INDEX); await page.waitForTimeout(300);
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); });
   await page.reload(); await page.waitForTimeout(900);
   console.log('\n── コピー・貼り付け（番地をずらす・範囲・$）（v417） ──');
   const ev = f => page.evaluate(f);
@@ -7760,7 +7776,7 @@ async function runCellXl(browser) {
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', e => errs.push(e.message)); page.on('dialog', d => d.accept());
   await page.goto(INDEX); await page.waitForTimeout(300);
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); });
   await page.reload(); await page.waitForTimeout(900);
   console.log('\n── セルの操作を Excel と同じに（v413） ──');
   const ctr = (r, c, dx = 0.5, dy = 0.5) => page.evaluate(([r, c, dx, dy]) => {
@@ -7888,7 +7904,7 @@ async function runFmtCol(browser) {
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', e => errs.push(e.message));
   await page.goto(INDEX); await page.waitForTimeout(300);
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); });
   await page.reload(); await page.waitForTimeout(900);
   console.log('\n── 書式・枠線のテンキーの色／見た目の設定の組（v411） ──');
   const bg = sel => page.evaluate(s => getComputedStyle(document.querySelector(s)).backgroundColor, sel);
@@ -7946,7 +7962,7 @@ async function runFmtPage(browser) {
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', e => errs.push(e.message));
   await page.goto(INDEX); await page.waitForTimeout(300);
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); });
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); });
   await page.reload(); await page.waitForTimeout(900);
   console.log('\n── 書式・枠線のページ（v407） ──');
   await page.evaluate(() => numpadPager.go('fmt')); await page.waitForTimeout(500);

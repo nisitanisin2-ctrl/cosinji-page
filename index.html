@@ -3891,7 +3891,7 @@ body.dark {
     </div>
     <div class="set-sec">上のバーをたたむ</div>
     <div class="set-note"><b>たたむ</b>と、上のバー（記録名・保存・↶・⋯）を消して、その分<b>表を画面の上から大きく</b>出します。いちばん左上（セル番号の左）の <b>☰</b> を押すと、保存・↶戻す・リスト・設定・道具などの<b>メニュー</b>が出ます。電卓のときも左上に ☰ が出ます。保存していない変更があると ☰ に ● が付きます。</div>
-    <div class="skin-seg" id="tbFoldSeg"><button data-f="0" onclick="setTbFold(false)">出す（いまのまま）</button><button data-f="1" onclick="setTbFold(true)">たたむ（☰ にまとめる）</button></div>
+    <div class="skin-seg" id="tbFoldSeg"><button data-f="0" onclick="setTbFold(false)">上に出す</button><button data-f="1" onclick="setTbFold(true)">たたむ（☰ にまとめる）</button></div>
     <div class="set-sec">はじめに開くページ</div>
     <div class="set-row">
       <span class="set-label">アプリを開いたとき<small>次に開いたときから効きます</small></span>
@@ -8814,6 +8814,12 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v450', t:'上のバーをはじめから ☰ にたたむ', li:[
+    '表と電卓の上のバーを、はじめから<b>左上の ☰</b> にたたんで、その分表や電卓を大きく出すようにしました。ボタンは ☰ のメニューにあります',
+    '上に出したいときは <b>⚙設定 → 🎨見た目 → 画面と上のバー → 上のバーをたたむ</b>で「上に出す」を選んでください（選んだものは覚えます）' ]},
+  { v:'v449', t:'📚英単語マスターを道具に', li:[
+    '英語学習アプリ<b>「📚英単語マスター」</b>を道具に入れました。⋯ → 🧰道具・🧰道具キー・マイキーから開けます（同じ画面で開き、上の「🧮 表電卓へ」か「戻る」で帰れます）',
+    '単独でも <b>…/cosinji-page/eigo/</b> を開いて、ホーム画面に置けます' ]},
   { v:'v448', t:'📔業務手帳の月を指でめくる', li:[
     '業務手帳の月カレンダーを<b>左右になぞると</b>、指について動いて次・前の月に入れかわります（左へ＝次の月、右へ＝前の月）。スマホで月が変わらないことがあったのを直しました' ]},
   { v:'v447', t:'📔業務手帳をホーム画面のアイコンから直接開く', li:[
@@ -11052,6 +11058,7 @@ const KEY_FUNCS={
   a_memo:{g:'設定・機能',label:'📄メモ',short:'メモ',run:()=>openNotesApp()},
   a_kaikei:{g:'設定・機能',label:'🧾会計アプリ',short:'会計',run:()=>openKaikeiApp()},
   a_koe:{g:'設定・機能',label:'🎙声の計算帳',short:'声計算',run:()=>openKoeApp()},
+  a_eigo:{g:'設定・機能',label:'📚英単語',short:'英単語',run:()=>openEigoApp()},
   a_websearch:{g:'設定・機能',label:'🔍Web検索',short:'W検索',run:()=>webSearchCell()},
   a_lookup:{g:'設定・機能',label:'🔍照合',run:()=>openLookupDlg()},
   a_find:{g:'設定・機能',label:'🔎検索',run:()=>openFindDlg()},
@@ -13450,7 +13457,7 @@ function appConfirm(message, yes='OK', no='キャンセル'){
 /* 登録ボタンから実行するとき、指の操作（ユーザー操作）が生きているうちに呼ばないと
    開かない機能（ネイティブのファイル選択）。これらは遅延させずその場で実行する。
    （カレンダーは自前モーダルなので通常の遅延パスでよい＝含めない） */
-const REG_GESTURE_ACTIONS = new Set(['a_csvin','a_xlsxin','a_websearch','a_memo','a_kaikei','a_koe']);   // Web検索・メモは新しいタブを開くため即時実行
+const REG_GESTURE_ACTIONS = new Set(['a_csvin','a_xlsxin','a_websearch','a_memo','a_kaikei','a_koe','a_eigo']);   // Web検索・メモは新しいタブを開くため即時実行
 let keyAssign={}, kaTargetKey=null, kaSuppress=false;
 let kaReady=false;   // ピッカー表示後、新しく押し直すまで項目を無効化（長押しの指を離した時の誤タップ防止）
 function loadKeyAssign(){ try{ keyAssign=JSON.parse(localStorage.getItem('excalc_key_assign')||'{}'); }catch(_){ keyAssign={}; } }
@@ -13805,6 +13812,7 @@ const NP_TOOLS=[
   {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
   {id:'kaikei',   label:'🧾会計アプリ', run:()=>openKaikeiApp()},                       // 別のアプリとして開くので全画面・フリックの対象外
   {id:'koe',      label:'🎙声の計算帳', run:()=>openKoeApp()},                          // 同じく別のアプリ（v422）
+  {id:'eigo',     label:'📚英単語',     run:()=>openEigoApp()},                         // 同じく別のアプリ（eigo/。v449）
 ];
 /* ── はじめに開くページ（v366）──
    アプリを開いたときに、表・電卓・道具のどれを出すかを選べる。
@@ -14495,6 +14503,7 @@ function openKaikeiApp(){
 }
 /* 声の計算帳（koe/）。話しかけて計算する別のアプリ（v422）。会計アプリと同じく同じウィンドウで開く */
 function openKoeApp(){ openSameWindow(sideAppUrl('koe', '#from=hyo')); }
+function openEigoApp(){ openSameWindow(sideAppUrl('eigo', '#from=hyo')); }   // 📚英単語マスター（v449）
 /* ── リンク集：名前付きでURLを登録し、一覧から開く ── */
 let linkList=[], linkEditIdx=-1;
 function loadLinkList(){
@@ -20071,7 +20080,7 @@ function applyTopBtnShown(){
   applyTbFold();
 }
 /* 上のバーをたたむ（v443）。たたむと、左上の ☰（セル番号の左・電卓の左上）から ⋯ のメニューを出す */
-function tbFoldOn(){ try{ return localStorage.getItem('excalc_tbfold')==='1'; }catch(_){ return false; } }
+function tbFoldOn(){ try{ return localStorage.getItem('excalc_tbfold')!=='0'; }catch(_){ return true; } }   // v450 から、決めていなければたたむ（☰）
 function applyTbFold(){
   const on=tbFoldOn();
   document.body.classList.toggle('tb-fold', on);
@@ -20410,7 +20419,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v448';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v450';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
