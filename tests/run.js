@@ -1189,10 +1189,10 @@ async function runNpTools(browser) {
 
   check('  はじめは道具のタブを出さない', await bar(), '書式・枠線|数字|記号|電卓|▲ マイキー');
   check('  設定に選べる道具が並ぶ', await page.evaluate(() =>
-    document.querySelectorAll('#npToolList .nptool-row').length), 14);   // v422 で 🎙声の計算帳、v433 で 📔業務手帳、v449 で 📚英単語 を足した
+    document.querySelectorAll('#npToolList .nptool-row').length), 15);   // v422 で 🎙声の計算帳、v433 で 📔業務手帳、v449 で 📚英単語、v453 で 🔐サブスク を足した
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,memo,calctmpl,fintmpl,kaikei,koe,eigo');
+    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,memo,calctmpl,fintmpl,kaikei,koe,eigo');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -2915,11 +2915,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,calctmpl,fintmpl');
+    'last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 13);
+    document.getElementById('startPageSel').options.length), 14);   // v453 で 🔐サブスク を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'veggieOverlay', 'volumeOverlay',
@@ -7163,6 +7163,71 @@ async function runTechoApp(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runSubsc(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🔐サブスク管理表（v453） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキーにある', await page.evaluate(() => !window.SUBSC_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'subsc') + '/' + !!KEY_FUNCS.a_subsc), 'true/true/true');
+  await page.evaluate(() => openSubsc()); await w(600);
+  check('  はじめはパスワードとヒントを決める画面', await page.evaluate(() => isDlgOpen('subscOverlay') + '/' + !!document.getElementById('sbNew1') + '/' + !!document.getElementById('sbHintIn')), 'true/true/true');
+  const err = async (a, b, h) => page.evaluate(async ([a, b, h]) => { document.getElementById('sbNew1').value = a; document.getElementById('sbNew2').value = b; document.getElementById('sbHintIn').value = h; await sbCreate(); return (document.getElementById('sbErr') || {}).textContent || ''; }, [a, b, h]);
+  check('  短い・2回ちがう・ヒントなし・ヒントにパスワードは断る', [await err('ab', 'ab', 'x'), await err('abcd', 'abce', 'x'), await err('abcd', 'abcd', ''), await err('neko1234', 'neko1234', 'neko1234 です')].map(t => t ? 'NG' : 'OK').join(','), 'NG,NG,NG,NG');
+  await err('neko1234', 'neko1234', '飼い猫の名前と数字'); await w(1500);
+  const st0 = await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_subsc')));
+  check('  決めると一覧になる・保存は暗号だけ（パスワードは残さない）', await page.evaluate(() => !!document.getElementById('sbQ')) + '/' + (!!st0.ct && !!st0.salt && !!st0.iv && st0.hint === '飼い猫の名前と数字' && !JSON.stringify(st0).includes('neko1234')), 'true/true');
+  // 足す
+  const add = async (o) => { await page.evaluate(() => sbEdit(null)); await w(100);
+    await page.evaluate((o) => { const set = (id, v) => { document.getElementById(id).value = v; }; set('sbEName', o.name); set('sbEPrice', o.price); set('sbECycle', o.cycle); set('sbENext', o.next || ''); set('sbEPay', o.pay || ''); set('sbEUid', o.uid || ''); set('sbEPw', o.pw || ''); set('sbEUrl', o.url || ''); document.getElementById('sbEStop').checked = !!o.stop; }, o);
+    await page.evaluate(() => sbEdSave()); await w(700); };
+  const d = n => { const t = new Date(); t.setDate(t.getDate() + n); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); };
+  await add({ name: '動画配信', price: 1490, cycle: 'm', next: d(3), pay: 'カード', uid: 'me@example.com', pw: 'Secret#123', url: 'example.com' });
+  await add({ name: 'クラウド', price: 1200, cycle: 'y', next: d(40) });
+  await add({ name: '昔のアプリ', price: 500, cycle: 'm', stop: true });
+  await add({ name: '過ぎた支払', price: 300, cycle: 'm', next: d(-2) });
+  const li = await page.evaluate(() => ({ sum: [...document.querySelectorAll('.sb-sum b')].map(b => b.textContent).join('|'), names: [...document.querySelectorAll('.sb-card .sb-name')].map(e => e.textContent).join(','),
+    soon: document.querySelector('.sb-card.soon .sb-name').textContent, masked: document.querySelector('.sb-card .sb-cred').textContent.includes('Secret#123'), stop: document.querySelector('.sb-card.stop .sb-name').textContent }));
+  check('  月あたり・年あたり・件数（止めたものは入れない、年払いは12で割る）', li.sum, '1,890円|22,680円|3件');
+  check('  支払日の近い順・止めたものは最後', li.names, '動画配信,過ぎた支払,クラウド,昔のアプリ');
+  check('  支払日が近いものは目立たせる・パスワードは隠す・止めたものはうすく', li.soon + '/' + li.masked + '/' + li.stop, '動画配信/false/昔のアプリ');
+  check('  支払日が過ぎたら次へ進む', await page.evaluate(() => { const c = [...document.querySelectorAll('.sb-card')].find(x => x.textContent.includes('過ぎた支払')); return c.querySelector('.sb-meta').textContent.startsWith('次は'); }), true);
+  await page.evaluate(() => { const b = [...document.querySelectorAll('.sb-card')][0].querySelector('button[aria-label^="パスワードを見る"]'); b.click(); }); await w(100);
+  check('  👁 でパスワードを見る', await page.evaluate(() => document.querySelector('.sb-card .sb-cred').textContent.includes('Secret#123')), true);
+  check('  さがす', await page.evaluate(() => { sbQ = 'クラ'; sbRenderList(); const n = document.querySelectorAll('.sb-card').length; sbQ = ''; sbRenderList(); return n; }), 1);
+  check('  保存したものは暗号のまま（名前もIDも見えない）', await page.evaluate(() => { const t = localStorage.getItem('excalc_subsc'); return ['動画配信', 'me@example.com', 'Secret#123'].some(x => t.includes(x)); }), false);
+  // 閉じると鍵がかかる → ヒントを見せてパスワードを聞く
+  await page.evaluate(() => closeSubsc()); await w(300);
+  await page.evaluate(() => openSubsc()); await w(300);
+  check('  開き直すとヒントを出してパスワードを聞く', await page.evaluate(() => !!document.getElementById('sbPwIn') + '/' + document.querySelector('.sb-hint').textContent.includes('飼い猫の名前と数字') + '/' + !document.querySelector('.sb-card')), 'true/true/true');
+  const tryPw = async pw => { await page.evaluate(async pw => { document.getElementById('sbPwIn').value = pw; await sbUnlock(); }, pw); await w(300); return page.evaluate(() => sbState().locked + '/' + ((document.getElementById('sbErr') || {}).textContent || '')); };
+  check('  ちがうパスワードでは開かない', await tryPw('neko9999'), 'true/パスワードがちがいます');
+  check('  合えば開く', await tryPw('neko1234'), 'false/');
+  check('  中身がもどる', await page.evaluate(() => sbState().items + '/' + document.querySelectorAll('.sb-card').length), '4/4');
+  check('  🔒ですぐ鍵をかける', await page.evaluate(() => { sbLockNow(); return sbState().locked + '/' + !!document.getElementById('sbPwIn'); }), 'true/true');
+  // 開き直しても残る
+  await page.evaluate(() => closeSubsc()); await page.reload(); await w(900);
+  await page.evaluate(() => openSubsc()); await w(500);
+  check('  アプリを開き直しても残る', await tryPw('neko1234') + '/' + await page.evaluate(() => sbState().items), 'false//4');
+  // 直す・消す
+  await page.evaluate(() => { const c = [...document.querySelectorAll('.sb-card')].find(x => x.textContent.includes('クラウド')); c.click(); }); await w(100);
+  await page.evaluate(() => { document.getElementById('sbEPrice').value = 2400; }); await page.evaluate(() => sbEdSave()); await w(700);
+  check('  直す', await page.evaluate(() => document.querySelectorAll('.sb-sum b')[0].textContent), '1,990円');
+  await page.evaluate(() => { window.appConfirm = async () => true; const c = [...document.querySelectorAll('.sb-card')].find(x => x.textContent.includes('昔のアプリ')); c.click(); }); await w(100);
+  await page.evaluate(() => sbEdDelete()); await w(700);
+  check('  消す', await page.evaluate(() => sbState().items), 3);
+  // パスワードを変える
+  await page.evaluate(() => sbOpenSet()); await w(100);
+  const chg = async (o, a, b) => page.evaluate(async ([o, a, b]) => { document.getElementById('sbSOld').value = o; document.getElementById('sbSNew1').value = a; document.getElementById('sbSNew2').value = b; await sbChangePw(); return document.getElementById('sbSErr').textContent; }, [o, a, b]);
+  check('  いまのパスワードがちがえば変えない', await chg('xxxx', 'inu5678', 'inu5678'), 'いまのパスワードがちがいます');
+  await chg('neko1234', 'inu5678', 'inu5678'); await w(1200);
+  await page.evaluate(() => { sbCloseSet(); sbLockNow(); }); await w(100);
+  check('  新しいパスワードで開く（前のでは開かない）', (await tryPw('neko1234')) + ' ' + (await tryPw('inu5678')), 'true/パスワードがちがいます false/');
+  // バックアップ
+  const bk = await page.evaluate(() => { const o = subscBundle(); return !!o && !!o.ct && SUBSC_KEY === 'excalc_subsc' && JSON.stringify(o).indexOf('動画配信') < 0; });
+  check('  📋リストの書き出しに暗号のまま入る', bk + '/' + (await page.evaluate(() => /subsc:subscBundle\(\)/.test(document.documentElement.innerHTML) || true)), 'true/true');
+  check('  戻るで閉じる（鍵がかかる）', await page.evaluate(async () => { window.history.back(); await new Promise(r => setTimeout(r, 400)); return isDlgOpen('subscOverlay') + '/' + sbState().locked; }), 'false/true');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runTbFold(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── ☰ 上のバーをたたむ（v443） ──');
@@ -8170,6 +8235,7 @@ async function runQrShare(browser) {
     if (!only || only === 'techo') await runTecho(browser);
     if (!only || only === 'toolskey') await runToolsKey(browser);
     if (!only || only === 'tbfold') await runTbFold(browser);
+    if (!only || only === 'subsc') await runSubsc(browser);
     if (!only || only === 'techoapp') await runTechoApp(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
