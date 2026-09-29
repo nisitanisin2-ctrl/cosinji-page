@@ -6364,6 +6364,22 @@ async function runHelpSplit(browser) {
     return !!document.getElementById('h-privacy') && document.getElementById('helpVer').textContent; }), 'バージョン ' + await page.evaluate(() => APP_VERSION));
   check('  使いかたの表も入る', await page.evaluate(() =>
     document.querySelectorAll('#helpBody .help-li').length > 50), true);
+  // かんたん説明書（v452）：実際の画面の写真と番号。写真は help/ にある
+  const hg = await page.evaluate(() => { const imgs = [...document.querySelectorAll('#helpBody .hg-shot')];
+    return { secs: document.querySelectorAll('#helpBody .hg-sec').length, imgs: imgs.map(i => i.getAttribute('src')), first: document.querySelector('#helpBody').firstElementChild.className,
+      marks: [...document.querySelectorAll('#g-screen .hg-list .hg-n')].map(n => n.textContent).join(','), detail: !!document.getElementById('h-detail') }; });
+  check('  はじめにかんたん説明書（写真と番号）、そのあとにくわしい説明', hg.first + '/' + hg.secs + '/' + hg.detail + '/' + hg.marks, 'hg-top/13/true/1,2,3,4,5,6,7,8,9,10');
+  check('  写真はどれも help/ にある', hg.imgs.length >= 11 && hg.imgs.every(u => /^help\/[a-z]+\.jpg$/.test(u) && fs.existsSync(path.join(ROOT, u))), true);
+  check('  写真が読める（壊れていない）', await page.evaluate(async () => { const imgs = [...document.querySelectorAll('#helpBody .hg-shot')];
+    await Promise.all(imgs.map(i => { i.loading = 'eager'; return i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }); }));
+    return imgs.every(i => i.naturalWidth > 300); }), true);
+  check('  見出しのボタンから飛べる', await page.evaluate(() => [...document.querySelectorAll('#helpBody .hg-top .help-nav a')].every(a => { const m = /helpJump\('([^']+)'\)/.exec(a.getAttribute('onclick')); return m && document.getElementById(m[1]); })), true);
+  check('  狭い画面でも横にはみ出さない（くわしい説明を全部開いても）', await page.evaluate(async () => {
+    document.querySelectorAll('#helpBody details').forEach(d => d.open = true); await new Promise(r => setTimeout(r, 100));
+    const body = document.getElementById('helpBody'), R = body.getBoundingClientRect().right;
+    const bad = [...body.querySelectorAll('*')].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.right > R + 1; });
+    document.querySelectorAll('#helpBody details').forEach(d => d.open = false);
+    return bad.length; }), 0);
   await page.evaluate(() => closeHelp()); await page.waitForTimeout(400);
   check('  2回目は読み込み直さない', await page.evaluate(async () => { await openHelp();
     return document.querySelectorAll('script[src="help.js"]').length; }), 1);

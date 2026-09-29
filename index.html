@@ -3122,6 +3122,39 @@ body.dark .help-key { background: var(--acc); }
 .help-note b { color: #c77c11; }
 body.dark .help-note b { color: #f0c674; }
 
+/* かんたん説明書（v452）：実際の画面の写真＋番号 */
+#helpBody { overflow-x: hidden; }
+.hg-top { margin-bottom: 8px; }
+.hg-title { font-size: 17px; font-weight: bold; color: var(--acc-text); margin: 2px 0 4px; }
+body.dark .hg-title { color: var(--acc-on-dark, #8fd4ab); }
+.hg-sub { font-size: 12.5px; color: var(--text-sub); line-height: 1.6; }
+.hg-sec { margin: 14px 0 22px; padding-top: 4px; scroll-margin-top: 6px; }
+.hg-h { font-size: 16px; margin: 0 0 10px; padding: 6px 10px; border-radius: 8px; background: var(--acc); color: #fff; }
+.hg-shot { display: block; width: 100%; max-width: 270px; height: auto; margin: 6px auto 10px; border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.22); border: 1px solid rgba(0,0,0,.12); background: #eee; }
+.hg-list { list-style: none; margin: 0 0 6px; padding: 0; }
+.hg-list li { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; line-height: 1.6; padding: 5px 0; border-bottom: 1px dashed var(--cell-border); color: var(--text); overflow-wrap: anywhere; }
+.hg-list li:last-child { border-bottom: none; }
+.hg-list b, .hg-steps b, .hg-p b { color: var(--acc-text); }
+body.dark .hg-list b, body.dark .hg-steps b, body.dark .hg-p b { color: #8fd4ab; }
+.hg-n { flex: none; display: inline-block; width: 22px; height: 22px; line-height: 22px; border-radius: 50%; background: #e53935; color: #fff;
+  font-style: normal; font-weight: bold; font-size: 12px; text-align: center; margin-top: 1px; }
+.hg-sub .hg-n { width: 18px; height: 18px; line-height: 18px; font-size: 11px; vertical-align: -3px; }
+.hg-steps > div { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; line-height: 1.7; margin: 6px 0; color: var(--text); overflow-wrap: anywhere; }
+.hg-p { font-size: 13.5px; line-height: 1.7; color: var(--text); margin: 6px 0; overflow-wrap: anywhere; }
+.hg-tbl { width: 100%; border-collapse: collapse; margin: 4px 0 10px; font-size: 13.5px; table-layout: fixed; }
+.hg-tbl td { padding: 7px 6px; border-bottom: 1px solid var(--cell-border); vertical-align: top; line-height: 1.5; color: var(--text); overflow-wrap: anywhere; }
+.hg-tbl td:first-child { width: 38%; font-weight: bold; color: var(--acc-text); }
+body.dark .hg-tbl td:first-child { color: #8fd4ab; }
+.hg-say { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.hg-say span { background: rgba(33,115,70,.10); color: var(--text); border-radius: 14px; padding: 4px 10px; font-size: 13px; }
+body.dark .hg-say span { background: rgba(143,212,171,.15); }
+.hg-detail-h { margin: 26px 0 10px; padding: 10px; border-radius: 8px; background: var(--cell-border); font-weight: bold; font-size: 15px; color: var(--text); scroll-margin-top: 6px; }
+/* くわしい説明の表が横にはみ出して、右側が切れていた（表の中の表の1列目が折り返さなかった）のを直す（v452） */
+.help-tbl td { overflow-wrap: anywhere; }
+.help-tbl .help-tbl td:first-child, .help-tbl td[colspan] { white-space: normal; width: auto; }
+#helpFuncTbl td:first-child { white-space: normal; width: 42%; overflow-wrap: anywhere; }   /* 関数の一覧：ROUNDDOWN(値,桁) などの長い名前で横にはみ出していた */
+
 /* ── セル書式パネル ── */
 .fmt-row {
   display: flex; align-items: center; gap: 10px;
@@ -8814,6 +8847,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v452', t:'📖 説明書を、実際の画面で見てわかる形に', li:[
+    '説明書のはじめに<b>「かんたん説明書」</b>。表・メニュー・電卓・書式・用途・保存・道具・業務手帳・設定を、<b>実際の画面の写真と番号</b>で説明します',
+    'これまでのくわしい説明はそのあとに続きます。説明書の<b>文字が右で切れていた</b>ところを直しました' ]},
   { v:'v451', t:'前に置いたアプリと入れかわらないことがあったのを直す', li:[
     '同じ場所に前に英単語マスターを置いていたとき、表電卓を置き直しても古い英単語マスターが出つづけることがあったのを直しました（一度開くと裏で入れかわり、次に開いたときから表電卓が出ます）' ]},
   { v:'v450', t:'上のバーをはじめから ☰ にたたむ', li:[
@@ -20421,7 +20457,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v451';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v452';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
