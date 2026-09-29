@@ -6368,7 +6368,7 @@ async function runHelpSplit(browser) {
   const hg = await page.evaluate(() => { const imgs = [...document.querySelectorAll('#helpBody .hg-shot')];
     return { secs: document.querySelectorAll('#helpBody .hg-sec').length, imgs: imgs.map(i => i.getAttribute('src')), first: document.querySelector('#helpBody').firstElementChild.className,
       marks: [...document.querySelectorAll('#g-screen .hg-list .hg-n')].map(n => n.textContent).join(','), detail: !!document.getElementById('h-detail') }; });
-  check('  はじめにかんたん説明書（写真と番号）、そのあとにくわしい説明', hg.first + '/' + hg.secs + '/' + hg.detail + '/' + hg.marks, 'hg-top/13/true/1,2,3,4,5,6,7,8,9,10');
+  check('  はじめにかんたん説明書（写真と番号）、そのあとにくわしい説明', hg.first + '/' + hg.secs + '/' + hg.detail + '/' + hg.marks, 'hg-top/14/true/1,2,3,4,5,6,7,8,9,10');
   check('  写真はどれも help/ にある', hg.imgs.length >= 11 && hg.imgs.every(u => /^help\/[a-z]+\.jpg$/.test(u) && fs.existsSync(path.join(ROOT, u))), true);
   check('  写真が読める（壊れていない）', await page.evaluate(async () => { const imgs = [...document.querySelectorAll('#helpBody .hg-shot')];
     await Promise.all(imgs.map(i => { i.loading = 'eager'; return i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }); }));
@@ -7301,7 +7301,7 @@ async function runHeya(browser) {
 }
 async function runAnnai(browser) {
   const { ctx, page, errs } = await newPage(browser);
-  console.log('\n── 🏨お客様向け案内ページ（v455） ──');
+  console.log('\n── 🏨お客様向け案内ページ（v455・外国語 v456） ──');
   const w = ms => page.waitForTimeout(ms);
   check('  開くまでは読まない・道具とマイキーにある', await page.evaluate(() => !window.ANNAI_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'annai') + '/' + !!KEY_FUNCS.a_annai), 'true/true/true');
   await page.evaluate(() => openAnnai()); await w(600);
@@ -7341,6 +7341,88 @@ async function runAnnai(browser) {
   await page.evaluate(() => { window.appConfirm = async () => true; const s = anState().sections.at(-1); anEdit(s.id); }); await w(80);
   await page.evaluate(async () => { await anEdDelete(); }); await w(100);
   check('  消す', await page.evaluate(() => anState().sections.length), 9);
+  // 🌐 外国語（v456）
+  check('  外国語：はじめは英・簡・繁・韓を出す・見本には訳が入っている', await page.evaluate(() => { const a = anState(); return a.langs.join(',') + '/' + a.sections.filter(s => ['en', 'zh-Hans', 'zh-Hant', 'ko'].every(k => anTrState(s, k) === 'ok')).length; }), 'en,zh-Hans,zh-Hant,ko/9');
+  check('  外国語：項目の一覧に訳のしるし', await page.evaluate(() => document.querySelectorAll('#anBody .an-lgs i.ok').length), 36);
+  const tshow = (gp) => gp.evaluate(() => ({ lang: document.documentElement.lang, t0: [...document.querySelectorAll('.sec')][0].querySelector('.tt > :not([hidden])').textContent,
+    nav: document.querySelector('nav button').textContent, mt: !document.getElementById('mt').hidden, opts: document.querySelectorAll('#lang option').length,
+    h1: document.querySelector('h1 .i18n > :not([hidden])').textContent, title: document.title }));
+  const pageIn = async (locale, html) => { const c2 = await browser.newContext({ locale }); const gp = await c2.newPage(); await gp.setContent(html); await gp.waitForTimeout(50); const r = await tshow(gp); return { r, gp, c2 }; };
+  let G = await page.evaluate(() => anPageHtml());
+  for (const [loc, want] of [['en-US', 'en/Baths/Now'], ['ko-KR', 'ko/목욕탕/지금'], ['zh-TW', 'zh-Hant/浴場/當季'], ['zh-CN', 'zh-Hans/浴场/当季'], ['ja-JP', 'ja/お風呂/今の季節'], ['fr-FR', 'en/Baths/Now']]) {
+    const { r, c2 } = await pageIn(loc, G); await c2.close();
+    check('  ページ：スマホの言語 ' + loc + ' で出す', r.lang + '/' + r.t0 + '/' + r.nav, want);
+  }
+  {
+    const { gp, c2 } = await pageIn('en-US', G);
+    const r = await tshow(gp);
+    check('  ページ：言語は5つから選べる・訳がそろっていれば自動翻訳の案内は出さない・名前は日本語のまま', r.opts + '/' + r.mt + '/' + r.h1 + '/' + r.title, '5/false/山の宿 <白樺>荘/山の宿 <白樺>荘｜Guest Information');
+    await gp.selectOption('#lang', 'ko'); await gp.waitForTimeout(50);
+    check('  ページ：🌐 で切りかえる（地図のボタンの言葉も）', await gp.evaluate(() => document.documentElement.lang + '/' + [...document.querySelectorAll('.sec')][0].querySelector('.tt > :not([hidden])').textContent + '/' + document.querySelector('.bd > [lang="ko"] a.map').textContent + '/' + document.querySelector('.bd > [lang="ko"]').hidden), 'ko/목욕탕/📍지도/false');
+    await c2.close();
+  }
+  // 訳のない項目を足す → 日本語のまま出て、自動翻訳の案内を出す
+  await page.evaluate(() => { anEdit(null); document.getElementById('anETitle').value = '売店'; document.getElementById('anEBody').value = '・お土産 8:00〜21:00'; anEdSave(); }); await page.waitForTimeout(100);
+  G = await page.evaluate(() => anPageHtml());
+  {
+    const { gp, c2 } = await pageIn('en-US', G);
+    const r = await gp.evaluate(() => ({ t: [...document.querySelectorAll('.sec')].at(-1).querySelector('.tt > :not([hidden])').textContent, mt: !document.getElementById('mt').hidden, a: document.getElementById('mtA').hidden, txt: document.getElementById('mt').textContent }));
+    check('  ページ：訳のない項目は日本語・自動翻訳の案内（ファイルで開いたときはボタンを出さない）', r.t + '/' + r.mt + '/' + r.a + '/' + r.txt.includes('only in Japanese'), '売店/true/true/true');
+    await c2.close();
+    const c3 = await browser.newContext({ locale: 'en-US' }); const wp = await c3.newPage();
+    await wp.route('https://annai.example.jp/**', rt => rt.fulfill({ contentType: 'text/html; charset=utf-8', body: G }));
+    await wp.goto('https://annai.example.jp/'); await wp.waitForTimeout(80);
+    check('  ページ：ネットに置いたときは Google 自動翻訳のボタン（英語へ）', await wp.evaluate(() => { const a = document.getElementById('mtA'); return !a.hidden + '/' + a.href; }), 'true/https://translate.google.com/translate?sl=ja&tl=en&u=https%3A%2F%2Fannai.example.jp%2F');
+    await wp.selectOption('#lang', 'zh-Hant'); await wp.reload(); await wp.waitForTimeout(80);
+    check('  ページ：選んだ言語を覚える', await wp.evaluate(() => document.documentElement.lang + '/' + document.getElementById('mtA').href.includes('tl=zh-TW')), 'zh-Hant/true');
+    await c3.close();
+  }
+  // 訳を入れる（項目の言語を切りかえ）
+  await page.evaluate(() => { const s = anState().sections.at(-1); anEdit(s.id); anEdLang('en'); document.getElementById('anETitle').value = 'Shop'; document.getElementById('anEBody').value = '・Souvenirs 8:00–21:00'; anEdLang('ko'); document.getElementById('anETitle').value = '매점'; anEdLang('ja'); }); await page.waitForTimeout(50);
+  check('  項目：言語を切りかえても入れたものは残る', await page.evaluate(() => document.getElementById('anETitle').value + '/' + (anEdLang('en'), document.getElementById('anETitle').value + '|' + document.getElementById('anEBody').value)), '売店/Shop|・Souvenirs 8:00–21:00');
+  await page.evaluate(() => anEdSave()); await page.waitForTimeout(100);
+  check('  項目：訳を保存（英・韓）', await page.evaluate(() => { const s = anState().sections.at(-1); return s.title + '/' + s.tr.en.title + '/' + s.tr.ko.title + '/' + anTrState(s, 'en') + '/' + anTrState(s, 'zh-Hans'); }), '売店/Shop/매점/ok/');
+  // 日本語を直すと訳は古い（⚠）→ 訳を直すか「このままでよい」で消える
+  await page.evaluate(() => { const s = anState().sections.at(-1); anEdit(s.id); document.getElementById('anEBody').value = '・お土産 8:00〜22:00'; anEdSave(); }); await page.waitForTimeout(100);
+  check('  日本語を直すと、訳に ⚠（一覧にも出る）', await page.evaluate(() => { const s = anState().sections.at(-1); return anTrState(s, 'en') + '/' + anTrState(s, 'ko') + '/' + document.querySelectorAll('#anBody .an-lgs i.old').length; }), 'old/old/2');
+  await page.evaluate(() => { const s = anState().sections.at(-1); anEdit(s.id); anEdLang('en'); }); await page.waitForTimeout(50);
+  check('  訳の画面に ⚠ と日本語（訳のもと）', await page.evaluate(() => !!document.querySelector('#anETxt .an-warn') + '/' + document.querySelector('#anETxt .an-ja').textContent.includes('22:00')), 'true/true');
+  await page.evaluate(() => { document.getElementById('anEBody').value = '・Souvenirs 8:00–22:00'; anEdLang('ko'); anEdOk(); anEdSave(); }); await page.waitForTimeout(100);
+  check('  訳を直す・このままでよい で ⚠ が消える', await page.evaluate(() => { const s = anState().sections.at(-1); return anTrState(s, 'en') + '/' + anTrState(s, 'ko') + '/' + s.tr.en.body; }), 'ok/ok/・Souvenirs 8:00–22:00');
+  // 🔤 Google 翻訳を開く
+  check('  🔤 Google 翻訳を開く（日本語から、その言語へ）', await page.evaluate(() => { let u = ''; const o = window.open; window.open = x => { u = x; }; const s = anState().sections.at(-1); anEdit(s.id); anEdLang('zh-Hant'); anGTSec('body'); window.open = o; anCloseEd(); return u; }), 'https://translate.google.com/?sl=ja&tl=zh-TW&text=' + encodeURIComponent('・お土産 8:00〜22:00') + '&op=translate');
+  await page.waitForTimeout(300);
+  // 宿の名前・ひとことの訳
+  await page.evaluate(() => { anTopTr(); document.getElementById('anTN_en').value = ' Shirakaba Inn '; anTopTrSave(); }); await page.waitForTimeout(300);
+  G = await page.evaluate(() => anPageHtml());
+  {
+    const { r, c2 } = await pageIn('en-US', G); await c2.close();
+    check('  宿の名前の訳（英語のページの見出し・タブの名前）', r.h1 + '/' + r.title, 'Shirakaba Inn/Shirakaba Inn｜Guest Information');
+  }
+  check('  ひとことを直すと、ひとことの訳に ⚠', await page.evaluate(() => { anSetTop('tagline', 'いらっしゃいませ'); return anTopState('en') + '/' + document.querySelector('#anBody').textContent.includes('ひとことの訳 ⚠'); }), 'old/true');
+  // 出す言語を選ぶ
+  await page.evaluate(() => anToggleLang('th')); await page.waitForTimeout(50);
+  check('  タイ語を足す（並びは決まった順）', await page.evaluate(() => anState().langs.join(',')), 'en,zh-Hans,zh-Hant,ko,th');
+  G = await page.evaluate(() => anPageHtml());
+  {
+    const { r, c2 } = await pageIn('th-TH', G); await c2.close();
+    check('  タイ語のスマホ：決まった言葉はタイ語・訳のない項目は日本語', r.lang + '/' + r.nav + '/' + r.t0 + '/' + r.mt, 'th/ฤดูนี้/お風呂/true');
+  }
+  await page.evaluate(() => { for (const k of ['en', 'zh-Hans', 'zh-Hant', 'ko', 'th']) anToggleLang(k); }); await page.waitForTimeout(50);
+  check('  言語を全部はずすと、日本語だけのページ（🌐 を出さない）・訳は消さずに残す', await page.evaluate(() => { const h = anPageHtml(); return anState().langs.length + '/' + h.includes('id="lang"') + '/' + h.includes('lang="en"') + '/' + !!anState().sections[0].tr.en; }), '0/false/false/true');
+  await page.evaluate(() => { for (const k of ['en', 'zh-Hans', 'zh-Hant', 'ko']) anToggleLang(k); });
+  // 印刷のカードにも外国語のひとこと
+  check('  QR のカードに外国語の案内', await page.evaluate(() => { let h = ''; const ob = window.opBuild, op = window.opPrint; window.opBuild = x => x; window.opPrint = x => { h = x; }; anPrintCards(); window.opBuild = ob; window.opPrint = op; return h.includes('Scan for guest information') + '/' + h.includes('스캔하여'); }), 'true/true');
+  // ❓ Netlify に置く方法
+  await page.evaluate(() => anNetlifyHelp()); await page.waitForTimeout(250);
+  check('  ❓ Netlify に置く方法（はじめて・直したとき・別のサイトに）', await page.evaluate(() => { const t = document.getElementById('anPvBody').textContent; return isDlgOpen('anPvOverlay') + '/' + ['Add new project', 'Deploy manually', 'browse to upload', 'Change project name', 'Deploys', '別に'].every(x => t.includes(x)) + '/' + !!document.querySelector('#anPvBody a[href="https://app.netlify.com/"]'); }), 'true/true/true');
+  await page.evaluate(() => anClosePv()); await page.waitForTimeout(250);
+  // 足した項目を消して、下のテストの数に戻す
+  await page.evaluate(async () => { const s = anState().sections.at(-1); anEdit(s.id); await anEdDelete(); }); await page.waitForTimeout(150);
+  // v455 までの保存（langs・訳なし）
+  await page.evaluate(() => { const o = JSON.parse(localStorage.getItem('excalc_annai')); delete o.langs; delete o.tr; o.sections.forEach(s => delete s.tr); localStorage.setItem('excalc_annai', JSON.stringify(o)); closeAnnai(); }); await page.waitForTimeout(400);
+  await page.evaluate(() => openAnnai()); await page.waitForTimeout(300);
+  check('  v455 までの保存（訳なし）も開ける・英・簡・繁・韓を出す', await page.evaluate(() => { const a = anState(); return a.langs.join(',') + '/' + a.sections.length + '/' + a.sections.every(s => anTrState(s, 'en') === '') + '/' + anPageHtml().includes('id="lang"'); }), 'en,zh-Hans,zh-Hant,ko/9/true/true');
   // 開き直し・バックアップ
   await page.evaluate(() => closeAnnai()); await w(400); await page.reload(); await w(900);
   check('  開き直しても残る・📋リストの書き出しに入る', await page.evaluate(() => { const o = annaiBundle(); return o.name + '/' + o.sections.length; }), '山の宿 <白樺>荘/9');
