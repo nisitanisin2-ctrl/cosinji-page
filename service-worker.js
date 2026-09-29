@@ -1,6 +1,6 @@
-const CACHE = 'excalc-v454';
+const CACHE = 'excalc-v455';
 const CACHE_PREFIX = 'excalc-';   // このアプリのキャッシュだけを見分けるための名前
-const ASSETS = ['./', './index.html', './help.js', './photomemo.js', './techo.js', './subsc.js', './heya.js', './koe/phrase.js', './manifest.json',
+const ASSETS = ['./', './index.html', './help.js', './photomemo.js', './techo.js', './subsc.js', './heya.js', './annai.js', './koe/phrase.js', './manifest.json',
   './icon-192.png', './icon-512.png',
   './icon-maskable-192.png', './icon-maskable-512.png', './apple-touch-icon.png',
   './techo/index.html', './techo/manifest.json', './techo/icon-192.png', './techo/icon-512.png', './techo/apple-touch-icon.png'];

@@ -1189,10 +1189,10 @@ async function runNpTools(browser) {
 
   check('  はじめは道具のタブを出さない', await bar(), '書式・枠線|数字|記号|電卓|▲ マイキー');
   check('  設定に選べる道具が並ぶ', await page.evaluate(() =>
-    document.querySelectorAll('#npToolList .nptool-row').length), 16);   // v422 で 🎙声の計算帳、v433 で 📔業務手帳、v449 で 📚英単語、v453 で 🔐サブスク を足した
+    document.querySelectorAll('#npToolList .nptool-row').length), 17);   // v422 で 🎙声の計算帳、v433 で 📔業務手帳、v449 で 📚英単語、v453 で 🔐サブスク を足した
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,memo,calctmpl,fintmpl,kaikei,koe,eigo');
+    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,memo,calctmpl,fintmpl,kaikei,koe,eigo');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -2915,11 +2915,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,calctmpl,fintmpl');
+    'last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 15);   // v453 で 🔐サブスク を足した
+    document.getElementById('startPageSel').options.length), 16);   // v453 で 🔐サブスク を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'veggieOverlay', 'volumeOverlay',
@@ -7299,6 +7299,56 @@ async function runHeya(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runAnnai(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🏨お客様向け案内ページ（v455） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキーにある', await page.evaluate(() => !window.ANNAI_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'annai') + '/' + !!KEY_FUNCS.a_annai), 'true/true/true');
+  await page.evaluate(() => openAnnai()); await w(600);
+  check('  はじめは見本の項目（通年・冬・夏）', await page.evaluate(() => { const s = anState().sections; return s.length + '/' + ['all', 'winter', 'summer'].map(k => s.filter(x => x.season === k).length > 0).join(','); }), '9/true,true,true');
+  await page.evaluate(() => { anSetTop('name', '山の宿 <白樺>荘'); anSetTop('tel', '0260-12-3456'); anSetTop('url', 'shirakaba.example.jp'); });
+  check('  宿のこと・アドレスに https を付ける・覚える', await page.evaluate(() => { const o = JSON.parse(localStorage.getItem('excalc_annai')); return o.name + '|' + o.tel + '|' + o.url; }), '山の宿 <白樺>荘|0260-12-3456|https://shirakaba.example.jp');
+  // 項目を足す
+  await page.evaluate(() => anEdit(null)); await w(100);
+  await page.evaluate(() => { document.getElementById('anETitle').value = '駐車場'; document.getElementById('anEBody').value = '・無料 20台\n・大型バスもとめられます\n予約 0260-99-8888\nhttps://example.com/parking\n地図:白樺荘 駐車場'; document.querySelector('#anESeason button[data-s="winter"]').click(); anEdSave(); }); await w(150);
+  check('  項目を足す（冬）', await page.evaluate(() => { const s = anState().sections.at(-1); return s.title + '/' + s.season + '/' + document.querySelectorAll('#anBody .an-item').length; }), '駐車場/winter/10');
+  const body = await page.evaluate(() => anBodyHtml('・無料 20台\n予約 0260-99-8888\nhttps://example.com/parking\n地図:白樺荘\n消防 119 と 住所 1190番地'));
+  check('  本文：・は箇条書き・電話・アドレス・地図', ['<ul><li>無料 20台</li></ul>', 'href="tel:0260998888"', 'href="https://example.com/parking"', 'maps/search/?api=1&amp;query=%E7%99%BD%E6%A8%BA%E8%8D%98', 'href="tel:119"'].map(x => body.includes(x)).join(','), 'true,true,true,true,true');
+  check('  本文：番地の数字を電話にしない', body.includes('tel:1190'), false);
+  // お客様のページ
+  const g = await page.evaluate(() => anPageHtml());
+  check('  ページは1つのファイル（外のものを読まない）・名前はそのまま文字に（HTMLにしない）', (!/<script src|<link /.test(g)) + '/' + g.includes('山の宿 &lt;白樺&gt;荘') + '/' + g.includes('href="tel:0260123456"'), 'true/true/true');
+  const gp = await ctx.newPage(); await gp.setContent(g); await gp.waitForTimeout(100);
+  const vis = () => gp.evaluate(() => [...document.querySelectorAll('.sec')].filter(e => !e.hidden).map(e => e.dataset.s));
+  const now = await gp.evaluate(() => { const m = new Date().getMonth() + 1; return (m >= 12 || m <= 4) ? 'winter' : 'summer'; });
+  const v0 = await vis();
+  check('  ページ：今の季節の項目と通年だけ出す', v0.every(s => s === 'all' || s === now) && v0.includes(now), true);
+  await gp.click('nav button[data-v="winter"]'); const v1 = await vis();
+  await gp.click('nav button[data-v="all"]'); const v2 = await vis();
+  check('  ページ：冬に切りかえ・全部', (v1.every(s => s !== 'summer') && v1.includes('winter')) + '/' + v2.length, 'true/10');
+  await gp.close();
+  // 見え方・QR
+  await page.evaluate(() => anPreview()); await w(300);
+  check('  📱見え方（スマホの大きさで出す）', await page.evaluate(() => isDlgOpen('anPvOverlay') + '/' + (document.getElementById('anPvFrame').srcdoc.length > 1000)), 'true/true');
+  await page.evaluate(() => anClosePv()); await w(100);
+  await page.evaluate(() => anShowQr()); await w(200);
+  check('  QR コード（アドレスから作る）', await page.evaluate(() => { const svg = document.querySelector('#anPvBody svg'); const q = qrEncode(anState().url, 'M'); return !!svg + '/' + (svg.getAttribute('viewBox') === '0 0 ' + (q.size + 8) + ' ' + (q.size + 8)); }), 'true/true');
+  await page.evaluate(() => anClosePv()); await w(100);
+  check('  アドレスがないと QR を出さない', await page.evaluate(() => { const u = anState().url; anSetTop('url', ''); anShowQr(); const r = isDlgOpen('anPvOverlay'); anSetTop('url', u); return r; }), false);
+  // 並べかえ・消す
+  await page.evaluate(() => { const s = anState().sections; anMove(s[1].id, -1); }); await w(50);
+  check('  並べかえ', await page.evaluate(() => anState().sections[0].title), 'お風呂');
+  await page.evaluate(() => { window.appConfirm = async () => true; const s = anState().sections.at(-1); anEdit(s.id); }); await w(80);
+  await page.evaluate(async () => { await anEdDelete(); }); await w(100);
+  check('  消す', await page.evaluate(() => anState().sections.length), 9);
+  // 開き直し・バックアップ
+  await page.evaluate(() => closeAnnai()); await w(400); await page.reload(); await w(900);
+  check('  開き直しても残る・📋リストの書き出しに入る', await page.evaluate(() => { const o = annaiBundle(); return o.name + '/' + o.sections.length; }), '山の宿 <白樺>荘/9');
+  await page.evaluate(() => openAnnai()); await w(500);
+  check('  戻るで閉じる', await page.evaluate(async () => { window.history.back(); await new Promise(r => setTimeout(r, 400)); return isDlgOpen('annaiOverlay'); }), false);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runTbFold(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── ☰ 上のバーをたたむ（v443） ──');
@@ -8308,6 +8358,7 @@ async function runQrShare(browser) {
     if (!only || only === 'tbfold') await runTbFold(browser);
     if (!only || only === 'subsc') await runSubsc(browser);
     if (!only || only === 'heya') await runHeya(browser);
+    if (!only || only === 'annai') await runAnnai(browser);
     if (!only || only === 'techoapp') await runTechoApp(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
