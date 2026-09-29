@@ -1189,10 +1189,10 @@ async function runNpTools(browser) {
 
   check('  はじめは道具のタブを出さない', await bar(), '書式・枠線|数字|記号|電卓|▲ マイキー');
   check('  設定に選べる道具が並ぶ', await page.evaluate(() =>
-    document.querySelectorAll('#npToolList .nptool-row').length), 15);   // v422 で 🎙声の計算帳、v433 で 📔業務手帳、v449 で 📚英単語、v453 で 🔐サブスク を足した
+    document.querySelectorAll('#npToolList .nptool-row').length), 16);   // v422 で 🎙声の計算帳、v433 で 📔業務手帳、v449 で 📚英単語、v453 で 🔐サブスク を足した
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,memo,calctmpl,fintmpl,kaikei,koe,eigo');
+    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,memo,calctmpl,fintmpl,kaikei,koe,eigo');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -2915,11 +2915,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,calctmpl,fintmpl');
+    'last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 14);   // v453 で 🔐サブスク を足した
+    document.getElementById('startPageSel').options.length), 15);   // v453 で 🔐サブスク を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'veggieOverlay', 'volumeOverlay',
@@ -7228,6 +7228,77 @@ async function runSubsc(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runHeya(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🛏部屋割り表（v454） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキーにある', await page.evaluate(() => !window.HEYA_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'heya') + '/' + !!KEY_FUNCS.a_heya), 'true/true/true');
+  await page.evaluate(() => openHeya()); await w(600);
+  check('  はじめは6部屋・14日の表', await page.evaluate(() => document.querySelectorAll('#hyGrid .hy-rn').length + '/' + document.querySelectorAll('#hyGrid .hy-h').length), '6/14');
+  const T = await page.evaluate(() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); });
+  const add = async (o) => { await page.evaluate((o) => hyEdit(null, o), o); await w(80);
+    await page.evaluate(async () => { await hyEdSave(); }); await w(150); };
+  // 空いたマスを押すと、その部屋・その日で予約の窓
+  await page.evaluate((T) => { document.querySelector(`#hyGrid .hy-c[data-r="r1"][data-d="${T}"]`).click(); }, T); await w(100);
+  check('  空いたマスを押すと、その部屋・その日で足す窓', await page.evaluate(() => isDlgOpen('hyEdOverlay') + '/' + document.getElementById('hyERoom').value + '/' + document.getElementById('hyEIn').value), 'true/r1/' + T);
+  await page.evaluate(() => { document.getElementById('hyEName').value = '山田様'; document.getElementById('hyENights').value = 2; document.getElementById('hyEAd').value = 2; document.getElementById('hyECh').value = 1; });
+  await page.evaluate(async () => { await hyEdSave(); }); await w(150);
+  check('  保存すると帯が出る', await page.evaluate(() => [...document.querySelectorAll('#hyGrid .hy-bk')].map(b => b.textContent).join('|')), '山田様 3名2泊・2食');
+  const addD = (n) => page.evaluate(([T, n]) => hyAddD(T, n), [T, n]);
+  await add({ room: 'r2', in: await addD(1), nights: 3, name: '佐藤様', adult: 4, child: 0, meal: '2食', allergy: 'そば' });
+  await add({ room: 'r3', in: await addD(0), nights: 1, name: '鈴木様', adult: 2, child: 0, meal: '朝食' });
+  await add({ room: 'r4', in: await addD(0), nights: 1, name: '取消の人', adult: 2, status: 'cancel' });
+  // 重なり：同じ部屋・重なる日
+  let asked = '';
+  await page.evaluate(() => { window.__askC = ''; window.appConfirm = async (m) => { window.__askC = m; return false; }; });
+  await page.evaluate(async (o) => { hyEdit(null, o); await new Promise(r => setTimeout(r, 60)); window.__warn = document.getElementById('hyEWarn').textContent; await hyEdSave(); }, { room: 'r1', in: await addD(1), nights: 1, name: '重なる様', adult: 1 });
+  asked = await page.evaluate(() => window.__warn + ' / ' + (window.__askC.includes('山田様') ? '聞いた' : '聞かない') + ' / ' + hyState().bookings.length);
+  check('  同じ部屋で日が重なると知らせて聞く（やめると入らない）', asked, '⚠ 同じ部屋に「山田様」（' + (await page.evaluate(T => { const d = new Date(T + 'T00:00'); return (d.getMonth() + 1) + '/' + d.getDate(); }, T)) + '〜' + (await page.evaluate(T => { const d = new Date(T + 'T00:00'); d.setDate(d.getDate() + 2); return (d.getMonth() + 1) + '/' + d.getDate(); }, T)) + '）の予約があります / 聞いた / 4');
+  await page.evaluate(() => hyCloseEd()); await w(100);
+  check('  定員をこえると知らせる', await page.evaluate(async () => { hyEdit(null, { room: 'r3', name: 'x', adult: 9 }); await new Promise(r => setTimeout(r, 50)); const t = document.getElementById('hyEWarn').textContent; hyCloseEd(); return t.includes('定員（4人）をこえています'); }), true);
+  await w(100);
+  // 下の段：今日の埋まり・人数・夕食/朝食
+  check('  下の段に今日の 埋まった部屋・人数・夕食/朝食（取消は数えない）', await page.evaluate(() => { const f = [...document.querySelectorAll('#hyGrid .hy-foot')]; const i = [...document.querySelectorAll('#hyGrid .hy-h')].findIndex(h => h.classList.contains('today')); return f[i].innerText.replace(/\s+/g, ' ').trim(); }), '2/6 5 3/0');
+  // その日の一覧（明日）
+  const day = await page.evaluate(async (T) => { hyOpenDay(hyAddD(T, 1)); await new Promise(r => setTimeout(r, 80)); const b = document.getElementById('hyDayBody');
+    return { cnt: [...b.querySelectorAll('.hy-cnt b')].map(x => x.textContent).join(','), secs: [...b.querySelectorAll('.hy-sec')].map(x => x.textContent).join('|'), al: (b.querySelector('.hy-warn') || {}).textContent || '' }; }, T);
+  check('  その日の一覧：夕食・朝食の数（大人/子ども）', day.cnt, '6,1,4,1');
+  check('  その日の一覧：到着・出発・連泊', day.secs, '🛬 到着 1組|🛫 出発 1組|🛏 連泊中 1組|空き部屋');
+  check('  その日の一覧：アレルギーを目立たせる', day.al.includes('佐藤様（そば）'), true);
+  await page.evaluate(() => hyCloseDay()); await w(100);
+  // 文で入れる
+  const ps = await page.evaluate(() => [hyParse('12日から2泊 大人2 子供1 山田様 松'), hyParse('明日 1泊 3人 佐藤 素泊まり 仮'), hyParse('3月5日から7日 鈴木様 4名 竹の間')]);
+  check('  文を読む：日・泊・大人・子ども・名前・部屋', [ps[0].nights, ps[0].adult, ps[0].child, ps[0].name, ps[0].room, +ps[0].in.slice(8)].join(','), '2,2,1,山田様,r1,12');
+  check('  文を読む：明日・人数・素泊まり・仮', [ps[1].in === await addD(1), ps[1].adult, ps[1].meal, ps[1].status].join(','), 'true,3,素泊,tent');
+  check('  文を読む：〜から〜日で泊数・〇〇の間', [ps[2].in.slice(5), ps[2].nights, ps[2].adult, ps[2].room].join(','), '03-05,2,4,r2');
+  await page.evaluate(() => { document.getElementById('hyAddIn').value = '明日から2泊 大人2 伊藤様 楓'; hyQuick(); }); await w(120);
+  check('  下の欄に打つと、読み取って予約の窓に入れる（その場では保存しない）', await page.evaluate(() => isDlgOpen('hyEdOverlay') + '/' + document.getElementById('hyEName').value + '/' + document.getElementById('hyERoom').value + '/' + document.getElementById('hyENights').value + '/' + hyState().bookings.length), 'true/伊藤様/r5/2/4');
+  await page.evaluate(async () => { await hyEdSave(); }); await w(150);
+  // 部屋の設定
+  await page.evaluate(() => { hyOpenSet(); hyRoomSet('r1', 'name', '松の間'); hyRoomSet('r1', 'cap', 6); hyRoomAdd(); }); await w(100);
+  check('  部屋の名前・定員を変える・足す', await page.evaluate(() => hyState().rooms.map(r => r.name + r.cap).slice(0, 1).join() + '/' + hyState().rooms.length + '/' + document.querySelector('#hyGrid .hy-rn').textContent), '松の間6/7/松の間6人');
+  await page.evaluate(() => { window.appConfirm = async () => true; }); await page.evaluate(async () => { await hyRoomDel('r4'); }); await w(100);
+  check('  部屋を消すと、その部屋の予約は部屋未定', await page.evaluate(() => hyState().rooms.length + '/' + (hyState().bookings.find(b => b.name === '取消の人') || {}).room), '6/');
+  await page.evaluate(() => hyCloseSet()); await w(100);
+  // 直す・消す
+  await page.evaluate(() => { const b = [...document.querySelectorAll('#hyGrid .hy-bk')].find(x => x.textContent.includes('鈴木様')); b.click(); }); await w(100);
+  await page.evaluate(async () => { document.getElementById('hyENights').value = 3; await hyEdSave(); }); await w(150);
+  check('  帯を押して直す', await page.evaluate(() => hyState().bookings.find(b => b.name === '鈴木様').nights), 3);
+  await page.evaluate(() => { const b = [...document.querySelectorAll('#hyGrid .hy-bk')].find(x => x.textContent.includes('鈴木様')); b.click(); }); await w(100);
+  await page.evaluate(async () => { await hyEdDelete(); }); await w(150);
+  check('  消す', await page.evaluate(() => !hyState().bookings.some(b => b.name === '鈴木様')), true);
+  // 表示の日数・送る
+  await page.evaluate(() => hySetDays(31)); await w(100);
+  check('  1か月の表示・覚える', await page.evaluate(() => document.querySelectorAll('#hyGrid .hy-h').length + '/' + JSON.parse(localStorage.getItem('excalc_heya')).ui.days), '31/31');
+  await page.evaluate(() => hySetDays(14));
+  // 開き直しても残る・バックアップに入る
+  await page.evaluate(() => closeHeya()); await page.reload(); await w(900);
+  check('  開き直しても残る・📋リストの書き出しに入る', await page.evaluate(() => { const o = heyaBundle(); return o.bookings.length + '/' + o.rooms[0].name; }), '4/松の間');
+  await page.evaluate(() => openHeya()); await w(600);
+  check('  戻るで閉じる', await page.evaluate(async () => { window.history.back(); await new Promise(r => setTimeout(r, 400)); return isDlgOpen('heyaOverlay'); }), false);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runTbFold(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── ☰ 上のバーをたたむ（v443） ──');
@@ -8236,6 +8307,7 @@ async function runQrShare(browser) {
     if (!only || only === 'toolskey') await runToolsKey(browser);
     if (!only || only === 'tbfold') await runTbFold(browser);
     if (!only || only === 'subsc') await runSubsc(browser);
+    if (!only || only === 'heya') await runHeya(browser);
     if (!only || only === 'techoapp') await runTechoApp(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
