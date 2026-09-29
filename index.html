@@ -8847,6 +8847,11 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v454', t:'🛏部屋割り表', li:[
+    '新しい道具<b>「🛏部屋割り」</b>。旅館・民宿の予約台帳です。横に日付・縦に部屋を並べ、予約を<b>帯</b>で置きます（7日・14日・1か月）',
+    '空いたマスを押して予約を足し、帯を押して直します。「<b>12日から2泊 大人2 子供1 山田様 松</b>」のように打つか 🎤 で話しても入れられます。同じ部屋で日が重なると知らせます',
+    '下の段に日ごとの<b>埋まった部屋・人数・夕食と朝食の数</b>。📋 で<b>その日の到着・出発・食事数・アレルギー</b>をまとめて見て、印刷できます',
+    '⚙ で部屋の名前・定員・並び順を変えられます。CSV（Excel）・書き出し／読み込み、📋リストのバックアップにも入ります' ]},
   { v:'v453', t:'🔐サブスク管理表', li:[
     '新しい道具<b>「🔐サブスク」</b>。使っているサブスクの<b>金額・支払日・支払方法・ID・パスワード</b>をまとめ、月あたり・年あたりの合計を出します。支払日が近いものは目立たせます',
     '開くときは<b>ヒントを見せてパスワードを聞きます</b>。中身は決めたパスワードで<b>暗号にして端末の中だけ</b>に置き、閉じる・しばらく使わないと鍵がかかります（パスワードを忘れると開けません）',
@@ -11097,6 +11102,7 @@ const KEY_FUNCS={
   a_touban:{g:'設定・機能',label:'📅当番表',short:'当番',run:()=>openTouban()},
   a_techo:{g:'設定・機能',label:'📔業務手帳',short:'手帳',run:()=>openTecho()},   // v433
   a_subsc:{g:'設定・機能',label:'🔐サブスク',short:'サブスク',run:()=>openSubsc()},   // v453
+  a_heya:{g:'設定・機能',label:'🛏部屋割り',short:'部屋割',run:()=>openHeya()},   // v454
   a_tools:{g:'設定・機能',label:'🧰道具',short:'道具',run:()=>openToolsList()},   // 道具の一覧を開く（v429）
   a_memo:{g:'設定・機能',label:'📄メモ',short:'メモ',run:()=>openNotesApp()},
   a_kaikei:{g:'設定・機能',label:'🧾会計アプリ',short:'会計',run:()=>openKaikeiApp()},
@@ -13478,6 +13484,29 @@ const openSubscLoader=function(...a){
 };
 window.openSubsc=openSubscLoader;
 window.closeSubsc=function(){};
+/* ── 🛏部屋割り表（v454。heya.js に分けてある）──
+   旅館・民宿の予約台帳。横に日付・縦に部屋、予約を帯で置く。はじめて開いたときに heya.js を読む。 */
+let heyaPartLoading=null;
+function loadHeyaPart(){
+  if(window.HEYA_PART_LOADED) return Promise.resolve(true);
+  if(heyaPartLoading) return heyaPartLoading;
+  heyaPartLoading=new Promise(res=>{
+    const sc=document.createElement('script');
+    sc.src='heya.js';
+    sc.onload=()=>{ window.HEYA_PART_LOADED=true; heyaPartLoading=null; res(true); };
+    sc.onerror=()=>{ heyaPartLoading=null; sc.remove(); res(false); };
+    document.head.appendChild(sc);
+  });
+  return heyaPartLoading;
+}
+const openHeyaLoader=function(...a){
+  return loadHeyaPart().then(ok=>{
+    if(!ok){ toast('部屋割り表を読み込めませんでした。インターネットにつながるところで、一度アプリを開き直してください'); return; }
+    if(window.openHeya!==openHeyaLoader) return window.openHeya(...a);
+  });
+};
+window.openHeya=openHeyaLoader;
+window.closeHeya=function(){};
 /* 声の計算帳と共通の「いろいろな言い方」（koe/phrase.js。v424）。
    電卓で声を使うときのために、起動が落ち着いてから読んでおく（file:// でも読める） */
 let koePhraseLoading=null;
@@ -13875,6 +13904,7 @@ const NP_TOOLS=[
   {id:'touban',   label:'📅当番表',     ov:'toubanOverlay',    run:()=>openTouban(),   close:()=>closeTouban()},
   {id:'techo',    label:'📔業務手帳',   ov:'techoOverlay',     run:()=>openTecho(),    close:()=>closeTecho()},    // techo.js（開いたときに読む。v433）
   {id:'subsc',    label:'🔐サブスク',   ov:'subscOverlay',     run:()=>openSubsc(),    close:()=>closeSubsc()},    // subsc.js（開いたときに読む。v453）
+  {id:'heya',     label:'🛏部屋割り',   ov:'heyaOverlay',      run:()=>openHeya(),     close:()=>closeHeya()},     // heya.js（開いたときに読む。v454）
   {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},                        // 別のアプリとして開くので全画面・フリックの対象外
   {id:'calctmpl', label:'📋式テンプレ', ov:'calcTmplOverlay',  run:()=>openCalcTmpl(), close:()=>closeCalcTmpl()},
   {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
@@ -20487,7 +20517,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v453';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v454';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -22123,6 +22153,7 @@ const ST_GROUPS=[
   {k:'excalc_touban_saves', n:'保存した当番表'},
   {k:'excalc_techo',      n:'業務手帳'},
   {k:'excalc_subsc',      n:'サブスク管理表（暗号）'},
+  {k:'excalc_heya',       n:'部屋割り表'},
   {k:'excalc_links',      n:'リンク集'},
   {k:'excalc_userkeys',   n:'マイキー'},
   {k:'excalc_custommodes',n:'用途の一覧に登録したもの'},
@@ -22367,6 +22398,18 @@ async function subscRestoreBundle(inc){
   if(typeof window.sbLockNow==='function' && typeof isDlgOpen==='function' && isDlgOpen('subscOverlay')) window.sbLockNow();
   return true;
 }
+/* 🛏部屋割り表（v454）：書き出し・読み込み。読み込むときは、いまの表があれば置きかえるか聞く */
+const HEYA_KEY='excalc_heya';
+function heyaBundle(){ try{ const o=JSON.parse(localStorage.getItem(HEYA_KEY)||'null'); return (o && Array.isArray(o.rooms) && Array.isArray(o.bookings)) ? o : null; }catch(_){ return null; } }
+async function heyaRestoreBundle(inc){
+  if(!inc || typeof inc!=='object' || !Array.isArray(inc.rooms) || !Array.isArray(inc.bookings)) return false;
+  const cur=heyaBundle();
+  if(cur && JSON.stringify(cur)===JSON.stringify(inc)) return false;
+  if(cur && cur.bookings.length && !await appConfirm('🛏部屋割り表（予約 '+inc.bookings.length+'件）も入っています。いまの部屋割り表と置きかえますか？','置きかえる','いいえ')) return false;
+  try{ localStorage.setItem(HEYA_KEY, JSON.stringify(inc)); }catch(_){ return false; }
+  if(typeof window.hyReload==='function') window.hyReload();
+  return true;
+}
 const KOE_BACKUP_KEYS=['koe_book','koe_vars','koe_settings','koe_state','koe_misses','koe_catbudget','koe_alias','koe_fav','koe_recent'];
 function koeBundle(){
   const o={}; let n=0;
@@ -22405,7 +22448,8 @@ async function exportSaves() {
                   settings:settingsBundle(),     // 設定（色・テンキーの配置・マイキー・リンク集など）も入れる（v419）
                   koe:koeBundle(),               // 🎙声の計算帳の家計簿なども入れる（v425）
                   techo:techoBundle(),           // 📔業務手帳の予定・メモ・業務（v433）
-                  subsc:subscBundle() };         // 🔐サブスク管理表（暗号のまま。v453）
+                  subsc:subscBundle(),           // 🔐サブスク管理表（暗号のまま。v453）
+                  heya:heyaBundle() };           // 🛏部屋割り表（v454）
   const blob=new Blob([JSON.stringify(payload)],{type:'application/json;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
   const a=Object.assign(document.createElement('a'),{
@@ -22467,6 +22511,7 @@ function importSaves(ev) {
         if(typeof toast==='function') toast(kn?'声の計算帳のデータを読み込みました':'声の計算帳のデータを読み込めませんでした');
       }
       if(parsed && parsed.subsc && await subscRestoreBundle(parsed.subsc)) toast('サブスク管理表を読み込みました（開くときはそのときのパスワードで）');
+      if(parsed && parsed.heya && await heyaRestoreBundle(parsed.heya)) toast('部屋割り表を読み込みました');
       if(!setN) return;
       if(await appConfirm('設定（色・テンキーの配置・マイキー・リンク集など）も入っています。\n'
           +'いっしょに読み込みますか（今の設定は置きかえます。読み込むとアプリを開き直します）','はい','いいえ')){

@@ -30,6 +30,7 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 | `photomemo.js` | 📝写真メモの処理。開いたときだけ読み込みます（v420 から別のファイル） |
 | `techo.js` | 📔業務手帳（業務ごとの予定・メモ・カレンダー）。開いたときだけ読み込みます（v433 から） |
 | `subsc.js` | 🔐サブスク管理表（サブスクの金額・支払日・支払方法・ID・パスワード）。中身は決めたパスワードで暗号にして端末に置き、開くときはヒントを出してパスワードを聞きます。開いたときだけ読み込みます（v453 から） |
+| `heya.js` | 🛏部屋割り表（旅館・民宿の予約台帳。日付×部屋の表に予約を帯で置き、日ごとの人数・食事数、その日の到着・出発の一覧と印刷）。開いたときだけ読み込みます（v454 から） |
 | `techo/` | 📔業務手帳だけのアプリの入り口（manifest・アイコン）。`techo/` を開くと `index.html?app=techo` に移り、業務手帳だけを全画面で開きます。ホーム画面に足すと業務手帳のアイコンになります（v447 から） |
 | `service-worker.js` | 電波がなくても動くようにするしくみ |
 | `manifest.json` | ホーム画面に追加したときの見え方 |
@@ -43,7 +44,7 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 
 ## 配る
 
-`index.html` `help.js`（と `help/` フォルダ） `photomemo.js` `techo.js` `subsc.js` `service-worker.js` `manifest.json` と `techo/` フォルダ、`icon-*.png` `apple-touch-icon.png` `ogp.png` `shot-*.png` を置くだけです。サーバー側の用意はいりません。
+`index.html` `help.js`（と `help/` フォルダ） `photomemo.js` `techo.js` `subsc.js` `heya.js` `service-worker.js` `manifest.json` と `techo/` フォルダ、`icon-*.png` `apple-touch-icon.png` `ogp.png` `shot-*.png` を置くだけです。サーバー側の用意はいりません。
 `help.js` を置き忘れると説明書だけが、`photomemo.js` を置き忘れると写真メモだけが、`techo.js` を置き忘れると業務手帳だけが「読み込めませんでした」になります（ほかはそのまま動きます）。パソコン版（exe）に入れるときも `index.html` と同じ場所に置いてください。
 
 GitHub Pages の公開（Actions の「pages build and deployment」）が `Failed to get ID Token … Request timeout` で失敗したときは、GitHub 側の一時的な通信の不具合です。その実行を「Re-run jobs」でやり直すか、main に次の変更を入れれば公開し直されます。
