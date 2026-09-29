@@ -7301,7 +7301,7 @@ async function runHeya(browser) {
 }
 async function runAnnai(browser) {
   const { ctx, page, errs } = await newPage(browser);
-  console.log('\n── 🏨お客様向け案内ページ（v455・外国語 v456） ──');
+  console.log('\n── 🏨お客様向け案内ページ（v455・外国語 v456・ヘルプ v457） ──');
   const w = ms => page.waitForTimeout(ms);
   check('  開くまでは読まない・道具とマイキーにある', await page.evaluate(() => !window.ANNAI_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'annai') + '/' + !!KEY_FUNCS.a_annai), 'true/true/true');
   await page.evaluate(() => openAnnai()); await w(600);
@@ -7413,10 +7413,27 @@ async function runAnnai(browser) {
   await page.evaluate(() => { for (const k of ['en', 'zh-Hans', 'zh-Hant', 'ko']) anToggleLang(k); });
   // 印刷のカードにも外国語のひとこと
   check('  QR のカードに外国語の案内', await page.evaluate(() => { let h = ''; const ob = window.opBuild, op = window.opPrint; window.opBuild = x => x; window.opPrint = x => { h = x; }; anPrintCards(); window.opBuild = ob; window.opPrint = op; return h.includes('Scan for guest information') + '/' + h.includes('스캔하여'); }), 'true/true');
-  // ❓ Netlify に置く方法
-  await page.evaluate(() => anNetlifyHelp()); await page.waitForTimeout(250);
-  check('  ❓ Netlify に置く方法（はじめて・直したとき・別のサイトに）', await page.evaluate(() => { const t = document.getElementById('anPvBody').textContent; return isDlgOpen('anPvOverlay') + '/' + ['Add new project', 'Deploy manually', 'browse to upload', 'Change project name', 'Deploys', '別に'].every(x => t.includes(x)) + '/' + !!document.querySelector('#anPvBody a[href="https://app.netlify.com/"]'); }), 'true/true/true');
-  await page.evaluate(() => anClosePv()); await page.waitForTimeout(250);
+  // ❓ヘルプ（v457）：右上のボタンで開く。目次・Netlify の開設・置き方・設定
+  await page.click('#anHelpBtn'); await page.waitForTimeout(300);
+  const hp = await page.evaluate(() => { const b = document.getElementById('anHelpBody'), t = b.textContent;
+    return { open: isDlgOpen('anHelpOverlay'), toc: b.querySelectorAll('.anh-toc button').length, secs: b.querySelectorAll('section').length,
+      words: ['Sign up with Email', 'Verify email', 'Add new project', 'Deploy manually', 'browse to upload', 'Change project name', 'Deploys', 'Publish deploy', 'Delete project', 'Domain management', 'Forgot password?', 'Page not found'].filter(x => !t.includes(x)),
+      links: !!b.querySelector('a[href="https://app.netlify.com/signup"]') + '/' + !!b.querySelector('a[href="https://app.netlify.com/"]'), mocks: b.querySelectorAll('.nf-mock').length }; });
+  check('  ❓ヘルプ：目次13・Netlify の開設から設定まで・画面の絵', hp.open + '/' + hp.toc + '/' + hp.secs + '/' + hp.words.join(',') + '/' + hp.links + '/' + (hp.mocks >= 5), 'true/13/13//true/true/true');
+  check('  ❓ヘルプ：目次から飛べる', await page.evaluate(async () => { const b = document.getElementById('anHelpBody'); const res = [];
+    for (const btn of b.querySelectorAll('.anh-toc button')) { btn.click(); await new Promise(r => setTimeout(r, 20)); const id = /anHelpJump\('([^']+)'\)/.exec(btn.getAttribute('onclick'))[1];
+      const e = document.getElementById(id); const top = e.getBoundingClientRect().top - b.getBoundingClientRect().top; res.push(Math.abs(top) < 12 || b.scrollTop + b.clientHeight >= b.scrollHeight - 2); }
+    return res.every(x => x); }), true);
+  check('  ❓ヘルプ：せまい画面でも横にはみ出さない', await page.evaluate(() => { const b = document.getElementById('anHelpBody'), R = b.getBoundingClientRect().right;
+    return [...b.querySelectorAll('*')].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.right > R + 1; }).length; }), 0);
+  await page.evaluate(() => window.history.back()); await page.waitForTimeout(400);
+  check('  ❓ヘルプ：戻るでヘルプだけ閉じる', await page.evaluate(() => isDlgOpen('anHelpOverlay') + '/' + isDlgOpen('annaiOverlay')), 'false/true');
+  await page.evaluate(() => anHelp('anh-name')); await page.waitForTimeout(250);
+  check('  ❓ヘルプ：項目を指定して開く（アドレスの名前）', await page.evaluate(() => { const b = document.getElementById('anHelpBody'); return Math.abs(document.getElementById('anh-name').getBoundingClientRect().top - b.getBoundingClientRect().top) < 12; }), true);
+  await page.evaluate(() => anCloseHelp()); await page.waitForTimeout(300);
+  await page.evaluate(() => { const b = [...document.querySelectorAll('#anBody .an-btn')].find(x => x.textContent.includes('Netlify の開設')); b.click(); }); await page.waitForTimeout(250);
+  check('  画面の「Netlify の開設・置き方・設定」からもヘルプ', await page.evaluate(() => isDlgOpen('anHelpOverlay')), true);
+  await page.evaluate(() => anCloseHelp()); await page.waitForTimeout(300);
   // 足した項目を消して、下のテストの数に戻す
   await page.evaluate(async () => { const s = anState().sections.at(-1); anEdit(s.id); await anEdDelete(); }); await page.waitForTimeout(150);
   // v455 までの保存（langs・訳なし）

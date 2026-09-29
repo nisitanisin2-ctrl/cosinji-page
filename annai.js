@@ -8,6 +8,7 @@
      （Netlify などに置くと、お客様が見られるアドレスになる）。置いたアドレスを入れると、客室に置く QR コードのカードを印刷できる。
    ・v456：🌐 英語・中国語（簡体・繁体）・韓国語・タイ語で見られる。訳は項目ごとに入れ、ページの右上で言語を切りかえる。
      ❓ で Netlify に置く方法を見られる。
+   ・v457：右上の ❓ ヘルプ（作り方・外国語・Netlify の開設・置き方・名前・置き直し・設定・困ったとき）。
    ・作ったものは端末の中（excalc_annai）だけ。書き出したページには、入れたことがそのまま載る（Wi-Fi のパスワードなどは載せてよいか考えて入れる）。 */
 (function(){
 const AN_KEY='excalc_annai';
@@ -282,7 +283,9 @@ function anEnsureDom(){
   box.innerHTML=`
 <div class="modal-overlay" id="annaiOverlay">
   <div class="modal vol-modal an-modal">
-    <div class="modal-header"><span>🏨 お客様向け案内ページ</span><button class="modal-close" onclick="closeAnnai()" aria-label="閉じる">✕</button></div>
+    <div class="modal-header"><span>🏨 お客様向け案内ページ</span><span class="hdr-right" style="display:flex;gap:6px;align-items:center">
+      <button id="anHelpBtn" style="height:30px;min-width:34px;padding:0 9px;border-radius:8px;background:rgba(255,255,255,.18);color:#fff;border:none;font-weight:bold;cursor:pointer" onclick="anHelp()" title="ヘルプ" aria-label="ヘルプ">❓ヘルプ</button>
+      <button class="modal-close" onclick="closeAnnai()" aria-label="閉じる">✕</button></span></div>
     <div class="an-body" id="anBody"></div>
   </div>
 </div>
@@ -300,12 +303,12 @@ function anEnsureDom(){
   if(typeof applyNpToolFull==='function') applyNpToolFull();
 }
 function openAnnai(){ anEnsureDom(); anLoad(); openDlg('annaiOverlay'); anRender(); }
-function closeAnnai(){ if(!isDlgOpen('annaiOverlay')) return; anCloseEd(); anClosePv(); closeDlg('annaiOverlay'); }
+function closeAnnai(){ if(!isDlgOpen('annaiOverlay')) return; if(isDlgOpen('anHelpOverlay')) anCloseHelp(); anCloseEd(); anClosePv(); closeDlg('annaiOverlay'); }
 
 function anRender(){
   const b=$('anBody'), st=b.scrollTop;
   b.innerHTML=`
-    <div class="an-note">お客様が客室の QR コードをスマホで読むと見られる案内ページを作ります。下の項目を自分の宿のことに書きかえて、<b>📱 見え方</b>でたしかめ、<b>⬇ 書き出す</b>でページのファイルを作ります。</div>
+    <div class="an-note">はじめての方は、右上の <b>❓ヘルプ</b> に、作り方と Netlify（ページを置く場所）の開設・置き方がまとめてあります。<br>お客様が客室の QR コードをスマホで読むと見られる案内ページを作ります。下の項目を自分の宿のことに書きかえて、<b>📱 見え方</b>でたしかめ、<b>⬇ 書き出す</b>でページのファイルを作ります。</div>
     <div class="an-sec">宿のこと</div>
     <label class="an-f">宿の名前<input id="anName" maxlength="60" value="${esc(an.name)}" onchange="anSetTop('name',this.value)"></label>
     <label class="an-f">ひとこと（名前の下に出ます）<input id="anTag" maxlength="120" value="${esc(an.tagline)}" onchange="anSetTop('tagline',this.value)"></label>
@@ -326,7 +329,7 @@ function anRender(){
     <div class="an-sec">たしかめる・書き出す</div>
     <button class="an-btn" onclick="anPreview()">📱 お客様のスマホでの見え方</button>
     <button class="an-btn sub" onclick="anExportHtml()">⬇ ページを書き出す（index.html）</button>
-    <button class="an-btn sub" onclick="anNetlifyHelp()">❓ Netlify に置く方法（はじめて・直したとき）</button>
+    <button class="an-btn sub" onclick="anHelp('anh-nf')">❓ Netlify の開設・置き方・設定（ヘルプ）</button>
     <div class="an-note">書き出した <b>index.html</b> を Netlify に置くと、お客様が見られるアドレスになります。項目を直したら、書き出して置き直してください。<br>
       <b>ページに書いたことは、アドレスを知っている人なら誰でも見られます。</b>Wi-Fi のパスワードなどを載せるかは、よく考えて入れてください。</div>
     <div class="an-sec">客室に置く QR コード</div>
@@ -482,37 +485,239 @@ function anTopTrSave(){
   anSave(); anClosePv(); anRender(); toast('保存しました');
 }
 
-/* Netlify に置く方法（はじめて・直したとき） */
-function anNetlifyHelp(){
-  $('anPvHdr').textContent='❓ Netlify に置く方法';
-  $('anPvBody').innerHTML=`<div class="an-note">Netlify（ネットリファイ）は、ホームページを無料で置ける場所です。書き出した <b>index.html</b> を1つ置くだけで、お客様が見られるアドレス（https://〇〇.netlify.app）ができます。パソコンでするのがかんたんです（スマホでもできます）。</div>
-    <div class="an-warn"><b>表電卓を置いているサイトとは別に、案内ページ用のサイトを作ってください。</b>同じサイトに置くと、表電卓が案内ページに入れかわってしまいます。</div>
-    <div class="an-h">はじめて置くとき（1回だけ）</div>
-    <ol class="an-steps">
-      <li>この画面の <b>⬇ ページを書き出す</b> を押して、<b>index.html</b> を保存します（パソコンは「ダウンロード」、スマホは「ファイル」アプリの中に入ります）。</li>
-      <li><a href="https://app.netlify.com/" target="_blank" rel="noopener">app.netlify.com</a> を開いて<b>ログイン</b>します（表電卓で使っているアカウントでかまいません）。</li>
-      <li>上の <b>Projects</b>（プロジェクト一覧）で <b>Add new project</b> → <b>Deploy manually</b> を押します。</li>
-      <li>点線の枠に <b>index.html</b> を引っぱって落とします。スマホは枠の中の <b>browse to upload</b> を押して、index.html を選びます。</li>
-      <li>数秒で <b>https://〇〇〇.netlify.app</b> のアドレスができます。押して、案内ページが出るかたしかめます。</li>
-      <li>アドレスの名前は、でたらめな英語になっています。<b>Project configuration</b> → <b>Change project name</b> で、わかりやすい名前に変えます（例：<b>shirakaba-annai</b> → https://shirakaba-annai.netlify.app）。<b>QR コードを印刷する前に</b>変えてください。</li>
-      <li>できたアドレスを、この画面の <b>ページを置いたアドレス</b> に入れて、<b>🔳 QR コード</b> を印刷します。</li>
-    </ol>
-    <div class="an-h">項目を直したとき</div>
-    <ol class="an-steps">
-      <li><b>⬇ ページを書き出す</b> で、新しい index.html を作ります。</li>
-      <li>Netlify で、案内ページのプロジェクトを開いて <b>Deploys</b> を押します。</li>
-      <li>下のほうの点線の枠に、新しい <b>index.html</b> を落とします（スマホは browse to upload）。</li>
-    </ol>
-    <div class="an-note">アドレスは変わらないので、<b>QR コードは刷り直さなくてだいじょうぶ</b>です。お客様のスマホに古いものが出るときは、ページを引っぱって読み直してもらいます。</div>
-    <div class="an-h">うまくいかないとき</div>
-    <ul class="an-steps">
-      <li><b>Page not found</b> と出る：置いたファイルの名前が <b>index.html</b> になっているか見てください（index (1).html などになっていたら、名前を直してから置きます）。</li>
-      <li>表電卓が開かなくなった：表電卓のサイトに置いてしまったときです。表電卓のサイトの Deploys に、表電卓の zip を置き直してください。</li>
-      <li>ログインしないで置いたページは、しばらくすると消えます。必ずログインしてから置いてください。</li>
-    </ul>
-    <button class="an-btn" onclick="anExportHtml()">⬇ ページを書き出す（index.html）</button>`;
-  openDlg('anPvOverlay');
+/* ── ❓ ヘルプ（v457） ──
+   案内ページの作り方と、Netlify の開設（アカウントを作る）・置き方・設定を、目次から読めるようにまとめる。
+   Netlify の画面は写真を撮れないので、ボタンの名前と並びを絵（.nf-mock）でまねして見せる。 */
+const AN_HELP_TOC=[
+  ['anh-flow','🗺 全体の流れ'], ['anh-write','✏ 項目の書き方'], ['anh-lang','🌐 外国語'],
+  ['anh-nf','☁ Netlify とは'], ['anh-signup','🆕 アカウントを作る'], ['anh-first','⬆ はじめて置く'],
+  ['anh-name','🏷 アドレスの名前'], ['anh-update','🔁 直したとき'], ['anh-qr','🔳 QR コード'],
+  ['anh-more','⚙ 設定いろいろ'], ['anh-phone','📱 スマホだけで'], ['anh-trouble','🆘 困ったとき'], ['anh-safe','🔒 大事なこと'],
+];
+const nfBar=u=>`<div class="nf-bar">🔒 ${u}</div>`;
+const nfN=n=>`<i class="an-n">${n}</i>`;
+function anHelpHtml(){
+  return `<div class="anh-toc">${AN_HELP_TOC.map(([id,t])=>`<button type="button" onclick="anHelpJump('${id}')">${t}</button>`).join('')}</div>
+
+<section id="anh-flow"><h4>🗺 全体の流れ</h4>
+<ol class="an-steps">
+  <li>見本の項目を、<b>自分の宿のこと</b>に書きかえます（宿の名前・電話・お風呂・Wi-Fi など）。</li>
+  <li>外国のお客様が来るなら、<b>🌐 外国語</b>の訳を入れます（入れなくても使えます）。</li>
+  <li><b>📱 見え方</b>で、お客様のスマホでどう見えるかをたしかめます。</li>
+  <li><b>⬇ ページを書き出す</b>で、<b>index.html</b> という1つのファイルを作ります。</li>
+  <li>そのファイルを <b>Netlify</b>（無料でホームページを置ける場所）に置くと、<b>https://〇〇.netlify.app</b> のアドレスができます。</li>
+  <li>アドレスを入れて <b>🔳 QR コード</b>のカードを印刷し、客室やフロントに置きます。</li>
+  <li>あとで内容が変わったら、書き出して Netlify に<b>置き直す</b>だけです。QR コードはそのまま使えます。</li>
+</ol>
+<div class="an-note">Netlify を使うのがはじめてなら、<a onclick="anHelpJump('anh-nf')">☁ Netlify とは</a> → <a onclick="anHelpJump('anh-signup')">🆕 アカウントを作る</a> → <a onclick="anHelpJump('anh-first')">⬆ はじめて置く</a> の順に読んでください。</div>
+</section>
+
+<section id="anh-write"><h4>✏ 項目の書き方</h4>
+<ul class="an-steps">
+  <li>項目を押すと直せます。<b>↑↓</b> で並びを変え、<b>＋ 項目を足す</b> で増やせます。</li>
+  <li>本文は<b>1行ずつ</b>書きます。「<b>・</b>」で始めると箇条書きになります。</li>
+  <li><b>電話番号</b>（0260-00-0000 のように - を入れる）と 110・119 は、押すと電話をかけられます。</li>
+  <li><b>https://</b> で始まるアドレスは、押すとそのページが開きます。</li>
+  <li>「<b>地図:〇〇食堂</b>」と書くと、押すと地図アプリで〇〇食堂をさがすボタンになります。</li>
+  <li><b>出す季節</b>を「冬」「夏」にすると、お客様のページではその季節（冬＝12〜4月、夏＝5〜11月）に先に出ます。</li>
+  <li><b>はじめから開いておく</b>にすると、ページを開いたときに中身が見えています（チェックインの時間など大事なものに）。</li>
+</ul>
+</section>
+
+<section id="anh-lang"><h4>🌐 外国語</h4>
+<ol class="an-steps">
+  <li>「🌐 外国語で見られるようにする」で、出す言語を選びます（英語・中国語の簡体字と繁体字・韓国語・タイ語）。</li>
+  <li>項目を押して、上の <b>English</b> などを押すと、その言語の見出しと本文を入れる欄になります。</li>
+  <li><b>🔤 Google 翻訳</b>を押すと、日本語を訳した画面が開きます。訳をコピーして、欄に貼ります。</li>
+  <li>「宿の名前・ひとことの訳」で、名前をローマ字などにできます（空なら日本語の名前が出ます）。</li>
+</ol>
+<div class="an-note">お客様のページは、スマホの言語に合わせて自動で切りかわります。右上の <b>🌐</b> でも選べます。訳のない項目は日本語で出て、「Google で自動翻訳」のボタンが出ます。日本語を直すと、古くなった訳に <b>⚠</b> が付きます。</div>
+</section>
+
+<section id="anh-nf"><h4>☁ Netlify とは</h4>
+<div class="an-note" style="font-size:13.5px;color:inherit">Netlify（ネットリファイ）は、ホームページを<b>無料</b>で置けるアメリカの会社のサービスです。画面は英語ですが、使うボタンは少しだけです。</div>
+<ul class="an-steps">
+  <li>いるもの：<b>メールアドレス</b>だけ。クレジットカードはいりません。</li>
+  <li>料金：案内ページくらいなら<b>無料のまま</b>で足ります。「Upgrade」などお金のかかるボタンは押さなくてだいじょうぶです。</li>
+  <li>パソコンでするのがかんたんです（<a onclick="anHelpJump('anh-phone')">スマホだけでも</a>できます）。</li>
+  <li>表電卓を Netlify に置いているなら、<b>同じアカウント</b>を使えます。ただし<b>案内ページは別のプロジェクト（サイト）</b>にします。</li>
+</ul>
+<div class="an-warn">表電卓のプロジェクトに案内ページを置くと、<b>表電卓が案内ページに入れかわってしまいます</b>。案内ページは、かならず新しいプロジェクトにしてください。</div>
+</section>
+
+<section id="anh-signup"><h4>🆕 アカウントを作る（開設。1回だけ）</h4>
+<div class="an-note">もう Netlify のアカウントがある人は、<a onclick="anHelpJump('anh-first')">⬆ はじめて置く</a> へ進んでください。</div>
+<div class="nf-mock">${nfBar('app.netlify.com/signup')}<div class="nf-in" style="text-align:center">
+  <div style="font-size:15px;font-weight:bold;margin:2px 0 8px">Sign up</div>
+  <div class="nf-wide">GitHub</div><div class="nf-wide">GitLab</div><div class="nf-wide">Bitbucket</div>
+  <div class="nf-wide nf-hl">${nfN(2)}Sign up with Email</div></div></div>
+<ol class="an-steps">
+  <li><a href="https://app.netlify.com/signup" target="_blank" rel="noopener">app.netlify.com/signup</a> を開きます。</li>
+  <li><b>Sign up with Email</b>（メールで作る）を押します。GitHub などのアカウントを持っている人は、そのボタンでも作れます。</li>
+  <li><b>メールアドレス</b>と、新しく決めた<b>パスワード</b>を入れて <b>Sign up</b> を押します。パスワードは紙などに控えておきます。</li>
+  <li>Netlify からメールが届きます。メールの中の <b>Verify email</b>（メールをたしかめる）を押します。</li>
+  <li>はじめに「どんな仕事か」「何に使うか」などの質問が出ることがあります。あてはまるものを選ぶか、<b>Skip</b>・<b>Continue</b> で進みます。料金の画面が出たら <b>Free</b>（無料）を選びます。</li>
+  <li>「Projects」（プロジェクトの一覧）の画面が出たら、できあがりです。</li>
+</ol>
+<div class="an-note">メールが届かないときは、迷惑メールのフォルダも見てください。</div>
+</section>
+
+<section id="anh-first"><h4>⬆ はじめて置く（1回だけ）</h4>
+<ol class="an-steps">
+  <li>案内ページの <b>⬇ ページを書き出す</b> を押して、<b>index.html</b> を保存します。</li>
+  <li><a href="https://app.netlify.com/" target="_blank" rel="noopener">app.netlify.com</a> を開いて、ログインします（<b>Log in</b>）。</li>
+  <li>Projects の画面で <b>Add new project</b> を押し、出てきた中から <b>Deploy manually</b>（手で置く）を押します。</li>
+</ol>
+<div class="nf-mock">${nfBar('app.netlify.com/teams/〇〇/projects')}<div class="nf-in">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:6px"><b>Projects</b><span class="nf-btn nf-hl">${nfN(3)}Add new project ▾</span></div>
+  <div class="nf-menu"><div>Import an existing project</div><div>Start from a template</div><div class="nf-hl">Deploy manually</div></div></div></div>
+<ol class="an-steps" start="4">
+  <li>点線の枠が出ます。<b>index.html</b> をマウスで引っぱって、枠の中に落とします。スマホは枠の中の <b>browse to upload</b> を押して index.html を選びます。</li>
+</ol>
+<div class="nf-mock">${nfBar('app.netlify.com › Deploy manually')}<div class="nf-in"><div class="nf-drop nf-hl">${nfN(4)}Drag and drop your project output folder here.<br>Or, <u>browse to upload</u>.<div style="margin-top:6px;font-size:18px">📄 index.html</div></div></div></div>
+<ol class="an-steps" start="5">
+  <li>数秒で、案内ページの画面（<b>Project overview</b>）になり、<b>https://〇〇〇.netlify.app</b> のアドレスが出ます。押すと、お客様が見るページが開きます。</li>
+</ol>
+<div class="nf-mock">${nfBar('app.netlify.com/projects/〇〇〇/overview')}<div class="nf-in">
+  <div style="font-size:14px;font-weight:bold">glittering-cupcake-1a2b3c</div>
+  <div class="nf-hl" style="display:inline-block;margin:4px 0;color:#0b7a78">${nfN(5)}https://glittering-cupcake-1a2b3c.netlify.app</div>
+  <div class="nf-tabs"><span>Project overview</span><span>Deploys</span><span>…</span><span>Project configuration</span></div></div></div>
+<div class="an-note">はじめのアドレスは、でたらめな英語の名前です。QR コードを印刷する前に、<a onclick="anHelpJump('anh-name')">🏷 アドレスの名前</a>をわかりやすく変えておきます。</div>
+</section>
+
+<section id="anh-name"><h4>🏷 アドレスの名前を変える</h4>
+<ol class="an-steps">
+  <li>案内ページのプロジェクトを開いて、<b>Project configuration</b>（プロジェクトの設定）を押します。</li>
+  <li><b>General</b> → <b>Project details</b> の <b>Change project name</b> を押します。</li>
+  <li>新しい名前を入れて <b>Save</b> を押します。使える文字は<b>英語の小文字・数字・ -（ハイフン）</b>です。</li>
+</ol>
+<div class="nf-mock">${nfBar('Project configuration › General')}<div class="nf-in">
+  <b>Project details</b><div style="margin:6px 0 4px">Project name: glittering-cupcake-1a2b3c</div>
+  <span class="nf-btn nf-ghost nf-hl">${nfN(2)}Change project name</span>
+  <div class="nf-field">shirakaba-annai<span style="color:#888">.netlify.app</span></div><span class="nf-btn">Save</span></div></div>
+<div class="an-note">例：<b>shirakaba-annai</b> にすると、アドレスは <b>https://shirakaba-annai.netlify.app</b> になります。ほかの人が使っている名前はえらべません（そのときは「-yuzawa」などを足します）。<br>
+<b>名前を変えると前のアドレスは使えなくなります。</b>QR コードを印刷したあとに変えたら、新しいアドレスで刷り直してください。</div>
+</section>
+
+<section id="anh-update"><h4>🔁 項目を直したとき（置き直す）</h4>
+<ol class="an-steps">
+  <li>案内ページで項目を直して、<b>⬇ ページを書き出す</b> で新しい index.html を作ります。</li>
+  <li>Netlify で案内ページのプロジェクトを開いて、<b>Deploys</b> を押します。</li>
+  <li>下のほうの点線の枠に、新しい <b>index.html</b> を落とします（スマホは browse to upload）。</li>
+</ol>
+<div class="nf-mock">${nfBar('app.netlify.com/projects/shirakaba-annai/deploys')}<div class="nf-in">
+  <div class="nf-tabs"><span>Project overview</span><span class="nf-hl">${nfN(2)}Deploys</span><span>…</span></div>
+  <div class="nf-row">Published　Production: … 3 days ago</div>
+  <div class="nf-drop nf-hl">${nfN(3)}Need to update your project?<br>Drag and drop your project output folder here</div></div></div>
+<div class="an-note">数秒で新しい内容になります。<b>アドレスは変わらないので、QR コードは刷り直さなくてだいじょうぶ</b>です。お客様のスマホに古いものが出るときは、ページを下に引っぱって読み直してもらいます。<br>
+書き出したファイルが「index (1).html」のような名前になっていたら、<b>index.html</b> に名前を直してから置きます。</div>
+</section>
+
+<section id="anh-qr"><h4>🔳 QR コードとカード</h4>
+<ol class="an-steps">
+  <li>案内ページの「<b>ページを置いたアドレス</b>」に、Netlify のアドレス（https://〇〇.netlify.app）を入れます。</li>
+  <li><b>🔳 QR コードを出す・印刷する</b> を押します。</li>
+  <li>自分のスマホのカメラで QR コードを読んで、案内ページが開くかたしかめます。</li>
+  <li><b>🖨 カードを印刷</b>で、A4 の紙に4枚のカードを印刷します。切って客室・フロント・食事処などに置きます。</li>
+</ol>
+</section>
+
+<section id="anh-more"><h4>⚙ Netlify の設定いろいろ</h4>
+<div class="an-h">前の内容に戻したい</div>
+<ol class="an-steps">
+  <li>プロジェクトの <b>Deploys</b> を押すと、今まで置いたものが新しい順に並んでいます。</li>
+  <li>戻したいもの（日時を見て）を押して、<b>Publish deploy</b> を押します。すぐにその内容に戻ります。</li>
+</ol>
+<div class="an-h">案内ページをやめる（消す）</div>
+<ol class="an-steps">
+  <li>プロジェクトの <b>Project configuration</b> → <b>General</b> を開き、いちばん下の <b>Delete project</b> を押します。</li>
+  <li>たしかめる画面が出たら、書いてあるとおりに入れて（プロジェクトの名前など）消します。<b>アドレスも QR コードも使えなくなります</b>（元に戻せません）。</li>
+</ol>
+<div class="an-h">〇〇.jp のような自分のアドレスにしたい</div>
+<div class="an-note" style="font-size:13.5px">ドメイン（〇〇.jp など）を別に買って、<b>Domain management</b> → <b>Add a domain</b> から設定します。ドメインは年に千〜数千円かかり、設定も少しむずかしいので、ふつうは <b>〇〇.netlify.app</b> のままで十分です。</div>
+<div class="an-h">パスワードを忘れた</div>
+<div class="an-note" style="font-size:13.5px">ログインの画面の <b>Forgot password?</b> を押して、メールアドレスを入れます。届いたメールから新しいパスワードを決めます。</div>
+<div class="an-h">作りかけを残す・別の端末で続ける</div>
+<div class="an-note" style="font-size:13.5px">案内ページの <b>💾 作りかけを保存（.json）</b> で保存しておくと、別のスマホやパソコンの表電卓で <b>📂 保存したものを開く</b> から続きを作れます。📋リストのバックアップにも入ります。</div>
+</section>
+
+<section id="anh-phone"><h4>📱 スマホだけでするとき</h4>
+<ul class="an-steps">
+  <li>Safari や Chrome で <b>app.netlify.com</b> を開いて、同じようにログインします（アプリを入れる必要はありません）。</li>
+  <li>⬇ で書き出した index.html は、iPhone は「<b>ファイル</b>」アプリの「ダウンロード」、Android は「<b>ダウンロード</b>」に入ります。</li>
+  <li>点線の枠の中の <b>browse to upload</b> を押すと、ファイルを選ぶ画面になります。index.html を選びます。</li>
+  <li>画面がせまくてボタンが見つからないときは、横向きにするか、ブラウザのメニューの「<b>PC 版サイトを表示</b>」を使います。</li>
+</ul>
+</section>
+
+<section id="anh-trouble"><h4>🆘 困ったとき</h4>
+<dl class="anh-qa">
+  <dt>「Page not found」と出る</dt><dd>置いたファイルの名前が <b>index.html</b> になっていないときです。名前を index.html に直して、Deploys に置き直します。</dd>
+  <dt>表電卓が開かなくなった／案内ページが出る</dt><dd>表電卓のプロジェクトに置いてしまったときです。表電卓のプロジェクトの Deploys に、<b>表電卓の zip</b>（を展開したフォルダ）を置き直すと戻ります。案内ページは新しいプロジェクトに置き直します。</dd>
+  <dt>直したのに古いまま</dt><dd>置き直したのが別のプロジェクトでないか、たしかめます。スマホではページを下に引っぱって読み直します。</dd>
+  <dt>置いたページが消えた</dt><dd>ログインしないで置いたページは、しばらくすると消えます。ログインしてから置き直してください。</dd>
+  <dt>QR コードを読んでも開かない</dt><dd>「ページを置いたアドレス」がまちがっていないか（https:// から最後まで）、名前を変えたあとの新しいアドレスか、たしかめます。</dd>
+  <dt>メールが届かない</dt><dd>迷惑メールのフォルダを見ます。アドレスの打ちまちがいなら、もう一度 Sign up からやり直します。</dd>
+  <dt>英語の画面がわからない</dt><dd>Chrome なら、画面を長押し（パソコンは右クリック）して「<b>日本語に翻訳</b>」を選ぶと、日本語で読めます。</dd>
+</dl>
+</section>
+
+<section id="anh-safe"><h4>🔒 大事なこと</h4>
+<ul class="an-steps">
+  <li>Netlify に置いたページは、<b>アドレスを知っている人なら誰でも見られます</b>。Wi-Fi のパスワードや、見せたくないことを載せるかはよく考えてください。</li>
+  <li>作っている内容は、この端末の中（表電卓）にだけ入っています。<b>💾 作りかけを保存</b> や 📋リストのバックアップで残しておくと安心です。</li>
+  <li>Netlify のパスワードは、ほかの人に教えないでください。</li>
+</ul>
+</section>
+<div class="an-note" style="text-align:center;margin-top:14px">Netlify の画面は、ときどき見た目や言葉が少し変わります。この説明と少しちがっていても、同じ名前のボタンをさがしてください。</div>`;
 }
+const AN_HELP_CSS=`
+.anh-toc{ display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 8px; }
+.anh-toc button{ height:34px; padding:0 10px; border-radius:17px; border:1px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#333); font-size:13px; font-weight:bold; cursor:pointer; }
+#anHelpBody section{ padding-top:6px; scroll-margin-top:4px; }
+#anHelpBody h4{ font-size:16.5px; margin:16px 0 6px; padding:6px 10px; border-radius:8px; background:rgba(33,115,70,.10); }
+#anHelpBody .an-note a, .anh-qa a{ color:var(--acc); font-weight:bold; cursor:pointer; text-decoration:underline; }
+.anh-qa dt{ font-weight:bold; margin:10px 0 2px; font-size:14px; } .anh-qa dt::before{ content:"Q. "; color:var(--acc); }
+.anh-qa dd{ margin:0 0 4px 1.3em; font-size:13.5px; line-height:1.7; }
+.nf-mock{ position:relative; border:1px solid #cfd6dd; border-radius:10px; overflow:hidden; margin:8px 0 12px; background:#fff; color:#1f2937; font-family:-apple-system,"Segoe UI",sans-serif; font-size:12.5px; line-height:1.5; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+.nf-bar{ background:#eef1f4; padding:4px 9px; font-size:11px; color:#555; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.nf-in{ padding:10px 12px 12px; }
+.nf-btn{ display:inline-block; position:relative; padding:5px 11px; border-radius:6px; background:#05bdba; color:#0b1d26; font-weight:bold; margin:3px 0; }
+.nf-btn.nf-ghost{ background:#fff; border:1px solid #9aa5b1; }
+.nf-wide{ position:relative; margin:5px auto; max-width:230px; padding:6px; border:1px solid #9aa5b1; border-radius:6px; font-weight:bold; }
+.nf-menu{ margin:6px 0 0 auto; width:max-content; max-width:100%; border:1px solid #cfd6dd; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,.12); padding:3px 0; }
+.nf-menu div{ position:relative; padding:4px 12px; }
+.nf-drop{ position:relative; border:2px dashed #9aa5b1; border-radius:8px; padding:14px 10px; text-align:center; color:#555; margin-top:6px; }
+.nf-tabs{ display:flex; gap:10px; flex-wrap:wrap; border-bottom:1px solid #dde2e7; margin-top:6px; padding-bottom:3px; color:#555; }
+.nf-tabs span{ position:relative; }
+.nf-row{ margin:6px 0; padding:5px 8px; background:#f4f6f8; border-radius:6px; }
+.nf-field{ margin:6px 0; padding:5px 8px; border:1px solid #9aa5b1; border-radius:6px; overflow-wrap:anywhere; }
+.nf-hl{ outline:3px solid #e53935; outline-offset:2px; border-radius:6px; }
+.an-n{ display:inline-block; width:20px; height:20px; line-height:20px; border-radius:50%; background:#e53935; color:#fff; font:bold 12px sans-serif; font-style:normal; text-align:center; margin-right:5px; vertical-align:1px; }
+`;
+function anHelp(id){
+  anEnsureDom();
+  if(!$('anHelpOverlay')){
+    const st=document.createElement('style'); st.id='anHelpStyle'; st.textContent=AN_HELP_CSS; document.head.appendChild(st);
+    const box=document.createElement('div');
+    box.innerHTML=`<div class="modal-overlay" id="anHelpOverlay" onclick="if(event.target===this)anCloseHelp()">
+  <div class="modal vol-modal an-modal"><div class="modal-header"><span>❓ 案内ページのヘルプ</span><button class="modal-close" onclick="anCloseHelp()" aria-label="閉じる">✕</button></div>
+    <div class="an-body" id="anHelpBody"></div></div></div>`;
+    document.body.appendChild(box.firstElementChild);
+    if(typeof applyNpToolFull==='function') applyNpToolFull();
+  }
+  $('anHelpBody').innerHTML=anHelpHtml();
+  if(!isDlgOpen('anHelpOverlay')) openDlg('anHelpOverlay');
+  $('anHelpBody').scrollTop=0;
+  if(id) setTimeout(()=>anHelpJump(id), 30);
+}
+function anHelpJump(id){
+  const b=$('anHelpBody'), e=document.getElementById(id); if(!b || !e) return;
+  b.scrollTop += e.getBoundingClientRect().top - b.getBoundingClientRect().top - 4;
+}
+function anCloseHelp(){ closeDlg('anHelpOverlay'); }
+/* 前の版の「❓ Netlify に置く方法」は、ヘルプの「はじめて置く」を開く */
+function anNetlifyHelp(){ anHelp('anh-first'); }
 
 /* QR コード（表電卓の qrEncode を使う）。SVG で出して、客室に置くカードを印刷できる */
 function anQrSvg(text){
@@ -541,5 +746,5 @@ function anPrintCards(){
 
 Object.assign(window, { openAnnai, closeAnnai, anSetTop, anMove, anEdit, anEdSave, anEdDelete, anCloseEd, anPreview, anClosePv,
   anExportHtml, anExportJson, anImport, anReset, anShowQr, anPrintCards, anPageHtml, anBodyHtml, anState:()=>an, anQrSvg,
-  anEdLang, anEdOk, anGT, anGTSec, anToggleLang, anTopTr, anTopTrSave, anNetlifyHelp, anSig, anTrState, anTopState, anTopMarkOk });
+  anEdLang, anEdOk, anGT, anGTSec, anToggleLang, anTopTr, anTopTrSave, anNetlifyHelp, anHelp, anHelpJump, anCloseHelp, anSig, anTrState, anTopState, anTopMarkOk });
 })();
