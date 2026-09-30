@@ -299,7 +299,6 @@ function anEnsureDom(){
 </div>
 <input type="file" id="anFileIn" accept=".json,application/json" hidden onchange="anImport(this)">`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
-  if(typeof bindNpToolSwipe==='function') bindNpToolSwipe('annaiOverlay');
   if(typeof applyNpToolFull==='function') applyNpToolFull();
 }
 function openAnnai(){ anEnsureDom(); anLoad(); openDlg('annaiOverlay'); anRender(); }

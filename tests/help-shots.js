@@ -100,6 +100,7 @@ async function mark(page, marks) {
     { text: '＝数式', n: 8, pos: 'tr' },
     { text: 'ひな形', in: '#numpad, .numpad, #numpadViewport', n: 9, pos: 'tr' },
     { text: '🎤声', n: 10, pos: 'tr' },
+    { text: '🧰道具', in: '#numpadPage1', n: 11, pos: 'tr' },
   ]);
 
   // 2. セルをもう一度タップ（切り取り・コピーの帯）

@@ -605,7 +605,6 @@ function tcEnsureDom(){
     el.addEventListener('keydown', e=>{ if(e.key!=='Escape' && e.key!=='Tab') e.stopPropagation(); });
   });
   document.getElementById('tcAddIn').addEventListener('keydown', e=>{ if(e.key==='Enter' && e.isComposing) e.stopPropagation(); });
-  if(typeof bindNpToolSwipe==='function' && !window.APP_TECHO) bindNpToolSwipe('techoOverlay');   // 業務手帳だけのアプリでは、ほかの道具へ移らない
   if(typeof applyNpToolFull==='function') applyNpToolFull();
   tcBindCalSwipe();
   if(typeof bindHSwipe==='function'){
