@@ -29,7 +29,7 @@ function smClean(o){
   return { v:1, view:['new','place','name'].includes(o.view)?o.view:'new',
     items:o.items.filter(x=>x && typeof x==='object' && String(x.name||'').trim()).slice(0,3000).map(x=>({
       id:typeof x.id==='string'?x.id:uid(), name:String(x.name).trim().slice(0,60), place:String(x.place||'').trim().slice(0,80),
-      note:String(x.note||'').slice(0,500), photo:!!x.photo, added:String(x.added||today()).slice(0,10), updated:String(x.updated||x.added||today()).slice(0,10),
+      note:String(x.note||'').slice(0,500), photo:!!x.photo, added:String(x.added||today()).slice(0,10), updated:String(x.updated||x.added||today()).slice(0,10), ts:+x.ts||0,
       hist:Array.isArray(x.hist)?x.hist.filter(h=>h && h.place).slice(-5).map(h=>({place:String(h.place).slice(0,80), until:String(h.until||'').slice(0,10)})):[] })) };
 }
 function smLoad(){ try{ sm=smClean(JSON.parse(localStorage.getItem(SM_KEY)||'null')); }catch(_){ sm=smClean(null); } }
@@ -242,7 +242,7 @@ function smRender(){
   } else if(sm.view==='place' && !smPlace){
     L.innerHTML=places.map(([p,n])=>`<div class="sm-grp">📍 ${esc(p)}<span>${n}件</span></div>`+sm.items.filter(x=>(x.place||'（場所なし）')===p).sort((a,b)=>a.name.localeCompare(b.name,'ja')).map(x=>smItemHtml(x)).join('')).join('');
   } else {
-    const s=list.slice().sort(sm.view==='name' ? (a,b)=>a.name.localeCompare(b.name,'ja') : (a,b)=>(b.updated+b.id).localeCompare(a.updated+a.id));
+    const s=list.slice().sort(sm.view==='name' ? (a,b)=>a.name.localeCompare(b.name,'ja') : (a,b)=>(b.updated.localeCompare(a.updated)) || ((b.ts||0)-(a.ts||0)) || b.id.localeCompare(a.id));
     L.innerHTML=(smPlace?`<div class="sm-grp">📍 ${esc(smPlace)}<span>${s.length}件</span></div>`:'')+s.map(x=>smItemHtml(x)).join('');
   }
   smFillThumbs();
@@ -276,7 +276,7 @@ async function smAddText(text){
     if(r===0) return smMove(old.id, p.place, true);
     if(r!==1) return;
   }
-  const it={id:uid(), name:p.name, place:p.place, note:'', photo:false, added:today(), updated:today(), hist:[]};
+  const it={id:uid(), name:p.name, place:p.place, note:'', photo:false, added:today(), updated:today(), ts:Date.now(), hist:[]};
   sm.items.push(it); if(!smSave()) return;
   smQ=''; $('smFind').value=''; smRender(); smFlash(it.id);
   smSnack(`📦 <b>${esc(it.name)}</b> → ${esc(it.place)}`, [['直す',()=>smEdit(it.id)],['取り消し',()=>smRemove(it.id,true)]]);
@@ -286,7 +286,7 @@ function smMove(id, place, snack){
   const x=sm.items.find(i=>i.id===id); if(!x) return;
   const before=JSON.stringify(x);
   if(x.place && smNorm(x.place)!==smNorm(place)) x.hist=x.hist.concat([{place:x.place, until:today()}]).slice(-5);
-  x.place=place; x.updated=today(); smSave(); smRender(); smFlash(id);
+  x.place=place; x.updated=today(); x.ts=Date.now(); smSave(); smRender(); smFlash(id);
   if(snack) smSnack(`📦 <b>${esc(x.name)}</b> の場所を変えました → ${esc(place)}`, [['元に戻す',()=>{ const i=sm.items.findIndex(y=>y.id===id); if(i>=0){ sm.items[i]=JSON.parse(before); smSave(); smRender(); smHideSnack(); } }]]);
 }
 async function smRemove(id, quiet){
@@ -359,11 +359,11 @@ async function smEdSave(){
   if(!x){
     const old=smFind(name);
     if(old && !await appConfirm('「'+old.name+'」はもう入っています（「'+(old.place||'場所なし')+'」）。別の物として足しますか？','足す','やめる')) return;
-    x={id:uid(), name, place:'', note:'', photo:false, added:today(), updated:today(), hist:[]}; sm.items.push(x);
+    x={id:uid(), name, place:'', note:'', photo:false, added:today(), updated:today(), ts:Date.now(), hist:[]}; sm.items.push(x);
   }
   if(x.place && smNorm(x.place)!==smNorm(place)){ x.hist=x.hist.concat([{place:x.place, until:today()}]).slice(-5); x.updated=today(); }
   if(!x.place && place) x.updated=today();
-  x.name=name.slice(0,60); x.place=place.slice(0,80); x.note=note.slice(0,500);
+  x.name=name.slice(0,60); x.place=place.slice(0,80); x.note=note.slice(0,500); x.ts=Date.now();
   if(smEdPhoto!==undefined){
     if(smEdPhoto){ try{ await smPicPut(x.id, smEdPhoto); x.photo=true; smThumbs[x.id]=smEdPhoto; }catch(_){ toast('写真を入れられませんでした（端末の空きを見てください）'); } }
     else { x.photo=false; smPicDel(x.id); delete smThumbs[x.id]; }

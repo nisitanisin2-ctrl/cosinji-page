@@ -7497,6 +7497,10 @@ async function runShimai(browser) {
   const kid = await page.evaluate(() => smState().items.find(i => i.name === '懐中電灯').id);
   check('  入力画面で保存（場所のチップ・メモ・写真）', await page.evaluate(id => { const x = smState().items.find(i => i.id === id); return x.place + '/' + x.note + '/' + x.photo; }, kid), '台所の引き出し/赤いもの/true');
   check('  一覧に写真の小さな絵', await page.evaluate(id => /url\("data:image/.test(document.querySelector(`#smList .sm-it[data-id="${id}"] .ph`).style.backgroundImage), kid), true);
+  check('  新しい順：直したものがいちばん上', await page.evaluate(() => document.querySelector('#smList .sm-it .nm').textContent), '懐中電灯');
+  await page.evaluate(() => { const x = smState().items.find(i => i.name === '印鑑'); smEdit(x.id); document.getElementById('smEPlace').value = '金庫'; return smEdSave(); }); await w(300);
+  check('  新しい順：場所を変えたものが上', await page.evaluate(() => document.querySelector('#smList .sm-it .nm').textContent), '印鑑');
+  await page.evaluate(() => { const x = smState().items.find(i => i.name === '印鑑'); smEdit(x.id); document.getElementById('smEPlace').value = '仏壇の引き出し'; return smEdSave(); }); await w(300);
   // 並べ方・場所のチップ
   await page.evaluate(() => smSetView('place')); await w(100);
   check('  場所ごと', await page.evaluate(() => [...document.querySelectorAll('#smList .sm-grp')].map(g => g.firstChild.textContent.trim()).join(',')), '📍 台所の引き出し,📍 寝室のタンスの2段目,📍 仏壇の引き出し');
