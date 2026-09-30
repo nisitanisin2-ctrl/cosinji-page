@@ -9000,6 +9000,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v464', t:'🔐サブスク管理表：開くのにパスワードは要りません', li:[
+    '🔐サブスク管理表は、<b>パスワードを入れなくても</b>開いて、一覧を見たり・足したり・直したりできるようにしました',
+    '保存したパスワード（ログインのパスワード）を <b>👁 見る・📋 コピーする</b>ときだけ、ヒントを出して<b>閲覧用のパスワード</b>を聞きます。パスワードは今までどおり暗号にして端末の中だけに残します',
+    'いままで使っていた人は、はじめて開いたときに一度だけ いつものパスワードを入れて、新しい形に移します' ]},
   { v:'v463', t:'iPhone でも前の画面にもどりやすく', li:[
     'iPhone には画面に「戻る」ボタンがないので、道具の画面の<b>左上に「← もどる」</b>を付けました（右上の ✕ のかわり）。ホーム画面のアイコンから開いた道具では「<b>← 表電卓</b>」です',
     '🧾会計アプリ・📄メモにも、表電卓から開いたときは左上に<b>「← 表電卓」</b>を出します',
@@ -20661,7 +20665,7 @@ const TOOL_HINTS={
   photomemo:'写真を撮って、文字や印を書きこんだメモにできます。',
   touban:'はじめに「⚙ 設定」で名簿と当番の曜日を決めると、半年分の当番表ができます。「🖨 印刷」で配れます。',
   techo:'下の欄に「明日10時 営業 A社訪問」のように打つか 🎤 で話すと、予定に入ります。上の月は左右になぞると変わります。',
-  subsc:'サブスクの金額・支払日・ID・パスワードをまとめます。はじめにパスワードを決め、次からはそのパスワードで開きます。',
+  subsc:'サブスクの金額・支払日・ID・パスワードをまとめます。開く・足すのにパスワードは要りません。保存したパスワードを 👁 見るときだけ、閲覧用のパスワードを聞きます。',
   heya:'空いているマスを押すと予約を足せます。「📋 一覧」でその日の到着・出発・食事の数を見られます。',
   annai:'見本の項目を自分の宿のことに書きかえて、⬇ で書き出します。分からないときは右上の「❓ ヘルプ」。',
   shimai:'下の欄に「パスポートは寝室のタンスの2段目」のように打つか 🎤 で話します。上の欄でさがせます。',
@@ -21012,7 +21016,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v463';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v464';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -22884,16 +22888,20 @@ function techoMergeBundle(inc){
   if(typeof window.tcReload==='function') window.tcReload();
   return n;
 }
-/* 🔐サブスク管理表（v453）：暗号のまま受け渡す（中身はパスワードがないと読めない） */
+/* 🔐サブスク管理表（v453・v464）：保存したパスワードは暗号のまま受け渡す（見るには閲覧用のパスワードが要る）。
+   v453 の形（全部を1つの暗号にしたもの {ct,salt,iv}）と、v464 の形（一覧＋パスワードだけ暗号 {v:2, items}）のどちらも受け取る */
 const SUBSC_KEY='excalc_subsc';
-function subscBundle(){ try{ const o=JSON.parse(localStorage.getItem(SUBSC_KEY)||'null'); return (o && o.ct && o.salt && o.iv) ? o : null; }catch(_){ return null; } }
+const subscIsOld=o=>!!(o && o.v!==2 && typeof o.ct==='string' && typeof o.salt==='string' && typeof o.iv==='string');
+const subscIsNew=o=>!!(o && o.v===2 && Array.isArray(o.items));
+function subscBundle(){ try{ const o=JSON.parse(localStorage.getItem(SUBSC_KEY)||'null'); return (subscIsOld(o) || (subscIsNew(o) && (o.items.length || o.pub))) ? o : null; }catch(_){ return null; } }
 async function subscRestoreBundle(inc){
-  if(!inc || typeof inc!=='object' || typeof inc.ct!=='string' || typeof inc.salt!=='string' || typeof inc.iv!=='string') return false;
+  if(!inc || typeof inc!=='object' || !(subscIsOld(inc) || subscIsNew(inc))) return false;
   const cur=subscBundle();
-  if(cur && cur.ct===inc.ct) return false;
-  if(cur && !await appConfirm('🔐サブスク管理表も入っています。いまのサブスク管理表と置きかえますか？\n（開くには、書き出したときのパスワードが要ります）','置きかえる','いいえ')) return false;
-  try{ localStorage.setItem(SUBSC_KEY, JSON.stringify({v:1, hint:String(inc.hint||'').slice(0,100), salt:inc.salt, iter:+inc.iter||250000, iv:inc.iv, ct:inc.ct, upd:+inc.upd||Date.now()})); }catch(_){ return false; }
-  if(typeof window.sbLockNow==='function' && typeof isDlgOpen==='function' && isDlgOpen('subscOverlay')) window.sbLockNow();
+  if(cur && JSON.stringify(cur)===JSON.stringify(inc)) return false;
+  if(cur && !await appConfirm('🔐サブスク管理表も入っています。いまのサブスク管理表と置きかえますか？\n（保存したパスワードを見るには、書き出したときの閲覧用のパスワードが要ります）','置きかえる','いいえ')) return false;
+  const o=subscIsOld(inc) ? {v:1, hint:String(inc.hint||'').slice(0,100), salt:inc.salt, iter:+inc.iter||250000, iv:inc.iv, ct:inc.ct, upd:+inc.upd||Date.now()} : inc;
+  try{ localStorage.setItem(SUBSC_KEY, JSON.stringify(o)); }catch(_){ return false; }
+  if(typeof window.closeSubsc==='function' && typeof isDlgOpen==='function' && isDlgOpen('subscOverlay')) window.closeSubsc();   // 開いていたら閉じる（次に開くと読み直す）
   return true;
 }
 /* 🛏部屋割り表（v454）：書き出し・読み込み。読み込むときは、いまの表があれば置きかえるか聞く */
@@ -23049,7 +23057,7 @@ function importSaves(ev) {
         const kn=restoreKoeBundle(koeIn);
         if(typeof toast==='function') toast(kn?'声の計算帳のデータを読み込みました':'声の計算帳のデータを読み込めませんでした');
       }
-      if(parsed && parsed.subsc && await subscRestoreBundle(parsed.subsc)) toast('サブスク管理表を読み込みました（開くときはそのときのパスワードで）');
+      if(parsed && parsed.subsc && await subscRestoreBundle(parsed.subsc)) toast('サブスク管理表を読み込みました（パスワードを見るときは、そのときの閲覧用のパスワードで）');
       if(parsed && parsed.heya && await heyaRestoreBundle(parsed.heya)) toast('部屋割り表を読み込みました');
       if(parsed && parsed.annai && await annaiRestoreBundle(parsed.annai)) toast('案内ページを読み込みました');
       if(smIn && await shimaiRestoreBundle(smIn, smPicsIn)) toast('しまい場所メモを読み込みました');

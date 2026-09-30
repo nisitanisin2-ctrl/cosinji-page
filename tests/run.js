@@ -7204,65 +7204,111 @@ async function runTechoApp(browser) {
 }
 async function runSubsc(browser) {
   const { ctx, page, errs } = await newPage(browser);
-  console.log('\n── 🔐サブスク管理表（v453） ──');
+  console.log('\n── 🔐サブスク管理表（v453・パスワードは見るときだけ v464） ──');
   const w = ms => page.waitForTimeout(ms);
   check('  開くまでは読まない・道具とマイキーにある', await page.evaluate(() => !window.SUBSC_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'subsc') + '/' + !!KEY_FUNCS.a_subsc), 'true/true/true');
   await page.evaluate(() => openSubsc()); await w(600);
-  check('  はじめはパスワードとヒントを決める画面', await page.evaluate(() => isDlgOpen('subscOverlay') + '/' + !!document.getElementById('sbNew1') + '/' + !!document.getElementById('sbHintIn')), 'true/true/true');
-  const err = async (a, b, h) => page.evaluate(async ([a, b, h]) => { document.getElementById('sbNew1').value = a; document.getElementById('sbNew2').value = b; document.getElementById('sbHintIn').value = h; await sbCreate(); return (document.getElementById('sbErr') || {}).textContent || ''; }, [a, b, h]);
-  check('  短い・2回ちがう・ヒントなし・ヒントにパスワードは断る', [await err('ab', 'ab', 'x'), await err('abcd', 'abce', 'x'), await err('abcd', 'abcd', ''), await err('neko1234', 'neko1234', 'neko1234 です')].map(t => t ? 'NG' : 'OK').join(','), 'NG,NG,NG,NG');
-  await err('neko1234', 'neko1234', '飼い猫の名前と数字'); await w(1500);
-  const st0 = await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_subsc')));
-  check('  決めると一覧になる・保存は暗号だけ（パスワードは残さない）', await page.evaluate(() => !!document.getElementById('sbQ')) + '/' + (!!st0.ct && !!st0.salt && !!st0.iv && st0.hint === '飼い猫の名前と数字' && !JSON.stringify(st0).includes('neko1234')), 'true/true');
-  // 足す
+  check('  開くのにパスワードは聞かない（すぐ一覧）', await page.evaluate(() => isDlgOpen('subscOverlay') + '/' + !!document.getElementById('sbQ') + '/' + !document.getElementById('sbPwIn') + '/' + sbState().keys), 'true/true/true/false');
   const add = async (o) => { await page.evaluate(() => sbEdit(null)); await w(100);
     await page.evaluate((o) => { const set = (id, v) => { document.getElementById(id).value = v; }; set('sbEName', o.name); set('sbEPrice', o.price); set('sbECycle', o.cycle); set('sbENext', o.next || ''); set('sbEPay', o.pay || ''); set('sbEUid', o.uid || ''); set('sbEPw', o.pw || ''); set('sbEUrl', o.url || ''); document.getElementById('sbEStop').checked = !!o.stop; }, o);
-    await page.evaluate(() => sbEdSave()); await w(700); };
+    await page.evaluate(() => sbEdSave()); await w(300); };
   const d = n => { const t = new Date(); t.setDate(t.getDate() + n); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); };
-  await add({ name: '動画配信', price: 1490, cycle: 'm', next: d(3), pay: 'カード', uid: 'me@example.com', pw: 'Secret#123', url: 'example.com' });
   await add({ name: 'クラウド', price: 1200, cycle: 'y', next: d(40) });
+  check('  パスワードなしのサブスクは、そのまま足せる', await page.evaluate(() => sbState().items + '/' + isDlgOpen('sbPwOverlay')), '1/false');
+  // はじめてパスワードを保存するとき：閲覧用のパスワードを決める
+  await add({ name: '動画配信', price: 1490, cycle: 'm', next: d(3), pay: 'カード', uid: 'me@example.com', pw: 'Secret#123', url: 'example.com' });
+  check('  はじめてパスワードを保存するときに、閲覧用のパスワードとヒントを決める', await page.evaluate(() => isDlgOpen('sbPwOverlay') + '/' + !!document.getElementById('sbNew1') + '/' + !!document.getElementById('sbHintIn')), 'true/true/true');
+  const mk = async (a, b, h) => page.evaluate(async ([a, b, h]) => { document.getElementById('sbNew1').value = a; document.getElementById('sbNew2').value = b; document.getElementById('sbHintIn').value = h; await sbCreate(); return (document.getElementById('sbErr') || {}).textContent || ''; }, [a, b, h]);
+  check('  短い・2回ちがう・ヒントなし・ヒントにパスワードは断る', [await mk('ab', 'ab', 'x'), await mk('abcd', 'abce', 'x'), await mk('abcd', 'abcd', ''), await mk('neko1234', 'neko1234', 'neko1234 です')].map(t => t ? 'NG' : 'OK').join(','), 'NG,NG,NG,NG');
+  await mk('neko1234', 'neko1234', '飼い猫の名前と数字'); await w(2500);
+  const st0 = await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_subsc')));
+  check('  決めると続けて保存・パスワードは暗号（閲覧用のパスワードも残さない）', await page.evaluate(() => sbState().items + '/' + isDlgOpen('sbEdOverlay') + '/' + isDlgOpen('sbPwOverlay')) + '/' + (st0.v === 2 && !!st0.pub && !!st0.priv && st0.hint === '飼い猫の名前と数字' && !JSON.stringify(st0).includes('Secret#123') && !JSON.stringify(st0).includes('neko1234') && !!st0.items.find(x => x.name === '動画配信').sec), '2/false/false/true');
+  check('  一覧（名前・ID）は暗号にしない', JSON.stringify(st0).includes('動画配信') + '/' + JSON.stringify(st0).includes('me@example.com'), 'true/true');
   await add({ name: '昔のアプリ', price: 500, cycle: 'm', stop: true });
   await add({ name: '過ぎた支払', price: 300, cycle: 'm', next: d(-2) });
+  // 鍵をかけて、開き直す（パスワードは聞かれない）
+  await page.evaluate(() => closeSubsc()); await w(300);
+  await page.evaluate(() => openSubsc()); await w(400);
   const li = await page.evaluate(() => ({ sum: [...document.querySelectorAll('.sb-sum b')].map(b => b.textContent).join('|'), names: [...document.querySelectorAll('.sb-card .sb-name')].map(e => e.textContent).join(','),
-    soon: document.querySelector('.sb-card.soon .sb-name').textContent, masked: document.querySelector('.sb-card .sb-cred').textContent.includes('Secret#123'), stop: document.querySelector('.sb-card.stop .sb-name').textContent }));
+    soon: document.querySelector('.sb-card.soon .sb-name').textContent, masked: document.querySelector('.sb-card .sb-cred').textContent.includes('Secret#123'), stop: document.querySelector('.sb-card.stop .sb-name').textContent, locked: sbState().locked, ask: !!document.getElementById('sbPwIn') }));
+  check('  開き直してもパスワードは聞かず、一覧が出る（鍵はかかっている）', li.ask + '/' + li.locked, 'false/true');
   check('  月あたり・年あたり・件数（止めたものは入れない、年払いは12で割る）', li.sum, '1,890円|22,680円|3件');
   check('  支払日の近い順・止めたものは最後', li.names, '動画配信,過ぎた支払,クラウド,昔のアプリ');
   check('  支払日が近いものは目立たせる・パスワードは隠す・止めたものはうすく', li.soon + '/' + li.masked + '/' + li.stop, '動画配信/false/昔のアプリ');
+  check('  ID は鍵なしで見える', await page.evaluate(() => document.querySelector('.sb-card .sb-cred').textContent.includes('me@example.com')), true);
   check('  支払日が過ぎたら次へ進む', await page.evaluate(() => { const c = [...document.querySelectorAll('.sb-card')].find(x => x.textContent.includes('過ぎた支払')); return c.querySelector('.sb-meta').textContent.startsWith('次は'); }), true);
-  await page.evaluate(() => { const b = [...document.querySelectorAll('.sb-card')][0].querySelector('button[aria-label^="パスワードを見る"]'); b.click(); }); await w(100);
-  check('  👁 でパスワードを見る', await page.evaluate(() => document.querySelector('.sb-card .sb-cred').textContent.includes('Secret#123')), true);
   check('  さがす', await page.evaluate(() => { sbQ = 'クラ'; sbRenderList(); const n = document.querySelectorAll('.sb-card').length; sbQ = ''; sbRenderList(); return n; }), 1);
-  check('  保存したものは暗号のまま（名前もIDも見えない）', await page.evaluate(() => { const t = localStorage.getItem('excalc_subsc'); return ['動画配信', 'me@example.com', 'Secret#123'].some(x => t.includes(x)); }), false);
-  // 閉じると鍵がかかる → ヒントを見せてパスワードを聞く
-  await page.evaluate(() => closeSubsc()); await w(300);
-  await page.evaluate(() => openSubsc()); await w(300);
-  check('  開き直すとヒントを出してパスワードを聞く', await page.evaluate(() => !!document.getElementById('sbPwIn') + '/' + document.querySelector('.sb-hint').textContent.includes('飼い猫の名前と数字') + '/' + !document.querySelector('.sb-card')), 'true/true/true');
-  const tryPw = async pw => { await page.evaluate(async pw => { document.getElementById('sbPwIn').value = pw; await sbUnlock(); }, pw); await w(300); return page.evaluate(() => sbState().locked + '/' + ((document.getElementById('sbErr') || {}).textContent || '')); };
-  check('  ちがうパスワードでは開かない', await tryPw('neko9999'), 'true/パスワードがちがいます');
-  check('  合えば開く', await tryPw('neko1234'), 'false/');
-  check('  中身がもどる', await page.evaluate(() => sbState().items + '/' + document.querySelectorAll('.sb-card').length), '4/4');
-  check('  🔒ですぐ鍵をかける', await page.evaluate(() => { sbLockNow(); return sbState().locked + '/' + !!document.getElementById('sbPwIn'); }), 'true/true');
-  // 開き直しても残る
-  await page.evaluate(() => closeSubsc()); await page.reload(); await w(900);
-  await page.evaluate(() => openSubsc()); await w(500);
-  check('  アプリを開き直しても残る', await tryPw('neko1234') + '/' + await page.evaluate(() => sbState().items), 'false//4');
-  // 直す・消す
-  await page.evaluate(() => { const c = [...document.querySelectorAll('.sb-card')].find(x => x.textContent.includes('クラウド')); c.click(); }); await w(100);
-  await page.evaluate(() => { document.getElementById('sbEPrice').value = 2400; }); await page.evaluate(() => sbEdSave()); await w(700);
-  check('  直す', await page.evaluate(() => document.querySelectorAll('.sb-sum b')[0].textContent), '1,990円');
+  // 👁 で見る → ヒントを出してパスワードを聞く
+  const eye = () => page.evaluate(() => [...document.querySelectorAll('.sb-card')].find(c => c.textContent.includes('動画配信')).querySelector('button[aria-label^="パスワードを"]').click());
+  await eye(); await w(200);
+  check('  👁 を押すと、ヒントを出して閲覧用のパスワードを聞く', await page.evaluate(() => isDlgOpen('sbPwOverlay') + '/' + document.querySelector('#sbPwBody .sb-hint').textContent.includes('飼い猫の名前と数字')), 'true/true');
+  const tryPw = async pw => { await page.evaluate(async pw => { document.getElementById('sbPwIn').value = pw; await sbUnlock(); }, pw); await w(400); return page.evaluate(() => sbState().locked + '/' + ((document.getElementById('sbErr') || {}).textContent || '')); };
+  check('  ちがうパスワードでは見せない', await tryPw('neko9999'), 'true/パスワードがちがいます');
+  check('  合えば見せる（そのパスワードが出る）', await tryPw('neko1234') + '/' + await page.evaluate(() => document.querySelector('.sb-card .sb-cred').textContent.includes('Secret#123')), 'false//true');
+  check('  鍵を開けているあいだは 🔒 ボタン', await page.evaluate(() => !document.getElementById('sbLockBtn').hidden), true);
+  check('  🔒ですぐ隠す', await page.evaluate(() => { sbLockNow(); return sbState().locked + '/' + document.querySelector('.sb-card .sb-cred').textContent.includes('Secret#123'); }), 'true/false');
+  // 鍵がかかったまま直す・パスワードを書きかえる（聞かれない）
+  await page.evaluate(() => { const c = [...document.querySelectorAll('.sb-card')].find(x => x.textContent.includes('動画配信')); c.click(); }); await w(150);
+  check('  鍵がかかったまま直す画面を開ける（パスワードの欄は空・保存してあると出す）', await page.evaluate(() => isDlgOpen('sbEdOverlay') + '/' + document.getElementById('sbEPw').value + '/' + document.getElementById('sbEPw').placeholder.includes('保存してあります') + '/' + isDlgOpen('sbPwOverlay')), 'true//true/false');
+  await page.evaluate(() => { document.getElementById('sbEPrice').value = 1990; }); await page.evaluate(() => sbEdSave()); await w(400);
+  check('  金額だけ直しても、保存したパスワードはそのまま', await page.evaluate(() => { const o = JSON.parse(localStorage.getItem('excalc_subsc')).items.find(x => x.name === '動画配信'); return o.price + '/' + !!o.sec; }), '1990/true');
+  await page.evaluate(() => { const c = [...document.querySelectorAll('.sb-card')].find(x => x.textContent.includes('動画配信')); c.click(); }); await w(150);
+  await page.evaluate(() => { document.getElementById('sbEPw').value = 'NewPass!9'; }); await page.evaluate(() => sbEdSave()); await w(500);
+  check('  鍵がかかったまま、新しいパスワードに書きかえられる（聞かれない）', await page.evaluate(() => isDlgOpen('sbPwOverlay') + '/' + isDlgOpen('sbEdOverlay') + '/' + !localStorage.getItem('excalc_subsc').includes('NewPass!9')), 'false/false/true');
+  await page.evaluate(() => { const b = [...document.querySelectorAll('.sb-card')].find(c => c.textContent.includes('動画配信')).querySelector('button[aria-label="パスワードをコピー"]'); b.click(); }); await w(200);
+  check('  📋 コピーも閲覧用のパスワードを聞く', await page.evaluate(() => isDlgOpen('sbPwOverlay')), true);
+  await tryPw('neko1234');
+  check('  書きかえたパスワードが見える', await page.evaluate(async () => { const c = [...document.querySelectorAll('.sb-card')].find(x => x.textContent.includes('動画配信')); c.querySelector('button[aria-label^="パスワードを"]').click(); await new Promise(r => setTimeout(r, 200)); return document.querySelector('.sb-card .sb-cred').textContent.includes('NewPass!9'); }), true);
+  // 直す画面の「保存してあるパスワードを見る」
+  await page.evaluate(() => sbLockNow()); await w(100);
+  await page.evaluate(() => { const c = [...document.querySelectorAll('.sb-card')].find(x => x.textContent.includes('動画配信')); c.click(); }); await w(150);
+  await page.evaluate(() => sbEdShowPw()); await w(150);
+  await tryPw('neko1234');
+  check('  直す画面から「見る」：聞いてから欄に出す', await page.evaluate(() => document.getElementById('sbEPw').value), 'NewPass!9');
+  await page.evaluate(() => { document.getElementById('sbEPwDel').checked = true; }); await page.evaluate(() => sbEdSave()); await w(400);
+  check('  保存してあるパスワードを消す', await page.evaluate(() => !!JSON.parse(localStorage.getItem('excalc_subsc')).items.find(x => x.name === '動画配信').sec), false);
+  // 消す
   await page.evaluate(() => { window.appConfirm = async () => true; const c = [...document.querySelectorAll('.sb-card')].find(x => x.textContent.includes('昔のアプリ')); c.click(); }); await w(100);
-  await page.evaluate(() => sbEdDelete()); await w(700);
+  await page.evaluate(() => sbEdDelete()); await w(400);
   check('  消す', await page.evaluate(() => sbState().items), 3);
-  // パスワードを変える
-  await page.evaluate(() => sbOpenSet()); await w(100);
+  // 閲覧用のパスワードを変える
+  await add({ name: '音楽', price: 980, cycle: 'm', pw: 'Music#1' });
+  await page.evaluate(() => { sbLockNow(); sbOpenSet(); }); await w(150);
   const chg = async (o, a, b) => page.evaluate(async ([o, a, b]) => { document.getElementById('sbSOld').value = o; document.getElementById('sbSNew1').value = a; document.getElementById('sbSNew2').value = b; await sbChangePw(); return document.getElementById('sbSErr').textContent; }, [o, a, b]);
   check('  いまのパスワードがちがえば変えない', await chg('xxxx', 'inu5678', 'inu5678'), 'いまのパスワードがちがいます');
-  await chg('neko1234', 'inu5678', 'inu5678'); await w(1200);
-  await page.evaluate(() => { sbCloseSet(); sbLockNow(); }); await w(100);
-  check('  新しいパスワードで開く（前のでは開かない）', (await tryPw('neko1234')) + ' ' + (await tryPw('inu5678')), 'true/パスワードがちがいます false/');
+  await chg('neko1234', 'inu5678', 'inu5678'); await w(1500);
+  await page.evaluate(() => sbCloseSet()); await w(200);
+  const eye2 = () => page.evaluate(() => [...document.querySelectorAll('.sb-card')].find(c => c.textContent.includes('音楽')).querySelector('button[aria-label^="パスワードを"]').click());
+  await eye2(); await w(200);
+  check('  新しいパスワードで見られる（前のでは見られない）', (await tryPw('neko1234')) + ' ' + (await tryPw('inu5678')) + ' ' + await page.evaluate(() => document.querySelector('.sb-card .sb-cred') && [...document.querySelectorAll('.sb-card')].find(c => c.textContent.includes('音楽')).textContent.includes('Music#1')), 'true/パスワードがちがいます false/ true');
+  // 開き直しても残る
+  await page.evaluate(() => closeSubsc()); await w(600); await page.reload(); await w(900);
+  await page.evaluate(() => openSubsc()); await w(500);
+  check('  アプリを開き直しても残る（パスワードは聞かない）', await page.evaluate(() => sbState().items + '/' + sbState().locked + '/' + !!document.getElementById('sbQ')), '4/true/true');
   // バックアップ
-  const bk = await page.evaluate(() => { const o = subscBundle(); return !!o && !!o.ct && SUBSC_KEY === 'excalc_subsc' && JSON.stringify(o).indexOf('動画配信') < 0; });
-  check('  📋リストの書き出しに暗号のまま入る', bk + '/' + (await page.evaluate(() => /subsc:subscBundle\(\)/.test(document.documentElement.innerHTML) || true)), 'true/true');
+  const bk = await page.evaluate(() => { const o = subscBundle(); return !!o && o.v === 2 && SUBSC_KEY === 'excalc_subsc' && JSON.stringify(o).indexOf('Music#1') < 0; });
+  check('  📋リストの書き出しに入る（パスワードは暗号のまま）', bk, true);
+  // 閲覧用のパスワードを忘れた：パスワードだけ消す
+  await page.evaluate(() => sbOpenSet()); await w(150);
+  await page.evaluate(async () => { window.appConfirm = async () => true; await sbForgotPw(); }); await w(300);
+  check('  忘れたとき：保存したパスワードだけ消す（一覧は残る）', await page.evaluate(() => { const o = JSON.parse(localStorage.getItem('excalc_subsc')); return o.items.length + '/' + o.items.some(x => x.sec) + '/' + !!o.pub + '/' + sbState().keys; }), '4/false/false/false');
+  // v453 の形から移す
+  await page.evaluate(async () => {
+    const enc = new TextEncoder(), salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+    const base = await crypto.subtle.importKey('raw', enc.encode('oldpw12'), 'PBKDF2', false, ['deriveKey']);
+    const k = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt']);
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, k, enc.encode(JSON.stringify({ v: 1, lockMin: 1, items: [{ id: 'a1', name: '古い動画', price: 990, cycle: 'm', uid: 'old@x.jp', pw: 'OldSecret' }, { id: 'a2', name: '古い本', price: 500, cycle: 'y' }] }))));
+    const b = u => btoa(String.fromCharCode(...u));
+    closeSubsc(); localStorage.setItem('excalc_subsc', JSON.stringify({ v: 1, hint: '前のヒント', salt: b(salt), iter: 250000, iv: b(iv), ct: b(ct) }));
+  }); await w(400);
+  await page.evaluate(() => openSubsc()); await w(400);
+  check('  v453 の形：一度だけ いつものパスワードを聞いて移す（ヒントつき）', await page.evaluate(() => sbState().old + '/' + !!document.getElementById('sbPwIn') + '/' + document.querySelector('#sbBody .sb-hint').textContent.includes('前のヒント')), 'true/true/true');
+  const mig = async pw => { await page.evaluate(async pw => { document.getElementById('sbPwIn').value = pw; await sbMigrate(); }, pw); await w(600); return page.evaluate(() => sbState().old + '/' + ((document.getElementById('sbErr') || {}).textContent || '')); };
+  check('  ちがうパスワードでは移さない', await mig('wrong'), 'true/パスワードがちがいます');
+  await mig('oldpw12'); await w(2500);
+  const st2 = await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_subsc')));
+  check('  移したあと：一覧・ヒント・自動で隠す時間はそのまま、パスワードは暗号', [st2.v, st2.items.map(x => x.name).join(','), st2.hint, st2.lockMin, !!st2.items[0].sec, JSON.stringify(st2).includes('OldSecret')].join('/'), '2/古い動画,古い本/前のヒント/1/true/false');
+  check('  移したあと：同じパスワードで見られる', await page.evaluate(async () => { sbLockNow(); const c = [...document.querySelectorAll('.sb-card')].find(x => x.textContent.includes('古い動画')); c.querySelector('button[aria-label^="パスワードを"]').click(); await new Promise(r => setTimeout(r, 200)); document.getElementById('sbPwIn').value = 'oldpw12'; await sbUnlock(); await new Promise(r => setTimeout(r, 300)); return document.querySelector('#sbBody').textContent.includes('OldSecret'); }), true);
   check('  戻るで閉じる（鍵がかかる）', await page.evaluate(async () => { window.history.back(); await new Promise(r => setTimeout(r, 400)); return isDlgOpen('subscOverlay') + '/' + sbState().locked; }), 'false/true');
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
