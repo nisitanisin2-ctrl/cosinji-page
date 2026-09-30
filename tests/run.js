@@ -1189,10 +1189,10 @@ async function runNpTools(browser) {
 
   check('  はじめは道具のタブを出さない', await bar(), '書式・枠線|数字|記号|電卓|▲ マイキー');
   check('  設定に選べる道具が並ぶ', await page.evaluate(() =>
-    document.querySelectorAll('#npToolList .nptool-row').length), 17);   // v422 で 🎙声の計算帳、v433 で 📔業務手帳、v449 で 📚英単語、v453 で 🔐サブスク を足した
+    document.querySelectorAll('#npToolList .nptool-row').length), 18);   // v422 で 🎙声の計算帳、v433 で 📔業務手帳、v449 で 📚英単語、v453 で 🔐サブスク を足した
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,memo,calctmpl,fintmpl,kaikei,koe,eigo');
+    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,memo,calctmpl,fintmpl,kaikei,koe,eigo');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -2915,11 +2915,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,calctmpl,fintmpl');
+    'last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 16);   // v453 で 🔐サブスク を足した
+    document.getElementById('startPageSel').options.length), 17);   // v453 で 🔐サブスク を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'veggieOverlay', 'volumeOverlay',
@@ -7448,6 +7448,95 @@ async function runAnnai(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runShimai(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📦しまい場所メモ（v458） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキーにある', await page.evaluate(() => !window.SHIMAI_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'shimai') + '/' + !!KEY_FUNCS.a_shimai), 'true/true/true');
+  await page.evaluate(() => openShimai()); await w(600);
+  check('  はじめは入れ方の案内', await page.evaluate(() => isDlgOpen('shimaiOverlay') + '/' + document.getElementById('smList').textContent.includes('パスポートは寝室のタンスの2段目') + '/' + document.getElementById('smSnack').hidden), 'true/true/true');
+  // 文から物と場所に分ける
+  const cases = [['パスポートは寝室のタンスの2段目', 'パスポート|寝室のタンスの2段目'], ['印鑑を仏壇の引き出しにしまった', '印鑑|仏壇の引き出し'], ['冬タイヤ→物置', '冬タイヤ|物置'],
+    ['保険証の場所は財布', '保険証|財布'], ['おはしは台所の引き出し', 'おはし|台所の引き出し'], ['はさみは机の引き出しに入れた', 'はさみ|机の引き出し'],
+    ['延長コードは押し入れの右の箱にある', '延長コード|押し入れの右の箱'], ['車の予備の鍵は玄関の棚です。', '車の予備の鍵|玄関の棚'], ['年賀状：書斎の本棚', '年賀状|書斎の本棚'],
+    ['ベビーカーは物置に置いてある', 'ベビーカー|物置'], ['水着はベランダ', '水着|ベランダ'], ['懐中電灯', '懐中電灯|']];
+  const got = await page.evaluate(cs => cs.map(c => { const r = smParse(c[0]); return r.name + '|' + r.place; }), cases);
+  cases.forEach((c, i) => check('  分ける：' + c[0], got[i], c[1]));
+  check('  「どこ？」を聞く言い方', await page.evaluate(() => ['パスポートどこ', '印鑑はどこにしまったっけ？', '冬タイヤってどこ', 'パスポートは寝室'].map(t => smAskWhere(t)).join(',')), 'パスポート,印鑑,冬タイヤ,');
+  // 入れる
+  for (const t of ['パスポートは寝室のタンスの2段目', '印鑑を仏壇の引き出しにしまった', '予備の電池は台所の引き出し', 'おはしは台所の引き出し']) { await page.fill('#smAddIn', t); await page.press('#smAddIn', 'Enter'); await w(60); }
+  check('  打ってすぐ入る・欄は空に・「直す／取り消し」', await page.evaluate(() => smState().items.length + '/' + document.getElementById('smAddIn').value + '/' + !document.getElementById('smSnack').hidden + '/' + document.getElementById('smSnack').textContent.includes('取り消し')), '4//true/true');
+  await page.evaluate(() => [...document.querySelectorAll('#smSnack button')].find(b => b.textContent === '取り消し').click()); await w(80);
+  check('  取り消し', await page.evaluate(() => smState().items.map(x => x.name).join(',')), 'パスポート,印鑑,予備の電池');
+  check('  覚える（excalc_shimai）', await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_shimai')).items.length), 3);
+  // さがす
+  const find = q => page.evaluate(q => { smSetQ(q); return [...document.querySelectorAll('#smList .sm-it .nm')].map(e => e.textContent).join(','); }, q);
+  check('  さがす：ひらがなでカタカナ', await find('ぱすぽ'), 'パスポート');
+  check('  さがす：場所の言葉・全角半角', await find('ﾀﾝｽ'), 'パスポート');
+  check('  さがす：2つの言葉', await find('台所 でんち'), '');
+  check('  さがす：2つの言葉（漢字）', await find('台所 電池'), '予備の電池');
+  check('  見つからないときは「入れる」を出す', await page.evaluate(() => { smSetQ('ドライバー'); return document.getElementById('smList').textContent.includes('見つかりませんでした') + '/' + document.getElementById('smList').textContent.includes('「ドライバー」のしまい場所を入れる'); }), 'true/true');
+  await page.evaluate(() => { document.getElementById('smFind').value = ''; smSetQ(''); });
+  await page.fill('#smAddIn', 'パスポートどこ？'); await page.press('#smAddIn', 'Enter'); await w(80);
+  check('  下の欄で「〇〇どこ？」はさがす（入れない）', await page.evaluate(() => document.getElementById('smFind').value + '/' + smState().items.length + '/' + document.querySelector('#smList .sm-it.hit .nm').textContent), 'パスポート/3/パスポート');
+  await page.evaluate(() => { document.getElementById('smFind').value = ''; smSetQ(''); });
+  // 同じ名前 → 場所を変えるか聞く → 前の場所を残す
+  await page.fill('#smAddIn', 'パスポートは金庫'); await page.press('#smAddIn', 'Enter'); await w(200);
+  check('  同じ物は場所を変えるか聞く', await page.evaluate(() => isDlgOpen('smSubOverlay') + '/' + document.getElementById('smSubBody').textContent.includes('寝室のタンスの2段目')), 'true/true');
+  await page.evaluate(() => document.querySelector('#smSubBody button[data-r="0"]').click()); await w(200);
+  check('  場所を変える・前の場所を残す', await page.evaluate(() => { const x = smState().items.find(i => i.name === 'パスポート'); return smState().items.length + '/' + x.place + '/' + x.hist.map(h => h.place).join(',') + '/' + document.querySelector('#smList').textContent.includes('前は：寝室のタンスの2段目'); }), '3/金庫/寝室のタンスの2段目/true');
+  await page.evaluate(() => [...document.querySelectorAll('#smSnack button')].find(b => b.textContent === '元に戻す').click()); await w(80);
+  check('  元に戻す', await page.evaluate(() => { const x = smState().items.find(i => i.name === 'パスポート'); return x.place + '/' + x.hist.length; }), '寝室のタンスの2段目/0');
+  // 場所の分からない文は入力画面で
+  await page.fill('#smAddIn', '懐中電灯'); await page.press('#smAddIn', 'Enter'); await w(250);
+  check('  場所がないときは入力画面（名前は入っている）', await page.evaluate(() => isDlgOpen('smEdOverlay') + '/' + document.getElementById('smEName').value + '/' + document.getElementById('smEPlace').value + '/' + document.querySelectorAll('#smEdBody .sm-pc button').length), 'true/懐中電灯//3');
+  await page.evaluate(() => { [...document.querySelectorAll('#smEdBody .sm-pc button')].find(b => b.textContent === '台所の引き出し').click(); document.getElementById('smENote').value = '赤いもの'; });
+  await page.setInputFiles('#smPicIn', path.join(ROOT, 'icon-192.png')); await w(400);
+  check('  写真を選ぶと小さくして見せる', await page.evaluate(() => /url\("data:image\/jpeg/.test(document.getElementById('smEPv').style.backgroundImage) + '/' + !document.getElementById('smEPicDel').hidden), 'true/true');
+  await page.evaluate(() => smEdSave()); await w(400);
+  const kid = await page.evaluate(() => smState().items.find(i => i.name === '懐中電灯').id);
+  check('  入力画面で保存（場所のチップ・メモ・写真）', await page.evaluate(id => { const x = smState().items.find(i => i.id === id); return x.place + '/' + x.note + '/' + x.photo; }, kid), '台所の引き出し/赤いもの/true');
+  check('  一覧に写真の小さな絵', await page.evaluate(id => /url\("data:image/.test(document.querySelector(`#smList .sm-it[data-id="${id}"] .ph`).style.backgroundImage), kid), true);
+  // 並べ方・場所のチップ
+  await page.evaluate(() => smSetView('place')); await w(100);
+  check('  場所ごと', await page.evaluate(() => [...document.querySelectorAll('#smList .sm-grp')].map(g => g.firstChild.textContent.trim()).join(',')), '📍 台所の引き出し,📍 寝室のタンスの2段目,📍 仏壇の引き出し');
+  await page.evaluate(() => smSetPlace('台所の引き出し')); await w(80);
+  check('  場所のチップで絞る', await page.evaluate(() => [...document.querySelectorAll('#smList .sm-it .nm')].map(e => e.textContent).sort().join(',')), '予備の電池,懐中電灯');
+  await page.evaluate(() => { smSetPlace('台所の引き出し'); smSetView('new'); }); await w(80);
+  // 声（にせの聞き取り）
+  await page.evaluate(() => { window.__said = ''; window.speechRecCtor = () => class { start() { setTimeout(() => { this.onresult({ results: [[{ transcript: window.__said }]] }); this.onend(); }, 20); } abort() {} }; });
+  await page.evaluate(() => { window.__said = '印鑑どこ'; smListen('find'); }); await w(150);
+  check('  🎤「印鑑どこ」でさがす', await page.evaluate(() => document.getElementById('smFind').value + '/' + document.querySelector('#smList .sm-it.hit .nm').textContent), '印鑑/印鑑');
+  await page.evaluate(() => { document.getElementById('smFind').value = ''; smSetQ(''); window.__said = 'ひな人形は押し入れの天袋にしまった'; smListen('add'); }); await w(200);
+  check('  🎤で入れる', await page.evaluate(() => { const x = smState().items.find(i => i.name === 'ひな人形'); return x ? x.place : 'なし'; }), '押し入れの天袋');
+  // 印刷・CSV
+  check('  🖨 場所ごとの一覧を印刷', await page.evaluate(() => { let h = ''; const ob = window.opBuild, op = window.opPrint; window.opBuild = x => x; window.opPrint = x => { h = x; }; smPrint(); window.opBuild = ob; window.opPrint = op; return h.includes('📍 台所の引き出し（2）') + '/' + h.includes('<td>懐中電灯</td><td>赤いもの</td>'); }), 'true/true');
+  check('  CSV（BOMつき・見出し）', await page.evaluate(async () => { let t = ''; const B = window.Blob; window.Blob = class extends B { constructor(p, o) { super(p, o); t = p.join(''); } }; smCsv(); window.Blob = B; return t.startsWith('﻿"物","場所","メモ"') + '/' + t.includes('"懐中電灯","台所の引き出し","赤いもの"'); }), 'true/true');
+  // 📋リストのバックアップ
+  check('  バックアップに入る（写真は別に聞く）', await page.evaluate(async () => { const b = shimaiBundle(), p = await shimaiPicsBundle(); return b.items.length + '/' + Object.keys(p || {}).length; }), '5/1');
+  const exp = await page.evaluate(async () => { const b = shimaiBundle(), p = await shimaiPicsBundle(); return JSON.stringify({ b, p }); });
+  await page.evaluate(async () => { window.appConfirm = async () => true; await smWipe(); }); await w(150);
+  check('  ぜんぶ消す（写真も）', await page.evaluate(async () => smState().items.length + '/' + (await shimaiPicsBundle())), '0/null');
+  await page.evaluate(async e => { const o = JSON.parse(e); await shimaiRestoreBundle(o.b, o.p); }, exp); await w(200);
+  check('  読み込むと戻る（写真も）', await page.evaluate(async () => smState().items.length + '/' + Object.keys((await shimaiPicsBundle()) || {}).length + '/' + document.querySelectorAll('#smList .sm-it').length), '5/1/5');
+  await page.evaluate(async e => { const o = JSON.parse(e); await shimaiRestoreBundle(o.b, o.p); }, exp); await w(150);
+  check('  同じものをもう一度読み込んでも重ならない', await page.evaluate(() => smState().items.length), 5);
+  // 消す
+  await page.evaluate(async id => { smEdit(id); await new Promise(r => setTimeout(r, 100)); await smRemove(id); }, kid); await w(200);
+  check('  消す（写真も消す）', await page.evaluate(async () => smState().items.length + '/' + (await shimaiPicsBundle())), '4/null');
+  // 開き直し・戻る
+  await page.evaluate(() => { if (isDlgOpen('smEdOverlay')) smCloseEd(); }); await w(300);
+  await page.evaluate(() => closeShimai()); await w(400); await page.reload(); await w(900);
+  await page.evaluate(() => openShimai()); await w(500);
+  check('  開き直しても残る', await page.evaluate(() => smState().items.length), 4);
+  await page.evaluate(() => smEdit(smState().items[0].id)); await w(200);
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  戻るで入力画面だけ閉じる', await page.evaluate(() => isDlgOpen('smEdOverlay') + '/' + isDlgOpen('shimaiOverlay')), 'false/true');
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  戻るで閉じる', await page.evaluate(() => isDlgOpen('shimaiOverlay')), false);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runTbFold(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── ☰ 上のバーをたたむ（v443） ──');
@@ -8458,6 +8547,7 @@ async function runQrShare(browser) {
     if (!only || only === 'subsc') await runSubsc(browser);
     if (!only || only === 'heya') await runHeya(browser);
     if (!only || only === 'annai') await runAnnai(browser);
+    if (!only || only === 'shimai') await runShimai(browser);
     if (!only || only === 'techoapp') await runTechoApp(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
