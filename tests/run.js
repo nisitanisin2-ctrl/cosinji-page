@@ -1105,7 +1105,7 @@ async function runFlickSym(browser) {
 
   // ── 記号ページの表示・非表示 ──
   const bar = () => page.evaluate(() =>
-    [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|'));
+    [...document.querySelectorAll('#numpadPageBar .np-page:not(.np-toolsbtn)')].map(b => b.textContent.trim()).join('|'));
   check('  はじめは記号ページを出す', await bar(), '書式・枠線|数字|記号|電卓|▲ 自分のボタン');
   await page.evaluate(() => toggleFuncPage()); await page.waitForTimeout(300);
   check('  隠すと並びから消える', await bar(), '書式・枠線|数字|電卓|▲ 自分のボタン');
@@ -1185,7 +1185,7 @@ async function runNpTools(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── テンキーの上に出す道具 ──');
   const bar = () => page.evaluate(() =>
-    [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|'));
+    [...document.querySelectorAll('#numpadPageBar .np-page:not(.np-toolsbtn)')].map(b => b.textContent.trim()).join('|'));
 
   check('  はじめは道具のタブを出さない', await bar(), '書式・枠線|数字|記号|電卓|▲ 自分のボタン');
   check('  設定に選べる道具が並ぶ', await page.evaluate(() =>
@@ -1227,7 +1227,7 @@ async function runNpTools(browser) {
   check('  チェックした道具が電卓の右に並ぶ', await bar(), '書式・枠線|数字|記号|電卓|💧単位水量|🌱野菜|▲ 自分のボタン');
   check('  会計アプリもタブに足せる', await page.evaluate(async () => {
     npToolToggle('kaikei'); await new Promise(r => setTimeout(r, 200));
-    const on = [...document.querySelectorAll('#numpadPageBar .np-page')].some(b => /会計アプリ/.test(b.textContent));
+    const on = [...document.querySelectorAll('#numpadPageBar .np-page:not(.np-toolsbtn)')].some(b => /会計アプリ/.test(b.textContent));
     npToolToggle('kaikei'); await new Promise(r => setTimeout(r, 200));
     return on;
   }), true);
@@ -1247,7 +1247,7 @@ async function runNpTools(browser) {
 
   // タブをタップすると道具が開く（ページは動かない）
   await page.evaluate(() => {
-    const t = [...document.querySelectorAll('#numpadPageBar .np-page')].find(b => /野菜/.test(b.textContent));
+    const t = [...document.querySelectorAll('#numpadPageBar .np-page:not(.np-toolsbtn)')].find(b => /野菜/.test(b.textContent));
     t.click(); }); await page.waitForTimeout(400);
   check('  タブで道具が開く', await page.evaluate(() => isDlgOpen('veggieOverlay')), true);
   check('  ページは動かない', await page.evaluate(() => String(numpadPager.current())), 'null');
@@ -4581,7 +4581,7 @@ async function runCalcOnly(browser) {
   };
   const cur = () => page.evaluate(() => numpadPager.current());
   const tabs = () => page.evaluate(() =>
-    [...document.querySelectorAll('#numpadPageBar .np-page')].map(x => x.textContent).join('/'));
+    [...document.querySelectorAll('#numpadPageBar .np-page:not(.np-toolsbtn)')].map(x => x.textContent).join('/'));
   const closeTools = async () => { await page.evaluate(() => {
     if (isDlgOpen('veggieOverlay')) closeVeggie();
     if (isDlgOpen('tansuiOverlay')) closeTansui(); }); await page.waitForTimeout(500); };
@@ -7589,7 +7589,7 @@ async function runUiMode(browser) {
   check('  はじめての人は かんたん', await page.evaluate(() => uiEasy + '/' + localStorage.getItem('excalc_uimode') + '/' + document.body.classList.contains('ui-easy')), 'true/easy/true');
   await page.evaluate(() => { tourSkip(); }); await page.waitForTimeout(700);
   await page.evaluate(() => { closeHome(); try { hideNotice(); } catch (_) {} }); await page.waitForTimeout(400);
-  const bar = () => page.evaluate(() => [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|'));
+  const bar = () => page.evaluate(() => [...document.querySelectorAll('#numpadPageBar .np-page:not(.np-toolsbtn)')].map(b => b.textContent.trim()).join('|'));
   check('  かんたん：テンキーのページは 数字と電卓だけ', await bar(), '数字|電卓');
   // 横になぞる（ホイール）：数字⇄電卓だけ。道具や書式へは行かない
   const wheel = async d => { const r = await page.evaluate(() => { const b = document.getElementById('numpadViewport').getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; });
@@ -7638,6 +7638,48 @@ async function runUiMode(browser) {
   check('  前から使っている人は ぜんぶ（いままでどおり）', await page.evaluate(() => uiEasy + '/' + localStorage.getItem('excalc_uimode')), 'false/full');
   check('  言葉：用途→ひな形・マイキー→自分のボタン・⋯→☰', await page.evaluate(() => document.getElementById('shoppingBtn').textContent + '/' + NP_ROW_REG.map(r => r[1]).join(',') + '/' + document.getElementById('moreBtn').textContent), 'ひな形/自分のボタン左,自分のボタン,自分のボタン右/☰');
   check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+async function runToolsFab(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🧰道具ボタンと、道具のアイコン（v462） ──');
+  const btn = () => page.evaluate(() => { const b = document.querySelector('#numpadPageBar .np-toolsbtn'); return b ? b.textContent + '/' + getComputedStyle(b).backgroundColor : 'なし'; });
+  check('  テンキーの上の並びに 🧰道具（目立つ色）', await btn(), '🧰 道具/rgb(245, 124, 0)');
+  check('  並びの右寄り（自分のボタンの左）', await page.evaluate(() => { const b = [...document.querySelectorAll('#numpadPageBar .np-page')]; const i = b.findIndex(x => x.classList.contains('np-toolsbtn')); return b.length - 1 - i; }), 1);
+  await page.click('#numpadPageBar .np-toolsbtn'); await page.waitForTimeout(500);
+  check('  押すと道具の窓', await page.evaluate(() => isDlgOpen('toolsListOverlay')), true);
+  await page.evaluate(() => closeToolsList()); await page.waitForTimeout(300);
+  await page.evaluate(() => setUiMode('easy')); await page.waitForTimeout(200);
+  check('  かんたん表示でも出る（いちばん右）', await page.evaluate(() => [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|')), '数字|電卓|🧰 道具');
+  await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(300);
+  check('  電卓でも出る', await page.evaluate(() => !!document.querySelector('#numpadPageBar .np-toolsbtn')), true);
+  await page.evaluate(() => { switchMode('normal'); setUiMode('full'); setToolsFab(false); }); await page.waitForTimeout(200);
+  check('  出さない設定・覚える', await btn() + '/' + await page.evaluate(() => localStorage.getItem('excalc_toolsfab') + '/' + document.querySelector('#toolsFabSeg button.on').dataset.f), 'なし/0/0');
+  await page.evaluate(() => setToolsFab(true)); await page.waitForTimeout(100);
+  check('  バックアップの設定に入れる', await page.evaluate(() => SETTINGS_BACKUP_KEYS.includes('excalc_toolsfab')), true);
+  // 道具をアイコンにする
+  await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
+  await page.click('#appIconBtn'); await page.waitForTimeout(400);
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/18');
+  check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
+  await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
+  // 道具ごとの入口のファイル
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'shimai', 'calctmpl', 'fintmpl'];
+  check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
+    const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
+    return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
+  check('  入口の道具はどれも表電卓の道具にある', await page.evaluate(ids => ids.filter(id => !(npToolDef(id) && npToolDef(id).ov)).join(','), apps), '');
+  // ?app=shimai：しまい場所だけのアプリ
+  const ap = await ctx.newPage(); const aerr = []; ap.on('pageerror', e => aerr.push(e.message));
+  await ap.goto(INDEX + '?app=shimai'); await ap.waitForTimeout(2600);
+  check('  ?app=shimai：名前・アイコン・manifest をしまい場所に', await ap.evaluate(() => [document.title, document.querySelector('link[rel=manifest]').getAttribute('href'), document.querySelector('link[rel=apple-touch-icon]').getAttribute('href'), document.querySelector('meta[name=apple-mobile-web-app-title]').content].join('|')), '📦 しまい場所|apps/shimai/manifest.json|apps/shimai/apple-touch-icon.png|しまい場所');
+  check('  ?app=shimai：しまい場所を全画面で開く（ホーム・案内は出さない）', await ap.evaluate(() => isDlgOpen('shimaiOverlay') + '/' + document.querySelector('#shimaiOverlay .modal').classList.contains('modal-full') + '/' + isDlgOpen('homeOverlay') + '/' + isDlgOpen('tourOverlay')), 'true/true/false/false');
+  check('  ブラウザで開いたときは、ホーム画面への置き方を一度だけ出す', await ap.evaluate(() => !!document.querySelector('#shimaiOverlay .app-add-hint') + '/' + localStorage.getItem('excalc_apphint_shimai')), 'true/1');
+  await ap.reload(); await ap.waitForTimeout(2600);
+  check('  2回目は出さない', await ap.evaluate(() => !!document.querySelector('.app-add-hint')), false);
+  check('  知らない ?app= はふつうの表電卓', await ap.evaluate(async () => { location.search = '?app=nothing'; return 1; }).then(() => ap.waitForTimeout(2000)).then(() => ap.evaluate(() => (window.APP_TOOL || 'なし') + '/' + document.title.startsWith('表電卓'))), 'なし/true');
+  check('  エラーなし', errs.concat(aerr).join(' | '), '');
+  await ap.close();
   await ctx.close();
 }
 async function runTbFold(browser) {
@@ -8677,6 +8719,7 @@ async function runQrShare(browser) {
     if (!only || only === 'annai') await runAnnai(browser);
     if (!only || only === 'shimai') await runShimai(browser);
     if (!only || only === 'uimode') await runUiMode(browser);
+    if (!only || only === 'toolsfab') await runToolsFab(browser);
     if (!only || only === 'techoapp') await runTechoApp(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);
