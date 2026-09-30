@@ -112,17 +112,15 @@ async function mark(page, marks) {
 
   // 3. ☰ メニュー
   await fresh();
-  await page.evaluate(() => { openMoreMenu(); document.getElementById('voiceMoreBtn').style.display = ''; });
+  await page.evaluate(() => { openMoreMenu(); });
   await shot('menu', [
     { sel: '#moreRec', n: 1, pos: 'tl' },
     { sel: '#moreSave', n: 2, pos: 'tl' },
     { sel: '#listBtn', n: 3, pos: 'tl' },
-    { sel: '#moreUndo', n: 4, pos: 'tl' },
-    { sel: '#moreToolsBtn', n: 5, pos: 'tl' },
-    { sel: '#voiceMoreBtn', n: 6, pos: 'tl' },
-    { sel: '#settingsBtn', n: 7, pos: 'tl' },
-    { sel: '#moreHelpBtn', n: 8, pos: 'tl' },
-    { sel: '#moreAccAll > summary', n: 9, pos: 'tl' },
+    { sel: '#moreToolsBtn', n: 4, pos: 'tl' },
+    { sel: '#settingsBtn', n: 5, pos: 'tl' },
+    { sel: '#moreHelpBtn', n: 6, pos: 'tl' },
+    { sel: '#moreAccAll > summary', n: 7, pos: 'tl' },
   ]);
 
   // 4. 電卓
