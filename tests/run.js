@@ -512,7 +512,7 @@ async function runSaveList(browser) {
   check('  メニューの中身',
         await page.evaluate(() => [...document.querySelectorAll('#saveFileMenu button')]
           .map(b => b.textContent.trim().split(' ').pop()).join('/')),
-        '開く/名前の変更/コピーを作る/書き出し/ロック/用途の一覧に登録/タブ1へ移す/タブ2へ移す/削除');
+        '開く/名前の変更/コピーを作る/書き出し/ロック/ひな形の一覧に登録/タブ1へ移す/タブ2へ移す/削除');
   check('  ロック中は名前の変更と削除ができない',
         await page.evaluate(() => { hideSaveFileMenu();
           showSaveFileMenu(1001, document.querySelector('.sf-more'));
@@ -1106,9 +1106,9 @@ async function runFlickSym(browser) {
   // ── 記号ページの表示・非表示 ──
   const bar = () => page.evaluate(() =>
     [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|'));
-  check('  はじめは記号ページを出す', await bar(), '書式・枠線|数字|記号|電卓|▲ マイキー');
+  check('  はじめは記号ページを出す', await bar(), '書式・枠線|数字|記号|電卓|▲ 自分のボタン');
   await page.evaluate(() => toggleFuncPage()); await page.waitForTimeout(300);
-  check('  隠すと並びから消える', await bar(), '書式・枠線|数字|電卓|▲ マイキー');
+  check('  隠すと並びから消える', await bar(), '書式・枠線|数字|電卓|▲ 自分のボタン');
   const vp = await page.evaluate(() => {
     const r = document.getElementById('numpadViewport').getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
@@ -1119,7 +1119,7 @@ async function runFlickSym(browser) {
   await page.reload(); await page.waitForTimeout(900);
   check('  開き直しても隠れたまま', await page.evaluate(() => showFuncPage), false);
   await page.evaluate(() => toggleFuncPage()); await page.waitForTimeout(300);
-  check('  戻すと並びに出る', await bar(), '書式・枠線|数字|記号|電卓|▲ マイキー');
+  check('  戻すと並びに出る', await bar(), '書式・枠線|数字|記号|電卓|▲ 自分のボタン');
   await page.mouse.move(vp.x, vp.y); await page.mouse.wheel(0, 120); await page.waitForTimeout(600);
   check('  数字の次は記号に戻る', await page.evaluate(() => String(numpadPager.current())), 'func');
   await page.evaluate(() => numpadPager.go(null)); await page.waitForTimeout(400);
@@ -1187,7 +1187,7 @@ async function runNpTools(browser) {
   const bar = () => page.evaluate(() =>
     [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|'));
 
-  check('  はじめは道具のタブを出さない', await bar(), '書式・枠線|数字|記号|電卓|▲ マイキー');
+  check('  はじめは道具のタブを出さない', await bar(), '書式・枠線|数字|記号|電卓|▲ 自分のボタン');
   check('  設定に選べる道具が並ぶ', await page.evaluate(() =>
     document.querySelectorAll('#npToolList .nptool-row').length), 18);   // v422 で 🎙声の計算帳、v433 で 📔業務手帳、v449 で 📚英単語、v453 で 🔐サブスク を足した
   check('  中身は全画面で開く道具', await page.evaluate(() =>
@@ -1224,7 +1224,7 @@ async function runNpTools(browser) {
 
   // チェックすると並びに足される
   await page.evaluate(() => { npToolToggle('tansui'); npToolToggle('veggie'); }); await page.waitForTimeout(250);
-  check('  チェックした道具が電卓の右に並ぶ', await bar(), '書式・枠線|数字|記号|電卓|💧単位水量|🌱野菜|▲ マイキー');
+  check('  チェックした道具が電卓の右に並ぶ', await bar(), '書式・枠線|数字|記号|電卓|💧単位水量|🌱野菜|▲ 自分のボタン');
   check('  会計アプリもタブに足せる', await page.evaluate(async () => {
     npToolToggle('kaikei'); await new Promise(r => setTimeout(r, 200));
     const on = [...document.querySelectorAll('#numpadPageBar .np-page')].some(b => /会計アプリ/.test(b.textContent));
@@ -1241,7 +1241,7 @@ async function runNpTools(browser) {
   check('  ↑で上げられる', await page.evaluate(() => npTools.join(',')), 'veggie,kantab,tansui');
   await page.evaluate(() => npToolMove('veggie', 1)); await page.waitForTimeout(250);
   check('  ↓で下げられる', await page.evaluate(() => npTools.join(',')), 'kantab,veggie,tansui');
-  check('  並びはタブにも出る', await bar(), '書式・枠線|数字|記号|電卓|🧪カンタブ|🌱野菜|💧単位水量|▲ マイキー');
+  check('  並びはタブにも出る', await bar(), '書式・枠線|数字|記号|電卓|🧪カンタブ|🌱野菜|💧単位水量|▲ 自分のボタン');
   check('  端では動かない', await page.evaluate(() => {
     npToolMove('kantab', -1); npToolMove('tansui', 1); return npTools.join(','); }), 'kantab,veggie,tansui');
 
@@ -1267,7 +1267,7 @@ async function runNpTools(browser) {
   // 開き直しても覚えている
   await page.reload(); await page.waitForTimeout(900);
   check('  開き直しても覚えている', await page.evaluate(() => npTools.join(',')), 'kantab,veggie,tansui');
-  check('  タブも出たまま', await bar(), '書式・枠線|数字|記号|電卓|🧪カンタブ|🌱野菜|💧単位水量|▲ マイキー');
+  check('  タブも出たまま', await bar(), '書式・枠線|数字|記号|電卓|🧪カンタブ|🌱野菜|💧単位水量|▲ 自分のボタン');
   check('  横に流して見られる', await page.evaluate(() =>
     getComputedStyle(document.getElementById('numpadPageBar')).overflowX), 'auto');
   check('  本体は横にずれない', await page.evaluate(() =>
@@ -3774,7 +3774,7 @@ async function runExport(browser) {
     '💾名前を付けて保存/📂開く/↶戻す/🧰道具/🎤声で入れる/⚙設定/📖使い方');
   check('  ほかの機能の中', await page.evaluate(() =>
     [...document.querySelectorAll('#moreAccAll > .more-grid:first-of-type .more-item')].map(x => x.textContent.trim()).join('/')),
-    '🏠ホーム/↷進む/🌙ナイトモード/🎯用途から始める/▦通常の表/🧮電卓');
+    '🏠ホーム/↷進む/🌙ナイトモード/🎯ひな形から作る/▦通常の表/🧮電卓');
   check('  書き出しは畳んだ中', await page.evaluate(() =>
     [...document.querySelectorAll('#moreAccOut .more-item')].map(x => x.textContent.trim()).join('/')),
     '🖨PDF/📄CSV出力/📊Excel出力/📥CSV読込/📥Excel読込');
@@ -4352,7 +4352,7 @@ async function runPolish(browser) {
     typeof saveFailed === 'function' && typeof saveOk === 'function'), true);
   check('  何ができなかったか言う', await page.evaluate(() => {
     saveOk(); saveFailed('ためし'); return document.getElementById('appToast').textContent; }),
-    'ためしができませんでした。⋯→🧹端末の空き具合 で片づけてください');
+    'ためしができませんでした。☰ → 📂開く → 📦空き具合 で片づけてください');
   check('  同じことを何度も言わない', await page.evaluate(() => {
     const t = document.getElementById('appToast'); t.textContent = 'x'; saveFailed('ためし'); return t.textContent; }), 'x');
   check('  直ったらまた言える', await page.evaluate(() => {
@@ -4590,7 +4590,7 @@ async function runCalcOnly(browser) {
   await page.evaluate(() => { npTools = ['veggie', 'tansui']; saveNpTools(); applyNpToolFull(); renderNumpadPageBar(); });
   await page.waitForTimeout(300);
   check('  はじめはオフ', await page.evaluate(() => calcOnly), false);
-  check('  はじめは全部のタブ', await tabs(), '書式・枠線/数字/記号/電卓/🌱野菜/💧単位水量/▲ マイキー');
+  check('  はじめは全部のタブ', await tabs(), '書式・枠線/数字/記号/電卓/🌱野菜/💧単位水量/▲ 自分のボタン');
 
   // オンにする
   await page.evaluate(() => toggleCalcOnly()); await page.waitForTimeout(700);
@@ -4663,7 +4663,7 @@ async function runCalcOnly(browser) {
   // 戻せる
   await page.evaluate(() => toggleCalcOnly()); await page.waitForTimeout(600);
   check('  戻せる', await page.evaluate(() => calcOnly), false);
-  check('  タブがぜんぶ戻る', await tabs(), '書式・枠線/数字/記号/電卓/🌱野菜/💧単位水量/▲ マイキー');
+  check('  タブがぜんぶ戻る', await tabs(), '書式・枠線/数字/記号/電卓/🌱野菜/💧単位水量/▲ 自分のボタン');
   check('  ▦表へも戻る', await page.evaluate(() =>
     getComputedStyle(document.querySelector('#numpadPageSci [data-key="dk_tosheet"]')).display !== 'none'), true);
   await page.evaluate(() => numpadPager.go('sci')); await page.waitForTimeout(400);
@@ -6310,7 +6310,7 @@ async function runBrush3(browser) {
     let d = el; while (d && d.tagName !== 'DETAILS') d = d.parentElement;
     return !!el && (!d || d.open); }), true);
   await find('説明書');
-  const hi = await page.evaluate(() => setFindHits.findIndex(x => x.where === '⋯'));
+  const hi = await page.evaluate(() => setFindHits.findIndex(x => x.where === '☰'));
   await page.evaluate(i => setFindGo(i), hi); await page.waitForTimeout(600);
   check('  設定の外のものは、そこを開く', await page.evaluate(() =>
     isDlgOpen('helpOverlay') && !isDlgOpen('settingsPanel')), true);
@@ -6407,8 +6407,8 @@ async function runHelpSplit(browser) {
   const hg = await page.evaluate(() => { const imgs = [...document.querySelectorAll('#helpBody .hg-shot')];
     return { secs: document.querySelectorAll('#helpBody .hg-sec').length, imgs: imgs.map(i => i.getAttribute('src')), first: document.querySelector('#helpBody').firstElementChild.className,
       marks: [...document.querySelectorAll('#g-screen .hg-list .hg-n')].map(n => n.textContent).join(','), detail: !!document.getElementById('h-detail') }; });
-  check('  はじめにかんたん説明書（写真と番号）、そのあとにくわしい説明', hg.first + '/' + hg.secs + '/' + hg.detail + '/' + hg.marks, 'hg-top/14/true/1,2,3,4,5,6,7,8,9,10');
-  check('  写真はどれも help/ にある', hg.imgs.length >= 11 && hg.imgs.every(u => /^help\/[a-z]+\.jpg$/.test(u) && fs.existsSync(path.join(ROOT, u))), true);
+  check('  はじめにかんたん説明書（写真と番号）、そのあとにくわしい説明', hg.first + '/' + hg.secs + '/' + hg.detail + '/' + hg.marks, 'hg-top/15/true/1,2,3,4,5,6,7,8,9,10');
+  check('  写真はどれも help/ にある', hg.imgs.length >= 11 && hg.imgs.every(u => /^help\/[a-z0-9]+\.jpg$/.test(u) && fs.existsSync(path.join(ROOT, u))), true);
   check('  写真が読める（壊れていない）', await page.evaluate(async () => { const imgs = [...document.querySelectorAll('#helpBody .hg-shot')];
     await Promise.all(imgs.map(i => { i.loading = 'eager'; return i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }); }));
     return imgs.every(i => i.naturalWidth > 300); }), true);
@@ -7580,6 +7580,66 @@ async function runShimai(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runUiMode(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true });
+  const page = await ctx.newPage();
+  const errs = []; page.on('pageerror', e => errs.push(e.message)); page.on('dialog', d => d.accept());
+  console.log('\n── 表示：かんたん／ぜんぶ（v461） ──');
+  await page.goto(INDEX); await page.evaluate(() => localStorage.clear()); await page.reload(); await page.waitForTimeout(1500);
+  check('  はじめての人は かんたん', await page.evaluate(() => uiEasy + '/' + localStorage.getItem('excalc_uimode') + '/' + document.body.classList.contains('ui-easy')), 'true/easy/true');
+  await page.evaluate(() => { tourSkip(); }); await page.waitForTimeout(700);
+  await page.evaluate(() => { closeHome(); try { hideNotice(); } catch (_) {} }); await page.waitForTimeout(400);
+  const bar = () => page.evaluate(() => [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|'));
+  check('  かんたん：テンキーのページは 数字と電卓だけ', await bar(), '数字|電卓');
+  // 横になぞる（ホイール）：数字⇄電卓だけ。道具や書式へは行かない
+  const wheel = async d => { const r = await page.evaluate(() => { const b = document.getElementById('numpadViewport').getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; });
+    await page.mouse.move(r[0], r[1]); await page.mouse.wheel(0, d); await page.waitForTimeout(350); };
+  await wheel(-120);
+  check('  かんたん：数字から前へ動かしても書式へ行かない', await page.evaluate(() => String(numpadPager.current())), 'null');
+  await wheel(120);
+  check('  かんたん：次へで電卓', await page.evaluate(() => numpadPager.current()), 'sci');
+  await wheel(120);
+  check('  かんたん：電卓の先へは行かない（道具を開かない）', await page.evaluate(() => numpadPager.current() + '/' + NP_TOOLS.some(t => t.ov && isDlgOpen(t.ov))), 'sci/false');
+  await page.evaluate(() => numpadPager.go(null)); await page.waitForTimeout(300);
+  // 長押し：記号の候補を出さない
+  const hold = async key => { const r = await page.evaluate(k => { const b = document.querySelector('#numpadPage1 .btn[data-key="' + k + '"]'); const q = b.getBoundingClientRect(); return [q.x + q.width / 2, q.y + q.height / 2]; }, key);
+    await page.mouse.move(r[0], r[1]); await page.mouse.down(); await page.waitForTimeout(700);
+    const o = await page.evaluate(() => { const p = document.getElementById('npFlickPop'); return !!p && p.classList.contains('open'); });
+    await page.mouse.up(); await page.waitForTimeout(200); return o; };
+  const numKey = await page.evaluate(() => { const b = [...document.querySelectorAll('#numpadPage1 .btn[data-key]')].find(x => npFlickSyms(x.dataset.key)); return b ? b.dataset.key : ''; });
+  check('  かんたん：数字キーの長押しで記号を出さない', numKey ? await hold(numKey) : 'なし', false);
+  // 設定：よく使う5つ
+  await page.evaluate(() => toggleSettings()); await page.waitForTimeout(400);
+  const vis = sel => page.evaluate(sel => { const e = document.querySelector(sel); return !!e && e.getClientRects().length > 0 && getComputedStyle(e).display !== 'none'; }, sel);
+  check('  かんたん：設定はよく使うものだけ（さがす欄・タブは出さない）', [await vis('#uiModeSeg'), await vis('#ezKeySize'), await vis('#ezDark'), await vis('#ezRows'), await vis('#ezStartSel'), await vis('#setFindIn'), await vis('.settings-tabbar')].join('/'), 'true/true/true/true/true/false/false');
+  check('  よく使う設定の値は、元の設定と同じ', await page.evaluate(() => document.getElementById('ezKeySize').textContent === document.getElementById('keySize').textContent && document.getElementById('ezRows').textContent === document.getElementById('rowCount').textContent), true);
+  await page.evaluate(() => document.querySelector('#setEasy .ez-only .step-btn[onclick*="changeRows(1)"]').click()); await page.waitForTimeout(200);
+  check('  よく使う設定から行を足す', await page.evaluate(() => document.getElementById('ezRows').textContent + '/' + ROWS), '16/16');
+  await page.click('#ezAllBtn'); await page.waitForTimeout(200);
+  check('  すべての設定を見る', [await vis('#setFindIn'), await vis('.settings-tabbar'), await page.evaluate(() => document.getElementById('ezAllBtn').textContent)].join('/'), 'true/true/▲ よく使う設定だけにする');
+  await page.evaluate(() => toggleSettings()); await page.waitForTimeout(400);
+  await page.evaluate(() => toggleSettings()); await page.waitForTimeout(400);
+  check('  開き直すと、よく使う設定だけに戻る', await vis('.settings-tabbar'), false);
+  await page.evaluate(() => toggleSettings()); await page.waitForTimeout(400);
+  await page.evaluate(() => { openToolsList(); openToolsBtnSettings(); }); await page.waitForTimeout(500);
+  check('  設定の場所へ飛ぶときは全部を出す', await vis('#toolsBtnSec'), true);
+  await page.evaluate(() => toggleSettings()); await page.waitForTimeout(400);
+  // ぜんぶへ
+  await page.evaluate(() => setUiMode('full')); await page.waitForTimeout(300);
+  check('  ぜんぶ：書式・記号・自分のボタンも出す・覚える', await bar() + '/' + await page.evaluate(() => localStorage.getItem('excalc_uimode')), '書式・枠線|数字|記号|電卓|▲ 自分のボタン/full');
+  check('  ぜんぶ：数字キーの長押しで記号', numKey ? await hold(numKey) : 'なし', true);
+  await page.evaluate(() => { toggleSettings(); }); await page.waitForTimeout(400);
+  check('  ぜんぶ：設定は全部（表示の切りかえは上に）', [await vis('#uiModeSeg'), await vis('#ezKeySize'), await vis('#setFindIn')].join('/'), 'true/false/true');
+  await page.evaluate(() => toggleSettings()); await page.waitForTimeout(400);
+  await page.reload(); await page.waitForTimeout(1200);
+  check('  開き直しても ぜんぶ', await page.evaluate(() => uiEasy), false);
+  // 前から使っている人（決めていない）は ぜんぶ
+  await page.evaluate(() => { localStorage.removeItem('excalc_uimode'); localStorage.setItem('excalc_tour_done', '1'); }); await page.reload(); await page.waitForTimeout(1200);
+  check('  前から使っている人は ぜんぶ（いままでどおり）', await page.evaluate(() => uiEasy + '/' + localStorage.getItem('excalc_uimode')), 'false/full');
+  check('  言葉：用途→ひな形・マイキー→自分のボタン・⋯→☰', await page.evaluate(() => document.getElementById('shoppingBtn').textContent + '/' + NP_ROW_REG.map(r => r[1]).join(',') + '/' + document.getElementById('moreBtn').textContent), 'ひな形/自分のボタン左,自分のボタン,自分のボタン右/☰');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runTbFold(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── ☰ 上のバーをたたむ（v443） ──');
@@ -8616,6 +8676,7 @@ async function runQrShare(browser) {
     if (!only || only === 'heya') await runHeya(browser);
     if (!only || only === 'annai') await runAnnai(browser);
     if (!only || only === 'shimai') await runShimai(browser);
+    if (!only || only === 'uimode') await runUiMode(browser);
     if (!only || only === 'techoapp') await runTechoApp(browser);
     if (!only || only === 'brush1') await runBrush1(browser);
     if (!only || only === 'brush2') await runBrush2(browser);

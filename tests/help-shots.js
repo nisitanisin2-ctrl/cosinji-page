@@ -76,8 +76,19 @@ async function mark(page, marks) {
     console.log('撮った: ' + name);
   };
 
-  // 1. 表の画面
-  await fresh();
+  // 0. ホーム（v459）
+  await fresh({ excalc_uimode: 'easy', excalc_recent_tools: JSON.stringify(['shimai', 'techo', 'touban']) });
+  await page.evaluate(() => openHome()); await page.waitForTimeout(300);
+  await shot('home', [
+    { sel: '#homeSheet', n: 1, pos: 'tl' },
+    { sel: '#homeDentaku', n: 2, pos: 'tl' },
+    { sel: '#homeTools', n: 3, pos: 'tl' },
+    { sel: '#homeRecent', n: 4, pos: 'tl' },
+    { sel: '.home-chk', n: 5, pos: 'l' },
+  ]);
+
+  // 1. 表の画面（はじめての人と同じ かんたん表示で撮る。v461）
+  await fresh({ excalc_uimode: 'easy' });
   await shot('main', [
     { sel: '#fbMenu', n: 1, pos: 'c', noBox: true },
     { sel: '#cellRef', n: 2, pos: 'tl' },
@@ -87,7 +98,7 @@ async function mark(page, marks) {
     { sel: '#numpadPageBar', n: 6, pos: 'l' },
     { text: 'Σ合計', in: '#numpad, .numpad', n: 7, pos: 'tr' },
     { text: '＝数式', n: 8, pos: 'tr' },
-    { text: '用途', n: 9, pos: 'tr' },
+    { text: 'ひな形', in: '#numpad, .numpad, #numpadViewport', n: 9, pos: 'tr' },
     { text: '🎤声', n: 10, pos: 'tr' },
   ]);
 
@@ -101,16 +112,18 @@ async function mark(page, marks) {
 
   // 3. ☰ メニュー
   await fresh();
-  await page.evaluate(() => openMoreMenu());
+  await page.evaluate(() => { openMoreMenu(); document.getElementById('voiceMoreBtn').style.display = ''; });
   await shot('menu', [
-    { text: '💾名前を付けて保存', n: 1, pos: 'tl' },
-    { text: '↶戻す', n: 2, pos: 'tl' },
-    { text: '📋リスト', n: 3, pos: 'tl' },
-    { text: '⚙設定', n: 4, pos: 'tl' },
-    { text: '🎤声で入れる', n: 5, pos: 'tl' },
-    { text: '🎯用途から始める', n: 6, pos: 'tl' },
-    { text: '🧮電卓', in: '#moreMenuOverlay', n: 7, pos: 'tl' },
-  ], { x: 0, y: 0, width: W, height: 640 });
+    { sel: '#moreRec', n: 1, pos: 'tl' },
+    { sel: '#moreSave', n: 2, pos: 'tl' },
+    { sel: '#listBtn', n: 3, pos: 'tl' },
+    { sel: '#moreUndo', n: 4, pos: 'tl' },
+    { sel: '#moreToolsBtn', n: 5, pos: 'tl' },
+    { sel: '#voiceMoreBtn', n: 6, pos: 'tl' },
+    { sel: '#settingsBtn', n: 7, pos: 'tl' },
+    { sel: '#moreHelpBtn', n: 8, pos: 'tl' },
+    { sel: '#moreAccAll > summary', n: 9, pos: 'tl' },
+  ]);
 
   // 4. 電卓
   await fresh();
@@ -145,13 +158,19 @@ async function mark(page, marks) {
     { text: '割り勘', n: 3, pos: 'after', noBox: true },
   ]);
 
-  // 7. 道具
-  await fresh();
-  await page.evaluate(() => openToolsList());
+  // 7. 道具（v460：★よく使う・まとまり・隠している道具）
+  await fresh({ excalc_tool_fav: JSON.stringify(['shimai', 'techo']) });
+  await page.evaluate(() => { openToolsList(); document.querySelector('#toolsListOverlay .modal-body').scrollTop = 0; });
   await shot('tools', [
-    { text: '📔業務手帳', n: 1, pos: 'tl' },
-    { sel: '.tools-pick-btn', n: 2, pos: 'tl' },
-  ], { x: 0, y: 150, width: W, height: 470 });
+    { sel: '#toolsFavGrid', n: 1, pos: 'tl' },
+    { sel: '#toolsFavEdit', n: 2, pos: 'l' },
+    { sel: '#toolsListGrid .tools-cat-h', n: 3, pos: 'l', noBox: true },
+  ]);
+  await page.evaluate(() => { const b = document.querySelector('#toolsListOverlay .modal-body'); b.scrollTop = b.scrollHeight; });
+  await shot('tools2', [
+    { sel: '#toolsHiddenAcc', n: 4, pos: 'tl' },
+    { sel: '.tools-pick-btn', n: 5, pos: 'tl' },
+  ]);
 
   // 8. 保存リスト（記録を2つ入れて撮る）
   await fresh();
@@ -159,18 +178,24 @@ async function mark(page, marks) {
   await shot('list', [
     { text: '🆕新規', n: 1, pos: 'tl' },
     { text: '🗂記録', n: 2, pos: 'tl' },
-    { text: '🎯用途', n: 3, pos: 'tr' },
+    { text: '🎯ひな形', n: 3, pos: 'tr' },
   ], { x: 0, y: 80, width: W, height: 520 });
 
-  // 9. 設定
-  await fresh();
+  // 9. 設定（かんたん表示。v461）
+  await fresh({ excalc_uimode: 'easy' });
   await page.evaluate(() => toggleSettings());
   await shot('settings', [
-    { sel: '#setFindIn', n: 1, pos: 'tl' },
-    { text: '📐表', n: 2, pos: 'tl' },
-    { text: '🎨見た目', n: 3, pos: 'tl' },
-    { text: '🧮計算', n: 4, pos: 'tl' },
-  ], { x: 0, y: 30, width: W, height: 600 });
+    { sel: '#uiModeSeg', n: 1, pos: 'tl' },
+    { sel: '#setEasy .ez-only .set-sec', n: 2, pos: 'l', noBox: true },
+    { sel: '#ezAllBtn', n: 3, pos: 'tl' },
+  ]);
+  await page.evaluate(() => toggleAllSettings());
+  await shot('settings2', [
+    { sel: '#setFindIn', n: 4, pos: 'tl' },
+    { text: '📐表', n: 5, pos: 'tl' },
+    { text: '🎨見た目', n: 6, pos: 'tl' },
+    { text: '🧮計算', n: 7, pos: 'tl' },
+  ]);
 
   // 10. セルの書式（セル番地を押す）
   await fresh();
