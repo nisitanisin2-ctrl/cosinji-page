@@ -1080,28 +1080,30 @@ async function runFlickSym(browser) {
   await page.mouse.move(c.x, c.y); await page.mouse.down();
   for (let i = 1; i <= 6; i++) { await page.mouse.move(c.x - 120 * i / 6, c.y); await page.waitForTimeout(20); }
   await page.mouse.up(); await page.waitForTimeout(700);
-  check('  早いフリックはページ移動のまま', await page.evaluate(() => String(numpadPager.current())), 'func');
+  check('  早いフリックはページ移動のまま（記号は隠しているので電卓へ）', await page.evaluate(() => String(numpadPager.current())), 'sci');
   await page.evaluate(() => numpadPager.go(null)); await page.waitForTimeout(500);
 
   // ── 記号ページの表示・非表示 ──
   const bar = () => page.evaluate(() =>
     [...document.querySelectorAll('#numpadPageBar .np-page:not(.np-toolsbtn)')].map(b => b.textContent.trim()).join('|'));
-  check('  はじめは記号ページを出す', await bar(), '書式・枠線|数字|記号|電卓|▲ 自分のボタン');
-  await page.evaluate(() => toggleFuncPage()); await page.waitForTimeout(300);
-  check('  隠すと並びから消える', await bar(), '書式・枠線|数字|電卓|▲ 自分のボタン');
+  check('  はじめは記号ページを隠す（v467）', await bar(), '書式・枠線|数字|電卓|▲ 自分のボタン');
+  check('  設定のボタンは「出していない」', await page.evaluate(() => document.getElementById('funcPageBtn').classList.contains('on')), false);
   const vp = await page.evaluate(() => {
     const r = document.getElementById('numpadViewport').getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
   await page.mouse.move(vp.x, vp.y); await page.mouse.wheel(0, 120); await page.waitForTimeout(600);
-  check('  数字の次は電卓になる', await page.evaluate(() => String(numpadPager.current())), 'sci');
+  check('  数字の次は電卓', await page.evaluate(() => String(numpadPager.current())), 'sci');
   await page.mouse.wheel(0, -120); await page.waitForTimeout(600);
   check('  戻ると数字へ', await page.evaluate(() => String(numpadPager.current())), 'null');
-  await page.reload(); await page.waitForTimeout(900);
-  check('  開き直しても隠れたまま', await page.evaluate(() => showFuncPage), false);
   await page.evaluate(() => toggleFuncPage()); await page.waitForTimeout(300);
-  check('  戻すと並びに出る', await bar(), '書式・枠線|数字|記号|電卓|▲ 自分のボタン');
+  check('  設定で出すと並びに出る', await bar(), '書式・枠線|数字|記号|電卓|▲ 自分のボタン');
   await page.mouse.move(vp.x, vp.y); await page.mouse.wheel(0, 120); await page.waitForTimeout(600);
-  check('  数字の次は記号に戻る', await page.evaluate(() => String(numpadPager.current())), 'func');
+  check('  数字の次は記号', await page.evaluate(() => String(numpadPager.current())), 'func');
+  await page.evaluate(() => numpadPager.go(null)); await page.waitForTimeout(400);
+  await page.reload(); await page.waitForTimeout(900);
+  check('  開き直しても出したまま', await page.evaluate(() => showFuncPage + '/' + localStorage.getItem('excalc_funcpage')), 'true/1');
+  await page.evaluate(() => toggleFuncPage()); await page.waitForTimeout(300);
+  check('  もう一度押すと隠れる', await bar(), '書式・枠線|数字|電卓|▲ 自分のボタン');
   await page.evaluate(() => numpadPager.go(null)); await page.waitForTimeout(400);
 
   // ── 記号の割り当てを設定で変えられる（v355） ──
@@ -1167,7 +1169,7 @@ async function runNpTools(browser) {
   const bar = () => page.evaluate(() =>
     [...document.querySelectorAll('#numpadPageBar .np-page:not(.np-toolsbtn)')].map(b => b.textContent.trim()).join('|'));
 
-  check('  ページ名の並びに道具のタブは出ない', await bar(), '書式・枠線|数字|記号|電卓|▲ 自分のボタン');
+  check('  ページ名の並びに道具のタブは出ない', await bar(), '書式・枠線|数字|電卓|▲ 自分のボタン');
   check('  設定に「テンキーの上に出す道具」は無い', await page.evaluate(() =>
     !document.getElementById('npToolList') && !/テンキーの上に出す道具/.test(document.getElementById('settingsPanel').textContent)), true);
   check('  並びに足す関数はもう無い', await page.evaluate(() =>
@@ -1208,7 +1210,7 @@ async function runNpTools(browser) {
   await page.evaluate(() => localStorage.setItem('excalc_nptools', JSON.stringify(['tansui', 'veggie'])));
   await page.reload(); await page.waitForTimeout(900);
   check('  前の記録は消える', await page.evaluate(() => localStorage.getItem('excalc_nptools')), null);
-  check('  前の記録があっても並びに出ない', await bar(), '書式・枠線|数字|記号|電卓|▲ 自分のボタン');
+  check('  前の記録があっても並びに出ない', await bar(), '書式・枠線|数字|電卓|▲ 自分のボタン');
   check('  道具はいつもの大きさで開く（全画面にしない。育成計画はもとから全画面）', await page.evaluate(() =>
     ['tansuiOverlay', 'kantabOverlay', 'linkListOverlay']
       .map(i => document.getElementById(i).querySelector('.modal').classList.contains('modal-full')).join('/')),
@@ -1583,6 +1585,8 @@ async function runVeggie(browser) {
 async function runCalcPage(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 電卓ページ ──');
+  // 記号ページとのあいだの行き来も見るので、記号ページを出しておく（v467 から、はじめは隠す）
+  await page.evaluate(() => localStorage.setItem('excalc_funcpage', '1')); await page.reload(); await page.waitForTimeout(900);
   const tap = async k => { await page.evaluate(x => {
     const b = document.querySelector('[data-key="' + x + '"]'); if (b) b.click(); }, k);
     await page.waitForTimeout(110); };
@@ -4490,7 +4494,7 @@ async function runCalcOnly(browser) {
     if (isDlgOpen('tansuiOverlay')) closeTansui(); }); await page.waitForTimeout(500); };
 
   check('  はじめはオフ', await page.evaluate(() => calcOnly), false);
-  check('  はじめは全部のタブ', await tabs(), '書式・枠線/数字/記号/電卓/▲ 自分のボタン');
+  check('  はじめは全部のタブ', await tabs(), '書式・枠線/数字/電卓/▲ 自分のボタン');
 
   // オンにする
   await page.evaluate(() => toggleCalcOnly()); await page.waitForTimeout(700);
@@ -4562,7 +4566,7 @@ async function runCalcOnly(browser) {
   // 戻せる
   await page.evaluate(() => toggleCalcOnly()); await page.waitForTimeout(600);
   check('  戻せる', await page.evaluate(() => calcOnly), false);
-  check('  タブがぜんぶ戻る', await tabs(), '書式・枠線/数字/記号/電卓/▲ 自分のボタン');
+  check('  タブがぜんぶ戻る', await tabs(), '書式・枠線/数字/電卓/▲ 自分のボタン');
   check('  ▦表へも戻る', await page.evaluate(() =>
     getComputedStyle(document.querySelector('#numpadPageSci [data-key="dk_tosheet"]')).display !== 'none'), true);
   await page.evaluate(() => numpadPager.go('sci')); await page.waitForTimeout(400);
@@ -7092,6 +7096,18 @@ async function runSubsc(browser) {
   check('  開くまでは読まない・道具とマイキーにある', await page.evaluate(() => !window.SUBSC_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'subsc') + '/' + !!KEY_FUNCS.a_subsc), 'true/true/true');
   await page.evaluate(() => openSubsc()); await w(600);
   check('  開くのにパスワードは聞かない（すぐ一覧）', await page.evaluate(() => isDlgOpen('subscOverlay') + '/' + !!document.getElementById('sbQ') + '/' + !document.getElementById('sbPwIn') + '/' + sbState().keys), 'true/true/true/false');
+  // v468：パスワードマネージャーを呼ばない（type="password" を使わず、●● で隠す）
+  check('  パスワードの欄に type=password を使わない', await page.evaluate(async () => {
+    sbEdit(null); await new Promise(r => setTimeout(r, 200));
+    const e = document.getElementById('sbEPw');
+    const r = [e.type, e.autocomplete, e.classList.contains('sb-mask'), getComputedStyle(e).webkitTextSecurity, e.hasAttribute('data-1p-ignore'),
+      document.querySelectorAll('input[type=password]').length].join('/');
+    return r; }), 'text/off/true/disc/true/0');
+  check('  👁 で見える・もう一度で隠れる', await page.evaluate(() => {
+    const e = document.getElementById('sbEPw'), b = e.parentElement.querySelector('button');
+    b.click(); const a = getComputedStyle(e).webkitTextSecurity; b.click(); return a + '/' + getComputedStyle(e).webkitTextSecurity; }), 'none/disc');
+  check('  🎲 で作ると見えるように出す', await page.evaluate(() => { sbGenPw(); const e = document.getElementById('sbEPw'); return e.value.length + '/' + e.classList.contains('sb-mask'); }), '16/false');
+  await page.evaluate(() => sbCloseEd()); await page.waitForTimeout(400);
   const add = async (o) => { await page.evaluate(() => sbEdit(null)); await w(100);
     await page.evaluate((o) => { const set = (id, v) => { document.getElementById(id).value = v; }; set('sbEName', o.name); set('sbEPrice', o.price); set('sbECycle', o.cycle); set('sbENext', o.next || ''); set('sbEPay', o.pay || ''); set('sbEUid', o.uid || ''); set('sbEPw', o.pw || ''); set('sbEUrl', o.url || ''); document.getElementById('sbEStop').checked = !!o.stop; }, o);
     await page.evaluate(() => sbEdSave()); await w(300); };
@@ -7555,7 +7571,7 @@ async function runUiMode(browser) {
   await page.evaluate(() => toggleSettings()); await page.waitForTimeout(400);
   // ぜんぶへ
   await page.evaluate(() => setUiMode('full')); await page.waitForTimeout(300);
-  check('  ぜんぶ：書式・記号・自分のボタンも出す・覚える', await bar() + '/' + await page.evaluate(() => localStorage.getItem('excalc_uimode')), '書式・枠線|数字|記号|電卓|▲ 自分のボタン/full');
+  check('  ぜんぶ：書式・自分のボタンも出す・覚える（記号は設定で出したときだけ）', await bar() + '/' + await page.evaluate(() => localStorage.getItem('excalc_uimode')), '書式・枠線|数字|電卓|▲ 自分のボタン/full');
   check('  ぜんぶ：数字キーの長押しで記号', numKey ? await hold(numKey) : 'なし', true);
   await page.evaluate(() => { toggleSettings(); }); await page.waitForTimeout(400);
   check('  ぜんぶ：設定は全部（表示の切りかえは上に）', [await vis('#uiModeSeg'), await vis('#ezKeySize'), await vis('#setFindIn')].join('/'), 'true/false/true');
