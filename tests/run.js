@@ -656,51 +656,31 @@ async function runSaveList(browser) {
 
 /* 上のバーに出すボタン（設定→🎨見た目→くわしい設定） */
 async function runTopBar(browser) {
-  const ctx = await browser.newContext({ viewport: { width: 375, height: 820 }, hasTouch: true });
-  const page = await ctx.newPage();
-  const errs = [];
-  page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
-  page.on('dialog', d => d.accept());
-  await page.goto(INDEX); await page.waitForTimeout(300);
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0'); });
-  await page.reload(); await page.waitForTimeout(900);
-  console.log('\n── 上のバーに出すボタン ──');
-
-  const shown = () => page.evaluate(() => ['tbRedo', 'tbList', 'tbSheet', 'tbSet', 'tbDefsize', 'tbReset']
-    .filter(id => { const el = document.getElementById(id);
-                    return el && getComputedStyle(el).display !== 'none'; }).join(','));
-  check('  はじめは何も出さない', await shown(), '');
-  check('  設定に選ぶところがある',
-        await page.evaluate(() => document.querySelectorAll('#topBtnToggles .topbtn-toggle').length), 7);   // v399 で ⌨テンキー を足した
-
-  await page.evaluate(() => { if (typeof toggleTopBtn !== 'function') return;
-    toggleTopBtn('list'); toggleTopBtn('redo'); toggleTopBtn('reset'); });
-  await page.waitForTimeout(300);
-  check('  選んだものが上のバーに出る', await shown(), 'tbRedo,tbList,tbReset');
-  check('  設定の印も付く',
-        await page.evaluate(() => [...document.querySelectorAll('#topBtnToggles .topbtn-toggle')]
-          .filter(b => b.classList.contains('on')).map(b => b.dataset.btn).sort().join(',')), 'list,redo,reset');
-  check('  375pxでも横にはみ出さない', await page.evaluate(() => {
-    const t = document.getElementById('mainToolbar'); return t.scrollWidth <= t.clientWidth + 1; }), true);
-
-  const tbRedoDisabled = () => page.evaluate(() => {
-    const el = document.getElementById('tbRedo'); return el ? el.disabled : '(↷が無い)'; });
-  check('  ↷は戻す操作が無いうちは押せない', await tbRedoDisabled(), true);
-  await page.evaluate(() => { setCellVal(0, 0, 'あ'); undoLast(); }); await page.waitForTimeout(400);
-  check('  戻したあとは↷が押せる', await tbRedoDisabled(), false);
-
-  await page.evaluate(() => { if (typeof toggleTopBtn === 'function') toggleTopBtn('list'); });
-  await page.waitForTimeout(300);
-  check('  もう一度押すとしまえる', await shown(), 'tbRedo,tbReset');
-  await page.reload(); await page.waitForTimeout(900);
-  check('  開き直しても覚えている', await shown(), 'tbRedo,tbReset');
-
-  check('  JSエラーが出ていない', errs.length, 0);
-  if (errs.length) console.log('    ', errs);
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 上のバーはなく、左上の ☰ だけ（v465） ──');
+  const vis = sel => page.evaluate(sel => { const e = document.querySelector(sel); return !!e && getComputedStyle(e).display !== 'none'; }, sel);
+  check('  前に「上に出す」を選んでいても、上のバーは出さず ☰ だけ', (await vis('#mainToolbar')) + '/' + (await vis('#fbMenu')) + '/' + await page.evaluate(() => localStorage.getItem('excalc_tbfold')), 'false/true/0');
+  check('  設定に「上のバーに出すボタン」「上のバーをたたむ」はない', await page.evaluate(() => !!document.getElementById('topBtnToggles') + '/' + !!document.getElementById('tbFoldSeg')), 'false/false');
+  check('  ☰ はいちばん左上', await page.evaluate(() => { const r = document.getElementById('fbMenu').getBoundingClientRect(); return r.left < 20 && r.top < 20; }), true);
+  check('  ☰ に「戻す」「声で入れる」はない', await page.evaluate(() => !!document.getElementById('moreUndo') + '/' + !!document.getElementById('voiceMoreBtn')), 'false/false');
+  // テンキーの ↶戻す：タップで戻す・長押しで取り消せる操作の一覧
+  await page.evaluate(() => { sel(0, 0); setCellVal(0, 0, '1'); setCellVal(1, 0, '2'); setCellVal(2, 0, '3'); });
+  const hold = async ms => { const r = await page.evaluate(() => { const b = document.querySelector('#numpadPage1 .btn[data-key="u_undo"]'); const q = b.getBoundingClientRect(); return [q.x + q.width / 2, q.y + q.height / 2]; });
+    await page.mouse.move(r[0], r[1]); await page.mouse.down(); await page.waitForTimeout(ms); await page.mouse.up(); await page.waitForTimeout(300); };
+  await hold(60);
+  check('  ↶戻す をタップで1つ戻す', await page.evaluate(() => String(data[2][0] || '')), '');
+  await hold(700);
+  check('  ↶戻す を長押しで取り消せる操作の一覧（割り当ての窓は出さない）', await page.evaluate(() => isDlgOpen('undoListOverlay') + '/' + document.querySelectorAll('#undoListOverlay .undo-item').length + '/' + String(data[1][0])), 'true/1/2');   // 続けて入れた分は1行にまとまる
+  await page.waitForTimeout(500);
+  await page.evaluate(() => [...document.querySelectorAll('#undoListOverlay .undo-item')].at(-1).click()); await page.waitForTimeout(300);
+  check('  一覧で選んだところまで戻す', await page.evaluate(() => isDlgOpen('undoListOverlay') + '/' + String(data[0][0] || '') + String(data[1][0] || '')), 'false/');
+  await page.evaluate(() => setUiMode('easy')); await page.waitForTimeout(200);
+  await page.evaluate(() => { setCellVal(0, 0, '7'); }); await hold(700);
+  check('  かんたん表示でも ↶戻す の長押しで一覧', await page.evaluate(() => isDlgOpen('undoListOverlay')), true);
+  await page.evaluate(() => closeUndoList()); await page.waitForTimeout(300);
+  check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
-
-/* テンキー登録の画面 */
 async function runRegPick(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── テンキー登録の画面 ──');
@@ -1885,7 +1865,7 @@ async function runSpeech(browser) {
   // ── アプリの中の🎤 ──
   check('  🎤が使えるか調べられる', await page.evaluate(() => typeof voiceAvailable()), 'boolean');
   check('  使えるときは⋯に🎤が出る', await page.evaluate(() =>
-    voiceAvailable() === (getComputedStyle(document.getElementById('voiceMoreBtn')).display !== 'none')), true);
+    !document.getElementById('voiceMoreBtn') && !!document.querySelector('[data-key="u_voice"]')), true);   // v465 から ☰ の🎤は外し、テンキーの 🎤声 から
   check('  キーに割り当てられる', await page.evaluate(() =>
     KEY_FUNCS.a_voice ? KEY_FUNCS.a_voice.label : 'なし'), '🎤声');
 
@@ -3764,17 +3744,17 @@ async function runExport(browser) {
   // ── ☰メニューの整理（v375・v459） ──
   await page.evaluate(() => openMoreMenu()); await page.waitForTimeout(400);
   check('  項目の数（v459：道具の一覧は ☰ の外の窓に）', await page.evaluate(() =>
-    document.querySelectorAll('#moreMenuOverlay .more-item').length), 22);
+    document.querySelectorAll('#moreMenuOverlay .more-item').length), 21);   // v465：戻す・声を外し、⌨（右置きのときだけ出る）を足した
   check('  はじめは畳んである', await page.evaluate(() =>
     document.getElementById('moreAccAll').open),
     false);
   check('  すぐ見えるのは いまの表（保存・開く・戻す）と 道具・声・設定・使い方', await page.evaluate(() =>
     [...document.querySelectorAll('#moreMenuOverlay .more-item')]
       .filter(x => !x.closest('.more-acc')).map(x => x.textContent.trim().replace(/\s+/g, '')).join('/')),
-    '💾名前を付けて保存/📂開く/↶戻す/🧰道具/🎤声で入れる/⚙設定/📖使い方');
+    '💾名前を付けて保存/📂開く/🧰道具/⚙設定/📖使い方');
   check('  ほかの機能の中', await page.evaluate(() =>
     [...document.querySelectorAll('#moreAccAll > .more-grid:first-of-type .more-item')].map(x => x.textContent.trim()).join('/')),
-    '🏠ホーム/↷進む/🌙ナイトモード/🎯ひな形から作る/▦通常の表/🧮電卓');
+    '🏠ホーム/↷進む/🌙ナイトモード/🎯ひな形から作る/▦通常の表/🧮電卓/⌨テンキーを隠す／出す');
   check('  書き出しは畳んだ中', await page.evaluate(() =>
     [...document.querySelectorAll('#moreAccOut .more-item')].map(x => x.textContent.trim()).join('/')),
     '🖨PDF/📄CSV出力/📊Excel出力/📥CSV読込/📥Excel読込');
@@ -4871,15 +4851,7 @@ async function runDefSize(browser) {
   check('  長押しでも表は変わらない', await size(), '20x5');
   await page.evaluate(() => closeDefaultSizeDlg()); await page.waitForTimeout(500);
 
-  // 上のバーに出した ▦ でも同じ（⋯の窓は閉じてから押す）
-  await page.evaluate(() => { if (isDlgOpen('moreMenuOverlay')) closeMoreMenu(); });
-  await page.waitForTimeout(500);
-  await page.evaluate(() => toggleTopBtn('defsize')); await page.waitForTimeout(400);
-  const tb = await page.evaluate(() => { const r = document.getElementById('tbDefsize').getBoundingClientRect();
-    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; });
-  await page.mouse.click(tb.x, tb.y); await page.waitForTimeout(600);
-  check('  上のバーの▦でも設定が開く', await page.evaluate(() => isDlgOpen('defaultSizeOverlay')), true);
-  await page.evaluate(() => { closeDefaultSizeDlg(); toggleTopBtn('defsize'); }); await page.waitForTimeout(500);
+  // v465 から上のバーはないので、上のバーの ▦ の確かめはやめた
 
   // ▦通常 とのちがい（中身があれば大きさは変えない／空なら既定に戻す）
   await page.evaluate(() => { setSheetSize(5, 2); data[0][0] = 'のこす'; buildSheet(); switchMode('normal'); });
@@ -6208,14 +6180,14 @@ async function runBrush2(browser) {
   check('  表が画面の下まで使える', g.full, true);
   check('  15行ぜんぶ見える', g.rows >= 15, true);
   check('  収納の矢印は右向き', await page.evaluate(() => document.getElementById('numpadEdgeBtn').textContent), '▶');
-  check('  上のバーに⌨が出る', await page.evaluate(() =>
-    getComputedStyle(document.getElementById('tbNumpad')).display !== 'none'), true);
-  await page.click('#tbNumpad'); await page.waitForTimeout(400);
+  check('  ☰ → ほかの機能 に ⌨ が出る（右に置いたときだけ）', await page.evaluate(() =>
+    getComputedStyle(document.getElementById('moreNumpadBtn')).display !== 'none'), true);
+  await page.evaluate(() => toggleNumpadEdge()); await page.waitForTimeout(400);
   check('  ⌨でテンキーをしまえる', await page.evaluate(() =>
     numpadHidden && document.getElementById('numpadSection').getBoundingClientRect().width <= 20), true);
   check('  しまった帯にキーが覗かない', await page.evaluate(() =>
     getComputedStyle(document.getElementById('numpadViewport')).visibility), 'hidden');
-  await page.click('#tbNumpad'); await page.waitForTimeout(400);
+  await page.evaluate(() => toggleNumpadEdge()); await page.waitForTimeout(400);
   check('  ⌨でまた出せる', await page.evaluate(() => !numpadHidden), true);
   await page.click('#c0_0'); await page.click('#numpadPage1 .btn[data-key="n5"]'); await page.click('#numpadPage1 .btn[data-key="enter"]'); await page.waitForTimeout(300);
   check('  右に置いてもキーで入る', await page.evaluate(() => String(data[0][0])), '5');
@@ -6363,16 +6335,8 @@ async function runBrush3(browser) {
     [...document.querySelectorAll('.hdr-btn')].filter(b => /設定/.test(b.textContent))
       .every(b => b.textContent.trim() === '⚙ 設定' && !!b.title)), true);
 
-  // 押せる所の大きさ
-  const hit = await page.evaluate(() => {
-    const at = (id, y) => { const e = document.getElementById(id), r = e.getBoundingClientRect();
-      const h = document.elementFromPoint(r.left + r.width / 2, y(r)); return !!h && (h === e || e.contains(h)); };
-    const tb = document.querySelector('.toolbar').getBoundingClientRect();
-    return { save: at('saveBtn', () => tb.bottom - 1), more: at('moreBtn', () => tb.bottom - 1),
-      moreH: Math.round(document.getElementById('moreBtn').getBoundingClientRect().height) };
-  });
-  check('  上のバーのボタンは帯の下の端でも押せる', hit.save && hit.more, true);
-  check('  ⋯は他のボタンと同じ高さ', hit.moreH >= 30, true);
+  // 押せる所の大きさ（v465 から上のバーはなく ☰ だけ）
+  check('  ☰ は押しやすい大きさ', await page.evaluate(() => { const r = document.getElementById('fbMenu').getBoundingClientRect(); return r.width >= 30 && r.height >= 30; }), true);
 
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
@@ -6477,7 +6441,7 @@ async function runBackKey(browser) {
   await page.tap('#c0_0'); await page.waitForTimeout(200);
   check('  また触れると、いちばん下の分を積み直す', await page.evaluate(() => backGuardBase), true);
   // 重ねて開いたときは上から1つずつ
-  await page.tap('#moreBtn'); await page.waitForTimeout(300);
+  await page.tap('#fbMenu'); await page.waitForTimeout(300);
   await page.evaluate(() => { toggleSettings(); }); await page.waitForTimeout(300);
   await back();
   check('  重ねたときは戻るで上だけ閉じる', await page.evaluate(() =>
@@ -7755,26 +7719,16 @@ async function runToolsFab(browser) {
 }
 async function runTbFold(browser) {
   const { ctx, page, errs } = await newPage(browser);
-  console.log('\n── ☰ 上のバーをたたむ（v443） ──');
+  console.log('\n── ☰ だけ（v443〜・v465 から上のバーはなし） ──');
   const vis = sel => page.evaluate(sel => { const e = document.querySelector(sel); return !!e && getComputedStyle(e).display !== 'none'; }, sel);
-  // v450 から、決めていなければたたむ（☰）
-  await page.evaluate(() => { localStorage.removeItem('excalc_tbfold'); applyTbFold(); }); await page.waitForTimeout(150);
-  check('  はじめは ☰ にたたむ（上のバーは出さない）', (await vis('#mainToolbar')) + '/' + (await vis('#fbMenu')) + '/' + await page.evaluate(() => document.querySelector('#tbFoldSeg button.on') && document.querySelector('#tbFoldSeg button.on').dataset.f), 'false/true/1');
+  check('  上のバーは出さず ☰（setTbFold(false) でも）', await page.evaluate(() => { setTbFold(false); return document.body.classList.contains('tb-fold'); }) + '/' + (await vis('#mainToolbar')) + '/' + (await vis('#fbMenu')), 'true/false/true');
   await page.evaluate(() => { switchMode('dentaku'); }); await page.waitForTimeout(200);
   check('  電卓でも ☰', await page.evaluate(() => document.body.classList.contains('tb-fold') && getComputedStyle(document.getElementById('dtFoldMenu')).display !== 'none'), true);
-  await page.evaluate(() => { switchMode('normal'); setTbFold(false); }); await page.waitForTimeout(200);
-  check('  上に出すを選ぶと上のバーを出す・☰ は出さない', (await vis('#mainToolbar')) + '/' + (await vis('#fbMenu')) + '/' + await page.evaluate(() => localStorage.getItem('excalc_tbfold')), 'true/false/0');
-  const top0 = await page.evaluate(() => document.querySelector('.formula-bar').getBoundingClientRect().top);
-  await page.evaluate(() => { toggleSettings(); document.querySelector('#tbFoldSeg button[data-f="1"]').click(); });
-  await page.waitForTimeout(200);
-  const top1 = await page.evaluate(() => document.querySelector('.formula-bar').getBoundingClientRect().top);
-  check('  たたむとバーが消えて、表が上に広がる', (await vis('#mainToolbar')) + '/' + (await vis('#fbMenu')) + '/' + (top1 < top0 - 20) + '/' + await page.evaluate(() => localStorage.getItem('excalc_tbfold')), 'false/true/true/1');
+  await page.evaluate(() => { switchMode('normal'); }); await page.waitForTimeout(200);
   check('  ☰ はいちばん左上', await page.evaluate(() => { const r = document.getElementById('fbMenu').getBoundingClientRect(); return r.left < 20 && r.top < 20; }), true);
   check('  カメラの下から始める（safe-area）', await page.evaluate(() => { document.documentElement.style.setProperty('--safe-top', '47px'); const t = getComputedStyle(document.body).paddingTop; document.documentElement.style.removeProperty('--safe-top'); return t; }), '47px');
-  await page.evaluate(() => { if (isDlgOpen('settingsPanel')) toggleSettings(); });
-  await page.waitForTimeout(300);
   await page.click('#fbMenu'); await page.waitForTimeout(200);
-  check('  ☰ でメニュー（記録名・保存・戻すが上に）', await page.evaluate(() => isDlgOpen('moreMenuOverlay') + '/' + document.getElementById('moreTitle').textContent + '/' + (getComputedStyle(document.getElementById('moreFold')).display !== 'none') + '/' + document.getElementById('moreSaveLb').textContent + '/' + /自動保存|📄/.test(document.getElementById('moreRec').textContent)), 'true/☰ メニュー/true/名前を付けて保存/true');
+  check('  ☰ でメニュー（記録名・保存・開くが上に）', await page.evaluate(() => isDlgOpen('moreMenuOverlay') + '/' + document.getElementById('moreTitle').textContent + '/' + document.getElementById('moreSaveLb').textContent + '/' + /自動保存|📄/.test(document.getElementById('moreRec').textContent)), 'true/☰ メニュー/名前を付けて保存/true');
   await page.goBack({ waitUntil: 'commit' }).catch(() => {}); await page.waitForTimeout(400);
   check('  戻るでメニューを閉じる', await page.evaluate(() => isDlgOpen('moreMenuOverlay')), false);
   await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(200);
@@ -7787,12 +7741,6 @@ async function runTbFold(browser) {
   await page.click('#dtFoldMenu'); await page.waitForTimeout(200);
   check('  電卓の ☰ でもメニュー', await page.evaluate(() => isDlgOpen('moreMenuOverlay')), true);
   await page.evaluate(() => closeMoreMenu()); await page.waitForTimeout(300);
-  await page.evaluate(() => switchMode('normal')); await page.waitForTimeout(200);
-  await page.reload(); await page.waitForTimeout(900);
-  check('  開き直してもたたんだまま', (await vis('#mainToolbar')) + '/' + (await vis('#fbMenu')), 'false/true');
-  check('  設定のバックアップに入る', await page.evaluate(() => SETTINGS_BACKUP_KEYS.includes('excalc_tbfold')), true);
-  await page.evaluate(() => setTbFold(false)); await page.waitForTimeout(150);
-  check('  出すと元どおり', (await vis('#mainToolbar')) + '/' + (await vis('#fbMenu')), 'true/false');
   check('  JSエラーなし', errs.join(' | '), '');
   await ctx.close();
 }
@@ -8544,11 +8492,11 @@ async function runFmtCol(browser) {
   check('  はじめは すみ（v412）', await bg(KB), 'rgb(55, 71, 79)');
   await page.evaluate(() => { toggleSettings(); setSettingsTab(1); }); await page.waitForTimeout(300);
   check('  見た目は4つの組', await page.evaluate(() => [...document.querySelectorAll('#setPage1 .set-grp')].map(d => d.querySelector('.set-grp-t b').textContent).join('/')),
-    '色と背景/文字と大きさ/テンキー/画面と上のバー');
+    '色と背景/文字と大きさ/テンキー/画面');
   check('  組ははじめ閉じている', await page.evaluate(() => [...document.querySelectorAll('#setPage1 .set-grp')].every(d => !d.open)), true);
   check('  いままでの設定がどれかの組に入っている', await page.evaluate(() =>
     ['skinSw', 'skinKeySeg', 'skinBgSel', 'cellSize', 'appWidth', 'keySize', 'infoSize', 'formulaSize', 'numSize', 'npadSize', 'npPlaceSeg',
-     'calcOnlyBtn', 'pageBarBtn', 'funcPageBtn', 'resizerBarBtn', 'barSize', 'keypadEditBtn', 'npToolList', 'topBtnToggles', 'startPageSel', 'compactSeg', 'fpcBox']
+     'calcOnlyBtn', 'pageBarBtn', 'funcPageBtn', 'resizerBarBtn', 'barSize', 'keypadEditBtn', 'npToolList', 'startPageSel', 'compactSeg', 'fpcBox']
       .filter(id => { const e = document.getElementById(id); return !e || !e.closest('.set-grp'); }).join(',')), '');
   check('  書式・枠線のテンキーの色は「色と背景」の組', await page.evaluate(() => document.getElementById('fpcBox').closest('.set-grp').id), 'setGrpColor');
   check('  組み合わせは8つ（元＝すみ・白 …）', await page.evaluate(() => document.querySelectorAll('#fpcPresets .fpc-pre').length), 8);

@@ -675,6 +675,8 @@ body.ui-easy #settingsPanel:not(.show-all) .set-easy { overflow: auto; }
 .set-easy .ez-all { width: 100%; margin: 12px 0 8px; }
 .more-fold { display: block; margin-bottom: 8px; }   /* v459 からいつも出す（いまの表：保存・開く・戻す） */
 .more-grid.more-grid3 { grid-template-columns: repeat(3, 1fr); }
+.np-side-only { display: none; }
+body.np-side .np-side-only { display: flex; }
 .more-main { margin-top: 2px; }
 .more-item.more-big { flex-direction: column; justify-content: center; gap: 4px; padding: 14px 8px; font-size: 15px; text-align: center; }
 .more-item.more-big span { font-size: 26px; }
@@ -3810,15 +3812,13 @@ body.dark {
            いまの表（記録名・保存・開く・戻す）／道具・声・設定・使い方 の順。 -->
       <div class="more-fold" id="moreFold">
         <button class="more-rec" id="moreRec" onclick="moreDo(showSaveList)" title="いま開いている記録（押すと保存したものの一覧）"></button>
-        <div class="more-grid more-grid3">
+        <div class="more-grid">
           <button class="more-item" id="moreSave" onclick="moreDo(saveData)"><span>💾</span><b id="moreSaveLb">保存</b></button>
           <button class="more-item menu-item" id="listBtn" onclick="moreDo(showSaveList)" title="保存した表の一覧（開く・新規・書き出し）"><span>📂</span>開く</button>
-          <button class="more-item" id="moreUndo" onclick="moreDo(undoLast)"><span>↶</span>戻す</button>
         </div>
       </div>
-      <div class="more-grid more-main">
+      <div class="more-grid more-main more-grid3">
         <button class="more-item more-big" id="moreToolsBtn" onclick="moreDo(openToolsAll)"><span>🧰</span>道具</button>
-        <button class="more-item more-big" id="voiceMoreBtn" onclick="moreDo(voiceStart)" style="display:none" title="タップで1つ入れる／長押しで続けて入れる"><span>🎤</span>声で入れる</button>
         <button class="more-item more-big menu-item" id="settingsBtn" onclick="moreDo(toggleSettings)"><span>⚙</span>設定</button>
         <button class="more-item more-big" id="moreHelpBtn" onclick="moreDo(openHelp)"><span>📖</span>使い方</button>
       </div>
@@ -3832,6 +3832,7 @@ body.dark {
           <button class="more-item" onclick="moreDo(openModeMenu)"><span>🎯</span>ひな形から作る</button>
           <button class="more-item" onclick="moreDo(()=>switchMode('normal'))"><span>▦</span>通常の表</button>
           <button class="more-item" onclick="moreDo(()=>switchMode('dentaku'))"><span>🧮</span>電卓</button>
+          <button class="more-item np-side-only" id="moreNumpadBtn" onclick="moreDo(toggleNumpadEdge)"><span>⌨</span>テンキーを隠す／出す</button>
         </div>
         <div class="more-sec">📤 書き出す・読み込む</div>
         <div class="more-grid" id="moreAccOut">
@@ -4014,7 +4015,7 @@ body.dark {
       <span class="set-stepper"><button class="step-btn" onclick="changeInfoSize(-1)">−</button><span class="sc-val" id="infoSize">標準</span><button class="step-btn" onclick="changeInfoSize(1)">＋</button></span>
     </div>
     <div class="set-row">
-      <span class="set-label">上のバー<small>セル番号・入力欄</small></span>
+      <span class="set-label">上の入力欄<small>セル番号・入力欄</small></span>
       <span class="set-stepper"><button class="step-btn" onclick="changeFormulaSize(-1)">−</button><span class="sc-val" id="formulaSize">標準</span><button class="step-btn" onclick="changeFormulaSize(1)">＋</button></span>
     </div>
     <div class="set-sec">テンキーの大きさ・余白</div>
@@ -4056,22 +4057,8 @@ body.dark {
       </div>
     </details>
     <details class="set-grp" id="setGrpScreen" ontoggle="saveSetGrp(this)">
-      <summary><span class="set-grp-ic">📱</span><span class="set-grp-t"><b>画面と上のバー</b><small>上のバーのボタン・はじめに開くページ・画面の詰め方</small></span></summary>
+      <summary><span class="set-grp-ic">📱</span><span class="set-grp-t"><b>画面</b><small>はじめに開くページ・道具ボタン・吹き出し・画面の詰め方</small></span></summary>
       <div class="set-grp-body">
-    <div class="set-sec">上のバーに出すボタン</div>
-    <div class="set-note">上のバーはふだん <b>記録名・保存・↶戻る・☰</b> の4つです。<b>☰ メニュー</b>には、よく使うもの（<b>保存・開く・戻す・道具・声・設定・使い方</b>）を大きく出し、ほかは「<b>… ほかの機能</b>」に畳んであります（開け閉めは覚えます）。よく使うものは、ここで選んで<b>上のバーに出しておけます</b>（どれも <b>☰</b> の中にも入っています）。出しすぎるとバーが狭くなるので、必要なものだけどうぞ。</div>
-    <div class="topbtn-grid" id="topBtnToggles">
-      <button class="topbtn-toggle" data-btn="redo"    onclick="toggleTopBtn('redo')">↷ 進む</button>
-      <button class="topbtn-toggle" data-btn="list"    onclick="toggleTopBtn('list')">📋 リスト</button>
-      <button class="topbtn-toggle" data-btn="sheet"   onclick="toggleTopBtn('sheet')">🗂 シート</button>
-      <button class="topbtn-toggle" data-btn="settings" onclick="toggleTopBtn('settings')">⚙ 設定</button>
-      <button class="topbtn-toggle" data-btn="defsize" onclick="toggleTopBtn('defsize')">▦ 既定の大きさ</button>
-      <button class="topbtn-toggle" data-btn="numpad"  onclick="toggleTopBtn('numpad')">⌨ テンキー</button>
-      <button class="topbtn-toggle" data-btn="reset"   onclick="toggleTopBtn('reset')">🧹 リセット</button>
-    </div>
-    <div class="set-sec">上のバーをたたむ</div>
-    <div class="set-note"><b>たたむ</b>と、上のバー（記録名・保存・↶・☰）を消して、その分<b>表を画面の上から大きく</b>出します。いちばん左上（セル番号の左）の <b>☰</b> を押すと、保存・↶戻す・リスト・設定・道具などの<b>メニュー</b>が出ます。電卓のときも左上に ☰ が出ます。保存していない変更があると ☰ に ● が付きます。</div>
-    <div class="skin-seg" id="tbFoldSeg"><button data-f="0" onclick="setTbFold(false)">上に出す</button><button data-f="1" onclick="setTbFold(true)">たたむ（☰ にまとめる）</button></div>
     <div class="set-sec">はじめに開くページ</div>
     <div class="set-row">
       <span class="set-label">アプリを開いたとき<small>次に開いたときから効きます</small></span>
@@ -4086,7 +4073,7 @@ body.dark {
     <div class="set-sec">画面の詰め方<small style="font-weight:normal;margin-left:6px">せまい画面で表示量を増やす</small></div>
     <div class="set-note">iPhone SE のように<b>背の低い画面</b>だと、電卓の答えや履歴が入りきらないことがあります。<b>詰める</b>にすると文字と余白を少しずつ縮めて、<b>1画面に見える量を増やします</b>。<b>自動</b>は画面の大きさで決めます。<span id="compactNow"></span></div>
     <div class="skin-seg" id="compactSeg"></div>
-    <div class="set-note">🌙<b>ナイトモード</b>・🗂<b>シートのタブ</b>・▦<b>既定の大きさ</b>・書き出し／読み込みは、<b>☰ メニュー → … ほかの機能</b> にまとめてあります（よく使うものは下の「上のバーに出すボタン」で出しておけます）。</div>
+    <div class="set-note">🌙<b>ナイトモード</b>・🗂<b>シートのタブ</b>・▦<b>既定の大きさ</b>・書き出し／読み込みは、<b>☰ メニュー → … ほかの機能</b> にまとめてあります。</div>
       </div>
     </details>
   </div>
@@ -4569,7 +4556,7 @@ body.dark {
          5つとも長押しで好きな機能に変えられる（設定・機能／表の操作 など）。 -->
     <button class="btn util" data-key="u_voice" onclick="voiceStart()" title="声で入れる（続けて入れるときは☰の🎤を長押し、または「🎤続け」をキーに割り当て）／長押しで別の機能に変更">🎤声</button>
     <button class="btn util" data-key="u_redo"  onclick="redoLast()" title="元に戻した入力をやり直す／長押しで別の機能に変更">↷進む</button>
-    <button class="btn util" data-key="u_undo"  onclick="undoLast()" title="直前の入力を元に戻す／長押しで別の機能に変更">↶戻す</button>
+    <button class="btn util" data-key="u_undo"  onclick="undoLast()" title="タップで元に戻す／長押しで取り消せる操作の一覧">↶戻す</button>
     <button class="btn util" data-key="u_reset" onclick="resetAll()" title="表の中身を消す（戻るで元に戻せます）／長押しで別の機能に変更">リセット</button>
     <button class="btn util" data-key="u_normal" onclick="switchMode('normal')" title="ふつうの表に戻す／長押しで別の機能に変更">▦通常</button>
     <button class="btn clr" data-key="mode" id="shoppingBtn" onclick="onModeBtnClick()">ひな形</button>
@@ -9000,6 +8987,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v465', t:'上のバーをなくし、☰ だけに', li:[
+    '上のバー（記録名・保存・↶・⋯）は出さず、いつも<b>左上の ☰</b> だけにしました。その分、表が広く見えます',
+    'テンキーの <b>↶戻す</b> を長押しすると、<b>取り消せる操作の一覧</b>が出ます（前の上のバーの ↶ と同じ）。一覧から、どこまで戻すかを選べます',
+    '☰ メニューから「戻す」と「声で入れる」を外しました（戻すはテンキーの ↶戻す、声はテンキーの 🎤声 から）' ]},
   { v:'v464', t:'🔐サブスク管理表：開くのにパスワードは要りません', li:[
     '🔐サブスク管理表は、<b>パスワードを入れなくても</b>開いて、一覧を見たり・足したり・直したりできるようにしました',
     '保存したパスワード（ログインのパスワード）を <b>👁 見る・📋 コピーする</b>ときだけ、ヒントを出して<b>閲覧用のパスワード</b>を聞きます。パスワードは今までどおり暗号にして端末の中だけに残します',
@@ -9009,7 +9000,7 @@ const WHATSNEW=[
     '🧾会計アプリ・📄メモにも、表電卓から開いたときは左上に<b>「← 表電卓」</b>を出します',
     'テンキーの「戻る」「進む」は、画面をもどるボタンと まちがえないよう「<b>↶戻す</b>」「<b>↷進む</b>」にしました（入れたものを元に戻すキーです）' ]},
   { v:'v462', t:'🧰道具ボタンと、道具のアイコン', li:[
-    'テンキーの上の並びの右に、オレンジの<b>🧰 道具</b>ボタンを出しました。どの画面からでも<b>ワンタッチ</b>で道具の窓が開きます（⚙設定 → 画面と上のバー で隠せます）',
+    'テンキーの上の並びの右に、オレンジの<b>🧰 道具</b>ボタンを出しました。どの画面からでも<b>ワンタッチ</b>で道具の窓が開きます（⚙設定 → 🎨見た目 → 画面 で隠せます）',
     'よく使う道具を<b>スマホのホーム画面のアイコン</b>にできます。道具の窓のいちばん下「<b>📱 道具をホーム画面のアイコンにする</b>」から選び、開いた画面で「ホーム画面に追加」します。アイコンからは<b>その道具だけ</b>が開きます（入れたものは表電卓と同じ）',
     'アイコンにしない人は、これまでどおり表電卓の中から使えます' ]},
   { v:'v461', t:'かんたん表示と、分かりやすい言葉', li:[
@@ -14041,6 +14032,11 @@ function npFlickActive(){ return npFlickKey!==null; }
     if(!b || b.dataset.key==='sum') return;   // Σは長押し＝合計/平均メニューが既にあるため除外
     sx=e.clientX; sy=e.clientY; clearTimeout(timer);
     const key=b.dataset.key;
+    // ↶戻す の長押し＝取り消せる操作の一覧（☰ の上の ↶ と同じ。割り当ては変えない。v465）
+    if(key==='u_undo'){
+      timer=setTimeout(()=>{ timer=null; kaSuppress=true; if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} openUndoList(); }, 400);
+      return;
+    }
     if(uiEasy && key!=='bs') return;   // かんたん表示：長押し（割り当て・記号・Enter の向き）は使わない（v461）
     // 数字キーは「少しだけ長押し→まわりに記号が出て、フリックで選ぶ」（v353）。
     // ボタンの機能を割り当てる長押しは、数字キーでは使わない。
@@ -20450,7 +20446,7 @@ function applyTopBtnShown(){
   applyTbFold();
 }
 /* 上のバーをたたむ（v443）。たたむと、左上の ☰（セル番号の左・電卓の左上）から ⋯ のメニューを出す */
-function tbFoldOn(){ try{ return localStorage.getItem('excalc_tbfold')!=='0'; }catch(_){ return true; } }   // v450 から、決めていなければたたむ（☰）
+function tbFoldOn(){ return true; }   // v465 から上のバーは出さず、いつも左上の ☰ だけ（v450〜v464 は設定で選べた）
 function applyTbFold(){
   const on=tbFoldOn();
   document.body.classList.toggle('tb-fold', on);
@@ -20656,7 +20652,7 @@ function appToolAddHint(){
   ov.appendChild(b);
 }
 /* ── 道具を はじめて開いたときの吹き出し（v460） ──
-   1つの道具に1回だけ。「わかった」で消す。⚙設定 → 画面と上のバー で出さないようにもできる */
+   1つの道具に1回だけ。「わかった」で消す。⚙設定 → 🎨見た目 → 画面 で出さないようにもできる */
 const TOOL_HINTS={
   tansui:'配合を登録しておき、試験のたびに測った値を入れると、推定の単位水量と配合との差を出します。配合の登録は「⚙ 設定」から。',
   kantab:'単位水量と、カンタブの読み値を入れると、換算表で塩化物含有量と平均値を出します。換算表は「⚙ 設定」で登録します。',
@@ -21016,7 +21012,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v464';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v465';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -22368,10 +22364,10 @@ function renderSaveStateBanner(){
   const d=daysSinceBackup();
   const rows=[];
   rows.push(['✓','<b>いまの表</b>は端末に自動保存されています（アプリを閉じても戻ってきます）', '']);
-  if(cur&&saveDirty)  rows.push(['●','<b>「'+escHtml(cur.name)+'」に未保存の変更</b>があります。上のバーの<b>保存</b>で上書きできます','']);
+  if(cur&&saveDirty)  rows.push(['●','<b>「'+escHtml(cur.name)+'」に未保存の変更</b>があります。☰ の <b>💾保存</b>で上書きできます','']);
   else if(cur)        rows.push(['✓','<b>「'+escHtml(cur.name)+'」に保存済み</b>です','']);
-  else if(saves.length) rows.push(['·','いまの表は<b>まだ記録に保存していません</b>。上のバーの<b>保存</b>で名前を付けられます','']);
-  else                rows.push(['·','記録はまだ1件もありません。上のバーの<b>保存</b>で名前を付けて残せます','']);
+  else if(saves.length) rows.push(['·','いまの表は<b>まだ記録に保存していません</b>。☰ の <b>💾保存</b>で名前を付けられます','']);
+  else                rows.push(['·','記録はまだ1件もありません。☰ の <b>💾保存</b>で名前を付けて残せます','']);
   if(saves.length){
     if(d===null)      rows.push(['⚠','<b>まだ一度もファイルに書き出していません</b>。ブラウザのデータを消すと記録も消えます。下の<b>⬇書き出し</b>をおすすめします','ss-warn']);
     else if(d>=BACKUP_REMIND_DAYS) rows.push(['⚠','最後の書き出しから<b>'+d+'日</b>経っています。下の<b>⬇書き出し</b>をおすすめします','ss-warn']);
