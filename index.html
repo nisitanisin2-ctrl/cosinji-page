@@ -628,8 +628,33 @@ body.tb-fold .fb-menu { display: flex; align-items: center; justify-content: cen
   border: none; background: var(--bar-bg, var(--acc)); color: #fff; font-size: calc(17px * var(--formula-scale, 1)); font-weight: bold; cursor: pointer; }
 body.tb-fold.rec-dirty .fb-menu::after { content: ''; position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: #ffd23f; box-shadow: 0 0 0 1.5px var(--bar-bg, var(--acc)); }
 body.tb-fold .formula-bar { padding-left: calc(6px + var(--safe-left)); }
-.more-fold { display: none; }
-body.tb-fold .more-fold { display: block; margin-bottom: 8px; }
+/* 🏠 ホーム（v459） */
+#homeOverlay { z-index: 1004; }
+.modal.home-modal { width: 100%; max-width: 460px; max-height: 94vh; overflow: auto; padding: 0 0 calc(12px + var(--safe-bottom, 0px)); }
+.home-top { display: flex; align-items: center; justify-content: space-between; padding: calc(14px + var(--safe-top, 0px)) 16px 4px; }
+.home-title { font-size: 22px; font-weight: bold; color: var(--acc); }
+.home-top .modal-close { color: var(--text-light); background: transparent; }
+.home-q { padding: 0 16px 10px; font-size: 15px; color: var(--text-light); }
+.home-tiles { display: flex; flex-direction: column; gap: 10px; padding: 0 14px; }
+.home-tile { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 84px; padding: 12px 16px; text-align: left;
+  border: 2px solid var(--save-item-border); border-radius: 16px; background: var(--save-item-bg); color: var(--text); cursor: pointer; touch-action: manipulation; }
+.home-tile:active { opacity: .75; }
+.home-tile > span { font-size: 38px; width: 48px; text-align: center; flex-shrink: 0; }
+.home-tile b { display: block; font-size: 22px; }
+.home-tile small { display: block; font-size: 13px; color: var(--text-light); margin-top: 2px; overflow-wrap: anywhere; }
+.home-sec { font-size: 13px; font-weight: bold; color: var(--text-light); margin: 16px 16px 6px; }
+.home-recent { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 0 14px; }
+.home-recent .more-item { padding: 12px 10px; }
+.home-foot { margin: 16px 16px 0; font-size: 12px; color: var(--text-light); line-height: 1.7; }
+.home-chk { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text); margin-bottom: 4px; }
+.home-chk input { width: 20px; height: 20px; }
+.more-fold { display: block; margin-bottom: 8px; }   /* v459 からいつも出す（いまの表：保存・開く・戻す） */
+.more-grid.more-grid3 { grid-template-columns: repeat(3, 1fr); }
+.more-main { margin-top: 2px; }
+.more-item.more-big { flex-direction: column; justify-content: center; gap: 4px; padding: 14px 8px; font-size: 15px; text-align: center; }
+.more-item.more-big span { font-size: 26px; }
+#moreAccAll > .more-grid { margin-top: 6px; }
+#moreAccAll .more-sec { margin-top: 10px; }
 .more-rec { display: block; width: 100%; text-align: left; padding: 8px 10px; margin-bottom: 6px; border-radius: var(--r-btn); border: 1px solid var(--cell-border, #ddd);
   background: var(--sheet-cell-bg, var(--cell-bg, #fff)); color: var(--text, #222); font-weight: bold; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .more-rec.dirty { border-color: #f5a300; }
@@ -3704,57 +3729,74 @@ body.dark {
       <button class="modal-close" onclick="closeMoreMenu()">✕</button>
     </div>
     <div class="modal-body">
-      <!-- 上のバーをたたんだとき（v443）：上のバーにあった記録名・保存・↶戻す をいちばん上に出す -->
+      <!-- ☰ メニュー（v459）：よく使うものだけを大きく出し、ほかは「ほかの機能」に畳む。
+           いまの表（記録名・保存・開く・戻す）／道具・声・設定・使い方 の順。 -->
       <div class="more-fold" id="moreFold">
-        <button class="more-rec" id="moreRec" onclick="moreDo(showSaveList)" title="いま開いている記録（押すとリスト）"></button>
-        <div class="more-grid">
+        <button class="more-rec" id="moreRec" onclick="moreDo(showSaveList)" title="いま開いている記録（押すと保存したものの一覧）"></button>
+        <div class="more-grid more-grid3">
           <button class="more-item" id="moreSave" onclick="moreDo(saveData)"><span>💾</span><b id="moreSaveLb">保存</b></button>
+          <button class="more-item menu-item" id="listBtn" onclick="moreDo(showSaveList)" title="保存した表の一覧（開く・新規・書き出し）"><span>📂</span>開く</button>
           <button class="more-item" id="moreUndo" onclick="moreDo(undoLast)"><span>↶</span>戻す</button>
         </div>
       </div>
-      <!-- よく使うものだけ出し、たまにしか使わないものは畳む（v375）。
-           畳んだ中身も DOM には残るので、上のバーへの登録や長押しはそのまま効く -->
-      <div class="more-grid">
-        <button class="more-item menu-item" id="redoBtn" onclick="moreDo(redoLast)" disabled><span>↷</span>進む</button>
-        <button class="more-item menu-item" id="listBtn" onclick="moreDo(showSaveList)"><span>📋</span>リスト</button>
-        <button class="more-item menu-item" id="settingsBtn" onclick="moreDo(toggleSettings)"><span>⚙</span>設定</button>
-        <button class="more-item" id="darkMoreBtn" onclick="moreDo(toggleDark)"><span>🌙</span>ナイトモード</button>
-        <button class="more-item" id="voiceMoreBtn" onclick="moreDo(voiceStart)" style="display:none" title="タップで1つ入れる／長押しで続けて入れる"><span>🎤</span>声で入れる</button>
+      <div class="more-grid more-main">
+        <button class="more-item more-big" id="moreToolsBtn" onclick="moreDo(openToolsAll)"><span>🧰</span>道具</button>
+        <button class="more-item more-big" id="voiceMoreBtn" onclick="moreDo(voiceStart)" style="display:none" title="タップで1つ入れる／長押しで続けて入れる"><span>🎤</span>声で入れる</button>
+        <button class="more-item more-big menu-item" id="settingsBtn" onclick="moreDo(toggleSettings)"><span>⚙</span>設定</button>
+        <button class="more-item more-big" id="moreHelpBtn" onclick="moreDo(openHelp)"><span>📖</span>使い方</button>
       </div>
-      <div class="more-sec">切り替える</div>
-      <div class="more-grid">
-        <button class="more-item" onclick="moreDo(openModeMenu)"><span>🎯</span>用途から始める</button>
-        <button class="more-item" onclick="moreDo(()=>switchMode('normal'))"><span>▦</span>通常の表</button>
-        <button class="more-item" onclick="moreDo(()=>switchMode('dentaku'))"><span>🧮</span>電卓</button>
-      </div>
-      <!-- 道具の一覧（v398）。テンキーのページをめくらなくても、ここから全部開ける -->
-      <details class="more-acc" id="moreAccTools" ontoggle="saveMoreAcc(this)">
-        <summary>🧰 道具<small id="moreToolsSum"></small></summary>
-        <div class="more-grid more-tools" id="moreToolsGrid"></div>
-      </details>
-      <details class="more-acc" id="moreAccOut" ontoggle="saveMoreAcc(this)">
-        <summary>📤 書き出す・読み込む<small>PDF・CSV・Excel</small></summary>
+      <!-- ほかの機能（v459）。中身は前の ⋯ と同じ。畳んでいても上のバーへの登録や長押しはそのまま効く -->
+      <details class="more-acc" id="moreAccAll" ontoggle="saveMoreAcc(this)">
+        <summary>… ほかの機能<small>ホーム・進む・ナイトモード・用途・電卓・書き出し・シート・QR・リセット</small></summary>
         <div class="more-grid">
+          <button class="more-item" id="moreHomeBtn" onclick="moreDo(openHome)"><span>🏠</span>ホーム</button>
+          <button class="more-item menu-item" id="redoBtn" onclick="moreDo(redoLast)" disabled><span>↷</span>進む</button>
+          <button class="more-item" id="darkMoreBtn" onclick="moreDo(toggleDark)"><span>🌙</span>ナイトモード</button>
+          <button class="more-item" onclick="moreDo(openModeMenu)"><span>🎯</span>用途から始める</button>
+          <button class="more-item" onclick="moreDo(()=>switchMode('normal'))"><span>▦</span>通常の表</button>
+          <button class="more-item" onclick="moreDo(()=>switchMode('dentaku'))"><span>🧮</span>電卓</button>
+        </div>
+        <div class="more-sec">📤 書き出す・読み込む</div>
+        <div class="more-grid" id="moreAccOut">
           <button class="more-item" onclick="moreDo(exportPDF)" title="今の表を印刷画面から「PDFに保存」で書き出せます"><span>🖨</span>PDF</button>
           <button class="more-item" onclick="moreDo(exportCSV)"><span>📄</span>CSV出力</button>
           <button class="more-item" onclick="moreDo(exportXLSX)" title="値・数式・書式（色・枠線・太字・寄せ・結合）をエクセル形式で書き出します"><span>📊</span>Excel出力</button>
           <button class="more-item" onclick="document.getElementById('importCSVInput').click();closeMoreMenu()" title="CSVファイルを今の表に読み込みます（上書き）"><span>📥</span>CSV読込</button>
           <button class="more-item" onclick="document.getElementById('importXLSXInput').click();closeMoreMenu()" title="エクセル(.xlsx)ファイルを今の表に読み込みます（上書き）"><span>📥</span>Excel読込</button>
         </div>
+        <div class="more-sec">🛠 そのほか</div>
+        <div class="more-grid" id="moreAccMisc">
+          <button class="more-item menu-item" id="sheetToggleBtn" onclick="moreDo(toggleSheetTabs)" title="シートのタブバーを表示/非表示"><span>🗂</span>シート</button>
+          <button class="more-item menu-item" id="defsizeTopBtn" title="新しい表や ▦通常 に戻したときの行数・列数を決めます"><span>▦</span>既定の大きさ</button>
+          <button class="more-item" onclick="moreDo(openQrShare)" title="アプリのアドレスを QR コードで出す（相手のスマホのカメラで開けます）"><span>📱</span>QRで共有</button>
+        </div>
+        <div class="more-sec more-danger-sec">表の中身を消す</div>
+        <button class="more-item more-danger menu-item" id="resetBtn" onclick="moreDo(resetAll)"><span>🧹</span>リセット（戻るで元に戻せます）</button>
       </details>
       <input id="importCSVInput" type="file" accept=".csv,text/csv" style="display:none" onchange="importCSV(event)">
       <input id="importXLSXInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onchange="importXLSX(event)">
-      <details class="more-acc" id="moreAccMisc" ontoggle="saveMoreAcc(this)">
-        <summary>🛠 そのほか<small>シート・既定の大きさ・説明書・QRで共有</small></summary>
-        <div class="more-grid">
-          <button class="more-item menu-item" id="sheetToggleBtn" onclick="moreDo(toggleSheetTabs)" title="シートのタブバーを表示/非表示"><span>🗂</span>シート</button>
-          <button class="more-item menu-item" id="defsizeTopBtn" title="新しい表や ▦通常 に戻したときの行数・列数を決めます"><span>▦</span>既定の大きさ</button>
-          <button class="more-item" onclick="moreDo(openHelp)"><span>📖</span>説明書</button>
-          <button class="more-item" onclick="moreDo(openQrShare)" title="アプリのアドレスを QR コードで出す（相手のスマホのカメラで開けます）"><span>📱</span>QRで共有</button>
-        </div>
-      </details>
-      <div class="more-sec more-danger-sec">表の中身を消す</div>
-      <button class="more-item more-danger menu-item" id="resetBtn" onclick="moreDo(resetAll)"><span>🧹</span>リセット（戻るで元に戻せます）</button>
+    </div>
+  </div>
+</div>
+
+<!-- 🏠 ホーム（v459）：開いたときに「何をするか」を大きく3つから選ぶ。道具はさいきん使ったものも出す -->
+<div class="modal-overlay" id="homeOverlay" role="dialog" aria-modal="true" aria-labelledby="homeTitle">
+  <div class="modal home-modal">
+    <div class="home-top">
+      <div class="home-title" id="homeTitle">表電卓</div>
+      <button class="modal-close" onclick="closeHome()" aria-label="閉じる">✕</button>
+    </div>
+    <div class="home-q">何をしますか？</div>
+    <div class="home-tiles">
+      <button class="home-tile" id="homeSheet" onclick="homeGo('sheet')"><span>▦</span><div><b>表</b><small id="homeSheetSub">いまの表のつづき</small></div></button>
+      <button class="home-tile" id="homeDentaku" onclick="homeGo('dentaku')"><span>🧮</span><div><b>電卓</b><small>ふつうの電卓・声でも計算</small></div></button>
+      <button class="home-tile" id="homeTools" onclick="homeGo('tools')"><span>🧰</span><div><b>道具</b><small id="homeToolsSub">しまい場所・家計・手帳 など</small></div></button>
+    </div>
+    <div class="home-sec" id="homeRecentSec" hidden>さいきん使った道具</div>
+    <div class="home-recent" id="homeRecent"></div>
+    <div class="home-foot">
+      <label class="home-chk"><input type="checkbox" id="homeStartChk" onchange="homeSetStartup(this.checked)"> 開いたときに この画面を出す</label>
+      <div>☰ メニュー → ほかの機能 → 🏠ホーム で、いつでもここに戻れます</div>
     </div>
   </div>
 </div>
@@ -8847,6 +8889,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v459', t:'🏠ホームと、すっきりした ☰ メニュー', li:[
+    '開いたときに<b>🏠ホーム</b>を出します。「<b>表・電卓・道具</b>」の3つと、<b>さいきん使った道具</b>から選ぶだけです（前回のつづきから開きたいときは、ホームのチェックを外します）',
+    '<b>☰ メニュー</b>は、よく使う「<b>保存・開く・戻す</b>」「<b>道具・声・設定・使い方</b>」だけを大きく出すようにしました',
+    'ナイトモード・用途・書き出し・シート・QR・リセットなどは「<b>… ほかの機能</b>」の中にあります（なくなったものはありません）' ]},
   { v:'v458', t:'📦しまい場所メモ', li:[
     '新しい道具<b>「📦しまい場所」</b>。「あれ、どこにしまったっけ？」をなくします',
     '下の欄に「<b>パスポートは寝室のタンスの2段目</b>」「印鑑を仏壇の引き出しにしまった」のように打つか 🎤 で話すと、物と場所に分けて残します',
@@ -10415,7 +10461,8 @@ let tourIdx=0;
 function tourSeen(){ try{ return localStorage.getItem(TOUR_KEY)==='1'; }catch(_){ return true; } }
 function tourMarkSeen(){ try{ localStorage.setItem(TOUR_KEY,'1'); }catch(_){} }
 function openTour(){ tourIdx=0; renderTour(); openDlg('tourOverlay'); }
-function closeTour(){ closeDlg('tourOverlay'); }
+let homeAfterTour=false;
+function closeTour(){ closeDlg('tourOverlay'); if(homeAfterTour){ homeAfterTour=false; setTimeout(()=>{ try{ openHome(); }catch(_){} }, 350); } }
 function tourSkip(){ tourMarkSeen(); closeTour(); }
 function tourGo(d){
   const n=tourIdx+d;
@@ -12643,6 +12690,7 @@ function openDlg(id, cleanup){
   const el=document.getElementById(id);
   if(!el || el.classList.contains('open')) return false;
   el.classList.add('open');
+  try{ const t=NP_TOOLS.find(x=>x.ov===id); if(t) noteRecentTool(t.id); }catch(_){}   // さいきん使った道具（ホームに出す。v459）
   armBackGuard(()=>{ el.classList.remove('open'); if(cleanup) cleanup(); });
   return true;
 }
@@ -13984,14 +14032,14 @@ const NP_TOOLS=[
    アプリを開いたときに、表・電卓・道具のどれを出すかを選べる。
    「前回のつづき」なら今までどおり、閉じたときのままで開く。 */
 const START_PAGE_KEY='excalc_startpage';
-let startPage='last';
+let startPage='home';
 function startPageOptions(){
-  return [['last','前回のつづき'],['normal','▦ 通常の表'],['dentaku','🧮 電卓']]
+  return [['home','🏠 ホーム'],['last','前回のつづき'],['normal','▦ 通常の表'],['dentaku','🧮 電卓']]
     .concat(NP_TOOLS.filter(t=>t.ov).map(t=>[t.id, t.label]));   // 別のアプリとして開く「メモ」は出さない
 }
 function loadStartPage(){
-  let v='last'; try{ v=localStorage.getItem(START_PAGE_KEY)||'last'; }catch(_){}
-  startPage=startPageOptions().some(o=>o[0]===v)?v:'last';
+  let v='home'; try{ v=localStorage.getItem(START_PAGE_KEY)||'home'; }catch(_){}   // 決めていなければホーム（v459）
+  startPage=startPageOptions().some(o=>o[0]===v)?v:'home';
 }
 function setStartPage(v){
   startPage=startPageOptions().some(o=>o[0]===v)?v:'last';
@@ -14016,6 +14064,7 @@ function applyStartPage(){
   if(window.APP_TECHO){ openTecho(); return; }          // 業務手帳だけのアプリ
   const v=startPageFromUrl()||startPage;
   if(v==='last') return;
+  if(v==='home'){ if(tourSeen()) openHome(); else homeAfterTour=true; return; }   // はじめての案内のあとに出す
   if(v==='normal' || v==='dentaku'){ switchMode(v); return; }
   const t=npToolDef(v);
   if(t && t.ov && typeof t.run==='function') t.run();
@@ -20337,9 +20386,8 @@ function openUndoList(){
 function closeUndoList(){ closeDlg('undoListOverlay'); }
 function openMoreMenu(){
   renderMoreTools(); applyMoreAcc();
-  const fold=document.body.classList.contains('tb-fold');
-  const tt=document.getElementById('moreTitle'); if(tt) tt.textContent=fold?'☰ メニュー':'⋯ そのほか';
-  if(fold){   // 上のバーにあった記録名・保存・↶ を写す
+  const tt=document.getElementById('moreTitle'); if(tt) tt.textContent='☰ メニュー';
+  {   // 上のバーにある記録名・保存・↶ を写す（v459 から、たたんでいなくても出す）
     const rt=document.getElementById('recordTitle'), rec=document.getElementById('moreRec');
     if(rt && rec){ rec.textContent=rt.textContent; rec.title=rt.title; rec.classList.toggle('dirty', rt.classList.contains('dirty')); }
     const sb=document.getElementById('saveBtn'), lb=document.getElementById('moreSaveLb');
@@ -20355,7 +20403,7 @@ const toolLabelSplit=l=>{ const m=/^(\p{Extended_Pictographic}\uFE0F?)(.*)$/u.ex
 function toolButtonsHtml(doer, onlyBtn){
   return NP_TOOLS.map((t,i)=>{
     if(onlyBtn && toolsBtnHidden.includes(t.id)) return ''; const [ic,tx]=toolLabelSplit(t.label);
-    return '<button class="more-item" data-tool="'+t.id+'" onclick="'+doer+'(NP_TOOLS['+i+'].run)"'+
+    return '<button class="more-item" data-tool="'+t.id+'" onclick="noteRecentTool(\''+t.id+'\');'+doer+'(NP_TOOLS['+i+'].run)"'+
       (t.ov?'':' title="別のアプリとして開きます（「戻る」で表電卓に帰れます）"')+'><span>'+ic+'</span>'+escHtml(tx)+(t.ov?'':' ↗')+'</button>'; }).join('');
 }
 function renderMoreTools(){
@@ -20366,10 +20414,42 @@ function renderMoreTools(){
   if(sum) sum.textContent=NP_TOOLS.map(t=>sp(t.label)[1]).slice(0,5).join('・')+' ほか 全'+NP_TOOLS.length+'つ';
 }
 function closeMoreMenu(){ closeDlg('moreMenuOverlay'); }
+/* ── 🏠 ホーム（v459） ──
+   開いたときに「表・電卓・道具」の3つと、さいきん使った道具を大きく出す。
+   はじめに開くページの既定をホームにした（前回のつづきを選んでいる人はそのまま） */
+const RECENT_TOOLS_KEY='excalc_recent_tools';
+function recentTools(){ return loadList(RECENT_TOOLS_KEY).filter(id=>npToolDef(id)); }
+function noteRecentTool(id){
+  if(!npToolDef(id)) return;
+  saveList(RECENT_TOOLS_KEY, [id].concat(recentTools().filter(x=>x!==id)).slice(0,6));
+}
+function renderHome(){
+  const rt=document.getElementById('recordTitle'), sub=document.getElementById('homeSheetSub');
+  if(sub){ const n=rt?String(rt.textContent||'').replace(/^📄\s*/,'').trim():''; sub.textContent=tableMode==='normal'&&n&&!/自動保存/.test(n)?'つづき：'+n:'いまの表のつづき'; }
+  const ts=document.getElementById('homeToolsSub'); if(ts) ts.textContent='しまい場所・家計・手帳 など '+NP_TOOLS.length+'の道具';
+  const ids=recentTools().slice(0,4), box=document.getElementById('homeRecent'), sec=document.getElementById('homeRecentSec');
+  if(box) box.innerHTML=ids.map(id=>{ const t=npToolDef(id), [ic,tx]=toolLabelSplit(t.label);
+    return `<button class="more-item" data-tool="${id}" onclick="homeTool('${id}')"><span>${ic}</span>${escHtml(tx)}${t.ov?'':' ↗'}</button>`; }).join('');
+  if(sec) sec.hidden=!ids.length;
+  const chk=document.getElementById('homeStartChk'); if(chk) chk.checked=(startPage==='home');
+}
+function openHome(){ renderHome(); openDlg('homeOverlay'); }
+function closeHome(){ closeDlg('homeOverlay'); }
+/* 閉じたすぐあと（同じ流れの中）で開く。「戻る」の履歴が打ち消し合うように（moreDo と同じ） */
+function homeGo(k){
+  closeHome();
+  if(k==='dentaku'){ switchMode('dentaku'); return; }
+  if(k==='tools'){ openToolsAll(); return; }
+  if(isDentaku()) switchMode('normal');   // 電卓のときは表へ。ほかはいまの表のまま
+}
+function homeTool(id){ const t=npToolDef(id); closeHome(); if(t) try{ noteRecentTool(id); t.run(); }catch(_){ toast('うまく開けませんでした'); } }
+function homeSetStartup(on){ setStartPage(on?'home':'last'); }
 /* 🧰道具の一覧の窓（v429）。マイキー・長押しの割り当て「🧰道具」から開く。中身は ⋯ の「🧰道具」と同じ */
-function openToolsList(){
+/* ☰ の「🧰 道具」とホームから：並べる道具の設定にかかわらず全部出す（v459） */
+function openToolsAll(){ openToolsList(false); }
+function openToolsList(onlyBtn){
   const g=document.getElementById('toolsListGrid'); if(!g) return;
-  g.innerHTML=toolButtonsHtml('toolsListDo', true);
+  g.innerHTML=toolButtonsHtml('toolsListDo', onlyBtn!==false);
   openDlg('toolsListOverlay');
   guardAfterOpen('toolsListOverlay');   // 長押しの指を離した分で閉じないように
   bindBackdropClose('toolsListOverlay', closeToolsList);
@@ -20422,7 +20502,7 @@ function toolsListDo(fn){
 /* ⋯の畳んだところの開け閉けを覚える（v375） */
 function saveMoreAcc(el){ try{ localStorage.setItem('excalc_'+el.id, el.open?'1':'0'); }catch(_){} }
 function applyMoreAcc(){
-  ['moreAccTools','moreAccOut','moreAccMisc'].forEach(id=>{
+  ['moreAccAll'].forEach(id=>{
     const el=document.getElementById(id); if(!el) return;
     let v='0'; try{ v=localStorage.getItem('excalc_'+id)||'0'; }catch(_){}
     el.open=(v==='1');
@@ -20585,7 +20665,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v458';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v459';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

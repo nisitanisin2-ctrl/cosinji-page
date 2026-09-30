@@ -61,7 +61,7 @@ async function mark(page, marks) {
   page.on('console', m => { if (m.text().startsWith('見つからない')) console.log('  ' + m.text()); });
   const fresh = async (pre) => {
     await page.goto(INDEX);
-    await page.evaluate((pre) => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); for (const k in pre || {}) localStorage.setItem(k, pre[k]); }, pre);
+    await page.evaluate((pre) => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_startpage', 'last'); for (const k in pre || {}) localStorage.setItem(k, pre[k]); }, pre);
     await page.reload(); await page.waitForTimeout(1300);
     await page.evaluate(() => { try { markSeenVer(); hideNotice(); } catch (_) {} });
     await page.evaluate(() => { const v = [['品名', '金額'], ['りんご', '320'], ['パン', '250'], ['牛乳', '198'], ['合計', '=SUM(B2:B4)']]; v.forEach((r, i) => r.forEach((x, j) => setCellVal(i, j, x))); recalcAll(); sel(1, 1); });

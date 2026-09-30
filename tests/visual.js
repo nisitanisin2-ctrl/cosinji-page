@@ -74,7 +74,7 @@ async function shoot(browser, sc) {
   await page.evaluate(pre => {
     localStorage.clear();
     localStorage.setItem('excalc_tour_done', '1');
-    localStorage.setItem('excalc_tbfold', '0');   // 見本は上のバーを出した画面（v450 から、決めていなければたたむ）
+    localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('excalc_startpage', 'last');   // 見本は上のバーを出した画面（v450 から、決めていなければたたむ）
     for (const k in (pre || {})) localStorage.setItem(k, pre[k]);
   }, sc.pre || {});
   await page.reload(); await page.waitForTimeout(900);
