@@ -7096,6 +7096,18 @@ async function runSubsc(browser) {
   check('  開くまでは読まない・道具とマイキーにある', await page.evaluate(() => !window.SUBSC_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'subsc') + '/' + !!KEY_FUNCS.a_subsc), 'true/true/true');
   await page.evaluate(() => openSubsc()); await w(600);
   check('  開くのにパスワードは聞かない（すぐ一覧）', await page.evaluate(() => isDlgOpen('subscOverlay') + '/' + !!document.getElementById('sbQ') + '/' + !document.getElementById('sbPwIn') + '/' + sbState().keys), 'true/true/true/false');
+  // v468：パスワードマネージャーを呼ばない（type="password" を使わず、●● で隠す）
+  check('  パスワードの欄に type=password を使わない', await page.evaluate(async () => {
+    sbEdit(null); await new Promise(r => setTimeout(r, 200));
+    const e = document.getElementById('sbEPw');
+    const r = [e.type, e.autocomplete, e.classList.contains('sb-mask'), getComputedStyle(e).webkitTextSecurity, e.hasAttribute('data-1p-ignore'),
+      document.querySelectorAll('input[type=password]').length].join('/');
+    return r; }), 'text/off/true/disc/true/0');
+  check('  👁 で見える・もう一度で隠れる', await page.evaluate(() => {
+    const e = document.getElementById('sbEPw'), b = e.parentElement.querySelector('button');
+    b.click(); const a = getComputedStyle(e).webkitTextSecurity; b.click(); return a + '/' + getComputedStyle(e).webkitTextSecurity; }), 'none/disc');
+  check('  🎲 で作ると見えるように出す', await page.evaluate(() => { sbGenPw(); const e = document.getElementById('sbEPw'); return e.value.length + '/' + e.classList.contains('sb-mask'); }), '16/false');
+  await page.evaluate(() => sbCloseEd()); await page.waitForTimeout(400);
   const add = async (o) => { await page.evaluate(() => sbEdit(null)); await w(100);
     await page.evaluate((o) => { const set = (id, v) => { document.getElementById(id).value = v; }; set('sbEName', o.name); set('sbEPrice', o.price); set('sbECycle', o.cycle); set('sbENext', o.next || ''); set('sbEPay', o.pay || ''); set('sbEUid', o.uid || ''); set('sbEPw', o.pw || ''); set('sbEUrl', o.url || ''); document.getElementById('sbEStop').checked = !!o.stop; }, o);
     await page.evaluate(() => sbEdSave()); await w(300); };

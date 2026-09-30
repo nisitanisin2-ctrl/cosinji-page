@@ -1,5 +1,6 @@
 /* 🔐 サブスク管理表（v453。v464 で作りかえ。表電卓の道具。はじめて開いたときに読む）
    使っているサブスク（動画・音楽・アプリ など）の金額・支払日・支払方法と、ログインの ID・パスワードを1か所にまとめる。
+   ・v468 から：パスワードの欄は type="text" を ●● で隠したもの（sb-mask）。端末のパスワードマネージャーを呼ばない。
    ・v464 から：開く・見る・足す・直すのにパスワードは要らない。保存したパスワード（ログインのパスワード）を
      見る・コピーするときだけ、閲覧用のパスワードを聞く（ヒントを出す）。
    ・しくみ：閲覧用のパスワードを決めたときに、鍵の組（RSA-OAEP 2048）を作る。
@@ -18,6 +19,16 @@ let sbData=null, sbOld=null, sbPriv=null, sbPwCache={}, sbEdId=null, sbEdPwFille
     sbLockTimer=null, sbHiddenAt=0, sbFails=0, sbWaitUntil=0, sbPwThen=null;
 
 const $=id=>document.getElementById(id);
+/* ●● で隠す書き方（-webkit-text-security）が使えない古いブラウザだけは、隠す欄を password に戻す（パスワードマネージャーは出るが、中身は見えない） */
+(function sbMaskFallback(){
+  let ok=true; try{ ok=CSS.supports('-webkit-text-security','disc') || CSS.supports('text-security','disc'); }catch(_){}
+  if(ok || typeof MutationObserver!=='function') return;
+  const fix=el=>{ if(el.tagName==='INPUT' && el.hasAttribute('data-sbpw')) el.type=el.classList.contains('sb-mask')?'password':'text'; };
+  new MutationObserver(ms=>ms.forEach(m=>{
+    if(m.type==='attributes') fix(m.target);
+    else m.addedNodes.forEach(n=>{ if(n.nodeType===1){ fix(n); n.querySelectorAll && n.querySelectorAll('input[data-sbpw]').forEach(fix); } });
+  })).observe(document.documentElement, {subtree:true, childList:true, attributes:true, attributeFilter:['class']});
+})();
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const b64=u8=>{ u8=new Uint8Array(u8); let s=''; u8.forEach(b=>s+=String.fromCharCode(b)); return btoa(s); };
 const unb64=s=>Uint8Array.from(atob(s), c=>c.charCodeAt(0));
@@ -104,6 +115,9 @@ body.dark .sb-hint{ background:#3e3420; color:#ffe0a3; }
   border:1px solid rgba(120,132,156,.45); border-radius:8px; background:var(--modal-bg,#fff); color:var(--text,#222); font-family:inherit; }
 .sb-f textarea{ min-height:64px; resize:vertical; }
 .sb-row2{ display:flex; gap:8px; } .sb-row2 > *{ flex:1; min-width:0; }
+/* パスワードの欄（v468）。type="password" にすると端末のパスワードマネージャーが出てくるので、
+   ふつうの文字の欄にして ●● で隠す。-webkit-text-security が使えないブラウザでは、読み込み時に password に戻す（sbMaskFallback） */
+.sb-f input.sb-mask{ -webkit-text-security:disc; text-security:disc; }
 .sb-pwrow{ display:flex; gap:6px; align-items:stretch; margin-top:4px; }
 .sb-pwrow input{ margin-top:0 !important; flex:1; min-width:0; }
 .sb-pwrow button{ flex:none; min-width:44px; border-radius:8px; border:1px solid rgba(120,132,156,.45); background:rgba(120,132,156,.10); color:var(--text,#222); font-size:15px; cursor:pointer; }
@@ -221,7 +235,7 @@ function sbRenderMigrate(){
       新しい形に移すため、<b>一度だけ</b>いつものパスワードを入れてください。</div>
     <div class="sb-hint"><b>💡 ヒント</b><br>${esc(sbOld.hint||'（ヒントはありません）')}</div>
     <form onsubmit="event.preventDefault(); sbMigrate();">
-      <label class="sb-f">いつものパスワード<input type="password" id="sbPwIn" autocomplete="current-password"></label>
+      <label class="sb-f">いつものパスワード<input type="text" id="sbPwIn" class="sb-mask" data-sbpw autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"></label>
       <div class="sb-err" id="sbErr"></div>
       <button class="sb-btn" type="submit" id="sbOpenBtn">新しい形に移す</button>
     </form>
@@ -269,7 +283,7 @@ function sbNeedKey(then){
     <div class="sb-ic">🔒</div><b>閲覧用のパスワードを入れてください</b>
     <div class="sb-hint"><b>💡 ヒント</b><br>${esc(sbData.hint||'（ヒントはありません）')}</div>
     <form onsubmit="event.preventDefault(); sbUnlock();">
-      <label class="sb-f">閲覧用のパスワード<input type="password" id="sbPwIn" autocomplete="current-password"></label>
+      <label class="sb-f">閲覧用のパスワード<input type="text" id="sbPwIn" class="sb-mask" data-sbpw autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"></label>
       <div class="sb-err" id="sbErr"></div>
       <button class="sb-btn" type="submit" id="sbOpenBtn">見る</button>
     </form>
@@ -303,8 +317,8 @@ function sbAskCreate(then){
     <div class="sb-ic">🔐</div><b>保存したパスワードを守る、閲覧用のパスワードを決めます</b>
     <div class="sb-note">ログインのパスワードは、これで<b>暗号にして端末の中だけ</b>に残します。見るときだけ、このパスワードを聞きます（一覧を見る・足すのには要りません）。<br>
       <b>忘れると、保存したパスワードは見られません</b>（作った人にも戻せません）。思い出せるヒントを付けてください。</div>
-    <label class="sb-f">閲覧用のパスワード（4文字以上）<input type="password" id="sbNew1" autocomplete="new-password"></label>
-    <label class="sb-f">もう一度<input type="password" id="sbNew2" autocomplete="new-password"></label>
+    <label class="sb-f">閲覧用のパスワード（4文字以上）<input type="text" id="sbNew1" class="sb-mask" data-sbpw autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"></label>
+    <label class="sb-f">もう一度<input type="text" id="sbNew2" class="sb-mask" data-sbpw autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"></label>
     <label class="sb-f">ヒント（見るときに出ます。パスワードそのものは書かないでください）<input type="text" id="sbHintIn" maxlength="100" placeholder="例：最初に飼った犬の名前＋誕生月"></label>
     <div class="sb-err" id="sbErr"></div>
     <button class="sb-btn" id="sbCreateBtn" onclick="sbCreate()">決めて保存する</button></div>`;
@@ -414,10 +428,10 @@ function sbEdit(id){
     <div class="sb-row2"><label class="sb-f">次の支払日<input type="date" id="sbENext" value="${esc(it.next)}"></label>
       <label class="sb-f">支払方法<input type="text" id="sbEPay" maxlength="60" value="${esc(it.pay)}" placeholder="例：カード・口座"></label></div>
     <label class="sb-f">分類<input type="text" id="sbECat" maxlength="30" value="${esc(it.cat)}" placeholder="例：動画・仕事・家族"></label>
-    <label class="sb-f">ID（メールアドレスなど）<input type="text" id="sbEUid" maxlength="200" value="${esc(it.uid)}" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
-    <label class="sb-f">パスワード<div class="sb-pwrow"><input type="password" id="sbEPw" maxlength="200" value="${known?esc(sbPwCache[id]):''}" autocomplete="new-password" autocapitalize="off" spellcheck="false"
+    <label class="sb-f">ID（メールアドレスなど）<input type="text" id="sbEUid" maxlength="200" value="${esc(it.uid)}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"></label>
+    <label class="sb-f">パスワード<div class="sb-pwrow"><input type="text" id="sbEPw" maxlength="200" value="${known?esc(sbPwCache[id]):''}" class="sb-mask" data-sbpw autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"
         placeholder="${it.sec&&!known?'🔒 保存してあります':''}">
-      <button type="button" onclick="const e=document.getElementById('sbEPw'); e.type=e.type==='password'?'text':'password'; this.textContent=e.type==='password'?'👁':'🙈';" aria-label="見る・隠す">👁</button>
+      <button type="button" onclick="const e=document.getElementById('sbEPw'); e.classList.toggle('sb-mask'); this.textContent=e.classList.contains('sb-mask')?'👁':'🙈';" aria-label="見る・隠す">👁</button>
       <button type="button" onclick="sbGenPw()" aria-label="パスワードを作る" title="強いパスワードを作る">🎲</button></div></label>
     ${it.sec&&!known?`<button type="button" class="sb-btn sub" id="sbEShow" onclick="sbEdShowPw()">🔓 保存してあるパスワードを見る</button>`:''}
     ${it.sec?`<label class="sb-f" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text,#333)"><input type="checkbox" id="sbEPwDel" style="width:20px;min-height:20px;margin:0"> 保存してあるパスワードを消す</label>`:''}
@@ -434,7 +448,7 @@ function sbEdShowPw(){
   const id=sbEdId;
   sbNeedKey(async ()=>{
     const v=await sbReveal(id); if(v==null || sbEdId!==id) return;
-    const e=$('sbEPw'); if(e && !e.value){ e.value=v; e.type='text'; e.placeholder=''; sbEdPwFilled=true; }
+    const e=$('sbEPw'); if(e && !e.value){ e.value=v; e.classList.remove('sb-mask'); e.placeholder=''; sbEdPwFilled=true; }
     const b=$('sbEShow'); if(b) b.remove();
     sbTouch(); sbRenderList();
   });
@@ -442,7 +456,7 @@ function sbEdShowPw(){
 function sbGenPw(){
   const cs='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!#%+-=?@';
   const r=crypto.getRandomValues(new Uint32Array(16));
-  const e=$('sbEPw'); e.value=Array.from(r, v=>cs[v%cs.length]).join(''); e.type='text';
+  const e=$('sbEPw'); e.value=Array.from(r, v=>cs[v%cs.length]).join(''); e.classList.remove('sb-mask');
   toast('強いパスワードを作りました（サイトのほうも同じに変えてください）');
 }
 async function sbEdSave(){
@@ -488,9 +502,9 @@ function sbOpenSet(){
     <label class="sb-f">見るときに出すヒント<input type="text" id="sbSHint" maxlength="100" value="${esc(sbData.hint||'')}"></label>
     <button class="sb-btn sub" onclick="sbSaveHint()">ヒントを変える</button>
     <div class="sb-sec">閲覧用のパスワードを変える</div>
-    <label class="sb-f">いまのパスワード<input type="password" id="sbSOld" autocomplete="current-password"></label>
-    <label class="sb-f">新しいパスワード（4文字以上）<input type="password" id="sbSNew1" autocomplete="new-password"></label>
-    <label class="sb-f">もう一度<input type="password" id="sbSNew2" autocomplete="new-password"></label>
+    <label class="sb-f">いまのパスワード<input type="text" id="sbSOld" class="sb-mask" data-sbpw autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"></label>
+    <label class="sb-f">新しいパスワード（4文字以上）<input type="text" id="sbSNew1" class="sb-mask" data-sbpw autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"></label>
+    <label class="sb-f">もう一度<input type="text" id="sbSNew2" class="sb-mask" data-sbpw autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"></label>
     <div class="sb-err" id="sbSErr"></div>
     <button class="sb-btn sub" onclick="sbChangePw()">パスワードを変える</button>`:''}
     <div class="sb-sec">書き出す・読み込む</div>

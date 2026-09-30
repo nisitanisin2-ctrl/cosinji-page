@@ -8988,6 +8988,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v468', t:'🔐サブスク管理表でパスワードマネージャーが出ないように', li:[
+    '🔐サブスク管理表のパスワードの欄（ログインのパスワード・閲覧用のパスワード）で、<b>端末のパスワードマネージャー</b>（iPhone のキーチェーン・Google パスワードマネージャーなど）が出てこないようにしました',
+    '入れた文字は今までどおり <b>●●●</b> で隠れます。👁 で見る・🎲 で作る もそのままです' ]},
   { v:'v467', t:'記号のテンキーは、はじめは隠す', li:[
     '記号（( ) , : ・SUM・AVERAGE など）のテンキーを、<b>はじめは隠す</b>ようにしました。テンキーのページは「書式・枠線／数字／電卓」になります',
     '使いたいときは <b>⚙設定 → 🎨見た目 → テンキー → 📄 ページ・記号・調整バー</b> の「記号ページを出す」を押してください。隠していても、数字キーを少し長押しして払えば記号を入れられます' ]},
@@ -20916,7 +20919,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v467';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v468';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
