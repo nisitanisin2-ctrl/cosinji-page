@@ -1,0 +1,39 @@
+{
+  "name": "決算テンプレ",
+  "short_name": "決算テンプレ",
+  "description": "かんたんな決算書類のひな形（表電卓の道具）",
+  "id": "/app-fintmpl",
+  "start_url": "../../index.html?app=fintmpl",
+  "scope": "../../index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#455a64",
+  "orientation": "any",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

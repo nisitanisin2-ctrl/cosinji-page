@@ -114,8 +114,8 @@ function sbEnsureDom(){
 <div class="modal-overlay" id="subscOverlay">
   <div class="modal sb-modal">
     <div class="modal-header"><span>🔐 サブスク管理表</span><span class="hdr-right" style="display:flex;gap:6px;align-items:center">
-      <button class="sb-hdrbtn" id="sbLockBtn" onclick="sbLockNow()" aria-label="鍵をかける" title="鍵をかける" hidden>🔒</button>
-      <button class="sb-hdrbtn" id="sbSetBtn" onclick="sbOpenSet()" aria-label="設定" title="設定" hidden>⚙</button>
+      <button class="hdr-btn" id="sbLockBtn" onclick="sbLockNow()" aria-label="鍵をかける" title="鍵をかける" hidden>🔒</button>
+      <button class="hdr-btn" id="sbSetBtn" onclick="sbOpenSet()" title="設定" hidden>⚙ 設定</button>
       <button class="modal-close" onclick="closeSubsc()" aria-label="閉じる">✕</button></span></div>
     <div class="sb-body" id="sbBody"></div>
   </div>

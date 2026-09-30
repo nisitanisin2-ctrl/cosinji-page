@@ -1,0 +1,39 @@
+{
+  "name": "部屋割り",
+  "short_name": "部屋割り",
+  "description": "旅館・民宿の部屋割り表（予約台帳）（表電卓の道具）",
+  "id": "/app-heya",
+  "start_url": "../../index.html?app=heya",
+  "scope": "../../index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#00897b",
+  "orientation": "any",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

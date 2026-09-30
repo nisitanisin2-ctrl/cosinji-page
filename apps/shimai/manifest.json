@@ -1,0 +1,39 @@
+{
+  "name": "しまい場所",
+  "short_name": "しまい場所",
+  "description": "しまった物と場所を残して、あとでさがす（表電卓の道具）",
+  "id": "/app-shimai",
+  "start_url": "../../index.html?app=shimai",
+  "scope": "../../index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2f6fb3",
+  "orientation": "any",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

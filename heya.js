@@ -140,9 +140,9 @@ function hyEnsureDom(){
 <div class="modal-overlay" id="heyaOverlay">
   <div class="modal vol-modal hy-modal">
     <div class="modal-header"><span>🛏 部屋割り表</span><span class="hdr-right" style="display:flex;gap:6px;align-items:center">
-      <button class="hy-nb" style="height:30px;background:rgba(255,255,255,.18);color:#fff;border:none" onclick="hyFind()" title="名前でさがす" aria-label="名前でさがす">🔍</button>
-      <button class="hy-nb" style="height:30px;background:rgba(255,255,255,.18);color:#fff;border:none" onclick="hyOpenDay()" title="その日の一覧" aria-label="その日の一覧">📋</button>
-      <button class="hy-nb" style="height:30px;background:rgba(255,255,255,.18);color:#fff;border:none" onclick="hyOpenSet()" title="部屋と設定">⚙</button>
+      <button class="hdr-btn" onclick="hyFind()" title="名前でさがす" aria-label="名前でさがす">🔍</button>
+      <button class="hdr-btn" onclick="hyOpenDay()" title="その日の一覧" aria-label="その日の一覧">📋 一覧</button>
+      <button class="hdr-btn" onclick="hyOpenSet()" title="部屋と設定">⚙ 設定</button>
       <button class="modal-close" onclick="closeHeya()" aria-label="閉じる">✕</button></span></div>
     <div class="hy-bar">
       <button class="hy-nb" onclick="hyMove(-1)" aria-label="前へ">◀</button><b id="hyTitle"></b><button class="hy-nb" onclick="hyMove(1)" aria-label="次へ">▶</button>
