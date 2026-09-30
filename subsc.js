@@ -170,7 +170,6 @@ function sbEnsureDom(){
 </div>
 <input type="file" id="sbFileIn" accept=".json,application/json" hidden onchange="sbImportFile(this)">`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
-  if(typeof bindNpToolSwipe==='function') bindNpToolSwipe('subscOverlay');
   if(typeof applyNpToolFull==='function') applyNpToolFull();
   document.addEventListener('visibilitychange', ()=>{
     if(document.hidden){ sbHiddenAt=Date.now(); return; }

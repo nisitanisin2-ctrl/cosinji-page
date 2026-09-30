@@ -171,7 +171,6 @@ function hyEnsureDom(){
 </div>
 <input type="file" id="hyFileIn" accept=".json,application/json" hidden onchange="hyImport(this)">`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
-  if(typeof bindNpToolSwipe==='function') bindNpToolSwipe('heyaOverlay');
   if(typeof applyNpToolFull==='function') applyNpToolFull();
   $('hyAddIn').addEventListener('keydown', e=>{ if(e.key==='Enter' && e.isComposing) e.stopPropagation(); });
 }

@@ -205,7 +205,6 @@ function smEnsureDom(){
 <input type="file" id="smPicIn" accept="image/*" hidden onchange="smPickPhoto(this)">
 <input type="file" id="smFileIn" accept=".json,application/json" hidden onchange="smImport(this)">`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
-  if(typeof bindNpToolSwipe==='function') bindNpToolSwipe('shimaiOverlay');
   if(typeof applyNpToolFull==='function') applyNpToolFull();
 }
 function openShimai(q){
