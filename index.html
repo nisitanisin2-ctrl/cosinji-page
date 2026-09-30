@@ -4055,6 +4055,7 @@ body.dark {
       <summary>📄 ページ・記号・調整バー<small>ページの表示・記号ページ・フリックの記号・調整バー</small></summary>
     <button class="set-act" id="pageBarBtn" onclick="togglePageBar()" title="テンキーの上に出る「枠線・書式・数字・記号・関数／登録」のページ表示。タップでそのページへ移動できます">テンキーのページ表示</button>
     <button class="set-act" id="funcPageBtn" onclick="toggleFuncPage()" title="記号・関数のページを出すかどうか。数字キーの少し長押し→フリックでも記号は入れられます">記号ページを出す</button>
+    <div class="set-note">記号（( ) , : や SUM・AVERAGE などの関数）のテンキーは、はじめは<b>隠しています</b>。上のボタンを押すと、数字と電卓のあいだに<b>記号</b>のページが出ます。隠していても、数字キーを少し長押しして払えば記号を入れられます。</div>
     <button class="set-act" onclick="openFlickSym()" title="数字キーを少し長押しして出る記号を、好きなものに変えられます">⌨ フリックで入れる記号</button>
     <button class="set-act" id="resizerBarBtn" onclick="toggleResizerBar()" title="テンキーの大きさを変える調整バー（テンキー上端／横向きは左端）の表示を切り替えます">調整バーを表示する</button>
     <div class="set-row">
@@ -8987,6 +8988,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v467', t:'記号のテンキーは、はじめは隠す', li:[
+    '記号（( ) , : ・SUM・AVERAGE など）のテンキーを、<b>はじめは隠す</b>ようにしました。テンキーのページは「書式・枠線／数字／電卓」になります',
+    '使いたいときは <b>⚙設定 → 🎨見た目 → テンキー → 📄 ページ・記号・調整バー</b> の「記号ページを出す」を押してください。隠していても、数字キーを少し長押しして払えば記号を入れられます' ]},
   { v:'v466', t:'テンキーに 🧰道具、右下に ひな形／設定を見やすく', li:[
     'テンキーの右下の「あ文字」をなくし、そこに<b>ひな形</b>を置きました。ひな形のあった左上には<b>🧰道具</b>のキーを置きました（押すと道具の窓が開きます）。文字は、セルを<b>ダブルタップ</b>すると入れられます',
     '⚙設定の📐表から「Enterで進む向き」と「説明書を開く」を外しました（進む向きは <b>Enter の長押し</b>で今までどおり変えられます。説明書は ☰ から）',
@@ -14149,8 +14153,9 @@ let numpadPager=null;      // ページ表示から現在ページを読む／�
      登録の並び： 登録左 [登録] 登録右      ／ 右端＝▼数字 */
 const NP_ROW_MAIN=[['fmt','書式・枠線'],[null,'数字'],['func','記号'],['sci','電卓']];
 const NP_ROW_REG =[['regL','自分のボタン左'],['reg','自分のボタン'],['regR','自分のボタン右']];   // v461 で「マイキー」から言いかえ
-/* ── 記号ページを出すかどうか（v353。数字キーのフリックでも記号は入れられるので隠せる） ── */
-let showFuncPage = localStorage.getItem('excalc_funcpage')!=='0';
+/* ── 記号ページを出すかどうか（v353。数字キーのフリックでも記号は入れられるので隠せる）。
+   v467 から、はじめは隠す。⚙設定 → 🎨見た目 → テンキー の「記号ページを出す」で出せる ── */
+let showFuncPage = localStorage.getItem('excalc_funcpage')==='1';
 function syncFuncPageBtn(){
   const b=document.getElementById('funcPageBtn'); if(b) b.classList.toggle('on', showFuncPage);
 }
@@ -20911,7 +20916,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v466';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v467';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
