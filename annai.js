@@ -284,7 +284,7 @@ function anEnsureDom(){
 <div class="modal-overlay" id="annaiOverlay">
   <div class="modal vol-modal an-modal">
     <div class="modal-header"><span>🏨 お客様向け案内ページ</span><span class="hdr-right" style="display:flex;gap:6px;align-items:center">
-      <button id="anHelpBtn" style="height:30px;min-width:34px;padding:0 9px;border-radius:8px;background:rgba(255,255,255,.18);color:#fff;border:none;font-weight:bold;cursor:pointer" onclick="anHelp()" title="ヘルプ" aria-label="ヘルプ">❓ヘルプ</button>
+      <button id="anHelpBtn" class="hdr-btn" onclick="anHelp()" title="ヘルプ">❓ ヘルプ</button>
       <button class="modal-close" onclick="closeAnnai()" aria-label="閉じる">✕</button></span></div>
     <div class="an-body" id="anBody"></div>
   </div>

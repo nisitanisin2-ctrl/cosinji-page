@@ -173,12 +173,11 @@ function smEnsureDom(){
   if($('shimaiOverlay')) return;
   const st=document.createElement('style'); st.id='smStyle'; st.textContent=SM_CSS; document.head.appendChild(st);
   const box=document.createElement('div');
-  const hb='style="height:30px;min-width:34px;padding:0 9px;border-radius:8px;background:rgba(255,255,255,.18);color:#fff;border:none;font-weight:bold;cursor:pointer"';
   box.innerHTML=`
 <div class="modal-overlay" id="shimaiOverlay">
   <div class="modal vol-modal sm-modal" style="position:relative">
     <div class="modal-header"><span>📦 しまい場所メモ</span><span class="hdr-right" style="display:flex;gap:6px;align-items:center">
-      <button ${hb} onclick="smOpenMenu()" title="印刷・書き出しなど" aria-label="メニュー">⚙</button>
+      <button class="hdr-btn" onclick="smOpenMenu()" title="印刷・書き出しなど">⚙ 設定</button>
       <button class="modal-close" onclick="closeShimai()" aria-label="閉じる">✕</button></span></div>
     <div class="sm-top">
       <div class="sm-find"><input id="smFind" type="search" placeholder="🔍 さがす（例：パスポート・タンス）" autocomplete="off" oninput="smSetQ(this.value)" enterkeyhint="search">

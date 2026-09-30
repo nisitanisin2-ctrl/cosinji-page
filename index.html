@@ -809,6 +809,32 @@ body.tb-fold.dentaku-mode .dt-pane .dt-tape-empty { min-height: 38px; }
 #tbPrOpen small { display: block; font-weight: normal; font-size: 11px; color: var(--text-light); margin-top: 2px; }
 .more-grid.more-tools { grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .tools-pick-btn { width: 100%; margin-top: 10px; }
+/* 道具の窓（v460） */
+.tools-cat-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: bold; color: var(--text-light); margin: 12px 2px 6px; }
+.tools-fav .tools-cat-h { margin-top: 0; color: var(--acc); font-size: 14px; }
+.tools-fav-edit { height: 30px; padding: 0 12px; border-radius: 15px; border: 1px solid var(--acc); background: transparent; color: var(--acc); font-size: 13px; font-weight: bold; cursor: pointer; }
+.tools-fav-edit.on { background: var(--acc); color: #fff; }
+.tools-fav-note { font-size: 12.5px; color: var(--text-light); line-height: 1.6; padding: 6px 4px; }
+.tools-fav { padding-bottom: 4px; border-bottom: 1px solid var(--cell-border, #ddd); }
+#toolsListOverlay .more-item { position: relative; }
+#toolsListOverlay .more-item .tfav { position: absolute; top: 2px; right: 5px; font-style: normal; font-size: 15px; color: #f5a300; }
+#toolsListOverlay.fav-editing .more-item[data-tool] { border-style: dashed; }
+#toolsHiddenAcc { margin-top: 12px; }
+/* 道具を はじめて開いたときの吹き出し（v460） */
+.tool-hint { position: fixed; left: 12px; right: 12px; top: calc(var(--safe-top, 0px) + 62px); z-index: 99997; max-width: 520px; margin: 0 auto;
+  display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: #fff8d6; color: #3e3420;
+  box-shadow: 0 6px 24px rgba(0,0,0,.28); font-size: 14.5px; line-height: 1.65; }
+.tool-hint::before { content: '💡'; font-size: 20px; line-height: 1.3; }
+.tool-hint > span { flex: 1; min-width: 0; }
+.tool-hint > button { flex: none; align-self: center; height: 36px; padding: 0 14px; border: none; border-radius: 18px; background: var(--acc); color: #fff; font-weight: bold; font-size: 14px; cursor: pointer; }
+/* 道具の上の帯のボタンをそろえる（v460）：どの道具も「名前 … ⚙ 設定 ✕」 */
+.modal-header .hdr-right { flex-shrink: 0; }
+.modal-header .hdr-right .hdr-btn { white-space: nowrap; }
+@media (max-width: 380px) { .modal-header .hdr-right { gap: 5px; } .modal-header .hdr-right .hdr-btn { padding: 6px 7px; font-size: 12px; } }
+/* 道具の窓は2列にして、名前を折り返さずに大きく出す（v460） */
+#toolsListOverlay .more-grid.more-tools { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+#toolsListOverlay .more-tools .more-item { padding: 12px 10px; font-size: 15px; }
+#toolsListOverlay .more-tools .more-item span { font-size: 20px; }
 .more-tools .more-item { padding: 9px 8px; font-size: 13px; gap: 6px; }
 .more-tools .more-item span { font-size: 16px; }
 .more-item.more-danger { border-color: var(--danger); color: var(--danger); }
@@ -3701,8 +3727,18 @@ body.dark {
       <button class="modal-close" onclick="closeToolsList()">✕</button>
     </div>
     <div class="modal-body">
-      <div class="more-grid more-tools" id="toolsListGrid"></div>
-      <button class="set-act tools-pick-btn" onclick="openToolsBtnSettings()">⚙ 並べる道具を選ぶ</button>
+      <!-- 道具の窓（v460）：★よく使う／まとまりごと／隠している道具 -->
+      <div class="tools-fav" id="toolsFavBox">
+        <div class="tools-cat-h"><span id="toolsFavH">★ よく使う</span><button class="tools-fav-edit" id="toolsFavEdit" onclick="toolsFavEditToggle()">☆ 選ぶ</button></div>
+        <div class="tools-fav-note" id="toolsFavNote" hidden></div>
+        <div class="more-grid more-tools" id="toolsFavGrid"></div>
+      </div>
+      <div id="toolsListGrid"></div>
+      <details class="more-acc" id="toolsHiddenAcc" hidden>
+        <summary>隠している道具<small id="toolsHiddenSum"></small></summary>
+        <div class="more-grid more-tools" id="toolsHiddenGrid"></div>
+      </details>
+      <button class="set-act tools-pick-btn" onclick="openToolsBtnSettings()">⚙ 出す道具・隠す道具を選ぶ</button>
     </div>
   </div>
 </div>
@@ -3945,8 +3981,8 @@ body.dark {
     <div class="set-sec">テンキーの上に出す道具</div>
     <div class="set-note">全画面で開く<b>道具</b>を、テンキーの上の<b>ページ名の並び</b>（書式・枠線／数字／記号／電卓）に足せます。<b>タップで開きます</b>。<b>電卓ページからさらに左へフリック</b>すると、いちばん上に並べた道具が開きます。<b>↑↓</b>で並び順を変えられます。</div>
     <div class="nptool-list" id="npToolList"></div>
-    <div class="set-sec" id="toolsBtnSec">🧰道具ボタンに出す道具</div>
-    <div class="set-note"><b>🧰道具</b>ボタン（▲マイキーやテンキーの長押しに割り当てたもの）を押したときに並べる道具を選びます。<b>☑の道具だけ</b>が並びます。⋯ の「🧰道具」には、これまでどおり全部出ます。</div>
+    <div class="set-sec" id="toolsBtnSec">🧰道具の窓に出す道具</div>
+    <div class="set-note"><b>🧰道具</b>の窓（☰ メニュー・🏠ホーム・🧰道具ボタンから開くもの）に並べる道具を選びます。<b>☐ にした道具</b>は、窓のいちばん下の「<b>隠している道具</b>」に入ります（そこからも開けます）。はじめは🛏部屋割り・🏨案内ページを隠しています。</div>
     <div class="nptool-list" id="toolsBtnList"></div>
       </div>
     </details>
@@ -3972,6 +4008,9 @@ body.dark {
       <span class="set-label">アプリを開いたとき<small>次に開いたときから効きます</small></span>
       <select class="fmt-select" id="startPageSel" onchange="setStartPage(this.value)" style="flex-shrink:0"></select>
     </div>
+    <div class="set-sec">道具の使い方の吹き出し</div>
+    <div class="set-note">道具を<b>はじめて開いたとき</b>に、使い方を1つだけ吹き出しで出します（1つの道具に1回だけ）。</div>
+    <div class="skin-seg" id="toolHintSeg"><button data-h="1" onclick="setToolHints(true);renderToolHintSeg()">出す（もう一度はじめから）</button><button data-h="0" onclick="setToolHints(false);renderToolHintSeg()">出さない</button></div>
     <div class="set-sec">画面の詰め方<small style="font-weight:normal;margin-left:6px">せまい画面で表示量を増やす</small></div>
     <div class="set-note">iPhone SE のように<b>背の低い画面</b>だと、電卓の答えや履歴が入りきらないことがあります。<b>詰める</b>にすると文字と余白を少しずつ縮めて、<b>1画面に見える量を増やします</b>。<b>自動</b>は画面の大きさで決めます。<span id="compactNow"></span></div>
     <div class="skin-seg" id="compactSeg"></div>
@@ -8889,6 +8928,11 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v460', t:'🧰道具を見つけやすく', li:[
+    '🧰道具の窓を「<b>くらし・仕事・現場と畑・声とまなぶ・お店と宿</b>」に分け、2列で大きく並べました',
+    'いちばん上に<b>★よく使う</b>道具（「☆ 選ぶ」で8つまで）。選んでいないときは<b>さいきん使った道具</b>が出ます',
+    '使う人の限られる道具（🛏部屋割り・🏨案内ページ）は、はじめは下の「<b>隠している道具</b>」に入れました（そこから開けます。⚙ で出すこともできます）',
+    '道具を<b>はじめて開いたとき</b>に、使い方を1つだけ吹き出しで出します。道具の上の帯のボタンも「⚙ 設定」「✕」の形にそろえました' ]},
   { v:'v459', t:'🏠ホームと、すっきりした ☰ メニュー', li:[
     '開いたときに<b>🏠ホーム</b>を出します。「<b>表・電卓・道具</b>」の3つと、<b>さいきん使った道具</b>から選ぶだけです（前回のつづきから開きたいときは、ホームのチェックを外します）',
     '<b>☰ メニュー</b>は、よく使う「<b>保存・開く・戻す</b>」「<b>道具・声・設定・使い方</b>」だけを大きく出すようにしました',
@@ -12690,7 +12734,8 @@ function openDlg(id, cleanup){
   const el=document.getElementById(id);
   if(!el || el.classList.contains('open')) return false;
   el.classList.add('open');
-  try{ const t=NP_TOOLS.find(x=>x.ov===id); if(t) noteRecentTool(t.id); }catch(_){}   // さいきん使った道具（ホームに出す。v459）
+  el.querySelectorAll(':scope > .tool-hint').forEach(h=>h.remove());   // 戻るで閉じたときの残り
+  try{ const t=NP_TOOLS.find(x=>x.ov===id); if(t){ noteRecentTool(t.id); showToolHint(t.id, el); } }catch(_){}   // さいきん使った道具（ホームに出す。v459）・はじめての吹き出し（v460）
   armBackGuard(()=>{ el.classList.remove('open'); if(cleanup) cleanup(); });
   return true;
 }
@@ -12698,6 +12743,7 @@ function closeDlg(id, cleanup){
   const el=document.getElementById(id);
   if(!el || !el.classList.contains('open')) return false;
   el.classList.remove('open');
+  el.querySelectorAll(':scope > .tool-hint').forEach(h=>h.remove());
   releaseBackGuard();
   if(cleanup) cleanup();
   return true;
@@ -20434,6 +20480,41 @@ function renderHome(){
   const chk=document.getElementById('homeStartChk'); if(chk) chk.checked=(startPage==='home');
 }
 function openHome(){ renderHome(); openDlg('homeOverlay'); }
+/* ── 道具を はじめて開いたときの吹き出し（v460） ──
+   1つの道具に1回だけ。「わかった」で消す。⚙設定 → 画面と上のバー で出さないようにもできる */
+const TOOL_HINTS={
+  tansui:'配合を登録しておき、試験のたびに測った値を入れると、推定の単位水量と配合との差を出します。配合の登録は「⚙ 設定」から。',
+  kantab:'単位水量と、カンタブの読み値を入れると、換算表で塩化物含有量と平均値を出します。換算表は「⚙ 設定」で登録します。',
+  veggie:'育てている野菜と植えた日を登録すると、これからの作業の予定と育成日記をつけられます。',
+  volume:'写真を撮って辺をなぞり、1つの辺に実際の長さを入れると、ほかの辺は写真の比率から入って容積が出ます。',
+  photomemo:'写真を撮って、文字や印を書きこんだメモにできます。',
+  touban:'はじめに「⚙ 設定」で名簿と当番の曜日を決めると、半年分の当番表ができます。「🖨 印刷」で配れます。',
+  techo:'下の欄に「明日10時 営業 A社訪問」のように打つか 🎤 で話すと、予定に入ります。上の月は左右になぞると変わります。',
+  subsc:'サブスクの金額・支払日・ID・パスワードをまとめます。はじめにパスワードを決め、次からはそのパスワードで開きます。',
+  heya:'空いているマスを押すと予約を足せます。「📋 一覧」でその日の到着・出発・食事の数を見られます。',
+  annai:'見本の項目を自分の宿のことに書きかえて、⬇ で書き出します。分からないときは右上の「❓ ヘルプ」。',
+  shimai:'下の欄に「パスポートは寝室のタンスの2段目」のように打つか 🎤 で話します。上の欄でさがせます。',
+};
+const TOOL_HINT_KEY='excalc_tool_hint_seen', TOOL_HINT_ON_KEY='excalc_tool_hints';
+function toolHintsOn(){ try{ return localStorage.getItem(TOOL_HINT_ON_KEY)!=='0'; }catch(_){ return false; } }
+function showToolHint(id, ov){
+  if(!TOOL_HINTS[id] || !toolHintsOn() || !ov) return;
+  const seen=loadList(TOOL_HINT_KEY); if(seen.includes(id)) return;
+  saveList(TOOL_HINT_KEY, seen.concat([id]));
+  setTimeout(()=>{
+    if(!ov.classList.contains('open') || ov.querySelector('.tool-hint')) return;
+    const b=document.createElement('div'); b.className='tool-hint'; b.setAttribute('role','note');
+    b.innerHTML=`<span>${escHtml(TOOL_HINTS[id])}</span><button type="button">わかった</button>`;
+    b.querySelector('button').onclick=e=>{ e.stopPropagation(); b.remove(); };
+    b.onclick=e=>e.stopPropagation();
+    ov.appendChild(b);
+  }, 450);
+}
+function renderToolHintSeg(){ document.querySelectorAll('#toolHintSeg button').forEach(b=>b.classList.toggle('on', b.dataset.h===(toolHintsOn()?'1':'0'))); }
+function setToolHints(on){
+  try{ localStorage.setItem(TOOL_HINT_ON_KEY, on?'1':'0'); if(on) localStorage.removeItem(TOOL_HINT_KEY); }catch(_){}
+  toast(on?'道具をはじめて開いたときに、使い方の吹き出しを出します（もう一度はじめから）':'吹き出しを出さないようにしました');
+}
 function closeHome(){ closeDlg('homeOverlay'); }
 /* 閉じたすぐあと（同じ流れの中）で開く。「戻る」の履歴が打ち消し合うように（moreDo と同じ） */
 function homeGo(k){
@@ -20445,11 +20526,57 @@ function homeGo(k){
 function homeTool(id){ const t=npToolDef(id); closeHome(); if(t) try{ noteRecentTool(id); t.run(); }catch(_){ toast('うまく開けませんでした'); } }
 function homeSetStartup(on){ setStartPage(on?'home':'last'); }
 /* 🧰道具の一覧の窓（v429）。マイキー・長押しの割り当て「🧰道具」から開く。中身は ⋯ の「🧰道具」と同じ */
-/* ☰ の「🧰 道具」とホームから：並べる道具の設定にかかわらず全部出す（v459） */
-function openToolsAll(){ openToolsList(false); }
-function openToolsList(onlyBtn){
+/* ── 🧰 道具の窓（v460） ──
+   ★よく使う（自分で選ぶ。選んでいなければ さいきん使ったもの）→ まとまりごと → 隠している道具（畳む）。
+   ☰・ホーム・🧰ボタンのどこから開いても同じ窓。隠した道具も下の「隠している道具」から開ける */
+const TOOL_CATS=[
+  ['🏠 くらし',   ['shimai','photomemo','linklist','touban','subsc','memo']],
+  ['💼 仕事',     ['techo','calctmpl','fintmpl','kaikei']],
+  ['🏗 現場・畑', ['tansui','kantab','volume','veggie']],
+  ['📚 声・まなぶ',['koe','eigo']],
+  ['🏨 お店・宿', ['heya','annai']],
+];
+const TOOL_FAV_KEY='excalc_tool_fav';
+let toolsFavEditing=false;
+function toolFavs(){ return loadList(TOOL_FAV_KEY).filter(id=>npToolDef(id)); }
+function toolBtn(t, fav){
+  const i=NP_TOOLS.indexOf(t), [ic,tx]=toolLabelSplit(t.label), f=toolFavs().includes(t.id);
+  const act=toolsFavEditing ? `toolsFavToggle('${t.id}')` : `noteRecentTool('${t.id}');toolsListDo(NP_TOOLS[${i}].run)`;
+  return `<button class="more-item" data-tool="${t.id}" onclick="${act}"${t.ov?'':' title="別のアプリとして開きます（「戻る」で表電卓に帰れます）"'}><span>${ic}</span>${escHtml(tx)}${t.ov?'':' ↗'}${toolsFavEditing?`<i class="tfav">${f?'★':'☆'}</i>`:''}</button>`;
+}
+function renderToolsList(){
   const g=document.getElementById('toolsListGrid'); if(!g) return;
-  g.innerHTML=toolButtonsHtml('toolsListDo', onlyBtn!==false);
+  const vis=t=>!toolsBtnHidden.includes(t.id);
+  const favs=toolFavs(), rec=recentTools().filter(id=>vis(npToolDef(id)));
+  const favIds=favs.length ? favs : rec.slice(0,4);
+  document.getElementById('toolsFavH').textContent=(favs.length||toolsFavEditing)?'★ よく使う':'🕘 さいきん使った道具';
+  const note=document.getElementById('toolsFavNote');
+  note.hidden=!(toolsFavEditing || !favIds.length);
+  note.textContent=toolsFavEditing?'よく使う道具を押して ★ にします（もう一度押すと外れます）。終わったら「✓ できた」':'「☆ 選ぶ」で、よく使う道具をここに並べられます';
+  document.getElementById('toolsFavGrid').innerHTML=toolsFavEditing?'':favIds.map(id=>toolBtn(npToolDef(id), true)).join('');
+  const eb=document.getElementById('toolsFavEdit'); eb.textContent=toolsFavEditing?'✓ できた':'☆ 選ぶ'; eb.classList.toggle('on', toolsFavEditing);
+  document.getElementById('toolsListOverlay').classList.toggle('fav-editing', toolsFavEditing);
+  const seen=new Set();
+  const cats=TOOL_CATS.map(([h,ids])=>[h, ids.map(npToolDef).filter(t=>t && vis(t))]);
+  TOOL_CATS.forEach(([,ids])=>ids.forEach(id=>seen.add(id)));
+  const rest=NP_TOOLS.filter(t=>!seen.has(t.id) && vis(t)); if(rest.length) cats.push(['🧰 そのほか', rest]);
+  g.innerHTML=cats.filter(c=>c[1].length).map(([h,ts])=>`<div class="tools-cat-h">${h}</div><div class="more-grid more-tools">${ts.map(t=>toolBtn(t)).join('')}</div>`).join('');
+  const hid=NP_TOOLS.filter(t=>!vis(t)), acc=document.getElementById('toolsHiddenAcc');
+  acc.hidden=!hid.length;
+  document.getElementById('toolsHiddenSum').textContent=hid.map(t=>toolLabelSplit(t.label)[1]).join('・');
+  document.getElementById('toolsHiddenGrid').innerHTML=hid.map(t=>toolBtn(t)).join('');
+}
+function toolsFavEditToggle(){ toolsFavEditing=!toolsFavEditing; renderToolsList(); }
+function toolsFavToggle(id){
+  const l=toolFavs(), i=l.indexOf(id);
+  if(i>=0) l.splice(i,1); else { if(l.length>=8){ toast('よく使うは8つまでです'); return; } l.push(id); }
+  saveList(TOOL_FAV_KEY, l); renderToolsList();
+}
+/* ☰ の「🧰 道具」とホームから（v459）。v460 からは 🧰ボタンと同じ窓 */
+function openToolsAll(){ openToolsList(); }
+function openToolsList(){
+  const g=document.getElementById('toolsListGrid'); if(!g) return;
+  toolsFavEditing=false; renderToolsList();
   openDlg('toolsListOverlay');
   guardAfterOpen('toolsListOverlay');   // 長押しの指を離した分で閉じないように
   bindBackdropClose('toolsListOverlay', closeToolsList);
@@ -20458,7 +20585,12 @@ function closeToolsList(){ closeDlg('toolsListOverlay'); }
 /* 🧰道具ボタンに並べる道具（v434）。隠した道具を覚える（あとから足した道具は、はじめから並ぶ） */
 var TOOLSBTN_KEY='excalc_toolsbtn_hide';   // var：起動の途中（この行より前）で読むため
 var toolsBtnHidden=toolsBtnHidden||[];
-function loadToolsBtn(){ toolsBtnHidden=loadList('excalc_toolsbtn_hide').filter(id=>npToolDef(id)); }
+function loadToolsBtn(){
+  let raw=null; try{ raw=localStorage.getItem('excalc_toolsbtn_hide'); }catch(_){}   // 起動の途中で呼ぶので、まだ定まっていない TOOLSBTN_KEY は使わない
+  // 決めていなければ、お店・宿の道具（部屋割り・案内ページ）は隠しておく。使ったことがあれば出す（v460）
+  if(raw==null){ toolsBtnHidden=['heya','annai'].filter(id=>{ try{ return !localStorage.getItem('excalc_'+id); }catch(_){ return true; } }); return; }
+  toolsBtnHidden=loadList('excalc_toolsbtn_hide').filter(id=>npToolDef(id));
+}
 function toolsBtnToggle(id){
   if(!npToolDef(id)) return;
   const i=toolsBtnHidden.indexOf(id);
@@ -20468,7 +20600,7 @@ function toolsBtnToggle(id){
     toolsBtnHidden.push(id);
   }
   saveList(TOOLSBTN_KEY, toolsBtnHidden); renderToolsBtnList();
-  if(isDlgOpen('toolsListOverlay')) document.getElementById('toolsListGrid').innerHTML=toolButtonsHtml('toolsListDo', true);
+  if(isDlgOpen('toolsListOverlay')) renderToolsList();
 }
 function toolsBtnAll(){ toolsBtnHidden=[]; saveList(TOOLSBTN_KEY, toolsBtnHidden); renderToolsBtnList(); }
 function renderToolsBtnList(){
@@ -20665,7 +20797,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v459';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v460';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -23058,6 +23190,7 @@ loadDtDec(); dtDecSync();   // 電卓の答えの桁の決まりを復元
 /* はじめに開くページ。ぜんぶ組み立て終わってから出す */
 loadStartPage();
 renderStartPage();
+renderToolHintSeg();
 setTimeout(()=>{ try{ applyStartPage(); }catch(_){} }, 0);
 
 /* ── 更新のしかた（v382） ──
