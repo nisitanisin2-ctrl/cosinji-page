@@ -93,6 +93,8 @@ button { cursor: pointer; border: none; background: none; }
   user-select: none; -webkit-user-select: none; touch-action: manipulation;
 }
 #today { color: var(--sub); font-size: 13px; margin-left: auto; }
+/* 表電卓から開いたときの「← 表電卓」。iPhone には画面に「戻る」ボタンがないため */
+.hd-back { align-self: center; height: 32px; padding: 0 11px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); color: inherit; font-weight: 700; font-size: 13px; cursor: pointer; white-space: nowrap; }
 #memo {
   flex: 1; width: 100%; resize: none; background: var(--card);
   border: 1px solid var(--line); border-radius: var(--r-card);
@@ -185,6 +187,7 @@ body.open #vault { display: flex; }
 <!-- ══ 表の顔：ただのメモ帳 ══ -->
 <div id="pad" class="veilable">
   <header>
+    <button class="hd-back" id="backHyo" hidden onclick="backToHyo()" aria-label="表電卓へ戻る">← 表電卓</button>
     <div id="brand">メモ</div>
     <div id="today"></div>
   </header>
@@ -800,6 +803,14 @@ $('#q').addEventListener('input', render);
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(() => {}));
 }
+</script>
+<script>
+(function(){
+  try{ if(/from=hyo/.test(location.hash)){ sessionStorage.setItem('memo_from_hyo','1'); history.replaceState(null,'',location.pathname+location.search); } }catch(_){}
+  let from=false; try{ from=sessionStorage.getItem('memo_from_hyo')==='1'; }catch(_){}
+  const b=document.getElementById('backHyo'); if(b) b.hidden=!from;
+  window.backToHyo=function(){ if(from && history.length>1){ history.back(); return; } location.href='../'+(location.protocol==='file:'?'index.html':''); };
+})();
 </script>
 </body>
 </html>

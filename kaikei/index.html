@@ -61,6 +61,8 @@ header{
   padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;box-shadow:var(--elev-1);
 }
 .hd-row{display:flex;align-items:center;gap:8px}
+/* 表電卓から開いたときの「← 表電卓」（v15）。iPhone には画面に「戻る」ボタンがないため */
+.hd-back{flex:none;height:32px;padding:0 11px;border-radius:16px;border:1px solid rgba(255,255,255,.55);background:rgba(255,255,255,.2);color:inherit;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap}
 .hd-name{font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* 合計は目じるし程度に小さく。見たいのは口座ごとの残高なので、そちらを大きくする */
 .hd-total{margin-left:auto;font-size:11px;opacity:.85;white-space:nowrap;flex:none}
@@ -303,6 +305,7 @@ table.fin-t td.sml,.fin-doc .sml{font-size:11px;color:#555}
 <body>
 <header>
   <div class="hd-row">
+    <button class="hd-back" id="hdBack" hidden onclick="backToHyo()" aria-label="表電卓へ戻る">← 表電卓</button>
     <div class="hd-name" id="hdName">会計アプリ</div>
     <button class="hd-year" id="hdYear" onclick="openYearPick()" aria-label="表示する年度を切り替える"></button>
     <div class="hd-total">合計 <b class="num" id="hdTotal">0</b> 円</div>
@@ -636,7 +639,7 @@ table.fin-t td.sml,.fin-doc .sml{font-size:11px;color:#555}
    ・お金の場所（口座）は「現金・農協・信用金庫・定期預金…」と名前で持つ。
      口座から口座へ移すのは「振替」として、収入・支出とは別に数える。
    ══════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v14';
+const APP_VERSION='v15';
 const KEY='jk_kaikei_v1';
 
 const DEF_CATS={
@@ -812,6 +815,7 @@ const KB={ stack:[], skip:0, pending:0, deferred:0, base:false,
   // 表電卓は #from=hyo を付けて開く（ファイルを直接開いたときは referrer が空になるため、しるしで見分ける）
   wantBase: (()=>{
     if(/(^|[#&])from=hyo\b/.test(location.hash)){
+      try{ sessionStorage.setItem('kaikei_from_hyo','1'); }catch(_){}                      // 「← 表電卓」を出すしるし（v15）
       try{ history.replaceState(null,'',location.pathname+location.search); }catch(_){}   // しるしはアドレスに残さない
       return false;
     }
@@ -3107,6 +3111,14 @@ function init(){
   }
 }
 init();
+</script>
+<script>
+/* 表電卓から開いたときは、左上に「← 表電卓」を出す（v15）。iPhone には画面に「戻る」ボタンがないため */
+function backToHyo(){
+  // 開いている窓や画面の分の履歴があるので、「戻る」ではなく表電卓のページへそのまま移る
+  location.href='../'+(location.protocol==='file:'?'index.html':'');
+}
+(function(){ let from=false; try{ from=sessionStorage.getItem('kaikei_from_hyo')==='1'; }catch(_){} const b=document.getElementById('hdBack'); if(b) b.hidden=!from; })();
 </script>
 </body>
 </html>

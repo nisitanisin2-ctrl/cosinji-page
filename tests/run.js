@@ -4415,9 +4415,9 @@ async function runSafeArea(browser) {
     return { top: Math.round(r.top), onIt: mid === b || b.contains(mid) };
   }, [id, sel]);
   for (const [name, openFn, id, sel] of [
-        ['野菜',     'openVeggie',    'veggieOverlay',    '.modal-close'],
+        ['野菜',     'openVeggie',    'veggieOverlay',    '.tool-back'],
         ['写真メモ', 'openPhotoMemo', 'photoMemoOverlay', '.hdr-back'],
-        ['容積',     'openVolume',    'volumeOverlay',    '.modal-close']]) {
+        ['容積',     'openVolume',    'volumeOverlay',    '.tool-back']]) {
     const ok = await page.evaluate(f => typeof window[f] === 'function', openFn);
     if (!ok) { check('  ' + name + 'を開ける', ok, true); continue; }
     await page.evaluate(f => window[f](), openFn); await page.waitForTimeout(600);
@@ -6407,7 +6407,7 @@ async function runHelpSplit(browser) {
   const hg = await page.evaluate(() => { const imgs = [...document.querySelectorAll('#helpBody .hg-shot')];
     return { secs: document.querySelectorAll('#helpBody .hg-sec').length, imgs: imgs.map(i => i.getAttribute('src')), first: document.querySelector('#helpBody').firstElementChild.className,
       marks: [...document.querySelectorAll('#g-screen .hg-list .hg-n')].map(n => n.textContent).join(','), detail: !!document.getElementById('h-detail') }; });
-  check('  はじめにかんたん説明書（写真と番号）、そのあとにくわしい説明', hg.first + '/' + hg.secs + '/' + hg.detail + '/' + hg.marks, 'hg-top/15/true/1,2,3,4,5,6,7,8,9,10');
+  check('  はじめにかんたん説明書（写真と番号）、そのあとにくわしい説明', hg.first + '/' + hg.secs + '/' + hg.detail + '/' + hg.marks, 'hg-top/16/true/1,2,3,4,5,6,7,8,9,10');
   check('  写真はどれも help/ にある', hg.imgs.length >= 11 && hg.imgs.every(u => /^help\/[a-z0-9]+\.jpg$/.test(u) && fs.existsSync(path.join(ROOT, u))), true);
   check('  写真が読める（壊れていない）', await page.evaluate(async () => { const imgs = [...document.querySelectorAll('#helpBody .hg-shot')];
     await Promise.all(imgs.map(i => { i.loading = 'eager'; return i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }); }));
@@ -7678,8 +7678,33 @@ async function runToolsFab(browser) {
   await ap.reload(); await ap.waitForTimeout(2600);
   check('  2回目は出さない', await ap.evaluate(() => !!document.querySelector('.app-add-hint')), false);
   check('  知らない ?app= はふつうの表電卓', await ap.evaluate(async () => { location.search = '?app=nothing'; return 1; }).then(() => ap.waitForTimeout(2000)).then(() => ap.evaluate(() => (window.APP_TOOL || 'なし') + '/' + document.title.startsWith('表電卓'))), 'なし/true');
+  // ← もどる／← 表電卓（v463）
+  await ap.goto(INDEX + '?app=shimai'); await ap.waitForTimeout(2400);
+  check('  道具だけのアプリは左上が「← 表電卓」', await ap.evaluate(() => document.querySelector('#shimaiOverlay .tool-back').textContent), '←表電卓');
+  await ap.evaluate(() => document.querySelector('#shimaiOverlay .tool-back').click()); await ap.waitForTimeout(500);
+  check('  押すと表電卓の画面', await ap.evaluate(() => isDlgOpen('shimaiOverlay') + '/' + !!document.getElementById('numpadPageBar')), 'false/true');
   check('  エラーなし', errs.concat(aerr).join(' | '), '');
   await ap.close();
+  // 道具の画面の左上に「← もどる」（✕ はしまう）
+  const tb = await page.evaluate(async () => { const out = [];
+    for (const t of NP_TOOLS.filter(x => x.ov)) { t.run(); await new Promise(r => setTimeout(r, 900)); const ov = document.getElementById(t.ov);
+      const b = ov.querySelector('.modal-header .tool-back, .modal-header .hdr-back'); const x = ov.querySelector('.modal-header .modal-close');
+      out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
+      if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
+    return out.join(','); });
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,shimai:B,calctmpl:B,fintmpl:B');
+  check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
+  check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
+  // 会計アプリ・メモの「← 表電卓」
+  for (const [dir, id] of [['kaikei', 'hdBack'], ['notes', 'backHyo']]) {
+    const sp = await ctx.newPage();
+    await sp.goto('file://' + path.join(ROOT, dir, 'index.html') + '#from=hyo'); await sp.waitForTimeout(900);
+    const a = await sp.evaluate(i => { const b = document.getElementById(i); return !!b && !b.hidden && b.textContent.trim(); }, id);
+    await sp.goto('file://' + path.join(ROOT, dir, 'index.html')); await sp.evaluate(() => sessionStorage.clear()); await sp.reload(); await sp.waitForTimeout(900);
+    const c = await sp.evaluate(i => document.getElementById(i).hidden, id);
+    check('  ' + dir + '：表電卓から開いたときだけ「← 表電卓」', a + '/' + c, '← 表電卓/true');
+    await sp.close();
+  }
   await ctx.close();
 }
 async function runTbFold(browser) {

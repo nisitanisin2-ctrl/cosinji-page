@@ -2605,6 +2605,11 @@ body.dark .vol-cal-note { color: #ce93d8; }
 .hdr-back:hover { background: rgba(255,255,255,.35); }
 .hdr-back:active { transform: scale(.95); background: rgba(255,255,255,.4); }
 .hdr-back .hdr-back-ar { font-size: 16px; line-height: 1; }
+/* 道具の画面（v463）：左上の「← もどる」で閉じる。右上の ✕ はしまう（同じ働きが2つあると迷うため） */
+.has-back > .modal > .modal-header > .modal-close,
+.has-back > .modal > .modal-header .hdr-right > .modal-close { display: none; }
+.modal-header .tool-back { margin-right: 8px; }
+.modal-header .tool-back + span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 見出しは残りの幅に収める（狭い画面では「戻る」と道具を優先し、見出しは詰める） */
 .hdr-title { flex: 1; min-width: 0; margin-left: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 body[data-pm="xs"] .hdr-back { padding: 4px 9px 4px 7px; font-size: 12px; }
@@ -4563,8 +4568,8 @@ body.dark {
          🎤声・進む・戻る・リセット・▦通常（通常モードへ）の5つ（v328から。電卓は⋯の中）。
          5つとも長押しで好きな機能に変えられる（設定・機能／表の操作 など）。 -->
     <button class="btn util" data-key="u_voice" onclick="voiceStart()" title="声で入れる（続けて入れるときは☰の🎤を長押し、または「🎤続け」をキーに割り当て）／長押しで別の機能に変更">🎤声</button>
-    <button class="btn util" data-key="u_redo"  onclick="redoLast()" title="元に戻した入力をやり直す／長押しで別の機能に変更">進む</button>
-    <button class="btn util" data-key="u_undo"  onclick="undoLast()" title="直前の入力を元に戻す／長押しで別の機能に変更">戻る</button>
+    <button class="btn util" data-key="u_redo"  onclick="redoLast()" title="元に戻した入力をやり直す／長押しで別の機能に変更">↷進む</button>
+    <button class="btn util" data-key="u_undo"  onclick="undoLast()" title="直前の入力を元に戻す／長押しで別の機能に変更">↶戻す</button>
     <button class="btn util" data-key="u_reset" onclick="resetAll()" title="表の中身を消す（戻るで元に戻せます）／長押しで別の機能に変更">リセット</button>
     <button class="btn util" data-key="u_normal" onclick="switchMode('normal')" title="ふつうの表に戻す／長押しで別の機能に変更">▦通常</button>
     <button class="btn clr" data-key="mode" id="shoppingBtn" onclick="onModeBtnClick()">ひな形</button>
@@ -8995,6 +9000,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v463', t:'iPhone でも前の画面にもどりやすく', li:[
+    'iPhone には画面に「戻る」ボタンがないので、道具の画面の<b>左上に「← もどる」</b>を付けました（右上の ✕ のかわり）。ホーム画面のアイコンから開いた道具では「<b>← 表電卓</b>」です',
+    '🧾会計アプリ・📄メモにも、表電卓から開いたときは左上に<b>「← 表電卓」</b>を出します',
+    'テンキーの「戻る」「進む」は、画面をもどるボタンと まちがえないよう「<b>↶戻す</b>」「<b>↷進む</b>」にしました（入れたものを元に戻すキーです）' ]},
   { v:'v462', t:'🧰道具ボタンと、道具のアイコン', li:[
     'テンキーの上の並びの右に、オレンジの<b>🧰 道具</b>ボタンを出しました。どの画面からでも<b>ワンタッチ</b>で道具の窓が開きます（⚙設定 → 画面と上のバー で隠せます）',
     'よく使う道具を<b>スマホのホーム画面のアイコン</b>にできます。道具の窓のいちばん下「<b>📱 道具をホーム画面のアイコンにする</b>」から選び、開いた画面で「ホーム画面に追加」します。アイコンからは<b>その道具だけ</b>が開きます（入れたものは表電卓と同じ）',
@@ -10575,7 +10584,7 @@ const TOUR_PAGES=[
     ex:'📦しまい場所　📔業務手帳　📅当番表　🔐サブスク<br>💧単位水量　🧪カンタブ　🌱野菜づくり　ほか' },
   { ico:'📶🔒', h:'電波がなくても、そのまま使えます',
     b:'一度開いておけば、<b>電波の入らない現場でも</b>いつもどおり動きます。入れたものは<b>この端末の中だけ</b>に残り、どこにも送りません。',
-    ex:'困ったときは <b>☰ → 📖使い方</b>。はじめは<b>かんたん表示</b>です。書式や記号のページも使うときは <b>⚙設定 → 表示 → ぜんぶ</b>。' },
+    ex:'前の画面にもどるときは、左上の <b>← もどる</b> か 右上の <b>✕</b>（iPhone には「戻る」ボタンがありません）。<br>困ったときは <b>☰ → 📖使い方</b>。はじめは<b>かんたん表示</b>です。' },
 ];
 let tourIdx=0;
 function tourSeen(){ try{ return localStorage.getItem(TOUR_KEY)==='1'; }catch(_){ return true; } }
@@ -11261,7 +11270,7 @@ const KEY_FUNCS={
   /* 設定・機能（設定画面の内容をボタン化） */
   a_save:{g:'設定・機能',label:'保存',run:()=>saveData()}, a_list:{g:'設定・機能',label:'リスト',run:()=>showSaveList()},
   a_settings:{g:'設定・機能',label:'設定',run:()=>toggleSettings()}, a_reset:{g:'設定・機能',label:'リセット',run:()=>resetAll()},
-  a_undo:{g:'設定・機能',label:'戻る',run:()=>undoLast()}, a_redo:{g:'設定・機能',label:'進む',run:()=>redoLast()},
+  a_undo:{g:'設定・機能',label:'↶戻す',run:()=>undoLast()}, a_redo:{g:'設定・機能',label:'↷進む',run:()=>redoLast()},
   a_dark:{g:'設定・機能',label:'🌙夜',run:()=>toggleDark()}, a_pdf:{g:'設定・機能',label:'🖨PDF',run:()=>exportPDF()},
   a_csvout:{g:'設定・機能',label:'CSV出',run:()=>exportCSV()},
   a_csvin:{g:'設定・機能',label:'CSV読',run:()=>document.getElementById('importCSVInput').click()},
@@ -12811,7 +12820,7 @@ function openDlg(id, cleanup){
   if(!el || el.classList.contains('open')) return false;
   el.classList.add('open');
   el.querySelectorAll(':scope > .tool-hint').forEach(h=>h.remove());   // 戻るで閉じたときの残り
-  try{ const t=NP_TOOLS.find(x=>x.ov===id); if(t){ noteRecentTool(t.id); showToolHint(t.id, el); } }catch(_){}   // さいきん使った道具（ホームに出す。v459）・はじめての吹き出し（v460）
+  try{ const t=NP_TOOLS.find(x=>x.ov===id); if(t){ noteRecentTool(t.id); addToolBack(t, el); showToolHint(t.id, el); } }catch(_){}   // さいきん使った道具（ホームに出す。v459）・はじめての吹き出し（v460）
   armBackGuard(()=>{ el.classList.remove('open'); if(cleanup) cleanup(); });
   return true;
 }
@@ -14755,7 +14764,7 @@ let userKeys=new Array(USER_KEYS_N).fill(null).map(()=>({type:'text',value:''}))
 const REG_ACTIONS=[
   {id:'enter', icon:'⏎', name:'Enter',      desc:'入力を確定する'},
   {id:'bs',    icon:'⌫', name:'1文字削除', desc:'最後の1文字を消す'},
-  {id:'undo',  icon:'↩', name:'戻る',       desc:'直前の変更を元に戻す'},
+  {id:'undo',  icon:'↩', name:'戻す',       desc:'直前の変更を元に戻す'},
   {id:'redo',  icon:'↪', name:'進む',       desc:'元に戻した操作をやり直す'},
   {id:'save',  icon:'💾', name:'保存',       desc:'名前を付けて保存'},
   {id:'list',  icon:'🗂', name:'リスト',     desc:'保存データの一覧を開く'},
@@ -14835,7 +14844,7 @@ function sideAppUrl(dir, hash){
   const rel=dir+'/'+(location.protocol==='file:'?'index.html':'')+(hash||'');
   try{ return new URL(rel, location.href).href; }catch(_){ return rel; }
 }
-function openNotesApp(){ openSameWindow(sideAppUrl('notes')); }
+function openNotesApp(){ openSameWindow(sideAppUrl('notes', '#from=hyo')); }
 /* 同じ置き場所にある別のアプリ（会計・メモ）は、同じウィンドウで開く（v402）。
    以前は新しいタブで開いていたので、スマホの「戻る」でタブごと閉じていた。
    同じウィンドウなら「戻る」で表電卓に帰ってこられる（表の中身は自動保存してある）。 */
@@ -20546,7 +20555,7 @@ function toolButtonsHtml(doer, onlyBtn){
   return NP_TOOLS.map((t,i)=>{
     if(onlyBtn && toolsBtnHidden.includes(t.id)) return ''; const [ic,tx]=toolLabelSplit(t.label);
     return '<button class="more-item" data-tool="'+t.id+'" onclick="noteRecentTool(\''+t.id+'\');'+doer+'(NP_TOOLS['+i+'].run)"'+
-      (t.ov?'':' title="別のアプリとして開きます（「戻る」で表電卓に帰れます）"')+'><span>'+ic+'</span>'+escHtml(tx)+(t.ov?'':' ↗')+'</button>'; }).join('');
+      (t.ov?'':' title="別のアプリとして開きます（左上の「← 表電卓」で帰れます）"')+'><span>'+ic+'</span>'+escHtml(tx)+(t.ov?'':' ↗')+'</button>'; }).join('');
 }
 function renderMoreTools(){
   const g=document.getElementById('moreToolsGrid'); if(!g) return;
@@ -20576,6 +20585,23 @@ function renderHome(){
   const chk=document.getElementById('homeStartChk'); if(chk) chk.checked=(startPage==='home');
 }
 function openHome(){ renderHome(); openDlg('homeOverlay'); }
+/* ── 道具の画面の左上に「← もどる」（v463） ──
+   iPhone（とくにホーム画面から開いたとき）は画面に「戻る」ボタンがなく、右上の ✕ だけでは
+   前の画面へ戻れることが分かりにくい。写真メモと同じ「← もどる」を左上に置き、✕ はしまう。
+   道具だけのアプリ（?app=）では「← 表電卓」にする（押すと表電卓の画面になる） */
+function addToolBack(t, ov){
+  if(!t || !ov || t.id==='photomemo' || t.id==='techo') return;   // 写真メモは前から付いている・業務手帳は ☰ にまとめてある
+  const hd=ov.querySelector('.modal-header'); if(!hd) return;
+  let b=hd.querySelector('.tool-back');
+  if(!b){
+    b=document.createElement('button'); b.type='button'; b.className='hdr-back tool-back';
+    b.onclick=()=>{ if(typeof t.close==='function') t.close(); else closeDlg(t.ov); };
+    hd.insertBefore(b, hd.firstChild);
+    ov.classList.add('has-back');
+  }
+  b.innerHTML='<span class="hdr-back-ar">←</span>'+(window.APP_TOOL===t.id?'表電卓':'もどる');
+  b.title=window.APP_TOOL===t.id?'表電卓の画面へ':'閉じて前の画面にもどる';
+}
 /* ── 🧰 道具ボタン（v462）：テンキーの上の並びの右に、目立つ色で。⚙で出す／出さない ── */
 function toolsFabOn(){ try{ return localStorage.getItem('excalc_toolsfab')!=='0'; }catch(_){ return true; } }
 function setToolsFab(on){
@@ -20730,7 +20756,7 @@ function toolFavs(){ return loadList(TOOL_FAV_KEY).filter(id=>npToolDef(id)); }
 function toolBtn(t, fav){
   const i=NP_TOOLS.indexOf(t), [ic,tx]=toolLabelSplit(t.label), f=toolFavs().includes(t.id);
   const act=toolsFavEditing ? `toolsFavToggle('${t.id}')` : `noteRecentTool('${t.id}');toolsListDo(NP_TOOLS[${i}].run)`;
-  return `<button class="more-item" data-tool="${t.id}" onclick="${act}"${t.ov?'':' title="別のアプリとして開きます（「戻る」で表電卓に帰れます）"'}><span>${ic}</span>${escHtml(tx)}${t.ov?'':' ↗'}${toolsFavEditing?`<i class="tfav">${f?'★':'☆'}</i>`:''}</button>`;
+  return `<button class="more-item" data-tool="${t.id}" onclick="${act}"${t.ov?'':' title="別のアプリとして開きます（左上の「← 表電卓」で帰れます）"'}><span>${ic}</span>${escHtml(tx)}${t.ov?'':' ↗'}${toolsFavEditing?`<i class="tfav">${f?'★':'☆'}</i>`:''}</button>`;
 }
 function renderToolsList(){
   const g=document.getElementById('toolsListGrid'); if(!g) return;
@@ -20986,7 +21012,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v462';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v463';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
