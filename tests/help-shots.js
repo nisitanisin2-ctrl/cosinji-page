@@ -115,13 +115,14 @@ async function mark(page, marks) {
   await fresh();
   await page.evaluate(() => { openMoreMenu(); });
   await shot('menu', [
-    { sel: '#moreRec', n: 1, pos: 'tl' },
-    { sel: '#moreSave', n: 2, pos: 'tl' },
-    { sel: '#listBtn', n: 3, pos: 'tl' },
-    { sel: '#moreToolsBtn', n: 4, pos: 'tl' },
-    { sel: '#settingsBtn', n: 5, pos: 'tl' },
-    { sel: '#moreHelpBtn', n: 6, pos: 'tl' },
-    { sel: '#moreAccAll > summary', n: 7, pos: 'tl' },
+    { sel: '#uiModeSeg', n: 1, pos: 'tl' },
+    { sel: '#moreRec', n: 2, pos: 'tl' },
+    { sel: '#moreSave', n: 3, pos: 'tl' },
+    { sel: '#listBtn', n: 4, pos: 'tl' },
+    { sel: '#moreToolsBtn', n: 5, pos: 'tl' },
+    { sel: '#settingsBtn', n: 6, pos: 'tl' },
+    { sel: '#moreHelpBtn', n: 7, pos: 'tl' },
+    { sel: '#moreAccAll > summary', n: 8, pos: 'tl' },
   ]);
 
   // 4. 電卓
@@ -180,11 +181,11 @@ async function mark(page, marks) {
     { text: '🎯ひな形', n: 3, pos: 'tr' },
   ], { x: 0, y: 80, width: W, height: 520 });
 
-  // 9. 設定（かんたん表示。v461）
+  // 9. 設定（かんたんモード。v461／v482）
   await fresh({ excalc_uimode: 'easy' });
   await page.evaluate(() => toggleSettings());
   await shot('settings', [
-    { sel: '#uiModeSeg', n: 1, pos: 'tl' },
+    { sel: '#ezNote', n: 1, pos: 'tl' },
     { sel: '#setEasy .ez-only .set-sec', n: 2, pos: 'l', noBox: true },
     { sel: '#ezAllBtn', n: 3, pos: 'tl' },
   ]);
