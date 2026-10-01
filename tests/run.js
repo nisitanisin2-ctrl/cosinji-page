@@ -1348,6 +1348,44 @@ async function runSeqCustom(browser) {
   await ctx.close();
 }
 
+/* 範囲を選んで書式の窓でまとめて変える（v479） */
+async function runFmtRange(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 範囲の書式をまとめて変える（v479） ──');
+  const st = (r, c, p) => page.evaluate(([r, c, p]) => { const s = cellStyles[`${r},${c}`]; return s ? (s[p] ?? null) : null; }, [r, c, p]);
+  await page.evaluate(() => { for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) setCellVal(r, c, String(r * 10 + c + 0.456)); clearRangeSelection(); sel(1, 0); extendRange(3, 1); });
+  await page.click('#cellRef'); await page.waitForTimeout(400);
+  check('  セル番地を押しても範囲のまま窓が開く', await page.evaluate(() => isDlgOpen('cellFmtOverlay') + '/' + rangeR1), 'true/1');
+  check('  見出しに範囲とセル数', await page.evaluate(() => document.getElementById('cellFmtTitle').textContent), 'A2:B4 の書式（6セル）');
+  await page.evaluate(() => fmtToggle('bold'));
+  check('  太字が範囲の全部に（四隅）', [await st(1, 0, 'bold'), await st(3, 1, 'bold'), await st(2, 1, 'bold')].join(','), 'true,true,true');
+  check('  範囲の外は変わらない', [await st(0, 0, 'bold'), await st(1, 2, 'bold'), await st(4, 0, 'bold')].join(','), ',,');
+  check('  ボタンに印', await page.evaluate(() => document.getElementById('fmtBold').classList.contains('on')), true);
+  await page.evaluate(() => { fmtColor('bg', BG_COLORS[2]); fmtAlign('right'); fmtDec(-1); fmtSize(1); });
+  check('  背景色・寄せ・小数桁・大きさも全部に', await page.evaluate(() => [[1,0],[2,1],[3,1]].map(([r,c]) => { const s = cellStyles[`${r},${c}`]; return [s.bg === BG_COLORS[2], s.align, typeof s.dec, s.size > 1].join(':'); }).join('|')),
+    'true:right:number:true|true:right:number:true|true:right:number:true');
+  check('  画面の色にも出る', await page.evaluate(() => document.getElementById('c3_1').style.background !== '' && document.getElementById('c0_0').style.background === ''), true);
+  await page.evaluate(() => fmtToggle('bold'));
+  check('  もう一度で全部オフ', [await st(1, 0, 'bold'), await st(3, 1, 'bold')].join(','), ',');
+  // 戻るは1回で範囲全体
+  await page.evaluate(() => undoLast()); await page.waitForTimeout(200);
+  check('  戻るで範囲全体が1回で戻る', [await st(1, 0, 'bold'), await st(3, 1, 'bold')].join(','), 'true,true');
+  await page.evaluate(() => fmtClear());
+  check('  書式を消すも範囲全体', await page.evaluate(() => [[1,0],[2,1],[3,1]].every(([r,c]) => !cellStyles[`${r},${c}`])), true);
+  await page.evaluate(() => fmtLock());
+  check('  保護も範囲全体', [await st(1, 0, 'locked'), await st(3, 1, 'locked'), await st(0, 0, 'locked')].join(','), 'true,true,');
+  await page.evaluate(() => { fmtLock(); closeCellFmt(); }); await page.waitForTimeout(300);
+  // 1セルのときはこれまでどおり
+  await page.evaluate(() => { clearRangeSelection(); sel(0, 2); openCellFmt(); }); await page.waitForTimeout(300);
+  check('  1セルなら見出しはそのセル', await page.evaluate(() => document.getElementById('cellFmtTitle').textContent), 'C1 の書式');
+  await page.evaluate(() => fmtToggle('italic'));
+  check('  1セルだけ変わる', [await st(0, 2, 'italic'), await st(1, 2, 'italic'), await st(1, 0, 'italic')].join(','), 'true,,');
+  await page.evaluate(() => closeCellFmt());
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 /* 野菜の育成計画（種まきの日から予定日とカレンダーを出す道具） */
 async function runVeggie(browser) {
   const { ctx, page, errs } = await newPage(browser);
@@ -8770,6 +8808,7 @@ async function runQrShare(browser) {
     if (!only || only === 'nptools') await runNpTools(browser);
     if (!only || only === 'keys466') await runKeys466(browser);
     if (!only || only === 'seqcustom') await runSeqCustom(browser);
+    if (!only || only === 'fmtrange') await runFmtRange(browser);
     if (!only || only === 'veggie') await runVeggie(browser);
     if (!only || only === 'report') await runReport(browser);
     if (!only || only === 'shared') await runShared(browser);

@@ -9029,6 +9029,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v479', t:'範囲の書式をまとめて変える', li:[
+    'セルをなぞって<b>範囲を選んだまま</b>セル番地を押して開く <b>セルの書式</b> で、小数点・丸め方・日付・文字の大きさ・太字など・寄せ・文字色/背景色・保護・書式を消す が、<b>範囲の中のセル全部</b>に一度に効くようにしました（見出しに「A2:B4 の書式（6セル）」のように出ます）',
+    '<b>戻る</b>は1回で範囲全体がもどります' ]},
   { v:'v478', t:'「1日」「2個」のような数にも連番', li:[
     '<b>1日・2個・第1回・1.5kg</b> のように、数のあとに文字が付いたものも、引っぱると <b>🔢 連番</b>・<b>⚙ カスタム</b> が出て、<b>2日, 3日…</b> や <b>5個ずつ</b> のように連番にできるようにしました（前とうしろの文字はそのまま）' ]},
   { v:'v477', t:'連番のきまりを決められるように', li:[
@@ -20996,7 +20999,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v478';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v479';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -21374,9 +21377,19 @@ function lookupPickFinish(r1,c1,r2,c2){
   if(typeof curSheet==='number' && lkState && curSheet!==lkState.targetSheet && typeof switchSheet==='function') switchSheet(lkState.targetSheet);
   openLookupDlg(true);
 }
+/* 書式モーダルの対象セル一覧（範囲選択中なら範囲全体・v479）。null＝fmtR,fmtC の1セル */
+let fmtCellsList=null;
 function openCellFmt(){
   fmtR=selR; fmtC=selC;
-  document.getElementById('cellFmtTitle').textContent=`${ALPHA[fmtC]}${fmtR+1} の書式`;
+  const cells=(typeof kfmtCells==='function')?kfmtCells():[[selR,selC]];
+  fmtCellsList=cells.length>1?cells:null;
+  let title=`${ALPHA[fmtC]}${fmtR+1} の書式`;
+  if(fmtCellsList){
+    const rs=cells.map(x=>x[0]), cs=cells.map(x=>x[1]);
+    const r1=Math.min(...rs), r2=Math.max(...rs), c1=Math.min(...cs), c2=Math.max(...cs);
+    title=`${ALPHA[c1]}${r1+1}:${ALPHA[c2]}${r2+1} の書式（${cells.length}セル）`;
+  }
+  document.getElementById('cellFmtTitle').textContent=title;
   syncCellFmt();
   openDlg('cellFmtOverlay');
 }
@@ -21418,92 +21431,93 @@ function renderSwatches(boxId, colors, cur, type){
   }).join('');
 }
 
+/* 書式モーダルの変更を対象セル全部へ（範囲なら一括・戻るは1回分）。基準は fmtR,fmtC のセル */
+function fmtTargets(){ return fmtCellsList||[[fmtR,fmtC]]; }
+function fmtApplyAll(op, mut){
+  const cells=fmtTargets();
+  pushStyleHistory(cells.map(([r,c])=>`${r},${c}`), op);
+  cells.forEach(([r,c])=>{
+    const k=`${r},${c}`;
+    const s=cellStyles[k]||(cellStyles[k]={});
+    mut(s,r,c);
+    if(Object.keys(s).length===0) delete cellStyles[k];
+    repaintCell(r,c);
+  });
+  persistModes();
+}
+function fmtBase(){ return cellStyles[fmtKey()]||{}; }
 function fmtDec(delta){
-  pushStyleHistory([fmtKey()], '小数桁');
-  const s=fmtStyle(true);
-  let cur=(typeof s.dec==='number')?s.dec:decPlaces;
+  const b=fmtBase();
+  let cur=(typeof b.dec==='number')?b.dec:decPlaces;
   cur=Math.max(-1, Math.min(10, cur+delta));
-  s.dec=cur;
+  fmtApplyAll('小数桁', s=>{ s.dec=cur; });
   document.getElementById('fmtDecVal').textContent=cur<0?'自動':cur;
-  repaintCell(fmtR,fmtC); afterFmtChange();
 }
 function fmtRoundChange(v){
-  pushStyleHistory([fmtKey()], '丸め方');
-  const s=fmtStyle(true);
-  if(v==='round') delete s.round; else s.round=v;   // 既定(四捨五入)は保存しない
-  repaintCell(fmtR,fmtC); afterFmtChange();
+  fmtApplyAll('丸め方', s=>{ if(v==='round') delete s.round; else s.round=v; });   // 既定(四捨五入)は保存しない
 }
 /* 日付の表示形式を変更（空＝日付にしない） */
 function fmtDateChange(v){
-  pushStyleHistory([fmtKey()], '日付の形式');
-  const s=fmtStyle(true);
-  if(v){ s.dfmt=v; delete s.nodate; }
-  else { delete s.dfmt; s.nodate=true; }   // 「日付にしない」→以後このセルへ入力しても自動で日付にしない
-  repaintCell(fmtR,fmtC); afterFmtChange();
+  fmtApplyAll('日付の形式', s=>{
+    if(v){ s.dfmt=v; delete s.nodate; }
+    else { delete s.dfmt; s.nodate=true; }   // 「日付にしない」→以後このセルへ入力しても自動で日付にしない
+  });
 }
-/* このセルに今日の日付を入れる（日付書式が未設定なら ymd を付ける） */
+/* 対象セルに今日の日付を入れる（日付書式が未設定なら既定形式を付ける） */
 function fmtToday(){
-  const key=fmtKey();
-  pushStyleHistory([key], '今日の日付');
-  pushHistory([{r:fmtR,c:fmtC,val:data[fmtR][fmtC]}], '今日の日付');
-  data[fmtR][fmtC]=String(todaySerial());
-  const s=fmtStyle(true); if(!s.dfmt) s.dfmt=defaultDateFmt; delete s.nodate;   // 今日ボタンは日付にする（既定形式）
-  document.getElementById('fmtDate').value=s.dfmt;
-  repaintCell(fmtR,fmtC);
-  if(fmtR===selR && fmtC===selC) document.getElementById('formulaInput').value=cellEditString(fmtR,fmtC);
+  const cells=fmtTargets().filter(([r,c])=>!(fmtCellsList && (isLockedCell(r,c) || coverOf(r,c))));
+  if(!cells.length) return;
+  pushHistory(cells.map(([r,c])=>({r,c,val:data[r][c]})), '今日の日付');
+  const t=String(todaySerial());
+  cells.forEach(([r,c])=>{ data[r][c]=t; });
+  fmtApplyAll('今日の日付', (s,r,c)=>{
+    if(!cells.some(x=>x[0]===r&&x[1]===c)) return;
+    if(!s.dfmt) s.dfmt=defaultDateFmt; delete s.nodate;   // 今日ボタンは日付にする（既定形式）
+  });
+  document.getElementById('fmtDate').value=fmtBase().dfmt||'';
+  if(cells.some(([r,c])=>r===selR&&c===selC)) document.getElementById('formulaInput').value=cellEditString(selR,selC);
   recalcAll(); if(isStructMode()) recalcMode();
-  afterFmtChange();
 }
 function fmtSize(delta){
-  pushStyleHistory([fmtKey()], '文字の大きさ');
-  const s=fmtStyle(true);
-  let si=FMT_SIZES.indexOf(s.size||1); if(si<0) si=1;
+  let si=FMT_SIZES.indexOf(fmtBase().size||1); if(si<0) si=1;
   si=Math.max(0, Math.min(FMT_SIZES.length-1, si+delta));
-  s.size=FMT_SIZES[si];
+  fmtApplyAll('文字の大きさ', s=>{ s.size=FMT_SIZES[si]; });
   document.getElementById('fmtSizeVal').textContent=FMT_SLABEL[si];
-  repaintCell(fmtR,fmtC); afterFmtChange();
 }
 function fmtToggle(prop){
-  pushStyleHistory([fmtKey()], '文字の装飾');
-  const s=fmtStyle(true);
-  s[prop]=!s[prop];
-  document.getElementById(prop==='bold'?'fmtBold':prop==='italic'?'fmtItalic':'fmtUnder').classList.toggle('on', !!s[prop]);
-  repaintCell(fmtR,fmtC); afterFmtChange();
+  const on=!fmtBase()[prop];   // 基準セルの状態を反転して全体をそろえる
+  fmtApplyAll('文字の装飾', s=>{ if(on) s[prop]=true; else delete s[prop]; });
+  document.getElementById(prop==='bold'?'fmtBold':prop==='italic'?'fmtItalic':'fmtUnder').classList.toggle('on', on);
 }
 function fmtColor(type, v){
-  pushStyleHistory([fmtKey()], '文字色・背景色');
-  const s=fmtStyle(true);
-  if(v==='') delete s[type]; else s[type]=v;
-  repaintCell(fmtR,fmtC); syncCellFmt(); afterFmtChange();
+  fmtApplyAll('文字色・背景色', s=>{ if(v==='') delete s[type]; else s[type]=v; });
+  syncCellFmt();
 }
 function fmtLock(){
-  pushStyleHistory([fmtKey()], '保護の切替');
-  const s=fmtStyle(true);
-  s.locked=!s.locked;
-  if(!s.locked) delete s.locked;
+  const on=!fmtBase().locked;
+  fmtApplyAll('保護の切替', s=>{ if(on) s.locked=true; else delete s.locked; });
   // ロック中のセルは選択中でも編集状態を解除
-  if(fmtR===selR && fmtC===selC && s.locked) cellEditing=false;
-  if(fmtR===selR && fmtC===selC) document.getElementById('cellRef').classList.toggle('locked-ref', isLockedCell(selR,selC));
-  repaintCell(fmtR,fmtC); syncCellFmt(); afterFmtChange();
+  if(on && fmtTargets().some(([r,c])=>r===selR&&c===selC)) cellEditing=false;
+  document.getElementById('cellRef').classList.toggle('locked-ref', isLockedCell(selR,selC));
+  syncCellFmt();
 }
 function fmtClear(){
-  pushStyleHistory([fmtKey()], '書式を消す');
-  delete cellStyles[fmtKey()];
-  repaintCell(fmtR,fmtC); syncCellFmt(); afterFmtChange();
+  const cells=fmtTargets();
+  pushStyleHistory(cells.map(([r,c])=>`${r},${c}`), '書式を消す');
+  cells.forEach(([r,c])=>{ delete cellStyles[`${r},${c}`]; repaintCell(r,c); });
+  syncCellFmt(); persistModes();
 }
-/* 文字の横位置（左/中央/右）。同じものを再度押すと既定(解除)に戻す */
+/* 文字の横位置（左/中央/右）。基準セルと同じものを再度押すと既定(解除)に戻す */
 function fmtAlign(v){
-  pushStyleHistory([fmtKey()], '寄せ');
-  const s=fmtStyle(true);
-  if(s.align===v) delete s.align; else s.align=v;
-  repaintCell(fmtR,fmtC); syncCellFmt(); afterFmtChange();
+  const off=fmtBase().align===v;
+  fmtApplyAll('寄せ', s=>{ if(off) delete s.align; else s.align=v; });
+  syncCellFmt();
 }
 /* 文字の縦位置（上/中央/下） */
 function fmtValign(v){
-  pushStyleHistory([fmtKey()], '縦の寄せ');
-  const s=fmtStyle(true);
-  if(s.valign===v) delete s.valign; else s.valign=v;
-  repaintCell(fmtR,fmtC); syncCellFmt(); afterFmtChange();
+  const off=fmtBase().valign===v;
+  fmtApplyAll('縦の寄せ', s=>{ if(off) delete s.valign; else s.valign=v; });
+  syncCellFmt();
 }
 /* 空オブジェクトは捨てて保存 */
 function afterFmtChange(){
@@ -21715,7 +21729,7 @@ function applyMerge(ar,ac,rs,cs){
     if(!a.valign) a.valign='middle';
   }
   buildSheet();
-  fmtR=ar; fmtC=ac; sel(ar,ac);                 // 書式対象＝アンカーを維持（モーダルは開いたまま）
+  fmtR=ar; fmtC=ac; fmtCellsList=null; sel(ar,ac);   // 書式対象＝アンカーを維持（モーダルは開いたまま）
   persistModes();
 }
 /* 書式モーダル：結合する横(cs)・縦(rs)のセル数を増減 */
