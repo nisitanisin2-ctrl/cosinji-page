@@ -678,7 +678,12 @@ body.ui-easy #settingsPanel.show-all .set-easy .ez-all { margin: 4px 0 6px; }
 .set-easy .ez-dark { min-width: 120px; }
 .ui-mode-list { margin: 4px 0 6px; padding-left: 1.3em; }
 .ui-mode-list li { margin: 2px 0; }
-#settingsPanel.show-all #uiModeNote .ui-mode-list { display: none; }   /* すべての設定を見るときは、説明の箇条書きをしまって下の設定に場所をゆずる */
+#settingsPanel.show-all .ez-note { display: none; }   /* すべての設定を見るときは、案内をしまって下の設定に場所をゆずる */
+.set-easy .ez-note { margin-top: 4px; }
+.more-uimode { margin: 0 0 10px; }
+.more-uimode .skin-seg { width: 100%; }
+.more-uimode .skin-seg-btn { flex: 1; font-weight: bold; }
+.more-uimode-note { font-size: 12px; color: var(--text-sub, #666); margin-top: 4px; line-height: 1.5; }
 .set-easy .ez-all { width: 100%; margin: 12px 0 8px; }
 .more-fold { display: block; margin-bottom: 8px; }   /* v459 からいつも出す（いまの表：保存・開く・戻す） */
 .more-grid.more-grid3 { grid-template-columns: repeat(3, 1fr); }
@@ -3843,6 +3848,11 @@ body.dark {
       <button class="modal-close" onclick="closeMoreMenu()">✕</button>
     </div>
     <div class="modal-body">
+      <!-- 標準モード／かんたんモード（v482。前は ⚙設定 のいちばん上にあった） -->
+      <div class="more-uimode">
+        <div class="skin-seg" id="uiModeSeg"><button class="skin-seg-btn" data-m="full" onclick="setUiMode('full')">標準モード</button><button class="skin-seg-btn" data-m="easy" onclick="setUiMode('easy')">かんたんモード</button></div>
+        <div class="more-uimode-note" id="uiModeNote"></div>
+      </div>
       <!-- ☰ メニュー（v459）：よく使うものだけを大きく出し、ほかは「ほかの機能」に畳む。
            いまの表（記録名・保存・開く・戻す）／道具・声・設定・使い方 の順。 -->
       <div class="more-fold" id="moreFold">
@@ -3935,12 +3945,11 @@ body.dark {
     <button class="modal-close" onclick="toggleSettings()">✕</button>
   </div>
   <!-- 設定をさがす（v400）。項目が増えたので、言葉で探して飛べるようにする -->
-  <!-- 表示：かんたん／ぜんぶ（v461）。かんたんのときは、よく使う設定だけをここに出す -->
+  <!-- かんたんモード（v461）のときは、よく使う設定だけをここに出す。
+       標準モード／かんたんモードの切りかえは ☰ メニューのいちばん上へ移した（v482） -->
   <div class="set-easy" id="setEasy">
-    <div class="set-sec" style="margin-top:4px">表示</div>
-    <div class="skin-seg" id="uiModeSeg"><button class="skin-seg-btn" data-m="easy" onclick="setUiMode('easy')">かんたん</button><button class="skin-seg-btn" data-m="full" onclick="setUiMode('full')">ぜんぶ</button></div>
-    <div class="set-note" id="uiModeNote"></div>
     <div class="ez-only">
+      <div class="set-note ez-note" id="ezNote"><b>かんたんモード</b>です。よく使う設定だけを出しています。<br>標準モードにするときは <b>☰ メニューのいちばん上</b>で切りかえます。</div>
       <div class="set-sec">よく使う設定</div>
       <div class="set-row"><span class="set-label">テンキーの大きさ</span>
         <span class="set-stepper"><button class="step-btn" onclick="changeKeySize(-1);ezSync()">−</button><span class="sc-val" id="ezKeySize"></span><button class="step-btn" onclick="changeKeySize(1);ezSync()">＋</button></span></div>
@@ -9057,6 +9066,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v482', t:'標準モード／かんたんモードを ☰ メニューのいちばん上に', li:[
+    '⚙設定 のいちばん上にあった「かんたん／ぜんぶ」の切りかえを、<b>☰ メニューを開いてすぐの所</b>に移しました',
+    '名前を <b>標準モード</b>／<b>かんたんモード</b> にしました。はじめは<b>標準モード</b>です（かんたんモードはテンキーが数字と電卓だけ・設定はよく使うものだけ）' ]},
   { v:'v481', t:'列・行を複数選んで幅をそろえる／幅が残るように', li:[
     '見出し（A・B…）や行番号（1・2…）を押すと出る <b>☑ ほかの列も選ぶ</b> で、列や行を<b>いくつも選べる</b>ようにしました（長押しのメニューにもあります。パソコンは Ctrl・Shift＋クリック）',
     '選んだ列のどれかの端を引っぱると、<b>選んだ列が全部同じ幅</b>になります（行は同じ高さ）。右上の合計も選んだ列・行の合計になります',
@@ -10699,7 +10711,7 @@ const TOUR_PAGES=[
     ex:'📦しまい場所　📔業務手帳　📅当番表　🔐サブスク<br>💧単位水量　🧪カンタブ　🌱野菜づくり　ほか' },
   { ico:'📶🔒', h:'電波がなくても、そのまま使えます',
     b:'一度開いておけば、<b>電波の入らない現場でも</b>いつもどおり動きます。入れたものは<b>この端末の中だけ</b>に残り、どこにも送りません。',
-    ex:'前の画面にもどるときは、左上の <b>← もどる</b> か 右上の <b>✕</b>（iPhone には「戻る」ボタンがありません）。<br>困ったときは <b>☰ → 📖使い方</b>。はじめは<b>かんたん表示</b>です。' },
+    ex:'前の画面にもどるときは、左上の <b>← もどる</b> か 右上の <b>✕</b>（iPhone には「戻る」ボタンがありません）。<br>困ったときは <b>☰ → 📖使い方</b>。機能を少なくしたいときは <b>☰ メニューのいちばん上</b>で<b>かんたんモード</b>にできます。' },
 ];
 let tourIdx=0;
 function tourSeen(){ try{ return localStorage.getItem(TOUR_KEY)==='1'; }catch(_){ return true; } }
@@ -20675,6 +20687,7 @@ function closeUndoList(){ closeDlg('undoListOverlay'); }
 function openMoreMenu(){
   renderMoreTools(); applyMoreAcc();
   const tt=document.getElementById('moreTitle'); if(tt) tt.textContent='☰ メニュー';
+  ezSync();   // 標準モード／かんたんモードの印（v482）
   {   // 上のバーにある記録名・保存・↶ を写す（v459 から、たたんでいなくても出す）
     const rt=document.getElementById('recordTitle'), rec=document.getElementById('moreRec');
     if(rt && rec){ rec.textContent=rt.textContent; rec.title=rt.title; rec.classList.toggle('dirty', rt.classList.contains('dirty')); }
@@ -20819,8 +20832,7 @@ var uiEasy=uiEasy||false;   // var：起動の途中（この行より前）で 
 function loadUiMode(){
   let v=null; try{ v=localStorage.getItem('excalc_uimode'); }catch(_){}
   if(v!=='easy' && v!=='full'){
-    let old=false; try{ old=localStorage.getItem('excalc_tour_done')==='1' || !!localStorage.getItem('excalc_saves'); }catch(_){}
-    v=old?'full':'easy';
+    v='full';   // 決めていなければ標準モード（v482。前は はじめての人を かんたん にしていた）
     try{ localStorage.setItem('excalc_uimode', v); }catch(_){}
   }
   uiEasy=(v==='easy');
@@ -20834,7 +20846,7 @@ function setUiMode(m){
   if(uiEasy && typeof numpadPager!=='undefined' && numpadPager){ const c=numpadPager.current(); if(c!==null && c!=='sci') numpadPager.go(null); }
   if(typeof renderNumpadPageBar==='function') renderNumpadPageBar();
   ezSync();
-  toast(uiEasy?'かんたん表示にしました（よく使うものだけ出します）':'ぜんぶ表示にしました（すべての機能を出します）');
+  toast(uiEasy?'かんたんモードにしました（よく使うものだけ出します）':'標準モードにしました（すべての機能を出します）');
 }
 function toggleAllSettings(){
   const sp=document.getElementById('settingsPanel'); if(!sp) return;
@@ -20844,17 +20856,8 @@ function ezSync(){
   document.querySelectorAll('#uiModeSeg button').forEach(b=>b.classList.toggle('on', b.dataset.m===(uiEasy?'easy':'full')));
   const note=document.getElementById('uiModeNote');
   if(note) note.innerHTML=uiEasy
-    ? '<b>かんたん</b>にしています。はじめての人向けに、使える機能を少なくしています。'
-      +'<ul class="ui-mode-list">'
-      +'<li>テンキーは<b>「数字」と「電卓」の2ページだけ</b>です。<b>書式・枠線</b>（太字・色・罫線など）、<b>記号</b>、<b>自分のボタン</b>のページは出ません</li>'
-      +'<li>キーの<b>長押し</b>（ボタンに機能を割り当てる・数字キーから記号を入れる）は使いません</li>'
-      +'<li>設定は<b>よく使うものだけ</b>出します（「すべての設定を見る」で全部見られます）</li>'
-      +'</ul>書式・枠線などを使いたいときは、上の<b>「ぜんぶ」</b>を押してください。'
-    : '<b>ぜんぶ</b>にしています。すべての機能を使えます。'
-      +'<ul class="ui-mode-list">'
-      +'<li>テンキーは<b>書式・枠線／数字／電卓／自分のボタン</b>のページ（<b>記号</b>のページは ⚙ 見た目 → テンキー で出せます）</li>'
-      +'<li>キーの<b>長押し</b>で機能の割り当て・記号の入力ができます</li>'
-      +'</ul>使う機能を少なくしたいときは<b>「かんたん」</b>を押してください。';
+    ? 'テンキーは<b>数字と電卓</b>だけ。キーの長押しは使わず、設定は<b>よく使うものだけ</b>出します'
+    : '<b>すべての機能</b>を使えます（書式・枠線のテンキー・キーの長押し・すべての設定）';
   const cp=(a,b)=>{ const x=document.getElementById(a), y=document.getElementById(b); if(x&&y) y.textContent=x.textContent; };
   cp('keySize','ezKeySize'); cp('rowCount','ezRows'); cp('colCount','ezCols');
   const d=document.getElementById('ezDark'); if(d) d.textContent=document.body.classList.contains('dark')?'☀ 明るくする':'🌙 夜の色にする';
@@ -21151,7 +21154,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v481';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v482';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

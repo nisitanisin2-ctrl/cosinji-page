@@ -7740,11 +7740,19 @@ async function runUiMode(browser) {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true });
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', e => errs.push(e.message)); page.on('dialog', d => d.accept());
-  console.log('\n── 表示：かんたん／ぜんぶ（v461） ──');
+  console.log('\n── 標準モード／かんたんモード（v461・v482） ──');
   await page.goto(INDEX); await page.evaluate(() => localStorage.clear()); await page.reload(); await page.waitForTimeout(1500);
-  check('  はじめての人は かんたん', await page.evaluate(() => uiEasy + '/' + localStorage.getItem('excalc_uimode') + '/' + document.body.classList.contains('ui-easy')), 'true/easy/true');
+  check('  はじめは 標準モード（v482）', await page.evaluate(() => uiEasy + '/' + localStorage.getItem('excalc_uimode') + '/' + document.body.classList.contains('ui-easy')), 'false/full/false');
   await page.evaluate(() => { tourSkip(); }); await page.waitForTimeout(700);
   await page.evaluate(() => { closeHome(); try { hideNotice(); } catch (_) {} }); await page.waitForTimeout(400);
+  // ☰ メニューを開いてすぐの所に 標準モード／かんたんモード
+  await page.evaluate(() => openMoreMenu()); await page.waitForTimeout(400);
+  check('  ☰ メニューのいちばん上に切りかえ', await page.evaluate(() => { const b = document.querySelector('#moreMenuOverlay .modal-body'); const f = b.firstElementChild; return f.classList.contains('more-uimode') + '/' + [...document.querySelectorAll('#uiModeSeg button')].map(x => x.textContent + (x.classList.contains('on') ? '●' : '')).join('|'); }), 'true/標準モード●|かんたんモード');
+  check('  切りかえは開いてすぐ見える（スクロールしなくてよい）', await page.evaluate(() => { const r = document.getElementById('uiModeSeg').getBoundingClientRect(); return r.top > 0 && r.bottom < innerHeight / 2; }), true);
+  await page.click('#uiModeSeg button[data-m="easy"]'); await page.waitForTimeout(300);
+  check('  かんたんモードにできる・覚える', await page.evaluate(() => uiEasy + '/' + localStorage.getItem('excalc_uimode') + '/' + document.querySelector('#uiModeSeg .on').textContent), 'true/easy/かんたんモード');
+  check('  設定には切りかえを置かない', await page.evaluate(() => !!document.querySelector('#settingsPanel #uiModeSeg')), false);
+  await page.evaluate(() => closeMoreMenu()); await page.waitForTimeout(400);
   const bar = () => page.evaluate(() => [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|'));
   check('  かんたん：テンキーのページは 数字と電卓だけ', await bar(), '数字|電卓');
   // 横になぞる（ホイール）：数字⇄電卓だけ。書式・記号・道具・自分のボタンへは行かない
@@ -7788,7 +7796,7 @@ async function runUiMode(browser) {
   // 設定：よく使う5つ
   await page.evaluate(() => toggleSettings()); await page.waitForTimeout(400);
   const vis = sel => page.evaluate(sel => { const e = document.querySelector(sel); return !!e && e.getClientRects().length > 0 && getComputedStyle(e).display !== 'none'; }, sel);
-  check('  かんたん：設定はよく使うものだけ（さがす欄・タブは出さない）', [await vis('#uiModeSeg'), await vis('#ezKeySize'), await vis('#ezDark'), await vis('#ezRows'), await vis('#ezStartSel'), await vis('#setFindIn'), await vis('.settings-tabbar')].join('/'), 'true/true/true/true/true/false/false');
+  check('  かんたん：設定はよく使うものだけ（さがす欄・タブは出さない）', [await vis('#ezNote'), await vis('#ezKeySize'), await vis('#ezDark'), await vis('#ezRows'), await vis('#ezStartSel'), await vis('#setFindIn'), await vis('.settings-tabbar')].join('/'), 'true/true/true/true/true/false/false');
   check('  よく使う設定の値は、元の設定と同じ', await page.evaluate(() => document.getElementById('ezKeySize').textContent === document.getElementById('keySize').textContent && document.getElementById('ezRows').textContent === document.getElementById('rowCount').textContent), true);
   await page.evaluate(() => document.querySelector('#setEasy .ez-only .step-btn[onclick*="changeRows(1)"]').click()); await page.waitForTimeout(200);
   check('  よく使う設定から行を足す', await page.evaluate(() => document.getElementById('ezRows').textContent + '/' + ROWS), '16/16');
@@ -7808,7 +7816,7 @@ async function runUiMode(browser) {
   check('  ぜんぶ：書式・自分のボタンも出す・覚える（記号は設定で出したときだけ）', await bar() + '/' + await page.evaluate(() => localStorage.getItem('excalc_uimode')), '書式・枠線|数字|電卓|▲ 自分のボタン/full');
   check('  ぜんぶ：数字キーの長押しで記号', numKey ? await hold(numKey) : 'なし', true);
   await page.evaluate(() => { toggleSettings(); }); await page.waitForTimeout(400);
-  check('  ぜんぶ：設定は全部（表示の切りかえは上に）', [await vis('#uiModeSeg'), await vis('#ezKeySize'), await vis('#setFindIn')].join('/'), 'true/false/true');
+  check('  標準：設定は全部（かんたんの案内は出さない）', [await vis('#ezNote'), await vis('#ezKeySize'), await vis('#setFindIn')].join('/'), 'false/false/true');
   await page.evaluate(() => toggleSettings()); await page.waitForTimeout(400);
   await page.reload(); await page.waitForTimeout(1200);
   check('  開き直しても ぜんぶ', await page.evaluate(() => uiEasy), false);
