@@ -1483,6 +1483,73 @@ async function runHdrMulti(browser) {
   await ctx.close();
 }
 
+/* 書式の色：今の色＋▼ と、色をえらぶ窓（v483） */
+async function runColorPick(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 書式の色：今の色＋▼・色をえらぶ窓（v483） ──');
+  await page.evaluate(() => { setCellVal(0, 0, '1'); setCellVal(1, 0, '2'); clearRangeSelection(); sel(0, 0); numpadPager.go('fmt'); });
+  await page.waitForTimeout(500);
+  const k = key => '#numpadPageFmt [data-key=' + key + ']';
+  check('  3段目は 線の色・▼・塗り・▼・文字色・▼', await page.evaluate(() => [...document.querySelectorAll('#numpadPageFmt > .btn')]
+    .filter(b => getComputedStyle(b).gridRowStart === '3').sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left).map(b => b.dataset.key).join(',')),
+    'bd_color,bd_colorpick,kf_fill,kf_fillpick,kf_font,kf_fontpick');
+  check('  前の色の帯はない', await page.evaluate(() => document.querySelectorAll('#numpadPageFmt .kf-vcol, #numpadPageFmt .bd-color').length), 0);
+  check('  ボタンが重ならずに並ぶ', await page.evaluate(() => {
+    const r = [...document.querySelectorAll('#numpadPageFmt > .btn')].map(e => e.getBoundingClientRect());
+    for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++) { const a = r[i], b = r[j];
+      if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) return false; }
+    return r.length === 36; }), true);
+  // 塗りつぶし ▼
+  await page.tap(k('kf_fillpick')); await page.waitForTimeout(350);
+  check('  ▼で塗りつぶしの色の窓が開く', await page.evaluate(() => isDlgOpen('colorPickOverlay') + '/' + document.getElementById('cpTitle').textContent + '/' + document.querySelectorAll('#cpGrid .cp-sw').length), 'true/塗りつぶしの色/19');
+  check('  色の見本は指で押しやすい大きさ（44px 以上）', await page.evaluate(() => { const r = document.querySelector('#cpGrid .cp-sw').getBoundingClientRect(); return r.width >= 44 && r.height >= 44; }), true);
+  await page.tap('#cpGrid .cp-sw[data-c="#c8e6c9"]'); await page.waitForTimeout(350);
+  check('  えらぶとすぐ付いて窓が閉じる', await page.evaluate(() => (cellStyles['0,0'] || {}).bg + '/' + isDlgOpen('colorPickOverlay')), '#c8e6c9/false');
+  check('  今の色のボタンにその色が出る', await page.evaluate(() => getComputedStyle(document.getElementById('cpFillIco')).borderBottomColor), 'rgb(200, 230, 201)');
+  // 今の色のボタンで別のセルにすぐ
+  await page.evaluate(() => sel(1, 0)); await page.tap(k('kf_fill')); await page.waitForTimeout(250);
+  check('  今の色のボタンを押すと同じ色がすぐ付く', await page.evaluate(() => (cellStyles['1,0'] || {}).bg), '#c8e6c9');
+  // 文字色 ▼（範囲にまとめて）
+  await page.evaluate(() => { sel(0, 0); extendRange(1, 0); });
+  await page.tap(k('kf_fontpick')); await page.waitForTimeout(350);
+  check('  範囲を選んでいると、そう知らせる', await page.evaluate(() => document.getElementById('cpHint').textContent.includes('範囲')), true);
+  await page.tap('#cpGrid .cp-sw[data-c="#1e88e5"]'); await page.waitForTimeout(300);
+  check('  文字色が範囲の全部に付く', await page.evaluate(() => (cellStyles['0,0'] || {}).color + ',' + (cellStyles['1,0'] || {}).color), '#1e88e5,#1e88e5');
+  // なし・自動
+  await page.tap(k('kf_fontpick')); await page.waitForTimeout(300);
+  await page.tap('.cp-none'); await page.waitForTimeout(300);
+  check('  窓の「自動」で文字色を戻す', await page.evaluate(() => (cellStyles['0,0'] || {}).color === undefined), true);
+  await page.tap(k('kf_nofill')); await page.waitForTimeout(250);
+  check('  塗りなしボタン', await page.evaluate(() => (cellStyles['0,0'] || {}).bg === undefined && (cellStyles['1,0'] || {}).bg === undefined), true);
+  await page.tap(k('kf_undo')); await page.waitForTimeout(250);
+  check('  戻すボタンで塗りが戻る', await page.evaluate(() => (cellStyles['1,0'] || {}).bg), '#c8e6c9');
+  // 線の色
+  await page.evaluate(() => { clearRangeSelection(); sel(3, 1); });
+  await page.tap(k('bd_color')); await page.waitForTimeout(300);
+  check('  線の色のボタンでも窓が開く（なし は出さない）', await page.evaluate(() => document.getElementById('cpTitle').textContent + '/' + document.getElementById('cpNone').textContent), '線の色/');
+  await page.tap('#cpGrid .cp-sw[data-c="#e53935"]'); await page.waitForTimeout(300);
+  await page.tap(k('bd_box')); await page.waitForTimeout(250);
+  check('  えらんだ線の色で枠線が引ける', await page.evaluate(() => (cellStyles['3,1'] || {}).bd.t), '1px solid #e53935');
+  check('  線の色のボタンの帯もその色', await page.evaluate(() => getComputedStyle(document.getElementById('cpBdLine')).borderBottomColor), 'rgb(229, 57, 53)');
+  // ほかの色（カスタム）
+  await page.evaluate(() => { sel(4, 0); openColorPick('bg'); const i = document.getElementById('cpCustom'); i.value = '#123456'; i.dispatchEvent(new Event('change')); });
+  await page.waitForTimeout(300);
+  check('  🎨 ほかの色も選べる', await page.evaluate(() => (cellStyles['4,0'] || {}).bg), '#123456');
+  // 開き直しても今の色を覚えている
+  await page.reload(); await page.waitForTimeout(900);
+  check('  今の色を覚えている', await page.evaluate(() => kfCur.bg + ',' + kfCur.bd + ',' + bdColor), '#123456,#e53935,#e53935');
+  // 前の並び（posfmt3）を持っていても崩れない
+  await page.evaluate(() => { localStorage.setItem('excalc_keypad_posfmt3', JSON.stringify({ bd_black: { r: 6, c: 6 }, kf_bold: { r: 3, c: 1 } })); }); await page.reload(); await page.waitForTimeout(900);
+  check('  前の並びの保存があっても新しい並び', await page.evaluate(() => getComputedStyle(document.querySelector('#numpadPageFmt [data-key=kf_bold]')).gridRowStart), '4');
+  // 戻るで窓だけ閉じる
+  await page.evaluate(() => openColorPick('fc')); await page.waitForTimeout(300);
+  await page.goBack(); await page.waitForTimeout(400);
+  check('  戻るで窓を閉じる', await page.evaluate(() => isDlgOpen('colorPickOverlay')), false);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 /* 野菜の育成計画（種まきの日から予定日とカレンダーを出す道具） */
 async function runVeggie(browser) {
   const { ctx, page, errs } = await newPage(browser);
@@ -8793,7 +8860,7 @@ async function runFmtPage(browser) {
     return getComputedStyle(b.querySelector('.s2')).stroke === getComputedStyle(b).backgroundColor; }), true);
   await page.evaluate(() => { toggleDark(); bdSetType('normal', document.querySelector('#numpadPageFmt [data-key=bd_normal]')); });
   check('  ボタンが重ならずに並ぶ', await page.evaluate(() => {
-    const r = [...document.querySelectorAll('#numpadPageFmt > .btn, #numpadPageFmt > .kf-vcol')].map(e => e.getBoundingClientRect());
+    const r = [...document.querySelectorAll('#numpadPageFmt > .btn')].map(e => e.getBoundingClientRect());
     for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++) {
       const a = r[i], b = r[j];
       if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) return false; }
@@ -8916,6 +8983,7 @@ async function runQrShare(browser) {
     if (!only || only === 'fmtrange') await runFmtRange(browser);
     if (!only || only === 'rangesum') await runRangeSum(browser);
     if (!only || only === 'hdrmulti') await runHdrMulti(browser);
+    if (!only || only === 'colorpick') await runColorPick(browser);
     if (!only || only === 'veggie') await runVeggie(browser);
     if (!only || only === 'report') await runReport(browser);
     if (!only || only === 'shared') await runShared(browser);
