@@ -1386,6 +1386,36 @@ async function runFmtRange(browser) {
   await ctx.close();
 }
 
+/* 範囲を選ぶと右上の合計がその範囲の合計になる（v480） */
+async function runRangeSum(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 右上の合計：範囲を選ぶと範囲の合計（v480） ──');
+  const bar = () => page.evaluate(() => document.getElementById('statsTitle').textContent + '=' + document.getElementById('sSum').textContent);
+  await page.evaluate(() => { for (let r = 0; r < 5; r++) { setCellVal(r, 0, String(r + 1)); setCellVal(r, 1, String((r + 1) * 10)); } clearRangeSelection(); sel(0, 0); });
+  check('  ふだんは列の合計', await bar(), '合計A=15');
+  await page.evaluate(() => extendRange(2, 1));
+  check('  範囲を選ぶと範囲の合計', await bar(), '合計A1:B3=66');
+  await page.evaluate(() => extendRange(4, 0));
+  check('  範囲を広げ直すと合わせて変わる', await bar(), '合計A1:A5=15');
+  await page.evaluate(() => { extendRange(3, 1); statMode = 'avg'; updateStats(selC); });
+  check('  平均も範囲で', await bar(), '平均A1:B4=13.75');
+  await page.evaluate(() => { statMode = 'sum'; updateStats(selC); });
+  // 範囲の中の値を変えても範囲の合計のまま
+  await page.evaluate(() => { setCellVal(1, 1, '100'); });
+  check('  範囲の中の値を変えると範囲の合計が変わる', await bar(), '合計A1:B4=190');
+  await page.evaluate(() => { clearRangeSelection(); });
+  check('  範囲を外すと列の合計に戻る', await bar(), '合計A=15');
+  await page.evaluate(() => { sel(0, 1); });
+  check('  別の列を選ぶとその列の合計', await bar(), '合計B=230');
+  // 範囲が1セルだけなら列の合計
+  await page.evaluate(() => { clearRangeSelection(); sel(0, 0); extendRange(0, 0); });
+  check('  1セルだけの範囲は列の合計', await bar(), '合計A=15');
+  await page.evaluate(() => clearRangeSelection());
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 /* 野菜の育成計画（種まきの日から予定日とカレンダーを出す道具） */
 async function runVeggie(browser) {
   const { ctx, page, errs } = await newPage(browser);
@@ -8809,6 +8839,7 @@ async function runQrShare(browser) {
     if (!only || only === 'keys466') await runKeys466(browser);
     if (!only || only === 'seqcustom') await runSeqCustom(browser);
     if (!only || only === 'fmtrange') await runFmtRange(browser);
+    if (!only || only === 'rangesum') await runRangeSum(browser);
     if (!only || only === 'veggie') await runVeggie(browser);
     if (!only || only === 'report') await runReport(browser);
     if (!only || only === 'shared') await runShared(browser);

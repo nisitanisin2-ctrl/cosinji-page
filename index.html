@@ -7172,7 +7172,9 @@ function makeRowGrip(rh,r){
 /* ── 複数セル選択 ── */
 function clearRangeSelection() {
   document.querySelectorAll('.sel-range').forEach(el=>el.classList.remove('sel-range'));
+  const had=rangeR1>=0;
   rangeR1=rangeC1=rangeR2=rangeC2=-1;
+  if(had && selRow<0) updateStats(selC);   // 右上の合計を列の合計へ戻す
 }
 
 function extendRange(r,c) {
@@ -7185,6 +7187,7 @@ function extendRange(r,c) {
     const el=document.getElementById(`c${rr}_${cc}`);
     if (el && !(rr===selR&&cc===selC)) el.classList.add('sel-range');
   }
+  updateStats(selC);   // 右上の合計を範囲の合計に（v480）
 }
 
 /* ── コピー＆ペースト ── */
@@ -9029,6 +9032,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v480', t:'右上の合計が選んだ範囲の合計に', li:[
+    '右上の合計は、ふだんは選んでいる列の合計です。セルをなぞって<b>2つ以上のセルの範囲を選ぶと、その範囲の合計</b>に変わります（「合計A2:B5」のように出ます。押すと平均）',
+    '範囲を外すと、列の合計に戻ります' ]},
   { v:'v479', t:'範囲の書式をまとめて変える', li:[
     'セルをなぞって<b>範囲を選んだまま</b>セル番地を押して開く <b>セルの書式</b> で、小数点・丸め方・日付・文字の大きさ・太字など・寄せ・文字色/背景色・保護・書式を消す が、<b>範囲の中のセル全部</b>に一度に効くようにしました（見出しに「A2:B4 の書式（6セル）」のように出ます）',
     '<b>戻る</b>は1回で範囲全体がもどります' ]},
@@ -15794,10 +15800,17 @@ function renderStats(nums, hasErr) {
   refreshStatsDisplay();
 }
 
+/* 右上の合計。ふだんは選んでいるセルの列の合計。2セル以上の範囲を選んでいるときは
+   その範囲の合計（「合計A2:B4」）にする（v480） */
 function updateStats(c) {
-  lastStatScope=ALPHA[c];          // 「合計A」＝A列の合計
+  const g=(rangeR1>=0)?selRect():null;
+  const isRange=!!g && (g.r1!==g.r2 || g.c1!==g.c2);
+  lastStatScope=isRange ? `${ALPHA[g.c1]}${g.r1+1}:${ALPHA[g.c2]}${g.r2+1}` : ALPHA[c];   // 「合計A」＝A列の合計
   const nums=[]; let hasErr=false;
-  for (let r=0;r<ROWS;r++) {
+  const cells=[];
+  if(isRange){ for(let r=g.r1;r<=g.r2;r++) for(let cc=g.c1;cc<=g.c2;cc++) cells.push([r,cc]); }
+  else for(let r=0;r<ROWS;r++) cells.push([r,c]);
+  for (const [r,c] of cells) {
     const raw=data[r][c]; if(raw==='') continue;
     if (cellDateFmt(r,c)) continue;   // 日付セルは合計・平均に含めない（通し番号が混ざるのを防ぐ）
     if (String(raw).startsWith('=')) {
@@ -20999,7 +21012,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v479';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v480';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
