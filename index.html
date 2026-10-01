@@ -676,6 +676,9 @@ body.ui-easy #settingsPanel:not(.show-all) .set-easy { overflow: auto; }
 body.ui-easy #settingsPanel.show-all .ez-only > :not(#ezAllBtn) { display: none; }
 body.ui-easy #settingsPanel.show-all .set-easy .ez-all { margin: 4px 0 6px; }
 .set-easy .ez-dark { min-width: 120px; }
+.ui-mode-list { margin: 4px 0 6px; padding-left: 1.3em; }
+.ui-mode-list li { margin: 2px 0; }
+#settingsPanel.show-all #uiModeNote .ui-mode-list { display: none; }   /* すべての設定を見るときは、説明の箇条書きをしまって下の設定に場所をゆずる */
 .set-easy .ez-all { width: 100%; margin: 12px 0 8px; }
 .more-fold { display: block; margin-bottom: 8px; }   /* v459 からいつも出す（いまの表：保存・開く・戻す） */
 .more-grid.more-grid3 { grid-template-columns: repeat(3, 1fr); }
@@ -8992,6 +8995,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v475', t:'かんたん表示の説明を分かりやすく', li:[
+    '⚙設定の<b>表示：かんたん／ぜんぶ</b>の説明を、使える機能・使えない機能が分かるように書き直しました',
+    '<b>かんたん表示</b>では、テンキーは今までどおり<b>数字と電卓だけ</b>にもどしました（書式・枠線は ぜんぶ表示 で使えます）',
+    'かんたん表示で、テンキーを右や上へなぞったときに、<b>書式・枠線や自分のボタンのページがちらっと見えていた</b>のを直しました' ]},
   { v:'v474', t:'かんたん表示でも書式・枠線／すべての設定が見えるように', li:[
     '<b>かんたん表示</b>でも、テンキーの<b>書式・枠線</b>のページを出すようにしました（ページ名の並びの「書式・枠線」か、数字から右へなぞると出ます）',
     'かんたん表示で ⚙設定 の<b>「すべての設定を見る」</b>を押したとき、下の設定がほとんど見えなくなっていたのを直しました（上の「よく使う設定」をしまって場所をあけます）' ]},
@@ -14406,9 +14413,11 @@ function bindHSwipe(el, fn){
       const horizDominant = Math.abs(dx) > Math.abs(dy)*1.3;
       const vertDominant  = Math.abs(dy) > Math.abs(dx)*1.3;
       if(openWhich===null){
-        if(horizDominant){ axis='h'; activeEl = dx<0 ? (showFuncPage?pgFunc:pgSci) : pgFmt; }   // 左＝記号（隠していれば電卓）／右＝セル書式
+        // かんたん表示では、右（書式・枠線）・記号・上（自分のボタン）のページを引き出さない。
+        // 指を動かしているあいだも引き出さないので、ちらっと見えることもない（v475）
+        if(horizDominant){ axis='h'; activeEl = dx<0 ? ((showFuncPage&&!uiEasy)?pgFunc:pgSci) : (uiEasy?null:pgFmt); }   // 左＝記号（隠していれば電卓）／右＝セル書式
         else if(vertDominant && dy<0){
-          if(downTopRow) axis='block';                                          // 最上段からの上スワイプは無効（調整バーの取り違え対策）
+          if(downTopRow || uiEasy) axis='block';                                // 最上段からの上スワイプは無効（調整バーの取り違え対策）。かんたん表示も
           else { axis='v'; activeEl=regPageEl(lastRegPage); }                   // 上＝登録（最後に見ていたページ）
         }
       } else if(openWhich==='reg'){
@@ -14461,8 +14470,8 @@ function bindHSwipe(el, fn){
     // 「電卓だけ」のあいだは、ホイールや矢印でページを動かさない（v388）
     if(typeof calcOnly!=='undefined' && calcOnly) return;
     const prev=openWhich;
-    if(uiEasy){   // かんたん表示：書式・枠線／数字／電卓だけを行き来する（v461。v474 で書式・枠線も）
-      openWhich = dir>0 ? (prev==='fmt'?null:'sci') : (prev==='sci'?null:'fmt');
+    if(uiEasy){   // かんたん表示：数字と電卓だけを行き来する（v461。v475 で書式・枠線はまた出さないことに）
+      openWhich = dir>0 ? 'sci' : null;
       if(openWhich===prev) return;
       restAll(true); return;
     }
@@ -14494,9 +14503,8 @@ function bindHSwipe(el, fn){
     if(wasAxis==='h'){
       const th=Math.max(40, w*0.22);
       // 「電卓だけ」のあいだは、ほかのテンキーへは移らない（v388）
-      if(uiEasy){   // かんたん表示：書式・枠線⇄数字⇄電卓だけ。記号や自分のボタンへは移らない（v461。v474 で書式・枠線も）
-        if(dx<=-th) openWhich=(openWhich==='fmt'?null:'sci');
-        else if(dx>=th) openWhich=(openWhich==='sci'?null:'fmt');
+      if(uiEasy){   // かんたん表示：数字⇄電卓だけ。書式・記号・自分のボタンへは移らない（v461）
+        if(dx<=-th) openWhich='sci'; else if(dx>=th) openWhich=null;
         restAll(true);
         downX=null; axis=null; activeEl=null;
         setTimeout(()=>{ numpadSwiping=false; }, 50);
@@ -14589,7 +14597,7 @@ function renderNumpadPageBar(){
   const inReg=(cur==='reg'||cur==='regL'||cur==='regR');
   // 「電卓だけ」のあいだは、電卓のタブだけを出す（v388）
   const row=calcOnly ? [['sci','電卓']]
-    : uiEasy ? NP_ROW_MAIN.filter(([k])=>k===null||k==='sci'||k==='fmt')   // かんたん表示：書式・枠線・数字・電卓（v461。v474 で書式・枠線も）
+    : uiEasy ? NP_ROW_MAIN.filter(([k])=>k===null||k==='sci')          // かんたん表示：数字と電卓だけ（v461）
     : (inReg?NP_ROW_REG:NP_ROW_MAIN).filter(([k])=> k!=='func' || showFuncPage);
   const axis=inReg ? [null,'▼ 数字'] : ['reg','▲ 自分のボタン'];
   const html=row.map(([k,label])=>
@@ -20627,7 +20635,7 @@ function setUiMode(m){
   try{ localStorage.setItem('excalc_uimode', uiEasy?'easy':'full'); }catch(_){}
   document.body.classList.toggle('ui-easy', uiEasy);
   const sp=document.getElementById('settingsPanel'); if(sp) sp.classList.remove('show-all');
-  if(uiEasy && typeof numpadPager!=='undefined' && numpadPager){ const c=numpadPager.current(); if(c!==null && c!=='sci' && c!=='fmt') numpadPager.go(null); }
+  if(uiEasy && typeof numpadPager!=='undefined' && numpadPager){ const c=numpadPager.current(); if(c!==null && c!=='sci') numpadPager.go(null); }
   if(typeof renderNumpadPageBar==='function') renderNumpadPageBar();
   ezSync();
   toast(uiEasy?'かんたん表示にしました（よく使うものだけ出します）':'ぜんぶ表示にしました（すべての機能を出します）');
@@ -20639,8 +20647,18 @@ function toggleAllSettings(){
 function ezSync(){
   document.querySelectorAll('#uiModeSeg button').forEach(b=>b.classList.toggle('on', b.dataset.m===(uiEasy?'easy':'full')));
   const note=document.getElementById('uiModeNote');
-  if(note) note.innerHTML=uiEasy?'<b>かんたん</b>：テンキーは「書式・枠線」「数字」「電卓」だけ。キーの長押しは使いません。設定もよく使うものだけです。'
-                               :'<b>ぜんぶ</b>：自分のボタンのページ、キーの長押し・フリックなど、すべての機能を使えます（記号のページは ⚙ 見た目 → テンキー で出せます）。';
+  if(note) note.innerHTML=uiEasy
+    ? '<b>かんたん</b>にしています。はじめての人向けに、使える機能を少なくしています。'
+      +'<ul class="ui-mode-list">'
+      +'<li>テンキーは<b>「数字」と「電卓」の2ページだけ</b>です。<b>書式・枠線</b>（太字・色・罫線など）、<b>記号</b>、<b>自分のボタン</b>のページは出ません</li>'
+      +'<li>キーの<b>長押し</b>（ボタンに機能を割り当てる・数字キーから記号を入れる）は使いません</li>'
+      +'<li>設定は<b>よく使うものだけ</b>出します（「すべての設定を見る」で全部見られます）</li>'
+      +'</ul>書式・枠線などを使いたいときは、上の<b>「ぜんぶ」</b>を押してください。'
+    : '<b>ぜんぶ</b>にしています。すべての機能を使えます。'
+      +'<ul class="ui-mode-list">'
+      +'<li>テンキーは<b>書式・枠線／数字／電卓／自分のボタン</b>のページ（<b>記号</b>のページは ⚙ 見た目 → テンキー で出せます）</li>'
+      +'<li>キーの<b>長押し</b>で機能の割り当て・記号の入力ができます</li>'
+      +'</ul>使う機能を少なくしたいときは<b>「かんたん」</b>を押してください。';
   const cp=(a,b)=>{ const x=document.getElementById(a), y=document.getElementById(b); if(x&&y) y.textContent=x.textContent; };
   cp('keySize','ezKeySize'); cp('rowCount','ezRows'); cp('colCount','ezCols');
   const d=document.getElementById('ezDark'); if(d) d.textContent=document.body.classList.contains('dark')?'☀ 明るくする':'🌙 夜の色にする';
@@ -20937,7 +20955,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v474';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v475';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

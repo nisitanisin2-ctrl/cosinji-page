@@ -7548,16 +7548,33 @@ async function runUiMode(browser) {
   await page.evaluate(() => { tourSkip(); }); await page.waitForTimeout(700);
   await page.evaluate(() => { closeHome(); try { hideNotice(); } catch (_) {} }); await page.waitForTimeout(400);
   const bar = () => page.evaluate(() => [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|'));
-  check('  かんたん：テンキーのページは 書式・枠線と数字と電卓だけ（v474 で書式・枠線も）', await bar(), '書式・枠線|数字|電卓');
-  // 横になぞる（ホイール）：書式・枠線⇄数字⇄電卓だけ。記号・道具・自分のボタンへは行かない（v474 で書式・枠線も）
+  check('  かんたん：テンキーのページは 数字と電卓だけ', await bar(), '数字|電卓');
+  // 横になぞる（ホイール）：数字⇄電卓だけ。書式・記号・道具・自分のボタンへは行かない
   const wheel = async d => { const r = await page.evaluate(() => { const b = document.getElementById('numpadViewport').getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; });
     await page.mouse.move(r[0], r[1]); await page.mouse.wheel(0, d); await page.waitForTimeout(350); };
   await wheel(-120);
-  check('  かんたん：数字から前へで書式・枠線（v474）', await page.evaluate(() => String(numpadPager.current())), 'fmt');
-  await wheel(-120);
-  check('  かんたん：書式・枠線の先へは行かない', await page.evaluate(() => String(numpadPager.current())), 'fmt');
-  await wheel(120);
-  check('  かんたん：書式・枠線から次へで数字', await page.evaluate(() => String(numpadPager.current())), 'null');
+  check('  かんたん：数字から前へ動かしても書式へ行かない', await page.evaluate(() => String(numpadPager.current())), 'null');
+  // v475：指で右・上へなぞっている途中でも、書式・枠線や自分のボタンのページはちらっとも出ない
+  {
+    const cdp = await page.context().newCDPSession(page);
+    const peek = async (dx, dy) => {
+      const r = await page.evaluate(() => { const b = document.querySelector('#numpadPage1 [data-key="n5"]').getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: r.x, y: r.y }] });
+      let worst = 0;
+      for (let i = 1; i <= 6; i++) {
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: r.x + dx * i / 6, y: r.y + dy * i / 6 }] }); await page.waitForTimeout(30);
+        const v = await page.evaluate(() => { const vp = document.getElementById('numpadViewport').getBoundingClientRect();
+          return Math.max(...['numpadPageFmt', 'numpadPageReg'].map(id => { const b = document.getElementById(id).getBoundingClientRect();
+            const w = Math.max(0, Math.min(b.right, vp.right) - Math.max(b.left, vp.left)), h = Math.max(0, Math.min(b.bottom, vp.bottom) - Math.max(b.top, vp.top)); return Math.round(w * h); })); });
+        if (v > worst) worst = v;
+      }
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await page.waitForTimeout(450);
+      return worst;
+    };
+    check('  かんたん：右へなぞっても書式・枠線はちらっとも出ない', await peek(200, 0), 0);
+    check('  かんたん：上へなぞっても自分のボタンはちらっとも出ない', await peek(0, -200), 0);
+    check('  なぞったあとも数字のまま', await page.evaluate(() => String(numpadPager.current())), 'null');
+  }
   await wheel(120);
   check('  かんたん：次へで電卓', await page.evaluate(() => numpadPager.current()), 'sci');
   await wheel(120);
@@ -7578,7 +7595,7 @@ async function runUiMode(browser) {
   await page.evaluate(() => document.querySelector('#setEasy .ez-only .step-btn[onclick*="changeRows(1)"]').click()); await page.waitForTimeout(200);
   check('  よく使う設定から行を足す', await page.evaluate(() => document.getElementById('ezRows').textContent + '/' + ROWS), '16/16');
   await page.click('#ezAllBtn'); await page.waitForTimeout(200);
-  check('  すべての設定を見ると、よく使う設定はしまい、下の設定に場所をあける（v474）', await page.evaluate(() =>
+  check('  すべての設定を見ると、よく使う設定はしまい、下の設定に場所をあける（v474・v475）', await page.evaluate(() =>
     !document.getElementById('ezRows').getClientRects().length && document.querySelector('#settingsPanel .settings-body').getBoundingClientRect().height > 300), true);
   check('  すべての設定を見る', [await vis('#setFindIn'), await vis('.settings-tabbar'), await page.evaluate(() => document.getElementById('ezAllBtn').textContent)].join('/'), 'true/true/▲ よく使う設定だけにする');
   await page.evaluate(() => toggleSettings()); await page.waitForTimeout(400);
@@ -7615,7 +7632,7 @@ async function runToolsFab(browser) {
   check('  テンキーの 🧰道具 キーで道具の窓', await page.evaluate(() => isDlgOpen('toolsListOverlay')), true);
   await page.evaluate(() => closeToolsList()); await page.waitForTimeout(300);
   await page.evaluate(() => setUiMode('easy')); await page.waitForTimeout(200);
-  check('  かんたん表示の並びは書式・枠線と数字と電卓', await page.evaluate(() => [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|')), '書式・枠線|数字|電卓');
+  check('  かんたん表示の並びは数字と電卓だけ', await page.evaluate(() => [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|')), '数字|電卓');
   await page.evaluate(() => setUiMode('full')); await page.waitForTimeout(200);
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
