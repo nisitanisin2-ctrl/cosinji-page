@@ -6308,6 +6308,10 @@ async function runHelpSplit(browser) {
     return { secs: document.querySelectorAll('#helpBody .hg-sec').length, imgs: imgs.map(i => i.getAttribute('src')), first: document.querySelector('#helpBody').firstElementChild.className,
       marks: [...document.querySelectorAll('#g-screen .hg-list .hg-n')].map(n => n.textContent).join(','), detail: !!document.getElementById('h-detail') }; });
   check('  はじめにかんたん説明書（写真と番号）、そのあとにくわしい説明', hg.first + '/' + hg.secs + '/' + hg.detail + '/' + hg.marks, 'hg-top/16/true/1,2,3,4,5,6,7,8,9,10,11');
+  check('  番号つきの説明はふつうの文の流れ（太字ごとに列に分かれない。v476）', await page.evaluate(() => {
+    const li = [...document.querySelectorAll('#helpBody .hg-list li')].find(x => x.querySelector('.hg-n') && x.querySelectorAll('b').length >= 3);
+    const steps = document.querySelector('#helpBody .hg-steps > div');
+    return getComputedStyle(li).display + '/' + getComputedStyle(steps).display + '/' + getComputedStyle(li.querySelector('.hg-n')).position; }), 'block/block/absolute');
   check('  写真はどれも help/ にある', hg.imgs.length >= 11 && hg.imgs.every(u => /^help\/[a-z0-9]+\.jpg$/.test(u) && fs.existsSync(path.join(ROOT, u))), true);
   check('  写真が読める（壊れていない）', await page.evaluate(async () => { const imgs = [...document.querySelectorAll('#helpBody .hg-shot')];
     await Promise.all(imgs.map(i => { i.loading = 'eager'; return i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }); }));
