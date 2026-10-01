@@ -1389,6 +1389,13 @@ body.fill-active #fillHandle { display: none; }
 /* フィル後の連番ボタン */
 .seq-bar { display: none; position: fixed; z-index: 55; gap: 6px; }
 .seq-bar.show { display: flex; }
+/* 見出しの複数選択（v481） */
+.cell.in-mhdr:not(.active) { background: var(--cell-in-row); }
+.hdr-bar { align-items: center; max-width: calc(100vw - 16px); }
+.hdr-bar-t { background: var(--panel, #fff); color: var(--text); border: 2px solid var(--info); border-radius: var(--r-btn);
+  padding: 4px 10px; font-size: 13px; font-weight: bold; box-shadow: var(--elev-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hdr-bar-t small { display: block; font-weight: normal; font-size: 11px; color: var(--text-sub, #666); }
+.hm-btn.multi { background: var(--info); }
 .seq-btn {
   display: block;
   background: var(--info); color: #fff; border: none; border-radius: var(--r-btn);
@@ -1499,8 +1506,8 @@ table.sheet {
   border-right: 1px solid var(--cell-border); border-bottom: 1px solid var(--cell-border);
   cursor: pointer; white-space: nowrap; touch-action: manipulation;
 }
-.ch.sel { background: var(--acc); color: white; }
-.ch:hover:not(.sel) { background: var(--cell-hover); }
+.ch.sel, .ch.hsel { background: var(--acc); color: white; }
+.ch:hover:not(.sel):not(.hsel) { background: var(--cell-hover); }
 
 .rh {
   background: var(--sheet-ch-bg, var(--ch-bg)); color: var(--ch-color);
@@ -1509,8 +1516,8 @@ table.sheet {
   border-right: 1px solid var(--cell-border); border-bottom: 1px solid var(--cell-border);
   cursor: pointer; touch-action: manipulation;
 }
-.rh.sel { background: #1a5276; color: white; }
-.rh:hover:not(.sel) { background: var(--cell-hover); }
+.rh.sel, .rh.hsel { background: #1a5276; color: white; }
+.rh:hover:not(.sel):not(.hsel) { background: var(--cell-hover); }
 
 .cell {
   height: calc(32px * var(--cell-scale, 1)); width: calc(60px * var(--cell-scale, 1)); padding: 1px 4px;
@@ -5911,6 +5918,7 @@ body.dark {
 </div>
 
 <!-- フィル後の「連番にする」ボタン（数値・日付・末尾が数字の文字のとき） -->
+<div class="seq-bar hdr-bar" id="hdrBar"></div>
 <div class="seq-bar" id="seqBar"><button class="seq-btn" id="seqBtn" onclick="fillAsSequence()">🔢 連番 1,2,3…</button><button class="seq-btn seq-custom" id="seqCustomBtn" onclick="openSeqCustom()" title="いくつずつ増やすかを決めて連番にします（例：100, 110, 120…）">⚙ カスタム</button></div>
 <!-- 連番のきまりを決める（v477）。いくつずつ増やすか（刻み）を決めて、引っぱった範囲に入れる -->
 <div class="modal-overlay" id="seqCustomOverlay" onclick="if(event.target===this)closeSeqCustom()">
@@ -6842,8 +6850,8 @@ function buildSheet() {
     const th=hr.insertCell();
     th.className='ch'; th.id=`ch${c}`;
     th.textContent=ALPHA[c];
-    th.title='タップで列選択／長押しで列の追加・削除';
-    th.addEventListener('click', ()=>clickCol(c));
+    th.title='タップで列選択（Ctrl・Shift で複数）／長押しで列の追加・削除・複数選ぶ';
+    th.addEventListener('click', e=>clickCol(c,e));
     makeColGrip(th, c);
     makeHeaderLongPress(th, 'col', c);
   }
@@ -6851,8 +6859,8 @@ function buildSheet() {
     const tr=t.insertRow();
     const rh=tr.insertCell();
     rh.className='rh'; rh.id=`rh${r}`; rh.textContent=r+1; rh.style.width=rhW+'px';
-    rh.title='タップで行選択／長押しで行の追加・削除';
-    rh.addEventListener('click', ()=>clickRow(r));
+    rh.title='タップで行選択（Ctrl・Shift で複数）／長押しで行の追加・削除・複数選ぶ';
+    rh.addEventListener('click', e=>clickRow(r,e));
     makeRowGrip(rh, r);
     makeHeaderLongPress(rh, 'row', r);
     for (let c=0; c<COLS; c++) {
@@ -7064,6 +7072,19 @@ function saveSheetSizes(){
   localStorage.setItem('excalc_colwidths', JSON.stringify(colWidths));
   localStorage.setItem('excalc_rowheights', JSON.stringify(rowHeights));
 }
+/* 手で幅・高さを変えたとき：端末に残す＋いまのシートの控えにも書く（v481）。
+   シートの控えに書かないと、開き直したときに古い控えの幅に戻ってしまっていた */
+function commitSheetSizes(){
+  saveSheetSizes();
+  try{
+    if(typeof sheets!=='undefined' && Array.isArray(sheets) && sheets[curSheet]){
+      sheets[curSheet].colWidths={...colWidths}; sheets[curSheet].rowHeights={...rowHeights};
+      modeSheets[workspaceMode]={ sheets, cur:curSheet };
+      localStorage.setItem(SHEETS_KEY, JSON.stringify({ current:workspaceMode, modes:modeSheets }));
+    }
+  }catch(_){}
+  if(typeof markSaveDirty==='function') markSaveDirty();   // 記録に上書き保存すれば幅も残る
+}
 function restoreSheetSizes(){
   try{ colWidths=JSON.parse(localStorage.getItem('excalc_colwidths'))||{}; }catch(e){ colWidths={}; }
   try{ rowHeights=JSON.parse(localStorage.getItem('excalc_rowheights'))||{}; }catch(e){ rowHeights={}; }
@@ -7085,10 +7106,11 @@ function makeColGrip(th,c){
     e.preventDefault(); e.stopPropagation();
     // ダブルタップ → この列を内容に合わせて自動幅に（タッチでは dblclick が出ないため手動検出）
     const now=Date.now();
+    const grp=hdrGroupFor('col', c);   // 複数の列を選んでいれば、その全部（v481）
     if(now - (g._lastTap||0) < 350){
       g._lastTap=0;
-      delete colWidths[c]; saveSheetSizes(); autoFitSheet();
-      toast(`${ALPHA[c]}列の幅を自動調整しました`);
+      grp.forEach(i=>{ delete colWidths[i]; }); commitSheetSizes(); autoFitSheet();
+      toast(grp.length>1 ? `${hdrLabel('col',grp)}列の幅を自動調整しました` : `${ALPHA[c]}列の幅を自動調整しました`);
       return;
     }
     g._lastTap=now;
@@ -7108,8 +7130,10 @@ function makeColGrip(th,c){
     const move=ev=>{
       let w=Math.round(startW+(ev.clientX-startX));
       w=Math.max(COL_MIN, Math.min(COL_MAX, w));
-      colWidths[c]=w/(cellScale||1);   // 保存は100%基準（表示は実px）
-      const ch=document.getElementById('ch'+c); if(ch) ch.style.width=w+'px';
+      grp.forEach(i=>{   // 保存は100%基準（表示は実px）
+        colWidths[i]=w/(cellScale||1);
+        const ch=document.getElementById('ch'+i); if(ch) ch.style.width=w+'px';
+      });
       let tot=48; for(let i=0;i<COLS;i++) tot+=parseFloat(document.getElementById('ch'+i).style.width)||0;
       t.style.width=tot+'px';
     };
@@ -7118,7 +7142,7 @@ function makeColGrip(th,c){
       g.removeEventListener('pointerup',end);
       g.removeEventListener('pointercancel',end);
       document.body.classList.remove('col-resizing');
-      saveSheetSizes(); autoFitSheet();
+      commitSheetSizes(); autoFitSheet();
     };
     g.addEventListener('pointermove',move);
     g.addEventListener('pointerup',end);
@@ -7126,7 +7150,7 @@ function makeColGrip(th,c){
   });
   // ダブルクリック（PC）で自動幅に戻す
   g.addEventListener('dblclick', e=>{ e.preventDefault(); e.stopPropagation();
-    delete colWidths[c]; saveSheetSizes(); autoFitSheet(); });
+    hdrGroupFor('col', c).forEach(i=>{ delete colWidths[i]; }); commitSheetSizes(); autoFitSheet(); });
   th.appendChild(g);
 }
 function makeRowGrip(rh,r){
@@ -7136,10 +7160,11 @@ function makeRowGrip(rh,r){
     e.preventDefault(); e.stopPropagation();
     // ダブルタップ → この行の高さを自動（既定）に戻す（タッチでは dblclick が出ないため手動検出）
     const now=Date.now();
+    const grp=hdrGroupFor('row', r);   // 複数の行を選んでいれば、その全部（v481）
     if(now - (g._lastTap||0) < 350){
       g._lastTap=0;
-      delete rowHeights[r]; applyRowHeight(r,null); saveSheetSizes();
-      toast(`${r+1}行目の高さを自動調整しました`);
+      grp.forEach(i=>{ delete rowHeights[i]; applyRowHeight(i,null); }); commitSheetSizes();
+      toast(grp.length>1 ? `${hdrLabel('row',grp)}行目の高さを自動調整しました` : `${r+1}行目の高さを自動調整しました`);
       return;
     }
     g._lastTap=now;
@@ -7150,14 +7175,14 @@ function makeRowGrip(rh,r){
     const move=ev=>{
       let h=Math.round(startH+(ev.clientY-startY));
       h=Math.max(ROW_MIN, Math.min(ROW_MAX, h));
-      rowHeights[r]=h/(cellScale||1); applyRowHeight(r,h);   // 保存は100%基準（表示は実px）
+      grp.forEach(i=>{ rowHeights[i]=h/(cellScale||1); applyRowHeight(i,h); });   // 保存は100%基準（表示は実px）
     };
     const end=()=>{
       g.removeEventListener('pointermove',move);
       g.removeEventListener('pointerup',end);
       g.removeEventListener('pointercancel',end);
       document.body.classList.remove('row-resizing');
-      saveSheetSizes();
+      commitSheetSizes();
     };
     g.addEventListener('pointermove',move);
     g.addEventListener('pointerup',end);
@@ -7165,7 +7190,7 @@ function makeRowGrip(rh,r){
   });
   // ダブルクリック／ダブルタップで自動高さに戻す
   g.addEventListener('dblclick', e=>{ e.preventDefault(); e.stopPropagation();
-    delete rowHeights[r]; applyRowHeight(r,null); saveSheetSizes(); });
+    hdrGroupFor('row', r).forEach(i=>{ delete rowHeights[i]; applyRowHeight(i,null); }); commitSheetSizes(); });
   rh.appendChild(g);
 }
 
@@ -9032,6 +9057,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v481', t:'列・行を複数選んで幅をそろえる／幅が残るように', li:[
+    '見出し（A・B…）や行番号（1・2…）を押すと出る <b>☑ ほかの列も選ぶ</b> で、列や行を<b>いくつも選べる</b>ようにしました（長押しのメニューにもあります。パソコンは Ctrl・Shift＋クリック）',
+    '選んだ列のどれかの端を引っぱると、<b>選んだ列が全部同じ幅</b>になります（行は同じ高さ）。右上の合計も選んだ列・行の合計になります',
+    '変えた列の幅・行の高さが、<b>開き直すと元に戻ってしまう</b>ことがあったのを直しました。記録に保存すれば記録ごとに幅も残ります' ]},
   { v:'v480', t:'右上の合計が選んだ範囲の合計に', li:[
     '右上の合計は、ふだんは選んでいる列の合計です。セルをなぞって<b>2つ以上のセルの範囲を選ぶと、その範囲の合計</b>に変わります（「合計A2:B5」のように出ます。押すと平均）',
     '範囲を外すと、列の合計に戻ります' ]},
@@ -10957,14 +10986,16 @@ function openHeaderMenu(kind, index){
     body.innerHTML=
       `<button class="hm-btn add" onclick="hmDo('insRowAbove',${index})">⬆ 上に1行追加</button>`+
       `<button class="hm-btn add" onclick="hmDo('insRowBelow',${index})">⬇ 下に1行追加</button>`+
-      `<button class="hm-btn del" onclick="hmDo('delRow',${index})">🗑 この行を削除</button>`;
+      `<button class="hm-btn del" onclick="hmDo('delRow',${index})">🗑 この行を削除</button>`+
+      `<button class="hm-btn multi" onclick="hmDo('multi',${index})">☑ ほかの行も選ぶ（高さをそろえる）</button>`;
   } else {
     clickCol(index);
     title.textContent=`${ALPHA[index]}列`;
     body.innerHTML=
       `<button class="hm-btn add" onclick="hmDo('insColLeft',${index})">⬅ 左に1列追加</button>`+
       `<button class="hm-btn add" onclick="hmDo('insColRight',${index})">➡ 右に1列追加</button>`+
-      `<button class="hm-btn del" onclick="hmDo('delCol',${index})">🗑 この列を削除</button>`;
+      `<button class="hm-btn del" onclick="hmDo('delCol',${index})">🗑 この列を削除</button>`+
+      `<button class="hm-btn multi" onclick="hmDo('multi',${index})">☑ ほかの列も選ぶ（幅をそろえる）</button>`;
   }
   openDlg('headerMenuOverlay');
 }
@@ -10981,6 +11012,7 @@ function hmDo(action, index){
   else if(action==='insColLeft') insertColAt(index);
   else if(action==='insColRight') insertColAt(index+1);
   else if(action==='delCol') deleteColAt(index);
+  else if(action==='multi') hdrMultiStartAdd();
 }
 /* 行・列見出しに長押しを付ける。短いタップは従来どおり選択、グリップ(端)は幅/高さ変更のまま。 */
 function makeHeaderLongPress(el, kind, index){
@@ -15538,6 +15570,7 @@ function sel(r,c) {
   a11yUnselectCell(selR, selC);
   highlightCol(selC,false);
   clearRowSel();
+  if(!hdrKeep) hdrMultiClear();   // セルを選んだら見出しの複数選択は終わり
 
   selR=r; selC=c;
   if (isLockedCell(r,c)) cellEditing=false;
@@ -15572,10 +15605,10 @@ function highlightCol(c,on) {
   }
 }
 
-function clickCol(c) { if(headerPressFired){ headerPressFired=false; return; } clearRangeSelection(); sel(selR,c); }
-
-function clickRow(r) {
-  if(headerPressFired){ headerPressFired=false; return; }
+function clickCol(c,e) { if(headerPressFired){ headerPressFired=false; return; } hdrClick('col',c,e); }
+function clickRow(r,e) { if(headerPressFired){ headerPressFired=false; return; } hdrClick('row',r,e); }
+/* 行を1つ選ぶ（行番号のタップのもとの動き） */
+function rowSelectBase(r) {
   document.getElementById(`ch${selC}`).classList.remove('sel');
   for (let row=0;row<ROWS;row++) {
     const cell=document.getElementById(`c${row}_${selC}`);
@@ -15591,10 +15624,115 @@ function clickRow(r) {
   updateRowStats(r);
 }
 
+/* ── 列見出し（A,B…）・行番号（1,2…）の複数選択（v481） ──
+   パソコン：Ctrl（⌘）＋クリックで足す・外す、Shift＋クリックで間をまとめて。
+   スマホ：見出しを押すと出る「☑ ほかの列も選ぶ」（長押しのメニューにもある）のあと、見出しを押して足す・外す。
+   選んだ列（行）のどれかの端を引っぱると、選んだ全部が同じ幅（高さ）になる */
+let hdrMulti=null;    // {kind:'col'|'row', set:Set, adding:bool, last}
+let hdrKeep=false;    // sel() で複数選択を外さない（選んだ中で主の列を移すとき）
+let hdrBarTimer=null;
+function hdrPaint(on){
+  if(!hdrMulti) return;
+  const k=hdrMulti.kind;
+  hdrMulti.set.forEach(i=>{
+    const h=document.getElementById((k==='col'?'ch':'rh')+i); if(h) h.classList.toggle('hsel',on);
+    if(k==='col'){ for(let r=0;r<ROWS;r++){ const el=document.getElementById(`c${r}_${i}`); if(el) el.classList.toggle('in-mhdr',on); } }
+    else { for(let c=0;c<COLS;c++){ const el=document.getElementById(`c${i}_${c}`); if(el) el.classList.toggle('in-mhdr',on); } }
+  });
+}
+function hdrMultiList(){ return hdrMulti ? [...hdrMulti.set].sort((a,b)=>a-b) : []; }
+function hdrMultiClear(){ if(!hdrMulti) return; hdrPaint(false); hdrMulti=null; hideHdrBar(); }
+function hdrApply(kind, set, adding, last){
+  hdrPaint(false);
+  hdrMulti={ kind, set, adding:!!adding, last };
+  hdrPaint(true);
+  showHdrBar();
+  if(kind==='col') updateStats(selC); else if(selRow>=0) updateRowStats(selRow);
+}
+/* 幅・高さを変えるときに一緒に変える見出し（選んでいる中を引っぱったときだけ全部） */
+function hdrGroupFor(kind, i){
+  if(hdrMulti && hdrMulti.kind===kind && hdrMulti.set.has(i) && hdrMulti.set.size>1) return hdrMultiList();
+  return [i];
+}
+function hdrLabel(kind, list){
+  const name=i=>kind==='col'?ALPHA[i]:String(i+1);
+  if(list.length<=3) return list.map(name).join('・');
+  return name(list[0])+'ほか'+(list.length-1);
+}
+function hdrSelectOne(kind, i){
+  if(kind==='col'){ clearRangeSelection(); sel(selR,i); }
+  else { hdrMultiClear(); clearRangeSelection(); rowSelectBase(i); }
+  hdrApply(kind, new Set([i]), false, i);
+}
+function hdrToggle(kind, i, shift){
+  const set=new Set(hdrMulti.set);
+  if(shift && hdrMulti.last!=null){
+    const a=Math.min(hdrMulti.last,i), b=Math.max(hdrMulti.last,i);
+    for(let x=a;x<=b;x++) set.add(x);
+  } else if(set.has(i)){ if(set.size>1) set.delete(i); }
+  else set.add(i);
+  const adding=hdrMulti.adding;
+  hdrPaint(false);
+  // 主の列（行）を外したら、残りの先頭へ移す
+  if(kind==='col' && !set.has(selC)){ hdrKeep=true; try{ sel(selR, Math.min(...set)); } finally{ hdrKeep=false; } }
+  if(kind==='row' && !set.has(selRow)) rowSelectBase(Math.min(...set));
+  hdrApply(kind, set, adding, i);
+}
+function hdrClick(kind, i, e){
+  const shift=!!(e&&e.shiftKey), mod=shift || !!(e&&(e.ctrlKey||e.metaKey));
+  const same=!!(hdrMulti && hdrMulti.kind===kind);
+  if(same && (mod || hdrMulti.adding)){ hdrToggle(kind, i, shift); return; }
+  if(mod){   // いま選んでいる列（行）から複数選択を始める
+    const base = kind==='col' ? selC : selRow;
+    hdrSelectOne(kind, base>=0 ? base : i);
+    if(base>=0 && base!==i) hdrToggle(kind, i, shift);
+    return;
+  }
+  hdrSelectOne(kind, i);
+}
+function hdrMultiStartAdd(){
+  if(!hdrMulti) return;
+  hdrMulti.adding=true; showHdrBar();
+}
+function hdrMultiDone(){
+  if(!hdrMulti) return;
+  if(hdrMulti.adding && hdrMulti.set.size>1){ hdrMulti.adding=false; showHdrBar(); return; }   // 選び終わり（選んだまま幅を変えられる）
+  hdrMultiClear();
+  if(selRow<0) updateStats(selC);
+}
+function hideHdrBar(){ const b=document.getElementById('hdrBar'); if(b) b.classList.remove('show'); clearTimeout(hdrBarTimer); }
+function showHdrBar(){
+  const b=document.getElementById('hdrBar'); if(!b || !hdrMulti) return;
+  const k=hdrMulti.kind, list=hdrMultiList(), unit=k==='col'?'列':'行';
+  const multi=hdrMulti.adding || list.length>1;
+  if(multi){
+    const what=k==='col'?'幅':'高さ';
+    b.innerHTML=`<span class="hdr-bar-t">☑ ${hdrLabel(k,list)}${unit === '行' ? '行目' : '列'}（${list.length}）<small>${hdrMulti.adding?'見出しを押して足す・外す':'端を引っぱると'+what+'がそろいます'}</small></span>`+
+      `<button class="seq-btn" id="hdrBarDone" onclick="hdrMultiDone()">${hdrMulti.adding&&list.length>1?'✓ 完了':'✕ やめる'}</button>`;
+  } else {
+    b.innerHTML=`<button class="seq-btn seq-custom" id="hdrBarAdd" onclick="hdrMultiStartAdd()">☑ ほかの${unit}も選ぶ</button>`;
+  }
+  b.classList.add('show');
+  // 置き場所：列は表の見出しのすぐ下、行は行番号の右
+  const wrap=document.querySelector('.sheet-wrap'), h=document.getElementById((k==='col'?'ch':'rh')+(k==='col'?selC:(selRow>=0?selRow:list[0])));
+  const wr=wrap?wrap.getBoundingClientRect():{left:0,top:0,right:window.innerWidth,bottom:window.innerHeight};
+  const hr=h?h.getBoundingClientRect():wr;
+  const bw=b.offsetWidth, bh=b.offsetHeight;
+  let left, top;
+  if(k==='col'){ left=hr.left; top=hr.bottom+4; }
+  else { left=hr.right+6; top=hr.bottom+4; }
+  left=Math.max(Math.max(8,wr.left+4), Math.min(left, window.innerWidth-bw-8));
+  top=Math.max(8, Math.min(top, Math.min(window.innerHeight, wr.bottom)-bh-6));
+  b.style.left=left+'px'; b.style.top=top+'px';
+  clearTimeout(hdrBarTimer);
+  if(!multi) hdrBarTimer=setTimeout(hideHdrBar, 5000);   // 1つだけのときの誘いは少しで消す
+}
+
 function updateRowStats(r) {
-  lastStatScope=`${r+1}行`;        // 「合計3行」＝3行目の合計
+  const mrows=(hdrMulti && hdrMulti.kind==='row' && hdrMulti.set.size>1) ? hdrMultiList() : [r];   // 複数の行を選んでいればその全部（v481）
+  lastStatScope=mrows.length>1 ? hdrLabel('row',mrows)+'行' : `${r+1}行`;        // 「合計3行」＝3行目の合計
   const nums=[]; let hasErr=false;
-  for (let c=0;c<COLS;c++) {
+  for (const r of mrows) for (let c=0;c<COLS;c++) {
     const raw=data[r][c]; if(raw==='') continue;
     if (cellDateFmt(r,c)) continue;   // 日付セルは合計・平均に含めない
     if (String(raw).startsWith('=')) {
@@ -15805,11 +15943,12 @@ function renderStats(nums, hasErr) {
 function updateStats(c) {
   const g=(rangeR1>=0)?selRect():null;
   const isRange=!!g && (g.r1!==g.r2 || g.c1!==g.c2);
-  lastStatScope=isRange ? `${ALPHA[g.c1]}${g.r1+1}:${ALPHA[g.c2]}${g.r2+1}` : ALPHA[c];   // 「合計A」＝A列の合計
+  const mcols=(!isRange && typeof hdrMulti!=='undefined' && hdrMulti && hdrMulti.kind==='col' && hdrMulti.set.size>1) ? hdrMultiList() : null;   // 複数の列（v481）
+  lastStatScope=isRange ? `${ALPHA[g.c1]}${g.r1+1}:${ALPHA[g.c2]}${g.r2+1}` : mcols ? hdrLabel('col',mcols) : ALPHA[c];   // 「合計A」＝A列の合計
   const nums=[]; let hasErr=false;
   const cells=[];
   if(isRange){ for(let r=g.r1;r<=g.r2;r++) for(let cc=g.c1;cc<=g.c2;cc++) cells.push([r,cc]); }
-  else for(let r=0;r<ROWS;r++) cells.push([r,c]);
+  else for(const cc of (mcols||[c])) for(let r=0;r<ROWS;r++) cells.push([r,cc]);
   for (const [r,c] of cells) {
     const raw=data[r][c]; if(raw==='') continue;
     if (cellDateFmt(r,c)) continue;   // 日付セルは合計・平均に含めない（通し番号が混ざるのを防ぐ）
@@ -21012,7 +21151,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v480';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v481';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
