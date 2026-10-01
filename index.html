@@ -3238,14 +3238,18 @@ body.dark .hg-title { color: var(--acc-on-dark, #8fd4ab); }
 .hg-shot { display: block; width: 100%; max-width: 270px; height: auto; margin: 6px auto 10px; border-radius: 14px;
   box-shadow: 0 2px 12px rgba(0,0,0,.22); border: 1px solid rgba(0,0,0,.12); background: #eee; }
 .hg-list { list-style: none; margin: 0 0 6px; padding: 0; }
-.hg-list li { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; line-height: 1.6; padding: 5px 0; border-bottom: 1px dashed var(--cell-border); color: var(--text); overflow-wrap: anywhere; }
+.hg-list li { display: block; position: relative; padding: 5px 0 5px 30px; font-size: 14px; line-height: 1.6; border-bottom: 1px dashed var(--cell-border); color: var(--text); overflow-wrap: anywhere; }
+/* v476：以前は1行を flex で並べていたため、太字やリンクの1つ1つが細い列になって縦に並び、読めなくなっていた。
+   ふつうの文の流れにして、番号の丸だけ左に置く */
+.hg-list li > .hg-n:first-child, .hg-steps > div > .hg-n:first-child { position: absolute; left: 0; top: 6px; margin: 0; }
+.hg-list li:not(:has(> .hg-n)) { padding-left: 0; }   /* 番号のない行（もどる の一覧など）は字下げしない */
 .hg-list li:last-child { border-bottom: none; }
 .hg-list b, .hg-steps b, .hg-p b { color: var(--acc-text); }
 body.dark .hg-list b, body.dark .hg-steps b, body.dark .hg-p b { color: #8fd4ab; }
 .hg-n { flex: none; display: inline-block; width: 22px; height: 22px; line-height: 22px; border-radius: 50%; background: #e53935; color: #fff;
   font-style: normal; font-weight: bold; font-size: 12px; text-align: center; margin-top: 1px; }
 .hg-sub .hg-n { width: 18px; height: 18px; line-height: 18px; font-size: 11px; vertical-align: -3px; }
-.hg-steps > div { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; line-height: 1.7; margin: 6px 0; color: var(--text); overflow-wrap: anywhere; }
+.hg-steps > div { display: block; position: relative; padding-left: 30px; font-size: 14px; line-height: 1.7; margin: 6px 0; color: var(--text); overflow-wrap: anywhere; }
 .hg-p { font-size: 13.5px; line-height: 1.7; color: var(--text); margin: 6px 0; overflow-wrap: anywhere; }
 .hg-tbl { width: 100%; border-collapse: collapse; margin: 4px 0 10px; font-size: 13.5px; table-layout: fixed; }
 .hg-tbl td { padding: 7px 6px; border-bottom: 1px solid var(--cell-border); vertical-align: top; line-height: 1.5; color: var(--text); overflow-wrap: anywhere; }
@@ -8995,6 +8999,8 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v476', t:'説明書の文字が細い列に分かれて読みにくかったのを直しました', li:[
+    '📖説明書の番号つきの説明（①②…）で、太字の言葉ごとに細い列に分かれて縦に並び、読みにくくなっていたのを直しました。ふつうの文として左から右へ読めます' ]},
   { v:'v475', t:'かんたん表示の説明を分かりやすく', li:[
     '⚙設定の<b>表示：かんたん／ぜんぶ</b>の説明を、使える機能・使えない機能が分かるように書き直しました',
     '<b>かんたん表示</b>では、テンキーは今までどおり<b>数字と電卓だけ</b>にもどしました（書式・枠線は ぜんぶ表示 で使えます）',
@@ -20955,7 +20961,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v475';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v476';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
