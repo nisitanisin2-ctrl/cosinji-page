@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,memo,calctmpl,fintmpl,kaikei,koe,eigo');
+    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,memo,calctmpl,fintmpl,kaikei,koe,eigo');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -3086,11 +3086,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'home,last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,calctmpl,fintmpl');
+    'home,last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 18);   // v453 で 🔐サブスク、v459 で 🏠ホーム を足した
+    document.getElementById('startPageSel').options.length), 19);   // v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理 を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'veggieOverlay', 'volumeOverlay',
@@ -7803,6 +7803,109 @@ async function runShimai(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runMeishi(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 💼名刺管理（v484） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキーにある', await page.evaluate(() => !window.MEISHI_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'meishi') + '/' + !!KEY_FUNCS.a_meishi), 'true/true/true');
+  await page.evaluate(() => openMeishi()); await w(600);
+  check('  はじめは入れ方の案内', await page.evaluate(() => isDlgOpen('meishiOverlay') + '/' + document.getElementById('mcList').textContent.includes('名刺を撮って入れる')), 'true/true');
+  // 名刺の文字を欄に分ける
+  const p1 = await page.evaluate(() => mcParse('株式会社サンプル商事\n営業本部 第一営業部 部長\nやまだ たろう\n山田 太郎\n〒100-0001\n東京都千代田区千代田1-2-3 サンプルビル5F\nTEL 03-1234-5678  FAX 03-1234-5679\n携帯 090-1111-2222\nE-mail: t.yamada@sample.co.jp\nwww.sample.co.jp'));
+  check('  分ける：名前・ふりがな・会社', [p1.name, p1.kana, p1.company].join('|'), '山田 太郎|やまだ たろう|株式会社サンプル商事');
+  check('  分ける：部署・役職', p1.dept + '|' + p1.title, '営業本部 第一営業部|部長');
+  check('  分ける：電話・FAX・携帯（1行に2つでも）', [p1.tel, p1.fax, p1.mobile].join('|'), '03-1234-5678|03-1234-5679|090-1111-2222');
+  check('  分ける：メール・サイト・郵便番号・住所', [p1.email, p1.url, p1.zip, p1.addr].join('|'), 't.yamada@sample.co.jp|www.sample.co.jp|100-0001|東京都千代田区千代田1-2-3 サンプルビル5F');
+  const p2 = await page.evaluate(() => mcParse('有限会社みどり工務店\n代表取締役社長\n鈴木 花子（すずき はなこ）\nＴＥＬ：０４５－１１１－２２２２\nhanako@midori.jp'));
+  check('  分ける：全角・代表取締役社長・名前（ふりがな）', [p2.company, p2.title, p2.name, p2.kana, p2.tel, p2.email].join('|'), '有限会社みどり工務店|代表取締役社長|鈴木 花子|すずき はなこ|045-111-2222|hanako@midori.jp');
+  const p3 = await page.evaluate(() => mcParse('ABC Trading Inc.\nSales Manager\nJohn Smith\nPhone: +81-3-5555-6666\nMobile: 080-7777-8888\njohn@abc.com'));
+  check('  分ける：英語の名刺', [p3.company, p3.title, p3.name, p3.tel, p3.mobile, p3.email].join('|'), 'ABC Trading Inc.|Sales Manager|John Smith|+81-3-5555-6666|080-7777-8888|john@abc.com');
+  // 入れる（手で）
+  await page.click('#mcAddHand'); await w(300);
+  check('  手で入れる：会った日は今日', await page.evaluate(() => isDlgOpen('mcEdOverlay') + '/' + (document.getElementById('mcE_met').value === new Date().toISOString().slice(0, 10) || document.getElementById('mcE_met').value.length === 10)), 'true/true');
+  // 貼って分ける
+  await page.evaluate(() => mcOpenPaste()); await w(250);
+  await page.fill('#mcPasteIn', '株式会社サンプル商事\n営業部 部長\nやまだ たろう\n山田 太郎\nTEL 03-1234-5678\n携帯 090-1111-2222\nt.yamada@sample.co.jp'); await page.evaluate(() => mcApplyPaste()); await w(200);
+  check('  貼ると欄に入る', await page.evaluate(() => ['name', 'kana', 'company', 'dept', 'title', 'tel', 'mobile', 'email'].map(k => document.getElementById('mcE_' + k).value).join('|')), '山田 太郎|やまだ たろう|株式会社サンプル商事|営業部|部長|03-1234-5678|090-1111-2222|t.yamada@sample.co.jp');
+  await page.evaluate(() => { [...document.querySelectorAll('#mcETags button')].find(b => b.textContent === '取引先').click(); document.getElementById('mcE_metAt').value = '展示会'; });
+  await page.setInputFiles('#mcPicIn', path.join(ROOT, 'icon-192.png')); await w(400);
+  check('  名刺の写真（表）を入れる', await page.evaluate(() => /url\("data:image\/jpeg/.test(document.getElementById('mcPvF').style.backgroundImage)), true);
+  await page.evaluate(() => mcEdSave()); await w(400);
+  check('  保存（分類・会った所・写真）', await page.evaluate(() => { const x = mcState().items[0]; return [x.name, x.tags.join(','), x.metAt, x.front, x.back].join('|'); }), '山田 太郎|取引先|展示会|true|false');
+  check('  覚える（excalc_meishi）', await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_meishi')).items.length), 1);
+  check('  一覧に名刺の写真', await page.evaluate(() => /url\("data:image/.test(document.querySelector('#mcList .mc-it .ph').style.backgroundImage)), true);
+  // 同じ人をもう一度
+  await page.evaluate(() => { mcEdit(null); document.getElementById('mcE_name').value = '山田 太郎'; document.getElementById('mcE_email').value = 't.yamada@sample.co.jp'; document.getElementById('mcE_title').value = '本部長'; mcEdSave(); }); await w(300);
+  check('  同じ人は上書きするか聞く', await page.evaluate(() => isDlgOpen('mcSubOverlay') + '/' + document.getElementById('mcSubBody').textContent.includes('もう入っています')), 'true/true');
+  await page.evaluate(() => document.querySelector('#mcSubBody button[data-r="0"]').click()); await w(300);
+  check('  上書き（1人のまま・役職が変わる・空けた欄と写真は前のまま）', await page.evaluate(() => { const x = mcState().items; return x.length + '/' + x[0].title + '/' + x[0].front + '/' + x[0].tel + '/' + x[0].company + '/' + x[0].tags.join(','); }), '1/本部長/true/03-1234-5678/株式会社サンプル商事/取引先');
+  check('  (株) と 株式会社 の書き方ちがいでも同じ人', await page.evaluate(() => !!mcFindSameTest({ name: '山田太郎', company: '(株)サンプル商事' })), true);
+  // CSV・vCard から足す
+  const csv = '﻿会社名,部署名,役職,姓,名,セイ,メイ,e-mail,郵便番号,住所,TEL会社,携帯電話,名刺交換日\n有限会社みどり工務店,,代表,鈴木,花子,すずき,はなこ,hanako@midori.jp,220-0001,神奈川県横浜市西区1-1,045-111-2222,,2026/9/12\n"株式会社サンプル商事","総務部","課長",佐藤,一郎,サトウ,イチロウ,sato@sample.co.jp,,,,,\n株式会社サンプル商事,営業部,本部長,山田,太郎,,,t.yamada@sample.co.jp,,,,,';
+  check('  CSV の見出しで読む（Eight の形・姓と名）', await page.evaluate(c => { const l = mcFromCsv(c); return l.length + '/' + l[0].name + '/' + l[0].kana + '/' + l[0].met + '/' + l[0].company + '/' + l[1].dept; }, csv), '3/鈴木 花子/すずき はなこ/2026-09-12/有限会社みどり工務店/総務部');
+  check('  足す（同じ人はとばす）', await page.evaluate(c => { const r = mcAddMany(mcFromCsv(c)); return r.add + '/' + r.skip + '/' + mcState().items.length; }, csv), '2/1/3');
+  const vcf = 'BEGIN:VCARD\r\nVERSION:3.0\r\nN:田中;次郎;;;\r\nFN:田中 次郎\r\nX-PHONETIC-LAST-NAME:たなか\r\nX-PHONETIC-FIRST-NAME:じろう\r\nORG:株式会社テスト;開発部\r\nTITLE:主任\r\nTEL;TYPE=WORK,VOICE:06-1234-0000\r\nTEL;TYPE=CELL:080-1234-0000\r\nEMAIL;TYPE=INTERNET:jiro@test.jp\r\nEND:VCARD\r\n';
+  check('  vCard を読む', await page.evaluate(v => { const x = mcFromVcf(v)[0]; return [x.name, x.kana, x.company, x.dept, x.title, x.tel, x.mobile, x.email].join('|'); }, vcf), '田中 次郎|たなか じろう|株式会社テスト|開発部|主任|06-1234-0000|080-1234-0000|jiro@test.jp');
+  await page.evaluate(v => { mcAddMany(mcFromVcf(v)); mcSetQ(''); }, vcf); await w(150);
+  // vCard を作る（読み直して同じ）
+  check('  vCard を作る・読み直すと同じ', await page.evaluate(() => { const x = mcState().items.find(i => i.name === '山田 太郎'); const v = mcVcard(x); const y = mcFromVcf(v)[0];
+    return v.includes('N:山田;太郎;;;') + '/' + v.includes('X-PHONETIC-LAST-NAME:やまだ') + '/' + v.includes('ORG:株式会社サンプル商事;営業部') + '/' + [y.name, y.kana, y.tel, y.mobile, y.email].join('|'); }),
+    'true/true/true/山田 太郎|やまだ たろう|03-1234-5678|090-1111-2222|t.yamada@sample.co.jp');
+  // さがす
+  const find = q => page.evaluate(q => { mcSetQ(q); return [...document.querySelectorAll('#mcList .mc-it .nm')].map(e => e.firstChild.textContent).join(','); }, q);
+  check('  さがす：ふりがなをカタカナで', await find('ヤマダ'), '山田 太郎');
+  check('  さがす：会社（株式会社を付けずに）', (await find('サンプル')).split(',').sort().join(','), '佐藤 一郎,山田 太郎');
+  check('  さがす：電話番号の一部', await find('045111'), '鈴木 花子');
+  check('  さがす：2つの言葉', await find('サンプル 総務'), '佐藤 一郎');
+  check('  見つからないとき', await page.evaluate(() => { mcSetQ('存在しない人'); return document.getElementById('mcList').textContent.includes('見つかりませんでした'); }), true);
+  await page.evaluate(() => { document.getElementById('mcFind').value = ''; mcSetQ(''); });
+  // 並べ方・分類
+  await page.evaluate(() => mcSetView('name')); await w(80);
+  check('  名前順（ふりがな）', await page.evaluate(() => [...document.querySelectorAll('#mcList .mc-it .nm')].map(e => e.firstChild.textContent).join(',')), '佐藤 一郎,鈴木 花子,田中 次郎,山田 太郎');
+  await page.evaluate(() => mcSetView('company')); await w(80);
+  check('  会社ごと（株式会社を除いて並べる）', await page.evaluate(() => [...document.querySelectorAll('#mcList .mc-grp')].map(g => g.firstChild.textContent.trim()).join(',')), '🏢 サンプル商事,🏢 テスト,🏢 みどり工務店');
+  await page.evaluate(() => mcSetTag('取引先')); await w(80);
+  check('  分類のチップで絞る', await page.evaluate(() => [...document.querySelectorAll('#mcList .mc-it .nm')].map(e => e.firstChild.textContent).join(',')), '山田 太郎');
+  await page.evaluate(() => { mcSetTag('取引先'); mcSetView('new'); });
+  // 見る
+  const yid = await page.evaluate(() => mcState().items.find(i => i.name === '山田 太郎').id);
+  await page.evaluate(id => mcView(id), yid); await w(400);
+  check('  見る：電話・携帯・メール・地図のボタン', await page.evaluate(() => [...document.querySelectorAll('#mcViewBody .mc-acts a')].map(a => a.textContent.trim() + '=' + (a.getAttribute('href') || '')).join(' ')),
+    '📞電話=tel:0312345678 📱携帯=tel:09011112222 ✉メール=mailto:t.yamada@sample.co.jp 📍地図=https://www.google.com/maps/search/?api=1&query=%E6%A0%AA%E5%BC%8F%E4%BC%9A%E7%A4%BE%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB%E5%95%86%E4%BA%8B');
+  check('  見る：名刺の写真・同じ会社の人', await page.evaluate(() => /url\("data:image/.test(document.getElementById('mcCardPic').style.backgroundImage) + '/' + document.getElementById('mcViewBody').textContent.includes('同じ会社の人（1）')), 'true/true');
+  await page.evaluate(id => mcToggleFav(id), yid); await w(200);
+  check('  ★ よく使う・チップに出る', await page.evaluate(() => mcState().items.find(i => i.name === '山田 太郎').fav + '/' + [...document.querySelectorAll('#mcBar .mc-chip')].some(b => b.textContent.startsWith('★'))), 'true/true');
+  await page.evaluate(() => mcCloseView()); await w(300);
+  // CSV
+  check('  CSV（BOMつき・見出し）', await page.evaluate(() => { let t = ''; const B = window.Blob; window.Blob = class extends B { constructor(p, o) { super(p, o); t = p.join(''); } }; mcCsv(); window.Blob = B; return t.startsWith('﻿"氏名","ふりがな","会社名"') + '/' + t.includes('"山田 太郎","やまだ たろう","株式会社サンプル商事"'); }), 'true/true');
+  check('  書き出した CSV を読み直せる', await page.evaluate(() => { let t = ''; const B = window.Blob; window.Blob = class extends B { constructor(p, o) { super(p, o); t = p.join(''); } }; mcCsv(); window.Blob = B; const l = mcFromCsv(t); return l.length + '/' + l.find(x => x.name === '山田 太郎').fav; }), '4/true');
+  check('  🖨 会社ごとの一覧', await page.evaluate(() => { let h = ''; const ob = window.opBuild, op = window.opPrint; window.opBuild = x => x; window.opPrint = x => { h = x; }; mcPrint(); window.opBuild = ob; window.opPrint = op; return h.includes('🏢 サンプル商事（2）') + '/' + h.includes('<b>佐藤 一郎</b>'); }), 'true/true');
+  // 📋リストのバックアップ
+  check('  バックアップに入る（写真は別に聞く）', await page.evaluate(async () => { const b = meishiBundle(), p = await meishiPicsBundle(); return b.items.length + '/' + Object.keys(p || {}).join(','); }), '4/' + yid + '_f');
+  const exp = await page.evaluate(async () => JSON.stringify({ b: meishiBundle(), p: await meishiPicsBundle() }));
+  await page.evaluate(async () => { window.appConfirm = async () => true; await mcWipe(); }); await w(150);
+  check('  ぜんぶ消す（写真も）', await page.evaluate(async () => mcState().items.length + '/' + (await meishiPicsBundle())), '0/null');
+  await page.evaluate(async e => { const o = JSON.parse(e); await meishiRestoreBundle(o.b, o.p); }, exp); await w(200);
+  check('  読み込むと戻る（写真も）', await page.evaluate(async () => mcState().items.length + '/' + Object.keys((await meishiPicsBundle()) || {}).length + '/' + document.querySelectorAll('#mcList .mc-it').length), '4/1/4');
+  await page.evaluate(async e => { const o = JSON.parse(e); await meishiRestoreBundle(o.b, o.p); }, exp); await w(150);
+  check('  同じものをもう一度読み込んでも重ならない', await page.evaluate(() => mcState().items.length), 4);
+  // 消す
+  await page.evaluate(async id => { await mcRemove(id); }, yid); await w(200);
+  check('  消す（写真も消す）', await page.evaluate(async () => mcState().items.length + '/' + (await meishiPicsBundle())), '3/null');
+  // 開き直し・戻る
+  await page.evaluate(() => closeMeishi()); await w(400); await page.reload(); await w(900);
+  await page.evaluate(() => openMeishi()); await w(500);
+  check('  開き直しても残る', await page.evaluate(() => mcState().items.length), 3);
+  await page.evaluate(() => mcView(mcState().items[0].id)); await w(200);
+  await page.evaluate(() => mcEdit(mcState().items[0].id)); await w(200);
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  戻るで直す画面だけ閉じる', await page.evaluate(() => isDlgOpen('mcEdOverlay') + '/' + isDlgOpen('mcViewOverlay') + '/' + isDlgOpen('meishiOverlay')), 'false/true/true');
+  await page.evaluate(() => window.history.back()); await w(400);
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  戻るで閉じる', await page.evaluate(() => isDlgOpen('meishiOverlay')), false);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runUiMode(browser) {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true });
   const page = await ctx.newPage();
@@ -7910,11 +8013,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/18');
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/19');
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'shimai', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'shimai', 'meishi', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -7942,7 +8045,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,shimai:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,shimai:B,meishi:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -9032,6 +9135,7 @@ async function runQrShare(browser) {
     if (!only || only === 'heya') await runHeya(browser);
     if (!only || only === 'annai') await runAnnai(browser);
     if (!only || only === 'shimai') await runShimai(browser);
+    if (!only || only === 'meishi') await runMeishi(browser);
     if (!only || only === 'uimode') await runUiMode(browser);
     if (!only || only === 'toolsfab') await runToolsFab(browser);
     if (!only || only === 'techoapp') await runTechoApp(browser);
