@@ -1320,6 +1320,21 @@ async function runSeqCustom(browser) {
   // 文字つきの数
   await fill('No.08', 2); await page.evaluate(() => { openSeqCustom(); document.getElementById('seqCuStep').value = '5'; renderSeqCustom(); applySeqCustom(); }); await page.waitForTimeout(300);
   check('  文字つきの数も（けた数をそろえる）', await col(3), 'No.08,No.13,No.18');
+  // v478：数のあとに文字が付いたもの（1日・2個・第1回・1.5kg）
+  await fill('1日', 3);
+  check('  「1日」でも連番とカスタムが出る', await page.evaluate(() => document.getElementById('seqBar').classList.contains('show')), true);
+  await page.evaluate(() => document.getElementById('seqBtn').click()); await page.waitForTimeout(300);
+  check('  「1日」の連番は 2日, 3日…', await col(4), '1日,2日,3日,4日');
+  await fill('2個', 3); await page.evaluate(() => { openSeqCustom(); document.getElementById('seqCuStep').value = '5'; renderSeqCustom(); });
+  check('  「2個」の見本も出る', await page.evaluate(() => document.getElementById('seqCuPrev').textContent), '2個, 7個, 12個, 17個');
+  await page.evaluate(() => applySeqCustom()); await page.waitForTimeout(300);
+  check('  「2個」を5ずつ', await col(4), '2個,7個,12個,17個');
+  await fill('第1回', 2); await page.evaluate(() => { openSeqCustom(); document.getElementById('seqCuStep').value = '2'; renderSeqCustom(); applySeqCustom(); }); await page.waitForTimeout(300);
+  check('  前とうしろに文字（第1回）', await col(3), '第1回,第3回,第5回');
+  await fill('1.5kg', 2); await page.evaluate(() => { openSeqCustom(); document.getElementById('seqCuStep').value = '0.5'; renderSeqCustom(); applySeqCustom(); }); await page.waitForTimeout(300);
+  check('  小数のあとに文字（1.5kg を 0.5 ずつ）', await col(3), '1.5kg,2kg,2.5kg');
+  await fill('りんご', 2);
+  check('  数のない文字には出さない', await page.evaluate(() => document.getElementById('seqBar').classList.contains('show')), false);
   // 0 や文字は入れられない
   await fill('1', 2); await page.evaluate(() => { openSeqCustom(); document.getElementById('seqCuStep').value = '0'; renderSeqCustom(); });
   check('  0 や数でないものは入れるボタンが押せない', await page.evaluate(() => document.getElementById('seqCuOk').disabled), true);

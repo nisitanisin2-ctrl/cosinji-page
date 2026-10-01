@@ -9029,6 +9029,8 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v478', t:'「1日」「2個」のような数にも連番', li:[
+    '<b>1日・2個・第1回・1.5kg</b> のように、数のあとに文字が付いたものも、引っぱると <b>🔢 連番</b>・<b>⚙ カスタム</b> が出て、<b>2日, 3日…</b> や <b>5個ずつ</b> のように連番にできるようにしました（前とうしろの文字はそのまま）' ]},
   { v:'v477', t:'連番のきまりを決められるように', li:[
     'セルの右下の ■ を引っぱったあとに出る <b>🔢 連番</b> の横に、<b>⚙ カスタム</b> を足しました。<b>いくつずつ増やすか</b>を決めて連番にできます（例：100 から 10 ずつ → 100, 110, 120 …）',
     '+1・+2・+5・+10・+100・−1 から選ぶか、好きな数（小数・マイナスも）を入れます。入るものを先に見てから決められます。決めた刻みは次も覚えています' ]},
@@ -20994,7 +20996,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v477';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v478';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -21947,7 +21949,7 @@ function commitFill() {
     }
     // 数値・日付・末尾が数字の文字なら「連番にする」ボタンを出す
     const srcT=String(srcVal).trim();
-    const canSeq = !srcT.startsWith('=') && (/^-?\d+(\.\d+)?$/.test(srcT) || cellDateFmt(fillSrcR,fillSrcC) || /\d+$/.test(srcT));
+    const canSeq = !srcT.startsWith('=') && (/^-?\d+(\.\d+)?$/.test(srcT) || cellDateFmt(fillSrcR,fillSrcC) || SEQ_TEXT_RE.test(srcT));   // v478：「1日」「第1回」のように数のあとに文字があっても
     if(canSeq){ lastFill={srcR:fillSrcR,srcC:fillSrcC,dr,dc,steps}; showSeqBtn(fillSrcR+dr*steps, fillSrcC+dc*steps); }
     else hideSeqBtn();
   }
@@ -21979,15 +21981,24 @@ function fillAsSequence(stepBy){
     const base=Number(srcStr);
     cells.forEach(([r,c,step])=>{ if(isLockedCell(r,c))return; setCellVal(r,c,String(add(base,step))); if(srcFmt){ (cellStyles[`${r},${c}`]=cellStyles[`${r},${c}`]||{}).dfmt=srcFmt; repaintCell(r,c); } });
   } else {
-    const m=/^(.*?)(\d+)$/.exec(srcStr); if(!m){ hideSeqBtn(); return; }
-    const prefix=m[1], base=parseInt(m[2],10), width=m[2].length;
-    const intBy=Math.round(by);   // 「No.1」のような文字つきの数は、整数で増やす
-    cells.forEach(([r,c,step])=>{ if(isLockedCell(r,c))return; const v=base+intBy*step; let n=String(Math.abs(v)); if(n.length<width)n=n.padStart(width,'0'); setCellVal(r,c, prefix+(v<0?'-':'')+n); });
+    if(seqTextValue(srcStr, by, 1)==null){ hideSeqBtn(); return; }
+    cells.forEach(([r,c,step])=>{ if(isLockedCell(r,c))return; setCellVal(r,c, seqTextValue(srcStr, by, step)); });
   }
   if(srcFmt) persistModes();
   hideSeqBtn();
 }
 function seqDecimals(t){ const m=/\.(\d+)$/.exec(String(t)); return m ? Math.min(m[1].length, 10) : 0; }
+/* 文字のまざった数の連番（v477 は「No.1」のように数で終わるものだけ。v478 から「1日」「2個」「第1回」「1.5kg」も）。
+   いちばんうしろの数を増やし、前とうしろの文字はそのまま。「08」のような0つきはけた数をそろえる */
+const SEQ_TEXT_RE=/^(.*?)(\d+(?:\.\d+)?)(\D*)$/;
+function seqTextValue(src, by, k){
+  const m=SEQ_TEXT_RE.exec(String(src)); if(!m) return null;
+  const numS=m[2], dec=Math.max(seqDecimals(numS), seqDecimals(String(by)));
+  let v=Number(numS)+by*k; v=dec ? Number(v.toFixed(dec)) : Math.round(v);
+  let n=String(Math.abs(v));
+  if(!dec && n.length<numS.length) n=n.padStart(numS.length,'0');
+  return m[1]+(v<0?'-':'')+n+m[3];
+}
 /* ── 連番のきまり（カスタム。v477）──────────────────────
    引っぱったあとに出る「⚙ カスタム」から開く。いくつずつ増やすか（刻み）を決めて入れる。
    決めた刻みは覚えておき、次に開いたときにはじめから入れておく */
@@ -22006,9 +22017,8 @@ function seqCustomPreview(by){
     const dec=Math.max(seqDecimals(src), seqDecimals(String(by))), b=Number(src);
     for(let k=1;k<=n;k++){ const v=b+by*k; out.push(String(dec?Number(v.toFixed(dec)):Math.round(v))); }
   } else {
-    const m=/^(.*?)(\d+)$/.exec(src); if(!m) return src;
-    const ib=Math.round(by);
-    for(let k=1;k<=n;k++){ const v=parseInt(m[2],10)+ib*k; let s2=String(Math.abs(v)); if(s2.length<m[2].length) s2=s2.padStart(m[2].length,'0'); out.push(m[1]+(v<0?'-':'')+s2); }
+    if(seqTextValue(src, by, 1)==null) return src;
+    for(let k=1;k<=n;k++) out.push(seqTextValue(src, by, k));
   }
   return out.join(', ')+(f.steps>n?', …':'');
 }
