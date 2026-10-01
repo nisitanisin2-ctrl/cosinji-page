@@ -8981,6 +8981,8 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v471', t:'右下の ■ をつかみやすく', li:[
+    'スマホ・タブレットでは、右下の <b>■ を押したとみなす範囲</b>を広げました（セルの内側は右下の約半分、外側は角から約30pxまで）。少しずれたところを押しても引っぱれます' ]},
   { v:'v470', t:'右下の ■ で引っぱるコピーを、思ったとおりに', li:[
     '選んだセルの右下の <b>■</b> は、セルの<b>外側（右下のとなり）を押しても</b>つかめるようにしました。■ の大きさも指で使う画面では少し大きくしました',
     '引っぱったときは、<b>セルを動かした分だけ</b>広がるようにしました（指を置いた位置ではなく、セルの真ん中を動かした分で決めます）。セルの半分以上動かすと1つ広がるので、思ったより1つ先までコピーされることがなくなります',
@@ -20909,7 +20911,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v470';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v471';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -21694,11 +21696,14 @@ let lpFillTimer=null, lpMenuTimer=null;
 const LP_FILL_MS=550, LP_MENU_MS=1000, LP_MOVE_TOL=8;
 /* 選んだセルの右下の ■ （フィルの取っ手）の上か。指で押しやすいよう、見た目より広めにとる。
    v470：■ は枠の角にまたがっているので、セルの外側（右・下のとなりのセル）を押しても取っ手とみなす */
-const FILL_HIT_OUT=16;   // 角から外側へ、ここまでは取っ手
+/* 指で押すときは、マウスより広くとる（v471）。指は ■ より大きく、押したところも少しずれるため */
+const FILL_HIT={ touch:{ inMax:40, inW:0.5, inH:0.9, out:30 }, mouse:{ inMax:26, inW:0.45, inH:0.7, out:16 } };
+let fillPressTouch=false;   // いまの押し始めが指か（touchstart で true、mousedown で false）
 function onFillHandle(r,c,x,y){
   const td=document.getElementById(`c${r}_${c}`); if(!td) return false;
-  const b=td.getBoundingClientRect(), k=Math.min(26, b.width*0.45, b.height*0.7);
-  return x>=b.right-k && x<=b.right+FILL_HIT_OUT && y>=b.bottom-k && y<=b.bottom+FILL_HIT_OUT;
+  const h=fillPressTouch ? FILL_HIT.touch : FILL_HIT.mouse;
+  const b=td.getBoundingClientRect(), kx=Math.min(h.inMax, b.width*h.inW), ky=Math.min(h.inMax, b.height*h.inH);   // 横と縦は別々に（セルは横長なので）
+  return x>=b.right-kx && x<=b.right+h.out && y>=b.bottom-ky && y<=b.bottom+h.out;
 }
 /* 押した点が、選んでいるセルの取っ手の上か（となりのセルを押していても） */
 function fillHandleHit(x,y){
@@ -21897,6 +21902,7 @@ function fillAsSequence(){
 }
 document.querySelector('.sheet-wrap').addEventListener('touchstart',e=>{
   // 選んだセルの右下の ■ の近くなら、となりのセルや表の外を押していても、選んだセルからのフィルにする（v470）
+  fillPressTouch=true;
   if(e.touches.length===1 && !sumSelectMode && fillHandleHit(e.touches[0].clientX, e.touches[0].clientY)){
     startCellPress(selR,selC,e.touches[0].clientX,e.touches[0].clientY); return;
   }
@@ -21970,6 +21976,8 @@ document.querySelector('.sheet-wrap').addEventListener('mousedown',e=>{
   if(sumSelectMode) return;                          // Σ指定中はそちらを優先
   if(e.button!==undefined && e.button>0) return;     // 左ボタンのみ
   if(formulaEditMode) return;                        // 数式編集中は無効
+  if(lpR>=0) return;                                  // 指の操作の続き（あとから来るマウスのまねの出来事）は見送る
+  fillPressTouch=false;
   if(fillHandleHit(e.clientX,e.clientY)){ startCellPress(selR,selC,e.clientX,e.clientY); return; }   // ■ の近く（v470）
   const td=e.target.closest&&e.target.closest('#sheet .cell'); if(!td) return;
   const m=td.id.match(/^c(\d+)_(\d+)$/); if(!m) return;

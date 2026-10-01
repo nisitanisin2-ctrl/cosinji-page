@@ -8396,6 +8396,24 @@ async function runCellXl(browser) {
   await page.evaluate(() => sel(0, 1)); await page.waitForTimeout(500);
   await page.mouse.click(p.x, p.y); await page.waitForTimeout(400);
   check('  押しただけなら、ふつうに押したセル（右下のとなり）を選ぶ', await page.evaluate(() => selR + ',' + selC + '/' + (data[1][1] || '空')), '1,2/空');
+  // v471：指では ■ を押したとみなす範囲をさらに広く（外側は角から約30px・内側は右下の約半分）
+  check('  指なら外側30px近くまで・内側も広くつかめる（マウスは狭いまま）', await page.evaluate(() => {
+    sel(0, 1); const b = document.getElementById('c0_1').getBoundingClientRect();
+    fillPressTouch = true;
+    const t = [fillHandleHit(b.right + 26, b.bottom + 26), fillHandleHit(b.right - Math.min(36, b.width * 0.45), b.bottom - b.height * 0.6), fillHandleHit(b.right + 40, b.bottom + 40)];
+    fillPressTouch = false;
+    const m = [fillHandleHit(b.right + 26, b.bottom + 26)];
+    return t.concat(m).join('/'); }), 'true/true/false/false');
+  {
+    const cdp = await page.context().newCDPSession(page);
+    await page.evaluate(() => { for (let r = 1; r <= 6; r++) setCellVal(r, 1, ''); setCellVal(0, 1, '8'); sel(0, 1); }); await page.waitForTimeout(500);
+    const g = await page.evaluate(() => { const b = document.getElementById('c0_1').getBoundingClientRect(); return { x: b.right + 22, y: b.bottom + 22, h: b.height }; });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: g.x, y: g.y }] });
+    for (let i = 1; i <= 8; i++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: g.x, y: g.y + g.h * 2.2 * i / 8 }] }); await page.waitForTimeout(25); }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await page.waitForTimeout(400);
+    check('  指で ■ の外側22pxをつかんで2.2行引っぱると2行コピー', await page.evaluate(() => [1, 2, 3].map(r => data[r][1] || '空').join('/')), '8/8/空');
+    await page.evaluate(() => hideSeqBtn());
+  }
   await page.evaluate(k => { k.forEach((v, r) => setCellVal(r, 1, v)); sel(0, 0); }, keepB); await page.waitForTimeout(500);
   // 選んだセルの真ん中からなぞると範囲選択
   await page.evaluate(() => sel(0, 1));
