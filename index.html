@@ -1387,14 +1387,26 @@ body.cg-excel #fillHandle.on { display: block; }
 body.fill-active #fillHandle { display: none; }
 .cell-menu button:active { background: var(--cell-border); }
 /* フィル後の連番ボタン */
+.seq-bar { display: none; position: fixed; z-index: 55; gap: 6px; }
+.seq-bar.show { display: flex; }
 .seq-btn {
-  display: none; position: fixed; z-index: 55;
+  display: block;
   background: var(--info); color: #fff; border: none; border-radius: var(--r-btn);
   padding: 9px 14px; font-size: 13px; font-weight: bold; white-space: nowrap;
   box-shadow: var(--elev-2); cursor: pointer; touch-action: manipulation;
 }
-.seq-btn.show { display: block; }
 .seq-btn:hover { background: var(--info-dark); }
+.seq-btn.seq-custom { background: #fff; color: var(--info-dark, #1565c0); border: 2px solid var(--info); padding: 7px 12px; }
+.seq-btn.seq-custom:hover { background: #e3f2fd; }
+.seq-cu-start { font-size: 18px; }
+.seq-cu-step { width: 120px; min-height: 42px; font-size: 18px; text-align: right; padding: 4px 10px; border: 1px solid var(--save-item-border); border-radius: 8px; background: var(--cell-bg); color: var(--text); }
+.seq-cu-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.seq-cu-chips button { min-width: 52px; min-height: 38px; border-radius: 8px; border: 1px solid var(--save-item-border); background: var(--cell-bg); color: var(--text); font-size: 15px; font-weight: bold; cursor: pointer; }
+.seq-cu-chips button.on { background: var(--acc); border-color: var(--acc); color: #fff; }
+.seq-cu-ok, .seq-cu-cancel { display: block; width: 100%; height: 46px; margin: 10px 0 0; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; }
+.seq-cu-ok { border: none; background: var(--acc); color: #fff; }
+.seq-cu-ok:disabled { opacity: .45; cursor: default; }
+.seq-cu-cancel { border: 1px solid var(--save-item-border); background: transparent; color: var(--text); }
 
 /* 照合ビルダー */
 .lk-seg, .lk-seg2 { display: flex; gap: 6px; }
@@ -5899,7 +5911,25 @@ body.dark {
 </div>
 
 <!-- フィル後の「連番にする」ボタン（数値・日付・末尾が数字の文字のとき） -->
-<button class="seq-btn" id="seqBtn" onclick="fillAsSequence()">🔢 連番 1,2,3…</button>
+<div class="seq-bar" id="seqBar"><button class="seq-btn" id="seqBtn" onclick="fillAsSequence()">🔢 連番 1,2,3…</button><button class="seq-btn seq-custom" id="seqCustomBtn" onclick="openSeqCustom()" title="いくつずつ増やすかを決めて連番にします（例：100, 110, 120…）">⚙ カスタム</button></div>
+<!-- 連番のきまりを決める（v477）。いくつずつ増やすか（刻み）を決めて、引っぱった範囲に入れる -->
+<div class="modal-overlay" id="seqCustomOverlay" onclick="if(event.target===this)closeSeqCustom()">
+  <div class="modal seq-custom-modal">
+    <div class="modal-header">
+      <span>🔢 連番のきまり</span>
+      <button class="modal-close" onclick="closeSeqCustom()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="set-row"><span class="set-label">はじめの数<small>引っぱったもとのセル</small></span><b id="seqCuStart" class="seq-cu-start"></b></div>
+      <div class="set-row"><span class="set-label">いくつずつ増やす<small>減らすときは −（マイナス）</small></span>
+        <input type="text" inputmode="decimal" id="seqCuStep" class="seq-cu-step" value="1" autocomplete="off" oninput="renderSeqCustom()" onkeydown="event.stopPropagation(); if(event.key==='Enter'){event.preventDefault(); applySeqCustom();}"></div>
+      <div class="seq-cu-chips" id="seqCuChips"></div>
+      <div class="set-note">入るもの：<b id="seqCuPrev"></b></div>
+      <button class="sb-btn seq-cu-ok" id="seqCuOk" onclick="applySeqCustom()">この きまりで入れる</button>
+      <button class="sb-btn sub seq-cu-cancel" onclick="closeSeqCustom()">やめる</button>
+    </div>
+  </div>
+</div>
 
 <!-- 記録アイコンの「⋯」メニュー（開く・名前・ロック・モードへ・タブ・削除） -->
 <div class="cellmenu-backdrop" id="saveFileMenuBackdrop" onclick="hideSaveFileMenu()"></div>
@@ -8999,6 +9029,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v477', t:'連番のきまりを決められるように', li:[
+    'セルの右下の ■ を引っぱったあとに出る <b>🔢 連番</b> の横に、<b>⚙ カスタム</b> を足しました。<b>いくつずつ増やすか</b>を決めて連番にできます（例：100 から 10 ずつ → 100, 110, 120 …）',
+    '+1・+2・+5・+10・+100・−1 から選ぶか、好きな数（小数・マイナスも）を入れます。入るものを先に見てから決められます。決めた刻みは次も覚えています' ]},
   { v:'v476', t:'説明書の文字が細い列に分かれて読みにくかったのを直しました', li:[
     '📖説明書の番号つきの説明（①②…）で、太字の言葉ごとに細い列に分かれて縦に並び、読みにくくなっていたのを直しました。ふつうの文として左から右へ読めます' ]},
   { v:'v475', t:'かんたん表示の説明を分かりやすく', li:[
@@ -20961,7 +20994,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v476';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v477';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -21923,7 +21956,7 @@ function commitFill() {
 /* ── 連番フィル ── */
 let lastFill=null, seqHideTimer=null;
 function showSeqBtn(r,c){
-  const td=document.getElementById(`c${r}_${c}`); const btn=document.getElementById('seqBtn');
+  const td=document.getElementById(`c${r}_${c}`); const btn=document.getElementById('seqBar');
   if(!td||!btn){ return; }
   btn.classList.add('show');
   const rect=td.getBoundingClientRect(), bw=btn.offsetWidth, bh=btn.offsetHeight;
@@ -21932,23 +21965,77 @@ function showSeqBtn(r,c){
   btn.style.left=left+'px'; btn.style.top=top+'px';
   clearTimeout(seqHideTimer); seqHideTimer=setTimeout(hideSeqBtn, 6000);
 }
-function hideSeqBtn(){ const b=document.getElementById('seqBtn'); if(b) b.classList.remove('show'); clearTimeout(seqHideTimer); }
-function fillAsSequence(){
+function hideSeqBtn(){ const b=document.getElementById('seqBar'); if(b) b.classList.remove('show'); clearTimeout(seqHideTimer); }
+function fillAsSequence(stepBy){
   const f=lastFill; if(!f){ hideSeqBtn(); return; }
+  const by=(typeof stepBy==='number' && isFinite(stepBy)) ? stepBy : 1;   // いくつずつ増やすか（v477。ふつうは1）
+  const dec=Math.max(seqDecimals(String(data[f.srcR][f.srcC]).trim()), seqDecimals(String(by)));
+  const add=(b,k)=>{ const v=b+by*k; return dec ? Number(v.toFixed(dec)) : Math.round(v); };
   const srcStr=String(data[f.srcR][f.srcC]).trim();
   const srcFmt=cellDateFmt(f.srcR,f.srcC);
   const cells=[];
   for(let step=1;step<=f.steps;step++){ const r=f.srcR+f.dr*step, c=f.srcC+f.dc*step; if(r<0||r>=ROWS||c<0||c>=COLS)break; cells.push([r,c,step]); }
   if(/^-?\d+(\.\d+)?$/.test(srcStr)){
     const base=Number(srcStr);
-    cells.forEach(([r,c,step])=>{ if(isLockedCell(r,c))return; setCellVal(r,c,String(base+step)); if(srcFmt){ (cellStyles[`${r},${c}`]=cellStyles[`${r},${c}`]||{}).dfmt=srcFmt; repaintCell(r,c); } });
+    cells.forEach(([r,c,step])=>{ if(isLockedCell(r,c))return; setCellVal(r,c,String(add(base,step))); if(srcFmt){ (cellStyles[`${r},${c}`]=cellStyles[`${r},${c}`]||{}).dfmt=srcFmt; repaintCell(r,c); } });
   } else {
     const m=/^(.*?)(\d+)$/.exec(srcStr); if(!m){ hideSeqBtn(); return; }
     const prefix=m[1], base=parseInt(m[2],10), width=m[2].length;
-    cells.forEach(([r,c,step])=>{ if(isLockedCell(r,c))return; let n=String(base+step); if(n.length<width)n=n.padStart(width,'0'); setCellVal(r,c, prefix+n); });
+    const intBy=Math.round(by);   // 「No.1」のような文字つきの数は、整数で増やす
+    cells.forEach(([r,c,step])=>{ if(isLockedCell(r,c))return; const v=base+intBy*step; let n=String(Math.abs(v)); if(n.length<width)n=n.padStart(width,'0'); setCellVal(r,c, prefix+(v<0?'-':'')+n); });
   }
   if(srcFmt) persistModes();
   hideSeqBtn();
+}
+function seqDecimals(t){ const m=/\.(\d+)$/.exec(String(t)); return m ? Math.min(m[1].length, 10) : 0; }
+/* ── 連番のきまり（カスタム。v477）──────────────────────
+   引っぱったあとに出る「⚙ カスタム」から開く。いくつずつ増やすか（刻み）を決めて入れる。
+   決めた刻みは覚えておき、次に開いたときにはじめから入れておく */
+const SEQ_STEP_KEY='excalc_seq_step';
+const SEQ_CHIPS=[1,2,5,10,100,-1];
+function seqParseStep(v){
+  const t=String(v||'').trim().replace(/[０-９]/g,ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0)).replace(/[－−ー]/g,'-').replace(/．/g,'.').replace(/[,，]/g,'');
+  if(!/^-?\d+(\.\d+)?$/.test(t)) return null;
+  const n=Number(t); return (isFinite(n) && n!==0) ? n : null;
+}
+function seqCustomPreview(by){
+  const f=lastFill; if(!f) return '';
+  const src=String(data[f.srcR][f.srcC]).trim();
+  const n=Math.min(f.steps, 4), out=[src];
+  if(/^-?\d+(\.\d+)?$/.test(src)){
+    const dec=Math.max(seqDecimals(src), seqDecimals(String(by))), b=Number(src);
+    for(let k=1;k<=n;k++){ const v=b+by*k; out.push(String(dec?Number(v.toFixed(dec)):Math.round(v))); }
+  } else {
+    const m=/^(.*?)(\d+)$/.exec(src); if(!m) return src;
+    const ib=Math.round(by);
+    for(let k=1;k<=n;k++){ const v=parseInt(m[2],10)+ib*k; let s2=String(Math.abs(v)); if(s2.length<m[2].length) s2=s2.padStart(m[2].length,'0'); out.push(m[1]+(v<0?'-':'')+s2); }
+  }
+  return out.join(', ')+(f.steps>n?', …':'');
+}
+function openSeqCustom(){
+  const f=lastFill; if(!f){ hideSeqBtn(); return; }
+  clearTimeout(seqHideTimer);
+  let last=null; try{ last=seqParseStep(localStorage.getItem(SEQ_STEP_KEY)); }catch(_){}
+  document.getElementById('seqCuStart').textContent=String(data[f.srcR][f.srcC]).trim();
+  document.getElementById('seqCuStep').value=String(last!=null?last:1);
+  document.getElementById('seqCuChips').innerHTML=SEQ_CHIPS.map(v=>`<button type="button" data-v="${v}" onclick="document.getElementById('seqCuStep').value='${v}';renderSeqCustom()">${v>0?'+'+v:'−'+Math.abs(v)}</button>`).join('');
+  renderSeqCustom();
+  hideSeqBtn();
+  openDlg('seqCustomOverlay');
+}
+function renderSeqCustom(){
+  const by=seqParseStep(document.getElementById('seqCuStep').value);
+  document.getElementById('seqCuPrev').textContent = by==null ? '（0 以外の数を入れてください）' : seqCustomPreview(by);
+  document.getElementById('seqCuOk').disabled = (by==null);
+  document.querySelectorAll('#seqCuChips button').forEach(b=>b.classList.toggle('on', by!=null && Number(b.dataset.v)===by));
+}
+function closeSeqCustom(){ closeDlg('seqCustomOverlay'); }
+function applySeqCustom(){
+  const by=seqParseStep(document.getElementById('seqCuStep').value); if(by==null) return;
+  try{ localStorage.setItem(SEQ_STEP_KEY, String(by)); }catch(_){}
+  closeSeqCustom();
+  fillAsSequence(by);
+  toast((by>0?by+' ずつ増やす':Math.abs(by)+' ずつ減らす')+'連番にしました（↶戻す で元に戻せます）');
 }
 document.querySelector('.sheet-wrap').addEventListener('touchstart',e=>{
   // 選んだセルの右下の ■ の近くなら、となりのセルや表の外を押していても、選んだセルからのフィルにする（v470）
@@ -22845,7 +22932,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_show_sheettabs','excalc_skin','excalc_speechauto','excalc_speechlayout','excalc_speechspeak','excalc_startpage',
   'excalc_sumfunc','excalc_taxrate','excalc_tbfold','excalc_toolsbtn_hide','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
   'excalc_ts_warn','excalc_userkeys',
-  'excalc_uimode','excalc_tool_fav','excalc_tool_hints',   // v460〜v462
+  'excalc_uimode','excalc_tool_fav','excalc_tool_hints','excalc_seq_step',   // v460〜v462
 ];
 function settingsBundle(){
   const o={};
