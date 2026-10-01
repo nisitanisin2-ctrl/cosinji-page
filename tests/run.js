@@ -4135,7 +4135,7 @@ async function runOnboard(browser) {
   await page.evaluate(() => tourGo(1)); await page.waitForTimeout(200);
   check('  つぎへで進む（2枚目は操作）', await head(), '表の操作は Excel と同じです');
   check('  ダブルタップ・右下の ● などの操作が書いてある', await page.evaluate(() => {
-    const t = document.querySelector('.tour-ex').textContent; return ['ダブルタップ', '右下の ■', 'なぞる', '長押し', '＝数式', 'あ文字'].every(w => t.includes(w)); }), true);
+    const t = document.querySelector('.tour-ex').textContent; return ['ダブルタップ', '右下の ■', 'なぞる', '長押し', '＝数式'].every(w => t.includes(w)); }), true);
   await page.evaluate(() => tourGo(1)); await page.waitForTimeout(200);
   check('  3枚目は声', await head(), '口で言うだけでも計算できます');
   check('  言い方の見本が出る', await page.evaluate(() =>
@@ -8366,16 +8366,37 @@ async function runCellXl(browser) {
   check('  長押しして動かしてもフィルにならない', await page.evaluate(() => data[3][0]), '');
   check('  選んだセルの枠の右下の角に小さな四角（v421）', await page.evaluate(() => {
     sel(0, 0); const h = document.getElementById('fillHandle'), hb = h.getBoundingClientRect(), tb = document.getElementById('c0_0').getBoundingClientRect();
-    return getComputedStyle(h).display + '/' + Math.round(hb.width) + '/' + (Math.abs((hb.left + hb.width / 2) - (tb.right - 1)) <= 1.5 && Math.abs((hb.top + hb.height / 2) - (tb.bottom - 1)) <= 1.5); }), 'block/7/true');
+    return getComputedStyle(h).display + '/' + Math.round(hb.width) + '/' + (Math.abs((hb.left + hb.width / 2) - (tb.right - 1)) <= 1.5 && Math.abs((hb.top + hb.height / 2) - (tb.bottom - 1)) <= 1.5); }), 'block/10/true');   // 指で使う画面は 10px（v470。マウスは 7px）
   check('  別のセルを選ぶと四角も移る', await page.evaluate(() => {
     sel(2, 1); const hb = document.getElementById('fillHandle').getBoundingClientRect(), tb = document.getElementById('c2_1').getBoundingClientRect();
-    const ok = Math.abs((hb.left + 3.5) - (tb.right - 1)) <= 1.5 && Math.abs((hb.top + 3.5) - (tb.bottom - 1)) <= 1.5; sel(0, 0); return ok; }), true);
+    const ok = Math.abs((hb.left + hb.width / 2) - (tb.right - 1)) <= 1.5 && Math.abs((hb.top + hb.height / 2) - (tb.bottom - 1)) <= 1.5; sel(0, 0); return ok; }), true);
   check('  セルの中の丸は出さない', await page.evaluate(() => getComputedStyle(document.getElementById('c0_0'), '::after').content), 'none');
   p = await ctr(0, 0, 0.93, 0.9);
   await page.mouse.move(p.x, p.y); await page.mouse.down();
   q = await ctr(3, 0); await page.mouse.move(q.x, q.y, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(300);
   check('  ● を引っぱるとフィル', await page.evaluate(() => [data[1][0], data[2][0], data[3][0]].join('/')), '12005/12005/12005');
   await page.evaluate(() => hideSeqBtn());
+  // v470：■ は角にまたがるので、選んだセルの外（下のとなりのセル）を押しても取っ手として引っぱれる
+  const keepB = await page.evaluate(() => [0, 1, 2, 3, 4, 5, 6].map(r => data[r][1]));
+  await page.evaluate(() => { for (let r = 1; r <= 6; r++) setCellVal(r, 1, ''); setCellVal(0, 1, '7'); sel(0, 1); });
+  await page.waitForTimeout(200);
+  p = await page.evaluate(() => { const b = document.getElementById('c0_1').getBoundingClientRect(); return { x: b.right + 6, y: b.bottom + 6 }; });
+  check('  となりのセルの上でも取っ手の範囲', await page.evaluate(([x, y]) => !document.getElementById('c0_1').contains(document.elementFromPoint(x, y)) && fillHandleHit(x, y), [p.x, p.y]), true);
+  // 行の高さの 1.6 倍だけ下へ引っぱる → 2行ぶん広がる（指の位置ではなく、セルの真ん中を動かした点で決める）
+  const rh = await page.evaluate(() => document.getElementById('c0_1').getBoundingClientRect().height);
+  await page.mouse.move(p.x, p.y); await page.mouse.down();
+  await page.mouse.move(p.x, p.y + rh * 1.6, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(300);
+  check('  となりから引っぱってもフィル・動かした分だけ広がる（1.6行 → 2行）', await page.evaluate(() => [1, 2, 3].map(r => data[r][1] || '空').join('/')), '7/7/空');
+  await page.evaluate(() => { hideSeqBtn(); for (let r = 1; r <= 6; r++) setCellVal(r, 1, ''); sel(0, 1); }); await page.waitForTimeout(200);
+  // 少しだけ（行の 0.3 倍）動かしても、次の行には広がらない
+  await page.mouse.move(p.x, p.y); await page.mouse.down();
+  await page.mouse.move(p.x, p.y + rh * 0.3, { steps: 4 }); await page.mouse.up(); await page.waitForTimeout(300);
+  check('  少し動かしただけでは広がらない', await page.evaluate(() => data[1][1] || '空'), '空');
+  // 押しただけ（動かさない）なら、となりのセルを選ぶ
+  await page.evaluate(() => sel(0, 1)); await page.waitForTimeout(500);
+  await page.mouse.click(p.x, p.y); await page.waitForTimeout(400);
+  check('  押しただけなら、ふつうに押したセル（右下のとなり）を選ぶ', await page.evaluate(() => selR + ',' + selC + '/' + (data[1][1] || '空')), '1,2/空');
+  await page.evaluate(k => { k.forEach((v, r) => setCellVal(r, 1, v)); sel(0, 0); }, keepB); await page.waitForTimeout(500);
   // 選んだセルの真ん中からなぞると範囲選択
   await page.evaluate(() => sel(0, 1));
   p = await ctr(0, 1); await page.mouse.move(p.x, p.y); await page.mouse.down();
