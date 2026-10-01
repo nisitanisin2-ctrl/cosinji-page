@@ -1289,6 +1289,50 @@ async function runKeys466(browser) {
   await ctx.close();
 }
 
+/* v477：連番のきまり（カスタム）。引っぱったあとの「🔢 連番」の横の「⚙ カスタム」で刻みを決める */
+async function runSeqCustom(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 連番のきまり（カスタム。v477） ──');
+  const fill = async (src, steps) => {
+    await page.evaluate(([src, steps]) => { for (let r = 0; r <= 8; r++) setCellVal(r, 0, ''); setCellVal(0, 0, src); sel(0, 0);
+      fillSrcR = 0; fillSrcC = 0; fillEndR = steps; fillEndC = 0; commitFill(); }, [src, steps]);
+    await page.waitForTimeout(200);
+  };
+  const col = n => page.evaluate(n => Array.from({ length: n }, (_, r) => data[r][0]).join(','), n);
+  await fill('100', 4);
+  check('  引っぱると 連番 と カスタム が並んで出る', await page.evaluate(() => {
+    const b = document.getElementById('seqBar'); return b.classList.contains('show') + '/' + [...b.querySelectorAll('button')].map(x => x.textContent.trim()).join('|'); }), 'true/🔢 連番 1,2,3…|⚙ カスタム');
+  await page.evaluate(() => document.getElementById('seqCustomBtn').click()); await page.waitForTimeout(400);
+  check('  カスタムで窓が開く・はじめの数が出る', await page.evaluate(() => isDlgOpen('seqCustomOverlay') + '/' + document.getElementById('seqCuStart').textContent + '/' + document.getElementById('seqBar').classList.contains('show')), 'true/100/false');
+  await page.evaluate(() => { const i = document.getElementById('seqCuStep'); i.value = '10'; renderSeqCustom(); });
+  check('  入るものを先に見せる', await page.evaluate(() => document.getElementById('seqCuPrev').textContent), '100, 110, 120, 130, 140');
+  check('  +10 のボタンに印', await page.evaluate(() => document.querySelector('#seqCuChips .on').dataset.v), '10');
+  await page.evaluate(() => applySeqCustom()); await page.waitForTimeout(400);
+  check('  10 ずつの連番になる', await col(5), '100,110,120,130,140');
+  check('  決めた刻みを覚える', await page.evaluate(() => localStorage.getItem('excalc_seq_step')), '10');
+  // マイナス・小数・全角
+  await fill('5', 3); await page.evaluate(() => openSeqCustom()); await page.waitForTimeout(300);
+  check('  次に開くと前の刻みが入っている', await page.evaluate(() => document.getElementById('seqCuStep').value), '10');
+  await page.evaluate(() => { document.getElementById('seqCuStep').value = '－２'; renderSeqCustom(); applySeqCustom(); }); await page.waitForTimeout(300);
+  check('  マイナス（全角も）で減らせる', await col(4), '5,3,1,-1');
+  await fill('1.5', 2); await page.evaluate(() => { openSeqCustom(); document.getElementById('seqCuStep').value = '0.25'; renderSeqCustom(); applySeqCustom(); }); await page.waitForTimeout(300);
+  check('  小数の刻み（はしたの数のずれが出ない）', await col(3), '1.5,1.75,2');
+  // 文字つきの数
+  await fill('No.08', 2); await page.evaluate(() => { openSeqCustom(); document.getElementById('seqCuStep').value = '5'; renderSeqCustom(); applySeqCustom(); }); await page.waitForTimeout(300);
+  check('  文字つきの数も（けた数をそろえる）', await col(3), 'No.08,No.13,No.18');
+  // 0 や文字は入れられない
+  await fill('1', 2); await page.evaluate(() => { openSeqCustom(); document.getElementById('seqCuStep').value = '0'; renderSeqCustom(); });
+  check('  0 や数でないものは入れるボタンが押せない', await page.evaluate(() => document.getElementById('seqCuOk').disabled), true);
+  await page.evaluate(() => closeSeqCustom()); await page.waitForTimeout(300);
+  check('  やめると元のまま（同じ数のコピー）', await col(3), '1,1,1');
+  // ふつうの 連番 はこれまでどおり1ずつ
+  await fill('7', 2); await page.evaluate(() => document.getElementById('seqBtn').click()); await page.waitForTimeout(300);
+  check('  連番ボタンはこれまでどおり1ずつ', await col(3), '7,8,9');
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 /* 野菜の育成計画（種まきの日から予定日とカレンダーを出す道具） */
 async function runVeggie(browser) {
   const { ctx, page, errs } = await newPage(browser);
@@ -8710,6 +8754,7 @@ async function runQrShare(browser) {
     if (!only || only === 'flicksym') await runFlickSym(browser);
     if (!only || only === 'nptools') await runNpTools(browser);
     if (!only || only === 'keys466') await runKeys466(browser);
+    if (!only || only === 'seqcustom') await runSeqCustom(browser);
     if (!only || only === 'veggie') await runVeggie(browser);
     if (!only || only === 'report') await runReport(browser);
     if (!only || only === 'shared') await runShared(browser);
