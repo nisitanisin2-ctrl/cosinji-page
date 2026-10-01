@@ -1376,6 +1376,7 @@ body.kb-edit { grid-template-columns: 1fr !important; }
 #fillHandle { position: absolute; width: 7px; height: 7px; background: var(--acc); z-index: 1;
   box-shadow: 0 0 0 1px var(--sheet-cell-bg, var(--cell-bg)); pointer-events: none; display: none; }
 body.cg-excel #fillHandle.on { display: block; }
+@media (pointer: coarse) { #fillHandle { width: 10px; height: 10px; } }   /* 指で使う画面では少し大きく（v470） */
 body.fill-active #fillHandle { display: none; }
 .cell-menu button:active { background: var(--cell-border); }
 /* フィル後の連番ボタン */
@@ -1730,12 +1731,6 @@ body.numpad-off .numpad-pagebar { display: none; }
 .np-page:hover { background: var(--kp-veil); color: var(--kp-ink); }
 .np-page.on { background: var(--acc); color: var(--on-acc); }
 .np-page.np-axis { margin-left: auto; background: var(--kp-veil2); color: var(--kp-sub2); }
-/* 🧰 道具ボタン（v462）：ページ名の並びの右寄り。どの画面でもワンタッチで道具の窓を開く。目立つ色 */
-.numpad-pagebar .np-page.np-toolsbtn { margin-left: auto; position: sticky; right: 0; z-index: 1; padding: 3px 11px; font-size: 12px;
-  background: #f57c00; color: #fff; box-shadow: -8px 0 8px -4px var(--kp-bg); }
-.numpad-pagebar .np-page.np-toolsbtn:hover { background: #ef6c00; color: #fff; }
-.numpad-pagebar .np-page.np-toolsbtn + .np-page.np-axis { margin-left: 4px; }
-body.compact .np-page.np-toolsbtn { padding: 2px 9px; }
 .np-page.np-axis:hover { background: var(--kp-veil); }
 /* テンキー：数字ページ(標準)は通常表示。関数電卓／関数記号／登録ページは
    数字ページの上に重なってスライドインするオーバーレイ（フリックで開閉） */
@@ -1879,7 +1874,7 @@ body.calc-only #numpadPageSci .btn[data-key="dk_dec"] { grid-column: span 2; }
 .btn.op:hover { background: var(--acc); }
 .btn.clr    { background: var(--danger-dark); }
 .btn.clr:hover { background: var(--danger); }
-/* 🧰道具のキー（v466）。ひな形のあった場所。どの道具もここから。上の 🧰道具ボタンと同じだいだい色 */
+/* 🧰道具のキー（v466）。ひな形のあった場所。どの道具もここから。目立つだいだい色 */
 .btn.kp-tools { background: #e65100; }
 .btn.kp-tools:hover { background: #f57c00; }
 .btn.enter  { background: #1a5276; grid-row: span 2; font-size: calc(22px * var(--key-scale, 1.3));
@@ -4048,7 +4043,7 @@ body.dark {
     </details>
     <details class="set-sub">
       <summary>🧮 電卓だけにする<small>テンキーを電卓のページに止める</small></summary>
-    <div class="set-note">テンキーを<b>電卓のページから動かないように</b>します。<b>書式・枠線／数字／記号／登録</b>へは行かなくなり、フリックしても切り替わりません。かんたんな電卓として人に渡すときに使えます。<br><b>道具（🌱野菜・💧単位水量など）は、🧰道具ボタンから開けます</b>。<br>表は使えなくなるので、<b>▦表へ</b>のキーは隠れます。ここをもう一度押せばいつでも戻せます。</div>
+    <div class="set-note">テンキーを<b>電卓のページから動かないように</b>します。<b>書式・枠線／数字／記号／登録</b>へは行かなくなり、フリックしても切り替わりません。かんたんな電卓として人に渡すときに使えます。<br><b>道具（🌱野菜・💧単位水量など）は、☰ → 🧰道具 から開けます</b>。<br>表は使えなくなるので、<b>▦表へ</b>のキーは隠れます。ここをもう一度押せばいつでも戻せます。</div>
     <button class="set-act" id="calcOnlyBtn" onclick="toggleCalcOnly()" title="テンキーを電卓のページに固定します">🧮 電卓だけにする</button>
     </details>
     <details class="set-sub">
@@ -4069,22 +4064,19 @@ body.dark {
     </details>
     <details class="set-sub" id="toolsBtnSec">
       <summary>🧰 道具の窓に出す道具<small>☐ にした道具は窓の下に隠す</small></summary>
-    <div class="set-note"><b>🧰道具</b>の窓（☰ メニュー・🏠ホーム・🧰道具ボタンから開くもの）に並べる道具を選びます。<b>☐ にした道具</b>は、窓のいちばん下の「<b>隠している道具</b>」に入ります（そこからも開けます）。はじめは🛏部屋割り・🏨案内ページを隠しています。</div>
+    <div class="set-note"><b>🧰道具</b>の窓（☰ メニュー・🏠ホーム・テンキーの 🧰道具 キーから開くもの）に並べる道具を選びます。<b>☐ にした道具</b>は、窓のいちばん下の「<b>隠している道具</b>」に入ります（そこからも開けます）。はじめは🛏部屋割り・🏨案内ページを隠しています。</div>
     <div class="nptool-list" id="toolsBtnList"></div>
     </details>
       </div>
     </details>
     <details class="set-grp" id="setGrpScreen" ontoggle="saveSetGrp(this)">
-      <summary><span class="set-grp-ic">📱</span><span class="set-grp-t"><b>画面</b><small>はじめに開くページ・道具ボタン・吹き出し・画面の詰め方</small></span></summary>
+      <summary><span class="set-grp-ic">📱</span><span class="set-grp-t"><b>画面</b><small>はじめに開くページ・吹き出し・画面の詰め方</small></span></summary>
       <div class="set-grp-body">
     <div class="set-sec">はじめに開くページ</div>
     <div class="set-row">
       <span class="set-label">アプリを開いたとき<small>次に開いたときから効きます</small></span>
       <select class="fmt-select" id="startPageSel" onchange="setStartPage(this.value)" style="flex-shrink:0"></select>
     </div>
-    <div class="set-sec">🧰 道具ボタン</div>
-    <div class="set-note">テンキーの上の並びの右に、<b>🧰 道具</b>ボタンを目立つ色で出します。押すと、どの画面からでも道具の窓が開きます。道具を<b>ホーム画面のアイコン</b>にしたいときは、道具の窓のいちばん下の「📱 道具をホーム画面のアイコンにする」から。</div>
-    <div class="skin-seg" id="toolsFabSeg"><button class="skin-seg-btn" data-f="1" onclick="setToolsFab(true)">出す</button><button class="skin-seg-btn" data-f="0" onclick="setToolsFab(false)">出さない</button></div>
     <div class="set-sec">道具の使い方の吹き出し</div>
     <div class="set-note">道具を<b>はじめて開いたとき</b>に、使い方を1つだけ吹き出しで出します（1つの道具に1回だけ）。</div>
     <div class="skin-seg" id="toolHintSeg"><button class="skin-seg-btn" data-h="1" onclick="setToolHints(true);renderToolHintSeg()">出す（もう一度はじめから）</button><button class="skin-seg-btn" data-h="0" onclick="setToolHints(false);renderToolHintSeg()">出さない</button></div>
@@ -7197,8 +7189,9 @@ function updateFillHandle(){
   const td=document.getElementById(`c${selR}_${selC}`), wrap=h.parentElement;
   if(cellGesture!=='excel' || !td || !td.offsetParent || !wrap){ h.classList.remove('on'); return; }
   const t=td.getBoundingClientRect(), w=wrap.getBoundingClientRect();
-  h.style.left=(t.right-w.left+wrap.scrollLeft-4.5)+'px';   // 四角の真ん中を枠の線の角に
-  h.style.top=(t.bottom-w.top+wrap.scrollTop-4.5)+'px';
+  const hs=(parseFloat(getComputedStyle(h).width)||7)/2;
+  h.style.left=(t.right-w.left+wrap.scrollLeft-hs)+'px';   // 四角の真ん中を枠の線の角に
+  h.style.top=(t.bottom-w.top+wrap.scrollTop-hs)+'px';
   h.classList.add('on');
 }
 function applyCellGesture(){
@@ -8988,6 +8981,15 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v471', t:'右下の ■ をつかみやすく', li:[
+    'スマホ・タブレットでは、右下の <b>■ を押したとみなす範囲</b>を広げました（セルの内側は右下の約半分、外側は角から約30pxまで）。少しずれたところを押しても引っぱれます' ]},
+  { v:'v470', t:'右下の ■ で引っぱるコピーを、思ったとおりに', li:[
+    '選んだセルの右下の <b>■</b> は、セルの<b>外側（右下のとなり）を押しても</b>つかめるようにしました。■ の大きさも指で使う画面では少し大きくしました',
+    '引っぱったときは、<b>セルを動かした分だけ</b>広がるようにしました（指を置いた位置ではなく、セルの真ん中を動かした分で決めます）。セルの半分以上動かすと1つ広がるので、思ったより1つ先までコピーされることがなくなります',
+    '表の下（上・横）の端より外へ指を出すと、<b>表を送りながら</b>伸ばせます' ]},
+  { v:'v469', t:'テンキーの上の並びから 🧰道具 ボタンをなくしました', li:[
+    'テンキーの上のページ名の並びの右にあった、オレンジの <b>🧰 道具</b> ボタンをなくし、⚙設定の「🧰 道具ボタン」も外しました',
+    '道具は、テンキーの左上の <b>🧰道具</b> キーか、<b>☰ → 🧰道具</b> から開けます' ]},
   { v:'v468', t:'🔐サブスク管理表でパスワードマネージャーが出ないように', li:[
     '🔐サブスク管理表のパスワードの欄（ログインのパスワード・閲覧用のパスワード）で、<b>端末のパスワードマネージャー</b>（iPhone のキーチェーン・Google パスワードマネージャーなど）が出てこないようにしました',
     '入れた文字は今までどおり <b>●●●</b> で隠れます。👁 で見る・🎲 で作る もそのままです' ]},
@@ -10584,7 +10586,7 @@ const TOUR_PAGES=[
     ex:'テンキーの上の<b>「数字」「電卓」</b>を押すと切りかわります。画面を<b>横にスッとなぞって</b>も移れます。' },
   { ico:'👆', h:'表の操作は Excel と同じです',
     b:'セルを<b>タップ</b>で選び、<b>テンキー</b>で数字を打って <b>Enter</b>。',
-    ex:'<b>ダブルタップ</b> … 中身を直す（切り取り・コピー・貼り付けもここ）<br><b>右下の ■ を引っぱる</b> … 下や横へコピー<br><b>選んだセルからなぞる</b> … 範囲を選ぶ<br><b>行番号・列名を長押し</b> … 行や列を足す・消す<br><b>＝数式</b> … 数式を入れる　<b>あ文字</b> … 文字を入れる'},
+    ex:'<b>ダブルタップ</b> … 中身を直す（切り取り・コピー・貼り付けもここ）<br><b>右下の ■ を引っぱる</b> … 下や横へコピー<br><b>選んだセルからなぞる</b> … 範囲を選ぶ<br><b>行番号・列名を長押し</b> … 行や列を足す・消す<br><b>＝数式</b> … 数式を入れる'},
   { ico:'🎤', h:'口で言うだけでも計算できます',
     b:'<b>🎤声</b>のキーを押して、ふだんのことばで言うだけです。',
     ex:'「<b>180円を4個</b>」→ 720円<br>「<b>20平米に厚さ10センチ</b>」→ 2㎥<br>「<b>12800円を4人で割って</b>」→ 3,200円<br><b>📖言い方の早見表</b>に、言える形が63とおり並んでいます。' },
@@ -14574,7 +14576,6 @@ function renderNumpadPageBar(){
   const html=row.map(([k,label])=>
       '<button class="np-page'+(k===cur?' on':'')+'" role="tab" aria-selected="'+(k===cur)+'"'+
       ' data-np="'+(k===null?'':k)+'">'+label+'</button>').join('')
-    + (toolsFabOn() ? '<button class="np-page np-toolsbtn" data-np-tools="1" aria-label="道具を開く">🧰 道具</button>' : '')
     + ((calcOnly||uiEasy) ? '' : '<button class="np-page np-axis" data-np="'+(axis[0]===null?'':axis[0])+'">'+axis[1]+'</button>');
   if(bar.dataset.html!==html){ bar.innerHTML=html; bar.dataset.html=html; }
 }
@@ -14585,7 +14586,6 @@ function renderNumpadPageBar(){
   loadToolsBtn(); renderToolsBtnList();
   bar.addEventListener('click', e=>{
     const b=e.target.closest && e.target.closest('.np-page'); if(!b) return;
-    if(b.dataset.npTools){ openToolsList(); return; }               // 🧰 道具ボタン（v462）
     if(!numpadPager) return;
     numpadPager.go(b.dataset.np===''?null:b.dataset.np);
   });
@@ -20509,14 +20509,6 @@ function addToolBack(t, ov){
   b.innerHTML='<span class="hdr-back-ar">←</span>'+(window.APP_TOOL===t.id?'表電卓':'もどる');
   b.title=window.APP_TOOL===t.id?'表電卓の画面へ':'閉じて前の画面にもどる';
 }
-/* ── 🧰 道具ボタン（v462）：テンキーの上の並びの右に、目立つ色で。⚙で出す／出さない ── */
-function toolsFabOn(){ try{ return localStorage.getItem('excalc_toolsfab')!=='0'; }catch(_){ return true; } }
-function setToolsFab(on){
-  try{ localStorage.setItem('excalc_toolsfab', on?'1':'0'); }catch(_){}
-  renderNumpadPageBar(); renderToolsFabSeg();
-  toast(on?'テンキーの上に 🧰道具 ボタンを出します':'🧰道具 ボタンを隠しました（☰ → 🧰道具 からも開けます）');
-}
-function renderToolsFabSeg(){ document.querySelectorAll('#toolsFabSeg button').forEach(b=>b.classList.toggle('on', b.dataset.f===(toolsFabOn()?'1':'0'))); }
 /* ── 道具をホーム画面のアイコンにする（v462） ──
    道具ごとに apps/〇〇/（業務手帳は techo/）を開き、そこからホーム画面に追加してもらう。
    別のアプリの道具（メモ・会計・声の計算帳・英単語）は、それぞれのページから追加する */
@@ -20919,7 +20911,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v468';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v471';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -21702,11 +21694,61 @@ let lpFromActive=false;   // 選択中(アクティブ)セルから押し始め�
 let rangeDragging=false;  // スライドで範囲選択中
 let lpFillTimer=null, lpMenuTimer=null;
 const LP_FILL_MS=550, LP_MENU_MS=1000, LP_MOVE_TOL=8;
-/* 選んだセルの右下の ■ （フィルの取っ手）の上か。指で押しやすいよう、見た目より広めにとる */
+/* 選んだセルの右下の ■ （フィルの取っ手）の上か。指で押しやすいよう、見た目より広めにとる。
+   v470：■ は枠の角にまたがっているので、セルの外側（右・下のとなりのセル）を押しても取っ手とみなす */
+/* 指で押すときは、マウスより広くとる（v471）。指は ■ より大きく、押したところも少しずれるため */
+const FILL_HIT={ touch:{ inMax:40, inW:0.5, inH:0.9, out:30 }, mouse:{ inMax:26, inW:0.45, inH:0.7, out:16 } };
+let fillPressTouch=false;   // いまの押し始めが指か（touchstart で true、mousedown で false）
 function onFillHandle(r,c,x,y){
   const td=document.getElementById(`c${r}_${c}`); if(!td) return false;
-  const b=td.getBoundingClientRect(), k=Math.min(26, b.width*0.45, b.height*0.7);
-  return x>=b.right-k && x<=b.right+6 && y>=b.bottom-k && y<=b.bottom+6;
+  const h=fillPressTouch ? FILL_HIT.touch : FILL_HIT.mouse;
+  const b=td.getBoundingClientRect(), kx=Math.min(h.inMax, b.width*h.inW), ky=Math.min(h.inMax, b.height*h.inH);   // 横と縦は別々に（セルは横長なので）
+  return x>=b.right-kx && x<=b.right+h.out && y>=b.bottom-ky && y<=b.bottom+h.out;
+}
+/* 押した点が、選んでいるセルの取っ手の上か（となりのセルを押していても） */
+function fillHandleHit(x,y){
+  return cellGesture==='excel' && selR>=0 && selC>=0 && rangeR1<0 && onFillHandle(selR,selC,x,y);
+}
+/* フィルの行き先は、指の位置そのものではなく「元のセルの真ん中を、指が動いた分だけ動かした点」で決める（v470）。
+   ■ は角にあるので、指の位置で決めると少し動いただけで次の行・列に入り、思ったより1つ先までコピーされていた。
+   セルの半分以上動かすと1つ広がる。表の端より外へ指を出すと、表を送りながら伸ばす */
+let fillProbe=null, fillScrollRaf=0, fillLastX=0, fillLastY=0;
+function fillProbeStart(r,c,x,y){
+  const td=document.getElementById(`c${r}_${c}`); if(!td){ fillProbe=null; return; }
+  const b=td.getBoundingClientRect(), w=document.querySelector('.sheet-wrap');
+  fillProbe={ cx:b.left+b.width/2, cy:b.top+b.height/2, x0:x, y0:y, sl:w?w.scrollLeft:0, st:w?w.scrollTop:0 };
+}
+function fillProbePoint(x,y){
+  const w=document.querySelector('.sheet-wrap');
+  if(!fillProbe || !w) return {x, y, ox:0, oy:0};
+  // 画面の上の点で決めるので、表を送ると同じ点の下にあるセルが先へ進み、そのぶん伸びる
+  let px=fillProbe.cx+(x-fillProbe.x0), py=fillProbe.cy+(y-fillProbe.y0);
+  const wb=w.getBoundingClientRect();
+  const head=document.querySelector('#sheet thead'), hb=head?head.getBoundingClientRect():null;
+  const top=Math.max(wb.top, hb?hb.bottom:wb.top)+2, bottom=wb.bottom-2, left=wb.left+2, right=wb.right-2;
+  // 指が表の外へ出たら、その分だけ表を送る（指の位置で見る）
+  const ox = x>right ? x-right : x<left ? x-left : 0;
+  const oy = y>bottom ? y-bottom : y<top ? y-top : 0;
+  px=Math.max(left, Math.min(right, px)); py=Math.max(top, Math.min(bottom, py));
+  return {x:px, y:py, ox, oy};
+}
+function fillDragTo(x,y){
+  fillLastX=x; fillLastY=y;
+  const p=fillProbePoint(x,y);
+  fillUpdateTo(p.x, p.y);
+  if((p.ox||p.oy) && !fillScrollRaf) fillScrollRaf=requestAnimationFrame(fillAutoScroll);
+}
+function fillAutoScroll(){
+  fillScrollRaf=0;
+  if(!fillMode || !lpMoved) return;
+  const w=document.querySelector('.sheet-wrap'); if(!w) return;
+  const p=fillProbePoint(fillLastX, fillLastY);
+  if(!p.ox && !p.oy) return;
+  const sp=v=>Math.sign(v)*Math.min(24, 3+Math.abs(v)*0.4);
+  const bl=w.scrollLeft, bt=w.scrollTop;
+  w.scrollLeft+=p.ox?sp(p.ox):0; w.scrollTop+=p.oy?sp(p.oy):0;
+  fillUpdateTo(p.x, p.y);
+  if(w.scrollLeft!==bl || w.scrollTop!==bt) fillScrollRaf=requestAnimationFrame(fillAutoScroll);
 }
 function lpClearTimers(){ clearTimeout(lpFillTimer); clearTimeout(lpMenuTimer); lpFillTimer=lpMenuTimer=null; }
 function lpSetArmVisual(cls){
@@ -21722,10 +21764,10 @@ function startCellPress(r,c,x,y){
   if(cellGesture==='excel'){
     // Excel と同じ：選んだセルの右下の ■ から引っぱるとフィル
     // メニューは長押しでは出さず、ダブルタップで直すときにキーボード（テンキー）の上に出す
-    if(lpFromActive && onFillHandle(r,c,x,y)){ fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; }
+    if(lpFromActive && onFillHandle(r,c,x,y)){ fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; fillProbeStart(r,c,x,y); }
     return;
   }
-  lpFillTimer=setTimeout(()=>{ lpFillTimer=null; if(!lpMoved){ fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; } }, LP_FILL_MS);
+  lpFillTimer=setTimeout(()=>{ lpFillTimer=null; if(!lpMoved){ fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; fillProbeStart(r,c,x,y); } }, LP_FILL_MS);
   lpMenuTimer=setTimeout(()=>{ lpMenuTimer=null; if(lpMoved) return; lpStage=2; lpSetArmVisual('setgs-arm'); if(navigator.vibrate){try{navigator.vibrate(20);}catch(_){}} }, LP_MENU_MS);
 }
 function moveCellPress(x,y){
@@ -21747,7 +21789,7 @@ function moveCellPress(x,y){
       }
     }
   }
-  if(fillMode && lpMoved){ fillUpdateTo(x,y); return true; }
+  if(fillMode && lpMoved){ fillDragTo(x,y); return true; }
   if(rangeDragging && lpMoved){ rangeDragUpdateTo(x,y); return true; }
   return false;
 }
@@ -21762,6 +21804,8 @@ function endCellPress(){
   const stage=lpStage, moved=lpMoved, r=lpR, c=lpC;
   lpClearTimers(); lpClearArmVisual();
   lpR=lpC=-1; lpStage=0; lpMoved=false;
+  if(fillScrollRaf){ cancelAnimationFrame(fillScrollRaf); fillScrollRaf=0; }
+  fillProbe=null;
   if(fillMode && moved){ fillJustCommitted=true; commitFill(); return; }   // ドラッグ＝フィル確定
   if(rangeDragging && moved){ rangeDragging=false; fillJustCommitted=true; if(cellGesture==='excel') showEditBar(true); return; }   // スライド＝範囲選択を確定（次のclickを1回無効化）。v418：帯を出す
   rangeDragging=false;
@@ -21772,6 +21816,8 @@ function endCellPress(){
 }
 function cancelCellPress(){
   lpClearTimers(); lpClearArmVisual();
+  if(fillScrollRaf){ cancelAnimationFrame(fillScrollRaf); fillScrollRaf=0; }
+  fillProbe=null;
   if(fillMode){ clearFillPreview(); const el=document.getElementById(`c${fillSrcR}_${fillSrcC}`); if(el) el.classList.remove('fill-src'); document.body.classList.remove('fill-active'); }
   fillMode=false; fillSrcR=fillSrcC=fillEndR=fillEndC=-1;
   lpR=lpC=-1; lpStage=0; lpMoved=false; rangeDragging=false;
@@ -21854,8 +21900,13 @@ function fillAsSequence(){
   if(srcFmt) persistModes();
   hideSeqBtn();
 }
-document.getElementById('sheet').addEventListener('touchstart',e=>{
-  const td=e.target.closest&&e.target.closest('.cell'); if(!td) return;
+document.querySelector('.sheet-wrap').addEventListener('touchstart',e=>{
+  // 選んだセルの右下の ■ の近くなら、となりのセルや表の外を押していても、選んだセルからのフィルにする（v470）
+  fillPressTouch=true;
+  if(e.touches.length===1 && !sumSelectMode && fillHandleHit(e.touches[0].clientX, e.touches[0].clientY)){
+    startCellPress(selR,selC,e.touches[0].clientX,e.touches[0].clientY); return;
+  }
+  const td=e.target.closest&&e.target.closest('#sheet .cell'); if(!td) return;
   const m=td.id.match(/^c(\d+)_(\d+)$/); if(!m) return;
   const r=parseInt(m[1]),c=parseInt(m[2]);
   if(sumSelectMode){ sumPending=true; sumDragging=false; sumStartR=r; sumStartC=c; sumDownX=e.touches[0].clientX; sumDownY=e.touches[0].clientY; return; }
@@ -21920,12 +21971,15 @@ document.addEventListener('mouseup',e=>{ if(sumSelectMode) sumPointerUp(e); });
 
 /* マウス(PC)でのセル長押し操作（タッチと共通の startCellPress/moveCellPress/endCellPress）：
    長くクリック→動かせばフィル、動かさず保持で保護（さらに長く保持で設定） */
-document.getElementById('sheet').addEventListener('mousedown',e=>{
+document.querySelector('.sheet-wrap').addEventListener('mousedown',e=>{
   fillJustCommitted=false;                           // 新しい操作の開始で、前回の抑止フラグを解除
   if(sumSelectMode) return;                          // Σ指定中はそちらを優先
   if(e.button!==undefined && e.button>0) return;     // 左ボタンのみ
   if(formulaEditMode) return;                        // 数式編集中は無効
-  const td=e.target.closest&&e.target.closest('.cell'); if(!td) return;
+  if(lpR>=0) return;                                  // 指の操作の続き（あとから来るマウスのまねの出来事）は見送る
+  fillPressTouch=false;
+  if(fillHandleHit(e.clientX,e.clientY)){ startCellPress(selR,selC,e.clientX,e.clientY); return; }   // ■ の近く（v470）
+  const td=e.target.closest&&e.target.closest('#sheet .cell'); if(!td) return;
   const m=td.id.match(/^c(\d+)_(\d+)$/); if(!m) return;
   startCellPress(parseInt(m[1]),parseInt(m[2]),e.clientX,e.clientY);
 });
@@ -22741,7 +22795,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_show_sheettabs','excalc_skin','excalc_speechauto','excalc_speechlayout','excalc_speechspeak','excalc_startpage',
   'excalc_sumfunc','excalc_taxrate','excalc_tbfold','excalc_toolsbtn_hide','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
   'excalc_ts_warn','excalc_userkeys',
-  'excalc_uimode','excalc_tool_fav','excalc_tool_hints','excalc_toolsfab',   // v460〜v462
+  'excalc_uimode','excalc_tool_fav','excalc_tool_hints',   // v460〜v462
 ];
 function settingsBundle(){
   const o={};
@@ -23318,7 +23372,7 @@ loadDtDec(); dtDecSync();   // 電卓の答えの桁の決まりを復元
 loadStartPage();
 renderStartPage();
 renderToolHintSeg();
-renderToolsFabSeg();
+try{ localStorage.removeItem('excalc_toolsfab'); }catch(_){}   // v469：ページ名の並びの 🧰道具 ボタンはなくした
 ezSync();
 setTimeout(()=>{ try{ applyStartPage(); }catch(_){} }, 0);
 

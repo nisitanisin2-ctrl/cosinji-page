@@ -1085,7 +1085,7 @@ async function runFlickSym(browser) {
 
   // ── 記号ページの表示・非表示 ──
   const bar = () => page.evaluate(() =>
-    [...document.querySelectorAll('#numpadPageBar .np-page:not(.np-toolsbtn)')].map(b => b.textContent.trim()).join('|'));
+    [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|'));
   check('  はじめは記号ページを隠す（v467）', await bar(), '書式・枠線|数字|電卓|▲ 自分のボタン');
   check('  設定のボタンは「出していない」', await page.evaluate(() => document.getElementById('funcPageBtn').classList.contains('on')), false);
   const vp = await page.evaluate(() => {
@@ -1167,7 +1167,7 @@ async function runNpTools(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 道具の一覧（テンキーの上に出す道具はなし） ──');
   const bar = () => page.evaluate(() =>
-    [...document.querySelectorAll('#numpadPageBar .np-page:not(.np-toolsbtn)')].map(b => b.textContent.trim()).join('|'));
+    [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|'));
 
   check('  ページ名の並びに道具のタブは出ない', await bar(), '書式・枠線|数字|電卓|▲ 自分のボタン');
   check('  設定に「テンキーの上に出す道具」は無い', await page.evaluate(() =>
@@ -2385,6 +2385,8 @@ async function runTmplUnit(browser) {
 async function runVegDiary(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 育成日記 ──');
+  // 「今日から数日前」の書き込みを同じ月のカレンダーで見るので、月の半ばの日に止めて流す（月の初めに流すと前の月に出てしまう）
+  await page.clock.install({ time: new Date('2026-09-20T10:00:00') }); await page.clock.resume(); await page.reload(); await page.waitForTimeout(900);
   await page.evaluate(() => openVeggie()); await page.waitForTimeout(300);
 
   // ── 苗から始められる野菜が増えた ──
@@ -2569,6 +2571,7 @@ async function runVegDiary(browser) {
     const th = await vegDiaryThumb(p);
     const id = vegPlots[0].id;
     vegDiary[id] = vegDiaryOf(id).concat([{ id: 'ph1', d: todaySerial() - 2, t: '外葉', p, th }]);
+    { const t = serialToYMD(todaySerial() - 2); vegCalY = t.y; vegCalM = t.m; }   // 月の初めは2日前が前の月になるので、その月を出す
     saveVegDiary(); vegRenderCal();
     const c = [...document.querySelectorAll('#vegGrid .dp-photo')];
     const cs = c.length ? getComputedStyle(c[0]) : null;
@@ -2709,7 +2712,7 @@ async function runVegDiary(browser) {
     return n.length + '/' + (n[0] ? n[0].textContent : ''); }), '1/結球がはじまった');
   check('  日づけは小さく上にのる', await page.evaluate(() => {
     const c = document.querySelector('#vegGrid .dp-log');
-    return c ? c.querySelector('.dp-n').textContent : 'マスなし'; }), String(new Date().getDate()));
+    return c ? c.querySelector('.dp-n').textContent : 'マスなし'; }), String(await page.evaluate(() => new Date().getDate())));
   check('  マスの説明にも全部入る', await page.evaluate(() => {
     const c = document.querySelector('#vegGrid .dp-log');
     return !!c && /結球がはじまった/.test(c.title); }), true);
@@ -4132,7 +4135,7 @@ async function runOnboard(browser) {
   await page.evaluate(() => tourGo(1)); await page.waitForTimeout(200);
   check('  つぎへで進む（2枚目は操作）', await head(), '表の操作は Excel と同じです');
   check('  ダブルタップ・右下の ● などの操作が書いてある', await page.evaluate(() => {
-    const t = document.querySelector('.tour-ex').textContent; return ['ダブルタップ', '右下の ■', 'なぞる', '長押し', '＝数式', 'あ文字'].every(w => t.includes(w)); }), true);
+    const t = document.querySelector('.tour-ex').textContent; return ['ダブルタップ', '右下の ■', 'なぞる', '長押し', '＝数式'].every(w => t.includes(w)); }), true);
   await page.evaluate(() => tourGo(1)); await page.waitForTimeout(200);
   check('  3枚目は声', await head(), '口で言うだけでも計算できます');
   check('  言い方の見本が出る', await page.evaluate(() =>
@@ -4488,7 +4491,7 @@ async function runCalcOnly(browser) {
   };
   const cur = () => page.evaluate(() => numpadPager.current());
   const tabs = () => page.evaluate(() =>
-    [...document.querySelectorAll('#numpadPageBar .np-page:not(.np-toolsbtn)')].map(x => x.textContent).join('/'));
+    [...document.querySelectorAll('#numpadPageBar .np-page')].map(x => x.textContent).join('/'));
   const closeTools = async () => { await page.evaluate(() => {
     if (isDlgOpen('veggieOverlay')) closeVeggie();
     if (isDlgOpen('tansuiOverlay')) closeTansui(); }); await page.waitForTimeout(500); };
@@ -4547,13 +4550,14 @@ async function runCalcOnly(browser) {
   check('  上フリック（登録）でも動かない', await cur(), 'sci');
   check('  表モードにもならない', await page.evaluate(() => document.body.classList.contains('dentaku-mode')), true);
 
-  // 左フリックでも動かない（道具も開かない。v466）。道具は 🧰道具ボタンから開ける
+  // 左フリックでも動かない（道具も開かない。v466）。道具は ☰ → 🧰道具 から開ける
   await swipe(-220, 0);
   check('  左フリックでも動かない', await cur(), 'sci');
   check('  左フリックで道具は開かない', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).length), 0);
-  await page.evaluate(() => { const b = document.querySelector('#numpadPageBar .np-toolsbtn'); if (b) b.click(); });
+  check('  ページ名の並びに 🧰道具 ボタンは無い', await page.evaluate(() => !document.querySelector('#numpadPageBar .np-toolsbtn')), true);
+  await page.evaluate(() => openToolsList());
   await page.waitForTimeout(700);
-  check('  🧰道具ボタンから道具の窓が開く', await page.evaluate(() => isDlgOpen('toolsListOverlay')), true);
+  check('  ☰ の 🧰道具 からは道具の窓が開く', await page.evaluate(() => isDlgOpen('toolsListOverlay')), true);
   await page.evaluate(() => closeToolsList()); await page.waitForTimeout(500);
   await closeTools();
 
@@ -5849,7 +5853,8 @@ async function runTouban(browser) {
   check('  カレンダーに名前が入る', await page.evaluate(() =>
     [...document.querySelectorAll('#tbMonths .tb-nm')].filter(e => e.textContent).length > 30), true);
 
-  // 手で直す
+  // 手で直す（最初の当番日は4月なので、上期を出してから。下期の月に開くと下期が出ているため）
+  await page.evaluate(() => tbSetHalf('H1')); await page.waitForTimeout(400);
   await page.evaluate(() => {
     const k = Object.keys(touban.assign).sort()[0];
     const inp = document.querySelector('#tbMonths .tb-cell[data-d="' + k + '"] .tb-no');
@@ -7534,7 +7539,7 @@ async function runUiMode(browser) {
   check('  はじめての人は かんたん', await page.evaluate(() => uiEasy + '/' + localStorage.getItem('excalc_uimode') + '/' + document.body.classList.contains('ui-easy')), 'true/easy/true');
   await page.evaluate(() => { tourSkip(); }); await page.waitForTimeout(700);
   await page.evaluate(() => { closeHome(); try { hideNotice(); } catch (_) {} }); await page.waitForTimeout(400);
-  const bar = () => page.evaluate(() => [...document.querySelectorAll('#numpadPageBar .np-page:not(.np-toolsbtn)')].map(b => b.textContent.trim()).join('|'));
+  const bar = () => page.evaluate(() => [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|'));
   check('  かんたん：テンキーのページは 数字と電卓だけ', await bar(), '数字|電卓');
   // 横になぞる（ホイール）：数字⇄電卓だけ。道具や書式へは行かない
   const wheel = async d => { const r = await page.evaluate(() => { const b = document.getElementById('numpadViewport').getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; });
@@ -7587,21 +7592,17 @@ async function runUiMode(browser) {
 }
 async function runToolsFab(browser) {
   const { ctx, page, errs } = await newPage(browser);
-  console.log('\n── 🧰道具ボタンと、道具のアイコン（v462） ──');
-  const btn = () => page.evaluate(() => { const b = document.querySelector('#numpadPageBar .np-toolsbtn'); return b ? b.textContent + '/' + getComputedStyle(b).backgroundColor : 'なし'; });
-  check('  テンキーの上の並びに 🧰道具（目立つ色）', await btn(), '🧰 道具/rgb(245, 124, 0)');
-  check('  並びの右寄り（自分のボタンの左）', await page.evaluate(() => { const b = [...document.querySelectorAll('#numpadPageBar .np-page')]; const i = b.findIndex(x => x.classList.contains('np-toolsbtn')); return b.length - 1 - i; }), 1);
-  await page.click('#numpadPageBar .np-toolsbtn'); await page.waitForTimeout(500);
-  check('  押すと道具の窓', await page.evaluate(() => isDlgOpen('toolsListOverlay')), true);
+  console.log('\n── 道具のアイコン（v462）・🧰道具ボタンはなし（v469） ──');
+  // v469：ページ名の並びの 🧰道具 ボタンと、その設定はなくした（道具はテンキーの 🧰道具 キーと ☰ から）
+  check('  ページ名の並びに 🧰道具 ボタンは無い', await page.evaluate(() => !document.querySelector('#numpadPageBar .np-toolsbtn') && !/道具/.test(document.getElementById('numpadPageBar').textContent)), true);
+  check('  設定に「🧰 道具ボタン」は無い', await page.evaluate(() => !document.getElementById('toolsFabSeg') && typeof setToolsFab === 'undefined'), true);
+  check('  バックアップの設定にも入れない', await page.evaluate(() => SETTINGS_BACKUP_KEYS.includes('excalc_toolsfab')), false);
+  await page.evaluate(() => document.querySelector('#numpadPage1 [data-key="tools"]').click()); await page.waitForTimeout(500);
+  check('  テンキーの 🧰道具 キーで道具の窓', await page.evaluate(() => isDlgOpen('toolsListOverlay')), true);
   await page.evaluate(() => closeToolsList()); await page.waitForTimeout(300);
   await page.evaluate(() => setUiMode('easy')); await page.waitForTimeout(200);
-  check('  かんたん表示でも出る（いちばん右）', await page.evaluate(() => [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|')), '数字|電卓|🧰 道具');
-  await page.evaluate(() => switchMode('dentaku')); await page.waitForTimeout(300);
-  check('  電卓でも出る', await page.evaluate(() => !!document.querySelector('#numpadPageBar .np-toolsbtn')), true);
-  await page.evaluate(() => { switchMode('normal'); setUiMode('full'); setToolsFab(false); }); await page.waitForTimeout(200);
-  check('  出さない設定・覚える', await btn() + '/' + await page.evaluate(() => localStorage.getItem('excalc_toolsfab') + '/' + document.querySelector('#toolsFabSeg button.on').dataset.f), 'なし/0/0');
-  await page.evaluate(() => setToolsFab(true)); await page.waitForTimeout(100);
-  check('  バックアップの設定に入れる', await page.evaluate(() => SETTINGS_BACKUP_KEYS.includes('excalc_toolsfab')), true);
+  check('  かんたん表示の並びは数字と電卓だけ', await page.evaluate(() => [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|')), '数字|電卓');
+  await page.evaluate(() => setUiMode('full')); await page.waitForTimeout(200);
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
@@ -8365,16 +8366,55 @@ async function runCellXl(browser) {
   check('  長押しして動かしてもフィルにならない', await page.evaluate(() => data[3][0]), '');
   check('  選んだセルの枠の右下の角に小さな四角（v421）', await page.evaluate(() => {
     sel(0, 0); const h = document.getElementById('fillHandle'), hb = h.getBoundingClientRect(), tb = document.getElementById('c0_0').getBoundingClientRect();
-    return getComputedStyle(h).display + '/' + Math.round(hb.width) + '/' + (Math.abs((hb.left + hb.width / 2) - (tb.right - 1)) <= 1.5 && Math.abs((hb.top + hb.height / 2) - (tb.bottom - 1)) <= 1.5); }), 'block/7/true');
+    return getComputedStyle(h).display + '/' + Math.round(hb.width) + '/' + (Math.abs((hb.left + hb.width / 2) - (tb.right - 1)) <= 1.5 && Math.abs((hb.top + hb.height / 2) - (tb.bottom - 1)) <= 1.5); }), 'block/10/true');   // 指で使う画面は 10px（v470。マウスは 7px）
   check('  別のセルを選ぶと四角も移る', await page.evaluate(() => {
     sel(2, 1); const hb = document.getElementById('fillHandle').getBoundingClientRect(), tb = document.getElementById('c2_1').getBoundingClientRect();
-    const ok = Math.abs((hb.left + 3.5) - (tb.right - 1)) <= 1.5 && Math.abs((hb.top + 3.5) - (tb.bottom - 1)) <= 1.5; sel(0, 0); return ok; }), true);
+    const ok = Math.abs((hb.left + hb.width / 2) - (tb.right - 1)) <= 1.5 && Math.abs((hb.top + hb.height / 2) - (tb.bottom - 1)) <= 1.5; sel(0, 0); return ok; }), true);
   check('  セルの中の丸は出さない', await page.evaluate(() => getComputedStyle(document.getElementById('c0_0'), '::after').content), 'none');
   p = await ctr(0, 0, 0.93, 0.9);
   await page.mouse.move(p.x, p.y); await page.mouse.down();
   q = await ctr(3, 0); await page.mouse.move(q.x, q.y, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(300);
   check('  ● を引っぱるとフィル', await page.evaluate(() => [data[1][0], data[2][0], data[3][0]].join('/')), '12005/12005/12005');
   await page.evaluate(() => hideSeqBtn());
+  // v470：■ は角にまたがるので、選んだセルの外（下のとなりのセル）を押しても取っ手として引っぱれる
+  const keepB = await page.evaluate(() => [0, 1, 2, 3, 4, 5, 6].map(r => data[r][1]));
+  await page.evaluate(() => { for (let r = 1; r <= 6; r++) setCellVal(r, 1, ''); setCellVal(0, 1, '7'); sel(0, 1); });
+  await page.waitForTimeout(200);
+  p = await page.evaluate(() => { const b = document.getElementById('c0_1').getBoundingClientRect(); return { x: b.right + 6, y: b.bottom + 6 }; });
+  check('  となりのセルの上でも取っ手の範囲', await page.evaluate(([x, y]) => !document.getElementById('c0_1').contains(document.elementFromPoint(x, y)) && fillHandleHit(x, y), [p.x, p.y]), true);
+  // 行の高さの 1.6 倍だけ下へ引っぱる → 2行ぶん広がる（指の位置ではなく、セルの真ん中を動かした点で決める）
+  const rh = await page.evaluate(() => document.getElementById('c0_1').getBoundingClientRect().height);
+  await page.mouse.move(p.x, p.y); await page.mouse.down();
+  await page.mouse.move(p.x, p.y + rh * 1.6, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(300);
+  check('  となりから引っぱってもフィル・動かした分だけ広がる（1.6行 → 2行）', await page.evaluate(() => [1, 2, 3].map(r => data[r][1] || '空').join('/')), '7/7/空');
+  await page.evaluate(() => { hideSeqBtn(); for (let r = 1; r <= 6; r++) setCellVal(r, 1, ''); sel(0, 1); }); await page.waitForTimeout(200);
+  // 少しだけ（行の 0.3 倍）動かしても、次の行には広がらない
+  await page.mouse.move(p.x, p.y); await page.mouse.down();
+  await page.mouse.move(p.x, p.y + rh * 0.3, { steps: 4 }); await page.mouse.up(); await page.waitForTimeout(300);
+  check('  少し動かしただけでは広がらない', await page.evaluate(() => data[1][1] || '空'), '空');
+  // 押しただけ（動かさない）なら、となりのセルを選ぶ
+  await page.evaluate(() => sel(0, 1)); await page.waitForTimeout(500);
+  await page.mouse.click(p.x, p.y); await page.waitForTimeout(400);
+  check('  押しただけなら、ふつうに押したセル（右下のとなり）を選ぶ', await page.evaluate(() => selR + ',' + selC + '/' + (data[1][1] || '空')), '1,2/空');
+  // v471：指では ■ を押したとみなす範囲をさらに広く（外側は角から約30px・内側は右下の約半分）
+  check('  指なら外側30px近くまで・内側も広くつかめる（マウスは狭いまま）', await page.evaluate(() => {
+    sel(0, 1); const b = document.getElementById('c0_1').getBoundingClientRect();
+    fillPressTouch = true;
+    const t = [fillHandleHit(b.right + 26, b.bottom + 26), fillHandleHit(b.right - Math.min(36, b.width * 0.45), b.bottom - b.height * 0.6), fillHandleHit(b.right + 40, b.bottom + 40)];
+    fillPressTouch = false;
+    const m = [fillHandleHit(b.right + 26, b.bottom + 26)];
+    return t.concat(m).join('/'); }), 'true/true/false/false');
+  {
+    const cdp = await page.context().newCDPSession(page);
+    await page.evaluate(() => { for (let r = 1; r <= 6; r++) setCellVal(r, 1, ''); setCellVal(0, 1, '8'); sel(0, 1); }); await page.waitForTimeout(500);
+    const g = await page.evaluate(() => { const b = document.getElementById('c0_1').getBoundingClientRect(); return { x: b.right + 22, y: b.bottom + 22, h: b.height }; });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: g.x, y: g.y }] });
+    for (let i = 1; i <= 8; i++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: g.x, y: g.y + g.h * 2.2 * i / 8 }] }); await page.waitForTimeout(25); }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await page.waitForTimeout(400);
+    check('  指で ■ の外側22pxをつかんで2.2行引っぱると2行コピー', await page.evaluate(() => [1, 2, 3].map(r => data[r][1] || '空').join('/')), '8/8/空');
+    await page.evaluate(() => hideSeqBtn());
+  }
+  await page.evaluate(k => { k.forEach((v, r) => setCellVal(r, 1, v)); sel(0, 0); }, keepB); await page.waitForTimeout(500);
   // 選んだセルの真ん中からなぞると範囲選択
   await page.evaluate(() => sel(0, 1));
   p = await ctr(0, 1); await page.mouse.move(p.x, p.y); await page.mouse.down();
