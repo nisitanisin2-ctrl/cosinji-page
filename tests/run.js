@@ -1416,6 +1416,73 @@ async function runRangeSum(browser) {
   await ctx.close();
 }
 
+/* 列見出し・行番号の複数選択と、幅・高さをまとめて変える・幅を残す（v481） */
+async function runHdrMulti(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 見出しの複数選択・幅をそろえる・幅を残す（v481） ──');
+  const hs = () => page.evaluate(() => [...document.querySelectorAll('.ch.hsel,.rh.hsel')].map(e => e.id).join(','));
+  const bar = () => page.evaluate(() => { const b = document.getElementById('hdrBar'); return b.classList.contains('show') ? b.textContent.trim() : ''; });
+  await page.evaluate(() => { for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) setCellVal(r, c, String(c + 1)); });
+  // スマホ：見出しを押す → 「ほかの列も選ぶ」 → 見出しを押して足す
+  await page.tap('#ch1'); await page.waitForTimeout(250);
+  check('  見出しを押すと「ほかの列も選ぶ」が出る', await bar(), '☑ ほかの列も選ぶ');
+  await page.tap('#hdrBarAdd'); await page.waitForTimeout(150);
+  await page.tap('#ch2'); await page.waitForTimeout(150);
+  await page.tap('#ch0'); await page.waitForTimeout(150);
+  check('  押した列が選ばれる', await hs(), 'ch0,ch1,ch2');
+  check('  バーに選んだ列と数', (await bar()).startsWith('☑ A・B・C列（3）'), true);
+  check('  右上の合計は選んだ列の合計', await page.evaluate(() => document.getElementById('statsTitle').textContent + '=' + document.getElementById('sSum').textContent), '合計A・B・C=24');
+  await page.tap('#ch0'); await page.waitForTimeout(150);
+  check('  もう一度押すと外れる', await hs(), 'ch1,ch2');
+  await page.tap('#hdrBarDone'); await page.waitForTimeout(150);
+  check('  完了でも選んだまま（端を引っぱると幅がそろう）', [await hs(), (await bar()).includes('幅がそろいます')].join('/'), 'ch1,ch2/true');
+  // B 列の端を引っぱる → B と D が同じ幅
+  const g = await page.$('#ch1 .col-grip'); const bb = await g.boundingBox();
+  await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down();
+  await page.mouse.move(bb.x + bb.width / 2 + 70, bb.y + 5, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(300);
+  const w = await page.evaluate(() => [0, 1, 2].map(i => Math.round(document.getElementById('ch' + i).getBoundingClientRect().width)));
+  check('  選んだ列（B・C）が同じ幅になる', w[1] === w[2] && w[1] > w[0] + 40, true);
+  check('  選んでいない A は変わらない', await page.evaluate(() => Math.round(colWidths[0]) < Math.round(colWidths[1])), true);
+  // 開き直しても幅が残る
+  const before = await page.evaluate(() => JSON.stringify(colWidths));
+  await page.reload(); await page.waitForTimeout(900);
+  check('  開き直しても列の幅が残る', await page.evaluate(() => JSON.stringify(colWidths)), before);
+  // 記録に保存して、別の幅にしてから開くと戻る
+  await page.evaluate(() => { const saves = getSaves(); saves.unshift({ id: 77, name: 'W', timestamp: 1, rows: ROWS, cols: COLS, decPlaces, mode: workspaceMode, data: data.map(r => [...r]), styles: {}, tab: 0, modeSheets: makeAllModesSnap(), curMode: workspaceMode }); persistSaves(saves);
+    colWidths = {}; commitSheetSizes(); autoFitSheet(); loadSave(77); });
+  await page.waitForTimeout(300);
+  check('  記録を開くと保存したときの幅', await page.evaluate(() => JSON.stringify(colWidths)), before);
+  // セルを押すと複数選択は終わる
+  await page.tap('#ch1'); await page.waitForTimeout(150); await page.tap('#hdrBarAdd'); await page.tap('#ch2'); await page.waitForTimeout(150);
+  check('  もう一度選べる', await hs(), 'ch1,ch2');
+  await page.evaluate(() => sel(3, 0)); await page.waitForTimeout(150);
+  check('  セルを選ぶと複数選択は終わる', [await hs(), await bar()].join('/'), '/');
+  check('  右上の合計は列の合計に戻る', await page.evaluate(() => document.getElementById('statsTitle').textContent), '合計A');
+  // パソコン：Ctrl と Shift
+  await page.click('#ch0'); await page.click('#ch2', { modifiers: ['Control'] });
+  check('  Ctrl＋クリックで足す', await hs(), 'ch0,ch2');
+  await page.click('#ch0'); await page.click('#ch2', { modifiers: ['Shift'] });
+  check('  Shift＋クリックで間をまとめて', await hs(), 'ch0,ch1,ch2');
+  await page.click('#ch1');
+  check('  ふつうのクリックで1つに戻る', await hs(), 'ch1');
+  // 行
+  await page.click('#rh0'); await page.click('#rh2', { modifiers: ['Shift'] });
+  check('  行番号も Shift で複数', await hs(), 'rh0,rh1,rh2');
+  check('  行の合計は選んだ行の合計', await page.evaluate(() => document.getElementById('statsTitle').textContent + '=' + document.getElementById('sSum').textContent), '合計1・2・3行=18');
+  const rg = await page.$('#rh1 .row-grip'); const rb = await rg.boundingBox();
+  await page.mouse.move(rb.x + rb.width / 2, rb.y + rb.height / 2); await page.mouse.down();
+  await page.mouse.move(rb.x + rb.width / 2, rb.y + rb.height / 2 + 30, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(300);
+  check('  行の高さも選んだ行がそろう', await page.evaluate(() => rowHeights[0] === rowHeights[1] && rowHeights[1] === rowHeights[2] && rowHeights[3] === undefined), true);
+  // 長押しのメニューからも
+  await page.evaluate(() => { sel(0, 0); openHeaderMenu('col', 1); });
+  check('  長押しのメニューに「ほかの列も選ぶ」', await page.evaluate(() => document.getElementById('headerMenuBody').textContent.includes('ほかの列も選ぶ')), true);
+  await page.evaluate(() => hmDo('multi', 1)); await page.tap('#ch2'); await page.waitForTimeout(150);
+  check('  メニューから選び足せる', await hs(), 'ch1,ch2');
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 /* 野菜の育成計画（種まきの日から予定日とカレンダーを出す道具） */
 async function runVeggie(browser) {
   const { ctx, page, errs } = await newPage(browser);
@@ -8840,6 +8907,7 @@ async function runQrShare(browser) {
     if (!only || only === 'seqcustom') await runSeqCustom(browser);
     if (!only || only === 'fmtrange') await runFmtRange(browser);
     if (!only || only === 'rangesum') await runRangeSum(browser);
+    if (!only || only === 'hdrmulti') await runHdrMulti(browser);
     if (!only || only === 'veggie') await runVeggie(browser);
     if (!only || only === 'report') await runReport(browser);
     if (!only || only === 'shared') await runShared(browser);
