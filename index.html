@@ -4625,7 +4625,7 @@ body.dark {
          ふつうのスマホの電卓と同じ4列の並びにして、キーを大きくしてある（v338）。
          上の段だけ、表へ戻るキーと声のキー（それぞれ2列ぶん）。 -->
     <button class="btn util dk-half" data-key="dk_tosheet" onclick="dtToCellOrBack()" title="表に戻る（電卓モードのときは答えをセルに入れます）">▦表へ</button>
-    <button class="btn util dk-half" data-key="dk_dec" onclick="openDtDec()" title="電卓の答えの小数点以下の桁数と、四捨五入・切り上げ・切り下げを選びます">桁 自</button>
+    <button class="btn util dk-half" data-key="dk_dec" onclick="openDtDec()" title="電卓の答えの小数点以下の桁数・四捨五入・切り上げ・切り下げと、計算の順番を選びます">桁 自</button>
     <button class="btn util dk-wide" data-key="dk_voice" onclick="voiceStart()" title="声で計算する（例「251かける68」）">🎤 声</button>
     <button class="btn clr" data-key="dk_ac"  onclick="dtAllClear()" title="ぜんぶ消す">AC</button>
     <button class="btn op"  data-key="dk_par" onclick="dtParen()" title="かっこ（設定で「式の優先順位どおり」のときに使えます）">（ ）</button>
@@ -5121,7 +5121,7 @@ body.dark {
 <div class="modal-overlay" id="dtDecOverlay" onclick="if(event.target===this)closeDtDec()">
   <div class="modal">
     <div class="modal-header">
-      <span>🔢 電卓の答えの桁</span>
+      <span>🔢 電卓の答えの桁と計算の順番</span>
       <button class="modal-close" onclick="closeDtDec()">✕</button>
     </div>
     <div class="mode-hint">電卓の<b>答えの出し方</b>を決めます。ここで決めた桁で計算を続けるので、<b>▦表へ</b>でセルに入れる値も同じになります。<b>表のセルの表示</b>は 設定→🧮計算 の「小数点以下の桁数」で別に決められます。</div>
@@ -5144,6 +5144,13 @@ body.dark {
       </div>
       <div class="set-note">切り上げ・切り下げは<b>0から遠い方・0に近い方</b>に寄せます（エクセルの ROUNDUP／ROUNDDOWN と同じ）。マイナスの数では −1.5 が <b>切り上げで −2</b>、<b>切り下げで −1</b> になります。</div>
       <div class="dt-dec-ex" id="dtDecEx"></div>
+      <!-- 計算の順番（v473。⚙設定 → 🧮計算 の「電卓の計算のしかた」と同じもの） -->
+      <div class="set-sec">計算の順番</div>
+      <div class="enterdir-seg dt-seg" id="dtStyleSeg">
+        <button class="enterdir-btn" data-v="simple" onclick="dtSetStyleFromDec('simple')">左から順に</button>
+        <button class="enterdir-btn" data-v="expr" onclick="dtSetStyleFromDec('expr')">×÷を先に</button>
+      </div>
+      <div class="set-note"><b>1＋2×3</b> の答えが、<b>左から順に</b>なら <b>9</b>（ふつうの電卓と同じ）、<b>×÷を先に</b>なら <b>7</b>（式の決まりどおり。( ) も使えます）。切りかえると、いま打っている計算は消えます。</div>
     </div>
   </div>
 </div>
@@ -8981,6 +8988,8 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v473', t:'電卓の「桁」の窓で計算の順番も選べる', li:[
+    '電卓の <b>桁</b> キーで開く窓に、<b>計算の順番</b>（左から順に／×÷を先に）を足しました。⚙設定 → 🧮計算 の「電卓の計算のしかた」と同じものです' ]},
   { v:'v472', t:'電卓の声の案内を見やすく', li:[
     '電卓の 🎤 ボタンの右の案内を「<b>を押すと、声で計算できます。</b>」にしました（案内の中の 🎤 の絵を外し、となりのボタンを指す形に）' ]},
   { v:'v471', t:'右下の ■ をつかみやすく', li:[
@@ -16168,6 +16177,13 @@ function dtSetStyle(v){
 }
 function dtSyncStyleUi(){
   const sel=document.getElementById('calcStyleSel'); if(sel) sel.value=dtStyle;
+  document.querySelectorAll('#dtStyleSeg .enterdir-btn').forEach(b=>b.classList.toggle('on', b.dataset.v===dtStyle));
+}
+/* 「桁」の窓から計算の順番を変える（v473） */
+function dtSetStyleFromDec(v){
+  if(v===dtStyle) return;
+  dtSetStyle(v); dtSyncStyleUi();
+  toast(dtStyle==='expr' ? '×÷を先に計算します（1＋2×3＝7）' : '左から順に計算します（1＋2×3＝9）');
 }
 /* 答えを表のセルに入れる。電卓では表が隠れているので、入る前のモードへ戻してから入れる */
 function dtToCell(){
@@ -16354,7 +16370,7 @@ function dtDecSync(){
     if(on) tag.textContent=dtDecLabel();
   }
 }
-function openDtDec(){ renderDtDec(); openDlg('dtDecOverlay'); }
+function openDtDec(){ renderDtDec(); dtSyncStyleUi(); openDlg('dtDecOverlay'); }
 function closeDtDec(){ closeDlg('dtDecOverlay'); }
 function renderDtDec(){
   document.querySelectorAll('#dtDecSeg .enterdir-btn').forEach(b=>
@@ -20913,7 +20929,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v472';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v473';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

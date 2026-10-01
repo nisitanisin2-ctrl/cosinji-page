@@ -2979,6 +2979,14 @@ async function runDtDec(browser) {
     document.querySelector('#dtRoundSeg .enterdir-btn.on').dataset.v), '2/down');
   check('  例が出る', await page.evaluate(() =>
     /3\.333333 → .*3\.33/.test(document.getElementById('dtDecEx').textContent)), true);
+  // v473：計算の順番もこの窓で選べる（設定の「電卓の計算のしかた」と同じもの）
+  check('  計算の順番も選べる・いまの順番に印', await page.evaluate(() =>
+    [...document.querySelectorAll('#dtStyleSeg .enterdir-btn')].map(b => b.textContent + (b.classList.contains('on') ? '●' : '')).join('/')), '左から順に●/×÷を先に');
+  check('  ×÷を先に を押すと切りかわり、設定にも出る', await page.evaluate(() => {
+    document.querySelector('#dtStyleSeg [data-v="expr"]').click();
+    return dtStyle + '/' + localStorage.getItem('excalc_calc_style') + '/' + document.getElementById('calcStyleSel').value + '/' + document.querySelector('#dtStyleSeg .on').dataset.v; }), 'expr/expr/expr/expr');
+  await page.evaluate(() => document.querySelector('#dtStyleSeg [data-v="simple"]').click());
+  check('  左から順にへ戻せる', await page.evaluate(() => dtStyle), 'simple');
   await page.evaluate(() => closeDtDec()); await page.waitForTimeout(300);
 
   // 表のときは今までどおり丸めない
