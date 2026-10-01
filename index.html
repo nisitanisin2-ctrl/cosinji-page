@@ -1730,12 +1730,6 @@ body.numpad-off .numpad-pagebar { display: none; }
 .np-page:hover { background: var(--kp-veil); color: var(--kp-ink); }
 .np-page.on { background: var(--acc); color: var(--on-acc); }
 .np-page.np-axis { margin-left: auto; background: var(--kp-veil2); color: var(--kp-sub2); }
-/* 🧰 道具ボタン（v462）：ページ名の並びの右寄り。どの画面でもワンタッチで道具の窓を開く。目立つ色 */
-.numpad-pagebar .np-page.np-toolsbtn { margin-left: auto; position: sticky; right: 0; z-index: 1; padding: 3px 11px; font-size: 12px;
-  background: #f57c00; color: #fff; box-shadow: -8px 0 8px -4px var(--kp-bg); }
-.numpad-pagebar .np-page.np-toolsbtn:hover { background: #ef6c00; color: #fff; }
-.numpad-pagebar .np-page.np-toolsbtn + .np-page.np-axis { margin-left: 4px; }
-body.compact .np-page.np-toolsbtn { padding: 2px 9px; }
 .np-page.np-axis:hover { background: var(--kp-veil); }
 /* テンキー：数字ページ(標準)は通常表示。関数電卓／関数記号／登録ページは
    数字ページの上に重なってスライドインするオーバーレイ（フリックで開閉） */
@@ -1879,7 +1873,7 @@ body.calc-only #numpadPageSci .btn[data-key="dk_dec"] { grid-column: span 2; }
 .btn.op:hover { background: var(--acc); }
 .btn.clr    { background: var(--danger-dark); }
 .btn.clr:hover { background: var(--danger); }
-/* 🧰道具のキー（v466）。ひな形のあった場所。どの道具もここから。上の 🧰道具ボタンと同じだいだい色 */
+/* 🧰道具のキー（v466）。ひな形のあった場所。どの道具もここから。目立つだいだい色 */
 .btn.kp-tools { background: #e65100; }
 .btn.kp-tools:hover { background: #f57c00; }
 .btn.enter  { background: #1a5276; grid-row: span 2; font-size: calc(22px * var(--key-scale, 1.3));
@@ -4048,7 +4042,7 @@ body.dark {
     </details>
     <details class="set-sub">
       <summary>🧮 電卓だけにする<small>テンキーを電卓のページに止める</small></summary>
-    <div class="set-note">テンキーを<b>電卓のページから動かないように</b>します。<b>書式・枠線／数字／記号／登録</b>へは行かなくなり、フリックしても切り替わりません。かんたんな電卓として人に渡すときに使えます。<br><b>道具（🌱野菜・💧単位水量など）は、🧰道具ボタンから開けます</b>。<br>表は使えなくなるので、<b>▦表へ</b>のキーは隠れます。ここをもう一度押せばいつでも戻せます。</div>
+    <div class="set-note">テンキーを<b>電卓のページから動かないように</b>します。<b>書式・枠線／数字／記号／登録</b>へは行かなくなり、フリックしても切り替わりません。かんたんな電卓として人に渡すときに使えます。<br><b>道具（🌱野菜・💧単位水量など）は、☰ → 🧰道具 から開けます</b>。<br>表は使えなくなるので、<b>▦表へ</b>のキーは隠れます。ここをもう一度押せばいつでも戻せます。</div>
     <button class="set-act" id="calcOnlyBtn" onclick="toggleCalcOnly()" title="テンキーを電卓のページに固定します">🧮 電卓だけにする</button>
     </details>
     <details class="set-sub">
@@ -4069,22 +4063,19 @@ body.dark {
     </details>
     <details class="set-sub" id="toolsBtnSec">
       <summary>🧰 道具の窓に出す道具<small>☐ にした道具は窓の下に隠す</small></summary>
-    <div class="set-note"><b>🧰道具</b>の窓（☰ メニュー・🏠ホーム・🧰道具ボタンから開くもの）に並べる道具を選びます。<b>☐ にした道具</b>は、窓のいちばん下の「<b>隠している道具</b>」に入ります（そこからも開けます）。はじめは🛏部屋割り・🏨案内ページを隠しています。</div>
+    <div class="set-note"><b>🧰道具</b>の窓（☰ メニュー・🏠ホーム・テンキーの 🧰道具 キーから開くもの）に並べる道具を選びます。<b>☐ にした道具</b>は、窓のいちばん下の「<b>隠している道具</b>」に入ります（そこからも開けます）。はじめは🛏部屋割り・🏨案内ページを隠しています。</div>
     <div class="nptool-list" id="toolsBtnList"></div>
     </details>
       </div>
     </details>
     <details class="set-grp" id="setGrpScreen" ontoggle="saveSetGrp(this)">
-      <summary><span class="set-grp-ic">📱</span><span class="set-grp-t"><b>画面</b><small>はじめに開くページ・道具ボタン・吹き出し・画面の詰め方</small></span></summary>
+      <summary><span class="set-grp-ic">📱</span><span class="set-grp-t"><b>画面</b><small>はじめに開くページ・吹き出し・画面の詰め方</small></span></summary>
       <div class="set-grp-body">
     <div class="set-sec">はじめに開くページ</div>
     <div class="set-row">
       <span class="set-label">アプリを開いたとき<small>次に開いたときから効きます</small></span>
       <select class="fmt-select" id="startPageSel" onchange="setStartPage(this.value)" style="flex-shrink:0"></select>
     </div>
-    <div class="set-sec">🧰 道具ボタン</div>
-    <div class="set-note">テンキーの上の並びの右に、<b>🧰 道具</b>ボタンを目立つ色で出します。押すと、どの画面からでも道具の窓が開きます。道具を<b>ホーム画面のアイコン</b>にしたいときは、道具の窓のいちばん下の「📱 道具をホーム画面のアイコンにする」から。</div>
-    <div class="skin-seg" id="toolsFabSeg"><button class="skin-seg-btn" data-f="1" onclick="setToolsFab(true)">出す</button><button class="skin-seg-btn" data-f="0" onclick="setToolsFab(false)">出さない</button></div>
     <div class="set-sec">道具の使い方の吹き出し</div>
     <div class="set-note">道具を<b>はじめて開いたとき</b>に、使い方を1つだけ吹き出しで出します（1つの道具に1回だけ）。</div>
     <div class="skin-seg" id="toolHintSeg"><button class="skin-seg-btn" data-h="1" onclick="setToolHints(true);renderToolHintSeg()">出す（もう一度はじめから）</button><button class="skin-seg-btn" data-h="0" onclick="setToolHints(false);renderToolHintSeg()">出さない</button></div>
@@ -8988,6 +8979,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v469', t:'テンキーの上の並びから 🧰道具 ボタンをなくしました', li:[
+    'テンキーの上のページ名の並びの右にあった、オレンジの <b>🧰 道具</b> ボタンをなくし、⚙設定の「🧰 道具ボタン」も外しました',
+    '道具は、テンキーの左上の <b>🧰道具</b> キーか、<b>☰ → 🧰道具</b> から開けます' ]},
   { v:'v468', t:'🔐サブスク管理表でパスワードマネージャーが出ないように', li:[
     '🔐サブスク管理表のパスワードの欄（ログインのパスワード・閲覧用のパスワード）で、<b>端末のパスワードマネージャー</b>（iPhone のキーチェーン・Google パスワードマネージャーなど）が出てこないようにしました',
     '入れた文字は今までどおり <b>●●●</b> で隠れます。👁 で見る・🎲 で作る もそのままです' ]},
@@ -14574,7 +14568,6 @@ function renderNumpadPageBar(){
   const html=row.map(([k,label])=>
       '<button class="np-page'+(k===cur?' on':'')+'" role="tab" aria-selected="'+(k===cur)+'"'+
       ' data-np="'+(k===null?'':k)+'">'+label+'</button>').join('')
-    + (toolsFabOn() ? '<button class="np-page np-toolsbtn" data-np-tools="1" aria-label="道具を開く">🧰 道具</button>' : '')
     + ((calcOnly||uiEasy) ? '' : '<button class="np-page np-axis" data-np="'+(axis[0]===null?'':axis[0])+'">'+axis[1]+'</button>');
   if(bar.dataset.html!==html){ bar.innerHTML=html; bar.dataset.html=html; }
 }
@@ -14585,7 +14578,6 @@ function renderNumpadPageBar(){
   loadToolsBtn(); renderToolsBtnList();
   bar.addEventListener('click', e=>{
     const b=e.target.closest && e.target.closest('.np-page'); if(!b) return;
-    if(b.dataset.npTools){ openToolsList(); return; }               // 🧰 道具ボタン（v462）
     if(!numpadPager) return;
     numpadPager.go(b.dataset.np===''?null:b.dataset.np);
   });
@@ -20509,14 +20501,6 @@ function addToolBack(t, ov){
   b.innerHTML='<span class="hdr-back-ar">←</span>'+(window.APP_TOOL===t.id?'表電卓':'もどる');
   b.title=window.APP_TOOL===t.id?'表電卓の画面へ':'閉じて前の画面にもどる';
 }
-/* ── 🧰 道具ボタン（v462）：テンキーの上の並びの右に、目立つ色で。⚙で出す／出さない ── */
-function toolsFabOn(){ try{ return localStorage.getItem('excalc_toolsfab')!=='0'; }catch(_){ return true; } }
-function setToolsFab(on){
-  try{ localStorage.setItem('excalc_toolsfab', on?'1':'0'); }catch(_){}
-  renderNumpadPageBar(); renderToolsFabSeg();
-  toast(on?'テンキーの上に 🧰道具 ボタンを出します':'🧰道具 ボタンを隠しました（☰ → 🧰道具 からも開けます）');
-}
-function renderToolsFabSeg(){ document.querySelectorAll('#toolsFabSeg button').forEach(b=>b.classList.toggle('on', b.dataset.f===(toolsFabOn()?'1':'0'))); }
 /* ── 道具をホーム画面のアイコンにする（v462） ──
    道具ごとに apps/〇〇/（業務手帳は techo/）を開き、そこからホーム画面に追加してもらう。
    別のアプリの道具（メモ・会計・声の計算帳・英単語）は、それぞれのページから追加する */
@@ -20919,7 +20903,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v468';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v469';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -22741,7 +22725,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_show_sheettabs','excalc_skin','excalc_speechauto','excalc_speechlayout','excalc_speechspeak','excalc_startpage',
   'excalc_sumfunc','excalc_taxrate','excalc_tbfold','excalc_toolsbtn_hide','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
   'excalc_ts_warn','excalc_userkeys',
-  'excalc_uimode','excalc_tool_fav','excalc_tool_hints','excalc_toolsfab',   // v460〜v462
+  'excalc_uimode','excalc_tool_fav','excalc_tool_hints',   // v460〜v462
 ];
 function settingsBundle(){
   const o={};
@@ -23318,7 +23302,7 @@ loadDtDec(); dtDecSync();   // 電卓の答えの桁の決まりを復元
 loadStartPage();
 renderStartPage();
 renderToolHintSeg();
-renderToolsFabSeg();
+try{ localStorage.removeItem('excalc_toolsfab'); }catch(_){}   // v469：ページ名の並びの 🧰道具 ボタンはなくした
 ezSync();
 setTimeout(()=>{ try{ applyStartPage(); }catch(_){} }, 0);
 
