@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,trim,manner,memo,calctmpl,fintmpl,kaikei,koe,eigo');
+    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,trim,manner,boki,memo,calctmpl,fintmpl,kaikei,koe,eigo');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -3086,11 +3086,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'home,last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,trim,manner,calctmpl,fintmpl');
+    'home,last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,trim,manner,boki,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 21);   // v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳 を足した
+    document.getElementById('startPageSel').options.length), 22);   // v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'veggieOverlay', 'volumeOverlay',
@@ -8090,6 +8090,77 @@ async function runManner(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runBoki(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📒会計の手引き（v490） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキーにある', await page.evaluate(() => !window.BOKI_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'boki') + '/' + !!KEY_FUNCS.a_boki), 'true/true/true');
+  await page.evaluate(() => openBoki()); await w(600);
+  check('  分類ごとにページが並ぶ', await page.evaluate(() => [...document.querySelectorAll('#bkList .bk-grp')].length + '/' + (document.querySelectorAll('#bkList .bk-it').length >= 70)), '8/true');
+  check('  どのページも開ける（エラーなし・中身あり）', await page.evaluate(() => bkPages().filter(p => { bkOpen(p.id); return document.getElementById('bkViewBody').textContent.length < 150; }).map(p => p.id).join(',')), '');
+  await page.evaluate(() => bkCloseView()); await w(300);
+  const find = q => page.evaluate(q => { bkSetQ(q); return [...document.querySelectorAll('#bkList .bk-it')].map(b => b.dataset.id); }, q);
+  check('  さがす：監査', (await find('監査'))[0], 'jichi-kansa');
+  check('  さがす：ひらがな（げんかしょうきゃく）', (await find('げんかしょうきゃく'))[0], 'kessan-genka');
+  check('  さがす：カタカナ（インボイス）', (await find('インボイス'))[0], 'biz-invoice');
+  await page.evaluate(() => { document.getElementById('bkFind').value = ''; bkSetQ(''); });
+  // 仕訳の読み取りと答え合わせ
+  check('  ドリルの答えはどれも借方＝貸方', await page.evaluate(() => bkDrill().filter(d => d.a.dr.reduce((s, x) => s + x[1], 0) !== d.a.cr.reduce((s, x) => s + x[1], 0)).map(d => d.id).join(',')), '');
+  check('  ドリルの答えを文で入れるとどれも正解', await page.evaluate(() => bkDrill().filter(d => { const u = bkParseJournal(d.a.dr.map(x => x.join(' ')).join('、') + ' / ' + d.a.cr.map(x => x.join(' ')).join('、')); return !(u.length && !u[0].err && bkSameEntry(u, d.a)); }).map(d => d.id).join(',')), '');
+  check('  仕訳を読む（カンマ・全角・複数・法人税、住民税…）', await page.evaluate(() => JSON.stringify(bkParseJournal('法人税等 450,000 / 仮払法人税等 200000、未払法人税等 ２５００００\n給料 300000 / 所得税預り金 20000、普通預金 280000')[0].dr) + '/' + bkParseJournal('現金 100 / 売上 200')[0].err.includes('合いません')), '[["法人税、住民税及び事業税",450000]]/true');
+  check('  まとめた名前でも同じ（前払保険料＝前払費用）', await page.evaluate(() => [accCanon('前払保険料'), accCanon('前払金'), accCanon('未払家賃'), accCanon('未払金'), accCanon('車両運搬具減価償却累計額')].join(',')), '前払費用,前払金,未払費用,未払金,減価償却累計額');
+  check('  グループを推しはかる', await page.evaluate(() => ['現金', '前払地代', '未払利息', '受取配当金', '支払報酬', '建物減価償却累計額', 'あいうえ'].map(accGroup).join(',')), 'a,a,l,r,x,ac,');
+  // ドリルの画面
+  await page.evaluate(() => bkOpen('tool-drill')); await w(200);
+  await page.fill('#bkDrIn', '仕入 100,000 / 買掛金 100000'); await page.evaluate(() => bkDrillCheck()); await w(100);
+  check('  ドリル：正解の判定と記録', await page.evaluate(() => document.getElementById('bkDrAns').textContent.includes('正解') + '/' + JSON.stringify(JSON.parse(localStorage.getItem('excalc_boki')).drill.d01)), 'true/[1,0]');
+  await page.evaluate(() => bkDrillMove(1)); await w(100);
+  await page.fill('#bkDrIn', '売掛金 150000 / 売上 15000'); await page.evaluate(() => bkDrillCheck()); await w(100);
+  check('  ドリル：まちがいの判定', await page.evaluate(() => document.getElementById('bkDrAns').textContent.includes('ちがいます')), true);
+  await page.evaluate(() => bkDrillTopic('ng')); await w(100);
+  check('  ドリル：まちがえた問題だけ', await page.evaluate(() => document.querySelector('#bkDrOut .bk-dr-n').textContent.startsWith('1／1')), true);
+  await page.evaluate(() => bkDrillTopic('ng'));
+  // 科目ボタンで入れる
+  await page.evaluate(() => { document.getElementById('bkDrIn').value = ''; bkDrIns('仕入'); bkDrIns('/'); bkDrIns('買掛金'); });
+  check('  ドリル：科目ボタンで入れる', await page.evaluate(() => document.getElementById('bkDrIn').value), '仕入  / 買掛金 ');
+  // 試算表・決算書
+  await page.evaluate(() => bkOpen('tool-tb')); await w(200);
+  check('  見本から試算表・決算書（一致する・純利益・資産合計）', await page.evaluate(() => { const t = document.getElementById('bkTbOut').innerText; return t.includes('一致しています') + '/' + /当期純利益\s+70,000/.test(t) + '/' + /合計\s+628,000\s+合計\s+628,000/.test(t); }), 'true/true/true');
+  await page.fill('#bkTbIn', '現金 1000 / 売上 1000\n現金過不足 100 / 現金 100\nほげ 50 / 現金 50\n現金 10 / 売上 20'); await page.evaluate(() => bkTbRun()); await w(100);
+  check('  合わない行・残した仮の科目・分からない科目を知らせる', await page.evaluate(() => { const t = document.getElementById('bkTbOut').innerText; return t.includes('読めなかった行') + '/' + t.includes('「現金過不足」に残高') + '/' + t.includes('「ほげ」はどのグループか'); }), 'true/true/true');
+  check('  入れた仕訳を覚える', await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_boki')).tb.startsWith('現金 1000')), true);
+  // 計算の道具
+  await page.evaluate(() => bkOpen('tool-dep')); await w(200);
+  check('  減価償却：月割り・最後の年', await page.evaluate(() => [...document.querySelectorAll('#bkDpOut table.bk-t tr')].slice(1).map(r => r.cells[1].textContent + ':' + r.cells[2].textContent).join(',')), '6:60,000,12:120,000,12:120,000,12:120,000,12:120,000,12:60,000');
+  await page.selectOption('#bkDpRes', '1'); await w(100);
+  check('  減価償却：1円を残す', await page.evaluate(() => [...document.querySelectorAll('#bkDpOut table.bk-t tr')].pop().cells[4].textContent), '1');
+  await page.evaluate(() => bkOpen('tool-tsuki')); await w(200);
+  check('  月割り：前払（11月から12か月・3月決算）', await page.evaluate(() => document.querySelector('#bkTkOut .bk-j').innerText.replace(/\s+/g, ' ').trim()), '決算整理仕訳 借方 貸方 前払保険料 14,000 保険料 14,000');
+  await page.selectOption('#bkTkT', 'mib'); await w(100);
+  check('  月割り：未払', await page.evaluate(() => document.querySelector('#bkTkOut .bk-j').innerText.replace(/\s+/g, ' ').trim()), '決算整理仕訳 借方 貸方 支払家賃 10,000 未払家賃 10,000');
+  await page.evaluate(() => bkOpen('tool-arika')); await w(200);
+  check('  商品有高帳：先入先出法', await page.evaluate(() => document.getElementById('bkArOut').textContent.includes('売上原価）3,560円') + '/' + document.getElementById('bkArOut').textContent.includes('7個 840円')), 'true/true');
+  await page.evaluate(() => bkArM(document.querySelectorAll('#bkArMs button')[1], 'avg')); await w(100);
+  check('  商品有高帳：移動平均法', await page.evaluate(() => (document.getElementById('bkArOut').textContent.match(/売上原価）([\d,]+)円/) || [])[1] + '/' + (document.getElementById('bkArOut').textContent.match(/7個 ([\d,]+)円/) || [])[1]), '3,616/784');
+  check('  収入印紙', await page.evaluate(() => [49999, 50000, 1000000, 1000001, 30000000, 2e9].map(bkInshi).join(',')), '0,200,200,400,6000,200000');
+  await page.evaluate(() => bkOpen('tool-tax')); await w(200);
+  await page.fill('#bkTxRi', '65000'); await page.fill('#bkTxRo', '40000'); await w(100);
+  check('  消費税：税込から・納める額', await page.evaluate(() => document.getElementById('bkTxOut').innerText.replace(/\s+/g, ' ').includes('10,000 1,000 11,000') + '/' + document.getElementById('bkTxOut').textContent.includes('納める額 25,000円')), 'true/true');
+  await page.evaluate(() => bkOpen('tool-hikiate')); await w(200);
+  check('  貸倒引当金：差額補充', await page.evaluate(() => document.querySelector('#bkHkOut .bk-j').innerText.replace(/\s+/g, ' ').trim()), '差額を繰り入れる 借方 貸方 貸倒引当金繰入 6,000 貸倒引当金 6,000');
+  await page.fill('#bkHkC', '15000'); await w(100);
+  check('  貸倒引当金：戻入', await page.evaluate(() => document.querySelector('#bkHkOut .bk-j').innerText.replace(/\s+/g, ' ').trim()), '多すぎる分を戻し入れる 借方 貸方 貸倒引当金 5,000 貸倒引当金戻入 5,000');
+  // ★・印刷・戻る
+  await page.evaluate(() => { bkOpen('jichi-kansa'); bkToggleFav('jichi-kansa'); });
+  check('  ★ よく見る', await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_boki')).fav.join(',')), 'jichi-kansa');
+  check('  🖨 印刷（入力欄やボタンは出さない）', await page.evaluate(() => { let h = ''; const ob = window.opBuild, op = window.opPrint; window.opBuild = x => x; window.opPrint = x => { h = x; }; bkPrint('jichi-kansa'); window.opBuild = ob; window.opPrint = op; return h.includes('<h1>会計監査のしかた・受け方</h1>') + '/' + !h.includes('よく見る'); }), 'true/true');
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  戻るでページだけ閉じる', await page.evaluate(() => isDlgOpen('bkViewOverlay') + '/' + isDlgOpen('bokiOverlay')), 'false/true');
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  戻るで閉じる', await page.evaluate(() => isDlgOpen('bokiOverlay')), false);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runUiMode(browser) {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true });
   const page = await ctx.newPage();
@@ -8197,11 +8268,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/21');
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/22');
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'shimai', 'meishi', 'trim', 'manner', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'shimai', 'meishi', 'trim', 'manner', 'boki', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -8229,7 +8300,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,shimai:B,meishi:B,trim:B,manner:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,shimai:B,meishi:B,trim:B,manner:B,boki:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -9322,6 +9393,7 @@ async function runQrShare(browser) {
     if (!only || only === 'meishi') await runMeishi(browser);
     if (!only || only === 'trim') await runTrim(browser);
     if (!only || only === 'manner') await runManner(browser);
+    if (!only || only === 'boki') await runBoki(browser);
     if (!only || only === 'uimode') await runUiMode(browser);
     if (!only || only === 'toolsfab') await runToolsFab(browser);
     if (!only || only === 'techoapp') await runTechoApp(browser);
