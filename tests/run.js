@@ -8019,7 +8019,7 @@ async function runManner(browser) {
   const w = ms => page.waitForTimeout(ms);
   check('  開くまでは読まない・道具とマイキーにある', await page.evaluate(() => !window.MANNER_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'manner') + '/' + !!KEY_FUNCS.a_manner), 'true/true/true');
   await page.evaluate(() => openManner()); await w(600);
-  check('  分類ごとにページが並ぶ', await page.evaluate(() => [...document.querySelectorAll('#mnList .mn-grp')].length + '/' + (document.querySelectorAll('#mnList .mn-it').length >= 30)), '9/true');
+  check('  分類ごとにページが並ぶ（v489 で 120 項目ぶん）', await page.evaluate(() => [...document.querySelectorAll('#mnList .mn-grp')].length + '/' + (document.querySelectorAll('#mnList .mn-it').length >= 110)), '10/true');
   check('  どのページも開ける（エラーなし・中身あり）', await page.evaluate(() => mnPages().filter(p => { mnOpen(p.id); return document.getElementById('mnViewBody').textContent.length < 80; }).map(p => p.id).join(',')), '');
   await page.evaluate(() => mnCloseView()); await w(300);
   // さがす
@@ -8061,6 +8061,25 @@ async function runManner(browser) {
   await page.fill('#mnAgIn', '1960'); await w(100);
   check('  長寿祝い（満・数え・和暦）', await page.evaluate(() => { const r = [...document.querySelectorAll('#mnAgOut tr')].find(x => x.cells[0].textContent.startsWith('還暦')); return r.cells[1].textContent.slice(0, 5) + '/' + r.cells[2].textContent.slice(0, 5) + '/' + document.getElementById('mnAgOut').textContent.includes('昭和35年'); }), '2020年/2019年/true');
   check('  和暦', await page.evaluate(() => [mnWareki(2019, 4, 30), mnWareki(2019, 5, 1), mnWareki(1989, 1, 7), mnWareki(1989, 1, 8), mnWareki(2026)].join(',')), '平成31年,令和元年,昭和64年,平成元年,令和8年');
+  // v489：足したページと道具
+  check('  足したページ（受付・家族葬・お布施・名刺交換・嫌い箸・浴衣…）', await page.evaluate(() => ['wed-uketsuke', 'fun-kazokuso', 'fun-sese', 'act-meishi', 'meal-hashi', 'act-hotel', 'keigo-tel', 'env-yubin', 'season-shogatsu', 'gift-ng'].filter(id => !mnPages().some(p => p.id === id)).join(',')), '');
+  check('  さがす：ことば（嫌い箸・浴衣・レターパック）', await page.evaluate(() => ['迷い箸', '左前', 'レターパック'].map(q => (mnSearch(q)[0] || {}).id).join(',')), 'meal-hashi,act-hotel,env-yubin');
+  check('  旧暦：旧正月（日本時間）・閏月', await page.evaluate(() => [[2024, 2, 10], [2025, 1, 29], [2026, 2, 17], [2027, 2, 7], [2028, 1, 27]].map(([y, m, d]) => { const L = mnLunar(y, m, d); return L.m + '/' + L.d; }).join(',') + '|' + [[2023, 4, 1], [2025, 8, 10]].map(([y, m, d]) => { const L = mnLunar(y, m, d); return (L.leap ? '閏' : '') + L.m; }).join(',')), '1/1,1/1,1/1,1/1,1/1|閏2,閏6');
+  check('  六曜（旧1月1日は先勝）', await page.evaluate(() => mnRokuyo(2026, 2, 17) + mnRokuyo(2026, 2, 18) + mnRokuyo(2026, 2, 19)), '先勝友引先負');
+  check('  二十四節気（2026年）', await page.evaluate(() => mnSekki(2026).filter(s => /^(立春|春分|夏至|秋分|冬至)$/.test(s.name)).map(s => s.name + s.m + '/' + s.d).join(' ')), '立春2/4 春分3/20 夏至6/21 秋分9/23 冬至12/22');
+  check('  干支', await page.evaluate(() => [1984, 2024, 2026, 1960].map(etoOf).join(',')), '甲子,甲辰,丙午,庚子');
+  await page.evaluate(() => mnOpen('tool-yaku')); await w(200); await page.fill('#mnYkIn', '1985'); await w(100);
+  check('  厄年（女性33歳の本厄・男性42歳の本厄）', await page.evaluate(() => { const t = [...document.querySelectorAll('#mnYkOut table')]; const pick = (tb, a) => [...tb.querySelectorAll('tr')].find(r => r.cells[0].textContent.startsWith(a)).cells[2].textContent.slice(0, 5); return pick(t[1], '33歳') + '/' + pick(t[0], '42歳'); }), '2017年/2026年');
+  await page.evaluate(() => mnOpen('tool-kids')); await w(200); await page.fill('#mnKdIn', '2026-01-10'); await w(100);
+  check('  子どもの行事（女の子：お宮参り32日目・お食い初め・初節句）', await page.evaluate(() => [...document.querySelectorAll('#mnKdOut table')[0].querySelectorAll('tr')].slice(1, 5).map(r => r.cells[1].textContent.replace(/（.）/, '')).join(',')), '2026年1月16日,2026年2月10日,2026年4月19日,2026年3月3日');
+  await page.evaluate(() => mnOpen('tool-kekkon')); await w(200); await page.fill('#mnKkIn', '2001-04-01'); await w(100);
+  check('  結婚記念日（25年目は銀婚式）', await page.evaluate(() => [...document.querySelectorAll('#mnKkOut tr')].find(r => r.cells[0].textContent === '25年').cells[1].textContent + '/' + [...document.querySelectorAll('#mnKkOut tr')].find(r => r.cells[0].textContent === '25年').cells[2].textContent), '銀婚式/2026年');
+  await page.evaluate(() => mnOpen('tool-rokuyo')); await w(300);
+  check('  六曜カレンダー（今月・日ごとに六曜と旧暦）', await page.evaluate(() => { const c = document.querySelectorAll('#mnCalOut td span'); return (c.length >= 28) + '/' + [...c].every(x => /^(大安|赤口|先勝|友引|先負|仏滅)$/.test(x.textContent)) + '/' + !!document.querySelector('#mnCalOut td.today'); }), 'true/true/true');
+  await page.evaluate(() => mnCalMove(1)); await w(100);
+  check('  次の月へ', await page.evaluate(() => { const d = new Date(); d.setMonth(d.getMonth() + 1, 1); return document.getElementById('mnCalHd').textContent.startsWith(d.getFullYear() + '年' + (d.getMonth() + 1) + '月'); }), true);
+  await page.evaluate(() => mnOpen('tool-nenrei')); await w(200); await page.fill('#mnNrIn', '昭和60'); await w(150);
+  check('  年齢早見（和暦で入れても）', await page.evaluate(() => document.querySelector('#mnNrOut tr.mn-now').cells[0].textContent.slice(0, 5) + '/' + document.querySelector('#mnNrOut tr.mn-now').cells[1].textContent.slice(0, 2)), '1985年/乙丑');
   // 印刷
   check('  🖨 印刷（入力欄やボタンは出さない）', await page.evaluate(() => { mnOpen('fun-koden'); let h = ''; const ob = window.opBuild, op = window.opPrint; window.opBuild = x => x; window.opPrint = x => { h = x; }; mnPrint('fun-koden'); window.opBuild = ob; window.opPrint = op; return h.includes('<h1>香典の金額と包み方</h1>') + '/' + !h.includes('よく見る'); }), 'true/true');
   // 戻る
