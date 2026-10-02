@@ -9058,6 +9058,8 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v485', t:'名刺の写真をもっと小さく', li:[
+    '💼名刺管理で保存する名刺の写真を、長い辺 <b>1200px</b>・画質 70% にしました（1枚 約 55〜75KB。前は 1400px で 約 80〜110KB）。これから撮る写真から小さくなります' ]},
   { v:'v484', t:'道具に「💼 名刺管理」', li:[
     '新しい道具<b>「💼 名刺管理」</b>。もらった名刺を<b>写真（表・裏）</b>と名前・会社・電話・メールなどで残し、<b>名前・ふりがな・会社・電話番号の一部</b>でさがせます',
     '名刺の文字をコピーして貼ると、<b>名前・会社・役職・電話・携帯・FAX・メール・住所</b>などの欄に分けて入れます（iPhone は写真の テキスト認識表示、Android は Google レンズで文字をコピー）',
@@ -21182,7 +21184,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v484';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v485';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

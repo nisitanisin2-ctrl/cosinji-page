@@ -1,6 +1,6 @@
 /* 💼 名刺管理（v484。表電卓の道具。はじめて開いたときに読む）
    もらった名刺を入れて、あとで名前・会社・ふりがなでさがす。
-   ・名刺の表・裏を写真で残す（端末の IndexedDB excalc_meishi に、長い辺 1400px の JPEG で）。
+   ・名刺の表・裏を写真で残す（端末の IndexedDB excalc_meishi に、長い辺 1200px・画質 70% の JPEG で。1枚 約60KB。v485）。
    ・名刺の文字を貼ると、名前・会社・役職・電話・メール・住所などの欄に分ける（mcParse）。
      iPhone は写真の「テキスト認識表示」、Android は Google レンズで文字をコピーして貼る。
    ・📞電話・✉メール・🌐サイト・📍地図をワンタッチ。📇スマホの連絡先に入れる（vCard）。
@@ -65,6 +65,7 @@ function mcDb(){
 async function mcPicGet(k){ try{ const db=await mcDb(); return await new Promise(r=>{ const q=db.transaction('pics').objectStore('pics').get(k); q.onsuccess=()=>r(q.result||null); q.onerror=()=>r(null); }); }catch(_){ return null; } }
 async function mcPicPut(k,data){ const db=await mcDb(); return new Promise((res,rej)=>{ const t=db.transaction('pics','readwrite'); t.objectStore('pics').put(data,k); t.oncomplete=()=>res(true); t.onerror=()=>rej(t.error); }); }
 async function mcPicDel(k){ try{ const db=await mcDb(); await new Promise(r=>{ const t=db.transaction('pics','readwrite'); t.objectStore('pics').delete(k); t.oncomplete=r; t.onerror=r; }); }catch(_){} }
+const MC_PIC_MAX=1200, MC_PIC_Q=0.7;   // 写真の大きさ（長い辺）と画質。1400px・75% から小さくした（v485）
 const mcPics={};   // 'id_f' → dataURL（一度読んだものは覚えておく）
 async function mcPic(id, side){ const k=id+'_'+side; if(mcPics[k]===undefined) mcPics[k]=await mcPicGet(k); return mcPics[k]; }
 function mcResize(file, max){
@@ -72,7 +73,7 @@ function mcResize(file, max){
     const url=URL.createObjectURL(file), im=new Image();
     im.onload=()=>{ const k=Math.min(1, max/Math.max(im.naturalWidth, im.naturalHeight)); const cv=document.createElement('canvas');
       cv.width=Math.round(im.naturalWidth*k); cv.height=Math.round(im.naturalHeight*k); cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);
-      URL.revokeObjectURL(url); res(cv.toDataURL('image/jpeg',0.75)); };
+      URL.revokeObjectURL(url); res(cv.toDataURL('image/jpeg',MC_PIC_Q)); };
     im.onerror=()=>{ URL.revokeObjectURL(url); rej(new Error('img')); };
     im.src=url;
   });
@@ -476,7 +477,7 @@ async function mcPickSide(side){
 }
 async function mcPickPhoto(inp){
   const fl=inp.files && inp.files[0]; inp.value=''; if(!fl) return;
-  try{ mcEdPic[mcPicSide]=await mcResize(fl, 1400); mcEdPv(); }catch(_){ toast('写真を読めませんでした'); }
+  try{ mcEdPic[mcPicSide]=await mcResize(fl, MC_PIC_MAX); mcEdPv(); }catch(_){ toast('写真を読めませんでした'); }
 }
 function mcClearPic(side){ mcEdPic[side]=null; mcEdPv(); }
 async function mcNewTag(){

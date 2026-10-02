@@ -7830,6 +7830,13 @@ async function runMeishi(browser) {
   await page.evaluate(() => { [...document.querySelectorAll('#mcETags button')].find(b => b.textContent === '取引先').click(); document.getElementById('mcE_metAt').value = '展示会'; });
   await page.setInputFiles('#mcPicIn', path.join(ROOT, 'icon-192.png')); await w(400);
   check('  名刺の写真（表）を入れる', await page.evaluate(() => /url\("data:image\/jpeg/.test(document.getElementById('mcPvF').style.backgroundImage)), true);
+  check('  大きな写真は長い辺 1200px・画質 70% に縮める（v485）', await page.evaluate(async () => {
+    const cv = document.createElement('canvas'); cv.width = 4032; cv.height = 3024; const g = cv.getContext('2d'); g.fillStyle = '#b08060'; g.fillRect(0, 0, 4032, 3024); g.fillStyle = '#fff'; g.fillRect(500, 600, 3000, 1800);
+    const bl = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.92)); const keep = document.getElementById('mcPvF').style.backgroundImage;
+    await mcPickPhoto({ files: [new File([bl], 'big.jpg', { type: 'image/jpeg' })], value: '' });
+    const d = /url\("(.+)"\)/.exec(document.getElementById('mcPvF').style.backgroundImage)[1]; const im = new Image(); await new Promise(r => { im.onload = r; im.src = d; });
+    return im.naturalWidth + 'x' + im.naturalHeight + '/' + d.startsWith('data:image/jpeg'); }), '1200x900/true');
+  await page.setInputFiles('#mcPicIn', path.join(ROOT, 'icon-192.png')); await w(400);
   await page.evaluate(() => mcEdSave()); await w(400);
   check('  保存（分類・会った所・写真）', await page.evaluate(() => { const x = mcState().items[0]; return [x.name, x.tags.join(','), x.metAt, x.front, x.back].join('|'); }), '山田 太郎|取引先|展示会|true|false');
   check('  覚える（excalc_meishi）', await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_meishi')).items.length), 1);
