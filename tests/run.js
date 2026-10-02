@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,trim,memo,calctmpl,fintmpl,kaikei,koe,eigo');
+    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,trim,manner,memo,calctmpl,fintmpl,kaikei,koe,eigo');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -3086,11 +3086,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'home,last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,trim,calctmpl,fintmpl');
+    'home,last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,trim,manner,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 20);   // v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング を足した
+    document.getElementById('startPageSel').options.length), 21);   // v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳 を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'veggieOverlay', 'volumeOverlay',
@@ -8013,6 +8013,83 @@ async function runTrim(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runManner(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📜マナー帳（v488） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキーにある', await page.evaluate(() => !window.MANNER_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'manner') + '/' + !!KEY_FUNCS.a_manner), 'true/true/true');
+  await page.evaluate(() => openManner()); await w(600);
+  check('  分類ごとにページが並ぶ（v489 で 120 項目ぶん）', await page.evaluate(() => [...document.querySelectorAll('#mnList .mn-grp')].length + '/' + (document.querySelectorAll('#mnList .mn-it').length >= 110)), '10/true');
+  check('  どのページも開ける（エラーなし・中身あり）', await page.evaluate(() => mnPages().filter(p => { mnOpen(p.id); return document.getElementById('mnViewBody').textContent.length < 80; }).map(p => p.id).join(',')), '');
+  await page.evaluate(() => mnCloseView()); await w(300);
+  // さがす
+  const find = q => page.evaluate(q => { mnSetQ(q); return [...document.querySelectorAll('#mnList .mn-it')].map(b => b.dataset.id); }, q);
+  check('  さがす：香典', (await find('香典')).slice(0, 2).join(','), 'fun-koden,fun-omote');
+  check('  さがす：ひらがな（へんしんはがき）', (await find('へんしん はがき'))[0], 'wed-reply');
+  check('  さがす：カタカナでも（オンチュウ）', (await find('オンチュウ'))[0], 'letter-keisho');
+  check('  さがす：本文の言葉（しのび手）', (await find('しのび手'))[0], 'fun-shoko');
+  check('  見つからないとき', await page.evaluate(() => { mnSetQ('ああああ'); return document.getElementById('mnList').textContent.includes('見つかりませんでした'); }), true);
+  await page.evaluate(() => { document.getElementById('mnFind').value = ''; mnSetQ(''); mnSetCat('env'); });
+  check('  分類で絞る', await page.evaluate(() => [...document.querySelectorAll('#mnList .mn-it')].every(b => b.dataset.id.startsWith('env-'))), true);
+  await page.evaluate(() => mnSetCat('env'));
+  // 時候の挨拶：いまの月に印
+  await page.evaluate(() => mnOpen('season-jiko')); await w(200);
+  check('  時候の挨拶：いまの月に印', await page.evaluate(() => document.querySelector('#mnViewBody tr.mn-now td').textContent.startsWith((new Date().getMonth() + 1) + '月')), true);
+  check('  文例を 📋 でコピー', await page.evaluate(async () => { let t = ''; navigator.clipboard.writeText = async x => { t = x; }; document.querySelector('#mnViewBody .mn-cp').click(); await new Promise(r => setTimeout(r, 50)); return t.startsWith('拝啓 '); }), true);
+  // ★
+  await page.evaluate(() => mnToggleFav('season-jiko')); await page.evaluate(() => mnCloseView()); await w(300);
+  check('  ★ よく見る（覚える・チップに出る）', await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_manner')).fav.join(',') + '/' + [...document.querySelectorAll('#mnBar .mn-chip')].some(b => b.textContent.includes('よく見る'))), 'season-jiko/true');
+  // 道具：大字
+  check('  大字', await page.evaluate(() => [10000, 30000, 15000, 5000, 100000, 1234567].map(n => mnDaiji(n, true)).join(' ')), '壱萬圓 参萬圓 壱萬伍阡圓 伍阡圓 壱拾萬圓 壱百弐拾参萬肆阡伍百陸拾漆圓');
+  check('  ふつうの漢数字', await page.evaluate(() => [10000, 30000, 15000, 1000].map(n => mnDaiji(n, false)).join(' ')), '一万円 三万円 一万五千円 千円');
+  await page.evaluate(() => mnOpen('tool-daiji')); await w(200);
+  await page.fill('#mnDjIn', '40000'); await w(100);
+  check('  4のつく金額には注意', await page.evaluate(() => document.getElementById('mnDjOut').textContent.includes('金 肆萬圓') + '/' + document.getElementById('mnDjOut').textContent.includes('避けることが多い')), 'true/true');
+  // 宛名
+  check('  住所の数字を漢数字に', await page.evaluate(() => mnKanAddr('千代田1-2-30 5F') + '/' + mnKanAddr('１２３－４')), '千代田一ー二ー三〇 五F/一二三ー四');
+  await page.evaluate(() => mnOpen('tool-atena')); await w(200);
+  await page.fill('#mnAZip', '100-0001'); await page.fill('#mnAAd1', '東京都千代田区千代田1-2-3'); await page.fill('#mnAName', '山田 太郎'); await w(100);
+  check('  宛名の見本（郵便番号・漢数字・様）', await page.evaluate(() => { const o = document.getElementById('mnAOut'); return [...o.querySelectorAll('.mn-env-zip span')].map(x => x.textContent).join('') + '/' + o.querySelector('.mn-env-right').textContent + '/' + o.querySelector('.mn-env-name').textContent; }), '1000001/東京都千代田区千代田一ー二ー三/山田　太郎　様');
+  await page.evaluate(() => mnAtenaKei([...document.querySelectorAll('#mnAKei button')].find(b => b.textContent === '御中'))); await w(100);
+  check('  人の名前に御中は注意', await page.evaluate(() => document.getElementById('mnAOut').textContent.includes('「様」にします')), true);
+  // 法要
+  await page.evaluate(() => mnOpen('tool-hoyo')); await w(200);
+  await page.fill('#mnHyIn', '2024-03-10'); await w(100);
+  check('  法要の日（四十九日・一周忌・三回忌・七回忌）', await page.evaluate(() => [...document.querySelectorAll('#mnHyOut tr')].filter(r => /^(四十九日|一周忌|三回忌|七回忌)$/.test(r.cells[0].textContent)).map(r => r.cells[1].textContent.replace(/（.）.*$/, '')).join(',')), '2024年4月27日,2025年3月10日,2026年3月10日,2030年3月10日');
+  // 長寿
+  await page.evaluate(() => mnOpen('tool-age')); await w(200);
+  await page.fill('#mnAgIn', '1960'); await w(100);
+  check('  長寿祝い（満・数え・和暦）', await page.evaluate(() => { const r = [...document.querySelectorAll('#mnAgOut tr')].find(x => x.cells[0].textContent.startsWith('還暦')); return r.cells[1].textContent.slice(0, 5) + '/' + r.cells[2].textContent.slice(0, 5) + '/' + document.getElementById('mnAgOut').textContent.includes('昭和35年'); }), '2020年/2019年/true');
+  check('  和暦', await page.evaluate(() => [mnWareki(2019, 4, 30), mnWareki(2019, 5, 1), mnWareki(1989, 1, 7), mnWareki(1989, 1, 8), mnWareki(2026)].join(',')), '平成31年,令和元年,昭和64年,平成元年,令和8年');
+  // v489：足したページと道具
+  check('  足したページ（受付・家族葬・お布施・名刺交換・嫌い箸・浴衣…）', await page.evaluate(() => ['wed-uketsuke', 'fun-kazokuso', 'fun-sese', 'act-meishi', 'meal-hashi', 'act-hotel', 'keigo-tel', 'env-yubin', 'season-shogatsu', 'gift-ng'].filter(id => !mnPages().some(p => p.id === id)).join(',')), '');
+  check('  さがす：ことば（嫌い箸・浴衣・レターパック）', await page.evaluate(() => ['迷い箸', '左前', 'レターパック'].map(q => (mnSearch(q)[0] || {}).id).join(',')), 'meal-hashi,act-hotel,env-yubin');
+  check('  旧暦：旧正月（日本時間）・閏月', await page.evaluate(() => [[2024, 2, 10], [2025, 1, 29], [2026, 2, 17], [2027, 2, 7], [2028, 1, 27]].map(([y, m, d]) => { const L = mnLunar(y, m, d); return L.m + '/' + L.d; }).join(',') + '|' + [[2023, 4, 1], [2025, 8, 10]].map(([y, m, d]) => { const L = mnLunar(y, m, d); return (L.leap ? '閏' : '') + L.m; }).join(',')), '1/1,1/1,1/1,1/1,1/1|閏2,閏6');
+  check('  六曜（旧1月1日は先勝）', await page.evaluate(() => mnRokuyo(2026, 2, 17) + mnRokuyo(2026, 2, 18) + mnRokuyo(2026, 2, 19)), '先勝友引先負');
+  check('  二十四節気（2026年）', await page.evaluate(() => mnSekki(2026).filter(s => /^(立春|春分|夏至|秋分|冬至)$/.test(s.name)).map(s => s.name + s.m + '/' + s.d).join(' ')), '立春2/4 春分3/20 夏至6/21 秋分9/23 冬至12/22');
+  check('  干支', await page.evaluate(() => [1984, 2024, 2026, 1960].map(etoOf).join(',')), '甲子,甲辰,丙午,庚子');
+  await page.evaluate(() => mnOpen('tool-yaku')); await w(200); await page.fill('#mnYkIn', '1985'); await w(100);
+  check('  厄年（女性33歳の本厄・男性42歳の本厄）', await page.evaluate(() => { const t = [...document.querySelectorAll('#mnYkOut table')]; const pick = (tb, a) => [...tb.querySelectorAll('tr')].find(r => r.cells[0].textContent.startsWith(a)).cells[2].textContent.slice(0, 5); return pick(t[1], '33歳') + '/' + pick(t[0], '42歳'); }), '2017年/2026年');
+  await page.evaluate(() => mnOpen('tool-kids')); await w(200); await page.fill('#mnKdIn', '2026-01-10'); await w(100);
+  check('  子どもの行事（女の子：お宮参り32日目・お食い初め・初節句）', await page.evaluate(() => [...document.querySelectorAll('#mnKdOut table')[0].querySelectorAll('tr')].slice(1, 5).map(r => r.cells[1].textContent.replace(/（.）/, '')).join(',')), '2026年1月16日,2026年2月10日,2026年4月19日,2026年3月3日');
+  await page.evaluate(() => mnOpen('tool-kekkon')); await w(200); await page.fill('#mnKkIn', '2001-04-01'); await w(100);
+  check('  結婚記念日（25年目は銀婚式）', await page.evaluate(() => [...document.querySelectorAll('#mnKkOut tr')].find(r => r.cells[0].textContent === '25年').cells[1].textContent + '/' + [...document.querySelectorAll('#mnKkOut tr')].find(r => r.cells[0].textContent === '25年').cells[2].textContent), '銀婚式/2026年');
+  await page.evaluate(() => mnOpen('tool-rokuyo')); await w(300);
+  check('  六曜カレンダー（今月・日ごとに六曜と旧暦）', await page.evaluate(() => { const c = document.querySelectorAll('#mnCalOut td span'); return (c.length >= 28) + '/' + [...c].every(x => /^(大安|赤口|先勝|友引|先負|仏滅)$/.test(x.textContent)) + '/' + !!document.querySelector('#mnCalOut td.today'); }), 'true/true/true');
+  await page.evaluate(() => mnCalMove(1)); await w(100);
+  check('  次の月へ', await page.evaluate(() => { const d = new Date(); d.setMonth(d.getMonth() + 1, 1); return document.getElementById('mnCalHd').textContent.startsWith(d.getFullYear() + '年' + (d.getMonth() + 1) + '月'); }), true);
+  await page.evaluate(() => mnOpen('tool-nenrei')); await w(200); await page.fill('#mnNrIn', '昭和60'); await w(150);
+  check('  年齢早見（和暦で入れても）', await page.evaluate(() => document.querySelector('#mnNrOut tr.mn-now').cells[0].textContent.slice(0, 5) + '/' + document.querySelector('#mnNrOut tr.mn-now').cells[1].textContent.slice(0, 2)), '1985年/乙丑');
+  // 印刷
+  check('  🖨 印刷（入力欄やボタンは出さない）', await page.evaluate(() => { mnOpen('fun-koden'); let h = ''; const ob = window.opBuild, op = window.opPrint; window.opBuild = x => x; window.opPrint = x => { h = x; }; mnPrint('fun-koden'); window.opBuild = ob; window.opPrint = op; return h.includes('<h1>香典の金額と包み方</h1>') + '/' + !h.includes('よく見る'); }), 'true/true');
+  // 戻る
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  戻るでページだけ閉じる', await page.evaluate(() => isDlgOpen('mnViewOverlay') + '/' + isDlgOpen('mannerOverlay')), 'false/true');
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  戻るで閉じる', await page.evaluate(() => isDlgOpen('mannerOverlay')), false);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runUiMode(browser) {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true });
   const page = await ctx.newPage();
@@ -8120,11 +8197,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/20');
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/21');
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'shimai', 'meishi', 'trim', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'shimai', 'meishi', 'trim', 'manner', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -8152,7 +8229,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,shimai:B,meishi:B,trim:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,shimai:B,meishi:B,trim:B,manner:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -9244,6 +9321,7 @@ async function runQrShare(browser) {
     if (!only || only === 'shimai') await runShimai(browser);
     if (!only || only === 'meishi') await runMeishi(browser);
     if (!only || only === 'trim') await runTrim(browser);
+    if (!only || only === 'manner') await runManner(browser);
     if (!only || only === 'uimode') await runUiMode(browser);
     if (!only || only === 'toolsfab') await runToolsFab(browser);
     if (!only || only === 'techoapp') await runTechoApp(browser);
