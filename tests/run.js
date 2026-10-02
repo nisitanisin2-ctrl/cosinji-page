@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,trim,manner,boki,memo,calctmpl,fintmpl,kaikei,koe,eigo');
+    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,trim,manner,boki,kurashi,memo,calctmpl,fintmpl,kaikei,koe,eigo');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -3086,11 +3086,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'home,last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,trim,manner,boki,calctmpl,fintmpl');
+    'home,last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,trim,manner,boki,kurashi,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 22);   // v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き を足した
+    document.getElementById('startPageSel').options.length), 23);   // v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳 を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'veggieOverlay', 'volumeOverlay',
@@ -8161,6 +8161,80 @@ async function runBoki(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runKurashi(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🧭くらしの便利帳（v491） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキーにある', await page.evaluate(() => !window.KURASHI_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'kurashi') + '/' + !!KEY_FUNCS.a_kurashi), 'true/true/true');
+  await page.evaluate(() => openKurashi()); await w(600);
+  check('  開くと10のテーマのカード（番号つき）', await page.evaluate(() => [...document.querySelectorAll('#krList .kr-card')].map(c => c.querySelector('.no').textContent + c.dataset.cat).join(',')), '1aid,2bosai,3shibo,4hikkoshi,5kosodate,6taishoku,7kaigo,8car,9hou,10iryo');
+  check('  どのテーマにもページが8つ以上', await page.evaluate(() => krCats().filter(c => krPages().filter(p => p.cat === c).length < 8).join(',')), '');
+  check('  どのページも開ける（エラーなし・中身あり）', await page.evaluate(() => krPages().filter(p => { krOpen(p.id); return document.getElementById('krViewBody').textContent.length < 200; }).map(p => p.id).join(',')), '');
+  await page.evaluate(() => krCloseView()); await w(300);
+  // テーマ → 一覧 → ページ
+  await page.click('#krList .kr-card[data-cat="shibo"]'); await w(300);
+  check('  テーマを押すと一覧（道具は下に分けて）', await page.evaluate(() => isDlgOpen('krCatOverlay') + '/' + document.getElementById('krCatHdr').textContent + '/' + [...document.querySelectorAll('#krCatBody .kr-it')][0].dataset.id + '/' + document.getElementById('krCatBody').textContent.includes('道具・チェック表')), 'true/🕊 身内が亡くなったとき/shibo-chokugo/true');
+  await page.click('#krCatBody .kr-it[data-id="shibo-todoke"]'); await w(300);
+  check('  一覧から押すとくわしいページ', await page.evaluate(() => isDlgOpen('krViewOverlay') + '/' + document.getElementById('krViewBody').textContent.includes('7日以内')), 'true/true');
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  戻るでページ → 一覧へ', await page.evaluate(() => isDlgOpen('krViewOverlay') + '/' + isDlgOpen('krCatOverlay')), 'false/true');
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  戻るで一覧 → 10のテーマへ', await page.evaluate(() => isDlgOpen('krCatOverlay') + '/' + isDlgOpen('kurashiOverlay')), 'false/true');
+  // さがす
+  const find = q => page.evaluate(q => { krSetQ(q); return [...document.querySelectorAll('#krList .kr-it')].map(b => b.dataset.id); }, q);
+  check('  さがす：AED', (await find('AED'))[0], 'aid-cpr');
+  check('  さがす：ひらがな（しつぎょうほけん）', (await find('しつぎょうほけん'))[0], 'tai-shitsugyo');
+  check('  さがす：カタカナでも（クーリングオフ）', (await find('クーリングオフ'))[0], 'hou-cooling');
+  await page.evaluate(() => { document.getElementById('krFind').value = ''; krSetQ(''); });
+  // 道具
+  const tool = async (id, fill) => { await page.evaluate(id => krOpen(id), id); await w(150); for (const [sel, v] of fill || []) { await page.fill(sel, v); } await w(100); return page.evaluate(() => document.getElementById('krViewBody').innerText.replace(/\s+/g, ' ')); };
+  let t = await tool('tool-shibo', [['#krSbIn', '2026-03-10']]);
+  check('  期限：死亡届7日・相続放棄3か月・相続税10か月', /2026年3月16日.*死亡届/.test(t) + '/' + /2026年6月10日.*相続放棄/.test(t) + '/' + /2027年1月10日.*相続税/.test(t), 'true/true/true');
+  await page.evaluate(() => krOpen('tool-souzoku')); await w(150);
+  const sz = async (sp, c, p, b) => { await page.evaluate(([sp, c, p, b]) => { document.getElementById('krSzSp').checked = sp; document.getElementById('krSzC').value = c; document.getElementById('krSzP').value = p; document.getElementById('krSzB').value = b; krSouzokuRun(); return 0; }, [sp, c, p, b]); return page.evaluate(() => [...document.querySelectorAll('#krSzOut table tr')].slice(1).map(r => r.cells[1].textContent).join(',') + '/' + document.getElementById('krSzOut').textContent.match(/基礎控除 ([\d,]+)万円/)[1]); };
+  check('  法定相続分：配偶者＋子2人', await sz(true, 2, 0, 0), '1/2,1人 1/4/4,800');
+  check('  法定相続分：配偶者＋親2人', await sz(true, 0, 2, 0), '2/3,1人 1/6/4,800');
+  check('  法定相続分：配偶者＋兄弟3人', await sz(true, 0, 0, 3), '3/4,1人 1/12/5,400');
+  await page.evaluate(() => krOpen('tool-shitsugyo')); await w(150);
+  const st = (age, y, wh) => page.evaluate(([age, y, wh]) => { document.getElementById('krStAge').value = age; document.getElementById('krStY').value = y; document.getElementById('krStW').value = wh; krShitsuRun(); const m = document.getElementById('krStOut').textContent.match(/目安 (\d+)日/); return m ? +m[1] : 0; }, [age, y, wh]);
+  check('  失業保険の日数（自己都合・会社都合）', [await st(40, 12, 'ji'), await st(40, 25, 'ji'), await st(50, 22, 'to'), await st(28, 3, 'to'), await st(62, 15, 'to'), await st(30, 0.5, 'ji')].join(','), '120,150,330,90,210,0');
+  t = await tool('tool-taishokukin', [['#krTkA', '15000000'], ['#krTkY', '25']]);
+  check('  退職金の税金（控除1,150万・所得税）', t.includes('11,500,000円') + '/' + t.includes('89,337円'), 'true/true');
+  t = await tool('tool-kogaku', [['#krKgkM', '1000000']]);
+  check('  高額療養費（370〜770万円・100万円）', t.includes('87,430円') + '/' + t.includes('212,570円'), 'true/true');
+  t = await tool('tool-nenkin');
+  await page.selectOption('#krNkA', '70'); await w(100);
+  check('  年金：70歳から +42%', await page.evaluate(() => document.querySelector('#krNkOut .kr-big').textContent.includes('+42.0%')), true);
+  await page.selectOption('#krNkA', '60'); await w(100);
+  check('  年金：60歳から −24%', await page.evaluate(() => document.querySelector('#krNkOut .kr-big').textContent.includes('-24.0%')), true);
+  t = await tool('tool-cooling', [['#krClD', '2026-05-01']]);
+  check('  クーリング・オフ：訪問販売は8日目まで', t.includes('2026年5月8日（金） まで'), true);
+  await page.selectOption('#krClT', 'mar'); await w(100);
+  check('  クーリング・オフ：マルチは20日', await page.evaluate(() => document.getElementById('krClOut').textContent.includes('2026年5月20日')), true);
+  t = await tool('tool-bichiku', [['#krBcN', '2'], ['#krBcD', '3']]);
+  check('  備蓄：2人3日で水18L・トイレ30回', t.includes('水 18 リットル') + '/' + t.includes('携帯トイレ 30 回分'), 'true/true');
+  t = await tool('tool-carday', [['#krCdS', '2027-06-30']]);
+  check('  車検は満了日の2か月前から', t.includes('2027年4月30日'), true);
+  // 救急のチェック
+  await page.evaluate(() => krOpen('tool-call')); await w(150);
+  check('  救急：当てはまれば 119番', await page.evaluate(() => { const o = () => document.getElementById('krCallOut').textContent; const a = o().includes('すぐに 119番'); document.querySelector('#krCallList input').click(); return a + '/' + o().includes('すぐに 119番'); }), 'false/true');
+  // チェック表を覚える
+  await page.evaluate(() => krOpen('bosai-mochidashi')); await w(150);
+  await page.evaluate(() => { document.querySelectorAll('#krViewBody .kr-chk input')[1].click(); });
+  check('  チェック表の印を覚える', await page.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem('excalc_kurashi')).chk.mochi) + '/' + document.querySelector('#krViewBody .kr-ck-n').textContent), '[1]/1／18 できた');
+  // ★・印刷
+  await page.evaluate(() => krToggleFav('bosai-mochidashi'));
+  check('  ★ よく見る（10のテーマの下に出る）', await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_kurashi')).fav.join(',') + '/' + [...document.querySelectorAll('#krList .kr-it')].map(b => b.dataset.id).join(',')), 'bosai-mochidashi/bosai-mochidashi');
+  check('  🖨 印刷', await page.evaluate(() => { let h = ''; const ob = window.opBuild, op = window.opPrint; window.opBuild = x => x; window.opPrint = x => { h = x; }; krPrint('bosai-mochidashi'); window.opBuild = ob; window.opPrint = op; return h.includes('<h1>非常持ち出し袋の中身</h1>') + '/' + !h.includes('よく見る'); }), 'true/true');
+  // テンポは閉じると止まる
+  await page.evaluate(() => { krOpen('aid-tempo'); krTempo(); }); await w(700);
+  await page.evaluate(() => krCloseView()); await w(400);
+  check('  テンポは閉じると止まる', await page.evaluate(async () => { const a = document.getElementById('krTpN')?.textContent; await new Promise(r => setTimeout(r, 700)); return a === document.getElementById('krTpN')?.textContent; }), true);
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  戻るで閉じる', await page.evaluate(() => isDlgOpen('kurashiOverlay')), false);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runUiMode(browser) {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true });
   const page = await ctx.newPage();
@@ -8268,11 +8342,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/22');
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/23');
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'shimai', 'meishi', 'trim', 'manner', 'boki', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'shimai', 'meishi', 'trim', 'manner', 'boki', 'kurashi', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -8300,7 +8374,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,shimai:B,meishi:B,trim:B,manner:B,boki:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,shimai:B,meishi:B,trim:B,manner:B,boki:B,kurashi:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -9394,6 +9468,7 @@ async function runQrShare(browser) {
     if (!only || only === 'trim') await runTrim(browser);
     if (!only || only === 'manner') await runManner(browser);
     if (!only || only === 'boki') await runBoki(browser);
+    if (!only || only === 'kurashi') await runKurashi(browser);
     if (!only || only === 'uimode') await runUiMode(browser);
     if (!only || only === 'toolsfab') await runToolsFab(browser);
     if (!only || only === 'techoapp') await runTechoApp(browser);
