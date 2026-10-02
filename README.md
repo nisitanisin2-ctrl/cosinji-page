@@ -37,6 +37,7 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 | `shimai.js` | 📦しまい場所メモ（しまった物と場所を文や声で残し、あとで「どこ？」とさがす。写真・前の場所・場所ごとの印刷・CSV）。写真は端末の IndexedDB に入れる。開いたときだけ読み込みます（v458 から） |
 | `meishi.js` | 💼名刺管理（もらった名刺を写真と文字で残し、名前・ふりがな・会社・電話でさがす。名刺の文字を貼ると欄に分ける・電話/メール/地図・vCard と CSV の読み書き・会社ごとの印刷）。写真は長い辺 1200px・画質 70% の JPEG にして端末の IndexedDB に入れる。開いたときだけ読み込みます（v484 から） |
 | `trim.js` | ✂写真トリミング（写真を撮る・選ぶ → 傾きを直す（0.1° ずつ・線を引いて水平／垂直に）→ 枠で切り抜く（形・回す・反転）→ 大きさ（px・%・KB 以下）と形式（JPEG・PNG・WebP）を決めて保存・送る）。写真は残さない。開いたときだけ読み込みます（v486 から） |
+| `manner.js` | 📜マナー帳（冠婚葬祭・贈り物・季節のあいさつ・手紙・封筒・のし袋・敬語・席次の一般常識をさがして読む。文例のコピー・印刷。金額を大字に・宛名書きの見本・法要の日・長寿祝いの年の道具）。開いたときだけ読み込みます（v488 から） |
 | `apps/〇〇/` | 道具だけのアプリの入り口（v462〜）。道具ごとの manifest・アイコン・`index.html`（`../../index.html?app=〇〇` へ移る）。ホーム画面に置くと、その道具だけが開きます（業務手帳は `techo/`） |
 | `techo/` | 📔業務手帳だけのアプリの入り口（manifest・アイコン）。`techo/` を開くと `index.html?app=techo` に移り、業務手帳だけを全画面で開きます。ホーム画面に足すと業務手帳のアイコンになります（v447 から） |
 | `service-worker.js` | 電波がなくても動くようにするしくみ |
@@ -51,7 +52,7 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 
 ## 配る
 
-`index.html` `help.js`（と `help/` フォルダ） `photomemo.js` `techo.js` `subsc.js` `heya.js` `annai.js` `shimai.js` `meishi.js` `trim.js` `service-worker.js`、`apps/` フォルダ `manifest.json` と `techo/` フォルダ、`icon-*.png` `apple-touch-icon.png` `ogp.png` `shot-*.png` を置くだけです。サーバー側の用意はいりません。
+`index.html` `help.js`（と `help/` フォルダ） `photomemo.js` `techo.js` `subsc.js` `heya.js` `annai.js` `shimai.js` `meishi.js` `trim.js` `manner.js` `service-worker.js`、`apps/` フォルダ `manifest.json` と `techo/` フォルダ、`icon-*.png` `apple-touch-icon.png` `ogp.png` `shot-*.png` を置くだけです。サーバー側の用意はいりません。
 `help.js` を置き忘れると説明書だけが、`photomemo.js` を置き忘れると写真メモだけが、`techo.js` を置き忘れると業務手帳だけが「読み込めませんでした」になります（ほかはそのまま動きます）。パソコン版（exe）に入れるときも `index.html` と同じ場所に置いてください。
 
 GitHub Pages の公開（Actions の「pages build and deployment」）が `Failed to get ID Token … Request timeout` で失敗したときは、GitHub 側の一時的な通信の不具合です。その実行を「Re-run jobs」でやり直すか、main に次の変更を入れれば公開し直されます。
