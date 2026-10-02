@@ -36,6 +36,7 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 | `annai.js` | 🏨お客様向け案内ページ（旅館・民宿が、お客様のスマホで見る館内のご案内を作り、1つの HTML に書き出す。客室に置く QR コードのカードも印刷。v456 から英語・中国語・韓国語・タイ語の訳を入れられ、Netlify に置く方法も見られる。v457 から右上の ❓ヘルプに、作り方と Netlify の開設・置き方・設定をまとめた）。開いたときだけ読み込みます（v455 から） |
 | `shimai.js` | 📦しまい場所メモ（しまった物と場所を文や声で残し、あとで「どこ？」とさがす。写真・前の場所・場所ごとの印刷・CSV）。写真は端末の IndexedDB に入れる。開いたときだけ読み込みます（v458 から） |
 | `meishi.js` | 💼名刺管理（もらった名刺を写真と文字で残し、名前・ふりがな・会社・電話でさがす。名刺の文字を貼ると欄に分ける・電話/メール/地図・vCard と CSV の読み書き・会社ごとの印刷）。写真は長い辺 1200px・画質 70% の JPEG にして端末の IndexedDB に入れる。開いたときだけ読み込みます（v484 から） |
+| `trim.js` | ✂写真トリミング（写真を撮る・選ぶ → 枠で切り抜く（形・回す・反転）→ 大きさ（px・%・KB 以下）と形式（JPEG・PNG・WebP）を決めて保存・送る）。写真は残さない。開いたときだけ読み込みます（v486 から） |
 | `apps/〇〇/` | 道具だけのアプリの入り口（v462〜）。道具ごとの manifest・アイコン・`index.html`（`../../index.html?app=〇〇` へ移る）。ホーム画面に置くと、その道具だけが開きます（業務手帳は `techo/`） |
 | `techo/` | 📔業務手帳だけのアプリの入り口（manifest・アイコン）。`techo/` を開くと `index.html?app=techo` に移り、業務手帳だけを全画面で開きます。ホーム画面に足すと業務手帳のアイコンになります（v447 から） |
 | `service-worker.js` | 電波がなくても動くようにするしくみ |
@@ -50,7 +51,7 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 
 ## 配る
 
-`index.html` `help.js`（と `help/` フォルダ） `photomemo.js` `techo.js` `subsc.js` `heya.js` `annai.js` `shimai.js` `meishi.js` `service-worker.js`、`apps/` フォルダ `manifest.json` と `techo/` フォルダ、`icon-*.png` `apple-touch-icon.png` `ogp.png` `shot-*.png` を置くだけです。サーバー側の用意はいりません。
+`index.html` `help.js`（と `help/` フォルダ） `photomemo.js` `techo.js` `subsc.js` `heya.js` `annai.js` `shimai.js` `meishi.js` `trim.js` `service-worker.js`、`apps/` フォルダ `manifest.json` と `techo/` フォルダ、`icon-*.png` `apple-touch-icon.png` `ogp.png` `shot-*.png` を置くだけです。サーバー側の用意はいりません。
 `help.js` を置き忘れると説明書だけが、`photomemo.js` を置き忘れると写真メモだけが、`techo.js` を置き忘れると業務手帳だけが「読み込めませんでした」になります（ほかはそのまま動きます）。パソコン版（exe）に入れるときも `index.html` と同じ場所に置いてください。
 
 GitHub Pages の公開（Actions の「pages build and deployment」）が `Failed to get ID Token … Request timeout` で失敗したときは、GitHub 側の一時的な通信の不具合です。その実行を「Re-run jobs」でやり直すか、main に次の変更を入れれば公開し直されます。

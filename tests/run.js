@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,memo,calctmpl,fintmpl,kaikei,koe,eigo');
+    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,trim,memo,calctmpl,fintmpl,kaikei,koe,eigo');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -3086,11 +3086,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'home,last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,calctmpl,fintmpl');
+    'home,last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,trim,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 19);   // v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理 を足した
+    document.getElementById('startPageSel').options.length), 20);   // v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'veggieOverlay', 'volumeOverlay',
@@ -7913,6 +7913,72 @@ async function runMeishi(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runTrim(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ✂写真トリミング（v486） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキーにある', await page.evaluate(() => !window.TRIM_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'trim') + '/' + !!KEY_FUNCS.a_trim), 'true/true/true');
+  await page.evaluate(() => openTrim()); await w(600);
+  check('  はじめは「写真を撮る・選ぶ」', await page.evaluate(() => isDlgOpen('trimOverlay') + '/' + !document.getElementById('trEmpty').hidden + '/' + document.getElementById('trEmpty').textContent.includes('写真を撮る')), 'true/true/true');
+  // 4000×3000 の写真を読む
+  await page.evaluate(async () => { const cv = document.createElement('canvas'); cv.width = 4000; cv.height = 3000; const g = cv.getContext('2d'); g.fillStyle = '#4a7'; g.fillRect(0, 0, 4000, 3000); g.fillStyle = '#e53'; g.fillRect(1000, 500, 1000, 1000);
+    const bl = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.9)); await trLoadFile(new File([bl], 'test.jpg', { type: 'image/jpeg' })); }); await w(400);
+  check('  写真を読むと枠は全体', await page.evaluate(() => { const s = trState(); return s.src.w + 'x' + s.src.h + '/' + [s.crop.x, s.crop.y, s.crop.w, s.crop.h].join(',') + '/' + !document.getElementById('trEdit').hidden; }), '4000x3000/0,0,4000,3000/true');
+  await page.evaluate(() => trSetAspect('free'));
+  // 角をつまんで小さく（指で）
+  const box = async () => page.evaluate(() => { const r = document.getElementById('trBox').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
+  let b = await box();
+  await page.mouse.move(b.x + b.w - 4, b.y + b.h - 4); await page.mouse.down(); await page.mouse.move(b.x + b.w / 2, b.y + b.h / 2, { steps: 6 }); await page.mouse.up(); await w(100);
+  check('  右下の角をつまむと小さくなる（左上はそのまま）', await page.evaluate(() => { const c = trState().crop; return Math.round(c.x) + ',' + Math.round(c.y) + '/' + (Math.abs(c.w - 2000) < 120 && Math.abs(c.h - 1500) < 120); }), '0,0/true');
+  b = await box();
+  await page.mouse.move(b.x + b.w / 2, b.y + b.h / 2); await page.mouse.down(); await page.mouse.move(b.x + b.w / 2 + b.w / 2, b.y + b.h / 2 + b.h / 2, { steps: 6 }); await page.mouse.up(); await w(100);
+  check('  中をつまむと動く（写真の外へは出ない）', await page.evaluate(() => { const c = trState().crop; return (c.x > 800 && c.y > 600) + '/' + (c.x + c.w <= 4000.5 && c.y + c.h <= 3000.5); }), 'true/true');
+  // 形
+  await page.evaluate(() => trSetAspect('1:1')); await w(100);
+  check('  1:1 にすると正方形', await page.evaluate(() => { const c = trState().crop; return Math.round(c.w) === Math.round(c.h); }), true);
+  b = await box();
+  await page.mouse.move(b.x + 4, b.y + 4); await page.mouse.down(); await page.mouse.move(b.x + 40, b.y + 10, { steps: 5 }); await page.mouse.up(); await w(100);
+  check('  形を決めたまま角を動かしても正方形', await page.evaluate(() => { const c = trState().crop; return Math.abs(c.w - c.h) < 1; }), true);
+  check('  形が決まっていると辺のつまみは出さない', await page.evaluate(() => document.getElementById('trBox').classList.contains('fixed')), true);
+  await page.evaluate(() => trSetAspect('card')); await w(100);
+  check('  名刺の形（91:55）', await page.evaluate(() => { const c = trState().crop; return (c.w / c.h).toFixed(3); }), (91 / 55).toFixed(3));
+  await page.evaluate(() => trSetAspect('free')); await w(100);
+  // 回す・反転
+  await page.evaluate(() => { trSetCrop(1000, 500, 1000, 1000); trRotate(1); }); await w(100);
+  check('  右に回すと縦横が入れかわり、範囲もいっしょに回る', await page.evaluate(() => { const s = trState(); return s.src.w + 'x' + s.src.h + '/' + [s.crop.x, s.crop.y, s.crop.w, s.crop.h].map(Math.round).join(','); }), '3000x4000/1500,1000,1000,1000');
+  await page.evaluate(() => trRotate(-1)); await w(100);
+  check('  左に回すと元に戻る', await page.evaluate(() => { const s = trState(); return s.src.w + 'x' + s.src.h + '/' + [s.crop.x, s.crop.y].map(Math.round).join(','); }), '4000x3000/1000,500');
+  await page.evaluate(() => trFlip()); await w(100);
+  check('  左右反転（範囲もうつる）', await page.evaluate(() => Math.round(trState().crop.x)), 2000);
+  await page.evaluate(() => { trFlip(); trSetCrop(1000, 500, 1000, 1000); });
+  check('  切り抜いた所の色（赤い四角だけ）', await page.evaluate(async () => { trOpenOut(); trSetSize('keep'); const r = await trMakeBlob(); const bm = await createImageBitmap(r.blob); const c = document.createElement('canvas'); c.width = 4; c.height = 4; c.getContext('2d').drawImage(bm, 0, 0, 4, 4); const d = c.getContext('2d').getImageData(0, 0, 4, 4).data; return r.w + 'x' + r.h + '/' + (d[0] > 180 && d[1] < 120); }), '1000x1000/true');
+  // 大きさ
+  check('  長い辺 640', await page.evaluate(async () => { trSetSize('l640'); const r = await trMakeBlob(); return r.w + 'x' + r.h + '/' + document.getElementById('trW').value + 'x' + document.getElementById('trH').value; }), '640x640/640x640');
+  check('  50%', await page.evaluate(async () => { trSetSize('p50'); const r = await trMakeBlob(); return r.w + 'x' + r.h; }), '500x500');
+  await page.evaluate(() => { trSetCrop(0, 0, 4000, 2000); trOpenOut(); });
+  check('  横を入れると縦も合わせる（縦横比を保つ）', await page.evaluate(async () => { const i = document.getElementById('trW'); i.value = '1000'; trSetWH('w'); const r = await trMakeBlob(); return document.getElementById('trH').value + '/' + r.w + 'x' + r.h; }), '500/1000x500');
+  check('  縦横比を外すと好きな大きさ', await page.evaluate(async () => { trSetLock(false); const i = document.getElementById('trH'); i.value = '300'; trSetWH('h'); const r = await trMakeBlob(); return r.w + 'x' + r.h; }), '1000x300');
+  await page.evaluate(() => trSetLock(true));
+  // 形式・ファイルの大きさ
+  check('  PNG', await page.evaluate(async () => { trSetFmt('png'); const r = await trMakeBlob(); return r.blob.type + '/' + document.getElementById('trQRow').hidden; }), 'image/png/true');
+  await page.evaluate(async () => { trSetFmt('jpeg'); trSetSize('keep'); }); 
+  check('  「100KB 以下」で 100KB に収める', await page.evaluate(async () => {
+    const cv = document.createElement('canvas'); cv.width = 3000; cv.height = 2000; const g = cv.getContext('2d'); const id = g.createImageData(3000, 2000); for (let i = 0; i < id.data.length; i++) id.data[i] = (i % 4 === 3) ? 255 : (Math.random() * 255) | 0; g.putImageData(id, 0, 0);
+    const bl = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.95)); await trLoadFile(new File([bl], 'noise.jpg', { type: 'image/jpeg' })); trOpenOut(); trSetKB(0); const r0 = await trMakeBlob(); trSetKB(100); const r = await trMakeBlob();
+    return (r0.blob.size > 300 * 1024) + '/' + (r.blob.size <= 100 * 1024) + '/' + r.blob.type; }), 'true/true/image/jpeg');
+  await page.evaluate(() => trSetKB(0)); await w(2500);
+  check('  できあがりの大きさを出す', await page.evaluate(() => /できあがり：.*\d+ × \d+.*(KB|MB)/.test(document.getElementById('trEst').textContent)), true);
+  // 保存
+  check('  保存（名前に大きさ）', await page.evaluate(async () => { let n = ''; const o = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () { n = this.download; }; await trSave(); HTMLAnchorElement.prototype.click = o; return n; }), 'noise_' + new Date().getFullYear() + String(new Date().getMonth() + 1).padStart(2, '0') + String(new Date().getDate()).padStart(2, '0') + '_3000x2000.jpg');
+  check('  決めたことを覚える（写真は残さない）', await page.evaluate(() => { const o = JSON.parse(localStorage.getItem('excalc_trim')); return o.fmt + '/' + o.size + '/' + Object.keys(localStorage).filter(k => /trim/.test(k)).join(','); }), 'jpeg/keep/excalc_trim');
+  // 戻る
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  戻るで大きさの窓だけ閉じる', await page.evaluate(() => isDlgOpen('trOutOverlay') + '/' + isDlgOpen('trimOverlay')), 'false/true');
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  戻るで閉じる', await page.evaluate(() => isDlgOpen('trimOverlay')), false);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runUiMode(browser) {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true });
   const page = await ctx.newPage();
@@ -8020,11 +8086,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/19');
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/20');
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'shimai', 'meishi', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'shimai', 'meishi', 'trim', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -8052,7 +8118,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,shimai:B,meishi:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,shimai:B,meishi:B,trim:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -9143,6 +9209,7 @@ async function runQrShare(browser) {
     if (!only || only === 'annai') await runAnnai(browser);
     if (!only || only === 'shimai') await runShimai(browser);
     if (!only || only === 'meishi') await runMeishi(browser);
+    if (!only || only === 'trim') await runTrim(browser);
     if (!only || only === 'uimode') await runUiMode(browser);
     if (!only || only === 'toolsfab') await runToolsFab(browser);
     if (!only || only === 'techoapp') await runTechoApp(browser);
