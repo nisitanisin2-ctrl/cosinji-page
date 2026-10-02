@@ -34,7 +34,7 @@
 (function(){ try{
   const id=new URLSearchParams(location.search).get('app');
   const APPS={tansui:'💧 単位水量',kantab:'🧪 カンタブ',veggie:'🌱 野菜',volume:'📷 容積',photomemo:'📝 写真メモ',linklist:'🔗 リンク集',
-    touban:'📅 当番表',subsc:'🔐 サブスク',heya:'🛏 部屋割り',annai:'🏨 案内ページ',shimai:'📦 しまい場所',meishi:'💼 名刺管理',calctmpl:'📋 式テンプレ',fintmpl:'📑 決算テンプレ'};
+    touban:'📅 当番表',subsc:'🔐 サブスク',heya:'🛏 部屋割り',annai:'🏨 案内ページ',shimai:'📦 しまい場所',meishi:'💼 名刺管理',trim:'✂ トリミング',calctmpl:'📋 式テンプレ',fintmpl:'📑 決算テンプレ'};
   if(!id || !APPS[id]) return;
   window.APP_TOOL=id; document.documentElement.classList.add('app-tool');
   const dir='apps/'+id+'/', set=(sel,attr,v)=>document.querySelectorAll(sel).forEach(e=>e.setAttribute(attr,v));
@@ -9058,6 +9058,13 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v487', t:'トリミングで角度を細かく・線で水平に', li:[
+    '✂トリミングで、写真を<b>0.1° ずつ</b>回せるようにしました（つまみ・−0.1／＋0.1。±45° まで。角度の数を押すと 0° に戻ります）。回してもすき間が出ないよう、少し大きくして回します',
+    '<b>📏 線で水平</b>：写真の中の水平なもの（地平線・机のふち・棚など）の両はしを点で結ぶと、その線が<b>まっすぐ水平になるように回します</b>。縦に近い線（柱・建物のふち）なら垂直にします。点はつまんで動かせます' ]},
+  { v:'v486', t:'道具に「✂ 写真トリミング」', li:[
+    '新しい道具<b>「✂ トリミング」</b>。写真を撮るか選んで、白い枠の角・辺をつまんで<b>いる所だけ切り抜け</b>ます。形（自由・1:1・4:3・16:9・名刺・A4・証明写真など）を選べ、左右に回す・左右反転もできます',
+    '<b>画像の大きさ</b>を、長い辺のピクセル（2048〜640）・%・横×縦の数で変えられます。形式（JPEG・PNG・WebP）と画質、「<b>500KB 以下</b>」のようにファイルの大きさでも決められます',
+    '「💾 保存する」でダウンロードに、「📤 送る」で LINE・メール・写真アプリへ。写真は端末の中で処理するだけで、どこにも送らず残しません' ]},
   { v:'v485', t:'名刺の写真をもっと小さく', li:[
     '💼名刺管理で保存する名刺の写真を、長い辺 <b>1200px</b>・画質 70% にしました（1枚 約 55〜75KB。前は 1400px で 約 80〜110KB）。これから撮る写真から小さくなります' ]},
   { v:'v484', t:'道具に「💼 名刺管理」', li:[
@@ -11433,6 +11440,7 @@ const KEY_FUNCS={
   a_annai:{g:'設定・機能',label:'🏨案内ページ',short:'案内',run:()=>openAnnai()},   // v455
   a_shimai:{g:'設定・機能',label:'📦しまい場所',short:'しまい',run:()=>openShimai()},   // v458
   a_meishi:{g:'設定・機能',label:'💼名刺',short:'名刺',run:()=>openMeishi()},   // v484
+  a_trim:{g:'設定・機能',label:'✂トリミング',short:'切抜',run:()=>openTrim()},   // v486
   a_tools:{g:'設定・機能',label:'🧰道具',short:'道具',run:()=>openToolsList()},   // 道具の一覧を開く（v429）
   a_memo:{g:'設定・機能',label:'📄メモ',short:'メモ',run:()=>openNotesApp()},
   a_kaikei:{g:'設定・機能',label:'🧾会計アプリ',short:'会計',run:()=>openKaikeiApp()},
@@ -13909,6 +13917,29 @@ const openMeishiLoader=function(...a){
 };
 window.openMeishi=openMeishiLoader;
 window.closeMeishi=function(){};
+/* ── ✂写真トリミング（v486。trim.js に分けてある）──
+   写真を撮って・選んで切り抜き、大きさ・形式を決めて保存する。はじめて開いたときに trim.js を読む。 */
+let trimPartLoading=null;
+function loadTrimPart(){
+  if(window.TRIM_PART_LOADED) return Promise.resolve(true);
+  if(trimPartLoading) return trimPartLoading;
+  trimPartLoading=new Promise(res=>{
+    const sc=document.createElement('script');
+    sc.src='trim.js';
+    sc.onload=()=>{ window.TRIM_PART_LOADED=true; trimPartLoading=null; res(true); };
+    sc.onerror=()=>{ trimPartLoading=null; sc.remove(); res(false); };
+    document.head.appendChild(sc);
+  });
+  return trimPartLoading;
+}
+const openTrimLoader=function(...a){
+  return loadTrimPart().then(ok=>{
+    if(!ok){ toast('写真トリミングを読み込めませんでした。インターネットにつながるところで、一度アプリを開き直してください'); return; }
+    if(window.openTrim!==openTrimLoader) return window.openTrim(...a);
+  });
+};
+window.openTrim=openTrimLoader;
+window.closeTrim=function(){};
 /* 声の計算帳と共通の「いろいろな言い方」（koe/phrase.js。v424）。
    電卓で声を使うときのために、起動が落ち着いてから読んでおく（file:// でも読める） */
 let koePhraseLoading=null;
@@ -14334,6 +14365,7 @@ const NP_TOOLS=[
   {id:'annai',    label:'🏨案内ページ', ov:'annaiOverlay',     run:()=>openAnnai(),    close:()=>closeAnnai()},    // annai.js（開いたときに読む。v455）
   {id:'shimai',   label:'📦しまい場所', ov:'shimaiOverlay',    run:()=>openShimai(),   close:()=>closeShimai()},   // shimai.js（開いたときに読む。v458）
   {id:'meishi',   label:'💼名刺管理',   ov:'meishiOverlay',    run:()=>openMeishi(),   close:()=>closeMeishi()},   // meishi.js（開いたときに読む。v484）
+  {id:'trim',     label:'✂トリミング',  ov:'trimOverlay',      run:()=>openTrim(),     close:()=>closeTrim()},     // trim.js（開いたときに読む。v486）
   {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},                        // 別のアプリとして開くので全画面・フリックの対象外
   {id:'calctmpl', label:'📋式テンプレ', ov:'calcTmplOverlay',  run:()=>openCalcTmpl(), close:()=>closeCalcTmpl()},
   {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
@@ -20836,6 +20868,7 @@ const TOOL_HINTS={
   heya:'空いているマスを押すと予約を足せます。「📋 一覧」でその日の到着・出発・食事の数を見られます。',
   annai:'見本の項目を自分の宿のことに書きかえて、⬇ で書き出します。分からないときは右上の「❓ ヘルプ」。',
   shimai:'下の欄に「パスポートは寝室のタンスの2段目」のように打つか 🎤 で話します。上の欄でさがせます。',
+  trim:'写真を撮るか選んで、傾いていれば「📏 線で水平」か角度のつまみで直し、白い枠の角や辺をつまんで動かします。「次へ」で大きさ（px・%・KB）と形式を決めて保存します。',
   meishi:'「📷 名刺を撮って入れる」で表を撮り、名前や会社を入れます。名刺の文字をコピーして貼ると、電話・メールなどの欄に分けます。',
 };
 const TOOL_HINT_KEY='excalc_tool_hint_seen', TOOL_HINT_ON_KEY='excalc_tool_hints';
@@ -20916,7 +20949,7 @@ function homeSetStartup(on){ setStartPage(on?'home':'last'); }
    ★よく使う（自分で選ぶ。選んでいなければ さいきん使ったもの）→ まとまりごと → 隠している道具（畳む）。
    ☰・ホーム・🧰ボタンのどこから開いても同じ窓。隠した道具も下の「隠している道具」から開ける */
 const TOOL_CATS=[
-  ['🏠 くらし',   ['shimai','photomemo','linklist','touban','subsc','memo']],
+  ['🏠 くらし',   ['shimai','photomemo','trim','linklist','touban','subsc','memo']],
   ['💼 仕事',     ['techo','meishi','calctmpl','fintmpl','kaikei']],
   ['🏗 現場・畑', ['tansui','kantab','volume','veggie']],
   ['📚 声・まなぶ',['koe','eigo']],
@@ -21184,7 +21217,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v485';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v487';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -23187,7 +23220,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_show_sheettabs','excalc_skin','excalc_speechauto','excalc_speechlayout','excalc_speechspeak','excalc_startpage',
   'excalc_sumfunc','excalc_taxrate','excalc_tbfold','excalc_toolsbtn_hide','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
   'excalc_ts_warn','excalc_userkeys',
-  'excalc_uimode','excalc_tool_fav','excalc_tool_hints','excalc_seq_step',   // v460〜v462
+  'excalc_uimode','excalc_trim','excalc_tool_fav','excalc_tool_hints','excalc_seq_step',   // v460〜v462
 ];
 function settingsBundle(){
   const o={};
