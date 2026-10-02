@@ -7971,6 +7971,40 @@ async function runTrim(browser) {
   // 保存
   check('  保存（名前に大きさ）', await page.evaluate(async () => { let n = ''; const o = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () { n = this.download; }; await trSave(); HTMLAnchorElement.prototype.click = o; return n; }), 'noise_' + new Date().getFullYear() + String(new Date().getMonth() + 1).padStart(2, '0') + String(new Date().getDate()).padStart(2, '0') + '_3000x2000.jpg');
   check('  決めたことを覚える（写真は残さない）', await page.evaluate(() => { const o = JSON.parse(localStorage.getItem('excalc_trim')); return o.fmt + '/' + o.size + '/' + Object.keys(localStorage).filter(k => /trim/.test(k)).join(','); }), 'jpeg/keep/excalc_trim');
+  // v487：角度を 0.1° ずつ・線で水平
+  await page.evaluate(async () => { const cv = document.createElement('canvas'); cv.width = 3000; cv.height = 2000; const g = cv.getContext('2d');
+    g.fillStyle = '#8ecae6'; g.fillRect(0, 0, 3000, 2000); g.save(); g.translate(1500, 1000); g.rotate(6 * Math.PI / 180); g.fillStyle = '#2a9d8f'; g.fillRect(-2500, 0, 5000, 3000); g.restore();
+    const bl = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.9)); trCloseOut(); await trLoadFile(new File([bl], 'umi.jpg', { type: 'image/jpeg' })); }); await w(400);
+  check('  新しい写真は 0°', await page.evaluate(() => trState().ang + '/' + document.getElementById('trAngV').textContent), '0/0.0°');
+  await page.click('#trAngRow button[aria-label="0.1度 右へ"]'); await page.click('#trAngRow button[aria-label="0.1度 右へ"]'); await page.click('#trAngRow button[aria-label="0.1度 左へ"]');
+  check('  ＋0.1／−0.1 で 0.1° ずつ', await page.evaluate(() => trState().ang + '/' + document.getElementById('trAngV').textContent + '/' + document.getElementById('trAng').value), '0.1/+0.1°/0.1');
+  check('  つまみで回す（0.1° きざみ・±45° まで）', await page.evaluate(() => { const r = document.getElementById('trAng'); r.value = '-12.34'; r.dispatchEvent(new Event('input')); const a = trState().ang; trSetAng(80); return a + '/' + trState().ang; }), '-12.3/45');
+  await page.evaluate(() => document.getElementById('trAngV').click());
+  check('  角度の数を押すと 0°', await page.evaluate(() => trState().ang), 0);
+  await page.click('.tr-lv'); await w(150);
+  check('  📏 線で水平：枠を隠して線を引く', await page.evaluate(() => trState().lineMode + '/' + getComputedStyle(document.getElementById('trBox')).display + '/' + document.getElementById('trAngRow').hidden + '/' + document.getElementById('trLineGo').disabled), 'true/none/true/true');
+  const pts = await page.evaluate(() => { const s = trState(), k = s.disp.k, sg = document.getElementById('trStage').getBoundingClientRect();
+    const f = x => { const y = 1000 + (x - 1500) * Math.tan(6 * Math.PI / 180); return { x: sg.left + s.disp.ox + x * k, y: sg.top + s.disp.oy + y * k }; }; return [f(300), f(2700)]; });
+  await page.mouse.move(pts[0].x, pts[0].y); await page.mouse.down(); await page.mouse.move(pts[1].x, pts[1].y, { steps: 8 }); await page.mouse.up(); await w(150);
+  check('  傾いた地平線をなぞると、その角度を出す', await page.evaluate(() => document.getElementById('trLineGo').textContent), 'この線を水平にする（−6.0°）');
+  await page.click('#trLineGo'); await w(300);
+  check('  押すと水平になるよう回す・線の画面を閉じる', await page.evaluate(() => trState().ang + '/' + trState().lineMode + '/' + getComputedStyle(document.getElementById('trBox')).display), '-6/false/block');
+  check('  回した写真で切り抜く（地平線がまっすぐ）', await page.evaluate(async () => { trSetCrop(0, 0, 3000, 2000); trOpenOut(); trSetSize('keep'); const r = await trMakeBlob(); const bm = await createImageBitmap(r.blob);
+    const c = document.createElement('canvas'); c.width = 3000; c.height = 2000; const g = c.getContext('2d'); g.drawImage(bm, 0, 0);
+    const edge = x => { for (let y = 200; y < 1900; y++) { const d = g.getImageData(x, y, 1, 1).data; if (d[1] < 170 && d[2] < 170) return y; } return -1; };
+    const a = edge(600), b = edge(2400); trCloseOut(); return r.w + 'x' + r.h + '/' + (Math.abs(a - b) <= 6); }), '3000x2000/true');
+  // 2回なぞらずに、2回押しても線になる・縦に近い線は垂直に
+  await page.evaluate(() => trSetAng(0)); await page.click('.tr-lv'); await w(100);
+  const sgb = await page.evaluate(() => { const r = document.getElementById('trStage').getBoundingClientRect(); return { x: r.left, y: r.top }; });
+  await page.mouse.click(sgb.x + 150, sgb.y + 60); await w(80);
+  check('  1回押すと、もう一方のはしを待つ', await page.evaluate(() => document.getElementById('trLineMsg').textContent.includes('もう一方') + '/' + document.getElementById('trLineGo').disabled), 'true/true');
+  await page.mouse.click(sgb.x + 170, sgb.y + 260); await w(80);
+  check('  縦に近い線は垂直にする', await page.evaluate(() => document.getElementById('trLineGo').textContent.startsWith('この線を垂直にする')), true);
+  await page.evaluate(() => trLineApply()); await w(150);
+  check('  垂直にする角度', await page.evaluate(() => trState().ang), 5.7);
+  await page.evaluate(() => { trSetAng(3); trFlip(); });
+  check('  左右反転すると角度も反対', await page.evaluate(() => trState().ang), -3);
+  await page.evaluate(() => trOpenOut()); await w(200);
   // 戻る
   await page.evaluate(() => window.history.back()); await w(400);
   check('  戻るで大きさの窓だけ閉じる', await page.evaluate(() => isDlgOpen('trOutOverlay') + '/' + isDlgOpen('trimOverlay')), 'false/true');

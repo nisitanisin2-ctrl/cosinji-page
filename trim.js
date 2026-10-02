@@ -1,7 +1,10 @@
-/* ✂ 写真トリミング（v486。表電卓の道具。はじめて開いたときに読む）
+/* ✂ 写真トリミング（v486・v487。表電卓の道具。はじめて開いたときに読む）
    写真を撮る／選ぶ → 四角の枠を動かして切り抜く → 大きさ（ピクセル・%・ファイルの大きさ）と形式を決めて保存・送る。
    ・枠は角・辺をつまんで大きさ、中をつまんで場所。形（自由・元の形・1:1・4:3・3:4・16:9・9:16・名刺・A4・証明写真）を選べる。
    ・左右に90°回す・左右反転・範囲をはじめに戻す。
+   ・角度を 0.1° ずつ回す（−45°〜＋45°。すき間が出ないよう少し大きくして回す）。
+   ・📏 水平線：写真の中の水平なもの（地平線・机のふち）の両はしを点で結ぶと、その線が水平になるように回す
+     （縦に近い線なら垂直にする。v487）。
    ・出す大きさ：そのまま／長い辺 2048〜640px／50%・25%／横×縦を手で（縦横比を保つ）。
      形式 JPEG・PNG・WebP、画質。「〜KB 以下に」を選ぶと画質（足りなければ大きさ）を下げてそこに収める。
    ・写真は端末の中で処理するだけで、どこにも送らず、残しもしない（決めた設定だけ excalc_trim に覚える）。 */
@@ -19,6 +22,9 @@ let st={ aspect:'free', fmt:'jpeg', q:85, size:'keep', lock:true, kb:0 };
 let src=null;        // いまの写真（回転・反転をしたもの）canvas
 let srcName='写真';
 let crop=null;       // {x,y,w,h}（src の画素）
+let ang=0;           // 細かい回転（度。−45〜45。v487）。src の大きさのまま、すき間が出ないよう拡大して回す
+let srcRot=null, srcRotKey='';   // 回した写真（書き出しのときに作って覚える）
+let lineMode=false, lineP=[];    // 📏 水平線：点（ステージの座標）
 let disp={k:1, ox:0, oy:0};
 let outW=0, outH=0;  // 出す大きさ
 let estT=null, estSeq=0;
@@ -60,6 +66,21 @@ const TR_CSS=`
 .tr-h[data-h=w]{ top:calc(50% - 17px); left:-14px; cursor:ew-resize; } .tr-h[data-h=e]{ top:calc(50% - 17px); right:-14px; cursor:ew-resize; }
 .tr-h[data-h=w]::before,.tr-h[data-h=e]::before{ width:6px; height:22px; left:14px; top:6px; }
 .tr-box.fixed .tr-h.ed{ display:none; }
+.tr-ang{ display:flex; align-items:center; gap:6px; padding:6px 10px 0; }
+.tr-ang[hidden]{ display:none; }
+.tr-ang input{ flex:1; min-width:0; height:32px; }
+.tr-ang button{ flex:none; height:40px; min-width:44px; padding:0 6px; border-radius:10px; border:1px solid rgba(120,132,156,.35); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:13px; font-weight:bold; cursor:pointer; }
+.tr-ang b{ flex:none; width:52px; text-align:center; font-size:15px; cursor:pointer; }
+.tr-ang .tr-lv{ background:#fff8c4; border-color:#e0c200; }
+.tr-line{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; display:none; }
+.tr-stage.line-mode .tr-line{ display:block; }
+.tr-stage.line-mode .tr-box{ display:none; }
+.tr-stage.line-mode{ cursor:crosshair; }
+.tr-linebar{ padding:6px 10px 0; font-size:12.5px; color:var(--text,#333); line-height:1.5; }
+.tr-linebar .row{ display:flex; gap:6px; margin-top:6px; }
+.tr-linebar button{ flex:1; height:44px; border-radius:10px; border:1px solid rgba(120,132,156,.35); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:14px; font-weight:bold; cursor:pointer; }
+.tr-linebar button.go{ flex:2; background:#e0c200; border-color:#e0c200; color:#222; }
+.tr-linebar button:disabled{ opacity:.45; }
 .tr-tools{ display:grid; grid-template-columns:repeat(5,1fr); gap:6px; padding:8px 10px 0; }
 .tr-tools button{ min-height:48px; border-radius:10px; border:1px solid rgba(120,132,156,.35); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:11.5px; font-weight:bold; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; }
 .tr-tools span{ font-size:19px; line-height:1; }
@@ -101,10 +122,21 @@ function trEnsureDom(){
     </div>
     <div id="trEdit" hidden style="display:flex;flex-direction:column;flex:1;min-height:0">
       <div class="tr-bar" id="trAspects"></div>
-      <div class="tr-stage" id="trStage"><canvas id="trCv"></canvas>
+      <div class="tr-stage" id="trStage"><canvas id="trCv"></canvas><svg class="tr-line" id="trLine"></svg>
         <div class="tr-box" id="trBox"><div class="tr-h" data-h="nw"></div><div class="tr-h" data-h="ne"></div><div class="tr-h" data-h="sw"></div><div class="tr-h" data-h="se"></div>
           <div class="tr-h ed" data-h="n"></div><div class="tr-h ed" data-h="s"></div><div class="tr-h ed" data-h="w"></div><div class="tr-h ed" data-h="e"></div></div></div>
       <div class="tr-info" id="trInfo"></div>
+      <div class="tr-ang" id="trAngRow">
+        <button onclick="trNudge(-0.1)" aria-label="0.1度 左へ">−0.1</button>
+        <input type="range" id="trAng" min="-45" max="45" step="0.1" value="0" oninput="trSetAng(this.value)" aria-label="角度">
+        <button onclick="trNudge(0.1)" aria-label="0.1度 右へ">＋0.1</button>
+        <b id="trAngV" onclick="trSetAng(0)" title="押すと 0° に戻す">0.0°</b>
+        <button class="tr-lv" onclick="trLineMode(true)">📏 線で水平</button>
+      </div>
+      <div class="tr-linebar" id="trLineBar" hidden>
+        <div id="trLineMsg"></div>
+        <div class="row"><button class="go" id="trLineGo" onclick="trLineApply()" disabled>この線を水平にする</button><button onclick="trLineMode(false)">やめる</button></div>
+      </div>
       <div class="tr-tools">
         <button onclick="trRotate(-1)"><span>⟲</span>左に回す</button>
         <button onclick="trRotate(1)"><span>⟳</span>右に回す</button>
@@ -127,7 +159,7 @@ function trEnsureDom(){
 <input type="file" id="trPicIn" accept="image/*" hidden onchange="trPick(this)">
 <input type="file" id="trCamIn" accept="image/*" capture="environment" hidden onchange="trPick(this)">`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
-  trBindDrag();
+  trBindDrag(); trBindLine();
   if(window.ResizeObserver) new ResizeObserver(()=>{ if(src) trLayout(); }).observe($('trStage'));
   if(typeof applyNpToolFull==='function') applyNpToolFull();
 }
@@ -162,7 +194,7 @@ async function trLoadFile(f){
   const c=document.createElement('canvas'); c.width=Math.max(1,Math.round(w0*k)); c.height=Math.max(1,Math.round(h0*k));
   c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
   if(bmp.close) try{ bmp.close(); }catch(_){}
-  src=c; srcName=String(f.name||'写真').replace(/\.[^.]+$/,'').slice(0,40)||'写真';
+  src=c; trSrcId++; ang=0; if($('trAng')) trSetAng(0); if(lineMode) trLineMode(false); srcName=String(f.name||'写真').replace(/\.[^.]+$/,'').slice(0,40)||'写真';
   trApplyAspect(true);
   trShowEdit(true);
   if(k<1) toast('とても大きな写真なので、少し小さくして読み込みました（'+c.width+'×'+c.height+'）', 3500);
@@ -201,7 +233,7 @@ function trRotate(dir){
   // 範囲もいっしょに回す
   const o=crop, W=src.width, H=src.height;
   crop = dir>0 ? {x:H-o.y-o.h, y:o.x, w:o.h, h:o.w} : {x:o.y, y:W-o.x-o.w, w:o.h, h:o.w};
-  src=c;
+  src=c; trSrcId++;
   if(trRatio()) trApplyAspect(st.aspect==='orig');
   trLayout();
 }
@@ -209,7 +241,97 @@ function trFlip(){
   if(!src) return;
   const c=document.createElement('canvas'); c.width=src.width; c.height=src.height;
   const g=c.getContext('2d'); g.translate(c.width,0); g.scale(-1,1); g.drawImage(src,0,0);
-  crop={...crop, x:src.width-crop.x-crop.w}; src=c; trLayout();
+  crop={...crop, x:src.width-crop.x-crop.w}; src=c; trSrcId++; trSetAng(-ang);
+}
+
+/* ── 細かい回転 ── */
+function trRotScale(){
+  const t=Math.abs(ang)*Math.PI/180, c=Math.cos(t), sn=Math.sin(t), W=src.width, H=src.height;
+  return Math.max((W*c+H*sn)/W, (W*sn+H*c)/H);   // 回してもすき間が出ない拡大率
+}
+/* src を ang だけ回して、ow×oh（src と同じ縦横比）の g に描く */
+function trDrawRot(g, ow, oh){
+  const W=src.width, H=src.height;
+  g.save(); g.translate(ow/2, oh/2);
+  if(ang) g.rotate(ang*Math.PI/180);
+  const k=ow/W*(ang?trRotScale():1); g.scale(k, k);
+  g.imageSmoothingQuality='high'; g.drawImage(src, -W/2, -H/2); g.restore();
+}
+/* 書き出し用の回した写真（角度が 0 なら src のまま） */
+function trSrcR(){
+  if(!ang) return src;
+  const key=ang+'|'+src.width+'x'+src.height+'|'+trSrcId;
+  if(srcRot && srcRotKey===key) return srcRot;
+  const c=document.createElement('canvas'); c.width=src.width; c.height=src.height;
+  trDrawRot(c.getContext('2d'), c.width, c.height);
+  srcRot=c; srcRotKey=key; return c;
+}
+let trSrcId=0;   // src を作り直すたびに増やす（回した写真の覚えを捨てる）
+const fmtAng=a=>(a>0?'+':a<0?'−':'')+Math.abs(a).toFixed(1)+'°';
+function trSetAng(a, quiet){
+  a=Math.round(Math.max(-45, Math.min(45, +a||0))*10)/10;
+  ang=a;
+  const r=$('trAng'); if(r && +r.value!==a) r.value=a;
+  const v=$('trAngV'); if(v) v.textContent=fmtAng(a);
+  trLayout();
+}
+function trNudge(d){ trSetAng(ang+d); }
+
+/* ── 📏 水平線（両はしを点で結んで、その線を水平にする） ── */
+function trLineMode(on){
+  lineMode=!!on; lineP=[];
+  const sg=$('trStage'); if(sg) sg.classList.toggle('line-mode', lineMode);
+  $('trLineBar').hidden=!lineMode; $('trAngRow').hidden=lineMode;
+  trDrawLine();
+}
+function trLineAngle(){
+  if(lineP.length<2) return null;
+  const dx=lineP[1].x-lineP[0].x, dy=lineP[1].y-lineP[0].y;
+  if(Math.hypot(dx,dy)<20) return null;
+  let a=Math.atan2(dy,dx)*180/Math.PI;          // 画面での線の傾き（右下がりが＋）
+  if(a>90) a-=180; if(a<-90) a+=180;            // −90〜90 に
+  const vert=Math.abs(a)>45;
+  const off=vert ? (a>0 ? a-90 : a+90) : a;     // 水平（縦なら垂直）からのずれ
+  return {off, vert};
+}
+function trDrawLine(){
+  const svg=$('trLine'); if(!svg) return;
+  const ok=trLineAngle();
+  const L=lineP.length>=2 ? `<line x1="${lineP[0].x}" y1="${lineP[0].y}" x2="${lineP[1].x}" y2="${lineP[1].y}" stroke="#ffeb3b" stroke-width="3" stroke-dasharray="${ok?'0':'6 4'}"/>`:'';
+  const D=lineP.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="11" fill="rgba(255,235,59,.35)" stroke="#ffeb3b" stroke-width="3"/><circle cx="${p.x}" cy="${p.y}" r="3" fill="#ffeb3b"/>`).join('');
+  svg.innerHTML=L+D;
+  const b=$('trLineGo'); if(b){ b.disabled=!ok; b.textContent=ok ? (ok.vert?'この線を垂直にする':'この線を水平にする')+'（'+fmtAng(-ok.off)+'）' : 'この線を水平にする'; }
+  const t=$('trLineMsg'); if(t) t.textContent = lineP.length<2 ? '写真の中の水平なもの（地平線・机のふち・棚など）の、はしを押してください'+(lineP.length?'（もう一方のはしも）':'') : '点をつまむと動かせます。合ったら下のボタンを押してください';
+}
+function trLineApply(){
+  const r=trLineAngle(); if(!r) return;
+  const before=ang;
+  trSetAng(ang - r.off);
+  trLineMode(false);
+  if(Math.abs(before - r.off)>45) toast('45°までしか回せません。90°の回転と組み合わせてください');
+  else toast((r.vert?'垂直':'水平')+'にしました（'+fmtAng(ang)+'）');
+}
+function trBindLine(){
+  const sg=$('trStage'); let dragI=-1;
+  const pt=e=>{ const r=sg.getBoundingClientRect(); return {x:e.clientX-r.left, y:e.clientY-r.top}; };   // 小数のまま（丸めると角度が 0.1° ずれる）
+  sg.addEventListener('pointerdown', e=>{
+    if(!lineMode) return; e.preventDefault();
+    const p=pt(e);
+    dragI=lineP.findIndex(q=>Math.hypot(q.x-p.x,q.y-p.y)<26);
+    if(dragI<0){
+      if(lineP.length>=2) lineP=[];
+      lineP.push(p); if(lineP.length===1) lineP.push({...p});   // 押してなぞれば1回で線になる
+      dragI=lineP.length-1;
+    }
+    try{ sg.setPointerCapture(e.pointerId); }catch(_){}
+    trDrawLine();
+  });
+  sg.addEventListener('pointermove', e=>{ if(!lineMode || dragI<0) return; e.preventDefault(); lineP[dragI]=pt(e); trDrawLine(); });
+  const end=()=>{ if(!lineMode) return;
+    // 1回押しただけ（なぞっていない）なら、2つ目の点を待つ
+    if(lineP.length===2 && Math.hypot(lineP[1].x-lineP[0].x, lineP[1].y-lineP[0].y)<6) lineP=[lineP[0]];
+    dragI=-1; trDrawLine(); };
+  sg.addEventListener('pointerup', end); sg.addEventListener('pointercancel', end);
 }
 
 /* ── 表示（ステージに収める） ── */
@@ -222,7 +344,7 @@ function trLayout(){
   const cv=$('trCv'), dpr=Math.min(2, window.devicePixelRatio||1);
   cv.width=Math.max(1,Math.round(dw*dpr)); cv.height=Math.max(1,Math.round(dh*dpr)); cv.style.width=dw+'px'; cv.style.height=dh+'px';
   cv.style.left=disp.ox+'px'; cv.style.top=disp.oy+'px';
-  const g=cv.getContext('2d'); g.imageSmoothingQuality='high'; g.drawImage(src,0,0,cv.width,cv.height);
+  const g=cv.getContext('2d'); g.clearRect(0,0,cv.width,cv.height); trDrawRot(g, cv.width, cv.height);
   trBoxPos();
 }
 function trBoxPos(){
@@ -230,7 +352,7 @@ function trBoxPos(){
   b.style.left=(disp.ox+crop.x*disp.k)+'px'; b.style.top=(disp.oy+crop.y*disp.k)+'px';
   b.style.width=(crop.w*disp.k)+'px'; b.style.height=(crop.h*disp.k)+'px';
   b.classList.toggle('fixed', !!trRatio());
-  $('trInfo').textContent=`切り抜く範囲 ${Math.round(crop.w)} × ${Math.round(crop.h)}　（写真は ${src.width} × ${src.height}）`;
+  $('trInfo').textContent=`切り抜く範囲 ${Math.round(crop.w)}×${Math.round(crop.h)}（写真 ${src.width}×${src.height}${ang?'・'+fmtAng(ang):''}）`;
 }
 
 /* ── 枠を動かす ── */
@@ -283,6 +405,7 @@ function trSizeFromKey(){
 }
 function trOpenOut(){
   if(!src || !crop) return;
+  if(lineMode) trLineMode(false);
   outW=0; outH=0; trSizeFromKey();
   const [cw,ch]=trCropWH();
   const fmts=[['jpeg','JPEG（写真向き）'],['png','PNG（文字・図）']].concat(webpOk?[['webp','WebP（小さい）']]:[]);
@@ -332,7 +455,7 @@ function trSetKB(k){ st.kb=k; trSaveSt();
 /* 切り抜いて大きさを変えた絵（ゆっくり段階的に縮めて、ぎざぎざを抑える） */
 function trRender(w, h){
   let cur=document.createElement('canvas'); cur.width=Math.round(crop.w); cur.height=Math.round(crop.h);
-  cur.getContext('2d').drawImage(src, crop.x, crop.y, crop.w, crop.h, 0, 0, cur.width, cur.height);
+  cur.getContext('2d').drawImage(trSrcR(), crop.x, crop.y, crop.w, crop.h, 0, 0, cur.width, cur.height);
   while(cur.width/2>=w && cur.height/2>=h){
     const n=document.createElement('canvas'); n.width=Math.round(cur.width/2); n.height=Math.round(cur.height/2);
     const g=n.getContext('2d'); g.imageSmoothingQuality='high'; g.drawImage(cur,0,0,n.width,n.height); cur=n;
@@ -370,7 +493,7 @@ function trDrawPrev(){
   const p=$('trPrev'); if(!p) return;
   const k=Math.min(1, 600/Math.max(crop.w,crop.h));
   p.width=Math.max(1,Math.round(crop.w*k)); p.height=Math.max(1,Math.round(crop.h*k));
-  p.getContext('2d').drawImage(src, crop.x, crop.y, crop.w, crop.h, 0, 0, p.width, p.height);
+  p.getContext('2d').drawImage(trSrcR(), crop.x, crop.y, crop.w, crop.h, 0, 0, p.width, p.height);
 }
 let lastOut=null;
 function trEstimate(){
@@ -416,6 +539,7 @@ function trAsk3(hdr, msg, a, b, c){
 }
 
 Object.assign(window, { openTrim, closeTrim, trPick, trLoadFile, trAnother, trSetAspect, trResetCrop, trRotate, trFlip, trOpenOut, trCloseOut, trCloseSub,
+  trSetAng, trNudge, trLineMode, trLineApply, trSetLine:(a,b)=>{ lineP=[a,b]; trDrawLine(); },
   trSetSize, trSetWH, trSetLock, trSetFmt, trSetQ, trSetKB, trSave, trShare, trMakeBlob, trSetCrop, trDragTo,
-  trState:()=>({st, crop:crop&&{...crop}, src:src&&{w:src.width,h:src.height}, outW, outH, disp:{...disp}, last:lastOut&&{w:lastOut.w,h:lastOut.h,size:lastOut.blob.size}}) });
+  trState:()=>({st, ang, lineMode, crop:crop&&{...crop}, src:src&&{w:src.width,h:src.height}, outW, outH, disp:{...disp}, last:lastOut&&{w:lastOut.w,h:lastOut.h,size:lastOut.blob.size}}) });
 })();
