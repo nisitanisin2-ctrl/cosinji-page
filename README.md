@@ -38,6 +38,7 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 | `meishi.js` | 💼名刺管理（もらった名刺を写真と文字で残し、名前・ふりがな・会社・電話でさがす。名刺の文字を貼ると欄に分ける・電話/メール/地図・vCard と CSV の読み書き・会社ごとの印刷）。写真は長い辺 1200px・画質 70% の JPEG にして端末の IndexedDB に入れる。開いたときだけ読み込みます（v484 から） |
 | `trim.js` | ✂写真トリミング（写真を撮る・選ぶ → 傾きを直す（0.1° ずつ・線を引いて水平／垂直に）→ 枠で切り抜く（形・回す・反転）→ 大きさ（px・%・KB 以下）と形式（JPEG・PNG・WebP）を決めて保存・送る）。写真は残さない。開いたときだけ読み込みます（v486 から） |
 | `manner.js` | 📜マナー帳（冠婚葬祭・贈り物・季節・手紙・封筒・敬語・食事・ふるまいの一般常識 約120ページをさがして読む。文例のコピー・印刷。道具：金額を大字に・宛名書きの見本・法要の日・長寿祝い・厄年・子どもの行事・結婚記念日・六曜カレンダー（旧暦は新月と中気から計算）・年齢早見表・二十四節気）。開いたときだけ読み込みます（v488 から） |
+| `boki.js` | 📒会計の手引き（自治会・団体の会計、会社・お店の経理の常識、簿記3級くらいの基礎 約60ページをさがして読む。道具：仕訳ドリル51問（答えを入れると判定）・仕訳から試算表と損益計算書・貸借対照表を作る・勘定科目の早見・減価償却・売上原価・月割り・消費税・貸倒引当金・商品有高帳・収入印紙・監査と引き継ぎのチェック表）。開いたときだけ読み込みます（v490 から） |
 | `apps/〇〇/` | 道具だけのアプリの入り口（v462〜）。道具ごとの manifest・アイコン・`index.html`（`../../index.html?app=〇〇` へ移る）。ホーム画面に置くと、その道具だけが開きます（業務手帳は `techo/`） |
 | `techo/` | 📔業務手帳だけのアプリの入り口（manifest・アイコン）。`techo/` を開くと `index.html?app=techo` に移り、業務手帳だけを全画面で開きます。ホーム画面に足すと業務手帳のアイコンになります（v447 から） |
 | `service-worker.js` | 電波がなくても動くようにするしくみ |
@@ -52,7 +53,7 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 
 ## 配る
 
-`index.html` `help.js`（と `help/` フォルダ） `photomemo.js` `techo.js` `subsc.js` `heya.js` `annai.js` `shimai.js` `meishi.js` `trim.js` `manner.js` `service-worker.js`、`apps/` フォルダ `manifest.json` と `techo/` フォルダ、`icon-*.png` `apple-touch-icon.png` `ogp.png` `shot-*.png` を置くだけです。サーバー側の用意はいりません。
+`index.html` `help.js`（と `help/` フォルダ） `photomemo.js` `techo.js` `subsc.js` `heya.js` `annai.js` `shimai.js` `meishi.js` `trim.js` `manner.js` `boki.js` `service-worker.js`、`apps/` フォルダ `manifest.json` と `techo/` フォルダ、`icon-*.png` `apple-touch-icon.png` `ogp.png` `shot-*.png` を置くだけです。サーバー側の用意はいりません。
 `help.js` を置き忘れると説明書だけが、`photomemo.js` を置き忘れると写真メモだけが、`techo.js` を置き忘れると業務手帳だけが「読み込めませんでした」になります（ほかはそのまま動きます）。パソコン版（exe）に入れるときも `index.html` と同じ場所に置いてください。
 
 GitHub Pages の公開（Actions の「pages build and deployment」）が `Failed to get ID Token … Request timeout` で失敗したときは、GitHub 側の一時的な通信の不具合です。その実行を「Re-run jobs」でやり直すか、main に次の変更を入れれば公開し直されます。
