@@ -831,7 +831,8 @@ function krOpen(id){
   const fav=kr.fav.includes(id);
   $('krViewBody').innerHTML=(typeof p.h==='function'?p.h():p.h)
     +`<div class="kr-acts"><button onclick="krToggleFav('${id}')">${fav?'★ よく見るから外す':'☆ よく見る'}</button><button onclick="krPrint('${id}')">🖨 印刷</button></div>`
-    +`<div class="kr-warn">一般的な内容です。制度・金額は変わることがあるので、最新の公式の案内で確かめてください。</div>`;
+    +`<div class="kr-warn">一般的な内容です。制度・金額は変わることがあるので、最新の公式の案内で確かめてください。</div>`
+    +(typeof pgNavHtml==='function'?pgNavHtml((ps=>ps.filter(x=>!/^🧮/.test(x.t)).concat(ps.filter(x=>/^🧮/.test(x.t))))(P.filter(x=>x.cat===p.cat)).map(x=>({id:x.id, t:x.t.replace(/^🧮\s*/,'')})), id, 'krOpen'):'');
   krChkSync();
   if(!isDlgOpen('krViewOverlay')) openDlg('krViewOverlay', ()=>{ krCur=null; krTempoStop(); }); else $('krViewBody').scrollTop=0;
   if(p.init) try{ p.init(); }catch(_){}
@@ -854,7 +855,7 @@ function krCopy(btn){
 }
 function krPrint(id){
   const p=P.find(x=>x.id===id); if(!p) return;
-  const body=$('krViewBody').cloneNode(true); body.querySelectorAll('.kr-acts,.kr-form,.kr-cp').forEach(e=>e.remove());
+  const body=$('krViewBody').cloneNode(true); body.querySelectorAll('.kr-acts,.kr-form,.kr-cp,.pg-nav').forEach(e=>e.remove());
   body.querySelectorAll('input[type=checkbox]').forEach(x=>{ if(x.checked) x.setAttribute('checked',''); });
   const html=`<div class="kr-pr"><h1>${esc(p.t.replace(/^🧮\s*/,''))}</h1>${body.innerHTML}</div>`;
   if(typeof opBuild==='function' && typeof opPrint==='function') opPrint(opBuild(html, true)); else window.print();

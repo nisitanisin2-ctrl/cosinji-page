@@ -3673,6 +3673,13 @@ body.dark .tsx-res-val.ng   { color: #ff8a80; }
 
 /* ── PDF出力（印刷）用の表示。細かな体裁はPDF設定ダイアログ→#printDynamicStyle で上書き ── */
 #printArea { display: none; }
+/* 読みものの「前のページ・次のページ」（v512） */
+.pg-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 20px 0 6px; }
+.pg-nav button { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px 12px; border: 1px solid rgba(120,132,156,.4); border-radius: 12px; background: rgba(120,132,156,.07); color: var(--text,#222); cursor: pointer; font: inherit; text-align: left; }
+.pg-nav button.nx { text-align: right; align-items: flex-end; }
+.pg-nav button small { font-size: 12px; color: var(--text-light,#888); font-weight: bold; }
+.pg-nav button b { font-size: 14px; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.pg-nav button:active { transform: scale(.98); }
 @media print {
   body { background: #fff !important; }
   body > *:not(#printArea) { display: none !important; }
@@ -9077,6 +9084,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v512', t:'読みものに「前のページ・次のページ」', li:[
+    '<b>📜 マナー帳・🧭 くらしの便利帳・📒 会計の手引き・🔢 便利計算</b>で、ページのいちばん下まで読むと<b>「← 前のページ」「次のページ →」</b>のボタンがあります。ボタンには<b>ページの題名</b>が出ます',
+    '押すとそのページの上から読めます。一覧に戻らずに続けて読めます（くらしの便利帳は同じテーマの中で、ほかは一覧の並び順で前後します）。✕ で一覧に戻ります' ]},
   { v:'v511', t:'くらしの便利帳も大きな画面で', li:[
     '<b>🧭 くらしの便利帳</b>で、テーマのカードを押したときの一覧と、項目を押したときの中身を<b>画面いっぱい</b>に出すようにしました（パソコンなど広い画面では読みやすい幅で真ん中に）。右上の ✕ で戻ります' ]},
   { v:'v510', t:'マナー帳・会計の手引き・便利計算を大きな画面で', li:[
@@ -12756,6 +12766,14 @@ function opWaitImages(box){
   })).then(()=>new Promise(r=>requestAnimationFrame(()=>r())));
 }
 /* 印刷（そこから「PDFに保存」を選べる） */
+/* 読みものの道具（マナー帳・くらしの便利帳・会計の手引き・便利計算）の、いちばん下の「前のページ・次のページ」（v512）。
+   seq：並び順の [{id,t}]、id：いまのページ、fn：開く関数の名前。印刷のときは .pg-nav を外す */
+function pgNavHtml(seq, id, fn){
+  const i=seq.findIndex(x=>x.id===id); if(i<0 || seq.length<2) return '';
+  const e=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const b=(x,cls,lab)=>x?`<button type="button" class="${cls}" data-id="${e(x.id)}" onclick="${fn}('${e(x.id)}')"><small>${lab}</small><b>${e(x.t)}</b></button>`:'<span></span>';
+  return `<nav class="pg-nav">${b(seq[i-1],'pv','← 前のページ')}${b(seq[i+1],'nx','次のページ →')}</nav>`;
+}
 function opPrint(built){
   if(built.meas) built.meas.remove();
   let dyn=document.getElementById('printDynamicStyle');
@@ -21576,7 +21594,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v511';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v512';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

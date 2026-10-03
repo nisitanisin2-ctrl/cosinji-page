@@ -1058,7 +1058,8 @@ function bkOpen(id){
   const fav=bk.fav.includes(id);
   $('bkViewBody').innerHTML=(typeof p.h==='function'?p.h():p.h)
     +`<div class="bk-acts"><button onclick="bkToggleFav('${id}')">${fav?'★ よく見るから外す':'☆ よく見る'}</button><button onclick="bkPrint('${id}')">🖨 印刷</button></div>`
-    +(p.cat==='tool'?'':'<div class="bk-warn">一般的な内容です。税金・法律は改正されることがあるので、最新の公式の案内で確かめてください。</div>');
+    +(p.cat==='tool'?'':'<div class="bk-warn">一般的な内容です。税金・法律は改正されることがあるので、最新の公式の案内で確かめてください。</div>')
+    +(typeof pgNavHtml==='function'?pgNavHtml(CATS.flatMap(c=>P.filter(x=>x.cat===c[0])).map(x=>({id:x.id, t:x.t.replace(/^🧮\s*/,'')})), id, 'bkOpen'):'');
   if(!isDlgOpen('bkViewOverlay')) openDlg('bkViewOverlay', ()=>{ bkCur=null; }); else $('bkViewBody').scrollTop=0;
   if(p.init) try{ p.init(); }catch(_){}
 }
@@ -1074,7 +1075,7 @@ function bkCopy(btn){
 }
 function bkPrint(id){
   const p=P.find(x=>x.id===id); if(!p) return;
-  const body=$('bkViewBody').cloneNode(true); body.querySelectorAll('.bk-acts,.bk-form,.bk-cp').forEach(e=>e.remove());
+  const body=$('bkViewBody').cloneNode(true); body.querySelectorAll('.bk-acts,.bk-form,.bk-cp,.pg-nav').forEach(e=>e.remove());
   const html=`<div class="bk-pr"><h1>${esc(p.t.replace(/^🧮\s*/,''))}</h1>${body.innerHTML}</div>`;
   if(typeof opBuild==='function' && typeof opPrint==='function') opPrint(opBuild(html, true)); else window.print();
 }

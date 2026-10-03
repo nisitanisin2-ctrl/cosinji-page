@@ -8023,6 +8023,12 @@ async function runManner(browser) {
   check('  どのページも開ける（エラーなし・中身あり）', await page.evaluate(() => mnPages().filter(p => { mnOpen(p.id); return document.getElementById('mnViewBody').textContent.length < 80; }).map(p => p.id).join(',')), '');
   await page.waitForTimeout(250);
   check('  中を読む窓は全画面（v510）', await page.evaluate(() => { const m = document.querySelector('#mnViewOverlay .modal'), r = m.getBoundingClientRect(); return m.classList.contains('modal-full') + '/' + (Math.round(r.width) === innerWidth && Math.round(r.height) === innerHeight); }), 'true/true');
+  await page.evaluate(() => mnOpen('wed-reply')); await page.waitForTimeout(200);
+  check('  いちばん下に前・次のページ（題名つき）（v512）', await page.evaluate(() => [...document.querySelectorAll('#mnViewBody .pg-nav button')].map(b => b.className + ':' + b.querySelector('b').textContent).join('|')), 'pv:ご祝儀の金額と包み方|nx:結婚式の忌み言葉と言いかえ');
+  await page.click('#mnViewBody .pg-nav .nx'); await page.waitForTimeout(200);
+  check('  次のページを押すとそのページへ（上から）', await page.evaluate(() => document.getElementById('mnViewHdr').textContent + '/' + document.getElementById('mnViewBody').scrollTop), '📜 結婚式の忌み言葉と言いかえ/0');
+  await page.evaluate(() => mnOpen('wed-gift')); await page.waitForTimeout(150);
+  check('  最初のページは「次」だけ', await page.evaluate(() => document.querySelectorAll('#mnViewBody .pg-nav .pv').length + '/' + document.querySelectorAll('#mnViewBody .pg-nav .nx').length), '0/1');
   await page.evaluate(() => mnCloseView()); await w(300);
   // さがす
   const find = q => page.evaluate(q => { mnSetQ(q); return [...document.querySelectorAll('#mnList .mn-it')].map(b => b.dataset.id); }, q);
@@ -8102,6 +8108,11 @@ async function runBoki(browser) {
   check('  どのページも開ける（エラーなし・中身あり）', await page.evaluate(() => bkPages().filter(p => { bkOpen(p.id); return document.getElementById('bkViewBody').textContent.length < 150; }).map(p => p.id).join(',')), '');
   await page.waitForTimeout(250);
   check('  中を読む窓は全画面（v510）', await page.evaluate(() => { const m = document.querySelector('#bkViewOverlay .modal'), r = m.getBoundingClientRect(); return m.classList.contains('modal-full') + '/' + (Math.round(r.width) === innerWidth && Math.round(r.height) === innerHeight); }), 'true/true');
+  check('  いちばん下に前・次のページ（v512）', await page.evaluate(() => document.querySelectorAll('#bkViewBody .pg-nav button').length > 0), true);
+  await page.evaluate(() => bkOpen('base-what')); await page.waitForTimeout(200);
+  { const h0 = await page.evaluate(() => document.getElementById('bkViewHdr').textContent); await page.click('#bkViewBody .pg-nav .nx'); await page.waitForTimeout(200);
+    const h1 = await page.evaluate(() => document.getElementById('bkViewHdr').textContent); await page.click('#bkViewBody .pg-nav .pv'); await page.waitForTimeout(200);
+    check('  次へ進んで前に戻る', (h0 !== h1) + '/' + (await page.evaluate(() => document.getElementById('bkViewHdr').textContent) === h0), 'true/true'); }
   await page.evaluate(() => bkCloseView()); await w(300);
   const find = q => page.evaluate(q => { bkSetQ(q); return [...document.querySelectorAll('#bkList .bk-it')].map(b => b.dataset.id); }, q);
   check('  さがす：監査', (await find('監査'))[0], 'jichi-kansa');
@@ -8181,6 +8192,7 @@ async function runKurashi(browser) {
   await page.click('#krCatBody .kr-it[data-id="shibo-todoke"]'); await w(300);
   check('  一覧から押すとくわしいページ', await page.evaluate(() => isDlgOpen('krViewOverlay') + '/' + document.getElementById('krViewBody').textContent.includes('7日以内')), 'true/true');
   check('  テーマの一覧・くわしいページは全画面（v511）', await page.evaluate(() => ['krCatOverlay', 'krViewOverlay'].map(o => { const m = document.querySelector('#' + o + ' .modal'), r = m.getBoundingClientRect(); return m.classList.contains('modal-full') && Math.round(r.width) === innerWidth && Math.round(r.height) === innerHeight; }).join('/')), 'true/true');
+  check('  いちばん下に前・次のページ（同じテーマの中で・題名つき）（v512）', await page.evaluate(() => { const ids = [...document.querySelectorAll('#krViewBody .pg-nav button')].map(b => b.dataset.id); const cat = krPages().reduce((m, p) => (m[p.id] = p.cat, m), {}); return ids.length > 0 && ids.every(i => cat[i] === 'shibo') && [...document.querySelectorAll('#krViewBody .pg-nav b')].every(b => b.textContent.length > 0); }), true);
   await page.evaluate(() => window.history.back()); await w(400);
   check('  戻るでページ → 一覧へ', await page.evaluate(() => isDlgOpen('krViewOverlay') + '/' + isDlgOpen('krCatOverlay')), 'false/true');
   await page.evaluate(() => window.history.back()); await w(400);
@@ -8287,6 +8299,12 @@ async function runKeisan(browser) {
   check('  どの計算も開けて答えが出る', await page.evaluate(() => ksCalcs().filter(id => { ksOpen(id); const t = document.getElementById('ksViewBody').textContent; return t.length < 150 || /NaN|undefined/.test(t); }).join(',')), '');
   await page.waitForTimeout(250);
   check('  中を読む窓は全画面（v510）', await page.evaluate(() => { const m = document.querySelector('#ksViewOverlay .modal'), r = m.getBoundingClientRect(); return m.classList.contains('modal-full') + '/' + (Math.round(r.width) === innerWidth && Math.round(r.height) === innerHeight); }), 'true/true');
+  check('  いちばん下に前・次の計算（v512）', await page.evaluate(() => document.querySelectorAll('#ksViewBody .pg-nav button').length > 0), true);
+  await page.evaluate(() => ksOpen('unit')); await page.waitForTimeout(250);
+  { const h0 = await page.evaluate(() => document.getElementById('ksViewHdr').textContent); await page.click('#ksViewBody .pg-nav .nx'); await page.waitForTimeout(250);
+    check('  次の計算へ（題名がボタンと同じ）', await page.evaluate(h0 => document.getElementById('ksViewHdr').textContent !== h0 && !!document.querySelector('#ksViewBody .pg-nav .pv b').textContent.length, h0), true);
+    await page.click('#ksViewBody .pg-nav .pv'); await page.waitForTimeout(250);
+    check('  前の計算へ戻る', await page.evaluate(() => document.getElementById('ksViewHdr').textContent), h0); }
   const body = () => page.evaluate(() => document.getElementById('ksViewBody').innerText.replace(/\s+/g, ' '));
   const set = async (pairs) => { for (const [id, v] of pairs) await page.fill('#' + id, v); await w(60); };
   // 単位換算
