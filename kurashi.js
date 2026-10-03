@@ -711,6 +711,8 @@ const KR_CSS=`
 .kr-cathd{ display:flex; align-items:center; gap:10px; padding:12px; margin:4px 0 10px; border-radius:12px; background:color-mix(in srgb, var(--c) 12%, transparent); }
 .kr-cathd .ic{ font-size:34px; } .kr-cathd p{ margin:0; font-size:13px; line-height:1.6; }
 .kr-empty{ text-align:center; color:var(--text-light,#888); padding:28px 12px; line-height:1.8; }
+/* カテゴリと中を読む窓は全画面で（v511） */
+#krCatOverlay .modal,#krViewOverlay .modal{ display:flex; flex-direction:column; } #krCatOverlay .kr-body,#krViewOverlay .kr-body{ flex:1; min-height:0; }
 .kr-body{ padding:10px 14px calc(16px + var(--safe-bottom,0px)); overflow:auto; font-size:15px; line-height:1.75; color:var(--text,#222); }
 .kr-body h4{ font-size:15px; color:var(--acc); margin:16px 0 6px; border-left:4px solid var(--acc); padding-left:8px; }
 .kr-body p{ margin:6px 0; } .kr-body a{ color:var(--acc); font-weight:bold; }
@@ -770,11 +772,11 @@ function krEnsureDom(){
   </div>
 </div>
 <div class="modal-overlay" id="krCatOverlay" onclick="if(event.target===this)krCloseCat()">
-  <div class="modal"><div class="modal-header"><span id="krCatHdr"></span><button class="modal-close" onclick="krCloseCat()" aria-label="閉じる">✕</button></div>
+  <div class="modal modal-full"><div class="modal-header"><span id="krCatHdr"></span><button class="modal-close" onclick="krCloseCat()" aria-label="閉じる">✕</button></div>
     <div class="kr-body" id="krCatBody"></div></div>
 </div>
 <div class="modal-overlay" id="krViewOverlay" onclick="if(event.target===this)krCloseView()">
-  <div class="modal"><div class="modal-header"><span id="krViewHdr"></span><button class="modal-close" onclick="krCloseView()" aria-label="閉じる">✕</button></div>
+  <div class="modal modal-full"><div class="modal-header"><span id="krViewHdr"></span><button class="modal-close" onclick="krCloseView()" aria-label="閉じる">✕</button></div>
     <div class="kr-body" id="krViewBody"></div></div>
 </div>`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
@@ -829,7 +831,8 @@ function krOpen(id){
   const fav=kr.fav.includes(id);
   $('krViewBody').innerHTML=(typeof p.h==='function'?p.h():p.h)
     +`<div class="kr-acts"><button onclick="krToggleFav('${id}')">${fav?'★ よく見るから外す':'☆ よく見る'}</button><button onclick="krPrint('${id}')">🖨 印刷</button></div>`
-    +`<div class="kr-warn">一般的な内容です。制度・金額は変わることがあるので、最新の公式の案内で確かめてください。</div>`;
+    +`<div class="kr-warn">一般的な内容です。制度・金額は変わることがあるので、最新の公式の案内で確かめてください。</div>`
+    +(typeof pgNavHtml==='function'?pgNavHtml((ps=>ps.filter(x=>!/^🧮/.test(x.t)).concat(ps.filter(x=>/^🧮/.test(x.t))))(P.filter(x=>x.cat===p.cat)).map(x=>({id:x.id, t:x.t.replace(/^🧮\s*/,'')})), id, 'krOpen'):'');
   krChkSync();
   if(!isDlgOpen('krViewOverlay')) openDlg('krViewOverlay', ()=>{ krCur=null; krTempoStop(); }); else $('krViewBody').scrollTop=0;
   if(p.init) try{ p.init(); }catch(_){}
@@ -852,7 +855,7 @@ function krCopy(btn){
 }
 function krPrint(id){
   const p=P.find(x=>x.id===id); if(!p) return;
-  const body=$('krViewBody').cloneNode(true); body.querySelectorAll('.kr-acts,.kr-form,.kr-cp').forEach(e=>e.remove());
+  const body=$('krViewBody').cloneNode(true); body.querySelectorAll('.kr-acts,.kr-form,.kr-cp,.pg-nav').forEach(e=>e.remove());
   body.querySelectorAll('input[type=checkbox]').forEach(x=>{ if(x.checked) x.setAttribute('checked',''); });
   const html=`<div class="kr-pr"><h1>${esc(p.t.replace(/^🧮\s*/,''))}</h1>${body.innerHTML}</div>`;
   if(typeof opBuild==='function' && typeof opPrint==='function') opPrint(opBuild(html, true)); else window.print();

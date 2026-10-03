@@ -1034,7 +1034,8 @@ function mnOpen(id){
   const fav=mn.fav.includes(id);
   $('mnViewBody').innerHTML=(typeof p.h==='function'?p.h():p.h)
     +`<div class="mn-acts"><button onclick="mnToggleFav('${id}')">${fav?'★ よく見るから外す':'☆ よく見る'}</button><button onclick="mnPrint('${id}')">🖨 印刷</button></div>`
-    +(p.cat==='tool'?'':'<div class="mn-warn">一般的な目安です。地域・宗派・家のしきたりで違うことがあります。</div>');
+    +(p.cat==='tool'?'':'<div class="mn-warn">一般的な目安です。地域・宗派・家のしきたりで違うことがあります。</div>')
+    +(typeof pgNavHtml==='function'?pgNavHtml(CATS.flatMap(c=>P.filter(x=>x.cat===c[0])).map(x=>({id:x.id, t:x.t.replace(/^🧮\s*/,'')})), id, 'mnOpen'):'');
   if(!isDlgOpen('mnViewOverlay')) openDlg('mnViewOverlay', ()=>{ mnCur=null; }); else $('mnViewBody').scrollTop=0;
   if(p.init) try{ p.init(); }catch(_){}
 }
@@ -1050,7 +1051,7 @@ function mnCopy(btn){
 }
 function mnPrint(id){
   const p=P.find(x=>x.id===id); if(!p) return;
-  const body=$('mnViewBody').cloneNode(true); body.querySelectorAll('.mn-acts,.mn-form,.mn-cp').forEach(e=>e.remove());
+  const body=$('mnViewBody').cloneNode(true); body.querySelectorAll('.mn-acts,.mn-form,.mn-cp,.pg-nav').forEach(e=>e.remove());
   const html=`<div class="mn-pr"><h1>${esc(p.t.replace(/^🧮\s*/,''))}</h1>${body.innerHTML}</div>`;
   if(typeof opBuild==='function' && typeof opPrint==='function') opPrint(opBuild(html, true)); else window.print();
 }

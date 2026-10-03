@@ -397,7 +397,8 @@ function ksOpen(id){
   ksCur=id; ks.last=id; ksSave();
   document.querySelectorAll('#ksList .ks-card').forEach(b=>b.classList.toggle('last', b.dataset.id===id));
   $('ksViewHdr').textContent=c.ic+' '+c.name;
-  $('ksViewBody').innerHTML=c.h()+`<div class="ks-acts"><button onclick="ksClear()">↺ はじめの数に戻す</button><button onclick="ksPrint()">🖨 印刷</button></div>`;
+  $('ksViewBody').innerHTML=c.h()+`<div class="ks-acts"><button onclick="ksClear()">↺ はじめの数に戻す</button><button onclick="ksPrint()">🖨 印刷</button></div>`
+    +(typeof pgNavHtml==='function'?pgNavHtml(C.map(x=>({id:x.id, t:x.ic+' '+x.name})), id, 'ksOpen'):'');
   $('ksViewBody').querySelectorAll('input,select').forEach(e=>{ if(!e.id || !(e.id in ks.v)) return; if(e.type==='checkbox') e.checked=ks.v[e.id]==='1'; else if(e.tagName!=='SELECT' || [...e.options].some(o=>o.value===ks.v[e.id])) e.value=ks.v[e.id]; });
   if(!isDlgOpen('ksViewOverlay')) openDlg('ksViewOverlay', ()=>{ ksCur=null; }); else $('ksViewBody').scrollTop=0;
   ksRun(true);
@@ -417,7 +418,7 @@ function ksClear(){
 function ksCopyVal(btn){ const t=btn.querySelector('.v').textContent.replace(/,/g,''); if(navigator.clipboard) navigator.clipboard.writeText(t).then(()=>toast(t+' をコピーしました'),()=>{}); }
 function ksPrint(){
   const c=C.find(x=>x.id===ksCur); if(!c) return;
-  const body=$('ksViewBody').cloneNode(true);
+  const body=$('ksViewBody').cloneNode(true); body.querySelectorAll('.pg-nav').forEach(e=>e.remove());
   body.querySelectorAll('input').forEach(e=>{ if(e.type==='hidden'){ e.remove(); return; } const s=document.createElement('span'); s.className='ks-pv'; s.textContent=e.type==='checkbox'?(e.checked?'☑':'☐'):e.value; e.replaceWith(s); });
   body.querySelectorAll('select').forEach(e=>{ const s=document.createElement('span'); s.textContent=e.options[e.selectedIndex]?e.options[e.selectedIndex].text:''; e.replaceWith(s); });
   body.querySelectorAll('.ks-acts,.ks-chips,[style*="display: none"]').forEach(e=>e.remove());
