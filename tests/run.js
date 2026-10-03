@@ -8418,6 +8418,28 @@ async function runRuler(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runAppIconPwa(browser) {
+  console.log('\n── インストールしたアプリから道具をアイコンに（v498） ──');
+  for (const [ua, name] of [['Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36', 'android'], ['Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1', 'iphone']]) {
+    const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true, userAgent: ua });
+    await ctx.addInitScript(() => { Object.defineProperty(navigator, 'standalone', { get: () => true, configurable: true }); });
+    const page = await ctx.newPage(); const errs = []; page.on('pageerror', e => errs.push(e.message));
+    await page.goto(INDEX); await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0'); }); await page.reload(); await page.waitForTimeout(900);
+    await page.evaluate(() => openAppIcons()); await page.waitForTimeout(300);
+    check(`  ${name}：アプリの中だと案内が出る`, await page.evaluate(() => appIsStandalone() + '/' + document.getElementById('appIconBody').textContent.includes('インストールした表電卓のアプリの中')), 'true/true');
+    const before = await page.evaluate(() => location.href);
+    await page.click('#appIconBody [data-appicon="ruler"]'); await page.waitForTimeout(300);
+    check(`  ${name}：道具を押してもアプリの中では開かず、開き方の画面`, await page.evaluate(() => location.href) === before && await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + !!document.getElementById('appIconCopy') + '/' + document.getElementById('appIconUrl').textContent.endsWith('apps/ruler/index.html')), 'true/true/true');
+    if (name === 'android') check('  android：ファイルで開いているときは Chrome で開くボタンを出さない', await page.evaluate(() => !document.getElementById('appIconChrome')), true);   // file:// では intent を作らない
+    if (name === 'android') check('  android：http のアドレスなら intent を作る', await page.evaluate(() => chromeIntentUrl('https://example.com/app/apps/ruler/')), 'intent://example.com/app/apps/ruler/#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=https%3A%2F%2Fexample.com%2Fapp%2Fapps%2Fruler%2F;end');
+    if (name === 'iphone') check('  iphone：Safari で開く手順', await page.evaluate(() => document.getElementById('appIconBody').textContent.includes('Safari を開いて') && !document.getElementById('appIconChrome')), true);
+    check(`  ${name}：アドレスをコピー`, await page.evaluate(async () => { let t = ''; navigator.clipboard.writeText = async x => { t = x; }; copyAppIconUrl('ruler'); await new Promise(r => setTimeout(r, 50)); return t.endsWith('apps/ruler/index.html'); }), true);
+    await page.click('#appIconBody .set-act'); await page.waitForTimeout(200);
+    check(`  ${name}：一覧に戻れる`, await page.evaluate(() => !!document.querySelector('#appIconBody [data-appicon="ruler"]')), true);
+    check(`  ${name}：エラーなし`, errs.join(' | '), '');
+    await ctx.close();
+  }
+}
 async function runUiMode(browser) {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true });
   const page = await ctx.newPage();
@@ -9656,6 +9678,7 @@ async function runQrShare(browser) {
     if (!only || only === 'keisan') await runKeisan(browser);
     if (!only || only === 'defmk') await runDefMk(browser);
     if (!only || only === 'ruler') await runRuler(browser);
+    if (!only || only === 'appiconpwa') await runAppIconPwa(browser);
     if (!only || only === 'uimode') await runUiMode(browser);
     if (!only || only === 'toolsfab') await runToolsFab(browser);
     if (!only || only === 'techoapp') await runTechoApp(browser);
