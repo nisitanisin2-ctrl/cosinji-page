@@ -917,6 +917,8 @@ const MN_CSS=`
 .mn-it small{ display:block; font-weight:normal; font-size:12px; color:var(--text-light,#888); margin-top:2px; }
 .mn-it .fv{ flex:none; color:#f9a825; }
 .mn-empty{ text-align:center; color:var(--text-light,#888); padding:28px 12px; line-height:1.8; }
+/* 中を読む窓は全画面で（v510） */
+#mnViewOverlay .modal{ display:flex; flex-direction:column; } #mnViewOverlay .mn-body{ flex:1; min-height:0; }
 .mn-body{ padding:10px 14px calc(16px + var(--safe-bottom,0px)); overflow:auto; font-size:15px; line-height:1.75; color:var(--text,#222); }
 .mn-body h4{ font-size:15px; color:var(--acc); margin:16px 0 6px; border-left:4px solid var(--acc); padding-left:8px; }
 .mn-body p{ margin:6px 0; } .mn-body ol{ padding-left:1.4em; margin:6px 0; } .mn-body li{ margin:3px 0; }
@@ -984,7 +986,7 @@ function mnEnsureDom(){
   </div>
 </div>
 <div class="modal-overlay" id="mnViewOverlay" onclick="if(event.target===this)mnCloseView()">
-  <div class="modal"><div class="modal-header"><span id="mnViewHdr">📜</span><button class="modal-close" onclick="mnCloseView()" aria-label="閉じる">✕</button></div>
+  <div class="modal modal-full"><div class="modal-header"><span id="mnViewHdr">📜</span><button class="modal-close" onclick="mnCloseView()" aria-label="閉じる">✕</button></div>
     <div class="mn-body" id="mnViewBody"></div></div>
 </div>`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);

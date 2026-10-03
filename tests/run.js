@@ -8021,6 +8021,8 @@ async function runManner(browser) {
   await page.evaluate(() => openManner()); await w(600);
   check('  分類ごとにページが並ぶ（v489 で 120 項目ぶん）', await page.evaluate(() => [...document.querySelectorAll('#mnList .mn-grp')].length + '/' + (document.querySelectorAll('#mnList .mn-it').length >= 110)), '10/true');
   check('  どのページも開ける（エラーなし・中身あり）', await page.evaluate(() => mnPages().filter(p => { mnOpen(p.id); return document.getElementById('mnViewBody').textContent.length < 80; }).map(p => p.id).join(',')), '');
+  await page.waitForTimeout(250);
+  check('  中を読む窓は全画面（v510）', await page.evaluate(() => { const m = document.querySelector('#mnViewOverlay .modal'), r = m.getBoundingClientRect(); return m.classList.contains('modal-full') + '/' + (Math.round(r.width) === innerWidth && Math.round(r.height) === innerHeight); }), 'true/true');
   await page.evaluate(() => mnCloseView()); await w(300);
   // さがす
   const find = q => page.evaluate(q => { mnSetQ(q); return [...document.querySelectorAll('#mnList .mn-it')].map(b => b.dataset.id); }, q);
@@ -8098,6 +8100,8 @@ async function runBoki(browser) {
   await page.evaluate(() => openBoki()); await w(600);
   check('  分類ごとにページが並ぶ', await page.evaluate(() => [...document.querySelectorAll('#bkList .bk-grp')].length + '/' + (document.querySelectorAll('#bkList .bk-it').length >= 70)), '8/true');
   check('  どのページも開ける（エラーなし・中身あり）', await page.evaluate(() => bkPages().filter(p => { bkOpen(p.id); return document.getElementById('bkViewBody').textContent.length < 150; }).map(p => p.id).join(',')), '');
+  await page.waitForTimeout(250);
+  check('  中を読む窓は全画面（v510）', await page.evaluate(() => { const m = document.querySelector('#bkViewOverlay .modal'), r = m.getBoundingClientRect(); return m.classList.contains('modal-full') + '/' + (Math.round(r.width) === innerWidth && Math.round(r.height) === innerHeight); }), 'true/true');
   await page.evaluate(() => bkCloseView()); await w(300);
   const find = q => page.evaluate(q => { bkSetQ(q); return [...document.querySelectorAll('#bkList .bk-it')].map(b => b.dataset.id); }, q);
   check('  さがす：監査', (await find('監査'))[0], 'jichi-kansa');
@@ -8280,6 +8284,8 @@ async function runKeisan(browser) {
   await page.evaluate(() => openKeisan()); await w(500);
   check('  開くと8つのカード', await page.evaluate(() => [...document.querySelectorAll('#ksList .ks-card')].map(c => c.dataset.id).join(',')), 'unit,loan,wage,tsumi,shop,date,slope,car');
   check('  どの計算も開けて答えが出る', await page.evaluate(() => ksCalcs().filter(id => { ksOpen(id); const t = document.getElementById('ksViewBody').textContent; return t.length < 150 || /NaN|undefined/.test(t); }).join(',')), '');
+  await page.waitForTimeout(250);
+  check('  中を読む窓は全画面（v510）', await page.evaluate(() => { const m = document.querySelector('#ksViewOverlay .modal'), r = m.getBoundingClientRect(); return m.classList.contains('modal-full') + '/' + (Math.round(r.width) === innerWidth && Math.round(r.height) === innerHeight); }), 'true/true');
   const body = () => page.evaluate(() => document.getElementById('ksViewBody').innerText.replace(/\s+/g, ' '));
   const set = async (pairs) => { for (const [id, v] of pairs) await page.fill('#' + id, v); await w(60); };
   // 単位換算
