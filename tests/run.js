@@ -8442,7 +8442,7 @@ async function runAppIconPwa(browser) {
 }
 async function runRegi(browser) {
   const { ctx, page, errs, dialogs } = await newPage(browser);
-  console.log('\n── 🛍即売レジ（v499〜v504） ──');
+  console.log('\n── 🛍即売レジ（v499〜v505） ──');
   const w = ms => page.waitForTimeout(ms);
   check('  開くまでは読まない・道具とマイキーにある・単独アプリの入口', await page.evaluate(() => !window.REGI_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'regi') + '/' + !!KEY_FUNCS.a_regi) + '/' + require('fs').existsSync(require('path').join(ROOT, 'apps', 'regi', 'manifest.json')), 'true/true/true/true');
   await page.evaluate(() => openRegi()); await w(400);
@@ -8656,6 +8656,30 @@ async function runRegi(browser) {
   await page.evaluate(id => { rgAdd(id); rgPay(); }, ids3[0]); await w(500);
   check('  会計のたびに自動で印刷（窓を出さずに）', await page.evaluate(() => window.__pr + '/' + isDlgOpen('rgRcOverlay')), '4/false');
   await page.evaluate(() => { rgRcSet('auto', false); rgDoneClose(); }); await w(200);
+  // 訂正（v505）
+  const st0 = await page.evaluate(() => rgState().rg.items.map(i => i.stock).join(','));
+  await page.evaluate(([a, b]) => { rgAdd(a); rgAdd(a); rgAdd(b); rgOdType('pct'); rgOdSet(10); }, [ids3[0], ids3[1]]);
+  await page.fill('#rgPaid', '2000'); await page.evaluate(() => { rgCartRender(); rgPay(); }); await w(250);
+  const saleA = await page.evaluate(() => rgState().rg.sales.slice(-1)[0]);
+  check('  会計のあとの画面に「まちがえた（訂正）」', await page.evaluate(() => !!document.getElementById('rgDoneFix')), true);
+  await page.evaluate(() => rgDoneClose()); await w(200);
+  await page.evaluate(() => rgOpenHist()); await w(200);
+  check('  履歴の会計に「訂正」ボタン', await page.evaluate(() => document.querySelector('.rg-sale .f button.fix').textContent), '訂正');
+  await page.click('.rg-sale .f button.fix'); await w(300);
+  check('  訂正すると会計する前の注文に戻る（品・値引き・お預かり・在庫）', await page.evaluate(() => isDlgOpen('rgHistOverlay') + '/' + rgState().cart.map(l => l.name + '×' + l.qty).join(',') + '/' + rgState().od.t + rgState().od.v + '/' + document.getElementById('rgPaid').value + '/' + rgState().rg.items.map(i => i.stock).join(',')), 'false/クッキー×2,ジャム×1/pct10/2000/' + st0);
+  check('  訂正した会計は「訂正」として記録に残る', await page.evaluate(id => { const s = rgState().rg.sales.find(x => x.id === id); return s.void + '/' + s.fix + '/' + (s.voidT > 0); }, saleA.id), 'true/true/true');
+  await page.evaluate(id => rgQty(id, -1), ids3[1]); await w(50);
+  await page.evaluate(() => rgPay()); await w(250);
+  check('  会計し直すと「No.○ の訂正」とつながる', await page.evaluate(no => { const r = rgState().rg.sales, b = r.slice(-1)[0], a = r.find(x => x.no === no); return b.fixOf + '/' + a.fixTo + '/' + b.lines.map(l => l.name + '×' + l.qty).join(',') + '/' + document.getElementById('rgDoneBody').textContent.includes('の訂正'); }, saleA.no), `${saleA.no}/${saleA.no + 1}/クッキー×2/true`);
+  await page.evaluate(() => { rgDoneClose(); rgOpenHist(); }); await w(250);
+  check('  履歴：訂正済み → 新しい会計、訂正の件数', await page.evaluate(() => { const t = document.getElementById('rgHistBody').textContent; return t.includes('訂正済み') + '/' + t.includes('の訂正') + '/' + /訂正 1件/.test(t) + '/' + document.querySelectorAll('.rg-sale.void .fx').length; }), 'true/true/true/1');
+  check('  Excel にも訂正を残す', await page.evaluate(async () => { const f = await xlsxUnzip(await (await rgBuildXlsx()).arrayBuffer()); const s2 = new TextDecoder().decode(f.get('xl/worksheets/sheet2.xml')), s4 = new TextDecoder().decode(f.get('xl/worksheets/sheet4.xml')); return s2.includes('訂正した（') + '/' + s2.includes('の訂正') + '/' + s4.includes('訂正した会計'); }), 'true/true/true');
+  await page.evaluate(() => closeDlg('rgHistOverlay')); await w(200);
+  await page.evaluate(id => { rgAdd(id); rgPay(); }, ids3[0]); await w(250);
+  await page.click('#rgDoneFix'); await w(300);
+  check('  会計のあとの画面からも訂正できる', await page.evaluate(() => isDlgOpen('rgDoneOverlay') + '/' + rgState().cart.length + '/' + rgState().rg.sales.slice(-1)[0].fix), 'false/1/true');
+  await page.evaluate(() => rgClearCart()); await page.evaluate(id => { rgAdd(id); rgPay(); rgDoneClose(); }, ids3[0]); await w(250);
+  check('  注文を消したあとの会計は訂正につながらない', await page.evaluate(() => rgState().rg.sales.slice(-1)[0].fixOf === undefined), true);
   await page.evaluate(() => window.history.back()); await w(400);
   check('  戻るで閉じる', await page.evaluate(() => isDlgOpen('regiOverlay')), false);
   check('  エラーなし', errs.join(' | '), '');

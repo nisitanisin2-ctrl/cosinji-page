@@ -1,4 +1,4 @@
-/* 🛍 即売レジ（v504。表電卓の道具。apps/regi/ から単独のアプリとしても開ける。はじめて開いたときに読む）
+/* 🛍 即売レジ（v505。表電卓の道具。apps/regi/ から単独のアプリとしても開ける。はじめて開いたときに読む）
    フリマ・お祭り・即売会で使う、かんたんなレジ。
    ・商品（写真・名前・値段・在庫）を登録 → レジの画面で商品を押すと1つずつ足す → 合計・値引き →
      預かった金額を入れるとお釣り → 「会計する」で販売の記録に残し、在庫を減らす。
@@ -11,6 +11,8 @@
    ・売り出しの保存（v501）：いまの商品（写真・値段・最初の在庫）を名前を付けて残し、次の売り出しで呼び出す。excalc_regi_sets（写真は同じ物を1つにまとめて持つ）。
    ・消費税（v502）：⚙ 設定で「計算する」にすると、値段が税込（内税）か税別（外税）か・標準の税率（1・8・10%・任意）・端数を決め、
      商品ごとに税率と内税・外税を選べる（決めていない商品は設定の標準）。会計の終わりと履歴・Excel に、税率ごとの税別価格と消費税額を出す。
+   ・訂正（v505）：まちがえて会計したときは、履歴（または会計のあとの画面）の「訂正」で、その会計を取り消して会計する前の注文に戻す。
+     記録は消さず「訂正」と残し、会計し直した会計には「No.○ の訂正」と残す（不正防止）。
    ・領収書の宛名（v504）：印刷の前の窓で宛名・敬称（様・御中）・但し書きを入れる（会計に残るので印刷し直しても同じ）。
    ・レシート（v503）：会計のあと・履歴から印刷（紙の幅 58mm・80mm・A4）。店の名前・住所・電話・登録番号・ひとことは ⚙ 設定。
    ・入れたものは端末の中だけ（excalc_regi）。写真は小さくして保存する。 */
@@ -24,7 +26,7 @@ const P2=n=>String(n).padStart(2,'0');
 const stamp=t=>{ const d=new Date(t); return `${d.getFullYear()}/${P2(d.getMonth()+1)}/${P2(d.getDate())} ${P2(d.getHours())}:${P2(d.getMinutes())}`; };
 const hm=t=>{ const d=new Date(t); return P2(d.getHours())+':'+P2(d.getMinutes()); };
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-let rg={ev:{name:'',date:''}, items:[], sales:[], no:1}, cart=[], rgLast=null, od={t:'yen',v:0}, rgEdit=null, rgPhoto=null, rgCrop=null;
+let rg={ev:{name:'',date:''}, items:[], sales:[], no:1}, cart=[], rgLast=null, rgFix=null, od={t:'yen',v:0}, rgEdit=null, rgPhoto=null, rgCrop=null;
 function rgLoad(){
   try{ const o=JSON.parse(localStorage.getItem(RG_KEY)||'null')||{};
     const items=Array.isArray(o.items)?o.items.filter(x=>x&&typeof x.name==='string').slice(0,300).map(x=>({id:String(x.id||uid()), name:x.name.slice(0,40), price:Math.max(0,Math.round(+x.price||0)), stock0:Math.max(0,Math.round(+x.stock0||0)), stock:Math.round(+x.stock||0), photo:typeof x.photo==='string'&&x.photo.startsWith('data:image/')?x.photo:'', noStock:!!x.noStock, rate:x.rate==null?null:rateOk(x.rate), tmode:modeOk(x.tmode)})):[];
@@ -126,7 +128,7 @@ function rgAdd(id){
   rgRefresh();
 }
 function rgQty(id,d){ const l=cart.find(c=>c.id===id); if(!l) return; if(d>0){ rgAdd(id); return; } l.qty+=d; if(l.qty<=0) cart=cart.filter(c=>c!==l); if(!cart.length){ odReset(); } rgRefresh(); }
-function rgClearCart(){ if(cart.length && !confirm('いまの注文を消しますか？')) return; cart=[]; odReset(); $('rgPaid').value=''; rgRefresh(); }
+function rgClearCart(){ if(cart.length && !confirm('いまの注文を消しますか？')) return; cart=[]; odReset(); rgFix=null; $('rgPaid').value=''; rgRefresh(); }
 function rgSetPaid(v){ const e=$('rgPaid'); e.value=v==='just'?String(total()):String(v); rgRenderCart(); }
 /* 値引き：会計ぜんたい（円・％）と、品ごと（1つあたりの値段を変える） */
 const toN=v=>Math.max(0,parseInt(String(v==null?'':v).normalize('NFKC').replace(/[^\d]/g,''),10)||0);
@@ -163,11 +165,13 @@ function rgPay(){
   const sale={id:uid(), no:rg.no++, t:Date.now(), lines:cart.map(l=>Object.assign({id:l.id, name:l.name, price:l.price, qty:l.qty}, l.orig>l.price?{orig:l.orig}:{}, tx?{rate:lineRate(l), tmode:lineMode(l)}:{})), sub:subTotal(), disc:orderDisc(), total:tot, paid, change:paid-tot};
   if(ld) sale.ldisc=ld;
   if(tx) sale.tax={mode:tx.mode, rows:tx.rows};
+  if(od.v) sale.od={t:od.t, v:od.v};
+  if(rgFix){ const f=rg.sales.find(x=>x.id===rgFix); if(f){ sale.fixOf=f.no; f.fixTo=sale.no; if(f.atena&&!sale.atena){ sale.atena=f.atena; sale.keisho=f.keisho; sale.tadashi=f.tadashi; } } rgFix=null; }
   rg.sales.push(sale);
   sale.lines.forEach(l=>{ const it=itemOf(l.id); if(it && !it.noStock) it.stock-=l.qty; });
   rgSave();
   cart=[]; odReset(); $('rgPaid').value='';
-  $('rgDoneBody').innerHTML=`<div class="rg-done-c">お釣り</div><div class="rg-done-v">${yen(sale.change)}</div><div class="rg-done-s">合計 ${yen(sale.total)}　お預かり ${yen(sale.paid)}<br>会計 No.${sale.no}（${hm(sale.t)}）を記録しました</div>${sale.tax?`<div class="rg-done-tax"><b>税別価格と消費税（${sale.tax.mode==='out'?'税別の値段に税を足しました':sale.tax.mode==='mix'?'内税と外税があります':'税込の値段に含まれる税'}）</b>${taxRowsHtml(sale.tax.rows)}</div>`:''}`;
+  $('rgDoneBody').innerHTML=`<div class="rg-done-c">お釣り</div><div class="rg-done-v">${yen(sale.change)}</div><div class="rg-done-s">合計 ${yen(sale.total)}　お預かり ${yen(sale.paid)}<br>会計 No.${sale.no}（${hm(sale.t)}）を記録しました${sale.fixOf?`（No.${sale.fixOf} の訂正）`:''}</div>${sale.tax?`<div class="rg-done-tax"><b>税別価格と消費税（${sale.tax.mode==='out'?'税別の値段に税を足しました':sale.tax.mode==='mix'?'内税と外税があります':'税込の値段に含まれる税'}）</b>${taxRowsHtml(sale.tax.rows)}</div>`:''}`;
   rgLast=sale.id;
   openDlg('rgDoneOverlay');
   rgRefresh();
@@ -437,22 +441,36 @@ function rgStats(){
   const by={}; ok.forEach(s=>s.lines.forEach(l=>{ const k=l.id+'|'+l.price; (by[k]=by[k]||{id:l.id,name:l.name,price:l.price,qty:0,amt:0}); by[k].qty+=l.qty; by[k].amt+=l.qty*l.price; }));
   const tx={}; ok.forEach(s=>s.tax&&s.tax.rows.forEach(x=>{ const t=(tx[x.r]=tx[x.r]||{r:x.r,base:0,tax:0,amt:0}); t.base+=x.base; t.tax+=x.tax; t.amt+=x.amt; }));
   Object.values(tx).forEach(t=>{ delete t.m; });
-  return {taxes:Object.values(tx).sort((a,b)=>b.r-a.r), count:ok.length, total:ok.reduce((s,x)=>s+x.total,0), disc:ok.reduce((s,x)=>s+(x.disc||0)+(x.ldisc||0),0), qty:ok.reduce((s,x)=>s+x.lines.reduce((a,l)=>a+l.qty,0),0), by:Object.values(by).sort((a,b)=>b.amt-a.amt), voids:rg.sales.length-ok.length};
+  return {taxes:Object.values(tx).sort((a,b)=>b.r-a.r), count:ok.length, total:ok.reduce((s,x)=>s+x.total,0), disc:ok.reduce((s,x)=>s+(x.disc||0)+(x.ldisc||0),0), qty:ok.reduce((s,x)=>s+x.lines.reduce((a,l)=>a+l.qty,0),0), by:Object.values(by).sort((a,b)=>b.amt-a.amt), voids:rg.sales.length-ok.length, fixes:rg.sales.filter(s=>s.fix).length};
 }
 function rgOpenHist(){ rgRenderHist(); if(!isDlgOpen('rgHistOverlay')) openDlg('rgHistOverlay'); }
 function rgRenderHist(){
   const b=$('rgHistBody'); if(!b) return; const st=rgStats();
   b.innerHTML=`<div class="rg-sum"><div><small>売上</small><b>${yen(st.total)}</b></div><div><small>会計</small><b>${st.count}件</b></div><div><small>売れた数</small><b>${st.qty}個</b></div></div>
-  ${st.disc?`<div class="rg-hint">値引きの合計 ${yen(st.disc)}${st.voids?`・取り消し ${st.voids}件`:''}</div>`:st.voids?`<div class="rg-hint">取り消し ${st.voids}件</div>`:''}
+  ${st.disc||st.voids?`<div class="rg-hint">${[st.disc?`値引きの合計 ${yen(st.disc)}`:'', st.voids-st.fixes?`取り消し ${st.voids-st.fixes}件`:'', st.fixes?`訂正 ${st.fixes}件`:''].filter(Boolean).join('・')}</div>`:''}
   ${st.taxes.length?`<h4>消費税（税率ごと）</h4>${taxRowsHtml(st.taxes)}`:''}
   <button class="rg-btn pri wide" onclick="rgExportXlsx()">📊 Excel に書き出す</button>
   <h4>商品ごと</h4>
   <table class="rg-t"><tr><th>商品</th><th>売れた</th><th>売上</th><th>残り</th></tr>${st.by.map(x=>{ const it=itemOf(x.id); return `<tr><td>${esc(x.name)}<small>${yen(x.price)}</small></td><td>${x.qty}</td><td>${yen(x.amt)}</td><td>${it&&!it.noStock?it.stock:'—'}</td></tr>`; }).join('')||'<tr><td colspan="4">まだ売れていません</td></tr>'}</table>
   <h4>会計の記録（新しい順）</h4>
-  <div class="rg-sales">${rg.sales.slice().reverse().map(s=>`<div class="rg-sale${s.void?' void':''}"><div class="h"><b>No.${s.no}</b><span>${stamp(s.t)}</span><b class="t">${yen(s.total)}</b></div>
+  <div class="rg-sales">${rg.sales.slice().reverse().map(s=>`<div class="rg-sale${s.void?' void':''}"><div class="h"><b>No.${s.no}</b><span>${stamp(s.t)}${s.fixOf?`<em class="fx">No.${s.fixOf} の訂正</em>`:''}</span><b class="t">${yen(s.total)}</b></div>
     <div class="l">${s.lines.map(l=>`${esc(l.name)} ×${l.qty}${l.orig>l.price?`（${yen(l.orig)}→${yen(l.price)}）`:''}`).join('、')}${s.disc?`（値引き −${yen(s.disc)}）`:''}</div>
     ${s.tax?`<div class="x">${s.tax.rows.map(x=>`${taxLabel(x,s.tax.rows)} ${yen(x.amt)}（税別 ${yen(x.base)}・消費税 ${yen(x.tax)}）`).join('　')}</div>`:''}
-    <div class="f">預かり ${yen(s.paid)}・お釣り ${yen(s.change)}<button class="rc" onclick="rgOpenRc('${s.id}')">🧾 ${s.atena?'領収書':'レシート'}</button>${s.void?'　<b>取り消し済み</b>':`<button onclick="rgVoid('${s.id}')">取り消す</button>`}</div></div>`).join('')||'<div class="rg-hint">まだ会計はありません</div>'}</div>`;
+    <div class="f"><span class="pa">預かり ${yen(s.paid)}・お釣り ${yen(s.change)}</span><span class="bs"><button class="rc" onclick="rgOpenRc('${s.id}')">🧾 ${s.atena?'領収書':'レシート'}</button>${s.void?(s.fix?`　<b class="fx">訂正済み${s.voidT?`（${hm(s.voidT)}）`:''}${s.fixTo?`→ No.${s.fixTo}`:''}</b>`:'　<b>取り消し済み</b>'):`<button class="fix" onclick="rgFixSale('${s.id}')">訂正</button><button onclick="rgVoid('${s.id}')">取り消す</button>`}</span></div></div>`).join('')||'<div class="rg-hint">まだ会計はありません</div>'}</div>`;
+}
+/* 訂正：その会計を取り消し（在庫を戻す）、会計する前の注文（品・値段・値引き・お預かり）に戻す。記録は「訂正」として残す */
+function rgFixSale(id){
+  const s=rg.sales.find(x=>x.id===(id||rgLast)); if(!s||s.void) return;
+  if(!confirm(`No.${s.no}（${yen(s.total)}）を訂正しますか？\n・この会計は取り消し、在庫を戻します\n・会計する前の注文に戻るので、直してからもう一度「会計する」を押します\n・記録には「訂正」と残ります`)) return;
+  if(cart.length && !confirm('いま入っている注文は消えます。よいですか？')) return;
+  s.void=true; s.fix=true; s.voidT=Date.now();
+  s.lines.forEach(l=>{ const it=itemOf(l.id); if(it && !it.noStock) it.stock+=l.qty; });
+  cart=s.lines.map(l=>({id:l.id, name:l.name, price:l.price, orig:l.orig>l.price?l.orig:l.price, qty:l.qty}));
+  od=s.od?{t:s.od.t, v:s.od.v}:(s.disc?{t:'yen', v:s.disc}:{t:'yen', v:0});
+  rgFix=s.id; rgSave();
+  ['rgRcOverlay','rgDoneOverlay','rgHistOverlay'].forEach(x=>{ if(isDlgOpen(x)) closeDlg(x); });
+  $('rgPaid').value=s.paid&&s.paid!==s.total?String(s.paid):'';
+  rgRefresh(); toast(`No.${s.no} を訂正しました。直してから「会計する」を押してください`, 3500);
 }
 function rgVoid(id){
   const s=rg.sales.find(x=>x.id===id); if(!s||s.void) return;
@@ -473,14 +491,14 @@ function rgSheetXml(rows, widths){
 function rgXlsxSheets(){
   const st=rgStats();
   const det=[['会計No.','日時','商品','単価','個数','小計','定価','品の値引き','会計の合計','全体の値引き','預かり','お釣り','取り消し','税率']];
-  rg.sales.forEach(s=>s.lines.forEach((l,i)=>{ const o=l.orig>l.price?l.orig:l.price; det.push([s.no, stamp(s.t), l.name, l.price, l.qty, l.price*l.qty, o, (o-l.price)*l.qty, i?'':s.total, i?'':(s.disc||0), i?'':s.paid, i?'':s.change, s.void?'○':'', l.rate!=null?pct(l.rate)+(l.tmode==='out'?' 外税':l.tmode==='in'?' 内税':''):'']); }));
+  rg.sales.forEach(s=>s.lines.forEach((l,i)=>{ const o=l.orig>l.price?l.orig:l.price; det.push([s.no, stamp(s.t), l.name, l.price, l.qty, l.price*l.qty, o, (o-l.price)*l.qty, i?'':s.total, i?'':(s.disc||0), i?'':s.paid, i?'':s.change, s.void?(s.fix?'訂正':'○'):'', l.rate!=null?pct(l.rate)+(l.tmode==='out'?' 外税':l.tmode==='in'?' 内税':''):'']); }));
   const tsum=(s,k)=>s.tax?s.tax.rows.reduce((a,x)=>a+x[k],0):'';
-  const per=[['会計No.','日時','点数','定価の合計','品の値引き','全体の値引き','合計','預かり','お釣り','取り消し','税別価格','消費税','税の内わけ']].concat(rg.sales.map(s=>[s.no, stamp(s.t), s.lines.reduce((a,l)=>a+l.qty,0), s.sub+(s.ldisc||0), s.ldisc||0, s.disc||0, s.total, s.paid, s.change, s.void?'○':'', tsum(s,'base'), tsum(s,'tax'), s.tax?s.tax.rows.map(x=>`${pct(x.r)}${x.m==='out'?'外税':x.m==='in'?'内税':''} 税別${x.base} 税${x.tax}`).join(' / '):'']));
+  const per=[['会計No.','日時','点数','定価の合計','品の値引き','全体の値引き','合計','預かり','お釣り','取り消し','税別価格','消費税','税の内わけ','訂正']].concat(rg.sales.map(s=>[s.no, stamp(s.t), s.lines.reduce((a,l)=>a+l.qty,0), s.sub+(s.ldisc||0), s.ldisc||0, s.disc||0, s.total, s.paid, s.change, s.void?(s.fix?'訂正':'○'):'', tsum(s,'base'), tsum(s,'tax'), s.tax?s.tax.rows.map(x=>`${pct(x.r)}${x.m==='out'?'外税':x.m==='in'?'内税':''} 税別${x.base} 税${x.tax}`).join(' / '):'', s.fix?`訂正した（${s.voidT?stamp(s.voidT):''}${s.fixTo?` → No.${s.fixTo}`:''}）`:s.fixOf?`No.${s.fixOf} の訂正`:'']));
   const prod=[['商品','単価','最初の在庫','売れた数','売上','残り']];
   rg.items.forEach(it=>{ const rows=st.by.filter(x=>x.id===it.id); const q=rows.reduce((a,x)=>a+x.qty,0), amt=rows.reduce((a,x)=>a+x.amt,0); prod.push([it.name, it.price, it.noStock?'':it.stock0, q, amt, it.noStock?'':it.stock]); });
   st.by.filter(x=>!itemOf(x.id)).forEach(x=>prod.push([x.name+'（消した商品）', x.price, '', x.qty, x.amt, '']));
-  const sum=[['項目','値'],['イベント',rg.ev.name||''],['日付',rg.ev.date||''],['売上の合計',st.total],['会計の件数',st.count],['売れた個数',st.qty],['値引きの合計',st.disc],...st.taxes.flatMap(x=>[[pct(x.r)+'対象（税込）',x.amt],['　税別価格',x.base],['　消費税',x.tax]]),...(st.taxes.length?[['消費税の合計',st.taxes.reduce((a,x)=>a+x.tax,0)]]:[]),['取り消した会計',st.voids],['書き出した日時',stamp(Date.now())]];
-  return [['販売履歴', rgSheetXml(det,[8,17,22,8,6,9,8,10,11,11,9,8,8,7])], ['会計ごと', rgSheetXml(per,[8,17,6,10,10,11,9,9,8,8,10,9,34])], ['商品別', rgSheetXml(prod,[24,8,10,9,10,7])], ['まとめ', rgSheetXml(sum,[16,22])]];
+  const sum=[['項目','値'],['イベント',rg.ev.name||''],['日付',rg.ev.date||''],['売上の合計',st.total],['会計の件数',st.count],['売れた個数',st.qty],['値引きの合計',st.disc],...st.taxes.flatMap(x=>[[pct(x.r)+'対象（税込）',x.amt],['　税別価格',x.base],['　消費税',x.tax]]),...(st.taxes.length?[['消費税の合計',st.taxes.reduce((a,x)=>a+x.tax,0)]]:[]),['取り消した会計',st.voids-st.fixes],['訂正した会計',st.fixes],['書き出した日時',stamp(Date.now())]];
+  return [['販売履歴', rgSheetXml(det,[8,17,22,8,6,9,8,10,11,11,9,8,8,7])], ['会計ごと', rgSheetXml(per,[8,17,6,10,10,11,9,9,8,8,10,9,34,30])], ['商品別', rgSheetXml(prod,[24,8,10,9,10,7])], ['まとめ', rgSheetXml(sum,[16,22])]];
 }
 async function rgBuildXlsx(){
   const enc=new TextEncoder(), Pz='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
@@ -572,7 +590,9 @@ const RG_CSS=`
 .rg-sum{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; } .rg-sum div{ padding:8px; border-radius:10px; background:rgba(251,140,0,.1); text-align:center; } .rg-sum small{ display:block; font-size:12px; color:var(--text-light,#888); } .rg-sum b{ font-size:19px; }
 .rg-t{ width:100%; border-collapse:collapse; font-size:13.5px; } .rg-t th,.rg-t td{ border-bottom:1px solid rgba(120,132,156,.25); padding:6px 4px; text-align:right; } .rg-t th:first-child,.rg-t td:first-child{ text-align:left; } .rg-t td small{ display:block; color:var(--text-light,#888); font-size:11.5px; }
 .rg-sale{ padding:8px 6px; border-bottom:1px solid rgba(120,132,156,.25); } .rg-sale .h{ display:flex; gap:8px; align-items:baseline; } .rg-sale .h span{ flex:1; font-size:12.5px; color:var(--text-light,#888); } .rg-sale .t{ font-size:16px; }
-.rg-sale .l{ font-size:13px; margin:2px 0; } .rg-sale .f{ font-size:12px; color:var(--text-light,#888); display:flex; align-items:center; gap:8px; } .rg-sale .f button.rc{ margin-left:auto; color:var(--text,#222); border-color:rgba(120,132,156,.45); } .rg-sale .f button.rc+button{ margin-left:0; }
+.rg-sale .l{ font-size:13px; margin:2px 0; } .rg-sale .f{ font-size:12px; color:var(--text-light,#888); display:flex; align-items:center; gap:8px; } .rg-sale .f button.rc{ margin-left:auto; color:var(--text,#222); border-color:rgba(120,132,156,.45); } .rg-sale .f{ flex-wrap:wrap; } .rg-sale .f .pa{ flex:1 1 auto; } .rg-sale .f .bs{ display:flex; gap:6px; align-items:center; margin-left:auto; white-space:nowrap; } .rg-sale .f .bs button{ margin-left:0 !important; white-space:nowrap; } .rg-sale .f button.fix{ color:#e65100; border-color:rgba(230,81,0,.45); }
+.rg-sale .fx{ color:#e65100; font-style:normal; font-weight:bold; margin-left:6px; } .rg-sale.void .h .fx{ text-decoration:none; }
+.rg-fixbtn{ color:#e65100; border-color:rgba(230,81,0,.4); font-size:13px; height:40px; }
 .rg-sale .f button{ margin-left:auto; height:30px; padding:0 10px; border-radius:8px; border:1px solid rgba(211,47,47,.4); background:transparent; color:#d32f2f; font-weight:bold; cursor:pointer; }
 .rg-sale.void .h,.rg-sale.void .l{ text-decoration:line-through; opacity:.55; }
 /* 横向き：左に商品、右に会計 */
@@ -625,7 +645,7 @@ function rgEnsureDom(){
   <div class="rg-cropz"><span>小</span><input type="range" id="rgCropZ" min="1" max="6" step="0.01" value="1" oninput="rgCropZoom(this.value)"><span>大</span></div>
   <div class="rg-hint">指で動かして位置を合わせます。つまみ（2本指）で大きくできます。</div>
   <div class="rg-row"><button class="rg-btn" onclick="closeDlg('rgCropOverlay')">やめる</button><button class="rg-btn pri" id="rgCropOkBtn" onclick="rgCropOk()">✓ この四角で使う</button></div></div></div></div>
-<div class="modal-overlay" id="rgDoneOverlay" onclick="if(event.target===this)rgDoneClose()"><div class="modal"><div class="modal-header"><span>✓ 会計しました</span><button class="modal-close" onclick="rgDoneClose()" aria-label="閉じる">✕</button></div><div class="rg-body"><div id="rgDoneBody"></div><button class="rg-btn wide" id="rgRcBtn" onclick="rgOpenRc()">🧾 レシート・領収書を印刷</button><button class="rg-btn pri wide" onclick="rgDoneClose()">次のお客さん</button></div></div></div>
+<div class="modal-overlay" id="rgDoneOverlay" onclick="if(event.target===this)rgDoneClose()"><div class="modal"><div class="modal-header"><span>✓ 会計しました</span><button class="modal-close" onclick="rgDoneClose()" aria-label="閉じる">✕</button></div><div class="rg-body"><div id="rgDoneBody"></div><button class="rg-btn wide" id="rgRcBtn" onclick="rgOpenRc()">🧾 レシート・領収書を印刷</button><button class="rg-btn pri wide" onclick="rgDoneClose()">次のお客さん</button><button class="rg-btn wide rg-fixbtn" id="rgDoneFix" onclick="rgFixSale()">↩ まちがえた（訂正して会計し直す）</button></div></div></div>
 <div class="modal-overlay" id="rgRcOverlay" onclick="if(event.target===this)closeDlg('rgRcOverlay')"><div class="modal"><div class="modal-header"><span>🧾 レシート・領収書</span><button class="modal-close" onclick="closeDlg('rgRcOverlay')" aria-label="閉じる">✕</button></div><div class="rg-body" id="rgRcBody"></div></div></div>`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
   rgCropBind();
@@ -646,6 +666,6 @@ const _ref=rgRefresh; rgRefresh=function(){ _ref(); rgHeader(); };
 
 Object.assign(window, { openRegi, closeRegi, rgAdd, rgQty, rgClearCart, rgSetPaid, rgDisc, rgOdType, rgOdSet, rgOdRound, rgLinePrice, rgLineQuick, rgCropZoom, rgCropOk, rgPay, rgDoneClose, rgCartRender:rgRenderCart,
   rgOpenItems, rgEditItem, rgSaveItem, rgDelItem, rgPhotoIn, rgPhotoClear, rgMove, rgEvSet, rgNewEvent, rgExportItems, rgImportItems,
-  rgOpenHist, rgVoid, rgExportXlsx, $rg:$, rgOpenSet, rgUiSet, rgPrintReceipt, rgRcSet, rgOpenRc, rgRcPrev, rgRcGo, rgReceiptHtml:id=>rgReceiptHtml(rg.sales.find(x=>x.id===id)), rgRc:()=>Object.assign({},ui.rc), rgTaxSet, rgRatePick, rgModePick, rgTax:()=>JSON.parse(JSON.stringify(Object.assign({}, ui.tax, {calc:taxCalc()}))), rgSetSave, rgSetLoad, rgSetDel, rgUi:()=>({size:ui.size, dir:ui.dir, rows:ui.rows}), rgSets:()=>rgSetsLoad(),
+  rgOpenHist, rgVoid, rgFixSale, rgExportXlsx, $rg:$, rgOpenSet, rgUiSet, rgPrintReceipt, rgRcSet, rgOpenRc, rgRcPrev, rgRcGo, rgReceiptHtml:id=>rgReceiptHtml(rg.sales.find(x=>x.id===id)), rgRc:()=>Object.assign({},ui.rc), rgTaxSet, rgRatePick, rgModePick, rgTax:()=>JSON.parse(JSON.stringify(Object.assign({}, ui.tax, {calc:taxCalc()}))), rgSetSave, rgSetLoad, rgSetDel, rgUi:()=>({size:ui.size, dir:ui.dir, rows:ui.rows}), rgSets:()=>rgSetsLoad(),
   rgState:()=>JSON.parse(JSON.stringify({rg, cart, od, disc:orderDisc(), ldisc:lineDisc(), total:total(), crop:rgCrop?{w:rgCrop.w,h:rgCrop.h,z:rgCrop.z,cx:rgCrop.cx,cy:rgCrop.cy}:null})), rgXlsxRows:()=>rgXlsxSheets().map(x=>x[0]), rgBuildXlsx });
 })();
