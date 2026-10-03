@@ -8442,13 +8442,13 @@ async function runAppIconPwa(browser) {
 }
 async function runRegi(browser) {
   const { ctx, page, errs, dialogs } = await newPage(browser);
-  console.log('\n── 🛍即売レジ（v499・v500） ──');
+  console.log('\n── 🛍即売レジ（v499〜v501） ──');
   const w = ms => page.waitForTimeout(ms);
   check('  開くまでは読まない・道具とマイキーにある・単独アプリの入口', await page.evaluate(() => !window.REGI_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'regi') + '/' + !!KEY_FUNCS.a_regi) + '/' + require('fs').existsSync(require('path').join(ROOT, 'apps', 'regi', 'manifest.json')), 'true/true/true/true');
   await page.evaluate(() => openRegi()); await w(400);
   check('  商品がないときは登録へ案内', await page.evaluate(() => document.getElementById('rgGrid').textContent.includes('商品を登録する')), true);
   // 商品の登録（写真つき）
-  const add = async (n, pr, st, nost) => { await page.evaluate(() => rgEditItem()); await w(80); await page.fill('#rgEName', n); await page.fill('#rgEPrice', String(pr)); await page.fill('#rgEStock', String(st)); if (nost) await page.check('#rgENoStock'); await page.evaluate(() => rgSaveItem()); await w(80); };
+  const add = async (n, pr, st, nost) => { await page.evaluate(() => rgEditItem()); await w(200); await page.fill('#rgEName', n); await page.fill('#rgEPrice', String(pr)); await page.fill('#rgEStock', String(st)); if (nost) await page.check('#rgENoStock'); await page.evaluate(() => rgSaveItem()); await w(80); };
   await page.evaluate(() => rgOpenItems()); await w(150);
   await page.evaluate(() => rgEditItem()); await w(80);
   await page.evaluate(() => new Promise(r => { const c = document.createElement('canvas'); c.width = 800; c.height = 600; c.getContext('2d').fillRect(0, 0, 800, 600); c.toBlob(b => { const f = new File([b], 'a.png', { type: 'image/png' }); const dt = new DataTransfer(); dt.items.add(f); const i = document.getElementById('rgPick'); i.files = dt.files; i.dispatchEvent(new Event('change')); setTimeout(r, 400); }); }));
@@ -8534,6 +8534,41 @@ async function runRegi(browser) {
   await page.evaluate(() => rgNewEvent()); await w(100);
   check('  新しいイベント：履歴を消して在庫を最初の数に', await page.evaluate(() => rgState().rg.sales.length + '/' + rgState().rg.items.map(i => i.stock).join(',')), '0/20,2,30,0');
   check('  覚える（開き直しても商品が残る）', await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_regi')).items.length), 4);
+  await page.evaluate(() => closeDlg('rgItemsOverlay')); await w(300);
+  // ⚙ 設定：アイコンの大きさ・縦横のスクロール（v501）
+  await page.click('#rgSetBtn'); await w(250);
+  check('  ⚙ 設定の窓（大きさ4つ・縦横）', await page.evaluate(() => isDlgOpen('rgSetOverlay') + '/' + document.querySelectorAll('#rgSetBody [data-k="size"]').length + '/' + document.querySelectorAll('#rgSetBody [data-k="dir"]').length), 'true/4/2');
+  const tw = () => page.evaluate(() => Math.round(document.querySelector('.rg-tile').getBoundingClientRect().width));
+  const w0 = await tw(); await page.click('#rgSetBody [data-k="size"][data-v="xl"]'); await w(100); const w1 = await tw();
+  await page.click('#rgSetBody [data-k="size"][data-v="s"]'); await w(100); const w2 = await tw();
+  check('  大きさを変えるとアイコンが変わる（中→特大→小）', (w1 > w0 && w0 > w2 && w1 >= 176 && w2 < 104) + '/' + await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_regi_ui')).size), 'true/s');
+  await page.click('#rgSetBody [data-k="dir"][data-v="h"]'); await w(150);
+  check('  横にスクロール：段数の選びが出る・段に並ぶ（下へ折り返さず列ごと）', await page.evaluate(() => { const t = [...document.querySelectorAll('.rg-tile')].map(e => e.getBoundingClientRect()); return document.querySelectorAll('#rgSetBody [data-k="rows"]').length + '/' + document.getElementById('rgGrid').classList.contains('h') + '/' + (Math.abs(t[1].left - t[0].left) < 1 && t[1].top > t[0].top); }), '5/true/true');
+  await page.click('#rgSetBody [data-k="rows"][data-v="1"]'); await w(150);
+  check('  1段：横一列に並び、横にスクロールできる', await page.evaluate(() => { const t = [...document.querySelectorAll('.rg-tile')].map(e => e.getBoundingClientRect()); return t.every(r => Math.abs(r.top - t[0].top) < 1) + '/' + JSON.stringify(rgUi()); }), 'true/{"size":"s","dir":"h","rows":1}');
+  await page.evaluate(() => { rgUiSet('size', 'xl'); }); await w(100);
+  check('  1段・特大：はみ出した分は横へ', await page.evaluate(() => { const w = document.querySelector('.rg-gridwrap'); return w.scrollWidth > w.clientWidth; }), true);
+  check('  設定はバックアップに入る', await page.evaluate(() => SETTINGS_BACKUP_KEYS.includes('excalc_regi_ui')), true);
+  await page.evaluate(() => { rgUiSet('dir', 'v'); rgUiSet('rows', 0); rgUiSet('size', 'm'); closeDlg('rgSetOverlay'); }); await w(250);
+  // 売り出しの保存・呼び出し（v501）
+  page.removeAllListeners('dialog'); page.on('dialog', d => { dialogs.push(d.message()); d.type() === 'prompt' ? d.accept('秋祭り2026') : d.accept(); });
+  await page.evaluate(() => rgOpenItems()); await w(200);
+  check('  商品の窓に「売り出しの登録を保存・呼び出す」', await page.evaluate(() => document.getElementById('rgItemsBody').textContent.includes('売り出しの登録を保存・呼び出す')), true);
+  await page.evaluate(() => rgSetSave()); await w(100);
+  check('  いまの商品を名前を付けて保存（写真も）', await page.evaluate(() => { const d = rgSets(); return d.sets.length + '/' + d.sets[0].name + '/' + d.sets[0].items.map(i => i.name + ':' + i.price + ':' + i.stock0 + (i.ph ? 'p' : '')).join(',') + '/' + Object.keys(d.photos).length + '/' + document.querySelectorAll('.rg-setrow').length; }), '1/秋祭り2026/クッキー:300:20p,ジャム:500:2,しおり:150:30,ドリンク:200:0/1/1');
+  await page.evaluate(() => rgSetSave()); await w(100);
+  check('  同じ名前は確かめて上書き', await page.evaluate(() => rgSets().sets.length) + '/' + dialogs.some(m => m.includes('上書き')), '1/true');
+  await page.evaluate(() => { closeDlg('rgItemsOverlay'); }); await w(250);
+  const ids2 = await page.evaluate(() => rgState().rg.items.map(i => i.id));
+  await page.evaluate(id => { rgAdd(id); rgAdd(id); rgPay(); rgDoneClose(); }, ids2[0]); await w(300);
+  await page.evaluate(() => rgOpenItems()); await w(200);
+  await page.evaluate(id => { rgEditItem(id); }, ids2[1]); await w(100); await page.evaluate(() => rgDelItem()); await w(150);
+  check('  売ったり商品を消したりしたあと', await page.evaluate(() => rgState().rg.items.length + '/' + rgState().rg.sales.length + '/' + rgState().rg.items[0].stock), '3/1/18');
+  const sid2 = await page.evaluate(() => rgSets().sets[0].id);
+  await page.evaluate(id => rgSetLoad(id), sid2); await w(150);
+  check('  呼び出すと商品・在庫・写真が戻り、履歴は新しく', await page.evaluate(() => { const r = rgState().rg; return r.items.map(i => i.name + ':' + i.stock + (i.photo ? 'p' : '')).join(',') + '/' + r.sales.length + '/' + r.no + '/' + r.ev.name; }) + '/' + dialogs.some(m => m.includes('販売の履歴は消えます（いま 1件')), 'クッキー:20p,ジャム:2,しおり:30,ドリンク:0/0/1/秋祭り2026/true');
+  await page.evaluate(id => rgSetDel(id), sid2); await w(100);
+  check('  保存した売り出しを消す（写真も片付ける）', await page.evaluate(() => rgSets().sets.length + '/' + Object.keys(rgSets().photos).length), '0/0');
   await page.evaluate(() => closeDlg('rgItemsOverlay')); await w(300);
   await page.evaluate(() => window.history.back()); await w(400);
   check('  戻るで閉じる', await page.evaluate(() => isDlgOpen('regiOverlay')), false);

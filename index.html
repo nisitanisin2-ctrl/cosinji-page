@@ -9077,6 +9077,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v501', t:'🛍即売レジ：アイコンの大きさ・縦横スクロール・売り出しの保存', li:[
+    'レジの右上に<b>「⚙ 設定」</b>。<b>商品アイコンの大きさ</b>を 小・中・大・特大 から選べます',
+    '商品を見るときの<b>スクロールの向き</b>を選べます。<b>縦</b>は折り返して下へ、<b>横</b>は段になって横へ並びます（横のときの段数は 自動・1〜4段）',
+    '「📦 商品」の<b>「💾 いまの商品を保存する」</b>で、商品（写真・名前・値段・最初の在庫）を名前を付けて残せます。次の売り出しでは<b>「呼び出す」</b>だけで、同じ商品がそろい在庫も最初の数に戻ります' ]},
   { v:'v500', t:'🛍即売レジ：横表示・写真を四角に・値引き', li:[
     '<b>横向き</b>にすると、<b>左に商品・右に会計</b>（合計・お預かり・お釣り・会計する）が並びます。タブレットやスマホを横にして使えます',
     '商品の写真を撮る・選ぶと<b>「✂ 四角に切り取る」</b>窓が出ます。指で動かして位置を合わせ、つまみ（2本指）で大きさを決めます。<b>縦長の写真でも商品のアイコンが四角</b>のままになります',
@@ -21189,7 +21193,7 @@ const TOOL_HINTS={
   heya:'空いているマスを押すと予約を足せます。「📋 一覧」でその日の到着・出発・食事の数を見られます。',
   annai:'見本の項目を自分の宿のことに書きかえて、⬇ で書き出します。分からないときは右上の「❓ ヘルプ」。',
   shimai:'下の欄に「パスポートは寝室のタンスの2段目」のように打つか 🎤 で話します。上の欄でさがせます。',
-  regi:'はじめに「📦 商品」で写真・名前・値段・在庫を登録します（写真は四角に切り取れます）。売るときは商品を押すと1つずつ入り、お預かりを入れるとお釣りが出ます。「🏷 値引き」で円引き・％引き・品ごとの値引き。「📋 履歴・売上」から Excel に書き出せます。',
+  regi:'はじめに「📦 商品」で写真・名前・値段・在庫を登録します（写真は四角に切り取れます。登録は「💾 保存」で次の売り出しにも使えます）。右上の ⚙ 設定でアイコンの大きさと縦横のスクロールを選べます。売るときは商品を押すと1つずつ入り、お預かりを入れるとお釣りが出ます。「🏷 値引き」で円引き・％引き・品ごとの値引き。「📋 履歴・売上」から Excel に書き出せます。',
   ruler:'はじめに「🎯 校正」でカードや硬貨を画面に当てて合わせると、定規が正しい長さになります。「📷 写真で測る」は基準の物と並べて撮ってなぞります。',
   keisan:'8つの計算から選びます。入れた数は覚えるので、次も続きから使えます。',
   kurashi:'10のテーマから選ぶか、上の欄で「AED」「死亡届」「失業保険」のようにさがします。ページの中の 🧮 道具で、期限や金額の目安も出せます。',
@@ -21544,7 +21548,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v500';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v501';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -23547,7 +23551,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_show_sheettabs','excalc_skin','excalc_speechauto','excalc_speechlayout','excalc_speechspeak','excalc_startpage',
   'excalc_sumfunc','excalc_taxrate','excalc_tbfold','excalc_toolsbtn_hide','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
   'excalc_ts_warn','excalc_userkeys',
-  'excalc_uimode','excalc_trim','excalc_manner','excalc_boki','excalc_kurashi','excalc_keisan','excalc_ruler','excalc_tool_fav','excalc_tool_hints','excalc_seq_step',   // v460〜v462
+  'excalc_uimode','excalc_trim','excalc_manner','excalc_boki','excalc_kurashi','excalc_keisan','excalc_ruler','excalc_tool_fav','excalc_tool_hints','excalc_seq_step','excalc_regi_ui',   // v460〜v462・v501
 ];
 function settingsBundle(){
   const o={};

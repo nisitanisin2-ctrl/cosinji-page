@@ -1,4 +1,4 @@
-/* 🛍 即売レジ（v500。表電卓の道具。apps/regi/ から単独のアプリとしても開ける。はじめて開いたときに読む）
+/* 🛍 即売レジ（v501。表電卓の道具。apps/regi/ から単独のアプリとしても開ける。はじめて開いたときに読む）
    フリマ・お祭り・即売会で使う、かんたんなレジ。
    ・商品（写真・名前・値段・在庫）を登録 → レジの画面で商品を押すと1つずつ足す → 合計・値引き →
      預かった金額を入れるとお釣り → 「会計する」で販売の記録に残し、在庫を減らす。
@@ -7,9 +7,12 @@
    ・商品は書き出して、ほかの端末で読み込める（写真ごと）。
    ・値引き（v500）：会計ぜんたいの円引き・％引き・端数を切る、品ごとに1つあたりの値段を変える（半額・−10%など）。
    ・写真は選んだあと四角に切り取る（指で位置、つまみ・2本指で大きさ）。横向きでは左に商品・右に会計。
+   ・⚙ 設定（v501）：商品アイコンの大きさ（小・中・大・特大）、縦にスクロール／横にスクロール（横は段数も）。excalc_regi_ui。
+   ・売り出しの保存（v501）：いまの商品（写真・値段・最初の在庫）を名前を付けて残し、次の売り出しで呼び出す。excalc_regi_sets（写真は同じ物を1つにまとめて持つ）。
    ・入れたものは端末の中だけ（excalc_regi）。写真は小さくして保存する。 */
 (function(){
-const RG_KEY='excalc_regi';
+const RG_KEY='excalc_regi', RG_UI_KEY='excalc_regi_ui', RG_SETS_KEY='excalc_regi_sets';
+const RG_SIZES={s:['小',80],m:['中',104],l:['大',136],xl:['特大',176]};
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const yen=n=>'¥'+Math.round(+n||0).toLocaleString('ja-JP');
@@ -25,6 +28,9 @@ function rgLoad(){
     rg={ev:{name:String(o.ev&&o.ev.name||'').slice(0,40), date:String(o.ev&&o.ev.date||'').slice(0,10)}, items, sales, no:Math.max(1,+o.no||sales.length+1)};
   }catch(_){ rg={ev:{name:'',date:''}, items:[], sales:[], no:1}; }
 }
+let ui={size:'m', dir:'v', rows:0};
+function rgUiLoad(){ try{ const o=JSON.parse(localStorage.getItem(RG_UI_KEY)||'null')||{}; ui={size:RG_SIZES[o.size]?o.size:'m', dir:o.dir==='h'?'h':'v', rows:[0,1,2,3,4].includes(+o.rows)?+o.rows:0}; }catch(_){ ui={size:'m', dir:'v', rows:0}; } }
+function rgUiSave(){ try{ localStorage.setItem(RG_UI_KEY, JSON.stringify(ui)); }catch(_){} }
 function rgSave(){ try{ localStorage.setItem(RG_KEY, JSON.stringify(rg)); return true; }catch(_){ toast('保存できませんでした。端末の空きが足りないかもしれません（写真を減らすと入ります）', 4000); return false; } }
 const itemOf=id=>rg.items.find(x=>x.id===id);
 const cartQty=id=>{ const l=cart.find(c=>c.id===id); return l?l.qty:0; };
@@ -36,8 +42,21 @@ const total=()=>Math.max(0, subTotal()-orderDisc());
 const odReset=()=>{ od={t:'yen',v:0}; };
 
 /* ───────── レジ ───────── */
+/* 並べ方：縦は折り返して下へ、横は段に並べて横へ。横の段数は「自動」なら高さに入るだけ */
+function rgGridLayout(){
+  const g=$('rgGrid'), w=g&&g.parentNode; if(!g) return;
+  g.style.setProperty('--rg-tile', RG_SIZES[ui.size][1]+'px');
+  g.className='sz-'+ui.size+(ui.dir==='h'?' h':''); w.classList.toggle('h', ui.dir==='h');
+  if(ui.dir!=='h'){ g.style.removeProperty('--rg-rows'); return; }
+  let n=ui.rows;
+  if(!n){ const t=g.querySelector('.rg-tile'); const th=t?t.offsetHeight:RG_SIZES[ui.size][1]+60; n=Math.max(1, Math.floor((w.clientHeight-16+8)/(th+8))); }
+  g.style.setProperty('--rg-rows', n);
+}
 function rgRenderGrid(){
   const g=$('rgGrid'); if(!g) return;
+  try{ rgRenderGrid0(g); } finally { rgGridLayout(); }
+}
+function rgRenderGrid0(g){
   const list=rg.items;
   if(!list.length){ g.innerHTML=`<div class="rg-empty">まだ商品がありません。<br><button class="rg-btn pri" onclick="rgOpenItems();rgEditItem()">＋ 商品を登録する</button></div>`; return; }
   g.innerHTML=list.map(it=>{ const q=cartQty(it.id), left=it.noStock?null:it.stock-q, out=!it.noStock&&left<=0;
@@ -117,6 +136,57 @@ function rgPay(){
 }
 function rgDoneClose(){ if(isDlgOpen('rgDoneOverlay')) closeDlg('rgDoneOverlay'); }
 
+/* ───────── ⚙ 設定 ───────── */
+function rgOpenSet(){ rgRenderSet(); if(!isDlgOpen('rgSetOverlay')) openDlg('rgSetOverlay'); }
+function rgRenderSet(){
+  const b=$('rgSetBody'); if(!b) return;
+  const seg=(k,opts)=>`<div class="rg-seg">${opts.map(o=>`<button class="${String(ui[k])===String(o[0])?'on':''}" data-k="${k}" data-v="${o[0]}" onclick="rgUiSet('${k}','${o[0]}')">${o[1]}</button>`).join('')}</div>`;
+  b.innerHTML=`<h4 style="margin-top:2px">商品アイコンの大きさ</h4>${seg('size',Object.keys(RG_SIZES).map(k=>[k,RG_SIZES[k][0]]))}
+  <h4>商品を見るときのスクロール</h4>${seg('dir',[['v','↕ 縦にスクロール'],['h','↔ 横にスクロール']])}
+  <div class="rg-hint">縦：商品が折り返して下へ並び、上下になぞって見ます。横：商品が段になって横へ並び、左右になぞって見ます。</div>
+  ${ui.dir==='h'?`<h4>横のときの段数</h4>${seg('rows',[[0,'自動'],[1,'1段'],[2,'2段'],[3,'3段'],[4,'4段']])}<div class="rg-hint">自動は、画面の高さに入るだけの段にします。</div>`:''}
+  <div class="rg-note">うしろのレジの画面にすぐ反映されます。設定はこの端末に残り、表電卓の書き出し（バックアップ）にも入ります。</div>
+  <button class="rg-btn pri wide" onclick="closeDlg('rgSetOverlay')">✓ 閉じる</button>`;
+}
+function rgUiSet(k,v){ ui[k]=k==='rows'?+v:v; rgUiSave(); rgRenderSet(); rgRenderGrid(); }
+
+/* ───────── 売り出しの保存・呼び出し ───────── */
+function rgSetsLoad(){ try{ const o=JSON.parse(localStorage.getItem(RG_SETS_KEY)||'null')||{}; return {sets:Array.isArray(o.sets)?o.sets.filter(x=>x&&Array.isArray(x.items)):[], photos:o.photos&&typeof o.photos==='object'?o.photos:{}}; }catch(_){ return {sets:[], photos:{}}; } }
+function rgSetsSave(d){
+  const used=new Set(); d.sets.forEach(x=>x.items.forEach(it=>{ if(it.ph) used.add(it.ph); }));
+  Object.keys(d.photos).forEach(k=>{ if(!used.has(k)) delete d.photos[k]; });
+  try{ localStorage.setItem(RG_SETS_KEY, JSON.stringify(d)); return true; }catch(_){ toast('保存できませんでした。端末の空きが足りないかもしれません（使わない売り出しを消すと入ります）', 4000); return false; }
+}
+const phKey=u=>{ let h=5381; for(let i=0;i<u.length;i+=7) h=((h<<5)+h+u.charCodeAt(i))|0; return 'p'+(h>>>0).toString(36)+u.length.toString(36); };
+function rgSetSave(){
+  if(!rg.items.length){ toast('商品がありません'); return; }
+  const d=rgSetsLoad(); const def=rg.ev.name||('売り出し '+new Date().toLocaleDateString('ja-JP'));
+  const nm=prompt('名前を付けて保存します（次の売り出しで呼び出せます）', def); if(nm==null) return;
+  const name=String(nm).trim().slice(0,40)||def;
+  const old=d.sets.find(x=>x.name===name);
+  if(old && !confirm(`「${name}」はもうあります。いまの商品で上書きしますか？`)) return;
+  const items=rg.items.map(it=>{ let ph=''; if(it.photo){ ph=phKey(it.photo); d.photos[ph]=it.photo; } return {name:it.name, price:it.price, stock0:it.stock0, noStock:it.noStock, ph}; });
+  const rec={id:old?old.id:uid(), name, t:Date.now(), ev:rg.ev.name||'', items};
+  if(old) Object.assign(old, rec); else d.sets.unshift(rec);
+  if(rgSetsSave(d)){ rgRenderItems(); toast(`「${name}」を保存しました（${items.length}品）`); }
+}
+function rgSetLoad(id){
+  const d=rgSetsLoad(), x=d.sets.find(s=>s.id===id); if(!x) return;
+  const live=rg.sales.filter(s=>!s.void).length;
+  if(!confirm(`「${x.name}」の商品（${x.items.length}品）を呼び出して、新しい売り出しを始めますか？\n・いまの商品は入れかわります（在庫は最初の数）\n・販売の履歴は消えます${live?`（いま ${live}件。先に「📊 Excel に書き出す」で残しておくのがおすすめ）`:''}`)) return;
+  rg.items=x.items.map(it=>({id:uid(), name:it.name, price:it.price, stock0:it.stock0, stock:it.stock0, photo:it.ph&&d.photos[it.ph]||'', noStock:!!it.noStock}));
+  rg.sales=[]; rg.no=1; rg.ev={name:x.ev||x.name, date:''}; cart=[]; odReset();
+  if(!rgSave()) return; rgRenderItems(); rgRefresh(); toast(`「${x.name}」を呼び出しました`);
+}
+function rgSetDel(id){ const d=rgSetsLoad(), x=d.sets.find(s=>s.id===id); if(!x||!confirm(`保存した「${x.name}」を消しますか？（いまの商品はそのまま）`)) return; d.sets=d.sets.filter(s=>s!==x); rgSetsSave(d); rgRenderItems(); }
+function rgSetsHtml(){
+  const d=rgSetsLoad();
+  return `<button class="rg-btn wide" onclick="rgSetSave()">💾 いまの商品を保存する（次の売り出しで使う）</button>
+  <div class="rg-items">${d.sets.map(x=>`<div class="rg-item rg-setrow"><span class="ph">${(()=>{ const f=x.items.find(i=>i.ph&&d.photos[i.ph]); return f?`<img src="${d.photos[f.ph]}" alt="">`:'🗂'; })()}</span>
+    <span class="tx"><b>${esc(x.name)}</b><small>${x.items.length}品・${stamp(x.t).slice(0,10)} に保存</small></span>
+    <span class="bt"><button onclick="rgSetLoad('${x.id}')">呼び出す</button><button onclick="rgSetDel('${x.id}')">消す</button></span></div>`).join('')||'<div class="rg-hint">まだありません。商品をそろえたら「💾 保存する」で残しておくと、次の売り出しで呼び出せます。</div>'}</div>`;
+}
+
 /* ───────── 商品 ───────── */
 function rgOpenItems(){ rgRenderItems(); if(!isDlgOpen('rgItemsOverlay')) openDlg('rgItemsOverlay', ()=>rgRefresh()); }
 function rgRenderItems(){
@@ -129,6 +199,8 @@ function rgRenderItems(){
   <h4>イベントが終わったら・次のイベント</h4>
   <button class="rg-btn wide" onclick="rgExportXlsx()">📊 売上を Excel に書き出す</button>
   <button class="rg-btn wide" onclick="rgNewEvent()">🔄 新しいイベントを始める（履歴を消して在庫を入れ直す）</button>
+  <h4>売り出しの登録を保存・呼び出す</h4>
+  ${rgSetsHtml()}
   <h4>ほかの端末へ商品をうつす</h4>
   <div class="rg-row"><button class="rg-btn" onclick="rgExportItems()">⬇ 商品を書き出す</button><button class="rg-btn" onclick="$rg('rgItemsFile').click()">⬆ 商品を読み込む</button></div>
   <input type="file" id="rgItemsFile" accept=".json,application/json" style="display:none" onchange="rgImportItems(event)">
@@ -291,7 +363,13 @@ const RG_CSS=`
 .rg-top button{ height:36px; padding:0 11px; border-radius:18px; border:1px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#222); font-size:13px; font-weight:bold; cursor:pointer; white-space:nowrap; }
 .rg-main{ flex:1; min-height:0; display:flex; flex-direction:column; }
 .rg-gridwrap{ flex:1; min-height:0; overflow:auto; padding:8px; }
-#rgGrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); gap:8px; }
+#rgGrid{ --rg-tile:104px; display:grid; grid-template-columns:repeat(auto-fill,minmax(var(--rg-tile),1fr)); gap:8px; }
+#rgGrid.h{ grid-template-columns:none; grid-auto-flow:column; grid-auto-columns:var(--rg-tile); grid-template-rows:repeat(var(--rg-rows,2),max-content); width:max-content; }
+.rg-gridwrap.h{ overflow-x:auto; overflow-y:auto; overscroll-behavior-x:contain; }
+#rgGrid.sz-s .rg-tile .nm{ font-size:11.5px; } #rgGrid.sz-s .rg-tile .pr{ font-size:13px; } #rgGrid.sz-s .rg-tile .noph{ font-size:20px; } #rgGrid.sz-s .rg-tile .q{ min-width:24px; height:24px; line-height:24px; font-size:14px; }
+#rgGrid.sz-l .rg-tile .nm{ font-size:14.5px; } #rgGrid.sz-l .rg-tile .pr{ font-size:17px; }
+#rgGrid.sz-xl .rg-tile .nm{ font-size:16px; } #rgGrid.sz-xl .rg-tile .pr{ font-size:19px; } #rgGrid.sz-xl .rg-tile .noph{ font-size:36px; } #rgGrid.sz-xl .rg-tile .q{ min-width:34px; height:34px; line-height:34px; font-size:19px; border-radius:17px; }
+.rg-seg{ display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 6px; } .rg-seg button{ flex:1 1 auto; min-width:60px; height:42px; padding:0 10px; border-radius:10px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:14px; font-weight:bold; cursor:pointer; } .rg-seg button.on{ background:#fb8c00; border-color:#fb8c00; color:#fff; }
 .rg-tile{ position:relative; display:flex; flex-direction:column; align-items:stretch; padding:0 0 6px; border-radius:12px; border:2px solid rgba(120,132,156,.3); background:var(--modal-bg,#fff); color:var(--text,#222); cursor:pointer; overflow:hidden; text-align:center; touch-action:manipulation; }
 .rg-tile:active{ transform:scale(.97); }
 .rg-tile.in{ border-color:#fb8c00; box-shadow:0 0 0 2px rgba(251,140,0,.25); }
@@ -345,7 +423,6 @@ const RG_CSS=`
   .rg-cart{ flex:0 0 min(42%,440px); max-height:none; min-height:0; overflow:auto; border-top:0; border-left:2px solid #fb8c00; padding-top:8px; box-sizing:border-box; }
   .rg-cart-list{ flex:1 1 60px; max-height:none; min-height:48px; }
   .rg-top{ padding:4px 10px; } .rg-top button{ height:32px; }
-  #rgGrid{ grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); }
   .rg-change{ min-height:0; } .rg-change .dim{ display:none; } .rg-payrow input{ height:40px; } .rg-btn.big{ height:46px; } .rg-total b{ font-size:24px; }
 }
 .rg-dtype{ display:flex; gap:0; margin:4px 0; } .rg-dtype button{ flex:1; height:38px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:14px; font-weight:bold; cursor:pointer; }
@@ -365,7 +442,7 @@ function rgEnsureDom(){
   box.innerHTML=`
 <div class="modal-overlay" id="regiOverlay">
   <div class="modal vol-modal rg-modal modal-full" style="position:relative">
-    <div class="modal-header"><span>🛍 即売レジ</span><span class="hdr-right" style="display:flex;gap:6px;align-items:center"><button class="modal-close" onclick="closeRegi()" aria-label="閉じる">✕</button></span></div>
+    <div class="modal-header"><span>🛍 即売レジ</span><span class="hdr-right" style="display:flex;gap:6px;align-items:center"><button class="hdr-btn" id="rgSetBtn" onclick="rgOpenSet()" title="商品アイコンの大きさ・縦横のスクロール">⚙ 設定</button><button class="modal-close" onclick="closeRegi()" aria-label="閉じる">✕</button></span></div>
     <div class="rg-top"><span class="ev" id="rgEv"></span><button onclick="rgOpenHist()">📋 履歴・売上</button><button onclick="rgOpenItems()">📦 商品</button></div>
     <div class="rg-main">
     <div class="rg-gridwrap"><div id="rgGrid"></div></div>
@@ -383,6 +460,7 @@ function rgEnsureDom(){
 <div class="modal-overlay" id="rgItemsOverlay" onclick="if(event.target===this)closeDlg('rgItemsOverlay')"><div class="modal"><div class="modal-header"><span>📦 商品とイベント</span><button class="modal-close" onclick="closeDlg('rgItemsOverlay')" aria-label="閉じる">✕</button></div><div class="rg-body" id="rgItemsBody"></div></div></div>
 <div class="modal-overlay" id="rgEditOverlay" onclick="if(event.target===this)closeDlg('rgEditOverlay')"><div class="modal"><div class="modal-header"><span id="rgEditHdr"></span><button class="modal-close" onclick="closeDlg('rgEditOverlay')" aria-label="閉じる">✕</button></div><div class="rg-body" id="rgEditBody"></div></div></div>
 <div class="modal-overlay" id="rgHistOverlay" onclick="if(event.target===this)closeDlg('rgHistOverlay')"><div class="modal"><div class="modal-header"><span>📋 履歴・売上</span><button class="modal-close" onclick="closeDlg('rgHistOverlay')" aria-label="閉じる">✕</button></div><div class="rg-body" id="rgHistBody"></div></div></div>
+<div class="modal-overlay" id="rgSetOverlay" onclick="if(event.target===this)closeDlg('rgSetOverlay')"><div class="modal"><div class="modal-header"><span>⚙ レジの設定</span><button class="modal-close" onclick="closeDlg('rgSetOverlay')" aria-label="閉じる">✕</button></div><div class="rg-body" id="rgSetBody"></div></div></div>
 <div class="modal-overlay" id="rgDiscOverlay" onclick="if(event.target===this)closeDlg('rgDiscOverlay')"><div class="modal"><div class="modal-header"><span>🏷 値引き</span><button class="modal-close" onclick="closeDlg('rgDiscOverlay')" aria-label="閉じる">✕</button></div><div class="rg-body" id="rgDiscBody"></div></div></div>
 <div class="modal-overlay" id="rgCropOverlay"><div class="modal"><div class="modal-header"><span>✂ 四角に切り取る</span><button class="modal-close" onclick="closeDlg('rgCropOverlay')" aria-label="閉じる">✕</button></div><div class="rg-body">
   <div class="rg-cropbox"><canvas id="rgCropCv" width="560" height="560"></canvas></div>
@@ -392,18 +470,23 @@ function rgEnsureDom(){
 <div class="modal-overlay" id="rgDoneOverlay" onclick="if(event.target===this)rgDoneClose()"><div class="modal"><div class="modal-header"><span>✓ 会計しました</span><button class="modal-close" onclick="rgDoneClose()" aria-label="閉じる">✕</button></div><div class="rg-body"><div id="rgDoneBody"></div><button class="rg-btn pri wide" onclick="rgDoneClose()">次のお客さん</button></div></div></div>`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
   rgCropBind();
+  const gw=document.querySelector('#regiOverlay .rg-gridwrap');
+  gw.addEventListener('wheel',e=>{ if(ui.dir==='h' && !e.shiftKey && Math.abs(e.deltaY)>Math.abs(e.deltaX) && gw.scrollWidth>gw.clientWidth){ gw.scrollLeft+=e.deltaY; e.preventDefault(); } },{passive:false});
+  // 会計の欄が伸び縮みしたり向きが変わったりしたら、横の段数を入れ直す
+  if(window.ResizeObserver) new ResizeObserver(()=>{ if(ui.dir==='h' && !ui.rows) rgGridLayout(); }).observe(gw);
+  else window.addEventListener('resize',()=>{ if(isDlgOpen('regiOverlay') && ui.dir==='h') rgGridLayout(); });
   if(typeof applyNpToolFull==='function') applyNpToolFull();
 }
 function rgHeader(){ const e=$('rgEv'); if(e) e.textContent=(rg.ev.name||'イベント名なし')+(rg.ev.date?'（'+rg.ev.date.replace(/-/g,'/')+'）':'')+`・売上 ${yen(rgStats().total)}`; }
 function openRegi(){
-  rgEnsureDom(); rgLoad(); cart=[]; odReset();
-  openDlg('regiOverlay'); rgRefresh(); rgHeader();
+  rgEnsureDom(); rgLoad(); rgUiLoad(); cart=[]; odReset();
+  openDlg('regiOverlay'); rgRefresh(); rgHeader(); setTimeout(rgGridLayout, 60);
 }
-function closeRegi(){ if(!$('regiOverlay')||!isDlgOpen('regiOverlay')) return; if(cart.length && !confirm('会計していない注文があります。閉じますか？（注文は消えます）')) return; ['rgDoneOverlay','rgCropOverlay','rgDiscOverlay','rgEditOverlay','rgItemsOverlay','rgHistOverlay'].forEach(id=>{ if(isDlgOpen(id)) closeDlg(id); }); closeDlg('regiOverlay'); }
+function closeRegi(){ if(!$('regiOverlay')||!isDlgOpen('regiOverlay')) return; if(cart.length && !confirm('会計していない注文があります。閉じますか？（注文は消えます）')) return; ['rgDoneOverlay','rgSetOverlay','rgCropOverlay','rgDiscOverlay','rgEditOverlay','rgItemsOverlay','rgHistOverlay'].forEach(id=>{ if(isDlgOpen(id)) closeDlg(id); }); closeDlg('regiOverlay'); }
 const _ref=rgRefresh; rgRefresh=function(){ _ref(); rgHeader(); };
 
 Object.assign(window, { openRegi, closeRegi, rgAdd, rgQty, rgClearCart, rgSetPaid, rgDisc, rgOdType, rgOdSet, rgOdRound, rgLinePrice, rgLineQuick, rgCropZoom, rgCropOk, rgPay, rgDoneClose, rgCartRender:rgRenderCart,
   rgOpenItems, rgEditItem, rgSaveItem, rgDelItem, rgPhotoIn, rgPhotoClear, rgMove, rgEvSet, rgNewEvent, rgExportItems, rgImportItems,
-  rgOpenHist, rgVoid, rgExportXlsx, $rg:$,
+  rgOpenHist, rgVoid, rgExportXlsx, $rg:$, rgOpenSet, rgUiSet, rgSetSave, rgSetLoad, rgSetDel, rgUi:()=>Object.assign({},ui), rgSets:()=>rgSetsLoad(),
   rgState:()=>JSON.parse(JSON.stringify({rg, cart, od, disc:orderDisc(), ldisc:lineDisc(), total:total(), crop:rgCrop?{w:rgCrop.w,h:rgCrop.h,z:rgCrop.z,cx:rgCrop.cx,cy:rgCrop.cy}:null})), rgXlsxRows:()=>rgXlsxSheets().map(x=>x[0]), rgBuildXlsx });
 })();
