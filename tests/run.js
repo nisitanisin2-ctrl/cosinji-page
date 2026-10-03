@@ -8360,7 +8360,7 @@ async function runDefMk(browser) {
 }
 async function runRuler(browser) {
   const { ctx, page, errs, dialogs } = await newPage(browser);
-  console.log('\n── 📏定規（v496） ──');
+  console.log('\n── 📏定規（v496・v497） ──');
   const w = ms => page.waitForTimeout(ms);
   check('  開くまでは読まない・道具とマイキーにある', await page.evaluate(() => !window.RULER_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'ruler') + '/' + !!KEY_FUNCS.a_ruler), 'true/true/true');
   await page.evaluate(() => openRuler()); await w(500);
@@ -8377,13 +8377,25 @@ async function runRuler(browser) {
   check('  定規：動かすと縦×横（40.0 × 25.0 mm）', await page.evaluate(() => document.querySelector('#rlOut b').textContent), '40.0 × 25.0');
   await page.evaluate(() => { rlNudge('x', 0.5); rlNudge('y', -0.5); });
   check('  0.5mm ずつ直せる・インチも', await page.evaluate(() => document.getElementById('rlOut').textContent), '40.5 × 24.5 mm1.59 × 0.96 inch');
+  // 指の先で合わせる（v497）：点は指より15mm 先（左上）
+  await page.evaluate(() => rlOffToggle()); await w(80);
+  await page.mouse.move(bb.x + px * 45, bb.y + px * 50); await page.mouse.down(); await page.mouse.move(bb.x + px * 50, bb.y + px * 55, { steps: 4 }); await page.mouse.up(); await w(80);
+  check('  ☝15mm先：指から斜めに15mm 先に点（50,55 → 39.4 × 44.4）', await page.evaluate(() => document.querySelector('#rlOut b').textContent + '/' + rlState().off + '/' + JSON.parse(localStorage.getItem('excalc_ruler')).off), '39.4 × 44.4/true/true');
+  await page.mouse.move(bb.x + px * 54.4, bb.y + px * 20); await page.mouse.down(); await page.mouse.move(bb.x + px * 57, bb.y + px * 22, { steps: 4 }); await page.mouse.up(); await w(80);
+  check('  ☝15mm先：縦の線だけ動かすときは横に15mm 先', await page.evaluate(() => document.querySelector('#rlOut b').textContent), '42.0 × 44.4');
+  await page.evaluate(() => rlOffToggle());
+  // 全画面
+  await page.evaluate(() => rlFull(true)); await w(500);
+  check('  ⛶ 全画面：見出し・タブ・下のボタンを隠して定規を広く', await page.evaluate(() => rlState().full + '/' + getComputedStyle(document.querySelector('#rulerOverlay .rl-tabs')).display + '/' + getComputedStyle(document.querySelector('#rulerOverlay .rl-float')).display + '/' + (document.getElementById('rlCanvas').clientHeight >= innerHeight - 2)), 'true/none/flex/true');
+  await page.evaluate(() => rlFull(false)); await w(400);
+  check('  全画面をやめる', await page.evaluate(() => rlState().full + '/' + getComputedStyle(document.querySelector('#rulerOverlay .rl-tabs')).display), 'false/flex');
   // 基準に登録
   page.removeAllListeners('dialog'); page.on('dialog', d => { dialogs.push(d.message()); d.type() === 'prompt' ? d.accept('名刺入れ') : d.accept(); });
   await page.evaluate(() => rlAddRef()); await w(100);
-  check('  基準に登録して覚える', await page.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem('excalc_ruler')).refs)), '[{"name":"名刺入れ","w":40.5,"h":24.5}]');
+  check('  基準に登録して覚える', await page.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem('excalc_ruler')).refs)), '[{"name":"名刺入れ","w":42,"h":44.4}]');
   // 写真で測る
   await page.evaluate(() => rlShow('photo')); await w(200);
-  check('  登録した物が基準の一覧のいちばん上', await page.evaluate(() => document.getElementById('rlRefSel').value + '/' + document.getElementById('rlRefMm').value), 'r:0.w/40.5');
+  check('  登録した物が基準の一覧のいちばん上', await page.evaluate(() => document.getElementById('rlRefSel').value + '/' + document.getElementById('rlRefMm').value), 'r:0.w/42');
   await page.selectOption('#rlRefSel', 'k:card'); await w(80);
   check('  決まった大きさ（カード 85.6mm）', await page.evaluate(() => document.getElementById('rlRefMm').value), '85.6');
   await page.evaluate(() => new Promise(r => { const c = document.createElement('canvas'); c.width = 1600; c.height = 1200; const x = c.getContext('2d'); x.fillStyle = '#ccc'; x.fillRect(0, 0, 1600, 1200); const im = new Image(); im.onload = () => { rlTestSetPhoto(im); r(); }; im.src = c.toDataURL(); })); await w(200);
