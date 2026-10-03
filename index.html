@@ -2574,6 +2574,8 @@ body.dark .vd-img { background: #1b2540; }
 body.dark .vol-result-main { color: #7fd6a3; }
 .vol-result-sub { font-size: 13px; color: var(--text-light); margin-top: 4px; word-break: break-all; }
 .vol-insert { margin-bottom: 8px; }
+/* 📷容積の「セルに入れる」は小さく右端に（v493） */
+#volInsertBtn { width: auto; margin: 0 0 8px auto; padding: 6px 12px; font-size: 12.5px; border-radius: 999px; }
 .vol-hint { font-size: 11px; color: var(--text-light); line-height: 1.5; }
 /* パーツ分割合計 */
 .vol-addpart {
@@ -9066,6 +9068,8 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v493', t:'📷容積の「セルに入れる」を小さく', li:[
+    '📷容積の<b>「▦ 合計をセルに入れる」</b>ボタンを小さくして、右の端に寄せました' ]},
   { v:'v492', t:'📷容積：いろいろな形とリセット', li:[
     '📷容積で計算できる形を増やしました：<b>三角柱・三角すい・四角すい・四角すい台（盛り土・ホッパー）・台形柱（側溝・水路・土手）・半球・かまぼこ形・だ円柱・パイプ・横置きタンク</b>（寝かせた丸いタンクの<b>液の深さから量</b>）',
     '形を選ぶと、<b>どの寸法をどこで測るかの図</b>と使いみちの例が出ます（図の色と寸法の欄の色が同じ）',
@@ -21380,7 +21384,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v492';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v493';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
