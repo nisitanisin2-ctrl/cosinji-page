@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,trim,manner,boki,kurashi,keisan,memo,calctmpl,fintmpl,kaikei,koe,eigo');
+    'tansui,kantab,veggie,volume,ruler,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,trim,manner,boki,kurashi,keisan,memo,calctmpl,fintmpl,kaikei,koe,eigo');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -3086,11 +3086,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'home,last,normal,dentaku,tansui,kantab,veggie,volume,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,trim,manner,boki,kurashi,keisan,calctmpl,fintmpl');
+    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,trim,manner,boki,kurashi,keisan,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 24);   // v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算 を足した
+    document.getElementById('startPageSel').options.length), 25);   // v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規 を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'veggieOverlay', 'volumeOverlay',
@@ -8342,6 +8342,70 @@ async function runKeisan(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runDefMk(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 設定の行数・列数をデフォルトに（v495） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => toggleSettings()); await w(400);
+  check('  いまのデフォルトを出す', await page.evaluate(() => document.getElementById('defSizeNow').textContent), 'いまのデフォルト：15行×3列（この表と同じ）');
+  await page.evaluate(() => { changeRows(5); changeCols(2); }); await w(200);
+  check('  ＋で変えると「同じ」が消える', await page.evaluate(() => document.getElementById('defSizeNow').textContent), 'いまのデフォルト：15行×3列');
+  await page.click('#setPage0 .defsize-mk'); await w(200);
+  check('  押すといまの大きさがデフォルトに', await page.evaluate(() => localStorage.getItem('excalc_default_rows') + 'x' + localStorage.getItem('excalc_default_cols') + '/' + document.getElementById('defSizeNow').textContent), '20x5/いまのデフォルト：20行×5列（この表と同じ）');
+  await page.evaluate(() => { changeRows(-10); changeCols(-3); applyDefaultSize(); }); await w(300);
+  check('  ▦既定の大きさに戻すと 20行×5列', await page.evaluate(() => ROWS + 'x' + COLS), '20x5');
+  check('  かんたん表示にも同じボタン', await page.evaluate(() => !!document.querySelector('#setEasy .defsize-mk') + '/' + document.getElementById('ezDefSizeNow').textContent.includes('20行×5列')), 'true/true');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+async function runRuler(browser) {
+  const { ctx, page, errs, dialogs } = await newPage(browser);
+  console.log('\n── 📏定規（v496） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキーにある', await page.evaluate(() => !window.RULER_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'ruler') + '/' + !!KEY_FUNCS.a_ruler), 'true/true/true');
+  await page.evaluate(() => openRuler()); await w(500);
+  check('  はじめは校正の画面から（カードは縦向きの枠）', await page.evaluate(() => rlState().tab + '/' + rlState().pxmm + '/' + (() => { const r = document.querySelector('#rlCalBox .rl-cal-shape').getBoundingClientRect(); return r.height > r.width; })()), 'cal/null/true');
+  await page.evaluate(() => { rlCalPick('yen500'); rlCalStep(0.01); rlCalStep(0.01); });
+  check('  硬貨は丸い枠', await page.evaluate(() => document.querySelector('#rlCalBox .rl-cal-shape').classList.contains('circle')), true);
+  await page.evaluate(() => rlCalSave()); await w(400);
+  const px = await page.evaluate(() => rlState().pxmm);
+  check('  校正を覚えて定規へ', await page.evaluate(() => rlState().tab) + '/' + (Math.abs(px - 160 / 25.4 * 1.0201) < 0.001) + '/' + (Math.abs(+(await page.evaluate(() => localStorage.getItem('excalc_ruler_cal'))) - px) < 1e-9), 'ruler/true/true');
+  check('  校正はバックアップに入れない（機種ごと）', await page.evaluate(() => SETTINGS_BACKUP_KEYS.includes('excalc_ruler_cal') + '/' + SETTINGS_BACKUP_KEYS.includes('excalc_ruler')), 'false/true');
+  // 定規：つまみを動かすと mm が出る
+  const bb = await (await page.$('#rlCanvas')).boundingBox();
+  await page.mouse.move(bb.x + 120, bb.y + 120); await page.mouse.down(); await page.mouse.move(bb.x + px * 40, bb.y + px * 25, { steps: 5 }); await page.mouse.up(); await w(100);
+  check('  定規：動かすと縦×横（40.0 × 25.0 mm）', await page.evaluate(() => document.querySelector('#rlOut b').textContent), '40.0 × 25.0');
+  await page.evaluate(() => { rlNudge('x', 0.5); rlNudge('y', -0.5); });
+  check('  0.5mm ずつ直せる・インチも', await page.evaluate(() => document.getElementById('rlOut').textContent), '40.5 × 24.5 mm1.59 × 0.96 inch');
+  // 基準に登録
+  page.removeAllListeners('dialog'); page.on('dialog', d => { dialogs.push(d.message()); d.type() === 'prompt' ? d.accept('名刺入れ') : d.accept(); });
+  await page.evaluate(() => rlAddRef()); await w(100);
+  check('  基準に登録して覚える', await page.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem('excalc_ruler')).refs)), '[{"name":"名刺入れ","w":40.5,"h":24.5}]');
+  // 写真で測る
+  await page.evaluate(() => rlShow('photo')); await w(200);
+  check('  登録した物が基準の一覧のいちばん上', await page.evaluate(() => document.getElementById('rlRefSel').value + '/' + document.getElementById('rlRefMm').value), 'r:0.w/40.5');
+  await page.selectOption('#rlRefSel', 'k:card'); await w(80);
+  check('  決まった大きさ（カード 85.6mm）', await page.evaluate(() => document.getElementById('rlRefMm').value), '85.6');
+  await page.evaluate(() => new Promise(r => { const c = document.createElement('canvas'); c.width = 1600; c.height = 1200; const x = c.getContext('2d'); x.fillStyle = '#ccc'; x.fillRect(0, 0, 1600, 1200); const im = new Image(); im.onload = () => { rlTestSetPhoto(im); r(); }; im.src = c.toDataURL(); })); await w(200);
+  check('  写真を入れると「① 基準をなぞる」から', await page.evaluate(() => rlState().ph.mode + '/' + getComputedStyle(document.getElementById('rlPhWrap')).display + '/' + (document.getElementById('rlPhCanvas').width > 0)), 'ref/block/true');
+  const cb = await (await page.$('#rlPhCanvas')).boundingBox(); const k = cb.width / 1600;
+  const drag = async (x1, y1, x2, y2) => { await page.mouse.move(cb.x + x1 * k, cb.y + y1 * k); await page.mouse.down(); await page.mouse.move(cb.x + x2 * k, cb.y + y2 * k, { steps: 6 }); await page.mouse.up(); await w(80); };
+  await drag(200, 1000, 1056, 1000);
+  check('  基準をなぞると「② 測る」へ', await page.evaluate(() => rlState().ph.mode + '/' + !!rlState().ph.ref), 'meas/true');
+  await drag(1300, 300, 1300, 1100);
+  check('  測る：基準の比で長さ（80.0 mm）', await page.evaluate(() => document.querySelector('#rlPhRes .rl-res-row:not(.ref) .v b').textContent), '80.0 mm');
+  check('  基準の長さを変えると測った長さも変わる', await page.evaluate(() => { rlPhRefMm('42.8'); return document.querySelector('#rlPhRes .rl-res-row:not(.ref) .v b').textContent; }), '40.0 mm');
+  await page.evaluate(() => rlPhRefMm('85.6'));
+  check('  計算（基準10の線と、その半分の線）', await page.evaluate(() => { rlTestLines({ a: { x: 0, y: 0 }, b: { x: 100, y: 0 } }, [{ a: { x: 0, y: 0 }, b: { x: 30, y: 40 } }]); return Math.round(rlMmOf({ a: { x: 0, y: 0 }, b: { x: 30, y: 40 } }) * 100) / 100; }), 42.8);
+  await page.evaluate(() => rlPhClear()); await w(80);
+  check('  線を消す（確かめてから）', dialogs.some(d => d.includes('線をすべて消し')) + '/' + await page.evaluate(() => rlState().ph.meas.length + '/' + rlState().ph.ref), 'true/0/null');
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  戻るで閉じる', await page.evaluate(() => isDlgOpen('rulerOverlay')), false);
+  await page.evaluate(() => openRuler()); await w(400);
+  check('  校正したあとは定規から開く', await page.evaluate(() => rlState().tab), 'ruler');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runUiMode(browser) {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true });
   const page = await ctx.newPage();
@@ -8449,11 +8513,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/24');
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/25');
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'shimai', 'meishi', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'shimai', 'meishi', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -8481,7 +8545,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,shimai:B,meishi:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,shimai:B,meishi:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -9578,6 +9642,8 @@ async function runQrShare(browser) {
     if (!only || only === 'kurashi') await runKurashi(browser);
     if (!only || only === 'volshape') await runVolShape(browser);
     if (!only || only === 'keisan') await runKeisan(browser);
+    if (!only || only === 'defmk') await runDefMk(browser);
+    if (!only || only === 'ruler') await runRuler(browser);
     if (!only || only === 'uimode') await runUiMode(browser);
     if (!only || only === 'toolsfab') await runToolsFab(browser);
     if (!only || only === 'techoapp') await runTechoApp(browser);

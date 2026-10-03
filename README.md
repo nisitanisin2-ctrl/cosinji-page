@@ -41,6 +41,7 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 | `boki.js` | 📒会計の手引き（自治会・団体の会計、会社・お店の経理の常識、簿記3級くらいの基礎 約60ページをさがして読む。道具：仕訳ドリル51問（答えを入れると判定）・仕訳から試算表と損益計算書・貸借対照表を作る・勘定科目の早見・減価償却・売上原価・月割り・消費税・貸倒引当金・商品有高帳・収入印紙・監査と引き継ぎのチェック表）。開いたときだけ読み込みます（v490 から） |
 | `kurashi.js` | 🧭くらしの便利帳（いざという時の知識 約90ページを10のテーマ（応急手当・救急／防災・災害／身内が亡くなったとき／引っ越し・住まい／出産・子育て／仕事をやめる・変える／介護／車・交通事故／くらしの法律・トラブル／医療費・保険・年金）に分け、カード → 一覧 → くわしいページの順に読む。道具：心臓マッサージのテンポ・救急車を呼ぶかの目安・備蓄の計算・亡くなった日からの期限・法定相続分・引っ越しのやること・赤ちゃんの手続きと予防接種・失業保険・退職金の税金・介護の限度額・車検と免許の時期・クーリング・オフ・高額療養費・医療費控除・年金の繰上げ繰下げ・チェック表）。開いたときだけ読み込みます（v491 から） |
 | `keisan.js` | 🔢便利計算（ひな形の計算から8つを専用の画面に：単位換算・ローン返済・給料と手取り・積立と資産・お買い物と値引き・日付と時間・勾配と三角・ドライブ費用と電気代。入れた数を覚える・印刷）。開いたときだけ読み込みます（v494 から） |
+| `ruler.js` | 📏定規（画面のふちに mm の目盛りを出し、つまみで縦×横を測る。カード・硬貨で校正して端末ごとに覚える。「写真で測る」は大きさの分かる基準を並べて撮り、写真の上でなぞって長さを出す。拡大鏡・2本指のズーム・線を描いた画像の保存）。開いたときだけ読み込みます（v496 から） |
 | `apps/〇〇/` | 道具だけのアプリの入り口（v462〜）。道具ごとの manifest・アイコン・`index.html`（`../../index.html?app=〇〇` へ移る）。ホーム画面に置くと、その道具だけが開きます（業務手帳は `techo/`） |
 | `techo/` | 📔業務手帳だけのアプリの入り口（manifest・アイコン）。`techo/` を開くと `index.html?app=techo` に移り、業務手帳だけを全画面で開きます。ホーム画面に足すと業務手帳のアイコンになります（v447 から） |
 | `service-worker.js` | 電波がなくても動くようにするしくみ |
@@ -55,7 +56,7 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 
 ## 配る
 
-`index.html` `help.js`（と `help/` フォルダ） `photomemo.js` `techo.js` `subsc.js` `heya.js` `annai.js` `shimai.js` `meishi.js` `trim.js` `manner.js` `boki.js` `kurashi.js` `keisan.js` `service-worker.js`、`apps/` フォルダ `manifest.json` と `techo/` フォルダ、`icon-*.png` `apple-touch-icon.png` `ogp.png` `shot-*.png` を置くだけです。サーバー側の用意はいりません。
+`index.html` `help.js`（と `help/` フォルダ） `photomemo.js` `techo.js` `subsc.js` `heya.js` `annai.js` `shimai.js` `meishi.js` `trim.js` `manner.js` `boki.js` `kurashi.js` `keisan.js` `ruler.js` `service-worker.js`、`apps/` フォルダ `manifest.json` と `techo/` フォルダ、`icon-*.png` `apple-touch-icon.png` `ogp.png` `shot-*.png` を置くだけです。サーバー側の用意はいりません。
 `help.js` を置き忘れると説明書だけが、`photomemo.js` を置き忘れると写真メモだけが、`techo.js` を置き忘れると業務手帳だけが「読み込めませんでした」になります（ほかはそのまま動きます）。パソコン版（exe）に入れるときも `index.html` と同じ場所に置いてください。
 
 GitHub Pages の公開（Actions の「pages build and deployment」）が `Failed to get ID Token … Request timeout` で失敗したときは、GitHub 側の一時的な通信の不具合です。その実行を「Re-run jobs」でやり直すか、main に次の変更を入れれば公開し直されます。
