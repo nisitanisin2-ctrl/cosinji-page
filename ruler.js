@@ -9,9 +9,10 @@
 const RL_KEY='excalc_ruler', RL_CAL='excalc_ruler_cal';
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let rl={refs:[]}, pxmm=null, rlTab='ruler';
+let rl={refs:[], off:false}, pxmm=null, rlTab='ruler', rlFullOn=false, rlFinger=null;
+const OFF_MM=15;   // 「指の先で合わせる」ときの、指から点までの長さ
 function rlLoad(){
-  try{ const o=JSON.parse(localStorage.getItem(RL_KEY)||'null')||{}; rl={refs:Array.isArray(o.refs)?o.refs.filter(r=>r&&typeof r.name==='string'&&r.w>0).slice(0,50).map(r=>({name:r.name.slice(0,30),w:+r.w,h:r.h>0?+r.h:0})):[]}; }catch(_){ rl={refs:[]}; }
+  try{ const o=JSON.parse(localStorage.getItem(RL_KEY)||'null')||{}; rl={refs:Array.isArray(o.refs)?o.refs.filter(r=>r&&typeof r.name==='string'&&r.w>0).slice(0,50).map(r=>({name:r.name.slice(0,30),w:+r.w,h:r.h>0?+r.h:0})):[], off:o.off===true}; }catch(_){ rl={refs:[], off:false}; }
   const c=parseFloat(localStorage.getItem(RL_CAL)); pxmm=(c>1&&c<60)?c:null;
 }
 function rlSave(){ try{ localStorage.setItem(RL_KEY, JSON.stringify(rl)); }catch(_){} }
@@ -54,17 +55,39 @@ function rulerDraw(){
   ctx.fillStyle='rgba(30,136,229,.08)'; ctx.fillRect(0,0,rlX,rlY);
   ctx.fillStyle='#1e88e5'; ctx.beginPath(); ctx.arc(rlX,rlY,13,0,Math.PI*2); ctx.fill();
   ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(rlX,rlY,13,0,Math.PI*2); ctx.stroke();
+  if(rlFinger){ ctx.strokeStyle='rgba(30,136,229,.7)'; ctx.lineWidth=1.5; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(rlFinger.x,rlFinger.y); ctx.lineTo(rlX,rlY); ctx.stroke(); ctx.setLineDash([]);
+    ctx.strokeStyle='rgba(30,136,229,.55)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(rlFinger.x,rlFinger.y,22,0,Math.PI*2); ctx.stroke(); }
   const w=rlX/p, h=rlY/p;
   const out=$('rlOut'); if(out) out.innerHTML=`<b>${f1(w)} × ${f1(h)}</b> mm<small>${f2(w/25.4)} × ${f2(h/25.4)} inch</small>`;
 }
+/* 指で押さえた所に点を置く。「☝ 指の先で合わせる」のときは、点を指より15mm 先（左上＝物のある側）に置く。
+   上に物をのせて測るとき、物の角の下に指を入れなくても合わせられるように（v497） */
 function rulerPointer(e){
-  const c=rulerCanvas(); const r=c.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top;
+  const c=rulerCanvas(); const r=c.getBoundingClientRect(); const fx=e.clientX-r.left, fy=e.clientY-r.top;
+  const o=rl.off?OFF_MM*PM():0, od=o*Math.SQRT1_2;
   if(e.type==='pointerdown'){ c.setPointerCapture&&c.setPointerCapture(e.pointerId);
-    const dx=Math.abs(x-rlX), dy=Math.abs(y-rlY); rlDrag=(dx<30&&dy<30)?'xy':(dx<24?'x':(dy<24?'y':'xy')); }
+    const px=fx-od, py=fy-od; const dx=Math.abs(px-rlX), dy=Math.abs(py-rlY);
+    if(!rl.off){ rlDrag=(Math.abs(fx-rlX)<30&&Math.abs(fy-rlY)<30)?'xy':(Math.abs(fx-rlX)<24?'x':(Math.abs(fy-rlY)<24?'y':'xy')); }
+    else rlDrag=(dx<34&&dy<34)?'xy':(Math.abs(fx-o-rlX)<28?'x':(Math.abs(fy-o-rlY)<28?'y':'xy')); }
   if(!rlDrag) return; e.preventDefault();
-  if(rlDrag!=='y') rlX=Math.max(0,Math.min(r.width,x)); if(rlDrag!=='x') rlY=Math.max(0,Math.min(r.height,y));
+  const sx=rlDrag==='xy'?od:o;   // 1つの線だけ動かすときは、その向きに15mm
+  if(rlDrag!=='y') rlX=Math.max(0,Math.min(r.width,fx-sx)); if(rlDrag!=='x') rlY=Math.max(0,Math.min(r.height,fy-sx));
+  rlFinger=rl.off?{x:fx,y:fy}:null;
+  if(e.type==='pointerup'||e.type==='pointercancel'){ rlDrag=null; rlFinger=null; }
   rulerDraw();
-  if(e.type==='pointerup'||e.type==='pointercancel') rlDrag=null;
+}
+function rlOffToggle(){ rl.off=!rl.off; rlSave(); rlSyncBtns(); toast(rl.off?'指より15mm 先に点を置きます（物の角に指が届かなくても合わせられます）':'指で押さえた所に点を置きます'); }
+function rlSyncBtns(){ document.querySelectorAll('.rl-offbtn').forEach(b=>{ b.classList.toggle('on',!!rl.off); b.textContent=rl.off?'☝ 15mm先 ON':'☝ 15mm先'; }); document.querySelectorAll('.rl-fullbtn').forEach(b=>b.textContent=rlFullOn?'⤡ 全画面をやめる':'⛶ 全画面'); }
+/* 定規を画面いっぱいに（見出し・タブ・下のボタンを隠す。できる端末ではブラウザの帯も消す） */
+function rlFull(on){
+  if(on==null) on=!rlFullOn; rlFullOn=!!on;
+  const ov=$('rulerOverlay'); if(!ov) return;
+  ov.classList.toggle('rl-full', rlFullOn);
+  try{
+    if(rlFullOn && ov.requestFullscreen && !document.fullscreenElement) ov.requestFullscreen().catch(()=>{});
+    if(!rlFullOn && document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  }catch(_){}
+  rlSyncBtns(); setTimeout(rulerSize,60); setTimeout(rulerSize,400);
 }
 function rlNudge(axis,d){ const p=PM(); const c=rulerCanvas(); const r=c.getBoundingClientRect(); if(axis==='x') rlX=Math.max(0,Math.min(r.width,rlX+d*p)); else rlY=Math.max(0,Math.min(r.height,rlY+d*p)); rulerDraw(); }
 function rlSetMm(axis){ const cur=(axis==='x'?rlX:rlY)/PM(); const v=prompt(axis==='x'?'横の長さ（mm）':'縦の長さ（mm）', f1(cur)); if(v==null) return; const n=parseFloat(String(v).normalize('NFKC')); if(!(n>=0)) return; if(axis==='x') rlX=n*PM(); else rlY=n*PM(); rulerDraw(); }
@@ -214,6 +237,14 @@ const RL_CSS=`
 .rl-bar{ display:flex; flex-wrap:wrap; gap:6px; padding:8px 10px calc(8px + var(--safe-bottom,0px)); border-top:1px solid rgba(120,132,156,.25); align-items:center; }
 .rl-bar button{ height:38px; padding:0 11px; border-radius:10px; border:1px solid rgba(120,132,156,.4); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:13px; font-weight:bold; cursor:pointer; }
 .rl-bar .grow{ flex:1; }
+.rl-bar .rl-offbtn.on,.rl-float .rl-offbtn.on{ background:#1e88e5; border-color:#1e88e5; color:#fff; }
+.rl-float{ display:none; position:absolute; right:calc(8px + var(--safe-right,0px)); bottom:calc(8px + var(--safe-bottom,0px)); gap:5px; flex-wrap:wrap; justify-content:flex-end; max-width:70%; }
+.rl-float button{ height:38px; padding:0 10px; border-radius:19px; border:1px solid rgba(120,132,156,.45); background:rgba(255,255,255,.88); color:#222; font-size:12.5px; font-weight:bold; cursor:pointer; }
+body.dark .rl-float button{ background:rgba(40,40,40,.88); color:#eee; }
+#rulerOverlay.rl-full .modal{ width:100%; max-width:none; height:100%; max-height:100%; border-radius:0; }
+#rulerOverlay.rl-full .modal-header,#rulerOverlay.rl-full .rl-tabs,#rulerOverlay.rl-full .rl-bar,#rulerOverlay.rl-full .rl-calwarn,#rulerOverlay.rl-full .tool-back{ display:none !important; }
+#rulerOverlay.rl-full .rl-float{ display:flex; }
+#rulerOverlay.rl-full .rl-rbox{ padding-top:0; }
 .rl-warn{ color:#e65100; font-weight:bold; }
 .rl-calwarn{ margin:6px 10px 0; padding:6px 10px; border-radius:8px; background:rgba(251,140,0,.15); font-size:12.5px; color:var(--text,#222); }
 .rl-calwarn button{ margin-left:6px; height:28px; border-radius:8px; border:1px solid #fb8c00; background:#fff3e0; color:#e65100; font-weight:bold; cursor:pointer; }
@@ -254,8 +285,10 @@ function rlEnsureDom(){
     <div class="rl-tabs" id="rlTabs"><button data-t="ruler" onclick="rlShow('ruler')">📏 定規</button><button data-t="photo" onclick="rlShow('photo')">📷 写真で測る</button><button data-t="cal" onclick="rlShow('cal')">🎯 校正</button></div>
     <div class="rl-page" id="rlPage_ruler">
       <div class="rl-calwarn" id="rlCalWarn" style="display:none">まだ校正していないので、目盛りは見当です。<button onclick="rlShow('cal')">🎯 校正する</button></div>
-      <div class="rl-rbox" id="rlRBox" data-hswipe="1"><canvas id="rlCanvas"></canvas><div class="rl-out" id="rlOut"></div></div>
+      <div class="rl-rbox" id="rlRBox" data-hswipe="1"><canvas id="rlCanvas"></canvas><div class="rl-out" id="rlOut"></div>
+        <div class="rl-float"><button class="rl-offbtn" onclick="rlOffToggle()">☝ 15mm先</button><button onclick="rlNudge('x',-0.5)">横−</button><button onclick="rlNudge('x',0.5)">横＋</button><button onclick="rlNudge('y',-0.5)">縦−</button><button onclick="rlNudge('y',0.5)">縦＋</button><button class="rl-fullbtn" onclick="rlFull(false)">⤡ 全画面をやめる</button></div></div>
       <div class="rl-bar">
+        <button class="rl-offbtn" onclick="rlOffToggle()" title="上に物をのせて測るとき、指より15mm 先に点を置きます">☝ 15mm先</button><button class="rl-fullbtn" onclick="rlFull()">⛶ 全画面</button>
         <button onclick="rlNudge('x',-0.5)">横−</button><button onclick="rlNudge('x',0.5)">横＋</button><button onclick="rlNudge('y',-0.5)">縦−</button><button onclick="rlNudge('y',0.5)">縦＋</button>
         <span class="grow"></span><button onclick="rlAddRef()">📌 基準に登録</button>
       </div>
@@ -290,6 +323,7 @@ function rlEnsureDom(){
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
   const c=rulerCanvas(); ['pointerdown','pointermove','pointerup','pointercancel'].forEach(t=>c.addEventListener(t,rulerPointer));
   const pc=phCanvas(); ['pointerdown','pointermove','pointerup','pointercancel'].forEach(t=>pc.addEventListener(t,phPointer));
+  document.addEventListener('fullscreenchange',()=>{ if(!document.fullscreenElement && rlFullOn){ rlFullOn=false; const ov=$('rulerOverlay'); if(ov) ov.classList.remove('rl-full'); rlSyncBtns(); setTimeout(rulerSize,60); } });
   window.addEventListener('resize',()=>{ if(isDlgOpen('rulerOverlay')){ if(rlTab==='ruler') rulerSize(); else if(rlTab==='photo'&&ph.img) phFit(); } });
   if(typeof applyNpToolFull==='function') applyNpToolFull();
 }
@@ -303,23 +337,24 @@ function rlRefOptions(){
 }
 function rlDelRef(i){ const r=rl.refs[i]; if(!r||!confirm('「'+r.name+'」を消しますか？')) return; rl.refs.splice(i,1); rlSave(); rlRefOptions(); }
 function rlShow(t){
+  if(t!=='ruler' && rlFullOn) rlFull(false);
   rlTab=t; document.querySelectorAll('#rlTabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
   ['ruler','photo','cal'].forEach(x=>{ const e=$('rlPage_'+x); if(e) e.classList.toggle('on',x===t); });
-  if(t==='ruler'){ $('rlCalWarn').style.display=pxmm?'none':''; requestAnimationFrame(rulerSize); }
+  if(t==='ruler'){ $('rlCalWarn').style.display=pxmm?'none':''; rlSyncBtns(); requestAnimationFrame(rulerSize); }
   else if(t==='cal'){ calPx=PM(); calPick(calObj); }
   else { rlRefOptions(); phUI(); if(ph.img) requestAnimationFrame(phFit); }
 }
 function openRuler(tab){
   rlEnsureDom(); rlLoad();
-  openDlg('rulerOverlay');
+  openDlg('rulerOverlay', ()=>{ if(rlFullOn) rlFull(false); });
   rlShow(typeof tab==='string'?tab:(pxmm?'ruler':'cal'));
 }
-function closeRuler(){ if(!$('rulerOverlay')||!isDlgOpen('rulerOverlay')) return; closeDlg('rulerOverlay'); }
+function closeRuler(){ if(!$('rulerOverlay')||!isDlgOpen('rulerOverlay')) return; if(rlFullOn) rlFull(false); closeDlg('rulerOverlay'); }
 
-Object.assign(window, { openRuler, closeRuler, rlShow, rlNudge, rlSetMm, rlAddRef, rlDelRef,
+Object.assign(window, { openRuler, closeRuler, rlShow, rlOffToggle, rlFull, rlNudge, rlSetMm, rlAddRef, rlDelRef,
   rlCalPick:calPick, rlCalStep:calStep, rlCalSlide:calSlide, rlCalSave:calSaveIt, rlCalReset:calReset, rlCalDraw:calDraw,
   rlPhPhoto:phPhoto, rlPhRefSel:phRefSel, rlPhRefMm:phRefMm, rlPhMode:phMode, rlPhZoom:phZoom, rlPhDel:phDel, rlPhClear:phClear, rlPhSave:phSave, $rl:$,
-  rlState:()=>({pxmm, tab:rlTab, refs:rl.refs.slice(), x:rlX, y:rlY, ph:{ref:ph.ref, meas:ph.meas.slice(), refMm:ph.refMm, mode:ph.mode, img:!!ph.img}}),
+  rlState:()=>({pxmm, tab:rlTab, off:!!rl.off, full:rlFullOn, refs:rl.refs.slice(), x:rlX, y:rlY, ph:{ref:ph.ref, meas:ph.meas.slice(), refMm:ph.refMm, mode:ph.mode, img:!!ph.img}}),
   rlTestSetPhoto:(img)=>{ ph.img=img; ph.ref=null; ph.meas=[]; ph.mode='ref'; phUI(); phFit(); },
   rlTestLines:(ref, meas)=>{ ph.ref=ref; ph.meas=meas; phDraw(); phUI(); }, rlMmOf:l=>phMmOf(l) });
 })();

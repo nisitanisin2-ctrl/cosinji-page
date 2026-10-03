@@ -9074,6 +9074,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v497', t:'📏定規：指の先で合わせる・全画面', li:[
+    '📏定規の下に<b>「☝ 15mm先」</b>。ONにすると、点が<b>押さえた指より15mm 先（物のある左上の側）</b>に来ます。上に物をのせて測るとき、物の角の下に指を入れなくても合わせられます（点と指のあいだに点線が出ます）',
+    '<b>「⛶ 全画面」</b>で定規を画面いっぱいに（見出し・タブ・ボタンを隠し、できる端末ではブラウザの帯も消します）。右下の小さなボタンで 15mm先・0.5mm ずつの調整・全画面をやめる ができます' ]},
   { v:'v496', t:'道具に「📏 定規」', li:[
     '新しい道具<b>「📏 定規」</b>。スマホの画面のふちに<b>mmの目盛り</b>を出し、青い線を動かして物の<b>縦×横</b>を測れます（mm とインチ）',
     'はじめに<b>「🎯 校正」</b>で、カード（縦向き）や硬貨を画面の赤い枠に当てて大きさを合わせると、この端末で正しい長さになります',
@@ -21465,7 +21468,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v496';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v497';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
