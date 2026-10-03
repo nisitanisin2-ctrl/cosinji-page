@@ -8442,7 +8442,7 @@ async function runAppIconPwa(browser) {
 }
 async function runRegi(browser) {
   const { ctx, page, errs, dialogs } = await newPage(browser);
-  console.log('\n── 🛍即売レジ（v499） ──');
+  console.log('\n── 🛍即売レジ（v499・v500） ──');
   const w = ms => page.waitForTimeout(ms);
   check('  開くまでは読まない・道具とマイキーにある・単独アプリの入口', await page.evaluate(() => !window.REGI_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'regi') + '/' + !!KEY_FUNCS.a_regi) + '/' + require('fs').existsSync(require('path').join(ROOT, 'apps', 'regi', 'manifest.json')), 'true/true/true/true');
   await page.evaluate(() => openRegi()); await w(400);
@@ -8452,11 +8452,18 @@ async function runRegi(browser) {
   await page.evaluate(() => rgOpenItems()); await w(150);
   await page.evaluate(() => rgEditItem()); await w(80);
   await page.evaluate(() => new Promise(r => { const c = document.createElement('canvas'); c.width = 800; c.height = 600; c.getContext('2d').fillRect(0, 0, 800, 600); c.toBlob(b => { const f = new File([b], 'a.png', { type: 'image/png' }); const dt = new DataTransfer(); dt.items.add(f); const i = document.getElementById('rgPick'); i.files = dt.files; i.dispatchEvent(new Event('change')); setTimeout(r, 400); }); }));
-  check('  写真は小さくして入れる（320px・JPEG）', await page.evaluate(() => new Promise(r => { const im = new Image(); im.onload = () => r(Math.max(im.width, im.height) + '/' + im.src.startsWith('data:image/jpeg')); im.src = document.querySelector('#rgEPhoto img').src; })), '320/true');
+  check('  写真を選ぶと四角に切り取る窓（真ん中から）', await page.evaluate(() => isDlgOpen('rgCropOverlay') + '/' + JSON.stringify(rgState().crop)), 'true/{"w":800,"h":600,"z":1,"cx":400,"cy":300}');
+  { const bb = await page.locator('#rgCropCv').boundingBox(); await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down(); await page.mouse.move(bb.x + bb.width / 2 + 40, bb.y + bb.height / 2, { steps: 4 }); await page.mouse.up(); }
+  check('  指で動かす（右へ動かすと左側が見える・はみ出さない）', await page.evaluate(() => { const c = rgState().crop; return c.cx < 400 && c.cx >= 300; }), true);
+  await page.evaluate(() => rgCropZoom(2)); await w(50);
+  check('  つまみで大きく', await page.evaluate(() => rgState().crop.z), 2);
+  await page.click('#rgCropOkBtn'); await w(150);
+  check('  写真は四角・小さくして入れる（320×320・JPEG）', await page.evaluate(() => new Promise(r => { const im = new Image(); im.onload = () => r(im.width + 'x' + im.height + '/' + im.src.startsWith('data:image/jpeg') + '/' + isDlgOpen('rgCropOverlay')); im.src = document.querySelector('#rgEPhoto img').src; })), '320x320/true/false');
   await page.fill('#rgEName', 'クッキー'); await page.fill('#rgEPrice', '300'); await page.fill('#rgEStock', '20'); await page.evaluate(() => rgSaveItem()); await w(80);
   await add('ジャム', 500, 2); await add('しおり', 150, 30); await add('ドリンク', 200, 0, true);
   check('  登録した商品（在庫・在庫を数えない）', await page.evaluate(() => rgState().rg.items.map(i => i.name + ':' + i.price + ':' + i.stock + (i.noStock ? '*' : '') + (i.photo ? 'p' : '')).join(',')), 'クッキー:300:20p,ジャム:500:2,しおり:150:30,ドリンク:200:0*');
   await page.evaluate(() => closeDlg('rgItemsOverlay')); await w(300);
+  check('  タイルの写真は四角（縦長の写真でも伸びない）', await page.evaluate(() => { const r = document.querySelector('.rg-tile .ph').getBoundingClientRect(); return Math.abs(r.width - r.height) < 1.5; }), true);
   // 注文
   const ids = await page.evaluate(() => rgState().rg.items.map(i => i.id));
   for (const i of [0, 0, 0, 1, 2, 3]) await page.click(`#rgGrid .rg-tile[data-id="${ids[i]}"]`);
@@ -8476,20 +8483,52 @@ async function runRegi(browser) {
   const n0 = dialogs.length;
   await page.evaluate(id => { rgAdd(id); }, ids[1]);
   check('  在庫がなくなると確かめてから足す', (dialogs.length > n0 && dialogs[dialogs.length - 1].includes('在庫が0')) + '/' + await page.evaluate(id => document.querySelector(`.rg-tile[data-id="${id}"]`).classList.contains('out'), ids[1]), 'true/true');
-  // 値引き・ちょうど
-  page.removeAllListeners('dialog'); page.on('dialog', d => { dialogs.push(d.message()); d.type() === 'prompt' ? d.accept('100') : d.accept(); });
-  await page.evaluate(() => rgDisc()); await page.evaluate(() => rgSetPaid('just')); await w(50);
-  check('  値引き・ちょうど', await page.evaluate(() => document.getElementById('rgTotal').textContent + '/' + document.getElementById('rgPaid').value), '小計 ¥1,000　値引き −¥100合計 ¥9002点/900');
+  // 値引き（v500：窓で 円・％・品ごと）
+  await page.click('#rgDiscBtn'); await w(250);
+  check('  🏷 値引きの窓', await page.evaluate(() => isDlgOpen('rgDiscOverlay') + '/' + document.querySelectorAll('#rgDiscBody .rg-dline').length), 'true/1');
+  await page.click('#rgDiscBody .rg-quick button:nth-child(2)'); await w(50);
+  check('  円引き（¥100）', await page.evaluate(() => document.getElementById('rgTotal').textContent), '小計 ¥1,000　値引き −¥100合計 ¥9002点');
+  await page.evaluate(() => { rgOdType('pct'); rgOdSet(30, 1); }); await w(50);
+  check('  ％引き（30%）・窓の中にも合計', await page.evaluate(() => document.getElementById('rgTotal').textContent + '/' + document.getElementById('rgDiscTot').textContent), '小計 ¥1,000　値引き（30%） −¥300合計 ¥7002点/小計 ¥1,000　値引き（30%） −¥300合計 ¥7002点');
+  await page.evaluate(id => rgLineQuick(id, 'half'), ids[1]); await w(50);
+  check('  品ごと：半額＋全体の％引き', await page.evaluate(() => document.getElementById('rgTotal').textContent + '/' + document.querySelector('.rg-line.dc .u').textContent), '小計 ¥1,000　品の値引き −¥500　値引き（30%） −¥150合計 ¥3502点/¥500¥250');
+  await page.evaluate(id => { rgLineQuick(id, 'reset'); rgOdSet(0, 1); rgOdType('yen'); }, ids[1]);
+  await page.fill(`#rgLp_${ids[1]}`, '450'); await w(50);
+  check('  品ごと：値段を入れる', await page.evaluate(() => document.getElementById('rgTotal').textContent), '小計 ¥1,000　品の値引き −¥100合計 ¥9002点');
+  await page.fill(`#rgLp_${ids[1]}`, '9999'); await w(50);
+  check('  定価より高くはしない', await page.evaluate(() => rgState().total), 1000);
+  await page.fill(`#rgLp_${ids[1]}`, '450'); await page.evaluate(() => rgOdRound()); await w(50);
+  check('  端数を切る（900円ちょうどなので端数なし）', await page.evaluate(() => rgState().od.v + '/' + rgState().total), '0/900');
+  await page.evaluate(() => closeDlg('rgDiscOverlay')); await w(250);
+  await page.evaluate(() => rgSetPaid('just')); await w(50);
+  check('  値引き・ちょうど', await page.evaluate(() => document.getElementById('rgTotal').textContent + '/' + document.getElementById('rgPaid').value), '小計 ¥1,000　品の値引き −¥100合計 ¥9002点/900');
   await page.evaluate(() => rgPay()); await w(200); await page.evaluate(() => rgDoneClose()); await w(200);
+  check('  記録に定価と値引き（品ごと）', await page.evaluate(() => { const s = rgState().rg.sales[1]; return s.lines[0].orig + '/' + s.lines[0].price + '/' + s.ldisc + '/' + s.disc + '/' + s.total + '/' + rgState().od.v; }), '500/450/100/0/900/0');
+  page.removeAllListeners('dialog'); page.on('dialog', d => { dialogs.push(d.message()); d.accept(); });
+  await page.evaluate(id => { rgAdd(id); rgAdd(id); rgAdd(id); }, ids[2]);
+  await page.evaluate(() => { rgOdType('pct'); rgOdSet(15); }); await page.fill('#rgPaid', '');
+  check('  ％引きは1円未満を切り捨てて値引き（450円の15%）', await page.evaluate(() => rgState().disc + '/' + rgState().total), '67/383');
+  await page.evaluate(id => rgAdd(id), ids[2]);
+  check('  ％引きは品を足すと引く額も変わる', await page.evaluate(() => rgState().disc + '/' + rgState().total), '90/510');
+  await page.evaluate(() => rgClearCart()); await w(50);
+  check('  取り消すと値引きも戻る', await page.evaluate(() => rgState().od.v + '/' + rgState().cart.length), '0/0');
+  // 横向き：左に商品、右に会計
+  { const vp = page.viewportSize(); await page.setViewportSize({ width: 860, height: 412 }); await w(250);
+    await page.evaluate(id => rgAdd(id), ids[2]); await w(100);
+    check('  横向き：左に商品・右に会計（高さいっぱい）', await page.evaluate(() => { const g = document.querySelector('.rg-gridwrap').getBoundingClientRect(), c = document.getElementById('rgCart').getBoundingClientRect(); return (c.left >= g.right - 1) + '/' + (Math.abs(c.top - g.top) < 2) + '/' + (c.width > 300 && c.width < 460) + '/' + (document.getElementById('rgPayBtn').getBoundingClientRect().bottom <= innerHeight + 1); }), 'true/true/true/true');
+    await page.evaluate(() => rgClearCart()); await w(50);
+    await page.setViewportSize(vp); await w(250);
+    check('  縦向き：会計は下', await page.evaluate(() => { const g = document.querySelector('.rg-gridwrap').getBoundingClientRect(), c = document.getElementById('rgCart').getBoundingClientRect(); return c.top >= g.bottom - 1; }), true); }
   // 履歴・取り消し
   await page.evaluate(() => rgOpenHist()); await w(200);
   check('  履歴：売上・件数・個数', await page.evaluate(() => [...document.querySelectorAll('.rg-sum b')].map(b => b.textContent).join('/')), '¥2,350/2件/7個');
+  check('  履歴：値引きの合計・品の値引きを表示', await page.evaluate(() => document.getElementById('rgHistBody').textContent.includes('値引きの合計 ¥100') + '/' + document.getElementById('rgHistBody').textContent.includes('ジャム ×2（¥500→¥450）')), 'true/true');
   const sid = await page.evaluate(() => rgState().rg.sales[0].id);
   await page.evaluate(id => rgVoid(id), sid); await w(100);
   check('  取り消すと在庫が戻り、売上から外れる（記録は残る）', await page.evaluate(() => rgState().rg.items.map(i => i.stock).join(',') + '/' + [...document.querySelectorAll('.rg-sum b')].map(b => b.textContent).join('/') + '/' + document.querySelectorAll('.rg-sale.void').length), '20,0,30,0/¥900/1件/2個/1');
   // Excel
   check('  Excel のシート', await page.evaluate(() => rgXlsxRows().join(',')), '販売履歴,会計ごと,商品別,まとめ');
-  check('  Excel のファイル（.xlsx の形・数は数で）', await page.evaluate(async () => { const b = await rgBuildXlsx(); const files = await xlsxUnzip(await b.arrayBuffer()); const sh = new TextDecoder().decode(files.get('xl/worksheets/sheet1.xml')); return files.has('xl/worksheets/sheet4.xml') + '/' + /<c r="D2"[^>]*><v>300<\/v>/.test(sh); }), 'true/true');
+  check('  Excel のファイル（.xlsx の形・数は数で）', await page.evaluate(async () => { const b = await rgBuildXlsx(); const files = await xlsxUnzip(await b.arrayBuffer()); const sh = new TextDecoder().decode(files.get('xl/worksheets/sheet1.xml')); const s2 = new TextDecoder().decode(files.get('xl/worksheets/sheet2.xml')); return files.has('xl/worksheets/sheet4.xml') + '/' + /<c r="D2"[^>]*><v>300<\/v>/.test(sh) + '/' + /<c r="H6"[^>]*><v>100<\/v>/.test(sh) + '/' + /<c r="E3"[^>]*><v>100<\/v>/.test(s2) + '/' + /<c r="D3"[^>]*><v>1000<\/v>/.test(s2); }), 'true/true/true/true/true');
   // 新しいイベント
   await page.evaluate(() => { closeDlg('rgHistOverlay'); rgOpenItems(); }); await w(200);
   await page.evaluate(() => rgNewEvent()); await w(100);
