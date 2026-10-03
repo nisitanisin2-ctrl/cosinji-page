@@ -1,4 +1,4 @@
-/* 🛍 即売レジ（v508。表電卓の道具。apps/regi/ から単独のアプリとしても開ける。はじめて開いたときに読む）
+/* 🛍 即売レジ（v509。表電卓の道具。apps/regi/ から単独のアプリとしても開ける。はじめて開いたときに読む）
    フリマ・お祭り・即売会で使う、かんたんなレジ。
    ・商品（写真・名前・値段・在庫）を登録 → レジの画面で商品を押すと1つずつ足す → 合計・値引き →
      預かった金額を入れるとお釣り → 「会計する」で販売の記録に残し、在庫を減らす。
@@ -593,7 +593,9 @@ const RG_CSS=`
 .rg-sale{ padding:8px 6px; border-bottom:1px solid rgba(120,132,156,.25); } .rg-sale .h{ display:flex; gap:8px; align-items:baseline; } .rg-sale .h span{ flex:1; font-size:12.5px; color:var(--text-light,#888); } .rg-sale .t{ font-size:16px; }
 .rg-sale .l{ font-size:13px; margin:2px 0; } .rg-sale .f{ font-size:12px; color:var(--text-light,#888); display:flex; align-items:center; gap:8px; } .rg-sale .f button.rc{ margin-left:auto; color:var(--text,#222); border-color:rgba(120,132,156,.45); } .rg-sale .f{ flex-wrap:wrap; } .rg-sale .f .pa{ flex:1 1 auto; } .rg-sale .f .bs{ display:flex; gap:6px; align-items:center; margin-left:auto; white-space:nowrap; } .rg-sale .f .bs button{ margin-left:0 !important; white-space:nowrap; } .rg-sale .f button.fix{ color:#e65100; border-color:rgba(230,81,0,.45); }
 .rg-sale .fx{ color:#e65100; font-style:normal; font-weight:bold; margin-left:6px; } .rg-sale.void .h .fx{ text-decoration:none; }
-.rg-fixbtn{ color:#e65100; border-color:rgba(230,81,0,.4); font-size:13px; height:40px; }
+/* 「次のお客さん」と押しまちがえないように、訂正は間をあけて線の下に置く（v509） */
+.rg-btn.wide.rg-fixbtn{ color:#e65100; border-color:rgba(230,81,0,.4); font-size:13px; height:40px; margin-top:36px; position:relative; }
+.rg-btn.wide.rg-fixbtn::before{ content:''; position:absolute; left:0; right:0; top:-19px; border-top:1px dashed rgba(120,132,156,.45); }
 .rg-sale .f button{ margin-left:auto; height:30px; padding:0 10px; border-radius:8px; border:1px solid rgba(211,47,47,.4); background:transparent; color:#d32f2f; font-weight:bold; cursor:pointer; }
 .rg-sale.void .h,.rg-sale.void .l{ text-decoration:line-through; opacity:.55; }
 /* 横向き：左に商品、右に会計 */

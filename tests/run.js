@@ -8661,7 +8661,7 @@ async function runRegi(browser) {
   await page.evaluate(([a, b]) => { rgAdd(a); rgAdd(a); rgAdd(b); rgOdType('pct'); rgOdSet(10); }, [ids3[0], ids3[1]]);
   await page.fill('#rgPaid', '2000'); await page.evaluate(() => { rgCartRender(); rgPay(); }); await w(250);
   const saleA = await page.evaluate(() => rgState().rg.sales.slice(-1)[0]);
-  check('  会計のあとの画面に「まちがえた（訂正）」', await page.evaluate(() => !!document.getElementById('rgDoneFix')), true);
+  check('  会計のあとの画面に「まちがえた（訂正）」・「次のお客さん」と30px 以上あける（v509）', await page.evaluate(() => { const f = document.getElementById('rgDoneFix').getBoundingClientRect(), n = document.querySelector('#rgDoneOverlay .rg-btn.pri').getBoundingClientRect(); return f.top - n.bottom >= 30; }), true);
   await page.evaluate(() => rgDoneClose()); await w(200);
   await page.evaluate(() => rgOpenHist()); await w(200);
   check('  履歴の会計に「訂正」ボタン', await page.evaluate(() => document.querySelector('.rg-sale .f button.fix').textContent), '訂正');
