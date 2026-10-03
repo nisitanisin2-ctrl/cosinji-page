@@ -8442,7 +8442,7 @@ async function runAppIconPwa(browser) {
 }
 async function runRegi(browser) {
   const { ctx, page, errs, dialogs } = await newPage(browser);
-  console.log('\n── 🛍即売レジ（v499〜v503） ──');
+  console.log('\n── 🛍即売レジ（v499〜v504） ──');
   const w = ms => page.waitForTimeout(ms);
   check('  開くまでは読まない・道具とマイキーにある・単独アプリの入口', await page.evaluate(() => !window.REGI_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'regi') + '/' + !!KEY_FUNCS.a_regi) + '/' + require('fs').existsSync(require('path').join(ROOT, 'apps', 'regi', 'manifest.json')), 'true/true/true/true');
   await page.evaluate(() => openRegi()); await w(400);
@@ -8630,7 +8630,9 @@ async function runRegi(browser) {
   check('  レシート：内税・外税がまざった会計', await page.evaluate(id => { const h = rgReceiptHtml(id); return h.includes('領収証') + '/' + h.includes('10%対象（内税）') + '/' + h.includes('消費税（外税）') + '/' + h.includes('（内消費税）'); }, mixId), 'true/true/true/true');
   await page.evaluate(() => { window.print = () => { window.__pr = (window.__pr || 0) + 1; }; });
   await page.evaluate(id => { rgAdd(id); rgAdd(id); rgSetPaid(1000); rgPay(); }, ids3[0]); await w(250);
-  await page.click('#rgRcBtn'); await w(400);
+  await page.click('#rgRcBtn'); await w(300);
+  check('  印刷の前の窓（宛名・敬称・但し書き・見本）', await page.evaluate(() => isDlgOpen('rgRcOverlay') + '/' + !!document.getElementById('rgRcAtena') + '/' + [...document.querySelectorAll('#rgRcKei button')].map(b => b.textContent).join(',') + '/' + !!document.querySelector('#rgRcPrev .rcpt') + '/' + document.querySelector('#rgRcPrev .rcpt').textContent.includes('様')), 'true/true/様,御中,なし/true/false');
+  await page.click('#rgRcPrint'); await w(400);
   check('  会計のあと「🧾 レシートを印刷」（58mm・お釣りまで）', await page.evaluate(() => window.__pr + '/' + document.getElementById('printDynamicStyle').textContent.includes('size: 58mm') + '/' + document.querySelector('#printArea .rcpt').textContent.includes('お釣り¥400') + '/' + document.querySelector('#printArea .rcpt').textContent.includes('No.' + rgState().rg.sales.slice(-1)[0].no)), '1/true/true/true');
   await page.evaluate(() => rgDoneClose()); await w(200);
   await page.click('#rgSetBtn'); await w(250);
@@ -8640,11 +8642,19 @@ async function runRegi(browser) {
   check('  設定を覚える', await page.evaluate(() => { const r = JSON.parse(localStorage.getItem('excalc_regi_ui')).rc; return r.w + '/' + r.shop + '/' + r.tno; }), 'a4/テスト商店/T1234567890123');
   await page.evaluate(() => closeDlg('rgSetOverlay')); await w(250);
   await page.evaluate(() => rgOpenHist()); await w(200);
-  await page.click('.rg-sale .f button.rc'); await w(400);
-  check('  履歴からも印刷（A4・店の名前・登録番号）', await page.evaluate(() => window.__pr + '/' + document.getElementById('printDynamicStyle').textContent.includes('A4') + '/' + document.querySelector('#printArea .rcpt').textContent.includes('テスト商店') + '/' + document.querySelector('#printArea .rcpt').textContent.includes('登録番号 T1234567890123')), '2/true/true/true');
+  await page.click('.rg-sale .f button.rc'); await w(300);
+  await page.fill('#rgRcAtena', 'テスト工務店'); await page.click('#rgRcKei [data-v="御中"]'); await page.fill('#rgRcTadashi', '文具代'); await w(100);
+  check('  宛名を入れると見本が領収書の形に', await page.evaluate(() => { const t = document.querySelector('#rgRcPrev .atena').textContent + '/' + document.querySelector('#rgRcPrev .rcpt').textContent.includes('但し 文具代として'); return t; }), 'テスト工務店御中/true');
+  await page.click('#rgRcPrint'); await w(400);
+  check('  宛名は会計に残り、印刷にも入る', await page.evaluate(() => { const s = rgState().rg.sales.slice(-1)[0]; return s.atena + '/' + s.keisho + '/' + s.tadashi + '/' + document.querySelector('#printArea .atena').textContent + '/' + document.querySelector('#printArea .amt').textContent + '/' + document.querySelector('.rg-sale .f button.rc').textContent; }), 'テスト工務店/御中/文具代/テスト工務店御中/¥600−/🧾 領収書');
+  await page.click('.rg-sale .f button.rc'); await w(300);
+  check('  印刷し直すときは前の宛名が入っている・候補にも出る', await page.evaluate(() => document.getElementById('rgRcAtena').value + '/' + document.querySelector('#rgRcKei .on').dataset.v + '/' + document.querySelectorAll('#rgRcNames option').length), 'テスト工務店/御中/1');
+  await page.fill('#rgRcAtena', ''); await page.click('#rgRcPrint'); await w(400);
+  check('  宛名を消すとレシートに戻る', await page.evaluate(() => (rgState().rg.sales.slice(-1)[0].atena === undefined) + '/' + !document.querySelector('#printArea .atena')), 'true/true');
+  check('  履歴からも印刷（A4・店の名前・登録番号）', await page.evaluate(() => window.__pr + '/' + document.getElementById('printDynamicStyle').textContent.includes('A4') + '/' + document.querySelector('#printArea .rcpt').textContent.includes('テスト商店') + '/' + document.querySelector('#printArea .rcpt').textContent.includes('登録番号 T1234567890123')), '3/true/true/true');
   await page.evaluate(() => { closeDlg('rgHistOverlay'); rgRcSet('auto', true); }); await w(250);
   await page.evaluate(id => { rgAdd(id); rgPay(); }, ids3[0]); await w(500);
-  check('  会計のたびに自動で印刷', await page.evaluate(() => window.__pr), 3);
+  check('  会計のたびに自動で印刷（窓を出さずに）', await page.evaluate(() => window.__pr + '/' + isDlgOpen('rgRcOverlay')), '4/false');
   await page.evaluate(() => { rgRcSet('auto', false); rgDoneClose(); }); await w(200);
   await page.evaluate(() => window.history.back()); await w(400);
   check('  戻るで閉じる', await page.evaluate(() => isDlgOpen('regiOverlay')), false);

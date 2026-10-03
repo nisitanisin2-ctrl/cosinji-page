@@ -1,4 +1,4 @@
-/* 🛍 即売レジ（v503。表電卓の道具。apps/regi/ から単独のアプリとしても開ける。はじめて開いたときに読む）
+/* 🛍 即売レジ（v504。表電卓の道具。apps/regi/ から単独のアプリとしても開ける。はじめて開いたときに読む）
    フリマ・お祭り・即売会で使う、かんたんなレジ。
    ・商品（写真・名前・値段・在庫）を登録 → レジの画面で商品を押すと1つずつ足す → 合計・値引き →
      預かった金額を入れるとお釣り → 「会計する」で販売の記録に残し、在庫を減らす。
@@ -11,6 +11,7 @@
    ・売り出しの保存（v501）：いまの商品（写真・値段・最初の在庫）を名前を付けて残し、次の売り出しで呼び出す。excalc_regi_sets（写真は同じ物を1つにまとめて持つ）。
    ・消費税（v502）：⚙ 設定で「計算する」にすると、値段が税込（内税）か税別（外税）か・標準の税率（1・8・10%・任意）・端数を決め、
      商品ごとに税率と内税・外税を選べる（決めていない商品は設定の標準）。会計の終わりと履歴・Excel に、税率ごとの税別価格と消費税額を出す。
+   ・領収書の宛名（v504）：印刷の前の窓で宛名・敬称（様・御中）・但し書きを入れる（会計に残るので印刷し直しても同じ）。
    ・レシート（v503）：会計のあと・履歴から印刷（紙の幅 58mm・80mm・A4）。店の名前・住所・電話・登録番号・ひとことは ⚙ 設定。
    ・入れたものは端末の中だけ（excalc_regi）。写真は小さくして保存する。 */
 (function(){
@@ -189,11 +190,14 @@ function rgReceiptHtml(s){
 .rcpt .c{ text-align:center; } .rcpt .shop{ font-size:${fs+5}px; font-weight:bold; margin-bottom:2px; } .rcpt .ttl{ font-size:${fs+2}px; font-weight:bold; letter-spacing:.3em; margin:4px 0; }
 .rcpt .sm{ font-size:${fs-1}px; } .rcpt .r{ display:flex; justify-content:space-between; gap:6px; } .rcpt .r span:last-child{ white-space:nowrap; text-align:right; }
 .rcpt hr{ border:0; border-top:1px dashed #000; margin:4px 0; } .rcpt .it .nm{ font-weight:bold; word-break:break-all; } .rcpt .it .nm small{ font-weight:normal; }
+.rcpt .atena{ margin:6px 0 4px; padding:0 0 1px; border-bottom:1px solid #000; font-size:${fs+3}px; font-weight:bold; display:flex; justify-content:space-between; gap:6px; word-break:break-all; } .rcpt .atena span{ font-weight:normal; white-space:nowrap; }
+.rcpt .amt{ font-size:${fs+8}px; font-weight:bold; margin:2px 0; } .rcpt .amt small{ font-size:${fs+2}px; }
 .rcpt .tot{ font-size:${fs+5}px; font-weight:bold; } .rcpt .void{ border:2px solid #000; text-align:center; font-weight:bold; margin:4px 0; padding:2px; }
 </style>
   <div class="c shop">${e(c.shop||rg.ev.name||'即売レジ')}</div>${c.shop&&rg.ev.name?`<div class="c sm">${e(rg.ev.name)}</div>`:''}
   ${c.addr?`<div class="c sm">${e(c.addr)}</div>`:''}${c.tel?`<div class="c sm">TEL ${e(c.tel)}</div>`:''}${c.tno?`<div class="c sm">登録番号 ${e(c.tno)}</div>`:''}
   <div class="c ttl">領収証</div>
+  ${s.atena?`<div class="atena">${e(s.atena)}<span>${e(s.keisho==null?'様':s.keisho)}</span></div><div class="c amt">${yen(s.total)}<small>−</small></div><div class="c sm">但し ${e(s.tadashi||'お品代')}として<br>上記正に領収いたしました</div>`:''}
   ${row(stamp(s.t), 'No.'+s.no,'sm')}
   ${s.void?'<div class="void">取り消した会計です</div>':''}<hr>${lines}<hr>
   ${row('小計（'+qty+'点）', yen(s.sub))}${s.disc?row('値引き','−'+yen(s.disc)):''}${outTax?row('消費税（外税）','＋'+yen(outTax)):''}
@@ -201,6 +205,28 @@ function rgReceiptHtml(s){
   ${row('お預かり', yen(s.paid))}${row('お釣り', yen(s.change))}
   ${s.ldisc||s.disc?row('（値引きの合計', '−'+yen((s.ldisc||0)+(s.disc||0))+'）','sm'):''}
   ${c.note?`<hr><div class="c">${e(c.note)}</div>`:''}</div>`;
+}
+/* 印刷の前の窓：宛名・敬称・但し書き（空なら宛名なしのレシート）と見本 */
+let rgRcId=null;
+function rgOpenRc(id){
+  const s=rg.sales.find(x=>x.id===(id||rgLast)); if(!s){ toast('印刷する会計がありません'); return; } rgRcId=s.id;
+  const names=[...new Set(rg.sales.map(x=>x.atena).filter(Boolean))].slice(-30);
+  const k=s.keisho==null?'様':s.keisho;
+  $('rgRcBody').innerHTML=`<div class="rg-form"><label>宛名（なくてもよい。入れると領収書の形）<input id="rgRcAtena" list="rgRcNames" value="${esc(s.atena||'')}" placeholder="例：○○株式会社" oninput="rgRcPrev()"></label>
+    <datalist id="rgRcNames">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist></div>
+    <div class="rg-seg" id="rgRcKei">${[['様','様'],['御中','御中'],['','なし']].map(o=>`<button type="button" class="${k===o[0]?'on':''}" data-v="${o[0]}" onclick="this.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===this));rgRcPrev()">${o[1]}</button>`).join('')}</div>
+    <div class="rg-form"><label>但し書き（○○代として）<input id="rgRcTadashi" value="${esc(s.tadashi||'')}" placeholder="お品代" oninput="rgRcPrev()"></label></div>
+    <div class="rg-rcprev" id="rgRcPrev"></div>
+    <div class="rg-row"><button class="rg-btn" onclick="closeDlg('rgRcOverlay')">やめる</button><button class="rg-btn pri" id="rgRcPrint" onclick="rgRcGo()">🧾 印刷する</button></div>`;
+  if(!isDlgOpen('rgRcOverlay')) openDlg('rgRcOverlay');
+  rgRcPrev();
+}
+function rgRcFields(){ const kb=document.querySelector('#rgRcKei button.on'); return {atena:$('rgRcAtena').value.trim().slice(0,60), keisho:kb?kb.dataset.v:'様', tadashi:$('rgRcTadashi').value.trim().slice(0,40)}; }
+function rgRcPrev(){ const s=rg.sales.find(x=>x.id===rgRcId); if(!s) return; $('rgRcPrev').innerHTML=rgReceiptHtml(Object.assign({}, s, rgRcFields())); }
+function rgRcGo(){
+  const s=rg.sales.find(x=>x.id===rgRcId); if(!s) return; const f=rgRcFields();
+  if(f.atena){ Object.assign(s, f); } else { delete s.atena; delete s.keisho; delete s.tadashi; }
+  rgSave(); closeDlg('rgRcOverlay'); if(isDlgOpen('rgHistOverlay')) rgRenderHist(); rgPrintReceipt(s.id);
 }
 function rgPrintReceipt(id){
   const s=rg.sales.find(x=>x.id===(id||rgLast)); if(!s){ toast('印刷する会計がありません'); return; }
@@ -426,7 +452,7 @@ function rgRenderHist(){
   <div class="rg-sales">${rg.sales.slice().reverse().map(s=>`<div class="rg-sale${s.void?' void':''}"><div class="h"><b>No.${s.no}</b><span>${stamp(s.t)}</span><b class="t">${yen(s.total)}</b></div>
     <div class="l">${s.lines.map(l=>`${esc(l.name)} ×${l.qty}${l.orig>l.price?`（${yen(l.orig)}→${yen(l.price)}）`:''}`).join('、')}${s.disc?`（値引き −${yen(s.disc)}）`:''}</div>
     ${s.tax?`<div class="x">${s.tax.rows.map(x=>`${taxLabel(x,s.tax.rows)} ${yen(x.amt)}（税別 ${yen(x.base)}・消費税 ${yen(x.tax)}）`).join('　')}</div>`:''}
-    <div class="f">預かり ${yen(s.paid)}・お釣り ${yen(s.change)}<button class="rc" onclick="rgPrintReceipt('${s.id}')">🧾 レシート</button>${s.void?'　<b>取り消し済み</b>':`<button onclick="rgVoid('${s.id}')">取り消す</button>`}</div></div>`).join('')||'<div class="rg-hint">まだ会計はありません</div>'}</div>`;
+    <div class="f">預かり ${yen(s.paid)}・お釣り ${yen(s.change)}<button class="rc" onclick="rgOpenRc('${s.id}')">🧾 ${s.atena?'領収書':'レシート'}</button>${s.void?'　<b>取り消し済み</b>':`<button onclick="rgVoid('${s.id}')">取り消す</button>`}</div></div>`).join('')||'<div class="rg-hint">まだ会計はありません</div>'}</div>`;
 }
 function rgVoid(id){
   const s=rg.sales.find(x=>x.id===id); if(!s||s.void) return;
@@ -499,6 +525,7 @@ const RG_CSS=`
 .rg-line .n i.rt{ font-style:normal; font-size:10.5px; font-weight:bold; color:#1e88e5; margin-left:4px; } .rg-total small.tx{ color:#1e88e5; }
 .rg-done-tax{ text-align:left; margin:0 0 12px; font-size:13px; } .rg-done-tax>b{ display:block; margin-bottom:4px; color:#1e88e5; } .rg-taxt td,.rg-taxt th{ font-size:13px; } .rg-taxt tr.sum td{ font-weight:bold; }
 .rg-sale .x{ font-size:12px; color:#1e88e5; margin:1px 0; }
+.rg-rcprev{ margin:10px 0; padding:8px 0; background:#e9ecf1; border-radius:10px; overflow:auto; max-height:46vh; } .rg-rcprev .rcpt{ box-shadow:0 1px 4px rgba(0,0,0,.25); }
 .rg-seg{ display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 6px; } .rg-seg button{ flex:1 1 auto; min-width:60px; height:42px; padding:0 10px; border-radius:10px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:14px; font-weight:bold; cursor:pointer; } .rg-seg button.on{ background:#fb8c00; border-color:#fb8c00; color:#fff; }
 .rg-tile{ position:relative; display:flex; flex-direction:column; align-items:stretch; padding:0 0 6px; border-radius:12px; border:2px solid rgba(120,132,156,.3); background:var(--modal-bg,#fff); color:var(--text,#222); cursor:pointer; overflow:hidden; text-align:center; touch-action:manipulation; }
 .rg-tile:active{ transform:scale(.97); }
@@ -598,7 +625,8 @@ function rgEnsureDom(){
   <div class="rg-cropz"><span>小</span><input type="range" id="rgCropZ" min="1" max="6" step="0.01" value="1" oninput="rgCropZoom(this.value)"><span>大</span></div>
   <div class="rg-hint">指で動かして位置を合わせます。つまみ（2本指）で大きくできます。</div>
   <div class="rg-row"><button class="rg-btn" onclick="closeDlg('rgCropOverlay')">やめる</button><button class="rg-btn pri" id="rgCropOkBtn" onclick="rgCropOk()">✓ この四角で使う</button></div></div></div></div>
-<div class="modal-overlay" id="rgDoneOverlay" onclick="if(event.target===this)rgDoneClose()"><div class="modal"><div class="modal-header"><span>✓ 会計しました</span><button class="modal-close" onclick="rgDoneClose()" aria-label="閉じる">✕</button></div><div class="rg-body"><div id="rgDoneBody"></div><button class="rg-btn wide" id="rgRcBtn" onclick="rgPrintReceipt()">🧾 レシートを印刷</button><button class="rg-btn pri wide" onclick="rgDoneClose()">次のお客さん</button></div></div></div>`;
+<div class="modal-overlay" id="rgDoneOverlay" onclick="if(event.target===this)rgDoneClose()"><div class="modal"><div class="modal-header"><span>✓ 会計しました</span><button class="modal-close" onclick="rgDoneClose()" aria-label="閉じる">✕</button></div><div class="rg-body"><div id="rgDoneBody"></div><button class="rg-btn wide" id="rgRcBtn" onclick="rgOpenRc()">🧾 レシート・領収書を印刷</button><button class="rg-btn pri wide" onclick="rgDoneClose()">次のお客さん</button></div></div></div>
+<div class="modal-overlay" id="rgRcOverlay" onclick="if(event.target===this)closeDlg('rgRcOverlay')"><div class="modal"><div class="modal-header"><span>🧾 レシート・領収書</span><button class="modal-close" onclick="closeDlg('rgRcOverlay')" aria-label="閉じる">✕</button></div><div class="rg-body" id="rgRcBody"></div></div></div>`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
   rgCropBind();
   const gw=document.querySelector('#regiOverlay .rg-gridwrap');
@@ -613,11 +641,11 @@ function openRegi(){
   rgEnsureDom(); rgLoad(); rgUiLoad(); cart=[]; odReset();
   openDlg('regiOverlay'); rgRefresh(); rgHeader(); setTimeout(rgGridLayout, 60);
 }
-function closeRegi(){ if(!$('regiOverlay')||!isDlgOpen('regiOverlay')) return; if(cart.length && !confirm('会計していない注文があります。閉じますか？（注文は消えます）')) return; ['rgDoneOverlay','rgSetOverlay','rgCropOverlay','rgDiscOverlay','rgEditOverlay','rgItemsOverlay','rgHistOverlay'].forEach(id=>{ if(isDlgOpen(id)) closeDlg(id); }); closeDlg('regiOverlay'); }
+function closeRegi(){ if(!$('regiOverlay')||!isDlgOpen('regiOverlay')) return; if(cart.length && !confirm('会計していない注文があります。閉じますか？（注文は消えます）')) return; ['rgRcOverlay','rgDoneOverlay','rgSetOverlay','rgCropOverlay','rgDiscOverlay','rgEditOverlay','rgItemsOverlay','rgHistOverlay'].forEach(id=>{ if(isDlgOpen(id)) closeDlg(id); }); closeDlg('regiOverlay'); }
 const _ref=rgRefresh; rgRefresh=function(){ _ref(); rgHeader(); };
 
 Object.assign(window, { openRegi, closeRegi, rgAdd, rgQty, rgClearCart, rgSetPaid, rgDisc, rgOdType, rgOdSet, rgOdRound, rgLinePrice, rgLineQuick, rgCropZoom, rgCropOk, rgPay, rgDoneClose, rgCartRender:rgRenderCart,
   rgOpenItems, rgEditItem, rgSaveItem, rgDelItem, rgPhotoIn, rgPhotoClear, rgMove, rgEvSet, rgNewEvent, rgExportItems, rgImportItems,
-  rgOpenHist, rgVoid, rgExportXlsx, $rg:$, rgOpenSet, rgUiSet, rgPrintReceipt, rgRcSet, rgReceiptHtml:id=>rgReceiptHtml(rg.sales.find(x=>x.id===id)), rgRc:()=>Object.assign({},ui.rc), rgTaxSet, rgRatePick, rgModePick, rgTax:()=>JSON.parse(JSON.stringify(Object.assign({}, ui.tax, {calc:taxCalc()}))), rgSetSave, rgSetLoad, rgSetDel, rgUi:()=>({size:ui.size, dir:ui.dir, rows:ui.rows}), rgSets:()=>rgSetsLoad(),
+  rgOpenHist, rgVoid, rgExportXlsx, $rg:$, rgOpenSet, rgUiSet, rgPrintReceipt, rgRcSet, rgOpenRc, rgRcPrev, rgRcGo, rgReceiptHtml:id=>rgReceiptHtml(rg.sales.find(x=>x.id===id)), rgRc:()=>Object.assign({},ui.rc), rgTaxSet, rgRatePick, rgModePick, rgTax:()=>JSON.parse(JSON.stringify(Object.assign({}, ui.tax, {calc:taxCalc()}))), rgSetSave, rgSetLoad, rgSetDel, rgUi:()=>({size:ui.size, dir:ui.dir, rows:ui.rows}), rgSets:()=>rgSetsLoad(),
   rgState:()=>JSON.parse(JSON.stringify({rg, cart, od, disc:orderDisc(), ldisc:lineDisc(), total:total(), crop:rgCrop?{w:rgCrop.w,h:rgCrop.h,z:rgCrop.z,cx:rgCrop.cx,cy:rgCrop.cy}:null})), rgXlsxRows:()=>rgXlsxSheets().map(x=>x[0]), rgBuildXlsx });
 })();
