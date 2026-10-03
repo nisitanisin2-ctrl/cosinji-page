@@ -8180,6 +8180,7 @@ async function runKurashi(browser) {
   check('  テーマを押すと一覧（道具は下に分けて）', await page.evaluate(() => isDlgOpen('krCatOverlay') + '/' + document.getElementById('krCatHdr').textContent + '/' + [...document.querySelectorAll('#krCatBody .kr-it')][0].dataset.id + '/' + document.getElementById('krCatBody').textContent.includes('道具・チェック表')), 'true/🕊 身内が亡くなったとき/shibo-chokugo/true');
   await page.click('#krCatBody .kr-it[data-id="shibo-todoke"]'); await w(300);
   check('  一覧から押すとくわしいページ', await page.evaluate(() => isDlgOpen('krViewOverlay') + '/' + document.getElementById('krViewBody').textContent.includes('7日以内')), 'true/true');
+  check('  テーマの一覧・くわしいページは全画面（v511）', await page.evaluate(() => ['krCatOverlay', 'krViewOverlay'].map(o => { const m = document.querySelector('#' + o + ' .modal'), r = m.getBoundingClientRect(); return m.classList.contains('modal-full') && Math.round(r.width) === innerWidth && Math.round(r.height) === innerHeight; }).join('/')), 'true/true');
   await page.evaluate(() => window.history.back()); await w(400);
   check('  戻るでページ → 一覧へ', await page.evaluate(() => isDlgOpen('krViewOverlay') + '/' + isDlgOpen('krCatOverlay')), 'false/true');
   await page.evaluate(() => window.history.back()); await w(400);

@@ -711,6 +711,8 @@ const KR_CSS=`
 .kr-cathd{ display:flex; align-items:center; gap:10px; padding:12px; margin:4px 0 10px; border-radius:12px; background:color-mix(in srgb, var(--c) 12%, transparent); }
 .kr-cathd .ic{ font-size:34px; } .kr-cathd p{ margin:0; font-size:13px; line-height:1.6; }
 .kr-empty{ text-align:center; color:var(--text-light,#888); padding:28px 12px; line-height:1.8; }
+/* カテゴリと中を読む窓は全画面で（v511） */
+#krCatOverlay .modal,#krViewOverlay .modal{ display:flex; flex-direction:column; } #krCatOverlay .kr-body,#krViewOverlay .kr-body{ flex:1; min-height:0; }
 .kr-body{ padding:10px 14px calc(16px + var(--safe-bottom,0px)); overflow:auto; font-size:15px; line-height:1.75; color:var(--text,#222); }
 .kr-body h4{ font-size:15px; color:var(--acc); margin:16px 0 6px; border-left:4px solid var(--acc); padding-left:8px; }
 .kr-body p{ margin:6px 0; } .kr-body a{ color:var(--acc); font-weight:bold; }
@@ -770,11 +772,11 @@ function krEnsureDom(){
   </div>
 </div>
 <div class="modal-overlay" id="krCatOverlay" onclick="if(event.target===this)krCloseCat()">
-  <div class="modal"><div class="modal-header"><span id="krCatHdr"></span><button class="modal-close" onclick="krCloseCat()" aria-label="閉じる">✕</button></div>
+  <div class="modal modal-full"><div class="modal-header"><span id="krCatHdr"></span><button class="modal-close" onclick="krCloseCat()" aria-label="閉じる">✕</button></div>
     <div class="kr-body" id="krCatBody"></div></div>
 </div>
 <div class="modal-overlay" id="krViewOverlay" onclick="if(event.target===this)krCloseView()">
-  <div class="modal"><div class="modal-header"><span id="krViewHdr"></span><button class="modal-close" onclick="krCloseView()" aria-label="閉じる">✕</button></div>
+  <div class="modal modal-full"><div class="modal-header"><span id="krViewHdr"></span><button class="modal-close" onclick="krCloseView()" aria-label="閉じる">✕</button></div>
     <div class="kr-body" id="krViewBody"></div></div>
 </div>`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
