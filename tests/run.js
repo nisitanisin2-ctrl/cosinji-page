@@ -8342,6 +8342,22 @@ async function runKeisan(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runDefMk(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 設定の行数・列数をデフォルトに（v495） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => toggleSettings()); await w(400);
+  check('  いまのデフォルトを出す', await page.evaluate(() => document.getElementById('defSizeNow').textContent), 'いまのデフォルト：15行×3列（この表と同じ）');
+  await page.evaluate(() => { changeRows(5); changeCols(2); }); await w(200);
+  check('  ＋で変えると「同じ」が消える', await page.evaluate(() => document.getElementById('defSizeNow').textContent), 'いまのデフォルト：15行×3列');
+  await page.click('#setPage0 .defsize-mk'); await w(200);
+  check('  押すといまの大きさがデフォルトに', await page.evaluate(() => localStorage.getItem('excalc_default_rows') + 'x' + localStorage.getItem('excalc_default_cols') + '/' + document.getElementById('defSizeNow').textContent), '20x5/いまのデフォルト：20行×5列（この表と同じ）');
+  await page.evaluate(() => { changeRows(-10); changeCols(-3); applyDefaultSize(); }); await w(300);
+  check('  ▦既定の大きさに戻すと 20行×5列', await page.evaluate(() => ROWS + 'x' + COLS), '20x5');
+  check('  かんたん表示にも同じボタン', await page.evaluate(() => !!document.querySelector('#setEasy .defsize-mk') + '/' + document.getElementById('ezDefSizeNow').textContent.includes('20行×5列')), 'true/true');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runUiMode(browser) {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true });
   const page = await ctx.newPage();
@@ -9578,6 +9594,7 @@ async function runQrShare(browser) {
     if (!only || only === 'kurashi') await runKurashi(browser);
     if (!only || only === 'volshape') await runVolShape(browser);
     if (!only || only === 'keisan') await runKeisan(browser);
+    if (!only || only === 'defmk') await runDefMk(browser);
     if (!only || only === 'uimode') await runUiMode(browser);
     if (!only || only === 'toolsfab') await runToolsFab(browser);
     if (!only || only === 'techoapp') await runTechoApp(browser);

@@ -1817,6 +1817,10 @@ body.calc-only #numpadPageSci .btn[data-key="dk_dec"] { grid-column: span 2; }
   background: var(--acc); color: #fff; cursor: pointer; touch-action: manipulation;
 }
 .regpick-save:hover { background: var(--acc-light); }
+/* 設定の「この行数・列数をデフォルトにする」（v495） */
+.defsize-mk { width: 100%; margin-top: 6px; }
+.defsize-mk.same { opacity: .6; }
+.defsize-now { margin-top: 4px; }
 /* デフォルト行数・列数の設定ダイアログ */
 .defsize-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; color: var(--text); font-size: 15px; font-weight: bold; }
 .defsize-input { width: 90px; padding: 9px 10px; font-size: 17px; text-align: center; border: 1px solid var(--save-item-border); border-radius: var(--r-btn); background: var(--cell-bg, #fff); color: var(--text); }
@@ -3989,6 +3993,7 @@ body.dark {
         <span class="set-stepper"><button class="step-btn" onclick="changeRows(-1);ezSync()">−</button><span class="sc-val" id="ezRows"></span><button class="step-btn" onclick="changeRows(1);ezSync()">＋</button></span></div>
       <div class="set-row"><span class="set-label">表の列の数</span>
         <span class="set-stepper"><button class="step-btn" onclick="changeCols(-1);ezSync()">−</button><span class="sc-val" id="ezCols"></span><button class="step-btn" onclick="changeCols(1);ezSync()">＋</button></span></div>
+      <button class="set-act defsize-mk" onclick="setSizeAsDefault()" title="いまの行数・列数を、新しい表や ▦通常 に戻したときの大きさにします">📌 この行数・列数をデフォルトにする</button><div class="set-note defsize-now" id="ezDefSizeNow"></div>
       <div class="set-row"><span class="set-label">アプリを開いたとき</span>
         <select class="fmt-select" id="ezStartSel" onchange="setStartPage(this.value);ezSync()" style="flex-shrink:0"></select></div>
       <button class="set-act ez-all" id="ezAllBtn" onclick="toggleAllSettings()">⚙ すべての設定を見る</button>
@@ -4016,6 +4021,7 @@ body.dark {
       <span class="set-label">列の数</span>
       <span class="set-stepper"><button class="step-btn" onclick="changeCols(-1)">−</button><span class="sc-val" id="colCount">3</span><button class="step-btn" onclick="changeCols(1)">＋</button></span>
     </div>
+    <button class="set-act defsize-mk" onclick="setSizeAsDefault()" title="いまの行数・列数を、新しい表や ▦通常 に戻したときの大きさにします">📌 この行数・列数をデフォルトにする</button><div class="set-note defsize-now" id="defSizeNow"></div>
     <div class="set-note">行や列を1本ずつ足す・消すときは、<b>行番号（1・2・3…）や列名（A・B・C…）を長押し</b>すると、上下・左右のどちらに足すかを選べます。</div>
     <div class="set-sec">セルの操作</div>
     <div class="skin-seg" id="cellGestureSeg">
@@ -9068,6 +9074,8 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v495', t:'行数・列数をデフォルトにするボタン', li:[
+    '⚙設定 → 📐表 の「行と列の数」に<b>「📌 この行数・列数をデフォルトにする」</b>。＋−で決めた大きさが、そのまま<b>新しい表や ▦通常 に戻したときの大きさ</b>になります（いまのデフォルトも下に出ます）' ]},
   { v:'v494', t:'道具に「🔢 便利計算」', li:[
     '新しい道具<b>「🔢 便利計算」</b>。ひな形の計算のうち、よく使う8つを専用の画面にしました：<b>📏単位換算・🏠ローン返済・💴給料と手取り・🏦積立と資産・🛒お買い物と値引き・📅日付と時間・📐勾配と三角・🚗ドライブ費用と電気代</b>',
     '単位換算は1つ入れると<b>関係する単位を全部一覧</b>（尺・坪・升・貫も）。ローンは<b>返済表と繰上げ返済</b>、給料は<b>手取りと年収の壁</b>、積立は<b>グラフと目標からの逆算</b>',
@@ -10834,7 +10842,7 @@ function changeRows(delta) {
   ROWS=next; document.getElementById('rowCount').textContent=ROWS;
   localStorage.setItem('excalc_rows',ROWS);
   buildSheet(); sel(Math.min(selR,ROWS-1),selC);
-  persistModes();
+  persistModes(); updateDefSizeNote();
 }
 function changeCols(delta) {
   const next=COLS+delta; if (next<1||next>MAXCOLS) return;
@@ -10842,7 +10850,7 @@ function changeCols(delta) {
   COLS=next; document.getElementById('colCount').textContent=COLS;
   localStorage.setItem('excalc_cols',COLS);
   buildSheet(); sel(selR,Math.min(selC,COLS-1));
-  persistModes();
+  persistModes(); updateDefSizeNote();
 }
 
 /* ── デフォルトの行数・列数（「▦ デフォルト」ボタン） ── */
@@ -10856,6 +10864,19 @@ function applyDefaultSize(){
   persistModes();
   closeSettingsPanel();   // 規定に戻したら設定を閉じて表を見せる
   toast(`${ROWS}行×${COLS}列にしました`);
+}
+/* 設定の「行と列の数」で決めた大きさを、そのままデフォルトにする（v495） */
+function setSizeAsDefault(){
+  localStorage.setItem('excalc_default_rows',ROWS);
+  localStorage.setItem('excalc_default_cols',COLS);
+  updateDefSizeNote();
+  toast(`デフォルトを${ROWS}行×${COLS}列にしました（新しい表・▦通常 に戻したときの大きさ）`);
+}
+function updateDefSizeNote(){
+  const same=(getDefaultRows()===ROWS && getDefaultCols()===COLS);
+  const t=`いまのデフォルト：<b>${getDefaultRows()}行×${getDefaultCols()}列</b>${same?'（この表と同じ）':''}`;
+  ['defSizeNow','ezDefSizeNow'].forEach(id=>{ const e=document.getElementById(id); if(e) e.innerHTML=t; });
+  document.querySelectorAll('.defsize-mk').forEach(b=>b.classList.toggle('same', same));
 }
 function openDefaultSizeDlg(){
   document.getElementById('defRowsInput').value=getDefaultRows();
@@ -10877,7 +10898,7 @@ function saveDefaultSize(){
   if(isNaN(c)) c=3;  c=Math.max(1,Math.min(MAXCOLS,c));
   localStorage.setItem('excalc_default_rows',r);
   localStorage.setItem('excalc_default_cols',c);
-  closeDefaultSizeDlg();
+  closeDefaultSizeDlg(); updateDefSizeNote();
   toast(`デフォルトを${r}行×${c}列に設定しました`);
 }
 /* タップ＝既定値の設定ダイアログ（v392）。
@@ -21119,7 +21140,7 @@ function ezSync(){
     ? 'テンキーは<b>数字と電卓</b>だけ。キーの長押しは使わず、設定は<b>よく使うものだけ</b>出します'
     : '<b>すべての機能</b>を使えます（書式・枠線のテンキー・キーの長押し・すべての設定）';
   const cp=(a,b)=>{ const x=document.getElementById(a), y=document.getElementById(b); if(x&&y) y.textContent=x.textContent; };
-  cp('keySize','ezKeySize'); cp('rowCount','ezRows'); cp('colCount','ezCols');
+  cp('keySize','ezKeySize'); cp('rowCount','ezRows'); cp('colCount','ezCols'); if(typeof updateDefSizeNote==='function') updateDefSizeNote();
   const d=document.getElementById('ezDark'); if(d) d.textContent=document.body.classList.contains('dark')?'☀ 明るくする':'🌙 夜の色にする';
   const ss=document.getElementById('ezStartSel');
   if(ss && typeof startPageOptions==='function'){ ss.innerHTML=startPageOptions().map(([v,l])=>`<option value="${v}">${escHtml(l)}</option>`).join(''); ss.value=startPage; }
@@ -21414,7 +21435,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v494';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v495';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
