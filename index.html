@@ -9077,6 +9077,8 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v507', t:'🛍即売レジ：訂正をすぐに', li:[
+    '「訂正」を押したときの説明の窓を出さないようにしました。押すとすぐ会計する前の注文に戻ります（注文が入っているときだけ、消してよいか確かめます）。訂正したことは、これまでどおり履歴に残ります' ]},
   { v:'v506', t:'🛍即売レジ：全画面', li:[
     'レジの上の帯の右に<b>「⛶ 全画面」</b>。押すと<b>上の緑のバーが消えて</b>、縦向きでも横向きでも画面いっぱいに使えます（Android などではブラウザの帯も消えます）',
     'もう一度押す（<b>「⤡ 戻す」</b>）と元に戻ります。⚙ 設定や「← もどる」を使うときは、いったん戻してください' ]},
@@ -21566,7 +21568,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v506';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v507';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

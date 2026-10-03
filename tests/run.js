@@ -8665,7 +8665,9 @@ async function runRegi(browser) {
   await page.evaluate(() => rgDoneClose()); await w(200);
   await page.evaluate(() => rgOpenHist()); await w(200);
   check('  履歴の会計に「訂正」ボタン', await page.evaluate(() => document.querySelector('.rg-sale .f button.fix').textContent), '訂正');
+  const nd0 = dialogs.length;
   await page.click('.rg-sale .f button.fix'); await w(300);
+  check('  訂正は確かめの窓を出さずにすぐ戻す（v507）', dialogs.length - nd0, 0);
   check('  訂正すると会計する前の注文に戻る（品・値引き・お預かり・在庫）', await page.evaluate(() => isDlgOpen('rgHistOverlay') + '/' + rgState().cart.map(l => l.name + '×' + l.qty).join(',') + '/' + rgState().od.t + rgState().od.v + '/' + document.getElementById('rgPaid').value + '/' + rgState().rg.items.map(i => i.stock).join(',')), 'false/クッキー×2,ジャム×1/pct10/2000/' + st0);
   check('  訂正した会計は「訂正」として記録に残る', await page.evaluate(id => { const s = rgState().rg.sales.find(x => x.id === id); return s.void + '/' + s.fix + '/' + (s.voidT > 0); }, saleA.id), 'true/true/true');
   await page.evaluate(id => rgQty(id, -1), ids3[1]); await w(50);
