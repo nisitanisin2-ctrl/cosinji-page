@@ -925,6 +925,8 @@ const BK_CSS=`
 .bk-it small{ display:block; font-weight:normal; font-size:12px; color:var(--text-light,#888); margin-top:2px; }
 .bk-it .fv{ flex:none; color:#f9a825; }
 .bk-empty{ text-align:center; color:var(--text-light,#888); padding:28px 12px; line-height:1.8; }
+/* 中を読む窓は全画面で（v510） */
+#bkViewOverlay .modal{ display:flex; flex-direction:column; } #bkViewOverlay .bk-body{ flex:1; min-height:0; }
 .bk-body{ padding:10px 14px calc(16px + var(--safe-bottom,0px)); overflow:auto; font-size:15px; line-height:1.75; color:var(--text,#222); }
 .bk-body h4{ font-size:15px; color:var(--acc); margin:16px 0 6px; border-left:4px solid var(--acc); padding-left:8px; }
 .bk-body p{ margin:6px 0; } .bk-body ol{ padding-left:1.4em; margin:6px 0; } .bk-body li{ margin:3px 0; }
@@ -1008,7 +1010,7 @@ function bkEnsureDom(){
   </div>
 </div>
 <div class="modal-overlay" id="bkViewOverlay" onclick="if(event.target===this)bkCloseView()">
-  <div class="modal"><div class="modal-header"><span id="bkViewHdr">📒</span><button class="modal-close" onclick="bkCloseView()" aria-label="閉じる">✕</button></div>
+  <div class="modal modal-full"><div class="modal-header"><span id="bkViewHdr">📒</span><button class="modal-close" onclick="bkCloseView()" aria-label="閉じる">✕</button></div>
     <div class="bk-body" id="bkViewBody"></div></div>
 </div>`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);

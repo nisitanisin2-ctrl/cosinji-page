@@ -331,6 +331,8 @@ const KS_CSS=`
 .ks-card .no{ position:absolute; top:8px; right:10px; font-size:12px; font-weight:bold; color:var(--c); }
 .ks-card .ic{ font-size:30px; line-height:1.1; } .ks-card b{ font-size:15.5px; } .ks-card small{ font-size:11.5px; line-height:1.45; color:var(--text-light,#777); }
 .ks-card.last{ box-shadow:0 0 0 2px var(--c); }
+/* 中を読む窓は全画面で（v510） */
+#ksViewOverlay .modal{ display:flex; flex-direction:column; } #ksViewOverlay .ks-body{ flex:1; min-height:0; }
 .ks-body{ padding:10px 14px calc(16px + var(--safe-bottom,0px)); overflow:auto; font-size:15px; line-height:1.7; color:var(--text,#222); }
 .ks-body h4{ font-size:15px; color:var(--acc); margin:16px 0 6px; border-left:4px solid var(--acc); padding-left:8px; }
 .ks-body p{ margin:6px 0; }
@@ -376,7 +378,7 @@ function ksEnsureDom(){
   </div>
 </div>
 <div class="modal-overlay" id="ksViewOverlay" onclick="if(event.target===this)ksCloseView()">
-  <div class="modal"><div class="modal-header"><span id="ksViewHdr"></span><button class="modal-close" onclick="ksCloseView()" aria-label="閉じる">✕</button></div>
+  <div class="modal modal-full"><div class="modal-header"><span id="ksViewHdr"></span><button class="modal-close" onclick="ksCloseView()" aria-label="閉じる">✕</button></div>
     <div class="ks-body" id="ksViewBody"></div></div>
 </div>`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
