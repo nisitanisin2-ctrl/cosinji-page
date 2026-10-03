@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,ruler,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,trim,manner,boki,kurashi,keisan,memo,calctmpl,fintmpl,kaikei,koe,eigo');
+    'tansui,kantab,veggie,volume,ruler,photomemo,linklist,touban,techo,subsc,heya,annai,regi,shimai,meishi,trim,manner,boki,kurashi,keisan,memo,calctmpl,fintmpl,kaikei,koe,eigo');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -3086,11 +3086,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,photomemo,linklist,touban,techo,subsc,heya,annai,shimai,meishi,trim,manner,boki,kurashi,keisan,calctmpl,fintmpl');
+    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,photomemo,linklist,touban,techo,subsc,heya,annai,regi,shimai,meishi,trim,manner,boki,kurashi,keisan,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 25);   // v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規 を足した
+    document.getElementById('startPageSel').options.length), 26);   // v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'veggieOverlay', 'volumeOverlay',
@@ -8440,6 +8440,67 @@ async function runAppIconPwa(browser) {
     await ctx.close();
   }
 }
+async function runRegi(browser) {
+  const { ctx, page, errs, dialogs } = await newPage(browser);
+  console.log('\n── 🛍即売レジ（v499） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキーにある・単独アプリの入口', await page.evaluate(() => !window.REGI_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'regi') + '/' + !!KEY_FUNCS.a_regi) + '/' + require('fs').existsSync(require('path').join(ROOT, 'apps', 'regi', 'manifest.json')), 'true/true/true/true');
+  await page.evaluate(() => openRegi()); await w(400);
+  check('  商品がないときは登録へ案内', await page.evaluate(() => document.getElementById('rgGrid').textContent.includes('商品を登録する')), true);
+  // 商品の登録（写真つき）
+  const add = async (n, pr, st, nost) => { await page.evaluate(() => rgEditItem()); await w(80); await page.fill('#rgEName', n); await page.fill('#rgEPrice', String(pr)); await page.fill('#rgEStock', String(st)); if (nost) await page.check('#rgENoStock'); await page.evaluate(() => rgSaveItem()); await w(80); };
+  await page.evaluate(() => rgOpenItems()); await w(150);
+  await page.evaluate(() => rgEditItem()); await w(80);
+  await page.evaluate(() => new Promise(r => { const c = document.createElement('canvas'); c.width = 800; c.height = 600; c.getContext('2d').fillRect(0, 0, 800, 600); c.toBlob(b => { const f = new File([b], 'a.png', { type: 'image/png' }); const dt = new DataTransfer(); dt.items.add(f); const i = document.getElementById('rgPick'); i.files = dt.files; i.dispatchEvent(new Event('change')); setTimeout(r, 400); }); }));
+  check('  写真は小さくして入れる（320px・JPEG）', await page.evaluate(() => new Promise(r => { const im = new Image(); im.onload = () => r(Math.max(im.width, im.height) + '/' + im.src.startsWith('data:image/jpeg')); im.src = document.querySelector('#rgEPhoto img').src; })), '320/true');
+  await page.fill('#rgEName', 'クッキー'); await page.fill('#rgEPrice', '300'); await page.fill('#rgEStock', '20'); await page.evaluate(() => rgSaveItem()); await w(80);
+  await add('ジャム', 500, 2); await add('しおり', 150, 30); await add('ドリンク', 200, 0, true);
+  check('  登録した商品（在庫・在庫を数えない）', await page.evaluate(() => rgState().rg.items.map(i => i.name + ':' + i.price + ':' + i.stock + (i.noStock ? '*' : '') + (i.photo ? 'p' : '')).join(',')), 'クッキー:300:20p,ジャム:500:2,しおり:150:30,ドリンク:200:0*');
+  await page.evaluate(() => closeDlg('rgItemsOverlay')); await w(300);
+  // 注文
+  const ids = await page.evaluate(() => rgState().rg.items.map(i => i.id));
+  for (const i of [0, 0, 0, 1, 2, 3]) await page.click(`#rgGrid .rg-tile[data-id="${ids[i]}"]`);
+  check('  押すと1つずつ入り、合計', await page.evaluate(() => document.getElementById('rgTotal').textContent), '合計 ¥1,7506点');
+  check('  タイルに個数と残り', await page.evaluate(id => document.querySelector(`.rg-tile[data-id="${id}"] .q`).textContent + '/' + document.querySelector(`.rg-tile[data-id="${id}"] .st`).textContent, ids[0]), '3/残り 17');
+  await page.evaluate(id => rgQty(id, -1), ids[0]);
+  check('  − で減らす', await page.evaluate(() => document.getElementById('rgTotal').textContent), '合計 ¥1,4505点');
+  await page.click('.rg-quick button:nth-child(2)'); await w(50);
+  check('  お預かり ¥1,000 だと足りない（会計できない）', await page.evaluate(() => document.getElementById('rgChange').textContent + '/' + document.getElementById('rgPayBtn').disabled), 'あと ¥450 たりません/true');
+  await page.fill('#rgPaid', '2000'); await page.evaluate(() => rgCartRender());
+  check('  お釣り', await page.evaluate(() => document.getElementById('rgChange').textContent), 'お釣り ¥550');
+  await page.click('#rgPayBtn'); await w(300);
+  check('  会計：お釣りの画面・記録・在庫が減る', await page.evaluate(() => document.querySelector('#rgDoneBody .rg-done-v').textContent + '/' + rgState().rg.sales.length + '/' + rgState().rg.items.map(i => i.stock).join(',') + '/' + rgState().cart.length), '¥550/1/18,1,29,0/0');
+  await page.evaluate(() => rgDoneClose()); await w(300);
+  // 在庫0のときは確かめる
+  await page.evaluate(id => { rgAdd(id); }, ids[1]);
+  const n0 = dialogs.length;
+  await page.evaluate(id => { rgAdd(id); }, ids[1]);
+  check('  在庫がなくなると確かめてから足す', (dialogs.length > n0 && dialogs[dialogs.length - 1].includes('在庫が0')) + '/' + await page.evaluate(id => document.querySelector(`.rg-tile[data-id="${id}"]`).classList.contains('out'), ids[1]), 'true/true');
+  // 値引き・ちょうど
+  page.removeAllListeners('dialog'); page.on('dialog', d => { dialogs.push(d.message()); d.type() === 'prompt' ? d.accept('100') : d.accept(); });
+  await page.evaluate(() => rgDisc()); await page.evaluate(() => rgSetPaid('just')); await w(50);
+  check('  値引き・ちょうど', await page.evaluate(() => document.getElementById('rgTotal').textContent + '/' + document.getElementById('rgPaid').value), '小計 ¥1,000　値引き −¥100合計 ¥9002点/900');
+  await page.evaluate(() => rgPay()); await w(200); await page.evaluate(() => rgDoneClose()); await w(200);
+  // 履歴・取り消し
+  await page.evaluate(() => rgOpenHist()); await w(200);
+  check('  履歴：売上・件数・個数', await page.evaluate(() => [...document.querySelectorAll('.rg-sum b')].map(b => b.textContent).join('/')), '¥2,350/2件/7個');
+  const sid = await page.evaluate(() => rgState().rg.sales[0].id);
+  await page.evaluate(id => rgVoid(id), sid); await w(100);
+  check('  取り消すと在庫が戻り、売上から外れる（記録は残る）', await page.evaluate(() => rgState().rg.items.map(i => i.stock).join(',') + '/' + [...document.querySelectorAll('.rg-sum b')].map(b => b.textContent).join('/') + '/' + document.querySelectorAll('.rg-sale.void').length), '20,0,30,0/¥900/1件/2個/1');
+  // Excel
+  check('  Excel のシート', await page.evaluate(() => rgXlsxRows().join(',')), '販売履歴,会計ごと,商品別,まとめ');
+  check('  Excel のファイル（.xlsx の形・数は数で）', await page.evaluate(async () => { const b = await rgBuildXlsx(); const files = await xlsxUnzip(await b.arrayBuffer()); const sh = new TextDecoder().decode(files.get('xl/worksheets/sheet1.xml')); return files.has('xl/worksheets/sheet4.xml') + '/' + /<c r="D2"[^>]*><v>300<\/v>/.test(sh); }), 'true/true');
+  // 新しいイベント
+  await page.evaluate(() => { closeDlg('rgHistOverlay'); rgOpenItems(); }); await w(200);
+  await page.evaluate(() => rgNewEvent()); await w(100);
+  check('  新しいイベント：履歴を消して在庫を最初の数に', await page.evaluate(() => rgState().rg.sales.length + '/' + rgState().rg.items.map(i => i.stock).join(',')), '0/20,2,30,0');
+  check('  覚える（開き直しても商品が残る）', await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_regi')).items.length), 4);
+  await page.evaluate(() => closeDlg('rgItemsOverlay')); await w(300);
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  戻るで閉じる', await page.evaluate(() => isDlgOpen('regiOverlay')), false);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runUiMode(browser) {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true });
   const page = await ctx.newPage();
@@ -8547,11 +8608,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/25');
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/26');
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'shimai', 'meishi', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'shimai', 'meishi', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -8579,7 +8640,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,shimai:B,meishi:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,shimai:B,meishi:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -8629,7 +8690,7 @@ async function runToolsKey(browser) {
   await page.waitForTimeout(400);
   check('  マイキーで押すと道具の一覧が開く', await page.evaluate(() => document.getElementById('toolsListOverlay').classList.contains('show') || getComputedStyle(document.getElementById('toolsListOverlay')).display !== 'none'), true);
   check('  道具がぜんぶ並ぶ（隠している道具も下に）', await page.evaluate(() => (document.querySelectorAll('#toolsListGrid .more-item').length + document.querySelectorAll('#toolsHiddenGrid .more-item').length === NP_TOOLS.length) + '/' + [...document.querySelectorAll('#toolsHiddenGrid [data-tool]')].map(b => b.dataset.tool).join(',')), 'true/heya,annai');
-  check('  まとまりごと（くらし・仕事・現場と畑・声とまなぶ）', await page.evaluate(() => [...document.querySelectorAll('#toolsListGrid .tools-cat-h')].map(h => h.textContent).join('/')), '🏠 くらし/💼 仕事/🏗 現場・畑/📚 声・まなぶ');
+  check('  まとまりごと（くらし・仕事・現場と畑・声とまなぶ）', await page.evaluate(() => [...document.querySelectorAll('#toolsListGrid .tools-cat-h')].map(h => h.textContent).join('/')), '🏠 くらし/💼 仕事/🏗 現場・畑/📚 声・まなぶ/🏨 お店・宿');   // v499 で 🛍即売レジ が お店・宿 に入った（部屋割り・案内ページは隠したまま）
   check('  よく使うを選んでいなければ さいきん使った道具（まだなければ案内）', await page.evaluate(() => document.getElementById('toolsFavH').textContent + '/' + !document.getElementById('toolsFavNote').hidden + '/' + document.querySelectorAll('#toolsFavGrid .more-item').length), '🕘 さいきん使った道具/true/0');
   await page.click('#toolsListGrid [data-tool="touban"]'); await page.waitForTimeout(600);
   check('  押した道具が開き、一覧は閉じる', await page.evaluate(() => [getComputedStyle(document.getElementById('toubanOverlay')).display !== 'none',
@@ -9679,6 +9740,7 @@ async function runQrShare(browser) {
     if (!only || only === 'defmk') await runDefMk(browser);
     if (!only || only === 'ruler') await runRuler(browser);
     if (!only || only === 'appiconpwa') await runAppIconPwa(browser);
+    if (!only || only === 'regi') await runRegi(browser);
     if (!only || only === 'uimode') await runUiMode(browser);
     if (!only || only === 'toolsfab') await runToolsFab(browser);
     if (!only || only === 'techoapp') await runTechoApp(browser);

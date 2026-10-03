@@ -34,7 +34,7 @@
 (function(){ try{
   const id=new URLSearchParams(location.search).get('app');
   const APPS={tansui:'💧 単位水量',kantab:'🧪 カンタブ',veggie:'🌱 野菜',volume:'📷 容積',photomemo:'📝 写真メモ',linklist:'🔗 リンク集',
-    touban:'📅 当番表',subsc:'🔐 サブスク',heya:'🛏 部屋割り',annai:'🏨 案内ページ',shimai:'📦 しまい場所',meishi:'💼 名刺管理',trim:'✂ トリミング',manner:'📜 マナー帳',boki:'📒 会計の手引き',kurashi:'🧭 くらしの便利帳',keisan:'🔢 便利計算',ruler:'📏 定規',calctmpl:'📋 式テンプレ',fintmpl:'📑 決算テンプレ'};
+    touban:'📅 当番表',subsc:'🔐 サブスク',heya:'🛏 部屋割り',annai:'🏨 案内ページ',shimai:'📦 しまい場所',meishi:'💼 名刺管理',trim:'✂ トリミング',manner:'📜 マナー帳',boki:'📒 会計の手引き',kurashi:'🧭 くらしの便利帳',keisan:'🔢 便利計算',ruler:'📏 定規',regi:'🛍 即売レジ',calctmpl:'📋 式テンプレ',fintmpl:'📑 決算テンプレ'};
   if(!id || !APPS[id]) return;
   window.APP_TOOL=id; document.documentElement.classList.add('app-tool');
   const dir='apps/'+id+'/', set=(sel,attr,v)=>document.querySelectorAll(sel).forEach(e=>e.setAttribute(attr,v));
@@ -9077,6 +9077,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v499', t:'道具に「🛍 即売レジ」', li:[
+    '新しい道具<b>「🛍 即売レジ」</b>。フリマ・お祭り・即売会で、商品の<b>写真・名前・値段・在庫</b>を登録しておき、注文のたびに商品を<b>押すだけ</b>で個数が入り、<b>合計</b>が出ます',
+    '<b>お預かり</b>を入れる（¥1,000 などのボタンも）と<b>お釣り</b>。「会計する」で<b>販売の履歴</b>に残り、<b>在庫が減ります</b>（取り消すと戻ります）。値引きもできます',
+    '「📋 履歴・売上」で売上・商品ごとの売れた数・残りが見られ、<b>Excel（.xlsx）に書き出し</b>（販売履歴・会計ごと・商品別・まとめ）。「📱 道具をアイコンにする」で<b>レジだけのアプリ</b>にもできます' ]},
   { v:'v498', t:'インストールしたアプリから道具をアイコンに', li:[
     '<b>インストールした表電卓（ホーム画面のアイコン）</b>の中から「📱 道具をアイコンにする」を選ぶと、<b>「🌐 Chrome で開く」</b>ボタンが出るようにしました（Android）。Chrome が開くので、⋮ → ホーム画面に追加 でその道具のアイコンを作れます',
     '<b>「📋 アドレスをコピー」</b>と<b>「📤 送る」</b>も。iPhone は、コピーしたアドレスを Safari で開いて 共有 → ホーム画面に追加 です（アンインストールしなくてよくなりました）' ]},
@@ -11508,6 +11512,7 @@ const KEY_FUNCS={
   a_subsc:{g:'設定・機能',label:'🔐サブスク',short:'サブスク',run:()=>openSubsc()},   // v453
   a_heya:{g:'設定・機能',label:'🛏部屋割り',short:'部屋割',run:()=>openHeya()},   // v454
   a_annai:{g:'設定・機能',label:'🏨案内ページ',short:'案内',run:()=>openAnnai()},   // v455
+  a_regi:{g:'設定・機能',label:'🛍即売レジ',short:'レジ',run:()=>openRegi()},   // v499
   a_shimai:{g:'設定・機能',label:'📦しまい場所',short:'しまい',run:()=>openShimai()},   // v458
   a_meishi:{g:'設定・機能',label:'💼名刺',short:'名刺',run:()=>openMeishi()},   // v484
   a_trim:{g:'設定・機能',label:'✂トリミング',short:'切抜',run:()=>openTrim()},   // v486
@@ -14187,6 +14192,29 @@ const openRulerLoader=function(...a){
 };
 window.openRuler=openRulerLoader;
 window.closeRuler=function(){};
+/* ── 🛍即売レジ（v499。regi.js に分けてある）──
+   フリマ・お祭りの即売会のかんたんなレジ（商品の写真・在庫・お釣り・履歴・Excel）。はじめて開いたときに regi.js を読む。 */
+let regiPartLoading=null;
+function loadRegiPart(){
+  if(window.REGI_PART_LOADED) return Promise.resolve(true);
+  if(regiPartLoading) return regiPartLoading;
+  regiPartLoading=new Promise(res=>{
+    const sc=document.createElement('script');
+    sc.src='regi.js';
+    sc.onload=()=>{ window.REGI_PART_LOADED=true; regiPartLoading=null; res(true); };
+    sc.onerror=()=>{ regiPartLoading=null; sc.remove(); res(false); };
+    document.head.appendChild(sc);
+  });
+  return regiPartLoading;
+}
+const openRegiLoader=function(...a){
+  return loadRegiPart().then(ok=>{
+    if(!ok){ toast('即売レジを読み込めませんでした。インターネットにつながるところで、一度アプリを開き直してください'); return; }
+    if(window.openRegi!==openRegiLoader) return window.openRegi(...a);
+  });
+};
+window.openRegi=openRegiLoader;
+window.closeRegi=function(){};
 /* 声の計算帳と共通の「いろいろな言い方」（koe/phrase.js。v424）。
    電卓で声を使うときのために、起動が落ち着いてから読んでおく（file:// でも読める） */
 let koePhraseLoading=null;
@@ -14611,6 +14639,7 @@ const NP_TOOLS=[
   {id:'subsc',    label:'🔐サブスク',   ov:'subscOverlay',     run:()=>openSubsc(),    close:()=>closeSubsc()},    // subsc.js（開いたときに読む。v453）
   {id:'heya',     label:'🛏部屋割り',   ov:'heyaOverlay',      run:()=>openHeya(),     close:()=>closeHeya()},     // heya.js（開いたときに読む。v454）
   {id:'annai',    label:'🏨案内ページ', ov:'annaiOverlay',     run:()=>openAnnai(),    close:()=>closeAnnai()},    // annai.js（開いたときに読む。v455）
+  {id:'regi',     label:'🛍即売レジ',   ov:'regiOverlay',      run:()=>openRegi(),     close:()=>closeRegi()},     // regi.js（開いたときに読む。v499）
   {id:'shimai',   label:'📦しまい場所', ov:'shimaiOverlay',    run:()=>openShimai(),   close:()=>closeShimai()},   // shimai.js（開いたときに読む。v458）
   {id:'meishi',   label:'💼名刺管理',   ov:'meishiOverlay',    run:()=>openMeishi(),   close:()=>closeMeishi()},   // meishi.js（開いたときに読む。v484）
   {id:'trim',     label:'✂トリミング',  ov:'trimOverlay',      run:()=>openTrim(),     close:()=>closeTrim()},     // trim.js（開いたときに読む。v486）
@@ -21156,6 +21185,7 @@ const TOOL_HINTS={
   heya:'空いているマスを押すと予約を足せます。「📋 一覧」でその日の到着・出発・食事の数を見られます。',
   annai:'見本の項目を自分の宿のことに書きかえて、⬇ で書き出します。分からないときは右上の「❓ ヘルプ」。',
   shimai:'下の欄に「パスポートは寝室のタンスの2段目」のように打つか 🎤 で話します。上の欄でさがせます。',
+  regi:'はじめに「📦 商品」で写真・名前・値段・在庫を登録します。売るときは商品を押すと1つずつ入り、お預かりを入れるとお釣りが出ます。「📋 履歴・売上」から Excel に書き出せます。',
   ruler:'はじめに「🎯 校正」でカードや硬貨を画面に当てて合わせると、定規が正しい長さになります。「📷 写真で測る」は基準の物と並べて撮ってなぞります。',
   keisan:'8つの計算から選びます。入れた数は覚えるので、次も続きから使えます。',
   kurashi:'10のテーマから選ぶか、上の欄で「AED」「死亡届」「失業保険」のようにさがします。ページの中の 🧮 道具で、期限や金額の目安も出せます。',
@@ -21246,7 +21276,7 @@ const TOOL_CATS=[
   ['💼 仕事',     ['techo','meishi','calctmpl','fintmpl','kaikei']],
   ['🏗 現場・畑', ['tansui','kantab','volume','ruler','veggie']],
   ['📚 声・まなぶ',['manner','boki','koe','eigo']],
-  ['🏨 お店・宿', ['heya','annai']],
+  ['🏨 お店・宿', ['regi','heya','annai']],
 ];
 const TOOL_FAV_KEY='excalc_tool_fav';
 let toolsFavEditing=false;
@@ -21510,7 +21540,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v498';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v499';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
