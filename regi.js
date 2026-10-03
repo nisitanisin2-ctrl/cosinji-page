@@ -1,4 +1,4 @@
-/* 🛍 即売レジ（v505。表電卓の道具。apps/regi/ から単独のアプリとしても開ける。はじめて開いたときに読む）
+/* 🛍 即売レジ（v506。表電卓の道具。apps/regi/ から単独のアプリとしても開ける。はじめて開いたときに読む）
    フリマ・お祭り・即売会で使う、かんたんなレジ。
    ・商品（写真・名前・値段・在庫）を登録 → レジの画面で商品を押すと1つずつ足す → 合計・値引き →
      預かった金額を入れるとお釣り → 「会計する」で販売の記録に残し、在庫を減らす。
@@ -11,6 +11,7 @@
    ・売り出しの保存（v501）：いまの商品（写真・値段・最初の在庫）を名前を付けて残し、次の売り出しで呼び出す。excalc_regi_sets（写真は同じ物を1つにまとめて持つ）。
    ・消費税（v502）：⚙ 設定で「計算する」にすると、値段が税込（内税）か税別（外税）か・標準の税率（1・8・10%・任意）・端数を決め、
      商品ごとに税率と内税・外税を選べる（決めていない商品は設定の標準）。会計の終わりと履歴・Excel に、税率ごとの税別価格と消費税額を出す。
+   ・全画面（v506）：「⛶ 全画面」で上の緑のバーを消し、できる端末ではブラウザの帯も消す（縦でも横でも）。もう一度押すと戻る。
    ・訂正（v505）：まちがえて会計したときは、履歴（または会計のあとの画面）の「訂正」で、その会計を取り消して会計する前の注文に戻す。
      記録は消さず「訂正」と残し、会計し直した会計には「No.○ の訂正」と残す（不正防止）。
    ・領収書の宛名（v504）：印刷の前の窓で宛名・敬称（様・御中）・但し書きを入れる（会計に残るので印刷し直しても同じ）。
@@ -611,6 +612,10 @@ const RG_CSS=`
 .rg-dline .c button{ height:34px; padding:0 9px; border-radius:17px; border:1px solid rgba(120,132,156,.4); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:13px; font-weight:bold; cursor:pointer; }
 .rg-cropbox{ width:min(280px,72vw); aspect-ratio:1/1; margin:4px auto 8px; } #rgCropCv{ width:100%; height:100%; display:block; border-radius:10px; touch-action:none; cursor:grab; }
 .rg-cropz{ display:flex; align-items:center; gap:8px; font-size:13px; } .rg-cropz input{ flex:1; }
+#regiOverlay.rg-full .modal{ width:100%; max-width:none; height:100%; max-height:100%; border-radius:0; }
+#regiOverlay.rg-full .modal-header,#regiOverlay.rg-full .tool-back{ display:none !important; }
+#regiOverlay.rg-full .rg-top{ padding-top:calc(6px + env(safe-area-inset-top,0px)); }
+.rg-top button.rg-fullbtn.on{ background:#fb8c00; border-color:#fb8c00; color:#fff; }
 #rgDoneOverlay .modal{ text-align:center; } .rg-done-c{ font-size:16px; color:var(--text-light,#888); margin-top:10px; } .rg-done-v{ font-size:48px; font-weight:bold; color:#1e88e5; line-height:1.2; } .rg-done-s{ font-size:13.5px; color:var(--text-light,#777); margin:8px 0 14px; line-height:1.7; }
 `;
 function rgEnsureDom(){
@@ -621,7 +626,7 @@ function rgEnsureDom(){
 <div class="modal-overlay" id="regiOverlay">
   <div class="modal vol-modal rg-modal modal-full" style="position:relative">
     <div class="modal-header"><span>🛍 即売レジ</span><span class="hdr-right" style="display:flex;gap:6px;align-items:center"><button class="hdr-btn" id="rgSetBtn" onclick="rgOpenSet()" title="商品アイコンの大きさ・縦横のスクロール">⚙ 設定</button><button class="modal-close" onclick="closeRegi()" aria-label="閉じる">✕</button></span></div>
-    <div class="rg-top"><span class="ev" id="rgEv"></span><button onclick="rgOpenHist()">📋 履歴・売上</button><button onclick="rgOpenItems()">📦 商品</button></div>
+    <div class="rg-top"><span class="ev" id="rgEv"></span><button onclick="rgOpenHist()">📋 履歴・売上</button><button onclick="rgOpenItems()">📦 商品</button><button class="rg-fullbtn" id="rgFullBtn" onclick="rgFull()" title="上のバーを消して画面いっぱいに">⛶ 全画面</button></div>
     <div class="rg-main">
     <div class="rg-gridwrap"><div id="rgGrid"></div></div>
     <div class="rg-cart empty" id="rgCart">
@@ -649,6 +654,8 @@ function rgEnsureDom(){
 <div class="modal-overlay" id="rgRcOverlay" onclick="if(event.target===this)closeDlg('rgRcOverlay')"><div class="modal"><div class="modal-header"><span>🧾 レシート・領収書</span><button class="modal-close" onclick="closeDlg('rgRcOverlay')" aria-label="閉じる">✕</button></div><div class="rg-body" id="rgRcBody"></div></div></div>`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
   rgCropBind();
+  // ブラウザの全画面が端末の操作（戻る・Esc）で終わったら、バーも戻す
+  document.addEventListener('fullscreenchange',()=>{ if(!document.fullscreenElement && rgFullOn && isDlgOpen('regiOverlay')) rgFull(false); });
   const gw=document.querySelector('#regiOverlay .rg-gridwrap');
   gw.addEventListener('wheel',e=>{ if(ui.dir==='h' && !e.shiftKey && Math.abs(e.deltaY)>Math.abs(e.deltaX) && gw.scrollWidth>gw.clientWidth){ gw.scrollLeft+=e.deltaY; e.preventDefault(); } },{passive:false});
   // 会計の欄が伸び縮みしたり向きが変わったりしたら、横の段数を入れ直す
@@ -657,15 +664,28 @@ function rgEnsureDom(){
   if(typeof applyNpToolFull==='function') applyNpToolFull();
 }
 function rgHeader(){ const e=$('rgEv'); if(e) e.textContent=(rg.ev.name||'イベント名なし')+(rg.ev.date?'（'+rg.ev.date.replace(/-/g,'/')+'）':'')+`・売上 ${yen(rgStats().total)}`; }
+/* 全画面：見出しのバーを隠し、ブラウザの全画面にもする（ほかの窓も出せるよう、ページ全体を全画面にする） */
+let rgFullOn=false;
+function rgFull(on){
+  if(on==null) on=!rgFullOn; rgFullOn=!!on;
+  const ov=$('regiOverlay'); if(ov) ov.classList.toggle('rg-full', rgFullOn);
+  const de=document.documentElement;
+  try{
+    if(rgFullOn && de.requestFullscreen && !document.fullscreenElement) de.requestFullscreen().catch(()=>{});
+    if(!rgFullOn && document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  }catch(_){}
+  const b=$('rgFullBtn'); if(b){ b.textContent=rgFullOn?'⤡ 戻す':'⛶ 全画面'; b.classList.toggle('on', rgFullOn); }
+  setTimeout(rgGridLayout, 80);
+}
 function openRegi(){
   rgEnsureDom(); rgLoad(); rgUiLoad(); cart=[]; odReset();
-  openDlg('regiOverlay'); rgRefresh(); rgHeader(); setTimeout(rgGridLayout, 60);
+  openDlg('regiOverlay', ()=>{ if(rgFullOn) rgFull(false); }); rgRefresh(); rgHeader(); setTimeout(rgGridLayout, 60);
 }
-function closeRegi(){ if(!$('regiOverlay')||!isDlgOpen('regiOverlay')) return; if(cart.length && !confirm('会計していない注文があります。閉じますか？（注文は消えます）')) return; ['rgRcOverlay','rgDoneOverlay','rgSetOverlay','rgCropOverlay','rgDiscOverlay','rgEditOverlay','rgItemsOverlay','rgHistOverlay'].forEach(id=>{ if(isDlgOpen(id)) closeDlg(id); }); closeDlg('regiOverlay'); }
+function closeRegi(){ if(!$('regiOverlay')||!isDlgOpen('regiOverlay')) return; if(cart.length && !confirm('会計していない注文があります。閉じますか？（注文は消えます）')) return; if(rgFullOn) rgFull(false); ['rgRcOverlay','rgDoneOverlay','rgSetOverlay','rgCropOverlay','rgDiscOverlay','rgEditOverlay','rgItemsOverlay','rgHistOverlay'].forEach(id=>{ if(isDlgOpen(id)) closeDlg(id); }); closeDlg('regiOverlay'); }
 const _ref=rgRefresh; rgRefresh=function(){ _ref(); rgHeader(); };
 
 Object.assign(window, { openRegi, closeRegi, rgAdd, rgQty, rgClearCart, rgSetPaid, rgDisc, rgOdType, rgOdSet, rgOdRound, rgLinePrice, rgLineQuick, rgCropZoom, rgCropOk, rgPay, rgDoneClose, rgCartRender:rgRenderCart,
   rgOpenItems, rgEditItem, rgSaveItem, rgDelItem, rgPhotoIn, rgPhotoClear, rgMove, rgEvSet, rgNewEvent, rgExportItems, rgImportItems,
-  rgOpenHist, rgVoid, rgFixSale, rgExportXlsx, $rg:$, rgOpenSet, rgUiSet, rgPrintReceipt, rgRcSet, rgOpenRc, rgRcPrev, rgRcGo, rgReceiptHtml:id=>rgReceiptHtml(rg.sales.find(x=>x.id===id)), rgRc:()=>Object.assign({},ui.rc), rgTaxSet, rgRatePick, rgModePick, rgTax:()=>JSON.parse(JSON.stringify(Object.assign({}, ui.tax, {calc:taxCalc()}))), rgSetSave, rgSetLoad, rgSetDel, rgUi:()=>({size:ui.size, dir:ui.dir, rows:ui.rows}), rgSets:()=>rgSetsLoad(),
+  rgOpenHist, rgVoid, rgFixSale, rgFull, rgIsFull:()=>rgFullOn, rgExportXlsx, $rg:$, rgOpenSet, rgUiSet, rgPrintReceipt, rgRcSet, rgOpenRc, rgRcPrev, rgRcGo, rgReceiptHtml:id=>rgReceiptHtml(rg.sales.find(x=>x.id===id)), rgRc:()=>Object.assign({},ui.rc), rgTaxSet, rgRatePick, rgModePick, rgTax:()=>JSON.parse(JSON.stringify(Object.assign({}, ui.tax, {calc:taxCalc()}))), rgSetSave, rgSetLoad, rgSetDel, rgUi:()=>({size:ui.size, dir:ui.dir, rows:ui.rows}), rgSets:()=>rgSetsLoad(),
   rgState:()=>JSON.parse(JSON.stringify({rg, cart, od, disc:orderDisc(), ldisc:lineDisc(), total:total(), crop:rgCrop?{w:rgCrop.w,h:rgCrop.h,z:rgCrop.z,cx:rgCrop.cx,cy:rgCrop.cy}:null})), rgXlsxRows:()=>rgXlsxSheets().map(x=>x[0]), rgBuildXlsx });
 })();

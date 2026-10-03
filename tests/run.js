@@ -8442,7 +8442,7 @@ async function runAppIconPwa(browser) {
 }
 async function runRegi(browser) {
   const { ctx, page, errs, dialogs } = await newPage(browser);
-  console.log('\n── 🛍即売レジ（v499〜v505） ──');
+  console.log('\n── 🛍即売レジ（v499〜v506） ──');
   const w = ms => page.waitForTimeout(ms);
   check('  開くまでは読まない・道具とマイキーにある・単独アプリの入口', await page.evaluate(() => !window.REGI_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'regi') + '/' + !!KEY_FUNCS.a_regi) + '/' + require('fs').existsSync(require('path').join(ROOT, 'apps', 'regi', 'manifest.json')), 'true/true/true/true');
   await page.evaluate(() => openRegi()); await w(400);
@@ -8680,8 +8680,21 @@ async function runRegi(browser) {
   check('  会計のあとの画面からも訂正できる', await page.evaluate(() => isDlgOpen('rgDoneOverlay') + '/' + rgState().cart.length + '/' + rgState().rg.sales.slice(-1)[0].fix), 'false/1/true');
   await page.evaluate(() => rgClearCart()); await page.evaluate(id => { rgAdd(id); rgPay(); rgDoneClose(); }, ids3[0]); await w(250);
   check('  注文を消したあとの会計は訂正につながらない', await page.evaluate(() => rgState().rg.sales.slice(-1)[0].fixOf === undefined), true);
+  // 全画面（v506）
+  const hdrTop = () => page.evaluate(() => { const h = document.querySelector('#regiOverlay .modal-header'); return getComputedStyle(h).display + '/' + Math.round(document.querySelector('#regiOverlay .rg-top').getBoundingClientRect().top); });
+  check('  「⛶ 全画面」ボタン（上の帯の右）', await page.evaluate(() => document.getElementById('rgFullBtn').textContent + '/' + !!document.getElementById('rgFullBtn').closest('.rg-top')), '⛶ 全画面/true');
+  const before = await hdrTop();
+  await page.click('#rgFullBtn'); await w(250);
+  check('  縦：押すと上の緑のバーが消えて一番上から', (await hdrTop()) + '/' + await page.evaluate(() => rgIsFull() + '/' + document.getElementById('rgFullBtn').textContent), 'none/0/true/⤡ 戻す');
+  { const vp = page.viewportSize(); await page.setViewportSize({ width: 860, height: 412 }); await w(250);
+    check('  横：バーは消えたまま・会計の欄は右に', (await hdrTop()) + '/' + await page.evaluate(() => { const g = document.querySelector('.rg-gridwrap').getBoundingClientRect(), c = document.getElementById('rgCart').getBoundingClientRect(); return c.left >= g.right - 1; }), 'none/0/true');
+    await page.setViewportSize(vp); await w(250); }
+  await page.click('#rgFullBtn'); await w(250);
+  check('  もう一度押すと戻る', (await hdrTop()) === before && !(await page.evaluate(() => rgIsFull())), true);
+  await page.evaluate(() => rgFull(true)); await w(150);
   await page.evaluate(() => window.history.back()); await w(400);
   check('  戻るで閉じる', await page.evaluate(() => isDlgOpen('regiOverlay')), false);
+  check('  全画面のまま閉じても次は戻っている', await page.evaluate(() => rgIsFull() + '/' + document.getElementById('regiOverlay').classList.contains('rg-full')), 'false/false');
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
