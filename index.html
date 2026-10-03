@@ -859,6 +859,9 @@ body.tb-fold.dentaku-mode .dt-pane .dt-tape-empty { min-height: 38px; }
 #toolsListOverlay .more-item .tfav { position: absolute; top: 2px; right: 5px; font-style: normal; font-size: 15px; color: #f5a300; }
 #toolsListOverlay.fav-editing .more-item[data-tool] { border-style: dashed; }
 #toolsHiddenAcc { margin-top: 12px; }
+.appicon-open { display:flex; align-items:center; gap:8px; font-size:16px; margin:12px 0 4px; } .appicon-open .ic { font-size:28px; }
+.appicon-chrome { display:block; box-sizing:border-box; text-align:center; text-decoration:none; background:var(--acc) !important; color:#fff !important; border-color:var(--acc) !important; }
+.appicon-url { font-size:12px; word-break:break-all; color:var(--text-light); padding:4px 6px; margin:2px 0 8px; border-radius:6px; background:var(--pm-chip, rgba(120,132,156,.13)); }
 .appicon-how { font-size: 13px; line-height: 1.7; padding: 8px 10px; border-radius: 10px; background: var(--pm-chip, rgba(120,132,156,.13)); margin: 6px 0 10px; }
 #appIconOverlay .more-grid.more-tools { grid-template-columns: repeat(2, 1fr); gap: 8px; }
 #appIconOverlay .more-tools .more-item { padding: 12px 10px; font-size: 15px; }
@@ -9074,6 +9077,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v498', t:'インストールしたアプリから道具をアイコンに', li:[
+    '<b>インストールした表電卓（ホーム画面のアイコン）</b>の中から「📱 道具をアイコンにする」を選ぶと、<b>「🌐 Chrome で開く」</b>ボタンが出るようにしました（Android）。Chrome が開くので、⋮ → ホーム画面に追加 でその道具のアイコンを作れます',
+    '<b>「📋 アドレスをコピー」</b>と<b>「📤 送る」</b>も。iPhone は、コピーしたアドレスを Safari で開いて 共有 → ホーム画面に追加 です（アンインストールしなくてよくなりました）' ]},
   { v:'v497', t:'📏定規：指の先で合わせる・全画面', li:[
     '📏定規の下に<b>「☝ 15mm先」</b>。ONにすると、点が<b>押さえた指より15mm 先（物のある左上の側）</b>に来ます。上に物をのせて測るとき、物の角の下に指を入れなくても合わせられます（点と指のあいだに点線が出ます）',
     '<b>「⛶ 全画面」</b>で定規を画面いっぱいに（見出し・タブ・ボタンを隠し、できる端末ではブラウザの帯も消します）。右下の小さなボタンで 15mm先・0.5mm ずつの調整・全画面をやめる ができます' ]},
@@ -21073,17 +21079,53 @@ function openAppIcons(){
   const b=document.getElementById('appIconBody');
   b.innerHTML=`<div class="set-note" style="margin-top:0">よく使う道具を<b>スマホのホーム画面のアイコン</b>にすると、表電卓を開かずに、アイコンから<b>その道具だけ</b>を直接開けます（入れたものは表電卓と同じです）。<br>道具を選ぶと、その道具の画面が開きます。そこで次のようにしてください。</div>
     <div class="appicon-how"><b>iPhone（Safari）</b>：下の <b>共有</b>（□に↑）→ <b>ホーム画面に追加</b><br><b>Android（Chrome）</b>：右上の <b>⋮</b> → <b>ホーム画面に追加</b>（または アプリをインストール）</div>
+    ${appIsStandalone()?'<div class="set-note">いまは<b>インストールした表電卓のアプリの中</b>です。道具を選ぶと、<b>Chrome（iPhone は Safari）で開く</b>ボタンとアドレスのコピーが出ます。</div>':''}
     <div class="more-grid more-tools appicon-grid">${NP_TOOLS.filter(t=>appIconUrl(t)).map(t=>{ const [ic,tx]=toolLabelSplit(t.label);
       return `<button class="more-item" data-appicon="${t.id}" onclick="goAppIcon('${t.id}')"><span>${ic}</span>${escHtml(tx)}</button>`; }).join('')}</div>
     <div class="set-note">アイコンを使わない人は、テンキーの上の <b>🧰 道具</b> ボタンからワンタッチで開けます。</div>`;
   openDlg('appIconOverlay');
 }
 function closeAppIcons(){ closeDlg('appIconOverlay'); }
+/* インストールしたアプリ（ホーム画面から開いた表電卓）の中か（v498）。
+   その中で道具のページを開いても、ブラウザの ⋮ メニューがないので「ホーム画面に追加」ができない */
+function appIsStandalone(){ try{ return window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: fullscreen)').matches || window.matchMedia('(display-mode: minimal-ui)').matches || navigator.standalone===true; }catch(_){ return navigator.standalone===true; } }
+const isAndroidUA=()=>/Android/i.test(navigator.userAgent||'');
+const isIOSUA=()=>/iPhone|iPad|iPod/i.test(navigator.userAgent||'') || (/Macintosh/.test(navigator.userAgent||'') && (navigator.maxTouchPoints||0)>1);
+/* Android の Chrome で、そのアドレスを開く（アプリの中からでもブラウザが起動する） */
+function chromeIntentUrl(u){
+  try{ const x=new URL(u); if(!/^https?:$/.test(x.protocol)) return '';
+    return 'intent://'+x.host+x.pathname+x.search+'#Intent;scheme='+x.protocol.replace(':','')+';package=com.android.chrome;S.browser_fallback_url='+encodeURIComponent(u)+';end'; }catch(_){ return ''; }
+}
 function goAppIcon(id){
   const t=npToolDef(id), u=t && appIconUrl(t); if(!u) return;
+  if(appIsStandalone()){ showAppIconOpen(id); return; }   // アプリの中からは、ブラウザで開く案内を出す
   closeAppIcons();
   setTimeout(()=>{ location.href=u; }, 60);
 }
+function showAppIconOpen(id){
+  const t=npToolDef(id), u=t && appIconUrl(t); if(!u) return;
+  const [ic,tx]=toolLabelSplit(t.label); const and=isAndroidUA(), ios=isIOSUA(), it=chromeIntentUrl(u);
+  const b=document.getElementById('appIconBody');
+  b.innerHTML=`<button class="set-act" style="margin-top:0" onclick="openAppIcons()">← 道具の一覧</button>
+    <div class="appicon-open"><span class="ic">${ic}</span><b>${escHtml(tx)}</b> をアイコンにする</div>
+    <div class="set-note">いまは<b>インストールした表電卓のアプリの中</b>なので、ここで道具の画面を開いても、ブラウザのメニュー（⋮）が出ず「ホーム画面に追加」ができません。<b>${ios?'Safari':'Chrome'} で開いて</b>から追加してください。</div>
+    ${and&&it?`<a class="set-act appicon-chrome" id="appIconChrome" href="${escHtml(it)}">🌐 Chrome で開く</a>
+    <div class="appicon-how">Chrome が開いたら、右上の <b>⋮</b> → <b>ホーム画面に追加</b>（または アプリをインストール）</div>`:''}
+    ${ios?`<div class="appicon-how">① 下の「📋 アドレスをコピー」を押す<br>② <b>Safari</b> を開いて、上の欄に<b>貼り付けて</b>開く<br>③ 下の <b>共有</b>（□に↑）→ <b>ホーム画面に追加</b></div>`:''}
+    <button class="set-act" id="appIconCopy" onclick="copyAppIconUrl('${id}')">📋 アドレスをコピー</button>
+    <div class="appicon-url" id="appIconUrl">${escHtml(u)}</div>
+    ${navigator.share?`<button class="set-act" onclick="shareAppIconUrl('${id}')">📤 アドレスを送る・ほかのアプリで開く</button>`:''}
+    ${!and&&!ios?`<div class="appicon-how">ブラウザを開いて、上のアドレスを貼り付けて開き、ブラウザのメニューから<b>ホーム画面に追加</b>（パソコンは アドレス欄の右の<b>インストール</b>）。</div>`:''}
+    <div class="set-note">Chrome で開いたページから追加したアイコンも、入れたものは表電卓と同じです（同じ場所に残ります）。<a href="#" onclick="closeAppIcons();setTimeout(()=>{ location.href='${escHtml(u)}'; },60);return false">このアプリの中で開く</a></div>`;
+  b.scrollTop=0;
+}
+function copyAppIconUrl(id){
+  const t=npToolDef(id), u=t && appIconUrl(t); if(!u) return;
+  const ok=()=>toast('アドレスをコピーしました。ブラウザの上の欄に貼り付けて開いてください', 3200);
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(u).then(ok, ()=>{ prompt('このアドレスをコピーしてください', u); });
+  else prompt('このアドレスをコピーしてください', u);
+}
+function shareAppIconUrl(id){ const t=npToolDef(id), u=t && appIconUrl(t); if(!u||!navigator.share) return; navigator.share({title:t.label, url:u}).catch(()=>{}); }
 /* 道具だけのアプリをブラウザで開いたとき（まだホーム画面に置いていない）、置き方を一度だけ出す */
 function appToolAddHint(){
   if(!window.APP_TOOL) return;
@@ -21468,7 +21510,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v497';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v498';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
