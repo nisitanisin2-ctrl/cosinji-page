@@ -34,7 +34,7 @@
 (function(){ try{
   const id=new URLSearchParams(location.search).get('app');
   const APPS={tansui:'💧 単位水量',kantab:'🧪 カンタブ',veggie:'🌱 野菜',volume:'📷 容積',photomemo:'📝 写真メモ',linklist:'🔗 リンク集',
-    touban:'📅 当番表',subsc:'🔐 サブスク',heya:'🛏 部屋割り',annai:'🏨 案内ページ',shimai:'📦 しまい場所',meishi:'💼 名刺管理',trim:'✂ トリミング',manner:'📜 マナー帳',boki:'📒 会計の手引き',kurashi:'🧭 くらしの便利帳',keisan:'🔢 便利計算',calctmpl:'📋 式テンプレ',fintmpl:'📑 決算テンプレ'};
+    touban:'📅 当番表',subsc:'🔐 サブスク',heya:'🛏 部屋割り',annai:'🏨 案内ページ',shimai:'📦 しまい場所',meishi:'💼 名刺管理',trim:'✂ トリミング',manner:'📜 マナー帳',boki:'📒 会計の手引き',kurashi:'🧭 くらしの便利帳',keisan:'🔢 便利計算',ruler:'📏 定規',calctmpl:'📋 式テンプレ',fintmpl:'📑 決算テンプレ'};
   if(!id || !APPS[id]) return;
   window.APP_TOOL=id; document.documentElement.classList.add('app-tool');
   const dir='apps/'+id+'/', set=(sel,attr,v)=>document.querySelectorAll(sel).forEach(e=>e.setAttribute(attr,v));
@@ -9074,6 +9074,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v496', t:'道具に「📏 定規」', li:[
+    '新しい道具<b>「📏 定規」</b>。スマホの画面のふちに<b>mmの目盛り</b>を出し、青い線を動かして物の<b>縦×横</b>を測れます（mm とインチ）',
+    'はじめに<b>「🎯 校正」</b>で、カード（縦向き）や硬貨を画面の赤い枠に当てて大きさを合わせると、この端末で正しい長さになります',
+    '<b>「📷 写真で測る」</b>：大きさの分かる物（カード・硬貨・定規で測って登録した物）を並べて撮り、写真の上で<b>基準 → 測りたい所</b>の順になぞると長さが出ます。線を描いた画像の保存・共有も' ]},
   { v:'v495', t:'行数・列数をデフォルトにするボタン', li:[
     '⚙設定 → 📐表 の「行と列の数」に<b>「📌 この行数・列数をデフォルトにする」</b>。＋−で決めた大きさが、そのまま<b>新しい表や ▦通常 に戻したときの大きさ</b>になります（いまのデフォルトも下に出ます）' ]},
   { v:'v494', t:'道具に「🔢 便利計算」', li:[
@@ -11502,6 +11506,7 @@ const KEY_FUNCS={
   a_boki:{g:'設定・機能',label:'📒会計の手引き',short:'簿記',run:()=>openBoki()},   // v490
   a_kurashi:{g:'設定・機能',label:'🧭くらしの便利帳',short:'便利帳',run:()=>openKurashi()},   // v491
   a_keisan:{g:'設定・機能',label:'🔢便利計算',short:'便利計算',run:()=>openKeisan()},   // v494
+  a_ruler:{g:'設定・機能',label:'📏定規',short:'定規',run:()=>openRuler()},   // v496
   a_tools:{g:'設定・機能',label:'🧰道具',short:'道具',run:()=>openToolsList()},   // 道具の一覧を開く（v429）
   a_memo:{g:'設定・機能',label:'📄メモ',short:'メモ',run:()=>openNotesApp()},
   a_kaikei:{g:'設定・機能',label:'🧾会計アプリ',short:'会計',run:()=>openKaikeiApp()},
@@ -14150,6 +14155,29 @@ const openKeisanLoader=function(...a){
 };
 window.openKeisan=openKeisanLoader;
 window.closeKeisan=function(){};
+/* ── 📏定規（v496。ruler.js に分けてある）──
+   スマホの画面を定規にする（カード・硬貨で校正）＋写真に並べた基準から長さを測る。はじめて開いたときに ruler.js を読む。 */
+let rulerPartLoading=null;
+function loadRulerPart(){
+  if(window.RULER_PART_LOADED) return Promise.resolve(true);
+  if(rulerPartLoading) return rulerPartLoading;
+  rulerPartLoading=new Promise(res=>{
+    const sc=document.createElement('script');
+    sc.src='ruler.js';
+    sc.onload=()=>{ window.RULER_PART_LOADED=true; rulerPartLoading=null; res(true); };
+    sc.onerror=()=>{ rulerPartLoading=null; sc.remove(); res(false); };
+    document.head.appendChild(sc);
+  });
+  return rulerPartLoading;
+}
+const openRulerLoader=function(...a){
+  return loadRulerPart().then(ok=>{
+    if(!ok){ toast('定規を読み込めませんでした。インターネットにつながるところで、一度アプリを開き直してください'); return; }
+    if(window.openRuler!==openRulerLoader) return window.openRuler(...a);
+  });
+};
+window.openRuler=openRulerLoader;
+window.closeRuler=function(){};
 /* 声の計算帳と共通の「いろいろな言い方」（koe/phrase.js。v424）。
    電卓で声を使うときのために、起動が落ち着いてから読んでおく（file:// でも読める） */
 let koePhraseLoading=null;
@@ -14566,6 +14594,7 @@ const NP_TOOLS=[
   {id:'kantab',   label:'🧪カンタブ',   ov:'kantabOverlay',    run:()=>openKantab(),   close:()=>closeKantab()},
   {id:'veggie',   label:'🌱野菜',       ov:'veggieOverlay',    run:()=>openVeggie(),   close:()=>closeVeggie()},
   {id:'volume',   label:'📷容積',       ov:'volumeOverlay',    run:()=>openVolume(),   close:()=>closeVolume()},
+  {id:'ruler',    label:'📏定規',       ov:'rulerOverlay',     run:()=>openRuler(),    close:()=>closeRuler()},    // ruler.js（開いたときに読む。v496）
   {id:'photomemo',label:'📝写真メモ',   ov:'photoMemoOverlay', run:()=>openPhotoMemo(),close:()=>closePhotoMemo()},
   {id:'linklist', label:'🔗リンク集',   ov:'linkListOverlay',  run:()=>openLinkList(), close:()=>closeLinkList()},
   {id:'touban',   label:'📅当番表',     ov:'toubanOverlay',    run:()=>openTouban(),   close:()=>closeTouban()},
@@ -21082,6 +21111,7 @@ const TOOL_HINTS={
   heya:'空いているマスを押すと予約を足せます。「📋 一覧」でその日の到着・出発・食事の数を見られます。',
   annai:'見本の項目を自分の宿のことに書きかえて、⬇ で書き出します。分からないときは右上の「❓ ヘルプ」。',
   shimai:'下の欄に「パスポートは寝室のタンスの2段目」のように打つか 🎤 で話します。上の欄でさがせます。',
+  ruler:'はじめに「🎯 校正」でカードや硬貨を画面に当てて合わせると、定規が正しい長さになります。「📷 写真で測る」は基準の物と並べて撮ってなぞります。',
   keisan:'8つの計算から選びます。入れた数は覚えるので、次も続きから使えます。',
   kurashi:'10のテーマから選ぶか、上の欄で「AED」「死亡届」「失業保険」のようにさがします。ページの中の 🧮 道具で、期限や金額の目安も出せます。',
   boki:'上の欄で「仕訳」「監査」「減価償却」のようにさがすか、分類を押して読みます。🧮 道具の「仕訳ドリル」で簿記3級の仕訳を練習できます。',
@@ -21169,7 +21199,7 @@ function homeSetStartup(on){ setStartPage(on?'home':'last'); }
 const TOOL_CATS=[
   ['🏠 くらし',   ['kurashi','keisan','shimai','photomemo','trim','linklist','touban','subsc','memo']],
   ['💼 仕事',     ['techo','meishi','calctmpl','fintmpl','kaikei']],
-  ['🏗 現場・畑', ['tansui','kantab','volume','veggie']],
+  ['🏗 現場・畑', ['tansui','kantab','volume','ruler','veggie']],
   ['📚 声・まなぶ',['manner','boki','koe','eigo']],
   ['🏨 お店・宿', ['heya','annai']],
 ];
@@ -21435,7 +21465,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v495';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v496';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -23438,7 +23468,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_show_sheettabs','excalc_skin','excalc_speechauto','excalc_speechlayout','excalc_speechspeak','excalc_startpage',
   'excalc_sumfunc','excalc_taxrate','excalc_tbfold','excalc_toolsbtn_hide','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
   'excalc_ts_warn','excalc_userkeys',
-  'excalc_uimode','excalc_trim','excalc_manner','excalc_boki','excalc_kurashi','excalc_keisan','excalc_tool_fav','excalc_tool_hints','excalc_seq_step',   // v460〜v462
+  'excalc_uimode','excalc_trim','excalc_manner','excalc_boki','excalc_kurashi','excalc_keisan','excalc_ruler','excalc_tool_fav','excalc_tool_hints','excalc_seq_step',   // v460〜v462
 ];
 function settingsBundle(){
   const o={};
