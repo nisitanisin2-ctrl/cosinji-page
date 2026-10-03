@@ -2525,7 +2525,7 @@ body.dark .vd-img { background: #1b2540; }
 .vol-dim { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; padding: 4px; border-radius: var(--r-btn); }
 .vol-dim.active { background: rgba(33,115,70,0.08); box-shadow: inset 0 0 0 2px rgba(33,115,70,0.4); }
 .vol-dim-dot { flex-shrink: 0; width: 12px; height: 12px; border-radius: 50%; }
-.vol-dim-lb { flex-shrink: 0; width: 38px; font-size: 15px; font-weight: bold; color: var(--text); }
+.vol-dim-lb { flex-shrink: 0; min-width: 38px; font-size: 15px; font-weight: bold; color: var(--text); white-space: nowrap; }
 .vol-ref, .vol-draw {
   flex-shrink: 0; padding: 6px 10px; font-size: 12px; font-weight: bold;
   border: 1px solid var(--save-item-border); border-radius: var(--r-btn);
@@ -2560,7 +2560,13 @@ body.dark .vd-img { background: #1b2540; }
 .vol-line-chip.view.on { background: #455a64; border-color: #455a64; color: #fff; }
 .vol-chip-dot { width: 11px; height: 11px; border-radius: 50%; box-shadow: 0 0 0 1.5px rgba(255,255,255,0.85); }
 .vol-canvas.viewmode { touch-action: pan-y; }   /* 見るモード中は縦スワイプでスクロールできる */
+.vol-fig { display: flex; align-items: center; gap: 10px; margin: -2px 0 10px; padding: 6px 8px; border-radius: var(--r-btn); background: var(--save-item-bg); border: 1px solid var(--save-item-border); }
+.vol-fig svg { flex-shrink: 0; width: 196px; height: 104px; max-width: 52%; }
+.vol-fig-note { font-size: 12px; color: var(--text-light); line-height: 1.6; }
+.vol-fig-note b { color: var(--text); font-size: 13px; }
+.vol-reset { position: absolute; top: 6px; right: 6px; padding: 5px 10px; font-size: 12px; font-weight: bold; border: 1px solid var(--save-item-border); border-radius: 999px; background: var(--modal-bg, #fff); color: var(--text-light); cursor: pointer; touch-action: manipulation; }
 .vol-result {
+  position: relative;
   text-align: center; padding: 14px 10px; margin-bottom: 12px;
   border: 1px solid var(--save-item-border); border-radius: var(--r-btn); background: var(--save-item-bg);
 }
@@ -5247,6 +5253,7 @@ body.dark {
       </div>
       <div class="vol-draw-hint" id="volDrawHint" style="display:none">写真の上のバーで<b>引く線を選んで</b>なぞります。<b>「✋見る/移動」</b>にすると線を引かずにスクロールできます。<b>2本指でズーム</b>、<b>丸い点を押しながら動かす</b>と位置を直せます。1つを「基準」にして実際の長さを入れると、他の辺は写真の比率から自動で入ります。</div>
       <div class="vol-row"><span class="vol-lb">形</span><div class="vol-chips" id="volShapeRow"></div></div>
+      <div class="vol-fig" id="volFig"></div>
       <div class="vol-row"><span class="vol-lb">単位</span><div class="vol-chips" id="volUnitRow"></div></div>
       <div class="vol-row"><span class="vol-lb">校正</span><div class="vol-chips">
         <button class="vol-chip" id="volCalBtn" onclick="volCalToggle()">📐 キャリブレーション</button>
@@ -5255,6 +5262,7 @@ body.dark {
       <div class="vol-cal" id="volCalPanel" style="display:none"></div>
       <div class="vol-dims" id="volDims"></div>
       <div class="vol-result">
+        <button class="vol-reset" id="volResetBtn" onclick="volReset()" title="写真・寸法・パーツの合計を消して最初から">↺ リセット</button>
         <div class="vol-result-main" id="volResultVal">—</div>
         <div class="vol-result-sub" id="volResultSub">寸法を入力すると容積が出ます</div>
       </div>
@@ -9058,6 +9066,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v492', t:'📷容積：いろいろな形とリセット', li:[
+    '📷容積で計算できる形を増やしました：<b>三角柱・三角すい・四角すい・四角すい台（盛り土・ホッパー）・台形柱（側溝・水路・土手）・半球・かまぼこ形・だ円柱・パイプ・横置きタンク</b>（寝かせた丸いタンクの<b>液の深さから量</b>）',
+    '形を選ぶと、<b>どの寸法をどこで測るかの図</b>と使いみちの例が出ます（図の色と寸法の欄の色が同じ）',
+    '結果の右上に<b>「↺ リセット」</b>。写真・入れた寸法・パーツの合計を消して最初からやり直せます（形・単位・保存した校正はそのまま）' ]},
   { v:'v491', t:'道具に「🧭 くらしの便利帳」', li:[
     '新しい道具<b>「🧭 くらしの便利帳」</b>。いざという時に知っておきたい知識を<b>10のテーマ</b>にまとめました：🚑応急手当・救急、🌀防災・災害、🕊身内が亡くなったとき、🏠引っ越し・住まい、👶出産・子育て、💼仕事をやめる・変える、🧓介護、🚗車・交通事故、⚖くらしの法律・トラブル、🏥医療費・保険・年金',
     '開くと10のテーマのカード → 押すとページの一覧 → くわしい中身。言葉でさがすこともできます（★でよく見るページに）',
@@ -12858,17 +12870,33 @@ function vegMyDel(i){
   toast('消しました');
 }
 /* ── 容積を計算（写真を撮って寸法を入れると容積が出る。結果をセルに入れられる） ── */
+/* 形の一覧（v492 で三角柱・すい・台形柱・パイプ・横置きタンクなどを足した）。
+   dims の順番が線の色（VOL_COLORS）と、図（volFig）の色の順番。note は形の下に出す使いみちの例 */
 const VOL_SHAPES=[
-  {id:'box',    name:'直方体', dims:[['w','縦'],['d','横'],['h','高さ']], calc:v=>shapeArea(false,v.w,v.d)*v.h},
-  {id:'cyl',    name:'円柱',   dims:[['dia','直径'],['h','高さ']],       calc:v=>shapeArea(true,v.dia)*v.h},
-  {id:'sphere', name:'球',     dims:[['dia','直径']],                    calc:v=>4/3*Math.PI*(v.dia/2)*(v.dia/2)*(v.dia/2)},
-  {id:'cone',   name:'円すい', dims:[['dia','直径'],['h','高さ']],       calc:v=>shapeArea(true,v.dia)*v.h/3},
+  {id:'box',    name:'直方体', dims:[['w','縦'],['d','横'],['h','高さ']], calc:v=>shapeArea(false,v.w,v.d)*v.h, note:'箱・部屋・水そう・コンクリートの打設'},
+  {id:'cyl',    name:'円柱',   dims:[['dia','直径'],['h','高さ']],       calc:v=>shapeArea(true,v.dia)*v.h, note:'ドラム缶・バケツ（まっすぐな物）・丸い水そう'},
+  {id:'sphere', name:'球',     dims:[['dia','直径']],                    calc:v=>4/3*Math.PI*(v.dia/2)*(v.dia/2)*(v.dia/2), note:'ボール・丸いタンク'},
+  {id:'hemi',   name:'半球',   dims:[['dia','直径']],                    calc:v=>2/3*Math.PI*(v.dia/2)*(v.dia/2)*(v.dia/2), note:'おわん・ドーム（直径は切り口の円）'},
+  {id:'cone',   name:'円すい', dims:[['dia','直径'],['h','高さ']],       calc:v=>shapeArea(true,v.dia)*v.h/3, note:'砂・砂利の山（円すい形）・じょうご'},
   {id:'conefr', name:'円すい台', dims:[['db','下径'],['dt','上径'],['h','高さ']],   // 上下の径が違う円柱＝円すい台（フラスタム）
-    calc:v=>{ const Rb=v.db/2, Rt=v.dt/2; return Math.PI*v.h/3*(Rb*Rb + Rb*Rt + Rt*Rt); }},
-  {id:'poly',   name:'多角柱', poly:true},   // 底面をなぞって（頂点を増やして）×高さ
+    calc:v=>{ const Rb=v.db/2, Rt=v.dt/2; return Math.PI*v.h/3*(Rb*Rb + Rb*Rt + Rt*Rt); }, note:'バケツ・植木鉢・コップ（上下の太さが違う物）'},
+  {id:'tri',    name:'三角柱', dims:[['b','底辺'],['th','三角の高さ'],['L','長さ']], calc:v=>v.b*v.th/2*v.L, note:'三角の断面がまっすぐ続く物（屋根裏・すみに積んだ土）'},
+  {id:'tripy',  name:'三角すい', dims:[['b','底辺'],['th','三角の高さ'],['h','高さ']], calc:v=>v.b*v.th/2*v.h/3, note:'底が三角形でとがった形（すみの盛り土など）'},
+  {id:'pyr',    name:'四角すい', dims:[['w','縦'],['d','横'],['h','高さ']], calc:v=>v.w*v.d*v.h/3, note:'底が四角でとがった形（ピラミッド形の山）'},
+  {id:'pyrfr',  name:'四角すい台', dims:[['w1','下の縦'],['d1','下の横'],['w2','上の縦'],['d2','上の横'],['h','高さ']],
+    calc:v=>v.h/6*(v.w1*v.d1 + v.w2*v.d2 + (v.w1+v.w2)*(v.d1+v.d2)), note:'盛り土・ホッパー・四角いバケツ（上下の四角の大きさが違う物）'},
+  {id:'trap',   name:'台形柱', dims:[['a','上底'],['b','下底'],['th','台形の高さ'],['L','長さ']], calc:v=>(v.a+v.b)/2*v.th*v.L, note:'側溝・水路・土手・のり面（断面が台形）'},
+  {id:'halfcyl',name:'かまぼこ形', dims:[['dia','直径'],['L','長さ']],    calc:v=>shapeArea(true,v.dia)/2*v.L, note:'半円柱（トンネル・半円の雨どい・かまぼこ屋根）'},
+  {id:'ellcyl', name:'だ円柱', dims:[['a','長径'],['b','短径'],['h','高さ']], calc:v=>Math.PI*v.a*v.b/4*v.h, note:'だ円のタンク・プランター'},
+  {id:'pipe',   name:'パイプ', dims:[['D','外径'],['din','内径'],['L','長さ']],
+    calc:v=>v.din<v.D ? Math.PI/4*(v.D*v.D-v.din*v.din)*v.L : NaN, note:'管・筒・ドーナツ形（材料の量）。中の空洞の量は円柱で内径を使う'},
+  {id:'htank',  name:'横置きタンク', dims:[['dia','直径'],['L','長さ'],['dep','液の深さ']],
+    calc:v=>{ const r=v.dia/2, h=Math.min(v.dep, v.dia); return (r*r*Math.acos((r-h)/r) - (r-h)*Math.sqrt(Math.max(0,2*r*h-h*h)))*v.L; },
+    note:'横に寝かせた丸いタンク・ドラム缶に入っている量（底からの深さ）'},
+  {id:'poly',   name:'多角柱', poly:true, note:'写真で底面の角をタップして、どんな形の底面でも'},   // 底面をなぞって（頂点を増やして）×高さ
 ];
 const VOL_UNITS=['mm','cm','m'];
-const VOL_COLORS=['#e53935','#1e88e5','#43a047','#fb8c00'];   // 各辺の線の色
+const VOL_COLORS=['#e53935','#1e88e5','#43a047','#fb8c00','#8e24aa'];   // 各辺の線の色（形の図の色も同じ順）
 let volShape='box', volUnit='cm', volPhotoURL=null, volImg=null;
 let volDimState={};        // 辺キー -> { seg:{x1,y1,x2,y2}|null, len:数値|null, auto:自動算出か }（segは画像基準座標）
 let volRefKey=null;        // 基準にする辺
@@ -13036,7 +13064,7 @@ function loadList(key){
 function saveList(key, arr){ try{ localStorage.setItem(key, JSON.stringify(arr)); }catch(_){} }
 function openVolume(){
   volEnsureState();
-  renderVolShapes(); renderVolUnits(); renderVolDims(); updateVolResult();
+  renderVolShapes(); renderVolFig(); renderVolUnits(); renderVolDims(); updateVolResult();
   document.getElementById('volDrawHint').style.display = (volImg && !volIsPoly()) ? 'block' : 'none';
   openDlg('volumeOverlay');
 }
@@ -13465,11 +13493,52 @@ function renderVolLineStrip(){
 function volPolyClearTop(){ volPolyTopVerts=[]; if(volPolyEdit==='top') volPolyEdit='bottom'; renderVolDims(); volRedraw(); updateVolResult(); }
 function volPolyRefLenInput(val){ const n=parseFloat(val); volPolyRefLen=isNaN(n)?null:n; updateVolResult(); }
 function volPolyHeightInput(val){ const n=parseFloat(val); volPolyHeight=isNaN(n)?null:n; updateVolResult(); }
+/* 形の図（どの寸法がどこか）。色は寸法の欄の色と同じ順番 */
+function volFig(id){
+  const c=VOL_COLORS, G='stroke="#90a4ae" stroke-width="1.6" fill="none" stroke-linejoin="round"', H='stroke="#90a4ae" stroke-width="1.3" fill="none" stroke-dasharray="4 3"';
+  const P=d=>`<path d="${d}" ${G}/>`, Q=d=>`<path d="${d}" ${H}/>`;
+  const Ln=(x1,y1,x2,y2,k,dash)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c[k]}" stroke-width="3.2" stroke-linecap="round"${dash?' stroke-dasharray="5 3"':''}/>`;
+  const X=(x,y,t,k,a)=>`<text x="${x}" y="${y}" fill="${c[k]}" font-size="11" font-weight="bold" text-anchor="${a||'middle'}">${t}</text>`;
+  const E=(cx,cy,rx,ry,dash)=>`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" ${dash?H:G}/>`;
+  const F={
+    box:P('M20 30H100V80H20Z M20 30L45 12H125L100 30 M100 30L125 12V62L100 80')+Ln(100,80,125,62,0)+X(126,80,'縦',0,'start')+Ln(20,80,100,80,1)+X(60,95,'横',1)+Ln(20,30,20,80,2)+X(24,58,'高さ',2,'start'),
+    cyl:E(70,20,35,9)+P('M35 20V80 M105 20V80 M35 80A35 9 0 0 0 105 80')+Q('M35 80A35 9 0 0 1 105 80')+Ln(35,20,105,20,0)+X(70,14,'直径',0)+Ln(115,20,115,80,1)+X(120,54,'高さ',1,'start'),
+    sphere:`<circle cx="70" cy="50" r="35" ${G}/>`+E(70,50,35,9,1)+Ln(35,50,105,50,0)+X(70,44,'直径',0),
+    hemi:P('M35 70A35 35 0 0 1 105 70')+E(70,70,35,9)+Ln(35,70,105,70,0)+X(70,94,'直径',0),
+    cone:P('M35 80L70 15L105 80 M35 80A35 9 0 0 0 105 80')+Q('M35 80A35 9 0 0 1 105 80')+Ln(35,80,105,80,0)+X(70,98,'直径',0)+Ln(70,15,70,80,1,1)+X(76,52,'高さ',1,'start'),
+    conefr:E(70,25,20,5)+P('M32 80L50 25 M108 80L90 25 M32 80A38 9 0 0 0 108 80')+Q('M32 80A38 9 0 0 1 108 80')+Ln(32,80,108,80,0)+X(70,98,'下径',0)+Ln(50,25,90,25,1)+X(70,16,'上径',1)+Ln(118,25,118,80,2)+X(122,56,'高さ',2,'start'),
+    tri:P('M15 85H55L35 45Z M35 45L110 20L130 60L55 85 M110 20')+Q('M15 85L90 60L130 60 M90 60L110 20')+Ln(15,85,55,85,0)+X(35,98,'底辺',0)+Ln(35,45,35,85,1,1)+X(31,64,'三角の高さ',1,'end')+Ln(55,85,130,60,2)+X(100,86,'長さ',2,'start'),
+    tripy:P('M20 85H110L65 15Z')+Q('M20 85L80 62L110 85 M65 15L80 62')+Ln(20,85,110,85,0)+X(65,98,'底辺',0)+Ln(80,62,80,85,1,1)+X(86,77,'三角の高さ',1,'start')+Ln(65,15,68,76,2,1)+X(60,46,'高さ',2,'end'),
+    pyr:P('M20 85H95L125 62 M20 85L72 15L95 85 M72 15L125 62')+Q('M20 85L50 62H125 M50 62L72 15')+Ln(95,85,125,62,0)+X(120,84,'縦',0,'start')+Ln(20,85,95,85,1)+X(57,98,'横',1)+Ln(72,15,72,74,2,1)+X(66,46,'高さ',2,'end'),
+    pyrfr:P('M15 88H95L130 62 M15 88L45 40 M95 88L85 40 M130 62L100 28 M45 40H85L100 28H60Z')+Q('M15 88L50 62H130 M50 62L60 28')+Ln(95,88,130,62,0)+X(124,86,'下の縦',0,'start')+Ln(15,88,95,88,1)+X(55,99,'下の横',1)+Ln(85,40,100,28,2)+X(104,36,'上の縦',2,'start')+Ln(45,40,85,40,3)+X(40,38,'上の横',3,'end')+Ln(72,34,72,75,4,1)+X(68,68,'高さ',4,'end'),
+    trap:P('M15 85H65L55 45H25Z M25 45L90 20H120L130 60L65 85 M55 45L120 20')+Q('M15 85L80 60H130 M80 60L90 20')+Ln(25,45,55,45,0)+X(40,40,'上底',0)+Ln(15,85,65,85,1)+X(40,98,'下底',1)+Ln(40,45,40,85,2,1)+X(36,66,'台形の高さ',2,'end')+Ln(65,85,130,60,3)+X(100,86,'長さ',3,'start'),
+    halfcyl:P('M15 80A30 30 0 0 1 75 80Z M45 50L100 28 M75 80L130 58 M100 28A30 30 0 0 1 130 58')+Q('M70 58A30 30 0 0 1 100 28 M70 58H130 M15 80L70 58')+Ln(15,80,75,80,0)+X(45,94,'直径',0)+Ln(75,80,130,58,1)+X(108,82,'長さ',1,'start'),
+    ellcyl:E(70,20,45,10)+P('M25 20V80 M115 20V80 M25 80A45 10 0 0 0 115 80')+Q('M25 80A45 10 0 0 1 115 80')+Ln(25,20,115,20,0)+X(50,14,'長径',0)+Ln(70,10,70,30,1)+X(76,42,'短径',1,'start')+Ln(122,20,122,80,2)+X(126,56,'高さ',2,'start'),
+    pipe:E(65,20,38,10)+E(65,20,20,5)+P('M27 20V80 M103 20V80 M27 80A38 10 0 0 0 103 80')+Ln(27,80,103,80,0)+X(65,97,'外径',0)+Ln(45,20,85,20,1)+X(65,12,'内径',1)+Ln(112,20,112,80,2)+X(116,54,'長さ',2,'start'),
+    htank:`<path d="M10 64A28 28 0 0 0 60 64Z" fill="rgba(30,136,229,.25)"/>`+`<circle cx="35" cy="50" r="28" ${G}/>`+P('M35 22H120 M35 78H120 M120 22A14 28 0 0 1 120 78')+Q('M120 22A14 28 0 0 0 120 78')+Ln(7,50,63,50,0)+X(35,44,'直径',0)+Ln(35,86,120,86,1)+X(78,98,'長さ',1)+Ln(66,64,66,78,2)+X(70,73,'液の深さ',2,'start'),
+  };
+  return F[id] ? `<svg viewBox="-28 0 196 104" width="196" height="104" aria-hidden="true">${F[id]}</svg>` : '';
+}
+function renderVolFig(){
+  const el=document.getElementById('volFig'); if(!el) return; const s=volShapeDef();
+  el.innerHTML=(s.poly?'':volFig(s.id))+`<div class="vol-fig-note"><b>${s.name}</b>${s.note?'：'+s.note:''}</div>`;
+}
+/* リセット：写真・寸法・パーツの合計・なぞった線を消して最初から（形と単位、保存した校正はそのまま） */
+function volReset(){
+  const any=volImg || volParts.length || Object.values(volDimState).some(st=>st&&(st.len!=null||st.seg)) || volPolyVerts.length || volPolyRefLen!=null || volPolyHeight!=null;
+  if(any && !confirm('写真・入れた寸法・パーツの合計をすべて消して、最初からにしますか？')) return;
+  if(volImg) volClearPhoto();
+  volParts=[]; volDimState={}; volActiveKey=null; volRefKey=null; volDraft=null;
+  volPolyVerts=[]; volPolyTopVerts=[]; volPolyRefIdx=0; volPolyEdit='bottom'; volPolyArmed=true; volPolyRefLen=null; volPolyHeight=null;
+  if(volCal && volCal.lines) volCal.lines={};
+  volEnsureState(); renderVolDims(); volRedraw(); updateVolResult();
+  toast('リセットしました');
+}
 function renderVolShapes(){
   document.getElementById('volShapeRow').innerHTML=VOL_SHAPES.map(s=>
     `<button class="vol-chip${s.id===volShape?' on':''}" onclick="setVolShape('${s.id}')">${s.name}</button>`).join('');
 }
-function setVolShape(id){ volShape=id; volEnsureState(); if(volIsPoly() && volCalIsKey(volActiveKey)) volActiveKey=null; renderVolShapes(); renderVolDims(); volRedraw(); updateVolResult(); }
+function setVolShape(id){ volShape=id; volEnsureState(); if(volIsPoly() && volCalIsKey(volActiveKey)) volActiveKey=null; renderVolShapes(); renderVolFig(); renderVolDims(); volRedraw(); updateVolResult(); }
 function renderVolUnits(){
   document.getElementById('volUnitRow').innerHTML=VOL_UNITS.map(u=>
     `<button class="vol-chip${u===volUnit?' on':''}" onclick="setVolUnit('${u}')">${u}</button>`).join('');
@@ -13581,7 +13650,7 @@ function computeVol(){
   }
   const sh=volShapeDef(); const v={};
   for(const [k] of sh.dims){ const L=volDimState[k]&&volDimState[k].len; if(!(L>0)) return null; v[k]=L; }
-  return sh.calc(v);
+  const r=sh.calc(v); return (isFinite(r) && r>=0) ? r : null;
 }
 function volFmt(n){ if(!isFinite(n)) return '—'; return Number(n.toPrecision(6)).toLocaleString('en-US',{maximumFractionDigits:6}); }
 function volToLiters(v,unit){ const cm=unit==='mm'?0.1:(unit==='m'?100:1); return v*cm*cm*cm/1000; }   // 1L = 1000cm³
@@ -20951,7 +21020,7 @@ const TOOL_HINTS={
   tansui:'配合を登録しておき、試験のたびに測った値を入れると、推定の単位水量と配合との差を出します。配合の登録は「⚙ 設定」から。',
   kantab:'単位水量と、カンタブの読み値を入れると、換算表で塩化物含有量と平均値を出します。換算表は「⚙ 設定」で登録します。',
   veggie:'育てている野菜と植えた日を登録すると、これからの作業の予定と育成日記をつけられます。',
-  volume:'写真を撮って辺をなぞり、1つの辺に実際の長さを入れると、ほかの辺は写真の比率から入って容積が出ます。',
+  volume:'形を選ぶと、どの寸法を入れるかが図で出ます。写真の辺をなぞって1つに実際の長さを入れると、ほかの辺は比率から入ります。↺ リセットで最初からやり直せます。',
   photomemo:'写真を撮って、文字や印を書きこんだメモにできます。',
   touban:'はじめに「⚙ 設定」で名簿と当番の曜日を決めると、半年分の当番表ができます。「🖨 印刷」で配れます。',
   techo:'下の欄に「明日10時 営業 A社訪問」のように打つか 🎤 で話すと、予定に入ります。上の月は左右になぞると変わります。',
@@ -21311,7 +21380,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v491';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v492';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

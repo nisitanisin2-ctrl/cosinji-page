@@ -8235,6 +8235,43 @@ async function runKurashi(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runVolShape(browser) {
+  const { ctx, page, errs, dialogs } = await newPage(browser);
+  console.log('\n── 📷容積：いろいろな形・リセット（v492） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const calc = (id, v) => page.evaluate(([id, v]) => { const r = VOL_SHAPES.find(x => x.id === id).calc(v); return Math.round(r * 10000) / 10000; }, [id, v]);
+  check('  三角柱（底辺4・三角の高さ3・長さ10）', await calc('tri', { b: 4, th: 3, L: 10 }), 60);
+  check('  三角すい（底辺4・三角の高さ3・高さ5）', await calc('tripy', { b: 4, th: 3, h: 5 }), 10);
+  check('  四角すい（縦3・横4・高さ5）', await calc('pyr', { w: 3, d: 4, h: 5 }), 20);
+  check('  四角すい台（下4×6・上2×3・高さ3）', await calc('pyrfr', { w1: 4, d1: 6, w2: 2, d2: 3, h: 3 }), 42);
+  check('  四角すい台で上下が同じなら直方体と同じ', await calc('pyrfr', { w1: 2, d1: 3, w2: 2, d2: 3, h: 4 }), 24);
+  check('  台形柱（上底0.3・下底0.6・高さ0.4・長さ10）', await calc('trap', { a: 0.3, b: 0.6, th: 0.4, L: 10 }), 1.8);
+  check('  半球・かまぼこ形・だ円柱', [await calc('hemi', { dia: 2 }), await calc('halfcyl', { dia: 2, L: 10 }), await calc('ellcyl', { a: 4, b: 2, h: 1 })].join(','), '2.0944,15.708,6.2832');
+  check('  パイプ（外径10・内径8・長さ100）', await calc('pipe', { D: 10, din: 8, L: 100 }), 2827.4334);
+  check('  横置きタンク：半分・満タン・空', [await calc('htank', { dia: 2, L: 10, dep: 1 }), await calc('htank', { dia: 2, L: 10, dep: 2 }), await calc('htank', { dia: 2, L: 10, dep: 0 })].join(','), '15.708,31.4159,0');
+  await page.evaluate(() => openVolume()); await w(400);
+  check('  形のボタンが16種類', await page.evaluate(() => document.querySelectorAll('#volShapeRow .vol-chip').length), 16);
+  await page.evaluate(() => [...document.querySelectorAll('#volShapeRow .vol-chip')].find(b => b.textContent === '台形柱').click()); await w(150);
+  check('  形を選ぶと図と使いみち・寸法の欄', await page.evaluate(() => !!document.querySelector('#volFig svg') + '/' + document.getElementById('volFig').textContent.includes('側溝') + '/' + [...document.querySelectorAll('#volDims .vol-dim-lb')].map(e => e.textContent).join(',')), 'true/true/上底,下底,台形の高さ,長さ');
+  for (const [k, v] of [['a', '0.3'], ['b', '0.6'], ['th', '0.4'], ['L', '10']]) await page.fill('#volin_' + k, v);
+  await w(100);
+  check('  台形柱の容積が出る', await page.evaluate(() => document.getElementById('volResultVal').textContent), '1.8 cm³');
+  await page.fill('#volin_th', '0'); await w(80);
+  await page.evaluate(() => setVolShape('pipe')); await page.fill('#volin_D', '5'); await page.fill('#volin_din', '8'); await page.fill('#volin_L', '1'); await w(80);
+  check('  パイプで内径が外径より大きいときは出さない', await page.evaluate(() => document.getElementById('volResultVal').textContent), '—');
+  await page.fill('#volin_din', '3'); await w(80);
+  await page.evaluate(() => volAddPart()); await w(100);
+  check('  パーツに足した', await page.evaluate(() => volParts.length), 1);
+  // リセット
+  await page.evaluate(() => { setVolShape('box'); volLenInput('w', '2'); volLenInput('d', '3'); volLenInput('h', '4'); }); await w(80);
+  await page.click('#volResetBtn'); await w(200);
+  check('  リセット：確かめてから寸法もパーツも消す（形はそのまま）', dialogs.some(d => d.includes('最初から')) + '/' + await page.evaluate(() => volParts.length + '/' + document.getElementById('volResultVal').textContent + '/' + document.getElementById('volin_w').value + '/' + volShape), 'true/0/—//box');
+  const n = dialogs.length;
+  await page.click('#volResetBtn'); await w(150);
+  check('  何も入っていなければ聞かずにリセット', dialogs.length === n, true);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runUiMode(browser) {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true });
   const page = await ctx.newPage();
@@ -9469,6 +9506,7 @@ async function runQrShare(browser) {
     if (!only || only === 'manner') await runManner(browser);
     if (!only || only === 'boki') await runBoki(browser);
     if (!only || only === 'kurashi') await runKurashi(browser);
+    if (!only || only === 'volshape') await runVolShape(browser);
     if (!only || only === 'uimode') await runUiMode(browser);
     if (!only || only === 'toolsfab') await runToolsFab(browser);
     if (!only || only === 'techoapp') await runTechoApp(browser);
