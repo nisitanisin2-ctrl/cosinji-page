@@ -9084,6 +9084,8 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v513', t:'道具の分類に「📖 知識・手引き」', li:[
+    '道具の一覧で、<b>🧭 くらしの便利帳・📜 マナー帳・📒 会計の手引き</b>を、新しい分類<b>「📖 知識・手引き」</b>にまとめました（計算ではなく、読んで調べる道具です）' ]},
   { v:'v512', t:'読みものに「前のページ・次のページ」', li:[
     '<b>📜 マナー帳・🧭 くらしの便利帳・📒 会計の手引き・🔢 便利計算</b>で、ページのいちばん下まで読むと<b>「← 前のページ」「次のページ →」</b>のボタンがあります。ボタンには<b>ページの題名</b>が出ます',
     '押すとそのページの上から読めます。一覧に戻らずに続けて読めます（くらしの便利帳は同じテーマの中で、ほかは一覧の並び順で前後します）。✕ で一覧に戻ります' ]},
@@ -21326,10 +21328,11 @@ function homeSetStartup(on){ setStartPage(on?'home':'last'); }
    ★よく使う（自分で選ぶ。選んでいなければ さいきん使ったもの）→ まとまりごと → 隠している道具（畳む）。
    ☰・ホーム・🧰ボタンのどこから開いても同じ窓。隠した道具も下の「隠している道具」から開ける */
 const TOOL_CATS=[
-  ['🏠 くらし',   ['kurashi','keisan','shimai','photomemo','trim','linklist','touban','subsc','memo']],
+  ['🏠 くらし',   ['keisan','shimai','photomemo','trim','linklist','touban','subsc','memo']],
+  ['📖 知識・手引き',['kurashi','manner','boki']],   // 計算ではなく読む道具（v513）
   ['💼 仕事',     ['techo','meishi','calctmpl','fintmpl','kaikei']],
   ['🏗 現場・畑', ['tansui','kantab','volume','ruler','veggie']],
-  ['📚 声・まなぶ',['manner','boki','koe','eigo']],
+  ['📚 声・まなぶ',['koe','eigo']],
   ['🏨 お店・宿', ['regi','heya','annai']],
 ];
 const TOOL_FAV_KEY='excalc_tool_fav';
@@ -21594,7 +21597,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v512';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v513';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
