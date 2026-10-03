@@ -8691,6 +8691,12 @@ async function runRegi(browser) {
   { const vp = page.viewportSize(); await page.setViewportSize({ width: 860, height: 412 }); await w(250);
     check('  横：バーは消えたまま・会計の欄は右に', (await hdrTop()) + '/' + await page.evaluate(() => { const g = document.querySelector('.rg-gridwrap').getBoundingClientRect(), c = document.getElementById('rgCart').getBoundingClientRect(); return c.left >= g.right - 1; }), 'none/0/true');
     await page.setViewportSize(vp); await w(250); }
+  await page.evaluate(id => { rgAdd(id); rgPay(); }, ids3[0]); await w(250);
+  await page.evaluate(() => rgDoneClose()); await w(300);
+  await page.evaluate(() => document.dispatchEvent(new Event('fullscreenchange'))); await w(100);
+  check('  会計して窓を閉じても・ブラウザの全画面が外れても全画面のまま（v508）', (await hdrTop()) + '/' + await page.evaluate(() => rgIsFull() + '/' + document.getElementById('rgFullBtn').textContent), 'none/0/true/⤡ 戻す');
+  await page.evaluate(() => { rgOpenHist(); }); await w(200); await page.evaluate(() => closeDlg('rgHistOverlay')); await w(250);
+  check('  ほかの窓を開いて閉じても全画面のまま', await page.evaluate(() => rgIsFull()), true);
   await page.click('#rgFullBtn'); await w(250);
   check('  もう一度押すと戻る', (await hdrTop()) === before && !(await page.evaluate(() => rgIsFull())), true);
   await page.evaluate(() => rgFull(true)); await w(150);

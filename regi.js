@@ -1,4 +1,4 @@
-/* 🛍 即売レジ（v507。表電卓の道具。apps/regi/ から単独のアプリとしても開ける。はじめて開いたときに読む）
+/* 🛍 即売レジ（v508。表電卓の道具。apps/regi/ から単独のアプリとしても開ける。はじめて開いたときに読む）
    フリマ・お祭り・即売会で使う、かんたんなレジ。
    ・商品（写真・名前・値段・在庫）を登録 → レジの画面で商品を押すと1つずつ足す → 合計・値引き →
      預かった金額を入れるとお釣り → 「会計する」で販売の記録に残し、在庫を減らす。
@@ -12,6 +12,7 @@
    ・消費税（v502）：⚙ 設定で「計算する」にすると、値段が税込（内税）か税別（外税）か・標準の税率（1・8・10%・任意）・端数を決め、
      商品ごとに税率と内税・外税を選べる（決めていない商品は設定の標準）。会計の終わりと履歴・Excel に、税率ごとの税別価格と消費税額を出す。
    ・全画面（v506）：「⛶ 全画面」で上の緑のバーを消し、できる端末ではブラウザの帯も消す（縦でも横でも）。もう一度押すと戻る。
+     会計のあとの窓を閉じる（戻る）・印刷などでブラウザの全画面が外れても、「⤡ 戻す」を押すまでは全画面のまま（次に触ったときに入り直す。v508）。
    ・訂正（v505）：まちがえて会計したときは、履歴（または会計のあとの画面）の「訂正」で、その会計を取り消して会計する前の注文に戻す。
      記録は消さず「訂正」と残し、会計し直した会計には「No.○ の訂正」と残す（不正防止）。押したらすぐ戻す（確かめの窓は出さない。v507）。
    ・領収書の宛名（v504）：印刷の前の窓で宛名・敬称（様・御中）・但し書きを入れる（会計に残るので印刷し直しても同じ）。
@@ -653,8 +654,12 @@ function rgEnsureDom(){
 <div class="modal-overlay" id="rgRcOverlay" onclick="if(event.target===this)closeDlg('rgRcOverlay')"><div class="modal"><div class="modal-header"><span>🧾 レシート・領収書</span><button class="modal-close" onclick="closeDlg('rgRcOverlay')" aria-label="閉じる">✕</button></div><div class="rg-body" id="rgRcBody"></div></div></div>`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
   rgCropBind();
-  // ブラウザの全画面が端末の操作（戻る・Esc）で終わったら、バーも戻す
-  document.addEventListener('fullscreenchange',()=>{ if(!document.fullscreenElement && rgFullOn && isDlgOpen('regiOverlay')) rgFull(false); });
+  // 窓を閉じる（戻る）・印刷などでブラウザの全画面が外れても、「⤡ 戻す」を押すまでは全画面のまま。
+  // ブラウザの全画面は指で触ったときにしか入れないので、次に触ったときに入り直す
+  document.addEventListener('pointerup',e=>{
+    if(!rgFullOn || document.fullscreenElement || !isDlgOpen('regiOverlay') || (e.target.closest&&e.target.closest('#rgFullBtn'))) return;
+    const de=document.documentElement; try{ if(de.requestFullscreen) de.requestFullscreen().catch(()=>{}); }catch(_){}
+  }, true);
   const gw=document.querySelector('#regiOverlay .rg-gridwrap');
   gw.addEventListener('wheel',e=>{ if(ui.dir==='h' && !e.shiftKey && Math.abs(e.deltaY)>Math.abs(e.deltaX) && gw.scrollWidth>gw.clientWidth){ gw.scrollLeft+=e.deltaY; e.preventDefault(); } },{passive:false});
   // 会計の欄が伸び縮みしたり向きが変わったりしたら、横の段数を入れ直す
