@@ -8442,21 +8442,28 @@ async function runAppIconPwa(browser) {
 }
 async function runRegi(browser) {
   const { ctx, page, errs, dialogs } = await newPage(browser);
-  console.log('\n── 🛍即売レジ（v499） ──');
+  console.log('\n── 🛍即売レジ（v499〜v502） ──');
   const w = ms => page.waitForTimeout(ms);
   check('  開くまでは読まない・道具とマイキーにある・単独アプリの入口', await page.evaluate(() => !window.REGI_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'regi') + '/' + !!KEY_FUNCS.a_regi) + '/' + require('fs').existsSync(require('path').join(ROOT, 'apps', 'regi', 'manifest.json')), 'true/true/true/true');
   await page.evaluate(() => openRegi()); await w(400);
   check('  商品がないときは登録へ案内', await page.evaluate(() => document.getElementById('rgGrid').textContent.includes('商品を登録する')), true);
   // 商品の登録（写真つき）
-  const add = async (n, pr, st, nost) => { await page.evaluate(() => rgEditItem()); await w(80); await page.fill('#rgEName', n); await page.fill('#rgEPrice', String(pr)); await page.fill('#rgEStock', String(st)); if (nost) await page.check('#rgENoStock'); await page.evaluate(() => rgSaveItem()); await w(80); };
+  const add = async (n, pr, st, nost) => { await page.evaluate(() => rgEditItem()); await w(200); await page.fill('#rgEName', n); await page.fill('#rgEPrice', String(pr)); await page.fill('#rgEStock', String(st)); if (nost) await page.check('#rgENoStock'); await page.evaluate(() => rgSaveItem()); await w(80); };
   await page.evaluate(() => rgOpenItems()); await w(150);
   await page.evaluate(() => rgEditItem()); await w(80);
   await page.evaluate(() => new Promise(r => { const c = document.createElement('canvas'); c.width = 800; c.height = 600; c.getContext('2d').fillRect(0, 0, 800, 600); c.toBlob(b => { const f = new File([b], 'a.png', { type: 'image/png' }); const dt = new DataTransfer(); dt.items.add(f); const i = document.getElementById('rgPick'); i.files = dt.files; i.dispatchEvent(new Event('change')); setTimeout(r, 400); }); }));
-  check('  写真は小さくして入れる（320px・JPEG）', await page.evaluate(() => new Promise(r => { const im = new Image(); im.onload = () => r(Math.max(im.width, im.height) + '/' + im.src.startsWith('data:image/jpeg')); im.src = document.querySelector('#rgEPhoto img').src; })), '320/true');
+  check('  写真を選ぶと四角に切り取る窓（真ん中から）', await page.evaluate(() => isDlgOpen('rgCropOverlay') + '/' + JSON.stringify(rgState().crop)), 'true/{"w":800,"h":600,"z":1,"cx":400,"cy":300}');
+  { const bb = await page.locator('#rgCropCv').boundingBox(); await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down(); await page.mouse.move(bb.x + bb.width / 2 + 40, bb.y + bb.height / 2, { steps: 4 }); await page.mouse.up(); }
+  check('  指で動かす（右へ動かすと左側が見える・はみ出さない）', await page.evaluate(() => { const c = rgState().crop; return c.cx < 400 && c.cx >= 300; }), true);
+  await page.evaluate(() => rgCropZoom(2)); await w(50);
+  check('  つまみで大きく', await page.evaluate(() => rgState().crop.z), 2);
+  await page.click('#rgCropOkBtn'); await w(150);
+  check('  写真は四角・小さくして入れる（320×320・JPEG）', await page.evaluate(() => new Promise(r => { const im = new Image(); im.onload = () => r(im.width + 'x' + im.height + '/' + im.src.startsWith('data:image/jpeg') + '/' + isDlgOpen('rgCropOverlay')); im.src = document.querySelector('#rgEPhoto img').src; })), '320x320/true/false');
   await page.fill('#rgEName', 'クッキー'); await page.fill('#rgEPrice', '300'); await page.fill('#rgEStock', '20'); await page.evaluate(() => rgSaveItem()); await w(80);
   await add('ジャム', 500, 2); await add('しおり', 150, 30); await add('ドリンク', 200, 0, true);
   check('  登録した商品（在庫・在庫を数えない）', await page.evaluate(() => rgState().rg.items.map(i => i.name + ':' + i.price + ':' + i.stock + (i.noStock ? '*' : '') + (i.photo ? 'p' : '')).join(',')), 'クッキー:300:20p,ジャム:500:2,しおり:150:30,ドリンク:200:0*');
   await page.evaluate(() => closeDlg('rgItemsOverlay')); await w(300);
+  check('  タイルの写真は四角（縦長の写真でも伸びない）', await page.evaluate(() => { const r = document.querySelector('.rg-tile .ph').getBoundingClientRect(); return Math.abs(r.width - r.height) < 1.5; }), true);
   // 注文
   const ids = await page.evaluate(() => rgState().rg.items.map(i => i.id));
   for (const i of [0, 0, 0, 1, 2, 3]) await page.click(`#rgGrid .rg-tile[data-id="${ids[i]}"]`);
@@ -8476,26 +8483,148 @@ async function runRegi(browser) {
   const n0 = dialogs.length;
   await page.evaluate(id => { rgAdd(id); }, ids[1]);
   check('  在庫がなくなると確かめてから足す', (dialogs.length > n0 && dialogs[dialogs.length - 1].includes('在庫が0')) + '/' + await page.evaluate(id => document.querySelector(`.rg-tile[data-id="${id}"]`).classList.contains('out'), ids[1]), 'true/true');
-  // 値引き・ちょうど
-  page.removeAllListeners('dialog'); page.on('dialog', d => { dialogs.push(d.message()); d.type() === 'prompt' ? d.accept('100') : d.accept(); });
-  await page.evaluate(() => rgDisc()); await page.evaluate(() => rgSetPaid('just')); await w(50);
-  check('  値引き・ちょうど', await page.evaluate(() => document.getElementById('rgTotal').textContent + '/' + document.getElementById('rgPaid').value), '小計 ¥1,000　値引き −¥100合計 ¥9002点/900');
+  // 値引き（v500：窓で 円・％・品ごと）
+  await page.click('#rgDiscBtn'); await w(250);
+  check('  🏷 値引きの窓', await page.evaluate(() => isDlgOpen('rgDiscOverlay') + '/' + document.querySelectorAll('#rgDiscBody .rg-dline').length), 'true/1');
+  await page.click('#rgDiscBody .rg-quick button:nth-child(2)'); await w(50);
+  check('  円引き（¥100）', await page.evaluate(() => document.getElementById('rgTotal').textContent), '小計 ¥1,000　値引き −¥100合計 ¥9002点');
+  await page.evaluate(() => { rgOdType('pct'); rgOdSet(30, 1); }); await w(50);
+  check('  ％引き（30%）・窓の中にも合計', await page.evaluate(() => document.getElementById('rgTotal').textContent + '/' + document.getElementById('rgDiscTot').textContent), '小計 ¥1,000　値引き（30%） −¥300合計 ¥7002点/小計 ¥1,000　値引き（30%） −¥300合計 ¥7002点');
+  await page.evaluate(id => rgLineQuick(id, 'half'), ids[1]); await w(50);
+  check('  品ごと：半額＋全体の％引き', await page.evaluate(() => document.getElementById('rgTotal').textContent + '/' + document.querySelector('.rg-line.dc .u').textContent), '小計 ¥1,000　品の値引き −¥500　値引き（30%） −¥150合計 ¥3502点/¥500¥250');
+  await page.evaluate(id => { rgLineQuick(id, 'reset'); rgOdSet(0, 1); rgOdType('yen'); }, ids[1]);
+  await page.fill(`#rgLp_${ids[1]}`, '450'); await w(50);
+  check('  品ごと：値段を入れる', await page.evaluate(() => document.getElementById('rgTotal').textContent), '小計 ¥1,000　品の値引き −¥100合計 ¥9002点');
+  await page.fill(`#rgLp_${ids[1]}`, '9999'); await w(50);
+  check('  定価より高くはしない', await page.evaluate(() => rgState().total), 1000);
+  await page.fill(`#rgLp_${ids[1]}`, '450'); await page.evaluate(() => rgOdRound()); await w(50);
+  check('  端数を切る（900円ちょうどなので端数なし）', await page.evaluate(() => rgState().od.v + '/' + rgState().total), '0/900');
+  await page.evaluate(() => closeDlg('rgDiscOverlay')); await w(250);
+  await page.evaluate(() => rgSetPaid('just')); await w(50);
+  check('  値引き・ちょうど', await page.evaluate(() => document.getElementById('rgTotal').textContent + '/' + document.getElementById('rgPaid').value), '小計 ¥1,000　品の値引き −¥100合計 ¥9002点/900');
   await page.evaluate(() => rgPay()); await w(200); await page.evaluate(() => rgDoneClose()); await w(200);
+  check('  記録に定価と値引き（品ごと）', await page.evaluate(() => { const s = rgState().rg.sales[1]; return s.lines[0].orig + '/' + s.lines[0].price + '/' + s.ldisc + '/' + s.disc + '/' + s.total + '/' + rgState().od.v; }), '500/450/100/0/900/0');
+  page.removeAllListeners('dialog'); page.on('dialog', d => { dialogs.push(d.message()); d.accept(); });
+  await page.evaluate(id => { rgAdd(id); rgAdd(id); rgAdd(id); }, ids[2]);
+  await page.evaluate(() => { rgOdType('pct'); rgOdSet(15); }); await page.fill('#rgPaid', '');
+  check('  ％引きは1円未満を切り捨てて値引き（450円の15%）', await page.evaluate(() => rgState().disc + '/' + rgState().total), '67/383');
+  await page.evaluate(id => rgAdd(id), ids[2]);
+  check('  ％引きは品を足すと引く額も変わる', await page.evaluate(() => rgState().disc + '/' + rgState().total), '90/510');
+  await page.evaluate(() => rgClearCart()); await w(50);
+  check('  取り消すと値引きも戻る', await page.evaluate(() => rgState().od.v + '/' + rgState().cart.length), '0/0');
+  // 横向き：左に商品、右に会計
+  { const vp = page.viewportSize(); await page.setViewportSize({ width: 860, height: 412 }); await w(250);
+    await page.evaluate(id => rgAdd(id), ids[2]); await w(100);
+    check('  横向き：左に商品・右に会計（高さいっぱい）', await page.evaluate(() => { const g = document.querySelector('.rg-gridwrap').getBoundingClientRect(), c = document.getElementById('rgCart').getBoundingClientRect(); return (c.left >= g.right - 1) + '/' + (Math.abs(c.top - g.top) < 2) + '/' + (c.width > 300 && c.width < 460) + '/' + (document.getElementById('rgPayBtn').getBoundingClientRect().bottom <= innerHeight + 1); }), 'true/true/true/true');
+    await page.evaluate(() => rgClearCart()); await w(50);
+    await page.setViewportSize(vp); await w(250);
+    check('  縦向き：会計は下', await page.evaluate(() => { const g = document.querySelector('.rg-gridwrap').getBoundingClientRect(), c = document.getElementById('rgCart').getBoundingClientRect(); return c.top >= g.bottom - 1; }), true); }
   // 履歴・取り消し
   await page.evaluate(() => rgOpenHist()); await w(200);
   check('  履歴：売上・件数・個数', await page.evaluate(() => [...document.querySelectorAll('.rg-sum b')].map(b => b.textContent).join('/')), '¥2,350/2件/7個');
+  check('  履歴：値引きの合計・品の値引きを表示', await page.evaluate(() => document.getElementById('rgHistBody').textContent.includes('値引きの合計 ¥100') + '/' + document.getElementById('rgHistBody').textContent.includes('ジャム ×2（¥500→¥450）')), 'true/true');
   const sid = await page.evaluate(() => rgState().rg.sales[0].id);
   await page.evaluate(id => rgVoid(id), sid); await w(100);
   check('  取り消すと在庫が戻り、売上から外れる（記録は残る）', await page.evaluate(() => rgState().rg.items.map(i => i.stock).join(',') + '/' + [...document.querySelectorAll('.rg-sum b')].map(b => b.textContent).join('/') + '/' + document.querySelectorAll('.rg-sale.void').length), '20,0,30,0/¥900/1件/2個/1');
   // Excel
   check('  Excel のシート', await page.evaluate(() => rgXlsxRows().join(',')), '販売履歴,会計ごと,商品別,まとめ');
-  check('  Excel のファイル（.xlsx の形・数は数で）', await page.evaluate(async () => { const b = await rgBuildXlsx(); const files = await xlsxUnzip(await b.arrayBuffer()); const sh = new TextDecoder().decode(files.get('xl/worksheets/sheet1.xml')); return files.has('xl/worksheets/sheet4.xml') + '/' + /<c r="D2"[^>]*><v>300<\/v>/.test(sh); }), 'true/true');
+  check('  Excel のファイル（.xlsx の形・数は数で）', await page.evaluate(async () => { const b = await rgBuildXlsx(); const files = await xlsxUnzip(await b.arrayBuffer()); const sh = new TextDecoder().decode(files.get('xl/worksheets/sheet1.xml')); const s2 = new TextDecoder().decode(files.get('xl/worksheets/sheet2.xml')); return files.has('xl/worksheets/sheet4.xml') + '/' + /<c r="D2"[^>]*><v>300<\/v>/.test(sh) + '/' + /<c r="H6"[^>]*><v>100<\/v>/.test(sh) + '/' + /<c r="E3"[^>]*><v>100<\/v>/.test(s2) + '/' + /<c r="D3"[^>]*><v>1000<\/v>/.test(s2); }), 'true/true/true/true/true');
   // 新しいイベント
   await page.evaluate(() => { closeDlg('rgHistOverlay'); rgOpenItems(); }); await w(200);
   await page.evaluate(() => rgNewEvent()); await w(100);
   check('  新しいイベント：履歴を消して在庫を最初の数に', await page.evaluate(() => rgState().rg.sales.length + '/' + rgState().rg.items.map(i => i.stock).join(',')), '0/20,2,30,0');
   check('  覚える（開き直しても商品が残る）', await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_regi')).items.length), 4);
   await page.evaluate(() => closeDlg('rgItemsOverlay')); await w(300);
+  // ⚙ 設定：アイコンの大きさ・縦横のスクロール（v501）
+  await page.click('#rgSetBtn'); await w(250);
+  check('  ⚙ 設定の窓（大きさ4つ・縦横）', await page.evaluate(() => isDlgOpen('rgSetOverlay') + '/' + document.querySelectorAll('#rgSetBody [data-k="size"]').length + '/' + document.querySelectorAll('#rgSetBody [data-k="dir"]').length), 'true/4/2');
+  const tw = () => page.evaluate(() => Math.round(document.querySelector('.rg-tile').getBoundingClientRect().width));
+  const w0 = await tw(); await page.click('#rgSetBody [data-k="size"][data-v="xl"]'); await w(100); const w1 = await tw();
+  await page.click('#rgSetBody [data-k="size"][data-v="s"]'); await w(100); const w2 = await tw();
+  check('  大きさを変えるとアイコンが変わる（中→特大→小）', (w1 > w0 && w0 > w2 && w1 >= 176 && w2 < 104) + '/' + await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_regi_ui')).size), 'true/s');
+  await page.click('#rgSetBody [data-k="dir"][data-v="h"]'); await w(150);
+  check('  横にスクロール：段数の選びが出る・段に並ぶ（下へ折り返さず列ごと）', await page.evaluate(() => { const t = [...document.querySelectorAll('.rg-tile')].map(e => e.getBoundingClientRect()); return document.querySelectorAll('#rgSetBody [data-k="rows"]').length + '/' + document.getElementById('rgGrid').classList.contains('h') + '/' + (Math.abs(t[1].left - t[0].left) < 1 && t[1].top > t[0].top); }), '5/true/true');
+  await page.click('#rgSetBody [data-k="rows"][data-v="1"]'); await w(150);
+  check('  1段：横一列に並び、横にスクロールできる', await page.evaluate(() => { const t = [...document.querySelectorAll('.rg-tile')].map(e => e.getBoundingClientRect()); return t.every(r => Math.abs(r.top - t[0].top) < 1) + '/' + JSON.stringify(rgUi()); }), 'true/{"size":"s","dir":"h","rows":1}');
+  await page.evaluate(() => { rgUiSet('size', 'xl'); }); await w(100);
+  check('  1段・特大：はみ出した分は横へ', await page.evaluate(() => { const w = document.querySelector('.rg-gridwrap'); return w.scrollWidth > w.clientWidth; }), true);
+  check('  設定はバックアップに入る', await page.evaluate(() => SETTINGS_BACKUP_KEYS.includes('excalc_regi_ui')), true);
+  await page.evaluate(() => { rgUiSet('dir', 'v'); rgUiSet('rows', 0); rgUiSet('size', 'm'); closeDlg('rgSetOverlay'); }); await w(250);
+  // 売り出しの保存・呼び出し（v501）
+  page.removeAllListeners('dialog'); page.on('dialog', d => { dialogs.push(d.message()); d.type() === 'prompt' ? d.accept('秋祭り2026') : d.accept(); });
+  await page.evaluate(() => rgOpenItems()); await w(200);
+  check('  商品の窓に「売り出しの登録を保存・呼び出す」', await page.evaluate(() => document.getElementById('rgItemsBody').textContent.includes('売り出しの登録を保存・呼び出す')), true);
+  await page.evaluate(() => rgSetSave()); await w(100);
+  check('  いまの商品を名前を付けて保存（写真も）', await page.evaluate(() => { const d = rgSets(); return d.sets.length + '/' + d.sets[0].name + '/' + d.sets[0].items.map(i => i.name + ':' + i.price + ':' + i.stock0 + (i.ph ? 'p' : '')).join(',') + '/' + Object.keys(d.photos).length + '/' + document.querySelectorAll('.rg-setrow').length; }), '1/秋祭り2026/クッキー:300:20p,ジャム:500:2,しおり:150:30,ドリンク:200:0/1/1');
+  await page.evaluate(() => rgSetSave()); await w(100);
+  check('  同じ名前は確かめて上書き', await page.evaluate(() => rgSets().sets.length) + '/' + dialogs.some(m => m.includes('上書き')), '1/true');
+  await page.evaluate(() => { closeDlg('rgItemsOverlay'); }); await w(250);
+  const ids2 = await page.evaluate(() => rgState().rg.items.map(i => i.id));
+  await page.evaluate(id => { rgAdd(id); rgAdd(id); rgPay(); rgDoneClose(); }, ids2[0]); await w(300);
+  await page.evaluate(() => rgOpenItems()); await w(200);
+  await page.evaluate(id => { rgEditItem(id); }, ids2[1]); await w(100); await page.evaluate(() => rgDelItem()); await w(150);
+  check('  売ったり商品を消したりしたあと', await page.evaluate(() => rgState().rg.items.length + '/' + rgState().rg.sales.length + '/' + rgState().rg.items[0].stock), '3/1/18');
+  const sid2 = await page.evaluate(() => rgSets().sets[0].id);
+  await page.evaluate(id => rgSetLoad(id), sid2); await w(150);
+  check('  呼び出すと商品・在庫・写真が戻り、履歴は新しく', await page.evaluate(() => { const r = rgState().rg; return r.items.map(i => i.name + ':' + i.stock + (i.photo ? 'p' : '')).join(',') + '/' + r.sales.length + '/' + r.no + '/' + r.ev.name; }) + '/' + dialogs.some(m => m.includes('販売の履歴は消えます（いま 1件')), 'クッキー:20p,ジャム:2,しおり:30,ドリンク:0/0/1/秋祭り2026/true');
+  await page.evaluate(id => rgSetDel(id), sid2); await w(100);
+  check('  保存した売り出しを消す（写真も片付ける）', await page.evaluate(() => rgSets().sets.length + '/' + Object.keys(rgSets().photos).length), '0/0');
+  await page.evaluate(() => closeDlg('rgItemsOverlay')); await w(300);
+  // 消費税（v502）
+  await page.click('#rgSetBtn'); await w(250);
+  check('  消費税：はじめは計算しない（項目は出ない）', await page.evaluate(() => rgTax().on + '/' + !!document.getElementById('rgTaxDef')), 'false/false');
+  await page.click('#rgSetBody [data-k="taxon"][data-v="1"]'); await w(100);
+  check('  計算する：税込・税率 1・8・10%・任意・端数・商品ごと', await page.evaluate(() => rgTax().on + '/' + rgTax().mode + '/' + [...document.querySelectorAll('#rgTaxDef button')].map(b => b.textContent).join(',') + '/' + document.querySelectorAll('#rgSetBody [data-k="taxround"]').length + '/' + document.querySelectorAll('.rg-irate').length + '/' + JSON.parse(localStorage.getItem('excalc_regi_ui')).tax.on), 'true/in/1%,8%,10%,任意 5%/3/4/true');
+  const ids3 = await page.evaluate(() => rgState().rg.items.map(i => i.id));
+  await page.click(`#rgIR_${ids3[1]} [data-r="8"]`); await w(50);
+  check('  商品ごとに税率（ジャムを8%）', await page.evaluate(() => rgState().rg.items.map(i => i.rate).join(',')), ',8,,');
+  await page.evaluate(() => closeDlg('rgSetOverlay')); await w(250);
+  await page.evaluate(([a, b]) => { rgAdd(a); rgAdd(a); rgAdd(b); }, [ids3[0], ids3[1]]); await w(50);
+  check('  税込：うち消費税（10% 600円→54円・8% 500円→37円）', await page.evaluate(() => document.getElementById('rgTotal').textContent + '/' + rgTax().calc.rows.map(x => x.r + ':' + x.base + '+' + x.tax).join(',')), '合計 ¥1,1003点（うち消費税 ¥91）/10:546+54,8:463+37');
+  check('  注文の行とタイルに税率', await page.evaluate(id => document.querySelector('.rg-line .rt').textContent + '/' + document.querySelector(`.rg-tile[data-id="${id}"] .rt`).textContent, ids3[1]), '10%/8%');
+  await page.evaluate(() => rgTaxSet('mode', 'out')); await w(50);
+  check('  税別（外税）：会計で税を足す', await page.evaluate(() => document.getElementById('rgTotal').textContent + '/' + document.querySelector('.rg-tile .pr').textContent), '税別 ¥1,100　消費税 ＋¥100合計 ¥1,2003点/¥300+税');
+  await page.evaluate(() => { rgOdSet(100); }); await w(50);
+  check('  値引きは税率ごとに分けてから税（外税）', await page.evaluate(() => rgTax().calc.rows.map(x => x.r + ':' + x.base + '+' + x.tax).join(',') + '/' + rgState().total), '10:546+54,8:454+36/1090');
+  await page.evaluate(() => rgTaxSet('round', 'ceil')); await w(50);
+  check('  端数を切り上げ', await page.evaluate(() => rgTax().calc.tax + '/' + rgState().total), '92/1092');
+  await page.evaluate(() => { rgTaxSet('round', 'floor'); rgOdSet(0); }); await w(50);
+  await page.fill('#rgPaid', '2000'); await page.evaluate(() => rgCartRender());
+  check('  お釣りは税込の合計から', await page.evaluate(() => document.getElementById('rgChange').textContent), 'お釣り ¥800');
+  await page.evaluate(() => rgPay()); await w(250);
+  check('  会計のあと：税率ごとの税別価格と消費税', await page.evaluate(() => [...document.querySelectorAll('#rgDoneBody .rg-taxt tr')].map(r => r.textContent).join('|')), '税率税別価格消費税税込|10%対象¥600¥60¥660|8%対象¥500¥40¥540|合計¥1,100¥100¥1,200');
+  check('  記録に税（税率つき）', await page.evaluate(() => { const s = rgState().rg.sales.slice(-1)[0]; return s.total + '/' + s.tax.mode + '/' + s.lines.map(l => l.rate).join(','); }), '1200/out/10,8');
+  await page.evaluate(() => rgDoneClose()); await w(200);
+  await page.evaluate(() => rgOpenHist()); await w(200);
+  check('  履歴：会計ごとと税率ごとのまとめ', await page.evaluate(() => document.querySelector('.rg-sale .x').textContent + '/' + document.querySelectorAll('#rgHistBody .rg-taxt tr').length), '10%対象 ¥660（税別 ¥600・消費税 ¥60）　8%対象 ¥540（税別 ¥500・消費税 ¥40）/4');
+  check('  Excel：会計ごとに税別・消費税、まとめに消費税の合計', await page.evaluate(async () => { const f = await xlsxUnzip(await (await rgBuildXlsx()).arrayBuffer()); const s2 = new TextDecoder().decode(f.get('xl/worksheets/sheet2.xml')), s4 = new TextDecoder().decode(f.get('xl/worksheets/sheet4.xml')); return /<c r="K2"[^>]*><v>1100<\/v>/.test(s2) + '/' + /<c r="L2"[^>]*><v>100<\/v>/.test(s2) + '/' + s4.includes('消費税の合計') + '/' + s4.includes('8%対象（税込）'); }), 'true/true/true/true');
+  await page.evaluate(() => closeDlg('rgHistOverlay')); await w(250);
+  await page.evaluate(() => { rgTaxSet('custom', '7.5'); rgOpenItems(); }); await w(150);
+  await page.evaluate(id => rgEditItem(id), ids3[3]); await w(200);
+  check('  商品を直す窓に税率（任意 7.5%）', await page.evaluate(() => [...document.querySelectorAll('#rgERate button')].map(b => b.textContent).join(',')), '1%,8%,10%,任意 7.5%');
+  await page.click('#rgERate [data-r="1"]'); await page.evaluate(() => rgSaveItem()); await w(150);
+  check('  税率を選んで保存', await page.evaluate(() => rgState().rg.items[3].rate), 1);
+  await page.evaluate(() => { rgTaxSet('on', '0'); closeDlg('rgItemsOverlay'); }); await w(250);
+  await page.evaluate(id => rgAdd(id), ids3[0]);
+  check('  計算しないに戻すと税は出ない', await page.evaluate(() => document.getElementById('rgTotal').textContent + '/' + document.querySelectorAll('.rg-tile .rt').length), '合計 ¥3001点/0');
+  await page.evaluate(() => rgClearCart()); await w(50);
+  // 商品ごとに内税・外税
+  await page.evaluate(() => { rgTaxSet('on', '1'); rgTaxSet('mode', 'in'); rgOpenSet(); }); await w(250);
+  check('  設定の一覧：商品ごとに税率と内税・外税', await page.evaluate(id => document.querySelectorAll('.rg-irate .rg-mseg').length + '/' + document.querySelector(`#rgIM_${id} .on`).textContent, ids3[1]), '4/内税');
+  await page.click(`#rgIM_${ids3[1]} [data-m="out"]`); await w(50);
+  await page.evaluate(() => closeDlg('rgSetOverlay')); await w(250);
+  await page.evaluate(([a, b]) => { rgAdd(a); rgAdd(a); rgAdd(b); }, [ids3[0], ids3[1]]); await w(50);
+  check('  内税（クッキー10%）と外税（ジャム8%）がまざった会計', await page.evaluate(() => document.getElementById('rgTotal').textContent + '/' + rgTax().calc.rows.map(x => x.r + x.m + ':' + x.base + '+' + x.tax + '=' + x.amt).join(',')), '外税の分の消費税 ＋¥40合計 ¥1,1403点（消費税の合計 ¥94）/10in:546+54=600,8out:500+40=540');
+  check('  タイル：外税の商品だけ「+税」', await page.evaluate(([a, b]) => document.querySelector(`.rg-tile[data-id="${a}"] .pr`).textContent + '/' + document.querySelector(`.rg-tile[data-id="${b}"] .pr`).textContent, [ids3[0], ids3[1]]), '¥300/¥500+税');
+  await page.evaluate(() => { rgSetPaid('just'); rgPay(); }); await w(250);
+  check('  会計のあと：内税・外税を分けて表示', await page.evaluate(() => [...document.querySelectorAll('#rgDoneBody .rg-taxt td:first-child')].map(e => e.textContent).join(',') + '/' + rgState().rg.sales.slice(-1)[0].tax.mode), '10%対象（内税）,8%対象（外税）,合計/mix');
+  await page.evaluate(() => rgDoneClose()); await w(200);
+  await page.evaluate(() => rgOpenItems()); await w(150);
+  await page.evaluate(id => rgEditItem(id), ids3[2]); await w(200);
+  check('  商品を直す窓にも内税・外税', await page.evaluate(() => document.querySelector('#rgEMode .on').textContent), '内税');
+  await page.click('#rgEMode [data-m="out"]'); await page.evaluate(() => rgSaveItem()); await w(150);
+  check('  内税・外税を選んで保存', await page.evaluate(() => rgState().rg.items.map(i => i.tmode || '-').join(',')), '-,out,out,out');
+  await page.evaluate(() => { rgTaxSet('on', '0'); closeDlg('rgItemsOverlay'); }); await w(250);
   await page.evaluate(() => window.history.back()); await w(400);
   check('  戻るで閉じる', await page.evaluate(() => isDlgOpen('regiOverlay')), false);
   check('  エラーなし', errs.join(' | '), '');
