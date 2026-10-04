@@ -8733,7 +8733,7 @@ async function runRegi(browser) {
 }
 async function runKakeizu(browser) {
   const { ctx, page, errs, dialogs } = await newPage(browser);
-  console.log('\n── 🌳家系図（v514） ──');
+  console.log('\n── 🌳家系図（v514・v515） ──');
   const w = ms => page.waitForTimeout(ms);
   check('  開くまでは読まない・道具とマイキーにある・単独アプリの入口', await page.evaluate(() => !window.KAKEIZU_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'kakeizu') + '/' + !!KEY_FUNCS.a_kakeizu) + '/' + require('fs').existsSync(require('path').join(ROOT, 'apps', 'kakeizu', 'manifest.json')), 'true/true/true/true');
   await page.evaluate(() => openKakeizu()); await w(500);
@@ -8775,11 +8775,41 @@ async function runKakeizu(browser) {
   check('  図：父母は上、父が左・母が右、本人の下に子、夫・妻は右、きょうだいは左', [pos[fa][1] < pos[me][1], pos[fa][0] < pos[mo][0], pos[c1][1] > pos[me][1], pos[sp][0] > pos[me][0] && pos[sp][1] === pos[me][1], pos[br][0] < pos[me][0] && pos[si][0] < pos[me][0], pos[gf][1] < pos[fa][1], pos[gc][1] > pos[c1][1]].join('/'), 'true/true/true/true/true/true/true');
   check('  ぶつからない（同じ段で重ならない）', Object.values(pos).every((a, i, arr) => arr.every((b, j) => i === j || a[1] !== b[1] || Math.abs(a[0] - b[0]) >= 132)), true);
   check('  きょうだいは生まれ順（姉・本人・弟は年上から左）', pos[si][0] < pos[br][0], true);
+  // 生まれ順・続き柄・養子（v515）
+  check('  続き柄は生まれ順から自動（長男・次男・長女・叔父は次男）', await page.evaluate(ids => ids.map(kzOrd).join(','), [me, br, si, fa, oj, c1, c2]), '長男,次男,長女,長男,次男,長男,長女');
+  check('  箱にも続き柄（父・長男）', await page.evaluate(id => { kzFocus(kzState().me); return document.querySelector(`#kzStage .kz-node[data-id="${id}"] .kin`).textContent; }, fa), '父・長男');
+  const nb = await add('sib', me, '山田 三郎', 'm', '', async () => { await page.fill('#kzEBo', '2'); });
+  check('  生まれの日がない人がいると自動では付けない', await page.evaluate(ids => ids.map(kzOrd).join(','), [me, br, nb]), ',,');
+  await page.evaluate(id => kzEditPerson(id), br); await w(200); await page.fill('#kzEBo', '3'); await page.evaluate(() => kzSaveForm()); await w(150);
+  await page.evaluate(id => kzEditPerson(id), me); await w(200); await page.fill('#kzEBo', '1'); await page.evaluate(() => kzSaveForm()); await w(150);
+  check('  生まれ順を入れると、その順に並び自動で付く', await page.evaluate(ids => ids.map(kzOrd).join(',') + '/' + kzLayoutData().nodes.filter(n => n.y === 0 && n.x < 0).sort((a, b) => a.x - b.x).map(n => kzState().people.find(p => p.id === n.id).name).join(','), [me, nb, br]), '長男,次男,三男/山田 姉子,山田 三郎,山田 次郎');
+  await page.evaluate(id => kzEditPerson(id), si); await w(200); await page.selectOption('#kzEOrd', '次女'); await page.evaluate(() => kzSaveForm()); await w(150);
+  check('  続き柄を選んで決める（自動より優先）', await page.evaluate(id => kzOrd(id) + '/' + kzState().people.find(p => p.id === id).ord, si), '次女/次女');
+  const ad = await add('c', me, '山田 ようこ', 'f', '2015', async () => { await page.click('#kzEAd [data-v="b"]'); });
+  check('  養子：続き柄は養女、本人からは養女、自動の長女・次女には数えない', await page.evaluate(([a, c]) => kzOrd(a) + '/' + kzKin(a) + '/' + kzOrd(c) + '/' + kzState().people.find(p => p.id === a).adopt, [ad, c2]), '養女/養女/長女/b');
+  check('  図：養子の線は点線で「養」', await page.evaluate(() => { closeDlg('kzSheetOverlay'); kzFocus(kzState().me); return document.querySelectorAll('#kzStage .kz-lines path.ad').length + '/' + document.querySelector('#kzStage .kz-lines .adt').textContent; }), '1/養');
+  await page.evaluate(id => kzTap(id), ad); await w(250);
+  check('  人の窓：養子（父母と養子縁組）・実父と実母のボタン', await page.evaluate(() => document.querySelector('#kzSheetBody .kz-ad').textContent + '/' + [...document.querySelectorAll('#kzSheetBody .kz-btns.s button')].map(b => b.textContent).filter(t => t.includes('実')).join(',')), '養子（父母と養子縁組）/＋ 実父（生みの親）,＋ 実母（生みの親）');
+  const bm = await add('bm', ad, '鈴木 みどり', undefined, '1990');
+  check('  実母を入れる（図の親は変えず、人の窓に出る）', await page.evaluate(([a, b]) => { const p = kzState().people.find(x => x.id === a); return (p.bm === b) + '/' + (p.m !== b) + '/' + document.getElementById('kzSheetBody').textContent.includes('実母鈴木 みどり'); }, [ad, bm]), 'true/true/true');
+  await page.evaluate(id => kzTap(id), bm); await w(250);
+  check('  生みの親の窓に「養子に出た子」', await page.evaluate(() => document.getElementById('kzSheetBody').textContent.includes('養子に出た子山田 ようこ')), true);
+  await page.evaluate(() => closeDlg('kzSheetOverlay')); await w(250);
+  // 本人が養子のとき：父母は養父・養母
+  await page.evaluate(id => kzEditPerson(id), me); await w(200); await page.click('#kzEAd [data-v="b"]'); await page.evaluate(() => kzSaveForm()); await w(150);
+  check('  本人が養子なら父母は養父・養母', await page.evaluate(([a, b]) => kzKin(a) + '/' + kzKin(b), [fa, mo]), '養父/養母');
+  await page.evaluate(id => kzEditPerson(id), me); await w(200); await page.click('#kzEAd [data-v=""]'); await page.evaluate(() => kzSaveForm()); await w(150);
+  // 婿養子：夫や妻がきょうだいにもなるときは夫や妻として1回だけ出す
+  const muko = await add('sp', c2, '山田 むこ', 'm', '2012');
+  await page.evaluate(([m, a, b]) => { const s = kzState(); kzImportData(Object.assign(kzExportData(), { people: s.people.map(p => p.id === m ? Object.assign(p, { f: a, m: b, adopt: 'b' }) : p) })); kzFocus(s.people.find(p => p.id === m).id); }, [muko, me, sp]); await w(200);
+  check('  婿養子は夫や妻として出し、きょうだいに重ねて出さない', await page.evaluate(([m, w2]) => { kzFocus(w2); return kzLayoutData().nodes.filter(n => n.id === m).length; }, [muko, c2]), 1);
+  await page.evaluate(([a, b]) => { const s = kzState(); kzImportData(Object.assign(kzExportData(), { people: s.people.filter(p => p.id !== a && p.id !== b) })); kzFocus(kzState().me); }, [muko, nb]); await w(200);
+  await page.evaluate(id => { const s = kzState(); kzImportData(Object.assign(kzExportData(), { people: s.people.filter(p => p.id !== id) })); }, ad); await page.evaluate(id => { const s = kzState(); kzImportData(Object.assign(kzExportData(), { people: s.people.filter(p => p.id !== id) })); }, bm); await w(150);
   // 人を押す
   await page.click(`#kzStage .kz-node[data-id="${fa}"]`); await w(300);
   check('  人を押すとその人の窓（続柄・親子・足すボタン）', await page.evaluate(() => isDlgOpen('kzSheetOverlay') + '/' + document.getElementById('kzSheetBody').textContent.includes('父') + '/' + [...document.querySelectorAll('#kzSheetBody .kz-btns.s button')].map(b => b.textContent.trim()).join(',')), 'true/true/＋ 母,＋ 夫・妻,＋ 子,＋ きょうだい,🗑 消す,⭐ この人を本人（自分）にする'.split(',').filter(x => !x.includes('⭐')).join(',').replace('🗑 消す', '⭐ この人を本人（自分）にする,🗑 消す'));
   await page.click('#kzSheetBody .kz-b.pri'); await w(300);
-  check('  この人を中心に：父が中心、続柄は本人からのまま', await page.evaluate(id => kzState().focus === id && document.querySelector('#kzStage .kz-node.focus').dataset.id === id && document.querySelector('#kzStage .kz-node.focus .kin').textContent === '父', fa), true);
+  check('  この人を中心に：父が中心、続柄は本人からのまま', await page.evaluate(id => kzState().focus === id && document.querySelector('#kzStage .kz-node.focus').dataset.id === id && document.querySelector('#kzStage .kz-node.focus .kin').textContent.startsWith('父'), fa), true);
   check('  父を中心にすると叔父（父のきょうだい）も横に', await page.evaluate(id => !!document.querySelector(`#kzStage .kz-node[data-id="${id}"]`), oj), true);
   await page.evaluate(() => kzFocus(kzState().me)); await w(200);
   // 直す
