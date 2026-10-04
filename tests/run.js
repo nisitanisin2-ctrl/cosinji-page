@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,ruler,photomemo,linklist,touban,techo,subsc,heya,annai,regi,shimai,meishi,trim,manner,boki,kurashi,keisan,memo,calctmpl,fintmpl,kaikei,koe,eigo');
+    'tansui,kantab,veggie,volume,ruler,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,trim,manner,boki,kurashi,keisan,memo,calctmpl,fintmpl,kaikei,koe,eigo');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -3086,11 +3086,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,photomemo,linklist,touban,techo,subsc,heya,annai,regi,shimai,meishi,trim,manner,boki,kurashi,keisan,calctmpl,fintmpl');
+    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,trim,manner,boki,kurashi,keisan,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 26);   // v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
+    document.getElementById('startPageSel').options.length), 27);   // v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'veggieOverlay', 'volumeOverlay',
@@ -8731,6 +8731,107 @@ async function runRegi(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runKakeizu(browser) {
+  const { ctx, page, errs, dialogs } = await newPage(browser);
+  console.log('\n── 🌳家系図（v514） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキーにある・単独アプリの入口', await page.evaluate(() => !window.KAKEIZU_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'kakeizu') + '/' + !!KEY_FUNCS.a_kakeizu) + '/' + require('fs').existsSync(require('path').join(ROOT, 'apps', 'kakeizu', 'manifest.json')), 'true/true/true/true');
+  await page.evaluate(() => openKakeizu()); await w(500);
+  check('  はじめは「自分（本人）を入れる」案内', await page.evaluate(() => getComputedStyle(document.getElementById('kzEmpty')).display !== 'none' && document.getElementById('kzEmpty').textContent.includes('自分（本人）を入れる')), true);
+  // 日付（西暦・和暦）
+  check('  生まれの読み方（西暦・和暦・略号・元年）', await page.evaluate(() => ['1950', '1950/4/1', '昭和25年4月1日', 'S25.4.1', 'h1', '令和元年5月1日', '大正15年', 'あいう'].map(s => { const d = kzParseDate(s); return d ? d.y + '-' + d.m + '-' + d.d : 'x'; }).join(',')), '1950-0-0,1950-4-1,1950-4-1,1950-4-1,1989-0-0,2019-5-1,1926-0-0,x');
+  check('  和暦を出す（元号の替わり目も）', await page.evaluate(() => ['1950', '1989/1/7', '1989/1/8', '2019/4/30', '2019/5/1', '1926/12/25'].map(kzWareki).join(',')), '昭和25年,昭和64年,平成元年,平成31年,令和元年,昭和元年');
+  // 入れる
+  const add = async (rel, base, name, sex, birth, more) => {
+    await page.evaluate(([r, b]) => kzAddRel(r, b), [rel, base]); await w(150);
+    await page.fill('#kzEName', name); if (sex !== undefined) await page.click(`#kzESex [data-v="${sex}"]`); if (birth) await page.fill('#kzEBirth', birth);
+    if (more) await more();
+    await page.evaluate(() => kzSaveForm()); await w(150);
+    return page.evaluate(n => kzState().people.find(x => x.name === n).id, name);
+  };
+  const me = await add('me', '', '山田 太郎', 'm', '昭和55年4月1日');
+  check('  本人を入れると図になり、中心・本人に', await page.evaluate(id => { const s = kzState(); return (s.me === id) + '/' + (s.focus === id) + '/' + s.people[0].birth + '/' + document.querySelectorAll('#kzStage .kz-node.focus').length + '/' + document.querySelectorAll('#kzStage .kz-node.add').length; }, me), 'true/true/1980-04-01/1/2');
+  const fa = await add('f', me, '山田 一郎', undefined, '1950');
+  const mo = await add('m', me, '山田 花子', undefined, 'S27');
+  check('  父・母を入れると、性別が決まり夫婦としてつながる', await page.evaluate(([a, b]) => { const s = kzState(), F = s.people.find(p => p.id === a), M = s.people.find(p => p.id === b); return F.sex + M.sex + '/' + F.sp.includes(b) + '/' + M.sp.includes(a); }, [fa, mo]), 'mf/true/true');
+  const gf = await add('f', fa, '山田 権兵衛', undefined, '1920', async () => { await page.fill('#kzEDeath', '1990/3/1'); });
+  const gm = await add('m', mo, '佐藤 ウメ', undefined, '大正15年');
+  const sp = await add('sp', me, '山田 さくら', undefined, '1982/7/7');
+  const c1 = await add('c', me, '山田 一郎太', 'm', '2010');
+  const c2 = await add('c', me, '山田 桜子', 'f', '2013');
+  const br = await add('sib', me, '山田 次郎', 'm', '1983');
+  const si = await add('sib', me, '山田 姉子', 'f', '1978');
+  const oj = await add('sib', fa, '山田 二郎', 'm', '1953');
+  const it = await add('c', oj, '山田 いとこ', 'f', '1985');
+  const gc = await add('c', c1, '山田 孫', 'm', '2040');
+  const ym = await add('sp', c1, '山田 よめ', 'f', '2011');
+  check('  子は夫・妻とのあいだの子になる（もう一人の親）', await page.evaluate(([c, a, b]) => { const p = kzState().people.find(x => x.id === c); return (p.f === a) + '/' + (p.m === b); }, [c1, me, sp]), 'true/true');
+  check('  続柄は本人から自動', await page.evaluate(ids => ids.map(kzKin).join(','), [me, fa, mo, gf, gm, sp, c1, c2, br, si, oj, it, gc, ym]),
+    '本人,父,母,祖父（父方）,祖母（母方）,妻,息子,娘,弟,姉,叔父（父方）,いとこ（父方）,孫,嫁');
+  check('  年齢・亡くなった年齢', await page.evaluate(([a, b]) => kzAge(b) + '/' + document.querySelector(`#kzStage .kz-node[data-id="${a}"]`).textContent.includes('1920〜1990（70歳）'), [gf, gf]), '70/true');   // 生まれの月日が分からないので年の差
+  await page.evaluate(() => { document.querySelectorAll('.modal-overlay.open').forEach(o => { if (o.id !== 'kakeizuOverlay') closeDlg(o.id); }); }); await w(300);
+  // 並び方
+  const pos = await page.evaluate(() => { const o = {}; document.querySelectorAll('#kzStage .kz-node[data-id]').forEach(n => { o[n.dataset.id] = [parseFloat(n.style.left), parseFloat(n.style.top)]; }); return o; });
+  check('  図：父母は上、父が左・母が右、本人の下に子、夫・妻は右、きょうだいは左', [pos[fa][1] < pos[me][1], pos[fa][0] < pos[mo][0], pos[c1][1] > pos[me][1], pos[sp][0] > pos[me][0] && pos[sp][1] === pos[me][1], pos[br][0] < pos[me][0] && pos[si][0] < pos[me][0], pos[gf][1] < pos[fa][1], pos[gc][1] > pos[c1][1]].join('/'), 'true/true/true/true/true/true/true');
+  check('  ぶつからない（同じ段で重ならない）', Object.values(pos).every((a, i, arr) => arr.every((b, j) => i === j || a[1] !== b[1] || Math.abs(a[0] - b[0]) >= 132)), true);
+  check('  きょうだいは生まれ順（姉・本人・弟は年上から左）', pos[si][0] < pos[br][0], true);
+  // 人を押す
+  await page.click(`#kzStage .kz-node[data-id="${fa}"]`); await w(300);
+  check('  人を押すとその人の窓（続柄・親子・足すボタン）', await page.evaluate(() => isDlgOpen('kzSheetOverlay') + '/' + document.getElementById('kzSheetBody').textContent.includes('父') + '/' + [...document.querySelectorAll('#kzSheetBody .kz-btns.s button')].map(b => b.textContent.trim()).join(',')), 'true/true/＋ 母,＋ 夫・妻,＋ 子,＋ きょうだい,🗑 消す,⭐ この人を本人（自分）にする'.split(',').filter(x => !x.includes('⭐')).join(',').replace('🗑 消す', '⭐ この人を本人（自分）にする,🗑 消す'));
+  await page.click('#kzSheetBody .kz-b.pri'); await w(300);
+  check('  この人を中心に：父が中心、続柄は本人からのまま', await page.evaluate(id => kzState().focus === id && document.querySelector('#kzStage .kz-node.focus').dataset.id === id && document.querySelector('#kzStage .kz-node.focus .kin').textContent === '父', fa), true);
+  check('  父を中心にすると叔父（父のきょうだい）も横に', await page.evaluate(id => !!document.querySelector(`#kzStage .kz-node[data-id="${id}"]`), oj), true);
+  await page.evaluate(() => kzFocus(kzState().me)); await w(200);
+  // 直す
+  await page.evaluate(id => kzEditPerson(id), gm); await w(200);
+  await page.check('#kzEDead'); await page.evaluate(() => kzSaveForm()); await w(200);
+  check('  直す：亡くなった（日が分からなくても）', await page.evaluate(id => { const p = kzState().people.find(x => x.id === id); return p.dead + '/' + document.querySelector(`#kzStage .kz-node[data-id="${id}"]`).classList.contains('dead'); }, gm), 'true/true');
+  // いる人をつなぐ
+  await page.evaluate(id => kzAddRel('sp', id), gm); await w(200);
+  check('  足すとき「いる人から選ぶ」（親子がぐるぐるになる人は出さない）', await page.evaluate(([a, b]) => { const o = [...document.querySelectorAll('#kzPick option')].map(x => x.value); return o.includes(a) + '/' + o.includes(b); }, [gf, mo]), 'true/false');
+  await page.selectOption('#kzPick', gf); await page.evaluate(() => kzSaveForm()); await w(200);
+  check('  いる人を夫婦につなぐ', await page.evaluate(([a, b]) => kzState().people.find(x => x.id === a).sp.includes(b), [gm, gf]), true);
+  check('  まちがったつながりは選べない（自分の子を親に）', await page.evaluate(([m, c]) => { kzAddRel('f', m); const o = [...document.querySelectorAll('#kzPick option')].map(x => x.value); closeDlg('kzEditOverlay'); return o.includes(c); }, [me, c1]), false);
+  await w(250);
+  // 一覧
+  await page.evaluate(() => kzOpenList()); await w(250);
+  check('  一覧：全員・上の代から', await page.evaluate(() => document.querySelectorAll('#kzListBody .kz-li').length + '/' + document.querySelector('#kzListBody .kz-li b').textContent), '14/山田 権兵衛 †');
+  await page.fill('#kzQ', 'いとこ'); await page.evaluate(() => kzRenderList('いとこ')); await w(100);
+  check('  一覧でさがす（続柄でも）', await page.evaluate(() => [...document.querySelectorAll('#kzListBody .kz-li b')].map(b => b.textContent).join(',')), '山田 いとこ');
+  await page.evaluate(() => closeDlg('kzListOverlay')); await w(250);
+  // 設定
+  await page.evaluate(() => kzOpenSet()); await w(200);
+  await page.click('#kzSetBody [data-k="up"][data-v="1"]'); await w(150);
+  check('  設定：上の代を「親まで」にすると祖父母は出ない', await page.evaluate(id => !document.querySelector(`#kzStage .kz-node[data-id="${id}"]`) + '/' + JSON.parse(localStorage.getItem('excalc_kakeizu')).up, gf), 'true/1');
+  await page.click('#kzSetBody [data-k="down"][data-v="0"]'); await page.click('#kzSetBody [data-k="sib"][data-v="false"]'); await w(150);
+  check('  下の代・きょうだいを出さない', await page.evaluate(([a, b]) => !document.querySelector(`#kzStage .kz-node[data-id="${a}"]`) + '/' + !document.querySelector(`#kzStage .kz-node[data-id="${b}"]`), [c1, br]), 'true/true');
+  await page.click('#kzSetBody [data-k="up"][data-v="3"]'); await page.click('#kzSetBody [data-k="down"][data-v="2"]'); await page.click('#kzSetBody [data-k="sib"][data-v="true"]'); await w(150);
+  // 書き出し・読み込み
+  const data = await page.evaluate(() => JSON.stringify(kzExportData()));
+  check('  書き出し（全員・本人）', JSON.parse(data).type + '/' + JSON.parse(data).people.length + '/' + (JSON.parse(data).me === me), 'excalc-kakeizu/14/true');
+  await page.evaluate(() => closeDlg('kzSetOverlay')); await w(200);
+  // 消す
+  await page.evaluate(id => kzTap(id), it); await w(200);
+  await page.click('#kzSheetBody .kz-b.danger'); await w(250);
+  check('  消す（つながりも外れる）', await page.evaluate(id => kzState().people.length + '/' + !kzState().people.some(p => p.f === id || p.m === id || p.sp.includes(id)), it), '13/true');
+  await page.evaluate(d => kzImportData(JSON.parse(d)), data); await w(200);
+  check('  読み込むと元どおり', await page.evaluate(() => kzState().people.length), 14);
+  // 拡大・画像
+  const s0 = await page.evaluate(() => kzState().scale);
+  await page.evaluate(() => kzZoom(1.25)); await w(100);
+  check('  ＋で大きく（覚える）', await page.evaluate(s => kzState().scale > s && JSON.parse(localStorage.getItem('excalc_kakeizu')).scale > s, s0), true);
+  check('  画像に描ける（印刷・保存のもと）', await page.evaluate(async () => { const c = await kzDrawCanvas(); return c.width > 400 && c.height > 300; }), true);
+  await page.evaluate(() => { window.print = () => { window.__pr = (window.__pr || 0) + 1; }; kzPrint(); }); await w(700);
+  check('  印刷は A4 横', await page.evaluate(() => window.__pr + '/' + document.getElementById('printDynamicStyle').textContent.includes('A4 landscape') + '/' + !!document.querySelector('#printArea img')), '1/true/true');
+  // 開き直しても残る
+  await page.evaluate(() => closeKakeizu()); await w(300);
+  await page.evaluate(() => openKakeizu()); await w(400);
+  check('  開き直しても残る', await page.evaluate(() => kzState().people.length + '/' + (document.querySelectorAll('#kzStage .kz-node[data-id]').length > 0)), '14/true');
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  戻るで閉じる', await page.evaluate(() => isDlgOpen('kakeizuOverlay')), false);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runUiMode(browser) {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true });
   const page = await ctx.newPage();
@@ -8838,11 +8939,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/26');
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/27');
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'shimai', 'meishi', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -8870,7 +8971,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,shimai:B,meishi:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -9971,6 +10072,7 @@ async function runQrShare(browser) {
     if (!only || only === 'ruler') await runRuler(browser);
     if (!only || only === 'appiconpwa') await runAppIconPwa(browser);
     if (!only || only === 'regi') await runRegi(browser);
+    if (!only || only === 'kakeizu') await runKakeizu(browser);
     if (!only || only === 'uimode') await runUiMode(browser);
     if (!only || only === 'toolsfab') await runToolsFab(browser);
     if (!only || only === 'techoapp') await runTechoApp(browser);
