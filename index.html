@@ -9089,6 +9089,8 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v517', t:'🌳家系図：カードから長男などを選ぶ', li:[
+    '人を押したときのカードに<b>「続き柄・生まれ順」</b>のボタン。<b>長男・次男…（女性は長女・次女…）・養子</b>や、<b>何番目に生まれたか</b>を押すだけで決められます。「自動」に戻すこともできます' ]},
   { v:'v516', t:'🎤声で入れる：前のセルを言い直す', li:[
     '声で入れているときの窓に<b>「↩ A3 を言い直す（前のセル）」</b>ボタン。言いまちがえたり、思った数で聞き取られなかったときに押すと、<b>前に入れたセルへ戻って聞き直し</b>ます。言い直すと、<b>戻る前にいたセルへ帰り</b>、続けて入れているときはそこから続きます',
     '何度か押すと、さらに前のセルへ戻れます。声で<b>「戻る」「言い直し」「訂正」</b>と言っても同じです。言い直さずにやめたときも、元のセルへ帰ります',
@@ -21681,7 +21683,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v516';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v517';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

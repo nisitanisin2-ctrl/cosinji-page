@@ -8752,7 +8752,7 @@ async function runRegi(browser) {
 }
 async function runKakeizu(browser) {
   const { ctx, page, errs, dialogs } = await newPage(browser);
-  console.log('\n── 🌳家系図（v514・v515） ──');
+  console.log('\n── 🌳家系図（v514〜v517） ──');
   const w = ms => page.waitForTimeout(ms);
   check('  開くまでは読まない・道具とマイキーにある・単独アプリの入口', await page.evaluate(() => !window.KAKEIZU_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'kakeizu') + '/' + !!KEY_FUNCS.a_kakeizu) + '/' + require('fs').existsSync(require('path').join(ROOT, 'apps', 'kakeizu', 'manifest.json')), 'true/true/true/true');
   await page.evaluate(() => openKakeizu()); await w(500);
@@ -8804,6 +8804,17 @@ async function runKakeizu(browser) {
   check('  生まれ順を入れると、その順に並び自動で付く', await page.evaluate(ids => ids.map(kzOrd).join(',') + '/' + kzLayoutData().nodes.filter(n => n.y === 0 && n.x < 0).sort((a, b) => a.x - b.x).map(n => kzState().people.find(p => p.id === n.id).name).join(','), [me, nb, br]), '長男,次男,三男/山田 姉子,山田 三郎,山田 次郎');
   await page.evaluate(id => kzEditPerson(id), si); await w(200); await page.selectOption('#kzEOrd', '次女'); await page.evaluate(() => kzSaveForm()); await w(150);
   check('  続き柄を選んで決める（自動より優先）', await page.evaluate(id => kzOrd(id) + '/' + kzState().people.find(p => p.id === id).ord, si), '次女/次女');
+  // 人の窓（カード）から続き柄・生まれ順（v517）
+  await page.evaluate(id => kzTap(id), oj); await w(250);
+  check('  カードに続き柄のボタン（男性は男の続き柄と養子だけ）・何番目', await page.evaluate(() => [...document.querySelectorAll('#kzOrdChips button')].map(b => b.textContent).join(',') + '/' + document.querySelectorAll('#kzBoChips button').length), '自動（次男）,長男,次男,三男,四男,五男,六男,七男,養子/9');
+  await page.click('#kzOrdChips [data-ord="三男"]'); await w(200);
+  check('  押すとすぐ決まり、図にも出る', await page.evaluate(id => kzOrd(id) + '/' + kzState().people.find(p => p.id === id).ord + '/' + document.querySelector('#kzOrdChips .on').textContent + '/' + isDlgOpen('kzSheetOverlay'), oj), '三男/三男/三男/true');
+  await page.click('#kzOrdChips [data-ord=""]'); await w(200);
+  check('  「自動」で元に戻す', await page.evaluate(id => kzOrd(id) + '/' + kzState().people.find(p => p.id === id).ord, oj), '次男/');
+  await page.click('#kzBoChips [data-bo="2"]'); await w(200);
+  check('  何番目もカードから', await page.evaluate(id => kzState().people.find(p => p.id === id).bo + '/' + document.querySelector('#kzBoChips .on').textContent, oj), '2/2');
+  await page.click('#kzBoChips [data-bo="0"]'); await w(200);
+  await page.evaluate(() => closeDlg('kzSheetOverlay')); await w(250);
   const ad = await add('c', me, '山田 ようこ', 'f', '2015', async () => { await page.click('#kzEAd [data-v="b"]'); });
   check('  養子：続き柄は養女、本人からは養女、自動の長女・次女には数えない', await page.evaluate(([a, c]) => kzOrd(a) + '/' + kzKin(a) + '/' + kzOrd(c) + '/' + kzState().people.find(p => p.id === a).adopt, [ad, c2]), '養女/養女/長女/b');
   check('  図：養子の線は点線で「養」', await page.evaluate(() => { closeDlg('kzSheetOverlay'); kzFocus(kzState().me); return document.querySelectorAll('#kzStage .kz-lines path.ad').length + '/' + document.querySelector('#kzStage .kz-lines .adt').textContent; }), '1/養');
