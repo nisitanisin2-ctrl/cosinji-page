@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,ruler,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,trim,manner,boki,kurashi,keisan,memo,calctmpl,fintmpl,kaikei,koe,eigo');
+    'tansui,kantab,veggie,volume,ruler,kakudo,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,trim,manner,boki,kurashi,keisan,memo,calctmpl,fintmpl,kaikei,koe,eigo');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -3105,11 +3105,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,trim,manner,boki,kurashi,keisan,calctmpl,fintmpl');
+    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,trim,manner,boki,kurashi,keisan,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 27);   // v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
+    document.getElementById('startPageSel').options.length), 28);   // v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'veggieOverlay', 'volumeOverlay',
@@ -8892,6 +8892,84 @@ async function runKakeizu(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runKakudo(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📐角度計（v518） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキーにある・単独アプリの入口', await page.evaluate(() => !window.KAKUDO_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'kakudo') + '/' + !!KEY_FUNCS.a_kakudo) + '/' + require('fs').existsSync(require('path').join(ROOT, 'apps', 'kakudo', 'manifest.json')), 'true/true/true/true');
+  await page.evaluate(() => openKakudo()); await w(500);
+  check('  タブ4つ（傾き・分度器・写真・距離と高さ）、はじめは傾き', await page.evaluate(() => [...document.querySelectorAll('#kgTabs button')].map(b => b.textContent).join(',') + '/' + kgState().tab), '📐 傾き,📏 分度器,🖼 写真,📷 距離・高さ/level');
+  const feed = (b, g) => page.evaluate(([b, g]) => kgFeed({ beta: b, gamma: g, now: true }), [b, g]);
+  const deg = () => page.evaluate(() => document.getElementById('kgDeg').textContent + '/' + kgState().m.mode);
+  // 置く
+  await feed(0, 0); await w(100);
+  check('  平らに置くと 0.0°（気泡がまん中・水平）', (await deg()) + '/' + await page.evaluate(() => document.getElementById('kgSub').textContent.includes('水平')), '0.0/flat/true');
+  await feed(10, 0); await w(100);
+  check('  置いた面が10°傾くと 10.0°', await deg(), '10.0/flat');
+  check('  寸勾配・％・1：n', await page.evaluate(() => document.getElementById('kgSub').textContent), '1.8寸・17.6%・1：5.7');
+  await feed(3, 4); await w(100);
+  check('  2つの向きに傾いても面の傾きは1つ', await page.evaluate(() => document.getElementById('kgDeg').textContent), '5.0');
+  // 立てて辺を当てる
+  await feed(70, -90); await w(100);
+  check('  立てて短い辺を20°の坂に当てる → 20.0°（短い辺を自動で）', await deg(), '20.0/short');
+  await feed(30, -90); await w(100);
+  check('  横にして長い辺を30°の坂に当てる → 30.0°（長い辺を自動で）', await deg(), '30.0/long');
+  check('  30° は 5.8寸・57.7%', await page.evaluate(() => document.getElementById('kgSub').textContent), '5.8寸・57.7%・1：1.7');   // 1：n は 10 より小さいときは小数1けた
+  // 差・止める
+  await page.click('#kgRefBtn'); await w(100);
+  await feed(40, -90); await w(100);
+  check('  「ここを0に」で2つの面の差（30°→40° で 10.0°）', await page.evaluate(() => document.getElementById('kgDeg').textContent + '/' + document.getElementById('kgWhat').textContent.includes('差')), '10.0/true');
+  await page.click('#kgRefBtn'); await w(100);
+  await page.click('#kgHoldBtn'); await feed(25, -90); await w(100);
+  check('  止めると動かしても変わらない', await page.evaluate(() => document.getElementById('kgDeg').textContent), '40.0');
+  await page.click('#kgHoldBtn'); await w(100);
+  check('  動かすと戻る', await page.evaluate(() => document.getElementById('kgDeg').textContent), '25.0');
+  await page.evaluate(() => kgSetMode('long')); await feed(60, -90); await w(100);
+  check('  45°より急な坂は「長い辺」を選ぶと 60.0°', await deg(), '60.0/long');
+  await page.evaluate(() => kgSetMode('auto'));
+  // 0点合わせ
+  await feed(1, -0.5); await w(100);
+  await page.evaluate(() => kgCal()); await w(100);
+  check('  0点合わせ：いまの傾きを0に（覚える）', await page.evaluate(() => document.getElementById('kgDeg').textContent + '/' + (JSON.parse(localStorage.getItem('excalc_kakudo')).cal.y > 0.9)), '0.0/true');
+  await feed(11, -0.5); await w(100);
+  check('  0点合わせのあとは差し引いて出る', await page.evaluate(() => document.getElementById('kgDeg').textContent), '10.0');
+  await page.evaluate(() => kgCalClear()); await w(100);
+  check('  0点合わせを元に戻す', await page.evaluate(() => document.getElementById('kgDeg').textContent + '/' + JSON.stringify(JSON.parse(localStorage.getItem('excalc_kakudo')).cal)), '11.0/{"x":0,"y":0}');
+  // 決めた辺
+  await page.evaluate(() => kgSetMode('long')); await feed(10, 0); await w(100);
+  check('  「長い辺」に決めると、置いていても長い辺の角度', await deg(), '10.0/long');
+  await page.evaluate(() => kgSetMode('auto'));
+  // 分度器
+  await page.evaluate(() => kgShow('pro')); await w(300);
+  await page.evaluate(() => kgProSet({ x: 200, y: 300 }, { x: 350, y: 300 }, { x: 200, y: 150 })); await w(100);
+  check('  分度器：直角は 90.0°', await page.evaluate(() => document.getElementById('kgProDeg').textContent), '90.0');
+  { const bb = await page.locator('#kgProCv').boundingBox(); const st = await page.evaluate(() => kgState().pro);
+    await page.mouse.move(bb.x + st.b.x, bb.y + st.b.y); await page.mouse.down(); await page.mouse.move(bb.x + 350, bb.y + 150, { steps: 5 }); await page.mouse.up(); }
+  check('  ●を指で動かすと角度が変わる（45°）', await page.evaluate(() => document.getElementById('kgProDeg').textContent), '45.0');
+  // 写真
+  await page.evaluate(() => kgShow('photo')); await w(300);
+  await page.evaluate(() => kgPhSet([{ x: 0.9, y: 0.8 }, { x: 0.1, y: 0.8 }, { x: 0.5, y: 0.8 - 0.4 * 0 }])); await w(100);
+  check('  写真：3点で角度（まっすぐなら 0°）', await page.evaluate(() => document.getElementById('kgPhDeg').textContent), '0.0');
+  check('  角度の計算（3点）', await page.evaluate(() => [kgAngAt({ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }), kgAngAt({ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }), kgAngAt({ x: 0, y: 0 }, { x: 1, y: 0 }, { x: -1, y: 0.0001 })].map(v => v.toFixed(1)).join(',')), '90.0,45.0,180.0');
+  // 距離・高さ
+  await page.evaluate(() => kgShow('dist')); await w(300);
+  await feed(60, 0); await w(100);
+  check('  カメラが30°下向き・高さ1.5m → 根元まで約2.6m', await page.evaluate(() => document.getElementById('kgElev').textContent + '/' + document.getElementById('kgLiveD').textContent.trim()), '下 30.0°/根元まで 約 2.6 m');
+  await page.evaluate(() => kgBase()); await w(100);
+  check('  ① 根元で距離（0.5°ずれたときの幅も）', await page.evaluate(() => document.getElementById('kgRes').textContent.replace(/\s+/g, '')), '距離（根元まで）約2.6m2.5〜2.7m・下30.0°');
+  await feed(110, 0); await w(100);
+  await page.evaluate(() => kgTop()); await w(100);
+  check('  ② てっぺんで高さ（上20°なら 1.5＋2.6×tan20°＝約2.4m）', await page.evaluate(() => kgState().top.H.toFixed(3) + '/' + document.querySelectorAll('#kgRes>div').length), '2.446/2');
+  await page.fill('#kgH', '1.2'); await page.evaluate(() => kgSetH(document.getElementById('kgH').value)); await w(100);
+  check('  カメラの高さを変えると計算し直す（覚える）', await page.evaluate(() => kgState().base.d.toFixed(3) + '/' + JSON.parse(localStorage.getItem('excalc_kakudo')).h), '2.078/1.2');
+  await feed(100, 0); await w(100);
+  await page.evaluate(() => kgBase()); await w(100);
+  check('  上を向いているときは根元を決めない', await page.evaluate(() => kgState().base.d.toFixed(3)), '2.078');
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  戻るで閉じる', await page.evaluate(() => isDlgOpen('kakudoOverlay')), false);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runUiMode(browser) {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true });
   const page = await ctx.newPage();
@@ -8999,11 +9077,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/27');
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/28');
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -9031,7 +9109,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -10133,6 +10211,7 @@ async function runQrShare(browser) {
     if (!only || only === 'appiconpwa') await runAppIconPwa(browser);
     if (!only || only === 'regi') await runRegi(browser);
     if (!only || only === 'kakeizu') await runKakeizu(browser);
+    if (!only || only === 'kakudo') await runKakudo(browser);
     if (!only || only === 'uimode') await runUiMode(browser);
     if (!only || only === 'toolsfab') await runToolsFab(browser);
     if (!only || only === 'techoapp') await runTechoApp(browser);
