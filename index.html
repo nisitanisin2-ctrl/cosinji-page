@@ -9089,6 +9089,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v519', t:'🌳家系図：コメント', li:[
+    '人に<b>コメント</b>（ひとこと）を入れられるようにしました。入れると、家系図の<b>名前のすぐ下</b>に出ます（例：初代・東京へ移る）。画像と印刷にも出ます',
+    '人を押したときのカードの<b>「💬 コメントを入れる」</b>からも入れられ、一覧ではコメントでもさがせます' ]},
   { v:'v518', t:'道具に「📐 角度計」', li:[
     '新しい道具<b>「📐 角度計」</b>。<b>📐 傾き</b>：スマホを面に置くと気泡の水平器と面の傾き、立てて辺を当てるとその辺の角度（長い辺・短い辺は自動で見分けます）。<b>寸勾配・％・1：n</b>も出ます。「📍 ここを0に」で2つの面の角度の差、「⏸ 止める」で数字を固定、「🎯 0点合わせ」で校正',
     '<b>📏 分度器</b>：画面の上で3つの●を動かして角度。<b>🖼 写真</b>：写真の上で3点（はし・角・はし）を押して角度',
@@ -21713,7 +21716,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v518';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v519';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
