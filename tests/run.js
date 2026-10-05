@@ -8752,7 +8752,7 @@ async function runRegi(browser) {
 }
 async function runKakeizu(browser) {
   const { ctx, page, errs, dialogs } = await newPage(browser);
-  console.log('\n── 🌳家系図（v514〜v517） ──');
+  console.log('\n── 🌳家系図（v514〜v519） ──');
   const w = ms => page.waitForTimeout(ms);
   check('  開くまでは読まない・道具とマイキーにある・単独アプリの入口', await page.evaluate(() => !window.KAKEIZU_PART_LOADED + '/' + !!NP_TOOLS.find(t => t.id === 'kakeizu') + '/' + !!KEY_FUNCS.a_kakeizu) + '/' + require('fs').existsSync(require('path').join(ROOT, 'apps', 'kakeizu', 'manifest.json')), 'true/true/true/true');
   await page.evaluate(() => openKakeizu()); await w(500);
@@ -8788,6 +8788,21 @@ async function runKakeizu(browser) {
   check('  続柄は本人から自動', await page.evaluate(ids => ids.map(kzKin).join(','), [me, fa, mo, gf, gm, sp, c1, c2, br, si, oj, it, gc, ym]),
     '本人,父,母,祖父（父方）,祖母（母方）,妻,息子,娘,弟,姉,叔父（父方）,いとこ（父方）,孫,嫁');
   check('  年齢・亡くなった年齢', await page.evaluate(([a, b]) => kzAge(b) + '/' + document.querySelector(`#kzStage .kz-node[data-id="${a}"]`).textContent.includes('1920〜1990（70歳）'), [gf, gf]), '70/true');   // 生まれの月日が分からないので年の差
+  // コメント（v519）
+  check('  コメントがないときは箱は低いまま', await page.evaluate(id => document.querySelector(`#kzStage .kz-node[data-id="${id}"]`).offsetHeight, me), 64);
+  await page.evaluate(id => kzEditPerson(id), gf); await w(200);
+  await page.fill('#kzECm', '初代・農家'); await page.evaluate(() => kzSaveForm()); await w(200);
+  check('  コメントを入れると名前のすぐ下に出る（箱が1行高くなる）', await page.evaluate(id => { const n = document.querySelector(`#kzStage .kz-node[data-id="${id}"]`); const t = [...n.querySelectorAll('.tx > *')].map(e => e.className || e.tagName); return n.querySelector('.cm').textContent + '/' + t.slice(0, 2).join(',') + '/' + n.offsetHeight; }, gf), '初代・農家/B,cm/80');
+  await page.evaluate(id => kzTap(id), fa); await w(250);
+  let promptAns = '長男・大工';
+  page.removeAllListeners('dialog'); page.on('dialog', d => { dialogs.push(d.message().split('\n')[0]); d.type() === 'prompt' ? d.accept(promptAns) : d.accept(); });
+  await page.click('#kzSheetBody .kz-cmb'); await w(250);
+  check('  カードの「💬 コメントを入れる」からも', await page.evaluate(id => kzState().people.find(p => p.id === id).cm + '/' + document.querySelector('#kzSheetBody .kz-cm').textContent.includes('長男・大工') + '/' + document.querySelector(`#kzStage .kz-node[data-id="${id}"] .cm`).textContent, fa), '長男・大工/true/長男・大工');
+  check('  一覧でコメントもさがせる', await page.evaluate(() => { kzRenderList('大工'); return [...document.querySelectorAll('#kzListBody .kz-li b')].map(b => b.textContent).join(','); }), '山田 一郎');
+  await page.evaluate(id => kzTap(id), fa); await w(200);
+  promptAns = '';
+  await page.click('#kzSheetBody .kz-cmb'); await w(250);
+  check('  空にすると消える', await page.evaluate(id => kzState().people.find(p => p.id === id).cm, fa), '');
   await page.evaluate(() => { document.querySelectorAll('.modal-overlay.open').forEach(o => { if (o.id !== 'kakeizuOverlay') closeDlg(o.id); }); }); await w(300);
   // 並び方
   const pos = await page.evaluate(() => { const o = {}; document.querySelectorAll('#kzStage .kz-node[data-id]').forEach(n => { o[n.dataset.id] = [parseFloat(n.style.left), parseFloat(n.style.top)]; }); return o; });

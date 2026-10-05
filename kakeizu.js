@@ -1,4 +1,4 @@
-/* 🌳 家系図（v514〜v517。表電卓の道具。apps/kakeizu/ から単独のアプリとしても開ける。はじめて開いたときに読む）
+/* 🌳 家系図（v514〜v519。表電卓の道具。apps/kakeizu/ から単独のアプリとしても開ける。はじめて開いたときに読む）
    ・人（名前・ふりがな・性別・生まれ・亡くなった日・写真・メモ）と、つながり（父・母・夫や妻）を入れていく。
      子・兄弟姉妹は「父・母」から決まる。
    ・図は「中心の人」から、上に親・祖父母…、横に兄弟姉妹と夫や妻、下に子・孫…を並べる（砂時計の形）。
@@ -10,6 +10,7 @@
      続き柄（ord）は自分で選んで決めることもできる。人の窓（カード）のボタンからすぐ選べる（v517）。
    ・養子（v515）：父母と（または父・母の片方と）養子縁組（adopt：b／f／m）。線は点線、続き柄は養子・養女、続柄は養父・養母。
      生みの親は「実父・実母」（bf・bm）として別に入れられる（図には出さず、人の窓に出す）。
+   ・コメント（v519）：ひとこと（cm）を入れると、図の名前のすぐ下に出る（入れた人がいるときだけ箱を少し高くする）。
    ・入れたものは端末の中だけ（excalc_kakeizu）。 */
 (function(){
 const KZ_KEY='excalc_kakeizu';
@@ -26,6 +27,7 @@ let kzSheet=null;      // 開いている人の id
 const cleanP=x=>({id:String(x.id||uid()), name:String(x.name||'').slice(0,40), kana:String(x.kana||'').slice(0,40), sex:x.sex==='m'||x.sex==='f'?x.sex:'',
   birth:String(x.birth||'').slice(0,10), death:String(x.death||'').slice(0,10), dead:!!x.dead||!!x.death, f:String(x.f||''), m:String(x.m||''),
   sp:Array.isArray(x.sp)?x.sp.map(String):[], note:String(x.note||'').slice(0,1000), photo:typeof x.photo==='string'&&x.photo.startsWith('data:image/')?x.photo:'',
+  cm:String(x.cm||'').replace(/[\r\n]+/g,' ').slice(0,40),
   bo:Math.max(0,Math.min(30,Math.round(+x.bo||0))), ord:ORDS.includes(x.ord)?x.ord:'', adopt:['b','f','m'].includes(x.adopt)?x.adopt:'', bf:String(x.bf||''), bm:String(x.bm||'')});
 const ORDS=['長男','次男','三男','四男','五男','六男','七男','長女','次女','三女','四女','五女','六女','七女','養子','養女'];
 function kzFix(){   // つながりの向きをそろえる（夫婦は両方に・いない人への線を消す）
@@ -157,8 +159,10 @@ function kinLabel(id){
 }
 
 /* ───────── 図の並べ方（中心の人から砂時計） ───────── */
-const NW=132, NH=64, HG=16, VG=48, U=NW+HG, RH=NH+VG;
+const NW=132, HG=16, VG=48, U=NW+HG;
+let NH=64, RH=NH+VG;   // 箱の高さ。コメントのある人がいるときは1行ぶん高くする（v519）
 function kzLayout(){
+  NH=kz.people.some(p=>p.cm)?80:64; RH=NH+VG;
   const F=kz.focus, nodes=[], lines=[], put=(id,x,row,extra)=>{ nodes.push(Object.assign({id,x,y:row*RH},extra||{})); };
   if(!per(F)) return {nodes, lines};
   // 上：親・祖父母（足りない親は「＋」の箱を1つ上まで）
@@ -227,11 +231,11 @@ function kzRender(){
     return '';
   }).join('');
   const html=L.nodes.map(n=>{
-    const st=`left:${n.x+ox-NW/2}px;top:${n.y+oy}px`;
+    const st=`left:${n.x+ox-NW/2}px;top:${n.y+oy}px;height:${NH}px`;
     if(n.add) return `<button class="kz-node add" style="${st}" data-add="${n.add}" data-of="${n.of}" onclick="kzAddRel('${n.add}','${n.of}')">＋ ${n.add==='f'?'父':'母'}を入れる</button>`;
     const p=per(n.id); const o=ordOf(p), k0=kinLabel(n.id), k=[k0, o&&o!==k0?o:''].filter(Boolean).join('・');
     return `<button class="kz-node ${p.sex||'u'}${p.dead?' dead':''}${n.focus?' focus':''}${n.id===kz.me?' me':''}" style="${st}" data-id="${n.id}" onclick="kzTap('${n.id}')">
-      ${kz.photo&&p.photo?`<img src="${p.photo}" alt="">`:''}<span class="tx"><b>${esc(nm(p))}${p.dead?'<i>†</i>':''}</b>${k?`<small class="kin">${esc(k)}</small>`:''}<small>${esc(years(p))}</small></span></button>`;
+      ${kz.photo&&p.photo?`<img src="${p.photo}" alt="">`:''}<span class="tx"><b>${esc(nm(p))}${p.dead?'<i>†</i>':''}</b>${p.cm?`<small class="cm">${esc(p.cm)}</small>`:''}${k?`<small class="kin">${esc(k)}</small>`:''}<small>${esc(years(p))}</small></span></button>`;
   }).join('');
   $('kzStage').innerHTML=`<div class="kz-inner" id="kzInner" style="width:${W}px;height:${H}px"><svg width="${W}" height="${H}" class="kz-lines">${svg}</svg>${html}</div>`;
   $('kzStage').dataset.w=W; $('kzStage').dataset.h=H; $('kzStage').dataset.fx=ox; $('kzStage').dataset.fy=oy;
@@ -279,6 +283,7 @@ function kzTap(id){
   $('kzSheetHdr').textContent=(p.sex==='m'?'👨 ':p.sex==='f'?'👩 ':'🧑 ')+nm(p);
   $('kzSheetBody').innerHTML=`<div class="kz-prof">${p.photo?`<img src="${p.photo}" alt="">`:''}<div>
       <div class="nm">${esc(nm(p))}${p.kana?`<small>${esc(p.kana)}</small>`:''}</div>
+      <div class="kz-cm">${p.cm?`💬 ${esc(p.cm)}`:''}<button class="kz-cmb" onclick="kzSetCm('${id}')">${p.cm?'✏':'💬 コメントを入れる'}</button></div>
       ${k?`<div class="kin">${esc(k)}${id===kz.me?'':'（本人から）'}</div>`:''}
       ${o?`<div>続き柄：<b>${esc(o)}</b>${p.ord?'':'（自動）'}${p.bo?`・${p.bo}番目に生まれた`:''}</div>`:p.bo?`<div>${p.bo}番目に生まれた</div>`:''}
       ${p.adopt?`<div class="kz-ad">養子（${ADT[p.adopt]}）</div>`:''}
@@ -307,6 +312,7 @@ function kzTap(id){
   if(!isDlgOpen('kzSheetOverlay')) openDlg('kzSheetOverlay', ()=>{ kzSheet=null; }); else $('kzSheetBody').scrollTop=0;
 }
 /* 人の窓から、続き柄・生まれ順をすぐ決める（v517） */
+function kzSetCm(id){ const p=per(id); if(!p) return; const v=prompt('コメント（図の名前の下に出ます。消すときは空に）', p.cm||''); if(v==null) return; p.cm=String(v).replace(/[\r\n]+/g,' ').trim().slice(0,40); kzSave(); kzRender(); kzTap(id); toast(p.cm?'コメントを入れました':'コメントを消しました'); }
 function kzSetOrd(id, v){ const p=per(id); if(!p) return; p.ord=ORDS.includes(v)?v:''; kzSave(); kzRender(); kzTap(id); toast(v?`続き柄を「${v}」にしました`:'続き柄を自動にしました'); }
 function kzSetBo(id, n){ const p=per(id); if(!p) return; p.bo=Math.max(0,Math.min(30,+n||0)); kzSave(); kzRender(); kzTap(id); toast(n?`${n}番目に生まれた、にしました`:'生まれ順を消しました'); }
 function kzFocus(id){ if(!per(id)) return; kz.focus=id; kzSave(); ['kzSheetOverlay','kzListOverlay'].forEach(o=>{ if(isDlgOpen(o)) closeDlg(o); }); kzRender(); setTimeout(kzCenter,30); }
@@ -339,6 +345,7 @@ function kzForm(target){
     ${kzPhoto?'<div style="text-align:center"><button class="kz-b" onclick="kzPhotoClear()">写真を消す</button></div>':''}
     <div class="kz-form"><label>名前<input id="kzEName" value="${esc(p?p.name:'')}" placeholder="例：山田 太郎"></label>
     <label>ふりがな<input id="kzEKana" value="${esc(p?p.kana:'')}" placeholder="やまだ たろう"></label>
+    <label>コメント（図の名前の下に出ます）<input id="kzECm" maxlength="40" value="${esc(p?p.cm:'')}" placeholder="例：初代・東京へ移る・料理が得意"></label>
     <label>性別</label><div class="kz-seg" id="kzESex">${[['m','男性'],['f','女性'],['','分からない']].map(o=>`<button type="button" class="${sex===o[0]?'on':''}" data-v="${o[0]}" onclick="kzSeg(this)">${o[1]}</button>`).join('')}</div>
     ${p||rel==='c'||rel==='sib'||rel==='me'?`<div class="kz-g2"><label>生まれ順（何番目）<input id="kzEBo" inputmode="numeric" value="${p&&p.bo?p.bo:''}" placeholder="例：1"></label>
     <label>続き柄<select id="kzEOrd"><option value="">自動${auto?`（${auto}）`:''}</option>${ORDS.map(x=>`<option${p&&p.ord===x?' selected':''}>${x}</option>`).join('')}</select></label></div>
@@ -374,7 +381,7 @@ function kzSaveForm(){
     const bs=$('kzEBirth').value.trim(), ds=$('kzEDeath').value.trim();
     if(bs&&!parseD(bs)){ toast('生まれの日が読めません'); return; } if(ds&&!parseD(ds)){ toast('亡くなった日が読めません'); return; }
     if(!name && !confirm('名前が空です。「名前なし」で入れますか？')) return;
-    const v={name, kana:$('kzEKana').value.trim(), sex, birth:normD(bs), death:normD(ds), dead:$('kzEDead').checked||!!ds, note:$('kzENote').value.trim(), photo:kzPhoto||''};
+    const v={name, kana:$('kzEKana').value.trim(), sex, birth:normD(bs), death:normD(ds), dead:$('kzEDead').checked||!!ds, note:$('kzENote').value.trim(), cm:$('kzECm').value.replace(/[\r\n]+/g,' ').trim().slice(0,40), photo:kzPhoto||''};
     if($('kzEBo')){ v.bo=Math.max(0,Math.min(30,parseInt(String($('kzEBo').value).normalize('NFKC'),10)||0)); v.ord=$('kzEOrd').value; }
     if($('kzEAd')){ const ab=document.querySelector('#kzEAd button.on'); v.adopt=ab?ab.dataset.v:''; }
     if(add){ p=cleanP(Object.assign({id:uid()},v)); kz.people.push(p); } else { p=per(t); if(!p) return; Object.assign(p,v); p.photo=v.photo; }
@@ -415,7 +422,7 @@ function kzOpenList(){ kzRenderList(); if(!isDlgOpen('kzListOverlay')) openDlg('
 function kzRenderList(q){
   const b=$('kzListBody'); if(!b) return; q=String(q||'').trim().toLowerCase();
   const gen=id=>{ const r=kinPath(id); if(!r) return 99; let g=0; for(const c of r.path){ if(c==='P') g--; else if(c==='C') g++; } return g; };
-  const L=kz.people.filter(p=>!q||(p.name+' '+p.kana+' '+kinLabel(p.id)+' '+p.note).toLowerCase().includes(q)).map(p=>({p,g:gen(p.id)})).sort((a,c)=>a.g-c.g||byBirth(a.p,c.p));
+  const L=kz.people.filter(p=>!q||(p.name+' '+p.kana+' '+kinLabel(p.id)+' '+p.note+' '+p.cm).toLowerCase().includes(q)).map(p=>({p,g:gen(p.id)})).sort((a,c)=>a.g-c.g||byBirth(a.p,c.p));
   b.innerHTML=`<input id="kzQ" class="kz-q" placeholder="🔍 名前・続柄・メモでさがす" value="${esc(q)}" oninput="kzRenderList(this.value);this.focus()">
     <div class="kz-hint">${kz.people.length}人${q?`（見つかった ${L.length}人）`:''}</div>
     <div class="kz-list">${L.map(({p})=>`<button class="kz-li ${p.sex||'u'}${p.dead?' dead':''}" onclick="kzTap('${p.id}')">${p.photo?`<img src="${p.photo}" alt="">`:'<span class="av">'+(p.sex==='m'?'👨':p.sex==='f'?'👩':'🧑')+'</span>'}<span class="tx"><b>${esc(nm(p))}${p.dead?' †':''}</b><small>${esc([kinLabel(p.id),years(p)].filter(Boolean).join('・'))}</small></span></button>`).join('')||'<div class="kz-hint">見つかりません</div>'}</div>`;
@@ -474,8 +481,9 @@ function kzDrawCanvas(){
   L.nodes.filter(n=>!n.add).forEach(n=>{ const p=per(n.id), X=n.x+ox-NW/2, Y=n.y+oy;
     x.fillStyle=p.sex==='m'?'#e3f2fd':p.sex==='f'?'#fce4ec':'#f3f3f3'; x.strokeStyle=n.focus?'#e65100':p.sex==='m'?'#64b5f6':p.sex==='f'?'#f06292':'#aaa'; x.lineWidth=n.focus?3:1.4;
     x.beginPath(); x.roundRect?x.roundRect(X,Y,NW,NH,10):x.rect(X,Y,NW,NH); x.fill(); x.stroke();
-    const tx=X+(kz.photo&&p.photo?50:8); x.fillStyle='#222'; x.font='bold 13px sans-serif'; x.fillText((nm(p)+(p.dead?' †':'')).slice(0,9), tx, Y+20);
-    x.font='11px sans-serif'; x.fillStyle='#bf360c'; x.fillText([kinLabel(n.id), ordOf(p)!==kinLabel(n.id)?ordOf(p):''].filter(Boolean).join('・').slice(0,11), tx, Y+37); x.fillStyle='#666'; x.fillText(years(p).slice(0,14), tx, Y+53);
+    const tx=X+(kz.photo&&p.photo?50:8), big=NH>64, dy=big?(p.cm?0:8):0; x.fillStyle='#222'; x.font='bold 13px sans-serif'; x.fillText((nm(p)+(p.dead?' †':'')).slice(0,9), tx, Y+20+dy);
+    if(p.cm){ x.font='italic 11px sans-serif'; x.fillStyle='#37474f'; x.fillText(p.cm.slice(0,11), tx, Y+36); }
+    x.font='11px sans-serif'; x.fillStyle='#bf360c'; x.fillText([kinLabel(n.id), ordOf(p)!==kinLabel(n.id)?ordOf(p):''].filter(Boolean).join('・').slice(0,11), tx, Y+(big?52:37)+(big&&!p.cm?0:0)); x.fillStyle='#666'; x.fillText(years(p).slice(0,14), tx, Y+(big?69:53));
     if(kz.photo&&p.photo) imgs.push(new Promise(r=>{ const im=new Image(); im.onload=()=>{ x.save(); x.beginPath(); x.arc(X+25,Y+NH/2,19,0,Math.PI*2); x.clip(); x.drawImage(im,X+6,Y+NH/2-19,38,38); x.restore(); r(); }; im.onerror=r; im.src=p.photo; })); });
   return Promise.all(imgs).then(()=>c);
 }
@@ -510,7 +518,7 @@ const KZ_CSS=`
 .kz-node.dead{ filter:saturate(.35); } .kz-node.dead b i{ font-style:normal; margin-left:3px; color:#555; }
 .kz-node.focus{ border:3px solid #e65100; box-shadow:0 0 0 3px rgba(230,81,0,.18); } .kz-node.me:not(.focus)::after{ content:'本人'; position:absolute; top:-9px; right:6px; font-size:10px; font-weight:bold; background:#e65100; color:#fff; padding:0 5px; border-radius:6px; }
 .kz-node img{ width:38px; height:38px; border-radius:50%; object-fit:cover; flex:none; }
-.kz-node .tx{ min-width:0; display:flex; flex-direction:column; line-height:1.25; } .kz-node b{ font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .kz-node small{ font-size:10.5px; color:#666; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .kz-node small.kin{ color:#bf360c; font-weight:bold; }
+.kz-node .tx{ min-width:0; display:flex; flex-direction:column; line-height:1.25; } .kz-node b{ font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .kz-node small{ font-size:10.5px; color:#666; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .kz-node small.kin{ color:#bf360c; font-weight:bold; } .kz-node small.cm{ color:#37474f; font-style:italic; }
 .kz-node.add{ border:1.5px dashed #a1887f; background:rgba(255,255,255,.7); color:#795548; font-size:13px; font-weight:bold; justify-content:center; box-shadow:none; }
 .kz-empty{ padding:40px 18px; text-align:center; line-height:1.9; color:var(--text,#333); } .kz-empty .big{ font-size:56px; }
 .kz-b{ height:42px; padding:0 14px; border-radius:10px; border:1px solid rgba(120,132,156,.45); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:14px; font-weight:bold; cursor:pointer; }
@@ -520,7 +528,8 @@ const KZ_CSS=`
 .kz-btns{ display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; } .kz-btns .kz-b{ flex:1 1 auto; } .kz-btns.s .kz-b{ height:38px; font-size:13px; padding:0 10px; }
 .kz-body{ padding:10px 14px calc(16px + var(--safe-bottom,0px)); overflow:auto; font-size:14.5px; line-height:1.65; color:var(--text,#222); }
 .kz-body h4{ font-size:14px; color:#6d4c41; margin:14px 0 6px; border-left:4px solid #8d6e63; padding-left:8px; }
-.kz-prof{ display:flex; gap:12px; align-items:flex-start; } .kz-prof img{ width:84px; height:84px; border-radius:12px; object-fit:cover; flex:none; } .kz-prof .nm{ font-size:19px; font-weight:bold; } .kz-prof .nm small{ display:block; font-size:12px; font-weight:normal; color:var(--text-light,#888); } .kz-prof .kin{ color:#bf360c; font-weight:bold; } .kz-ad{ color:#2e7d32; font-weight:bold; } .kz-rel td small{ color:var(--text-light,#888); }
+.kz-prof{ display:flex; gap:12px; align-items:flex-start; } .kz-prof img{ width:84px; height:84px; border-radius:12px; object-fit:cover; flex:none; } .kz-prof .nm{ font-size:19px; font-weight:bold; } .kz-prof .nm small{ display:block; font-size:12px; font-weight:normal; color:var(--text-light,#888); } .kz-cm{ color:#37474f; font-style:italic; margin:2px 0; } .kz-cmb{ margin-left:6px; height:28px; padding:0 9px; border-radius:14px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:12px; font-style:normal; font-weight:bold; cursor:pointer; }
+.kz-prof .kin{ color:#bf360c; font-weight:bold; } .kz-ad{ color:#2e7d32; font-weight:bold; } .kz-rel td small{ color:var(--text-light,#888); }
 .kz-note{ margin:8px 0; padding:8px 10px; border-radius:8px; background:rgba(141,110,99,.1); font-size:13.5px; }
 .kz-rel{ width:100%; border-collapse:collapse; margin:8px 0; font-size:13.5px; } .kz-rel th{ width:5.5em; text-align:left; color:var(--text-light,#888); font-weight:bold; padding:4px 0; vertical-align:top; } .kz-rel td{ padding:4px 0; border-bottom:1px solid rgba(120,132,156,.15); } .kz-rel a{ color:#1565c0; font-weight:bold; cursor:pointer; text-decoration:underline; }
 .kz-form label{ display:block; font-size:12px; font-weight:bold; color:var(--text-light,#888); margin:8px 0 2px; }
@@ -570,7 +579,7 @@ function openKakeizu(){
 }
 function closeKakeizu(){ if(!$('kakeizuOverlay')||!isDlgOpen('kakeizuOverlay')) return; ['kzEditOverlay','kzSheetOverlay','kzListOverlay','kzSetOverlay'].forEach(id=>{ if(isDlgOpen(id)) closeDlg(id); }); closeDlg('kakeizuOverlay'); }
 
-Object.assign(window, { openKakeizu, closeKakeizu, kzTap, kzSetOrd, kzSetBo, kzFocus, kzSetMe, kzDel, kzAddRel, kzEditPerson, kzSeg, kzPickCh, kzDHint, kzSaveForm, kzPhotoIn, kzPhotoClear,
+Object.assign(window, { openKakeizu, closeKakeizu, kzTap, kzSetOrd, kzSetBo, kzSetCm, kzFocus, kzSetMe, kzDel, kzAddRel, kzEditPerson, kzSeg, kzPickCh, kzDHint, kzSaveForm, kzPhotoIn, kzPhotoClear,
   kzOpenList, kzRenderList, kzOpenSet, kzSetOpt, kzExport, kzImport, kzClearAll, kzZoom, kzFit, kzSaveImage, kzPrint, $kz:$,
   kzState:()=>JSON.parse(JSON.stringify(kz)), kzKin:kinLabel, kzParseDate:s=>parseD(s), kzWareki:s=>wareki(parseD(s)), kzAge:id=>age(per(id)), kzLayoutData:()=>kzLayout(),
   kzOrd:id=>ordOf(per(id)), kzExportData, kzImportData:o=>{ kzImportData(o); kzRender(); }, kzDrawCanvas });
