@@ -1,4 +1,4 @@
-/* 🌳 家系図（v514・v515。表電卓の道具。apps/kakeizu/ から単独のアプリとしても開ける。はじめて開いたときに読む）
+/* 🌳 家系図（v514〜v517。表電卓の道具。apps/kakeizu/ から単独のアプリとしても開ける。はじめて開いたときに読む）
    ・人（名前・ふりがな・性別・生まれ・亡くなった日・写真・メモ）と、つながり（父・母・夫や妻）を入れていく。
      子・兄弟姉妹は「父・母」から決まる。
    ・図は「中心の人」から、上に親・祖父母…、横に兄弟姉妹と夫や妻、下に子・孫…を並べる（砂時計の形）。
@@ -7,7 +7,7 @@
    ・生まれは「1950」「1950/4/1」「昭和25年」「S25.4.1」のように入れられる（和暦も出す）。年齢・亡くなった年齢も出す。
    ・一覧（さがす）・印刷（A4 横）・画像で保存・書き出し／読み込み（写真ごと）。
    ・生まれ順と続き柄（v515）：何番目に生まれたか（bo）を入れると、きょうだいがその順に並び、長男・次女…を自動で付ける。
-     続き柄（ord）は自分で選んで決めることもできる。
+     続き柄（ord）は自分で選んで決めることもできる。人の窓（カード）のボタンからすぐ選べる（v517）。
    ・養子（v515）：父母と（または父・母の片方と）養子縁組（adopt：b／f／m）。線は点線、続き柄は養子・養女、続柄は養父・養母。
      生みの親は「実父・実母」（bf・bm）として別に入れられる（図には出さず、人の窓に出す）。
    ・入れたものは端末の中だけ（excalc_kakeizu）。 */
@@ -294,6 +294,9 @@ function kzTap(id){
       <button class="kz-b pri" onclick="kzFocus('${id}')">🎯 この人を中心に</button>
       <button class="kz-b" onclick="kzEditPerson('${id}')">✏ 直す</button>
     </div>
+    <h4>続き柄・生まれ順</h4>
+    <div class="kz-chips" id="kzOrdChips">${['',...ORDS.filter(x=>p.sex==='m'?/男|養子/.test(x):p.sex==='f'?/女/.test(x):true)].map(x=>`<button type="button" class="${(p.ord||'')===x?'on':''}" data-ord="${x}" onclick="kzSetOrd('${id}','${x}')">${x||`自動${ordAuto(p)?`（${ordAuto(p)}）`:''}`}</button>`).join('')}</div>
+    <div class="kz-chips" id="kzBoChips"><span>何番目</span>${[1,2,3,4,5,6,7,8].map(n=>`<button type="button" class="${p.bo===n?'on':''}" data-bo="${n}" onclick="kzSetBo('${id}',${n})">${n}</button>`).join('')}<button type="button" class="${p.bo?'':'on'}" data-bo="0" onclick="kzSetBo('${id}',0)">なし</button></div>
     <h4>家族を足す</h4>
     <div class="kz-btns s">
       ${p.f?'':`<button class="kz-b" onclick="kzAddRel('f','${id}')">＋ 父</button>`}${p.m?'':`<button class="kz-b" onclick="kzAddRel('m','${id}')">＋ 母</button>`}
@@ -303,6 +306,9 @@ function kzTap(id){
     <div class="kz-btns s">${id===kz.me?'':`<button class="kz-b" onclick="kzSetMe('${id}')">⭐ この人を本人（自分）にする</button>`}<button class="kz-b danger" onclick="kzDel('${id}')">🗑 消す</button></div>`;
   if(!isDlgOpen('kzSheetOverlay')) openDlg('kzSheetOverlay', ()=>{ kzSheet=null; }); else $('kzSheetBody').scrollTop=0;
 }
+/* 人の窓から、続き柄・生まれ順をすぐ決める（v517） */
+function kzSetOrd(id, v){ const p=per(id); if(!p) return; p.ord=ORDS.includes(v)?v:''; kzSave(); kzRender(); kzTap(id); toast(v?`続き柄を「${v}」にしました`:'続き柄を自動にしました'); }
+function kzSetBo(id, n){ const p=per(id); if(!p) return; p.bo=Math.max(0,Math.min(30,+n||0)); kzSave(); kzRender(); kzTap(id); toast(n?`${n}番目に生まれた、にしました`:'生まれ順を消しました'); }
 function kzFocus(id){ if(!per(id)) return; kz.focus=id; kzSave(); ['kzSheetOverlay','kzListOverlay'].forEach(o=>{ if(isDlgOpen(o)) closeDlg(o); }); kzRender(); setTimeout(kzCenter,30); }
 function kzSetMe(id){ kz.me=id; kzSave(); kzRender(); kzTap(id); toast('本人にしました。続柄はこの人から付けます'); }
 function kzDel(id){
@@ -509,6 +515,8 @@ const KZ_CSS=`
 .kz-empty{ padding:40px 18px; text-align:center; line-height:1.9; color:var(--text,#333); } .kz-empty .big{ font-size:56px; }
 .kz-b{ height:42px; padding:0 14px; border-radius:10px; border:1px solid rgba(120,132,156,.45); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:14px; font-weight:bold; cursor:pointer; }
 .kz-b.pri{ background:#8d6e63; border-color:#8d6e63; color:#fff; } .kz-b.danger{ color:#d32f2f; border-color:rgba(211,47,47,.4); } .kz-b.wide{ display:block; width:100%; margin:12px 0 4px; }
+.kz-chips{ display:flex; flex-wrap:wrap; gap:5px; align-items:center; margin:4px 0 6px; } .kz-chips span{ font-size:12px; font-weight:bold; color:var(--text-light,#888); margin-right:2px; }
+.kz-chips button{ height:34px; min-width:40px; padding:0 10px; border-radius:17px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:13px; font-weight:bold; cursor:pointer; } .kz-chips button.on{ background:#8d6e63; border-color:#8d6e63; color:#fff; }
 .kz-btns{ display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; } .kz-btns .kz-b{ flex:1 1 auto; } .kz-btns.s .kz-b{ height:38px; font-size:13px; padding:0 10px; }
 .kz-body{ padding:10px 14px calc(16px + var(--safe-bottom,0px)); overflow:auto; font-size:14.5px; line-height:1.65; color:var(--text,#222); }
 .kz-body h4{ font-size:14px; color:#6d4c41; margin:14px 0 6px; border-left:4px solid #8d6e63; padding-left:8px; }
@@ -562,7 +570,7 @@ function openKakeizu(){
 }
 function closeKakeizu(){ if(!$('kakeizuOverlay')||!isDlgOpen('kakeizuOverlay')) return; ['kzEditOverlay','kzSheetOverlay','kzListOverlay','kzSetOverlay'].forEach(id=>{ if(isDlgOpen(id)) closeDlg(id); }); closeDlg('kakeizuOverlay'); }
 
-Object.assign(window, { openKakeizu, closeKakeizu, kzTap, kzFocus, kzSetMe, kzDel, kzAddRel, kzEditPerson, kzSeg, kzPickCh, kzDHint, kzSaveForm, kzPhotoIn, kzPhotoClear,
+Object.assign(window, { openKakeizu, closeKakeizu, kzTap, kzSetOrd, kzSetBo, kzFocus, kzSetMe, kzDel, kzAddRel, kzEditPerson, kzSeg, kzPickCh, kzDHint, kzSaveForm, kzPhotoIn, kzPhotoClear,
   kzOpenList, kzRenderList, kzOpenSet, kzSetOpt, kzExport, kzImport, kzClearAll, kzZoom, kzFit, kzSaveImage, kzPrint, $kz:$,
   kzState:()=>JSON.parse(JSON.stringify(kz)), kzKin:kinLabel, kzParseDate:s=>parseD(s), kzWareki:s=>wareki(parseD(s)), kzAge:id=>age(per(id)), kzLayoutData:()=>kzLayout(),
   kzOrd:id=>ordOf(per(id)), kzExportData, kzImportData:o=>{ kzImportData(o); kzRender(); }, kzDrawCanvas });

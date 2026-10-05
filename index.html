@@ -34,7 +34,7 @@
 (function(){ try{
   const id=new URLSearchParams(location.search).get('app');
   const APPS={tansui:'💧 単位水量',kantab:'🧪 カンタブ',veggie:'🌱 野菜',volume:'📷 容積',photomemo:'📝 写真メモ',linklist:'🔗 リンク集',
-    touban:'📅 当番表',subsc:'🔐 サブスク',heya:'🛏 部屋割り',annai:'🏨 案内ページ',shimai:'📦 しまい場所',meishi:'💼 名刺管理',trim:'✂ トリミング',manner:'📜 マナー帳',boki:'📒 会計の手引き',kurashi:'🧭 くらしの便利帳',keisan:'🔢 便利計算',ruler:'📏 定規',regi:'🛍 即売レジ',kakeizu:'🌳 家系図',calctmpl:'📋 式テンプレ',fintmpl:'📑 決算テンプレ'};
+    touban:'📅 当番表',subsc:'🔐 サブスク',heya:'🛏 部屋割り',annai:'🏨 案内ページ',shimai:'📦 しまい場所',meishi:'💼 名刺管理',trim:'✂ トリミング',manner:'📜 マナー帳',boki:'📒 会計の手引き',kurashi:'🧭 くらしの便利帳',keisan:'🔢 便利計算',ruler:'📏 定規',kakudo:'📐 角度計',regi:'🛍 即売レジ',kakeizu:'🌳 家系図',calctmpl:'📋 式テンプレ',fintmpl:'📑 決算テンプレ'};
   if(!id || !APPS[id]) return;
   window.APP_TOOL=id; document.documentElement.classList.add('app-tool');
   const dir='apps/'+id+'/', set=(sel,attr,v)=>document.querySelectorAll(sel).forEach(e=>e.setAttribute(attr,v));
@@ -9089,6 +9089,12 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v518', t:'道具に「📐 角度計」', li:[
+    '新しい道具<b>「📐 角度計」</b>。<b>📐 傾き</b>：スマホを面に置くと気泡の水平器と面の傾き、立てて辺を当てるとその辺の角度（長い辺・短い辺は自動で見分けます）。<b>寸勾配・％・1：n</b>も出ます。「📍 ここを0に」で2つの面の角度の差、「⏸ 止める」で数字を固定、「🎯 0点合わせ」で校正',
+    '<b>📏 分度器</b>：画面の上で3つの●を動かして角度。<b>🖼 写真</b>：写真の上で3点（はし・角・はし）を押して角度',
+    '<b>📷 距離・高さ</b>：カメラの高さを入れて、画面の＋を物の<b>根元（地面に着いた所）</b>に合わせると<b>距離</b>、続けて<b>てっぺん</b>に合わせると<b>高さ</b>が出ます（傾きのセンサーで、カメラの下向き・上向きの角度から計算）' ]},
+  { v:'v517', t:'🌳家系図：カードから長男などを選ぶ', li:[
+    '人を押したときのカードに<b>「続き柄・生まれ順」</b>のボタン。<b>長男・次男…（女性は長女・次女…）・養子</b>や、<b>何番目に生まれたか</b>を押すだけで決められます。「自動」に戻すこともできます' ]},
   { v:'v516', t:'🎤声で入れる：前のセルを言い直す', li:[
     '声で入れているときの窓に<b>「↩ A3 を言い直す（前のセル）」</b>ボタン。言いまちがえたり、思った数で聞き取られなかったときに押すと、<b>前に入れたセルへ戻って聞き直し</b>ます。言い直すと、<b>戻る前にいたセルへ帰り</b>、続けて入れているときはそこから続きます',
     '何度か押すと、さらに前のセルへ戻れます。声で<b>「戻る」「言い直し」「訂正」</b>と言っても同じです。言い直さずにやめたときも、元のセルへ帰ります',
@@ -11587,6 +11593,7 @@ const KEY_FUNCS={
   a_kurashi:{g:'設定・機能',label:'🧭くらしの便利帳',short:'便利帳',run:()=>openKurashi()},   // v491
   a_keisan:{g:'設定・機能',label:'🔢便利計算',short:'便利計算',run:()=>openKeisan()},   // v494
   a_ruler:{g:'設定・機能',label:'📏定規',short:'定規',run:()=>openRuler()},   // v496
+  a_kakudo:{g:'設定・機能',label:'📐角度計',short:'角度',run:()=>openKakudo()},   // v518
   a_tools:{g:'設定・機能',label:'🧰道具',short:'道具',run:()=>openToolsList()},   // 道具の一覧を開く（v429）
   a_memo:{g:'設定・機能',label:'📄メモ',short:'メモ',run:()=>openNotesApp()},
   a_kaikei:{g:'設定・機能',label:'🧾会計アプリ',short:'会計',run:()=>openKaikeiApp()},
@@ -14243,6 +14250,29 @@ const openKeisanLoader=function(...a){
 };
 window.openKeisan=openKeisanLoader;
 window.closeKeisan=function(){};
+/* ── 📐角度計（v518。kakudo.js に分けてある）──
+   スマホの傾きのセンサーで角度（水平器・辺の角度）、画面の分度器、写真で角度、カメラで距離と高さ。はじめて開いたときに kakudo.js を読む。 */
+let kakudoPartLoading=null;
+function loadKakudoPart(){
+  if(window.KAKUDO_PART_LOADED) return Promise.resolve(true);
+  if(kakudoPartLoading) return kakudoPartLoading;
+  kakudoPartLoading=new Promise(res=>{
+    const sc=document.createElement('script');
+    sc.src='kakudo.js';
+    sc.onload=()=>{ window.KAKUDO_PART_LOADED=true; kakudoPartLoading=null; res(true); };
+    sc.onerror=()=>{ kakudoPartLoading=null; sc.remove(); res(false); };
+    document.head.appendChild(sc);
+  });
+  return kakudoPartLoading;
+}
+const openKakudoLoader=function(...a){
+  return loadKakudoPart().then(ok=>{
+    if(!ok){ toast('角度計を読み込めませんでした。インターネットにつながるところで、一度アプリを開き直してください'); return; }
+    if(window.openKakudo!==openKakudoLoader) return window.openKakudo(...a);
+  });
+};
+window.openKakudo=openKakudoLoader;
+window.closeKakudo=function(){};
 /* ── 📏定規（v496。ruler.js に分けてある）──
    スマホの画面を定規にする（カード・硬貨で校正）＋写真に並べた基準から長さを測る。はじめて開いたときに ruler.js を読む。 */
 let rulerPartLoading=null;
@@ -14729,6 +14759,7 @@ const NP_TOOLS=[
   {id:'veggie',   label:'🌱野菜',       ov:'veggieOverlay',    run:()=>openVeggie(),   close:()=>closeVeggie()},
   {id:'volume',   label:'📷容積',       ov:'volumeOverlay',    run:()=>openVolume(),   close:()=>closeVolume()},
   {id:'ruler',    label:'📏定規',       ov:'rulerOverlay',     run:()=>openRuler(),    close:()=>closeRuler()},    // ruler.js（開いたときに読む。v496）
+  {id:'kakudo',   label:'📐角度計',     ov:'kakudoOverlay',    run:()=>openKakudo(),   close:()=>closeKakudo()},   // kakudo.js（開いたときに読む。v518）
   {id:'photomemo',label:'📝写真メモ',   ov:'photoMemoOverlay', run:()=>openPhotoMemo(),close:()=>closePhotoMemo()},
   {id:'linklist', label:'🔗リンク集',   ov:'linkListOverlay',  run:()=>openLinkList(), close:()=>closeLinkList()},
   {id:'touban',   label:'📅当番表',     ov:'toubanOverlay',    run:()=>openTouban(),   close:()=>closeTouban()},
@@ -21326,6 +21357,7 @@ const TOOL_HINTS={
   shimai:'下の欄に「パスポートは寝室のタンスの2段目」のように打つか 🎤 で話します。上の欄でさがせます。',
   kakeizu:'はじめに自分（本人）を入れます。人を押すと「＋父」「＋母」「＋夫・妻」「＋子」「＋きょうだい」で家族を足せます。続柄は本人から自動で付きます。「🎯 この人を中心に」で見たいところへ。図は指で動かし、2本指で大きさを変えられます。',
   regi:'はじめに「📦 商品」で写真・名前・値段・在庫を登録します（写真は四角に切り取れます。登録は「💾 保存」で次の売り出しにも使えます）。右上の ⚙ 設定でアイコンの大きさと縦横のスクロール、消費税の計算（税率と内税・外税は商品ごと）を選べます。売るときは商品を押すと1つずつ入り、お預かりを入れるとお釣りが出ます。「🏷 値引き」で円引き・％引き・品ごとの値引き。会計のあとに「🧾 レシート・領収書を印刷」（宛名も入れられます）。「📋 履歴・売上」から Excel に書き出せます。まちがえて会計したときは履歴の「訂正」で会計する前に戻せます。',
+  kakudo:'「📐 傾き」はスマホを面に置くか、立てて辺を当てると角度が出ます（寸勾配・％も）。平らな所で一度「🎯 0点合わせ」をすると正確になります。「📷 距離・高さ」はカメラの高さを入れて、＋を物の根元→てっぺんに合わせると距離と高さが出ます。',
   ruler:'はじめに「🎯 校正」でカードや硬貨を画面に当てて合わせると、定規が正しい長さになります。「📷 写真で測る」は基準の物と並べて撮ってなぞります。',
   keisan:'8つの計算から選びます。入れた数は覚えるので、次も続きから使えます。',
   kurashi:'10のテーマから選ぶか、上の欄で「AED」「死亡届」「失業保険」のようにさがします。ページの中の 🧮 道具で、期限や金額の目安も出せます。',
@@ -21415,7 +21447,7 @@ const TOOL_CATS=[
   ['🏠 くらし',   ['keisan','shimai','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
   ['📖 知識・手引き',['kurashi','manner','boki']],   // 計算ではなく読む道具（v513）
   ['💼 仕事',     ['techo','meishi','calctmpl','fintmpl','kaikei']],
-  ['🏗 現場・畑', ['tansui','kantab','volume','ruler','veggie']],
+  ['🏗 現場・畑', ['tansui','kantab','volume','ruler','kakudo','veggie']],
   ['📚 声・まなぶ',['koe','eigo']],
   ['🏨 お店・宿', ['regi','heya','annai']],
 ];
@@ -21681,7 +21713,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v516';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v518';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
