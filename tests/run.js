@@ -2133,6 +2133,25 @@ async function runSpeech(browser) {
   await page.evaluate(() => voiceCancel()); await page.waitForTimeout(200);
   check('  画面タップで続けモードも終わる', await page.evaluate(() => voiceKeepGoing), false);
 
+  // 前のセルを言い直す（v516）
+  await page.evaluate(() => { for (let r = 0; r < 6; r++) setCellVal(r, 0, ''); voiceHist = []; sel(0, 0); window.__q = ['100', '250', '300']; voiceStartContinuous(); });
+  await page.waitForTimeout(2500);
+  check('  言い直しボタン：直前に入れたセルの名前つき', await page.evaluate(() => { syncVoiceRedoBtn(); const b = document.getElementById('voiceRedoBtn'); return b.hidden + '/' + b.textContent; }), 'false/↩ A3 を言い直す（前のセル）');
+  await page.evaluate(() => { window.__q = ['200']; voiceRedo(); });
+  await page.waitForTimeout(1200);
+  check('  押すと前のセルへ戻って聞き直し、言い直すと上書き', await page.evaluate(() => [0, 1, 2, 3].map(r => data[r][0]).join('|')), '100|250|200|');
+  check('  言い直したら元いたセルへ帰り、続けて入れている', await page.evaluate(() => xlColLetter(selC) + (selR + 1) + '/' + voiceKeepGoing), 'A4/true');
+  await page.evaluate(() => { voiceStop(); window.__q = ['77']; voiceRedo(); voiceRedo(); });
+  await page.waitForTimeout(1200);
+  check('  2回押すと2つ前のセルを言い直せる', await page.evaluate(() => [0, 1, 2].map(r => data[r][0]).join('|') + '/' + xlColLetter(selC) + (selR + 1)), '100|77|200/A4');
+  await page.evaluate(() => { voiceStop(); sel(4, 0); window.__q = ['500', '戻る', '400']; voiceKeepGoing = true; voiceStart(); });
+  await page.waitForTimeout(2500);
+  check('  「戻る」と言っても前のセルを言い直せる', await page.evaluate(() => data[4][0] + '/' + data[5][0] + '/' + xlColLetter(selC) + (selR + 1)), '400//A6');
+  await page.evaluate(() => { voiceStop(); window.__q = []; sel(5, 0); voiceRedo(); });
+  await page.waitForTimeout(150);
+  await page.evaluate(() => voiceCancel()); await page.waitForTimeout(200);
+  check('  言い直さずにやめたら元のセルへ帰る（また言い直せる）', await page.evaluate(() => xlColLetter(selC) + (selR + 1) + '/' + voiceHist.length + '/' + data[4][0]), 'A6/3/400');
+
   // 「左に式・右に答え」でも、ちゃんと下へ進む（同じセルに上書きしない）
   await page.evaluate(() => { setSpeechLayout('split');
     for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) setCellVal(r, c, '');
