@@ -3024,6 +3024,9 @@ body.dark .save-mode { background: #143a35; color: #7fcabd; }
   cursor: pointer; touch-action: manipulation;
 }
 .voice-seq.on { background: var(--acc); color: #fff; border-color: var(--acc); }
+.voice-seq.voice-redo { display: block; margin: 10px auto 0; background: #fff3e0; color: #e65100; border-color: #ffb74d; }
+.voice-seq.voice-redo[hidden] { display: none; }
+.voice-box.voice-tight .voice-seq.voice-redo { margin-top: 6px; }
 
 .save-viewbar {
   display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
@@ -3880,7 +3883,9 @@ body.dark {
     <!-- 続けて入れるかどうかは、聞いている窓の中で切り替えられる。
          テンキーの🎤声キーは長押しが「別の機能に変更」なので、そちらでは切り替えられないため。 -->
     <button class="voice-seq" id="voiceSeqBtn" onclick="event.stopPropagation();voiceToggleKeepGoing()">🔁 続けて入れる</button>
-    <div class="voice-hint">式は「251かける68」のように言ってください／窓の外をタップでやめる</div>
+    <!-- 言いまちがえ・聞きまちがえたときに、前に入れたセルへ戻って言い直す（v516） -->
+    <button class="voice-seq voice-redo" id="voiceRedoBtn" onclick="event.stopPropagation();voiceRedo()" hidden>↩ 前のセルを言い直す</button>
+    <div class="voice-hint">式は「251かける68」のように言ってください／「戻る」で前のセルを言い直す／窓の外をタップでやめる</div>
     <button class="voice-seq voice-say-btn" onclick="event.stopPropagation();voiceCancel();setTimeout(openSayHelp,80)">📖 こう言えます</button>
   </div>
 </div>
@@ -9084,6 +9089,14 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v516', t:'🎤声で入れる：前のセルを言い直す', li:[
+    '声で入れているときの窓に<b>「↩ A3 を言い直す（前のセル）」</b>ボタン。言いまちがえたり、思った数で聞き取られなかったときに押すと、<b>前に入れたセルへ戻って聞き直し</b>ます。言い直すと、<b>戻る前にいたセルへ帰り</b>、続けて入れているときはそこから続きます',
+    '何度か押すと、さらに前のセルへ戻れます。声で<b>「戻る」「言い直し」「訂正」</b>と言っても同じです。言い直さずにやめたときも、元のセルへ帰ります',
+    '続けて入れているときに「次」「右」などと言って移ったあとも、聞き取りが止まらず続くようにしました' ]},
+  { v:'v515', t:'🌳家系図：長男・次女などの続き柄と養子', li:[
+    '人を入れる・直す窓に<b>「生まれ順（何番目）」</b>と<b>「続き柄」</b>。生まれ順を入れると、きょうだいがその順に並び、<b>長男・次男・長女・次女…</b>が自動で付きます（生まれた日からも付きます）。続き柄は自分で選んで決めることもできます',
+    '<b>養子縁組</b>（父母と・父とだけ・母とだけ）も入れられます。養子の線は<b>緑の点線</b>で「養」と出て、続き柄は<b>養子・養女</b>、本人が養子なら父母は<b>養父・養母</b>になります。婿養子は、妻の両親を「父・母」に入れて「父母と養子」にします',
+    '養子の人の窓から<b>「＋ 実父・実母（生みの親）」</b>を入れられます。生みの親の窓には「養子に出た子」が出ます' ]},
   { v:'v514', t:'道具に「🌳 家系図」', li:[
     '新しい道具<b>「🌳 家系図」</b>。自分（本人）から、人を押して<b>「＋父」「＋母」「＋夫・妻」「＋子」「＋きょうだい」</b>で家族を足していくと、上に親・祖父母、横にきょうだいと夫や妻、下に子・孫が並ぶ家系図になります',
     '<b>続柄</b>（祖母（母方）・叔父・いとこ・義母・嫁など）は本人から自動で付きます。生まれは「昭和25年」「S25.4.1」のような<b>和暦</b>でも入れられ、年齢や亡くなった年齢も出ます。写真・メモも残せます',
@@ -18324,7 +18337,7 @@ function voiceStop(){
   closeDlg('voiceOverlay');
 }
 /* 画面タップ＝やめる（続けて入れるモードも終わる） */
-function voiceCancel(){ voiceKeepGoing=false; voiceStop(); }
+function voiceCancel(){ voiceKeepGoing=false; voiceStop(); voiceRedoAbort(); }
 function voiceStart(){
   loadKoePhrase();
   const Ctor=speechRecCtor();
@@ -18341,7 +18354,7 @@ function voiceStart(){
   if(txt) txt.textContent='聞いています…';
   if(ov){
     openDlg('voiceOverlay');
-    syncVoiceSeqBtn();
+    syncVoiceSeqBtn(); syncVoiceRedoBtn();
     voicePlace();                                 // 「…と聞こえました」の行にかぶせない（v390）
     // この窓は画面いっぱいに広がるので、キーを押した指がそのまま窓の上にある。
     // 指を離した分のクリックで、開いた瞬間に閉じてしまっていた（テンキーの🎤声キー）。
@@ -18538,12 +18551,16 @@ function voiceAccept(text){
     if(voiceKeepGoing) setTimeout(()=>{ if(voiceKeepGoing) voiceStart(); }, 450);   // 電卓は動く先が無いので聞き直すだけ
     return;
   }
+  if(/^(戻る|もどる|戻って|もどって|言い直し|言いなおし|いいなおし|言い直す|訂正|ていせい|間違い|間違えた|まちがい|まちがえた)$/.test(raw.replace(/[。、\s]/g,''))){
+    voiceRedo(); return;                      // 「戻る」「言い直し」と言ったら、前のセルへ戻って聞き直す（v516）
+  }
   const move=speechMoveWord(raw);
   if(move){                      // 「次」だけ言ったときは、入れずに動くだけ
     voiceStop();
     voiceMove(move);
     toast(`${describeCell(selR,selC)} へ移りました`);
     speechSay(describeCell(selR,selC));
+    if(voiceKeepGoing) setTimeout(()=>{ if(voiceKeepGoing) voiceStart(); }, 450);   // 続けて入れているときは聞き直す
     return;
   }
   voiceStop();
@@ -18552,6 +18569,7 @@ function voiceAccept(text){
   const p=speechPrepare(raw, selR, selC);
   const f=p.f, v=p.v, answerAt=p.answerAt;
   setCellVal(selR,selC,v);
+  voiceHist.push({r:selR, c:selC}); if(voiceHist.length>100) voiceHist.shift();   // 言い直せるように覚える
   buildSheet(); sel(selR,selC);
   const el=document.getElementById('formulaInput'); if(el) el.value=data[selR][selC];
   const shown=answerAt ? getCellDisplay(answerAt[0], answerAt[1]) : getCellDisplay(selR,selC);
@@ -18561,6 +18579,13 @@ function voiceAccept(text){
     speechSay(shown);
   }
   else { toast(`「${raw}」を入れました`); speechSay(raw); }
+  if(voiceResume){                          // 言い直しだったときは、戻る前にいたセルへ帰る（v516）
+    const rs=voiceResume; voiceResume=null; voiceFixing=null;
+    if(rs.r<ROWS && rs.c<COLS) sel(rs.r, rs.c);
+    toast(`言い直しました。${describeCell(selR,selC)} に戻りました`, 3000);
+    if(voiceKeepGoing) setTimeout(()=>{ if(voiceKeepGoing) voiceStart(); }, 450);
+    return;
+  }
   if(voiceKeepGoing){                       // 続けて入れるときは、次のセルへ移って聞き直す
     voiceMove('down');
     setTimeout(()=>{ if(voiceKeepGoing) voiceStart(); }, 450);
@@ -18601,6 +18626,35 @@ function syncVoiceSeqBtn(){
 }
 /* 続けて入れるモード（⋯の🎤の長押し／「🎤続け」キー）。1つ入れるたびに下へ移って聞き直す */
 let voiceKeepGoing=false;
+/* 言い直し（v516）：声で入れたセルを覚えておき、「↩ 前のセルを言い直す」（または「戻る」「言い直し」と言う）で
+   そのセルへ戻って聞き直す。言い直したら、戻る前にいたセルへ帰る（続けて入れているときはそこから続ける）。
+   何度か押すと、さらに前のセルへ戻れる */
+let voiceHist=[], voiceResume=null, voiceFixing=null;
+function syncVoiceRedoBtn(){
+  const b=document.getElementById('voiceRedoBtn'); if(!b) return;
+  const last=voiceHist[voiceHist.length-1];
+  b.hidden=!last || (typeof isDentaku==='function' && isDentaku());   // 電卓のときはセルが無いので出さない
+  if(last) b.textContent='↩ '+describeCell(last.r,last.c)+' を言い直す（前のセル）';
+}
+function voiceRedo(){
+  const last=voiceHist.pop();
+  if(!last){ toast('言い直せるセルがありません'); return; }
+  if(!voiceResume) voiceResume={r:selR, c:selC};
+  voiceFixing=last;
+  voiceStop();
+  sel(last.r, last.c);
+  const now=getCellDisplay(last.r,last.c);
+  toast(`${describeCell(last.r,last.c)} を言い直してください`+(now!==''?`（いまは ${now}）`:''), 3600);
+  speechSay(describeCell(last.r,last.c)+'を言い直してください');
+  setTimeout(()=>{ voiceStart(); const t=document.getElementById('voiceText'); if(t) t.textContent=describeCell(last.r,last.c)+' を言い直してください…'; }, 300);
+}
+/* 言い直しの途中でやめたときは、戻る前にいたセルへ帰る */
+function voiceRedoAbort(){
+  if(!voiceResume) return;
+  if(voiceFixing) voiceHist.push(voiceFixing);   // 言い直さなかったセルは、また言い直せるように戻しておく
+  const rs=voiceResume; voiceResume=null; voiceFixing=null;
+  if(rs.r<ROWS && rs.c<COLS) sel(rs.r, rs.c);
+}
 function voiceStartContinuous(){
   if(!voiceAvailable()){ voiceStart(); return; }   // 使えない端末では案内だけ出す
   voiceKeepGoing=true;
@@ -21627,7 +21681,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v514';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v516';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
