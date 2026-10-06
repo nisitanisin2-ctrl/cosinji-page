@@ -9109,6 +9109,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v524', t:'🌱 野菜：61種類に', li:[
+    '🌱 野菜（菜園ノート）の野菜を<b>61種類</b>にふやしました（ミニトマト・ゴーヤ・メロン・インゲン・バジル・ニラ・ショウガ・ゴボウなど28種類）。どれも予定・肥料・コツ・病気と害虫・育ち具合の絵がそろっています',
+    '育て方に<b>種類のしぼりこみ</b>（実・葉とハーブ・根といも・豆・ねぎ）、野菜を登録する窓に<b>さがす欄</b>' ]},
   { v:'v523', t:'🌱 野菜：注意報と今月まけるものを下に', li:[
     '🌱 野菜（菜園ノート）の畑のタブで、<b>病気・害虫の注意報</b>と<b>今月まける・植えるもの</b>を、育てている野菜の一覧の<b>下</b>にしました' ]},
   { v:'v522', t:'🌱 野菜（菜園ノート）をまとめて新しく', li:[
@@ -21767,7 +21770,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v523';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v524';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
