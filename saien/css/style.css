@@ -1,0 +1,322 @@
+/* 菜園ノートの見た目（色・ボタン・カード・タブ・窓）。
+   色は :root の変数で決めていて、暗い画面（ダークモード）では下の @media で入れかわる。 */
+:root {
+  --acc: #2e7d32; --acc-soft: rgba(46,125,50,.12); --acc-ink: #fff;
+  --bg: #f1f4ee; --panel: #fff; --text: #263022; --muted: #6b7768;
+  --line: rgba(80,100,70,.20); --chip: rgba(80,100,70,.10);
+  --warn: #e65100; --warn-soft: rgba(230,81,0,.12); --danger: #c62828;
+  --water: #1565c0; --water-soft: rgba(21,101,192,.12);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --acc: #66bb6a; --acc-soft: rgba(102,187,106,.18); --acc-ink: #10210f;
+    --bg: #121811; --panel: #1b2419; --text: #e6eee2; --muted: #9aab95;
+    --line: rgba(160,190,150,.22); --chip: rgba(160,190,150,.12);
+    --warn: #ffb74d; --warn-soft: rgba(255,183,77,.15); --danger: #ef5350;
+    --water: #64b5f6; --water-soft: rgba(100,181,246,.16);
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: 'Hiragino Sans', 'Yu Gothic UI', 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.5;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+}
+header {
+  position: sticky; top: 0; z-index: 10; background: var(--acc); color: var(--acc-ink);
+  padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+header h1 { font-size: 19px; margin: 0; flex: 1; font-weight: 700; }
+header .back { background: none; border: 0; color: inherit; font-size: 16px; padding: 4px 8px 4px 0; cursor: pointer; }
+main { max-width: 720px; margin: 0 auto; padding: 12px 16px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.btn { border: 0; border-radius: 10px; padding: 10px 16px; background: var(--chip); font-weight: 600; }
+.btn.primary { background: var(--acc); color: var(--acc-ink); }
+.btn.danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+.btn.block { width: 100%; }
+.row { display: flex; gap: 8px; align-items: center; }
+.muted { color: var(--muted); font-size: 13px; }
+.empty { text-align: center; color: var(--muted); padding: 40px 16px; }
+.empty .big { font-size: 48px; }
+
+/* 絞り込み */
+.filters { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; }
+.chip { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 6px 12px; font-size: 14px; white-space: nowrap; }
+.chip.on { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+
+/* 野菜カード */
+.card { background: var(--panel); border-radius: 14px; padding: 12px; margin-bottom: 10px; border: 1px solid var(--line); }
+.crop { display: flex; gap: 12px; align-items: center; }
+.crop .emo { font-size: 36px; width: 52px; height: 52px; display: grid; place-items: center; background: var(--acc-soft); border-radius: 12px; flex-shrink: 0; }
+.crop .info { flex: 1; min-width: 0; cursor: pointer; }
+.crop .name { font-weight: 700; font-size: 17px; }
+.crop .name small { font-weight: 400; color: var(--muted); font-size: 13px; margin-left: 4px; }
+.badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--chip); }
+.badge.water { background: var(--water-soft); color: var(--water); }
+.badge.warn { background: var(--warn-soft); color: var(--warn); font-weight: 600; }
+.badge.acc { background: var(--acc-soft); color: var(--acc); font-weight: 600; }
+.quick { display: flex; flex-direction: column; gap: 6px; }
+.quick button { border: 0; border-radius: 10px; width: 48px; height: 40px; font-size: 20px; background: var(--chip); }
+.quick .w { background: var(--water-soft); }
+
+/* 記録 */
+.log { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.log:last-child { border-bottom: 0; }
+.log .ic { font-size: 22px; width: 32px; text-align: center; flex-shrink: 0; }
+.log .body { flex: 1; min-width: 0; }
+.log .meta { font-size: 13px; color: var(--muted); }
+.log .memo { white-space: pre-wrap; word-break: break-word; }
+.log img { display: block; max-width: 100%; max-height: 240px; border-radius: 10px; margin-top: 6px; cursor: pointer; }
+.log .edit { background: none; border: 0; color: var(--muted); font-size: 18px; padding: 0 4px; align-self: flex-start; }
+.dayhead { font-weight: 700; color: var(--muted); font-size: 13px; margin: 14px 0 4px; }
+
+/* 詳細 */
+.detail-top { display: flex; gap: 14px; align-items: center; }
+.detail-top .emo { font-size: 52px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
+.stat { background: var(--acc-soft); border-radius: 12px; padding: 8px; text-align: center; }
+.stat b { display: block; font-size: 20px; color: var(--acc); }
+.stat span { font-size: 12px; color: var(--muted); }
+h2 { font-size: 16px; margin: 18px 0 8px; }
+
+/* 集計 */
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+td.num, th.num { text-align: right; white-space: nowrap; }
+
+/* 下のタブ */
+nav.tabs {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex;
+  background: var(--panel); border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+nav.tabs button { flex: 1; border: 0; background: none; padding: 8px 0 10px; font-size: 12px; color: var(--muted); }
+nav.tabs button .i { display: block; font-size: 22px; line-height: 1.2; }
+nav.tabs button.on { color: var(--acc); font-weight: 700; }
+.fab {
+  position: fixed; right: 18px; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 15;
+  width: 58px; height: 58px; border-radius: 50%; border: 0; background: var(--acc); color: var(--acc-ink);
+  font-size: 30px; box-shadow: 0 4px 14px rgba(0,0,0,.25);
+}
+
+/* モーダル */
+.modal { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; justify-content: center; }
+.sheet {
+  background: var(--panel); width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto;
+  border-radius: 18px 18px 0 0; padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
+}
+@media (min-width: 600px) { .modal { align-items: center; } .sheet { border-radius: 18px; } }
+.sheet h3 { margin: 0 0 12px; font-size: 18px; }
+label.f { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+input[type=text], input[type=date], input[type=number], textarea, select {
+  width: 100%; font: inherit; font-size: 16px; color: var(--text); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+}
+textarea { min-height: 72px; resize: vertical; }
+.pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.pick button { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 6px 10px; font-size: 15px; }
+.pick button.on { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.pick.emoji button { font-size: 24px; padding: 4px 8px; }
+.photo-prev { max-width: 100%; max-height: 200px; border-radius: 10px; margin-top: 8px; display: block; }
+.sheet .actions { display: flex; gap: 8px; margin-top: 18px; }
+.sheet .actions .btn { flex: 1; }
+.viewer { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.92); display: grid; place-items: center; }
+.viewer img { max-width: 100vw; max-height: 100vh; }
+.toast {
+  position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  background: #333; color: #fff; padding: 10px 18px; border-radius: 999px; z-index: 70; font-size: 14px;
+  opacity: 0; transition: opacity .2s; pointer-events: none; width: max-content; max-width: 90vw; text-align: center;
+}
+.toast.show { opacity: 1; }
+[hidden] { display: none !important; }
+
+/* ===== ここから下は「育て方の予定」を入れたときに足したもの ===== */
+h2.first { margin-top: 4px; }
+h2 small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); margin-top: 2px; }
+.small { font-size: 12px; }
+.btn.block { display: block; }
+.link { background: none; border: 0; color: var(--acc); font-weight: 700; padding: 8px 0 0; }
+.steps > div { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); line-height: 1.6; }
+.steps > div:last-child { border-bottom: 0; }
+.steps span { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--acc); color: var(--acc-ink); display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+/* つぎの予定のしるし（色は作業の種類） */
+.badge.next { background: color-mix(in srgb, var(--k) 14%, transparent); color: var(--k); font-weight: 600; }
+/* やること */
+.task { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.task:last-of-type { border-bottom: 0; }
+.task .tx { flex: 1; min-width: 0; cursor: pointer; } .task .tx b { display: block; font-size: 15px; } .task .tx small { color: var(--muted); font-size: 12.5px; }
+.task.now .tx small, .task.past .tx small { color: var(--warn); font-weight: 600; }
+.task .ok { border: 1px solid var(--acc); color: var(--acc); background: var(--acc-soft); border-radius: 999px; padding: 6px 10px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+/* 予定の表 */
+.plan .pr { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.plan .pr:last-of-type { border-bottom: 0; }
+.plan .pr .w { flex: 1; font-weight: 600; min-width: 0; } .plan .pr .d { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.plan .pr .s { font-size: 12px; min-width: 64px; text-align: right; white-space: nowrap; }
+.plan .pr .b { width: 34px; height: 30px; flex-shrink: 0; border: 1px solid var(--acc); border-radius: 8px; background: var(--acc-soft); color: var(--acc); font-weight: 700; }
+.plan .pr span.b { border: 0; background: none; }
+.plan .pr .b.undo { border-color: var(--line); background: none; color: var(--muted); }
+.plan .pr.done .w, .plan .pr.done .d { color: var(--muted); text-decoration: line-through; } .plan .pr.done .s { color: var(--acc); }
+.plan .pr.now { background: var(--warn-soft); border-radius: 8px; padding-left: 4px; } .plan .pr.now .s, .plan .pr.past .s { color: var(--warn); font-weight: 700; }
+.plan .muted.small { margin-top: 8px; }
+/* 肥料・コツ・病気（開け閉め） */
+details.more { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 10px; padding: 0 12px; }
+details.more summary { padding: 12px 0; font-weight: 700; cursor: pointer; }
+details.more[open] summary { border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.fl { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.fl:last-child { border-bottom: 0; }
+.fl b { flex-shrink: 0; width: 6.5em; color: var(--acc); } .fl small { color: var(--muted); }
+.tip { margin: 8px 0 12px; padding: 8px 10px; border-radius: 10px; background: var(--acc-soft); font-size: 13.5px; }
+.tip.warn { background: var(--warn-soft); }
+.sick { padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.sick b { display: block; font-size: 14.5px; margin-bottom: 2px; }
+.sick span { display: inline-block; width: 5em; color: var(--muted); font-size: 12px; }
+/* カレンダー */
+.calhead { display: flex; align-items: center; gap: 6px; margin: 16px 0 8px; }
+.calhead b { flex: 1; text-align: center; font-size: 17px; }
+.calhead .btn { padding: 8px 14px; }
+.calcard { padding: 6px; }
+.calcard .wd, .calcard .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.calcard .wd span { text-align: center; font-size: 12px; font-weight: 700; color: var(--muted); padding: 2px 0; }
+.calcard .wd span:first-child { color: #e53935; } .calcard .wd span:last-child { color: #1e88e5; }
+.cd { position: relative; min-height: 74px; min-width: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); padding: 2px 1px 3px; display: flex; flex-direction: column; align-items: stretch; gap: 2px; overflow: hidden; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.cd .n { align-self: center; font-size: 14px; font-weight: 700; line-height: 20px; min-width: 22px; text-align: center; }
+.cd.sun .n { color: #e53935; } .cd.sat .n { color: #1e88e5; }
+.cd.pastday { background: var(--bg); } .cd.pastday .n { opacity: .55; }
+.cd.today .n { background: var(--acc); color: var(--acc-ink); border-radius: 999px; opacity: 1; }
+.cd.sel { outline: 3px solid var(--acc); outline-offset: -2px; }
+.cd .ev, .legend i.ev { display: block; font-size: 10.5px; line-height: 15px; border-radius: 4px; background: var(--k); color: #fff; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: clip; padding: 0 2px; }
+.cd .bar, .legend i.bar { display: block; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--k) 45%, transparent); margin: 1px 0; }
+.cd .done, .cd .past { opacity: .4; }
+.cd .more { font-size: 10px; color: var(--muted); text-align: center; line-height: 1.1; }
+.cd .lg { font-size: 12px; line-height: 1; text-align: center; margin-top: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 10px 2px 0; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 4px; }
+.legend i.ev { width: 14px; height: 12px; padding: 0; } .legend i.bar { width: 16px; }
+@media (min-width: 600px) { .cd { min-height: 92px; padding: 3px; } .cd .ev { font-size: 12px; line-height: 17px; } }
+/* 記録と集計の切りかえ */
+.seg { display: flex; gap: 4px; margin-bottom: 10px; }
+.seg button { flex: 1; border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 9px; font-weight: 600; }
+.seg button.on { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.seg.mini { display: inline-flex; margin: 0 6px 0 0; } .seg.mini button { padding: 5px 10px; font-size: 13px; flex: none; }
+.bars { display: flex; align-items: flex-end; gap: 4px; height: 110px; }
+.bars div { flex: 1; text-align: center; font-size: 11px; color: var(--muted); display: flex; flex-direction: column; justify-content: flex-end; }
+.bars i { display: block; background: var(--acc); border-radius: 4px 4px 0 0; }
+/* 育て方 */
+.vgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; margin: 10px 0; }
+.vgrid button { border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 8px 4px; font-size: 13px; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.vgrid button span { font-size: 26px; }
+.vgrid button.on { border-color: var(--acc); background: var(--acc-soft); color: var(--acc); }
+.gsel .gt { font-size: 22px; margin-bottom: 6px; }
+.gform label { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 0; font-size: 14px; color: var(--muted); }
+.gform input[type=date] { width: auto; flex: 1; min-width: 150px; }
+.gbig { margin: 8px 0; padding: 10px; border-radius: 12px; background: var(--acc-soft); font-size: 15px; } .gbig b { color: var(--acc); font-size: 18px; }
+.gsel .btn.primary { margin-top: 10px; }
+/* 野菜を選ぶボタン（登録の窓） */
+.pick.veg { max-height: 190px; overflow-y: auto; }
+.pick.veg button { font-size: 13.5px; padding: 6px 8px; }
+label.sw { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 15px; } label.sw input { width: 20px; height: 20px; }
+.help p { margin: 0 0 10px; line-height: 1.7; }
+.steps p { margin: 0; flex: 1; }
+/* 畑の切りかえ（見出しの右）と、畑の一覧（設定） */
+#fieldSel { width: auto; max-width: 48%; padding: 6px 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,.5); background: rgba(255,255,255,.15); color: inherit; font-size: 15px; font-weight: 700; }
+#fieldSel option { color: #222; background: #fff; }
+.flist { margin: 8px 0 10px; }
+.fitem { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.fitem > div { flex: 1; min-width: 0; } .fitem small { display: block; color: var(--muted); font-size: 12.5px; }
+/* アプリとして入れる（畑の一覧の上） */
+.card.inst { display: flex; align-items: center; gap: 10px; background: var(--acc-soft); }
+.card.inst > span { font-size: 26px; } .card.inst p { flex: 1; margin: 0; } .card.inst small { color: var(--muted); }
+.card.inst .x { border: 0; background: none; font-size: 20px; color: var(--muted); padding: 4px; cursor: pointer; }
+/* 育ち具合の絵（畑のカード・野菜の画面） */
+.crop .emo.grow, .detail-top .emo.grow { width: 64px; height: auto; padding: 4px 2px 5px; display: flex; flex-direction: column; align-items: center; gap: 0; font-size: 18px; line-height: 1.1; }
+.emo.grow { background: var(--acc-soft); border-radius: 12px; flex-shrink: 0; }
+.emo.grow .e { font-size: 18px; line-height: 1; }
+.emo.grow .growpic { display: block; margin: 1px 0; }
+.emo.grow small { font-size: 10.5px; font-weight: 700; color: var(--acc); white-space: nowrap; }
+.emo.grow[data-st="before"] small, .emo.grow[data-st="end"] small { color: var(--muted); }
+.detail-top .emo.grow.big { width: 100px; } .detail-top .emo.grow.big .e { font-size: 24px; } .detail-top .emo.grow.big small { font-size: 12px; }
+.emo.grow .gbar { display: block; width: 84px; height: 6px; border-radius: 3px; background: var(--line); margin: 4px 0 1px; overflow: hidden; }
+.emo.grow .gbar b { display: block; height: 100%; background: #2e7d32; }
+.emo.grow .gbar + small { font-weight: 400; color: var(--muted); font-size: 11px; }
+/* 下に出るお知らせ（新しい版・新しくなったこと） */
+.notice-bar { position: fixed; left: 12px; right: 12px; bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 60; max-width: 560px; margin: 0 auto;
+  background: var(--panel); border: 1px solid var(--line); border-left: 5px solid var(--acc); border-radius: 14px; padding: 12px 14px; box-shadow: 0 6px 24px rgba(0,0,0,.18);
+  transform: translateY(160%); opacity: 0; transition: transform .25s, opacity .25s; pointer-events: none; }
+.notice-bar.show { transform: none; opacity: 1; pointer-events: auto; }
+.notice-bar .nb-t { font-weight: 700; } .notice-bar .nb-s { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.notice-bar .nb-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+/* バージョン・新しくなったこと */
+.ver { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; } .ver > span { font-size: 30px; }
+.ver b { display: block; font-size: 17px; } .ver small { color: var(--muted); }
+details.wn ul { margin: 6px 0 10px; padding-left: 1.2em; } details.wn li { margin: 4px 0; font-size: 14px; line-height: 1.6; }
+/* 病気・害虫の注意報 */
+.skboard { padding: 6px 12px 10px; }
+details.sk { border-bottom: 1px solid var(--line); }
+details.sk summary { list-style: none; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; padding: 9px 0; cursor: pointer; }
+details.sk summary::-webkit-details-marker { display: none; }
+details.sk summary b { font-size: 15px; } details.sk summary small { flex-basis: 100%; color: var(--muted); font-size: 12.5px; padding-left: 52px; }
+details.sk .lv { font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 6px; background: #fff3c4; color: #8a6100; min-width: 38px; text-align: center; }
+details.sk.peak .lv { background: #e53935; color: #fff; }
+details.sk.more summary small { padding-left: 0; }
+.skb { padding: 0 0 10px; font-size: 13.5px; } .skb div { margin: 3px 0; }
+.skb span { display: inline-block; width: 5.5em; color: var(--muted); font-size: 12px; }
+.badge.sick { background: #fde3e1; color: #c62828; } .badge.sick.lo { background: #fff3c4; color: #8a6100; }
+/* 天気予報 */
+.cd .wx { display: flex; flex-direction: column; align-items: center; font-size: 14px; line-height: 1.05; margin-top: -1px; }
+.cd .wx small { font-size: 9.5px; color: var(--muted); letter-spacing: -.3px; white-space: nowrap; }
+.wxday .wxt { display: flex; align-items: center; gap: 10px; } .wxday .ic { font-size: 34px; }
+.wxday .wxt > div { flex: 1; } .wxday .wxt small { display: block; color: var(--muted); font-size: 12px; }
+.wxday .tt { text-align: right; } .wxday .tt small { display: block; color: var(--water); }
+.wxday .hi { color: #e53935; } .wxday .lo { color: #1e88e5; }
+.wxday .tip { margin: 8px 0 0; }
+.locnow { margin-bottom: 4px; } .locnow small { color: var(--muted); }
+.locres { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+/* 折りたたみ（病気・害虫の注意報） */
+details.fold > summary { list-style: none; cursor: pointer; }
+details.fold > summary::-webkit-details-marker { display: none; }
+details.fold > summary h2 { position: relative; padding-right: 28px; }
+details.fold > summary h2::after { content: '▾'; position: absolute; right: 4px; top: 0; font-size: 18px; color: var(--muted); transition: transform .2s; }
+details.fold:not([open]) > summary h2::after { transform: rotate(-90deg); }
+details.fold:not([open]) > summary h2 { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 34px 10px 12px; }
+details.fold:not([open]) > summary h2::after { right: 12px; top: 10px; }
+/* ===== シンプルモード（画面の小さいスマホ用） ===== */
+body.simple { font-size: 18px; }
+.simple header h1 { font-size: 21px; }
+.simple h2 { font-size: 19px; } .simple h2 small { font-size: 14px; }
+.simple .btn { font-size: 17px; padding: 12px 18px; }
+.simple .muted { font-size: 15px; }
+.simple nav.tabs button { font-size: 14px; } .simple nav.tabs button .i { font-size: 26px; }
+/* カード：名前・つぎの予定・水やり・注意だけ */
+.simple .crop .name { font-size: 20px; } .simple .crop .name small, .simple .crop .info .muted { display: none; }
+.simple .crop .badge { font-size: 15px; padding: 3px 10px; }
+.simple .crop .badges .badge:not(.next):not(.sick):not(.warn) { display: none; }
+.simple .crop .quick button { width: 52px; height: 52px; font-size: 24px; }
+.simple .emo.grow .e { display: none; } .simple .emo.grow small { font-size: 12px; }
+/* やること */
+.simple .task .tx b { font-size: 17px; } .simple .task .tx small { font-size: 15px; }
+.simple .task .ok { font-size: 15px; padding: 9px 12px; }
+/* カレンダー：色の帯と天気の絵だけ（字は出さない） */
+.simple .cd { min-height: 60px; }
+.simple .cd .n { font-size: 17px; }
+.simple .cd .ev { font-size: 0; height: 8px; line-height: 8px; padding: 0; }
+.simple .cd .wx { font-size: 17px; } .simple .cd .wx small, .simple .cd .more, .simple .legend, .simple .calcard .muted.small { display: none; }
+.simple .calhead b { font-size: 20px; }
+/* 野菜の画面・注意報 */
+.simple .stat span { font-size: 13px; }
+.simple details.sk summary b { font-size: 17px; } .simple details.sk summary small { font-size: 14px; padding-left: 0; }
+.simple .skb { font-size: 15.5px; } .simple .skb span { display: block; width: auto; font-size: 13px; margin-top: 4px; }
+.simple .wxday .ic { font-size: 40px; }
+/* 育ち具合を実物に合わせる */
+.emo.grow .gadj { margin-top: 6px; border: 1px solid var(--acc); background: var(--panel); color: var(--acc); border-radius: 999px; padding: 3px 8px; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+.gprev { display: flex; align-items: center; gap: 14px; background: var(--acc-soft); border-radius: 14px; padding: 8px 14px; margin-bottom: 10px; }
+.gprev b { display: block; font-size: 18px; color: var(--acc); } .gprev small { color: var(--muted); }
+/* 育ち具合の絵（8段階） */
+.emo.grow .growpic { border-radius: 10px; }
+.emo.grow .gsteps { display: flex; gap: 2px; margin: 3px 0 1px; } .emo.grow .gsteps b { width: 5px; height: 5px; border-radius: 50%; background: var(--line); }
+.emo.grow .gsteps b.on { background: #2e7d32; }
+.emo.grow.big .gsteps { gap: 3px; } .emo.grow.big .gsteps b { width: 8px; height: 8px; }
+.emo.grow small.gp { font-weight: 400; color: var(--muted); font-size: 11px; }
