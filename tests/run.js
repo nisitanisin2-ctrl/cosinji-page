@@ -8964,6 +8964,10 @@ async function runSaien(browser) {
   await page.goBack().catch(() => {}); await w(600);
   check('  閉じて開き直しても、戻るで道具を閉じられる（ページは離れない）', await page.evaluate(() => !isDlgOpen('saienOverlay') + '/' + (typeof data) + '/' + location.pathname.endsWith('index.html')), 'true/object/true');
   check('  菜園ノートは表電卓の service-worker にも入っている', /'\.\/saien\/js\/app\.js'/.test(fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8')) + '/' + fs.existsSync(path.join(ROOT, 'saien', 'js', 'grow.js')), 'true/true');
+  await page.evaluate(() => openSaien()); await w(300);
+  await fr().waitForFunction(() => window.APP_READY, null, { timeout: 8000 }); await w(200);
+  check('  菜園ノートのアドレスをQRコードで（単独アプリのアドレス）', await fr().evaluate(async () => { go('settings'); await new Promise(z => setTimeout(z, 200)); $('#qrBtn').click(); await new Promise(z => setTimeout(z, 200)); return $('#qrUrl').textContent + '/' + ($('#qrCv').width > 200); }), 'https://nisitanisin2-ctrl.github.io/vigilant-parakeet//true');
+  await page.evaluate(() => closeSaien()); await w(300);
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close(); srv.close();
 }

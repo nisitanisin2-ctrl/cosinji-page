@@ -9109,6 +9109,8 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v521', t:'🌱 野菜：アドレスをQRコードで', li:[
+    '🌱 野菜（菜園ノート）の ⚙ 設定に<b>「📱 アドレスをQRコードで教える」</b>。相手のスマホのカメラで読むと、単独のアプリ「菜園ノート」が開きます（コピー・送る・画像で保存も）' ]},
   { v:'v520', t:'🌱 野菜を「菜園ノート」に', li:[
     '道具の<b>🌱 野菜</b>を、家庭菜園のアプリ<b>「菜園ノート」</b>に入れかえました。下のタブで <b>🌱 畑・📅 予定・📝 記録・📖 育て方・⚙ 設定</b>',
     '育てている野菜ごとに<b>予定のカレンダー</b>・<b>育ち具合の絵</b>（8段階。「✋ 合わせる」で実物に合わせられる）・<b>病気と害虫の注意報</b>・<b>天気予報</b>（⚙設定で場所を決める）・水やりや収穫の記録と集計。<b>畑ごとの管理</b>と、文字を大きくする<b>シンプルモード</b>も',
@@ -21757,7 +21759,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v520';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v521';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
