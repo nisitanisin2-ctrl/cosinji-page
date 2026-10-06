@@ -8941,7 +8941,7 @@ async function runSaien(browser) {
   check('  前の「野菜」の記録を引き継ぐ（野菜・日記・写真・地域）', await fr().evaluate(async () => {
     const t = data.crops.find(c => c.id === 'x-p1'), m = data.crops.find(c => c.id === 'x-p2'), ls = data.logs.filter(l => l.cropId === 'x-p1').sort((a, b) => a.date.localeCompare(b.date));
     return [t.name, t.plan, t.as, t.plantedAt, t.memo, t.area, m.emoji + m.name + ':' + (m.plan || 'なし'), ls.map(l => l.date + l.memo + (l.hasPhoto ? '📷' : '')).join(','), !!(await getPhoto(ls[0].id)), data.fields[0].area + data.fields[0].alt + data.fields[0].cold].join('/');
-  }), 'トマト/トマト/nae/2026-04-25/南の畝/4/🫘わが家の豆:なし/2026-05-02花が咲いた📷,2026-05-03水やり/true/tohoku200true');
+  }), 'トマト/トマト/nae/2026-04-25/南の畝/4/🫘わが家の豆:わが家の豆/2026-05-02花が咲いた📷,2026-05-03水やり/true/tohoku200true');
   check('  前のデータは消さずに残す・引き継ぐのは1回だけ', await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_veg_plots')).length + '/' + !!localStorage.getItem('saien_mig_excalc')), '2/true');
   check('  表電卓の中ではインストールの案内・更新の確かめは出さない', await fr().evaluate(async () => { go('settings'); await new Promise(z => setTimeout(z, 200)); return document.querySelector('main').textContent.includes('表電卓の道具「🌱 野菜」') + '/' + !document.querySelector('#updBtn') + '/' + !document.querySelector('#instBtn'); }), 'true/true/true');
   await fr().evaluate(() => go('crops')); await w(200);
@@ -8963,6 +8963,17 @@ async function runSaien(browser) {
   await fr().waitForFunction(() => window.APP_READY, null, { timeout: 8000 }); await w(200);
   await page.goBack().catch(() => {}); await w(600);
   check('  閉じて開き直しても、戻るで道具を閉じられる（ページは離れない）', await page.evaluate(() => !isDlgOpen('saienOverlay') + '/' + (typeof data) + '/' + location.pathname.endsWith('index.html')), 'true/object/true');
+  check('  前の「自分で足した野菜」は⭐自分の野菜に', await page.evaluate(() => { openSaien(); return 1; }) && await (async () => { await w(300); await fr().waitForFunction(() => window.APP_READY, null, { timeout: 8000 }); return fr().evaluate(() => data.myPlans.map(p => p.n + ':' + p.s.length).join(',')); })(), 'わが家の豆:1');
+  await page.evaluate(() => closeSaien()); await w(300);
+  // saien/ が菜園ノート（となりの vigilant-parakeet）と同じか（写し忘れの見張り。となりに無いときは見ない）
+  const SRC = path.join(ROOT, '..', 'vigilant-parakeet');
+  if (fs.existsSync(path.join(SRC, 'js', 'app.js'))) {
+    const files = ['index.html', 'css/style.css', ...fs.readdirSync(path.join(SRC, 'js')).map(f => 'js/' + f)];
+    const diff = files.filter(f => !fs.existsSync(path.join(ROOT, 'saien', f)) || fs.readFileSync(path.join(SRC, f), 'utf8') !== fs.readFileSync(path.join(ROOT, 'saien', f), 'utf8'));
+    check('  saien/ は菜園ノートと同じ（違うときは sh tests/sync-saien.sh）', diff.join(',') || 'おなじ', 'おなじ');
+    const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
+    check('  菜園ノートのファイルはぜんぶ service-worker に', files.filter(f => !sw.includes(`'./saien/${f}'`)).join(',') || 'ぜんぶ', 'ぜんぶ');
+  }
   check('  菜園ノートは表電卓の service-worker にも入っている', /'\.\/saien\/js\/app\.js'/.test(fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8')) + '/' + fs.existsSync(path.join(ROOT, 'saien', 'js', 'grow.js')), 'true/true');
   await page.evaluate(() => openSaien()); await w(300);
   await fr().waitForFunction(() => window.APP_READY, null, { timeout: 8000 }); await w(200);
