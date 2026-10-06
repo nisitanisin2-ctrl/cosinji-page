@@ -9109,6 +9109,8 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v523', t:'🌱 野菜：注意報と今月まけるものを下に', li:[
+    '🌱 野菜（菜園ノート）の畑のタブで、<b>病気・害虫の注意報</b>と<b>今月まける・植えるもの</b>を、育てている野菜の一覧の<b>下</b>にしました' ]},
   { v:'v522', t:'🌱 野菜（菜園ノート）をまとめて新しく', li:[
     '<b>🌤 天気の注意</b>（あす・あさっての霜・猛暑・大雨・強風と、気をつける野菜）・<b>水やりのひとこと</b>・<b>🗓 今月まけるもの</b>',
     '<b>⭐ 自分の野菜・品種を足す</b>（作業と日数）。前の「野菜の育成計画」で自分で足した野菜も引き継ぎます',
@@ -21765,7 +21767,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v522';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v523';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
