@@ -1,7 +1,7 @@
-const CACHE = 'excalc-v520';
+const CACHE = 'excalc-v521';
 const CACHE_PREFIX = 'excalc-';   // このアプリのキャッシュだけを見分けるための名前
 const ASSETS = ['./', './index.html', './help.js', './photomemo.js', './techo.js', './subsc.js', './heya.js', './annai.js', './shimai.js', './meishi.js', './trim.js', './manner.js', './boki.js', './kurashi.js', './keisan.js', './ruler.js', './kakudo.js', './regi.js', './kakeizu.js', './koe/phrase.js', './manifest.json',
-  './saien/index.html', './saien/css/style.css', './saien/js/version.js', './saien/js/veg-data.js', './saien/js/util.js', './saien/js/plan.js', './saien/js/grow.js', './saien/js/sick.js', './saien/js/weather.js', './saien/js/store.js', './saien/js/app.js', './saien/icon-192.png',
+  './saien/index.html', './saien/css/style.css', './saien/js/version.js', './saien/js/veg-data.js', './saien/js/util.js', './saien/js/plan.js', './saien/js/grow.js', './saien/js/sick.js', './saien/js/weather.js', './saien/js/qr.js', './saien/js/store.js', './saien/js/app.js', './saien/icon-192.png',
   './icon-192.png', './icon-512.png',
   './icon-maskable-192.png', './icon-maskable-512.png', './apple-touch-icon.png',
   './techo/index.html', './techo/manifest.json', './techo/icon-192.png', './techo/icon-512.png', './techo/apple-touch-icon.png'];
