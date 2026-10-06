@@ -2288,9 +2288,16 @@ body.compact .modal.modal-full .modal-body { padding: 9px 10px calc(12px + var(-
 .modal.modal-full .pick-sheets, .modal.modal-full .pick-sheets * { touch-action: auto; }
 .modal.modal-full .modal-body canvas, .modal.modal-full canvas { touch-action: none; }
 .modal.modal-full .modal-body { padding: 12px 14px calc(16px + var(--safe-bottom)); }
+/* 🌱 野菜＝菜園ノート（v520）：中身は iframe だけ。すき間なく画面いっぱいに */
+.modal.modal-full .modal-body.saien-body { padding: 0; overflow: hidden; display: flex; }
+.modal.modal-full.saien-modal { height: 100vh; height: 100dvh; }   /* iframe には中身の高さが無いので、画面の高さを決めておく */
+.modal.modal-full .modal-body.saien-body { flex: 1; min-height: 0; }
+.saien-frame { flex: 1; width: 100%; height: 100%; border: 0; display: block; background: #f1f3ee; }
 @media (min-width: 700px) {   /* パソコンなど広い画面では、読みやすい幅で真ん中に */
   .modal.modal-full { width: 96%; max-width: 900px; height: 96%; border-radius: var(--r-card); }
   .modal.modal-full .modal-body { padding: 12px 14px 16px; }
+  .modal.modal-full.saien-modal { height: 96vh; height: 96dvh; }
+  .modal.modal-full .modal-body.saien-body { padding: 0; }
 }
 .veg-find { flex: 1; }
 .veg-pickbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -5016,7 +5023,20 @@ body.dark {
   </div>
 </div>
 
-<!-- 野菜の育成計画（種まき日から、間引き・追肥・収穫などの予定日をカレンダーで見る） -->
+<!-- 🌱 野菜（v520から）：菜園ノート（saien/。もとは vigilant-parakeet の単独アプリ）を、まるごと iframe で開く。
+     開くたびに作り、閉じるときに消す（中で積んだ「戻る」の履歴もいっしょに消えるので、表電卓の「戻る」とずれない） -->
+<div class="modal-overlay" id="saienOverlay">
+  <div class="modal modal-full saien-modal">
+    <div class="modal-header">
+      <span>🌱 野菜（菜園ノート）</span>
+      <button class="modal-close" onclick="closeSaien()" aria-label="閉じる">✕</button>
+    </div>
+    <div class="modal-body saien-body" data-hswipe="1"></div>
+  </div>
+</div>
+
+<!-- 前の「野菜の育成計画」（v519まで）。道具からは開かない（v520で菜園ノートに入れかえ）。
+     前のデータ（excalc_veg_*）の読み書き・バックアップ・画像の書き出しの部品が、ほかから使われているので残している -->
 <div class="modal-overlay" id="veggieOverlay" onclick="if(event.target===this)closeVeggie()">
   <div class="modal veg-modal modal-full">
     <div class="modal-header">
@@ -9089,6 +9109,11 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v520', t:'🌱 野菜を「菜園ノート」に', li:[
+    '道具の<b>🌱 野菜</b>を、家庭菜園のアプリ<b>「菜園ノート」</b>に入れかえました。下のタブで <b>🌱 畑・📅 予定・📝 記録・📖 育て方・⚙ 設定</b>',
+    '育てている野菜ごとに<b>予定のカレンダー</b>・<b>育ち具合の絵</b>（8段階。「✋ 合わせる」で実物に合わせられる）・<b>病気と害虫の注意報</b>・<b>天気予報</b>（⚙設定で場所を決める）・水やりや収穫の記録と集計。<b>畑ごとの管理</b>と、文字を大きくする<b>シンプルモード</b>も',
+    '前の「野菜の育成計画」に登録していた<b>育てている野菜と育成日記（写真）</b>は、はじめて開いたときに<b>引き継ぎます</b>（前のデータも消さずに残します）',
+    '単独のアプリ「菜園ノート」（nisitanisin2-ctrl.github.io/vigilant-parakeet/）としても入れられます（データは別々です）' ]},
   { v:'v519', t:'🌳家系図：コメント', li:[
     '人に<b>コメント</b>（ひとこと）を入れられるようにしました。入れると、家系図の<b>名前のすぐ下</b>に出ます（例：初代・東京へ移る）。画像と印刷にも出ます',
     '人を押したときのカードの<b>「💬 コメントを入れる」</b>からも入れられ、一覧ではコメントでもさがせます' ]},
@@ -11579,7 +11604,7 @@ const KEY_FUNCS={
   a_photomemo:{g:'設定・機能',label:'📝写真メモ',short:'写真メモ',run:()=>openPhotoMemo()},
   a_kantab:{g:'設定・機能',label:'🧪カンタブ',short:'カンタブ',run:()=>openKantab()},
   a_tansui:{g:'設定・機能',label:'💧単位水量',short:'水量',run:()=>openTansui()},
-  a_veggie:{g:'設定・機能',label:'🌱野菜',short:'野菜',run:()=>openVeggie()},
+  a_veggie:{g:'設定・機能',label:'🌱野菜',short:'野菜',run:()=>openSaien()},
   a_linklist:{g:'設定・機能',label:'🔗リンク集',short:'リンク',run:()=>openLinkList()},
   a_touban:{g:'設定・機能',label:'📅当番表',short:'当番',run:()=>openTouban()},
   a_techo:{g:'設定・機能',label:'📔業務手帳',short:'手帳',run:()=>openTecho()},   // v433
@@ -12525,6 +12550,22 @@ function openVeggie(){
   openDlg('veggieOverlay');
 }
 function closeVeggie(){ closeDlg('veggieOverlay'); }
+/* ── 🌱 野菜＝菜園ノート（v520）──
+   saien/ の菜園ノートを iframe で開く。データは菜園ノートの IndexedDB（saien-note）。
+   はじめて開いたときに、前の「野菜の育成計画」の記録（excalc_veg_*）を菜園ノートが引き継ぐ（store.js の migrateExcalc）。
+   菜園ノートの畑の一覧で「戻る」を押すと、菜園ノートが closeSaien() を呼んで道具を閉じる */
+function saienDrop(){ const b=document.querySelector('#saienOverlay .saien-body'); if(b) b.innerHTML=''; }
+function openSaien(){
+  const b=document.querySelector('#saienOverlay .saien-body'); if(!b) return;
+  if(!b.querySelector('iframe')){
+    const f=document.createElement('iframe');
+    f.className='saien-frame'; f.title='菜園ノート'; f.setAttribute('allow','geolocation');
+    f.src='saien/index.html';
+    b.appendChild(f);
+  }
+  openDlg('saienOverlay', saienDrop);
+}
+function closeSaien(){ saienDrop(); closeDlg('saienOverlay'); }
 
 function vegRenderAll(){ vegRenderPlots(); vegRenderChips(); vegRenderDate(); vegRenderArea(); vegRenderPlan(); vegRenderCal(); vegRenderFert(); vegRenderTips(); vegRenderSick(); vegRenderMy(); }
 /* 地域・標高・寒冷地の欄と、いまかかっている補正の案内 */
@@ -14759,7 +14800,7 @@ function toggleFuncPage(){
 const NP_TOOLS=[
   {id:'tansui',   label:'💧単位水量',   ov:'tansuiOverlay',    run:()=>openTansui(),   close:()=>closeTansui()},
   {id:'kantab',   label:'🧪カンタブ',   ov:'kantabOverlay',    run:()=>openKantab(),   close:()=>closeKantab()},
-  {id:'veggie',   label:'🌱野菜',       ov:'veggieOverlay',    run:()=>openVeggie(),   close:()=>closeVeggie()},
+  {id:'veggie',   label:'🌱野菜',       ov:'saienOverlay',     run:()=>openSaien(),    close:()=>closeSaien()},
   {id:'volume',   label:'📷容積',       ov:'volumeOverlay',    run:()=>openVolume(),   close:()=>closeVolume()},
   {id:'ruler',    label:'📏定規',       ov:'rulerOverlay',     run:()=>openRuler(),    close:()=>closeRuler()},    // ruler.js（開いたときに読む。v496）
   {id:'kakudo',   label:'📐角度計',     ov:'kakudoOverlay',    run:()=>openKakudo(),   close:()=>closeKakudo()},   // kakudo.js（開いたときに読む。v518）
@@ -14837,7 +14878,7 @@ function applyNpToolFull(){
     if(!t.ov) return;
     const ov=document.getElementById(t.ov); if(!ov) return;
     const m=ov.querySelector('.modal'); if(!m) return;
-    if(m.classList.contains('veg-modal')) return;          // 育成計画はいつも全画面
+    if(m.classList.contains('veg-modal') || m.classList.contains('saien-modal')) return;   // 育成計画・菜園ノートはいつも全画面
     m.classList.toggle('modal-full', !!((window.APP_TECHO && t.id==='techo') || window.APP_TOOL===t.id));
   });
 }
@@ -21349,7 +21390,7 @@ function appToolAddHint(){
 const TOOL_HINTS={
   tansui:'配合を登録しておき、試験のたびに測った値を入れると、推定の単位水量と配合との差を出します。配合の登録は「⚙ 設定」から。',
   kantab:'単位水量と、カンタブの読み値を入れると、換算表で塩化物含有量と平均値を出します。換算表は「⚙ 設定」で登録します。',
-  veggie:'育てている野菜と植えた日を登録すると、これからの作業の予定と育成日記をつけられます。',
+  veggie:'育てている野菜を登録すると、予定のカレンダー・育ち具合の絵・病気と害虫の注意報・天気予報まで出ます（菜園ノート）。下のタブで 畑・予定・記録・育て方・設定 を切りかえます。',
   volume:'形を選ぶと、どの寸法を入れるかが図で出ます。写真の辺をなぞって1つに実際の長さを入れると、ほかの辺は比率から入ります。↺ リセットで最初からやり直せます。',
   photomemo:'写真を撮って、文字や印を書きこんだメモにできます。',
   touban:'はじめに「⚙ 設定」で名簿と当番の曜日を決めると、半年分の当番表ができます。「🖨 印刷」で配れます。',
@@ -21716,7 +21757,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v519';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v520';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

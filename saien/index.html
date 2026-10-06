@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>菜園ノート</title>
+<meta name="description" content="家庭菜園の育て方の予定（種まき・追肥・収穫の日）と、水やり・収穫などの記録をつけるアプリ">
+<meta name="apple-mobile-web-app-title" content="菜園ノート">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#2e7d32">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<!-- 画面のかたち：上に見出し、まん中に中身（js/app.js が書きかえる）、右下に＋、下にタブ -->
+<header>
+  <button class="back" id="backBtn" hidden>‹ 戻る</button>
+  <h1 id="title">菜園ノート</h1>
+  <select id="fieldSel" aria-label="畑を切りかえる" hidden></select>
+</header>
+<main id="main"></main>
+<button class="fab" id="fab" aria-label="足す">＋</button>
+<nav class="tabs">
+  <button data-tab="crops" class="on"><span class="i">🌱</span>畑</button>
+  <button data-tab="plan"><span class="i">📅</span>予定</button>
+  <button data-tab="logs"><span class="i">📝</span>記録</button>
+  <button data-tab="guide"><span class="i">📖</span>育て方</button>
+  <button data-tab="settings"><span class="i">⚙️</span>設定</button>
+</nav>
+<div id="modalRoot"></div>
+<div class="toast" id="toast"></div>
+<input type="file" id="importFile" accept="application/json,.json" hidden>
+
+<!-- 読む順番：版 → データ → 便利な部品 → 予定の計算 → 育ち具合の絵 → 病害虫の注意報 → 天気予報 → 保存 → 画面 -->
+<script src="js/version.js"></script>
+<script src="js/veg-data.js"></script>
+<script src="js/util.js"></script>
+<script src="js/plan.js"></script>
+<script src="js/grow.js"></script>
+<script src="js/sick.js"></script>
+<script src="js/weather.js"></script>
+<script src="js/store.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

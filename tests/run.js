@@ -3112,7 +3112,7 @@ async function runStartPage(browser) {
     document.getElementById('startPageSel').options.length), 28);   // v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
 
   const opened = () => page.evaluate(() => {
-    const ovs = ['tansuiOverlay', 'kantabOverlay', 'veggieOverlay', 'volumeOverlay',
+    const ovs = ['tansuiOverlay', 'kantabOverlay', 'saienOverlay', 'volumeOverlay',
                  'photoMemoOverlay', 'linkListOverlay'].filter(isDlgOpen);
     return (ovs.join(',') || 'なし') + '/' + (isDentaku() ? '電卓' : tableMode); });
   const pick = async v => { await page.evaluate(x => setStartPage(x), v);
@@ -3123,10 +3123,10 @@ async function runStartPage(browser) {
   await pick('normal');
   check('  通常の表を選ぶと表で開く', await opened(), 'なし/normal');
   await pick('veggie');
-  check('  野菜を選ぶと野菜が開く', await opened(), 'veggieOverlay/normal');
+  check('  野菜を選ぶと野菜（菜園ノート）が開く', await opened(), 'saienOverlay/normal');
   check('  ✕で閉じれば下の表が使える', await page.evaluate(async () => {
-    closeVeggie(); await new Promise(r => setTimeout(r, 300));
-    return isDlgOpen('veggieOverlay') + '/' + tableMode; }), 'false/normal');
+    closeSaien(); await new Promise(r => setTimeout(r, 300));
+    return isDlgOpen('saienOverlay') + '/' + tableMode; }), 'false/normal');
   await pick('tansui');
   check('  単位水量を選ぶと単位水量が開く', await opened(), 'tansuiOverlay/normal');
   await pick('photomemo');
@@ -4613,7 +4613,7 @@ async function runSafeArea(browser) {
     return { top: Math.round(r.top), onIt: mid === b || b.contains(mid) };
   }, [id, sel]);
   for (const [name, openFn, id, sel] of [
-        ['野菜',     'openVeggie',    'veggieOverlay',    '.tool-back'],
+        ['野菜',     'openSaien',     'saienOverlay',     '.tool-back'],
         ['写真メモ', 'openPhotoMemo', 'photoMemoOverlay', '.hdr-back'],
         ['容積',     'openVolume',    'volumeOverlay',    '.tool-back']]) {
     const ok = await page.evaluate(f => typeof window[f] === 'function', openFn);
@@ -8907,6 +8907,67 @@ async function runKakeizu(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+/* ── 🌱 野菜＝菜園ノート（v520）──
+   菜園ノートは IndexedDB と表電卓（親）を使うので、file:// ではなく小さなサーバーで開いて確かめる */
+async function runSaien(browser) {
+  console.log('\n── 🌱 野菜＝菜園ノート（v520） ──');
+  const http = require('http'), fs = require('fs');
+  const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg' };
+  const srv = http.createServer((q, r) => { let f = path.join(ROOT, decodeURIComponent(q.url.split('?')[0])); if (f.endsWith('/')) f += 'index.html';
+    fs.readFile(f, (e, b) => { if (e) { r.writeHead(404); r.end(); return; } r.writeHead(200, { 'Content-Type': TYPES[path.extname(f)] || 'application/octet-stream' }); r.end(b); }); });
+  await new Promise(z => srv.listen(0, z));
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true, serviceWorkers: 'block' });
+  const page = await ctx.newPage(), errs = [];
+  page.on('pageerror', e => errs.push(e.message)); page.on('dialog', d => d.accept());
+  const w = ms => page.waitForTimeout(ms);
+  await page.goto(`http://localhost:${srv.address().port}/index.html`); await w(300);
+  // 前の「野菜の育成計画」の記録（トマトを 2026/4/25 に苗から・日記2つ、うち1つ写真つき。地域は東北）
+  await page.evaluate(() => {
+    localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0');
+    const sr = (y, m, d) => Math.round((Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000);
+    localStorage.setItem('excalc_veg_plots', JSON.stringify([{ id: 'p1', n: 'トマト', as: 'nae', s: sr(2026, 4, 25), memo: '南の畝' }, { id: 'p2', n: 'わが家の豆', as: 'seed', s: sr(2026, 5, 1), memo: '' }]));
+    localStorage.setItem('excalc_veg_diary', JSON.stringify({ p1: [{ id: 'd1', d: sr(2026, 5, 2), t: '花が咲いた', p: 'data:image/jpeg;base64,/9j/4AAQ' }, { id: 'd2', d: sr(2026, 5, 3), t: '水やり', p: '' }] }));
+    localStorage.setItem('excalc_veg_area', JSON.stringify({ id: 'tohoku', alt: 200, cold: true, plot: 4 }));
+    localStorage.setItem('excalc_veg_my', JSON.stringify([{ n: 'わが家の豆', i: '🫘', s: [['発芽', 5, 7]] }]));
+  });
+  await page.reload(); await w(900);
+  check('  道具・マイキー・ホーム画面のアイコンは菜園ノートを開く', await page.evaluate(() => NP_TOOLS.find(t => t.id === 'veggie').ov + '/' + /openSaien/.test(String(KEY_FUNCS.a_veggie.run)) + '/' + !!document.querySelector('#saienOverlay')), 'saienOverlay/true/true');
+  check('  開くまでは iframe を作らない', await page.evaluate(() => !document.querySelector('.saien-frame')), true);
+  await page.evaluate(() => NP_TOOLS.find(t => t.id === 'veggie').run()); await w(300);
+  const fr = () => page.frames().find(f => /saien\/index\.html/.test(f.url()));
+  await fr().waitForFunction(() => window.APP_READY, null, { timeout: 8000 }); await w(400);
+  check('  開くと全画面に菜園ノート（表電卓の中だと分かる）', await page.evaluate(() => isDlgOpen('saienOverlay') + '/' + document.querySelector('#saienOverlay .modal-header').textContent.includes('🌱 野菜（菜園ノート）')) + '/' + await fr().evaluate(() => EMBED + '/' + document.querySelectorAll('nav.tabs button').length), 'true/true/true/5');
+  check('  画面いっぱい（菜園ノートの高さ＝画面）', await page.evaluate(() => { const m = document.querySelector('#saienOverlay .modal'), f = document.querySelector('.saien-frame'); return m.classList.contains('modal-full') + '/' + (Math.round(m.getBoundingClientRect().height) === innerHeight) + '/' + (f.getBoundingClientRect().height > innerHeight * 0.8); }), 'true/true/true');
+  check('  前の「野菜」の記録を引き継ぐ（野菜・日記・写真・地域）', await fr().evaluate(async () => {
+    const t = data.crops.find(c => c.id === 'x-p1'), m = data.crops.find(c => c.id === 'x-p2'), ls = data.logs.filter(l => l.cropId === 'x-p1').sort((a, b) => a.date.localeCompare(b.date));
+    return [t.name, t.plan, t.as, t.plantedAt, t.memo, t.area, m.emoji + m.name + ':' + (m.plan || 'なし'), ls.map(l => l.date + l.memo + (l.hasPhoto ? '📷' : '')).join(','), !!(await getPhoto(ls[0].id)), data.fields[0].area + data.fields[0].alt + data.fields[0].cold].join('/');
+  }), 'トマト/トマト/nae/2026-04-25/南の畝/4/🫘わが家の豆:なし/2026-05-02花が咲いた📷,2026-05-03水やり/true/tohoku200true');
+  check('  前のデータは消さずに残す・引き継ぐのは1回だけ', await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_veg_plots')).length + '/' + !!localStorage.getItem('saien_mig_excalc')), '2/true');
+  check('  表電卓の中ではインストールの案内・更新の確かめは出さない', await fr().evaluate(async () => { go('settings'); await new Promise(z => setTimeout(z, 200)); return document.querySelector('main').textContent.includes('表電卓の道具「🌱 野菜」') + '/' + !document.querySelector('#updBtn') + '/' + !document.querySelector('#instBtn'); }), 'true/true/true');
+  await fr().evaluate(() => go('crops')); await w(200);
+  // 端末の「戻る」：野菜の画面 → 畑の一覧 → 道具を閉じる
+  await fr().click('.crop [data-open="x-p1"]'); await w(300);
+  check('  中で野菜を開く', await fr().evaluate(() => view.cropId), 'x-p1');
+  await page.goBack().catch(() => {}); await w(400);
+  check('  戻る：野菜の画面 → 畑の一覧（道具は開いたまま）', await fr().evaluate(() => view.tab + '/' + view.cropId) + '/' + await page.evaluate(() => isDlgOpen('saienOverlay')), 'crops/null/true');
+  await page.goBack().catch(() => {}); await w(600);
+  check('  畑の一覧で戻る：道具を閉じる（表電卓はそのまま）', await page.evaluate(() => !isDlgOpen('saienOverlay') + '/' + !document.querySelector('.saien-frame') + '/' + (typeof data) + '/' + location.pathname.endsWith('index.html')), 'true/true/object/true');
+  // ✕ で閉じる（中で画面を進めていても、表電卓の「戻る」とずれない）
+  await page.evaluate(() => openSaien()); await w(300);
+  await fr().waitForFunction(() => window.APP_READY, null, { timeout: 8000 }); await w(300);
+  check('  2回目は引き継がない（同じ数）', await fr().evaluate(() => data.crops.length + '/' + data.logs.length), '2/2');
+  await fr().click('.crop [data-open="x-p1"]'); await w(300);
+  await page.evaluate(() => closeSaien()); await w(500);
+  check('  ✕ で閉じると iframe ごと消える', await page.evaluate(() => !isDlgOpen('saienOverlay') + '/' + !document.querySelector('.saien-frame')), 'true/true');
+  await page.evaluate(() => openSaien()); await w(300);
+  await fr().waitForFunction(() => window.APP_READY, null, { timeout: 8000 }); await w(200);
+  await page.goBack().catch(() => {}); await w(600);
+  check('  閉じて開き直しても、戻るで道具を閉じられる（ページは離れない）', await page.evaluate(() => !isDlgOpen('saienOverlay') + '/' + (typeof data) + '/' + location.pathname.endsWith('index.html')), 'true/object/true');
+  check('  菜園ノートは表電卓の service-worker にも入っている', /'\.\/saien\/js\/app\.js'/.test(fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8')) + '/' + fs.existsSync(path.join(ROOT, 'saien', 'js', 'grow.js')), 'true/true');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close(); srv.close();
+}
+
 async function runKakudo(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 📐角度計（v518） ──');
@@ -9194,7 +9255,7 @@ async function runToolsKey(browser) {
     const v = !!document.querySelector('#toolsListGrid [data-tool=veggie]') + '/' + !!document.querySelector('#toolsHiddenGrid [data-tool=veggie]'); closeToolsList(); return (NP_TOOLS.length - n) + '/' + v; }), '2/false/true');
   check('  覚える・☰の道具も同じ窓（ぜんぶ開ける）', await page.evaluate(() => { const r = JSON.parse(localStorage.getItem('excalc_toolsbtn_hide')).join(',') + '/' + (openToolsAll(), (document.querySelectorAll('#toolsListGrid .more-item').length + document.querySelectorAll('#toolsHiddenGrid .more-item').length === NP_TOOLS.length)); closeToolsList(); return r; }), 'veggie,kaikei/true');
   check('  設定の一覧に☑☐で出る', await page.evaluate(() => [...document.querySelectorAll('#toolsBtnList [data-toolbtn]')].filter(b => b.classList.contains('on')).length === NP_TOOLS.length - 2), true);
-  check('  隠している道具からも開ける', await page.evaluate(async () => { openToolsList(); document.getElementById('toolsHiddenAcc').open = true; await new Promise(r => setTimeout(r, 700)); document.querySelector('#toolsHiddenGrid [data-tool=veggie]').click(); await new Promise(r => setTimeout(r, 700)); const o = isDlgOpen('veggieOverlay'); closeVeggie(); await new Promise(r => setTimeout(r, 300)); return o; }), true);
+  check('  隠している道具からも開ける', await page.evaluate(async () => { openToolsList(); document.getElementById('toolsHiddenAcc').open = true; await new Promise(r => setTimeout(r, 700)); document.querySelector('#toolsHiddenGrid [data-tool=veggie]').click(); await new Promise(r => setTimeout(r, 700)); const o = isDlgOpen('saienOverlay'); closeSaien(); await new Promise(r => setTimeout(r, 300)); return o; }), true);
   check('  ひとつは残す', await page.evaluate(() => { NP_TOOLS.forEach(t => { if (!toolsBtnHidden.includes(t.id)) toolsBtnToggle(t.id); }); return NP_TOOLS.length - toolsBtnHidden.length; }), 1);
   await page.evaluate(() => { toolsBtnAll(); openToolsList(); openToolsBtnSettings(); }); await page.waitForTimeout(400);
   check('  窓から設定へ移る', await page.evaluate(() => isDlgOpen('toolsListOverlay') + '/' + isDlgOpen('settingsPanel') + '/' + (document.getElementById('toolsBtnSec').offsetParent !== null) + '/' + toolsBtnHidden.length), 'false/true/true/0');
@@ -10226,6 +10287,7 @@ async function runQrShare(browser) {
     if (!only || only === 'appiconpwa') await runAppIconPwa(browser);
     if (!only || only === 'regi') await runRegi(browser);
     if (!only || only === 'kakeizu') await runKakeizu(browser);
+    if (!only || only === 'saien') await runSaien(browser);
     if (!only || only === 'kakudo') await runKakudo(browser);
     if (!only || only === 'uimode') await runUiMode(browser);
     if (!only || only === 'toolsfab') await runToolsFab(browser);
