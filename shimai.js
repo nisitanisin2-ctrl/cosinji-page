@@ -28,7 +28,7 @@ function smClean(o){
   if(!o || typeof o!=='object' || !Array.isArray(o.items)) return { v:1, view:'new', items:[] };
   return { v:1, view:['new','place','name'].includes(o.view)?o.view:'new',
     items:o.items.filter(x=>x && typeof x==='object' && String(x.name||'').trim()).slice(0,3000).map(x=>({
-      id:typeof x.id==='string'?x.id:uid(), name:String(x.name).trim().slice(0,60), place:String(x.place||'').trim().slice(0,80),
+      id:safeId(x.id, uid), name:String(x.name).trim().slice(0,60), place:String(x.place||'').trim().slice(0,80),
       note:String(x.note||'').slice(0,500), photo:!!x.photo, added:String(x.added||today()).slice(0,10), updated:String(x.updated||x.added||today()).slice(0,10), ts:+x.ts||0,
       hist:Array.isArray(x.hist)?x.hist.filter(h=>h && h.place).slice(-5).map(h=>({place:String(h.place).slice(0,80), until:String(h.until||'').slice(0,10)})):[] })) };
 }
@@ -432,7 +432,7 @@ function smDownload(name, text, type){
   document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 function smCsv(){
-  const q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
+  const q=v=>'"'+csvSafe(v).replace(/"/g,'""')+'"';   // csvSafe：式として動かないように（表電卓の index.html）
   const rows=[['物','場所','メモ','前の場所','場所を変えた日']].concat(sm.items.map(x=>[x.name,x.place,x.note,x.hist.map(h=>h.place).join(' / '),x.updated]));
   smDownload('しまい場所_'+today()+'.csv', '﻿'+rows.map(r=>r.map(q).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
 }

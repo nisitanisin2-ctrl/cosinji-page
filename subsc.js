@@ -81,7 +81,7 @@ function sbRaw(){ try{ return JSON.parse(localStorage.getItem(SB_KEY)||'null'); 
 const sbIsOld=o=>!!(o && o.v!==2 && isStr(o.ct) && isStr(o.salt) && isStr(o.iv));
 function sbCleanItem(x){
   const sec=x.sec && isStr(x.sec.ek) && isStr(x.sec.iv) && isStr(x.sec.ct) ? {ek:x.sec.ek, iv:x.sec.iv, ct:x.sec.ct} : null;
-  return { id:String(x.id||newId()), name:String(x.name||'').slice(0,80), price:Math.max(0, Math.min(1e9, +x.price||0)),
+  return { id:safeId(x.id, newId), name:String(x.name||'').slice(0,80), price:Math.max(0, Math.min(1e9, +x.price||0)),
     cycle:SB_CYCLES[x.cycle]?x.cycle:'m', next:isDate(x.next)?x.next:'', pay:String(x.pay||'').slice(0,60), cat:String(x.cat||'').slice(0,30),
     uid:String(x.uid||'').slice(0,200), url:String(x.url||'').slice(0,400), memo:String(x.memo||'').slice(0,2000),
     stop:!!x.stop, upd:+x.upd||0, sec };
@@ -562,7 +562,7 @@ async function sbImportFile(inp){
 }
 function sbCsv(){
   if(!sbData) return;
-  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const q=v=>'"'+csvSafe(v).replace(/"/g,'""')+'"';   // csvSafe：式として動かないように（表電卓の index.html）
   const rows=[['サービス名','金額','支払い','月あたり','次の支払日','支払方法','分類','ID','サイト','状態','メモ']].concat(
     sbData.items.map(x=>[x.name, x.price, SB_CYCLES[x.cycle], Math.round(sbPerMonth(x)), x.next, x.pay, x.cat, x.uid, x.url, x.stop?'止めた':'契約中', x.memo]));
   sbDownload('サブスク一覧_'+today()+'.csv', '﻿'+rows.map(r=>r.map(q).join(',')).join('\r\n'), 'text/csv');

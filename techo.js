@@ -1903,7 +1903,8 @@ function tcSetWk(v){ tc.ui.wkStart=v===1?1:0; tcSave(); tcRenderSet(); tcRender(
 function tcSetConfirm(v){ tc.ui.confirm=!!v; tcSave(); tcRenderSet(); }
 
 /* ── CSV・書き出し・読み込み ── */
-function tcCsvCell(v){ v=String(v==null?'':v); return /[",\n\r]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+function tcCsvCell(v){ v=csvSafe(v);   // csvSafe：式として動かないように（表電卓の index.html）
+  return /[",\n\r]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
 function tcCsvText(y, m){
   const n=new Date(y, m, 0).getDate(), rows=[['日付','曜日','開始','終了','終日','種類','業務','件名','くわしいメモ','済み','くり返し']];
   for(let d=1; d<=n; d++){

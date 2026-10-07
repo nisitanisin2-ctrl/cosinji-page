@@ -24,11 +24,11 @@ let kzPhoto='';
 let kzSheet=null;      // 開いている人の id
 
 /* ───────── 保存 ───────── */
-const cleanP=x=>({id:String(x.id||uid()), name:String(x.name||'').slice(0,40), kana:String(x.kana||'').slice(0,40), sex:x.sex==='m'||x.sex==='f'?x.sex:'',
-  birth:String(x.birth||'').slice(0,10), death:String(x.death||'').slice(0,10), dead:!!x.dead||!!x.death, f:String(x.f||''), m:String(x.m||''),
-  sp:Array.isArray(x.sp)?x.sp.map(String):[], note:String(x.note||'').slice(0,1000), photo:typeof x.photo==='string'&&x.photo.startsWith('data:image/')?x.photo:'',
+const cleanP=x=>({id:safeId(x.id, uid), name:String(x.name||'').slice(0,40), kana:String(x.kana||'').slice(0,40), sex:x.sex==='m'||x.sex==='f'?x.sex:'',
+  birth:String(x.birth||'').slice(0,10), death:String(x.death||'').slice(0,10), dead:!!x.dead||!!x.death, f:safeId(x.f), m:safeId(x.m),
+  sp:Array.isArray(x.sp)?x.sp.map(v=>safeId(v)).filter(Boolean):[], note:String(x.note||'').slice(0,1000), photo:safeImg(x.photo),
   cm:String(x.cm||'').replace(/[\r\n]+/g,' ').slice(0,40),
-  bo:Math.max(0,Math.min(30,Math.round(+x.bo||0))), ord:ORDS.includes(x.ord)?x.ord:'', adopt:['b','f','m'].includes(x.adopt)?x.adopt:'', bf:String(x.bf||''), bm:String(x.bm||'')});
+  bo:Math.max(0,Math.min(30,Math.round(+x.bo||0))), ord:ORDS.includes(x.ord)?x.ord:'', adopt:['b','f','m'].includes(x.adopt)?x.adopt:'', bf:safeId(x.bf), bm:safeId(x.bm)});
 const ORDS=['長男','次男','三男','四男','五男','六男','七男','長女','次女','三女','四女','五女','六女','七女','養子','養女'];
 function kzFix(){   // つながりの向きをそろえる（夫婦は両方に・いない人への線を消す）
   const ids=new Set(kz.people.map(p=>p.id));
@@ -39,7 +39,7 @@ function kzFix(){   // つながりの向きをそろえる（夫婦は両方に
 }
 function kzLoad(){
   try{ const o=JSON.parse(localStorage.getItem(KZ_KEY)||'null')||{};
-    kz={people:Array.isArray(o.people)?o.people.filter(x=>x&&typeof x==='object').slice(0,2000).map(cleanP):[], me:String(o.me||''), focus:String(o.focus||''),
+    kz={people:Array.isArray(o.people)?o.people.filter(x=>x&&typeof x==='object').slice(0,2000).map(cleanP):[], me:safeId(o.me), focus:safeId(o.focus),
       up:[1,2,3,4].includes(+o.up)?+o.up:3, down:[0,1,2,3].includes(+o.down)?+o.down:2, sib:o.sib!==false, photo:o.photo!==false, wareki:o.wareki!==false,
       scale:Math.min(2,Math.max(0.3,+o.scale||1))};
   }catch(_){ kz={people:[], me:'', focus:'', up:3, down:2, sib:true, photo:true, wareki:true, scale:1}; }

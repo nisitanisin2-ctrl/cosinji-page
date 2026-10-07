@@ -32,7 +32,7 @@ const mcCoKey=x=>String(x.company||'').normalize('NFKC').replace(/株式会社|�
 
 /* ── 保存 ── */
 function mcCleanItem(x){
-  const o={ id:typeof x.id==='string'&&x.id?x.id.slice(0,40):uid() };
+  const o={ id:safeId(x.id, uid) };
   for(const f of FIELDS) o[f]=String(x[f]==null?'':x[f]).trim().slice(0,LIMIT[f]);
   if(!/^\d{4}-\d\d-\d\d$/.test(o.met)) o.met='';
   o.tags=Array.isArray(x.tags)?[...new Set(x.tags.map(t=>String(t).trim().slice(0,20)).filter(Boolean))].slice(0,10):[];
@@ -641,7 +641,7 @@ function mcPrint(){
 }
 const CSV_HEAD=['氏名','ふりがな','会社名','部署','役職','電話','携帯','FAX','メール','URL','郵便番号','住所','会った日','会った所','分類','メモ','よく使う'];
 function mcCsv(){
-  const q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
+  const q=v=>'"'+csvSafe(v).replace(/"/g,'""')+'"';   // csvSafe：式として動かないように（表電卓の index.html）
   const rows=[CSV_HEAD].concat(mc.items.map(x=>[x.name,x.kana,x.company,x.dept,x.title,x.tel,x.mobile,x.fax,x.email,x.url,x.zip,x.addr,x.met,x.metAt,(x.tags||[]).join('・'),x.note,x.fav?'★':'']));
   mcDownload('名刺_'+today()+'.csv', '﻿'+rows.map(r=>r.map(q).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
 }
