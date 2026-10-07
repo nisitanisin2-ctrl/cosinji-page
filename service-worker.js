@@ -1,4 +1,4 @@
-const CACHE = 'excalc-v525';
+const CACHE = 'excalc-v526';
 const CACHE_PREFIX = 'excalc-';   // このアプリのキャッシュだけを見分けるための名前
 const ASSETS = ['./', './index.html', './help.js', './photomemo.js', './techo.js', './subsc.js', './heya.js', './annai.js', './shimai.js', './meishi.js', './trim.js', './manner.js', './boki.js', './kurashi.js', './keisan.js', './ruler.js', './kakudo.js', './regi.js', './kakeizu.js', './koe/phrase.js', './manifest.json',
   './saien/index.html', './saien/css/style.css', './saien/js/version.js', './saien/js/veg-data.js', './saien/js/veg-more.js', './saien/js/util.js', './saien/js/plan.js', './saien/js/grow.js', './saien/js/sick.js', './saien/js/weather.js', './saien/js/qr.js', './saien/js/advice.js', './saien/js/myplan.js', './saien/js/export.js', './saien/js/fieldmap.js', './saien/js/records.js', './saien/js/share.js', './saien/js/voice.js', './saien/js/store.js', './saien/js/app.js', './saien/icon-192.png',

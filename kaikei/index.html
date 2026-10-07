@@ -2,6 +2,9 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<!-- 決めた場所以外からはプログラム・画像などを読み込まない・外へ送らない（CSP。v526）。
+     画面のボタンにプログラムを書き込んでいる作りなので、ページの中のプログラムは動かせるようにしてある -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; frame-src 'self' blob: data:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#38618c">
@@ -2412,8 +2415,14 @@ function buildLearnedSheets(items, layout, opt){
    取引の行は 種別=取引、振替の行は 種別=振替。
    文字コードは UTF-8（BOM つき）。パソコン版はこれを先に試し、だめなら cp932 で読む。 */
 const CSV_HEADERS=['種別','日付','口座','科目','摘要','収入','支出','振替元','振替先','振替額','備考','行事'];
-function csvCell(v){
+/* CSV を Excel などで開いたとき、= + - @ で始まる文字は式として動いてしまう（CSV インジェクション）。
+   数字・電話番号・日付のような、文字の入らないものはそのまま。それ以外は頭に ' を付けて、ただの文字にする（表電卓 v526） */
+function csvSafe(v){
   const s=String(v==null?'':v);
+  return /^[=+\-@\t\r]/.test(s) && !/^[\d\s+\-.,:\/()%]*$/.test(s) ? "'"+s : s;
+}
+function csvCell(v){
+  const s=csvSafe(v);
   return /[",\r\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
 }
 function buildCsv(items, transfers, years){

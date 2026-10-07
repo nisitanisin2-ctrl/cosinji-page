@@ -2,6 +2,9 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<!-- 決めた場所以外からはプログラム・画像などを読み込まない・外へ送らない（CSP。v526）。
+     画面のボタンにプログラムを書き込んでいる作りなので、ページの中のプログラムは動かせるようにしてある -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; frame-src 'self' blob: data:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <!-- 指で広げて拡大できるようにしてある（v385）。以前は user-scalable=no で拡げられなかった。
      入力欄をタップしたときの勝手な拡大は、欄の文字を16px以上にすることで防ぐ。 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
@@ -7586,6 +7589,20 @@ function pasteCell() {
 }
 
 /* ── CSVエクスポート ── */
+/* CSV を Excel などで開いたとき、= + - @ で始まる文字は式として動いてしまう（CSV インジェクション）。
+   数字・電話番号・日付のような、文字の入らないものはそのまま。それ以外は頭に ' を付けて、ただの文字にする（v526） */
+function csvSafe(v){
+  const s=String(v==null?'':v);
+  return /^[=+\-@\t\r]/.test(s) && !/^[\d\s+\-.,:\/()%]*$/.test(s) ? "'"+s : s;
+}
+/* 保存した表の CSV は、式を式のまま書き出す（Excel で開くと計算される）。
+   ただし、表電卓にある関数だけを使った式に限る。cmd|… や HYPERLINK など、表電卓にない関数・| ・! の入った式は
+   Excel で外のプログラムやサイトにつながることがあるので、頭に ' を付けてただの文字にする（v526） */
+function csvFormulaOk(f){
+  if(!/^=/.test(f) || /[|!\[\]{}]/.test(f)) return false;
+  const names=[...String(f).replace(/"[^"]*"/g,'""').matchAll(/([A-Za-z_][A-Za-z0-9_.]*)\s*\(/g)].map(m=>m[1].toUpperCase());
+  return names.every(n=>FORMULA_FUNCS[n] || FORMULA_ALIAS[n]);
+}
 function exportCSV() {
   const rows=[];
   for (let r=0;r<ROWS;r++) {
@@ -7593,7 +7610,7 @@ function exportCSV() {
     for (let c=0;c<COLS;c++) {
       const raw=data[r][c];
       const val=(String(raw).startsWith('=')||cellDateFmt(r,c))?getCellDisplay(r,c):(raw??'');
-      const s=String(val);
+      const s=csvSafe(val);
       cells.push(s.includes(',')||s.includes('"')||s.includes('\n')
         ?`"${s.replace(/"/g,'""')}"`:s);
     }
@@ -9109,6 +9126,11 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v526', t:'🔒 セキュリティを強く', li:[
+    '人からもらった保存データや道具のファイルを読み込んだとき、中に<b>おかしな番号や写真が仕込まれていても、そこからプログラムが動かない</b>ようにしました（部屋割り・案内ページ・サブスク・しまい場所・レジ・家系図・名刺・声の計算帳・🌱野菜）',
+    'ボタンやリンク集に登録したリンクが <b>javascript:</b> などのときは開かないようにしました',
+    'Excel 用（CSV）に書き出すとき、<b>= + - @ で始まる文字</b>が Excel で式として動かないよう、頭に \' を付けるようにしました（数字・電話番号・日付はそのまま）',
+    'ページに<b>「決めた場所以外からはプログラムや画像を読み込まない・外へ送らない」</b>という決まり（CSP）を付けました。メモ・🌱野菜は、ページの中に書いたプログラムも動かさない、いちばん強い決まりです' ]},
   { v:'v525', t:'🌱 野菜：天気予報の地点を地図の座標で', li:[
     '🌱 野菜（菜園ノート）の ⚙ 設定 →「🌤 天気予報の場所」で、<b>地図の座標（35.3858049, 134.5715248 など）</b>を入れて地点を決められます。Googleマップのリンクを貼っても読みとります' ]},
   { v:'v524', t:'🌱 野菜：61種類に', li:[
@@ -15381,10 +15403,29 @@ function renderUserKeys(){
   });
   if(typeof fitNumpadLabels==='function') fitNumpadLabels();
 }
+/* 道具の中の「番号（id）」は、画面の部品やボタンの中にそのまま書き入れて使う。
+   読み込んだファイルにおかしな id（" や < が入ったもの）が仕込まれていると、そこからプログラムが動いてしまうので、
+   英数字と - _ だけの id しか通さない。合わないものは mk() で作り直す（mk がなければ空にする）（v526） */
+function safeId(v, mk){
+  const s=(typeof v==='string'||typeof v==='number')?String(v):'';
+  return /^[A-Za-z0-9_-]{1,80}$/.test(s) ? s : (mk?mk():'');
+}
+/* 読み込んだ写真（data:image/〜）も <img src="…"> にそのまま入れるので、写真の形のものだけ通す（v526） */
+function safeImg(v){
+  return typeof v==='string' && /^data:image\/(png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+\/=]+$/.test(v) ? v : '';
+}
+/* javascript: / data: / vbscript: のリンクは、開くとこのページの中でプログラムが動いてしまう。
+   読み込んだ保存データやボタンの設定に仕込まれていても開かない（v526）。
+   ブラウザは空白や制御文字を飛ばして読むので（java script: も動く）、それを除いてから確かめる */
+function isSafeLinkUrl(u){
+  const s=String(u||'').replace(/[\u0000- \u007f-\u009f]/g,'').toLowerCase();
+  return !/^(javascript|data|vbscript):/.test(s);
+}
 /* 登録されたリンク（URL）を新しいタブ／ウィンドウで開く。スキームが無ければ https を補う。 */
 function openRegLink(url){
   let u=String(url||'').trim(); if(!u) return;
   if(!/^[a-z][a-z0-9+.-]*:/i.test(u) && !u.startsWith('/')) u='https://'+u;   // 例: example.com → https://example.com
+  if(!isSafeLinkUrl(u)){ toast('このリンクは開けません（javascript: などは開かないようにしています）'); return; }
   try{ const w=window.open(u,'_blank','noopener'); if(!w) location.href=u; }   // ポップアップが塞がれたら同じ画面で開く
   catch(_){ try{ location.href=u; }catch(__){} }
 }
@@ -21772,7 +21813,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v525';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v526';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -23543,7 +23584,8 @@ function saveExpCsv(){
   for(let r=0;r<R;r++){
     const cells=[];
     for(let c=0;c<C;c++){
-      const v=(s.data && s.data[r] && s.data[r][c]!=null)?String(s.data[r][c]):'';
+      const raw=(s.data && s.data[r] && s.data[r][c]!=null)?String(s.data[r][c]):'';
+      const v=csvFormulaOk(raw)?raw:csvSafe(raw);
       cells.push((v.indexOf(',')>=0||v.indexOf('"')>=0||v.indexOf('\n')>=0)
         ? '"'+v.replace(/"/g,'""')+'"' : v);
     }

@@ -124,7 +124,7 @@ function anClean(o){
     // v455 までのもの（langs なし）は、英・中・韓を出す
     langs:Array.isArray(o.langs) ? AN_LK.filter(k=>o.langs.includes(k)) : d.langs.slice(),
     tr:anCleanTr(o.tr,'name','tagline',[60,120]),
-    sections:o.sections.filter(s=>s && typeof s==='object').slice(0,40).map(s=>({ id:typeof s.id==='string'?s.id:uid(), icon:String(s.icon||'ℹ').slice(0,4),
+    sections:o.sections.filter(s=>s && typeof s==='object').slice(0,40).map(s=>({ id:safeId(s.id, uid), icon:String(s.icon||'ℹ').slice(0,4),
       title:String(s.title||'').slice(0,40), season:AN_SEASONS[s.season]?s.season:'all', body:String(s.body||'').slice(0,4000), open:!!s.open,
       tr:anCleanTr(s.tr,'title','body',[80,6000]) })) };
 }

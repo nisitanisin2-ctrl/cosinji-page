@@ -33,10 +33,10 @@ function hyDefault(){
 function hyClean(o){
   const d=hyDefault();
   if(!o || typeof o!=='object') return d;
-  const rooms=Array.isArray(o.rooms) ? o.rooms.filter(r=>r && typeof r.id==='string' && r.name).map(r=>({id:r.id, name:String(r.name).slice(0,20), cap:Math.max(1,Math.min(50,+r.cap||2)), note:String(r.note||'').slice(0,100)})) : d.rooms;
+  const rooms=Array.isArray(o.rooms) ? o.rooms.filter(r=>r && typeof r.id==='string' && r.name).map(r=>({id:safeId(r.id, uid), name:String(r.name).slice(0,20), cap:Math.max(1,Math.min(50,+r.cap||2)), note:String(r.note||'').slice(0,100)})) : d.rooms;
   const ids=new Set(rooms.map(r=>r.id));
   const bookings=Array.isArray(o.bookings) ? o.bookings.filter(b=>b && isDate(b.in)).map(b=>({
-    id:typeof b.id==='string'?b.id:uid(), room:ids.has(b.room)?b.room:'', in:b.in, nights:Math.max(1,Math.min(60,Math.round(+b.nights||1))),
+    id:safeId(b.id, uid), room:ids.has(b.room)?b.room:'', in:b.in, nights:Math.max(1,Math.min(60,Math.round(+b.nights||1))),
     name:String(b.name||'').slice(0,40), tel:String(b.tel||'').slice(0,30), adult:Math.max(0,Math.min(99,+b.adult||0)), child:Math.max(0,Math.min(99,+b.child||0)),
     infant:Math.max(0,Math.min(99,+b.infant||0)), meal:HY_MEALS.includes(b.meal)?b.meal:'2食', status:HY_STATUS[b.status]?b.status:'ok',
     allergy:String(b.allergy||'').slice(0,200), note:String(b.note||'').slice(0,1000), price:Math.max(0,+b.price||0), color:typeof b.color==='string'&&/^#[0-9a-f]{6}$/i.test(b.color)?b.color:'',
@@ -460,7 +460,7 @@ function hyDownload(name, text, type){
   document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 function hyCsv(){
-  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const q=v=>'"'+csvSafe(v).replace(/"/g,'""')+'"';   // csvSafe：式として動かないように（表電卓の index.html）
   const rows=[['到着日','出発日','泊数','部屋','お名前','大人','子ども','幼児','食事','状態','電話','料金','アレルギー','メモ']].concat(
     hy.bookings.slice().sort((a,b)=>a.in<b.in?-1:1).map(b=>[b.in, hyOut(b), b.nights, (hyRoom(b.room)||{}).name||'', b.name, b.adult, b.child, b.infant, b.meal, HY_STATUS[b.status], b.tel, b.price||'', b.allergy, b.note]));
   hyDownload('部屋割り表_'+today()+'.csv', '﻿'+rows.map(r=>r.map(q).join(',')).join('\r\n'), 'text/csv');

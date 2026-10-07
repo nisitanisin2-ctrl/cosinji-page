@@ -2,6 +2,9 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<!-- 決めた場所以外からはプログラム・画像などを読み込まない・外へ送らない（CSP。v526）。
+     画面のボタンにプログラムを書き込んでいる作りなので、ページの中のプログラムは動かせるようにしてある -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; frame-src 'self' blob: data:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0f6b63">
@@ -1614,7 +1617,7 @@ function renderLog(){
     const idx=state.log.length-arr.length+i;
     const ynNow=m.yn && idx===state.log.length-1 && state.ask && state.ask.k==='confirm';
     return (m.q?'<div class="msg me">'+escHtml(m.q)+(m.og?'<small>聞こえた言葉：'+escHtml(m.og)+'（文例に当てはめ）</small>':'')+(m.al?'<small>言いかえ：'+escHtml(m.al)+'</small>':'')+'</div>':'')
-      +'<div class="msg app '+(m.c||'')+'" onclick="sayLog('+idx+')"><span class="a">'+escHtml(m.a)+'</span>'
+      +'<div class="msg app '+String(m.c||'').replace(/[^\w -]/g,'')+'" onclick="sayLog('+idx+')"><span class="a">'+escHtml(m.a)+'</span>'
       +(m.f && !(m.sug && /^もしかして/.test(m.f)) ? '<span class="f num">'+escHtml(m.f)+'</span>' : '')
       +(m.sug ? '<button class="sug" onclick="event.stopPropagation();trySug('+idx+')">もしかして「'+escHtml(m.sug)+'」？ <b>押すと計算</b></button>' : '')
       +(m.lit ? '<button class="sug lit" onclick="event.stopPropagation();tryLit('+idx+')">このまま計算：'+escHtml(m.litA||'')+'</button>' : '')
@@ -2146,7 +2149,8 @@ function bookCsv(){
   const now=today(), d=new Date(now.getFullYear(), now.getMonth()+bookOfs, 1), key=ymKey(d);
   const items=book.filter(b=>b.d.slice(0,7)===key).sort((a,b)=>a.d.localeCompare(b.d)||a.id-b.id);
   if(!items.length){ toast('この月は、まだ付けていません'); return; }
-  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  // = + - @ で始まる文字は、Excel で開いたとき式として動かないように頭に ' を付ける（表電卓 v526）
+  const q=v=>{ let s=String(v==null?'':v); if(/^[=+\-@\t\r]/.test(s) && !/^[\d\s+\-.,:\/()%]*$/.test(s)) s="'"+s; return '"'+s.replace(/"/g,'""')+'"'; };
   const rows=[['日付','分類','金額','メモ']].concat(items.map(b=>[b.d,b.cat,b.amt,b.memo||'']));
   const csv='\ufeff'+rows.map(r=>r.map(q).join(',')).join('\r\n')+'\r\n';
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));

@@ -31,10 +31,21 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 let rg={ev:{name:'',date:''}, items:[], sales:[], no:1}, cart=[], rgLast=null, rgFix=null, od={t:'yen',v:0}, rgEdit=null, rgPhoto=null, rgCrop=null;
 function rgLoad(){
   try{ const o=JSON.parse(localStorage.getItem(RG_KEY)||'null')||{};
-    const items=Array.isArray(o.items)?o.items.filter(x=>x&&typeof x.name==='string').slice(0,300).map(x=>({id:String(x.id||uid()), name:x.name.slice(0,40), price:Math.max(0,Math.round(+x.price||0)), stock0:Math.max(0,Math.round(+x.stock0||0)), stock:Math.round(+x.stock||0), photo:typeof x.photo==='string'&&x.photo.startsWith('data:image/')?x.photo:'', noStock:!!x.noStock, rate:x.rate==null?null:rateOk(x.rate), tmode:modeOk(x.tmode)})):[];
-    const sales=Array.isArray(o.sales)?o.sales.filter(s=>s&&Array.isArray(s.lines)).slice(-5000):[];
+    const items=Array.isArray(o.items)?o.items.filter(x=>x&&typeof x.name==='string').slice(0,300).map(x=>({id:safeId(x.id, uid), name:x.name.slice(0,40), price:Math.max(0,Math.round(+x.price||0)), stock0:Math.max(0,Math.round(+x.stock0||0)), stock:Math.round(+x.stock||0), photo:safeImg(x.photo), noStock:!!x.noStock, rate:x.rate==null?null:rateOk(x.rate), tmode:modeOk(x.tmode)})):[];
+    const sales=Array.isArray(o.sales)?o.sales.filter(s=>s&&Array.isArray(s.lines)).slice(-5000).map(rgCleanSale):[];
     rg={ev:{name:String(o.ev&&o.ev.name||'').slice(0,40), date:String(o.ev&&o.ev.date||'').slice(0,10)}, items, sales, no:Math.max(1,+o.no||sales.length+1)};
   }catch(_){ rg={ev:{name:'',date:''}, items:[], sales:[], no:1}; }
+}
+/* 会計の記録も、番号（id）は英数字だけ・数は数にしてから使う。読み込んだファイルに何か仕込まれていても、
+   レシートや履歴の画面からプログラムが動かないように（v526） */
+const rgNum=v=>{ const n=+v; return isFinite(n)?n:0; };
+function rgCleanSale(s){
+  const o=Object.assign({}, s, { id:safeId(s.id, uid), no:Math.max(1, Math.round(rgNum(s.no))), t:rgNum(s.t),
+    sub:rgNum(s.sub), disc:rgNum(s.disc), total:rgNum(s.total), paid:rgNum(s.paid), change:rgNum(s.change),
+    lines:s.lines.filter(l=>l&&typeof l==='object').map(l=>Object.assign({}, l, { id:safeId(l.id), name:String(l.name||'').slice(0,40), price:rgNum(l.price), qty:rgNum(l.qty) }, l.orig!=null?{orig:rgNum(l.orig)}:{}, l.rate!=null?{rate:rgNum(l.rate)}:{})) });
+  if(s.fixOf!=null) o.fixOf=Math.round(rgNum(s.fixOf));
+  if(s.atena!=null) o.atena=String(s.atena).slice(0,60);
+  return o;
 }
 const TAX0={on:false, mode:'in', def:10, custom:5, round:'floor'};
 const rateOk=v=>{ const n=Math.round(parseFloat(String(v).normalize('NFKC'))*100)/100; return isFinite(n)&&n>=0&&n<=100?n:null; };
@@ -431,7 +442,7 @@ function rgImportItems(e){
   f.text().then(t=>{ const o=JSON.parse(t); if(!o||o.type!=='excalc-regi-items'||!Array.isArray(o.items)) throw 0;
     const add=o.items.filter(x=>x&&typeof x.name==='string').slice(0,300);
     if(!confirm(`${add.length}個の商品を足しますか？（同じ名前の商品は、値段・在庫・写真を入れかえます）`)) return;
-    add.forEach(x=>{ const it={name:x.name.slice(0,40), price:Math.max(0,Math.round(+x.price||0)), stock0:Math.max(0,Math.round(+x.stock0||0)), stock:Math.round(+x.stock||+x.stock0||0), photo:typeof x.photo==='string'&&x.photo.startsWith('data:image/')?x.photo:'', noStock:!!x.noStock, rate:x.rate==null?null:rateOk(x.rate), tmode:modeOk(x.tmode)};
+    add.forEach(x=>{ const it={name:x.name.slice(0,40), price:Math.max(0,Math.round(+x.price||0)), stock0:Math.max(0,Math.round(+x.stock0||0)), stock:Math.round(+x.stock||+x.stock0||0), photo:safeImg(x.photo), noStock:!!x.noStock, rate:x.rate==null?null:rateOk(x.rate), tmode:modeOk(x.tmode)};
       const old=rg.items.find(y=>y.name===it.name); if(old) Object.assign(old,it); else rg.items.push(Object.assign({id:uid()},it)); });
     rgSave(); rgRenderItems(); rgRefresh(); toast('商品を読み込みました');
   }).catch(()=>toast('商品のファイルを読めませんでした'));
