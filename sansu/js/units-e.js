@@ -66,6 +66,15 @@ H.colAdd = (a, b) => {
   }
   return out;
 };
+/* 答えまで うまった ひっ算（答えの あとに 見せる。v9：一のくらいから 1けたずつ 出る）。op は '+'・'−'・'×'（× は 1けた） */
+H.colDone = (a, b, op) => {
+  const da = digitsR(a), db = digitsR(b), cy = {}; let c = 0;
+  if(op === '+'){ const n = Math.max(da.length, db.length); for(let i = 0; i < n; i++){ const s = (da[i] || 0) + (db[i] || 0) + c; c = s >= 10 ? 1 : 0; if(c && i + 1 < n) cy[i + 1] = '1'; }
+    return F.cols([{s: String(a)}, {s: String(b), op: '+'}, {s: String(a + b)}], [1], Object.keys(cy).length ? cy : null); }
+  if(op === MI) return F.cols([{s: String(a)}, {s: String(b), op: MI}, {s: String(a - b)}], [1]);
+  for(let i = 0; i < da.length; i++){ const q = da[i] * b + c; c = Math.floor(q / 10); if(c && i + 1 < da.length) cy[i + 1] = String(c); }
+  return F.cols([{s: String(a)}, {s: String(b), op: '×'}, {s: String(a * b)}], [1], Object.keys(cy).length ? cy : null);
+};
 H.subChain = (a, b) => {   // 0 の けたから かりる（くり下がりが2回続く）ものは小学2年では出さない
   const da = digitsR(a), db = digitsR(b); let bw = 0;
   for(let i = 0; i < da.length; i++){ const x = da[i] - bw; if(x < 0) return true; bw = x < (db[i] || 0) ? 1 : 0; }
@@ -197,7 +206,7 @@ U({id: 'g2-add2', g: 2, ic: '➕', t: '2けたの たし算（ひっ算）',
     const a = r.int(12, 98), b = r.int(11, 98), c = a + b;
     return {q: 'ひっ算で 計算しよう。', form: `${a} + ${b} = {0}`, ans: [c],
       steps: [{t: 'くらいを そろえて、**一のくらい** から 計算するよ。', fig: F.cols([{s: String(a)}, {s: String(b), op: '+'}, {s: hsBox(c)}], [1])}, ...H.colAdd(a, b)],
-      answer: `${a} + ${b} = ${c}`};
+      answer: `${a} + ${b} = ${c}`, afterFig: H.colDone(a, b, '+')};
   }});
 U({id: 'g2-sub2', g: 2, ic: '➖', t: '2けたの ひき算（ひっ算）',
   ex: [['p', 'ひき算の ひっ算も、くらいを そろえて **一のくらい** から。ひけない ときは、となりの くらいから 1 かりて 10 に します。'],
@@ -208,7 +217,7 @@ U({id: 'g2-sub2', g: 2, ic: '➖', t: '2けたの ひき算（ひっ算）',
     const a = r.int(31, 99), b = r.int(11, a - 2), c = a - b;
     return {q: 'ひっ算で 計算しよう。', form: `${a} − ${b} = {0}`, ans: [c],
       steps: [{t: 'くらいを そろえて、**一のくらい** から 計算するよ。', fig: F.cols([{s: String(a)}, {s: String(b), op: MI}, {s: hsBox(c)}], [1])}, ...H.colSub(a, b)],
-      answer: `${a} − ${b} = ${c}`};
+      answer: `${a} − ${b} = ${c}`, afterFig: H.colDone(a, b, MI)};
   }});
 U({id: 'g2-add3', g: 2, ic: '💯', t: '3けたの たし算・ひき算',
   ex: [['p', '3けたでも やりかたは 同じ。**一 → 十 → 百** の じゅんに、くり上がり・くり下がりに 気をつけて 計算します。'],
@@ -217,10 +226,10 @@ U({id: 'g2-add3', g: 2, ic: '💯', t: '3けたの たし算・ひき算',
   gen(r){
     if(r.chance(0.5)){ const a = r.int(101, 898), b = r.int(101, 999 - a), c = a + b;
       return {q: 'ひっ算で 計算しよう。', form: `${a} + ${b} = {0}`, ans: [c],
-        steps: [{t: 'くらいを そろえて、一のくらいから 計算するよ。', fig: F.cols([{s: String(a)}, {s: String(b), op: '+'}, {s: hsBox(c)}], [1])}, ...H.colAdd(a, b)], answer: `${a} + ${b} = ${c}`}; }
+        steps: [{t: 'くらいを そろえて、一のくらいから 計算するよ。', fig: F.cols([{s: String(a)}, {s: String(b), op: '+'}, {s: hsBox(c)}], [1])}, ...H.colAdd(a, b)], answer: `${a} + ${b} = ${c}`, afterFig: H.colDone(a, b, '+')}; }
     let a, b; do { a = r.int(201, 999); b = r.int(101, a - 1); } while(H.subChain(a, b));
     return {q: 'ひっ算で 計算しよう。', form: `${a} − ${b} = {0}`, ans: [a - b],
-      steps: [{t: 'くらいを そろえて、一のくらいから 計算するよ。', fig: F.cols([{s: String(a)}, {s: String(b), op: MI}, {s: hsBox(a - b)}], [1])}, ...H.colSub(a, b)], answer: `${a} − ${b} = ${a - b}`};
+      steps: [{t: 'くらいを そろえて、一のくらいから 計算するよ。', fig: F.cols([{s: String(a)}, {s: String(b), op: MI}, {s: hsBox(a - b)}], [1])}, ...H.colSub(a, b)], answer: `${a} − ${b} = ${a - b}`, afterFig: H.colDone(a, b, MI)};
   }});
 U({id: 'g2-kuku', g: 2, ic: '🍡', t: 'かけ算九九', ta: true,
   ex: [['p', '「3 × 4」は **3 が 4つ分**。3 + 3 + 3 + 3 と 同じです。'],
@@ -325,7 +334,7 @@ U({id: 'g3-mul1', g: 3, ic: '✏', t: 'かけ算の ひっ算（× 1けた）',
   gen(r){
     const a = r.chance(0.5) ? r.int(12, 99) : r.int(102, 999), b = r.int(2, 9), c = a * b;
     return {q: 'ひっ算で 計算しよう。', form: `${a} × ${b} = {0}`, ans: [c],
-      steps: [{t: '一のくらいから じゅんに かけるよ。', fig: F.cols([{s: String(a)}, {s: String(b), op: '×'}, {s: hsBox(c)}], [1])}, ...H.colMul(a, b)], answer: `${a} × ${b} = ${c}`};
+      steps: [{t: '一のくらいから じゅんに かけるよ。', fig: F.cols([{s: String(a)}, {s: String(b), op: '×'}, {s: hsBox(c)}], [1])}, ...H.colMul(a, b)], answer: `${a} × ${b} = ${c}`, afterFig: H.colDone(a, b, '×')};
   }});
 U({id: 'g3-mul22', g: 3, ic: '🧱', t: '2けた × 2けたの かけ算',
   ex: [['p', 'かける数を **十のくらいと 一のくらいに 分けて**、それぞれ かけてから たします。'],
@@ -338,7 +347,7 @@ U({id: 'g3-mul22', g: 3, ic: '🧱', t: '2けた × 2けたの かけ算',
       steps: [{t: `${b} を ${b10 * 10} と ${b1} に 分けて 計算するよ（ひっ算と 同じ）。`, fig: F.cols([{s: String(a)}, {s: String(b), op: '×'}, {s: hsBox(p1)}, {s: hsBox(p2) + ' '}, {s: hsBox(c)}], [1, 3])},
               `${a} × ${b1} = {{${p1}}}`, `${a} × ${b10} = {{${p2}}}（ひっ算では 1けた 左に ずらして かく。本当は ${p2 * 10}）`, `${p1} + ${p2 * 10} = ？`],
       mis: ([G]) => G === p1 + p2 ? `${b10} を かけた 答えは、1けた 左に ずらして（10倍して）たそう` : G === Math.floor(a / 10) * b10 * 100 + (a % 10) * b1 ? '十のくらいどうし・一のくらいどうしを かける だけでは たりないよ。かける数を 十と 一に 分けて かけよう' : '',
-      answer: `${a} × ${b} = ${p1} + ${p2 * 10} = ${c}`};
+      answer: `${a} × ${b} = ${p1} + ${p2 * 10} = ${c}`, afterFig: F.cols([{s: String(a)}, {s: String(b), op: '×'}, {s: String(p1)}, {s: p2 + ' '}, {s: String(c)}], [1, 3])};
   }});
 U({id: 'g3-dec', g: 3, ic: '🥛', t: '小数の たし算・ひき算',
   ex: [['p', '0.1 が いくつ分 かで 考えると、整数と 同じように 計算できます。ひっ算では **小数点を そろえます**。'],

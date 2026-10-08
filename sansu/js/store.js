@@ -19,7 +19,7 @@ function cleanState(o){
     lv: {}, ms: {d: '', ids: [], p: {}, ok: [], all: false}, md: {}, boss: {},
     cnt: {voice: 0, guide: 0, card: 0, mastered: 0, msday: 0, combo: 0, hard: 0, early: 0},
     log: {},
-    set: {grade: 1, read: false, voice: false, vconf: false, guide: true, auto: true, card: false, sound: true, big: false}};
+    set: {grade: 1, read: false, voice: false, vconf: false, guide: true, auto: true, card: false, sound: true, big: false, anim: true, vib: true, pad: 'calc', furi: 'ruby'}};
   if(!o || typeof o !== 'object') return d;
   d.xp = num(o.xp, 0, 1e9, 0); d.solved = num(o.solved, 0, 1e9, 0); d.ok = num(o.ok, 0, d.solved, 0);
   if(o.days && typeof o.days === 'object') d.days = {last: isDay(o.days.last) ? o.days.last : '', run: num(o.days.run, 0, 1e5, 0), best: num(o.days.best, 0, 1e5, 0)};
@@ -69,7 +69,9 @@ function cleanState(o){
     }
   }
   if(Array.isArray(o.vlog)) d.vlog = o.vlog.filter(x => x && typeof x === 'object' && typeof x.t === 'string').slice(-20).map(x => ({t: str(x.t, 60), f: str(x.f, 60), d: isDay(x.d) ? x.d : ''}));
-  if(o.set && typeof o.set === 'object'){ d.set.grade = num(o.set.grade, 1, 9, 1); for(const k of ['read', 'voice', 'vconf', 'guide', 'auto', 'card', 'sound', 'big']) if(typeof o.set[k] === 'boolean') d.set[k] = o.set[k]; }
+  if(o.set && typeof o.set === 'object'){ d.set.grade = num(o.set.grade, 1, 9, 1); for(const k of ['read', 'voice', 'vconf', 'guide', 'auto', 'card', 'sound', 'big', 'anim', 'vib']) if(typeof o.set[k] === 'boolean') d.set[k] = o.set[k];
+    if(o.set.pad === 'calc' || o.set.pad === 'phone') d.set.pad = o.set.pad;   // 数字キーの ならび（v9）
+    if(['ruby', 'kana', 'off'].includes(o.set.furi)) d.set.furi = o.set.furi; }   // ふりがな（v9）
   return d;
 }
 /* ── かぞく（プロフィール） ── */

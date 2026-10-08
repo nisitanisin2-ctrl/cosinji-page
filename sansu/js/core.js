@@ -107,12 +107,12 @@ const F = {};
 
 /* ●の数（groups は数の並び。cross は 1つ目のまとまりの後ろから消す数＝ひき算） */
 F.dots = (groups, cross) => {
-  const r = 10, g = 25; let x = 6, h = 0, b = '';
+  const r = 10, g = 25; let x = 6, h = 0, b = '', k = 0;
   groups.forEach((n, gi) => {
     for(let i = 0; i < n; i++){
       const cx = x + (i % 5) * g + r + 2, cy = 6 + Math.floor(i / 5) * g + r;
       const xd = cross && gi === 0 && i >= n - cross;
-      b += `<circle cx="${cx}" cy="${cy}" r="${r}" class="d${gi + 1}${xd ? ' dx' : ''}"/>`;
+      b += `<circle cx="${cx}" cy="${cy}" r="${r}" class="d${gi + 1}${xd ? ' dx' : ''}" style="--i:${k++}"/>`;
       if(xd) b += `<path d="M${cx - 8} ${cy - 8}L${cx + 8} ${cy + 8}M${cx + 8} ${cy - 8}L${cx - 8} ${cy + 8}" class="xl"/>`;
     }
     x += Math.min(5, Math.max(1, n)) * g + 18; h = Math.max(h, Math.ceil(n / 5) * g);
@@ -122,8 +122,9 @@ F.dots = (groups, cross) => {
 /* 10のまとまり（くり上がり）：1つ目のわくに a と b の一部で 10、2つ目のわくに b の残り */
 F.ten = (a, b) => {
   const c = 26, need = 10 - a, rest = b - need; let s = '';
+  let k = 0;
   const frame = (ox, fill) => { for(let i = 0; i < 10; i++){ const x = ox + (i % 5) * c, y = 8 + Math.floor(i / 5) * c;
-    s += `<rect x="${x}" y="${y}" width="${c}" height="${c}" class="cell"/>`; if(fill[i]) s += `<circle cx="${x + c / 2}" cy="${y + c / 2}" r="9" class="${fill[i]}"/>`; } };
+    s += `<rect x="${x}" y="${y}" width="${c}" height="${c}" class="cell"/>`; if(fill[i]) s += `<circle cx="${x + c / 2}" cy="${y + c / 2}" r="9" class="${fill[i]}" style="--i:${k++}"/>`; } };
   frame(6, Array.from({length: 10}, (_, i) => i < a ? 'd1' : 'd2'));
   frame(6 + 5 * c + 22, Array.from({length: 10}, (_, i) => i < rest ? 'd2' : ''));
   s += tx(6 + 2.5 * c, 8 + 2 * c + 20, '10') + tx(28 + 7.5 * c, 8 + 2 * c + 20, String(rest));
@@ -133,28 +134,31 @@ F.ten = (a, b) => {
 F.tenSub = (a, b) => {
   const c = 26, ones = a - 10; let s = '';
   for(let i = 0; i < 10; i++){ const x = 6 + (i % 5) * c, y = 8 + Math.floor(i / 5) * c, cx = x + c / 2, cy = y + c / 2, xd = i >= 10 - b;
-    s += `<rect x="${x}" y="${y}" width="${c}" height="${c}" class="cell"/><circle cx="${cx}" cy="${cy}" r="9" class="d1${xd ? ' dx' : ''}"/>`;
+    s += `<rect x="${x}" y="${y}" width="${c}" height="${c}" class="cell"/><circle cx="${cx}" cy="${cy}" r="9" class="d1${xd ? ' dx' : ''}" style="--i:${i}"/>`;
     if(xd) s += `<path d="M${cx - 7} ${cy - 7}L${cx + 7} ${cy + 7}M${cx + 7} ${cy - 7}L${cx - 7} ${cy + 7}" class="xl"/>`; }
-  for(let i = 0; i < ones; i++){ const x = 6 + 5 * c + 22 + (i % 5) * c, y = 8 + Math.floor(i / 5) * c; s += `<circle cx="${x + c / 2}" cy="${y + c / 2}" r="9" class="d2"/>`; }
+  for(let i = 0; i < ones; i++){ const x = 6 + 5 * c + 22 + (i % 5) * c, y = 8 + Math.floor(i / 5) * c; s += `<circle cx="${x + c / 2}" cy="${y + c / 2}" r="9" class="d2" style="--i:${10 + i}"/>`; }
   s += tx(6 + 2.5 * c, 8 + 2 * c + 20, '10') + tx(28 + 7.5 * c, 8 + 2 * c + 20, String(ones));
   return svg(30 + 10 * c, 8 + 2 * c + 28, s);
 };
 /* かけ算の ●：1つ分 per こ が groups れつ */
 F.array = (per, groups) => {
   const g = per > 6 || groups > 6 ? 17 : 22, r = g * 0.36; let s = '';
-  for(let j = 0; j < groups; j++) for(let i = 0; i < per; i++) s += `<circle cx="${8 + i * g + r}" cy="${8 + j * g + r}" r="${r}" class="${j % 2 ? 'd2' : 'd1'}"/>`;
+  for(let j = 0; j < groups; j++) for(let i = 0; i < per; i++) s += `<circle cx="${8 + i * g + r}" cy="${8 + j * g + r}" r="${r}" class="${j % 2 ? 'd2' : 'd1'}" style="--i:${j * 2 + i * 0.3}"/>`;
   return svg(16 + per * g, 16 + groups * g, s);
 };
 /* ひっ算（HTML の表）。lines は [{s:'346', op:''}, {s:'78', op:'+'}]、rule は線を引く行の番号（その行の下に線）。
    s の中の '?' は□、小さい数（くり上がり）は carry に「位置→数字」で */
 F.cols = (lines, rules, carry) => {
-  const w = Math.max(...lines.map(l => l.s.length)) + 1;
+  const w = Math.max(...lines.map(l => l.s.length)) + 1, r0 = Math.min(...rules);
+  // 動く 図（v9）：線より 下の 行（答え）の 数字は、一の くらいから 1けたずつ 出る（--i が じゅんばん）
+  let ord = 0; const at = {};
+  lines.forEach((l, li) => { if(li <= r0) return; const t = (' '.repeat(w - 1 - l.s.length) + l.s).split(''); for(let i = t.length - 1; i >= 0; i--) if(/\d/.test(t[i])) at[li + ':' + i] = ord++; });
   let h = '<table class="hs">';
-  if(carry){ h += '<tr class="cy">'; for(let i = 0; i < w; i++){ const k = w - 1 - i; h += `<td>${carry[k] != null ? esc(carry[k]) : ''}</td>`; } h += '</tr>'; }
+  if(carry){ h += '<tr class="cy">'; for(let i = 0; i < w; i++){ const k = w - 1 - i, q = at[(r0 + 1) + ':' + (i - 1)]; h += `<td${carry[k] != null && q != null ? ` class="fa" style="--i:${q - 0.5}"` : ''}>${carry[k] != null ? esc(carry[k]) : ''}</td>`; } h += '</tr>'; }
   lines.forEach((l, li) => {
     const pad = ' '.repeat(w - 1 - l.s.length) + l.s;
     h += `<tr${rules.includes(li) ? ' class="ru"' : ''}><td class="op">${esc(l.op || '')}</td>`;
-    for(const ch of pad) h += ch === '?' ? '<td><span class="bx0">□</span></td>' : `<td>${esc(ch === ' ' ? '' : ch)}</td>`;
+    [...pad].forEach((ch, i) => { const q = at[li + ':' + i]; h += ch === '?' ? '<td><span class="bx0">□</span></td>' : `<td${q != null ? ` class="fa" style="--i:${q}"` : ''}>${esc(ch === ' ' ? '' : ch)}</td>`; });
     h += '</tr>';
   });
   return h + '</table>';
@@ -162,15 +166,17 @@ F.cols = (lines, rules, carry) => {
 /* 数直線：lo〜hi に目もり、from から to へ矢印 */
 F.line = (lo, hi, from, to) => {
   const u = Math.min(30, 520 / (hi - lo)), W = (hi - lo) * u + 40, y = 52, X = v => 20 + (v - lo) * u;
-  let s = `<defs><marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="arh"/></marker></defs>`;
-  s += `<line x1="10" y1="${y}" x2="${W - 10}" y2="${y}" class="ln"/>`;
+  let s = `<line x1="10" y1="${y}" x2="${W - 10}" y2="${y}" class="ln"/>`;
   for(let v = lo; v <= hi; v++){
     s += `<line x1="${X(v)}" y1="${y - (v === 0 ? 8 : 5)}" x2="${X(v)}" y2="${y + (v === 0 ? 8 : 5)}" class="ln"/>`;
     if(hi - lo <= 20 || v % 5 === 0) s += tx(X(v), y + 22, num(v), v === 0 ? 'b' : 'sm');
   }
   if(from != null){
     s += `<circle cx="${X(from)}" cy="${y}" r="5" class="pt"/>`;
-    if(to != null && to !== from){ const mx = (X(from) + X(to)) / 2; s += `<path d="M${X(from)} ${y - 8}Q${mx} ${y - 46} ${X(to)} ${y - 9}" class="ar" marker-end="url(#arw)"/>`; }
+    if(to != null && to !== from){   // ぴょんと とぶ 矢印（v9：線が のびてから 矢じりと 着いた 点が 出る）
+      const mx = (X(from) + X(to)) / 2, E = [X(to), y - 9], dv = [E[0] - mx, E[1] - (y - 46)], L = Math.hypot(dv[0], dv[1]) || 1, d = [dv[0] / L, dv[1] / L], nv = [-d[1], d[0]];
+      const A = [E[0] - d[0] * 10 + nv[0] * 5, E[1] - d[1] * 10 + nv[1] * 5], B = [E[0] - d[0] * 10 - nv[0] * 5, E[1] - d[1] * 10 - nv[1] * 5];
+      s += `<path d="M${X(from)} ${y - 8}Q${mx} ${y - 46} ${r1(E[0] - d[0] * 6)} ${r1(E[1] - d[1] * 6)}" class="ar" pathLength="1"/><path d="M${r1(E[0])} ${r1(E[1])}L${r1(A[0])} ${r1(A[1])}L${r1(B[0])} ${r1(B[1])}Z" class="arh arh2"/><circle cx="${X(to)}" cy="${y}" r="4" class="pt to"/>`; }
   }
   return svg(W, y + 32, s);
 };
@@ -347,7 +353,7 @@ F.bars = (labels, vals, u, unit) => {
   const W = 310, H = 190, L = 40, B = 26, T = 22, {top, lab} = niceTicks(Math.max(...vals), u), n = vals.length, slot = (W - L - 10) / n, bw = Math.min(24, slot * 0.55);
   let s = axes(W, H, L, B, T, top, u, lab, unit);
   vals.forEach((v, i) => { const x = L + slot * i + (slot - bw) / 2, y = H - B - (H - B - T) * v / top, h = H - B - y, r = Math.min(4, h);
-    if(v > 0) s += `<path d="M${r1(x)} ${H - B}V${r1(y + r)}Q${r1(x)} ${r1(y)} ${r1(x + r)} ${r1(y)}H${r1(x + bw - r)}Q${r1(x + bw)} ${r1(y)} ${r1(x + bw)} ${r1(y + r)}V${H - B}Z" class="gb"/>`;
+    if(v > 0) s += `<path d="M${r1(x)} ${H - B}V${r1(y + r)}Q${r1(x)} ${r1(y)} ${r1(x + r)} ${r1(y)}H${r1(x + bw - r)}Q${r1(x + bw)} ${r1(y)} ${r1(x + bw)} ${r1(y + r)}V${H - B}Z" class="gb" style="--i:${i}"/>`;
     s += tx(L + slot * i + slot / 2, H - B + 16, labels[i], 'ax'); });
   return svg(W, H, s, 'chartfig');
 };
@@ -357,14 +363,14 @@ F.lines = (labels, vals, u, unit, xunit) => {
   let s = axes(W, H, L, B, T, top, u, lab, unit), d = '';
   const P = vals.map((v, i) => [L + slot * i + slot / 2, H - B - (H - B - T) * v / top]);
   P.forEach((p, i) => { d += (i ? 'L' : 'M') + r1(p[0]) + ' ' + r1(p[1]); s += tx(p[0], H - B + 16, labels[i], 'ax'); });
-  s += `<path d="${d}" class="gline"/>` + P.map(p => `<circle cx="${r1(p[0])}" cy="${r1(p[1])}" r="4" class="gdot"/>`).join('');
+  s += `<path d="${d}" class="gline" pathLength="1"/>` + P.map((p, i) => `<circle cx="${r1(p[0])}" cy="${r1(p[1])}" r="4" class="gdot" style="--i:${i}"/>`).join('');
   if(xunit) s += tx(W - 4, H + 6, `（${xunit}）`, 'ax', 'end');
   return svg(W, H + (xunit ? 12 : 0), s, 'chartfig');
 };
 /* 帯グラフ：parts は [{n:'名前', p:%}]（合計 100）。下に 5% ごとの 目もり（10% ごとに 数） */
 F.band = parts => {
   const W = 290, L = 10, y = 16, h = 34; let s = '', x = L;
-  parts.forEach((q, i) => { const w = W * q.p / 100; s += `<rect x="${r1(x)}" y="${y}" width="${r1(Math.max(0, w - 2))}" height="${h}" class="c${i % 5 + 1}"/>`;
+  parts.forEach((q, i) => { const w = W * q.p / 100; s += `<rect x="${r1(x)}" y="${y}" width="${r1(Math.max(0, w - 2))}" height="${h}" class="c${i % 5 + 1} bseg" style="--i:${i}"/>`;
     const fit = [...q.n].length * 12 + 8 < w; s += tx(x + w / 2, fit ? y + h / 2 + 5 : y - 4, q.n, fit ? `cin t${i % 5 + 1}` : 'ax'); x += w; });
   for(let p = 0; p <= 100; p += 5){ const xx = L + W * p / 100; s += `<line x1="${r1(xx)}" y1="${y + h + 2}" x2="${r1(xx)}" y2="${y + h + (p % 10 ? 5 : p % 50 ? 8 : 11)}" class="ca"/>`; if(p % 10 === 0) s += tx(xx, y + h + 23, String(p), 'ax'); }
   return svg(W + L + 36, y + h + 30, s + tx(W + L + 13, y + h + 23, '(%)', 'ax', 'start'), 'chartfig');
@@ -373,7 +379,7 @@ F.band = parts => {
 F.pie = parts => {
   const cx = 112, cy = 100, R0 = 74; let s = '', a0 = -Math.PI / 2;
   parts.forEach((q, i) => { const a1 = a0 + 2 * Math.PI * q.p / 100, big = q.p > 50 ? 1 : 0, X = a => r1(cx + R0 * Math.cos(a)), Y = a => r1(cy + R0 * Math.sin(a));
-    s += `<path d="M${cx} ${cy}L${X(a0)} ${Y(a0)}A${R0} ${R0} 0 ${big} 1 ${X(a1)} ${Y(a1)}Z" class="c${i % 5 + 1} pie"/>`;
+    s += `<path d="M${cx} ${cy}L${X(a0)} ${Y(a0)}A${R0} ${R0} 0 ${big} 1 ${X(a1)} ${Y(a1)}Z" class="c${i % 5 + 1} pie" style="--i:${i}"/>`;
     const am = (a0 + a1) / 2, out = q.p < 12, rr = out ? R0 + 18 : R0 * 0.6, cl = out ? 'ax' : `cin t${i % 5 + 1}`, px = cx + rr * Math.cos(am), py = cy + rr * Math.sin(am);
     s += tx(px, py + (out ? -1 : -2), q.n, cl) + tx(px, py + (out ? 12 : 12), q.p + '%', cl + ' sm2');
     a0 = a1; });
@@ -493,7 +499,7 @@ F.hist = (edges, counts, xunit, yunit) => {
   const W = 320, H = 190, L = 40, B = 30, T = 22, {top, lab} = niceTicks(Math.max(...counts), 1), n = counts.length, bw = (W - L - 24) / n, X = i => L + 8 + bw * i;
   let s = axes(W, H, L, B, T, top, 1, lab, yunit);
   counts.forEach((c, i) => { if(!c) return; const y = H - B - (H - B - T) * c / top, x = X(i) + 1, w = bw - 2, r = Math.min(4, H - B - y);
-    s += `<path d="M${r1(x)} ${H - B}V${r1(y + r)}Q${r1(x)} ${r1(y)} ${r1(x + r)} ${r1(y)}H${r1(x + w - r)}Q${r1(x + w)} ${r1(y)} ${r1(x + w)} ${r1(y + r)}V${H - B}Z" class="gb"/>`; });
+    s += `<path d="M${r1(x)} ${H - B}V${r1(y + r)}Q${r1(x)} ${r1(y)} ${r1(x + r)} ${r1(y)}H${r1(x + w - r)}Q${r1(x + w)} ${r1(y)} ${r1(x + w)} ${r1(y + r)}V${H - B}Z" class="gb" style="--i:${i}"/>`; });
   edges.forEach((e, i) => { s += tx(X(i), H - B + 16, String(e), 'ax'); });
   return svg(W, H + 12, s + tx(W - 4, H + 8, `（${xunit}）`, 'ax', 'end'), 'chartfig');
 };

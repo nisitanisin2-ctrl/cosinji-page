@@ -1,10 +1,10 @@
 // 🎓算数・数学チャレンジ（sansu/）専用のキャッシュ。
 // 同じサイトに表電卓・英単語マスターなどがあるので、名前の頭（sansu-）で自分の分だけを見分けて消す。
 // 版を上げたら、ここも js/version.js の VERSION と同じにする（テストでたしかめている）
-const CACHE = 'sansu-v8';
+const CACHE = 'sansu-v9';
 const CACHE_PREFIX = 'sansu-';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png',
-  './css/style.css', './js/core.js', './js/version.js', './js/units-e.js', './js/units-j.js', './js/units-e2.js', './js/units-e3.js', './js/units-j2.js', './js/units-w.js', './js/units-order.js', './js/answer.js', './js/mistakes.js', './js/cards.js', './js/medals.js', './js/voice.js', './js/store.js', './js/app.js'];
+  './css/style.css', './js/core.js', './js/version.js', './js/units-e.js', './js/units-j.js', './js/units-e2.js', './js/units-e3.js', './js/units-j2.js', './js/units-w.js', './js/units-order.js', './js/answer.js', './js/mistakes.js', './js/cards.js', './js/medals.js', './js/furi.js', './js/voice.js', './js/store.js', './js/app.js'];
 // v1 の 画面には「いま更新」の ボタンが ない（新しい 版が 来ると すぐ 入れかわる 作り）。その 版から 来た ときだけは 待たずに 入れかわる
 const NO_ASK = k => /^sansu-v1$/.test(k);
 

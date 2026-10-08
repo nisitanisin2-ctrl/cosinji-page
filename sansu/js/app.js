@@ -10,6 +10,8 @@
      🎯 きょうの ミッション と 🏅 メダル ずかん・⚔️ 学年の ボス（medals.js）
    ・v5：👨‍👩‍👧 かぞく（きょうだいごとに きろく）・📊 学習レポート（おうちの人 向け・印刷）・
      📄 プリント作成（問題と 答えの 紙）・💾 きろくの 書き出し・読み込み（バックアップ）
+   ・v9：ふりがな（小1〜小3。furi.js）・数字キーの ならび（7が 上／1が 上）・動く 図・タブレットの 横向き・
+     はじめての 使い方・ぶるっと ふるえる
    ボタンには プログラムを 書かず、data-act で ここから 動かす（CSP で ページの中の プログラムを 止めているため）
    ════════════════════════════════════════════════════════════════ */
 (function(){
@@ -35,6 +37,10 @@ const shuffle = a => { a = a.slice(); for(let i = a.length - 1; i > 0; i--){ con
 /* ── きろく ── */
 let st = S.store.load();
 const save = () => S.store.save(st);
+/* ふりがな（v9）：小1〜小3 の 単元だけ。せってい で「ふりがな・ひらがなだけ・つけない」 */
+const furiOf = g => g <= 3 && (st.set.furi === 'ruby' || st.set.furi === 'kana') ? st.set.furi : '';
+const fu = (html, g) => { const m = furiOf(g); return m ? S.furi(html, m) : html; };
+const gNow = () => ses && ses.p ? (unitById(ses.p.unit) || {g: 9}).g : 9;
 
 /* ── レベル ── */
 const need = lv => 50 * lv * (lv - 1);                 // Lv.lv に なるまでの XP（合計）
@@ -139,6 +145,7 @@ function renderTop(){
   const me = curProfile(), pb = $('hdProf');
   if(pb){ pb.textContent = me.ic; pb.setAttribute('aria-label', `${me.name || 'なまえなし'}（だれが つかう？）`); pb.title = me.name || 'だれが つかう？'; }
   document.body.classList.toggle('big', !!st.set.big);
+  document.body.classList.toggle('anim', st.set.anim !== false && !reduceMotion());   // 動く 図（v9）
 }
 
 /* ── 画面の行き来（スマホの「戻る」で 前の画面へ） ── */
@@ -202,7 +209,11 @@ function hideNotice(){ $('notice').classList.remove('show'); }
 
 /* ── 音（端末の中で 作る短い音） ── */
 let actx = null;
+/* ぶるっ（v9。せってい で 切れる。iPhone など 使えない 端末では 何も しない） */
+const canVib = () => typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
+function buzz(kind){ if(st.set.vib === false || !canVib()) return; try { navigator.vibrate({ok: 25, ng: [70, 50, 70], near: 35, up: [30, 40, 30, 40, 60], star: [20, 30, 20]}[kind] || 20); } catch(_){} }
 function beep(kind){
+  buzz(kind);
   if(!st.set.sound) return;
   try {
     actx = actx || new (window.AudioContext || window.webkitAudioContext)();
@@ -349,16 +360,16 @@ function renderPlay(){
                   : `<div class="segs">${Array.from({length: ses.n}, (_, i) => `<i class="${ses.done[i] || (i === ses.done.length ? 'now' : '')}"></i>`).join('')}</div>`;
   $('main').innerHTML = `
     <div class="pbar"><button type="button" class="x" data-act="quit" aria-label="やめる">✕</button>
-      <div class="pt"><span class="dif d${p.lv || 2}">${LV_NAME[p.lv || 2]}</span> ${esc(GR[u.g - 1])}　${esc(u.t)}${ses.mode === 'mix' ? '（ミックス）' : ta ? '（⏱）' : ses.mode === 'rev' ? '（📝 ふくしゅう）' : boss ? '（⚔️ ボス）' : ''}</div>
+      <div class="pt"><span class="dif d${p.lv || 2}">${LV_NAME[p.lv || 2]}</span> ${esc(GR[u.g - 1])}　${fu(esc(u.t), u.g)}${ses.mode === 'mix' ? '（ミックス）' : ta ? '（⏱）' : ses.mode === 'rev' ? '（📝 ふくしゅう）' : boss ? '（⚔️ ボス）' : ''}</div>
       <div class="sc">${ta ? '✔ ' + ses.ok : Math.min(ses.done.length + 1, ses.n) + ' / ' + ses.n}</div>
       <div class="cb" id="pCombo">${ses.combo >= 2 ? '🔥×' + ses.combo : ''}</div>
       <div class="sc" id="pScore">⭐${ses.score}</div></div>
     ${segs}
     <div class="qcard" id="qcard">
-      <div class="qtext">${mathHtml(p.q)}</div>
-      ${p.fig ? `<div class="qfig">${p.fig}</div>` : ''}
+      <div class="qtext">${fu(mathHtml(p.q), u.g)}</div>
+      ${p.fig ? `<div class="qfig">${fu(p.fig, u.g)}</div>` : ''}
       <div class="qform" id="qform"></div>
-      ${p.note ? `<div class="qnote">${mathHtml(p.note)}</div>` : ''}
+      ${p.note ? `<div class="qnote">${fu(mathHtml(p.note), u.g)}</div>` : ''}
       <div class="fb" id="fb" aria-live="polite"></div>
       <div class="heard" id="heard"></div>
       <div class="vconf" id="vconf" hidden></div>
@@ -383,17 +394,20 @@ function drawBoss(hit){
   if(hit && !reduceMotion()){ const ic = $('bossIc'); if(ic){ ic.classList.add(hit); setTimeout(() => ic.classList.remove(hit), 600); } }
 }
 /* ドックの 高さを おぼえて、ヒントや 答えが ドックの 下に かくれないように する */
-function fitDock(){ const d = $('dock'); if(d) document.documentElement.style.setProperty('--dock-h', d.offsetHeight + 'px'); }
+function fitDock(){ const d = $('dock'), r = document.documentElement.style; if(d) r.setProperty('--dock-h', d.offsetHeight + 'px'); r.setProperty('--top-h', $('top').offsetHeight + 'px'); }
+/* タブレット・横向き（v9）：キーを 右に ならべる ときは true（CSS の @media と 同じ 条件） */
+const SIDE_MQ = '(min-width: 860px) and (orientation: landscape), (min-width: 1100px)';
+const sideDock = () => { try { return matchMedia(SIDE_MQ).matches; } catch(_){ return false; } };
 window.addEventListener('resize', fitDock);
 function drawForm(){
   const q = $('qform'); if(!q || !ses) return;
   // 長い 式は 字を 小さく。「… → x = □」の → から 先は 次の 行に
   const f = ses.p.form, len = f.replace(/\[\[|\]\]|√\[|\]|\*\*/g, '').replace(/\{\d+\}/g, '___').split('→').reduce((m, x) => Math.max(m, x.trim().length), 0);
   q.classList.toggle('long', len > 17); q.classList.toggle('xlong', len > 24);
-  q.innerHTML = mathHtml(f.replace(/[\s　]*→[\s　]*/g, '\n'), {blank: i => {
+  q.innerHTML = fu(mathHtml(f.replace(/[\s　]*→[\s　]*/g, '\n'), {blank: i => {
     const v = ses.vals[i] || '', cls = ses.answered ? (ses.revealed ? ' rev' : ' done') : (i === ses.act && !gTarget() ? ' on' : '');
     return `<button type="button" class="bx${cls}" data-act="blank" data-i="${i}" aria-label="${i + 1}つめの □${v ? '：' + esc(v) : '（から）'}">${v ? esc(v) : '&#8203;'}</button>`;
-  }});
+  }}), gNow());
 }
 function drawActs(){
   const a = $('acts'); if(!a || !ses) return;
@@ -414,28 +428,29 @@ function drawKeys(){
   const gs = gTarget();
   if(!gs && ses.cards){   // 🃏 カードから えらぶ（ヒントの □ に 答える ときは キー）
     k.innerHTML = `<div class="cards">${ses.cards.map((v, i) => { const bad = ses.cardBad.includes(i);
-      return `<button type="button" class="card${bad ? ' bad' : ''}" data-act="card" data-c="${i}"${bad ? ' disabled' : ''} aria-label="${i + 1}ばんの カード">${S.cardHtml(ses.p, v)}</button>`; }).join('')}</div>`;
+      return `<button type="button" class="card${bad ? ' bad' : ''}" data-act="card" data-c="${i}"${bad ? ' disabled' : ''} aria-label="${i + 1}ばんの カード">${fu(S.cardHtml(ses.p, v), gNow())}</button>`; }).join('')}</div>`;
     fitDock(); return;
   }
   const ks = gs ? [gs.kinds[gs.act]] : ses.p.kinds, neg = ks.some(x => x !== 'n'), pls = ks.some(x => x === 't' || x === 'tc'), dot = ks.includes('d'), multi = ks.length > 1;
   const b = (key, lbl, cls, dis, al) => `<button type="button" class="${cls || ''}" data-act="key" data-k="${key}"${dis ? ' disabled' : ''}${al ? ` aria-label="${al}"` : ''}>${lbl}</button>`;
-  k.innerHTML = b('7', '7') + b('8', '8') + b('9', '9') + b('bs', '⌫', 'op', false, 'けす')
-    + b('4', '4') + b('5', '5') + b('6', '6') + b('−', '−', 'op', !neg, 'マイナス')
-    + b('1', '1') + b('2', '2') + b('3', '3') + b('+', '＋', 'op', !pls, 'プラス')
+  // 数字キーの ならび（v9）：'calc' は 7 8 9 が 上（電卓）、'phone' は 1 2 3 が 上（電話）
+  const rows = st.set.pad === 'phone' ? ['123', '456', '789'] : ['789', '456', '123'];
+  const side = [b('bs', '⌫', 'op', false, 'けす'), b('−', '−', 'op', !neg, 'マイナス'), b('+', '＋', 'op', !pls, 'プラス')];
+  k.innerHTML = rows.map((r, i) => [...r].map(d => b(d, d)).join('') + side[i]).join('')
     + b('0', '0') + b('.', '.', 'op', !dot, 'しょうすうてん') + b('nx', 'つぎの□', 'mv', !multi) + b('ok', 'こたえる', 'go');
   fitDock();
 }
 function drawAfter(){
   const a = $('after'); if(!a || !ses || ses.mode === 'ta') return;
   const p = ses.p;
-  a.innerHTML = `<div class="ansline">${mathHtml(p.answer)}</div>`
+  a.innerHTML = `<div class="ansline">${fu(mathHtml(p.answer), gNow())}</div>` + (p.afterFig ? `<div class="qfig afterfig">${fu(p.afterFig, gNow())}</div>` : '')
     + (ses.hints < p.steps.length ? `<details class="how"><summary>🦉 とき方を ぜんぶ 見る</summary><div class="hints">${p.steps.map((s, i) => stepHtml(s, i, true)).join('')}</div></details>` : '');
 }
 const stepText = i => { const s = ses.p.steps[i]; return typeof s === 'string' ? s : s.t; };
 /* ヒント 1つ。plain なら いつも 数を 見せる（とき方を ぜんぶ 見る） */
 function stepHtml(s, i, plain){
   const t = typeof s === 'string' ? s : s.t, fig = typeof s === 'string' ? '' : (s.fig || ''), gs = !plain && ses && ses.gd ? ses.gd[i] : null;
-  return `<div class="hint${gs ? ' guided' + (gs.done ? ' gdone' : '') : ''}"${plain ? '' : ` id="hint${i}"`}><span class="ow">🦉</span><div class="hb"><div class="ht">${gs ? guidedBody(t, gs, i) : mathHtml(t)}</div>${fig}${gs && !gs.done ? `<div class="gfb" id="gfb${i}" aria-live="polite"></div>` : ''}</div></div>`;
+  return `<div class="hint${gs ? ' guided' + (gs.done ? ' gdone' : '') : ''}"${plain ? '' : ` id="hint${i}"`}><span class="ow">🦉</span><div class="hb"><div class="ht">${fu(gs ? guidedBody(t, gs, i) : mathHtml(t), gNow())}</div>${fu(fig, gNow())}${gs && !gs.done ? `<div class="gfb" id="gfb${i}" aria-live="polite"></div>` : ''}</div></div>`;
 }
 function appendHint(i, quiet){
   const h = $('hints'); if(!h) return;
@@ -546,7 +561,7 @@ function setGTarget(i){ if(!ses || ses.answered || !ses.gd[i] || ses.gd[i].done)
 /* el が 下の ドック（キー）に かくれていたら、見える ところまで ずらす（長い ものは 上を そろえる） */
 function revealAboveDock(el, smooth){
   if(!el) return;
-  const d = $('dock'), r = el.getBoundingClientRect(), lim = (d ? d.getBoundingClientRect().top : innerHeight) - 8, head = $('top').offsetHeight + 8;
+  const d = $('dock'), r = el.getBoundingClientRect(), lim = (d && !sideDock() ? d.getBoundingClientRect().top : innerHeight) - 8, head = $('top').offsetHeight + 8;
   let dy = r.bottom > lim ? r.bottom - lim : 0;
   if(r.top - dy < head) dy = r.top - head;
   if(Math.abs(dy) > 1) window.scrollBy({top: dy, behavior: smooth && !reduceMotion() ? 'smooth' : 'auto'});
@@ -616,7 +631,7 @@ function wrong(msg, dg){
   const heard = ses.byVoice ? '（声で 答えた ときは、聞きまちがいかも。□を たしかめてね）' : '';
   const head = msg && msg !== '書き方を たしかめてね' ? msg : dg ? 'ちがうよ。' : 'ちがうよ。もう一度 考えてみよう';
   // まちがい方に 合わせた ひとこと（よく ある まちがいに 当たった とき）
-  setFbHtml(`❌ ${esc(head)}${dg ? `<span class="mis">🦉 ${esc(dg.m)}</span>` : ''}${heard ? `<small>${esc(heard)}</small>` : ''}`, 'ng');
+  setFbHtml(`❌ ${esc(head)}${dg ? `<span class="mis">🦉 ${fu(esc(dg.m), gNow())}</span>` : ''}${heard ? `<small>${esc(heard)}</small>` : ''}`, 'ng');
   if(dg){ st.mk[dg.k] = (st.mk[dg.k] || 0) + 1; save(); if(st.set.read) V.speak(speakMath(dg.m)); }
   const cb = $('pCombo'); if(cb) cb.textContent = '';
   if(ses.mode === 'boss') bossHurt();
@@ -687,7 +702,7 @@ function renderHome(){
     <div class="modes"><button type="button" data-act="mix">🎲 ミックス<small>${GR[g - 1]}の いろいろな 問題を 10問</small></button><button type="button" data-act="tapick">⏱ タイムアタック<small>${TA_SEC}びょうで 何問 とける？</small></button>
       <button type="button" data-act="cardmix">🃏 えらんで 答える<small>4まいの カードから えらぶ（10問）</small></button><button type="button" data-act="boss" data-g="${g}">${S.BOSSES[g - 1].ic} ボスに ちょうせん<small>${S.BOSS_N}問・ハート ${S.BOSS_HEARTS}つ${(st.boss[g] || {}).w ? '（🏆 かった）' : ''}</small></button></div>
     ${weakRow()}
-    <div class="units">${us.map(u => `<div class="unit${starsOf(u.id) >= 3 ? ' done3' : ''}" role="button" tabindex="0" data-act="unit" data-u="${u.id}" aria-label="${esc(u.t)}（★${starsOf(u.id)}）"><span class="ic">${u.ic}</span><span class="nm">${esc(u.t)}</span>${st.ta[u.id] ? `<span class="ta">⏱${st.ta[u.id]}</span>` : ''}<span class="st">${starStr(starsOf(u.id))}</span>${lvOf(u.id) !== 2 ? `<span class="dif d${lvOf(u.id)}">${LV_NAME[lvOf(u.id)]}</span>` : ''}<button type="button" class="ex" data-act="ex" data-u="${u.id}" aria-label="${esc(u.t)}の 解説">📖 解説</button></div>`).join('')}</div>`;
+    <div class="units">${us.map(u => `<div class="unit${starsOf(u.id) >= 3 ? ' done3' : ''}" role="button" tabindex="0" data-act="unit" data-u="${u.id}" aria-label="${esc(u.t)}（★${starsOf(u.id)}）"><span class="ic">${u.ic}</span><span class="nm">${fu(esc(u.t), u.g)}</span>${st.ta[u.id] ? `<span class="ta">⏱${st.ta[u.id]}</span>` : ''}<span class="st">${starStr(starsOf(u.id))}</span>${lvOf(u.id) !== 2 ? `<span class="dif d${lvOf(u.id)}">${LV_NAME[lvOf(u.id)]}</span>` : ''}<button type="button" class="ex" data-act="ex" data-u="${u.id}" aria-label="${esc(u.t)}の 解説">📖 解説</button></div>`).join('')}</div>`;
   const on = document.querySelector('.grades .on'); if(on) try { on.scrollIntoView({inline: 'center', block: 'nearest'}); } catch(_){}
 }
 /* 🎯 きょうの ミッション（3つ） */
@@ -703,25 +718,25 @@ function revCard(){
 }
 function weakRow(){
   const ws = weakUnits(); if(!ws.length) return '';
-  return `<div class="weak"><span class="wl">🔎 にがてかも</span>${ws.map(u => `<button type="button" class="chip" data-act="unit" data-u="${u.id}">${u.ic} ${u.g === st.set.grade ? '' : GR[u.g - 1] + ' '}${esc(u.t)}</button>`).join('')}</div>`;
+  return `<div class="weak"><span class="wl">🔎 にがてかも</span>${ws.map(u => `<button type="button" class="chip" data-act="unit" data-u="${u.id}">${u.ic} ${u.g === st.set.grade ? '' : GR[u.g - 1] + ' '}${fu(esc(u.t), u.g)}</button>`).join('')}</div>`;
 }
 const exHtml = u => u.ex.map(([k, v]) => { const s = typeof v === 'function' ? v() : v;
-  if(k === 'fig') return `<div class="figw">${s}</div>`; if(k === 'eg') return `<div class="eg">${mathHtml(s)}</div>`;
-  if(k === 'tip') return `<div class="tip">💡 ${mathHtml(s)}</div>`; return `<p>${mathHtml(s)}</p>`; }).join('');
+  if(k === 'fig') return `<div class="figw">${fu(s, u.g)}</div>`; if(k === 'eg') return `<div class="eg">${fu(mathHtml(s), u.g)}</div>`;
+  if(k === 'tip') return `<div class="tip">💡 ${fu(mathHtml(s), u.g)}</div>`; return `<p>${fu(mathHtml(s), u.g)}</p>`; }).join('');
 function renderEx(){
   const u = unitById(view.u); if(!u){ go('home', {}, true); return; }
-  $('main').innerHTML = `<div class="page-h"><button type="button" class="back" data-act="back" aria-label="もどる">←</button><h2>${u.ic} ${esc(u.t)}<small style="font-weight:600;color:var(--sub);font-size:.75rem">　${GR[u.g - 1]}</small></h2></div>
+  $('main').innerHTML = `<div class="page-h"><button type="button" class="back" data-act="back" aria-label="もどる">←</button><h2>${u.ic} ${fu(esc(u.t), u.g)}<small style="font-weight:600;color:var(--sub);font-size:.75rem">　${GR[u.g - 1]}</small></h2></div>
     <div class="exbox">${exHtml(u)}</div>
     <div class="difpick" role="group" aria-label="むずかしさ"><span>むずかしさ</span>${[1, 2, 3].map(l => `<button type="button" class="${lvOf(u.id) === l ? 'on' : ''}" data-act="setlv" data-u="${u.id}" data-l="${l}" aria-pressed="${lvOf(u.id) === l}">${LV_NAME[l]}</button>`).join('')}</div>
     <p class="difnote">${st.set.auto ? 'つづけて できると むずかしく、つまずくと やさしく、じどうで かわります（せってい で とめられます）' : 'じどうで かえない せってい に なっています'}</p>
     <button type="button" class="btn wide" data-act="unit" data-u="${u.id}">▶ この 単元の 問題を とく（${STAGE_N}問）</button>
     ${u.ta ? `<button type="button" class="btn sub wide" data-act="ta" data-u="${u.id}">⏱ タイムアタック（${TA_SEC}びょう）</button>` : ''}`;
 }
-function openExModal(id){ const u = unitById(id); if(!u) return; openModal(`<div class="page-h"><h2>📖 ${u.ic} ${esc(u.t)}</h2></div><div class="exbox">${exHtml(u)}</div><button type="button" class="btn wide" data-act="mclose">とじる</button>`); }
+function openExModal(id){ const u = unitById(id); if(!u) return; openModal(`<div class="page-h"><h2>📖 ${u.ic} ${fu(esc(u.t), u.g)}</h2></div><div class="exbox">${exHtml(u)}</div><button type="button" class="btn wide" data-act="mclose">とじる</button>`); }
 function openTaPicker(){
   const g = st.set.grade, list = unitsOf(g).filter(u => u.ta), us = list.length ? list : unitsOf(g);
   openModal(`<div class="page-h"><h2>⏱ タイムアタック（${GR[g - 1]}）</h2></div><p style="margin:0 0 8px;color:var(--sub);font-size:.9rem">${TA_SEC}びょうで 何問 とけるかな？ 単元を えらんでね。</p>
-    <div class="units">${us.map(u => `<div class="unit" role="button" tabindex="0" data-act="ta" data-u="${u.id}"><span class="ic">${u.ic}</span><span class="nm">${esc(u.t)}</span><span class="st" style="color:var(--sub);font-size:.85rem">ベスト ${st.ta[u.id] || 0}問</span></div>`).join('')}</div>
+    <div class="units">${us.map(u => `<div class="unit" role="button" tabindex="0" data-act="ta" data-u="${u.id}"><span class="ic">${u.ic}</span><span class="nm">${fu(esc(u.t), u.g)}</span><span class="st" style="color:var(--sub);font-size:.85rem">ベスト ${st.ta[u.id] || 0}問</span></div>`).join('')}</div>
     <button type="button" class="btn sub wide" data-act="mclose">とじる</button>`);
 }
 function renderResult(){
@@ -813,7 +828,8 @@ function recStudy(){
     ${mk.length ? `<div class="box"><h3>🦉 よく ある まちがい</h3>${mk.map(([k, n]) => `<div class="kv"><span>${esc(S.MIS_KINDS[k])}</span><b>${n}回</b></div>`).join('')}</div>` : ''}`;
 }
 function renderSet(){
-  const sw = (k, t, sub) => `<div class="sw"><span>${t}${sub ? `<small>${sub}</small>` : ''}</span><button type="button" class="tg${st.set[k] ? ' on' : ''}" data-act="tg" data-k="${k}" role="switch" aria-checked="${!!st.set[k]}" aria-label="${t}"></button></div>`;
+  const sw = (k, t, sub, dis) => `<div class="sw"><span>${t}${sub ? `<small>${sub}</small>` : ''}</span><button type="button" class="tg${st.set[k] && !dis ? ' on' : ''}" data-act="tg" data-k="${k}" role="switch" aria-checked="${!!st.set[k] && !dis}" aria-label="${t}"${dis ? ' disabled' : ''}></button></div>`;
+  const seg = (k, t, opts, sub) => `<div class="sw sg"><span>${t}${sub ? `<small>${sub}</small>` : ''}</span><div class="seg" role="radiogroup" aria-label="${t}">${opts.map(([v, l]) => `<button type="button" role="radio" class="${st.set[k] === v ? 'on' : ''}" aria-checked="${st.set[k] === v}" data-act="setv" data-k="${k}" data-v="${v}">${l}</button>`).join('')}</div></div>`;
   $('main').innerHTML = `
     <div class="box"><h3>⚙️ せってい</h3>
       ${sw('read', '🔊 問題を 自動で 読み上げる', 'ヒントや 答えも 読み上げます')}
@@ -824,7 +840,12 @@ function renderSet(){
       ${sw('card', '🃏 いつも カードから えらぶ', 'キーで 打つ かわりに、4まいの カードから 答えを えらびます')}
       ${sw('sound', '🔔 こうかおん')}
       ${sw('big', '🔠 文字を 大きく')}
-      <button type="button" class="btn sub wide" data-act="vtest">🎤 声の ためし</button></div>
+      ${seg('pad', '🔢 数字キーの ならび', [['calc', '7 8 9 が 上'], ['phone', '1 2 3 が 上']], '電卓と 同じ ならびか、電話と 同じ ならびか')}
+      ${seg('furi', '🈁 ふりがな（小1〜小3）', [['ruby', 'ふりがな'], ['kana', 'ひらがなだけ'], ['off', 'つけない']], '漢字に よみがなを つけるか、ひらがなに するか')}
+      ${sw('anim', '🎞 図を うごかす', '数直線の ジャンプ、ひっ算・グラフ・とけいの はりが じゅんに 出ます')}
+      ${sw('vib', '📳 ぶるっと ふるえる', canVib() ? '正解・まちがいの ときに 少し ふるえます' : 'この 端末では 使えません（iPhone など）', !canVib())}
+      <button type="button" class="btn sub wide" data-act="vtest">🎤 声の ためし</button>
+      <button type="button" class="btn sub wide" data-act="tour">❓ 使い方（はじめての 人へ）</button></div>
     <div class="box"><h3>📱 ホーム画面に 置く</h3><div style="font-size:.9rem">iPhone（Safari）：下の 共有（□に↑）→「ホーム画面に追加」<br>Android（Chrome）：右上の ⋮ →「ホーム画面に追加」<br>表電卓とは べつの アプリとして 置けます。</div></div>
     <div class="box"><h3>👨‍👩‍👧 かぞく</h3><div style="font-size:.88rem;color:var(--sub);margin-bottom:8px">いま：${curProfile().ic} ${esc(pName(curProfile()))}（${S.store.profiles().list.length}人）。きょうだいで つかう ときは、人ごとに きろくが 分かれます。</div><button type="button" class="btn sub wide" data-act="prof">👨‍👩‍👧 かぞくを えらぶ・ふやす</button></div>
     <div class="box"><h3>🗂 データ</h3><div style="font-size:.88rem;color:var(--sub);margin-bottom:8px">きろく（★・XP・レベル）は この 端末の 中だけに 保存しています。機種変更の ときは ファイルに 書き出して、新しい 端末で 読み込んでね。</div>
@@ -836,6 +857,29 @@ function renderSet(){
       <button type="button" class="btn sub wide" data-act="wn">🆕 新しくなった こと</button>
       <button type="button" class="btn sub wide" data-act="upd">🔄 更新を たしかめる</button></div>
     <button type="button" class="btn sub wide" data-act="hyo">🧮 表電卓へ</button>`;
+}
+
+/* ── ❓ はじめての 使い方（v9）：3まいの 画面。はじめて 開いた ときと、せってい から ── */
+const TOUR_KEY = 'sansu_tour';
+let tourI = 0;
+function tourHtml(){
+  const demo = [
+    `<div class="tdemo"><div class="qform">${mathHtml('8 + 5 = {0}', {blank: () => '<span class="bx on">13</span>'})}</div><div class="tkeys">${['1', '2', '3', 'こたえる'].map((k, i) => `<span class="${i === 3 ? 'go' : ''}">${k}</span>`).join('')}</div></div>`,
+    `<div class="tdemo"><div class="hint"><span class="ow">🦉</span><div class="hb"><div class="ht">8 は あと <span class="gv">2</span> で 10。5 を 2 と <span class="bx gbx on">3</span> に 分ける</div></div></div></div>`,
+    `<div class="tdemo tmic"><span class="mic">🎤</span><span class="say">「じゅうさん」</span><span class="arr">→</span><span class="bx on">13</span></div>`][tourI];
+  const T = [['① □ に こたえを 入れよう', '下の キーで 数を 打って、<b>こたえる</b> を おします。□ が 2つ ある ときは、□ を おすか <b>つぎの□</b> で うつります。'],
+    ['② こまったら 🦉 ヒント', '<b>🦉 ヒント</b> を おすと、考え方が 1つずつ 出ます。とちゅうの □ も うめながら いっしょに とけます。<b>📖 かいせつ</b> で まとめも 見られます。'],
+    ['③ 🎤 こえでも こたえられる', '<b>🎤 こえで</b> を おして こたえを 言うと、□ に 入ります（「じゅうさん」「4ぶんの3」「7あまり3」など）。<b>⚙️ せってい</b> で キーの ならび（7が 上・1が 上）・ふりがな・音・ふるえを かえられます。']][tourI];
+  return fu(`<div class="tour"><div class="tdots">${[0, 1, 2].map(i => `<i class="${i === tourI ? 'on' : ''}"></i>`).join('')}</div>${demo}<h3>${T[0]}</h3><p>${T[1]}</p>
+    <div class="trow">${tourI ? '<button type="button" class="btn sub" data-act="tprev">◀ もどる</button>' : '<button type="button" class="btn sub" data-act="mclose">とばす</button>'}<button type="button" class="btn" data-act="tnext">${tourI < 2 ? 'つぎへ ▶' : 'はじめよう！'}</button></div></div>`, st.set.grade);   // 小1〜小3 には ふりがな
+}
+function openTour(){ tourI = 0; openModal(tourHtml(), () => { try { localStorage.setItem(TOUR_KEY, '1'); } catch(_){} }); }
+function tourStep(d){ tourI = Math.max(0, tourI + d); if(tourI > 2){ closeModal(); return; } $('mbody').innerHTML = tourHtml(); }
+function maybeTour(){
+  let seen = '1'; try { seen = localStorage.getItem(TOUR_KEY); } catch(_){}
+  if(seen) return;
+  if(st.solved > 0){ try { localStorage.setItem(TOUR_KEY, '1'); } catch(_){} return; }   // もう 使って いる 人には 出さない
+  if(view.s === 'home' && $('modal').hidden) openTour();
 }
 
 /* ── 🎤 声の ためし（聞こえた 言葉と、読みとった 数を その場で 見る） ── */
@@ -1018,7 +1062,7 @@ function renderPrint(){
   const c = printCfg(), us = unitsOf(c.g);
   $('main').innerHTML = `<div class="page-h"><button type="button" class="back" data-act="back" aria-label="もどる">←</button><h2>📄 プリントを 作る</h2></div>
     <div class="box"><h3>学年</h3><div class="grades pgr">${GR.map((l, i) => `<button type="button" class="${i + 1 === c.g ? 'on' : ''}" data-act="pg" data-g="${i + 1}">${l}</button>`).join('')}</div>
-      <h3>単元（いくつでも）</h3><div class="pul">${us.map(u => `<button type="button" class="chip${c.us.includes(u.id) ? ' on' : ''}" data-act="pu" data-u="${u.id}" aria-pressed="${c.us.includes(u.id)}">${u.ic} ${esc(u.t)}</button>`).join('')}</div>
+      <h3>単元（いくつでも）</h3><div class="pul">${us.map(u => `<button type="button" class="chip${c.us.includes(u.id) ? ' on' : ''}" data-act="pu" data-u="${u.id}" aria-pressed="${c.us.includes(u.id)}">${u.ic} ${fu(esc(u.t), u.g)}</button>`).join('')}</div>
       <h3>問題の 数</h3><div class="difpick">${[10, 20, 30].map(n => `<button type="button" class="${c.n === n ? 'on' : ''}" data-act="pn" data-n="${n}">${n}問</button>`).join('')}</div>
       <h3>むずかしさ</h3><div class="difpick">${[1, 2, 3].map(l => `<button type="button" class="${c.lv === l ? 'on' : ''}" data-act="pl" data-l="${l}">${LV_NAME[l]}</button>`).join('')}</div>
       <div class="sw"><span>答えの ページも つける</span><button type="button" class="tg${c.ans ? ' on' : ''}" data-act="pa" role="switch" aria-checked="${c.ans}" aria-label="答えの ページも つける"></button></div></div>
@@ -1038,9 +1082,9 @@ function renderSheet(){
   const ps = makeSheet(c, c.seed), names = c.us.map(unitById).filter(Boolean).map(u => u.t).join('・');
   const blank = () => '<span class="pbx"></span>';
   $('main').innerHTML = `<div class="sheetbar noprint"><button type="button" class="btn sub" data-act="back">← もどる</button><button type="button" class="btn sub" data-act="pagain">🔁 ちがう 問題</button><button type="button" class="btn" data-act="printnow">🖨 いんさつ</button></div>
-    <div class="sheet"><div class="sh-h"><div class="sh-t">算数・数学チャレンジ プリント　${GR[c.g - 1]}　${esc(names)}</div><div class="sh-m"><span>なまえ（　　　　　　　　）</span><span>　月　　日</span><span>No.${c.seed % 100000}</span></div></div>
-      <ol class="sq">${ps.map(p => `<li><div class="sq-q">${mathHtml(p.q)}</div>${p.fig ? `<div class="sq-f">${p.fig}</div>` : ''}<div class="sq-a">${mathHtml(p.form.replace(/[\s　]*→[\s　]*/g, '\n'), {blank})}</div></li>`).join('')}</ol>
-      ${c.ans ? `<div class="sh-ans"><div class="sh-t">こたえ　No.${c.seed % 100000}</div><ol class="sa">${ps.map(p => `<li>${mathHtml(p.answer)}</li>`).join('')}</ol></div>` : ''}</div>`;
+    <div class="sheet"><div class="sh-h"><div class="sh-t">算数・数学チャレンジ プリント　${GR[c.g - 1]}　${fu(esc(names), c.g)}</div><div class="sh-m"><span>なまえ（　　　　　　　　）</span><span>　月　　日</span><span>No.${c.seed % 100000}</span></div></div>
+      <ol class="sq">${ps.map(p => { const g = (unitById(p.unit) || {g: 9}).g; return `<li><div class="sq-q">${fu(mathHtml(p.q), g)}</div>${p.fig ? `<div class="sq-f">${fu(p.fig, g)}</div>` : ''}<div class="sq-a">${fu(mathHtml(p.form.replace(/[\s　]*→[\s　]*/g, '\n'), {blank}), g)}</div></li>`; }).join('')}</ol>
+      ${c.ans ? `<div class="sh-ans"><div class="sh-t">こたえ　No.${c.seed % 100000}</div><ol class="sa">${ps.map(p => `<li>${fu(mathHtml(p.answer), (unitById(p.unit) || {g: 9}).g)}</li>`).join('')}</ol></div>` : ''}</div>`;
 }
 
 /* ── 💾 きろくの 書き出し・読み込み ── */
@@ -1138,6 +1182,10 @@ document.addEventListener('click', e => {
     case 'quit': history.back(); break;
     case 'again': if(ses){ const m = ses.mode, uu = ses.u; if(m === 'ta') startTA(uu); else if(m === 'mix') startMix(ses.card && !st.set.card); else if(m === 'rev') startReview(); else if(m === 'boss') startBoss(ses.g); else startStage(uu); } break;
     case 'tg': { const k = el.dataset.k; st.set[k] = !st.set[k]; save(); renderSet(); renderTop(); if((k === 'voice' || k === 'vconf') && st.set[k] && !V.supported) toast('この 端末では 声の 聞き取りが 使えないかも しれません'); break; }
+    case 'setv': { const k = el.dataset.k, v = el.dataset.v, ok = {pad: ['calc', 'phone'], furi: ['ruby', 'kana', 'off']}[k]; if(ok && ok.includes(v)){ st.set[k] = v; save(); renderSet(); } break; }
+    case 'tour': openTour(); break;
+    case 'tnext': tourStep(1); break;
+    case 'tprev': tourStep(-1); break;
     case 'vtest': openVoiceTest(); break;
     case 'vtgo': voiceTestGo(); break;
     case 'vlogclr': st.vlog = []; save(); closeModal(); setTimeout(openVoiceTest, 60); break;
@@ -1179,6 +1227,7 @@ const h0 = (location.hash || '').replace('#', '');
 try { history.replaceState({s: 'home', d: 1}, '', location.pathname + location.search + '#home'); } catch(_){}
 render();
 if(h0 === 'rec' || h0 === 'set') go(h0);
+setTimeout(maybeTour, 300);
 setTimeout(maybeTellWhatsNew, 600);
 setTimeout(() => { if(view.s === 'home' || view.s === 'rec') { if(checkMedals(true).length && view.s === 'rec') render(); } }, 900);   // 前の 版で もう できていた ことの メダル
 if('serviceWorker' in navigator && location.protocol !== 'file:' && !/[?&]nosw/.test(location.search)){
@@ -1198,5 +1247,5 @@ if('serviceWorker' in navigator && location.protocol !== 'file:' && !/[?&]nosw/.
 S.app = {state: () => st, ses: () => ses, view: () => view, startStage, startMix, startTA, startReview, keyIn, submit, hint, heard: alts => heardFinal(alts, ses && ses.p),
   levelOf, need, finish, swOfferUpdate, maybeTellWhatsNew, voiceTestShow, dueList, weakUnits, addDays, render,
   startBoss, pickCard, missions, mEvent, checkMedals, medalCtx, lvOf, setLv,
-  switchProfile, openProfiles, sumLog, readBackupFile, applyBackup, makeSheet, go};
+  switchProfile, openProfiles, sumLog, readBackupFile, applyBackup, makeSheet, go, openTour, sideDock};
 })();
