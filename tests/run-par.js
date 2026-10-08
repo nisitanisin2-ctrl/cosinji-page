@@ -37,7 +37,7 @@ function runOne(name) {
     p.on('close', code => {
       const m = out.match(/合計 (\d+) 件 : 通った (\d+) \/ 通らなかった (\d+)/);
       const sec = ((Date.now() - t) / 1000).toFixed(0);
-      if (!m) { crashed.push(name); lines.push(`  ✗ ${name}（${sec}秒）… 最後まで流れませんでした\n` + out.split('\n').slice(-8).join('\n')); }
+      if (!m) { crashed.push(name); lines.push(`  ✗ ${name}（${sec}秒）… 最後まで流れませんでした（終わりの コード ${code}）\n` + out.split('\n').slice(-15).join('\n')); }
       else {
         pass += +m[2]; fail += +m[3];
         lines.push(`  ${+m[3] ? '✗' : '✓'} ${name.padEnd(12)} ${m[2]}/${m[1]}（${sec}秒）`);
@@ -64,7 +64,11 @@ function runOne(name) {
   });
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log(f)); }
-  if (crashed.length) console.log('最後まで流れなかった組: ' + crashed.join(', '));
+  if (crashed.length) {
+    console.log('最後まで流れなかった組: ' + crashed.join(', '));
+    // どこで止まったか わかるように、その組の さいごの 出力も 出す
+    lines.filter(l => /最後まで流れませんでした/.test(l)).forEach(l => console.log(l));
+  }
   console.log(`合計 ${pass + fail} 件 : 通った ${pass} / 通らなかった ${fail}（${((Date.now() - t0) / 1000).toFixed(0)}秒）`);
   process.exit(fail || crashed.length ? 1 : 0);
 })();
