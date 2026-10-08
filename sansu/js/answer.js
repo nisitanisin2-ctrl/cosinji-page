@@ -1,0 +1,165 @@
+/* ════════════════════════════════════════════════════════════════
+   答え合わせと、声の答えの読み取り
+   ・S.makeProblem(単元, 乱数)   … 問題を作って、□の種類・答えの文字をそろえる
+   ・S.check(問題, □の中身)       … {ok, near, msg}。near は「あと少し（約分できる など）」でまちがいにしない
+   ・S.fromSpeech(問題, 聞こえた言葉) … □に入れる中身の並び（読めなければ null）
+   ・S.sayAnswer(問題)            … 答えを話し言葉で（読み上げと、テストで声の読み取りを確かめるのに使う）
+   ════════════════════════════════════════════════════════════════ */
+(function(){
+'use strict';
+const S = window.SANSU, MI = S.MI;
+
+S.makeProblem = (unit, rng) => {
+  const p = unit.gen(S.R(rng));
+  const nb = (p.form.match(/\{\d+\}/g) || []).length;
+  p.ans = p.ans.map(v => typeof v === 'number' ? S.num(v) : String(v));
+  p.kinds = (p.kinds || []).slice();
+  for(let i = 0; i < nb; i++) if(!p.kinds[i]) p.kinds[i] = 'n';
+  // 「-6」のように 計算の 途中で できた 負の数も、画面では − で 書く
+  const fm = s => typeof s === 'string' ? s.replace(/(^|[^0-9A-Za-z_])-(?=\d)/g, '$1' + MI) : s;
+  p.q = fm(p.q); p.form = fm(p.form); p.answer = fm(p.answer); if(p.note) p.note = fm(p.note);
+  p.steps = (p.steps || []).filter(Boolean).map(s => typeof s === 'string' ? fm(s) : Object.assign({}, s, {t: fm(s.t)}));
+  p.unit = unit.id; p.key = p.q + '|' + p.form;
+  return p;
+};
+
+/* ── □の中身を数に ── */
+const normIn = s => String(s == null ? '' : s).normalize('NFKC').replace(/[-‐‑‒–—―−﹣ー]/g, '-').replace(/\s+/g, '');
+function parseBlank(kind, raw){
+  const s = normIn(raw);
+  switch(kind){
+    case 'n': return /^\d+$/.test(s) ? +s : null;
+    case 'i': return /^-?\d+$/.test(s) ? +s : null;
+    case 'd': return /^-?\d+(\.\d+)?$/.test(s) ? +s : null;
+    case 't': return /^[+-]?\d+$/.test(s) ? +s : null;
+    case 'tc': if(s === '+') return 1; if(s === '-') return -1; return /^[+-]?\d+$/.test(s) ? +s : null;
+    case 'c': if(s === '') return 1; if(s === '-') return -1; return /^-?\d+$/.test(s) ? +s : null;
+  }
+  return null;
+}
+S.parseBlank = parseBlank;
+/* 空のまま「こたえる」を押してよい□（係数の 1 は書かないので） */
+S.blankMayBeEmpty = kind => kind === 'c';
+
+S.check = (p, vals) => {
+  const g = vals.map((v, i) => parseBlank(p.kinds[i], v));
+  if(g.some(v => v === null || Number.isNaN(v))) return {ok: false, bad: true, msg: '書き方を たしかめてね'};
+  if(p.check){ const r = p.check(g, vals); if(r) return r; }
+  const w = p.ans.map((v, i) => parseBlank(p.kinds[i], v)), eq = (x, y) => Math.abs(x - y) < 1e-9;
+  if(p.order === 'any'){ const a = g.slice().sort((x, y) => x - y), b = w.slice().sort((x, y) => x - y); return {ok: a.every((v, i) => eq(v, b[i]))}; }
+  return {ok: g.every((v, i) => eq(v, w[i]))};
+};
+
+/* ── 話し言葉をそろえる ── */
+const KD = {〇: 0, 零: 0, 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9};
+const KS = {十: 10, 百: 100, 千: 1000}, KB = {万: 10000, 億: 100000000};
+function kanjiRun(run){
+  let total = 0, sec = 0, dg = 0, seen = false;
+  for(const ch of run){
+    if(ch in KD){ dg = KD[ch]; seen = true; }
+    else if(ch >= '0' && ch <= '9'){ dg = dg * 10 + Number(ch); seen = true; }
+    else if(ch in KS){ sec += (dg || 1) * KS[ch]; dg = 0; seen = true; }
+    else if(ch in KB){ total += (sec + dg) * KB[ch]; sec = 0; dg = 0; seen = true; }
+    else return null;
+  }
+  return seen ? total + sec + dg : null;
+}
+const kanjiToDigits = t => t.replace(/[〇零一二三四五六七八九十百千万億0-9]+/g, run => {
+  if(!/[〇零一二三四五六七八九十百千万億]/.test(run)) return run;
+  const n = kanjiRun(run); return n === null ? run : String(n);
+});
+const KANA = {ぜろ: 0, れい: 0, いち: 1, に: 2, さん: 3, よん: 4, し: 4, ご: 5, ろく: 6, なな: 7, しち: 7, はち: 8, きゅう: 9, く: 9, じゅう: 10};
+/* 答えの形を、話し言葉と同じ書き方の文字に（[[3/4]] → 3/4、√[2] → √2） */
+const plainForm = f => String(f).replace(/\[\[([^\[\]|]*)\|([^\[\]\/]*)\/([^\[\]]*)\]\]/g, '$1と$2/$3')
+  .replace(/\[\[([^\[\]\/]*)\/([^\[\]]*)\]\]/g, '$1/$2').replace(/√\[([^\[\]]*)\]/g, '√$1').replace(/\*\*/g, '')
+  .replace(/[\s　]+/g, '').replace(/[＝]/g, '=').replace(/[-‐−]/g, MI);
+function normSpeech(raw, p){
+  // ² ³ は NFKC で 2 3 に なってしまうので、そのまま残す
+  let t = [...String(raw || '')].map(ch => ch === '²' || ch === '³' ? ch : ch.normalize('NFKC')).join('').toLowerCase();
+  const form = plainForm(p.form), mixed = /\{\d+\}と\{\d+\}/.test(form);
+  t = t.replace(/[。．!?！？「」]/g, ' ').replace(/(です|だよ|かな|でしょう|だと思う|と思います|かも)/g, ' ');
+  t = t.replace(/(プラスマイナス|ぷらすまいなす|±)/g, '±');
+  t = t.replace(/(えっくす|エックス|ｘ)/g, 'x').replace(/(わい|ワイ)(?![ぁ-ん])/g, 'y');
+  t = t.replace(/(の)?(2|二|に)乗/g, '²').replace(/(の)?(3|三|さん)乗/g, '³').replace(/(にじょう|じじょう)/g, '²');
+  t = t.replace(/(ルート|るーと|root)/g, '√').replace(/(パイ|ぱい)/g, 'π');
+  t = t.replace(/(マイナス|まいなす|ﾏｲﾅｽ|負の)/g, MI).replace(/(プラス|ぷらす|正の)/g, '+').replace(/[-‐－]/g, MI);
+  t = t.replace(/([−+±])\s+(?=[\d〇一二三四五六七八九十])/g, '$1');   // 「マイナス 2」の あいだの 空白
+  t = t.replace(/(足す|たす)/g, '+').replace(/(引く|ひく)/g, MI).replace(/(かける|掛ける|×)/g, '×').replace(/(割る|わる|÷)/g, '÷');
+  t = t.replace(/(イコール|いこーる|＝)/g, '=').replace(/(パーセント|ぱーせんと|％)/g, '%').replace(/(余り|あまり|アマリ)/g, 'あまり').replace(/(ぶんの)/g, '分の');
+  t = t.replace(/(かっこ|カッコ|括弧)(とじ|閉じ)?/g, ' ').replace(/度/g, '°');
+  // 一言だけの かなの数（「さん」「マイナスご」など）
+  const one = t.replace(/\s+/g, ''), km = /^(−)?(ぜろ|れい|いち|に|さん|よん|し|ご|ろく|なな|しち|はち|きゅう|く|じゅう)$/.exec(one);
+  if(km) t = (km[1] || '') + KANA[km[2]];
+  t = kanjiToDigits(t);
+  t = t.replace(/(\d)\s*(てん|点)\s*(\d)/g, '$1.$3').replace(/(\d)\s*(じ)(?![ょゃゅ])/g, '$1時').replace(/(\d)\s*(ふん|ぷん)/g, '$1分');
+  t = t.replace(/(対|たい)\s*(?=[−+]?\d)/g, ':');
+  t = t.replace(/(\d+)\s*分の\s*([−+]?\d+)/g, '$2/$1');                       // 4分の3 → 3/4
+  if(mixed) t = t.replace(/(\d+)\s*と\s*(\d+)\/(\d+)/g, '$1と$2/$3');
+  else t = t.replace(/(\d+)\s*と\s*(\d+)\/(\d+)/g, (m, w, n, d) => `${+w * +d + +n}/${d}`);   // 帯分数で言っても 仮分数の□に
+  t = t.replace(/([0-9x)²])\s*は\s*(?=[−+±]?\d)/g, '$1=');
+  if(/時\{1\}分/.test(form)) t = t.replace(/(\d+)時(ちょうど)?\s*$/, '$1時0分');
+  if(!mixed) t = t.replace(/(\d)\s*(と|か|や|、|,)?\s*x\s*=\s*(?=[−+]?\d)/g, '$1、').replace(/(\d)\s*(と|か|や|、|,)\s*(?=[−+]?\d)/g, '$1、');   // 「x=3 と x=−2」も
+  t = t.replace(/(\d)\s+(?=[−+]?\d)/g, '$1、');
+  // 答えの形に ない文字は落とす（「です」「センチメートル」など）
+  const keep = new Set([...'0123456789.−+/√π:xy²³=±%°、', ...form.replace(/\{\d+\}/g, '')]);
+  return [...t].filter(ch => keep.has(ch)).join('');
+}
+S.normSpeech = normSpeech;
+
+const RE_KIND = {n: '(\\d+)', i: '(−?\\d+)', d: '(−?\\d+(?:\\.\\d+)?)', t: '([+−]?\\d+)', tc: '([+−]?\\d*)', c: '(−?\\d*)'};
+const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const opt1 = s => [...s].map(ch => `(?:${reEsc(ch)})?[、]*`).join('');          // 1文字ずつ あっても なくても よい
+const optAll = s => `(?:${[...s].map(reEsc).join('[、]*')})?[、]*`;               // まるごと あっても なくても よい
+function formRegex(p){
+  const parts = plainForm(p.form).split(/(\{\d+\})/).filter(s => s !== ''), out = [];
+  parts.forEach((s, i) => {
+    const m = /^\{(\d+)\}$/.exec(s);
+    if(m){ out.push(RE_KIND[p.kinds[+m[1]]] || RE_KIND.n); return; }
+    if(i === 0){
+      // 問題を言い直したところ（「8+5=」「3x+5=17 →」）は まるごと あってもなくてもよい。
+      // そのあとの「x=」「x²」のような 短い所は 1文字ずつ
+      let pre = '', post = s;
+      const k = s.lastIndexOf('→') >= 0 ? s.lastIndexOf('→') : s.lastIndexOf('=');
+      if(k >= 0 && (s.lastIndexOf('→') >= 0 || /\d|\)/.test(s.slice(0, k)))){ pre = s.slice(0, k + 1).replace(/→/g, ''); post = s.slice(k + 1); }
+      if(post.length > 4 || /\d/.test(post)){ pre += post; post = ''; }
+      out.push((pre ? optAll(pre) : '') + opt1(post));
+      return;
+    }
+    out.push(opt1(s));
+  });
+  return new RegExp('^' + out.join('[、]*') + '$');
+}
+/* 何の□がいくつ空いているかを順に（数字の答えを 1つ言っただけのとき用） */
+S.fromSpeech = (p, raw) => {
+  const t = normSpeech(raw, p);
+  if(!t) return null;
+  const re = formRegex(p);
+  const tryM = s => { const m = re.exec(s); return m ? m.slice(1).map(v => v == null ? '' : v) : null; };
+  let v = tryM(t);
+  if(!v && t.includes('=')) v = tryM(t.slice(t.lastIndexOf('=') + 1));
+  if(!v && p.kinds.length === 1 && /^[nid]$/.test(p.kinds[0])){   // □が1つ：言った 数の さいごの 1つ（「56対72」→ 72）
+    const all = t.match(/−?\d+(?:\.\d+)?/g);
+    if(all){ const last = all[all.length - 1]; if(S.parseBlank(p.kinds[0], last) !== null) v = [last]; }
+  }
+  if(!v && p.val != null){   // 分数の答えを 小数や 帯分数で 言ったとき
+    const m = /^(−)?(\d+(?:\.\d+)?)(?:\/(\d+))?$/.exec(t);
+    if(m){ const x = (m[1] ? -1 : 1) * (+m[2]) / (m[3] ? +m[3] : 1); if(Math.abs(x - p.val) < 1e-9) v = p.ans.slice(); }
+  }
+  if(!v) return null;
+  return v.map(s => s.replace(/-/g, MI));
+};
+
+/* ── 答えを話し言葉で（「4分の3」「マイナス5」「エックスの2乗マイナス2エックス…」） ── */
+S.sayAnswer = (p, vals) => {
+  const v = vals || p.ans;
+  // 問題を言い直したところ（「8 + 5 =」「… →」）は言わない。「x =」のような 短い所は残す
+  let f = String(p.form);
+  const b0 = f.search(/\{\d+\}/), head = b0 >= 0 ? f.slice(0, b0) : f, k = Math.max(head.lastIndexOf('→'), head.lastIndexOf('='));
+  if(k >= 0 && (head.lastIndexOf('→') >= 0 || /[\d)]/.test(head.slice(0, k)))) f = f.slice(k + 1);
+  f = f.replace(/\{(\d+)\}/g, (m, i) => v[+i] == null ? '' : v[+i]);
+  f = f.replace(/\[\[([^\[\]|]*)\|([^\[\]\/]*)\/([^\[\]]*)\]\]/g, '$1と$3分の$2').replace(/\[\[([^\[\]\/]*)\/([^\[\]]*)\]\]/g, '$2分の$1').replace(/√\[([^\[\]]*)\]/g, 'ルート$1');
+  f = f.replace(/±/g, 'プラスマイナス').replace(/−/g, 'マイナス').replace(/\+/g, 'プラス').replace(/x²/g, 'エックスの2乗').replace(/x/g, 'エックス').replace(/y/g, 'ワイ')
+       .replace(/π/g, 'パイ').replace(/:/g, '対').replace(/%/g, 'パーセント').replace(/=/g, 'イコール').replace(/[()]/g, ' ').replace(/\s+/g, ' ');
+  return f.trim();
+};
+})();

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<!-- 決めた場所以外からはプログラム・画像などを読み込まない・外へ送らない（CSP）。
+     このページの中に書いたプログラムも動かさない（js/ のファイルだけ動く）。ボタンにもプログラムは書かない -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'none'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="小学1年から中学3年までの 算数・数学の 解説と 計算問題。声や □ に 当てはめて ゲームのように 答え、ヒントで とき方を 教えてくれます">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ef6c00">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="算数・数学">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+<title>算数・数学チャレンジ</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="top">
+  <button type="button" class="hd-back" id="hdBack" data-act="hyo" hidden>← 表電卓</button>
+  <div class="logo" id="logo">🎓 算数・数学チャレンジ</div>
+  <div class="hd-r">
+    <span class="lv" id="hdLv" title="レベル">Lv.1</span>
+    <span class="streak" id="hdStreak" title="つづけて 学んだ 日数">🔥 0</span>
+  </div>
+  <div class="xpbar" aria-hidden="true"><div class="xpfill" id="hdXp"></div></div>
+</header>
+
+<main id="main" tabindex="-1"></main>
+
+<nav id="nav">
+  <button type="button" data-act="nav" data-s="home"><span>🏠</span><span>ホーム</span></button>
+  <button type="button" data-act="nav" data-s="rec"><span>🏆</span><span>きろく</span></button>
+  <button type="button" data-act="nav" data-s="set"><span>⚙️</span><span>せってい</span></button>
+  <button type="button" data-act="hyo"><span>🧮</span><span>表電卓</span></button>
+</nav>
+
+<div id="modal" class="modal" hidden><div class="mbox" role="dialog" aria-modal="true"><div id="mbody"></div></div></div>
+<div id="fx" aria-hidden="true"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="js/core.js"></script>
+<script src="js/units-e.js"></script>
+<script src="js/units-j.js"></script>
+<script src="js/answer.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
