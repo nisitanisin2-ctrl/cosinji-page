@@ -52,7 +52,7 @@ function build(unit, rng){
   const fm = s => typeof s === 'string' ? s.replace(/(^|[^0-9A-Za-z_])-(?=\d)/g, '$1' + MI) : s;
   p.q = fm(p.q); p.form = fm(p.form); p.answer = fm(p.answer); if(p.note) p.note = fm(p.note);
   p.steps = (p.steps || []).filter(Boolean).map(s => typeof s === 'string' ? fm(s) : Object.assign({}, s, {t: fm(s.t)}));
-  p.unit = unit.id; p.key = p.q + '|' + p.form;
+  p.unit = unit.id; p.key = p.q + '|' + p.form + '|' + p.ans.join(',');   // 図だけ ちがう 問題（とけい など）も 見分ける
   return p;
 }
 

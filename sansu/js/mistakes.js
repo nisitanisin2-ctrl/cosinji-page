@@ -42,6 +42,7 @@ S.misCalc = {addNoCarry, subBigMinusSmall, subNoDecrease, mulNoCarry};
 
 /* □の よび名（「分子」「あまり」「x」「分の □」など。わからなければ「2つめの □」） */
 function blankName(p, i){
+  if(p.names && p.names[i]) return p.names[i];   // 単元が つけた よび名（「りんご」「つる」など）
   const f = String(p.form), at = f.indexOf('{' + i + '}'), before = f.slice(0, at), after = f.slice(at + String(i).length + 2);
   if(/^\|/.test(after)) return '整数の ところ';
   if(/\[\[$/.test(before) || /\|$/.test(before)) return '分子';

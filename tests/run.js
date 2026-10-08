@@ -6694,6 +6694,8 @@ async function runSecurity(browser) {
   await ctx.close();
 }
 /* 🎓 算数・数学チャレンジ（sansu/。v527）：別のアプリ。問題の作り方・答え合わせ・声・画面の流れ・表電卓から開く */
+// 単元の 数（全部 / 小1〜中3）。単元を 足したら ここも かえる
+const S_UNITS_EXPECT = '80 / 9,12,8,9,14,7,7,6,8';
 async function runSansu(browser) {
   console.log('\n── 🎓 算数・数学チャレンジ（v527） ──');
   const dir = path.join(ROOT, 'sansu'), SANSU = 'file://' + path.join(dir, 'index.html');
@@ -6735,7 +6737,7 @@ async function runSansu(browser) {
     }
     return out;
   });
-  check('  単元の数（小1〜中3）', rep.units + ' / ' + rep.grades, '64 / 5,7,7,8,13,6,6,5,7');
+  check('  単元の数（小1〜中3）', rep.units + ' / ' + rep.grades, S_UNITS_EXPECT);
   check('  全単元 60問ずつ：答え・ヒント・まちがい・声の読み取り', rep.bad.join(' | ') || 'OK', 'OK');
   check('  答え合わせ：約分していない分数・あまりが大きすぎる は「あと少し」', await page.evaluate(() => {
     const H = SANSU.H, f = { kinds: ['n', 'n'], ans: ['3', '4'], check: H.fracCheck(3, 4) }, r = { kinds: ['n', 'n'], ans: ['3', '2'], check: H.remCheck(3, 2, 5) };
@@ -6750,9 +6752,9 @@ async function runSansu(browser) {
   }), '13 / 3,4 / 3,2 / −4 / 3,−2 / +2,+3 / 2,3 / 10,0');
 
   // ── ホーム ──
-  check('  ホーム：学年が 9つ・小1の 単元が 5つ・おすすめ', await page.evaluate(() => document.querySelectorAll('.grades button').length + '/' + document.querySelectorAll('.units .unit').length + '/' + !!document.querySelector('.hero')), '9/5/true');
+  check('  ホーム：学年が 9つ・小1の 単元・おすすめ', await page.evaluate(() => document.querySelectorAll('.grades button').length + '/' + (document.querySelectorAll('.units .unit').length === SANSU.UNITS.filter(u => u.g === 1).length) + '/' + !!document.querySelector('.hero')), '9/true/true');
   await page.click('[data-act="grade"][data-g="7"]'); await w(150);
-  check('  学年を えらぶと その 単元（中1）・おぼえる', await page.evaluate(() => [...document.querySelectorAll('.units .unit')].map(u => u.dataset.u).join(',') + '/' + JSON.parse(localStorage.getItem('sansu_v1')).set.grade), 'j1-addsub,j1-muldiv,j1-moji,j1-eq,j1-prop,j1-sector/7');
+  check('  学年を えらぶと その 単元（中1）・おぼえる', await page.evaluate(() => [...document.querySelectorAll('.units .unit')].map(u => u.dataset.u).join(',') + '/' + JSON.parse(localStorage.getItem('sansu_v1')).set.grade), 'j1-addsub,j1-muldiv,j1-moji,j1-eq,j1-word,j1-prop,j1-sector/7');
   await page.click('.unit[data-u="j1-eq"] .ex'); await w(150);
   check('  📖 解説の 画面', await page.evaluate(() => SANSU.app.view().s + '/' + document.querySelector('.exbox').textContent.includes('移項') + '/' + !!document.querySelector('[data-act="unit"][data-u="j1-eq"]')), 'ex/true/true');
   await page.goBack(); await w(150);
@@ -6761,6 +6763,8 @@ async function runSansu(browser) {
   // ── 問題（□に 当てはめる） ──
   await page.click('[data-act="grade"][data-g="3"]'); await w(100);
   await page.click('.unit[data-u="g3-divrem"]'); await w(200);
+  // 下で「1 と 1」を 入れて まちがえるので、答えが 1 あまり 1 の 問題なら 作り直す
+  await page.evaluate(() => { for (let k = 0; k < 50 && SANSU.app.ses().p.ans.join(',') === '1,1'; k++) SANSU.app.startStage('g3-divrem'); }); await w(150);
   const p1 = await page.evaluate(() => { const p = SANSU.app.ses().p; return { ans: p.ans, n: document.querySelectorAll('#qform .bx').length, keys: document.querySelectorAll('#keys button').length }; });
   check('  問題の 画面：□が 2つ（商・あまり）・タイル 16', p1.n + '/' + p1.keys + '/' + (await page.evaluate(() => document.body.classList.contains('playing'))), '2/16/true');
   check('  使わない タイル（− ＋ .）は 押せない', await page.evaluate(() => ['−', '+', '.'].map(k => document.querySelector(`[data-k="${k}"]`).disabled).join(',')), 'true,true,true');
@@ -6975,7 +6979,7 @@ async function runSansu(browser) {
   await page.evaluate(() => SANSU.app.finish()); await w(100);
   // 🎯 ミッション
   check('  🎯 きょうの ミッションは 3つ（日づけで 決まる・1つめは 問題の 数）', await page.evaluate(() => { const m = SANSU.app.missions(); return m.ids.length + '/' + SANSU.MISSIONS.find(x => x.id === m.ids[0]).ev + '/' + (m.d === '2026-10-08') + '/' + (SANSU.pickMissions('2026-10-08').join() === SANSU.pickMissions('2026-10-08').join()); }), '3/solve/true/true');
-  const msx = await page.evaluate(() => { const st = SANSU.app.state(); st.ms = { d: '2026-10-08', ids: ['solve10', 'clean5', 'ta1'], p: {}, ok: [], all: false }; const x0 = st.xp; for (let i = 0; i < 10; i++) SANSU.app.mEvent('solve'); const x1 = st.xp; for (let i = 0; i < 5; i++) SANSU.app.mEvent('clean'); SANSU.app.mEvent('ta'); return [st.ms.ok.join(','), x1 - x0, st.xp - x0, st.ms.all, st.cnt.msday].join('/'); });
+  const msx = await page.evaluate(() => { const st = SANSU.app.state(); st.ms = { d: '2026-10-08', ids: ['solve10', 'clean5', 'ta1'], p: {}, ok: [], all: false }; st.cnt.msday = 0; const x0 = st.xp; for (let i = 0; i < 10; i++) SANSU.app.mEvent('solve'); const x1 = st.xp; for (let i = 0; i < 5; i++) SANSU.app.mEvent('clean'); SANSU.app.mEvent('ta'); return [st.ms.ok.join(','), x1 - x0, st.xp - x0, st.ms.all, st.cnt.msday].join('/'); });
   check('  ミッション クリアで XP、ぜんぶ クリアで ボーナス', msx, 'solve10,clean5,ta1/20/90/true/1');
   // 🏅 メダル
   check('  🏅 メダル：できた ことで もらえる（ミッション ぜんぶ・はじめの 一歩）', await page.evaluate(() => { const st = SANSU.app.state(); st.md = {}; st.ok = 1; st.xp = 0; st.units = {}; st.ta = {}; st.boss = {}; st.days.best = 0; Object.keys(st.cnt).forEach(k => { st.cnt[k] = 0; }); st.cnt.msday = 1; SANSU.app.checkMedals(); return ['mis1', 'ok1', 'ok10'].map(k => !!st.md[k]).join(',') + '/' + Object.keys(st.md).length; }), 'true,true,false/2');

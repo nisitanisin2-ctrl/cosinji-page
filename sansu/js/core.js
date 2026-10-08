@@ -13,7 +13,9 @@ const S = window.SANSU = window.SANSU || {};
 /* ── 乱数 ── */
 function mkRng(seed){
   if(seed == null) return Math.random;
-  let s = (seed >>> 0) || 1;
+  // 種を よく まぜてから 使う（小さい 種でも はじめの 数が かたよらない）
+  let s = ((seed >>> 0) ^ 0x9e3779b9) >>> 0;
+  s = Math.imul(s ^ (s >>> 16), 0x85ebca6b) >>> 0; s = Math.imul(s ^ (s >>> 13), 0xc2b2ae35) >>> 0; s = ((s ^ (s >>> 16)) >>> 0) || 1;
   return function(){ s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
 }
 function R(rng){
@@ -287,6 +289,45 @@ F.ratioBar = (base, part, pct, pctLab) => {
   const W = 240, w2 = Math.max(8, Math.min(W, W * (+pct || 50) / 100));
   return svg(W + 70, 74, `<rect x="4" y="6" width="${W}" height="22" class="cell"/><rect x="4" y="6" width="${r1(w2)}" height="22" class="f1"/>`
     + tx(W + 10, 22, String(base), 'sm', 'start') + tx(4 + w2 / 2, 50, String(part), 'sm') + tx(4 + w2 / 2, 68, pctLab == null ? pct + '%' : String(pctLab), 'sm q'));
+};
+/* 線分図（テープ図）：rows は [{name:'赤', segs:[{v:数, l:'12まい', c:'f1', q:true}, …]}, …]（同じ 目もりで 左を そろえる）。
+   braces は [{row:0, from:0, to:2, l:'ぜんぶで ?', q:true, pos:'top'|'bottom'}]（from・to は 区切りの 番号） */
+F.tape = (rows, braces) => {
+  const NW = rows.some(r => r.name) ? 62 : 8, W = 236, rh = 24, bs = braces || [], tops = bs.filter(b => b.pos !== 'bottom');
+  const tot = Math.max(...rows.map(r => r.segs.reduce((a, x) => a + x.v, 0))), k = W / tot;
+  // 字の はば（だいたい）：入りきらない 名前は 帯の 下に 書く
+  const tw = t => [...String(t)].reduce((a, ch) => a + (/[ -~]/.test(ch) ? 7 : 12.5), 0);
+  const under = rows.map(r => { let x = 0; return r.segs.some(g => { const w = g.v * k, o = g.l && tw(g.l) + 6 > w; x += w; return o; }); });
+  const gapAfter = i => 14 + (bs.some(b => (b.row === i && b.pos === 'bottom') || (b.row === i + 1 && b.pos !== 'bottom')) ? 30 : 0) + (under[i] ? 16 : 0);
+  let s = '', y = tops.length ? 34 : 8; const R = [];
+  rows.forEach((r, ri) => {
+    let x = NW; const bx = [x];
+    if(r.name) s += tx(NW - 8, y + rh / 2 + 5, r.name, 'sm', 'end');
+    r.segs.forEach(g => { const w = g.v * k; s += `<rect x="${r1(x)}" y="${y}" width="${r1(w)}" height="${rh}" class="${g.c || 'cell'}"/>`;
+      if(g.l) s += tw(g.l) + 6 > w ? tx(x + w / 2, y + rh + 14, g.l, g.q ? 'q' : 'sm') : tx(x + w / 2, y + rh / 2 + 5, g.l, g.q ? 'q' : 'sm');
+      x += w; bx.push(x); });
+    R.push({y, bx}); y += rh + (ri < rows.length - 1 ? gapAfter(ri) : 0);
+  });
+  (braces || []).forEach(b => {
+    const r = R[b.row], x1 = r.bx[b.from], x2 = r.bx[b.to], xm = (x1 + x2) / 2, up = b.pos !== 'bottom', y0 = up ? r.y - 3 : r.y + rh + 3, d = up ? -7 : 7;
+    s += `<path d="M${r1(x1)} ${y0}V${y0 + d}H${r1(xm - 6)}L${r1(xm)} ${y0 + d * 1.8}L${r1(xm + 6)} ${y0 + d}H${r1(x2)}V${y0}" class="br"/>`;
+    s += tx(xm, up ? y0 + d * 1.8 - 5 : y0 + d * 1.8 + 15, b.l, b.q ? 'q' : 'sm');
+  });
+  return svg(NW + W + 14, y + (bs.some(b => b.pos === 'bottom' && b.row === rows.length - 1) ? 34 : 8) + (under[rows.length - 1] ? 16 : 0), s, 'tape');
+};
+/* 1れつに ならんだ 人（n人、まえから k番目に 色。まえは 左） */
+F.queue = (n, k) => {
+  const g = Math.min(26, 300 / n), r = g * 0.36; let s = tx(4, 30, 'まえ', 'sm', 'start');
+  for(let i = 0; i < n; i++){ const cx = 44 + i * g + r, on = i === k - 1;
+    s += `<circle cx="${r1(cx)}" cy="14" r="${r1(r * 0.62)}" class="${on ? 'd2' : 'd1'}"/><rect x="${r1(cx - r * 0.7)}" y="${r1(14 + r * 0.7)}" width="${r1(r * 1.4)}" height="${r1(r * 1.5)}" rx="3" class="${on ? 'd2' : 'd1'}"/>`; }
+  return svg(52 + n * g, 46, s);
+};
+/* 道の ある 土地（縦 H・横 W。たて と よこに 同じ はばの 道） */
+F.road = (H, W, u) => {
+  const k = Math.min(200 / W, 120 / H), Wp = W * k, Hp = H * k, rw = Math.max(10, Math.min(W, H) * k * 0.12), x0 = 24, y0 = 10;
+  return svg(Wp + 70, Hp + 46, `<rect x="${x0}" y="${y0}" width="${r1(Wp)}" height="${r1(Hp)}" class="sh s2"/>`
+    + `<rect x="${r1(x0 + Wp * 0.42)}" y="${y0}" width="${r1(rw)}" height="${r1(Hp)}" class="cell"/><rect x="${x0}" y="${r1(y0 + Hp * 0.55)}" width="${r1(Wp)}" height="${r1(rw)}" class="cell"/>`
+    + tx(x0 + Wp / 2, Hp + 34, W + u) + tx(x0 + Wp + 6, y0 + Hp / 2, H + u, '', 'start') + tx(x0 + Wp * 0.42 + rw / 2, y0 - 2 + Hp * 0.27, 'x', 'q'));
 };
 /* 相似な三角形（相似比 m:n） */
 F.similar = (m, n) => {
