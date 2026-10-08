@@ -58,19 +58,25 @@ const divisors = n => { const d = []; for(let i = 1; i <= n; i++) if(n % i === 0
 
 /* ── 数式の見た目 ── */
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-/* opt.blank(i) を渡すと {i} をその HTML に（答えの□）。渡さなければ □ */
+/* opt.blank(i) を渡すと {i} をその HTML に（答えの□）。渡さなければ □。
+   ヒントの {{5}} は とちゅうの 数：ふだんは そのまま 5、opt.gblank(k, '5') を 渡すと その HTML に（いっしょに とく □） */
+const GV = /\{\{([^{}]*)\}\}/g;
+const stepPlain = t => String(t == null ? '' : t).replace(GV, '$1');
+const stepVals = t => [...String(t == null ? '' : t).matchAll(GV)].map(m => m[1]);
 function mathHtml(src, opt){
-  let s = esc(src);
+  const gv = [];
+  let s = esc(String(src == null ? '' : src).replace(GV, (m, v) => { gv.push(v); return '\u0001' + (gv.length - 1) + '\u0002'; }));
   s = s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
   s = s.replace(/\[\[([^\[\]|]*)\|([^\[\]\/]*)\/([^\[\]]*)\]\]/g, (m, w, a, b) => `<span class="mx">${w}<span class="fr"><span class="fn">${a}</span><span class="fd">${b}</span></span></span>`);
   s = s.replace(/\[\[([^\[\]\/]*)\/([^\[\]]*)\]\]/g, (m, a, b) => `<span class="fr"><span class="fn">${a}</span><span class="fd">${b}</span></span>`);
   s = s.replace(/√\[([^\[\]]*)\]/g, (m, a) => `<span class="rt">√<span class="rc">${a}</span></span>`);
   s = s.replace(/\{(\d+)\}/g, (m, i) => opt && opt.blank ? opt.blank(+i) : '<span class="bx0">□</span>');
+  s = s.replace(/\u0001(\d+)\u0002/g, (m, k) => opt && opt.gblank ? opt.gblank(+k, gv[+k]) : esc(gv[+k]));
   return s.replace(/\n/g, '<br>');
 }
 /* 読み上げ用の言葉（[[3/4]] → 4ぶんの3、− → ひく／マイナス、{0} → なに） */
 function speakMath(src){
-  let s = String(src == null ? '' : src).replace(/\*\*/g, '');
+  let s = stepPlain(src).replace(/\*\*/g, '');
   s = s.replace(/\[\[([^\[\]|]*)\|([^\[\]\/]*)\/([^\[\]]*)\]\]/g, '$1と$3ぶんの$2');
   s = s.replace(/\[\[([^\[\]\/]*)\/([^\[\]]*)\]\]/g, '$2ぶんの$1');
   s = s.replace(/√\[([^\[\]]*)\]/g, 'ルート$1');
@@ -289,5 +295,5 @@ F.similar = (m, n) => {
   return svg(a * 1.5 + b * 1.5 + 60, Math.max(a, b) * 1.2 + 34, `<polygon points="${tri(10, a)}" class="sh"/><polygon points="${tri(40 + a * 1.5, b)}" class="sh s2"/>` + tx(10 + a * 0.75, a * 1.2 + 28, 'A', 'sm') + tx(40 + a * 1.5 + b * 0.75, b * 1.2 + 28, 'B', 'sm'));
 };
 
-Object.assign(S, { mkRng, R, gcd, lcm, MI, num, term, par, sgnOp, decStr, poly, factors, divisors, esc, mathHtml, speakMath, F });
+Object.assign(S, { mkRng, R, gcd, lcm, MI, num, term, par, sgnOp, decStr, poly, factors, divisors, esc, mathHtml, speakMath, stepPlain, stepVals, F });
 })();

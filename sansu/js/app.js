@@ -4,6 +4,8 @@
    ・答えは □ に タイルで 当てはめるか、🎤 で 言う。🦉 ヒントで とき方を 1つずつ
    ・XP と レベル、つづけた 日数（🔥）、タイムアタック（60びょう）
    ・キーと ヒントの ボタンは 画面の 下に 固定（ドック）。ヒントが ふえても すぐ 打てる
+   ・v3：まちがい方に 合わせた ひとこと（mistakes.js）・いっしょに とく（ヒントの とちゅうの 数も □ に）・
+     ふくしゅう（まちがえた 問題を 種で 作り直して、1日後・3日後・7日後に もう一度）・にがてかも の 単元
    ボタンには プログラムを 書かず、data-act で ここから 動かす（CSP で ページの中の プログラムを 止めているため）
    ════════════════════════════════════════════════════════════════ */
 (function(){
@@ -11,6 +13,7 @@
 const S = window.SANSU, { esc, mathHtml, speakMath } = S, V = S.voice;
 const $ = id => document.getElementById(id);
 const STAGE_N = 10, TA_SEC = 60, SEEN_VER_KEY = 'sansu_seen_ver';
+const REV_GAP = [1, 3, 7];   // ふくしゅう：まちがえた 次の日 → できたら 3日後 → 7日後 → できたら おしまい
 const GR = ['小1', '小2', '小3', '小4', '小5', '小6', '中1', '中2', '中3'];
 const TITLES = [[1, '🥚 たまご'], [2, '🐣 ひよこ'], [3, '🐥 ことり'], [5, '🐦 はばたき'], [8, '🦅 わし'], [12, '🦉 ちえの ふくろう'], [16, '🧙 すうがくの まほうつかい'], [25, '👑 すうがく王']];
 const PRAISE = ['せいかい！', 'すごい！', 'よくできました！', 'ばっちり！', 'その ちょうし！', 'かんぺき！'];
@@ -18,7 +21,10 @@ const unitById = id => S.UNITS.find(u => u.id === id) || null;
 const unitsOf = g => S.UNITS.filter(u => u.g === g);
 const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const today = () => window.SANSU_TODAY || ymd(new Date());
-const yesterday = () => { const d = new Date(today() + 'T12:00:00'); d.setDate(d.getDate() - 1); return ymd(d); };
+const addDays = (day, n) => { const d = new Date(day + 'T12:00:00'); d.setDate(d.getDate() + n); return ymd(d); };
+const yesterday = () => addDays(today(), -1);
+const newSeed = () => (Math.floor(Math.random() * 4294967294) + 1) >>> 0;
+const shuffle = a => { a = a.slice(); for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
 /* ── きろく ── */
 let st = S.store.load();
@@ -34,6 +40,31 @@ function touchDay(){
   if(st.days.last !== t){ st.days.run = st.days.last === yesterday() ? st.days.run + 1 : 1; st.days.last = t; st.days.best = Math.max(st.days.best, st.days.run); }
   st.day = {d: t, n: (st.day.d === t ? st.day.n : 0) + 1};
 }
+/* ── ふくしゅう と にがて ── */
+const dueList = () => st.rev.filter(r => r.due <= today() && unitById(r.u));
+function addReview(u, seed){
+  if(!seed) return;
+  const it = st.rev.find(r => r.u === u && r.s === seed);
+  if(it){ it.n = 0; it.due = addDays(today(), REV_GAP[0]); return; }
+  st.rev.push({u, s: seed, due: addDays(today(), REV_GAP[0]), n: 0});
+  if(st.rev.length > S.store.REV_MAX) st.rev = st.rev.slice(-S.store.REV_MAX);
+}
+/* 問題が おわったら：単元ごとの きろく と ふくしゅう */
+function recordProblem(ok){
+  const p = ses.p, x = st.stat[p.unit] || {n: 0, c: 0, x: 0}, clean = ok && !ses.tries && !ses.hints, missed = !ok || ses.tries > 0;
+  x.n++; if(clean) x.c++; if(missed) x.x++; st.stat[p.unit] = x;
+  if(p.rev){
+    const it = st.rev.find(r => r.u === p.rev.u && r.s === p.rev.s);
+    if(it){ if(clean){ it.n++; if(it.n >= REV_GAP.length){ st.rev = st.rev.filter(r => r !== it); ses.mastered++; } else it.due = addDays(today(), REV_GAP[it.n]); }
+            else { it.n = 0; it.due = addDays(today(), REV_GAP[0]); } }
+  } else if(missed || ses.hints >= 2) addReview(p.unit, p.seed);
+}
+/* にがてかも：5問 いじょう といて、ヒントなしで せいかいが 6わり より 少ない 単元 */
+function weakUnits(){
+  return S.UNITS.map(u => ({u, x: st.stat[u.id]})).filter(o => o.x && o.x.n >= 5 && o.x.c / o.x.n < 0.6)
+    .sort((a, b) => a.x.c / a.x.n - b.x.c / b.x.n || b.x.n - a.x.n).slice(0, 3).map(o => o.u);
+}
+
 function renderTop(){
   const lv = levelOf(st.xp), a = need(lv), b = need(lv + 1);
   $('hdLv').textContent = `Lv.${lv} ${titleOf(lv).split(' ')[0]}`;
@@ -147,6 +178,16 @@ function logUnheard(text, p){
 /* 聞こえた 言葉（候補いくつか）から、□に 入る 答えを さがす */
 function heardFinal(alts, p){
   if(!ses || ses.p !== p || ses.answered) return false;
+  const gs = gTarget();
+  if(gs){   // いっしょに とく の □ に 答える
+    const k = gs.act, q = {form: '{0}', kinds: [gs.kinds[k]], ans: [gs.ans[k]]};
+    for(const a of alts){
+      const v = S.fromSpeech(q, a);
+      if(v && v.length === 1){ gs.val = v[0]; setHeard('🎤「' + a + '」'); drawStepBody(ses.tgt); setTimeout(() => { if(gTarget() === gs && gs.act === k) gCheck(); }, 450); return true; }
+    }
+    setHeard('🎤「' + (alts[0] || '') + '」と 聞こえたよ。数が わからなかった…'); logUnheard(alts[0], q);
+    return false;
+  }
   for(const a of alts){
     const v = S.fromSpeech(p, a);
     if(v && v.length === p.kinds.length){
@@ -172,11 +213,18 @@ function clearConfirm(){ const c = $('vconf'); if(c){ c.hidden = true; c.innerHT
 let ses = null, taTimer = null;
 function newSes(mode, opt){
   V.stop(); V.stopSpeak(); clearInterval(taTimer);
-  ses = Object.assign({mode, i: 0, n: mode === 'ta' ? Infinity : STAGE_N, done: [], score: 0, combo: 0, maxCombo: 0, xp: 0, ok: 0, clean: 0, keys: new Set(), t0: Date.now(), lv0: levelOf(st.xp), lastU: ''}, opt);
+  ses = Object.assign({mode, i: 0, n: mode === 'ta' ? Infinity : STAGE_N, done: [], score: 0, combo: 0, maxCombo: 0, xp: 0, ok: 0, clean: 0, mastered: 0, keys: new Set(), t0: Date.now(), lv0: levelOf(st.xp), lastU: ''}, opt);
 }
 function endSession(){ V.stop(); V.stopSpeak(); clearInterval(taTimer); if(ses && !ses.result) ses = null; }
 function startStage(id){ const u = unitById(id); if(!u) return; newSes('unit', {u: id, g: u.g}); nextProblem(true); go('play'); autoVoice(); }
 function startMix(){ newSes('mix', {g: st.set.grade}); nextProblem(true); go('play'); autoVoice(); }
+/* 📝 ふくしゅう：きょう までに 出す 問題（10問まで） */
+function startReview(){
+  const due = dueList();
+  if(!due.length){ toast('いまは ふくしゅうする 問題は ありません'); return; }
+  const queue = shuffle(due).slice(0, STAGE_N).map(r => ({u: r.u, s: r.s}));
+  newSes('rev', {queue, n: queue.length}); nextProblem(true); go('play'); autoVoice();
+}
 function startTA(id){
   const u = unitById(id); if(!u) return;
   newSes('ta', {u: id, g: u.g, end: Date.now() + TA_SEC * 1000}); nextProblem(true); go('play'); autoVoice();
@@ -188,6 +236,7 @@ function startTA(id){
   }, 200);
 }
 function pickUnit(){
+  if(ses.mode === 'rev') return unitById(ses.queue[ses.done.length].u);
   if(ses.mode !== 'mix') return unitById(ses.u);
   const us = unitsOf(ses.g); let u;
   do { u = us[Math.floor(Math.random() * us.length)]; } while(us.length > 1 && u.id === ses.lastU);
@@ -197,9 +246,12 @@ function nextProblem(silent){
   if(!ses) return;
   if(ses.mode !== 'ta' && ses.done.length >= ses.n){ finish(); return; }
   const u = pickUnit(); let p, k = 0;
-  do { p = S.makeProblem(u); } while(ses.keys.has(p.key) && ++k < 25);
+  // 問題は 種（seed）から 作る。まちがえたら 同じ 種で あとから 作り直せる（ふくしゅう）
+  const make = seed => { const q = S.makeProblem(u, S.mkRng(seed)); q.seed = seed; return q; };
+  if(ses.mode === 'rev'){ const it = ses.queue[ses.done.length]; p = make(it.s); p.rev = it; }
+  else do { p = make(newSeed()); } while(ses.keys.has(p.key) && ++k < 25);
   ses.keys.add(p.key);
-  Object.assign(ses, {p, vals: p.kinds.map(() => ''), act: 0, tries: 0, hints: 0, revealed: false, answered: false, byVoice: false});
+  Object.assign(ses, {p, vals: p.kinds.map(() => ''), act: 0, tries: 0, hints: 0, revealed: false, answered: false, byVoice: false, g: [], tgt: -1});
   if(!silent){ renderPlay(); window.scrollTo(0, 0); autoVoice(); }
 }
 function autoVoice(){
@@ -216,7 +268,7 @@ function renderPlay(){
                   : `<div class="segs">${Array.from({length: ses.n}, (_, i) => `<i class="${ses.done[i] || (i === ses.done.length ? 'now' : '')}"></i>`).join('')}</div>`;
   $('main').innerHTML = `
     <div class="pbar"><button type="button" class="x" data-act="quit" aria-label="やめる">✕</button>
-      <div class="pt">${esc(GR[u.g - 1])}　${esc(u.t)}${ses.mode === 'mix' ? '（ミックス）' : ses.mode === 'ta' ? '（⏱）' : ''}</div>
+      <div class="pt">${esc(GR[u.g - 1])}　${esc(u.t)}${ses.mode === 'mix' ? '（ミックス）' : ses.mode === 'ta' ? '（⏱）' : ses.mode === 'rev' ? '（📝 ふくしゅう）' : ''}</div>
       <div class="sc">${ta ? '✔ ' + ses.ok : Math.min(ses.done.length + 1, ses.n) + ' / ' + ses.n}</div>
       <div class="cb" id="pCombo">${ses.combo >= 2 ? '🔥×' + ses.combo : ''}</div>
       <div class="sc" id="pScore">⭐${ses.score}</div></div>
@@ -247,14 +299,14 @@ function drawForm(){
   const f = ses.p.form, len = f.replace(/\[\[|\]\]|√\[|\]|\*\*/g, '').replace(/\{\d+\}/g, '___').split('→').reduce((m, x) => Math.max(m, x.trim().length), 0);
   q.classList.toggle('long', len > 17); q.classList.toggle('xlong', len > 24);
   q.innerHTML = mathHtml(f.replace(/[\s　]*→[\s　]*/g, '\n'), {blank: i => {
-    const v = ses.vals[i] || '', cls = ses.answered ? (ses.revealed ? ' rev' : ' done') : (i === ses.act ? ' on' : '');
+    const v = ses.vals[i] || '', cls = ses.answered ? (ses.revealed ? ' rev' : ' done') : (i === ses.act && !gTarget() ? ' on' : '');
     return `<button type="button" class="bx${cls}" data-act="blank" data-i="${i}" aria-label="${i + 1}つめの □${v ? '：' + esc(v) : '（から）'}">${v ? esc(v) : '&#8203;'}</button>`;
   }});
 }
 function drawActs(){
   const a = $('acts'); if(!a || !ses) return;
   const n = ses.p.steps.length, ta = ses.mode === 'ta', on = V.listening();
-  const hl = ses.answered ? '<span>🦉</span>とき方' : ses.hints < n ? `<span>🦉</span>ヒント ${ses.hints}/${n}` : '<span>💡</span>こたえ';
+  const hl = ses.answered ? '<span>🦉</span>とき方' : gPending() >= 0 ? '<span>🦉</span>おしえて' : ses.hints < n ? `<span>🦉</span>ヒント ${ses.hints}/${n}` : '<span>💡</span>こたえ';
   a.innerHTML = `<button type="button" data-act="read"><span>🔊</span>よむ</button>`
     + `<button type="button" data-act="hint" id="hintBtn"${ses.tries && !ses.hints && !ses.answered ? ' class="pulse"' : ''}>${hl}</button>`
     + (ta ? `<button type="button" data-act="pass"${ses.answered ? ' disabled' : ''}><span>⏭</span>パス</button>` : `<button type="button" data-act="pex"><span>📖</span>かいせつ</button>`)
@@ -267,7 +319,7 @@ function drawKeys(){
     k.innerHTML = `<button type="button" class="btn next" data-act="next" style="grid-column:1/-1">${last ? '🏁 けっかを 見る' : 'つぎへ ▶'}</button>`;
     fitDock(); return;
   }
-  const ks = ses.p.kinds, neg = ks.some(x => x !== 'n'), pls = ks.some(x => x === 't' || x === 'tc'), dot = ks.includes('d'), multi = ks.length > 1;
+  const gs = gTarget(), ks = gs ? [gs.kinds[gs.act]] : ses.p.kinds, neg = ks.some(x => x !== 'n'), pls = ks.some(x => x === 't' || x === 'tc'), dot = ks.includes('d'), multi = ks.length > 1;
   const b = (key, lbl, cls, dis, al) => `<button type="button" class="${cls || ''}" data-act="key" data-k="${key}"${dis ? ' disabled' : ''}${al ? ` aria-label="${al}"` : ''}>${lbl}</button>`;
   k.innerHTML = b('7', '7') + b('8', '8') + b('9', '9') + b('bs', '⌫', 'op', false, 'けす')
     + b('4', '4') + b('5', '5') + b('6', '6') + b('−', '−', 'op', !neg, 'マイナス')
@@ -279,17 +331,120 @@ function drawAfter(){
   const a = $('after'); if(!a || !ses || ses.mode === 'ta') return;
   const p = ses.p;
   a.innerHTML = `<div class="ansline">${mathHtml(p.answer)}</div>`
-    + (ses.hints < p.steps.length ? `<details class="how"><summary>🦉 とき方を ぜんぶ 見る</summary><div class="hints">${p.steps.map(stepHtml).join('')}</div></details>` : '');
+    + (ses.hints < p.steps.length ? `<details class="how"><summary>🦉 とき方を ぜんぶ 見る</summary><div class="hints">${p.steps.map((s, i) => stepHtml(s, i, true)).join('')}</div></details>` : '');
 }
-const stepHtml = s => { const t = typeof s === 'string' ? s : s.t, fig = typeof s === 'string' ? '' : (s.fig || ''); return `<div class="hint"><span class="ow">🦉</span><div class="hb">${mathHtml(t)}${fig}</div></div>`; };
+const stepText = i => { const s = ses.p.steps[i]; return typeof s === 'string' ? s : s.t; };
+/* ヒント 1つ。plain なら いつも 数を 見せる（とき方を ぜんぶ 見る） */
+function stepHtml(s, i, plain){
+  const t = typeof s === 'string' ? s : s.t, fig = typeof s === 'string' ? '' : (s.fig || ''), gs = !plain && ses && ses.g ? ses.g[i] : null;
+  return `<div class="hint${gs ? ' guided' + (gs.done ? ' gdone' : '') : ''}"${plain ? '' : ` id="hint${i}"`}><span class="ow">🦉</span><div class="hb"><div class="ht">${gs ? guidedBody(t, gs, i) : mathHtml(t)}</div>${fig}${gs && !gs.done ? `<div class="gfb" id="gfb${i}" aria-live="polite"></div>` : ''}</div></div>`;
+}
 function appendHint(i, quiet){
   const h = $('hints'); if(!h) return;
-  const s = ses.p.steps[i]; h.insertAdjacentHTML('beforeend', stepHtml(s));
-  if(!quiet){ revealAboveDock(h.lastElementChild, true);
-    if(st.set.read) V.speak(speakMath(typeof s === 'string' ? s : s.t)); }
+  if(guideOn() && ses.g[i] === undefined) ses.g[i] = gState(i);
+  const gs = ses.g[i] || null;
+  if(gs && !gs.done && !ses.answered) ses.tgt = i;
+  h.insertAdjacentHTML('beforeend', stepHtml(ses.p.steps[i], i));
+  if(gs && !gs.done && !quiet){ drawForm(); drawKeys(); }
+  if(!quiet){ revealAboveDock(h.lastElementChild, true); if(st.set.read) V.speak(speakStep(i)); }
+}
+
+/* ════ いっしょに とく：ヒントの {{数}} を □ に して、1つずつ 当てはめながら 進む ════
+   □ の ある ところ（。、→ まで）だけ 見せて、当たったら その先を 見せる。🦉 で その □ の 数を 見せる */
+const guideOn = () => !!st.set.guide && !!ses && ses.mode !== 'ta';
+function gState(i){
+  const vs = S.stepVals(stepText(i)); if(!vs.length) return null;
+  const g = (unitById(ses.p.unit) || {}).g || 1;
+  return {ans: vs, kinds: vs.map(v => /^\+/.test(v) ? 't' : /\./.test(v) ? 'd' : /^−/.test(v) || g >= 7 ? 'i' : 'n'), act: 0, val: '', rv: [], done: false, tries: 0};
+}
+const gPending = () => { if(!ses || !ses.g || ses.answered) return -1; for(let i = 0; i < ses.g.length; i++) if(ses.g[i] && !ses.g[i].done) return i; return -1; };
+const gTarget = () => ses && !ses.answered && ses.tgt >= 0 && ses.g && ses.g[ses.tgt] && !ses.g[ses.tgt].done ? ses.g[ses.tgt] : null;
+function markerEnd(t, k){ const re = /\{\{[^{}]*\}\}/g; let m, j = 0; while((m = re.exec(t))) if(j++ === k) return m.index + m[0].length; return t.length; }
+function clauseEnd(t, from){   // from より 後ろで、[[ ]]・√[ ] の 外に ある 。、→ の すぐ 後ろ
+  let depth = 0;
+  for(let i = 0; i < t.length; i++){
+    const c = t[i];
+    if(c === '[') depth++; else if(c === ']') depth = Math.max(0, depth - 1);
+    else if(i >= from && depth === 0 && '。、→\n'.includes(c)) return i + 1;
+  }
+  return t.length;
+}
+function guidedBody(t, gs, i){
+  const src = gs.done ? t : t.slice(0, clauseEnd(t, markerEnd(t, gs.act)));
+  return mathHtml(src, {gblank: (k, v) => {
+    if(gs.done || k < gs.act) return `<span class="gv${gs.rv[k] ? ' rev' : ''}">${esc(v)}</span>`;
+    const cur = k === gs.act, val = cur ? gs.val : '', on = cur && ses.tgt === i && !ses.answered;
+    return `<button type="button" class="bx gbx${on ? ' on' : ''}" data-act="gblank" data-s="${i}"${cur ? '' : ' disabled'} aria-label="ヒントの □${val ? '：' + esc(val) : '（から）'}">${val ? esc(val) : '&#8203;'}</button>`;
+  }});
+}
+function speakStep(i){
+  const t = stepText(i), gs = ses.g[i];
+  if(!gs || gs.done) return speakMath(t);
+  let k = 0;
+  return speakMath(t.slice(0, clauseEnd(t, markerEnd(t, gs.act))).replace(/\{\{([^{}]*)\}\}/g, (m, v) => k++ < gs.act ? v : '{0}'));
+}
+function drawStepBody(i){
+  const el = $('hint' + i), gs = ses && ses.g[i]; if(!el || !gs) return;
+  const ht = el.querySelector('.ht'); if(ht) ht.innerHTML = guidedBody(stepText(i), gs, i);
+  if(gs.done){ el.classList.add('gdone'); const f = $('gfb' + i); if(f) f.remove(); }
+}
+function gFb(msg, cls){ const f = ses && ses.tgt >= 0 ? $('gfb' + ses.tgt) : null; if(f){ f.textContent = msg; f.className = 'gfb' + (cls ? ' ' + cls : ''); } }
+function gKey(gs, k){
+  const kind = gs.kinds[gs.act]; let v = gs.val;
+  if(k === 'ok'){ gCheck(); return; }
+  if(k === 'bs') v = v.slice(0, -1);
+  else if(k === '−'){ if(kind === 'n') return; v = kind === 't' ? MI + v.replace(/^[+−]/, '') : v.startsWith(MI) ? v.slice(1) : MI + v; }
+  else if(k === '+'){ if(kind !== 't') return; v = '+' + v.replace(/^[+−]/, ''); }
+  else if(k === '.'){ if(kind !== 'd' || v.includes('.')) return; v = (v === '' || v === MI) ? v + '0.' : v + '.'; }
+  else if(/^\d$/.test(k)){ if(v.replace(/\D/g, '').length >= 7) return; v += k; }
+  else return;
+  gs.val = v; gFb(''); drawStepBody(ses.tgt);
+}
+function gCheck(){
+  const i = ses.tgt, gs = gTarget(); if(!gs) return;
+  const kind = gs.kinds[gs.act], a = S.parseBlank(kind, gs.val), b = S.parseBlank(kind, gs.ans[gs.act]);
+  if(gs.val === '' || a === null || Number.isNaN(a)){ gFb('□ に 数を 入れてね', 'near'); return; }
+  if(b !== null && Math.abs(a - b) < 1e-9){
+    beep('ok'); gs.act++; gs.val = ''; gs.tries = 0; ses.xp++; st.xp++; save(); renderTop();
+    if(gs.act >= gs.ans.length){ gFinish(i); return; }
+    drawStepBody(i); gFb('⭕ そう！ つぎの □ は？', 'ok'); revealAboveDock($('hint' + i), true);
+    if(st.set.read) V.speak(speakStep(i));
+    return;
+  }
+  gs.tries++; beep('ng');
+  const el = $('hint' + i); if(el){ el.classList.remove('ng'); void el.offsetWidth; el.classList.add('ng'); }
+  gFb(gs.tries >= 2 ? '❌ もう一度。わからない ときは 🦉「おしえて」を おしてね' : '❌ ちがうよ。もう一度 考えてみよう', 'ng');
+}
+/* ヒントの □ が ぜんぶ うまったら、つぎの ヒントを 出す（なければ 答えの □ へ） */
+function gFinish(i){
+  const gs = ses.g[i]; gs.done = true; gs.val = ''; ses.tgt = -1;
+  drawStepBody(i);
+  if(!ses.answered && ses.hints < ses.p.steps.length){ appendHint(ses.hints); ses.hints++; }
+  if(!gTarget()) setFb('');
+  drawForm(); drawActs(); drawKeys();
+  if(!gTarget()){ const h = $('hints'); if(h && h.lastElementChild) revealAboveDock(h.lastElementChild, true); }
+}
+/* 🦉「おしえて」：いまの □ の 数を 見せて つぎへ */
+function gReveal(i){
+  const gs = ses.g[i]; gs.rv[gs.act] = true; gs.act++; gs.val = ''; gs.tries = 0;
+  if(gs.act >= gs.ans.length){ gFinish(i); return; }
+  ses.tgt = i; drawStepBody(i); gFb('🦉 この 数だよ。つぎの □ は？', 'near'); drawForm(); drawActs(); drawKeys();
+  if(st.set.read) V.speak(speakStep(i));
+}
+/* 答えが 出たら、のこりの ヒントの □ も 数を 見せる */
+function gCloseAll(){
+  (ses.g || []).forEach((gs, i) => { if(gs && !gs.done){ for(let k = gs.act; k < gs.ans.length; k++) gs.rv[k] = true; gs.act = gs.ans.length; gs.done = true; gs.val = ''; drawStepBody(i); } });
+  ses.tgt = -1;
 }
 function setFb(msg, cls){ const f = $('fb'); if(f){ f.textContent = msg; f.className = 'fb' + (cls ? ' ' + cls : ''); } }
-function setAct(i){ if(!ses || ses.answered) return; ses.act = i; drawForm(); }
+function setFbHtml(html, cls){ const f = $('fb'); if(f){ f.innerHTML = html; f.className = 'fb' + (cls ? ' ' + cls : ''); } }
+function setAct(i){
+  if(!ses || ses.answered) return;
+  const pi = ses.tgt; ses.act = i; ses.tgt = -1; drawForm();
+  if(pi >= 0){ drawStepBody(pi); drawKeys(); }
+}
+/* ヒントの □ を おしたとき */
+function setGTarget(i){ if(!ses || ses.answered || !ses.g[i] || ses.g[i].done) return; const was = ses.tgt; ses.tgt = i; drawForm(); drawStepBody(i); if(was !== i) drawKeys(); }
 /* el が 下の ドック（キー）に かくれていたら、見える ところまで ずらす（長い ものは 上を そろえる） */
 function revealAboveDock(el, smooth){
   if(!el) return;
@@ -304,6 +459,7 @@ const showCard = () => revealAboveDock($('qcard'));
 function keyIn(k){
   if(!ses || !ses.p) return;
   if(ses.answered){ if(k === 'ok') nextProblem(); return; }
+  const gs = gTarget(); if(gs){ gKey(gs, k); return; }
   const p = ses.p, i = ses.act, kind = p.kinds[i]; let v = ses.vals[i] || '';
   if(k === 'ok'){ submit(); return; }
   if(k === 'nx'){ setAct((i + 1) % p.kinds.length); return; }
@@ -323,12 +479,12 @@ function submit(){
   const r = S.check(p, ses.vals);
   if(r.ok){ correct(); return; }
   if(r.near){ setFb('🤏 ' + r.msg, 'near'); beep('near'); return; }
-  wrong(r.msg);
+  wrong(r.msg, r.msg ? null : S.diagnose(p, ses.vals));
 }
 function correct(){
   V.stop();
   const ta = ses.mode === 'ta', clean = !ses.tries && !ses.hints, lvBefore = levelOf(st.xp);
-  ses.answered = true; ses.combo++; ses.maxCombo = Math.max(ses.maxCombo, ses.combo);
+  ses.answered = true; ses.combo++; ses.maxCombo = Math.max(ses.maxCombo, ses.combo); gCloseAll(); recordProblem(true);
   let pts = ta ? 5 : clean ? 10 : ses.hints ? 4 : 6;
   if(!ta && ses.combo >= 3) pts += Math.min(10, ses.combo - 1);
   ses.score += pts; ses.xp += pts; ses.ok++; if(clean) ses.clean++;
@@ -345,23 +501,28 @@ function correct(){
   drawForm(); drawActs(); drawKeys(); drawAfter(); showCard();
   if(st.set.read) V.speak(PRAISE[0]);
 }
-function wrong(msg){
+function wrong(msg, dg){
   ses.tries++; ses.combo = 0; beep('ng');
   const c = $('qcard'); c.classList.remove('ng'); void c.offsetWidth; c.classList.add('ng');
   const heard = ses.byVoice ? '（声で 答えた ときは、聞きまちがいかも。□を たしかめてね）' : '';
-  setFb('❌ ' + (msg && msg !== '書き方を たしかめてね' ? msg : 'ちがうよ。もう一度 考えてみよう') + heard, 'ng');
+  const head = msg && msg !== '書き方を たしかめてね' ? msg : dg ? 'ちがうよ。' : 'ちがうよ。もう一度 考えてみよう';
+  // まちがい方に 合わせた ひとこと（よく ある まちがいに 当たった とき）
+  setFbHtml(`❌ ${esc(head)}${dg ? `<span class="mis">🦉 ${esc(dg.m)}</span>` : ''}${heard ? `<small>${esc(heard)}</small>` : ''}`, 'ng');
+  if(dg){ st.mk[dg.k] = (st.mk[dg.k] || 0) + 1; save(); if(st.set.read) V.speak(speakMath(dg.m)); }
   const cb = $('pCombo'); if(cb) cb.textContent = '';
   drawActs(); showCard();
 }
 function hint(){
   if(!ses || !ses.p) return;
   if(ses.answered){ const d = document.querySelector('details.how'); if(d){ d.open = !d.open; if(d.open) revealAboveDock(d, true); } else { const h = $('hints'); if(h && h.lastElementChild) revealAboveDock(h.lastElementChild, true); } return; }
+  const pi = gPending();
+  if(pi >= 0){ gReveal(pi); return; }
   if(ses.hints < ses.p.steps.length){ appendHint(ses.hints); ses.hints++; drawActs(); return; }
   reveal();
 }
 function reveal(){
   V.stop(); clearConfirm();
-  ses.revealed = true; ses.answered = true; ses.combo = 0; ses.vals = ses.p.ans.slice(); ses.done.push('r'); st.solved++; save();
+  ses.revealed = true; ses.answered = true; ses.combo = 0; ses.vals = ses.p.ans.slice(); ses.done.push('r'); st.solved++; gCloseAll(); recordProblem(false); save();
   setFb('💡 こたえは こう なるよ。つぎは できるかな？', 'near');
   if(ses.mode === 'ta'){ setTimeout(() => { if(ses && ses.mode === 'ta' && !ses.result) nextProblem(); }, 1500); }
   document.querySelectorAll('.segs i').forEach((el, i) => { el.className = ses.done[i] || ''; });
@@ -373,6 +534,7 @@ function finish(){
   V.stop(); V.stopSpeak(); clearInterval(taTimer);
   const lv1 = levelOf(st.xp), r = {lv0: ses.lv0, lv1, sec: Math.round((Date.now() - ses.t0) / 1000)};
   if(ses.mode === 'ta'){ const best = st.ta[ses.u] || 0; r.best = Math.max(best, ses.ok); r.newBest = ses.ok > best; st.ta[ses.u] = r.best; }
+  else if(ses.mode === 'rev'){ r.rev = true; r.left = dueList().length; }
   else {
     r.stars = ses.clean >= 9 ? 3 : ses.clean >= 7 ? 2 : ses.ok >= 5 ? 1 : 0;
     if(ses.mode === 'unit'){ const x = st.units[ses.u] || {s: 0, n: 0, ok: 0, tot: 0, c: 0}; r.oldStars = x.s;
@@ -394,9 +556,20 @@ function renderHome(){
     <div class="hello"><span>${greet()}</span><span>きょう とけた 問題：${st.day.d === today() ? st.day.n : 0}</span></div>
     <div class="grades" role="tablist" aria-label="学年">${GR.map((l, i) => `<button type="button" role="tab" class="${i + 1 === g ? 'on' : ''}" aria-selected="${i + 1 === g}" data-act="grade" data-g="${i + 1}">${l}<span class="gs">★${gs(i + 1)}</span></button>`).join('')}</div>
     <button type="button" class="hero" data-act="unit" data-u="${rc.id}"><span class="ic">${rc.ic}</span><span><span class="tt">▶ きょうの チャレンジ</span><br><span class="nm">${esc(rc.t)}</span></span></button>
+    ${revCard()}
     <div class="modes"><button type="button" data-act="mix">🎲 ミックス<small>${GR[g - 1]}の いろいろな 問題を 10問</small></button><button type="button" data-act="tapick">⏱ タイムアタック<small>${TA_SEC}びょうで 何問 とける？</small></button></div>
+    ${weakRow()}
     <div class="units">${us.map(u => `<div class="unit${starsOf(u.id) >= 3 ? ' done3' : ''}" role="button" tabindex="0" data-act="unit" data-u="${u.id}" aria-label="${esc(u.t)}（★${starsOf(u.id)}）"><span class="ic">${u.ic}</span><span class="nm">${esc(u.t)}</span>${st.ta[u.id] ? `<span class="ta">⏱${st.ta[u.id]}</span>` : ''}<span class="st">${starStr(starsOf(u.id))}</span><button type="button" class="ex" data-act="ex" data-u="${u.id}" aria-label="${esc(u.t)}の 解説">📖 解説</button></div>`).join('')}</div>`;
   const on = document.querySelector('.grades .on'); if(on) try { on.scrollIntoView({inline: 'center', block: 'nearest'}); } catch(_){}
+}
+/* 📝 ふくしゅう（きょう 出す 問題が あるとき）と、🔎 にがてかも の 単元 */
+function revCard(){
+  const n = dueList().length; if(!n) return '';
+  return `<button type="button" class="revcard" data-act="rev"><span class="ic">📝</span><span><span class="tt">ふくしゅう ${n}問</span><small>まえに まちがえた 問題に もう一度 ちょうせん</small></span></button>`;
+}
+function weakRow(){
+  const ws = weakUnits(); if(!ws.length) return '';
+  return `<div class="weak"><span class="wl">🔎 にがてかも</span>${ws.map(u => `<button type="button" class="chip" data-act="unit" data-u="${u.id}">${u.ic} ${u.g === st.set.grade ? '' : GR[u.g - 1] + ' '}${esc(u.t)}</button>`).join('')}</div>`;
 }
 const exHtml = u => u.ex.map(([k, v]) => { const s = typeof v === 'function' ? v() : v;
   if(k === 'fig') return `<div class="figw">${s}</div>`; if(k === 'eg') return `<div class="eg">${mathHtml(s)}</div>`;
@@ -418,6 +591,7 @@ function openTaPicker(){
 function renderResult(){
   if(!ses || !ses.result){ go('home', {}, true); return; }
   const r = ses.result, u = ses.u ? unitById(ses.u) : null, ta = ses.mode === 'ta';
+  if(r.rev){ renderRevResult(r); return; }
   const msg = ta ? (r.newBest ? '🎉 ベスト きろく こうしん！' : 'おつかれさま！') : ['もう すこし！ ヒントを 見ながら やってみよう', 'よく がんばったね！', 'すごい！ あと すこしで ★3つ', 'パーフェクト！ ★3つ！'][r.stars];
   let next = null;
   if(ses.mode === 'unit' && u){ const all = S.UNITS, k = all.indexOf(u); next = all[k + 1] || null; }
@@ -432,6 +606,17 @@ function renderResult(){
   </div>
   <div class="btnrow"><button type="button" class="btn sub" data-act="again">🔁 もう一度</button>${next && ses.mode === 'unit' ? `<button type="button" class="btn" data-act="unit" data-u="${next.id}">つぎへ ▶<small style="display:block;font-size:.7rem;font-weight:600;opacity:.9">${next.ic} ${esc(next.t)}</small></button>` : ''}</div>
   <button type="button" class="btn sub wide" data-act="nav" data-s="home">🏠 ホームへ</button>`;
+}
+function renderRevResult(r){
+  $('main').innerHTML = `<div class="res">
+    <div class="big" style="color:var(--accent)">📝</div>
+    <div class="msg">ふくしゅう おわり！ ${ses.clean === ses.n ? 'ぜんぶ ヒントなしで できたね！' : 'よく がんばったね！'}</div>
+    <table><tr><td>せいかい</td><td>${ses.ok} / ${ses.n}</td></tr><tr><td>ヒントなしで せいかい</td><td>${ses.clean}</td></tr>
+      <tr><td>おぼえた（もう 出ない）</td><td>${ses.mastered}問</td></tr><tr><td>きょうの のこり</td><td>${r.left}問</td></tr><tr><td>もらった XP</td><td>+${ses.xp}</td></tr></table>
+    ${r.lv1 > r.lv0 ? `<div class="lvup">🎉 レベルアップ！ Lv.${r.lv1} ${titleOf(r.lv1)}</div>` : ''}
+    <p style="font-size:.78rem;color:var(--sub);margin:10px 0 0">ヒントなしで できた 問題は 3日後・7日後に もう一度 出ます。3回 つづけて できたら おしまい。</p>
+  </div>
+  <div class="btnrow">${r.left ? '<button type="button" class="btn" data-act="rev">📝 つづけて ふくしゅう</button>' : ''}<button type="button" class="btn sub" data-act="nav" data-s="home">🏠 ホームへ</button></div>`;
 }
 function renderRec(){
   const lv = levelOf(st.xp), acc = st.solved ? Math.round(st.ok / st.solved * 100) : 0;
@@ -448,7 +633,21 @@ function renderRec(){
       <div class="kv"><span>せいかい りつ（答えを 見なかった 割合）</span><b>${acc}%</b></div></div>
     <div class="box"><h3>⭐ 学年ごとの ★</h3>${rows}</div>
     <div class="box"><h3>🏆 トロフィー</h3><div class="trophies">${tro}</div></div>
-    <div class="box"><h3>⏱ タイムアタックの ベスト</h3>${tas || '<div style="color:var(--sub)">まだ ありません。ホームの「⏱ タイムアタック」から ちょうせん！</div>'}</div>`;
+    <div class="box"><h3>⏱ タイムアタックの ベスト</h3>${tas || '<div style="color:var(--sub)">まだ ありません。ホームの「⏱ タイムアタック」から ちょうせん！</div>'}</div>
+    ${recStudy()}`;
+}
+/* 📝 ふくしゅう・🔎 にがてかも・まちがいの くせ（おうちの 人も 見られるように） */
+function recStudy(){
+  const due = dueList().length, later = st.rev.length - due, ws = weakUnits();
+  const mk = Object.entries(st.mk).filter(e => e[1] > 0 && S.MIS_KINDS[e[0]]).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const pct = x => Math.round(x.c / x.n * 100);
+  return `<div class="box"><h3>📝 ふくしゅう</h3>
+      <div class="kv"><span>きょう ふくしゅう できる 問題</span><b>${due}問</b></div>
+      <div class="kv"><span>あとで 出る 問題</span><b>${later}問</b></div>
+      ${due ? '<button type="button" class="btn wide" data-act="rev">📝 ふくしゅうする</button>' : ''}</div>
+    <div class="box"><h3>🔎 にがてかも</h3>${ws.length ? ws.map(u => `<div class="kv"><span>${u.ic} ${GR[u.g - 1]} ${esc(u.t)}</span><b>ヒントなしで ${pct(st.stat[u.id])}%</b></div>`).join('')
+        : '<div style="color:var(--sub);font-size:.88rem">まだ ありません（5問 いじょう といた 単元で、ヒントなしの せいかいが 6わりより 少ないと 出ます）</div>'}</div>
+    ${mk.length ? `<div class="box"><h3>🦉 よく ある まちがい</h3>${mk.map(([k, n]) => `<div class="kv"><span>${esc(S.MIS_KINDS[k])}</span><b>${n}回</b></div>`).join('')}</div>` : ''}`;
 }
 function renderSet(){
   const sw = (k, t, sub) => `<div class="sw"><span>${t}${sub ? `<small>${sub}</small>` : ''}</span><button type="button" class="tg${st.set[k] ? ' on' : ''}" data-act="tg" data-k="${k}" role="switch" aria-checked="${!!st.set[k]}" aria-label="${t}"></button></div>`;
@@ -457,6 +656,7 @@ function renderSet(){
       ${sw('read', '🔊 問題を 自動で 読み上げる', 'ヒントや 答えも 読み上げます')}
       ${sw('voice', '🎤 問題が 出たら すぐ 声で 答える', '問題が 出ると マイクが 聞きはじめます（ブラウザが マイクの 許可を 聞いてきます）')}
       ${sw('vconf', '🎤 声の 答えは たしかめてから', '聞こえた 答えを □に 入れて「これで いい？」と 聞きます（聞きまちがいで ×に ならない）')}
+      ${sw('guide', '🤝 いっしょに とく', 'ヒントの とちゅうの 数も □ に 入れながら 進みます（オフに すると 数が 見える ヒント）')}
       ${sw('sound', '🔔 こうかおん')}
       ${sw('big', '🔠 文字を 大きく')}
       <button type="button" class="btn sub wide" data-act="vtest">🎤 声の ためし</button></div>
@@ -549,6 +749,8 @@ document.addEventListener('click', e => {
     case 'tapick': openTaPicker(); break;
     case 'ta': if(!$('modal').hidden){ $('modal').hidden = true; $('mbody').innerHTML = ''; try { history.replaceState(Object.assign({}, view, {d: depth()}), '', location.hash); } catch(_){} } startTA(u); break;
     case 'blank': setAct(+el.dataset.i); break;
+    case 'gblank': setGTarget(+el.dataset.s); break;
+    case 'rev': startReview(); break;
     case 'key': keyIn(el.dataset.k); break;
     case 'hint': hint(); break;
     case 'read': speakQ(); break;
@@ -558,7 +760,7 @@ document.addEventListener('click', e => {
     case 'pass': pass(); break;
     case 'next': nextProblem(); break;
     case 'quit': history.back(); break;
-    case 'again': if(ses){ const m = ses.mode, uu = ses.u; if(m === 'ta') startTA(uu); else if(m === 'mix') startMix(); else startStage(uu); } break;
+    case 'again': if(ses){ const m = ses.mode, uu = ses.u; if(m === 'ta') startTA(uu); else if(m === 'mix') startMix(); else if(m === 'rev') startReview(); else startStage(uu); } break;
     case 'tg': { const k = el.dataset.k; st.set[k] = !st.set[k]; save(); renderSet(); renderTop(); if((k === 'voice' || k === 'vconf') && st.set[k] && !V.supported) toast('この 端末では 声の 聞き取りが 使えないかも しれません'); break; }
     case 'vtest': openVoiceTest(); break;
     case 'vtgo': voiceTestGo(); break;
@@ -614,6 +816,6 @@ if('serviceWorker' in navigator && location.protocol !== 'file:' && !/[?&]nosw/.
 }
 
 /* テストから さわる ための 入り口 */
-S.app = {state: () => st, ses: () => ses, view: () => view, startStage, startMix, startTA, keyIn, submit, hint, heard: alts => heardFinal(alts, ses && ses.p),
-  levelOf, need, finish, swOfferUpdate, maybeTellWhatsNew, voiceTestShow};
+S.app = {state: () => st, ses: () => ses, view: () => view, startStage, startMix, startTA, startReview, keyIn, submit, hint, heard: alts => heardFinal(alts, ses && ses.p),
+  levelOf, need, finish, swOfferUpdate, maybeTellWhatsNew, voiceTestShow, dueList, weakUnits, addDays, render};
 })();

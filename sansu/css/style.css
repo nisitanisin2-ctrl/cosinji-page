@@ -52,6 +52,15 @@ body.playing #main{ padding-bottom:24px; }
 .modes{ display:flex; gap:8px; margin-bottom:12px; }
 .modes button{ flex:1; border:2px solid var(--line); background:var(--card); border-radius:14px; padding:8px 6px; font-weight:800; font-size:.92rem; }
 .modes button small{ display:block; font-weight:600; font-size:.7rem; color:var(--sub); }
+/* 📝 ふくしゅう・🔎 にがてかも（v3） */
+.revcard{ width:100%; border:2px solid var(--blue); border-radius:16px; padding:10px 14px; margin:0 0 10px; background:var(--hint); color:var(--ink); text-align:left; display:flex; align-items:center; gap:12px; box-shadow:0 3px 0 var(--hint-b); }
+.revcard:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--hint-b); }
+.revcard .ic{ font-size:1.9rem; line-height:1; }
+.revcard .tt{ font-size:1.05rem; font-weight:800; color:var(--blue); }
+.revcard small{ display:block; font-size:.74rem; color:var(--sub); font-weight:600; }
+.weak{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:-4px 0 12px; }
+.weak .wl{ font-size:.8rem; font-weight:800; color:var(--sub); }
+.weak .chip{ border:2px solid var(--line); background:var(--card); border-radius:999px; padding:4px 10px; font-size:.82rem; font-weight:700; color:var(--ink); }
 .units{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 @media (max-width:340px){ .units{ grid-template-columns:1fr; } }
 .unit{ position:relative; border:2px solid var(--line); background:var(--card); border-radius:16px; padding:10px 10px 8px; text-align:left; display:flex; flex-direction:column; gap:2px; min-height:118px; }
@@ -109,6 +118,9 @@ body.playing #main{ padding-bottom:24px; }
 .bx0{ display:inline-block; border:2px solid var(--sub); border-radius:4px; width:1em; height:1.1em; vertical-align:middle; }
 .fb{ min-height:1.6em; text-align:center; font-weight:800; margin:6px 0 2px; }
 .fb.ok{ color:var(--ok); } .fb.ng{ color:var(--ng); } .fb.near{ color:var(--accent-d); }
+/* まちがい方に 合わせた ひとこと（v3） */
+.fb .mis{ display:block; margin:6px auto 0; max-width:30em; padding:6px 10px; border-radius:12px; background:var(--hint); border:2px solid var(--hint-b); color:var(--ink); font-weight:700; font-size:.92rem; text-align:left; }
+.fb small{ display:block; font-weight:600; font-size:.78rem; color:var(--sub); margin-top:2px; }
 .heard{ text-align:center; font-size:.85rem; color:var(--sub); min-height:1.2em; }
 .ansline{ background:var(--shape); border-radius:12px; padding:8px 12px; margin-top:6px; font-size:1.02rem; text-align:center; }
 .acts{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin:10px 0 8px; }
@@ -123,6 +135,19 @@ body.playing #main{ padding-bottom:24px; }
 .hint .ow{ font-size:1.6rem; line-height:1.1; flex:none; }
 .hint .hb{ background:var(--hint); border:2px solid var(--hint-b); border-radius:4px 16px 16px 16px; padding:6px 10px; flex:1; min-width:0; overflow-x:auto; }
 .hint .hb .fg,.hint .hb table{ display:block; margin:6px auto 2px; }
+/* いっしょに とく：ヒントの とちゅうの 数を □ に 入れる（v3） */
+.hint.guided .hb{ border-style:dashed; }
+.hint.guided.gdone .hb{ border-style:solid; }
+.hint.ng .hb{ animation:shake .35s; border-color:var(--ng); }
+.hint .ht{ line-height:2; }
+.hint .gbx{ font-size:1.05em; min-width:2.2em; height:1.6em; }
+.hint .fr .gbx{ font-size:.85em; min-width:1.8em; }
+.hint .gbx:disabled{ opacity:.55; }
+.hint .gv{ display:inline-block; font-weight:800; color:var(--ok); padding:0 .15em; border-bottom:2px solid var(--ok); line-height:1.3; }
+.hint .gv.rev{ color:var(--ng); border-color:var(--ng); }
+@media (prefers-color-scheme: dark){ .hint .gv{ color:#81c784; border-color:#81c784; } .hint .gv.rev{ color:#ef9a9a; border-color:#ef9a9a; } .gfb.ok{ color:#81c784; } .gfb.ng{ color:#ef9a9a; } }
+.gfb{ min-height:1.2em; font-size:.85rem; font-weight:800; }
+.gfb.ok{ color:var(--ok); } .gfb.ng{ color:var(--ng); } .gfb.near{ color:var(--accent-d); }
 @keyframes pop{ from{ transform:scale(.92); opacity:0; } to{ transform:none; opacity:1; } }
 details.how{ margin-top:6px; }
 details.how summary{ cursor:pointer; font-weight:800; color:var(--blue); }
