@@ -72,7 +72,7 @@ function opMis(f, G, W){
   if(op === '−'){
     if(ints && A >= 10 && B < A && (G === subBigMinusSmall(A, B) || G === subNoDecrease(A, B))) return {k: 'borrow', m: 'くり下がりに 気をつけて。ひけない ときは となりの くらいから 1 かりるよ（かした くらいは 1 へる）'};
     if(eq(G, A + B)) return {k: 'op', m: 'たし算に なって いないかな？ − は ひき算だよ'};
-    if(ints && [10, 100, 1000].includes(Math.abs(W - G))) return {k: 'borrow', m: 'くり下がりを たしかめてね'};
+    if(ints && A >= 10 && [10, 100, 1000].includes(Math.abs(W - G))) return {k: 'borrow', m: 'くり下がりを たしかめてね'};
   }
   if(op === '×'){
     if(ints && A >= 10 && B < 10 && G === mulNoCarry(A, B)) return {k: 'mulcarry', m: 'くり上げた 数を たしわすれて いないかな？'};

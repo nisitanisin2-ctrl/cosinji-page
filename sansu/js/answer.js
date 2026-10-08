@@ -1,6 +1,7 @@
 /* ════════════════════════════════════════════════════════════════
    答え合わせと、声の答えの読み取り
-   ・S.makeProblem(単元, 乱数)   … 問題を作って、□の種類・答えの文字をそろえる
+   ・S.makeProblem(単元, 乱数, むずかしさ) … 問題を作って、□の種類・答えの文字をそろえる。
+     むずかしさ 1（やさしい）・3（むずかしい）は、候補を 6つ 作って むずかしさの 点（S.diffScore）で えらぶ（v4）
    ・S.check(問題, □の中身)       … {ok, near, msg}。near は「あと少し（約分できる など）」でまちがいにしない
    ・S.fromSpeech(問題, 聞こえた言葉) … □に入れる中身の並び（読めなければ null）
    ・S.sayAnswer(問題)            … 答えを話し言葉で（読み上げと、テストで声の読み取りを確かめるのに使う）
@@ -9,7 +10,39 @@
 'use strict';
 const S = window.SANSU, MI = S.MI;
 
-S.makeProblem = (unit, rng) => {
+/* むずかしさの 点：数の けた・答えの けた・□の 数・ヒントの 数・負の数・くり上がりの 回数 */
+function carries(a, b, op){
+  const x = String(a).split('').reverse().map(Number), y = String(b).split('').reverse().map(Number); let c = 0, n = 0;
+  if(op === '×'){ for(let i = 0; i < x.length; i++){ const q = x[i] * b + c; c = Math.floor(q / 10); if(c) n++; } return n; }
+  for(let i = 0; i < Math.max(x.length, y.length); i++){
+    const u = x[i] || 0, v = y[i] || 0;
+    if(op === '+'){ c = u + v + c >= 10 ? 1 : 0; n += c; } else { c = u - c < v ? 1 : 0; n += c; }
+  }
+  return n;
+}
+S.diffScore = p => {
+  const strip = t => String(t || '').replace(/\{\d+\}/g, ' ');
+  const nums = (strip(p.q) + ' ' + strip(p.form)).match(/\d+(?:\.\d+)?/g) || [];
+  let sc = nums.reduce((s, n) => s + n.replace('.', '').length + (n.includes('.') ? 1 : 0), 0);
+  sc += p.ans.reduce((s, a) => s + String(a).replace(/[^\d]/g, '').length, 0) * 1.5 + (p.ans.length - 1) * 1.5 + (p.steps || []).length * 0.8;
+  if(/(^|[(\s])−\d/.test(p.form + ' ' + p.ans.join(' '))) sc += 1.5;
+  const f = String(p.form).split('→')[0];   // 式の 形：文字の 項・分数・かっこが 多いほど むずかしい
+  sc += Math.max(0, (f.match(/[xy]/g) || []).length - 1) * 1.2 + (f.match(/\[\[/g) || []).length + (f.match(/\(/g) || []).length * 0.5;
+  const m = /^(\d+) ([+−×]) (\d+) = \{0\}$/.exec(p.form);
+  if(m && (m[2] !== '×' || +m[3] < 10)) sc += 1.5 * carries(+m[1], +m[3], m[2]);
+  return sc;
+};
+S.makeProblem = (unit, rng, lv) => {
+  rng = rng || Math.random;
+  if(lv === 1 || lv === 3){   // 候補から やさしい（むずかしい）ほうの 2つの どちらか
+    const cs = []; for(let i = 0; i < 6; i++){ const c = build(unit, rng); c.score = S.diffScore(c); cs.push(c); }
+    cs.sort((a, b) => a.score - b.score);
+    const k = rng() < 0.5 ? 0 : 1, p = lv === 1 ? cs[k] : cs[cs.length - 1 - k];
+    p.lv = lv; return p;
+  }
+  const p = build(unit, rng); p.lv = 2; return p;
+};
+function build(unit, rng){
   const p = unit.gen(S.R(rng));
   const nb = (p.form.match(/\{\d+\}/g) || []).length;
   p.ans = p.ans.map(v => typeof v === 'number' ? S.num(v) : String(v));
@@ -21,7 +54,7 @@ S.makeProblem = (unit, rng) => {
   p.steps = (p.steps || []).filter(Boolean).map(s => typeof s === 'string' ? fm(s) : Object.assign({}, s, {t: fm(s.t)}));
   p.unit = unit.id; p.key = p.q + '|' + p.form;
   return p;
-};
+}
 
 /* ── □の中身を数に ── */
 const normIn = s => String(s == null ? '' : s).normalize('NFKC').replace(/[-‐‑‒–—―−﹣ー]/g, '-').replace(/\s+/g, '');

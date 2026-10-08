@@ -6698,7 +6698,7 @@ async function runSansu(browser) {
   console.log('\n── 🎓 算数・数学チャレンジ（v527） ──');
   const dir = path.join(ROOT, 'sansu'), SANSU = 'file://' + path.join(dir, 'index.html');
   const sw = fs.readFileSync(path.join(dir, 'service-worker.js'), 'utf8'), html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
-  const files = ['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'css/style.css', 'js/core.js', 'js/version.js', 'js/units-e.js', 'js/units-j.js', 'js/units-order.js', 'js/answer.js', 'js/mistakes.js', 'js/voice.js', 'js/store.js', 'js/app.js'];
+  const files = ['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'css/style.css', 'js/core.js', 'js/version.js', 'js/units-e.js', 'js/units-j.js', 'js/units-order.js', 'js/answer.js', 'js/mistakes.js', 'js/cards.js', 'js/medals.js', 'js/voice.js', 'js/store.js', 'js/app.js'];
   check('  ファイルがそろい、service-worker が持つ', files.every(f => fs.existsSync(path.join(dir, f)) && sw.includes("'./" + f + "'")), true);
   check('  控えは自分の分（sansu-）だけ消す・ネット優先', /k\.startsWith\(CACHE_PREFIX\)/.test(sw) && sw.includes("CACHE_PREFIX = 'sansu-'") && sw.includes('netFetch(e.request)'), true);
   const man = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
@@ -6894,17 +6894,17 @@ async function runSansu(browser) {
   // いっしょに とく：g1-carry（8 は あと □ で 10 → 5 を □ と □ に わける → 10 と 3 で いくつ？）
   await page.evaluate(() => SANSU.app.startStage('g1-carry')); await w(200);
   await page.click('#hintBtn'); await w(150);
-  const g1 = await page.evaluate(() => { const s = SANSU.app.ses(); return { need: s.g[0].ans[0], tgt: s.tgt, blanks: document.querySelectorAll('#hint0 .gbx').length, on: !!document.querySelector('#hint0 .gbx.on'), mainOn: !!document.querySelector('#qform .bx.on'), label: document.getElementById('hintBtn').textContent }; });
+  const g1 = await page.evaluate(() => { const s = SANSU.app.ses(); return { need: s.gd[0].ans[0], tgt: s.tgt, blanks: document.querySelectorAll('#hint0 .gbx').length, on: !!document.querySelector('#hint0 .gbx.on'), mainOn: !!document.querySelector('#qform .bx.on'), label: document.getElementById('hintBtn').textContent }; });
   check('  🤝 いっしょに とく：ヒントの とちゅうの 数が □ に なり、キーは そこに 入る', [g1.tgt, g1.blanks, g1.on, g1.mainOn, g1.label].join('/'), '0/1/true/false/🦉おしえて');
   await page.click(`[data-k="${+g1.need + 1}"]`); await page.click('[data-k="ok"]'); await w(150);
-  check('  ちがう 数は ❌（ヒントの 中で・答えの □ は そのまま）', await page.evaluate(() => document.getElementById('gfb0').className + '/' + SANSU.app.ses().g[0].act + '/' + SANSU.app.ses().tries + '/' + SANSU.app.ses().vals[0]), 'gfb ng/0/0/');
+  check('  ちがう 数は ❌（ヒントの 中で・答えの □ は そのまま）', await page.evaluate(() => document.getElementById('gfb0').className + '/' + SANSU.app.ses().gd[0].act + '/' + SANSU.app.ses().tries + '/' + SANSU.app.ses().vals[0]), 'gfb ng/0/0/');
   await page.click('[data-k="bs"]'); for (const ch of g1.need) await page.click(`[data-k="${ch}"]`); await page.click('[data-k="ok"]'); await w(200);
-  check('  あたると 数が 入り、つぎの ヒント（□ 2つ）が 出る', await page.evaluate(() => { const s = SANSU.app.ses(); return [s.g[0].done, s.hints, s.tgt, document.querySelectorAll('#hint1 .gbx').length, document.querySelector('#hint0 .gv').textContent].join('/'); }), `true/2/1/2/${g1.need}`);
+  check('  あたると 数が 入り、つぎの ヒント（□ 2つ）が 出る', await page.evaluate(() => { const s = SANSU.app.ses(); return [s.gd[0].done, s.hints, s.tgt, document.querySelectorAll('#hint1 .gbx').length, document.querySelector('#hint0 .gv').textContent].join('/'); }), `true/2/1/2/${g1.need}`);
   await page.click('#hintBtn'); await w(150);
-  check('  🦉「おしえて」：いまの □ の 数を 見せて（赤）つぎの □ へ', await page.evaluate(() => SANSU.app.ses().g[1].act + '/' + !!document.querySelector('#hint1 .gv.rev') + '/' + !!document.querySelector('#hint1 .gbx.on')), '1/true/true');
-  const rest = await page.evaluate(() => SANSU.app.ses().g[1].ans[1]);
+  check('  🦉「おしえて」：いまの □ の 数を 見せて（赤）つぎの □ へ', await page.evaluate(() => SANSU.app.ses().gd[1].act + '/' + !!document.querySelector('#hint1 .gv.rev') + '/' + !!document.querySelector('#hint1 .gbx.on')), '1/true/true');
+  const rest = await page.evaluate(() => SANSU.app.ses().gd[1].ans[1]);
   await page.evaluate(r => SANSU.app.heard([r]), rest); await w(700);
-  check('  🎤 声でも ヒントの □ に 答えられる → □ の ない ヒントの あとは 答えの □ へ', await page.evaluate(() => { const s = SANSU.app.ses(); return [s.g[1].done, s.hints, s.tgt, !!document.querySelector('#qform .bx.on'), document.getElementById('hintBtn').textContent].join('/'); }), 'true/3/-1/true/💡こたえ');
+  check('  🎤 声でも ヒントの □ に 答えられる → □ の ない ヒントの あとは 答えの □ へ', await page.evaluate(() => { const s = SANSU.app.ses(); return [s.gd[1].done, s.hints, s.tgt, !!document.querySelector('#qform .bx.on'), document.getElementById('hintBtn').textContent].join('/'); }), 'true/3/-1/true/💡こたえ');
   await page.evaluate(() => { const s = SANSU.app.ses(); s.vals = s.p.ans.slice(); SANSU.app.submit(); }); await w(150);
   check('  答えたら ヒントあり の せいかい', await page.evaluate(() => SANSU.app.ses().done.slice(-1)[0]), 'h');
   await page.evaluate(() => { SANSU.app.state().set.guide = false; SANSU.app.startStage('g1-carry'); }); await w(200);
@@ -6933,9 +6933,71 @@ async function runSansu(browser) {
   await page.click('[data-act="nav"][data-s="rec"]'); await w(150);
   check('  きろく：ふくしゅう・にがてかも・よく ある まちがい', await page.evaluate(() => { const t = document.getElementById('main').textContent; return t.includes('📝 ふくしゅう') + '/' + t.includes('ヒントなしで 30%') + '/' + t.includes('くり上がり3回'); }), 'true/true/true');
   check('  こわれた ふくしゅう・きろくは 読み込むときに 直す', await page.evaluate(() => { const c = SANSU.store.clean({ rev: [{ u: 'g1-add10', s: 5, due: '2026-10-09', n: 1 }, { u: 'nope', s: 1, due: '2026-10-09' }, { u: 'g1-add10', s: 5, due: '2026-10-10' }, { u: 'g6-speed', s: 7, due: '2026-10-09' }, { u: 'g1-sub10', s: -3, due: 'x' }, '<b>'], stat: { 'g1-add10': { n: 5, c: 9, x: 'a' }, evil: { n: 1 } }, mk: { carry: 2, evil: 5 }, set: { guide: false } }); return JSON.stringify([c.rev, c.stat, c.mk, c.set.guide]); }),
-    '[[{"u":"g1-add10","s":5,"due":"2026-10-09","n":1},{"u":"g5-speed","s":7,"due":"2026-10-09","n":0}],{"g1-add10":{"n":5,"c":0,"x":0}},{"carry":2},false]');
+    '[[{"u":"g1-add10","s":5,"due":"2026-10-09","n":1,"lv":2},{"u":"g5-speed","s":7,"due":"2026-10-09","n":0,"lv":2}],{"g1-add10":{"n":5,"c":0,"x":0}},{"carry":2},false]');
   await page.click('[data-act="nav"][data-s="set"]'); await w(150);
   check('  せっていに「🤝 いっしょに とく」（はじめは オン）', await page.evaluate(() => { const b = document.querySelector('[data-act="tg"][data-k="guide"]'); return !!b + '/' + (b && b.getAttribute('aria-checked')); }), 'true/true');
+
+  // ── v4：むずかしさ 3段階・🃏 えらんで 答える・🎯 ミッション・🏅 メダル・⚔️ ボス ──
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('sansu_seen_ver', SANSU.VERSION); }); await page.reload(); await w(300);
+  check('  v4：むずかしさ（やさしい < ふつう < むずかしい）・同じ 種と むずかしさなら 同じ 問題', await page.evaluate(() => {
+    const S = SANSU, ids = ['g2-add2', 'g3-mul1', 'g5-fracadd', 'j1-eq'], avg = (id, lv) => { const u = S.UNITS.find(x => x.id === id); let t = 0; for (let s = 1; s <= 120; s++) t += S.diffScore(S.makeProblem(u, S.mkRng(s * 11 + lv), lv)); return t / 120; };
+    const ord = ids.every(id => avg(id, 1) < avg(id, 2) && avg(id, 2) < avg(id, 3)), u = S.UNITS.find(x => x.id === 'g4-div1');
+    return ord + '/' + (S.makeProblem(u, S.mkRng(77), 3).key === S.makeProblem(u, S.mkRng(77), 3).key) + '/' + S.makeProblem(u, S.mkRng(77), 1).lv;
+  }), 'true/true/1');
+  await page.evaluate(() => SANSU.app.startStage('g2-add2')); await w(150);
+  check('  問題の 上に むずかしさ（はじめは ふつう）', await page.evaluate(() => document.querySelector('.pbar .dif').textContent + '/' + SANSU.app.ses().p.lv), 'ふつう/2');
+  await page.evaluate(() => { for (let i = 0; i < 4; i++) { const s = SANSU.app.ses(); s.vals = s.p.ans.slice(); SANSU.app.submit(); SANSU.app.keyIn('ok'); } });
+  await w(300);
+  check('  ヒントなしで 4問 つづけて できると じどうで むずかしく', await page.evaluate(() => SANSU.app.lvOf('g2-add2') + '/' + SANSU.app.ses().p.lv + '/' + JSON.parse(localStorage.getItem('sansu_v1')).lv['g2-add2']), '3/3/3');
+  await page.evaluate(() => { for (let i = 0; i < 2; i++) { const s = SANSU.app.ses(); for (let k = 0; k < 20 && !s.answered; k++) SANSU.app.hint(); SANSU.app.keyIn('ok'); } }); await w(200);
+  check('  2問 つづけて 答えを 見ると やさしく（もとの ふつう に）', await page.evaluate(() => SANSU.app.lvOf('g2-add2') + '/' + !('g2-add2' in SANSU.app.state().lv)), '2/true');
+  await page.evaluate(() => SANSU.app.finish()); await w(100);
+  await page.evaluate(() => { SANSU.app.state().set.grade = 3; }); await page.click('[data-act="nav"][data-s="home"]'); await w(150);
+  await page.click('.unit[data-u="g3-mul1"] .ex'); await w(150);
+  await page.click('[data-act="setlv"][data-l="1"]'); await w(100);
+  check('  解説の 画面で むずかしさを えらぶ（おぼえる）', await page.evaluate(() => document.querySelector('.difpick .on').textContent + '/' + SANSU.app.state().lv['g3-mul1']), 'やさしい/1');
+  await page.click('.exbox ~ .btn[data-act="unit"]'); await w(200);
+  check('  えらんだ むずかしさで 問題を 作る', await page.evaluate(() => SANSU.app.ses().p.lv + '/' + document.querySelector('.pbar .dif').textContent), '1/やさしい');
+  await page.evaluate(() => SANSU.app.finish()); await w(100);
+  await page.click('[data-act="nav"][data-s="home"]'); await w(150);
+  check('  ホームの 単元に むずかしさ（ふつう 以外）・あそび方が 4つ', await page.evaluate(() => (document.querySelector('.unit[data-u="g3-mul1"] > .dif') || {}).textContent + '/' + document.querySelectorAll('.modes button').length + '/' + !!document.querySelector('.mission')), 'やさしい/4/true');
+  // ミックス・ボスは 学年の 問題を さいごまで（いっしょに とく の きろくと 学年が まざらない）
+  check('  🎲 ミックス：10問 さいごまで 同じ 学年', await page.evaluate(() => { SANSU.app.state().set.grade = 4; SANSU.app.startMix(); const gs = []; for (let i = 0; i < 10; i++) { const s = SANSU.app.ses(); gs.push(SANSU.UNITS.find(u => u.id === s.p.unit).g); SANSU.app.hint(); s.vals = s.p.ans.slice(); SANSU.app.submit(); SANSU.app.keyIn('ok'); } return SANSU.app.view().s + '/' + [...new Set(gs)].join(','); }), 'result/4');
+  await page.evaluate(() => { SANSU.app.state().set.grade = 3; }); await page.click('[data-act="nav"][data-s="home"]'); await w(150);
+  // 🃏 えらんで 答える
+  await page.click('[data-act="cardmix"]'); await w(250);
+  const cd = await page.evaluate(() => { const s = SANSU.app.ses(), ok = s.cards.map(v => SANSU.check(s.p, v).ok); return { n: document.querySelectorAll('#keys .card').length, right: ok.indexOf(true), nRight: ok.filter(Boolean).length, wrong: ok.indexOf(false) }; });
+  check('  🃏 カードが 4まい（正しいのは 1まい）・キーは ない', cd.n + '/' + cd.nRight + '/' + (await page.evaluate(() => document.querySelectorAll('#keys [data-k]').length)), '4/1/0');
+  await page.click(`#keys .card[data-c="${cd.wrong}"]`); await w(200);
+  check('  まちがいの カードは ×（もう えらべない）', await page.evaluate(i => { const s = SANSU.app.ses(), c = document.querySelector(`#keys .card[data-c="${i}"]`); return s.tries + '/' + c.disabled + '/' + c.classList.contains('bad') + '/' + document.getElementById('fb').classList.contains('ng'); }, cd.wrong), '1/true/true/true');
+  await page.click(`#keys .card[data-c="${cd.right}"]`); await w(200);
+  check('  正しい カードで せいかい（カードは 点が すこし 少ない）', await page.evaluate(() => { const s = SANSU.app.ses(); return s.answered + '/' + s.score + '/' + SANSU.app.state().cnt.card; }), 'true/3/1');
+  await page.evaluate(() => SANSU.app.finish()); await w(100);
+  // 🎯 ミッション
+  check('  🎯 きょうの ミッションは 3つ（日づけで 決まる・1つめは 問題の 数）', await page.evaluate(() => { const m = SANSU.app.missions(); return m.ids.length + '/' + SANSU.MISSIONS.find(x => x.id === m.ids[0]).ev + '/' + (m.d === '2026-10-08') + '/' + (SANSU.pickMissions('2026-10-08').join() === SANSU.pickMissions('2026-10-08').join()); }), '3/solve/true/true');
+  const msx = await page.evaluate(() => { const st = SANSU.app.state(); st.ms = { d: '2026-10-08', ids: ['solve10', 'clean5', 'ta1'], p: {}, ok: [], all: false }; const x0 = st.xp; for (let i = 0; i < 10; i++) SANSU.app.mEvent('solve'); const x1 = st.xp; for (let i = 0; i < 5; i++) SANSU.app.mEvent('clean'); SANSU.app.mEvent('ta'); return [st.ms.ok.join(','), x1 - x0, st.xp - x0, st.ms.all, st.cnt.msday].join('/'); });
+  check('  ミッション クリアで XP、ぜんぶ クリアで ボーナス', msx, 'solve10,clean5,ta1/20/90/true/1');
+  // 🏅 メダル
+  check('  🏅 メダル：できた ことで もらえる（ミッション ぜんぶ・はじめの 一歩）', await page.evaluate(() => { const st = SANSU.app.state(); st.md = {}; st.ok = 1; st.xp = 0; st.units = {}; st.ta = {}; st.boss = {}; st.days.best = 0; Object.keys(st.cnt).forEach(k => { st.cnt[k] = 0; }); st.cnt.msday = 1; SANSU.app.checkMedals(); return ['mis1', 'ok1', 'ok10'].map(k => !!st.md[k]).join(',') + '/' + Object.keys(st.md).length; }), 'true,true,false/2');
+  await page.click('[data-act="nav"][data-s="rec"]'); await w(150);
+  check('  きろくに メダル ずかん（もらった ものは 絵、まだの ものは ？）', await page.evaluate(() => document.querySelector('#medals h3').textContent + '/' + document.querySelectorAll('#medals .md').length + '/' + document.querySelectorAll('#medals .md.off').length), `🏅 メダル ずかん（2 / ${await page.evaluate(() => SANSU.MEDALS.length)}）/${await page.evaluate(() => SANSU.MEDALS.length)}/${await page.evaluate(() => SANSU.MEDALS.length - 2)}`);
+  // ⚔️ ボス
+  await page.click('[data-act="nav"][data-s="home"]'); await w(150);
+  await page.click('[data-act="boss"]'); await w(150);
+  check('  ⚔️ ボスの しょうかい', await page.evaluate(() => document.querySelector('.bossintro h2').textContent), '小3の ボス「ワリザウルス」が あらわれた！');
+  await page.click('[data-act="bossgo"]'); await w(250);
+  check('  ボス戦：体力と ハート 3つ・15問・小3 の 問題', await page.evaluate(() => { const s = SANSU.app.ses(); return [s.mode, s.n, s.hearts, !!document.querySelector('.bossbar .hp'), document.getElementById('hearts').textContent, SANSU.UNITS.find(u => u.id === s.p.unit).g].join('/'); }), 'boss/15/3/true/❤️❤️❤️/3');
+  await page.evaluate(() => { const s = SANSU.app.ses(); s.vals = s.p.ans.map(a => a === '1' ? '2' : '1'); SANSU.app.submit(); }); await w(150);
+  check('  まちがえると ハートが へる', await page.evaluate(() => SANSU.app.ses().hearts + '/' + document.getElementById('hearts').textContent), '2/❤️❤️🤍');
+  await page.evaluate(() => { const s = SANSU.app.ses(); for (let k = 0; k < 30 && !s.answered; k++) SANSU.app.hint(); }); await w(150);
+  await page.evaluate(() => { SANSU.app.keyIn('ok'); const s = SANSU.app.ses(); s.vals = s.p.ans.map(a => a === '1' ? '2' : '1'); SANSU.app.submit(); }); await w(200);
+  check('  答えを 見ても へる・ハートが なくなったら まけ', await page.evaluate(() => { const s = SANSU.app.ses(); return s.hearts + '/' + s.lost + '/' + !!document.querySelector('[data-act="next"]'); }), '0/true/true');
+  await page.click('[data-act="next"]'); await w(250);
+  check('  まけの けっか（ちょうせんは かぞえる）', await page.evaluate(() => document.querySelector('.res .msg').textContent.startsWith('ざんねん') + '/' + JSON.stringify(SANSU.app.state().boss[3])), 'true/{"w":0,"t":1,"b":0}');
+  await page.evaluate(() => { SANSU.app.startBoss(3); for (let i = 0; i < 15; i++) { const s = SANSU.app.ses(); s.vals = s.p.ans.slice(); SANSU.app.submit(); SANSU.app.keyIn('ok'); } }); await w(400);
+  check('  15問 とけたら かち：トロフィー・ボーナス XP・メダル', await page.evaluate(() => { const st = SANSU.app.state(); return SANSU.app.view().s + '/' + document.querySelector('.res .msg').textContent.includes('たおした') + '/' + st.boss[3].w + '/' + !!st.md.boss1 + '/' + (SANSU.app.ses().xp >= 150 + 50); }), 'result/true/1/true/true');
+  check('  こわれた v4 の きろくは 読み込むときに 直す', await page.evaluate(() => { const c = SANSU.store.clean({ lv: { 'g1-add10': 3, 'g1-sub10': 2, x: 1, 'g2-kuku': 9 }, ms: { d: '2026-10-08', ids: ['solve10', 'evil', 'clean5', 'combo5', 'ta1'], p: { solve10: 4, clean5: 'a' }, ok: ['solve10', 'evil'], all: 'yes' }, md: { ok1: '2026-10-01', evil: '2026-10-01', ok10: 'x' }, boss: { 3: { w: 2, t: 5, b: 15 }, 12: { w: 1 } }, cnt: { voice: 3, evil: 5 }, set: { auto: false, card: true } }); return JSON.stringify([c.lv, c.ms, c.md, c.boss, c.cnt.voice, c.cnt.evil, c.set.auto, c.set.card]); }),
+    '[{"g1-add10":3},{"d":"2026-10-08","ids":["solve10","clean5","combo5"],"p":{"solve10":4,"clean5":0},"ok":["solve10"],"all":false},{"ok1":"2026-10-01"},{"3":{"w":2,"t":5,"b":15}},3,null,false,true]');
 
   // ── 表電卓から 開く・表電卓へ 戻る ──
   await page.goto('about:blank'); await page.goto(SANSU + '#from=hyo'); await w(250);
