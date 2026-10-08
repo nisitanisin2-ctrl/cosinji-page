@@ -283,6 +283,7 @@ ul.vlog{ margin:0 0 8px; padding-left:1.1em; } ul.vlog li{ margin:3px 0; } ul.vl
 /* ── 数式 ── */
 .fr{ display:inline-flex; flex-direction:column; align-items:center; vertical-align:middle; margin:0 .12em; line-height:1.15; }
 .fr .fn{ border-bottom:2px solid currentColor; padding:0 .15em .05em; }
+.fr .fn, .fr .fd{ white-space:nowrap; }
 .fr .fd{ padding:.05em .15em 0; }
 .qform .fr{ line-height:1.25; }
 .mx{ display:inline-flex; align-items:center; }
@@ -378,10 +379,10 @@ ul.vlog{ margin:0 0 8px; padding-left:1.1em; } ul.vlog li{ margin:3px 0; } ul.vl
 .chart .cbar:focus .chit{ stroke:var(--sub); stroke-width:1; }
 .ctip{ position:absolute; top:-6px; background:var(--ink); color:var(--card); font-size:.8rem; font-weight:800; padding:4px 8px; border-radius:8px; white-space:nowrap; pointer-events:none; }
 .ctable summary{ cursor:pointer; font-weight:800; color:var(--blue); font-size:.88rem; margin:6px 0; }
-.ctable table, .rt{ border-collapse:collapse; width:100%; font-size:.84rem; font-variant-numeric:tabular-nums; }
-.ctable th, .ctable td, .rt th, .rt td{ border-bottom:1px solid var(--line); padding:4px 6px; text-align:right; }
-.ctable th:first-child, .ctable td:first-child, .rt th:first-child, .rt td:first-child{ text-align:left; }
-.rt th:not(:first-child), .rt td:not(:first-child){ white-space:nowrap; width:1%; }
+.ctable table, .utab{ border-collapse:collapse; width:100%; font-size:.84rem; font-variant-numeric:tabular-nums; }
+.ctable th, .ctable td, .utab th, .utab td{ border-bottom:1px solid var(--line); padding:4px 6px; text-align:right; }
+.ctable th:first-child, .ctable td:first-child, .utab th:first-child, .utab td:first-child{ text-align:left; }
+.utab th:not(:first-child), .utab td:not(:first-child){ white-space:nowrap; width:1%; }
 .rl{ margin:4px 0; padding-left:1.2em; font-size:.9rem; }
 .muted{ color:var(--sub); font-size:.88rem; margin:4px 0; }
 /* 📄 プリント */

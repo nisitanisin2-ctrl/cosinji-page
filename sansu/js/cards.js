@@ -49,7 +49,7 @@ S.choices = (p, rng) => {
   const n = p.ans.length, w = p.ans.map((v, i) => S.parseBlank(p.kinds[i], v));
   if(w.some(v => v === null)) return null;
   const f = String(p.form), den = i => new RegExp('/\\{' + i + '\\}\\]\\]').test(f);   // 分母の □
-  const u = S.UNITS.find(x => x.id === p.unit), young = !u || u.g < 7;   // 小学生には 負の数の カードは 出さない
+  const u = S.UNITS.find(x => x.id === p.unit), young = !u || u.g < 7 || u.pos;   // 小学生（と 答えが 負に ならない 単元 pos）には 負の数の カードは 出さない
   const bare = (p.q + ' ' + f).replace(/\{\d+\}/g, ' ');
   // 0 の 数の まちがいは、何十・何百の かけ算・わり算の とき だけ。小数点の まちがいは 小数の とき だけ
   const zeroOK = /[×÷]/.test(f) && /(^|[^\d.])\d*0(?![\d.])/.test(bare) && Math.abs(w[0]) >= 10, decOK = p.kinds.includes('d') || /\d\.\d/.test(bare);

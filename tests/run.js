@@ -6695,12 +6695,12 @@ async function runSecurity(browser) {
 }
 /* 🎓 算数・数学チャレンジ（sansu/。v527）：別のアプリ。問題の作り方・答え合わせ・声・画面の流れ・表電卓から開く */
 // 単元の 数（全部 / 小1〜中3）。単元を 足したら ここも かえる
-const S_UNITS_EXPECT = '92 / 9,12,12,13,18,7,7,6,8';
+const S_UNITS_EXPECT = '106 / 9,12,12,13,18,11,10,9,12';
 async function runSansu(browser) {
   console.log('\n── 🎓 算数・数学チャレンジ（v527） ──');
   const dir = path.join(ROOT, 'sansu'), SANSU = 'file://' + path.join(dir, 'index.html');
   const sw = fs.readFileSync(path.join(dir, 'service-worker.js'), 'utf8'), html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
-  const files = ['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'css/style.css', 'js/core.js', 'js/version.js', 'js/units-e.js', 'js/units-j.js', 'js/units-e2.js', 'js/units-e3.js', 'js/units-w.js', 'js/units-order.js', 'js/answer.js', 'js/mistakes.js', 'js/cards.js', 'js/medals.js', 'js/voice.js', 'js/store.js', 'js/app.js'];
+  const files = ['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'css/style.css', 'js/core.js', 'js/version.js', 'js/units-e.js', 'js/units-j.js', 'js/units-e2.js', 'js/units-e3.js', 'js/units-j2.js', 'js/units-w.js', 'js/units-order.js', 'js/answer.js', 'js/mistakes.js', 'js/cards.js', 'js/medals.js', 'js/voice.js', 'js/store.js', 'js/app.js'];
   check('  ファイルがそろい、service-worker が持つ', files.every(f => fs.existsSync(path.join(dir, f)) && sw.includes("'./" + f + "'")), true);
   check('  控えは自分の分（sansu-）だけ消す・ネット優先', /k\.startsWith\(CACHE_PREFIX\)/.test(sw) && sw.includes("CACHE_PREFIX = 'sansu-'") && sw.includes('netFetch(e.request)'), true);
   const man = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
@@ -6754,7 +6754,7 @@ async function runSansu(browser) {
   // ── ホーム ──
   check('  ホーム：学年が 9つ・小1の 単元・おすすめ', await page.evaluate(() => document.querySelectorAll('.grades button').length + '/' + (document.querySelectorAll('.units .unit').length === SANSU.UNITS.filter(u => u.g === 1).length) + '/' + !!document.querySelector('.hero')), '9/true/true');
   await page.click('[data-act="grade"][data-g="7"]'); await w(150);
-  check('  学年を えらぶと その 単元（中1）・おぼえる', await page.evaluate(() => [...document.querySelectorAll('.units .unit')].map(u => u.dataset.u).join(',') + '/' + JSON.parse(localStorage.getItem('sansu_v1')).set.grade), 'j1-addsub,j1-muldiv,j1-moji,j1-eq,j1-word,j1-prop,j1-sector/7');
+  check('  学年を えらぶと その 単元（中1）・おぼえる', await page.evaluate(() => [...document.querySelectorAll('.units .unit')].map(u => u.dataset.u).join(',') + '/' + JSON.parse(localStorage.getItem('sansu_v1')).set.grade), 'j1-prime,j1-addsub,j1-muldiv,j1-moji,j1-eq,j1-word,j1-prop,j1-sector,j1-solid,j1-freq/7');
   await page.click('.unit[data-u="j1-eq"] .ex'); await w(150);
   check('  📖 解説の 画面', await page.evaluate(() => SANSU.app.view().s + '/' + document.querySelector('.exbox').textContent.includes('移項') + '/' + !!document.querySelector('[data-act="unit"][data-u="j1-eq"]')), 'ex/true/true');
   await page.goBack(); await w(150);
@@ -7022,7 +7022,7 @@ async function runSansu(browser) {
   await page.click('[data-act="nav"][data-s="rec"]'); await w(150);
   await page.click('[data-act="report"]'); await w(200);
   check('  📊 レポート：この 1週間（問題・せいかい りつ・時間・学んだ 日）と 前の 週との ちがい', await page.evaluate(() => [...document.querySelectorAll('.tile')].slice(0, 5).map(t => t.querySelector('.tv').textContent).join(',') + '/' + document.querySelector('.tile .td').textContent), '17問,88%,76%,14分,2 / 7日/前の 週より ＋13問');
-  check('  2週間の 棒グラフ（14本・数は いちばん 多い 日と きょう）・数の 表・単元', await page.evaluate(() => [document.querySelectorAll('#dayChart .cbar').length, document.querySelectorAll('#dayChart .cb').length, [...document.querySelectorAll('#dayChart .cv')].map(e => e.textContent).join('+'), document.querySelectorAll('.ctable tr').length, document.querySelectorAll('.rt tr').length].join('/')), '14/3/12/15/3');
+  check('  2週間の 棒グラフ（14本・数は いちばん 多い 日と きょう）・数の 表・単元', await page.evaluate(() => [document.querySelectorAll('#dayChart .cbar').length, document.querySelectorAll('#dayChart .cb').length, [...document.querySelectorAll('#dayChart .cv')].map(e => e.textContent).join('+'), document.querySelectorAll('.ctable tr').length, document.querySelectorAll('.utab tr').length].join('/')), '14/3/12/15/3');
   await page.focus('#dayChart .cbar:last-of-type'); await w(100);
   check('  棒を えらぶと その 日の 数', await page.evaluate(() => document.getElementById('ctip').hidden + '/' + document.getElementById('ctip').textContent), 'false/10/8（木） 12問・せいかい 10問');
   // 📄 プリント
@@ -7073,6 +7073,24 @@ async function runSansu(browser) {
   await page.evaluate(() => SANSU.app.startStage('g3-bargraph')); await w(200);
   check('  ぼうグラフの 問題：グラフが 出て、読んだ 答えで 正解', await page.evaluate(() => { const bars = document.querySelectorAll('.qfig svg.chartfig .gb').length, s = SANSU.app.ses(); s.vals = s.p.ans.slice(); SANSU.app.submit(); return (bars >= 4) + '/' + s.ok; }), 'true/1');
   check('  新しい 単元が 学年に 入る（小3・小4・小5）', await page.evaluate(() => ['g3-man', 'g3-circle', 'g3-boxeq', 'g3-bargraph', 'g4-oku', 'g4-areaunit', 'g4-linegraph', 'g4-perp', 'g5-perunit', 'g5-graph', 'g5-congruent', 'g5-prism'].map(id => (SANSU.UNITS.find(u => u.id === id) || {}).g).join('')), '333344445555');
+
+  // ── v8：小6〜中3の 新しい 単元（データの 図・空間図形・円周角・解の公式）と √ の 表示 ──
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('sansu_seen_ver', SANSU.VERSION); }); await page.reload(); await w(300);
+  check('  v8：データの 図（ドットプロットの ● 8こ・ヒストグラムの 柱 4本・箱ひげ図の 箱）', await page.evaluate(() => {
+    const F = SANSU.F, n = (s, re) => (s.match(re) || []).length;
+    return [n(F.dotplot(3, 10, [4, 5, 5, 6, 6, 6, 7, 9], '点'), /<circle/g), n(F.hist([10, 15, 20, 25, 30], [2, 5, 7, 3], 'm', '人'), /class="gb"/g), n(F.boxplot({ min: 2, q1: 4, q2: 6, q3: 10, max: 14 }, 0, 20, 2, '点'), /<rect/g)].join('/');
+  }), '8/4/1');
+  check('  空間図形：見えない 辺と 高さは 点線（正四角錐 4本・円錐 2本）、円周角の 図に 角の しるし', await page.evaluate(() => { const F = SANSU.F, c = s => (s.match(/ dash"/g) || []).length; return [c(F.pyramid(4, { h: '6cm' })), c(F.pyramid(0, { h: '4cm' })), (F.inscribed('center', 120, '120°', 'x').match(/class="arc/g) || []).length].join('/'); }), '4/2/2');
+  check('  分数の 中の √（解の公式の 答えの 形）', await page.evaluate(() => { const d = document.createElement('div'); d.innerHTML = SANSU.mathHtml('x = [[−3 ± √[5]/2]]'); return !!d.querySelector('.fr .fn .rt .rc') + '/' + d.querySelector('.fr .fd').textContent; }), 'true/2');
+  check('  声：「2分の マイナス3 プラスマイナス ルート5」「3分の y プラス 6」', await page.evaluate(() => {
+    const P = (form, ans, kinds) => ({ q: '', form, ans, kinds, steps: ['.'], answer: '' }), f = (p, t) => (SANSU.fromSpeech(p, t) || ['×']).join(',');
+    return [f(P('x = [[{0} ± √[{1}]/{2}]]', ['−3', '5', '2'], ['i', 'n', 'n']), '2ぶんのマイナス3プラスマイナスルート5'), f(P('x = [[y {0}/{1}]]', ['+6', '3'], ['t', 'n']), 'エックスイコール3分のyプラス6'), f(P('[[3/√[2]]] = [[{0}√[{1}]/{2}]]', ['3', '2', '2'], ['n', 'n', 'n']), '2分の3ルート2')].join(' / ');
+  }), '−3,5,2 / +6,3 / 3,2,2');
+  await page.evaluate(() => SANSU.app.startStage('j3-sqrt')); await w(200);
+  check('  √ は 数の はばだけ（レポートの 表の 名前と ぶつからない）', await page.evaluate(() => { const r = [...document.querySelectorAll('#qform .rt')]; return r.length > 0 && r.every(e => e.getBoundingClientRect().width < 120); }), true);
+  await page.evaluate(() => SANSU.app.startStage('j1-freq')); await w(200);
+  check('  ヒストグラムの 問題：グラフが 出て、正解できる', await page.evaluate(() => { const bars = document.querySelectorAll('.qfig svg.chartfig .gb').length, s = SANSU.app.ses(); s.vals = s.p.ans.slice(); SANSU.app.submit(); return (bars >= 4 || /範囲/.test(s.p.q)) + '/' + s.ok; }), 'true/1');
+  check('  新しい 単元が 学年に 入る（小6・中1・中2・中3）', await page.evaluate(() => ['g6-symmetry', 'g6-scale', 'g6-volume', 'g6-data', 'j1-prime', 'j1-solid', 'j1-freq', 'j2-transform', 'j2-parallel', 'j2-boxplot', 'j3-formula', 'j3-rational', 'j3-inscribed', 'j3-ratioline'].map(id => (SANSU.UNITS.find(u => u.id === id) || {}).g).join('')), '66667778889999');
 
   // ── 表電卓から 開く・表電卓へ 戻る ──
   await page.goto('about:blank'); await page.goto(SANSU + '#from=hyo'); await w(250);

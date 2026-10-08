@@ -133,8 +133,8 @@ function kanaRun(run){
 }
 const kanaToKanji = t => t.replace(/[ぁ-ゖー]+/g, kanaRun);
 /* 答えの形を、話し言葉と同じ書き方の文字に（[[3/4]] → 3/4、√[2] → √2） */
-const plainForm = f => String(f).replace(/\[\[([^\[\]|]*)\|([^\[\]\/]*)\/([^\[\]]*)\]\]/g, '$1と$2/$3')
-  .replace(/\[\[([^\[\]\/]*)\/([^\[\]]*)\]\]/g, '$1/$2').replace(/√\[([^\[\]]*)\]/g, '√$1').replace(/\*\*/g, '')
+const plainForm = f => String(f).replace(/√\[([^\[\]]*)\]/g, '√$1').replace(/\[\[([^\[\]|]*)\|([^\[\]\/]*)\/([^\[\]]*)\]\]/g, '$1と$2/$3')
+  .replace(/\[\[([^\[\]\/]*)\/([^\[\]]*)\]\]/g, '$1/$2').replace(/\*\*/g, '')
   .replace(/[\s　]+/g, '').replace(/[＝]/g, '=').replace(/[-‐−]/g, MI);
 function normSpeech(raw, p){
   // ² ³ は NFKC で 2 3 に なってしまうので、そのまま残す
@@ -158,6 +158,7 @@ function normSpeech(raw, p){
   if(keepBig) t = t.replace(/\d{5,}/g, secNum);
   t = t.replace(/(\d)\s*(てん|点)\s*(\d)/g, '$1.$3').replace(/(\d)\s*(じ)(?![ょゃゅ])/g, '$1時').replace(/(\d)\s*(ふん|ぷん)/g, '$1分');
   t = t.replace(/(対|たい)\s*(?=[−+]?\d)/g, ':');
+  t = t.replace(/(\d+)\s*分の\s*([a-z]\s*[−+]\s*\d+|[−+]?\d+\s*±\s*√\s*\d+|[−+]?\d*\s*√\s*\d+)/g, (m, d, n) => n.replace(/\s+/g, '') + '/' + d);   // 2分の−3±√5 → −3±√5/2、2分の√2 → √2/2、3分のy+6 → y+6/3
   t = t.replace(/(\d+)\s*分の\s*([−+]?\d+)/g, '$2/$1');                       // 4分の3 → 3/4
   if(mixed) t = t.replace(/(\d+)\s*と\s*(\d+)\/(\d+)/g, '$1と$2/$3');
   else t = t.replace(/(\d+)\s*と\s*(\d+)\/(\d+)/g, (m, w, n, d) => `${+w * +d + +n}/${d}`);   // 帯分数で言っても 仮分数の□に
@@ -222,7 +223,7 @@ S.sayAnswer = (p, vals) => {
   const b0 = f.search(/\{\d+\}/), head = b0 >= 0 ? f.slice(0, b0) : f, k = Math.max(head.lastIndexOf('→'), head.lastIndexOf('='));
   if(k >= 0 && (head.lastIndexOf('→') >= 0 || /[\d)]/.test(head.slice(0, k)))) f = f.slice(k + 1);
   f = f.replace(/\{(\d+)\}/g, (m, i) => v[+i] == null ? '' : v[+i]);
-  f = f.replace(/\[\[([^\[\]|]*)\|([^\[\]\/]*)\/([^\[\]]*)\]\]/g, '$1と$3分の$2').replace(/\[\[([^\[\]\/]*)\/([^\[\]]*)\]\]/g, '$2分の$1').replace(/√\[([^\[\]]*)\]/g, 'ルート$1');
+  f = f.replace(/√\[([^\[\]]*)\]/g, 'ルート$1').replace(/\[\[([^\[\]|]*)\|([^\[\]\/]*)\/([^\[\]]*)\]\]/g, '$1と$3分の$2').replace(/\[\[([^\[\]\/]*)\/([^\[\]]*)\]\]/g, '$2分の$1');
   f = f.replace(/±/g, 'プラスマイナス').replace(/−/g, 'マイナス').replace(/\+/g, 'プラス').replace(/x²/g, 'エックスの2乗').replace(/x/g, 'エックス').replace(/y/g, 'ワイ')
        .replace(/π/g, 'パイ').replace(/:/g, '対').replace(/%/g, 'パーセント').replace(/=/g, 'イコール').replace(/[()]/g, ' ').replace(/\s+/g, ' ');
   return f.trim();

@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════
-   算数の 単元（v7〜）：小3〜小5 の 大きな数・図形・グラフを 読む 問題。書き方は units-e.js と 同じ
+   算数の 単元（v7〜）：小3〜小6 の 大きな数・図形・グラフを 読む 問題・データの 調べ方。書き方は units-e.js と 同じ
    グラフの 図は core.js の F.bars・F.lines・F.band・F.pie（グラフを 読む ことが 問題なので、ぼうや 点の 数は 書かない）
    ════════════════════════════════════════════════════════════════ */
 (function(){
@@ -441,5 +441,136 @@ U({id: 'g5-prism', g: 5, ic: '🧊', t: '角柱と 円柱',
     return {q: `底面が 1辺 ${s}cm の 正${KD[n]}角形の ${nm}が あります。展開図で、側面 ぜんぶを あわせた 長方形の よこの 長さは？`, fig: F.prism(n), form: '{0} cm', ans: [n * s],
       steps: ['側面 ぜんぶの よこの 長さは、底面の まわりの 長さと 同じ。', `底面は 1辺 ${s}cm の 正${KD[n]}角形：${s} × ${n} = ？`], answer: `${s} × ${n} = ${n * s}（cm）`,
       mis: ([G]) => G === s ? `側面は ${n}こ ならぶよ` : G === s * (n + 2) ? '底面は 入れないよ（側面だけ）' : ''};
+  }});
+
+/* ════════════ 小学6年 ════════════ */
+/* ドットプロットの データ（最頻値は 1つだけ） */
+const DP = [{t: '10点 まんてんの 小テストの 点数', u: '点', lo: [1, 2]}, {t: '1か月に 読んだ 本の 数', u: 'さつ', lo: [0, 1, 2]}, {t: 'シュートが 入った 数', u: '本', lo: [0, 1]}];
+function dpData(r){
+  for(let tries = 0; tries < 200; tries++){
+    const th = r.pick(DP), lo = r.pick(th.lo), m = r.int(2, 6), c = Array(9).fill(0); c[m] = r.int(3, 5);
+    for(let i = 0; i < 9; i++) if(i !== m) c[i] = r.int(0, Math.max(0, c[m] - 1 - Math.floor(Math.abs(i - m) / 2)));
+    const vals = []; c.forEach((k, i) => { for(let j = 0; j < k; j++) vals.push(lo + i); });
+    if(vals.length < 8 || vals.length > 18) continue;
+    return {th, lo, hi: lo + 8, vals, mode: lo + m, cm: c[m]};
+  }
+  return {th: DP[0], lo: 2, hi: 10, vals: [3, 4, 5, 5, 6, 6, 6, 7, 8, 9], mode: 6, cm: 3};
+}
+const median = a => { const s = a.slice().sort((x, y) => x - y), n = s.length; return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2; };
+const midTxt = n => n % 2 ? `${(n + 1) / 2}番目` : `${n / 2}番目と ${n / 2 + 1}番目`;
+U({id: 'g6-data', g: 6, ic: '📊', t: 'データの 調べ方（平均値・中央値・最頻値）',
+  ex: [['p', 'データの 特ちょうを 1つの 数で あらわした ものを **代表値** と いいます。'],
+       ['p', '**平均値**＝合計 ÷ 個数。**中央値**＝大きさの 順に 並べた ときの まん中の 値（個数が 偶数なら まん中 2つの 平均）。**最頻値**＝いちばん 多く 出て くる 値。'],
+       ['fig', () => F.dotplot(3, 10, [4, 5, 5, 6, 6, 6, 7, 9], '点')],
+       ['eg', '上の ドットプロット：4, 5, 5, 6, 6, 6, 7, 9 → 平均値 48 ÷ 8 = 6、中央値 (6 + 6) ÷ 2 = 6、最頻値 6'],
+       ['tip', '中央値は、まず 小さい 順に 並べてから さがそう。']],
+  gen(r){
+    const t = r.int(0, 3);
+    if(t === 0){ const n = r.int(7, 10), vals = Array.from({length: n}, () => r.int(1, 30)), md = median(vals), s = vals.slice().sort((x, y) => x - y), mean = vals.reduce((a, b) => a + b, 0) / n;
+      return {q: `${vals.join('、')} の 中央値は？`, form: '{0}', ans: [String(md)], kinds: ['d'],
+        steps: [`小さい 順に 並べると ${s.join('、')}`, `${n}こ の まん中は ${midTxt(n)}`, n % 2 ? '' : `${s[n / 2 - 1]} と ${s[n / 2]} の 平均`], answer: n % 2 ? `中央値は ${md}` : `(${s[n / 2 - 1]} + ${s[n / 2]}) ÷ 2 = ${md}`,
+        mis: ([G]) => H.is(G, mean) ? 'それは 平均値。中央値は まん中の 値' : n % 2 && H.is(G, vals[(n - 1) / 2]) ? 'まず 小さい 順に 並べよう' : ''}; }
+    const D = dpData(r), n = D.vals.length, fig = F.dotplot(D.lo, D.hi, D.vals, D.th.u), head = `「${D.th.t}」を ドットプロットに あらわしました。`, md = median(D.vals), sum = D.vals.reduce((a, b) => a + b, 0);
+    if(t === 1) return {q: head + '最頻値は？', fig, form: `{0} ${D.th.u}`, ans: [D.mode],
+      steps: ['いちばん 高く ● が つまれて いる 値を さがそう。', `${D.mode}${D.th.u} の ところに ${D.cm}こ`], answer: `最頻値は ${D.mode}${D.th.u}`,
+      mis: ([G]) => G === D.cm ? `それは 人数。最頻値は いちばん 多い 値（${D.th.u}）` : ''};
+    if(t === 2 || (sum * 10) % n) return {q: head + '中央値は？', fig, form: `{0} ${D.th.u}`, ans: [String(md)], kinds: ['d'],
+      steps: [`ぜんぶで ${n}こ。まん中は 小さい ほうから ${midTxt(n)}`, '左から ● を じゅんに 数えよう。'], answer: `中央値は ${md}${D.th.u}`,
+      mis: ([G]) => G === D.mode && md !== D.mode ? 'それは 最頻値。中央値は まん中の 値' : ''};
+    const mean = decStr(sum * 10 / n, 1);
+    return {q: head + '平均値は？', fig, form: `{0} ${D.th.u}`, ans: [mean], kinds: ['d'],
+      steps: [`合計：${D.vals.join(' + ')} = {{${sum}}}`, `個数は ${n}こ`, `${sum} ÷ ${n} = ？`], answer: `${sum} ÷ ${n} = ${mean}（${D.th.u}）`,
+      mis: ([G]) => G === sum ? `合計を 個数（${n}）で わろう` : H.is(G, md) && !H.is(md, +mean) ? 'それは 中央値。平均値は 合計 ÷ 個数' : ''};
+  }});
+U({id: 'g6-scale', g: 6, ic: '🗺', t: '拡大図と 縮図・縮尺',
+  ex: [['p', '形を かえずに 大きく した 図が **拡大図**、小さく した 図が **縮図**。対応する **辺の 長さの 比は 同じ**、対応する **角の 大きさは 等しい**。'],
+       ['fig', () => F.scaled(2, {BC: '3cm', EF: '6cm', B: '65°', E: '65°'})],
+       ['p', '実際の 長さを 縮めた 割合を **縮尺** と いいます。1 : 25000 は、実際の 長さを [[1/25000]] に した もの。'],
+       ['eg', '縮尺 1 : 25000 の 地図で 4cm → 4 × 25000 = 100000cm = 1000m'],
+       ['tip', 'cm を m に なおすときは 100 で、km に なおすときは 100000 で わるよ。']],
+  gen(r){
+    const t = r.int(0, 5);
+    if(t <= 1){ const k = t === 0 ? r.pick([2, 3]) : 0.5, [s1, s2] = r.pick([['AB', 'DE'], ['BC', 'EF'], ['CA', 'FD']]), b = r.int(2, 9) * (k === 0.5 ? 2 : 1), v = b * k, L = {}; L[s1] = b + 'cm'; L[s2] = '?';
+      const nm = k === 0.5 ? '[[1/2]]の 縮図' : `${k}倍の 拡大図`;
+      return {q: `三角形 DEF は 三角形 ABC の ${nm}です。辺 ${s2} の 長さは？`, fig: F.scaled(k, L), form: '{0} cm', ans: [v],
+        steps: [`辺 ${s2} に 対応する 辺は 辺 ${s1}`, k === 0.5 ? `${nm}は 長さが 半分：${b} ÷ 2 = ？` : `${k}倍の 拡大図は 長さが ${k}倍：${b} × ${k} = ？`], answer: `${b} ${k === 0.5 ? '÷ 2' : '× ' + k} = ${v}（cm）`,
+        mis: ([G]) => k !== 0.5 && G === b + k ? `${k}倍は かけ算だよ` : k === 0.5 && G === b * 2 ? '縮図は 小さく なるよ（半分）' : ''}; }
+    if(t === 2){ const k = r.pick([2, 3, 0.5]), [a1, a2] = r.pick([['B', 'E'], ['C', 'F'], ['A', 'D']]), deg = {A: 70, B: 65, C: 45}[a1] + r.pick([-5, 0, 5]), L = {}; L[a1] = deg + '°'; L[a2] = '?';
+      return {q: `三角形 DEF は 三角形 ABC の ${k === 0.5 ? '[[1/2]]の 縮図' : k + '倍の 拡大図'}です。角 ${a2} の 大きさは？`, fig: F.scaled(k, L), form: '{0}°', ans: [deg],
+        steps: [`角 ${a2} に 対応する 角は 角 ${a1}`, '拡大図・縮図では、対応する 角の 大きさは かわらない。'], answer: `角 ${a2} = 角 ${a1} = ${deg}°`,
+        mis: ([G]) => H.is(G, deg * k) ? '角の 大きさは 何倍にも ならないよ（同じ 大きさ）' : ''}; }
+    const S0 = r.pick([1000, 2000, 5000, 10000, 25000, 50000]), d = r.int(1, 12), cm = d * S0, m = cm / 100;
+    if(t === 3){ const km = m % 1000 === 0 && r.chance(0.6);
+      return {q: `縮尺 1 : ${S0} の 地図で ${d}cm の 長さは、実際には 何${km ? 'km' : 'm'}？`, form: `{0} ${km ? 'km' : 'm'}`, ans: [km ? m / 1000 : m],
+        steps: [`実際の 長さは 地図の 長さの ${S0}倍`, `${d} × ${S0} = {{${cm}}}cm`, km ? '100000cm で 1km' : '100cm で 1m'], answer: `${d} × ${S0} = ${cm}cm = ${km ? m / 1000 + 'km' : m + 'm'}`,
+        mis: ([G]) => G === cm ? `それは cm の 数。${km ? 'km' : 'm'} に なおそう` : ''}; }
+    if(t === 4) return {q: `実際の 長さ ${m}m は、縮尺 1 : ${S0} の 地図では 何cm？`, form: '{0} cm', ans: [d],
+      steps: [`${m}m = {{${cm}}}cm`, `地図の 長さは 実際の [[1/${S0}]]：${cm} ÷ ${S0} = ？`], answer: `${cm} ÷ ${S0} = ${d}（cm）`,
+      mis: ([G]) => H.is(G, m / S0) ? 'm を cm に なおしてから わろう' : ''};
+    return {q: `実際の 長さ ${m}m を ${d}cm に 縮めて かいた 地図の 縮尺は？`, form: '1 : {0}', ans: [S0],
+      steps: [`${m}m = {{${cm}}}cm`, `${cm}cm が ${d}cm に なる → ${cm} ÷ ${d} = ？`], answer: `${cm} ÷ ${d} = ${S0} → 1 : ${S0}`,
+      mis: ([G]) => H.is(G, m / d) ? 'm を cm に なおしてから わろう' : ''};
+  }});
+U({id: 'g6-volume', g: 6, ic: '🥫', t: '角柱と 円柱の 体積',
+  ex: [['p', '**角柱・円柱の 体積 = 底面積 × 高さ**'],
+       ['fig', () => F.prismSide([[0, 0], [6, 0], [1.8, 4]], 8, {e0: '6cm', hl: [2, '4cm', 'L'], h: '8cm'})],
+       ['eg', '底面が 底辺 6cm・高さ 4cm の 三角形、高さ 8cm の 三角柱：6 × 4 ÷ 2 × 8 = 96cm³'],
+       ['eg', '底面の 半径 3cm、高さ 5cm の 円柱：3 × 3 × 3.14 × 5 = 141.3cm³'],
+       ['tip', 'まず 底面積を もとめて、高さを かけよう。']],
+  gen(r){
+    const t = r.int(0, 4), Hh = r.int(3, 12);
+    if(t === 0){ let b, h; do { b = r.int(3, 12); h = r.int(2, 10); } while((b * h) % 2); const S0 = b * h / 2;
+      return {q: `底面が 底辺 ${b}cm・高さ ${h}cm の 三角形で、高さが ${Hh}cm の 三角柱の 体積は？`, fig: F.prismSide([[0, 0], [b, 0], [b * 0.3, h]], Hh, {e0: b + 'cm', hl: [2, h + 'cm', 'L'], h: Hh + 'cm'}), form: '{0} cm³', ans: [S0 * Hh],
+        steps: ['角柱の 体積 = 底面積 × 高さ', `底面積：${b} × ${h} ÷ 2 = {{${S0}}}cm²`, `${S0} × ${Hh} = ？`], answer: `${S0} × ${Hh} = ${S0 * Hh}（cm³）`,
+        mis: ([G]) => G === b * h * Hh ? '三角形の 面積は ÷ 2 を わすれずに' : G === S0 + Hh ? '体積は 底面積 × 高さ（かけ算）' : ''}; }
+    if(t === 1){ let a, b, h; do { a = r.int(2, 8); b = r.int(a + 1, 12); h = r.int(2, 8); } while(((a + b) * h) % 2); const S0 = (a + b) * h / 2;
+      return {q: `底面が 上底 ${a}cm・下底 ${b}cm・高さ ${h}cm の 台形で、高さが ${Hh}cm の 四角柱の 体積は？`, fig: F.prismSide([[0, 0], [b, 0], [(b + a) / 2, h], [(b - a) / 2, h]], Hh, {e0: b + 'cm', i2: a + 'cm', hl: [3, h + 'cm'], h: Hh + 'cm'}), form: '{0} cm³', ans: [S0 * Hh],
+        steps: ['角柱の 体積 = 底面積 × 高さ', `底面積：(${a} + ${b}) × ${h} ÷ 2 = {{${S0}}}cm²`, `${S0} × ${Hh} = ？`], answer: `${S0} × ${Hh} = ${S0 * Hh}（cm³）`,
+        mis: ([G]) => G === (a + b) * h * Hh ? '台形の 面積は ÷ 2 を わすれずに' : ''}; }
+    if(t === 2){ const R0 = r.int(1, 6), base = decStr(R0 * R0 * 314, 2), V = decStr(R0 * R0 * 314 * Hh, 2);
+      return {q: `底面の 半径が ${R0}cm、高さが ${Hh}cm の 円柱の 体積は？（円周率は 3.14）`, fig: F.prism(0, {r: R0 + 'cm', h: Hh + 'cm'}), form: '{0} cm³', ans: [V], kinds: ['d'],
+        steps: ['円柱の 体積 = 底面積 × 高さ', `底面積：${R0} × ${R0} × 3.14 = {{${base}}}cm²`, `${base} × ${Hh} = ？`], answer: `${base} × ${Hh} = ${V}（cm³）`,
+        mis: ([G]) => H.is(G, 2 * R0 * 3.14 * Hh) ? '底面積は 半径 × 半径 × 3.14（円周では ないよ）' : H.is(G, 4 * R0 * R0 * 3.14 * Hh) ? '直径では なく 半径を 2回 かけよう' : ''}; }
+    if(t === 3){ const S0 = r.int(6, 60);
+      return {q: `底面積が ${S0}cm²、高さが ${Hh}cm の 角柱の 体積は？`, fig: F.prism(r.pick([3, 5, 6]), {h: Hh + 'cm'}), form: '{0} cm³', ans: [S0 * Hh],
+        steps: ['角柱の 体積 = 底面積 × 高さ', `${S0} × ${Hh} = ？`], answer: `${S0} × ${Hh} = ${S0 * Hh}（cm³）`}; }
+    const S0 = r.int(6, 40);
+    return {q: `体積が ${S0 * Hh}cm³、底面積が ${S0}cm² の 角柱の 高さは？`, fig: F.prism(4, {h: '?'}), form: '{0} cm', ans: [Hh],
+      steps: ['体積 = 底面積 × 高さ だから、高さ = 体積 ÷ 底面積', `${S0 * Hh} ÷ ${S0} = ？`], answer: `${S0 * Hh} ÷ ${S0} = ${Hh}（cm）`,
+      mis: ([G]) => G === S0 * Hh * S0 ? '高さは わり算で もとめるよ' : ''};
+  }});
+const NGON = {3: '正三角形', 4: '正方形', 5: '正五角形', 6: '正六角形', 7: '正七角形', 8: '正八角形', 9: '正九角形', 10: '正十角形'};
+U({id: 'g6-symmetry', g: 6, ic: '🦋', t: '対称な 図形（線対称・点対称）',
+  ex: [['p', '1本の 直線を 折り目に して 折ると ぴったり 重なる 図形が **線対称**（その 直線が **対称の 軸**）。'],
+       ['fig', () => F.symLine({B: '120°', E: '120°', BC: '5cm', ED: '5cm'})],
+       ['p', '1つの 点の まわりに 180° 回すと ぴったり 重なる 図形が **点対称**（その 点が **対称の 中心**）。'],
+       ['fig', () => F.symPoint({OA: '4cm', OC: '4cm'})],
+       ['eg', '対応する 辺の 長さ・角の 大きさは 等しい。点対称では、対応する 点を 結ぶ 直線は 対称の 中心を 通り、中心までの 長さが 等しい。'],
+       ['tip', '正多角形の 対称の 軸の 数は、辺の 数と 同じ だよ。']],
+  gen(r){
+    const t = r.int(0, 4);
+    if(t === 0){ const [s1, s2] = r.pick([['BC', 'ED'], ['AB', 'AE'], ['ED', 'BC']]), v = r.int(3, 9), L = {}; L[s1] = v + 'cm'; L[s2] = '?';
+      return {q: `点線を 対称の 軸と する 線対称な 五角形です。辺 ${s2} の 長さは？`, fig: F.symLine(L), form: '{0} cm', ans: [v],
+        steps: ['線対称な 図形では、対応する 辺の 長さは 等しい。', `軸で 折ると、辺 ${s2} と 重なるのは 辺 ${s1}`], answer: `辺 ${s2} = 辺 ${s1} = ${v}cm`}; }
+    if(t === 1){ const B = r.int(115, 125), C = r.int(92, 100), A = 540 - 2 * B - 2 * C;
+      if(r.chance(0.5)) return {q: '点線を 対称の 軸と する 線対称な 五角形です。角 E の 大きさは？', fig: F.symLine({B: B + '°', E: '?'}), form: '{0}°', ans: [B],
+        steps: ['線対称な 図形では、対応する 角の 大きさは 等しい。', '軸で 折ると、角 E と 重なるのは 角 B'], answer: `角 E = 角 B = ${B}°`};
+      return {q: '点線を 対称の 軸と する 線対称な 五角形です。角 A の 大きさは？（五角形の 角の 和は 540°）', fig: F.symLine({B: B + '°', C: C + '°', A: '?'}), form: '{0}°', ans: [A],
+        steps: [`対応する 角は 等しいので、角 E = ${B}°、角 D = ${C}°`, `${B} × 2 + ${C} × 2 = {{${2 * B + 2 * C}}}`, `540 − ${2 * B + 2 * C} = ？`], answer: `540° − ${2 * B + 2 * C}° = ${A}°`,
+        mis: ([G]) => G === 540 - B - C ? '角 E・角 D も わすれずに（角 B・角 C と 同じ 大きさ）' : ''}; }
+    if(t === 2){ const a = r.int(3, 9), k = r.int(0, 2), q0 = '点 O を 対称の 中心と する 点対称な 平行四辺形です。';
+      if(k === 0) return {q: q0 + 'OC の 長さは？', fig: F.symPoint({OA: a + 'cm', OC: '?'}), form: '{0} cm', ans: [a],
+        steps: ['対応する 点を 結ぶ 直線は 対称の 中心を 通る。', '中心から 対応する 2つの 点までの 長さは 等しい（OA = OC）'], answer: `OC = OA = ${a}cm`};
+      if(k === 1) return {q: q0 + '対角線 AC の 長さは？', fig: F.symPoint({OA: a + 'cm'}), form: '{0} cm', ans: [2 * a],
+        steps: ['OA と OC は 等しい。', `AC = OA + OC = ${a} + ${a}`], answer: `${a} × 2 = ${2 * a}（cm）`, mis: ([G]) => G === a ? 'AC は OA の 2つ分だよ' : ''};
+      const b = r.int(5, 12);
+      return {q: q0 + '辺 CD の 長さは？', fig: F.symPoint({AB: b + 'cm', CD: '?'}), form: '{0} cm', ans: [b],
+        steps: ['点 O の まわりに 180° 回すと、A は C に、B は D に 重なる。', '辺 CD に 対応するのは 辺 AB'], answer: `CD = AB = ${b}cm`}; }
+    if(t === 3){ const n = r.int(3, 10);
+      return {q: `${NGON[n]}の 対称の 軸は 何本？`, fig: F.ngon(n), form: '{0} 本', ans: [n], steps: ['正多角形の 対称の 軸の 数は、辺（頂点）の 数と 同じ。'], answer: `${n}本`,
+        mis: ([G]) => G === Math.floor(n / 2) ? '頂点を 通る 軸と、辺の まん中を 通る 軸の 両方を 数えよう' : ''}; }
+    const ns = r.shuffle([3, 4, 5, 6, 7, 8, 9, 10]).slice(0, 4).sort((a, b) => a - b), ev = ns.filter(n => n % 2 === 0);
+    return {q: `${ns.map(n => NGON[n]).join('・')} の うち、点対称な 図形は いくつ？`, form: '{0} こ', ans: [ev.length],
+      steps: ['正多角形は、辺の 数が 偶数の とき 点対称に なる。', '偶数の ものを 数えよう。'], answer: `${ev.map(n => NGON[n]).join('・') || 'なし'}（${ev.length}こ）`};
   }});
 })();

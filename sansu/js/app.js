@@ -990,7 +990,7 @@ function renderReport(){
       ${dayChart(days)}
       <details class="ctable"><summary>数の 表で 見る</summary><table><tr><th>日</th><th>問題</th><th>せいかい</th><th>ヒントなし</th><th>時間</th></tr>${days.slice().reverse().map(d => { const x = st.log[d] || {n: 0, ok: 0, c: 0, t: 0}; return `<tr><td>${md(d)}（${wdOf(d)}）</td><td>${x.n}</td><td>${x.ok}</td><td>${x.c}</td><td>${Math.round(x.t / 60)}分</td></tr>`; }).join('')}</table></details>
       <h3>この 1週間に といた 単元</h3>
-      ${units.length ? `<table class="rt"><tr><th>単元</th><th>問題</th><th>ヒントなし※</th></tr>${units.map(o => { const x = st.stat[o.u.id]; return `<tr><td>${o.u.ic} ${GR[o.u.g - 1]} ${esc(o.u.t)}</td><td>${o.n}</td><td>${x && x.n ? pctOf(x.c, x.n) + '%' : '—'}</td></tr>`; }).join('')}</table><p class="muted">※ ヒントなしで せいかいした 割合（これまで ぜんぶ）</p>` : '<p class="muted">この 1週間は まだ 問題を といて いません。</p>'}
+      ${units.length ? `<table class="utab"><tr><th>単元</th><th>問題</th><th>ヒントなし※</th></tr>${units.map(o => { const x = st.stat[o.u.id]; return `<tr><td>${o.u.ic} ${GR[o.u.g - 1]} ${esc(o.u.t)}</td><td>${o.n}</td><td>${x && x.n ? pctOf(x.c, x.n) + '%' : '—'}</td></tr>`; }).join('')}</table><p class="muted">※ ヒントなしで せいかいした 割合（これまで ぜんぶ）</p>` : '<p class="muted">この 1週間は まだ 問題を といて いません。</p>'}
       <h3>🔎 にがてかも</h3>
       ${ws.length ? `<ul class="rl">${ws.map(u => `<li>${u.ic} ${GR[u.g - 1]} ${esc(u.t)}（ヒントなしで ${pctOf(st.stat[u.id].c, st.stat[u.id].n)}%）</li>`).join('')}</ul>` : '<p class="muted">いまの ところ ありません。</p>'}
       <h3>🦉 よく ある まちがい</h3>
