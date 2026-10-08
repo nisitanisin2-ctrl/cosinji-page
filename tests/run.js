@@ -6999,6 +6999,58 @@ async function runSansu(browser) {
   check('  こわれた v4 の きろくは 読み込むときに 直す', await page.evaluate(() => { const c = SANSU.store.clean({ lv: { 'g1-add10': 3, 'g1-sub10': 2, x: 1, 'g2-kuku': 9 }, ms: { d: '2026-10-08', ids: ['solve10', 'evil', 'clean5', 'combo5', 'ta1'], p: { solve10: 4, clean5: 'a' }, ok: ['solve10', 'evil'], all: 'yes' }, md: { ok1: '2026-10-01', evil: '2026-10-01', ok10: 'x' }, boss: { 3: { w: 2, t: 5, b: 15 }, 12: { w: 1 } }, cnt: { voice: 3, evil: 5 }, set: { auto: false, card: true } }); return JSON.stringify([c.lv, c.ms, c.md, c.boss, c.cnt.voice, c.cnt.evil, c.set.auto, c.set.card]); }),
     '[{"g1-add10":3},{"d":"2026-10-08","ids":["solve10","clean5","combo5"],"p":{"solve10":4,"clean5":0},"ok":["solve10"],"all":false},{"ok1":"2026-10-01"},{"3":{"w":2,"t":5,"b":15}},3,null,false,true]');
 
+  // ── v5：かぞく・📊 レポート・📄 プリント・💾 バックアップ ──
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('sansu_seen_ver', SANSU.VERSION); }); await page.reload(); await w(300);
+  await page.evaluate(() => { SANSU.app.startStage('g1-add10'); for (let i = 0; i < 3; i++) { const s = SANSU.app.ses(); s.vals = s.p.ans.slice(); SANSU.app.submit(); SANSU.app.keyIn('ok'); } SANSU.app.finish(); });
+  const xp1 = await page.evaluate(() => SANSU.app.state().xp);
+  await page.click('#hdProf'); await w(150);
+  check('  v5：上の 🧒 で「だれが つかう？」（はじめは 1人）', await page.evaluate(() => document.querySelectorAll('.plist .pf').length + '/' + document.querySelector('.plist .pf.on .pn').textContent), '1/なまえなし');
+  await page.click('[data-act="pfnew"]'); await w(100);
+  await page.fill('#pfName', 'はなこ<b>x</b>'); await page.click('[data-act="pfic"][data-ic="🐱"]'); await page.click('[data-act="pfsave"]'); await w(250);
+  check('  かぞくを ふやすと その 人に かわる（きろくは べつ・名前は 字の まま）', await page.evaluate(() => { const P = SANSU.store.profiles(); return [P.list.length, P.cur, SANSU.app.state().xp, document.getElementById('hdProf').textContent, P.list[1].name, document.getElementById('modal').hidden].join('/'); }), '2/p2/0/🐱/はなこ<b>x</b>/true');
+  await page.evaluate(() => { SANSU.app.startStage('g2-kuku'); const s = SANSU.app.ses(); s.vals = s.p.ans.slice(); SANSU.app.submit(); SANSU.app.finish(); });
+  await page.click('#hdProf'); await w(150);
+  check('  かぞくの 一覧：名前は 字の まま 出す（タグに しない）', await page.evaluate(() => [...document.querySelectorAll('.plist .pf .pn')].map(e => e.textContent).join(',') + '/' + document.querySelectorAll('.plist .pf b').length), 'なまえなし,はなこ<b>x</b>/0');
+  await page.click('.plist .pf[data-id="p1"]'); await w(250);
+  check('  きりかえると その 人の きろく', await page.evaluate(x => [SANSU.store.profiles().cur, SANSU.app.state().xp === x, !!localStorage.getItem('sansu_v1:p2')].join('/'), xp1), 'p1/true/true');
+  // 📊 レポート
+  await page.evaluate(() => { const st = SANSU.app.state(); st.log = { '2026-10-08': { n: 12, ok: 10, c: 8, t: 600, u: { 'g1-add10': 7, 'g2-kuku': 5 } }, '2026-10-06': { n: 5, ok: 5, c: 5, t: 240, u: { 'g1-add10': 5 } }, '2026-09-30': { n: 4, ok: 2, c: 1, t: 200, u: { 'g1-sub10': 4 } } }; });
+  await page.click('[data-act="nav"][data-s="rec"]'); await w(150);
+  await page.click('[data-act="report"]'); await w(200);
+  check('  📊 レポート：この 1週間（問題・せいかい りつ・時間・学んだ 日）と 前の 週との ちがい', await page.evaluate(() => [...document.querySelectorAll('.tile')].slice(0, 5).map(t => t.querySelector('.tv').textContent).join(',') + '/' + document.querySelector('.tile .td').textContent), '17問,88%,76%,14分,2 / 7日/前の 週より ＋13問');
+  check('  2週間の 棒グラフ（14本・数は いちばん 多い 日と きょう）・数の 表・単元', await page.evaluate(() => [document.querySelectorAll('#dayChart .cbar').length, document.querySelectorAll('#dayChart .cb').length, [...document.querySelectorAll('#dayChart .cv')].map(e => e.textContent).join('+'), document.querySelectorAll('.ctable tr').length, document.querySelectorAll('.rt tr').length].join('/')), '14/3/12/15/3');
+  await page.focus('#dayChart .cbar:last-of-type'); await w(100);
+  check('  棒を えらぶと その 日の 数', await page.evaluate(() => document.getElementById('ctip').hidden + '/' + document.getElementById('ctip').textContent), 'false/10/8（木） 12問・せいかい 10問');
+  // 📄 プリント
+  await page.click('[data-act="back"]'); await w(150);
+  await page.click('[data-act="printset"]'); await w(150);
+  await page.click('[data-act="pg"][data-g="3"]'); await w(80);
+  check('  学年を えらぶと おすすめの 単元が はじめから 入る', await page.evaluate(() => [...document.querySelectorAll('.pul .chip.on')].map(b => b.dataset.u).join(',')), 'g3-div');
+  await page.click('[data-act="pu"][data-u="g3-divrem"]'); await page.click('[data-act="pn"][data-n="20"]'); await w(100);
+  await page.click('[data-act="pmake"]'); await w(250);
+  const sh = await page.evaluate(() => ({ n: document.querySelectorAll('.sq > li').length, a: document.querySelectorAll('.sa > li').length, bx: document.querySelectorAll('.sq .pbx').length > 0, units: [...new Set(SANSU.app.makeSheet(SANSU.app.view().cfg, SANSU.app.view().cfg.seed).map(p => p.unit))].sort().join(','), no: document.querySelector('.sh-m').textContent.includes('No.') }));
+  check('  📄 プリント：えらんだ 単元から 20問・□は 書きこむ わく・答えの ページ・番号', [sh.n, sh.a, sh.bx, sh.units, sh.no].join('/'), '20/20/true/g3-div,g3-divrem/true');
+  const k1 = await page.evaluate(() => document.querySelector('.sq').textContent);
+  await page.click('[data-act="pagain"]'); await w(200);
+  check('  🔁 ちがう 問題（番号が かわる）', await page.evaluate(k => document.querySelector('.sq').textContent !== k, k1), true);
+  await page.emulateMedia({ media: 'print' });
+  check('  いんさつ：上の 帯・下の ボタンは 出さない・答えは 次の ページ', await page.evaluate(() => [getComputedStyle(document.getElementById('top')).display, getComputedStyle(document.getElementById('nav')).display, getComputedStyle(document.querySelector('.sheetbar')).display, getComputedStyle(document.querySelector('.sh-ans')).breakBefore].join('/')), 'none/none/none/page');
+  await page.emulateMedia({ media: 'screen' });
+  // 💾 バックアップ
+  const dl = await Promise.all([page.waitForEvent('download'), page.evaluate(() => { SANSU.app.go('set'); document.querySelector('[data-act="exp"]').click(); })]);
+  const bfile = path.join(os.tmpdir(), 'sansu-bk-' + process.pid + '.json'); await dl[0].saveAs(bfile);
+  const bk = JSON.parse(fs.readFileSync(bfile, 'utf8'));
+  check('  💾 書き出し：かぞく ぜんいんの きろく（ファイル名に 日付）', [dl[0].suggestedFilename(), bk.app, bk.kind, bk.profiles.map(x => x.id + ':' + x.name).join(',')].join('/'), 'sansu-kiroku-20261008.json/sansu/backup/p1:,p2:はなこ<b>x</b>');
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('sansu_seen_ver', SANSU.VERSION); }); await page.reload(); await w(300);
+  bk.profiles[1].data.xp = '<img src=x onerror=alert(1)>'; bk.profiles.push({ id: '../evil', name: 'x', data: {} });
+  await page.evaluate(t => SANSU.app.readBackupFile(new File([t], 'k.json', { type: 'application/json' })), JSON.stringify(bk)); await w(300);
+  check('  📂 読み込み：まず「おきかわります」と たしかめる', await page.evaluate(() => !document.getElementById('modal').hidden + '/' + document.getElementById('mbody').textContent.includes('2人分の きろく')), 'true/true');
+  await page.click('[data-act="impgo"]'); await w(300);
+  check('  読み込むと かぞくと きろくが もどる（あやしい 中身は 直す）', await page.evaluate(x => { const P = SANSU.store.profiles(), st = SANSU.app.state(); return [P.list.map(y => y.id).join(','), st.xp === x, SANSU.store.clean(JSON.parse(localStorage.getItem('sansu_v1:p2'))).xp, Object.keys(localStorage).filter(k => /evil/.test(k)).length].join('/'); }, xp1), 'p1,p2/true/0/0');
+  await page.evaluate(() => SANSU.app.readBackupFile(new File(['{"app":"other"}'], 'x.json'))); await w(300);
+  await page.waitForFunction(() => document.getElementById('toast').textContent.includes('ファイルでは ない'), null, { timeout: 8000 }).catch(() => {});
+  check('  ちがう ファイルは 読み込まない', await page.evaluate(() => document.getElementById('modal').hidden + '/' + document.getElementById('toast').textContent), 'true/算数・数学チャレンジの きろくの ファイルでは ないようです');
+
   // ── 表電卓から 開く・表電卓へ 戻る ──
   await page.goto('about:blank'); await page.goto(SANSU + '#from=hyo'); await w(250);
   check('  表電卓から 開いたときは 上に「← 表電卓」', await page.evaluate(() => !document.getElementById('hdBack').hidden + '/' + location.hash), 'true/#home');

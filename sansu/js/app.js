@@ -8,6 +8,8 @@
      ふくしゅう（まちがえた 問題を 種で 作り直して、1日後・3日後・7日後に もう一度）・にがてかも の 単元
    ・v4：むずかしさ 3段階（単元ごと・じどうで かわる）・🃏 えらんで 答える（cards.js）・
      🎯 きょうの ミッション と 🏅 メダル ずかん・⚔️ 学年の ボス（medals.js）
+   ・v5：👨‍👩‍👧 かぞく（きょうだいごとに きろく）・📊 学習レポート（おうちの人 向け・印刷）・
+     📄 プリント作成（問題と 答えの 紙）・💾 きろくの 書き出し・読み込み（バックアップ）
    ボタンには プログラムを 書かず、data-act で ここから 動かす（CSP で ページの中の プログラムを 止めているため）
    ════════════════════════════════════════════════════════════════ */
 (function(){
@@ -58,6 +60,9 @@ function recordProblem(ok){
   const p = ses.p, x = st.stat[p.unit] || {n: 0, c: 0, x: 0}, clean = ok && !ses.tries && !ses.hints, missed = !ok || ses.tries > 0;
   if(ok && !x.n) mEvent('newunit');
   x.n++; if(clean) x.c++; if(missed) x.x++; st.stat[p.unit] = x;
+  // 日ごとの きろく（レポート）。1問に かけた 時間は 5分まで（とちゅうで はなれても ふえすぎない）
+  const L = st.log[today()] || (st.log[today()] = {n: 0, ok: 0, c: 0, t: 0, u: {}});
+  L.n++; if(ok) L.ok++; if(clean) L.c++; L.t += Math.min(300, Math.max(0, Math.round((Date.now() - (ses.pt0 || Date.now())) / 1000))); L.u[p.unit] = (L.u[p.unit] || 0) + 1;
   if(p.rev){
     const it = st.rev.find(r => r.u === p.rev.u && r.s === p.rev.s);
     if(it){ if(clean){ it.n++; if(it.n >= REV_GAP.length){ st.rev = st.rev.filter(r => r !== it); ses.mastered++; st.cnt.mastered++; } else it.due = addDays(today(), REV_GAP[it.n]); }
@@ -131,6 +136,8 @@ function renderTop(){
   $('hdLv').textContent = `Lv.${lv} ${titleOf(lv).split(' ')[0]}`;
   $('hdXp').style.width = Math.round((st.xp - a) / (b - a) * 100) + '%';
   $('hdStreak').textContent = '🔥 ' + streakNow();
+  const me = curProfile(), pb = $('hdProf');
+  if(pb){ pb.textContent = me.ic; pb.setAttribute('aria-label', `${me.name || 'なまえなし'}（だれが つかう？）`); pb.title = me.name || 'だれが つかう？'; }
   document.body.classList.toggle('big', !!st.set.big);
 }
 
@@ -145,8 +152,9 @@ function go(s, extra, replace){
 }
 function render(){
   document.body.classList.toggle('playing', view.s === 'play');
-  document.querySelectorAll('#nav [data-s]').forEach(b => b.classList.toggle('on', b.dataset.s === view.s || (view.s === 'ex' && b.dataset.s === 'home')));
-  ({home: renderHome, ex: renderEx, play: renderPlay, result: renderResult, rec: renderRec, set: renderSet}[view.s] || renderHome)();
+  document.querySelectorAll('#nav [data-s]').forEach(b => b.classList.toggle('on', b.dataset.s === view.s || (view.s === 'ex' && b.dataset.s === 'home') || (/^(report|print|sheet)$/.test(view.s) && b.dataset.s === 'rec')));
+  document.body.classList.toggle('sheetview', view.s === 'sheet');
+  ({home: renderHome, ex: renderEx, play: renderPlay, result: renderResult, rec: renderRec, set: renderSet, report: renderReport, print: renderPrint, sheet: renderSheet}[view.s] || renderHome)();
   renderTop();
   if(view.s !== 'play') window.scrollTo(0, 0);
 }
@@ -324,7 +332,7 @@ function nextProblem(silent){
   ses.keys.add(p.key);
   // 🃏 えらんで 答える：4まいの カード（作れない 問題は ふつうの キー）
   const cards = ses.card ? S.choices(p, S.mkRng((p.seed ^ 0x9e3779b9) >>> 0 || 1)) : null;
-  Object.assign(ses, {p, vals: p.kinds.map(() => ''), act: 0, tries: 0, hints: 0, revealed: false, answered: false, byVoice: false, gd: [], tgt: -1, cards, cardBad: []});
+  Object.assign(ses, {p, vals: p.kinds.map(() => ''), act: 0, tries: 0, hints: 0, revealed: false, answered: false, byVoice: false, gd: [], tgt: -1, cards, cardBad: [], pt0: Date.now()});
   if(!silent){ renderPlay(); window.scrollTo(0, 0); autoVoice(); }
 }
 function autoVoice(){
@@ -782,7 +790,8 @@ function renderRec(){
     <div class="box"><h3>🏆 トロフィー</h3><div class="trophies">${tro}</div></div>
     <div class="box"><h3>⏱ タイムアタックの ベスト</h3>${tas || '<div style="color:var(--sub)">まだ ありません。ホームの「⏱ タイムアタック」から ちょうせん！</div>'}</div>
     ${recStudy()}
-    ${medalBox()}`;
+    ${medalBox()}
+    <div class="box"><h3>👪 おうちの 人 向け</h3><button type="button" class="btn sub wide" data-act="report">📊 学習レポート（印刷も できる）</button><button type="button" class="btn sub wide" data-act="printset">📄 プリントを 作る（問題と 答えの 紙）</button></div>`;
 }
 /* 🏅 メダル ずかん */
 function medalBox(){
@@ -817,7 +826,10 @@ function renderSet(){
       ${sw('big', '🔠 文字を 大きく')}
       <button type="button" class="btn sub wide" data-act="vtest">🎤 声の ためし</button></div>
     <div class="box"><h3>📱 ホーム画面に 置く</h3><div style="font-size:.9rem">iPhone（Safari）：下の 共有（□に↑）→「ホーム画面に追加」<br>Android（Chrome）：右上の ⋮ →「ホーム画面に追加」<br>表電卓とは べつの アプリとして 置けます。</div></div>
-    <div class="box"><h3>🗂 データ</h3><div style="font-size:.88rem;color:var(--sub);margin-bottom:8px">きろく（★・XP・レベル）は この 端末の 中だけに 保存しています。</div><button type="button" class="btn sub wide" data-act="reset">🗑 きろくを ぜんぶ 消す</button></div>
+    <div class="box"><h3>👨‍👩‍👧 かぞく</h3><div style="font-size:.88rem;color:var(--sub);margin-bottom:8px">いま：${curProfile().ic} ${esc(pName(curProfile()))}（${S.store.profiles().list.length}人）。きょうだいで つかう ときは、人ごとに きろくが 分かれます。</div><button type="button" class="btn sub wide" data-act="prof">👨‍👩‍👧 かぞくを えらぶ・ふやす</button></div>
+    <div class="box"><h3>🗂 データ</h3><div style="font-size:.88rem;color:var(--sub);margin-bottom:8px">きろく（★・XP・レベル）は この 端末の 中だけに 保存しています。機種変更の ときは ファイルに 書き出して、新しい 端末で 読み込んでね。</div>
+      <button type="button" class="btn sub wide" data-act="exp">💾 きろくを ファイルに 書き出す（かぞく ぜんいん）</button><button type="button" class="btn sub wide" data-act="imp">📂 ファイルから 読み込む</button>
+      <button type="button" class="btn sub wide" data-act="report">📊 学習レポート</button><button type="button" class="btn sub wide" data-act="reset">🗑 いまの 人の きろくを ぜんぶ 消す</button></div>
     <div class="box"><h3>ℹ️ この アプリ</h3>
       <div class="kv"><span>バージョン</span><b id="verNow">算数・数学チャレンジ ${S.VERSION}</b></div>
       <div class="kv"><span>単元</span><b>${S.UNITS.length}こ（小1〜中3）</b></div>
@@ -890,6 +902,184 @@ async function checkUpdate(){
     else toast(`いまの 版（${S.VERSION}）が いちばん 新しい 版です`); }, 800);
 }
 
+/* ════════════ v5：かぞく・レポート・プリント・バックアップ ════════════ */
+/* ── 👨‍👩‍👧 かぞく（きょうだいごとに きろくを 分ける） ── */
+const curProfile = () => { const P = S.store.profiles(); return P.list.find(x => x.id === P.cur) || P.list[0]; };
+const pName = x => x.name || 'なまえなし';
+/* 窓を 閉じて、そのまま 別の 画面へ（窓の ぶんの 「戻る」を つかわない） */
+function closeModalSilent(){ if($('modal').hidden) return; $('modal').hidden = true; $('mbody').innerHTML = ''; modalOnClose = null; try { history.replaceState(Object.assign({}, view, {d: depth()}), '', location.hash); } catch(_){} }
+function openProfiles(){
+  const P = S.store.profiles();
+  const rows = P.list.map(x => { const o = x.id === P.cur ? st : S.store.clean((() => { try { return JSON.parse(localStorage.getItem(S.store.keyOf(x.id)) || 'null'); } catch(_){ return null; } })());
+    const n = o.day.d === today() ? o.day.n : 0;
+    return `<button type="button" class="pf${x.id === P.cur ? ' on' : ''}" data-act="pfgo" data-id="${x.id}"><span class="pi">${x.ic}</span><span class="pn">${esc(pName(x))}</span><small>Lv.${levelOf(o.xp)}・きょう ${n}問</small></button>`; }).join('');
+  const html = `<div class="page-h"><h2>👨‍👩‍👧 だれが つかう？</h2></div><p style="margin:0 0 8px;font-size:.88rem;color:var(--sub)">きょうだいで つかう ときは、人ごとに ★・レベル・ふくしゅうが 分かれます。</p>
+    <div class="plist">${rows}</div>
+    ${P.list.length < S.store.PROF_MAX ? '<button type="button" class="btn sub wide" data-act="pfnew">＋ かぞくを ふやす</button>' : ''}
+    <button type="button" class="btn sub wide" data-act="pfedit" data-id="${P.cur}">✏️ いまの 人の 名前・絵を かえる</button>
+    <button type="button" class="btn sub wide" data-act="mclose">とじる</button>`;
+  if($('modal').hidden) openModal(html); else $('mbody').innerHTML = html;
+}
+let pfIc = '';
+function openProfileForm(id){
+  const P = S.store.profiles(), x = id ? P.list.find(y => y.id === id) : null;
+  pfIc = x ? x.ic : S.PROF_ICONS[P.list.length % S.PROF_ICONS.length];
+  const html = `<div class="page-h"><h2>${x ? '✏️ 名前・絵を かえる' : '＋ かぞくを ふやす'}</h2></div>
+    <label class="pfl">なまえ（12文字まで）<input type="text" id="pfName" maxlength="12" autocomplete="off" value="${x ? esc(x.name) : ''}" placeholder="れい：はなこ"></label>
+    <div class="pfl">え</div><div class="pfics">${S.PROF_ICONS.map(ic => `<button type="button" class="${ic === pfIc ? 'on' : ''}" data-act="pfic" data-ic="${ic}" aria-pressed="${ic === pfIc}">${ic}</button>`).join('')}</div>
+    <div class="btnrow"><button type="button" class="btn sub" data-act="prof">もどる</button><button type="button" class="btn" data-act="pfsave"${x ? ` data-id="${x.id}"` : ''}>${x ? 'かえる' : 'つくる'}</button></div>
+    ${x && P.list.length > 1 ? `<button type="button" class="btn sub wide" data-act="pfdel" data-id="${x.id}">🗑 この 人の きろくを 消す</button>` : ''}`;
+  if($('modal').hidden) openModal(html); else $('mbody').innerHTML = html;
+}
+function switchProfile(id){
+  if(!S.store.switchProfile(id)) return;
+  endSession(); ses = null; st = S.store.load(); closeModalSilent();
+  view = {s: 'home'}; try { history.replaceState({s: 'home', d: depth()}, '', '#home'); } catch(_){}
+  render(); toast(`${curProfile().ic} ${pName(curProfile())} に かわりました`);
+  setTimeout(() => checkMedals(true), 300);
+}
+
+/* ── 📊 学習レポート（おうちの人 向け） ── */
+function sumLog(endDay, days){
+  const o = {n: 0, ok: 0, c: 0, t: 0, studied: 0, u: {}};
+  for(let i = 0; i < days; i++){
+    const x = st.log[addDays(endDay, -i)]; if(!x) continue;
+    o.n += x.n; o.ok += x.ok; o.c += x.c; o.t += x.t; if(x.n) o.studied++;
+    for(const [k, v] of Object.entries(x.u)) o.u[k] = (o.u[k] || 0) + v;
+  }
+  return o;
+}
+const pctOf = (a, b) => b ? Math.round(a / b * 100) : 0;
+const WD = ['日', '月', '火', '水', '木', '金', '土'];
+const md = d => { const [y, m, dd] = d.split('-'); return `${+m}/${+dd}`; };
+const wdOf = d => WD[new Date(d + 'T12:00:00').getDay()];
+function tile(label, value, delta){ return `<div class="tile"><div class="tl">${label}</div><div class="tv">${value}</div>${delta || ''}</div>`; }
+/* さいきん 14日の 問題数（1つの 色の 棒。いちばん 多い 日と きょうは 数を 書く。棒を おすと くわしく） */
+function dayChart(days){
+  const W = 340, H = 150, top = 18, base = 118, left = 26, right = 6, slot = (W - left - right) / days.length, bw = Math.min(24, slot * 0.62);
+  const vals = days.map(d => (st.log[d] || {n: 0}).n), mx = Math.max(...vals, 0);
+  const step = mx <= 5 ? 1 : mx <= 10 ? 2 : mx <= 25 ? 5 : mx <= 50 ? 10 : mx <= 100 ? 20 : Math.ceil(mx / 5 / 10) * 10;
+  const ymax = Math.max(step, Math.ceil(mx / step) * step), Y = v => base - (base - top) * v / ymax;
+  let g = '';
+  for(let v = 0; v <= ymax; v += step) g += `<line x1="${left}" y1="${Y(v)}" x2="${W - right}" y2="${Y(v)}" class="cg"/><text x="${left - 5}" y="${Y(v) + 3.5}" class="ct" text-anchor="end">${v}</text>`;
+  const imax = vals.indexOf(mx), last = days.length - 1;
+  days.forEach((d, i) => {
+    const v = vals[i], x = left + slot * i + (slot - bw) / 2, y = Y(v), h = base - y, r = Math.min(4, h);
+    const x0 = left + slot * i, x1 = x0 + slot, lab = `${md(d)}（${wdOf(d)}） ${v}問${st.log[d] ? `・せいかい ${st.log[d].ok}問` : ''}`;
+    g += `<g class="cbar" tabindex="0" data-tip="${esc(lab)}" aria-label="${esc(lab)}"><rect x="${x0.toFixed(1)}" y="${top - 6}" width="${slot.toFixed(1)}" height="${base - top + 26}" class="chit"/>`;
+    if(v > 0) g += `<path d="M${x.toFixed(1)} ${base}V${(y + r).toFixed(1)}Q${x.toFixed(1)} ${y.toFixed(1)} ${(x + r).toFixed(1)} ${y.toFixed(1)}H${(x + bw - r).toFixed(1)}Q${(x + bw).toFixed(1)} ${y.toFixed(1)} ${(x + bw).toFixed(1)} ${(y + r).toFixed(1)}V${base}Z" class="cb"/>`;
+    if(v > 0 && (i === imax || i === last)) g += `<text x="${(x + bw / 2).toFixed(1)}" y="${(y - 4).toFixed(1)}" class="cv" text-anchor="middle">${v}</text>`;
+    g += `<text x="${(x0 + slot / 2).toFixed(1)}" y="${base + 14}" class="ct${i === last ? ' today' : ''}" text-anchor="middle">${wdOf(d)}</text></g>`;
+  });
+  g += `<line x1="${left}" y1="${base}" x2="${W - right}" y2="${base}" class="ca"/><text x="${left}" y="${base + 28}" class="ct">${md(days[0])}</text><text x="${W - right}" y="${base + 28}" class="ct" text-anchor="end">${md(days[last])}（きょう）</text>`;
+  return `<div class="chart" id="dayChart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="さいきん 14日の といた 問題の 数">${g}</svg><div class="ctip" id="ctip" hidden></div></div>`;
+}
+function renderReport(){
+  const me = curProfile(), t = today(), w1 = sumLog(t, 7), w0 = sumLog(addDays(t, -7), 7), days = Array.from({length: 14}, (_, i) => addDays(t, i - 13));
+  const delta = w1.n - w0.n, dl = w0.n || w1.n ? `<div class="td">前の 週より ${delta >= 0 ? '＋' : '−'}${Math.abs(delta)}問</div>` : '';
+  const units = Object.entries(w1.u).sort((a, b) => b[1] - a[1]).map(([id, n]) => ({u: unitById(id), n})).filter(o => o.u);
+  const ws = weakUnits(), mk = Object.entries(st.mk).filter(e => e[1] > 0 && S.MIS_KINDS[e[0]]).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const newMedals = S.MEDALS.filter(m => st.md[m.id] && st.md[m.id] > addDays(t, -7));
+  const wins = Object.entries(st.boss).filter(e => e[1].w > 0).map(([g]) => `${S.BOSSES[g - 1].ic} ${GR[g - 1]}`);
+  $('main').innerHTML = `<div class="page-h noprint"><button type="button" class="back" data-act="back" aria-label="もどる">←</button><h2>📊 学習レポート</h2></div>
+    <div class="report">
+      <div class="rh"><b>${me.ic} ${esc(pName(me))}</b> さんの 学習（${t.replace(/-/g, '/')} まで）</div>
+      <h3>この 1週間</h3>
+      <div class="tiles">${tile('といた 問題', w1.n + '問', dl)}${tile('せいかい りつ', pctOf(w1.ok, w1.n) + '%')}${tile('ヒントなしで せいかい', pctOf(w1.c, w1.n) + '%')}${tile('学んだ 時間', Math.round(w1.t / 60) + '分')}${tile('学んだ 日', w1.studied + ' / 7日')}${tile('つづけて 学んだ 日', streakNow() + '日')}</div>
+      <h3>さいきん 2週間の 問題の 数</h3>
+      ${dayChart(days)}
+      <details class="ctable"><summary>数の 表で 見る</summary><table><tr><th>日</th><th>問題</th><th>せいかい</th><th>ヒントなし</th><th>時間</th></tr>${days.slice().reverse().map(d => { const x = st.log[d] || {n: 0, ok: 0, c: 0, t: 0}; return `<tr><td>${md(d)}（${wdOf(d)}）</td><td>${x.n}</td><td>${x.ok}</td><td>${x.c}</td><td>${Math.round(x.t / 60)}分</td></tr>`; }).join('')}</table></details>
+      <h3>この 1週間に といた 単元</h3>
+      ${units.length ? `<table class="rt"><tr><th>単元</th><th>問題</th><th>ヒントなし※</th></tr>${units.map(o => { const x = st.stat[o.u.id]; return `<tr><td>${o.u.ic} ${GR[o.u.g - 1]} ${esc(o.u.t)}</td><td>${o.n}</td><td>${x && x.n ? pctOf(x.c, x.n) + '%' : '—'}</td></tr>`; }).join('')}</table><p class="muted">※ ヒントなしで せいかいした 割合（これまで ぜんぶ）</p>` : '<p class="muted">この 1週間は まだ 問題を といて いません。</p>'}
+      <h3>🔎 にがてかも</h3>
+      ${ws.length ? `<ul class="rl">${ws.map(u => `<li>${u.ic} ${GR[u.g - 1]} ${esc(u.t)}（ヒントなしで ${pctOf(st.stat[u.id].c, st.stat[u.id].n)}%）</li>`).join('')}</ul>` : '<p class="muted">いまの ところ ありません。</p>'}
+      <h3>🦉 よく ある まちがい</h3>
+      ${mk.length ? `<ul class="rl">${mk.map(([k, n]) => `<li>${esc(S.MIS_KINDS[k])}：${n}回</li>`).join('')}</ul>` : '<p class="muted">まだ ありません。</p>'}
+      <h3>🏅 がんばった こと</h3>
+      <ul class="rl"><li>レベル：Lv.${levelOf(st.xp)} ${titleOf(levelOf(st.xp))}</li><li>メダル：${S.MEDALS.filter(m => st.md[m.id]).length} / ${S.MEDALS.length}こ${newMedals.length ? `（この 1週間：${newMedals.map(m => m.ic + ' ' + esc(m.t)).join('、')}）` : ''}</li>${wins.length ? `<li>たおした ボス：${wins.join('、')}</li>` : ''}<li>ふくしゅう まち：${st.rev.length}問</li></ul>
+    </div>
+    <div class="btnrow noprint"><button type="button" class="btn sub" data-act="back">← もどる</button><button type="button" class="btn" data-act="printnow">🖨 いんさつ</button></div>`;
+}
+/* 棒を おした・ゆびで なぞった・キーで えらんだ とき、その 日の 数を 出す */
+function chartTip(e){
+  const c = $('dayChart'), tip = $('ctip'); if(!c || !tip) return;
+  const b = e.target && e.target.closest ? e.target.closest('.cbar') : null;
+  if(!b || !c.contains(b)){ tip.hidden = true; c.querySelectorAll('.cbar.on').forEach(x => x.classList.remove('on')); return; }
+  c.querySelectorAll('.cbar.on').forEach(x => { if(x !== b) x.classList.remove('on'); }); b.classList.add('on');
+  tip.textContent = b.dataset.tip || ''; tip.hidden = false;
+  const r = b.getBoundingClientRect(), cr = c.getBoundingClientRect();
+  tip.style.left = Math.max(0, Math.min(cr.width - tip.offsetWidth, r.left - cr.left + r.width / 2 - tip.offsetWidth / 2)) + 'px';
+}
+
+/* ── 📄 プリント作成 ── */
+let pcfg = null;
+function printCfg(){ if(!pcfg) pcfg = {g: st.set.grade, us: [], n: 10, lv: 2, ans: true}; if(!pcfg.us.length) pcfg.us = [recommend(pcfg.g).id]; return pcfg; }
+function renderPrint(){
+  const c = printCfg(), us = unitsOf(c.g);
+  $('main').innerHTML = `<div class="page-h"><button type="button" class="back" data-act="back" aria-label="もどる">←</button><h2>📄 プリントを 作る</h2></div>
+    <div class="box"><h3>学年</h3><div class="grades pgr">${GR.map((l, i) => `<button type="button" class="${i + 1 === c.g ? 'on' : ''}" data-act="pg" data-g="${i + 1}">${l}</button>`).join('')}</div>
+      <h3>単元（いくつでも）</h3><div class="pul">${us.map(u => `<button type="button" class="chip${c.us.includes(u.id) ? ' on' : ''}" data-act="pu" data-u="${u.id}" aria-pressed="${c.us.includes(u.id)}">${u.ic} ${esc(u.t)}</button>`).join('')}</div>
+      <h3>問題の 数</h3><div class="difpick">${[10, 20, 30].map(n => `<button type="button" class="${c.n === n ? 'on' : ''}" data-act="pn" data-n="${n}">${n}問</button>`).join('')}</div>
+      <h3>むずかしさ</h3><div class="difpick">${[1, 2, 3].map(l => `<button type="button" class="${c.lv === l ? 'on' : ''}" data-act="pl" data-l="${l}">${LV_NAME[l]}</button>`).join('')}</div>
+      <div class="sw"><span>答えの ページも つける</span><button type="button" class="tg${c.ans ? ' on' : ''}" data-act="pa" role="switch" aria-checked="${c.ans}" aria-label="答えの ページも つける"></button></div></div>
+    <button type="button" class="btn wide" data-act="pmake"${c.us.length ? '' : ' disabled'}>📄 プリントを 作る</button>`;
+}
+function makeSheet(c, seed){
+  const rng = S.mkRng(seed), us = c.us.map(unitById).filter(Boolean), out = [], keys = new Set();
+  for(let i = 0; i < c.n && us.length; i++){
+    const u = us[i % us.length]; let p, k = 0;
+    do { p = S.makeProblem(u, S.mkRng(Math.floor(rng() * 4294967294) + 1), c.lv); } while(keys.has(p.key) && ++k < 20);
+    keys.add(p.key); out.push(p);
+  }
+  return out;
+}
+function renderSheet(){
+  const c = view.cfg; if(!c || !c.us || !c.us.length){ go('print', {}, true); return; }
+  const ps = makeSheet(c, c.seed), names = c.us.map(unitById).filter(Boolean).map(u => u.t).join('・');
+  const blank = () => '<span class="pbx"></span>';
+  $('main').innerHTML = `<div class="sheetbar noprint"><button type="button" class="btn sub" data-act="back">← もどる</button><button type="button" class="btn sub" data-act="pagain">🔁 ちがう 問題</button><button type="button" class="btn" data-act="printnow">🖨 いんさつ</button></div>
+    <div class="sheet"><div class="sh-h"><div class="sh-t">算数・数学チャレンジ プリント　${GR[c.g - 1]}　${esc(names)}</div><div class="sh-m"><span>なまえ（　　　　　　　　）</span><span>　月　　日</span><span>No.${c.seed % 100000}</span></div></div>
+      <ol class="sq">${ps.map(p => `<li><div class="sq-q">${mathHtml(p.q)}</div>${p.fig ? `<div class="sq-f">${p.fig}</div>` : ''}<div class="sq-a">${mathHtml(p.form.replace(/[\s　]*→[\s　]*/g, '\n'), {blank})}</div></li>`).join('')}</ol>
+      ${c.ans ? `<div class="sh-ans"><div class="sh-t">こたえ　No.${c.seed % 100000}</div><ol class="sa">${ps.map(p => `<li>${mathHtml(p.answer)}</li>`).join('')}</ol></div>` : ''}</div>`;
+}
+
+/* ── 💾 きろくの 書き出し・読み込み ── */
+function exportBackup(){
+  try {
+    const b = S.store.makeBackup(), blob = new Blob([JSON.stringify(b, null, 1)], {type: 'application/json'}), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = `sansu-kiroku-${today().replace(/-/g, '')}.json`;
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+    toast(`💾 ${b.profiles.length}人分の きろくを 書き出しました`);
+  } catch(_){ toast('書き出せませんでした'); }
+}
+let pendingBackup = null;
+function importBackup(){
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/json,.json';
+  inp.addEventListener('change', () => { const f = inp.files && inp.files[0]; if(f) readBackupFile(f); });
+  inp.click();
+}
+function readBackupFile(f){
+  if(f.size > 3 * 1024 * 1024){ toast('ファイルが 大きすぎます'); return; }
+  const fr = new FileReader();
+  fr.onload = () => {
+    let o = null; try { o = JSON.parse(String(fr.result)); } catch(_){}
+    const b = S.store.readBackup(o);
+    if(!b){ toast('算数・数学チャレンジの きろくの ファイルでは ないようです'); return; }
+    pendingBackup = b;
+    openModal(`<div class="page-h"><h2>📂 きろくを 読み込む</h2></div><p>${b.P.list.length}人分の きろく${b.at ? `（${esc(b.at)} に 書き出し）` : ''}：${b.P.list.map(x => `${x.ic} ${esc(pName(x))}`).join('、')}</p>
+      <p><b>いま この 端末に ある きろくは、ファイルの きろくに おきかわります。</b></p>
+      <div class="btnrow"><button type="button" class="btn sub" data-act="mclose">やめる</button><button type="button" class="btn" data-act="impgo">読み込む</button></div>`);
+  };
+  fr.onerror = () => toast('ファイルを 読めませんでした');
+  fr.readAsText(f);
+}
+function applyBackup(){
+  if(!pendingBackup) return;
+  S.store.restoreBackup(pendingBackup); pendingBackup = null;
+  endSession(); ses = null; st = S.store.load(); closeModalSilent();
+  render(); toast('📂 きろくを 読み込みました');
+}
+
 /* ════════════ ボタン ════════════ */
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]'); if(!el || el.disabled) return;
@@ -907,6 +1097,31 @@ document.addEventListener('click', e => {
     case 'blank': setAct(+el.dataset.i); break;
     case 'gblank': setGTarget(+el.dataset.s); break;
     case 'card': pickCard(+el.dataset.c); break;
+    case 'prof': openProfiles(); break;
+    case 'pfgo': if(el.dataset.id === S.store.profiles().cur) closeModal(); else switchProfile(el.dataset.id); break;
+    case 'pfnew': openProfileForm(null); break;
+    case 'pfedit': openProfileForm(el.dataset.id); break;
+    case 'pfic': pfIc = el.dataset.ic; document.querySelectorAll('.pfics button').forEach(b => { b.classList.toggle('on', b.dataset.ic === pfIc); b.setAttribute('aria-pressed', b.dataset.ic === pfIc); }); break;
+    case 'pfsave': { const nm = ($('pfName') || {}).value || '', id = el.dataset.id;
+      if(id){ S.store.editProfile(id, nm, pfIc); renderTop(); openProfiles(); if(view.s === 'set') renderSet(); }
+      else { const np = S.store.addProfile(nm, pfIc); if(np) switchProfile(np.id); }
+      break; }
+    case 'pfdel': { const x = S.store.profiles().list.find(y => y.id === el.dataset.id); if(!x) break;
+      $('mbody').innerHTML = `<div class="page-h"><h2>🗑 きろくを 消す</h2></div><p>${x.ic} ${esc(pName(x))} さんの きろくを ぜんぶ 消して、かぞくから はずします。もとには もどせません。</p><div class="btnrow"><button type="button" class="btn sub" data-act="prof">やめる</button><button type="button" class="btn" data-act="pfdelgo" data-id="${x.id}">けす</button></div>`; break; }
+    case 'pfdelgo': { const wasCur = el.dataset.id === S.store.profiles().cur; if(S.store.removeProfile(el.dataset.id)){ if(wasCur){ switchProfile(S.store.profiles().cur); } else { openProfiles(); } toast('けしました'); } break; }
+    case 'report': go('report'); break;
+    case 'printset': pcfg = null; go('print'); break;
+    case 'printnow': try { window.print(); } catch(_){} break;
+    case 'pg': { const c = printCfg(); c.g = +el.dataset.g; c.us = []; renderPrint(); break; }
+    case 'pu': { const c = printCfg(), i = c.us.indexOf(u); if(i >= 0) c.us.splice(i, 1); else c.us.push(u); renderPrint(); break; }
+    case 'pn': printCfg().n = +el.dataset.n; renderPrint(); break;
+    case 'pl': printCfg().lv = +el.dataset.l; renderPrint(); break;
+    case 'pa': printCfg().ans = !printCfg().ans; renderPrint(); break;
+    case 'pmake': { const c = printCfg(); if(!c.us.length) break; go('sheet', {cfg: Object.assign({}, c, {us: c.us.slice(), seed: newSeed()})}); break; }
+    case 'pagain': if(view.cfg){ view.cfg = Object.assign({}, view.cfg, {seed: newSeed()}); try { history.replaceState(Object.assign({}, view, {d: depth()}), '', location.hash); } catch(_){} renderSheet(); window.scrollTo(0, 0); } break;
+    case 'exp': exportBackup(); break;
+    case 'imp': importBackup(); break;
+    case 'impgo': applyBackup(); break;
     case 'cardmix': startMix(true); break;
     case 'boss': openBossIntro(+el.dataset.g || st.set.grade); break;
     case 'bossgo': if(!$('modal').hidden){ $('modal').hidden = true; $('mbody').innerHTML = ''; try { history.replaceState(Object.assign({}, view, {d: depth()}), '', location.hash); } catch(_){} } startBoss(+el.dataset.g); break;
@@ -954,6 +1169,8 @@ document.addEventListener('keydown', e => {
   e.preventDefault();
 });
 document.addEventListener('visibilitychange', () => { if(document.hidden){ V.stop(); V.stopSpeak(); } });
+/* レポートの 棒グラフ：おす・なぞる・キーで えらぶと その 日の 数 */
+['pointerdown', 'pointermove', 'focusin'].forEach(ev => document.addEventListener(ev, e => { if(view.s === 'report') chartTip(e); }));
 $('modal').addEventListener('click', e => { if(e.target === $('modal')) closeModal(); });
 
 /* ── はじめ ── */
@@ -980,5 +1197,6 @@ if('serviceWorker' in navigator && location.protocol !== 'file:' && !/[?&]nosw/.
 /* テストから さわる ための 入り口 */
 S.app = {state: () => st, ses: () => ses, view: () => view, startStage, startMix, startTA, startReview, keyIn, submit, hint, heard: alts => heardFinal(alts, ses && ses.p),
   levelOf, need, finish, swOfferUpdate, maybeTellWhatsNew, voiceTestShow, dueList, weakUnits, addDays, render,
-  startBoss, pickCard, missions, mEvent, checkMedals, medalCtx, lvOf, setLv};
+  startBoss, pickCard, missions, mEvent, checkMedals, medalCtx, lvOf, setLv,
+  switchProfile, openProfiles, sumLog, readBackupFile, applyBackup, makeSheet, go};
 })();
