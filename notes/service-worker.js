@@ -1,8 +1,8 @@
 // このアプリ（notes/）専用のキャッシュ。同じサイトにある別アプリの分を消さないよう、
 // 名前の頭で自分の分だけを見分ける。
-const CACHE = 'memo-v3';
+const CACHE = 'memo-v4';
 const CACHE_PREFIX = 'memo-';
-const ASSETS = ['./', './index.html', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
+const ASSETS = ['./', './index.html', './memo.js', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
