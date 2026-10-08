@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <!-- 決めた場所以外からはプログラム・画像などを読み込まない・外へ送らない（CSP。表電卓 v526）。
-     このページの中に書いたプログラムも動かさない（app.js だけ動く） -->
+     このページの中に書いたプログラムも動かさない（memo.js・app.js だけ動く） -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; frame-src 'none'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- キーボードが出たら画面の高さを縮める（下のボタンがキーボードに隠れないように。Android） -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <!-- 開いたリンク先に、このページのURLを渡さない（どこから来たかを漏らさないため） -->
 <meta name="referrer" content="no-referrer">
 <link rel="manifest" href="manifest.json">
@@ -36,6 +37,9 @@
   --elev-1: 0 2px 8px rgba(0,0,0,.10);
   --elev-2: 0 10px 30px rgba(0,0,0,.22);
   --dur: .14s;
+  /* メモの書式（文字色・背景色）。白い紙でも読める濃さ */
+  --c-red: #c62828; --c-blue: #1565c0; --c-green: #2e7d32; --c-orange: #b85000; --c-purple: #7b1fa2;
+  --m-yellow: #fff176; --m-green: #c8e6c9; --m-blue: #bbdefb; --m-pink: #f8bbd0; --m-orange: #ffe0b2;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -51,9 +55,12 @@
     --star: #e8bf5a;
     --elev-1: 0 2px 8px rgba(0,0,0,.45);
     --elev-2: 0 10px 30px rgba(0,0,0,.6);
+    --c-red: #ff8a80; --c-blue: #8ab4f8; --c-green: #81c995; --c-orange: #ffb74d; --c-purple: #d7aefb;
+    --m-yellow: #665600; --m-green: #2d5a33; --m-blue: #1f4b73; --m-pink: #74304f; --m-orange: #774000;
   }
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+[hidden] { display: none !important; }
 html, body { height: 100%; }
 body {
   margin: 0;
@@ -98,14 +105,81 @@ button { cursor: pointer; border: none; background: none; }
 #today { color: var(--sub); font-size: 13px; margin-left: auto; }
 /* 表電卓から開いたときの「← 表電卓」。iPhone には画面に「戻る」ボタンがないため */
 .hd-back { align-self: center; height: 32px; padding: 0 11px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); color: inherit; font-weight: 700; font-size: 13px; cursor: pointer; white-space: nowrap; }
+#pad header .icon-btn { align-self: center; margin: -6px -6px -6px 0; }
+/* 書く所（中身は1行1つの div。書式は決まった class の span だけ） */
 #memo {
-  flex: 1; width: 100%; resize: none; background: var(--card);
+  flex: 1; min-height: 0; width: 100%; overflow-y: auto; background: var(--card);
   border: 1px solid var(--line); border-radius: var(--r-card);
-  padding: 14px; outline: none; line-height: 1.8;
+  padding: 14px; outline: none; line-height: 1.8; font-size: 17px;
+  white-space: pre-wrap; overflow-wrap: anywhere; cursor: text;
+  -webkit-user-select: text; user-select: text;
 }
 #memo:focus { border-color: var(--acc); }
-#pad footer { display: flex; align-items: center; gap: 8px; }
+#memo:empty::before { content: attr(data-ph); color: var(--sub); pointer-events: none; }
+body.talking #memo { border-color: var(--danger); }
+.w-bold { font-weight: 700; }
+.u-under { text-decoration: underline; text-underline-offset: .2em; }
+.x-strike { text-decoration: line-through; }
+.u-under.x-strike { text-decoration-line: underline line-through; }
+.f-mincho { font-family: "Hiragino Mincho ProN", "Yu Mincho", YuMincho, "BIZ UDPMincho", "Noto Serif JP", "Noto Serif CJK JP", serif; }
+.f-maru { font-family: "Hiragino Maru Gothic ProN", "Kosugi Maru", "M PLUS Rounded 1c", "BIZ UDPGothic", sans-serif; }
+.f-mono { font-family: ui-monospace, Menlo, Consolas, "BIZ UDGothic", "Noto Sans Mono CJK JP", monospace; }
+.s-small { font-size: .82em; }
+.s-big { font-size: 1.3em; }
+.s-huge { font-size: 1.7em; line-height: 1.4; }
+.c-red { color: var(--c-red); } .c-blue { color: var(--c-blue); } .c-green { color: var(--c-green); } .c-orange { color: var(--c-orange); } .c-purple { color: var(--c-purple); }
+.m-yellow { background: var(--m-yellow); } .m-green { background: var(--m-green); } .m-blue { background: var(--m-blue); } .m-pink { background: var(--m-pink); } .m-orange { background: var(--m-orange); }
+.m-yellow, .m-green, .m-blue, .m-pink, .m-orange { border-radius: 3px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+/* 書式のボタン（入りきらない分は横にすべらせる） */
+#fmt { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; flex: 0 0 auto; margin: 0 -2px; padding: 0 2px; }
+/* 右に続きがあるときは端をうすくして、すべらせられることを見せる */
+#fmt.more { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); }
+#fmt::-webkit-scrollbar { display: none; }
+#fmt button, #pop button, #quick .qk {
+  flex: 0 0 auto; min-width: 40px; height: 38px; padding: 0 10px; border-radius: var(--r-btn);
+  border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 14px; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px; touch-action: manipulation;
+}
+#fmt button:hover, #pop button:hover, #quick .qk:hover { background: var(--acc-weak); }
+#fmt button.on { background: var(--acc-weak); border-color: var(--acc); }
+#fmt .b-w { font-weight: 800; } #fmt .b-u { text-decoration: underline; } #fmt .b-x { text-decoration: line-through; }
+#fmt .a-ico { font-weight: 800; border-bottom: 3px solid var(--c-red); line-height: 1.1; }
+#fmt .mk-ico { background: var(--m-yellow); border-radius: 3px; padding: 0 3px; }
+#pop { flex: 0 0 auto; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card); padding: 8px 10px 10px; box-shadow: var(--elev-1); }
+#pop .pop-t { font-size: 12px; color: var(--sub); margin-bottom: 6px; }
+#pop .pop-row { display: flex; flex-wrap: wrap; gap: 6px; }
+#pop .pop-row button { height: auto; min-height: 42px; padding: 4px 12px; }
+#pop .pop-row.sw button { flex-direction: column; gap: 0; min-width: 46px; padding: 4px 6px; }
+#pop .pv { font-size: 16px; line-height: 1.5; padding: 0 4px; border-radius: 3px; }
+#pop .pop-row.sw .pv { font-size: 18px; font-weight: 700; }
+#pop .pv.m-none { outline: 1px dashed var(--line); }
+#pop small { font-size: 11px; color: var(--sub); }
+/* 🎤 聞き取っている間の帯（話している途中の文字） */
+#vbar { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 8px 12px; min-height: 42px;
+  border-radius: var(--r-card); background: var(--acc-weak); font-size: 15px; }
+#vbar .dot { flex: 0 0 auto; width: 12px; height: 12px; border-radius: 50%; background: var(--danger); animation: vpulse 1.2s ease-in-out infinite; }
+#vbar #vtext { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+#vbar small { flex: 0 0 auto; color: var(--sub); font-size: 11.5px; text-align: right; line-height: 1.3; }
+@keyframes vpulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.8); } }
+@media (prefers-reduced-motion: reduce) { #vbar .dot { animation: none; } }
+/* 🎤 と句読点のボタン */
+#quick { display: flex; gap: 6px; flex: 0 0 auto; }
+#quick .mic { flex: 1 1 0; min-width: 0; height: 50px; border-radius: 25px; background: var(--acc); color: #fff; font-weight: 700; font-size: 17px; touch-action: manipulation; }
+#quick .mic:hover { background: var(--acc-dark); }
+#quick .mic.on { background: var(--danger); }
+#quick .qk { width: 42px; min-width: 0; height: 50px; padding: 0; font-size: 20px; font-weight: 700; }
+@media (max-width: 359px) { #quick { gap: 5px; } #quick .qk { width: 36px; } #quick .mic { font-size: 15px; } }
+#quick .qk:disabled { opacity: .4; cursor: default; }
+#pad footer { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 #count { color: var(--sub); font-size: 13px; margin-right: auto; }
+#count.dirty { color: var(--text); }
+#save.dirty { box-shadow: 0 0 0 3px var(--acc-weak); }
+/* 📤 出力・⚙ 設定の窓 */
+.outlist { display: grid; gap: 8px; }
+.outlist .btn { text-align: left; padding: 11px 14px; }
+.fsrow { display: flex; align-items: center; gap: 12px; }
+.fsrow #fsNow { min-width: 3em; text-align: center; font-weight: 700; font-size: 17px; }
+.fsrow .btn { min-width: 64px; }
 
 /* ── 中身の画面（保管庫） ── */
 #vault { display: none; flex-direction: column; height: 100dvh; max-width: 760px; margin: 0 auto; }
@@ -183,6 +257,20 @@ body.open #vault { display: flex; }
   transition: opacity var(--dur); pointer-events: none; z-index: 60;
 }
 #toast.on { opacity: 1; }
+/* 印刷（PDF）：メモの中身だけを白い紙に */
+@media print {
+  :root {
+    --bg: #fff; --card: #fff; --text: #000; --line: #fff;
+    --c-red: #c62828; --c-blue: #1565c0; --c-green: #2e7d32; --c-orange: #b85000; --c-purple: #7b1fa2;
+    --m-yellow: #fff176; --m-green: #c8e6c9; --m-blue: #bbdefb; --m-pink: #f8bbd0; --m-orange: #ffe0b2;
+  }
+  @page { margin: 15mm; }
+  html, body { height: auto; background: #fff; color: #000; padding: 0; }
+  #vault, .sheet, .menu, #toast, #pad > header, #fmt, #pop, #vbar, #quick, #pad > footer { display: none !important; }
+  #pad { display: block; height: auto; max-width: none; padding: 0; }
+  #memo { border: none; padding: 0; overflow: visible; height: auto; }
+  #memo span { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
 </style>
 </head>
 <body>
@@ -193,14 +281,91 @@ body.open #vault { display: flex; }
     <button class="hd-back" id="backHyo" hidden aria-label="表電卓へ戻る">← 表電卓</button>
     <div id="brand">メモ</div>
     <div id="today"></div>
+    <button class="icon-btn" id="cfMemo" title="メモの設定" aria-label="メモの設定">⚙</button>
   </header>
-  <textarea id="memo" placeholder="ここに書けます" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
+  <!-- 書式：文字を選んでから（選んでいなければその行に）。入りきらない分は横にすべらせる -->
+  <div id="fmt" role="toolbar" aria-label="書式">
+    <button type="button" data-pop="c" title="文字色" aria-label="文字色"><span class="a-ico">A</span>文字色</button>
+    <button type="button" data-pop="m" title="背景色（マーカー）" aria-label="背景色（マーカー）"><span class="mk-ico">あ</span>背景色</button>
+    <button type="button" data-pop="f" title="フォント" aria-label="フォント">フォント</button>
+    <button type="button" data-pop="s" title="文字の大きさ" aria-label="文字の大きさ">大きさ</button>
+    <button type="button" class="b-w" data-fmt="w" title="太字" aria-label="太字">B</button>
+    <button type="button" class="b-u" data-fmt="u" title="下線" aria-label="下線">U</button>
+    <button type="button" class="b-x" data-fmt="x" title="取消線" aria-label="取消線">S</button>
+    <button type="button" data-fmt="clear" title="書式を消す" aria-label="書式を消す">書式を消す</button>
+  </div>
+  <div id="pop" hidden></div>
+  <div id="memo" contenteditable="true" role="textbox" aria-multiline="true" aria-label="メモ" data-ph="ここに書けます" spellcheck="false" autocapitalize="off" autocorrect="off" translate="no"></div>
+  <!-- 🎤 聞き取っている間だけ出る -->
+  <div id="vbar" hidden aria-live="polite"><span class="dot" aria-hidden="true"></span><span id="vtext"></span><small>「改行」「とりけし」<br>「ストップ」</small></div>
+  <div id="quick">
+    <button type="button" class="mic" id="mic" aria-pressed="false">🎤 話す</button>
+    <button type="button" class="qk" data-ins="、" aria-label="読点（、）">、</button>
+    <button type="button" class="qk" data-ins="。" aria-label="句点（。）">。</button>
+    <button type="button" class="qk" data-ins="？" aria-label="はてな（？）">？</button>
+    <button type="button" class="qk" data-ins="nl" aria-label="改行" title="改行">↵</button>
+    <button type="button" class="qk" id="undoBtn" aria-label="戻す" title="戻す" disabled>↶</button>
+  </div>
   <footer>
     <span id="count">0 文字</span>
+    <button class="btn sub" id="outBtn">📤 出力</button>
     <button class="btn sub" id="clear">消す</button>
     <button class="btn" id="save">保存</button>
   </footer>
 </div>
+
+<!-- 📤 出力 -->
+<div class="sheet" id="outSheet"><div class="box">
+  <h2>出力</h2>
+  <div class="outlist">
+    <button class="btn sub" data-out="copy">📋 コピー（色もいっしょに）</button>
+    <button class="btn sub" data-out="share" id="outShare">📨 ほかのアプリへ送る（メール・LINE など）</button>
+    <button class="btn sub" data-out="txt">📄 テキスト（.txt）で保存</button>
+    <button class="btn sub" data-out="html">🎨 色つき（.html）で保存</button>
+    <button class="btn sub" data-out="print">🖨 印刷・PDF</button>
+    <button class="btn sub" data-out="say" id="outSay">🔊 読み上げる</button>
+  </div>
+  <div class="row"><button class="btn" data-close>閉じる</button></div>
+</div></div>
+
+<!-- ⚙ メモの設定 -->
+<div class="sheet" id="mcSheet"><div class="box">
+  <h2>メモの設定</h2>
+  <label>文字の大きさ</label>
+  <div class="fsrow">
+    <button class="btn sub" id="fsDn" aria-label="文字を小さく">A−</button>
+    <span id="fsNow">17</span>
+    <button class="btn sub" id="fsUp" aria-label="文字を大きく">A＋</button>
+  </div>
+  <label for="mcSep">🎤 話の区切りに入れるもの</label>
+  <select class="field" id="mcSep">
+    <option value="maru">「。」（まる）</option>
+    <option value="nl">改行（1行ずつ。買い物メモなどに）</option>
+    <option value="none">なにも入れない</option>
+  </select>
+  <ul class="help" style="margin:14px 0 0;padding-left:1.2em">
+    <li><b>🎤 話す</b>：話したことばがカーソルの所に入ります。少し間をあけて「<b>まる</b>」「<b>てん</b>」「<b>はてな</b>」「<b>びっくり</b>」「<b>改行</b>」と言うと記号や次の行に、「<b>とりけし</b>」で1つ戻し、「<b>ストップ</b>」で止まります。</li>
+    <li>キーボードの 🎤（音声入力）で話してもかまいません。句読点や改行は下のボタンでも入れられます。</li>
+    <li><b>文字色・背景色・フォント・大きさ・太字</b>など：文字を選んでから上のボタンをおします（選んでいないときはその行ぜんぶに）。<b>書式を消す</b>でもとにもどります。</li>
+    <li><b>↶</b>：打った字・声・書式を1つずつ戻します。<b>保存</b>をおすまで、書いたものは保存されません。</li>
+    <li><b>📤 出力</b>：コピー・ほかのアプリへ送る・ファイルに保存・印刷（PDF）・読み上げ。</li>
+  </ul>
+  <div class="row"><button class="btn" data-close>閉じる</button></div>
+</div></div>
+
+<!-- 🎤 はじめて使うときの案内 -->
+<div class="sheet" id="micSheet"><div class="box">
+  <h2>🎤 声で書く</h2>
+  <p class="help">話したことばを文字にして、メモのカーソルの所に入れます。</p>
+  <ul class="help" style="padding-left:1.2em">
+    <li>声は<b>ブラウザの音声認識</b>（Google・Apple など）に送られて文字になります。ネットにつながっているときに使えます。</li>
+    <li>はじめてのときは、マイクを使ってよいかをブラウザが聞いてきます。</li>
+  </ul>
+  <div class="row">
+    <button class="btn sub" data-close>やめる</button>
+    <button class="btn" id="micGo">使う</button>
+  </div>
+</div></div>
 
 <!-- ══ 裏の顔：お気に入り保管庫 ══ -->
 <div id="vault" class="veilable">
@@ -346,6 +511,7 @@ body.open #vault { display: flex; }
 
 <div id="toast"></div>
 
+<script src="memo.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

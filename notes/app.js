@@ -1,5 +1,6 @@
 /* 隠しお気に入り帳（メモ）のプログラム。index.html の中に書かず、このファイルに分けている
-   （ページの中に書いたプログラムは動かさない決まり＝CSP にしているので）（表電卓 v526） */
+   （ページの中に書いたプログラムは動かさない決まり＝CSP にしているので）（表電卓 v526）
+   表のメモ帳の 書く 所（声・かざり・出力）は memo.js（MemoEd）。ここでは 中身の 出し入れだけ 使う（v529） */
 'use strict';
 /* ══════════════════════════════════════════════════════════════
    隠しお気に入り帳
@@ -13,11 +14,16 @@ const ITER = 210000;            // 合言葉を鍵に練り直す回数（総当
 const PAD  = 1024;              // 中身の長さを丸めて、件数の多さを覗かせない
 const enc = new TextEncoder(), dec = new TextDecoder();
 
-/* ── 保存場所（表のメモ文と、錠つきの塊の束） ── */
+/* ── 保存場所（表のメモ文・そのかざり と、錠つきの塊の束） ──
+   t：メモの文字だけ。h：かざりがあるときだけ、決まった span だけの HTML（読むときに memo.js が作り直す） */
 function loadStore() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
-    if (s && typeof s === 'object') return { t: String(s.t || ''), b: Array.isArray(s.b) ? s.b : [] };
+    if (s && typeof s === 'object') {
+      const o = { t: String(s.t || ''), b: Array.isArray(s.b) ? s.b : [] };
+      if (typeof s.h === 'string' && s.h) o.h = s.h;
+      return o;
+    }
   } catch (e) {}
   return { t: '', b: [] };
 }
@@ -78,19 +84,19 @@ document.addEventListener('click', e => {
   if (e.target.classList.contains('sheet')) closeSheets();
 });
 
-/* ══ 表のメモ帳 ══ */
-const memo = $('#memo');
+/* ══ 表のメモ帳 ══
+   とちゅうで 勝手に 保存しない（合言葉を メモ欄に 書いて 開く ので、合言葉が 残らない ように）。「保存」を おした ときだけ */
+const ME = window.MemoEd;
 $('#today').textContent = new Date().toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' });
-memo.value = loadStore().t;
-const recount = () => { $('#count').textContent = memo.value.length + ' 文字'; };
-memo.addEventListener('input', recount);
-recount();
+ME.load(loadStore());
 
 $('#save').addEventListener('click', () => {
-  const s = loadStore(); s.t = memo.value;
-  if (saveStore(s)) toast('保存しました');
+  const s = loadStore(), d = ME.dump();
+  s.t = d.t;
+  if (d.h) s.h = d.h; else delete s.h;
+  if (saveStore(s)) { ME.markSaved(); toast('保存しました'); }
 });
-$('#clear').addEventListener('click', () => { memo.value = ''; recount(); memo.focus(); });
+$('#clear').addEventListener('click', () => { ME.clear(); $('#memo').focus(); });
 
 /* 「メモ」の文字：ふつうにおす＝開ける、長おし＝新しく作る */
 const brand = $('#brand');
@@ -110,7 +116,7 @@ brand.addEventListener('contextmenu', e => e.preventDefault());
 /* 合言葉で開ける。合わなければ「何も起きない」＝ただのメモ帳のまま */
 let busy = false;
 async function tryUnlock() {
-  const pass = memo.value.trim();
+  const pass = ME.text().trim();
   if (busy || !pass) return;
   busy = true;
   const store = loadStore();
@@ -118,7 +124,7 @@ async function tryUnlock() {
     const data = await unseal(pass, store.b[i]);
     if (data) {
       cur = { pass, idx: i, data: normalize(data) };
-      memo.value = store.t; recount();     // 合言葉を画面に残さない
+      ME.load(store);                      // 合言葉を画面に残さない（↶ でも 戻せない）
       enterVault();
       busy = false;
       return;
@@ -155,6 +161,7 @@ $('#mkGo').addEventListener('click', async () => {
 
 /* ══ 保管庫の中 ══ */
 function enterVault() {
+  ME.stop();                               // 🎤・読み上げを 止める
   document.body.classList.add('open');
   $('#q').value = ''; filterTag = '';
   applySettings();

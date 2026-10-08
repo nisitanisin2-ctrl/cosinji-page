@@ -6693,6 +6693,191 @@ async function runSecurity(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+/* 📄 メモ（notes/。v529）：声で書く・書式（文字色・背景色・フォントなど）・出力。隠し保管庫はそのまま動く */
+async function runMemo(browser) {
+  console.log('\n── 📄 メモ：声で書く・書式・出力（v529） ──');
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 667 }, hasTouch: true, acceptDownloads: true });
+  await ctx.addInitScript(() => {
+    // 声の聞き取り・読み上げ・コピー・印刷はまねもので確かめる
+    window.__recs = 0;
+    window.SpeechRecognition = class { constructor() { window.__recs++; } start() { window.__rec = this; } stop() { setTimeout(() => this.onend && this.onend(), 0); } abort() { this.stop(); } };
+    window.__say = (t, fin) => { const r = [{ transcript: t }]; r.isFinal = !!fin; window.__rec.onresult({ resultIndex: 0, results: [r] }); };
+    window.__clip = null; window.__printed = 0; window.__spoken = [];
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { write: async items => { const it = items[0]; window.__clip = { t: await (await it.getType('text/plain')).text(), h: await (await it.getType('text/html')).text() }; } } });
+    window.print = () => { window.__printed++; };
+    Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { speak: u => { window.__spoken.push(u.text); setTimeout(() => u.onend && u.onend(), 5); }, cancel: () => {} } });
+  });
+  const page = await ctx.newPage();
+  const errs = []; page.on('pageerror', e => errs.push(e.message)); page.on('dialog', d => d.accept());
+  const NOTES = 'file://' + path.join(ROOT, 'notes', 'index.html');
+  await page.goto(NOTES); await page.waitForTimeout(400);
+  const T = () => page.evaluate(() => MemoEd.text());
+  const H = () => page.evaluate(() => document.getElementById('memo').innerHTML);
+  const sel = (a, b) => page.evaluate(([a, b]) => { document.getElementById('memo').focus(); MemoEd._t.selectRange(a, b); }, [a, b]);
+  const say = async (t, fin = true) => { await page.evaluate(([t, f]) => window.__say(t, f), [t, fin]); await page.waitForTimeout(60); };
+
+  // 画面のつくり
+  const raw = fs.readFileSync(path.join(ROOT, 'notes/index.html'), 'utf8'), sw = fs.readFileSync(path.join(ROOT, 'notes/service-worker.js'), 'utf8');
+  check('  memo.js を app.js より先に読む・オフライン用にも持つ（memo-v4）', [raw.indexOf('<script src="memo.js">') > 0 && raw.indexOf('<script src="memo.js">') < raw.indexOf('<script src="app.js">'), sw.includes("'./memo.js'"), sw.includes("'memo-v4'")].join(','), 'true,true,true');
+  check('  書く所は書式の付けられる欄（1行1つ）・「ここに書けます」', await page.evaluate(() => { const m = document.getElementById('memo'); return [m.isContentEditable, m.getAttribute('role'), m.dataset.ph, getComputedStyle(m, '::before').content].join('|'); }), 'true|textbox|ここに書けます|"ここに書けます"');
+  check('  書式のボタン（文字色・背景色・フォントを先に）', await page.evaluate(() => [...document.querySelectorAll('#fmt button')].map(b => b.textContent.trim()).join(',')), 'A文字色,あ背景色,フォント,大きさ,B,U,S,書式を消す');
+  check('  🎤 と句読点・改行・戻すのボタン（375px に入りきる）', await page.evaluate(() => [...document.querySelectorAll('#quick button')].map(b => b.textContent.trim()).join(',') + '/' + ([...document.querySelectorAll('#quick button')].every(b => b.getBoundingClientRect().right <= innerWidth - 8))), '🎤 話す,、,。,？,↵,↶/true');
+  check('  書式のボタンは横にすべらせる（右端をうすく）・聞き取りの帯はふだん出さない', await page.evaluate(() => document.getElementById('fmt').classList.contains('more') + '/' + getComputedStyle(document.getElementById('vbar')).display + '/' + document.getElementById('undoBtn').disabled), 'true/none/true');
+
+  // 前の形（文字だけ）の保存もそのまま読む
+  await page.evaluate(() => localStorage.setItem('memo.local.v1', JSON.stringify({ t: '買い物\n牛乳 2本\n\nたまご', b: [] })));
+  await page.reload(); await page.waitForTimeout(400);
+  check('  前の保存（文字だけ）を読む・字数', (await T()) + '|' + (await page.textContent('#count')), '買い物\n牛乳 2本\n\nたまご|14 文字');
+  check('  1行1つの div（空の行は <br>）', await H(), '<div>買い物</div><div>牛乳 2本</div><div><br></div><div>たまご</div>');
+  // ブラウザが書く形を見た目どおりの行に直す
+  check('  いろいろな形の行を読み分ける', await page.evaluate(() => [
+    '<div>a</div><div><br></div><div>b</div>', 'abc<div>d</div>', 'a<br><br>', '<div>abc<br></div>', '<p>x</p><p>y</p>',
+    '<div><span class="c-red">r<br></span></div><div>z</div>', '<div>a</div><br><div>b</div>', 'a\nb', '<div><br></div><div>x</div>',
+  ].map(h => JSON.stringify(MemoEd._t.scan(MemoEd._t.parseHtml(h)).map(c => c.ch).join(''))).join(' ')), '"a\\n\\nb" "abc\\nd" "a\\n" "abc" "x\\ny" "r\\nz" "a\\n\\nb" "a\\nb" "\\nx"');
+
+  // 書式（選んだ文字に・選んでいなければその行に）
+  await sel(4, 6);
+  await page.click('#fmt [data-pop="c"]'); await page.waitForTimeout(80);
+  check('  文字色の窓（6つ）', await page.evaluate(() => !document.getElementById('pop').hidden && [...document.querySelectorAll('#pop button')].map(b => b.getAttribute('aria-label').replace('文字色：', '')).join(',')), '赤,青,緑,橙,紫,もとの色');
+  await page.click('#pop [data-cls="c-red"]'); await page.waitForTimeout(80);
+  check('  文字色：選んだ「牛乳」だけ赤・窓は閉じる・欄から離れない', (await H()).split('</div>')[1] + '/' + await page.evaluate(() => document.getElementById('pop').hidden + '/' + document.activeElement.id), '<div><span class="c-red">牛乳</span> 2本/true/memo');
+  await sel(0, 0);
+  await page.click('#fmt [data-pop="m"]'); await page.click('#pop [data-cls="m-yellow"]'); await page.waitForTimeout(80);
+  check('  背景色：選んでいないときはその行ぜんぶ', (await H()).split('</div>')[0], '<div><span class="m-yellow">買い物</span>');
+  await sel(11, 14);
+  await page.click('#fmt [data-pop="f"]'); await page.click('#pop [data-cls="f-mincho"]');
+  await page.click('#fmt [data-pop="s"]'); await page.click('#pop [data-cls="s-big"]');
+  await page.click('#fmt [data-fmt="w"]'); await page.click('#fmt [data-fmt="u"]'); await page.click('#fmt [data-fmt="x"]'); await page.waitForTimeout(80);
+  check('  フォント・大きさ・太字・下線・取消線（重ねられる）', (await H()).split('</div>')[3], '<div><span class="w-bold u-under x-strike f-mincho s-big">たまご</span>');
+  check('  見た目にも出る（赤・黄・明朝・太字・下線と取消線）', await page.evaluate(() => { const s = q => getComputedStyle(document.querySelector('#memo .' + q)); return [s('c-red').color, s('m-yellow').backgroundColor, /Mincho|Serif|serif/.test(s('f-mincho').fontFamily), s('w-bold').fontWeight, s('u-under').textDecorationLine].join(' | '); }), 'rgb(198, 40, 40) | rgb(255, 241, 118) | true | 700 | underline line-through');
+  await page.click('#fmt [data-fmt="w"]'); await page.waitForTimeout(80);
+  check('  太字はもう一度おすと外れる', (await H()).split('</div>')[3], '<div><span class="u-under x-strike f-mincho s-big">たまご</span>');
+  await page.click('#fmt [data-fmt="clear"]'); await page.waitForTimeout(80);
+  check('  書式を消す', (await H()).split('</div>')[3], '<div>たまご');
+  await page.click('#undoBtn'); await page.waitForTimeout(80);
+  check('  ↶ で書式も1つずつ戻る', (await H()).split('</div>')[3], '<div><span class="u-under x-strike f-mincho s-big">たまご</span>');
+  check('  まだ保存していないしるし', await page.textContent('#count'), '14 文字・未保存');
+  await page.click('#save'); await page.waitForTimeout(100);
+  const st1 = await page.evaluate(() => JSON.parse(localStorage.getItem('memo.local.v1')));
+  check('  保存：t は文字だけ・h は決まった書式の HTML', JSON.stringify(st1.t) + ' ' + st1.h, '"買い物\\n牛乳 2本\\n\\nたまご" <div><span class="m-yellow">買い物</span></div><div><span class="c-red">牛乳</span> 2本</div><div><br></div><div><span class="u-under x-strike f-mincho s-big">たまご</span></div>');
+  check('  保存したら「未保存」は消える', await page.textContent('#count'), '14 文字');
+  await page.reload(); await page.waitForTimeout(400);
+  check('  開き直しても書式がもどる', await H(), st1.h);
+
+  // 仕込みのある保存を読んでも、決まった書式と文字だけ
+  await page.evaluate(() => { window.__pwn = 0; localStorage.setItem('memo.local.v1', JSON.stringify({ t: 'ab', h: '<img src=x onerror="window.__pwn=1"><span class="c-red evil" onclick="window.__pwn=2" style="color:lime">a</span><script>window.__pwn=3<\/script><b>b</b><iframe src="javascript:window.__pwn=4"></iframe>', b: [] })); });
+  await page.reload(); await page.waitForTimeout(500);
+  check('  仕込みのある書式は読まない（何も動かない）', (await H()) + ' ' + await page.evaluate(() => window.__pwn || 0), '<div><span class="c-red">a</span><span class="w-bold">b</span></div> 0');
+  await page.evaluate(() => localStorage.setItem('memo.local.v1', JSON.stringify({ t: '本当の文', h: '<div>ちがう文</div>', b: [] })));
+  await page.reload(); await page.waitForTimeout(400);
+  check('  文字と書式が食い違うときは文字のほうを出す', await T(), '本当の文');
+
+  // 🎤 声で書く
+  await page.evaluate(() => { localStorage.removeItem('memo.local.v1'); localStorage.removeItem('memo.ui.v1'); }); await page.reload(); await page.waitForTimeout(400);
+  await page.click('#mic'); await page.waitForTimeout(80);
+  check('  はじめての 🎤 は、声がブラウザの音声認識に送られることを知らせる', await page.evaluate(() => document.getElementById('micSheet').classList.contains('on') + '/' + /音声認識/.test(document.getElementById('micSheet').textContent) + '/' + window.__recs), 'true/true/0');
+  await page.click('#micGo'); await page.waitForTimeout(80);
+  check('  「使う」で聞き始める（帯が出る・ボタンは止める・欄をおしてもキーボードを出さない）', await page.evaluate(() => [MemoEd._t.isOn(), document.getElementById('vbar').hidden, document.getElementById('mic').textContent, document.getElementById('memo').getAttribute('inputmode'), window.__rec.lang, window.__rec.interimResults].join('/')), 'true/false/⏹ 止める/none/ja-JP/true');
+  await say('あしたは', false);
+  check('  話している途中の文字は帯に出す（欄には入れない）', (await page.textContent('#vtext')) + '/' + JSON.stringify(await T()), '「あしたは」/""');
+  await say('明日は雨');
+  check('  区切りに「。」を足す', await T(), '明日は雨。');
+  await say('はてな');
+  check('  すぐ「はてな」と言うと「。」を「？」に', await T(), '明日は雨？');
+  await say('傘を持っていく'); await say('改行'); await say('牛乳 改行');
+  check('  「改行」で次の行・「〜 改行」と続けて言っても', JSON.stringify(await T()), '"明日は雨？傘を持っていく。\\n牛乳\\n"');
+  await say('パン'); await say('とりけし');
+  check('  「とりけし」でいま入れた分を消す', JSON.stringify(await T()), '"明日は雨？傘を持っていく。\\n牛乳\\n"');
+  await sel(2, 2); await say('の');
+  check('  文の途中に入れるときは「。」を足さない', JSON.stringify(await T()), '"明日のは雨？傘を持っていく。\\n牛乳\\n"');
+  const t0 = await T();
+  await page.evaluate(() => document.getElementById('memo').dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true })));
+  await page.click('#quick [data-ins="。"]'); await page.waitForTimeout(60);
+  const tq = (await T()) === t0 && await page.evaluate(() => document.getElementById('toast').textContent);
+  await say('です');
+  check('  変換の途中：ボタンは確定を頼む・声は確定させてから入れる（聞き取った分を捨てない）', tq + '/' + (await T()).slice(0, 7), '変換を確定してからおしてください/明日のですは雨');
+  await say('ストップ');
+  check('  「ストップ」で止める（帯を消す・キーボードを戻す）', await page.evaluate(() => [MemoEd._t.isOn(), document.getElementById('vbar').hidden, document.getElementById('mic').textContent, document.getElementById('memo').hasAttribute('inputmode')].join('/')), 'false/true/🎤 話す/false');
+  await page.click('#mic'); await page.waitForTimeout(80);
+  check('  2回目からは案内を出さずに聞く', await page.evaluate(() => MemoEd._t.isOn() + '/' + document.getElementById('micSheet').classList.contains('on') + '/' + JSON.parse(localStorage.getItem('memo.ui.v1')).mic), 'true/false/1');
+  await page.evaluate(() => window.__rec.onerror({ error: 'not-allowed' })); await page.waitForTimeout(80);
+  check('  マイクが使えないときは止めて知らせる', await page.evaluate(() => MemoEd._t.isOn() + '/' + document.getElementById('toast').textContent), 'false/マイクが使えません（ブラウザの設定でマイクを許可してください）');
+
+  // 句読点・改行のボタンと ↶
+  await sel(0, 0);
+  await page.click('#quick [data-ins="、"]'); await page.waitForTimeout(80);
+  check('  句読点のボタン：カーソルの所に入れる・欄から離れない', (await T()).slice(0, 4) + '/' + await page.evaluate(() => document.activeElement.id), '、明日の/memo');
+  await page.click('#quick [data-ins="nl"]'); await page.waitForTimeout(80);
+  check('  ↵ で改行', JSON.stringify((await T()).slice(0, 4)), '"、\\n明日"');
+  await page.click('#undoBtn'); await page.click('#undoBtn'); await page.waitForTimeout(80);
+  check('  ↶ で1つずつ戻す', (await T()).slice(0, 3), '明日の');
+
+  // 打つ・戻す・やり直す・貼り付け
+  await page.evaluate(() => { const n = MemoEd.text().length; MemoEd._t.selectRange(n, n); });
+  await page.keyboard.type('abc'); await page.waitForTimeout(1400); await page.keyboard.type('def'); await page.waitForTimeout(80);
+  await page.keyboard.press('Control+z'); await page.waitForTimeout(80);
+  const z1 = (await T()).split('\n').pop();
+  await page.keyboard.press('Control+z'); await page.waitForTimeout(80);
+  const z2 = (await T()).split('\n').pop();
+  await page.keyboard.press('Control+y'); await page.waitForTimeout(80);
+  check('  打った字も ↶（Ctrl+Z）でひと続きずつ・Ctrl+Y でやり直す', [z1, z2, (await T()).split('\n').pop()].join('/'), 'abc//abc');
+  await page.evaluate(() => { window.__pwn = 0; const dt = new DataTransfer(); dt.setData('text/plain', 'P1\nP2'); dt.setData('text/html', '<b style="color:red">P1</b><br>P2<img src=x onerror="window.__pwn=1">'); document.getElementById('memo').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); });
+  await page.waitForTimeout(300);
+  check('  貼り付けは文字だけ（よその書式・HTML は入れない）', JSON.stringify((await T()).split('\n').slice(-2).join('\n')) + ' ' + /<b|<img|style=/.test(await H()) + ' ' + await page.evaluate(() => window.__pwn), '"abcP1\\nP2" false 0');
+  await sel(0, 2); await page.keyboard.press('Control+b'); await page.waitForTimeout(80);
+  check('  Ctrl+B も同じ太字に', (await H()).startsWith('<div><span class="w-bold">明日</span>のですは雨？'), true);
+
+  // 📤 出力
+  await page.evaluate(() => { localStorage.setItem('memo.local.v1', JSON.stringify({ t: '表のメモ。\n2行目', h: '<div><span class="c-red">表の</span><span class="m-yellow">メモ</span>。</div><div>2行目</div>', b: [] })); });
+  await page.reload(); await page.waitForTimeout(400);
+  await page.click('#outBtn'); await page.waitForTimeout(80);
+  check('  出力の窓（送る機能がないブラウザでは「送る」を出さない）', await page.evaluate(() => [...document.querySelectorAll('#outSheet [data-out]')].filter(b => !b.hidden).map(b => b.dataset.out).join(',')), 'copy,txt,html,print,say');
+  await page.click('[data-out="copy"]'); await page.waitForTimeout(150);
+  check('  コピー：文字と、色をそのまま写した HTML', JSON.stringify(await page.evaluate(() => window.__clip)), JSON.stringify({ t: '表のメモ。\n2行目', h: '<div><span style="color:#c62828">表の</span><span style="background-color:#fff176">メモ</span>。</div><div>2行目</div>' }));
+  const [d1] = await Promise.all([page.waitForEvent('download'), page.click('[data-out="txt"]')]);
+  const b1 = fs.readFileSync(await d1.path());
+  check('  テキストで保存（BOM 付き・Windows の改行）', /^memo-\d{4}-\d\d-\d\d\.txt$/.test(d1.suggestedFilename()) + ' ' + b1.slice(0, 3).toString('hex') + ' ' + JSON.stringify(b1.slice(3).toString('utf8')), 'true efbbbf "表のメモ。\\r\\n2行目"');
+  const [d2] = await Promise.all([page.waitForEvent('download'), page.click('[data-out="html"]')]);
+  const hd = fs.readFileSync(await d2.path(), 'utf8');
+  check('  色つきで保存（プログラムを動かさない .html・色は style で）', [/\.html$/.test(d2.suggestedFilename()), hd.includes("content=\"default-src 'none'; style-src 'unsafe-inline'\""), hd.includes('<span style="color:#c62828">表の</span>'), /class=|<script/i.test(hd)].join(','), 'true,true,true,false');
+  await page.click('[data-out="say"]'); await page.waitForTimeout(100);
+  check('  読み上げ（文ごと）', JSON.stringify(await page.evaluate(() => window.__spoken)), '["表のメモ。","2行目"]');
+  await page.click('[data-out="print"]'); await page.waitForTimeout(250);
+  check('  印刷・PDF（窓を閉じてから）', await page.evaluate(() => window.__printed + '/' + document.getElementById('outSheet').classList.contains('on')), '1/false');
+  await page.emulateMedia({ media: 'print' });
+  check('  印刷にはメモの中身だけ', await page.evaluate(() => ['#fmt', '#quick', '#pad footer', '#pad header'].map(q => getComputedStyle(document.querySelector(q)).display).join(',') + '/' + getComputedStyle(document.getElementById('memo')).borderTopStyle), 'none,none,none,none/none');
+  await page.emulateMedia({ media: 'screen' });
+
+  // ⚙ 設定（文字の大きさ・話の区切り）
+  await page.click('#cfMemo'); await page.waitForTimeout(80);
+  await page.click('#fsUp'); await page.click('#fsUp'); await page.selectOption('#mcSep', 'nl');
+  check('  文字の大きさ・話の区切りを覚える', await page.evaluate(() => getComputedStyle(document.getElementById('memo')).fontSize + '/' + localStorage.getItem('memo.ui.v1')), '21px/{"fs":21,"sep":"nl","mic":1}');
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => { const n = MemoEd.text().length; MemoEd._t.selectRange(n, n); });
+  await page.click('#mic'); await say('りんご'); await say('みかん'); await page.click('#mic');
+  check('  区切りを「改行」にすると1行ずつ', JSON.stringify((await T()).split('\n').slice(-3).join('\n')), '"2行目りんご\\nみかん\\n"');
+
+  // 隠し保管庫は今までどおり（合言葉はメモに書いて「メモ」をおす。とちゅうで保存しない）
+  await page.evaluate(() => { localStorage.setItem('memo.local.v1', JSON.stringify({ t: '表の文', b: [] })); localStorage.setItem('memo.ui.v1', '{"mic":1}'); });
+  await page.reload(); await page.waitForTimeout(400);
+  await page.evaluate(() => MemoEd.clear());
+  const bb = await page.locator('#brand').boundingBox();
+  await page.mouse.move(bb.x + 10, bb.y + 10); await page.mouse.down(); await page.waitForTimeout(1100); await page.mouse.up(); await page.waitForTimeout(150);
+  await page.fill('#mk1', 'himitsu1'); await page.fill('#mk2', 'himitsu1'); await page.click('#mkGo'); await page.waitForTimeout(1600);
+  check('  保管庫を作れる（長おし）', await page.evaluate(() => document.body.classList.contains('open')), true);
+  await page.click('#lockBtn'); await page.waitForTimeout(150);
+  await page.click('#memo'); await page.keyboard.type('himitsu1'); await page.waitForTimeout(100);
+  await page.click('#mic'); await page.waitForTimeout(80);
+  await page.click('#brand'); await page.waitForTimeout(1800);
+  check('  メモに合言葉を書いて「メモ」をおすと開く（🎤 は止める）', await page.evaluate(() => document.body.classList.contains('open') + '/' + MemoEd._t.isOn()), 'true/false');
+  check('  開いたらメモは保存した文にもどり、合言葉は ↶ でも出ない', await page.evaluate(() => MemoEd.text() + '/' + document.getElementById('undoBtn').disabled), '表の文/true');
+  check('  合言葉はどこにも保存されない', await page.evaluate(() => JSON.stringify(localStorage).includes('himitsu1')), false);
+  await page.click('#lockBtn'); await page.waitForTimeout(150);
+  await page.click('#memo'); await page.keyboard.type('chigau'); await page.click('#brand'); await page.waitForTimeout(1500);
+  check('  合言葉が違うときは何も起きない', await page.evaluate(() => document.body.classList.contains('open') + '/' + MemoEd.text()), 'false/表の文chigau');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 /* 🎓 算数・数学チャレンジ（sansu/。v527）：別のアプリ。問題の作り方・答え合わせ・声・画面の流れ・表電卓から開く */
 // 単元の 数（全部 / 小1〜中3）。単元を 足したら ここも かえる
 const S_UNITS_EXPECT = '106 / 9,12,12,13,18,11,10,9,12';
@@ -10842,6 +11027,7 @@ async function runQrShare(browser) {
     if (!only || only === 'help') await runHelpSplit(browser);
     if (!only || only === 'backkey') await runBackKey(browser);
     if (!only || only === 'security') await runSecurity(browser);
+    if (!only || only === 'memo') await runMemo(browser);
     if (!only || only === 'sansu') await runSansu(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
