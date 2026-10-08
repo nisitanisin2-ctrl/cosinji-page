@@ -638,6 +638,37 @@ U({id: 'g5-angsum', g: 5, ic: '📐', t: '三角形・四角形の 角',
     return {q: '四角形の ? の 角は 何度？', fig: F.quadAng(a, b, c), form: '{0}°', ans: [d], steps: ['四角形の 4つの 角の 和は 360°', `360° − ${a}° − ${b}° − ${c}° = ？`], answer: `360° − ${a}° − ${b}° − ${c}° = ${d}°`};
   }});
 
+U({id: 'g5-circum', g: 5, ic: '🛞', t: '円周の 長さ',
+  ex: [['p', '円の まわりの 長さが **円周**。どんな 大きさの 円でも、**円周 ÷ 直径 = 3.14…**（これを **円周率** と いう）。'],
+       ['p', '**円周 = 直径 × 3.14**'],
+       ['fig', () => F.circle(5, 'd', 'cm')],
+       ['eg', '直径 10cm の 円周：10 × 3.14 = 31.4cm'],
+       ['eg', '円周 25.12cm の 円の 直径：25.12 ÷ 3.14 = 8cm'],
+       ['tip', '半径が わかっている ときは、まず 直径（半径 × 2）に しよう。']],
+  gen(r){
+    const t = r.int(0, 2), R0 = r.int(1, 10);
+    if(t === 0){ const d = r.int(2, 20);
+      return {q: `直径 ${d}cm の 円の 円周は？`, fig: F.circle(d / 2, 'd', 'cm'), form: '{0} cm', ans: [decStr(d * 314, 2)], kinds: ['d'], steps: ['円周 = 直径 × 3.14', `${d} × 3.14 = ？`], answer: `${d} × 3.14 = ${decStr(d * 314, 2)}（cm）`}; }
+    if(t === 1) return {q: `半径 ${R0}cm の 円の 円周は？`, fig: F.circle(R0, 'r', 'cm'), form: '{0} cm', ans: [decStr(2 * R0 * 314, 2)], kinds: ['d'], steps: ['円周 = 直径 × 3.14', `直径は 半径の 2倍：${R0} × 2 = ${2 * R0}`, `${2 * R0} × 3.14 = ？`], answer: `${2 * R0} × 3.14 = ${decStr(2 * R0 * 314, 2)}（cm）`};
+    const d = r.int(2, 12), C = decStr(d * 314, 2);
+    return {q: `円周が ${C}cm の 円の 直径は？`, form: '{0} cm', ans: [d], steps: ['円周 = 直径 × 3.14 だから、直径 = 円周 ÷ 3.14', `${C} ÷ 3.14 = ？`], answer: `${C} ÷ 3.14 = ${d}（cm）`};
+  }});
+U({id: 'g5-fracint', g: 5, ic: '🧁', t: '分数 × 整数・分数 ÷ 整数',
+  ex: [['p', '**分数 × 整数** は、分子に 整数を かける。**分数 ÷ 整数** は、分母に 整数を かける。'],
+       ['eg', `${fr(2, 7)} × 3 = ${fr('2 × 3', 7)} = ${fr(6, 7)}`],
+       ['eg', `${fr(4, 5)} ÷ 3 = ${fr(4, '5 × 3')} = ${fr(4, 15)}`],
+       ['tip', '答えが 約分できる ときは 約分しよう。']],
+  gen(r){
+    if(r.chance(0.5)){ let a, b, n; do { b = r.int(2, 12); a = r.int(1, b - 1); n = r.int(2, 9); } while(gcd(a, b) !== 1);
+      const N = a * n, g = gcd(N, b), res = H.fracAns(N, b, `${fr(a, b)} × ${n} = `);
+      return Object.assign(res, {q: '分数 × 整数', note: N > b && res.ans.length > 1 ? '1 より 大きい ときは 仮分数で 答えてね' : '',
+        steps: ['分数 × 整数 は、分子に 整数を かける（分母は そのまま）。', `${fr(a + ' × ' + n, b)} = ${fr(N, b)}`, g > 1 ? `${N} と ${b} は ${g} で 約分できるよ。` : '約分できるか たしかめよう。'],
+        answer: `${fr(a, b)} × ${n} = ${fr(N, b)}${g > 1 ? ' = ' + (b / g === 1 ? N / g : fr(N / g, b / g)) : ''}`}); }
+    let a, b, n; do { b = r.int(2, 9); a = r.int(1, b + 3); n = r.int(2, 6); } while(gcd(a, b) !== 1 || a === b);
+    const N = a, D = b * n, g = gcd(N, D), res = H.fracAns(N, D, `${fr(a, b)} ÷ ${n} = `);
+    return Object.assign(res, {q: '分数 ÷ 整数', steps: ['分数 ÷ 整数 は、分母に 整数を かける（分子は そのまま）。', `${fr(a, b + ' × ' + n)} = ${fr(N, D)}`, g > 1 ? `${N} と ${D} は ${g} で 約分できるよ。` : '約分できるか たしかめよう。'], answer: `${fr(a, b)} ÷ ${n} = ${fr(N, D)}${g > 1 ? ' = ' + fr(N / g, D / g) : ''}`});
+  }});
+
 /* ════════════ 小学6年 ════════════ */
 U({id: 'g6-fracmul', g: 6, ic: '✖', t: '分数の かけ算',
   ex: [['p', '分数 × 分数は、**分子どうし・分母どうしを かけます**。とちゅうで 約分すると 計算が らく。'],
@@ -658,12 +689,14 @@ U({id: 'g6-fracmul', g: 6, ic: '✖', t: '分数の かけ算',
 U({id: 'g6-fracdiv', g: 6, ic: '🔄', t: '分数の わり算',
   ex: [['p', '分数で わるときは、**わる数の 逆数（分母と 分子を 入れかえた 数）を かけます**。'],
        ['eg', `${fr(2, 3)} ÷ ${fr(4, 5)} = ${fr(2, 3)} × ${fr(5, 4)} = ${fr(10, 12)} = ${fr(5, 6)}`],
-       ['eg', `${fr(4, 5)} ÷ 2 = ${fr(4, '5 × 2')} = ${fr(2, 5)}`],
-       ['tip', '整数で わるときは、分母に かける（÷2 は × 1/2）。']],
+       ['eg', `3 ÷ ${fr(2, 5)} = 3 × ${fr(5, 2)} = ${fr(15, 2)}`],
+       ['tip', '整数を 分数で わるときも 同じ。整数は 分母が 1 の 分数（3 = 3/1）。']],
   gen(r){
-    if(r.chance(0.3)){ let a, b, n; do { b = r.int(2, 9); a = r.int(1, b + 3); n = r.int(2, 6); } while(gcd(a, b) !== 1 || a === b);
-      const N = a, D = b * n, g = gcd(N, D), res = H.fracAns(N, D, `${fr(a, b)} ÷ ${n} = `);
-      return Object.assign(res, {q: '分数の わり算。', steps: ['整数で わるときは、分母に かける。', `${fr(a, b + ' × ' + n)} = ${fr(N, D)}`, g > 1 ? `${N} と ${D} は ${g} で 約分できるよ。` : '約分できるか たしかめよう。'], answer: `${fr(a, b)} ÷ ${n} = ${fr(N, D)}${g > 1 ? ' = ' + fr(N / g, D / g) : ''}`}); }
+    if(r.chance(0.3)){ let n, c, d; do { n = r.int(2, 9); d = r.int(2, 9); c = r.int(1, d + 3); } while(gcd(c, d) !== 1 || c === d);
+      const N = n * d, D = c, g = gcd(N, D), res = H.fracAns(N, D, `${n} ÷ ${fr(c, d)} = `);
+      return Object.assign(res, {q: '分数の わり算。', note: N > D && res.ans.length > 1 ? '1 より 大きい ときは 仮分数で 答えてね' : '',
+        steps: ['わる数の **逆数を かける**。', `${fr(c, d)} の 逆数は ${fr(d, c)}`, `${n} × ${fr(d, c)} = ${fr(n + ' × ' + d, c)}`, g > 1 ? `約分を わすれずに（${N} と ${D} は ${g} で われる）。` : '約分できるか たしかめよう。'],
+        answer: `${n} × ${fr(d, c)} = ${fr(N, D)}${g > 1 ? ' = ' + (D / g === 1 ? N / g : fr(N / g, D / g)) : ''}`}); }
     let a, b, c, d; do { b = r.int(2, 9); d = r.int(2, 9); a = r.int(1, b + 2); c = r.int(1, d + 2); } while(gcd(a, b) !== 1 || gcd(c, d) !== 1 || a === b || c === d);
     const N = a * d, D = b * c, g = gcd(N, D), res = H.fracAns(N, D, `${fr(a, b)} ÷ ${fr(c, d)} = `);
     return Object.assign(res, {q: '分数の わり算。', note: N > D && res.ans.length > 1 ? '1 より 大きい ときは 仮分数で 答えてね' : '',
@@ -687,7 +720,7 @@ U({id: 'g6-ratio', g: 6, ic: '🍹', t: '比',
     const k = r.int(1, 6), a = p * k, b = q * k, res = H.fracAns(p, q, `${a} : ${b} の 比の値は `);
     return Object.assign(res, {q: '比の値を 求めよう。', steps: ['a : b の 比の値は a ÷ b', `${a} ÷ ${b} = ${fr(a, b)}`, '約分できるか たしかめよう。'], answer: `${a} ÷ ${b} = ${q === 1 ? p : fr(p, q)}`});
   }});
-U({id: 'g6-speed', g: 6, ic: '🚗', t: '速さ',
+U({id: 'g5-speed', g: 5, ic: '🚗', t: '速さ',
   ex: [['p', '**道のり = 速さ × 時間**、**速さ = 道のり ÷ 時間**、**時間 = 道のり ÷ 速さ**。'],
        ['eg', '時速 40km で 3時間 → 40 × 3 = 120km'],
        ['eg', '時速 60km は 分速 1km（1000m）。時速 → 分速 は ÷ 60'],
@@ -700,16 +733,16 @@ U({id: 'g6-speed', g: 6, ic: '🚗', t: '速さ',
     const w = r.pick([30, 36, 42, 48, 54, 60, 72, 90, 120, 150, 180]);
     return {q: `時速 ${w}km は 分速 何m？`, form: '分速 {0} m', ans: [w * 1000 / 60], steps: [`1km = 1000m なので、時速 ${w}km = 時速 ${w * 1000}m`, '1時間 = 60分 なので、分速は 時速 ÷ 60', `${w * 1000} ÷ 60 = ？`], answer: `${w * 1000} ÷ 60 = ${w * 1000 / 60} → 分速 ${w * 1000 / 60}m`};
   }});
-U({id: 'g6-circle', g: 6, ic: '⭕', t: '円の 面積と 円周',
-  ex: [['p', '**円周 = 直径 × 3.14**、**円の 面積 = 半径 × 半径 × 3.14**（円周率は 3.14 を 使う）。'],
+U({id: 'g6-circle', g: 6, ic: '⭕', t: '円の 面積',
+  ex: [['p', '**円の 面積 = 半径 × 半径 × 3.14**（円周率は 3.14 を 使う）。'],
        ['fig', () => F.circle(3, 'r', 'cm')],
-       ['eg', '半径 3cm の 円：面積 3 × 3 × 3.14 = 28.26cm²、円周 6 × 3.14 = 18.84cm'],
-       ['tip', '半径と 直径を まちがえないように！ 直径 = 半径 × 2。']],
+       ['eg', '半径 3cm の 円：3 × 3 × 3.14 = 28.26cm²'],
+       ['eg', '直径 10cm の 円：半径は 5cm → 5 × 5 × 3.14 = 78.5cm²'],
+       ['tip', '直径が わかっている ときは、まず 半径（直径 ÷ 2）に しよう。']],
   gen(r){
     const t = r.int(0, 2), R0 = r.int(1, 10);
     if(t === 0) return {q: `半径 ${R0}cm の 円の 面積は？`, fig: F.circle(R0, 'r', 'cm'), form: '{0} cm²', ans: [decStr(R0 * R0 * 314, 2)], kinds: ['d'], steps: ['円の 面積 = 半径 × 半径 × 3.14', `${R0} × ${R0} = ${R0 * R0}`, `${R0 * R0} × 3.14 = ？`], answer: `${R0} × ${R0} × 3.14 = ${decStr(R0 * R0 * 314, 2)}（cm²）`};
-    if(t === 1){ const useR = r.chance(0.5);
-      return {q: useR ? `半径 ${R0}cm の 円の 円周は？` : `直径 ${2 * R0}cm の 円の 円周は？`, fig: F.circle(R0, useR ? 'r' : 'd', 'cm'), form: '{0} cm', ans: [decStr(2 * R0 * 314, 2)], kinds: ['d'], steps: ['円周 = 直径 × 3.14', useR ? `直径は 半径の 2倍で ${2 * R0}cm` : `直径は ${2 * R0}cm`, `${2 * R0} × 3.14 = ？`], answer: `${2 * R0} × 3.14 = ${decStr(2 * R0 * 314, 2)}（cm）`}; }
+    if(t === 1) return {q: `直径 ${2 * R0}cm の 円の 面積は？`, fig: F.circle(R0, 'd', 'cm'), form: '{0} cm²', ans: [decStr(R0 * R0 * 314, 2)], kinds: ['d'], steps: ['円の 面積 = 半径 × 半径 × 3.14', `半径は 直径の 半分：${2 * R0} ÷ 2 = ${R0}`, `${R0} × ${R0} × 3.14 = ？`], answer: `${R0} × ${R0} × 3.14 = ${decStr(R0 * R0 * 314, 2)}（cm²）`};
     const Rr = r.int(1, 5) * 2;
     return {q: `半径 ${Rr}cm の 半円の 面積は？`, form: '{0} cm²', ans: [decStr(Rr * Rr * 157, 2)], kinds: ['d'], steps: ['半円は 円の 半分：半径 × 半径 × 3.14 ÷ 2', `${Rr} × ${Rr} × 3.14 = ${decStr(Rr * Rr * 314, 2)}`, `${decStr(Rr * Rr * 314, 2)} ÷ 2 = ？`], answer: `${Rr} × ${Rr} × 3.14 ÷ 2 = ${decStr(Rr * Rr * 157, 2)}（cm²）`};
   }});

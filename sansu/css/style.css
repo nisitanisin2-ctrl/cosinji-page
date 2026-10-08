@@ -127,6 +127,13 @@ body.playing #main{ padding-bottom:24px; }
 details.how{ margin-top:6px; }
 details.how summary{ cursor:pointer; font-weight:800; color:var(--blue); }
 .keys{ display:grid; grid-template-columns:repeat(4,1fr); gap:7px; }
+/* キーと ヒントの ボタンは 画面の 下に 固定（ヒントが ふえても すぐ 打てる） */
+.dock{ position:sticky; bottom:0; z-index:5; background:var(--bg); margin:8px -14px 0; padding:6px 14px calc(8px + env(safe-area-inset-bottom)); box-shadow:0 -8px 14px -10px rgba(0,0,0,.35); }
+.dock .acts{ margin:0 0 6px; }
+@media (max-height:720px){ .keys button{ height:46px; font-size:1.3rem; } .dock .acts button{ padding:3px 2px; font-size:.72rem; } .dock .acts button span{ font-size:1.1rem; } .qform{ margin:4px 0 2px; } }
+.vconf{ display:flex; align-items:center; justify-content:center; gap:8px; margin-top:6px; flex-wrap:wrap; font-weight:800; }
+.vconf .btn{ padding:8px 12px; font-size:.95rem; }
+.vconf[hidden]{ display:none; }
 .keys button{ border:2px solid var(--key-b); background:var(--key); border-radius:14px; height:54px; font-size:1.45rem; font-weight:800; box-shadow:0 3px 0 var(--key-b); }
 .keys button:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--key-b); }
 .keys button.op{ color:var(--blue); }
@@ -169,6 +176,18 @@ body.playing #toast{ bottom:auto; top:calc(env(safe-area-inset-top) + 64px); }
 .tg::after{ content:''; position:absolute; top:3px; left:3px; width:24px; height:24px; border-radius:50%; background:#fff; transition:left .2s; box-shadow:0 1px 3px rgba(0,0,0,.3); }
 .tg.on{ background:var(--ok); } .tg.on::after{ left:25px; }
 .ver{ color:var(--sub); font-size:.85rem; text-align:center; margin-top:8px; }
+
+/* ── 下の お知らせ（新しい 版・新しく なった こと）。表電卓と 同じ ── */
+.notice-bar{ position:fixed; left:12px; right:12px; bottom:calc(var(--nav-h) + 14px + env(safe-area-inset-bottom)); z-index:55; max-width:600px; margin:0 auto; background:var(--card); border:2px solid var(--line); border-left:6px solid var(--accent); border-radius:16px; padding:12px 14px; box-shadow:0 6px 24px rgba(0,0,0,.18); transform:translateY(160%); opacity:0; transition:transform .25s, opacity .25s; pointer-events:none; }
+.notice-bar.show{ transform:none; opacity:1; pointer-events:auto; }
+.notice-bar .nb-t{ font-weight:800; } .notice-bar .nb-s{ font-size:.85rem; color:var(--sub); margin-top:2px; }
+.notice-bar .nb-row{ display:flex; justify-content:flex-end; gap:8px; margin-top:10px; } .notice-bar .btn{ padding:8px 14px; font-size:.95rem; }
+details.wn{ background:var(--card); border:2px solid var(--line); border-radius:12px; padding:6px 10px; margin-bottom:6px; } details.wn summary{ font-weight:800; cursor:pointer; }
+details.wn ul{ margin:6px 0 4px; padding-left:1.2em; } details.wn li{ margin:4px 0; font-size:.9rem; }
+/* 🎤 声の ためし */
+.vt{ background:var(--card); border:2px solid var(--line); border-radius:14px; padding:10px 12px; margin-top:10px; }
+.vtl{ font-size:.78rem; color:var(--sub); margin-top:4px; } .vtv{ font-size:1.25rem; font-weight:800; min-height:1.6em; word-break:break-all; } .vta{ font-size:.8rem; color:var(--sub); }
+ul.vlog{ margin:0 0 8px; padding-left:1.1em; } ul.vlog li{ margin:3px 0; } ul.vlog small{ display:block; color:var(--sub); font-size:.75rem; }
 
 /* ── 窓・トースト・お祝い ── */
 .modal{ position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.45); display:flex; align-items:flex-end; justify-content:center; }

@@ -1,13 +1,20 @@
 // 🎓算数・数学チャレンジ（sansu/）専用のキャッシュ。
 // 同じサイトに表電卓・英単語マスターなどがあるので、名前の頭（sansu-）で自分の分だけを見分けて消す。
-const CACHE = 'sansu-v1';
+// 版を上げたら、ここも js/version.js の VERSION と同じにする（テストでたしかめている）
+const CACHE = 'sansu-v2';
 const CACHE_PREFIX = 'sansu-';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png',
-  './css/style.css', './js/core.js', './js/units-e.js', './js/units-j.js', './js/answer.js', './js/app.js'];
+  './css/style.css', './js/core.js', './js/version.js', './js/units-e.js', './js/units-j.js', './js/units-order.js', './js/answer.js', './js/voice.js', './js/store.js', './js/app.js'];
+// v1 の 画面には「いま更新」の ボタンが ない（新しい 版が 来ると すぐ 入れかわる 作り）。その 版から 来た ときだけは 待たずに 入れかわる
+const NO_ASK = k => /^sansu-v1$/.test(k);
 
+// 新しい 版が 用意 できても、すぐには 入れかわらない（問題の とちゅうで 画面が かわらないように）。
+// 画面の「いま更新」を 押した ときだけ SKIP_WAITING が 届いて 入れかわる（表電卓と 同じ）。
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' }))))
+    .then(() => caches.keys()).then(keys => { if (keys.some(NO_ASK)) return self.skipWaiting(); }));
 });
+self.addEventListener('message', e => { if (e.data === 'SKIP_WAITING') self.skipWaiting(); });
 
 self.addEventListener('activate', e => {
   e.waitUntil(

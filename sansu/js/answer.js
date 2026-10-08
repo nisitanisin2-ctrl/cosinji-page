@@ -54,12 +54,13 @@ S.check = (p, vals) => {
 const KD = {〇: 0, 零: 0, 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9};
 const KS = {十: 10, 百: 100, 千: 1000}, KB = {万: 10000, 億: 100000000};
 function kanjiRun(run){
-  let total = 0, sec = 0, dg = 0, seen = false;
+  // 数の 並びとして ありえない もの（「千千」＝ぜんぜん、「五五」＝ごご、「二三」）は 数に しない
+  let total = 0, sec = 0, dg = 0, seen = false, kd = false, lastSmall = Infinity;
   for(const ch of run){
-    if(ch in KD){ dg = KD[ch]; seen = true; }
+    if(ch in KD){ if(kd) return null; dg = KD[ch]; seen = true; kd = true; }
     else if(ch >= '0' && ch <= '9'){ dg = dg * 10 + Number(ch); seen = true; }
-    else if(ch in KS){ sec += (dg || 1) * KS[ch]; dg = 0; seen = true; }
-    else if(ch in KB){ total += (sec + dg) * KB[ch]; sec = 0; dg = 0; seen = true; }
+    else if(ch in KS){ if(KS[ch] >= lastSmall) return null; lastSmall = KS[ch]; sec += (dg || 1) * KS[ch]; dg = 0; kd = false; seen = true; }
+    else if(ch in KB){ total += (sec + dg) * KB[ch]; sec = 0; dg = 0; kd = false; lastSmall = Infinity; seen = true; }
     else return null;
   }
   return seen ? total + sec + dg : null;
@@ -68,7 +69,32 @@ const kanjiToDigits = t => t.replace(/[〇零一二三四五六七八九十百�
   if(!/[〇零一二三四五六七八九十百千万億]/.test(run)) return run;
   const n = kanjiRun(run); return n === null ? run : String(n);
 });
-const KANA = {ぜろ: 0, れい: 0, いち: 1, に: 2, さん: 3, よん: 4, し: 4, ご: 5, ろく: 6, なな: 7, しち: 7, はち: 8, きゅう: 9, く: 9, じゅう: 10};
+/* ひらがなで 聞こえた 数（「じゅうさん」「さんびゃくろくじゅうご」「さんぶんのに」）を 漢字の 数に。
+   ひらがなの かたまりが 全部「数の ことば」と「つなぎの ことば（ぶんの・あまり・てん…）」で できている ときだけ かえる
+   （「には」「ごめん」の ような ふつうの ことばは そのまま） */
+const KNUM = [['ぜろ', '〇'], ['れい', '〇'], ['いち', '一'], ['いっ', '一'], ['に', '二'], ['さん', '三'], ['よん', '四'], ['よ', '四'], ['し', '四'], ['ご', '五'],
+  ['ろく', '六'], ['ろっ', '六'], ['なな', '七'], ['しち', '七'], ['はち', '八'], ['はっ', '八'], ['きゅう', '九'], ['く', '九'],
+  ['じゅう', '十'], ['じゅっ', '十'], ['じっ', '十'], ['ひゃく', '百'], ['びゃく', '百'], ['ぴゃく', '百'], ['せん', '千'], ['ぜん', '千'], ['まん', '万'], ['おく', '億']];
+const KCON = [['ぶんの', '分の'], ['あまり', 'あまり'], ['てん', '点'], ['と', 'と'], ['たい', '対'], ['じ', '時'], ['ふん', '分'], ['ぷん', '分'], ['ど', '度'], ['は', 'は'], ['が', ' ']];
+const KTOK = KNUM.map(x => [x[0], x[1], 1]).concat(KCON.map(x => [x[0], x[1], 0])).sort((a, b) => b[0].length - a[0].length);
+function kanaRun(run){
+  const memo = {};
+  const seg = i => {   // i から 後ろを 区切れたら [漢字の 並び, 数の ことばが あったか]
+    if(i === run.length) return ['', false];
+    if(i in memo) return memo[i];
+    let res = null;
+    for(const [k, v, isNum] of KTOK){
+      if(!run.startsWith(k, i)) continue;
+      const rest = seg(i + k.length);
+      if(rest){ res = [v + rest[0], rest[1] || !!isNum]; break; }
+    }
+    return memo[i] = res;
+  };
+  if(/[はが]$/.test(run)) return run;   // 「には」の ように 助詞で おわるのは ことば
+  const r = seg(0);
+  return r && r[1] ? r[0] : run;
+}
+const kanaToKanji = t => t.replace(/[ぁ-ゖー]+/g, kanaRun);
 /* 答えの形を、話し言葉と同じ書き方の文字に（[[3/4]] → 3/4、√[2] → √2） */
 const plainForm = f => String(f).replace(/\[\[([^\[\]|]*)\|([^\[\]\/]*)\/([^\[\]]*)\]\]/g, '$1と$2/$3')
   .replace(/\[\[([^\[\]\/]*)\/([^\[\]]*)\]\]/g, '$1/$2').replace(/√\[([^\[\]]*)\]/g, '√$1').replace(/\*\*/g, '')
@@ -85,11 +111,11 @@ function normSpeech(raw, p){
   t = t.replace(/(マイナス|まいなす|ﾏｲﾅｽ|負の)/g, MI).replace(/(プラス|ぷらす|正の)/g, '+').replace(/[-‐－]/g, MI);
   t = t.replace(/([−+±])\s+(?=[\d〇一二三四五六七八九十])/g, '$1');   // 「マイナス 2」の あいだの 空白
   t = t.replace(/(足す|たす)/g, '+').replace(/(引く|ひく)/g, MI).replace(/(かける|掛ける|×)/g, '×').replace(/(割る|わる|÷)/g, '÷');
-  t = t.replace(/(イコール|いこーる|＝)/g, '=').replace(/(パーセント|ぱーせんと|％)/g, '%').replace(/(余り|あまり|アマリ)/g, 'あまり').replace(/(ぶんの)/g, '分の');
+  t = t.replace(/(イコール|いこーる|＝)/g, '=').replace(/(パーセント|ぱーせんと|％)/g, '%').replace(/(余り|あまり|アマリ)/g, 'あまり').replace(/分の/g, 'ぶんの');   // 分の は いったん かなに（「さん分のに」も ひとまとまりで 読めるように）
   t = t.replace(/(かっこ|カッコ|括弧)(とじ|閉じ)?/g, ' ').replace(/度/g, '°');
   // 一言だけの かなの数（「さん」「マイナスご」など）
-  const one = t.replace(/\s+/g, ''), km = /^(−)?(ぜろ|れい|いち|に|さん|よん|し|ご|ろく|なな|しち|はち|きゅう|く|じゅう)$/.exec(one);
-  if(km) t = (km[1] || '') + KANA[km[2]];
+  t = t.replace(/(答え|こたえ|答)(は|が)?/g, ' ');
+  t = kanaToKanji(t).replace(/ぶんの/g, '分の');
   t = kanjiToDigits(t);
   t = t.replace(/(\d)\s*(てん|点)\s*(\d)/g, '$1.$3').replace(/(\d)\s*(じ)(?![ょゃゅ])/g, '$1時').replace(/(\d)\s*(ふん|ぷん)/g, '$1分');
   t = t.replace(/(対|たい)\s*(?=[−+]?\d)/g, ':');
@@ -104,7 +130,7 @@ function normSpeech(raw, p){
   const keep = new Set([...'0123456789.−+/√π:xy²³=±%°、', ...form.replace(/\{\d+\}/g, '')]);
   return [...t].filter(ch => keep.has(ch)).join('');
 }
-S.normSpeech = normSpeech;
+S.normSpeech = normSpeech; S.kanaToKanji = kanaToKanji; S.plainForm = plainForm;
 
 const RE_KIND = {n: '(\\d+)', i: '(−?\\d+)', d: '(−?\\d+(?:\\.\\d+)?)', t: '([+−]?\\d+)', tc: '([+−]?\\d*)', c: '(−?\\d*)'};
 const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

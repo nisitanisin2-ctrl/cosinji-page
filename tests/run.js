@@ -6698,7 +6698,7 @@ async function runSansu(browser) {
   console.log('\n── 🎓 算数・数学チャレンジ（v527） ──');
   const dir = path.join(ROOT, 'sansu'), SANSU = 'file://' + path.join(dir, 'index.html');
   const sw = fs.readFileSync(path.join(dir, 'service-worker.js'), 'utf8'), html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
-  const files = ['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'css/style.css', 'js/core.js', 'js/units-e.js', 'js/units-j.js', 'js/answer.js', 'js/app.js'];
+  const files = ['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'css/style.css', 'js/core.js', 'js/version.js', 'js/units-e.js', 'js/units-j.js', 'js/units-order.js', 'js/answer.js', 'js/voice.js', 'js/store.js', 'js/app.js'];
   check('  ファイルがそろい、service-worker が持つ', files.every(f => fs.existsSync(path.join(dir, f)) && sw.includes("'./" + f + "'")), true);
   check('  控えは自分の分（sansu-）だけ消す・ネット優先', /k\.startsWith\(CACHE_PREFIX\)/.test(sw) && sw.includes("CACHE_PREFIX = 'sansu-'") && sw.includes('netFetch(e.request)'), true);
   const man = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
@@ -6735,7 +6735,7 @@ async function runSansu(browser) {
     }
     return out;
   });
-  check('  単元の数（小1〜中3）', rep.units + ' / ' + rep.grades, '62 / 5,7,7,8,10,7,6,5,7');
+  check('  単元の数（小1〜中3）', rep.units + ' / ' + rep.grades, '64 / 5,7,7,8,13,6,6,5,7');
   check('  全単元 60問ずつ：答え・ヒント・まちがい・声の読み取り', rep.bad.join(' | ') || 'OK', 'OK');
   check('  答え合わせ：約分していない分数・あまりが大きすぎる は「あと少し」', await page.evaluate(() => {
     const H = SANSU.H, f = { kinds: ['n', 'n'], ans: ['3', '4'], check: H.fracCheck(3, 4) }, r = { kinds: ['n', 'n'], ans: ['3', '2'], check: H.remCheck(3, 2, 5) };
@@ -6821,6 +6821,51 @@ async function runSansu(browser) {
   await page.evaluate(() => localStorage.setItem('sansu_v1', JSON.stringify({ xp: '<img src=x onerror=alert(1)>', units: { 'g1-add10': { s: 99 }, '<b>x</b>': { s: 3 } }, set: { grade: 42, read: 'yes' }, days: { last: '<script>' } })));
   await page.reload(); await w(300);
   check('  こわれた・仕込まれた きろくは 読み込むときに 直す', await page.evaluate(() => { const s = SANSU.app.state(); return [s.xp, Object.keys(s.units).join(','), s.units['g1-add10'].s, s.set.grade, s.set.read, s.days.last === ''].join('/'); }), '0/g1-add10/0/1/false/true');
+
+  // ── v2：キーは 画面の 下・声に つよく・学年を 今の 教科書に・新しい 版の お知らせ ──
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('sansu_seen_ver', SANSU.VERSION); }); await page.reload(); await w(300);
+  const ver = await page.evaluate(() => SANSU.VERSION);
+  check('  v2：版・service-worker の 控えの 名前・新しく なった ことの いちばん上が そろう', sw.includes("const CACHE = 'sansu-" + ver + "'") + '/' + (await page.evaluate(() => SANSU.WHATSNEW[0].v === SANSU.VERSION)), 'true/true');
+  await page.setViewportSize({ width: 375, height: 667 });
+  await page.evaluate(() => SANSU.app.startStage('g5-fracadd')); await w(200);
+  for (let i = 0; i < 3; i++) { await page.evaluate(() => document.getElementById('hintBtn').click()); await w(700); }
+  check('  小さい スマホ：ヒントを 3つ 出しても「こたえる」が 見え、新しい ヒントは キーの 上に 出る', await page.evaluate(() => { const k = document.querySelector('[data-k="ok"]').getBoundingClientRect(), h = [...document.querySelectorAll('#hints .hint')].pop().getBoundingClientRect(), d = document.getElementById('dock').getBoundingClientRect(); return (k.bottom <= innerHeight) + '/' + (h.bottom <= d.top + 1); }), 'true/true');
+  await page.setViewportSize({ width: 390, height: 844 });
+  check('  声：ひらがなの 数も 読む', await page.evaluate(() => {
+    const P = (form, ans, kinds) => ({ q: '', form, ans, kinds, steps: ['.'], answer: '' }), f = (p, t) => (SANSU.fromSpeech(p, t) || ['×']).join(',');
+    return [f(P('{0}', ['13'], ['n']), 'じゅうさん'), f(P('[[1/3]] + [[1/3]] = [[{0}/{1}]]', ['2', '3'], ['n', 'n']), 'さんぶんのに'), f(P('31 ÷ 4 = {0} あまり {1}', ['7', '3'], ['n', 'n']), 'ななあまりさん'),
+      f(P('{0}', ['1.5'], ['d']), 'いち てん ご'), f(P('{0}', ['365'], ['n']), 'さんびゃくろくじゅうご'), f(P('{0}', ['−5'], ['i']), 'マイナスご'), f(P('{0}', ['7'], ['n']), '答えはななです'), f(P('{0}', ['7'], ['n']), 'ごめん')].join(' / ');
+  }), '13 / 2,3 / 7,3 / 1.5 / 365 / −5 / 7 / ×');
+  await page.evaluate(() => { SANSU.app.state().set.vconf = true; SANSU.app.startStage('g1-add10'); }); await w(200);
+  await page.evaluate(() => SANSU.app.heard([SANSU.sayAnswer(SANSU.app.ses().p)])); await w(600);
+  check('  声の 答えを たしかめてから：□に 入れて「これで いい？」（まだ 答え合わせ しない）', await page.evaluate(() => { const s = SANSU.app.ses(); return s.answered + '/' + !document.getElementById('vconf').hidden + '/' + (s.vals.join(',') === s.p.ans.join(',')); }), 'false/true/true');
+  await page.click('[data-act="vok"]'); await w(200);
+  check('  ✔ こたえる で 答え合わせ', await page.evaluate(() => SANSU.app.ses().answered + '/' + document.getElementById('vconf').hidden), 'true/true');
+  await page.evaluate(() => { SANSU.app.state().set.vconf = false; SANSU.app.ses().answered = false; SANSU.app.heard(['ぜんぜん わからない']); }); await w(100);
+  check('  聞き取れなかった ことばを のこす', await page.evaluate(() => { const v = SANSU.app.state().vlog; return v.length + '/' + v[0].t + '/' + JSON.parse(localStorage.getItem('sansu_v1')).vlog.length; }), '1/ぜんぜん わからない/1');
+  await page.evaluate(() => SANSU.app.finish()); await w(150);
+  await page.click('[data-act="nav"][data-s="set"]'); await w(150);
+  check('  せっていに バージョン', await page.evaluate(() => document.getElementById('verNow').textContent), '算数・数学チャレンジ ' + ver);
+  await page.click('[data-act="vtest"]'); await w(150);
+  await page.evaluate(() => SANSU.app.voiceTestShow(['じゅうさん', 'じゅう さん']));
+  check('  🎤 声の ためし：聞こえた ことば・読みとった 数・聞き取れなかった ことばの 一覧', await page.evaluate(() => [document.getElementById('vtHeard').textContent, document.getElementById('vtNum').textContent, document.querySelectorAll('.vlog li').length].join(' / ')), '「じゅうさん」 / 13 / 1');
+  await page.click('[data-act="vlogclr"]'); await w(200);
+  check('  聞き取れなかった ことばを 消す', await page.evaluate(() => SANSU.app.state().vlog.length + '/' + !!document.querySelector('.vlog')), '0/false');
+  await page.click('[data-act="mclose"]'); await w(150);
+  // 学年を 今の 教科書に：速さ・円周・分数 × ÷ 整数 は 小5。前の「速さ（小6）」の きろくは 引き継ぐ
+  check('  小5 に 速さ・円周・分数 × ÷ 整数', await page.evaluate(() => SANSU.UNITS.filter(u => u.g === 5).map(u => u.id).filter(id => /speed|circum|fracint/.test(id)).join(',') + '/' + SANSU.UNITS.some(u => u.id === 'g6-speed')), 'g5-speed,g5-fracint,g5-circum/false');
+  await page.evaluate(() => { localStorage.setItem('sansu_v1', JSON.stringify({ solved: 5, ok: 5, units: { 'g6-speed': { s: 2, n: 1, ok: 8, tot: 10, c: 7 } }, ta: { 'g6-speed': 4 } })); localStorage.setItem('sansu_seen_ver', 'v1'); });
+  await page.reload(); await w(900);
+  check('  前の きろく（速さ）は 小5 の 速さに 引き継ぐ', await page.evaluate(() => { const s = SANSU.app.state(); return s.units['g5-speed'].s + '/' + s.ta['g5-speed']; }), '2/4');
+  check('  前の 版を 使っていた 人には「新しく なりました」', await page.evaluate(() => document.getElementById('notice').classList.contains('show') + '/' + document.getElementById('notice').textContent.includes(SANSU.VERSION + ' に 新しく なりました')), 'true/true');
+  await page.click('[data-act="nb-yes"]'); await w(200);
+  check('  「見る」で 新しく なった こと（見たことに なる）', await page.evaluate(() => !!document.querySelector('#mbody details.wn[open]') + '/' + (localStorage.getItem('sansu_seen_ver') === SANSU.VERSION)), 'true/true');
+  await page.click('[data-act="mclose"]'); await w(150);
+  await page.evaluate(() => localStorage.clear()); await page.reload(); await w(900);
+  check('  はじめて 使う 人には 出さない（見たことに する）', await page.evaluate(() => !document.getElementById('notice').classList.contains('show') + '/' + (localStorage.getItem('sansu_seen_ver') === SANSU.VERSION)), 'true/true');
+  await page.evaluate(() => SANSU.app.swOfferUpdate({ postMessage: m => { window.__msg = m; } })); await w(150);
+  await page.click('[data-act="nb-yes"]'); await w(100);
+  check('  新しい 版：「いま更新」で 入れかえを たのむ', await page.evaluate(() => window.__msg), 'SKIP_WAITING');
 
   // ── 表電卓から 開く・表電卓へ 戻る ──
   await page.goto('about:blank'); await page.goto(SANSU + '#from=hyo'); await w(250);

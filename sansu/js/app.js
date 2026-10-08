@@ -3,13 +3,14 @@
    ・ホーム（学年 → 単元）→ 10問のステージ → けっか（★）
    ・答えは □ に タイルで 当てはめるか、🎤 で 言う。🦉 ヒントで とき方を 1つずつ
    ・XP と レベル、つづけた 日数（🔥）、タイムアタック（60びょう）
+   ・キーと ヒントの ボタンは 画面の 下に 固定（ドック）。ヒントが ふえても すぐ 打てる
    ボタンには プログラムを 書かず、data-act で ここから 動かす（CSP で ページの中の プログラムを 止めているため）
    ════════════════════════════════════════════════════════════════ */
 (function(){
 'use strict';
-const S = window.SANSU, { esc, mathHtml, speakMath } = S;
+const S = window.SANSU, { esc, mathHtml, speakMath } = S, V = S.voice;
 const $ = id => document.getElementById(id);
-const VER = 'v1', KEY = 'sansu_v1', STAGE_N = 10, TA_SEC = 60;
+const STAGE_N = 10, TA_SEC = 60, SEEN_VER_KEY = 'sansu_seen_ver';
 const GR = ['小1', '小2', '小3', '小4', '小5', '小6', '中1', '中2', '中3'];
 const TITLES = [[1, '🥚 たまご'], [2, '🐣 ひよこ'], [3, '🐥 ことり'], [5, '🐦 はばたき'], [8, '🦅 わし'], [12, '🦉 ちえの ふくろう'], [16, '🧙 すうがくの まほうつかい'], [25, '👑 すうがく王']];
 const PRAISE = ['せいかい！', 'すごい！', 'よくできました！', 'ばっちり！', 'その ちょうし！', 'かんぺき！'];
@@ -19,26 +20,9 @@ const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0
 const today = () => window.SANSU_TODAY || ymd(new Date());
 const yesterday = () => { const d = new Date(today() + 'T12:00:00'); d.setDate(d.getDate() - 1); return ymd(d); };
 
-/* ── 保存（この端末の中だけ） ── */
-function cleanState(o){
-  const d = {v: 1, xp: 0, solved: 0, ok: 0, days: {last: '', run: 0, best: 0}, day: {d: '', n: 0}, units: {}, ta: {}, set: {grade: 1, read: false, voice: false, sound: true, big: false}};
-  if(!o || typeof o !== 'object') return d;
-  const n = (v, lo, hi, def) => { v = Math.round(+v); return isFinite(v) && v >= lo && v <= hi ? v : def; };
-  const isDay = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
-  d.xp = n(o.xp, 0, 1e9, 0); d.solved = n(o.solved, 0, 1e9, 0); d.ok = n(o.ok, 0, d.solved, 0);
-  if(o.days && typeof o.days === 'object'){ d.days = {last: isDay(o.days.last) ? o.days.last : '', run: n(o.days.run, 0, 1e5, 0), best: n(o.days.best, 0, 1e5, 0)}; }
-  if(o.day && typeof o.day === 'object' && isDay(o.day.d)) d.day = {d: o.day.d, n: n(o.day.n, 0, 1e5, 0)};
-  for(const u of S.UNITS){   // 知っている 単元だけ
-    const x = o.units && o.units[u.id];
-    if(x && typeof x === 'object') d.units[u.id] = {s: n(x.s, 0, 3, 0), n: n(x.n, 0, 1e6, 0), ok: n(x.ok, 0, 1e7, 0), tot: n(x.tot, 0, 1e7, 0), c: n(x.c, 0, 1e7, 0)};
-    if(o.ta && o.ta[u.id] != null) d.ta[u.id] = n(o.ta[u.id], 0, 999, 0);
-  }
-  if(o.set && typeof o.set === 'object'){ d.set.grade = n(o.set.grade, 1, 9, 1); for(const k of ['read', 'voice', 'sound', 'big']) if(typeof o.set[k] === 'boolean') d.set[k] = o.set[k]; }
-  return d;
-}
-let st;
-try { st = cleanState(JSON.parse(localStorage.getItem(KEY) || 'null')); } catch(_){ st = cleanState(null); }
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch(_){} };
+/* ── きろく ── */
+let st = S.store.load();
+const save = () => S.store.save(st);
 
 /* ── レベル ── */
 const need = lv => 50 * lv * (lv - 1);                 // Lv.lv に なるまでの XP（合計）
@@ -75,7 +59,7 @@ function render(){
   if(view.s !== 'play') window.scrollTo(0, 0);
 }
 window.addEventListener('popstate', e => {
-  if(!$('modal').hidden){ $('modal').hidden = true; $('mbody').innerHTML = ''; return; }   // 窓だけ 閉じる
+  if(!$('modal').hidden){ closeModalNow(); return; }   // 窓だけ 閉じる
   const s = e.state && e.state.s ? e.state : {s: 'home', d: 1};
   if(view.s === 'play' && s.s !== 'play') endSession();
   if(s.s === 'play' && !(ses && ses.p && !ses.result)){ go('home', {}, true); return; }   // おわった 問題には 戻らない
@@ -92,14 +76,23 @@ function toHyo(){
   else location.href = url;
 }
 
-/* ── 窓・トースト ── */
-function openModal(html){
-  $('mbody').innerHTML = html; $('modal').hidden = false;
+/* ── 窓・トースト・下の お知らせ ── */
+let modalOnClose = null;
+function openModal(html, onClose){
+  $('mbody').innerHTML = html; $('modal').hidden = false; modalOnClose = onClose || null;
   try { history.pushState(Object.assign({}, view, {d: depth() + 1, m: 1}), '', location.hash); } catch(_){}
 }
+function closeModalNow(){ $('modal').hidden = true; $('mbody').innerHTML = ''; const f = modalOnClose; modalOnClose = null; if(f) f(); }
 const closeModal = () => { if(!$('modal').hidden) history.back(); };
 let toastT = null;
 function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
+let noticeAct = null;
+function showNotice(o){
+  const el = $('notice'); noticeAct = o;
+  el.innerHTML = `<div class="nb-t">${esc(o.title)}</div>${o.sub ? `<div class="nb-s">${esc(o.sub)}</div>` : ''}<div class="nb-row"><button type="button" class="btn sub" data-act="nb-no">${esc(o.no || 'あとで')}</button><button type="button" class="btn" data-act="nb-yes">${esc(o.yes || 'OK')}</button></div>`;
+  requestAnimationFrame(() => el.classList.add('show'));
+}
+function hideNotice(){ $('notice').classList.remove('show'); }
 
 /* ── 音（端末の中で 作る短い音） ── */
 let actx = null;
@@ -125,76 +118,63 @@ function celebrate(mark, pts){
 }
 
 /* ── 読み上げ ── */
-let jaVoice = null;
-function pickVoice(){ try { jaVoice = speechSynthesis.getVoices().find(v => /^ja[-_]JP/i.test(v.lang)) || jaVoice; } catch(_){} }
-if('speechSynthesis' in window){ try { speechSynthesis.onvoiceschanged = pickVoice; } catch(_){} }
-function speak(text, done){
-  const fin = () => { if(done){ const d = done; done = null; d(); } };
-  if(!('speechSynthesis' in window) || !text){ fin(); return; }
-  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'ja-JP'; u.rate = 0.95; if(!jaVoice) pickVoice(); if(jaVoice) u.voice = jaVoice;
-    u.onend = fin; u.onerror = fin; speechSynthesis.speak(u); } catch(_){ fin(); }
-}
-const stopSpeak = () => { try { speechSynthesis.cancel(); } catch(_){} };
 function speakQ(){
   if(!ses || !ses.p) return;
   const p = ses.p;
-  speak(speakMath(p.q) + '。' + speakMath(p.form), () => { if(st.set.voice && ses && ses.p === p && !ses.answered && view.s === 'play') listen(); });
+  V.speak(speakMath(p.q) + '。' + speakMath(p.form), () => { if(st.set.voice && ses && ses.p === p && !ses.answered && view.s === 'play') listen(); });
 }
 
-/* ── 声で 答える（ブラウザの 音声認識） ── */
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-let rec = null, listening = false;
+/* ── 声で 答える ── */
 function setHeard(s){ const h = $('heard'); if(h) h.textContent = s || ''; }
 function listen(){
   if(!ses || !ses.p || ses.answered) return;
-  if(!SR){ toast('この 端末では 声で 答えられません（スマホの Chrome や Safari で 使えます）'); return; }
-  if(listening){ stopListen(); drawActs(); return; }
-  stopSpeak();
+  if(V.listening()){ V.stop(); drawActs(); return; }
   const p = ses.p;
-  try {
-    rec = new SR(); rec.lang = 'ja-JP'; rec.interimResults = true; rec.maxAlternatives = 5; rec.continuous = false;
-    rec.onstart = () => { listening = true; drawActs(); setHeard('🎤 どうぞ。こたえを 言ってね'); };
-    rec.onresult = e => {
-      let interim = '';
-      for(let i = e.resultIndex; i < e.results.length; i++){
-        const r = e.results[i];
-        if(r.isFinal){ const alts = []; for(let j = 0; j < r.length; j++) alts.push(r[j].transcript); heardFinal(alts, p); }
-        else interim += r[0].transcript;
-      }
-      if(interim) setHeard('🎤 ' + interim);
-    };
-    rec.onerror = e => {
-      if(e.error === 'not-allowed' || e.error === 'service-not-allowed') toast('マイクが 使えません。ブラウザの 設定で マイクを 許可してね');
-      else if(e.error === 'network') toast('声の 聞き取りには インターネットが 必要です');
-      else if(e.error === 'no-speech') setHeard('聞こえなかったよ。もう一度 🎤 を おしてね');
-    };
-    rec.onend = () => { listening = false; rec = null; if(view.s === 'play' && ses && ses.p) drawActs(); };
-    rec.start();
-  } catch(_){ listening = false; rec = null; toast('声の 聞き取りを 始められませんでした'); }
+  V.listen({
+    onStart: () => { drawActs(); setHeard('🎤 どうぞ。こたえを 言ってね'); clearConfirm(); },
+    onInterim: t => setHeard('🎤 ' + t),
+    onFinal: alts => heardFinal(alts, p),
+    onError: code => { const m = S.voiceErrMsg(code); if(code === 'no-speech') setHeard(m); else if(m) toast(m); },
+    onEnd: () => { if(view.s === 'play' && ses && ses.p) drawActs(); },
+  });
 }
-function stopListen(){ try { if(rec) rec.abort(); } catch(_){} listening = false; rec = null; }
+/* 聞き取れなかった 言葉は さいきんの 20こを のこす（🎤 声の ためし で 見られる） */
+function logUnheard(text, p){
+  if(!text) return;
+  st.vlog.push({t: String(text).slice(0, 60), f: S.plainForm(p.form).slice(0, 60), d: today()});
+  st.vlog = st.vlog.slice(-20); save();
+}
 /* 聞こえた 言葉（候補いくつか）から、□に 入る 答えを さがす */
 function heardFinal(alts, p){
   if(!ses || ses.p !== p || ses.answered) return false;
   for(const a of alts){
     const v = S.fromSpeech(p, a);
     if(v && v.length === p.kinds.length){
-      ses.vals = v; setHeard('🎤「' + a + '」'); drawForm();
+      ses.vals = v; ses.byVoice = true; setHeard('🎤「' + a + '」'); drawForm();
+      if(st.set.vconf){ showConfirm(); return true; }
       setTimeout(() => { if(ses && ses.p === p && !ses.answered) submit(); }, 450);
       return true;
     }
   }
   setHeard('🎤「' + (alts[0] || '') + '」と 聞こえたよ。答えの 数が わからなかった…');
+  logUnheard(alts[0], p);
   return false;
 }
+/* 「これで いい？」（せってい で えらんだ とき） */
+function showConfirm(){
+  const c = $('vconf'); if(!c) return;
+  c.innerHTML = '<span>これで いい？</span><button type="button" class="btn" data-act="vok">✔ こたえる</button><button type="button" class="btn sub" data-act="mic">🎤 もう一度</button>';
+  c.hidden = false;
+}
+function clearConfirm(){ const c = $('vconf'); if(c){ c.hidden = true; c.innerHTML = ''; } }
 
 /* ════════════ ゲーム ════════════ */
 let ses = null, taTimer = null;
 function newSes(mode, opt){
-  stopListen(); stopSpeak(); clearInterval(taTimer);
+  V.stop(); V.stopSpeak(); clearInterval(taTimer);
   ses = Object.assign({mode, i: 0, n: mode === 'ta' ? Infinity : STAGE_N, done: [], score: 0, combo: 0, maxCombo: 0, xp: 0, ok: 0, clean: 0, keys: new Set(), t0: Date.now(), lv0: levelOf(st.xp), lastU: ''}, opt);
 }
-function endSession(){ stopListen(); stopSpeak(); clearInterval(taTimer); if(ses && !ses.result) ses = null; }
+function endSession(){ V.stop(); V.stopSpeak(); clearInterval(taTimer); if(ses && !ses.result) ses = null; }
 function startStage(id){ const u = unitById(id); if(!u) return; newSes('unit', {u: id, g: u.g}); nextProblem(true); go('play'); autoVoice(); }
 function startMix(){ newSes('mix', {g: st.set.grade}); nextProblem(true); go('play'); autoVoice(); }
 function startTA(id){
@@ -219,13 +199,13 @@ function nextProblem(silent){
   const u = pickUnit(); let p, k = 0;
   do { p = S.makeProblem(u); } while(ses.keys.has(p.key) && ++k < 25);
   ses.keys.add(p.key);
-  Object.assign(ses, {p, vals: p.kinds.map(() => ''), act: 0, tries: 0, hints: 0, revealed: false, answered: false});
+  Object.assign(ses, {p, vals: p.kinds.map(() => ''), act: 0, tries: 0, hints: 0, revealed: false, answered: false, byVoice: false});
   if(!silent){ renderPlay(); window.scrollTo(0, 0); autoVoice(); }
 }
 function autoVoice(){
   if(!ses || !ses.p) return;
   if(st.set.read) speakQ();
-  else if(st.set.voice) setTimeout(() => { if(ses && ses.p && !ses.answered && view.s === 'play' && !listening) listen(); }, 350);
+  else if(st.set.voice) setTimeout(() => { if(ses && ses.p && !ses.answered && view.s === 'play' && !V.listening()) listen(); }, 350);
 }
 
 /* ── 問題の画面 ── */
@@ -248,15 +228,19 @@ function renderPlay(){
       ${p.note ? `<div class="qnote">${mathHtml(p.note)}</div>` : ''}
       <div class="fb" id="fb" aria-live="polite"></div>
       <div class="heard" id="heard"></div>
+      <div class="vconf" id="vconf" hidden></div>
       <div id="after"></div>
     </div>
-    <div class="acts" id="acts"></div>
     <div class="hints" id="hints"></div>
-    <div class="keys" id="keys"></div>`;
+    <div class="dock" id="dock"><div class="acts" id="acts"></div><div class="keys" id="keys"></div></div>`;
   for(let i = 0; i < ses.hints; i++) appendHint(i, true);
   drawForm(); drawActs(); drawKeys();
   if(ses.answered) drawAfter();
+  fitDock();
 }
+/* ドックの 高さを おぼえて、ヒントや 答えが ドックの 下に かくれないように する */
+function fitDock(){ const d = $('dock'); if(d) document.documentElement.style.setProperty('--dock-h', d.offsetHeight + 'px'); }
+window.addEventListener('resize', fitDock);
 function drawForm(){
   const q = $('qform'); if(!q || !ses) return;
   // 長い 式は 字を 小さく。「… → x = □」の → から 先は 次の 行に
@@ -269,19 +253,19 @@ function drawForm(){
 }
 function drawActs(){
   const a = $('acts'); if(!a || !ses) return;
-  const n = ses.p.steps.length, ta = ses.mode === 'ta';
+  const n = ses.p.steps.length, ta = ses.mode === 'ta', on = V.listening();
   const hl = ses.answered ? '<span>🦉</span>とき方' : ses.hints < n ? `<span>🦉</span>ヒント ${ses.hints}/${n}` : '<span>💡</span>こたえ';
   a.innerHTML = `<button type="button" data-act="read"><span>🔊</span>よむ</button>`
     + `<button type="button" data-act="hint" id="hintBtn"${ses.tries && !ses.hints && !ses.answered ? ' class="pulse"' : ''}>${hl}</button>`
     + (ta ? `<button type="button" data-act="pass"${ses.answered ? ' disabled' : ''}><span>⏭</span>パス</button>` : `<button type="button" data-act="pex"><span>📖</span>かいせつ</button>`)
-    + `<button type="button" class="mic${listening ? ' on' : ''}" data-act="mic"${ses.answered ? ' disabled' : ''}><span>🎤</span>${listening ? 'きいてるよ' : 'こえで'}</button>`;
+    + `<button type="button" class="mic${on ? ' on' : ''}" data-act="mic"${ses.answered ? ' disabled' : ''}><span>🎤</span>${on ? 'きいてるよ' : 'こえで'}</button>`;
 }
 function drawKeys(){
   const k = $('keys'); if(!k || !ses) return;
   if(ses.answered){
     const last = ses.mode !== 'ta' && ses.done.length >= ses.n;
     k.innerHTML = `<button type="button" class="btn next" data-act="next" style="grid-column:1/-1">${last ? '🏁 けっかを 見る' : 'つぎへ ▶'}</button>`;
-    return;
+    fitDock(); return;
   }
   const ks = ses.p.kinds, neg = ks.some(x => x !== 'n'), pls = ks.some(x => x === 't' || x === 'tc'), dot = ks.includes('d'), multi = ks.length > 1;
   const b = (key, lbl, cls, dis, al) => `<button type="button" class="${cls || ''}" data-act="key" data-k="${key}"${dis ? ' disabled' : ''}${al ? ` aria-label="${al}"` : ''}>${lbl}</button>`;
@@ -289,6 +273,7 @@ function drawKeys(){
     + b('4', '4') + b('5', '5') + b('6', '6') + b('−', '−', 'op', !neg, 'マイナス')
     + b('1', '1') + b('2', '2') + b('3', '3') + b('+', '＋', 'op', !pls, 'プラス')
     + b('0', '0') + b('.', '.', 'op', !dot, 'しょうすうてん') + b('nx', 'つぎの□', 'mv', !multi) + b('ok', 'こたえる', 'go');
+  fitDock();
 }
 function drawAfter(){
   const a = $('after'); if(!a || !ses || ses.mode === 'ta') return;
@@ -300,11 +285,20 @@ const stepHtml = s => { const t = typeof s === 'string' ? s : s.t, fig = typeof 
 function appendHint(i, quiet){
   const h = $('hints'); if(!h) return;
   const s = ses.p.steps[i]; h.insertAdjacentHTML('beforeend', stepHtml(s));
-  if(!quiet){ const el = h.lastElementChild; try { el.scrollIntoView({block: 'nearest', behavior: 'smooth'}); } catch(_){}
-    if(st.set.read) speak(speakMath(typeof s === 'string' ? s : s.t)); }
+  if(!quiet){ revealAboveDock(h.lastElementChild, true);
+    if(st.set.read) V.speak(speakMath(typeof s === 'string' ? s : s.t)); }
 }
 function setFb(msg, cls){ const f = $('fb'); if(f){ f.textContent = msg; f.className = 'fb' + (cls ? ' ' + cls : ''); } }
 function setAct(i){ if(!ses || ses.answered) return; ses.act = i; drawForm(); }
+/* el が 下の ドック（キー）に かくれていたら、見える ところまで ずらす（長い ものは 上を そろえる） */
+function revealAboveDock(el, smooth){
+  if(!el) return;
+  const d = $('dock'), r = el.getBoundingClientRect(), lim = (d ? d.getBoundingClientRect().top : innerHeight) - 8, head = $('top').offsetHeight + 8;
+  let dy = r.bottom > lim ? r.bottom - lim : 0;
+  if(r.top - dy < head) dy = r.top - head;
+  if(Math.abs(dy) > 1) window.scrollBy({top: dy, behavior: smooth && !reduceMotion() ? 'smooth' : 'auto'});
+}
+const showCard = () => revealAboveDock($('qcard'));
 
 /* タイルを おしたとき */
 function keyIn(k){
@@ -319,10 +313,11 @@ function keyIn(k){
   else if(k === '.'){ if(kind !== 'd' || v.includes('.')) return; v = (v === '' || v === '−') ? v + '0.' : v + '.'; }
   else if(/^\d$/.test(k)){ if(v.replace(/\D/g, '').length >= 7) return; v += k; }
   else return;
-  ses.vals[i] = v; setFb(''); drawForm();
+  ses.vals[i] = v; ses.byVoice = false; setFb(''); clearConfirm(); drawForm();
 }
 function submit(){
   const p = ses.p;
+  clearConfirm();
   const miss = ses.vals.findIndex((v, i) => v === '' && !S.blankMayBeEmpty(p.kinds[i]));
   if(miss >= 0){ setAct(miss); setFb('まだ あいている □ が あるよ', 'near'); return; }
   const r = S.check(p, ses.vals);
@@ -331,7 +326,7 @@ function submit(){
   wrong(r.msg);
 }
 function correct(){
-  stopListen();
+  V.stop();
   const ta = ses.mode === 'ta', clean = !ses.tries && !ses.hints, lvBefore = levelOf(st.xp);
   ses.answered = true; ses.combo++; ses.maxCombo = Math.max(ses.maxCombo, ses.combo);
   let pts = ta ? 5 : clean ? 10 : ses.hints ? 4 : 6;
@@ -347,34 +342,35 @@ function correct(){
   $('qcard').classList.add('ok');
   const sc = $('pScore'), cb = $('pCombo'); if(sc) sc.textContent = '⭐' + ses.score; if(cb) cb.textContent = ses.combo >= 2 ? '🔥×' + ses.combo : '';
   document.querySelectorAll('.segs i').forEach((el, i) => { el.className = ses.done[i] || ''; });
-  drawForm(); drawActs(); drawKeys(); drawAfter();
-  if(st.set.read) speak(PRAISE[0]);
+  drawForm(); drawActs(); drawKeys(); drawAfter(); showCard();
+  if(st.set.read) V.speak(PRAISE[0]);
 }
 function wrong(msg){
   ses.tries++; ses.combo = 0; beep('ng');
   const c = $('qcard'); c.classList.remove('ng'); void c.offsetWidth; c.classList.add('ng');
-  setFb('❌ ' + (msg && msg !== '書き方を たしかめてね' ? msg : 'ちがうよ。もう一度 考えてみよう'), 'ng');
+  const heard = ses.byVoice ? '（声で 答えた ときは、聞きまちがいかも。□を たしかめてね）' : '';
+  setFb('❌ ' + (msg && msg !== '書き方を たしかめてね' ? msg : 'ちがうよ。もう一度 考えてみよう') + heard, 'ng');
   const cb = $('pCombo'); if(cb) cb.textContent = '';
-  drawActs();
+  drawActs(); showCard();
 }
 function hint(){
   if(!ses || !ses.p) return;
-  if(ses.answered){ const d = document.querySelector('details.how'); if(d){ d.open = !d.open; if(d.open) d.scrollIntoView({block: 'nearest'}); } else { const h = $('hints'); if(h && h.lastElementChild) h.lastElementChild.scrollIntoView({block: 'nearest'}); } return; }
+  if(ses.answered){ const d = document.querySelector('details.how'); if(d){ d.open = !d.open; if(d.open) revealAboveDock(d, true); } else { const h = $('hints'); if(h && h.lastElementChild) revealAboveDock(h.lastElementChild, true); } return; }
   if(ses.hints < ses.p.steps.length){ appendHint(ses.hints); ses.hints++; drawActs(); return; }
   reveal();
 }
 function reveal(){
-  stopListen();
+  V.stop(); clearConfirm();
   ses.revealed = true; ses.answered = true; ses.combo = 0; ses.vals = ses.p.ans.slice(); ses.done.push('r'); st.solved++; save();
   setFb('💡 こたえは こう なるよ。つぎは できるかな？', 'near');
   if(ses.mode === 'ta'){ setTimeout(() => { if(ses && ses.mode === 'ta' && !ses.result) nextProblem(); }, 1500); }
   document.querySelectorAll('.segs i').forEach((el, i) => { el.className = ses.done[i] || ''; });
-  drawForm(); drawActs(); drawKeys(); drawAfter();
-  if(st.set.read) speak(speakMath(ses.p.answer));
+  drawForm(); drawActs(); drawKeys(); drawAfter(); showCard();
+  if(st.set.read) V.speak(speakMath(ses.p.answer));
 }
 function pass(){ if(!ses || ses.answered) return; ses.combo = 0; nextProblem(); }
 function finish(){
-  stopListen(); stopSpeak(); clearInterval(taTimer);
+  V.stop(); V.stopSpeak(); clearInterval(taTimer);
   const lv1 = levelOf(st.xp), r = {lv0: ses.lv0, lv1, sec: Math.round((Date.now() - ses.t0) / 1000)};
   if(ses.mode === 'ta'){ const best = st.ta[ses.u] || 0; r.best = Math.max(best, ses.ok); r.newBest = ses.ok > best; st.ta[ses.u] = r.best; }
   else {
@@ -460,12 +456,82 @@ function renderSet(){
     <div class="box"><h3>⚙️ せってい</h3>
       ${sw('read', '🔊 問題を 自動で 読み上げる', 'ヒントや 答えも 読み上げます')}
       ${sw('voice', '🎤 問題が 出たら すぐ 声で 答える', '問題が 出ると マイクが 聞きはじめます（ブラウザが マイクの 許可を 聞いてきます）')}
+      ${sw('vconf', '🎤 声の 答えは たしかめてから', '聞こえた 答えを □に 入れて「これで いい？」と 聞きます（聞きまちがいで ×に ならない）')}
       ${sw('sound', '🔔 こうかおん')}
-      ${sw('big', '🔠 文字を 大きく')}</div>
+      ${sw('big', '🔠 文字を 大きく')}
+      <button type="button" class="btn sub wide" data-act="vtest">🎤 声の ためし</button></div>
     <div class="box"><h3>📱 ホーム画面に 置く</h3><div style="font-size:.9rem">iPhone（Safari）：下の 共有（□に↑）→「ホーム画面に追加」<br>Android（Chrome）：右上の ⋮ →「ホーム画面に追加」<br>表電卓とは べつの アプリとして 置けます。</div></div>
     <div class="box"><h3>🗂 データ</h3><div style="font-size:.88rem;color:var(--sub);margin-bottom:8px">きろく（★・XP・レベル）は この 端末の 中だけに 保存しています。</div><button type="button" class="btn sub wide" data-act="reset">🗑 きろくを ぜんぶ 消す</button></div>
-    <button type="button" class="btn sub wide" data-act="hyo">🧮 表電卓へ</button>
-    <div class="ver">算数・数学チャレンジ ${VER}　／　単元 ${S.UNITS.length}こ（小1〜中3）</div>`;
+    <div class="box"><h3>ℹ️ この アプリ</h3>
+      <div class="kv"><span>バージョン</span><b id="verNow">算数・数学チャレンジ ${S.VERSION}</b></div>
+      <div class="kv"><span>単元</span><b>${S.UNITS.length}こ（小1〜中3）</b></div>
+      <button type="button" class="btn sub wide" data-act="wn">🆕 新しくなった こと</button>
+      <button type="button" class="btn sub wide" data-act="upd">🔄 更新を たしかめる</button></div>
+    <button type="button" class="btn sub wide" data-act="hyo">🧮 表電卓へ</button>`;
+}
+
+/* ── 🎤 声の ためし（聞こえた 言葉と、読みとった 数を その場で 見る） ── */
+function openVoiceTest(){
+  const rows = st.vlog.slice().reverse().map(x => `<li><b>「${esc(x.t)}」</b><small>${esc(x.d)}　答えの 形：${esc(x.f)}</small></li>`).join('');
+  openModal(`<div class="page-h"><h2>🎤 声の ためし</h2></div>
+    <p style="margin:0 0 8px;font-size:.9rem">${V.supported ? '🎤 を おして、数を 言ってみてね（「じゅうさん」「4ぶんの3」「マイナス5」「7あまり3」など）。' : '⚠ この ブラウザでは 声の 聞き取りが 使えません。スマホの Chrome や Safari で ためしてね。'}</p>
+    <button type="button" class="btn wide" data-act="vtgo" id="vtBtn"${V.supported ? '' : ' disabled'}>🎤 はなす</button>
+    <div class="vt"><div class="vtl">聞こえた ことば</div><div id="vtHeard" class="vtv">—</div><div class="vtl">読みとった 数・しき</div><div id="vtNum" class="vtv">—</div><div id="vtAlts" class="vta"></div></div>
+    <div class="box" style="margin-top:12px"><h3>聞き取れなかった ことば（さいきん）</h3>${rows ? `<ul class="vlog">${rows}</ul><button type="button" class="btn sub wide" data-act="vlogclr">🗑 消す</button>` : '<div style="color:var(--sub);font-size:.88rem">まだ ありません</div>'}</div>
+    <button type="button" class="btn sub wide" data-act="mclose">とじる</button>`, () => V.stop());
+}
+const VT_FORM = {form: '{0}', kinds: ['d'], ans: ['0']};
+function voiceTestShow(alts){
+  const h = $('vtHeard'), nm = $('vtNum'), al = $('vtAlts'); if(!h) return;
+  h.textContent = alts[0] ? '「' + alts[0] + '」' : '—';
+  nm.textContent = S.normSpeech(alts[0] || '', VT_FORM) || '（数が 見つからなかった）';
+  al.textContent = alts.length > 1 ? 'ほかの 候補：' + alts.slice(1).map(a => '「' + a + '」').join(' ') : '';
+}
+function voiceTestGo(){
+  if(V.listening()){ V.stop(); return; }
+  const b = $('vtBtn');
+  V.listen({
+    onStart: () => { if(b) b.textContent = '■ きいてるよ（おすと やめる）'; },
+    onInterim: t => { const h = $('vtHeard'); if(h) h.textContent = '🎤 ' + t; },
+    onFinal: alts => voiceTestShow(alts),
+    onError: code => { const h = $('vtHeard'); if(h) h.textContent = S.voiceErrMsg(code) || code; },
+    onEnd: () => { const bb = $('vtBtn'); if(bb) bb.textContent = '🎤 はなす'; },
+  });
+}
+
+/* ── 新しくなった こと ── */
+const seenVer = () => { try { return localStorage.getItem(SEEN_VER_KEY) || ''; } catch(_){ return ''; } };
+const markSeenVer = () => { try { localStorage.setItem(SEEN_VER_KEY, S.VERSION); } catch(_){} };
+function openWhatsNew(){
+  markSeenVer();
+  openModal(`<div class="page-h"><h2>🆕 新しくなった こと</h2></div><p style="margin:0 0 8px;color:var(--sub)">いまの 版：<b>${S.VERSION}</b></p>
+    ${S.WHATSNEW.map((w, i) => `<details class="wn"${i === 0 ? ' open' : ''}><summary>${esc(w.v)}　${esc(w.t)}</summary><ul>${w.li.map(x => `<li>${x}</li>`).join('')}</ul></details>`).join('')}
+    <button type="button" class="btn wide" data-act="mclose">とじる</button>`);
+}
+/* 前に 使っていた 版と ちがえば、下に 1度だけ 知らせる。はじめて 使う 人には 出さない */
+function maybeTellWhatsNew(){
+  const prev = seenVer();
+  if(!prev && !st.solved && !Object.keys(st.units).length){ markSeenVer(); return false; }
+  if(prev === S.VERSION) return false;
+  const w = S.WHATSNEW.find(x => x.v === S.VERSION);
+  if(!w){ markSeenVer(); return false; }
+  showNotice({title: `${S.VERSION} に 新しく なりました`, sub: w.t, yes: '見る', no: 'あとで', onYes: openWhatsNew, onNo: markSeenVer});
+  return true;
+}
+/* 新しい 版の 入れかえ：「いま更新」を おした ときだけ（問題の とちゅうで 画面が かわらないように） */
+let swReg = null, swDeclined = false;
+function swOfferUpdate(worker, force){
+  if(!worker || (swDeclined && !force)) return;
+  showNotice({title: '新しい 版が 用意 できました', sub: '「いま更新」を おすと 読み込み直します。問題の とちゅうなら「あとで」を えらんでね。', yes: 'いま更新', no: 'あとで',
+    onYes: () => { try { worker.postMessage('SKIP_WAITING'); } catch(_){ location.reload(); } }, onNo: () => { swDeclined = true; }});
+}
+async function checkUpdate(){
+  if(!swReg){ toast('ここでは 更新を たしかめられません'); return; }
+  toast('たしかめています…');
+  try { await swReg.update(); } catch(_){ toast('たしかめられませんでした。電波の ある ところで もう一度'); return; }
+  setTimeout(() => { const w = swReg.waiting || swReg.installing;
+    if(w){ if(w.state === 'installed') swOfferUpdate(w, true); else toast('新しい 版を 取りこんでいます。少しすると「いま更新」が 出ます'); }
+    else toast(`いまの 版（${S.VERSION}）が いちばん 新しい 版です`); }, 800);
 }
 
 /* ════════════ ボタン ════════════ */
@@ -487,14 +553,22 @@ document.addEventListener('click', e => {
     case 'hint': hint(); break;
     case 'read': speakQ(); break;
     case 'mic': listen(); break;
+    case 'vok': submit(); break;
     case 'pex': if(ses && ses.p) openExModal(ses.p.unit); break;
     case 'pass': pass(); break;
     case 'next': nextProblem(); break;
     case 'quit': history.back(); break;
     case 'again': if(ses){ const m = ses.mode, uu = ses.u; if(m === 'ta') startTA(uu); else if(m === 'mix') startMix(); else startStage(uu); } break;
-    case 'tg': { const k = el.dataset.k; st.set[k] = !st.set[k]; save(); renderSet(); renderTop(); if(k === 'voice' && st.set[k] && !SR) toast('この 端末では 声の 聞き取りが 使えないかも しれません'); break; }
+    case 'tg': { const k = el.dataset.k; st.set[k] = !st.set[k]; save(); renderSet(); renderTop(); if((k === 'voice' || k === 'vconf') && st.set[k] && !V.supported) toast('この 端末では 声の 聞き取りが 使えないかも しれません'); break; }
+    case 'vtest': openVoiceTest(); break;
+    case 'vtgo': voiceTestGo(); break;
+    case 'vlogclr': st.vlog = []; save(); closeModal(); setTimeout(openVoiceTest, 60); break;
+    case 'wn': openWhatsNew(); break;
+    case 'upd': checkUpdate(); break;
+    case 'nb-yes': { const o = noticeAct; hideNotice(); if(o && o.onYes) o.onYes(); break; }
+    case 'nb-no': { const o = noticeAct; hideNotice(); if(o && o.onNo) o.onNo(); break; }
     case 'reset': openModal(`<div class="page-h"><h2>🗑 きろくを 消す</h2></div><p>★・XP・レベル・タイムアタックの きろくを ぜんぶ 消します。もとには もどせません。</p><div class="btnrow"><button type="button" class="btn sub" data-act="mclose">やめる</button><button type="button" class="btn" data-act="doreset">けす</button></div>`); break;
-    case 'doreset': { const set = st.set; st = cleanState(null); st.set = set; save(); closeModal(); setTimeout(() => { render(); toast('きろくを 消しました'); }, 50); break; }
+    case 'doreset': { const set = st.set; st = S.store.clean(null); st.set = set; save(); closeModal(); setTimeout(() => { render(); toast('きろくを 消しました'); }, 50); break; }
     case 'mclose': closeModal(); break;
   }
 });
@@ -516,7 +590,7 @@ document.addEventListener('keydown', e => {
   else return;
   e.preventDefault();
 });
-document.addEventListener('visibilitychange', () => { if(document.hidden){ stopListen(); stopSpeak(); } });
+document.addEventListener('visibilitychange', () => { if(document.hidden){ V.stop(); V.stopSpeak(); } });
 $('modal').addEventListener('click', e => { if(e.target === $('modal')) closeModal(); });
 
 /* ── はじめ ── */
@@ -525,8 +599,21 @@ const h0 = (location.hash || '').replace('#', '');
 try { history.replaceState({s: 'home', d: 1}, '', location.pathname + location.search + '#home'); } catch(_){}
 render();
 if(h0 === 'rec' || h0 === 'set') go(h0);
-if('serviceWorker' in navigator && location.protocol !== 'file:' && !/[?&]nosw/.test(location.search)) window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(() => {}));
+setTimeout(maybeTellWhatsNew, 600);
+if('serviceWorker' in navigator && location.protocol !== 'file:' && !/[?&]nosw/.test(location.search)){
+  let refreshing = false;
+  const hadCtrl = !!navigator.serviceWorker.controller;   // はじめて 入れた ときは 読み込み直さない
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if(refreshing || !hadCtrl) return; refreshing = true; location.reload(); });
+  navigator.serviceWorker.register('service-worker.js').then(reg => {
+    swReg = reg; reg.update();
+    document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') reg.update(); });
+    if(reg.waiting && navigator.serviceWorker.controller) swOfferUpdate(reg.waiting);
+    reg.addEventListener('updatefound', () => { const nw = reg.installing; if(!nw) return;
+      nw.addEventListener('statechange', () => { if(nw.state === 'installed' && navigator.serviceWorker.controller) swOfferUpdate(nw); }); });
+  }).catch(() => {});
+}
 
 /* テストから さわる ための 入り口 */
-S.app = {state: () => st, ses: () => ses, view: () => view, startStage, startMix, startTA, keyIn, submit, hint, heard: alts => heardFinal(alts, ses && ses.p), levelOf, need, cleanState, finish};
+S.app = {state: () => st, ses: () => ses, view: () => view, startStage, startMix, startTA, keyIn, submit, hint, heard: alts => heardFinal(alts, ses && ses.p),
+  levelOf, need, finish, swOfferUpdate, maybeTellWhatsNew, voiceTestShow};
 })();
