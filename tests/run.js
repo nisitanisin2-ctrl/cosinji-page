@@ -6718,14 +6718,14 @@ async function runMemo(browser) {
 
   // 画面のつくり
   const raw = fs.readFileSync(path.join(ROOT, 'notes/index.html'), 'utf8'), sw = fs.readFileSync(path.join(ROOT, 'notes/service-worker.js'), 'utf8');
-  check('  memo.js を app.js より先に読む・オフライン用にも持つ（memo-v4）', [raw.indexOf('<script src="memo.js">') > 0 && raw.indexOf('<script src="memo.js">') < raw.indexOf('<script src="app.js">'), sw.includes("'./memo.js'"), sw.includes("'memo-v4'")].join(','), 'true,true,true');
+  check('  memo.js を app.js より先に読む・オフライン用にも持つ（キャッシュ memo-v4 から）', [raw.indexOf('<script src="memo.js">') > 0 && raw.indexOf('<script src="memo.js">') < raw.indexOf('<script src="app.js">'), sw.includes("'./memo.js'"), Number((/const CACHE = 'memo-v(\d+)'/.exec(sw) || [])[1]) >= 4].join(','), 'true,true,true');
   check('  書く所は書式の付けられる欄（1行1つ）・「ここに書けます」', await page.evaluate(() => { const m = document.getElementById('memo'); return [m.isContentEditable, m.getAttribute('role'), m.dataset.ph, getComputedStyle(m, '::before').content].join('|'); }), 'true|textbox|ここに書けます|"ここに書けます"');
   check('  書式のボタン（文字色・背景色・フォントを先に）', await page.evaluate(() => [...document.querySelectorAll('#fmt button')].map(b => b.textContent.trim()).join(',')), 'A文字色,あ背景色,フォント,大きさ,B,U,S,書式を消す');
   check('  🎤 と句読点・改行・戻すのボタン（375px に入りきる）', await page.evaluate(() => [...document.querySelectorAll('#quick button')].map(b => b.textContent.trim()).join(',') + '/' + ([...document.querySelectorAll('#quick button')].every(b => b.getBoundingClientRect().right <= innerWidth - 8))), '🎤 話す,、,。,？,↵,↶/true');
   check('  書式のボタンは横にすべらせる（右端をうすく）・聞き取りの帯はふだん出さない', await page.evaluate(() => document.getElementById('fmt').classList.contains('more') + '/' + getComputedStyle(document.getElementById('vbar')).display + '/' + document.getElementById('undoBtn').disabled), 'true/none/true');
 
   // 前の形（文字だけ）の保存もそのまま読む
-  await page.evaluate(() => localStorage.setItem('memo.local.v1', JSON.stringify({ t: '買い物\n牛乳 2本\n\nたまご', b: [] })));
+  await page.evaluate(() => { localStorage.removeItem('memo.list.v1'); localStorage.setItem('memo.local.v1', JSON.stringify({ t: '買い物\n牛乳 2本\n\nたまご', b: [] })); });
   await page.reload(); await page.waitForTimeout(400);
   check('  前の保存（文字だけ）を読む・字数', (await T()) + '|' + (await page.textContent('#count')), '買い物\n牛乳 2本\n\nたまご|14 文字');
   check('  1行1つの div（空の行は <br>）', await H(), '<div>買い物</div><div>牛乳 2本</div><div><br></div><div>たまご</div>');
@@ -6765,15 +6765,15 @@ async function runMemo(browser) {
   check('  開き直しても書式がもどる', await H(), st1.h);
 
   // 仕込みのある保存を読んでも、決まった書式と文字だけ
-  await page.evaluate(() => { window.__pwn = 0; localStorage.setItem('memo.local.v1', JSON.stringify({ t: 'ab', h: '<img src=x onerror="window.__pwn=1"><span class="c-red evil" onclick="window.__pwn=2" style="color:lime">a</span><script>window.__pwn=3<\/script><b>b</b><iframe src="javascript:window.__pwn=4"></iframe>', b: [] })); });
+  await page.evaluate(() => { window.__pwn = 0; localStorage.removeItem('memo.list.v1'); localStorage.setItem('memo.local.v1', JSON.stringify({ t: 'ab', h: '<img src=x onerror="window.__pwn=1"><span class="c-red evil" onclick="window.__pwn=2" style="color:lime">a</span><script>window.__pwn=3<\/script><b>b</b><iframe src="javascript:window.__pwn=4"></iframe>', b: [] })); });
   await page.reload(); await page.waitForTimeout(500);
   check('  仕込みのある書式は読まない（何も動かない）', (await H()) + ' ' + await page.evaluate(() => window.__pwn || 0), '<div><span class="c-red">a</span><span class="w-bold">b</span></div> 0');
-  await page.evaluate(() => localStorage.setItem('memo.local.v1', JSON.stringify({ t: '本当の文', h: '<div>ちがう文</div>', b: [] })));
+  await page.evaluate(() => { localStorage.removeItem('memo.list.v1'); localStorage.setItem('memo.local.v1', JSON.stringify({ t: '本当の文', h: '<div>ちがう文</div>', b: [] })); });
   await page.reload(); await page.waitForTimeout(400);
   check('  文字と書式が食い違うときは文字のほうを出す', await T(), '本当の文');
 
   // 🎤 声で書く
-  await page.evaluate(() => { localStorage.removeItem('memo.local.v1'); localStorage.removeItem('memo.ui.v1'); }); await page.reload(); await page.waitForTimeout(400);
+  await page.evaluate(() => { localStorage.removeItem('memo.local.v1'); localStorage.removeItem('memo.list.v1'); localStorage.removeItem('memo.ui.v1'); }); await page.reload(); await page.waitForTimeout(400);
   await page.click('#mic'); await page.waitForTimeout(80);
   check('  はじめての 🎤 は、声がブラウザの音声認識に送られることを知らせる', await page.evaluate(() => document.getElementById('micSheet').classList.contains('on') + '/' + /音声認識/.test(document.getElementById('micSheet').textContent) + '/' + window.__recs), 'true/true/0');
   await page.click('#micGo'); await page.waitForTimeout(80);
@@ -6828,7 +6828,7 @@ async function runMemo(browser) {
   check('  Ctrl+B も同じ太字に', (await H()).startsWith('<div><span class="w-bold">明日</span>のですは雨？'), true);
 
   // 📤 出力
-  await page.evaluate(() => { localStorage.setItem('memo.local.v1', JSON.stringify({ t: '表のメモ。\n2行目', h: '<div><span class="c-red">表の</span><span class="m-yellow">メモ</span>。</div><div>2行目</div>', b: [] })); });
+  await page.evaluate(() => { localStorage.removeItem('memo.list.v1'); localStorage.setItem('memo.local.v1', JSON.stringify({ t: '表のメモ。\n2行目', h: '<div><span class="c-red">表の</span><span class="m-yellow">メモ</span>。</div><div>2行目</div>', b: [] })); });
   await page.reload(); await page.waitForTimeout(400);
   await page.click('#outBtn'); await page.waitForTimeout(80);
   check('  出力の窓（送る機能がないブラウザでは「送る」を出さない）', await page.evaluate(() => [...document.querySelectorAll('#outSheet [data-out]')].filter(b => !b.hidden).map(b => b.dataset.out).join(',')), 'copy,txt,html,print,say');
@@ -6858,7 +6858,7 @@ async function runMemo(browser) {
   check('  区切りを「改行」にすると1行ずつ', JSON.stringify((await T()).split('\n').slice(-3).join('\n')), '"2行目りんご\\nみかん\\n"');
 
   // 隠し保管庫は今までどおり（合言葉はメモに書いて「メモ」をおす。とちゅうで保存しない）
-  await page.evaluate(() => { localStorage.setItem('memo.local.v1', JSON.stringify({ t: '表の文', b: [] })); localStorage.setItem('memo.ui.v1', '{"mic":1}'); });
+  await page.evaluate(() => { localStorage.removeItem('memo.list.v1'); localStorage.setItem('memo.local.v1', JSON.stringify({ t: '表の文', b: [] })); localStorage.setItem('memo.ui.v1', '{"mic":1}'); });
   await page.reload(); await page.waitForTimeout(400);
   await page.evaluate(() => MemoEd.clear());
   const bb = await page.locator('#brand').boundingBox();
@@ -6875,6 +6875,120 @@ async function runMemo(browser) {
   await page.click('#lockBtn'); await page.waitForTimeout(150);
   await page.click('#memo'); await page.keyboard.type('chigau'); await page.click('#brand'); await page.waitForTimeout(1500);
   check('  合言葉が違うときは何も起きない', await page.evaluate(() => document.body.classList.contains('open') + '/' + MemoEd.text()), 'false/表の文chigau');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+/* 📄 メモ：保存したメモを呼び出す（v530）。いくつでも保存・📂 呼び出す・＋ 新しく・🗑 消す・保存していない変更の確認 */
+async function runMemoList(browser) {
+  console.log('\n── 📄 メモ：保存したメモを呼び出す（v530） ──');
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 667 }, hasTouch: true });
+  const page = await ctx.newPage();
+  const errs = []; page.on('pageerror', e => errs.push(e.message)); page.on('dialog', d => d.accept());
+  await page.goto('file://' + path.join(ROOT, 'notes', 'index.html')); await page.waitForTimeout(300);
+  const T = () => page.evaluate(() => MemoEd.text());
+  const LS = () => page.evaluate(() => ({ list: JSON.parse(localStorage.getItem('memo.list.v1') || 'null'), local: JSON.parse(localStorage.getItem('memo.local.v1') || 'null') }));
+  const rows = () => page.evaluate(() => [...document.querySelectorAll('#lsList .ls-item')].map(r => (r.classList.contains('cur') ? '*' : '') + r.querySelector('.ls-ttl').textContent).join(','));
+  const on = id => page.evaluate(i => document.getElementById(i).classList.contains('on'), id);
+  const end = () => page.evaluate(() => { document.getElementById('memo').focus(); const n = MemoEd.text().length; MemoEd._t.selectRange(n, n); });
+
+  // これまでの1つだけのメモは、そのまま1つめのメモになる
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('memo.local.v1', JSON.stringify({ t: '買い物\n牛乳', h: '<div><span class="c-red">買い物</span></div><div>牛乳</div>', b: ['x'] })); });
+  await page.reload(); await page.waitForTimeout(400);
+  let s = await LS();
+  check('  これまでのメモは1つめのメモになって開く（書式も・保管庫の塊はそのまま）', [s.list.items.length, s.list.cur === s.list.items[0].id, s.list.items[0].t, !!s.list.items[0].h, await page.textContent('#docTtl'), JSON.stringify(s.local.b)].join('|'), '1|true|買い物\n牛乳|true|📄 買い物|["x"]');
+  await page.reload(); await page.waitForTimeout(300);
+  check('  開き直しても増えない', (await LS()).list.items.length, 1);
+
+  // ＋ 新しく → 書いて保存 → 2つに
+  await page.click('#newBtn'); await page.waitForTimeout(100);
+  s = await LS();
+  check('  ＋ 新しく：空のメモにする（前のメモは残る）', [await page.textContent('#docTtl'), JSON.stringify(await T()), s.list.items.length, s.list.cur, JSON.stringify(s.local.t)].join('|'), '📄 新しいメモ|""|1||""');   // cur は null（つなぐと空）
+  await page.click('#save'); await page.waitForTimeout(80);
+  check('  空のままは保存しない', await page.textContent('#toast'), 'まだ何も書いていません');
+  await end(); await page.keyboard.type('会議'); await page.keyboard.press('Enter'); await page.keyboard.type('10時');
+  await page.click('#save'); await page.waitForTimeout(100);
+  s = await LS();
+  check('  保存すると一覧に増え、そのメモを開いている', [s.list.items.length, s.list.items.find(x => x.id === s.list.cur).t, s.local.t, await page.textContent('#docTtl'), await page.textContent('#count')].join('|'), '2|会議\n10時|会議\n10時|📄 会議|6 文字');
+  await end(); await page.keyboard.type('から'); await page.click('#save'); await page.waitForTimeout(80);
+  s = await LS();
+  check('  もう一度保存すると同じメモを直す（増えない）', s.list.items.length + '|' + s.list.items.find(x => x.t.startsWith('会議')).t, '2|会議\n10時から');
+
+  // 📂 呼び出す
+  await page.click('#lsBtn'); await page.waitForTimeout(100);
+  check('  📂 呼び出す：新しい順・開いているメモにしるし・件数', (await rows()) + '|' + await page.textContent('#lsTitle'), '*会議,買い物|保存したメモ（2）');
+  check('  2行目も少し見せる・日時と字数・書式あり', await page.evaluate(() => { const r = document.querySelectorAll('#lsList .ls-item')[1]; return r.querySelector('.ls-pv').textContent + '|' + /^今日 \d+:\d\d・6文字・🎨 書式あり$/.test(r.querySelector('.ls-sub').textContent); }), '牛乳|true');
+  await page.click('#lsList .ls-item:not(.cur) .ls-open'); await page.waitForTimeout(150);
+  s = await LS();
+  check('  おすとそのメモを開く（書式も）・一覧を閉じる', [await page.textContent('#docTtl'), await page.evaluate(() => document.getElementById('memo').innerHTML), s.local.t, await on('lsSheet'), await page.textContent('#toast')].join('|'), '📄 買い物|<div><span class="c-red">買い物</span></div><div>牛乳</div>|買い物\n牛乳|false|「買い物」を開きました');
+  await page.click('#docTtl'); await page.waitForTimeout(100);
+  check('  上のメモの名前をおしても一覧が出る', await on('lsSheet'), true);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(80);
+  await page.reload(); await page.waitForTimeout(400);
+  check('  開き直すと、さっき開いていたメモ', await page.textContent('#docTtl'), '📄 買い物');
+
+  // 保存していない変更があるとき
+  await end(); await page.keyboard.type('と卵'); await page.waitForTimeout(100);
+  await page.click('#lsBtn'); await page.click('#lsList .ls-item:not(.cur) .ls-open'); await page.waitForTimeout(100);
+  check('  変えたまま別のメモを開こうとすると聞く', await on('dsSheet') + '|' + await page.textContent('#dsText'), 'true|「買い物」の変更を保存しますか？');
+  await page.click('#dsNo'); await page.waitForTimeout(80);
+  check('  やめる：そのまま（一覧は開いたまま）', [await T(), await on('dsSheet'), await on('lsSheet')].join('|'), '買い物\n牛乳と卵|false|true');
+  await page.click('#lsList .ls-item:not(.cur) .ls-open'); await page.waitForTimeout(80);
+  await page.click('#dsDrop'); await page.waitForTimeout(120);
+  check('  保存しない：変えた分は捨てて開く', [await page.textContent('#docTtl'), (await LS()).list.items.find(x => x.t.startsWith('買い物')).t].join('|'), '📄 会議|買い物\n牛乳');
+  await end(); await page.keyboard.type('まで'); await page.click('#newBtn'); await page.waitForTimeout(80);
+  await page.click('#dsSave'); await page.waitForTimeout(120);
+  check('  保存する：保存してから新しく', [(await LS()).list.items.find(x => x.t.startsWith('会議')).t, await page.textContent('#docTtl'), JSON.stringify(await T())].join('|'), '会議\n10時からまで|📄 新しいメモ|""');
+
+  // さがす・消す
+  await end(); await page.keyboard.type('旅行の持ち物'); await page.click('#save'); await page.waitForTimeout(80);
+  await page.click('#lsBtn'); await page.waitForTimeout(80);
+  await page.fill('#lsQ', '牛乳');
+  check('  さがす（中身の文字で）', await rows(), '買い物');
+  await page.fill('#lsQ', 'ない言葉');
+  check('  見つからないとき', await page.textContent('#lsList'), '見つかりません');
+  await page.fill('#lsQ', '');
+  await page.click('#lsList .ls-item:has-text("買い物") .ls-del'); await page.waitForTimeout(80);
+  check('  🗑：その場で聞く', await page.textContent('.ls-ask'), '消しますか？やめる消す');
+  await page.click('.ls-ask [data-no]'); await page.waitForTimeout(80);
+  check('  やめると消さない', await rows(), '*旅行の持ち物,会議,買い物');
+  await page.click('#lsList .ls-item:has-text("買い物") .ls-del'); await page.click('.ls-ask [data-yes]'); await page.waitForTimeout(100);
+  s = await LS();
+  check('  消す：一覧から消える（文もどこにも残らない）', [await rows(), s.list.items.length, JSON.stringify(s).includes('牛乳')].join('|'), '*旅行の持ち物,会議|2|false');
+  await page.click('#lsList .ls-item.cur .ls-del'); await page.click('.ls-ask [data-yes]'); await page.waitForTimeout(100);
+  s = await LS();
+  check('  開いているメモを消すと空の新しいメモに', [await page.textContent('#docTtl'), JSON.stringify(await T()), s.list.cur, JSON.stringify(s).includes('旅行'), await rows()].join('|'), '📄 新しいメモ|""||false|会議');
+  await page.keyboard.press('Escape'); await page.waitForTimeout(80);
+
+  // 前の版で保存された文（一覧にない）は、次に開いたとき一覧に入れる
+  await page.evaluate(() => { const o = JSON.parse(localStorage.getItem('memo.local.v1')); o.t = '前の版で書いた'; localStorage.setItem('memo.local.v1', JSON.stringify(o)); });
+  await page.reload(); await page.waitForTimeout(400);
+  check('  前の版で保存した文も一覧に入れて開く', [await page.textContent('#docTtl'), (await LS()).list.items.length].join('|'), '📄 前の版で書いた|2');
+
+  // 隠し保管庫：合言葉をメモに書いて開くと、開いていたメモにもどる（合言葉は保存しない）
+  await page.click('#newBtn'); await page.waitForTimeout(80);
+  const bb = await page.locator('#brand').boundingBox();
+  await page.mouse.move(bb.x + 10, bb.y + 10); await page.mouse.down(); await page.waitForTimeout(1100); await page.mouse.up(); await page.waitForTimeout(150);
+  await page.fill('#mk1', 'aikotoba9'); await page.fill('#mk2', 'aikotoba9'); await page.click('#mkGo'); await page.waitForTimeout(1600);
+  await page.click('#lockBtn'); await page.waitForTimeout(150);
+  await page.click('#lsBtn'); await page.click('#lsList .ls-item:has-text("前の版") .ls-open'); await page.waitForTimeout(150);
+  await page.evaluate(() => { const e = document.getElementById('memo'); e.focus(); MemoEd._t.selectRange(0, MemoEd.text().length); });
+  await page.keyboard.type('aikotoba9'); await page.click('#brand'); await page.waitForTimeout(1800);
+  check('  合言葉で開く・メモは開いていたメモにもどる・合言葉は残らない', [await page.evaluate(() => document.body.classList.contains('open')), await T(), await page.textContent('#docTtl'), await page.evaluate(() => JSON.stringify(localStorage).includes('aikotoba9'))].join('|'), 'true|前の版で書いた|📄 前の版で書いた|false');
+  await page.click('#lockBtn'); await page.waitForTimeout(150);
+
+  // おかしな一覧を読んでも何も動かない（名前は文字のまま）
+  await page.evaluate(() => { window.__pwn = 0; localStorage.setItem('memo.list.v1', JSON.stringify({ cur: 'x"><img src=x onerror=window.__pwn=1>', items: [{ id: 'mgood1', t: '<img src=x onerror="window.__pwn=2">名前', h: '<img src=x onerror="window.__pwn=3"><b>x</b>', at: 1, up: 2 }, { id: 'bad id"', t: 'x', at: 1, up: 1 }, { id: 'mgood2', t: 5 }, null, 'str'] })); const o = JSON.parse(localStorage.getItem('memo.local.v1')); o.t = ''; localStorage.setItem('memo.local.v1', JSON.stringify(o)); });
+  await page.reload(); await page.waitForTimeout(400);
+  await page.click('#lsBtn'); await page.waitForTimeout(100);
+  check('  おかしな一覧は読める分だけ（名前は文字のまま・何も動かない）', [await rows(), await page.evaluate(() => window.__pwn || 0), await page.evaluate(() => document.querySelectorAll('#lsList img').length), await page.textContent('#docTtl')].join('|'), '<img src=x onerror="window.__pwn=2">名前|0|0|📄 新しいメモ');
+  await page.click('#lsList .ls-open'); await page.waitForTimeout(150);
+  check('  開いても文字だけ（書式と文字が食い違うので文字を出す）', [await T(), await page.evaluate(() => window.__pwn || 0), await page.evaluate(() => document.querySelectorAll('#memo img').length)].join('|'), '<img src=x onerror="window.__pwn=2">名前|0|0');
+
+  // 下のボタンが画面に入りきる（横にずれない）
+  for (const w of [375, 320]) {
+    await page.setViewportSize({ width: w, height: 640 }); await page.waitForTimeout(150);
+    check('  ' + w + 'px：下のボタン（📂 呼び出す・＋ 新しく・📤 出力・保存）が入りきる', await page.evaluate(() => [...document.querySelectorAll('#pad footer .btn')].map(b => b.textContent.trim()).join(',') + '|' + (document.documentElement.scrollWidth <= innerWidth) + '|' + [...document.querySelectorAll('#pad footer .btn')].every(b => b.getBoundingClientRect().right <= innerWidth - 4)), '📂 呼び出す,＋ 新しく,📤 出力,保存|true|true');
+  }
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
@@ -11028,6 +11142,7 @@ async function runQrShare(browser) {
     if (!only || only === 'backkey') await runBackKey(browser);
     if (!only || only === 'security') await runSecurity(browser);
     if (!only || only === 'memo') await runMemo(browser);
+    if (!only || only === 'memo' || only === 'memolist') await runMemoList(browser);
     if (!only || only === 'sansu') await runSansu(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);

@@ -604,6 +604,8 @@ window.MemoEd = (function () {
     // 保存する形：t は文字だけ、h は書式があるときだけ（決まった span だけの HTML）
     dump() { const ch = scan(ed); return { t: textOf(ch), h: ch.some(c => kCls(c.k)) ? htmlOf(ch) : '' }; },
     markSaved() { savedSig = htmlOf(scan(ed)); clearTimeout(refreshT); refresh(); },
+    // 保存していない変更があるか（📂 呼び出す・＋ 新しく の前に確かめる）
+    dirty() { clearTimeout(refreshT); refresh(); return dirty; },
     text,
     clear() { if (text()) pushUndo(null, 'clear'); ed.textContent = ''; saved = null; autoSep = null; changed(); },
     stop() { stopVoice(); stopSay(); closePop(); },
