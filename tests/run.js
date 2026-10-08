@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,ruler,kakudo,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,trim,manner,boki,kurashi,keisan,memo,calctmpl,fintmpl,kaikei,koe,eigo');
+    'tansui,kantab,veggie,volume,ruler,kakudo,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,trim,manner,boki,kurashi,keisan,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -6630,7 +6630,7 @@ async function runSecurity(browser) {
   const dir = (c, k) => ((c.split(';').map(x => x.trim()).find(x => x.startsWith(k + ' ')) || '').slice(k.length + 1));
   const c0 = await csp(page);
   check('  CSP：表電卓は自分の所からだけ読み込む・外へ送らない', [dir(c0, 'default-src'), dir(c0, 'connect-src'), dir(c0, 'object-src'), dir(c0, 'base-uri'), dir(c0, 'script-src')].join(' | '), "'self' | 'self' data: blob: | 'none' | 'self' | 'self' 'unsafe-inline'");
-  for (const [sub, strict] of [['kaikei', false], ['koe', false], ['eigo', false], ['notes', true], ['saien', true]]) {
+  for (const [sub, strict] of [['kaikei', false], ['koe', false], ['eigo', false], ['notes', true], ['saien', true], ['sansu', true]]) {
     const sp = await ctx.newPage(); await sp.goto('file://' + path.join(ROOT, sub, 'index.html')); await sp.waitForTimeout(300);
     const c = await csp(sp);
     check('  CSP：' + sub + (strict ? '（ページの中のプログラムも動かさない）' : ''), [/object-src 'none'/.test(c), dir(c, 'script-src')].join(' | '), 'true | ' + (strict ? "'self'" : "'self' 'unsafe-inline'"));
@@ -6692,6 +6692,145 @@ async function runSecurity(browser) {
   await kp.close();
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
+}
+/* 🎓 算数・数学チャレンジ（sansu/。v527）：別のアプリ。問題の作り方・答え合わせ・声・画面の流れ・表電卓から開く */
+async function runSansu(browser) {
+  console.log('\n── 🎓 算数・数学チャレンジ（v527） ──');
+  const dir = path.join(ROOT, 'sansu'), SANSU = 'file://' + path.join(dir, 'index.html');
+  const sw = fs.readFileSync(path.join(dir, 'service-worker.js'), 'utf8'), html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
+  const files = ['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'css/style.css', 'js/core.js', 'js/units-e.js', 'js/units-j.js', 'js/answer.js', 'js/app.js'];
+  check('  ファイルがそろい、service-worker が持つ', files.every(f => fs.existsSync(path.join(dir, f)) && sw.includes("'./" + f + "'")), true);
+  check('  控えは自分の分（sansu-）だけ消す・ネット優先', /k\.startsWith\(CACHE_PREFIX\)/.test(sw) && sw.includes("CACHE_PREFIX = 'sansu-'") && sw.includes('netFetch(e.request)'), true);
+  const man = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
+  check('  manifest：名前・アイコン・単独で開く', [man.short_name, man.display, man.start_url, man.icons.length].join('/'), '算数・数学/standalone/./index.html/2');
+  const js = files.filter(f => f.endsWith('.js')).map(f => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
+  check('  ページにも JS の中の HTML にも、ボタンに書いた プログラム（onclick など）が ない', (html + js).match(/\son[a-z]+\s*=\s*["'`$]/g) || 'なし', 'なし');
+  check('  CSP：ページの中の プログラムは 動かさない', /script-src 'self';/.test(html) && !/script-src[^;]*unsafe/.test(html), true);
+
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on('pageerror', e => errs.push(e.message));
+  page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
+  await page.addInitScript(() => { window.SANSU_TODAY = '2026-10-08'; document.addEventListener('securitypolicyviolation', e => console.error('CSP ' + e.violatedDirective)); });
+  await page.goto(SANSU); await page.waitForTimeout(400);
+  const w = ms => page.waitForTimeout(ms);
+
+  // ── 単元と 問題（どの 単元でも、自分の 答えで 正解・ずらすと まちがい・ヒントが ある・声で 言った 答えを 読める） ──
+  const rep = await page.evaluate(() => {
+    const S = SANSU, out = { units: S.UNITS.length, grades: [1, 2, 3, 4, 5, 6, 7, 8, 9].map(g => S.UNITS.filter(u => u.g === g).length).join(','), bad: [] };
+    for (const u of S.UNITS) {
+      if (!u.ex || !u.ex.length) out.bad.push(u.id + ':解説なし');
+      for (let s = 1; s <= 60; s++) {
+        let p; try { p = S.makeProblem(u, S.mkRng(s * 7919 + 3)); } catch (e) { out.bad.push(u.id + ':' + e.message); break; }
+        const txt = [p.q, p.form, p.answer, ...p.steps.map(x => typeof x === 'string' ? x : x.t)].join('|');
+        if (/undefined|NaN|Infinity/.test(txt)) { out.bad.push(u.id + ':' + txt.slice(0, 80)); break; }
+        if (!S.check(p, p.ans).ok) { out.bad.push(u.id + ':自分の答えが まちがい ' + p.form); break; }
+        if (!p.steps.length) { out.bad.push(u.id + ':ヒントなし'); break; }
+        const v = S.fromSpeech(p, S.sayAnswer(p));
+        if (!v || !S.check(p, v).ok) { out.bad.push(u.id + ':声 ' + S.sayAnswer(p)); break; }
+        const wv = p.ans.slice(), n0 = S.parseBlank(p.kinds[0], wv[0]);
+        if (p.order !== 'any') { wv[0] = String(n0 + 1).replace('-', '−'); if (p.kinds[0] === 't' || p.kinds[0] === 'tc') wv[0] = (n0 + 1 < 0 ? '−' : '+') + Math.abs(n0 + 1); if (S.check(p, wv).ok) { out.bad.push(u.id + ':まちがいを 正解に した ' + p.form); break; } }
+      }
+    }
+    return out;
+  });
+  check('  単元の数（小1〜中3）', rep.units + ' / ' + rep.grades, '62 / 5,7,7,8,10,7,6,5,7');
+  check('  全単元 60問ずつ：答え・ヒント・まちがい・声の読み取り', rep.bad.join(' | ') || 'OK', 'OK');
+  check('  答え合わせ：約分していない分数・あまりが大きすぎる は「あと少し」', await page.evaluate(() => {
+    const H = SANSU.H, f = { kinds: ['n', 'n'], ans: ['3', '4'], check: H.fracCheck(3, 4) }, r = { kinds: ['n', 'n'], ans: ['3', '2'], check: H.remCheck(3, 2, 5) };
+    const a = SANSU.check(f, ['6', '8']), b = SANSU.check(f, ['3', '4']), c = SANSU.check(r, ['2', '7']), d = SANSU.check(f, ['3', '5']);
+    return [a.ok, !!a.near, b.ok, !!c.near, d.ok, !!d.near].join(',');
+  }), 'false,true,true,true,false,false');
+  check('  声の読み取り（漢数字・分数・あまり・x=・2つの答え）', await page.evaluate(() => {
+    const P = (form, ans, kinds, x) => Object.assign({ q: '', form, ans, kinds, steps: ['.'], answer: '' }, x || {}), f = (p, t) => (SANSU.fromSpeech(p, t) || ['×']).join(',');
+    return [f(P('8 + 5 = {0}', ['13'], ['n']), '十三'), f(P('[[1/2]] + [[1/4]] = [[{0}/{1}]]', ['3', '4'], ['n', 'n']), '四分の三'), f(P('17 ÷ 5 = {0} あまり {1}', ['3', '2'], ['n', 'n']), '3余り2'),
+      f(P('3x + 5 = 17　→　x = {0}', ['4'], ['i']), 'エックスイコールマイナス4'), f(P('x² − x − 6 = 0　→　x = {0}、{1}', ['3', '−2'], ['i', 'i'], { order: 'any' }), 'x イコール 3 と x イコール マイナス 2'),
+      f(P('x² + 5x + 6 = (x {0})(x {1})', ['+2', '+3'], ['t', 't']), 'エックスプラス2 エックスプラス3'), f(P('√[12] = {0}√[{1}]', ['2', '3'], ['n', 'n']), '2ルート3'), f(P('{0}時{1}分', ['10', '0'], ['n', 'n']), '10時ちょうど')].join(' / ');
+  }), '13 / 3,4 / 3,2 / −4 / 3,−2 / +2,+3 / 2,3 / 10,0');
+
+  // ── ホーム ──
+  check('  ホーム：学年が 9つ・小1の 単元が 5つ・おすすめ', await page.evaluate(() => document.querySelectorAll('.grades button').length + '/' + document.querySelectorAll('.units .unit').length + '/' + !!document.querySelector('.hero')), '9/5/true');
+  await page.click('[data-act="grade"][data-g="7"]'); await w(150);
+  check('  学年を えらぶと その 単元（中1）・おぼえる', await page.evaluate(() => [...document.querySelectorAll('.units .unit')].map(u => u.dataset.u).join(',') + '/' + JSON.parse(localStorage.getItem('sansu_v1')).set.grade), 'j1-addsub,j1-muldiv,j1-moji,j1-eq,j1-prop,j1-sector/7');
+  await page.click('.unit[data-u="j1-eq"] .ex'); await w(150);
+  check('  📖 解説の 画面', await page.evaluate(() => SANSU.app.view().s + '/' + document.querySelector('.exbox').textContent.includes('移項') + '/' + !!document.querySelector('[data-act="unit"][data-u="j1-eq"]')), 'ex/true/true');
+  await page.goBack(); await w(150);
+  check('  戻るで ホームへ', await page.evaluate(() => SANSU.app.view().s), 'home');
+
+  // ── 問題（□に 当てはめる） ──
+  await page.click('[data-act="grade"][data-g="3"]'); await w(100);
+  await page.click('.unit[data-u="g3-divrem"]'); await w(200);
+  const p1 = await page.evaluate(() => { const p = SANSU.app.ses().p; return { ans: p.ans, n: document.querySelectorAll('#qform .bx').length, keys: document.querySelectorAll('#keys button').length }; });
+  check('  問題の 画面：□が 2つ（商・あまり）・タイル 16', p1.n + '/' + p1.keys + '/' + (await page.evaluate(() => document.body.classList.contains('playing'))), '2/16/true');
+  check('  使わない タイル（− ＋ .）は 押せない', await page.evaluate(() => ['−', '+', '.'].map(k => document.querySelector(`[data-k="${k}"]`).disabled).join(',')), 'true,true,true');
+  await page.click('[data-k="1"]'); await page.click('[data-k="ok"]'); await w(100);
+  check('  □が あいていると「まだ あいている」', await page.evaluate(() => document.getElementById('fb').textContent + '/' + SANSU.app.ses().act), 'まだ あいている □ が あるよ/1');
+  await page.click('[data-k="1"]'); await page.click('[data-k="ok"]'); await w(150);
+  const wrong = p1.ans.join(',') === '1,1';
+  check('  まちがい：「ちがうよ」・ゆれる・ヒントを すすめる', await page.evaluate(() => [document.getElementById('fb').className, document.getElementById('qcard').classList.contains('ng'), document.getElementById('hintBtn').classList.contains('pulse'), SANSU.app.ses().tries].join(',')), wrong ? 'fb ok,false,false,0' : 'fb ng,true,true,1');
+  await page.evaluate(() => document.getElementById('hintBtn').click()); await w(120);
+  check('  🦉 ヒント：その 問題の 数字で 1つずつ', await page.evaluate(() => { const s = SANSU.app.ses(), h = document.querySelectorAll('#hints .hint'); return h.length + '/' + h[0].textContent.includes(String(s.p.form.match(/÷ (\d+)/)[1])) + '/' + document.getElementById('hintBtn').textContent; }), '1/true/🦉ヒント 1/3');
+  // 消して 正しい 答えを 入れる
+  for (let i = 0; i < 4; i++) await page.click('[data-k="bs"]');
+  await page.evaluate(() => { SANSU.app.ses().act = 0; });
+  for (let i = 0; i < p1.ans.length; i++) { for (const ch of p1.ans[i]) await page.click(`[data-k="${ch}"]`); if (i < p1.ans.length - 1) await page.click('[data-k="nx"]'); }
+  await page.click('[data-k="ok"]'); await w(200);
+  check('  正解：⭕・点数・答えの 説明・つぎへ', await page.evaluate(() => { const s = SANSU.app.ses(); return [document.getElementById('fb').className, s.answered, s.score > 0, !!document.querySelector('.ansline'), !!document.querySelector('[data-act="next"]'), s.done[0]].join(','); }), 'fb ok,true,true,true,true,h');
+  await page.click('[data-act="next"]'); await w(150);
+  // 声で 答える（聞こえた 言葉の 候補から □を うめる）
+  const said = await page.evaluate(() => { const s = SANSU.app.ses(); return SANSU.sayAnswer(s.p); });
+  await page.evaluate(t => SANSU.app.heard(['ええと', t]), said); await w(700);
+  check('  🎤 声で 答える：聞こえた 言葉から □を うめて 答え合わせ', await page.evaluate(() => { const s = SANSU.app.ses(); return s.answered + '/' + s.done[1] + '/' + document.getElementById('heard').textContent.startsWith('🎤「'); }), 'true/c/true');
+  // ヒントを 全部 見て 答えを 見る
+  await page.click('[data-act="next"]'); await w(120);
+  const nSteps = await page.evaluate(() => SANSU.app.ses().p.steps.length);
+  for (let i = 0; i <= nSteps; i++) { await page.evaluate(() => document.getElementById('hintBtn').click()); await w(60); }
+  check('  ヒントの あとは「こたえ」→ 答えが □に 入る（0点）', await page.evaluate(() => { const s = SANSU.app.ses(); return [s.revealed, s.answered, s.vals.join(',') === s.p.ans.join(','), s.done[2], document.querySelectorAll('#qform .bx.rev').length === s.p.ans.length].join(','); }), 'true,true,true,r,true');
+  // のこりを 答えて けっか
+  for (let k = 0; k < 30; k++) {
+    const s = await page.evaluate(() => { const s = SANSU.app.ses(); return s && s.p && !s.result ? (s.answered ? 'a' : 'q') : 'x'; });
+    if (s === 'x') break;
+    if (s === 'a') { await page.click('[data-act="next"]'); await w(40); continue; }
+    await page.evaluate(() => { const s = SANSU.app.ses(); s.vals = s.p.ans.slice(); SANSU.app.submit(); }); await w(40);
+  }
+  await w(200);
+  const st1 = await page.evaluate(() => JSON.parse(localStorage.getItem('sansu_v1')));
+  check('  10問で けっか：★（ヒントなし 7問 → ★2）・きろく・XP', await page.evaluate(() => SANSU.app.view().s + '/' + document.querySelectorAll('.res .big > span').length) + '/' + st1.units['g3-divrem'].s + '/' + st1.units['g3-divrem'].n + '/' + (st1.xp > 0) + '/' + st1.days.run + '/' + st1.day.n, 'result/3/2/1/true/1/9');
+  check('  戻るで 問題には 戻らない', await (async () => { await page.goBack(); await w(150); return page.evaluate(() => SANSU.app.view().s); })(), 'home');
+  check('  ホームの カードに ★（とれた 数だけ 色つき）', await page.evaluate(() => { const e = document.querySelector('.unit[data-u="g3-divrem"] .st'); return (e.textContent.length - e.querySelector('.off').textContent.length) + '/' + e.querySelector('.off').textContent.length; }), '2/1');
+
+  // ── タイムアタック ──
+  await page.evaluate(() => SANSU.app.startTA('g3-div')); await w(250);
+  check('  ⏱ タイムアタック：のこり時間の バー', await page.evaluate(() => !!document.getElementById('taBar') + '/' + SANSU.app.ses().mode), 'true/ta');
+  await page.evaluate(() => { const s = SANSU.app.ses(); s.vals = s.p.ans.slice(); SANSU.app.submit(); }); await w(500);
+  check('  正解すると すぐ つぎの 問題', await page.evaluate(() => { const s = SANSU.app.ses(); return s.ok + '/' + s.answered; }), '1/false');
+  await page.evaluate(() => SANSU.app.finish()); await w(200);
+  check('  おわると ベストを おぼえる', await page.evaluate(() => SANSU.app.view().s + '/' + JSON.parse(localStorage.getItem('sansu_v1')).ta['g3-div']), 'result/1');
+
+  // ── 記録・設定 ──
+  await page.click('[data-act="nav"][data-s="rec"]'); await w(150);
+  check('  🏆 きろく：レベル・学年ごとの ★・タイムアタック', await page.evaluate(() => document.querySelectorAll('.gbar').length + '/' + /Lv\.\d/.test(document.querySelector('.box h3').textContent) + '/' + document.querySelector('#main').textContent.includes('わり算（九九で わる）')), '9/true/true');
+  await page.click('[data-act="nav"][data-s="set"]'); await w(150);
+  await page.click('[data-act="tg"][data-k="big"]'); await w(100);
+  check('  ⚙ せってい：文字を 大きく（おぼえる）', await page.evaluate(() => document.body.classList.contains('big') + '/' + JSON.parse(localStorage.getItem('sansu_v1')).set.big), 'true/true');
+  await page.click('[data-act="reset"]'); await w(100); await page.click('[data-act="doreset"]'); await w(200);
+  check('  きろくを 消す（せっていは のこす）', await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('sansu_v1')); return s.xp + '/' + Object.keys(s.units).length + '/' + s.set.big + '/' + document.getElementById('modal').hidden; }), '0/0/true/true');
+
+  // ── 保存された データが こわれていても（仕込まれていても）動く ──
+  await page.evaluate(() => localStorage.setItem('sansu_v1', JSON.stringify({ xp: '<img src=x onerror=alert(1)>', units: { 'g1-add10': { s: 99 }, '<b>x</b>': { s: 3 } }, set: { grade: 42, read: 'yes' }, days: { last: '<script>' } })));
+  await page.reload(); await w(300);
+  check('  こわれた・仕込まれた きろくは 読み込むときに 直す', await page.evaluate(() => { const s = SANSU.app.state(); return [s.xp, Object.keys(s.units).join(','), s.units['g1-add10'].s, s.set.grade, s.set.read, s.days.last === ''].join('/'); }), '0/g1-add10/0/1/false/true');
+
+  // ── 表電卓から 開く・表電卓へ 戻る ──
+  await page.goto('about:blank'); await page.goto(SANSU + '#from=hyo'); await w(250);
+  check('  表電卓から 開いたときは 上に「← 表電卓」', await page.evaluate(() => !document.getElementById('hdBack').hidden + '/' + location.hash), 'true/#home');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+
+  const { ctx: c2, page: hp } = await newPage(browser);
+  check('  表電卓：道具・マイキー・ホーム画面アイコン・まとまり', await hp.evaluate(() => { const t = NP_TOOLS.find(x => x.id === 'sansu'); return [!!t && t.label, !!KEY_FUNCS.a_sansu, REG_GESTURE_ACTIONS.has('a_sansu'), /sansu\/(index\.html)?#from=hyo$/.test(sideAppUrl('sansu', '#from=hyo')), /sansu\/(index\.html)?$/.test(appIconUrl(t)), TOOL_CATS.find(c => c[1].includes('sansu'))[0]].join(','); }), '🎓算数・数学,true,true,true,true,📚 声・まなぶ');
+  await c2.close();
 }
 async function runBackKey(browser) {
   console.log('\n── スマホの「戻る」（v402） ──');
@@ -9239,7 +9378,7 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/28');
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/29');   // v527 で 🎓算数・数学 が ふえた
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
@@ -10384,6 +10523,7 @@ async function runQrShare(browser) {
     if (!only || only === 'help') await runHelpSplit(browser);
     if (!only || only === 'backkey') await runBackKey(browser);
     if (!only || only === 'security') await runSecurity(browser);
+    if (!only || only === 'sansu') await runSansu(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
   } finally { await browser.close(); }

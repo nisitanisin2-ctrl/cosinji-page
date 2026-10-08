@@ -1,0 +1,293 @@
+/* ════════════════════════════════════════════════════════════════
+   🎓 算数・数学チャレンジ（sansu/）の土台
+   ・乱数（テストでは種を決めて、いつも同じ問題を作れるように）
+   ・計算の道具（最大公約数・小数・符号つきの数の書き方）
+   ・数式の見た目（[[3/4]] で分数、[[1|3/4]] で帯分数、√[12] でルート、{0} で答えの□）
+   ・図（ドット・10のまとまり・ひっ算・数直線・図形・時計・さいころの表・グラフ）
+   中身は全部この中で作った数字だけ。人が打った文字は入らないが、念のため文字はすべてエスケープする。
+   ════════════════════════════════════════════════════════════════ */
+(function(){
+'use strict';
+const S = window.SANSU = window.SANSU || {};
+
+/* ── 乱数 ── */
+function mkRng(seed){
+  if(seed == null) return Math.random;
+  let s = (seed >>> 0) || 1;
+  return function(){ s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+}
+function R(rng){
+  rng = rng || Math.random;
+  const int = (a, b) => a + Math.floor(rng() * (b - a + 1));
+  return {
+    rng, int,
+    nz: (a, b) => { let v = 0; for(let k = 0; v === 0 && k < 50; k++) v = int(a, b); return v || 1; },   // 0 以外
+    pick: arr => arr[Math.floor(rng() * arr.length)],
+    chance: p => rng() < p,
+    shuffle: arr => { const a = arr.slice(); for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; },
+  };
+}
+
+/* ── 計算の道具 ── */
+const gcd = (a, b) => { a = Math.abs(a); b = Math.abs(b); while(b){ const t = a % b; a = b; b = t; } return a; };
+const lcm = (a, b) => a / gcd(a, b) * b;
+const MI = '−';                                              // 画面のマイナス（ハイフンより見やすい）
+const num = n => n < 0 ? MI + (-n) : String(n);              // −3
+const term = n => (n < 0 ? MI : '+') + Math.abs(n);          // 式の中の項：+3 / −3
+const par = n => n < 0 ? '(' + MI + (-n) + ')' : String(n);  // 負の数はかっこに入れる
+const sgnOp = n => n < 0 ? ' ' + MI + ' ' + (-n) : ' + ' + n; // 「a + b」「a − b」の後ろ半分
+/* 小数：整数 v を 10^p でわった数として書く（2.30 → 2.3 のように後ろの 0 は消す） */
+function decStr(v, p){
+  const neg = v < 0; let s = String(Math.abs(Math.round(v))).padStart(p + 1, '0');
+  const ip = s.slice(0, s.length - p), fp = p ? s.slice(s.length - p).replace(/0+$/, '') : '';
+  return (neg ? MI : '') + ip + (fp ? '.' + fp : '');
+}
+/* 文字式：[[係数, 'x²'], [係数, 'x'], [係数, '']] → x² + 5x − 6（1 は書かない・0 の項は消す） */
+function poly(terms){
+  let out = '';
+  for(const [c, v] of terms){
+    if(!c) continue;
+    const a = Math.abs(c), body = (v && a === 1) ? v : a + v;
+    out += out ? (c < 0 ? ' ' + MI + ' ' : ' + ') + body : (c < 0 ? MI : '') + body;
+  }
+  return out || '0';
+}
+/* 素因数分解の書き方：72 → 2×2×2×3×3 */
+function factors(n){ const f = []; for(let p = 2; n > 1 && p <= n; p++) while(n % p === 0){ f.push(p); n /= p; } return f; }
+const divisors = n => { const d = []; for(let i = 1; i <= n; i++) if(n % i === 0) d.push(i); return d; };
+
+/* ── 数式の見た目 ── */
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* opt.blank(i) を渡すと {i} をその HTML に（答えの□）。渡さなければ □ */
+function mathHtml(src, opt){
+  let s = esc(src);
+  s = s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  s = s.replace(/\[\[([^\[\]|]*)\|([^\[\]\/]*)\/([^\[\]]*)\]\]/g, (m, w, a, b) => `<span class="mx">${w}<span class="fr"><span class="fn">${a}</span><span class="fd">${b}</span></span></span>`);
+  s = s.replace(/\[\[([^\[\]\/]*)\/([^\[\]]*)\]\]/g, (m, a, b) => `<span class="fr"><span class="fn">${a}</span><span class="fd">${b}</span></span>`);
+  s = s.replace(/√\[([^\[\]]*)\]/g, (m, a) => `<span class="rt">√<span class="rc">${a}</span></span>`);
+  s = s.replace(/\{(\d+)\}/g, (m, i) => opt && opt.blank ? opt.blank(+i) : '<span class="bx0">□</span>');
+  return s.replace(/\n/g, '<br>');
+}
+/* 読み上げ用の言葉（[[3/4]] → 4ぶんの3、− → ひく／マイナス、{0} → なに） */
+function speakMath(src){
+  let s = String(src == null ? '' : src).replace(/\*\*/g, '');
+  s = s.replace(/\[\[([^\[\]|]*)\|([^\[\]\/]*)\/([^\[\]]*)\]\]/g, '$1と$3ぶんの$2');
+  s = s.replace(/\[\[([^\[\]\/]*)\/([^\[\]]*)\]\]/g, '$2ぶんの$1');
+  s = s.replace(/√\[([^\[\]]*)\]/g, 'ルート$1');
+  s = s.replace(/\{\d+\}/g, 'なに');
+  s = s.replace(/(^|[(（=＝+×÷:\s])−/g, '$1マイナス').replace(/−/g, 'ひく');
+  s = s.replace(/\(\+/g, '(プラス').replace(/(^|\s)\+(?=\d)/g, '$1プラス');
+  s = s.replace(/x²/g, 'エックスの2じょう').replace(/y²/g, 'ワイの2じょう').replace(/²/g, 'の2じょう').replace(/³/g, 'の3じょう');
+  s = s.replace(/cm/g, 'センチメートル').replace(/km/g, 'キロメートル').replace(/kg/g, 'キログラム').replace(/mm/g, 'ミリメートル');
+  s = s.replace(/([0-9])m(?![a-z])/g, '$1メートル').replace(/([0-9])g(?![a-z])/g, '$1グラム').replace(/([0-9])L/g, '$1リットル').replace(/dL/g, 'デシリットル');
+  s = s.replace(/x/g, 'エックス').replace(/y/g, 'ワイ').replace(/π/g, 'パイ').replace(/°/g, 'ど').replace(/%/g, 'パーセント');
+  s = s.replace(/\+/g, 'たす').replace(/×/g, 'かける').replace(/÷/g, 'わる').replace(/[=＝]/g, 'は').replace(/:/g, 'たい').replace(/±/g, 'プラスマイナス');
+  s = s.replace(/[()（）□]/g, ' ').replace(/\s+/g, ' ');
+  return s.trim();
+}
+
+/* ── 図（SVG） ── */
+const svg = (w, h, body, cls) => `<svg class="fg${cls ? ' ' + cls : ''}" viewBox="0 0 ${Math.ceil(w)} ${Math.ceil(h)}" width="${Math.ceil(w)}" height="${Math.ceil(h)}" aria-hidden="true">${body}</svg>`;
+const tx = (x, y, s, cls, anc) => `<text x="${r1(x)}" y="${r1(y)}" class="lb${cls ? ' ' + cls : ''}" text-anchor="${anc || 'middle'}">${esc(s)}</text>`;
+const r1 = v => Math.round(v * 10) / 10;
+const pts = a => a.map(p => r1(p[0]) + ',' + r1(p[1])).join(' ');
+const F = {};
+
+/* ●の数（groups は数の並び。cross は 1つ目のまとまりの後ろから消す数＝ひき算） */
+F.dots = (groups, cross) => {
+  const r = 10, g = 25; let x = 6, h = 0, b = '';
+  groups.forEach((n, gi) => {
+    for(let i = 0; i < n; i++){
+      const cx = x + (i % 5) * g + r + 2, cy = 6 + Math.floor(i / 5) * g + r;
+      const xd = cross && gi === 0 && i >= n - cross;
+      b += `<circle cx="${cx}" cy="${cy}" r="${r}" class="d${gi + 1}${xd ? ' dx' : ''}"/>`;
+      if(xd) b += `<path d="M${cx - 8} ${cy - 8}L${cx + 8} ${cy + 8}M${cx + 8} ${cy - 8}L${cx - 8} ${cy + 8}" class="xl"/>`;
+    }
+    x += Math.min(5, Math.max(1, n)) * g + 18; h = Math.max(h, Math.ceil(n / 5) * g);
+  });
+  return svg(x, h + 12, b);
+};
+/* 10のまとまり（くり上がり）：1つ目のわくに a と b の一部で 10、2つ目のわくに b の残り */
+F.ten = (a, b) => {
+  const c = 26, need = 10 - a, rest = b - need; let s = '';
+  const frame = (ox, fill) => { for(let i = 0; i < 10; i++){ const x = ox + (i % 5) * c, y = 8 + Math.floor(i / 5) * c;
+    s += `<rect x="${x}" y="${y}" width="${c}" height="${c}" class="cell"/>`; if(fill[i]) s += `<circle cx="${x + c / 2}" cy="${y + c / 2}" r="9" class="${fill[i]}"/>`; } };
+  frame(6, Array.from({length: 10}, (_, i) => i < a ? 'd1' : 'd2'));
+  frame(6 + 5 * c + 22, Array.from({length: 10}, (_, i) => i < rest ? 'd2' : ''));
+  s += tx(6 + 2.5 * c, 8 + 2 * c + 20, '10') + tx(28 + 7.5 * c, 8 + 2 * c + 20, String(rest));
+  return svg(30 + 10 * c, 8 + 2 * c + 28, s);
+};
+/* くり下がり：10 のわく（b こ消す）と、ばらの ●（a−10 こ） */
+F.tenSub = (a, b) => {
+  const c = 26, ones = a - 10; let s = '';
+  for(let i = 0; i < 10; i++){ const x = 6 + (i % 5) * c, y = 8 + Math.floor(i / 5) * c, cx = x + c / 2, cy = y + c / 2, xd = i >= 10 - b;
+    s += `<rect x="${x}" y="${y}" width="${c}" height="${c}" class="cell"/><circle cx="${cx}" cy="${cy}" r="9" class="d1${xd ? ' dx' : ''}"/>`;
+    if(xd) s += `<path d="M${cx - 7} ${cy - 7}L${cx + 7} ${cy + 7}M${cx + 7} ${cy - 7}L${cx - 7} ${cy + 7}" class="xl"/>`; }
+  for(let i = 0; i < ones; i++){ const x = 6 + 5 * c + 22 + (i % 5) * c, y = 8 + Math.floor(i / 5) * c; s += `<circle cx="${x + c / 2}" cy="${y + c / 2}" r="9" class="d2"/>`; }
+  s += tx(6 + 2.5 * c, 8 + 2 * c + 20, '10') + tx(28 + 7.5 * c, 8 + 2 * c + 20, String(ones));
+  return svg(30 + 10 * c, 8 + 2 * c + 28, s);
+};
+/* かけ算の ●：1つ分 per こ が groups れつ */
+F.array = (per, groups) => {
+  const g = per > 6 || groups > 6 ? 17 : 22, r = g * 0.36; let s = '';
+  for(let j = 0; j < groups; j++) for(let i = 0; i < per; i++) s += `<circle cx="${8 + i * g + r}" cy="${8 + j * g + r}" r="${r}" class="${j % 2 ? 'd2' : 'd1'}"/>`;
+  return svg(16 + per * g, 16 + groups * g, s);
+};
+/* ひっ算（HTML の表）。lines は [{s:'346', op:''}, {s:'78', op:'+'}]、rule は線を引く行の番号（その行の下に線）。
+   s の中の '?' は□、小さい数（くり上がり）は carry に「位置→数字」で */
+F.cols = (lines, rules, carry) => {
+  const w = Math.max(...lines.map(l => l.s.length)) + 1;
+  let h = '<table class="hs">';
+  if(carry){ h += '<tr class="cy">'; for(let i = 0; i < w; i++){ const k = w - 1 - i; h += `<td>${carry[k] != null ? esc(carry[k]) : ''}</td>`; } h += '</tr>'; }
+  lines.forEach((l, li) => {
+    const pad = ' '.repeat(w - 1 - l.s.length) + l.s;
+    h += `<tr${rules.includes(li) ? ' class="ru"' : ''}><td class="op">${esc(l.op || '')}</td>`;
+    for(const ch of pad) h += ch === '?' ? '<td><span class="bx0">□</span></td>' : `<td>${esc(ch === ' ' ? '' : ch)}</td>`;
+    h += '</tr>';
+  });
+  return h + '</table>';
+};
+/* 数直線：lo〜hi に目もり、from から to へ矢印 */
+F.line = (lo, hi, from, to) => {
+  const u = Math.min(30, 520 / (hi - lo)), W = (hi - lo) * u + 40, y = 52, X = v => 20 + (v - lo) * u;
+  let s = `<defs><marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="arh"/></marker></defs>`;
+  s += `<line x1="10" y1="${y}" x2="${W - 10}" y2="${y}" class="ln"/>`;
+  for(let v = lo; v <= hi; v++){
+    s += `<line x1="${X(v)}" y1="${y - (v === 0 ? 8 : 5)}" x2="${X(v)}" y2="${y + (v === 0 ? 8 : 5)}" class="ln"/>`;
+    if(hi - lo <= 20 || v % 5 === 0) s += tx(X(v), y + 22, num(v), v === 0 ? 'b' : 'sm');
+  }
+  if(from != null){
+    s += `<circle cx="${X(from)}" cy="${y}" r="5" class="pt"/>`;
+    if(to != null && to !== from){ const mx = (X(from) + X(to)) / 2; s += `<path d="M${X(from)} ${y - 8}Q${mx} ${y - 46} ${X(to)} ${y - 9}" class="ar" marker-end="url(#arw)"/>`; }
+  }
+  return svg(W, y + 32, s);
+};
+/* 分数の帯：d こに分けて n こぬる */
+F.bar = (n, d, cls) => {
+  const W = 240, c = W / d; let s = '';
+  for(let i = 0; i < d; i++) s += `<rect x="${4 + i * c}" y="4" width="${c}" height="26" class="${i < n ? (cls || 'f1') : 'cell'}"/>`;
+  return svg(W + 8, 34, s + `<rect x="4" y="4" width="${W}" height="26" class="ln"/>`);
+};
+/* 長方形（w, h は数字か '?'）。単位つきのラベル */
+F.rect = (w, h, u) => {
+  const nw = +w || 6, nh = +h || 4, k = Math.min(200 / nw, 120 / nh), W = nw * k, H = nh * k;
+  return svg(W + 90, H + 44, `<rect x="20" y="10" width="${r1(W)}" height="${r1(H)}" class="sh"/>` + tx(20 + W / 2, H + 34, w + (w === '?' ? '' : u)) + tx(28 + W, 14 + H / 2, h + (h === '?' ? '' : u), '', 'start'));
+};
+/* L の形：大きい長方形 W×H から、右上の w×h を切りとった形 */
+F.lshape = (W, H, w, h, u) => {
+  const k = Math.min(200 / W, 130 / H), X = v => 52 + v * k, Y = v => 10 + v * k;   // 左に たての 長さを 書くので あけておく
+  const p = [[0, 0], [W - w, 0], [W - w, h], [W, h], [W, H], [0, H]];
+  return svg(W * k + 80, H * k + 44, `<polygon points="${pts(p.map(q => [X(q[0]), Y(q[1])]))}" class="sh"/>`
+    + tx(X(W / 2), Y(H) + 24, W + u) + tx(X(0) - 6, Y(H / 2) + 5, H + u, '', 'end')
+    + tx(X(W - w / 2), Y(h) + 17, w + u, 'sm') + tx(X(W - w) + 6, Y(h / 2) + 5, h + u, 'sm', 'start'));   // 欠けた所の よこは 線の 下、たては 線の 右
+};
+/* 三角形（底辺 b・高さ h。高さは点線） */
+F.tri = (b, h, u) => {
+  const nb = +b || 6, nh = +h || 4, k = Math.min(200 / nb, 120 / nh), B = nb * k, H = nh * k, ax = 20 + B * 0.62;
+  return svg(B + 60, H + 46, `<polygon points="${pts([[20, 10 + H], [20 + B, 10 + H], [ax, 10]])}" class="sh"/><line x1="${ax}" y1="10" x2="${ax}" y2="${10 + H}" class="ln dash"/>`
+    + tx(20 + B / 2, H + 34, b + (b === '?' ? '' : u)) + tx(ax + 6, 14 + H / 2, h + (h === '?' ? '' : u), '', 'start'));
+};
+F.para = (b, h, u) => {
+  const nb = +b || 6, nh = +h || 4, k = Math.min(170 / nb, 110 / nh), B = nb * k, H = nh * k, sh = 34;
+  return svg(B + sh + 70, H + 46, `<polygon points="${pts([[20, 10 + H], [20 + B, 10 + H], [20 + B + sh, 10], [20 + sh, 10]])}" class="sh"/><line x1="${20 + sh}" y1="10" x2="${20 + sh}" y2="${10 + H}" class="ln dash"/>`
+    + tx(20 + B / 2, H + 34, b + u) + tx(26 + sh, 14 + H / 2, h + u, '', 'start'));
+};
+F.trap = (a, b, h, u) => {
+  const k = Math.min(200 / b, 110 / h), A = a * k, B = b * k, H = h * k, x0 = 20 + (B - A) * 0.35;
+  return svg(B + 70, H + 64, `<polygon points="${pts([[20, 26 + H], [20 + B, 26 + H], [x0 + A, 26], [x0, 26]])}" class="sh"/><line x1="${x0}" y1="26" x2="${x0}" y2="${26 + H}" class="ln dash"/>`
+    + tx(x0 + A / 2, 18, a + u) + tx(20 + B / 2, H + 50, b + u) + tx(x0 + 6, 30 + H / 2, h + u, '', 'start'));
+};
+F.rhombus = (d1, d2, u) => {
+  const k = Math.min(200 / d1, 130 / d2), A = d1 * k, B = d2 * k, cx = 20 + A / 2, cy = 10 + B / 2;
+  return svg(A + 60, B + 40, `<polygon points="${pts([[20, cy], [cx, 10], [20 + A, cy], [cx, 10 + B]])}" class="sh"/><line x1="20" y1="${cy}" x2="${20 + A}" y2="${cy}" class="ln dash"/><line x1="${cx}" y1="10" x2="${cx}" y2="${10 + B}" class="ln dash"/>`
+    + tx(20 + A * 0.25, cy - 6, d1 + u, 'sm') + tx(cx + 6, 10 + B * 0.8, d2 + u, 'sm', 'start'));
+};
+/* 円（mode が 'd' なら直径を、ほかは半径を書く） */
+F.circle = (r, mode, u) => {
+  const R0 = 64, c = 80;
+  return svg(c * 2 + 10, c * 2, `<circle cx="${c}" cy="${c}" r="${R0}" class="sh"/><circle cx="${c}" cy="${c}" r="3" class="pt"/>`
+    + (mode === 'd' ? `<line x1="${c - R0}" y1="${c}" x2="${c + R0}" y2="${c}" class="ln"/>` + tx(c, c - 8, r * 2 + u) : `<line x1="${c}" y1="${c}" x2="${c + R0}" y2="${c}" class="ln"/>` + tx(c + R0 / 2, c - 8, r + u)));
+};
+/* おうぎ形（半径 r・中心角 deg） */
+F.sector = (r, deg, u) => {
+  const R0 = 70, cx = 90, cy = 90, a = deg * Math.PI / 180, x2 = cx + R0 * Math.cos(-a), y2 = cy + R0 * Math.sin(-a);
+  return svg(190, 120 + (deg > 180 ? 70 : 0), `<path d="M${cx} ${cy}L${cx + R0} ${cy}A${R0} ${R0} 0 ${deg > 180 ? 1 : 0} 0 ${r1(x2)} ${r1(y2)}Z" class="sh"/>`
+    + tx(cx + R0 / 2, cy + 18, r + u) + tx(cx + 22, cy - 6, deg + '°', 'sm', 'start'));
+};
+/* 直方体（見取図） */
+F.cuboid = (a, b, c, u) => {
+  const na = +a || 5, nb = +b || 4, nc = +c || 4, k = Math.min(140 / na, 90 / nc, 140 / nb), W = na * k, H = nc * k, D = nb * k * 0.45, x = 16, y = 12 + D;
+  const front = [[x, y], [x + W, y], [x + W, y + H], [x, y + H]], top = [[x, y], [x + D, y - D], [x + W + D, y - D], [x + W, y]], side = [[x + W, y], [x + W + D, y - D], [x + W + D, y + H - D], [x + W, y + H]];
+  return svg(W + D + 80, H + D + 46, `<polygon points="${pts(top)}" class="sh s2"/><polygon points="${pts(side)}" class="sh s3"/><polygon points="${pts(front)}" class="sh"/>`
+    + tx(x + W / 2, y + H + 22, a + (a === '?' ? '' : u)) + tx(x + W + D / 2 + 8, y + H - D / 2 + 16, b + (b === '?' ? '' : u), 'sm', 'start') + tx(x + W + D + 6, y - D + H / 2, c + (c === '?' ? '' : u), c === '?' ? 'q' : '', 'start'));
+};
+/* 一直線と角（a° と ?） */
+F.straight = (a) => {
+  const cx = 130, cy = 80, L = 100, t = a * Math.PI / 180, ex = cx + L * Math.cos(Math.PI - t), ey = cy - L * Math.sin(Math.PI - t);
+  return svg(260, 100, `<line x1="${cx - L - 10}" y1="${cy}" x2="${cx + L + 10}" y2="${cy}" class="ln"/><line x1="${cx}" y1="${cy}" x2="${r1(ex)}" y2="${r1(ey)}" class="ln"/>`
+    + tx(cx - 44, cy - 10, a + '°', 'sm') + tx(cx + 40, cy - 12, '?', 'q'));
+};
+/* 三角形の角（底の2つの角 A・B、上が ?） */
+F.triAng = (A, B, labA, labB, labC) => {
+  // 底の 2つの 角から 頂点を 決めて、はみ出さないように 大きさを 合わせる（鈍角でも）
+  const ta = Math.tan(A * Math.PI / 180), tb = Math.tan(B * Math.PI / 180), x = tb / (ta + tb), y = x * ta;
+  const xs = [0, 1, x], lo = Math.min(...xs), hi = Math.max(...xs), k = Math.min(230 / (hi - lo), 130 / Math.max(y, 0.15));
+  const P = [[0, 0], [1, 0], [x, y]].map(q => [24 + (q[0] - lo) * k, 20 + (y - q[1]) * k]), G = [(P[0][0] + P[1][0] + P[2][0]) / 3, (P[0][1] + P[1][1] + P[2][1]) / 3];
+  const at = (i, t) => [P[i][0] + (G[0] - P[i][0]) * t, P[i][1] + (G[1] - P[i][1]) * t + 5];
+  const la = at(0, 0.32), lb = at(1, 0.32), lc = at(2, 0.3);
+  return svg((hi - lo) * k + 48, y * k + 40, `<polygon points="${pts(P)}" class="sh"/>` + tx(la[0], la[1], labA || A + '°', 'sm') + tx(lb[0], lb[1], labB || B + '°', 'sm') + tx(lc[0], lc[1] + 4, labC || '?', 'q'));
+};
+/* 四角形の角（形はおおよそ。3つの角の大きさと ?） */
+F.quadAng = (a, b, c) => svg(250, 150, `<polygon points="20,130 230,130 200,20 60,40" class="sh"/>` + tx(46, 122, a + '°', 'sm') + tx(206, 122, b + '°', 'sm') + tx(190, 44, c + '°', 'sm') + tx(70, 62, '?', 'q'));
+/* 直角三角形（よこ a・たて b・斜辺 c。わからない所は '?'） */
+F.rightTri = (a, b, c, u) => {
+  const na = +a || 4, nb = +b || 3, k = Math.min(200 / na, 120 / nb), A = na * k, B = nb * k, x0 = 56;   // 左に たての 辺の 長さを 書くので あけておく
+  return svg(x0 + A + 80, B + 44, `<polygon points="${pts([[x0, 10 + B], [x0 + A, 10 + B], [x0, 10]])}" class="sh"/><polyline points="${pts([[x0, B - 4], [x0 + 14, B - 4], [x0 + 14, 10 + B]])}" class="ln"/>`
+    + tx(x0 + A / 2, B + 34, a + (a === '?' ? '' : u), a === '?' ? 'q' : '') + tx(x0 - 8, 14 + B / 2, b + (b === '?' ? '' : u), b === '?' ? 'q' : '', 'end') + tx(x0 + 6 + A / 2, 4 + B / 2, c + (c === '?' ? '' : u), c === '?' ? 'q' : '', 'start'));
+};
+/* 正多角形（n 角形） */
+F.ngon = (n) => {
+  const c = 70, R0 = 58, P = []; for(let i = 0; i < n; i++){ const t = -Math.PI / 2 + i * 2 * Math.PI / n; P.push([c + R0 * Math.cos(t), c + R0 * Math.sin(t)]); }
+  return svg(c * 2, c * 2, `<polygon points="${pts(P)}" class="sh"/>`);
+};
+/* 時計（h 時 m 分） */
+F.clock = (h, m) => {
+  const c = 70, R0 = 60; let s = `<circle cx="${c}" cy="${c}" r="${R0}" class="sh"/>`;
+  for(let i = 1; i <= 12; i++){ const t = i * Math.PI / 6; s += tx(c + 47 * Math.sin(t), c - 47 * Math.cos(t) + 5, String(i), 'sm'); }
+  for(let i = 0; i < 60; i++){ const t = i * Math.PI / 30, L = i % 5 ? 3 : 6; s += `<line x1="${r1(c + (R0 - L) * Math.sin(t))}" y1="${r1(c - (R0 - L) * Math.cos(t))}" x2="${r1(c + R0 * Math.sin(t))}" y2="${r1(c - R0 * Math.cos(t))}" class="tk"/>`; }
+  const ha = ((h % 12) + m / 60) * Math.PI / 6, ma = m * Math.PI / 30;
+  s += `<line x1="${c}" y1="${c}" x2="${r1(c + 30 * Math.sin(ha))}" y2="${r1(c - 30 * Math.cos(ha))}" class="hh"/><line x1="${c}" y1="${c}" x2="${r1(c + 46 * Math.sin(ma))}" y2="${r1(c - 46 * Math.cos(ma))}" class="mh"/><circle cx="${c}" cy="${c}" r="4" class="pt"/>`;
+  return svg(c * 2, c * 2, s);
+};
+/* さいころ2つの表（ok(i,j) が true のますに色） */
+F.dice = (ok) => {
+  let h = '<table class="dt"><tr><th>　</th>' + [1, 2, 3, 4, 5, 6].map(j => `<th>${j}</th>`).join('') + '</tr>';
+  for(let i = 1; i <= 6; i++){ h += `<tr><th>${i}</th>`; for(let j = 1; j <= 6; j++) h += `<td${ok(i, j) ? ' class="on"' : ''}>${ok(i, j) ? '○' : ''}</td>`; h += '</tr>'; }
+  return h + '</table>';
+};
+/* グラフ（−6〜6 のます目に、点と直線・放物線） fn は x→y、marks は [[x,y],…] */
+F.graph = (fn, marks, lim) => {
+  const L = lim || 6, u = 13, c = L * u + 14, W = c * 2, X = x => c + x * u, Y = y => c - y * u;
+  let s = '';
+  for(let i = -L; i <= L; i++) s += `<line x1="${X(i)}" y1="${Y(-L)}" x2="${X(i)}" y2="${Y(L)}" class="gd"/><line x1="${X(-L)}" y1="${Y(i)}" x2="${X(L)}" y2="${Y(i)}" class="gd"/>`;
+  s += `<line x1="${X(-L) - 6}" y1="${c}" x2="${X(L) + 6}" y2="${c}" class="ln"/><line x1="${c}" y1="${Y(-L) + 6}" x2="${c}" y2="${Y(L) - 6}" class="ln"/>` + tx(X(L) + 8, c + 4, 'x', 'sm', 'start') + tx(c + 6, Y(L) - 2, 'y', 'sm', 'start') + tx(c - 8, c + 14, 'O', 'sm');
+  if(fn){ let d = ''; for(let x = -L; x <= L + 1e-9; x += 0.25){ const y = fn(x); if(Math.abs(y) > L + 2) { d += ' '; continue; } d += (d && !/ $/.test(d) ? 'L' : 'M') + r1(X(x)) + ' ' + r1(Y(y)); } s += `<path d="${d.replace(/ M/g, 'M').trim()}" class="gl"/>`; }
+  (marks || []).forEach(p => { s += `<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="4" class="pt"/>`; });
+  return svg(W, W, s, 'gr');
+};
+/* 帯図（割合）：もとにする量の帯と、くらべる量の帯 */
+/* 帯図（割合）：もとにする量の帯と、くらべる量の部分。pct は図の長さ、ラベルは別に（わからない所は '?'） */
+F.ratioBar = (base, part, pct, pctLab) => {
+  const W = 240, w2 = Math.max(8, Math.min(W, W * (+pct || 50) / 100));
+  return svg(W + 70, 74, `<rect x="4" y="6" width="${W}" height="22" class="cell"/><rect x="4" y="6" width="${r1(w2)}" height="22" class="f1"/>`
+    + tx(W + 10, 22, String(base), 'sm', 'start') + tx(4 + w2 / 2, 50, String(part), 'sm') + tx(4 + w2 / 2, 68, pctLab == null ? pct + '%' : String(pctLab), 'sm q'));
+};
+/* 相似な三角形（相似比 m:n） */
+F.similar = (m, n) => {
+  const k = 60 / Math.max(m, n), a = m * k, b = n * k;
+  const tri = (ox, s) => pts([[ox, 10 + s * 1.2], [ox + s * 1.5, 10 + s * 1.2], [ox + s * 0.4, 10]]);
+  return svg(a * 1.5 + b * 1.5 + 60, Math.max(a, b) * 1.2 + 34, `<polygon points="${tri(10, a)}" class="sh"/><polygon points="${tri(40 + a * 1.5, b)}" class="sh s2"/>` + tx(10 + a * 0.75, a * 1.2 + 28, 'A', 'sm') + tx(40 + a * 1.5 + b * 0.75, b * 1.2 + 28, 'B', 'sm'));
+};
+
+Object.assign(S, { mkRng, R, gcd, lcm, MI, num, term, par, sgnOp, decStr, poly, factors, divisors, esc, mathHtml, speakMath, F });
+})();
