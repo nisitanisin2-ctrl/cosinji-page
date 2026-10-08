@@ -310,6 +310,24 @@ ul.vlog{ margin:0 0 8px; padding-left:1.1em; } ul.vlog li{ margin:3px 0; } ul.vl
 .fg .d1{ fill:var(--d1); } .fg .d2{ fill:var(--d2); } .fg .dx{ opacity:.35; }
 .fg .xl{ stroke:var(--ng); stroke-width:3; }
 .fg .br{ fill:none; stroke:var(--ink); stroke-width:1.5; stroke-linejoin:round; }
+/* 読みとる グラフ（v7）。色は 決まった じゅん（青・オレンジ・水色・黄・ピンク）、くらい 画面用の 色も */
+:root{ --c1:#2a78d6; --c2:#eb6834; --c3:#1baf7a; --c4:#eda100; --c5:#e87ba4; }
+@media (prefers-color-scheme: dark){ :root{ --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; --c5:#d55181; } }
+.fg.chartfig{ max-width:340px; }
+.fg .cg{ stroke:var(--line); stroke-width:1; }
+.fg .ca{ stroke:var(--sub); stroke-width:1; }
+.fg .lb.ax{ font-size:10.5px; font-weight:600; fill:var(--sub); }
+.fg .gb{ fill:var(--bar, #ef6c00); }
+.fg .gline{ fill:none; stroke:var(--c1); stroke-width:2; stroke-linejoin:round; stroke-linecap:round; }
+.fg .gdot{ fill:var(--c1); stroke:var(--card); stroke-width:2; }
+.fg .c1{ fill:var(--c1); } .fg .c2{ fill:var(--c2); } .fg .c3{ fill:var(--c3); } .fg .c4{ fill:var(--c4); } .fg .c5{ fill:var(--c5); }
+.fg .pie{ stroke:var(--card); stroke-width:2; }
+.fg .arc{ fill:none; stroke:var(--ink); stroke-width:1.5; } .fg .arc.q{ stroke:var(--ng); }
+.fg .sh.ns{ stroke:none; }
+/* 色の 中の 字：こい 色（青・オレンジ）は 白、うすい 色（水色・黄・ピンク）は 黒っぽい 字 */
+.fg .lb.cin{ font-size:12px; font-weight:800; fill:#fff; }
+.fg .lb.cin.t3, .fg .lb.cin.t4, .fg .lb.cin.t5{ fill:#1d1a16; }
+.fg .lb.sm2{ font-size:11px; }
 .fg .cell{ fill:none; stroke:var(--sub); stroke-width:1.2; }
 .fg .f1{ fill:var(--f1); stroke:var(--sub); stroke-width:1.2; } .fg .f2{ fill:var(--f2); stroke:var(--sub); stroke-width:1.2; }
 .fg .pt{ fill:var(--accent); }

@@ -6695,12 +6695,12 @@ async function runSecurity(browser) {
 }
 /* 🎓 算数・数学チャレンジ（sansu/。v527）：別のアプリ。問題の作り方・答え合わせ・声・画面の流れ・表電卓から開く */
 // 単元の 数（全部 / 小1〜中3）。単元を 足したら ここも かえる
-const S_UNITS_EXPECT = '80 / 9,12,8,9,14,7,7,6,8';
+const S_UNITS_EXPECT = '92 / 9,12,12,13,18,7,7,6,8';
 async function runSansu(browser) {
   console.log('\n── 🎓 算数・数学チャレンジ（v527） ──');
   const dir = path.join(ROOT, 'sansu'), SANSU = 'file://' + path.join(dir, 'index.html');
   const sw = fs.readFileSync(path.join(dir, 'service-worker.js'), 'utf8'), html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
-  const files = ['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'css/style.css', 'js/core.js', 'js/version.js', 'js/units-e.js', 'js/units-j.js', 'js/units-order.js', 'js/answer.js', 'js/mistakes.js', 'js/cards.js', 'js/medals.js', 'js/voice.js', 'js/store.js', 'js/app.js'];
+  const files = ['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'css/style.css', 'js/core.js', 'js/version.js', 'js/units-e.js', 'js/units-j.js', 'js/units-e2.js', 'js/units-e3.js', 'js/units-w.js', 'js/units-order.js', 'js/answer.js', 'js/mistakes.js', 'js/cards.js', 'js/medals.js', 'js/voice.js', 'js/store.js', 'js/app.js'];
   check('  ファイルがそろい、service-worker が持つ', files.every(f => fs.existsSync(path.join(dir, f)) && sw.includes("'./" + f + "'")), true);
   check('  控えは自分の分（sansu-）だけ消す・ネット優先', /k\.startsWith\(CACHE_PREFIX\)/.test(sw) && sw.includes("CACHE_PREFIX = 'sansu-'") && sw.includes('netFetch(e.request)'), true);
   const man = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
@@ -7029,11 +7029,11 @@ async function runSansu(browser) {
   await page.click('[data-act="back"]'); await w(150);
   await page.click('[data-act="printset"]'); await w(150);
   await page.click('[data-act="pg"][data-g="3"]'); await w(80);
-  check('  学年を えらぶと おすすめの 単元が はじめから 入る', await page.evaluate(() => [...document.querySelectorAll('.pul .chip.on')].map(b => b.dataset.u).join(',')), 'g3-div');
+  check('  学年を えらぶと おすすめの 単元が はじめから 入る', await page.evaluate(() => [...document.querySelectorAll('.pul .chip.on')].map(b => b.dataset.u).join(',')), 'g3-man');
   await page.click('[data-act="pu"][data-u="g3-divrem"]'); await page.click('[data-act="pn"][data-n="20"]'); await w(100);
   await page.click('[data-act="pmake"]'); await w(250);
   const sh = await page.evaluate(() => ({ n: document.querySelectorAll('.sq > li').length, a: document.querySelectorAll('.sa > li').length, bx: document.querySelectorAll('.sq .pbx').length > 0, units: [...new Set(SANSU.app.makeSheet(SANSU.app.view().cfg, SANSU.app.view().cfg.seed).map(p => p.unit))].sort().join(','), no: document.querySelector('.sh-m').textContent.includes('No.') }));
-  check('  📄 プリント：えらんだ 単元から 20問・□は 書きこむ わく・答えの ページ・番号', [sh.n, sh.a, sh.bx, sh.units, sh.no].join('/'), '20/20/true/g3-div,g3-divrem/true');
+  check('  📄 プリント：えらんだ 単元から 20問・□は 書きこむ わく・答えの ページ・番号', [sh.n, sh.a, sh.bx, sh.units, sh.no].join('/'), '20/20/true/g3-divrem,g3-man/true');
   const k1 = await page.evaluate(() => document.querySelector('.sq').textContent);
   await page.click('[data-act="pagain"]'); await w(200);
   check('  🔁 ちがう 問題（番号が かわる）', await page.evaluate(k => document.querySelector('.sq').textContent !== k, k1), true);
@@ -7054,6 +7054,25 @@ async function runSansu(browser) {
   await page.evaluate(() => SANSU.app.readBackupFile(new File(['{"app":"other"}'], 'x.json'))); await w(300);
   await page.waitForFunction(() => document.getElementById('toast').textContent.includes('ファイルでは ない'), null, { timeout: 8000 }).catch(() => {});
   check('  ちがう ファイルは 読み込まない', await page.evaluate(() => document.getElementById('modal').hidden + '/' + document.getElementById('toast').textContent), 'true/算数・数学チャレンジの きろくの ファイルでは ないようです');
+
+  // ── v7：グラフを 読む 問題・図形・大きな数（億・万の 答えも 声で） ──
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('sansu_seen_ver', SANSU.VERSION); }); await page.reload(); await w(300);
+  check('  v7：グラフの 図（ぼう 3本・単位・折れ線の 点 3つと 線・帯 3色・円 2つ・%）', await page.evaluate(() => {
+    const F = SANSU.F, n = (s, re) => (s.match(re) || []).length;
+    const b = F.bars(['A', 'B', 'C'], [4, 10, 7], 2, '人'), l = F.lines(['1', '2', '3'], [6, 8, 4], 2, '度', '月'), bd = F.band([{ n: '犬', p: 40 }, { n: 'ねこ', p: 35 }, { n: 'その他', p: 25 }]), pie = F.pie([{ n: '夏', p: 60 }, { n: '冬', p: 40 }]);
+    return [n(b, /class="gb"/g), b.includes('（人）'), n(l, /class="gdot"/g), n(l, /class="gline"/g), l.includes('（月）'), n(bd, /class="c\d"/g), n(pie, /class="c\d pie"/g), pie.includes('60%')].join('/');
+  }), '3/true/3/1/true/3/2/true');
+  check('  見取図：見えない 辺は 点線（三角柱 3本・六角柱 5本・円柱は 底の うしろ半分）', await page.evaluate(() => { const c = s => (s.match(/ dash"/g) || []).length; return [c(SANSU.F.prism(3)), c(SANSU.F.prism(6)), c(SANSU.F.prism(0))].join('/'); }), '3/5/1');
+  check('  角の しるし：わかって いる 角は 黒、? の 角は 赤の 弧', await page.evaluate(() => { const s = SANSU.F.parallel(60, 'same'); return (s.match(/class="arc"/g) || []).length + '/' + (s.match(/class="arc q"/g) || []).length; }), '1/1');
+  check('  声：「3億5200万」「にじゅうおく」も 読める', await page.evaluate(() => {
+    const P = (form, ans) => ({ q: '', form, ans, kinds: ans.map(() => 'n'), steps: ['.'], answer: '' }), f = (p, t) => (SANSU.fromSpeech(p, t) || ['×']).join(',');
+    const p = P('{0}億{1}万', ['3', '5200']);
+    return [f(p, 'さんおくごせんにひゃくまん'), f(p, '352000000'), f(P('{0}億', ['20']), 'にじゅうおく'), f(P('{0}', ['352000000']), '三億五千二百万')].join(' / ');
+  }), '3,5200 / 3,5200 / 20 / 352000000');
+  check('  読み上げ：m²・a・ha は ことばで', await page.evaluate(() => SANSU.speakMath('3a = {0}m²') + '/' + SANSU.speakMath('何ha？')), '3アール は なに平方メートル/何ヘクタール？');
+  await page.evaluate(() => SANSU.app.startStage('g3-bargraph')); await w(200);
+  check('  ぼうグラフの 問題：グラフが 出て、読んだ 答えで 正解', await page.evaluate(() => { const bars = document.querySelectorAll('.qfig svg.chartfig .gb').length, s = SANSU.app.ses(); s.vals = s.p.ans.slice(); SANSU.app.submit(); return (bars >= 4) + '/' + s.ok; }), 'true/1');
+  check('  新しい 単元が 学年に 入る（小3・小4・小5）', await page.evaluate(() => ['g3-man', 'g3-circle', 'g3-boxeq', 'g3-bargraph', 'g4-oku', 'g4-areaunit', 'g4-linegraph', 'g4-perp', 'g5-perunit', 'g5-graph', 'g5-congruent', 'g5-prism'].map(id => (SANSU.UNITS.find(u => u.id === id) || {}).g).join('')), '333344445555');
 
   // ── 表電卓から 開く・表電卓へ 戻る ──
   await page.goto('about:blank'); await page.goto(SANSU + '#from=hyo'); await w(250);

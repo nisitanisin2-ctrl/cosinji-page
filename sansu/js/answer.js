@@ -98,10 +98,14 @@ function kanjiRun(run){
   }
   return seen ? total + sec + dg : null;
 }
-const kanjiToDigits = t => t.replace(/[〇零一二三四五六七八九十百千万億0-9]+/g, run => {
+/* keep が true なら 万・億 は のこして 区切りごとに 数字に（「三億二千万」→「3億2000万」。答えの 形が「{0}億{1}万」の とき） */
+const kanjiToDigits = (t, keep) => t.replace(/[〇零一二三四五六七八九十百千万億0-9]+/g, run => {
   if(!/[〇零一二三四五六七八九十百千万億]/.test(run)) return run;
+  if(keep) return run.split(/([万億])/).map(x => x === '' || x === '万' || x === '億' ? x : (n => n === null ? x : String(n))(kanjiRun(x))).join('');
   const n = kanjiRun(run); return n === null ? run : String(n);
 });
+/* 320000000 → 3億2000万（答えの 形が 万・億で 区切る ときに、数字で 言われた 大きな 数を 合わせる） */
+const secNum = d => { const n = +d, o = Math.floor(n / 1e8), m = Math.floor(n % 1e8 / 1e4), a = n % 1e4; return (o ? o + '億' : '') + (m ? m + '万' : '') + (a || (!o && !m) ? String(a) : ''); };
 /* ひらがなで 聞こえた 数（「じゅうさん」「さんびゃくろくじゅうご」「さんぶんのに」）を 漢字の 数に。
    ひらがなの かたまりが 全部「数の ことば」と「つなぎの ことば（ぶんの・あまり・てん…）」で できている ときだけ かえる
    （「には」「ごめん」の ような ふつうの ことばは そのまま） */
@@ -149,7 +153,9 @@ function normSpeech(raw, p){
   // 一言だけの かなの数（「さん」「マイナスご」など）
   t = t.replace(/(答え|こたえ|答)(は|が)?/g, ' ');
   t = kanaToKanji(t).replace(/ぶんの/g, '分の');
-  t = kanjiToDigits(t);
+  const keepBig = /\}[万億]/.test(form);
+  t = kanjiToDigits(t, keepBig);
+  if(keepBig) t = t.replace(/\d{5,}/g, secNum);
   t = t.replace(/(\d)\s*(てん|点)\s*(\d)/g, '$1.$3').replace(/(\d)\s*(じ)(?![ょゃゅ])/g, '$1時').replace(/(\d)\s*(ふん|ぷん)/g, '$1分');
   t = t.replace(/(対|たい)\s*(?=[−+]?\d)/g, ':');
   t = t.replace(/(\d+)\s*分の\s*([−+]?\d+)/g, '$2/$1');                       // 4分の3 → 3/4

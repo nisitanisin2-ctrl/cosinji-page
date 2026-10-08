@@ -85,6 +85,8 @@ function speakMath(src){
   s = s.replace(/\{\d+\}/g, 'なに');
   s = s.replace(/(^|[(（=＝+×÷:\s])−/g, '$1マイナス').replace(/−/g, 'ひく');
   s = s.replace(/\(\+/g, '(プラス').replace(/(^|\s)\+(?=\d)/g, '$1プラス');
+  s = s.replace(/km²/g, '平方キロメートル').replace(/cm²/g, '平方センチメートル').replace(/m²/g, '平方メートル').replace(/cm³/g, '立方センチメートル').replace(/m³/g, '立方メートル');
+  s = s.replace(/(\d|何|なに)(\s*)ha(?![a-zA-Z])/g, '$1$2ヘクタール').replace(/(\d|何|なに)(\s*)a(?![a-zA-Z])/g, '$1$2アール').replace(/mL/g, 'ミリリットル');
   s = s.replace(/x²/g, 'エックスの2じょう').replace(/y²/g, 'ワイの2じょう').replace(/²/g, 'の2じょう').replace(/³/g, 'の3じょう');
   s = s.replace(/cm/g, 'センチメートル').replace(/km/g, 'キロメートル').replace(/kg/g, 'キログラム').replace(/mm/g, 'ミリメートル');
   s = s.replace(/([0-9])m(?![a-z])/g, '$1メートル').replace(/([0-9])g(?![a-z])/g, '$1グラム').replace(/([0-9])L/g, '$1リットル').replace(/dL/g, 'デシリットル');
@@ -328,6 +330,116 @@ F.road = (H, W, u) => {
   return svg(Wp + 70, Hp + 46, `<rect x="${x0}" y="${y0}" width="${r1(Wp)}" height="${r1(Hp)}" class="sh s2"/>`
     + `<rect x="${r1(x0 + Wp * 0.42)}" y="${y0}" width="${r1(rw)}" height="${r1(Hp)}" class="cell"/><rect x="${x0}" y="${r1(y0 + Hp * 0.55)}" width="${r1(Wp)}" height="${r1(rw)}" class="cell"/>`
     + tx(x0 + Wp / 2, Hp + 34, W + u) + tx(x0 + Wp + 6, y0 + Hp / 2, H + u, '', 'start') + tx(x0 + Wp * 0.42 + rw / 2, y0 - 2 + Hp * 0.27, 'x', 'q'));
+};
+/* ── グラフ（読みとる 問題の 図。1つの 系列は 1色、目もりの 線は うすく） ── */
+/* 目もり：6目もり いかは ぜんぶに 数を 書く。それより 多い ときは 5目もりごとに 書いて、上の はしも 5目もりの 区切りに */
+const niceTicks = (mx, u) => { const n0 = Math.floor(mx / u + 1e-9) + 1; if(n0 <= 6) return {top: n0 * u, lab: 1}; return {top: Math.ceil(n0 / 5) * 5 * u, lab: 5}; };
+function axes(W, H, L, B, T, top, u, lab, unit){
+  let s = '';
+  for(let i = 0, v = 0; v <= top + 1e-9; i++, v = i * u){ const y = H - B - (H - B - T) * v / top;
+    s += `<line x1="${L}" y1="${r1(y)}" x2="${W - 6}" y2="${r1(y)}" class="cg"/>`; if(i % lab === 0) s += tx(L - 5, y + 4, String(+v.toFixed(4)), 'ax', 'end'); }
+  return s + `<line x1="${L}" y1="${H - B}" x2="${W - 6}" y2="${H - B}" class="ca"/><line x1="${L}" y1="${T - 4}" x2="${L}" y2="${H - B}" class="ca"/>` + tx(L - 4, T - 8, `（${unit}）`, 'ax', 'start');
+}
+/* 棒グラフ（たて）：labels・vals・1目もり u・たんい。ぼうは はば 24 まで、上の かどだけ 丸く */
+F.bars = (labels, vals, u, unit) => {
+  const W = 310, H = 190, L = 40, B = 26, T = 22, {top, lab} = niceTicks(Math.max(...vals), u), n = vals.length, slot = (W - L - 10) / n, bw = Math.min(24, slot * 0.55);
+  let s = axes(W, H, L, B, T, top, u, lab, unit);
+  vals.forEach((v, i) => { const x = L + slot * i + (slot - bw) / 2, y = H - B - (H - B - T) * v / top, h = H - B - y, r = Math.min(4, h);
+    if(v > 0) s += `<path d="M${r1(x)} ${H - B}V${r1(y + r)}Q${r1(x)} ${r1(y)} ${r1(x + r)} ${r1(y)}H${r1(x + bw - r)}Q${r1(x + bw)} ${r1(y)} ${r1(x + bw)} ${r1(y + r)}V${H - B}Z" class="gb"/>`;
+    s += tx(L + slot * i + slot / 2, H - B + 16, labels[i], 'ax'); });
+  return svg(W, H, s, 'chartfig');
+};
+/* 折れ線グラフ：labels・vals・1目もり u・たんい・よこの じくの たんい（点は 8px、線は 2px） */
+F.lines = (labels, vals, u, unit, xunit) => {
+  const W = 320, H = 190, L = 40, B = 26, T = 22, {top, lab} = niceTicks(Math.max(...vals), u), n = vals.length, slot = (W - L - 10) / n;
+  let s = axes(W, H, L, B, T, top, u, lab, unit), d = '';
+  const P = vals.map((v, i) => [L + slot * i + slot / 2, H - B - (H - B - T) * v / top]);
+  P.forEach((p, i) => { d += (i ? 'L' : 'M') + r1(p[0]) + ' ' + r1(p[1]); s += tx(p[0], H - B + 16, labels[i], 'ax'); });
+  s += `<path d="${d}" class="gline"/>` + P.map(p => `<circle cx="${r1(p[0])}" cy="${r1(p[1])}" r="4" class="gdot"/>`).join('');
+  if(xunit) s += tx(W - 4, H + 6, `（${xunit}）`, 'ax', 'end');
+  return svg(W, H + (xunit ? 12 : 0), s, 'chartfig');
+};
+/* 帯グラフ：parts は [{n:'名前', p:%}]（合計 100）。下に 5% ごとの 目もり（10% ごとに 数） */
+F.band = parts => {
+  const W = 290, L = 10, y = 16, h = 34; let s = '', x = L;
+  parts.forEach((q, i) => { const w = W * q.p / 100; s += `<rect x="${r1(x)}" y="${y}" width="${r1(Math.max(0, w - 2))}" height="${h}" class="c${i % 5 + 1}"/>`;
+    const fit = [...q.n].length * 12 + 8 < w; s += tx(x + w / 2, fit ? y + h / 2 + 5 : y - 4, q.n, fit ? `cin t${i % 5 + 1}` : 'ax'); x += w; });
+  for(let p = 0; p <= 100; p += 5){ const xx = L + W * p / 100; s += `<line x1="${r1(xx)}" y1="${y + h + 2}" x2="${r1(xx)}" y2="${y + h + (p % 10 ? 5 : p % 50 ? 8 : 11)}" class="ca"/>`; if(p % 10 === 0) s += tx(xx, y + h + 23, String(p), 'ax'); }
+  return svg(W + L + 36, y + h + 30, s + tx(W + L + 13, y + h + 23, '(%)', 'ax', 'start'), 'chartfig');
+};
+/* 円グラフ：真上から 右まわり。名前と % を 書く（せまい ところは 外に） */
+F.pie = parts => {
+  const cx = 112, cy = 100, R0 = 74; let s = '', a0 = -Math.PI / 2;
+  parts.forEach((q, i) => { const a1 = a0 + 2 * Math.PI * q.p / 100, big = q.p > 50 ? 1 : 0, X = a => r1(cx + R0 * Math.cos(a)), Y = a => r1(cy + R0 * Math.sin(a));
+    s += `<path d="M${cx} ${cy}L${X(a0)} ${Y(a0)}A${R0} ${R0} 0 ${big} 1 ${X(a1)} ${Y(a1)}Z" class="c${i % 5 + 1} pie"/>`;
+    const am = (a0 + a1) / 2, out = q.p < 12, rr = out ? R0 + 18 : R0 * 0.6, cl = out ? 'ax' : `cin t${i % 5 + 1}`, px = cx + rr * Math.cos(am), py = cy + rr * Math.sin(am);
+    s += tx(px, py + (out ? -1 : -2), q.n, cl) + tx(px, py + (out ? 12 : 12), q.p + '%', cl + ' sm2');
+    a0 = a1; });
+  return svg(cx * 2, cy * 2, s, 'chartfig');
+};
+/* 角の しるし：点 P で、A の 向きと B の 向きの 間（180° より 小さい ほう）に 半径 R の 弧。ラベルは その まん中の 向きに d */
+const unitV = (P, Q) => { const dx = Q[0] - P[0], dy = Q[1] - P[1], L = Math.hypot(dx, dy) || 1; return [dx / L, dy / L]; };
+const angArc = (P, A, B, R, q) => { const a = unitV(P, A), b = unitV(P, B), sw = a[0] * b[1] - a[1] * b[0] > 0 ? 1 : 0;
+  return `<path d="M${r1(P[0] + R * a[0])} ${r1(P[1] + R * a[1])}A${R} ${R} 0 0 ${sw} ${r1(P[0] + R * b[0])} ${r1(P[1] + R * b[1])}" class="arc${q ? ' q' : ''}"/>`; };
+const angLab = (P, A, B, d, lab) => { const a = unitV(P, A), b = unitV(P, B), m = unitV([0, 0], [a[0] + b[0], a[1] + b[1]]);
+  return angArc(P, A, B, 13, lab === '?') + tx(P[0] + d * m[0], P[1] + d * m[1] + 5, lab, lab === '?' ? 'q' : 'sm'); };
+/* 平行な 2本の 直線ア・イと、交わる 直線。上の 交わりの 右上の 角が a°。
+   kind：'same'（下の 交わりの 同じ 位置の 角）・'line'（上の 交わりの 左上＝一直線で となり）・'alt'（下の 交わりの 左下） */
+F.parallel = (a, kind) => {
+  const W = 260, y1 = 40, y2 = 110, t = a * Math.PI / 180, dx = (y2 - y1) / Math.tan(t), xA = W / 2 + dx / 2, xB = xA - dx;
+  const ext = 36, x0 = xA + ext / Math.tan(t), x3 = xB - ext / Math.tan(t), PA = [xA, y1], PB = [xB, y2];
+  let s = `<line x1="10" y1="${y1}" x2="${W - 10}" y2="${y1}" class="ln"/><line x1="10" y1="${y2}" x2="${W - 10}" y2="${y2}" class="ln"/><line x1="${r1(x0)}" y1="${y1 - ext}" x2="${r1(x3)}" y2="${y2 + ext}" class="ln"/>`;
+  s += tx(W - 12, y1 - 6, 'ア', 'sm', 'end') + tx(W - 12, y2 - 6, 'イ', 'sm', 'end');
+  const d = a < 70 ? 30 : 24;
+  s += angLab(PA, [W, y1], [x0, y1 - ext], d, a + '°');
+  s += kind === 'same' ? angLab(PB, [W, y2], PA, d, '?') : kind === 'line' ? angLab(PA, [x0, y1 - ext], [0, y1], 180 - a < 70 ? 30 : 24, '?') : angLab(PB, [0, y2], [x3, y2 + ext], d, '?');
+  return svg(W, y2 + ext + 6, s);
+};
+/* 平行四辺形：左下の 角が a°。labs は {A:左下の 角, B:右下, C:右上, D:左上, b:下の 辺, s:左の 辺}（ラベルの 字。'?' は 赤）。rhomb なら ひし形 */
+F.pgram = (a, labs, rhomb) => {
+  const t = a * Math.PI / 180, B = rhomb ? 110 : 150, h = rhomb ? B * Math.sin(t) : 84, dx = h / Math.tan(t), x0 = 30 + Math.max(0, -dx), y0 = 16 + h, L = labs || {}, cl = v => v === '?' ? 'q' : 'sm';
+  const P = [[x0, y0], [x0 + B, y0], [x0 + B + dx, y0 - h], [x0 + dx, y0 - h]];
+  let s = `<polygon points="${pts(P)}" class="sh"/>`;
+  ['A', 'B', 'C', 'D'].forEach((k, i) => { if(L[k]){ const ac = i % 2 === 0 ? a : 180 - a; s += angLab(P[i], P[(i + 3) % 4], P[(i + 1) % 4], ac < 75 ? 30 : 24, L[k]); } });
+  if(L.b) s += tx(x0 + B / 2, y0 + 20, L.b, cl(L.b));
+  if(L.s) s += tx(x0 + dx / 2 - 8, y0 - h / 2 + 5, L.s, cl(L.s), 'end');
+  return svg(B + Math.abs(dx) + 60, y0 + 28, s);
+};
+/* 合同な 三角形（ABC と、うら返した DEF）。labs の AB・BC・CA・DE・EF・FD は 辺、A〜F は 角の ラベル（'?' は 赤） */
+F.congruent = (labs) => {
+  const V = {B: [20, 120], C: [130, 120], A: [60, 30], E: [290, 120], F: [180, 120], D: [250, 30]}, L = labs || {}, cl = v => v === '?' ? 'q' : 'sm';
+  const tri = {A: 'BC', B: 'CA', C: 'AB', D: 'EF', E: 'FD', F: 'DE'};
+  let s = `<polygon points="${pts([V.B, V.C, V.A])}" class="sh"/><polygon points="${pts([V.E, V.F, V.D])}" class="sh s2"/>`;
+  s += tx(12, 136, 'B', 'b') + tx(138, 136, 'C', 'b') + tx(60, 22, 'A', 'b') + tx(298, 136, 'E', 'b') + tx(172, 136, 'F', 'b') + tx(250, 22, 'D', 'b');
+  const side = {AB: [30, 80, 'end'], BC: [75, 138], CA: [102, 80, 'start'], DE: [280, 80, 'start'], EF: [235, 138], FD: [208, 80, 'end']};
+  for(const k in side) if(L[k]) s += tx(side[k][0], side[k][1], L[k], cl(L[k]), side[k][2]);
+  for(const k in tri) if(L[k]) s += angLab(V[k], V[tri[k][0]], V[tri[k][1]], k === 'A' || k === 'D' ? 30 : 27, L[k]);
+  return svg(310, 146, s);
+};
+/* 角柱（n角柱）・円柱（n = 0）の 見取図。見えない 辺は 点線（側面が 手前を 向いて いるかで 決める） */
+F.prism = n => {
+  const cx = 90, rx = 56, ry = 18, top = 30, h = 90, yb = top + h, W = 190, HH = yb + ry + 10;
+  if(!n){ const x1 = cx - rx, x2 = cx + rx;
+    return svg(W, HH, `<path d="M${x1} ${top}V${yb}A${rx} ${ry} 0 0 0 ${x2} ${yb}V${top}Z" class="sh ns"/>`
+      + `<path d="M${x1} ${yb}A${rx} ${ry} 0 0 1 ${x2} ${yb}" class="ln dash"/><path d="M${x1} ${yb}A${rx} ${ry} 0 0 0 ${x2} ${yb}" class="ln"/>`
+      + `<line x1="${x1}" y1="${top}" x2="${x1}" y2="${yb}" class="ln"/><line x1="${x2}" y1="${top}" x2="${x2}" y2="${yb}" class="ln"/><ellipse cx="${cx}" cy="${top}" rx="${rx}" ry="${ry}" class="sh s2"/>`);
+  }
+  const ang = k => Math.PI / 2 + k * 2 * Math.PI / n + Math.PI / n, front = k => Math.sin(ang(k) + Math.PI / n) > 1e-9;   // k と k+1 の 間の 側面
+  const up = Array.from({length: n}, (_, k) => [cx + rx * Math.cos(ang(k)), top + ry * Math.sin(ang(k))]), dn = up.map(p => [p[0], p[1] + h]);
+  const seg = (p, q, vis) => `<line x1="${r1(p[0])}" y1="${r1(p[1])}" x2="${r1(q[0])}" y2="${r1(q[1])}" class="ln${vis ? '' : ' dash'}"/>`;
+  let s = '', hid = '', vis = '';
+  for(let k = 0; k < n; k++){ const k2 = (k + 1) % n;
+    if(front(k)) s += `<polygon points="${pts([up[k], up[k2], dn[k2], dn[k]])}" class="sh ns"/>`;
+    const e = seg(dn[k], dn[k2], front(k)), v = seg(up[k], dn[k], front(k) || front((k + n - 1) % n));
+    if(front(k)) vis += e; else hid += e;
+    if(front(k) || front((k + n - 1) % n)) vis += v; else hid += v; }
+  return svg(W, HH, s + `<polygon points="${pts(up)}" class="sh s2"/>` + hid + vis);
+};
+/* 同じ 大きさの ボールが 箱に ならぶ（k こ） */
+F.balls = k => {
+  const r = Math.min(22, 130 / k), W = 2 * r * k; let s = `<rect x="10" y="8" width="${r1(W)}" height="${r1(2 * r)}" class="cell"/>`;
+  for(let i = 0; i < k; i++) s += `<circle cx="${r1(10 + r + 2 * r * i)}" cy="${r1(8 + r)}" r="${r1(r - 1)}" class="sh s3"/>`;
+  return svg(W + 20, 2 * r + 16, s);
 };
 /* 相似な三角形（相似比 m:n） */
 F.similar = (m, n) => {
