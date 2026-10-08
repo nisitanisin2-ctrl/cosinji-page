@@ -170,9 +170,17 @@ body.talking #memo { border-color: var(--danger); }
 #quick .qk { width: 42px; min-width: 0; height: 50px; padding: 0; font-size: 20px; font-weight: 700; }
 @media (max-width: 359px) { #quick { gap: 5px; } #quick .qk { width: 36px; } #quick .mic { font-size: 15px; } }
 #quick .qk:disabled { opacity: .4; cursor: default; }
-#pad footer { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
-#count { color: var(--sub); font-size: 13px; margin-right: auto; }
-#count.dirty { color: var(--text); }
+#pad footer { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+#pad footer .btn { padding: 9px 8px; font-size: 14px; white-space: nowrap; }
+#pad footer #save { margin-left: auto; min-width: 60px; }
+@media (max-width: 359px) { #pad footer { gap: 5px; } #pad footer .btn { padding: 8px 6px; font-size: 13px; } #pad footer #save { min-width: 0; } }
+/* いま開いているメモの名前（おすと一覧）と字数 */
+#doc { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; margin: -4px 2px -4px; min-height: 24px; }
+#docTtl { flex: 1 1 auto; min-width: 0; text-align: left; font-size: 13.5px; font-weight: 700; color: var(--sub);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 0; border-radius: 6px; }
+#docTtl:hover { color: var(--text); }
+#count { flex: 0 0 auto; color: var(--sub); font-size: 12.5px; }
+#count.dirty { color: var(--text); font-weight: 600; }
 #save.dirty { box-shadow: 0 0 0 3px var(--acc-weak); }
 /* 📤 出力・⚙ 設定の窓 */
 .outlist { display: grid; gap: 8px; }
@@ -180,6 +188,24 @@ body.talking #memo { border-color: var(--danger); }
 .fsrow { display: flex; align-items: center; gap: 12px; }
 .fsrow #fsNow { min-width: 3em; text-align: center; font-weight: 700; font-size: 17px; }
 .fsrow .btn { min-width: 64px; }
+/* 📂 保存したメモの一覧 */
+#lsSheet .box { display: flex; flex-direction: column; overflow: hidden; }
+#lsQ { margin-bottom: 10px; }
+#lsList { flex: 1 1 auto; min-height: 60px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin: 0 -4px; padding: 0 4px; }
+.ls-item { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--card); flex: 0 0 auto; }
+.ls-item.cur { border-color: var(--acc); box-shadow: inset 4px 0 0 var(--acc); }
+.ls-open { flex: 1 1 auto; min-width: 0; text-align: left; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; border-radius: var(--r-card); }
+.ls-open:hover { background: var(--acc-weak); }
+.ls-ttl { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ls-sub { font-size: 12px; color: var(--sub); }
+.ls-pv { font-size: 13px; color: var(--sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ls-del { margin-right: 4px; }
+.ls-ask { display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding: 0 10px 10px; font-size: 13px; flex: 1 0 100%; }
+.ls-ask span { margin-right: auto; color: var(--danger); font-weight: 600; }
+.ls-ask .btn { padding: 6px 10px; }
+.ls-item.asking .ls-open { opacity: .6; }
+.ls-empty { color: var(--sub); text-align: center; padding: 24px 8px; font-size: 14px; }
+#dsSheet .row { flex-wrap: wrap; }
 
 /* ── 中身の画面（保管庫） ── */
 #vault { display: none; flex-direction: column; height: 100dvh; max-width: 760px; margin: 0 auto; }
@@ -266,7 +292,7 @@ body.open #vault { display: flex; }
   }
   @page { margin: 15mm; }
   html, body { height: auto; background: #fff; color: #000; padding: 0; }
-  #vault, .sheet, .menu, #toast, #pad > header, #fmt, #pop, #vbar, #quick, #pad > footer { display: none !important; }
+  #vault, .sheet, .menu, #toast, #pad > header, #fmt, #pop, #doc, #vbar, #quick, #pad > footer { display: none !important; }
   #pad { display: block; height: auto; max-width: none; padding: 0; }
   #memo { border: none; padding: 0; overflow: visible; height: auto; }
   #memo span { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -295,6 +321,11 @@ body.open #vault { display: flex; }
     <button type="button" data-fmt="clear" title="書式を消す" aria-label="書式を消す">書式を消す</button>
   </div>
   <div id="pop" hidden></div>
+  <!-- いま開いているメモ（おすと保存したメモの一覧）と字数 -->
+  <div id="doc">
+    <button type="button" id="docTtl" title="保存したメモを呼び出す">📄 新しいメモ</button>
+    <span id="count">0 文字</span>
+  </div>
   <div id="memo" contenteditable="true" role="textbox" aria-multiline="true" aria-label="メモ" data-ph="ここに書けます" spellcheck="false" autocapitalize="off" autocorrect="off" translate="no"></div>
   <!-- 🎤 聞き取っている間だけ出る -->
   <div id="vbar" hidden aria-live="polite"><span class="dot" aria-hidden="true"></span><span id="vtext"></span><small>「改行」「とりけし」<br>「ストップ」</small></div>
@@ -307,12 +338,34 @@ body.open #vault { display: flex; }
     <button type="button" class="qk" id="undoBtn" aria-label="戻す" title="戻す" disabled>↶</button>
   </div>
   <footer>
-    <span id="count">0 文字</span>
+    <button class="btn sub" id="lsBtn">📂 呼び出す</button>
+    <button class="btn sub" id="newBtn">＋ 新しく</button>
     <button class="btn sub" id="outBtn">📤 出力</button>
-    <button class="btn sub" id="clear">消す</button>
     <button class="btn" id="save">保存</button>
   </footer>
 </div>
+
+<!-- 📂 保存したメモの一覧 -->
+<div class="sheet" id="lsSheet"><div class="box">
+  <h2 id="lsTitle">保存したメモ</h2>
+  <input class="field" id="lsQ" type="search" placeholder="さがす" autocomplete="off" aria-label="保存したメモをさがす">
+  <div id="lsList"></div>
+  <div class="row">
+    <button class="btn sub" data-close>閉じる</button>
+    <button class="btn" id="lsNew">＋ 新しく</button>
+  </div>
+</div></div>
+
+<!-- 保存していない変更があるとき -->
+<div class="sheet" id="dsSheet"><div class="box">
+  <h2>保存していない変更があります</h2>
+  <p class="help" id="dsText"></p>
+  <div class="row">
+    <button class="btn sub" id="dsNo">やめる</button>
+    <button class="btn danger" id="dsDrop">保存しない</button>
+    <button class="btn" id="dsSave">保存する</button>
+  </div>
+</div></div>
 
 <!-- 📤 出力 -->
 <div class="sheet" id="outSheet"><div class="box">
@@ -348,6 +401,7 @@ body.open #vault { display: flex; }
     <li>キーボードの 🎤（音声入力）で話してもかまいません。句読点や改行は下のボタンでも入れられます。</li>
     <li><b>文字色・背景色・フォント・大きさ・太字</b>など：文字を選んでから上のボタンをおします（選んでいないときはその行ぜんぶに）。<b>書式を消す</b>でもとにもどります。</li>
     <li><b>↶</b>：打った字・声・書式を1つずつ戻します。<b>保存</b>をおすまで、書いたものは保存されません。</li>
+    <li><b>📂 呼び出す</b>：保存したメモの一覧（新しい順）。おすとそのメモを開きます。🗑 で消せます。<b>＋ 新しく</b>で、いまのメモを残したまま新しいメモを書き始めます。</li>
     <li><b>📤 出力</b>：コピー・ほかのアプリへ送る・ファイルに保存・印刷（PDF）・読み上げ。</li>
   </ul>
   <div class="row"><button class="btn" data-close>閉じる</button></div>
@@ -477,7 +531,7 @@ body.open #vault { display: flex; }
   <ul class="help">
     <li><b>開く</b>：メモ欄に合言葉だけを書いて、左上の「メモ」の文字をおす。</li>
     <li><b>閉じる</b>：右上の ✕、Esc、または画面を離れたとき。合言葉は覚えていないので、開くたびに入力します。</li>
-    <li><b>新しく作る</b>：メモ欄を空にして「メモ」の文字を長おし（約1秒）。</li>
+    <li><b>新しく作る</b>：メモ欄を空にして（下の「＋ 新しく」で空になります）「メモ」の文字を長おし（約1秒）。</li>
     <li><b>合言葉が違うとき</b>：何も起きません。ただのメモ帳のままです。</li>
     <li><b>中身</b>：この端末の中だけに、合言葉で錠をかけて保存します。どこにも送信しません。</li>
     <li>⚠ 合言葉を忘れると取り出せません。控えの書き出し（錠つき）をおすすめします。</li>

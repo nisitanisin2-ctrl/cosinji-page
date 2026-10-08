@@ -85,18 +85,183 @@ document.addEventListener('click', e => {
 });
 
 /* ══ 表のメモ帳 ══
-   とちゅうで 勝手に 保存しない（合言葉を メモ欄に 書いて 開く ので、合言葉が 残らない ように）。「保存」を おした ときだけ */
+   途中で勝手に保存しない（合言葉をメモ欄に書いて開くので、合言葉が残らないように）。「保存」をおしたときだけ。
+   保存したメモはいくつでも持てて、📂 呼び出す から開く（v530）。
+   ・一覧は別の場所（memo.list.v1）に置く。前の版のプログラムが memo.local.v1 を書き直しても一覧は消えない
+   ・memo.local.v1 の t・h には、いま開いているメモの中身を写しておく（前の版で開いても同じものが出る）。
+     前の版で保存されて一覧にない文があれば、次に開いたとき一覧に入れる */
 const ME = window.MemoEd;
+const LIST_KEY = 'memo.list.v1';
 $('#today').textContent = new Date().toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' });
-ME.load(loadStore());
 
-$('#save').addEventListener('click', () => {
-  const s = loadStore(), d = ME.dump();
-  s.t = d.t;
-  if (d.h) s.h = d.h; else delete s.h;
-  if (saveStore(s)) { ME.markSaved(); toast('保存しました'); }
+const newMemoId = () => 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+function cleanMemo(x) {
+  if (!x || typeof x !== 'object' || typeof x.id !== 'string' || !/^m[0-9a-z]{4,24}$/.test(x.id) || typeof x.t !== 'string') return null;
+  const o = { id: x.id, t: x.t, at: Number(x.at) || 0, up: Number(x.up) || Number(x.at) || 0 };
+  if (typeof x.h === 'string' && x.h) o.h = x.h;
+  return o;
+}
+function loadList() {
+  let L = null;
+  try {
+    const o = JSON.parse(localStorage.getItem(LIST_KEY));
+    if (o && typeof o === 'object' && Array.isArray(o.items)) {
+      const seen = {}, items = [];
+      o.items.forEach(x => { const c = cleanMemo(x); if (c && !seen[c.id]) { seen[c.id] = 1; items.push(c); } });
+      L = { cur: typeof o.cur === 'string' && seen[o.cur] ? o.cur : null, items };
+    }
+  } catch (e) {}
+  const s = loadStore();
+  if (!L) L = { cur: null, items: [] };
+  // はじめて開いたとき（これまでの1つだけのメモ）や、前の版で保存した文は、一覧に入れて開く
+  if (s.t.trim() && !L.items.some(x => x.t === s.t)) {
+    const now = Date.now(), it = { id: newMemoId(), t: s.t, at: now, up: now };
+    if (s.h) it.h = s.h;
+    L.items.push(it); L.cur = it.id;
+    saveList(L);
+  }
+  return L;
+}
+function saveList(L) {
+  try { localStorage.setItem(LIST_KEY, JSON.stringify(L)); return true; }
+  catch (e) { toast('保存できませんでした（空きが足りないかもしれません）'); return false; }
+}
+let ML = loadList();
+const curMemo = () => ML.cur ? ML.items.find(x => x.id === ML.cur) || null : null;
+const firstLine = t => { const l = String(t || '').split('\n').map(x => x.trim()).find(Boolean) || ''; return l.length > 40 ? l.slice(0, 40) + '…' : l; };
+const titleOf = it => firstLine(it.t) || '（無題）';
+// memo.local.v1 の t・h を、いま開いているメモにそろえる（消したメモの文がここに残らないように）
+function mirror() {
+  const s = loadStore(), it = curMemo();
+  s.t = it ? it.t : '';
+  if (it && it.h) s.h = it.h; else delete s.h;
+  saveStore(s);
+}
+function updDoc() {
+  const it = curMemo();
+  $('#docTtl').textContent = '📄 ' + (it ? titleOf(it) : '新しいメモ');
+}
+function showMemo(it) { ME.load(it || { t: '' }); updDoc(); }
+showMemo(curMemo());
+
+function saveMemo() {
+  const d = ME.dump(), it = curMemo();
+  if (!d.t.trim()) { toast(it ? '空のメモは保存しません（消すときは 📂 呼び出す の 🗑 から）' : 'まだ何も書いていません'); return false; }
+  const now = Date.now(), x = it || { id: newMemoId(), t: '', at: now, up: now };
+  x.t = d.t; x.up = now;
+  if (d.h) x.h = d.h; else delete x.h;
+  if (!it) { ML.items.push(x); ML.cur = x.id; }
+  if (!saveList(ML)) { ML = loadList(); updDoc(); return false; }
+  mirror(); ME.markSaved(); updDoc(); toast('保存しました');
+  return true;
+}
+$('#save').addEventListener('click', saveMemo);
+
+/* 保存していない変更があるときは、ほかのメモに移る前に聞く */
+let dsFn = null;
+function guard(fn) {
+  if (!ME.dirty() || !ME.text().trim()) { fn(); return; }
+  dsFn = fn;
+  const it = curMemo();
+  $('#dsText').textContent = (it ? '「' + titleOf(it) + '」' : '新しいメモ') + 'の変更を保存しますか？';
+  openSheet('#dsSheet');
+}
+const dsDone = () => { const f = dsFn; dsFn = null; $('#dsSheet').classList.remove('on'); return f; };
+$('#dsSave').addEventListener('click', () => { const f = dsDone(); if (saveMemo() && f) f(); });
+$('#dsDrop').addEventListener('click', () => { const f = dsDone(); if (f) f(); });
+$('#dsNo').addEventListener('click', () => { dsDone(); });
+
+/* ＋ 新しく：いまのメモは残したまま、空のメモを書き始める */
+function newMemo() {
+  guard(() => {
+    ME.stop();
+    ML.cur = null; saveList(ML); mirror();
+    showMemo(null); closeSheets();
+    if (!matchMedia('(pointer: coarse)').matches) $('#memo').focus();   // スマホではキーボードを出さない（🎤 で書く人のため）
+  });
+}
+$('#newBtn').addEventListener('click', newMemo);
+$('#lsNew').addEventListener('click', newMemo);
+
+/* 📂 呼び出す：保存したメモの一覧（新しい順・さがす・🗑 消す） */
+function whenStr(ts) {
+  if (!ts) return '';
+  const d = new Date(ts), n = new Date(), hm = d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+  if (d.toDateString() === n.toDateString()) return '今日 ' + hm;
+  const y = new Date(n.getFullYear(), n.getMonth(), n.getDate() - 1);
+  if (d.toDateString() === y.toDateString()) return 'きのう ' + hm;
+  if (d.getFullYear() === n.getFullYear()) return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + hm;
+  return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
+}
+function memoRow(it) {
+  const row = document.createElement('div');
+  row.className = 'ls-item' + (it.id === ML.cur ? ' cur' : '');
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'ls-open'; b.dataset.id = it.id;
+  const ttl = document.createElement('span'); ttl.className = 'ls-ttl'; ttl.textContent = titleOf(it);
+  const sub = document.createElement('span'); sub.className = 'ls-sub';
+  sub.textContent = [whenStr(it.up), it.t.length + '文字', it.h ? '🎨 書式あり' : '', it.id === ML.cur ? '開いています' : ''].filter(Boolean).join('・');
+  b.appendChild(ttl); b.appendChild(sub);
+  const lines = it.t.split('\n').map(x => x.trim()).filter(Boolean);
+  if (lines.length > 1) { const pv = document.createElement('span'); pv.className = 'ls-pv'; pv.textContent = lines.slice(1).join(' ').slice(0, 80); b.appendChild(pv); }
+  row.appendChild(b);
+  const del = document.createElement('button'); del.type = 'button'; del.className = 'icon-btn ls-del'; del.dataset.del = it.id;
+  del.textContent = '🗑'; del.title = '消す'; del.setAttribute('aria-label', '「' + titleOf(it) + '」を消す');
+  row.appendChild(del);
+  return row;
+}
+function renderMemos() {
+  const box = $('#lsList'), q = $('#lsQ').value.trim().toLowerCase();
+  const items = ML.items.slice().sort((a, b) => (b.up || 0) - (a.up || 0));
+  $('#lsTitle').textContent = '保存したメモ' + (items.length ? '（' + items.length + '）' : '');
+  $('#lsQ').hidden = items.length < 2;
+  box.textContent = '';
+  const hit = q ? items.filter(it => it.t.toLowerCase().indexOf(q) >= 0) : items;
+  if (!hit.length) {
+    const e = document.createElement('div'); e.className = 'ls-empty';
+    e.textContent = items.length ? '見つかりません' : 'まだ保存したメモはありません。書いて「保存」をおすと、ここに入ります。';
+    box.appendChild(e); return;
+  }
+  hit.forEach(it => box.appendChild(memoRow(it)));
+}
+function openList() { ME.stop(); $('#lsQ').value = ''; renderMemos(); openSheet('#lsSheet'); }
+$('#lsBtn').addEventListener('click', openList);
+$('#docTtl').addEventListener('click', openList);
+$('#lsQ').addEventListener('input', renderMemos);
+function openMemo(id) {
+  const it = ML.items.find(x => x.id === id); if (!it) return;
+  guard(() => {
+    ML.cur = id; saveList(ML); mirror();
+    showMemo(it); closeSheets();
+    toast('「' + titleOf(it) + '」を開きました');
+  });
+}
+function deleteMemo(id) {
+  const i = ML.items.findIndex(x => x.id === id); if (i < 0) return;
+  const wasCur = ML.cur === id;
+  ML.items.splice(i, 1);
+  if (wasCur) ML.cur = null;
+  if (!saveList(ML)) { ML = loadList(); renderMemos(); return; }
+  mirror();
+  if (wasCur) showMemo(null);
+  renderMemos(); toast('消しました');
+}
+$('#lsList').addEventListener('click', e => {
+  const t = e.target.closest('button'); if (!t) return;
+  const row = t.closest('.ls-item');
+  if (t.dataset.id) { openMemo(t.dataset.id); return; }
+  if (t.dataset.del) {   // その場で「消しますか？」と聞く
+    if (row.querySelector('.ls-ask')) return;
+    const ask = document.createElement('div'); ask.className = 'ls-ask';
+    const msg = document.createElement('span'); msg.textContent = '消しますか？';
+    const no = document.createElement('button'); no.type = 'button'; no.className = 'btn sub'; no.dataset.no = '1'; no.textContent = 'やめる';
+    const yes = document.createElement('button'); yes.type = 'button'; yes.className = 'btn danger'; yes.dataset.yes = t.dataset.del; yes.textContent = '消す';
+    ask.appendChild(msg); ask.appendChild(no); ask.appendChild(yes);
+    t.hidden = true; row.appendChild(ask); row.classList.add('asking');
+    return;
+  }
+  if (t.dataset.no) { renderMemos(); return; }
+  if (t.dataset.yes) deleteMemo(t.dataset.yes);
 });
-$('#clear').addEventListener('click', () => { ME.clear(); $('#memo').focus(); });
 
 /* 「メモ」の文字：ふつうにおす＝開ける、長おし＝新しく作る */
 const brand = $('#brand');
@@ -124,7 +289,7 @@ async function tryUnlock() {
     const data = await unseal(pass, store.b[i]);
     if (data) {
       cur = { pass, idx: i, data: normalize(data) };
-      ME.load(store);                      // 合言葉を画面に残さない（↶ でも 戻せない）
+      showMemo(curMemo());                 // 合言葉を画面に残さない（↶ でも戻せない）。開いていたメモにもどす
       enterVault();
       busy = false;
       return;
