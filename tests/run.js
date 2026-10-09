@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,ruler,kakudo,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,trim,manner,boki,kurashi,keisan,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu');
+    'tansui,kantab,veggie,volume,ruler,kakudo,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,trim,manner,boki,kurashi,keisan,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -6630,7 +6630,7 @@ async function runSecurity(browser) {
   const dir = (c, k) => ((c.split(';').map(x => x.trim()).find(x => x.startsWith(k + ' ')) || '').slice(k.length + 1));
   const c0 = await csp(page);
   check('  CSP：表電卓は自分の所からだけ読み込む・外へ送らない', [dir(c0, 'default-src'), dir(c0, 'connect-src'), dir(c0, 'object-src'), dir(c0, 'base-uri'), dir(c0, 'script-src')].join(' | '), "'self' | 'self' data: blob: | 'none' | 'self' | 'self' 'unsafe-inline'");
-  for (const [sub, strict] of [['kaikei', false], ['koe', false], ['eigo', false], ['notes', true], ['saien', true], ['sansu', true]]) {
+  for (const [sub, strict] of [['kaikei', false], ['koe', false], ['eigo', false], ['notes', true], ['saien', true], ['sansu', true], ['kakijun', true]]) {
     const sp = await ctx.newPage(); await sp.goto('file://' + path.join(ROOT, sub, 'index.html')); await sp.waitForTimeout(300);
     const c = await csp(sp);
     check('  CSP：' + sub + (strict ? '（ページの中のプログラムも動かさない）' : ''), [/object-src 'none'/.test(c), dir(c, 'script-src')].join(' | '), 'true | ' + (strict ? "'self'" : "'self' 'unsafe-inline'"));
@@ -7143,6 +7143,147 @@ async function runMemoPhoto(browser) {
   check('  写真の道具の段は横にすべらせる・画面は横にずれない', await page.evaluate(() => { MemoEd._t.selectPhoto('pnone01'); const b = document.getElementById('phbar'); return b.classList.contains('more') + '|' + (document.documentElement.scrollWidth <= innerWidth); }), 'true|true');
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
+}
+/* ✍️ かきじゅん帳（kakijun/。v532）：常用漢字の書き順アニメーション・綺麗に書くコツ・手書き／声で探す・なぞり練習 */
+async function runKakijun(browser) {
+  console.log('\n── ✍️ かきじゅん帳（v532） ──');
+  const dir = path.join(ROOT, 'kakijun'), KKJ = 'file://' + path.join(dir, 'index.html');
+  const sw = fs.readFileSync(path.join(dir, 'service-worker.js'), 'utf8'), html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
+  const files = ['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'css/style.css', 'js/data.js', 'js/recog.js', 'js/app.js'];
+  check('  ファイルがそろい、service-worker が持つ（自分の控え kakijun- だけ消す）', [files.every(f => fs.existsSync(path.join(dir, f)) && sw.includes("'./" + f + "'")), sw.includes("CACHE_PREFIX = 'kakijun-'") && /k\.startsWith\(CACHE_PREFIX\)/.test(sw)].join('/'), 'true/true');
+  check('  外からは何も読み込まない（フォントも）・プログラムはファイルだけ', [/googleapis|gstatic|https?:\/\/(?!kanjivg|www\.edrdg)/.test(html.replace(/<footer[\s\S]*<\/footer>/, '')), /<script>(?!\s*<\/script>)|on(click|load|error)=/i.test(html), /script-src 'self';/.test(html)].join('/'), 'false/false/true');
+  check('  筆順データの出どころと権利（KanjiVG・KANJIDIC2・CC BY-SA）', [/KanjiVG/.test(html) && /CC BY-SA 3\.0/.test(html) && /KANJIDIC2/.test(html), /CC BY-SA 3\.0/.test(fs.readFileSync(path.join(dir, 'js/data.js'), 'utf8').slice(0, 600))].join('/'), 'true/true');
+
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: false });
+  await ctx.addInitScript(() => {
+    // 声はまねもので
+    window.SpeechRecognition = class { constructor() { window.__rec = this; } start() { window.__started = (window.__started || 0) + 1; } stop() { setTimeout(() => this.onend && this.onend(), 0); } abort() { } };
+    window.__say = (alts) => { const r = alts.map(t => ({ transcript: t })); r.isFinal = true; window.__rec.onresult({ resultIndex: 0, results: [r] }); window.__rec.onend(); };
+  });
+  const page = await ctx.newPage();
+  const errs = []; page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/favicon/.test(m.text())) errs.push('console: ' + m.text()); });
+  const reqs = []; page.on('request', r => { if (!/^file:|^data:|^blob:/.test(r.url())) reqs.push(r.url()); });
+  const w = ms => page.waitForTimeout(ms);
+  await page.goto(KKJ); await w(1500);
+  check('  2136字（小1 80・小2 160・小3 200・小4 202・小5 193・小6 191・中学以降 1110）', await page.evaluate(() => { const g = {}; KKJ_APP.ALL.forEach(k => { g[k.g] = (g[k.g] || 0) + 1; }); return KKJ_APP.ALL.length + ' ' + [1, 2, 3, 4, 5, 6, 7].map(i => g[i]).join(','); }), '2136 80,160,200,202,193,191,1110');
+  check('  はじめは「永」（書き順を見る）・単独で開いたときは「← 表電卓」を出さない', await page.evaluate(() => [KKJ_APP.cur().c, KKJ_APP.mode(), document.getElementById('backHyo').hidden, location.hash].join('/')), '永/view/true/#u6c38');
+  check('  よけいなもの（手書き・声の窓・練習の紙）は出さない', await page.evaluate(() => ['hwSheet', 'micSheet', 'backdrop', 'pc', 'prResult'].map(i => getComputedStyle(document.getElementById(i)).display).join(',')), 'none,none,none,none,none');
+
+  // 書き順アニメーション
+  await page.evaluate(() => KKJ_APP.load('山', { autoplay: false })); await w(100);
+  const st = () => page.evaluate(() => KKJ_APP.P().k + '|' + [...document.querySelectorAll('#lInk path')].map(p => p.classList.contains('on') ? 1 : 0).join(''));
+  check('  「山」：はじめは0画・線は3本・筆順一覧も3つ', [await st(), await page.evaluate(() => document.querySelectorAll('#steps .step').length), await page.textContent('#capCount')].join('/'), '0|000/3/0 / 3画');
+  await page.click('#bNext'); await w(1700);
+  check('  ▶| で1画すすむ（1画目「縦画」）', [await st(), await page.textContent('#capName')].join('/'), '1|100/縦画とめ');
+  await page.click('#bPlay'); await w(4200);
+  check('  ▶ で最後まで書く（書き終わり）', [await st(), /書き終わり/.test(await page.textContent('#capTip'))].join('/'), '3|111/true');
+  await page.click('#bPrev'); await w(100);
+  check('  |◀ で1画もどる', await st(), '2|110');
+  await page.click('#bReset'); await w(100);
+  check('  ↺ ではじめから', await st(), '0|000');
+  await page.click('#steps .step:nth-child(2)'); await w(100);
+  check('  筆順一覧をおすとその画まで', await st(), '2|110');
+  await page.click('#bSpeed'); await page.click('#oLoop'); await page.click('#oNums');
+  check('  速さ・くり返し・画の番号を覚える', await page.evaluate(() => [document.getElementById('bSpeed').textContent, localStorage.getItem('kkj:speed'), localStorage.getItem('kkj:loop'), localStorage.getItem('kkj:nums')].join('/')), 'はやい/2/true/false');
+  await page.click('#bSpeed'); await page.click('#oLoop'); await page.click('#oNums');
+
+  // 字の説明・綺麗に書くコツ
+  await page.evaluate(() => KKJ_APP.load('話', { autoplay: false })); await w(100);
+  check('  「話」：学年・画数・音訓・組み立て（左右）', await page.evaluate(() => [document.getElementById('big').textContent, [...document.querySelectorAll('#meta .tag')].map(t => t.textContent).slice(0, 2).join(' '), document.getElementById('yomi').textContent, document.getElementById('parts').textContent].join('/')), '話/小学2年 13画/音ワ訓はなす・はなし/組み立て：左右　言（ごんべん） ＋ 舌');
+  check('  コツ：左右の幅の割合など（3つ以上）・線の書き方', await page.evaluate(() => { const t = [...document.querySelectorAll('#tips li')].map(l => l.textContent); return [t.length >= 3, t.some(x => /幅は、およそ\d : \d/.test(x)), document.getElementById('tipsTitle').textContent, document.querySelectorAll('#kinds .kind').length > 2].join('/'); }), 'true/true/「話」を綺麗に書くコツ/true');
+  await page.evaluate(() => KKJ_APP.load('右', { autoplay: false })); await w(100);
+  check('  まちがえやすい字は「!」で注意（右と左）', await page.evaluate(() => { const a = document.querySelector('#tips li.alert'); return !!a && /左払い → 横画/.test(a.textContent); }), true);
+  check('  書き順の基本ルール（9つ）', await page.evaluate(() => document.querySelectorAll('#ruleList li').length), 9);
+
+  // 探す：漢字・よみ・画数
+  const sr = q => page.evaluate(q => { const r = KKJ_APP.search(q); return r ? r.list.length + ':' + r.list.slice(0, 5).map(k => k.c).join('') + ':' + r.msg : 'null'; }, q);
+  check('  漢字で探す', await sr('山川'), '2:山川:');
+  check('  よみで探す（ひらがな・カタカナ）', [(await sr('やま')).split(':')[1].includes('山'), (await sr('ヤマ')).split(':')[1].includes('山')].join('/'), 'true/true');
+  check('  画数で探す（全角の数字も）', [await sr('1画'), (await sr('２３画')).split(':')[2]].join('/'), '2:一乙:1画の漢字（2字）/23画の漢字（1字）');
+  check('  常用漢字でない字は知らせる', (await sr('鬱')).split(':').slice(0, 1) + '/' + /常用漢字ではない/.test(await sr('丼丸')), '1/false');
+  await page.fill('#q', 'さくら'); await w(150);
+  check('  検索欄：候補を出す・Enter で開く', [await page.evaluate(() => !document.getElementById('results').hidden && document.querySelectorAll('#results .res-item').length > 0)].join(''), 'true');
+  await page.press('#q', 'Enter'); await w(300);
+  check('  Enter で最初の字（桜）', await page.evaluate(() => KKJ_APP.cur().c), '桜');
+
+  // ✏️ 手書きで探す（お手本どおりの線なら1番目に）
+  const rec = await page.evaluate(() => ['山', '木', '書', '鳥', '愛', '右', '左'].map(c => { const g = KKJ_APP.geo(KKJ_APP.K.get(c)); const st = g.polys.map(p => p.map(q => [q[0] * 300 / 109, q[1] * 300 / 109])); return c + (KKJ_APP.recognize(st, 300, 5)[0] || {}).c; }).join(' '));
+  check('  手書き：お手本どおりに書けば1番目に出る', rec, '山山 木木 書書 鳥鳥 愛愛 右右 左左');
+  const rec2 = await page.evaluate(() => { const g = KKJ_APP.geo(KKJ_APP.K.get('川')); const st = g.polys.map(p => p.map(q => [q[0] * 300 / 109 + 9, q[1] * 300 / 109 - 6]).reverse()).reverse(); return KKJ_APP.recognize(st, 300, 5).map(r => r.c).slice(0, 3).indexOf('川') >= 0; });
+  check('  手書き：書き順や向きがちがっても候補に出る', rec2, true);
+  await page.click('#hwBtn'); await w(300);
+  const pad = await page.evaluate(() => { const r = document.getElementById('hwc').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width }; });
+  const strokesOf = c => page.evaluate(c => KKJ_APP.geo(KKJ_APP.K.get(c)).polys, c);
+  for (const poly of await strokesOf('火')) {
+    const P = poly.map(q => [pad.x + q[0] / 109 * pad.w, pad.y + q[1] / 109 * pad.w]);
+    await page.mouse.move(P[0][0], P[0][1]); await page.mouse.down();
+    for (const q of P.slice(1)) await page.mouse.move(q[0], q[1], { steps: 2 });
+    await page.mouse.up(); await w(80);
+  }
+  await w(400);
+  check('  手書きの窓：マスに書くと候補が出る（火）', await page.evaluate(() => [...document.querySelectorAll('#cands button')].slice(0, 3).map(b => b.textContent).join('')).then(s => s[0] + '/' + (s.length === 3)), '火/true');
+  await page.click('#hwUndo'); await w(200);
+  await page.click('#hwClear'); await w(100);
+  check('  1画もどす・全部けす', await page.evaluate(() => document.getElementById('cands').textContent), '書くと候補が出ます');
+  await page.keyboard.press('Escape'); await w(100);
+
+  // 🎤 声で探す
+  await page.click('#micBtn'); await w(150);
+  check('  🎤：聞き始める（声はブラウザの音声認識で文字にすることも知らせる）', await page.evaluate(() => [window.__started, window.__rec.lang, !document.getElementById('micSheet').hidden, /ブラウザの音声認識/.test(document.getElementById('micState').textContent)].join('/')), '1/ja-JP/true/true');
+  await page.evaluate(() => window.__say(['海の字', 'うみのじ'])); await w(400);
+  check('  「海の字」→ 海を開く', await page.evaluate(() => KKJ_APP.cur().c + '/' + document.getElementById('micSheet').hidden), '海/true');
+  await page.click('#micBtn'); await w(100);
+  await page.evaluate(() => window.__say(['はな'])); await w(300);
+  check('  かなで聞き取れたときは、そのよみの字を候補に', await page.evaluate(() => { const c = [...document.querySelectorAll('#micCands button')].map(b => b.textContent); return c.includes('花') + '/' + c.includes('鼻'); }), 'true/true');
+  await page.click('#micCands button'); await w(200);
+  check('  候補をおすとその字', await page.evaluate(() => KKJ_APP.cur().c), '花');
+  await page.click('#micBtn'); await w(100);
+  await page.evaluate(() => window.__rec.onerror({ error: 'not-allowed' })); await w(100);
+  check('  マイクが使えないときはキーボードの音声入力へ', await page.evaluate(() => /マイクが使えません/.test(document.getElementById('micState').textContent) + '/' + !!document.getElementById('micToInput')), 'true/true');
+  await page.click('#micToInput'); await w(150);
+  check('  「検索欄で音声入力する」で検索欄へ', await page.evaluate(() => document.activeElement.id + '/' + document.getElementById('micSheet').hidden), 'q/true');
+
+  // なぞって練習
+  await page.evaluate(() => KKJ_APP.load('十', { autoplay: false })); await w(100);
+  await page.click('#modePractice'); await w(200);
+  check('  なぞって練習：練習の紙を出す・1画目の案内', await page.evaluate(() => [KKJ_APP.mode(), getComputedStyle(document.getElementById('pc')).display, document.getElementById('prMsg').textContent].join('/')), 'practice/block/1/21画目は「横画」。色のついた線を●からなぞりましょう。');
+  const box = await page.evaluate(() => { const r = document.getElementById('pc').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width }; });
+  const drawPoly = async (poly, rev) => {
+    const P = (rev ? poly.slice().reverse() : poly).map(q => [box.x + q[0] / 109 * box.w, box.y + q[1] / 109 * box.w]);
+    await page.mouse.move(P[0][0], P[0][1]); await page.mouse.down();
+    for (const q of P.slice(1)) await page.mouse.move(q[0], q[1], { steps: 2 });
+    await page.mouse.up(); await w(120);
+  };
+  const ten = await strokesOf('十');
+  await drawPoly(ten[1]);
+  check('  書き順がちがうと知らせる', await page.evaluate(() => /書き順がちがいます/.test(document.getElementById('prMsg').textContent) + '/' + KKJ_APP.PR().i), 'true/0');
+  await drawPoly(ten[0], true);
+  check('  向きが逆だと知らせる', await page.evaluate(() => /向きが逆です/.test(document.getElementById('prMsg').textContent)), true);
+  await drawPoly(ten[0]); await drawPoly(ten[1]); await w(300);
+  check('  正しく書けたら点数と ★', await page.evaluate(() => { const r = document.getElementById('prResult'); return [!r.hidden, /★/.test(r.textContent), /ミス 2回/.test(r.textContent), !!localStorage.getItem('kkj:best')].join('/'); }), 'true/true/true/true');
+  await page.click('#rAgain'); await w(100);
+  await drawPoly(ten[0]); await page.click('#prUndo'); await w(100);
+  check('  1画もどす', await page.evaluate(() => KKJ_APP.PR().i), 0);
+  await page.click('#practiceUI [data-lv="3"]'); await w(100);
+  check('  テスト：お手本も●も出さない・覚える', await page.evaluate(() => [getComputedStyle(document.getElementById('lGhost')).display, document.querySelectorAll('#lHint *').length, localStorage.getItem('kkj:lv')].join('/')), 'none/0/3');
+  await page.click('#practiceUI [data-lv="1"]'); await page.click('#modeView'); await w(100);
+
+  // 学年の一覧・最近見た字
+  await page.click('#gtabs [data-t="1"]'); await w(100);
+  check('  学年の一覧（1年は80字）', await page.evaluate(() => document.querySelectorAll('#kgrid button').length + '/' + document.getElementById('gridCount').textContent), '80/小学1年・80字');
+  await page.click('#gtabs [data-t="r"]'); await w(100);
+  check('  最近見た字（新しい順）', await page.evaluate(() => [...document.querySelectorAll('#kgrid button')].slice(0, 3).map(b => b.textContent).join('')), '十花海');
+  check('  外へは何も取りに行かない', reqs.join(','), '');
+
+  // 表電卓から開く
+  await page.goto('about:blank'); await page.goto(KKJ + '#from=hyo'); await w(1200);
+  check('  表電卓から開いたときは「← 表電卓」（字の印に入れかわる）', await page.evaluate(() => !document.getElementById('backHyo').hidden + '/' + location.hash + '/' + document.body.classList.contains('from-hyo')), 'true/#u6c38/true');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+
+  const { ctx: c2, page: hp } = await newPage(browser);
+  check('  表電卓：道具・自分のボタン・ホーム画面アイコン・まとまり（📚）', await hp.evaluate(() => { const t = NP_TOOLS.find(x => x.id === 'kakijun'); return [!!t && t.label, !!KEY_FUNCS.a_kakijun, REG_GESTURE_ACTIONS.has('a_kakijun'), /kakijun\/(index\.html)?#from=hyo$/.test(sideAppUrl('kakijun', '#from=hyo')), /kakijun\/(index\.html)?$/.test(appIconUrl(t)), TOOL_CATS.find(c => c[1].includes('kakijun'))[0]].join('/'); }), '✍️かきじゅん帳/true/true/true/true/📚 声・まなぶ');
+  await c2.close();
 }
 /* 🎓 算数・数学チャレンジ（sansu/。v527）：別のアプリ。問題の作り方・答え合わせ・声・画面の流れ・表電卓から開く */
 // 単元の 数（全部 / 小1〜中3）。単元を 足したら ここも かえる
@@ -10148,7 +10289,7 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/29');   // v527 で 🎓算数・数学 が ふえた
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/30');   // v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
@@ -10184,7 +10325,7 @@ async function runToolsFab(browser) {
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
-  for (const [dir, id] of [['kaikei', 'hdBack'], ['notes', 'backHyo']]) {
+  for (const [dir, id] of [['kaikei', 'hdBack'], ['notes', 'backHyo'], ['kakijun', 'backHyo']]) {
     const sp = await ctx.newPage();
     await sp.goto('file://' + path.join(ROOT, dir, 'index.html') + '#from=hyo'); await sp.waitForTimeout(900);
     const a = await sp.evaluate(i => { const b = document.getElementById(i); return !!b && !b.hidden && b.textContent.trim(); }, id);
@@ -11297,6 +11438,7 @@ async function runQrShare(browser) {
     if (!only || only === 'memo' || only === 'memolist') await runMemoList(browser);
     if (!only || only === 'memo' || only === 'memophoto') await runMemoPhoto(browser);
     if (!only || only === 'sansu') await runSansu(browser);
+    if (!only || only === 'kakijun') await runKakijun(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
   } finally { await browser.close(); }

@@ -1,0 +1,17 @@
+{
+  "name": "かきじゅん帳（常用漢字の書き順）",
+  "short_name": "かきじゅん帳",
+  "description": "常用漢字2136字の書き順アニメーション・綺麗に書くコツ・なぞり練習。手書きや声でも探せます",
+  "id": "/kakijun",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F4F7F3",
+  "theme_color": "#2B7655",
+  "orientation": "any",
+  "lang": "ja",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
