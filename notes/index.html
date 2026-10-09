@@ -131,17 +131,36 @@ body.talking #memo { border-color: var(--danger); }
 .m-yellow { background: var(--m-yellow); } .m-green { background: var(--m-green); } .m-blue { background: var(--m-blue); } .m-pink { background: var(--m-pink); } .m-orange { background: var(--m-orange); }
 .m-yellow, .m-green, .m-blue, .m-pink, .m-orange { border-radius: 3px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
 /* 書式のボタン（入りきらない分は横にすべらせる） */
-#fmt { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; flex: 0 0 auto; margin: 0 -2px; padding: 0 2px; }
+#fmt, #phbar { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; flex: 0 0 auto; margin: 0 -2px; padding: 0 2px; }
+#phbar::-webkit-scrollbar { display: none; }
 /* 右に続きがあるときは端をうすくして、すべらせられることを見せる */
-#fmt.more { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); }
+#fmt.more, #phbar.more { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); }
 #fmt::-webkit-scrollbar { display: none; }
-#fmt button, #pop button, #quick .qk {
+#fmt button, #phbar button, #pop button, #quick .qk {
   flex: 0 0 auto; min-width: 40px; height: 38px; padding: 0 10px; border-radius: var(--r-btn);
   border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 14px; white-space: nowrap;
   display: inline-flex; align-items: center; justify-content: center; gap: 4px; touch-action: manipulation;
 }
-#fmt button:hover, #pop button:hover, #quick .qk:hover { background: var(--acc-weak); }
-#fmt button.on { background: var(--acc-weak); border-color: var(--acc); }
+#fmt button:hover, #phbar button:hover, #pop button:hover, #quick .qk:hover { background: var(--acc-weak); }
+#fmt button.on, #phbar button.on { background: var(--acc-weak); border-color: var(--acc); font-weight: 700; }
+#phbar { padding-left: 4px; border-left: 4px solid var(--acc); border-radius: 4px; }
+/* 📷 写真（1枚が1字。まん中＝写真だけの行、左右に寄せると文字が回り込む） */
+#memo .ph { display: inline-block; position: relative; vertical-align: top; max-width: 100%; line-height: 0; border-radius: 6px;
+  cursor: pointer; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; break-inside: avoid; }
+#memo .ph img { display: block; width: 100%; height: auto; border-radius: 6px; background: var(--acc-weak); pointer-events: none; -webkit-user-drag: none; }
+#memo .ph-c { display: block; margin: 6px auto; }
+#memo .ph-l { float: left; margin: 4px 12px 6px 0; }
+#memo .ph-r { float: right; margin: 4px 0 6px 12px; }
+#memo .ph.sel { outline: 3px solid var(--acc); outline-offset: 2px; touch-action: none; cursor: move; }
+#memo .ph.sel::after { content: ""; position: absolute; right: -11px; bottom: -11px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--acc); border: 3px solid var(--card); box-shadow: var(--elev-1); cursor: nwse-resize; }
+#memo .ph-r.sel::after { right: auto; left: -11px; cursor: nesw-resize; }
+#memo .ph.drag { opacity: .7; z-index: 5; box-shadow: var(--elev-2); }
+#memo .ph.miss img { min-height: 64px; }
+#memo .ph.miss::before { content: "写真が見つかりません"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; line-height: 1.4; color: var(--sub); }
+#phDrop { position: fixed; z-index: 30; height: 4px; border-radius: 2px; background: var(--acc); pointer-events: none; box-shadow: 0 0 0 2px var(--card); }
+#phDrop span { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 12px; font-weight: 700;
+  background: var(--acc); color: #fff; padding: 2px 10px; border-radius: var(--r-pill); }
 #fmt .b-w { font-weight: 800; } #fmt .b-u { text-decoration: underline; } #fmt .b-x { text-decoration: line-through; }
 #fmt .a-ico { font-weight: 800; border-bottom: 3px solid var(--c-red); line-height: 1.1; }
 #fmt .mk-ico { background: var(--m-yellow); border-radius: 3px; padding: 0 3px; }
@@ -296,6 +315,8 @@ body.open #vault { display: flex; }
   #pad { display: block; height: auto; max-width: none; padding: 0; }
   #memo { border: none; padding: 0; overflow: visible; height: auto; }
   #memo span { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #memo .ph.sel { outline: none; } #memo .ph.sel::after { display: none; }
+  #phbar, #phDrop { display: none !important; }
 }
 </style>
 </head>
@@ -311,6 +332,7 @@ body.open #vault { display: flex; }
   </header>
   <!-- 書式：文字を選んでから（選んでいなければその行に）。入りきらない分は横にすべらせる -->
   <div id="fmt" role="toolbar" aria-label="書式">
+    <button type="button" id="phAdd" title="写真を入れる" aria-label="写真を入れる">📷 写真</button>
     <button type="button" data-pop="c" title="文字色" aria-label="文字色"><span class="a-ico">A</span>文字色</button>
     <button type="button" data-pop="m" title="背景色（マーカー）" aria-label="背景色（マーカー）"><span class="mk-ico">あ</span>背景色</button>
     <button type="button" data-pop="f" title="フォント" aria-label="フォント">フォント</button>
@@ -320,6 +342,21 @@ body.open #vault { display: flex; }
     <button type="button" class="b-x" data-fmt="x" title="取消線" aria-label="取消線">S</button>
     <button type="button" data-fmt="clear" title="書式を消す" aria-label="書式を消す">書式を消す</button>
   </div>
+  <!-- 📷 写真を選んだときの道具（書式の段のかわりに出る） -->
+  <div id="phbar" role="toolbar" aria-label="写真" hidden>
+    <button type="button" data-al="l" title="左に寄せる（文字は右に回り込む）">◧ 左</button>
+    <button type="button" data-al="c" title="まん中（写真だけの行）">▣ 中央</button>
+    <button type="button" data-al="r" title="右に寄せる（文字は左に回り込む）">◨ 右</button>
+    <button type="button" data-w="30" title="小さく">小</button>
+    <button type="button" data-w="50" title="ふつう">中</button>
+    <button type="button" data-w="75" title="大きく">大</button>
+    <button type="button" data-w="100" title="幅いっぱい">全幅</button>
+    <button type="button" data-mv="-1" title="1行上へ" aria-label="1行上へ">↑</button>
+    <button type="button" data-mv="1" title="1行下へ" aria-label="1行下へ">↓</button>
+    <button type="button" data-ph="del" title="写真を消す" aria-label="写真を消す">🗑</button>
+    <button type="button" data-ph="done" title="写真の道具を閉じる">✓ 完了</button>
+  </div>
+  <input type="file" id="phFile" accept="image/*" multiple hidden>
   <div id="pop" hidden></div>
   <!-- いま開いているメモ（おすと保存したメモの一覧）と字数 -->
   <div id="doc">
@@ -401,6 +438,7 @@ body.open #vault { display: flex; }
     <li>キーボードの 🎤（音声入力）で話してもかまいません。句読点や改行は下のボタンでも入れられます。</li>
     <li><b>文字色・背景色・フォント・大きさ・太字</b>など：文字を選んでから上のボタンをおします（選んでいないときはその行ぜんぶに）。<b>書式を消す</b>でもとにもどります。</li>
     <li><b>↶</b>：打った字・声・書式を1つずつ戻します。<b>保存</b>をおすまで、書いたものは保存されません。</li>
+    <li><b>📷 写真</b>：カーソルの所に入れます（貼り付け・ドラッグでも）。写真をおして選ぶと、ドラッグで好きな行の間へ動かせます（落とした所が左・まん中・右なら、そちらに寄せます。左右に寄せると文字が回り込みます）。角の ● で大きさ、上の段で 左・中央・右／小・中・大・全幅／↑↓／🗑。</li>
     <li><b>📂 呼び出す</b>：保存したメモの一覧（新しい順）。おすとそのメモを開きます。🗑 で消せます。<b>＋ 新しく</b>で、いまのメモを残したまま新しいメモを書き始めます。</li>
     <li><b>📤 出力</b>：コピー・ほかのアプリへ送る・ファイルに保存・印刷（PDF）・読み上げ。</li>
   </ul>
@@ -564,6 +602,8 @@ body.open #vault { display: flex; }
 </div></div>
 
 <div id="toast"></div>
+<!-- 📷 写真をドラッグしているとき、落とす所のしるし -->
+<div id="phDrop" hidden><span></span></div>
 
 <script src="memo.js"></script>
 <script src="app.js"></script>

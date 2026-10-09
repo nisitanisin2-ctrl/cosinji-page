@@ -129,7 +129,8 @@ function saveList(L) {
 let ML = loadList();
 const curMemo = () => ML.cur ? ML.items.find(x => x.id === ML.cur) || null : null;
 const firstLine = t => { const l = String(t || '').split('\n').map(x => x.trim()).find(Boolean) || ''; return l.length > 40 ? l.slice(0, 40) + '…' : l; };
-const titleOf = it => firstLine(it.t) || '（無題）';
+const phCount = h => (String(h || '').match(/data-id="p[0-9a-z]{4,24}"/g) || []).length;   // 📷 写真の枚数（v531）
+const titleOf = it => firstLine(it.t) || (phCount(it.h) ? '（写真）' : '（無題）');
 // memo.local.v1 の t・h を、いま開いているメモにそろえる（消したメモの文がここに残らないように）
 function mirror() {
   const s = loadStore(), it = curMemo();
@@ -142,11 +143,14 @@ function updDoc() {
   $('#docTtl').textContent = '📄 ' + (it ? titleOf(it) : '新しいメモ');
 }
 function showMemo(it) { ME.load(it || { t: '' }); updDoc(); }
+// どのメモにも使われなくなった写真を片づける（保存しなかった写真・消したメモの写真）
+function gcPhotos() { ME.gcPhotos(ML.items.map(x => x.h || '').concat([loadStore().h || ''])).catch(() => {}); }
 showMemo(curMemo());
+gcPhotos();
 
 function saveMemo() {
   const d = ME.dump(), it = curMemo();
-  if (!d.t.trim()) { toast(it ? '空のメモは保存しません（消すときは 📂 呼び出す の 🗑 から）' : 'まだ何も書いていません'); return false; }
+  if (!d.t.trim() && !d.n) { toast(it ? '空のメモは保存しません（消すときは 📂 呼び出す の 🗑 から）' : 'まだ何も書いていません'); return false; }
   const now = Date.now(), x = it || { id: newMemoId(), t: '', at: now, up: now };
   x.t = d.t; x.up = now;
   if (d.h) x.h = d.h; else delete x.h;
@@ -160,7 +164,7 @@ $('#save').addEventListener('click', saveMemo);
 /* 保存していない変更があるときは、ほかのメモに移る前に聞く */
 let dsFn = null;
 function guard(fn) {
-  if (!ME.dirty() || !ME.text().trim()) { fn(); return; }
+  if (!ME.dirty() || ME.blank()) { fn(); return; }
   dsFn = fn;
   const it = curMemo();
   $('#dsText').textContent = (it ? '「' + titleOf(it) + '」' : '新しいメモ') + 'の変更を保存しますか？';
@@ -176,7 +180,7 @@ function newMemo() {
   guard(() => {
     ME.stop();
     ML.cur = null; saveList(ML); mirror();
-    showMemo(null); closeSheets();
+    showMemo(null); closeSheets(); gcPhotos();
     if (!matchMedia('(pointer: coarse)').matches) $('#memo').focus();   // スマホではキーボードを出さない（🎤 で書く人のため）
   });
 }
@@ -199,7 +203,8 @@ function memoRow(it) {
   const b = document.createElement('button'); b.type = 'button'; b.className = 'ls-open'; b.dataset.id = it.id;
   const ttl = document.createElement('span'); ttl.className = 'ls-ttl'; ttl.textContent = titleOf(it);
   const sub = document.createElement('span'); sub.className = 'ls-sub';
-  sub.textContent = [whenStr(it.up), it.t.length + '文字', it.h ? '🎨 書式あり' : '', it.id === ML.cur ? '開いています' : ''].filter(Boolean).join('・');
+  const np = phCount(it.h);
+  sub.textContent = [whenStr(it.up), it.t.length + '文字', np ? '📷 ' + np + '枚' : '', it.h && /class="[^"]*\b[wuxfscm]-/.test(it.h) ? '🎨 書式あり' : '', it.id === ML.cur ? '開いています' : ''].filter(Boolean).join('・');
   b.appendChild(ttl); b.appendChild(sub);
   const lines = it.t.split('\n').map(x => x.trim()).filter(Boolean);
   if (lines.length > 1) { const pv = document.createElement('span'); pv.className = 'ls-pv'; pv.textContent = lines.slice(1).join(' ').slice(0, 80); b.appendChild(pv); }
@@ -231,7 +236,7 @@ function openMemo(id) {
   const it = ML.items.find(x => x.id === id); if (!it) return;
   guard(() => {
     ML.cur = id; saveList(ML); mirror();
-    showMemo(it); closeSheets();
+    showMemo(it); closeSheets(); gcPhotos();
     toast('「' + titleOf(it) + '」を開きました');
   });
 }
@@ -243,7 +248,7 @@ function deleteMemo(id) {
   if (!saveList(ML)) { ML = loadList(); renderMemos(); return; }
   mirror();
   if (wasCur) showMemo(null);
-  renderMemos(); toast('消しました');
+  renderMemos(); toast('消しました'); gcPhotos();
 }
 $('#lsList').addEventListener('click', e => {
   const t = e.target.closest('button'); if (!t) return;
