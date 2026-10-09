@@ -57,7 +57,12 @@
         <button class="mode-btn mode-btn-wide" onclick="App.startChant()">
           <span class="mode-icon">🗣️</span>
           <span class="mode-name">日常チャンク</span>
-          <span class="mode-desc">日常フレーズを聞いて・声に出して覚える</span>
+          <span class="mode-desc">日常フレーズを聞いて・声に出して覚える（🎤 で発音チェック）</span>
+        </button>
+        <button class="mode-btn mode-btn-wide talk-home-btn" id="talk-open" type="button">
+          <span class="mode-icon">💬</span>
+          <span class="mode-name">英会話レッスン（マイクで話す）</span>
+          <span class="mode-desc">カフェ・買い物・自己紹介など10場面。🎤 で話すと相手が答えます</span>
         </button>
         <button class="mode-btn mode-btn-wide" onclick="App.startFreqMode()">
           <span class="mode-icon">📊</span>
@@ -129,7 +134,10 @@
         <div class="study-nav">
           <button class="back-btn" onclick="App.goHome()">← 戻る</button>
           <div class="study-counter"><span id="fc-idx">1</span>/<span id="fc-total">10</span></div>
-          <button class="sound-btn" onclick="App.speak()" id="fc-speak">🔊</button>
+          <span class="fc-sound-pair">
+            <button class="sound-btn" onclick="App.speak()" id="fc-speak">🔊</button>
+            <button class="sound-btn pron-mini" type="button" data-pron="fcword" id="fc-pron" title="発音チェック（声に出して言う）" aria-label="発音チェック">🎤</button>
+          </span>
           <button class="fc-again-btn" id="fc-again-btn" onclick="App.flipBack()" style="display:none">もう一度</button>
         </div>
         <!-- 全単語モード専用ツールバー -->
@@ -182,6 +190,7 @@
               <div class="fc-example-wrap" id="fc-example-wrap" style="display:none">
                 <div class="fc-example" id="fc-example"></div>
                 <button class="fc-ex-speak-btn" onclick="event.stopPropagation(); App.speakExample()">🔊 例文を聞く</button>
+                <button class="fc-ex-speak-btn fc-ex-pron-btn" type="button" data-pron="fcex">🎤 例文を言う</button>
               </div>
               <button class="fc-mastered-btn" id="fc-mastered-btn" onclick="event.stopPropagation(); App.toggleMastered()">
                 <span id="fc-mastered-label">☐ 覚えた</span>
@@ -291,6 +300,7 @@
           <div class="rd-ctrl-row">
             <button class="rd-bulk-btn" id="sfc-rd-bulk-btn" onclick="App.sfcBulkPlay()">⏩ 一括再生</button>
             <button class="rd-ja-btn" id="sfc-rd-ja-btn" onclick="App.sfcToggleJa()">訳を表示</button>
+            <button class="rd-pron-btn" type="button" data-pron="sfc" id="sfc-pron">🎤 発音</button>
           </div>
           <div class="rd-ctrl-row rd-speed-row">
             <span class="rd-speed-lbl">速度</span>
@@ -425,6 +435,7 @@
           <div class="rd-ctrl-row">
             <button class="rd-bulk-btn" id="rd-bulk-btn" onclick="App.rdBulkPlay()">⏩ 一括再生</button>
             <button class="rd-ja-btn" id="rd-ja-btn" onclick="App.rdToggleJa()">訳を表示</button>
+            <button class="rd-pron-btn" type="button" data-pron="rd" id="rd-pron">🎤 発音</button>
           </div>
           <div class="rd-ctrl-row rd-speed-row">
             <span class="rd-speed-lbl">速度</span>
@@ -533,6 +544,7 @@
           <div class="rd-ctrl-row">
             <button class="rd-bulk-btn" id="jh-bulk-btn" onclick="App.jhBulkPlay()">⏩ 一括再生</button>
             <button class="rd-ja-btn" id="jh-ja-btn" onclick="App.jhToggleJa()">訳を表示</button>
+            <button class="rd-pron-btn" type="button" data-pron="jh" id="jh-pron">🎤 発音</button>
           </div>
           <div class="rd-ctrl-row rd-speed-row">
             <span class="rd-speed-lbl">速度</span>
@@ -620,6 +632,63 @@
       </div>
     </section>
 
+    <!-- 日常チャンク 練習スクリーン -->
+    <section id="screen-chant" class="screen">
+      <div class="chant-wrap">
+        <div class="chant-topbar">
+          <button class="back-btn" onclick="App.chantGoBack()">← 戻る</button>
+          <div class="chant-title-area">
+            <span class="chant-mode-title">🗣️ 日常チャンク</span>
+            <span class="chant-cat-label" id="chant-cat-label"></span>
+          </div>
+          <span class="chant-progress"><span id="chant-idx">1</span>/<span id="chant-total">1</span></span>
+        </div>
+
+        <div class="chant-card-area">
+          <div class="chant-card" id="chant-card" onclick="App.chantReveal()">
+            <div class="chant-ja" id="chant-ja"></div>
+            <div class="chant-divider" id="chant-divider"></div>
+            <div class="chant-en" id="chant-en" style="opacity:0"></div>
+            <div class="chant-hint" id="chant-hint">タップして英語を確認</div>
+          </div>
+          <div class="chant-btn-row">
+            <button class="chant-nav-btn" onclick="App.chantPrev()">◀ 前へ</button>
+            <button class="chant-nav-btn" onclick="App.chantNext()">次へ ▶</button>
+          </div>
+          <button class="pron-btn" type="button" data-pron="chant" id="chant-pron">🎤 声に出して 発音チェック</button>
+        </div>
+
+        <div class="chant-reveal-hint" id="chant-reveal-hint">カードをタップすると英語が表示されます</div>
+      </div>
+    </section>
+
+    <!-- 💬 英会話レッスン（v533）：相手の英語を聞いて、🎤 で答える -->
+    <section id="screen-talk" class="screen">
+      <div class="talk-wrap">
+        <div class="talk-topbar">
+          <button class="back-btn" id="talk-back" type="button">← 戻る</button>
+          <span class="talk-title" id="talk-title">💬 英会話</span>
+          <button class="talk-ja-btn" id="talk-ja-btn" type="button" aria-pressed="true" title="相手の英語の訳を出す・かくす">訳</button>
+        </div>
+        <div class="talk-log" id="talk-log" aria-live="polite"></div>
+        <div class="talk-panel" id="talk-panel">
+          <div class="talk-task" id="talk-task"></div>
+          <div class="talk-model" id="talk-model" lang="en" hidden></div>
+          <div class="talk-live" id="talk-live" aria-live="polite"></div>
+          <div class="talk-btns">
+            <button class="talk-sub-btn" id="talk-hint" type="button">💡 お手本</button>
+            <button class="talk-mic" id="talk-mic" type="button">🎤 話す</button>
+            <button class="talk-sub-btn" id="talk-skip" type="button">⏭ とばす</button>
+          </div>
+          <button class="talk-kbd" id="talk-kbd" type="button">⌨️ 文字で答える</button>
+          <div class="talk-type" id="talk-type" hidden>
+            <input id="talk-input" type="text" lang="en" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="英語で入力（例：Can I have a coffee?）" aria-label="英語で答える">
+            <button id="talk-send" type="button">送る</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <nav id="bottom-nav">
@@ -702,34 +771,48 @@
     </div>
   </div>
 
-  <!-- 日常チャンク 練習スクリーン -->
-  <section id="screen-chant" class="screen">
-    <div class="chant-wrap">
-      <div class="chant-topbar">
-        <button class="back-btn" onclick="App.chantGoBack()">← 戻る</button>
-        <div class="chant-title-area">
-          <span class="chant-mode-title">🗣️ 日常チャンク</span>
-          <span class="chant-cat-label" id="chant-cat-label"></span>
-        </div>
-        <span class="chant-progress"><span id="chant-idx">1</span>/<span id="chant-total">1</span></span>
-      </div>
 
-      <div class="chant-card-area">
-        <div class="chant-card" id="chant-card" onclick="App.chantReveal()">
-          <div class="chant-ja" id="chant-ja"></div>
-          <div class="chant-divider" id="chant-divider"></div>
-          <div class="chant-en" id="chant-en" style="opacity:0"></div>
-          <div class="chant-hint" id="chant-hint">タップして英語を確認</div>
-        </div>
-        <div class="chant-btn-row">
-          <button class="chant-nav-btn" onclick="App.chantPrev()">◀ 前へ</button>
-          <button class="chant-nav-btn" onclick="App.chantNext()">次へ ▶</button>
-        </div>
-      </div>
-
-      <div class="chant-reveal-hint" id="chant-reveal-hint">カードをタップすると英語が表示されます</div>
+  <!-- 💬 英会話レッスン 場面えらび（v533） -->
+  <div id="talk-modal" class="modal-bg" style="display:none">
+    <div class="modal-box chant-modal-box talk-modal-box">
+      <div class="chant-modal-title">💬 英会話レッスン</div>
+      <div class="chant-modal-sub">場面をえらんで、相手の英語に 🎤 で答えましょう。<br>言うことは日本語で出ます。決まった言い方でなくても、伝われば次へ進みます。</div>
+      <div class="talk-nosr" id="talk-nosr" hidden>このブラウザでは 🎤 の聞き取りが使えません。⌨️ 文字で答えて練習できます（Chrome・Edge・Safari なら声で話せます）。</div>
+      <div class="talk-cat-grid" id="talk-cat-grid"></div>
+      <button class="btn-secondary sfc-scene-cancel" id="talk-cancel" type="button">キャンセル</button>
     </div>
-  </section>
+  </div>
+
+  <!-- 🎤 発音チェック（v533）：お手本の英語を声に出すと、1語ずつ比べて点数とコツを出す -->
+  <div id="pron-sheet" class="modal-bg pron-bg" style="display:none" role="dialog" aria-modal="true" aria-labelledby="pron-h">
+    <div class="modal-box pron-box">
+      <div class="pron-head"><span id="pron-h">🎤 発音チェック</span><button class="pron-x" type="button" data-pron-close aria-label="閉じる">✕</button></div>
+      <div class="pron-nav" id="pron-nav" hidden>
+        <button class="pron-nav-btn" id="pron-prev" type="button" aria-label="前の文">◀</button>
+        <span class="pron-pos" id="pron-pos"></span>
+        <button class="pron-nav-btn" id="pron-next" type="button" aria-label="次の文">▶</button>
+      </div>
+      <div class="pron-target" id="pron-target" lang="en"></div>
+      <div class="pron-ja" id="pron-ja"></div>
+      <div class="pron-play-row">
+        <button class="pron-play" id="pron-play" type="button">🔊 お手本</button>
+        <button class="pron-play" id="pron-slow" type="button">🐢 ゆっくり</button>
+      </div>
+      <button class="pron-mic" id="pron-mic" type="button">🎤 タップして話す</button>
+      <div class="pron-nosr" id="pron-nosr" hidden>このブラウザでは声の聞き取りが使えません。Chrome・Edge・Safari で開くと 🎤 で発音をチェックできます（🔊 お手本は聞けます）。</div>
+      <div class="pron-live" id="pron-live" aria-live="polite"></div>
+      <div class="pron-result" id="pron-result" hidden>
+        <div class="pron-score" id="pron-score-box"><span class="pron-num" id="pron-num">0</span><span class="pron-unit">点</span><span class="pron-stars" id="pron-stars"></span></div>
+        <div class="pron-msg" id="pron-msg"></div>
+        <div class="pron-words" id="pron-words" lang="en"></div>
+        <div class="pron-legend"><span class="pw ok">合った</span><span class="pw near">おしい</span><span class="pw sub">ちがう語に</span><span class="pw del">聞こえない</span></div>
+        <div class="pron-heard-row">聞き取った英語：<span id="pron-heard" lang="en"></span> <span id="pron-conf"></span></div>
+        <ul class="pron-tips" id="pron-tips"></ul>
+      </div>
+      <div class="pron-best" id="pron-best"></div>
+      <div class="pron-note">声はブラウザの音声認識（Google・Apple など）に送って聞き取ります。点数はめやすです。</div>
+    </div>
+  </div>
 
   <!-- 名作ストーリー選択モーダル -->
   <div id="story-modal" class="modal-bg" style="display:none">
@@ -756,6 +839,8 @@
 <script src="js/passages.js"></script>
 <script src="js/jhistory.js"></script>
 <script src="js/app.js"></script>
+<script src="js/speech.js"></script>
+<script src="js/talk.js"></script>
 <script>
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./service-worker.js");
