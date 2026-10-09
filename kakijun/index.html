@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<!-- 決めた場所以外からはプログラム・画像・フォントを読み込まない・外へ送らない（CSP）。
+     このページの中に書いたプログラムも動かさない（js/ のファイルだけ動く） -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'none'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="常用漢字2136字の書き順アニメーション・綺麗に書くコツ・なぞり練習。手書きや声でも探せます">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2B7655">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="かきじゅん帳">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+<title>かきじゅん帳</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <button class="hd-back" id="backHyo" type="button" hidden aria-label="表電卓へ戻る">← 表電卓</button>
+    <div class="brand"><b>かきじゅん帳</b><span>常用漢字 2136字</span></div>
+    <div class="search" id="searchWrap">
+      <label class="search-box" for="q">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+        <input id="q" type="search" inputmode="search" autocomplete="off" enterkeyhint="search" placeholder="漢字・よみ・画数" aria-label="漢字を検索（漢字・よみがな・画数）">
+        <button class="icon-btn clear" id="qClear" type="button" aria-label="入力を消す" hidden>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </label>
+      <button class="icon-btn" id="hwBtn" type="button" aria-label="手書きで探す" title="手書きで探す">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1.2-4.6L16.6 4a2 2 0 0 1 2.8 0l.6.6a2 2 0 0 1 0 2.8L8.6 18.8z"/><path d="M14.5 6l3.5 3.5"/></svg>
+      </button>
+      <button class="icon-btn" id="micBtn" type="button" aria-label="声で探す" title="声で探す">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>
+      </button>
+      <div class="results" id="results" hidden></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="stage-col" aria-label="書き順">
+    <div class="card stage-card">
+      <div class="seg" role="tablist" aria-label="モード">
+        <button id="modeView" role="tab" aria-selected="true" type="button">書き順を見る</button>
+        <button id="modePractice" role="tab" aria-selected="false" type="button">なぞって練習</button>
+      </div>
+
+      <div class="masu" id="masu">
+        <svg id="stage" viewBox="0 0 109 109" aria-hidden="true">
+          <g class="grid"><line x1="54.5" y1="0" x2="54.5" y2="109"/><line x1="0" y1="54.5" x2="109" y2="54.5"/></g>
+          <g class="ghost" id="lGhost"></g>
+          <g class="overlay" id="lOverlay"></g>
+          <g class="ink" id="lInk"></g>
+          <g class="hintl" id="lHint"></g>
+          <g class="nums" id="lNums"></g>
+          <g class="hanamaru" id="lMaru"></g>
+        </svg>
+        <canvas id="pc" hidden></canvas>
+      </div>
+
+      <div id="viewUI">
+        <div class="caption" aria-live="polite">
+          <div class="count" id="capCount"><big>0</big><small> / 0画</small></div>
+          <div class="cap-text"><div class="name" id="capName"></div><p id="capTip"></p></div>
+        </div>
+        <div class="controls">
+          <button class="ctl" id="bReset" type="button" aria-label="はじめから">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 4v4.5h4.5"/></svg>
+          </button>
+          <button class="ctl" id="bPrev" type="button" aria-label="1画もどる">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17 5v14L7.5 12z"/><rect x="5" y="5" width="2.4" height="14" rx="1"/></svg>
+          </button>
+          <button class="ctl main" id="bPlay" type="button" aria-label="再生">
+            <svg id="icoPlay" width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="icoPause" width="26" height="26" viewBox="0 0 24 24" fill="currentColor" hidden><rect x="6.5" y="5" width="4" height="14" rx="1.2"/><rect x="13.5" y="5" width="4" height="14" rx="1.2"/></svg>
+          </button>
+          <button class="ctl" id="bNext" type="button" aria-label="1画すすむ">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l9.5-7z"/><rect x="16.6" y="5" width="2.4" height="14" rx="1"/></svg>
+          </button>
+          <button class="ctl" id="bSpeed" type="button" aria-label="速さ：ふつう" title="速さ" style="width:auto;padding:0 12px;font-size:13px;font-weight:700">ふつう</button>
+        </div>
+        <div class="opts" style="margin-top:10px">
+          <button class="chip" id="oNums" type="button" aria-pressed="true">画数の番号</button>
+          <button class="chip" id="oGhost" type="button" aria-pressed="true">うすい下書き</button>
+          <button class="chip" id="oLoop" type="button" aria-pressed="false">くり返す</button>
+        </div>
+      </div>
+
+      <div id="practiceUI" hidden>
+        <div class="seg" role="radiogroup" aria-label="練習のレベル" style="grid-template-columns:repeat(3,1fr)">
+          <button type="button" role="radio" data-lv="1" aria-checked="true" aria-selected="true">なぞる</button>
+          <button type="button" role="radio" data-lv="2" aria-checked="false" aria-selected="false">お手本なし</button>
+          <button type="button" role="radio" data-lv="3" aria-checked="false" aria-selected="false">テスト</button>
+        </div>
+        <div style="height:10px"></div>
+        <div id="prLive">
+          <div class="pr-msg" id="prMsg" aria-live="polite"></div>
+          <div style="height:10px"></div>
+          <div class="pr-row">
+            <button class="btn" id="prUndo" type="button">1画もどす</button>
+            <button class="btn" id="prHint" type="button">この画を見る</button>
+            <button class="btn" id="prRestart" type="button">はじめから</button>
+          </div>
+        </div>
+        <div class="result" id="prResult" hidden aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div class="card steps" style="margin-top:18px">
+      <div class="sec-h"><h2>筆順一覧</h2><span id="stepsNote">タップでその画へ</span></div>
+      <div class="step-grid" id="steps"></div>
+    </div>
+  </section>
+
+  <section class="info-col">
+    <div class="card head">
+      <div class="big" id="big" aria-hidden="true"></div>
+      <div style="min-width:0">
+        <div class="meta" id="meta"></div>
+        <dl class="yomi" id="yomi"></dl>
+        <p class="parts" id="parts"></p>
+        <div class="nav-k">
+          <button class="btn" id="kPrev" type="button">‹ 前の字</button>
+          <button class="btn" id="kNext" type="button">次の字 ›</button>
+          <button class="btn" id="kRand" type="button">ランダム</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card tips" id="tipsCard">
+      <div class="sec-h"><h2 id="tipsTitle">綺麗に書くコツ</h2></div>
+      <ol id="tips"></ol>
+      <div class="sub-h">この字に出てくる線の書き方</div>
+      <div class="kinds" id="kinds"></div>
+      <div class="sub-h">どの字でも意識したいこと</div>
+      <div class="basics">
+        <div><b>横画は少し右上がり</b>水平より6度ほど上げると、字がいきいきします。</div>
+        <div><b>縦画はまっすぐ</b>中心の縦画が傾くと字全体が傾いて見えます。</div>
+        <div><b>とめ・はね・はらい</b>線の終わりを書き分けると、ぐっと整います。</div>
+        <div><b>中心をそろえる</b>マスの十字線を目安に、字の中心を合わせます。</div>
+      </div>
+    </div>
+
+    <details class="card rules" id="rules">
+      <summary>書き順の基本ルール</summary>
+      <ul id="ruleList"></ul>
+    </details>
+
+    <div class="card browse">
+      <div class="sec-h"><h2>漢字を選ぶ</h2><span id="gridCount"></span></div>
+      <div class="tabs" role="tablist" aria-label="学年" id="gtabs"></div>
+      <div class="kgrid" id="kgrid"></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  筆順は <a href="https://kanjivg.tagaini.net" target="_blank" rel="noopener noreferrer">KanjiVG</a>（© Ulrich Apel, CC BY-SA 3.0）のデータにもとづいています。学校で習う筆順（文部省『筆順指導の手びき』）と一部ちがう字があります。
+  読みは <a href="https://www.edrdg.org/wiki/index.php/KANJIDIC_Project" target="_blank" rel="noopener noreferrer">KANJIDIC2</a>（© EDRDG, CC BY-SA 4.0）より。常用漢字表にない読みも含みます。学年は2020年度からの学年別漢字配当表です。
+  このツールの筆順データ部分は CC BY-SA 3.0 で提供されます。
+</footer>
+
+<div class="backdrop" id="backdrop" hidden></div>
+
+<div class="sheet" id="hwSheet" role="dialog" aria-modal="true" aria-labelledby="hwTitle" hidden>
+  <div class="sheet-h"><h3 id="hwTitle">手書きで探す</h3><button class="icon-btn" type="button" data-close aria-label="閉じる"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <p class="note">マスに1字書いてください。書き順や向きがちがっても候補に出ます。</p>
+  <div class="hw-pad"><canvas id="hwc"></canvas><div class="ph" id="hwPh">ここに書く</div></div>
+  <div class="cands" id="cands" aria-live="polite"><span class="empty">書くと候補が出ます</span></div>
+  <div class="pr-row">
+    <button class="btn" id="hwUndo" type="button">1画もどす</button>
+    <button class="btn" id="hwClear" type="button">全部けす</button>
+  </div>
+</div>
+
+<div class="sheet" id="micSheet" role="dialog" aria-modal="true" aria-labelledby="micTitle" hidden>
+  <div class="sheet-h"><h3 id="micTitle">声で探す</h3><button class="icon-btn" type="button" data-close aria-label="閉じる"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="mic-state" id="micState"></div>
+  <div class="cands" id="micCands" aria-live="polite"></div>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+
+<script src="js/data.js"></script>
+<script src="js/recog.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

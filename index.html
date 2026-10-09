@@ -9126,6 +9126,12 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v532', t:'✍️ かきじゅん帳（常用漢字の書き順）', li:[
+    '<b>常用漢字2136字</b>の書き順を<b>アニメーション</b>で見られる別のアプリ<b>「✍️かきじゅん帳」</b>を道具に入れました。▶ で1画ずつ書いていき（●が書き始め）、1画ずつ進める・もどる、速さ、くり返しも選べます',
+    '字ごとに<b>綺麗に書くコツ</b>を出します（左右・上下などの組み立てと幅の割合、横画・縦画の間かく、とめ・はね・はらい の書き方など）。書き順の基本ルールと、まちがえやすい字の注意も',
+    '字は 漢字・よみがな・画数（例：5画）のほか、<b>✏️ 手書き</b>（書き順や向きがちがっても候補に出ます）と<b>🎤 声</b>（「やま」「海の字」など）でも探せます',
+    '<b>なぞって練習</b>：「なぞる」「お手本なし」「テスト」の3つ。1画ずつ書き順・向き・形を確かめ、書き終わると点数と ★（はなまる）が出ます',
+    '☰ → 🧰道具（📚 声・まなぶ）・🧰道具キー・自分のボタンから同じ画面で開き、左上の「← 表電卓」で帰れます。単独でも <b>…/cosinji-page/kakijun/</b> を開いてホーム画面に置けます' ]},
   { v:'v531', t:'📄 メモ：写真を貼って、好きな所に好きな大きさで', li:[
     '📄メモに<b>写真</b>を入れられるようにしました。上の段の<b>📷 写真</b>から選ぶほか、<b>貼り付け</b>や、パソコンでは<b>ドラッグして落とす</b>こともできます（カーソルのある行の次に入ります）',
     '写真をおして選ぶと、<b>ドラッグで好きな行の間へ</b>動かせます。落とした所が左・まん中・右なら、そちらに寄せます。<b>左右に寄せると文字が横に回り込みます</b>',
@@ -11691,6 +11697,7 @@ const KEY_FUNCS={
   a_koe:{g:'設定・機能',label:'🎙声の計算帳',short:'声計算',run:()=>openKoeApp()},
   a_eigo:{g:'設定・機能',label:'📚英単語',short:'英単語',run:()=>openEigoApp()},
   a_sansu:{g:'設定・機能',label:'🎓算数・数学',short:'算数',run:()=>openSansuApp()},
+  a_kakijun:{g:'設定・機能',label:'✍️かきじゅん帳',short:'書き順',run:()=>openKakijunApp()},
   a_websearch:{g:'設定・機能',label:'🔍Web検索',short:'W検索',run:()=>webSearchCell()},
   a_lookup:{g:'設定・機能',label:'🔍照合',run:()=>openLookupDlg()},
   a_find:{g:'設定・機能',label:'🔎検索',run:()=>openFindDlg()},
@@ -14496,7 +14503,7 @@ function appConfirm(message, yes='OK', no='キャンセル'){
 /* 登録ボタンから実行するとき、指の操作（ユーザー操作）が生きているうちに呼ばないと
    開かない機能（ネイティブのファイル選択）。これらは遅延させずその場で実行する。
    （カレンダーは自前モーダルなので通常の遅延パスでよい＝含めない） */
-const REG_GESTURE_ACTIONS = new Set(['a_csvin','a_xlsxin','a_websearch','a_memo','a_kaikei','a_koe','a_eigo','a_sansu']);   // Web検索・メモは新しいタブを開くため即時実行
+const REG_GESTURE_ACTIONS = new Set(['a_csvin','a_xlsxin','a_websearch','a_memo','a_kaikei','a_koe','a_eigo','a_sansu','a_kakijun']);   // Web検索・メモは新しいタブを開くため即時実行
 let keyAssign={}, kaTargetKey=null, kaSuppress=false;
 let kaReady=false;   // ピッカー表示後、新しく押し直すまで項目を無効化（長押しの指を離した時の誤タップ防止）
 /* v466：あ文字 → ひな形、ひな形 → 🧰道具 に置きかえたぶんを、並べ替え・割り当てごと引き継ぐ（1回だけ） */
@@ -14891,6 +14898,7 @@ const NP_TOOLS=[
   {id:'koe',      label:'🎙声の計算帳', run:()=>openKoeApp()},                          // 同じく別のアプリ（v422）
   {id:'eigo',     label:'📚英単語',     run:()=>openEigoApp()},                         // 同じく別のアプリ（eigo/。v449）
   {id:'sansu',    label:'🎓算数・数学', run:()=>openSansuApp()},                        // 同じく別のアプリ（sansu/。v527）
+  {id:'kakijun',  label:'✍️かきじゅん帳', run:()=>openKakijunApp()},                    // 同じく別のアプリ（kakijun/。常用漢字の書き順。v532）
 ];
 /* ── はじめに開くページ（v366）──
    アプリを開いたときに、表・電卓・道具のどれを出すかを選べる。
@@ -15491,6 +15499,7 @@ function openKaikeiApp(){
 function openKoeApp(){ openSameWindow(sideAppUrl('koe', '#from=hyo')); }
 function openEigoApp(){ openSameWindow(sideAppUrl('eigo', '#from=hyo')); }   // 📚英単語マスター（v449）
 function openSansuApp(){ openSameWindow(sideAppUrl('sansu', '#from=hyo')); } // 🎓算数・数学チャレンジ（v527）
+function openKakijunApp(){ openSameWindow(sideAppUrl('kakijun', '#from=hyo')); } // ✍️かきじゅん帳（常用漢字の書き順。v532）
 /* ── リンク集：名前付きでURLを登録し、一覧から開く ── */
 let linkList=[], linkEditIdx=-1;
 function loadLinkList(){
@@ -21395,11 +21404,11 @@ function addToolBack(t, ov){
 }
 /* ── 道具をホーム画面のアイコンにする（v462） ──
    道具ごとに apps/〇〇/（業務手帳は techo/）を開き、そこからホーム画面に追加してもらう。
-   別のアプリの道具（メモ・会計・声の計算帳・英単語・算数）は、それぞれのページから追加する */
+   別のアプリの道具（メモ・会計・声の計算帳・英単語・算数・かきじゅん帳）は、それぞれのページから追加する */
 function appIconUrl(t){
   if(t.id==='techo') return sideAppUrl('techo');
   if(t.ov) return sideAppUrl('apps/'+t.id);
-  const dir={memo:'notes',kaikei:'kaikei',koe:'koe',eigo:'eigo',sansu:'sansu'}[t.id];
+  const dir={memo:'notes',kaikei:'kaikei',koe:'koe',eigo:'eigo',sansu:'sansu',kakijun:'kakijun'}[t.id];
   return dir ? sideAppUrl(dir) : '';
 }
 function openAppIcons(){
@@ -21577,7 +21586,7 @@ const TOOL_CATS=[
   ['📖 知識・手引き',['kurashi','manner','boki']],   // 計算ではなく読む道具（v513）
   ['💼 仕事',     ['techo','meishi','calctmpl','fintmpl','kaikei']],
   ['🏗 現場・畑', ['tansui','kantab','volume','ruler','kakudo','veggie']],
-  ['📚 声・まなぶ',['koe','eigo','sansu']],
+  ['📚 声・まなぶ',['koe','eigo','sansu','kakijun']],
   ['🏨 お店・宿', ['regi','heya','annai']],
 ];
 const TOOL_FAV_KEY='excalc_tool_fav';
@@ -21842,7 +21851,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v531';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v532';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
