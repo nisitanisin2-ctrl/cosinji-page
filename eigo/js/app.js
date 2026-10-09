@@ -373,6 +373,9 @@ const App = (() => {
 
   function showScreen(name) {
     if (name !== 'sentence-fc') sfcAutoStop();
+    // 🎤 発音チェックの窓・💬 英会話は、ほかの画面へ行くときに止める（v533）
+    if (window.ES) ES.close();
+    if (name !== 'talk' && window.Talk) Talk.leave();
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('screen-'+name).classList.add('active');
     document.querySelectorAll('.nav-btn').forEach(b => {
@@ -1052,6 +1055,12 @@ const App = (() => {
 
   function clearRDTimer() {
     if (rdTimer) { clearTimeout(rdTimer); rdTimer = null; }
+  }
+
+  // 🎤 発音チェックを始める前に、長文などの再生・一括再生を止める（v533）
+  function stopAudio() {
+    rdCleanup(); jhCleanup(); sfcRDCleanup();
+    updateRDPlayBtn(); updateRDBulkBtn(); updateJHPlayBtn(); updateJHBulkBtn(); updateSFCPlayBtn(); updateSFCBulkBtn();
   }
 
   function rdCleanup() {
@@ -2614,8 +2623,10 @@ const App = (() => {
 
     // Android ハードウェア戻るボタン対応
     window.addEventListener('popstate', function() {
+      // 🎤 発音チェックの窓が開いていれば、まずそれを閉じる（v533）
+      if (window.ES && ES.close()) { history.pushState({screen: currentScreen}, ''); return; }
       // モーダルが開いていれば閉じて再スタック
-      const modalIds = ['aw-filter-modal','sfc-scene-modal','story-modal','chant-modal','session-modal'];
+      const modalIds = ['aw-filter-modal','sfc-scene-modal','story-modal','chant-modal','talk-modal','session-modal'];
       for (const id of modalIds) {
         const el = document.getElementById(id);
         if (el && el.style.display !== 'none') {
@@ -2672,5 +2683,5 @@ const App = (() => {
            sfcGoBack, sfcClickWord, sfcTogglePlay, sfcPrevWord, sfcNextWord,
            sfcPrevPassage, sfcNextPassage, sfcBulkPlay, sfcToggleJa,
            sfcSpeedDown, sfcSpeedUp, sfcPauseDown, sfcPauseUp,
-           closeModal, resetAll };
+           closeModal, resetAll, stopAudio };
 })();

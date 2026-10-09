@@ -7287,6 +7287,246 @@ async function runKakijun(browser) {
 }
 /* 🎓 算数・数学チャレンジ（sansu/。v527）：別のアプリ。問題の作り方・答え合わせ・声・画面の流れ・表電卓から開く */
 // 単元の 数（全部 / 小1〜中3）。単元を 足したら ここも かえる
+/* 📚 英単語マスター：🎤 発音チェック・💬 英会話レッスン（v533）
+   マイク（音声認識）と読み上げは まねもの。聞き取らせたい英語を __srQueue に入れてから 🎤 をおす */
+async function runEigoSpeak(browser) {
+  console.log('\n── 📚 英単語：🎤 発音チェック・💬 英会話（v533） ──');
+  const dir = path.join(ROOT, 'eigo'), EIGO = 'file://' + path.join(dir, 'index.html');
+  const sw = fs.readFileSync(path.join(dir, 'service-worker.js'), 'utf8'), html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
+  check('  新しいファイルを service-worker が持つ（控えの番号も上げた）', [['js/speech.js', 'js/talk.js'].every(f => fs.existsSync(path.join(dir, f)) && sw.includes("'./" + f + "'")), sw.includes("const CACHE = 'eigo-v2'")].join('/'), 'true/true');
+  check('  app.js のあとに読み込む', /js\/app\.js"><\/script>\s*<script src="js\/speech\.js"><\/script>\s*<script src="js\/talk\.js"><\/script>/.test(html), true);
+  const mock = (withSR) => {
+    window.__srQueue = []; window.__said = []; window.__srStarted = 0;
+    if (withSR) {
+      window.SpeechRecognition = class {
+        constructor() { window.__srLast = this; }
+        start() { window.__srStarted++; window.__srLang = this.lang + '/' + this.maxAlternatives; this._next = window.__srQueue.shift(); if (!window.__hang) setTimeout(() => this._deliver(), 60); }
+        _deliver() {
+          if (this._aborted || this._done) return; this._done = true;
+          const n = this._next;
+          if (!n || n.error) { this.onerror && this.onerror({ error: n ? n.error : 'no-speech' }); this.onend && this.onend(); return; }
+          const mid = [{ transcript: n.alts[0][0].split(' ').slice(0, 2).join(' '), confidence: 0 }]; mid.isFinal = false;
+          this.onresult && this.onresult({ resultIndex: 0, results: [mid] });
+          const fin = n.alts.map(([t, c]) => ({ transcript: t, confidence: c })); fin.isFinal = true;
+          this.onresult && this.onresult({ resultIndex: 0, results: [fin] });
+          this.onend && this.onend();
+        }
+        stop() { if (!window.__hang) setTimeout(() => this._deliver(), 0); }   // __hang：止めても終わりの合図が来ないブラウザ
+        abort() { this._aborted = true; }
+      };
+    } else { window.SpeechRecognition = undefined; window.webkitSpeechRecognition = undefined; }
+    Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: {
+      cancel() { window.__cancels = (window.__cancels || 0) + 1; }, getVoices() { return [{ lang: 'en-US', name: 'Mock' }]; }, addEventListener() {},
+      speak(u) { window.__said.push(u.text); window.__rate = u.rate; setTimeout(() => u.onend && u.onend(), 15); } } });
+    window.SpeechSynthesisUtterance = function (t) { this.text = t; };
+  };
+  const open = async (withSR, vp) => {
+    const ctx = await browser.newContext({ viewport: vp || { width: 390, height: 780 }, serviceWorkers: 'block' });
+    await ctx.addInitScript(mock, withSR);
+    const page = await ctx.newPage(), errs = [];
+    page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/favicon/.test(m.text())) errs.push('console: ' + m.text()); });
+    await page.goto(EIGO); await page.waitForTimeout(400);
+    return { ctx, page, errs, w: ms => page.waitForTimeout(ms) };
+  };
+  let { ctx, page, errs, w } = await open(true);
+  check('  🎤 が使える（このブラウザ）', await page.evaluate(() => typeof ES + '/' + ES.supported + '/' + typeof Talk), 'object/true/object');
+
+  /* ── 比べ方・点数・コツ ── */
+  const sc = (t, alts) => page.evaluate(([t, alts]) => { const r = ES.score(t, alts.map(([t, c]) => ({ t, c }))); return [r.score, r.stars, r.words.map(x => x.st + (x.st === 'near' || x.st === 'sub' ? '(' + x.heard + ')' : '')).join(',')].join('/'); }, [t, alts]);
+  const tips = (t, alts) => page.evaluate(([t, alts]) => ES.score(t, alts.map(([t, c]) => ({ t, c }))).tips.join(' // '), [t, alts]);
+  check('  ぜんぶ合う（短縮形 I\'m＝I am・記号・大文字は気にしない）→ 98点 ★3', await sc("I'm fine, thank you.", [['I am fine thank you', 0.9]]), '98/3/ok,ok,ok,ok');
+  check('  数字（2＝two）・同じ音の語（to/too/two）・gonna＝going to', [await sc('I have 2 dogs.', [['I have two dogs', 0.9]]), await sc('I want to go too.', [['I want two go to', 0.9]]), await sc('I am going to go.', [["I'm gonna go", 0.9]])].join(' | '), '98/3/ok,ok,ok,ok | 98/3/ok,ok,ok,ok,ok | 98/3/ok,ok,ok,ok,ok');
+  check('  最後の2語が聞こえない → 65点 ★1', await sc('Could you help me with this?', [['could you help me', 0.9]]), '65/1/ok,ok,ok,ok,del,del');
+  check('  　コツ：th と、文の最後まで声を落とさない', await tips('Could you help me with this?', [['could you help me', 0.9]]), '「with」：' + '「th」は舌先を上下の前歯で軽くはさみ、息を出しながら言います（「ス」「ズ」「ザ」にならないように）。 // 「with」「this」が聞こえませんでした。文の最後まで、声を落とさずに言いましょう。');
+  check('  light が right に聞こえた → おしい（88点 ★2）', await sc('Turn on the light.', [['turn on the right', 0.9]]), '88/2/ok,ok,ok,near(right)');
+  check('  　コツ：l と r（聞こえた語といっしょに）', (await tips('Turn on the light.', [['turn on the right', 0.9]])).startsWith('「light」が「right」に聞こえました。「l」は舌先を上の前歯のうしろの歯ぐきに'), true);
+  check('  think → sink は th・very → berry は v だけ（l と r ではない）・morning → mornin は最後の音', [await tips('I think so.', [['I sink so', 0.9]]), await tips('It is very good.', [['it is berry good', 0.9]]), await tips('Good morning!', [['good mornin', 0.7]])].map(t => t.split(' // ').map(x => x.split('は')[0]).join('+')).join(' | '), '「think」：「th」 | 「very」：「v」 | 「morning」：語の最後の音（-ng・-t・-d・-s など）まで、軽く ていねいに言い切ります。');
+  check('  候補5つのうち、いちばん合うものを使う', await page.evaluate(() => { const r = ES.score('Nice to meet you.', [{ t: 'nice to eat you', c: 0.8 }, { t: 'nice to meet you', c: 0.4 }]); return r.heard + '/' + r.score; }), 'nice to meet you/88');
+  check('  よけいな語は少し引く・何も聞こえないと0点', [await sc('Thank you.', [['thank you very much', 0.9]]), await sc('Hello', [])].join(' | '), '88/2/ok,ok | 0/0/del');
+  check('  長文は1文ずつに分ける（Mr.・p.m.・10.5 では切らない）', await page.evaluate(() => ES.sentences('Mr. Smith went to Washington. He met Dr. Brown at 3 p.m. Then he left! "Wow," she said. It was 10.5 km.').map(x => x.s).join(' | ')), 'Mr. Smith went to Washington. | He met Dr. Brown at 3 p.m. Then he left! | "Wow," she said. | It was 10.5 km.');
+
+  /* ── 日常チャンク ── */
+  await page.evaluate(() => App.startChantWith('morning')); await w(200);
+  check('  チャンクの画面が見出しのすぐ下から下のボタンの上まで（ずれていたのを直した）', await page.evaluate(() => { const s = document.querySelector('#screen-chant .chant-wrap').getBoundingClientRect(), n = document.getElementById('bottom-nav').getBoundingClientRect(); return Math.round(s.top) + '/' + (Math.round(s.bottom) === Math.round(n.top)); }), '56/true');
+  const pv = () => page.evaluate(() => { const g = id => document.getElementById(id); return [ES.isOpen(), g('pron-target').textContent, g('pron-ja').hidden ? '-' : g('pron-ja').textContent, g('pron-nav').hidden, g('pron-mic').hidden, g('pron-nosr').hidden, g('pron-result').hidden].join('|'); });
+  await page.click('#chant-pron'); await w(100);
+  check('  🎤 をおすと、カードの英語と日本語で発音チェックの窓が開く', await pv(), 'true|Good morning!|おはようございます！|true|false|true|true');
+  await page.evaluate(() => window.__srQueue.push({ alts: [['good morning', 0.92]] }));
+  await page.click('#pron-mic'); await w(20);
+  check('  話している間：ボタンが「止める」・聞いた語が出る', await page.evaluate(() => document.getElementById('pron-mic').classList.contains('on') + '/' + document.getElementById('pron-mic').textContent.slice(0, 5)), 'true/⏹ 止める');
+  await w(250);
+  const res = () => page.evaluate(() => { const g = id => document.getElementById(id); return [g('pron-num').textContent, g('pron-stars').textContent, g('pron-score-box').className, [...document.querySelectorAll('#pron-words .pw')].map(x => x.className.slice(3) + ':' + x.textContent).join(' '), g('pron-best').textContent].join('|'); });
+  check('  英語（en-US・候補5つ）で聞き取り、98点 ★3・語はみな緑・ベストを残す', [await page.evaluate(() => window.__srLang), await res()].join('|'), 'en-US/5|98|★★★|pron-score s3|ok:Good ok:morning!|これまでのベスト：98点（いまの点）');
+  check('  ボタンは「もう一度言う」に', await page.textContent('#pron-mic'), '🎤 もう一度言う');
+  await page.evaluate(() => window.__srQueue.push({ alts: [['good mornin', 0.7]] }));
+  await page.click('#pron-mic'); await w(250);
+  check('  2回目（mornin）：75点 ★2・おしい語に聞こえた語・ベストはそのまま', await res(), '75|★★★|pron-score s2|ok:Good near:morning!mornin|これまでのベスト：98点');
+  check('  　コツも出る', await page.evaluate(() => [...document.querySelectorAll('#pron-tips li')].map(l => l.textContent.split('（')[0]).join(' / ')), '「morning」：語の最後の音');
+  check('  ベストはこの端末に残る', await page.evaluate(() => JSON.parse(localStorage.getItem('eigo_pron_v1'))['Good morning!']), 98);
+  await page.click('#pron-play'); await w(30);
+  const said1 = await page.evaluate(() => window.__said.slice(-1)[0] + '/' + window.__rate);
+  await page.click('#pron-slow'); await w(30);
+  check('  🔊 お手本・🐢 ゆっくり', said1 + ' | ' + await page.evaluate(() => window.__said.slice(-1)[0] + '/' + window.__rate), 'Good morning!/0.92 | Good morning!/0.62');
+  await page.evaluate(() => window.__srQueue.push({ error: 'not-allowed' }));
+  await page.click('#pron-mic'); await w(200);
+  const live = () => page.evaluate(() => document.getElementById('pron-live').textContent.slice(0, 12));
+  const e1 = await live();
+  await page.click('#pron-mic'); await w(200);
+  check('  マイクが使えない・声が聞こえない ときは知らせる', e1 + ' / ' + await live(), 'マイクが使えません。ブラ / 声が聞こえませんでした。');
+  await page.keyboard.press('Escape'); await w(50);
+  check('  Esc で閉じる', await page.evaluate(() => ES.isOpen()), false);
+  await page.click('#chant-pron'); await w(100);
+  check('  開き直すと、前のベストを出す', await page.textContent('#pron-best'), 'これまでのベスト：98点');
+  await page.goBack(); await w(200);
+  check('  端末の「戻る」で窓だけ閉じる（チャンクの画面のまま）', await page.evaluate(() => ES.isOpen() + '/' + document.querySelector('.screen.active').id), 'false/screen-chant');
+  await page.click('#chant-pron'); await w(100);
+  await page.mouse.click(5, 400); await w(50);
+  check('  まわりをおしても閉じる', await page.evaluate(() => ES.isOpen()), false);
+  const hide = () => page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); delete document.hidden; });
+  await page.click('#chant-pron'); await w(50);
+  await page.evaluate(() => { window.__hang = true; });
+  await page.click('#pron-mic'); await w(30);
+  await hide();
+  check('  画面が消えたら（スリープなど）聞くのをやめ、ボタンも戻す', await page.evaluate(() => window.__srLast._aborted + '/' + document.getElementById('pron-mic').textContent), 'true/🎤 タップして話す');
+  await page.click('#pron-mic'); await w(30);
+  await page.click('#pron-mic'); await w(3300);
+  check('  止めても終わりの合図が来ないブラウザでも、3秒で終える', await page.evaluate(() => document.getElementById('pron-mic').textContent + '/' + document.getElementById('pron-live').textContent.slice(0, 11)), '🎤 もう一度言う/声が聞こえませんでした');
+  await page.evaluate(() => { window.__hang = false; });
+  await page.keyboard.press('Escape');
+  await page.click('#chant-pron'); await w(50);
+  await page.evaluate(() => window.__srQueue.push({ alts: [['good morning', 0.9]] }));
+  await page.click('#pron-mic'); await w(10);
+  await page.evaluate(() => App.goHome()); await w(200);
+  check('  聞いている途中でほかの画面へ行くと、聞くのをやめて窓を閉じる', await page.evaluate(() => window.__srLast._aborted + '/' + ES.isOpen()), 'true/false');
+
+  /* ── フラッシュカード ── */
+  await page.evaluate(() => App.startMode('flashcard', [WORDS.find(x => x.ex && x.exj && /^[a-z]+$/.test(x.w))])); await w(200);
+  await page.evaluate(() => App.flipCard()); await w(400);
+  const fw = await page.evaluate(() => { const x = WORDS.find(x => x.ex && x.exj && /^[a-z]+$/.test(x.w)); return [x.w, x.j, x.ex, x.exj]; });
+  await page.click('#fc-pron'); await w(100);
+  const fcA = await pv();
+  await page.keyboard.press('Escape');
+  await page.click('.fc-ex-pron-btn'); await w(100);
+  check('  フラッシュカード：単語の 🎤・例文の 🎤（例文は英語だけ、訳は下に）。カードはめくれない', [fcA, await pv(), await page.evaluate(() => document.getElementById('flashcard').classList.contains('flipped') + '/' + document.getElementById('fc-idx').textContent)].join(' || '),
+    ['true', fw[0], fw[1], 'true|false|true|true'].join('|') + ' || ' + ['true', fw[2], fw[3], 'true|false|true|true'].join('|') + ' || true/1');
+  await page.keyboard.press('Escape');
+
+  /* ── 文章ワードフラッシュ・長文 ── */
+  await page.evaluate(() => App.startSFCWithScene('dining')); await w(200);
+  const sfcT = await page.evaluate(() => [document.getElementById('sfc-rd-passage').textContent.trim(), document.getElementById('sfc-rd-passage-ja').textContent]);
+  await page.click('#sfc-pron'); await w(100);
+  check('  文章ワードフラッシュ：いまの文とその訳', await pv(), ['true', sfcT[0], sfcT[1], 'true|false|true|true'].join('|'));
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => { App.startRDLevel(1, 0); }); await w(200);
+  await page.evaluate(() => { App.rdClickWord(40); App.rdTogglePlay(); }); await w(100);
+  const playing = await page.textContent('#rd-play-btn');
+  await page.click('#rd-pron'); await w(100);
+  const rd = await page.evaluate(() => { const g = id => document.getElementById(id); return { pos: g('pron-pos').textContent, t: g('pron-target').textContent, cur: document.querySelector('#rd-passage .rd-current').textContent, nav: !g('pron-nav').hidden, ja: g('pron-ja').hidden, play: g('rd-play-btn').textContent }; });
+  check('  長文：再生を止めて、光っている語の文から1文ずつ（訳は出さない）', [playing, rd.play, rd.nav, rd.ja, /^\d+ \/ \d+ 文$/.test(rd.pos), rd.pos !== '1 / ' + rd.pos.split(' / ')[1], new RegExp('\\b' + rd.cur + '\\b').test(rd.t)].join('/'), '⏸ 停止/▶ 再生/true/true/true/true/true');
+  const k0 = parseInt(rd.pos, 10);
+  await page.click('#pron-next'); await w(50);
+  const nx = await page.evaluate(() => document.getElementById('pron-pos').textContent + '|' + document.getElementById('pron-target').textContent);
+  check('  ▶ で次の文', [parseInt(nx, 10) === k0 + 1, nx.split('|')[1] !== rd.t].join('/'), 'true/true');
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => App.startJHEra(2)); await w(300);
+  await page.click('#jh-pron'); await w(100);
+  check('  日本史：はじめの文から（◀ はおせない）', await page.evaluate(() => { const g = id => document.getElementById(id); return [g('pron-pos').textContent.startsWith('1 / '), g('pron-prev').disabled, g('pron-next').disabled, ES.sentences(document.getElementById('jh-passage').textContent)[0].s === g('pron-target').textContent].join('/'); }), 'true/true/false/true');
+  await page.keyboard.press('Escape');
+
+  /* ── 💬 英会話レッスン ── */
+  await page.evaluate(() => App.goHome()); await w(100);
+  await page.click('#talk-open'); await w(100);
+  check('  ホームの 💬 から場面えらび（10場面・🎤 が使えるので注意は出さない）', await page.evaluate(() => [document.querySelectorAll('#talk-cat-grid [data-talk]').length, [...document.querySelectorAll('#talk-cat-grid .tc-name')].map(x => x.textContent).join('・'), document.getElementById('talk-nosr').hidden].join('/')), '10/カフェで注文・自己紹介・洋服を買う・道をたずねる・ホテルのチェックイン・レストラン・空港の入国審査・電話でお店を予約・友だちと雑談・病院で症状を伝える/true');
+  check('  どの場面も、お手本の答えなら伝わる', await page.evaluate(() => Talk.data.map(sc => sc.turns.filter(t => !t.end).every(t => Talk.understood(t, t.model)) ? '' : sc.key).join('')), '');
+  check('  S・M・L だけでもサイズは伝わる（"I\'m not sure" の m ではない）', await page.evaluate(() => { const t = Talk.data[0].turns[1]; return ['M', 'medium please', "I'm not sure", 'large one'].map(x => Talk.understood(t, x)).join(','); }), 'true,true,false,true');
+  await page.click('[data-talk="cafe"]'); await w(150);
+  const log = () => page.evaluate(() => [...document.querySelectorAll('#talk-log .tb')].map(x => (x.classList.contains('me') ? (x.classList.contains('ok') ? '○' : '×') : '') + x.querySelector('.tb-en').textContent).join(' ⏎ '));
+  check('  会話の画面：相手の英語（読み上げ）と、言うこと（日本語）', [await page.evaluate(() => document.querySelector('.screen.active').id + '|' + document.getElementById('talk-title').textContent + '|' + document.getElementById('talk-task').textContent), await log(), await page.evaluate(() => window.__said.slice(-1)[0])].join(' | '), 'screen-talk|☕ カフェで注文|1 🎯 飲み物を1つ注文する（例：コーヒー） | Hi there! What can I get for you today? | Hi there! What can I get for you today?');
+  const talk = async (t, c = 0.9) => { await page.evaluate(([t, c]) => window.__srQueue.push({ alts: [[t, c]] }), [t, c]); await page.click('#talk-mic'); await w(700); };
+  await talk('can I have a latte please');
+  check('  伝わると、相手が答えて次へ', [await log(), await page.textContent('#talk-task')].join(' | '), 'Hi there! What can I get for you today? ⏎ ○can I have a latte please ⏎ Sure! What size would you like? We have small, medium, and large. | 2 🎯 サイズを答える（例：M サイズ）');
+  await talk("I'm not sure"); await talk('blah blah');
+  check('  2回伝わらないと、お手本を出す', [await page.evaluate(() => [...document.querySelectorAll('#talk-log .tb')].slice(-4).map(x => x.querySelector('.tb-en').textContent).join(' ⏎ ')), await page.evaluate(() => !document.getElementById('talk-model').hidden + '/' + document.getElementById('talk-model').textContent)].join(' | '), "I'm not sure ⏎ Sorry, I didn't catch that. Could you say it again? ⏎ blah blah ⏎ No worries. You could say, \"Medium, please.\" | true/お手本：Medium, please. 🔊");
+  await talk('medium please');
+  check('  答えに合わせたひとこと（Okay.）', await page.evaluate(() => [...document.querySelectorAll('#talk-log .tb.bot')].slice(-1)[0].querySelector('.tb-en').textContent), 'Okay. Would you like it hot or iced?');
+  await page.click('#talk-hint'); await w(50);
+  check('  💡 お手本：出して、ゆっくり読む', await page.evaluate(() => document.getElementById('talk-model').textContent.trim() + '/' + window.__said.slice(-1)[0] + '/' + window.__rate), 'お手本：Hot, please. 🔊/Hot, please./0.85');
+  await page.click('#talk-kbd'); await page.fill('#talk-input', 'Iced, please'); await page.press('#talk-input', 'Enter'); await w(700);
+  check('  ⌨️ 文字でも答えられる', await page.evaluate(() => { const m = [...document.querySelectorAll('#talk-log .tb.me')].slice(-1)[0]; return m.querySelector('.tb-en').textContent + '/' + m.querySelector('.tb-mark').textContent; }), 'Iced, please/✓ 伝わった・文字で');
+  await page.click('#talk-skip'); await w(300);
+  check('  ⏭ でとばす', await page.evaluate(() => [...document.querySelectorAll('#talk-log .tb.bot')].slice(-1)[0].querySelector('.tb-en').textContent), 'No worries. For here or to go?');
+  await talk('for here'); await talk('by card please'); await w(400);
+  check('  最後：頼んだもの（medium latte）を相手が言い返す', await page.evaluate(() => [...document.querySelectorAll('#talk-log .tb.bot')].slice(-1)[0].querySelector('.tb-en').textContent), 'Thank you! Your medium latte will be ready in a minute.');
+  check('  終わると：伝わった数・はっきり度・お手本の一覧（下の欄はかくす）', await page.evaluate(() => { const s = document.querySelector('.talk-sum'); return s && [s.querySelector('.ts-title').textContent, s.querySelector('.ts-score').textContent, [...s.querySelectorAll('.ts-list li')].map(l => l.className).join(','), document.getElementById('talk-panel').hidden].join('|'); }), '👍 よく話せました|伝わった 5 / 6　はっきり度（平均）90%|ok,ok,ok,ng,ok,ok|true');
+  check('  記録（ベスト）が残り、場面えらびに出る', await page.evaluate(() => { const r = JSON.parse(localStorage.getItem('eigo_talk_v1')).cafe; Talk.list(); const m = document.querySelector('[data-talk="cafe"] .tc-meta').textContent; Talk.closeList(); return r.best + '/' + r.plays + '/' + m; }), '5/1/初級・6回話す・ベスト 5/6');
+  await page.click('#ts-again'); await w(150);
+  check('  🔁 もう一度：はじめから', await page.evaluate(() => document.querySelectorAll('#talk-log .tb').length + '/' + !!document.querySelector('.talk-sum') + '/' + document.getElementById('talk-panel').hidden), '1/false/false');
+  await page.evaluate(() => Talk.start('intro')); await w(150);
+  await talk("Hi I'm Ken nice to meet you");
+  check('  自己紹介：名前を覚えて呼んでくれる', await page.evaluate(() => [...document.querySelectorAll('#talk-log .tb.bot')].slice(-1)[0].querySelector('.tb-en').textContent), 'Nice to meet you, Ken! Where are you from?');
+  await page.evaluate(() => Talk.start('hotel')); await w(150);
+  await talk("Hi I'd like to check in"); await talk("It's under Tanaka");
+  check('  ホテル：「It\'s under Tanaka」→ Tanaka さん', await page.evaluate(() => [...document.querySelectorAll('#talk-log .tb.bot')].slice(-1)[0].querySelector('.tb-en').textContent), "Thank you, Tanaka. You're staying for two nights, is that correct?");
+  await page.click('#talk-ja-btn'); await w(50);
+  const ja0 = await page.evaluate(() => getComputedStyle(document.querySelector('#talk-log .tb-ja')).display + '/' + localStorage.getItem('eigo_talk_ja'));
+  await page.click('#talk-ja-btn'); await w(50);
+  check('  訳：かくす・出す（覚えておく）', ja0 + ' | ' + await page.evaluate(() => getComputedStyle(document.querySelector('#talk-log .tb-ja')).display + '/' + localStorage.getItem('eigo_talk_ja')), 'none/0 | block/1');
+  await page.evaluate(() => window.__srQueue.push({ alts: [['yes', 0.9]] }));
+  await page.click('#talk-mic'); await w(10);
+  await page.click('#talk-back'); await w(200);
+  check('  ← 戻る：聞くのをやめて、ホームで場面えらび', await page.evaluate(() => window.__srLast._aborted + '/' + document.querySelector('.screen.active').id + '/' + document.getElementById('talk-modal').style.display), 'true/screen-home/flex');
+  await page.click('#talk-cancel'); await w(50);
+  await page.evaluate(() => Talk.start('way')); await w(150);
+  await page.goBack(); await w(200);
+  check('  端末の「戻る」でホームへ', await page.evaluate(() => document.querySelector('.screen.active').id), 'screen-home');
+  await page.evaluate(() => Talk.start('way')); await w(150);
+  const n0 = await page.evaluate(() => window.__said.length);
+  await page.evaluate(() => window.__srQueue.push({ alts: [['how do I get to the station', 0.9]] }));
+  await page.click('#talk-mic'); await w(150);
+  await page.evaluate(() => App.goHome()); await w(700);
+  check('  相手が答える前（0.45秒）に画面を離れても、ホームで話し出さない', await page.evaluate(n0 => [window.__said.length - n0, Talk.state()].join('/'), n0), '0/');
+  await page.evaluate(() => Talk.start('way')); await w(150);
+  await page.evaluate(() => { window.__hang = true; });
+  await page.click('#talk-mic'); await w(30);
+  await hide();
+  check('  英会話：画面が消えたら聞くのをやめ、🎤 にもどす', await page.evaluate(() => window.__srLast._aborted + '/' + document.getElementById('talk-mic').textContent + '/' + (Talk.state().ctl === null)), 'true/🎤 話す/true');
+  await page.evaluate(() => { window.__hang = false; document.getElementById('talk-type').hidden = false; });
+  await page.fill('#talk-input', 'Where is the station?'); await page.press('#talk-input', 'Enter'); await w(50);
+  await page.fill('#talk-input', 'Second corner'); await page.press('#talk-input', 'Enter'); await w(50);
+  const kept = await page.inputValue('#talk-input');
+  await w(600);
+  check('  相手が答えている間に送った文字は消さずに残す', kept + '/' + await page.evaluate(() => [...document.querySelectorAll('#talk-log .tb.me')].length), 'Second corner/1');
+  await page.evaluate(() => App.goHome()); await w(100);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+
+  /* ── 🎤 が使えないブラウザ ── */
+  ({ ctx, page, errs, w } = await open(false));
+  await page.evaluate(() => App.startChantWith('thanks')); await w(150);
+  await page.click('#chant-pron'); await w(100);
+  check('  使えないブラウザ：🎤 はかくして知らせる（🔊 お手本は聞ける）', await page.evaluate(() => ES.supported + '/' + document.getElementById('pron-mic').hidden + '/' + document.getElementById('pron-nosr').hidden), 'false/true/false');
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => App.goHome()); await page.click('#talk-open'); await w(100);
+  const nosr = await page.evaluate(() => document.getElementById('talk-nosr').hidden);
+  await page.click('[data-talk="way"]'); await w(150);
+  check('  英会話：注意を出し、⌨️ 文字の欄をはじめから出す', [nosr, await page.evaluate(() => document.getElementById('talk-mic').hidden + '/' + document.getElementById('talk-type').hidden)].join('/'), 'false/true/false');
+  await page.fill('#talk-input', 'How do I get to the station?'); await page.click('#talk-send'); await w(700);
+  check('  文字で答えて進む', await page.evaluate(() => [...document.querySelectorAll('#talk-log .tb.bot')].slice(-1)[0].querySelector('.tb-en').textContent), 'Go straight down this street and turn left at the second corner.');
+  check('  エラーなし（使えないブラウザ）', errs.join(' | '), '');
+  await ctx.close();
+
+  /* ── せまい画面（320px）でも横にはみ出さない ── */
+  ({ ctx, page, errs, w } = await open(true, { width: 320, height: 640 }));
+  const over = [];
+  for (const go of [() => App.startChantWith('morning'), () => App.startRDLevel(1, 0), () => App.startSFCWithScene('dining'), () => Talk.start('cafe')]) {
+    await page.evaluate(go); await w(200);
+    over.push(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth));
+  }
+  await page.evaluate(() => App.startRDLevel(1, 0)); await w(150);
+  check('  320px：横にはみ出さない・長文のボタンは1行', over.join(',') + '/' + await page.evaluate(() => ['rd-bulk-btn', 'rd-ja-btn', 'rd-pron'].every(id => document.getElementById(id).getBoundingClientRect().height < 40)), '0,0,0,0/true');
+  check('  エラーなし（320px）', errs.join(' | '), '');
+  await ctx.close();
+}
 const S_UNITS_EXPECT = '106 / 9,12,12,13,18,11,10,9,12';
 async function runSansu(browser) {
   console.log('\n── 🎓 算数・数学チャレンジ（v527） ──');
@@ -11439,6 +11679,7 @@ async function runQrShare(browser) {
     if (!only || only === 'memo' || only === 'memophoto') await runMemoPhoto(browser);
     if (!only || only === 'sansu') await runSansu(browser);
     if (!only || only === 'kakijun') await runKakijun(browser);
+    if (!only || only === 'eigo') await runEigoSpeak(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
   } finally { await browser.close(); }
