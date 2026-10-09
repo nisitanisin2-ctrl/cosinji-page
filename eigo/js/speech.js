@@ -78,9 +78,11 @@ window.ES = (function () {
         : er === 'network' ? 'net' : er === 'no-speech' ? 'nospeech' : er === 'aborted' ? 'aborted' : (er || 'error');
     };
     r.onend = finish;
-    me.timer = setTimeout(() => { try { r.stop(); } catch (e) {} }, opt.maxMs || 12000);
+    // 止めても onend が来ないブラウザのため、止めてから3秒で終える
+    const halt = () => { try { r.stop(); } catch (e) {} clearTimeout(me.timer); me.timer = setTimeout(finish, 3000); };
+    me.timer = setTimeout(halt, opt.maxMs || 12000);
     try { r.start(); } catch (e) { me.err = 'error'; finish(); return null; }
-    return { stop: () => { try { r.stop(); } catch (e) {} } };
+    return { stop: halt };
   }
   function stopListen() { const c = cur; cur = null; if (c && !c.done) { c.done = true; clearTimeout(c.timer); try { c.r.abort(); } catch (e) {} } }
   const errMsg = e => e === 'perm' ? 'マイクが使えません。ブラウザの設定でマイクを許可してください。'
@@ -387,7 +389,11 @@ window.ES = (function () {
     $('pron-slow').addEventListener('click', () => { stopListen(); if (P.ctl) P.ctl = null; setMic('idle'); say(P.text, { rate: 0.62 }); });
     sheet().addEventListener('click', e => { if (e.target === sheet() || e.target.closest('[data-pron-close]')) close(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && isOpen()) { close(); e.stopPropagation(); } }, true);
-    document.addEventListener('visibilitychange', () => { if (document.hidden) { stopListen(); hush(); } });
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) return;
+      stopListen(); hush();
+      if (P.ctl) { P.ctl = null; setMic('idle'); $('pron-live').textContent = ''; }
+    });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 

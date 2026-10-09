@@ -305,7 +305,7 @@ window.Talk = (function () {
     if (line == null) line = t.alt || t.bot.replace(/\{\w+\}/g, '').replace(/\s+/g, ' ');
     const said = (ack ? ack + ' ' : '') + line;
     addBot(said, t.ja, !!t.end);
-    if (t.end) { S.done = true; setPanel(null); const me = S; ES.say(said).then(() => { if (S === me) summary(); }); return; }
+    if (t.end) { S.done = true; setPanel(null); saveRec(); const me = S; ES.say(said).then(() => { if (S === me) summary(); }); return; }
     setPanel(t);
     ES.say(said);
   }
@@ -372,7 +372,7 @@ window.Talk = (function () {
     });
   }
   function typed() {
-    const inp = $('talk-input'), v = inp.value.trim(); if (!v) return;
+    const inp = $('talk-input'), v = inp.value.trim(); if (!v || !S || S.done || S.wait) return;
     inp.value = '';
     answer([{ t: v, c: 0 }], true);
   }
@@ -384,13 +384,15 @@ window.Talk = (function () {
     S.i++; S.tries = 0;
     botTurn('No worries.');
   }
+  function saveRec() {
+    const ok = S.res.filter(r => r.ok).length, rec = loadRec(), prev = rec[S.sc.key];
+    rec[S.sc.key] = { best: Math.max(ok, prev ? prev.best : 0), plays: (prev ? prev.plays : 0) + 1, at: Date.now() };
+    try { localStorage.setItem(KEY, JSON.stringify(rec)); } catch (e) {}
+  }
   function summary() {
     if (S.sum) return; S.sum = true;
     const n = S.res.length, ok = S.res.filter(r => r.ok).length;
     const cs = S.res.filter(r => r.ok && r.conf > 0).map(r => r.conf);
-    const rec = loadRec(), prev = rec[S.sc.key];
-    rec[S.sc.key] = { best: Math.max(ok, prev ? prev.best : 0), plays: (prev ? prev.plays : 0) + 1, at: Date.now() };
-    try { localStorage.setItem(KEY, JSON.stringify(rec)); } catch (e) {}
     const d = document.createElement('div'); d.className = 'talk-sum';
     d.innerHTML = '<div class="ts-title">' + (ok === n ? '🎉 ぜんぶ伝わりました！' : ok >= n / 2 ? '👍 よく話せました' : '💪 もう一度やってみよう') + '</div>'
       + '<div class="ts-score">伝わった <b>' + ok + '</b> / ' + n + (cs.length ? '　はっきり度（平均）<b>' + Math.round(cs.reduce((x, y) => x + y, 0) / cs.length * 100) + '%</b>' : '') + '</div>'
@@ -405,7 +407,7 @@ window.Talk = (function () {
     $('ts-other').addEventListener('click', () => { list(); });
   }
   function stopAll() { if (S && S.ctl) { S.ctl = null; } if (window.ES) { ES.stopListen(); ES.hush(); } if (S) setMic(false); }
-  function leave() { stopAll(); }
+  function leave() { stopAll(); S = null; }
   function applyJa() {
     let on = true; try { on = localStorage.getItem(JA_KEY) !== '0'; } catch (e) {}
     $('talk-log').classList.toggle('no-ja', !on);
@@ -429,6 +431,9 @@ window.Talk = (function () {
     });
     $('talk-open').addEventListener('click', list);
   }
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && S && S.ctl) { stopAll(); $('talk-live').textContent = ''; }
+  });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 
   return { list, closeList, start, leave, understood, answer, state: () => S, data: TALK_DATA };

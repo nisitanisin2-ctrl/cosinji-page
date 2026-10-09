@@ -7300,7 +7300,7 @@ async function runEigoSpeak(browser) {
     if (withSR) {
       window.SpeechRecognition = class {
         constructor() { window.__srLast = this; }
-        start() { window.__srStarted++; window.__srLang = this.lang + '/' + this.maxAlternatives; this._next = window.__srQueue.shift(); setTimeout(() => this._deliver(), 60); }
+        start() { window.__srStarted++; window.__srLang = this.lang + '/' + this.maxAlternatives; this._next = window.__srQueue.shift(); if (!window.__hang) setTimeout(() => this._deliver(), 60); }
         _deliver() {
           if (this._aborted || this._done) return; this._done = true;
           const n = this._next;
@@ -7311,7 +7311,7 @@ async function runEigoSpeak(browser) {
           this.onresult && this.onresult({ resultIndex: 0, results: [fin] });
           this.onend && this.onend();
         }
-        stop() { setTimeout(() => this._deliver(), 0); }
+        stop() { if (!window.__hang) setTimeout(() => this._deliver(), 0); }   // __hang：止めても終わりの合図が来ないブラウザ
         abort() { this._aborted = true; }
       };
     } else { window.SpeechRecognition = undefined; window.webkitSpeechRecognition = undefined; }
@@ -7382,6 +7382,17 @@ async function runEigoSpeak(browser) {
   await page.click('#chant-pron'); await w(100);
   await page.mouse.click(5, 400); await w(50);
   check('  まわりをおしても閉じる', await page.evaluate(() => ES.isOpen()), false);
+  const hide = () => page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); delete document.hidden; });
+  await page.click('#chant-pron'); await w(50);
+  await page.evaluate(() => { window.__hang = true; });
+  await page.click('#pron-mic'); await w(30);
+  await hide();
+  check('  画面が消えたら（スリープなど）聞くのをやめ、ボタンも戻す', await page.evaluate(() => window.__srLast._aborted + '/' + document.getElementById('pron-mic').textContent), 'true/🎤 タップして話す');
+  await page.click('#pron-mic'); await w(30);
+  await page.click('#pron-mic'); await w(3300);
+  check('  止めても終わりの合図が来ないブラウザでも、3秒で終える', await page.evaluate(() => document.getElementById('pron-mic').textContent + '/' + document.getElementById('pron-live').textContent.slice(0, 11)), '🎤 もう一度言う/声が聞こえませんでした');
+  await page.evaluate(() => { window.__hang = false; });
+  await page.keyboard.press('Escape');
   await page.click('#chant-pron'); await w(50);
   await page.evaluate(() => window.__srQueue.push({ alts: [['good morning', 0.9]] }));
   await page.click('#pron-mic'); await w(10);
@@ -7468,6 +7479,24 @@ async function runEigoSpeak(browser) {
   await page.evaluate(() => Talk.start('way')); await w(150);
   await page.goBack(); await w(200);
   check('  端末の「戻る」でホームへ', await page.evaluate(() => document.querySelector('.screen.active').id), 'screen-home');
+  await page.evaluate(() => Talk.start('way')); await w(150);
+  const n0 = await page.evaluate(() => window.__said.length);
+  await page.evaluate(() => window.__srQueue.push({ alts: [['how do I get to the station', 0.9]] }));
+  await page.click('#talk-mic'); await w(150);
+  await page.evaluate(() => App.goHome()); await w(700);
+  check('  相手が答える前（0.45秒）に画面を離れても、ホームで話し出さない', await page.evaluate(n0 => [window.__said.length - n0, Talk.state()].join('/'), n0), '0/');
+  await page.evaluate(() => Talk.start('way')); await w(150);
+  await page.evaluate(() => { window.__hang = true; });
+  await page.click('#talk-mic'); await w(30);
+  await hide();
+  check('  英会話：画面が消えたら聞くのをやめ、🎤 にもどす', await page.evaluate(() => window.__srLast._aborted + '/' + document.getElementById('talk-mic').textContent + '/' + (Talk.state().ctl === null)), 'true/🎤 話す/true');
+  await page.evaluate(() => { window.__hang = false; document.getElementById('talk-type').hidden = false; });
+  await page.fill('#talk-input', 'Where is the station?'); await page.press('#talk-input', 'Enter'); await w(50);
+  await page.fill('#talk-input', 'Second corner'); await page.press('#talk-input', 'Enter'); await w(50);
+  const kept = await page.inputValue('#talk-input');
+  await w(600);
+  check('  相手が答えている間に送った文字は消さずに残す', kept + '/' + await page.evaluate(() => [...document.querySelectorAll('#talk-log .tb.me')].length), 'Second corner/1');
+  await page.evaluate(() => App.goHome()); await w(100);
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 
