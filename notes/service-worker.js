@@ -1,6 +1,6 @@
 // このアプリ（notes/）専用のキャッシュ。同じサイトにある別アプリの分を消さないよう、
 // 名前の頭で自分の分だけを見分ける。
-const CACHE = 'memo-v5';
+const CACHE = 'memo-v6';
 const CACHE_PREFIX = 'memo-';
 const ASSETS = ['./', './index.html', './memo.js', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
 

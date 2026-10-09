@@ -6720,7 +6720,7 @@ async function runMemo(browser) {
   const raw = fs.readFileSync(path.join(ROOT, 'notes/index.html'), 'utf8'), sw = fs.readFileSync(path.join(ROOT, 'notes/service-worker.js'), 'utf8');
   check('  memo.js を app.js より先に読む・オフライン用にも持つ（キャッシュ memo-v4 から）', [raw.indexOf('<script src="memo.js">') > 0 && raw.indexOf('<script src="memo.js">') < raw.indexOf('<script src="app.js">'), sw.includes("'./memo.js'"), Number((/const CACHE = 'memo-v(\d+)'/.exec(sw) || [])[1]) >= 4].join(','), 'true,true,true');
   check('  書く所は書式の付けられる欄（1行1つ）・「ここに書けます」', await page.evaluate(() => { const m = document.getElementById('memo'); return [m.isContentEditable, m.getAttribute('role'), m.dataset.ph, getComputedStyle(m, '::before').content].join('|'); }), 'true|textbox|ここに書けます|"ここに書けます"');
-  check('  書式のボタン（文字色・背景色・フォントを先に）', await page.evaluate(() => [...document.querySelectorAll('#fmt button')].map(b => b.textContent.trim()).join(',')), 'A文字色,あ背景色,フォント,大きさ,B,U,S,書式を消す');
+  check('  書式のボタン（📷 写真の次に文字色・背景色・フォント）', await page.evaluate(() => [...document.querySelectorAll('#fmt button')].map(b => b.textContent.trim()).join(',')), '📷 写真,A文字色,あ背景色,フォント,大きさ,B,U,S,書式を消す');
   check('  🎤 と句読点・改行・戻すのボタン（375px に入りきる）', await page.evaluate(() => [...document.querySelectorAll('#quick button')].map(b => b.textContent.trim()).join(',') + '/' + ([...document.querySelectorAll('#quick button')].every(b => b.getBoundingClientRect().right <= innerWidth - 8))), '🎤 話す,、,。,？,↵,↶/true');
   check('  書式のボタンは横にすべらせる（右端をうすく）・聞き取りの帯はふだん出さない', await page.evaluate(() => document.getElementById('fmt').classList.contains('more') + '/' + getComputedStyle(document.getElementById('vbar')).display + '/' + document.getElementById('undoBtn').disabled), 'true/none/true');
 
@@ -6839,7 +6839,7 @@ async function runMemo(browser) {
   check('  テキストで保存（BOM 付き・Windows の改行）', /^memo-\d{4}-\d\d-\d\d\.txt$/.test(d1.suggestedFilename()) + ' ' + b1.slice(0, 3).toString('hex') + ' ' + JSON.stringify(b1.slice(3).toString('utf8')), 'true efbbbf "表のメモ。\\r\\n2行目"');
   const [d2] = await Promise.all([page.waitForEvent('download'), page.click('[data-out="html"]')]);
   const hd = fs.readFileSync(await d2.path(), 'utf8');
-  check('  色つきで保存（プログラムを動かさない .html・色は style で）', [/\.html$/.test(d2.suggestedFilename()), hd.includes("content=\"default-src 'none'; style-src 'unsafe-inline'\""), hd.includes('<span style="color:#c62828">表の</span>'), /class=|<script/i.test(hd)].join(','), 'true,true,true,false');
+  check('  色つきで保存（プログラムを動かさない .html・色は style で）', [/\.html$/.test(d2.suggestedFilename()), hd.includes("content=\"default-src 'none'; style-src 'unsafe-inline'; img-src data:\""), hd.includes('<span style="color:#c62828">表の</span>'), /class=|<script/i.test(hd)].join(','), 'true,true,true,false');
   await page.click('[data-out="say"]'); await page.waitForTimeout(100);
   check('  読み上げ（文ごと）', JSON.stringify(await page.evaluate(() => window.__spoken)), '["表のメモ。","2行目"]');
   await page.click('[data-out="print"]'); await page.waitForTimeout(250);
@@ -6989,6 +6989,158 @@ async function runMemoList(browser) {
     await page.setViewportSize({ width: w, height: 640 }); await page.waitForTimeout(150);
     check('  ' + w + 'px：下のボタン（📂 呼び出す・＋ 新しく・📤 出力・保存）が入りきる', await page.evaluate(() => [...document.querySelectorAll('#pad footer .btn')].map(b => b.textContent.trim()).join(',') + '|' + (document.documentElement.scrollWidth <= innerWidth) + '|' + [...document.querySelectorAll('#pad footer .btn')].every(b => b.getBoundingClientRect().right <= innerWidth - 4)), '📂 呼び出す,＋ 新しく,📤 出力,保存|true|true');
   }
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+/* 📄 メモ：📷 写真（v531）。入れる・選ぶ・大きさ・寄せる・動かす・保存・出力・片づけ */
+async function runMemoPhoto(browser) {
+  console.log('\n── 📄 メモ：📷 写真（v531） ──');
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 667 }, acceptDownloads: true });
+  await ctx.addInitScript(() => {
+    window.__clip = null;
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { write: async items => { const it = items[0]; window.__clip = { t: await (await it.getType('text/plain')).text(), h: await (await it.getType('text/html')).text() }; } } });
+  });
+  const page = await ctx.newPage();
+  const errs = []; page.on('pageerror', e => errs.push(e.message)); page.on('dialog', d => d.accept());
+  await page.goto('file://' + path.join(ROOT, 'notes', 'index.html')); await page.waitForTimeout(300);
+  const H = () => page.evaluate(() => document.getElementById('memo').innerHTML.replace(/ src="blob:[^"]*"/g, ' src="blob:"'));
+  const P = () => page.evaluate(() => MemoEd._t.plainOf(MemoEd._t.scan(document.getElementById('memo'))));
+  const sel = () => page.evaluate(() => MemoEd._t.sel());
+  const caret = n => page.evaluate(n => { document.getElementById('memo').focus(); MemoEd._t.selectRange(n, n); }, n);
+  const keys = () => page.evaluate(() => MemoEd._t.PDB.keys());
+  const ph = (i = 0) => page.evaluate(i => { const e = document.querySelectorAll('#memo .ph')[i]; if (!e) return null; const r = e.getBoundingClientRect(); return { id: e.dataset.id, w: e.dataset.w, al: e.dataset.al, r: e.dataset.r, cls: e.className, x: r.left, y: r.top, right: r.right, bottom: r.bottom, cx: r.left + r.width / 2, cy: r.top + r.height / 2, fl: getComputedStyle(e).cssFloat, src: (e.querySelector('img') || {}).src || '' }; }, i);
+  // 写真のファイルを作る（ページの中の canvas で）
+  const pngB64 = (w, h, color) => page.evaluate(([w, h, color]) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const cx = cv.getContext('2d'); cx.fillStyle = color; cx.fillRect(0, 0, w, h); return cv.toDataURL('image/png').split(',')[1]; }, [w, h, color]);
+  const mkFile = (w, h, color, type) => page.evaluate(([w, h, color, type]) => new Promise(res => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const cx = cv.getContext('2d'); cx.fillStyle = color; cx.fillRect(0, 0, w, h); cv.toBlob(b => { (window.__f = window.__f || []).push(new File([b], 'x.' + (type === 'image/png' ? 'png' : 'jpg'), { type })); res(window.__f.length - 1); }, type, 0.95); }), [w, h, color, type || 'image/png']);
+
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('memo.local.v1', JSON.stringify({ t: '買い物\n牛乳 2本\nたまご\n\n明日の会議は10時から。資料を忘れずに持っていくこと。', b: [] })); });
+  await page.reload(); await page.waitForTimeout(400);
+  check('  📷 写真のボタン（書式の段のいちばん左）・写真を選ぶ窓（いくつでも）', await page.evaluate(() => document.querySelector('#fmt button').id + '|' + document.querySelector('#fmt button').textContent.trim() + '|' + document.getElementById('phFile').accept + '|' + document.getElementById('phFile').multiple), 'phAdd|📷 写真|image/*|true');
+
+  // ファイルから入れる：カーソルの行の次の行に、写真だけの行として
+  await caret(9);
+  await page.setInputFiles('#phFile', { name: 'photo.png', mimeType: 'image/png', buffer: Buffer.from(await pngB64(800, 600, '#4a90d9'), 'base64') });
+  await page.waitForTimeout(600);
+  let a = await ph();
+  check('  ファイルから入れる：カーソルの行（牛乳）の次に、写真だけの行（まん中・幅60%以下）', [JSON.stringify(await P()), a.al, Number(a.w) <= 60 && Number(a.w) >= 10, a.r, /^blob:/.test(a.src)].join('|'), '"買い物\\n牛乳 2本\\n［写真］\\nたまご\\n\\n明日の会議は10時から。資料を忘れずに持っていくこと。"|c|true|0.75|true');
+  check('  入れた写真は選ばれて、上の段が写真の道具に', [await sel() === a.id, await page.evaluate(() => document.getElementById('phbar').hidden), await page.evaluate(() => document.getElementById('fmt').hidden), a.cls].join('|'), 'true|false|true|ph ph-c sel');
+  check('  写真の道具（左・中央・右／小・中・大・全幅／↑↓／🗑／完了）', await page.evaluate(() => [...document.querySelectorAll('#phbar button')].map(b => b.textContent.trim()).join(',')), '◧ 左,▣ 中央,◨ 右,小,中,大,全幅,↑,↓,🗑,✓ 完了');
+  const k1 = await keys();
+  check('  写真は端末の中（IndexedDB）に、文字は数えない', [k1.length, k1[0] === a.id, await page.textContent('#count')].join('|'), '1|true|43 文字・写真1・未保存');
+  check('  しまった写真は画像のまま', await page.evaluate(id => MemoEd._t.PDB.get(id).then(b => b instanceof Blob && b.type), a.id), 'image/png');
+
+  // 大きさ・寄せる・↑↓
+  await page.click('#phbar [data-w="30"]'); await page.waitForTimeout(80);
+  a = await ph();
+  check('  小：幅30%', [a.w, await page.evaluate(() => document.querySelector('#memo .ph').style.width), await page.evaluate(() => document.querySelector('#phbar [data-w="30"]').classList.contains('on'))].join('|'), '30|30%|true');
+  await page.click('#phbar [data-al="r"]'); await page.waitForTimeout(80);
+  a = await ph();
+  check('  右に寄せる（文字が左に回り込む）', [a.al, a.fl, a.right > 340].join('|'), 'r|right|true');
+  await page.click('#phbar [data-al="l"]'); await page.waitForTimeout(80);
+  check('  左に寄せる', (await ph()).fl, 'left');
+  await page.click('#phbar [data-mv="1"]'); await page.click('#phbar [data-mv="1"]'); await page.waitForTimeout(80);
+  check('  ↓ で1行ずつ下へ', JSON.stringify(await P()), '"買い物\\n牛乳 2本\\nたまご\\n\\n［写真］\\n明日の会議は10時から。資料を忘れずに持っていくこと。"');
+  await page.click('#phbar [data-mv="-1"]'); await page.waitForTimeout(80);
+  check('  ↑ で上へ', (await P()).startsWith('買い物\n牛乳 2本\nたまご\n［写真］\n\n明日'), true);
+  await page.click('#phbar [data-w="100"]'); await page.click('#phbar [data-al="c"]'); await page.waitForTimeout(80);
+  a = await ph();
+  check('  全幅・まん中', [a.w, a.al, Math.abs((a.right - a.x) - await page.evaluate(() => document.querySelector('#memo > div').getBoundingClientRect().width)) < 2].join('|'), '100|c|true');
+  await page.click('#phbar [data-w="50"]'); await page.waitForTimeout(80);
+
+  // 角の ● をドラッグして大きさ
+  a = await ph();
+  await page.mouse.move(a.right, a.bottom); await page.mouse.down(); await page.mouse.move(a.right + 20, a.bottom + 5, { steps: 4 }); await page.mouse.move(a.right + 40, a.bottom + 5, { steps: 4 }); await page.mouse.up(); await page.waitForTimeout(150);
+  const w2 = Number((await ph()).w);
+  check('  角の ● をドラッグして大きく（まん中の写真は両側に広がる）', w2 > 60 && w2 <= 80, true);
+  // ドラッグで好きな行の間へ（右側に落とすと右寄せ）
+  a = await ph();
+  const t1 = await page.evaluate(() => { const l = document.getElementById('memo').children[0].getBoundingClientRect(); return { x: l.right - 20, y: l.top + 4 }; });
+  await page.mouse.move(a.cx, a.cy); await page.mouse.down(); await page.mouse.move(a.cx + 5, a.cy - 10, { steps: 3 }); await page.mouse.move(t1.x, t1.y, { steps: 12 });
+  check('  ドラッグ中は落とす所のしるし', await page.evaluate(() => !document.getElementById('phDrop').hidden && document.querySelector('#phDrop span').textContent), '右に寄せる →');
+  await page.mouse.up(); await page.waitForTimeout(150);
+  a = await ph();
+  check('  いちばん上の行の上の右に落とすと、そこに右寄せで', [(await P()).startsWith('［写真］\n買い物\n'), a.al, await page.evaluate(() => document.getElementById('phDrop').hidden)].join('|'), 'true|r|true');
+  await page.click('#undoBtn'); await page.waitForTimeout(120);
+  check('  ↶ で動かす前にもどる', [(await P()).startsWith('買い物\n牛乳 2本\nたまご\n［写真］\n'), (await ph()).al].join('|'), 'true|c');
+
+  // 指：軽くおして選ぶ（画面をすべらせ始めても選ばない）
+  await page.keyboard.press('Escape'); await page.waitForTimeout(60);
+  check('  Esc で選ぶのをやめる（上の段が書式にもどる）', [await sel(), await page.evaluate(() => document.getElementById('fmt').hidden)].join('|'), '|false');
+  const tp = await page.evaluate(() => { const e = document.querySelector('#memo .ph'); const r = e.getBoundingClientRect(); e.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerType: 'touch', clientX: r.left + 10, clientY: r.top + 10, pointerId: 7 })); return MemoEd._t.sel(); });
+  await page.evaluate(() => document.querySelector('#memo .ph').click()); await page.waitForTimeout(60);
+  check('  指：おしただけでは選ばず、軽くおす（click）と選ぶ', tp + '|' + (await sel() === (await ph()).id), '|true');
+  await page.keyboard.press('Delete'); await page.waitForTimeout(120);
+  check('  選んで Delete で消す', [await page.evaluate(() => document.querySelectorAll('#memo .ph').length), await sel()].join('|'), '0|');
+  await page.click('#undoBtn'); await page.waitForTimeout(200);
+  a = await ph();
+  check('  ↶ で写真がもどる（画像も）', [!!a, a && /^blob:/.test(a.src)].join('|'), 'true|true');
+
+  // 貼り付け・打つと選ぶのをやめる
+  await page.evaluate(() => MemoEd._t.selectPhoto(document.querySelector('#memo .ph').dataset.id));
+  const n2 = await page.evaluate(() => MemoEd._t.scan(document.getElementById('memo')).length);
+  await caret(n2);
+  check('  文字を打つと写真を選ぶのをやめる', await page.evaluate(() => { document.getElementById('memo').dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: 'x', bubbles: true, cancelable: true })); return MemoEd._t.sel(); }), '');
+  const fi = await mkFile(400, 600, '#d9774a');
+  await page.evaluate(i => { const dt = new DataTransfer(); dt.items.add(window.__f[i]); document.getElementById('memo').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); }, fi);
+  await page.waitForTimeout(600);
+  check('  写真を貼り付ける（いちばん下に）', [await page.evaluate(() => document.querySelectorAll('#memo .ph').length), JSON.stringify((await P()).slice(-6)), (await ph(1)).r].join('|'), '2|"\\n［写真］\\n"|1.5');
+
+  // 大きな写真は 1600px に縮めて JPEG に
+  const fb = await mkFile(3000, 2000, '#3a7', 'image/png');
+  await page.evaluate(i => MemoEd._t.addPhotos([window.__f[i]]), fb); await page.waitForTimeout(1500);
+  const big = await page.evaluate(() => { const e = document.querySelectorAll('#memo .ph')[2]; return MemoEd._t.PDB.get(e.dataset.id).then(b => createImageBitmap(b).then(im => b.type + ' ' + im.width + 'x' + im.height + ' r=' + e.dataset.r)); });
+  check('  大きな写真は長い辺を 1600px に縮めて JPEG に', big, 'image/jpeg 1600x1067 r=0.6667');
+
+  // 保存・開き直す
+  await page.click('#save'); await page.waitForTimeout(150);
+  const st = await page.evaluate(() => JSON.parse(localStorage.getItem('memo.list.v1')));
+  const it0 = st.items.find(x => x.id === st.cur);
+  check('  保存：文字は文字だけ・写真は印だけ（画像や blob: は入れない）', [JSON.stringify(it0.t).includes('\\ufffc'), (it0.h.match(/<span class="ph" data-id="p[0-9a-z]+" data-w="\d+" data-al="[lcr]" data-r="[\d.]+"><\/span>/g) || []).length, /blob:|<img|sel|contenteditable/.test(it0.h)].join('|'), 'false|3|false');
+  await page.reload(); await page.waitForTimeout(900);
+  check('  開き直しても写真がもどる（大きさ・寄せも）', await page.evaluate(() => [...document.querySelectorAll('#memo .ph')].map(e => e.dataset.al + e.dataset.w + ':' + (e.querySelector('img').naturalWidth > 0)).join(',')), 'c' + w2 + ':true,c60:true,c' + (await page.evaluate(() => document.querySelectorAll('#memo .ph')[2].dataset.w)) + ':true');
+  await page.click('#lsBtn'); await page.waitForTimeout(100);
+  check('  一覧に写真の枚数', await page.evaluate(() => /・📷 3枚/.test(document.querySelector('#lsList .ls-sub').textContent)), true);
+  await page.keyboard.press('Escape');
+
+  // 出力：文字は［写真］・HTML は写真を中に入れる
+  await page.click('#outBtn'); await page.waitForTimeout(300);
+  await page.click('[data-out="copy"]'); await page.waitForTimeout(300);
+  const cl = await page.evaluate(() => window.__clip);
+  check('  コピー：文字は［写真］、HTML には写真（data:）', [(cl.t.match(/［写真］/g) || []).length, (cl.h.match(/<img src="data:image\//g) || []).length, /blob:/.test(cl.h)].join('|'), '3|3|false');
+  const [dh] = await Promise.all([page.waitForEvent('download'), page.click('[data-out="html"]')]);
+  const hd = fs.readFileSync(await dh.path(), 'utf8');
+  check('  色つきで保存：写真も中に入れる（data: だけ読む CSP）', [hd.includes("img-src data:"), (hd.match(/<img src="data:image\/[a-z]+;base64,/g) || []).length, /blob:|<script/i.test(hd)].join('|'), 'true|3|false');
+  const [dt2] = await Promise.all([page.waitForEvent('download'), page.click('[data-out="txt"]')]);
+  check('  テキストで保存：写真は［写真］', (fs.readFileSync(await dt2.path(), 'utf8').match(/［写真］/g) || []).length, 3);
+  await page.keyboard.press('Escape');
+
+  // 写真だけのメモも保存できる・名前は（写真）
+  await page.click('#newBtn'); await page.waitForTimeout(100);
+  const fc = await mkFile(300, 300, '#a3c');
+  await page.evaluate(i => MemoEd._t.addPhotos([window.__f[i]]), fc); await page.waitForTimeout(500);
+  await page.click('#save'); await page.waitForTimeout(120);
+  check('  写真だけのメモも保存できる（名前は「（写真）」）', [await page.textContent('#docTtl'), (await page.evaluate(() => JSON.parse(localStorage.getItem('memo.list.v1')).items.length))].join('|'), '📄 （写真）|2');
+
+  // 片づけ：保存しなかった写真・消したメモの写真は IndexedDB から消える
+  const before = (await keys()).length;
+  await page.evaluate(i => MemoEd._t.addPhotos([window.__f[i]]), fc); await page.waitForTimeout(500);
+  const unsavedId = (await ph(1)).id;
+  await page.click('#lsBtn'); await page.click('#lsList .ls-item:not(.cur) .ls-open'); await page.waitForTimeout(100);
+  await page.click('#dsDrop'); await page.waitForTimeout(400);
+  const k2 = await keys();
+  check('  保存しないで移ると、その写真は片づける', [before, k2.length, k2.indexOf(unsavedId) < 0].join('|'), before + '|' + before + '|true');
+  await page.click('#lsBtn'); await page.click('#lsList .ls-item:has-text("（写真）") .ls-del'); await page.click('.ls-ask [data-yes]'); await page.waitForTimeout(400);
+  check('  写真のメモを消すと、その写真も消える', (await keys()).length, before - 1);
+  await page.keyboard.press('Escape');
+
+  // おかしな印は読まない（何も動かない）・見つからない写真はしるしを出す
+  await page.evaluate(() => { window.__pwn = 0; localStorage.setItem('memo.list.v1', JSON.stringify({ cur: 'mbad001', items: [{ id: 'mbad001', t: 'あ\n', h: '<div>あ</div><div><span class="ph" data-id="p1234&quot;&gt;&lt;img src=x onerror=window.__pwn=1&gt;" data-w="50"></span></div><div><span class="ph" data-id="pnone01" data-w="5" data-al="evil" data-r="-1" onclick="window.__pwn=2" style="position:fixed"><img src="x" onerror="window.__pwn=3"></span></div>', at: 1, up: 1 }] })); const o = JSON.parse(localStorage.getItem('memo.local.v1')); o.t = ''; delete o.h; localStorage.setItem('memo.local.v1', JSON.stringify(o)); });
+  await page.reload(); await page.waitForTimeout(800);
+  check('  おかしな写真の印は読まない・決まった値だけ（何も動かない）', [await page.evaluate(() => document.querySelectorAll('#memo .ph').length), await page.evaluate(() => { const e = document.querySelector('#memo .ph'); return e.dataset.id + ' ' + e.dataset.w + ' ' + e.dataset.al + ' ' + e.dataset.r + ' ' + (e.getAttribute('onclick') || '-') + ' ' + (e.getAttribute('style') || ''); }), await page.evaluate(() => window.__pwn || 0)].join('|'), '1|pnone01 60 c 0.75 - width: 60%;|0');
+  check('  見つからない写真は「写真が見つかりません」', await page.evaluate(() => document.querySelector('#memo .ph').classList.contains('miss') && getComputedStyle(document.querySelector('#memo .ph'), '::before').content), '"写真が見つかりません"');
+
+  // 画面からはみ出さない
+  check('  写真の道具の段は横にすべらせる・画面は横にずれない', await page.evaluate(() => { MemoEd._t.selectPhoto('pnone01'); const b = document.getElementById('phbar'); return b.classList.contains('more') + '|' + (document.documentElement.scrollWidth <= innerWidth); }), 'true|true');
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
@@ -11143,6 +11295,7 @@ async function runQrShare(browser) {
     if (!only || only === 'security') await runSecurity(browser);
     if (!only || only === 'memo') await runMemo(browser);
     if (!only || only === 'memo' || only === 'memolist') await runMemoList(browser);
+    if (!only || only === 'memo' || only === 'memophoto') await runMemoPhoto(browser);
     if (!only || only === 'sansu') await runSansu(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
