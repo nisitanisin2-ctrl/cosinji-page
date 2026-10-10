@@ -267,9 +267,9 @@ window.Talk = (function () {
         + '<span class="tc-meta">' + sc.level + '・' + n + '回話す' + (r ? '・<b>ベスト ' + r.best + '/' + n + '</b>' : '') + '</span></button>';
     }).join('');
     $('talk-nosr').hidden = !!window.ES && ES.supported;
-    $('talk-modal').style.display = 'flex';
+    App.modalShow('talk-modal');
   }
-  function closeList() { $('talk-modal').style.display = 'none'; }
+  function closeList() { App.modalHide('talk-modal'); }
 
   /* ── 会話 ── */
   function start(key) {

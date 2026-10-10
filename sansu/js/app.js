@@ -166,6 +166,7 @@ function render(){
   if(view.s !== 'play') window.scrollTo(0, 0);
 }
 window.addEventListener('popstate', e => {
+  backLock = 0;
   if(!$('modal').hidden){ closeModalNow(); return; }   // 窓だけ 閉じる
   const s = e.state && e.state.s ? e.state : {s: 'home', d: 1};
   if(view.s === 'play' && s.s !== 'play') endSession();
@@ -178,6 +179,7 @@ let fromHyo = false;
 try { if(/from=hyo/.test(location.hash)) sessionStorage.setItem('sansu_from_hyo', '1'); fromHyo = sessionStorage.getItem('sansu_from_hyo') === '1'; } catch(_){}
 function toHyo(){
   endSession();
+  leavingHyo = true; try { localStorage.removeItem('excalc_resume'); } catch(_){}   // 自分で帰るので、開き直しの印は消す
   const url = '../' + (location.protocol === 'file:' ? 'index.html' : '');
   if(fromHyo && history.length > 1){ const here = location.href; history.go(-depth()); setTimeout(() => { if(location.href === here) location.href = url; }, 600); }
   else location.href = url;
@@ -190,7 +192,17 @@ function openModal(html, onClose){
   try { history.pushState(Object.assign({}, view, {d: depth() + 1, m: 1}), '', location.hash); } catch(_){}
 }
 function closeModalNow(){ $('modal').hidden = true; $('mbody').innerHTML = ''; const f = modalOnClose; modalOnClose = null; if(f) f(); }
-const closeModal = () => { if(!$('modal').hidden) history.back(); };
+/* 画面の「もどる」「やめる」・窓を閉じる：back は少しあとで効くので、続けて2回おすと 2つ戻って
+   アプリごと表電卓へ戻ってしまう。戻り終わるまで（または 0.7秒）は 次の back を出さない（v535） */
+let backLock = 0;
+function navBack(){ const now = Date.now(); if(now - backLock < 700) return; backLock = now; history.back(); }
+const closeModal = () => { if(!$('modal').hidden) navBack(); };
+/* 表電卓から 開いたときは、うしろに 回るときに「つかっていた」と 書きのこす（スマホが アプリを 閉じたあと、表電卓が 開きなおす） */
+let leavingHyo = false;
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState !== 'hidden' || !fromHyo || leavingHyo) return;
+  try { localStorage.setItem('excalc_resume', JSON.stringify({app: 'sansu', t: Date.now()})); } catch(_){}
+});
 /* お知らせは じゅんばんに 1つずつ（レベルアップ・ミッション・メダルが かさなっても 見える） */
 let toastT = null; const toastQ = [];
 function toast(msg){ if(!msg) return; if(toastQ[toastQ.length - 1] === msg) return; toastQ.push(msg); if(toastQ.length === 1) showToast(); }
@@ -1131,7 +1143,7 @@ document.addEventListener('click', e => {
   switch(a){
     case 'nav': if(el.dataset.s === 'home' && view.s === 'result') ses = null; go(el.dataset.s); break;
     case 'hyo': toHyo(); break;
-    case 'back': history.back(); break;
+    case 'back': navBack(); break;
     case 'grade': st.set.grade = +el.dataset.g; save(); renderHome(); break;
     case 'unit': if(!$('modal').hidden){ $('modal').hidden = true; } startStage(u); break;
     case 'ex': go('ex', {u}); break;
@@ -1179,7 +1191,7 @@ document.addEventListener('click', e => {
     case 'pex': if(ses && ses.p) openExModal(ses.p.unit); break;
     case 'pass': pass(); break;
     case 'next': nextProblem(); break;
-    case 'quit': history.back(); break;
+    case 'quit': navBack(); break;
     case 'again': if(ses){ const m = ses.mode, uu = ses.u; if(m === 'ta') startTA(uu); else if(m === 'mix') startMix(ses.card && !st.set.card); else if(m === 'rev') startReview(); else if(m === 'boss') startBoss(ses.g); else startStage(uu); } break;
     case 'tg': { const k = el.dataset.k; st.set[k] = !st.set[k]; save(); renderSet(); renderTop(); if((k === 'voice' || k === 'vconf') && st.set[k] && !V.supported) toast('この 端末では 声の 聞き取りが 使えないかも しれません'); break; }
     case 'setv': { const k = el.dataset.k, v = el.dataset.v, ok = {pad: ['calc', 'phone'], furi: ['ruby', 'kana', 'off']}[k]; if(ok && ok.includes(v)){ st.set[k] = v; save(); renderSet(); } break; }

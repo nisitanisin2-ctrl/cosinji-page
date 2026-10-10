@@ -7613,6 +7613,184 @@ async function runEigoSpeak(browser) {
   check('  エラーなし（320px）', errs.join(' | '), '');
   await ctx.close();
 }
+/* 🎙 声の計算帳：したい計算から、言い方の例と案（koe v20・表電卓 v535） */
+async function runKoeIdeas(browser) {
+  console.log('\n── 🎙 声の計算帳：したい計算から言い方の例（koe v20） ──');
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 820 }, serviceWorkers: 'block' });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/favicon/.test(m.text())) errs.push('console: ' + m.text()); });
+  const w = ms => page.waitForTimeout(ms);
+  await page.goto('file://' + path.join(ROOT, 'koe', 'index.html')); await w(500);
+  const run = t => page.evaluate(t => { const r = koeRun(t), m = state.log[state.log.length - 1]; return [r.cls, r.a, (m.ideas || []).map(d => d.t + (d.fit ? '*' : '')).join(' / '), m.tip ? 'tip' : '', (m.gen || []).length].join(' | '); }, t);
+  check('  「ローンの計算をしたい」：ローンの言い方を並べる（返済・分割をいろいろ）', await run('ローンの計算をしたい'), 'info | ローン・分割払いの計算ですね。こんなふうに言えます | 300万円を金利2%で5年ローン毎月の返済 / 12万円を12回払い / 12万円を12回に分けて / 200万円を金利3%で10年ローンの毎月の返済額 / 6万円を3回払い / 12万円の12回分割 | tip | 0');
+  check('  言った数は文例に当てはめる（100万円 → 100万円を金利2%で…。*＝当てはめた）', (await run('100万円を借りたときの返済を知りたい')).split(' | ')[2].split(' / ').slice(0, 2).join(' / '), '100万円を金利2%で5年ローン毎月の返済* / 100万円を12回払い*');
+  check('  人数だけ言った割り勘：人数を当てはめて、金額は例のまま', (await run('3人で割り勘したい')).split(' | ')[2].split(' / ').slice(0, 2).join(' / '), '12800円を3人で割り勘、1人は2割引き、100円単位* / 12800円を3人で割り勘、100円単位*');
+  check('  「お米を3合炊きたい」：3合を「3リットル」にはしない・合の文例を先に', (await run('お米を3合炊きたい')).split(' | ')[2].split(' / ').slice(0, 2).join(' / '), '3合は何ミリリットル / 1升は何合');
+  check('  「給料の手取りが知りたい」：給料と手取りの文例を交互に', await page.evaluate(() => { koeRun('給料の手取りが知りたい'); const m = state.log[state.log.length - 1]; return m.a.split('の計算')[0] + ' | ' + m.ideas.some(d => /源泉/.test(d.t)) + '/' + m.ideas.some(d => /月給|年収/.test(d.t)); }), '給料・時給・源泉徴収・手取り | true/true');
+  check('  数のない言葉（燃費・面積・年齢）でも出す', [await run('燃費'), await run('面積'), await run('年齢')].map(r => r.split(' | ')[1]).join(' / '), '燃費・ガソリン代の計算ですね。こんなふうに言えます / 図形の面積・体積の計算ですね。こんなふうに言えます / 年齢・和暦の計算ですね。こんなふうに言えます');
+  check('  何の計算か分からない「計算したい」：ジャンルを並べる', await run('計算したい'), 'info | 何の計算をしますか？ |  | tip | 11');
+  check('  それだけで計算できるときはそのまま答える（〜したい・〜分けたい）', [await run('12800円を4人で割り勘したい'), await run('12800円を4人で分けたい'), await run('3と5を足したい')].map(r => r.split(' | ').slice(0, 2).join(' ')).join(' / '), 'ok ひとり 3,200円 × 4人 / ok 1人あたり 3,200円 / ok 8');
+  check('  　吹き出しには言ったとおりの言葉を出す', await page.evaluate(() => state.log[state.log.length - 2].q), '12800円を4人で分けたい');
+  check('  「冷たい」などは したい計算ではない・ふつうの計算はそのまま', [await run('冷たい'), await run('1280円を3つ'), await run('それに消費税')].map(r => r.split(' | ')[0]).join(','), 'err,ok,ok');
+  check('  「それに消費税を計算して」は前の答えに続けて計算', await page.evaluate(() => { koeRun('1000円を2つ'); const r = koeRun('それに消費税を計算して'); return r.cls + ' ' + state.lastV; }), 'ok 2200');
+  // 画面：打って出す → 例を押すと「この言い方で」と下の欄 → ▶ で計算 → ほかの言い方
+  await page.evaluate(() => { resetAll(); render(); });
+  await page.fill('#typeIn', '割り勘の計算をしたい'); await page.press('#typeIn', 'Enter'); await w(200);
+  check('  打つと吹き出しに案（💡）と言い方のボタン', await page.evaluate(() => { const m = document.querySelector('#log .msg.app:last-child'); return !!m.querySelector('.idea-tip') + '/' + m.querySelectorAll('.idea .idea-t').length + '/' + m.querySelectorAll('.idea .idea-run').length + '/' + !!m.querySelector('.idea-more'); }), 'true/6/6/true');
+  await page.click('.idea .idea-t'); await w(150);
+  check('  例を押す：「この言い方で」になり、打っていたので下の欄にも入る', await page.evaluate(() => guideEx + '|' + document.getElementById('typeIn').value + '|' + !document.getElementById('guide').hidden), '3人で12000円を割り勘|3人で12000円を割り勘|true');
+  await page.fill('#typeIn', ''); await page.evaluate(() => setGuide(''));
+  await page.click('.idea .idea-run'); await w(200);
+  check('  ▶ でそのまま計算', await page.evaluate(() => { const m = state.log[state.log.length - 1]; return m.q + ' → ' + m.a; }), '3人で12000円を割り勘 → 1人あたり 4,000円');
+  await page.click('.idea-more'); await w(250);
+  check('  「ほかの言い方も見る」：📚 文例を、その計算でさがした形で開く', await page.evaluate(() => document.getElementById('p-ex').classList.contains('open') + '|' + document.getElementById('exFind').value + '|' + [...document.querySelectorAll('#exBody .ex')].filter(x => /割り勘|等分|人で割/.test(x.textContent)).length), 'true|割り勘|7');
+  await page.fill('#exFind', '年齢'); await w(150);
+  const ageN = await page.evaluate(() => document.querySelectorAll('#exBody .ex').length);
+  await page.fill('#exFind', 'お米'); await w(150);
+  check('  📚 文例の「さがす」：「年齢」「お米」のような、したい計算でも出る', ageN + '/' + await page.evaluate(() => [...document.querySelectorAll('#exBody .ex')].map(x => x.textContent).filter(t => /合|升/.test(t)).length), '22/3');
+  await page.evaluate(() => closePanel()); await w(200);
+  await page.evaluate(() => { resetAll(); render(); });
+  await page.fill('#typeIn', '計算したい'); await page.press('#typeIn', 'Enter'); await w(200);
+  await page.click('.ideas.gen .chip'); await w(250);
+  check('  ジャンルを押すと、そのジャンルの文例を開く', await page.evaluate(() => document.getElementById('p-ex').classList.contains('open') + '|' + exGenre), 'true|kurashi');
+  await page.evaluate(() => closePanel()); await w(200);
+  check('  はじめの説明にも書く', await page.evaluate(() => { resetAll(); render(); return /割り勘したい/.test(document.getElementById('log').textContent); }), true);
+  check('  したい計算と文例の組：どれにも文例がある', await page.evaluate(() => KOE_INTENTS.T.filter(o => !KOE_INTENTS.examplesOf([o], KOE_EXAMPLES).length).map(o => o.id).join(',')), '');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+/* 🔙 意図せず表電卓に戻らない（v535）：窓は「戻る」で窓だけ閉じる・何も開いていないところでは一度知らせる・
+   閉じてすぐ開いても順番が入れかわらない・スマホがアプリを閉じたあとは開き直す */
+async function runBackGuard(browser) {
+  console.log('\n── 🔙 意図せず表電卓に戻らない（v535） ──');
+  const copies = ['koe/backguard.js', 'eigo/js/backguard.js', 'notes/backguard.js', 'kakijun/js/backguard.js'].map(f => fs.readFileSync(path.join(ROOT, f), 'utf8'));
+  check('  戻るの見張り（backguard.js）は4つのアプリで同じもの', copies.every(c => c === copies[0]), true);
+  check('  それぞれの service-worker が持つ', [['koe', 'backguard.js'], ['eigo', 'js/backguard.js'], ['notes', 'backguard.js'], ['kakijun', 'js/backguard.js']].map(([d, f]) => fs.readFileSync(path.join(ROOT, d, 'service-worker.js'), 'utf8').includes("'./" + f + "'")).join(','), 'true,true,true,true');
+  const HYO = 'file://' + path.join(ROOT, 'index.html');
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 800 }, serviceWorkers: 'block' });
+  await ctx.addInitScript(() => { try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('sansu_tour', '1'); } catch (e) {} });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push(e.message)); page.on('dialog', d => d.accept());
+  const w = ms => page.waitForTimeout(ms);
+  const back = async () => { await page.goBack({ waitUntil: 'commit' }).catch(() => {}); await w(500); };
+  const where = () => page.url().replace(/^.*cosinji-page\//, '').replace(/[#?].*$/, '');
+  const enter = async dir => { await page.goto(HYO); await w(500); await page.goto('file://' + path.join(ROOT, dir, 'index.html') + '#from=hyo'); await w(800); };
+  const bgToast = () => page.evaluate(() => { const t = document.getElementById('bg-toast'); return t && t.style.opacity === '1' ? t.textContent : ''; });
+
+  // ── 🎙 声の計算帳
+  await enter('koe');
+  await page.click('[aria-label="設定"]'); await w(250);
+  await page.click('text=👂 声だけで使う'); await w(600);
+  check('  声の計算帳：設定 → 声だけ（閉じてすぐ別の窓）', await page.evaluate(() => document.getElementById('p-set').classList.contains('open') + '/' + document.getElementById('voice-only').classList.contains('open')), 'false/true');
+  await back();
+  check('  　戻るで「声だけ」の窓だけ閉じる（アプリのまま）', where() + '|' + await page.evaluate(() => document.getElementById('voice-only').classList.contains('open') + '/' + panelStack.length), 'koe/index.html|false/0');
+  await page.click('[aria-label="文例"]'); await w(200);
+  await page.evaluate(() => { closePanel(); openPanel('help'); }); await w(300);
+  await page.click('#p-help .panel-head .hbtn'); await w(500);
+  check('  　✕で閉じてすぐ別の窓を開いても、そのあと閉じてアプリから出ない', where() + '|' + await page.evaluate(() => panelStack.length), 'koe/index.html|0');
+  await back();
+  check('  　何も開いていないところで戻る：一度だけ知らせて、アプリのまま', where() + '|' + await page.evaluate(() => document.getElementById('toast').textContent), 'koe/index.html|もう一度「戻る」を押すと表電卓に戻ります');
+  await back();
+  check('  　もう一度で表電卓へ', where(), 'index.html');
+  await enter('koe');
+  await page.click('[aria-label="文例"]'); await w(200);
+  await page.click('#p-ex .panel-head .hbtn'); await w(400);
+  await page.click('[aria-label="使い方"]'); await w(200);
+  await page.click('#p-help .panel-head .hbtn'); await w(400);
+  await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); document.dispatchEvent(new Event('visibilitychange')); delete document.visibilityState; });
+  check('  　うしろに回ると「使っていた」と書き残す', await page.evaluate(() => (JSON.parse(localStorage.getItem('excalc_resume')) || {}).app), 'koe');
+  await page.click('#backHyo'); await w(900);
+  check('  　「← 表電卓」：開いた窓の分もまとめて戻って表電卓へ（書き残しは消す）', where() + '|' + await page.evaluate(() => localStorage.getItem('excalc_resume')), 'index.html|null');
+
+  // ── 📚 英単語
+  await enter('eigo');
+  await page.click('[onclick="App.startChant()"]'); await w(250);
+  check('  英単語：ホームで「日常チャンク」の窓が開く', await page.evaluate(() => document.getElementById('chant-modal').style.display), 'flex');
+  await back();
+  check('  　戻るで窓だけ閉じる（以前はアプリごと表電卓へ戻っていた）', where() + '|' + await page.evaluate(() => document.getElementById('chant-modal').style.display + '/' + App.screen()), 'eigo/index.html|none/home');
+  await page.click('[onclick="App.startChant()"]'); await w(250);
+  await page.click('.chant-cat-btn'); await w(400);
+  check('  　分類をえらぶとチャンクの画面', await page.evaluate(() => App.screen() + '/' + document.getElementById('chant-modal').style.display), 'chant/none');
+  await back();
+  check('  　戻るでホームへ', where() + '|' + await page.evaluate(() => App.screen()), 'eigo/index.html|home');
+  await back();
+  check('  　ホームで戻る：一度だけ知らせて、アプリのまま', where() + '|' + await bgToast(), 'eigo/index.html|もう一度「戻る」を押すと表電卓に戻ります');
+  await back();
+  check('  　もう一度で表電卓へ', where(), 'index.html');
+
+  // ── 📄 メモ
+  await enter('notes');
+  await page.click('#lsBtn'); await w(300);
+  check('  メモ：📂 呼び出す の窓が開く', await page.evaluate(() => document.getElementById('lsSheet').classList.contains('on')), true);
+  await back();
+  check('  　戻るで窓だけ閉じる（以前はアプリごと表電卓へ戻っていた）', where() + '|' + await page.evaluate(() => document.getElementById('lsSheet').classList.contains('on')), 'notes/index.html|false');
+  await page.click('#lsBtn'); await w(300);
+  await page.click('#lsSheet [data-close]').catch(async () => { await page.keyboard.press('Escape'); }); await w(400);
+  check('  　✕で閉じても、履歴に余りを残さない', where() + '|' + await page.evaluate(() => BackGuard._s.stack.length + '/' + BackGuard._s.n), 'notes/index.html|0/1');
+  await back();
+  check('  　何も開いていないところで戻る：一度だけ知らせる', where() + '|' + await page.evaluate(() => document.getElementById('toast') ? document.getElementById('toast').textContent : ''), 'notes/index.html|もう一度「戻る」を押すと表電卓に戻ります');
+  await back();
+  check('  　もう一度で表電卓へ', where(), 'index.html');
+
+  // ── ✍️ かきじゅん帳
+  await enter('kakijun');
+  await page.click('#hwBtn'); await w(300);
+  check('  かきじゅん帳：手書きの窓が開く', await page.evaluate(() => !document.getElementById('hwSheet').hidden), true);
+  await back();
+  check('  　戻るで手書きの窓だけ閉じる', where() + '|' + await page.evaluate(() => document.getElementById('hwSheet').hidden + '/' + document.getElementById('backdrop').hidden), 'kakijun/index.html|true/true');
+  await page.click('#kNext'); await w(200);
+  await back();
+  check('  　字を変えたあとでも、何も開いていないところで戻る：一度だけ知らせる', where() + '|' + await bgToast(), 'kakijun/index.html|もう一度「戻る」を押すと表電卓に戻ります');
+  await back();
+  check('  　もう一度で表電卓へ', where(), 'index.html');
+
+  // ── 🎓 算数：「もどる」を続けて2回おしても、アプリごと戻らない
+  await enter('sansu');
+  await page.click('[data-act="unit"]'); await w(400);
+  const playing = await page.evaluate(() => location.hash);
+  await page.evaluate(() => { const b = document.querySelector('[data-act="quit"]'); b.click(); b.click(); }); await w(800);
+  check('  算数：問題の ✕（やめる）を続けて2回おしても、1つだけ戻る（アプリのまま）', playing + '|' + where() + '|' + await page.evaluate(() => location.hash), '#play|sansu/index.html|#home');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+
+  // ── 表電卓：スマホがアプリを閉じたあと、ホーム画面のアプリとして開き直したとき
+  const c2 = await browser.newContext({ viewport: { width: 390, height: 800 }, serviceWorkers: 'block' });
+  await c2.addInitScript(() => {
+    try { localStorage.setItem('excalc_tour_done', '1'); } catch (e) {}
+    if (window.__standalone !== false) {
+      const mm = window.matchMedia.bind(window);
+      window.matchMedia = q => /display-mode:\s*standalone/.test(q) ? { matches: true, media: q, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} } : mm(q);
+    }
+  });
+  const p2 = await c2.newPage(); const e2 = [];
+  p2.on('pageerror', e => e2.push(e.message));
+  const where2 = () => p2.url().replace(/^.*cosinji-page\//, '').replace(/[?#].*$/, '');
+  await p2.goto(HYO); await p2.waitForTimeout(500);
+  await p2.evaluate(() => localStorage.setItem('excalc_resume', JSON.stringify({ app: 'koe', t: Date.now() - 60000 })));
+  await p2.goto(HYO); await p2.waitForTimeout(1500);
+  check('  表電卓：使っていたアプリ（声の計算帳）を開き直す（表電卓から開いた形で）', where2() + '|' + await p2.evaluate(() => !document.getElementById('backHyo').hidden + '/' + localStorage.getItem('excalc_resume')), 'koe/index.html|true/null');
+  await p2.evaluate(() => BackGuard.leaving()); await p2.goto(HYO); await p2.waitForTimeout(1000);   // 自分で表電卓へ移る（書き残さない）
+  check('  　自分で表電卓へ移ったあとは開き直さない', where2(), 'index.html');
+  await p2.evaluate(() => localStorage.setItem('excalc_resume', JSON.stringify({ app: 'eigo', t: Date.now() - 4 * 3600 * 1000 })));
+  await p2.goto(HYO); await p2.waitForTimeout(1200);
+  check('  　4時間より前なら開き直さない（印は消す）', where2() + '|' + await p2.evaluate(() => localStorage.getItem('excalc_resume')), 'index.html|null');
+  await p2.evaluate(() => localStorage.setItem('excalc_resume', JSON.stringify({ app: 'evil', t: Date.now() })));
+  await p2.goto(HYO); await p2.waitForTimeout(1200);
+  check('  　知らないアプリの名前は開かない', where2(), 'index.html');
+  await p2.evaluate(() => localStorage.setItem('excalc_resume', JSON.stringify({ app: 'notes', t: Date.now() })));
+  await p2.goto(HYO + '?p=dentaku'); await p2.waitForTimeout(1200);
+  check('  　ショートカット（?p=…）で開いたときは開き直さない', where2(), 'index.html');
+  await c2.close();
+  const c3 = await browser.newContext({ viewport: { width: 390, height: 800 }, serviceWorkers: 'block' });
+  const p3 = await c3.newPage();
+  await p3.goto(HYO); await p3.waitForTimeout(500);
+  await p3.evaluate(() => localStorage.setItem('excalc_resume', JSON.stringify({ app: 'koe', t: Date.now() })));
+  await p3.goto(HYO); await p3.waitForTimeout(1200);
+  check('  　ブラウザのタブで開いたときは開き直さない', p3.url().replace(/^.*cosinji-page\//, ''), 'index.html');
+  check('  エラーなし（開き直し）', e2.join(' | '), '');
+  await c3.close();
+}
 const S_UNITS_EXPECT = '106 / 9,12,12,13,18,11,10,9,12';
 async function runSansu(browser) {
   console.log('\n── 🎓 算数・数学チャレンジ（v527） ──');
@@ -8123,7 +8301,7 @@ async function runBackKey(browser) {
   await page.evaluate(() => openKaikeiApp()); await page.waitForTimeout(1300);
   check('  会計アプリが同じウィンドウで開く', /\/kaikei\/index\.html$/.test(page.url()), true);
   check('  表電卓から来たしるしは消える', await page.evaluate(() => location.hash), '');
-  check('  表電卓から来たときは、いちばん下の分を積まない', await page.evaluate(() => KB.wantBase), false);
+  check('  表電卓から来たときも、いちばん下の分を積む（押しまちがいで急に表電卓へ戻らない。v535）', await page.evaluate(() => KB.wantBase + '/' + KB.fromHyo), 'true/true');
   // 2. 会計アプリの中の「戻る」
   await page.tap('nav.tabs button[data-pg=sum]'); await page.waitForTimeout(300);
   await back();
@@ -8142,7 +8320,9 @@ async function runBackKey(browser) {
   await page.tap('nav.tabs button[data-pg=entry]'); await page.waitForTimeout(400);
   check('  タブで記帳に戻っても履歴が残らない', await page.evaluate(() => KB.stack.length), 0);
   await back();
-  check('  記帳で戻ると表電卓へ帰る', /\/index\.html$/.test(page.url()) && !/kaikei/.test(page.url()), true);
+  check('  記帳で戻ると、まず一度だけ知らせる（会計アプリのまま）', await page.evaluate(() => location.pathname.endsWith('/kaikei/index.html') + '|' + document.getElementById('toast').textContent), 'true|もう一度「戻る」を押すと表電卓に戻ります');
+  await back();
+  check('  もう一度戻ると表電卓へ帰る', /\/index\.html$/.test(page.url()) && !/kaikei/.test(page.url()), true);
   await page.waitForTimeout(600);
   check('  表電卓は動いている', await alive(), 'object');
   check('  JSエラーが出ていない', errs.length, 0);
@@ -11766,6 +11946,8 @@ async function runQrShare(browser) {
     if (!only || only === 'sansu') await runSansu(browser);
     if (!only || only === 'kakijun') await runKakijun(browser);
     if (!only || only === 'eigo') await runEigoSpeak(browser);
+    if (!only || only === 'koe' || only === 'koeidea') await runKoeIdeas(browser);
+    if (!only || only === 'backguard') await runBackGuard(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
   } finally { await browser.close(); }

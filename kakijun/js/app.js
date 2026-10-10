@@ -6,7 +6,7 @@
   // 表電卓から開いたとき（#from=hyo）は、左上に「← 表電卓」を出す（iPhone には画面に「戻る」がないため）
   var fromHyo = false;
   try {
-    if (/from=hyo/.test(location.hash)) { sessionStorage.setItem('kkj_from_hyo', '1'); history.replaceState(null, '', location.pathname + location.search); }
+    if (/from=hyo/.test(location.hash)) { sessionStorage.setItem('kkj_from_hyo', '1'); history.replaceState(history.state, '', location.pathname + location.search); }
     fromHyo = sessionStorage.getItem('kkj_from_hyo') === '1';
   } catch (e) { }
   var NS = 'http://www.w3.org/2000/svg';
@@ -505,7 +505,7 @@
     if (curTab && curTab !== 'r') { if (String(k.g) !== curTab) showTab(String(k.g)); else markGrid(); }
     var rc = store.get('recent', []).filter(function (x) { return x !== c; }); rc.unshift(c); store.set('recent', rc.slice(0, 40));
     if (curTab === 'r') showTab('r');
-    try { history.replaceState(null, '', '#u' + c.codePointAt(0).toString(16)); } catch (e) { }
+    try { history.replaceState(history.state, '', '#u' + c.codePointAt(0).toString(16)); } catch (e) { }   // 戻るの見張りの印は残す
     document.title = 'かきじゅん帳';
     if (mode === 'practice') { prStart(); return; }
     P.k = o.full ? k.n : 0;
@@ -972,10 +972,11 @@
   // ---------------- 表電卓へ戻る ----------------
   var bh = $('#backHyo');
   bh.hidden = !fromHyo; document.body.classList.toggle('from-hyo', fromHyo);
-  bh.addEventListener('click', function () {
-    if (fromHyo && history.length > 1) { history.back(); return; }
-    location.href = '../' + (location.protocol === 'file:' ? 'index.html' : '');
-  });
+  bh.addEventListener('click', function () { BackGuard.home('../' + (location.protocol === 'file:' ? 'index.html' : '')); });
+  // 戻るの見張り（backguard.js。v535）：手書き・声の窓は端末の「戻る」で窓だけ閉じる。何も開いていないときは
+  // 一度知らせてから表電卓へ（なぞり練習で画面の端をなぞったときなどに、急に表電卓へ戻らないように）
+  BackGuard.setup({ app: 'kakijun', fromHyo: fromHyo });
+  BackGuard.watch('.sheet', function (s) { return !s.hidden; }, function () { $('#backdrop').click(); });
 
   // ---------------- 起動 ----------------
   if (!ALL.length) { $('#capTip').textContent = '字のデータを読み込めませんでした。ページを開き直してください。'; return; }

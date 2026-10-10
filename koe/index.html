@@ -97,6 +97,16 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
 .msg .sug{display:block;margin-top:6px;border:1px dashed var(--acc);background:transparent;color:var(--acc);border-radius:10px;padding:6px 10px;font-size:14px;text-align:left;cursor:pointer}
 .msg .sug b{font-size:12px;margin-left:4px}
 .msg .sug.lit{border-style:solid;border-color:var(--line,#ccc);color:inherit}
+/* したい計算から、言い方の例と案（v20） */
+.msg .idea-tip{display:block;margin-top:6px;font-size:13px;line-height:1.55;color:var(--text);font-weight:400}
+.msg .ideas{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.msg .idea{display:flex;gap:6px;align-items:stretch}
+.msg .idea-t{flex:1;min-width:0;text-align:left;border:1px solid var(--acc);background:var(--acc-weak);color:var(--text);border-radius:10px;padding:8px 10px;font-size:15px;font-weight:700;line-height:1.4;cursor:pointer;word-break:break-word}
+.msg .idea-t small{display:inline-block;margin-left:6px;font-size:11px;font-weight:700;color:#fff;background:var(--acc);border-radius:8px;padding:1px 6px;vertical-align:1px}
+.msg .idea-run{flex:none;width:44px;border:1px solid var(--line);background:var(--card);color:var(--acc);border-radius:10px;font-size:16px;cursor:pointer}
+.msg .idea-more{align-self:flex-start;border:0;background:transparent;color:var(--acc);font-weight:700;font-size:13px;padding:4px 2px;cursor:pointer}
+.msg .ideas.gen{flex-direction:row;flex-wrap:wrap}
+.msg .ideas.gen .chip{min-height:34px;font-size:13px;padding:0 10px}
 .miss-btns{display:flex;gap:8px}
 .vc-box{background:var(--card);border:1px solid var(--line);border-radius:var(--r-btn);padding:10px 12px;margin-bottom:6px}
 .vc-h{font-weight:800;margin-bottom:6px}
@@ -347,7 +357,7 @@ label.vc-l select,.cf-sel{display:block;width:100%;box-sizing:border-box;margin-
   <div class="panel-head"><button class="hbtn" onclick="closePanel()">✕</button><h2>📚 文例</h2></div>
   <div class="panel-body">
     <div class="note">文例を押すと、下の 🎙 の上に<b>「この言い方で」</b>と出ます（ここでは計算しません）。その言い方に合わせて、数だけ変えて話してください。聞き取った数をその文例に当てはめて計算するので、うまく聞き取れないときも答えが合いやすくなります。</div>
-    <input class="ex-find" id="exFind" type="search" placeholder="🔍 さがす（例：割引・坪・時速）" oninput="renderEx()" aria-label="文例をさがす">
+    <input class="ex-find" id="exFind" type="search" placeholder="🔍 さがす（例：割り勘・年齢・お米・坪）" oninput="renderEx()" aria-label="文例をさがす">
     <div class="exf" id="exGenres" role="tablist" aria-label="ジャンル"></div>
     <div id="exBody"></div>
   </div>
@@ -414,8 +424,10 @@ label.vc-l select,.cf-sel{display:block;width:100%;box-sizing:border-box;margin-
 </div>
 
 <div id="toast" role="status"></div>
+<script src="backguard.js"></script>
 <script src="phrase.js"></script>
 <script src="examples.js"></script>
+<script src="intents.js"></script>
 <script>
 'use strict';
 /* ════════════════════════════════════════════════════════════════
@@ -425,7 +437,7 @@ label.vc-l select,.cf-sel{display:block;width:100%;box-sizing:border-box;margin-
    ・足し上げ／予算／練習のときは、言葉の受け取り方が変わる（state.mode）
    ・入れたものは この端末の中だけ（localStorage の koe_*）に残る
    ════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v19';
+const APP_VERSION='v20';
 const LS_STATE='koe_state', LS_VARS='koe_vars', LS_SET='koe_settings', LS_BOOK='koe_book';
 
 /* ── 設定 ── */
@@ -857,6 +869,69 @@ function suggestFor(raw){
   return ranked.length && ranked[0].sc>=0.35 ? {text:ranked[0].ex, fit:false} : null;
 }
 
+/* ── したい計算から、言い方の例と案（v20） ──────────────────
+   「割り勘したい」「ローンの計算」のように、したい計算を言う・打つと、それに合う文例（📚 文例 から）を
+   ボタンで並べ、何を言えばよいかの案も出す（intents.js）。言った数があれば、文例に当てはめた形で出す。
+   「12800円を4人で割り勘したい」のように、それだけで計算できるときは、そのまま答える */
+function hWish(t, raw, opt){
+  const core=KOE_INTENTS.strip(t);
+  // 「〜したい」を外した言い方、そのままの言い方の順に、計算できるか試す（「12800円を4人で分けたい」もそのまま答える）
+  for(const c of [core, t].filter((x,i,a)=>x && a.indexOf(x)===i)){
+    const r=dryRun(c);
+    if(r && (r.cls==='ok' || r.mode) && !trivialAns(r, c)){
+      const res=koeRun(c, Object.assign({}, opt, {noWish:true}));
+      const m=state.log[state.log.length-1]; if(res && m && m.q===String(c).trim()){ m.q=String(raw).trim(); saveState(); res.q=m.q; res.rq=String(c).trim(); }
+      return res;
+    }
+  }
+  return finish(raw, ideasFor(t, true));
+}
+// 言った数をそのまま返しただけ（「お米を3合炊きたい」→ 3）は、計算できたとはみなさない
+function trivialAns(r, t){ const n=String(t).match(/\d+(?:\.\d+)?/g)||[]; return n.length===1 && r.dv!=null && Math.abs(r.dv-parseFloat(n[0]))<1e-9; }
+const IDEA_UNIT=/^(円|%|パーセント|年|人|個|本|枚|倍|割|時間|分|秒|日|回|キロ|km|メートル|m|センチ|cm|グラム|g|kg|リットル|L|ml|cc|歳|度|合|升|坪|畳|杯|ドル|袋|台|件|か月|ヶ月)/;
+const IDEA_GENRES=['kurashi','tax','pct','money','time','conv','speed','age','shape','sum','book'];   // 何の計算か分からないときに並べるジャンル
+function ideasFor(t, wish){
+  const KI=window.KOE_INTENTS; if(!KI) return null;
+  const tops=KI.topicsOf(t);
+  if(!tops.length){
+    if(!wish) return null;
+    return {say:'何の計算をしますか？ 割り勘、ローン、消費税のように、したい計算を言ってください',
+      a:'何の計算をしますか？', f:'', cls:'info', gen:IDEA_GENRES,
+      tip:'「割り勘したい」「ローンの計算」「土地の広さを坪で知りたい」のように、したい計算を言う・打つと、言い方の例を出します。下のジャンルからもさがせます'};
+  }
+  const mine=t.match(/\d+(?:\.\d+)?/g)||[], fits=[], plain=[];
+  // 言った「数＋単位」（3合・100万円・3人）。当てはめた文例に、そのままの形で入っていなければ使わない（3合 → 3リットル にしない）
+  const said=[]; t.replace(/\d+(?:\.\d+)?/g, (x,i)=>{ const u=t.slice(i+x.length).match(IDEA_UNIT); said.push(u?x+u[1]:''); return x; });
+  for(const ex of KI.examplesOf(tops, exGroups())){
+    if(fits.length+plain.length>=12) break;
+    let x=ex, fit=false;
+    if(mine.length){   // 言った数を、単位の合う所へ当てはめてみる（計算できる形になったときだけ）
+      const info={}, nx=norm(ex), f=fitNums(t, nx, info), nf=norm(f);
+      if(!info.clash && f!==nx && said.every(su=>!su || nf.includes(su))){ const r=dryRun(f); if(r && r.cls==='ok'){ x=f; fit=true; } }
+    }
+    if(fits.concat(plain).some(d=>d.t===x)) continue;
+    (fit?fits:plain).push(fit?{t:x, fit:1}:{t:x});
+  }
+  // 言った数を当てはめたもの → 言った単位（合・坪 など）の入った文例 → ほか の順に6つ
+  const units=said.map(su=>su.replace(/^[\d.]+/,'')).filter(Boolean);
+  const rank=d=>(d.fit?2:0)+(units.some(u=>norm(d.t).includes(u))?1:0);
+  const ideas=fits.concat(plain).map((d,i)=>({d,i})).sort((a,b)=>rank(b.d)-rank(a.d)||a.i-b.i).slice(0,6).map(x=>x.d);
+  const lab=tops.slice(0,2).map(o=>o.t).join('・'), first=ideas.length?ideas[0].t:'';
+  return {say:lab+'の計算ですね。たとえば「'+first+'」のように言ってください',
+    a:lab+'の計算ですね。こんなふうに言えます', f:'', cls:'info', ideas, tip:tops[0].tip, tl:lab};
+}
+// 例を押す：「この言い方で」にする（打っていたときは、下の欄にも入れて数を直せるように）
+function ideaUse(i,j){
+  const m=state.log[i], d=m && m.ideas && m.ideas[j]; if(!d) return;
+  setGuide(d.t);
+  if(!lastFromVoice){ const inp=$('typeIn'); inp.value=d.t; try{ inp.focus(); inp.setSelectionRange(d.t.length, d.t.length); }catch(_){} }
+  toast('「'+d.t+'」の言い方で、数を変えて'+(lastFromVoice?'話して':'話すか打って')+'ください');
+}
+function ideaRun(i,j){ const m=state.log[i], d=m && m.ideas && m.ideas[j]; if(d) runText(d.t, false); }
+// ほかの文例：📚 文例を、その計算でさがした形で開く
+function ideaMore(i){ const m=state.log[i]; exGenre='all'; const f=$('exFind'); if(f) f.value=(m && m.tl) || ''; openPanel('ex'); }
+function ideaGenre(id){ exGenre=id; const f=$('exFind'); if(f) f.value=''; openPanel('ex'); }
+
 const RE_UNDO=/^(取り消し|とりけし|取消|ひとつ戻して|1つ戻して|一つ戻して|戻して|もどして|今のなし|いまのなし|キャンセル|やり直し)$/;
 const RE_CLEAR=/^(全部消して|ぜんぶ消して|全部けして|クリア|リセット|最初から|はじめから|ゼロから)$/;
 const RE_REPEAT=/^(もう一回|もう1回|もういっかい|もう一度|もう1度|もういちど|繰り返して|くりかえして|なんて|何て|え[?？]?|聞こえない|聞こえなかった)$/;
@@ -911,6 +986,8 @@ function koeRun(raw, opt){
   if((res=hControl(t))) return finish(raw,res);
   if((res=hCorrect(t))) return finish(raw,res);
   if((res=hModes(t))) return finish(raw,res);
+  // したい計算を言ったとき（「割り勘したい」「ローンの計算をしたい」）：言い方の例と案を出す（v20）
+  if(!opt.noSuggest && !opt.noWish && !DRY && window.KOE_INTENTS && KOE_INTENTS.isWish(t)) return hWish(t, raw, opt);
   if((res=hTaxSet(t))) return finish(raw,res);
   if((res=hPhrase(t))) return finish(raw, res.toks ? calcFromToks(t, res.toks) : res);
   if((res=hBook(t))) return finish(raw,res);
@@ -923,6 +1000,8 @@ function koeRun(raw, opt){
   if((state.mode==='sum'||state.mode==='budget') && (res=hItem(t))) return finish(raw,res);
   if((res=hVars(t))) return finish(raw,res);
   if((res=hExpr(t))) return finish(raw,res);
+  // 数のない言葉で、したい計算が分かるとき（「燃費」「年齢」「面積」）：言い方の例と案を出す（v20）
+  if(!opt.noSuggest && !DRY && !/\d/.test(t) && (res=ideasFor(t, false))) return finish(raw,res);
   // 計算できないときは、たとえばの式は読まない。近い言い方があれば「もしかして」を出す（v10）
   const sug=opt.noSuggest ? null : suggestFor(raw);
   noteMiss(raw, sug && sug.fit ? 'sug' : 'ng');
@@ -943,7 +1022,7 @@ function finish(raw,res){
     let eid=res.eid||null;
     if(!eid && state.entries.length>runN0) eid=entryLid(state.entries[state.entries.length-1]);
     state.log.push({q:res.q, a:res.a, f:res.f||'', c:res.cls||'ok', t:Date.now(), eid:eid||undefined, sug:res.sug||undefined, lit:res.lit||undefined, litA:res.litA||undefined,
-      al:aliasNote||undefined, yn:res.yn||undefined});
+      al:aliasNote||undefined, yn:res.yn||undefined, ideas:res.ideas||undefined, tip:res.tip||undefined, tl:res.tl||undefined, gen:res.gen||undefined});
   }
   saveState();
   return res;
@@ -1610,6 +1689,7 @@ function renderLog(){
   if(!state.log.length){
     box.innerHTML='<div class="log-empty">🎙 を押して、話しかけてください。<br><br>'
       +'<b>「1280円を3つ」</b> → <b>「それに消費税」</b> → <b>「4人で割って」</b><br>のように、会話でつなげて計算できます。<br><br>'
+      +'<b>「割り勘したい」「ローンの計算」</b>のように、したい計算を言う・打つと、言い方の例を出します。<br><br>'
       +'言える言い方は、右上の <b>📚 文例</b> にジャンルごとに全部あります。選んでおくと、その言い方に合わせて聞き取ります。</div>';
     return;
   }
@@ -1621,6 +1701,11 @@ function renderLog(){
       +(m.f && !(m.sug && /^もしかして/.test(m.f)) ? '<span class="f num">'+escHtml(m.f)+'</span>' : '')
       +(m.sug ? '<button class="sug" onclick="event.stopPropagation();trySug('+idx+')">もしかして「'+escHtml(m.sug)+'」？ <b>押すと計算</b></button>' : '')
       +(m.lit ? '<button class="sug lit" onclick="event.stopPropagation();tryLit('+idx+')">このまま計算：'+escHtml(m.litA||'')+'</button>' : '')
+      +(m.tip ? '<span class="idea-tip">💡 '+escHtml(m.tip)+'</span>' : '')
+      +(m.ideas && m.ideas.length ? '<div class="ideas">'+m.ideas.map((d,j)=>'<div class="idea"><button class="idea-t" onclick="event.stopPropagation();ideaUse('+idx+','+j+')">'+escHtml(d.t)+(d.fit?'<small>言った数で</small>':'')+'</button>'
+          +'<button class="idea-run" onclick="event.stopPropagation();ideaRun('+idx+','+j+')" aria-label="「'+escHtml(d.t)+'」で計算">▶</button></div>').join('')
+          +'<button class="idea-more" onclick="event.stopPropagation();ideaMore('+idx+')">📚 ほかの言い方も見る</button></div>' : '')
+      +(m.gen ? '<div class="ideas gen">'+m.gen.map(id=>{ const g=exGroups().find(x=>x.id===id); return g ? '<button class="chip" onclick="event.stopPropagation();ideaGenre(\''+id+'\')">'+g.ic+' '+escHtml(g.g.replace(/（.*）$/,''))+'</button>' : ''; }).join('')+'</div>' : '')
       +(ynNow ? '<div class="yn"><button class="y" onclick="event.stopPropagation();runText(\'はい\')">はい</button><button onclick="event.stopPropagation();runText(\'いいえ\')">いいえ</button></div>' : '')+'</div>';
   }).join('');
   box.scrollTop=box.scrollHeight;
@@ -1638,7 +1723,7 @@ function runText(text, fromVoice, opt){
   if(!res) return null;
   if(fitted){ const m=state.log[state.log.length-1]; if(m && m.q===fitted.trim()){ m.og=String(text).trim(); saveState(); } setHeard('「'+text+'」→ 文例に当てはめて「'+fitted+'」'); }
   lastFromVoice=!!fromVoice;
-  if(res.cls==='ok' && !res.noLog && !res.mode && !res.yn && /\d/.test(res.q||'')) noteRecent(fitted||res.q);   // 最近使った言い方（v19）
+  if(res.cls==='ok' && !res.noLog && !res.mode && !res.yn && /\d/.test(res.q||'')) noteRecent(fitted||res.rq||res.q);   // 最近使った言い方（v19）。「〜したい」は外した形で（v20）
   if(res.cls==='err'){ beep(false); vib([60,80,60]); } else vib(25);
   render();
   if(res.open) setTimeout(()=>openPanel(res.open), 50);
@@ -1897,8 +1982,11 @@ document.addEventListener('visibilitychange', ()=>{
 });
 
 /* ── 窓（設定・使い方・家計簿・練習・声だけ） ──
-   開くたびに履歴を1つ積むので、スマホの「戻る」で窓だけ閉じる */
-const panelStack=[];
+   開いたら「戻るの見張り」（backguard.js）に預けるので、スマホの「戻る」で窓だけ閉じる。
+   ✕ で閉じた分の「戻る」は見張りが少し待ってから返し、そのあいだに別の窓を開けば打ち消し合う。
+   （以前は窓ごとに history.back() していたので、閉じてすぐ別の窓を開くと順番が入れかわり、
+     そのあと閉じたときにアプリごと表電卓へ戻ることがあった。v20） */
+const panelStack=[];   // 開いている窓 {el, tok}（いちばん後ろが上）
 function openPanel(id){
   const el=id==='vo'?$('voice-only'):$('p-'+id);
   if(!el || el.classList.contains('open')) return;
@@ -1908,12 +1996,14 @@ function openPanel(id){
   if(id==='set') renderSet();
   if(id==='drill') renderDrillPanel();
   if(id==='sum') renderSum();
-  el.classList.add('open'); panelStack.push(el);
-  try{ history.pushState({koe:id},''); }catch(_){}
+  el.classList.add('open');
+  const item={el, tok:null};
+  panelStack.push(item);
+  item.tok=BackGuard.open(()=>dropPanel(item));   // 「戻る」で閉じる
 }
-function closePanel(){ if(panelStack.length){ try{ history.back(); }catch(_){ closeTop(); } } }
-function closeTop(){ const el=panelStack.pop(); if(el) el.classList.remove('open'); }
-window.addEventListener('popstate', ()=>{ if(panelStack.length) closeTop(); });
+function dropPanel(item){ const i=panelStack.indexOf(item); if(i>=0) panelStack.splice(i,1); item.el.classList.remove('open'); }
+function closePanel(){ const item=panelStack[panelStack.length-1]; if(!item) return; dropPanel(item); BackGuard.close(item.tok); }
+const closeTop=closePanel;   // いちばん上の窓を閉じる（前からの名前）
 
 /* ── 設定 ── */
 function renderSet(){
@@ -2004,14 +2094,17 @@ function renderEx(){
   $('exGenres').innerHTML='<button class="chip'+(exGenre==='all'?' on':'')+'" onclick="pickGenre(\'all\')">すべて '+all+'</button>'
     +gs.map(g=>'<button class="chip'+(exGenre===g.id?' on':'')+'" onclick="pickGenre(\''+g.id+'\')">'+g.ic+' '+escHtml(g.g.replace(/（.*）$/,''))+' '+g.ex.length+'</button>').join('');
   const q=norm(($('exFind')||{}).value||'');
+  // さがす：言葉が入っている文例のほか、「割り勘」「年齢」「お米」のような、したい計算の文例も出す（v20）
+  const tset=q && window.KOE_INTENTS ? new Set(KOE_INTENTS.examplesOf(KOE_INTENTS.topicsOf(q), gs)) : null;
+  const hit=(t, g)=>!q || norm(t).includes(q) || (g && norm(g.g).includes(q)) || (tset && tset.has(t));
   const fav=loadList(LS_FAV), rec=loadList(LS_RECENT).filter(t=>!fav.includes(t));
   const row=(t, run)=>'<span class="ex-row"><button class="ex'+(t===guideEx?' pick':'')+'" onclick="pickEx(this)">'+escHtml(t)+'</button>'
     +'<button class="ex-star'+(fav.includes(t)?' on':'')+'" data-t="'+escHtml(t)+'" onclick="toggleFav(this.dataset.t)" aria-label="お気に入り'+(fav.includes(t)?'から外す':'に入れる')+'">'+(fav.includes(t)?'★':'☆')+'</button>'
     +(run?'<button class="ex-run" data-t="'+escHtml(t)+'" onclick="runFav(this.dataset.t)" aria-label="すぐ計算">▶</button>':'')+'</span>';
-  const mine=(title, list)=>{ const l=list.filter(t=>!q || norm(t).includes(q)); return l.length ? '<div class="ex-group"><h3>'+title+'<span class="ex-count">'+l.length+'</span></h3>'+l.map(t=>row(t,true)).join('')+'</div>' : ''; };
+  const mine=(title, list)=>{ const l=list.filter(t=>hit(t)); return l.length ? '<div class="ex-group"><h3>'+title+'<span class="ex-count">'+l.length+'</span></h3>'+l.map(t=>row(t,true)).join('')+'</div>' : ''; };
   const top=exGenre==='all' ? mine('☆ お気に入り', fav)+mine('🕘 最近使った言い方', rec) : '';
   const show=gs.filter(g=>exGenre==='all'||g.id===exGenre).map(g=>{
-    const ex=g.ex.map(exText).filter(t=>!q || norm(t).includes(q) || norm(g.g).includes(q));
+    const ex=g.ex.map(exText).filter(t=>hit(t, g));
     if(!ex.length) return '';
     return '<div class="ex-group"><h3>'+g.ic+' '+escHtml(g.g)+'<span class="ex-count">'+ex.length+'</span></h3>'
       +ex.map(t=>row(t,false)).join('')+'</div>';
@@ -2441,10 +2534,8 @@ function testVoice(){ const t=($('vcTest').value||'').trim()||'1280円を3つで
 
 /* ── 表電卓から開いたとき ── */
 let fromHyo=false;
-function backToHyo(){
-  if(fromHyo && history.length>1){ history.back(); return; }
-  location.href='../'+(location.protocol==='file:'?'index.html':'');
-}
+// 開いた窓の分などの履歴をまとめて戻って、表電卓へ（v20）
+function backToHyo(){ BackGuard.home('../'+(location.protocol==='file:'?'index.html':'')); }
 
 /* ── はじめ ── */
 function init(){
@@ -2453,6 +2544,8 @@ function init(){
   if(settings.handsFree){ settings.handsFree=false; saveSettings(); }
   try{ if(/from=hyo/.test(location.hash)) sessionStorage.setItem('koe_from_hyo','1'); fromHyo=sessionStorage.getItem('koe_from_hyo')==='1'; }catch(_){}
   $('backHyo').hidden=!fromHyo;
+  // 「戻る」の見張り：窓は戻るで閉じ、何も開いていないときは一度知らせてから表電卓へ（v20）
+  BackGuard.setup({app:'koe', fromHyo, toast:m=>toast(m)});
   applySettings(); render(); renderGuide();
   const mic=$('micBtn');
   mic.addEventListener('click', micTap);
