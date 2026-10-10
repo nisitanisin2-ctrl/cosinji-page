@@ -56,13 +56,16 @@ header{
   display:flex;align-items:center;gap:6px;padding:calc(env(safe-area-inset-top) + 6px) 8px 6px;
 }
 header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hbtn{min-width:var(--tap);min-height:40px;padding:0 10px;border-radius:var(--r-btn);color:#fff;font-weight:700;background:rgba(255,255,255,.14)}
+.hbtn{min-width:var(--tap);min-height:40px;padding:0 10px;border-radius:var(--r-btn);color:#fff;font-weight:700;font-size:15px;background:rgba(255,255,255,.14)}
+/* 表電卓から開いたときは、題名を出さない（「← 表電卓」と並ぶと題名が「…」だけになるので。v21） */
+body.from-hyo header h1{display:none}
+body.from-hyo #backHyo{margin-right:auto}
 .hbtn:active{background:rgba(255,255,255,.28)}
 
 /* ── 使い方の切りかえ（ふつう・足し上げ・予算・練習・家計簿） ── */
 .modes{display:flex;gap:6px;overflow-x:auto;padding:8px max(10px, calc((100% - 740px) / 2)) 4px;scrollbar-width:none}
 .modes::-webkit-scrollbar{display:none}
-.chip{flex:none;min-height:38px;padding:0 14px;border-radius:var(--r-pill);background:var(--card);border:1px solid var(--line);font-weight:700;color:var(--sub)}
+.chip{flex:none;min-height:36px;padding:0 13px;border-radius:var(--r-pill);background:var(--card);border:1px solid var(--line);font-weight:700;font-size:14px;color:var(--sub)}
 .chip.on{background:var(--acc);border-color:var(--acc);color:#fff}
 
 /* ── 答え ── */
@@ -71,7 +74,9 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
 .ans-right{display:flex;align-items:center;gap:8px}
 .rst{min-height:32px;padding:0 12px;border-radius:var(--r-pill);background:var(--bg);border:1px solid var(--line);color:var(--sub);font-weight:700;font-size:12.5px}
 .rst:active{background:var(--acc-weak)}
-.ans-big{font-size:var(--ans);font-weight:800;line-height:1.15;letter-spacing:-.01em;word-break:break-all}
+/* 答え：1行で。単位は小さく、入りきらないときは字を小さくする（fitAns。v21） */
+.ans-big{font-size:var(--ans);font-weight:800;line-height:1.15;letter-spacing:-.01em;white-space:nowrap;overflow:hidden}
+.ans-big .u{font-size:.55em;font-weight:700;margin-left:.08em}
 .ans-big.err{color:var(--err)}
 .ans-sub{font-size:12.5px;color:var(--sub);min-height:1.4em;word-break:break-all}
 
@@ -97,16 +102,19 @@ header h1{flex:1;margin:0;font-size:17px;font-weight:700;white-space:nowrap;over
 .msg .sug{display:block;margin-top:6px;border:1px dashed var(--acc);background:transparent;color:var(--acc);border-radius:10px;padding:6px 10px;font-size:14px;text-align:left;cursor:pointer}
 .msg .sug b{font-size:12px;margin-left:4px}
 .msg .sug.lit{border-style:solid;border-color:var(--line,#ccc);color:inherit}
-/* したい計算から、言い方の例と案（v20） */
-.msg .idea-tip{display:block;margin-top:6px;font-size:13px;line-height:1.55;color:var(--text);font-weight:400}
-.msg .ideas{display:flex;flex-direction:column;gap:6px;margin-top:8px}
-.msg .idea{display:flex;gap:6px;align-items:stretch}
-.msg .idea-t{flex:1;min-width:0;text-align:left;border:1px solid var(--acc);background:var(--acc-weak);color:var(--text);border-radius:10px;padding:8px 10px;font-size:15px;font-weight:700;line-height:1.4;cursor:pointer;word-break:break-word}
-.msg .idea-t small{display:inline-block;margin-left:6px;font-size:11px;font-weight:700;color:#fff;background:var(--acc);border-radius:8px;padding:1px 6px;vertical-align:1px}
-.msg .idea-run{flex:none;width:44px;border:1px solid var(--line);background:var(--card);color:var(--acc);border-radius:10px;font-size:16px;cursor:pointer}
-.msg .idea-more{align-self:flex-start;border:0;background:transparent;color:var(--acc);font-weight:700;font-size:13px;padding:4px 2px;cursor:pointer}
-.msg .ideas.gen{flex-direction:row;flex-wrap:wrap}
-.msg .ideas.gen .chip{min-height:34px;font-size:13px;padding:0 10px}
+/* したい計算から、言い方の例と案（v20。v21 で見やすく：枠を取って1行ずつ、はじめは3つ、古いものはたたむ） */
+.msg.app.idx{width:100%;max-width:100%}
+.msg .idea-tip{display:block;margin-top:2px;font-size:12.5px;line-height:1.5;color:var(--sub);font-weight:400}
+.msg .ideas{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.msg .idea{display:flex;align-items:center;background:var(--acc-weak);border-radius:10px}
+.msg .idea-t{flex:1;min-width:0;text-align:left;color:var(--text);padding:8px 10px;font-size:14px;font-weight:700;line-height:1.4;word-break:break-word}
+.msg .idea-run{flex:none;width:42px;align-self:stretch;color:var(--acc);font-size:14px;border-left:1px solid var(--bg)}
+.msg .idea-foot{display:flex;flex-wrap:wrap;gap:0 16px;margin-top:2px}
+.msg .idea-foot button,.msg .idea-open{color:var(--acc);font-weight:700;font-size:13px;padding:6px 2px}
+.msg .ideas.gen{flex-direction:row;flex-wrap:wrap;gap:6px}
+.msg .ideas.gen .chip{min-height:32px;font-size:13px;padding:0 10px}
+body.big .msg .idea-t{font-size:16px}
+body.big .msg .idea-tip{font-size:14px}
 .miss-btns{display:flex;gap:8px}
 .vc-box{background:var(--card);border:1px solid var(--line);border-radius:var(--r-btn);padding:10px 12px;margin-bottom:6px}
 .vc-h{font-weight:800;margin-bottom:6px}
@@ -123,7 +131,7 @@ label.vc-l select,.cf-sel{display:block;width:100%;box-sizing:border-box;margin-
 .vc-play{text-align:center}
 .favs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none}
 .favs::-webkit-scrollbar{display:none}
-.favs button{flex:none;min-height:34px;max-width:70vw;padding:0 12px;border-radius:var(--r-pill);background:var(--acc-weak);color:var(--acc);font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.favs button{flex:none;min-height:30px;max-width:62vw;padding:0 11px;border-radius:var(--r-pill);background:var(--acc-weak);color:var(--acc);font-weight:700;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .favs button.pick{background:var(--acc);color:#fff}
 .ex-row{display:inline-flex;align-items:stretch;margin:0 6px 6px 0;max-width:100%}
 .ex-row .ex{margin:0;border-radius:var(--r-pill) 0 0 var(--r-pill)}
@@ -146,20 +154,21 @@ label.vc-l select,.cf-sel{display:block;width:100%;box-sizing:border-box;margin-
 .msg .yn button.y{background:var(--acc);color:#fff}
 .miss-btns .act{flex:1}
 .row.miss small{display:block}
-.heard{min-height:1.5em;font-size:13px;color:var(--acc);text-align:center;margin-bottom:4px;word-break:break-all;position:relative}
+.heard{font-size:13px;color:var(--acc);text-align:center;margin-bottom:4px;word-break:break-all;position:relative}
+.heard:empty{display:none}
 .wait-bar{height:3px;margin:3px auto 0;max-width:220px;border-radius:2px;background:var(--acc);transform-origin:left center;animation:waitShrink linear forwards}
 @keyframes waitShrink{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 @media (prefers-reduced-motion:reduce){.wait-bar{animation:none;opacity:.5}}
 .dock-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.dbtn{flex:1;min-height:var(--tap);border-radius:var(--r-btn);background:var(--card);border:1px solid var(--line);font-weight:700;color:var(--sub);font-size:14px}
+.dbtn{flex:1;min-height:44px;border-radius:var(--r-btn);background:var(--card);border:1px solid var(--line);font-weight:700;color:var(--sub);font-size:14px}
 .dbtn.on{background:var(--acc-weak);border-color:var(--acc);color:var(--acc)}
-.mic{flex:none;width:84px;height:84px;border-radius:50%;background:var(--acc);color:#fff;font-size:34px;box-shadow:var(--elev-2);position:relative}
+.mic{flex:none;width:78px;height:78px;border-radius:50%;background:var(--acc);color:#fff;font-size:32px;box-shadow:var(--elev-2);position:relative}
 .mic:active{background:var(--acc-dark)}
 .mic.listening{background:var(--err);animation:pulse 1.2s infinite}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(179,69,58,.55)}70%{box-shadow:0 0 0 18px rgba(179,69,58,0)}100%{box-shadow:0 0 0 0 rgba(179,69,58,0)}}
 @media (prefers-reduced-motion:reduce){.mic.listening{animation:none}}
 .type-row{display:flex;gap:6px;margin-top:8px}
-.type-row input{flex:1;min-width:0;min-height:44px;border-radius:var(--r-btn);border:1px solid var(--line);background:var(--card);padding:8px 12px}
+.type-row input{flex:1;min-width:0;min-height:44px;border-radius:var(--r-btn);border:1px solid var(--line);background:var(--card);padding:8px 12px;font-size:16px}
 .type-row input:focus{outline:2px solid var(--acc);outline-offset:1px}
 .type-row button{min-height:44px;padding:0 14px;border-radius:var(--r-btn);background:var(--acc);color:#fff;font-weight:700}
 
@@ -189,12 +198,12 @@ label.vc-l select,.cf-sel{display:block;width:100%;box-sizing:border-box;margin-
 .ex-find{width:100%;min-height:42px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-btn);background:var(--card);color:var(--text);font-size:15px;margin-bottom:8px}
 .ex.pick{background:var(--acc);color:#fff}
 .ex-count{font-size:12px;color:var(--sub);font-weight:400;margin-left:6px}
-.guide{display:flex;align-items:center;gap:8px;margin:0 0 6px;padding:6px 6px 6px 12px;border-radius:var(--r-btn);background:var(--acc-weak);color:var(--acc);font-size:14px}
+.guide{display:flex;align-items:center;gap:8px;margin:0 0 6px;padding:4px 4px 4px 12px;border-radius:var(--r-btn);background:var(--acc-weak);color:var(--acc);font-size:14px}
 .guide[hidden]{display:none}
 .guide .gt{flex:1;min-width:0;line-height:1.4}
-.guide .gt small{display:block;font-size:11.5px;font-weight:400;opacity:.85}
+.guide .gt small{font-size:12px;font-weight:400;opacity:.85;margin-right:2px}
 .guide b{word-break:break-all}
-.guide button{flex:none;min-width:36px;min-height:36px;border-radius:50%;background:rgba(0,0,0,.06);color:var(--acc);font-weight:700}
+.guide button{flex:none;min-width:32px;min-height:32px;border-radius:50%;background:rgba(0,0,0,.06);color:var(--acc);font-weight:700}
 .msg.me small{display:block;font-size:11.5px;opacity:.75;margin-top:2px}
 .ex-group{background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);padding:10px 12px;margin-bottom:10px}
 .ex-group h3{margin:0 0 6px;font-size:15px}
@@ -274,7 +283,7 @@ label.vc-l select,.cf-sel{display:block;width:100%;box-sizing:border-box;margin-
 
 <div class="dock">
   <div class="favs" id="favs" hidden aria-label="お気に入りの言い方"></div>
-  <div class="guide" id="guide" hidden><div class="gt"><small>この言い方で話すと、数をこの文例に当てはめて計算します</small><b id="guideTx"></b></div><button onclick="setGuide('')" aria-label="文例をやめる">✕</button></div>
+  <div class="guide" id="guide" hidden><div class="gt" title="この言い方で話すと、言った数をこの文例に当てはめて計算します"><small>この言い方で</small><b id="guideTx"></b></div><button onclick="setGuide('')" aria-label="文例をやめる">✕</button></div>
   <div class="heard" id="heard" aria-live="polite"></div>
   <div class="dock-row">
     <button class="dbtn" onclick="runText('取り消し')">↶ 取り消し</button>
@@ -437,7 +446,7 @@ label.vc-l select,.cf-sel{display:block;width:100%;box-sizing:border-box;margin-
    ・足し上げ／予算／練習のときは、言葉の受け取り方が変わる（state.mode）
    ・入れたものは この端末の中だけ（localStorage の koe_*）に残る
    ════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v20';
+const APP_VERSION='v21';
 const LS_STATE='koe_state', LS_VARS='koe_vars', LS_SET='koe_settings', LS_BOOK='koe_book';
 
 /* ── 設定 ── */
@@ -918,7 +927,7 @@ function ideasFor(t, wish){
   const ideas=fits.concat(plain).map((d,i)=>({d,i})).sort((a,b)=>rank(b.d)-rank(a.d)||a.i-b.i).slice(0,6).map(x=>x.d);
   const lab=tops.slice(0,2).map(o=>o.t).join('・'), first=ideas.length?ideas[0].t:'';
   return {say:lab+'の計算ですね。たとえば「'+first+'」のように言ってください',
-    a:lab+'の計算ですね。こんなふうに言えます', f:'', cls:'info', ideas, tip:tops[0].tip, tl:lab};
+    a:lab+'の言い方', f:'', cls:'info', ideas, tip:tops[0].tip, tl:lab};
 }
 // 例を押す：「この言い方で」にする（打っていたときは、下の欄にも入れて数を直せるように）
 function ideaUse(i,j){
@@ -1668,7 +1677,7 @@ function render(){
   }else{
     if(state.lastV!=null){ bigT=fmtU(state.lastV,state.lastU); subT=state.lastF||''; if(state.lastPer) labT='1人あたり'; }
   }
-  lab.textContent=labT; md.textContent=mdT; big.textContent=bigT; sub.textContent=subT;
+  lab.textContent=labT; md.textContent=mdT; setAnsBig(big, bigT); sub.textContent=subT;
   const slb=$('sumListBtn'); if(slb) slb.hidden=!(state.mode==='sum' || state.mode==='budget' || sumSession().items.length);
   if($('p-sum') && $('p-sum').classList.contains('open')) renderSum();
   renderFavs();
@@ -1684,6 +1693,21 @@ function render(){
   });
   renderLog();
 }
+/* 答えの欄：数と、うしろの単位（円・個 など）を分けて単位を小さく。1行に入りきらないときは字を小さくする（v21）
+   練習の問題（「12 × 3 ＝ ？」）のように、うしろが単位でないときは分けない */
+function setAnsBig(el, t){
+  const m=String(t).match(/^(.*\d)([^\d\s＝=？?]{1,6})$/);
+  if(m) el.innerHTML='<span class="v">'+escHtml(m[1])+'</span><span class="u">'+escHtml(m[2])+'</span>';
+  else el.textContent=t;
+  fitAns();
+}
+function fitAns(){
+  const el=$('ansBig'); if(!el) return;
+  el.style.fontSize='';
+  let fs=parseFloat(getComputedStyle(el).fontSize)||44;
+  while(el.scrollWidth>el.clientWidth+1 && fs>22){ fs-=2; el.style.fontSize=fs+'px'; }
+}
+window.addEventListener('resize', ()=>fitAns());
 function renderLog(){
   const box=$('log'); if(!box) return;
   if(!state.log.length){
@@ -1696,20 +1720,41 @@ function renderLog(){
   box.innerHTML=state.log.slice(-120).map((m,i,arr)=>{
     const idx=state.log.length-arr.length+i;
     const ynNow=m.yn && idx===state.log.length-1 && state.ask && state.ask.k==='confirm';
+    const ix=(m.ideas && m.ideas.length) || m.gen;   // 言い方の例の吹き出し（横いっぱいに使う）
     return (m.q?'<div class="msg me">'+escHtml(m.q)+(m.og?'<small>聞こえた言葉：'+escHtml(m.og)+'（文例に当てはめ）</small>':'')+(m.al?'<small>言いかえ：'+escHtml(m.al)+'</small>':'')+'</div>':'')
-      +'<div class="msg app '+String(m.c||'').replace(/[^\w -]/g,'')+'" onclick="sayLog('+idx+')"><span class="a">'+escHtml(m.a)+'</span>'
+      +'<div class="msg app '+String(m.c||'').replace(/[^\w -]/g,'')+(ix?' idx':'')+'" onclick="sayLog('+idx+')"><span class="a">'+escHtml(m.a)+'</span>'
       +(m.f && !(m.sug && /^もしかして/.test(m.f)) ? '<span class="f num">'+escHtml(m.f)+'</span>' : '')
       +(m.sug ? '<button class="sug" onclick="event.stopPropagation();trySug('+idx+')">もしかして「'+escHtml(m.sug)+'」？ <b>押すと計算</b></button>' : '')
       +(m.lit ? '<button class="sug lit" onclick="event.stopPropagation();tryLit('+idx+')">このまま計算：'+escHtml(m.litA||'')+'</button>' : '')
-      +(m.tip ? '<span class="idea-tip">💡 '+escHtml(m.tip)+'</span>' : '')
-      +(m.ideas && m.ideas.length ? '<div class="ideas">'+m.ideas.map((d,j)=>'<div class="idea"><button class="idea-t" onclick="event.stopPropagation();ideaUse('+idx+','+j+')">'+escHtml(d.t)+(d.fit?'<small>言った数で</small>':'')+'</button>'
-          +'<button class="idea-run" onclick="event.stopPropagation();ideaRun('+idx+','+j+')" aria-label="「'+escHtml(d.t)+'」で計算">▶</button></div>').join('')
-          +'<button class="idea-more" onclick="event.stopPropagation();ideaMore('+idx+')">📚 ほかの言い方も見る</button></div>' : '')
-      +(m.gen ? '<div class="ideas gen">'+m.gen.map(id=>{ const g=exGroups().find(x=>x.id===id); return g ? '<button class="chip" onclick="event.stopPropagation();ideaGenre(\''+id+'\')">'+g.ic+' '+escHtml(g.g.replace(/（.*）$/,''))+'</button>' : ''; }).join('')+'</div>' : '')
+      +ideasHtml(m, idx)
       +(ynNow ? '<div class="yn"><button class="y" onclick="event.stopPropagation();runText(\'はい\')">はい</button><button onclick="event.stopPropagation();runText(\'いいえ\')">いいえ</button></div>' : '')+'</div>';
   }).join('');
   box.scrollTop=box.scrollHeight;
 }
+/* 言い方の例：いちばん新しいものだけ開いて、はじめは3つ（「もっと見る」で全部）。
+   例を試した次の1回までは開いたまま。会話が進んだり新しい例が出たりしたら、1行にたたむ（v21） */
+const IDEA_FIRST=3;
+function lastIdeasIdx(){ for(let k=state.log.length-1;k>=0;k--){ const x=state.log[k]; if((x.ideas && x.ideas.length) || x.gen) return k; } return -1; }
+function ideasHtml(m, idx){
+  if(!(m.ideas && m.ideas.length) && !m.gen) return '';
+  const open=m.open || (idx===lastIdeasIdx() && idx>=state.log.length-2);
+  if(!open){
+    const n=(m.ideas||[]).length;
+    return '<button class="idea-open" onclick="event.stopPropagation();ideaOpen('+idx+')">💡 '+(n?'言い方の例 '+n+'つを見る':'ジャンルを見る')+' ▸</button>';
+  }
+  let h=m.tip ? '<span class="idea-tip">💡 '+escHtml(m.tip)+'</span>' : '';
+  if(m.ideas && m.ideas.length){
+    const list=m.more ? m.ideas : m.ideas.slice(0, IDEA_FIRST), rest=m.ideas.length-list.length;
+    h+='<div class="ideas">'+list.map((d,j)=>'<div class="idea"><button class="idea-t" onclick="event.stopPropagation();ideaUse('+idx+','+j+')">'+escHtml(d.t)+'</button>'
+      +'<button class="idea-run" onclick="event.stopPropagation();ideaRun('+idx+','+j+')" aria-label="「'+escHtml(d.t)+'」で計算">▶</button></div>').join('')
+      +'<div class="idea-foot">'+(rest>0 ? '<button class="idea-expand" onclick="event.stopPropagation();ideaExpand('+idx+')">＋ もっと見る（'+rest+'）</button>' : '')
+      +'<button class="idea-more" onclick="event.stopPropagation();ideaMore('+idx+')">📚 ほかの言い方</button></div></div>';
+  }
+  if(m.gen) h+='<div class="ideas gen">'+m.gen.map(id=>{ const g=exGroups().find(x=>x.id===id); return g ? '<button class="chip" onclick="event.stopPropagation();ideaGenre(\''+id+'\')">'+g.ic+' '+escHtml(g.g.replace(/（.*）$/,''))+'</button>' : ''; }).join('')+'</div>';
+  return h;
+}
+function ideaExpand(i){ const m=state.log[i]; if(!m) return; m.more=1; saveState(); renderLog(); }
+function ideaOpen(i){ const m=state.log[i]; if(!m) return; m.open=1; saveState(); renderLog(); }
 function sayLog(i){ const m=state.log[i]; if(m) speak(m.a); }
 function trySug(i){ const m=state.log[i]; if(m && m.sug) runText(m.sug, false); }
 function tryLit(i){ const m=state.log[i]; if(m && m.lit) runText(m.lit, false, {literal:true}); }
@@ -1820,7 +1865,13 @@ const WAIT_MS={short:1000, normal:1800, long:3000};
 const NO_SPEECH_MS=8000;                // 何も聞こえないまま、この時間たったらやめる（押して話すとき）
 let wantListen=false;                   // 押して話すとき：計算するまで聞き続けたい
 let utter=[], sess=[], utterInterim='', utterTimer=null, finishing=false, finishFallback=null, noSpeechTimer=null;
-function setHeard(s){ const h=$('heard'); if(h) h.textContent=s||''; const vh=$('voHeard'); if(vh && s) vh.textContent=s; const bh=$('bkHeard'); if(bh) bh.textContent=s||''; }
+let heardT=0;
+function setHeard(s){
+  const h=$('heard'); if(h) h.textContent=s||''; const vh=$('voHeard'); if(vh && s) vh.textContent=s; const bh=$('bkHeard'); if(bh) bh.textContent=s||'';
+  // 聞き終わったあとの「聞こえた言葉」は、会話の記録にも残るので、少しすると消す（下の欄をすっきりさせる。v21）
+  clearTimeout(heardT);
+  if(s && !recOn && !wantListen) heardT=setTimeout(()=>{ if(!recOn && !wantListen && h && h.textContent===s) h.textContent=''; }, 6000);
+}
 function syncMicUi(){
   const on=recOn||wantListen;
   $('micBtn').classList.toggle('listening', on);
@@ -2543,7 +2594,7 @@ function init(){
   hfWanted=false;                                   // 開いてすぐは聞かない（押してから）
   if(settings.handsFree){ settings.handsFree=false; saveSettings(); }
   try{ if(/from=hyo/.test(location.hash)) sessionStorage.setItem('koe_from_hyo','1'); fromHyo=sessionStorage.getItem('koe_from_hyo')==='1'; }catch(_){}
-  $('backHyo').hidden=!fromHyo;
+  $('backHyo').hidden=!fromHyo; document.body.classList.toggle('from-hyo', fromHyo);
   // 「戻る」の見張り：窓は戻るで閉じ、何も開いていないときは一度知らせてから表電卓へ（v20）
   BackGuard.setup({app:'koe', fromHyo, toast:m=>toast(m)});
   applySettings(); render(); renderGuide();

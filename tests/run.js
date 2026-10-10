@@ -7622,12 +7622,12 @@ async function runKoeIdeas(browser) {
   const w = ms => page.waitForTimeout(ms);
   await page.goto('file://' + path.join(ROOT, 'koe', 'index.html')); await w(500);
   const run = t => page.evaluate(t => { const r = koeRun(t), m = state.log[state.log.length - 1]; return [r.cls, r.a, (m.ideas || []).map(d => d.t + (d.fit ? '*' : '')).join(' / '), m.tip ? 'tip' : '', (m.gen || []).length].join(' | '); }, t);
-  check('  「ローンの計算をしたい」：ローンの言い方を並べる（返済・分割をいろいろ）', await run('ローンの計算をしたい'), 'info | ローン・分割払いの計算ですね。こんなふうに言えます | 300万円を金利2%で5年ローン毎月の返済 / 12万円を12回払い / 12万円を12回に分けて / 200万円を金利3%で10年ローンの毎月の返済額 / 6万円を3回払い / 12万円の12回分割 | tip | 0');
+  check('  「ローンの計算をしたい」：ローンの言い方を並べる（返済・分割をいろいろ）', await run('ローンの計算をしたい'), 'info | ローン・分割払いの言い方 | 300万円を金利2%で5年ローン毎月の返済 / 12万円を12回払い / 12万円を12回に分けて / 200万円を金利3%で10年ローンの毎月の返済額 / 6万円を3回払い / 12万円の12回分割 | tip | 0');
   check('  言った数は文例に当てはめる（100万円 → 100万円を金利2%で…。*＝当てはめた）', (await run('100万円を借りたときの返済を知りたい')).split(' | ')[2].split(' / ').slice(0, 2).join(' / '), '100万円を金利2%で5年ローン毎月の返済* / 100万円を12回払い*');
   check('  人数だけ言った割り勘：人数を当てはめて、金額は例のまま', (await run('3人で割り勘したい')).split(' | ')[2].split(' / ').slice(0, 2).join(' / '), '12800円を3人で割り勘、1人は2割引き、100円単位* / 12800円を3人で割り勘、100円単位*');
   check('  「お米を3合炊きたい」：3合を「3リットル」にはしない・合の文例を先に', (await run('お米を3合炊きたい')).split(' | ')[2].split(' / ').slice(0, 2).join(' / '), '3合は何ミリリットル / 1升は何合');
-  check('  「給料の手取りが知りたい」：給料と手取りの文例を交互に', await page.evaluate(() => { koeRun('給料の手取りが知りたい'); const m = state.log[state.log.length - 1]; return m.a.split('の計算')[0] + ' | ' + m.ideas.some(d => /源泉/.test(d.t)) + '/' + m.ideas.some(d => /月給|年収/.test(d.t)); }), '給料・時給・源泉徴収・手取り | true/true');
-  check('  数のない言葉（燃費・面積・年齢）でも出す', [await run('燃費'), await run('面積'), await run('年齢')].map(r => r.split(' | ')[1]).join(' / '), '燃費・ガソリン代の計算ですね。こんなふうに言えます / 図形の面積・体積の計算ですね。こんなふうに言えます / 年齢・和暦の計算ですね。こんなふうに言えます');
+  check('  「給料の手取りが知りたい」：給料と手取りの文例を交互に', await page.evaluate(() => { koeRun('給料の手取りが知りたい'); const m = state.log[state.log.length - 1]; return m.a.split('の言い方')[0] + ' | ' + m.ideas.some(d => /源泉/.test(d.t)) + '/' + m.ideas.some(d => /月給|年収/.test(d.t)); }), '給料・時給・源泉徴収・手取り | true/true');
+  check('  数のない言葉（燃費・面積・年齢）でも出す', [await run('燃費'), await run('面積'), await run('年齢')].map(r => r.split(' | ')[1]).join(' / '), '燃費・ガソリン代の言い方 / 図形の面積・体積の言い方 / 年齢・和暦の言い方');
   check('  何の計算か分からない「計算したい」：ジャンルを並べる', await run('計算したい'), 'info | 何の計算をしますか？ |  | tip | 11');
   check('  それだけで計算できるときはそのまま答える（〜したい・〜分けたい）', [await run('12800円を4人で割り勘したい'), await run('12800円を4人で分けたい'), await run('3と5を足したい')].map(r => r.split(' | ').slice(0, 2).join(' ')).join(' / '), 'ok ひとり 3,200円 × 4人 / ok 1人あたり 3,200円 / ok 8');
   check('  　吹き出しには言ったとおりの言葉を出す', await page.evaluate(() => state.log[state.log.length - 2].q), '12800円を4人で分けたい');
@@ -7636,14 +7636,16 @@ async function runKoeIdeas(browser) {
   // 画面：打って出す → 例を押すと「この言い方で」と下の欄 → ▶ で計算 → ほかの言い方
   await page.evaluate(() => { resetAll(); render(); });
   await page.fill('#typeIn', '割り勘の計算をしたい'); await page.press('#typeIn', 'Enter'); await w(200);
-  check('  打つと吹き出しに案（💡）と言い方のボタン', await page.evaluate(() => { const m = document.querySelector('#log .msg.app:last-child'); return !!m.querySelector('.idea-tip') + '/' + m.querySelectorAll('.idea .idea-t').length + '/' + m.querySelectorAll('.idea .idea-run').length + '/' + !!m.querySelector('.idea-more'); }), 'true/6/6/true');
+  check('  打つと吹き出しに案（💡）と言い方のボタン（はじめは3つ・枠なしの1行ずつ）', await page.evaluate(() => { const m = document.querySelector('#log .msg.app:last-child'); return !!m.querySelector('.idea-tip') + '/' + m.querySelectorAll('.idea .idea-t').length + '/' + m.querySelectorAll('.idea .idea-run').length + '/' + !!m.querySelector('.idea-more') + '/' + m.querySelector('.idea-expand').textContent; }), 'true/3/3/true/＋ もっと見る（2）');
+  await page.click('.idea-expand'); await w(150);
+  check('  「もっと見る」で全部', await page.evaluate(() => document.querySelectorAll('#log .msg.app:last-child .idea').length + '/' + !document.querySelector('.idea-expand')), '5/true');
   await page.click('.idea .idea-t'); await w(150);
   check('  例を押す：「この言い方で」になり、打っていたので下の欄にも入る', await page.evaluate(() => guideEx + '|' + document.getElementById('typeIn').value + '|' + !document.getElementById('guide').hidden), '3人で12000円を割り勘|3人で12000円を割り勘|true');
   await page.fill('#typeIn', ''); await page.evaluate(() => setGuide(''));
   await page.click('.idea .idea-run'); await w(200);
   check('  ▶ でそのまま計算', await page.evaluate(() => { const m = state.log[state.log.length - 1]; return m.q + ' → ' + m.a; }), '3人で12000円を割り勘 → 1人あたり 4,000円');
   await page.click('.idea-more'); await w(250);
-  check('  「ほかの言い方も見る」：📚 文例を、その計算でさがした形で開く', await page.evaluate(() => document.getElementById('p-ex').classList.contains('open') + '|' + document.getElementById('exFind').value + '|' + [...document.querySelectorAll('#exBody .ex')].filter(x => /割り勘|等分|人で割/.test(x.textContent)).length), 'true|割り勘|7');
+  check('  「ほかの言い方も見る」：📚 文例を、その計算でさがした形で開く', await page.evaluate(() => document.getElementById('p-ex').classList.contains('open') + '|' + document.getElementById('exFind').value + '|' + [...document.querySelectorAll('#exBody .ex')].filter(x => /割り勘|等分|人で割/.test(x.textContent)).length), 'true|割り勘|6');
   await page.fill('#exFind', '年齢'); await w(150);
   const ageN = await page.evaluate(() => document.querySelectorAll('#exBody .ex').length);
   await page.fill('#exFind', 'お米'); await w(150);
@@ -7655,6 +7657,22 @@ async function runKoeIdeas(browser) {
   check('  ジャンルを押すと、そのジャンルの文例を開く', await page.evaluate(() => document.getElementById('p-ex').classList.contains('open') + '|' + exGenre), 'true|kurashi');
   await page.evaluate(() => closePanel()); await w(200);
   check('  はじめの説明にも書く', await page.evaluate(() => { resetAll(); render(); return /割り勘したい/.test(document.getElementById('log').textContent); }), true);
+  // 画面をすっきり（v21）
+  await page.evaluate(() => { resetAll(); koeRun('ローンの計算をしたい'); koeRun('1280円を3つ'); render(); }); await w(150);
+  check('  例を試した次の1回までは、例を開いたまま', await page.evaluate(() => document.querySelectorAll('.idea').length + '/' + !document.querySelector('.idea-open')), '3/true');
+  await page.evaluate(() => { koeRun('それに消費税'); render(); }); await w(150);
+  check('  会話が進むと、前の「言い方の例」は1行にたたむ・押すと開く', await page.evaluate(() => { const b = document.querySelector('.idea-open'); return b.textContent + '/' + document.querySelectorAll('.idea').length; }), '💡 言い方の例 6つを見る ▸/0');
+  await page.click('.idea-open'); await w(150);
+  check('  　開くと3つ', await page.evaluate(() => document.querySelectorAll('.idea').length + '/' + !document.querySelector('.idea-open')), '3/true');
+  check('  答え：単位は小さく分けて、1行に収める', await page.evaluate(() => { const b = document.getElementById('ansBig'); return [b.querySelector('.v').textContent, b.querySelector('.u').textContent, b.textContent].join('|'); }), '4,224|円|4,224円');
+  check('  　練習の問題・残りの額は、うしろだけ小さくしない／単位だけ小さく', await page.evaluate(() => { const b = document.getElementById('ansBig'), r = []; for (const t of ['12 × 3 ＝ ？', '残り 12,000円', '7.5時間']) { setAnsBig(b, t); const u = b.querySelector('.u'); r.push(u ? u.textContent : '-'); } render(); return r.join(','); }), '-,円,時間');
+  await page.setViewportSize({ width: 360, height: 760 });
+  await page.evaluate(() => { settings.big = true; applySettings(); koeRun('200万円を金利3%で10年ローンの毎月の返済額'); koeRun('それに12をかけて'); render(); }); await w(200);
+  check('  　大きい字・せまい画面でも、答えは1行（入りきらなければ字を小さく）', await page.evaluate(() => { const b = document.getElementById('ansBig'); return (b.scrollWidth <= b.clientWidth + 1) + '/' + (parseFloat(b.style.fontSize || '64') < 64) + '/' + (document.documentElement.scrollWidth - innerWidth); }), 'true/true/0');
+  await page.evaluate(() => { settings.big = false; applySettings(); render(); });
+  await page.setViewportSize({ width: 390, height: 820 });
+  await page.evaluate(() => setHeard('「1280円を3つ」')); await w(6300);
+  check('  聞き終わった「聞こえた言葉」は少しすると消える（会話には残る）', await page.evaluate(() => document.getElementById('heard').textContent + '|' + getComputedStyle(document.getElementById('heard')).display), '|none');
   check('  したい計算と文例の組：どれにも文例がある', await page.evaluate(() => KOE_INTENTS.T.filter(o => !KOE_INTENTS.examplesOf([o], KOE_EXAMPLES).length).map(o => o.id).join(',')), '');
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
