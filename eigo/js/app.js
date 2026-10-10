@@ -1606,6 +1606,9 @@ const App = (() => {
     if (fcIdx < fcWords.length - 1) { fcIdx++; loadFC(); }
   }
 
+  // ふつうのフラッシュカード（覚えた度合いをえらんで次へ）か。🎤 発音チェックの窓の「次へ」に使う（v534）
+  function fcIsSRS() { return !fcAllWordsMode && !fcFreqMode && !fcHSMode; }
+
   function loadFC() {
     const w = fcWords[fcIdx];
     const d = document.getElementById('flashcard');
@@ -2683,5 +2686,5 @@ const App = (() => {
            sfcGoBack, sfcClickWord, sfcTogglePlay, sfcPrevWord, sfcNextWord,
            sfcPrevPassage, sfcNextPassage, sfcBulkPlay, sfcToggleJa,
            sfcSpeedDown, sfcSpeedUp, sfcPauseDown, sfcPauseUp,
-           closeModal, resetAll, stopAudio };
+           closeModal, resetAll, stopAudio, fcIsSRS };
 })();

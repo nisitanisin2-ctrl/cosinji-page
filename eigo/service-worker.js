@@ -1,7 +1,7 @@
 // 📚英単語マスター（eigo/）専用のキャッシュ。
 // 同じサイトに表電卓・声の計算帳などがあるので、名前の頭（eigo-）で自分の分だけを見分けて消す。
 // （もとは自分以外のキャッシュをぜんぶ消していたため、表電卓の控えまで消えていた）
-const CACHE = 'eigo-v2';   // v533：🎤 発音チェック（speech.js）・💬 英会話（talk.js）
+const CACHE = 'eigo-v3';   // v533：🎤 発音チェック（speech.js）・💬 英会話（talk.js）、v534：続けてサクサク
 const CACHE_PREFIX = 'eigo-';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png',
   './css/style.css', './js/app.js', './js/jhistory.js', './js/passages.js', './js/stories.js', './js/words.js',
