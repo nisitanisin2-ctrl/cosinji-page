@@ -783,33 +783,49 @@
     </div>
   </div>
 
-  <!-- 🎤 発音チェック（v533）：お手本の英語を声に出すと、1語ずつ比べて点数とコツを出す -->
+  <!-- 🎤 発音チェック（v533）：お手本の英語を声に出すと、1語ずつ比べて点数とコツを出す。
+       v534：開くとすぐ聞き取りを始め、下の「次へ ▶」でカードを進めながら続けて言える -->
   <div id="pron-sheet" class="modal-bg pron-bg" style="display:none" role="dialog" aria-modal="true" aria-labelledby="pron-h">
     <div class="modal-box pron-box">
-      <div class="pron-head"><span id="pron-h">🎤 発音チェック</span><button class="pron-x" type="button" data-pron-close aria-label="閉じる">✕</button></div>
-      <div class="pron-nav" id="pron-nav" hidden>
-        <button class="pron-nav-btn" id="pron-prev" type="button" aria-label="前の文">◀</button>
+      <div class="pron-head">
+        <span id="pron-h">🎤 発音チェック</span>
         <span class="pron-pos" id="pron-pos"></span>
-        <button class="pron-nav-btn" id="pron-next" type="button" aria-label="次の文">▶</button>
+        <button class="pron-x" type="button" data-pron-close aria-label="閉じる">✕</button>
       </div>
-      <div class="pron-target" id="pron-target" lang="en"></div>
-      <div class="pron-ja" id="pron-ja"></div>
-      <div class="pron-play-row">
-        <button class="pron-play" id="pron-play" type="button">🔊 お手本</button>
-        <button class="pron-play" id="pron-slow" type="button">🐢 ゆっくり</button>
+      <div class="pron-body">
+        <div class="pron-target" id="pron-target" lang="en"></div>
+        <div class="pron-ja" id="pron-ja"></div>
+        <div class="pron-play-row">
+          <button class="pron-play" id="pron-play" type="button">🔊 お手本</button>
+          <button class="pron-play" id="pron-slow" type="button">🐢 ゆっくり</button>
+        </div>
+        <div class="pron-nosr" id="pron-nosr" hidden>このブラウザでは声の聞き取りが使えません。Chrome・Edge・Safari で開くと 🎤 で発音をチェックできます（🔊 お手本は聞けます）。</div>
+        <div class="pron-result" id="pron-result" hidden>
+          <div class="pron-score" id="pron-score-box"><span class="pron-num" id="pron-num">0</span><span class="pron-unit">点</span><span class="pron-stars" id="pron-stars"></span></div>
+          <div class="pron-msg" id="pron-msg"></div>
+          <div class="pron-words" id="pron-words" lang="en"></div>
+          <div class="pron-legend"><span class="pw ok">合った</span><span class="pw near">おしい</span><span class="pw sub">ちがう語に</span><span class="pw del">聞こえない</span></div>
+          <div class="pron-heard-row">聞き取った英語：<span id="pron-heard" lang="en"></span> <span id="pron-conf"></span></div>
+          <ul class="pron-tips" id="pron-tips"></ul>
+        </div>
+        <div class="pron-best" id="pron-best"></div>
       </div>
-      <button class="pron-mic" id="pron-mic" type="button">🎤 タップして話す</button>
-      <div class="pron-nosr" id="pron-nosr" hidden>このブラウザでは声の聞き取りが使えません。Chrome・Edge・Safari で開くと 🎤 で発音をチェックできます（🔊 お手本は聞けます）。</div>
       <div class="pron-live" id="pron-live" aria-live="polite"></div>
-      <div class="pron-result" id="pron-result" hidden>
-        <div class="pron-score" id="pron-score-box"><span class="pron-num" id="pron-num">0</span><span class="pron-unit">点</span><span class="pron-stars" id="pron-stars"></span></div>
-        <div class="pron-msg" id="pron-msg"></div>
-        <div class="pron-words" id="pron-words" lang="en"></div>
-        <div class="pron-legend"><span class="pw ok">合った</span><span class="pw near">おしい</span><span class="pw sub">ちがう語に</span><span class="pw del">聞こえない</span></div>
-        <div class="pron-heard-row">聞き取った英語：<span id="pron-heard" lang="en"></span> <span id="pron-conf"></span></div>
-        <ul class="pron-tips" id="pron-tips"></ul>
+      <div class="pron-actions" id="pron-actions">
+        <button class="pron-nav-btn" id="pron-prev" type="button" aria-label="前へ">◀</button>
+        <button class="pron-mic" id="pron-mic" type="button">🎤 話す</button>
+        <button class="pron-next" id="pron-next" type="button">次へ ▶</button>
       </div>
-      <div class="pron-best" id="pron-best"></div>
+      <div class="pron-rate" id="pron-rate" hidden>
+        <span class="pron-rate-lbl">覚えていた？ えらぶと次のカードへ</span>
+        <button class="rate-hard" type="button" data-rate="1">😓 難しい</button>
+        <button class="rate-ok" type="button" data-rate="2">😐 普通</button>
+        <button class="rate-easy" type="button" data-rate="3">😊 簡単</button>
+      </div>
+      <div class="pron-opts">
+        <label id="pron-auto-wrap"><input type="checkbox" id="pron-auto" checked> ⚡ よければ自動で次へ</label>
+        <label><input type="checkbox" id="pron-first"> 🔊 先にお手本を聞く</label>
+      </div>
       <div class="pron-note">声はブラウザの音声認識（Google・Apple など）に送って聞き取ります。点数はめやすです。</div>
     </div>
   </div>

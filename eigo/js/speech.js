@@ -7,6 +7,7 @@
      1語ずつ並べて合わせる（編集距離）。1文字ちがいは「おしい」。候補5つのうちいちばん合うものを使う
    ・点数：合った語の割合 ×（音声認識の自信の強さ）。★3＝90点〜、★2＝75点〜、★1＝50点〜
    ・長文（高校英語・日本史）は1文ずつ。いま光っている語の文から始めて ◀ ▶ で進む
+   ・カードの 🎤 でそのまま聞き取りを始め、窓の「次へ ▶」でカードを進めながら続けて言える（v534）
    ════════════════════════════════════════════════════════════════ */
 'use strict';
 window.ES = (function () {
@@ -218,7 +219,8 @@ window.ES = (function () {
     bad.forEach(x => {
       const a = plain(x.w), b = plain(x.heard), W = x.w.replace(/[^A-Za-z'-]/g, '');
       if (!a) return;
-      if (b && x.st !== 'del') {
+      // 聞きちがえた語が、お手本の語と似ているときだけ、ちがった所から音をえらぶ（rain → blah のようにまるでちがう語は、つまずきやすい音から）
+      if (b && x.st !== 'del' && lev(a, b) <= Math.max(2, Math.floor(a.length / 2))) {
         // ちがった所：前からも後ろからも同じ文字をはずした残り（mA：お手本、mB：聞こえた語）
         let i = 0; while (i < a.length && i < b.length && a[i] === b[i]) i++;
         let j = 0; while (j < a.length - i && j < b.length - i && a[a.length - 1 - j] === b[b.length - 1 - j]) j++;
@@ -276,69 +278,165 @@ window.ES = (function () {
     if (st < t.length) out.push({ s: t.slice(st).trim(), at: st });
     return out;
   }
-  let P = { text: '', ja: '', ctl: null, list: [], k: 0 };
+  /* ── 続けてサクサク（v534）
+     ・カードの 🎤 をおすと、窓が開いてすぐ聞き取りを始める（もう1回おさなくてよい）
+     ・結果のあと「次へ ▶」で、下の画面のカードも次へ進め、そのまますぐ聞く（窓は開いたまま）
+       ふつうのフラッシュカードは「覚えていた？」の3つが「次へ」の代わり
+     ・⚡ よければ自動で次へ：★2つ（75点）以上なら 1.4秒で次へ（どこかをおすと止まる）
+     ・🔊 先にお手本：次のカードでは、お手本を聞いてから続けて聞き取る
+     ・パソコン：スペース／Enter＝話す・止める、← →＝前へ・次へ、1〜3＝覚えた度合い、Esc＝閉じる ── */
+  const OPT_KEY = 'eigo_pron_opts', AUTO_MS = 1400, AUTO_MIN = 75;
+  function opts() {
+    let o = null; try { o = JSON.parse(localStorage.getItem(OPT_KEY)); } catch (e) {}
+    return { auto: !o || o.auto !== false, first: !!(o && o.first) };
+  }
+  function setOpt(k, v) { const o = opts(); o[k] = v; try { localStorage.setItem(OPT_KEY, JSON.stringify(o)); } catch (e) {} }
+  // src：どの画面の英語か、list・k：長文は1文ずつ、seq：お手本のあとに聞くのを取り消す番号、auto：自動で次への待ち
+  let P = { src: '', text: '', ja: '', ctl: null, list: [], k: 0, seq: 0, auto: 0, heard: false, okOnce: false };
   const sheet = () => $('pron-sheet');
   function isOpen() { const s = sheet(); return !!s && s.style.display !== 'none'; }
   function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
   function setMic(state) {
     const b = $('pron-mic'); if (!b) return;
     b.classList.toggle('on', state === 'on');
-    b.textContent = state === 'on' ? '⏹ 止める（話し終わったら自動で止まります）' : state === 'again' ? '🎤 もう一度言う' : '🎤 タップして話す';
+    b.textContent = state === 'on' ? '⏹ 止める' : state === 'wait' ? '🎤 いま話す' : state === 'again' ? '🎤 もう一度' : '🎤 話す';
   }
-  // at：長文のとき、何文字目の文から始めるか
-  function open(text, ja, at) {
+
+  /* ── どの画面の英語か（ボタンの data-pron）と、その画面の「次へ」「前へ」 ── */
+  const txt = id => { const e = $(id); return e ? e.textContent.replace(/\s+/g, ' ').trim() : ''; };
+  const off = id => { const e = $(id); return !e || e.disabled; };
+  // 長文：文章の全体と、いま光っている語（.rd-current）が何文字目か
+  function passage(id) {
+    const box = $(id); if (!box) return ['', '', 0];
+    let all = '', at = 0;
+    box.childNodes.forEach(n => {
+      if (n.nodeType === 1 && n.classList.contains('rd-current')) at = all.replace(/\s+/g, ' ').replace(/^ /, '').length;
+      all += n.nodeType === 1 && n.querySelector('br') ? ' ' + n.textContent + ' ' : n.textContent;
+    });
+    return [all, '', at];
+  }
+  const fcAt = () => [+txt('fc-idx'), +txt('fc-total')];
+  const FC = {
+    next: () => App.fcNext(), prev: () => App.fcPrev(),
+    canNext: () => fcAt()[0] < fcAt()[1], canPrev: () => fcAt()[0] > 1,
+    pos: () => txt('fc-idx') + ' / ' + txt('fc-total'),
+    srs: () => !!App.fcIsSRS && App.fcIsSRS(),   // ふつうのフラッシュカード（覚えた度合いをえらんで次へ）
+  };
+  const SRC = {
+    chant: { get: () => [txt('chant-en'), txt('chant-ja')], next: () => App.chantNext(), prev: () => App.chantPrev(),
+      canNext: () => true, canPrev: () => true, pos: () => txt('chant-idx') + ' / ' + txt('chant-total') },
+    fcword: Object.assign({ get: () => [txt('fc-word'), txt('fc-japanese')] }, FC),
+    // 例文の欄は「英語＋改行＋日本語」。例文のない単語では単語を言う
+    fcex: Object.assign({ get: () => { const e = $('fc-example'), [en, ja] = (e ? e.textContent : '').split('\n'); return en ? [en, ja || ''] : [txt('fc-word'), txt('fc-japanese')]; } }, FC),
+    sfc: { get: () => [txt('sfc-rd-passage'), txt('sfc-rd-passage-ja')], next: () => App.sfcNextPassage(), prev: () => App.sfcPrevPassage(),
+      canNext: () => !off('sfc-rd-next-btn'), canPrev: () => !off('sfc-rd-prev-btn'), pos: () => txt('sfc-rd-nav') },
+    // 長文：文章の最後の文の次は、次の文章のはじめの文へ
+    rd: { get: () => passage('rd-passage'), next: () => App.rdNextPassage(), prev: () => App.rdPrevPassage(),
+      canNext: () => !off('rd-next-pass-btn'), canPrev: () => !off('rd-prev-pass-btn') },
+    jh: { get: () => passage('jh-passage'), next: () => App.jhNextPassage(), prev: () => App.jhPrevPassage(),
+      canNext: () => !off('jh-next-pass-btn'), canPrev: () => !off('jh-prev-pass-btn') },
+  };
+  const src = () => SRC[P.src] || null;
+  const isSRS = () => { const s = src(); return !!(s && s.srs && s.srs()); };
+
+  /* ── 英語を窓に入れる（長文は1文ずつ。where：'cur' 光っている語の文・'first'・'last'） ── */
+  function setItem(text, ja, at, where) {
     text = String(text || '').replace(/\s+/g, ' ').trim();
-    if (!text) return;
-    stopListen(); hush();
+    if (!text) return false;
     const ss = sentences(text), many = ss.length > 1 && tokens(text).length > 16;
     let k = 0;
-    if (many) ss.forEach((x, i) => { if (x.at <= (at || 0)) k = i; });
-    P = { text: '', ja: many ? '' : String(ja || '').trim(), ctl: null, list: many ? ss.map(x => x.s) : [text], k };
-    $('pron-mic').hidden = !SR;
-    $('pron-nosr').hidden = !!SR;
+    if (many && where === 'last') k = ss.length - 1;
+    else if (many && where === 'cur') ss.forEach((x, i) => { if (x.at <= (at || 0)) k = i; });
+    P.list = many ? ss.map(x => x.s) : [text]; P.k = k; P.ja = many ? '' : String(ja || '').trim();
     showTarget();
-    sheet().style.display = 'flex';
+    return true;
   }
   function showTarget() {
-    P.text = P.list[P.k];
+    P.text = P.list[P.k]; P.heard = false;
     $('pron-target').textContent = P.text;
     $('pron-ja').textContent = P.ja; $('pron-ja').hidden = !P.ja;
-    $('pron-nav').hidden = P.list.length < 2;
-    $('pron-pos').textContent = (P.k + 1) + ' / ' + P.list.length + ' 文';
-    $('pron-prev').disabled = P.k === 0; $('pron-next').disabled = P.k >= P.list.length - 1;
-    $('pron-result').hidden = true; $('pron-live').textContent = '';
+    $('pron-result').hidden = true; $('pron-result').classList.remove('stale'); $('pron-live').textContent = '';
     const b = bestOf(P.text);
     $('pron-best').textContent = b ? 'これまでのベスト：' + b + '点' : '';
-    setMic('idle');
+    setMic('idle'); updNav();
   }
-  function go(d) {
-    const k = Math.max(0, Math.min(P.list.length - 1, P.k + d));
-    if (k === P.k) return;
-    stopListen(); hush(); P.ctl = null; P.k = k; showTarget();
+  function canGo(d) {
+    const k = P.k + d, s = src();
+    if (k >= 0 && k < P.list.length) return true;
+    return !!s && !isSRS() && (d > 0 ? s.canNext() : s.canPrev());
+  }
+  function updNav() {
+    const s = src(), srs = isSRS(), many = P.list.length > 1, nav = !srs && (!!s || many);
+    $('pron-pos').textContent = many ? (P.k + 1) + ' / ' + P.list.length + ' 文' : s && s.pos ? s.pos() : '';
+    $('pron-prev').hidden = $('pron-next').hidden = !nav;
+    $('pron-prev').disabled = !canGo(-1); $('pron-next').disabled = !canGo(1);
+    $('pron-actions').classList.toggle('solo', !nav);
+    $('pron-actions').hidden = !nav && !SR;
+    $('pron-rate').hidden = !srs;
+    $('pron-auto-wrap').hidden = !nav || !SR;
+  }
+
+  /* ── 開く・閉じる ── */
+  function open(key) {
+    const s = SRC[key]; if (!s) return;
+    if (typeof App !== 'undefined' && App.stopAudio) App.stopAudio();   // 長文の再生・一括再生を止めてから（App は window のものではない）
+    cancelAuto(); P.seq++; stopListen(); hush(); P.ctl = null;
+    P.src = key;
+    const [t, j, at] = s.get();
+    if (!setItem(t, j, at, 'cur')) return;
+    $('pron-mic').hidden = !SR; $('pron-nosr').hidden = !!SR;
+    const o = opts(); $('pron-auto').checked = o.auto; $('pron-first').checked = o.first;
+    sheet().style.display = 'flex';
+    try { (SR ? $('pron-mic') : $('pron-play')).focus({ preventScroll: true }); } catch (e) {}
+    begin(true);
   }
   function close() {
     if (!isOpen()) return false;
-    stopListen(); hush();
+    cancelAuto(); P.seq++; stopListen(); hush(); P.ctl = null;
     sheet().style.display = 'none';
     return true;
   }
-  function start() {
+  // 新しい英語になったら：先にお手本を聞いてから、またはすぐに聞き取りを始める
+  function begin(gesture) {
+    const seq = ++P.seq;
+    if (opts().first) {
+      if (SR) { setMic('wait'); $('pron-live').textContent = '🔊 お手本のあとで、続けて言ってください'; }
+      say(P.text).then(() => { if (seq === P.seq && isOpen() && SR && !P.ctl) listenNow(false); });
+    } else if (SR) listenNow(gesture);
+  }
+
+  /* ── 聞く ── */
+  function micTap() {
+    cancelAuto();
     if (P.ctl) { P.ctl.stop(); return; }   // 話している途中でおしたら止める
-    $('pron-result').hidden = true;
-    $('pron-live').textContent = '聞いています… お手本を見ながら英語で言ってください';
+    P.seq++; hush();                        // お手本を待っている途中でも、すぐ聞く
+    listenNow(true);
+  }
+  function listenNow(gesture) {
+    cancelAuto();
+    if (P.ctl) return;
+    $('pron-result').classList.add('stale');
+    $('pron-live').textContent = '聞いています…（話し終わると自動で止まります）';
     setMic('on');
     P.ctl = listen({
       onInterim: t => { if (t) $('pron-live').textContent = '「' + t + '」'; },
       onEnd: (res, err) => {
-        P.ctl = null; setMic('again');
-        if (!res) { $('pron-live').textContent = errMsg(err); return; }
+        P.ctl = null; $('pron-result').classList.remove('stale');
+        setMic(P.heard ? 'again' : 'idle');
+        if (!res) {
+          // おさずに始めた聞き取りをブラウザが止めたときは、🎤 をおしてもらう
+          $('pron-live').textContent = err === 'perm' && !gesture && P.okOnce ? '自動では聞き取りを始められませんでした。🎤 をおして話してください。' : errMsg(err);
+          return;
+        }
+        P.okOnce = true;
         $('pron-live').textContent = '';
         show(score(P.text, res.alts));
       },
     });
-    if (!P.ctl && !SR) { setMic('idle'); $('pron-live').textContent = errMsg('unsupported'); }
+    if (!P.ctl) { $('pron-result').classList.remove('stale'); setMic(P.heard ? 'again' : 'idle'); }
   }
   function show(r) {
+    P.heard = true; setMic('again');
     $('pron-result').hidden = false;
     $('pron-num').textContent = r.score;
     $('pron-stars').innerHTML = '★'.repeat(r.stars) + '<i>' + '★'.repeat(3 - r.stars) + '</i>';
@@ -351,48 +449,80 @@ window.ES = (function () {
     $('pron-conf').textContent = r.conf ? '（聞き取りの自信 ' + Math.round(r.conf * 100) + '%）' : '';
     $('pron-tips').innerHTML = (r.tips.length ? r.tips : ['このまま、お手本と同じ速さ・リズムで言えるようにしてみましょう。']).map(t => '<li>' + esc(t) + '</li>').join('');
     const b = saveBest(P.text, r.score);
-    $('pron-best').textContent = 'これまでのベスト：' + b + '点' + (r.score >= b && r.score > 0 ? '（いまの点）' : '');
+    $('pron-best').textContent = b ? 'これまでのベスト：' + b + '点' + (r.score >= b ? '（いまの点）' : '') : '';
+    if (opts().auto && r.score >= AUTO_MIN && !isSRS() && canGo(1)) startAuto();
   }
-  /* ── どの画面の英語か（ボタンの data-pron） ── */
-  const txt = id => { const e = $(id); return e ? e.textContent.replace(/\s+/g, ' ').trim() : ''; };
-  // 長文：文章の全体と、いま光っている語（.rd-current）が何文字目か
-  function passage(id) {
-    const box = $(id); if (!box) return ['', '', 0];
-    let all = '', at = 0;
-    box.childNodes.forEach(n => {
-      if (n.nodeType === 1 && n.classList.contains('rd-current')) at = all.replace(/\s+/g, ' ').replace(/^ /, '').length;
-      all += n.nodeType === 1 && n.querySelector('br') ? ' ' + n.textContent + ' ' : n.textContent;
-    });
-    return [all, '', at];
+
+  /* ── 次へ・前へ ── */
+  function startAuto() {
+    cancelAuto();
+    $('pron-next').classList.add('auto');
+    $('pron-live').textContent = '⚡ 次へ進みます（どこかをおすと止まります）';
+    P.auto = setTimeout(() => { P.auto = 0; go(1, false); }, AUTO_MS);
   }
-  const SRC = {
-    chant: () => [txt('chant-en'), txt('chant-ja')],
-    fcword: () => [txt('fc-word'), txt('fc-japanese')],
-    // 例文の欄は「英語＋改行＋日本語」
-    fcex: () => { const e = $('fc-example'), [en, ja] = (e ? e.textContent : '').split('\n'); return [en || '', ja || '']; },
-    sfc: () => [txt('sfc-rd-passage'), txt('sfc-rd-passage-ja')],
-    rd: () => passage('rd-passage'),
-    jh: () => passage('jh-passage'),
-  };
+  function cancelAuto() {
+    if (P.auto) { clearTimeout(P.auto); P.auto = 0; if ($('pron-live').textContent.charAt(0) === '⚡') $('pron-live').textContent = ''; }
+    const b = $('pron-next'); if (b) b.classList.remove('auto');
+  }
+  function go(d, gesture) {
+    cancelAuto();
+    if (!canGo(d)) return false;
+    stopListen(); hush(); P.ctl = null;
+    if (P.k + d >= 0 && P.k + d < P.list.length) { P.k += d; showTarget(); }
+    else {
+      const s = src();
+      if (d > 0) s.next(); else s.prev();
+      const [t, j, at] = s.get();
+      if (!setItem(t, j, at, d > 0 ? 'first' : 'last')) { close(); return false; }
+    }
+    begin(gesture);
+    return true;
+  }
+  // ふつうのフラッシュカード：覚えた度合いをえらんで次のカードへ（最後のカードなら、おわりの画面へ）
+  function rateNext(n) {
+    if (!isSRS()) return;
+    cancelAuto(); stopListen(); hush(); P.ctl = null;
+    App.rate(n);
+    const m = $('session-modal');
+    if (m && m.style.display !== 'none') { close(); return; }
+    const [t, j, at] = src().get();
+    if (!setItem(t, j, at, 'first')) { close(); return; }
+    begin(true);
+  }
+  function play(rate) {
+    cancelAuto(); P.seq++; stopListen(); P.ctl = null;
+    $('pron-result').classList.remove('stale'); $('pron-live').textContent = '';
+    setMic(P.heard ? 'again' : 'idle');
+    say(P.text, { rate });
+  }
+
   function init() {
     if (!sheet()) return;
-    document.querySelectorAll('[data-pron]').forEach(b => b.addEventListener('click', e => {
-      e.stopPropagation();
-      const f = SRC[b.dataset.pron]; if (!f) return;
-      if (typeof App !== 'undefined' && App.stopAudio) App.stopAudio();   // 長文の再生・一括再生を止めてから（App は window のものではない）
-      const [t, j, at] = f(); open(t, j, at);
-    }));
-    $('pron-prev').addEventListener('click', () => go(-1));
-    $('pron-next').addEventListener('click', () => go(1));
-    $('pron-mic').addEventListener('click', start);
-    $('pron-play').addEventListener('click', () => { stopListen(); if (P.ctl) P.ctl = null; setMic('idle'); say(P.text, { rate: 0.92 }); });
-    $('pron-slow').addEventListener('click', () => { stopListen(); if (P.ctl) P.ctl = null; setMic('idle'); say(P.text, { rate: 0.62 }); });
+    document.querySelectorAll('[data-pron]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); open(b.dataset.pron); }));
+    $('pron-mic').addEventListener('click', micTap);
+    $('pron-prev').addEventListener('click', () => go(-1, true));
+    $('pron-next').addEventListener('click', () => go(1, true));
+    $('pron-rate').addEventListener('click', e => { const b = e.target.closest('[data-rate]'); if (b) rateNext(+b.dataset.rate); });
+    $('pron-play').addEventListener('click', () => play(0.92));
+    $('pron-slow').addEventListener('click', () => play(0.62));
+    $('pron-auto').addEventListener('change', e => { setOpt('auto', e.target.checked); if (!e.target.checked) cancelAuto(); });
+    $('pron-first').addEventListener('change', e => setOpt('first', e.target.checked));
+    // 自動で次へ進む前に、窓のどこかをおすと止める（「次へ」はそのまま次へ）
+    sheet().addEventListener('pointerdown', e => { if (P.auto && !e.target.closest('#pron-next')) cancelAuto(); }, true);
     sheet().addEventListener('click', e => { if (e.target === sheet() || e.target.closest('[data-pron-close]')) close(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape' && isOpen()) { close(); e.stopPropagation(); } }, true);
+    document.addEventListener('keydown', e => {
+      if (!isOpen()) return;
+      const k = e.key, onCtl = !!(e.target && e.target.closest && e.target.closest('#pron-sheet button, #pron-sheet input, #pron-sheet label'));
+      if (k === 'Escape') close();
+      else if (k === 'ArrowRight' || k === 'ArrowLeft') { e.preventDefault(); go(k === 'ArrowRight' ? 1 : -1, true); }
+      else if ((k === ' ' || k === 'Enter') && !onCtl) { e.preventDefault(); if (SR) micTap(); }
+      else if (/^[123]$/.test(k) && isSRS()) { e.preventDefault(); rateNext(+k); }
+      e.stopPropagation();   // 窓が開いている間は、下の画面のキー（→ で次の語など）を動かさない
+    }, true);
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) return;
-      stopListen(); hush();
-      if (P.ctl) { P.ctl = null; setMic('idle'); $('pron-live').textContent = ''; }
+      cancelAuto(); P.seq++; stopListen(); hush();
+      if (P.ctl) { P.ctl = null; setMic(P.heard ? 'again' : 'idle'); $('pron-live').textContent = ''; $('pron-result').classList.remove('stale'); }
     });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
