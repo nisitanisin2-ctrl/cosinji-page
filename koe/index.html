@@ -1693,9 +1693,10 @@ function render(){
   });
   renderLog();
 }
-/* 答えの欄：数と、うしろの単位（円・個 など）を分けて単位を小さく。1行に入りきらないときは字を小さくする（v21） */
+/* 答えの欄：数と、うしろの単位（円・個 など）を分けて単位を小さく。1行に入りきらないときは字を小さくする（v21）
+   練習の問題（「12 × 3 ＝ ？」）のように、うしろが単位でないときは分けない */
 function setAnsBig(el, t){
-  const m=String(t).match(/^(.*\d)([^\d]{1,6})$/);
+  const m=String(t).match(/^(.*\d)([^\d\s＝=？?]{1,6})$/);
   if(m) el.innerHTML='<span class="v">'+escHtml(m[1])+'</span><span class="u">'+escHtml(m[2])+'</span>';
   else el.textContent=t;
   fitAns();

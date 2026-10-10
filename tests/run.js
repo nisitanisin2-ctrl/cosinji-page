@@ -7665,6 +7665,7 @@ async function runKoeIdeas(browser) {
   await page.click('.idea-open'); await w(150);
   check('  　開くと3つ', await page.evaluate(() => document.querySelectorAll('.idea').length + '/' + !document.querySelector('.idea-open')), '3/true');
   check('  答え：単位は小さく分けて、1行に収める', await page.evaluate(() => { const b = document.getElementById('ansBig'); return [b.querySelector('.v').textContent, b.querySelector('.u').textContent, b.textContent].join('|'); }), '4,224|円|4,224円');
+  check('  　練習の問題・残りの額は、うしろだけ小さくしない／単位だけ小さく', await page.evaluate(() => { const b = document.getElementById('ansBig'), r = []; for (const t of ['12 × 3 ＝ ？', '残り 12,000円', '7.5時間']) { setAnsBig(b, t); const u = b.querySelector('.u'); r.push(u ? u.textContent : '-'); } render(); return r.join(','); }), '-,円,時間');
   await page.setViewportSize({ width: 360, height: 760 });
   await page.evaluate(() => { settings.big = true; applySettings(); koeRun('200万円を金利3%で10年ローンの毎月の返済額'); koeRun('それに12をかけて'); render(); }); await w(200);
   check('  　大きい字・せまい画面でも、答えは1行（入りきらなければ字を小さく）', await page.evaluate(() => { const b = document.getElementById('ansBig'); return (b.scrollWidth <= b.clientWidth + 1) + '/' + (parseFloat(b.style.fontSize || '64') < 64) + '/' + (document.documentElement.scrollWidth - innerWidth); }), 'true/true/0');
