@@ -7293,7 +7293,7 @@ async function runEigoSpeak(browser) {
   console.log('\n── 📚 英単語：🎤 発音チェック・💬 英会話（v533・v534） ──');
   const dir = path.join(ROOT, 'eigo'), EIGO = 'file://' + path.join(dir, 'index.html');
   const sw = fs.readFileSync(path.join(dir, 'service-worker.js'), 'utf8'), html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
-  check('  新しいファイルを service-worker が持つ（控えの番号も上げた）', [['js/speech.js', 'js/talk.js'].every(f => fs.existsSync(path.join(dir, f)) && sw.includes("'./" + f + "'")), sw.includes("const CACHE = 'eigo-v3'")].join('/'), 'true/true');
+  check('  新しいファイルを service-worker が持つ（控えの番号も上げた）', [['js/speech.js', 'js/talk.js'].every(f => fs.existsSync(path.join(dir, f)) && sw.includes("'./" + f + "'")), sw.includes("const CACHE = 'eigo-v4'")].join('/'), 'true/true');
   check('  app.js のあとに読み込む', /js\/app\.js"><\/script>\s*<script src="js\/speech\.js"><\/script>\s*<script src="js\/talk\.js"><\/script>/.test(html), true);
   const mock = (withSR) => {
     window.__srQueue = []; window.__said = []; window.__srStarted = 0;
