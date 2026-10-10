@@ -813,17 +813,21 @@ function accountSummary(y){
    開くたびに履歴を1つ積み、戻る（popstate）でいちばん上の分だけ閉じる。
    Chrome は一度も触れていないページが積んだ履歴を「戻る」で飛ばすので、そのときははじめて触れたときに積む。 */
 const KB={ stack:[], skip:0, pending:0, deferred:0, base:false,
-  // 表電卓など同じサイトの画面から来たときは、そこへ帰れば良いので「いちばん下の分」は積まない。
-  // このアプリだけを開いたとき（ホーム画面のアイコンなど）は、どこからも来ていない
-  // 表電卓は #from=hyo を付けて開く（ファイルを直接開いたときは referrer が空になるため、しるしで見分ける）
+  // このアプリだけを開いたとき（ホーム画面のアイコンなど）は「もう一度押すと閉じます」と一度知らせる。
+  // 表電卓から開いたとき（#from=hyo）も、押しまちがいで急に表電卓へ戻らないよう「もう一度押すと表電卓に戻ります」と
+  // 一度知らせる（表電卓 v535。以前は1回の「戻る」で表電卓へ戻っていた）
+  // （ファイルを直接開いたときは referrer が空になるため、しるしで見分ける）
+  fromHyo: false,
   wantBase: (()=>{
     if(/(^|[#&])from=hyo\b/.test(location.hash)){
       try{ sessionStorage.setItem('kaikei_from_hyo','1'); }catch(_){}                      // 「← 表電卓」を出すしるし（v15）
       try{ history.replaceState(null,'',location.pathname+location.search); }catch(_){}   // しるしはアドレスに残さない
-      return false;
+      return true;
     }
+    try{ if(sessionStorage.getItem('kaikei_from_hyo')==='1') return true; }catch(_){}
     try{ return !document.referrer || new URL(document.referrer).origin!==location.origin; }catch(_){ return true; }
   })() };
+try{ KB.fromHyo=sessionStorage.getItem('kaikei_from_hyo')==='1'; }catch(_){}
 function kbActed(){ const u=navigator.userActivation; return !u || u.hasBeenActive; }
 function kbPush(){
   if(!kbActed()){ KB.deferred++; return; }
@@ -851,7 +855,7 @@ window.addEventListener('popstate', e=>{
   KB.base=!!(st.kkBase||st.kk);
   const f=KB.stack.pop();
   if(f){ f(); return; }                        // 下の画面は、それぞれ自分の分を積んである
-  if(KB.wantBase && !st.kkBase && !st.kk) toast('もう一度「戻る」を押すと閉じます');
+  if(KB.wantBase && !st.kkBase && !st.kk) toast(KB.fromHyo ? 'もう一度「戻る」を押すと表電卓に戻ります' : 'もう一度「戻る」を押すと閉じます');
 });
 function kbOnAct(){
   if(KB.pending) return;
@@ -3125,8 +3129,14 @@ init();
 /* 表電卓から開いたときは、左上に「← 表電卓」を出す（v15）。iPhone には画面に「戻る」ボタンがないため */
 function backToHyo(){
   // 開いている窓や画面の分の履歴があるので、「戻る」ではなく表電卓のページへそのまま移る
+  KB.leaving=true; try{ localStorage.removeItem('excalc_resume'); }catch(_){}   // 自分で帰るので、開き直しの印は消す（v535）
   location.href='../'+(location.protocol==='file:'?'index.html':'');
 }
+/* 表電卓から開いたときは、うしろに回るときに「使っていた」と書き残す（スマホがアプリを閉じたあと、表電卓が開き直す。v535） */
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState!=='hidden' || !KB.fromHyo || KB.leaving) return;
+  try{ localStorage.setItem('excalc_resume', JSON.stringify({app:'kaikei', t:Date.now()})); }catch(_){}
+});
 (function(){ let from=false; try{ from=sessionStorage.getItem('kaikei_from_hyo')==='1'; }catch(_){} const b=document.getElementById('hdBack'); if(b) b.hidden=!from; })();
 </script>
 </body>

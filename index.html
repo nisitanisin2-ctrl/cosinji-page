@@ -9126,6 +9126,12 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v535', t:'🎙 声の計算帳：したい計算から言い方の例・🔙 意図せず表電卓に戻らないように', li:[
+    '🎙声の計算帳で、<b>したい計算を言う・打つ</b>と（「割り勘したい」「ローンの計算」「年齢を計算したい」「土地の広さを坪で知りたい」など）、それに合う<b>言い方の例をボタンで並べ</b>、何を言えばよいかの<b>案（💡）</b>も出します。言った数があれば例に当てはめて出します（「100万円を借りたときの返済を知りたい」→「100万円を金利2%で5年ローン毎月の返済」）',
+    '例を押すと「この言い方で」になり（打っていたときは下の欄にも入ります）、▶ でそのまま計算します。「燃費」「面積」のような数のない言葉や、📚 文例の「さがす」（「年齢」「お米」など）でも出ます。「12800円を4人で割り勘したい」のように、それだけで計算できるときはそのまま答えます',
+    '<b>アプリが意図せず表電卓に戻る</b>のを直しました。声の計算帳で窓を閉じてすぐ別の窓を開くと、そのあと閉じたときにアプリごと戻ることがありました。英単語（ホームで開く窓）・メモ・かきじゅん帳の窓は、「戻る」で<b>窓だけ閉じる</b>ようにしました（以前はアプリごと表電卓へ戻っていました）',
+    '声の計算帳・英単語・メモ・かきじゅん帳・会計アプリで、何も開いていないところで「戻る」を押すと、一度だけ<b>「もう一度「戻る」を押すと表電卓に戻ります」</b>と知らせます（画面の端をなぞったときなどの押しまちがい対策）。算数の「もどる」「✕」を続けて押しても、1つずつ戻ります',
+    'ホーム画面に置いたアプリで、別のアプリを使っているうちにスマホがアプリを閉じたときは、開き直すと<b>使っていたアプリ</b>から始まります（3時間以内。「← 表電卓」や「戻る」で帰ったときは表電卓から）' ]},
   { v:'v534', t:'📚 英単語：🎤 発音チェックを続けてサクサク', li:[
     'カードの <b>🎤</b> をおすと、窓が開いて<b>すぐ聞き取りを始めます</b>（窓の「話す」をもう1回おさなくてよくなりました）',
     '結果のあと、窓の下の<b>「次へ ▶」</b>で下のカードも次へ進み、<b>そのまますぐ聞きます</b>。窓を閉じずにカードを続けて言えます（◀ で前へ。長文は1文ずつで、文章の最後の文のあとは次の文章へ）',
@@ -15486,6 +15492,25 @@ function sideAppUrl(dir, hash){
   try{ return new URL(rel, location.href).href; }catch(_){ return rel; }
 }
 function openNotesApp(){ openSameWindow(sideAppUrl('notes', '#from=hyo')); }
+/* ── 別のアプリを使っていたところで、スマホがアプリを閉じたとき（v535）──
+   スマホは、うしろに回したアプリをしばらくすると閉じる。ホーム画面のアイコンから開き直すと
+   はじめの画面（表電卓）から始まるので、「意図せず表電卓に戻った」ようになる。
+   別のアプリ（声の計算帳・英単語・メモ・かきじゅん帳・算数・会計）は、表電卓から開いたとき、
+   うしろに回るたびに「使っていた」と書き残す（excalc_resume）。ホーム画面に置いたアプリとして新しく開いたとき、
+   それが3時間以内なら、そのアプリを開き直す。「← 表電卓」や「戻る」で帰ってきたときは使わずに消す。
+   ブラウザのタブで開いたとき・ショートカット（?p=…）で開いたときは、開き直さない */
+const RESUME_KEY='excalc_resume', RESUME_APPS=['koe','eigo','notes','kakijun','sansu','kaikei'], RESUME_MS=3*3600*1000;
+function navType(){ try{ const e=performance.getEntriesByType('navigation')[0]; return e ? e.type : ''; }catch(_){ return ''; } }
+function isStandaloneApp(){ try{ return matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone===true; }catch(_){ return false; } }
+function resumeSideApp(){
+  let r=null; try{ r=JSON.parse(localStorage.getItem(RESUME_KEY)||'null'); }catch(_){}
+  try{ localStorage.removeItem(RESUME_KEY); }catch(_){}   // 使っても使わなくても1回きり
+  if(!r || !RESUME_APPS.includes(r.app) || !(Date.now()-(+r.t||0) < RESUME_MS)) return false;
+  if(navType()!=='navigate' || !isStandaloneApp() || startPageFromUrl() || window.APP_TECHO || window.APP_TOOL) return false;
+  location.href=sideAppUrl(r.app, '#from=hyo');
+  return true;
+}
+window.addEventListener('pageshow', e=>{ if(e.persisted){ try{ localStorage.removeItem(RESUME_KEY); }catch(_){} } });   // 「戻る」で帰ってきた
 /* 同じ置き場所にある別のアプリ（会計・メモ）は、同じウィンドウで開く（v402）。
    以前は新しいタブで開いていたので、スマホの「戻る」でタブごと閉じていた。
    同じウィンドウなら「戻る」で表電卓に帰ってこられる（表の中身は自動保存してある）。 */
@@ -21863,7 +21888,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v534';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v535';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -24476,7 +24501,7 @@ renderStartPage();
 renderToolHintSeg();
 try{ localStorage.removeItem('excalc_toolsfab'); }catch(_){}   // v469：ページ名の並びの 🧰道具 ボタンはなくした
 ezSync();
-setTimeout(()=>{ try{ applyStartPage(); }catch(_){} }, 0);
+setTimeout(()=>{ try{ if(!resumeSideApp()) applyStartPage(); }catch(_){} }, 0);
 
 /* ── 更新のしかた（v382） ──
    以前は新しい版が来ると勝手に読み込み直していたので、入力の途中や

@@ -1,9 +1,9 @@
 // ✍️かきじゅん帳（kakijun/）専用のキャッシュ。
 // 同じサイトに表電卓・算数などがあるので、名前の頭（kakijun-）で自分の分だけを見分けて消す。
-const CACHE = 'kakijun-v1';
+const CACHE = 'kakijun-v2';   // v535：戻るの見張り（backguard.js）
 const CACHE_PREFIX = 'kakijun-';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png',
-  './css/style.css', './js/data.js', './js/recog.js', './js/app.js'];
+  './css/style.css', './js/data.js', './js/recog.js', './js/backguard.js', './js/app.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));

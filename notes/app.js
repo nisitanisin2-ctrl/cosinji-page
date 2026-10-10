@@ -639,9 +639,15 @@ if ('serviceWorker' in navigator) {
 
 /* 表電卓から開いたときだけ「← 表電卓」を出す */
 (function(){
-  try{ if(/from=hyo/.test(location.hash)){ sessionStorage.setItem('memo_from_hyo','1'); history.replaceState(null,'',location.pathname+location.search); } }catch(_){}
+  try{ if(/from=hyo/.test(location.hash)){ sessionStorage.setItem('memo_from_hyo','1'); history.replaceState(history.state,'',location.pathname+location.search); } }catch(_){}
   let from=false; try{ from=sessionStorage.getItem('memo_from_hyo')==='1'; }catch(_){}
   const b=document.getElementById('backHyo'); if(b) b.hidden=!from;
-  const backToHyo=function(){ if(from && history.length>1){ history.back(); return; } location.href='../'+(location.protocol==='file:'?'index.html':''); };
+  /* 戻るの見張り（backguard.js。v535）：下から出る窓（一覧・出力・設定…）とメニューは、端末の「戻る」で窓だけ閉じる。
+     何も開いていないときは一度知らせてから表電卓へ（以前は窓が開いていても「戻る」でアプリごと表電卓へ戻っていた） */
+  BackGuard.setup({app:'notes', fromHyo:from, toast:m=>toast(m)});
+  BackGuard.watch('.sheet', el=>el.classList.contains('on'), el=>el.classList.remove('on'));
+  BackGuard.watch('#menu', el=>el.classList.contains('on'), el=>el.classList.remove('on'));
+  // 「← 表電卓」：開いた窓の分などをまとめて戻って、表電卓へ
+  const backToHyo=function(){ BackGuard.home('../'+(location.protocol==='file:'?'index.html':'')); };
   if(b) b.addEventListener('click', backToHyo);
 })();

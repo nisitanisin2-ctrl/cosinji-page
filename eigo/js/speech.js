@@ -387,13 +387,18 @@ window.ES = (function () {
     $('pron-mic').hidden = !SR; $('pron-nosr').hidden = !!SR;
     const o = opts(); $('pron-auto').checked = o.auto; $('pron-first').checked = o.first;
     sheet().style.display = 'flex';
+    if (!P.tok) P.tok = BackGuard.open(() => { P.tok = null; shut(); });   // 端末の「戻る」で窓だけ閉じる（v535）
     try { (SR ? $('pron-mic') : $('pron-play')).focus({ preventScroll: true }); } catch (e) {}
     begin(true);
   }
-  function close() {
-    if (!isOpen()) return false;
+  function shut() {
     cancelAuto(); P.seq++; stopListen(); hush(); P.ctl = null;
     sheet().style.display = 'none';
+  }
+  function close() {
+    if (!isOpen()) return false;
+    shut();
+    const t = P.tok; P.tok = null; if (t) BackGuard.close(t);
     return true;
   }
   // 新しい英語になったら：先にお手本を聞いてから、またはすぐに聞き取りを始める

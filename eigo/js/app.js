@@ -382,14 +382,31 @@ const App = (() => {
       b.classList.toggle('active', b.dataset.s === name);
     });
     currentScreen = name;
-    if (name === 'home') history.replaceState({screen:'home'}, '');
-    else                 history.pushState({screen:name}, '');
+    // 履歴：ホームは置きかえ、ほかの画面は積む。窓を閉じてすぐ別の画面へ行くときは、閉じた窓の分を使う
+    // （戻るの見張りが入れた印 bg は残す。v535）
+    const hs = Object.assign({}, history.state, {screen: name});
+    if (name === 'home' || BackGuard.take()) history.replaceState(hs, '');
+    else history.pushState({screen: name}, '');
     if (name === 'home')  renderHome();
     if (name === 'words') renderWordList();
     if (name === 'stats') renderStats();
   }
 
   function goHome() { showScreen('home'); }
+
+  // 窓（モーダル）：開いたら「戻るの見張り」（backguard.js）に預けるので、端末の「戻る」で窓だけ閉じる。
+  // （ホームで開いた窓は履歴を積んでいなかったので、「戻る」でアプリごと表電卓へ戻っていた。v535）
+  const modalTok = {};
+  function modalShow(id, onBack) {
+    const el = document.getElementById(id); if (!el) return;
+    el.style.display = 'flex';
+    if (!modalTok[id]) modalTok[id] = BackGuard.open(() => { modalTok[id] = null; el.style.display = 'none'; if (onBack) onBack(); });
+  }
+  function modalHide(id) {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+    const t = modalTok[id]; modalTok[id] = null;
+    if (t) BackGuard.close(t);
+  }
 
   // ── ホーム ──
   function renderHome() {
@@ -489,11 +506,11 @@ const App = (() => {
     awFilterGenre = '';
     updateAWFilterUI();
     updateAWFilterCount();
-    document.getElementById('aw-filter-modal').style.display = 'flex';
+    modalShow('aw-filter-modal');
   }
 
   function closeAWFilterModal() {
-    document.getElementById('aw-filter-modal').style.display = 'none';
+    modalHide('aw-filter-modal');
   }
 
   function setAWFilterLevel(lv) {
@@ -2131,10 +2148,10 @@ const App = (() => {
     document.getElementById('modal-emoji').textContent = emoji;
     document.getElementById('modal-title').textContent = title;
     document.getElementById('modal-body').textContent  = body;
-    document.getElementById('session-modal').style.display = 'flex';
+    modalShow('session-modal');
   }
   function closeModal() {
-    document.getElementById('session-modal').style.display = 'none';
+    modalHide('session-modal');
     goHome();
   }
 
@@ -2449,11 +2466,11 @@ const App = (() => {
         </button>`
       ).join('');
     }
-    document.getElementById('story-modal').style.display = 'flex';
+    modalShow('story-modal');
   }
 
   function closeStoryModal() {
-    document.getElementById('story-modal').style.display = 'none';
+    modalHide('story-modal');
   }
 
   function startStoryWith(key) {
@@ -2492,11 +2509,11 @@ const App = (() => {
           <span class="chant-cat-count">全${total}フレーズ</span>
         </button>`;
     }
-    document.getElementById('chant-modal').style.display = 'flex';
+    modalShow('chant-modal');
   }
 
   function closeChantModal() {
-    document.getElementById('chant-modal').style.display = 'none';
+    modalHide('chant-modal');
   }
 
   function startChantWith(key) {
@@ -2575,11 +2592,11 @@ const App = (() => {
   }
 
   function startSFC() {
-    document.getElementById('sfc-scene-modal').style.display = 'flex';
+    modalShow('sfc-scene-modal');
   }
 
   function closeSFCSceneModal() {
-    document.getElementById('sfc-scene-modal').style.display = 'none';
+    modalHide('sfc-scene-modal');
   }
 
   function startSFCWithScene(sceneKey) {
@@ -2622,22 +2639,16 @@ const App = (() => {
     if (savedMode) applyLayoutMode(savedMode);
     updateStreak();
     renderHome();
-    history.replaceState({screen:'home'}, '');
+    // 表電卓から開いたか（#from=hyo。アドレスには残さない）
+    let fromHyo = false;
+    try { if (/from=hyo/.test(location.hash)) sessionStorage.setItem('eigo_from_hyo', '1'); fromHyo = sessionStorage.getItem('eigo_from_hyo') === '1'; } catch (e) {}
+    history.replaceState(Object.assign({}, history.state, {screen:'home'}), '', location.pathname + location.search);
+    // 戻るの見張り：窓は「戻る」で窓だけ閉じ、ホームで何も開いていないときは一度知らせてから表電卓へ（v535）
+    BackGuard.setup({ app: 'eigo', fromHyo, atRoot: () => currentScreen === 'home' });
 
-    // Android ハードウェア戻るボタン対応
-    window.addEventListener('popstate', function() {
-      // 🎤 発音チェックの窓が開いていれば、まずそれを閉じる（v533）
-      if (window.ES && ES.close()) { history.pushState({screen: currentScreen}, ''); return; }
-      // モーダルが開いていれば閉じて再スタック
-      const modalIds = ['aw-filter-modal','sfc-scene-modal','story-modal','chant-modal','talk-modal','session-modal'];
-      for (const id of modalIds) {
-        const el = document.getElementById(id);
-        if (el && el.style.display !== 'none') {
-          el.style.display = 'none';
-          history.pushState({screen: currentScreen}, '');
-          return;
-        }
-      }
+    // Android ハードウェア戻るボタン対応（窓は戻るの見張りが閉じる。ここは画面の行き来だけ）
+    window.addEventListener('popstate', function(e) {
+      if (e && e.bgDone) return;
       // 画面別の戻り先
       if (currentScreen === 'reading')  { rdGoBack();  return; }
       if (currentScreen === 'jh')       { jhGoBack();  return; }
@@ -2686,5 +2697,6 @@ const App = (() => {
            sfcGoBack, sfcClickWord, sfcTogglePlay, sfcPrevWord, sfcNextWord,
            sfcPrevPassage, sfcNextPassage, sfcBulkPlay, sfcToggleJa,
            sfcSpeedDown, sfcSpeedUp, sfcPauseDown, sfcPauseUp,
-           closeModal, resetAll, stopAudio, fcIsSRS };
+           closeModal, resetAll, stopAudio, fcIsSRS, modalShow, modalHide,
+           screen: () => currentScreen };
 })();
