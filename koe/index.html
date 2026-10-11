@@ -72,6 +72,7 @@ body.from-hyo #backHyo{margin-right:auto}
 .answer{margin:6px auto;width:calc(100% - 20px);max-width:740px;padding:12px 16px;border-radius:var(--r-card);background:var(--card);box-shadow:var(--elev-1);text-align:right}
 .ans-label{font-size:12px;color:var(--sub);text-align:left;display:flex;justify-content:space-between;gap:8px}
 .ans-right{display:flex;align-items:center;gap:8px}
+.ans-right>*{white-space:nowrap}   /* せまい画面でも「3件」「リセット」を2行に割らない（v22） */
 .rst{min-height:32px;padding:0 12px;border-radius:var(--r-pill);background:var(--bg);border:1px solid var(--line);color:var(--sub);font-weight:700;font-size:12.5px}
 .rst:active{background:var(--acc-weak)}
 /* 答え：1行で。単位は小さく、入りきらないときは字を小さくする（fitAns。v21） */
@@ -149,6 +150,22 @@ label.vc-l select,.cf-sel{display:block;width:100%;box-sizing:border-box;margin-
 .sum-tot{background:var(--card);border:2px solid var(--acc);border-radius:var(--r-btn);padding:10px 12px;margin:10px 0}
 .sum-tot div{display:flex;justify-content:space-between;font-size:13.5px;color:var(--sub);margin:2px 0}
 .sum-tot div.big{font-size:20px;font-weight:800;color:var(--text);margin-top:6px}
+.sum-tot div.rest{font-size:15px;font-weight:800;color:var(--ok)}
+.sum-tot div.rest.over{color:var(--err)}
+/* 📤 書き出し（画像・Excel・文字。v22）：一覧が長くても下に見えているように */
+.out-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;position:sticky;bottom:calc(-24px - env(safe-area-inset-bottom));margin:0 -2px;padding:8px 2px calc(10px + env(safe-area-inset-bottom));background:var(--bg)}
+.out-row[hidden]{display:none}
+.out-row button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:66px;border-radius:var(--r-btn);background:var(--card);border:1px solid var(--line);font-weight:700;font-size:14px;color:var(--text);padding:6px 4px;line-height:1.25}
+.out-row button .i{font-size:20px;line-height:1.1}
+.out-row button small{font-size:11px;font-weight:400;color:var(--sub)}
+.out-row button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.out-row button.pri small{color:rgba(255,255,255,.85)}
+.out-row button:active{filter:brightness(.92)}
+.out-prev{max-height:58vh;overflow:auto;border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:8px}
+.out-prev img{display:block;width:100%;height:auto}
+.out-file{font-size:12.5px;color:var(--sub);margin:0 0 10px;word-break:break-all;line-height:1.5}
+.msg .out-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.msg .out-btns button{min-height:34px;padding:0 12px;border-radius:var(--r-pill);background:var(--acc-weak);color:var(--acc);font-weight:700;font-size:13px}
 .msg .yn{display:flex;gap:8px;margin-top:8px}
 .msg .yn button{flex:1;min-height:40px;border-radius:10px;font-weight:800;border:1px solid var(--acc);color:var(--acc);background:transparent}
 .msg .yn button.y{background:var(--acc);color:#fff}
@@ -223,7 +240,8 @@ label.vc-l select,.cf-sel{display:block;width:100%;box-sizing:border-box;margin-
 .bk-cat.over .bk-bar{background:var(--err)}
 .bk-cat.over .num{color:var(--err)}
 .bk-item{cursor:pointer}
-.bk-edit{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+/* 小さな窓は、一覧などの画面（.panel）より上に出す（v22。一覧の品物を押しても、直す窓が一覧の裏に隠れていた） */
+.bk-edit{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
 .bk-edit[hidden]{display:none}
 .bk-edit-box{background:var(--card);border-radius:14px;padding:16px;width:100%;max-width:360px}
 .bk-edit-box h3{margin:0 0 10px;font-size:17px}
@@ -274,7 +292,7 @@ label.vc-l select,.cf-sel{display:block;width:100%;box-sizing:border-box;margin-
 </nav>
 
 <section class="answer" aria-live="polite">
-  <div class="ans-label"><span id="ansLabel">いまの答え</span><span class="ans-right"><span id="ansMode"></span><button class="rst" id="sumListBtn" hidden onclick="openPanel('sum')" aria-label="足し上げの一覧">📋 一覧</button><button class="rst" onclick="resetScreen()" aria-label="画面の会話と計算をリセット">🧹 リセット</button></span></div>
+  <div class="ans-label"><span id="ansLabel">いまの答え</span><span class="ans-right"><span id="ansMode"></span><button class="rst" id="sumListBtn" hidden onclick="openPanel('sum')" aria-label="足し上げ・予算の一覧（画像・Excel で保存）">📋 一覧</button><button class="rst" onclick="resetScreen()" aria-label="画面の会話と計算をリセット">🧹 リセット</button></span></div>
   <div class="ans-big num" id="ansBig">—</div>
   <div class="ans-sub num" id="ansSub"></div>
 </section>
@@ -401,14 +419,18 @@ label.vc-l select,.cf-sel{display:block;width:100%;box-sizing:border-box;margin-
 <!-- 小さな入力の窓（言いかえ・名前を付けた数・足し上げの品物） -->
 <div class="bk-edit" id="kdlg" hidden><div class="bk-edit-box" id="kdlgBox"></div></div>
 
-<!-- 📦 足し上げの一覧（v19）：直す・消す・税・共有 -->
+<!-- 📦 足し上げ・👛 予算の一覧（v19）：直す・消す・税・共有。v22：単価と個数・画像（スクショ）・Excel で書き出す -->
 <div class="panel" id="p-sum" role="dialog" aria-label="足し上げの一覧">
   <div class="panel-head"><button class="hbtn" onclick="closePanel()">✕</button><h2 id="sumTitle">📦 足し上げの一覧</h2></div>
   <div class="panel-body">
-    <div class="note">品物を押すと、名前・金額・税を直したり消したりできます。「牛乳 238円 軽減」「洗剤 398円 10%」のように言うと、税も付けて数えます。</div>
+    <div class="note">品物を押すと直したり消したりできます。「りんご 120円を3つ」のように言うと、単価と個数を分けて残します。</div>
     <div id="sumList"></div>
     <div id="sumTotal"></div>
-    <div class="miss-btns"><button class="act" onclick="shareSum()">📤 文字で共有</button><button class="act" onclick="sumImage()">🖼 画像で保存</button></div>
+    <div class="out-row" id="sumOut">
+      <button class="pri" onclick="sumImage()"><span class="i">🖼</span>画像で保存<small>スクショのように</small></button>
+      <button onclick="sumXlsx()"><span class="i">📊</span>Excel で保存<small>単価・個数・金額</small></button>
+      <button onclick="shareSum()"><span class="i">📤</span>文字で共有<small>LINE・メール</small></button>
+    </div>
   </div>
 </div>
 
@@ -437,6 +459,7 @@ label.vc-l select,.cf-sel{display:block;width:100%;box-sizing:border-box;margin-
 <script src="phrase.js"></script>
 <script src="examples.js"></script>
 <script src="intents.js"></script>
+<script src="xlsx.js"></script>
 <script>
 'use strict';
 /* ════════════════════════════════════════════════════════════════
@@ -446,7 +469,7 @@ label.vc-l select,.cf-sel{display:block;width:100%;box-sizing:border-box;margin-
    ・足し上げ／予算／練習のときは、言葉の受け取り方が変わる（state.mode）
    ・入れたものは この端末の中だけ（localStorage の koe_*）に残る
    ════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v21';
+const APP_VERSION='v22';
 const LS_STATE='koe_state', LS_VARS='koe_vars', LS_SET='koe_settings', LS_BOOK='koe_book';
 
 /* ── 設定 ── */
@@ -995,6 +1018,7 @@ function koeRun(raw, opt){
   if((res=hControl(t))) return finish(raw,res);
   if((res=hCorrect(t))) return finish(raw,res);
   if((res=hModes(t))) return finish(raw,res);
+  if((res=hOut(al, t))) return finish(raw,res);   // 「画像で保存」「エクセルで保存」「一覧」（v22）
   // したい計算を言ったとき（「割り勘したい」「ローンの計算をしたい」）：言い方の例と案を出す（v20）
   if(!opt.noSuggest && !opt.noWish && !DRY && window.KOE_INTENTS && KOE_INTENTS.isWish(t)) return hWish(t, raw, opt);
   if((res=hTaxSet(t))) return finish(raw,res);
@@ -1031,7 +1055,7 @@ function finish(raw,res){
     let eid=res.eid||null;
     if(!eid && state.entries.length>runN0) eid=entryLid(state.entries[state.entries.length-1]);
     state.log.push({q:res.q, a:res.a, f:res.f||'', c:res.cls||'ok', t:Date.now(), eid:eid||undefined, sug:res.sug||undefined, lit:res.lit||undefined, litA:res.litA||undefined,
-      al:aliasNote||undefined, yn:res.yn||undefined, ideas:res.ideas||undefined, tip:res.tip||undefined, tl:res.tl||undefined, gen:res.gen||undefined});
+      al:aliasNote||undefined, yn:res.yn||undefined, ideas:res.ideas||undefined, tip:res.tip||undefined, tl:res.tl||undefined, gen:res.gen||undefined, out:res.out||undefined});
   }
   saveState();
   return res;
@@ -1109,7 +1133,7 @@ function hCorrect(t){
 
 /* 足し上げ・予算・練習の始め終わり、伝票との読み合わせ */
 function startBudget(b){
-  state.entries.push({k:'mode', to:'budget', budget:b});
+  state.entries.push({k:'mode', to:'budget', budget:b, t:+today()});   // t：始めた時（画像・Excel の日付。v22）
   recomputeAll();
   return R_ok('予算 '+sayU(b,'円')+' で始めます。買うものの値段を言うと、残りを言います','予算 '+fmtU(b,'円'),'',{mode:true});
 }
@@ -1126,7 +1150,7 @@ function hModes(t){
   }
   if(RE_SUM_START.test(t)){
     if(state.mode!=='normal') state.entries.push({k:'mode',to:'normal'});
-    state.entries.push({k:'mode',to:'sum'});
+    state.entries.push({k:'mode',to:'sum', t:+today()});
     recomputeAll();
     return R_ok('足し上げを始めます。品物と、数や金額を言ってください。終わったら「おしまい」','足し上げ開始','',{mode:true});
   }
@@ -1137,15 +1161,16 @@ function hModes(t){
   if(/^(予算|よさん)(モード)?(を)?(開始|始めて|はじめて|スタート)?$/.test(t)){ state.ask='budget'; return R_info('予算はいくらですか'); }
   if(RE_END.test(t)){
     if(state.mode==='normal') return R_info('いまは足し上げも予算もしていません');
-    const wasBudget=state.mode==='budget', total=state.sum, cnt=state.cnt, u=state.sumU, b=state.budget;
+    const wasBudget=state.mode==='budget', total=state.sum, cnt=state.cnt, u=state.sumU, b=state.budget, ct=cntText(sumSession().items);
     state.entries.push({k:'mode',to:'normal'});
     recomputeAll();
+    // out：終わった吹き出しに「画像で保存・Excel・一覧」のボタンを出す（v22）
     if(wasBudget){
       const rest=b-total;
       return R_ok('おしまい。使ったのは '+sayU(total,'円')+'、'+(rest>=0?'残りは '+sayU(rest,'円'):'予算を '+sayU(-rest,'円')+' こえました')+'。'+cnt+'件でした',
-        '合計 '+fmtU(total,'円')+'（'+cnt+'件）', '予算 '+fmtU(b,'円')+' − '+fmtU(total,'円')+' ＝ '+fmtU(rest,'円'),{mode:true});
+        '合計 '+fmtU(total,'円')+'（'+ct+'）', '予算 '+fmtU(b,'円')+' − '+fmtU(total,'円')+' ＝ '+fmtU(rest,'円'),{mode:true, out:cnt>0});
     }
-    return R_ok('おしまい。合計は '+sayU(total,u)+'、'+cnt+'件でした','合計 '+fmtU(total,u)+'（'+cnt+'件）','',{mode:true});
+    return R_ok('おしまい。合計は '+sayU(total,u)+'、'+cnt+'件でした','合計 '+fmtU(total,u)+'（'+ct+'）','',{mode:true, out:cnt>0});
   }
   // 読み合わせ：「伝票の合計は45300」「合計は45300のはず」
   if((m=t.match(/^(?:伝票の|伝票は|レシートの|紙の)?(?:合計|総額|トータル|伝票)(?:は|が)(\d+(?:\.\d+)?)円?(?:のはず|のはずだ|です|だよ|で合ってる|になってる|と書いてある|って書いてある)?[?？]?$/))){
@@ -1521,14 +1546,15 @@ function addItem(name, rest, parsed, tx, t){
     state.ask={k:'confirm', t};
     return Object.assign(R_info((name?name+' ':'')+sayU(e.vt,e.u)+' でよいですか？「はい」か「いいえ」で答えてください', (name?name+'　':'')+fmtU(e.vt,e.u)+' でよいですか？', '大きな金額なので確かめています'), {yn:true});
   }
-  const txs=e.tx ? '（税'+e.tx+'%込み）' : '';
   const head=(name?name+' ':'')+(show&&!/×/.test(show)?show+' ':'');
+  // 吹き出しは「りんご　120円 × 3つ　360円」のように単価と個数も見せ、数には点数も（「3件・7点」。v22）
+  const ct=cntText(sumSession().items);
   if(state.mode==='budget'){
     const rest2=state.budget-state.sum;
     const say=head+sayU(e.vt,e.u)+'。'+(rest2>=0?'残り '+sayU(rest2,'円'):'予算を '+sayU(-rest2,'円')+' こえました');
-    return Object.assign(R_ok(say, (name?name+'　':'')+fmtU(e.vt,e.u)+txs, (rest2>=0?'残り '+fmtU(rest2,'円'):'予算をこえた '+fmtU(-rest2,'円'))+'（'+state.cnt+'件）'), rest2<0?{cls:'err'}:{});
+    return Object.assign(R_ok(say, itemLine(e), (rest2>=0?'残り '+fmtU(rest2,'円'):'予算をこえた '+fmtU(-rest2,'円'))+'（'+ct+'）'), rest2<0?{cls:'err'}:{});
   }
-  return R_ok(head+sayU(e.vt,e.u)+'。合計 '+sayU(state.sum,state.sumU), (name?name+'　':'')+(show?show+'　':'')+fmtU(e.vt,e.u)+txs, '合計 '+fmtU(state.sum,state.sumU)+'（'+state.cnt+'件）');
+  return R_ok(head+sayU(e.vt,e.u)+'。合計 '+sayU(state.sum,state.sumU), itemLine(e), '合計 '+fmtU(state.sum,state.sumU)+'（'+ct+'）');
 }
 
 /* 名前を付けた数：「単価は2800」「単価を2800にして」→ あとで「単価×45」 */
@@ -1726,7 +1752,7 @@ function renderLog(){
       +(m.f && !(m.sug && /^もしかして/.test(m.f)) ? '<span class="f num">'+escHtml(m.f)+'</span>' : '')
       +(m.sug ? '<button class="sug" onclick="event.stopPropagation();trySug('+idx+')">もしかして「'+escHtml(m.sug)+'」？ <b>押すと計算</b></button>' : '')
       +(m.lit ? '<button class="sug lit" onclick="event.stopPropagation();tryLit('+idx+')">このまま計算：'+escHtml(m.litA||'')+'</button>' : '')
-      +ideasHtml(m, idx)
+      +ideasHtml(m, idx)+outBtnsHtml(m, idx)
       +(ynNow ? '<div class="yn"><button class="y" onclick="event.stopPropagation();runText(\'はい\')">はい</button><button onclick="event.stopPropagation();runText(\'いいえ\')">いいえ</button></div>' : '')+'</div>';
   }).join('');
   box.scrollTop=box.scrollHeight;
@@ -2090,7 +2116,7 @@ function koeExport(){
   const data={}; KOE_KEYS.forEach(k=>{ try{ const v=localStorage.getItem(k); if(v!=null) data[k]=v; }catch(_){} });
   const blob=new Blob([JSON.stringify({app:'koe', type:'koe', version:1, exportedAt:Date.now(), data})],{type:'application/json;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
-  const a=Object.assign(document.createElement('a'),{href:url, download:'声の計算帳_'+isoDay(today())+'.json'});
+  const a=Object.assign(document.createElement('a'),{href:url, download:'koe-keisancho_'+isoDay(today())+'.json'});   // 名前は英数字だけ（v22。sumFileBase を参照）
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 1000);
   toast('書き出しました（家計簿 '+book.length+'件）');
 }
@@ -2197,10 +2223,10 @@ const HELP=[
   {h:'🔁 逆から計算', p:'「いくらにすればいい？」「何個買える？」を、そのまま聞けます。',
    ex:['原価800円で利益3割の売値','3000円は12000円の何パーセント','2割引きで1600円の元の値段','2割増しで1200円の元の値段','税込み3300円の税抜き','5000円で380円のものは何個','時給1200円で50000円稼ぐには何時間']},
   {h:'〰 だいたい', p:'「だいたい」「ざっと」を付けると、上2けたに丸めて答えます。', ex:['だいたい12800を3で割って']},
-  {h:'📦 足し上げ（検品・棚卸し）', p:'品物と数や金額を言うたびに、復唱して合計を足していきます。伝票の合計と読み合わせもできます。「牛乳 238円 軽減」「洗剤 398円 10%」のように言うと、税を付けて数えます。答えの上の「📋 一覧」で、品物を直す・消す・文字や画像で共有ができます。',
+  {h:'📦 足し上げ（検品・棚卸し）', p:'品物と数や金額を言うたびに、復唱して合計を足していきます。伝票の合計と読み合わせもできます。「牛乳 238円 軽減」「洗剤 398円 10%」のように言うと、税を付けて数えます。「りんご 120円を3つ」のように個数も言うと、単価と個数を分けて残し、合計に点数も出します。答えの上の「📋 一覧」で、品物を直す・消す、画像（スクショ）や Excel で保存、文字で共有ができます。',
    ex:['足し上げ開始','セメント12袋単価850円','砂3立米12000円','何件','伝票の合計は22200円','おしまい']},
-  {h:'👛 予算', p:'予算を言ってから、かごに入れるたびに値段を言うと、残りを答えます。',
-   ex:['予算5000円','498円','牛乳238円を2本','いまいくら','おしまい']},
+  {h:'👛 予算', p:'予算を言ってから、かごに入れるたびに値段を言うと、残りを答えます。終わったら「画像で保存」「エクセルで保存」と言うか、「おしまい」のあとのボタンで、品名・単価・個数・金額と残りを書き出せます。',
+   ex:['予算5000円','498円','牛乳238円を2本','りんご120円を3つ','いまいくら','おしまい','画像で保存','エクセルで保存']},
   {h:'🛒 くらしの計算', p:'どっちが得・割り勘・お釣り。',
    ex:['300グラム498円と500グラム798円どっちが得','12800円を4人で割り勘、1人は2割引き、100円単位','3280円を1万円で払ったらお釣り']},
   {h:'📒 家計簿', p:'どこで・いくら・何に（食費・日用品・交通費・光熱費など）を言うと付けます。お店や行き先からも分類を決めます。分類ごとに1か月の予算を決めると、残りを答えます。家計簿の画面では、押して直したり、CSV で書き出したりできます。',
@@ -2298,7 +2324,7 @@ function bookCsv(){
   const rows=[['日付','分類','金額','メモ']].concat(items.map(b=>[b.d,b.cat,b.amt,b.memo||'']));
   const csv='\ufeff'+rows.map(r=>r.map(q).join(',')).join('\r\n')+'\r\n';
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
-  const a=Object.assign(document.createElement('a'),{href:url, download:'家計簿_'+key+'.csv'});
+  const a=Object.assign(document.createElement('a'),{href:url, download:'kakeibo_'+key+'.csv'});   // 名前は英数字だけ（v22）
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 1000);
   toast(items.length+'件を書き出しました');
 }
@@ -2386,7 +2412,7 @@ function openKdlg(html, onSave, focusId){
   $('kdlgBox').innerHTML=html; kdlgSave=onSave; $('kdlg').hidden=false;
   if(focusId) setTimeout(()=>{ const e=$(focusId); if(e){ e.focus(); try{ e.select(); }catch(_){} } }, 60);
 }
-function closeKdlg(){ $('kdlg').hidden=true; kdlgSave=null; }
+function closeKdlg(){ $('kdlg').hidden=true; kdlgSave=null; outClear(); }
 function kdlgOk(){ if(kdlgSave && kdlgSave()!==false) closeKdlg(); }
 const kdlgBtns=(del)=>'<div class="miss-btns">'+(del?'<button class="act danger" onclick="'+del+'">🗑 消す</button>':'')+'<button class="act" onclick="closeKdlg()">やめる</button><button class="act primary" onclick="kdlgOk()">決める</button></div>';
 let aliasSrc='';   // 言いかえを登録するもとになった言葉（うまくいかなかった言葉）。試しの計算に使う
@@ -2485,19 +2511,81 @@ function sumTotals(items){
   items.forEach(e=>{ if(e.v==null || !isFinite(e.v)) return; const k=e.tax?e.tx:0; g[k].base+=e.v; g[k].tax+=e.tax||0; total+=e.vt; u=u===null?e.u:(u===e.u?u:''); });
   return {g, total, u:u||''};
 }
+/* 品物の中身：単価・個数（一覧・会話・画像・Excel に出す。v22）
+   「120円を3つ」「12袋 単価850円」「単価850円の12袋」「298円 2つ」→ 単価と個数
+   「2本で500円」→ まとめての値段（個数だけ）・「498円」→ 1つ・「12袋」「980」→ 数だけ・ほかの式 → 式のまま
+   pts：点数（個・本・袋…はその数。グラム・メートルなどの量や、式の品物は1点） */
+const MEAS_RE=new RegExp('^(?:'+MEAS+')$');
+function itemParts(e){
+  const o={price:null, qty:null, qu:'', pack:false, one:false, expr:'', pts:1};
+  if(!e || e.v==null || !isFinite(e.v)) return o;
+  const toks=e.toks||[], nums=toks.filter(k=>k.t==='num'), ops=toks.filter(k=>k.t==='op');
+  if(!toks.some(k=>k.t==='mod')){
+    if(nums.length===1 && !ops.length){
+      const k=nums[0], lp=String(e.show||'').match(/^([\d,]+(?:\.\d+)?)([^\d,.].*)$/);
+      if(k.u==='円' && lp){ o.qty=+lp[1].replace(/,/g,''); o.qu=lp[2]; o.pack=true; o.pts=isCount(o.qu)?o.qty:1; return o; }   // 「2本で500円」
+      if(k.u==='円'){ o.price=k.v; o.qty=1; o.one=true; return o; }                                                          // 「498円」
+      return o;                                                                                                               // 「12袋」「980」
+    }
+    if(nums.length===2 && ops.length<=1 && (!ops.length || ops[0].op==='*')){
+      const isQ=k=>isCount(k.u) || (!!k.u && MEAS_RE.test(k.u));
+      const a=nums[0], b=nums[1]; let p=null, n=null;
+      if(a.u==='円' && isQ(b) && (ops.length || isCount(b.u))){ p=a; n=b; }         // 「120円を3つ」「298円 2つ」「単価850円の12袋」
+      else if(b.u==='円' && isQ(a) && ops.length){ p=b; n=a; }                       // 「12袋 単価850円」
+      if(p && Math.abs(p.v*n.v-e.v)<=1e-6*Math.max(1,Math.abs(e.v))){ o.price=p.v; o.qty=n.v; o.qu=n.u; o.pts=isCount(n.u)?n.v:1; return o; }
+    }
+  }
+  o.expr=e.f||''; o.pts=toks.some(k=>k.t==='mod') ? 1 : exprPts(toks); return o;
+}
+/* 式の品物の点数：「120円を3個と80円を2個」→ 5点（値段と個数の組を足しただけの式のとき。ほかは1点） */
+function exprPts(toks){
+  let pts=0, term=[], ok=true, mul=false;
+  const flush=()=>{
+    const n=term; term=[];
+    const yen=n.filter(k=>k.u==='円'), cnt=n.filter(k=>isCount(k.u));
+    if(n.length===1 && yen.length===1) pts+=1;
+    else if(n.length===2 && yen.length===1 && cnt.length===1) pts+=cnt[0].v;
+    else ok=false;
+  };
+  for(const k of toks){
+    if(k.t==='num'){ if(term.length && !mul && k.u==='円' && term.some(x=>x.u==='円')) flush(); term.push(k); mul=false; }   // 言わなかった「たす」
+    else if(k.t==='op'){ if(k.op==='+') flush(); else if(k.op==='*') mul=true; else ok=false; }
+  }
+  flush();
+  return ok && pts>0 ? pts : 1;
+}
+/* 単価と個数を短く：「120円 × 3つ」「2本まとめて」「120円 × 3個 ＋ 80円 × 2個」。1つだけ・数だけのときは空 */
+function partsText(e, p){
+  p=p||itemParts(e);
+  if(p.price!=null && !p.one) return fmtU(p.price,'円')+' × '+fmt(p.qty)+p.qu;
+  if(p.pack) return fmt(p.qty)+p.qu+'まとめて';
+  return p.expr && p.expr!==fmtU(e.v,e.u) ? p.expr : '';
+}
+/* 会話・文字の共有に出す品物の1行：「りんご　120円 × 3つ　360円」「牛乳　2本まとめて　500円」 */
+function itemLine(e){
+  const bd=partsText(e);
+  return (e.name?e.name+'　':'')+(bd?bd+'　':'')+fmtU(e.vt,e.u)+(e.tax?'（税'+e.tx+'%込み）':'');
+}
+/* 件数と点数：「3件・7点」（個数を言った品物があって、件数とちがうときだけ点数も） */
+function cntText(items){
+  const ok=items.filter(e=>e.v!=null && isFinite(e.v)), pts=ok.reduce((a,e)=>a+itemParts(e).pts,0);
+  return ok.length+'件'+(Math.abs(pts-ok.length)>1e-9 ? '・'+fmt(pts)+'点' : '');
+}
 function renderSum(){
   const ss=sumSession(), box=$('sumList'); if(!box) return;
   $('sumTitle').textContent=(ss.budget?'👛 予算の一覧':'📦 足し上げの一覧')+(ss.open?'':'（終わった分）');
-  box.innerHTML=ss.items.length ? ss.items.map((e,i)=>'<div class="sum-row" onclick="editItem('+i+')"><div class="n">'+escHtml(e.name||'（品名なし）')
-    +(e.tax?'<span class="tx">'+e.tx+'%</span>':'')+'<small>'+escHtml(e.show||e.f||'')+'</small></div><div class="v num">'+escHtml(fmtU(e.vt,e.u))+'</div></div>').join('')
-    : '<div class="note">まだ何もありません。「牛乳 238円」のように言ってください。</div>';
+  box.innerHTML=ss.items.length ? ss.items.map((e,i)=>{ const bd=[partsText(e), e.tax?'税 '+fmtU(e.tax,'円')+'込み':''].filter(Boolean).join('・');
+      return '<div class="sum-row" onclick="editItem('+i+')"><div class="n">'+escHtml(e.name||'（品名なし）')
+        +(e.tax?'<span class="tx">'+e.tx+'%</span>':'')+(bd?'<small>'+escHtml(bd)+'</small>':'')+'</div><div class="v num">'+escHtml(fmtU(e.vt,e.u))+'</div></div>'; }).join('')
+    : '<div class="note">まだ何もありません。「牛乳 238円」「りんご 120円を3つ」のように言ってください。</div>';
   const t=sumTotals(ss.items);
   let h='<div class="sum-tot">';
   [8,10].forEach(k=>{ if(t.g[k].base) h+='<div><span>'+k+'%対象 '+escHtml(fmtU(t.g[k].base,'円'))+'</span><span>消費税 '+escHtml(fmtU(t.g[k].tax,'円'))+'</span></div>'; });
   if((t.g[8].base||t.g[10].base) && t.g[0].base) h+='<div><span>税のないもの・税込み</span><span>'+escHtml(fmtU(t.g[0].base,t.u))+'</span></div>';
-  h+='<div class="big"><span>合計（'+ss.items.length+'件）</span><span class="num">'+escHtml(fmtU(t.total,t.u))+'</span></div>';
-  if(ss.budget){ const r=ss.b-t.total; h+='<div><span>予算 '+escHtml(fmtU(ss.b,'円'))+'</span><span>'+(r>=0?'残り ':'こえた ')+escHtml(fmtU(Math.abs(r),'円'))+'</span></div>'; }
+  h+='<div class="big"><span>合計（'+cntText(ss.items)+'）</span><span class="num">'+escHtml(fmtU(t.total,t.u))+'</span></div>';
+  if(ss.budget){ const r=ss.b-t.total; h+='<div><span>予算</span><span class="num">'+escHtml(fmtU(ss.b,'円'))+'</span></div><div class="rest'+(r<0?' over':'')+'"><span>'+(r>=0?'残り':'予算オーバー')+'</span><span class="num">'+escHtml(fmtU(Math.abs(r),'円'))+'</span></div>'; }
   $('sumTotal').innerHTML=h+'</div>';
+  const out=$('sumOut'); if(out) out.hidden=!ss.items.length;
 }
 function editItem(i){
   const ss=sumSession(), e=ss.items[i]; if(!e) return;
@@ -2524,13 +2612,19 @@ function delItem(i){
   state.entries=state.entries.filter(x=>x!==e); recomputeAll(); saveState(); render();
   toast((e.name||'品物')+' を消しました');
 }
+/* ── 📤 書き出す（文字・画像・Excel。v22 で画像を表の形に、Excel を足した） ── */
+function sumDate(ss){ const e=ss && ss.start>=0 ? state.entries[ss.start] : null; return e && e.t ? new Date(e.t) : today(); }
+function ymdJ(d){ return d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日'; }
+function hhmm(d){ return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+// ファイルの名前は英数字だけ（日本語が入ると、ブラウザによっては名前ごと捨てられて拡張子の無い「download」になる）
+function sumFileBase(){ const ss=sumSession(), d=today(); return (ss.budget?'yosan':'tashiage')+'_'+isoDay(d)+'_'+hhmm(d).replace(':',''); }
 function sumText(){
-  const ss=sumSession(), t=sumTotals(ss.items), d=today();
-  const L=[(ss.budget?'👛 予算の記録':'📦 足し上げ')+'（'+d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日）'];
-  ss.items.forEach(e=>L.push((e.name||'品物')+'　'+fmtU(e.vt,e.u)+(e.tax?'（'+e.tx+'%込み）':'')+(e.show && /×/.test(e.show)?'　'+e.show:'')));
+  const ss=sumSession(), t=sumTotals(ss.items), d=sumDate(ss);
+  const L=[(ss.budget?'👛 予算の記録':'📦 足し上げ')+'（'+ymdJ(d)+'）'];
+  ss.items.forEach(e=>L.push(itemLine(Object.assign({}, e, {name:e.name||'品物'}))));
   L.push('――――――――');
   [8,10].forEach(k=>{ if(t.g[k].base) L.push(k+'%対象 '+fmtU(t.g[k].base,'円')+'（消費税 '+fmtU(t.g[k].tax,'円')+'）'); });
-  L.push('合計 '+fmtU(t.total,t.u)+'（'+ss.items.length+'件）');
+  L.push('合計 '+fmtU(t.total,t.u)+'（'+cntText(ss.items)+'）');
   if(ss.budget){ const r=ss.b-t.total; L.push('予算 '+fmtU(ss.b,'円')+'　'+(r>=0?'残り ':'こえた ')+fmtU(Math.abs(r),'円')); }
   return L.join('\n');
 }
@@ -2541,22 +2635,195 @@ function shareSum(){
   if(navigator.share){ navigator.share({title:'足し上げ', text}).catch(e=>{ if(!(e && e.name==='AbortError')) copy(); }); }
   else copy();
 }
-function sumImage(){
+/* 🖼 画像（スクショのように）：品名・単価・個数・金額の表と、合計・予算の残り。
+   画面の色（暗い表示）に関係なく白地で描く（LINE やメールで送っても見やすいように） */
+const IMG_FONT='"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Noto Sans CJK JP","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif';
+const IMG_C={acc:'#0f6b63', text:'#1f2d2b', sub:'#63746f', faint:'#b9c7c4', line:'#d3dfdc', head:'#e3efed', zebra:'#f5f9f8', ok:'#1f7a4d', err:'#b3453a', bar:'#dfe9e7'};
+function fitText(g, s, max){ if(g.measureText(s).width<=max) return s; while(s.length>1 && g.measureText(s+'…').width>max) s=s.slice(0,-1); return s+'…'; }
+function roundRect(g, x, y, w, h, r, col){ g.fillStyle=col; g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); g.fill(); }
+function sumCanvas(){
+  const ss=sumSession(), t=sumTotals(ss.items), d=sumDate(ss), C=IMG_C;
+  const W=640, P=22, HEAD=86, BUD=ss.budget?104:0, TH=34, RH=46, RH2=68, TAXH=26, TOTH=58, FOOT=40;
+  const rows=ss.items.map(e=>{
+    const p=itemParts(e), sub=[];
+    if(e.tax) sub.push('消費税'+e.tx+'%込み（税 '+fmtU(e.tax,'円')+'）');
+    if(p.pack) sub.push(fmt(p.qty)+p.qu+'で'+fmtU(e.v,'円'));
+    if(p.expr && p.expr!==fmtU(e.v,e.u)) sub.push(p.expr);
+    return {e, p, sub:sub.join('・')};
+  });
+  const taxN=[8,10].filter(k=>t.g[k].base).length;
+  const H=HEAD+BUD+16+TH+rows.reduce((a,r)=>a+(r.sub?RH2:RH),0)+10+taxN*TAXH+TOTH+FOOT;
+  const S=(W*2)*(H*2)<=16e6 ? 2 : 1;   // スマホで作れる大きさまで（とても長い一覧は細かさを落とす）
+  const c=document.createElement('canvas'); c.width=W*S; c.height=H*S;
+  const g=c.getContext('2d'); g.scale(S,S);
+  const txt=(s,x,y,o)=>{ o=o||{}; g.font=(o.b?'bold ':'')+(o.px||16)+'px '+IMG_FONT; g.fillStyle=o.c||C.text; g.textAlign=o.al||'left'; g.fillText(o.max?fitText(g,String(s),o.max):String(s), x, y); };
+  g.fillStyle='#fff'; g.fillRect(0,0,W,H);
+  // 上の帯：題名・日付・件数
+  g.fillStyle=C.acc; g.fillRect(0,0,W,HEAD);
+  txt(ss.budget?'👛 予算の記録':'📦 足し上げ', P, 40, {px:25, b:true, c:'#fff'});
+  txt(ymdStr(d)+' '+hhmm(d), P, 68, {px:15, c:'rgba(255,255,255,.88)'});
+  txt(cntText(ss.items), W-P, 68, {px:15, c:'rgba(255,255,255,.88)', al:'right'});
+  let y=HEAD;
+  // 予算：予算・使った・残り と、使った分の帯
+  if(ss.budget){
+    const r=ss.b-t.total, used=ss.b>0 ? Math.min(1, Math.max(0, t.total/ss.b)) : 1, cw=(W-P*2)/3;
+    [['予算', fmtU(ss.b,'円'), C.text], ['使った', fmtU(t.total,'円'), C.text], [r>=0?'残り':'予算オーバー', fmtU(Math.abs(r),'円'), r>=0?C.ok:C.err]].forEach((a,i)=>{
+      const x=P+cw*i; txt(a[0], x, y+30, {px:13, c:C.sub}); txt(a[1], x, y+60, {px:22, b:true, c:a[2], max:cw-10});
+    });
+    roundRect(g, P, y+76, W-P*2, 12, 6, C.bar);
+    if(used>0) roundRect(g, P, y+76, Math.max(12, (W-P*2)*used), 12, 6, r>=0?C.acc:C.err);
+    y+=BUD;
+  }
+  y+=16;
+  // 表：品名・単価・個数・金額（右の3つは右寄せ）
+  const rA=W-P, rQ=rA-130, rP=rQ-84, nameMax=rP-104-P;
+  g.fillStyle=C.head; g.fillRect(12, y, W-24, TH);
+  [['品名',P,'left'],['単価',rP,'right'],['個数',rQ,'right'],['金額',rA,'right']].forEach(a=>txt(a[0], a[1], y+22, {px:13, b:true, c:C.sub, al:a[2]}));
+  y+=TH;
+  rows.forEach((r,i)=>{
+    const h=r.sub?RH2:RH, by=y+29;
+    if(i%2){ g.fillStyle=C.zebra; g.fillRect(12, y, W-24, h); }
+    txt(r.e.name||'（品名なし）', P, by, {px:17, b:true, max:nameMax});
+    txt(r.p.price!=null ? fmtU(r.p.price,'円') : '—', rP, by, {px:15.5, c:r.p.price!=null?C.text:C.faint, al:'right', max:100});
+    txt(r.p.qty!=null ? fmt(r.p.qty)+(r.p.qu||'') : '—', rQ, by, {px:15.5, c:r.p.qty!=null?C.text:C.faint, al:'right', max:80});
+    txt(fmtU(r.e.vt,r.e.u), rA, by, {px:17, b:true, al:'right', max:126});
+    if(r.sub) txt(r.sub, P, by+24, {px:12.5, c:C.sub, max:W-P*2});
+    y+=h;
+    g.fillStyle=C.line; g.fillRect(12, y-1, W-24, 1);
+  });
+  y+=10;
+  [8,10].forEach(k=>{ if(!t.g[k].base) return; txt(k+'%対象 '+fmtU(t.g[k].base,'円')+'　消費税 '+fmtU(t.g[k].tax,'円'), rA, y+18, {px:13.5, c:C.sub, al:'right'}); y+=TAXH; });
+  // 合計
+  g.fillStyle=C.acc; g.fillRect(12, y+4, W-24, 2);
+  txt('合計（'+cntText(ss.items)+'）', P, y+42, {px:17, b:true, max:240});
+  txt(fmtU(t.total,t.u), rA, y+44, {px:28, b:true, al:'right', max:W-P*2-250});
+  y+=TOTH;
+  txt('🎙 声の計算帳', W-P, y+24, {px:12, c:C.sub, al:'right'});
+  return c;
+}
+/* 📊 Excel：1行に1品（No.・品名・単価・個数・単位・金額・税・メモ）。金額は 単価×個数、合計・予算の残りは式で入れる
+   （Excel で数を直すと合計も変わる。式を計算しないアプリでも見えるよう、計算した値も入れておく） */
+function sumSheet(){
+  const ss=sumSession(), t=sumTotals(ss.items), d=sumDate(ss), now=today(), L=i=>KoeXlsx.col(i);
+  const anyTax=ss.items.some(e=>e.tax);
+  const C={no:0, name:1, price:2, qty:3, qu:4, amt:5};
+  if(anyTax){ C.rate=6; C.tax=7; C.inc=8; C.memo=9; } else C.memo=6;
+  const TOT=anyTax?C.inc:C.amt, last=C.memo;
+  const yen=v=>Number.isInteger(v)?'yen':'yen2';
+  const head=['No.','品名','単価（円）','個数','単位','金額（円）'].concat(anyTax?['税率','消費税（円）','税込み（円）']:[], ['メモ']);
+  const rows=[
+    [{v:(ss.budget?'👛 予算の記録':'📦 足し上げ')+'　'+ymdStr(d), s:'title'}],
+    [{v:'声の計算帳で作成（'+ymdStr(now)+' '+hhmm(now)+'）', s:'sub'}],
+    head.map(h=>({v:h, s:'head'})),
+  ];
+  const R0=rows.length+1;   // 品物のはじまりの行
+  let amtSum=0, taxSum=0, incSum=0, qtySum=0, qtyOk=true, cntOnly=0;
+  ss.items.forEach((e,i)=>{
+    const p=itemParts(e), r=R0+i, row=[], money=e.u==='円' || !e.u;
+    row[C.no]=i+1; row[C.name]=e.name||'';
+    if(p.price!=null) row[C.price]={v:p.price, s:yen(p.price)};
+    if(p.qty!=null){ row[C.qty]={v:p.qty, s:'num'}; row[C.qu]=p.qu||''; qtySum+=p.qty; if(p.qu && !isCount(p.qu)) qtyOk=false; }
+    if(money && e.v!=null && isFinite(e.v)){
+      row[C.amt]=(p.price!=null && !p.one) ? {v:e.v, f:L(C.price)+r+'*'+L(C.qty)+r, s:yen(e.v)} : {v:e.v, s:yen(e.v)};
+      amtSum+=e.v; incSum+=e.vt;
+    }else if(e.v!=null && isFinite(e.v)){ row[C.qty]={v:e.v, s:'num'}; row[C.qu]=e.u; qtySum+=e.v; cntOnly++; }   // 「12袋」：数だけ
+    if(anyTax && money){
+      if(e.tax){ row[C.rate]={v:e.tx/100, s:'pct'}; row[C.tax]={v:e.tax, f:'ROUNDDOWN('+L(C.amt)+r+'*'+L(C.rate)+r+',0)', s:'yen'}; taxSum+=e.tax; }
+      row[C.inc]={v:e.vt, f:L(C.amt)+r+'+'+L(C.tax)+r, s:yen(e.vt)};
+    }
+    const memo=[p.pack?fmt(p.qty)+p.qu+'で'+fmtU(e.v,'円'):'', p.expr && p.expr!==fmtU(e.v,e.u) ? p.expr : ''].filter(Boolean).join('　');
+    if(memo) row[C.memo]={v:memo, s:'memo'};
+    if(p.expr) qtyOk=false;   // 式の品物は個数の欄が空なので、個数の合計は出さない（点数は合計の名前に書く）
+    rows.push(row);
+  });
+  const R1=R0+ss.items.length-1, rng=c=>L(c)+R0+':'+L(c)+R1;
+  rows.push([]);
+  // 合計の行（上に線）
+  const tot=[]; for(let c=0;c<=last;c++) tot[c]={v:'', s:'tot'};
+  tot[C.name]={v:'合計（'+cntText(ss.items)+'）', s:'tot'};
+  if(cntOnly===ss.items.length && t.u){ tot[C.qty]={v:qtySum, f:'SUM('+rng(C.qty)+')', s:'totNum'}; tot[C.qu]={v:t.u, s:'tot'}; }   // 数を数える足し上げ
+  else{
+    if(qtyOk) tot[C.qty]={v:qtySum, f:'SUM('+rng(C.qty)+')', s:'totNum'};
+    tot[C.amt]={v:amtSum, f:'SUM('+rng(C.amt)+')', s:'totYen'};
+    if(anyTax){ tot[C.tax]={v:taxSum, f:'SUM('+rng(C.tax)+')', s:'totYen'}; tot[C.inc]={v:incSum, f:'SUM('+rng(C.inc)+')', s:'totYen'}; }
+  }
+  rows.push(tot);
+  const RT=rows.length;   // 合計の行
+  if(anyTax) [8,10].forEach(k=>{ if(!t.g[k].base) return; const row=[]; row[C.name]={v:'　'+k+'%対象', s:'memo'};
+    row[C.amt]={v:t.g[k].base, f:'SUMIF('+rng(C.rate)+','+(k/100)+','+rng(C.amt)+')', s:'yen'};
+    row[C.tax]={v:t.g[k].tax, f:'SUMIF('+rng(C.rate)+','+(k/100)+','+rng(C.tax)+')', s:'yen'}; rows.push(row); });
+  if(ss.budget){
+    rows.push([]);
+    const b=[]; b[C.name]={v:'予算', s:'bold'}; b[TOT]={v:ss.b, s:'boldYen'}; rows.push(b);
+    const RB=rows.length, rr=[]; rr[C.name]={v:'残り（マイナスは予算オーバー）', s:'bold'};
+    rr[TOT]={v:ss.b-incSum, f:L(TOT)+RB+'-'+L(TOT)+RT, s:'rest'}; rows.push(rr);
+  }
+  const cols=[5,22,11,7,6,12].concat(anyTax?[7,11,12]:[], [30]);
+  return {name:ss.budget?'予算':'足し上げ', cols, rows, freeze:3, merges:['A1:'+L(last)+'1','A2:'+L(last)+'2']};
+}
+/* できたファイルを見せて、保存か共有 */
+let outFile=null, outUrl='';
+function outClear(){ if(outUrl){ try{ URL.revokeObjectURL(outUrl); }catch(_){} } outUrl=''; outFile=null; }
+function outCanShare(){ try{ return !!(outFile && navigator.canShare && navigator.canShare({files:[outFile]})); }catch(_){ return false; } }
+function outDialog(title, body){
+  openKdlg('<h3>'+title+'</h3>'+body+'<div class="out-file">📄 '+escHtml(outFile.name)+'</div>'
+    +'<div class="miss-btns"><button class="act" onclick="closeKdlg()">とじる</button>'
+    +(outCanShare()?'<button class="act" onclick="outShare()">📤 共有</button>':'')
+    +'<button class="act primary" onclick="outSave()">💾 保存</button></div>', null);
+}
+function outSave(){
+  if(!outFile) return;
+  const url=URL.createObjectURL(outFile), a=Object.assign(document.createElement('a'), {href:url, download:outFile.name});
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  toast('保存しました：'+outFile.name);
+}
+function outShare(){
+  if(!outFile) return;
+  try{ navigator.share({files:[outFile], title:outFile.name}).catch(e=>{ if(!(e && e.name==='AbortError')) toast('共有できませんでした。「保存」を使ってください'); }); }
+  catch(_){ toast('共有できませんでした。「保存」を使ってください'); }
+}
+async function sumImage(){
   if(!sumSession().items.length){ toast('まだ何もありません'); return; }
-  const lines=sumText().split('\n'), W=720, P=40, LH=44;
-  const c=document.createElement('canvas'); c.width=W; c.height=P*2+LH*lines.length;
-  const g=c.getContext('2d');
-  g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height);
-  lines.forEach((l,i)=>{ g.fillStyle=i===0||/^合計/.test(l)?'#111':'#333'; g.font=(i===0||/^合計/.test(l)?'bold ':'')+'28px sans-serif'; g.fillText(l, P, P+LH*i+30); });
-  const name='足し上げ_'+isoDay(today())+'.png';
-  c.toBlob(b=>{
-    if(!b){ toast('画像を作れませんでした'); return; }
-    const f=new File([b], name, {type:'image/png'});
-    if(navigator.canShare && navigator.canShare({files:[f]})){ navigator.share({files:[f], title:'足し上げ'}).catch(()=>{}); return; }
-    const url=URL.createObjectURL(b), a=Object.assign(document.createElement('a'),{href:url, download:name});
-    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 1000);
-    toast('画像を保存しました');
-  }, 'image/png');
+  let b=null;
+  try{ const c=sumCanvas(); b=await new Promise(r=>c.toBlob(r, 'image/png')); }catch(e){ console.error(e); }
+  if(!b){ toast('画像を作れませんでした'); return; }
+  outClear(); outFile=new File([b], sumFileBase()+'.png', {type:'image/png'}); outUrl=URL.createObjectURL(b);
+  outDialog('🖼 画像（スクショ）', '<div class="out-prev"><img id="outImg" src="'+outUrl+'" alt="一覧の画像"></div>');
+}
+async function sumXlsx(){
+  const ss=sumSession(); if(!ss.items.length){ toast('まだ何もありません'); return; }
+  let b=null;
+  try{ b=await KoeXlsx.build([sumSheet()]); }catch(e){ console.error(e); }
+  if(!b){ toast('Excel を作れませんでした'); return; }
+  outClear(); outFile=new File([b], sumFileBase()+'.xlsx', {type:KoeXlsx.MIME});
+  const t=sumTotals(ss.items);
+  outDialog('📊 Excel（.xlsx）', '<div class="note" style="margin:0 0 8px">'+escHtml(cntText(ss.items))+'・合計 '+escHtml(fmtU(t.total,t.u))
+    +'。1行に1品で、単価・個数・金額を分けて入れました。合計'+(ss.budget?'と予算の残り':'')+'は式なので、Excel で個数を直すと合計も変わります。</div>');
+}
+/* 終わった足し上げ・予算の吹き出しに「画像で保存・Excel・一覧」（いちばん新しいものだけ。次を始めたら出さない） */
+function outBtnsHtml(m, idx){
+  if(!m.out || state.mode!=='normal') return '';
+  for(let k=state.log.length-1;k>idx;k--) if(state.log[k].out) return '';
+  if(!sumSession().items.length) return '';
+  return '<div class="out-btns"><button onclick="event.stopPropagation();sumImage()">🖼 画像で保存</button><button onclick="event.stopPropagation();sumXlsx()">📊 Excel で保存</button><button onclick="event.stopPropagation();openPanel(\'sum\')">📋 一覧</button></div>';
+}
+/* 書き出し・一覧を声で：「画像で保存」「スクショ」「エクセルで保存」「一覧を見せて」 */
+const OUT_HEAD='(?:(?:予算|よさん|足し上げ|たしあげ|一覧|いちらん|1覧|リスト)(?:の|を)?)?';
+const OUT_VERB='(?:で|に|を|として)?(?:ファイル)?(?:で|に)?(?:して|保存|ほぞん|出力|書き出し|書き出|出して|だして|出|共有|送って|おくって|作って|つくって|撮って|とって|見せて|みせて|ください|下さい|ちょうだい|したい|たい)*';
+const RE_OUT_IMG=new RegExp('^'+OUT_HEAD+'(?:画像|がぞう|スクショ|スクリーンショット|イメージ|写真|しゃしん)'+OUT_VERB+'$');
+const RE_OUT_XLSX=new RegExp('^'+OUT_HEAD+'(?:エクセル|えくせる|excel|表計算|xlsx)'+OUT_VERB+'$', 'i');
+const RE_OUT_LIST=/^(?:予算の|足し上げの)?(?:一覧|いちらん|1覧|リスト)(?:を|が|の)?(?:見せて|みせて|出して|だして|出|開いて|ひらいて|表示|見る|みる|見たい|して|ください)*$/;
+function hOut(raw, t){
+  const s=String(raw||'').replace(/[\s、。．.,！!？?「」]/g,'');
+  const k=(RE_OUT_IMG.test(s)||RE_OUT_IMG.test(t)) ? 'img' : (RE_OUT_XLSX.test(s)||RE_OUT_XLSX.test(t)) ? 'xlsx' : (RE_OUT_LIST.test(s)||RE_OUT_LIST.test(t)) ? 'list' : '';
+  if(!k) return null;
+  const ss=sumSession();
+  if(!ss.items.length) return R_info('足し上げ・予算の品物がまだありません。「予算5000円」や「足し上げ開始」のあと、品物と値段を言ってください', '足し上げ・予算の品物がまだありません');
+  if(!DRY) setTimeout(()=>{ if(k==='img') sumImage(); else if(k==='xlsx') sumXlsx(); else openPanel('sum'); }, 0);
+  const w=ss.budget?'予算':'足し上げ';
+  if(k==='img') return R_info(w+'の一覧を画像にしました。保存か共有を押してください', '🖼 '+w+'の一覧を画像に');
+  if(k==='xlsx') return R_info(w+'の一覧をエクセルにしました。保存か共有を押してください', '📊 '+w+'の一覧を Excel に');
+  return R_info(w+'の一覧を開きます', '📋 '+w+'の一覧');
 }
 /* 大きな金額を確かめる */
 function setConfirmAmt(v){ settings.confirmAmt=+v||0; saveSettings(); toast(settings.confirmAmt ? fmtU(settings.confirmAmt,'円')+'より大きいときは確かめます' : '確かめないで付けます'); }
@@ -2597,6 +2864,7 @@ function init(){
   $('backHyo').hidden=!fromHyo; document.body.classList.toggle('from-hyo', fromHyo);
   // 「戻る」の見張り：窓は戻るで閉じ、何も開いていないときは一度知らせてから表電卓へ（v20）
   BackGuard.setup({app:'koe', fromHyo, toast:m=>toast(m)});
+  BackGuard.watch($('kdlg'), el=>!el.hidden, ()=>closeKdlg());   // 小さな窓（品物を直す・画像や Excel の保存）も「戻る」で閉じる（v22）
   applySettings(); render(); renderGuide();
   const mic=$('micBtn');
   mic.addEventListener('click', micTap);

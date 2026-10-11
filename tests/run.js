@@ -7678,6 +7678,96 @@ async function runKoeIdeas(browser) {
   await ctx.close();
 }
 
+/* 📤 声の計算帳：予算・足し上げの書き出し（koe v22）：単価と個数を分けて残す・画像（スクショ）・Excel・声で書き出す */
+async function runKoeOut(browser) {
+  console.log('\n── 📤 声の計算帳：予算・足し上げを画像と Excel に（koe v22） ──');
+  const { readZipEntry } = require('./zip.js');
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 820 }, serviceWorkers: 'block', acceptDownloads: true });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/favicon/.test(m.text())) errs.push('console: ' + m.text()); });
+  const w = ms => page.waitForTimeout(ms);
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'koe-out-'));
+  check('  service-worker が Excel を作る部品（xlsx.js）も持つ', fs.readFileSync(path.join(ROOT, 'koe', 'service-worker.js'), 'utf8').includes("'./xlsx.js'"), true);
+  await page.goto('file://' + path.join(ROOT, 'koe', 'index.html')); await w(500);
+  // 品物の中身：単価・個数・点数
+  check('  品物から単価と個数を取り出す（まとめ値段・1つ・量・式・数だけ）', await page.evaluate(() => {
+    resetAll(); koeRun('足し上げ開始');
+    ['りんご 120円を3つ', 'セメント 12袋 単価850円', 'セメント 単価850円の12袋', 'ティッシュ 298円 2つ', '牛乳 2本で500円', '卵 198円', '肉 300グラム 単価2円', 'お菓子 120円を3個と80円を2個', '120円と80円', 'ブロック 12個'].forEach(s => koeRun(s));
+    return sumSession().items.map(e => { const p = itemParts(e); return [p.price ?? '-', p.qty ?? '-', p.qu || '-', p.pack ? 'まとめ' : p.one ? '1つ' : p.expr ? '式' : '', p.pts].join(':'); }).join(' / ');
+  }), '120:3:つ::3 / 850:12:袋::12 / 850:12:袋::12 / 298:2:つ::2 / -:2:本:まとめ:2 / 198:1:-:1つ:1 / 2:300:グラム::1 / -:-:-:式:5 / -:-:-:式:2 / -:-:-::1');
+  check('  会話の吹き出しに単価と個数（りんご　120円 × 3つ　360円）、数には点数', await page.evaluate(() => {
+    resetAll(); koeRun('予算5000円'); const r = koeRun('りんご 120円を3つ'), r2 = koeRun('牛乳 2本で500円');
+    return r.a + ' | ' + r.f + ' | ' + r2.a;
+  }), 'りんご　120円 × 3つ　360円 | 残り 4,640円（1件・3点） | 牛乳　2本まとめて　500円');
+  await page.evaluate(() => { koeRun('洗剤 398円を2個 10%'); koeRun('パン 198円'); render(); openPanel('sum'); }); await w(150);
+  check('  一覧：品物ごとに 単価 × 個数・税、合計に点数、予算と残り', await page.evaluate(() => [...document.querySelectorAll('#sumList .sum-row')].map(r => r.querySelector('.n').textContent + '=' + r.querySelector('.v').textContent).join(' / ')
+    + ' | ' + document.querySelector('#sumTotal .big').textContent + ' | ' + document.querySelector('#sumTotal .rest').textContent + ' | ' + document.getElementById('sumOut').hidden),
+    'りんご120円 × 3つ=360円 / 牛乳2本まとめて=500円 / 洗剤10%398円 × 2個・税 79円込み=875円 / パン=198円 | 合計（4件・8点）1,933円 | 残り3,067円 | false');
+  // 🖼 画像
+  await page.click('#sumOut button.pri'); await w(450);
+  check('  🖼 画像：一覧の上に見本を出す（窓が一覧の裏に隠れない）・名前は英数字', await page.evaluate(() => {
+    const e = document.elementFromPoint(innerWidth / 2, innerHeight / 2), img = document.getElementById('outImg');
+    return !document.getElementById('kdlg').hidden + '/' + !!(e && e.closest('#kdlg')) + '/' + !!(img && img.complete && img.naturalWidth) + '/' + /^yosan_\d{4}-\d\d-\d\d_\d{4}\.png$/.test(outFile.name);
+  }), 'true/true/true/true');
+  check('  　画像は表の形（幅 640 の2倍で細かく・品物の数だけ長い）', await page.evaluate(() => { const c = sumCanvas(); return c.width + '/' + (c.height > 1000); }), '1280/true');
+  const imgDl = await Promise.all([page.waitForEvent('download', { timeout: 9000 }), page.click('#kdlgBox .act.primary')]).then(a => a[0]).catch(() => null);
+  check('  　「💾 保存」で .png を保存', imgDl ? /^yosan_\d{4}-\d\d-\d\d_\d{4}\.png$/.test(imgDl.suggestedFilename()) + '/' + fs.readFileSync(await imgDl.path()).subarray(1, 4).toString() : 'なし', 'true/PNG');
+  await page.evaluate(() => history.back()); await w(350);
+  check('  　「戻る」で、まず小さな窓だけ閉じる（一覧はそのまま）', await page.evaluate(() => document.getElementById('kdlg').hidden + '/' + document.getElementById('p-sum').classList.contains('open')), 'true/true');
+  // 📊 Excel
+  await page.click('#sumOut button:nth-child(2)'); await w(450);
+  check('  📊 Excel：保存か共有の窓（件数・点数・合計、名前は英数字）', await page.evaluate(() => document.getElementById('kdlgBox').textContent.includes('4件・8点・合計 1,933円') + '/' + /^yosan_\d{4}-\d\d-\d\d_\d{4}\.xlsx$/.test(outFile.name)), 'true/true');
+  const xlDl = await Promise.all([page.waitForEvent('download', { timeout: 9000 }), page.click('#kdlgBox .act.primary')]).then(a => a[0]).catch(() => null);
+  const xlF = path.join(tmp, 'o.xlsx'); if (xlDl) await xlDl.saveAs(xlF);
+  const sh = xlDl ? readZipEntry(xlF, 'xl/worksheets/sheet1.xml') : '', wb = xlDl ? readZipEntry(xlF, 'xl/workbook.xml') : '', st = xlDl ? readZipEntry(xlF, 'xl/styles.xml') : '';
+  check('  　保存した名前は .xlsx', xlDl ? /^yosan_\d{4}-\d\d-\d\d_\d{4}\.xlsx$/.test(xlDl.suggestedFilename()) : 'なし', true);
+  check('  　1行に1品：単価・個数・単位、金額は 単価×個数 の式、税は切り捨ての式', [/<c r="C4" s="\d+"><v>120<\/v><\/c>/.test(sh), /<c r="D4" s="\d+"><v>3<\/v><\/c>/.test(sh), sh.includes('<c r="E4" t="inlineStr"><is><t xml:space="preserve">つ</t></is></c>'),
+    sh.includes('<f>C4*D4</f><v>360</v>'), sh.includes('<f>ROUNDDOWN(F6*G6,0)</f><v>79</v>'), sh.includes('<f>F6+H6</f><v>875</v>'), sh.includes('2本で500円')].join(','), 'true,true,true,true,true,true,true');
+  check('  　合計は式（個数の合計＝点数・税込み）、税率ごとの合計、予算の残りも式', [sh.includes('<f>SUM(D4:D7)</f><v>8</v>'), sh.includes('<f>SUM(I4:I7)</f><v>1933</v>'), sh.includes('<f>SUMIF(G4:G7,0.1,H4:H7)</f><v>79</v>'), sh.includes('<f>I12-I9</f><v>3067</v>'), sh.includes('合計（4件・8点）')].join(','), 'true,true,true,true,true');
+  check('  　見出しを止める・題名のセルをつなぐ・シートの名前・開いたら計算し直す・円の書式', [sh.includes('<pane ySplit="3" topLeftCell="A4"'), sh.includes('<mergeCell ref="A1:J1"/>'), wb.includes('<sheet name="予算"'), wb.includes('fullCalcOnLoad="1"'), st.includes('numFmtId="3"')].join(','), 'true,true,true,true,true');
+  check('  　品名の記号は文字のまま（式として動かない・XML はこわれない）', await page.evaluate(() => {
+    resetAll(); koeRun('足し上げ開始');
+    state.entries.push({ k: 'item', name: '=HYPERLINK("x")&<b>', toks: [{ t: 'num', v: 100, u: '円' }], show: '', text: '', rest: '' }); recomputeAll();
+    const x = KoeXlsx._sheetXml(sumSheet(), 0);
+    return x.includes('<t xml:space="preserve">=HYPERLINK(&quot;x&quot;)&amp;&lt;b&gt;</t>') + '/' + !/<f>HYPERLINK/.test(x) + '/' + !!new DOMParser().parseFromString(x, 'application/xml').querySelector('sheetData') + '/' + !new DOMParser().parseFromString(x, 'application/xml').querySelector('parsererror');
+  }), 'true/true/true/true');
+  check('  　数を数える足し上げ（12袋＋8袋）は個数の欄で合計', await page.evaluate(() => {
+    resetAll(); koeRun('足し上げ開始'); koeRun('セメント 12袋'); koeRun('砂 8袋');
+    const x = KoeXlsx._sheetXml(sumSheet(), 0); return x.includes('<f>SUM(D4:D5)</f><v>20</v>') + '/' + x.includes('>袋</t>') + '/' + !x.includes('SUM(F4:F5)');
+  }), 'true/true/true');
+  check('  　とても長い一覧の画像は細かさを落として作る（スマホで作れる大きさまで）', await page.evaluate(() => {
+    resetAll(); koeRun('足し上げ開始');
+    for (let i = 0; i < 150; i++) state.entries.push({ k: 'item', name: '品物' + i, toks: [{ t: 'num', v: 100, u: '円' }], show: '', text: '', rest: '' });
+    recomputeAll(); const c = sumCanvas(); return c.width + '/' + (c.width * c.height <= 16e6);
+  }), '640/true');
+  // 声で書き出す
+  await page.evaluate(() => { closeKdlg(); while (panelStack.length) closePanel(); resetAll(); koeRun('予算3000円'); koeRun('りんご 120円を3つ'); render(); }); await w(150);
+  const voice = async t => {
+    const a = await page.evaluate(t => koeRun(t).a, t); await w(400);
+    const where = await page.evaluate(() => !document.getElementById('kdlg').hidden ? (document.getElementById('outImg') ? 'img' : (outFile && /\.xlsx$/.test(outFile.name) ? 'xlsx' : 'dlg')) : (document.getElementById('p-sum').classList.contains('open') ? 'list' : 'none'));
+    await page.evaluate(() => { closeKdlg(); while (panelStack.length) closePanel(); }); await w(150);
+    return a + '|' + where;
+  };
+  check('  声で書き出す：「画像で保存」「スクショ」「エクセルで出して」「Excelに書き出して」「一覧を見せて」', [await voice('画像で保存'), await voice('スクショ'), await voice('エクセルで出して'), await voice('Excelに書き出して'), await voice('一覧を見せて')].join(' / '),
+    '🖼 予算の一覧を画像に|img / 🖼 予算の一覧を画像に|img / 📊 予算の一覧を Excel に|xlsx / 📊 予算の一覧を Excel に|xlsx / 📋 予算の一覧|list');
+  check('  　「エクセルで出したい」も したい計算ではなく書き出し', await voice('エクセルで出したい'), '📊 予算の一覧を Excel に|xlsx');
+  check('  　品物が無いときは、そう言う（何も開かない）', await page.evaluate(() => { resetAll(); const a = koeRun('エクセルで保存').a; return a; }) + '|' + await page.evaluate(() => document.getElementById('kdlg').hidden), '足し上げ・予算の品物がまだありません|true');
+  check('  おしまいの吹き出しに「画像で保存・Excel・一覧」（いちばん新しいものだけ・次を始めたら消える）', await page.evaluate(() => {
+    resetAll(); koeRun('予算3000円'); koeRun('りんご 120円を3つ'); koeRun('おしまい'); render();
+    const a = [...document.querySelectorAll('#log .out-btns button')].map(b => b.textContent).join(',');
+    koeRun('予算1000円'); render(); const b = document.querySelectorAll('#log .out-btns').length;
+    koeRun('パン 100円'); koeRun('おしまい'); render(); const c = document.querySelectorAll('#log .out-btns').length;
+    return a + '/' + b + '/' + c;
+  }), '🖼 画像で保存,📊 Excel で保存,📋 一覧/0/1');
+  // ほかの書き出しの名前も英数字（日本語だと、ブラウザによっては名前ごと捨てられて「download」になる）
+  const csvDl = await Promise.all([page.waitForEvent('download', { timeout: 9000 }), page.evaluate(() => { resetAll(); koeRun('スーパー 3280円 食費'); bookCsv(); })]).then(a => a[0]).catch(() => null);
+  const bkDl = await Promise.all([page.waitForEvent('download', { timeout: 9000 }), page.evaluate(() => koeExport())]).then(a => a[0]).catch(() => null);
+  check('  家計簿の CSV・バックアップの名前も英数字', (csvDl ? csvDl.suggestedFilename().replace(/\d/g, '0') : 'なし') + ' ' + (bkDl ? bkDl.suggestedFilename().replace(/\d/g, '0') : 'なし'), 'kakeibo_0000-00.csv koe-keisancho_0000-00-00.json');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+  fs.rmSync(tmp, { recursive: true, force: true });
+}
+
 /* 🔙 意図せず表電卓に戻らない（v535）：窓は「戻る」で窓だけ閉じる・何も開いていないところでは一度知らせる・
    閉じてすぐ開いても順番が入れかわらない・スマホがアプリを閉じたあとは開き直す */
 async function runBackGuard(browser) {
@@ -8589,13 +8679,13 @@ async function runKoe(browser) {
   check('  計算できない言葉は、そう言う', await page.evaluate(() => koeRun('こんにちは').cls), 'err');
   // B 足し上げ・読み合わせ
   await run('足し上げ開始');
-  check('  足し上げ：単価×数', await run('セメント12袋単価850円'), 'セメント　12袋 × 850円　10,200円');
+  check('  足し上げ：単価×数（単価 × 個数の順にそろえる。v22）', await run('セメント12袋単価850円'), 'セメント　850円 × 12袋　10,200円');
   check('  足し上げ：数と金額', await say('砂3立米12000円'), '砂 3立米 12000円。合計 22200円');
   check('  足し上げの中で言い直す', await say('12000じゃなくて12500'), '12,000 を 12,500 に直しました。合計は 22700円、2件です');
   check('  何件', await say('何件'), '2件です。合計は 22700円、2件です');
   check('  読み合わせ：合っている', await run('伝票の合計は22700円'), '✅ 合っています（22,700円）');
   check('  読み合わせ：合わない', await page.evaluate(() => koeRun('伝票の合計は23000円').say), '合いません。伝票は 23000円、読み上げの合計は 22700円、差は 300円 です');
-  check('  おしまい', await run('おしまい'), '合計 22,700円（2件）');
+  check('  おしまい（個数を言った品物があると点数も。v22）', await run('おしまい'), '合計 22,700円（2件・13点）');
   check('  締めた合計に続けて計算できる', await run('それに消費税'), '24,970円');
   // D くらし
   await run('予算5000円');
@@ -8748,7 +8838,7 @@ async function runKoe(browser) {
   check('  近い言い方がなくても、読み飛ばして答えない', await page.evaluate(() => { state.entries = []; state.log = []; recomputeAll(); const r = koeRun('縦3メートルと横4メートルの広さ'); return r.say + '/' + state.lastV; }), '「広さ」が分かりませんでした/null');
   check('  品名だけを答えの前に読む', await page.evaluate(() => { state.entries = []; recomputeAll(); return koeRun('ナントカ1280円を3つだよね').say; }), 'ナントカ 3840円 です');
   check('  「3個で300円」は1個あたりも言う', await page.evaluate(() => { state.entries = []; recomputeAll(); const r = koeRun('みかん3個で300円'); return r.a + '/' + state.lastV; }), 'みかん 3個で 300円（1個 100円）/300');
-  check('  足し上げのときは品物として受け取る', await page.evaluate(() => { state.entries = []; recomputeAll(); koeRun('足し上げ開始'); const r = koeRun('みかん3個で300円'); const a = r.a + '/' + state.sum; koeRun('おしまい'); return a; }), 'みかん　3個　300円/300');
+  check('  足し上げのときは品物として受け取る', await page.evaluate(() => { state.entries = []; recomputeAll(); koeRun('足し上げ開始'); const r = koeRun('みかん3個で300円'); const a = r.a + '/' + state.sum; koeRun('おしまい'); return a; }), 'みかん　3個まとめて　300円/300');
   // v17：単位のちがう数を黙って足さない・数は単位の合う枠へ当てはめる
   const k17 = q => page.evaluate(q => { state.entries = []; state.log = []; state.mode = 'normal'; recomputeAll(); const r = koeRun(q); return r.cls + '|' + r.a + '|' + (r.sug || ''); }, q);
   check('  1個120円のを15個', await k17('1個120円のを15個'), 'ok|1,800円|');
@@ -8850,7 +8940,7 @@ async function runKoe(browser) {
   check('  足し上げ：税を付けて数える（軽減8%・10%）', v19.sum, '844/牛乳　257円（税8%込み）|洗剤　437円（税10%込み）|パン　150円/true');
   check('  足し上げの一覧：税ごとの合計', v19.sumPanel, '8%対象 238円 消費税 19円 10%対象 398円 消費税 39円 税のないもの・税込み 150円 合計（3件） 844円');
   check('  足し上げの一覧：直す・消す', v19.edit, '761/2/2');
-  check('  足し上げの一覧：共有の文字', v19.text, '洗剤　437円（10%込み）|パン　324円（8%込み）|――――――――|8%対象 300円（消費税 24円）|10%対象 398円（消費税 39円）|合計 761円（2件）');
+  check('  足し上げの一覧：共有の文字（個数も。v22）', v19.text, '洗剤　437円（税10%込み）|パン　2個まとめて　324円（税8%込み）|――――――――|8%対象 300円（消費税 24円）|10%対象 398円（消費税 39円）|合計 761円（2件・3点）');
   check('  大きな金額は確かめる（はい）', v19.cf1 + ' | ' + v19.cf2, '冷蔵庫　120,000円 でよいですか？/2/true | 3/120761/はい');
   check('  大きな金額は確かめる（いいえで家計簿に付けない）', v19.cf3, '0/やめました');
   check('  最近使った言い方', v19.recent, '冷蔵庫120000円,パン 150円,洗剤 398円 10%');
@@ -11965,6 +12055,7 @@ async function runQrShare(browser) {
     if (!only || only === 'kakijun') await runKakijun(browser);
     if (!only || only === 'eigo') await runEigoSpeak(browser);
     if (!only || only === 'koe' || only === 'koeidea') await runKoeIdeas(browser);
+    if (!only || only === 'koe' || only === 'koeout') await runKoeOut(browser);
     if (!only || only === 'backguard') await runBackGuard(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
