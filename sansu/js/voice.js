@@ -40,7 +40,9 @@ const V = S.voice = {
   speak(text, done){
     const fin = () => { if(done){ const d = done; done = null; d(); } };
     if(!('speechSynthesis' in window) || !text){ fin(); return; }
-    try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'ja-JP'; u.rate = 0.95; if(!jaVoice) pickVoice(); if(jaVoice) u.voice = jaVoice;
+    try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'ja-JP'; u.rate = 0.95;
+      // 声・高さ・大きさは表電卓の「🔈 読み上げの声」と同じ。速さは 0.95 × そこで決めた速さ（v10）
+      if(window.HyoVoice) HyoVoice.apply(u, { lang: 'ja', rate: 0.95 }); else { if(!jaVoice) pickVoice(); if(jaVoice) u.voice = jaVoice; }
       u.onend = fin; u.onerror = fin; speechSynthesis.speak(u); } catch(_){ fin(); }
   },
   stopSpeak(){ try { speechSynthesis.cancel(); } catch(_){} },

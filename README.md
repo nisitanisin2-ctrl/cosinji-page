@@ -45,6 +45,7 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 | `kakudo.js` | 📐角度計（スマホの傾きのセンサーで、置いた面の傾き・立てて当てた辺の角度・気泡の水平器・寸勾配と％、0点合わせ・2つの面の差・固定。画面の分度器、写真で3点を押して角度、カメラで根元とてっぺんに合わせて距離と高さ）。apps/kakudo/ から単独のアプリとしても開けます。開いたときだけ読み込みます（v518 から） |
 | `regi.js` | 🛍即売レジ（フリマ・お祭りの即売会のかんたんなレジ。商品の写真・名前・値段・在庫を登録、押すだけで注文・合計・値引き（会計ぜんたいの円・％引き、品ごとの値引き）・お預かりとお釣り。写真は四角に切り取って登録、横向きでは左に商品・右に会計（v500）。⚙ 設定でアイコンの大きさ・縦横のスクロール、売り出しの商品を保存して次に呼び出す（v501）。消費税の計算（内税・外税、税率 1・8・10%・任意と内税・外税を商品ごと、会計後に税率ごとの税別価格と消費税額）（v502）。レシートの印刷（58mm・80mm・A4、店の名前・登録番号、履歴から印刷し直し・会計ごとに自動）（v503）。領収書の宛名・敬称・但し書き（v504）。まちがえた会計の訂正（会計する前に戻し、訂正の記録を残す）（v505）。全画面（上のバーを消す）（v506）。会計の履歴と取り消し（在庫を戻す）、売上・商品別のまとめ、Excel（.xlsx）に書き出し、商品をほかの端末へ書き出す・読み込む）。apps/regi/ から単独のアプリとしても開けます。開いたときだけ読み込みます（v499 から） |
 | `kakeizu.js` | 🌳家系図（人と父・母・夫や妻のつながりを入れて、中心の人から上に親・祖父母、横にきょうだいと夫や妻、下に子・孫が並ぶ家系図を見る。続柄は本人から自動、和暦の入力、年齢、写真・メモ、一覧とさがす、画像で保存・A4 横で印刷、書き出し・読み込み、v515 で生まれ順と続き柄（長男・次女…）・養子縁組と実父母）。apps/kakeizu/ から単独のアプリとしても開けます。開いたときだけ読み込みます（v514 から） |
+| `hyovoice.js` | 🔈読み上げの声（日本語の声・英語の声・読む速さ・声の高さ・音の大きさ）。⚙設定のいちばん上の「🔈 読み上げの声」で決めた声を、表電卓の答えの読み上げ・声の計算帳・かきじゅん帳・英単語・算数・メモで同じにします（`hyo_voice` に覚える。v540 から）。同じものを `koe/` `kakijun/js/` `eigo/js/` `notes/` `sansu/js/` にも置いています（直すときは6つともそろえる） |
 | `apps/〇〇/` | 道具だけのアプリの入り口（v462〜）。道具ごとの manifest・アイコン・`index.html`（`../../index.html?app=〇〇` へ移る）。ホーム画面に置くと、その道具だけが開きます（業務手帳は `techo/`） |
 | `techo/` | 📔業務手帳だけのアプリの入り口（manifest・アイコン）。`techo/` を開くと `index.html?app=techo` に移り、業務手帳だけを全画面で開きます。ホーム画面に足すと業務手帳のアイコンになります（v447 から） |
 | `service-worker.js` | 電波がなくても動くようにするしくみ |
@@ -61,8 +62,8 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 
 ## 配る
 
-`index.html` `help.js`（と `help/` フォルダ） `photomemo.js` `techo.js` `subsc.js` `heya.js` `annai.js` `shimai.js` `meishi.js` `trim.js` `manner.js` `boki.js` `kurashi.js` `keisan.js` `ruler.js` `kakudo.js` `regi.js` `kakeizu.js` `service-worker.js`、`apps/` フォルダ `manifest.json` と `techo/` フォルダ、`icon-*.png` `apple-touch-icon.png` `ogp.png` `shot-*.png` を置くだけです。サーバー側の用意はいりません。
-`help.js` を置き忘れると説明書だけが、`photomemo.js` を置き忘れると写真メモだけが、`techo.js` を置き忘れると業務手帳だけが「読み込めませんでした」になります（ほかはそのまま動きます）。パソコン版（exe）に入れるときも `index.html` と同じ場所に置いてください。
+`index.html` `help.js`（と `help/` フォルダ） `photomemo.js` `techo.js` `subsc.js` `heya.js` `annai.js` `shimai.js` `meishi.js` `trim.js` `manner.js` `boki.js` `kurashi.js` `keisan.js` `ruler.js` `kakudo.js` `regi.js` `kakeizu.js` `hyovoice.js` `service-worker.js`、`apps/` フォルダ `manifest.json` と `techo/` フォルダ、`icon-*.png` `apple-touch-icon.png` `ogp.png` `shot-*.png` を置くだけです。サーバー側の用意はいりません。
+`help.js` を置き忘れると説明書だけが、`photomemo.js` を置き忘れると写真メモだけが、`techo.js` を置き忘れると業務手帳だけが「読み込めませんでした」になります（ほかはそのまま動きます）。`hyovoice.js` を置き忘れると「🔈 読み上げの声」だけが開けません（読み上げは端末のふつうの声で動きます）。パソコン版（exe）に入れるときも `index.html` と同じ場所に置いてください。
 
 GitHub Pages の公開（Actions の「pages build and deployment」）が `Failed to get ID Token … Request timeout` で失敗したときは、GitHub 側の一時的な通信の不具合です。その実行を「Re-run jobs」でやり直すか、main に次の変更を入れれば公開し直されます。
 

@@ -868,6 +868,7 @@ window.MemoEd = (function () {
     speaking = true; updSay();
     parts.forEach((s, i) => {
       const u = new SpeechSynthesisUtterance(s); u.lang = 'ja-JP'; u.rate = 1;
+      if (window.HyoVoice) HyoVoice.apply(u, { lang: 'ja' });   // 声・速さ・高さ・大きさは表電卓の「🔈 読み上げの声」と同じ（v540）
       if (i === parts.length - 1) { u.onend = () => { speaking = false; updSay(); }; u.onerror = u.onend; }
       ss.speak(u);
     });
