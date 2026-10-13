@@ -16,10 +16,12 @@
    ・📋 表で直す（v544）：全員を表にして、マスを押すと その場で直せる（Enter で下の人・Tab で右へ）。出す列をえらぶ・列で並べかえ・↶ 戻す。
      （v545）名前の列と見出しは 表の本体とは別に置く（position:sticky を使わない。Android の Chrome で消えたり重なったりしたため）。
      （v546）入りきらない字は 枠に合わせて小さく・2行に。見出しの右の端 ‖ で列の幅を変える（2回押すと中身に合わせる）。一覧の名前も2行まで。
-   ・📞 電話（v547）：⚙ 設定で かけられる・かける前に聞く・かけない（番号は文字だけ）を選べる（rk.call）。 */
+   ・📞 電話（v547）：⚙ 設定で かけられる・かける前に聞く・かけない（番号は文字だけ）を選べる（rk.call）。
+   ・あ よみ（v548）：よみを ひらがな／カタカナに そろえる。よみのない人に 名前の漢字から ふつうの読みを入れる（辞書は renraku-yomi.js。使うときに読む）。
+     入れた人は 表で見なおせる。↶ で戻せる。新しく入れるよみの字（rk.ykana）。直す画面の「📝 名前から よみを入れる」・「よみなし」の絞りこみ・表からも。 */
 (function(){
 const RK_KEY='excalc_renraku', RK_MAX=5000;
-let rk=null, rkQ='', rkGrp='', rkCol='', rkSel=null, rkPaint=null, rkT=null, rkViewId=null, rkEd=null, rkScrClean=null, rkDupCache=[], rkRec=null, rkIO=null;
+let rk=null, rkQ='', rkGrp='', rkCol='', rkSel=null, rkPaint=null, rkT=null, rkViewId=null, rkEd=null, rkScrClean=null, rkDupCache=[], rkRec=null, rkIO=null, rkYUndo=null, rkYLast=null;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -132,7 +134,7 @@ const rkHasAny=x=>!!(x.fam||x.giv||x.fn||x.org||x.nick||x.tels.length||x.mails.l
 /* 表で直す の列（名前のほか） */
 const TCOL_RE=/^(yomi|color|fav|cell|tel|mail|org|dept|title|nick|zip|adr|bday|groups|note|cf:f[0-9a-z]{1,10})$/;
 const TW_MIN=60, TW_MAX=480;   // 表の列の幅（押して動かしたもの）
-function rkDefaults(){ return { v:1, view:'kana', groups:[], fields:[], sub:'tel', big:false, noteCf:true, call:'on', lastExp:0, notDup:[], colors:{}, pc:'red', thide:['dept','title','nick','zip'], tw:{}, items:[] }; }
+function rkDefaults(){ return { v:1, view:'kana', groups:[], fields:[], sub:'tel', big:false, noteCf:true, call:'on', ykana:'', lastExp:0, notDup:[], colors:{}, pc:'red', thide:['dept','title','nick','zip'], tw:{}, items:[] }; }
 function rkClean(o){
   const d=rkDefaults(); if(!o || typeof o!=='object') return d;
   d.view=['kana','group','org','color','new'].includes(o.view)?o.view:'kana';
@@ -146,6 +148,7 @@ function rkClean(o){
   d.sub=(typeof o.sub==='string' && /^(tel|org|group|note|none|cf:f[0-9a-z]{1,10})$/.test(o.sub))?o.sub:'tel';
   d.big=!!o.big; d.noteCf=o.noteCf!==false; d.lastExp=Math.max(0,+o.lastExp||0);
   d.call=['on','ask','off'].includes(o.call)?o.call:'on';   // 📞 電話をかける：かけられる・かける前に聞く・かけない（v547）
+  d.ykana=['hira','kata'].includes(o.ykana)?o.ykana:'';     // 新しく入れる よみの字（v548。'' は いま多いほう）
   d.notDup=arr(o.notDup).filter(p=>typeof p==='string' && /^[A-Za-z0-9_-]{1,80}\|[A-Za-z0-9_-]{1,80}$/.test(p)).slice(0,3000);
   d.items=arr(o.items).filter(x=>x && typeof x==='object').slice(0,RK_MAX).map(rkCleanItem).filter(rkHasAny);
   const seen=new Set(); d.items.forEach(x=>{ while(seen.has(x.id)) x.id=uid(); seen.add(x.id); });
@@ -773,6 +776,18 @@ body.dark .rk-dot{ box-shadow:0 0 0 1px rgba(255,255,255,.35); }
 .rk-tmore{ padding:10px 12px 16px; text-align:center; font-size:13px; color:var(--text-light,#888); }
 .rk-tmore:empty{ display:none; }
 .rk-tin{ display:block; width:100%; height:100%; box-sizing:border-box; margin:0; border:2px solid var(--acc); border-radius:0; padding:0 6px; font-size:16px; line-height:normal; font-family:inherit; background:var(--modal-bg,#fff); color:var(--text,#222); outline:none; }
+/* あ よみ（v548） */
+.rk-btn:disabled{ opacity:.45; cursor:default; }
+.rk-ycnt{ display:flex; flex-wrap:wrap; gap:4px 12px; font-size:13.5px; margin:4px 0 2px; color:var(--text,#222); }
+.rk-ylist{ max-height:46vh; overflow:auto; margin:8px 0; border:1px solid rgba(120,132,156,.3); border-radius:10px; }
+.rk-yrow{ display:flex; gap:10px; align-items:baseline; padding:7px 10px; border-bottom:1px solid rgba(120,132,156,.15); font-size:14px; color:var(--text,#222); }
+.rk-yrow:last-child{ border-bottom:none; }
+.rk-yrow .nm{ flex:1; min-width:0; font-weight:bold; overflow-wrap:anywhere; }
+.rk-yrow .yo{ flex:1; min-width:0; color:var(--acc-text,var(--acc)); overflow-wrap:anywhere; }
+.rk-ybar{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; margin:8px 0 6px; padding:8px 10px; border-radius:10px; background:rgba(120,132,156,.1); font-size:13px; color:var(--text,#222); }
+.rk-ybar button{ min-height:34px; padding:0 12px; border-radius:17px; border:none; background:var(--acc); color:#fff; font-size:13.5px; font-weight:bold; cursor:pointer; }
+.rk-yfill{ display:block; margin:0 0 2px auto; font-size:12.5px; padding:2px 0; }
+.rk-tinfo button.yf{ border-color:var(--acc); color:var(--acc-text,var(--acc)); font-weight:bold; }
 #printArea .rk-pr{ font-family:sans-serif; color:#000; }
 #printArea .rk-pr h1{ font-size:17pt; margin:0 0 3mm; } #printArea .rk-pr h2{ font-size:12pt; margin:4mm 0 1.2mm; border-bottom:1px solid #999; }
 #printArea .rk-pr table{ width:100%; border-collapse:collapse; font-size:9.5pt; } #printArea .rk-pr td{ border-bottom:1px solid #ddd; padding:1mm 1.6mm; vertical-align:top; }
@@ -895,7 +910,7 @@ function rkRender(){
     L.innerHTML=list.length ? `<div class="rk-grp">見つかった人<span>${list.length}人</span></div>`+list.map(rkItemHtml).join('')
       : `<div class="rk-empty">「<b>${esc(rkQ)}</b>」は見つかりませんでした。<br>よみ（ひらがな）・番号の一部・会社名・メモの言葉でも さがせます。</div>`;
   } else {
-    L.innerHTML=rkBdayHtml()+rkSectionsHtml(list);
+    L.innerHTML=(rkGrp==='?'?rkYBarHtml():'')+rkBdayHtml()+rkSectionsHtml(list);
   }
   rkObserveThumbs();
 }
@@ -1174,7 +1189,7 @@ function rkEdRender(){
   const bd=/^(\d{4}|-)-(\d\d)-(\d\d)$/.exec(e.bday||'');
   $('rkEdBody').innerHTML=`
     <div class="rk-edtop"><div class="rk-pv" id="rkPv" onclick="RK.edPhoto()" role="button" aria-label="写真">📷<span>写真</span></div>
-      <div class="grow"><div class="rk-2">${f('fam','姓','山田')}${f('giv','名','太郎')}</div><div class="rk-2">${f('famK','せい（よみ）','やまだ')}${f('givK','めい（よみ）','たろう')}</div></div></div>
+      <div class="grow"><div class="rk-2">${f('fam','姓','山田')}${f('giv','名','太郎')}</div><div class="rk-2">${f('famK','せい（よみ）','やまだ')}${f('givK','めい（よみ）','たろう')}</div><button type="button" class="rk-link rk-yfill" onclick="RK.edYomi()">📝 名前から よみを入れる</button></div></div>
     <div class="rk-2">${f('org','会社','')}${f('dept','部署','')}</div>
     <div class="rk-2">${f('title','役職','')}${f('nick','ニックネーム','')}</div>
     <div class="rk-sec">📞 電話</div>${tels}<button type="button" class="rk-addline" onclick="RK.edAdd('tels')">＋ 電話を足す</button>
@@ -1431,7 +1446,7 @@ function rkTRowL(x, draft, n){
 /* 右の行（よみ・色・電話…） */
 function rkTRowC(x, draft){ return `<div ${rkTRowAttr(x,draft)}>${rkT.cols.map(([c,,w])=>rkTCellHtml(x,c,w)).join('')}</div>`; }
 function rkTList(){
-  const list=rkFiltered(), s=rkT.sort;
+  const list=rkT.only ? rk.items.filter(x=>rkT.only.has(x.id)) : rkFiltered(), s=rkT.sort;   // only：よみを入れた人だけ（v548）
   if(!s.c) return rkT.q.trim() ? rkSearch(rkT.q, list) : rkSortedKana(list);
   const base=rkT.q.trim() ? rkSearch(rkT.q, list) : list;
   const key=x=>{
@@ -1560,14 +1575,18 @@ function rkTRenum(){
 }
 function rkTInfo(){
   const I=$('rkTInfo'); if(!I || !rkT) return;
-  const f=[]; if(rkGrp) f.push(rkGrp==='★'?'★ よく使う':rkGrp==='?'?'よみなし':'🏷 '+rkGrp); if(rkCol) f.push(rkCol==='-'?'色なし':'🎨 '+colLabel(rkCol));
-  I.innerHTML=`<span><b>${rkT.rows.length+rkT.nNew}</b>人${f.length?'（'+esc(f.join('・'))+' だけ）':''}</span>${f.length?'<button type="button" onclick="RK.tAllF()">ぜんぶ出す</button>':''}<span class="hint">マスを押すと その場で直せます。Enter で下の人へ。見出しの右の ‖ を動かすと 幅が変わります</span>`;
+  const f=[];
+  if(rkT.only) f.push('よみを入れた人');
+  else { if(rkGrp) f.push(rkGrp==='★'?'★ よく使う':rkGrp==='?'?'よみなし':'🏷 '+rkGrp); if(rkCol) f.push(rkCol==='-'?'色なし':'🎨 '+colLabel(rkCol)); }
+  const ny=rkT.rows.filter(noYomi).length;
+  I.innerHTML=`<span><b>${rkT.rows.length+rkT.nNew}</b>人${f.length?'（'+esc(f.join('・'))+' だけ）':''}</span>${f.length?'<button type="button" onclick="RK.tAllF()">ぜんぶ出す</button>':''}${ny?`<button type="button" class="yf" onclick="RK.yFillT()">📝 よみなし ${ny}人に よみを入れる</button>`:''}<span class="hint">マスを押すと その場で直せます。Enter で下の人へ。見出しの右の ‖ を動かすと 幅が変わります</span>`;
   const u=$('rkTUndo'); if(u) u.disabled=!rkT.undo.length;
 }
-function rkOpenTbl(){
+function rkOpenTbl(only){
   if(!rk.items.length){ toast('入っている人はいません'); return; }
   rkCloseSub(); rkSel=null; rkPaint=null;
-  rkT={q:rkQ, sort:{c:'',d:1}, undo:[], ed:null, draft:null, rows:[], shown:0, nNew:0, cols:[], io:null};
+  only=(only instanceof Set && only.size)?only:null;
+  rkT={q:only?'':rkQ, sort:{c:'',d:1}, undo:[], ed:null, draft:null, rows:[], shown:0, nNew:0, cols:[], io:null, only};
   $('rkTFind').value=rkT.q;
   $('rkTblOverlay').classList.toggle('rk-big', !!rk.big);
   openDlg('rkTblOverlay', rkTEnd);
@@ -1772,6 +1791,146 @@ async function rkTColsPick(){
   rkSave(); rkTRender();
 }
 
+/* ── あ よみ（v548）：ひらがな／カタカナに そろえる・よみのない人に 名前の漢字から よみを入れる ──
+   よみの辞書（renraku-yomi.js・約110KB）は、よみを入れるときに はじめて読む。そろえる・戻すは辞書なしで。 */
+const toHiraY=s=>String(s||'').normalize('NFKC').replace(/[ァ-ヴヽヾ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60)).replace(/ヵ/g,'か').replace(/ヶ/g,'け');
+const toKataY=s=>String(s||'').normalize('NFKC').replace(/[ぁ-ゖゝゞ]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60));
+/* よみの字：hira ひらがな・kata カタカナ・half 半角カナ・mix まざっている・etc 英字など・''（よみなし） */
+function rkYKind(x){
+  const s=(x.famK||'')+(x.givK||''); if(!s.trim()) return '';
+  const h=/[ぁ-ゖゝゞ]/.test(s), k=/[ァ-ヺヽヾ]/.test(s), w=/[ｦ-ﾟ]/.test(s);
+  return h&&(k||w) ? 'mix' : w ? 'half' : k ? 'kata' : h ? 'hira' : 'etc';
+}
+/* そろえたときの よみ（変わらないときは null） */
+function rkYConv(x, to){
+  if(!x.famK && !x.givK) return null;
+  const f=to==='kata'?toKataY:toHiraY, a=line(f(x.famK),LIM.famK), b=line(f(x.givK),LIM.givK);
+  return (a===x.famK && b===x.givK) ? null : [a,b];
+}
+function rkYCounts(){
+  const c={hira:0,kata:0,half:0,mix:0,etc:0,none:0,toHira:0,toKata:0};
+  for(const x of rk.items){ const k=rkYKind(x); if(!k){ if(noYomi(x)) c.none++; continue; } c[k]++; if(rkYConv(x,'hira')) c.toHira++; if(rkYConv(x,'kata')) c.toKata++; }
+  return c;
+}
+/* 新しく入れる よみの字（えらんでいなければ、いま多いほう） */
+function rkYStyle(){
+  if(rk.ykana) return rk.ykana;
+  let h=0, k=0; for(const x of rk.items){ const t=rkYKind(x); if(t==='hira') h++; else if(t==='kata'||t==='half') k++; }
+  return k>h?'kata':'hira';
+}
+const rkYOut=(s,st)=>line((st||rkYStyle())==='kata'?toKataY(s):s, 60);
+let rkYLoading=null;
+function rkYLoad(){
+  if(window.rkYomiGuess) return Promise.resolve(true);
+  if(!rkYLoading) rkYLoading=new Promise(res=>{
+    const sc=document.createElement('script'); sc.src='renraku-yomi.js';
+    sc.onload=()=>{ rkYLoading=null; res(!!window.rkYomiGuess); };
+    sc.onerror=()=>{ rkYLoading=null; sc.remove(); res(false); };
+    document.head.appendChild(sc);
+  });
+  return rkYLoading;
+}
+const rkYGuess=x=>window.rkYomiGuess({fam:x.fam, giv:x.giv, fn:x.fn, org:x.org, nick:x.nick});
+const rkYSnap=x=>({id:x.id, famK:x.famK, givK:x.givK, updated:x.updated, ts:x.ts});
+function rkYPut(x, a, b){ x.famK=a; x.givK=b; x.updated=today(); x.ts=Date.now(); }
+function rkYAfter(){ rkSave(); rkRender(); if(rkT) rkTReRender(); }
+function rkYOpen(){
+  const c=rkYCounts(), st=rkYStyle();
+  const kinds=[['hira','ひらがな'],['kata','カタカナ'],['half','半角カナ'],['mix','まざっている'],['etc','英字など']].filter(([k])=>c[k] || k==='hira' || k==='kata');
+  const al=(to,l,n)=>`<button class="rk-btn" data-ya="${to}" onclick="RK.yAlign('${to}')" ${n?'':'disabled'}>${l}${n?'（'+n+'人を直す）':'（そろっています）'}</button>`;
+  rkScr('あ よみ', `<div class="rk-note" style="margin-top:0">いまの よみの字（${rk.items.length}人）</div>
+    <div class="rk-ycnt" id="rkYCnt">${kinds.map(([k,l])=>`<span data-k="${k}">${l} <b>${c[k]}</b>人</span>`).join('')}<span data-k="none">よみなし <b>${c.none}</b>人</span></div>
+    ${al('hira','あ　ひらがなに そろえる',c.toHira)}${al('kata','ア　カタカナに そろえる',c.toKata)}
+    <div class="rk-note">「やまだ」⇔「ヤマダ」のように 字の形だけを かえます（読みは そのまま）。半角の ｶﾀｶﾅ も ふつうの字に なります。</div>
+    <div class="rk-sec">よみが入っていない人</div>
+    ${c.none?`<button class="rk-btn" id="rkYFillBtn" onclick="RK.yFill()">📝 名前から よみを入れる（${c.none}人）</button>`:'<div class="rk-note">よみが入っていない人は いません。</div>'}
+    <div class="rk-note">名前の漢字から ふつうの読み方を入れます（山田 太郎 → やまだ たろう・佐々木 → ささき・田中工務店 → たなかこうむてん）。めずらしい読みは ちがうことがあるので、入れたあと「📋 表で見なおす」で直してください。1人ずつは「直す」画面の「📝 名前から よみを入れる」でも入れられます。</div>
+    <div class="rk-note">入れる よみの字</div>
+    <div class="rk-tagrow" id="rkYStyle">${[['hira','あ ひらがなで'],['kata','ア カタカナで']].map(([v,l])=>`<button type="button" data-yk="${v}" class="${st===v?'on':''}" onclick="RK.yStyle('${v}')">${l}</button>`).join('')}</div>
+    ${rkYUndo?`<button class="rk-btn sub" id="rkYUndoBtn" onclick="RK.yUndo()">↶ 戻す（さっき ${esc(rkYUndo.what)} ${rkYUndo.list.length}人）</button>`:''}
+    <button class="rk-btn sub" onclick="RK.closeScr()">とじる</button>`);
+}
+function rkYAlign(to){
+  to=to==='kata'?'kata':'hira';
+  const ch=[];
+  for(const x of rk.items){ const v=rkYConv(x,to); if(!v) continue; ch.push(rkYSnap(x)); rkYPut(x, v[0], v[1]); }
+  rk.ykana=to;
+  const l=to==='kata'?'カタカナ':'ひらがな';
+  if(ch.length){ rkYUndo={what:l+'に そろえた', list:ch}; rkYAfter(); toast(ch.length+'人の よみを '+l+'に しました'); }
+  else { rkSave(); toast('よみは もう '+l+'に そろっています'); }
+  rkYOpen();
+}
+/* よみのない人に 名前から よみを入れる（list：この人たちの中で。なければ ぜんぶ） */
+async function rkYFill(list){
+  const todo=(Array.isArray(list)?list:rk.items).filter(noYomi);
+  if(!todo.length){ toast('よみが入っていない人は いません'); return; }
+  if(!await rkYLoad()){ toast('よみの辞書を読み込めませんでした。インターネットにつながるところで、もう一度 押してください', 4500); return; }
+  const st=rkYStyle(), done=[], fail=[], ch=[];
+  for(const x of todo){
+    if(!noYomi(x)) continue;   // 読みこむ間に 入った人（2回押したときなど）
+    const g=rkYGuess(x), a=g?rkYOut(g.famK,st):'', b=g?rkYOut(g.givK,st):'';
+    if(!a && !b){ fail.push(x); continue; }
+    ch.push(rkYSnap(x)); rkYPut(x, a, b); done.push(x);
+  }
+  if(ch.length){ rkYUndo={what:'よみを入れた', list:ch}; rkYLast=done.map(x=>x.id); rkYAfter(); }
+  rkYResult(done, fail);
+}
+function rkYResult(done, fail){
+  const M=200;
+  rkScr('📝 よみを入れました', `<div class="rk-msg"><b>${done.length}</b>人に よみを入れました。${fail.length?'\n入れられなかった人が '+fail.length+'人 います（下）。':''}</div>
+    <div class="rk-note" style="margin-top:0">名前の漢字から ふつうの読み方を入れています。めずらしい読みの人は ちがうことがあるので、見て 直してください。</div>
+    ${done.length?`<button class="rk-btn" onclick="RK.yTbl()">📋 入れた人を 表で見なおす・直す</button>
+    <div class="rk-ylist" id="rkYList">${done.slice(0,M).map(x=>`<div class="rk-yrow"><span class="nm">${esc(rkName(x))}</span><span class="yo">${esc(rkYomi(x))}</span></div>`).join('')}</div>
+    ${done.length>M?`<div class="rk-note">ほか ${done.length-M}人（表で見られます）</div>`:''}`:''}
+    ${fail.length?`<div class="rk-note" id="rkYFail">入れられなかった人（辞書にない字がある・英字だけ など）：${esc(fail.slice(0,30).map(rkName).join('、'))}${fail.length>30?' ほか '+(fail.length-30)+'人':''}</div>`:''}
+    ${done.length?'<button class="rk-btn sub" onclick="RK.yUndo()">↶ 入れる前に 戻す</button>':''}
+    <button class="rk-btn sub" onclick="RK.closeScr()">一覧を見る</button>`);
+}
+/* 入れた人を 表で（よみの列を出して） */
+function rkYTbl(){
+  const ids=(rkYLast||[]).filter(id=>rkFind(id)); if(!ids.length){ toast('見なおす人は いません'); return; }
+  rkCloseScr();
+  if(rk.thide.includes('yomi')){ rk.thide=rk.thide.filter(c=>c!=='yomi'); rkSave(); }
+  if(rkT){ rkTCommit(); rkT.only=new Set(ids); rkT.q=''; $('rkTFind').value=''; rkTRender(); $('rkTWrap').scrollTop=0; $('rkTX').scrollLeft=0; rkTSync(); }
+  else rkOpenTbl(new Set(ids));
+}
+function rkYUndoDo(){
+  const u=rkYUndo; if(!u){ toast('戻すものは ありません'); return; }
+  rkYUndo=null; let n=0;
+  for(const b of u.list){ const x=rkFind(b.id); if(!x) continue; x.famK=b.famK; x.givK=b.givK; x.updated=b.updated; x.ts=b.ts; n++; }
+  if(u.what==='よみを入れた') rkYLast=null;
+  rkYAfter(); toast(n+'人の よみを もとに戻しました');
+  if(isDlgOpen('rkScrOverlay')) rkYOpen();
+}
+function rkYSetStyle(v){
+  rk.ykana=v==='kata'?'kata':'hira'; rkSave();
+  document.querySelectorAll('#rkYStyle [data-yk]').forEach(b=>b.classList.toggle('on', b.dataset.yk===rk.ykana));
+}
+/* 一覧で「よみなし」に絞ったときの上の帯 */
+function rkYBarHtml(){
+  const n=rk.items.filter(noYomi).length;
+  return n ? `<div class="rk-ybar"><span>よみが入っていない人 <b>${n}</b>人</span><button type="button" onclick="RK.yFill()">📝 名前から よみを入れる</button></div>` : '';
+}
+/* 直す画面：空いている よみの欄に 名前から入れる */
+async function rkEdYomi(){
+  rkEdSync(); const e0=rkEd; if(!e0) return;
+  const named=!!(e0.fam.trim() || e0.giv.trim());
+  const need=named ? !!((!e0.famK.trim() && e0.fam.trim()) || (!e0.givK.trim() && e0.giv.trim())) : !(e0.famK.trim() || e0.givK.trim());
+  if(!need){ toast('よみは もう入っています（消してから押すと 入れなおします）', 3000); return; }
+  if(!await rkYLoad()){ toast('よみの辞書を読み込めませんでした。インターネットにつながるところで、もう一度 押してください', 4500); return; }
+  const e=rkEd; if(!e) return;
+  rkEdSync();
+  const g=rkYGuess(e); let n=0;
+  if(g){
+    if(e.fam.trim() || e.giv.trim()){
+      if(!e.famK.trim() && g.famK){ e.famK=rkYOut(g.famK); n++; }
+      if(!e.givK.trim() && g.givK){ e.givK=rkYOut(g.givK); n++; }
+    } else if(!e.famK.trim() && !e.givK.trim()){ e.famK=rkYOut(g.famK); e.givK=rkYOut(g.givK); n++; }
+  }
+  if(!n){ toast((e.fam||e.giv||e.fn||e.org||e.nick) ? '名前から よみを作れませんでした' : '先に 名前を入れてください', 3000); return; }
+  rkEdRe(); toast('名前から よみを入れました。ちがっていたら 直してください', 3000);
+}
+
 /* ── ⚙ 設定 ── */
 function rkOpenMenu(){
   const n=rk.items.length, np=rk.items.filter(x=>x.photo).length;
@@ -1782,6 +1941,7 @@ function rkOpenMenu(){
     <button class="rk-btn" onclick="RK.openExport()">📇 スマホに戻す（vCard で書き出す）</button>
     <button class="rk-btn sub" onclick="RK.table()">📋 表で直す（全員を 表のまま その場で直す）</button>
     <button class="rk-btn sub" onclick="RK.closeSub();RK.paintStart()">🎨 色分け（色をえらんで 人を押す）</button>
+    <button class="rk-btn sub" onclick="RK.yomi()">あ よみ（ひらがな／カタカナに そろえる・名前から よみを入れる）</button>
     <button class="rk-btn sub" onclick="RK.custom()">🧩 自分好みにする（グループ・自分の項目・色の名前・一覧の出し方）</button>
     <div class="rk-sec">📞 連絡帳から 電話をかける</div>
     <div class="rk-tagrow" id="rkCallSet">${[['on','📞 かけられる'],['ask','❓ かける前に聞く'],['off','🚫 かけない']].map(([v,l])=>`<button type="button" data-call="${v}" class="${rk.call===v?'on':''}" onclick="RK.setCall('${v}')">${l}</button>`).join('')}</div>
@@ -1877,7 +2037,7 @@ function rkShowResult(res){
   const dups=rkDupGroups().length, ny=rk.items.filter(noYomi).length;
   rkScr('⬆ 読み込みました', `<div class="rk-msg"><b>${res.add}</b>人 足しました${res.mrg?'・<b>'+res.mrg+'</b>人 いっしょにしました':''}${res.pics?'（写真 '+res.pics+'人）':''}。${res.over?'\n入れられる人数（'+RK_MAX+'人）を超えた '+res.over+'人は入れませんでした。':''}</div>
     ${dups?`<button class="rk-btn sub" onclick="RK.dups()">🔍 同じ人かもしれない組が ${dups}組 あります → 見る</button>`:''}
-    ${ny?`<div class="rk-note">よみが入っていない人が ${ny}人 います（よみ順では最後の「他」に並びます）。上の「よみなし」で絞って直せます。</div>`:''}
+    ${ny?`<div class="rk-note">よみが入っていない人が ${ny}人 います（よみ順では最後の「他」に並びます）。名前の漢字から ふつうの読みを入れられます。</div><button class="rk-btn sub" onclick="RK.yFill()">📝 名前から よみを入れる（${ny}人）</button>`:''}
     <div class="rk-note">直したら「📇 スマホに戻す」で、またスマホに入れられます。</div>
     <button class="rk-btn" onclick="RK.closeScr()">一覧を見る</button>`);
 }
@@ -2128,11 +2288,13 @@ window.RK={ menu:rkOpenMenu, setQ:v=>{ rkQ=String(v||''); rkRender(); }, setView
   tWFit:()=>{ if(!rkT) return; rkTCommit(); ['name'].concat(rkT.cols.map(a=>a[0])).forEach(c=>{ const w=rkTFitW(c), def=c==='name'?138:((tAllCols().find(a=>a[0]===c)||[])[2]||120); if(w>def) rk.tw[c]=Math.min(TW_MAX,w); else delete rk.tw[c]; }); rkSave(); rkTReRender();
     document.querySelectorAll('#rkAskBody [data-nw]').forEach(b=>b.classList.toggle('on', +b.dataset.nw===rkTNameW())); toast('幅を 中身に合わせました'); },
   tWReset:()=>{ if(!rkT) return; rk.tw={}; rkSave(); rkTReRender(); document.querySelectorAll('#rkAskBody [data-nw]').forEach(b=>b.classList.toggle('on', +b.dataset.nw===138)); toast('幅を もとに戻しました'); },
-  tMore:rkTMore, tAllF:()=>{ if(!rkT) return; rkTCommit(); rkGrp=''; rkCol=''; rkTRender(); },
+  tMore:rkTMore, tAllF:()=>{ if(!rkT) return; rkTCommit(); rkGrp=''; rkCol=''; rkT.only=null; rkTRender(); },
   importClick:rkImportClick, importFile:rkImportFile, pick:rkPick, openExport:rkOpenExport, doExport:rkDoExport, csv:rkCsv, print:rkPrint, backup:rkBackup, wipe:rkWipe, help:rkHelp,
   dups:rkOpenDups, dupMerge:rkDupMerge, dupSkip:rkDupSkip, dupAll:rkDupAll,
   custom:()=>{ if(rkEd && isDlgOpen('rkEdOverlay')) rkEdSync(); rkOpenCustom(); }, gAdd:rkGAdd, gPreset:rkGPreset, gRen:rkGRen, gIcon:rkGIcon, gMove:rkGMove, gDel:rkGDel, fAdd:rkFAdd, fPreset:rkFPreset, fRen:rkFRen, fMove:rkFMove, fDel:rkFDel,
-  setSub:rkSetSub, setBig:rkSetBig, setNoteCf:rkSetNoteCf, setCall:rkSetCall, telAsk:(ev,a)=>{ rkTelAsk(ev,a); }, listen:rkListen };
+  setSub:rkSetSub, setBig:rkSetBig, setNoteCf:rkSetNoteCf, setCall:rkSetCall, telAsk:(ev,a)=>{ rkTelAsk(ev,a); }, listen:rkListen,
+  yomi:rkYOpen, yAlign:rkYAlign, yFill:()=>{ rkYFill(); }, yFillT:()=>{ if(!rkT) return; rkTCommit(); rkYFill(rkT.rows); }, yStyle:rkYSetStyle, yUndo:rkYUndoDo, yTbl:rkYTbl, edYomi:()=>{ rkEdYomi(); } };
 Object.assign(window, { openRenraku, closeRenraku, rkMergeStored, rkPicsAll,
-  rkState:()=>rk, rkParseVcf, rkColorFromTest:s=>rkColorFrom(s), rkSaveFlushTest:()=>rkSaveFlush(), rkVcard:(x,o)=>rkVcard(x,o), rkFromCsv, rkVoiceQ, rkCleanItem, rkImportList, rkDupGroupsTest:()=>rkDupGroups(), rkSearchTest:q=>rkSearch(q, rk.items).map(rkName), rkNameOf:rkName });
+  rkState:()=>rk, rkParseVcf, rkColorFromTest:s=>rkColorFrom(s), rkSaveFlushTest:()=>rkSaveFlush(), rkVcard:(x,o)=>rkVcard(x,o), rkFromCsv, rkVoiceQ, rkCleanItem, rkImportList, rkDupGroupsTest:()=>rkDupGroups(), rkSearchTest:q=>rkSearch(q, rk.items).map(rkName), rkNameOf:rkName,
+  rkYKindTest:x=>rkYKind(x), rkToHira:toHiraY, rkToKata:toKataY, rkYLoadTest:()=>rkYLoad() });
 })();

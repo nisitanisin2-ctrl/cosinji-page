@@ -7911,7 +7911,7 @@ async function runRenraku(browser) {
     return [rkNameOf(x), x.famK + x.givK, x.tels.map(t => (t.l || t.t) + (t.p ? '*' : '') + ':' + t.v).join(','), x.mails.map(m => m.t + ':' + m.v).join(','), x.adrs.map(a => a.zip + ' ' + [a.region, a.city, a.street].join('')).join(','), x.nick, JSON.stringify(x.note), x.bday, x.photo, x.raw.join(' ')].join(' | '); }, P('山田', '太郎')),
     '山田 太郎 | やまだたろう | cell*:090-1111-2222,home:03-1234-5678,実家:0284-11-2222 | home:taro@example.jp | 100-0001 東京都千代田区千代田1-1 | たっちゃん | "ゴルフ仲間。\\n毎年お歳暮を送る" | 1960-04-01 | true | X-ANDROID-CUSTOM:vnd.android.cursor.item/relation;Hanako;1;;;;;;;;;;;;;');
   check('  　会社・部署・役職（2人目）', await page.evaluate(p => { const x = eval(p); return [x.org, x.dept, x.title, x.tels.map(t => t.t).join(',')].join('/'); }, P('佐藤', '花子')), '株式会社みどり/営業部/課長/cell,work');
-  check('  　読み終わりの知らせ（足した人数・写真・よみなし）', await scrText(), '2人 足しました（写真 1人）。 よみが入っていない人が 1人 います（よみ順では最後の「他」に並びます）。上の「よみなし」で絞って直せます。 直したら「📇 スマホに戻す」で、またスマホに入れられます。 一覧を見る');
+  check('  　読み終わりの知らせ（足した人数・写真・よみなし）', await scrText(), '2人 足しました（写真 1人）。 よみが入っていない人が 1人 います（よみ順では最後の「他」に並びます）。名前の漢字から ふつうの読みを入れられます。 📝 名前から よみを入れる（1人） 直したら「📇 スマホに戻す」で、またスマホに入れられます。 一覧を見る');
   await page.evaluate(() => RK.closeScr()); await w(300);
   await load('iphone.vcf', IPHONE);
   check('  2つめからは「まとめて足す・入れかえる」を聞く', await ask(), 'vCardから 1人 読みました（写真 1人）。 いま 2人 入っています。どうしますか？ まとめて足す（同じ人は いっしょにする） 入れかえる（いまの 2人は消す） やめる');
@@ -8411,6 +8411,145 @@ async function runRenrakuIro(browser) {
   check('  仕込みのある色の名前・項目・列の名前を 一覧・色分け・表に出しても何も動かない', await p2.evaluate(() => [window.__pwn, document.querySelectorAll('img[onerror]').length, rkState().thide.join(','), rkState().items.map(x => x.color || '-').join(',')].join('/')), '0/0/mail/red,-');
   check('  　エラーなし', e2.join(' | '), '');
   await c2.close();
+}
+
+// ── 📇 連絡帳：あ よみ（v548）。ひらがな／カタカナに そろえる・名前から よみを入れる・戻す・表で見なおす
+async function runRenrakuYomi(browser) {
+  console.log('\n── 📇 連絡帳：あ よみ（そろえる・名前から入れる）（v548） ──');
+  const T = v => [{ t: 'cell', v }];
+  const SEED = { v: 1, thide: ['yomi', 'dept'], items: [
+    { id: 'y1', fam: '山田', giv: '太郎', famK: 'やまだ', givK: 'たろう', tels: T('090-1000-0001'), ts: 1000 },
+    { id: 'y2', fam: '佐藤', giv: '花子', famK: 'サトウ', givK: 'ハナコ', tels: T('090-1000-0002'), ts: 1000 },
+    { id: 'y3', fam: '鈴木', giv: '一郎', famK: 'ｽｽﾞｷ', givK: 'ｲﾁﾛｳ', tels: T('090-1000-0003'), ts: 1000 },
+    { id: 'y4', fam: '高橋', giv: '健二', famK: 'たかはし', givK: 'ケンジ', tels: T('090-1000-0004'), ts: 1000 },
+    { id: 'y5', fam: '渡邉', giv: '健一', tels: T('090-1000-0005'), ts: 1000 },
+    { id: 'y6', fam: '佐々木', giv: '恵', tels: T('090-1000-0006'), ts: 1000 },
+    { id: 'y7', fn: '関西電気保安協会 北山', tels: T('079-200-0007'), ts: 1000 },
+    { id: 'y8', fn: '株式会社みどり', tels: T('0284-00-0008'), ts: 1000 },
+    { id: 'y9', fn: 'John Smith', tels: T('090-1000-0009'), ts: 1000 },
+    { id: 'y10', fn: 'お母さん', tels: T('090-1000-0010'), ts: 1000 },
+    { id: 'y11', fam: '田中', giv: '一郎', famK: 'たなか', tels: T('090-1000-0011'), ts: 1000 },
+    { id: 'y12', fam: '𩸽', giv: '太郎', tels: T('090-1000-0012'), ts: 1000 },
+  ] };
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: 'block' });
+  await ctx.addInitScript(() => { try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tbfold', '0'); } catch (e) {} });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/favicon|ServiceWorker/.test(m.text())) errs.push('console: ' + m.text()); });
+  page.on('dialog', d => d.accept());
+  const w = ms => page.waitForTimeout(ms);
+  const Y = (...ids) => page.evaluate(ids => ids.map(id => { const x = rkState().items.find(i => i.id === id); return x ? (x.famK + ' ' + x.givK).trim() || '（なし）' : '?'; }).join(' | '), ids);
+  const txt = sel => page.evaluate(s => { const e = document.querySelector(s); return e ? e.textContent.replace(/\s+/g, ' ').trim() : '（ない）'; }, sel);
+  const btns = sel => page.evaluate(s => [...document.querySelectorAll(s)].map(b => b.textContent.replace(/\s+/g, ' ').trim() + (b.disabled ? '[×]' : '')).join(' / '), sel);
+  const cnt = () => page.evaluate(() => [...document.querySelectorAll('#rkYCnt span')].map(e => e.textContent.trim()).join(' '));
+  await page.goto('file://' + path.join(ROOT, 'index.html')); await w(1200);
+  await page.evaluate(s => { localStorage.setItem('excalc_renraku', s); window.appPrompt = async () => null; window.appConfirm = async () => true; openRenraku(); }, JSON.stringify(SEED)); await w(900);
+
+  // ── 辞書（renraku-yomi.js）は 使うときだけ読む
+  { const src = fs.readFileSync(path.join(ROOT, 'renraku-yomi.js'), 'utf8'), sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
+    check('  よみの辞書：出どころと権利（KANJIDIC2・CC BY-SA 4.0）・オフラインでも使える（service-worker の ASSETS）', [/KANJIDIC2/.test(src) && /CC BY-SA 4\.0/.test(src) && /EDRDG/.test(src), /'\.\/renraku-yomi\.js'/.test(sw)].join('/'), 'true/true'); }
+  check('  よみの辞書は はじめは読まない（使うときに renraku-yomi.js を読む）', await page.evaluate(() => typeof window.rkYomiGuess + '/' + !!document.querySelector('script[src="renraku-yomi.js"]')), 'undefined/false');
+  await page.evaluate(() => rkYLoadTest()); await w(300);
+  check('  　読むと 使える', await page.evaluate(() => typeof window.rkYomiGuess + '/' + typeof window.rkYomiOf), 'function/function');
+  const G = list => page.evaluate(list => list.map(x => { const g = rkYomiGuess(x); return g ? (g.famK + (g.givK ? ' ' + g.givK : '')) : 'null'; }).join(' | '), list);
+  check('  名字・名前：山田 太郎・佐々木・藤本 悦史・小林 千恵子・清水 恵・大谷 翔平・菅原 圭佑・中村 浩明', await G([{ fam: '山田', giv: '太郎' }, { fam: '佐々木' }, { fam: '藤本', giv: '悦史' }, { fam: '小林', giv: '千恵子' }, { fam: '清水', giv: '恵' }, { fam: '大谷', giv: '翔平' }, { fam: '菅原', giv: '圭佑' }, { fam: '中村', giv: '浩明' }]),
+    'やまだ たろう | ささき | ふじもと えつし | こばやし ちえこ | しみず めぐみ | おおたに しょうへい | すがわら けいすけ | なかむら ひろあき');
+  check('  　旧字も：渡邉・髙橋・齋藤・山﨑・𠮷田', await G([{ fam: '渡邉' }, { fam: '髙橋' }, { fam: '齋藤' }, { fam: '山﨑' }, { fam: '𠮷田' }]), 'わたなべ | たかはし | さいとう | やまざき | よしだ');
+  check('  　辞書にない名前は 名前でよく使う読みで（浩明・俊彦・真澄・民子）', await G([{ fam: '中野', giv: '浩之' }, { fam: '工藤', giv: '俊彦' }, { fam: '松岡', giv: '真澄' }, { fam: '馬場', giv: '民子' }]), 'なかの ひろゆき | くどう としひこ | まつおか ますみ | ばば たみこ');
+  check('  表示名だけの人：関西電気保安協会 北山・株式会社みどり・松本組 井上・山田太郎（空白なし）', await G([{ fn: '関西電気保安協会 北山' }, { fn: '株式会社みどり' }, { fn: '松本組 井上' }, { fn: '山田太郎' }]),
+    'かんさいでんきほあんきょうかい きたやま | みどり | まつもとぐみ いのうえ | やまだ たろう');
+  check('  　かな・呼び名・お店：まことハウス・トモキ・お母さん・(株)山田商店・田中工務店・霞ヶ関・山田（会社）', await G([{ fn: 'まことハウス' }, { fn: 'トモキ' }, { fn: 'お母さん' }, { fn: '(株)山田商店' }, { fn: '田中工務店' }, { fn: '霞ヶ関' }, { fn: '山田（会社）' }]),
+    'まことはうす | ともき | おかあさん | やまだしょうてん | たなかこうむてん | かすみがせき | やまだ');
+  check('  　会社の欄だけ（伊藤商店）・会社の言葉は音読み（東京電力）', await G([{ org: '伊藤商店' }]) + ' / ' + await page.evaluate(() => rkYomiOf('東京電力', 'org')), 'いとうしょうてん / とうきょうでんりょく');
+  check('  　作れないとき：英字の名前・辞書にない字（𩸽）は null', await G([{ fam: 'John', giv: 'Smith' }, { fam: '𩸽', giv: '太郎' }, { fn: '' }]), 'null | null | null');
+
+  // ── ⚙ → あ よみ：いまの字の数・そろえる
+  await page.evaluate(() => RK.menu()); await w(300);
+  check('  ⚙ 設定に「あ よみ（そろえる・名前から入れる）」', await page.evaluate(() => [...document.querySelectorAll('#rkSubBody .rk-btn')].some(b => b.textContent.trim() === 'あ よみ（ひらがな／カタカナに そろえる・名前から よみを入れる）')), 'true');
+  await page.evaluate(() => RK.yomi()); await w(400);
+  check('  あ よみ：いまの字（ひらがな・カタカナ・半角カナ・まざり・よみなし）', (await txt('#rkScrHdr')) + ' / ' + await cnt(), 'あ よみ / ひらがな 2人 カタカナ 1人 半角カナ 1人 まざっている 1人 よみなし 6人');
+  check('  　そろえるボタン：直す人数・入れるボタン・入れる字（多いほう＝ひらがな）', (await btns('#rkScrBody [data-ya]')) + ' / ' + (await txt('#rkYFillBtn')) + ' / ' + await page.evaluate(() => document.querySelector('#rkYStyle .on').dataset.yk),
+    'あ ひらがなに そろえる（3人を直す） / ア カタカナに そろえる（4人を直す） / 📝 名前から よみを入れる（6人） / hira');
+  await page.evaluate(() => RK.yAlign('kata')); await w(400);
+  check('  カタカナに そろえる：ひらがな・半角・まざりが カタカナに（もともとカタカナの人は そのまま）', await Y('y1', 'y2', 'y3', 'y4', 'y11'), 'ヤマダ タロウ | サトウ ハナコ | スズキ イチロウ | タカハシ ケンジ | タナカ');
+  check('  　直した人は「直した」に（スマホに戻すときの「直した人」）・入れる字も カタカナに', await page.evaluate(() => rkState().items.filter(x => x.ts > 1000).map(x => x.id).join(',') + ' / ' + rkState().ykana + ' / ' + document.querySelector('#rkYStyle .on').dataset.yk), 'y1,y3,y4,y11 / kata / kata');
+  check('  　ボタン：そろっています・↶ 戻す（さっき カタカナに そろえた 4人）', (await btns('#rkScrBody [data-ya]')) + ' / ' + await txt('#rkYUndoBtn'), 'あ ひらがなに そろえる（5人を直す） / ア カタカナに そろえる（そろっています）[×] / ↶ 戻す（さっき カタカナに そろえた 4人）');
+  await page.evaluate(() => RK.yUndo()); await w(400);
+  check('  ↶ 戻す：もとの字に（直したしるしも もとに）', (await Y('y1', 'y2', 'y3', 'y4', 'y11')) + ' / ' + await page.evaluate(() => rkState().items.filter(x => x.ts > 1000).length), 'やまだ たろう | サトウ ハナコ | ｽｽﾞｷ ｲﾁﾛｳ | たかはし ケンジ | たなか / 0');
+  await page.evaluate(() => RK.yAlign('hira')); await w(400);
+  check('  ひらがなに そろえる：カタカナ・半角カナ（ｽｽﾞｷ → すずき）・まざり が ひらがなに', await Y('y1', 'y2', 'y3', 'y4'), 'やまだ たろう | さとう はなこ | すずき いちろう | たかはし けんじ');
+  check('  　一覧の よみ順も そのまま・端末に保存', await page.evaluate(() => { const o = JSON.parse(localStorage.getItem('excalc_renraku')); return o.ykana + ' / ' + o.items.find(x => x.id === 'y3').famK; }), 'hira / すずき');
+
+  // ── 名前から よみを入れる
+  await page.evaluate(() => RK.yFill()); await w(700);
+  check('  📝 名前から よみを入れる：入れた人数・入れられなかった人', (await txt('#rkScrHdr')) + ' / ' + (await txt('#rkScrBody .rk-msg')) + ' / ' + await txt('#rkYFail'),
+    '📝 よみを入れました / 5人に よみを入れました。 入れられなかった人が 1人 います（下）。 / 入れられなかった人（辞書にない字がある・英字だけ など）：𩸽 太郎');
+  check('  　入れた よみ（名字と名前に分ける。会社＋人は 会社の読み＋人の読み）', await Y('y5', 'y6', 'y7', 'y8', 'y10', 'y12', 'y9'), 'わたなべ けんいち | ささき めぐみ | かんさいでんきほあんきょうかい きたやま | みどり | おかあさん | （なし） | （なし）');
+  check('  　名字・名前の欄に分けて入る（vCard のよみの欄に そのまま）', await page.evaluate(() => { const x = rkState().items.find(i => i.id === 'y7'); return x.famK + '|' + x.givK + ' / ' + /X-PHONETIC-LAST-NAME:かんさいでんきほあんきょうかい/.test(rkVcard(x, {})); }), 'かんさいでんきほあんきょうかい|きたやま / true');
+  check('  　入れた人の一覧（名前と よみ）', await page.evaluate(() => [...document.querySelectorAll('#rkYList .rk-yrow')].map(r => r.querySelector('.nm').textContent + '=' + r.querySelector('.yo').textContent).slice(0, 3).join(' / ')), '渡邉 健一=わたなべ けんいち / 佐々木 恵=ささき めぐみ / 関西電気保安協会 北山=かんさいでんきほあんきょうかい きたやま');
+  check('  　一覧では よみ順に並ぶ（「他」から あかさたな へ）', await page.evaluate(() => [...document.querySelectorAll('#rkList .rk-it')].filter(e => /渡邉|佐々木|お母さん/.test(e.textContent)).map(e => e.closest('.rk-list') && [...document.querySelectorAll('#rkList .rk-grp')].filter(g => g.compareDocumentPosition(e) & 4).pop().textContent.trim().charAt(0)).join(',')), 'あ,さ,わ');
+  await page.evaluate(() => RK.yTbl()); await w(700);
+  check('  📋 入れた人を 表で見なおす：その人たちだけ・よみの列を出す', (await page.evaluate(() => isDlgOpen('rkTblOverlay') + '/' + isDlgOpen('rkScrOverlay'))) + ' / ' + (await txt('#rkTInfo')).split('マス')[0].trim() + ' / ' + await page.evaluate(() => rkState().thide.join(',') + ' / ' + document.querySelectorAll('#rkTBody .rk-tr[data-id]').length + ' / ' + [...document.querySelectorAll('#rkTBody .rk-tr[data-id] [data-c="yomi"]')].map(e => e.textContent).join(',')),
+    'true/false / 5人（よみを入れた人 だけ）ぜんぶ出す / dept / 5 / おかあさん,かんさいでんきほあんきょうかい きたやま,ささき めぐみ,みどり,わたなべ けんいち');
+  await page.evaluate(() => { [...document.querySelectorAll('#rkTBody .rk-tr[data-id]')].find(r => r.dataset.id === 'y6').querySelector('[data-c="yomi"]').click(); }); await w(200);
+  await page.keyboard.press('Control+A'); await page.keyboard.type('ささき けい'); await page.keyboard.press('Enter'); await w(300);
+  check('  　表で直せる（佐々木 恵 → ささき けい）', await Y('y6'), 'ささき けい');
+  await page.evaluate(() => RK.tAllF()); await w(300);
+  check('  　ぜんぶ出す：みんな出る・まだ よみのない人がいれば「📝 よみなし ○人に よみを入れる」', (await txt('#rkTInfo')).split('マス')[0].trim() + ' / ' + await page.evaluate(() => document.querySelectorAll('#rkTBody .rk-tr[data-id]').length), '12人📝 よみなし 1人に よみを入れる / 12');
+  await page.evaluate(() => RK.yFillT()); await w(500);
+  check('  　表から押す：入れられないときは そう出る（表の上に）', (await txt('#rkScrBody .rk-msg')) + ' / ' + await page.evaluate(() => isDlgOpen('rkTblOverlay') + '/' + !!document.querySelector('#rkScrBody [onclick="RK.yTbl()"]')), '0人に よみを入れました。 入れられなかった人が 1人 います（下）。 / true/false');
+  await page.evaluate(() => { RK.closeScr(); RK.closeTbl(); }); await w(300);
+  await page.evaluate(() => RK.yomi()); await w(300);
+  check('  あ よみ：↶ 戻す（さっき よみを入れた 5人）', await txt('#rkYUndoBtn'), '↶ 戻す（さっき よみを入れた 5人）');
+  await page.evaluate(() => RK.yUndo()); await w(400);
+  check('  　戻す：入れる前に（表で直した人も 入れる前に）', (await Y('y5', 'y6', 'y7', 'y8', 'y10')) + ' / ' + await cnt(), '（なし） | （なし） | （なし） | （なし） | （なし） / ひらがな 5人 カタカナ 0人 よみなし 6人');
+  await page.evaluate(() => RK.yStyle('kata')); await w(100);
+  await page.evaluate(() => RK.yFill()); await w(500);
+  check('  入れる字を カタカナにすると カタカナで入る', await Y('y5', 'y8', 'y10'), 'ワタナベ ケンイチ | ミドリ | オカアサン');
+  await page.evaluate(() => { RK.yUndo(); RK.yStyle('hira'); RK.closeScr(); }); await w(400);
+
+  // ── 一覧の「よみなし」・直す画面・読み込んだあと
+  await page.evaluate(() => RK.setGrp('?')); await w(300);
+  check('  一覧で「よみなし」に絞ると 上に「📝 名前から よみを入れる」', await txt('#rkList .rk-ybar'), 'よみが入っていない人 6人📝 名前から よみを入れる');
+  await page.click('#rkList .rk-ybar button'); await w(600);
+  check('  　押すと 入る（入れられない人だけ残る）', (await txt('#rkScrBody .rk-msg')).split('。')[0] + ' / ' + await page.evaluate(() => { RK.closeScr(); return [...document.querySelectorAll('#rkList .rk-it .nm')].map(e => e.firstChild.textContent).join(',') + ' / ' + (document.querySelector('#rkList .rk-ybar') || {}).textContent; }), '5人に よみを入れました / 𩸽 太郎 / よみが入っていない人 1人📝 名前から よみを入れる');
+  await page.evaluate(() => { RK.setGrp('?'); RK.edit('y11'); }); await w(400);
+  check('  直す画面：よみの下に「📝 名前から よみを入れる」', await txt('#rkEdBody .rk-yfill'), '📝 名前から よみを入れる');
+  await page.click('#rkEdBody .rk-yfill'); await w(300);
+  check('  　空いている欄だけに入れる（田中＝たなか はそのまま・一郎 → いちろう）', await page.evaluate(() => document.getElementById('rkE_famK').value + '|' + document.getElementById('rkE_givK').value), 'たなか|いちろう');
+  await page.evaluate(() => RK.edSave()); await w(300);
+  check('  　保存すると 入る', await Y('y11'), 'たなか いちろう');
+  await page.evaluate(() => RK.edit('y1')); await w(300);
+  await page.click('#rkEdBody .rk-yfill'); await w(300);
+  check('  　よみが もう入っているときは 変えない', await page.evaluate(() => document.getElementById('rkE_famK').value + '|' + document.getElementById('rkE_givK').value + '|' + (document.getElementById('appToast') || {}).textContent), 'やまだ|たろう|よみは もう入っています（消してから押すと 入れなおします）');
+  await page.evaluate(() => { RK.closeEd(); RK.edit(null); }); await w(300);
+  await page.fill('#rkE_fam', '中村'); await page.fill('#rkE_giv', '浩明'); await page.click('#rkEdBody .rk-yfill'); await w(300);
+  check('  　新しく入れる人も：中村 浩明 → なかむら ひろあき', await page.evaluate(() => document.getElementById('rkE_famK').value + '|' + document.getElementById('rkE_givK').value), 'なかむら|ひろあき');
+  await page.evaluate(() => RK.closeEd()); await w(300);
+  await page.setInputFiles('#rkFileIn', { name: 'more.vcf', mimeType: 'text/vcard', buffer: Buffer.from(['BEGIN:VCARD', 'VERSION:3.0', 'N:石井;学;;;', 'FN:石井 学', 'TEL;TYPE=CELL:090-2000-0001', 'END:VCARD', 'BEGIN:VCARD', 'VERSION:3.0', 'FN:株式会社 丸山工務店', 'TEL;TYPE=WORK:0284-20-0002', 'END:VCARD'].join('\r\n'), 'utf8') }); await w(700);
+  await page.evaluate(() => { const b = [...document.querySelectorAll('#rkAskBody [data-r]')].find(x => /まとめて足す/.test(x.textContent)); if (b) b.click(); }); await w(700);
+  check('  読み込んだあと：よみのない人がいれば「📝 名前から よみを入れる（○人）」', await btns('#rkScrBody .rk-btn.sub'), '📝 名前から よみを入れる（3人）');
+  await page.click('#rkScrBody .rk-btn.sub'); await w(500);
+  check('  　押すと入る（石井 学 → いしい まなぶ・丸山工務店 → まるやまこうむてん）', await page.evaluate(() => rkState().items.filter(x => /石井|丸山/.test(rkNameOf(x))).map(x => rkNameOf(x) + '=' + (x.famK + ' ' + x.givK).trim()).join(' | ')), '石井 学=いしい まなぶ | 株式会社 丸山工務店=まるやまこうむてん');
+  await page.evaluate(() => RK.closeScr()); await w(200);
+
+  // ── 夜の色・せまい画面・仕込み
+  await page.evaluate(() => { toggleDark(); RK.yomi(); }); await w(400);
+  check('  夜の色：あ よみの画面の字が読める（字と地の明るさの差 4.5 以上）', await page.evaluate(() => {
+    const lum = c => { const m = c.match(/[\d.]+/g).slice(0, 3).map(Number), k = /^color\(srgb/.test(c) ? 1 : 255; return m.map(v => v / k).map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0); };
+    const bgOf = el => { for (let e = el; e; e = e.parentElement) { const c = getComputedStyle(e).backgroundColor; if (!/rgba\(.*, 0\)$|transparent/.test(c)) return c; } return 'rgb(255,255,255)'; };
+    const cr = el => { const a = lum(getComputedStyle(el).color), b = lum(bgOf(el)); return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); };
+    const els = [['字の数', document.querySelector('#rkYCnt span')], ['入れる字', document.querySelector('#rkYStyle button:not(.on)')]];
+    return document.body.classList.contains('dark') + ':' + els.filter(([, e]) => cr(e) < 4.5).map(([n, e]) => n + cr(e).toFixed(1)).join(','); }), 'true:');
+  await page.evaluate(() => { RK.closeScr(); toggleDark(); }); await w(300);
+  await page.setViewportSize({ width: 320, height: 640 }); await w(300);
+  await page.evaluate(() => { RK.yomi(); }); await w(300);
+  check('  せまい画面（320）：あ よみの画面が 横にはみ出さない', await page.evaluate(() => { const b = document.getElementById('rkScrBody'); return b.scrollWidth <= b.clientWidth + 1; }), 'true');
+  await page.evaluate(() => RK.closeScr()); await w(200);
+  await page.evaluate(() => { window.__pwn = 0; const r = rkState(); r.items.push(rkCleanItem({ id: 'z1', fn: '<img src=x onerror=window.__pwn=1> 山本', tels: [{ t: 'cell', v: '090-3000-0001' }] }), rkCleanItem({ id: 'z2', fam: '"><img src=x onerror=window.__pwn=2>', famK: '<img src=x onerror=window.__pwn=3>', tels: [{ t: 'cell', v: '090-3000-0002' }] })); RK.yomi(); RK.yFill(); }); await w(600);
+  check('  仕込みのある名前・よみを あ よみの画面・入れた人の一覧に出しても 何も動かない', await page.evaluate(() => [window.__pwn, document.querySelectorAll('img[onerror]').length, rkState().items.find(x => x.id === 'z1').famK].join('/')), '0/0/やまもと');
+  await page.evaluate(() => RK.closeScr()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
 }
 
 /* 🌗 端末のダークテーマ・節電モードでも文字が消えない（v541）。
@@ -12873,6 +13012,7 @@ async function runQrShare(browser) {
     if (!only || only === 'scheme') await runSchemeFix(browser);
     if (!only || only === 'renraku') await runRenraku(browser);
     if (!only || only === 'rkiro') await runRenrakuIro(browser);
+    if (!only || only === 'rkyomi') await runRenrakuYomi(browser);
     if (!only || only === 'firsthint') await runFirstHint(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
