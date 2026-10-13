@@ -253,7 +253,7 @@ const KG_CSS=`
 .kg-tb{ position:absolute; left:50%; top:5px; width:44px; height:30px; margin-left:-22px; border-radius:15px; background:radial-gradient(circle at 35% 35%,#fff,#aed581 45%,#7cb342); }
 .kg-stage.ok .kg-bub,.kg-stage.ok .kg-tb{ background:radial-gradient(circle at 35% 35%,#fff,#4fc3f7 45%,#0288d1); }
 .kg-big{ text-align:center; font-size:64px; font-weight:bold; line-height:1.1; font-variant-numeric:tabular-nums; } .kg-big small{ font-size:34px; }
-.kg-sub{ text-align:center; font-size:15px; font-weight:bold; color:#00695c; min-height:1.4em; } .kg-what{ text-align:center; font-size:12.5px; color:var(--text-light,#888); }
+.kg-sub{ text-align:center; font-size:15px; font-weight:bold; color:#00695c; min-height:1.4em; } body.dark .kg-sub{ color:#4db6ac; } .kg-what{ text-align:center; font-size:12.5px; color:var(--text-light,#888); }
 .kg-acts{ display:flex; flex-wrap:wrap; gap:6px; margin:10px 0; align-items:center; } .kg-acts .kg-b{ flex:1 1 auto; }
 .kg-b{ height:42px; padding:0 12px; border-radius:10px; border:1px solid rgba(120,132,156,.45); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:14px; font-weight:bold; cursor:pointer; } .kg-b.pri{ background:#00897b; border-color:#00897b; color:#fff; } .kg-b.on{ background:#e65100; border-color:#e65100; color:#fff; } .kg-b:disabled{ opacity:.4; }
 .kg-note a{ color:#00695c; font-weight:bold; text-decoration:underline; cursor:pointer; }

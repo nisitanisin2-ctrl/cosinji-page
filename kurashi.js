@@ -704,6 +704,7 @@ const KR_CSS=`
 .kr-card b{ font-size:15.5px; line-height:1.3; }
 .kr-card small{ font-size:11.5px; line-height:1.45; color:var(--text-light,#777); }
 .kr-card .n{ margin-top:auto; font-size:11.5px; font-weight:bold; color:var(--c); }
+body.dark .kr-card .no, body.dark .kr-card .n{ color:color-mix(in srgb, var(--c) 45%, #fff); }   /* 夜の色：テーマの色のままだと紺の地に沈むので明るく（v541） */
 .kr-grp{ font-size:14px; font-weight:bold; color:var(--acc); margin:14px 2px 6px; }
 .kr-it{ display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:12px; margin-bottom:6px; border:1px solid rgba(120,132,156,.3); border-radius:12px; background:var(--modal-bg,#fff); color:var(--text,#222); font-size:15px; font-weight:bold; cursor:pointer; border-left:5px solid var(--c,var(--acc)); }
 .kr-it span{ flex:1; } .kr-it small{ display:block; font-weight:normal; font-size:12px; color:var(--text-light,#888); margin-top:2px; }

@@ -329,6 +329,7 @@ const KS_CSS=`
 .ks-grid8{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
 .ks-card{ position:relative; text-align:left; padding:12px; border-radius:14px; border:1px solid rgba(120,132,156,.3); border-top:5px solid var(--c); background:var(--modal-bg,#fff); color:var(--text,#222); cursor:pointer; min-height:118px; display:flex; flex-direction:column; gap:4px; }
 .ks-card .no{ position:absolute; top:8px; right:10px; font-size:12px; font-weight:bold; color:var(--c); }
+body.dark .ks-card .no{ color:color-mix(in srgb, var(--c) 45%, #fff); }   /* 夜の色：紺の地に沈まないよう明るく（v541） */
 .ks-card .ic{ font-size:30px; line-height:1.1; } .ks-card b{ font-size:15.5px; } .ks-card small{ font-size:11.5px; line-height:1.45; color:var(--text-light,#777); }
 .ks-card.last{ box-shadow:0 0 0 2px var(--c); }
 /* 中を読む窓は全画面で（v510） */
