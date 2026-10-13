@@ -13,7 +13,10 @@
    ・入れたものは端末の中だけ（excalc_renraku。写真は IndexedDB excalc_renraku）。📋リストのバックアップにも入る。
    ・🎨 色分け（v544）：12色から色をえらんで人を押すと、その色になる（一覧の左の帯・うすい地の色）。色で絞る・色ごとに並べる。
      色には名前を付けられる（赤＝要連絡 など）。スマホに戻すときは X-HYO-COLOR と メモ欄の「［色分け］赤」で持っていく。
-   ・📋 表で直す（v544）：全員を表にして、マスを押すと その場で直せる（Enter で下の人・Tab で右へ）。出す列をえらぶ・列で並べかえ・↶ 戻す。 */
+   ・📋 表で直す（v544）：全員を表にして、マスを押すと その場で直せる（Enter で下の人・Tab で右へ）。出す列をえらぶ・列で並べかえ・↶ 戻す。
+     （v545）名前の列と見出しは 表の本体とは別に置く（position:sticky を使わない。Android の Chrome で消えたり重なったりしたため）。
+     （v546）入りきらない字は 枠に合わせて小さく・2行に。見出しの右の端 ‖ で列の幅を変える（2回押すと中身に合わせる）。一覧の名前も2行まで。
+   ・📞 電話（v547）：⚙ 設定で かけられる・かける前に聞く・かけない（番号は文字だけ）を選べる（rk.call）。 */
 (function(){
 const RK_KEY='excalc_renraku', RK_MAX=5000;
 let rk=null, rkQ='', rkGrp='', rkCol='', rkSel=null, rkPaint=null, rkT=null, rkViewId=null, rkEd=null, rkScrClean=null, rkDupCache=[], rkRec=null, rkIO=null;
@@ -128,18 +131,21 @@ function rkCleanItem(x){
 const rkHasAny=x=>!!(x.fam||x.giv||x.fn||x.org||x.nick||x.tels.length||x.mails.length);
 /* 表で直す の列（名前のほか） */
 const TCOL_RE=/^(yomi|color|fav|cell|tel|mail|org|dept|title|nick|zip|adr|bday|groups|note|cf:f[0-9a-z]{1,10})$/;
-function rkDefaults(){ return { v:1, view:'kana', groups:[], fields:[], sub:'tel', big:false, noteCf:true, lastExp:0, notDup:[], colors:{}, pc:'red', thide:['dept','title','nick','zip'], items:[] }; }
+const TW_MIN=60, TW_MAX=480;   // 表の列の幅（押して動かしたもの）
+function rkDefaults(){ return { v:1, view:'kana', groups:[], fields:[], sub:'tel', big:false, noteCf:true, call:'on', lastExp:0, notDup:[], colors:{}, pc:'red', thide:['dept','title','nick','zip'], tw:{}, items:[] }; }
 function rkClean(o){
   const d=rkDefaults(); if(!o || typeof o!=='object') return d;
   d.view=['kana','group','org','color','new'].includes(o.view)?o.view:'kana';
   if(o.colors && typeof o.colors==='object') PAL_KEYS.forEach(k=>{ const l=line(o.colors[k],12); if(l) d.colors[k]=l; });
   d.pc=PAL_KEYS.includes(o.pc)?o.pc:'red';
   if(Array.isArray(o.thide)) d.thide=[...new Set(o.thide.filter(k=>typeof k==='string' && TCOL_RE.test(k)))].slice(0,60);
+  if(o.tw && typeof o.tw==='object') for(const k of Object.keys(o.tw).slice(0,60)) if(k==='name' || TCOL_RE.test(k)){ const v=Math.round(+o.tw[k]); if(v>=TW_MIN && v<=TW_MAX) d.tw[k]=v; }
   d.groups=arr(o.groups).map(g=>({n:line(g&&g.n,20), ic:line(g&&g.ic,8)})).filter(g=>g.n).filter((g,i,a)=>a.findIndex(h=>h.n===g.n)===i).slice(0,60);
   d.fields=arr(o.fields).map(f=>({id:/^f[0-9a-z]{1,10}$/.test(f&&f.id)?f.id:'', n:line(f&&f.n,20), ty:(f&&f.ty==='pick')?'pick':'text',
     op:arr(f&&f.op).map(x=>line(x,20)).filter(Boolean).slice(0,12)})).filter(f=>f.id&&f.n).filter((f,i,a)=>a.findIndex(h=>h.id===f.id)===i).slice(0,30);
   d.sub=(typeof o.sub==='string' && /^(tel|org|group|note|none|cf:f[0-9a-z]{1,10})$/.test(o.sub))?o.sub:'tel';
   d.big=!!o.big; d.noteCf=o.noteCf!==false; d.lastExp=Math.max(0,+o.lastExp||0);
+  d.call=['on','ask','off'].includes(o.call)?o.call:'on';   // 📞 電話をかける：かけられる・かける前に聞く・かけない（v547）
   d.notDup=arr(o.notDup).filter(p=>typeof p==='string' && /^[A-Za-z0-9_-]{1,80}\|[A-Za-z0-9_-]{1,80}$/.test(p)).slice(0,3000);
   d.items=arr(o.items).filter(x=>x && typeof x==='object').slice(0,RK_MAX).map(rkCleanItem).filter(rkHasAny);
   const seen=new Set(); d.items.forEach(x=>{ while(seen.has(x.id)) x.id=uid(); seen.add(x.id); });
@@ -601,7 +607,7 @@ const RK_CSS=`
 .rk-it .av,.rk-who .av{ flex:none; border-radius:50%; background-size:cover; background-position:center; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff; }
 .rk-it .av{ width:40px; height:40px; font-size:17px; }
 .rk-it .tx{ flex:1; min-width:0; }
-.rk-it .nm{ font-weight:bold; font-size:16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rk-it .nm{ font-weight:bold; font-size:16px; line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; word-break:keep-all; overflow-wrap:anywhere; }   /* 長い名前は2行まで（v546） */
 .rk-it .nm small{ font-weight:normal; font-size:11px; color:var(--text-light,#888); margin-left:6px; }
 .rk-it .sb{ font-size:13px; color:var(--text-sub,#555); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .rk-it .gi{ flex:none; font-size:14px; }
@@ -726,28 +732,47 @@ body.dark .rk-dot{ box-shadow:0 0 0 1px rgba(255,255,255,.35); }
 .rk-tinfo{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:13px; margin-top:7px; color:var(--text,#222); }
 .rk-tinfo .hint{ color:var(--text-light,#888); font-size:12px; }
 .rk-tinfo button{ height:28px; padding:0 10px; border-radius:14px; border:1px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#333); font-size:12px; cursor:pointer; }
-.rk-twrap{ flex:1; min-height:0; overflow:auto; position:relative; overscroll-behavior:contain; }
-.rk-tbl{ border-collapse:separate; border-spacing:0; table-layout:fixed; font-size:14px; color:var(--text,#222); }
-.rk-tbl th,.rk-tbl td{ height:42px; padding:0 8px; box-sizing:border-box; border-right:1px solid rgba(120,132,156,.22); border-bottom:1px solid rgba(120,132,156,.22);
-  background:var(--modal-bg,#fff); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; cursor:pointer; scroll-margin:40px 4px 4px 176px; }
-.rk-tbl thead th{ position:sticky; top:0; z-index:2; height:38px; font-size:12px; color:var(--text-sub,#555); background:var(--modal-bg,#fff); background:color-mix(in srgb, var(--modal-bg,#fff) 86%, #78849c); user-select:none; -webkit-user-select:none; }
-.rk-tbl .c-no{ position:sticky; left:0; z-index:1; text-align:center; padding:0; color:var(--text-light,#888); font-size:11px; }
-.rk-tbl .c-name{ position:sticky; left:38px; z-index:1; font-weight:bold; border-right:2px solid rgba(120,132,156,.4); }
-.rk-tbl thead .c-no,.rk-tbl thead .c-name{ z-index:3; }
-.rk-tbl .c-no,.rk-tbl .c-name{ scroll-margin-left:0; }
-.rk-tbl tr.col td{ background:color-mix(in srgb, var(--rkc) 10%, var(--modal-bg,#fff)); }
-.rk-tbl tr.col td.c-name{ box-shadow:inset 6px 0 0 var(--rkc); padding-left:13px; }
-.rk-tbl tr.draft td{ background:color-mix(in srgb, var(--acc) 9%, var(--modal-bg,#fff)); }
-.rk-tbl tr.fl td{ background:color-mix(in srgb, #ffd54f 45%, var(--modal-bg,#fff)); }
-.rk-tbl td.ed{ padding:0; }
-.rk-tbl .ph{ color:var(--text-light,#999); font-weight:normal; }
-.rk-tbl .lb{ color:var(--text-light,#888); font-size:11px; margin-right:4px; }
-.rk-tbl .mo{ color:var(--acc-text,var(--acc)); font-size:11px; font-weight:bold; margin-left:5px; }
-.rk-tbl .fv{ color:#f9a825; font-size:16px; }
-.rk-tbl td[data-c="fav"],.rk-tbl td[data-c="color"]{ text-align:center; }
-.rk-tbl tr.more td{ text-align:center; cursor:default; }
-.rk-tin{ display:block; width:100%; height:100%; box-sizing:border-box; margin:0; border:2px solid var(--acc); border-radius:0; padding:0 6px; font-size:16px; font-family:inherit; background:var(--modal-bg,#fff); color:var(--text,#222); outline:none; }
-.rk-big .rk-tbl{ font-size:16.5px; } .rk-big .rk-tbl td{ height:48px; }
+.rk-tv{ --rh:42px; --nw:138px; flex:1; min-height:0; display:flex; flex-direction:column; font-size:14px; color:var(--text,#222); border-top:1px solid rgba(120,132,156,.3); }
+.rk-big .rk-tv{ --rh:48px; font-size:16.5px; }
+/* 見出し：左（#・名前）は動かない。右は 下の本体の横の動きに合わせる。position:sticky は使わない
+   （Android の Chrome で、表のマスを sticky にすると 名前の列・見出しが消えたり 字が重なったりした。v545） */
+.rk-thd{ flex:none; display:flex; background:var(--modal-bg,#fff); background:color-mix(in srgb, var(--modal-bg,#fff) 86%, #78849c); border-bottom:1px solid rgba(120,132,156,.35); }
+.rk-thd .rk-tc{ position:relative; height:38px; line-height:38px; font-size:12px; font-weight:bold; color:var(--text-sub,#555); background:transparent; border-bottom:none; user-select:none; -webkit-user-select:none; padding-right:18px; }
+.rk-thd .rk-tc.c-no{ padding:0; }
+/* 幅を変えるつまみ（見出しの右の端）。指でもつかめるように広めに */
+.rk-rs{ position:absolute; top:0; right:0; width:22px; height:100%; cursor:col-resize; touch-action:none; z-index:1; }
+.rk-rs::after{ content:''; position:absolute; top:10px; bottom:10px; right:5px; width:4px; border-left:2px solid rgba(120,132,156,.55); border-right:2px solid rgba(120,132,156,.55); }
+.rk-rs.on::after{ border-color:var(--acc); }
+.rk-thc{ flex:1; min-width:0; overflow:hidden; }
+.rk-twrap{ flex:1; min-height:0; overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; }
+.rk-tcols{ display:flex; align-items:flex-start; }
+.rk-tl{ flex:none; box-sizing:border-box; width:calc(var(--nw) + 40px); border-right:2px solid rgba(120,132,156,.45); }
+.rk-tx{ flex:1; min-width:0; overflow-x:auto; overflow-y:hidden; overscroll-behavior-x:contain; }
+.rk-tg,#rkTHr{ width:var(--tw); }
+.rk-tr{ display:grid; height:var(--rh); }
+.rk-tl .rk-tr{ grid-template-columns:38px var(--nw); }
+.rk-tg .rk-tr,#rkTHr{ grid-template-columns:var(--tcols); }
+#rkTHL,#rkTHr{ height:38px; }
+.rk-tc{ box-sizing:border-box; min-width:0; height:var(--rh); line-height:var(--rh); padding:0 8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; cursor:pointer;
+  border-right:1px solid rgba(120,132,156,.22); border-bottom:1px solid rgba(120,132,156,.22); background:var(--modal-bg,#fff); }
+.rk-tc.c-no{ padding:0; text-align:center; color:var(--text-light,#888); font-size:11px; }
+.rk-tc.c-name{ font-weight:bold; border-right:none; }
+.rk-tr.col .rk-tc{ background:color-mix(in srgb, var(--rkc) 10%, var(--modal-bg,#fff)); }
+.rk-tl .rk-tr.col .c-name{ box-shadow:inset 6px 0 0 var(--rkc); padding-left:13px; }
+.rk-tr.draft .rk-tc{ background:color-mix(in srgb, var(--acc) 9%, var(--modal-bg,#fff)); }
+.rk-tr.fl .rk-tc{ background:color-mix(in srgb, #ffd54f 45%, var(--modal-bg,#fff)); }
+.rk-tc.ed{ padding:0; }
+/* 長くて入りきらない字：小さくし（style で font-size）、それでも入らなければ 2行に（f2） */
+.rk-tc.f2{ display:flex; align-items:center; white-space:normal; line-height:1.3; }
+.rk-tc.f2 .t2{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; word-break:keep-all; overflow-wrap:anywhere; }   /* なるべく空白で行を変える */
+.rk-tv .ph{ color:var(--text-light,#999); font-weight:normal; }
+.rk-tv .lb{ color:var(--text-light,#888); font-size:11px; margin-right:4px; }
+.rk-tv .mo{ color:var(--acc-text,var(--acc)); font-size:11px; font-weight:bold; margin-left:5px; }
+.rk-tv .fv{ color:#f9a825; font-size:16px; }
+.rk-tc[data-c="fav"],.rk-tc[data-c="color"]{ text-align:center; }
+.rk-tmore{ padding:10px 12px 16px; text-align:center; font-size:13px; color:var(--text-light,#888); }
+.rk-tmore:empty{ display:none; }
+.rk-tin{ display:block; width:100%; height:100%; box-sizing:border-box; margin:0; border:2px solid var(--acc); border-radius:0; padding:0 6px; font-size:16px; line-height:normal; font-family:inherit; background:var(--modal-bg,#fff); color:var(--text,#222); outline:none; }
 #printArea .rk-pr{ font-family:sans-serif; color:#000; }
 #printArea .rk-pr h1{ font-size:17pt; margin:0 0 3mm; } #printArea .rk-pr h2{ font-size:12pt; margin:4mm 0 1.2mm; border-bottom:1px solid #999; }
 #printArea .rk-pr table{ width:100%; border-collapse:collapse; font-size:9.5pt; } #printArea .rk-pr td{ border-bottom:1px solid #ddd; padding:1mm 1.6mm; vertical-align:top; }
@@ -783,7 +808,10 @@ function rkEnsureDom(){
         <button class="rk-tb" onclick="RK.tCols()" title="表に出す列をえらぶ">☰ 列</button></div>
       <div class="rk-tinfo" id="rkTInfo"></div>
     </div>
-    <div class="rk-twrap" id="rkTWrap"><table class="rk-tbl" id="rkTbl"></table></div>
+    <div class="rk-tv" id="rkTV">
+      <div class="rk-thd" id="rkTHd"><div class="rk-tl"><div class="rk-tr" id="rkTHL"></div></div><div class="rk-thc" id="rkTHc"><div class="rk-tr" id="rkTHr"></div></div></div>
+      <div class="rk-twrap" id="rkTWrap"><div class="rk-tcols"><div class="rk-tl" id="rkTL"></div><div class="rk-tx" id="rkTX"><div class="rk-tg" id="rkTBody"></div></div></div><div class="rk-tmore" id="rkTMore"></div></div>
+    </div>
   </div>
 </div>
 ${['View','Ed','Sub','Scr','Ask'].map(k=>`<div class="modal-overlay" id="rk${k}Overlay" onclick="if(event.target===this)RK.close${k}()">
@@ -795,7 +823,11 @@ ${['View','Ed','Sub','Scr','Ask'].map(k=>`<div class="modal-overlay" id="rk${k}O
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
   if(typeof applyNpToolFull==='function') applyNpToolFull();
   rkBindIdx();
-  $('rkTbl').addEventListener('click', rkTClick);
+  $('rkTV').addEventListener('click', rkTClick);
+  $('rkTHd').addEventListener('pointerdown', rkRsDown); $('rkTHd').addEventListener('pointermove', rkRsMove);
+  ['pointerup','pointercancel'].forEach(t=>$('rkTHd').addEventListener(t, rkRsUp));
+  $('rkTX').addEventListener('scroll', ()=>{ $('rkTHc').scrollLeft=$('rkTX').scrollLeft; }, {passive:true});   // 見出しを本体の横の動きに合わせる
+  window.addEventListener('resize', ()=>{ if(rkT) rkTSync(); });
   // 表のマスに入れているときの Enter・Tab・Esc は、ここで先に受ける（表電卓の「Esc で閉じる」「Tab で回る」より先に）
   window.addEventListener('keydown', rkTKey, true);
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') rkSaveFlush(); });
@@ -1022,7 +1054,9 @@ function rkView(id){
   $('rkViewHdr').textContent='📇 '+rkName(x);
   const row=(l,html)=>`<div class="rk-row"><b>${esc(l)}</b><span>${html}</span></div>`;
   const rows=[];
-  x.tels.forEach(t=>rows.push(row(tName(TEL_T,t), `<a href="${esc(rkTelHref(t.v))}">${esc(t.v)}</a>`+(t.t==='cell'?`<a class="rk-mini" href="${esc(rkSmsHref(t.v))}" aria-label="SMS">💬</a>`:''))));
+  // 📞 電話：かけない → 番号は文字だけ。かける前に聞く → 押すと たずねてから（v547）
+  const telA=(v,inner)=>rk.call==='off' ? '' : `<a href="${esc(rkTelHref(v))}" data-num="${esc(v)}"${rk.call==='ask'?' onclick="RK.telAsk(event,this)"':''}>${inner}</a>`;
+  x.tels.forEach(t=>rows.push(row(tName(TEL_T,t), (rk.call==='off' ? `<span class="rk-num">${esc(t.v)}</span>` : telA(t.v, esc(t.v)))+(t.t==='cell'?`<a class="rk-mini" href="${esc(rkSmsHref(t.v))}" aria-label="SMS">💬</a>`:''))));
   x.mails.forEach(m=>rows.push(row(tName(MAIL_T,m), rkMailOk(m.v)?`<a href="${esc('mailto:'+m.v.trim())}">${esc(m.v)}</a>`:esc(m.v))));
   x.adrs.forEach(a=>{ const t=rkAdrText(a); rows.push(row(tName(ADR_T,a), (a.zip?'〒'+esc(a.zip)+' ':'')+(t?`<a href="${esc(rkMapHref(t))}" target="_blank" rel="noopener">${esc(t)}</a>`:''))); });
   if(x.bday) rows.push(row('誕生日', esc(rkBdayText(x.bday))));
@@ -1038,7 +1072,8 @@ function rkView(id){
       ${rkYomi(x)?`<div class="k">${esc(rkYomi(x))}</div>`:''}<div class="n">${esc(rkName(x))}${x.fav?' <span class="fvc">★</span>':''}</div>
       ${(x.org||x.dept||x.title)?`<div class="c">${esc([x.org,x.dept,x.title].filter(Boolean).join(' '))}</div>`:''}
       ${x.color?`<span class="rk-cpill" style="--rkc:${colHex(x.color)};--rki:${colInk(x.color)}">${esc(colFull(x.color))}</span>`:''}</div>
-    <div class="rk-acts">${act('📞','電話',t0?rkTelHref(t0.v):'')}${act('💬','SMS',c0?rkSmsHref(c0.v):'')}${act('✉','メール',m0?'mailto:'+m0.v.trim():'')}${act('📍','地図',a0?rkMapHref(rkAdrText(a0)):'',true)}</div>
+    <div class="rk-acts">${(t0 && rk.call!=='off') ? telA(t0.v, '<span>📞</span>電話') : act('📞','電話','')}${act('💬','SMS',c0?rkSmsHref(c0.v):'')}${act('✉','メール',m0?'mailto:'+m0.v.trim():'')}${act('📍','地図',a0?rkMapHref(rkAdrText(a0)):'',true)}</div>
+    ${rk.call==='off' && x.tels.length ? '<div class="rk-note rk-calloff">📞 電話は「かけない」にしています（番号を押しても かかりません。⚙ 設定で変えられます）</div>' : ''}
     <div class="rk-rows">${rows.join('')}</div>
     <button class="rk-btn" onclick="RK.edit('${x.id}')">✏ 直す</button>
     <button class="rk-btn sub" onclick="RK.fav('${x.id}')">${x.fav?'☆ よく使うから外す':'★ よく使う'}</button>
@@ -1049,6 +1084,21 @@ function rkView(id){
     <div class="rk-note">${x.raw.length?'スマホの項目のまま持っているもの '+x.raw.length+'件（ここには出ませんが、書き出すとそのまま戻ります）<br>':''}入れた日 ${fmtDay(x.added)}${x.updated!==x.added?'　直した日 '+fmtDay(x.updated):''}</div>`;
   if(!isDlgOpen('rkViewOverlay')) openDlg('rkViewOverlay', ()=>{ rkViewId=null; }); else $('rkViewBody').scrollTop=0;
   if(x.photo) rkPic(x.id).then(d=>{ const a=$('rkViewAv'); if(a && d && safeImg(d) && rkViewId===x.id){ a.style.backgroundImage=`url("${d}")`; a.textContent=''; } });
+}
+/* かける前に聞く：「○○ 090-… に電話をかけますか？」→ かける */
+async function rkTelAsk(ev, a){
+  if(ev) ev.preventDefault();
+  const href=a.getAttribute('href')||''; if(!/^tel:/.test(href)) return;
+  const x=rkViewId?rkFind(rkViewId):null;
+  if(!await appConfirm((x?'「'+rkName(x)+'」\n':'')+(a.dataset.num||href.slice(4))+' に電話をかけますか？','📞 かける','やめる')) return;
+  rkGoTel(href);
+}
+function rkGoTel(href){ const a=document.createElement('a'); a.href=href; a.style.display='none'; document.body.appendChild(a); a.click(); a.remove(); }
+function rkSetCall(v){
+  rk.call=['on','ask','off'].includes(v)?v:'on'; rkSave();
+  document.querySelectorAll('#rkCallSet [data-call]').forEach(b=>b.classList.toggle('on', b.dataset.call===rk.call));
+  toast(rk.call==='off'?'電話は「かけない」にしました（番号を押しても かかりません）':rk.call==='ask'?'電話は「かける前に聞く」にしました':'電話は「かけられる」にしました', 3000);
+  if(rkViewId && isDlgOpen('rkViewOverlay')) rkView(rkViewId);
 }
 function rkFav(id){ const x=rkFind(id); if(!x) return; x.fav=!x.fav; x.updated=today(); x.ts=Date.now(); rkSave(); rkRender(); rkTRowRe(id); if(isDlgOpen('rkViewOverlay')) rkView(id); }
 async function rkViewColor(id){
@@ -1064,7 +1114,8 @@ async function rkRemove(id){
 }
 function rkDrop(x){
   rk.items=rk.items.filter(i=>i!==x); if(x.photo){ rkPicDel(x.id); delete rkPics[x.id]; }
-  if(rkT){ if(rkT.rows.includes(x)) rkT.rows=rkT.rows.filter(i=>i!==x); else rkT.nNew=Math.max(0,rkT.nNew-1); rkT.undo=rkT.undo.filter(u=>u.id!==x.id); const tr=rkTTr(x.id); if(tr) tr.remove(); rkTInfo(); }
+  if(rkT){ const k=rkT.rows.indexOf(x); if(k>=0){ rkT.rows.splice(k,1); if(k<rkT.shown) rkT.shown--; } else rkT.nNew=Math.max(0,rkT.nNew-1);
+    rkT.undo=rkT.undo.filter(u=>u.id!==x.id); rkTRowDel(x.id); rkTInfo(); }
 }
 function rkShareText(x){
   return [rkName(x)+(rkYomi(x)?'（'+rkYomi(x)+'）':''), [x.org,x.dept,x.title].filter(Boolean).join(' '),
@@ -1299,7 +1350,10 @@ const tAllCols=()=>TCOLS.slice(0,-1).concat(rk.fields.map(f=>['cf:'+f.id, f.n, 1
 const tSlot=(x,c)=>c==='cell' ? x.tels.findIndex(t=>t.t==='cell') : x.tels.findIndex(t=>t.t!=='cell' && t.t!=='fax');
 const tPop=c=>c==='color'||c==='fav'||c==='groups'||c==='note'||(c.startsWith('cf:') && (rk.fields.find(f=>f.id===c.slice(3))||{}).ty==='pick');
 const tHead=c=>c==='name'?'名前':((tAllCols().find(a=>a[0]===c)||[])[1]||'');
-const rkTTr=id=>{ const B=$('rkTBody'); return B ? [...B.rows].find(r=>r.dataset.id===id) : null; };
+/* 1人の行は、左（#・名前）と右（ほかの列）の2つに分かれている */
+const rkTRows=id=>{ const f=el=>el ? [...el.children].find(r=>r.dataset.id===id)||null : null; return {l:f($('rkTL')), c:f($('rkTBody'))}; };
+const rkTCellEl=(id,c)=>{ const R=rkTRows(id), row=(c==='no'||c==='name') ? R.l : R.c; return row ? [...row.children].find(e=>e.dataset.c===c)||null : null; };
+const rkTLeftRows=()=>[...$('rkTL').children].filter(r=>r.dataset.id);
 function rkTBday(b){ const m=/^(\d{4}|-)-(\d\d)-(\d\d)$/.exec(b||''); return m ? (m[1]==='-'?'':m[1]+'/')+(+m[2])+'/'+(+m[3]) : ''; }
 /* そのマスの文字（直しはじめの文字） */
 function rkTVal(x,c){
@@ -1332,12 +1386,50 @@ function rkTCell(x,c){
     default: return esc(rkTVal(x,c));
   }
 }
-function rkTRowHtml(x, draft, i){
-  const hex=draft?'':colHex(x.color);
-  return `<tr data-id="${x.id}" class="${hex?'col':''}${draft?' draft':''}"${hex?` style="--rkc:${hex}"`:''}><td class="c-no" data-c="no" title="${draft?'この行をやめる':'くわしく直す・消す'}">${draft?'✕':i<0?'＋':i+1}</td>`
-    +`<td class="c-name" data-c="name">${draft&&!rkHasAny(x)?'<span class="ph">名前を入れる</span>':rkTCell(x,'name')}</td>`
-    +rkT.cols.map(([c])=>`<td data-c="${esc(c)}">${rkTCell(x,c)}</td>`).join('')+'</tr>';
+const rkTRowAttr=(x,draft)=>{ const hex=draft?'':colHex(x.color); return `class="rk-tr${hex?' col':''}${draft?' draft':''}" data-id="${x.id}"${hex?` style="--rkc:${hex}"`:''}`; };
+/* 長くて入りきらない字は、枠に合わせて小さくする。それでも入らなければ 2行に（v546） */
+const T_FIT=new Set(['name','yomi','org','dept','title','nick','mail','adr','groups','note']);
+let rkTCv=null, rkTFont='';
+function rkTMeasure(t, px, bold){
+  if(!rkTCv) rkTCv=document.createElement('canvas').getContext('2d');
+  if(!rkTFont) rkTFont=getComputedStyle($('rkTV')||document.body).fontFamily||'sans-serif';
+  rkTCv.font=(bold?'bold ':'')+px+'px '+rkTFont;
+  return rkTCv.measureText(t).width;
 }
+/* そのマスに出す字（ものさし用。＋1 の札などは べつ） */
+function rkTText(x,c){
+  switch(c){
+    case 'name': return rkName(x);
+    case 'groups': return x.groups.map(g=>(gIcon(g)?gIcon(g)+' ':'')+g).join('・');
+    case 'note': { const ls=x.note.split('\n'); return ls[0]+(ls.length>1?' …':''); }
+    default: return rkTVal(x,c);
+  }
+}
+const rkTBase=()=>rk.big?16.5:14;
+/* [足す class, style] */
+function rkTFit(x, c, w){
+  if(!(T_FIT.has(c) || c.startsWith('cf:'))) return ['',''];
+  const t=rkTText(x,c); if(!t) return ['',''];
+  const extra=(c==='mail'&&x.mails.length>1)||(c==='adr'&&x.adrs.length>1) ? 26 : 0;
+  const px=rkTBase(), avail=(w-18-(c==='name'&&x.color?5:0)-extra)*0.95, tw=rkTMeasure(t, px, c==='name');   // 見積もりには少しゆとりを
+  if(tw<=avail || avail<20) return ['',''];
+  const min1=rk.big?13.5:11.5, s1=Math.floor(px*avail/tw*2)/2;
+  if(s1>=min1) return ['', `font-size:${s1}px`];
+  const s2=Math.max(rk.big?12:10, Math.min(min1, Math.floor(px*avail*2*0.88/tw*2)/2));
+  return [' f2', `font-size:${s2}px`];
+}
+function rkTCellHtml(x, c, w, cls){
+  const [f,st]=rkTFit(x,c,w), h=rkTCell(x,c);
+  return `<div class="rk-tc${cls||''}${f}" data-c="${esc(c)}"${st?` style="${st}"`:''}>${f?`<span class="t2">${h}</span>`:h}</div>`;
+}
+const rkTNameW=()=>rk.tw.name||138;
+/* 左の行（番号・名前） */
+function rkTRowL(x, draft, n){
+  return `<div ${rkTRowAttr(x,draft)}><div class="rk-tc c-no" data-c="no" title="${draft?'この行をやめる':'くわしく直す・消す'}">${draft?'✕':n}</div>`
+    +(draft&&!rkHasAny(x) ? '<div class="rk-tc c-name" data-c="name"><span class="ph">名前を入れる</span></div>' : rkTCellHtml(x,'name',rkTNameW(),' c-name'))+'</div>';
+}
+/* 右の行（よみ・色・電話…） */
+function rkTRowC(x, draft){ return `<div ${rkTRowAttr(x,draft)}>${rkT.cols.map(([c,,w])=>rkTCellHtml(x,c,w)).join('')}</div>`; }
 function rkTList(){
   const list=rkFiltered(), s=rkT.sort;
   if(!s.c) return rkT.q.trim() ? rkSearch(rkT.q, list) : rkSortedKana(list);
@@ -1354,34 +1446,122 @@ function rkTList(){
   return base.slice().sort((a,b)=>{ const ka=ks.get(a), kb=ks.get(b); if(!ka!==!kb) return ka?-1:1; return (ka.localeCompare(kb,'ja',{numeric:true})*s.d) || cmpKana(a,b); });   // 入っていない人は いつも下
 }
 function rkTRender(){
-  if(!rkT || !$('rkTbl')) return;
-  if(rkT.io) rkT.io.disconnect();
-  rkT.cols=tAllCols().filter(([c])=>!rk.thide.includes(c));
+  if(!rkT || !$('rkTV')) return;
+  rkT.cols=tAllCols().filter(([c])=>!rk.thide.includes(c)).map(([c,l,w])=>[c,l,rk.tw[c]||w]);
   rkT.rows=rkTList(); rkT.shown=0; rkT.nNew=0;
-  const arrow=c=>rkT.sort.c===c?(rkT.sort.d>0?' ▲':' ▼'):'';
-  $('rkTbl').style.width=(38+138+rkT.cols.reduce((s,c)=>s+c[2],0))+'px';
-  $('rkTbl').innerHTML=`<colgroup><col style="width:38px"><col style="width:138px">${rkT.cols.map(c=>`<col style="width:${c[2]}px">`).join('')}</colgroup>`
-    +`<thead><tr><th class="c-no" data-h="" title="よみ順にもどす">#</th><th class="c-name" data-h="name">名前${arrow('name')}</th>${rkT.cols.map(([c,l])=>`<th data-h="${esc(c)}" title="押すと この列で並べかえ">${esc(l)}${arrow(c)}</th>`).join('')}</tr></thead>`
-    +`<tbody id="rkTBody">${rkT.draft?rkTRowHtml(rkT.draft,true,-1):''}</tbody>`;
+  const arrow=c=>rkT.sort.c===c?(rkT.sort.d>0?' ▲':' ▼'):'', rs=c=>`<span class="rk-rs" data-rs="${esc(c)}" title="動かすと 幅が変わります（2回押すと 中身に合わせる）"></span>`;
+  rkTWidths();
+  $('rkTHL').innerHTML=`<div class="rk-tc c-no" data-h="" title="よみ順にもどす">#</div><div class="rk-tc c-name" data-h="name" title="押すと 名前で並べかえ">名前${arrow('name')}${rs('name')}</div>`;
+  $('rkTHr').innerHTML=rkT.cols.map(([c,l])=>`<div class="rk-tc" data-h="${esc(c)}" title="押すと この列で並べかえ">${esc(l)}${arrow(c)}${rs(c)}</div>`).join('');
+  $('rkTL').innerHTML=rkT.draft ? rkTRowL(rkT.draft,true,'') : '';
+  $('rkTBody').innerHTML=rkT.draft ? rkTRowC(rkT.draft,true) : '';
   rkTMore(); rkTInfo();
-  if(!rkT.rows.length && !rkT.draft) $('rkTBody').insertAdjacentHTML('beforeend', `<tr class="more"><td colspan="${rkT.cols.length+2}">${rkT.q.trim()?'「'+esc(rkT.q.trim())+'」は見つかりませんでした':'ここには まだ だれもいません'}</td></tr>`);
 }
-function rkTMore(){
-  const B=$('rkTBody'); if(!B || !rkT) return;
-  const old=B.querySelector('tr.more'); if(old) old.remove();
-  const end=Math.min(rkT.rows.length, rkT.shown+RK_TCHUNK); let h='';
-  for(let i=rkT.shown;i<end;i++) h+=rkTRowHtml(rkT.rows[i], false, i);
-  B.insertAdjacentHTML('beforeend', h); rkT.shown=end;
-  if(end<rkT.rows.length){
-    B.insertAdjacentHTML('beforeend', `<tr class="more"><td colspan="${rkT.cols.length+2}"><button type="button" class="rk-link" onclick="RK.tMore()">つづきを出す（あと ${rkT.rows.length-end}人）</button></td></tr>`);
-    const m=B.querySelector('tr.more');
-    if('IntersectionObserver' in window){ if(!rkT.io) rkT.io=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting && rkT){ rkT.io.unobserve(e.target); rkTMore(); } }), {root:$('rkTWrap'), rootMargin:'300px'}); rkT.io.observe(m); }
+/* 出したあとで 本当にはみ出していないか見る（字の幅の見積もりは 端末の字体で少しずれる）。はみ出していたら 2行に */
+function rkTFixOverflow(rows){
+  const over=[];
+  for(const r of rows) for(const c of r.children){
+    const k=c.dataset.c; if(!k || c.classList.contains('f2') || c.classList.contains('ed') || !(T_FIT.has(k) || k.startsWith('cf:'))) continue;
+    if(c.scrollWidth>c.clientWidth+1) over.push(c);
   }
+  const min1=rk.big?13.5:11.5;
+  over.map(c=>[c, Math.min(parseFloat(getComputedStyle(c).fontSize)||min1, min1)]).forEach(([c,px])=>{
+    c.classList.add('f2'); c.style.fontSize=px+'px'; c.innerHTML='<span class="t2">'+c.innerHTML+'</span>'; });
+}
+/* 列の幅を 画面に出す（名前の列は --nw、右の列は --tcols・--tw） */
+function rkTWidths(){
+  const V=$('rkTV'); if(!V || !rkT) return;
+  V.style.setProperty('--nw', rkTNameW()+'px');
+  V.style.setProperty('--tcols', rkT.cols.length ? rkT.cols.map(c=>c[2]+'px').join(' ') : 'none');
+  V.style.setProperty('--tw', rkT.cols.reduce((s,c)=>s+c[2],0)+'px');
+}
+/* 幅を変えたあと：同じところを見たまま 描きなおす（字の大きさを合わせなおす） */
+function rkTReRender(){
+  if(!rkT) return; rkTCommit();
+  const W=$('rkTWrap'), X=$('rkTX'), st=W.scrollTop, sl=X.scrollLeft, n=rkT.shown, d=rkT.draft;
+  rkT.draft=null; rkTRender();
+  while(rkT.shown<n && rkT.shown<rkT.rows.length) rkTMore();
+  if(d){ rkT.draft=d; $('rkTL').insertAdjacentHTML('afterbegin', rkTRowL(d, true, '')); $('rkTBody').insertAdjacentHTML('afterbegin', rkTRowC(d, true)); }
+  W.scrollTop=st; X.scrollLeft=sl; rkTSync();
+}
+/* 列の幅を決める（ふつうの幅なら 覚えたものを消す） */
+function rkTSetW(c, w){
+  const def=c==='name'?138:((tAllCols().find(a=>a[0]===c)||[])[2]||120);
+  w=Math.max(TW_MIN, Math.min(TW_MAX, Math.round(w)));
+  if(w===def) delete rk.tw[c]; else rk.tw[c]=w;
+  rkSave(); rkTReRender();
+}
+/* 中身に合わせた幅（いちばん長い字が入る幅。せますぎ・広すぎにはしない） */
+function rkTFitW(c){
+  const px=rkTBase(), more=n=>n>1?26:0;
+  const need=x=>{ let w=rkTMeasure(rkTText(x,c)||'', px, c==='name')+(c==='name'&&x.color?24:18);
+    if(c==='mail') w+=more(x.mails.length); else if(c==='adr') w+=more(x.adrs.length);
+    else if(c==='cell') w+=more(x.tels.filter(t=>t.t==='cell').length);
+    else if(c==='tel'){ const i=tSlot(x,'tel'); if(i>=0) w+=rkTMeasure(tName(TEL_T,x.tels[i]),11,false)+4; w+=more(x.tels.filter(t=>t.t!=='cell').length); }
+    return w; };
+  let m=rkTMeasure(c==='name'?'名前':tHead(c), 12, true)+30;
+  for(const x of rkT.rows) m=Math.max(m, need(x));
+  return Math.min(c==='name'?300:360, Math.ceil(m));
+}
+/* 見出しの右の端（つまみ）を 指・マウスで動かす。2回押すと 中身に合わせる */
+let rkRs=null, rkRsTap={c:'', t:0};
+function rkRsDown(ev){
+  const h=ev.target.closest('.rk-rs'); if(!h || !rkT) return;
+  ev.preventDefault(); ev.stopPropagation(); rkTCommit();
+  const c=h.dataset.rs, w0=c==='name'?rkTNameW():((rkT.cols.find(a=>a[0]===c)||[])[2]||120);
+  rkRs={c, x0:ev.clientX, w0, w:w0, moved:false, id:ev.pointerId, h}; h.classList.add('on');
+  try{ h.setPointerCapture(ev.pointerId); }catch(_){}
+}
+function rkRsMove(ev){
+  if(!rkRs || ev.pointerId!==rkRs.id) return;
+  ev.preventDefault();
+  const dx=ev.clientX-rkRs.x0; if(Math.abs(dx)>4) rkRs.moved=true; if(!rkRs.moved) return;
+  rkRs.w=Math.max(TW_MIN, Math.min(TW_MAX, Math.round(rkRs.w0+dx)));
+  if(rkRs.c==='name') $('rkTV').style.setProperty('--nw', rkRs.w+'px');
+  else { const col=rkT.cols.find(a=>a[0]===rkRs.c); if(col){ col[2]=rkRs.w; rkTWidths(); } }
+}
+function rkRsUp(ev){
+  if(!rkRs || ev.pointerId!==rkRs.id) return;
+  const r=rkRs; rkRs=null; r.h.classList.remove('on');
+  if(r.moved){ rkRsTap={c:'', t:0}; rkTSetW(r.c, r.w); return; }
+  const now=Date.now();
+  if(rkRsTap.c===r.c && now-rkRsTap.t<450){ rkRsTap={c:'', t:0}; rkTSetW(r.c, rkTFitW(r.c)); toast('「'+tHead(r.c)+'」の幅を 中身に合わせました'); }
+  else rkRsTap={c:r.c, t:now};
+}
+/* 続きの人を出す（はじめは 120人。下まで動かす・Enter で下へ・「つづきを出す」で） */
+function rkTMore(){
+  const L=$('rkTL'), B=$('rkTBody'); if(!L || !rkT) return;
+  const end=Math.min(rkT.rows.length, rkT.shown+RK_TCHUNK); let n=L.querySelectorAll('.rk-tr:not(.draft)').length, hl='', hc='';
+  for(let i=rkT.shown;i<end;i++){ const x=rkT.rows[i]; hl+=rkTRowL(x,false,++n); hc+=rkTRowC(x,false); }
+  const nl=L.children.length, nb=B.children.length;
+  L.insertAdjacentHTML('beforeend', hl); B.insertAdjacentHTML('beforeend', hc); rkT.shown=end;
+  rkTFixOverflow([...L.children].slice(nl).concat([...B.children].slice(nb)));
+  rkTMoreBar(); rkTSync();
+}
+function rkTMoreBar(){
+  const M=$('rkTMore'); if(!M || !rkT) return;
+  const rest=rkT.rows.length-rkT.shown;
+  M.innerHTML=rest>0 ? `<button type="button" class="rk-link" onclick="RK.tMore()">つづきを出す（あと ${rest}人）</button>`
+    : (!rkT.rows.length && !rkT.draft && !rkT.nNew) ? (rkT.q.trim() ? '「'+esc(rkT.q.trim())+'」は見つかりませんでした' : 'ここには まだ だれもいません') : '';
+  if(rest>0 && 'IntersectionObserver' in window){
+    if(!rkT.io){ rkT.io=new IntersectionObserver(es=>{ if(rkT && es.some(e=>e.isIntersecting) && rkT.shown<rkT.rows.length) rkTMore(); }, {root:$('rkTWrap'), rootMargin:'300px'}); rkT.io.observe(M); }
+    else { rkT.io.unobserve(M); rkT.io.observe(M); }   // まだ見えるところにあれば、もう一度知らせてもらう
+  }
+}
+/* 見出しの右側を 本体と同じだけ横に動かす（パソコンの縦のスクロールバーの分もそろえる） */
+function rkTSync(){
+  const W=$('rkTWrap'), H=$('rkTHd'); if(!W || !H) return;
+  H.style.paddingRight=Math.max(0, W.offsetWidth-W.clientWidth)+'px';
+  $('rkTHc').scrollLeft=$('rkTX').scrollLeft;
+}
+/* 行の番号を 上から 1, 2, 3… に付けなおす（消した・足したあと） */
+function rkTRenum(){
+  let n=0; for(const r of $('rkTL').children){ if(r.classList.contains('draft')) continue; n++; const c=r.firstElementChild; if(c && c.textContent!==String(n)) c.textContent=n; }
 }
 function rkTInfo(){
   const I=$('rkTInfo'); if(!I || !rkT) return;
   const f=[]; if(rkGrp) f.push(rkGrp==='★'?'★ よく使う':rkGrp==='?'?'よみなし':'🏷 '+rkGrp); if(rkCol) f.push(rkCol==='-'?'色なし':'🎨 '+colLabel(rkCol));
-  I.innerHTML=`<span><b>${rkT.rows.length+rkT.nNew}</b>人${f.length?'（'+esc(f.join('・'))+' だけ）':''}</span>${f.length?'<button type="button" onclick="RK.tAllF()">ぜんぶ出す</button>':''}<span class="hint">マスを押すと その場で直せます。Enter で下の人へ</span>`;
+  I.innerHTML=`<span><b>${rkT.rows.length+rkT.nNew}</b>人${f.length?'（'+esc(f.join('・'))+' だけ）':''}</span>${f.length?'<button type="button" onclick="RK.tAllF()">ぜんぶ出す</button>':''}<span class="hint">マスを押すと その場で直せます。Enter で下の人へ。見出しの右の ‖ を動かすと 幅が変わります</span>`;
   const u=$('rkTUndo'); if(u) u.disabled=!rkT.undo.length;
 }
 function rkOpenTbl(){
@@ -1391,15 +1571,16 @@ function rkOpenTbl(){
   $('rkTFind').value=rkT.q;
   $('rkTblOverlay').classList.toggle('rk-big', !!rk.big);
   openDlg('rkTblOverlay', rkTEnd);
-  rkTRender(); $('rkTWrap').scrollTop=0; $('rkTWrap').scrollLeft=0;
+  rkTRender(); $('rkTWrap').scrollTop=0; $('rkTX').scrollLeft=0; rkTSync();
   rkRender();
 }
 function rkCloseTbl(){ closeIf('rkTblOverlay', rkTEnd); }
 function rkTEnd(){ if(rkT){ rkTCommit(); if(rkT.io) rkT.io.disconnect(); } rkT=null; rkSaveFlush(); if($('rkList')) rkRender(); }
 function rkTClick(ev){
   if(!rkT) return;
-  const th=ev.target.closest('th[data-h]'); if(th){ rkTSort(th.dataset.h); return; }
-  const td=ev.target.closest('td[data-c]'); if(!td || ev.target.closest('.rk-tin')) return;
+  if(ev.target.closest('.rk-rs')) return;   // 幅のつまみ
+  const th=ev.target.closest('[data-h]'); if(th){ rkTSort(th.dataset.h); return; }
+  const td=ev.target.closest('.rk-tc[data-c]'); if(!td || ev.target.closest('.rk-tin')) return;
   const tr=td.parentElement; if(!tr || !tr.dataset.id) return;
   if(td.dataset.c==='no') rkTRowMenu(tr.dataset.id); else rkTEdit(tr.dataset.id, td.dataset.c);
 }
@@ -1416,7 +1597,7 @@ function rkTEdit(id, c, typed){
   const draft=!!(rkT.draft && rkT.draft.id===id), x=rkTItem(id); if(!x) return;
   if(c!=='name' && !TCOL_RE.test(c)) return;
   if(tPop(c)){ if(draft){ toast('先に 名前か電話を入れてください'); return; } rkTPopup(id, c); return; }
-  const tr=rkTTr(id), td=tr && [...tr.cells].find(t=>t.dataset.c===c); if(!td) return;
+  const td=rkTCellEl(id, c); if(!td) return;
   const v=rkTVal(x,c);
   td.classList.add('ed');
   td.innerHTML=`<input class="rk-tin" type="${c==='cell'||c==='tel'?'tel':c==='mail'?'email':'text'}" enterkeyhint="enter" autocomplete="off" maxlength="${c==='adr'?300:c==='mail'?120:c==='name'?81:200}">`;
@@ -1445,23 +1626,29 @@ function rkTKey(ev){
 function rkTGo(id, c, dr, dc){
   const typed=rkT.ed ? rkT.ed.inp.value : null;
   if(!rkTCommit()){ rkTEdit(id, c, typed); return; }   // 形がちがう：そのマスで直してもらう
-  const B=$('rkTBody'); if(!B) return;
-  let R=[...B.rows].filter(r=>r.dataset.id), ri=R.findIndex(r=>r.dataset.id===id); if(ri<0) return;
+  let R=rkTLeftRows(), ri=R.findIndex(r=>r.dataset.id===id); if(ri<0) return;
   const cols=['name'].concat(rkT.cols.map(a=>a[0])).filter(k=>!tPop(k));
   let ci=Math.max(0, cols.indexOf(c));
   if(dc){ ci+=dc; if(ci>=cols.length){ ci=0; ri++; } else if(ci<0){ ci=cols.length-1; ri--; } }
   ri+=dr;
-  if(ri>=R.length && rkT.shown<rkT.rows.length){ rkTMore(); R=[...B.rows].filter(r=>r.dataset.id); }
+  if(ri>=R.length && rkT.shown<rkT.rows.length){ rkTMore(); R=rkTLeftRows(); }
   if(ri<0 || ri>=R.length) return;   // いちばん上・下
   rkTEdit(R[ri].dataset.id, cols[ci]);
 }
+/* 1人の行を書きなおす（左右とも。番号はそのまま。足しかけの行が入ったときは 番号を付けなおす） */
 function rkTRowRe(id){
-  if(!rkT) return; const tr=rkTTr(id); if(!tr) return;
+  if(!rkT) return; const R=rkTRows(id); if(!R.l && !R.c) return;
   const draft=!!(rkT.draft && rkT.draft.id===id), x=rkTItem(id);
-  if(!x){ tr.remove(); return; }
-  const t=document.createElement('tbody'); t.innerHTML=rkTRowHtml(x, draft, draft?-1:rkT.rows.indexOf(x)); tr.replaceWith(t.firstElementChild);
+  if(!x){ rkTRowDel(id); return; }
+  const was=!!(R.l && R.l.classList.contains('draft')), n=R.l && R.l.firstElementChild ? R.l.firstElementChild.textContent : '';
+  const t=document.createElement('div'); t.innerHTML=rkTRowL(x, draft, n)+rkTRowC(x, draft);
+  const nl=t.firstElementChild, nc=t.lastElementChild;
+  if(R.l) R.l.replaceWith(nl); if(R.c) R.c.replaceWith(nc);
+  rkTFixOverflow([nl, nc]);
+  if(was!==draft) rkTRenum();
 }
-function rkTFlash(id){ const tr=rkTTr(id); if(tr){ tr.classList.add('fl'); setTimeout(()=>{ const t=rkTTr(id); if(t) t.classList.remove('fl'); }, 900); } }
+function rkTRowDel(id){ const R=rkTRows(id); if(R.l) R.l.remove(); if(R.c) R.c.remove(); rkTRenum(); rkTMoreBar(); }
+function rkTFlash(id){ const R=rkTRows(id); [R.l,R.c].forEach(r=>{ if(r) r.classList.add('fl'); }); setTimeout(()=>{ const Q=rkTRows(id); [Q.l,Q.c].forEach(r=>{ if(r) r.classList.remove('fl'); }); }, 900); }
 function rkTPush(id, before){ rkT.undo.push({id, before}); if(rkT.undo.length>100) rkT.undo.shift(); rkTInfo(); }
 /* 文字をそのマスの所に入れる。だめなときは 知らせる文を返す */
 function rkTPut(x, c, v){
@@ -1549,7 +1736,7 @@ function rkTUndo(){
   if(!rkT) return; rkTCommit(true);
   const u=rkT.undo.pop(); if(!u){ toast('戻すものはありません'); return; }
   const x=rkFind(u.id);
-  if(u.add){ if(x){ rk.items=rk.items.filter(i=>i!==x); const tr=rkTTr(u.id); if(tr) tr.remove(); if(rkT.rows.includes(x)) rkT.rows=rkT.rows.filter(i=>i!==x); else rkT.nNew=Math.max(0,rkT.nNew-1); } }
+  if(u.add){ if(x){ rk.items=rk.items.filter(i=>i!==x); const k=rkT.rows.indexOf(x); if(k>=0){ rkT.rows.splice(k,1); if(k<rkT.shown) rkT.shown--; } else rkT.nNew=Math.max(0,rkT.nNew-1); rkTRowDel(u.id); } }
   else if(x){ const b=JSON.parse(u.before); for(const k of Object.keys(x)) if(!(k in b)) delete x[k]; Object.assign(x, b); rkTRowRe(u.id); rkTFlash(u.id); }
   rkSyncGroups(); rkSaveSoon(); rkTInfo();
   toast('ひとつ戻しました'+(x?'（'+rkName(x)+'）':''));
@@ -1558,14 +1745,14 @@ function rkTAdd(){
   if(!rkT) return; rkTCommit();
   if(!rkT.draft){
     const d=rkCleanItem({}); if(rkGrp && rkGrp!=='★' && rkGrp!=='?') d.groups=[rkGrp]; if(rkGrp==='★') d.fav=true; if(rkCol && rkCol!=='-') d.color=rkCol;
-    rkT.draft=d; $('rkTBody').insertAdjacentHTML('afterbegin', rkTRowHtml(d, true, -1));
+    rkT.draft=d; $('rkTL').insertAdjacentHTML('afterbegin', rkTRowL(d, true, '')); $('rkTBody').insertAdjacentHTML('afterbegin', rkTRowC(d, true)); rkTMoreBar();
   }
-  $('rkTWrap').scrollTop=0; $('rkTWrap').scrollLeft=0;
+  $('rkTWrap').scrollTop=0; $('rkTX').scrollLeft=0;
   rkTEdit(rkT.draft.id, 'name');
 }
 async function rkTRowMenu(id){
   if(!rkT) return; rkTCommit();
-  if(rkT.draft && rkT.draft.id===id){ rkT.draft=null; const tr=rkTTr(id); if(tr) tr.remove(); return; }   // 足しかけの行をやめる
+  if(rkT.draft && rkT.draft.id===id){ rkT.draft=null; rkTRowDel(id); return; }   // 足しかけの行をやめる
   const x=rkFind(id); if(!x) return;
   const r=await rkAsk('📇 '+rkName(x), '', ['✏ くわしく直す（電話を足す・写真 など）','📞 見る（電話をかける など）','🗑 この人を消す','やめる']);
   if(r===0) rkEdit(id);
@@ -1574,7 +1761,11 @@ async function rkTRowMenu(id){
 }
 async function rkTColsPick(){
   if(!rkT) return; rkTCommit();
-  const html='<div class="rk-note" style="margin-top:0">表に出す列（名前は いつも出ます）</div>'+tAllCols().map(([k,l])=>`<label class="rk-chk"><input type="checkbox" data-tc="${esc(k)}" ${rk.thide.includes(k)?'':'checked'}> ${esc(l)}</label>`).join('');
+  const nw=rkTNameW(), NW=[[110,'せまく'],[138,'ふつう'],[190,'ひろく'],[260,'もっと ひろく']];
+  const html='<div class="rk-note" style="margin-top:0">名前の列の幅（見出しの右の端 ‖ を指で動かしても変えられます）</div>'
+    +`<div class="rk-tagrow" style="margin-bottom:6px">${NW.map(([w,l])=>`<button type="button" data-nw="${w}" class="${nw===w?'on':''}" onclick="RK.tNameW(${w})">${l}</button>`).join('')}</div>`
+    +'<div class="rk-tagrow" style="margin-bottom:10px"><button type="button" onclick="RK.tWFit()">↔ ぜんぶの幅を 中身に合わせる</button><button type="button" onclick="RK.tWReset()">幅を もとに戻す</button></div>'
+    +'<div class="rk-note">表に出す列（名前は いつも出ます）</div>'+tAllCols().map(([k,l])=>`<label class="rk-chk"><input type="checkbox" data-tc="${esc(k)}" ${rk.thide.includes(k)?'':'checked'}> ${esc(l)}</label>`).join('');
   const r=await rkAsk('☰ 出す列', '', ['できた','やめる'], html);
   if(r!==0 || !rkT) return;
   rk.thide=[...document.querySelectorAll('#rkAskBody input[data-tc]')].filter(i=>!i.checked).map(i=>i.dataset.tc);
@@ -1592,6 +1783,9 @@ function rkOpenMenu(){
     <button class="rk-btn sub" onclick="RK.table()">📋 表で直す（全員を 表のまま その場で直す）</button>
     <button class="rk-btn sub" onclick="RK.closeSub();RK.paintStart()">🎨 色分け（色をえらんで 人を押す）</button>
     <button class="rk-btn sub" onclick="RK.custom()">🧩 自分好みにする（グループ・自分の項目・色の名前・一覧の出し方）</button>
+    <div class="rk-sec">📞 連絡帳から 電話をかける</div>
+    <div class="rk-tagrow" id="rkCallSet">${[['on','📞 かけられる'],['ask','❓ かける前に聞く'],['off','🚫 かけない']].map(([v,l])=>`<button type="button" data-call="${v}" class="${rk.call===v?'on':''}" onclick="RK.setCall('${v}')">${l}</button>`).join('')}</div>
+    <div class="rk-note">「かけない」にすると、見る画面の番号や 📞 を押しても 電話はかかりません（番号は見られます・コピーもできます）。「かける前に聞く」は、押したあとに たずねてから かけます。</div>
     <button class="rk-btn sub" onclick="RK.dups()">🔍 同じ人をさがして いっしょにする</button>
     <button class="rk-btn sub" onclick="RK.csv()">📄 CSV（Excel）で書き出す</button>
     <button class="rk-btn sub" onclick="RK.print()">🖨 あいうえお順の電話一覧を印刷</button>
@@ -1930,11 +2124,15 @@ window.RK={ menu:rkOpenMenu, setQ:v=>{ rkQ=String(v||''); rkRender(); }, setView
   selStart:()=>{ rkPaint=null; rkSelStart(); }, selEnd:rkSelEnd, selAll:rkSelAll, selGroup:rkSelGroup, selDel:rkSelDel, selColor:rkSelColor,
   paintStart:rkPaintStart, paintEnd:rkPaintEnd, paintPick:rkPaintPick, paintUndo:rkPaintUndo, colName:rkColName,
   table:rkOpenTbl, closeTbl:rkCloseTbl, tQ:v=>{ if(!rkT) return; rkTCommit(); rkT.q=String(v||''); rkTRender(); $('rkTWrap').scrollTop=0; }, tAdd:rkTAdd, tCols:rkTColsPick, tUndo:rkTUndo,
+  tNameW:w=>{ if(!rkT) return; rkTSetW('name', w); document.querySelectorAll('#rkAskBody [data-nw]').forEach(b=>b.classList.toggle('on', +b.dataset.nw===rkTNameW())); },
+  tWFit:()=>{ if(!rkT) return; rkTCommit(); ['name'].concat(rkT.cols.map(a=>a[0])).forEach(c=>{ const w=rkTFitW(c), def=c==='name'?138:((tAllCols().find(a=>a[0]===c)||[])[2]||120); if(w>def) rk.tw[c]=Math.min(TW_MAX,w); else delete rk.tw[c]; }); rkSave(); rkTReRender();
+    document.querySelectorAll('#rkAskBody [data-nw]').forEach(b=>b.classList.toggle('on', +b.dataset.nw===rkTNameW())); toast('幅を 中身に合わせました'); },
+  tWReset:()=>{ if(!rkT) return; rk.tw={}; rkSave(); rkTReRender(); document.querySelectorAll('#rkAskBody [data-nw]').forEach(b=>b.classList.toggle('on', +b.dataset.nw===138)); toast('幅を もとに戻しました'); },
   tMore:rkTMore, tAllF:()=>{ if(!rkT) return; rkTCommit(); rkGrp=''; rkCol=''; rkTRender(); },
   importClick:rkImportClick, importFile:rkImportFile, pick:rkPick, openExport:rkOpenExport, doExport:rkDoExport, csv:rkCsv, print:rkPrint, backup:rkBackup, wipe:rkWipe, help:rkHelp,
   dups:rkOpenDups, dupMerge:rkDupMerge, dupSkip:rkDupSkip, dupAll:rkDupAll,
   custom:()=>{ if(rkEd && isDlgOpen('rkEdOverlay')) rkEdSync(); rkOpenCustom(); }, gAdd:rkGAdd, gPreset:rkGPreset, gRen:rkGRen, gIcon:rkGIcon, gMove:rkGMove, gDel:rkGDel, fAdd:rkFAdd, fPreset:rkFPreset, fRen:rkFRen, fMove:rkFMove, fDel:rkFDel,
-  setSub:rkSetSub, setBig:rkSetBig, setNoteCf:rkSetNoteCf, listen:rkListen };
+  setSub:rkSetSub, setBig:rkSetBig, setNoteCf:rkSetNoteCf, setCall:rkSetCall, telAsk:(ev,a)=>{ rkTelAsk(ev,a); }, listen:rkListen };
 Object.assign(window, { openRenraku, closeRenraku, rkMergeStored, rkPicsAll,
   rkState:()=>rk, rkParseVcf, rkColorFromTest:s=>rkColorFrom(s), rkSaveFlushTest:()=>rkSaveFlush(), rkVcard:(x,o)=>rkVcard(x,o), rkFromCsv, rkVoiceQ, rkCleanItem, rkImportList, rkDupGroupsTest:()=>rkDupGroups(), rkSearchTest:q=>rkSearch(q, rk.items).map(rkName), rkNameOf:rkName });
 })();
