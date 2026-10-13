@@ -311,7 +311,7 @@
 
   // ---------------- 状態 ----------------
   var cur = null, mode = 'view';
-  var opt = { nums: store.get('nums', true), ghost: store.get('ghost', true), loop: store.get('loop', false), speed: store.get('speed', 1), say: store.get('say', false) };
+  var opt = { nums: store.get('nums', true), ghost: store.get('ghost', true), loop: store.get('loop', false), speed: store.get('speed', 1), say: store.get('sayTips', true) };   // say：コツを自動で読む（v539 から、はじめからオン）
   var SPEEDS = [{ n: 'ゆっくり', v: 38, gap: 420 }, { n: 'ふつう', v: 72, gap: 230 }, { n: 'はやい', v: 140, gap: 110 }];
 
   var stage = $('#stage'), lGhost = $('#lGhost'), lInk = $('#lInk'), lNums = $('#lNums'), lHint = $('#lHint'), lOverlay = $('#lOverlay'), lMaru = $('#lMaru');
@@ -665,11 +665,11 @@
 
   // ---------------- 練習モード ----------------
   var pc = $('#pc'), pctx = pc.getContext('2d');
-  var PR = { lv: store.get('lv', 1), i: 0, done: [], live: null, miss: 0, missCur: 0, scores: [], fin: false, hint: false, flash: null, fit: null, over: false, say: null, saidKinds: {} };
+  var PR = { lv: store.get('lv', 1), i: 0, done: [], live: null, miss: 0, missCur: 0, scores: [], fin: false, hint: false, flash: null, fit: null, over: false, say: null, saidKinds: {}, saidAt: -1 };
   function cssv(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim() || '#000'; }
   function prStart() {
     PR.i = 0; PR.done = []; PR.live = null; PR.miss = 0; PR.missCur = 0; PR.scores = []; PR.fin = false; PR.hint = false; PR.flash = null; PR.fit = null; PR.over = false;
-    PR.saidKinds = {}; hush();
+    PR.saidKinds = {}; PR.saidAt = -1; hush();
     lMaru.innerHTML = ''; lOverlay.innerHTML = '';
     $('#prResult').hidden = true; $('#prLive').hidden = false;
     lInk.style.display = 'none';
@@ -704,19 +704,21 @@
     m.className = 'pr-msg' + (bad ? ' bad' : '');
     m.innerHTML = '<span class="pr-count"><em>' + (i + 1) + '</em>/' + cur.n + '</span><div class="pr-body"><p class="pr-lead">' + lead + '</p>'
       + (sub ? '<p class="pr-sub">' + sub + '</p>' : '') + '</div>'
-      + (TTS ? '<button class="pr-say" type="button" aria-label="案内とコツを読み上げる" title="読み上げる">' + SPK_ICON + '</button>' : '')
+      + (TTS ? '<button class="pr-say" type="button" aria-label="うまく書くコツを読み上げる" title="コツを読み上げる">' + SPK_ICON + '</button>' : '')
       + (tips.length ? '<div class="pr-tips"><b>うまく書くコツ</b><ul>' + tips.map(function (t) { return '<li>' + t.h + '</li>'; }).join('') + '</ul></div>' : '');
-    PR.say = { lead: bad ? msg : (pre ? pre + ' ' : '') + (i + 1) + '画目は「' + s.name + '」。', sub: sub, tips: tips, bad: !!bad };
-    if (opt.say) prSpeak(false);
+    PR.say = { lead: bad ? msg : (pre ? pre + ' ' : '') + (i + 1) + '画目は「' + s.name + '」。', tips: tips };
+    // 自動の読み上げ（v539）：一筆書くごとに、次に書く画の「うまく書くコツ」だけを読む。
+    // 案内（「2画目は…」）・まちがえた理由・点数は読まない。同じ画のコツは一度だけ（まちがえて書き直すときは読まない）
+    if (opt.say && tips.length && PR.saidAt !== i) { PR.saidAt = i; prSpeak(false); }
   }
-  // 読み上げる。自動のときは短く：書き方は1画目だけ、同じ線の書き方は2回目から省く。まちがえたときは、そのことだけ
+  // コツを読む。自動のときは、前にも読んだ線の書き方（「左から右へ…」）は、字のコツがあればそちらだけ読む。
+  // 🔈（full）は全部読む。テストでまだコツを出していないときの 🔈 は、案内を読む
   function prSpeak(full) {
     var d = PR.say; if (!d) return;
-    if (d.bad && !full) { speak(sayText(d.lead)); return; }
-    var parts = [d.lead];
-    if (d.sub && (full || PR.i === 0)) parts.push(d.sub);
+    if (!d.tips.length) { if (full) speak(sayText(d.lead)); return; }
+    var other = d.tips.some(function (t) { return !t.kind; }), parts = [];
     d.tips.forEach(function (t) {
-      if (t.kind) { if (!full && PR.saidKinds[t.kind]) return; PR.saidKinds[t.kind] = 1; }
+      if (t.kind) { if (!full && other && PR.saidKinds[t.kind]) return; PR.saidKinds[t.kind] = 1; }
       parts.push(t.s);
     });
     speak(sayText(parts.join(' ')));
@@ -858,7 +860,6 @@
       '<p>点数 ' + score + '　書き順や形のミス ' + PR.miss + '回' + (PR.lv === 3 ? '（テスト）' : PR.lv === 2 ? '（お手本なし）' : '') + (rec && prev ? '　自己ベスト更新' : '') + '</p>' +
       '<div class="pr-row"><button class="btn" id="rAgain" type="button">もう一度</button><button class="btn" id="rOver" type="button" aria-pressed="false">お手本と重ねる</button><button class="btn pri" id="rNext" type="button">次の字へ</button></div>';
     $('#prLive').hidden = true; box.hidden = false;
-    if (opt.say) speak(title + (/[！!。]$/.test(title) ? ' ' : '。') + '点数 ' + score + '点。');
     $('#rAgain').onclick = prStart;
     $('#rOver').onclick = function () {
       PR.over = !PR.over; this.setAttribute('aria-pressed', PR.over ? 'true' : 'false');
@@ -907,13 +908,15 @@
       prStart();
     });
   });
-  // 🔈 自動で読み上げ（1画ごとに案内とコツを読む）。オンにしたら、いまの案内をすぐ読む
+  // 🔈 コツを自動で読む（一筆ごとに、次の画のコツだけ。はじめからオン・覚える）。オンにしたら、いまの画のコツをすぐ読む
   var prAuto = $('#prAuto');
   prAuto.hidden = !TTS;
   prAuto.setAttribute('aria-pressed', opt.say ? 'true' : 'false');
   prAuto.addEventListener('click', function () {
-    opt.say = !opt.say; store.set('say', opt.say); prAuto.setAttribute('aria-pressed', opt.say ? 'true' : 'false');
-    if (opt.say) prSpeak(true); else hush();
+    opt.say = !opt.say; store.set('sayTips', opt.say); prAuto.setAttribute('aria-pressed', opt.say ? 'true' : 'false');
+    if (!opt.say) { hush(); return; }
+    PR.saidAt = PR.i;
+    if (PR.say && PR.say.tips.length) prSpeak(true);
   });
   function syncLv() { Array.from(document.querySelectorAll('#practiceUI [data-lv]')).forEach(function (x) { var on = +x.dataset.lv === PR.lv; x.setAttribute('aria-checked', on); x.setAttribute('aria-selected', on); }); }
 
