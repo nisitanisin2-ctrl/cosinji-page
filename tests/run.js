@@ -8210,55 +8210,69 @@ async function runRenrakuIro(browser) {
   // ── 📋 表で直す
   await page.evaluate(s => { closeRenraku(); localStorage.setItem('excalc_renraku', s); openRenraku(); }, JSON.stringify(SEED)); await w(700);
   await page.click('#rkTblBtn'); await w(600);
-  const hdr = () => page.evaluate(() => [...document.querySelectorAll('#rkTbl thead th')].map(t => t.textContent.trim()).join(','));
-  const row = id => page.evaluate(id => { const tr = [...document.querySelectorAll('#rkTBody tr')].find(r => r.dataset.id === id); return tr ? [...tr.cells].map(c => c.textContent.trim()).join('|') : 'なし'; }, id);
-  const tclick = (id, c) => page.evaluate(([id, c]) => { const tr = [...document.querySelectorAll('#rkTBody tr')].find(r => r.dataset.id === id); tr.querySelector('td[data-c="' + c + '"]').click(); }, [id, c]);
-  const ted = () => page.evaluate(() => { const a = document.activeElement; return a && a.classList.contains('rk-tin') ? a.closest('tr').dataset.id + '/' + a.closest('td').dataset.c + '/' + a.value : 'なし'; });
+  // 表は 左（#・名前）と右（ほかの列）に分かれている。1人の行も 左右の2つ
+  const hdr = () => page.evaluate(() => [...document.querySelectorAll('#rkTHd [data-h]')].map(t => t.textContent.trim()).join(','));
+  const row = id => page.evaluate(id => { const f = el => [...el.children].find(r => r.dataset.id === id); const l = f(document.getElementById('rkTL')), c = f(document.getElementById('rkTBody')); return l && c ? [...l.children, ...c.children].map(e => e.textContent.trim()).join('|') : 'なし'; }, id);
+  const tclick = (id, c) => page.evaluate(([id, c]) => { const box = document.getElementById(c === 'no' || c === 'name' ? 'rkTL' : 'rkTBody'); [...box.children].find(r => r.dataset.id === id).querySelector('[data-c="' + c + '"]').click(); }, [id, c]);
+  const ted = () => page.evaluate(() => { const a = document.activeElement; return a && a.classList.contains('rk-tin') ? a.closest('.rk-tr').dataset.id + '/' + a.closest('.rk-tc').dataset.c + '/' + a.value : 'なし'; });
   const X = (id, f) => page.evaluate(([id, f]) => { const x = rkState().items.find(i => i.id === id); return x ? (0, eval)('(' + f + ')')(x) : 'なし'; }, [id, f.toString()]);
-  check('  📋 表で直す：全員（6人）を よみ順で・見出し（部署・役職・ニックネーム・〒 は はじめは出さない）', [await page.evaluate(() => isDlgOpen('rkTblOverlay') + '/' + document.querySelectorAll('#rkTBody tr[data-id]').length), await hdr()].join(' / '),
+  check('  📋 表で直す：全員（6人）を よみ順で・見出し（部署・役職・ニックネーム・〒 は はじめは出さない）', [await page.evaluate(() => isDlgOpen('rkTblOverlay') + '/' + document.querySelectorAll('#rkTBody .rk-tr[data-id]').length), await hdr()].join(' / '),
     'true/6 / #,名前,よみ,🎨 色,★,携帯,電話,メール,会社,住所,誕生日,グループ,間柄,年賀状,メモ');
   check('  　山田の行：電話は はじめの1つと種類（ほかに FAX があるので ＋1）・誕生日・グループ・自分の項目', await row('a1'), '5|山田 太郎|やまだ たろう|要連絡|☆|090-1111-2222|自宅03-1234-5678＋1|taro@example.jp||東京都 千代田区 千代田1-1|1960/4/1|👪 家族|兄||');
-  check('  　色のある行は 名前に色の帯・行の地もうすく色', await page.evaluate(() => { const tr = [...document.querySelectorAll('#rkTBody tr')].find(r => r.dataset.id === 'a1'); return tr.classList.contains('col') + '/' + tr.style.getPropertyValue('--rkc') + '/' + /inset/.test(getComputedStyle(tr.cells[1]).boxShadow); }), 'true/#e53935/true');
+  check('  　色のある行は 名前に色の帯・行の地もうすく色（左右とも）', await page.evaluate(() => { const f = b => [...document.getElementById(b).children].find(r => r.dataset.id === 'a1'), l = f('rkTL'), c = f('rkTBody');
+    return [l.classList.contains('col'), c.classList.contains('col'), l.style.getPropertyValue('--rkc'), /inset/.test(getComputedStyle(l.children[1]).boxShadow)].join('/'); }), 'true/true/#e53935/true');
+  // Android の Chrome で sticky のマスが消えた・重なった（v545）→ sticky を使わず、左右の行をそろえて並べる
+  check('  表は position:sticky を使わない（左の名前の列・見出しは 別に置く）', await page.evaluate(() => [...document.querySelectorAll('#rkTblOverlay *')].filter(e => getComputedStyle(e).position === 'sticky').length), 0);
+  const align = () => page.evaluate(() => { const L = [...document.querySelectorAll('#rkTL .rk-tr')], C = [...document.querySelectorAll('#rkTBody .rk-tr')];
+    if (L.length !== C.length) return 'ちがう数 ' + L.length + '/' + C.length;
+    const bad = L.map((l, i) => { const a = l.getBoundingClientRect(), b = C[i].getBoundingClientRect(); return (Math.abs(a.top - b.top) > 0.5 || Math.abs(a.height - b.height) > 0.5 || l.dataset.id !== C[i].dataset.id) ? i : -1; }).filter(i => i >= 0);
+    return bad.length ? 'ずれ ' + bad.join(',') : 'そろう'; });
+  check('  　左（#・名前）と右の行は 同じ人・同じ高さで横にそろう', await align(), 'そろう');
+  await page.evaluate(() => { document.getElementById('rkTX').scrollLeft = 300; }); await w(250);
+  check('  　右を横に動かすと 見出しもいっしょに動く（携帯の見出しとマスの左がそろう）・名前の列は動かない', await page.evaluate(() => { const x = document.getElementById('rkTX'), h = document.getElementById('rkTHc');
+    const hc = document.querySelector('#rkTHr [data-h="cell"]').getBoundingClientRect().left, bc = document.querySelector('#rkTBody .rk-tr [data-c="cell"]').getBoundingClientRect().left, nm = document.querySelector('#rkTL .c-name').getBoundingClientRect().left;
+    return [x.scrollLeft > 0, h.scrollLeft === x.scrollLeft, Math.abs(hc - bc) < 1, nm < 60].join('/'); }), 'true/true/true/true');
+  await page.evaluate(() => { document.getElementById('rkTX').scrollLeft = 0; }); await w(200);
   // 名前：押すと その場で入れる → Enter で下の人
   await tclick('a4', 'name'); await w(200);
   check('  マスを押すと その場で入れられる（いまの名前が入っている）', await ted(), 'a4/name/高橋 健二');
-  await page.fill('#rkTBody .rk-tin', '高橋 健太'); await page.keyboard.press('Enter'); await w(250);
+  await page.fill('#rkTV .rk-tin', '高橋 健太'); await page.keyboard.press('Enter'); await w(250);
   check('  　Enter で決めて 下の人（山田）の同じ列へ。姓・名に分けて入る・直した日', [await ted(), await X('a4', x => x.fam + '|' + x.giv + '|' + (x.ts > 1000)), await row('a4')].join(' / '), 'a1/name/山田 太郎 / 高橋|健太|true / 4|高橋 健太|たかはし けんじ|－|☆|090-7777-8888|||||||||');
   await page.keyboard.press('Escape'); await w(200);
   check('  　Esc：入れるのをやめる（表は閉じない・山田は そのまま）', [await ted(), await page.evaluate(() => isDlgOpen('rkTblOverlay')), await X('a1', x => x.fam + x.giv)].join(' / '), 'なし / true / 山田太郎');
   // よみ：Tab で右へ（色・★は とばす）
   await tclick('a4', 'yomi'); await w(150);
-  await page.fill('#rkTBody .rk-tin', 'たかはし けんた'); await page.keyboard.press('Tab'); await w(250);
+  await page.fill('#rkTV .rk-tin', 'たかはし けんた'); await page.keyboard.press('Tab'); await w(250);
   check('  よみ：Tab で決めて右へ（🎨・★ は窓で選ぶので とばして 携帯へ）', [await X('a4', x => x.famK + '|' + x.givK), await ted()].join(' / '), 'たかはし|けんた / a4/cell/090-7777-8888');
-  await page.fill('#rkTBody .rk-tin', 'あいう'); await page.keyboard.press('Enter'); await w(250);
+  await page.fill('#rkTV .rk-tin', 'あいう'); await page.keyboard.press('Enter'); await w(250);
   check('  　携帯に数字でないもの → 知らせて、そのマスのまま（入れた文字も残す）', [await ted(), await X('a4', x => x.tels[0].v)].join(' / '), 'a4/cell/あいう / 090-7777-8888');
-  await page.fill('#rkTBody .rk-tin', '090-7777-9999'); await page.keyboard.press('Tab'); await w(250);
+  await page.fill('#rkTV .rk-tin', '090-7777-9999'); await page.keyboard.press('Tab'); await w(250);
   check('  　直すと決まる → 電話（自宅）のマスへ。高橋は自宅の電話がないので空', [await X('a4', x => x.tels.map(t => t.t + ':' + t.v).join(',')), await ted()].join(' / '), 'cell:090-7777-9999 / a4/tel/');
-  await page.fill('#rkTBody .rk-tin', '0284-11-2222'); await page.keyboard.press('Tab'); await w(250);
-  await page.fill('#rkTBody .rk-tin', 'kenta@'); await page.keyboard.press('Tab'); await w(250);
+  await page.fill('#rkTV .rk-tin', '0284-11-2222'); await page.keyboard.press('Tab'); await w(250);
+  await page.fill('#rkTV .rk-tin', 'kenta@'); await page.keyboard.press('Tab'); await w(250);
   check('  　電話を足す（自宅）・メールの形がちがうと そのマスのまま', [await X('a4', x => x.tels.map(t => t.t + ':' + t.v).join(',')), await ted()].join(' / '), 'cell:090-7777-9999,home:0284-11-2222 / a4/mail/kenta@');
-  await page.fill('#rkTBody .rk-tin', 'kenta@example.jp'); await page.keyboard.press('Tab'); await w(250);
-  await page.fill('#rkTBody .rk-tin', '高橋商会'); await page.keyboard.press('Tab'); await w(250);
-  await page.fill('#rkTBody .rk-tin', '栃木県足利市本町1-2'); await page.keyboard.press('Tab'); await w(250);
-  await page.fill('#rkTBody .rk-tin', '5/3'); await page.keyboard.press('Tab'); await w(250);
+  await page.fill('#rkTV .rk-tin', 'kenta@example.jp'); await page.keyboard.press('Tab'); await w(250);
+  await page.fill('#rkTV .rk-tin', '高橋商会'); await page.keyboard.press('Tab'); await w(250);
+  await page.fill('#rkTV .rk-tin', '栃木県足利市本町1-2'); await page.keyboard.press('Tab'); await w(250);
+  await page.fill('#rkTV .rk-tin', '5/3'); await page.keyboard.press('Tab'); await w(250);
   check('  　メール・会社・住所・誕生日（5/3 は 年なし）を続けて入れる → 次は 間柄（グループは窓なので とばす）', [await X('a4', x => [x.mails.map(m => m.t + ':' + m.v).join(','), x.org, x.adrs.map(a => a.t + ':' + a.street).join(','), x.bday].join('|')), await ted()].join(' / '),
     'home:kenta@example.jp|高橋商会|home:栃木県足利市本町1-2|--05-03 / a4/cf:f1/');
-  await page.fill('#rkTBody .rk-tin', 'いとこ'); await page.keyboard.press('Enter'); await w(250);
+  await page.fill('#rkTV .rk-tin', 'いとこ'); await page.keyboard.press('Enter'); await w(250);
   check('  　自分の項目（間柄＝いとこ）→ Enter で 下の人（山田）の 間柄', [await X('a4', x => x.cf.f1), await ted()].join(' / '), 'いとこ / a1/cf:f1/兄');
   await page.keyboard.press('Escape'); await w(150);
   // 住所：直すと 町名まで1つの欄に。〒 は そのまま
-  await tclick('a1', 'adr'); await w(150); await page.fill('#rkTBody .rk-tin', '東京都千代田区丸の内1-1'); await page.keyboard.press('Enter'); await w(250); await page.keyboard.press('Escape'); await w(100);
+  await tclick('a1', 'adr'); await w(150); await page.fill('#rkTV .rk-tin', '東京都千代田区丸の内1-1'); await page.keyboard.press('Enter'); await w(250); await page.keyboard.press('Escape'); await w(100);
   check('  住所を直す：〒はそのまま、住所は1つの欄に', await X('a1', x => [x.adrs[0].zip, x.adrs[0].region, x.adrs[0].city, x.adrs[0].street].join('|')), '100-0001|||東京都千代田区丸の内1-1');
-  await tclick('a1', 'bday'); await w(150); await page.fill('#rkTBody .rk-tin', 'あした'); await page.keyboard.press('Enter'); await w(250);
+  await tclick('a1', 'bday'); await w(150); await page.fill('#rkTV .rk-tin', 'あした'); await page.keyboard.press('Enter'); await w(250);
   check('  誕生日の形がちがう → そのマスのまま', [await ted(), await X('a1', x => x.bday)].join(' / '), 'a1/bday/あした / 1960-04-01');
-  await page.fill('#rkTBody .rk-tin', '1961年4月2日'); await page.keyboard.press('Enter'); await w(250); await page.keyboard.press('Escape'); await w(100);
+  await page.fill('#rkTV .rk-tin', '1961年4月2日'); await page.keyboard.press('Enter'); await w(250); await page.keyboard.press('Escape'); await w(100);
   check('  　「1961年4月2日」も読める', await X('a1', x => x.bday), '1961-04-02');
   // 窓で選ぶもの：★・色・グループ・えらぶ項目・メモ
   await tclick('a4', 'fav'); await w(250);
   check('  ★ を押すと よく使う に', await X('a4', x => x.fav), true);
   const ts0 = await X('a4', x => x.ts);
   await tclick('a4', 'color'); await w(300); await askR(106);
-  check('  🎨 色：窓で えらぶ（水色）。色は「直した日」を変えない', [await X('a4', x => x.color), (await X('a4', x => x.ts)) === ts0, await page.evaluate(() => { const tr = [...document.querySelectorAll('#rkTBody tr')].find(r => r.dataset.id === 'a4'); return tr.style.getPropertyValue('--rkc'); })].join(' / '), 'sky / true / #29b6f6');
+  check('  🎨 色：窓で えらぶ（水色）。色は「直した日」を変えない', [await X('a4', x => x.color), (await X('a4', x => x.ts)) === ts0, await page.evaluate(() => { const tr = [...document.getElementById('rkTL').children].find(r => r.dataset.id === 'a4'); return tr.style.getPropertyValue('--rkc'); })].join(' / '), 'sky / true / #29b6f6');
   await tclick('a4', 'groups'); await w(300);
   await page.evaluate(() => { [...document.querySelectorAll('#rkAskGr button')].find(b => b.dataset.g === '仕事').click(); }); await askPick(/^できた$/);
   check('  グループ：窓で 押してえらぶ → できた', await X('a4', x => x.groups.join(',')), '仕事');
@@ -8271,12 +8285,12 @@ async function runRenrakuIro(browser) {
   await page.evaluate(() => RK.tUndo()); await w(150); await page.evaluate(() => RK.tUndo()); await w(150);
   check('  ↶ 戻す：1つずつ戻る（メモ → 年賀状）', await X('a4', x => JSON.stringify(x.note) + '|' + (x.cf.f2 || '')), '""|');
   // 並べかえ・列をえらぶ・さがす
-  await page.evaluate(() => [...document.querySelectorAll('#rkTbl thead th')].find(t => t.textContent.trim() === '携帯').click()); await w(250);
-  const order = () => page.evaluate(() => [...document.querySelectorAll('#rkTBody tr[data-id]')].map(r => r.cells[1].textContent.trim().split(' ')[0]).join(','));
-  check('  見出しを押すと その列で並べかえ（携帯 ▲・入っていない人は下）', [await order(), await page.evaluate(() => document.querySelector('#rkTbl thead th.c-name').parentElement.textContent.includes('携帯 ▲'))].join(' / '), '伊藤,佐藤,鈴木,山田,高橋,〇〇病院 / true');
-  await page.evaluate(() => [...document.querySelectorAll('#rkTbl thead th')].find(t => /携帯/.test(t.textContent)).click()); await w(250);
+  await page.evaluate(() => [...document.querySelectorAll('#rkTHd [data-h]')].find(t => t.textContent.trim() === '携帯').click()); await w(250);
+  const order = () => page.evaluate(() => [...document.querySelectorAll('#rkTL .rk-tr[data-id]')].map(r => r.children[1].textContent.trim().split(' ')[0]).join(','));
+  check('  見出しを押すと その列で並べかえ（携帯 ▲・入っていない人は下）', [await order(), await page.evaluate(() => document.getElementById('rkTHd').textContent.includes('携帯 ▲'))].join(' / '), '伊藤,佐藤,鈴木,山田,高橋,〇〇病院 / true');
+  await page.evaluate(() => [...document.querySelectorAll('#rkTHd [data-h]')].find(t => /携帯/.test(t.textContent)).click()); await w(250);
   check('  　もう一度で逆（▼）', await order(), '高橋,山田,鈴木,佐藤,伊藤,〇〇病院');
-  await page.evaluate(() => [...document.querySelectorAll('#rkTbl thead th')].find(t => /携帯/.test(t.textContent)).click()); await w(250);
+  await page.evaluate(() => [...document.querySelectorAll('#rkTHd [data-h]')].find(t => /携帯/.test(t.textContent)).click()); await w(250);
   check('  　3回目で よみ順に戻る', await order(), '伊藤,佐藤,鈴木,高橋,山田,〇〇病院');
   await page.evaluate(() => { RK.tCols(); }); await w(300);
   await page.evaluate(() => { document.querySelector('#rkAskBody input[data-tc="mail"]').checked = false; document.querySelector('#rkAskBody input[data-tc="zip"]').checked = true; }); await askPick(/^できた$/);
@@ -8286,10 +8300,10 @@ async function runRenrakuIro(browser) {
   await page.evaluate(() => { document.getElementById('rkTFind').value = ''; RK.tQ(''); }); await w(200);
   // ＋ 足す
   await page.evaluate(() => RK.tAdd()); await w(250);
-  check('  ＋ 足す：いちばん上に行ができて 名前のマスへ', [await ted(), await page.evaluate(() => document.querySelector('#rkTBody tr').classList.contains('draft'))].join(' / '), (await page.evaluate(() => document.querySelector('#rkTBody tr').dataset.id)) + '/name/ / true');
+  check('  ＋ 足す：いちばん上に行ができて 名前のマスへ', [await ted(), await page.evaluate(() => document.querySelector('#rkTL .rk-tr').classList.contains('draft') && document.querySelector('#rkTBody .rk-tr').classList.contains('draft'))].join(' / '), (await page.evaluate(() => document.querySelector('#rkTL .rk-tr').dataset.id)) + '/name/ / true');
   await page.keyboard.type('Tom Smith'); await page.keyboard.press('Tab'); await w(250);
   await page.keyboard.type('トム'); await page.keyboard.press('Tab'); await w(250);
-  check('  　名前を入れると 連絡帳に入る（英語の名前は 名・姓の順）・人数が増える', await page.evaluate(() => { const x = rkState().items.find(i => i.fam === 'Smith'); return [x.giv, x.famK, rkState().items.length, document.querySelector('#rkTInfo b').textContent, document.querySelector('#rkTBody tr').classList.contains('draft')].join('/'); }), 'Tom/トム/7/7/false');
+  check('  　名前を入れると 連絡帳に入る（英語の名前は 名・姓の順）・人数が増える', await page.evaluate(() => { const x = rkState().items.find(i => i.fam === 'Smith'); return [x.giv, x.famK, rkState().items.length, document.querySelector('#rkTInfo b').textContent, document.querySelector('#rkTL .rk-tr').classList.contains('draft'), document.querySelector('#rkTL .rk-tr .c-no').textContent].join('/'); }), 'Tom/トム/7/7/false/1');
   await page.keyboard.press('Escape'); await w(100);
   await page.evaluate(() => { RK.tUndo(); RK.tUndo(); }); await w(250);
   check('  　↶ 戻す で 足した人も消える', await page.evaluate(() => rkState().items.length + '/' + document.querySelector('#rkTInfo b').textContent + '/' + !!rkState().items.find(i => i.fam === 'Smith')), '6/6/false');
@@ -8301,7 +8315,8 @@ async function runRenrakuIro(browser) {
   await page.evaluate(() => { document.getElementById('rkE_note').value = '代表は平日9時から'; RK.edSave(); }); await w(400);
   check('  　保存すると 表の行も変わる', (await row('a6')).split('|').pop(), '代表は平日9時から');
   await tclick('a6', 'no'); await w(300); await askPick(/消す/); await w(300);
-  check('  　消す：表からも消える', await page.evaluate(() => rkState().items.length + '/' + document.querySelectorAll('#rkTBody tr[data-id]').length + '/' + document.querySelector('#rkTInfo b').textContent), '5/5/5');
+  check('  　消す：表からも消える・行の番号は付けなおす（1〜5）', await page.evaluate(() => rkState().items.length + '/' + document.querySelectorAll('#rkTBody .rk-tr[data-id]').length + '/' + document.querySelector('#rkTInfo b').textContent + '/' + [...document.querySelectorAll('#rkTL .c-no')].map(e => e.textContent).join('')), '5/5/5/12345');
+  check('  　消したあとも 左右の行は そろったまま', await align(), 'そろう');
   // 戻るで閉じる（表だけ）・閉じると一覧に出る・端末に保存
   await page.click('#rkTFind'); await w(150);
   await page.evaluate(() => window.history.back()); await w(500);
@@ -8309,22 +8324,24 @@ async function runRenrakuIro(browser) {
   check('  　端末に保存してある', await page.evaluate(() => { const o = JSON.parse(localStorage.getItem('excalc_renraku')); const x = o.items.find(i => i.id === 'a4'); return [x.giv, x.givK, x.color, x.tels.length, o.items.length].join('/'); }), '健太/けんた/sky/2/5');
   // 絞りこみのまま開く・たくさんの人（少しずつ出す）
   await page.evaluate(() => { RK.setGrp('家族'); RK.table(); }); await w(500);
-  check('  一覧で絞っていたら 表も その人だけ（ぜんぶ出す で もとに）', await page.evaluate(() => document.getElementById('rkTInfo').textContent.replace(/\s+/g, ' ').split('マス')[0].trim() + ' / ' + (RK.tAllF(), document.querySelectorAll('#rkTBody tr[data-id]').length)), '1人（🏷 家族 だけ）ぜんぶ出す / 5');
+  check('  一覧で絞っていたら 表も その人だけ（ぜんぶ出す で もとに）', await page.evaluate(() => document.getElementById('rkTInfo').textContent.replace(/\s+/g, ' ').split('マス')[0].trim() + ' / ' + (RK.tAllF(), document.querySelectorAll('#rkTBody .rk-tr[data-id]').length)), '1人（🏷 家族 だけ）ぜんぶ出す / 5');
   await page.evaluate(() => { RK.closeTbl(); const r = rkState(); for (let i = 0; i < 300; i++) r.items.push(rkCleanItem({ id: 'm' + i, fam: '山本', giv: '人' + i, famK: 'やまもと', givK: 'ひと' + String(i).padStart(3, '0'), tels: [{ t: 'cell', v: '090-0000-' + String(1000 + i) }] })); RK.table(); }); await w(500);
-  check('  たくさんの人：はじめは 120人出して「つづきを出す」・下までいくと続きが出る', await page.evaluate(() => document.querySelectorAll('#rkTBody tr[data-id]').length + '/' + document.querySelector('#rkTBody tr.more').textContent.trim()), '120/つづきを出す（あと 185人）');
+  check('  たくさんの人：はじめは 120人出して「つづきを出す」・下までいくと続きが出る', await page.evaluate(() => document.querySelectorAll('#rkTBody .rk-tr[data-id]').length + '/' + document.getElementById('rkTMore').textContent.trim()), '120/つづきを出す（あと 185人）');
   await page.evaluate(() => { const wr = document.getElementById('rkTWrap'); wr.scrollTop = wr.scrollHeight; }); await w(600);
-  check('  　（下まで動かす → 240人）', await page.evaluate(() => document.querySelectorAll('#rkTBody tr[data-id]').length), 240);
-  await page.evaluate(() => { const rows = [...document.querySelectorAll('#rkTBody tr[data-id]')]; rows[rows.length - 1].querySelector('td[data-c="yomi"]').click(); }); await w(200);
+  check('  　（下まで動かす → 240人。左右そろったまま）', await page.evaluate(() => document.querySelectorAll('#rkTBody .rk-tr[data-id]').length) + ' / ' + await align(), '240 / そろう');
+  await page.evaluate(() => { const rows = [...document.querySelectorAll('#rkTBody .rk-tr[data-id]')]; rows[rows.length - 1].querySelector('[data-c="yomi"]').click(); }); await w(200);
   await page.keyboard.press('Enter'); await w(300);
-  check('  　いちばん下で Enter → 続きを出して その人へ', await page.evaluate(() => document.querySelectorAll('#rkTBody tr[data-id]').length + '/' + (document.activeElement.closest('tr') || {}).rowIndex), '305/241');
+  check('  　いちばん下で Enter → 続きを出して その人へ', await page.evaluate(() => document.querySelectorAll('#rkTBody .rk-tr[data-id]').length + '/' + ([...document.getElementById('rkTBody').children].indexOf(document.activeElement.closest('.rk-tr')) + 1)), '305/241');
   await page.keyboard.press('Escape'); await page.evaluate(() => RK.closeTbl()); await w(300);
   // 夜の色・せまい画面
   await page.evaluate(() => { const r = rkState(); r.items = r.items.filter(x => !/^m\d+$/.test(x.id)); toggleDark(); RK.table(); }); await w(500);
   check('  夜の色：表の名前・見出し・色のある行も 読める（文字と地の明るさの差 4.5 以上）', await page.evaluate(() => {
     const lum = c => { const m = c.match(/[\d.]+/g).slice(0, 3).map(Number), k = /^color\(srgb/.test(c) ? 1 : 255; return m.map(v => v / k).map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0); };
     const cr = el => { const cs = getComputedStyle(el), a = lum(cs.color), b = lum(cs.backgroundColor); return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); };
-    const tr = id => [...document.querySelectorAll('#rkTBody tr')].find(r => r.dataset.id === id);
-    const bad = [['名前', tr('a3').cells[1]], ['色の行の名前', tr('a1').cells[1]], ['色の行の電話', tr('a1').cells[5]], ['見出し', document.querySelector('#rkTbl thead th.c-name')]].filter(([, el]) => cr(el) < 4.5).map(([n, el]) => n + cr(el).toFixed(1));
+    const tr = (id, b) => [...document.getElementById(b || 'rkTL').children].find(r => r.dataset.id === id);
+    const bgOf = el => { for (let e = el; e; e = e.parentElement) { const c = getComputedStyle(e).backgroundColor; if (!/rgba\(.*, 0\)$|transparent/.test(c)) return c; } return 'rgb(255,255,255)'; };
+    const cr2 = el => { const a = lum(getComputedStyle(el).color), b = lum(bgOf(el)); return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); };
+    const bad = [['名前', tr('a3').children[1]], ['色の行の名前', tr('a1').children[1]], ['色の行の携帯', tr('a1', 'rkTBody').querySelector('[data-c="cell"]')], ['見出し', document.querySelector('#rkTHd .c-name')]].filter(([, el]) => cr2(el) < 4.5).map(([n, el]) => n + cr2(el).toFixed(1));
     return document.body.classList.contains('dark') + ':' + bad.join(','); }), 'true:');
   await page.evaluate(() => { RK.closeTbl(); toggleDark(); }); await w(300);
   check('  エラーなし', errs.join(' | '), '');
