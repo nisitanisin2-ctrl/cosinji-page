@@ -1,6 +1,6 @@
 // ✍️かきじゅん帳（kakijun/）専用のキャッシュ。
 // 同じサイトに表電卓・算数などがあるので、名前の頭（kakijun-）で自分の分だけを見分けて消す。
-const CACHE = 'kakijun-v3';   // v538：なぞり練習の案内に「うまく書くコツ」と読み上げ（v535：戻るの見張り）
+const CACHE = 'kakijun-v4';   // v539：一筆ごとにコツだけ読む（v538：練習の案内にコツと読み上げ・v535：戻るの見張り）
 const CACHE_PREFIX = 'kakijun-';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png',
   './css/style.css', './js/data.js', './js/recog.js', './js/backguard.js', './js/app.js'];

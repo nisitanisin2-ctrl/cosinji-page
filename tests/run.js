@@ -7281,16 +7281,14 @@ async function runKakijun(browser) {
   check('  「左」は囲みの字として扱わない（「外側の…」を出さない）', await page.evaluate(() => { const k = KKJ_APP.K.get('左'); return KKJ_APP.analyze(k).tips.some(t => /外側/.test(typeof t === 'object' ? t.h : t)) + '/' + KKJ_APP.strokeTips(k).flat().some(t => /外側/.test(t.h)); }), 'false/false');
   check('  組み立て：部品の字が無くても形は出す（学：上下）', await page.evaluate(() => { KKJ_APP.load('学', { autoplay: false }); return document.getElementById('parts').textContent; }), '組み立て：上下');
   check('  画の数のよみ（いっかく・ろっかく・じゅっかく・にじゅうきゅうかく）', await page.evaluate(() => [1, 6, 8, 10, 16, 20, 29].map(KKJ_APP.kakuYomi).join(',')), 'いっかく,ろっかく,はっかく,じゅっかく,じゅうろっかく,にじゅっかく,にじゅうきゅうかく');
-  await page.evaluate(() => KKJ_APP.load('休', { autoplay: false })); await w(100);
+  await page.evaluate(() => { window.__spoken = []; KKJ_APP.load('休', { autoplay: false }); }); await w(100);
   await page.click('#modePractice'); await w(200);
   check('  練習の案内に「うまく書くコツ」（線の書き方＋字の組み立て）', await page.evaluate(() => { const m = document.getElementById('prMsg'); return [m.querySelector('.pr-lead').textContent, m.querySelector('.pr-sub').textContent, m.querySelector('.pr-tips b').textContent, [...m.querySelectorAll('.pr-tips li')].map(l => l.textContent).join('｜')].join(' / '); }),
     '1画目は「左払い」はらい / 色の線を●からなぞりましょう。 / うまく書くコツ / 書き始めはしっかり、だんだん力をぬいて左下へスッと払います。｜左の亻は細めに書き、右側に場所をゆずります（左右の幅は およそ3 : 7）。');
-  check('  　はじめは読み上げない（自動で読み上げはオフ）', await page.evaluate(() => window.__spoken.length + '/' + document.getElementById('prAuto').getAttribute('aria-pressed')), '0/false');
-  await page.click('#prMsg .pr-say'); await w(50);
-  check('  🔈 で案内とコツを読む（「左払い」「1画目」はかなで・部品は「にんべん」と読む）', await page.evaluate(() => window.__spoken.join(' || ')), 'いっかくめはひだりはらい。 色の線をまるからなぞりましょう。 書き始めはしっかり、だんだん力をぬいて左下へスッと払います。 左のにんべんは、細めに書き、右側に場所をゆずります。');
-  await page.evaluate(() => { window.__spoken = []; KKJ_APP.load('三', { autoplay: false }); }); await w(150);
-  await page.click('#prAuto'); await w(50);
-  check('  「自動で読み上げ」をオンにすると覚えて、いまの案内をすぐ読む', await page.evaluate(() => [localStorage.getItem('kkj:say'), document.getElementById('prAuto').getAttribute('aria-pressed'), window.__spoken.join(' || ')].join('/')), 'true/true/いっかくめはよこかく。 色の線をまるからなぞりましょう。 左から右へ、ほんの少し右上がりに。終わりはしっかり止めます。');
+  // 読み上げ（v539）：一筆書くごとに、次に書く画の「うまく書くコツ」だけを自動で読む（はじめからオン）
+  check('  　はじめからコツを自動で読む：入ると1画目のコツだけ（「1画目は…」の案内は読まない。部品は「にんべん」と読む）', await page.evaluate(() => document.getElementById('prAuto').getAttribute('aria-pressed') + '|' + window.__spoken.join(' || ')), 'true|書き始めはしっかり、だんだん力をぬいて左下へスッと払います。 左のにんべんは、細めに書き、右側に場所をゆずります。');
+  await page.evaluate(() => { window.__spoken = []; }); await page.click('#prMsg .pr-say'); await w(50);
+  check('  🔈 でコツをもう一度読む', await page.evaluate(() => window.__spoken.join(' || ')), '書き始めはしっかり、だんだん力をぬいて左下へスッと払います。 左のにんべんは、細めに書き、右側に場所をゆずります。');
   const box2 = await page.evaluate(() => { const r = document.getElementById('pc').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width }; });
   const draw2 = async (poly, rev) => {
     const P = (rev ? poly.slice().reverse() : poly).map(q => [box2.x + q[0] / 109 * box2.w, box2.y + q[1] / 109 * box2.w]);
@@ -7299,26 +7297,39 @@ async function runKakijun(browser) {
     await page.mouse.up(); await w(120);
   };
   const said = () => page.evaluate(() => { const s = window.__spoken.join(' || '); window.__spoken = []; return s; });
+  await page.evaluate(() => { window.__spoken = []; KKJ_APP.load('三', { autoplay: false }); }); await w(150);
+  check('  　ほかの字を開くと、その字の1画目のコツを読む', await said(), '左から右へ、ほんの少し右上がりに。終わりはしっかり止めます。');
   const san = await strokesOf('三');
-  await said(); await draw2(san[0]);
-  check('  　書けたら次の画を読む（同じ線の書き方は2回目から省いて、字のコツだけ）', /^(きれい！|いいですね。|OK。) にかくめはよこかく。 よこかくは3本。間隔を同じにそろえます。$/.test(await said()), true);
+  await draw2(san[0]);
+  check('  　一筆書くと、次の画のコツだけ読む（前と同じ線の書き方は、字のコツがあれば省く。「横画」は「よこかく」）', await said(), 'よこかくは3本。間隔を同じにそろえます。');
   await draw2(san[1], true);
-  check('  　まちがえたときは、そのことを読む', await said(), '向きが逆です。まるの位置から書き始めましょう。');
-  await draw2(san[1]); await draw2(san[2]); await w(200);
-  check('  　書き終わったら点数を読む', /^(はなまる！|よくできました。|もう一息！) 点数 \d+点。$/.test((await said()).split(' || ').pop()), true);
+  check('  　まちがえても読まない（同じ画のコツは一度だけ）', await said(), '');
+  await draw2(san[1]);
+  check('  　書き直して書けたら、次の画のコツ', await said(), 'この字でいちばん長いよこかくです。しっかり長く書くと引きしまります。');
+  await draw2(san[2]); await w(200);
+  check('  　書き終わっても読まない（点数は画面だけ）', await said(), '');
+  await page.evaluate(() => KKJ_APP.load('川', { autoplay: false })); await w(150); await said();
+  const kawa = await strokesOf('川');
+  await draw2(kawa[0]); await draw2(kawa[1]);
+  check('  　線の書き方しかない画は、同じ書き方でも毎回読む（川の2画目・3画目）', (await said()).split(' || ').join('｜'), '上から下へまっすぐ下ろし、終わりはしっかり止めます。｜上から下へまっすぐ下ろし、終わりはしっかり止めます。');
+  await page.click('#prAuto'); await w(50); await draw2(kawa[2]); await w(150);
+  check('  「コツを自動で読む」をオフにすると覚えて、読まない', await page.evaluate(() => localStorage.getItem('kkj:sayTips') + '/' + document.getElementById('prAuto').getAttribute('aria-pressed')) + '|' + await said(), 'false/false|');
   await page.click('#rAgain'); await w(100); await said();
-  await page.click('#practiceUI [data-lv="3"]'); await w(100);
+  await page.click('#prAuto'); await w(50);
+  check('  　オンにすると、いまの画のコツをすぐ読む', await page.evaluate(() => localStorage.getItem('kkj:sayTips')) + '|' + await said(), 'true|書き始めはしっかり、だんだん力をぬいて左下へスッと払います。');
+  await page.click('#practiceUI [data-lv="3"]'); await w(100); await said();
   const tipN = () => page.evaluate(() => document.querySelectorAll('#prMsg .pr-tips li').length);
-  const t0 = await tipN(); await draw2(san[0], true);
-  check('  テストでは、まちがえるまでコツを出さない', t0 + '/' + await tipN(), '0/1');
-  await page.click('#practiceUI [data-lv="1"]'); await page.click('#prAuto'); await page.click('#modeView'); await w(100);
-  check('  「自動で読み上げ」をオフにすると覚える', await page.evaluate(() => localStorage.getItem('kkj:say')), 'false');
+  const t0 = await tipN(); await draw2(kawa[0], true);
+  check('  テストでは、まちがえるまでコツを出さない（出したときに読む）', t0 + '/' + await tipN() + '|' + await said(), '0/1|書き始めはしっかり、だんだん力をぬいて左下へスッと払います。');
+  await draw2(kawa[0], true);
+  check('  　もう一度まちがえても、同じコツは読まない', await said(), '');
+  await page.click('#practiceUI [data-lv="1"]'); await page.click('#modeView'); await w(100);
 
   // 学年の一覧・最近見た字
   await page.click('#gtabs [data-t="1"]'); await w(100);
   check('  学年の一覧（1年は80字）', await page.evaluate(() => document.querySelectorAll('#kgrid button').length + '/' + document.getElementById('gridCount').textContent), '80/小学1年・80字');
   await page.click('#gtabs [data-t="r"]'); await w(100);
-  check('  最近見た字（新しい順）', await page.evaluate(() => [...document.querySelectorAll('#kgrid button')].slice(0, 3).map(b => b.textContent).join('')), '三休学');   // 練習のコツのところで 学 → 休 → 三 の順に開いた
+  check('  最近見た字（新しい順）', await page.evaluate(() => [...document.querySelectorAll('#kgrid button')].slice(0, 3).map(b => b.textContent).join('')), '川三休');   // 練習のコツのところで 学 → 休 → 三 → 川 の順に開いた
   check('  外へは何も取りに行かない', reqs.join(','), '');
 
   // 表電卓から開く
