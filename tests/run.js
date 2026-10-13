@@ -7159,6 +7159,9 @@ async function runKakijun(browser) {
     // 声はまねもので
     window.SpeechRecognition = class { constructor() { window.__rec = this; } start() { window.__started = (window.__started || 0) + 1; } stop() { setTimeout(() => this.onend && this.onend(), 0); } abort() { } };
     window.__say = (alts) => { const r = alts.map(t => ({ transcript: t })); r.isFinal = true; window.__rec.onresult({ resultIndex: 0, results: [r] }); window.__rec.onend(); };
+    // 読み上げもまねもので（読んだ文をためる）
+    window.__spoken = [];
+    Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { speak: u => window.__spoken.push(u.text), cancel: () => {}, getVoices: () => [] } });
   });
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/favicon/.test(m.text())) errs.push('console: ' + m.text()); });
@@ -7246,7 +7249,7 @@ async function runKakijun(browser) {
   // なぞって練習
   await page.evaluate(() => KKJ_APP.load('十', { autoplay: false })); await w(100);
   await page.click('#modePractice'); await w(200);
-  check('  なぞって練習：練習の紙を出す・1画目の案内', await page.evaluate(() => [KKJ_APP.mode(), getComputedStyle(document.getElementById('pc')).display, document.getElementById('prMsg').textContent].join('/')), 'practice/block/1/21画目は「横画」。色のついた線を●からなぞりましょう。');
+  check('  なぞって練習：練習の紙を出す・1画目の案内', await page.evaluate(() => [KKJ_APP.mode(), getComputedStyle(document.getElementById('pc')).display, document.getElementById('prMsg').textContent].join('/')), 'practice/block/1/21画目は「横画」とめ色の線を●からなぞりましょう。うまく書くコツ左から右へ、ほんの少し右上がりに。終わりはしっかり止めます。');
   const box = await page.evaluate(() => { const r = document.getElementById('pc').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width }; });
   const drawPoly = async (poly, rev) => {
     const P = (rev ? poly.slice().reverse() : poly).map(q => [box.x + q[0] / 109 * box.w, box.y + q[1] / 109 * box.w]);
@@ -7268,11 +7271,54 @@ async function runKakijun(browser) {
   check('  テスト：お手本も●も出さない・覚える', await page.evaluate(() => [getComputedStyle(document.getElementById('lGhost')).display, document.querySelectorAll('#lHint *').length, localStorage.getItem('kkj:lv')].join('/')), 'none/0/3');
   await page.click('#practiceUI [data-lv="1"]'); await page.click('#modeView'); await w(100);
 
+  // なぞり練習の案内に「うまく書くコツ」・読み上げ（v538）
+  const tipsOf = c => page.evaluate(c => KKJ_APP.strokeTips(KKJ_APP.K.get(c)).map((a, i) => a.length ? (i + 1) + ':' + a.map(t => t.h.replace(/<[^>]+>/g, '')).join('／') : '').filter(Boolean).join(' | '), c);
+  check('  画ごとのコツ「休」：左のにんべんは細めに（3:7）・右の木は広めに', await tipsOf('休'), '1:左の亻は細めに書き、右側に場所をゆずります（左右の幅は およそ3 : 7）。 | 3:右の木は広めに、のびのびと書きます。');
+  check('  画ごとのコツ「国」：外側から・中は小さめ・最後の画で閉じる・いちばん長い横画', await tipsOf('国'), '1:外側の囗から先に書きます。 | 3:中の部分は小さめにまとめ、外側とのすき間を均等にとります。 | 5:横画は4本。間隔を同じにそろえます。 | 8:この最後の画で囲みを閉じます。／この字でいちばん長い横画です。しっかり長く書くと引きしまります。');
+  check('  画ごとのコツ：つらぬく縦画は最後（十・中）・へんの木の最後は点のように止める（林）', [await tipsOf('十'), await tipsOf('中'), (await tipsOf('林')).split(' | ')[1]].join(' / '), '2:字をつらぬく縦画は最後に書きます。まっすぐ長く下ろします。 / 4:字をつらぬく縦画は最後に書きます。まっすぐ長く下ろします。 / 4:へんの木の最後の画は、払わずに点のように止めます。');
+  check('  　山・川のように、ほかの画と交わらない最後の縦画には「つらぬく」を出さない', (await tipsOf('山')) + '|' + (await tipsOf('川')), '|');
+  check('  部品の字がデータに無い字も、空の「」や欠けた式を出さない（全2136字）', await page.evaluate(() => { let q = 0, f = 0; KKJ_APP.ALL.forEach(k => { const an = KKJ_APP.analyze(k); if (an.tips.some(t => /<q><\/q>/.test(typeof t === 'object' ? t.h : t))) q++; if (/^ ?＋|＋ ?$|＋ +＋/.test(an.formula)) f++; KKJ_APP.strokeTips(k).forEach(a => a.forEach(t => { if (/<q><\/q>|undefined|NaN/.test(t.h + t.s)) q++; })); }); return q + '/' + f; }), '0/0');
+  check('  「左」は囲みの字として扱わない（「外側の…」を出さない）', await page.evaluate(() => { const k = KKJ_APP.K.get('左'); return KKJ_APP.analyze(k).tips.some(t => /外側/.test(typeof t === 'object' ? t.h : t)) + '/' + KKJ_APP.strokeTips(k).flat().some(t => /外側/.test(t.h)); }), 'false/false');
+  check('  組み立て：部品の字が無くても形は出す（学：上下）', await page.evaluate(() => { KKJ_APP.load('学', { autoplay: false }); return document.getElementById('parts').textContent; }), '組み立て：上下');
+  check('  画の数のよみ（いっかく・ろっかく・じゅっかく・にじゅうきゅうかく）', await page.evaluate(() => [1, 6, 8, 10, 16, 20, 29].map(KKJ_APP.kakuYomi).join(',')), 'いっかく,ろっかく,はっかく,じゅっかく,じゅうろっかく,にじゅっかく,にじゅうきゅうかく');
+  await page.evaluate(() => KKJ_APP.load('休', { autoplay: false })); await w(100);
+  await page.click('#modePractice'); await w(200);
+  check('  練習の案内に「うまく書くコツ」（線の書き方＋字の組み立て）', await page.evaluate(() => { const m = document.getElementById('prMsg'); return [m.querySelector('.pr-lead').textContent, m.querySelector('.pr-sub').textContent, m.querySelector('.pr-tips b').textContent, [...m.querySelectorAll('.pr-tips li')].map(l => l.textContent).join('｜')].join(' / '); }),
+    '1画目は「左払い」はらい / 色の線を●からなぞりましょう。 / うまく書くコツ / 書き始めはしっかり、だんだん力をぬいて左下へスッと払います。｜左の亻は細めに書き、右側に場所をゆずります（左右の幅は およそ3 : 7）。');
+  check('  　はじめは読み上げない（自動で読み上げはオフ）', await page.evaluate(() => window.__spoken.length + '/' + document.getElementById('prAuto').getAttribute('aria-pressed')), '0/false');
+  await page.click('#prMsg .pr-say'); await w(50);
+  check('  🔈 で案内とコツを読む（「左払い」「1画目」はかなで・部品は「にんべん」と読む）', await page.evaluate(() => window.__spoken.join(' || ')), 'いっかくめはひだりはらい。 色の線をまるからなぞりましょう。 書き始めはしっかり、だんだん力をぬいて左下へスッと払います。 左のにんべんは、細めに書き、右側に場所をゆずります。');
+  await page.evaluate(() => { window.__spoken = []; KKJ_APP.load('三', { autoplay: false }); }); await w(150);
+  await page.click('#prAuto'); await w(50);
+  check('  「自動で読み上げ」をオンにすると覚えて、いまの案内をすぐ読む', await page.evaluate(() => [localStorage.getItem('kkj:say'), document.getElementById('prAuto').getAttribute('aria-pressed'), window.__spoken.join(' || ')].join('/')), 'true/true/いっかくめはよこかく。 色の線をまるからなぞりましょう。 左から右へ、ほんの少し右上がりに。終わりはしっかり止めます。');
+  const box2 = await page.evaluate(() => { const r = document.getElementById('pc').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width }; });
+  const draw2 = async (poly, rev) => {
+    const P = (rev ? poly.slice().reverse() : poly).map(q => [box2.x + q[0] / 109 * box2.w, box2.y + q[1] / 109 * box2.w]);
+    await page.mouse.move(P[0][0], P[0][1]); await page.mouse.down();
+    for (const q of P.slice(1)) await page.mouse.move(q[0], q[1], { steps: 2 });
+    await page.mouse.up(); await w(120);
+  };
+  const said = () => page.evaluate(() => { const s = window.__spoken.join(' || '); window.__spoken = []; return s; });
+  const san = await strokesOf('三');
+  await said(); await draw2(san[0]);
+  check('  　書けたら次の画を読む（同じ線の書き方は2回目から省いて、字のコツだけ）', /^(きれい！|いいですね。|OK。) にかくめはよこかく。 よこかくは3本。間隔を同じにそろえます。$/.test(await said()), true);
+  await draw2(san[1], true);
+  check('  　まちがえたときは、そのことを読む', await said(), '向きが逆です。まるの位置から書き始めましょう。');
+  await draw2(san[1]); await draw2(san[2]); await w(200);
+  check('  　書き終わったら点数を読む', /^(はなまる！|よくできました。|もう一息！) 点数 \d+点。$/.test((await said()).split(' || ').pop()), true);
+  await page.click('#rAgain'); await w(100); await said();
+  await page.click('#practiceUI [data-lv="3"]'); await w(100);
+  const tipN = () => page.evaluate(() => document.querySelectorAll('#prMsg .pr-tips li').length);
+  const t0 = await tipN(); await draw2(san[0], true);
+  check('  テストでは、まちがえるまでコツを出さない', t0 + '/' + await tipN(), '0/1');
+  await page.click('#practiceUI [data-lv="1"]'); await page.click('#prAuto'); await page.click('#modeView'); await w(100);
+  check('  「自動で読み上げ」をオフにすると覚える', await page.evaluate(() => localStorage.getItem('kkj:say')), 'false');
+
   // 学年の一覧・最近見た字
   await page.click('#gtabs [data-t="1"]'); await w(100);
   check('  学年の一覧（1年は80字）', await page.evaluate(() => document.querySelectorAll('#kgrid button').length + '/' + document.getElementById('gridCount').textContent), '80/小学1年・80字');
   await page.click('#gtabs [data-t="r"]'); await w(100);
-  check('  最近見た字（新しい順）', await page.evaluate(() => [...document.querySelectorAll('#kgrid button')].slice(0, 3).map(b => b.textContent).join('')), '十花海');
+  check('  最近見た字（新しい順）', await page.evaluate(() => [...document.querySelectorAll('#kgrid button')].slice(0, 3).map(b => b.textContent).join('')), '三休学');   // 練習のコツのところで 学 → 休 → 三 の順に開いた
   check('  外へは何も取りに行かない', reqs.join(','), '');
 
   // 表電卓から開く
