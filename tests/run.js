@@ -7825,6 +7825,70 @@ async function runKoeOut(browser) {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
 
+/* 🌗 端末のダークテーマ・節電モードでも文字が消えない（v541）。
+   端末がダークになると（Pixel の節電モードなど）、色を決めていない文字が白くなり、白い地に溶けていた。
+   文字・ボタンのふだんの色は表電卓の「夜の色」に合わせる。道具を開いて、文字と地の明るさの差を測る */
+async function runSchemeFix(browser) {
+  console.log('\n── 🌗 端末のダーク（節電モード）でも文字が消えない（v541） ──');
+  // 見えている文字ごとに、文字と地のコントラスト比を測り、2.2 より小さい（読めない）ものを返す
+  const SCAN = () => {
+    const rgb = c => { const m = c.match(/[\d.]+/g); if (!m) return null; const k = /^color\(srgb/.test(c) ? 1 : 255; return { v: m.slice(0, 3).map(x => x / k), a: m.length > 3 ? +m[3] : 1 }; };
+    const lum = c => { const x = rgb(c); return x && x.v.map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0); };
+    const bgOf = el => { for (let e = el; e && e.nodeType === 1; e = e.parentElement) { const cs = getComputedStyle(e); if (cs.backgroundImage !== 'none') return null; if (rgb(cs.backgroundColor).a >= 0.5) return cs.backgroundColor; } return getComputedStyle(document.documentElement).backgroundColor; };
+    const shown = el => { if (!el.getClientRects().length) return false; const r = el.getBoundingClientRect(); if (r.width < 2 || r.height < 2 || r.bottom < 0 || r.top > innerHeight) return false;
+      for (let e = el; e && e.nodeType === 1; e = e.parentElement) { const cs = getComputedStyle(e); if (cs.visibility === 'hidden' || +cs.opacity < 0.2) return false; } return true; };
+    const bad = [];
+    for (const el of document.querySelectorAll('body *')) {
+      if (/^(SCRIPT|STYLE|SVG|PATH|CANVAS|IMG|OPTION)$/i.test(el.tagName)) continue;
+      let t = '';
+      if (/^(INPUT|TEXTAREA)$/.test(el.tagName)) { if (/^(checkbox|radio|range|color|file|hidden)$/.test(el.type)) continue; t = el.value; }
+      else if (el.tagName === 'SELECT') t = el.selectedOptions[0] ? el.selectedOptions[0].textContent : '';
+      else for (const n of el.childNodes) if (n.nodeType === 3) t += n.textContent;
+      t = String(t || '').replace(/\s+/g, ' ').trim(); if (!/[\p{L}\p{N}]/u.test(t) || !shown(el)) continue;
+      const cs = getComputedStyle(el); if (rgb(cs.color).a < 0.3) continue;
+      const bg = bgOf(el); if (!bg) continue;
+      const a = lum(cs.color), b = lum(bg), r = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+      if (r < 2.2) bad.push(t.slice(0, 14) + '(' + r.toFixed(1) + ')');
+    }
+    return bad.join(' / ');
+  };
+  for (const [scheme, dark, who] of [['dark', '0', '端末がダーク・表電卓は昼の色（節電モード）'], ['light', '1', '端末は明るい・表電卓は夜の色']]) {
+    const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: 'block', colorScheme: scheme });
+    await ctx.addInitScript(d => { try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('excalc_dark', d); } catch (e) {} }, dark);
+    const page = await ctx.newPage(); const errs = [];
+    page.on('pageerror', e => errs.push(e.message)); page.on('dialog', d => d.dismiss().catch(() => {}));
+    const w = ms => page.waitForTimeout(ms);
+    await page.goto('file://' + path.join(ROOT, 'index.html')); await w(1200);
+    check('  ' + who + '：文字・ボタンのふだんの色は表電卓の色に合わせる', await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme + '/' + document.body.classList.contains('dark')), dark === '1' ? 'dark/true' : 'light only/false');
+    await page.evaluate(() => openShimai()); await w(800);
+    await page.evaluate(() => smAddText('眼鏡はパソコン横')); await w(1900);   // 入れた物を光らせるのが終わるまで
+    check('  　📦 しまい場所：物の名前が地に溶けない', await page.evaluate(() => { const nm = document.querySelector('#smList .sm-it .nm'); return nm.textContent + '/' + getComputedStyle(nm).color; }), dark === '1' ? '眼鏡/rgb(255, 255, 255)' : '眼鏡/rgb(0, 0, 0)');
+    const found = [];
+    found.push('shimai:' + await page.evaluate(SCAN));
+    await page.evaluate(() => closeShimai()); await w(600);
+    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo']) {
+      await page.evaluate(id => NP_TOOLS.find(t => t.id === id).run(), id); await w(1100);
+      found.push(id + ':' + await page.evaluate(SCAN));
+      if (id === 'kurashi' || id === 'keisan') { await page.evaluate(id => { const c = document.querySelector(id === 'kurashi' ? '#krList .kr-card' : '#ksList .ks-card'); if (c) c.click(); }, id); await w(800); found.push(id + '-page:' + await page.evaluate(SCAN)); }
+      await page.evaluate(id => NP_TOOLS.find(t => t.id === id).close(), id); await w(600);
+    }
+    await page.evaluate(() => { toggleSettings(); openVoiceSet(); }); await w(500);
+    found.push('voice:' + await page.evaluate(SCAN));
+    check('  　読めない文字がない（しまい場所・部屋割り・案内ページ・容積・カンタブ・便利計算・くらしの便利帳・角度計・読み上げの声）', found.filter(s => !/:$/.test(s)).join(' | '), '');
+    check('  　エラーなし', errs.join(' | '), '');
+    await ctx.close();
+  }
+  // 表電卓の中で昼の色・夜の色を切りかえると、すぐに合わせる
+  const ctx = await browser.newContext({ serviceWorkers: 'block', colorScheme: 'dark' });
+  await ctx.addInitScript(() => { try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_startpage', 'last'); } catch (e) {} });
+  const page = await ctx.newPage();
+  await page.goto('file://' + path.join(ROOT, 'index.html')); await page.waitForTimeout(1000);
+  const btnColor = () => page.evaluate(() => { const b = document.createElement('button'); document.body.appendChild(b); const c = getComputedStyle(b).color; b.remove(); return getComputedStyle(document.documentElement).colorScheme + ' ' + c; });
+  const r1 = await btnColor(); await page.evaluate(() => toggleDark()); const r2 = await btnColor(); await page.evaluate(() => toggleDark()); const r3 = await btnColor();
+  check('  夜の色に切りかえると、すぐ夜の色の文字に（戻すと昼の色）', [r1, r2, r3].join(' → '), 'light only rgb(0, 0, 0) → dark rgb(255, 255, 255) → light only rgb(0, 0, 0)');
+  await ctx.close();
+}
+
 /* 🔈 読み上げの声（v540）：表電卓・声の計算帳・かきじゅん帳・英単語・算数・メモで同じ声（hyovoice.js・hyo_voice） */
 async function runHyoVoice(browser) {
   console.log('\n── 🔈 読み上げの声を、表電卓・ほかの道具で同じに（v540） ──');
@@ -12203,6 +12267,7 @@ async function runQrShare(browser) {
     if (!only || only === 'koe' || only === 'koeout') await runKoeOut(browser);
     if (!only || only === 'backguard') await runBackGuard(browser);
     if (!only || only === 'hyovoice') await runHyoVoice(browser);
+    if (!only || only === 'scheme') await runSchemeFix(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
   } finally { await browser.close(); }

@@ -499,6 +499,12 @@ body.dark #toubanOverlay.tbc-has-duty .tb-cell.has:not(.blank) { background: col
 /* iOS：回転時の文字自動拡大を抑止 */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; background: #c9ced3; }
 html:has(body.dark) { background: #0d0d18; }
+/* 文字・ボタン・入力欄のふだんの色は、端末のダークテーマではなく表電卓の「夜の色」に合わせる（v541）。
+   端末がダークになると（Pixel の節電モードなど）、色を決めていない文字が白くなり、白い地に溶けて見えなくなっていた
+   （しまい場所の物の名前など）。夜の色のときは、端末が明るくても夜の色の文字にする。
+   only light：端末の「ウェブページを暗くする」で勝手に暗くさせない */
+:root { color-scheme: light; color-scheme: only light; }
+:root:has(body.dark), body.dark { color-scheme: dark; }
 
 /* パソコン等で全幅が広すぎる時に、画面幅を狭めて中央寄せできるようにする */
 body { max-width: var(--app-width, 100%); margin-inline: auto; }
@@ -1472,6 +1478,7 @@ body.fill-active #fillHandle { display: none; }
 .cell-insert-btn:disabled, .lk-insert:disabled, .vol-insert:disabled {
   background: var(--save-item-border); color: var(--text-light); cursor: default;
 }
+body.dark .cell-insert-btn:disabled, body.dark .lk-insert:disabled, body.dark .vol-insert:disabled { color: #9aa3b5; }   /* 夜の色：灰色の文字が紺の地に沈まないように（v541） */
 .lk-insert { margin-top: 4px; }
 
 /* ピック中の案内バー（画面上部固定） */
@@ -9148,6 +9155,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v541', t:'🌗 節電モード・端末のダークテーマで文字が消えるのを直しました', li:[
+    'スマホの<b>節電モード</b>（Pixel では電池が20%を切ったときなど）や<b>端末のダークテーマ</b>のとき、<b>📦 しまい場所の物の名前</b>などが白い地に白い文字になって見えなくなっていたのを直しました。<b>🛏 部屋割り</b>（日付・部屋の名前）・<b>🏨 案内ページ</b>・<b>📷 容積</b>・<b>🔢 便利計算</b>・<b>🔈 読み上げの声</b>の窓も同じように直りました',
+    '文字やボタンのふだんの色は、端末の設定ではなく、表電卓の「🌙 夜の色にする」に合わせて決まるようにしました。夜の色のときに読みにくかった <b>🧭 くらしの便利帳・🔢 便利計算の番号</b>、<b>📐 角度計の説明</b>、まだ押せない「セルに入れる」ボタンの文字も明るくしました' ]},
   { v:'v540', t:'🔈 読み上げの声を、表電卓・ほかの道具で同じに', li:[
     '⚙ 設定の<b>いちばん上</b>に <b>🔈 読み上げの声</b> を置きました（かんたんモードでも出ます。設定をさがすで「読み上げ」「声」でも出ます）。<b>日本語の声・英語の声・読む速さ・声の高さ・音の大きさ</b>を決めて、その場で試せます',
     'ここで決めた声は、表電卓の答えの読み上げ・<b>🎙 声の計算帳・✍️ かきじゅん帳・📚 英単語・🎓 算数・📄 メモ</b>で同じになります（英単語は英語の声・高さ・大きさを使い、速さは英単語の中で選びます）。声の計算帳で決めていた声・速さ・高さ・大きさは、そのまま引きつぎます',
@@ -21940,7 +21950,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v540';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v541';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
