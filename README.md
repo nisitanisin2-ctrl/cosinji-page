@@ -36,6 +36,7 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 | `annai.js` | 🏨お客様向け案内ページ（旅館・民宿が、お客様のスマホで見る館内のご案内を作り、1つの HTML に書き出す。客室に置く QR コードのカードも印刷。v456 から英語・中国語・韓国語・タイ語の訳を入れられ、Netlify に置く方法も見られる。v457 から右上の ❓ヘルプに、作り方と Netlify の開設・置き方・設定をまとめた）。開いたときだけ読み込みます（v455 から） |
 | `shimai.js` | 📦しまい場所メモ（しまった物と場所を文や声で残し、あとで「どこ？」とさがす。写真・前の場所・場所ごとの印刷・CSV）。写真は端末の IndexedDB に入れる。開いたときだけ読み込みます（v458 から） |
 | `meishi.js` | 💼名刺管理（もらった名刺を写真と文字で残し、名前・ふりがな・会社・電話でさがす。名刺の文字を貼ると欄に分ける・電話/メール/地図・vCard と CSV の読み書き・会社ごとの印刷）。写真は長い辺 1200px・画質 70% の JPEG にして端末の IndexedDB に入れる。開いたときだけ読み込みます（v484 から） |
+| `renraku.js` | 📇連絡帳（スマホの連絡帳アプリで書き出した vCard（.vcf）・CSV を読んで、よみ順（あかさたなの索引）・グループ・会社ごとに整理する。Android の古い書き方（QUOTED-PRINTABLE）・iPhone のラベル・ガラケーの Shift_JIS も読み、知らない項目は捨てずに持つ。グループ・自分の項目（間柄・年賀状など）・一覧の出し方を自分好みに、同じ人の重なりをいっしょにする、まとめて選ぶ。「📇 スマホに戻す」で vCard 3.0 に書き出す（自分の項目はメモ欄にも書くので、スマホを通っても消えない）。CSV・印刷・Android の Chrome は連絡先から選んで入れる。apps/renraku/ から単独のアプリとしても開けます。開いたときだけ読み込みます（v542 から） |
 | `trim.js` | ✂写真トリミング（写真を撮る・選ぶ → 傾きを直す（0.1° ずつ・線を引いて水平／垂直に）→ 枠で切り抜く（形・回す・反転）→ 大きさ（px・%・KB 以下）と形式（JPEG・PNG・WebP）を決めて保存・送る）。写真は残さない。開いたときだけ読み込みます（v486 から） |
 | `manner.js` | 📜マナー帳（冠婚葬祭・贈り物・季節・手紙・封筒・敬語・食事・ふるまいの一般常識 約120ページをさがして読む。文例のコピー・印刷。道具：金額を大字に・宛名書きの見本・法要の日・長寿祝い・厄年・子どもの行事・結婚記念日・六曜カレンダー（旧暦は新月と中気から計算）・年齢早見表・二十四節気）。開いたときだけ読み込みます（v488 から） |
 | `boki.js` | 📒会計の手引き（自治会・団体の会計、会社・お店の経理の常識、簿記3級くらいの基礎 約60ページをさがして読む。道具：仕訳ドリル51問（答えを入れると判定）・仕訳から試算表と損益計算書・貸借対照表を作る・勘定科目の早見・減価償却・売上原価・月割り・消費税・貸倒引当金・商品有高帳・収入印紙・監査と引き継ぎのチェック表）。開いたときだけ読み込みます（v490 から） |
@@ -62,7 +63,7 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 
 ## 配る
 
-`index.html` `help.js`（と `help/` フォルダ） `photomemo.js` `techo.js` `subsc.js` `heya.js` `annai.js` `shimai.js` `meishi.js` `trim.js` `manner.js` `boki.js` `kurashi.js` `keisan.js` `ruler.js` `kakudo.js` `regi.js` `kakeizu.js` `hyovoice.js` `service-worker.js`、`apps/` フォルダ `manifest.json` と `techo/` フォルダ、`icon-*.png` `apple-touch-icon.png` `ogp.png` `shot-*.png` を置くだけです。サーバー側の用意はいりません。
+`index.html` `help.js`（と `help/` フォルダ） `photomemo.js` `techo.js` `subsc.js` `heya.js` `annai.js` `shimai.js` `meishi.js` `renraku.js` `trim.js` `manner.js` `boki.js` `kurashi.js` `keisan.js` `ruler.js` `kakudo.js` `regi.js` `kakeizu.js` `hyovoice.js` `service-worker.js`、`apps/` フォルダ `manifest.json` と `techo/` フォルダ、`icon-*.png` `apple-touch-icon.png` `ogp.png` `shot-*.png` を置くだけです。サーバー側の用意はいりません。
 `help.js` を置き忘れると説明書だけが、`photomemo.js` を置き忘れると写真メモだけが、`techo.js` を置き忘れると業務手帳だけが「読み込めませんでした」になります（ほかはそのまま動きます）。`hyovoice.js` を置き忘れると「🔈 読み上げの声」だけが開けません（読み上げは端末のふつうの声で動きます）。パソコン版（exe）に入れるときも `index.html` と同じ場所に置いてください。
 
 GitHub Pages の公開（Actions の「pages build and deployment」）が `Failed to get ID Token … Request timeout` で失敗したときは、GitHub 側の一時的な通信の不具合です。その実行を「Re-run jobs」でやり直すか、main に次の変更を入れれば公開し直されます。
