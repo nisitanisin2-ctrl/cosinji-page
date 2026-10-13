@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,ruler,kakudo,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,trim,manner,boki,kurashi,keisan,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
+    'tansui,kantab,veggie,volume,ruler,kakudo,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -3105,11 +3105,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,trim,manner,boki,kurashi,keisan,calctmpl,fintmpl');
+    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 28);   // v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
+    document.getElementById('startPageSel').options.length), 29);   // v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'saienOverlay', 'volumeOverlay',
@@ -6659,6 +6659,8 @@ async function runSecurity(browser) {
     kakeizu: ['excalc_kakeizu', { people: [{ id: BAD, name: '山田 太郎', sex: 'm', f: BAD, m: '', sp: [BAD], photo: BADIMG }, { id: 'p2', name: '山田 花子', sex: 'f', sp: [BAD] }], me: BAD, focus: BAD, up: 3, down: 2 }, () => { const kz = kzState(); return kz.people.map(p => p.id + ':' + p.sp.join('+') + ':' + (p.photo ? 'photo' : '')).join(' ') + ' me=' + kz.me; }],
     regi: ['excalc_regi', { ev: { name: '祭り', date: '' }, items: [{ id: BAD, name: 'クッキー', price: 300, stock0: 20, stock: 9, photo: BADIMG }], sales: [{ id: BAD, no: BAD, t: 1, lines: [{ id: BAD, name: 'クッキー', price: 300, qty: 2 }], total: BAD, paid: 1000, change: 400, fixOf: BAD }], no: 2 }, () => { const rg = rgState().rg; return rg.items[0].id + ' ' + (rg.items[0].photo ? 'photo' : '') + ' ' + rg.sales[0].id + ' no=' + rg.sales[0].no + ' fix=' + rg.sales[0].fixOf + ' line=' + rg.sales[0].lines[0].id; }],
     meishi: ['excalc_meishi', { v: 1, view: 'new', items: [{ id: BAD, name: '鈴木 花子', company: '工務店', tags: [], added: '2026-10-07', updated: '2026-10-07', ts: 1 }] }, () => mcState().items[0].id],
+    renraku: ['excalc_renraku', { v: 1, groups: [{ n: '<img src=x onerror=window.__pwn=6>', ic: '"><img src=x onerror=window.__pwn=7>' }], fields: [{ id: BAD, n: '<img src=x onerror=window.__pwn=8>' }, { id: 'f1', n: '<b onmouseover=window.__pwn=9>x</b>', ty: 'pick', op: ['<img src=x onerror=window.__pwn=10>'] }], sub: 'cf:f1',
+      items: [{ id: BAD, fam: '<img src=x onerror=window.__pwn=2>', giv: '花子', tels: [{ t: '"><img src=x onerror=window.__pwn=3>', l: '<img src=x onerror=window.__pwn=4>', v: '090-1111-2222"><img src=x onerror=window.__pwn=5>' }], groups: ['<img src=x onerror=window.__pwn=6>'], cf: { f1: '<img src=x onerror=window.__pwn=11>' }, urls: ['javascript:window.__pwn=12'], added: '2026-10-07' }] }, () => rkState().items[0].id + ' ' + rkState().fields.map(f => f.id).join(',')],
   };
   for (const [tool, [key, val, got]] of Object.entries(seeds)) {
     await page.evaluate(([k, v]) => { localStorage.setItem(k, JSON.stringify(v)); window.__pwn = 0; }, [key, val]);
@@ -6671,7 +6673,7 @@ async function runSecurity(browser) {
     await page.evaluate(() => { document.querySelectorAll('.modal-overlay').forEach(o => { if (typeof isDlgOpen === 'function' && o.id && isDlgOpen(o.id)) try { closeDlg(o.id); } catch (_) {} }); });
     await page.keyboard.press('Escape'); await page.waitForTimeout(200);
   }
-  await page.evaluate(() => { ['excalc_heya', 'excalc_shimai', 'excalc_annai', 'excalc_subsc', 'excalc_kakeizu', 'excalc_regi', 'excalc_meishi'].forEach(k => localStorage.removeItem(k)); });
+  await page.evaluate(() => { ['excalc_heya', 'excalc_shimai', 'excalc_annai', 'excalc_subsc', 'excalc_kakeizu', 'excalc_regi', 'excalc_meishi', 'excalc_renraku'].forEach(k => localStorage.removeItem(k)); });
   check('  safeId：英数字と - _ だけ通す（ほかは作り直す・なければ空）', await page.evaluate(() => [safeId('ab_C-9'), safeId(12), safeId('a"b'), safeId('a b', () => 'new'), safeId(null), safeId('x'.repeat(81))].join(',')), 'ab_C-9,12,,new,,');
   check('  safeImg：写真の形のものだけ', await page.evaluate(() => [safeImg('data:image/jpeg;base64,/9j/4AAQ+=='), safeImg('data:image/png;base64,AA"><b>'), safeImg('javascript:alert(1)'), safeImg('data:image/svg+xml;base64,AAAA')].map(x => x ? 'ok' : 'no').join(',')), 'ok,no,no,no');
 
@@ -7825,6 +7827,237 @@ async function runKoeOut(browser) {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
 
+/* 📇 連絡帳（v542）：スマホの電話帳（vCard・CSV）を読んで整理・自分好みに・スマホに戻す */
+async function runRenraku(browser) {
+  console.log('\n── 📇 連絡帳：スマホの電話帳を読んで整理・自分好みに・スマホに戻す（v542） ──');
+  const qp = s => [...Buffer.from(s, 'utf8')].map(b => '=' + b.toString(16).toUpperCase().padStart(2, '0')).join('');
+  const JPG = '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
+  const CR = a => a.join('\r\n') + '\r\n';
+  const note = qp('ゴルフ仲間。\n毎年お歳暮を送る'), half = Math.floor(note.length / 6) * 3;
+  const ANDROID = CR(['BEGIN:VCARD', 'VERSION:2.1', 'N;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:' + qp('山田') + ';' + qp('太郎') + ';;;', 'FN;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:' + qp('山田 太郎'),
+    'X-PHONETIC-FIRST-NAME;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:' + qp('たろう'), 'X-PHONETIC-LAST-NAME;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:' + qp('やまだ'),
+    'TEL;CELL;PREF:090-1111-2222', 'TEL;HOME:03-1234-5678', 'TEL;X-CUSTOM(CHARSET=UTF-8,ENCODING=QUOTED-PRINTABLE,' + qp('実家') + '):0284-11-2222', 'EMAIL;HOME:taro@example.jp',
+    'ADR;HOME;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:;;' + qp('千代田1-1') + ';' + qp('千代田区') + ';' + qp('東京都') + ';100-0001;' + qp('日本'),
+    'NOTE;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:' + note.slice(0, half) + '=', note.slice(half), 'BDAY:1960-04-01',
+    'X-ANDROID-CUSTOM;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:vnd.android.cursor.item/nickname;' + qp('たっちゃん') + ';1;;;;;;;;;;;;;', 'X-ANDROID-CUSTOM:vnd.android.cursor.item/relation;Hanako;1;;;;;;;;;;;;;',
+    'PHOTO;ENCODING=BASE64;JPEG:' + JPG.slice(0, 60), ' ' + JPG.slice(60), '', 'END:VCARD',
+    'BEGIN:VCARD', 'VERSION:2.1', 'N;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:' + qp('佐藤') + ';' + qp('花子') + ';;;', 'TEL;CELL:080-3333-4444', 'TEL;WORK:045-111-2222',
+    'ORG;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:' + qp('株式会社みどり') + ';' + qp('営業部'), 'TITLE;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:' + qp('課長'), 'END:VCARD']);
+  const IPHONE = CR(['BEGIN:VCARD', 'VERSION:3.0', 'PRODID:-//Apple Inc.//iPhone OS 17.0//EN', 'N:鈴木;一郎;;;', 'FN:鈴木 一郎', 'X-PHONETIC-FIRST-NAME:イチロウ', 'X-PHONETIC-LAST-NAME:スズキ', 'ORG:鈴木工務店;',
+    'TEL;type=CELL;type=VOICE;type=pref:080-5555-6666', 'item1.TEL:0284-99-8888', 'item1.X-ABLabel:現場事務所', 'item2.TEL:03-9999-0000', 'item2.X-ABLabel:_$!<Main>!$_',
+    'EMAIL;type=INTERNET;type=WORK;type=pref:ichiro@suzuki-koumuten.jp', 'item3.ADR;type=WORK;type=pref:;;本町2-3-4;足利市;栃木県;326-0000;日本', 'item3.X-ABADR:jp',
+    'item4.X-ABRELATEDNAMES:鈴木 花子', 'item4.X-ABLabel:_$!<Spouse>!$_', 'BDAY;X-APPLE-OMIT-YEAR=1604:1604-10-20', 'NOTE:［間柄］いとこ\\n現場でお世話になった', 'CATEGORIES:仕事,親戚',
+    'X-ABUID:ABCDEF-1234:ABPerson', 'PHOTO;ENCODING=b;TYPE=JPEG:' + JPG, 'END:VCARD']);
+  const GOOGLE = CR(['BEGIN:VCARD', 'VERSION:3.0', 'FN:Tanaka Ken', 'N:Tanaka;Ken;;;', 'EMAIL;TYPE=INTERNET;TYPE=HOME:ken@example.com', 'TEL;TYPE=CELL:+81 90-2222-3333', 'item1.URL:https\\://example.com/ken', 'item1.X-ABLabel:',
+    'BDAY:--05-12', 'CATEGORIES:myContacts,starred,友だち', 'END:VCARD', 'BEGIN:VCARD', 'VERSION:3.0', 'FN:〇〇病院', 'N:;;;;', 'ORG:〇〇病院', 'TEL;TYPE=WORK:0284-22-3333', 'CATEGORIES:myContacts', 'END:VCARD']);
+  const GARAKE = Buffer.from('424547494e3a56434152440d0a56455253494f4e3a322e310d0a4e3b434841525345543d53484946545f4a49533a8d828bb43b8c9293f13b3b3b0d0a534f554e443b582d49524d432d4e3b434841525345543d53484946545f4a49533ac0b6cabc3bb9ddbcde3b3b3b0d0a54454c3b43454c4c3a3039302d373737372d383838380d0a454d41494c3b43454c4c3a6b656e6a6940646f636f6d6f2e6e652e6a700d0a582d474e4f3a320d0a454e443a56434152440d0a', 'hex');
+  const GCSV = 'First Name,Middle Name,Last Name,Phonetic First Name,Phonetic Middle Name,Phonetic Last Name,Name Prefix,Name Suffix,Nickname,File As,Organization Name,Organization Title,Organization Department,Birthday,Notes,Photo,Labels,E-mail 1 - Label,E-mail 1 - Value,Phone 1 - Label,Phone 1 - Value,Phone 2 - Label,Phone 2 - Value,Address 1 - Label,Address 1 - Formatted,Address 1 - Street,Address 1 - City,Address 1 - PO Box,Address 1 - Region,Address 1 - Postal Code,Address 1 - Country,Address 1 - Extended Address\r\n'
+    + '一郎,,伊藤,いちろう,,いとう,,,,,伊藤商店,店主,,1975-03-03,配達は午前,,* myContacts ::: 仕事,* Work,ito@example.jp,Mobile,070-1234-5678,Home Fax,0284-55-6666,Work,,中央2-2,足利市,,栃木県,326-0001,日本,\r\n';
+  const FAMILY = CR(['BEGIN:VCARD', 'VERSION:3.0', 'N:山田;花子;;;', 'X-PHONETIC-LAST-NAME:やまだ', 'X-PHONETIC-FIRST-NAME:はなこ', 'TEL;TYPE=HOME:03-1234-5678', 'TEL;TYPE=CELL:090-4444-5555', 'END:VCARD',
+    'BEGIN:VCARD', 'VERSION:3.0', 'N:山田;太郎;;;', 'FN:山田太郎', 'TEL;TYPE=CELL:090-1111-2222', 'EMAIL;TYPE=INTERNET,WORK:yamada@work.example.jp', 'END:VCARD']);
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: 'block' });
+  await ctx.addInitScript(() => {
+    try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tbfold', '0'); } catch (e) {}
+    // 書き出したファイル（Blob）を受け取る。ダウンロードの代わりに中身を見る
+    window.__blobs = []; const cu = URL.createObjectURL.bind(URL); URL.createObjectURL = b => { if (b instanceof Blob) window.__blobs.push(b); return cu(b); };
+  });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/favicon|ServiceWorker/.test(m.text())) errs.push('console: ' + m.text()); });
+  page.on('dialog', d => d.accept());
+  const w = ms => page.waitForTimeout(ms);
+  const lastBlob = () => page.evaluate(() => window.__blobs.length ? window.__blobs[window.__blobs.length - 1].text() : '');
+  const load = async (name, buffer) => { await page.setInputFiles('#rkFileIn', { name, mimeType: 'application/octet-stream', buffer: Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer, 'utf8') }); await w(700); };
+  const ask = () => page.evaluate(() => isDlgOpen('rkAskOverlay') ? document.getElementById('rkAskBody').innerText.replace(/\s+/g, ' ').trim() : '');
+  const askPick = async re => { await page.evaluate(src => { const re = new RegExp(src); const b = [...document.querySelectorAll('#rkAskBody [data-r]')].find(x => re.test(x.textContent)); if (b) b.click(); }, re.source); await w(500); };
+  const scrText = () => page.evaluate(() => isDlgOpen('rkScrOverlay') ? document.getElementById('rkScrBody').innerText.replace(/\s+/g, ' ').trim() : '');
+  const P = (fam, giv) => `rkState().items.find(i => i.fam === ${JSON.stringify(fam)} && i.giv === ${JSON.stringify(giv)})`;
+  await page.goto('file://' + path.join(ROOT, 'index.html')); await w(1200);
+  check('  開くまでは読まない・道具とマイキー・🏠くらし のまとまり・単独アプリの入口', await page.evaluate(() => [!window.RENRAKU_PART_LOADED, !!NP_TOOLS.find(t => t.id === 'renraku' && t.ov === 'renrakuOverlay'), !!KEY_FUNCS.a_renraku, TOOL_CATS.find(c => c[1].includes('renraku'))[0]].join('/'))
+    + '/' + ['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(ROOT, 'apps', 'renraku', f))), 'true/true/true/🏠 くらし/true');
+  await page.evaluate(() => NP_TOOLS.find(t => t.id === 'renraku').run()); await w(900);
+  check('  はじめは読み込み方の案内（スマホの連絡先を読み込む・出し方）', await page.evaluate(() => [isDlgOpen('renrakuOverlay'), document.getElementById('rkList').textContent.includes('ファイルに書き出し'), document.getElementById('rkAdd').textContent.includes('⬆ スマホの連絡先を読み込む')].join('/')), 'true/true/true');
+
+  // ── 読み込む（いろいろな機種の書き出し）
+  await load('contacts.vcf', ANDROID);
+  check('  Android（2.1・QUOTED-PRINTABLE・行の続き）：名前・よみ・電話のラベル（実家）・ニックネーム・メモ・誕生日・写真', await page.evaluate(p => { const x = eval(p);
+    return [rkNameOf(x), x.famK + x.givK, x.tels.map(t => (t.l || t.t) + (t.p ? '*' : '') + ':' + t.v).join(','), x.mails.map(m => m.t + ':' + m.v).join(','), x.adrs.map(a => a.zip + ' ' + [a.region, a.city, a.street].join('')).join(','), x.nick, JSON.stringify(x.note), x.bday, x.photo, x.raw.join(' ')].join(' | '); }, P('山田', '太郎')),
+    '山田 太郎 | やまだたろう | cell*:090-1111-2222,home:03-1234-5678,実家:0284-11-2222 | home:taro@example.jp | 100-0001 東京都千代田区千代田1-1 | たっちゃん | "ゴルフ仲間。\\n毎年お歳暮を送る" | 1960-04-01 | true | X-ANDROID-CUSTOM:vnd.android.cursor.item/relation;Hanako;1;;;;;;;;;;;;;');
+  check('  　会社・部署・役職（2人目）', await page.evaluate(p => { const x = eval(p); return [x.org, x.dept, x.title, x.tels.map(t => t.t).join(',')].join('/'); }, P('佐藤', '花子')), '株式会社みどり/営業部/課長/cell,work');
+  check('  　読み終わりの知らせ（足した人数・写真・よみなし）', await scrText(), '2人 足しました（写真 1人）。 よみが入っていない人が 1人 います（よみ順では最後の「他」に並びます）。上の「よみなし」で絞って直せます。 直したら「📇 スマホに戻す」で、またスマホに入れられます。 一覧を見る');
+  await page.evaluate(() => RK.closeScr()); await w(300);
+  await load('iphone.vcf', IPHONE);
+  check('  2つめからは「まとめて足す・入れかえる」を聞く', await ask(), 'vCardから 1人 読みました（写真 1人）。 いま 2人 入っています。どうしますか？ まとめて足す（同じ人は いっしょにする） 入れかえる（いまの 2人は消す） やめる');
+  await askPick(/まとめて足す/); await page.evaluate(() => RK.closeScr()); await w(300);
+  check('  iPhone（3.0）：自分のラベル（現場事務所）・代表・年のない誕生日・グループ・メモの［間柄］は自分の項目へ', await page.evaluate(p => { const x = eval(p);
+    return [x.famK + x.givK, x.tels.map(t => (t.l || t.t) + ':' + t.v).join(','), x.mails.map(m => m.t + ':' + m.v).join(','), x.adrs.map(a => a.t + ' ' + a.zip + ' ' + a.region + a.city + a.street).join(','), x.bday, x.groups.join(','), JSON.stringify(x.note),
+      rkState().fields.map(f => f.n + '=' + (x.cf[f.id] || '')).join(','), x.photo].join(' | '); }, P('鈴木', '一郎')),
+    'スズキイチロウ | cell:080-5555-6666,現場事務所:0284-99-8888,main:03-9999-0000 | work:ichiro@suzuki-koumuten.jp | work 326-0000 栃木県足利市本町2-3-4 | --10-20 | 仕事,親戚 | "現場でお世話になった" | 間柄=いとこ | true');
+  check('  　知らない項目はそのまま持つ（関係の名前とそのラベル・UID）。アドレスの国の印・PRODID は持たない', await page.evaluate(p => eval(p).raw.join(' ¦ '), P('鈴木', '一郎')), 'item4.X-ABRELATEDNAMES:鈴木 花子 ¦ X-ABUID:ABCDEF-1234:ABPerson ¦ item4.X-ABLabel:_$!<Spouse>!$_');
+  await load('google.vcf', GOOGLE); await askPick(/まとめて足す/); await page.evaluate(() => RK.closeScr()); await w(300);
+  check('  Google：+81 の携帯・「\\:」の URL・starred は★・myContacts は入れない・表示名（Tanaka Ken）のまま・会社だけの人', await page.evaluate(() => { const k = rkState().items.find(i => i.fam === 'Tanaka'), h = rkState().items.find(i => i.org === '〇〇病院');
+    return [rkNameOf(k), k.tels.map(t => t.t + ':' + t.v).join(','), k.urls.join(','), k.fav, k.groups.join(','), k.bday, rkNameOf(h), h.groups.length].join(' | '); }), 'Tanaka Ken | cell:+81 90-2222-3333 | https://example.com/ken | true | 友だち | --05-12 | 〇〇病院 | 0');
+  await load('garake.vcf', GARAKE); await askPick(/まとめて足す/); await page.evaluate(() => RK.closeScr()); await w(300);
+  check('  ガラケー（Shift_JIS・半角カナのよみ SOUND;X-IRMC-N）', await page.evaluate(p => { const x = eval(p); return [rkNameOf(x), x.famK + ' ' + x.givK, x.mails.map(m => m.t + ':' + m.v).join(','), x.raw.join(',')].join(' | '); }, P('高橋', '健二')), '高橋 健二 | タカハシ ケンジ | cell:kenji@docomo.ne.jp | X-GNO:2');
+  await load('google.csv', GCSV); await askPick(/まとめて足す/); await page.evaluate(() => RK.closeScr()); await w(300);
+  check('  Google の CSV：名前・よみ・会社・誕生日・メモ・ラベル（携帯・FAX・勤務先）・住所・グループ', await page.evaluate(p => { const x = eval(p);
+    return [x.famK + x.givK, x.org + '/' + x.title, x.bday, x.note, x.tels.map(t => t.t + ':' + t.v).join(','), x.mails.map(m => m.t + (m.p ? '*' : '') + ':' + m.v).join(','), x.adrs.map(a => a.t + ' ' + a.zip + ' ' + a.region + a.city + a.street).join(','), x.groups.join(',')].join(' | '); }, P('伊藤', '一郎')),
+    'いとういちろう | 伊藤商店/店主 | 1975-03-03 | 配達は午前 | cell:070-1234-5678,fax:0284-55-6666 | work*:ito@example.jp | work 326-0001 栃木県足利市中央2-2 | 仕事');
+  await load('family.vcf', FAMILY); await askPick(/まとめて足す/);
+  check('  同じ人：携帯が同じ山田太郎は いっしょに（メールが増える）。自宅の電話が同じでも名前がちがう山田花子は別の人', (await scrText()).split('。')[0] + '。 / ' + await page.evaluate(() => [rkState().items.length, rkState().items.filter(i => i.fam === '山田').map(i => rkNameOf(i) + ':' + i.mails.length).join(',')].join(' / ')), '1人 足しました・1人 いっしょにしました。 / 8 / 山田 太郎:2,山田 花子:0');
+  await page.evaluate(() => RK.closeScr()); await w(300);
+
+  // ── 一覧・さがす
+  check('  よみ順：あかさたな の見出しと索引（よみのない漢字は最後の「他」）', await page.evaluate(() => [[...document.querySelectorAll('#rkList .rk-grp')].map(g => g.firstChild.textContent).join(''), [...document.querySelectorAll('#rkIdx button')].map(b => b.textContent).join('')].join(' / ')), 'あさたやABC他 / あさたやA他');
+  check('  　「他」の行は 〇〇病院・佐藤 花子（よみなし）。名前の下は電話', await page.evaluate(() => { const g = [...document.querySelectorAll('#rkList .rk-grp')].find(x => x.dataset.sec === '他'); const out = []; for (let e = g.nextElementSibling; e && e.classList.contains('rk-it'); e = e.nextElementSibling) out.push(e.querySelector('.nm').firstChild.textContent + '：' + e.querySelector('.sb').textContent); return out.join(' / '); }), '〇〇病院：勤務先 0284-22-3333 / 佐藤 花子：携帯 080-3333-4444');
+  check('  　もうすぐ誕生日（2週間以内）', await page.evaluate(() => { const b = document.querySelector('#rkList .rk-bd'); return b ? b.textContent.replace(/\s+/g, ' ') : ''; }), ['🎂 もうすぐ誕生日 鈴木 一郎 10/20（あと' + Math.round((new Date(new Date().getFullYear(), 9, 20) - new Date(new Date().setHours(0, 0, 0, 0))) / 86400000) + '日）'].map(s => /あと-/.test(s) ? '' : s)[0]);
+  check('  さがす：よみ・カタカナのよみ・番号の一部・住所・会社・メモの言葉', await page.evaluate(() => ['たろう', 'すずき', '1111', '足利', 'みどり', '歳暮', '山田 090', 'ﾀｶﾊｼ'].map(q => q + '=' + rkSearchTest(q).join('+')).join(' / ')),
+    'たろう=山田 太郎 / すずき=鈴木 一郎 / 1111=山田 太郎 / 足利=伊藤 一郎+鈴木 一郎 / みどり=佐藤 花子 / 歳暮=山田 太郎 / 山田 090=山田 太郎+山田 花子 / ﾀｶﾊｼ=高橋 健二');
+  await page.fill('#rkFind', 'はなこ'); await w(200);
+  check('  　画面でも：見つかった人', await page.evaluate(() => [...document.querySelectorAll('#rkList .rk-it .nm')].map(e => e.firstChild.textContent).join(',') + '/' + document.getElementById('rkIdx').children.length), '山田 花子/0');   // 佐藤 花子 は よみがないので、ひらがなでは出ない
+  await page.fill('#rkFind', ''); await page.evaluate(() => RK.setQ('')); await w(150);
+  check('  🎤 声でさがす：「山田さんの電話番号を教えて」→ 山田', await page.evaluate(() => ['山田さんの電話番号を教えて', 'お母さんに電話', '高橋健二の携帯', '伊藤商店'].map(rkVoiceQ).join(',')), '山田,お母,高橋健二,伊藤商店');
+  await page.evaluate(() => RK.setGrp('仕事')); await w(150);
+  check('  グループで絞る（仕事）・★で絞る', await page.evaluate(() => [...document.querySelectorAll('#rkList .rk-it .nm')].map(e => e.firstChild.textContent).join(',')) + ' / ' + await page.evaluate(() => { RK.setGrp('★'); return [...document.querySelectorAll('#rkList .rk-it .nm')].map(e => e.firstChild.textContent).join(','); }), '伊藤 一郎,鈴木 一郎 / Tanaka Ken');
+  await page.evaluate(() => { RK.setGrp('★'); RK.setView('group'); }); await w(150);
+  check('  グループごと・会社ごと', await page.evaluate(() => [...document.querySelectorAll('#rkList .rk-grp')].map(g => g.firstChild.textContent + g.querySelector('span').textContent).join(',')) + ' / ' + await page.evaluate(() => { RK.setView('org'); return [...document.querySelectorAll('#rkList .rk-grp')].map(g => g.firstChild.textContent).join(','); }),
+    '仕事2人,親戚1人,友だち1人,グループなし5人 / 🏢 〇〇病院,🏢 株式会社みどり,🏢 伊藤商店,🏢 鈴木工務店,会社なし');
+  await page.evaluate(() => RK.setView('kana')); await w(150);
+
+  // ── 自分好みに
+  await page.evaluate(() => { window.__appPrompt = window.appPrompt; window.__appConfirm = window.appConfirm; window.appConfirm = async () => true; RK.custom(); }); await w(300);
+  await page.evaluate(() => { RK.gPreset('家族', '👪'); RK.fPreset(1); }); await w(200);
+  await page.evaluate(async () => { const i = rkState().groups.findIndex(g => g.n === '仕事'); RK.gIcon(i); }); await w(300);
+  await page.evaluate(() => { const b = [...document.querySelectorAll('#rkAskBody .rk-emo button')].find(x => x.textContent === '💼'); b.click(); }); await w(300);
+  check('  🎨 グループを作る（よく使うから 👪家族）・絵文字を付ける（💼仕事）・項目を作る（年賀状：えらぶ）', await page.evaluate(() => [rkState().groups.map(g => g.ic + g.n).join(','), rkState().fields.map(f => f.n + ':' + f.ty + (f.op.length ? '(' + f.op.join('・') + ')' : '')).join(',')].join(' / ')),
+    '💼仕事,親戚,友だち,👪家族 / 間柄:text,年賀状:pick(送る・もらう・やりとり・喪中・やめた)');
+  await page.evaluate(() => { const f = rkState().fields.find(f => f.n === '間柄'); RK.setSub('cf:' + f.id); }); await w(200);
+  await page.evaluate(() => RK.closeScr()); await w(300);
+  check('  　一覧の名前の下に「間柄」・グループの絵文字', await page.evaluate(() => { const e = [...document.querySelectorAll('#rkList .rk-it')].find(x => x.textContent.includes('鈴木 一郎')); return e.querySelector('.sb').textContent + ' / ' + (e.querySelector('.gi') || {}).textContent; }), '間柄：いとこ / 💼');
+  await page.evaluate(() => { RK.custom(); RK.setBig(true); RK.closeScr(); }); await w(250);
+  check('  　文字を大きく', await page.evaluate(() => document.getElementById('renrakuOverlay').classList.contains('rk-big') + '/' + getComputedStyle(document.querySelector('#rkList .rk-it .nm')).fontSize), 'true/20px');
+  await page.evaluate(() => { RK.custom(); RK.setBig(false); RK.setSub('tel'); RK.closeScr(); }); await w(250);
+
+  // ── 直す
+  const yid = await page.evaluate(p => eval(p).id, P('山田', '太郎'));
+  await page.evaluate(id => RK.edit(id), yid); await w(300);
+  await page.evaluate(() => { window.appPrompt = async () => '妻の携帯'; RK.edAdd('tels'); }); await w(200);
+  await page.evaluate(async () => { const ins = document.querySelectorAll('#rkEdBody input[data-k="tels"]'); ins[ins.length - 1].value = '080-7777-0000'; const sel = document.querySelectorAll('#rkEdBody select[data-k="tels"]'); const s = sel[sel.length - 1]; s.value = '+'; await RK.edType(s); }); await w(300);
+  await page.evaluate(() => { const b = [...document.querySelectorAll('#rkEdBody .rk-tagrow button')].find(x => x.textContent === '送る'); b.click(); }); await w(200);
+  await page.evaluate(() => { [...document.querySelectorAll('#rkEGroups button')].find(x => x.textContent.includes('家族')).click(); document.getElementById('rkE_bday').value = '1960-04-01'; document.getElementById('rkE_noyear').checked = true; document.getElementById('rkE_note').value += '\n=1+1'; }); await w(100);
+  await page.evaluate(() => RK.edSave()); await w(500);
+  check('  ✏ 直す：電話を足して自分で名前（妻の携帯）・えらぶ項目（年賀状＝送る）・グループ（家族）・年のない誕生日', await page.evaluate(p => { const x = eval(p); const f = rkState().fields.find(f => f.n === '年賀状');
+    return [x.tels.map(t => (t.l || t.t) + ':' + t.v).join(','), x.cf[f.id], x.groups.join(','), x.bday, x.ts > 0, isDlgOpen('rkEdOverlay')].join(' | '); }, P('山田', '太郎')), 'cell:090-1111-2222,home:03-1234-5678,実家:0284-11-2222,妻の携帯:080-7777-0000 | 送る | 家族 | --04-01 | true | false');
+  await page.evaluate(id => RK.view(id), yid); await w(300);
+  check('  見る：電話・SMS・メール・地図はワンタッチ（tel: は数字だけ）', await page.evaluate(() => [...document.querySelectorAll('#rkViewBody .rk-acts a')].map(a => a.textContent.trim() + '=' + (a.getAttribute('href') || '-')).join(' ')),
+    '📞電話=tel:09011112222 💬SMS=sms:09011112222 ✉メール=mailto:taro@example.jp 📍地図=https://www.google.com/maps/search/?api=1&query=%E6%9D%B1%E4%BA%AC%E9%83%BD%20%E5%8D%83%E4%BB%A3%E7%94%B0%E5%8C%BA%20%E5%8D%83%E4%BB%A3%E7%94%B01-1');
+  check('  　自分の項目・誕生日・スマホのまま持っている項目の数', await page.evaluate(() => [...document.querySelectorAll('#rkViewBody .rk-row')].map(r => r.querySelector('b').textContent).join(',') + ' / ' + document.querySelector('#rkViewBody .rk-note').textContent.split('（')[0]),
+    '携帯,自宅,実家,妻の携帯,自宅,勤務先,自宅,誕生日,ニックネーム,年賀状,グループ,メモ / スマホの項目のまま持っているもの 1件');
+  await page.evaluate(() => RK.closeView()); await w(300);
+
+  // ── スマホに戻す（vCard）
+  const before = await page.evaluate(() => rkState().items.filter(x => x.ts > rkState().lastExp).length);
+  await page.evaluate(() => RK.openExport()); await w(300);
+  check('  📇 スマホに戻す：ぜんぶ・前に書き出したあとで直した人・写真・自分の項目をメモにも', await page.evaluate(() => [...document.querySelectorAll('#rkScrBody .rk-radio, #rkScrBody .rk-chk')].map(e => e.textContent.trim()).join(' / ')), 'ぜんぶ（8人） / 前に書き出したあとで 入れた・直した人（' + before + '人） / 写真も入れる（写真のある人 2人） / 自分の項目をメモ欄にも書く（スマホを通っても消えない）');
+  await page.evaluate(() => RK.doExport('save')); await w(500);
+  const vcf = await lastBlob();
+  const lines = vcf.split('\r\n');
+  check('  　vCard 3.0・改行は CRLF・1行 75 バイトまで（長い行は折り返す）・人数', [vcf.startsWith('BEGIN:VCARD\r\nVERSION:3.0\r\n'), !/[^\r]\n/.test(vcf), lines.every(l => Buffer.byteLength(l, 'utf8') <= 75), lines.some(l => l.startsWith(' ')), (vcf.match(/BEGIN:VCARD/g) || []).length].join('/'), 'true/true/true/true/8');
+  const unf = vcf.replace(/\r\n /g, '');
+  const card = n => (unf.split('END:VCARD').find(c => c.includes(n)) || '');
+  check('  　山田 太郎：名前・よみ・電話の種類（★は PREF）・自分の名前の電話（item と X-ABLabel）・グループ・メモに［年賀状］', ['N:山田;太郎;;;', 'X-PHONETIC-LAST-NAME:やまだ', 'TEL;TYPE=CELL,PREF:090-1111-2222', 'TEL;TYPE=HOME,VOICE:03-1234-5678', 'item1.TEL;TYPE=VOICE:0284-11-2222', 'item1.X-ABLabel:実家', 'item2.X-ABLabel:妻の携帯',
+    'EMAIL;TYPE=INTERNET,HOME:taro@example.jp', 'ADR;TYPE=HOME:;;千代田1-1;千代田区;東京都;100-0001;日本', 'BDAY:--04-01', 'CATEGORIES:家族', 'NOTE:ゴルフ仲間。\\n毎年お歳暮を送る\\n=1+1\\n［年賀状］送る', 'NICKNAME:たっちゃん', 'X-ANDROID-CUSTOM:vnd.android.cursor.item/relation;Hanako;1;;;;;;;;;;;;;', 'PHOTO;ENCODING=b;TYPE=JPEG:' + JPG]
+    .filter(s => !card('N:山田;太郎').includes(s)).join(' ¦ '), '');
+  check('  　鈴木 一郎：もとの誕生日の行・知らない項目はそのまま・ラベルの番号はぶつけない（item5〜）・［間柄］', ['BDAY;X-APPLE-OMIT-YEAR=1604:1604-10-20', 'item4.X-ABRELATEDNAMES:鈴木 花子', 'item4.X-ABLabel:_$!<Spouse>!$_', 'X-ABUID:ABCDEF-1234:ABPerson', 'item5.TEL;TYPE=VOICE:0284-99-8888', 'item5.X-ABLabel:現場事務所', 'TEL;TYPE=MAIN:03-9999-0000', 'NOTE:現場でお世話になった\\n［間柄］いとこ', 'ORG:鈴木工務店']
+    .filter(s => !card('N:鈴木;一郎').includes(s)).join(' ¦ '), '');
+  check('  　Tanaka Ken：表示名・★（X-HYO-FAV）・サイト・年のない誕生日', ['FN:Tanaka Ken', 'X-HYO-FAV:1', 'URL:https://example.com/ken', 'BDAY:--05-12', 'CATEGORIES:友だち'].filter(s => !card('N:Tanaka;Ken').includes(s)).join(' ¦ '), '');
+  check('  　書き出すと「前に書き出したあとで直した人」は 0人', await page.evaluate(() => rkState().items.filter(x => x.ts > rkState().lastExp).length), 0);
+  // 往復：書き出したものを ぜんぶ消して読み込むと、同じに戻る
+  const snap = () => page.evaluate(() => JSON.stringify(rkState().items.map(x => { const f = rkState().fields; return [rkNameOf(x), x.famK, x.givK, x.nick, x.org, x.dept, x.title, x.tels.map(t => t.t + t.l + t.v + t.p), x.mails.map(m => m.t + m.l + m.v), x.adrs.map(a => [a.t, a.l, a.zip, a.region, a.city, a.street, a.ext, a.country].join('|')), x.bday, x.urls, x.groups, x.fav, x.note, f.filter(y => x.cf[y.id]).map(y => y.n + '=' + x.cf[y.id]), x.raw.slice().sort(), x.photo]; }).sort((a, b) => a[0] < b[0] ? -1 : 1)));
+  const s1 = await snap();
+  await page.evaluate(() => RK.closeScr()); await w(250);
+  await page.evaluate(() => RK.wipe()); await w(400);
+  check('  　ぜんぶ消す（グループ・項目の作りは残る）', await page.evaluate(() => rkState().items.length + '/' + rkState().groups.length + '/' + rkState().fields.length), '0/4/2');
+  await load('contacts-back.vcf', vcf); await w(300);
+  check('  　書き出した .vcf を読み込むと、同じに戻る（電話のラベル・自分の項目・グループ・★・知らない項目・写真まで）', (await snap()) === s1 ? 'same' : (await snap()) + '\n≠\n' + s1, 'same');
+  await page.evaluate(() => RK.closeScr()); await w(250);
+
+  // ── まとめて選ぶ
+  await page.evaluate(() => RK.selStart()); await w(150);
+  await page.evaluate(() => { [...document.querySelectorAll('#rkList .rk-it')].filter(e => /高橋|伊藤/.test(e.textContent)).forEach(e => e.click()); }); await w(150);
+  check('  ☑ えらぶ：押すと選ぶ（2人）', await page.evaluate(() => document.getElementById('rkSelN').textContent + '/' + document.querySelectorAll('#rkList .rk-it.sel').length), '2/2');
+  await page.evaluate(() => { RK.selGroup(); }); await w(300);
+  await askPick(/「👪?家族」に入れる|「家族」に入れる/);
+  check('  　まとめてグループ（家族）に入れる', await page.evaluate(() => rkState().items.filter(x => x.groups.includes('家族')).map(rkNameOf).sort().join(',')), '伊藤 一郎,山田 太郎,高橋 健二');
+  await page.evaluate(() => RK.openExport('sel')); await w(250);
+  check('  　えらんだ人だけ書き出す', await page.evaluate(() => document.querySelector('#rkScrBody input[name=rkExpScope]:checked').parentElement.textContent.trim()), 'えらんだ人（2人）');
+  await page.evaluate(() => RK.doExport('save')); await w(400);
+  check('  　（中身は2人）', ((await lastBlob()).match(/BEGIN:VCARD/g) || []).length, 2);
+  await page.evaluate(() => { RK.closeScr(); RK.selEnd(); }); await w(250);
+
+  // ── 同じ人（名前が同じで番号がちがう）をいっしょにする
+  await load('dup.vcf', CR(['BEGIN:VCARD', 'VERSION:3.0', 'N:佐藤;花子;;;', 'TEL;TYPE=CELL:080-9999-0000', 'EMAIL;TYPE=INTERNET:hanako@example.jp', 'END:VCARD'])); await askPick(/まとめて足す/);
+  check('  名前が同じでも番号がちがう人は、読み込むときは別に足す（あとで さがす）', (await scrText()).split(' よみ')[0], '1人 足しました。 🔍 同じ人かもしれない組が 1組 あります → 見る');
+  await page.evaluate(() => RK.dups()); await w(250);
+  check('  🔍 同じ人をさがす：組を見せる', await page.evaluate(() => document.querySelectorAll('#rkScrBody .rk-dup').length + '/' + [...document.querySelectorAll('#rkScrBody .rk-dupone b')].map(b => b.textContent).join(',')), '1/佐藤 花子,佐藤 花子');
+  await page.evaluate(() => RK.dupMerge(0)); await w(400);
+  check('  　いっしょにする：電話・メール・会社を1人に', await page.evaluate(() => { const xs = rkState().items.filter(x => x.fam === '佐藤'); return xs.length + '/' + xs[0].tels.map(t => t.v).join(',') + '/' + xs[0].mails.map(m => m.v).join(',') + '/' + xs[0].org; }), '1/080-3333-4444,045-111-2222,080-9999-0000/hanako@example.jp/株式会社みどり');
+  await page.evaluate(() => RK.closeScr()); await w(250);
+
+  // ── CSV（Excel）
+  await page.evaluate(() => RK.csv()); await w(300);
+  const csv = await lastBlob();
+  const bom = await page.evaluate(async () => [...new Uint8Array(await window.__blobs[window.__blobs.length - 1].arrayBuffer())].slice(0, 3).join(','));
+  check('  📄 CSV：BOM・見出し（自分の項目は［］）・式にならない（=1+1）', [bom === '239,187,191', csv.split('\r\n')[0].replace(/^﻿/, ''), /"ゴルフ仲間。\n毎年お歳暮を送る\n=1\+1"/.test(csv) && !/"=1\+1"/.test(csv)].join(' | '),
+    'true | "姓","名","せい","めい","表示名","ニックネーム","会社","部署","役職","携帯","自宅","勤務先","代表","FAX","その他の電話","メール1","メール2","メール3","郵便番号","住所","誕生日","サイト","グループ","よく使う","メモ","［間柄］","［年賀状］" | true');
+  check('  　CSV を読むと 人数・ラベルつきの電話・自分の項目・グループが戻る', await page.evaluate(c => { const l = rkFromCsv(c), y = l.find(x => x.fam === '山田' && x.giv === '太郎'), s = l.find(x => x.fam === '鈴木');
+    return [l.length, y.tels.map(t => (t.l || t.t) + ':' + t.v).join(','), JSON.stringify(y._cfn), y.groups.join(','), JSON.stringify(s._cfn)].join(' | '); }, csv),
+    '8 | cell:090-1111-2222,home:03-1234-5678,実家:0284-11-2222,妻の携帯:080-7777-0000 | {"年賀状":"送る"} | 家族 | {"間柄":"いとこ"}');
+
+  // ── Android の Chrome：スマホの連絡先から選んで入れる
+  await page.evaluate(() => { Object.defineProperty(navigator, 'contacts', { configurable: true, value: { getProperties: async () => ['name', 'email', 'tel', 'address', 'icon'],
+    select: async () => [{ name: ['木村 拓也'], tel: ['090-1212-3434', '03-5555-6666'], email: ['kimura@example.jp'], address: [{ postalCode: '100-0002', region: '東京都', city: '千代田区', addressLine: ['皇居外苑1'] }], icon: [] }] } }); });
+  await page.evaluate(() => RK.menu()); await w(250);
+  check('  📱 スマホの連絡先から選ぶ（使える端末だけ出す）', await page.evaluate(() => document.getElementById('rkSubBody').textContent.includes('📱 スマホの連絡先から選んで入れる')), true);
+  await page.evaluate(() => { RK.pick(); }); await w(600); await askPick(/まとめて足す/);
+  check('  　えらんだ人を入れる（携帯は携帯に）', await page.evaluate(p => { const x = eval(p); return x ? x.tels.map(t => t.t + ':' + t.v).join(',') + ' / ' + x.mails[0].v + ' / ' + x.adrs[0].zip + ' ' + x.adrs[0].region + x.adrs[0].city + x.adrs[0].street : 'なし'; }, P('木村', '拓也')), 'cell:090-1212-3434,other:03-5555-6666 / kimura@example.jp / 100-0002 東京都千代田区皇居外苑1');
+  await page.evaluate(() => { RK.closeScr(); RK.closeSub(); }); await w(300);
+
+  // ── バックアップ（📋リストの全体の書き出し）・印刷
+  check('  📋 全体のバックアップに入る（写真は別に聞く）', await page.evaluate(async () => { const b = renrakuBundle(), p = await renrakuPicsBundle(); return b.items.length + '/' + Object.keys(p || {}).length + '/' + b.fields.length; }), '9/2/2');
+  const bundle = await page.evaluate(async () => JSON.stringify({ b: renrakuBundle(), p: await renrakuPicsBundle() }));
+  await page.evaluate(() => { localStorage.setItem('excalc_renraku', JSON.stringify({ v: 1, items: [] })); });
+  await page.evaluate(async e => { const o = JSON.parse(e); await renrakuRestoreBundle(o.b, o.p); }, bundle); await w(300);
+  check('  　読み込むと戻る（写真も・自分の項目も）', await page.evaluate(async () => rkState().items.length + '/' + rkState().items.filter(x => x.photo).length + '/' + rkState().fields.map(f => f.n).join(',') + '/' + document.querySelectorAll('#rkList .rk-it').length), '9/2/間柄,年賀状/9');
+  await page.evaluate(() => { window.__opb = window.opBuild; window.__opp = window.opPrint; window.opBuild = h => h; window.opPrint = h => { window.__printed = h; }; RK.setGrp('家族'); RK.print(); RK.setGrp('家族'); window.opBuild = window.__opb; window.opPrint = window.__opp; }); await w(200);
+  check('  🖨 印刷：いま出ている人（家族）を あいうえお順で', await page.evaluate(() => { const d = document.createElement('div'); d.innerHTML = window.__printed || ''; return d.querySelector('h1').textContent + ' / ' + [...d.querySelectorAll('h2')].map(h => h.textContent).join('') + ' / ' + [...d.querySelectorAll('td b')].map(b => b.textContent).join(','); }), '📇 連絡帳（家族） / あたや / 伊藤 一郎,高橋 健二,山田 太郎');
+
+  // ── 端末に覚えている・戻るで閉じる順
+  //   （読み込み直すと、テスト用ブラウザでは直前の localStorage が新しいページに届かないことがあるので、同じページで確かめる）
+  await page.evaluate(() => closeRenraku()); await w(500);
+  check('  端末に覚えている（excalc_renraku に 9人）・開き直しても出る', await page.evaluate(() => { const n = JSON.parse(localStorage.getItem('excalc_renraku')).items.length; openRenraku(); return n + '/' + document.querySelectorAll('#rkList .rk-it').length; }), '9/9');
+  await w(400); await page.click('#rkFind'); await w(150);   // 一度画面に触れる（触れる前の履歴は、ブラウザが「戻る」で飛ばすので、表電卓は触れてから積む）
+  const yid2 = await page.evaluate(p => eval(p).id, P('山田', '太郎'));   // 書き出し→読み込みの往復で id は新しくなっている
+  await page.evaluate(id => RK.view(id), yid2); await w(200);
+  await page.evaluate(id => RK.edit(id), yid2); await w(200);
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  戻る：直す画面だけ閉じる', await page.evaluate(() => isDlgOpen('rkEdOverlay') + '/' + isDlgOpen('rkViewOverlay') + '/' + isDlgOpen('renrakuOverlay')), 'false/true/true');
+  await page.evaluate(() => window.history.back()); await w(400);
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  　戻るで 見る画面・連絡帳も閉じる', await page.evaluate(() => isDlgOpen('rkViewOverlay') + '/' + isDlgOpen('renrakuOverlay')), 'false/false');
+
+  // ── 仕込みのあるファイル：名前・URL・写真に何かを仕込んでも動かない
+  await page.evaluate(() => { window.__pwn = 0; openRenraku(); }); await w(400);
+  await load('bad.vcf', CR(['BEGIN:VCARD', 'VERSION:3.0', 'N:<img src=x onerror=window.__pwn=1>;"><b>;;;', 'TEL;TYPE=CELL:090-0000-1111"><img src=x onerror=window.__pwn=2>', 'URL:javascript:window.__pwn=3', 'EMAIL:a@b.jp" onmouseover="window.__pwn=4',
+    'PHOTO;VALUE=URI:https://example.com/x.jpg', 'PHOTO:data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=', 'NOTE:<script>window.__pwn=5</script>', 'CATEGORIES:<img src=x onerror=window.__pwn=6>', 'END:VCARD'])); await askPick(/まとめて足す/);
+  await page.evaluate(() => RK.closeScr()); await w(200);
+  const bad = await page.evaluate(() => rkState().items.find(x => /img/.test(x.fam)).id);
+  await page.evaluate(id => RK.view(id), bad); await w(300);
+  check('  仕込みのある名前・番号・URL・メール・写真・グループを読んでも何も動かない（URL・メールはリンクにしない・SVG は写真にしない）', await page.evaluate(() => [window.__pwn, document.querySelectorAll('img[onerror]').length, [...document.querySelectorAll('#rkViewBody a[href]')].map(a => a.getAttribute('href')).join(','), rkState().items.find(x => /img/.test(x.fam)).photo].join('/')), '0/0/tel:09000001111,sms:09000001111,tel:09000001111,sms:09000001111/false');
+  await page.evaluate(() => RK.closeView()); await w(300);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
 /* 🌗 端末のダークテーマ・節電モードでも文字が消えない（v541）。
    端末がダークになると（Pixel の節電モードなど）、色を決めていない文字が白くなり、白い地に溶けていた。
    文字・ボタンのふだんの色は表電卓の「夜の色」に合わせる。道具を開いて、文字と地の明るさの差を測る */
@@ -7866,7 +8099,8 @@ async function runSchemeFix(browser) {
     const found = [];
     found.push('shimai:' + await page.evaluate(SCAN));
     await page.evaluate(() => closeShimai()); await w(600);
-    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo']) {
+    await page.evaluate(() => localStorage.setItem('excalc_renraku', JSON.stringify({ v: 1, groups: [{ n: '家族', ic: '👪' }], items: [{ id: 'a1', fam: '山田', giv: '太郎', famK: 'やまだ', givK: 'たろう', tels: [{ t: 'cell', v: '090-1111-2222' }], groups: ['家族'], fav: true, bday: '--' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') }] })));
+    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo', 'renraku']) {
       await page.evaluate(id => NP_TOOLS.find(t => t.id === id).run(), id); await w(1100);
       found.push(id + ':' + await page.evaluate(SCAN));
       if (id === 'kurashi' || id === 'keisan') { await page.evaluate(id => { const c = document.querySelector(id === 'kurashi' ? '#krList .kr-card' : '#ksList .ks-card'); if (c) c.click(); }, id); await w(800); found.push(id + '-page:' + await page.evaluate(SCAN)); }
@@ -7874,7 +8108,7 @@ async function runSchemeFix(browser) {
     }
     await page.evaluate(() => { toggleSettings(); openVoiceSet(); }); await w(500);
     found.push('voice:' + await page.evaluate(SCAN));
-    check('  　読めない文字がない（しまい場所・部屋割り・案内ページ・容積・カンタブ・便利計算・くらしの便利帳・角度計・読み上げの声）', found.filter(s => !/:$/.test(s)).join(' | '), '');
+    check('  　読めない文字がない（しまい場所・部屋割り・案内ページ・容積・カンタブ・便利計算・くらしの便利帳・角度計・連絡帳・読み上げの声）', found.filter(s => !/:$/.test(s)).join(' | '), '');
     check('  　エラーなし', errs.join(' | '), '');
     await ctx.close();
   }
@@ -11119,11 +11353,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/30');   // v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/31');   // v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -11151,7 +11385,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -12276,6 +12510,7 @@ async function runQrShare(browser) {
     if (!only || only === 'backguard') await runBackGuard(browser);
     if (!only || only === 'hyovoice') await runHyoVoice(browser);
     if (!only || only === 'scheme') await runSchemeFix(browser);
+    if (!only || only === 'renraku') await runRenraku(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
   } finally { await browser.close(); }

@@ -39,7 +39,7 @@
 (function(){ try{
   const id=new URLSearchParams(location.search).get('app');
   const APPS={tansui:'💧 単位水量',kantab:'🧪 カンタブ',veggie:'🌱 野菜',volume:'📷 容積',photomemo:'📝 写真メモ',linklist:'🔗 リンク集',
-    touban:'📅 当番表',subsc:'🔐 サブスク',heya:'🛏 部屋割り',annai:'🏨 案内ページ',shimai:'📦 しまい場所',meishi:'💼 名刺管理',trim:'✂ トリミング',manner:'📜 マナー帳',boki:'📒 会計の手引き',kurashi:'🧭 くらしの便利帳',keisan:'🔢 便利計算',ruler:'📏 定規',kakudo:'📐 角度計',regi:'🛍 即売レジ',kakeizu:'🌳 家系図',calctmpl:'📋 式テンプレ',fintmpl:'📑 決算テンプレ'};
+    touban:'📅 当番表',subsc:'🔐 サブスク',heya:'🛏 部屋割り',annai:'🏨 案内ページ',shimai:'📦 しまい場所',meishi:'💼 名刺管理',renraku:'📇 連絡帳',trim:'✂ トリミング',manner:'📜 マナー帳',boki:'📒 会計の手引き',kurashi:'🧭 くらしの便利帳',keisan:'🔢 便利計算',ruler:'📏 定規',kakudo:'📐 角度計',regi:'🛍 即売レジ',kakeizu:'🌳 家系図',calctmpl:'📋 式テンプレ',fintmpl:'📑 決算テンプレ'};
   if(!id || !APPS[id]) return;
   window.APP_TOOL=id; document.documentElement.classList.add('app-tool');
   const dir='apps/'+id+'/', set=(sel,attr,v)=>document.querySelectorAll(sel).forEach(e=>e.setAttribute(attr,v));
@@ -9155,6 +9155,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v542', t:'📇 連絡帳：スマホの電話帳を読んで整理し、スマホに戻せます', li:[
+    '🧰道具に <b>📇 連絡帳</b> を足しました。スマホの連絡帳アプリで書き出したファイル（<b>.vcf</b>）を読むと、<b>よみ順（あかさたな の索引）</b>・グループ・会社ごとに見やすく並びます。電話・メール・住所はいくつでも持てます。名前・よみ・番号の一部・🎤 声でさがせます',
+    '<b>自分好みに</b>できます：グループ（絵文字つき）、自分の項目（間柄・年賀状など。押して選ぶ形も）、一覧の名前の下に出すもの、文字の大きさ。まとめて選んでグループに入れる、<b>同じ人の重なりを いっしょにする</b>、もうすぐ誕生日の人も出ます',
+    '直したら「<b>📇 スマホに戻す</b>」で .vcf にして、スマホの連絡帳アプリで読み込みます（ぜんぶ・選んだ人・前に書き出したあとで直した人だけ、も選べます）。スマホの項目は捨てずに持っておき、そのまま戻します。CSV（Excel）・印刷もできます' ]},
   { v:'v541', t:'🌗 節電モード・端末のダークテーマで文字が消えるのを直しました', li:[
     'スマホの<b>節電モード</b>（Pixel では電池が20%を切ったときなど）や<b>端末のダークテーマ</b>のとき、<b>📦 しまい場所の物の名前</b>などが白い地に白い文字になって見えなくなっていたのを直しました。<b>🛏 部屋割り</b>（日付・部屋の名前）・<b>🏨 案内ページ</b>・<b>📷 容積</b>・<b>🔢 便利計算</b>・<b>🔈 読み上げの声</b>の窓も同じように直りました',
     '文字やボタンのふだんの色は、端末の設定ではなく、表電卓の「🌙 夜の色にする」に合わせて決まるようにしました。夜の色のときに読みにくかった <b>🧭 くらしの便利帳・🔢 便利計算の番号</b>、<b>📐 角度計の説明</b>、まだ押せない「セルに入れる」ボタンの文字も明るくしました' ]},
@@ -11755,6 +11759,7 @@ const KEY_FUNCS={
   a_kakeizu:{g:'設定・機能',label:'🌳家系図',short:'家系図',run:()=>openKakeizu()},   // v514
   a_shimai:{g:'設定・機能',label:'📦しまい場所',short:'しまい',run:()=>openShimai()},   // v458
   a_meishi:{g:'設定・機能',label:'💼名刺',short:'名刺',run:()=>openMeishi()},   // v484
+  a_renraku:{g:'設定・機能',label:'📇連絡帳',short:'連絡帳',run:()=>openRenraku()},   // v542
   a_trim:{g:'設定・機能',label:'✂トリミング',short:'切抜',run:()=>openTrim()},   // v486
   a_manner:{g:'設定・機能',label:'📜マナー帳',short:'マナー',run:()=>openManner()},   // v488
   a_boki:{g:'設定・機能',label:'📒会計の手引き',short:'簿記',run:()=>openBoki()},   // v490
@@ -14321,6 +14326,30 @@ const openMeishiLoader=function(...a){
 };
 window.openMeishi=openMeishiLoader;
 window.closeMeishi=function(){};
+/* ── 📇連絡帳（v542。renraku.js に分けてある）──
+   スマホの電話帳から書き出したファイル（vCard .vcf・CSV）を読んで、よみ順・グループで整理し、
+   自分の項目を足したり、また .vcf にしてスマホに戻したりする。はじめて開いたときに renraku.js を読む。 */
+let renrakuPartLoading=null;
+function loadRenrakuPart(){
+  if(window.RENRAKU_PART_LOADED) return Promise.resolve(true);
+  if(renrakuPartLoading) return renrakuPartLoading;
+  renrakuPartLoading=new Promise(res=>{
+    const sc=document.createElement('script');
+    sc.src='renraku.js';
+    sc.onload=()=>{ window.RENRAKU_PART_LOADED=true; renrakuPartLoading=null; res(true); };
+    sc.onerror=()=>{ renrakuPartLoading=null; sc.remove(); res(false); };
+    document.head.appendChild(sc);
+  });
+  return renrakuPartLoading;
+}
+const openRenrakuLoader=function(...a){
+  return loadRenrakuPart().then(ok=>{
+    if(!ok){ toast('連絡帳を読み込めませんでした。インターネットにつながるところで、一度アプリを開き直してください'); return; }
+    if(window.openRenraku!==openRenrakuLoader) return window.openRenraku(...a);
+  });
+};
+window.openRenraku=openRenrakuLoader;
+window.closeRenraku=function(){};
 /* ── ✂写真トリミング（v486。trim.js に分けてある）──
    写真を撮って・選んで切り抜き、大きさ・形式を決めて保存する。はじめて開いたときに trim.js を読む。 */
 let trimPartLoading=null;
@@ -14957,6 +14986,7 @@ const NP_TOOLS=[
   {id:'kakeizu',  label:'🌳家系図',     ov:'kakeizuOverlay',   run:()=>openKakeizu(),  close:()=>closeKakeizu()},  // kakeizu.js（開いたときに読む。v514）
   {id:'shimai',   label:'📦しまい場所', ov:'shimaiOverlay',    run:()=>openShimai(),   close:()=>closeShimai()},   // shimai.js（開いたときに読む。v458）
   {id:'meishi',   label:'💼名刺管理',   ov:'meishiOverlay',    run:()=>openMeishi(),   close:()=>closeMeishi()},   // meishi.js（開いたときに読む。v484）
+  {id:'renraku',  label:'📇連絡帳',     ov:'renrakuOverlay',   run:()=>openRenraku(),  close:()=>closeRenraku()},  // renraku.js（開いたときに読む。v542）
   {id:'trim',     label:'✂トリミング',  ov:'trimOverlay',      run:()=>openTrim(),     close:()=>closeTrim()},     // trim.js（開いたときに読む。v486）
   {id:'manner',   label:'📜マナー帳',   ov:'mannerOverlay',    run:()=>openManner(),   close:()=>closeManner()},   // manner.js（開いたときに読む。v488）
   {id:'boki',     label:'📒会計の手引き',ov:'bokiOverlay',     run:()=>openBoki(),     close:()=>closeBoki()},     // boki.js（開いたときに読む。v490）
@@ -21601,6 +21631,7 @@ const TOOL_HINTS={
   manner:'上の欄で「香典」「返信はがき」「御中」のようにさがすか、分類を押して読みます。🧮 道具で、金額の大字・宛名の見本・法要の日も出せます。',
   trim:'写真を撮るか選んで、傾いていれば「📏 線で水平」か角度のつまみで直し、白い枠の角や辺をつまんで動かします。「次へ」で大きさ（px・%・KB）と形式を決めて保存します。',
   meishi:'「📷 名刺を撮って入れる」で表を撮り、名前や会社を入れます。名刺の文字をコピーして貼ると、電話・メールなどの欄に分けます。',
+  renraku:'スマホの連絡帳アプリで連絡先を「ファイルにエクスポート」し、「⬆ スマホの連絡先を読み込む」でそのファイルを選びます。直したら「📇 スマホに戻す」で .vcf にして、スマホで読み込みます。',
 };
 const TOOL_HINT_KEY='excalc_tool_hint_seen', TOOL_HINT_ON_KEY='excalc_tool_hints';
 function toolHintsOn(){ try{ return localStorage.getItem(TOOL_HINT_ON_KEY)!=='0'; }catch(_){ return false; } }
@@ -21680,7 +21711,7 @@ function homeSetStartup(on){ setStartPage(on?'home':'last'); }
    ★よく使う（自分で選ぶ。選んでいなければ さいきん使ったもの）→ まとまりごと → 隠している道具（畳む）。
    ☰・ホーム・🧰ボタンのどこから開いても同じ窓。隠した道具も下の「隠している道具」から開ける */
 const TOOL_CATS=[
-  ['🏠 くらし',   ['keisan','shimai','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
+  ['🏠 くらし',   ['keisan','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
   ['📖 知識・手引き',['kurashi','manner','boki']],   // 計算ではなく読む道具（v513）
   ['💼 仕事',     ['techo','meishi','calctmpl','fintmpl','kaikei']],
   ['🏗 現場・畑', ['tansui','kantab','volume','ruler','kakudo','veggie']],
@@ -21950,7 +21981,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v541';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v542';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -23771,6 +23802,7 @@ const ST_GROUPS=[
   {k:'excalc_annai',      n:'お客様向け案内ページ'},
   {k:'excalc_shimai',     n:'しまい場所メモ（写真は別）'},
   {k:'excalc_meishi',     n:'名刺管理（写真は別）'},
+  {k:'excalc_renraku',    n:'連絡帳（写真は別）'},
   {k:'excalc_links',      n:'リンク集'},
   {k:'excalc_userkeys',   n:'自分のボタン'},
   {k:'excalc_custommodes',n:'ひな形の一覧に登録したもの'},
@@ -24084,6 +24116,26 @@ async function meishiRestoreBundle(inc, pics){
   await window.mcMergeStored(inc, pics);
   return true;
 }
+/* 📇連絡帳（v542）：書き出し・読み込み。写真は IndexedDB（excalc_renraku）にあるので、聞いてから入れる。
+   読み込むときは置きかえずに合わせる（同じ人は新しい方） */
+const RENRAKU_KEY='excalc_renraku';
+function renrakuBundle(){ try{ const o=JSON.parse(localStorage.getItem(RENRAKU_KEY)||'null'); return (o && Array.isArray(o.items) && o.items.length) ? o : null; }catch(_){ return null; } }
+async function renrakuPicsBundle(){
+  const o=renrakuBundle(); if(!o || !o.items.some(x=>x && x.photo)) return null;
+  try{
+    const db=await new Promise((res,rej)=>{ const r=indexedDB.open('excalc_renraku',1); r.onupgradeneeded=()=>r.result.createObjectStore('pics'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+    const out={};
+    for(const x of o.items) if(x && x.photo && typeof x.id==='string'){ const d=await new Promise(r=>{ const q=db.transaction('pics').objectStore('pics').get(x.id); q.onsuccess=()=>r(q.result||null); q.onerror=()=>r(null); }); if(safeImg(d)) out[x.id]=d; }
+    db.close(); return Object.keys(out).length ? out : null;
+  }catch(_){ return null; }
+}
+async function renrakuRestoreBundle(inc, pics){
+  if(!inc || typeof inc!=='object' || !Array.isArray(inc.items) || !inc.items.length) return false;
+  if(!await appConfirm('📇連絡帳（'+inc.items.length+'人）も入っています。いまの連絡帳に合わせて入れますか（同じ人は新しい方にします）','入れる','いいえ')) return false;
+  const ok=await loadRenrakuPart(); if(!ok || typeof window.rkMergeStored!=='function') return false;
+  await window.rkMergeStored(inc, pics);
+  return true;
+}
 const KOE_BACKUP_KEYS=['koe_book','koe_vars','koe_settings','koe_state','koe_misses','koe_catbudget','koe_alias','koe_fav','koe_recent'];
 function koeBundle(){
   const o={}; let n=0;
@@ -24105,7 +24157,7 @@ function settingsBundleCount(o){ return (o && typeof o==='object') ? SETTINGS_BA
 /* 保存データをJSONファイルに書き出し（別端末への移動・バックアップ用） */
 async function exportSaves() {
   const saves=getSaves();
-  if(saves.length===0 && !koeBundle() && !techoCount() && !shimaiBundle() && !meishiBundle()){ alert('保存データがありません'); return; }
+  if(saves.length===0 && !koeBundle() && !techoCount() && !shimaiBundle() && !meishiBundle() && !renrakuBundle()){ alert('保存データがありません'); return; }
   // 野菜の日記に写真があれば、いっしょに持っていくか聞く（v374）
   const pics=vegPicBytes();
   let withPics=false;
@@ -24118,6 +24170,11 @@ async function exportSaves() {
   let mcPics=await meishiPicsBundle(), mcWith=false;
   if(mcPics){
     mcWith=await appConfirm(`💼名刺管理の名刺の写真（${Object.keys(mcPics).length}枚）も いっしょに書き出しますか\n\n「はい」＝写真ごと（ファイルは大きくなります）\n「いいえ」＝写真ぬき（名前・会社・電話などだけ）`,'はい（写真ごと）','いいえ（写真ぬき）');
+  }
+  // 📇連絡帳の顔写真も、入れるか聞く（v542）
+  let rkPics=await renrakuPicsBundle(), rkWith=false;
+  if(rkPics){
+    rkWith=await appConfirm(`📇連絡帳の顔写真（${Object.keys(rkPics).length}枚）も いっしょに書き出しますか\n\n「はい」＝写真ごと（ファイルは大きくなります）\n「いいえ」＝写真ぬき（名前・電話・住所などだけ）`,'はい（写真ごと）','いいえ（写真ぬき）');
   }
   if(pics>0){
     withPics=await appConfirm(
@@ -24138,7 +24195,9 @@ async function exportSaves() {
                   shimai:shimaiBundle(),         // 📦しまい場所メモ（v458）
                   shimaiPics:smWith?smPics:null,     // その写真（聞いて「はい」のときだけ）
                   meishi:meishiBundle(),         // 💼名刺管理（v484）
-                  meishiPics:mcWith?mcPics:null };   // 名刺の写真（聞いて「はい」のときだけ）
+                  meishiPics:mcWith?mcPics:null,     // 名刺の写真（聞いて「はい」のときだけ）
+                  renraku:renrakuBundle(),       // 📇連絡帳（v542）
+                  renrakuPics:rkWith?rkPics:null };  // 連絡帳の顔写真（聞いて「はい」のときだけ）
   const blob=new Blob([JSON.stringify(payload)],{type:'application/json;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
   const a=Object.assign(document.createElement('a'),{
@@ -24170,11 +24229,13 @@ function importSaves(ev) {
     const smIn=parsed && (parsed.type==='shimai' ? parsed.data : parsed.shimai), smPicsIn=parsed && (parsed.type==='shimai' ? parsed.pics : parsed.shimaiPics);
     // 名刺管理だけで書き出したファイル（type:'meishi'）も受け取る（v484）
     const mcIn=parsed && (parsed.type==='meishi' ? parsed.data : parsed.meishi), mcPicsIn=parsed && (parsed.type==='meishi' ? parsed.pics : parsed.meishiPics);
+    // 連絡帳だけで書き出したファイル（type:'renraku'）も受け取る（v542）
+    const rkIn=parsed && (parsed.type==='renraku' ? parsed.data : parsed.renraku), rkPicsIn=parsed && (parsed.type==='renraku' ? parsed.pics : parsed.renrakuPics);
     const incoming=Array.isArray(parsed)?parsed
-      :(parsed && Array.isArray(parsed.saves)?parsed.saves:((koeIn||techoIn||smIn||mcIn)?[]:null));
+      :(parsed && Array.isArray(parsed.saves)?parsed.saves:((koeIn||techoIn||smIn||mcIn||rkIn)?[]:null));
     if(!incoming){ alert('保存データの形式ではありません'); return; }
     const valid=incoming.filter(s=>s && Array.isArray(s.data));
-    if(valid.length===0 && !koeIn && !techoIn && !(smIn && Array.isArray(smIn.items) && smIn.items.length) && !(mcIn && Array.isArray(mcIn.items) && mcIn.items.length)){ alert('取り込める保存データが見つかりませんでした'); return; }
+    if(valid.length===0 && !koeIn && !techoIn && !(smIn && Array.isArray(smIn.items) && smIn.items.length) && !(mcIn && Array.isArray(mcIn.items) && mcIn.items.length) && !(rkIn && Array.isArray(rkIn.items) && rkIn.items.length)){ alert('取り込める保存データが見つかりませんでした'); return; }
     const existing=getSaves();
     const usedIds=new Set(existing.map(s=>s.id));
     let added=0;
@@ -24208,6 +24269,7 @@ function importSaves(ev) {
       if(parsed && parsed.annai && await annaiRestoreBundle(parsed.annai)) toast('案内ページを読み込みました');
       if(smIn && await shimaiRestoreBundle(smIn, smPicsIn)) toast('しまい場所メモを読み込みました');
       if(mcIn && await meishiRestoreBundle(mcIn, mcPicsIn)) toast('名刺管理を読み込みました');
+      if(rkIn && await renrakuRestoreBundle(rkIn, rkPicsIn)) toast('連絡帳を読み込みました');
       if(!setN) return;
       if(await appConfirm('設定（色・テンキーの配置・自分のボタン・リンク集など）も入っています。\n'
           +'いっしょに読み込みますか（今の設定は置きかえます。読み込むとアプリを開き直します）','はい','いいえ')){
