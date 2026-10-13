@@ -126,7 +126,8 @@
     return t ? { name: t[0], end: t[1], tip: t[2], base: b } : { name: '線', end: '', tip: '', base: b };
   }
   function pname(pos, e) { var t = PN[pos] && PN[pos][e]; return t ? e + '（' + t + '）' : e; }
-  function qq(s) { return '<q>' + esc(s) + '</q>'; }
+  // 部品の字をかぎかっこで。データに部品の字が無いときは「部分」と書く（v538。空の「」が出ていた）
+  function qq(s) { return s ? '<q>' + esc(s) + '</q>' : '部分'; }
 
   // ---------------- 綺麗に書くコツ（データから組み立て） ----------------
   function analyze(k) {
@@ -172,7 +173,7 @@
         if (bb.w > bt.w * 1.15) tips.push('下の' + qq(B[0]) + 'のほうが横に広い字です。上は少しすぼめて、下で支えます。');
         else if (bt.w > bb.w * 1.15) tips.push('上の' + qq(Tp[0]) + 'のほうが横に広い字です。下はその幅の内側に収めます。');
       }
-    } else if (KA.length && C.some(function (c) { return c[1] !== 'kamae' && c[0]; })) {
+    } else if (KA.length && KA[0][0] && C.some(function (c) { return c[1] !== 'kamae' && c[0]; })) {   // 囲みの字がデータに無いもの（「左」など）は囲みとして扱わない
       var k1 = KA[0], inner = C.filter(function (c) { return c[1] !== 'kamae' && c[0]; });
       var inName = inner.length === 1 ? qq(inner[0][0]) : '部分';
       layout = '囲み'; formula = pname('kamae', k1[0]) + ' ＋ ' + inner.map(function (c) { return c[0]; }).join(' ＋ ');
@@ -210,12 +211,107 @@
     }
     if (n <= 4) tips.push('画数の少ない字です。マスいっぱいに書かず、ひとまわり小さめに書くと文の中で整って見えます。');
     if (n >= 15) tips.push('画数の多い字です。線と線のすき間を均等にし、細かい部分をつめすぎないようにします。');
+    var fp = formula.split(' ＋ ').filter(function (x) { return x; });   // 部品の字が無いところは式に出さない
+    formula = fp.length >= 2 ? fp.join(' ＋ ') : '';
     return { layout: layout, formula: formula, tips: tips.slice(0, 7) };
+  }
+
+  // ---------------- なぞり練習の案内：その画を書くときの「うまく書くコツ」（v538） ----------------
+  // 字の組み立て（左右・上下・囲み・たれ・にょう）や、いちばん長い横画・つらぬく縦画などのコツを、その画に割り当てる。
+  // 1画に2つまで。h は画面に出す文、s は読み上げる文（部品は「にんべん」のような呼び名で読む）
+  function strokeTips(k) {
+    if (k._st) return k._st;
+    var n = k.n, g = geo(k), out = [], i;
+    for (i = 0; i < n; i++) out.push([]);
+    var add = function (j, h, s) { if (j >= 0 && j < n && out[j].length < 2) out[j].push({ h: h, s: s || h }); };
+    var nm = function (pos, e) { return e ? (PN[pos] && PN[pos][e]) || e : '部分'; };
+    var C = k.comps.filter(function (c) { return c[0] || c[1]; });
+    var find = function (p) { return C.filter(function (c) { return c[1] === p; }); };
+    var L = find('left')[0], R = find('right')[0], Tp = find('top')[0], B = find('bottom')[0];
+    var KA = find('kamae'), TA = find('tare')[0], TC = find('tarec')[0], NY = find('nyo')[0], NC = find('nyoc')[0];
+    var big = function (c) { return c && c[4] - c[3] >= 1; };
+    var bt0 = function (c) { return (k.types[c] || '').charAt(0); };
+    if (k.c === '右') add(0, '「右」は<em>左払いから</em>。短いほうの線を先に書きます（「左」は横画から）。', '右は、ひだりはらいから書きます。短いほうの線を先に。');
+    else if (k.c === '左') add(0, '「左」は<em>横画から</em>。短いほうの線を先に書きます（「右」は左払いから）。', '左は、よこかくから書きます。短いほうの線を先に。');
+    else if (TRICKY.indexOf(k.c) >= 0) add(0, '書き順をまちがえやすい字です。順番をたしかめながら書きましょう。');
+    if (L && R && big(L) && big(R)) {
+      var bl = cbox(k, L[3], L[4]), br = cbox(k, R[3], R[4]);
+      var a = Math.min(7, Math.max(3, Math.round(bl.w / (bl.w + br.w) * 10)));
+      var vpos = function (me, ot) { return me.h < ot.h * 0.7 ? (me.cy < ot.cy - 4 ? '。小さめにして上に寄せます' : me.cy > ot.cy + 4 ? '。小さめにして下に寄せます' : '。小さめにして、たての中ほどに置きます') : ''; };
+      var lw = (a <= 4 ? '細めに書き、右側に場所をゆずります' : a >= 6 ? '大きめに書きます' : '右側とほぼ同じ幅で書きます') + vpos(bl, br);
+      var rw = (a <= 4 ? '広めに、のびのびと書きます' : a >= 6 ? '細めにまとめます' : '左側との間をあけすぎないように書きます') + vpos(br, bl);
+      add(L[3] - 1, '左の' + qq(L[0]) + 'は' + lw + '（左右の幅は およそ<em>' + a + ' : ' + (10 - a) + '</em>）。', '左の' + nm('left', L[0]) + 'は、' + lw + '。');
+      add(R[3] - 1, '右の' + qq(R[0]) + 'は' + rw + '。', '右の' + nm('right', R[0]) + 'は、' + rw + '。');
+      if (bt0(L[4] - 1) === '㇀') add(L[4] - 1, '右上へ払い上げて、右側へつなげるように書きます。');
+      if ('木禾米火'.indexOf(L[0]) >= 0 && bt0(L[4] - 1) === '㇔') add(L[4] - 1, 'へんの' + qq(L[0]) + 'の最後の画は、払わずに<em>点のように止めます</em>。', 'へんの' + nm('left', L[0]) + 'の最後の画は、払わずに、点のように止めます。');
+    } else if (Tp && B && big(Tp) && big(B)) {
+      var bt = cbox(k, Tp[3], Tp[4]), bb = cbox(k, B[3], B[4]);
+      var a2 = Math.min(8, Math.max(2, Math.round(bt.h / (bt.h + bb.h) * 10)));
+      var tw = /かんむり|がしら|やね|なべぶた/.test(PN.top[Tp[0]] || '') && bt.w >= bb.w * 0.95 ? '横に広めに書き、下の部分をおおうようにします'
+        : bt.w > bb.w * 1.15 ? '横に広めに書きます' : bb.w > bt.w * 1.15 ? '少しすぼめて書きます' : 'たての中心線をそろえて書きます';
+      var bw = ('心灬儿皿大廾'.indexOf(B[0]) >= 0 && bb.w >= bt.w * 0.95) || bb.w > bt.w * 1.15 ? '横に広げて、上の部分を支えるように書きます'
+        : bt.w > bb.w * 1.15 ? '上の幅の内側に収めます' : '上とたての中心線をそろえて書きます';
+      add(Tp[3] - 1, '上の' + qq(Tp[0]) + 'は' + tw + '（上下の高さは およそ<em>' + a2 + ' : ' + (10 - a2) + '</em>）。', '上の' + nm('top', Tp[0]) + 'は、' + tw + '。');
+      add(B[3] - 1, '下の' + qq(B[0]) + 'は' + bw + '。', '下の' + nm('bottom', B[0]) + 'は、' + bw + '。');
+    } else if (KA.length && KA[0][0] && C.some(function (c) { return c[1] !== 'kamae' && c[0]; })) {
+      var k1 = KA[0], inner = C.filter(function (c) { return c[1] !== 'kamae' && c[0]; }), kn = nm('kamae', k1[0]);
+      var part2 = KA.filter(function (c) { return c[5] === '2'; })[0];
+      if (k1[3] < inner[0][3]) {
+        add(k1[3] - 1, '外側の' + qq(k1[0]) + 'から先に書きます。', '外側の' + kn + 'から、先に書きます。');
+        add(inner[0][3] - 1, '中の部分は小さめにまとめ、外側との<em>すき間を均等に</em>とります。');
+        if (part2 && part2[4] === n) add(n - 1, 'この最後の画で<em>囲みを閉じます</em>。');
+      } else {
+        add(inner[0][3] - 1, '中の部分を先に書き、外側の' + qq(k1[0]) + 'はあとから書きます。', '中の部分を先に書き、外側の' + kn + 'は、あとから書きます。');
+        add(k1[3] - 1, '外側の' + qq(k1[0]) + 'で、中の部分を囲むように書きます。', '外側の' + kn + 'で、中の部分を囲むように書きます。');
+      }
+    } else if (TA && TC) {
+      var tl = -1; for (i = TA[3] - 1; i < TA[4]; i++) if (bt0(i) === '㇒' && tl < 0) tl = i;
+      add(tl >= 0 ? tl : TA[3] - 1, 'たれの' + qq(TA[0]) + 'の左払いは、のびやかに長く書きます。', 'たれの' + nm('tare', TA[0]) + 'の、ひだりはらいは、のびやかに長く書きます。');
+      add(TC[3] - 1, '中の' + qq(TC[0]) + 'は右下にまとめます。', '中の' + (TC[0] || '部分') + 'は、右下にまとめます。');
+    } else if (NY && NC) {
+      var rs = -1; for (i = NY[3] - 1; i < NY[4]; i++) if (bt0(i) === '㇏') rs = i;
+      var yn = nm('nyo', NY[0]);
+      add(NY[3] - 1, 'にょうの' + qq(NY[0]) + (NY[3] < NC[3] ? 'を先に書きます。' : 'は最後に書きます。'), 'にょうの' + yn + (NY[3] < NC[3] ? 'を、先に書きます。' : 'は、最後に書きます。'));
+      if (rs >= 0) add(rs, '右払いを長くのばして、' + (NY[3] < NC[3] ? '右側' : '上') + 'の部分を乗せるようにします。');
+    }
+    // 横画・縦画が多い字
+    var H = [], V = [];
+    k.types.forEach(function (t, j) { var b = t.charAt(0); if (b === '㇐' && g.len[j] > 16) H.push(j); if (b === '㇑' && g.len[j] > 16) V.push(j); });
+    if (H.length >= 2) {
+      var hs = H.slice().sort(function (x, y) { return g.len[y] - g.len[x]; });
+      if (g.len[hs[0]] >= g.len[hs[1]] * 1.2) add(hs[0], 'この字で<em>いちばん長い横画</em>です。しっかり長く書くと引きしまります。');
+    }
+    if (H.length >= 3) add(H[1], '横画は' + H.length + '本。間隔を同じにそろえます。');
+    if (V.length >= 3) add(V[1], '縦画は' + V.length + '本。間隔をそろえて、まっすぐ平行に下ろします。');
+    // 字をつらぬく縦画は最後（中・十・車 など）
+    var last = n - 1, lb = g.bb[last];
+    if (bt0(last) === '㇑' && g.len[last] > 50 && lb && Math.abs((lb[0] + lb[2]) / 2 - 54.5) < 10 && crossesMid(k, last)) add(last, '字を<em>つらぬく縦画</em>は最後に書きます。まっすぐ長く下ろします。');
+    if (n >= 15) add(0, '画数の多い字です。線と線のすき間を均等にして、つめすぎないように書きます。');
+    k._st = out;
+    return out;
+  }
+  // i 画目が、前に書いた画と（はしではなく）なかほどで交わるか
+  function crossesMid(k, i) {
+    var g = geo(k), a = g.polys[i], s = a[0], e = a[a.length - 1];
+    for (var j = 0; j < i; j++) {
+      var b = g.polys[j];
+      for (var p = 1; p < a.length; p++) for (var q = 1; q < b.length; q++) {
+        var x = segCross(a[p - 1], a[p], b[q - 1], b[q]);
+        if (x && Math.hypot(x[0] - s[0], x[1] - s[1]) > 8 && Math.hypot(x[0] - e[0], x[1] - e[1]) > 8) return true;
+      }
+    }
+    return false;
+  }
+  function segCross(p1, p2, p3, p4) {
+    var d1x = p2[0] - p1[0], d1y = p2[1] - p1[1], d2x = p4[0] - p3[0], d2y = p4[1] - p3[1];
+    var den = d1x * d2y - d1y * d2x; if (Math.abs(den) < 1e-9) return null;
+    var t = ((p3[0] - p1[0]) * d2y - (p3[1] - p1[1]) * d2x) / den, u = ((p3[0] - p1[0]) * d1y - (p3[1] - p1[1]) * d1x) / den;
+    return t > 0 && t < 1 && u > 0 && u < 1 ? [p1[0] + t * d1x, p1[1] + t * d1y] : null;
   }
 
   // ---------------- 状態 ----------------
   var cur = null, mode = 'view';
-  var opt = { nums: store.get('nums', true), ghost: store.get('ghost', true), loop: store.get('loop', false), speed: store.get('speed', 1) };
+  var opt = { nums: store.get('nums', true), ghost: store.get('ghost', true), loop: store.get('loop', false), speed: store.get('speed', 1), say: store.get('say', false) };
   var SPEEDS = [{ n: 'ゆっくり', v: 38, gap: 420 }, { n: 'ふつう', v: 72, gap: 230 }, { n: 'はやい', v: 140, gap: 110 }];
 
   var stage = $('#stage'), lGhost = $('#lGhost'), lInk = $('#lInk'), lNums = $('#lNums'), lHint = $('#lHint'), lOverlay = $('#lOverlay'), lMaru = $('#lMaru');
@@ -392,8 +488,8 @@
       return pre + (i > 0 ? esc(s.slice(0, i)) + '<span class="okuri">' + esc(s.slice(i + 1)) + '</span>' : esc(s)) + post;
     }).join('<span class="sep">・</span>'));
     var an = analyze(k);
-    $('#parts').innerHTML = an.formula ? '組み立て：' + (an.layout ? '<b>' + an.layout + '</b>　' : '') + esc(an.formula) : '';
-    $('#parts').hidden = !an.formula;
+    $('#parts').innerHTML = an.layout || an.formula ? '組み立て：' + (an.layout ? '<b>' + an.layout + '</b>' : '') + (an.layout && an.formula ? '　' : '') + esc(an.formula) : '';
+    $('#parts').hidden = !(an.layout || an.formula);
     $('#tipsTitle').textContent = '「' + k.c + '」を綺麗に書くコツ';
     var ol = $('#tips'); ol.innerHTML = '';
     an.tips.forEach(function (t) {
@@ -524,16 +620,56 @@
     stopPlayer();
     if (m === 'practice') prStart();
     else {
+      hush();
       lOverlay.innerHTML = ''; lMaru.innerHTML = ''; lInk.style.display = ''; P.k = cur.n; refresh();
     }
   }
 
+  // ---------------- 読み上げ（v538）：練習の案内と「うまく書くコツ」を声で ----------------
+  // 「横画」を「おうが」、「1画目」を「いちがめ」と読まれないよう、読み上げる文はかなに直してから渡す
+  var TTS = typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance === 'function';
+  var YOMI = { '横画': 'よこかく', '縦画': 'たてかく', '左払い': 'ひだりはらい', '右払い': 'みぎはらい', '右上払い': 'みぎうえはらい', '点': 'てん',
+    '縦はね上げ': 'たてはねあげ', '縦はね': 'たてはね', '横はね': 'よこはね', '横折れ曲がりはね': 'よこおれまがりはね', '横折れ曲がり': 'よこおれまがり',
+    '横折れはね': 'よこおれはね', '横折れ払い': 'よこおればらい', '横折れ上げ': 'よこおれあげ', '横折れ': 'よこおれ', '縦折れ折れ': 'たておれおれ',
+    '縦折れ': 'たておれ', '縦曲がり': 'たてまがり', '曲がりはね': 'まがりはね', 'そりはね': 'そりはね', '折れ払い': 'おればらい', '折れはね': 'おれはね',
+    'くの字': 'くのじ', '払い折れ': 'はらいおれ', '払いはね': 'はらいはね', '折れ': 'おれ' };
+  var YOMI_RE = new RegExp(Object.keys(YOMI).sort(function (a, b) { return b.length - a.length; }).join('|'), 'g');
+  var TEN = ['', '', 'に', 'さん', 'よん', 'ご', 'ろく', 'なな', 'はち', 'きゅう'], ONE = ['', 'いっ', 'に', 'さん', 'よん', 'ご', 'ろっ', 'なな', 'はっ', 'きゅう'];
+  // 画の数のよみ：1→いっかく、6→ろっかく、10→じゅっかく、16→じゅうろっかく、20→にじゅっかく
+  function kakuYomi(n) {
+    n = +n; if (!(n > 0 && n < 100)) return n + 'かく';
+    var t = Math.floor(n / 10), o = n % 10;
+    return (t ? TEN[t] + (o ? 'じゅう' : 'じゅっ') : '') + ONE[o] + 'かく';
+  }
+  function sayText(h) {
+    return String(h).replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+      .replace(/(\d+)画目/g, function (m, d) { return kakuYomi(d) + 'め'; })
+      .replace(/(\d+)画/g, function (m, d) { return kakuYomi(d); })
+      .replace(/●/g, 'まる').replace(/[「」]/g, '')
+      .replace(YOMI_RE, function (w) { return YOMI[w]; });
+  }
+  var jaVoice = null;
+  function pickVoice() { try { var vs = speechSynthesis.getVoices() || []; jaVoice = vs.filter(function (v) { return /^ja/i.test(v.lang); })[0] || null; } catch (e) { } }
+  if (TTS) { pickVoice(); try { speechSynthesis.addEventListener('voiceschanged', pickVoice); } catch (e) { } }
+  function speak(text) {
+    if (!TTS || !text) return;
+    try {
+      speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = 'ja-JP'; if (jaVoice) u.voice = jaVoice; u.rate = 1;
+      speechSynthesis.speak(u);
+    } catch (e) { }
+  }
+  function hush() { if (TTS) { try { speechSynthesis.cancel(); } catch (e) { } } }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') hush(); });
+
   // ---------------- 練習モード ----------------
   var pc = $('#pc'), pctx = pc.getContext('2d');
-  var PR = { lv: store.get('lv', 1), i: 0, done: [], live: null, miss: 0, missCur: 0, scores: [], fin: false, hint: false, flash: null, fit: null, over: false };
+  var PR = { lv: store.get('lv', 1), i: 0, done: [], live: null, miss: 0, missCur: 0, scores: [], fin: false, hint: false, flash: null, fit: null, over: false, say: null, saidKinds: {} };
   function cssv(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim() || '#000'; }
   function prStart() {
     PR.i = 0; PR.done = []; PR.live = null; PR.miss = 0; PR.missCur = 0; PR.scores = []; PR.fin = false; PR.hint = false; PR.flash = null; PR.fit = null; PR.over = false;
+    PR.saidKinds = {}; hush();
     lMaru.innerHTML = ''; lOverlay.innerHTML = '';
     $('#prResult').hidden = true; $('#prLive').hidden = false;
     lInk.style.display = 'none';
@@ -550,12 +686,42 @@
     if (showFull) el('path', { class: 'guide', d: cur.paths[i] }, lHint);
     if (PR.lv <= 2 || PR.hint) startDot(i, showFull);
   }
-  function prMsg(html, bad) {
-    var m = $('#prMsg');
-    var s = sinfo(cur, PR.i);
-    m.className = 'pr-msg' + (bad ? ' bad' : '');
-    m.innerHTML = '<span class="pr-count"><em>' + (PR.i + 1) + '</em>/' + cur.n + '</span><span>' + (html || ((PR.i + 1) + '画目は「' + esc(s.name) + '」。' + (PR.lv === 1 ? '色のついた線を●からなぞりましょう。' : PR.lv === 2 ? '●の位置から書きましょう。' : '覚えた書き順で書きましょう。'))) + '</span>';
+  // 案内（v538）：「◯画目は「◯◯」」と書き方、その下に「うまく書くコツ」（線の書き方＋字の組み立てなど）。
+  // まちがえたときは msg を赤い地で出す（コツはそのまま下に残す）。pre は「きれい！」などのほめ言葉
+  var LV_TXT = ['', '色の線を●からなぞりましょう。', '●の位置から書きましょう。', '覚えた書き順で書きましょう。'];
+  var SPK_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>';
+  // その画のコツ：線の書き方（とめ・はね・はらい）と、字の組み立てなど（strokeTips）。テストでは、まちがえたときだけ出す
+  function prTips(i) {
+    if (PR.lv === 3 && !PR.missCur && !PR.hint) return [];
+    var s = sinfo(cur, i), t = [];
+    if (s.tip) t.push({ h: esc(s.tip), s: s.tip, kind: s.name });
+    return t.concat(strokeTips(cur)[i] || []);
   }
+  function prMsg(msg, bad, pre) {
+    var m = $('#prMsg'), i = PR.i, s = sinfo(cur, i), tips = prTips(i);
+    var head = (pre ? '<b class="pr-ok">' + esc(pre) + '</b> ' : '') + (i + 1) + '画目は「' + esc(s.name) + '」' + (s.end ? '<span class="end-tag">' + s.end + '</span>' : '');
+    var lead = bad ? msg : head, sub = bad ? '' : LV_TXT[PR.lv];
+    m.className = 'pr-msg' + (bad ? ' bad' : '');
+    m.innerHTML = '<span class="pr-count"><em>' + (i + 1) + '</em>/' + cur.n + '</span><div class="pr-body"><p class="pr-lead">' + lead + '</p>'
+      + (sub ? '<p class="pr-sub">' + sub + '</p>' : '') + '</div>'
+      + (TTS ? '<button class="pr-say" type="button" aria-label="案内とコツを読み上げる" title="読み上げる">' + SPK_ICON + '</button>' : '')
+      + (tips.length ? '<div class="pr-tips"><b>うまく書くコツ</b><ul>' + tips.map(function (t) { return '<li>' + t.h + '</li>'; }).join('') + '</ul></div>' : '');
+    PR.say = { lead: bad ? msg : (pre ? pre + ' ' : '') + (i + 1) + '画目は「' + s.name + '」。', sub: sub, tips: tips, bad: !!bad };
+    if (opt.say) prSpeak(false);
+  }
+  // 読み上げる。自動のときは短く：書き方は1画目だけ、同じ線の書き方は2回目から省く。まちがえたときは、そのことだけ
+  function prSpeak(full) {
+    var d = PR.say; if (!d) return;
+    if (d.bad && !full) { speak(sayText(d.lead)); return; }
+    var parts = [d.lead];
+    if (d.sub && (full || PR.i === 0)) parts.push(d.sub);
+    d.tips.forEach(function (t) {
+      if (t.kind) { if (!full && PR.saidKinds[t.kind]) return; PR.saidKinds[t.kind] = 1; }
+      parts.push(t.s);
+    });
+    speak(sayText(parts.join(' ')));
+  }
+  $('#prMsg').addEventListener('click', function (e) { if (e.target.closest('.pr-say')) prSpeak(true); });
   function sizePC() {
     var r = $('#masu').getBoundingClientRect();
     var dpr = Math.min(window.devicePixelRatio || 1, 3);
@@ -615,8 +781,7 @@
       drawPC();
       if (PR.i >= cur.n) { finish(); return; }
       prLayers();
-      var s = sinfo(cur, PR.i);
-      prMsg((r.score >= 90 ? 'きれい！ ' : r.score >= 75 ? 'いいですね。' : 'OK。') + '次は' + (PR.i + 1) + '画目「' + esc(s.name) + '」。');
+      prMsg('', false, r.score >= 90 ? 'きれい！' : r.score >= 75 ? 'いいですね。' : 'OK。');
     } else {
       PR.miss++; PR.missCur++;
       PR.flash = { pts: pts, t0: performance.now() }; drawPC();
@@ -693,6 +858,7 @@
       '<p>点数 ' + score + '　書き順や形のミス ' + PR.miss + '回' + (PR.lv === 3 ? '（テスト）' : PR.lv === 2 ? '（お手本なし）' : '') + (rec && prev ? '　自己ベスト更新' : '') + '</p>' +
       '<div class="pr-row"><button class="btn" id="rAgain" type="button">もう一度</button><button class="btn" id="rOver" type="button" aria-pressed="false">お手本と重ねる</button><button class="btn pri" id="rNext" type="button">次の字へ</button></div>';
     $('#prLive').hidden = true; box.hidden = false;
+    if (opt.say) speak(title + (/[！!。]$/.test(title) ? ' ' : '。') + '点数 ' + score + '点。');
     $('#rAgain').onclick = prStart;
     $('#rOver').onclick = function () {
       PR.over = !PR.over; this.setAttribute('aria-pressed', PR.over ? 'true' : 'false');
@@ -740,6 +906,14 @@
       Array.from(document.querySelectorAll('#practiceUI [data-lv]')).forEach(function (x) { var on = x === b; x.setAttribute('aria-checked', on); x.setAttribute('aria-selected', on); });
       prStart();
     });
+  });
+  // 🔈 自動で読み上げ（1画ごとに案内とコツを読む）。オンにしたら、いまの案内をすぐ読む
+  var prAuto = $('#prAuto');
+  prAuto.hidden = !TTS;
+  prAuto.setAttribute('aria-pressed', opt.say ? 'true' : 'false');
+  prAuto.addEventListener('click', function () {
+    opt.say = !opt.say; store.set('say', opt.say); prAuto.setAttribute('aria-pressed', opt.say ? 'true' : 'false');
+    if (opt.say) prSpeak(true); else hush();
   });
   function syncLv() { Array.from(document.querySelectorAll('#practiceUI [data-lv]')).forEach(function (x) { var on = +x.dataset.lv === PR.lv; x.setAttribute('aria-checked', on); x.setAttribute('aria-selected', on); }); }
 
@@ -995,7 +1169,8 @@
   // テスト用
   window.KKJ_APP = {
     load: load, search: search, analyze: analyze, setMode: setMode, micResults: micResults, recognize: function (s, f, n) { return ensureRec().recognize(s, f || 300, n || 12); },
-    cur: function () { return cur; }, mode: function () { return mode; }, P: function () { return P; }, PR: function () { return PR; }, K: K, ALL: ALL, geo: geo
+    cur: function () { return cur; }, mode: function () { return mode; }, P: function () { return P; }, PR: function () { return PR; }, K: K, ALL: ALL, geo: geo,
+    strokeTips: strokeTips, sayText: sayText, kakuYomi: kakuYomi
   };
 })();
 
