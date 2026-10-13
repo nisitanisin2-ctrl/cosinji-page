@@ -8292,6 +8292,38 @@ async function runRenrakuIro(browser) {
   check('  　もう一度で逆（▼）', await order(), '高橋,山田,鈴木,佐藤,伊藤,〇〇病院');
   await page.evaluate(() => [...document.querySelectorAll('#rkTHd [data-h]')].find(t => /携帯/.test(t.textContent)).click()); await w(250);
   check('  　3回目で よみ順に戻る', await order(), '伊藤,佐藤,鈴木,高橋,山田,〇〇病院');
+  // ── 長い名前（v546）：入りきらない字は小さく・2行に。見出しの右の端（‖）で幅を変える・2回押すと中身に合わせる
+  await page.evaluate(() => { const r = rkState(); r.items.push(rkCleanItem({ id: 'L1', fn: '株式会社 ながいなまえの建設工業 大阪支店 代表取締役社長 山田', tels: [{ t: 'work', v: '06-1111-2222' }], mails: [{ t: 'work', v: 'very.long.address.for.testing@kansai-denki-hoan.example.jp' }] }),
+    rkCleanItem({ id: 'L2', fam: '関西電気保安協会', giv: '総務部', tels: [{ t: 'cell', v: '090-1111-0000' }] }), rkCleanItem({ id: 'L3', fam: '関西電気保安協会', giv: '北', tels: [{ t: 'cell', v: '090-1111-0001' }] })); RK.tQ(''); }); await w(300);
+  const nameFit = id => page.evaluate(id => { const r = [...document.getElementById('rkTL').children].find(r => r.dataset.id === id), c = r.children[1], t = c.querySelector('.t2');
+    return { f2: c.classList.contains('f2'), px: parseFloat(getComputedStyle(c).fontSize), all: t ? t.scrollHeight <= t.clientHeight + 1 : c.scrollWidth <= c.clientWidth + 1 }; }, id);
+  const l2 = await nameFit('L2'), l3 = await nameFit('L3'), l1 = await nameFit('L1');
+  check('  長い名前：入りきらないと 字を小さく（関西電気保安協会 北）・それでも入らないと 2行に（関西電気保安協会 総務部）。どちらも ぜんぶ見える', [l3.f2, l3.px < 14 && l3.px >= 11.5, l3.all, l2.f2, l2.px <= 11.5, l2.all].join('/'), 'false/true/true/true/true/true');
+  check('  　とても長い名前は ふつうの幅では入りきらない（2行のあと …）', [l1.f2, l1.all].join('/'), 'true/false');
+  // つまみ（列の右の端）が画面に入るまで 右へ動かしてから
+  const grip = async c => { await page.evaluate(c => { const h = document.querySelector('#rkTHr [data-h="' + c + '"]'), X = document.getElementById('rkTX'); X.scrollLeft = Math.max(0, h.offsetLeft + h.offsetWidth - X.clientWidth + 40); }, c); await w(250);
+    return page.evaluate(c => { const r = document.querySelector('#rkTHd .rk-rs[data-rs="' + c + '"]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, c); };
+  let g = await grip('mail');
+  await page.mouse.move(g.x, g.y); await page.mouse.down(); await page.mouse.move(g.x + 30, g.y, { steps: 3 }); await page.mouse.move(g.x + 60, g.y, { steps: 3 }); await page.mouse.up(); await w(400);
+  check('  見出しの右の端（‖）を動かすと その列の幅が変わる（メール 196→256）・並べかえはしない・覚える', await page.evaluate(() => [rkState().tw.mail, document.querySelector('#rkTHr [data-h="mail"]').getBoundingClientRect().width, document.getElementById('rkTHd').textContent.includes('▲'), JSON.parse(localStorage.getItem('excalc_renraku')).tw.mail].join('/')), '256/256/false/256');
+  check('  　幅を変えても 左右の行はそろったまま', await align(), 'そろう');
+  g = await grip('mail'); await page.mouse.click(g.x, g.y); await w(120); await page.mouse.click(g.x, g.y); await w(500);
+  check('  　‖ を2回押すと 中身に合わせた幅（いちばん長いメールが入る・360 まで）', await page.evaluate(() => rkState().tw.mail), 360);
+  await page.evaluate(() => { RK.tCols(); }); await w(300);
+  check('  ☰ 列：名前の列の幅（せまく・ふつう・ひろく・もっと ひろく）・中身に合わせる・もとに戻す', await page.evaluate(() => [...document.querySelectorAll('#rkAskBody .rk-tagrow button')].map(b => b.textContent.trim() + (b.classList.contains('on') ? '●' : '')).join(',')),
+    'せまく,ふつう●,ひろく,もっと ひろく,↔ ぜんぶの幅を 中身に合わせる,幅を もとに戻す');
+  await page.evaluate(() => { [...document.querySelectorAll('#rkAskBody [data-nw]')].find(b => b.textContent === 'ひろく').click(); }); await w(300);
+  check('  　「ひろく」：名前の列が広くなる（190）', await page.evaluate(() => [rkState().tw.name, getComputedStyle(document.getElementById('rkTV')).getPropertyValue('--nw').trim(), document.querySelector('#rkTL .rk-tr').getBoundingClientRect().width].join('/')), '190/190px/228');
+  await page.evaluate(() => { [...document.querySelectorAll('#rkAskBody .rk-tagrow button')].find(b => /中身に合わせる/.test(b.textContent)).click(); }); await w(400);
+  const l1b = await nameFit('L1');
+  check('  　「ぜんぶの幅を 中身に合わせる」：とても長い名前も ぜんぶ見える（名前の列は 300 まで）', [await page.evaluate(() => rkState().tw.name), l1b.all].join('/'), '300/true');
+  await page.evaluate(() => { [...document.querySelectorAll('#rkAskBody .rk-tagrow button')].find(b => /もとに戻す/.test(b.textContent)).click(); }); await w(300);
+  check('  　「幅を もとに戻す」', await page.evaluate(() => JSON.stringify(rkState().tw) + '/' + getComputedStyle(document.getElementById('rkTV')).getPropertyValue('--nw').trim()), '{}/138px');
+  await askPick(/^やめる$/);
+  await page.evaluate(() => RK.setQ('')); await w(200);
+  check('  一覧でも 長い名前は2行まで出る（とても長い名前も ぜんぶ見える）', await page.evaluate(() => { const e = [...document.querySelectorAll('#rkList .rk-it')].find(x => x.dataset.id === 'L1'), nm = e.querySelector('.nm');
+    return [nm.scrollHeight <= nm.clientHeight + 1, nm.getBoundingClientRect().height > parseFloat(getComputedStyle(nm).fontSize) * 1.5, getComputedStyle(nm).webkitLineClamp].join('/'); }), 'true/true/2');
+  await page.evaluate(() => { const r = rkState(); r.items = r.items.filter(x => !/^L\d$/.test(x.id)); document.getElementById('rkTX').scrollLeft = 0; RK.tQ(''); }); await w(300);
   await page.evaluate(() => { RK.tCols(); }); await w(300);
   await page.evaluate(() => { document.querySelector('#rkAskBody input[data-tc="mail"]').checked = false; document.querySelector('#rkAskBody input[data-tc="zip"]').checked = true; }); await askPick(/^できた$/);
   check('  ☰ 列：出す列をえらぶ（メールを出さない・〒を出す）・覚える', [(await hdr()).includes('メール'), (await hdr()).includes('〒'), await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_renraku') || '{}').thide.join(','))].join(' / '), 'false / true / mail,dept,title,nick');
