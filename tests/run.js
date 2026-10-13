@@ -11056,6 +11056,7 @@ async function runToolsKey(browser) {
   await page.evaluate(() => { toolsBtnAll(); openToolsList(); openToolsBtnSettings(); }); await page.waitForTimeout(400);
   check('  窓から設定へ移る', await page.evaluate(() => isDlgOpen('toolsListOverlay') + '/' + isDlgOpen('settingsPanel') + '/' + (document.getElementById('toolsBtnSec').offsetParent !== null) + '/' + toolsBtnHidden.length), 'false/true/true/0');
   await page.evaluate(() => { toggleSettings(); toolsBtnToggle('koe'); });
+  await page.waitForTimeout(300);   // 設定を閉じた分の「戻る」（少し待ってから出す）が、開き直しとぶつからないように
   await page.reload(); await page.waitForTimeout(900);
   check('  開き直しても覚えている', await page.evaluate(() => toolsBtnHidden.join(',') + '/' + document.querySelector('#toolsBtnList [data-toolbtn=koe]').classList.contains('on')), 'koe/false');
   check('  バックアップの設定に入る', await page.evaluate(() => SETTINGS_BACKUP_KEYS.includes('excalc_toolsbtn_hide')), true);
