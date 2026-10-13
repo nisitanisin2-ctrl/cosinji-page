@@ -10,10 +10,13 @@
      自分の項目はメモ欄に「［間柄］叔父」の形でも書くので、スマホを通っても消えない（読むときに項目へ戻す）。
    ・CSV（Excel）・印刷（あいうえお順の電話一覧）。Android の Chrome は「スマホの連絡先から選んで入れる」も。
    ・スマホの連絡先を直接書きかえることはできない（ブラウザのアプリの決まり）。ファイルでやりとりする。
-   ・入れたものは端末の中だけ（excalc_renraku。写真は IndexedDB excalc_renraku）。📋リストのバックアップにも入る。 */
+   ・入れたものは端末の中だけ（excalc_renraku。写真は IndexedDB excalc_renraku）。📋リストのバックアップにも入る。
+   ・🎨 色分け（v544）：12色から色をえらんで人を押すと、その色になる（一覧の左の帯・うすい地の色）。色で絞る・色ごとに並べる。
+     色には名前を付けられる（赤＝要連絡 など）。スマホに戻すときは X-HYO-COLOR と メモ欄の「［色分け］赤」で持っていく。
+   ・📋 表で直す（v544）：全員を表にして、マスを押すと その場で直せる（Enter で下の人・Tab で右へ）。出す列をえらぶ・列で並べかえ・↶ 戻す。 */
 (function(){
 const RK_KEY='excalc_renraku', RK_MAX=5000;
-let rk=null, rkQ='', rkGrp='', rkSel=null, rkViewId=null, rkEd=null, rkScrClean=null, rkDupCache=[], rkRec=null, rkIO=null;
+let rk=null, rkQ='', rkGrp='', rkCol='', rkSel=null, rkPaint=null, rkT=null, rkViewId=null, rkEd=null, rkScrClean=null, rkDupCache=[], rkRec=null, rkIO=null;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -38,6 +41,28 @@ const okKey=(T,t)=>T.some(a=>a[0]===t);
 const GROUP_ICONS=['👪','🏠','👴','👵','🧒','🧑‍🤝‍🧑','💼','🏗','🌾','🏘','🏫','🏥','🛒','🍶','⚽','🎵','⛩','⭐','❤️','📌'];
 const GROUP_PRESETS=[['家族','👪'],['親戚','🏠'],['友だち','🧑‍🤝‍🧑'],['仕事','💼'],['ご近所','🏘'],['学校','🏫'],['病院・お店','🏥']];
 const FIELD_PRESETS=[['間柄','text',[]],['年賀状','pick',['送る','もらう','やりとり','喪中','やめた']],['子どもの名前','text',[]],['連絡のしかた','pick',['電話','LINE','メール','手紙']],['好きなもの','text',[]]];
+/* 🎨 色分けの色（v544）。明るい地でも夜の色でも見分けやすい 12色 */
+const PAL=[['red','赤','#e53935'],['orange','だいだい','#f57c00'],['yellow','黄','#fbc02d'],['lime','黄緑','#7cb342'],['green','緑','#2e7d32'],['teal','青緑','#00897b'],
+  ['sky','水色','#29b6f6'],['blue','青','#1e5fd0'],['purple','紫','#8e24aa'],['pink','ピンク','#ec407a'],['brown','茶','#8d6e63'],['gray','灰色','#78909c']];
+const PAL_KEYS=PAL.map(p=>p[0]);
+const palOf=k=>PAL.find(p=>p[0]===k);
+const colHex=k=>(palOf(k)||[])[2]||'';
+const colLabel=k=>{ const p=palOf(k); return p ? ((rk && rk.colors[k]) || p[1]) : ''; };   // 名前を付けていれば その名前
+const colFull=k=>{ const p=palOf(k); if(!p) return ''; const l=rk && rk.colors[k]; return l ? p[1]+'（'+l+'）' : p[1]; };
+/* 色の上の文字：白で読めるなら白、むりなら黒 */
+const colInk=k=>{ const h=colHex(k); if(!h) return '#fff';
+  const v=[1,3,5].map(i=>parseInt(h.substr(i,2),16)/255).map(c=>c<=0.03928?c/12.92:Math.pow((c+0.055)/1.055,2.4)), L=0.2126*v[0]+0.7152*v[1]+0.0722*v[2];
+  return 1.05/(L+0.05)>=3 ? '#fff' : '#1a1a1a'; };
+const COL_CF='色分け';   // スマホのメモ欄・CSV では「［色分け］赤（要連絡）」
+/* 「赤」「赤（要連絡）」「要連絡」「red」→ 色。learn のときは、まだ名前のない色に（ ）の名前を付ける */
+function rkColorFrom(s, learn){
+  const t=line(s,40); if(!t) return '';
+  const m=/^(.+?)(?:[（(]([^（）()]{1,12})[)）])?$/.exec(t), nm=(m?m[1]:t).trim(), lb=m&&m[2]?m[2].trim():'';
+  let k=(PAL.find(p=>p[1]===nm || p[0]===nm.toLowerCase())||[])[0];
+  if(!k && rk) k=PAL_KEYS.find(c=>rk.colors[c]===t);
+  if(k && lb && learn && rk && !rk.colors[k]) rk.colors[k]=lb;
+  return k||'';
+}
 
 /* ── 名前・よみ ── */
 const isLatin=s=>/^[A-Za-z]/.test(String(s||'').trim());
@@ -95,16 +120,21 @@ function rkCleanItem(x){
   o.bday=/^(\d{4}|-)-\d\d-\d\d$/.test(x.bday||'')?x.bday:'';
   o.bdayLine=o.bday?line(x.bdayLine,200):'';
   o.raw=arr(x.raw).map(l=>String(l==null?'':l).replace(/[\r\n]+/g,'')).filter(l=>l.length<=6000 && /^[A-Za-z0-9.\-]+[;:]/.test(l) && !/^(BEGIN|END|VERSION)[;:]/i.test(l)).slice(0,40);
-  o.fav=!!x.fav; o.photo=!!x.photo;
+  o.fav=!!x.fav; o.photo=!!x.photo; o.color=PAL_KEYS.includes(x.color)?x.color:'';
   o.added=ymdOk(x.added)?x.added:today(); o.updated=ymdOk(x.updated)?x.updated:o.added;
   o.ts=Math.max(0, +x.ts||0);
   return o;
 }
 const rkHasAny=x=>!!(x.fam||x.giv||x.fn||x.org||x.nick||x.tels.length||x.mails.length);
-function rkDefaults(){ return { v:1, view:'kana', groups:[], fields:[], sub:'tel', big:false, noteCf:true, lastExp:0, notDup:[], items:[] }; }
+/* 表で直す の列（名前のほか） */
+const TCOL_RE=/^(yomi|color|fav|cell|tel|mail|org|dept|title|nick|zip|adr|bday|groups|note|cf:f[0-9a-z]{1,10})$/;
+function rkDefaults(){ return { v:1, view:'kana', groups:[], fields:[], sub:'tel', big:false, noteCf:true, lastExp:0, notDup:[], colors:{}, pc:'red', thide:['dept','title','nick','zip'], items:[] }; }
 function rkClean(o){
   const d=rkDefaults(); if(!o || typeof o!=='object') return d;
-  d.view=['kana','group','org','new'].includes(o.view)?o.view:'kana';
+  d.view=['kana','group','org','color','new'].includes(o.view)?o.view:'kana';
+  if(o.colors && typeof o.colors==='object') PAL_KEYS.forEach(k=>{ const l=line(o.colors[k],12); if(l) d.colors[k]=l; });
+  d.pc=PAL_KEYS.includes(o.pc)?o.pc:'red';
+  if(Array.isArray(o.thide)) d.thide=[...new Set(o.thide.filter(k=>typeof k==='string' && TCOL_RE.test(k)))].slice(0,60);
   d.groups=arr(o.groups).map(g=>({n:line(g&&g.n,20), ic:line(g&&g.ic,8)})).filter(g=>g.n).filter((g,i,a)=>a.findIndex(h=>h.n===g.n)===i).slice(0,60);
   d.fields=arr(o.fields).map(f=>({id:/^f[0-9a-z]{1,10}$/.test(f&&f.id)?f.id:'', n:line(f&&f.n,20), ty:(f&&f.ty==='pick')?'pick':'text',
     op:arr(f&&f.op).map(x=>line(x,20)).filter(Boolean).slice(0,12)})).filter(f=>f.id&&f.n).filter((f,i,a)=>a.findIndex(h=>h.id===f.id)===i).slice(0,30);
@@ -116,8 +146,12 @@ function rkClean(o){
   d.items.forEach(x=>x.groups.forEach(g=>{ if(!d.groups.some(h=>h.n===g)) d.groups.push({n:g, ic:''}); }));
   return d;
 }
-function rkLoad(){ try{ rk=rkClean(JSON.parse(localStorage.getItem(RK_KEY)||'null')); }catch(_){ rk=rkClean(null); } }
-function rkSave(){ try{ localStorage.setItem(RK_KEY, JSON.stringify(rk)); return true; }catch(_){ toast('端末の空きが足りず、保存できませんでした（写真を外す・ほかの保存を減らしてください）', 4500); return false; } }
+function rkLoad(){ rkSaveFlush(); try{ rk=rkClean(JSON.parse(localStorage.getItem(RK_KEY)||'null')); }catch(_){ rk=rkClean(null); } }
+function rkSave(){ if(rkSaveT){ clearTimeout(rkSaveT); rkSaveT=0; } try{ localStorage.setItem(RK_KEY, JSON.stringify(rk)); return true; }catch(_){ toast('端末の空きが足りず、保存できませんでした（写真を外す・ほかの保存を減らしてください）', 4500); return false; } }
+/* 色をぬる・表で直す ときは、続けて押すので 少しまとめて保存する（閉じる・裏に回るときは すぐ） */
+let rkSaveT=0;
+function rkSaveSoon(){ clearTimeout(rkSaveT); rkSaveT=setTimeout(()=>{ rkSaveT=0; rkSave(); }, 300); }
+function rkSaveFlush(){ if(rkSaveT && rk) rkSave(); }
 const rkFind=id=>rk.items.find(x=>x.id===id);
 function rkSyncGroups(){ rk.items.forEach(x=>x.groups.forEach(g=>{ if(!rk.groups.some(h=>h.n===g)) rk.groups.push({n:g, ic:''}); })); }
 const gIcon=n=>{ const g=rk.groups.find(h=>h.n===n); return g?g.ic:''; };
@@ -276,7 +310,7 @@ function rkNoteCf(x){
   for(const ln of String(x.note).split('\n')){ const m=/^\s*［([^］]{1,20})］(.*)$/.exec(ln); if(m) x._cfn[m[1]]=m[2].trim(); else keep.push(ln); }
   x.note=keep.join('\n').trim();
 }
-const blank=()=>({fam:'',giv:'',famK:'',givK:'',fn:'',nick:'',org:'',dept:'',title:'',note:'',bday:'',bdayLine:'',nx:null,tels:[],mails:[],adrs:[],urls:[],groups:[],cf:{},raw:[],fav:false,_cfn:{}});
+const blank=()=>({fam:'',giv:'',famK:'',givK:'',fn:'',nick:'',org:'',dept:'',title:'',note:'',bday:'',bdayLine:'',nx:null,tels:[],mails:[],adrs:[],urls:[],groups:[],cf:{},raw:[],fav:false,color:'',_cfn:{}});
 function rkFromProps(props){
   const x=blank(); let pic='';
   const lab={}, rawGroups=new Set(), labLines=[];
@@ -310,6 +344,7 @@ function rkFromProps(props){
       case 'PHOTO': { const d=rkPhoto(p,v); if(d) pic=d; else if(!/^data:/i.test(String(v).trim()) && !/^(B|BASE64)$/i.test(p.params.ENCODING||'')) keepRaw(p,v); break; }
       case 'X-ANDROID-CUSTOM': { const a=rkSplit(v,';').map(un); if(/nickname$/.test(a[0]||'') && a[1] && !x.nick){ x.nick=a[1].trim(); break; } keepRaw(p,v); break; }
       case 'X-HYO-FAV': if(/^1|true$/i.test(String(v).trim())) x.fav=true; break;
+      case 'X-HYO-COLOR': { const k=String(v).trim().toLowerCase(); if(PAL_KEYS.includes(k)) x.color=k; break; }
       default: keepRaw(p,v);
     }
   }
@@ -365,11 +400,12 @@ function rkVcard(x, opt){
   for(const a of x.adrs){ const v=[a.pob,a.ext,a.street,a.city,a.region,a.zip,a.country].map(vE).join(';'), pr=a.p?',PREF':''; if(a.l) lab('ADR;TYPE=OTHER'+pr+':'+v, a.l); else L.push('ADR;TYPE='+(ADR_V[a.t]||'OTHER')+pr+':'+v); }
   if(x.bday){ const m=x.bdayLine && /^[^:]*:(.*)$/.exec(x.bdayLine); L.push(m && rkDate(m[1])===x.bday ? x.bdayLine : 'BDAY:'+x.bday); }
   x.urls.forEach(u=>L.push('URL:'+vE(u)));
-  const cfl=(opt.noteCf===false)?[]:rk.fields.filter(f=>x.cf[f.id]).map(f=>'［'+f.n+'］'+x.cf[f.id]);
+  const cfl=(opt.noteCf===false)?[]:rk.fields.filter(f=>x.cf[f.id]).map(f=>'［'+f.n+'］'+x.cf[f.id]).concat(x.color?['［'+COL_CF+'］'+colFull(x.color)]:[]);
   const note=[x.note].concat(cfl).filter(Boolean).join('\n');
   if(note) L.push('NOTE:'+vE(note));
   if(x.groups.length) L.push('CATEGORIES:'+x.groups.map(vE).join(','));
   if(x.fav) L.push('X-HYO-FAV:1');
+  if(x.color) L.push('X-HYO-COLOR:'+x.color);
   if(opt.pic){ const m=/^data:image\/(jpeg|png|gif|webp);base64,(.+)$/.exec(opt.pic); if(m) L.push('PHOTO;ENCODING=b;TYPE='+(m[1]==='jpeg'?'JPEG':m[1].toUpperCase())+':'+m[2]); }
   x.raw.forEach(l=>L.push(l));
   L.push('END:VCARD');
@@ -408,7 +444,7 @@ function rkFromCsv(textIn){
     nick:col(/^(ニックネーム|あだ名|nickname)$/i), org:col(/^(会社|会社名|勤務先名|organization ?name|company)$/i),
     dept:col(/^(部署|organization ?department|department)$/i), title:col(/^(役職|肩書き?|organization ?title|job ?title|title)$/i),
     note:col(/^(メモ|備考|notes?)$/i), bday:col(/^(誕生日|birthday)$/i), groups:col(/^(グループ|分類|labels|group membership|categories)$/i),
-    fav:col(/^(よく使う|お気に入り|★)$/), site:col(/^(サイト|url|ホームページ|web ?page)$/i), zip:col(/^(郵便番号|〒)$/), adr:col(/^住所$/),
+    fav:col(/^(よく使う|お気に入り|★)$/), color:col(/^(色分け|色)$/), site:col(/^(サイト|url|ホームページ|web ?page)$/i), zip:col(/^(郵便番号|〒)$/), adr:col(/^住所$/),
   };
   const telCols=[['cell',/^(携帯|携帯電話|mobile phone|mobile)$/i],['home',/^(自宅|自宅電話|home phone( 2)?)$/i],['work',/^(勤務先|勤務先電話|business phone( 2)?|work phone)$/i],
     ['main',/^(代表|company main phone|primary phone)$/i],['fax',/^(fax|ファックス|business fax|home fax|other fax)$/i],['other',/^(その他の電話|電話|電話番号|other phone|phone|car phone)$/i]].map(([t,re])=>[t, cols(re)]);
@@ -440,6 +476,7 @@ function rkFromCsv(textIn){
     if(M.groups>=0) multi(v(r,M.groups)).forEach(g=>{ const s=g.replace(/^\*\s*/,'').trim(); if(/^starred$/i.test(s)) x.fav=true; else if(s && !/^my ?contacts$/i.test(s)) x.groups.push(s); });
     rkNoteCf(x);
     cfCols.forEach(([n,i])=>{ const val=v(r,i); if(val) x._cfn[n]=val; });
+    if(M.color>=0 && v(r,M.color)) x._cfn[COL_CF]=v(r,M.color);
     if(rkHasAny(rkCleanItem(x))) out.push(x);
   }
   return out;
@@ -486,6 +523,7 @@ function rkMergeInto(a, b){
   const rs=new Set(a.raw), has=re=>a.raw.some(l=>re.test(l));
   b.raw.forEach(l=>{ if(rs.has(l)) return; const m=UNIQ_RAW.exec(l); if(m && has(new RegExp('^(item\\d+\\.)?'+m[2]+'[;:]','i'))) return; rs.add(l); a.raw.push(l); });
   a.fav=a.fav||b.fav;
+  if(!a.color && b.color) a.color=b.color;
   Object.assign(a, rkCleanItem(Object.assign({}, a)));
   const changed=JSON.stringify(a)!==before;
   if(changed){ a.updated=today(); a.ts=Date.now(); }
@@ -522,7 +560,7 @@ function rkSearch(q, list){
       if(nm===w||kn===w||nn===w) s+=100; else if(nm.startsWith(w)||kn.startsWith(w)) s+=60; else if(nm.includes(w)||kn.includes(w)||nn.includes(w)) s+=45;
       else if(co.includes(w)) s+=30;
       else {
-        if(other===null) other=rkNorm([x.note, x.groups.join(' '), Object.values(x.cf).join(' '), x.mails.map(m=>m.v).join(' '), x.adrs.map(a=>rkAdrText(a)+' '+a.zip).join(' '), x.tels.map(t=>t.l).join(' ')].join(' '));
+        if(other===null) other=rkNorm([x.note, x.groups.join(' '), Object.values(x.cf).join(' '), x.color?colFull(x.color):'', x.mails.map(m=>m.v).join(' '), x.adrs.map(a=>rkAdrText(a)+' '+a.zip).join(' '), x.tels.map(t=>t.l).join(' ')].join(' '));
         if(other.includes(w)) s+=10; else { ok=false; break; }
       }
     }
@@ -650,6 +688,66 @@ body.dark .rk-btn.del{ color:#ef9a9a; }
 .rk-help h3{ font-size:15px; margin:14px 0 4px; color:var(--acc-text,var(--acc)); }
 .rk-help p,.rk-help li{ font-size:14px; line-height:1.7; }
 .rk-help ol{ padding-left:1.3em; margin:4px 0; }
+/* 🎨 色分け（v544）：左の帯と うすい地の色。色の名前は小さな札で */
+.rk-it.col{ box-shadow:inset 7px 0 0 var(--rkc); padding-left:15px; border-color:color-mix(in srgb, var(--rkc) 50%, transparent); background:color-mix(in srgb, var(--rkc) 12%, var(--modal-bg,#fff)); }
+.rk-it.sel.col{ border-color:var(--acc); }
+.rk-it .cl{ flex:none; max-width:6.5em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11.5px; font-weight:bold; padding:2px 7px; border-radius:9px; background:var(--rkc); color:var(--rki,#fff); }
+.rk-dot{ display:inline-block; flex:none; width:12px; height:12px; border-radius:50%; background:var(--rkc); box-shadow:0 0 0 1px rgba(0,0,0,.22); margin-right:5px; vertical-align:-1px; }
+body.dark .rk-dot{ box-shadow:0 0 0 1px rgba(255,255,255,.35); }
+.rk-dot.big{ width:22px; height:22px; margin:0 4px 0 2px; }
+.rk-grp .rk-dot{ margin-right:0; }
+.rk-cpill{ display:inline-block; margin-top:4px; padding:3px 12px; border-radius:12px; background:var(--rkc); color:var(--rki,#fff); font-size:13px; font-weight:bold; }
+.rk-tabs button{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; min-height:52px; font-size:12.5px; line-height:1.2; padding:3px 2px; white-space:nowrap; }
+.rk-tabs button span{ font-size:19px; line-height:1.15; }
+.rk-tabs button:disabled{ opacity:.4; cursor:default; }
+.rk-tabs button.on{ background:var(--acc); border-color:var(--acc); color:#fff; }
+.rk-pinfo{ display:flex; align-items:center; gap:4px; font-size:13.5px; min-height:30px; }
+.rk-pinfo b{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:0 1 auto; }
+.rk-pinfo .n{ flex:none; white-space:nowrap; color:var(--text-light,#888); font-size:12px; margin-left:2px; }
+.rk-pinfo .hint{ flex:1 1 0; color:var(--text-light,#888); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; margin-left:4px; }
+.rk-pinfo button{ margin-left:auto; flex:none; height:30px; padding:0 10px; border-radius:15px; border:1px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#333); font-size:12px; cursor:pointer; }
+.rk-pal{ display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin:6px 2px 8px; }
+@media (min-width:640px){ .rk-pal{ grid-template-columns:repeat(12,1fr); } }
+.rk-sw{ height:38px; min-width:0; border-radius:19px; border:none; background:var(--rkc); color:var(--rki,#fff); box-shadow:inset 0 0 0 1px rgba(0,0,0,.15); cursor:pointer; font-size:18px; font-weight:bold; padding:0; font-family:inherit; }
+.rk-sw.on{ box-shadow:0 0 0 3px var(--modal-bg,#fff), 0 0 0 5px var(--text,#333); }
+.rk-sw.on::after{ content:'✓'; }
+.rk-pal.lab{ grid-template-columns:repeat(4,1fr); gap:7px; }
+.rk-pal.lab .rk-sw{ height:42px; border-radius:10px; font-size:13px; padding:0 3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rk-pal.lab .rk-sw.on::after{ content:' ✓'; }
+.rk-sw.none{ background:transparent; color:var(--text,#333); box-shadow:inset 0 0 0 1px rgba(120,132,156,.6); }
+.rk-cgrid{ display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:6px 0; }
+.rk-cgrid button{ display:flex; align-items:center; gap:4px; min-height:40px; padding:2px 8px; border-radius:10px; border:1px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#333); font-size:13.5px; cursor:pointer; text-align:left; font-family:inherit; }
+.rk-cgrid button span{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rk-cgrid button small{ flex:none; color:var(--text-light,#888); font-size:11.5px; }
+/* 📋 表で直す（v544）：名前の列と見出しは動かない。マスを押すと その場で入れる */
+#rkTblOverlay .rk-modal{ display:flex; flex-direction:column; }
+.rk-tb{ flex:none; height:44px; padding:0 12px; border-radius:22px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#333); font-size:14px; font-weight:bold; cursor:pointer; white-space:nowrap; font-family:inherit; }
+#rkTUndo:disabled{ opacity:.45; }
+.rk-tinfo{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:13px; margin-top:7px; color:var(--text,#222); }
+.rk-tinfo .hint{ color:var(--text-light,#888); font-size:12px; }
+.rk-tinfo button{ height:28px; padding:0 10px; border-radius:14px; border:1px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#333); font-size:12px; cursor:pointer; }
+.rk-twrap{ flex:1; min-height:0; overflow:auto; position:relative; overscroll-behavior:contain; }
+.rk-tbl{ border-collapse:separate; border-spacing:0; table-layout:fixed; font-size:14px; color:var(--text,#222); }
+.rk-tbl th,.rk-tbl td{ height:42px; padding:0 8px; box-sizing:border-box; border-right:1px solid rgba(120,132,156,.22); border-bottom:1px solid rgba(120,132,156,.22);
+  background:var(--modal-bg,#fff); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; cursor:pointer; scroll-margin:40px 4px 4px 176px; }
+.rk-tbl thead th{ position:sticky; top:0; z-index:2; height:38px; font-size:12px; color:var(--text-sub,#555); background:var(--modal-bg,#fff); background:color-mix(in srgb, var(--modal-bg,#fff) 86%, #78849c); user-select:none; -webkit-user-select:none; }
+.rk-tbl .c-no{ position:sticky; left:0; z-index:1; text-align:center; padding:0; color:var(--text-light,#888); font-size:11px; }
+.rk-tbl .c-name{ position:sticky; left:38px; z-index:1; font-weight:bold; border-right:2px solid rgba(120,132,156,.4); }
+.rk-tbl thead .c-no,.rk-tbl thead .c-name{ z-index:3; }
+.rk-tbl .c-no,.rk-tbl .c-name{ scroll-margin-left:0; }
+.rk-tbl tr.col td{ background:color-mix(in srgb, var(--rkc) 10%, var(--modal-bg,#fff)); }
+.rk-tbl tr.col td.c-name{ box-shadow:inset 6px 0 0 var(--rkc); padding-left:13px; }
+.rk-tbl tr.draft td{ background:color-mix(in srgb, var(--acc) 9%, var(--modal-bg,#fff)); }
+.rk-tbl tr.fl td{ background:color-mix(in srgb, #ffd54f 45%, var(--modal-bg,#fff)); }
+.rk-tbl td.ed{ padding:0; }
+.rk-tbl .ph{ color:var(--text-light,#999); font-weight:normal; }
+.rk-tbl .lb{ color:var(--text-light,#888); font-size:11px; margin-right:4px; }
+.rk-tbl .mo{ color:var(--acc-text,var(--acc)); font-size:11px; font-weight:bold; margin-left:5px; }
+.rk-tbl .fv{ color:#f9a825; font-size:16px; }
+.rk-tbl td[data-c="fav"],.rk-tbl td[data-c="color"]{ text-align:center; }
+.rk-tbl tr.more td{ text-align:center; cursor:default; }
+.rk-tin{ display:block; width:100%; height:100%; box-sizing:border-box; margin:0; border:2px solid var(--acc); border-radius:0; padding:0 6px; font-size:16px; font-family:inherit; background:var(--modal-bg,#fff); color:var(--text,#222); outline:none; }
+.rk-big .rk-tbl{ font-size:16.5px; } .rk-big .rk-tbl td{ height:48px; }
 #printArea .rk-pr{ font-family:sans-serif; color:#000; }
 #printArea .rk-pr h1{ font-size:17pt; margin:0 0 3mm; } #printArea .rk-pr h2{ font-size:12pt; margin:4mm 0 1.2mm; border-bottom:1px solid #999; }
 #printArea .rk-pr table{ width:100%; border-collapse:collapse; font-size:9.5pt; } #printArea .rk-pr td{ border-bottom:1px solid #ddd; padding:1mm 1.6mm; vertical-align:top; }
@@ -662,6 +760,7 @@ function rkEnsureDom(){
 <div class="modal-overlay" id="renrakuOverlay">
   <div class="modal vol-modal rk-modal" style="position:relative">
     <div class="modal-header"><span>📇 連絡帳</span><span class="hdr-right" style="display:flex;gap:6px;align-items:center">
+      <button class="hdr-btn" id="rkTblBtn" onclick="RK.table()" title="全員を表にして、その場で直す">📋 表で直す</button>
       <button class="hdr-btn" onclick="RK.menu()" title="読み込む・スマホに戻す・自分好みにする など">⚙ 設定</button>
       <button class="modal-close" onclick="closeRenraku()" aria-label="閉じる">✕</button></span></div>
     <div class="rk-top">
@@ -673,6 +772,20 @@ function rkEnsureDom(){
     <div class="rk-add" id="rkAdd"></div>
   </div>
 </div>
+<div class="modal-overlay" id="rkTblOverlay">
+  <div class="modal vol-modal rk-modal">
+    <div class="modal-header"><span>📋 表で直す</span><span class="hdr-right" style="display:flex;gap:6px;align-items:center">
+      <button class="hdr-btn" id="rkTUndo" onclick="RK.tUndo()" disabled title="直したところを ひとつ戻す">↶ 戻す</button>
+      <button class="modal-close" onclick="RK.closeTbl()" aria-label="閉じる">✕</button></span></div>
+    <div class="rk-top">
+      <div class="rk-find"><input id="rkTFind" type="search" placeholder="🔍 さがす（名前・よみ・番号の一部）" autocomplete="off" oninput="RK.tQ(this.value)" enterkeyhint="search">
+        <button class="rk-tb" onclick="RK.tAdd()" title="人を足す（いちばん上に行ができます）">＋ 足す</button>
+        <button class="rk-tb" onclick="RK.tCols()" title="表に出す列をえらぶ">☰ 列</button></div>
+      <div class="rk-tinfo" id="rkTInfo"></div>
+    </div>
+    <div class="rk-twrap" id="rkTWrap"><table class="rk-tbl" id="rkTbl"></table></div>
+  </div>
+</div>
 ${['View','Ed','Sub','Scr','Ask'].map(k=>`<div class="modal-overlay" id="rk${k}Overlay" onclick="if(event.target===this)RK.close${k}()">
   <div class="modal"><div class="modal-header"><span id="rk${k}Hdr"></span><button class="modal-close" onclick="RK.close${k}()" aria-label="閉じる">✕</button></div>
     <div class="rk-body" id="rk${k}Body"></div></div></div>`).join('')}
@@ -682,18 +795,23 @@ ${['View','Ed','Sub','Scr','Ask'].map(k=>`<div class="modal-overlay" id="rk${k}O
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
   if(typeof applyNpToolFull==='function') applyNpToolFull();
   rkBindIdx();
+  $('rkTbl').addEventListener('click', rkTClick);
+  // 表のマスに入れているときの Enter・Tab・Esc は、ここで先に受ける（表電卓の「Esc で閉じる」「Tab で回る」より先に）
+  window.addEventListener('keydown', rkTKey, true);
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') rkSaveFlush(); });
+  window.addEventListener('pagehide', rkSaveFlush);
 }
 function openRenraku(q){
-  rkEnsureDom(); rkLoad(); rkGrp=''; rkSel=null;
+  rkEnsureDom(); rkLoad(); rkGrp=''; rkCol=''; rkSel=null; rkPaint=null;
   rkQ=typeof q==='string'?q:''; $('rkFind').value=rkQ;
-  openDlg('renrakuOverlay', ()=>{ rkSel=null; rkStopListen(); });
+  openDlg('renrakuOverlay', ()=>{ rkSel=null; rkPaint=null; rkStopListen(); rkSaveFlush(); });
   rkRender(); $('rkList').scrollTop=0;
 }
 const closeIf=(id,cb)=>{ if($(id) && isDlgOpen(id)) closeDlg(id, cb); };
 function closeRenraku(){
   if(!$('renrakuOverlay') || !isDlgOpen('renrakuOverlay')) return;
-  rkCloseAsk(); rkCloseScr(); rkCloseSub(); rkCloseEd(); rkCloseView(); rkStopListen();
-  closeDlg('renrakuOverlay', ()=>{ rkSel=null; });
+  rkCloseAsk(); rkCloseScr(); rkCloseSub(); rkCloseEd(); rkCloseView(); rkCloseTbl(); rkStopListen();
+  closeDlg('renrakuOverlay', ()=>{ rkSel=null; rkPaint=null; rkSaveFlush(); });
 }
 function rkCloseView(){ closeIf('rkViewOverlay', ()=>{ rkViewId=null; }); }
 function rkCloseEd(){ closeIf('rkEdOverlay', ()=>{ rkEd=null; }); }
@@ -721,16 +839,20 @@ function rkAsk(hdr, msg, btns, html){
 }
 
 /* ── 一覧 ── */
-function rkVisible(){
+/* グループ・★・よみなし・色 で絞った人（さがす前） */
+function rkFiltered(){
   let list=rk.items;
   if(rkGrp==='★') list=list.filter(x=>x.fav);
   else if(rkGrp==='?') list=list.filter(noYomi);
   else if(rkGrp) list=list.filter(x=>x.groups.includes(rkGrp));
-  return rkQ.trim() ? rkSearch(rkQ, list) : list;
+  if(rkCol) list=list.filter(x=>rkCol==='-' ? !x.color : x.color===rkCol);
+  return list;
 }
+function rkVisible(){ const list=rkFiltered(); return rkQ.trim() ? rkSearch(rkQ, list) : list; }
 function rkRender(){
   if(!$('rkList')) return;
   $('renrakuOverlay').classList.toggle('rk-big', !!rk.big);
+  $('rkTblBtn').hidden=!rk.items.length;
   rkRenderBar(); rkRenderAdd();
   if(rkIO){ rkIO.disconnect(); }
   const L=$('rkList'), I=$('rkIdx');
@@ -756,6 +878,11 @@ function rkSectionsHtml(list){
     for(const x of list){ if(!x.groups.length) none.push(x); x.groups.forEach(g=>(by[g]=by[g]||[]).push(x)); }
     secs=rk.groups.filter(g=>by[g.n]).map(g=>['g:'+g.n, (g.ic?g.ic+' ':'')+g.n, by[g.n].sort(cmpKana)]);
     if(none.length) secs.push(['g:', 'グループなし', none.sort(cmpKana)]);
+  } else if(rk.view==='color'){
+    const by={}, none=[];
+    for(const x of list){ if(x.color) (by[x.color]=by[x.color]||[]).push(x); else none.push(x); }
+    secs=PAL.filter(p=>by[p[0]]).map(p=>['c:'+p[0], colFull(p[0]), by[p[0]].sort(cmpKana), p[2]]);
+    if(none.length) secs.push(['c:', '色なし', none.sort(cmpKana)]);
   } else if(rk.view==='org'){
     const by={}; for(const x of list){ const k=x.org.trim(); (by[k]=by[k]||[]).push(x); }
     const ok=o=>hira(String(o).replace(/株式会社|有限会社|合同会社|合資会社|一般社団法人|一般財団法人|医療法人|社会福祉法人|\(株\)|（株）|㈱|\(有\)|（有）|㈲/g,'')).replace(/\s/g,'');   // 「株式会社」などは並びに入れない
@@ -766,7 +893,7 @@ function rkSectionsHtml(list){
   const kana=rk.view==='kana';
   I.innerHTML=kana ? secs.map(s=>`<button type="button" data-sec="${esc(s[0])}" aria-label="${esc(s[1])}の行へ">${esc(s[0])}</button>`).join('') : '';
   L.classList.toggle('noidx', !kana);
-  return secs.map(([k,label,items])=>`<div class="rk-grp" data-sec="${esc(k)}">${esc(label)}<span>${items.length}人</span></div>`+items.map(rkItemHtml).join('')).join('');
+  return secs.map(([k,label,items,hex])=>`<div class="rk-grp" data-sec="${esc(k)}">${hex?`<i class="rk-dot" style="--rkc:${hex}"></i>`:''}${esc(label)}<span>${items.length}人</span></div>`+items.map(rkItemHtml).join('')).join('');
 }
 function rkSubLine(x){
   const s=rk.sub;
@@ -780,10 +907,18 @@ function rkSubLine(x){
 }
 function rkItemHtml(x){
   const on=rkSel && rkSel.has(x.id), sub=rkSubLine(x);
-  const gi=x.groups.map(gIcon).filter(Boolean).join('');
-  return `<div class="rk-it${on?' sel':''}" data-id="${x.id}" onclick="RK.tap('${x.id}')">${rkSel?'<span class="ck">✓</span>':''}<span class="av" data-ph="${x.photo?x.id:''}" style="background-color:${rkColor(x)}">${esc(rkInitial(x))}</span>`
+  const gi=x.groups.map(gIcon).filter(Boolean).join(''), hex=colHex(x.color), cl=x.color && rk.colors[x.color];
+  return `<div class="rk-it${on?' sel':''}${hex?' col':''}" data-id="${x.id}"${hex?` style="--rkc:${hex}"`:''} onclick="RK.tap('${x.id}')">${rkSel?'<span class="ck">✓</span>':''}<span class="av" data-ph="${x.photo?x.id:''}" style="background-color:${rkColor(x)}">${esc(rkInitial(x))}</span>`
     +`<span class="tx"><div class="nm">${esc(rkName(x))}${rkYomi(x)?`<small>${esc(rkYomi(x))}</small>`:''}</div>${sub?`<div class="sb">${esc(sub)}</div>`:''}</span>`
-    +`${gi?`<span class="gi">${esc(gi)}</span>`:''}${x.fav?'<span class="fv">★</span>':''}</div>`;
+    +`${cl?`<span class="cl" style="--rki:${colInk(x.color)}">${esc(cl)}</span>`:''}${gi?`<span class="gi">${esc(gi)}</span>`:''}${x.fav?'<span class="fv">★</span>':''}</div>`;
+}
+/* 色をぬった人だけ 書きなおす（一覧は動かさない） */
+function rkRepaint(id){
+  const x=rkFind(id); if(!x) return;
+  document.querySelectorAll(`#rkList .rk-it[data-id="${id}"]`).forEach(e=>{
+    const t=document.createElement('div'); t.innerHTML=rkItemHtml(x); const n=t.firstElementChild; e.replaceWith(n);
+    const av=n.querySelector('.av[data-ph]'); if(av && av.dataset.ph) rkFillThumb(av);
+  });
 }
 function rkObserveThumbs(){
   const els=[...document.querySelectorAll('#rkList .av[data-ph]')].filter(e=>e.dataset.ph);
@@ -794,7 +929,7 @@ function rkObserveThumbs(){
 }
 async function rkFillThumb(el){ const d=await rkPic(el.dataset.ph); if(d && safeImg(d) && el.isConnected){ el.style.backgroundImage=`url("${d}")`; el.textContent=''; } }
 function rkBdayHtml(){
-  if(rkGrp || rkSel) return '';
+  if(rkGrp || rkCol || rkSel || rkPaint) return '';
   const now=new Date(); now.setHours(0,0,0,0);
   const soon=[];
   for(const x of rk.items){ const m=/(\d\d)-(\d\d)$/.exec(x.bday||''); if(!m) continue;
@@ -806,25 +941,39 @@ function rkBdayHtml(){
     return `<button type="button" onclick="RK.view('${x.id}')">${esc(rkName(x))}　${d.getMonth()+1}/${d.getDate()}（${days?'あと'+days+'日':'今日'}${y?'・'+y+'歳':''}）</button>`; }).join('')}</div>`;
 }
 function rkRenderBar(){
-  const cnt={}; rk.items.forEach(x=>x.groups.forEach(g=>{ cnt[g]=(cnt[g]||0)+1; }));
-  const nf=rk.items.filter(x=>x.fav).length, ny=rk.items.filter(noYomi).length;
+  const cnt={}, cc={}; rk.items.forEach(x=>{ x.groups.forEach(g=>{ cnt[g]=(cnt[g]||0)+1; }); if(x.color) cc[x.color]=(cc[x.color]||0)+1; });
+  const nf=rk.items.filter(x=>x.fav).length, ny=rk.items.filter(noYomi).length, nc=rk.items.length-Object.values(cc).reduce((s,n)=>s+n,0);
   if(rkGrp && !(rkGrp==='★'?nf:rkGrp==='?'?ny:cnt[rkGrp])) rkGrp='';
+  if(rkCol && !rkPaint && !(rkCol==='-'?nc:cc[rkCol])) rkCol='';   // ぬっている間は、絞りを外さない（一覧が急に変わらないように）
   const chip=(k,l,n)=>`<button class="rk-chip${rkGrp===k?' on':''}" onclick="RK.setGrp(${esc(JSON.stringify(k))})">${esc(l)}<small>${n}</small></button>`;
-  const V=[['kana','あ よみ順'],['group','🏷 グループ'],['org','🏢 会社'],['new','🕘 新しい']];
+  const cchip=(k,l,n,hex)=>`<button class="rk-chip${rkCol===k?' on':''}" onclick="RK.setCol('${k}')">${hex?`<i class="rk-dot" style="--rkc:${hex}"></i>`:''}${esc(l)}<small>${n}</small></button>`;
+  const used=PAL.filter(p=>cc[p[0]] || rkCol===p[0]);
+  const V=[['kana','あ よみ順'],['group','🏷 グループ'],['org','🏢 会社'],['color','🎨 色'],['new','🕘 新しい']];
   $('rkBar').innerHTML=V.map(([k,l])=>`<button class="rk-chip${rk.view===k?' on':''}" onclick="RK.setView('${k}')">${l}</button>`).join('')
-    +((nf||ny||rk.groups.length)?'<span class="rk-sep"></span>':'')
+    +((nf||ny||rk.groups.length||used.length)?'<span class="rk-sep"></span>':'')
     +(nf?chip('★','★ よく使う',nf):'')
     +rk.groups.filter(g=>cnt[g.n]).map(g=>chip(g.n,(g.ic?g.ic+' ':'')+g.n,cnt[g.n])).join('')
-    +(ny?chip('?','よみなし',ny):'');
+    +(ny?chip('?','よみなし',ny):'')
+    +used.map(p=>cchip(p[0], colLabel(p[0]), cc[p[0]]||0, p[2])).join('')
+    +(used.length && (nc || rkCol==='-') ? cchip('-','色なし',nc,'') : '');
 }
 function rkRenderAdd(){
   const A=$('rkAdd');
-  if(rkSel){
-    A.innerHTML=`<div class="rk-selinfo"><span><b id="rkSelN">${rkSel.size}</b>人 えらんでいます</span><button type="button" onclick="RK.selAll()">いま出ている人をぜんぶ</button></div>
-      <div class="rk-selbtns"><button onclick="RK.selGroup()">🏷 グループ</button><button onclick="RK.openExport('sel')">📇 書き出す</button><button class="del" onclick="RK.selDel()">🗑 消す</button><button class="sub" onclick="RK.selEnd()">やめる</button></div>`;
+  if(rkPaint){
+    const c=rkPaint.c, n=c?rk.items.filter(x=>x.color===c).length:0;
+    A.innerHTML=`<div class="rk-pinfo">${c?`<i class="rk-dot big" style="--rkc:${colHex(c)}"></i><b>${esc(colFull(c))}</b><span class="n">${n}人</span><span class="hint">押した人を この色に</span>`
+        :'<b>✕ 色を外す</b><span class="hint">押した人の色を外します</span>'}
+      ${c?`<button type="button" onclick="RK.colName('${c}')">✏ 色に名前</button>`:''}</div>
+      <div class="rk-pal" id="rkPal">${PAL.map(([k,nm,hex])=>`<button type="button" class="rk-sw${c===k?' on':''}" data-c="${k}" style="--rkc:${hex};--rki:${colInk(k)}" onclick="RK.paintPick('${k}')" aria-label="${esc(colFull(k))}" title="${esc(colFull(k))}"></button>`).join('')}</div>
+      <div class="rk-selbtns rk-tabs"><button class="sub${c?'':' on'}" onclick="RK.paintPick('')"><span>✕</span>色を外す</button><button class="sub" onclick="RK.paintUndo()" ${rkPaint.undo.length?'':'disabled'}><span>↶</span>ひとつ戻す</button><button onclick="RK.paintEnd()"><span>✓</span>おわる</button></div>`;
     return;
   }
-  A.innerHTML=rk.items.length ? `<div class="rk-addbtns"><button onclick="RK.edit(null)">＋ 入れる</button><button class="sub" onclick="RK.selStart()">☑ えらぶ</button><button class="sub" onclick="RK.openExport()">📇 スマホに戻す</button></div>`
+  if(rkSel){
+    A.innerHTML=`<div class="rk-selinfo"><span><b id="rkSelN">${rkSel.size}</b>人 えらんでいます</span><button type="button" onclick="RK.selAll()">いま出ている人をぜんぶ</button></div>
+      <div class="rk-selbtns rk-tabs"><button onclick="RK.selGroup()"><span>🏷</span>グループ</button><button onclick="RK.selColor()"><span>🎨</span>色</button><button onclick="RK.openExport('sel')"><span>📇</span>書き出す</button><button class="del" onclick="RK.selDel()"><span>🗑</span>消す</button><button class="sub" onclick="RK.selEnd()"><span>✕</span>やめる</button></div>`;
+    return;
+  }
+  A.innerHTML=rk.items.length ? `<div class="rk-addbtns rk-tabs"><button onclick="RK.edit(null)"><span>＋</span>入れる</button><button class="sub" onclick="RK.paintStart()"><span>🎨</span>色分け</button><button class="sub" onclick="RK.selStart()"><span>☑</span>えらぶ</button><button class="sub" onclick="RK.openExport()"><span>📇</span>スマホに戻す</button></div>`
     : `<div class="rk-addbtns"><button onclick="RK.importClick()">⬆ スマホの連絡先を読み込む</button><button class="sub" onclick="RK.edit(null)">＋ 手で入れる</button></div>`;
 }
 const rkCanPick=()=>!!(navigator.contacts && typeof navigator.contacts.select==='function');
@@ -847,6 +996,7 @@ function rkBindIdx(){
 }
 function rkFlash(id){ const e=document.querySelector(`#rkList .rk-it[data-id="${id}"]`); if(e){ e.scrollIntoView({block:'nearest'}); e.style.transition='background .2s'; e.style.background='rgba(255,213,79,.45)'; setTimeout(()=>{ e.style.background=''; }, 1600); } }
 function rkTap(id){
+  if(rkPaint){ rkPaintTap(id); return; }
   if(!rkSel){ rkView(id); return; }
   if(rkSel.has(id)) rkSel.delete(id); else rkSel.add(id);
   document.querySelectorAll(`#rkList .rk-it[data-id="${id}"]`).forEach(e=>e.classList.toggle('sel', rkSel.has(id)));
@@ -886,11 +1036,13 @@ function rkView(id){
   $('rkViewBody').innerHTML=`
     <div class="rk-who"><span class="av" id="rkViewAv" style="background-color:${rkColor(x)}">${esc(rkInitial(x))}</span>
       ${rkYomi(x)?`<div class="k">${esc(rkYomi(x))}</div>`:''}<div class="n">${esc(rkName(x))}${x.fav?' <span class="fvc">★</span>':''}</div>
-      ${(x.org||x.dept||x.title)?`<div class="c">${esc([x.org,x.dept,x.title].filter(Boolean).join(' '))}</div>`:''}</div>
+      ${(x.org||x.dept||x.title)?`<div class="c">${esc([x.org,x.dept,x.title].filter(Boolean).join(' '))}</div>`:''}
+      ${x.color?`<span class="rk-cpill" style="--rkc:${colHex(x.color)};--rki:${colInk(x.color)}">${esc(colFull(x.color))}</span>`:''}</div>
     <div class="rk-acts">${act('📞','電話',t0?rkTelHref(t0.v):'')}${act('💬','SMS',c0?rkSmsHref(c0.v):'')}${act('✉','メール',m0?'mailto:'+m0.v.trim():'')}${act('📍','地図',a0?rkMapHref(rkAdrText(a0)):'',true)}</div>
     <div class="rk-rows">${rows.join('')}</div>
     <button class="rk-btn" onclick="RK.edit('${x.id}')">✏ 直す</button>
     <button class="rk-btn sub" onclick="RK.fav('${x.id}')">${x.fav?'☆ よく使うから外す':'★ よく使う'}</button>
+    <button class="rk-btn sub" onclick="RK.viewColor('${x.id}')">🎨 色分け${x.color?'（いま：'+esc(colFull(x.color))+'）':''}</button>
     <button class="rk-btn sub" onclick="RK.share('${x.id}')">📤 送る（LINE・メールなど）</button>
     <button class="rk-btn sub" onclick="RK.oneVcf('${x.id}')">📇 この人の連絡先ファイル（.vcf）</button>
     <button class="rk-btn del" onclick="RK.remove('${x.id}')">🗑 消す</button>
@@ -898,12 +1050,21 @@ function rkView(id){
   if(!isDlgOpen('rkViewOverlay')) openDlg('rkViewOverlay', ()=>{ rkViewId=null; }); else $('rkViewBody').scrollTop=0;
   if(x.photo) rkPic(x.id).then(d=>{ const a=$('rkViewAv'); if(a && d && safeImg(d) && rkViewId===x.id){ a.style.backgroundImage=`url("${d}")`; a.textContent=''; } });
 }
-function rkFav(id){ const x=rkFind(id); if(!x) return; x.fav=!x.fav; x.updated=today(); x.ts=Date.now(); rkSave(); rkRender(); if(isDlgOpen('rkViewOverlay')) rkView(id); }
+function rkFav(id){ const x=rkFind(id); if(!x) return; x.fav=!x.fav; x.updated=today(); x.ts=Date.now(); rkSave(); rkRender(); rkTRowRe(id); if(isDlgOpen('rkViewOverlay')) rkView(id); }
+async function rkViewColor(id){
+  const x=rkFind(id); if(!x) return;
+  const k=await rkPickColor('🎨 '+rkName(x)+' の色', x.color); if(k===null || !rkFind(id)) return;
+  x.color=k; rkSave(); rkRender(); rkTRowRe(id); if(isDlgOpen('rkViewOverlay')) rkView(id);
+}
 async function rkRemove(id){
   const x=rkFind(id); if(!x) return;
   if(!await appConfirm('「'+rkName(x)+'」を この連絡帳から消しますか？\n（スマホの連絡先は消えません）','消す','やめる')) return;
-  rk.items=rk.items.filter(i=>i.id!==id); if(x.photo){ rkPicDel(id); delete rkPics[id]; }
+  rkDrop(x);
   rkSave(); rkCloseView(); rkRender(); toast('消しました');
+}
+function rkDrop(x){
+  rk.items=rk.items.filter(i=>i!==x); if(x.photo){ rkPicDel(x.id); delete rkPics[x.id]; }
+  if(rkT){ if(rkT.rows.includes(x)) rkT.rows=rkT.rows.filter(i=>i!==x); else rkT.nNew=Math.max(0,rkT.nNew-1); rkT.undo=rkT.undo.filter(u=>u.id!==x.id); const tr=rkTTr(x.id); if(tr) tr.remove(); rkTInfo(); }
 }
 function rkShareText(x){
   return [rkName(x)+(rkYomi(x)?'（'+rkYomi(x)+'）':''), [x.org,x.dept,x.title].filter(Boolean).join(' '),
@@ -936,6 +1097,7 @@ function rkEdit(id){
   rkEd.adrs.forEach(a=>{ a._txt=rkAdrText(a); });
   if(!id && rkGrp && rkGrp!=='★' && rkGrp!=='?') rkEd.groups=[rkGrp];   // グループで絞っていたら、そのグループに
   if(!id && rkGrp==='★') rkEd.fav=true;
+  if(!id && rkCol && rkCol!=='-') rkEd.color=rkCol;   // 色で絞っていたら、その色に
   if(!rkEd.tels.length) rkEd.tels.push({t:'cell',l:'',v:'',p:false});
   $('rkEdHdr').textContent=id?'📇 直す':'📇 新しく入れる';
   rkEdRender();
@@ -969,8 +1131,9 @@ function rkEdRender(){
     <div class="rk-sec">🏠 住所</div>${adrs}<button type="button" class="rk-addline" onclick="RK.edAdd('adrs')">＋ 住所を足す</button>
     <div class="rk-sec">🎂 誕生日</div><div class="rk-line"><input type="date" id="rkE_bday" value="${bd?(bd[1]==='-'?'2000':bd[1])+'-'+bd[2]+'-'+bd[3]:''}" aria-label="誕生日"><label class="rk-chk" style="margin:0;flex:none"><input type="checkbox" id="rkE_noyear" ${bd&&bd[1]==='-'?'checked':''}> 年はわからない</label></div>
     <div class="rk-sec">🏷 グループ</div><div class="rk-tagrow" id="rkEGroups">${groups}</div>
+    <div class="rk-sec">🎨 色分け</div><div class="rk-pal lab" id="rkECol">${PAL.map(([k,nm,hex])=>`<button type="button" class="rk-sw${e.color===k?' on':''}" data-c="${k}" style="--rkc:${hex};--rki:${colInk(k)}" onclick="RK.edCol('${k}')">${esc(colLabel(k))}</button>`).join('')}<button type="button" class="rk-sw none${e.color?'':' on'}" data-c="" onclick="RK.edCol('')">なし</button></div>
     ${rk.fields.length?`<div class="rk-sec">🧩 自分の項目</div>${cfs}`:''}
-    <button type="button" class="rk-link" onclick="RK.custom()">🎨 グループ・自分の項目を作る・直す</button>
+    <button type="button" class="rk-link" onclick="RK.custom()">🧩 グループ・自分の項目・色の名前を作る・直す</button>
     <div class="rk-sec">🌐 サイト</div>${urls}<button type="button" class="rk-addline" onclick="RK.edAdd('urls')">＋ サイトを足す</button>
     <label class="rk-f">メモ<textarea id="rkE_note" maxlength="3000">${esc(e.note)}</textarea></label>
     <label class="rk-chk"><input type="checkbox" id="rkE_fav" ${e.fav?'checked':''}> ★ よく使う</label>
@@ -1007,6 +1170,7 @@ function rkEdAdd(k){
   const ins=document.querySelectorAll(`#rkEdBody input[data-k="${k}"]`); const last=ins[ins.length-1]; if(last){ last.scrollIntoView({block:'center'}); last.focus(); }
 }
 function rkEdDel(k,i){ rkEdSync(); rkEd[k].splice(i,1); rkEdRe(); }
+function rkEdCol(k){ if(!rkEd) return; rkEd.color=PAL_KEYS.includes(k)?k:''; document.querySelectorAll('#rkECol [data-c]').forEach(b=>b.classList.toggle('on', b.dataset.c===rkEd.color)); }
 function rkEdPick(fid, j){ rkEdSync(); const f=rk.fields.find(x=>x.id===fid); if(!f) return; const v=f.op[j]; rkEd.cf[fid]=rkEd.cf[fid]===v?'':v; rkEdRe(); }
 async function rkEdNewGroup(){
   rkEdSync(); const n=line(await appPrompt('グループの名前（例：家族・町内会・野球部）',''),20); if(!n) return;
@@ -1055,7 +1219,7 @@ async function rkEdSave(){
   }
   rkSyncGroups();
   if(!rkSave()) return;
-  const id=x.id; rkCloseEd(); rkRender(); rkFlash(id);
+  const id=x.id; rkCloseEd(); rkRender(); rkFlash(id); rkTRowRe(id);
   if(isDlgOpen('rkViewOverlay')) rkView(id);
   toast('保存しました');
 }
@@ -1083,6 +1247,339 @@ async function rkSelDel(){
   rk.items.filter(x=>rkSel.has(x.id) && x.photo).forEach(x=>{ rkPicDel(x.id); delete rkPics[x.id]; });
   rk.items=rk.items.filter(x=>!rkSel.has(x.id)); rkSel=null; rkSave(); rkRender(); toast(n+'人 消しました');
 }
+async function rkSelColor(){
+  if(!rkSel || !rkSel.size){ toast('先に人を押して えらんでください'); return; }
+  const xs=[...rkSel].map(rkFind).filter(Boolean);
+  const k=await rkPickColor('🎨 えらんだ '+xs.length+'人の色', ''); if(k===null) return;
+  xs.forEach(x=>{ x.color=k; });
+  rkSave(); rkRender(); toast(k?'「'+colFull(k)+'」にしました（'+xs.length+'人）':'色を外しました（'+xs.length+'人）');
+}
+
+/* ── 🎨 色分け（v544）：色をえらんで、人を押すと その色。もう一度押すと外れる ──
+   色は この連絡帳の中の整理なので、「直した日」「前に書き出したあとで直した人」には入れない（スマホで同じ人が増えないように） */
+/* 色をえらぶ小さな窓。えらんだ色（色なしは ''）。やめたら null */
+async function rkPickColor(hdr, cur){
+  const html=`<div class="rk-pal lab">${PAL.map((p,i)=>`<button type="button" class="rk-sw${cur===p[0]?' on':''}" data-r="${100+i}" style="--rkc:${p[2]};--rki:${colInk(p[0])}">${esc(colLabel(p[0]))}</button>`).join('')}</div>`;
+  const r=await rkAsk(hdr, '', ['色なし（外す）','やめる'], html);
+  if(r>=100 && PAL[r-100]) return PAL[r-100][0];
+  return r===0 ? '' : null;
+}
+function rkPaintStart(){ if(!rk.items.length) return; rkSel=null; rkPaint={c:rk.pc||'red', undo:[]}; rkRender(); }
+function rkPaintEnd(){ rkPaint=null; rkSave(); rkRender(); }
+function rkPaintPick(k){ if(!rkPaint) return; rkPaint.c=PAL_KEYS.includes(k)?k:''; if(rkPaint.c){ rk.pc=rkPaint.c; rkSaveSoon(); } rkRenderAdd(); }
+function rkPaintTap(id){
+  const x=rkFind(id); if(!x) return;
+  const c=rkPaint.c, next=(c && x.color!==c) ? c : '';
+  if(x.color===next) return;
+  rkPaint.undo.push([id, x.color]); if(rkPaint.undo.length>300) rkPaint.undo.shift();
+  x.color=next; rkSaveSoon(); rkRepaint(id); rkRenderBar(); rkRenderAdd();
+}
+function rkPaintUndo(){
+  if(!rkPaint) return; const u=rkPaint.undo.pop(); if(!u) return;
+  const x=rkFind(u[0]); if(x){ x.color=u[1]; rkSaveSoon(); rkRepaint(x.id); rkFlash(x.id); }
+  rkRenderBar(); rkRenderAdd();
+}
+async function rkColName(k, back){
+  const p=palOf(k); if(!p) return;
+  const v=await appPrompt('「'+p[1]+'」の色に名前を付けます（例：要連絡・年賀状・町内会）。\n空にすると名前を外します', rk.colors[k]||'');
+  if(v==null) return;
+  const n=line(v,12); if(n) rk.colors[k]=n; else delete rk.colors[k];
+  rkSave(); rkRender(); if(rkT) rkTRender();
+  if(back) rkOpenCustom();
+}
+
+/* ── 📋 表で直す（v544）：全員を表にして、マスを押すと その場で直せる ──
+   名前・よみ・電話・メール・会社・住所・誕生日などは その場で入れる（Enter で下の人、Tab で右へ、Esc でやめる）。
+   色・★・グループ・えらぶ項目・メモは 小さな窓で。直したら すぐ保存し、「↶ 戻す」で 1つずつ戻せる。
+   電話・メール・住所が いくつもある人は、表には はじめの1つ（＋2 などと出す）。ほかは 行の番号を押して「くわしく直す」で。 */
+const TCOLS=[['yomi','よみ',122],['color','🎨 色',96],['fav','★',44],['cell','携帯',136],['tel','電話',158],['mail','メール',196],['org','会社',140],['dept','部署',110],
+  ['title','役職',96],['nick','ニックネーム',112],['zip','〒',92],['adr','住所',236],['bday','誕生日',106],['groups','グループ',140],['note','メモ',220]];
+const RK_TCHUNK=120;
+const tAllCols=()=>TCOLS.slice(0,-1).concat(rk.fields.map(f=>['cf:'+f.id, f.n, 126])).concat([TCOLS[TCOLS.length-1]]);
+const tSlot=(x,c)=>c==='cell' ? x.tels.findIndex(t=>t.t==='cell') : x.tels.findIndex(t=>t.t!=='cell' && t.t!=='fax');
+const tPop=c=>c==='color'||c==='fav'||c==='groups'||c==='note'||(c.startsWith('cf:') && (rk.fields.find(f=>f.id===c.slice(3))||{}).ty==='pick');
+const tHead=c=>c==='name'?'名前':((tAllCols().find(a=>a[0]===c)||[])[1]||'');
+const rkTTr=id=>{ const B=$('rkTBody'); return B ? [...B.rows].find(r=>r.dataset.id===id) : null; };
+function rkTBday(b){ const m=/^(\d{4}|-)-(\d\d)-(\d\d)$/.exec(b||''); return m ? (m[1]==='-'?'':m[1]+'/')+(+m[2])+'/'+(+m[3]) : ''; }
+/* そのマスの文字（直しはじめの文字） */
+function rkTVal(x,c){
+  switch(c){
+    case 'name': return (x.fam||x.giv) ? (isLatin(x.fam||x.giv)?[x.giv,x.fam]:[x.fam,x.giv]).filter(Boolean).join(' ') : x.fn;
+    case 'yomi': return rkYomi(x);
+    case 'cell': case 'tel': { const i=tSlot(x,c); return i>=0 ? x.tels[i].v : ''; }
+    case 'mail': return x.mails[0] ? x.mails[0].v : '';
+    case 'zip': return x.adrs[0] ? x.adrs[0].zip : '';
+    case 'adr': return x.adrs[0] ? rkAdrText(x.adrs[0]) : '';
+    case 'bday': return rkTBday(x.bday);
+    case 'note': return x.note;
+    case 'org': case 'dept': case 'title': case 'nick': return x[c];
+    default: return c.startsWith('cf:') ? (x.cf[c.slice(3)]||'') : '';
+  }
+}
+/* そのマスに見せるもの */
+function rkTCell(x,c){
+  const more=n=>n>0?`<small class="mo">＋${n}</small>`:'';
+  switch(c){
+    case 'name': return (x.fam||x.giv||x.fn) ? esc(rkName(x)) : `<span class="ph">${esc(rkName(x))}</span>`;
+    case 'color': return x.color ? `<i class="rk-dot" style="--rkc:${colHex(x.color)}"></i>${rk.colors[x.color]?esc(rk.colors[x.color]):''}` : '<span class="ph">－</span>';
+    case 'fav': return x.fav ? '<span class="fv">★</span>' : '<span class="ph">☆</span>';
+    case 'cell': return esc(rkTVal(x,c))+more(x.tels.filter(t=>t.t==='cell').length-1);
+    case 'tel': { const i=tSlot(x,c), n=x.tels.filter(t=>t.t!=='cell').length; if(i<0) return more(n); const t=x.tels[i]; return `<small class="lb">${esc(tName(TEL_T,t))}</small>${esc(t.v)}`+more(n-1); }
+    case 'mail': return esc(rkTVal(x,c))+more(x.mails.length-1);
+    case 'adr': return esc(rkTVal(x,c))+more(x.adrs.length-1);
+    case 'groups': return esc(x.groups.map(g=>(gIcon(g)?gIcon(g)+' ':'')+g).join('・'));
+    case 'note': { const ls=x.note.split('\n'); return esc(ls[0])+(ls.length>1?' …':''); }
+    default: return esc(rkTVal(x,c));
+  }
+}
+function rkTRowHtml(x, draft, i){
+  const hex=draft?'':colHex(x.color);
+  return `<tr data-id="${x.id}" class="${hex?'col':''}${draft?' draft':''}"${hex?` style="--rkc:${hex}"`:''}><td class="c-no" data-c="no" title="${draft?'この行をやめる':'くわしく直す・消す'}">${draft?'✕':i<0?'＋':i+1}</td>`
+    +`<td class="c-name" data-c="name">${draft&&!rkHasAny(x)?'<span class="ph">名前を入れる</span>':rkTCell(x,'name')}</td>`
+    +rkT.cols.map(([c])=>`<td data-c="${esc(c)}">${rkTCell(x,c)}</td>`).join('')+'</tr>';
+}
+function rkTList(){
+  const list=rkFiltered(), s=rkT.sort;
+  if(!s.c) return rkT.q.trim() ? rkSearch(rkT.q, list) : rkSortedKana(list);
+  const base=rkT.q.trim() ? rkSearch(rkT.q, list) : list;
+  const key=x=>{
+    if(s.c==='color') return x.color ? String(PAL_KEYS.indexOf(x.color)).padStart(2,'0') : '';
+    if(s.c==='fav') return x.fav ? '0' : '';
+    if(s.c==='bday'){ const m=/(\d\d)-(\d\d)$/.exec(x.bday||''); return m?m[1]+m[2]:''; }
+    if(s.c==='groups'){ const ix=x.groups.map(g=>rk.groups.findIndex(h=>h.n===g)).filter(i=>i>=0).sort((a,b)=>a-b)[0]; return ix==null?'':String(ix).padStart(3,'0'); }
+    return rkTVal(x,s.c).trim();
+  };
+  if(s.c==='name' || s.c==='yomi'){ const a=rkSortedKana(base); return s.d>0 ? a : a.reverse(); }
+  const ks=new Map(base.map(x=>[x, key(x)]));
+  return base.slice().sort((a,b)=>{ const ka=ks.get(a), kb=ks.get(b); if(!ka!==!kb) return ka?-1:1; return (ka.localeCompare(kb,'ja',{numeric:true})*s.d) || cmpKana(a,b); });   // 入っていない人は いつも下
+}
+function rkTRender(){
+  if(!rkT || !$('rkTbl')) return;
+  if(rkT.io) rkT.io.disconnect();
+  rkT.cols=tAllCols().filter(([c])=>!rk.thide.includes(c));
+  rkT.rows=rkTList(); rkT.shown=0; rkT.nNew=0;
+  const arrow=c=>rkT.sort.c===c?(rkT.sort.d>0?' ▲':' ▼'):'';
+  $('rkTbl').style.width=(38+138+rkT.cols.reduce((s,c)=>s+c[2],0))+'px';
+  $('rkTbl').innerHTML=`<colgroup><col style="width:38px"><col style="width:138px">${rkT.cols.map(c=>`<col style="width:${c[2]}px">`).join('')}</colgroup>`
+    +`<thead><tr><th class="c-no" data-h="" title="よみ順にもどす">#</th><th class="c-name" data-h="name">名前${arrow('name')}</th>${rkT.cols.map(([c,l])=>`<th data-h="${esc(c)}" title="押すと この列で並べかえ">${esc(l)}${arrow(c)}</th>`).join('')}</tr></thead>`
+    +`<tbody id="rkTBody">${rkT.draft?rkTRowHtml(rkT.draft,true,-1):''}</tbody>`;
+  rkTMore(); rkTInfo();
+  if(!rkT.rows.length && !rkT.draft) $('rkTBody').insertAdjacentHTML('beforeend', `<tr class="more"><td colspan="${rkT.cols.length+2}">${rkT.q.trim()?'「'+esc(rkT.q.trim())+'」は見つかりませんでした':'ここには まだ だれもいません'}</td></tr>`);
+}
+function rkTMore(){
+  const B=$('rkTBody'); if(!B || !rkT) return;
+  const old=B.querySelector('tr.more'); if(old) old.remove();
+  const end=Math.min(rkT.rows.length, rkT.shown+RK_TCHUNK); let h='';
+  for(let i=rkT.shown;i<end;i++) h+=rkTRowHtml(rkT.rows[i], false, i);
+  B.insertAdjacentHTML('beforeend', h); rkT.shown=end;
+  if(end<rkT.rows.length){
+    B.insertAdjacentHTML('beforeend', `<tr class="more"><td colspan="${rkT.cols.length+2}"><button type="button" class="rk-link" onclick="RK.tMore()">つづきを出す（あと ${rkT.rows.length-end}人）</button></td></tr>`);
+    const m=B.querySelector('tr.more');
+    if('IntersectionObserver' in window){ if(!rkT.io) rkT.io=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting && rkT){ rkT.io.unobserve(e.target); rkTMore(); } }), {root:$('rkTWrap'), rootMargin:'300px'}); rkT.io.observe(m); }
+  }
+}
+function rkTInfo(){
+  const I=$('rkTInfo'); if(!I || !rkT) return;
+  const f=[]; if(rkGrp) f.push(rkGrp==='★'?'★ よく使う':rkGrp==='?'?'よみなし':'🏷 '+rkGrp); if(rkCol) f.push(rkCol==='-'?'色なし':'🎨 '+colLabel(rkCol));
+  I.innerHTML=`<span><b>${rkT.rows.length+rkT.nNew}</b>人${f.length?'（'+esc(f.join('・'))+' だけ）':''}</span>${f.length?'<button type="button" onclick="RK.tAllF()">ぜんぶ出す</button>':''}<span class="hint">マスを押すと その場で直せます。Enter で下の人へ</span>`;
+  const u=$('rkTUndo'); if(u) u.disabled=!rkT.undo.length;
+}
+function rkOpenTbl(){
+  if(!rk.items.length){ toast('入っている人はいません'); return; }
+  rkCloseSub(); rkSel=null; rkPaint=null;
+  rkT={q:rkQ, sort:{c:'',d:1}, undo:[], ed:null, draft:null, rows:[], shown:0, nNew:0, cols:[], io:null};
+  $('rkTFind').value=rkT.q;
+  $('rkTblOverlay').classList.toggle('rk-big', !!rk.big);
+  openDlg('rkTblOverlay', rkTEnd);
+  rkTRender(); $('rkTWrap').scrollTop=0; $('rkTWrap').scrollLeft=0;
+  rkRender();
+}
+function rkCloseTbl(){ closeIf('rkTblOverlay', rkTEnd); }
+function rkTEnd(){ if(rkT){ rkTCommit(); if(rkT.io) rkT.io.disconnect(); } rkT=null; rkSaveFlush(); if($('rkList')) rkRender(); }
+function rkTClick(ev){
+  if(!rkT) return;
+  const th=ev.target.closest('th[data-h]'); if(th){ rkTSort(th.dataset.h); return; }
+  const td=ev.target.closest('td[data-c]'); if(!td || ev.target.closest('.rk-tin')) return;
+  const tr=td.parentElement; if(!tr || !tr.dataset.id) return;
+  if(td.dataset.c==='no') rkTRowMenu(tr.dataset.id); else rkTEdit(tr.dataset.id, td.dataset.c);
+}
+function rkTSort(c){
+  rkTCommit(); const s=rkT.sort;
+  if(!c){ s.c=''; s.d=1; } else if(s.c!==c){ s.c=c; s.d=1; } else if(s.d>0) s.d=-1; else { s.c=''; s.d=1; }
+  rkTRender(); $('rkTWrap').scrollTop=0;
+}
+const rkTItem=id=>(rkT && rkT.draft && rkT.draft.id===id) ? rkT.draft : rkFind(id);
+/* マスに入れる（typed：形がちがって戻ってきた文字） */
+function rkTEdit(id, c, typed){
+  if(!rkT) return;
+  rkTCommit();
+  const draft=!!(rkT.draft && rkT.draft.id===id), x=rkTItem(id); if(!x) return;
+  if(c!=='name' && !TCOL_RE.test(c)) return;
+  if(tPop(c)){ if(draft){ toast('先に 名前か電話を入れてください'); return; } rkTPopup(id, c); return; }
+  const tr=rkTTr(id), td=tr && [...tr.cells].find(t=>t.dataset.c===c); if(!td) return;
+  const v=rkTVal(x,c);
+  td.classList.add('ed');
+  td.innerHTML=`<input class="rk-tin" type="${c==='cell'||c==='tel'?'tel':c==='mail'?'email':'text'}" enterkeyhint="enter" autocomplete="off" maxlength="${c==='adr'?300:c==='mail'?120:c==='name'?81:200}">`;
+  const inp=td.firstElementChild; inp.value=typed!=null?typed:v; inp.setAttribute('aria-label', tHead(c));
+  if(c==='bday') inp.placeholder='1960/4/1・4/1';
+  rkT.ed={id, c, inp, v0:v};
+  inp.addEventListener('blur', ()=>setTimeout(()=>{ if(rkT && rkT.ed && rkT.ed.inp===inp) rkTCommit(); }, 0));
+  td.scrollIntoView({block:'nearest', inline:'nearest'});
+  inp.focus({preventScroll:true});
+  try{ inp.setSelectionRange(inp.value.length, inp.value.length); }catch(_){}
+}
+/* 入れていたマスを決める。形がちがうときは知らせて false（そのマスは元のまま） */
+function rkTCommit(cancel){
+  const e=rkT && rkT.ed; if(!e) return true;
+  rkT.ed=null;
+  const ok=(cancel || e.inp.value===e.v0) ? true : rkTSetVal(e.id, e.c, e.inp.value);
+  rkTRowRe(e.id);
+  return ok;
+}
+function rkTKey(ev){
+  const e=rkT && rkT.ed; if(!e || ev.target!==e.inp || ev.isComposing || ev.keyCode===229) return;
+  if(ev.key==='Enter'){ ev.preventDefault(); ev.stopPropagation(); rkTGo(e.id, e.c, ev.shiftKey?-1:1, 0); }
+  else if(ev.key==='Tab'){ ev.preventDefault(); ev.stopPropagation(); rkTGo(e.id, e.c, 0, ev.shiftKey?-1:1); }
+  else if(ev.key==='Escape'){ ev.preventDefault(); ev.stopPropagation(); rkTCommit(true); }
+}
+function rkTGo(id, c, dr, dc){
+  const typed=rkT.ed ? rkT.ed.inp.value : null;
+  if(!rkTCommit()){ rkTEdit(id, c, typed); return; }   // 形がちがう：そのマスで直してもらう
+  const B=$('rkTBody'); if(!B) return;
+  let R=[...B.rows].filter(r=>r.dataset.id), ri=R.findIndex(r=>r.dataset.id===id); if(ri<0) return;
+  const cols=['name'].concat(rkT.cols.map(a=>a[0])).filter(k=>!tPop(k));
+  let ci=Math.max(0, cols.indexOf(c));
+  if(dc){ ci+=dc; if(ci>=cols.length){ ci=0; ri++; } else if(ci<0){ ci=cols.length-1; ri--; } }
+  ri+=dr;
+  if(ri>=R.length && rkT.shown<rkT.rows.length){ rkTMore(); R=[...B.rows].filter(r=>r.dataset.id); }
+  if(ri<0 || ri>=R.length) return;   // いちばん上・下
+  rkTEdit(R[ri].dataset.id, cols[ci]);
+}
+function rkTRowRe(id){
+  if(!rkT) return; const tr=rkTTr(id); if(!tr) return;
+  const draft=!!(rkT.draft && rkT.draft.id===id), x=rkTItem(id);
+  if(!x){ tr.remove(); return; }
+  const t=document.createElement('tbody'); t.innerHTML=rkTRowHtml(x, draft, draft?-1:rkT.rows.indexOf(x)); tr.replaceWith(t.firstElementChild);
+}
+function rkTFlash(id){ const tr=rkTTr(id); if(tr){ tr.classList.add('fl'); setTimeout(()=>{ const t=rkTTr(id); if(t) t.classList.remove('fl'); }, 900); } }
+function rkTPush(id, before){ rkT.undo.push({id, before}); if(rkT.undo.length>100) rkT.undo.shift(); rkTInfo(); }
+/* 文字をそのマスの所に入れる。だめなときは 知らせる文を返す */
+function rkTPut(x, c, v){
+  switch(c){
+    case 'name': {
+      if(x.fn && !x.fam && !x.giv){ x.fn=v; break; }   // 表示名だけの人（「母」など）は そのまま
+      const sp=v.split(/[\s　]+/).filter(Boolean);
+      if(isLatin(v)){ x.giv=sp[0]||''; x.fam=sp.slice(1).join(' '); } else { x.fam=sp[0]||''; x.giv=sp.slice(1).join(' '); }
+      x.fn=''; break; }
+    case 'yomi': { const sp=v.split(/[\s　]+/).filter(Boolean); x.famK=sp[0]||''; x.givK=sp.slice(1).join(' '); break; }
+    case 'cell': case 'tel': {
+      if(v && digits(v).length<3) return '電話番号は 数字で入れてください';
+      const i=tSlot(x,c);
+      if(i>=0){ if(v) x.tels[i].v=v; else x.tels.splice(i,1); }
+      else if(v){ if(x.tels.length>=12) return '電話は 12 までです'; x.tels.push({t:c==='cell'?'cell':'home', l:'', v, p:false}); }
+      break; }
+    case 'mail': {
+      if(v && !rkMailOk(v)) return 'メールの形が正しくないようです：'+v;
+      if(x.mails[0]){ if(v) x.mails[0].v=v; else x.mails.splice(0,1); }
+      else if(v) x.mails.push({t:'home', l:'', v, p:false});
+      break; }
+    case 'zip': case 'adr': {
+      let a=x.adrs[0];
+      if(!a){ if(!v) break; a={t:'home', l:'', pob:'', ext:'', street:'', city:'', region:'', zip:'', country:'', p:false}; x.adrs.unshift(a); }
+      if(c==='zip') a.zip=v;
+      else if(v!==rkAdrText(a).trim()){ if(a.country && !/^(日本|japan|jp|jpn)$/i.test(a.country)) a.country=''; a.street=v; a.region=''; a.city=''; a.ext=''; }
+      if(!a.pob && !a.ext && !a.street && !a.city && !a.region && !a.zip && !a.country) x.adrs.shift();
+      break; }
+    case 'bday': {
+      if(!v){ x.bday=''; x.bdayLine=''; break; }
+      const d=rkDate(v.normalize('NFKC').replace(/\s/g,''));
+      if(!d) return '誕生日は「1960/4/1」や「4/1」の形で入れてください';
+      x.bday=d; break; }
+    case 'org': case 'dept': case 'title': case 'nick': x[c]=v; break;
+    default: if(c.startsWith('cf:')){ const f=c.slice(3); if(v) x.cf[f]=v; else delete x.cf[f]; }
+  }
+  return '';
+}
+function rkTSetVal(id, c, val){
+  const draft=!!(rkT.draft && rkT.draft.id===id), x=rkTItem(id); if(!x) return true;
+  const v=String(val==null?'':val).replace(CTRL,'').trim(), before=JSON.stringify(x);
+  const err=rkTPut(x, c, v);
+  if(err){ toast(err, 3500); return false; }
+  Object.assign(x, rkCleanItem(Object.assign({}, x)));
+  if(JSON.stringify(x)===before) return true;
+  if(draft){   // 足した行：名前か電話が入ったら 連絡帳に入れる
+    if(!rkHasAny(x)) return true;
+    if(rk.items.length>=RK_MAX){ toast('入れられるのは '+RK_MAX+'人までです'); return false; }
+    x.added=today(); x.updated=today(); x.ts=Date.now();
+    rk.items.push(x); rkT.draft=null; rkT.nNew++; rkT.undo.push({id:x.id, add:true}); rkSyncGroups(); rkSaveSoon(); rkTInfo();
+    return true;
+  }
+  if(!rkHasAny(x)){ Object.assign(x, JSON.parse(before)); toast('名前か電話番号は 残してください'); return false; }
+  rkTPush(id, before); x.updated=today(); x.ts=Date.now(); rkSaveSoon();
+  return true;
+}
+/* 小さな窓で直すもの（色・★・グループ・えらぶ項目・メモ） */
+function rkTApply(id, fn, soft){
+  const x=rkFind(id); if(!x) return;
+  const before=JSON.stringify(x); fn(x);
+  Object.assign(x, rkCleanItem(Object.assign({}, x)));
+  if(JSON.stringify(x)!==before){ if(!soft){ x.updated=today(); x.ts=Date.now(); } rkTPush(id, before); rkSyncGroups(); rkSaveSoon(); }
+  rkTRowRe(id); rkTFlash(id);
+}
+async function rkTPopup(id, c){
+  const x=rkFind(id); if(!x) return;
+  if(c==='fav'){ rkTApply(id, y=>{ y.fav=!y.fav; }); return; }
+  if(c==='color'){ const k=await rkPickColor('🎨 '+rkName(x)+' の色', x.color); if(k!==null) rkTApply(id, y=>{ y.color=k; }, true); return; }
+  if(c==='note'){ const v=await appPrompt('📝 '+rkName(x)+' のメモ', x.note, true); if(v!=null) rkTApply(id, y=>{ y.note=String(v); }); return; }
+  if(c==='groups'){
+    const html=`<div class="rk-tagrow" id="rkAskGr">${rk.groups.map(g=>`<button type="button" class="${x.groups.includes(g.n)?'on':''}" data-g="${esc(g.n)}" onclick="this.classList.toggle('on')">${esc((g.ic?g.ic+' ':'')+g.n)}</button>`).join('')}</div>`;
+    const r=await rkAsk('🏷 '+rkName(x)+' のグループ', rk.groups.length?'押して えらび、「できた」を押してください':'まだグループがありません', ['できた','＋ 新しいグループを作って入れる','やめる'], html);
+    const on=[...document.querySelectorAll('#rkAskGr button.on')].map(b=>b.dataset.g);
+    if(r===0) rkTApply(id, y=>{ y.groups=on; });
+    else if(r===1){ const n=line(await appPrompt('グループの名前（例：家族・町内会・野球部）',''),20); if(!n) return; if(!rk.groups.some(g=>g.n===n)) rk.groups.push({n, ic:''}); rkTApply(id, y=>{ y.groups=[...new Set(on.concat([n]))]; }); }
+    return;
+  }
+  if(c.startsWith('cf:')){
+    const f=rk.fields.find(f=>f.id===c.slice(3)); if(!f) return;
+    const r=await rkAsk('🧩 '+rkName(x)+' の「'+f.n+'」', '', f.op.concat(['（なし）','やめる']));
+    if(r>=0 && r<=f.op.length) rkTApply(id, y=>{ if(r<f.op.length) y.cf[f.id]=f.op[r]; else delete y.cf[f.id]; });
+  }
+}
+function rkTUndo(){
+  if(!rkT) return; rkTCommit(true);
+  const u=rkT.undo.pop(); if(!u){ toast('戻すものはありません'); return; }
+  const x=rkFind(u.id);
+  if(u.add){ if(x){ rk.items=rk.items.filter(i=>i!==x); const tr=rkTTr(u.id); if(tr) tr.remove(); if(rkT.rows.includes(x)) rkT.rows=rkT.rows.filter(i=>i!==x); else rkT.nNew=Math.max(0,rkT.nNew-1); } }
+  else if(x){ const b=JSON.parse(u.before); for(const k of Object.keys(x)) if(!(k in b)) delete x[k]; Object.assign(x, b); rkTRowRe(u.id); rkTFlash(u.id); }
+  rkSyncGroups(); rkSaveSoon(); rkTInfo();
+  toast('ひとつ戻しました'+(x?'（'+rkName(x)+'）':''));
+}
+function rkTAdd(){
+  if(!rkT) return; rkTCommit();
+  if(!rkT.draft){
+    const d=rkCleanItem({}); if(rkGrp && rkGrp!=='★' && rkGrp!=='?') d.groups=[rkGrp]; if(rkGrp==='★') d.fav=true; if(rkCol && rkCol!=='-') d.color=rkCol;
+    rkT.draft=d; $('rkTBody').insertAdjacentHTML('afterbegin', rkTRowHtml(d, true, -1));
+  }
+  $('rkTWrap').scrollTop=0; $('rkTWrap').scrollLeft=0;
+  rkTEdit(rkT.draft.id, 'name');
+}
+async function rkTRowMenu(id){
+  if(!rkT) return; rkTCommit();
+  if(rkT.draft && rkT.draft.id===id){ rkT.draft=null; const tr=rkTTr(id); if(tr) tr.remove(); return; }   // 足しかけの行をやめる
+  const x=rkFind(id); if(!x) return;
+  const r=await rkAsk('📇 '+rkName(x), '', ['✏ くわしく直す（電話を足す・写真 など）','📞 見る（電話をかける など）','🗑 この人を消す','やめる']);
+  if(r===0) rkEdit(id);
+  else if(r===1) rkView(id);
+  else if(r===2){ if(!await appConfirm('「'+rkName(x)+'」を この連絡帳から消しますか？\n（スマホの連絡先は消えません）','消す','やめる')) return; rkDrop(x); rkSave(); toast('消しました'); }
+}
+async function rkTColsPick(){
+  if(!rkT) return; rkTCommit();
+  const html='<div class="rk-note" style="margin-top:0">表に出す列（名前は いつも出ます）</div>'+tAllCols().map(([k,l])=>`<label class="rk-chk"><input type="checkbox" data-tc="${esc(k)}" ${rk.thide.includes(k)?'':'checked'}> ${esc(l)}</label>`).join('');
+  const r=await rkAsk('☰ 出す列', '', ['できた','やめる'], html);
+  if(r!==0 || !rkT) return;
+  rk.thide=[...document.querySelectorAll('#rkAskBody input[data-tc]')].filter(i=>!i.checked).map(i=>i.dataset.tc);
+  rkSave(); rkTRender();
+}
 
 /* ── ⚙ 設定 ── */
 function rkOpenMenu(){
@@ -1092,7 +1589,9 @@ function rkOpenMenu(){
     <button class="rk-btn" onclick="RK.importClick()">⬆ スマホの連絡先を読み込む（.vcf・CSV）</button>
     ${rkCanPick()?'<button class="rk-btn sub" onclick="RK.pick()">📱 スマホの連絡先から選んで入れる</button>':''}
     <button class="rk-btn" onclick="RK.openExport()">📇 スマホに戻す（vCard で書き出す）</button>
-    <button class="rk-btn sub" onclick="RK.custom()">🎨 自分好みにする（グループ・自分の項目・一覧の出し方）</button>
+    <button class="rk-btn sub" onclick="RK.table()">📋 表で直す（全員を 表のまま その場で直す）</button>
+    <button class="rk-btn sub" onclick="RK.closeSub();RK.paintStart()">🎨 色分け（色をえらんで 人を押す）</button>
+    <button class="rk-btn sub" onclick="RK.custom()">🧩 自分好みにする（グループ・自分の項目・色の名前・一覧の出し方）</button>
     <button class="rk-btn sub" onclick="RK.dups()">🔍 同じ人をさがして いっしょにする</button>
     <button class="rk-btn sub" onclick="RK.csv()">📄 CSV（Excel）で書き出す</button>
     <button class="rk-btn sub" onclick="RK.print()">🖨 あいうえお順の電話一覧を印刷</button>
@@ -1162,7 +1661,9 @@ async function rkCommit(list, mode){
   const ix=rkIndex(rk.items); let add=0, mrg=0, pics=0, over=0;
   for(const src of list){
     const c=rkCleanItem(Object.assign({}, src, {id:uid(), added:today(), updated:today(), ts:0, photo:false}));
-    for(const [n,v] of Object.entries(src._cfn||{})){ const f=rkFieldByName(n, true); if(f && v) c.cf[f.id]=line(v,200); }
+    for(const [n,v] of Object.entries(src._cfn||{})){
+      if(n===COL_CF){ const k=rkColorFrom(v, true); if(k && !c.color) c.color=k; continue; }   // メモ欄・CSV の「［色分け］赤」は色に戻す
+      const f=rkFieldByName(n, true); if(f && v) c.cf[f.id]=line(v,200); }
     if(!rkHasAny(c)) continue;
     const target=mode==='merge' ? rkMatchIdx(c, ix) : null;
     const pic=src._pic ? await rkFitPic(src._pic) : '';
@@ -1208,17 +1709,19 @@ async function rkPick(){
 }
 
 /* ── スマホに戻す（vCard）・CSV・印刷・書き出し ── */
+/* メモ欄にも書くもの（自分の項目・色分け） */
+const rkNoteWhat=()=>[rk.fields.length?'自分の項目':'', rk.items.some(x=>x.color)?'色分け':''].filter(Boolean).join('・');
 const rkCanShareFile=()=>{ try{ return !!(navigator.canShare && navigator.canShare({files:[new File(['x'],'a.vcf',{type:'text/vcard'})]})); }catch(_){ return false; } };
 function rkOpenExport(scope){
   const all=rk.items.length; if(!all){ toast('入っている人はいません'); return; }
   const shown=rkVisible().length, sel=rkSel?rkSel.size:0, chg=rk.items.filter(x=>x.ts>rk.lastExp).length, np=rk.items.filter(x=>x.photo).length;
-  const filt=!!((rkQ.trim()||rkGrp) && shown<all);
+  const filt=!!((rkQ.trim()||rkGrp||rkCol) && shown<all);
   scope=(scope==='sel' && sel)?'sel':(filt?'shown':(scope==='chg'?'chg':'all'));
   const opt=(v,l,n)=>`<label class="rk-radio"><input type="radio" name="rkExpScope" value="${v}" ${scope===v?'checked':''}> ${l}（${n}人）</label>`;
   rkScr('📇 スマホに戻す（vCard .vcf）', `<div class="rk-note" style="margin-top:0">どの人を書き出しますか</div>
     ${opt('all','ぜんぶ',all)}${filt?opt('shown','いま出ている人',shown):''}${sel?opt('sel','えらんだ人',sel):''}${opt('chg','前に書き出したあとで 入れた・直した人',chg)}
     ${np?`<label class="rk-chk"><input type="checkbox" id="rkExpPic" checked> 写真も入れる（写真のある人 ${np}人）</label>`:''}
-    ${rk.fields.length?`<label class="rk-chk"><input type="checkbox" id="rkExpCf" ${rk.noteCf?'checked':''}> 自分の項目をメモ欄にも書く（スマホを通っても消えない）</label>`:''}
+    ${rkNoteWhat()?`<label class="rk-chk"><input type="checkbox" id="rkExpCf" ${rk.noteCf?'checked':''}> ${rkNoteWhat()}をメモ欄にも書く（スマホを通っても消えない）</label>`:''}
     <button class="rk-btn" onclick="RK.doExport('save')">⬇ ファイルに保存（contacts-${rkStamp()}.vcf）</button>
     ${rkCanShareFile()?`<button class="rk-btn sub" onclick="RK.doExport('share')">📤 共有で渡す（連絡帳アプリで開く）</button>`:''}
     <div class="rk-note"><b>スマホへの入れ方</b>　Android：連絡帳アプリ →「修正と管理」→「ファイルからインポート」→ このファイル。iPhone：「ファイル」アプリで このファイルを開く →「すべての連絡先を追加」。<br>
@@ -1242,12 +1745,12 @@ async function rkDoExport(how){
 const rkSortedKana=list=>list.slice().sort((a,b)=>{ const ra=ROWS.indexOf(rkRow(a)), rb=ROWS.indexOf(rkRow(b)); return ra-rb || cmpKana(a,b); });
 function rkCsv(){
   if(!rk.items.length){ toast('入っている人はいません'); return; }
-  const H=['姓','名','せい','めい','表示名','ニックネーム','会社','部署','役職','携帯','自宅','勤務先','代表','FAX','その他の電話','メール1','メール2','メール3','郵便番号','住所','誕生日','サイト','グループ','よく使う','メモ'].concat(rk.fields.map(f=>'［'+f.n+'］'));
+  const H=['姓','名','せい','めい','表示名','ニックネーム','会社','部署','役職','携帯','自宅','勤務先','代表','FAX','その他の電話','メール1','メール2','メール3','郵便番号','住所','誕生日','サイト','グループ','よく使う','色分け','メモ'].concat(rk.fields.map(f=>'［'+f.n+'］'));
   const q=v=>'"'+csvSafe(v).replace(/"/g,'""')+'"';
   const tel=(x,t)=>x.tels.filter(a=>a.t===t && !a.l).map(a=>a.v).join(' / ');
   const rows=[H].concat(rkSortedKana(rk.items).map(x=>[x.fam,x.giv,x.famK,x.givK,x.fn,x.nick,x.org,x.dept,x.title,tel(x,'cell'),tel(x,'home'),tel(x,'work'),tel(x,'main'),tel(x,'fax'),
     x.tels.filter(a=>a.t==='other'||a.l).map(a=>(a.l?a.l+'：':'')+a.v).join(' / '),(x.mails[0]||{}).v||'',(x.mails[1]||{}).v||'',(x.mails[2]||{}).v||'',(x.adrs[0]||{}).zip||'',x.adrs[0]?rkAdrText(x.adrs[0]):'',
-    x.bday.replace(/^--/,''),x.urls.join(' / '),x.groups.join(' / '),x.fav?'★':'',x.note].concat(rk.fields.map(f=>x.cf[f.id]||''))));
+    x.bday.replace(/^--/,''),x.urls.join(' / '),x.groups.join(' / '),x.fav?'★':'',x.color?colFull(x.color):'',x.note].concat(rk.fields.map(f=>x.cf[f.id]||''))));
   const data='\uFEFF'+rows.map(r=>r.map(q).join(',')).join('\r\n');
   rkDownload('contacts-'+rkStamp()+'.csv', data, 'text/csv;charset=utf-8');
   toast('CSV で書き出しました（'+rk.items.length+'人）。Excel で開けます');
@@ -1255,7 +1758,8 @@ function rkCsv(){
 function rkPrint(){
   const list=rkVisible(); if(!list.length){ toast('印刷する人がいません'); return; }
   const by={}; list.forEach(x=>{ const r=rkRow(x); (by[r]=by[r]||[]).push(x); });
-  const html=`<div class="rk-pr"><h1>📇 連絡帳${rkGrp && rkGrp!=='★' && rkGrp!=='?'?'（'+esc(rkGrp)+'）':''}</h1><div style="font-size:9pt;color:#555">${fmtDay(today())} 現在・${list.length}人</div>`
+  const fl=[rkGrp && rkGrp!=='★' && rkGrp!=='?' ? rkGrp : '', rkCol && rkCol!=='-' ? colLabel(rkCol) : ''].filter(Boolean).join('・');
+  const html=`<div class="rk-pr"><h1>📇 連絡帳${fl?'（'+esc(fl)+'）':''}</h1><div style="font-size:9pt;color:#555">${fmtDay(today())} 現在・${list.length}人</div>`
     +ROWS.filter(r=>by[r]).map(r=>`<h2>${r==='A'?'ABC':r}</h2><table>${by[r].sort(cmpKana).map(x=>`<tr><td style="width:32%"><b>${esc(rkName(x))}</b>${rkYomi(x)?'<br><small>'+esc(rkYomi(x))+'</small>':''}</td>`
       +`<td>${x.tels.map(t=>esc(tName(TEL_T,t)+' '+t.v)).join('<br>')}</td><td style="width:34%">${x.adrs[0]?esc((x.adrs[0].zip?'〒'+x.adrs[0].zip+' ':'')+rkAdrText(x.adrs[0])):''}</td></tr>`).join('')}</table>`).join('')+'</div>';
   rkCloseSub();
@@ -1270,6 +1774,7 @@ async function rkBackup(){
 /* 書き出したもの（JSON）を合わせる：同じ id は新しい方、ないものは足す。グループ・自分の項目の作りも合わせる */
 async function rkMerge(d, pics){
   const inc=rkClean(d); let add=0, upd=0;
+  PAL_KEYS.forEach(k=>{ if(!rk.colors[k] && inc.colors[k]) rk.colors[k]=inc.colors[k]; });
   inc.groups.forEach(g=>{ const h=rk.groups.find(y=>y.n===g.n); if(!h) rk.groups.push(g); else if(!h.ic && g.ic) h.ic=g.ic; });
   const remap={};
   inc.fields.forEach(f=>{ const same=rk.fields.find(y=>y.n===f.n); if(same){ remap[f.id]=same.id; return; }
@@ -1279,7 +1784,7 @@ async function rkMerge(d, pics){
     const i=rk.items.findIndex(y=>y.id===x.id);
     if(i<0){ if(rk.items.length>=RK_MAX) continue; rk.items.push(x); add++; }
     else if(x.updated>rk.items[i].updated || (x.updated===rk.items[i].updated && x.ts>rk.items[i].ts)){ rk.items[i]=x; upd++; }
-    else continue;
+    else { if(!rk.items[i].color && x.color) rk.items[i].color=x.color; continue; }   // 色をぬっても「直した日」は変えないので、色だけは足す
     const p=pics && pics[x.id];
     if(typeof p==='string' && safeImg(p)){ try{ await rkPicPut(x.id, p); rkPics[x.id]=p; x.photo=true; }catch(_){} }
     else if(x.photo && !(await rkPicGet(x.id))) x.photo=false;
@@ -1325,7 +1830,7 @@ async function rkDupAll(){
 
 /* ── 🎨 自分好みにする（グループ・自分の項目・一覧の出し方・文字の大きさ） ── */
 function rkOpenCustom(){
-  const cnt={}; rk.items.forEach(x=>x.groups.forEach(g=>{ cnt[g]=(cnt[g]||0)+1; }));
+  const cnt={}, ccnt={}; rk.items.forEach(x=>{ x.groups.forEach(g=>{ cnt[g]=(cnt[g]||0)+1; }); if(x.color) ccnt[x.color]=(ccnt[x.color]||0)+1; });
   const gRows=rk.groups.map((g,i)=>`<div class="rk-cus"><button class="ic" onclick="RK.gIcon(${i})" aria-label="絵文字をえらぶ">${esc(g.ic||'＋')}</button><span class="nm">${esc(g.n)}<small>${cnt[g.n]||0}人</small></span>`
     +`<button onclick="RK.gRen(${i})">名前</button><button onclick="RK.gMove(${i},-1)" aria-label="上へ" ${i?'':'disabled'}>↑</button><button onclick="RK.gMove(${i},1)" aria-label="下へ" ${i<rk.groups.length-1?'':'disabled'}>↓</button><button onclick="RK.gDel(${i})" aria-label="消す">🗑</button></div>`).join('');
   const gPre=GROUP_PRESETS.filter(([n])=>!rk.groups.some(g=>g.n===n));
@@ -1333,7 +1838,7 @@ function rkOpenCustom(){
     +`<button onclick="RK.fRen(${i})">直す</button><button onclick="RK.fMove(${i},-1)" aria-label="上へ" ${i?'':'disabled'}>↑</button><button onclick="RK.fMove(${i},1)" aria-label="下へ" ${i<rk.fields.length-1?'':'disabled'}>↓</button><button onclick="RK.fDel(${i})" aria-label="消す">🗑</button></div>`).join('');
   const fPre=FIELD_PRESETS.map((p,i)=>[p,i]).filter(([p])=>!rk.fields.some(f=>f.n===p[0]));
   const subs=[['tel','電話番号'],['org','会社・役職'],['group','グループ'],['note','メモの1行目']].concat(rk.fields.map(f=>['cf:'+f.id, f.n])).concat([['none','出さない']]);
-  rkScr('🎨 自分好みにする', `
+  rkScr('🧩 自分好みにする', `
     <div class="rk-sec" style="border:0;margin-top:0;padding-top:0">🏷 グループ</div>
     ${gRows||'<div class="rk-note">まだありません。</div>'}
     <button class="rk-btn sub" onclick="RK.gAdd()">＋ グループを作る</button>
@@ -1343,12 +1848,15 @@ function rkOpenCustom(){
     ${fRows||''}
     <button class="rk-btn sub" onclick="RK.fAdd()">＋ 項目を作る</button>
     ${fPre.length?`<div class="rk-note">よく使う項目（押すと作ります）</div><div class="rk-tagrow">${fPre.map(([p,i])=>`<button type="button" onclick="RK.fPreset(${i})">${esc(p[0])}</button>`).join('')}</div>`:''}
+    <div class="rk-sec">🎨 色分けの色の名前</div>
+    <div class="rk-note">色に名前を付けると、一覧の札・絞りこみ・表に出ます（例：赤＝要連絡、緑＝年賀状）。押すと名前を付けられます。</div>
+    <div class="rk-cgrid">${PAL.map(([k,nm,hex])=>`<button type="button" onclick="RK.colName('${k}',true)"><i class="rk-dot big" style="--rkc:${hex}"></i><span>${esc(rk.colors[k]||nm)}</span><small>${ccnt[k]||0}人</small></button>`).join('')}</div>
     <div class="rk-sec">📋 一覧の 名前の下に出すもの</div>
     <div class="rk-tagrow">${subs.map(([v,l])=>`<button type="button" class="${rk.sub===v?'on':''}" onclick="RK.setSub(${esc(JSON.stringify(v))})">${esc(l)}</button>`).join('')}</div>
     <div class="rk-sec">🔠 文字の大きさ</div>
     <div class="rk-tagrow"><button type="button" class="${rk.big?'':'on'}" onclick="RK.setBig(false)">ふつう</button><button type="button" class="${rk.big?'on':''}" onclick="RK.setBig(true)">大きく</button></div>
     <div class="rk-sec">📇 スマホに戻すとき</div>
-    <label class="rk-chk"><input type="checkbox" ${rk.noteCf?'checked':''} onchange="RK.setNoteCf(this.checked)"> 自分の項目をメモ欄にも書く（「［間柄］叔父」の形。スマホを通っても消えない）</label>
+    <label class="rk-chk"><input type="checkbox" ${rk.noteCf?'checked':''} onchange="RK.setNoteCf(this.checked)"> 自分の項目・色分けをメモ欄にも書く（「［間柄］叔父」「［色分け］赤」の形。スマホを通っても消えない）</label>
     <button class="rk-btn" onclick="RK.closeScr()">できあがり</button>`, ()=>{ rkRender(); if(rkEd && $('rkEdBody') && isDlgOpen('rkEdOverlay')){ rkEdRe(); } });
 }
 const rkCustomRe=()=>{ rkSave(); rkOpenCustom(); };
@@ -1415,15 +1923,18 @@ function rkListen(){
 }
 
 window.RK={ menu:rkOpenMenu, setQ:v=>{ rkQ=String(v||''); rkRender(); }, setView:v=>{ rk.view=v; rkSave(); rkRender(); $('rkList').scrollTop=0; },
-  setGrp:g=>{ rkGrp=rkGrp===g?'':g; rkRender(); $('rkList').scrollTop=0; }, tap:rkTap, view:rkView, idx:rkJump,
+  setGrp:g=>{ rkGrp=rkGrp===g?'':g; rkRender(); $('rkList').scrollTop=0; }, setCol:c=>{ rkCol=rkCol===c?'':c; rkRender(); $('rkList').scrollTop=0; }, tap:rkTap, view:rkView, idx:rkJump,
   closeView:rkCloseView, closeEd:rkCloseEd, closeSub:rkCloseSub, closeScr:rkCloseScr, closeAsk:rkCloseAsk,
   edit:rkEdit, edType:rkEdType, edAdd:rkEdAdd, edDel:rkEdDel, edPick:rkEdPick, edNewGroup:rkEdNewGroup, edPhoto:rkEdPhoto, edPicked:rkEdPicked, edSave:rkEdSave,
-  fav:rkFav, remove:rkRemove, share:rkShare, oneVcf:rkOneVcf,
-  selStart:rkSelStart, selEnd:rkSelEnd, selAll:rkSelAll, selGroup:rkSelGroup, selDel:rkSelDel,
+  fav:rkFav, remove:rkRemove, share:rkShare, oneVcf:rkOneVcf, viewColor:rkViewColor, edCol:rkEdCol,
+  selStart:()=>{ rkPaint=null; rkSelStart(); }, selEnd:rkSelEnd, selAll:rkSelAll, selGroup:rkSelGroup, selDel:rkSelDel, selColor:rkSelColor,
+  paintStart:rkPaintStart, paintEnd:rkPaintEnd, paintPick:rkPaintPick, paintUndo:rkPaintUndo, colName:rkColName,
+  table:rkOpenTbl, closeTbl:rkCloseTbl, tQ:v=>{ if(!rkT) return; rkTCommit(); rkT.q=String(v||''); rkTRender(); $('rkTWrap').scrollTop=0; }, tAdd:rkTAdd, tCols:rkTColsPick, tUndo:rkTUndo,
+  tMore:rkTMore, tAllF:()=>{ if(!rkT) return; rkTCommit(); rkGrp=''; rkCol=''; rkTRender(); },
   importClick:rkImportClick, importFile:rkImportFile, pick:rkPick, openExport:rkOpenExport, doExport:rkDoExport, csv:rkCsv, print:rkPrint, backup:rkBackup, wipe:rkWipe, help:rkHelp,
   dups:rkOpenDups, dupMerge:rkDupMerge, dupSkip:rkDupSkip, dupAll:rkDupAll,
   custom:()=>{ if(rkEd && isDlgOpen('rkEdOverlay')) rkEdSync(); rkOpenCustom(); }, gAdd:rkGAdd, gPreset:rkGPreset, gRen:rkGRen, gIcon:rkGIcon, gMove:rkGMove, gDel:rkGDel, fAdd:rkFAdd, fPreset:rkFPreset, fRen:rkFRen, fMove:rkFMove, fDel:rkFDel,
   setSub:rkSetSub, setBig:rkSetBig, setNoteCf:rkSetNoteCf, listen:rkListen };
 Object.assign(window, { openRenraku, closeRenraku, rkMergeStored, rkPicsAll,
-  rkState:()=>rk, rkParseVcf, rkVcard:(x,o)=>rkVcard(x,o), rkFromCsv, rkVoiceQ, rkCleanItem, rkImportList, rkDupGroupsTest:()=>rkDupGroups(), rkSearchTest:q=>rkSearch(q, rk.items).map(rkName), rkNameOf:rkName });
+  rkState:()=>rk, rkParseVcf, rkColorFromTest:s=>rkColorFrom(s), rkSaveFlushTest:()=>rkSaveFlush(), rkVcard:(x,o)=>rkVcard(x,o), rkFromCsv, rkVoiceQ, rkCleanItem, rkImportList, rkDupGroupsTest:()=>rkDupGroups(), rkSearchTest:q=>rkSearch(q, rk.items).map(rkName), rkNameOf:rkName });
 })();
