@@ -8174,6 +8174,23 @@ async function runRenrakuIro(browser) {
   check('  見る画面：色の札（赤（要連絡））・🎨 色分け のボタン', await page.evaluate(() => [document.querySelector('#rkViewBody .rk-cpill').textContent, [...document.querySelectorAll('#rkViewBody .rk-btn')].map(b => b.textContent).find(t => /色分け/.test(t))].join(' / ')), '赤（要連絡） / 🎨 色分け（いま：赤（要連絡））');
   await page.evaluate(() => { RK.viewColor('a1'); }); await w(300); await askR(109);
   check('  　色を変える（ピンク）・見る画面も変わる', [await C('a1'), await page.evaluate(() => document.querySelector('#rkViewBody .rk-cpill').textContent)].join(' / '), 'pink / ピンク');
+  // ── 📞 電話をかける：かけられる／かける前に聞く／かけない（v547）
+  //   電話のリンクを押したとき：ほんとうに電話へ進むなら go、止めたなら x（テストでは どちらも 実際には電話しない）
+  await page.evaluate(() => { window.__tel = []; document.addEventListener('click', e => { const a = e.target.closest && e.target.closest('a[href^="tel:"]'); if (!a) return; window.__tel.push((e.defaultPrevented ? 'x:' : 'go:') + a.getAttribute('href')); e.preventDefault(); }); });
+  await page.evaluate(() => { document.querySelector('#rkViewBody .rk-row a[href^="tel:"]').click(); }); await w(150);
+  check('  📞 はじめは「かけられる」：番号を押すと そのまま電話へ', await page.evaluate(() => window.__tel.join(',')), 'go:tel:09011112222');
+  await page.evaluate(() => { window.__tel = []; RK.menu(); }); await w(300);
+  check('  ⚙ 設定：📞 連絡帳から 電話をかける（かけられる・かける前に聞く・かけない）', await page.evaluate(() => [...document.querySelectorAll('#rkCallSet button')].map(b => b.textContent + (b.classList.contains('on') ? '●' : '')).join(',')), '📞 かけられる●,❓ かける前に聞く,🚫 かけない');
+  await page.evaluate(() => { [...document.querySelectorAll('#rkCallSet button')].find(b => b.dataset.call === 'off').click(); }); await w(200);
+  check('  　「かけない」をえらぶ → 覚える', await page.evaluate(() => [...document.querySelectorAll('#rkCallSet button.on')].map(b => b.dataset.call).join(',') + '/' + JSON.parse(localStorage.getItem('excalc_renraku')).call), 'off/off');
+  await page.evaluate(() => { RK.closeSub(); RK.view('a1'); }); await w(300);
+  check('  　かけない：見る画面の番号は 文字だけ（押してもかからない）・📞 は押せない・知らせが出る', await page.evaluate(() => [document.querySelectorAll('#rkViewBody a[href^="tel:"]').length, document.querySelector('#rkViewBody .rk-row .rk-num').textContent,
+    document.querySelector('#rkViewBody .rk-acts a').classList.contains('off'), !!document.querySelector('#rkViewBody .rk-calloff')].join('/')), '0/090-1111-2222/true/true');
+  await page.evaluate(() => { RK.setCall('ask'); window.appConfirm = async m => { window.__msg = m; return false; }; document.querySelector('#rkViewBody .rk-row a[href^="tel:"]').click(); }); await w(300);
+  check('  　かける前に聞く：押すと たずねる（名前と番号）→「やめる」なら かけない', await page.evaluate(() => JSON.stringify(window.__msg) + ' ' + window.__tel.join(',')), '"「山田 太郎」\\n090-1111-2222 に電話をかけますか？" x:tel:09011112222');
+  await page.evaluate(() => { window.__tel = []; window.appConfirm = async () => true; document.querySelector('#rkViewBody .rk-acts a').click(); }); await w(300);
+  check('  　「かける」なら 電話へ（📞 ボタンも同じ）', await page.evaluate(() => window.__tel.join(',')), 'x:tel:09011112222,go:tel:09011112222');
+  await page.evaluate(() => { window.__tel = []; RK.setCall('on'); window.appConfirm = async () => true; }); await w(200);
   await page.evaluate(() => { RK.edit('a1'); }); await w(300);
   check('  直す画面：🎨 色分け（12色＋なし・いまの色に ✓）', await page.evaluate(() => document.querySelectorAll('#rkECol [data-c]').length + ' / ' + document.querySelector('#rkECol .on').dataset.c), '13 / pink');
   await page.evaluate(() => { RK.edCol('red'); RK.edSave(); }); await w(400);

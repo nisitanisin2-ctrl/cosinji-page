@@ -15,7 +15,8 @@
      色には名前を付けられる（赤＝要連絡 など）。スマホに戻すときは X-HYO-COLOR と メモ欄の「［色分け］赤」で持っていく。
    ・📋 表で直す（v544）：全員を表にして、マスを押すと その場で直せる（Enter で下の人・Tab で右へ）。出す列をえらぶ・列で並べかえ・↶ 戻す。
      （v545）名前の列と見出しは 表の本体とは別に置く（position:sticky を使わない。Android の Chrome で消えたり重なったりしたため）。
-     （v546）入りきらない字は 枠に合わせて小さく・2行に。見出しの右の端 ‖ で列の幅を変える（2回押すと中身に合わせる）。一覧の名前も2行まで。 */
+     （v546）入りきらない字は 枠に合わせて小さく・2行に。見出しの右の端 ‖ で列の幅を変える（2回押すと中身に合わせる）。一覧の名前も2行まで。
+   ・📞 電話（v547）：⚙ 設定で かけられる・かける前に聞く・かけない（番号は文字だけ）を選べる（rk.call）。 */
 (function(){
 const RK_KEY='excalc_renraku', RK_MAX=5000;
 let rk=null, rkQ='', rkGrp='', rkCol='', rkSel=null, rkPaint=null, rkT=null, rkViewId=null, rkEd=null, rkScrClean=null, rkDupCache=[], rkRec=null, rkIO=null;
@@ -131,7 +132,7 @@ const rkHasAny=x=>!!(x.fam||x.giv||x.fn||x.org||x.nick||x.tels.length||x.mails.l
 /* 表で直す の列（名前のほか） */
 const TCOL_RE=/^(yomi|color|fav|cell|tel|mail|org|dept|title|nick|zip|adr|bday|groups|note|cf:f[0-9a-z]{1,10})$/;
 const TW_MIN=60, TW_MAX=480;   // 表の列の幅（押して動かしたもの）
-function rkDefaults(){ return { v:1, view:'kana', groups:[], fields:[], sub:'tel', big:false, noteCf:true, lastExp:0, notDup:[], colors:{}, pc:'red', thide:['dept','title','nick','zip'], tw:{}, items:[] }; }
+function rkDefaults(){ return { v:1, view:'kana', groups:[], fields:[], sub:'tel', big:false, noteCf:true, call:'on', lastExp:0, notDup:[], colors:{}, pc:'red', thide:['dept','title','nick','zip'], tw:{}, items:[] }; }
 function rkClean(o){
   const d=rkDefaults(); if(!o || typeof o!=='object') return d;
   d.view=['kana','group','org','color','new'].includes(o.view)?o.view:'kana';
@@ -144,6 +145,7 @@ function rkClean(o){
     op:arr(f&&f.op).map(x=>line(x,20)).filter(Boolean).slice(0,12)})).filter(f=>f.id&&f.n).filter((f,i,a)=>a.findIndex(h=>h.id===f.id)===i).slice(0,30);
   d.sub=(typeof o.sub==='string' && /^(tel|org|group|note|none|cf:f[0-9a-z]{1,10})$/.test(o.sub))?o.sub:'tel';
   d.big=!!o.big; d.noteCf=o.noteCf!==false; d.lastExp=Math.max(0,+o.lastExp||0);
+  d.call=['on','ask','off'].includes(o.call)?o.call:'on';   // 📞 電話をかける：かけられる・かける前に聞く・かけない（v547）
   d.notDup=arr(o.notDup).filter(p=>typeof p==='string' && /^[A-Za-z0-9_-]{1,80}\|[A-Za-z0-9_-]{1,80}$/.test(p)).slice(0,3000);
   d.items=arr(o.items).filter(x=>x && typeof x==='object').slice(0,RK_MAX).map(rkCleanItem).filter(rkHasAny);
   const seen=new Set(); d.items.forEach(x=>{ while(seen.has(x.id)) x.id=uid(); seen.add(x.id); });
@@ -1052,7 +1054,9 @@ function rkView(id){
   $('rkViewHdr').textContent='📇 '+rkName(x);
   const row=(l,html)=>`<div class="rk-row"><b>${esc(l)}</b><span>${html}</span></div>`;
   const rows=[];
-  x.tels.forEach(t=>rows.push(row(tName(TEL_T,t), `<a href="${esc(rkTelHref(t.v))}">${esc(t.v)}</a>`+(t.t==='cell'?`<a class="rk-mini" href="${esc(rkSmsHref(t.v))}" aria-label="SMS">💬</a>`:''))));
+  // 📞 電話：かけない → 番号は文字だけ。かける前に聞く → 押すと たずねてから（v547）
+  const telA=(v,inner)=>rk.call==='off' ? '' : `<a href="${esc(rkTelHref(v))}" data-num="${esc(v)}"${rk.call==='ask'?' onclick="RK.telAsk(event,this)"':''}>${inner}</a>`;
+  x.tels.forEach(t=>rows.push(row(tName(TEL_T,t), (rk.call==='off' ? `<span class="rk-num">${esc(t.v)}</span>` : telA(t.v, esc(t.v)))+(t.t==='cell'?`<a class="rk-mini" href="${esc(rkSmsHref(t.v))}" aria-label="SMS">💬</a>`:''))));
   x.mails.forEach(m=>rows.push(row(tName(MAIL_T,m), rkMailOk(m.v)?`<a href="${esc('mailto:'+m.v.trim())}">${esc(m.v)}</a>`:esc(m.v))));
   x.adrs.forEach(a=>{ const t=rkAdrText(a); rows.push(row(tName(ADR_T,a), (a.zip?'〒'+esc(a.zip)+' ':'')+(t?`<a href="${esc(rkMapHref(t))}" target="_blank" rel="noopener">${esc(t)}</a>`:''))); });
   if(x.bday) rows.push(row('誕生日', esc(rkBdayText(x.bday))));
@@ -1068,7 +1072,8 @@ function rkView(id){
       ${rkYomi(x)?`<div class="k">${esc(rkYomi(x))}</div>`:''}<div class="n">${esc(rkName(x))}${x.fav?' <span class="fvc">★</span>':''}</div>
       ${(x.org||x.dept||x.title)?`<div class="c">${esc([x.org,x.dept,x.title].filter(Boolean).join(' '))}</div>`:''}
       ${x.color?`<span class="rk-cpill" style="--rkc:${colHex(x.color)};--rki:${colInk(x.color)}">${esc(colFull(x.color))}</span>`:''}</div>
-    <div class="rk-acts">${act('📞','電話',t0?rkTelHref(t0.v):'')}${act('💬','SMS',c0?rkSmsHref(c0.v):'')}${act('✉','メール',m0?'mailto:'+m0.v.trim():'')}${act('📍','地図',a0?rkMapHref(rkAdrText(a0)):'',true)}</div>
+    <div class="rk-acts">${(t0 && rk.call!=='off') ? telA(t0.v, '<span>📞</span>電話') : act('📞','電話','')}${act('💬','SMS',c0?rkSmsHref(c0.v):'')}${act('✉','メール',m0?'mailto:'+m0.v.trim():'')}${act('📍','地図',a0?rkMapHref(rkAdrText(a0)):'',true)}</div>
+    ${rk.call==='off' && x.tels.length ? '<div class="rk-note rk-calloff">📞 電話は「かけない」にしています（番号を押しても かかりません。⚙ 設定で変えられます）</div>' : ''}
     <div class="rk-rows">${rows.join('')}</div>
     <button class="rk-btn" onclick="RK.edit('${x.id}')">✏ 直す</button>
     <button class="rk-btn sub" onclick="RK.fav('${x.id}')">${x.fav?'☆ よく使うから外す':'★ よく使う'}</button>
@@ -1079,6 +1084,21 @@ function rkView(id){
     <div class="rk-note">${x.raw.length?'スマホの項目のまま持っているもの '+x.raw.length+'件（ここには出ませんが、書き出すとそのまま戻ります）<br>':''}入れた日 ${fmtDay(x.added)}${x.updated!==x.added?'　直した日 '+fmtDay(x.updated):''}</div>`;
   if(!isDlgOpen('rkViewOverlay')) openDlg('rkViewOverlay', ()=>{ rkViewId=null; }); else $('rkViewBody').scrollTop=0;
   if(x.photo) rkPic(x.id).then(d=>{ const a=$('rkViewAv'); if(a && d && safeImg(d) && rkViewId===x.id){ a.style.backgroundImage=`url("${d}")`; a.textContent=''; } });
+}
+/* かける前に聞く：「○○ 090-… に電話をかけますか？」→ かける */
+async function rkTelAsk(ev, a){
+  if(ev) ev.preventDefault();
+  const href=a.getAttribute('href')||''; if(!/^tel:/.test(href)) return;
+  const x=rkViewId?rkFind(rkViewId):null;
+  if(!await appConfirm((x?'「'+rkName(x)+'」\n':'')+(a.dataset.num||href.slice(4))+' に電話をかけますか？','📞 かける','やめる')) return;
+  rkGoTel(href);
+}
+function rkGoTel(href){ const a=document.createElement('a'); a.href=href; a.style.display='none'; document.body.appendChild(a); a.click(); a.remove(); }
+function rkSetCall(v){
+  rk.call=['on','ask','off'].includes(v)?v:'on'; rkSave();
+  document.querySelectorAll('#rkCallSet [data-call]').forEach(b=>b.classList.toggle('on', b.dataset.call===rk.call));
+  toast(rk.call==='off'?'電話は「かけない」にしました（番号を押しても かかりません）':rk.call==='ask'?'電話は「かける前に聞く」にしました':'電話は「かけられる」にしました', 3000);
+  if(rkViewId && isDlgOpen('rkViewOverlay')) rkView(rkViewId);
 }
 function rkFav(id){ const x=rkFind(id); if(!x) return; x.fav=!x.fav; x.updated=today(); x.ts=Date.now(); rkSave(); rkRender(); rkTRowRe(id); if(isDlgOpen('rkViewOverlay')) rkView(id); }
 async function rkViewColor(id){
@@ -1749,6 +1769,9 @@ function rkOpenMenu(){
     <button class="rk-btn sub" onclick="RK.table()">📋 表で直す（全員を 表のまま その場で直す）</button>
     <button class="rk-btn sub" onclick="RK.closeSub();RK.paintStart()">🎨 色分け（色をえらんで 人を押す）</button>
     <button class="rk-btn sub" onclick="RK.custom()">🧩 自分好みにする（グループ・自分の項目・色の名前・一覧の出し方）</button>
+    <div class="rk-sec">📞 連絡帳から 電話をかける</div>
+    <div class="rk-tagrow" id="rkCallSet">${[['on','📞 かけられる'],['ask','❓ かける前に聞く'],['off','🚫 かけない']].map(([v,l])=>`<button type="button" data-call="${v}" class="${rk.call===v?'on':''}" onclick="RK.setCall('${v}')">${l}</button>`).join('')}</div>
+    <div class="rk-note">「かけない」にすると、見る画面の番号や 📞 を押しても 電話はかかりません（番号は見られます・コピーもできます）。「かける前に聞く」は、押したあとに たずねてから かけます。</div>
     <button class="rk-btn sub" onclick="RK.dups()">🔍 同じ人をさがして いっしょにする</button>
     <button class="rk-btn sub" onclick="RK.csv()">📄 CSV（Excel）で書き出す</button>
     <button class="rk-btn sub" onclick="RK.print()">🖨 あいうえお順の電話一覧を印刷</button>
@@ -2095,7 +2118,7 @@ window.RK={ menu:rkOpenMenu, setQ:v=>{ rkQ=String(v||''); rkRender(); }, setView
   importClick:rkImportClick, importFile:rkImportFile, pick:rkPick, openExport:rkOpenExport, doExport:rkDoExport, csv:rkCsv, print:rkPrint, backup:rkBackup, wipe:rkWipe, help:rkHelp,
   dups:rkOpenDups, dupMerge:rkDupMerge, dupSkip:rkDupSkip, dupAll:rkDupAll,
   custom:()=>{ if(rkEd && isDlgOpen('rkEdOverlay')) rkEdSync(); rkOpenCustom(); }, gAdd:rkGAdd, gPreset:rkGPreset, gRen:rkGRen, gIcon:rkGIcon, gMove:rkGMove, gDel:rkGDel, fAdd:rkFAdd, fPreset:rkFPreset, fRen:rkFRen, fMove:rkFMove, fDel:rkFDel,
-  setSub:rkSetSub, setBig:rkSetBig, setNoteCf:rkSetNoteCf, listen:rkListen };
+  setSub:rkSetSub, setBig:rkSetBig, setNoteCf:rkSetNoteCf, setCall:rkSetCall, telAsk:(ev,a)=>{ rkTelAsk(ev,a); }, listen:rkListen };
 Object.assign(window, { openRenraku, closeRenraku, rkMergeStored, rkPicsAll,
   rkState:()=>rk, rkParseVcf, rkColorFromTest:s=>rkColorFrom(s), rkSaveFlushTest:()=>rkSaveFlush(), rkVcard:(x,o)=>rkVcard(x,o), rkFromCsv, rkVoiceQ, rkCleanItem, rkImportList, rkDupGroupsTest:()=>rkDupGroups(), rkSearchTest:q=>rkSearch(q, rk.items).map(rkName), rkNameOf:rkName });
 })();
