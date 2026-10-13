@@ -607,7 +607,7 @@ const RK_CSS=`
 .rk-it .av,.rk-who .av{ flex:none; border-radius:50%; background-size:cover; background-position:center; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff; }
 .rk-it .av{ width:40px; height:40px; font-size:17px; }
 .rk-it .tx{ flex:1; min-width:0; }
-.rk-it .nm{ font-weight:bold; font-size:16px; line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow-wrap:anywhere; }   /* 長い名前は2行まで（v546） */
+.rk-it .nm{ font-weight:bold; font-size:16px; line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; word-break:keep-all; overflow-wrap:anywhere; }   /* 長い名前は2行まで（v546） */
 .rk-it .nm small{ font-weight:normal; font-size:11px; color:var(--text-light,#888); margin-left:6px; }
 .rk-it .sb{ font-size:13px; color:var(--text-sub,#555); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .rk-it .gi{ flex:none; font-size:14px; }
@@ -764,7 +764,7 @@ body.dark .rk-dot{ box-shadow:0 0 0 1px rgba(255,255,255,.35); }
 .rk-tc.ed{ padding:0; }
 /* 長くて入りきらない字：小さくし（style で font-size）、それでも入らなければ 2行に（f2） */
 .rk-tc.f2{ display:flex; align-items:center; white-space:normal; line-height:1.3; }
-.rk-tc.f2 .t2{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere; }
+.rk-tc.f2 .t2{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; word-break:keep-all; overflow-wrap:anywhere; }   /* なるべく空白で行を変える */
 .rk-tv .ph{ color:var(--text-light,#999); font-weight:normal; }
 .rk-tv .lb{ color:var(--text-light,#888); font-size:11px; margin-right:4px; }
 .rk-tv .mo{ color:var(--acc-text,var(--acc)); font-size:11px; font-weight:bold; margin-left:5px; }
@@ -1411,7 +1411,7 @@ function rkTFit(x, c, w){
   if(!(T_FIT.has(c) || c.startsWith('cf:'))) return ['',''];
   const t=rkTText(x,c); if(!t) return ['',''];
   const extra=(c==='mail'&&x.mails.length>1)||(c==='adr'&&x.adrs.length>1) ? 26 : 0;
-  const px=rkTBase(), avail=w-18-(c==='name'&&x.color?5:0)-extra, tw=rkTMeasure(t, px, c==='name');
+  const px=rkTBase(), avail=(w-18-(c==='name'&&x.color?5:0)-extra)*0.95, tw=rkTMeasure(t, px, c==='name');   // 見積もりには少しゆとりを
   if(tw<=avail || avail<20) return ['',''];
   const min1=rk.big?13.5:11.5, s1=Math.floor(px*avail/tw*2)/2;
   if(s1>=min1) return ['', `font-size:${s1}px`];
@@ -1456,6 +1456,17 @@ function rkTRender(){
   $('rkTL').innerHTML=rkT.draft ? rkTRowL(rkT.draft,true,'') : '';
   $('rkTBody').innerHTML=rkT.draft ? rkTRowC(rkT.draft,true) : '';
   rkTMore(); rkTInfo();
+}
+/* 出したあとで 本当にはみ出していないか見る（字の幅の見積もりは 端末の字体で少しずれる）。はみ出していたら 2行に */
+function rkTFixOverflow(rows){
+  const over=[];
+  for(const r of rows) for(const c of r.children){
+    const k=c.dataset.c; if(!k || c.classList.contains('f2') || c.classList.contains('ed') || !(T_FIT.has(k) || k.startsWith('cf:'))) continue;
+    if(c.scrollWidth>c.clientWidth+1) over.push(c);
+  }
+  const min1=rk.big?13.5:11.5;
+  over.map(c=>[c, Math.min(parseFloat(getComputedStyle(c).fontSize)||min1, min1)]).forEach(([c,px])=>{
+    c.classList.add('f2'); c.style.fontSize=px+'px'; c.innerHTML='<span class="t2">'+c.innerHTML+'</span>'; });
 }
 /* 列の幅を 画面に出す（名前の列は --nw、右の列は --tcols・--tw） */
 function rkTWidths(){
@@ -1522,7 +1533,9 @@ function rkTMore(){
   const L=$('rkTL'), B=$('rkTBody'); if(!L || !rkT) return;
   const end=Math.min(rkT.rows.length, rkT.shown+RK_TCHUNK); let n=L.querySelectorAll('.rk-tr:not(.draft)').length, hl='', hc='';
   for(let i=rkT.shown;i<end;i++){ const x=rkT.rows[i]; hl+=rkTRowL(x,false,++n); hc+=rkTRowC(x,false); }
+  const nl=L.children.length, nb=B.children.length;
   L.insertAdjacentHTML('beforeend', hl); B.insertAdjacentHTML('beforeend', hc); rkT.shown=end;
+  rkTFixOverflow([...L.children].slice(nl).concat([...B.children].slice(nb)));
   rkTMoreBar(); rkTSync();
 }
 function rkTMoreBar(){
@@ -1631,6 +1644,7 @@ function rkTRowRe(id){
   const t=document.createElement('div'); t.innerHTML=rkTRowL(x, draft, n)+rkTRowC(x, draft);
   const nl=t.firstElementChild, nc=t.lastElementChild;
   if(R.l) R.l.replaceWith(nl); if(R.c) R.c.replaceWith(nc);
+  rkTFixOverflow([nl, nc]);
   if(was!==draft) rkTRenum();
 }
 function rkTRowDel(id){ const R=rkTRows(id); if(R.l) R.l.remove(); if(R.c) R.c.remove(); rkTRenum(); rkTMoreBar(); }
