@@ -7827,6 +7827,33 @@ async function runKoeOut(browser) {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
 
+/* 💡 はじめての案内を2回出さない（v543）。道具の中に はじめの説明（まだ何もないときの案内）が出ているときは、吹き出しは出さない */
+async function runFirstHint(browser) {
+  console.log('\n── 💡 はじめての案内を2回出さない（v543） ──');
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: 'block' });
+  await ctx.addInitScript(() => { try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_startpage', 'last'); } catch (e) {} });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push(e.message)); page.on('dialog', d => d.accept());
+  const w = ms => page.waitForTimeout(ms);
+  await page.goto('file://' + path.join(ROOT, 'index.html')); await w(1000);
+  const first = async id => { await page.evaluate(id => NP_TOOLS.find(t => t.id === id).run(), id); await w(1300);
+    const r = await page.evaluate(id => { const ov = document.getElementById(NP_TOOLS.find(t => t.id === id).ov); return !!ov.querySelector('.tool-hint') + '/' + JSON.parse(localStorage.getItem('excalc_tool_hint_seen') || '[]').includes(id); }, id);
+    await page.evaluate(id => { const ov = document.getElementById(NP_TOOLS.find(t => t.id === id).ov); ov.querySelectorAll('.tool-hint').forEach(h => h.remove()); NP_TOOLS.find(t => t.id === id).close(); }, id); await w(500);
+    return id + ':' + r; };
+  const out = [];
+  for (const id of ['shimai', 'meishi', 'kakeizu', 'renraku', 'trim']) out.push(await first(id));
+  check('  説明が出ている道具（しまい場所・名刺管理・家系図・連絡帳・トリミング）は吹き出しを出さない（見たことにはする）', out.join(' '), 'shimai:false/true meishi:false/true kakeizu:false/true renraku:false/true trim:false/true');
+  const out2 = [];
+  for (const id of ['subsc', 'regi', 'touban', 'tansui']) out2.push(await first(id));
+  check('  説明が短い（「まだありません」）・説明のない道具は、今までどおり吹き出し', out2.join(' '), 'subsc:true/true regi:true/true touban:true/true tansui:true/true');
+  await page.evaluate(() => openShimai()); await w(500);
+  check('  しまい場所：まだ何もない間は、下の欄の「例：〜」を出さない（説明の中に同じ例がある）', await page.evaluate(() => document.querySelector('#shimaiOverlay .sm-hint').hidden + '/' + !!document.querySelector('#smList .sm-empty')), 'true/true');
+  await page.evaluate(() => smAddText('眼鏡はパソコン横')); await w(500);
+  check('  　入れたあとは出す', await page.evaluate(() => document.querySelector('#shimaiOverlay .sm-hint').hidden + '/' + !!document.querySelector('#smList .sm-empty')), 'false/false');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
 /* 📇 連絡帳（v542）：スマホの電話帳（vCard・CSV）を読んで整理・自分好みに・スマホに戻す */
 async function runRenraku(browser) {
   console.log('\n── 📇 連絡帳：スマホの電話帳を読んで整理・自分好みに・スマホに戻す（v542） ──');
@@ -12511,6 +12538,7 @@ async function runQrShare(browser) {
     if (!only || only === 'hyovoice') await runHyoVoice(browser);
     if (!only || only === 'scheme') await runSchemeFix(browser);
     if (!only || only === 'renraku') await runRenraku(browser);
+    if (!only || only === 'firsthint') await runFirstHint(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
   } finally { await browser.close(); }

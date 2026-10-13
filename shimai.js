@@ -229,6 +229,7 @@ function smRender(){
   let list=sm.items;
   if(smPlace) list=list.filter(x=>(x.place||'（場所なし）')===smPlace);
   const L=$('smList');
+  const hint=document.querySelector('#shimaiOverlay .sm-hint'); if(hint) hint.hidden=!sm.items.length;   // まだ何もないときは、説明の中に同じ例があるので出さない（v543）
   if(!sm.items.length){
     L.innerHTML=`<div class="sm-empty">📦<br><b>しまった物と場所を入れておくと、<br>あとで「どこだっけ？」をすぐさがせます。</b><br><br>下の欄に<br>「<b>パスポートは寝室のタンスの2段目</b>」<br>のように打つか、🎤で話してください。<br>写真も付けられます。</div>`;
     return;

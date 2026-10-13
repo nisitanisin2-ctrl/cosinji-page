@@ -9155,6 +9155,9 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v543', t:'💡 はじめての案内が2回出ないようにしました', li:[
+    '道具をはじめて開いたとき、上の黄色い吹き出しと、まだ何もないときの説明が、同じことを2回言っていました（📦しまい場所・💼名刺管理・🌳家系図・📇連絡帳・✂トリミング）。説明が出ているときは、吹き出しは出しません',
+    '📦しまい場所は、まだ何も入れていない間は、下の欄の「例：〜」も出しません（説明の中に同じ例があるため）。入れたあとは、また出ます' ]},
   { v:'v542', t:'📇 連絡帳：スマホの電話帳を読んで整理し、スマホに戻せます', li:[
     '🧰道具に <b>📇 連絡帳</b> を足しました。スマホの連絡帳アプリで書き出したファイル（<b>.vcf</b>）を読むと、<b>よみ順（あかさたな の索引）</b>・グループ・会社ごとに見やすく並びます。電話・メール・住所はいくつでも持てます。名前・よみ・番号の一部・🎤 声でさがせます',
     '<b>自分好みに</b>できます：グループ（絵文字つき）、自分の項目（間柄・年賀状など。押して選ぶ形も）、一覧の名前の下に出すもの、文字の大きさ。まとめて選んでグループに入れる、<b>同じ人の重なりを いっしょにする</b>、もうすぐ誕生日の人も出ます',
@@ -21641,6 +21644,9 @@ function showToolHint(id, ov){
   saveList(TOOL_HINT_KEY, seen.concat([id]));
   setTimeout(()=>{
     if(!ov.classList.contains('open') || ov.querySelector('.tool-hint')) return;
+    // 道具の中に、はじめの説明（まだ何もないときの案内）がもう出ているときは、吹き出しは出さない（v543）。
+    // しまい場所・名刺管理・家系図・連絡帳・トリミングで、同じことを2回言っていた。「まだありません」のような短いものは数えない
+    if([...ov.querySelectorAll('[class$="-empty"],[class*="-empty "]')].some(e=>e.offsetParent && e.textContent.replace(/\s+/g,'').length>=40)) return;
     const b=document.createElement('div'); b.className='tool-hint'; b.setAttribute('role','note');
     b.innerHTML=`<span>${escHtml(TOOL_HINTS[id])}</span><button type="button">わかった</button>`;
     b.querySelector('button').onclick=e=>{ e.stopPropagation(); b.remove(); };
@@ -21981,7 +21987,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v542';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v543';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
