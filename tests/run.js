@@ -8072,6 +8072,9 @@ async function runBackGuard(browser) {
   const c2 = await browser.newContext({ viewport: { width: 390, height: 800 }, serviceWorkers: 'block' });
   await c2.addInitScript(() => {
     try { localStorage.setItem('excalc_tour_done', '1'); } catch (e) {}
+    // テスト用の合図：window.name に入れた「使っていた」の印を、次に開いたページの中で置く（一度だけ）。
+    // テスト用ブラウザでは、ページをまたぐと localStorage が届かないことがある（file:// で別の処理になったとき）
+    if (/^seed:/.test(window.name)) { try { localStorage.setItem('excalc_resume', window.name.slice(5)); } catch (e) {} window.name = ''; }
     if (window.__standalone !== false) {
       const mm = window.matchMedia.bind(window);
       window.matchMedia = q => /display-mode:\s*standalone/.test(q) ? { matches: true, media: q, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} } : mm(q);
@@ -8081,25 +8084,30 @@ async function runBackGuard(browser) {
   p2.on('pageerror', e => e2.push(e.message));
   const where2 = () => p2.url().replace(/^.*cosinji-page\//, '').replace(/[?#].*$/, '');
   await p2.goto(HYO); await p2.waitForTimeout(500);
-  await p2.evaluate(() => localStorage.setItem('excalc_resume', JSON.stringify({ app: 'koe', t: Date.now() - 60000 })));
+  await p2.evaluate(() => { window.name = 'seed:' + JSON.stringify({ app: 'koe', t: Date.now() - 60000 }); });   // 印は次に開くページの中で置く
   await p2.goto(HYO); await p2.waitForURL(/koe\/index\.html/, { timeout: 8000 }).catch(() => {}); await p2.waitForTimeout(800);   // 開き直すのを待つ（重いときは1.5秒では足りないことがある）
   check('  表電卓：使っていたアプリ（声の計算帳）を開き直す（表電卓から開いた形で）', where2() + '|' + await p2.evaluate(() => !document.getElementById('backHyo').hidden + '/' + localStorage.getItem('excalc_resume')), 'koe/index.html|true/null');
   await p2.evaluate(() => BackGuard.leaving()); await p2.goto(HYO); await p2.waitForTimeout(1000);   // 自分で表電卓へ移る（書き残さない）
   check('  　自分で表電卓へ移ったあとは開き直さない', where2(), 'index.html');
-  await p2.evaluate(() => localStorage.setItem('excalc_resume', JSON.stringify({ app: 'eigo', t: Date.now() - 4 * 3600 * 1000 })));
+  await p2.evaluate(() => { window.name = 'seed:' + JSON.stringify({ app: 'eigo', t: Date.now() - 4 * 3600 * 1000 }); });
   await p2.goto(HYO); await p2.waitForTimeout(1200);
   check('  　4時間より前なら開き直さない（印は消す）', where2() + '|' + await p2.evaluate(() => localStorage.getItem('excalc_resume')), 'index.html|null');
-  await p2.evaluate(() => localStorage.setItem('excalc_resume', JSON.stringify({ app: 'evil', t: Date.now() })));
+  await p2.evaluate(() => { window.name = 'seed:' + JSON.stringify({ app: 'evil', t: Date.now() }); });
   await p2.goto(HYO); await p2.waitForTimeout(1200);
   check('  　知らないアプリの名前は開かない', where2(), 'index.html');
-  await p2.evaluate(() => localStorage.setItem('excalc_resume', JSON.stringify({ app: 'notes', t: Date.now() })));
+  await p2.evaluate(() => { window.name = 'seed:' + JSON.stringify({ app: 'notes', t: Date.now() }); });
   await p2.goto(HYO + '?p=dentaku'); await p2.waitForTimeout(1200);
   check('  　ショートカット（?p=…）で開いたときは開き直さない', where2(), 'index.html');
   await c2.close();
   const c3 = await browser.newContext({ viewport: { width: 390, height: 800 }, serviceWorkers: 'block' });
+  await c3.addInitScript(() => {
+    // テスト用の合図：window.name に入れた「使っていた」の印を、次に開いたページの中で置く（一度だけ）。
+    // テスト用ブラウザでは、ページをまたぐと localStorage が届かないことがある（file:// で別の処理になったとき）
+    if (/^seed:/.test(window.name)) { try { localStorage.setItem('excalc_resume', window.name.slice(5)); } catch (e) {} window.name = ''; }
+  });
   const p3 = await c3.newPage();
   await p3.goto(HYO); await p3.waitForTimeout(500);
-  await p3.evaluate(() => localStorage.setItem('excalc_resume', JSON.stringify({ app: 'koe', t: Date.now() })));
+  await p3.evaluate(() => { window.name = 'seed:' + JSON.stringify({ app: 'koe', t: Date.now() }); });
   await p3.goto(HYO); await p3.waitForTimeout(1200);
   check('  　ブラウザのタブで開いたときは開き直さない', p3.url().replace(/^.*cosinji-page\//, ''), 'index.html');
   check('  エラーなし（開き直し）', e2.join(' | '), '');
