@@ -8552,6 +8552,110 @@ async function runRenrakuYomi(browser) {
   await ctx.close();
 }
 
+// ── 📇 連絡帳：🔢 色の No.・並ぶ順番・上から／下から（v549）
+async function runRenrakuColorNo(browser) {
+  console.log('\n── 📇 連絡帳：🔢 色の No.・並ぶ順番・上から／下から（v549） ──');
+  const T = v => [{ t: 'cell', v }];
+  const SEED = { v: 1, view: 'color', colors: { red: '要連絡' }, items: [
+    { id: 'c1', fam: '山田', giv: '太郎', famK: 'やまだ', givK: 'たろう', color: 'red', tels: T('090-2000-0001') },
+    { id: 'c2', fam: '佐藤', giv: '花子', famK: 'さとう', givK: 'はなこ', color: 'blue', tels: T('090-2000-0002') },
+    { id: 'c3', fam: '鈴木', giv: '一郎', famK: 'すずき', givK: 'いちろう', color: 'green', tels: T('090-2000-0003') },
+    { id: 'c4', fam: '高橋', giv: '健二', famK: 'たかはし', givK: 'けんじ', color: 'blue', tels: T('090-2000-0004') },
+    { id: 'c5', fam: '伊藤', giv: '一郎', famK: 'いとう', givK: 'いちろう', tels: T('090-2000-0005') },
+  ] };
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: 'block' });
+  await ctx.addInitScript(() => { try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tbfold', '0'); } catch (e) {} });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/favicon|ServiceWorker/.test(m.text())) errs.push('console: ' + m.text()); });
+  page.on('dialog', d => d.accept());
+  const w = ms => page.waitForTimeout(ms);
+  const secs = () => page.evaluate(() => [...document.querySelectorAll('#rkList .rk-grp')].map(g => g.textContent.replace(/\s+/g, ' ').trim()).join(' | '));
+  const chips = () => page.evaluate(() => [...document.querySelectorAll('#rkBar .rk-chip')].filter(b => b.querySelector('.rk-dot')).map(b => b.textContent.replace(/\s+/g, ' ').trim()).join(','));
+  const rows = n => page.evaluate(n => [...document.querySelectorAll('#rkCOrd .rk-co')].slice(0, n).map(r => r.querySelector('.no').textContent + ' ' + r.querySelector('.nm span').textContent).join(' / '), n);
+  await page.goto('file://' + path.join(ROOT, 'index.html')); await w(1200);
+  await page.evaluate(s => { localStorage.setItem('excalc_renraku', s); window.appPrompt = async () => null; window.appConfirm = async () => true; openRenraku(); }, JSON.stringify(SEED)); await w(900);
+
+  check('  はじめは No. の順＝赤・だいだい・黄…（🎨 色：赤・緑・青・色なし）', await secs(), '赤（要連絡）1人 | 緑1人 | 青2人 | 色なし1人');
+  check('  🎨 色の一覧の上に「No. の並び ⬇ 上から／⬆ 下から」「🔢 色の No.・順番」', await page.evaluate(() => { const b = document.querySelector('#rkList .rk-cbar'); return b ? [...b.querySelectorAll('button')].map(x => x.textContent.trim() + (x.classList.contains('on') ? '●' : '')).join(' / ') : '（ない）'; }), '⬇ 上から● / ⬆ 下から / 🔢 色の No.・順番');
+  check('  　ほかの並び（よみ順）には出ない', await page.evaluate(() => { RK.setView('kana'); const n = document.querySelectorAll('#rkList .rk-cbar').length; RK.setView('color'); return n; }), '0');
+  await page.click('#rkList .rk-cbar .ord'); await w(400);
+  check('  🔢 色の No.・並ぶ順番：12色に No.1〜12（名前・人数つき）', (await page.evaluate(() => document.getElementById('rkScrHdr').textContent + ' / ' + document.querySelectorAll('#rkCOrd .rk-co').length + ' / ' + document.querySelector('#rkCOrd .rk-co em').textContent + ' / ' + document.getElementById('rkCReset').disabled)) + ' / ' + await rows(3),
+    '🔢 色の No.・並ぶ順番 / 12 / 1人 / true / No.1 赤要連絡 / No.2 だいだい / No.3 黄');
+  await page.evaluate(() => { const r = [...document.querySelectorAll('#rkCOrd .rk-co')].find(e => e.dataset.c === 'blue'); r.querySelector('.no').click(); }); await w(300);
+  check('  No. を押す：No.1〜12 をえらぶ窓（いまの No. に しるし）', await page.evaluate(() => document.getElementById('rkAskHdr').textContent + ' / ' + document.querySelectorAll('#rkAskBody .rk-nogrid button').length + ' / ' + document.querySelector('#rkAskBody .rk-nogrid .on b').textContent), '🔢 「青」の No. / 12 / No.8');
+  await page.evaluate(() => document.querySelector('#rkAskBody [data-r="100"]').click()); await w(400);
+  check('  　No.1 をえらぶ → 青が No.1、ほかは ひとつずつ下へ', await rows(4), 'No.1 青 / No.2 赤要連絡 / No.3 だいだい / No.4 黄');
+  check('  　うしろの一覧も すぐ No. の順に（青・赤・緑・色なし）', await secs(), '青2人 | 赤（要連絡）1人 | 緑1人 | 色なし1人');
+  for (let i = 0; i < 4; i++) { await page.evaluate(() => { const r = [...document.querySelectorAll('#rkCOrd .rk-co')].find(e => e.dataset.c === 'green'); r.querySelector('.mv').click(); }); await w(120); }
+  check('  ↑ で動かす（緑を4つ上へ → No.2）・動かした色は光る', (await rows(3)) + ' / ' + await page.evaluate(() => [...document.querySelectorAll('#rkCOrd .rk-co.fl')].map(e => e.dataset.c).join(',')), 'No.1 青 / No.2 緑 / No.3 赤要連絡 / green');
+  check('  　いちばん上の ↑・いちばん下の ↓ は押せない', await page.evaluate(() => { const r = [...document.querySelectorAll('#rkCOrd .rk-co')]; return r[0].querySelectorAll('.mv')[0].disabled + '/' + r[11].querySelectorAll('.mv')[1].disabled; }), 'true/true');
+  await page.evaluate(() => { window.appPrompt = async () => '急ぎ'; const r = [...document.querySelectorAll('#rkCOrd .rk-co')].find(e => e.dataset.c === 'blue'); r.querySelector('.nm').click(); }); await w(400);
+  check('  色の名前を押す：名前を付けて この画面に戻る', await page.evaluate(() => document.getElementById('rkScrHdr').textContent + ' / ' + rkState().colors.blue) + ' / ' + await rows(1), '🔢 色の No.・並ぶ順番 / 急ぎ / No.1 青急ぎ');
+  await page.evaluate(() => { window.appPrompt = async () => null; RK.cDone(); }); await w(300);
+  check('  上の色の札も No. の順（青・緑・要連絡）', await chips(), '急ぎ2,緑1,要連絡1');
+  await page.evaluate(() => RK.paintStart()); await w(200);
+  check('  🎨 色分けのパレットも No. の順', await page.evaluate(() => [...document.querySelectorAll('#rkPal .rk-sw')].slice(0, 4).map(b => b.dataset.c).join(',')), 'blue,green,red,orange');
+  await page.evaluate(() => RK.paintEnd()); await w(200);
+  await page.evaluate(() => RK.edit('c1')); await w(300);
+  check('  直す画面の色も No. の順', await page.evaluate(() => [...document.querySelectorAll('#rkECol [data-c]')].slice(0, 3).map(b => b.dataset.c).join(',')), 'blue,green,red');
+  await page.evaluate(() => RK.closeEd()); await w(200);
+
+  // ── 上から／下から
+  await page.evaluate(() => RK.cDir('down')); await w(300);
+  check('  ⬆ 下から：No.1 が いちばん下（色なしは いちばん上）', (await secs()) + ' / ' + await page.evaluate(() => document.querySelector('#rkCDirBar .on').dataset.d + '/' + rkState().cdir), '色なし1人 | 赤（要連絡）1人 | 緑1人 | 青（急ぎ）2人 / down/down');
+  await page.evaluate(() => RK.cOrder()); await w(300);
+  check('  　🔢 の画面でも 下から が えらばれている', await page.evaluate(() => document.querySelector('#rkCDir .on').dataset.d), 'down');
+  await page.evaluate(() => { [...document.querySelectorAll('#rkCDir [data-d]')].find(b => b.dataset.d === 'up').click(); }); await w(300);
+  check('  ⬇ 上から に戻す（🔢 の画面から）', (await secs()) + ' / ' + await page.evaluate(() => rkState().cdir), '青（急ぎ）2人 | 緑1人 | 赤（要連絡）1人 | 色なし1人 / up');
+
+  // ── No. を出す
+  await page.evaluate(() => { document.getElementById('rkCNo').click(); }); await w(300);
+  await page.evaluate(() => RK.closeScr()); await w(200);
+  check('  No. を出す：見出し・上の札・一覧の札に No.', (await secs()) + ' / ' + (await chips()) + ' / ' + await page.evaluate(() => ['c2', 'c1'].map(id => document.querySelector(`#rkList .rk-it[data-id="${id}"] .cl`).textContent).join(',')),
+    'No.1 青（急ぎ）2人 | No.2 緑1人 | No.3 赤（要連絡）1人 | 色なし1人 / No.1 急ぎ2,No.2 緑1,No.3 要連絡1 / No.1 急ぎ,No.3 要連絡');
+  await page.evaluate(() => RK.paintStart()); await w(200);
+  check('  　パレットの色に 番号', await page.evaluate(() => [...document.querySelectorAll('#rkPal .rk-sw')].slice(0, 3).map(b => b.textContent).join(',')), '1,2,3');
+  await page.evaluate(() => { RK.paintEnd(); RK.view('c1'); }); await w(300);
+  check('  　見る画面の色にも No.', await page.evaluate(() => document.querySelector('#rkViewBody .rk-cpill, .rk-cpill').textContent), 'No.3 赤（要連絡）');
+  await page.evaluate(() => { RK.closeView(); RK.table(); }); await w(500);
+  check('  　表の 🎨 色 にも No.', await page.evaluate(() => [...document.querySelectorAll('#rkTBody .rk-tr[data-id]')].map(r => r.dataset.id + ':' + r.querySelector('[data-c="color"]').textContent).join(',')), 'c5:－,c2:No.1 急ぎ,c3:No.2,c4:No.1 急ぎ,c1:No.3 要連絡');
+  await page.evaluate(() => { document.querySelector('#rkTHd [data-h="color"]').click(); }); await w(300);
+  check('  　表を 🎨 色 で並べると No. の順（色のない人は下）', await page.evaluate(() => [...document.querySelectorAll('#rkTL .rk-tr[data-id]')].map(r => r.querySelector('.c-name').textContent).join(',')), '佐藤 花子,高橋 健二,鈴木 一郎,山田 太郎,伊藤 一郎');
+  await page.evaluate(() => RK.closeTbl()); await w(300);
+  check('  スマホに戻す（vCard）・CSV には No. を書かない（読みなおしで色がわかる）', await page.evaluate(() => { const v = rkVcard(rkState().items.find(x => x.id === 'c1'), {}); return /X-HYO-COLOR:red/.test(v) + '/' + /［色分け］赤（要連絡）/.test(v) + '/' + /No\./.test(v); }), 'true/true/false');
+  check('  端末に保存（No. の順・向き・No. を出す）', await page.evaluate(() => { const o = JSON.parse(localStorage.getItem('excalc_renraku')); return o.corder.slice(0, 4).join(',') + ' / ' + o.cdir + ' / ' + o.cno + ' / ' + o.corder.length; }), 'blue,green,red,orange / up / true / 12');
+  await page.evaluate(() => closeRenraku()); await w(300);
+  await page.evaluate(() => { const o = JSON.parse(localStorage.getItem('excalc_renraku')); o.corder = ['blue', 'blue', 'x', '<img src=x onerror=alert(1)>', 'red']; o.cdir = 'sideways'; localStorage.setItem('excalc_renraku', JSON.stringify(o)); openRenraku(); }); await w(700);
+  check('  おかしな順番は 直して読む（同じ色・ない色を外し、足りない色は うしろに）', await page.evaluate(() => rkState().corder.join(',') + ' / ' + rkState().cdir + ' / ' + rkState().cno), 'blue,red,orange,yellow,lime,green,teal,sky,purple,pink,brown,gray / up / true');
+
+  // ── 自分好みにする から・はじめの順に戻す
+  await page.evaluate(() => RK.custom()); await w(300);
+  check('  🧩 自分好みにする：色は No. の順（No. つき）・「🔢 色の No.・並ぶ順番を決める」', await page.evaluate(() => [...document.querySelectorAll('#rkScrBody .rk-cgrid button span')].slice(0, 3).map(s => s.textContent).join(',') + ' / ' + !![...document.querySelectorAll('#rkScrBody .rk-btn')].find(b => b.textContent.trim() === '🔢 色の No.・並ぶ順番を決める（上から／下から）')),
+    'No.1 急ぎ,No.2 要連絡,No.3 だいだい / true');
+  await page.evaluate(() => [...document.querySelectorAll('#rkScrBody .rk-btn')].find(b => /並ぶ順番を決める/.test(b.textContent)).click()); await w(300);
+  await page.evaluate(() => RK.cReset()); await w(300);
+  check('  はじめの順に戻す：赤・だいだい・黄…（戻すボタンは押せなくなる）', (await rows(3)) + ' / ' + await page.evaluate(() => document.getElementById('rkCReset').disabled), 'No.1 赤要連絡 / No.2 だいだい / No.3 黄 / true');
+  await page.evaluate(() => RK.cDone()); await w(300);
+  check('  できあがり：🧩 自分好みにする に戻る', await page.evaluate(() => document.getElementById('rkScrHdr').textContent), '🧩 自分好みにする');
+  await page.evaluate(() => RK.closeScr()); await w(200);
+
+  // ── 夜の色・せまい画面
+  await page.evaluate(() => { toggleDark(); RK.cOrder(); }); await w(400);
+  check('  夜の色：🔢 の画面の字が読める（字と地の明るさの差 4.5 以上）', await page.evaluate(() => {
+    const lum = c => { const m = c.match(/[\d.]+/g).slice(0, 3).map(Number), k = /^color\(srgb/.test(c) ? 1 : 255; return m.map(v => v / k).map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0); };
+    const bgOf = el => { for (let e = el; e; e = e.parentElement) { const c = getComputedStyle(e).backgroundColor; if (!/rgba\(.*, 0\)$|transparent/.test(c)) return c; } return 'rgb(255,255,255)'; };
+    const cr = el => { const a = lum(getComputedStyle(el).color), b = lum(bgOf(el)); return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); };
+    const els = [['No.', document.querySelector('#rkCOrd .no')], ['色の名前', document.querySelector('#rkCOrd .nm span')], ['↓', document.querySelector('#rkCOrd .mv:not(:disabled)')]];
+    return document.body.classList.contains('dark') + ':' + els.filter(([, e]) => cr(e) < 4.5).map(([n, e]) => n + cr(e).toFixed(1)).join(','); }), 'true:');
+  await page.evaluate(() => { RK.closeScr(); toggleDark(); }); await w(300);
+  await page.setViewportSize({ width: 320, height: 640 }); await w(300);
+  await page.evaluate(() => RK.cOrder()); await w(300);
+  check('  せまい画面（320）：🔢 の画面・🎨 色の一覧の上が 横にはみ出さない', await page.evaluate(() => { const b = document.getElementById('rkScrBody'), c = document.querySelector('#rkList .rk-cbar'); return (b.scrollWidth <= b.clientWidth + 1) + '/' + (c.scrollWidth <= c.clientWidth + 1); }), 'true/true');
+  await page.evaluate(() => RK.closeScr()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
 /* 🌗 端末のダークテーマ・節電モードでも文字が消えない（v541）。
    端末がダークになると（Pixel の節電モードなど）、色を決めていない文字が白くなり、白い地に溶けていた。
    文字・ボタンのふだんの色は表電卓の「夜の色」に合わせる。道具を開いて、文字と地の明るさの差を測る */
@@ -13013,6 +13117,7 @@ async function runQrShare(browser) {
     if (!only || only === 'renraku') await runRenraku(browser);
     if (!only || only === 'rkiro') await runRenrakuIro(browser);
     if (!only || only === 'rkyomi') await runRenrakuYomi(browser);
+    if (!only || only === 'rkcno') await runRenrakuColorNo(browser);
     if (!only || only === 'firsthint') await runFirstHint(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
