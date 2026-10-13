@@ -54,7 +54,7 @@
 
 ## 置くファイル
 
-`koe/` の中の `index.html` `backguard.js` `phrase.js` `examples.js` `intents.js` `xlsx.js` `service-worker.js` `manifest.json` `icon-192.png` `icon-512.png` を、表電卓の `index.html` と同じ場所の `koe/` フォルダに置きます。
+`koe/` の中の `index.html` `backguard.js` `phrase.js` `examples.js` `intents.js` `xlsx.js` `hyovoice.js` `service-worker.js` `manifest.json` `icon-192.png` `icon-512.png` を、表電卓の `index.html` と同じ場所の `koe/` フォルダに置きます。
 
 ## 知っておいてほしいこと
 
@@ -90,3 +90,6 @@
   - Excel（.xlsx）：外部の部品なしで作る（`xlsx.js`）。1行に1品で No.・品名・単価・個数・単位・金額（税があれば 税率・消費税・税込み）・メモ。金額は「単価×個数」、税は切り捨て、合計・税率ごとの合計・予算の残りは式（計算した値も入れておく）
   - 一覧で品物を押したときに、直す窓が一覧の裏に隠れていたのを直した（小さな窓を一覧より上に）。小さな窓も「戻る」で閉じる
   - 保存するファイルの名前は英数字に（`yosan_2026-10-10_1530.xlsx`・`kakeibo_2026-10.csv` など。日本語の名前はブラウザによっては捨てられて「download」になる）
+- **v23**（読み上げの声を表電卓・ほかの道具と同じに）：
+  - 声・速さ・高さ・大きさは `hyovoice.js`（表電卓・かきじゅん帳・英単語・算数・メモと同じもの）の `hyo_voice` に。前に決めていた声（`koe_settings`）は、はじめて開いたときに引きつぐ
+  - ⚙ 設定のいちばん上に「🔈 読み上げの声」（日本語の声・英語の声・速さ・高さ・大きさ・試す）。「ゆっくり」「はやく」も同じ速さを変える。バックアップにも入れる

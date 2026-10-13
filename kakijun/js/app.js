@@ -648,15 +648,13 @@
       .replace(/●/g, 'まる').replace(/[「」]/g, '')
       .replace(YOMI_RE, function (w) { return YOMI[w]; });
   }
-  var jaVoice = null;
-  function pickVoice() { try { var vs = speechSynthesis.getVoices() || []; jaVoice = vs.filter(function (v) { return /^ja/i.test(v.lang); })[0] || null; } catch (e) { } }
-  if (TTS) { pickVoice(); try { speechSynthesis.addEventListener('voiceschanged', pickVoice); } catch (e) { } }
+  // 声・速さ・高さ・大きさは、表電卓・声の計算帳・ほかの道具と同じ（hyovoice.js。v540）
   function speak(text) {
     if (!TTS || !text) return;
     try {
       speechSynthesis.cancel();
       var u = new SpeechSynthesisUtterance(text);
-      u.lang = 'ja-JP'; if (jaVoice) u.voice = jaVoice; u.rate = 1;
+      if (window.HyoVoice) HyoVoice.apply(u, { lang: 'ja' }); else { u.lang = 'ja-JP'; u.rate = 1; }
       speechSynthesis.speak(u);
     } catch (e) { }
   }
@@ -918,6 +916,10 @@
     PR.saidAt = PR.i;
     if (PR.say && PR.say.tips.length) prSpeak(true);
   });
+  // 声の設定（v540）：表電卓・声の計算帳と同じ「読み上げの声」の画面を、下から出す
+  var prVoice = $('#prVoice');
+  prVoice.hidden = !TTS || !window.HyoVoice;
+  prVoice.addEventListener('click', function () { HyoVoice.ui($('#voiceBox'), { test: '書き始めはしっかり、だんだん力をぬいて左下へスッと払います。' }); openSheet($('#voiceSheet')); });
   function syncLv() { Array.from(document.querySelectorAll('#practiceUI [data-lv]')).forEach(function (x) { var on = +x.dataset.lv === PR.lv; x.setAttribute('aria-checked', on); x.setAttribute('aria-selected', on); }); }
 
   // ---------------- 検索 ----------------
@@ -989,6 +991,7 @@
   function closeSheet() {
     if (!openSheetEl) return;
     if (openSheetEl === $('#micSheet')) stopRec();
+    if (openSheetEl === $('#voiceSheet')) hush();   // 声の設定の試しの読み上げを止める
     openSheetEl.hidden = true; $('#backdrop').hidden = true; openSheetEl = null;
     if (lastFocus && lastFocus.focus) try { lastFocus.focus(); } catch (e) { }
   }

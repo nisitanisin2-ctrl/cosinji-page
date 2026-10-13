@@ -33,7 +33,8 @@ window.ES = (function () {
       if (!opt.queue) ss.cancel();
       const u = new SpeechSynthesisUtterance(text);
       u.lang = 'en-US'; u.rate = opt.rate || 0.92;
-      if (voice) u.voice = voice;
+      // 英語の声・高さ・大きさは表電卓の「🔈 読み上げの声」と同じ（hyovoice.js。v540）。速さはここで決めたまま
+      if (window.HyoVoice) HyoVoice.apply(u, { lang: 'en', rate: u.rate, keepRate: true }); else if (voice) u.voice = voice;
       let done = false;
       const fin = () => { if (!done) { done = true; res(); } };
       u.onend = fin; u.onerror = fin;

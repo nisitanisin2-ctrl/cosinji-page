@@ -118,18 +118,12 @@ body.big .msg .idea-t{font-size:16px}
 body.big .msg .idea-tip{font-size:14px}
 .miss-btns{display:flex;gap:8px}
 .vc-box{background:var(--card);border:1px solid var(--line);border-radius:var(--r-btn);padding:10px 12px;margin-bottom:6px}
-.vc-h{font-weight:800;margin-bottom:6px}
-.vc-l{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;margin:10px 0 2px}
-.vc-l b{color:var(--acc);min-width:2.2em}
-label.vc-l{display:block}
-label.vc-l select,.cf-sel{display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:8px 10px;font-size:15px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text)}
+/* 🔈 読み上げの声（v23）：中身は hyovoice.js が作る（表電卓・ほかの道具と同じ設定の画面） */
+.vc-box .hv-row b{color:var(--acc);min-width:2.2em}
+.vc-box .hv-sl input{accent-color:var(--acc)}
+.vc-box .hv-btns button{min-height:var(--tap)}
+.cf-sel{display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:8px 10px;font-size:15px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text)}
 .cf-sel{width:auto;flex:none;max-width:48%}
-.vc-eng{font-size:12px;color:var(--sub);margin-top:4px}
-.vc-rs{margin-left:auto;min-height:30px;padding:0 12px;border-radius:var(--r-pill);background:var(--bg);border:1px solid var(--line);font-size:12px;font-weight:700;color:var(--sub)}
-.vc-sl{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub)}
-.vc-sl input{flex:1;accent-color:var(--acc);min-width:0}
-.vc-test{display:block;width:100%;box-sizing:border-box;margin:12px 0 6px;padding:9px 10px;font-size:15px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text)}
-.vc-play{text-align:center}
 .favs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none}
 .favs::-webkit-scrollbar{display:none}
 .favs button{flex:none;min-height:30px;max-width:62vw;padding:0 11px;border-radius:var(--r-pill);background:var(--acc-weak);color:var(--acc);font-weight:700;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -318,22 +312,11 @@ label.vc-l select,.cf-sel{display:block;width:100%;box-sizing:border-box;margin-
 <div class="panel" id="p-set" role="dialog" aria-label="設定">
   <div class="panel-head"><button class="hbtn" onclick="closePanel()">✕</button><h2>⚙ 設定</h2></div>
   <div class="panel-body">
+    <!-- 🔈 読み上げの声（v23）：すぐ見つかるよう設定のいちばん上に。表電卓・かきじゅん帳・英単語などと同じ声（hyovoice.js） -->
+    <div class="sec">🔈 読み上げの声<small style="font-weight:400;margin-left:6px">表電卓・ほかの道具と同じ</small></div>
+    <div class="vc-box" id="vcBox"></div>
     <div class="sec">声</div>
     <div class="row" onclick="toggleSet('speak')"><div>答えを読み上げる<small>イヤホンをつなげば、まわりに聞こえません</small></div><span class="sw" data-set="speak"></span></div>
-    <div class="vc-box" id="vcBox">
-      <div class="vc-h">🔈 読み上げの声</div>
-      <label class="vc-l">読み上げ音声<select id="vcVoice" onchange="setVoice(this.value)" aria-label="読み上げ音声"></select></label>
-      <div class="vc-eng" id="vcEng"></div>
-      <div class="vc-l">読む速さ <b class="num" id="vcRateV"></b><button class="vc-rs" onclick="setVc('rate',1)">リセット</button></div>
-      <div class="vc-sl"><span>遅い</span><input type="range" id="vcRate" min="0.5" max="2" step="0.1" oninput="setVc('rate',this.value,true)" onchange="setVc('rate',this.value)" aria-label="読む速さ"><span>速い</span></div>
-      <div class="vc-l">声の高さ <b class="num" id="vcPitchV"></b><button class="vc-rs" onclick="setVc('pitch',1)">リセット</button></div>
-      <div class="vc-sl"><span>低い</span><input type="range" id="vcPitch" min="0.5" max="2" step="0.1" oninput="setVc('pitch',this.value,true)" onchange="setVc('pitch',this.value)" aria-label="声の高さ"><span>高い</span></div>
-      <div class="vc-l">音の大きさ <b class="num" id="vcVolV"></b><button class="vc-rs" onclick="setVc('vol',1)">リセット</button></div>
-      <div class="vc-sl"><span>小さい</span><input type="range" id="vcVol" min="0" max="1" step="0.1" oninput="setVc('vol',this.value,true)" onchange="setVc('vol',this.value)" aria-label="音の大きさ"><span>大きい</span></div>
-      <input class="vc-test" id="vcTest" value="1280円を3つで、3840円です" aria-label="テストで読む言葉">
-      <button class="act vc-play" onclick="testVoice()">▶ テスト再生</button>
-      <div class="note">読み上げの仕組み（エンジン）は、端末の設定で変えます（Android：設定 → システム → 言語と入力 → 音声出力／iPhone：設定 → アクセシビリティ → 読み上げコンテンツ → 声）。入れた声が出ないときは、アプリを開き直してください。</div>
-    </div>
     <div class="row"><div>話し終わりを待つ時間<small>話している途中で間があいても、ここで決めた時間だけ待ってから計算します。「1280円を」のような言いかけのときは倍待ちます。🎙 をもう一度押すと、待たずに計算します</small></div><div class="seg" id="waitSeg">
       <button data-wait="short" onclick="setWait('short')">短め</button><button data-wait="normal" onclick="setWait('normal')">ふつう</button><button data-wait="long" onclick="setWait('long')">長め</button></div></div>
     <div class="row" onclick="toggleSet('beep')"><div>聞き取れたら「ピッ」と鳴らす</div><span class="sw" data-set="beep"></span></div>
@@ -460,6 +443,7 @@ label.vc-l select,.cf-sel{display:block;width:100%;box-sizing:border-box;margin-
 <script src="examples.js"></script>
 <script src="intents.js"></script>
 <script src="xlsx.js"></script>
+<script src="hyovoice.js"></script>
 <script>
 'use strict';
 /* ════════════════════════════════════════════════════════════════
@@ -469,19 +453,17 @@ label.vc-l select,.cf-sel{display:block;width:100%;box-sizing:border-box;margin-
    ・足し上げ／予算／練習のときは、言葉の受け取り方が変わる（state.mode）
    ・入れたものは この端末の中だけ（localStorage の koe_*）に残る
    ════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v22';
+const APP_VERSION='v23';
 const LS_STATE='koe_state', LS_VARS='koe_vars', LS_SET='koe_settings', LS_BOOK='koe_book';
 
 /* ── 設定 ── */
-const SET_DEF={ speak:true, rate:1, pitch:1, vol:1, voice:'', beep:true, vib:true, big:false, tax:10, handsFree:false, wake:false, drillLv:'kuku', wait:'normal', voF:true, mulFirst:false, confirmAmt:0 };
+// 読み上げの声・速さ・高さ・大きさは、表電卓・ほかの道具と同じ hyo_voice へ移した（hyovoice.js。v23）
+const SET_DEF={ speak:true, beep:true, vib:true, big:false, tax:10, handsFree:false, wake:false, drillLv:'kuku', wait:'normal', voF:true, mulFirst:false, confirmAmt:0 };
 let settings=Object.assign({}, SET_DEF);
 function loadSettings(){
   try{ const o=JSON.parse(localStorage.getItem(LS_SET)||'{}'); if(o && typeof o==='object') settings=Object.assign({}, SET_DEF, o); }catch(_){}
   if(![8,10].includes(+settings.tax)) settings.tax=10;
   if(!['short','normal','long'].includes(settings.wait)) settings.wait='normal';
-  const clampN=(v,a,b,d)=>{ v=+v; return isFinite(v) ? Math.min(b, Math.max(a, Math.round(v*10)/10)) : d; };
-  settings.rate=clampN(settings.rate, 0.5, 2, 1); settings.pitch=clampN(settings.pitch, 0.5, 2, 1); settings.vol=clampN(settings.vol, 0, 1, 1);
-  if(typeof settings.voice!=='string') settings.voice='';
   if(![0,10000,30000,50000,100000].includes(+settings.confirmAmt)) settings.confirmAmt=0;
 }
 let DRY=false;   // 「もしかして」を試すあいだは何も書き残さない
@@ -1075,8 +1057,8 @@ function hControl(t){
   if(RE_HELP.test(t)) return R_info('言い方の例は、右上の「？」に並べてあります。「1280円を3つ」「それに消費税」「4人で割って」のように、ふつうに話してください',
     '言い方の例は、右上の「？」にあります', '', {open:'help'});
   if(RE_REPEAT.test(t)) return {say:state.lastSay||'まだ何も言っていません', a:state.lastSay||'—', cls:'info', noLog:true};
-  if(RE_SLOW.test(t)){ settings.rate=0.8; saveSettings(); return {say:state.lastSay||'ゆっくり読みます', a:'ゆっくり読みます', cls:'info', noLog:true}; }
-  if(RE_FAST.test(t)){ settings.rate=1.25; saveSettings(); return {say:state.lastSay||'はやく読みます', a:'はやく読みます', cls:'info', noLog:true}; }
+  if(RE_SLOW.test(t)){ if(!DRY) HyoVoice.set({rate:0.8}); return {say:state.lastSay||'ゆっくり読みます', a:'ゆっくり読みます', cls:'info', noLog:true}; }
+  if(RE_FAST.test(t)){ if(!DRY) HyoVoice.set({rate:1.2}); return {say:state.lastSay||'はやく読みます', a:'はやく読みます', cls:'info', noLog:true}; }
   if(RE_UNDO.test(t)){
     if(state.resetSnap && !state.entries.length){                 // リセットした直後なら、リセットの前に戻す
       const sn=state.resetSnap; state.resetSnap=null;
@@ -1833,15 +1815,7 @@ function beep(ok){
 function vib(p){ if(settings.vib && navigator.vibrate){ try{ navigator.vibrate(p); }catch(_){} } }
 
 /* ── 読み上げ ── */
-let speaking=false, jaVoice=null;
-function pickVoice(){
-  if(jaVoice) return jaVoice;
-  try{
-    const vs=speechSynthesis.getVoices()||[];
-    jaVoice=(settings.voice && vs.find(v=>v.voiceURI===settings.voice)) || vs.find(v=>/^ja/i.test(v.lang)) || null;   // 選んだ声（v19）→ なければ日本語の声
-  }catch(_){}
-  return jaVoice;
-}
+let speaking=false;
 /* 声だけの画面：式を読みやすい言葉にする（「1,280円 × 3つ ＝ 3,840円」→「1280円 かける 3つ」）。
    答えは別に読むので「＝ 答え」は外す。計算の記号がない式（今月の食費 など）は読まない */
 function voOpen(){ const v=$('voice-only'); return !!(v && v.classList.contains('open')); }
@@ -1866,16 +1840,13 @@ function speak(text, after, force){
   if(!text || (!settings.speak && !force) || !('speechSynthesis' in window)){ if(after) setTimeout(after,50); return; }
   try{
     speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(sayText(text));
-    u.lang='ja-JP'; u.rate=+settings.rate||1; u.pitch=+settings.pitch||1; u.volume=settings.vol==null?1:+settings.vol;
-    const v=pickVoice(); if(v){ u.voice=v; u.lang=v.lang||'ja-JP'; }
+    const u=HyoVoice.apply(new SpeechSynthesisUtterance(sayText(text)), {lang:'ja'});   // 声・速さ・高さ・大きさは表電卓・ほかの道具と同じ（v23）
     speaking=true;
     if(recOn){ pauseForSpeak=true; try{ rec.abort(); }catch(_){} }   // 自分の声を聞き取らないように止める
     u.onend=done; u.onerror=done;
     speechSynthesis.speak(u);
   }catch(_){ done(); }
 }
-if('speechSynthesis' in window){ try{ speechSynthesis.onvoiceschanged=()=>{ jaVoice=null; pickVoice(); if($('p-set') && $('p-set').classList.contains('open')) renderVoice(); }; }catch(_){} }
 
 /* ── 聞き取り ──
    ブラウザの音声認識（Web Speech API）を使う。使えない端末では、下の欄に打つか、
@@ -2092,7 +2063,7 @@ function renderSet(){
     ? names.map(n=>'<div class="row tap" data-n="'+escHtml(n)+'" onclick="editVar(this.dataset.n)"><div>'+escHtml(n)+'<small>'+escHtml(fmtU(vars[n].v,vars[n].u))+'</small></div><button class="bk-del" data-n="'+escHtml(n)+'" onclick="event.stopPropagation();delVar(this.dataset.n)" aria-label="'+escHtml(n)+'を忘れる">✕</button></div>').join('')
     : '<div class="note">まだありません。「単価は2800」のように言うと覚えます。</div>';
   const cs=$('confirmSel'); if(cs) cs.value=String(+settings.confirmAmt||0);
-  renderAliases(); renderVoice();
+  renderAliases(); HyoVoice.ui($('vcBox'));
   $('verNote').textContent='声の計算帳 '+APP_VERSION;
   renderMisses();
 }
@@ -2110,7 +2081,7 @@ function copyMisses(){
   try{ navigator.clipboard.writeText(t).then(done, ()=>{ prompt('コピーしてください', t); }); }catch(_){ prompt('コピーしてください', t); }
 }
 /* バックアップ（v13）：koe_* をまとめて書き出す／読み込む。表電卓の書き出しファイルも読める */
-const KOE_KEYS=['koe_book','koe_vars','koe_settings','koe_state','koe_misses','koe_catbudget','koe_alias','koe_fav','koe_recent'];
+const KOE_KEYS=['koe_book','koe_vars','koe_settings','koe_state','koe_misses','koe_catbudget','koe_alias','koe_fav','koe_recent','hyo_voice'];   // hyo_voice：読み上げの声（表電卓・ほかの道具と同じ。v23）
 function koeExport(){
   saveState(); saveBook(); saveVars(); saveSettings();
   const data={}; KOE_KEYS.forEach(k=>{ try{ const v=localStorage.getItem(k); if(v!=null) data[k]=v; }catch(_){} });
@@ -2827,28 +2798,6 @@ function hOut(raw, t){
 }
 /* 大きな金額を確かめる */
 function setConfirmAmt(v){ settings.confirmAmt=+v||0; saveSettings(); toast(settings.confirmAmt ? fmtU(settings.confirmAmt,'円')+'より大きいときは確かめます' : '確かめないで付けます'); }
-/* 🔈 読み上げの声（端末の声の中から選ぶ・速さ・高さ・大きさ・テスト再生） */
-function jaVoices(){ try{ const vs=speechSynthesis.getVoices()||[]; const ja=vs.filter(v=>/^ja/i.test(v.lang)); return ja.length?ja:vs; }catch(_){ return []; } }
-function renderVoice(){
-  const sel=$('vcVoice'); if(!sel) return;
-  const ok='speechSynthesis' in window, vs=ok?jaVoices():[];
-  sel.innerHTML='<option value="">おまかせ（日本語の声）</option>'+vs.map((v,i)=>'<option value="'+escHtml(v.voiceURI)+'">'+String(i+1).padStart(2,'0')+'_'+escHtml(v.name)+' ('+escHtml(v.lang)+')'+(v.localService===false?' ・ネット':'')+'</option>').join('');
-  sel.value=vs.some(v=>v.voiceURI===settings.voice) ? settings.voice : '';
-  const cur=pickVoice();
-  $('vcEng').textContent=!ok ? 'この端末では読み上げを使えません' : cur ? 'いまの声：'+cur.name+(cur.localService===false?'（インターネットを使う声）':'（端末の中の声）') : (vs.length?'':'日本語の声が見つかりません（端末の設定で日本語の音声データを入れてください）');
-  [['rate','vcRate','vcRateV'],['pitch','vcPitch','vcPitchV'],['vol','vcVol','vcVolV']].forEach(([k,id,lb])=>{ $(id).value=settings[k]; $(lb).textContent=(+settings[k]).toFixed(1); });
-}
-function setVoice(uri){ settings.voice=uri||''; jaVoice=null; saveSettings(); renderVoice(); speak('この声で読みます', null, true); }
-function setVc(k, v, live){
-  const lim={rate:[0.5,2], pitch:[0.5,2], vol:[0,1]}[k]; if(!lim) return;
-  v=Math.min(lim[1], Math.max(lim[0], Math.round((+v)*10)/10)); if(!isFinite(v)) return;
-  settings[k]=v;
-  const lb={rate:'vcRateV', pitch:'vcPitchV', vol:'vcVolV'}[k]; if($(lb)) $(lb).textContent=v.toFixed(1);
-  if(live) return;
-  saveSettings(); renderVoice();
-  speak({rate:'この速さで読みます', pitch:'この高さで読みます', vol:'この大きさで読みます'}[k], null, true);
-}
-function testVoice(){ const t=($('vcTest').value||'').trim()||'1280円を3つで、3840円です'; speak(t, null, true); }
 
 /* ── 表電卓から開いたとき ── */
 let fromHyo=false;

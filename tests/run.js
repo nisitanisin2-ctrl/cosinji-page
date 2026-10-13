@@ -7350,7 +7350,7 @@ async function runEigoSpeak(browser) {
   console.log('\n── 📚 英単語：🎤 発音チェック・💬 英会話（v533・v534） ──');
   const dir = path.join(ROOT, 'eigo'), EIGO = 'file://' + path.join(dir, 'index.html');
   const sw = fs.readFileSync(path.join(dir, 'service-worker.js'), 'utf8'), html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
-  check('  新しいファイルを service-worker が持つ（控えの番号も上げた）', [['js/speech.js', 'js/talk.js'].every(f => fs.existsSync(path.join(dir, f)) && sw.includes("'./" + f + "'")), sw.includes("const CACHE = 'eigo-v4'")].join('/'), 'true/true');
+  check('  新しいファイルを service-worker が持つ（控えの番号も上げた）', [['js/speech.js', 'js/talk.js'].every(f => fs.existsSync(path.join(dir, f)) && sw.includes("'./" + f + "'")), Number((/const CACHE = 'eigo-v(\d+)'/.exec(sw) || [])[1]) >= 4].join('/'), 'true/true');
   check('  app.js のあとに読み込む', /js\/app\.js"><\/script>\s*<script src="js\/speech\.js"><\/script>\s*<script src="js\/talk\.js"><\/script>/.test(html), true);
   const mock = (withSR) => {
     window.__srQueue = []; window.__said = []; window.__srStarted = 0;
@@ -7825,6 +7825,91 @@ async function runKoeOut(browser) {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
 
+/* 🔈 読み上げの声（v540）：表電卓・声の計算帳・かきじゅん帳・英単語・算数・メモで同じ声（hyovoice.js・hyo_voice） */
+async function runHyoVoice(browser) {
+  console.log('\n── 🔈 読み上げの声を、表電卓・ほかの道具で同じに（v540） ──');
+  const files = ['hyovoice.js', 'koe/hyovoice.js', 'kakijun/js/hyovoice.js', 'eigo/js/hyovoice.js', 'notes/hyovoice.js', 'sansu/js/hyovoice.js'];
+  const copies = files.map(f => fs.readFileSync(path.join(ROOT, f), 'utf8'));
+  check('  読み上げの声（hyovoice.js）は6つのアプリで同じもの', copies.every(c => c === copies[0]), true);
+  check('  それぞれの service-worker が持つ', [['.', 'hyovoice.js'], ['koe', 'hyovoice.js'], ['kakijun', 'js/hyovoice.js'], ['eigo', 'js/hyovoice.js'], ['notes', 'hyovoice.js'], ['sansu', 'js/hyovoice.js']]
+    .map(([d, f]) => fs.readFileSync(path.join(ROOT, d, 'service-worker.js'), 'utf8').includes("'./" + f + "'")).join(','), 'true,true,true,true,true,true');
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+  await ctx.addInitScript(() => {
+    try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('sansu_tour', '1'); } catch (e) {}
+    // 声はまねもの：日本語2つ・英語2つ。読んだ文と、声・速さ・高さ・大きさをためる
+    const V = [{ name: 'JA-A', lang: 'ja-JP', voiceURI: 'ja-a', localService: true }, { name: 'JA-B', lang: 'ja-JP', voiceURI: 'ja-b', localService: false },
+      { name: 'EN-US', lang: 'en-US', voiceURI: 'en-us', localService: true }, { name: 'EN-GB', lang: 'en-GB', voiceURI: 'en-gb', localService: true }];
+    window.SpeechSynthesisUtterance = class { constructor(t) { this.text = String(t); this.lang = ''; this.rate = 1; this.pitch = 1; this.volume = 1; this.voice = null; } };
+    window.__spoken = [];
+    Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { getVoices: () => V, cancel: () => {}, addEventListener: () => {},
+      speak: u => { window.__spoken.push([u.text, u.voice ? u.voice.name : '-', Math.round(u.rate * 100) / 100, Math.round(u.pitch * 100) / 100, Math.round(u.volume * 100) / 100].join('|')); setTimeout(() => u.onend && u.onend(), 5); } } });
+  });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/favicon|ServiceWorker/.test(m.text())) errs.push('console: ' + m.text()); });
+  const w = ms => page.waitForTimeout(ms);
+  const said = () => page.evaluate(() => { const s = window.__spoken.join(' || '); window.__spoken = []; return s; });
+  // 表電卓：設定のいちばん上に「🔈 読み上げの声」
+  await page.goto('file://' + path.join(ROOT, 'index.html')); await w(1200);
+  await page.evaluate(() => toggleSettings()); await w(300);
+  check('  表電卓：設定のいちばん上に「🔈 読み上げの声」（かんたんモードでも出る所）', await page.evaluate(() => { const b = document.getElementById('setVoiceBtn'), sp = document.getElementById('settingsPanel');
+    const first = [...sp.querySelectorAll('button, input, select')].find(x => x.offsetParent && !x.classList.contains('modal-close'));
+    return [!!b && !!b.offsetParent, first === b, !b.closest('.ez-only'), b.textContent.includes('読み上げの声')].join('/'); }), 'true/true/true/true');
+  await page.click('#setVoiceBtn'); await w(300);
+  check('  押すと声の窓：日本語の声・英語の声をえらべる（おまかせ＋端末の声）', await page.evaluate(() => [isDlgOpen('voiceSetOverlay'), ...['ja', 'en'].map(l => [...document.querySelectorAll('#voiceSetBody select[data-hv="' + l + '"] option')].map(o => o.textContent.replace(/^\d+_/, '')).join(','))].join(' | ')),
+    'true | おまかせ（日本語の声）,JA-A (ja-JP),JA-B (ja-JP) ・ネット | おまかせ（英語の声）,EN-US (en-US),EN-GB (en-GB)');
+  await said();
+  await page.selectOption('#voiceSetBody select[data-hv="ja"]', 'ja-b'); await w(50);
+  check('  日本語の声をえらぶと覚えて、その声で読む', await page.evaluate(() => JSON.parse(localStorage.getItem('hyo_voice')).ja) + ' / ' + await said(), 'ja-b / この声で読みます|JA-B|1|1|1');
+  await page.selectOption('#voiceSetBody select[data-hv="en"]', 'en-gb'); await w(50); await said();
+  await page.evaluate(() => { const put = (k, v) => { const r = document.querySelector('#voiceSetBody input[data-hv="' + k + '"]'); r.value = v; r.dispatchEvent(new Event('input')); }; put('rate', 1.5); put('pitch', 0.8); put('vol', 0.6); });
+  check('  速さ・高さ・大きさを覚える（hyo_voice）', await page.evaluate(() => localStorage.getItem('hyo_voice')), '{"ja":"ja-b","en":"en-gb","rate":1.5,"pitch":0.8,"vol":0.6}');
+  await page.evaluate(() => { document.querySelector('#voiceSetBody .hv-test').value = 'テストです'; [...document.querySelectorAll('#voiceSetBody .hv-btns button')].forEach(b => b.click()); });
+  check('  「日本語で試す」「英語で試す」', (await said()).split(' || ').join(' / '), 'テストです|JA-B|1.5|0.8|0.6 / Nice to meet you. How are you today?|EN-GB|1.5|0.8|0.6');
+  await page.evaluate(() => { closeVoiceSet(); toggleSettings(); speechSpeakOn = true; speechSay('3840円です'); });
+  check('  表電卓の答えの読み上げも同じ声・速さ・高さ・大きさ', await said(), '3840円です|JA-B|1.5|0.8|0.6');
+  check('  設定をさがす：「読み上げ」「声」で出る・バックアップに入る', await page.evaluate(() => { toggleSettings(); setFind('読み上げ'); const a = document.getElementById('setFindRes').textContent.includes('🔈 読み上げの声'); setFind('声'); const b = document.getElementById('setFindRes').textContent.includes('🔈 読み上げの声'); setFind(''); toggleSettings(); return a + '/' + b + '/' + SETTINGS_BACKUP_KEYS.includes('hyo_voice'); }), 'true/true/true');
+  // 🎙 声の計算帳：同じ声で読む・設定のいちばん上に同じ画面（設定を閉じたときの「戻る」が済んでから移る）
+  await w(800);
+  await page.goto('file://' + path.join(ROOT, 'koe', 'index.html')); await w(600); await said();
+  await page.evaluate(() => speak('1280円を3つ', null, true)); await w(50);
+  check('  🎙 声の計算帳も同じ声で読む', await said(), '1280円を3つ|JA-B|1.5|0.8|0.6');
+  await page.evaluate(() => openPanel('set')); await w(200);
+  check('  　設定のいちばん上に同じ「🔈 読み上げの声」（えらんだ声が出ている）', await page.evaluate(() => { const body = document.querySelector('#p-set .panel-body'); return [body.querySelector('.sec').textContent.includes('読み上げの声'), body.querySelector('.vc-box') === document.getElementById('vcBox'), document.querySelector('#vcBox select[data-hv="ja"]').value, document.querySelector('#vcBox select[data-hv="en"]').value].join('/'); }), 'true/true/ja-b/en-gb');
+  await page.evaluate(() => { closePanel(); koeRun('ゆっくり'); }); await w(50);
+  check('  　「ゆっくり」も同じ速さを変える（表電卓・ほかの道具にも効く）', await page.evaluate(() => JSON.parse(localStorage.getItem('hyo_voice')).rate + '/' + KOE_KEYS.includes('hyo_voice')), '0.8/true');
+  // ✍️ かきじゅん帳：コツの読み上げも同じ声
+  await page.goto('file://' + path.join(ROOT, 'kakijun', 'index.html')); await w(1200); await said();
+  await page.evaluate(() => KKJ_APP.load('三', { autoplay: false })); await w(100);
+  await page.click('#modePractice'); await w(200);
+  check('  ✍️ かきじゅん帳：コツの読み上げも同じ声・速さ（0.8）', await said(), '左から右へ、ほんの少し右上がりに。終わりはしっかり止めます。|JA-B|0.8|0.8|0.6');
+  await page.click('#prVoice'); await w(200);
+  check('  　「声の設定」で同じ画面を下から出す・「戻る」で閉じる', await page.evaluate(() => !document.getElementById('voiceSheet').hidden + '/' + document.querySelector('#voiceBox select[data-hv="ja"]').value) + '|' + await (async () => { await page.evaluate(() => history.back()); await w(300); return page.evaluate(() => document.getElementById('voiceSheet').hidden); })(), 'true/ja-b|true');
+  // 📚 英単語：英語の声・高さ・大きさは同じ、速さは英単語のまま
+  await page.goto('file://' + path.join(ROOT, 'eigo', 'index.html')); await w(800); await said();
+  await page.evaluate(() => ES.say('Good morning.', { rate: 0.7 })); await w(50);
+  check('  📚 英単語：英語の声・高さ・大きさは同じ、速さは英単語の中のまま', await said(), 'Good morning.|EN-GB|0.7|0.8|0.6');
+  check('  　英単語の ⚙ 設定にも同じ画面', await page.evaluate(() => document.querySelector('#hv-box select[data-hv="en"]').value + '/' + document.querySelectorAll('#hv-box input[type=range]').length), 'en-gb/3');
+  // 🎓 算数：速さは 0.95 × 決めた速さ
+  await page.goto('file://' + path.join(ROOT, 'sansu', 'index.html')); await w(800); await said();
+  await page.evaluate(() => SANSU.voice.speak('3たす4は')); await w(50);
+  check('  🎓 算数：同じ声（速さは 0.95 × 決めた速さ）', await said(), '3たす4は|JA-B|0.76|0.8|0.6');
+  // 📄 メモ：読み上げも同じ声
+  await page.goto('file://' + path.join(ROOT, 'notes', 'index.html')); await w(300);
+  await page.evaluate(() => { localStorage.removeItem('memo.list.v1'); localStorage.setItem('memo.local.v1', JSON.stringify({ t: 'あしたは雨。', h: '<div>あしたは雨。</div>' })); });
+  await page.reload(); await w(500); await said();
+  await page.click('#outBtn'); await w(150); await page.click('#outSay'); await w(80);
+  check('  📄 メモ：読み上げも同じ声・速さ・高さ・大きさ', await said(), 'あしたは雨。|JA-B|0.8|0.8|0.6');
+  await ctx.close();
+  // はじめて：声の計算帳で決めていた声を引きつぐ
+  const c2 = await browser.newContext({ serviceWorkers: 'block' });
+  await c2.addInitScript(() => { if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.clear(); localStorage.setItem('koe_settings', JSON.stringify({ voice: 'ja-a', rate: 1.3, pitch: 0.9, vol: 0.8, speak: true })); } });
+  const p2 = await c2.newPage(); p2.on('pageerror', e => errs.push(e.message));
+  await p2.goto('file://' + path.join(ROOT, 'kakijun', 'index.html')); await p2.waitForTimeout(800);
+  check('  はじめて開いたとき、声の計算帳で決めていた声・速さ・高さ・大きさを引きつぐ（どの道具からでも）', await p2.evaluate(() => localStorage.getItem('hyo_voice') + '|' + JSON.stringify(HyoVoice.get())), '{"ja":"ja-a","en":"","rate":1.3,"pitch":0.9,"vol":0.8}|{"ja":"ja-a","en":"","rate":1.3,"pitch":0.9,"vol":0.8}');
+  await c2.close();
+  check('  エラーなし', errs.join(' | '), '');
+}
+
 /* 🔙 意図せず表電卓に戻らない（v535）：窓は「戻る」で窓だけ閉じる・何も開いていないところでは一度知らせる・
    閉じてすぐ開いても順番が入れかわらない・スマホがアプリを閉じたあとは開き直す */
 async function runBackGuard(browser) {
@@ -7933,7 +8018,7 @@ async function runBackGuard(browser) {
   const where2 = () => p2.url().replace(/^.*cosinji-page\//, '').replace(/[?#].*$/, '');
   await p2.goto(HYO); await p2.waitForTimeout(500);
   await p2.evaluate(() => localStorage.setItem('excalc_resume', JSON.stringify({ app: 'koe', t: Date.now() - 60000 })));
-  await p2.goto(HYO); await p2.waitForTimeout(1500);
+  await p2.goto(HYO); await p2.waitForURL(/koe\/index\.html/, { timeout: 8000 }).catch(() => {}); await p2.waitForTimeout(800);   // 開き直すのを待つ（重いときは1.5秒では足りないことがある）
   check('  表電卓：使っていたアプリ（声の計算帳）を開き直す（表電卓から開いた形で）', where2() + '|' + await p2.evaluate(() => !document.getElementById('backHyo').hidden + '/' + localStorage.getItem('excalc_resume')), 'koe/index.html|true/null');
   await p2.evaluate(() => BackGuard.leaving()); await p2.goto(HYO); await p2.waitForTimeout(1000);   // 自分で表電卓へ移る（書き残さない）
   check('  　自分で表電卓へ移ったあとは開き直さない', where2(), 'index.html');
@@ -8961,9 +9046,11 @@ async function runKoe(browser) {
     editVar('家賃'); document.getElementById('vrVal').value = '1300円'; kdlgOk();
     o.vars = JSON.stringify(vars['家賃']) + '/' + koeRun('家賃かける8').a;
     editVar(''); document.getElementById('vrName').value = '税'; document.getElementById('vrVal').value = '5'; o.varNg = kdlgSave() === false; closeKdlg();
-    setVc('rate', 1.4); setVc('pitch', 0.9); setVc('vol', 0.7); document.getElementById('vcTest').value = 'テストです'; testVoice();
-    o.voice = __spoken.slice(-1)[0].map(x => typeof x === 'number' ? x.toFixed(1) : x).join(',') + '/' + JSON.parse(localStorage.getItem('koe_settings')).rate + '/' + !!document.getElementById('vcVoice');
-    setVc('rate', 1); setVc('pitch', 1); setVc('vol', 1);
+    // 読み上げの声（v23 から表電卓・ほかの道具と同じ hyovoice.js の画面）：速さ・高さ・大きさを動かして、日本語で試す
+    { const box = document.getElementById('vcBox'), put = (k, v) => { const r = box.querySelector('input[data-hv="' + k + '"]'); r.value = v; r.dispatchEvent(new Event('input')); };
+      put('rate', 1.4); put('pitch', 0.9); put('vol', 0.7); box.querySelector('.hv-test').value = 'テストです'; box.querySelector('.hv-btns button').click(); }
+    o.voice = __spoken.slice(-1)[0].map(x => typeof x === 'number' ? x.toFixed(1) : x).join(',') + '/' + JSON.parse(localStorage.getItem('hyo_voice')).rate + '/' + !!document.querySelector('#vcBox select[data-hv="ja"]');
+    HyoVoice.set({ rate: 1, pitch: 1, vol: 1 });
     closeTop();
     runText('足し上げ開始'); runText('牛乳 238円 軽減'); runText('洗剤 398円 10%'); runText('パン 150円');
     o.sum = state.sum + '/' + state.log.slice(-3).map(m => m.a).join('|') + '/' + !document.getElementById('sumListBtn').hidden;
@@ -12115,6 +12202,7 @@ async function runQrShare(browser) {
     if (!only || only === 'koe' || only === 'koeidea') await runKoeIdeas(browser);
     if (!only || only === 'koe' || only === 'koeout') await runKoeOut(browser);
     if (!only || only === 'backguard') await runBackGuard(browser);
+    if (!only || only === 'hyovoice') await runHyoVoice(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
   } finally { await browser.close(); }

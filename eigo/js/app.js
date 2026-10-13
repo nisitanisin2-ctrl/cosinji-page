@@ -4,6 +4,10 @@
 const WORD_MAP = {};
 WORDS.forEach(w => { WORD_MAP[w.w.toLowerCase()] = w; });
 
+// ── 読み上げの声（v540）：英語の声・高さ・大きさは、表電卓の「🔈 読み上げの声」と同じ（hyovoice.js）。
+//    速さは英単語の中で選んだまま（keepRate）
+function enVoice(u) { if (window.HyoVoice) HyoVoice.apply(u, { lang: 'en', rate: u.rate, keepRate: true }); return u; }
+
 // ── ストレージ ──
 const STORAGE_KEY = 'eitan_progress_v1';
 
@@ -1067,7 +1071,7 @@ const App = (() => {
     };
     utt.onend = next;
     utt.onerror = next;
-    speechSynthesis.speak(utt);
+    speechSynthesis.speak(enVoice(utt));
   }
 
   function clearRDTimer() {
@@ -1187,7 +1191,7 @@ const App = (() => {
     const done = () => { rdBulkPlaying = false; updateRDBulkBtn(); };
     utt.onend = done;
     utt.onerror = done;
-    speechSynthesis.speak(utt);
+    speechSynthesis.speak(enVoice(utt));
   }
 
   function updateRDBulkBtn() {
@@ -1392,7 +1396,7 @@ const App = (() => {
     };
     utt.onend = next;
     utt.onerror = next;
-    speechSynthesis.speak(utt);
+    speechSynthesis.speak(enVoice(utt));
   }
 
   function clearJHTimer() {
@@ -1501,7 +1505,7 @@ const App = (() => {
     const done = () => { jhBulkPlaying = false; updateJHBulkBtn(); };
     utt.onend = done;
     utt.onerror = done;
-    speechSynthesis.speak(utt);
+    speechSynthesis.speak(enVoice(utt));
   }
 
   function updateJHBulkBtn() {
@@ -1746,7 +1750,7 @@ const App = (() => {
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(w);
       u.lang = 'en-US'; u.rate = 0.9;
-      window.speechSynthesis.speak(u);
+      window.speechSynthesis.speak(enVoice(u));
     }
   }
 
@@ -1757,7 +1761,7 @@ const App = (() => {
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(ex);
       u.lang = 'en-US'; u.rate = 0.85;
-      window.speechSynthesis.speak(u);
+      window.speechSynthesis.speak(enVoice(u));
     }
   }
 
@@ -2342,7 +2346,7 @@ const App = (() => {
     };
     utt.onend = next;
     utt.onerror = next;
-    speechSynthesis.speak(utt);
+    speechSynthesis.speak(enVoice(utt));
   }
 
   function sfcPrevWord() {
@@ -2390,7 +2394,7 @@ const App = (() => {
     const done = () => { sfcBulkPlaying = false; updateSFCBulkBtn(); };
     utt.onend = done;
     utt.onerror = done;
-    speechSynthesis.speak(utt);
+    speechSynthesis.speak(enVoice(utt));
   }
 
   function sfcSpeedDown() {
@@ -2572,7 +2576,7 @@ const App = (() => {
       const utt = new SpeechSynthesisUtterance(phrase.en);
       utt.lang = 'en-US'; utt.rate = 0.85;
       window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utt);
+      window.speechSynthesis.speak(enVoice(utt));
     }
   }
 
@@ -2639,6 +2643,8 @@ const App = (() => {
     if (savedMode) applyLayoutMode(savedMode);
     updateStreak();
     renderHome();
+    // 🔈 読み上げの声（v540）：設定の画面に、表電卓・声の計算帳と同じ声の設定を出す
+    if (window.HyoVoice) HyoVoice.ui(document.getElementById('hv-box'));
     // 表電卓から開いたか（#from=hyo。アドレスには残さない）
     let fromHyo = false;
     try { if (/from=hyo/.test(location.hash)) sessionStorage.setItem('eigo_from_hyo', '1'); fromHyo = sessionStorage.getItem('eigo_from_hyo') === '1'; } catch (e) {}
