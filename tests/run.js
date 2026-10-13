@@ -6660,7 +6660,8 @@ async function runSecurity(browser) {
     regi: ['excalc_regi', { ev: { name: '祭り', date: '' }, items: [{ id: BAD, name: 'クッキー', price: 300, stock0: 20, stock: 9, photo: BADIMG }], sales: [{ id: BAD, no: BAD, t: 1, lines: [{ id: BAD, name: 'クッキー', price: 300, qty: 2 }], total: BAD, paid: 1000, change: 400, fixOf: BAD }], no: 2 }, () => { const rg = rgState().rg; return rg.items[0].id + ' ' + (rg.items[0].photo ? 'photo' : '') + ' ' + rg.sales[0].id + ' no=' + rg.sales[0].no + ' fix=' + rg.sales[0].fixOf + ' line=' + rg.sales[0].lines[0].id; }],
     meishi: ['excalc_meishi', { v: 1, view: 'new', items: [{ id: BAD, name: '鈴木 花子', company: '工務店', tags: [], added: '2026-10-07', updated: '2026-10-07', ts: 1 }] }, () => mcState().items[0].id],
     renraku: ['excalc_renraku', { v: 1, groups: [{ n: '<img src=x onerror=window.__pwn=6>', ic: '"><img src=x onerror=window.__pwn=7>' }], fields: [{ id: BAD, n: '<img src=x onerror=window.__pwn=8>' }, { id: 'f1', n: '<b onmouseover=window.__pwn=9>x</b>', ty: 'pick', op: ['<img src=x onerror=window.__pwn=10>'] }], sub: 'cf:f1',
-      items: [{ id: BAD, fam: '<img src=x onerror=window.__pwn=2>', giv: '花子', tels: [{ t: '"><img src=x onerror=window.__pwn=3>', l: '<img src=x onerror=window.__pwn=4>', v: '090-1111-2222"><img src=x onerror=window.__pwn=5>' }], groups: ['<img src=x onerror=window.__pwn=6>'], cf: { f1: '<img src=x onerror=window.__pwn=11>' }, urls: ['javascript:window.__pwn=12'], added: '2026-10-07' }] }, () => rkState().items[0].id + ' ' + rkState().fields.map(f => f.id).join(',')],
+      colors: { red: '<b onmouseover=window.__pwn=13>' }, pc: '"><img src=x onerror=window.__pwn=14>', view: 'color',
+      items: [{ id: BAD, fam: '<img src=x onerror=window.__pwn=2>', giv: '花子', color: 'red', tels: [{ t: '"><img src=x onerror=window.__pwn=3>', l: '<img src=x onerror=window.__pwn=4>', v: '090-1111-2222"><img src=x onerror=window.__pwn=5>' }], groups: ['<img src=x onerror=window.__pwn=6>'], cf: { f1: '<img src=x onerror=window.__pwn=11>' }, urls: ['javascript:window.__pwn=12'], added: '2026-10-07' }] }, () => rkState().items[0].id + ' ' + rkState().fields.map(f => f.id).join(',')],
   };
   for (const [tool, [key, val, got]] of Object.entries(seeds)) {
     await page.evaluate(([k, v]) => { localStorage.setItem(k, JSON.stringify(v)); window.__pwn = 0; }, [key, val]);
@@ -7827,6 +7828,33 @@ async function runKoeOut(browser) {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
 
+/* 💡 はじめての案内を2回出さない（v543）。道具の中に はじめの説明（まだ何もないときの案内）が出ているときは、吹き出しは出さない */
+async function runFirstHint(browser) {
+  console.log('\n── 💡 はじめての案内を2回出さない（v543） ──');
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: 'block' });
+  await ctx.addInitScript(() => { try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_startpage', 'last'); } catch (e) {} });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push(e.message)); page.on('dialog', d => d.accept());
+  const w = ms => page.waitForTimeout(ms);
+  await page.goto('file://' + path.join(ROOT, 'index.html')); await w(1000);
+  const first = async id => { await page.evaluate(id => NP_TOOLS.find(t => t.id === id).run(), id); await w(1300);
+    const r = await page.evaluate(id => { const ov = document.getElementById(NP_TOOLS.find(t => t.id === id).ov); return !!ov.querySelector('.tool-hint') + '/' + JSON.parse(localStorage.getItem('excalc_tool_hint_seen') || '[]').includes(id); }, id);
+    await page.evaluate(id => { const ov = document.getElementById(NP_TOOLS.find(t => t.id === id).ov); ov.querySelectorAll('.tool-hint').forEach(h => h.remove()); NP_TOOLS.find(t => t.id === id).close(); }, id); await w(500);
+    return id + ':' + r; };
+  const out = [];
+  for (const id of ['shimai', 'meishi', 'kakeizu', 'renraku', 'trim']) out.push(await first(id));
+  check('  説明が出ている道具（しまい場所・名刺管理・家系図・連絡帳・トリミング）は吹き出しを出さない（見たことにはする）', out.join(' '), 'shimai:false/true meishi:false/true kakeizu:false/true renraku:false/true trim:false/true');
+  const out2 = [];
+  for (const id of ['subsc', 'regi', 'touban', 'tansui']) out2.push(await first(id));
+  check('  説明が短い（「まだありません」）・説明のない道具は、今までどおり吹き出し', out2.join(' '), 'subsc:true/true regi:true/true touban:true/true tansui:true/true');
+  await page.evaluate(() => openShimai()); await w(500);
+  check('  しまい場所：まだ何もない間は、下の欄の「例：〜」を出さない（説明の中に同じ例がある）', await page.evaluate(() => document.querySelector('#shimaiOverlay .sm-hint').hidden + '/' + !!document.querySelector('#smList .sm-empty')), 'true/true');
+  await page.evaluate(() => smAddText('眼鏡はパソコン横')); await w(500);
+  check('  　入れたあとは出す', await page.evaluate(() => document.querySelector('#shimaiOverlay .sm-hint').hidden + '/' + !!document.querySelector('#smList .sm-empty')), 'false/false');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
 /* 📇 連絡帳（v542）：スマホの電話帳（vCard・CSV）を読んで整理・自分好みに・スマホに戻す */
 async function runRenraku(browser) {
   console.log('\n── 📇 連絡帳：スマホの電話帳を読んで整理・自分好みに・スマホに戻す（v542） ──');
@@ -8008,7 +8036,7 @@ async function runRenraku(browser) {
   const csv = await lastBlob();
   const bom = await page.evaluate(async () => [...new Uint8Array(await window.__blobs[window.__blobs.length - 1].arrayBuffer())].slice(0, 3).join(','));
   check('  📄 CSV：BOM・見出し（自分の項目は［］）・式にならない（=1+1）', [bom === '239,187,191', csv.split('\r\n')[0].replace(/^﻿/, ''), /"ゴルフ仲間。\n毎年お歳暮を送る\n=1\+1"/.test(csv) && !/"=1\+1"/.test(csv)].join(' | '),
-    'true | "姓","名","せい","めい","表示名","ニックネーム","会社","部署","役職","携帯","自宅","勤務先","代表","FAX","その他の電話","メール1","メール2","メール3","郵便番号","住所","誕生日","サイト","グループ","よく使う","メモ","［間柄］","［年賀状］" | true');
+    'true | "姓","名","せい","めい","表示名","ニックネーム","会社","部署","役職","携帯","自宅","勤務先","代表","FAX","その他の電話","メール1","メール2","メール3","郵便番号","住所","誕生日","サイト","グループ","よく使う","色分け","メモ","［間柄］","［年賀状］" | true');
   check('  　CSV を読むと 人数・ラベルつきの電話・自分の項目・グループが戻る', await page.evaluate(c => { const l = rkFromCsv(c), y = l.find(x => x.fam === '山田' && x.giv === '太郎'), s = l.find(x => x.fam === '鈴木');
     return [l.length, y.tels.map(t => (t.l || t.t) + ':' + t.v).join(','), JSON.stringify(y._cfn), y.groups.join(','), JSON.stringify(s._cfn)].join(' | '); }, csv),
     '8 | cell:090-1111-2222,home:03-1234-5678,実家:0284-11-2222,妻の携帯:080-7777-0000 | {"年賀状":"送る"} | 家族 | {"間柄":"いとこ"}');
@@ -8058,6 +8086,267 @@ async function runRenraku(browser) {
   await ctx.close();
 }
 
+/* 📇 連絡帳：🎨 色分け・📋 表で直す（v544）。
+   色をえらんで人を押すと その色（もう一度で外す・ひとつ戻す）。色で絞る・色ごとに並べる・色に名前。
+   全員を表にして、マスを押すと その場で直す（Enter で下の人・Tab で右・Esc でやめる）。列をえらぶ・並べかえ・足す・戻す */
+async function runRenrakuIro(browser) {
+  console.log('\n── 📇 連絡帳：🎨 色分け・📋 表で直す（v544） ──');
+  const SEED = { v: 1, groups: [{ n: '家族', ic: '👪' }, { n: '仕事', ic: '💼' }], fields: [{ id: 'f1', n: '間柄', ty: 'text', op: [] }, { id: 'f2', n: '年賀状', ty: 'pick', op: ['送る', 'もらう', '喪中'] }], colors: { red: '要連絡' },
+    items: [
+      { id: 'a1', fam: '山田', giv: '太郎', famK: 'やまだ', givK: 'たろう', tels: [{ t: 'cell', v: '090-1111-2222' }, { t: 'home', v: '03-1234-5678' }, { t: 'fax', v: '03-1234-5679' }], mails: [{ t: 'home', v: 'taro@example.jp' }],
+        adrs: [{ t: 'home', zip: '100-0001', region: '東京都', city: '千代田区', street: '千代田1-1' }], groups: ['家族'], color: 'red', bday: '1960-04-01', cf: { f1: '兄' }, added: '2026-01-01', updated: '2026-01-01', ts: 1000 },
+      { id: 'a2', fam: '佐藤', giv: '花子', famK: 'さとう', givK: 'はなこ', tels: [{ t: 'cell', v: '080-3333-4444' }], org: '株式会社みどり', groups: ['仕事'], color: 'green', added: '2026-01-01', updated: '2026-01-01', ts: 1000 },
+      { id: 'a3', fam: '鈴木', giv: '一郎', famK: 'すずき', givK: 'いちろう', tels: [{ t: 'cell', v: '080-5555-6666' }, { t: 'work', v: '0284-99-8888' }], fav: true, added: '2026-01-01', updated: '2026-01-01', ts: 1000 },
+      { id: 'a4', fam: '高橋', giv: '健二', famK: 'たかはし', givK: 'けんじ', tels: [{ t: 'cell', v: '090-7777-8888' }], added: '2026-01-01', updated: '2026-01-01', ts: 1000 },
+      { id: 'a5', fam: '伊藤', giv: '一郎', famK: 'いとう', givK: 'いちろう', tels: [{ t: 'cell', v: '070-1234-5678' }], org: '伊藤商店', added: '2026-01-01', updated: '2026-01-01', ts: 1000 },
+      { id: 'a6', fn: '〇〇病院', org: '〇〇病院', tels: [{ t: 'work', v: '0284-22-3333' }], added: '2026-01-01', updated: '2026-01-01', ts: 1000 },
+    ] };
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: 'block' });
+  await ctx.addInitScript(() => {
+    try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tbfold', '0'); } catch (e) {}
+    window.__blobs = []; const cu = URL.createObjectURL.bind(URL); URL.createObjectURL = b => { if (b instanceof Blob) window.__blobs.push(b); return cu(b); };
+  });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/favicon|ServiceWorker/.test(m.text())) errs.push('console: ' + m.text()); });
+  page.on('dialog', d => d.accept());
+  const w = ms => page.waitForTimeout(ms);
+  const lastBlob = () => page.evaluate(() => window.__blobs.length ? window.__blobs[window.__blobs.length - 1].text() : '');
+  const askPick = async re => { await page.evaluate(src => { const re = new RegExp(src); const b = [...document.querySelectorAll('#rkAskBody [data-r]')].find(x => re.test(x.textContent)); if (b) b.click(); }, re.source); await w(400); };
+  const askR = async r => { await page.evaluate(r => { const b = document.querySelector('#rkAskBody [data-r="' + r + '"]'); if (b) b.click(); }, r); await w(400); };
+  const C = id => page.evaluate(id => { const x = rkState().items.find(i => i.id === id); return x ? x.color : 'なし'; }, id);
+  const names = () => page.evaluate(() => [...document.querySelectorAll('#rkList .rk-it .nm')].map(e => e.firstChild.textContent).join(','));
+  await page.goto('file://' + path.join(ROOT, 'index.html')); await w(1200);
+  await page.evaluate(s => { localStorage.setItem('excalc_renraku', s); window.appPrompt = async () => null; window.appConfirm = async () => true; openRenraku(); }, JSON.stringify(SEED)); await w(800);
+
+  // ── 色のしくみ
+  check('  12色。人の色は決まった色だけ（ほかは外す）', await page.evaluate(() => [rkCleanItem({ fam: 'a', color: 'red' }).color, rkCleanItem({ fam: 'a', color: '"><b>' }).color || '（なし）', rkCleanItem({ fam: 'a' }).color || '（なし）'].join('/')), 'red/（なし）/（なし）');
+  check('  　「赤」「赤（要連絡）」「要連絡」「黄緑」「Blue」→ 色（ほかは なし）', await page.evaluate(() => ['赤', '赤（要連絡）', '要連絡', '黄', '黄緑', 'だいだい', 'Blue', 'むらさき'].map(s => rkColorFromTest(s) || '-').join(',')), 'red,red,red,yellow,lime,orange,blue,-');
+  check('  一覧：色のある人は 左に色の帯・うすい地の色。名前を付けた色は札（要連絡）', await page.evaluate(() => { const e = document.querySelector('#rkList .rk-it[data-id="a1"]'), cs = getComputedStyle(e);
+    return [document.querySelectorAll('#rkList .rk-it.col').length, e.style.getPropertyValue('--rkc'), /inset/.test(cs.boxShadow), (e.querySelector('.cl') || {}).textContent, !!document.querySelector('#rkList .rk-it[data-id="a2"] .cl')].join('/'); }), '2/#e53935/true/要連絡/false');
+  check('  下のボタン：＋入れる・🎨色分け・☑えらぶ・📇スマホに戻す。右上に 📋 表で直す', await page.evaluate(() => [[...document.querySelectorAll('#rkAdd button')].map(b => b.textContent.trim()).join(' '), !document.getElementById('rkTblBtn').hidden,
+    [...document.querySelectorAll('#rkAdd button')].every(b => b.scrollWidth <= b.clientWidth + 1)].join(' / ')), '＋入れる 🎨色分け ☑えらぶ 📇スマホに戻す / true / true');
+
+  // ── 🎨 色分け：色をえらんで人を押す
+  await page.evaluate(() => RK.paintStart()); await w(250);
+  check('  🎨 色分け：12色の パレット（はじめは赤）・いまの色・押した人をこの色に', await page.evaluate(() => [document.querySelectorAll('#rkPal .rk-sw').length, document.querySelector('#rkPal .rk-sw.on').dataset.c, document.querySelector('#rkAdd .rk-pinfo').textContent.replace(/\s+/g, ' ').trim()].join(' / ')),
+    '12 / red / 赤（要連絡）1人押した人を この色に ✏ 色に名前');
+  await page.evaluate(() => RK.paintPick('orange')); await w(100);
+  await page.click('#rkList .rk-it[data-id="a4"]'); await w(150);
+  await page.click('#rkList .rk-it[data-id="a5"]'); await w(150);
+  check('  　だいだい をえらんで 高橋・伊藤 を押す → だいだい（一覧はその場で色が変わる・並びは動かない）', [await C('a4'), await C('a5'), await page.evaluate(() => document.querySelector('#rkList .rk-it[data-id="a4"]').style.getPropertyValue('--rkc')), await names()].join(' / '),
+    'orange / orange / #f57c00 / 伊藤 一郎,佐藤 花子,鈴木 一郎,高橋 健二,山田 太郎,〇〇病院');
+  await page.click('#rkList .rk-it[data-id="a5"]'); await w(150);
+  await page.click('#rkList .rk-it[data-id="a1"]'); await w(150);
+  check('  　もう一度押すと外れる（伊藤）・ほかの色の人は この色に（山田 赤→だいだい）', [await C('a5') || '（なし）', await C('a1'), await page.evaluate(() => document.querySelector('#rkAdd .rk-pinfo .n').textContent)].join(' / '), '（なし） / orange / 2人');
+  await page.evaluate(() => RK.paintUndo()); await w(150);
+  check('  　ひとつ戻す：山田は赤に戻る', await C('a1'), 'red');
+  await page.evaluate(() => RK.paintPick('')); await w(100);
+  await page.click('#rkList .rk-it[data-id="a2"]'); await w(150);
+  check('  　✕ 色を外す をえらんで押すと外れる（佐藤）・色をぬっても「直した」にはしない（スマホで同じ人が増えないように）', [await C('a2') || '（なし）', await page.evaluate(() => rkState().items.filter(x => x.ts > 1000).length)].join(' / '), '（なし） / 0');
+  check('  　上の絞りこみに 色の札（赤（要連絡）1・だいだい1・色なし4）', await page.evaluate(() => [...document.querySelectorAll('#rkBar .rk-chip')].filter(b => b.querySelector('.rk-dot') || /色なし/.test(b.textContent)).map(b => b.textContent.trim()).join(',')), '要連絡1,だいだい1,色なし4');
+  await page.evaluate(() => RK.paintEnd()); await w(200);
+  check('  　おわる：端末に保存（いまの色も覚える）', await page.evaluate(() => { const o = JSON.parse(localStorage.getItem('excalc_renraku')); return o.items.filter(x => x.color).map(x => x.id + ':' + x.color).join(',') + ' / ' + o.pc; }), 'a1:red,a4:orange / orange');
+
+  // ── 色で絞る・色ごとに並べる・色に名前
+  await page.evaluate(() => RK.setCol('orange')); await w(150);
+  check('  色の札を押すと その色の人だけ（だいだい → 高橋）・もう一度で もとに', (await names()) + ' / ' + await page.evaluate(() => { RK.setCol('orange'); return document.querySelectorAll('#rkList .rk-it').length; }), '高橋 健二 / 6');
+  await page.evaluate(() => RK.setCol('-')); await w(150);
+  check('  　色なし の人だけ', await names(), '伊藤 一郎,佐藤 花子,鈴木 一郎,〇〇病院');
+  await page.evaluate(() => { RK.setCol('-'); RK.setView('color'); }); await w(150);
+  check('  🎨 色ごとに並べる（色の順・色なしは最後）', await page.evaluate(() => [...document.querySelectorAll('#rkList .rk-grp')].map(g => (g.querySelector('.rk-dot') ? '●' : '') + g.textContent.trim()).join(',')), '●赤（要連絡）1人,●だいだい1人,色なし4人');
+  await page.evaluate(() => { window.appPrompt = async () => '要確認'; RK.colName('orange'); }); await w(250);
+  check('  色に名前（だいだい＝要確認）：札・見出し・絞りこみに出る', await page.evaluate(() => [rkState().colors.orange, document.querySelector('#rkList .rk-it[data-id="a4"] .cl').textContent, [...document.querySelectorAll('#rkList .rk-grp')][1].textContent.trim(), [...document.querySelectorAll('#rkBar .rk-chip')].some(b => b.textContent.trim() === '要確認1')].join(' / ')), '要確認 / 要確認 / だいだい（要確認）1人 / true');
+  check('  　さがす：色の名前でも出る（要確認 → 高橋）', await page.evaluate(() => rkSearchTest('要確認').join(',')), '高橋 健二');
+  await page.evaluate(() => { window.appPrompt = async () => ''; RK.colName('orange'); }); await w(250);
+  check('  　名前を空にすると外れる（色の名前に戻る）', await page.evaluate(() => (rkState().colors.orange || '（なし）') + ' / ' + [...document.querySelectorAll('#rkList .rk-grp')][1].textContent.trim()), '（なし） / だいだい1人');
+  await page.evaluate(() => { window.appPrompt = async () => null; RK.setView('kana'); }); await w(150);
+
+  // ── まとめて色・見る画面・直す画面
+  await page.evaluate(() => RK.selStart()); await w(150);
+  await page.evaluate(() => { [...document.querySelectorAll('#rkList .rk-it')].filter(e => /鈴木|佐藤/.test(e.textContent)).forEach(e => e.click()); }); await w(150);
+  check('  ☑ えらぶ：🏷グループ・🎨色・📇書き出す・🗑消す・✕やめる', await page.evaluate(() => [...document.querySelectorAll('#rkAdd .rk-selbtns button')].map(b => b.textContent.trim()).join(' ')), '🏷グループ 🎨色 📇書き出す 🗑消す ✕やめる');
+  await page.evaluate(() => { RK.selColor(); }); await w(300);
+  check('  　🎨 色：名前つきの色のパネル（要連絡・だいだい…）', await page.evaluate(() => document.getElementById('rkAskHdr').textContent + ' / ' + [...document.querySelectorAll('#rkAskBody .rk-sw')].slice(0, 3).map(b => b.textContent).join(',') + ' / ' + document.querySelectorAll('#rkAskBody .rk-sw').length), '🎨 えらんだ 2人の色 / 要連絡,だいだい,黄 / 12');
+  await askR(105);
+  check('  　えらんだ2人を 青緑 に', [await C('a2'), await C('a3')].join(','), 'teal,teal');
+  await page.evaluate(() => RK.selEnd()); await w(150);
+  await page.evaluate(() => RK.view('a1')); await w(300);
+  check('  見る画面：色の札（赤（要連絡））・🎨 色分け のボタン', await page.evaluate(() => [document.querySelector('#rkViewBody .rk-cpill').textContent, [...document.querySelectorAll('#rkViewBody .rk-btn')].map(b => b.textContent).find(t => /色分け/.test(t))].join(' / ')), '赤（要連絡） / 🎨 色分け（いま：赤（要連絡））');
+  await page.evaluate(() => { RK.viewColor('a1'); }); await w(300); await askR(109);
+  check('  　色を変える（ピンク）・見る画面も変わる', [await C('a1'), await page.evaluate(() => document.querySelector('#rkViewBody .rk-cpill').textContent)].join(' / '), 'pink / ピンク');
+  await page.evaluate(() => { RK.edit('a1'); }); await w(300);
+  check('  直す画面：🎨 色分け（12色＋なし・いまの色に ✓）', await page.evaluate(() => document.querySelectorAll('#rkECol [data-c]').length + ' / ' + document.querySelector('#rkECol .on').dataset.c), '13 / pink');
+  await page.evaluate(() => { RK.edCol('red'); RK.edSave(); }); await w(400);
+  check('  　赤にして保存', [await C('a1'), await page.evaluate(() => isDlgOpen('rkEdOverlay'))].join(' / '), 'red / false');
+  await page.evaluate(() => { RK.closeView(); RK.setCol('orange'); RK.edit(null); }); await w(300);
+  check('  　色で絞っているときに ＋入れる と、はじめから その色', await page.evaluate(() => document.querySelector('#rkECol .on').dataset.c), 'orange');
+  await page.evaluate(() => { RK.closeEd(); RK.setCol('orange'); }); await w(200);
+
+  // ── スマホに戻す（vCard）・CSV でも色を持っていく
+  await page.evaluate(() => RK.openExport()); await w(250);
+  check('  📇 スマホに戻す：「自分の項目・色分けをメモ欄にも書く」', await page.evaluate(() => document.getElementById('rkExpCf').parentElement.textContent.trim()), '自分の項目・色分けをメモ欄にも書く（スマホを通っても消えない）');
+  await page.evaluate(() => RK.doExport('save')); await w(400);
+  const vcf = (await lastBlob()).replace(/\r\n /g, '');
+  const card = n => (vcf.split('END:VCARD').find(c => c.includes(n)) || '');
+  check('  　山田：X-HYO-COLOR:red・メモ欄に「［色分け］赤（要連絡）」', ['X-HYO-COLOR:red', 'NOTE:［間柄］兄\\n［色分け］赤（要連絡）'].filter(s => !card('N:山田;太郎').includes(s)).join(' ¦ '), '');
+  check('  　色のない人には書かない', /X-HYO-COLOR|［色分け］/.test(card('N:伊藤;一郎')), false);
+  // スマホを通ると X-HYO-COLOR は消える → メモ欄の［色分け］から戻す。色の名前も覚えていなければ戻す
+  const viaPhone = vcf.split('\r\n').filter(l => !/^X-HYO-/.test(l)).join('\r\n');
+  await page.evaluate(() => { RK.closeScr(); RK.wipe(); }); await w(400);
+  await page.evaluate(() => { const r = rkState(); r.colors = {}; }); await w(50);
+  await page.setInputFiles('#rkFileIn', { name: 'phone.vcf', mimeType: 'text/vcard', buffer: Buffer.from(viaPhone, 'utf8') }); await w(700);
+  await page.evaluate(() => RK.closeScr()); await w(250);
+  check('  　スマホを通って X-HYO-COLOR が消えても、メモ欄の［色分け］で色と名前が戻る（メモには残さない）', await page.evaluate(() => { const y = rkState().items.find(x => x.fam === '山田'), s = rkState().items.find(x => x.fam === '鈴木');
+    return [y.color, rkState().colors.red, JSON.stringify(y.note), s.color, rkState().fields.map(f => f.n).join(',')].join(' / '); }), 'red / 要連絡 / "" / teal / 間柄,年賀状');
+  await page.evaluate(() => RK.csv()); await w(300);
+  const csv = await lastBlob();
+  check('  📄 CSV：「色分け」の列（赤（要連絡））', [csv.split('\r\n')[0].includes('"よく使う","色分け","メモ"'), /"山田","太郎".*"赤（要連絡）"/.test(csv)].join('/'), 'true/true');
+  check('  　CSV を読むと 色が戻る', await page.evaluate(c => { const l = rkFromCsv(c); return l.filter(x => x._cfn['色分け']).map(x => x.fam + ':' + x._cfn['色分け']).join(','); }, csv), '佐藤:青緑,鈴木:青緑,高橋:だいだい,山田:赤（要連絡）');
+  await page.setInputFiles('#rkFileIn', { name: 'more.vcf', mimeType: 'text/vcard', buffer: Buffer.from(['BEGIN:VCARD', 'VERSION:3.0', 'N:伊藤;一郎;;;', 'TEL;TYPE=CELL:070-1234-5678', 'X-HYO-COLOR:lime', 'END:VCARD',
+    'BEGIN:VCARD', 'VERSION:3.0', 'N:山田;太郎;;;', 'TEL;TYPE=CELL:090-1111-2222', 'X-HYO-COLOR:blue', 'END:VCARD'].join('\r\n'), 'utf8') }); await w(700);
+  await askPick(/まとめて足す/); await page.evaluate(() => RK.closeScr()); await w(250);
+  check('  　同じ人をいっしょにするとき：色のない人には色を足す（伊藤→黄緑）・色のある人はそのまま（山田は赤）', await page.evaluate(() => ['伊藤', '山田'].map(f => rkState().items.find(x => x.fam === f).color).join(',') + '/' + rkState().items.length), 'lime,red/6');
+
+  // ── 📋 表で直す
+  await page.evaluate(s => { closeRenraku(); localStorage.setItem('excalc_renraku', s); openRenraku(); }, JSON.stringify(SEED)); await w(700);
+  await page.click('#rkTblBtn'); await w(600);
+  const hdr = () => page.evaluate(() => [...document.querySelectorAll('#rkTbl thead th')].map(t => t.textContent.trim()).join(','));
+  const row = id => page.evaluate(id => { const tr = [...document.querySelectorAll('#rkTBody tr')].find(r => r.dataset.id === id); return tr ? [...tr.cells].map(c => c.textContent.trim()).join('|') : 'なし'; }, id);
+  const tclick = (id, c) => page.evaluate(([id, c]) => { const tr = [...document.querySelectorAll('#rkTBody tr')].find(r => r.dataset.id === id); tr.querySelector('td[data-c="' + c + '"]').click(); }, [id, c]);
+  const ted = () => page.evaluate(() => { const a = document.activeElement; return a && a.classList.contains('rk-tin') ? a.closest('tr').dataset.id + '/' + a.closest('td').dataset.c + '/' + a.value : 'なし'; });
+  const X = (id, f) => page.evaluate(([id, f]) => { const x = rkState().items.find(i => i.id === id); return x ? (0, eval)('(' + f + ')')(x) : 'なし'; }, [id, f.toString()]);
+  check('  📋 表で直す：全員（6人）を よみ順で・見出し（部署・役職・ニックネーム・〒 は はじめは出さない）', [await page.evaluate(() => isDlgOpen('rkTblOverlay') + '/' + document.querySelectorAll('#rkTBody tr[data-id]').length), await hdr()].join(' / '),
+    'true/6 / #,名前,よみ,🎨 色,★,携帯,電話,メール,会社,住所,誕生日,グループ,間柄,年賀状,メモ');
+  check('  　山田の行：電話は はじめの1つと種類（ほかに FAX があるので ＋1）・誕生日・グループ・自分の項目', await row('a1'), '5|山田 太郎|やまだ たろう|要連絡|☆|090-1111-2222|自宅03-1234-5678＋1|taro@example.jp||東京都 千代田区 千代田1-1|1960/4/1|👪 家族|兄||');
+  check('  　色のある行は 名前に色の帯・行の地もうすく色', await page.evaluate(() => { const tr = [...document.querySelectorAll('#rkTBody tr')].find(r => r.dataset.id === 'a1'); return tr.classList.contains('col') + '/' + tr.style.getPropertyValue('--rkc') + '/' + /inset/.test(getComputedStyle(tr.cells[1]).boxShadow); }), 'true/#e53935/true');
+  // 名前：押すと その場で入れる → Enter で下の人
+  await tclick('a4', 'name'); await w(200);
+  check('  マスを押すと その場で入れられる（いまの名前が入っている）', await ted(), 'a4/name/高橋 健二');
+  await page.fill('#rkTBody .rk-tin', '高橋 健太'); await page.keyboard.press('Enter'); await w(250);
+  check('  　Enter で決めて 下の人（山田）の同じ列へ。姓・名に分けて入る・直した日', [await ted(), await X('a4', x => x.fam + '|' + x.giv + '|' + (x.ts > 1000)), await row('a4')].join(' / '), 'a1/name/山田 太郎 / 高橋|健太|true / 4|高橋 健太|たかはし けんじ|－|☆|090-7777-8888|||||||||');
+  await page.keyboard.press('Escape'); await w(200);
+  check('  　Esc：入れるのをやめる（表は閉じない・山田は そのまま）', [await ted(), await page.evaluate(() => isDlgOpen('rkTblOverlay')), await X('a1', x => x.fam + x.giv)].join(' / '), 'なし / true / 山田太郎');
+  // よみ：Tab で右へ（色・★は とばす）
+  await tclick('a4', 'yomi'); await w(150);
+  await page.fill('#rkTBody .rk-tin', 'たかはし けんた'); await page.keyboard.press('Tab'); await w(250);
+  check('  よみ：Tab で決めて右へ（🎨・★ は窓で選ぶので とばして 携帯へ）', [await X('a4', x => x.famK + '|' + x.givK), await ted()].join(' / '), 'たかはし|けんた / a4/cell/090-7777-8888');
+  await page.fill('#rkTBody .rk-tin', 'あいう'); await page.keyboard.press('Enter'); await w(250);
+  check('  　携帯に数字でないもの → 知らせて、そのマスのまま（入れた文字も残す）', [await ted(), await X('a4', x => x.tels[0].v)].join(' / '), 'a4/cell/あいう / 090-7777-8888');
+  await page.fill('#rkTBody .rk-tin', '090-7777-9999'); await page.keyboard.press('Tab'); await w(250);
+  check('  　直すと決まる → 電話（自宅）のマスへ。高橋は自宅の電話がないので空', [await X('a4', x => x.tels.map(t => t.t + ':' + t.v).join(',')), await ted()].join(' / '), 'cell:090-7777-9999 / a4/tel/');
+  await page.fill('#rkTBody .rk-tin', '0284-11-2222'); await page.keyboard.press('Tab'); await w(250);
+  await page.fill('#rkTBody .rk-tin', 'kenta@'); await page.keyboard.press('Tab'); await w(250);
+  check('  　電話を足す（自宅）・メールの形がちがうと そのマスのまま', [await X('a4', x => x.tels.map(t => t.t + ':' + t.v).join(',')), await ted()].join(' / '), 'cell:090-7777-9999,home:0284-11-2222 / a4/mail/kenta@');
+  await page.fill('#rkTBody .rk-tin', 'kenta@example.jp'); await page.keyboard.press('Tab'); await w(250);
+  await page.fill('#rkTBody .rk-tin', '高橋商会'); await page.keyboard.press('Tab'); await w(250);
+  await page.fill('#rkTBody .rk-tin', '栃木県足利市本町1-2'); await page.keyboard.press('Tab'); await w(250);
+  await page.fill('#rkTBody .rk-tin', '5/3'); await page.keyboard.press('Tab'); await w(250);
+  check('  　メール・会社・住所・誕生日（5/3 は 年なし）を続けて入れる → 次は 間柄（グループは窓なので とばす）', [await X('a4', x => [x.mails.map(m => m.t + ':' + m.v).join(','), x.org, x.adrs.map(a => a.t + ':' + a.street).join(','), x.bday].join('|')), await ted()].join(' / '),
+    'home:kenta@example.jp|高橋商会|home:栃木県足利市本町1-2|--05-03 / a4/cf:f1/');
+  await page.fill('#rkTBody .rk-tin', 'いとこ'); await page.keyboard.press('Enter'); await w(250);
+  check('  　自分の項目（間柄＝いとこ）→ Enter で 下の人（山田）の 間柄', [await X('a4', x => x.cf.f1), await ted()].join(' / '), 'いとこ / a1/cf:f1/兄');
+  await page.keyboard.press('Escape'); await w(150);
+  // 住所：直すと 町名まで1つの欄に。〒 は そのまま
+  await tclick('a1', 'adr'); await w(150); await page.fill('#rkTBody .rk-tin', '東京都千代田区丸の内1-1'); await page.keyboard.press('Enter'); await w(250); await page.keyboard.press('Escape'); await w(100);
+  check('  住所を直す：〒はそのまま、住所は1つの欄に', await X('a1', x => [x.adrs[0].zip, x.adrs[0].region, x.adrs[0].city, x.adrs[0].street].join('|')), '100-0001|||東京都千代田区丸の内1-1');
+  await tclick('a1', 'bday'); await w(150); await page.fill('#rkTBody .rk-tin', 'あした'); await page.keyboard.press('Enter'); await w(250);
+  check('  誕生日の形がちがう → そのマスのまま', [await ted(), await X('a1', x => x.bday)].join(' / '), 'a1/bday/あした / 1960-04-01');
+  await page.fill('#rkTBody .rk-tin', '1961年4月2日'); await page.keyboard.press('Enter'); await w(250); await page.keyboard.press('Escape'); await w(100);
+  check('  　「1961年4月2日」も読める', await X('a1', x => x.bday), '1961-04-02');
+  // 窓で選ぶもの：★・色・グループ・えらぶ項目・メモ
+  await tclick('a4', 'fav'); await w(250);
+  check('  ★ を押すと よく使う に', await X('a4', x => x.fav), true);
+  const ts0 = await X('a4', x => x.ts);
+  await tclick('a4', 'color'); await w(300); await askR(106);
+  check('  🎨 色：窓で えらぶ（水色）。色は「直した日」を変えない', [await X('a4', x => x.color), (await X('a4', x => x.ts)) === ts0, await page.evaluate(() => { const tr = [...document.querySelectorAll('#rkTBody tr')].find(r => r.dataset.id === 'a4'); return tr.style.getPropertyValue('--rkc'); })].join(' / '), 'sky / true / #29b6f6');
+  await tclick('a4', 'groups'); await w(300);
+  await page.evaluate(() => { [...document.querySelectorAll('#rkAskGr button')].find(b => b.dataset.g === '仕事').click(); }); await askPick(/^できた$/);
+  check('  グループ：窓で 押してえらぶ → できた', await X('a4', x => x.groups.join(',')), '仕事');
+  await tclick('a4', 'cf:f2'); await w(300); await askPick(/^送る$/);
+  check('  えらぶ項目（年賀状）：窓の選択肢から', await X('a4', x => x.cf.f2), '送る');
+  await page.evaluate(() => { window.appPrompt = async () => '1行目\n2行目'; }); await tclick('a4', 'note'); await w(300);
+  check('  メモ：何行も書ける窓で。表には1行目と「…」', [await X('a4', x => JSON.stringify(x.note)), await row('a4').then(r => r.split('|').pop())].join(' / '), '"1行目\\n2行目" / 1行目 …');
+  await page.evaluate(() => { window.appPrompt = async () => null; });
+  // ↶ 戻す
+  await page.evaluate(() => RK.tUndo()); await w(150); await page.evaluate(() => RK.tUndo()); await w(150);
+  check('  ↶ 戻す：1つずつ戻る（メモ → 年賀状）', await X('a4', x => JSON.stringify(x.note) + '|' + (x.cf.f2 || '')), '""|');
+  // 並べかえ・列をえらぶ・さがす
+  await page.evaluate(() => [...document.querySelectorAll('#rkTbl thead th')].find(t => t.textContent.trim() === '携帯').click()); await w(250);
+  const order = () => page.evaluate(() => [...document.querySelectorAll('#rkTBody tr[data-id]')].map(r => r.cells[1].textContent.trim().split(' ')[0]).join(','));
+  check('  見出しを押すと その列で並べかえ（携帯 ▲・入っていない人は下）', [await order(), await page.evaluate(() => document.querySelector('#rkTbl thead th.c-name').parentElement.textContent.includes('携帯 ▲'))].join(' / '), '伊藤,佐藤,鈴木,山田,高橋,〇〇病院 / true');
+  await page.evaluate(() => [...document.querySelectorAll('#rkTbl thead th')].find(t => /携帯/.test(t.textContent)).click()); await w(250);
+  check('  　もう一度で逆（▼）', await order(), '高橋,山田,鈴木,佐藤,伊藤,〇〇病院');
+  await page.evaluate(() => [...document.querySelectorAll('#rkTbl thead th')].find(t => /携帯/.test(t.textContent)).click()); await w(250);
+  check('  　3回目で よみ順に戻る', await order(), '伊藤,佐藤,鈴木,高橋,山田,〇〇病院');
+  await page.evaluate(() => { RK.tCols(); }); await w(300);
+  await page.evaluate(() => { document.querySelector('#rkAskBody input[data-tc="mail"]').checked = false; document.querySelector('#rkAskBody input[data-tc="zip"]').checked = true; }); await askPick(/^できた$/);
+  check('  ☰ 列：出す列をえらぶ（メールを出さない・〒を出す）・覚える', [(await hdr()).includes('メール'), (await hdr()).includes('〒'), await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_renraku') || '{}').thide.join(','))].join(' / '), 'false / true / mail,dept,title,nick');
+  await page.evaluate(() => RK.tQ('すずき')); await w(200);
+  check('  さがす：表の中でも（すずき → 鈴木）', await order(), '鈴木');
+  await page.evaluate(() => { document.getElementById('rkTFind').value = ''; RK.tQ(''); }); await w(200);
+  // ＋ 足す
+  await page.evaluate(() => RK.tAdd()); await w(250);
+  check('  ＋ 足す：いちばん上に行ができて 名前のマスへ', [await ted(), await page.evaluate(() => document.querySelector('#rkTBody tr').classList.contains('draft'))].join(' / '), (await page.evaluate(() => document.querySelector('#rkTBody tr').dataset.id)) + '/name/ / true');
+  await page.keyboard.type('Tom Smith'); await page.keyboard.press('Tab'); await w(250);
+  await page.keyboard.type('トム'); await page.keyboard.press('Tab'); await w(250);
+  check('  　名前を入れると 連絡帳に入る（英語の名前は 名・姓の順）・人数が増える', await page.evaluate(() => { const x = rkState().items.find(i => i.fam === 'Smith'); return [x.giv, x.famK, rkState().items.length, document.querySelector('#rkTInfo b').textContent, document.querySelector('#rkTBody tr').classList.contains('draft')].join('/'); }), 'Tom/トム/7/7/false');
+  await page.keyboard.press('Escape'); await w(100);
+  await page.evaluate(() => { RK.tUndo(); RK.tUndo(); }); await w(250);
+  check('  　↶ 戻す で 足した人も消える', await page.evaluate(() => rkState().items.length + '/' + document.querySelector('#rkTInfo b').textContent + '/' + !!rkState().items.find(i => i.fam === 'Smith')), '6/6/false');
+  // 行の番号：くわしく直す・消す
+  await tclick('a6', 'no'); await w(300);
+  check('  行の番号を押す：くわしく直す・見る・消す', await page.evaluate(() => [...document.querySelectorAll('#rkAskBody [data-r]')].map(b => b.textContent).join(',')), '✏ くわしく直す（電話を足す・写真 など）,📞 見る（電話をかける など）,🗑 この人を消す,やめる');
+  await askPick(/くわしく直す/); await w(200);
+  check('  　くわしく直す：直す画面が 表の上に出る', await page.evaluate(() => { const r = document.getElementById('rkEdBody').getBoundingClientRect(); const el = document.elementFromPoint(r.left + r.width / 2, r.top + 40); return isDlgOpen('rkEdOverlay') + '/' + !!(el && el.closest('#rkEdOverlay')); }), 'true/true');
+  await page.evaluate(() => { document.getElementById('rkE_note').value = '代表は平日9時から'; RK.edSave(); }); await w(400);
+  check('  　保存すると 表の行も変わる', (await row('a6')).split('|').pop(), '代表は平日9時から');
+  await tclick('a6', 'no'); await w(300); await askPick(/消す/); await w(300);
+  check('  　消す：表からも消える', await page.evaluate(() => rkState().items.length + '/' + document.querySelectorAll('#rkTBody tr[data-id]').length + '/' + document.querySelector('#rkTInfo b').textContent), '5/5/5');
+  // 戻るで閉じる（表だけ）・閉じると一覧に出る・端末に保存
+  await page.click('#rkTFind'); await w(150);
+  await page.evaluate(() => window.history.back()); await w(500);
+  check('  戻る：表だけ閉じる（連絡帳は開いたまま）・一覧に直したものが出る', await page.evaluate(() => [isDlgOpen('rkTblOverlay'), isDlgOpen('renrakuOverlay'), [...document.querySelectorAll('#rkList .rk-it .nm')].map(e => e.firstChild.textContent).includes('高橋 健太')].join('/')), 'false/true/true');
+  check('  　端末に保存してある', await page.evaluate(() => { const o = JSON.parse(localStorage.getItem('excalc_renraku')); const x = o.items.find(i => i.id === 'a4'); return [x.giv, x.givK, x.color, x.tels.length, o.items.length].join('/'); }), '健太/けんた/sky/2/5');
+  // 絞りこみのまま開く・たくさんの人（少しずつ出す）
+  await page.evaluate(() => { RK.setGrp('家族'); RK.table(); }); await w(500);
+  check('  一覧で絞っていたら 表も その人だけ（ぜんぶ出す で もとに）', await page.evaluate(() => document.getElementById('rkTInfo').textContent.replace(/\s+/g, ' ').split('マス')[0].trim() + ' / ' + (RK.tAllF(), document.querySelectorAll('#rkTBody tr[data-id]').length)), '1人（🏷 家族 だけ）ぜんぶ出す / 5');
+  await page.evaluate(() => { RK.closeTbl(); const r = rkState(); for (let i = 0; i < 300; i++) r.items.push(rkCleanItem({ id: 'm' + i, fam: '山本', giv: '人' + i, famK: 'やまもと', givK: 'ひと' + String(i).padStart(3, '0'), tels: [{ t: 'cell', v: '090-0000-' + String(1000 + i) }] })); RK.table(); }); await w(500);
+  check('  たくさんの人：はじめは 120人出して「つづきを出す」・下までいくと続きが出る', await page.evaluate(() => document.querySelectorAll('#rkTBody tr[data-id]').length + '/' + document.querySelector('#rkTBody tr.more').textContent.trim()), '120/つづきを出す（あと 185人）');
+  await page.evaluate(() => { const wr = document.getElementById('rkTWrap'); wr.scrollTop = wr.scrollHeight; }); await w(600);
+  check('  　（下まで動かす → 240人）', await page.evaluate(() => document.querySelectorAll('#rkTBody tr[data-id]').length), 240);
+  await page.evaluate(() => { const rows = [...document.querySelectorAll('#rkTBody tr[data-id]')]; rows[rows.length - 1].querySelector('td[data-c="yomi"]').click(); }); await w(200);
+  await page.keyboard.press('Enter'); await w(300);
+  check('  　いちばん下で Enter → 続きを出して その人へ', await page.evaluate(() => document.querySelectorAll('#rkTBody tr[data-id]').length + '/' + (document.activeElement.closest('tr') || {}).rowIndex), '305/241');
+  await page.keyboard.press('Escape'); await page.evaluate(() => RK.closeTbl()); await w(300);
+  // 夜の色・せまい画面
+  await page.evaluate(() => { const r = rkState(); r.items = r.items.filter(x => !/^m\d+$/.test(x.id)); toggleDark(); RK.table(); }); await w(500);
+  check('  夜の色：表の名前・見出し・色のある行も 読める（文字と地の明るさの差 4.5 以上）', await page.evaluate(() => {
+    const lum = c => { const m = c.match(/[\d.]+/g).slice(0, 3).map(Number), k = /^color\(srgb/.test(c) ? 1 : 255; return m.map(v => v / k).map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0); };
+    const cr = el => { const cs = getComputedStyle(el), a = lum(cs.color), b = lum(cs.backgroundColor); return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); };
+    const tr = id => [...document.querySelectorAll('#rkTBody tr')].find(r => r.dataset.id === id);
+    const bad = [['名前', tr('a3').cells[1]], ['色の行の名前', tr('a1').cells[1]], ['色の行の電話', tr('a1').cells[5]], ['見出し', document.querySelector('#rkTbl thead th.c-name')]].filter(([, el]) => cr(el) < 4.5).map(([n, el]) => n + cr(el).toFixed(1));
+    return document.body.classList.contains('dark') + ':' + bad.join(','); }), 'true:');
+  await page.evaluate(() => { RK.closeTbl(); toggleDark(); }); await w(300);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+
+  // 仕込みのある色の名前・項目を 表に出しても何も動かない
+  const c2 = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: 'block' });
+  await c2.addInitScript(() => { try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_startpage', 'last'); } catch (e) {} });
+  const p2 = await c2.newPage(); const e2 = []; p2.on('pageerror', e => e2.push(e.message));
+  await p2.goto('file://' + path.join(ROOT, 'index.html')); await p2.waitForTimeout(1000);
+  await p2.evaluate(() => { window.__pwn = 0; localStorage.setItem('excalc_renraku', JSON.stringify({ v: 1, colors: { red: '<img src=x onerror=window.__pwn=1>', blue: '"><b>' }, thide: ['"><img src=x onerror=window.__pwn=2>', 'mail'], view: 'color',
+    fields: [{ id: 'f1', n: '<img src=x onerror=window.__pwn=3>', ty: 'pick', op: ['<img src=x onerror=window.__pwn=4>'] }],
+    items: [{ id: 'z1', fam: '<img src=x onerror=window.__pwn=5>', color: 'red', tels: [{ t: 'cell', v: '090"><img src=x onerror=window.__pwn=6>' }], cf: { f1: '<img src=x onerror=window.__pwn=7>' }, note: '<img src=x onerror=window.__pwn=8>' },
+      { id: 'z2', fam: 'b', color: 'blue"><img src=x onerror=window.__pwn=9>', tels: [{ t: 'cell', v: '090-1' }] }] })); openRenraku(); }); await p2.waitForTimeout(900);
+  await p2.evaluate(() => { RK.paintStart(); }); await p2.waitForTimeout(300);
+  await p2.evaluate(() => { RK.paintEnd(); RK.table(); }); await p2.waitForTimeout(500);
+  await p2.evaluate(() => { RK.tAdd(); }); await p2.waitForTimeout(200);
+  check('  仕込みのある色の名前・項目・列の名前を 一覧・色分け・表に出しても何も動かない', await p2.evaluate(() => [window.__pwn, document.querySelectorAll('img[onerror]').length, rkState().thide.join(','), rkState().items.map(x => x.color || '-').join(',')].join('/')), '0/0/mail/red,-');
+  check('  　エラーなし', e2.join(' | '), '');
+  await c2.close();
+}
+
 /* 🌗 端末のダークテーマ・節電モードでも文字が消えない（v541）。
    端末がダークになると（Pixel の節電モードなど）、色を決めていない文字が白くなり、白い地に溶けていた。
    文字・ボタンのふだんの色は表電卓の「夜の色」に合わせる。道具を開いて、文字と地の明るさの差を測る */
@@ -8099,16 +8388,22 @@ async function runSchemeFix(browser) {
     const found = [];
     found.push('shimai:' + await page.evaluate(SCAN));
     await page.evaluate(() => closeShimai()); await w(600);
-    await page.evaluate(() => localStorage.setItem('excalc_renraku', JSON.stringify({ v: 1, groups: [{ n: '家族', ic: '👪' }], items: [{ id: 'a1', fam: '山田', giv: '太郎', famK: 'やまだ', givK: 'たろう', tels: [{ t: 'cell', v: '090-1111-2222' }], groups: ['家族'], fav: true, bday: '--' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') }] })));
+    await page.evaluate(() => localStorage.setItem('excalc_renraku', JSON.stringify({ v: 1, groups: [{ n: '家族', ic: '👪' }], colors: { yellow: '要連絡' }, items: [{ id: 'a1', fam: '山田', giv: '太郎', famK: 'やまだ', givK: 'たろう', tels: [{ t: 'cell', v: '090-1111-2222' }], groups: ['家族'], fav: true, bday: '--' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') },
+      { id: 'a2', fam: '佐藤', giv: '花子', famK: 'さとう', givK: 'はなこ', tels: [{ t: 'cell', v: '080-3333-4444' }], color: 'yellow' }, { id: 'a3', fam: '鈴木', giv: '一郎', famK: 'すずき', givK: 'いちろう', tels: [{ t: 'cell', v: '080-5555-6666' }], color: 'blue' }] })));
     for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo', 'renraku']) {
       await page.evaluate(id => NP_TOOLS.find(t => t.id === id).run(), id); await w(1100);
       found.push(id + ':' + await page.evaluate(SCAN));
       if (id === 'kurashi' || id === 'keisan') { await page.evaluate(id => { const c = document.querySelector(id === 'kurashi' ? '#krList .kr-card' : '#ksList .ks-card'); if (c) c.click(); }, id); await w(800); found.push(id + '-page:' + await page.evaluate(SCAN)); }
+      if (id === 'renraku') {   // 🎨 色分けの下の帯・📋 表で直す（v544）
+        await page.evaluate(() => RK.paintStart()); await w(300); found.push('renraku-paint:' + await page.evaluate(SCAN));
+        await page.evaluate(() => { RK.paintEnd(); RK.table(); }); await w(600); found.push('renraku-table:' + await page.evaluate(SCAN));
+        await page.evaluate(() => RK.closeTbl()); await w(400);
+      }
       await page.evaluate(id => NP_TOOLS.find(t => t.id === id).close(), id); await w(600);
     }
     await page.evaluate(() => { toggleSettings(); openVoiceSet(); }); await w(500);
     found.push('voice:' + await page.evaluate(SCAN));
-    check('  　読めない文字がない（しまい場所・部屋割り・案内ページ・容積・カンタブ・便利計算・くらしの便利帳・角度計・連絡帳・読み上げの声）', found.filter(s => !/:$/.test(s)).join(' | '), '');
+    check('  　読めない文字がない（しまい場所・部屋割り・案内ページ・容積・カンタブ・便利計算・くらしの便利帳・角度計・連絡帳（色分け・表で直す）・読み上げの声）', found.filter(s => !/:$/.test(s)).join(' | '), '');
     check('  　エラーなし', errs.join(' | '), '');
     await ctx.close();
   }
@@ -12511,6 +12806,8 @@ async function runQrShare(browser) {
     if (!only || only === 'hyovoice') await runHyoVoice(browser);
     if (!only || only === 'scheme') await runSchemeFix(browser);
     if (!only || only === 'renraku') await runRenraku(browser);
+    if (!only || only === 'rkiro') await runRenrakuIro(browser);
+    if (!only || only === 'firsthint') await runFirstHint(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
   } finally { await browser.close(); }
