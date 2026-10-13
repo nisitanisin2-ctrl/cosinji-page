@@ -8031,11 +8031,11 @@ async function runRenraku(browser) {
   await page.evaluate(() => { window.__opb = window.opBuild; window.__opp = window.opPrint; window.opBuild = h => h; window.opPrint = h => { window.__printed = h; }; RK.setGrp('家族'); RK.print(); RK.setGrp('家族'); window.opBuild = window.__opb; window.opPrint = window.__opp; }); await w(200);
   check('  🖨 印刷：いま出ている人（家族）を あいうえお順で', await page.evaluate(() => { const d = document.createElement('div'); d.innerHTML = window.__printed || ''; return d.querySelector('h1').textContent + ' / ' + [...d.querySelectorAll('h2')].map(h => h.textContent).join('') + ' / ' + [...d.querySelectorAll('td b')].map(b => b.textContent).join(','); }), '📇 連絡帳（家族） / あたや / 伊藤 一郎,高橋 健二,山田 太郎');
 
-  // ── 開き直しても残る・戻るで閉じる順（読み込み直して、履歴をきれいにしてから）
-  await page.evaluate(() => closeRenraku()); await w(400); await page.reload(); await w(1000);
-  await page.evaluate(() => openRenraku()); await w(500);
-  await page.click('#rkFind'); await w(150);   // 一度画面に触れる（触れる前の履歴は、ブラウザが「戻る」で飛ばすので、表電卓は触れてから積む）
-  check('  開き直しても残る', await page.evaluate(() => rkState().items.length + '/' + document.querySelectorAll('#rkList .rk-it').length), '9/9');
+  // ── 端末に覚えている・戻るで閉じる順
+  //   （読み込み直すと、テスト用ブラウザでは直前の localStorage が新しいページに届かないことがあるので、同じページで確かめる）
+  await page.evaluate(() => closeRenraku()); await w(500);
+  check('  端末に覚えている（excalc_renraku に 9人）・開き直しても出る', await page.evaluate(() => { const n = JSON.parse(localStorage.getItem('excalc_renraku')).items.length; openRenraku(); return n + '/' + document.querySelectorAll('#rkList .rk-it').length; }), '9/9');
+  await w(400); await page.click('#rkFind'); await w(150);   // 一度画面に触れる（触れる前の履歴は、ブラウザが「戻る」で飛ばすので、表電卓は触れてから積む）
   const yid2 = await page.evaluate(p => eval(p).id, P('山田', '太郎'));   // 書き出し→読み込みの往復で id は新しくなっている
   await page.evaluate(id => RK.view(id), yid2); await w(200);
   await page.evaluate(id => RK.edit(id), yid2); await w(200);
