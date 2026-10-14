@@ -30,7 +30,9 @@
      名前を付けた色（色＋背景）だけが 🔢 No.・並ぶ順番・自分好みの色の一覧に出る（名前のない色は そのあとに 色の順）。
    ・（v553）端末の「戻る」：🎨 色分け・☑ えらぶ の あいだは その動きだけ おわる。🧩 自分好みにする から開いた 🔢 色の No. は 🧩 に戻る。
    ・（v554）名前を付けた色は、あとから 色・背景だけを変えられる（名前・No.・その色の人は そのまま。ほかの名前の色をえらぶと 入れかえ）。
-     一覧の右はしに 色の名前のグループのアイコン（🎨）は 出さない（色の札と同じなので）。 */
+     一覧の右はしに 色の名前のグループのアイコン（🎨）は 出さない（色の札と同じなので）。
+   ・（v555）ふりがな（よみ）を 出す／一覧では出さない／出さない（rk.furi）。名前を押した画面の 電話番号を大きく。
+     その画面の「✏ 直す」の上に 📝 メモ欄（x.note。その場で書ける）。書いたメモは 一覧の 電話番号の下にも出す（rk.lmemo）。 */
 (function(){
 const RK_KEY='excalc_renraku', RK_MAX=5000;
 let rk=null, rkQ='', rkGrp='', rkCol='', rkSel=null, rkPaint=null, rkT=null, rkViewId=null, rkEd=null, rkScrClean=null, rkDupCache=[], rkRec=null, rkIO=null, rkYUndo=null, rkYLast=null, rkIconRes=null, rkIconCat='ym', rkAddOpen=false;
@@ -181,7 +183,7 @@ const rkHasAny=x=>!!(x.fam||x.giv||x.fn||x.org||x.nick||x.tels.length||x.mails.l
 /* 表で直す の列（名前のほか） */
 const TCOL_RE=/^(yomi|color|fav|cell|tel|mail|org|dept|title|nick|zip|adr|bday|groups|note|cf:f[0-9a-z]{1,10})$/;
 const TW_MIN=60, TW_MAX=480;   // 表の列の幅（押して動かしたもの）
-function rkDefaults(){ return { v:1, view:'kana', groups:[], fields:[], sub:'tel', big:false, noteCf:true, call:'on', ykana:'', corder:[], cdir:'up', cno:false, vorder:VIEW_KEYS.slice(), vdir:{}, telSize:0, cgrp:false, addbar:'fold', tipFold:false, lastExp:0, notDup:[], colors:{}, pc:'red', thide:['dept','title','nick','zip'], tw:{}, items:[] }; }
+function rkDefaults(){ return { v:1, view:'kana', groups:[], fields:[], sub:'tel', big:false, noteCf:true, call:'on', ykana:'', corder:[], cdir:'up', cno:false, vorder:VIEW_KEYS.slice(), vdir:{}, telSize:0, cgrp:false, furi:'', lmemo:true, addbar:'fold', tipFold:false, lastExp:0, notDup:[], colors:{}, pc:'red', thide:['dept','title','nick','zip'], tw:{}, items:[] }; }
 function rkClean(o){
   const d=rkDefaults(); if(!o || typeof o!=='object') return d;
   d.view=['kana','group','org','color','new'].includes(o.view)?o.view:'kana';
@@ -201,6 +203,7 @@ function rkClean(o){
   { const vo=arr(o.vorder).filter((k,i,a)=>VIEW_KEYS.includes(k) && a.indexOf(k)===i); d.vorder=vo.concat(VIEW_KEYS.filter(k=>!vo.includes(k))); }   // 並べ方のボタンの順番（v550）
   if(o.vdir && typeof o.vdir==='object') ['kana','group','org','new'].forEach(k=>{ if(o.vdir[k]==='down') d.vdir[k]='down'; });   // 上から／下から（色は cdir）
   d.telSize=[0,1,2].includes(o.telSize)?o.telSize:0; d.cgrp=!!o.cgrp;   // 電話番号の大きさ・色の名前をグループにも（v550）
+  d.furi=['list','off'].includes(o.furi)?o.furi:''; d.lmemo=o.lmemo!==false;   // ふりがな：出す／一覧では出さない／出さない・メモを一覧にも出す（v555）
   d.addbar=o.addbar==='show'?'show':'fold'; d.tipFold=!!o.tipFold;   // 下のボタン：右下に たたむ／いつも出す・たたんだ案内を出した（v551）
   d.notDup=arr(o.notDup).filter(p=>typeof p==='string' && /^[A-Za-z0-9_-]{1,80}\|[A-Za-z0-9_-]{1,80}$/.test(p)).slice(0,3000);
   d.items=arr(o.items).filter(x=>x && typeof x==='object').slice(0,RK_MAX).map(rkCleanItem).filter(rkHasAny);
@@ -666,12 +669,13 @@ const RK_CSS=`
 .rk-it .nm{ font-weight:bold; font-size:16px; line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; word-break:keep-all; overflow-wrap:anywhere; }   /* 長い名前は2行まで（v546） */
 .rk-it .nm small{ font-weight:normal; font-size:11px; color:var(--text-light,#888); margin-left:6px; }
 .rk-it .sb{ font-size:13px; color:var(--text-sub,#555); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rk-it .mm{ font-size:13px; line-height:1.4; color:var(--text-sub,#555); margin-top:1px; white-space:pre-line; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .rk-it .gi{ flex:none; font-size:14px; }
 .rk-it .fv{ flex:none; color:#f9a825; font-size:16px; }
 .rk-it .ck{ flex:none; width:24px; height:24px; box-sizing:border-box; border-radius:6px; border:2px solid rgba(120,132,156,.6); color:transparent; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:14px; }
 .rk-it.sel{ border:2px solid var(--acc); }
 .rk-it.sel .ck{ background:var(--acc); border-color:var(--acc); color:#fff; }
-.rk-big .rk-it .nm{ font-size:20px; } .rk-big .rk-it .sb{ font-size:16px; } .rk-big .rk-it .av{ width:48px; height:48px; font-size:20px; }
+.rk-big .rk-it .nm{ font-size:20px; } .rk-big .rk-it .sb{ font-size:16px; } .rk-big .rk-it .mm{ font-size:15.5px; } .rk-big .rk-it .av{ width:48px; height:48px; font-size:20px; }
 .rk-big .rk-row{ font-size:17.5px; } .rk-big .rk-who .n{ font-size:27px; } .rk-big .rk-grp{ font-size:15px; }
 .rk-empty{ text-align:center; color:var(--text-light,#888); padding:22px 12px; line-height:1.8; font-size:14px; }
 .rk-empty b{ color:var(--text,#333); }
@@ -736,6 +740,17 @@ body.dark .rk-btn.del{ color:#ef9a9a; }
 .rk-row span{ flex:1; min-width:0; overflow-wrap:anywhere; white-space:pre-wrap; }
 .rk-row a{ color:var(--acc-text,var(--acc)); }
 .rk-row a.rk-mini{ text-decoration:none; margin-left:8px; }
+/* 名前を押した画面の 電話番号は 大きく（v555。⇧ 電話番号だけ 大きく／もっと大きく で さらに） */
+.rk-row.tel{ align-items:center; }
+.rk-row.tel > span{ font-size:22px; font-weight:bold; letter-spacing:.02em; line-height:1.35; }
+.rk-row.tel a.rk-mini{ font-size:20px; vertical-align:middle; }
+/* 📝 メモ欄（v555） */
+.rk-vmemo{ margin:10px 0 2px; }
+.rk-vmemo label{ display:flex; align-items:baseline; gap:8px; font-size:13px; font-weight:bold; color:var(--text-light,#888); margin-bottom:4px; }
+.rk-vmemo label small{ font-weight:normal; font-size:11.5px; }
+.rk-vmemo textarea{ display:block; width:100%; box-sizing:border-box; min-height:58px; max-height:40vh; resize:none; overflow:auto; padding:9px 10px; border:1.5px solid rgba(120,132,156,.45); border-radius:10px;
+  background:var(--modal-bg,#fff); color:var(--text,#222); font-family:inherit; font-size:16px; line-height:1.5; }
+.rk-vmemo textarea:focus{ outline:none; border-color:var(--acc); box-shadow:0 0 0 3px rgba(33,115,70,.18); }
 .rk-cus{ display:flex; align-items:center; gap:6px; padding:6px 2px; border-bottom:1px solid rgba(120,132,156,.18); }
 .rk-cus .nm{ flex:1; min-width:0; font-size:15px; overflow-wrap:anywhere; }
 .rk-cus .nm small{ display:block; font-size:11.5px; color:var(--text-light,#888); }
@@ -859,7 +874,7 @@ body.dark .rk-dot{ box-shadow:0 0 0 1px rgba(255,255,255,.35); }
 /* 📞 電話番号だけ大きく（v550） */
 .rk-tel1 .rk-it .sb.tel{ font-size:18px; font-weight:bold; color:var(--text,#222); letter-spacing:.02em; }
 .rk-tel2 .rk-it .sb.tel{ font-size:22px; font-weight:bold; color:var(--text,#222); letter-spacing:.02em; }
-.rk-tel1 .rk-row.tel > span{ font-size:20px; font-weight:bold; } .rk-tel2 .rk-row.tel > span{ font-size:25px; font-weight:bold; }
+.rk-tel1 .rk-row.tel > span{ font-size:25px; font-weight:bold; } .rk-tel2 .rk-row.tel > span{ font-size:28px; font-weight:bold; }
 /* 🙂 アイコンをえらぶ（v550） */
 .rk-icgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(72px,1fr)); gap:8px; margin:10px 0; }
 .rk-icgrid button{ padding:0; border:2px solid transparent; border-radius:50%; background:transparent; cursor:pointer; aspect-ratio:1/1; overflow:hidden; }
@@ -1124,6 +1139,11 @@ function rkSectionsHtml(list){
   L.classList.toggle('noidx', !kana);
   return secs.map(([k,label,items,ck])=>`<div class="rk-grp" data-sec="${esc(k)}">${ck?dotH(ck):''}${esc(label)}<span>${items.length}人</span></div>`+items.map(rkItemHtml).join('')).join('');
 }
+/* 一覧に出す 📝 メモ（v555）：はじめの2行。「名前の下に出すもの」が メモのときは 重ねて出さない */
+function rkListMemo(x){
+  if(!rk.lmemo || rk.sub==='note' || !x.note) return '';
+  return x.note.split('\n').map(t=>t.trim()).filter(Boolean).slice(0,2).join('\n');
+}
 function rkSubLine(x){
   const s=rk.sub;
   if(s==='none') return '';
@@ -1138,8 +1158,9 @@ function rkItemHtml(x){
   const on=rkSel && rkSel.has(x.id), sub=rkSubLine(x);
   const hex=colHex(x.color), no=x.color && rk.cno ? cNo(x.color) : 0, cn=x.color ? (rk.colors[x.color]||'') : '';
   const gi=x.groups.filter(g=>g!==cn).map(gIcon).filter(Boolean).join('');   // 色の名前のグループ（🎨）は 色の札と同じなので 右はしに出さない（v554）
+  const mm=rkListMemo(x);   // 📝 メモ（v555）：電話番号などの下に 2行まで
   return `<div class="rk-it${on?' sel':''}${hex?' col'+ptCls(x.color):''}" data-id="${x.id}"${hex?` style="--rkc:${hex}"`:''} onclick="RK.tap('${x.id}')">${rkSel?'<span class="ck">✓</span>':''}<span class="av" data-ph="${x.photo?x.id:''}" style="background-color:${rkColor(x)}">${esc(rkInitial(x))}</span>`
-    +`<span class="tx"><div class="nm">${esc(rkName(x))}${rkYomi(x)?`<small>${esc(rkYomi(x))}</small>`:''}</div>${sub?`<div class="sb${(rk.sub==='tel' && x.tels.length)?' tel':''}">${esc(sub)}</div>`:''}</span>`
+    +`<span class="tx"><div class="nm">${esc(rkName(x))}${(rkYomi(x) && !rk.furi)?`<small>${esc(rkYomi(x))}</small>`:''}</div>${sub?`<div class="sb${(rk.sub==='tel' && x.tels.length)?' tel':''}">${esc(sub)}</div>`:''}${mm?`<div class="mm">📝 ${esc(mm)}</div>`:''}</span>`
     +`${(no||cn)?`<span class="cl${no?' n':''}" style="--rki:${colInk(x.color)}">${no?`<b>No.${no}</b>${cn?' ':''}`:''}${esc(cn)}</span>`:''}${gi?`<span class="gi">${esc(gi)}</span>`:''}${x.fav?'<span class="fv">★</span>':''}</div>`;
 }
 /* 色をぬった人だけ 書きなおす（一覧は動かさない） */
@@ -1292,17 +1313,18 @@ function rkView(id){
   if(x.nick) rows.push(row('ニックネーム', esc(x.nick)));
   rk.fields.forEach(f=>{ if(x.cf[f.id]) rows.push(row(f.n, esc(x.cf[f.id]))); });
   if(x.groups.length) rows.push(row('グループ', esc(x.groups.map(g=>(gIcon(g)?gIcon(g)+' ':'')+g).join('・'))));
-  if(x.note) rows.push(row('メモ', esc(x.note)));
   const t0=x.tels.find(t=>t.t!=='fax'), c0=x.tels.find(t=>t.t==='cell'), m0=x.mails.find(m=>rkMailOk(m.v)), a0=x.adrs.find(a=>rkAdrText(a));
   const act=(ic,l,href,blank)=>href?`<a href="${esc(href)}"${blank?' target="_blank" rel="noopener"':''}><span>${ic}</span>${l}</a>`:`<a class="off"><span>${ic}</span>${l}</a>`;
   $('rkViewBody').innerHTML=`
     <div class="rk-who"><span class="av" id="rkViewAv" style="background-color:${rkColor(x)}">${esc(rkInitial(x))}</span>
-      ${rkYomi(x)?`<div class="k">${esc(rkYomi(x))}</div>`:''}<div class="n">${esc(rkName(x))}${x.fav?' <span class="fvc">★</span>':''}</div>
+      ${(rkYomi(x) && rk.furi!=='off')?`<div class="k">${esc(rkYomi(x))}</div>`:''}<div class="n">${esc(rkName(x))}${x.fav?' <span class="fvc">★</span>':''}</div>
       ${(x.org||x.dept||x.title)?`<div class="c">${esc([x.org,x.dept,x.title].filter(Boolean).join(' '))}</div>`:''}
       ${x.color?`<span class="rk-cpill${ptCls(x.color)}" style="${swSt(x.color)}"><span>${esc(colFullD(x.color))}</span></span>`:''}</div>
     <div class="rk-acts">${(t0 && rk.call!=='off') ? telA(t0.v, '<span>📞</span>電話') : act('📞','電話','')}${act('💬','SMS',c0?rkSmsHref(c0.v):'')}${act('✉','メール',m0?'mailto:'+m0.v.trim():'')}${act('📍','地図',a0?rkMapHref(rkAdrText(a0)):'',true)}</div>
     ${rk.call==='off' && x.tels.length ? '<div class="rk-note rk-calloff">📞 電話は「かけない」にしています（番号を押しても かかりません。⚙ 設定で変えられます）</div>' : ''}
     <div class="rk-rows">${rows.join('')}</div>
+    <div class="rk-vmemo"><label for="rkViewMemo">📝 メモ<small>${esc(rkMemoHint())}</small></label>
+      <textarea id="rkViewMemo" rows="2" maxlength="3000" placeholder="ここに書けます（例：午後は不在・〇〇の件）" oninput="RK.viewMemo(this)">${esc(x.note)}</textarea></div>
     <button class="rk-btn" onclick="RK.edit('${x.id}')">✏ 直す</button>
     <button class="rk-btn sub" onclick="RK.fav('${x.id}')">${x.fav?'☆ よく使うから外す':'★ よく使う'}</button>
     <button class="rk-btn sub" onclick="RK.viewColor('${x.id}')">🎨 色分け${x.color?'（いま：'+esc(colFullD(x.color))+'）':''}</button>
@@ -1312,7 +1334,22 @@ function rkView(id){
     <div class="rk-note">${x.raw.length?'スマホの項目のまま持っているもの '+x.raw.length+'件（ここには出ませんが、書き出すとそのまま戻ります）<br>':''}入れた日 ${fmtDay(x.added)}${x.updated!==x.added?'　直した日 '+fmtDay(x.updated):''}</div>`;
   const VO=$('rkViewOverlay'); VO.classList.toggle('rk-big', !!rk.big); VO.classList.toggle('rk-tel1', rk.telSize===1); VO.classList.toggle('rk-tel2', rk.telSize===2);
   if(!isDlgOpen('rkViewOverlay')) openDlg('rkViewOverlay', ()=>{ rkViewId=null; }); else $('rkViewBody').scrollTop=0;
+  rkMemoGrow($('rkViewMemo'));
   if(x.photo) rkPic(x.id).then(d=>{ const a=$('rkViewAv'); if(a && d && safeImg(d) && rkViewId===x.id){ a.style.backgroundImage=`url("${d}")`; a.textContent=''; } });
+}
+/* 📝 メモ欄（v555）：書いたら そのまま覚える（x.note。スマホに戻すと メモ欄に入る）。一覧の その人の行も 書きなおす */
+const rkMemoHint=()=>!rk.lmemo ? '' : rk.sub==='note' ? '1行目が 一覧の 名前の下にも出ます' : '一覧の 電話番号の下にも出ます';
+function rkMemoGrow(el){ if(!el) return; el.style.height='auto'; el.style.height=Math.min(el.scrollHeight+2, Math.round(window.innerHeight*0.4))+'px'; }
+let rkMemoT=0;
+function rkViewMemo(el){
+  const x=rkViewId ? rkFind(rkViewId) : null; if(!x || !el) return;
+  rkMemoGrow(el);
+  const v=String(el.value||'').slice(0,3000);
+  if(v===x.note) return;
+  x.note=v; x.updated=today(); x.ts=Date.now();
+  rkSaveSoon();
+  clearTimeout(rkMemoT); const id=x.id;
+  rkMemoT=setTimeout(()=>{ rkMemoT=0; rkRepaint(id); if(rkT) rkTRowRe(id); }, 250);
 }
 /* かける前に聞く：「○○ 090-… に電話をかけますか？」→ かける */
 async function rkTelAsk(ev, a){
@@ -2708,6 +2745,10 @@ function rkOpenCustom(){
     ${vOrd().map((k,i,a)=>`<div class="rk-cus" data-vo="${k}"><span class="nm">${esc(VIEWS.find(v=>v[0]===k)[1])}</span><button onclick="RK.vMove('${k}',-1)" aria-label="上へ" ${i?'':'disabled'}>↑</button><button onclick="RK.vMove('${k}',1)" aria-label="下へ" ${i<a.length-1?'':'disabled'}>↓</button></div>`).join('')}
     <div class="rk-sec">📋 一覧の 名前の下に出すもの</div>
     <div class="rk-tagrow">${subs.map(([v,l])=>`<button type="button" class="${rk.sub===v?'on':''}" onclick="RK.setSub(${esc(JSON.stringify(v))})">${esc(l)}</button>`).join('')}</div>
+    <label class="rk-chk"><input type="checkbox" id="rkLMemo" ${rk.lmemo?'checked':''} onchange="RK.setLMemo(this.checked)"> 📝 メモも その下に出す（名前を押した画面の メモ。2行まで）</label>
+    <div class="rk-sec">あ ふりがな（よみ）</div>
+    <div class="rk-tagrow" id="rkFuriSet">${[['','出す'],['list','一覧では 出さない'],['off','出さない（名前を押した画面も）']].map(([v,l])=>`<button type="button" data-fu="${v}" class="${rk.furi===v?'on':''}" onclick="RK.setFuri('${v}')">${l}</button>`).join('')}</div>
+    <div class="rk-note" style="margin-top:2px">出さなくても、よみで さがしたり あいうえお順に 並べたりは できます。</div>
     <div class="rk-sec">🔠 文字の大きさ</div>
     <div class="rk-note" style="margin-bottom:0">名前</div>
     <div class="rk-tagrow" id="rkBigSet"><button type="button" class="${rk.big?'':'on'}" onclick="RK.setBig(false)">ふつう</button><button type="button" class="${rk.big?'on':''}" onclick="RK.setBig(true)">大きく</button></div>
@@ -2765,6 +2806,14 @@ async function rkFDel(i){
 }
 function rkSetSub(v){ rk.sub=v; rkCustomRe(); }
 function rkSetBig(b){ rk.big=!!b; rkCustomRe(); }
+/* ふりがな（よみ）を 出す／一覧では出さない／出さない（v555） */
+function rkSetFuri(v){
+  rk.furi=['list','off'].includes(v)?v:''; rkSave(); rkRender(); if(rkViewId && isDlgOpen('rkViewOverlay')) rkView(rkViewId);
+  document.querySelectorAll('#rkFuriSet [data-fu]').forEach(b=>b.classList.toggle('on', b.dataset.fu===rk.furi));
+  toast(rk.furi==='off' ? 'ふりがなを 出さないように しました' : rk.furi==='list' ? '一覧では ふりがなを 出さないように しました' : 'ふりがなを 出すように しました');
+}
+/* 📝 メモを 一覧にも出す（v555） */
+function rkSetLMemo(on){ rk.lmemo=!!on; rkSave(); rkRender(); }
 function rkSetNoteCf(b){ rk.noteCf=!!b; rkSave(); }
 
 /* ── 🎤 声でさがす ── */
@@ -2799,7 +2848,7 @@ window.RK={ menu:rkOpenMenu, setQ:v=>{ rkQ=String(v||''); rkRender(); }, setView
   importClick:rkImportClick, importFile:rkImportFile, pick:rkPick, openExport:rkOpenExport, doExport:rkDoExport, csv:rkCsv, print:rkPrint, backup:rkBackup, wipe:rkWipe, help:rkHelp, appHelp:rkAppHelp,
   dups:rkOpenDups, dupMerge:rkDupMerge, dupSkip:rkDupSkip, dupAll:rkDupAll,
   custom:()=>{ if(rkEd && isDlgOpen('rkEdOverlay')) rkEdSync(); rkOpenCustom(); }, gAdd:rkGAdd, gPreset:rkGPreset, gRen:rkGRen, gIcon:rkGIcon, gMove:rkGMove, gDel:rkGDel, fAdd:rkFAdd, fPreset:rkFPreset, fRen:rkFRen, fMove:rkFMove, fDel:rkFDel,
-  setSub:rkSetSub, setBig:rkSetBig, setNoteCf:rkSetNoteCf, setCall:rkSetCall, telAsk:(ev,a)=>{ rkTelAsk(ev,a); }, listen:rkListen,
+  setSub:rkSetSub, setBig:rkSetBig, setFuri:rkSetFuri, setLMemo:rkSetLMemo, viewMemo:rkViewMemo, setNoteCf:rkSetNoteCf, setCall:rkSetCall, telAsk:(ev,a)=>{ rkTelAsk(ev,a); }, listen:rkListen,
   yomi:rkYOpen, yAlign:rkYAlign, yFill:()=>{ rkYFill(); }, yFillT:()=>{ if(!rkT) return; rkTCommit(); rkYFill(rkT.rows); }, yStyle:rkYSetStyle, yUndo:rkYUndoDo, yTbl:rkYTbl, edYomi:()=>{ rkEdYomi(); },
   cOrder:b=>{ rkCOrderOpen(!!b); }, cMove:rkCMove, cNoPick:k=>{ rkCNoPick(k); }, cReset:rkCReset, cDir:rkSetCDir, cNoShow:rkCNoShow, cDone:rkCDone,
   vDir:rkSetVDir, vMove:rkVMove, gOrder:rkGOrderOpen, gMv:rkGMv, gNoPick:i=>{ rkGNoPick(i); }, gDir:rkSetGDir, setTelSize:rkSetTelSize, setCGrp:rkSetCGrp, addFold:rkAddFold, setAddBar:rkSetAddBar,

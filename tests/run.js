@@ -7979,7 +7979,7 @@ async function runRenraku(browser) {
   check('  見る：電話・SMS・メール・地図はワンタッチ（tel: は数字だけ）', await page.evaluate(() => [...document.querySelectorAll('#rkViewBody .rk-acts a')].map(a => a.textContent.trim() + '=' + (a.getAttribute('href') || '-')).join(' ')),
     '📞電話=tel:09011112222 💬SMS=sms:09011112222 ✉メール=mailto:taro@example.jp 📍地図=https://www.google.com/maps/search/?api=1&query=%E6%9D%B1%E4%BA%AC%E9%83%BD%20%E5%8D%83%E4%BB%A3%E7%94%B0%E5%8C%BA%20%E5%8D%83%E4%BB%A3%E7%94%B01-1');
   check('  　自分の項目・誕生日・スマホのまま持っている項目の数', await page.evaluate(() => [...document.querySelectorAll('#rkViewBody .rk-row')].map(r => r.querySelector('b').textContent).join(',') + ' / ' + document.querySelector('#rkViewBody .rk-note').textContent.split('（')[0]),
-    '携帯,自宅,実家,妻の携帯,自宅,勤務先,自宅,誕生日,ニックネーム,年賀状,グループ,メモ / スマホの項目のまま持っているもの 1件');
+    '携帯,自宅,実家,妻の携帯,自宅,勤務先,自宅,誕生日,ニックネーム,年賀状,グループ / スマホの項目のまま持っているもの 1件');   // メモは v555 から「✏ 直す」の上の 📝 メモ欄に
   await page.evaluate(() => RK.closeView()); await w(300);
 
   // ── スマホに戻す（vCard）
@@ -8752,7 +8752,7 @@ async function runRenraku550(browser) {
   const fs1 = () => page.evaluate(() => { const sb = id => document.querySelector(`#rkList .rk-it[data-id="${id}"] .sb`), f = e => getComputedStyle(e).fontSize + (e.classList.contains('tel') ? '(tel)' : ''); return [f(sb('c1')), f(sb('c6')), getComputedStyle(document.querySelector(`#rkList .rk-it[data-id="c1"] .nm`)).fontSize].join(' / '); });
   check('  電話番号を もっと大きく：一覧の電話番号だけ 22px（メールの人・名前は そのまま）', await fs1(), '22px(tel) / 13px / 16px');
   await page.evaluate(() => RK.view('c1')); await w(300);
-  check('  　見る画面の電話番号も 大きく（25px）', await page.evaluate(() => getComputedStyle(document.querySelector('#rkViewBody .rk-row.tel > span')).fontSize + ' / ' + getComputedStyle(document.querySelectorAll('#rkViewBody .rk-row')[document.querySelectorAll('#rkViewBody .rk-row').length - 1].querySelector('span')).fontSize), '25px / 14.5px');
+  check('  　見る画面の電話番号も 大きく（28px）', await page.evaluate(() => getComputedStyle(document.querySelector('#rkViewBody .rk-row.tel > span')).fontSize + ' / ' + getComputedStyle(document.querySelectorAll('#rkViewBody .rk-row')[document.querySelectorAll('#rkViewBody .rk-row').length - 1].querySelector('span')).fontSize), '28px / 14.5px');   // v555 で 見る画面の電話番号を ふだんから大きく（22px → 大きく 25px → もっと大きく 28px）
   await page.evaluate(() => { RK.closeView(); RK.setTelSize(1); }); await w(200);
   check('  　大きく：18px・ふつうに戻す', (await fs1()).split(' / ')[0] + ' / ' + await page.evaluate(() => { RK.setTelSize(0); return getComputedStyle(document.querySelector('#rkList .rk-it[data-id="c1"] .sb')).fontSize + '/' + rkState().telSize; }), '18px(tel) / 13px/0');
 
@@ -9389,6 +9389,99 @@ async function runRenraku554(browser) {
   await page.reload(); await w(1200);
   await page.evaluate(() => openRenraku()); await w(900);
   check('  保存：読みなおしても 新しい色と名前・No.', await st(), '{"pink+st":"親せき","navy":"仕事","green+ck":"年賀状"} / 1:pink+st,2:pink+st,3:navy,4:pink+st,5:green+ck / pink+st,navy,green+ck');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+/* 📇 連絡帳：ふりがな 出す／出さない・見る画面の電話番号を大きく・見る画面の 📝 メモ欄 → 一覧の電話番号の下に（v555） */
+async function runRenraku555(browser) {
+  console.log('\n── 📇 連絡帳：ふりがな 出す／出さない・見る画面の電話番号を大きく・📝 メモ欄 → 一覧の電話番号の下に（v555） ──');
+  const T = v => [{ t: 'cell', v }];
+  const SEED = { v: 1, view: 'kana', tipFold: true, items: [
+    { id: 'c1', fam: '西谷', giv: '久司', famK: 'にしたに', givK: 'ひさじ', tels: T('090-1486-5412') },
+    { id: 'c2', fam: '隆人さん', famK: 'たかひとさん', tels: T('090-4769-8774'), note: '午後は不在\n\n2行目のメモ\n3行目' },
+    { id: 'c3', fam: '向井', giv: '睦夫', famK: 'むかい', tels: T('09034859052') },
+  ] };
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: 'block' });
+  await ctx.addInitScript(() => { try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('excalc_back_ask', '0'); } catch (e) {} });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/favicon|ServiceWorker/.test(m.text())) errs.push('console: ' + m.text()); });
+  page.on('dialog', d => d.accept());
+  const w = ms => page.waitForTimeout(ms);
+  const row = id => page.evaluate(id => { const e = document.querySelector(`#rkList .rk-it[data-id="${id}"]`); return (e.querySelector('.nm small') ? 'よみ:' + e.querySelector('.nm small').textContent : 'よみなし') + ' / ' + ((e.querySelector('.sb') || {}).textContent || '-') + ' / ' + ((e.querySelector('.mm') || {}).textContent || '-'); }, id);
+  const viewK = () => page.evaluate(() => { const k = document.querySelector('#rkViewBody .rk-who .k'); return k ? k.textContent : 'よみなし'; });
+  await page.goto('file://' + path.join(ROOT, 'index.html')); await w(1200);
+  await page.mouse.click(200, 300); await w(150);
+  await page.evaluate(s => { localStorage.setItem('excalc_renraku', s); openRenraku(); }, JSON.stringify(SEED)); await w(900);
+
+  // ── 一覧：メモは 電話番号の下に（2行まで・空の行は とばす）
+  check('  はじめは ふりがなを出す・メモも一覧に出す', await page.evaluate(() => JSON.stringify([rkState().furi, rkState().lmemo])), '["",true]');
+  check('  一覧：ふりがな・電話番号・📝 メモ（はじめの2行）', (await row('c2')) + ' | ' + await row('c1'), 'よみ:たかひとさん / 携帯 090-4769-8774 / 📝 午後は不在\n2行目のメモ | よみ:にしたに ひさじ / 携帯 090-1486-5412 / -');
+  check('  　メモは 2行で切る（はみ出しは …）', await page.evaluate(() => { const m = getComputedStyle(document.querySelector('#rkList .rk-it[data-id="c2"] .mm')); return m.webkitLineClamp + ' / ' + m.overflow; }), '2 / hidden');
+
+  // ── 名前を押した画面：電話番号は大きく・📝 メモ欄は「✏ 直す」の上
+  await page.evaluate(() => RK.view('c2')); await w(400);
+  check('  名前を押した画面：電話番号は 大きく太く（22px）・種類の字は そのまま', await page.evaluate(() => { const r = document.querySelector('#rkViewBody .rk-row.tel'); return getComputedStyle(r.querySelector('span')).fontSize + ' ' + getComputedStyle(r.querySelector('span')).fontWeight + ' / ' + getComputedStyle(r.querySelector('b')).fontSize; }), '22px 700 / 12px');
+  check('  📝 メモ欄は「✏ 直す」の すぐ上・いまのメモが入っている・「メモ」の行は なくす', await page.evaluate(() => { const m = document.getElementById('rkViewMemo'), nx = m.closest('.rk-vmemo').nextElementSibling;
+    return nx.textContent + ' / ' + JSON.stringify(m.value) + ' / ' + [...document.querySelectorAll('#rkViewBody .rk-row b')].some(b => b.textContent === 'メモ') + ' / ' + document.querySelector('.rk-vmemo label small').textContent; }),
+    '✏ 直す / "午後は不在\\n\\n2行目のメモ\\n3行目" / false / 一覧の 電話番号の下にも出ます');
+  check('  　ふりがなも出す', await viewK(), 'たかひとさん');
+  await page.evaluate(() => RK.closeView()); await w(300);
+
+  // ── メモを書く → 一覧に出る・覚える（表には入らない）
+  await page.evaluate(() => RK.view('c1')); await w(400);
+  await page.click('#rkViewMemo'); await page.keyboard.type('来週 見積もりの件で電話'); await w(700);
+  check('  メモ欄に書くと すぐ覚える（スマホに戻すメモと同じ）・表のセルには入らない', await page.evaluate(() => JSON.stringify(rkState().items.find(x => x.id === 'c1').note) + ' / ' + JSON.parse(localStorage.getItem('excalc_renraku')).items.find(x => x.id === 'c1').note + ' / ' + JSON.stringify(getCellDisplay(0, 0))),
+    '"来週 見積もりの件で電話" / 来週 見積もりの件で電話 / ""');
+  check('  　一覧の その人の行も すぐ書きなおす', await row('c1'), 'よみ:にしたに ひさじ / 携帯 090-1486-5412 / 📝 来週 見積もりの件で電話');
+  check('  　スマホに戻す（vCard）の NOTE にも入る', await page.evaluate(() => /^NOTE:来週 見積もりの件で電話/m.test(rkVcard(rkState().items.find(x => x.id === 'c1'), {}))), true);
+  await page.keyboard.press('Enter'); await page.keyboard.type('2行目'); await w(400);
+  check('  　Enter で 行を変えられる（2行目も 一覧に）', await row('c1'), 'よみ:にしたに ひさじ / 携帯 090-1486-5412 / 📝 来週 見積もりの件で電話\n2行目');
+  await page.goBack({ waitUntil: 'commit' }).catch(() => {}); await w(500);
+  check('  　端末の「戻る」で 見る画面だけ閉じる（連絡帳は そのまま）', await page.evaluate(() => isDlgOpen('rkViewOverlay') + ' / ' + isDlgOpen('renrakuOverlay')), 'false / true');
+  await page.fill('#rkFind', '見積もり'); await w(400);
+  check('  メモの言葉で さがせる', await page.evaluate(() => [...document.querySelectorAll('#rkList .rk-it')].map(e => e.dataset.id).join(',')), 'c1');
+  await page.fill('#rkFind', ''); await w(300);
+  await page.evaluate(() => RK.view('c1')); await w(300);
+  await page.fill('#rkViewMemo', ''); await w(500);
+  check('  　メモを消すと 一覧からも消える', await row('c1'), 'よみ:にしたに ひさじ / 携帯 090-1486-5412 / -');
+  await page.evaluate(() => RK.closeView()); await w(300);
+
+  // ── 名前の下に「メモの1行目」を出しているときは 重ねない・メモを出さない設定
+  await page.evaluate(() => { RK.setSub('note'); RK.closeScr(); }); await w(300);
+  check('  「名前の下に出すもの」が メモの1行目のときは 下に重ねない', await row('c2'), 'よみ:たかひとさん / 午後は不在 / -');
+  await page.evaluate(() => RK.view('c2')); await w(300);
+  check('  　メモ欄の案内も「1行目が 一覧の 名前の下にも出ます」', await page.evaluate(() => document.querySelector('.rk-vmemo label small').textContent), '1行目が 一覧の 名前の下にも出ます');
+  await page.evaluate(() => { RK.closeView(); RK.setSub('tel'); RK.closeScr(); }); await w(300);
+  await page.evaluate(() => { RK.menu(); RK.custom(); }); await w(400);
+  check('  🧩 自分好みにする：📝 メモも その下に出す（はじめは 出す）', await page.evaluate(() => document.getElementById('rkLMemo').checked + ' / ' + document.getElementById('rkLMemo').parentElement.textContent.trim()), 'true / 📝 メモも その下に出す（名前を押した画面の メモ。2行まで）');
+  await page.evaluate(() => { const c = document.getElementById('rkLMemo'); c.checked = false; c.dispatchEvent(new Event('change')); }); await w(300);
+  check('  　外すと 一覧に メモを出さない（メモ欄は そのまま書ける）', (await row('c2')) + ' / ' + await page.evaluate(() => rkState().lmemo), 'よみ:たかひとさん / 携帯 090-4769-8774 / - / false');
+
+  // ── ふりがな：出す／一覧では出さない／出さない
+  check('  🧩 あ ふりがな（よみ）：出す／一覧では 出さない／出さない（名前を押した画面も）', await page.evaluate(() => [...document.querySelectorAll('#rkFuriSet [data-fu]')].map(b => b.textContent + (b.classList.contains('on') ? '●' : '')).join(',')), '出す●,一覧では 出さない,出さない（名前を押した画面も）');
+  await page.click('#rkFuriSet [data-fu="list"]'); await w(300);
+  check('  　一覧では 出さない：一覧は 名前だけ・名前を押した画面には 出す', (await row('c1')) + ' / ' + await page.evaluate(() => [...document.querySelectorAll('#rkFuriSet .on')].map(b => b.dataset.fu).join() + ' / ' + document.getElementById('appToast').textContent) + ' / ' + await page.evaluate(() => { RK.view('c1'); const k = document.querySelector('#rkViewBody .rk-who .k'); return k ? k.textContent : 'よみなし'; }),
+    'よみなし / 携帯 090-1486-5412 / - / list / 一覧では ふりがなを 出さないように しました / にしたに ひさじ');
+  await page.evaluate(() => RK.closeView()); await w(250);
+  await page.click('#rkFuriSet [data-fu="off"]'); await w(300);
+  check('  　出さない：名前を押した画面も 出さない', (await row('c1')).split(' / ')[0] + ' / ' + await page.evaluate(() => { RK.view('c1'); const k = document.querySelector('#rkViewBody .rk-who .k'); return k ? k.textContent : 'よみなし'; }), 'よみなし / よみなし');
+  await page.evaluate(() => RK.closeView()); await w(250);
+  await page.fill('#rkFind', 'ひさじ'); await w(400);
+  check('  　出さなくても よみで さがせる', await page.evaluate(() => [...document.querySelectorAll('#rkList .rk-it')].map(e => e.dataset.id).join(',')), 'c1');
+  await page.fill('#rkFind', ''); await w(300);
+
+  // ── 読みなおしても 同じ
+  await page.evaluate(() => { RK.closeScr(); RK.closeSub(); closeRenraku(); }); await w(400);
+  await page.reload(); await w(1200);
+  await page.evaluate(() => openRenraku()); await w(900);
+  check('  保存：ふりがな・メモを一覧に出すか は 読みなおしても同じ', await page.evaluate(() => JSON.stringify([rkState().furi, rkState().lmemo])) + ' / ' + (await row('c2')).split(' / ')[0], '["off",false] / よみなし');
+  await page.evaluate(() => { RK.setFuri(''); RK.setLMemo(true); }); await w(300);
+  check('  　もとに戻す', await row('c2'), 'よみ:たかひとさん / 携帯 090-4769-8774 / 📝 午後は不在\n2行目のメモ');
+  // ── せまい画面・横持ちでも 見る画面の 大きい電話番号が はみ出さない
+  await page.setViewportSize({ width: 320, height: 640 }); await w(300);
+  await page.evaluate(() => RK.view('c1')); await w(400);
+  check('  せまい画面（320px）：大きい電話番号が はみ出さない', await page.evaluate(() => { const s = document.querySelector('#rkViewBody .rk-row.tel > span'), b = document.getElementById('rkViewBody'); return s.scrollWidth <= s.clientWidth + 1 && b.scrollWidth <= b.clientWidth + 1; }), true);
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
@@ -13860,6 +13953,7 @@ async function runQrShare(browser) {
     if (!only || only === 'rk552') await runRenraku552(browser);
     if (!only || only === 'backask') await runBackAsk(browser);
     if (!only || only === 'rk554') await runRenraku554(browser);
+    if (!only || only === 'rk555') await runRenraku555(browser);
     if (!only || only === 'firsthint') await runFirstHint(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
