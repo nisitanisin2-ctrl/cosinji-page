@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- 📇 連絡帳だけのアプリ（v550）。表電卓の 📇連絡帳（../renraku.js）を、表電卓なしで そのまま使う入れ物。
+     Netlify などに このフォルダの中身と renraku.js・renraku-yomi.js・renraku-icons.js を同じ場所に置けば 動く。
+     表電卓といっしょに置いたとき（GitHub Pages の renraku-app/）は、ひとつ上の renraku.js を読む（先に ひとつ上を見る）。
+     入れたものは この端末の中だけ（表電卓と同じ置き場 excalc_renraku。同じサイトなら 表電卓の連絡帳と同じ中身）。 -->
+<title>📇 連絡帳</title>
+<meta name="description" content="スマホの電話帳（vCard・CSV）を読んで、よみ順・グループ・色分けで見やすく整理し、また スマホに戻せる連絡帳。入れたものは この端末の中だけに残ります。">
+<meta name="theme-color" content="#217346">
+<meta name="color-scheme" content="light dark">
+<meta name="format-detection" content="telephone=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="連絡帳">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+<link rel="icon" href="icon-512.png" sizes="512x512" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root{
+  --acc:#217346; --acc-dark:#1a5c35; --acc-on-dark:#6cc492; --acc-weak:rgba(33,115,70,.12); --on-acc:#fff; --acc-text:var(--acc);
+  --text:#333; --text-sub:#555; --text-light:#888; --modal-bg:#fff; --bg:#f0f0f0; --panel:#fff; --cell-bg:#fff;
+  --r-btn:8px; --r-card:12px; --dur:.14s; --elev-2:0 8px 28px rgba(0,0,0,.28);
+  --safe-top:env(safe-area-inset-top,0px); --safe-bottom:env(safe-area-inset-bottom,0px); --safe-left:env(safe-area-inset-left,0px); --safe-right:env(safe-area-inset-right,0px);
+}
+body.dark{ --acc-text:var(--acc-on-dark); --acc-weak:rgba(33,115,70,.30); --text:#ddd; --text-sub:#aaa; --text-light:#8f97aa; --modal-bg:#1e2a45; --bg:#1a1a2e; --panel:#1e2a45; --cell-bg:#1e2a45; --elev-2:0 8px 28px rgba(0,0,0,.6); }
+html,body{ margin:0; height:100%; }
+body{ background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",Meiryo,sans-serif; -webkit-text-size-adjust:100%; }
+button,input,select,textarea{ font-family:inherit; }
+.modal-overlay{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:1000; align-items:center; justify-content:center; }
+.modal-overlay.open{ display:flex; }
+.modal{ background:var(--modal-bg); color:var(--text); border-radius:var(--r-card); width:92%; max-width:420px; max-height:75vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:var(--elev-2); }
+.vol-modal{ width:100%; max-width:none; height:100%; max-height:none; border-radius:0; }
+.modal-header{ background:var(--acc); color:#fff; padding:12px 16px; font-size:15px; font-weight:bold; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-shrink:0; }
+.modal-header > span:first-child{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.vol-modal > .modal-header{ padding-top:calc(12px + var(--safe-top)); padding-left:calc(16px + var(--safe-left)); padding-right:calc(16px + var(--safe-right)); }
+.modal-close{ flex:none; position:relative; background:rgba(255,255,255,.2); color:#fff; border:none; border-radius:var(--r-btn); width:28px; height:28px; font-size:17px; cursor:pointer; touch-action:manipulation; }
+.modal-close::before{ content:''; position:absolute; inset:-8px; }
+.hdr-right{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.hdr-btn{ padding:6px 11px; border:1px solid rgba(255,255,255,.45); border-radius:var(--r-btn); background:rgba(255,255,255,.15); color:#fff; font-size:13px; font-weight:bold; cursor:pointer; white-space:nowrap; touch-action:manipulation; }
+.hdr-btn:active{ transform:scale(.95); background:rgba(255,255,255,.32); }
+.hdr-btn:disabled{ opacity:.45; }
+.app-toast{ position:fixed; left:50%; bottom:calc(18px + var(--safe-bottom)); transform:translateX(-50%) translateY(8px); background:rgba(0,0,0,.85); color:#fff; padding:8px 16px; border-radius:var(--r-btn);
+  font-size:13px; font-weight:bold; z-index:100001; opacity:0; pointer-events:none; transition:opacity var(--dur), transform var(--dur); max-width:80%; text-align:center; white-space:pre-wrap; }
+.app-toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+#printArea{ display:none; }
+@page{ size:A4 portrait; margin:10mm; }
+@media print{ body > *:not(#printArea){ display:none !important; } #printArea{ display:block !important; } }
+/* いちばん下の画面（連絡帳）は閉じない：✕ を出さない */
+html.rk-solo #renrakuOverlay > .rk-modal > .modal-header .modal-close{ display:none; }
+#rkBoot{ position:fixed; inset:0; display:flex; flex-direction:column; gap:10px; align-items:center; justify-content:center; padding:24px; text-align:center; font-size:18px; font-weight:bold; color:var(--text-light); }
+#rkBoot small{ font-size:13px; font-weight:normal; line-height:1.7; }
+</style>
+<script>
+/* ── 連絡帳（renraku.js）が使う 小さな道具（表電卓の index.html にあるものと同じ働き） ── */
+document.documentElement.classList.add('rk-solo');
+let appModalOpen=false;
+/* お知らせ（下に少し出す） */
+let _toastTimer=null;
+function toast(msg, ms){
+  let el=document.getElementById('appToast');
+  if(!el){ el=document.createElement('div'); el.id='appToast'; el.className='app-toast'; el.setAttribute('role','status'); el.setAttribute('aria-live','polite'); document.body.appendChild(el); }
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(_toastTimer); _toastTimer=setTimeout(()=>el.classList.remove('show'), ms||1800);
+}
+/* はい／いいえ */
+function appConfirm(message, yes='OK', no='キャンセル'){
+  return new Promise(resolve=>{
+    appModalOpen=true;
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding-top:12vh;background:rgba(0,0,0,.45)';
+    const box=document.createElement('div');
+    box.style.cssText='background:var(--panel,#fff);color:var(--text,#222);min-width:280px;max-width:90vw;padding:18px;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.35);font-size:15px';
+    const msg=document.createElement('div'); msg.textContent=message; msg.style.cssText='margin-bottom:14px;font-weight:600;line-height:1.5;white-space:pre-wrap';
+    const row=document.createElement('div'); row.style.cssText='display:flex;justify-content:flex-end;gap:8px';
+    const bn=document.createElement('button'); bn.textContent=no; bn.style.cssText='padding:8px 14px;font-size:14px;border:1px solid #999;border-radius:6px;background:#eee;color:#222;cursor:pointer';
+    const by=document.createElement('button'); by.textContent=yes; by.style.cssText='padding:8px 16px;font-size:14px;border:none;border-radius:6px;background:#217346;color:#fff;cursor:pointer;font-weight:bold';
+    const close=v=>{ appModalOpen=false; document.removeEventListener('keydown', onKey, true); try{ document.body.removeChild(ov); }catch(_){} resolve(v); };
+    const onKey=e=>{ if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); close(false); } };
+    document.addEventListener('keydown', onKey, true);
+    bn.onclick=()=>close(false); by.onclick=()=>close(true);
+    ov.addEventListener('mousedown',e=>{ if(e.target===ov) close(false); });
+    row.appendChild(bn); row.appendChild(by); box.appendChild(msg); box.appendChild(row); ov.appendChild(box); document.body.appendChild(ov);
+    by.focus();
+  });
+}
+/* 文字を入れてもらう（やめたら null） */
+function appPrompt(message, defaultValue='', multiline=false){
+  return new Promise(resolve=>{
+    appModalOpen=true;
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding-top:7vh;background:rgba(0,0,0,.45)';
+    const box=document.createElement('div');
+    box.style.cssText='background:var(--panel,#fff);color:var(--text,#222);min-width:280px;max-width:90vw;padding:18px;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.35);font-size:15px';
+    const msg=document.createElement('div'); msg.textContent=message; msg.style.cssText='margin-bottom:10px;font-weight:600;white-space:pre-wrap';
+    const input=document.createElement(multiline?'textarea':'input'); if(multiline) input.rows=5; else input.type='text';
+    input.value=defaultValue;
+    input.style.cssText='width:100%;box-sizing:border-box;padding:8px 10px;font-size:16px;border:1px solid #999;border-radius:6px;background:var(--cell-bg,#fff);color:var(--text,#222)';
+    const row=document.createElement('div'); row.style.cssText='display:flex;justify-content:flex-end;gap:8px;margin-top:14px';
+    const cancel=document.createElement('button'); cancel.textContent='キャンセル'; cancel.style.cssText='padding:7px 14px;font-size:14px;border:1px solid #999;border-radius:6px;background:#eee;color:#222;cursor:pointer';
+    const ok=document.createElement('button'); ok.textContent='OK'; ok.style.cssText='padding:7px 16px;font-size:14px;border:none;border-radius:6px;background:#217346;color:#fff;cursor:pointer;font-weight:bold';
+    const close=val=>{ appModalOpen=false; try{ document.body.removeChild(ov); }catch(_){} resolve(val); };
+    cancel.onclick=()=>close(null); ok.onclick=()=>close(input.value);
+    input.addEventListener('keydown',e=>{ e.stopPropagation();
+      if(e.key==='Enter' && !multiline){ e.preventDefault(); close(input.value); }
+      else if(e.key==='Escape'){ e.preventDefault(); close(null); } });
+    ov.addEventListener('mousedown',e=>{ if(e.target===ov) close(null); });
+    row.appendChild(cancel); row.appendChild(ok); box.appendChild(msg); box.appendChild(input); box.appendChild(row); ov.appendChild(box); document.body.appendChild(ov);
+    input.focus(); if(!multiline) input.select();
+    requestAnimationFrame(()=>{ input.focus(); if(!multiline) input.select(); });
+  });
+}
+/* 名前の形・写真の形・CSV の頭の記号（表電卓と同じ） */
+function safeId(v, mk){ const s=(typeof v==='string'||typeof v==='number')?String(v):''; return /^[A-Za-z0-9_-]{1,80}$/.test(s) ? s : (mk?mk():''); }
+function safeImg(v){ return typeof v==='string' && /^data:image\/(png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+\/=]+$/.test(v) ? v : ''; }
+function csvSafe(v){ const s=String(v==null?'':v); return /^[=+\-@\t\r]/.test(s) && !/^[\d\s+\-.,:\/()%]*$/.test(s) ? "'"+s : s; }
+function speechRecCtor(){ return window.SpeechRecognition || window.webkitSpeechRecognition || null; }
+/* 印刷（あいうえお順の電話一覧） */
+function opBuild(html){ let pa=document.getElementById('printArea'); if(!pa){ pa=document.createElement('div'); pa.id='printArea'; document.body.appendChild(pa); } pa.innerHTML=html; return {pa}; }
+function opPrint(){ toast('印刷の画面から「PDFに保存」も選べます', 3500); setTimeout(()=>{ try{ window.print(); }catch(_){ toast('印刷を開けませんでした'); } }, 250); }
+
+/* ── 画面の開け閉め：開いたら 端末の「戻る」で閉じられるように（いちばん下の 連絡帳 は閉じない） ── */
+const dlgStack=[]; let histSkip=0, histBase=false;
+function isDlgOpen(id){ const el=document.getElementById(id); return !!(el && el.classList.contains('open')); }
+function openDlg(id, cleanup){
+  const el=document.getElementById(id);
+  if(!el || el.classList.contains('open')) return false;
+  el.classList.add('open');
+  if(id==='renrakuOverlay') return true;
+  dlgStack.push({id, close:()=>{ el.classList.remove('open'); if(cleanup) cleanup(); }});
+  try{ history.pushState({rkDlg:1},''); }catch(_){}
+  return true;
+}
+function closeDlg(id, cleanup){
+  const el=document.getElementById(id);
+  if(!el || !el.classList.contains('open') || id==='renrakuOverlay') return false;
+  el.classList.remove('open');
+  const i=dlgStack.map(d=>d.id).lastIndexOf(id);
+  if(i>=0){ dlgStack.splice(i,1); histSkip++; try{ history.back(); }catch(_){ histSkip--; } }
+  if(cleanup) cleanup();
+  return true;
+}
+window.addEventListener('popstate', ()=>{
+  if(histSkip>0){ histSkip--; return; }
+  const d=dlgStack.pop(); if(d){ d.close(); return; }
+  if(histBase){ histBase=false; toast('もう一度「戻る」を押すと閉じます', 2600); }   // 押しまちがいで閉じないように
+});
+/* はじめて触れたときに、いちばん下の分を1つ積んでおく */
+function rkActed(){ if(histBase || histSkip>0) return; try{ history.pushState({rkBase:1},''); histBase=true; }catch(_){} }
+['pointerup','keydown'].forEach(t=>window.addEventListener(t, rkActed, true));
+/* Esc：いちばん上の画面を閉じる（表の中で文字を入れているときは 連絡帳のほうで止める） */
+window.addEventListener('keydown', e=>{ if(e.key!=='Escape' || appModalOpen || !dlgStack.length) return; e.preventDefault(); history.back(); });
+</script>
+</head>
+<body>
+<div id="rkBoot">📇 連絡帳<small>開いています…</small></div>
+<script>
+/* 夜の色：端末の設定に合わせる */
+(function(){
+  const mq=window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+  const set=()=>document.body.classList.toggle('dark', !!(mq && mq.matches));
+  set(); if(mq){ try{ mq.addEventListener('change', set); }catch(_){ try{ mq.addListener(set); }catch(__){} } }
+})();
+/* 連絡帳の本体を読む（ひとつ上 → なければ 同じ場所）
+   表電卓といっしょ（GitHub Pages の renraku-app/）は ひとつ上にある。Netlify の いちばん上に置いたときは ../ も 同じ場所を指すので、
+   どちらも 読めない（404）ものを出さずに開ける。Netlify の中のフォルダに置いたときは 同じ場所を読む。 */
+(function(){
+  const load=src=>new Promise(res=>{ const s=document.createElement('script'); s.src=src; s.onload=()=>res(true); s.onerror=()=>{ s.remove(); res(false); }; document.head.appendChild(s); });
+  (async()=>{
+    window.RK_BASE='../';
+    let ok=await load('../renraku.js');
+    if(!ok){ delete window.RK_BASE; ok=await load('renraku.js'); }
+    const boot=document.getElementById('rkBoot');
+    if(!ok || typeof window.openRenraku!=='function'){
+      boot.innerHTML='📇 連絡帳を 読み込めませんでした<small>このページと同じ場所に renraku.js・renraku-yomi.js・renraku-icons.js を置いてください。<br>インターネットにつながるところで、もう一度 開いてみてください。</small>';
+      return;
+    }
+    boot.remove();
+    window.openRenraku();
+  })();
+  if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(()=>{});
+})();
+</script>
+</body>
+</html>
