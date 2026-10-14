@@ -8,7 +8,8 @@
      https://www.edrdg.org/wiki/index.php/KANJIDIC_Project）にもとづく（かきじゅん帳の字のデータ kakijun/js/data.js から取り出したもの）。
      KAN_ON・KAN_KUN の2つは CC BY-SA 4.0 で提供します。
    ・window.rkYomiGuess({fam,giv,fn,org,nick}) → {famK, givK}（ひらがな）か null。
-     window.rkYomiOf(文字, 'sei'|'mei'|'org'|'') → よみ（作れないときは ''）。 */
+     window.rkYomiOf(文字, 'sei'|'mei'|'org'|'') → よみ（作れないときは ''）。
+     window.rkYomiAlts(文字, 数) → よみの候補（名字・名前・会社の読み方と、1字ずつの ほかの読み。声でさがす ときに使う。v556） */
 (function(){
 'use strict';
 /* 名字・名前・言葉（「字よみ」を空白で区切る。GO2 は 字の中に かなのある言葉「字=よみ」）・読まない法人の形 */
@@ -150,6 +151,29 @@ window.rkYomiGuess=function(x){
   const rs=full(x.fn||x.org||x.nick||'', !x.fn && !!x.org);
   if(!rs || !rs.length || !rs.join('')) return null;
   return {famK:rs[0], givK:rs.slice(1).join(' ')};
+};
+/* 声でさがす（v556）：聞き取った字（「西谷」「久司」）の よみの候補を いくつか。
+   はじめは 名字・名前・言葉・会社の読み方の いちばん よさそうな読み。そのあと 1字ずつ ほかの読みに 入れかえたもの */
+function allOne(ch, i){
+  let c=ch[i]; if(c==='々'){ if(!i) return []; c=ch[i-1]; }
+  const rs=[i>0&&D.sk2.get(c), D.sk.get(c), i===0&&D.mk0.get(c), D.mk.get(c), D.ext.get(c), D.kun.get(c), D.on.get(c)].filter(Boolean);
+  return [...new Set(rs)];
+}
+window.rkYomiAlts=function(s, max){
+  init(); max=max||10;
+  const out=[], add=r=>{ r=String(r||'').replace(/\s+/g,''); if(r && !out.includes(r) && out.length<max) out.push(r); };
+  const ts=toks(s); if(!ts.length) return out;
+  for(const ctx of ['sei','mei','','org']){ let bad=0; const r=ts.map(t=>{ const x=seg(t,ctx); bad+=x.bad; return x.r; }).join(''); if(!bad) add(r); }
+  const ch=Array.from(ts.join(''));
+  if(ch.length<=8){
+    const alt=ch.map((c,i)=>KANJI.test(c) ? allOne(ch,i) : [KANA.test(c) ? toHira(c) : '']);
+    if(alt.every(a=>a.length)){
+      const base=alt.map(a=>a[0]);
+      add(base.join(''));
+      for(let i=0;i<alt.length && out.length<max;i++) for(let j=1;j<alt[i].length && out.length<max;j++){ const b=base.slice(); b[i]=alt[i][j]; add(b.join('')); }
+    }
+  }
+  return out;
 };
 window.rkYomiOf=function(s, ctx){
   init();

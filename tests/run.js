@@ -7610,8 +7610,8 @@ async function runEigoSpeak(browser) {
   const ja0 = await page.evaluate(() => getComputedStyle(document.querySelector('#talk-log .tb-ja')).display + '/' + localStorage.getItem('eigo_talk_ja'));
   await page.click('#talk-ja-btn'); await w(50);
   check('  訳：かくす・出す（覚えておく）', ja0 + ' | ' + await page.evaluate(() => getComputedStyle(document.querySelector('#talk-log .tb-ja')).display + '/' + localStorage.getItem('eigo_talk_ja')), 'none/0 | block/1');
-  await page.evaluate(() => window.__srQueue.push({ alts: [['yes', 0.9]] }));
-  await page.click('#talk-mic'); await w(10);
+  await page.evaluate(() => { window.__srQueue.push({ alts: [['yes', 0.9]] }); window.__srS0 = window.__srStarted; });
+  await page.click('#talk-mic'); await page.waitForFunction(() => window.__srStarted > window.__srS0, null, { timeout: 5000 }).catch(() => {});   // 聞き取りが はじまってから（重いときに 10ms では まだ）
   await page.click('#talk-back'); await w(200);
   check('  ← 戻る：聞くのをやめて、ホームで場面えらび', await page.evaluate(() => window.__srLast._aborted + '/' + document.querySelector('.screen.active').id + '/' + document.getElementById('talk-modal').style.display), 'true/screen-home/flex');
   await page.click('#talk-cancel'); await w(50);
@@ -7979,7 +7979,7 @@ async function runRenraku(browser) {
   check('  見る：電話・SMS・メール・地図はワンタッチ（tel: は数字だけ）', await page.evaluate(() => [...document.querySelectorAll('#rkViewBody .rk-acts a')].map(a => a.textContent.trim() + '=' + (a.getAttribute('href') || '-')).join(' ')),
     '📞電話=tel:09011112222 💬SMS=sms:09011112222 ✉メール=mailto:taro@example.jp 📍地図=https://www.google.com/maps/search/?api=1&query=%E6%9D%B1%E4%BA%AC%E9%83%BD%20%E5%8D%83%E4%BB%A3%E7%94%B0%E5%8C%BA%20%E5%8D%83%E4%BB%A3%E7%94%B01-1');
   check('  　自分の項目・誕生日・スマホのまま持っている項目の数', await page.evaluate(() => [...document.querySelectorAll('#rkViewBody .rk-row')].map(r => r.querySelector('b').textContent).join(',') + ' / ' + document.querySelector('#rkViewBody .rk-note').textContent.split('（')[0]),
-    '携帯,自宅,実家,妻の携帯,自宅,勤務先,自宅,誕生日,ニックネーム,年賀状,グループ,メモ / スマホの項目のまま持っているもの 1件');
+    '携帯,自宅,実家,妻の携帯,自宅,勤務先,自宅,誕生日,ニックネーム,年賀状,グループ / スマホの項目のまま持っているもの 1件');   // メモは v555 から「✏ 直す」の上の 📝 メモ欄に
   await page.evaluate(() => RK.closeView()); await w(300);
 
   // ── スマホに戻す（vCard）
@@ -8132,7 +8132,7 @@ async function runRenrakuIro(browser) {
   // ── 🎨 色分け：色をえらんで人を押す
   await page.evaluate(() => RK.paintStart()); await w(250);
   check('  🎨 色分け：24色の パレット（はじめは赤）・いまの色・押した人をこの色に', await page.evaluate(() => [document.querySelectorAll('#rkPal .rk-sw').length, document.querySelector('#rkPal .rk-sw.on').dataset.c, document.querySelector('#rkAdd .rk-pinfo').textContent.replace(/\s+/g, ' ').trim()].join(' / ')),
-    '24 / red / 赤（要連絡）1人押した人を この色に ✏ 名前を直す');
+    '24 / red / 赤（要連絡）1人押した人を この色に ✏ 直す');
   await page.evaluate(() => RK.paintPick('orange')); await w(100);
   await page.click('#rkList .rk-it[data-id="a4"]'); await w(150);
   await page.click('#rkList .rk-it[data-id="a5"]'); await w(150);
@@ -8595,7 +8595,7 @@ async function runRenrakuColorNo(browser) {
   for (let i = 0; i < 2; i++) { await page.evaluate(() => { const r = [...document.querySelectorAll('#rkCOrd .rk-co')].find(e => e.dataset.c === 'green+dot'); r.querySelector('.mv').click(); }); await w(120); }
   check('  ↑ で動かす（年賀状を2つ上へ → No.1）・動かした色は光る', (await rows(3)) + ' / ' + await page.evaluate(() => [...document.querySelectorAll('#rkCOrd .rk-co.fl')].map(e => e.dataset.c).join(',')), 'No.1 年賀状緑・水玉 / No.2 急ぎ青 / No.3 要連絡赤 / green+dot');
   check('  　いちばん上の ↑・いちばん下の ↓ は押せない', await page.evaluate(() => { const r = [...document.querySelectorAll('#rkCOrd .rk-co')]; return r[0].querySelectorAll('.mv')[0].disabled + '/' + r[2].querySelectorAll('.mv')[1].disabled; }), 'true/true');
-  await page.evaluate(() => { window.appPrompt = async () => '至急'; const r = [...document.querySelectorAll('#rkCOrd .rk-co')].find(e => e.dataset.c === 'blue'); r.querySelector('.nm').click(); }); await w(400);
+  await page.evaluate(() => { window.appPrompt = async () => '至急'; const r = [...document.querySelectorAll('#rkCOrd .rk-co')].find(e => e.dataset.c === 'blue'); r.querySelector('.nm').click(); document.querySelector('#rkAskBody [data-r="1"]').click(); }); await w(400);
   check('  名前を押す：名前を直して この画面に戻る', await page.evaluate(() => document.getElementById('rkScrHdr').textContent + ' / ' + rkState().colors.blue) + ' / ' + await rows(2), '🔢 色の No.・並ぶ順番 / 至急 / No.1 年賀状緑・水玉 / No.2 至急青');
 
   // ── ＋ 色に名前を付ける（色と背景をえらぶ）
@@ -8603,9 +8603,9 @@ async function runRenrakuColorNo(browser) {
   check('  ＋ 色に名前を付ける：色と背景をえらぶ窓（「この色にする」は えらんでから）', await page.evaluate(() => document.getElementById('rkAskHdr').textContent + ' / ' + document.querySelector('#rkAskBody [data-r="0"]').disabled), '🎨 名前を付ける色（色と背景）をえらぶ / true');
   await page.evaluate(() => { document.querySelector('#rkAskBody .rk-cpb [data-b="orange"]').click(); document.querySelector('#rkAskBody .rk-pats [data-p=""]').click(); document.querySelector('#rkAskBody [data-r="0"]').click(); }); await w(500);
   check('  　だいだい に「連絡待ち」→ 順番を決めていたので いちばん下（No.4）', (await rows(4)) + ' / ' + await page.evaluate(() => rkState().corder.join(',')), 'No.1 年賀状緑・水玉 / No.2 至急青 / No.3 要連絡赤 / No.4 連絡待ちだいだい / green+dot,blue,red,orange');
-  await page.evaluate(() => { window.appPrompt = async () => '至急'; const r = [...document.querySelectorAll('#rkCOrd .rk-co')].find(e => e.dataset.c === 'orange'); r.querySelector('.nm').click(); }); await w(400);
+  await page.evaluate(() => { window.appPrompt = async () => '至急'; const r = [...document.querySelectorAll('#rkCOrd .rk-co')].find(e => e.dataset.c === 'orange'); r.querySelector('.nm').click(); document.querySelector('#rkAskBody [data-r="1"]').click(); }); await w(400);
   check('  　同じ名前（至急）は 付けられない', await page.evaluate(() => rkState().colors.orange + ' / ' + document.getElementById('appToast').textContent), '連絡待ち / 「至急」は もう「青」の名前です（ちがう名前にしてください）');
-  await page.evaluate(() => { window.appPrompt = async () => ''; const r = [...document.querySelectorAll('#rkCOrd .rk-co')].find(e => e.dataset.c === 'orange'); r.querySelector('.nm').click(); }); await w(400);
+  await page.evaluate(() => { window.appPrompt = async () => ''; const r = [...document.querySelectorAll('#rkCOrd .rk-co')].find(e => e.dataset.c === 'orange'); r.querySelector('.nm').click(); document.querySelector('#rkAskBody [data-r="1"]').click(); }); await w(400);
   check('  　名前を外すと この画面から消える（No. もなくなる）', await page.evaluate(() => document.querySelectorAll('#rkCOrd .rk-co').length + ' / ' + ('orange' in rkState().colors) + ' / ' + rkState().corder.join(',')), '3 / false / green+dot,blue,red');
   await page.evaluate(() => { window.appPrompt = async () => null; RK.cDone(); }); await w(300);
   check('  上の色の札：名前を付けた色（No. 順）→ 名前のない色', await chips(), '年賀状1,至急2,要連絡1,だいだい1,青緑・ストライプ1');
@@ -8752,7 +8752,7 @@ async function runRenraku550(browser) {
   const fs1 = () => page.evaluate(() => { const sb = id => document.querySelector(`#rkList .rk-it[data-id="${id}"] .sb`), f = e => getComputedStyle(e).fontSize + (e.classList.contains('tel') ? '(tel)' : ''); return [f(sb('c1')), f(sb('c6')), getComputedStyle(document.querySelector(`#rkList .rk-it[data-id="c1"] .nm`)).fontSize].join(' / '); });
   check('  電話番号を もっと大きく：一覧の電話番号だけ 22px（メールの人・名前は そのまま）', await fs1(), '22px(tel) / 13px / 16px');
   await page.evaluate(() => RK.view('c1')); await w(300);
-  check('  　見る画面の電話番号も 大きく（25px）', await page.evaluate(() => getComputedStyle(document.querySelector('#rkViewBody .rk-row.tel > span')).fontSize + ' / ' + getComputedStyle(document.querySelectorAll('#rkViewBody .rk-row')[document.querySelectorAll('#rkViewBody .rk-row').length - 1].querySelector('span')).fontSize), '25px / 14.5px');
+  check('  　見る画面の電話番号も 大きく（28px）', await page.evaluate(() => getComputedStyle(document.querySelector('#rkViewBody .rk-row.tel > span')).fontSize + ' / ' + getComputedStyle(document.querySelectorAll('#rkViewBody .rk-row')[document.querySelectorAll('#rkViewBody .rk-row').length - 1].querySelector('span')).fontSize), '28px / 14.5px');   // v555 で 見る画面の電話番号を ふだんから大きく（22px → 大きく 25px → もっと大きく 28px）
   await page.evaluate(() => { RK.closeView(); RK.setTelSize(1); }); await w(200);
   check('  　大きく：18px・ふつうに戻す', (await fs1()).split(' / ')[0] + ' / ' + await page.evaluate(() => { RK.setTelSize(0); return getComputedStyle(document.querySelector('#rkList .rk-it[data-id="c1"] .sb')).fontSize + '/' + rkState().telSize; }), '18px(tel) / 13px/0');
 
@@ -9269,6 +9269,283 @@ async function runBackAsk(browser) {
   await back();
   check('  　もう一度：いつもの「もう一度「戻る」を押すと閉じます」（表電卓は ないので 聞かない）', await page.evaluate(() => document.getElementById('appToast').textContent), 'もう一度「戻る」を押すと閉じます');
   check('  エラーなし（別のアプリ）', errs.join(' | '), '');
+  await ctx.close();
+}
+
+/* 🎨 連絡帳：名前を付けた色の 色・背景を あとから変える・一覧の右はしに 色の名前のグループ（🎨）を出さない（v554） */
+async function runRenraku554(browser) {
+  console.log('\n── 📇 連絡帳：名前を付けた色の 色・背景を変える（名前・No.・人は そのまま）・右はしの 🎨 を出さない（v554） ──');
+  const T = v => [{ t: 'cell', v }];
+  const SEED = { v: 1, view: 'kana', tipFold: true, colors: { red: '家族', green: '仕事', 'blue+dot': '年賀状' }, groups: [{ n: 'ゴルフ', ic: '⛳' }], items: [
+    { id: 'c1', fam: '山田', giv: '太郎', famK: 'やまだ', givK: 'たろう', color: 'red', tels: T('090-2000-0001') },
+    { id: 'c2', fam: '山田', giv: '花子', famK: 'やまだ', givK: 'はなこ', color: 'red', groups: ['ゴルフ'], tels: T('090-2000-0002') },
+    { id: 'c3', fam: '佐藤', giv: '一郎', famK: 'さとう', givK: 'いちろう', color: 'green', tels: T('090-2000-0003') },
+    { id: 'c4', fam: '鈴木', giv: '次郎', famK: 'すずき', givK: 'じろう', color: 'red+st', tels: T('090-2000-0004') },
+    { id: 'c5', fam: '高橋', giv: '三郎', famK: 'たかはし', givK: 'さぶろう', color: 'blue+dot', tels: T('090-2000-0005') },
+  ] };
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: 'block' });
+  await ctx.addInitScript(() => { try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('excalc_back_ask', '0'); } catch (e) {} });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/favicon|ServiceWorker/.test(m.text())) errs.push('console: ' + m.text()); });
+  page.on('dialog', d => d.accept());
+  const w = ms => page.waitForTimeout(ms);
+  const st = () => page.evaluate(() => { const r = rkState(); return JSON.stringify(r.colors) + ' / ' + r.items.map(x => x.id.slice(1) + ':' + (x.color || '-')).join(',') + ' / ' + r.corder.join(','); });
+  const askHdr = () => page.evaluate(() => isDlgOpen('rkAskOverlay') ? document.getElementById('rkAskHdr').textContent : '（なし）');
+  const askBtns = () => page.evaluate(() => [...document.querySelectorAll('#rkAskBody [data-r]')].map(b => b.textContent).join('|'));
+  const btn = r => page.click('#rkAskBody [data-r="' + r + '"]').then(() => w(350));
+  const toastT = () => page.evaluate(() => document.getElementById('appToast').textContent);
+  await page.goto('file://' + path.join(ROOT, 'index.html')); await w(1200);
+  await page.evaluate(s => { localStorage.setItem('excalc_renraku', s); openRenraku(); }, JSON.stringify(SEED)); await page.waitForSelector('#rkList .rk-it', { timeout: 15000 }).catch(() => {}); await w(300);
+  const s0 = await st();
+
+  // ── 🧩 自分好みにする：名前を付けた色を押す
+  await page.evaluate(() => { RK.menu(); RK.custom(); }); await w(400);
+  check('  🧩 の 色の一覧の説明：押すと 名前を直したり 色・背景を変えたり', await page.evaluate(() => [...document.querySelectorAll('#rkScrBody .rk-note')].some(n => n.textContent.includes('名前はそのままで 色・背景を変えたり'))), true);
+  await page.click('.rk-cgrid [data-c="red"]'); await w(350);
+  check('  名前を付けた色を押す →「🎨 色・背景を変える／✏ 名前を直す／やめる」', (await askHdr()) + ' / ' + await askBtns() + ' / ' + await page.evaluate(() => document.querySelector('#rkAskBody .rk-cpnow').textContent), '🎨「家族」 / 🎨 色・背景を変える|✏ 名前を直す|やめる / 赤（家族）2人');
+  await btn(2);
+  check('  　やめる：なにも変わらない', (await askHdr()) + ' / ' + ((await st()) === s0), '（なし） / true');
+  await page.click('.rk-cgrid [data-c="red"]'); await w(300); await btn(0);
+  check('  　色・背景を変える：色をえらぶ窓（名前を付けた色・色なし は出さない。いまの色を えらんだまま）', (await askHdr()) + ' / ' + await askBtns() + ' / ' + await page.evaluate(() => !!document.querySelector('#rkCPBox .rk-cpn') + ' / ' + document.querySelector('#rkCPBox .rk-cpnow').textContent),
+    '🎨「家族」の 色と背景をえらぶ / この色にする|やめる / false / 赤（家族）');
+  await btn(0);
+  check('  　同じ色のまま「この色にする」：なにも変わらない', (await askHdr()) + ' / ' + ((await st()) === s0), '（なし） / true');
+  await page.click('.rk-cgrid [data-c="red"]'); await w(300); await btn(0);
+  await page.click('#rkCPBox .rk-pats [data-p="st"]'); await w(200);
+  check('  　ストライプを押すと 赤・ストライプ（まだ 名前は ない）', await page.evaluate(() => document.querySelector('#rkCPBox .rk-cpnow').textContent), '赤・ストライプ');
+  await btn(0);
+  check('  　名前のない 赤・ストライプの人がいれば「まとめますか？」', (await askHdr()) + ' / ' + await page.evaluate(() => document.querySelector('#rkAskBody .rk-msg').textContent), '🎨 まとめますか？ / 名前のない「赤・ストライプ」の人が 1人 います。その人たちも「家族」に なります。');
+  await btn(1);
+  check('  　やめる：なにも変わらない', (await askHdr()) + ' / ' + ((await st()) === s0), '（なし） / true');
+  await page.click('.rk-cgrid [data-c="red"]'); await w(300); await btn(0);
+  await page.click('#rkCPBox .rk-pats [data-p="st"]'); await w(200); await btn(0); await btn(0);
+  check('  　まとめる：「家族」は 赤・ストライプ に（前の 赤の2人と 赤・ストライプの1人。No. の順は 色の順のまま）', (await st()) + ' / ' + await toastT(),
+    '{"red+st":"家族","green":"仕事","blue+dot":"年賀状"} / 1:red+st,2:red+st,3:green,4:red+st,5:blue+dot /  / 「家族」を 赤・ストライプ に しました（3人）');
+  check('  　🧩 の一覧も 出しなおす（No.1 家族 は 赤・ストライプ・3人）', await page.evaluate(() => { const b = document.querySelector('.rk-cgrid [data-c="red+st"]'); return b ? b.textContent + ' / ' + b.querySelector('.rk-dot').className : '（なし）'; }), 'No.1 家族3人 / rk-dot big pt-st');
+  check('  　一覧の 色の札も 新しい色（柄も）', await page.evaluate(() => { const e = document.querySelector('#rkList .rk-it[data-id="c1"]'); return e.querySelector('.cl').textContent + ' / ' + e.classList.contains('pt-st'); }), '家族 / true');
+
+  // ── 入れかえ：仕事（緑）→ 青・水玉（年賀状）
+  await page.click('.rk-cgrid [data-c="green"]'); await w(300); await btn(0);
+  await page.click('#rkCPBox .rk-cpb [data-b="blue"]'); await w(150); await page.click('#rkCPBox .rk-pats [data-p="dot"]'); await w(150);
+  check('  ほかの名前の色をえらぶと そう出る', await page.evaluate(() => document.querySelector('#rkCPBox .rk-cpnow').textContent), '青・水玉（年賀状）');
+  await btn(0);
+  check('  　「色を 入れかえますか？」', (await askHdr()) + ' / ' + await page.evaluate(() => document.querySelector('#rkAskBody .rk-msg').textContent), '🎨 色を 入れかえますか？ / 「青・水玉」は もう「年賀状」の色です。「仕事」と「年賀状」の 色を 入れかえます（名前・No.・人は そのまま）。');
+  await btn(0);
+  check('  　入れかえる：仕事 ⇄ 年賀状 の色だけ入れかわり、No. は 名前のまま（No.2 仕事・No.3 年賀状）', (await st()) + ' / ' + await toastT() + ' / ' + await page.evaluate(() => ['仕事', '年賀状'].map(n => n + ':' + [...document.querySelectorAll('.rk-cgrid button')].find(b => b.textContent.includes(n)).querySelector('.no').textContent).join(' ')),
+    '{"red+st":"家族","blue+dot":"仕事","green":"年賀状"} / 1:red+st,2:red+st,3:blue+dot,4:red+st,5:green / red+st,blue+dot,green / 「仕事」と「年賀状」の 色を 入れかえました / 仕事:No.2 年賀状:No.3');
+
+  // ── ✏ 名前を直す は 前のとおり
+  await page.evaluate(() => { window.__ap = appPrompt; window.appPrompt = async () => '親せき'; }); 
+  await page.click('.rk-cgrid [data-c="red+st"]'); await w(300); await btn(1); await w(200);
+  check('  ✏ 名前を直す：名前だけ変わる（色・人は そのまま）', await page.evaluate(() => JSON.stringify(rkState().colors)), '{"red+st":"親せき","blue+dot":"仕事","green":"年賀状"}');
+  await page.evaluate(() => { window.appPrompt = window.__ap; });
+
+  // ── 🔢 色の No. の画面からも
+  await page.evaluate(() => RK.cOrder(true)); await w(300);
+  await page.click('#rkCOrd .rk-co[data-c="blue+dot"] .nm'); await w(300);
+  check('  🔢 色の No. の 名前を押しても 同じ窓', (await askHdr()) + ' / ' + await askBtns(), '🎨「仕事」 / 🎨 色・背景を変える|✏ 名前を直す|やめる');
+  await btn(0); await page.click('#rkCPBox .rk-cpb [data-b="navy"]'); await w(150); await btn(0);
+  check('  　紺・水玉に：🔢 の画面のまま 出しなおす', (await st()) + ' / ' + await page.evaluate(() => document.getElementById('rkScrHdr').textContent + ' / ' + document.querySelector('#rkCOrd .rk-co:nth-child(2)').dataset.c),
+    '{"red+st":"親せき","navy+dot":"仕事","green":"年賀状"} / 1:red+st,2:red+st,3:navy+dot,4:red+st,5:green / red+st,navy+dot,green / 🔢 色の No.・並ぶ順番 / navy+dot');
+  await page.evaluate(() => RK.cDone()); await w(300);
+  await page.evaluate(() => { if (isDlgOpen('rkScrOverlay')) RK.closeScr(); RK.closeSub(); }); await w(300);
+  check('  　🔢 →「できあがり」→ 閉じる：連絡帳の一覧だけ', await page.evaluate(() => ['rkScrOverlay', 'rkSubOverlay', 'rkAskOverlay'].filter(isDlgOpen).join(',') + '/' + isDlgOpen('renrakuOverlay')), '/true');
+
+  // ── 色分けの帯の ✏ 直す
+  await page.evaluate(() => { RK.paintStart(); RK.paintPick('green'); }); await w(250);
+  check('  色分けの帯：名前のある色は「✏ 直す」', await page.evaluate(() => document.querySelector('#rkAdd .rk-pinfo button').textContent), '✏ 直す');
+  await page.click('#rkAdd .rk-pinfo button'); await w(300); await btn(0);
+  await page.click('#rkCPBox .rk-pats [data-p="ck"]'); await w(150); await btn(0);
+  check('  　緑・チェックに：ぬる色も 新しい色のまま（rk.pc も）', (await st()) + ' / ' + await page.evaluate(() => document.querySelector('#rkAdd .rk-pinfo b').textContent + ' / ' + rkState().pc),
+    '{"red+st":"親せき","navy+dot":"仕事","green+ck":"年賀状"} / 1:red+st,2:red+st,3:navy+dot,4:red+st,5:green+ck / red+st,navy+dot,green+ck / 緑・チェック（年賀状） / green+ck');
+  await page.evaluate(() => { RK.paintPick('lime'); }); await w(150);
+  check('  　名前のない色は「✏ 名前を付ける」', await page.evaluate(() => document.querySelector('#rkAdd .rk-pinfo button').textContent), '✏ 名前を付ける');
+  await page.evaluate(() => RK.paintEnd()); await w(250);
+
+  // ── 色で絞っているときも 絞りが ついてくる
+  await page.evaluate(() => RK.setCol('navy+dot')); await w(250);
+  await page.evaluate(() => { RK.colRecolor('navy+dot'); }); await w(350);
+  await page.click('#rkCPBox .rk-pats [data-p=""]'); await w(150); await btn(0);
+  check('  色で絞っていても 絞りは 新しい色に（紺）', await page.evaluate(() => [...document.querySelectorAll('#rkList .rk-it')].map(e => e.dataset.id).join(',') + ' / ' + document.querySelector('#rkBar .rk-chip.on[onclick*="setCol"]').textContent.replace(/\d+$/, '')), 'c3 / 仕事');
+  await page.evaluate(() => RK.setCol('navy')); await w(200);
+
+  // ── 色の名前を グループにも：まとめた人も その名前のグループに
+  await page.evaluate(() => { RK.setCGrp(true); const x = rkState().items.find(x => x.id === 'c1'); x.color = 'pink+st'; x.groups = x.groups.filter(g => g !== '親せき'); RK.colRecolor('red+st'); }); await w(350);
+  await page.click('#rkCPBox .rk-cpb [data-b="pink"]'); await w(150); await btn(0); await btn(0);
+  check('  色の名前をグループにも：まとめた人も「親せき」のグループに', await page.evaluate(() => rkState().items.filter(x => x.groups.includes('親せき')).map(x => x.id).join(',') + ' / ' + rkState().items.find(x => x.id === 'c1').color), 'c1,c2,c4 / pink+st');
+
+  // ── 一覧の右はしに 色の名前のグループ（🎨）は 出さない
+  check('  一覧の右はし：色の名前のグループの 🎨 は出さない（⛳ ゴルフ など ほかのグループは出す）', await page.evaluate(() => ['c1', 'c2', 'c3'].map(id => { const e = document.querySelector(`#rkList .rk-it[data-id="${id}"]`); return id + ':' + ((e.querySelector('.gi') || {}).textContent || '-') + '/' + ((e.querySelector('.cl') || {}).textContent || '-'); }).join(' ')),
+    'c1:-/親せき c2:⛳/親せき c3:-/仕事');
+  check('  　グループの絞りの札には 🎨 が出る（グループとして わかるように）', await page.evaluate(() => { RK.setView('group'); return [...document.querySelectorAll('#rkBar .rk-chip')].some(b => b.textContent.includes('🎨') && b.textContent.includes('親せき')); }), true);
+
+  // ── 戻る：窓だけ閉じる
+  await page.evaluate(() => { RK.colEdit('green+ck'); }); await w(300);
+  await page.goBack({ waitUntil: 'commit' }).catch(() => {}); await w(500);
+  check('  色の窓で 端末の「戻る」：窓だけ閉じる（連絡帳は そのまま）', (await askHdr()) + ' / ' + await page.evaluate(() => isDlgOpen('renrakuOverlay')), '（なし） / true');
+
+  // ── 読みなおしても 同じ（保存）
+  await page.evaluate(() => { closeRenraku(); }); await w(400);
+  await page.reload(); await w(1200);
+  await page.evaluate(() => openRenraku()); await page.waitForSelector('#rkList .rk-it', { timeout: 15000 }).catch(() => {}); await w(200);
+  check('  保存：読みなおしても 新しい色と名前・No.', await st(), '{"pink+st":"親せき","navy":"仕事","green+ck":"年賀状"} / 1:pink+st,2:pink+st,3:navy,4:pink+st,5:green+ck / pink+st,navy,green+ck');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+/* 📇 連絡帳：ふりがな 出す／出さない・見る画面の電話番号を大きく・見る画面の 📝 メモ欄 → 一覧の電話番号の下に（v555） */
+async function runRenraku555(browser) {
+  console.log('\n── 📇 連絡帳：ふりがな 出す／出さない・見る画面の電話番号を大きく・📝 メモ欄 → 一覧の電話番号の下に（v555） ──');
+  const T = v => [{ t: 'cell', v }];
+  const SEED = { v: 1, view: 'kana', tipFold: true, items: [
+    { id: 'c1', fam: '西谷', giv: '久司', famK: 'にしたに', givK: 'ひさじ', tels: T('090-1486-5412') },
+    { id: 'c2', fam: '隆人さん', famK: 'たかひとさん', tels: T('090-4769-8774'), note: '午後は不在\n\n2行目のメモ\n3行目' },
+    { id: 'c3', fam: '向井', giv: '睦夫', famK: 'むかい', tels: T('09034859052') },
+  ] };
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: 'block' });
+  await ctx.addInitScript(() => { try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('excalc_back_ask', '0'); } catch (e) {} });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/favicon|ServiceWorker/.test(m.text())) errs.push('console: ' + m.text()); });
+  page.on('dialog', d => d.accept());
+  const w = ms => page.waitForTimeout(ms);
+  const row = id => page.evaluate(id => { const e = document.querySelector(`#rkList .rk-it[data-id="${id}"]`); return (e.querySelector('.nm small') ? 'よみ:' + e.querySelector('.nm small').textContent : 'よみなし') + ' / ' + ((e.querySelector('.sb') || {}).textContent || '-') + ' / ' + ((e.querySelector('.mm') || {}).textContent || '-'); }, id);
+  const viewK = () => page.evaluate(() => { const k = document.querySelector('#rkViewBody .rk-who .k'); return k ? k.textContent : 'よみなし'; });
+  await page.goto('file://' + path.join(ROOT, 'index.html')); await w(1200);
+  await page.mouse.click(200, 300); await w(150);
+  await page.evaluate(s => { localStorage.setItem('excalc_renraku', s); openRenraku(); }, JSON.stringify(SEED)); await page.waitForSelector('#rkList .rk-it', { timeout: 15000 }).catch(() => {}); await w(300);
+
+  // ── 一覧：メモは 電話番号の下に（2行まで・空の行は とばす）
+  check('  はじめは ふりがなを出す・メモも一覧に出す', await page.evaluate(() => JSON.stringify([rkState().furi, rkState().lmemo])), '["",true]');
+  check('  一覧：ふりがな・電話番号・📝 メモ（はじめの2行）', (await row('c2')) + ' | ' + await row('c1'), 'よみ:たかひとさん / 携帯 090-4769-8774 / 📝 午後は不在\n2行目のメモ | よみ:にしたに ひさじ / 携帯 090-1486-5412 / -');
+  check('  　メモは 2行で切る（はみ出しは …）', await page.evaluate(() => { const m = getComputedStyle(document.querySelector('#rkList .rk-it[data-id="c2"] .mm')); return m.webkitLineClamp + ' / ' + m.overflow; }), '2 / hidden');
+
+  // ── 名前を押した画面：電話番号は大きく・📝 メモ欄は「✏ 直す」の上
+  await page.evaluate(() => RK.view('c2')); await w(400);
+  check('  名前を押した画面：電話番号は 大きく太く（22px）・種類の字は そのまま', await page.evaluate(() => { const r = document.querySelector('#rkViewBody .rk-row.tel'); return getComputedStyle(r.querySelector('span')).fontSize + ' ' + getComputedStyle(r.querySelector('span')).fontWeight + ' / ' + getComputedStyle(r.querySelector('b')).fontSize; }), '22px 700 / 12px');
+  check('  📝 メモ欄は「✏ 直す」の すぐ上・いまのメモが入っている・「メモ」の行は なくす', await page.evaluate(() => { const m = document.getElementById('rkViewMemo'), nx = m.closest('.rk-vmemo').nextElementSibling;
+    return nx.textContent + ' / ' + JSON.stringify(m.value) + ' / ' + [...document.querySelectorAll('#rkViewBody .rk-row b')].some(b => b.textContent === 'メモ') + ' / ' + document.querySelector('.rk-vmemo label small').textContent; }),
+    '✏ 直す / "午後は不在\\n\\n2行目のメモ\\n3行目" / false / 一覧の 電話番号の下にも出ます');
+  check('  　ふりがなも出す', await viewK(), 'たかひとさん');
+  await page.evaluate(() => RK.closeView()); await w(300);
+
+  // ── メモを書く → 一覧に出る・覚える（表には入らない）
+  await page.evaluate(() => RK.view('c1')); await w(400);
+  await page.click('#rkViewMemo'); await page.keyboard.type('来週 見積もりの件で電話'); await w(700);
+  check('  メモ欄に書くと すぐ覚える（スマホに戻すメモと同じ）・表のセルには入らない', await page.evaluate(() => JSON.stringify(rkState().items.find(x => x.id === 'c1').note) + ' / ' + JSON.parse(localStorage.getItem('excalc_renraku')).items.find(x => x.id === 'c1').note + ' / ' + JSON.stringify(getCellDisplay(0, 0))),
+    '"来週 見積もりの件で電話" / 来週 見積もりの件で電話 / ""');
+  check('  　一覧の その人の行も すぐ書きなおす', await row('c1'), 'よみ:にしたに ひさじ / 携帯 090-1486-5412 / 📝 来週 見積もりの件で電話');
+  check('  　スマホに戻す（vCard）の NOTE にも入る', await page.evaluate(() => /^NOTE:来週 見積もりの件で電話/m.test(rkVcard(rkState().items.find(x => x.id === 'c1'), {}))), true);
+  await page.keyboard.press('Enter'); await page.keyboard.type('2行目'); await w(400);
+  check('  　Enter で 行を変えられる（2行目も 一覧に）', await row('c1'), 'よみ:にしたに ひさじ / 携帯 090-1486-5412 / 📝 来週 見積もりの件で電話\n2行目');
+  await page.goBack({ waitUntil: 'commit' }).catch(() => {}); await w(500);
+  check('  　端末の「戻る」で 見る画面だけ閉じる（連絡帳は そのまま）', await page.evaluate(() => isDlgOpen('rkViewOverlay') + ' / ' + isDlgOpen('renrakuOverlay')), 'false / true');
+  await page.fill('#rkFind', '見積もり'); await w(400);
+  check('  メモの言葉で さがせる', await page.evaluate(() => [...document.querySelectorAll('#rkList .rk-it')].map(e => e.dataset.id).join(',')), 'c1');
+  await page.fill('#rkFind', ''); await w(300);
+  await page.evaluate(() => RK.view('c1')); await w(300);
+  await page.fill('#rkViewMemo', ''); await w(500);
+  check('  　メモを消すと 一覧からも消える', await row('c1'), 'よみ:にしたに ひさじ / 携帯 090-1486-5412 / -');
+  await page.evaluate(() => RK.closeView()); await w(300);
+
+  // ── 名前の下に「メモの1行目」を出しているときは 重ねない・メモを出さない設定
+  await page.evaluate(() => { RK.setSub('note'); RK.closeScr(); }); await w(300);
+  check('  「名前の下に出すもの」が メモの1行目のときは 下に重ねない', await row('c2'), 'よみ:たかひとさん / 午後は不在 / -');
+  await page.evaluate(() => RK.view('c2')); await w(300);
+  check('  　メモ欄の案内も「1行目が 一覧の 名前の下にも出ます」', await page.evaluate(() => document.querySelector('.rk-vmemo label small').textContent), '1行目が 一覧の 名前の下にも出ます');
+  await page.evaluate(() => { RK.closeView(); RK.setSub('tel'); RK.closeScr(); }); await w(300);
+  await page.evaluate(() => { RK.menu(); RK.custom(); }); await w(400);
+  check('  🧩 自分好みにする：📝 メモも その下に出す（はじめは 出す）', await page.evaluate(() => document.getElementById('rkLMemo').checked + ' / ' + document.getElementById('rkLMemo').parentElement.textContent.trim()), 'true / 📝 メモも その下に出す（名前を押した画面の メモ。2行まで）');
+  await page.evaluate(() => { const c = document.getElementById('rkLMemo'); c.checked = false; c.dispatchEvent(new Event('change')); }); await w(300);
+  check('  　外すと 一覧に メモを出さない（メモ欄は そのまま書ける）', (await row('c2')) + ' / ' + await page.evaluate(() => rkState().lmemo), 'よみ:たかひとさん / 携帯 090-4769-8774 / - / false');
+
+  // ── ふりがな：出す／一覧では出さない／出さない
+  check('  🧩 あ ふりがな（よみ）：出す／一覧では 出さない／出さない（名前を押した画面も）', await page.evaluate(() => [...document.querySelectorAll('#rkFuriSet [data-fu]')].map(b => b.textContent + (b.classList.contains('on') ? '●' : '')).join(',')), '出す●,一覧では 出さない,出さない（名前を押した画面も）');
+  await page.click('#rkFuriSet [data-fu="list"]'); await w(300);
+  check('  　一覧では 出さない：一覧は 名前だけ・名前を押した画面には 出す', (await row('c1')) + ' / ' + await page.evaluate(() => [...document.querySelectorAll('#rkFuriSet .on')].map(b => b.dataset.fu).join() + ' / ' + document.getElementById('appToast').textContent) + ' / ' + await page.evaluate(() => { RK.view('c1'); const k = document.querySelector('#rkViewBody .rk-who .k'); return k ? k.textContent : 'よみなし'; }),
+    'よみなし / 携帯 090-1486-5412 / - / list / 一覧では ふりがなを 出さないように しました / にしたに ひさじ');
+  await page.evaluate(() => RK.closeView()); await w(250);
+  await page.click('#rkFuriSet [data-fu="off"]'); await w(300);
+  check('  　出さない：名前を押した画面も 出さない', (await row('c1')).split(' / ')[0] + ' / ' + await page.evaluate(() => { RK.view('c1'); const k = document.querySelector('#rkViewBody .rk-who .k'); return k ? k.textContent : 'よみなし'; }), 'よみなし / よみなし');
+  await page.evaluate(() => RK.closeView()); await w(250);
+  await page.fill('#rkFind', 'ひさじ'); await w(400);
+  check('  　出さなくても よみで さがせる', await page.evaluate(() => [...document.querySelectorAll('#rkList .rk-it')].map(e => e.dataset.id).join(',')), 'c1');
+  await page.fill('#rkFind', ''); await w(300);
+
+  // ── 読みなおしても 同じ
+  await page.evaluate(() => { RK.closeScr(); RK.closeSub(); closeRenraku(); }); await w(400);
+  await page.reload(); await w(1200);
+  await page.evaluate(() => openRenraku()); await page.waitForSelector('#rkList .rk-it[data-id="c2"]', { timeout: 15000 }).catch(() => {}); await w(200);   // 一覧が出るまで（重いときは 900ms では まだ）
+  check('  保存：ふりがな・メモを一覧に出すか は 読みなおしても同じ', await page.evaluate(() => JSON.stringify([rkState().furi, rkState().lmemo])) + ' / ' + (await row('c2')).split(' / ')[0], '["off",false] / よみなし');
+  await page.evaluate(() => { RK.setFuri(''); RK.setLMemo(true); }); await w(300);
+  check('  　もとに戻す', await row('c2'), 'よみ:たかひとさん / 携帯 090-4769-8774 / 📝 午後は不在\n2行目のメモ');
+  // ── せまい画面・横持ちでも 見る画面の 大きい電話番号が はみ出さない
+  await page.setViewportSize({ width: 320, height: 640 }); await w(300);
+  await page.evaluate(() => RK.view('c1')); await w(400);
+  check('  せまい画面（320px）：大きい電話番号が はみ出さない', await page.evaluate(() => { const s = document.querySelector('#rkViewBody .rk-row.tel > span'), b = document.getElementById('rkViewBody'); return s.scrollWidth <= s.clientWidth + 1 && b.scrollWidth <= b.clientWidth + 1; }), true);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+/* 🎤 連絡帳：声でさがす は ふりがな（よみ）を先に・あいまいでも 候補を出す（v556） */
+async function runRenraku556(browser) {
+  console.log('\n── 📇 連絡帳：🎤 声でさがす は ふりがな（よみ）を先に・聞きまちがいでも 候補（v556） ──');
+  const T = v => [{ t: 'cell', v }];
+  const P = (id, fam, giv, famK, givK, tel) => ({ id, fam, giv, famK, givK, tels: T(tel) });
+  const SEED = { v: 1, view: 'kana', tipFold: true, items: [
+    P('a3', '西谷', '眞一', 'にしたに', 'しんいち', '080-140-91962'), P('a4', '西谷', '豊晴', 'にしたに', 'とよはる', '090-546-56778'),
+    P('a5', '西谷', '久司', 'にしたに', 'ひさじ', '090-1486-5412'), P('a8', '向井', '睦夫', 'むかい', '', '09034859052'),
+    P('b1', 'ダイゴ', '藤本', '', '', '080-9123-4020'), P('b3', '豊岡砕石', '谷口', 'とよおかさいいし', 'たにぐち', '090-3279-5131'),
+    P('b5', '斉藤', '恵子', '', '', '090-1111-2222'), P('b6', '大田', '京子', 'おおた', 'きょうこ', '090-3333-4444'), P('b7', '秀和', '', 'ひでかず', '', '090-7115-6475'),
+  ] };
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: 'block' });
+  await ctx.addInitScript(() => { try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('excalc_back_ask', '0'); } catch (e) {} });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/favicon|ServiceWorker/.test(m.text())) errs.push('console: ' + m.text()); });
+  const w = ms => page.waitForTimeout(ms);
+  const res = () => page.evaluate(() => { const L = document.getElementById('rkList'); return [...L.querySelectorAll('.rk-grp, .rk-it')].map(e => e.classList.contains('rk-grp') ? '[' + e.firstChild.textContent + ']' : e.querySelector('.nm').firstChild.textContent.trim()).join(' '); });
+  // 聞き取り（にせもの）：いちばんの候補と ほかの候補を返して おわる
+  const say = async (best, alts) => { await page.evaluate(([b, a]) => {
+      window.SpeechRecognition = class { start() { setTimeout(() => { const r = [{ transcript: b }].concat((a || []).map(t => ({ transcript: t }))); r.isFinal = true;
+        if (this.onresult) this.onresult({ resultIndex: 0, results: [r] }); setTimeout(() => this.onend && this.onend(), 10); }, 10); } abort() {} };
+      RK.listen(); }, [best, alts]); await w(700); };
+  await page.goto('file://' + path.join(ROOT, 'index.html')); await w(1200);
+  await page.evaluate(s => { localStorage.setItem('excalc_renraku', s); openRenraku(); }, JSON.stringify(SEED)); await page.waitForSelector('#rkList .rk-it', { timeout: 15000 }).catch(() => {}); await w(300);
+
+  // ── しくみ
+  check('  ゆるい よみ：小さい字・にごり・のばす音・カタカナを そろえる', await page.evaluate(() => [['きょうこ', 'きよこ'], ['さいとう', 'さいと'], ['ひさじ', 'ひさし'], ['ダイゴ', 'たいこ'], ['おおた', 'おた'], ['けいこ', 'けーこ']].map(([a, b]) => rkLoose(a) === rkLoose(b)).join(',')), 'true,true,true,true,true,true');
+  check('  声の文から 名前だけ（はじめの「えーと」・おわりの「さん」も とる）', await page.evaluate(() => ['えーと西谷さん', 'あの、ひさじさんの電話番号を教えて', 'えっと 豊岡'].map(rkVoiceQ).join(',')), '西谷,ひさじ,豊岡');
+  check('  🎤 を押すと よみの辞書を 先に読む', await page.evaluate(async () => { window.SpeechRecognition = class { start() {} abort() {} }; RK.listen(); RK.listen(); await new Promise(r => setTimeout(r, 900)); return typeof window.rkYomiAlts; }), 'function');
+  check('  　辞書：聞き取った字の よみの候補（久司 → ひさじ も・西谷 → にしたに が先）', await page.evaluate(() => rkYomiAlts('久司', 8).includes('ひさじ') + ' / ' + rkYomiAlts('西谷', 8)[0]), 'true / にしたに');
+
+  // ── 声でさがす
+  await say('久二', []);
+  check('  「久二」（ひさじ の 聞きまちがい）→ よみ ひさじ で 西谷 久司', (await res()) + ' / ' + await page.evaluate(() => document.getElementById('rkFind').value + ' / ' + document.querySelector('#rkList .rk-vnote').textContent),
+    '[見つかった人] 西谷 久司 / 久二 / 🎤「久二」（よみ：くに・ひさじ・きゅうに）で さがしました。よみの近い人も 出しています。');
+  await say('西田に', []);
+  check('  「西田に」→ にしだに ≒ にしたに（にごりを ゆるく）で 西谷さん 3人', await res(), '[見つかった人] 西谷 眞一 西谷 豊晴 西谷 久司');
+  await say('向かい', []);
+  check('  「向かい」→ よみの近い人（候補）に 向井 睦夫', await res(), '[よみの近い人（候補）] 向井 睦夫');
+  await say('斎藤恵子さん', []);
+  check('  よみのない人も 名前から よみを作って さがす（斎藤 → 斉藤 恵子）', await res(), '[見つかった人] 斉藤 恵子');
+  await say('太田今日子', ['おおたきょうこ']);
+  check('  聞き取りの ほかの候補（かな）も 使う（太田今日子／おおたきょうこ → 大田 京子）', await res(), '[見つかった人] 大田 京子');
+  await say('とよはるさん', []);
+  check('  かなで 聞き取ったら そのまま よみで（名前だけでも）', await res(), '[見つかった人] 西谷 豊晴 [よみの近い人（候補）] 豊岡砕石 谷口');
+  await say('ダイゴ', []);
+  check('  カタカナの名前も（ダイゴ 藤本）', await res(), '[見つかった人] ダイゴ 藤本');
+  await say('六代', []);
+  check('  見つからないときは 言いなおしの 案内', await page.evaluate(() => document.querySelector('#rkList .rk-empty').textContent), '「六代」は見つかりませんでした。名字だけ・名前だけで もう一度 言ってみてください（「にしたに」「ひさじ」）。');
+
+  // ── 字で入れたら いつもの さがし方
+  await page.fill('#rkFind', 'ひさ'); await w(300);
+  check('  そのあと 字で入れると いつもの さがし方（声の案内は 消える）', (await res()) + ' / ' + await page.evaluate(() => !!document.querySelector('#rkList .rk-vnote')), '[見つかった人] 西谷 久司 / false');
+  await page.fill('#rkFind', ''); await w(250);
+  // ── ふりがなを 出さなくても 声で さがせる
+  await page.evaluate(() => RK.setFuri('off')); await w(200);
+  await say('秀一', []);
+  check('  ふりがなを 出さないときも よみで さがす（秀一 → ひでいち ≒ ひでかず は 候補）', await res(), '[よみの近い人（候補）] 西谷 眞一 秀和');
+  await page.evaluate(() => RK.setFuri('')); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
 
@@ -13738,6 +14015,9 @@ async function runQrShare(browser) {
     if (!only || only === 'rk551') await runRenraku551(browser);
     if (!only || only === 'rk552') await runRenraku552(browser);
     if (!only || only === 'backask') await runBackAsk(browser);
+    if (!only || only === 'rk554') await runRenraku554(browser);
+    if (!only || only === 'rk555') await runRenraku555(browser);
+    if (!only || only === 'rk556') await runRenraku556(browser);
     if (!only || only === 'firsthint') await runFirstHint(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
