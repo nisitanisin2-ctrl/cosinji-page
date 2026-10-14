@@ -8132,7 +8132,7 @@ async function runRenrakuIro(browser) {
   // ── 🎨 色分け：色をえらんで人を押す
   await page.evaluate(() => RK.paintStart()); await w(250);
   check('  🎨 色分け：24色の パレット（はじめは赤）・いまの色・押した人をこの色に', await page.evaluate(() => [document.querySelectorAll('#rkPal .rk-sw').length, document.querySelector('#rkPal .rk-sw.on').dataset.c, document.querySelector('#rkAdd .rk-pinfo').textContent.replace(/\s+/g, ' ').trim()].join(' / ')),
-    '24 / red / 赤（要連絡）1人押した人を この色に ✏ 名前を直す');
+    '24 / red / 赤（要連絡）1人押した人を この色に ✏ 直す');
   await page.evaluate(() => RK.paintPick('orange')); await w(100);
   await page.click('#rkList .rk-it[data-id="a4"]'); await w(150);
   await page.click('#rkList .rk-it[data-id="a5"]'); await w(150);
@@ -8595,7 +8595,7 @@ async function runRenrakuColorNo(browser) {
   for (let i = 0; i < 2; i++) { await page.evaluate(() => { const r = [...document.querySelectorAll('#rkCOrd .rk-co')].find(e => e.dataset.c === 'green+dot'); r.querySelector('.mv').click(); }); await w(120); }
   check('  ↑ で動かす（年賀状を2つ上へ → No.1）・動かした色は光る', (await rows(3)) + ' / ' + await page.evaluate(() => [...document.querySelectorAll('#rkCOrd .rk-co.fl')].map(e => e.dataset.c).join(',')), 'No.1 年賀状緑・水玉 / No.2 急ぎ青 / No.3 要連絡赤 / green+dot');
   check('  　いちばん上の ↑・いちばん下の ↓ は押せない', await page.evaluate(() => { const r = [...document.querySelectorAll('#rkCOrd .rk-co')]; return r[0].querySelectorAll('.mv')[0].disabled + '/' + r[2].querySelectorAll('.mv')[1].disabled; }), 'true/true');
-  await page.evaluate(() => { window.appPrompt = async () => '至急'; const r = [...document.querySelectorAll('#rkCOrd .rk-co')].find(e => e.dataset.c === 'blue'); r.querySelector('.nm').click(); }); await w(400);
+  await page.evaluate(() => { window.appPrompt = async () => '至急'; const r = [...document.querySelectorAll('#rkCOrd .rk-co')].find(e => e.dataset.c === 'blue'); r.querySelector('.nm').click(); document.querySelector('#rkAskBody [data-r="1"]').click(); }); await w(400);
   check('  名前を押す：名前を直して この画面に戻る', await page.evaluate(() => document.getElementById('rkScrHdr').textContent + ' / ' + rkState().colors.blue) + ' / ' + await rows(2), '🔢 色の No.・並ぶ順番 / 至急 / No.1 年賀状緑・水玉 / No.2 至急青');
 
   // ── ＋ 色に名前を付ける（色と背景をえらぶ）
@@ -8603,9 +8603,9 @@ async function runRenrakuColorNo(browser) {
   check('  ＋ 色に名前を付ける：色と背景をえらぶ窓（「この色にする」は えらんでから）', await page.evaluate(() => document.getElementById('rkAskHdr').textContent + ' / ' + document.querySelector('#rkAskBody [data-r="0"]').disabled), '🎨 名前を付ける色（色と背景）をえらぶ / true');
   await page.evaluate(() => { document.querySelector('#rkAskBody .rk-cpb [data-b="orange"]').click(); document.querySelector('#rkAskBody .rk-pats [data-p=""]').click(); document.querySelector('#rkAskBody [data-r="0"]').click(); }); await w(500);
   check('  　だいだい に「連絡待ち」→ 順番を決めていたので いちばん下（No.4）', (await rows(4)) + ' / ' + await page.evaluate(() => rkState().corder.join(',')), 'No.1 年賀状緑・水玉 / No.2 至急青 / No.3 要連絡赤 / No.4 連絡待ちだいだい / green+dot,blue,red,orange');
-  await page.evaluate(() => { window.appPrompt = async () => '至急'; const r = [...document.querySelectorAll('#rkCOrd .rk-co')].find(e => e.dataset.c === 'orange'); r.querySelector('.nm').click(); }); await w(400);
+  await page.evaluate(() => { window.appPrompt = async () => '至急'; const r = [...document.querySelectorAll('#rkCOrd .rk-co')].find(e => e.dataset.c === 'orange'); r.querySelector('.nm').click(); document.querySelector('#rkAskBody [data-r="1"]').click(); }); await w(400);
   check('  　同じ名前（至急）は 付けられない', await page.evaluate(() => rkState().colors.orange + ' / ' + document.getElementById('appToast').textContent), '連絡待ち / 「至急」は もう「青」の名前です（ちがう名前にしてください）');
-  await page.evaluate(() => { window.appPrompt = async () => ''; const r = [...document.querySelectorAll('#rkCOrd .rk-co')].find(e => e.dataset.c === 'orange'); r.querySelector('.nm').click(); }); await w(400);
+  await page.evaluate(() => { window.appPrompt = async () => ''; const r = [...document.querySelectorAll('#rkCOrd .rk-co')].find(e => e.dataset.c === 'orange'); r.querySelector('.nm').click(); document.querySelector('#rkAskBody [data-r="1"]').click(); }); await w(400);
   check('  　名前を外すと この画面から消える（No. もなくなる）', await page.evaluate(() => document.querySelectorAll('#rkCOrd .rk-co').length + ' / ' + ('orange' in rkState().colors) + ' / ' + rkState().corder.join(',')), '3 / false / green+dot,blue,red');
   await page.evaluate(() => { window.appPrompt = async () => null; RK.cDone(); }); await w(300);
   check('  上の色の札：名前を付けた色（No. 順）→ 名前のない色', await chips(), '年賀状1,至急2,要連絡1,だいだい1,青緑・ストライプ1');
@@ -9269,6 +9269,127 @@ async function runBackAsk(browser) {
   await back();
   check('  　もう一度：いつもの「もう一度「戻る」を押すと閉じます」（表電卓は ないので 聞かない）', await page.evaluate(() => document.getElementById('appToast').textContent), 'もう一度「戻る」を押すと閉じます');
   check('  エラーなし（別のアプリ）', errs.join(' | '), '');
+  await ctx.close();
+}
+
+/* 🎨 連絡帳：名前を付けた色の 色・背景を あとから変える・一覧の右はしに 色の名前のグループ（🎨）を出さない（v554） */
+async function runRenraku554(browser) {
+  console.log('\n── 📇 連絡帳：名前を付けた色の 色・背景を変える（名前・No.・人は そのまま）・右はしの 🎨 を出さない（v554） ──');
+  const T = v => [{ t: 'cell', v }];
+  const SEED = { v: 1, view: 'kana', tipFold: true, colors: { red: '家族', green: '仕事', 'blue+dot': '年賀状' }, groups: [{ n: 'ゴルフ', ic: '⛳' }], items: [
+    { id: 'c1', fam: '山田', giv: '太郎', famK: 'やまだ', givK: 'たろう', color: 'red', tels: T('090-2000-0001') },
+    { id: 'c2', fam: '山田', giv: '花子', famK: 'やまだ', givK: 'はなこ', color: 'red', groups: ['ゴルフ'], tels: T('090-2000-0002') },
+    { id: 'c3', fam: '佐藤', giv: '一郎', famK: 'さとう', givK: 'いちろう', color: 'green', tels: T('090-2000-0003') },
+    { id: 'c4', fam: '鈴木', giv: '次郎', famK: 'すずき', givK: 'じろう', color: 'red+st', tels: T('090-2000-0004') },
+    { id: 'c5', fam: '高橋', giv: '三郎', famK: 'たかはし', givK: 'さぶろう', color: 'blue+dot', tels: T('090-2000-0005') },
+  ] };
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: 'block' });
+  await ctx.addInitScript(() => { try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('excalc_back_ask', '0'); } catch (e) {} });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/favicon|ServiceWorker/.test(m.text())) errs.push('console: ' + m.text()); });
+  page.on('dialog', d => d.accept());
+  const w = ms => page.waitForTimeout(ms);
+  const st = () => page.evaluate(() => { const r = rkState(); return JSON.stringify(r.colors) + ' / ' + r.items.map(x => x.id.slice(1) + ':' + (x.color || '-')).join(',') + ' / ' + r.corder.join(','); });
+  const askHdr = () => page.evaluate(() => isDlgOpen('rkAskOverlay') ? document.getElementById('rkAskHdr').textContent : '（なし）');
+  const askBtns = () => page.evaluate(() => [...document.querySelectorAll('#rkAskBody [data-r]')].map(b => b.textContent).join('|'));
+  const btn = r => page.click('#rkAskBody [data-r="' + r + '"]').then(() => w(350));
+  const toastT = () => page.evaluate(() => document.getElementById('appToast').textContent);
+  await page.goto('file://' + path.join(ROOT, 'index.html')); await w(1200);
+  await page.evaluate(s => { localStorage.setItem('excalc_renraku', s); openRenraku(); }, JSON.stringify(SEED)); await w(900);
+  const s0 = await st();
+
+  // ── 🧩 自分好みにする：名前を付けた色を押す
+  await page.evaluate(() => { RK.menu(); RK.custom(); }); await w(400);
+  check('  🧩 の 色の一覧の説明：押すと 名前を直したり 色・背景を変えたり', await page.evaluate(() => [...document.querySelectorAll('#rkScrBody .rk-note')].some(n => n.textContent.includes('名前はそのままで 色・背景を変えたり'))), true);
+  await page.click('.rk-cgrid [data-c="red"]'); await w(350);
+  check('  名前を付けた色を押す →「🎨 色・背景を変える／✏ 名前を直す／やめる」', (await askHdr()) + ' / ' + await askBtns() + ' / ' + await page.evaluate(() => document.querySelector('#rkAskBody .rk-cpnow').textContent), '🎨「家族」 / 🎨 色・背景を変える|✏ 名前を直す|やめる / 赤（家族）2人');
+  await btn(2);
+  check('  　やめる：なにも変わらない', (await askHdr()) + ' / ' + ((await st()) === s0), '（なし） / true');
+  await page.click('.rk-cgrid [data-c="red"]'); await w(300); await btn(0);
+  check('  　色・背景を変える：色をえらぶ窓（名前を付けた色・色なし は出さない。いまの色を えらんだまま）', (await askHdr()) + ' / ' + await askBtns() + ' / ' + await page.evaluate(() => !!document.querySelector('#rkCPBox .rk-cpn') + ' / ' + document.querySelector('#rkCPBox .rk-cpnow').textContent),
+    '🎨「家族」の 色と背景をえらぶ / この色にする|やめる / false / 赤（家族）');
+  await btn(0);
+  check('  　同じ色のまま「この色にする」：なにも変わらない', (await askHdr()) + ' / ' + ((await st()) === s0), '（なし） / true');
+  await page.click('.rk-cgrid [data-c="red"]'); await w(300); await btn(0);
+  await page.click('#rkCPBox .rk-pats [data-p="st"]'); await w(200);
+  check('  　ストライプを押すと 赤・ストライプ（まだ 名前は ない）', await page.evaluate(() => document.querySelector('#rkCPBox .rk-cpnow').textContent), '赤・ストライプ');
+  await btn(0);
+  check('  　名前のない 赤・ストライプの人がいれば「まとめますか？」', (await askHdr()) + ' / ' + await page.evaluate(() => document.querySelector('#rkAskBody .rk-msg').textContent), '🎨 まとめますか？ / 名前のない「赤・ストライプ」の人が 1人 います。その人たちも「家族」に なります。');
+  await btn(1);
+  check('  　やめる：なにも変わらない', (await askHdr()) + ' / ' + ((await st()) === s0), '（なし） / true');
+  await page.click('.rk-cgrid [data-c="red"]'); await w(300); await btn(0);
+  await page.click('#rkCPBox .rk-pats [data-p="st"]'); await w(200); await btn(0); await btn(0);
+  check('  　まとめる：「家族」は 赤・ストライプ に（前の 赤の2人と 赤・ストライプの1人。No. の順は 色の順のまま）', (await st()) + ' / ' + await toastT(),
+    '{"red+st":"家族","green":"仕事","blue+dot":"年賀状"} / 1:red+st,2:red+st,3:green,4:red+st,5:blue+dot /  / 「家族」を 赤・ストライプ に しました（3人）');
+  check('  　🧩 の一覧も 出しなおす（No.1 家族 は 赤・ストライプ・3人）', await page.evaluate(() => { const b = document.querySelector('.rk-cgrid [data-c="red+st"]'); return b ? b.textContent + ' / ' + b.querySelector('.rk-dot').className : '（なし）'; }), 'No.1 家族3人 / rk-dot big pt-st');
+  check('  　一覧の 色の札も 新しい色（柄も）', await page.evaluate(() => { const e = document.querySelector('#rkList .rk-it[data-id="c1"]'); return e.querySelector('.cl').textContent + ' / ' + e.classList.contains('pt-st'); }), '家族 / true');
+
+  // ── 入れかえ：仕事（緑）→ 青・水玉（年賀状）
+  await page.click('.rk-cgrid [data-c="green"]'); await w(300); await btn(0);
+  await page.click('#rkCPBox .rk-cpb [data-b="blue"]'); await w(150); await page.click('#rkCPBox .rk-pats [data-p="dot"]'); await w(150);
+  check('  ほかの名前の色をえらぶと そう出る', await page.evaluate(() => document.querySelector('#rkCPBox .rk-cpnow').textContent), '青・水玉（年賀状）');
+  await btn(0);
+  check('  　「色を 入れかえますか？」', (await askHdr()) + ' / ' + await page.evaluate(() => document.querySelector('#rkAskBody .rk-msg').textContent), '🎨 色を 入れかえますか？ / 「青・水玉」は もう「年賀状」の色です。「仕事」と「年賀状」の 色を 入れかえます（名前・No.・人は そのまま）。');
+  await btn(0);
+  check('  　入れかえる：仕事 ⇄ 年賀状 の色だけ入れかわり、No. は 名前のまま（No.2 仕事・No.3 年賀状）', (await st()) + ' / ' + await toastT() + ' / ' + await page.evaluate(() => ['仕事', '年賀状'].map(n => n + ':' + [...document.querySelectorAll('.rk-cgrid button')].find(b => b.textContent.includes(n)).querySelector('.no').textContent).join(' ')),
+    '{"red+st":"家族","blue+dot":"仕事","green":"年賀状"} / 1:red+st,2:red+st,3:blue+dot,4:red+st,5:green / red+st,blue+dot,green / 「仕事」と「年賀状」の 色を 入れかえました / 仕事:No.2 年賀状:No.3');
+
+  // ── ✏ 名前を直す は 前のとおり
+  await page.evaluate(() => { window.__ap = appPrompt; window.appPrompt = async () => '親せき'; }); 
+  await page.click('.rk-cgrid [data-c="red+st"]'); await w(300); await btn(1); await w(200);
+  check('  ✏ 名前を直す：名前だけ変わる（色・人は そのまま）', await page.evaluate(() => JSON.stringify(rkState().colors)), '{"red+st":"親せき","blue+dot":"仕事","green":"年賀状"}');
+  await page.evaluate(() => { window.appPrompt = window.__ap; });
+
+  // ── 🔢 色の No. の画面からも
+  await page.evaluate(() => RK.cOrder(true)); await w(300);
+  await page.click('#rkCOrd .rk-co[data-c="blue+dot"] .nm'); await w(300);
+  check('  🔢 色の No. の 名前を押しても 同じ窓', (await askHdr()) + ' / ' + await askBtns(), '🎨「仕事」 / 🎨 色・背景を変える|✏ 名前を直す|やめる');
+  await btn(0); await page.click('#rkCPBox .rk-cpb [data-b="navy"]'); await w(150); await btn(0);
+  check('  　紺・水玉に：🔢 の画面のまま 出しなおす', (await st()) + ' / ' + await page.evaluate(() => document.getElementById('rkScrHdr').textContent + ' / ' + document.querySelector('#rkCOrd .rk-co:nth-child(2)').dataset.c),
+    '{"red+st":"親せき","navy+dot":"仕事","green":"年賀状"} / 1:red+st,2:red+st,3:navy+dot,4:red+st,5:green / red+st,navy+dot,green / 🔢 色の No.・並ぶ順番 / navy+dot');
+  await page.evaluate(() => RK.cDone()); await w(300);
+  await page.evaluate(() => { if (isDlgOpen('rkScrOverlay')) RK.closeScr(); RK.closeSub(); }); await w(300);
+  check('  　🔢 →「できあがり」→ 閉じる：連絡帳の一覧だけ', await page.evaluate(() => ['rkScrOverlay', 'rkSubOverlay', 'rkAskOverlay'].filter(isDlgOpen).join(',') + '/' + isDlgOpen('renrakuOverlay')), '/true');
+
+  // ── 色分けの帯の ✏ 直す
+  await page.evaluate(() => { RK.paintStart(); RK.paintPick('green'); }); await w(250);
+  check('  色分けの帯：名前のある色は「✏ 直す」', await page.evaluate(() => document.querySelector('#rkAdd .rk-pinfo button').textContent), '✏ 直す');
+  await page.click('#rkAdd .rk-pinfo button'); await w(300); await btn(0);
+  await page.click('#rkCPBox .rk-pats [data-p="ck"]'); await w(150); await btn(0);
+  check('  　緑・チェックに：ぬる色も 新しい色のまま（rk.pc も）', (await st()) + ' / ' + await page.evaluate(() => document.querySelector('#rkAdd .rk-pinfo b').textContent + ' / ' + rkState().pc),
+    '{"red+st":"親せき","navy+dot":"仕事","green+ck":"年賀状"} / 1:red+st,2:red+st,3:navy+dot,4:red+st,5:green+ck / red+st,navy+dot,green+ck / 緑・チェック（年賀状） / green+ck');
+  await page.evaluate(() => { RK.paintPick('lime'); }); await w(150);
+  check('  　名前のない色は「✏ 名前を付ける」', await page.evaluate(() => document.querySelector('#rkAdd .rk-pinfo button').textContent), '✏ 名前を付ける');
+  await page.evaluate(() => RK.paintEnd()); await w(250);
+
+  // ── 色で絞っているときも 絞りが ついてくる
+  await page.evaluate(() => RK.setCol('navy+dot')); await w(250);
+  await page.evaluate(() => { RK.colRecolor('navy+dot'); }); await w(350);
+  await page.click('#rkCPBox .rk-pats [data-p=""]'); await w(150); await btn(0);
+  check('  色で絞っていても 絞りは 新しい色に（紺）', await page.evaluate(() => [...document.querySelectorAll('#rkList .rk-it')].map(e => e.dataset.id).join(',') + ' / ' + document.querySelector('#rkBar .rk-chip.on[onclick*="setCol"]').textContent.replace(/\d+$/, '')), 'c3 / 仕事');
+  await page.evaluate(() => RK.setCol('navy')); await w(200);
+
+  // ── 色の名前を グループにも：まとめた人も その名前のグループに
+  await page.evaluate(() => { RK.setCGrp(true); const x = rkState().items.find(x => x.id === 'c1'); x.color = 'pink+st'; x.groups = x.groups.filter(g => g !== '親せき'); RK.colRecolor('red+st'); }); await w(350);
+  await page.click('#rkCPBox .rk-cpb [data-b="pink"]'); await w(150); await btn(0); await btn(0);
+  check('  色の名前をグループにも：まとめた人も「親せき」のグループに', await page.evaluate(() => rkState().items.filter(x => x.groups.includes('親せき')).map(x => x.id).join(',') + ' / ' + rkState().items.find(x => x.id === 'c1').color), 'c1,c2,c4 / pink+st');
+
+  // ── 一覧の右はしに 色の名前のグループ（🎨）は 出さない
+  check('  一覧の右はし：色の名前のグループの 🎨 は出さない（⛳ ゴルフ など ほかのグループは出す）', await page.evaluate(() => ['c1', 'c2', 'c3'].map(id => { const e = document.querySelector(`#rkList .rk-it[data-id="${id}"]`); return id + ':' + ((e.querySelector('.gi') || {}).textContent || '-') + '/' + ((e.querySelector('.cl') || {}).textContent || '-'); }).join(' ')),
+    'c1:-/親せき c2:⛳/親せき c3:-/仕事');
+  check('  　グループの絞りの札には 🎨 が出る（グループとして わかるように）', await page.evaluate(() => { RK.setView('group'); return [...document.querySelectorAll('#rkBar .rk-chip')].some(b => b.textContent.includes('🎨') && b.textContent.includes('親せき')); }), true);
+
+  // ── 戻る：窓だけ閉じる
+  await page.evaluate(() => { RK.colEdit('green+ck'); }); await w(300);
+  await page.goBack({ waitUntil: 'commit' }).catch(() => {}); await w(500);
+  check('  色の窓で 端末の「戻る」：窓だけ閉じる（連絡帳は そのまま）', (await askHdr()) + ' / ' + await page.evaluate(() => isDlgOpen('renrakuOverlay')), '（なし） / true');
+
+  // ── 読みなおしても 同じ（保存）
+  await page.evaluate(() => { closeRenraku(); }); await w(400);
+  await page.reload(); await w(1200);
+  await page.evaluate(() => openRenraku()); await w(900);
+  check('  保存：読みなおしても 新しい色と名前・No.', await st(), '{"pink+st":"親せき","navy":"仕事","green+ck":"年賀状"} / 1:pink+st,2:pink+st,3:navy,4:pink+st,5:green+ck / pink+st,navy,green+ck');
+  check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
 
@@ -13738,6 +13859,7 @@ async function runQrShare(browser) {
     if (!only || only === 'rk551') await runRenraku551(browser);
     if (!only || only === 'rk552') await runRenraku552(browser);
     if (!only || only === 'backask') await runBackAsk(browser);
+    if (!only || only === 'rk554') await runRenraku554(browser);
     if (!only || only === 'firsthint') await runFirstHint(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);

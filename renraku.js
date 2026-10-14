@@ -28,7 +28,9 @@
      （▶ を押すまで 出したまま。開くたびに たたんで はじまる。rk.addbar：fold／show）。
    ・（v552）🎨 色を 24色に。背景（無地・ストライプ・水玉・グラデーション・チェック・波）と組み合わせる（item.color は 'red'・'red+dot'）。
      名前を付けた色（色＋背景）だけが 🔢 No.・並ぶ順番・自分好みの色の一覧に出る（名前のない色は そのあとに 色の順）。
-   ・（v553）端末の「戻る」：🎨 色分け・☑ えらぶ の あいだは その動きだけ おわる。🧩 自分好みにする から開いた 🔢 色の No. は 🧩 に戻る。 */
+   ・（v553）端末の「戻る」：🎨 色分け・☑ えらぶ の あいだは その動きだけ おわる。🧩 自分好みにする から開いた 🔢 色の No. は 🧩 に戻る。
+   ・（v554）名前を付けた色は、あとから 色・背景だけを変えられる（名前・No.・その色の人は そのまま。ほかの名前の色をえらぶと 入れかえ）。
+     一覧の右はしに 色の名前のグループのアイコン（🎨）は 出さない（色の札と同じなので）。 */
 (function(){
 const RK_KEY='excalc_renraku', RK_MAX=5000;
 let rk=null, rkQ='', rkGrp='', rkCol='', rkSel=null, rkPaint=null, rkT=null, rkViewId=null, rkEd=null, rkScrClean=null, rkDupCache=[], rkRec=null, rkIO=null, rkYUndo=null, rkYLast=null, rkIconRes=null, rkIconCat='ym', rkAddOpen=false;
@@ -1134,7 +1136,8 @@ function rkSubLine(x){
 }
 function rkItemHtml(x){
   const on=rkSel && rkSel.has(x.id), sub=rkSubLine(x);
-  const gi=x.groups.map(gIcon).filter(Boolean).join(''), hex=colHex(x.color), no=x.color && rk.cno ? cNo(x.color) : 0, cn=x.color ? (rk.colors[x.color]||'') : '';
+  const hex=colHex(x.color), no=x.color && rk.cno ? cNo(x.color) : 0, cn=x.color ? (rk.colors[x.color]||'') : '';
+  const gi=x.groups.filter(g=>g!==cn).map(gIcon).filter(Boolean).join('');   // 色の名前のグループ（🎨）は 色の札と同じなので 右はしに出さない（v554）
   return `<div class="rk-it${on?' sel':''}${hex?' col'+ptCls(x.color):''}" data-id="${x.id}"${hex?` style="--rkc:${hex}"`:''} onclick="RK.tap('${x.id}')">${rkSel?'<span class="ck">✓</span>':''}<span class="av" data-ph="${x.photo?x.id:''}" style="background-color:${rkColor(x)}">${esc(rkInitial(x))}</span>`
     +`<span class="tx"><div class="nm">${esc(rkName(x))}${rkYomi(x)?`<small>${esc(rkYomi(x))}</small>`:''}</div>${sub?`<div class="sb${(rk.sub==='tel' && x.tels.length)?' tel':''}">${esc(sub)}</div>`:''}</span>`
     +`${(no||cn)?`<span class="cl${no?' n':''}" style="--rki:${colInk(x.color)}">${no?`<b>No.${no}</b>${cn?' ':''}`:''}${esc(cn)}</span>`:''}${gi?`<span class="gi">${esc(gi)}</span>`:''}${x.fav?'<span class="fv">★</span>':''}</div>`;
@@ -1195,7 +1198,7 @@ function rkRenderAdd(){
     const c=rkPaint.c, n=c?rk.items.filter(x=>x.color===c).length:0, [bc,bq]=ckSplit(c||rk.pc||'red'), named=cOrd();
     A.innerHTML=`<div class="rk-pinfo">${c?`${dotH(c,true)}<b>${esc(colFullD(c))}</b><span class="n">${n}人</span><span class="hint">押した人を この色に</span>`
         :'<b>✕ 色を外す</b><span class="hint">押した人の色を外します</span>'}
-      ${c?`<button type="button" onclick="RK.colName('${c}')">✏ ${rk.colors[c]?'名前を直す':'名前を付ける'}</button>`:''}</div>
+      ${c?`<button type="button" onclick="RK.colEdit('${c}')">✏ ${rk.colors[c]?'直す':'名前を付ける'}</button>`:''}</div>
       ${named.length?`<div class="rk-pnamed" id="rkPNamed">${named.map(k=>`<button type="button" class="rk-sw${ptCls(k)}${c===k?' on':''}" data-c="${k}" style="${swSt(k)}" onclick="RK.paintPick('${k}')"><span>${esc(colLabelD(k))}</span></button>`).join('')}</div>`:''}
       <div class="rk-pal" id="rkPal">${PAL.map(([b])=>{ const kk=ckMake(b,bq); return `<button type="button" class="rk-sw${ptCls(kk)}${(c && bc===b)?' on':''}" data-b="${b}" data-c="${kk}" style="${swSt(kk)}" onclick="RK.paintBase('${b}')" aria-label="${esc(colBase(kk))}" title="${esc(colBase(kk))}"></button>`; }).join('')}</div>
       ${rkPatsHtml(c?bq:null, bc, 'RK.paintPat', 'rkPPats')}
@@ -1542,7 +1545,7 @@ async function rkSelColor(){
 let rkCP=null;   // {c:いまの色（''＝なし）, last:前にえらんだ色, el:入れ物の id, set:えらんだときに呼ぶ, dlg:窓のとき}
 function rkCPHtml(){
   if(!rkCP) return '';
-  const c=rkCP.c, [bc,bq]=ckSplit(c||rkCP.last||'red'), named=cOrd();
+  const c=rkCP.c, [bc,bq]=ckSplit(c||rkCP.last||'red'), named=rkCP.nonamed ? [] : cOrd();
   return `<div class="rk-cpnow">${c?dotH(c,true)+`<b>${esc(colFullD(c))}</b>`:'<b>色なし</b>'}${(!rkCP.dlg && c)?'<button type="button" class="rk-cpoff" onclick="RK.cpPick(\'\')">✕ 色を外す</button>':''}</div>`
     +(named.length?`<div class="rk-cpt">名前を付けた色</div><div class="rk-pal lab rk-cpn">${named.map(k=>`<button type="button" class="rk-sw${ptCls(k)}${c===k?' on':''}" data-c="${k}" style="${swSt(k)}" onclick="RK.cpPick('${k}',1)"><span>${esc(colLabelD(k))}</span></button>`).join('')}</div>`:'')
     +`<div class="rk-cpt">色</div><div class="rk-pal rk-cpb">${PAL.map(([b])=>{ const kk=ckMake(b,bq); return `<button type="button" class="rk-sw${ptCls(kk)}${(c && bc===b)?' on':''}" data-b="${b}" data-c="${kk}" style="${swSt(kk)}" onclick="RK.cpBase('${b}')" aria-label="${esc(colBase(kk))}" title="${esc(colBase(kk))}"></button>`; }).join('')}</div>`
@@ -1565,15 +1568,17 @@ function rkCPPick(k, named){
 }
 function rkCPBase(b){ if(rkCP) rkCPPick(ckMake(b, ckSplit(rkCP.c||rkCP.last||'')[1])); }
 function rkCPPat(q){ if(rkCP) rkCPPick(ckMake(ckSplit(rkCP.c||rkCP.last||'red')[0]||'red', q)); }
-/* 色をえらぶ小さな窓。えらんだ色（色なしは ''）。やめたら null */
-async function rkPickColor(hdr, cur){
+/* 色をえらぶ小さな窓。えらんだ色（色なしは ''）。やめたら null。
+   recolor（名前を付けた色の 色・背景を変える。v554）のときは「色なし」と 名前を付けた色を 出さない */
+async function rkPickColor(hdr, cur, recolor){
   const prev=rkCP, c0=ckOk(cur)?cur:'';
-  rkCP={c:c0, last:c0||rk.pc||'red', el:'rkCPBox', dlg:true};
-  const pr=rkAsk(hdr, '', ['この色にする','色なし（外す）','やめる'], `<div class="rk-cp" id="rkCPBox">${rkCPHtml()}</div>`);
+  rkCP={c:c0, last:c0||rk.pc||'red', el:'rkCPBox', dlg:true, nonamed:!!recolor};
+  const pr=rkAsk(hdr, recolor ? '色と背景をえらんで「この色にする」を押します。名前・No.・この色の人は そのままです。' : '',
+    recolor ? ['この色にする','やめる'] : ['この色にする','色なし（外す）','やめる'], `<div class="rk-cp" id="rkCPBox">${rkCPHtml()}</div>`);
   rkCPRe();
   const r=await pr, c=rkCP?rkCP.c:'';
   rkCP=prev; if(prev) rkCPRe();
-  return r===0 ? c : r===1 ? '' : null;
+  return r===0 ? c : (r===1 && !recolor) ? '' : null;
 }
 function rkPaintStart(){ if(!rk.items.length) return; rkSel=null; rkPaint={c:rk.pc||'red', undo:[]}; rkRender(); }
 function rkPaintEnd(){ rkPaint=null; rkSave(); rkRender(); }
@@ -1609,6 +1614,42 @@ async function rkCAddName(back){
   const k=await rkPickColor('🎨 名前を付ける色（色と背景）をえらぶ', ''); if(!k) return;
   await rkColName(k, back);
 }
+/* 名前を付けた色を押したとき：🎨 色・背景を変える／✏ 名前を直す（v554）。名前のない色は 名前を付ける */
+async function rkColEdit(k, back){
+  if(!ckOk(k)) return;
+  if(!rk.colors[k]) return rkColName(k, back);
+  const n=rk.items.filter(x=>x.color===k).length;
+  const r=await rkAsk('🎨「'+rk.colors[k]+'」', '', ['🎨 色・背景を変える','✏ 名前を直す','やめる'],
+    `<div class="rk-cpnow">${dotH(k,true)}<b>${esc(colFullD(k))}</b><span class="n">${n}人</span></div><div class="rk-note" style="margin-top:0">名前・No.・この色の人は そのままで、色と背景だけを 変えられます。</div>`);
+  if(r===0) return rkColRecolor(k, back);
+  if(r===1) return rkColName(k, back);
+}
+/* 🎨 名前を付けた色の 色・背景を変える（v554）：名前・No.・その色の人は そのまま、色と背景だけ 付けかえる。
+   えらんだ色に ほかの名前があれば 入れかえる。名前のない その色の人がいれば、その人たちも この名前に まとめる */
+async function rkColRecolor(k, back){
+  const nm=rk.colors[k]; if(!ckOk(k) || !nm) return;
+  const k2=await rkPickColor('🎨「'+nm+'」の 色と背景をえらぶ', k, true);
+  if(!ckOk(k2) || k2===k) return;
+  const cnt=c=>rk.items.filter(x=>x.color===c).length, n1=cnt(k), n2=cnt(k2), nm2=rk.colors[k2]||'';
+  if(nm2){
+    if(await rkAsk('🎨 色を 入れかえますか？', '「'+colBase(k2)+'」は もう「'+nm2+'」の色です。「'+nm+'」と「'+nm2+'」の 色を 入れかえます（名前・No.・人は そのまま）。', ['入れかえる','やめる'])!==0) return;
+  } else if(n2){
+    if(await rkAsk('🎨 まとめますか？', '名前のない「'+colBase(k2)+'」の人が '+n2+'人 います。その人たちも「'+nm+'」に なります。', ['まとめる','やめる'])!==0) return;
+  }
+  const sw=c=>c===k ? k2 : (nm2 && c===k2) ? k : c;   // 付けかえ（入れかえのときは 相手も）
+  const ord=cOrd(), was=rk.corder.length;               // No. は 名前に付いたまま（色の順で決まっていたときも 前の No. のまま）
+  const c0=rk.colors; rk.colors={}; for(const c of Object.keys(c0)) rk.colors[sw(c)]=c0[c];
+  rk.corder=ord.map(sw);
+  if(!was && !cCust()) rk.corder=[];                     // 色の順と同じなら 決めていないまま（あとで名前を付けた色も 色の順に入る）
+  rk.items.forEach(x=>{ if(x.color) x.color=sw(x.color); });
+  if(rk.pc) rk.pc=sw(rk.pc);
+  if(rkPaint){ if(rkPaint.c) rkPaint.c=sw(rkPaint.c); rkPaint.undo.forEach(u=>{ if(u[1]) u[1]=sw(u[1]); }); }
+  if(rkCol && rkCol!=='-') rkCol=sw(rkCol);
+  if(rk.cgrp) rk.items.forEach(x=>{ if(x.color===k || x.color===k2) rkCGrpSync(x); });
+  rkSave(); rkRender(); if(rkT) rkTRender();
+  toast(nm2 ? '「'+nm+'」と「'+nm2+'」の 色を 入れかえました' : '「'+nm+'」を '+colBase(k2)+' に しました（'+(n1+n2)+'人）', 3200);
+  if(back==='order') rkCOrderOpen(); else if(back) rkOpenCustom();
+}
 
 /* ── 🔢 色の No.・並ぶ順番（v549）：色に No. を振る（↑↓・No. をえらぶ）。「🎨 色」の一覧は 上から／下から ── */
 let rkCBack=false;
@@ -1617,7 +1658,7 @@ function rkCRows(){
   const o=cOrd();
   if(!o.length) return '<div class="rk-note" id="rkCNone">名前を付けた色が まだありません。下の「＋ 色に名前を付ける」で 色と背景をえらんで 名前を付けると、ここに出て No. を振れます。</div>';
   return o.map((k,i)=>`<div class="rk-co" data-c="${k}"><button type="button" class="no" onclick="RK.cNoPick('${k}')" title="No. をえらぶ">No.${i+1}</button>`
-      +`<button type="button" class="nm" onclick="RK.colName('${k}','order')" title="名前を直す">${dotH(k,true)}<span>${esc(rk.colors[k])}<small>${esc(colBase(k))}</small></span><em>${cc[k]||0}人</em></button>`
+      +`<button type="button" class="nm" onclick="RK.colEdit('${k}','order')" title="名前・色を直す">${dotH(k,true)}<span>${esc(rk.colors[k])}<small>${esc(colBase(k))}</small></span><em>${cc[k]||0}人</em></button>`
       +`<button type="button" class="mv" onclick="RK.cMove('${k}',-1)" aria-label="上へ" ${i?'':'disabled'}>↑</button><button type="button" class="mv" onclick="RK.cMove('${k}',1)" aria-label="下へ" ${i<o.length-1?'':'disabled'}>↓</button></div>`).join('');
 }
 const cCust=()=>cOrd().join()!==cNamed().sort((a,b)=>ckRank0(a)-ckRank0(b)).join();   // No. を はじめの順から 変えているか
@@ -2657,8 +2698,8 @@ function rkOpenCustom(){
     <button class="rk-btn sub" onclick="RK.fAdd()">＋ 項目を作る</button>
     ${fPre.length?`<div class="rk-note">よく使う項目（押すと作ります）</div><div class="rk-tagrow">${fPre.map(([p,i])=>`<button type="button" onclick="RK.fPreset(${i})">${esc(p[0])}</button>`).join('')}</div>`:''}
     <div class="rk-sec">🎨 色分けの色（名前・No.・並ぶ順番）</div>
-    <div class="rk-note">色（24色）と 背景（無地・ストライプ・水玉・グラデーション・チェック・波）を組み合わせて 名前を付けると、ここと 🔢 No.・並ぶ順番に出ます（例：赤＝要連絡、緑・水玉＝年賀状）。押すと 名前を直せます。</div>
-    ${cOrd().length?`<div class="rk-cgrid">${cOrd().map(k=>`<button type="button" data-c="${k}" onclick="RK.colName('${k}',true)">${dotH(k,true)}<span><b class="no">No.${cNo(k)}</b> ${esc(rk.colors[k])}</span><small>${ccnt[k]||0}人</small></button>`).join('')}</div>`:'<div class="rk-note">まだ 名前を付けた色は ありません。</div>'}
+    <div class="rk-note">色（24色）と 背景（無地・ストライプ・水玉・グラデーション・チェック・波）を組み合わせて 名前を付けると、ここと 🔢 No.・並ぶ順番に出ます（例：赤＝要連絡、緑・水玉＝年賀状）。押すと 名前を直したり、名前はそのままで 色・背景を変えたり できます。</div>
+    ${cOrd().length?`<div class="rk-cgrid">${cOrd().map(k=>`<button type="button" data-c="${k}" onclick="RK.colEdit('${k}',true)">${dotH(k,true)}<span><b class="no">No.${cNo(k)}</b> ${esc(rk.colors[k])}</span><small>${ccnt[k]||0}人</small></button>`).join('')}</div>`:'<div class="rk-note">まだ 名前を付けた色は ありません。</div>'}
     <button class="rk-btn sub" onclick="RK.cAddName(true)">＋ 色に名前を付ける（色と背景をえらぶ）</button>
     <button class="rk-btn sub" onclick="RK.cOrder(true)">🔢 色の No.・並ぶ順番を決める（上から／下から）</button>
     <label class="rk-chk"><input type="checkbox" id="rkCGrp" ${rk.cgrp?'checked':''} onchange="RK.setCGrp(this.checked)"> 色の名前を グループにも入れる（色を付けると その色の名前のグループに入り、ほかの色の名前のグループからは 外れます）</label>
@@ -2747,7 +2788,7 @@ window.RK={ menu:rkOpenMenu, setQ:v=>{ rkQ=String(v||''); rkRender(); }, setView
   edit:rkEdit, edType:rkEdType, edAdd:rkEdAdd, edDel:rkEdDel, edPick:rkEdPick, edNewGroup:rkEdNewGroup, edPhoto:rkEdPhoto, edPicked:rkEdPicked, edSave:rkEdSave,
   fav:rkFav, remove:rkRemove, share:rkShare, oneVcf:rkOneVcf, viewColor:rkViewColor, edCol:rkEdCol,
   selStart:()=>{ rkPaint=null; rkSelStart(); }, selEnd:rkSelEnd, selAll:rkSelAll, selGroup:rkSelGroup, selDel:rkSelDel, selColor:rkSelColor,
-  paintStart:rkPaintStart, paintEnd:rkPaintEnd, paintPick:rkPaintPick, paintBase:rkPaintBase, paintPat:rkPaintPat, paintUndo:rkPaintUndo, colName:rkColName, cAddName:rkCAddName,
+  paintStart:rkPaintStart, paintEnd:rkPaintEnd, paintPick:rkPaintPick, paintBase:rkPaintBase, paintPat:rkPaintPat, paintUndo:rkPaintUndo, colName:rkColName, colEdit:rkColEdit, colRecolor:rkColRecolor, cAddName:rkCAddName,
   cpPick:rkCPPick, cpBase:rkCPBase, cpPat:rkCPPat,
   table:rkOpenTbl, closeTbl:rkCloseTbl, tQ:v=>{ if(!rkT) return; rkTCommit(); rkT.q=String(v||''); rkTRender(); $('rkTWrap').scrollTop=0; }, tAdd:rkTAdd, tCols:rkTColsPick, tUndo:rkTUndo,
   tNameW:w=>{ if(!rkT) return; rkTSetW('name', w); document.querySelectorAll('#rkAskBody [data-nw]').forEach(b=>b.classList.toggle('on', +b.dataset.nw===rkTNameW())); },
