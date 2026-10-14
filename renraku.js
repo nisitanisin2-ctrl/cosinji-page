@@ -25,7 +25,9 @@
      🔢（色の No.・グループの順番）。電話番号だけ大きく（rk.telSize）。色の名前を グループにも入れる（rk.cgrp）。横持ちでは 一覧を左・ほかは右に。
      写真のかわりに 🙂 アイコン（renraku-icons.js。人・会社 70こ）。連絡帳だけのアプリ（renraku-app/）からも読む（window.RK_BASE）。
    ・（v551）下のボタン（＋入れる・🎨色分け・☑えらぶ・📇スマホに戻す）は ふだん 右下の ◀ に たたむ。◀ で出し、バーの右端の ▶ で たたむ
-     （▶ を押すまで 出したまま。開くたびに たたんで はじまる。rk.addbar：fold／show）。 */
+     （▶ を押すまで 出したまま。開くたびに たたんで はじまる。rk.addbar：fold／show）。
+   ・（v552）🎨 色を 24色に。背景（無地・ストライプ・水玉・グラデーション・チェック・波）と組み合わせる（item.color は 'red'・'red+dot'）。
+     名前を付けた色（色＋背景）だけが 🔢 No.・並ぶ順番・自分好みの色の一覧に出る（名前のない色は そのあとに 色の順）。 */
 (function(){
 const RK_KEY='excalc_renraku', RK_MAX=5000;
 let rk=null, rkQ='', rkGrp='', rkCol='', rkSel=null, rkPaint=null, rkT=null, rkViewId=null, rkEd=null, rkScrClean=null, rkDupCache=[], rkRec=null, rkIO=null, rkYUndo=null, rkYLast=null, rkIconRes=null, rkIconCat='ym', rkAddOpen=false;
@@ -54,19 +56,35 @@ const okKey=(T,t)=>T.some(a=>a[0]===t);
 const GROUP_ICONS=['👪','🏠','👴','👵','🧒','🧑‍🤝‍🧑','💼','🏗','🌾','🏘','🏫','🏥','🛒','🍶','⚽','🎵','⛩','⭐','❤️','📌'];
 const GROUP_PRESETS=[['家族','👪'],['親戚','🏠'],['友だち','🧑‍🤝‍🧑'],['仕事','💼'],['ご近所','🏘'],['学校','🏫'],['病院・お店','🏥']];
 const FIELD_PRESETS=[['間柄','text',[]],['年賀状','pick',['送る','もらう','やりとり','喪中','やめた']],['子どもの名前','text',[]],['連絡のしかた','pick',['電話','LINE','メール','手紙']],['好きなもの','text',[]]];
-/* 🎨 色分けの色（v544）。明るい地でも夜の色でも見分けやすい 12色 */
+/* 🎨 色分けの色（v544。v552 で 24色に）。はじめの 12色は 前のまま（No. の はじめの順・書き出しの名前も 同じ） */
 const PAL=[['red','赤','#e53935'],['orange','だいだい','#f57c00'],['yellow','黄','#fbc02d'],['lime','黄緑','#7cb342'],['green','緑','#2e7d32'],['teal','青緑','#00897b'],
-  ['sky','水色','#29b6f6'],['blue','青','#1e5fd0'],['purple','紫','#8e24aa'],['pink','ピンク','#ec407a'],['brown','茶','#8d6e63'],['gray','灰色','#78909c']];
+  ['sky','水色','#29b6f6'],['blue','青','#1e5fd0'],['purple','紫','#8e24aa'],['pink','ピンク','#ec407a'],['brown','茶','#8d6e63'],['gray','灰色','#78909c'],
+  ['maroon','えんじ','#8e1b2e'],['salmon','サーモン','#ff8a65'],['lemon','レモン','#fff176'],['wakakusa','若草','#aed581'],['olive','オリーブ','#827717'],['mint','ミント','#80cbc4'],
+  ['sora','空色','#90caf9'],['navy','紺','#1a237e'],['lavender','ラベンダー','#b39ddb'],['sakura','さくら','#f8bbd0'],['choco','こげ茶','#5d4037'],['black','黒','#263238']];
 const PAL_KEYS=PAL.map(p=>p[0]);
-const palOf=k=>PAL.find(p=>p[0]===k);
-const colHex=k=>(palOf(k)||[])[2]||'';
-const colLabel=k=>{ const p=palOf(k); return p ? ((rk && rk.colors[k]) || p[1]) : ''; };   // 名前を付けていれば その名前
-const colFull=k=>{ const p=palOf(k); if(!p) return ''; const l=rk && rk.colors[k]; return l ? p[1]+'（'+l+'）' : p[1]; };
-/* 🔢 色の No.（v549）：No. の順（rk.corder）。No. を出すときは「No.1 赤」（colLabelD・colFullD は 画面に出す用。書き出しは colFull のまま） */
-const cOrd=()=>(rk && Array.isArray(rk.corder) && rk.corder.length===PAL.length) ? rk.corder : PAL_KEYS;
-const cNo=k=>cOrd().indexOf(k)+1;
-const palO=()=>cOrd().map(palOf);   // No.1 から
-const noP=k=>(rk && rk.cno && palOf(k)) ? 'No.'+cNo(k)+' ' : '';
+/* 背景（v552）：色に重ねる 柄。'' は 無地 */
+const PAT=[['','無地'],['st','ストライプ'],['dot','水玉'],['gr','グラデーション'],['ck','チェック'],['wv','波']];
+const PAT_KEYS=PAT.map(p=>p[0]);
+/* 色分けの しるし（item.color・rk.colors・rk.corder のキー）：'red'（赤）・'red+dot'（赤・水玉） */
+const ckSplit=k=>{ const t=String(k||''), i=t.indexOf('+'); return i<0 ? [t,''] : [t.slice(0,i), t.slice(i+1)]; };
+const ckOk=k=>{ if(typeof k!=='string' || !k) return false; const [c,q]=ckSplit(k); return PAL_KEYS.includes(c) && PAT_KEYS.includes(q) && (q!=='' || !k.includes('+')); };
+const ckMake=(c,q)=>PAL_KEYS.includes(c) ? ((q && PAT_KEYS.includes(q)) ? c+'+'+q : c) : '';
+const ckRank0=k=>{ const [c,q]=ckSplit(k); return PAL_KEYS.indexOf(c)*PAT.length+PAT_KEYS.indexOf(q); };   // はじめの順（色の順 → 背景の順）
+const palOf=k=>PAL.find(p=>p[0]===ckSplit(k)[0]);
+const patOf=k=>ckSplit(k)[1];
+const patName=q=>(PAT.find(p=>p[0]===q)||['',''])[1];
+const colHex=k=>ckOk(k) ? palOf(k)[2] : '';
+const colBase=k=>ckOk(k) ? palOf(k)[1]+(patOf(k)?'・'+patName(patOf(k)):'') : '';   // 「赤」「赤・水玉」
+const colLabel=k=>ckOk(k) ? ((rk && rk.colors[k]) || colBase(k)) : '';   // 名前を付けていれば その名前
+const colFull=k=>{ if(!ckOk(k)) return ''; const l=rk && rk.colors[k]; return l ? colBase(k)+'（'+l+'）' : colBase(k); };
+/* 🔢 色の No.（v549。v552 から 名前を付けた色だけ）：No. の順は rk.corder（ないものは はじめの順）。名前のない色に No. はない。
+   No. を出すときは「No.1 要連絡」（colLabelD・colFullD は 画面に出す用。書き出しは colFull のまま） */
+const cNamed=()=>(rk && rk.colors) ? Object.keys(rk.colors).filter(k=>ckOk(k) && rk.colors[k]) : [];
+const cOrd=()=>{ const n=cNamed(), o=(rk && Array.isArray(rk.corder)) ? rk.corder.filter((k,i,a)=>n.includes(k) && a.indexOf(k)===i) : [];
+  return o.concat(n.filter(k=>!o.includes(k)).sort((a,b)=>ckRank0(a)-ckRank0(b))); };
+const cNo=k=>cOrd().indexOf(k)+1;   // 0 は No. なし（名前のない色）
+const cSortKeys=ks=>{ const o=cOrd(), r=k=>{ const i=o.indexOf(k); return i>=0 ? i : 1000+ckRank0(k); }; return ks.slice().sort((a,b)=>r(a)-r(b)); };   // 名前のある色（No. 順）→ ない色（はじめの順）
+const noP=k=>(rk && rk.cno && cNo(k)) ? 'No.'+cNo(k)+' ' : '';
 const colLabelD=k=>noP(k)+colLabel(k);
 const colFullD=k=>noP(k)+colFull(k);
 /* 並べ方（v550）：ボタンの順番は rk.vorder。上から／下から は rk.vdir（色は rk.cdir） */
@@ -78,14 +96,20 @@ const vDir=v=>v==='color' ? (rk.cdir==='down'?'down':'up') : ((rk.vdir && rk.vdi
 const colInk=k=>{ const h=colHex(k); if(!h) return '#fff';
   const v=[1,3,5].map(i=>parseInt(h.substr(i,2),16)/255).map(c=>c<=0.03928?c/12.92:Math.pow((c+0.055)/1.055,2.4)), L=0.2126*v[0]+0.7152*v[1]+0.0722*v[2];
   return 1.05/(L+0.05)>=3 ? '#fff' : '#1a1a1a'; };
-const COL_CF='色分け';   // スマホのメモ欄・CSV では「［色分け］赤（要連絡）」
-/* 「赤」「赤（要連絡）」「要連絡」「red」→ 色。learn のときは、まだ名前のない色に（ ）の名前を付ける */
+/* 背景の 柄（v552）：クラス（pt-st など）と、ぬりつぶした色の上に重ねる 柄の色（暗い色には 白っぽく、明るい色には 黒っぽく） */
+const ptCls=k=>(ckOk(k) && patOf(k)) ? ' pt-'+patOf(k) : '';
+const swSt=k=>`--rkc:${colHex(k)};--rki:${colInk(k)};--rkp:${colInk(k)==='#fff'?'rgba(255,255,255,.5)':'rgba(0,0,0,.22)'}`;
+const dotH=(k,big)=>ckOk(k) ? `<i class="rk-dot${big?' big':''}${ptCls(k)}" style="${swSt(k)}"></i>` : '';
+const COL_CF='色分け';   // スマホのメモ欄・CSV では「［色分け］赤（要連絡）」「［色分け］赤・水玉（年賀状）」
+/* 「赤」「赤・水玉」「赤（要連絡）」「要連絡」「red」「red+dot」→ 色。learn のときは、まだ名前のない色に（ ）の名前を付ける */
 function rkColorFrom(s, learn){
   const t=line(s,40); if(!t) return '';
   const m=/^(.+?)(?:[（(]([^（）()]{1,12})[)）])?$/.exec(t), nm=(m?m[1]:t).trim(), lb=m&&m[2]?m[2].trim():'';
-  let k=(PAL.find(p=>p[1]===nm || p[0]===nm.toLowerCase())||[])[0];
-  if(!k && rk) k=PAL_KEYS.find(c=>rk.colors[c]===t);
-  if(k && lb && learn && rk && !rk.colors[k]) rk.colors[k]=lb;
+  let k=ckOk(nm.toLowerCase()) ? nm.toLowerCase() : '';
+  if(!k){ const [a,b,z]=nm.split(/[・･]/).map(y=>y.trim()), c=(PAL.find(p=>p[1]===a)||[])[0], q=b===undefined ? '' : (PAT.find(p=>p[0] && p[1]===b)||[])[0];
+    if(c && q!==undefined && z===undefined) k=ckMake(c,q); }
+  if(!k && rk) k=Object.keys(rk.colors).find(c=>ckOk(c) && rk.colors[c]===t) || '';
+  if(k && lb && learn && rk && !rk.colors[k] && !Object.values(rk.colors).includes(lb)) rk.colors[k]=lb;
   return k||'';
 }
 
@@ -145,7 +169,7 @@ function rkCleanItem(x){
   o.bday=/^(\d{4}|-)-\d\d-\d\d$/.test(x.bday||'')?x.bday:'';
   o.bdayLine=o.bday?line(x.bdayLine,200):'';
   o.raw=arr(x.raw).map(l=>String(l==null?'':l).replace(/[\r\n]+/g,'')).filter(l=>l.length<=6000 && /^[A-Za-z0-9.\-]+[;:]/.test(l) && !/^(BEGIN|END|VERSION)[;:]/i.test(l)).slice(0,40);
-  o.fav=!!x.fav; o.photo=!!x.photo; o.color=PAL_KEYS.includes(x.color)?x.color:'';
+  o.fav=!!x.fav; o.photo=!!x.photo; o.color=ckOk(x.color)?x.color:'';
   o.added=ymdOk(x.added)?x.added:today(); o.updated=ymdOk(x.updated)?x.updated:o.added;
   o.ts=Math.max(0, +x.ts||0);
   return o;
@@ -154,12 +178,12 @@ const rkHasAny=x=>!!(x.fam||x.giv||x.fn||x.org||x.nick||x.tels.length||x.mails.l
 /* 表で直す の列（名前のほか） */
 const TCOL_RE=/^(yomi|color|fav|cell|tel|mail|org|dept|title|nick|zip|adr|bday|groups|note|cf:f[0-9a-z]{1,10})$/;
 const TW_MIN=60, TW_MAX=480;   // 表の列の幅（押して動かしたもの）
-function rkDefaults(){ return { v:1, view:'kana', groups:[], fields:[], sub:'tel', big:false, noteCf:true, call:'on', ykana:'', corder:PAL_KEYS.slice(), cdir:'up', cno:false, vorder:VIEW_KEYS.slice(), vdir:{}, telSize:0, cgrp:false, addbar:'fold', tipFold:false, lastExp:0, notDup:[], colors:{}, pc:'red', thide:['dept','title','nick','zip'], tw:{}, items:[] }; }
+function rkDefaults(){ return { v:1, view:'kana', groups:[], fields:[], sub:'tel', big:false, noteCf:true, call:'on', ykana:'', corder:[], cdir:'up', cno:false, vorder:VIEW_KEYS.slice(), vdir:{}, telSize:0, cgrp:false, addbar:'fold', tipFold:false, lastExp:0, notDup:[], colors:{}, pc:'red', thide:['dept','title','nick','zip'], tw:{}, items:[] }; }
 function rkClean(o){
   const d=rkDefaults(); if(!o || typeof o!=='object') return d;
   d.view=['kana','group','org','color','new'].includes(o.view)?o.view:'kana';
-  if(o.colors && typeof o.colors==='object') PAL_KEYS.forEach(k=>{ const l=line(o.colors[k],12); if(l) d.colors[k]=l; });
-  d.pc=PAL_KEYS.includes(o.pc)?o.pc:'red';
+  if(o.colors && typeof o.colors==='object') for(const k of Object.keys(o.colors).slice(0,400)) if(ckOk(k)){ const l=line(o.colors[k],12); if(l && !Object.values(d.colors).includes(l)) d.colors[k]=l; }   // 色（＋背景）の名前。同じ名前は 1つだけ
+  d.pc=ckOk(o.pc)?o.pc:'red';
   if(Array.isArray(o.thide)) d.thide=[...new Set(o.thide.filter(k=>typeof k==='string' && TCOL_RE.test(k)))].slice(0,60);
   if(o.tw && typeof o.tw==='object') for(const k of Object.keys(o.tw).slice(0,60)) if(k==='name' || TCOL_RE.test(k)){ const v=Math.round(+o.tw[k]); if(v>=TW_MIN && v<=TW_MAX) d.tw[k]=v; }
   d.groups=arr(o.groups).map(g=>({n:line(g&&g.n,20), ic:line(g&&g.ic,8)})).filter(g=>g.n).filter((g,i,a)=>a.findIndex(h=>h.n===g.n)===i).slice(0,60);
@@ -169,7 +193,7 @@ function rkClean(o){
   d.big=!!o.big; d.noteCf=o.noteCf!==false; d.lastExp=Math.max(0,+o.lastExp||0);
   d.call=['on','ask','off'].includes(o.call)?o.call:'on';   // 📞 電話をかける：かけられる・かける前に聞く・かけない（v547）
   d.ykana=['hira','kata'].includes(o.ykana)?o.ykana:'';     // 新しく入れる よみの字（v548。'' は いま多いほう）
-  { const co=arr(o.corder).filter((k,i,a)=>PAL_KEYS.includes(k) && a.indexOf(k)===i); d.corder=co.concat(PAL_KEYS.filter(k=>!co.includes(k))); }   // 🔢 色の No. の順（v549）
+  d.corder=arr(o.corder).filter((k,i,a)=>ckOk(k) && a.indexOf(k)===i && d.colors[k]).slice(0,400);   // 🔢 色の No. の順（v549。v552 から 名前を付けた色だけ。ないものは はじめの順）
   d.cdir=o.cdir==='down'?'down':'up'; d.cno=!!o.cno;
   { const vo=arr(o.vorder).filter((k,i,a)=>VIEW_KEYS.includes(k) && a.indexOf(k)===i); d.vorder=vo.concat(VIEW_KEYS.filter(k=>!vo.includes(k))); }   // 並べ方のボタンの順番（v550）
   if(o.vdir && typeof o.vdir==='object') ['kana','group','org','new'].forEach(k=>{ if(o.vdir[k]==='down') d.vdir[k]='down'; });   // 上から／下から（色は cdir）
@@ -379,7 +403,7 @@ function rkFromProps(props){
       case 'PHOTO': { const d=rkPhoto(p,v); if(d) pic=d; else if(!/^data:/i.test(String(v).trim()) && !/^(B|BASE64)$/i.test(p.params.ENCODING||'')) keepRaw(p,v); break; }
       case 'X-ANDROID-CUSTOM': { const a=rkSplit(v,';').map(un); if(/nickname$/.test(a[0]||'') && a[1] && !x.nick){ x.nick=a[1].trim(); break; } keepRaw(p,v); break; }
       case 'X-HYO-FAV': if(/^1|true$/i.test(String(v).trim())) x.fav=true; break;
-      case 'X-HYO-COLOR': { const k=String(v).trim().toLowerCase(); if(PAL_KEYS.includes(k)) x.color=k; break; }
+      case 'X-HYO-COLOR': { const k=String(v).trim().toLowerCase(); if(ckOk(k)) x.color=k; break; }
       default: keepRaw(p,v);
     }
   }
@@ -724,7 +748,13 @@ body.dark .rk-btn.del{ color:#ef9a9a; }
 .rk-help p,.rk-help li{ font-size:14px; line-height:1.7; }
 .rk-help ol{ padding-left:1.3em; margin:4px 0; }
 /* 🎨 色分け（v544）：左の帯と うすい地の色。色の名前は小さな札で */
-.rk-it.col{ box-shadow:inset 7px 0 0 var(--rkc); padding-left:15px; border-color:color-mix(in srgb, var(--rkc) 50%, transparent); background:color-mix(in srgb, var(--rkc) 12%, var(--modal-bg,#fff)); }
+.rk-it.col{ box-shadow:inset 7px 0 0 var(--rkc); padding-left:15px; border-color:color-mix(in srgb, var(--rkc) 50%, transparent); background-color:color-mix(in srgb, var(--rkc) 12%, var(--modal-bg,#fff));
+  --rkp:color-mix(in srgb, var(--rkc) 30%, transparent); --pw:5px; --pd:3px; --ps:16px; }
+.rk-it.col.pt-ck{ --rkp:color-mix(in srgb, var(--rkc) 18%, transparent); }   /* チェックは 2枚重ねなので うすく */
+.rk-it.col.pt-gr{ --rkp:color-mix(in srgb, var(--rkc) 40%, transparent); }
+body.dark .rk-it.col{ box-shadow:inset 7px 0 0 var(--rkc), inset 8px 0 0 rgba(255,255,255,.3); --rkp:color-mix(in srgb, var(--rkc) 20%, transparent); }   /* 紺・黒などの暗い色も 夜の色で見えるように・柄は うすめ（字が読めるように） */
+body.dark .rk-it.col.pt-ck{ --rkp:color-mix(in srgb, var(--rkc) 12%, transparent); }
+body.dark .rk-it.col.pt-gr{ --rkp:color-mix(in srgb, var(--rkc) 30%, transparent); }
 .rk-it.sel.col{ border-color:var(--acc); }
 .rk-it .cl.n{ max-width:10em; }   /* No. つき（v549） */
 .rk-it .cl{ flex:none; max-width:6.5em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11.5px; font-weight:bold; padding:2px 7px; border-radius:9px; background:var(--rkc); color:var(--rki,#fff); }
@@ -742,8 +772,9 @@ body.dark .rk-dot{ box-shadow:0 0 0 1px rgba(255,255,255,.35); }
 .rk-pinfo .n{ flex:none; white-space:nowrap; color:var(--text-light,#888); font-size:12px; margin-left:2px; }
 .rk-pinfo .hint{ flex:1 1 0; color:var(--text-light,#888); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; margin-left:4px; }
 .rk-pinfo button{ margin-left:auto; flex:none; height:30px; padding:0 10px; border-radius:15px; border:1px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#333); font-size:12px; cursor:pointer; }
-.rk-pal{ display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin:6px 2px 8px; }
+.rk-pal{ display:grid; grid-template-columns:repeat(8,1fr); gap:6px; margin:6px 2px 8px; }   /* 24色（v552）：8つずつ 3段 */
 @media (min-width:640px){ .rk-pal{ grid-template-columns:repeat(12,1fr); } }
+.rk-pal:not(.lab) .rk-sw{ height:30px; border-radius:10px; font-size:15px; }
 .rk-sw{ height:38px; min-width:0; border-radius:19px; border:none; background:var(--rkc); color:var(--rki,#fff); box-shadow:inset 0 0 0 1px rgba(0,0,0,.15); cursor:pointer; font-size:18px; font-weight:bold; padding:0; font-family:inherit; }
 .rk-sw.on{ box-shadow:0 0 0 3px var(--modal-bg,#fff), 0 0 0 5px var(--text,#333); }
 .rk-sw.on::after{ content:'✓'; }
@@ -787,7 +818,7 @@ body.dark .rk-dot{ box-shadow:0 0 0 1px rgba(255,255,255,.35); }
   border-right:1px solid rgba(120,132,156,.22); border-bottom:1px solid rgba(120,132,156,.22); background:var(--modal-bg,#fff); }
 .rk-tc.c-no{ padding:0; text-align:center; color:var(--text-light,#888); font-size:11px; }
 .rk-tc.c-name{ font-weight:bold; border-right:none; }
-.rk-tr.col .rk-tc{ background:color-mix(in srgb, var(--rkc) 10%, var(--modal-bg,#fff)); }
+.rk-tr.col .rk-tc{ background-color:color-mix(in srgb, var(--rkc) 10%, var(--modal-bg,#fff)); }
 .rk-tl .rk-tr.col .c-name{ box-shadow:inset 6px 0 0 var(--rkc); padding-left:13px; }
 .rk-tr.draft .rk-tc{ background:color-mix(in srgb, var(--acc) 9%, var(--modal-bg,#fff)); }
 .rk-tr.fl .rk-tc{ background:color-mix(in srgb, #ffd54f 45%, var(--modal-bg,#fff)); }
@@ -861,7 +892,9 @@ body.dark .rk-dot{ box-shadow:0 0 0 1px rgba(255,255,255,.35); }
   #renrakuOverlay .rk-addbtns button,#renrakuOverlay .rk-selbtns button{ min-height:40px; }
   #renrakuOverlay .rk-modal > .modal-header > span:not(.hdr-right){ display:none; }   /* 「📇 連絡帳」の字は 右の欄では はぶく（ボタンが入るように） */
   #renrakuOverlay .rk-modal > .modal-header{ justify-content:flex-end; gap:6px; }
-  #renrakuOverlay .rk-pal{ grid-template-columns:repeat(6,1fr); }
+  #renrakuOverlay .rk-pal{ grid-template-columns:repeat(8,1fr); }
+  #renrakuOverlay .rk-selbtns.rk-p3{ grid-template-columns:repeat(3,1fr); }   /* 色分けの 3つ（外す・戻す・おわる）は 1段に */
+  #renrakuOverlay .rk-add:not(.fold){ max-height:calc(100vh - 60px - var(--safe-top,0px)); overflow-y:auto; }   /* 高すぎるときは 送れるように */
   /* 下のボタン（v551）：右の欄の いちばん下に ◀。出すと 2つずつ 2段 */
   #renrakuOverlay .rk-add.fold{ position:static; grid-column:2; grid-row:3; justify-content:flex-end; padding:4px 0 calc(10px + var(--safe-bottom,0px)); border-top:none; }
   #renrakuOverlay .rk-add.fold.open{ padding:8px 0 calc(10px + var(--safe-bottom,0px)) 10px; border:none; border-top:1px solid rgba(120,132,156,.25); border-radius:0; box-shadow:none; animation:none; }
@@ -884,6 +917,37 @@ body.dark .rk-dot{ box-shadow:0 0 0 1px rgba(255,255,255,.35); }
 #printArea .rk-pr{ font-family:sans-serif; color:#000; }
 #printArea .rk-pr h1{ font-size:17pt; margin:0 0 3mm; } #printArea .rk-pr h2{ font-size:12pt; margin:4mm 0 1.2mm; border-bottom:1px solid #999; }
 #printArea .rk-pr table{ width:100%; border-collapse:collapse; font-size:9.5pt; } #printArea .rk-pr td{ border-bottom:1px solid #ddd; padding:1mm 1.6mm; vertical-align:top; }
+/* 🎨 背景の 柄（v552）：--rkp（柄の色）を 色の上に重ねる。--pw（しまの太さ）・--pd（水玉の半径）・--ps（くり返しの大きさ） */
+.pt-st{ background-image:repeating-linear-gradient(-45deg, var(--rkp) 0 var(--pw,4px), transparent var(--pw,4px) calc(var(--pw,4px)*2.2)); }
+.pt-dot{ background-image:radial-gradient(circle, var(--rkp) 0 var(--pd,2.6px), transparent calc(var(--pd,2.6px) + .7px)), radial-gradient(circle, var(--rkp) 0 var(--pd,2.6px), transparent calc(var(--pd,2.6px) + .7px));
+  background-size:var(--ps,11px) var(--ps,11px); background-position:0 0, calc(var(--ps,11px)/2) calc(var(--ps,11px)/2); }
+.pt-gr{ background-image:linear-gradient(100deg, transparent 10%, var(--rkp) 95%); }
+.pt-ck{ background-image:linear-gradient(90deg, var(--rkp) 50%, transparent 50%), linear-gradient(var(--rkp) 50%, transparent 50%); background-size:var(--ps,11px) var(--ps,11px); }
+.pt-wv{ background-image:radial-gradient(circle at 50% 100%, transparent calc(var(--ps,11px)*.3), var(--rkp) calc(var(--ps,11px)*.3 + .6px) calc(var(--ps,11px)*.48), transparent calc(var(--ps,11px)*.48 + .6px));
+  background-size:var(--ps,11px) calc(var(--ps,11px)*.5); }
+.rk-dot{ --pw:2px; --pd:1.3px; --ps:5px; } .rk-dot.big{ --pw:3px; --pd:2px; --ps:8px; }
+.rk-cpill{ --pw:4px; --pd:2.4px; --ps:10px; }
+.rk-cpill > span,.rk-sw > span{ display:inline-block; max-width:100%; box-sizing:border-box; padding:1px 7px; border-radius:9px; background:var(--rkc); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle; }   /* 柄の上でも 名前が読めるように */
+body.dark .rk-sw:not(.on):not(.none){ box-shadow:inset 0 0 0 1px rgba(255,255,255,.3); }
+/* 🎨 色分けの 下の帯（v552）：名前を付けた色（横に送る）・24色・背景 */
+.rk-pnamed{ display:flex; gap:6px; overflow-x:auto; padding:3px 2px 5px; margin:4px 0 0; scrollbar-width:none; }
+.rk-pnamed::-webkit-scrollbar{ display:none; }
+.rk-pnamed .rk-sw{ flex:none; height:34px; max-width:11em; padding:0 5px; border-radius:17px; font-size:13px; }
+.rk-pats{ display:grid; grid-template-columns:repeat(6,1fr); gap:3px; margin:2px 2px 8px; }
+.rk-pats button{ display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:2px; min-width:0; padding:3px 0 2px; border:1px solid transparent; border-radius:10px; background:transparent;
+  color:var(--text,#333); font-size:10px; line-height:1.15; cursor:pointer; font-family:inherit; word-break:keep-all; overflow-wrap:anywhere; text-align:center; }   /* せまい所では 2行に（はみ出さない） */
+.rk-pats button.on{ border-color:var(--acc); background:var(--acc-weak,rgba(33,115,70,.12)); font-weight:bold; }
+.rk-pats .rk-sw{ display:block; width:calc(100% - 4px); height:22px; border-radius:7px; pointer-events:none; }
+@media (max-width:359px){ .rk-pats button{ font-size:9.5px; } }
+.rk-pats .rk-sw::after{ content:none; }
+/* 🎨 色と背景を えらぶ所（直す画面・色をえらぶ窓） */
+.rk-cp{ margin:4px 0 6px; }
+.rk-cpnow{ display:flex; align-items:center; gap:6px; min-height:34px; font-size:14.5px; color:var(--text,#222); }
+.rk-cpnow b{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rk-cpoff{ margin-left:auto; flex:none; height:32px; padding:0 10px; border-radius:16px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#333); font-size:12.5px; cursor:pointer; font-family:inherit; }
+.rk-cpt{ font-size:12px; font-weight:bold; color:var(--text-light,#888); margin:8px 2px 0; }
+.rk-cp .rk-pal{ margin-top:4px; }
+.rk-cpn .rk-sw{ font-weight:bold; }
 `;
 function rkEnsureDom(){
   if($('renrakuOverlay')) return;
@@ -1028,7 +1092,7 @@ function rkSectionsHtml(list){
   } else if(rk.view==='color'){
     const by={}, none=[];
     for(const x of list){ if(x.color) (by[x.color]=by[x.color]||[]).push(x); else none.push(x); }
-    secs=palO().filter(p=>by[p[0]]).map(p=>['c:'+p[0], colFullD(p[0]), by[p[0]].sort(cmpKana), p[2]]);
+    secs=cSortKeys(Object.keys(by)).map(k=>['c:'+k, colFullD(k), by[k].sort(cmpKana), k]);   // 名前のある色（No. 順）→ ない色
     if(none.length) secs.push(['c:', '色なし', none.sort(cmpKana)]);
     if(rk.cdir==='down') secs.reverse();   // 下から：No.1 が いちばん下（色なしは いちばん上）
   } else if(rk.view==='org'){
@@ -1043,7 +1107,7 @@ function rkSectionsHtml(list){
   const kana=rk.view==='kana';
   I.innerHTML=kana ? secs.map(s=>`<button type="button" data-sec="${esc(s[0])}" aria-label="${esc(s[1])}の行へ">${esc(s[0])}</button>`).join('') : '';
   L.classList.toggle('noidx', !kana);
-  return secs.map(([k,label,items,hex])=>`<div class="rk-grp" data-sec="${esc(k)}">${hex?`<i class="rk-dot" style="--rkc:${hex}"></i>`:''}${esc(label)}<span>${items.length}人</span></div>`+items.map(rkItemHtml).join('')).join('');
+  return secs.map(([k,label,items,ck])=>`<div class="rk-grp" data-sec="${esc(k)}">${ck?dotH(ck):''}${esc(label)}<span>${items.length}人</span></div>`+items.map(rkItemHtml).join('')).join('');
 }
 function rkSubLine(x){
   const s=rk.sub;
@@ -1058,7 +1122,7 @@ function rkSubLine(x){
 function rkItemHtml(x){
   const on=rkSel && rkSel.has(x.id), sub=rkSubLine(x);
   const gi=x.groups.map(gIcon).filter(Boolean).join(''), hex=colHex(x.color), no=x.color && rk.cno ? cNo(x.color) : 0, cn=x.color ? (rk.colors[x.color]||'') : '';
-  return `<div class="rk-it${on?' sel':''}${hex?' col':''}" data-id="${x.id}"${hex?` style="--rkc:${hex}"`:''} onclick="RK.tap('${x.id}')">${rkSel?'<span class="ck">✓</span>':''}<span class="av" data-ph="${x.photo?x.id:''}" style="background-color:${rkColor(x)}">${esc(rkInitial(x))}</span>`
+  return `<div class="rk-it${on?' sel':''}${hex?' col'+ptCls(x.color):''}" data-id="${x.id}"${hex?` style="--rkc:${hex}"`:''} onclick="RK.tap('${x.id}')">${rkSel?'<span class="ck">✓</span>':''}<span class="av" data-ph="${x.photo?x.id:''}" style="background-color:${rkColor(x)}">${esc(rkInitial(x))}</span>`
     +`<span class="tx"><div class="nm">${esc(rkName(x))}${rkYomi(x)?`<small>${esc(rkYomi(x))}</small>`:''}</div>${sub?`<div class="sb${(rk.sub==='tel' && x.tels.length)?' tel':''}">${esc(sub)}</div>`:''}</span>`
     +`${(no||cn)?`<span class="cl${no?' n':''}" style="--rki:${colInk(x.color)}">${no?`<b>No.${no}</b>${cn?' ':''}`:''}${esc(cn)}</span>`:''}${gi?`<span class="gi">${esc(gi)}</span>`:''}${x.fav?'<span class="fv">★</span>':''}</div>`;
 }
@@ -1096,15 +1160,15 @@ function rkRenderBar(){
   if(rkGrp && !(rkGrp==='★'?nf:rkGrp==='?'?ny:cnt[rkGrp])) rkGrp='';
   if(rkCol && !rkPaint && !(rkCol==='-'?nc:cc[rkCol])) rkCol='';   // ぬっている間は、絞りを外さない（一覧が急に変わらないように）
   const chip=(k,l,n)=>`<button class="rk-chip${rkGrp===k?' on':''}" onclick="RK.setGrp(${esc(JSON.stringify(k))})">${esc(l)}<small>${n}</small></button>`;
-  const cchip=(k,l,n,hex)=>`<button class="rk-chip${rkCol===k?' on':''}" onclick="RK.setCol('${k}')">${hex?`<i class="rk-dot" style="--rkc:${hex}"></i>`:''}${esc(l)}<small>${n}</small></button>`;
-  const used=palO().filter(p=>cc[p[0]] || rkCol===p[0]);
+  const cchip=(k,l,n)=>`<button class="rk-chip${rkCol===k?' on':''}" onclick="RK.setCol('${k}')">${k!=='-'?dotH(k):''}${esc(l)}<small>${n}</small></button>`;
+  const used=cSortKeys(Object.keys(cc).concat(ckOk(rkCol) && !cc[rkCol] ? [rkCol] : []));   // 使っている色（名前のある色は No. 順）
   $('rkBar').innerHTML=vOrd().map(k=>{ const l=VIEWS.find(v=>v[0]===k)[1]; return `<button class="rk-chip${rk.view===k?' on':''}" data-view="${k}" onclick="RK.setView('${k}')">${l}</button>`+(rk.view===k?rkMiniHtml(k):''); }).join('')
     +((nf||ny||rk.groups.length||used.length)?'<span class="rk-sep"></span>':'')
     +(nf?chip('★','★ よく使う',nf):'')
     +rk.groups.filter(g=>cnt[g.n]).map(g=>chip(g.n,(g.ic?g.ic+' ':'')+g.n,cnt[g.n])).join('')
     +(ny?chip('?','よみなし',ny):'')
-    +used.map(p=>cchip(p[0], colLabelD(p[0]), cc[p[0]]||0, p[2])).join('')
-    +(used.length && (nc || rkCol==='-') ? cchip('-','色なし',nc,'') : '');
+    +used.map(k=>cchip(k, colLabelD(k), cc[k]||0)).join('')
+    +(used.length && (nc || rkCol==='-') ? cchip('-','色なし',nc) : '');
 }
 function rkRenderAdd(){
   const A=$('rkAdd');
@@ -1114,12 +1178,14 @@ function rkRenderAdd(){
   if(!rk.items.length) rkAddOpen=false;
   A.classList.toggle('fold', fold); A.classList.toggle('open', fold && rkAddOpen); $('renrakuOverlay').classList.toggle('rk-folded', fold);
   if(rkPaint){
-    const c=rkPaint.c, n=c?rk.items.filter(x=>x.color===c).length:0;
-    A.innerHTML=`<div class="rk-pinfo">${c?`<i class="rk-dot big" style="--rkc:${colHex(c)}"></i><b>${esc(colFullD(c))}</b><span class="n">${n}人</span><span class="hint">押した人を この色に</span>`
+    const c=rkPaint.c, n=c?rk.items.filter(x=>x.color===c).length:0, [bc,bq]=ckSplit(c||rk.pc||'red'), named=cOrd();
+    A.innerHTML=`<div class="rk-pinfo">${c?`${dotH(c,true)}<b>${esc(colFullD(c))}</b><span class="n">${n}人</span><span class="hint">押した人を この色に</span>`
         :'<b>✕ 色を外す</b><span class="hint">押した人の色を外します</span>'}
-      ${c?`<button type="button" onclick="RK.colName('${c}')">✏ 色に名前</button>`:''}</div>
-      <div class="rk-pal" id="rkPal">${palO().map(([k,nm,hex])=>`<button type="button" class="rk-sw${c===k?' on':''}" data-c="${k}" style="--rkc:${hex};--rki:${colInk(k)}" onclick="RK.paintPick('${k}')" aria-label="${esc(colFullD(k))}" title="${esc(colFullD(k))}">${rk.cno?cNo(k):''}</button>`).join('')}</div>
-      <div class="rk-selbtns rk-tabs"><button class="sub${c?'':' on'}" onclick="RK.paintPick('')"><span>✕</span>色を外す</button><button class="sub" onclick="RK.paintUndo()" ${rkPaint.undo.length?'':'disabled'}><span>↶</span>ひとつ戻す</button><button onclick="RK.paintEnd()"><span>✓</span>おわる</button></div>`;
+      ${c?`<button type="button" onclick="RK.colName('${c}')">✏ ${rk.colors[c]?'名前を直す':'名前を付ける'}</button>`:''}</div>
+      ${named.length?`<div class="rk-pnamed" id="rkPNamed">${named.map(k=>`<button type="button" class="rk-sw${ptCls(k)}${c===k?' on':''}" data-c="${k}" style="${swSt(k)}" onclick="RK.paintPick('${k}')"><span>${esc(colLabelD(k))}</span></button>`).join('')}</div>`:''}
+      <div class="rk-pal" id="rkPal">${PAL.map(([b])=>{ const kk=ckMake(b,bq); return `<button type="button" class="rk-sw${ptCls(kk)}${(c && bc===b)?' on':''}" data-b="${b}" data-c="${kk}" style="${swSt(kk)}" onclick="RK.paintBase('${b}')" aria-label="${esc(colBase(kk))}" title="${esc(colBase(kk))}"></button>`; }).join('')}</div>
+      ${rkPatsHtml(c?bq:null, bc, 'RK.paintPat', 'rkPPats')}
+      <div class="rk-selbtns rk-tabs rk-p3"><button class="sub${c?'':' on'}" onclick="RK.paintPick('')"><span>✕</span>色を外す</button><button class="sub" onclick="RK.paintUndo()" ${rkPaint.undo.length?'':'disabled'}><span>↶</span>ひとつ戻す</button><button onclick="RK.paintEnd()"><span>✓</span>おわる</button></div>`;
     return;
   }
   if(rkSel){
@@ -1206,7 +1272,7 @@ function rkView(id){
     <div class="rk-who"><span class="av" id="rkViewAv" style="background-color:${rkColor(x)}">${esc(rkInitial(x))}</span>
       ${rkYomi(x)?`<div class="k">${esc(rkYomi(x))}</div>`:''}<div class="n">${esc(rkName(x))}${x.fav?' <span class="fvc">★</span>':''}</div>
       ${(x.org||x.dept||x.title)?`<div class="c">${esc([x.org,x.dept,x.title].filter(Boolean).join(' '))}</div>`:''}
-      ${x.color?`<span class="rk-cpill" style="--rkc:${colHex(x.color)};--rki:${colInk(x.color)}">${esc(colFullD(x.color))}</span>`:''}</div>
+      ${x.color?`<span class="rk-cpill${ptCls(x.color)}" style="${swSt(x.color)}"><span>${esc(colFullD(x.color))}</span></span>`:''}</div>
     <div class="rk-acts">${(t0 && rk.call!=='off') ? telA(t0.v, '<span>📞</span>電話') : act('📞','電話','')}${act('💬','SMS',c0?rkSmsHref(c0.v):'')}${act('✉','メール',m0?'mailto:'+m0.v.trim():'')}${act('📍','地図',a0?rkMapHref(rkAdrText(a0)):'',true)}</div>
     ${rk.call==='off' && x.tels.length ? '<div class="rk-note rk-calloff">📞 電話は「かけない」にしています（番号を押しても かかりません。⚙ 設定で変えられます）</div>' : ''}
     <div class="rk-rows">${rows.join('')}</div>
@@ -1294,6 +1360,7 @@ function rkEdit(id){
 }
 function rkEdRender(){
   const e=rkEd; if(!e) return;
+  rkCP={c:e.color, last:e.color||rk.pc||'red', el:'rkECol', set:k=>{ if(rkEd) rkEd.color=k; }};   // 🎨 色分け（色と背景）
   const f=(k,l,ph,attrs)=>`<label class="rk-f">${l}<input id="rkE_${k}" value="${esc(e[k])}" placeholder="${esc(ph||'')}" maxlength="${LIM[k]||80}" ${attrs||''}></label>`;
   const sel=(T,k,i,it)=>`<select data-k="${k}" data-i="${i}" onchange="RK.edType(this)" aria-label="種類">${T.map(([v,l])=>`<option value="${v}"${!it.l&&it.t===v?' selected':''}>${l}</option>`).join('')}${it.l?`<option value="=" selected>${esc(it.l)}</option>`:''}<option value="+">（名前を付ける…）</option></select>`;
   const del=(k,i)=>`<button type="button" class="x" onclick="RK.edDel('${k}',${i})" aria-label="消す">✕</button>`;
@@ -1318,7 +1385,7 @@ function rkEdRender(){
     <div class="rk-sec">🏠 住所</div>${adrs}<button type="button" class="rk-addline" onclick="RK.edAdd('adrs')">＋ 住所を足す</button>
     <div class="rk-sec">🎂 誕生日</div><div class="rk-line"><input type="date" id="rkE_bday" value="${bd?(bd[1]==='-'?'2000':bd[1])+'-'+bd[2]+'-'+bd[3]:''}" aria-label="誕生日"><label class="rk-chk" style="margin:0;flex:none"><input type="checkbox" id="rkE_noyear" ${bd&&bd[1]==='-'?'checked':''}> 年はわからない</label></div>
     <div class="rk-sec">🏷 グループ</div><div class="rk-tagrow" id="rkEGroups">${groups}</div>
-    <div class="rk-sec">🎨 色分け</div><div class="rk-pal lab" id="rkECol">${palO().map(([k,nm,hex])=>`<button type="button" class="rk-sw${e.color===k?' on':''}" data-c="${k}" style="--rkc:${hex};--rki:${colInk(k)}" onclick="RK.edCol('${k}')">${esc(colLabelD(k))}</button>`).join('')}<button type="button" class="rk-sw none${e.color?'':' on'}" data-c="" onclick="RK.edCol('')">なし</button></div>
+    <div class="rk-sec">🎨 色分け</div><div class="rk-cp" id="rkECol">${rkCPHtml()}</div>
     ${rk.fields.length?`<div class="rk-sec">🧩 自分の項目</div>${cfs}`:''}
     <button type="button" class="rk-link" onclick="RK.custom()">🧩 グループ・自分の項目・色の名前を作る・直す</button>
     <div class="rk-sec">🌐 サイト</div>${urls}<button type="button" class="rk-addline" onclick="RK.edAdd('urls')">＋ サイトを足す</button>
@@ -1357,7 +1424,7 @@ function rkEdAdd(k){
   const ins=document.querySelectorAll(`#rkEdBody input[data-k="${k}"]`); const last=ins[ins.length-1]; if(last){ last.scrollIntoView({block:'center'}); last.focus(); }
 }
 function rkEdDel(k,i){ rkEdSync(); rkEd[k].splice(i,1); rkEdRe(); }
-function rkEdCol(k){ if(!rkEd) return; rkEd.color=PAL_KEYS.includes(k)?k:''; document.querySelectorAll('#rkECol [data-c]').forEach(b=>b.classList.toggle('on', b.dataset.c===rkEd.color)); }
+function rkEdCol(k){ if(!rkEd) return; rkEd.color=ckOk(k)?k:''; if(rkCP && rkCP.el==='rkECol'){ rkCP.c=rkEd.color; if(rkEd.color) rkCP.last=rkEd.color; rkCPRe(); } }
 function rkEdPick(fid, j){ rkEdSync(); const f=rk.fields.find(x=>x.id===fid); if(!f) return; const v=f.op[j]; rkEd.cf[fid]=rkEd.cf[fid]===v?'':v; rkEdRe(); }
 async function rkEdNewGroup(){
   rkEdSync(); const n=line(await appPrompt('グループの名前（例：家族・町内会・野球部）',''),20); if(!n) return;
@@ -1446,17 +1513,49 @@ async function rkSelColor(){
 
 /* ── 🎨 色分け（v544）：色をえらんで、人を押すと その色。もう一度押すと外れる ──
    色は この連絡帳の中の整理なので、「直した日」「前に書き出したあとで直した人」には入れない（スマホで同じ人が増えないように） */
+/* ── 🎨 色と背景を えらぶ所（v552。直す画面・色をえらぶ窓）──
+   上に 名前を付けた色（No. 順）、その下に 24色と 背景（無地・ストライプ・水玉・グラデーション・チェック・波）。窓では 名前の色は 押すと すぐ決まる */
+let rkCP=null;   // {c:いまの色（''＝なし）, last:前にえらんだ色, el:入れ物の id, set:えらんだときに呼ぶ, dlg:窓のとき}
+function rkCPHtml(){
+  if(!rkCP) return '';
+  const c=rkCP.c, [bc,bq]=ckSplit(c||rkCP.last||'red'), named=cOrd();
+  return `<div class="rk-cpnow">${c?dotH(c,true)+`<b>${esc(colFullD(c))}</b>`:'<b>色なし</b>'}${(!rkCP.dlg && c)?'<button type="button" class="rk-cpoff" onclick="RK.cpPick(\'\')">✕ 色を外す</button>':''}</div>`
+    +(named.length?`<div class="rk-cpt">名前を付けた色</div><div class="rk-pal lab rk-cpn">${named.map(k=>`<button type="button" class="rk-sw${ptCls(k)}${c===k?' on':''}" data-c="${k}" style="${swSt(k)}" onclick="RK.cpPick('${k}',1)"><span>${esc(colLabelD(k))}</span></button>`).join('')}</div>`:'')
+    +`<div class="rk-cpt">色</div><div class="rk-pal rk-cpb">${PAL.map(([b])=>{ const kk=ckMake(b,bq); return `<button type="button" class="rk-sw${ptCls(kk)}${(c && bc===b)?' on':''}" data-b="${b}" data-c="${kk}" style="${swSt(kk)}" onclick="RK.cpBase('${b}')" aria-label="${esc(colBase(kk))}" title="${esc(colBase(kk))}"></button>`; }).join('')}</div>`
+    +`<div class="rk-cpt">背景</div>${rkPatsHtml(c?bq:null, bc, 'RK.cpPat')}`;
+}
+/* 背景の 6つ（いまの色で 見本を出す。on はえらんでいる背景・null は なし） */
+function rkPatsHtml(on, bc, fn, id){
+  return `<div class="rk-pats"${id?` id="${id}"`:''}>${PAT.map(([q,nm])=>{ const kk=ckMake(bc,q); return `<button type="button" class="${on===q?'on':''}" data-p="${q}" onclick="${fn}('${q}')" aria-label="${esc(nm)}"><i class="rk-sw${ptCls(kk)}" style="${swSt(kk)}"></i><span>${q==='gr'?'グラデー<wbr>ション':q==='st'?'スト<wbr>ライプ':esc(nm)}</span></button>`; }).join('')}</div>`;
+}
+function rkCPRe(){
+  if(!rkCP) return; const e=$(rkCP.el); if(e) e.innerHTML=rkCPHtml();
+  if(rkCP.dlg){ const ok=document.querySelector('#rkAskBody [data-r="0"]'); if(ok) ok.disabled=!rkCP.c; }   // 「この色にする」は 色をえらんでから
+}
+function rkCPPick(k, named){
+  if(!rkCP) return;
+  rkCP.c=ckOk(k)?k:''; if(rkCP.c) rkCP.last=rkCP.c;
+  if(rkCP.set) rkCP.set(rkCP.c);
+  if(named && rkCP.dlg){ const f=rkAskFin; if(f){ f(0); rkCloseAsk(); } return; }
+  rkCPRe();
+}
+function rkCPBase(b){ if(rkCP) rkCPPick(ckMake(b, ckSplit(rkCP.c||rkCP.last||'')[1])); }
+function rkCPPat(q){ if(rkCP) rkCPPick(ckMake(ckSplit(rkCP.c||rkCP.last||'red')[0]||'red', q)); }
 /* 色をえらぶ小さな窓。えらんだ色（色なしは ''）。やめたら null */
 async function rkPickColor(hdr, cur){
-  const P=palO();   // No. の順
-  const html=`<div class="rk-pal lab">${P.map((p,i)=>`<button type="button" class="rk-sw${cur===p[0]?' on':''}" data-r="${100+i}" style="--rkc:${p[2]};--rki:${colInk(p[0])}">${esc(colLabelD(p[0]))}</button>`).join('')}</div>`;
-  const r=await rkAsk(hdr, '', ['色なし（外す）','やめる'], html);
-  if(r>=100 && P[r-100]) return P[r-100][0];
-  return r===0 ? '' : null;
+  const prev=rkCP, c0=ckOk(cur)?cur:'';
+  rkCP={c:c0, last:c0||rk.pc||'red', el:'rkCPBox', dlg:true};
+  const pr=rkAsk(hdr, '', ['この色にする','色なし（外す）','やめる'], `<div class="rk-cp" id="rkCPBox">${rkCPHtml()}</div>`);
+  rkCPRe();
+  const r=await pr, c=rkCP?rkCP.c:'';
+  rkCP=prev; if(prev) rkCPRe();
+  return r===0 ? c : r===1 ? '' : null;
 }
 function rkPaintStart(){ if(!rk.items.length) return; rkSel=null; rkPaint={c:rk.pc||'red', undo:[]}; rkRender(); }
 function rkPaintEnd(){ rkPaint=null; rkSave(); rkRender(); }
-function rkPaintPick(k){ if(!rkPaint) return; rkPaint.c=PAL_KEYS.includes(k)?k:''; if(rkPaint.c){ rk.pc=rkPaint.c; rkSaveSoon(); } rkRenderAdd(); }
+function rkPaintPick(k){ if(!rkPaint) return; rkPaint.c=ckOk(k)?k:''; if(rkPaint.c){ rk.pc=rkPaint.c; rkSaveSoon(); } rkRenderAdd(); }
+function rkPaintBase(b){ if(rkPaint) rkPaintPick(ckMake(b, ckSplit(rkPaint.c||rk.pc||'')[1])); }
+function rkPaintPat(q){ if(rkPaint) rkPaintPick(ckMake(ckSplit(rkPaint.c||rk.pc||'red')[0]||'red', q)); }
 function rkPaintTap(id){
   const x=rkFind(id); if(!x) return;
   const c=rkPaint.c, next=(c && x.color!==c) ? c : '';
@@ -1470,13 +1569,21 @@ function rkPaintUndo(){
   rkRenderBar(); rkRenderAdd();
 }
 async function rkColName(k, back){
-  const p=palOf(k); if(!p) return;
-  const v=await appPrompt('「'+p[1]+'」の色に名前を付けます（例：要連絡・年賀状・町内会）。\n空にすると名前を外します', rk.colors[k]||'');
+  if(!ckOk(k)) return;
+  const v=await appPrompt('「'+colBase(k)+'」に名前を付けます（例：要連絡・年賀状・町内会）。\n名前を付けた色は 🔢 No.・並ぶ順番・自分好みの色の一覧に出ます。空にすると名前を外します', rk.colors[k]||'');
   if(v==null) return;
-  const old=rk.colors[k]||'', n=line(v,12); if(n) rk.colors[k]=n; else delete rk.colors[k];
+  const old=rk.colors[k]||'', n=line(v,12);
+  if(n && n!==old){ const o=Object.keys(rk.colors).find(c=>c!==k && rk.colors[c]===n); if(o){ toast('「'+n+'」は もう「'+colBase(o)+'」の名前です（ちがう名前にしてください）', 3800); return; } }
+  if(n){ rk.colors[k]=n; if(!old && rk.corder.length && !rk.corder.includes(k)) rk.corder.push(k); }   // 順番を決めていたら 新しく名前を付けた色は いちばん下に
+  else { delete rk.colors[k]; rk.corder=rk.corder.filter(c=>c!==k); }
   if(rk.cgrp && n && n!==old) rkCGrpRename(old, n, k);
   rkSave(); rkRender(); if(rkT) rkTRender();
   if(back==='order') rkCOrderOpen(); else if(back) rkOpenCustom();
+}
+/* ＋ 色に名前を付ける：色と背景をえらんでから 名前 */
+async function rkCAddName(back){
+  const k=await rkPickColor('🎨 名前を付ける色（色と背景）をえらぶ', ''); if(!k) return;
+  await rkColName(k, back);
 }
 
 /* ── 🔢 色の No.・並ぶ順番（v549）：色に No. を振る（↑↓・No. をえらぶ）。「🎨 色」の一覧は 上から／下から ── */
@@ -1484,19 +1591,21 @@ let rkCBack=false;
 function rkCRows(){
   const cc={}; rk.items.forEach(x=>{ if(x.color) cc[x.color]=(cc[x.color]||0)+1; });
   const o=cOrd();
-  return o.map((k,i)=>{ const p=palOf(k), nm=rk.colors[k];
-    return `<div class="rk-co" data-c="${k}"><button type="button" class="no" onclick="RK.cNoPick('${k}')" title="No. をえらぶ">No.${i+1}</button>`
-      +`<button type="button" class="nm" onclick="RK.colName('${k}','order')" title="名前を付ける"><i class="rk-dot big" style="--rkc:${p[2]}"></i><span>${esc(p[1])}${nm?`<small>${esc(nm)}</small>`:''}</span><em>${cc[k]||0}人</em></button>`
-      +`<button type="button" class="mv" onclick="RK.cMove('${k}',-1)" aria-label="上へ" ${i?'':'disabled'}>↑</button><button type="button" class="mv" onclick="RK.cMove('${k}',1)" aria-label="下へ" ${i<o.length-1?'':'disabled'}>↓</button></div>`; }).join('');
+  if(!o.length) return '<div class="rk-note" id="rkCNone">名前を付けた色が まだありません。下の「＋ 色に名前を付ける」で 色と背景をえらんで 名前を付けると、ここに出て No. を振れます。</div>';
+  return o.map((k,i)=>`<div class="rk-co" data-c="${k}"><button type="button" class="no" onclick="RK.cNoPick('${k}')" title="No. をえらぶ">No.${i+1}</button>`
+      +`<button type="button" class="nm" onclick="RK.colName('${k}','order')" title="名前を直す">${dotH(k,true)}<span>${esc(rk.colors[k])}<small>${esc(colBase(k))}</small></span><em>${cc[k]||0}人</em></button>`
+      +`<button type="button" class="mv" onclick="RK.cMove('${k}',-1)" aria-label="上へ" ${i?'':'disabled'}>↑</button><button type="button" class="mv" onclick="RK.cMove('${k}',1)" aria-label="下へ" ${i<o.length-1?'':'disabled'}>↓</button></div>`).join('');
 }
+const cCust=()=>cOrd().join()!==cNamed().sort((a,b)=>ckRank0(a)-ckRank0(b)).join();   // No. を はじめの順から 変えているか
 function rkCOrderOpen(back){
   if(back!==undefined) rkCBack=!!back;
-  rkScr('🔢 色の No.・並ぶ順番', `<div class="rk-note" style="margin-top:0">色に No. を振ります。No.1 から順に、「🎨 色」の一覧・上の色の札・色をえらぶ所に並びます。<b>↑↓</b> で動かすか、<b>No.</b> を押して 番号をえらびます。色の名前を押すと 名前を付けられます。</div>
+  rkScr('🔢 色の No.・並ぶ順番', `<div class="rk-note" style="margin-top:0">名前を付けた色に No. を振ります。No.1 から順に、「🎨 色」の一覧・上の色の札・色をえらぶ所に並びます（名前のない色は そのあとに 色の順）。<b>↑↓</b> で動かすか、<b>No.</b> を押して 番号をえらびます。名前を押すと 直せます。</div>
     <div class="rk-cord" id="rkCOrd">${rkCRows()}</div>
+    <button class="rk-btn sub" onclick="RK.cAddName('order')">＋ 色に名前を付ける（色と背景をえらぶ）</button>
     <div class="rk-sec">「🎨 色」の一覧の並び</div>
     <div class="rk-tagrow" id="rkCDir">${[['up','⬇ 上から（No.1 が いちばん上）'],['down','⬆ 下から（No.1 が いちばん下）']].map(([v,l])=>`<button type="button" data-d="${v}" class="${rk.cdir===v?'on':''}" onclick="RK.cDir('${v}')">${l}</button>`).join('')}</div>
-    <label class="rk-chk"><input type="checkbox" id="rkCNo" ${rk.cno?'checked':''} onchange="RK.cNoShow(this.checked)"> No. を 色の札・見出し・表にも出す（例：No.1 赤）</label>
-    <button class="rk-btn sub" id="rkCReset" onclick="RK.cReset()" ${cOrd().join()===PAL_KEYS.join()?'disabled':''}>No. を はじめの順（赤・だいだい・黄…）に戻す</button>
+    <label class="rk-chk"><input type="checkbox" id="rkCNo" ${rk.cno?'checked':''} onchange="RK.cNoShow(this.checked)"> No. を 色の札・見出し・表にも出す（例：No.1 要連絡）</label>
+    <button class="rk-btn sub" id="rkCReset" onclick="RK.cReset()" ${cCust()?'':'disabled'}>No. を はじめの順（色の順）に戻す</button>
     <button class="rk-btn" onclick="RK.cDone()">できあがり</button>`);
 }
 /* No. を変えたあと：保存して 一覧・表・この画面を出しなおす（動かした色は 少し光らせる） */
@@ -1560,7 +1669,7 @@ function rkSetTelSize(n){ rk.telSize=[0,1,2].includes(n)?n:0; rkSave(); rkRender
 /* 🎨→🏷 色の名前を グループにも（rk.cgrp）：色の名前のグループに入れ、ほかの色の名前のグループからは出す（直したら true） */
 function rkCGrpSync(x){
   if(!rk || !rk.cgrp || !x || !Array.isArray(x.groups)) return false;
-  const names=PAL_KEYS.map(k=>rk.colors[k]).filter(Boolean);
+  const names=cNamed().map(k=>rk.colors[k]);
   const want=(x.color && rk.colors[x.color]) || '', before=x.groups.join('\n');
   x.groups=x.groups.filter(g=>g===want || !names.includes(g));
   if(want && !x.groups.includes(want)) x.groups.push(want);
@@ -1628,7 +1737,7 @@ function rkCChanged(k){
   rkSave(); rkRender(); if(rkT) rkTReRender();
   const R=$('rkCOrd'); if(!R) return;
   R.innerHTML=rkCRows();
-  const rs=$('rkCReset'); if(rs) rs.disabled=cOrd().join()===PAL_KEYS.join();
+  const rs=$('rkCReset'); if(rs) rs.disabled=!cCust();
   if(k){ const e=R.querySelector(`[data-c="${k}"]`); if(e){ e.classList.add('fl'); setTimeout(()=>e.classList.remove('fl'), 900); } }
 }
 function rkCMove(k, d){
@@ -1637,15 +1746,15 @@ function rkCMove(k, d){
 }
 /* No. をえらぶ：その No. に入れて、ほかの色は ひとつずつ ずらす */
 async function rkCNoPick(k){
-  if(!palOf(k)) return;
+  if(!rk.colors[k]) return;
   const o=cOrd(), cur=o.indexOf(k);
-  const html=`<div class="rk-nogrid">${o.map((c,i)=>`<button type="button" data-r="${100+i}" class="${i===cur?'on':''}"><b>No.${i+1}</b><i class="rk-dot" style="--rkc:${colHex(c)}"></i></button>`).join('')}</div>`;
-  const r=await rkAsk('🔢 「'+colFull(k)+'」の No.', 'えらんだ No. に入れて、ほかの色は ひとつずつ ずらします（● は いま その No. の色）。', ['やめる'], html);
+  const html=`<div class="rk-nogrid">${o.map((c,i)=>`<button type="button" data-r="${100+i}" class="${i===cur?'on':''}"><b>No.${i+1}</b>${dotH(c)}</button>`).join('')}</div>`;
+  const r=await rkAsk('🔢 「'+rk.colors[k]+'」の No.', 'えらんだ No. に入れて、ほかの色は ひとつずつ ずらします（● は いま その No. の色）。', ['やめる'], html);
   if(r<100 || r-100===cur || !o[r-100]) return;
-  const n=cOrd().filter(c=>c!==k); n.splice(r-100, 0, k); rk.corder=n; rkCChanged(k);
-  toast('「'+colFull(k)+'」を No.'+(r-99)+' にしました');
+  const n=o.filter(c=>c!==k); n.splice(r-100, 0, k); rk.corder=n; rkCChanged(k);
+  toast('「'+rk.colors[k]+'」を No.'+(r-99)+' にしました');
 }
-function rkCReset(){ rk.corder=PAL_KEYS.slice(); rkCChanged(); toast('No. を はじめの順に戻しました'); }
+function rkCReset(){ rk.corder=[]; rkCChanged(); toast('No. を はじめの順（色の順）に戻しました'); }
 function rkSetCDir(v){
   rk.cdir=v==='down'?'down':'up'; rkSave(); rkRender(); if($('rkList')) $('rkList').scrollTop=0;
   document.querySelectorAll('#rkCDir [data-d]').forEach(b=>b.classList.toggle('on', b.dataset.d===rk.cdir));
@@ -1689,7 +1798,7 @@ function rkTCell(x,c){
   const more=n=>n>0?`<small class="mo">＋${n}</small>`:'';
   switch(c){
     case 'name': return (x.fam||x.giv||x.fn) ? esc(rkName(x)) : `<span class="ph">${esc(rkName(x))}</span>`;
-    case 'color': return x.color ? `<i class="rk-dot" style="--rkc:${colHex(x.color)}"></i>${esc((noP(x.color)+(rk.colors[x.color]||'')).trim())}` : '<span class="ph">－</span>';
+    case 'color': return x.color ? `${dotH(x.color)}${esc((noP(x.color)+(rk.colors[x.color]||'')).trim())}` : '<span class="ph">－</span>';
     case 'fav': return x.fav ? '<span class="fv">★</span>' : '<span class="ph">☆</span>';
     case 'cell': return esc(rkTVal(x,c))+more(x.tels.filter(t=>t.t==='cell').length-1);
     case 'tel': { const i=tSlot(x,c), n=x.tels.filter(t=>t.t!=='cell').length; if(i<0) return more(n); const t=x.tels[i]; return `<small class="lb">${esc(tName(TEL_T,t))}</small>${esc(t.v)}`+more(n-1); }
@@ -1749,7 +1858,7 @@ function rkTList(){
   if(!s.c) return rkT.q.trim() ? rkSearch(rkT.q, list) : rkSortedKana(list);
   const base=rkT.q.trim() ? rkSearch(rkT.q, list) : list;
   const key=x=>{
-    if(s.c==='color') return x.color ? String(cNo(x.color)).padStart(2,'0') : '';   // No. の順
+    if(s.c==='color'){ if(!x.color) return ''; const i=cOrd().indexOf(x.color); return String(i>=0 ? i : 1000+ckRank0(x.color)).padStart(5,'0'); }   // No. の順（名前のない色は そのあと）
     if(s.c==='fav') return x.fav ? '0' : '';
     if(s.c==='bday'){ const m=/(\d\d)-(\d\d)$/.exec(x.bday||''); return m?m[1]+m[2]:''; }
     if(s.c==='groups'){ const ix=x.groups.map(g=>rk.groups.findIndex(h=>h.n===g)).filter(i=>i>=0).sort((a,b)=>a-b)[0]; return ix==null?'':String(ix).padStart(3,'0'); }
@@ -2447,7 +2556,7 @@ async function rkBackup(){
 /* 書き出したもの（JSON）を合わせる：同じ id は新しい方、ないものは足す。グループ・自分の項目の作りも合わせる */
 async function rkMerge(d, pics){
   const inc=rkClean(d); let add=0, upd=0;
-  PAL_KEYS.forEach(k=>{ if(!rk.colors[k] && inc.colors[k]) rk.colors[k]=inc.colors[k]; });
+  for(const k of Object.keys(inc.colors)) if(!rk.colors[k] && inc.colors[k] && !Object.values(rk.colors).includes(inc.colors[k])) rk.colors[k]=inc.colors[k];   // 色（＋背景）の名前
   inc.groups.forEach(g=>{ const h=rk.groups.find(y=>y.n===g.n); if(!h) rk.groups.push(g); else if(!h.ic && g.ic) h.ic=g.ic; });
   const remap={};
   inc.fields.forEach(f=>{ const same=rk.fields.find(y=>y.n===f.n); if(same){ remap[f.id]=same.id; return; }
@@ -2522,8 +2631,9 @@ function rkOpenCustom(){
     <button class="rk-btn sub" onclick="RK.fAdd()">＋ 項目を作る</button>
     ${fPre.length?`<div class="rk-note">よく使う項目（押すと作ります）</div><div class="rk-tagrow">${fPre.map(([p,i])=>`<button type="button" onclick="RK.fPreset(${i})">${esc(p[0])}</button>`).join('')}</div>`:''}
     <div class="rk-sec">🎨 色分けの色（名前・No.・並ぶ順番）</div>
-    <div class="rk-note">色に名前を付けると、一覧の札・絞りこみ・表に出ます（例：赤＝要連絡、緑＝年賀状）。押すと名前を付けられます。色は No.1 から順に並びます。</div>
-    <div class="rk-cgrid">${palO().map(([k,nm,hex])=>`<button type="button" onclick="RK.colName('${k}',true)"><i class="rk-dot big" style="--rkc:${hex}"></i><span><b class="no">No.${cNo(k)}</b> ${esc(rk.colors[k]||nm)}</span><small>${ccnt[k]||0}人</small></button>`).join('')}</div>
+    <div class="rk-note">色（24色）と 背景（無地・ストライプ・水玉・グラデーション・チェック・波）を組み合わせて 名前を付けると、ここと 🔢 No.・並ぶ順番に出ます（例：赤＝要連絡、緑・水玉＝年賀状）。押すと 名前を直せます。</div>
+    ${cOrd().length?`<div class="rk-cgrid">${cOrd().map(k=>`<button type="button" data-c="${k}" onclick="RK.colName('${k}',true)">${dotH(k,true)}<span><b class="no">No.${cNo(k)}</b> ${esc(rk.colors[k])}</span><small>${ccnt[k]||0}人</small></button>`).join('')}</div>`:'<div class="rk-note">まだ 名前を付けた色は ありません。</div>'}
+    <button class="rk-btn sub" onclick="RK.cAddName(true)">＋ 色に名前を付ける（色と背景をえらぶ）</button>
     <button class="rk-btn sub" onclick="RK.cOrder(true)">🔢 色の No.・並ぶ順番を決める（上から／下から）</button>
     <label class="rk-chk"><input type="checkbox" id="rkCGrp" ${rk.cgrp?'checked':''} onchange="RK.setCGrp(this.checked)"> 色の名前を グループにも入れる（色を付けると その色の名前のグループに入り、ほかの色の名前のグループからは 外れます）</label>
     <div class="rk-sec">📋 並べ方のボタンの順番</div>
@@ -2611,7 +2721,8 @@ window.RK={ menu:rkOpenMenu, setQ:v=>{ rkQ=String(v||''); rkRender(); }, setView
   edit:rkEdit, edType:rkEdType, edAdd:rkEdAdd, edDel:rkEdDel, edPick:rkEdPick, edNewGroup:rkEdNewGroup, edPhoto:rkEdPhoto, edPicked:rkEdPicked, edSave:rkEdSave,
   fav:rkFav, remove:rkRemove, share:rkShare, oneVcf:rkOneVcf, viewColor:rkViewColor, edCol:rkEdCol,
   selStart:()=>{ rkPaint=null; rkSelStart(); }, selEnd:rkSelEnd, selAll:rkSelAll, selGroup:rkSelGroup, selDel:rkSelDel, selColor:rkSelColor,
-  paintStart:rkPaintStart, paintEnd:rkPaintEnd, paintPick:rkPaintPick, paintUndo:rkPaintUndo, colName:rkColName,
+  paintStart:rkPaintStart, paintEnd:rkPaintEnd, paintPick:rkPaintPick, paintBase:rkPaintBase, paintPat:rkPaintPat, paintUndo:rkPaintUndo, colName:rkColName, cAddName:rkCAddName,
+  cpPick:rkCPPick, cpBase:rkCPBase, cpPat:rkCPPat,
   table:rkOpenTbl, closeTbl:rkCloseTbl, tQ:v=>{ if(!rkT) return; rkTCommit(); rkT.q=String(v||''); rkTRender(); $('rkTWrap').scrollTop=0; }, tAdd:rkTAdd, tCols:rkTColsPick, tUndo:rkTUndo,
   tNameW:w=>{ if(!rkT) return; rkTSetW('name', w); document.querySelectorAll('#rkAskBody [data-nw]').forEach(b=>b.classList.toggle('on', +b.dataset.nw===rkTNameW())); },
   tWFit:()=>{ if(!rkT) return; rkTCommit(); ['name'].concat(rkT.cols.map(a=>a[0])).forEach(c=>{ const w=rkTFitW(c), def=c==='name'?138:((tAllCols().find(a=>a[0]===c)||[])[2]||120); if(w>def) rk.tw[c]=Math.min(TW_MAX,w); else delete rk.tw[c]; }); rkSave(); rkTReRender();
