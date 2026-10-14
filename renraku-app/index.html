@@ -78,7 +78,9 @@ function appConfirm(message, yes='OK', no='キャンセル'){
     const row=document.createElement('div'); row.style.cssText='display:flex;justify-content:flex-end;gap:8px';
     const bn=document.createElement('button'); bn.textContent=no; bn.style.cssText='padding:8px 14px;font-size:14px;border:1px solid #999;border-radius:6px;background:#eee;color:#222;cursor:pointer';
     const by=document.createElement('button'); by.textContent=yes; by.style.cssText='padding:8px 16px;font-size:14px;border:none;border-radius:6px;background:#217346;color:#fff;cursor:pointer;font-weight:bold';
-    const close=v=>{ appModalOpen=false; document.removeEventListener('keydown', onKey, true); try{ document.body.removeChild(ov); }catch(_){} resolve(v); };
+    let done=false;
+    const close=v=>{ if(done) return; done=true; relBack(); appModalOpen=false; document.removeEventListener('keydown', onKey, true); try{ document.body.removeChild(ov); }catch(_){} resolve(v); };
+    const relBack=modalBack(()=>close(false));   // 端末の「戻る」は「いいえ」（下の画面は閉じない）
     const onKey=e=>{ if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); close(false); } };
     document.addEventListener('keydown', onKey, true);
     bn.onclick=()=>close(false); by.onclick=()=>close(true);
@@ -102,7 +104,9 @@ function appPrompt(message, defaultValue='', multiline=false){
     const row=document.createElement('div'); row.style.cssText='display:flex;justify-content:flex-end;gap:8px;margin-top:14px';
     const cancel=document.createElement('button'); cancel.textContent='キャンセル'; cancel.style.cssText='padding:7px 14px;font-size:14px;border:1px solid #999;border-radius:6px;background:#eee;color:#222;cursor:pointer';
     const ok=document.createElement('button'); ok.textContent='OK'; ok.style.cssText='padding:7px 16px;font-size:14px;border:none;border-radius:6px;background:#217346;color:#fff;cursor:pointer;font-weight:bold';
-    const close=val=>{ appModalOpen=false; try{ document.body.removeChild(ov); }catch(_){} resolve(val); };
+    let done=false;
+    const close=val=>{ if(done) return; done=true; relBack(); appModalOpen=false; try{ document.body.removeChild(ov); }catch(_){} resolve(val); };
+    const relBack=modalBack(()=>close(null));   // 端末の「戻る」は「キャンセル」（下の画面は閉じない）
     cancel.onclick=()=>close(null); ok.onclick=()=>close(input.value);
     input.addEventListener('keydown',e=>{ e.stopPropagation();
       if(e.key==='Enter' && !multiline){ e.preventDefault(); close(input.value); }
@@ -148,6 +152,14 @@ window.addEventListener('popstate', ()=>{
   const d=dlgStack.pop(); if(d){ d.close(); return; }
   if(histBase){ histBase=false; toast('もう一度「戻る」を押すと閉じます', 2600); }   // 押しまちがいで閉じないように
 });
+/* 自分で作る 小さな窓（はい／いいえ・文字を入れる）も、端末の「戻る」で その窓だけ閉じる。返す関数は ボタンで閉じたときに呼ぶ */
+let modalSeq=0;
+function modalBack(onBack){
+  let on=true; const id='__modal'+(++modalSeq);
+  dlgStack.push({id, close:()=>{ if(!on) return; on=false; try{ onBack(); }catch(_){} }});
+  try{ history.pushState({rkDlg:1},''); }catch(_){}
+  return ()=>{ if(!on) return; on=false; const i=dlgStack.map(d=>d.id).lastIndexOf(id); if(i>=0){ dlgStack.splice(i,1); histSkip++; try{ history.back(); }catch(_){ histSkip--; } } };
+}
 /* はじめて触れたときに、いちばん下の分を1つ積んでおく */
 function rkActed(){ if(histBase || histSkip>0) return; try{ history.pushState({rkBase:1},''); histBase=true; }catch(_){} }
 ['pointerup','keydown'].forEach(t=>window.addEventListener(t, rkActed, true));

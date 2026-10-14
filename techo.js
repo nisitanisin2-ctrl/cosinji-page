@@ -1147,9 +1147,12 @@ function tcChoose(msg, opts){
       <div style="font-weight:bold;margin-bottom:12px;line-height:1.5">${tcEsc(msg)}</div>
       ${opts.map((o,i)=>`<button data-i="${i}" style="display:block;width:100%;height:42px;margin-top:6px;border-radius:8px;border:1px solid rgba(120,132,156,.45);background:${i===0?'var(--acc)':'rgba(120,132,156,.12)'};color:${i===0?'#fff':'var(--text,#222)'};font-weight:bold;font-size:14px">${tcEsc(o)}</button>`).join('')}
       <button data-i="-1" style="display:block;width:100%;height:40px;margin-top:10px;border:none;background:none;color:var(--text-light,#888);font-size:14px">やめる</button></div>`;
+    let done=false;
+    const fin=i=>{ if(done) return; done=true; ov.remove(); if(typeof appModalOpen!=='undefined') appModalOpen=false; rel(); res(i); };
+    const rel=(typeof modalBack==='function') ? modalBack(()=>fin(-1)) : ()=>{};   // 端末の「戻る」は「やめる」（下の画面は閉じない。表電卓 v553）
     ov.addEventListener('click', e=>{
       const b=e.target.closest('button'); if(!b && e.target!==ov) return;
-      const i=b ? +b.dataset.i : -1; ov.remove(); if(typeof appModalOpen!=='undefined') appModalOpen=false; res(i);
+      fin(b ? +b.dataset.i : -1);
     });
     if(typeof appModalOpen!=='undefined') appModalOpen=true;
     document.body.appendChild(ov);

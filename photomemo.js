@@ -25,6 +25,7 @@ function pmApplyBg(){
 function pmSetBg(v){ pmBg=v; pmApplyBg(); pmMarkDirty(); }
 function openPhotoMemo(){
   openDlg('photoMemoOverlay');
+  pmModeGuard();   // 手書きなどの とちゅうで閉じていたら、戻る用の しるしを また積む（v553）
   requestAnimationFrame(()=>{
     pmSetupCanvas();
     pmFitView(); pmRedraw();
@@ -37,6 +38,7 @@ function closePhotoMemo(){
   if(!isDlgOpen('photoMemoOverlay')) return;
   // 上に小画面（保存設定・定型文・プレビュー）が開いていれば先に閉じる（積んだ履歴の順を保つ）
   closeShotPreview(); pmClosePhrases(); pmCloseSaveSet();
+  if(isDlgOpen('pmModeGuard')) closeDlg('pmModeGuard');   // 手書きなどの「戻る」用の しるし（モードは そのまま。v553）
   closeDlg('photoMemoOverlay');
 }
 function pmSetupCanvas(){
@@ -767,6 +769,16 @@ function pmModeSyncUi(){
     else if(pmRectMode) bd.textContent='□ 囲んで選びます（押すと解除）';
     bd.style.display = (pmPenMode || pmPlaceMode==='arrow' || pmRectMode) ? '' : 'none';
   }
+  pmModeGuard();
+}
+/* ✏️手書き・→矢印・□囲んで選ぶ のあいだは、端末の「戻る」で そのモードだけ おわる（写真メモごと 閉じない。v553） */
+function pmModeGuard(){
+  if(typeof modeBackGuard!=='function') return;
+  modeBackGuard('pmModeGuard', (pmPenMode || pmPlaceMode==='arrow' || pmRectMode) && isDlgOpen('photoMemoOverlay'), ()=>{
+    if(!pmPenMode && !pmPlaceMode && !pmRectMode) return;
+    const m=pmPenMode ? '✏️ 手書きを おわりました' : pmRectMode ? '□ 囲んで選ぶのを やめました' : '→ 矢印を やめました';
+    pmModeOff(); toast(m);
+  });
 }
 /* 手書き・矢印のモードをやめる */
 function pmModeOff(){
