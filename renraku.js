@@ -32,9 +32,12 @@
    ・（v554）名前を付けた色は、あとから 色・背景だけを変えられる（名前・No.・その色の人は そのまま。ほかの名前の色をえらぶと 入れかえ）。
      一覧の右はしに 色の名前のグループのアイコン（🎨）は 出さない（色の札と同じなので）。
    ・（v555）ふりがな（よみ）を 出す／一覧では出さない／出さない（rk.furi）。名前を押した画面の 電話番号を大きく。
-     その画面の「✏ 直す」の上に 📝 メモ欄（x.note。その場で書ける）。書いたメモは 一覧の 電話番号の下にも出す（rk.lmemo）。 */
+     その画面の「✏ 直す」の上に 📝 メモ欄（x.note。その場で書ける）。書いたメモは 一覧の 電話番号の下にも出す（rk.lmemo）。
+   ・（v556）🎤 声でさがす は ふりがな（よみ）を先に：聞き取った字を よみの辞書で よみに直し（候補もいくつか）、人の よみと くらべる。
+     小さい字・にごり・のばす音の ちがい・1〜2字の 聞きまちがいも ゆるく見て、「見つかった人」のあとに「よみの近い人（候補）」も出す。 */
 (function(){
 const RK_KEY='excalc_renraku', RK_MAX=5000;
+let rkVoice=null;   // 🎤 声でさがした とき（v556）：{q:さがす欄の字, texts:聞き取りの候補, reads:[{s,l}] よみ, sc:Map 人ごとの点}
 let rk=null, rkQ='', rkGrp='', rkCol='', rkSel=null, rkPaint=null, rkT=null, rkViewId=null, rkEd=null, rkScrClean=null, rkDupCache=[], rkRec=null, rkIO=null, rkYUndo=null, rkYLast=null, rkIconRes=null, rkIconCat='ym', rkAddOpen=false;
 const $=id=>document.getElementById(id);
 const RK_BASE=(typeof window.RK_BASE==='string')?window.RK_BASE:'';   // 辞書・アイコンの場所（連絡帳だけのアプリから ../ を読むとき。v550）
@@ -635,10 +638,115 @@ function rkSearch(q, list){
 }
 /* 声で「山田さんの電話番号を教えて」→「山田」 */
 function rkVoiceQ(t){
-  return String(t||'').trim().replace(/[？?。、！!]+$/,'')
+  return String(t||'').trim().replace(/[？?。、！!]+$/,'').replace(/^(えー*と|ええと|あの[ーう]*|えー+|あー+|うーん|えっと)[、。\s]*/,'')
     .replace(/(の|は|に|へ)?(電話番号|でんわばんごう|電話|でんわ|携帯|けいたい|番号|ばんごう|メールアドレス|メール|住所|じゅうしょ|連絡先|れんらくさき)(を|は|が)?(教えて|おしえて|出して|だして|見せて|みせて|どこ|何番|なんばん|かけて|かける|して)?(ください)?$/,'')
     .replace(/(さん|さま|様|くん|君|ちゃん|先生|せんせい)$/,'')
     .trim();
+}
+
+/* ── 🎤 声でさがす（v556）：ふりがな（よみ）を先に。聞き取った字を よみに直し、よみの近い人も 候補に出す ── */
+const RK_SMALL={'ぁ':'あ','ぃ':'い','ぅ':'う','ぇ':'え','ぉ':'お','っ':'つ','ゃ':'や','ゅ':'ゆ','ょ':'よ','ゎ':'わ','ゕ':'か','ゖ':'け'};
+const RK_VOW=(()=>{ const m={}; [['a','あかさたなはまやらわ'],['i','いきしちにひみり'],['u','うくすつぬふむゆる'],['e','えけせてねへめれ'],['o','おこそとのほもよろ']].forEach(([v,t])=>{ for(const c of t) m[c]=v; }); return m; })();
+const RK_KJ=/[一-鿿㐀-䶿々]/;
+/* ゆるい よみ：小さい字・にごり・まる・のばす音（おう・えい・ー）を そろえる（きょうこ＝きよこ・さいとう＝さいと・ひさじ＝ひさし） */
+function rkLoose(t0){
+  let t=rkNorm(t0).replace(/[ぁぃぅぇぉっゃゅょゎゕゖ]/g,c=>RK_SMALL[c]).replace(/ぢ/g,'じ').replace(/づ/g,'ず').replace(/ゐ/g,'い').replace(/ゑ/g,'え').replace(/を/g,'お').replace(/ゔ/g,'ぶ');
+  t=t.normalize('NFD').replace(/[\u3099\u309A]/g,'').normalize('NFC');
+  let o='', pv='';
+  for(const c of t){
+    if(pv && ((c==='う' && (pv==='o'||pv==='u')) || (c==='い' && (pv==='e'||pv==='i')) || (c==='あ' && pv==='a') || (c==='え' && pv==='e') || (c==='お' && pv==='o'))) continue;
+    o+=c; pv=RK_VOW[c]||'';
+  }
+  return o;
+}
+/* 2つの よみの ちがう字の数（lim を こえたら そこで やめる） */
+function rkLev(a, b, lim){
+  a=Array.from(a); b=Array.from(b);
+  if(Math.abs(a.length-b.length)>lim) return lim+1;
+  let p=Array.from({length:b.length+1},(_,j)=>j);
+  for(let i=1;i<=a.length;i++){
+    const c=[i]; let mn=i;
+    for(let j=1;j<=b.length;j++){ c[j]=Math.min(p[j]+1, c[j-1]+1, p[j-1]+(a[i-1]===b[j-1]?0:1)); if(c[j]<mn) mn=c[j]; }
+    if(mn>lim) return lim+1;
+    p=c;
+  }
+  return p[b.length];
+}
+/* 人の よみ（名字・名前・ぜんぶ・ニックネーム・会社）。よみのない人は 辞書で 名前から作る（辞書を読んでから） */
+const rkVRCache=new Map();
+function rkReadsOf(x){
+  const key=[x.fam,x.giv,x.fn,x.famK,x.givK,x.nick,x.org,!!window.rkYomiGuess].join('|');
+  const c=rkVRCache.get(x.id); if(c && c.key===key) return c.r;
+  let fk=x.famK, gk=x.givK;
+  if(!fk && !gk && window.rkYomiGuess){ try{ const g=rkYGuess(x); if(g){ fk=g.famK; gk=g.givK; } }catch(_){} }
+  const r=[], add=(t,w)=>{ const s=rkNorm(t); if(s && !r.some(o=>o.s===s)) r.push({s, l:rkLoose(s), w}); };
+  add(fk,1); add(gk,1); if(fk && gk) add(fk+gk,1);
+  const nm=rkName(x); if(!RK_KJ.test(nm)) add(nm,1);   // かなの名前（ダイゴ・ふれあいセンター）は そのまま
+  if(x.nick) add(RK_KJ.test(x.nick) ? (window.rkYomiOf ? window.rkYomiOf(x.nick,'mei') : '') : x.nick, 0.9);
+  if(x.org) add(RK_KJ.test(x.org) ? (window.rkYomiOf ? window.rkYomiOf(x.org,'org') : '') : x.org, 0.8);
+  rkVRCache.set(x.id, {key, r});
+  return r;
+}
+/* 聞き取った字の よみ（かなは そのまま。漢字は 辞書で 候補をいくつか。空白で区切って言ったら 1つずつも）。
+   r は よさそうな順（0 が いちばん。聞き取りの 2つめの候補は 1 から） */
+function rkVoiceReads(texts){
+  const out=[], add=(v,r)=>{ const t=rkNorm(v); if(!t) return; const o=out.find(o=>o.s===t); if(o){ if(r<o.r) o.r=r; } else out.push({s:t, l:rkLoose(t), r}); };
+  const alts=w=>RK_KJ.test(w) ? (window.rkYomiAlts ? window.rkYomiAlts(w, 8) : []) : [w];
+  texts.forEach((t,ti)=>{
+    alts(t).forEach((v,i)=>add(v, ti+i));
+    const ws=t.trim().split(/[\s　]+/); if(ws.length>1) ws.forEach(w=>alts(w).slice(0,4).forEach((v,i)=>add(v, ti+i+1)));
+  });
+  return out.sort((a,b)=>a.r-b.r).slice(0,24);
+}
+/* 字で 当たった人（前の さがし方。名前が同じ・はじめが同じ・中にある・ほかの欄） */
+function rkVoiceHits(list, V){
+  const m=new Map(), put=(id,v)=>{ if(!(m.get(id)>=v)) m.set(id,v); };
+  for(const t of V.texts){
+    const tn=rkNorm(t); if(!tn) continue;
+    for(const x of rkSearch(t, list)){ const nm=rkNorm(rkName(x)); put(x.id, nm===tn ? 98 : nm.startsWith(tn) ? 88 : nm.includes(tn) ? 76 : 58); }
+  }
+  return m;
+}
+/* 人ごとの点：よみが 同じ 100・ゆるく同じ 92・はじめが同じ 84/78・中にある 66/60・1〜2字ちがい 30〜42。字で当たれば その点。
+   ありそうにない読み（r が大きい）は、同じ・はじめが同じ だけ見る（候補が ふえすぎないように） */
+function rkVoiceScore(x, V, hit){
+  let best=hit.get(x.id)||0;
+  for(const c of rkReadsOf(x)){
+    for(const q of V.reads){
+      const n=Array.from(q.l).length; if(!n) continue;
+      let sc=0;
+      if(c.s===q.s) sc=100; else if(c.l===q.l) sc=92;
+      else if(n>=2 && q.r<=3 && c.s.startsWith(q.s)) sc=84; else if(n>=2 && q.r<=3 && c.l.startsWith(q.l)) sc=78;
+      else if(n>=2 && q.r<=1 && c.s.includes(q.s)) sc=66; else if(n>=3 && q.r<=1 && c.l.includes(q.l)) sc=60;
+      else if(n>=3 && q.r<=1){
+        const lim=n<=3?1:n<=6?2:3, cl=Array.from(c.l);
+        let d=rkLev(q.l, c.l, lim); if(d>lim && cl.length>n) d=rkLev(q.l, cl.slice(0,n).join(''), lim);
+        if(d<=lim) sc=Math.max(30, 54-d*12);
+      }
+      sc*=c.w; if(sc>best) best=sc;
+    }
+  }
+  return best;
+}
+function rkVoiceSearch(list, V){
+  const hit=rkVoiceHits(list, V), res=[];
+  V.sc=new Map();
+  for(const x of list){ const v=rkVoiceScore(x, V, hit); if(v>=28){ res.push([x,v]); V.sc.set(x.id, v); } }
+  return res.sort((a,b)=>b[1]-a[1] || cmpKana(a[0],b[0])).map(a=>a[0]);
+}
+const rkVoiceOn=()=>!!(rkVoice && rkQ.trim() && rkVoice.q===rkQ);
+function rkVoiceNote(){
+  const rs=rkVoice.reads.map(r=>r.s).filter(r=>r!==rkNorm(rkVoice.q)).slice(0,3);
+  return `<div class="rk-vnote">🎤「<b>${esc(rkVoice.q)}</b>」${rs.length?`（よみ：${esc(rs.join('・'))}）`:''}で さがしました。よみの近い人も 出しています。</div>`;
+}
+/* 声のあと：さがす欄に 名前を入れ、よみで さがす（辞書が まだなら 読んでから もう一度） */
+async function rkVoiceGo(heard, alts){
+  const q=rkVoiceQ(heard); if(!q) return;
+  const texts=[...new Set([q].concat((alts||[]).map(rkVoiceQ)).filter(Boolean))].slice(0,5);
+  $('rkFind').value=q; rkQ=q;
+  rkVoice={q, texts, reads:rkVoiceReads(texts), sc:new Map()};
+  rkRender(); if($('rkList')) $('rkList').scrollTop=0;
+  if(!window.rkYomiAlts && await rkYLoad() && rkVoice && rkVoice.q===q && rkQ===q){ rkVoice.reads=rkVoiceReads(texts); rkRender(); }
 }
 
 /* ── 画面 ── */
@@ -669,6 +777,7 @@ const RK_CSS=`
 .rk-it .nm{ font-weight:bold; font-size:16px; line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; word-break:keep-all; overflow-wrap:anywhere; }   /* 長い名前は2行まで（v546） */
 .rk-it .nm small{ font-weight:normal; font-size:11px; color:var(--text-light,#888); margin-left:6px; }
 .rk-it .sb{ font-size:13px; color:var(--text-sub,#555); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rk-vnote{ margin:8px 0 2px; padding:7px 10px; border-radius:10px; background:rgba(33,115,70,.09); font-size:13px; line-height:1.5; color:var(--text,#222); }
 .rk-it .mm{ font-size:13px; line-height:1.4; color:var(--text-sub,#555); margin-top:1px; white-space:pre-line; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .rk-it .gi{ flex:none; font-size:14px; }
 .rk-it .fv{ flex:none; color:#f9a825; font-size:16px; }
@@ -1025,7 +1134,7 @@ ${['View','Ed','Sub','Scr','Ask'].map(k=>`<div class="modal-overlay" id="rk${k}O
   window.addEventListener('pagehide', rkSaveFlush);
 }
 function openRenraku(q){
-  rkEnsureDom(); rkLoad(); rkGrp=''; rkCol=''; rkSel=null; rkPaint=null; rkAddOpen=false;
+  rkEnsureDom(); rkLoad(); rkGrp=''; rkCol=''; rkSel=null; rkPaint=null; rkAddOpen=false; rkVoice=null;
   rkQ=typeof q==='string'?q:''; $('rkFind').value=rkQ;
   openDlg('renrakuOverlay', ()=>{ rkSel=null; rkPaint=null; rkStopListen(); rkSaveFlush(); });
   rkRender(); $('rkList').scrollTop=0;
@@ -1086,7 +1195,7 @@ function rkFiltered(){
   if(rkCol) list=list.filter(x=>rkCol==='-' ? !x.color : x.color===rkCol);
   return list;
 }
-function rkVisible(){ const list=rkFiltered(); return rkQ.trim() ? rkSearch(rkQ, list) : list; }
+function rkVisible(){ const list=rkFiltered(); return rkVoiceOn() ? rkVoiceSearch(list, rkVoice) : rkQ.trim() ? rkSearch(rkQ, list) : list; }
 function rkRender(){
   if(!$('rkList')) return;
   $('renrakuOverlay').classList.toggle('rk-big', !!rk.big);
@@ -1097,7 +1206,13 @@ function rkRender(){
   const L=$('rkList'), I=$('rkIdx');
   if(!rk.items.length){ L.innerHTML=rkEmptyHtml(); I.innerHTML=''; L.classList.add('noidx'); return; }
   const list=rkVisible();
-  if(rkQ.trim()){
+  if(rkVoiceOn()){
+    I.innerHTML=''; L.classList.add('noidx');
+    const sc=rkVoice.sc, a=list.filter(x=>sc.get(x.id)>=70), b=list.filter(x=>!(sc.get(x.id)>=70));
+    L.innerHTML=rkVoiceNote()+(a.length?`<div class="rk-grp">見つかった人<span>${a.length}人</span></div>`+a.map(rkItemHtml).join(''):'')
+      +(b.length?`<div class="rk-grp">よみの近い人（候補）<span>${b.length}人</span></div>`+b.map(rkItemHtml).join(''):'')
+      +(list.length?'':`<div class="rk-empty">「<b>${esc(rkQ)}</b>」は見つかりませんでした。<br>名字だけ・名前だけで もう一度 言ってみてください（「にしたに」「ひさじ」）。</div>`);
+  } else if(rkQ.trim()){
     I.innerHTML=''; L.classList.add('noidx');
     L.innerHTML=list.length ? `<div class="rk-grp">見つかった人<span>${list.length}人</span></div>`+list.map(rkItemHtml).join('')
       : `<div class="rk-empty">「<b>${esc(rkQ)}</b>」は見つかりませんでした。<br>よみ（ひらがな）・番号の一部・会社名・メモの言葉でも さがせます。</div>`;
@@ -2822,16 +2937,19 @@ function rkListen(){
   if(rkRec){ rkStopListen(); return; }
   const C=typeof speechRecCtor==='function' ? speechRecCtor() : (window.SpeechRecognition||window.webkitSpeechRecognition);
   if(!C){ toast('この端末では声を聞き取れません。文字で入れてください'); return; }
-  const r=new C(); r.lang='ja-JP'; r.interimResults=true; r.maxAlternatives=1;
-  let heard='';
-  r.onresult=e=>{ heard=[...e.results].map(x=>x[0].transcript).join(''); $('rkFind').value=heard; };
+  rkYLoad();   // よみの辞書（声を よみに直して さがす。v556）を 話しているあいだに読む
+  const r=new C(); r.lang='ja-JP'; r.interimResults=true; r.maxAlternatives=5;
+  let heard='', alts=[];
+  r.onresult=e=>{ const R=[...e.results]; heard=R.map(x=>x[0].transcript).join('');
+    const n=Math.max(1, ...R.map(x=>x.length)); alts=[]; for(let i=1;i<n;i++) alts.push(R.map(x=>(x[i]||x[0]).transcript).join(''));   // 聞き取りの ほかの候補
+    $('rkFind').value=heard; };
   r.onerror=e=>{ if(e.error==='not-allowed') toast('マイクを使えません。ブラウザの設定でマイクを許可してください'); };
-  r.onend=()=>{ rkRec=null; const b=$('rkFindMic'); if(b) b.classList.remove('on'); const q=rkVoiceQ(heard); if(q){ $('rkFind').value=q; rkQ=q; rkRender(); } };
+  r.onend=()=>{ rkRec=null; const b=$('rkFindMic'); if(b) b.classList.remove('on'); rkVoiceGo(heard, alts); };
   rkRec=r; $('rkFindMic').classList.add('on');
   try{ r.start(); }catch(_){ rkStopListen(); }
 }
 
-window.RK={ menu:rkOpenMenu, setQ:v=>{ rkQ=String(v||''); rkRender(); }, setView:v=>{ rk.view=v; rkSave(); rkRender(); $('rkList').scrollTop=0; },
+window.RK={ menu:rkOpenMenu, setQ:v=>{ rkQ=String(v||''); if(rkVoice && rkVoice.q!==rkQ) rkVoice=null; rkRender(); }, setView:v=>{ rk.view=v; rkSave(); rkRender(); $('rkList').scrollTop=0; },
   setGrp:g=>{ rkGrp=rkGrp===g?'':g; rkRender(); $('rkList').scrollTop=0; }, setCol:c=>{ rkCol=rkCol===c?'':c; rkRender(); $('rkList').scrollTop=0; }, tap:rkTap, view:rkView, idx:rkJump,
   closeView:rkCloseView, closeEd:rkCloseEd, closeSub:rkCloseSub, closeScr:rkCloseScr, closeAsk:rkCloseAsk,
   edit:rkEdit, edType:rkEdType, edAdd:rkEdAdd, edDel:rkEdDel, edPick:rkEdPick, edNewGroup:rkEdNewGroup, edPhoto:rkEdPhoto, edPicked:rkEdPicked, edSave:rkEdSave,
@@ -2854,6 +2972,6 @@ window.RK={ menu:rkOpenMenu, setQ:v=>{ rkQ=String(v||''); rkRender(); }, setView
   vDir:rkSetVDir, vMove:rkVMove, gOrder:rkGOrderOpen, gMv:rkGMv, gNoPick:i=>{ rkGNoPick(i); }, gDir:rkSetGDir, setTelSize:rkSetTelSize, setCGrp:rkSetCGrp, addFold:rkAddFold, setAddBar:rkSetAddBar,
   icCat:k=>{ rkIconCat=k; rkIconRender(false); }, icPick:rkIconChoose };
 Object.assign(window, { openRenraku, closeRenraku, rkMergeStored, rkPicsAll,
-  rkState:()=>rk, rkCleanTest:o=>rkClean(o), rkParseVcf, rkColorFromTest:s=>rkColorFrom(s), rkSaveFlushTest:()=>rkSaveFlush(), rkVcard:(x,o)=>rkVcard(x,o), rkFromCsv, rkVoiceQ, rkCleanItem, rkImportList, rkDupGroupsTest:()=>rkDupGroups(), rkSearchTest:q=>rkSearch(q, rk.items).map(rkName), rkNameOf:rkName,
+  rkState:()=>rk, rkCleanTest:o=>rkClean(o), rkParseVcf, rkColorFromTest:s=>rkColorFrom(s), rkSaveFlushTest:()=>rkSaveFlush(), rkVcard:(x,o)=>rkVcard(x,o), rkFromCsv, rkVoiceQ, rkVoiceGo, rkLoose, rkCleanItem, rkImportList, rkDupGroupsTest:()=>rkDupGroups(), rkSearchTest:q=>rkSearch(q, rk.items).map(rkName), rkNameOf:rkName,
   rkYKindTest:x=>rkYKind(x), rkToHira:toHiraY, rkToKata:toKataY, rkYLoadTest:()=>rkYLoad(), rkILoadTest:()=>rkILoad(), rkIconPhotoTest:id=>rkIconPhoto(id) });
 })();

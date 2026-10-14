@@ -9486,6 +9486,69 @@ async function runRenraku555(browser) {
   await ctx.close();
 }
 
+/* 🎤 連絡帳：声でさがす は ふりがな（よみ）を先に・あいまいでも 候補を出す（v556） */
+async function runRenraku556(browser) {
+  console.log('\n── 📇 連絡帳：🎤 声でさがす は ふりがな（よみ）を先に・聞きまちがいでも 候補（v556） ──');
+  const T = v => [{ t: 'cell', v }];
+  const P = (id, fam, giv, famK, givK, tel) => ({ id, fam, giv, famK, givK, tels: T(tel) });
+  const SEED = { v: 1, view: 'kana', tipFold: true, items: [
+    P('a3', '西谷', '眞一', 'にしたに', 'しんいち', '080-140-91962'), P('a4', '西谷', '豊晴', 'にしたに', 'とよはる', '090-546-56778'),
+    P('a5', '西谷', '久司', 'にしたに', 'ひさじ', '090-1486-5412'), P('a8', '向井', '睦夫', 'むかい', '', '09034859052'),
+    P('b1', 'ダイゴ', '藤本', '', '', '080-9123-4020'), P('b3', '豊岡砕石', '谷口', 'とよおかさいいし', 'たにぐち', '090-3279-5131'),
+    P('b5', '斉藤', '恵子', '', '', '090-1111-2222'), P('b6', '大田', '京子', 'おおた', 'きょうこ', '090-3333-4444'), P('b7', '秀和', '', 'ひでかず', '', '090-7115-6475'),
+  ] };
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: 'block' });
+  await ctx.addInitScript(() => { try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('excalc_back_ask', '0'); } catch (e) {} });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/favicon|ServiceWorker/.test(m.text())) errs.push('console: ' + m.text()); });
+  const w = ms => page.waitForTimeout(ms);
+  const res = () => page.evaluate(() => { const L = document.getElementById('rkList'); return [...L.querySelectorAll('.rk-grp, .rk-it')].map(e => e.classList.contains('rk-grp') ? '[' + e.firstChild.textContent + ']' : e.querySelector('.nm').firstChild.textContent.trim()).join(' '); });
+  // 聞き取り（にせもの）：いちばんの候補と ほかの候補を返して おわる
+  const say = async (best, alts) => { await page.evaluate(([b, a]) => {
+      window.SpeechRecognition = class { start() { setTimeout(() => { const r = [{ transcript: b }].concat((a || []).map(t => ({ transcript: t }))); r.isFinal = true;
+        if (this.onresult) this.onresult({ resultIndex: 0, results: [r] }); setTimeout(() => this.onend && this.onend(), 10); }, 10); } abort() {} };
+      RK.listen(); }, [best, alts]); await w(700); };
+  await page.goto('file://' + path.join(ROOT, 'index.html')); await w(1200);
+  await page.evaluate(s => { localStorage.setItem('excalc_renraku', s); openRenraku(); }, JSON.stringify(SEED)); await w(900);
+
+  // ── しくみ
+  check('  ゆるい よみ：小さい字・にごり・のばす音・カタカナを そろえる', await page.evaluate(() => [['きょうこ', 'きよこ'], ['さいとう', 'さいと'], ['ひさじ', 'ひさし'], ['ダイゴ', 'たいこ'], ['おおた', 'おた'], ['けいこ', 'けーこ']].map(([a, b]) => rkLoose(a) === rkLoose(b)).join(',')), 'true,true,true,true,true,true');
+  check('  声の文から 名前だけ（はじめの「えーと」・おわりの「さん」も とる）', await page.evaluate(() => ['えーと西谷さん', 'あの、ひさじさんの電話番号を教えて', 'えっと 豊岡'].map(rkVoiceQ).join(',')), '西谷,ひさじ,豊岡');
+  check('  🎤 を押すと よみの辞書を 先に読む', await page.evaluate(async () => { window.SpeechRecognition = class { start() {} abort() {} }; RK.listen(); RK.listen(); await new Promise(r => setTimeout(r, 900)); return typeof window.rkYomiAlts; }), 'function');
+  check('  　辞書：聞き取った字の よみの候補（久司 → ひさじ も・西谷 → にしたに が先）', await page.evaluate(() => rkYomiAlts('久司', 8).includes('ひさじ') + ' / ' + rkYomiAlts('西谷', 8)[0]), 'true / にしたに');
+
+  // ── 声でさがす
+  await say('久二', []);
+  check('  「久二」（ひさじ の 聞きまちがい）→ よみ ひさじ で 西谷 久司', (await res()) + ' / ' + await page.evaluate(() => document.getElementById('rkFind').value + ' / ' + document.querySelector('#rkList .rk-vnote').textContent),
+    '[見つかった人] 西谷 久司 / 久二 / 🎤「久二」（よみ：くに・ひさじ・きゅうに）で さがしました。よみの近い人も 出しています。');
+  await say('西田に', []);
+  check('  「西田に」→ にしだに ≒ にしたに（にごりを ゆるく）で 西谷さん 3人', await res(), '[見つかった人] 西谷 眞一 西谷 豊晴 西谷 久司');
+  await say('向かい', []);
+  check('  「向かい」→ よみの近い人（候補）に 向井 睦夫', await res(), '[よみの近い人（候補）] 向井 睦夫');
+  await say('斎藤恵子さん', []);
+  check('  よみのない人も 名前から よみを作って さがす（斎藤 → 斉藤 恵子）', await res(), '[見つかった人] 斉藤 恵子');
+  await say('太田今日子', ['おおたきょうこ']);
+  check('  聞き取りの ほかの候補（かな）も 使う（太田今日子／おおたきょうこ → 大田 京子）', await res(), '[見つかった人] 大田 京子');
+  await say('とよはるさん', []);
+  check('  かなで 聞き取ったら そのまま よみで（名前だけでも）', await res(), '[見つかった人] 西谷 豊晴 [よみの近い人（候補）] 豊岡砕石 谷口');
+  await say('ダイゴ', []);
+  check('  カタカナの名前も（ダイゴ 藤本）', await res(), '[見つかった人] ダイゴ 藤本');
+  await say('六代', []);
+  check('  見つからないときは 言いなおしの 案内', await page.evaluate(() => document.querySelector('#rkList .rk-empty').textContent), '「六代」は見つかりませんでした。名字だけ・名前だけで もう一度 言ってみてください（「にしたに」「ひさじ」）。');
+
+  // ── 字で入れたら いつもの さがし方
+  await page.fill('#rkFind', 'ひさ'); await w(300);
+  check('  そのあと 字で入れると いつもの さがし方（声の案内は 消える）', (await res()) + ' / ' + await page.evaluate(() => !!document.querySelector('#rkList .rk-vnote')), '[見つかった人] 西谷 久司 / false');
+  await page.fill('#rkFind', ''); await w(250);
+  // ── ふりがなを 出さなくても 声で さがせる
+  await page.evaluate(() => RK.setFuri('off')); await w(200);
+  await say('秀一', []);
+  check('  ふりがなを 出さないときも よみで さがす（秀一 → ひでいち ≒ ひでかず は 候補）', await res(), '[よみの近い人（候補）] 西谷 眞一 秀和');
+  await page.evaluate(() => RK.setFuri('')); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
 /* 🌗 端末のダークテーマ・節電モードでも文字が消えない（v541）。
    端末がダークになると（Pixel の節電モードなど）、色を決めていない文字が白くなり、白い地に溶けていた。
    文字・ボタンのふだんの色は表電卓の「夜の色」に合わせる。道具を開いて、文字と地の明るさの差を測る */
@@ -13954,6 +14017,7 @@ async function runQrShare(browser) {
     if (!only || only === 'backask') await runBackAsk(browser);
     if (!only || only === 'rk554') await runRenraku554(browser);
     if (!only || only === 'rk555') await runRenraku555(browser);
+    if (!only || only === 'rk556') await runRenraku556(browser);
     if (!only || only === 'firsthint') await runFirstHint(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
