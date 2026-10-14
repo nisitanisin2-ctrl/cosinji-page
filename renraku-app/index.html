@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <!-- 📇 連絡帳だけのアプリ（v550）。表電卓の 📇連絡帳（../renraku.js）を、表電卓なしで そのまま使う入れ物。
      Netlify などに このフォルダの中身と renraku.js・renraku-yomi.js・renraku-icons.js を同じ場所に置けば 動く。
-     表電卓といっしょに置いたとき（GitHub Pages の renraku-app/）は、ひとつ上の renraku.js を読む。
+     表電卓といっしょに置いたとき（GitHub Pages の renraku-app/）は、ひとつ上の renraku.js を読む（先に ひとつ上を見る）。
      入れたものは この端末の中だけ（表電卓と同じ置き場 excalc_renraku。同じサイトなら 表電卓の連絡帳と同じ中身）。 -->
 <title>📇 連絡帳</title>
 <meta name="description" content="スマホの電話帳（vCard・CSV）を読んで、よみ順・グループ・色分けで見やすく整理し、また スマホに戻せる連絡帳。入れたものは この端末の中だけに残ります。">
@@ -164,12 +164,15 @@ window.addEventListener('keydown', e=>{ if(e.key!=='Escape' || appModalOpen || !
   const set=()=>document.body.classList.toggle('dark', !!(mq && mq.matches));
   set(); if(mq){ try{ mq.addEventListener('change', set); }catch(_){ try{ mq.addListener(set); }catch(__){} } }
 })();
-/* 連絡帳の本体を読む（同じ場所 → なければ ひとつ上） */
+/* 連絡帳の本体を読む（ひとつ上 → なければ 同じ場所）
+   表電卓といっしょ（GitHub Pages の renraku-app/）は ひとつ上にある。Netlify の いちばん上に置いたときは ../ も 同じ場所を指すので、
+   どちらも 読めない（404）ものを出さずに開ける。Netlify の中のフォルダに置いたときは 同じ場所を読む。 */
 (function(){
   const load=src=>new Promise(res=>{ const s=document.createElement('script'); s.src=src; s.onload=()=>res(true); s.onerror=()=>{ s.remove(); res(false); }; document.head.appendChild(s); });
   (async()=>{
-    let ok=await load('renraku.js');
-    if(!ok){ window.RK_BASE='../'; ok=await load('../renraku.js'); }
+    window.RK_BASE='../';
+    let ok=await load('../renraku.js');
+    if(!ok){ delete window.RK_BASE; ok=await load('renraku.js'); }
     const boot=document.getElementById('rkBoot');
     if(!ok || typeof window.openRenraku!=='function'){
       boot.innerHTML='📇 連絡帳を 読み込めませんでした<small>このページと同じ場所に renraku.js・renraku-yomi.js・renraku-icons.js を置いてください。<br>インターネットにつながるところで、もう一度 開いてみてください。</small>';

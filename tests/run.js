@@ -8814,14 +8814,57 @@ async function runRenraku550(browser) {
   };
   check('  連絡帳だけのアプリ（表電卓といっしょ：ひとつ上の renraku.js を読む）：開く・よみ・保存・戻るで閉じるのは 上の画面だけ', await solo('file://' + path.join(ROOT, 'renraku-app', 'index.html')),
     'function / true / ../ / false / none / undefined / 📇 連絡帳 // 山田太郎:やまだたろう // false/false:true false/false/true // エラーなし');
-  const os = require('os'), tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rkapp-'));
+  const os = require('os'), tmpBase = fs.mkdtempSync(path.join(os.tmpdir(), 'rkapp-')), tmp = path.join(tmpBase, 'site'); fs.mkdirSync(tmp);   // ひとつ上には renraku.js がない形
   for (const f of fs.readdirSync(path.join(ROOT, 'renraku-app'))) fs.copyFileSync(path.join(ROOT, 'renraku-app', f), path.join(tmp, f));
   for (const f of ['renraku.js', 'renraku-yomi.js', 'renraku-icons.js']) fs.copyFileSync(path.join(ROOT, f), path.join(tmp, f));
-  check('  連絡帳だけのアプリ（Netlify に置く形：同じ場所の renraku.js）', await solo('file://' + path.join(tmp, 'index.html')),
+  check('  連絡帳だけのアプリ（Netlify の中のフォルダに置く形：ひとつ上になければ 同じ場所の renraku.js）', await solo('file://' + path.join(tmp, 'index.html')),
     'function / true / 同じ場所 / false / none / undefined / 📇 連絡帳 // 山田太郎:やまだたろう // false/false:true false/false/true // エラーなし');
-  fs.rmSync(tmp, { recursive: true, force: true });
+  fs.rmSync(tmpBase, { recursive: true, force: true });
   { const mf = JSON.parse(fs.readFileSync(path.join(ROOT, 'renraku-app', 'manifest.json'), 'utf8')), sw = fs.readFileSync(path.join(ROOT, 'renraku-app', 'sw.js'), 'utf8'), main = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
     check('  　ホーム画面に足せる（manifest：名前・start_url・アイコン）・控え（sw.js）・表電卓の控えに アイコンも', [mf.name, mf.start_url, mf.display, mf.icons.length, fs.existsSync(path.join(ROOT, 'renraku-app', 'icon-512.png')), /renraku-app-/.test(sw), /'\.\/renraku-icons\.js'/.test(main)].join('/'), '連絡帳/.//standalone/4/true/true/true'); }
+  // ── HTTP で開く（GitHub Pages・Netlify と同じ形）：読めない（404）ものがない・控え（sw.js）で 電波がなくても開く
+  const http = require('http');
+  const serve = dir => new Promise(res => {
+    const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.css': 'text/css' };
+    const srv = http.createServer((req, rsp) => {
+      let u = decodeURIComponent(req.url.split('?')[0]); if (u.endsWith('/')) u += 'index.html';
+      const f = path.join(dir, path.normalize(u));
+      if (!f.startsWith(dir) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { rsp.writeHead(404); rsp.end('not found'); return; }
+      rsp.writeHead(200, { 'Content-Type': types[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-cache' }); fs.createReadStream(f).pipe(rsp);
+    });
+    srv.listen(0, '127.0.0.1', () => res(srv));
+  });
+  const httpRun = async (dir, rel, sw) => {
+    const srv = await serve(dir), url = `http://127.0.0.1:${srv.address().port}/${rel}`;
+    const c = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: sw ? 'allow' : 'block' });
+    const p = await c.newPage(); const bad = [], e = [];
+    p.on('response', r => { if (r.status() >= 400) bad.push(r.status() + ' ' + r.url().replace(/^http:\/\/[^/]+/, '')); });
+    p.on('pageerror', x => e.push(x.message));
+    await p.goto(url); await p.waitForTimeout(1200);
+    const st = await p.evaluate(async () => { await rkILoadTest(); await new Promise(r => { RK.edit(null); setTimeout(r, 200); });
+      return [isDlgOpen('renrakuOverlay'), window.RK_BASE, typeof window.rkIcons, document.title].join(' / '); });
+    await p.fill('#rkE_fam', '山田'); await p.fill('#rkE_giv', '太郎'); await p.click('#rkEdBody .rk-yfill'); await p.waitForTimeout(800);
+    await p.evaluate(() => RK.edSave()); await p.waitForTimeout(500);
+    const it = await p.evaluate(() => rkState().items.map(x => x.fam + x.giv + ':' + x.famK + x.givK).join(','));
+    let off = '（控えなし）';
+    if (sw) {
+      const ready = await p.evaluate(() => Promise.race([navigator.serviceWorker.ready.then(() => new Promise(r => { if (navigator.serviceWorker.controller) r('ok'); else navigator.serviceWorker.addEventListener('controllerchange', () => r('ok')); })), new Promise(r => setTimeout(() => r('timeout'), 8000))]));
+      const keys = await p.evaluate(async () => { const ks = await caches.keys(); const c = await caches.open(ks.find(k => k.startsWith('renraku-app-'))); return ks.join(',') + ' / ' + (await c.keys()).map(r => new URL(r.url).pathname).filter(u => /renraku/.test(u)).sort().join(','); });
+      { const cl = new Promise(r => srv.close(r)); srv.closeAllConnections(); await cl; }
+      await p.reload().catch(x => e.push('reload: ' + x.message)); await p.waitForTimeout(1500);
+      off = ready + ' / ' + keys + ' / 電波なし：' + await p.evaluate(() => [isDlgOpen('renrakuOverlay'), rkState().items.map(x => x.fam + x.giv).join(',')].join(' / ')).catch(x => 'NG ' + x.message);
+    } else { const cl = new Promise(r => srv.close(r)); srv.closeAllConnections(); await cl; }
+    await c.close();
+    return [st, it, bad.join(' | ') || '404なし', off, e.join(' | ') || 'エラーなし'].join(' // ');
+  };
+  check('  HTTP：表電卓といっしょ（GitHub Pages の renraku-app/）：ひとつ上を読む・404なし', await httpRun(ROOT, 'renraku-app/', false),
+    'true / ../ / object / 📇 連絡帳 // 山田太郎:やまだたろう // 404なし // （控えなし） // エラーなし');
+  { const os = require('os'), base = fs.mkdtempSync(path.join(os.tmpdir(), 'rkhttp-')), site = path.join(base, 'site'); fs.mkdirSync(site);
+    for (const f of fs.readdirSync(path.join(ROOT, 'renraku-app'))) fs.copyFileSync(path.join(ROOT, 'renraku-app', f), path.join(site, f));
+    for (const f of ['renraku.js', 'renraku-yomi.js', 'renraku-icons.js']) fs.copyFileSync(path.join(ROOT, f), path.join(site, f));
+    check('  HTTP：Netlify に単独で置く形（いちばん上）：404なし・控えに 本体・よみ・アイコン・電波がなくても開いて 中身も残る', await httpRun(site, '', true),
+      'true / ../ / object / 📇 連絡帳 // 山田太郎:やまだたろう // 404なし // ok / renraku-app-v550 / /renraku-icons.js,/renraku-yomi.js,/renraku.js / 電波なし：true / 山田太郎 // エラーなし');
+    fs.rmSync(base, { recursive: true, force: true }); }
 }
 
 /* 🌗 端末のダークテーマ・節電モードでも文字が消えない（v541）。
