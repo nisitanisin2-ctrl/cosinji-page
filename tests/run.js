@@ -8576,9 +8576,9 @@ async function runRenrakuColorNo(browser) {
   await page.evaluate(s => { localStorage.setItem('excalc_renraku', s); window.appPrompt = async () => null; window.appConfirm = async () => true; openRenraku(); }, JSON.stringify(SEED)); await w(900);
 
   check('  はじめは No. の順＝赤・だいだい・黄…（🎨 色：赤・緑・青・色なし）', await secs(), '赤（要連絡）1人 | 緑1人 | 青2人 | 色なし1人');
-  check('  🎨 色の一覧の上に「No. の並び ⬇ 上から／⬆ 下から」「🔢 色の No.・順番」', await page.evaluate(() => { const b = document.querySelector('#rkList .rk-cbar'); return b ? [...b.querySelectorAll('button')].map(x => x.textContent.trim() + (x.classList.contains('on') ? '●' : '')).join(' / ') : '（ない）'; }), '⬇ 上から● / ⬆ 下から / 🔢 色の No.・順番');
-  check('  　ほかの並び（よみ順）には出ない', await page.evaluate(() => { RK.setView('kana'); const n = document.querySelectorAll('#rkList .rk-cbar').length; RK.setView('color'); return n; }), '0');
-  await page.click('#rkList .rk-cbar .ord'); await w(400);
+  check('  🎨 色 をえらぶと 右に 小さい ⇅（上から／下から）と 🔢（色の No.・順番）（v550）', await page.evaluate(() => [...document.querySelectorAll('#rkBar .rk-mini')].map(b => b.textContent.trim() + (b.classList.contains('on') ? '●' : '')).join(' / ') + ' / ' + document.querySelector('#rkBar .rk-chip.on').nextElementSibling.dataset.vd), '⇅ / 🔢 / color');
+  check('  　よみ順では ⇅ だけ（🔢 は 色・グループのとき）', await page.evaluate(() => { RK.setView('kana'); const r = [...document.querySelectorAll('#rkBar .rk-mini')].map(b => b.textContent.trim()).join(','); RK.setView('color'); return r; }), '⇅');
+  await page.click('#rkBar [data-ord="color"]'); await w(400);
   check('  🔢 色の No.・並ぶ順番：12色に No.1〜12（名前・人数つき）', (await page.evaluate(() => document.getElementById('rkScrHdr').textContent + ' / ' + document.querySelectorAll('#rkCOrd .rk-co').length + ' / ' + document.querySelector('#rkCOrd .rk-co em').textContent + ' / ' + document.getElementById('rkCReset').disabled)) + ' / ' + await rows(3),
     '🔢 色の No.・並ぶ順番 / 12 / 1人 / true / No.1 赤要連絡 / No.2 だいだい / No.3 黄');
   await page.evaluate(() => { const r = [...document.querySelectorAll('#rkCOrd .rk-co')].find(e => e.dataset.c === 'blue'); r.querySelector('.no').click(); }); await w(300);
@@ -8602,7 +8602,7 @@ async function runRenrakuColorNo(browser) {
 
   // ── 上から／下から
   await page.evaluate(() => RK.cDir('down')); await w(300);
-  check('  ⬆ 下から：No.1 が いちばん下（色なしは いちばん上）', (await secs()) + ' / ' + await page.evaluate(() => document.querySelector('#rkCDirBar .on').dataset.d + '/' + rkState().cdir), '色なし1人 | 赤（要連絡）1人 | 緑1人 | 青（急ぎ）2人 / down/down');
+  check('  ⬆ 下から：No.1 が いちばん下（色なしは いちばん上）', (await secs()) + ' / ' + await page.evaluate(() => (document.querySelector('#rkBar .rk-mini[data-vd="color"]').classList.contains('on') ? 'down' : 'up') + '/' + rkState().cdir), '色なし1人 | 赤（要連絡）1人 | 緑1人 | 青（急ぎ）2人 / down/down');
   await page.evaluate(() => RK.cOrder()); await w(300);
   check('  　🔢 の画面でも 下から が えらばれている', await page.evaluate(() => document.querySelector('#rkCDir .on').dataset.d), 'down');
   await page.evaluate(() => { [...document.querySelectorAll('#rkCDir [data-d]')].find(b => b.dataset.d === 'up').click(); }); await w(300);
@@ -8650,10 +8650,178 @@ async function runRenrakuColorNo(browser) {
   await page.evaluate(() => { RK.closeScr(); toggleDark(); }); await w(300);
   await page.setViewportSize({ width: 320, height: 640 }); await w(300);
   await page.evaluate(() => RK.cOrder()); await w(300);
-  check('  せまい画面（320）：🔢 の画面・🎨 色の一覧の上が 横にはみ出さない', await page.evaluate(() => { const b = document.getElementById('rkScrBody'), c = document.querySelector('#rkList .rk-cbar'); return (b.scrollWidth <= b.clientWidth + 1) + '/' + (c.scrollWidth <= c.clientWidth + 1); }), 'true/true');
+  check('  せまい画面（320）：🔢 の画面が 横にはみ出さない', await page.evaluate(() => { const b = document.getElementById('rkScrBody'); return b.scrollWidth <= b.clientWidth + 1; }), 'true');
   await page.evaluate(() => RK.closeScr()); await w(200);
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
+}
+
+// ── 📇 連絡帳 v550：並べ方のボタンの順番・⇅ 上から／下から・🔢 グループの順番・電話番号の大きさ・色の名前をグループに・横持ち・🙂 アイコン・連絡帳だけのアプリ
+async function runRenraku550(browser) {
+  console.log('\n── 📇 連絡帳：並び・⇅・電話番号の大きさ・色→グループ・横持ち・アイコン・連絡帳だけのアプリ（v550） ──');
+  const T = v => [{ t: 'cell', v }];
+  const SEED = { v: 1, view: 'kana', groups: [{ n: '家族', ic: '👪' }, { n: '仕事', ic: '💼' }, { n: '町内会', ic: '🏘' }], colors: { red: '要連絡', blue: '家族' },
+    vorder: ['kana', 'x', '<img src=x onerror=window.__pwn=1>'], vdir: { color: 'down', foo: 'down' }, cdir: 'down', items: [
+    { id: 'c1', fam: '山田', giv: '太郎', famK: 'やまだ', givK: 'たろう', color: 'red', groups: ['仕事'], org: '山田商店', tels: T('090-2000-0001'), ts: 1000 },
+    { id: 'c2', fam: '佐藤', giv: '花子', famK: 'さとう', givK: 'はなこ', color: 'blue', groups: ['家族'], tels: T('090-2000-0002'), ts: 1001 },
+    { id: 'c3', fam: '鈴木', giv: '一郎', famK: 'すずき', givK: 'いちろう', color: 'green', groups: ['町内会'], org: 'あおば工務店', tels: T('090-2000-0003'), ts: 1002 },
+    { id: 'c4', fam: '高橋', giv: '健二', famK: 'たかはし', givK: 'けんじ', color: 'blue', tels: T('090-2000-0004'), ts: 1003 },
+    { id: 'c5', fam: '伊藤', giv: '一郎', famK: 'いとう', givK: 'いちろう', tels: T('090-2000-0005'), ts: 1004 },
+    { id: 'c6', fam: '渡辺', giv: '健一', famK: 'わたなべ', givK: 'けんいち', mails: [{ t: 'home', v: 'ken@example.jp' }], ts: 1005 },
+  ] };
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: 'block' });
+  await ctx.addInitScript(() => { try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tbfold', '0'); } catch (e) {} });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/favicon|ServiceWorker/.test(m.text())) errs.push('console: ' + m.text()); });
+  page.on('dialog', d => d.accept());
+  const w = ms => page.waitForTimeout(ms);
+  const chips = () => page.evaluate(() => [...document.querySelectorAll('#rkBar .rk-chip[data-view]')].map(b => b.textContent.trim()).join(','));
+  const minis = () => page.evaluate(() => [...document.querySelectorAll('#rkBar .rk-mini')].map(b => b.textContent.trim() + (b.classList.contains('on') ? '●' : '')).join(','));
+  const secs = () => page.evaluate(() => [...document.querySelectorAll('#rkList .rk-grp')].map(g => g.textContent.replace(/\s+/g, ' ').replace(/\d+人$/, '').trim()).join(' | '));
+  const names = () => page.evaluate(() => [...document.querySelectorAll('#rkList .rk-it .nm')].map(e => e.firstChild.textContent).join(','));
+  await page.goto('file://' + path.join(ROOT, 'index.html')); await w(1200);
+  await page.evaluate(s => { window.__pwn = 0; localStorage.setItem('excalc_renraku', s); window.appPrompt = async () => null; window.appConfirm = async () => true; openRenraku(); }, JSON.stringify(SEED)); await w(900);
+
+  // ── 並べ方のボタン・⇅
+  check('  おかしな並べ方の順番・向きは 直して読む（ない名前を外し、足りないものは うしろに）', await page.evaluate(() => rkState().vorder.join(',') + ' / ' + JSON.stringify(rkState().vdir) + ' / ' + rkState().cdir + ' / ' + window.__pwn), 'kana,group,org,color,new / {} / down / 0');
+  check('  並べ方のボタン：よみ順・グループ・会社・色・新しい。えらんでいる よみ順の右に 小さい ⇅', (await chips()) + ' / ' + await minis(), 'あ よみ順,🏷 グループ,🏢 会社,🎨 色,🕘 新しい / ⇅');
+  check('  　⇅ は 小さい（30px ほど）', await page.evaluate(() => { const r = document.querySelector('#rkBar .rk-mini').getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height); }), '30x30');
+  const kanaUp = await names();
+  await page.click('#rkBar .rk-mini[data-vd="kana"]'); await w(300);
+  check('  ⇅ を押す：よみ順が ん→あ（下から）・索引も逆・⇅ に しるし', (await names()) + ' / ' + await page.evaluate(() => [...document.querySelectorAll('#rkIdx button')].map(b => b.textContent).join('') + ' / ' + rkState().vdir.kana) + ' / ' + await minis(),
+    kanaUp.split(',').reverse().join(',') + ' / わやたさあ / down / ⇅●');
+  await page.click('#rkBar .rk-mini[data-vd="kana"]'); await w(300);
+  check('  　もう一度で あ→ん（上から）に戻る', (await names()) + ' / ' + await page.evaluate(() => JSON.stringify(rkState().vdir)), kanaUp + ' / {}');
+
+  // ── グループ：⇅・🔢 グループの順番
+  await page.evaluate(() => RK.setView('group')); await w(300);
+  check('  🏷 グループ：右に ⇅ と 🔢（グループの順番）。並びは グループの順', (await minis()) + ' / ' + await secs(), '⇅,🔢 / 👪 家族 | 💼 仕事 | 🏘 町内会 | グループなし');
+  await page.evaluate(() => RK.vDir('group')); await w(300);
+  check('  　⇅：下から（No.1 のグループが いちばん下）', await secs(), 'グループなし | 🏘 町内会 | 💼 仕事 | 👪 家族');
+  await page.evaluate(() => RK.vDir('group')); await w(300);
+  await page.click('#rkBar [data-ord="group"]'); await w(400);
+  check('  🔢 グループの順番：No.・人数・↑↓', await page.evaluate(() => document.getElementById('rkScrHdr').textContent + ' / ' + [...document.querySelectorAll('#rkGOrd .rk-co')].map(r => r.querySelector('.no').textContent + ' ' + r.querySelector('.nm span').textContent + ' ' + r.querySelector('em').textContent).join(' | ')),
+    '🔢 グループの順番 / No.1 👪 家族 1人 | No.2 💼 仕事 1人 | No.3 🏘 町内会 1人');
+  await page.evaluate(() => { [...document.querySelectorAll('#rkGOrd .rk-co')][2].querySelector('.mv').click(); }); await w(300);
+  check('  　↑ で 町内会を No.2 に（うしろの一覧も すぐ）', (await page.evaluate(() => rkState().groups.map(g => g.n).join(','))) + ' / ' + await secs(), '家族,町内会,仕事 / 👪 家族 | 🏘 町内会 | 💼 仕事 | グループなし');
+  await page.evaluate(() => { [...document.querySelectorAll('#rkGOrd .rk-co')][1].querySelector('.no').click(); }); await w(300);
+  await page.evaluate(() => document.querySelector('#rkAskBody [data-r="100"]').click()); await w(300);
+  check('  　No. を押して No.1 をえらぶ → 町内会が No.1・上のグループの札も その順', (await page.evaluate(() => rkState().groups.map(g => g.n).join(','))) + ' / ' + await page.evaluate(() => [...document.querySelectorAll('#rkBar .rk-chip')].filter(b => /家族|仕事|町内会/.test(b.textContent) && !b.querySelector('.rk-dot')).map(b => b.textContent.trim()).join(',')),
+    '町内会,家族,仕事 / 🏘 町内会1,👪 家族1,💼 仕事1');
+  await page.evaluate(() => { [...document.querySelectorAll('#rkGDir [data-d]')].find(b => b.dataset.d === 'down').click(); }); await w(200);
+  check('  　🔢 の画面の 上から／下から', await page.evaluate(() => rkState().vdir.group + '/' + document.querySelector('#rkGDir .on').dataset.d), 'down/down');
+  await page.evaluate(() => { RK.gDir('up'); RK.closeScr(); }); await w(200);
+
+  // ── 会社・新しい・色
+  await page.evaluate(() => RK.setView('org')); await w(300);
+  check('  🏢 会社：⇅ で 下から（ん→あ・会社なしは いちばん上）', (await secs()) + ' / ' + await page.evaluate(() => { RK.vDir('org'); return [...document.querySelectorAll('#rkList .rk-grp')].map(g => g.firstChild.textContent).join(' | '); }), '🏢 あおば工務店 | 🏢 山田商店 | 会社なし / 会社なし | 🏢 山田商店 | 🏢 あおば工務店');
+  await page.evaluate(() => { RK.vDir('org'); RK.setView('new'); }); await w(300);
+  const newUp = await names();
+  await page.evaluate(() => RK.vDir('new')); await w(300);
+  check('  🕘 新しい：⇅ で 古い順', (await secs()) + ' / ' + ((await names()) === newUp.split(',').reverse().join(',')), '🕘 前に入れた・直した順（古い順） / true');
+  await page.evaluate(() => { RK.vDir('new'); RK.setView('color'); }); await w(300);
+  check('  🎨 色：⇅ と 🔢（色の No.）。読みこんだ 下から のまま', (await minis()) + ' / ' + (await secs()).split(' | ')[0], '⇅●,🔢 / 色なし');
+  await page.evaluate(() => { RK.vDir('color'); RK.setView('kana'); }); await w(200);
+
+  // ── 並べ方のボタンの順番（🧩）
+  await page.evaluate(() => RK.custom()); await w(300);
+  check('  🧩 自分好みにする：「📋 並べ方のボタンの順番」（↑↓）', await page.evaluate(() => [...document.querySelectorAll('#rkScrBody .rk-cus[data-vo]')].map(r => r.dataset.vo).join(',')), 'kana,group,org,color,new');
+  for (let i = 0; i < 3; i++) { await page.evaluate(() => RK.vMove('color', -1)); await w(150); }
+  check('  　🎨 色 を いちばん上へ → 上のボタンも 色 から・覚える', (await chips()) + ' / ' + await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_renraku')).vorder.join(',')), '🎨 色,あ よみ順,🏷 グループ,🏢 会社,🕘 新しい / color,kana,group,org,new');
+
+  // ── 電話番号の大きさ
+  check('  🔠 文字の大きさ：名前 と 電話番号だけ（ふつう・大きく・もっと大きく）', await page.evaluate(() => [...document.querySelectorAll('#rkTelSet [data-ts]')].map(b => b.textContent + (b.classList.contains('on') ? '●' : '')).join(',') + ' / ' + document.querySelectorAll('#rkBigSet button').length), 'ふつう●,大きく,もっと大きく / 2');
+  await page.evaluate(() => { RK.setTelSize(2); RK.closeScr(); }); await w(300);
+  const fs1 = () => page.evaluate(() => { const sb = id => document.querySelector(`#rkList .rk-it[data-id="${id}"] .sb`), f = e => getComputedStyle(e).fontSize + (e.classList.contains('tel') ? '(tel)' : ''); return [f(sb('c1')), f(sb('c6')), getComputedStyle(document.querySelector(`#rkList .rk-it[data-id="c1"] .nm`)).fontSize].join(' / '); });
+  check('  電話番号を もっと大きく：一覧の電話番号だけ 22px（メールの人・名前は そのまま）', await fs1(), '22px(tel) / 13px / 16px');
+  await page.evaluate(() => RK.view('c1')); await w(300);
+  check('  　見る画面の電話番号も 大きく（25px）', await page.evaluate(() => getComputedStyle(document.querySelector('#rkViewBody .rk-row.tel > span')).fontSize + ' / ' + getComputedStyle(document.querySelectorAll('#rkViewBody .rk-row')[document.querySelectorAll('#rkViewBody .rk-row').length - 1].querySelector('span')).fontSize), '25px / 14.5px');
+  await page.evaluate(() => { RK.closeView(); RK.setTelSize(1); }); await w(200);
+  check('  　大きく：18px・ふつうに戻す', (await fs1()).split(' / ')[0] + ' / ' + await page.evaluate(() => { RK.setTelSize(0); return getComputedStyle(document.querySelector('#rkList .rk-it[data-id="c1"] .sb')).fontSize + '/' + rkState().telSize; }), '18px(tel) / 13px/0');
+
+  // ── 色の名前を グループにも
+  await page.evaluate(() => RK.setCGrp(true)); await w(300);
+  check('  色の名前を グループにも：入れたとき みんなに（赤＝要連絡 → 要連絡のグループ）', await page.evaluate(() => ['c1', 'c2', 'c4', 'c3'].map(id => id + ':' + rkState().items.find(x => x.id === id).groups.join('+')).join(' ') + ' / ' + rkState().groups.map(g => g.ic + g.n).join(',')),
+    'c1:仕事+要連絡 c2:家族 c4:家族 c3:町内会 / 🏘町内会,👪家族,💼仕事,🎨要連絡');
+  await page.evaluate(() => { RK.paintStart(); RK.paintPick('blue'); }); await w(200);
+  await page.click('#rkList .rk-it[data-id="c1"]'); await w(200);
+  check('  　色分けで 山田を 青（家族）に → 要連絡のグループから外れて 家族に', await page.evaluate(() => rkState().items.find(x => x.id === 'c1').groups.join('+')), '仕事+家族');
+  await page.evaluate(() => RK.paintUndo()); await w(200);
+  check('  　ひとつ戻す → 要連絡に戻る', await page.evaluate(() => rkState().items.find(x => x.id === 'c1').groups.join('+')), '仕事+要連絡');
+  await page.evaluate(() => { RK.paintEnd(); window.appPrompt = async () => '至急'; RK.colName('red'); }); await w(300);
+  check('  　色の名前を 要連絡 → 至急 にすると グループの名前も', await page.evaluate(() => rkState().items.find(x => x.id === 'c1').groups.join('+') + ' / ' + rkState().groups.map(g => g.n).join(',')), '仕事+至急 / 町内会,家族,仕事,至急');
+  await page.evaluate(() => { window.appPrompt = async () => null; RK.edit('c5'); RK.edCol('red'); RK.edSave(); }); await w(400);
+  check('  　直す画面で 赤 にして保存 → 至急のグループにも', await page.evaluate(() => rkState().items.find(x => x.id === 'c5').groups.join('+')), '至急');
+  await page.evaluate(() => RK.setCGrp(false)); await w(200);
+  check('  　やめても 入っているグループは そのまま', await page.evaluate(() => rkState().cgrp + ' / ' + rkState().items.find(x => x.id === 'c1').groups.join('+')), 'false / 仕事+至急');
+
+  // ── 🙂 アイコン
+  check('  アイコンは 使うときだけ読む', await page.evaluate(() => typeof window.rkIcons), 'undefined');
+  await page.evaluate(() => rkILoadTest()); await w(300);
+  check('  アイコン：若者（男・女）・中年（男・女）・子ども・お年寄り・会社やお店（ぜんぶで 72）・どれも絵がある', await page.evaluate(() => { const I = window.rkIcons; return I.cats.map(c => c.n + c.items.length).join(',') + ' / ' + I.cats.reduce((n, c) => n + c.items.filter(id => /^<svg[\s\S]+<\/svg>$/.test(I.svg(id))).length, 0) + ' / ' + I.label('biz4') + ' / ' + (I.svg('zz1') || '（なし）'); }),
+    '若者・男10,若者・女10,中年・男10,中年・女10,子ども10,お年寄り10,会社・お店12 / 72 / 病院 / （なし）');
+  await page.evaluate(() => { RK.edit('c6'); }); await w(300);
+  await page.evaluate(() => { RK.edPhoto(); }); await w(300);
+  check('  直す画面の 📷 写真：「🙂 アイコンからえらぶ（人・会社）」', await page.evaluate(() => [...document.querySelectorAll('#rkAskBody [data-r]')].map(b => b.textContent).join(',')), '📷 カメラで撮る,🖼 写真から選ぶ,🙂 アイコンからえらぶ（人・会社）,やめる');
+  await page.evaluate(() => [...document.querySelectorAll('#rkAskBody [data-r]')].find(b => /アイコン/.test(b.textContent)).click()); await w(500);
+  check('  　アイコンをえらぶ：7つの分け方・10この絵', await page.evaluate(() => document.getElementById('rkScrHdr').textContent + ' / ' + document.querySelectorAll('#rkIcCats button').length + ' / ' + document.querySelectorAll('#rkIcGrid button svg').length), '🙂 アイコンをえらぶ / 7 / 10');
+  await page.evaluate(() => RK.icCat('biz')); await w(200);
+  check('  　会社・お店：12こ', await page.evaluate(() => document.querySelectorAll('#rkIcGrid button').length + '/' + document.querySelector('#rkIcCats .on').textContent), '12/会社・お店');
+  await page.evaluate(() => RK.icPick('biz4')); await w(1200);
+  check('  　えらぶと 写真として入る（320×320 の JPEG）', await page.evaluate(() => [isDlgOpen('rkScrOverlay'), /^url\("data:image\/jpeg;base64,/.test(document.getElementById('rkPv').style.backgroundImage)].join('/')), 'false/true');
+  await page.evaluate(() => RK.edSave()); await w(600);
+  check('  　保存すると その人の写真に（一覧の丸にも）', await page.evaluate(async () => { const p = await rkPicsAll(); const d = p.c6 || ''; const im = new Image(); await new Promise(r => { im.onload = r; im.onerror = r; im.src = d; }); return [rkState().items.find(x => x.id === 'c6').photo, /^data:image\/jpeg;base64,/.test(d), im.naturalWidth + 'x' + im.naturalHeight].join('/'); }), 'true/true/320x320');
+  await page.evaluate(() => { RK.edit('c4'); RK.edPhoto(); }); await w(300);
+  await page.evaluate(() => [...document.querySelectorAll('#rkAskBody [data-r]')].find(b => /アイコン/.test(b.textContent)).click()); await w(400);
+  await page.evaluate(() => RK.icPick('')); await w(300);
+  check('  　やめる：写真は そのまま', await page.evaluate(() => isDlgOpen('rkScrOverlay') + '/' + isDlgOpen('rkEdOverlay') + '/' + (document.getElementById('rkPv').style.backgroundImage || '（なし）')), 'false/true/（なし）');
+  await page.evaluate(() => RK.closeEd()); await w(200);
+
+  // ── 横持ち：一覧は左いっぱい・ほかは右
+  await page.setViewportSize({ width: 915, height: 412 }); await w(400);
+  check('  横持ち：一覧は 左に 上から下まで・見出し／さがす／下のボタンは 右', await page.evaluate(() => { const r = s => document.querySelector(s).getBoundingClientRect(); const wr = r('#renrakuOverlay .rk-wrap'), tp = r('#renrakuOverlay .rk-top'), ad = r('#rkAdd'), hd = r('#renrakuOverlay .rk-modal > .modal-header');
+    return [wr.left < 2, wr.height > 400, tp.left >= wr.right - 2, ad.left >= wr.right - 2, hd.left >= wr.right - 2, ad.bottom > 405, getComputedStyle(document.querySelector('#renrakuOverlay .rk-modal > .modal-header > span')).display].join('/'); }), 'true/true/true/true/true/true/none');
+  await page.setViewportSize({ width: 412, height: 915 }); await w(300);
+  check('  　たて持ちに戻ると いつもの並び（一覧は さがすの下）', await page.evaluate(() => { const r = s => document.querySelector(s).getBoundingClientRect(); return r('#renrakuOverlay .rk-wrap').top >= r('#renrakuOverlay .rk-top').bottom - 2; }), 'true');
+  // ── 📱 連絡帳だけのアプリの案内（⚙）
+  await page.evaluate(() => RK.menu()); await w(300);
+  check('  ⚙ に「📱 連絡帳だけのアプリ（ホーム画面に・Netlify に置く）」', await page.evaluate(() => [...document.querySelectorAll('#rkSubBody .rk-btn')].some(b => b.textContent === '📱 連絡帳だけのアプリ（ホーム画面に・Netlify に置く）')), 'true');
+  await page.evaluate(() => { RK.closeSub(); RK.appHelp(); }); await w(300);
+  check('  　案内：開くリンク（renraku-app/）・ホーム画面に足す・Netlify に置く・中身をうつす', await page.evaluate(() => document.getElementById('rkScrHdr').textContent + ' / ' + document.getElementById('rkAppLink').getAttribute('href') + ' / ' + [...document.querySelectorAll('#rkAppHelp h3')].map(h => h.textContent).join(',') + ' / ' + /renraku\.js.+renraku-yomi\.js.+renraku-icons\.js/.test(document.getElementById('rkAppHelp').textContent)),
+    '📱 連絡帳だけのアプリ / renraku-app/ / 🏠 ホーム画面に足す,🌐 Netlify に置く,⚠ 中身をうつすとき / true');
+  await page.evaluate(() => RK.closeScr()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+
+  // ── 連絡帳だけのアプリ（renraku-app/）：表電卓のページなしで開く
+  const solo = async (url, label) => {
+    const c = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: 'block' });
+    const p = await c.newPage(); const e = []; p.on('pageerror', x => e.push(x.message));
+    await p.goto(url); await p.waitForTimeout(1400);
+    const st = await p.evaluate(() => [typeof openRenraku, isDlgOpen('renrakuOverlay'), window.RK_BASE === undefined ? '同じ場所' : window.RK_BASE, !!document.getElementById('rkBoot'), getComputedStyle(document.querySelector('#renrakuOverlay .modal-close')).display, typeof excalcHelp, document.title].join(' / '));
+    await p.evaluate(() => { RK.edit(null); }); await p.waitForTimeout(300);
+    await p.fill('#rkE_fam', '山田'); await p.fill('#rkE_giv', '太郎'); await p.evaluate(() => { document.querySelector('#rkEdBody input[data-k="tels"]').value = '090-1234-5678'; });
+    await p.click('#rkEdBody .rk-yfill'); await p.waitForTimeout(800);
+    await p.evaluate(() => RK.edSave()); await p.waitForTimeout(500);
+    const it = await p.evaluate(() => rkState().items.map(x => x.fam + x.giv + ':' + x.famK + x.givK).join(','));
+    await p.evaluate(() => RK.menu()); await p.waitForTimeout(300);
+    const mn = await p.evaluate(() => /📋リスト/.test(document.getElementById('rkSubBody').textContent) + '/' + (RK.appHelp(), !!document.getElementById('rkAppLink') + ':' + /いま開いているのが 連絡帳だけのアプリ/.test(document.getElementById('rkAppHelp').textContent)));
+    await p.goBack().catch(() => {}); await p.waitForTimeout(500);
+    await p.goBack().catch(() => {}); await p.waitForTimeout(500);
+    const bk = mn + ' ' + await p.evaluate(() => isDlgOpen('rkScrOverlay') + '/' + isDlgOpen('rkSubOverlay') + '/' + isDlgOpen('renrakuOverlay'));
+    await c.close();
+    return [st, it, bk, e.join(' | ') || 'エラーなし'].join(' // ');
+  };
+  check('  連絡帳だけのアプリ（表電卓といっしょ：ひとつ上の renraku.js を読む）：開く・よみ・保存・戻るで閉じるのは 上の画面だけ', await solo('file://' + path.join(ROOT, 'renraku-app', 'index.html')),
+    'function / true / ../ / false / none / undefined / 📇 連絡帳 // 山田太郎:やまだたろう // false/false:true false/false/true // エラーなし');
+  const os = require('os'), tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rkapp-'));
+  for (const f of fs.readdirSync(path.join(ROOT, 'renraku-app'))) fs.copyFileSync(path.join(ROOT, 'renraku-app', f), path.join(tmp, f));
+  for (const f of ['renraku.js', 'renraku-yomi.js', 'renraku-icons.js']) fs.copyFileSync(path.join(ROOT, f), path.join(tmp, f));
+  check('  連絡帳だけのアプリ（Netlify に置く形：同じ場所の renraku.js）', await solo('file://' + path.join(tmp, 'index.html')),
+    'function / true / 同じ場所 / false / none / undefined / 📇 連絡帳 // 山田太郎:やまだたろう // false/false:true false/false/true // エラーなし');
+  fs.rmSync(tmp, { recursive: true, force: true });
+  { const mf = JSON.parse(fs.readFileSync(path.join(ROOT, 'renraku-app', 'manifest.json'), 'utf8')), sw = fs.readFileSync(path.join(ROOT, 'renraku-app', 'sw.js'), 'utf8'), main = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
+    check('  　ホーム画面に足せる（manifest：名前・start_url・アイコン）・控え（sw.js）・表電卓の控えに アイコンも', [mf.name, mf.start_url, mf.display, mf.icons.length, fs.existsSync(path.join(ROOT, 'renraku-app', 'icon-512.png')), /renraku-app-/.test(sw), /'\.\/renraku-icons\.js'/.test(main)].join('/'), '連絡帳/.//standalone/4/true/true/true'); }
 }
 
 /* 🌗 端末のダークテーマ・節電モードでも文字が消えない（v541）。
@@ -13118,6 +13286,7 @@ async function runQrShare(browser) {
     if (!only || only === 'rkiro') await runRenrakuIro(browser);
     if (!only || only === 'rkyomi') await runRenrakuYomi(browser);
     if (!only || only === 'rkcno') await runRenrakuColorNo(browser);
+    if (!only || only === 'rk550') await runRenraku550(browser);
     if (!only || only === 'firsthint') await runFirstHint(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
