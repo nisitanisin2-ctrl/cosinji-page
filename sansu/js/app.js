@@ -167,13 +167,41 @@ function render(){
 }
 window.addEventListener('popstate', e => {
   backLock = 0;
+  if(hyoAsk){ hyoAskClose(); hyoBase = false; hyoBasePush(); return; }   // 「表電卓に戻りますか？」で「戻る」は「このまま」
   if(!$('modal').hidden){ closeModalNow(); return; }   // 窓だけ 閉じる
+  if(fromHyo && hyoBase && e.state && e.state.d === 1){   // ホームの いちばん下の分を 使いきった（表電卓 v553）
+    hyoBase = false;
+    if(hyoAskOn()){ view = {s: 'home'}; render(); hyoBasePush(); hyoAskOpen(); return; }
+    toast('もう一度「戻る」を押すと表電卓に戻ります');
+  }
   const s = e.state && e.state.s ? e.state : {s: 'home', d: 1};
   if(view.s === 'play' && s.s !== 'play') endSession();
   if(s.s === 'play' && !(ses && ses.p && !ses.result)){ go('home', {}, true); return; }   // おわった 問題には 戻らない
   if(s.s === 'result' && !(ses && ses.result)){ go('home', {}, true); return; }
   view = s; render();
 });
+/* 🔙 表電卓から 開いたとき：ホームで「戻る」→「表電卓に戻りますか？」（表電卓 v553。表電卓の 設定 excalc_back_ask が '0' なら 1回だけ 知らせる）
+   はじめて さわったときに ホームの上に 1つ（d:2）積んでおき、「戻る」で それを 使いきったら 聞く */
+let hyoBase = false, hyoAsk = null;
+const hyoAskOn = () => { try { return localStorage.getItem('excalc_back_ask') !== '0'; } catch(_){ return true; } };
+function hyoBasePush(){ if(!fromHyo || hyoBase) return; try { history.pushState({s: 'home', d: 2, base: 1}, '', location.pathname + location.search + '#home'); hyoBase = true; } catch(_){} }
+['pointerup', 'keydown'].forEach(t => window.addEventListener(t, () => { if(!hyoAsk && view.s === 'home' && depth() === 1) hyoBasePush(); }, true));
+function hyoAskClose(){ if(hyoAsk){ hyoAsk.remove(); hyoAsk = null; } }
+function hyoAskOpen(){
+  hyoAskClose();
+  const ov = document.createElement('div'); ov.id = 'hyoAsk'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding-top:14vh;background:rgba(0,0,0,.45)';
+  ov.innerHTML = '<div style="background:#fff;color:#222;width:min(340px,calc(100vw - 32px));box-sizing:border-box;padding:18px;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.35);font-size:15px;line-height:1.6">'
+    + '<div style="font-weight:700;font-size:16px;margin-bottom:6px">🔙 表電卓に 戻りますか？</div>'
+    + '<div style="font-size:13px;color:#555;margin-bottom:14px">聞かないように するときは、表電卓の ⚙ 設定「🔙 道具から 表電卓に戻るとき」で。</div>'
+    + '<div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" data-a="stay" style="padding:9px 14px;font-size:14px;border:1px solid #999;border-radius:8px;background:#eee;color:#222;cursor:pointer;font-family:inherit">このまま</button>'
+    + '<button type="button" data-a="go" style="padding:9px 16px;font-size:14px;border:none;border-radius:8px;background:#217346;color:#fff;font-weight:700;cursor:pointer;font-family:inherit">表電卓に 戻る</button></div></div>';
+  ov.addEventListener('click', ev => {
+    const b = ev.target.closest('button'); if(!b && ev.target !== ov) return;
+    hyoAskClose(); if(b && b.dataset.a === 'go') toHyo();
+  });
+  document.body.appendChild(ov); hyoAsk = ov;
+}
 /* 表電卓から 開いたときは、表電卓へ 戻る */
 let fromHyo = false;
 try { if(/from=hyo/.test(location.hash)) sessionStorage.setItem('sansu_from_hyo', '1'); fromHyo = sessionStorage.getItem('sansu_from_hyo') === '1'; } catch(_){}

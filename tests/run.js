@@ -40,7 +40,7 @@ async function newPage(browser) {
   // はじめての案内（v384）は初回だけ全画面で出る。ふつうの組では
   // 「もう見た人」として開き、画面をふさがないようにする
   // （案内そのものは onboard の組で、まっさらな端末から確かめている）。
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0'); });   // 上のバーを出した画面で確かめる（たたむのは tbfold の組で）
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_back_ask', '0'); });   // 上のバーを出した画面で確かめる（たたむのは tbfold の組で）。道具は「戻る」で すぐ閉じる（v553 の「表電卓に戻りますか？」は backask の組で）
   await page.reload(); await page.waitForTimeout(900);
   return { ctx, page, errs, dialogs };
 }
@@ -9114,6 +9114,164 @@ async function runRenraku552(browser) {
   await ctx.close();
 }
 
+// ── 🔙 v553：道具から「戻る」で 表電卓に戻るときは「表電卓に戻りますか？」（設定で 聞かない）・連絡帳の 色分け／えらぶ／設定のあとの「戻る」・小さな窓の「戻る」
+async function runBackAsk(browser) {
+  console.log('\n── 🔙 道具から 表電卓に戻るとき 聞く・連絡帳の「戻る」（v553） ──');
+  const T = v => [{ t: 'cell', v }];
+  const SEED = { v: 1, tipFold: true, colors: { red: '要連絡' }, items: [1, 2, 3].map(i => ({ id: 'c' + i, fam: '山田' + i, famK: 'やまだ', color: i === 1 ? 'red' : '', tels: T('090-2000-000' + i) })) };
+  const HYO = 'file://' + path.join(ROOT, 'index.html');
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: 'block' });
+  await ctx.addInitScript(s => { try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('sansu_tour', '1'); if (!localStorage.getItem('excalc_renraku')) localStorage.setItem('excalc_renraku', s); } catch (e) {} }, JSON.stringify(SEED));
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push(e.message)); page.on('dialog', d => d.accept());
+  const w = ms => page.waitForTimeout(ms);
+  const back = async () => { await page.goBack({ waitUntil: 'commit' }).catch(() => {}); await w(500); };
+  const where = () => page.url().replace(/^.*cosinji-page\//, '').replace(/[#?].*$/, '');
+  const st = () => page.evaluate(() => ['renrakuOverlay', 'rkSubOverlay', 'rkScrOverlay', 'rkAskOverlay', 'shimaiOverlay', 'techoOverlay'].filter(isDlgOpen).map(s => s.replace(/Overlay/, '')).join('+') + (isDlgOpen('rkModeGuard') ? '[色分け]' : '') + ' / ' + backGuardStack.length);
+  const askText = () => page.evaluate(() => { const d = [...document.querySelectorAll('body > div')].find(x => /99999/.test(x.style.zIndex)); return d ? d.textContent.replace(/\s+/g, ' ').trim() : '（なし）'; });
+  const askClick = t => page.evaluate(t => { const b = [...document.querySelectorAll('body > div button')].find(x => x.textContent === t); if (b) b.click(); return !!b; }, t);
+  const tapSafe = async () => { const r = await page.evaluate(() => { const g = document.querySelector('#rkList .rk-grp'); const b = g.getBoundingClientRect(); return { x: b.left + 30, y: b.top + b.height / 2 }; }); await page.mouse.click(r.x, r.y); await w(150); };
+  await page.goto(HYO); await w(1200);
+  await page.mouse.click(200, 300); await w(200);
+
+  // ── 設定
+  check('  ⚙ 設定に「🔙 道具から 表電卓に戻るとき」聞く／聞かない（はじめは 聞く）', await page.evaluate(() => [...document.querySelectorAll('#backAskSeg button')].map(b => b.textContent + (b.classList.contains('on') ? '●' : '')).join(',') + ' / ' + backAskOn()), '聞く●,聞かない（すぐ戻る） / true');
+
+  // ── 連絡帳：色分け・えらぶ・設定の画面・小さな窓
+  await page.evaluate(() => openRenraku()); await w(900); await tapSafe();
+  await page.evaluate(() => RK.paintStart()); await w(200);
+  check('  連絡帳：🎨 色分けの あいだは「戻る」用の しるし', await st(), 'renraku[色分け] / 2');
+  await back();
+  check('  　戻る：色分けだけ おわる（連絡帳は そのまま）', (await st()) + ' / ' + await page.evaluate(() => document.getElementById('appToast').textContent), 'renraku / 1 / 🎨 色分けを おわりました');
+  await page.evaluate(() => RK.selStart()); await w(200);
+  await back();
+  check('  　☑ えらぶ も 戻るで おわる', (await st()) + ' / ' + await page.evaluate(() => !!document.querySelector('#rkAdd .rk-selbtns')), 'renraku / 1 / false');
+  await page.evaluate(() => { RK.paintStart(); }); await w(200);
+  await page.evaluate(() => { RK.paintEnd(); }); await w(200);
+  check('  　「おわる」で おえると しるしも はずれる', await st(), 'renraku / 1');
+  await page.evaluate(() => { RK.menu(); RK.custom(); }); await w(300);
+  await page.evaluate(() => RK.cOrder(true)); await w(300);
+  check('  ⚙ → 🧩 自分好みにする → 🔢 色の No.', (await st()) + ' / ' + await page.evaluate(() => document.getElementById('rkScrHdr').textContent), 'renraku+rkSub+rkScr / 4 / 🔢 色の No.・並ぶ順番');
+  await back();
+  check('  　戻る：🧩 自分好みにする に戻る', (await st()) + ' / ' + await page.evaluate(() => document.getElementById('rkScrHdr').textContent), 'renraku+rkSub+rkScr / 3 / 🧩 自分好みにする');
+  await back(); await back();
+  check('  　もう2回で ⚙ も閉じて 連絡帳の一覧（表電卓へは 戻らない）', await st(), 'renraku / 1');
+  await page.evaluate(() => { RK.custom(); RK.cOrder(true); }); await w(300);
+  await page.evaluate(() => RK.cDone()); await w(300);
+  check('  　🔢 の「できあがり」で 🧩 に戻ったときも 戻る用の分は 残らない', (await st()) + ' / ' + await page.evaluate(() => document.getElementById('rkScrHdr').textContent), 'renraku+rkScr / 2 / 🧩 自分好みにする');
+  await page.evaluate(() => RK.closeScr()); await w(250);
+  await page.evaluate(() => { RK.paintStart(); window.__p = appPrompt('なまえ', ''); }); await w(300);
+  check('  文字を入れる窓（appPrompt）を出したまま 戻る', await st(), 'renraku[色分け] / 3');
+  await back();
+  check('  　戻る：窓だけ閉じる（連絡帳・色分けは そのまま）', (await st()) + ' / ' + await page.evaluate(async () => JSON.stringify(await window.__p)) + ' / ' + await page.evaluate(() => appModalOpen), 'renraku[色分け] / 2 / null / false');
+  await page.evaluate(() => { RK.paintEnd(); window.__c = appConfirm('消しますか？', '消す', 'やめる'); }); await w(300);
+  await back();
+  check('  はい／いいえの窓（appConfirm）も 戻るで「いいえ」（下は閉じない）', (await st()) + ' / ' + await page.evaluate(async () => await window.__c), 'renraku / 1 / false');
+
+  // ── 表電卓に戻るとき 聞く
+  await back();
+  check('  連絡帳の一覧で 戻る：「表電卓に戻りますか？」（連絡帳は 開いたまま）', (await st()) + ' / ' + await askText(), 'renraku / 2 / 🔙 表電卓に戻りますか？ 「📇連絡帳」を閉じて、表電卓に戻ります。 （聞かないようにするときは ⚙ 設定の「🔙 道具から 表電卓に戻るとき」で）このまま表電卓に戻る');
+  await back();
+  check('  　聞いているときに もう一度 戻る：聞くのを やめて 連絡帳のまま', (await st()) + ' / ' + await askText(), 'renraku / 1 / （なし）');
+  await back(); await askClick('このまま'); await w(300);
+  check('  　「このまま」：連絡帳のまま', (await st()) + ' / ' + await askText(), 'renraku / 1 / （なし）');
+  await back(); await askClick('表電卓に戻る'); await w(600);
+  check('  　「表電卓に戻る」：連絡帳を閉じて 表電卓へ', (await st()) + ' / ' + await page.evaluate(() => typeof data), ' / 0 / object');
+  await back();
+  check('  　そのあとの 戻る は いつもどおり（もう一度押すと閉じます）', await page.evaluate(() => document.getElementById('appToast').textContent), 'もう一度「戻る」を押すと閉じます');
+  await page.mouse.click(200, 300); await w(200);
+  // ほかの道具も
+  await page.evaluate(() => openShimai()); await w(800); await page.mouse.click(30, 500); await w(200);
+  await back();
+  check('  ほかの道具（しまい場所）も 聞く', (await st()) + ' / ' + /^🔙 表電卓に戻りますか？ 「📦しまい場所」を閉じて/.test(await askText()), 'shimai / 2 / true');
+  await askClick('表電卓に戻る'); await w(600);
+  check('  　表電卓に戻る', await st(), ' / 0');
+  // 業務手帳の えらぶ窓（tcChoose）
+  await page.evaluate(() => openTecho()); await w(900); await page.mouse.click(30, 600); await w(200);
+  await page.evaluate(() => { window.__t = tcChoose('どれにしますか', ['A', 'B']); }); await w(300);
+  await back();
+  check('  業務手帳の えらぶ窓も 戻るで「やめる」（業務手帳は そのまま）', (await st()) + ' / ' + await page.evaluate(async () => await window.__t) + ' / ' + await page.evaluate(() => !!document.querySelector('.tc-choose')), 'techo / 1 / -1 / false');
+  await page.evaluate(() => closeTecho()); await w(500);
+  // ✂ トリミングの 📏 線で水平・📝 写真メモの ✏️ 手書き も、戻るで そのモードだけ おわる
+  await page.evaluate(() => openTrim()); await w(800); await page.click('#trimOverlay .modal-header > span'); await w(200);
+  await page.evaluate(() => trLineMode(true)); await w(200);
+  check('  ✂ トリミング：📏 線で水平 の あいだは「戻る」用の しるし', await page.evaluate(() => isDlgOpen('trimOverlay') + ' / ' + isDlgOpen('trLineGuard') + ' / ' + backGuardStack.length), 'true / true / 2');
+  await back();
+  check('  　戻る：📏 だけ おわる（トリミングは そのまま）', await page.evaluate(() => isDlgOpen('trimOverlay') + ' / ' + trState().lineMode + ' / ' + document.getElementById('trLineBar').hidden + ' / ' + backGuardStack.length + ' / ' + document.getElementById('appToast').textContent), 'true / false / true / 1 / 📏 線で水平を やめました');
+  await page.evaluate(() => { trLineMode(true); trLineMode(false); }); await w(100);
+  check('  　「やめる」で おえると しるしも はずれる', await page.evaluate(() => isDlgOpen('trLineGuard') + ' / ' + backGuardStack.length), 'false / 1');
+  await page.evaluate(() => { trLineMode(true); closeTrim(); }); await w(400);
+  check('  　✕ で閉じると 📏 も おわる（戻る用の分は 残らない）', await page.evaluate(() => isDlgOpen('trimOverlay') + ' / ' + isDlgOpen('trLineGuard') + ' / ' + trState().lineMode + ' / ' + backGuardStack.length), 'false / false / false / 0');
+  await page.evaluate(() => openPhotoMemo()); await w(900); await page.click('#photoMemoOverlay .modal-header > span'); await w(200);
+  await page.evaluate(async () => { const cv = document.createElement('canvas'); cv.width = 800; cv.height = 600; const g = cv.getContext('2d'); g.fillStyle = '#4a7'; g.fillRect(0, 0, 800, 600);
+    const bl = await new Promise(r => cv.toBlob(r, 'image/png')); pmPhotoChange({ target: { files: [new File([bl], 'a.png', { type: 'image/png' })], value: '' } }); }); await w(600);
+  await page.evaluate(() => pmToolTab('pen')); await w(200);
+  check('  📝 写真メモ：✏️ 手書きの あいだは「戻る」用の しるし', await page.evaluate(() => pmPenMode + ' / ' + isDlgOpen('pmModeGuard') + ' / ' + backGuardStack.length), 'true / true / 2');
+  await back();
+  check('  　戻る：手書きだけ おわる（写真メモは そのまま）', await page.evaluate(() => isDlgOpen('photoMemoOverlay') + ' / ' + pmPenMode + ' / ' + backGuardStack.length + ' / ' + document.getElementById('appToast').textContent), 'true / false / 1 / ✏️ 手書きを おわりました');
+  await page.evaluate(() => pmArrowMode()); await w(100);
+  await page.evaluate(() => pmArrowMode()); await w(100);
+  check('  　矢印も：押して おえると しるしも はずれる', await page.evaluate(() => pmPlaceMode + ' / ' + isDlgOpen('pmModeGuard') + ' / ' + backGuardStack.length), ' / false / 1');
+  await page.evaluate(() => { pmRectToggle(); closePhotoMemo(); }); await w(400);
+  check('  　□ 囲む の とちゅうで ✕：戻る用の分は 残らない', await page.evaluate(() => isDlgOpen('photoMemoOverlay') + ' / ' + isDlgOpen('pmModeGuard') + ' / ' + backGuardStack.length), 'false / false / 0');
+  await page.evaluate(() => openPhotoMemo()); await w(900);
+  check('  　また開くと 囲むの まま・戻る用の しるしも また積む', await page.evaluate(() => pmRectMode + ' / ' + isDlgOpen('pmModeGuard') + ' / ' + backGuardStack.length), 'true / true / 2');
+  await back();
+  check('  　戻る：囲むだけ おわる', await page.evaluate(() => isDlgOpen('photoMemoOverlay') + ' / ' + pmRectMode + ' / ' + backGuardStack.length + ' / ' + document.getElementById('appToast').textContent), 'true / false / 1 / □ 囲んで選ぶのを やめました');
+  await page.evaluate(() => closePhotoMemo()); await w(500);
+  // 設定を「聞かない」に
+  await page.evaluate(() => { [...document.querySelectorAll('#backAskSeg button')].find(b => b.dataset.b === '0').click(); }); await w(150);
+  check('  設定「聞かない」：覚える', await page.evaluate(() => localStorage.getItem('excalc_back_ask') + ' / ' + [...document.querySelectorAll('#backAskSeg button.on')].map(b => b.dataset.b).join()), '0 / 0');
+  await page.evaluate(() => openRenraku()); await w(800); await tapSafe();
+  await back();
+  check('  　聞かない：戻るで すぐ 表電卓へ（前のとおり）', (await st()) + ' / ' + await askText(), ' / 0 / （なし）');
+  await page.evaluate(() => setBackAsk(true)); await w(100);
+  check('  エラーなし（表電卓）', errs.join(' | '), '');
+
+  // ── 別のアプリ（表電卓から開いたとき）：声の計算帳（backguard.js）・会計・算数
+  const enter = async dir => { await page.goto(HYO); await w(500); await page.goto('file://' + path.join(ROOT, dir, 'index.html') + '#from=hyo'); await w(900); };
+  await enter('koe');
+  await page.click('[aria-label="文例"]'); await w(200); await page.click('#p-ex .panel-head .hbtn'); await w(500);
+  await back();
+  check('  声の計算帳：何も開いていないところで 戻る →「表電卓に戻りますか？」', where() + ' / ' + await page.evaluate(() => { const d = document.getElementById('bg-ask'); return d ? d.firstElementChild.firstElementChild.textContent : '（なし）'; }), 'koe/index.html / 🔙 表電卓に戻りますか？');
+  await back();
+  check('  　もう一度 戻る：聞くのを やめて アプリのまま', where() + ' / ' + await page.evaluate(() => !!document.getElementById('bg-ask')), 'koe/index.html / false');
+  await back(); await page.click('#bg-ask [data-a="stay"]'); await w(300);
+  check('  　「このまま」：アプリのまま', where() + ' / ' + await page.evaluate(() => !!document.getElementById('bg-ask')), 'koe/index.html / false');
+  await back(); await page.click('#bg-ask [data-a="go"]'); await w(1200);
+  check('  　「表電卓に戻る」：表電卓へ', where(), 'index.html');
+  await enter('kaikei');
+  await page.tap('nav.tabs button[data-pg=sum]').catch(async () => { await page.click('nav.tabs button[data-pg=sum]'); }); await w(300);
+  await back();
+  check('  会計：集計から 戻る → 記帳（聞かない）', await page.evaluate(() => curPg + ' / ' + !!document.getElementById('kbAsk')), 'entry / false');
+  await back();
+  check('  　記帳で 戻る →「表電卓に戻りますか？」', where() + ' / ' + await page.evaluate(() => { const d = document.getElementById('kbAsk'); return d ? d.firstElementChild.firstElementChild.textContent : '（なし）'; }), 'kaikei/index.html / 🔙 表電卓に戻りますか？');
+  await back();
+  check('  　もう一度 戻る：聞くのを やめて アプリのまま', where() + ' / ' + await page.evaluate(() => !!document.getElementById('kbAsk')), 'kaikei/index.html / false');
+  await back(); await page.click('#kbAsk [data-a="go"]'); await w(1200);
+  check('  　「表電卓に戻る」：表電卓へ', where(), 'index.html');
+  await enter('sansu');
+  await page.mouse.click(200, 120); await w(200);
+  await back();
+  check('  算数：ホームで 戻る →「表電卓に 戻りますか？」', where() + ' / ' + await page.evaluate(() => { const d = document.getElementById('hyoAsk'); return d ? d.firstElementChild.firstElementChild.textContent : '（なし）'; }), 'sansu/index.html / 🔙 表電卓に 戻りますか？');
+  await back();
+  check('  　もう一度 戻る：聞くのを やめて アプリのまま', where() + ' / ' + await page.evaluate(() => !!document.getElementById('hyoAsk') + '/' + location.hash), 'sansu/index.html / false/#home');
+  await back(); await page.click('#hyoAsk [data-a="go"]'); await w(1200);
+  check('  　「表電卓に 戻る」：表電卓へ', where(), 'index.html');
+  // ── 連絡帳だけのアプリ（renraku-app/）：小さな窓・色分けも 戻るで ひとつずつ
+  await page.goto('file://' + path.join(ROOT, 'renraku-app', 'index.html')); await w(1300);
+  await page.mouse.click(200, 120); await w(200);
+  await page.evaluate(() => { RK.paintStart(); window.__p = appPrompt('なまえ', ''); }); await w(300);
+  await back();
+  check('  連絡帳だけのアプリ：文字を入れる窓を出したまま 戻る → 窓だけ閉じる', await page.evaluate(async () => JSON.stringify(await window.__p) + ' / ' + isDlgOpen('rkModeGuard') + ' / ' + isDlgOpen('renrakuOverlay')), 'null / true / true');
+  await back();
+  check('  　もう一度：色分けが おわる', await page.evaluate(() => isDlgOpen('rkModeGuard') + ' / ' + isDlgOpen('renrakuOverlay')), 'false / true');
+  await back();
+  check('  　もう一度：いつもの「もう一度「戻る」を押すと閉じます」（表電卓は ないので 聞かない）', await page.evaluate(() => document.getElementById('appToast').textContent), 'もう一度「戻る」を押すと閉じます');
+  check('  エラーなし（別のアプリ）', errs.join(' | '), '');
+  await ctx.close();
+}
+
 /* 🌗 端末のダークテーマ・節電モードでも文字が消えない（v541）。
    端末がダークになると（Pixel の節電モードなど）、色を決めていない文字が白くなり、白い地に溶けていた。
    文字・ボタンのふだんの色は表電卓の「夜の色」に合わせる。道具を開いて、文字と地の明るさの差を測る */
@@ -9279,7 +9437,7 @@ async function runBackGuard(browser) {
   check('  それぞれの service-worker が持つ', [['koe', 'backguard.js'], ['eigo', 'js/backguard.js'], ['notes', 'backguard.js'], ['kakijun', 'js/backguard.js']].map(([d, f]) => fs.readFileSync(path.join(ROOT, d, 'service-worker.js'), 'utf8').includes("'./" + f + "'")).join(','), 'true,true,true,true');
   const HYO = 'file://' + path.join(ROOT, 'index.html');
   const ctx = await browser.newContext({ viewport: { width: 390, height: 800 }, serviceWorkers: 'block' });
-  await ctx.addInitScript(() => { try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('sansu_tour', '1'); } catch (e) {} });
+  await ctx.addInitScript(() => { try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_back_ask', '0'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('sansu_tour', '1'); } catch (e) {} });
   const page = await ctx.newPage(); const errs = [];
   page.on('pageerror', e => errs.push(e.message)); page.on('dialog', d => d.accept());
   const w = ms => page.waitForTimeout(ms);
@@ -9367,7 +9525,7 @@ async function runBackGuard(browser) {
   // ── 表電卓：スマホがアプリを閉じたあと、ホーム画面のアプリとして開き直したとき
   const c2 = await browser.newContext({ viewport: { width: 390, height: 800 }, serviceWorkers: 'block' });
   await c2.addInitScript(() => {
-    try { localStorage.setItem('excalc_tour_done', '1'); } catch (e) {}
+    try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_back_ask', '0'); } catch (e) {}
     // テスト用の合図：window.name に入れた「使っていた」の印を、次に開いたページの中で置く（一度だけ）。
     // テスト用ブラウザでは、ページをまたぐと localStorage が届かないことがある（file:// で別の処理になったとき）
     if (/^seed:/.test(window.name)) { try { localStorage.setItem('excalc_resume', window.name.slice(5)); } catch (e) {} window.name = ''; }
@@ -9872,7 +10030,7 @@ async function runBackKey(browser) {
   const errs = []; page.on('pageerror', e => errs.push(e.message));
   await page.goto('about:blank');
   await page.goto(INDEX); await page.waitForTimeout(300);
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0'); });
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_back_ask', '0'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0'); });
   await page.reload(); await page.waitForTimeout(900);
   const alive = () => page.evaluate(() => typeof data).catch(() => 'DEAD');
   const back = async () => { await page.goBack({ waitUntil: 'commit' }).catch(() => {}); await page.waitForTimeout(450); };
@@ -12565,7 +12723,7 @@ async function runTecho(browser) {
     window.webkitSpeechRecognition = FakeRec; window.SpeechRecognition = FakeRec;
   });
   await page.goto(INDEX); await page.waitForTimeout(300);
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0'); });
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_back_ask', '0'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0'); });
   await page.reload(); await page.waitForTimeout(900);
   console.log('\n── 📔業務手帳（v433） ──');
   check('  道具に並ぶ', await page.evaluate(() => { const t = NP_TOOLS.find(x => x.id === 'techo'); return !!t && t.ov + '/' + t.label + '/' + KEY_FUNCS.a_techo.label + '/' + startPageOptions().some(o => o[0] === 'techo'); }), 'techoOverlay/📔業務手帳/📔業務手帳/true');
@@ -13579,6 +13737,7 @@ async function runQrShare(browser) {
     if (!only || only === 'rk550') await runRenraku550(browser);
     if (!only || only === 'rk551') await runRenraku551(browser);
     if (!only || only === 'rk552') await runRenraku552(browser);
+    if (!only || only === 'backask') await runBackAsk(browser);
     if (!only || only === 'firsthint') await runFirstHint(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);

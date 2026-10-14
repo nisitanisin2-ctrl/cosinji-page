@@ -170,7 +170,7 @@ function openTrim(){
 }
 function closeTrim(){
   if(!$('trimOverlay') || !isDlgOpen('trimOverlay')) return;
-  trCloseOut(); trCloseSub(); closeDlg('trimOverlay');
+  trCloseOut(); trCloseSub(); if(lineMode) trLineMode(false); closeDlg('trimOverlay');
 }
 function trShowEdit(on){
   $('trEmpty').hidden=on; $('trEmpty').style.display=on?'none':'';
@@ -283,6 +283,8 @@ function trLineMode(on){
   const sg=$('trStage'); if(sg) sg.classList.toggle('line-mode', lineMode);
   $('trLineBar').hidden=!lineMode; $('trAngRow').hidden=lineMode;
   trDrawLine();
+  // 📏 のあいだは 端末の「戻る」で 📏 だけ おわる（トリミングごと 閉じない。v553）
+  if(typeof modeBackGuard==='function') modeBackGuard('trLineGuard', lineMode && isDlgOpen('trimOverlay'), ()=>{ if(lineMode){ trLineMode(false); toast('📏 線で水平を やめました'); } });
 }
 function trLineAngle(){
   if(lineP.length<2) return null;

@@ -8,6 +8,9 @@
      そのあいだに窓を開き直したら打ち消し合う（back は非同期・pushState はすぐなので、順番が入れかわって
      アプリごと戻ってしまうのを防ぐ）。自分の back が終わる前に開いたら、終わってから積む
    ・Chrome は、一度も触れていないページが積んだ履歴を「戻る」で飛ばすので、はじめて触れたときに積む
+   ・（表電卓 v553）表電卓から開いたアプリで、何も開いていないところの「戻る」は「表電卓に戻りますか？」と聞く
+     （表電卓の ⚙ 設定「🔙 道具から 表電卓に戻るとき」で「聞かない」なら、前のように 一度だけ知らせる）。
+     聞いているあいだは いちばん下の分を積み直すので、もう一度「戻る」を押すと 聞くのを やめて アプリに とどまる
    ・表電卓から開いたアプリは、うしろに回るときに「使っていた」と書き残す（excalc_resume）。
      スマホがうしろのアプリを閉じたあとに表電卓から開き直すと、表電卓がこのアプリを開き直す
    使い方：BackGuard.setup({app, fromHyo, atRoot, toast}) … はじめに1回
@@ -67,10 +70,35 @@
     }
     if (st.bg) return;                      // まだいちばん下の分の上にいる（アプリの画面の行き来など）
     if (!atRoot()) { setTimeout(pushBase, 0); return; }   // アプリが自分で前の画面へ戻す。いちばん下の分は積み直す
-    // 何も開いていないところで「戻る」：いちばん下の分を使い切った。一度だけ知らせる
+    // 何も開いていないところで「戻る」：いちばん下の分を使い切った
     e.bgDone = true;
+    if (ask.el) { askClose(); pushBase(); return; }                        // 聞いているときの「戻る」は「このまま」
+    if (S.fromHyo && askOn()) { pushBase(); askOpen(); return; }          // 「表電卓に戻りますか？」と聞く（v553）
     say(S.fromHyo ? 'もう一度「戻る」を押すと表電卓に戻ります' : 'もう一度「戻る」を押すと閉じます');
   });
+
+  /* ── 「表電卓に戻りますか？」（表電卓の設定 excalc_back_ask が '0' なら 聞かない） ── */
+  const askOn = () => { try { return localStorage.getItem('excalc_back_ask') !== '0'; } catch (e) { return true; } };
+  const ask = { el: null };
+  function askClose() { if (ask.el) { ask.el.remove(); ask.el = null; } }
+  function askOpen() {
+    askClose();
+    const ov = document.createElement('div'); ov.id = 'bg-ask'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:2147483001;display:flex;align-items:flex-start;justify-content:center;padding-top:14vh;background:rgba(0,0,0,.45)';
+    ov.innerHTML = '<div style="background:#fff;color:#222;width:min(340px,calc(100vw - 32px));box-sizing:border-box;padding:18px;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.35);font-size:15px;line-height:1.6;font-family:inherit">'
+      + '<div style="font-weight:700;font-size:16px;margin-bottom:6px">🔙 表電卓に戻りますか？</div>'
+      + '<div style="font-size:13px;color:#555;margin-bottom:14px">聞かないようにするときは、表電卓の ⚙ 設定「🔙 道具から 表電卓に戻るとき」で。</div>'
+      + '<div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" data-a="stay" style="padding:9px 14px;font-size:14px;border:1px solid #999;border-radius:8px;background:#eee;color:#222;cursor:pointer;font-family:inherit">このまま</button>'
+      + '<button type="button" data-a="go" style="padding:9px 16px;font-size:14px;border:none;border-radius:8px;background:#217346;color:#fff;font-weight:700;cursor:pointer;font-family:inherit">表電卓に戻る</button></div></div>';
+    ov.addEventListener('click', ev => {
+      const b = ev.target.closest('button');
+      if (!b && ev.target !== ov) return;
+      askClose();
+      if (b && b.dataset.a === 'go') home('../' + (location.protocol === 'file:' ? 'index.html' : ''));
+    });
+    document.body.appendChild(ov); ask.el = ov;
+    const go = ov.querySelector('[data-a="go"]'); try { go.focus(); } catch (e) {}
+  }
   // 画面に触れたとき（ブラウザが「利用者の操作」と認めるとき）に、いちばん下の分と積めていなかった分を積む
   function onAct() {
     if (S.pending || S.flying || S.leaving) return;   // 閉じた分の back がこれから走る。いま積むと取られてしまう

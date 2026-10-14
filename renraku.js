@@ -27,7 +27,8 @@
    ・（v551）下のボタン（＋入れる・🎨色分け・☑えらぶ・📇スマホに戻す）は ふだん 右下の ◀ に たたむ。◀ で出し、バーの右端の ▶ で たたむ
      （▶ を押すまで 出したまま。開くたびに たたんで はじまる。rk.addbar：fold／show）。
    ・（v552）🎨 色を 24色に。背景（無地・ストライプ・水玉・グラデーション・チェック・波）と組み合わせる（item.color は 'red'・'red+dot'）。
-     名前を付けた色（色＋背景）だけが 🔢 No.・並ぶ順番・自分好みの色の一覧に出る（名前のない色は そのあとに 色の順）。 */
+     名前を付けた色（色＋背景）だけが 🔢 No.・並ぶ順番・自分好みの色の一覧に出る（名前のない色は そのあとに 色の順）。
+   ・（v553）端末の「戻る」：🎨 色分け・☑ えらぶ の あいだは その動きだけ おわる。🧩 自分好みにする から開いた 🔢 色の No. は 🧩 に戻る。 */
 (function(){
 const RK_KEY='excalc_renraku', RK_MAX=5000;
 let rk=null, rkQ='', rkGrp='', rkCol='', rkSel=null, rkPaint=null, rkT=null, rkViewId=null, rkEd=null, rkScrClean=null, rkDupCache=[], rkRec=null, rkIO=null, rkYUndo=null, rkYLast=null, rkIconRes=null, rkIconCat='ym', rkAddOpen=false;
@@ -969,6 +970,7 @@ function rkEnsureDom(){
     <div class="rk-add" id="rkAdd"></div>
   </div>
 </div>
+<div id="rkModeGuard" hidden></div>
 <div class="modal-overlay" id="rkTblOverlay">
   <div class="modal vol-modal rk-modal">
     <div class="modal-header"><span>📋 表で直す</span><span class="hdr-right" style="display:flex;gap:6px;align-items:center">
@@ -1018,13 +1020,24 @@ function openRenraku(q){
 const closeIf=(id,cb)=>{ if($(id) && isDlgOpen(id)) closeDlg(id, cb); };
 function closeRenraku(){
   if(!$('renrakuOverlay') || !isDlgOpen('renrakuOverlay')) return;
-  rkCloseAsk(); rkCloseScr(); rkCloseSub(); rkCloseEd(); rkCloseView(); rkCloseTbl(); rkStopListen();
+  rkCloseAsk(); rkCloseScr(); rkCloseSub(); rkCloseEd(); rkCloseView(); rkCloseTbl(); rkStopListen(); closeIf('rkModeGuard');
   closeDlg('renrakuOverlay', ()=>{ rkSel=null; rkPaint=null; rkSaveFlush(); });
 }
 function rkCloseView(){ closeIf('rkViewOverlay', ()=>{ rkViewId=null; }); }
 function rkCloseEd(){ closeIf('rkEdOverlay', ()=>{ rkEd=null; }); }
 function rkCloseSub(){ closeIf('rkSubOverlay'); }
-function rkCloseScr(){ const c=rkScrClean; rkScrClean=null; closeIf('rkScrOverlay', ()=>{ if(c) c(); }); }
+function rkCloseScr(){ rkScrUpClear(); const c=rkScrClean; rkScrClean=null; closeIf('rkScrOverlay', ()=>{ if(c) c(); }); }
+/* 画面の中で 次の画面へ進んだとき（🧩 自分好みにする → 🔢 色の No. など）：端末の「戻る」で 前の画面に戻る（v553） */
+let rkScrUp=[];   // 前の画面を出しなおす関数（下から）
+function rkScrDeeper(reopen){
+  const id='rkScrUp'+rkScrUp.length; let el=$(id);
+  if(!el){ el=document.createElement('div'); el.id=id; el.hidden=true; document.body.appendChild(el); }
+  rkScrUp.push(reopen);
+  openDlg(id, ()=>{ if(rkScrUp[rkScrUp.length-1]===reopen) rkScrUp.pop(); if(isDlgOpen('rkScrOverlay')) reopen(); });
+}
+/* ボタンで 前の画面に戻るとき（「できあがり」など）：いちばん上の分を はずす */
+function rkScrUpPop(){ if(!rkScrUp.length) return; rkScrUp.pop(); closeIf('rkScrUp'+rkScrUp.length); }
+function rkScrUpClear(){ while(rkScrUp.length) rkScrUpPop(); }
 function rkCloseAsk(){ closeIf('rkAskOverlay'); }
 function rkScr(hdr, html, onClose){
   $('rkScrHdr').textContent=hdr; $('rkScrBody').innerHTML=html; $('rkScrBody').scrollTop=0;
@@ -1177,6 +1190,7 @@ function rkRenderAdd(){
   const fold=!rkPaint && !rkSel && rk.items.length>0 && rk.addbar!=='show';
   if(!rk.items.length) rkAddOpen=false;
   A.classList.toggle('fold', fold); A.classList.toggle('open', fold && rkAddOpen); $('renrakuOverlay').classList.toggle('rk-folded', fold);
+  if(isDlgOpen('renrakuOverlay')) rkModeSync();
   if(rkPaint){
     const c=rkPaint.c, n=c?rk.items.filter(x=>x.color===c).length:0, [bc,bq]=ckSplit(c||rk.pc||'red'), named=cOrd();
     A.innerHTML=`<div class="rk-pinfo">${c?`${dotH(c,true)}<b>${esc(colFullD(c))}</b><span class="n">${n}人</span><span class="hint">押した人を この色に</span>`
@@ -1199,6 +1213,16 @@ function rkRenderAdd(){
   A.innerHTML=rkAddOpen
     ? btns+'<button type="button" class="rk-fold" id="rkFold" onclick="RK.addFold(false)" aria-expanded="true" aria-label="ボタンを たたむ" title="たたむ">▶</button>'
     : '<button type="button" class="rk-fold" id="rkFold" onclick="RK.addFold(true)" aria-expanded="false" aria-label="ボタンを出す（入れる・色分け・えらぶ・スマホに戻す）" title="入れる・色分け・えらぶ・スマホに戻す">◀</button>';
+}
+/* 🎨 色分け・☑ えらぶ の あいだは、端末の「戻る」で その動きだけ おわる（連絡帳ごと 表電卓へ戻らない。v553） */
+function rkModeSync(){
+  if(!$('rkModeGuard')) return;
+  const on=!!(rkPaint||rkSel);
+  if(on && !isDlgOpen('rkModeGuard')) openDlg('rkModeGuard', ()=>{
+    const p=!!rkPaint; if(!rkPaint && !rkSel) return;
+    rkPaint=null; rkSel=null; rkSave(); rkRender(); toast(p?'🎨 色分けを おわりました':'☑ えらぶのを やめました');
+  });
+  else if(!on && isDlgOpen('rkModeGuard')) closeDlg('rkModeGuard');
 }
 /* 右下の ◀：押すと ボタンを出す・バーの右端の ▶ で たたむ（v551） */
 function rkAddFold(open){
@@ -1598,6 +1622,7 @@ function rkCRows(){
 }
 const cCust=()=>cOrd().join()!==cNamed().sort((a,b)=>ckRank0(a)-ckRank0(b)).join();   // No. を はじめの順から 変えているか
 function rkCOrderOpen(back){
+  const deeper=back===true && !rkCBack && isDlgOpen('rkScrOverlay');   // 🧩 自分好みにする から開いた
   if(back!==undefined) rkCBack=!!back;
   rkScr('🔢 色の No.・並ぶ順番', `<div class="rk-note" style="margin-top:0">名前を付けた色に No. を振ります。No.1 から順に、「🎨 色」の一覧・上の色の札・色をえらぶ所に並びます（名前のない色は そのあとに 色の順）。<b>↑↓</b> で動かすか、<b>No.</b> を押して 番号をえらびます。名前を押すと 直せます。</div>
     <div class="rk-cord" id="rkCOrd">${rkCRows()}</div>
@@ -1607,6 +1632,7 @@ function rkCOrderOpen(back){
     <label class="rk-chk"><input type="checkbox" id="rkCNo" ${rk.cno?'checked':''} onchange="RK.cNoShow(this.checked)"> No. を 色の札・見出し・表にも出す（例：No.1 要連絡）</label>
     <button class="rk-btn sub" id="rkCReset" onclick="RK.cReset()" ${cCust()?'':'disabled'}>No. を はじめの順（色の順）に戻す</button>
     <button class="rk-btn" onclick="RK.cDone()">できあがり</button>`);
+  if(deeper) rkScrDeeper(()=>{ rkCBack=false; rkOpenCustom(); });   // 端末の「戻る」で 🧩 に戻る
 }
 /* No. を変えたあと：保存して 一覧・表・この画面を出しなおす（動かした色は 少し光らせる） */
 /* えらんでいる並べ方の右の 小さいボタン：⇅ 上から／下から・🔢 色の No.・グループの順番（v550） */
@@ -1760,7 +1786,7 @@ function rkSetCDir(v){
   document.querySelectorAll('#rkCDir [data-d]').forEach(b=>b.classList.toggle('on', b.dataset.d===rk.cdir));
 }
 function rkCNoShow(on){ rk.cno=!!on; rkSave(); rkRender(); if(rkT) rkTReRender(); const c=$('rkCNo'); if(c) c.checked=rk.cno; }
-function rkCDone(){ if(rkCBack){ rkCBack=false; rkOpenCustom(); } else rkCloseScr(); }
+function rkCDone(){ if(rkCBack){ rkCBack=false; rkScrUpPop(); rkOpenCustom(); } else rkCloseScr(); }
 
 /* ── 📋 表で直す（v544）：全員を表にして、マスを押すと その場で直せる ──
    名前・よみ・電話・メール・会社・住所・誕生日などは その場で入れる（Enter で下の人、Tab で右へ、Esc でやめる）。

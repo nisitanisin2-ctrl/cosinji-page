@@ -4188,7 +4188,7 @@ body.dark {
       </div>
     </details>
     <details class="set-grp" id="setGrpScreen" ontoggle="saveSetGrp(this)">
-      <summary><span class="set-grp-ic">📱</span><span class="set-grp-t"><b>画面</b><small>はじめに開くページ・吹き出し・画面の詰め方</small></span></summary>
+      <summary><span class="set-grp-ic">📱</span><span class="set-grp-t"><b>画面</b><small>はじめに開くページ・吹き出し・🔙 戻る・画面の詰め方</small></span></summary>
       <div class="set-grp-body">
     <div class="set-sec">はじめに開くページ</div>
     <div class="set-row">
@@ -4198,6 +4198,9 @@ body.dark {
     <div class="set-sec">道具の使い方の吹き出し</div>
     <div class="set-note">道具を<b>はじめて開いたとき</b>に、使い方を1つだけ吹き出しで出します（1つの道具に1回だけ）。</div>
     <div class="skin-seg" id="toolHintSeg"><button class="skin-seg-btn" data-h="1" onclick="setToolHints(true);renderToolHintSeg()">出す（もう一度はじめから）</button><button class="skin-seg-btn" data-h="0" onclick="setToolHints(false);renderToolHintSeg()">出さない</button></div>
+    <div class="set-sec">🔙 道具から 表電卓に戻るとき</div>
+    <div class="set-note">道具（連絡帳・業務手帳 など）で 端末の<b>「戻る」</b>を押して、次が表電卓のときに <b>「表電卓に戻りますか？」</b>と聞きます。押しまちがいで 道具が閉じないように。</div>
+    <div class="skin-seg" id="backAskSeg"><button class="skin-seg-btn" data-b="1" onclick="setBackAsk(true)">聞く</button><button class="skin-seg-btn" data-b="0" onclick="setBackAsk(false)">聞かない（すぐ戻る）</button></div>
     <div class="set-sec">画面の詰め方<small style="font-weight:normal;margin-left:6px">せまい画面で表示量を増やす</small></div>
     <div class="set-note">iPhone SE のように<b>背の低い画面</b>だと、電卓の答えや履歴が入りきらないことがあります。<b>詰める</b>にすると文字と余白を少しずつ縮めて、<b>1画面に見える量を増やします</b>。<b>自動</b>は画面の大きさで決めます。<span id="compactNow"></span></div>
     <div class="skin-seg" id="compactSeg"></div>
@@ -9155,6 +9158,13 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v553', t:'🔙 道具から「戻る」で 表電卓に戻るときは 聞きます', li:[
+    '道具（連絡帳・業務手帳・しまい場所 など）で 端末の<b>「戻る」</b>を押して、次が表電卓のときは <b>「🔙 表電卓に戻りますか？」</b>と聞くようにしました。<b>「このまま」</b>か、もう一度「戻る」で 道具に とどまります',
+    '声の計算帳・英単語・メモ・かきじゅん帳・会計アプリ・算数 も、表電卓から開いたときは いちばんはじめの画面で「戻る」を押すと 同じように聞きます',
+    '聞かないようにするときは、⚙ 設定の <b>「🔙 道具から 表電卓に戻るとき」</b>で <b>「聞かない（すぐ戻る）」</b>を選びます',
+    '📇連絡帳：<b>🎨 色分け・☑ えらぶ</b> の あいだは、「戻る」で その動きだけ おわります（連絡帳ごと 表電卓へ戻っていたのを直しました）。🧩 自分好みにする から開いた 🔢 色の No. は、「戻る」で 🧩 に戻ります',
+    '✂トリミングの <b>📏 線で水平</b>、📝写真メモの <b>✏️ 手書き・→ 矢印・□ 囲んで選ぶ</b> の あいだも、「戻る」で その動きだけ おわります',
+    '色の名前を入れる窓や「はい／いいえ」の窓を出したまま「戻る」を押すと、うしろの道具まで閉じていたのを直しました（窓だけ閉じます。どの道具でも）' ]},
   { v:'v552', t:'📇 連絡帳：色を 24色に・背景（ストライプ・水玉 など）と組み合わせ', li:[
     '📇連絡帳の <b>🎨 色分け</b> の色を <b>12色 → 24色</b> にしました（えんじ・サーモン・レモン・若草・オリーブ・ミント・空色・紺・ラベンダー・さくら・こげ茶・黒 を足しました）',
     '色に <b>背景</b> を組み合わせられます：<b>ストライプ・水玉・グラデーション・チェック・波</b>（と 無地）。一覧の人の地に 柄が出るので、同じ色でも 見分けられます',
@@ -13325,6 +13335,13 @@ window.addEventListener('popstate', e=>{
   if(backGuardSkip>0){ backGuardSkip--; return; }
   const st=e.state||{};
   backGuardBase=!!(st.excalcBase||st.excalcModal);   // 戻った先がいちばん下の分より上なら、まだ残っている
+  // 道具を閉じると 表電卓に戻るところ：「表電卓に戻りますか？」と聞く（設定で 聞かない も。v553）
+  const top=backGuardStack[backGuardStack.length-1];
+  if(top && top.tool && backGuardStack.length===1 && backAskOn()){
+    backGuardPush();            // 聞いているあいだは 道具にとどまる（戻った分を 積み直す）
+    backAskTool(top.tool);
+    return;
+  }
   const f=backGuardStack.pop();
   if(f){
     f();
@@ -13353,9 +13370,12 @@ function armBackGuard(fn){
   if(backGuardPending){ backGuardPending--; return; }   // 直前に閉じた分と打ち消し合う（履歴はそのまま）
   if(backGuardStack.length===1) backGuardPush();
 }
-function releaseBackGuard(){
+function releaseBackGuard(id){
   if(!backGuardStack.length) return;
-  backGuardStack.pop();
+  // 閉じた画面の分を はずす（id があれば その画面の分。下の画面を先に閉じても 上の画面の分が残るように。v553）
+  let i=backGuardStack.length-1;
+  if(id){ for(let j=backGuardStack.length-1; j>=0; j--) if(backGuardStack[j].dlgId===id){ i=j; break; } }
+  backGuardStack.splice(i,1);
   if(backGuardStack.length) return;            // まだ開いている画面があるので、履歴はそのまま
   if(backGuardDeferred){ backGuardDeferred=false; return; }   // 積めていなかったので戻す分も無い
   backGuardPending++;
@@ -13377,8 +13397,11 @@ function openDlg(id, cleanup){
   if(!el || el.classList.contains('open')) return false;
   el.classList.add('open');
   el.querySelectorAll(':scope > .tool-hint').forEach(h=>h.remove());   // 戻るで閉じたときの残り
-  try{ const t=NP_TOOLS.find(x=>x.ov===id); if(t){ noteRecentTool(t.id); addToolBack(t, el); showToolHint(t.id, el); } }catch(_){}   // さいきん使った道具（ホームに出す。v459）・はじめての吹き出し（v460）
-  armBackGuard(()=>{ el.classList.remove('open'); if(cleanup) cleanup(); });
+  let tool=null;
+  try{ tool=NP_TOOLS.find(x=>x.ov===id)||null; if(tool){ noteRecentTool(tool.id); addToolBack(tool, el); showToolHint(tool.id, el); } }catch(_){}   // さいきん使った道具（ホームに出す。v459）・はじめての吹き出し（v460）
+  const fn=()=>{ el.classList.remove('open'); if(cleanup) cleanup(); };
+  fn.dlgId=id; fn.tool=tool;   // どの画面の分か・道具か（道具なら 表電卓に戻る前に 聞く。v553）
+  armBackGuard(fn);
   return true;
 }
 function closeDlg(id, cleanup){
@@ -13386,9 +13409,40 @@ function closeDlg(id, cleanup){
   if(!el || !el.classList.contains('open')) return false;
   el.classList.remove('open');
   el.querySelectorAll(':scope > .tool-hint').forEach(h=>h.remove());
-  releaseBackGuard();
+  releaseBackGuard(id);
   if(cleanup) cleanup();
   return true;
+}
+/* 自分で作る 小さな窓（はい／いいえ・文字を入れる など）も、端末の「戻る」で その窓だけ閉じる（v553）。
+   onBack は「戻る」で閉じるときの処理。返す関数は ボタンなどで閉じたときに呼ぶ（何度呼んでもよい） */
+let modalBackSeq=0;
+function modalBack(onBack){
+  let on=true;
+  const fn=()=>{ if(!on) return; on=false; try{ onBack(); }catch(_){} };
+  fn.dlgId='__modal'+(++modalBackSeq);
+  armBackGuard(fn);
+  return ()=>{ if(!on) return; on=false; releaseBackGuard(fn.dlgId); };
+}
+/* 道具の中の「モード」（✏️手書き・📏線で水平 など）のあいだは、端末の「戻る」で そのモードだけ おわる（v553）。
+   見えない しるし（id）を 開いた画面として積む。on：いまモード中か、off：「戻る」で おわらせる処理 */
+function modeBackGuard(id, on, off){
+  let g=document.getElementById(id);
+  if(!g){ g=document.createElement('div'); g.id=id; g.hidden=true; document.body.appendChild(g); }
+  if(on && !isDlgOpen(id)) openDlg(id, ()=>{ try{ off(); }catch(_){} });
+  else if(!on && isDlgOpen(id)) closeDlg(id);
+}
+/* 🔙 道具で「戻る」を押して 表電卓に戻るとき：「表電卓に戻りますか？」と聞く（v553。設定で 聞かない も） */
+const BACK_ASK_KEY='excalc_back_ask';
+function backAskOn(){ try{ return localStorage.getItem(BACK_ASK_KEY)!=='0'; }catch(_){ return true; } }
+function setBackAsk(on){ try{ localStorage.setItem(BACK_ASK_KEY, on?'1':'0'); }catch(_){} renderBackAskSeg(); }
+function renderBackAskSeg(){ document.querySelectorAll('#backAskSeg button').forEach(b=>b.classList.toggle('on', b.dataset.b===(backAskOn()?'1':'0'))); }
+let backAsking=false;
+async function backAskTool(t){
+  if(backAsking) return; backAsking=true;
+  let ok=false;
+  try{ ok=await appConfirm('🔙 表電卓に戻りますか？\n「'+t.label+'」を閉じて、表電卓に戻ります。\n（聞かないようにするときは ⚙ 設定の「🔙 道具から 表電卓に戻るとき」で）', '表電卓に戻る', 'このまま'); }
+  finally{ backAsking=false; }
+  if(ok && t.ov && isDlgOpen(t.ov)){ if(t.close) t.close(); else closeDlg(t.ov); }
 }
 /* 道具で出た答えを、選んでいるセルに入れる（容積・カンタブ・単位水量・時間で共通）。
    入れられたら true。入れ先が無い・保護されているときは知らせて false を返す。 */
@@ -14634,13 +14688,15 @@ function appConfirm(message, yes='OK', no='キャンセル'){
     ov.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding-top:12vh;background:rgba(0,0,0,.45)';
     const box=document.createElement('div');
     box.style.cssText='background:var(--panel,#fff);color:var(--text,#222);min-width:280px;max-width:90vw;padding:18px;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.35);font-size:15px';
-    const msg=document.createElement('div'); msg.textContent=message; msg.style.cssText='margin-bottom:14px;font-weight:600;line-height:1.5';
+    const msg=document.createElement('div'); msg.textContent=message; msg.style.cssText='margin-bottom:14px;font-weight:600;line-height:1.5;white-space:pre-wrap';   // \n で 行を変える（v553）
     const row=document.createElement('div'); row.style.cssText='display:flex;justify-content:flex-end;gap:8px';
     const bn=document.createElement('button'); bn.textContent=no;
     bn.style.cssText='padding:8px 14px;font-size:14px;border:1px solid #999;border-radius:6px;background:#eee;color:#222;cursor:pointer';
     const by=document.createElement('button'); by.textContent=yes;
     by.style.cssText='padding:8px 16px;font-size:14px;border:none;border-radius:6px;background:#217346;color:#fff;cursor:pointer;font-weight:bold';
-    const close=v=>{ appModalOpen=false; try{ document.body.removeChild(ov); }catch(_){} resolve(v); };
+    let done=false;
+    const close=v=>{ if(done) return; done=true; relBack(); appModalOpen=false; try{ document.body.removeChild(ov); }catch(_){} resolve(v); };
+    const relBack=modalBack(()=>close(false));   // 端末の「戻る」は「いいえ」（下の画面は閉じない。v553）
     bn.onclick=()=>close(false); by.onclick=()=>close(true);
     ov.addEventListener('mousedown',e=>{ if(e.target===ov) close(false); });
     row.appendChild(bn); row.appendChild(by); box.appendChild(msg); box.appendChild(row);
@@ -22031,7 +22087,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v552';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v553';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -23377,7 +23433,9 @@ function appPrompt(message, defaultValue='', multiline=false){
     const ok=document.createElement('button');
     ok.textContent='OK';
     ok.style.cssText='padding:7px 16px;font-size:14px;border:none;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer';
-    const close=(val)=>{ appModalOpen=false; document.body.removeChild(ov); resolve(val); };
+    let done=false;
+    const close=(val)=>{ if(done) return; done=true; relBack(); appModalOpen=false; try{ document.body.removeChild(ov); }catch(_){} resolve(val); };
+    const relBack=modalBack(()=>close(null));   // 端末の「戻る」は「キャンセル」（下の画面は閉じない。v553）
     cancel.onclick=()=>close(null);
     ok.onclick=()=>close(input.value);
     // モーダル内のキーはここで止め、電卓側のグローバルハンドラに渡さない（数字キー等の横取り防止）
@@ -24673,7 +24731,7 @@ loadDtDec(); dtDecSync();   // 電卓の答えの桁の決まりを復元
 /* はじめに開くページ。ぜんぶ組み立て終わってから出す */
 loadStartPage();
 renderStartPage();
-renderToolHintSeg();
+renderToolHintSeg(); renderBackAskSeg();
 try{ localStorage.removeItem('excalc_toolsfab'); }catch(_){}   // v469：ページ名の並びの 🧰道具 ボタンはなくした
 ezSync();
 setTimeout(()=>{ try{ if(!resumeSideApp()) applyStartPage(); }catch(_){} }, 0);
