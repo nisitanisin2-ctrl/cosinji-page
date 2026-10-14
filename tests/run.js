@@ -7610,8 +7610,8 @@ async function runEigoSpeak(browser) {
   const ja0 = await page.evaluate(() => getComputedStyle(document.querySelector('#talk-log .tb-ja')).display + '/' + localStorage.getItem('eigo_talk_ja'));
   await page.click('#talk-ja-btn'); await w(50);
   check('  訳：かくす・出す（覚えておく）', ja0 + ' | ' + await page.evaluate(() => getComputedStyle(document.querySelector('#talk-log .tb-ja')).display + '/' + localStorage.getItem('eigo_talk_ja')), 'none/0 | block/1');
-  await page.evaluate(() => window.__srQueue.push({ alts: [['yes', 0.9]] }));
-  await page.click('#talk-mic'); await w(10);
+  await page.evaluate(() => { window.__srQueue.push({ alts: [['yes', 0.9]] }); window.__srS0 = window.__srStarted; });
+  await page.click('#talk-mic'); await page.waitForFunction(() => window.__srStarted > window.__srS0, null, { timeout: 5000 }).catch(() => {});   // 聞き取りが はじまってから（重いときに 10ms では まだ）
   await page.click('#talk-back'); await w(200);
   check('  ← 戻る：聞くのをやめて、ホームで場面えらび', await page.evaluate(() => window.__srLast._aborted + '/' + document.querySelector('.screen.active').id + '/' + document.getElementById('talk-modal').style.display), 'true/screen-home/flex');
   await page.click('#talk-cancel'); await w(50);
@@ -9295,7 +9295,7 @@ async function runRenraku554(browser) {
   const btn = r => page.click('#rkAskBody [data-r="' + r + '"]').then(() => w(350));
   const toastT = () => page.evaluate(() => document.getElementById('appToast').textContent);
   await page.goto('file://' + path.join(ROOT, 'index.html')); await w(1200);
-  await page.evaluate(s => { localStorage.setItem('excalc_renraku', s); openRenraku(); }, JSON.stringify(SEED)); await w(900);
+  await page.evaluate(s => { localStorage.setItem('excalc_renraku', s); openRenraku(); }, JSON.stringify(SEED)); await page.waitForSelector('#rkList .rk-it', { timeout: 15000 }).catch(() => {}); await w(300);
   const s0 = await st();
 
   // ── 🧩 自分好みにする：名前を付けた色を押す
@@ -9387,7 +9387,7 @@ async function runRenraku554(browser) {
   // ── 読みなおしても 同じ（保存）
   await page.evaluate(() => { closeRenraku(); }); await w(400);
   await page.reload(); await w(1200);
-  await page.evaluate(() => openRenraku()); await w(900);
+  await page.evaluate(() => openRenraku()); await page.waitForSelector('#rkList .rk-it', { timeout: 15000 }).catch(() => {}); await w(200);
   check('  保存：読みなおしても 新しい色と名前・No.', await st(), '{"pink+st":"親せき","navy":"仕事","green+ck":"年賀状"} / 1:pink+st,2:pink+st,3:navy,4:pink+st,5:green+ck / pink+st,navy,green+ck');
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
@@ -9412,7 +9412,7 @@ async function runRenraku555(browser) {
   const viewK = () => page.evaluate(() => { const k = document.querySelector('#rkViewBody .rk-who .k'); return k ? k.textContent : 'よみなし'; });
   await page.goto('file://' + path.join(ROOT, 'index.html')); await w(1200);
   await page.mouse.click(200, 300); await w(150);
-  await page.evaluate(s => { localStorage.setItem('excalc_renraku', s); openRenraku(); }, JSON.stringify(SEED)); await w(900);
+  await page.evaluate(s => { localStorage.setItem('excalc_renraku', s); openRenraku(); }, JSON.stringify(SEED)); await page.waitForSelector('#rkList .rk-it', { timeout: 15000 }).catch(() => {}); await w(300);
 
   // ── 一覧：メモは 電話番号の下に（2行まで・空の行は とばす）
   check('  はじめは ふりがなを出す・メモも一覧に出す', await page.evaluate(() => JSON.stringify([rkState().furi, rkState().lmemo])), '["",true]');
@@ -9474,7 +9474,7 @@ async function runRenraku555(browser) {
   // ── 読みなおしても 同じ
   await page.evaluate(() => { RK.closeScr(); RK.closeSub(); closeRenraku(); }); await w(400);
   await page.reload(); await w(1200);
-  await page.evaluate(() => openRenraku()); await w(900);
+  await page.evaluate(() => openRenraku()); await page.waitForSelector('#rkList .rk-it[data-id="c2"]', { timeout: 15000 }).catch(() => {}); await w(200);   // 一覧が出るまで（重いときは 900ms では まだ）
   check('  保存：ふりがな・メモを一覧に出すか は 読みなおしても同じ', await page.evaluate(() => JSON.stringify([rkState().furi, rkState().lmemo])) + ' / ' + (await row('c2')).split(' / ')[0], '["off",false] / よみなし');
   await page.evaluate(() => { RK.setFuri(''); RK.setLMemo(true); }); await w(300);
   check('  　もとに戻す', await row('c2'), 'よみ:たかひとさん / 携帯 090-4769-8774 / 📝 午後は不在\n2行目のメモ');
@@ -9509,7 +9509,7 @@ async function runRenraku556(browser) {
         if (this.onresult) this.onresult({ resultIndex: 0, results: [r] }); setTimeout(() => this.onend && this.onend(), 10); }, 10); } abort() {} };
       RK.listen(); }, [best, alts]); await w(700); };
   await page.goto('file://' + path.join(ROOT, 'index.html')); await w(1200);
-  await page.evaluate(s => { localStorage.setItem('excalc_renraku', s); openRenraku(); }, JSON.stringify(SEED)); await w(900);
+  await page.evaluate(s => { localStorage.setItem('excalc_renraku', s); openRenraku(); }, JSON.stringify(SEED)); await page.waitForSelector('#rkList .rk-it', { timeout: 15000 }).catch(() => {}); await w(300);
 
   // ── しくみ
   check('  ゆるい よみ：小さい字・にごり・のばす音・カタカナを そろえる', await page.evaluate(() => [['きょうこ', 'きよこ'], ['さいとう', 'さいと'], ['ひさじ', 'ひさし'], ['ダイゴ', 'たいこ'], ['おおた', 'おた'], ['けいこ', 'けーこ']].map(([a, b]) => rkLoose(a) === rkLoose(b)).join(',')), 'true,true,true,true,true,true');
