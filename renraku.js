@@ -23,10 +23,12 @@
      No. を 色の札・見出し・表にも出せる（rk.cno）。スマホに戻す・CSV には No. を書かない（読みなおしで色がわかるように）。
    ・（v550）並べ方のボタン（よみ順・グループ・会社・色・新しい）の順番（rk.vorder）。えらんだ並べ方の右に 小さい ⇅（上から／下から。rk.vdir・色は rk.cdir）と
      🔢（色の No.・グループの順番）。電話番号だけ大きく（rk.telSize）。色の名前を グループにも入れる（rk.cgrp）。横持ちでは 一覧を左・ほかは右に。
-     写真のかわりに 🙂 アイコン（renraku-icons.js。人・会社 70こ）。連絡帳だけのアプリ（renraku-app/）からも読む（window.RK_BASE）。 */
+     写真のかわりに 🙂 アイコン（renraku-icons.js。人・会社 70こ）。連絡帳だけのアプリ（renraku-app/）からも読む（window.RK_BASE）。
+   ・（v551）下のボタン（＋入れる・🎨色分け・☑えらぶ・📇スマホに戻す）は ふだん 右下の ◀ に たたむ。◀ で出し、バーの右端の ▶ で たたむ
+     （▶ を押すまで 出したまま。開くたびに たたんで はじまる。rk.addbar：fold／show）。 */
 (function(){
 const RK_KEY='excalc_renraku', RK_MAX=5000;
-let rk=null, rkQ='', rkGrp='', rkCol='', rkSel=null, rkPaint=null, rkT=null, rkViewId=null, rkEd=null, rkScrClean=null, rkDupCache=[], rkRec=null, rkIO=null, rkYUndo=null, rkYLast=null, rkIconRes=null, rkIconCat='ym';
+let rk=null, rkQ='', rkGrp='', rkCol='', rkSel=null, rkPaint=null, rkT=null, rkViewId=null, rkEd=null, rkScrClean=null, rkDupCache=[], rkRec=null, rkIO=null, rkYUndo=null, rkYLast=null, rkIconRes=null, rkIconCat='ym', rkAddOpen=false;
 const $=id=>document.getElementById(id);
 const RK_BASE=(typeof window.RK_BASE==='string')?window.RK_BASE:'';   // 辞書・アイコンの場所（連絡帳だけのアプリから ../ を読むとき。v550）
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -152,7 +154,7 @@ const rkHasAny=x=>!!(x.fam||x.giv||x.fn||x.org||x.nick||x.tels.length||x.mails.l
 /* 表で直す の列（名前のほか） */
 const TCOL_RE=/^(yomi|color|fav|cell|tel|mail|org|dept|title|nick|zip|adr|bday|groups|note|cf:f[0-9a-z]{1,10})$/;
 const TW_MIN=60, TW_MAX=480;   // 表の列の幅（押して動かしたもの）
-function rkDefaults(){ return { v:1, view:'kana', groups:[], fields:[], sub:'tel', big:false, noteCf:true, call:'on', ykana:'', corder:PAL_KEYS.slice(), cdir:'up', cno:false, vorder:VIEW_KEYS.slice(), vdir:{}, telSize:0, cgrp:false, lastExp:0, notDup:[], colors:{}, pc:'red', thide:['dept','title','nick','zip'], tw:{}, items:[] }; }
+function rkDefaults(){ return { v:1, view:'kana', groups:[], fields:[], sub:'tel', big:false, noteCf:true, call:'on', ykana:'', corder:PAL_KEYS.slice(), cdir:'up', cno:false, vorder:VIEW_KEYS.slice(), vdir:{}, telSize:0, cgrp:false, addbar:'fold', tipFold:false, lastExp:0, notDup:[], colors:{}, pc:'red', thide:['dept','title','nick','zip'], tw:{}, items:[] }; }
 function rkClean(o){
   const d=rkDefaults(); if(!o || typeof o!=='object') return d;
   d.view=['kana','group','org','color','new'].includes(o.view)?o.view:'kana';
@@ -172,6 +174,7 @@ function rkClean(o){
   { const vo=arr(o.vorder).filter((k,i,a)=>VIEW_KEYS.includes(k) && a.indexOf(k)===i); d.vorder=vo.concat(VIEW_KEYS.filter(k=>!vo.includes(k))); }   // 並べ方のボタンの順番（v550）
   if(o.vdir && typeof o.vdir==='object') ['kana','group','org','new'].forEach(k=>{ if(o.vdir[k]==='down') d.vdir[k]='down'; });   // 上から／下から（色は cdir）
   d.telSize=[0,1,2].includes(o.telSize)?o.telSize:0; d.cgrp=!!o.cgrp;   // 電話番号の大きさ・色の名前をグループにも（v550）
+  d.addbar=o.addbar==='show'?'show':'fold'; d.tipFold=!!o.tipFold;   // 下のボタン：右下に たたむ／いつも出す・たたんだ案内を出した（v551）
   d.notDup=arr(o.notDup).filter(p=>typeof p==='string' && /^[A-Za-z0-9_-]{1,80}\|[A-Za-z0-9_-]{1,80}$/.test(p)).slice(0,3000);
   d.items=arr(o.items).filter(x=>x && typeof x==='object').slice(0,RK_MAX).map(rkCleanItem).filter(rkHasAny);
   const seen=new Set(); d.items.forEach(x=>{ while(seen.has(x.id)) x.id=uid(); seen.add(x.id); });
@@ -828,6 +831,23 @@ body.dark .rk-dot{ box-shadow:0 0 0 1px rgba(255,255,255,.35); }
 .rk-icgrid button{ padding:0; border:2px solid transparent; border-radius:50%; background:transparent; cursor:pointer; aspect-ratio:1/1; overflow:hidden; }
 .rk-icgrid button:active,.rk-icgrid button:focus-visible{ border-color:var(--acc); }
 .rk-icgrid svg{ display:block; width:100%; height:100%; border-radius:50%; }
+/* 下のボタン（v551）：ふだんは 右下に ◀ だけ。押すと ＋入れる・🎨色分け・☑えらぶ・📇スマホに戻す が 右から出る（▶ で たたむ） */
+.rk-add.fold{ position:absolute; right:0; bottom:calc(16px + var(--safe-bottom,0px)); z-index:6; display:flex; align-items:stretch; gap:6px; padding:0; border:none; background:transparent; pointer-events:none; }
+.rk-add.fold > *{ pointer-events:auto; }
+.rk-fold{ flex:none; position:relative; width:40px; min-height:56px; margin:0; padding:0 0 0 3px; border:none; border-radius:16px 0 0 16px; background:var(--acc); color:#fff; font-size:17px; line-height:1; cursor:pointer;
+  box-shadow:-2px 2px 10px rgba(0,0,0,.28); touch-action:manipulation; font-family:inherit; -webkit-tap-highlight-color:transparent; }
+.rk-fold::before{ content:''; position:absolute; inset:-8px 0 -8px -10px; }   /* 押せる所を すこし広く */
+.rk-fold:active{ filter:brightness(1.12); }
+.rk-add.fold.open{ pointer-events:auto; left:6px; padding:7px 0 7px 6px; background:var(--modal-bg,#fff); border:1px solid rgba(120,132,156,.35); border-right:none; border-radius:16px 0 0 16px;
+  box-shadow:-2px 3px 16px rgba(0,0,0,.3); animation:rkFoldIn .16s ease-out; }
+.rk-add.fold.open .rk-addbtns{ flex:1; min-width:0; }
+/* せまい画面では「スマホに／戻す」の所で 2行に（字の途中では切らない） */
+.rk-add.fold.open .rk-tabs button{ font-size:clamp(11.5px,3.05vw,12.5px); white-space:normal; word-break:keep-all; }
+.rk-add.fold.open .rk-fold{ width:34px; min-height:0; border-radius:12px 0 0 12px; box-shadow:none; }
+@keyframes rkFoldIn{ from{ transform:translateX(28px); opacity:.25; } to{ transform:none; opacity:1; } }
+@media (prefers-reduced-motion:reduce){ .rk-add.fold.open{ animation:none; } }
+#renrakuOverlay.rk-folded .rk-list{ padding-bottom:calc(84px + var(--safe-bottom,0px)); }   /* いちばん下の人も ◀ の上まで 送れるように */
+#renrakuOverlay.rk-folded .rk-idx{ bottom:calc(84px + var(--safe-bottom,0px)); }
 /* 横持ち（v550）：一覧を左いっぱいに。見出し・さがす・並べ方・下のボタンは 右に */
 @media (orientation:landscape) and (max-height:600px){
   #renrakuOverlay .rk-modal{ display:grid; grid-template-columns:minmax(0,1fr) minmax(250px,36%); grid-template-rows:auto minmax(0,1fr) auto; }
@@ -842,6 +862,12 @@ body.dark .rk-dot{ box-shadow:0 0 0 1px rgba(255,255,255,.35); }
   #renrakuOverlay .rk-modal > .modal-header > span:not(.hdr-right){ display:none; }   /* 「📇 連絡帳」の字は 右の欄では はぶく（ボタンが入るように） */
   #renrakuOverlay .rk-modal > .modal-header{ justify-content:flex-end; gap:6px; }
   #renrakuOverlay .rk-pal{ grid-template-columns:repeat(6,1fr); }
+  /* 下のボタン（v551）：右の欄の いちばん下に ◀。出すと 2つずつ 2段 */
+  #renrakuOverlay .rk-add.fold{ position:static; grid-column:2; grid-row:3; justify-content:flex-end; padding:4px 0 calc(10px + var(--safe-bottom,0px)); border-top:none; }
+  #renrakuOverlay .rk-add.fold.open{ padding:8px 0 calc(10px + var(--safe-bottom,0px)) 10px; border:none; border-top:1px solid rgba(120,132,156,.25); border-radius:0; box-shadow:none; animation:none; }
+  #renrakuOverlay .rk-add.fold.open .rk-tabs button{ min-height:44px; }
+  #renrakuOverlay.rk-folded .rk-list{ padding-bottom:12px; }
+  #renrakuOverlay.rk-folded .rk-idx{ bottom:6px; }
 }
 /* あ よみ（v548） */
 .rk-btn:disabled{ opacity:.45; cursor:default; }
@@ -916,10 +942,14 @@ ${['View','Ed','Sub','Scr','Ask'].map(k=>`<div class="modal-overlay" id="rk${k}O
   window.addEventListener('pagehide', rkSaveFlush);
 }
 function openRenraku(q){
-  rkEnsureDom(); rkLoad(); rkGrp=''; rkCol=''; rkSel=null; rkPaint=null;
+  rkEnsureDom(); rkLoad(); rkGrp=''; rkCol=''; rkSel=null; rkPaint=null; rkAddOpen=false;
   rkQ=typeof q==='string'?q:''; $('rkFind').value=rkQ;
   openDlg('renrakuOverlay', ()=>{ rkSel=null; rkPaint=null; rkStopListen(); rkSaveFlush(); });
   rkRender(); $('rkList').scrollTop=0;
+  if(!rk.tipFold && $('rkAdd').classList.contains('fold')){   // 下のボタンを たたんだことを 1回だけ 知らせる（v551。読み込んだ知らせとは 重ねない）
+    rk.tipFold=true; rkSave();
+    setTimeout(()=>{ if(isDlgOpen('renrakuOverlay')) toast('下のボタンは 右下の ◀ に たたみました。◀ を押すと「入れる・色分け・えらぶ・スマホに戻す」が出て、右端の ▶ で また たたみます', 5500); }, 600);
+  }
 }
 const closeIf=(id,cb)=>{ if($(id) && isDlgOpen(id)) closeDlg(id, cb); };
 function closeRenraku(){
@@ -1078,6 +1108,11 @@ function rkRenderBar(){
 }
 function rkRenderAdd(){
   const A=$('rkAdd');
+  // ふだんは 右下に ◀ だけ（v551）。色分け・えらぶ の帯と、まだ人がいないときの 読み込むボタンは そのまま出す。
+  // 出したかどうか（rkAddOpen）は ◀・▶ だけで変わる（色分け・えらぶ を おえたら もとのとおり）
+  const fold=!rkPaint && !rkSel && rk.items.length>0 && rk.addbar!=='show';
+  if(!rk.items.length) rkAddOpen=false;
+  A.classList.toggle('fold', fold); A.classList.toggle('open', fold && rkAddOpen); $('renrakuOverlay').classList.toggle('rk-folded', fold);
   if(rkPaint){
     const c=rkPaint.c, n=c?rk.items.filter(x=>x.color===c).length:0;
     A.innerHTML=`<div class="rk-pinfo">${c?`<i class="rk-dot big" style="--rkc:${colHex(c)}"></i><b>${esc(colFullD(c))}</b><span class="n">${n}人</span><span class="hint">押した人を この色に</span>`
@@ -1092,8 +1127,21 @@ function rkRenderAdd(){
       <div class="rk-selbtns rk-tabs"><button onclick="RK.selGroup()"><span>🏷</span>グループ</button><button onclick="RK.selColor()"><span>🎨</span>色</button><button onclick="RK.openExport('sel')"><span>📇</span>書き出す</button><button class="del" onclick="RK.selDel()"><span>🗑</span>消す</button><button class="sub" onclick="RK.selEnd()"><span>✕</span>やめる</button></div>`;
     return;
   }
-  A.innerHTML=rk.items.length ? `<div class="rk-addbtns rk-tabs"><button onclick="RK.edit(null)"><span>＋</span>入れる</button><button class="sub" onclick="RK.paintStart()"><span>🎨</span>色分け</button><button class="sub" onclick="RK.selStart()"><span>☑</span>えらぶ</button><button class="sub" onclick="RK.openExport()"><span>📇</span>スマホに戻す</button></div>`
-    : `<div class="rk-addbtns"><button onclick="RK.importClick()">⬆ スマホの連絡先を読み込む</button><button class="sub" onclick="RK.edit(null)">＋ 手で入れる</button></div>`;
+  if(!rk.items.length){ A.innerHTML=`<div class="rk-addbtns"><button onclick="RK.importClick()">⬆ スマホの連絡先を読み込む</button><button class="sub" onclick="RK.edit(null)">＋ 手で入れる</button></div>`; return; }
+  const btns=`<div class="rk-addbtns rk-tabs"><button onclick="RK.edit(null)"><span>＋</span>入れる</button><button class="sub" onclick="RK.paintStart()"><span>🎨</span>色分け</button><button class="sub" onclick="RK.selStart()"><span>☑</span>えらぶ</button><button class="sub" onclick="RK.openExport()"><span>📇</span>スマホに<wbr>戻す</button></div>`;
+  if(!fold){ A.innerHTML=btns; return; }
+  A.innerHTML=rkAddOpen
+    ? btns+'<button type="button" class="rk-fold" id="rkFold" onclick="RK.addFold(false)" aria-expanded="true" aria-label="ボタンを たたむ" title="たたむ">▶</button>'
+    : '<button type="button" class="rk-fold" id="rkFold" onclick="RK.addFold(true)" aria-expanded="false" aria-label="ボタンを出す（入れる・色分け・えらぶ・スマホに戻す）" title="入れる・色分け・えらぶ・スマホに戻す">◀</button>';
+}
+/* 右下の ◀：押すと ボタンを出す・バーの右端の ▶ で たたむ（v551） */
+function rkAddFold(open){
+  rkAddOpen=!!open; rkRenderAdd();
+  if(rkAddOpen){ const t=document.getElementById('appToast'); if(t) t.classList.remove('show'); }   // 出したボタンに お知らせが かぶらないように
+}
+function rkSetAddBar(v){
+  rk.addbar=v==='show'?'show':'fold'; rkAddOpen=false; rkSave(); rkRender();
+  document.querySelectorAll('#rkBarSet [data-ab]').forEach(b=>b.classList.toggle('on', b.dataset.ab===rk.addbar));
 }
 const rkCanPick=()=>!!(navigator.contacts && typeof navigator.contacts.select==='function');
 function rkEmptyHtml(){
@@ -2488,6 +2536,8 @@ function rkOpenCustom(){
     <div class="rk-tagrow" id="rkBigSet"><button type="button" class="${rk.big?'':'on'}" onclick="RK.setBig(false)">ふつう</button><button type="button" class="${rk.big?'on':''}" onclick="RK.setBig(true)">大きく</button></div>
     <div class="rk-note" style="margin-bottom:0">電話番号だけ（一覧の名前の下・見る画面）</div>
     <div class="rk-tagrow" id="rkTelSet">${[[0,'ふつう'],[1,'大きく'],[2,'もっと大きく']].map(([v,l])=>`<button type="button" data-ts="${v}" class="${rk.telSize===v?'on':''}" onclick="RK.setTelSize(${v})">${l}</button>`).join('')}</div>
+    <div class="rk-sec">⬇ 下のボタン（入れる・色分け・えらぶ・スマホに戻す）</div>
+    <div class="rk-tagrow" id="rkBarSet">${[['fold','◀ 右下に たたむ（押すと出る）'],['show','いつも出す']].map(([v,l])=>`<button type="button" data-ab="${v}" class="${rk.addbar===v?'on':''}" onclick="RK.setAddBar('${v}')">${l}</button>`).join('')}</div>
     <div class="rk-sec">📇 スマホに戻すとき</div>
     <label class="rk-chk"><input type="checkbox" ${rk.noteCf?'checked':''} onchange="RK.setNoteCf(this.checked)"> 自分の項目・色分けをメモ欄にも書く（「［間柄］叔父」「［色分け］赤」の形。スマホを通っても消えない）</label>
     <button class="rk-btn" onclick="RK.closeScr()">できあがり</button>`, ()=>{ rkRender(); if(rkEd && $('rkEdBody') && isDlgOpen('rkEdOverlay')){ rkEdRe(); } });
@@ -2574,9 +2624,9 @@ window.RK={ menu:rkOpenMenu, setQ:v=>{ rkQ=String(v||''); rkRender(); }, setView
   setSub:rkSetSub, setBig:rkSetBig, setNoteCf:rkSetNoteCf, setCall:rkSetCall, telAsk:(ev,a)=>{ rkTelAsk(ev,a); }, listen:rkListen,
   yomi:rkYOpen, yAlign:rkYAlign, yFill:()=>{ rkYFill(); }, yFillT:()=>{ if(!rkT) return; rkTCommit(); rkYFill(rkT.rows); }, yStyle:rkYSetStyle, yUndo:rkYUndoDo, yTbl:rkYTbl, edYomi:()=>{ rkEdYomi(); },
   cOrder:b=>{ rkCOrderOpen(!!b); }, cMove:rkCMove, cNoPick:k=>{ rkCNoPick(k); }, cReset:rkCReset, cDir:rkSetCDir, cNoShow:rkCNoShow, cDone:rkCDone,
-  vDir:rkSetVDir, vMove:rkVMove, gOrder:rkGOrderOpen, gMv:rkGMv, gNoPick:i=>{ rkGNoPick(i); }, gDir:rkSetGDir, setTelSize:rkSetTelSize, setCGrp:rkSetCGrp,
+  vDir:rkSetVDir, vMove:rkVMove, gOrder:rkGOrderOpen, gMv:rkGMv, gNoPick:i=>{ rkGNoPick(i); }, gDir:rkSetGDir, setTelSize:rkSetTelSize, setCGrp:rkSetCGrp, addFold:rkAddFold, setAddBar:rkSetAddBar,
   icCat:k=>{ rkIconCat=k; rkIconRender(false); }, icPick:rkIconChoose };
 Object.assign(window, { openRenraku, closeRenraku, rkMergeStored, rkPicsAll,
-  rkState:()=>rk, rkParseVcf, rkColorFromTest:s=>rkColorFrom(s), rkSaveFlushTest:()=>rkSaveFlush(), rkVcard:(x,o)=>rkVcard(x,o), rkFromCsv, rkVoiceQ, rkCleanItem, rkImportList, rkDupGroupsTest:()=>rkDupGroups(), rkSearchTest:q=>rkSearch(q, rk.items).map(rkName), rkNameOf:rkName,
+  rkState:()=>rk, rkCleanTest:o=>rkClean(o), rkParseVcf, rkColorFromTest:s=>rkColorFrom(s), rkSaveFlushTest:()=>rkSaveFlush(), rkVcard:(x,o)=>rkVcard(x,o), rkFromCsv, rkVoiceQ, rkCleanItem, rkImportList, rkDupGroupsTest:()=>rkDupGroups(), rkSearchTest:q=>rkSearch(q, rk.items).map(rkName), rkNameOf:rkName,
   rkYKindTest:x=>rkYKind(x), rkToHira:toHiraY, rkToKata:toKataY, rkYLoadTest:()=>rkYLoad(), rkILoadTest:()=>rkILoad(), rkIconPhotoTest:id=>rkIconPhoto(id) });
 })();
