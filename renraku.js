@@ -24,7 +24,8 @@
    ・（v550）並べ方のボタン（よみ順・グループ・会社・色・新しい）の順番（rk.vorder）。えらんだ並べ方の右に 小さい ⇅（上から／下から。rk.vdir・色は rk.cdir）と
      🔢（色の No.・グループの順番）。電話番号だけ大きく（rk.telSize）。色の名前を グループにも入れる（rk.cgrp）。横持ちでは 一覧を左・ほかは右に。
      写真のかわりに 🙂 アイコン（renraku-icons.js。人・会社 70こ）。連絡帳だけのアプリ（renraku-app/）からも読む（window.RK_BASE）。
-   ・（v551）下のボタン（＋入れる・🎨色分け・☑えらぶ・📇スマホに戻す）は ふだん 右下の ◀ に たたむ（押すと出る。rk.addbar：fold／show）。 */
+   ・（v551）下のボタン（＋入れる・🎨色分け・☑えらぶ・📇スマホに戻す）は ふだん 右下の ◀ に たたむ。◀ で出し、バーの右端の ▶ で たたむ
+     （▶ を押すまで 出したまま。開くたびに たたんで はじまる。rk.addbar：fold／show）。 */
 (function(){
 const RK_KEY='excalc_renraku', RK_MAX=5000;
 let rk=null, rkQ='', rkGrp='', rkCol='', rkSel=null, rkPaint=null, rkT=null, rkViewId=null, rkEd=null, rkScrClean=null, rkDupCache=[], rkRec=null, rkIO=null, rkYUndo=null, rkYLast=null, rkIconRes=null, rkIconCat='ym', rkAddOpen=false;
@@ -939,8 +940,6 @@ ${['View','Ed','Sub','Scr','Ask'].map(k=>`<div class="modal-overlay" id="rk${k}O
   window.addEventListener('keydown', rkTKey, true);
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') rkSaveFlush(); });
   window.addEventListener('pagehide', rkSaveFlush);
-  // 下のボタンを出しているときに ほかの所を押すと たたむ（v551）
-  $('renrakuOverlay').addEventListener('pointerdown', e=>{ if(rkAddOpen && !(e.target.closest && e.target.closest('#rkAdd'))) rkAddFold(false); }, true);
 }
 function openRenraku(q){
   rkEnsureDom(); rkLoad(); rkGrp=''; rkCol=''; rkSel=null; rkPaint=null; rkAddOpen=false;
@@ -949,7 +948,7 @@ function openRenraku(q){
   rkRender(); $('rkList').scrollTop=0;
   if(!rk.tipFold && $('rkAdd').classList.contains('fold')){   // 下のボタンを たたんだことを 1回だけ 知らせる（v551。読み込んだ知らせとは 重ねない）
     rk.tipFold=true; rkSave();
-    setTimeout(()=>{ if(isDlgOpen('renrakuOverlay')) toast('下のボタンは 右下の ◀ に たたみました。押すと「入れる・色分け・えらぶ・スマホに戻す」が出ます', 5000); }, 600);
+    setTimeout(()=>{ if(isDlgOpen('renrakuOverlay')) toast('下のボタンは 右下の ◀ に たたみました。◀ を押すと「入れる・色分け・えらぶ・スマホに戻す」が出て、右端の ▶ で また たたみます', 5500); }, 600);
   }
 }
 const closeIf=(id,cb)=>{ if($(id) && isDlgOpen(id)) closeDlg(id, cb); };
@@ -1109,9 +1108,10 @@ function rkRenderBar(){
 }
 function rkRenderAdd(){
   const A=$('rkAdd');
-  // ふだんは 右下に ◀ だけ（v551）。色分け・えらぶ の帯と、まだ人がいないときの 読み込むボタンは そのまま出す
+  // ふだんは 右下に ◀ だけ（v551）。色分け・えらぶ の帯と、まだ人がいないときの 読み込むボタンは そのまま出す。
+  // 出したかどうか（rkAddOpen）は ◀・▶ だけで変わる（色分け・えらぶ を おえたら もとのとおり）
   const fold=!rkPaint && !rkSel && rk.items.length>0 && rk.addbar!=='show';
-  if(!fold) rkAddOpen=false;
+  if(!rk.items.length) rkAddOpen=false;
   A.classList.toggle('fold', fold); A.classList.toggle('open', fold && rkAddOpen); $('renrakuOverlay').classList.toggle('rk-folded', fold);
   if(rkPaint){
     const c=rkPaint.c, n=c?rk.items.filter(x=>x.color===c).length:0;
@@ -1128,24 +1128,16 @@ function rkRenderAdd(){
     return;
   }
   if(!rk.items.length){ A.innerHTML=`<div class="rk-addbtns"><button onclick="RK.importClick()">⬆ スマホの連絡先を読み込む</button><button class="sub" onclick="RK.edit(null)">＋ 手で入れる</button></div>`; return; }
-  const btns=`<div class="rk-addbtns rk-tabs"><button onclick="RK.addGo('add')"><span>＋</span>入れる</button><button class="sub" onclick="RK.addGo('paint')"><span>🎨</span>色分け</button><button class="sub" onclick="RK.addGo('sel')"><span>☑</span>えらぶ</button><button class="sub" onclick="RK.addGo('exp')"><span>📇</span>スマホに<wbr>戻す</button></div>`;
+  const btns=`<div class="rk-addbtns rk-tabs"><button onclick="RK.edit(null)"><span>＋</span>入れる</button><button class="sub" onclick="RK.paintStart()"><span>🎨</span>色分け</button><button class="sub" onclick="RK.selStart()"><span>☑</span>えらぶ</button><button class="sub" onclick="RK.openExport()"><span>📇</span>スマホに<wbr>戻す</button></div>`;
   if(!fold){ A.innerHTML=btns; return; }
   A.innerHTML=rkAddOpen
     ? btns+'<button type="button" class="rk-fold" id="rkFold" onclick="RK.addFold(false)" aria-expanded="true" aria-label="ボタンを たたむ" title="たたむ">▶</button>'
     : '<button type="button" class="rk-fold" id="rkFold" onclick="RK.addFold(true)" aria-expanded="false" aria-label="ボタンを出す（入れる・色分け・えらぶ・スマホに戻す）" title="入れる・色分け・えらぶ・スマホに戻す">◀</button>';
 }
-/* 右下の ◀：押すと ボタンを出す・▶ で たたむ（v551） */
+/* 右下の ◀：押すと ボタンを出す・バーの右端の ▶ で たたむ（v551） */
 function rkAddFold(open){
   rkAddOpen=!!open; rkRenderAdd();
   if(rkAddOpen){ const t=document.getElementById('appToast'); if(t) t.classList.remove('show'); }   // 出したボタンに お知らせが かぶらないように
-}
-/* 出したボタンを押したら たたんでから その働きへ */
-function rkAddGo(k){
-  rkAddOpen=false; rkRenderAdd();
-  if(k==='add') rkEdit(null);
-  else if(k==='paint') rkPaintStart();
-  else if(k==='sel'){ rkPaint=null; rkSelStart(); }
-  else if(k==='exp') rkOpenExport();
 }
 function rkSetAddBar(v){
   rk.addbar=v==='show'?'show':'fold'; rkAddOpen=false; rkSave(); rkRender();
@@ -2632,7 +2624,7 @@ window.RK={ menu:rkOpenMenu, setQ:v=>{ rkQ=String(v||''); rkRender(); }, setView
   setSub:rkSetSub, setBig:rkSetBig, setNoteCf:rkSetNoteCf, setCall:rkSetCall, telAsk:(ev,a)=>{ rkTelAsk(ev,a); }, listen:rkListen,
   yomi:rkYOpen, yAlign:rkYAlign, yFill:()=>{ rkYFill(); }, yFillT:()=>{ if(!rkT) return; rkTCommit(); rkYFill(rkT.rows); }, yStyle:rkYSetStyle, yUndo:rkYUndoDo, yTbl:rkYTbl, edYomi:()=>{ rkEdYomi(); },
   cOrder:b=>{ rkCOrderOpen(!!b); }, cMove:rkCMove, cNoPick:k=>{ rkCNoPick(k); }, cReset:rkCReset, cDir:rkSetCDir, cNoShow:rkCNoShow, cDone:rkCDone,
-  vDir:rkSetVDir, vMove:rkVMove, gOrder:rkGOrderOpen, gMv:rkGMv, gNoPick:i=>{ rkGNoPick(i); }, gDir:rkSetGDir, setTelSize:rkSetTelSize, setCGrp:rkSetCGrp, addFold:rkAddFold, addGo:rkAddGo, setAddBar:rkSetAddBar,
+  vDir:rkSetVDir, vMove:rkVMove, gOrder:rkGOrderOpen, gMv:rkGMv, gNoPick:i=>{ rkGNoPick(i); }, gDir:rkSetGDir, setTelSize:rkSetTelSize, setCGrp:rkSetCGrp, addFold:rkAddFold, setAddBar:rkSetAddBar,
   icCat:k=>{ rkIconCat=k; rkIconRender(false); }, icPick:rkIconChoose };
 Object.assign(window, { openRenraku, closeRenraku, rkMergeStored, rkPicsAll,
   rkState:()=>rk, rkCleanTest:o=>rkClean(o), rkParseVcf, rkColorFromTest:s=>rkColorFrom(s), rkSaveFlushTest:()=>rkSaveFlush(), rkVcard:(x,o)=>rkVcard(x,o), rkFromCsv, rkVoiceQ, rkCleanItem, rkImportList, rkDupGroupsTest:()=>rkDupGroups(), rkSearchTest:q=>rkSearch(q, rk.items).map(rkName), rkNameOf:rkName,

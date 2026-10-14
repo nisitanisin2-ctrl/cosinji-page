@@ -8892,7 +8892,7 @@ async function runRenraku551(browser) {
     L.scrollTop = L.scrollHeight; const its = L.querySelectorAll('.rk-it'), last = its[its.length - 1].getBoundingClientRect(), ix = document.getElementById('rkIdx').getBoundingClientRect();
     const r = [Math.round(L.getBoundingClientRect().bottom) >= 913, last.bottom <= f.top + 1, ix.bottom <= f.top + 1].join('/'); L.scrollTop = 0; return r; }), 'true/true/true');
   await w(500);
-  check('  はじめて たたんだときだけ 知らせる（下に出る お知らせ）', await page.evaluate(() => { const t = document.getElementById('appToast'); return [!!t && t.classList.contains('show'), !!t && /右下の ◀/.test(t.textContent), rkState().tipFold, JSON.parse(localStorage.getItem('excalc_renraku')).tipFold].join('/'); }), 'true/true/true/true');
+  check('  はじめて たたんだときだけ 知らせる（下に出る お知らせ）', await page.evaluate(() => { const t = document.getElementById('appToast'); return [!!t && t.classList.contains('show'), !!t && /右下の ◀/.test(t.textContent) && /右端の ▶ で また たたみます/.test(t.textContent), rkState().tipFold, JSON.parse(localStorage.getItem('excalc_renraku')).tipFold].join('/'); }), 'true/true/true/true');
   await page.evaluate(() => { document.getElementById('appToast').classList.remove('show'); closeRenraku(); openRenraku(); }); await w(1000);
   check('  　2回目からは 知らせない', await page.evaluate(() => document.getElementById('appToast').classList.contains('show')), 'false');
 
@@ -8902,31 +8902,30 @@ async function runRenraku551(browser) {
     return [document.getElementById('rkFold').getAttribute('aria-expanded'), bs.every(b => { const r = b.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth + 0.5; }), bs.every(b => b.scrollWidth <= b.clientWidth + 1), Math.round(document.getElementById('rkAdd').getBoundingClientRect().left)].join(' / '); }),
     'たたむ・出す / ＋入れる 🎨色分け ☑えらぶ 📇スマホに戻す ▶ / true / true / true / 6');
   await page.click('#rkFold'); await w(300);
-  check('  ▶ で たたむ', (await st()) + ' / ' + await btns(), 'たたむ / ◀');
-  // ── ほかの所を押すと たたむ（出したボタンの中の すき間では たたまない）
+  check('  バーの右端の ▶ で たたむ', (await st()) + ' / ' + await btns(), 'たたむ / ◀');
+  // ── ▶ を押すまで 出したまま（すき間・一覧を押しても たたまない）
   await page.click('#rkFold'); await w(300);
   { const r = await page.evaluate(() => { const b = document.getElementById('rkAdd').getBoundingClientRect(); return { x: b.left + 3, y: b.top + b.height / 2 }; }); await page.mouse.click(r.x, r.y); await w(200); }
-  check('  　出したボタンの すき間を押しても そのまま', await st(), 'たたむ・出す');
+  check('  ▶ を押すまで 出したまま：出したボタンの すき間を押しても', await st(), 'たたむ・出す');
   { const r = await page.evaluate(() => { const g = document.querySelector('#rkList .rk-grp').getBoundingClientRect(); return { x: g.left + 40, y: g.top + g.height / 2 }; }); await page.mouse.click(r.x, r.y); await w(250); }
-  check('  　一覧（見出し）を押すと たたむ', (await st()) + ' / ' + await btns(), 'たたむ / ◀');
+  await page.evaluate(() => { const L = document.getElementById('rkList'); L.scrollTop = 300; }); await w(200);
+  check('  　一覧を押したり 動かしたりしても', await st(), 'たたむ・出す');
 
-  // ── 出したボタンを押す：たたんでから その働き
-  await page.click('#rkFold'); await w(250);
+  // ── 出したボタンを押す：その働きへ（もどったら 出したまま）
   await page.click('#rkAdd .rk-addbtns button:nth-child(1)'); await w(400);
-  check('  ＋入れる：直す画面が開いて ボタンは たたむ', await page.evaluate(() => isDlgOpen('rkEdOverlay') + '/' + document.getElementById('rkEdHdr').textContent) + ' / ' + await st(), 'true/📇 新しく入れる / たたむ');
+  check('  ＋入れる：直す画面が開く（ボタンは 出したまま）', await page.evaluate(() => isDlgOpen('rkEdOverlay') + '/' + document.getElementById('rkEdHdr').textContent) + ' / ' + await st(), 'true/📇 新しく入れる / たたむ・出す');
   await page.evaluate(() => RK.closeEd()); await w(250);
-  await page.click('#rkFold'); await w(250);
   await page.click('#rkAdd .rk-addbtns button:nth-child(2)'); await w(300);
   check('  🎨色分け：色の帯は いつもどおり下に（一覧は その上まで）', (await st()) + ' / ' + await page.evaluate(() => [!!document.getElementById('rkPal'), getComputedStyle(document.getElementById('rkAdd')).position, document.getElementById('rkList').getBoundingClientRect().bottom <= document.getElementById('rkAdd').getBoundingClientRect().top + 1, document.getElementById('renrakuOverlay').classList.contains('rk-folded')].join('/')), 'ふつう / true/static/true/false');
   await page.evaluate(() => RK.paintEnd()); await w(250);
-  check('  　おわる → また ◀ に たたむ', (await st()) + ' / ' + await btns(), 'たたむ / ◀');
-  await page.click('#rkFold'); await w(250);
+  check('  　おわる → もとのとおり 出したまま', (await st()) + ' / ' + await btns(), 'たたむ・出す / ＋入れる 🎨色分け ☑えらぶ 📇スマホに戻す ▶');
   await page.click('#rkAdd .rk-addbtns button:nth-child(3)'); await w(300);
-  check('  ☑えらぶ：えらぶ帯は いつもどおり → やめると ◀', (await st()) + ' / ' + await page.evaluate(() => document.querySelectorAll('#rkAdd .rk-selbtns button').length) + ' / ' + await page.evaluate(() => { RK.selEnd(); return document.getElementById('rkAdd').textContent.trim(); }), 'ふつう / 5 / ◀');
-  await page.click('#rkFold'); await w(250);
+  check('  ☑えらぶ：えらぶ帯は いつもどおり → やめると 出したまま', (await st()) + ' / ' + await page.evaluate(() => document.querySelectorAll('#rkAdd .rk-selbtns button').length) + ' / ' + await page.evaluate(() => { RK.selEnd(); return [...document.querySelectorAll('#rkAdd button')].map(b => b.textContent.trim()).join(' '); }), 'ふつう / 5 / ＋入れる 🎨色分け ☑えらぶ 📇スマホに戻す ▶');
   await page.click('#rkAdd .rk-addbtns button:nth-child(4)'); await w(400);
-  check('  📇スマホに戻す：書き出す画面が開いて ボタンは たたむ', await page.evaluate(() => isDlgOpen('rkScrOverlay') + '/' + document.getElementById('rkScrHdr').textContent) + ' / ' + await st(), 'true/📇 スマホに戻す（vCard .vcf） / たたむ');
+  check('  📇スマホに戻す：書き出す画面が開く（ボタンは 出したまま）', await page.evaluate(() => isDlgOpen('rkScrOverlay') + '/' + document.getElementById('rkScrHdr').textContent) + ' / ' + await st(), 'true/📇 スマホに戻す（vCard .vcf） / たたむ・出す');
   await page.evaluate(() => RK.closeScr()); await w(250);
+  await page.evaluate(() => { closeRenraku(); openRenraku(); }); await w(700);
+  check('  連絡帳を 閉じて また開くと たたんで はじまる', (await st()) + ' / ' + await btns(), 'たたむ / ◀');
 
   // ── せまい画面（360px）：字の途中で切らない
   await page.setViewportSize({ width: 360, height: 760 }); await w(300);
