@@ -776,9 +776,8 @@ function hDims(s){
   }
   return pOut(area,au,{pre:'面積 ', sayPre:'面積は ', f:fmt(D.v[0])+' × '+fmt(D.v[1])});
 }
-/* 「1時間03」「1時間3分」だけ（v24。声の計算帳）：分と時間に直す。「1時間031.03」のように 数が続いたら 候補を出す */
+/* 「1時間03」「1時間3分」だけ（v24。声の計算帳・表電卓の電卓）：分と時間に直す。「1時間031.03」のように 数が続いたら 候補を出す */
 function hHourMin(s){
-  if(OPT.app!=='koe') return null;
   let m=s.match(/^(\d+)時間(\d{2})(\d+(?:\.\d+)?)?$/);
   if(m && +m[2]<60){
     const h=+m[1], mi=+m[2], tot=h*60+mi, base=h+'時間'+mi+'分';
