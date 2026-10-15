@@ -453,7 +453,7 @@ body.big .msg .idea-tip{font-size:14px}
    ・足し上げ／予算／練習のときは、言葉の受け取り方が変わる（state.mode）
    ・入れたものは この端末の中だけ（localStorage の koe_*）に残る
    ════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v23';
+const APP_VERSION='v24';
 const LS_STATE='koe_state', LS_VARS='koe_vars', LS_SET='koe_settings', LS_BOOK='koe_book';
 
 /* ── 設定 ── */
@@ -481,6 +481,7 @@ function fmt(v, dp){
 function fmtU(v,u){
   if(v==null || !isFinite(v)) return '—';
   if(u==='円') return fmt(v, Math.abs(v-Math.round(v))<1e-9?0:2)+'円';
+  if(u==='年' && Number.isInteger(v) && v>=1000 && v<10000) return v+'年';   // 西暦の年は「1,965年」にしない（v24）
   return fmt(v)+(u||'');
 }
 /* 読み上げ用。お金は1円に丸めて「約」を付ける。だいたいのときは上2けた */
@@ -539,6 +540,7 @@ const EXPR_RULES=[
   R('の?(?:ルート|平方根)', (m,o)=>o.mod('sqrt',0,'の√')),
   R('(?:を)?'+NUM+'円?(?:単位|の位)(?:で|に)?(四捨五入|切り上げ|切り捨て)(?:して|する|すると|で)?', (m,o)=>o.mod('round',{m:m[2],u:+m[1]}, m[1]+'単位で'+m[2])),
   R('(?:を)?(?:小数点以下(?:を)?)?(四捨五入|切り上げ|切り捨て)(?:して|する|すると|で)?', (m,o)=>o.mod('round',{m:m[1],u:1}, m[1])),
+  R('(?:を|は)?(?:整数|せいすう)(?:に|で)(?:して|する|すると|したら|直して|直すと|直す)?', (m,o)=>o.mod('round',{m:'四捨五入',u:1}, '整数に（四捨五入）')),   // 「それを整数にして」（v24）
   R('(?:を|に)?(?:足して|足す|足すと|足したら|たして|たす|プラス|加えて|\\+)', (m,o)=>o.op('+')),
   R('と(?=\\d|ルート|√)', (m,o)=>o.op('+')),
   R('(?:を)?(?:差し引いて|差し引くと|差し引く|引いて|ひいて|引く|ひく|引くと|引いたら|マイナス|−|-)', (m,o)=>o.op('-')),
@@ -966,6 +968,35 @@ const RE_YES=/^(はい|ハイ|うん|ええ|オッケー|OK|ok|おっけー|い�
 const RE_NO=/^(いいえ|いや|いえ|ちがう|違う|ちがいます|違います|だめ|ダメ|やめて|やめる|キャンセル|なし|取り消し)[。！!]?$/;
 function needConfirm(amt){ return !CONFIRMED && !DRY && +settings.confirmAmt>0 && Math.abs(+amt)>+settings.confirmAmt; }   // 言われる前の計算の数（この言葉で計算が増えたかを見る）
 let LITERAL=false;   // 「このまま計算」：読み飛ばした言葉があっても、そのまま式として計算する
+/* 「そんな感じ」「それで」「そう」（v24）：すぐ前の「もしかして」の言い方で 計算する。なければ 続きを うながす */
+const RE_AGREE=/^(そんな感じ|そんなかんじ|そんな感じで|それで|それでいい|それでお願い|それにして|それそれ|それだ|それです|そう|そうそう|そうです|そのとおり|その通り|うん|はい|オッケー|OK|ok|おっけー)(です|で|お願いします|おねがいします)?$/;
+function hAgree(a0, raw, opt){
+  if(!RE_AGREE.test(a0) || state.mode!=='normal') return null;
+  const m=state.log[state.log.length-1];
+  if(m && m.sug){
+    const sug=m.sug, r=koeRun(sug, opt), L=state.log[state.log.length-1];
+    if(r && L && !r.noLog && L.q===sug){ L.q=String(raw).trim()+' →「'+sug+'」'; saveState(); }
+    return r||null;
+  }
+  return finish(raw, {say:'はい。計算したいことを 言ってください', a:'計算したいことを どうぞ（例：「1280円を3つ」）', f:'', cls:'info'});
+}
+/* 縦・横・高さ などを 1つだけ 言ったとき（v24）：前の答えが 面積なら 体積に、長さなら 面積に。なければ 言い方を 案内する */
+const RE_DIM1=/^(縦|たて|横|よこ|横幅|高さ|たかさ|幅|はば|奥行き|奥行|おくゆき|深さ|ふかさ|長さ|ながさ|厚さ|厚み)(?:は|が|を|:)?(\d+(?:\.\d+)?)(cm|センチ|mm|ミリ|m|メートル)?(?:の)?(?:体積|容積|容量|面積|広さ)?(?:は)?$/;
+function hDimNext(t){
+  const m=t.match(RE_DIM1); if(!m || state.mode!=='normal') return null;
+  const lab=m[1], x=+m[2], LF={mm:0.001, cm:0.01, m:1};
+  const key=u=>/^(mm|ミリ)$/.test(u||'')?'mm':/^(cm|センチ)$/.test(u||'')?'cm':/^(m|メートル)$/.test(u||'')?'m':'';
+  const U=state.lastU||'', V=state.lastV;
+  const ak=U==='㎡'?'m':U==='cm²'?'cm':U==='mm²'?'mm':'', lk=['m','cm','mm'].includes(U)?U:'';
+  if(V!=null && isFinite(V) && (ak||lk)){
+    const b=ak||lk, len=+(x*LF[key(m[3])||b]/LF[b]).toPrecision(12);
+    if(ak){ const v=+(V*len).toPrecision(12), vu=b==='m'?'㎥':b==='cm'?'cm³':'mm³', L=b==='m'?v*1000:b==='cm'?v/1000:null;
+      return R_ok('体積は '+sayU(v,vu)+' です', '体積 '+fmtU(v,vu)+(L!=null?'（'+fmt(L)+'リットル）':''), fmtU(V,U)+' × '+fmt(len)+b, {v, u:vu}); }
+    const v=+(V*len).toPrecision(12), au=b==='m'?'㎡':b==='cm'?'cm²':'mm²';
+    return R_ok('面積は '+sayU(v,au)+' です', '面積 '+fmtU(v,au), fmtU(V,U)+' × '+fmt(len)+b, {v, u:au});
+  }
+  return Object.assign(R_info(lab+'だけでは 計算できません', '「'+lab+'」だけでは 計算できません。縦・横・高さを 続けて言うと 体積を出します', '例：「縦2m横1.5m'+t+'」'), {ideas:[{t:'縦2m横1.5m'+t}]});
+}
 function koeRun(raw, opt){
   opt=opt||{};
   const al=applyAliases(raw);                 // 自分の言いかえ（v19）
@@ -984,6 +1015,7 @@ function koeRun(raw, opt){
     }
     if(RE_NO.test(a0) || RE_NO.test(t)) return finish(raw, R_info('やめました。'+currentSay()));
   }
+  { const a0=String(al).trim().replace(/[、。．.,！!？?\s]+$/,''), r=(!state.ask && !state.drill) ? hAgree(a0, raw, opt) : null; if(r) return r; }   // 「そんな感じ」（v24）
   if(!t) return null;
   LITERAL=!!opt.literal;
   runN0=state.entries.length;
@@ -1004,6 +1036,7 @@ function koeRun(raw, opt){
   // したい計算を言ったとき（「割り勘したい」「ローンの計算をしたい」）：言い方の例と案を出す（v20）
   if(!opt.noSuggest && !opt.noWish && !DRY && window.KOE_INTENTS && KOE_INTENTS.isWish(t)) return hWish(t, raw, opt);
   if((res=hTaxSet(t))) return finish(raw,res);
+  if((res=hDimNext(t))) return finish(raw,res);   // 「高さ25cm」だけ：前の答えに つなげる（v24）
   if((res=hPhrase(t))) return finish(raw, res.toks ? calcFromToks(t, res.toks) : res);
   if((res=hBook(t))) return finish(raw,res);
   if((res=hCompare(t))) return finish(raw,res);
