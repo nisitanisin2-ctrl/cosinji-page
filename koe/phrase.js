@@ -167,7 +167,8 @@ const PW={
   FREQ:['毎日','1日','毎週','週','毎月','月','月々','ひと月','毎年','年','1年'],
   CHOKIN:['貯金','貯める','ためる','貯めたら','ためたら','貯めると','ためると','積み立て','積立','積み立てる','積み立てると','積み立てたら','貯蓄','貯金する','貯金すると','貯金したら','貯めて','ためて','預金','預金すると'],
   RIRITSU:['年利','金利','利率','年率','利回り','年利率','運用利回り'],
-  AZUKE:['預けたら','預けると','預けて','運用したら','運用すると','運用して','複利','単利','で','だと','なら','後','たったら','経ったら','置いたら','複利で','単利で','複利だと','単利だと','預ける','ほったらかし','ほったらかすと','置いておく','置いておくと','置いとく','寝かせる','寝かせると','運用','貯める','ためる'],
+  AZUKE:['預けたら','預けると','預けて','運用したら','運用すると','運用して','複利','単利','で','だと','なら','後','たったら','経ったら','置いたら','複利で','単利で','複利だと','単利だと','預ける','ほったらかし','ほったらかすと','置いておく','置いておくと','置いとく','寝かせる','寝かせると','運用','貯める','ためる',
+    '管理','管理したら','管理すると','管理して','預金','預金したら','預金すると','預金して','置いておいたら','放っておいたら','ほっといたら','寝かせたら','運用したらいくら'],
   KARI:['ローン','返済','で借りたら','借りたら','借りて','借りると','で借りると','の住宅ローン','の車のローン','のローン','借入','借り入れ','ローンで','ローンを組むと','ローンを組んだら'],
   HENSAI:['返済','返済額','支払い','払い','支払額','返済金額','支払い額','払う額','返す額'],
   MAITSUKI:['毎月','月々','1か月','月','1ヶ月','ひと月','毎月の','月々の','月の'],
@@ -194,7 +195,7 @@ const PW={
   HU:['センチ','cm','メートル','m'],
   WU2:['キロ','kg','キログラム'],
   BMI:['BMI','ビーエムアイ','肥満度','BMI値'],
-  HYOJUN:['標準体重','適正体重','理想体重','美容体重','標準の体重'],
+  HYOJUN:['標準体重','適正体重','理想体重','美容体重','標準の体重','体重','適正な体重','理想の体重','平均体重','ちょうどいい体重'],
 };
 const P_UNIT_LISTS=['NU','LU','HU','WU','WU2','SPDU','LENU','QU','LITER','VOL','CUR'];
 PW.CHG=PW.UP.concat(PW.DOWN); PW.CHGW=PW.UPW.concat(PW.DOWNW);
@@ -269,6 +270,72 @@ function toEra(y){
   return e ? {e, n:y-ERA_BASE[e]+1} : null;
 }
 const eraStr=o=>o.e+(o.n===1?'元':o.n)+'年';
+/* 改元の日（v24）。月・日まで言ったときは、その日で 元号を決める（平成は 1989年1月8日から） */
+const ERA_START={明治:[1868,1,25], 大正:[1912,7,30], 昭和:[1926,12,25], 平成:[1989,1,8], 令和:[2019,5,1]};
+const ERA_LIST=['令和','平成','昭和','大正','明治'];
+const ymdK=(y,m,d)=>y*10000+m*100+d;
+const ymdTxt=(y,mo,d)=>y+'年'+(mo?mo+'月':'')+(mo&&d?d+'日':'');
+const eraTxt=(e,n,mo,d)=>e+(n===1?'元':n)+'年'+(mo?mo+'月':'')+(mo&&d?d+'日':'');
+function eraOfYMD(y, mo, d){
+  const k=ymdK(y, mo, d||1), e=ERA_LIST.find(x=>k>=ymdK(...ERA_START[x]));
+  return e ? {e, n:y-ERA_BASE[e]+1} : null;
+}
+/* 和暦 → 西暦の年。その元号に ない年・日なら err */
+function eraToY(e, n, mo, d){
+  const y=ERA_BASE[e]+n-1;
+  if(!(n>=1) || y>ERA_END[e]) return {err:e+n+'年はありません'};
+  if(mo){
+    if(mo<1 || mo>12 || (d!=null && (d<1 || d>31))) return {err:'月日が読めませんでした'};
+    const k=ymdK(y, mo, d||1), st=ERA_START[e], i=ERA_LIST.indexOf(e), nx=i>0 ? ERA_START[ERA_LIST[i-1]] : null;
+    if(k<ymdK(...st) && !(d==null && y===st[0] && mo===st[1])) return {err:e+'は '+st[0]+'年'+st[1]+'月'+st[2]+'日から です'};
+    if(nx && k>=ymdK(...nx)) return {err:eraTxt(e,n,mo,d)+'は ありません（'+nx[0]+'年'+nx[1]+'月'+nx[2]+'日から '+ERA_LIST[i-1]+'）'};
+  }
+  return {y};
+}
+/* 和暦 → 西暦（「昭和24年」「昭和52年3月」「昭和22年6月29日」） */
+function fromEraOut(e, n, mo, d){
+  const r=eraToY(e, n, mo, d); if(r.err) return R_err(r.err);
+  const s=ymdTxt(r.y, mo, d);
+  return pOut(r.y,'年',{a:'西暦 '+s, say:'西暦 '+s+' です', f:eraTxt(e,n,mo,d)+' → '+ERA_BASE[e]+' ＋ '+(n-1)});
+}
+/* 西暦 → 和暦（月まで言ったら 改元の日で決める。改元の月で 日を言わなかったら「〜日からは」も添える） */
+function toEraOut(y, mo, d){
+  if(!mo){ const o=toEra(y); if(!o) return R_err('明治より前は分かりません'); const s=eraStr(o); return pOut(o.n,'年',{a:s, say:s+' です', f:y+'年 → '+s}); }
+  if(mo<1 || mo>12) return R_err('月が読めませんでした');
+  const o=eraOfYMD(y, mo, d); if(!o) return R_err('明治より前は分かりません');
+  const s=eraTxt(o.e, o.n, mo, d);
+  let note='';
+  if(d==null){ const nx=ERA_LIST.find(x=>{ const st=ERA_START[x]; return st[0]===y && st[1]===mo && st[2]>1; }); if(nx && nx!==o.e) note=mo+'月'+ERA_START[nx][2]+'日からは '+nx+'元年'; }
+  return pOut(o.n,'年',{a:s+(note?'（'+note+'）':''), say:s+' です'+(note?'。'+note+' です':''), f:ymdTxt(y,mo,d)+' → '+s});
+}
+/* いま何歳か（月・日を言わなければ 今年の誕生日で） */
+function ageOut(y, mo, d){
+  const now=today(), age=now.getFullYear()-y;
+  if(age<0 || age>150) return R_err('生まれた年が読めませんでした');
+  if(mo){ const had=(now.getMonth()+1>mo)||((now.getMonth()+1===mo)&&now.getDate()>=(d||1)); const a=had?age:age-1;
+    return pOut(a,'歳',{a:a+'歳', say:'いま '+a+'歳 です', f:ymdTxt(y,mo,d)+'生まれ → '+ymdStr(now)}); }
+  return pOut(age,'歳',{a:'今年 '+age+'歳', say:'今年の誕生日で '+age+'歳 です（誕生日の前なら '+(age-1)+'歳）', f:now.getFullYear()+' − '+y});
+}
+/* 言った年（和暦なら 西暦に）。{y, mo, d, s:言った形} か {err} */
+function pYMD(e, y, mo, d){
+  y=pn(y); mo=mo!=null?pn(mo):null; d=d!=null?pn(d):null;
+  if(e){ const r=eraToY(e, y, mo, d); if(r.err) return r; return {y:r.y, mo, d, s:eraTxt(e,y,mo,d)}; }
+  return {y, mo, d, s:ymdTxt(y,mo,d)};
+}
+/* 2つの年月（日）の あいだ（v24）：「2026年10月引く2014年6月」「2014年6月から2026年10月まで」→ 12年4か月 */
+function ymDiffOut(a, b){
+  const hasD=a.d!=null && b.d!=null;
+  const [p, q]=ymdK(a.y,a.mo,hasD?a.d:1)>=ymdK(b.y,b.mo,hasD?b.d:1) ? [a,b] : [b,a];
+  let Y=p.y-q.y, M=p.mo-q.mo, D=hasD ? p.d-q.d : 0;
+  if(D<0){ M--; D+=new Date(p.y, p.mo-1, 0).getDate(); }   // 前の月の日数を かりる
+  if(M<0){ Y--; M+=12; }
+  const parts=[]; if(Y) parts.push(Y+'年'); if(M) parts.push(M+'か月'); if(hasD && D) parts.push(D+'日');
+  const txt=parts.join('')||(hasD?'0日':'0か月'), f=p.s+' − '+q.s;
+  if(hasD){ const days=Math.round((Date.UTC(p.y,p.mo-1,p.d)-Date.UTC(q.y,q.mo-1,q.d))/864e5);
+    return pOut(days,'日',{a:txt+'（'+fmt(days)+'日）', say:txt+' です。日数では '+days+'日 です', f}); }
+  const mm=Y*12+M;
+  return pOut(mm,'か月',{a:txt+(Y&&M?'（'+mm+'か月）':''), say:txt+' です', f});
+}
 /* 速さ：秒速 m/s にそろえる */
 function speedMps(kind,v,u){
   const km=/^(キロ|km|キロメートル)$/.test(u||'') || (!u && kind==='時速');
@@ -499,6 +566,28 @@ const PHRASES=[
      if(g.mo){ const mo=pn(g.mo), d=g.d?pn(g.d):1; const had=(now.getMonth()+1>mo)||((now.getMonth()+1===mo)&&now.getDate()>=d); const a=had?age:age-1;
        return pOut(a,'歳',{a:a+'歳', say:'いま '+a+'歳 です', f:y+'年'+mo+'月'+(g.d?d+'日':'')+'生まれ → '+ymdStr(now)}); }
      return pOut(age,'歳',{a:'今年 '+age+'歳', say:'今年の誕生日で '+age+'歳 です（誕生日の前なら '+(age-1)+'歳）', f:now.getFullYear()+' − '+y}); }},
+  // ── 和暦⇔西暦・年齢・年月の あいだ（v24：月・日つき・「生まれ」なし・「何年」だけ・数だけ）──
+  {c:'年齢・和暦・時刻', p:['<ERA@e>{n}年({mo}月({d}日)?)?(<UMARE>)?(は|って|の)?西暦(は|で|だと|では|に|にすると|に直すと)?(<NAN>年)?(<NAN>月)?(<NAN>日)?',
+     '<ERA@e>{n}年({mo}月({d}日)?)?(<UMARE>)?(は|って)?<NAN>年(<NAN>月)?(<NAN>日)?', '<ERA@e>{n}(年)?({mo}月({d}日)?)?'],
+   f:g=>fromEraOut(g.e, pn(g.n), g.mo!=null?pn(g.mo):null, g.d!=null?pn(g.d):null)},
+  {c:'年齢・和暦・時刻', p:['(西暦)?{y}年(({mo}月({d}日)?)?)?(<UMARE>)?(は|って|の)?(西暦)?(和暦|元号)(で|だと|では|に|にすると|に直すと)?(は)?(<NAN>年)?(<NAN>月)?(<NAN>日)?'],
+   f:g=>toEraOut(pn(g.y), g.mo!=null?pn(g.mo):null, g.d!=null?pn(g.d):null)},
+  {c:'年齢・和暦・時刻', p:['(西暦)?{y}年{mo}月({d}日)?(<UMARE>)?(は|って|の)?<ERA@e>(で|だと|では)?(<NAN>年)?(<NAN>月)?'],
+   f:g=>{ const y=pn(g.y), n=y-ERA_BASE[g.e]+1; if(n<1||y>ERA_END[g.e]) return R_err(y+'年は'+g.e+'ではありません'); const s=eraTxt(g.e,n,pn(g.mo),g.d!=null?pn(g.d):null); return pOut(n,'年',{a:s, say:s+' です', f:ymdTxt(y,pn(g.mo),g.d!=null?pn(g.d):null)+' → '+s}); }},
+  {c:'年齢・和暦・時刻', p:['<ERA@e>?{y}年({mo}月({d}日)?)?(<UMARE>)?(の人)?(は|って)?(今|今年|いま)?(<NAN><SAI>|いくつ)(になる|になった)?'],
+   f:g=>{ const r=pYMD(g.e, g.y, g.mo, g.d); if(r.err) return R_err(r.err); return ageOut(r.y, r.mo, r.d); }},
+  {c:'年齢・和暦・時刻', p:['<ERA@e1>?{y1}年{m1}月({d1}日)?(-|−)?(から)?<HIKU>?<ERA@e2>?{y2}年{m2}月({d2}日)?(を)?<HIKU>?(の)?(期間|年数|月数|差)?',
+     '<ERA@e1>?{y1}年{m1}月({d1}日)?(から|より)<ERA@e2>?{y2}年{m2}月({d2}日)?(まで|までは|までの)?(の)?(期間|年数|月数|日数|何年|何年間|何か月|何ヶ月|何年何か月|何年何ヶ月|何日|どれくらい|どのくらい)?'],
+   f:g=>{ const a=pYMD(g.e1, g.y1, g.m1, g.d1), b=pYMD(g.e2, g.y2, g.m2, g.d2); if(a.err) return R_err(a.err); if(b.err) return R_err(b.err); return ymDiffOut(a, b); }},
+  {c:'年齢・和暦・時刻', p:['<ERA@e>?{y}年({mo}月({d}日)?)?(-|−|から|<HIKU>)(-|−|から|<HIKU>)?{n}'],
+   f:g=>{ const n=pn(g.n), r=pYMD(g.e, g.y, g.mo, g.d); if(r.err) return R_err(r.err);
+     if(n>=1000 && Number.isInteger(n)){ const b={y:n, mo:r.mo||1, d:null, s:n+'年'+(r.mo?r.mo+'月':'')}; const o=ymDiffOut(Object.assign({}, r, {mo:r.mo||1, d:null}), b); if(!r.mo) o.a=Math.abs(r.y-n)+'年'; return o; }
+     return Object.assign(R_info('引く年月を 最後まで 言ってください', '「'+r.s+'」から 引く年月を 最後まで 言ってください', '例：「'+r.s+' 引く 2014年6月」'), {hint:r.s+'引く2014年6月'}); }},
+  {c:'年齢・和暦・時刻', p:['<ERA@e>?{y}年({mo}月({d}日)?)?(から|まで)'],
+   f:g=>{ const r=pYMD(g.e, g.y, g.mo, g.d); if(r.err) return R_err(r.err);
+     const o=g.e ? ymdTxt(r.y, r.mo, r.d) : (r.mo ? (eraOfYMD(r.y, r.mo, r.d) ? eraTxt(eraOfYMD(r.y,r.mo,r.d).e, eraOfYMD(r.y,r.mo,r.d).n, r.mo, r.d) : '') : (toEra(r.y) ? eraStr(toEra(r.y)) : ''));
+     return Object.assign(R_info(r.s+(o?' は '+o+' です':'')+'。いつまでかも 言うと、あいだの 年月を出します',
+       r.s+(o?' ＝ '+o:''), '例：「'+r.s+'から'+(r.y+1)+'年3月まで」'), {v:g.e?r.y:undefined}); }},
   {c:'年齢・和暦・時刻', p:['{a}<SAI>(は|って|の人は|の人|なら|だと)?(<NAN>年|いつ)?(の)?<UMARE>'],
    f:g=>{ const a=pn(g.a), y=today().getFullYear()-a; return pOut(y,'年',{a:y+'年生まれ（誕生日の前なら '+(y-1)+'年）', say:y+'年生まれ です。今年の誕生日がまだなら '+(y-1)+'年 です', f:today().getFullYear()+' − '+a}); }},
   {c:'年齢・和暦・時刻', p:['(?<ap>午前|午後)?{h}時({m}分|(?<half>半))?(の|から)({dh}時間)?({dm}分)?<NOCHI@w>(は)?(<NAN>時)?'],
@@ -553,6 +642,14 @@ const PHRASES=[
   {c:'図形', p:['底辺{a}<LU@ua>?(、)?高さ{b}<LU@ub>?(の)?(3角形|3角)?(の)?<MENSEKI>'], f:g=>{ const D=dimsU([[g.a,g.ua],[g.b,g.ub]]), [a,b]=D.v; return pOut(a*b/2,areaU(D.u),{pre:'面積 ', sayPre:'面積は ', f:fmt(a)+' × '+fmt(b)+' ÷ 2'}); }},
   {c:'図形', p:['上底{a}<LU@ua>?(、)?下底{b}<LU@ub>?(、)?高さ{h}<LU@uh>?(の)?(台形)?(の)?<MENSEKI>'], f:g=>{ const D=dimsU([[g.a,g.ua],[g.b,g.ub],[g.h,g.uh]]), [a,b,h]=D.v; return pOut((a+b)*h/2,areaU(D.u),{pre:'面積 ', sayPre:'面積は ', f:'('+fmt(a)+' ＋ '+fmt(b)+') × '+fmt(h)+' ÷ 2'}); }},
   {c:'図形', p:['(縦|たて){a}<LU@ua>?(、)?(横|よこ){b}<LU@ub>?(、)?(高さ|奥行き|奥行){c}<LU@uc>?(の)?(直方体|箱|部屋|水槽)?(の)?<TAISEKI>'], f:g=>{ const D=dimsU([[g.a,g.ua],[g.b,g.ub],[g.c,g.uc]]), [a,b,c]=D.v; return pOut(a*b*c,volU(D.u),{pre:'体積 ', sayPre:'体積は ', f:fmt(a)+' × '+fmt(b)+' × '+fmt(c)}); }},
+  {c:'図形', p:['底辺{a}<LU@ua>?(、)?高さ{b}<LU@ub>?(、)?(奥行き|奥行|長さ|厚さ|深さ){c}<LU@uc>?(の)?(3角柱)(の)?<TAISEKI>'],
+   f:g=>{ const D=dimsU([[g.a,g.ua],[g.b,g.ub],[g.c,g.uc]]), [a,b,c]=D.v; return pOut(a*b/2*c,volU(D.u),{pre:'体積 ', sayPre:'体積は ', f:fmt(a)+' × '+fmt(b)+' ÷ 2 × '+fmt(c)}); }},
+  {c:'図形', p:['(3角形|3角|3角柱|3角すい|3角錐)(の)?(<TAISEKI>|<MENSEKI>)'],
+   f:(g,t)=>{ const men=/面積|広さ/.test(t), chu=/柱/.test(t);
+     return Object.assign(R_info(men ? '底辺と高さを 言ってください' : '長さを 言ってください',
+       men ? '三角形の面積は 底辺 × 高さ ÷ 2 です。底辺と高さを 言ってください' : (chu ? '三角柱の体積は 底辺 × 高さ ÷ 2 × 奥行き です。3つの長さを 言ってください' : '三角形は 平らなので 体積は ありません。三角柱なら 底辺 × 高さ ÷ 2 × 奥行き、三角形の面積なら 底辺 × 高さ ÷ 2 です'),
+       men ? '例：「底辺6高さ4の三角形の面積」' : '例：「底辺6m高さ4m奥行き10mの三角柱の体積」「底辺6高さ4の三角形の面積」'),
+       {ideas:men ? [{t:'底辺6高さ4の三角形の面積'},{t:'底辺6m高さ4m奥行き10mの三角柱の体積'}] : [{t:'底辺6m高さ4m奥行き10mの三角柱の体積'},{t:'底辺6高さ4の三角形の面積'}]}); }},
   {c:'図形', p:['(1辺|1辺が|1辺の長さが){a}<LU@u>?(の)?(立方体|サイコロ)(の)?<TAISEKI>'], f:g=>{ const a=pn(g.a); return pOut(a*a*a,volU(g.u),{pre:'体積 ', sayPre:'体積は ', f:fmt(a)+'³'}); }},
   {c:'図形', p:['(半径){r}<LU@u>?(の)?(球|ボール)(の)?<TAISEKI>'], f:g=>{ const r=pn(g.r); return pOut(4/3*Math.PI*r*r*r,volU(g.u),{pre:'体積 ', sayPre:'体積は ', f:'4/3 × π × '+fmt(r)+'³'}); }},
   {c:'図形', p:['(半径){r}<LU@u>?(の)?(球|ボール)(の)?(表面積)'], f:g=>{ const r=pn(g.r); return pOut(4*Math.PI*r*r,areaU(g.u),{pre:'表面積 ', sayPre:'表面積は ', f:'4 × π × '+fmt(r)+'²'}); }},
@@ -645,6 +742,60 @@ function hConvertSpecial(t){
   return null;
 }
 /* お金を数える：「100円玉が23枚と10円玉が15枚」 */
+/* 縦・横・高さ・幅・奥行き などを 好きな順で 言ったとき（v24）：3つで体積・2つで面積。
+   「横を1.5m」のような 助詞も よい。体積なのに 2つしかない・数のない言葉（「幅」）が 残ったら、何がいるかを 言う */
+const DIM_LABEL='横幅|よこはば|縦|たて|横|よこ|高さ|たかさ|幅|はば|奥行き|奥行|おくゆき|深さ|ふかさ|長さ|ながさ|厚さ|厚み|あつさ';
+const DIM_RE=new RegExp('('+DIM_LABEL+')(?:は|が|を|:)?(?:('+PNUM+')(cm|センチ|mm|ミリ|km|キロ|m|メートル)?)?','g');
+const DIM_SEP=/^(?:、|と|で|の|×|かける|が|を|は|,)*$/;
+function hDims(s){
+  if(!new RegExp('^(?:'+DIM_LABEL+')').test(s)) return null;
+  const dims=[]; let miss=null, pos=0, m;
+  DIM_RE.lastIndex=0;
+  while((m=DIM_RE.exec(s))){
+    if(!m[0]){ DIM_RE.lastIndex++; continue; }
+    if(m.index>pos && !DIM_SEP.test(s.slice(pos, m.index))) return null;
+    if(m[2]==null){ if(miss) return null; miss=m[1]; }
+    else dims.push({l:m[1], v:m[2], u:m[3]||''});
+    pos=DIM_RE.lastIndex;
+  }
+  const tail=s.slice(pos).replace(/^(?:、|と|で|の|が|を|は)+/,'');
+  const k=tail.match(/^(?:(直方体|箱|部屋|水槽|立方体|タンク|プール|穴|コンテナ)(?:の)?)?(体積|容積|容量|面積|広さ|立米|大きさ)?(?:は|って)?$/);
+  if(!k || !dims.length || dims.length>3 || (miss && dims.length!==2)) return null;
+  const want=k[2]||'', vol=/体積|容積|容量|立米/.test(want);
+  const D=dimsU(dims.map(x=>[x.v, x.u])), lbl=dims.map((x,i)=>x.l+fmt(D.v[i])+(D.u||''));
+  if(dims.length===3){
+    const v=D.v[0]*D.v[1]*D.v[2], L=D.u==='m'?v*1000:D.u==='cm'?v/1000:null;
+    return pOut(v,volU(D.u),{pre:'体積 ', sayPre:'体積は ', a:'体積 '+fmtU(v,volU(D.u))+(L!=null?'（'+fmt(L)+'リットル）':''), f:D.v.map(x=>fmt(x)).join(' × ')});
+  }
+  if(dims.length===1) return null;   // 1つだけ（「高さ25cm」）は 声の計算帳が 前の答えに つなげる
+  const area=D.v[0]*D.v[1], au=areaU(D.u);
+  if(miss || vol){
+    const w=miss ? '「'+miss+'」の長さ' : 'あと1つ（高さ・奥行き など）の長さ';
+    return Object.assign(R_info(w+'も 言ってください', w+'が ありません。'+lbl.join(' × ')+' の面積は '+fmtU(area,au)+' です', '続けて「'+(miss||'高さ')+'30cm」のように言うと 体積にします'),
+      {v:area, u:au});
+  }
+  return pOut(area,au,{pre:'面積 ', sayPre:'面積は ', f:fmt(D.v[0])+' × '+fmt(D.v[1])});
+}
+/* 「1時間03」「1時間3分」だけ（v24。声の計算帳・表電卓の電卓）：分と時間に直す。「1時間031.03」のように 数が続いたら 候補を出す */
+function hHourMin(s){
+  let m=s.match(/^(\d+)時間(\d{2})(\d+(?:\.\d+)?)?$/);
+  if(m && +m[2]<60){
+    const h=+m[1], mi=+m[2], tot=h*60+mi, base=h+'時間'+mi+'分';
+    if(m[3]==null) return pOut(tot,'分',{a:tot+'分（'+fmt(tot/60,2)+'時間）', say:base+' は '+tot+'分 です', f:fmt(h)+'時間 × 60 ＋ '+mi+'分'});
+    return Object.assign(R_info('「'+m[3]+'」の 使い方が 分かりませんでした', '「'+h+'時間'+m[2]+'」は '+base+'（'+tot+'分）と 読みました。「'+m[3]+'」を どう使うか 分かりませんでした', 'えらんでください'),
+      {ideas:[{t:base+m[3]+'秒は何分'},{t:base+'を'+m[3]+'倍'},{t:base+'は何分'}]});
+  }
+  m=s.match(/^(\d+(?:\.\d+)?)時間(\d+(?:\.\d+)?)分(?:(\d+(?:\.\d+)?)秒)?(?:を|の)(\d+(?:\.\d+)?)倍(?:に|して|すると|したら)?$/);
+  if(m){ const tot=(+m[1])*60+(+m[2])+(m[3]?(+m[3])/60:0), k=+m[4], v=tot*k;
+    const h=Math.floor(v/60), mi=Math.floor(v-h*60), se=Math.round((v-h*60-mi)*60*10)/10;
+    return pOut(v,'分',{a:fmt(v,2)+'分（'+(h?h+'時間':'')+mi+'分'+(se?fmt(se,1)+'秒':'')+'）', say:(h?h+'時間':'')+mi+'分'+(se?fmt(se,0)+'秒':'')+' です', f:fmt(tot,2)+'分 × '+fmt(k)}); }
+  m=s.match(/^(\d+(?:\.\d+)?)時間(\d+(?:\.\d+)?)分(?:(\d+(?:\.\d+)?)秒)?(?:(?:は|って|を)?(?:何|なん)(分|時間|秒)(?:に)?)?$/);
+  if(m){ const tot=(+m[1])*60+(+m[2])+(m[3]?(+m[3])/60:0), f=fmt(+m[1])+'時間 × 60 ＋ '+fmt(+m[2])+'分'+(m[3]?' ＋ '+fmt(+m[3])+'秒 ÷ 60':'');
+    if(m[4]==='時間') return pOut(tot/60,'時間',{a:fmt(tot/60,3)+'時間（'+fmt(tot,2)+'分）', say:fmt(tot/60,3)+'時間 です', f:'('+f+') ÷ 60'});
+    if(m[4]==='秒') return pOut(tot*60,'秒',{a:fmt(tot*60,2)+'秒', say:fmt(tot*60,2)+'秒 です', f:'('+f+') × 60'});
+    return pOut(tot,'分',{a:fmt(tot,2)+'分（'+fmt(tot/60,3)+'時間）', say:fmt(tot,2)+'分 です', f}); }
+  return null;
+}
 function hCoins(t){
   if(!/^(?:\d+円(?:玉|札)?(?:が|を|×|x)?\d+(?:枚|個|本)?(?:と|、)?)+$/.test(t) || !/(玉|札|枚)/.test(t)) return null;
   const parts=[...t.matchAll(/(\d+)円(?:玉|札)?(?:が|を|×|x)?(\d+)(?:枚|個|本)?/g)];
@@ -676,6 +827,7 @@ function hPhrase(t0){
     if((res=hConvertSpecial(s))) return res;
     if((res=hConvert(s))) return res;
     if((res=hCoins(s))) return res;
+    if((res=hHourMin(s))) return res;
     for(const ph of phraseCompiled()){
       if(ph.dt && OPT.app==='koe') continue;
       if(ph.item && OPT.mode && OPT.mode!=='normal') continue;   // 足し上げ・予算では品物として受け取る    // 声の計算帳は、これらを式として読む（言い直しができる）
@@ -686,6 +838,7 @@ function hPhrase(t0){
         if(r) return r;
       }
     }
+    if((res=hDims(s))) return res;   // 型に合わなかった 縦・横・高さ（v24）
   }
   return null;
 }

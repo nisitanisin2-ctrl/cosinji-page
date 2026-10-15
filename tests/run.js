@@ -7709,7 +7709,7 @@ async function runKoeIdeas(browser) {
   await page.fill('#exFind', '年齢'); await w(150);
   const ageN = await page.evaluate(() => document.querySelectorAll('#exBody .ex').length);
   await page.fill('#exFind', 'お米'); await w(150);
-  check('  📚 文例の「さがす」：「年齢」「お米」のような、したい計算でも出る', ageN + '/' + await page.evaluate(() => [...document.querySelectorAll('#exBody .ex')].map(x => x.textContent).filter(t => /合|升/.test(t)).length), '22/3');
+  check('  📚 文例の「さがす」：「年齢」「お米」のような、したい計算でも出る', ageN + '/' + await page.evaluate(() => [...document.querySelectorAll('#exBody .ex')].map(x => x.textContent).filter(t => /合|升/.test(t)).length), '33/3');   // 年齢・和暦の文例は v24 で 22 → 33
   await page.evaluate(() => closePanel()); await w(200);
   await page.evaluate(() => { resetAll(); render(); });
   await page.fill('#typeIn', '計算したい'); await page.press('#typeIn', 'Enter'); await w(200);
@@ -9549,6 +9549,56 @@ async function runRenraku556(browser) {
   await ctx.close();
 }
 
+/* 🎙 声の計算帳：使っていて うまくいかなかった言い方（v557）。その順のまま 会話として 言って確かめる。今日は 2026-09-25 */
+async function runKoeUser557(browser) {
+  console.log('\n── 🎙 声の計算帳：うまくいかなかった言い方（年月の引き算・和暦⇔西暦・年齢・体積・利息・体重・「それを整数に」・「そんな感じ」など。v557） ──');
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, serviceWorkers: 'block' });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push(e.message));
+  await page.addInitScript(() => { window.KOE_TODAY = '2026-09-25T10:00:00'; });
+  await page.goto('file://' + path.join(ROOT, 'koe', 'index.html')); await page.waitForTimeout(900);
+  await page.evaluate(() => { settings.tax = 10; saveSettings(); state.entries = []; state.log = []; recomputeAll(); });
+  const say = t => page.evaluate(t => { const r = koeRun(t) || {}; const m = state.log[state.log.length - 1] || {}; return r.cls + ' | ' + r.a + (m.ideas ? ' | ' + m.ideas.map(d => d.t).join('／') : ''); }, t);
+  const L = [
+    ['2026年10月-引く2014年6月', 'ok | 12年4か月（148か月）'],
+    ['2026年10月-201', 'info | 「2026年10月」から 引く年月を 最後まで 言ってください'],
+    ['令和8年10月から', 'info | 令和8年10月 ＝ 2026年10月'],
+    ['2005年11月は和暦で何年', 'ok | 平成17年11月'],
+    ['2005年11月は西暦和暦で何年', 'ok | 平成17年11月'],
+    ['縦2m横を1.5m高さ50cmの体積', 'ok | 体積 1.5㎥（1,500リットル）'],
+    ['3角形の容積', 'info | 三角形は 平らなので 体積は ありません。三角柱なら 底辺 × 高さ ÷ 2 × 奥行き、三角形の面積なら 底辺 × 高さ ÷ 2 です | 底辺6m高さ4m奥行き10mの三角柱の体積／底辺6高さ4の三角形の面積'],
+    ['そんな感じ', 'info | 計算したいことを どうぞ（例：「1280円を3つ」）'],
+    ['昭和22年6月29日は何歳', 'ok | 79歳'],
+    ['1949年1月7日は何歳', 'ok | 77歳'],
+    ['昭和24年は何年', 'ok | 西暦 1949年'],
+    ['昭和24年1月7日は何歳', 'ok | 77歳'],
+    ['昭和40', 'ok | 西暦 1965年'],
+    ['平成7年の西暦', 'ok | 西暦 1995年'],
+    ['1000000円を金利3%で10年管理', 'ok | 複利で 1,343,916.38円'],
+    ['1時間031.03', 'info | 「1時間03」は 1時間3分（63分）と 読みました。「1.03」を どう使うか 分かりませんでした | 1時間3分1.03秒は何分／1時間3分を1.03倍／1時間3分は何分'],
+    ['それを整数にして', 'ok | 1,343,916円'],
+    ['昭和52年3月生まれの西暦は', 'ok | 西暦 1977年3月'],
+    ['身長172cmの体重', 'ok | 標準体重 65.0848kg'],
+    ['高さ25cm', 'info | 「高さ」だけでは 計算できません。縦・横・高さを 続けて言うと 体積を出します | 縦2m横1.5m高さ25cm'],
+    ['横5.2m高さ50cm幅', 'info | 「幅」の長さが ありません。横5.2m × 高さ0.5m の面積は 2.6㎡ です'],
+  ];
+  for (const [q, want] of L) check('  「' + q + '」', await say(q), want);
+  // 続けて言う
+  check('  続けて「幅30cm」→ いまの面積 2.6㎡ に かけて 体積', await say('幅30cm'), 'ok | 体積 0.78㎥（780リットル）');
+  await say('縦2m横1.5m');
+  check('  「縦2m横1.5m」→ 面積 3㎡ のあと「高さ25cm」→ 体積', (await say('高さ25cm')) + ' / ' + await page.evaluate(() => state.lastV + state.lastU), 'ok | 体積 0.75㎥（750リットル） / 0.75㎥');
+  await page.evaluate(() => { koeRun('1時間031.03'); render(); const b = [...document.querySelectorAll('#log .idea-run')].pop() && document.querySelectorAll('#log .idea-run'); if (b && b.length) b[b.length - 3].click(); }); await page.waitForTimeout(300);
+  check('  「1時間031.03」の候補（▶）を押す → 1時間3分1.03秒は何分', await page.evaluate(() => { const m = state.log[state.log.length - 1]; return m.q + ' → ' + m.a; }), '1時間3分1.03秒は何分 → 63.02分（1.05時間）');
+  // 「もしかして」のあとの「そんな感じ」
+  check('  「もしかして」のあとの「そんな感じ」：その言い方で 計算する', await page.evaluate(() => { state.entries = []; state.log = []; recomputeAll(); koeRun('2割引きになった1600円の最初の値段'); const r = koeRun('そんな感じ'); const m = state.log[state.log.length - 1]; return r.a + ' / ' + m.q; }), '元の値段 2,000円 / そんな感じ →「2割引きで1600円の元の値段」');
+  // 和暦の 改元の日
+  check('  改元の日で 和暦を決める（1989年1月7日／8日・2019年4月30日・平成31年5月）', await page.evaluate(() => ['1989年1月7日は和暦', '1989年1月8日は和暦', '2019年4月30日は和暦', '平成31年5月は西暦'].map(q => koeRun(q).a).join(' / ')),
+    '昭和64年1月7日 / 平成元年1月8日 / 平成31年4月30日 / 平成31年5月は ありません（2019年5月1日から 令和）');
+  check('  年月日の あいだは 日数も', await page.evaluate(() => koeRun('2014年6月1日から2026年10月15日まで').a), '12年4か月14日（4,519日）');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
 /* 🌗 端末のダークテーマ・節電モードでも文字が消えない（v541）。
    端末がダークになると（Pixel の節電モードなど）、色を決めていない文字が白くなり、白い地に溶けていた。
    文字・ボタンのふだんの色は表電卓の「夜の色」に合わせる。道具を開いて、文字と地の明るさの差を測る */
@@ -10780,7 +10830,7 @@ async function runKoe(browser) {
   check('  分からない言葉を言い、答えは決めない', sk2.say + '/' + sk2.n, '「原価」が分かりませんでした/0');
   check('  「もしかして」と「このまま計算」を出す', sk2.sug + ' | ' + sk2.litA, '原価800円で利益3割の売値 | 1,040円（800円 × 1.3（3割増し））');
   check('  「このまま計算」を押すと、そのままの式で計算する', await page.evaluate(() => { render(); const b = document.querySelector('#log .sug.lit'); if (!b) return 'no button'; b.click(); return state.lastV + '/' + state.entries.length; }), '1040/1');
-  check('  近い言い方がなくても、読み飛ばして答えない', await page.evaluate(() => { state.entries = []; state.log = []; recomputeAll(); const r = koeRun('縦3メートルと横4メートルの広さ'); return r.say + '/' + state.lastV; }), '「広さ」が分かりませんでした/null');
+  check('  近い言い方がなくても、読み飛ばして答えない', await page.evaluate(() => { state.entries = []; state.log = []; recomputeAll(); const r = koeRun('縦3メートルと横4メートルの値段'); return r.say + '/' + state.lastV; }), '「値段」が分かりませんでした/null');   // 「〜の広さ」は v24 から 面積を答える
   check('  品名だけを答えの前に読む', await page.evaluate(() => { state.entries = []; recomputeAll(); return koeRun('ナントカ1280円を3つだよね').say; }), 'ナントカ 3840円 です');
   check('  「3個で300円」は1個あたりも言う', await page.evaluate(() => { state.entries = []; recomputeAll(); const r = koeRun('みかん3個で300円'); return r.a + '/' + state.lastV; }), 'みかん 3個で 300円（1個 100円）/300');
   check('  足し上げのときは品物として受け取る', await page.evaluate(() => { state.entries = []; recomputeAll(); koeRun('足し上げ開始'); const r = koeRun('みかん3個で300円'); const a = r.a + '/' + state.sum; koeRun('おしまい'); return a; }), 'みかん　3個まとめて　300円/300');
@@ -10810,7 +10860,7 @@ async function runKoe(browser) {
   check('  間をあけた数はつなげない', await page.evaluate(() => norm('時速 40 3時間') + '/' + norm('50万 5年')), '時速40、3時間/500000、5年');
   await page.evaluate(() => setGuide(''));
   // うまくいかなかった言葉を残す（v12）
-  check('  うまくいかなかった言葉を残す', await page.evaluate(() => { localStorage.removeItem('koe_misses'); koeRun('こんにちは'); koeRun('縦3メートルと横4メートルの広さ'); koeRun('こんにちは'); dryRun('ぴよぴよ'); return loadMisses().map(x => x.q + ':' + x.k).join(','); }), 'こんにちは:ng,縦3メートルと横4メートルの広さ:skip');
+  check('  うまくいかなかった言葉を残す', await page.evaluate(() => { localStorage.removeItem('koe_misses'); koeRun('こんにちは'); koeRun('縦3メートルと横4メートルの値段'); koeRun('こんにちは'); dryRun('ぴよぴよ'); return loadMisses().map(x => x.q + ':' + x.k).join(','); }), 'こんにちは:ng,縦3メートルと横4メートルの値段:skip');
   check('  設定に一覧が出て、コピー用の文にできる', await page.evaluate(() => { openPanel('set'); const t = $('missList').textContent + '|' + $('missCount').textContent; closeTop(); return t.includes('縦3メートル') + '/' + missText().split('\n').length; }), 'true/2');
   // 声だけの画面で式も読む（v11）。設定で切れる
   check('  式を読みやすい言葉に', await page.evaluate(() => [formulaSpeech('1,280円 × 3つ ＝ 3,840円'), formulaSpeech('(1,200 ＋ 350) × 2 ＝ 3,100'), formulaSpeech('1,500円 × 0.8（2割引き） ＝ 1,200円'),
@@ -14018,6 +14068,7 @@ async function runQrShare(browser) {
     if (!only || only === 'rk554') await runRenraku554(browser);
     if (!only || only === 'rk555') await runRenraku555(browser);
     if (!only || only === 'rk556') await runRenraku556(browser);
+    if (!only || only === 'koe557') await runKoeUser557(browser);
     if (!only || only === 'firsthint') await runFirstHint(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
