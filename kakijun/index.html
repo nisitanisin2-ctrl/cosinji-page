@@ -94,7 +94,7 @@
           <button class="ctl" id="bNext" type="button" aria-label="1画すすむ">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l9.5-7z"/><rect x="16.6" y="5" width="2.4" height="14" rx="1"/></svg>
           </button>
-          <button class="ctl" id="bSpeed" type="button" aria-label="速さ：ふつう" title="速さ" style="width:auto;padding:0 12px;font-size:13px;font-weight:700">ふつう</button>
+          <button class="ctl speed" id="bSpeed" type="button" aria-label="速さ：ふつう" title="速さ">ふつう</button>
         </div>
         <div class="opts" style="margin-top:10px">
           <button class="chip" id="oNums" type="button" aria-pressed="true">画数の番号</button>
@@ -104,7 +104,7 @@
       </div>
 
       <div id="practiceUI" hidden>
-        <div class="seg" role="radiogroup" aria-label="練習のレベル" style="grid-template-columns:repeat(3,1fr)">
+        <div class="seg three lv" role="radiogroup" aria-label="練習のレベル">
           <button type="button" role="radio" data-lv="1" aria-checked="true" aria-selected="true">なぞる</button>
           <button type="button" role="radio" data-lv="2" aria-checked="false" aria-selected="false">お手本なし</button>
           <button type="button" role="radio" data-lv="3" aria-checked="false" aria-selected="false">テスト</button>
