@@ -1,4 +1,4 @@
-/* ✍️かきじゅん帳（表電卓 v532）：常用漢字2136字の書き順アニメーション・綺麗に書くコツ・なぞり練習。
+/* ✍️かきじゅん帳（表電卓 v532）：常用漢字2136字とひらがな・カタカナ（v558）の書き順アニメーション・綺麗に書くコツ・なぞり練習・文章をなぞる（v558）。
    字は漢字・よみ・画数のほか、✏️ 手書き・🎤 声でも探せる。データは js/data.js、手書きの照合は js/recog.js */
 (function () {
   'use strict';
@@ -25,7 +25,8 @@
   try { reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { }
 
   // ---------------- データ ----------------
-  var RAW = Array.isArray(window.KKJ_DATA) ? window.KKJ_DATA : [];
+  // 常用漢字（data.js）のあとに、ひらがな・カタカナ（kana.js。v558。学年の代わりに 8＝ひらがな・9＝カタカナ）
+  var RAW = (Array.isArray(window.KKJ_DATA) ? window.KKJ_DATA : []).concat(Array.isArray(window.KKJ_KANA) ? window.KKJ_KANA : []);
   var K = new Map();
   var kata2hira = function (s) { return s.replace(/[ァ-ヶ]/g, function (ch) { return String.fromCharCode(ch.charCodeAt(0) - 0x60); }); };
   var ALL = RAW.map(function (r, i) {
@@ -38,17 +39,49 @@
       rd.push(s.replace('.', ''));
       if (s.indexOf('.') > 0) rd.push(s.split('.')[0]);
     });
+    o.kana = o.g >= 8;
+    if (o.kana) {
+      rd = [kata2hira(o.c)];
+      if (/\u309A/.test(o.c.normalize('NFD'))) o.circ = o.n - 1;   // 半濁点（゜）の丸の画
+    }
     o.rd = rd;
     o.key = rd[0] || '';
     K.set(o.c, o);
     return o;
   });
   var ALIAS = { '\u{20B9F}': '叱', '剝': '剥', '頬': '頰', '填': '塡' };
-  var GRADE = { 1: '小学1年', 2: '小学2年', 3: '小学3年', 4: '小学4年', 5: '小学5年', 6: '小学6年', 7: '中学以降' };
-  // 学年順・各学年は50音順
-  var ORDER = ALL.slice().sort(function (a, b) { return a.g - b.g || a.key.localeCompare(b.key, 'ja') || a.i - b.i; });
+  var GRADE = { 1: '小学1年', 2: '小学2年', 3: '小学3年', 4: '小学4年', 5: '小学5年', 6: '小学6年', 7: '中学以降', 8: 'ひらがな', 9: 'カタカナ' };
+  // ひらがな・カタカナ（五十音の表の順）→ 学年順（各学年は50音順）
+  var rank = function (g) { return g >= 8 ? g - 20 : g; };
+  var ORDER = ALL.slice().sort(function (a, b) { return rank(a.g) - rank(b.g) || (a.kana ? a.i - b.i : a.key.localeCompare(b.key, 'ja') || a.i - b.i); });
   ORDER.forEach(function (k, i) { k.o = i; });
   var isKanji = function (ch) { return /[㐀-鿿豈-﫿\u{20000}-\u{2ffff}]/u.test(ch); };
+  var isKana = function (ch) { return /^[ぁ-ゖァ-ヺー]$/.test(ch); };
+  var kanaPair = function (c) {
+    var n = c.charCodeAt(0);
+    return n >= 0x3041 && n <= 0x3096 ? String.fromCharCode(n + 0x60) : n >= 0x30A1 && n <= 0x30F6 ? String.fromCharCode(n - 0x60) : '';
+  };
+
+  // ---------------- ひらがな・カタカナの画の書き方・コツ（v558。kana.js） ----------------
+  // 濁音（が）・半濁音（ぱ）・小さい字（ゃ）は、もとの字（か・は・や）の書き方とコツに、濁点・半濁点・小さく書くコツを足す
+  var KI = window.KKJ_KANA_INFO || {};
+  var SMALLK = 'ぁぃぅぇぉっゃゅょァィゥェォッャュョ';
+  var DAKU_S = [['点', 'とめ', '右上に、左上から右下へ短く書いて止めます。', '濁点（゛）は字の<em>右上</em>に、小さく書きます。'],
+    ['点', 'とめ', '1つ目の右に、同じ向き・同じ長さでそろえて書きます。', '']];
+  var HANDAKU_S = [['丸', '', '右上に、小さな丸を書きます。書き始めにつなげて閉じます。', '半濁点（゜）は字の<em>右上</em>に、小さく書きます。']];
+  function kinfo(k) {
+    if (k._ki) return k._ki;
+    var c = k.c, d = c.normalize('NFD'), mark = d.charAt(1), small = SMALLK.indexOf(c) >= 0;
+    var base = small ? String.fromCharCode(c.charCodeAt(0) + 1) : d.charAt(0);
+    var b = KI[base] || { o: '', s: [], t: [] }, s = b.s.slice(), t = b.t.slice(), kind = '';
+    if (mark === '\u3099') { s = s.concat(DAKU_S); t = t.slice(0, 2).concat(['濁点（゛）は字の<em>右上</em>に小さく。2つの点の<em>向きと長さ</em>をそろえます。']); kind = '濁音'; }
+    else if (mark === '\u309A') { s = s.concat(HANDAKU_S); t = t.slice(0, 2).concat(['半濁点（゜）は字の<em>右上</em>に小さく、<em>まるく</em>書きます。']); kind = '半濁音'; }
+    if (small) { t = ['<em>小さく</em>書く字です（ふつうの「' + base + '」の半分くらい）。横書きでは マスの<em>下のほう</em>に、縦書きでは<em>右上</em>に寄せて書きます。'].concat(t.slice(0, 2)); kind = '小さい字'; }
+    if ('ゐゑヰヱ'.indexOf(c) >= 0) kind = 'むかしの字';
+    if (c === 'ー') kind = 'のばす音';
+    k._ki = { base: base !== c ? base : '', mark: mark, small: small, o: b.o, s: s, t: t, kind: kind };
+    return k._ki;
+  }
 
   // ---------------- 画の種類 ----------------
   var T = {
@@ -121,6 +154,7 @@
     return { w: x1 - x0, h: y1 - y0, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 };
   }
   function sinfo(k, i) {
+    if (k.kana) { var ks = kinfo(k).s[i]; return ks ? { name: ks[0], end: ks[1], tip: ks[2], base: '' } : { name: '線', end: '', tip: '', base: '' }; }
     var raw = k.types[i] || '', b = raw.split('/')[0].charAt(0), t = T[b], g = geo(k);
     if (b === '㇑' && g.len[i] < 21 && g.polys[i][0][1] < 34) t = T.dotv;
     return t ? { name: t[0], end: t[1], tip: t[2], base: b } : { name: '線', end: '', tip: '', base: b };
@@ -131,6 +165,7 @@
 
   // ---------------- 綺麗に書くコツ（データから組み立て） ----------------
   function analyze(k) {
+    if (k.kana) return { layout: '', formula: '', tips: kinfo(k).t.slice(0, 7) };   // かなは字ごとに書いたコツ（kana.js）
     var g = geo(k), n = k.n, tips = [];
     var C = k.comps.filter(function (c) { return c[0] || c[1]; });
     var find = function (p) { return C.filter(function (c) { return c[1] === p; }); };
@@ -221,6 +256,10 @@
   // 1画に2つまで。h は画面に出す文、s は読み上げる文（部品は「にんべん」のような呼び名で読む）
   function strokeTips(k) {
     if (k._st) return k._st;
+    if (k.kana) {   // かな：その画のコツ（「1画目のまん中あたりを通します」など。kana.js）
+      k._st = kinfo(k).s.map(function (s) { return s[3] ? [{ h: s[3], s: s[3] }] : []; });
+      return k._st;
+    }
     var n = k.n, g = geo(k), out = [], i;
     for (i = 0; i < n; i++) out.push([]);
     var add = function (j, h, s) { if (j >= 0 && j < n && out[j].length < 2) out[j].push({ h: h, s: s || h }); };
@@ -472,21 +511,47 @@
   function markStep(i) { stepBtns.forEach(function (b, j) { b.classList.toggle('on', j === i); }); }
 
   // ---------------- 情報・コツ ----------------
+  // 「どの字でも意識したいこと」：漢字（はじめの画面のまま）・ひらがな・カタカナで入れかえる（v558）
+  var BASICS = {
+    j: $('#basics').innerHTML,
+    h: '<div><b>まるみをつける</b>ひらがなは漢字をくずしてできた字。線をなめらかに、まるく書きます。</div>' +
+      '<div><b>漢字より少し小さく</b>文の中では、ひらがなを漢字より少し小さめに書くと整います。</div>' +
+      '<div><b>結びは三角形に</b>「な・は・ほ・ま・よ」などの結びは、小さく三角形のように。</div>' +
+      '<div><b>とめ・はね・はらい</b>線の終わりを書き分けると、ぐっと整います。</div>',
+    k: '<div><b>まっすぐ・角ははっきり</b>カタカナは漢字の一部や形からできた字。線はまっすぐ、角ははっきり書きます。</div>' +
+      '<div><b>漢字より少し小さく</b>文の中では、カタカナを漢字より少し小さめに書くと整います。</div>' +
+      '<div><b>似た字に気をつける</b>「シ・ツ」「ソ・ン」は点の並びと最後の線の向きで、「ス・ヌ」は2画目で書き分けます。</div>' +
+      '<div><b>とめ・はね・はらい</b>線の終わりを書き分けると、ぐっと整います。</div>'
+  };
+  $('#yomi').addEventListener('click', function (e) { var b = e.target.closest('button[data-c]'); if (b) load(b.dataset.c); });
   function renderInfo() {
     var k = cur;
     $('#big').textContent = k.c;
     var meta = $('#meta'); meta.innerHTML = '';
     var tg = function (t, cls) { var s = document.createElement('span'); s.className = 'tag' + (cls ? ' ' + cls : ''); s.textContent = t; meta.appendChild(s); };
     tg(GRADE[k.g], 'g'); tg(k.n + '画');
-    if (k.rad) tg('部首（目安）' + k.rad);
+    if (k.kana) { if (kinfo(k).kind) tg(kinfo(k).kind); }
+    else if (k.rad) tg('部首（目安）' + k.rad);
     var y = $('#yomi'); y.innerHTML = '';
     var add = function (lab, html) { if (!html) return; var dt = document.createElement('dt'); dt.textContent = lab; var dd = document.createElement('dd'); dd.innerHTML = html; y.appendChild(dt); y.appendChild(dd); };
-    add('音', k.on.slice(0, 6).map(esc).join('<span class="sep">・</span>'));
-    add('訓', k.kun.slice(0, 8).map(function (r) {
-      var pre = r.charAt(0) === '-' ? '〜' : '', post = r.charAt(r.length - 1) === '-' ? '〜' : '';
-      var s = r.replace(/-/g, ''), i = s.indexOf('.');
-      return pre + (i > 0 ? esc(s.slice(0, i)) + '<span class="okuri">' + esc(s.slice(i + 1)) + '</span>' : esc(s)) + post;
-    }).join('<span class="sep">・</span>'));
+    if (k.kana) {
+      // かな（v558）：もとの字（ひらがなは漢字をくずした形・カタカナは漢字の一部や形から）と、ひらがな⇔カタカナ。字はおすと開く
+      var ki = kinfo(k), cp = kanaPair(k.c);
+      var kb = function (c) { return K.has(c) ? '<button type="button" class="kl" data-c="' + esc(c) + '" aria-label="' + esc(c) + 'を開く">' + esc(c) + '</button>' : '<span class="kl0">' + esc(c) + '</span>'; };
+      if (ki.base) add('もとの字', kb(ki.base) + (ki.small ? 'を小さく書いた字' : ki.mark === '゙' ? 'に濁点（゛）' : 'に半濁点（゜）'));
+      else if (ki.o) add('もとの字', kb(ki.o) + (k.g === 8 ? '（漢字をくずした形から）' : '（漢字の一部や形から）') + (k.c === 'ン' ? '・ほかの説もあり' : ''));
+      if (cp && K.has(cp)) add(k.g === 8 ? 'カタカナ' : 'ひらがな', kb(cp));
+      if (k.c === 'ー') add('使い方', 'カタカナのことばで、のばす音を表します（例：ケーキ）');
+    } else {
+      add('音', k.on.slice(0, 6).map(esc).join('<span class="sep">・</span>'));
+      add('訓', k.kun.slice(0, 8).map(function (r) {
+        var pre = r.charAt(0) === '-' ? '〜' : '', post = r.charAt(r.length - 1) === '-' ? '〜' : '';
+        var s = r.replace(/-/g, ''), i = s.indexOf('.');
+        return pre + (i > 0 ? esc(s.slice(0, i)) + '<span class="okuri">' + esc(s.slice(i + 1)) + '</span>' : esc(s)) + post;
+      }).join('<span class="sep">・</span>'));
+    }
+    var bs = $('#basics'), bk = k.kana ? (k.g === 8 ? 'h' : 'k') : 'j';
+    if (bs.dataset.k !== bk) { bs.dataset.k = bk; bs.innerHTML = BASICS[bk]; }
     var an = analyze(k);
     $('#parts').innerHTML = an.layout || an.formula ? '組み立て：' + (an.layout ? '<b>' + an.layout + '</b>' : '') + (an.layout && an.formula ? '　' : '') + esc(an.formula) : '';
     $('#parts').hidden = !(an.layout || an.formula);
@@ -549,8 +614,23 @@
   }
 
   // ---------------- 学年別一覧 ----------------
-  var TABS = [['1', '1年'], ['2', '2年'], ['3', '3年'], ['4', '4年'], ['5', '5年'], ['6', '6年'], ['7', '中学以降'], ['r', '最近見た']];
+  var TABS = [['h', 'ひらがな'], ['k', 'カタカナ'], ['1', '1年'], ['2', '2年'], ['3', '3年'], ['4', '4年'], ['5', '5年'], ['6', '6年'], ['7', '中学以降'], ['r', '最近見た']];
   var curTab = null;
+  var tabOf = function (k) { return k.g === 8 ? 'h' : k.g === 9 ? 'k' : String(k.g); };
+  // ひらがな・カタカナは五十音の表の形で並べる（・はあき）。v558
+  var KTAB = {
+    h: [['', 'あいうえお', 'かきくけこ', 'さしすせそ', 'たちつてと', 'なにぬねの', 'はひふへほ', 'まみむめも', 'や・ゆ・よ', 'らりるれろ', 'わゐ・ゑを', 'ん・・・・'],
+      ['濁音・半濁音（゛゜）', 'がぎぐげご', 'ざじずぜぞ', 'だぢづでど', 'ばびぶべぼ', 'ぱぴぷぺぽ'], ['小さい字', 'ぁぃぅぇぉ', 'っゃゅょ・']],
+    k: [['', 'アイウエオ', 'カキクケコ', 'サシスセソ', 'タチツテト', 'ナニヌネノ', 'ハヒフヘホ', 'マミムメモ', 'ヤ・ユ・ヨ', 'ラリルレロ', 'ワヰ・ヱヲ', 'ン・・・・'],
+      ['濁音・半濁音（゛゜）', 'ガギグゲゴ', 'ザジズゼゾ', 'ダヂヅデド', 'バビブベボ', 'パピプペポ', '・・ヴ・・'], ['小さい字・のばす音', 'ァィゥェォ', 'ッャュョー']]
+  };
+  function gridBtn(k) {
+    var b = document.createElement('button'); b.type = 'button'; b.textContent = k.c; b.dataset.c = k.c;
+    b.setAttribute('aria-label', k.c + '（' + (k.kana ? GRADE[k.g] : k.rd[0] || '') + '）');
+    if ('ゐゑヰヱ'.indexOf(k.c) >= 0) b.className = 'old';
+    if (cur && k.c === cur.c) b.setAttribute('aria-current', 'true');
+    return b;
+  }
   function buildTabs() {
     var box = $('#gtabs');
     TABS.forEach(function (t) {
@@ -562,17 +642,29 @@
   function showTab(t) {
     curTab = t;
     Array.from($('#gtabs').children).forEach(function (b) { b.setAttribute('aria-selected', b.dataset.t === t ? 'true' : 'false'); });
-    var list = t === 'r' ? store.get('recent', []).map(function (c) { return K.get(c); }).filter(Boolean) : ORDER.filter(function (k) { return String(k.g) === t; });
     var grid = $('#kgrid'); grid.innerHTML = '';
+    var frag = document.createDocumentFragment();
+    grid.classList.toggle('kana', !!KTAB[t]);
+    if (KTAB[t]) {
+      var cnt = 0;
+      KTAB[t].forEach(function (sec) {
+        if (sec[0]) { var h = document.createElement('div'); h.className = 'kg-h'; h.textContent = sec[0]; frag.appendChild(h); }
+        sec.slice(1).forEach(function (row) {
+          Array.from(row).forEach(function (ch) {
+            var k = K.get(ch);
+            if (!k) { var sp = document.createElement('span'); sp.className = 'kg-blank'; frag.appendChild(sp); return; }
+            cnt++; frag.appendChild(gridBtn(k));
+          });
+        });
+      });
+      $('#gridCount').textContent = GRADE[t === 'h' ? 8 : 9] + '・' + cnt + '字';
+      grid.appendChild(frag);
+      return;
+    }
+    var list = t === 'r' ? store.get('recent', []).map(function (c) { return K.get(c); }).filter(Boolean) : ORDER.filter(function (k) { return String(k.g) === t; });
     $('#gridCount').textContent = t === 'r' ? '' : (GRADE[t] + '・' + list.length + '字');
     if (!list.length) { var e = document.createElement('p'); e.className = 'empty'; e.textContent = 'まだありません。字を開くとここに並びます。'; grid.appendChild(e); return; }
-    var frag = document.createDocumentFragment();
-    list.forEach(function (k) {
-      var b = document.createElement('button'); b.type = 'button'; b.textContent = k.c; b.dataset.c = k.c;
-      b.setAttribute('aria-label', k.c + '（' + (k.rd[0] || '') + '）');
-      if (cur && k.c === cur.c) b.setAttribute('aria-current', 'true');
-      frag.appendChild(b);
-    });
+    list.forEach(function (k) { frag.appendChild(gridBtn(k)); });
     grid.appendChild(frag);
   }
   $('#kgrid').addEventListener('click', function (e) {
@@ -598,27 +690,39 @@
     stopPlayer();
     cur = k;
     buildStage(); buildSteps(); renderInfo();
-    if (curTab && curTab !== 'r') { if (String(k.g) !== curTab) showTab(String(k.g)); else markGrid(); }
-    var rc = store.get('recent', []).filter(function (x) { return x !== c; }); rc.unshift(c); store.set('recent', rc.slice(0, 40));
-    if (curTab === 'r') showTab('r');
+    // 文章をなぞっているとき（o.doc）は、字の一覧の切りかえ・最近見た字には入れない
+    if (curTab && curTab !== 'r') { if (tabOf(k) !== curTab && !o.doc) showTab(tabOf(k)); else markGrid(); }
+    if (!o.doc) {
+      var rc = store.get('recent', []).filter(function (x) { return x !== c; }); rc.unshift(c); store.set('recent', rc.slice(0, 40));
+      if (curTab === 'r') showTab('r');
+    }
     try { history.replaceState(history.state, '', '#u' + c.codePointAt(0).toString(16)); } catch (e) { }   // 戻るの見張りの印は残す
     document.title = 'かきじゅん帳';
-    if (mode === 'practice') { prStart(); return; }
+    if (mode === 'doc' && !o.doc) { setMode('practice'); return; }   // 文章の途中で ほかの字を開いたら、その字のなぞって練習へ（文章の続きは覚えている）
+    if (mode === 'practice' || mode === 'doc') { prStart(); return; }
     P.k = o.full ? k.n : 0;
     refresh();
     if (o.autoplay !== false) { P.playing = true; setPlayIcon(); P.timer = setTimeout(function () { P.k = 0; refresh(); P.playing = true; setPlayIcon(); P.timer = setTimeout(function () { startStroke(0); }, 200); }, o.delay || 250); }
   }
 
   // ---------------- モード切替 ----------------
+  // view：書き順を見る・practice：なぞって練習・doc：文章をなぞる（v558。練習の画面をそのまま使い、1字書けたら次の字へ）
   function setMode(m) {
+    var was = mode;
     mode = m;
     $('#modeView').setAttribute('aria-selected', m === 'view' ? 'true' : 'false');
     $('#modePractice').setAttribute('aria-selected', m === 'practice' ? 'true' : 'false');
+    $('#modeDoc').setAttribute('aria-selected', m === 'doc' ? 'true' : 'false');
     $('#viewUI').hidden = m !== 'view';
-    $('#practiceUI').hidden = m !== 'practice';
-    $('#pc').hidden = m !== 'practice';
+    $('#practiceUI').hidden = m === 'view';
+    $('#pc').hidden = m === 'view';
+    $('#docBar').hidden = m !== 'doc';
+    $('#docSkip').hidden = m !== 'doc';
     stopPlayer();
+    if (was === 'doc' && m !== 'doc') docPause();
+    if (m !== 'view') { PR.lv = store.get(m === 'doc' ? 'docLv' : 'lv', 1); syncLv(); }   // 文章をなぞるときのレベルは別に覚える（はじめは「なぞる」）
     if (m === 'practice') prStart();
+    else if (m === 'doc') docEnter(was);
     else {
       hush();
       lOverlay.innerHTML = ''; lMaru.innerHTML = ''; lInk.style.display = ''; P.k = cur.n; refresh();
@@ -632,7 +736,8 @@
     '縦はね上げ': 'たてはねあげ', '縦はね': 'たてはね', '横はね': 'よこはね', '横折れ曲がりはね': 'よこおれまがりはね', '横折れ曲がり': 'よこおれまがり',
     '横折れはね': 'よこおれはね', '横折れ払い': 'よこおればらい', '横折れ上げ': 'よこおれあげ', '横折れ': 'よこおれ', '縦折れ折れ': 'たておれおれ',
     '縦折れ': 'たておれ', '縦曲がり': 'たてまがり', '曲がりはね': 'まがりはね', 'そりはね': 'そりはね', '折れ払い': 'おればらい', '折れはね': 'おれはね',
-    'くの字': 'くのじ', '払い折れ': 'はらいおれ', '払いはね': 'はらいはね', '折れ': 'おれ' };
+    'くの字': 'くのじ', '払い折れ': 'はらいおれ', '払いはね': 'はらいはね', '折れ': 'おれ',
+    '曲線': 'きょくせん', '結び': 'むすび', '斜めの線': 'ななめのせん', '丸': 'まる', '濁点': 'だくてん', '半濁点': 'はんだくてん' };
   var YOMI_RE = new RegExp(Object.keys(YOMI).sort(function (a, b) { return b.length - a.length; }).join('|'), 'g');
   var TEN = ['', '', 'に', 'さん', 'よん', 'ご', 'ろく', 'なな', 'はち', 'きゅう'], ONE = ['', 'いっ', 'に', 'さん', 'よん', 'ご', 'ろっ', 'なな', 'はっ', 'きゅう'];
   // 画の数のよみ：1→いっかく、6→ろっかく、10→じゅっかく、16→じゅうろっかく、20→にじゅっかく
@@ -666,6 +771,7 @@
   var PR = { lv: store.get('lv', 1), i: 0, done: [], live: null, miss: 0, missCur: 0, scores: [], fin: false, hint: false, flash: null, fit: null, over: false, say: null, saidKinds: {}, saidAt: -1 };
   function cssv(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim() || '#000'; }
   function prStart() {
+    clearTimeout(DOC.timer);   // 文章をなぞる：次の字へ進む前に「はじめから」などをおしたら、この字を書き直す
     PR.i = 0; PR.done = []; PR.live = null; PR.miss = 0; PR.missCur = 0; PR.scores = []; PR.fin = false; PR.hint = false; PR.flash = null; PR.fit = null; PR.over = false;
     PR.saidKinds = {}; PR.saidAt = -1; hush();
     lMaru.innerHTML = ''; lOverlay.innerHTML = '';
@@ -757,7 +863,7 @@
     return [(e.clientX - r.left) / r.width * 109, (e.clientY - r.top) / r.height * 109];
   }
   pc.addEventListener('pointerdown', function (e) {
-    if (PR.fin || mode !== 'practice') return;
+    if (PR.fin || mode === 'view') return;   // なぞって練習・文章をなぞる
     e.preventDefault();
     try { pc.setPointerCapture(e.pointerId); } catch (x) { }
     PR.live = [ptFrom(e)]; drawPC();
@@ -819,12 +925,13 @@
     var tol = [0, 12, 13.5, 14.5][PR.lv] * (PR.lv > 1 && i === 0 ? 1.35 : 1);
     var fwd = md(u, r, false), rev = md(u, r, true);
     var sd = Math.hypot(u[0][0] - r[0][0], u[0][1] - r[0][1]);
-    var short = L < 16, ok;
+    var circ = cur.circ === i, short = L < 16 || circ, ok;   // circ：半濁点（゜）の丸は、どこから・どちら回りに書いてもよい（v558）
     if (short) {
       var cu = [0, 0], cr = [0, 0];
       for (var k = 0; k < N; k++) { cu[0] += u[k][0] / N; cu[1] += u[k][1] / N; cr[0] += r[k][0] / N; cr[1] += r[k][1] / N; }
-      ok = Math.hypot(cu[0] - cr[0], cu[1] - cr[1]) < tol && uLen < Math.max(30, L * 3);
-      fwd = Math.min(fwd, rev);
+      var cd = Math.hypot(cu[0] - cr[0], cu[1] - cr[1]);
+      ok = cd < tol && uLen < Math.max(30, L * 3) && (!circ || uLen > L * 0.35);
+      fwd = circ ? Math.min(fwd, rev, cd * 1.2 + 2) : Math.min(fwd, rev);
     } else {
       ok = fwd <= tol && sd <= tol * 1.7 && uLen > L * 0.45 && uLen < L * 1.9;
     }
@@ -849,6 +956,7 @@
     var avg = PR.scores.reduce(function (a, b) { return a + b; }, 0) / PR.scores.length;
     var score = Math.max(0, Math.min(100, Math.round(avg - PR.miss * 4)));
     var stars = score >= 88 ? 3 : score >= 72 ? 2 : 1;
+    if (mode === 'doc' && DOC.active) { docDone(score, stars); return; }
     var best = store.get('best', {}), prev = best[cur.c] || 0, rec = stars > prev;
     if (rec) { best[cur.c] = stars; store.set('best', best); }
     var title = stars === 3 ? 'はなまる！' : stars === 2 ? 'よくできました' : 'もう一息！';
@@ -886,7 +994,7 @@
     (function step(now) { var e = Math.min(1, (now - t0) / dur); p.style.strokeDashoffset = L * (1 - e); if (e < 1) requestAnimationFrame(step); else { p.style.strokeDasharray = ''; } })(t0);
   }
   $('#prUndo').addEventListener('click', function () {
-    if (!PR.done.length) return;
+    if (!PR.done.length || PR.fin) return;
     PR.done.pop(); PR.scores.pop(); PR.i--; PR.hint = false; PR.missCur = 0; updateFit(); if (!PR.done.length) PR.fit = null;
     drawPC(); prLayers(); prMsg();
   });
@@ -901,7 +1009,7 @@
   });
   Array.from(document.querySelectorAll('#practiceUI [data-lv]')).forEach(function (b) {
     b.addEventListener('click', function () {
-      PR.lv = +b.dataset.lv; store.set('lv', PR.lv);
+      PR.lv = +b.dataset.lv; store.set(mode === 'doc' ? 'docLv' : 'lv', PR.lv);
       Array.from(document.querySelectorAll('#practiceUI [data-lv]')).forEach(function (x) { var on = x === b; x.setAttribute('aria-checked', on); x.setAttribute('aria-selected', on); });
       prStart();
     });
@@ -922,13 +1030,178 @@
   prVoice.addEventListener('click', function () { HyoVoice.ui($('#voiceBox'), { test: '書き始めはしっかり、だんだん力をぬいて左下へスッと払います。' }); openSheet($('#voiceSheet')); });
   function syncLv() { Array.from(document.querySelectorAll('#practiceUI [data-lv]')).forEach(function (x) { var on = +x.dataset.lv === PR.lv; x.setAttribute('aria-checked', on); x.setAttribute('aria-selected', on); }); }
 
+  // ---------------- 📜 文章をなぞる（v558）：有名な文章を、1字ずつ続けてなぞる ----------------
+  // 文は、著作権の切れた作品・昔から伝わることばから選ぶ。句読点・空白（と書き順データのない字）はとばす。
+  // 1字書けたら点数を覚えて次の字へ。とちゅうでやめても続きから（kkj:doc）。書き終わると、点数と「もう一度練習したい字」
+  var DOC_G = ['ひらがな・カタカナ', 'うた・ことば', '名作の書き出し'];
+  var DOCS = [
+    { id: 'aiueo', g: 0, t: 'あいうえお', by: 'ひらがなの五十音', x: 'あいうえお\nかきくけこ\nさしすせそ\nたちつてと\nなにぬねの\nはひふへほ\nまみむめも\nやゆよ\nらりるれろ\nわをん' },
+    { id: 'aiueok', g: 0, t: 'アイウエオ', by: 'カタカナの五十音', x: 'アイウエオ\nカキクケコ\nサシスセソ\nタチツテト\nナニヌネノ\nハヒフヘホ\nマミムメモ\nヤユヨ\nラリルレロ\nワヲン' },
+    { id: 'iroha', g: 0, t: 'いろは歌', by: '平安時代のうた（かなを1回ずつ使う）', x: 'いろはにほへと\nちりぬるを\nわかよたれそ\nつねならむ\nうゐのおくやま\nけふこえて\nあさきゆめみし\nゑひもせす' },
+    { id: 'usagi', g: 1, t: 'うさぎとかめ', by: '童謡（石原和三郎 作詞）', x: 'もしもし かめよ\nかめさんよ\nせかいのうちに\nおまえほど\nあゆみの のろい\nものはない\nどうして そんなに\nのろいのか' },
+    { id: 'haru', g: 1, t: '春が来た', by: '唱歌（高野辰之 作詞）', x: '春が来た 春が来た\nどこに来た\n山に来た 里に来た\n野にも来た' },
+    { id: 'kotowaza', g: 1, t: 'ことわざ', by: '昔から伝わることば', x: '石の上にも三年\n花より団子\n急がば回れ\n七転び八起き\nちりも積もれば山となる' },
+    { id: 'haiku', g: 1, t: '俳句', by: '松尾芭蕉・与謝蕪村・小林一茶・正岡子規', x: '夏草や兵どもが夢の跡\n菜の花や月は東に日は西に\n名月をとってくれろと泣く子かな\n柿くへば鐘が鳴るなり法隆寺' },
+    { id: 'jugemu', g: 1, t: '寿限無', by: '落語（長い名前）', x: 'じゅげむ じゅげむ\nごこうのすりきれ\nかいじゃりすいぎょの\nすいぎょうまつ\nうんらいまつ\nふうらいまつ\nくうねるところに\nすむところ\nやぶらこうじの\nぶらこうじ\nパイポ パイポ\nパイポのシューリンガン\nシューリンガンの\nグーリンダイ\nグーリンダイの\nポンポコピーの\nポンポコナーの\nちょうきゅうめいの\nちょうすけ' },
+    { id: 'ame', g: 2, t: '雨ニモマケズ', by: '宮沢賢治（書き出し）', x: '雨ニモマケズ\n風ニモマケズ\n雪ニモ夏ノ暑サニモマケヌ\n丈夫ナカラダヲモチ' },
+    { id: 'makura', g: 2, t: '枕草子', by: '清少納言（「春はあけぼの」）', x: '春はあけぼの。\nやうやう白くなりゆく山ぎは、\n少しあかりて、\n紫だちたる雲の\n細くたなびきたる。' },
+    { id: 'hojo', g: 2, t: '方丈記', by: '鴨長明（書き出し）', x: 'ゆく河の流れは絶えずして、\nしかももとの水にあらず。\nよどみに浮かぶうたかたは、\nかつ消えかつ結びて、\n久しくとどまりたるためしなし。' },
+    { id: 'bocchan', g: 2, t: '坊っちゃん', by: '夏目漱石（書き出し）', x: '親譲りの無鉄砲で\n小供の時から\n損ばかりしている。' },
+    { id: 'rasho', g: 2, t: '羅生門', by: '芥川龍之介（書き出し）', x: 'ある日の暮方の事である。\n一人の下人が、\n羅生門の下で\n雨やみを待っていた。' }
+  ];
+  // 覚えておいた続き（kkj:doc）は形をたしかめてから使う：{ id, pos, res: { 字の位置: [点数（とばした字は -1）, 書き直し] }, ms, fin }
+  function docClean(st) {
+    if (!st || typeof st !== 'object' || !docById(st.id)) return null;
+    var res = {}, n = docCs(docById(st.id)).length;
+    if (st.res && typeof st.res === 'object') Object.keys(st.res).forEach(function (i) {
+      var r = st.res[i];
+      if (/^\d+$/.test(i) && +i < n && Array.isArray(r) && isFinite(r[0]) && isFinite(r[1])) res[i] = [Math.max(-1, Math.min(100, Math.round(r[0]))), Math.max(0, Math.min(999, Math.round(r[1])))];
+    });
+    return { id: st.id, pos: Math.max(0, Math.min(n, Math.round(+st.pos) || 0)), res: res, ms: Math.max(0, +st.ms || 0), fin: !!st.fin };
+  }
+  var DOC = { st: docClean(store.get('doc', null)), active: false, timer: 0, t: 0, prev: 'practice', chosen: false, sum: false };   // sum：書き終わりのまとめを出している
+  function docById(id) { for (var i = 0; i < DOCS.length; i++) if (DOCS[i].id === id) return DOCS[i]; return null; }
+  function docCs(d) { if (!d._cs) d._cs = Array.from(d.x); return d._cs; }
+  function docOk(ch) { return !/\s/.test(ch) && K.has(ALIAS[ch] || ch); }   // なぞる字か（句読点・空白・データのない字はとばす）
+  function docTotal(d) { return docCs(d).filter(docOk).length; }
+  function docSave() { store.set('doc', DOC.st); }
+  function docPause() { clearTimeout(DOC.timer); DOC.active = false; DOC.sum = false; }
+  function docEnter(was) {
+    DOC.prev = was === 'doc' ? 'practice' : was;
+    var st = DOC.st, d = st && docById(st.id);
+    if (d && !st.fin) { docGo(st.pos); return; }
+    DOC.active = false; DOC.sum = false; docBar(); prStart(); openDocSheet();
+  }
+  function docStart(id) {
+    DOC.st = { id: id, pos: 0, res: {}, ms: 0, fin: false }; docSave();
+    lOverlay.innerHTML = ''; lMaru.innerHTML = '';
+    if (mode !== 'doc') setMode('doc'); else docGo(0);
+  }
+  function docGo(pos) {
+    var st = DOC.st, d = st && docById(st.id); if (!d) return;
+    clearTimeout(DOC.timer);
+    var cs = docCs(d);
+    while (pos < cs.length && !docOk(cs[pos])) pos++;
+    if (pos >= cs.length) { docFinish(); return; }
+    st.pos = pos; st.fin = false; docSave();
+    DOC.active = true; DOC.sum = false; DOC.t = Date.now();
+    lMaru.innerHTML = '';
+    load(cs[pos], { doc: true, autoplay: false });
+    docBar();
+  }
+  // 1字書けた：点数を覚えて、少し待ってから次の字へ
+  function docDone(score, stars) {
+    var st = DOC.st, now = Date.now();
+    st.res[st.pos] = [score, PR.miss];
+    st.ms = (st.ms || 0) + Math.min(90000, now - (DOC.t || now));   // 1字に90秒まで（席をはずした時間は数えない）
+    docSave(); docBar();
+    if (stars >= 2) drawMaru(stars === 3);
+    var m = $('#prMsg'), cs = docCs(docById(st.id)), nx = st.pos + 1;
+    while (nx < cs.length && !docOk(cs[nx])) nx++;
+    m.className = 'pr-msg';
+    m.innerHTML = '<span class="pr-count"><em>' + score + '</em>点</span><div class="pr-body"><p class="pr-lead"><b class="pr-ok">' + (stars === 3 ? 'はなまる！' : stars === 2 ? 'よくできました' : 'OK') + '</b>「' + esc(cur.c) + '」が書けました。</p><p class="pr-sub">' + (nx < cs.length ? '次は「' + esc(cs[nx]) + '」' : 'これで最後の字です') + '</p></div>';
+    var id = st.id, pos = st.pos + 1;
+    DOC.timer = setTimeout(function () { if (mode === 'doc' && DOC.st && DOC.st.id === id) docGo(pos); }, reduceMotion ? 350 : 1200);
+  }
+  $('#docSkip').addEventListener('click', function () {
+    if (mode !== 'doc' || !DOC.active || PR.fin) return;
+    DOC.st.res[DOC.st.pos] = [-1, 0]; docSave(); docGo(DOC.st.pos + 1);   // とばした字は点数に入れない（あとで「もう一度練習したい字」に出す）
+  });
+  function docStars(sc) { return sc >= 88 ? 3 : sc >= 72 ? 2 : 1; }
+  function docFinish() {
+    var st = DOC.st, d = docById(st.id), cs = docCs(d);
+    clearTimeout(DOC.timer); DOC.active = false; DOC.sum = true;
+    st.fin = true; st.pos = cs.length; docSave();
+    var keys = Object.keys(st.res).map(Number), done = keys.filter(function (i) { return st.res[i][0] >= 0; });
+    var avg = done.length ? Math.round(done.reduce(function (a, i) { return a + st.res[i][0]; }, 0) / done.length) : 0;
+    var miss = done.reduce(function (a, i) { return a + st.res[i][1]; }, 0), stars = done.length ? docStars(avg) : 1;
+    var best = store.get('docBest', {}); if (!best || typeof best !== 'object') best = {};
+    var rec = stars > (best[d.id] | 0);
+    if (rec) { best[d.id] = stars; store.set('docBest', best); }
+    var low = [];
+    keys.filter(function (i) { return st.res[i][0] < 80; }).sort(function (a, b) { return st.res[a][0] - st.res[b][0]; })
+      .forEach(function (i) { var c = ALIAS[cs[i]] || cs[i]; if (low.indexOf(c) < 0 && low.length < 8) low.push(c); });
+    var min = Math.max(1, Math.round((st.ms || 0) / 60000));
+    PR.fin = true; prLayers(); hush();
+    var box = $('#prResult');
+    box.innerHTML = '<div class="stars" aria-label="星' + stars + 'つ">' + '★'.repeat(stars) + '<i>' + '★'.repeat(3 - stars) + '</i></div>' +
+      '<strong>「' + esc(d.t) + '」を書きました！</strong>' +
+      '<p>' + done.length + '字・平均 ' + avg + '点・書き直し ' + miss + '回・約' + min + '分' + (keys.length > done.length ? '・とばした字 ' + (keys.length - done.length) + '字' : '') + '</p>' +
+      (low.length ? '<p>もう一度練習したい字（おすと、その字のなぞって練習）</p><div class="doc-low">' + low.map(function (c) { return '<button type="button" data-c="' + esc(c) + '" aria-label="' + esc(c) + 'を練習する">' + esc(c) + '</button>'; }).join('') + '</div>' : '<p>どの字もきれいに書けました。</p>') +
+      '<div class="pr-row"><button class="btn" id="dAgain" type="button">もう一度</button><button class="btn pri" id="dOther" type="button">ほかの文章</button></div>';
+    $('#prLive').hidden = true; box.hidden = false;
+    $('#dAgain').onclick = function () { docStart(d.id); };
+    $('#dOther').onclick = function () { openDocSheet(); };
+    Array.from(box.querySelectorAll('.doc-low button')).forEach(function (b) { b.onclick = function () { load(b.dataset.c); }; });
+    if (stars >= 2) drawMaru(stars === 3);
+    docBar();
+  }
+  // 上の帯：題・いまの行（書いた字・いまの字・これからの字）・進み具合。字をおすと、その字から書き直せる
+  function docBar() {
+    var st = DOC.st, d = st && docById(st.id), line = $('#docLine');
+    if (!d || (st.fin && !DOC.sum)) { $('#docTitle').textContent = '文章をえらんでください'; $('#docBy').textContent = ''; line.innerHTML = ''; $('#docProg').textContent = ''; $('#docFill').style.width = '0%'; return; }
+    var cs = docCs(d), total = docTotal(d), done = Object.keys(st.res).length, pos = Math.min(st.pos, cs.length - 1);
+    var a = pos, b = pos;
+    while (a > 0 && cs[a - 1] !== '\n') a--;
+    while (b < cs.length && cs[b] !== '\n') b++;
+    var lines = d.x.split('\n').length, ln = d.x.slice(0, a).split('\n').length;
+    $('#docTitle').textContent = d.t; $('#docBy').textContent = d.by;
+    $('#docProg').textContent = done + ' / ' + total + '字・' + ln + ' / ' + lines + '行';
+    $('#docFill').style.width = Math.round(done / Math.max(1, total) * 100) + '%';
+    var h = '';
+    for (var i = a; i < b; i++) {
+      var ch = cs[i], r = st.res[i];
+      if (!docOk(ch)) { h += '<span class="p">' + (/\s/.test(ch) ? '&nbsp;' : esc(ch)) + '</span>'; continue; }
+      var cls = r ? (r[0] < 0 ? 'sk' : 'd s' + docStars(r[0])) : (i === st.pos && !st.fin ? 'c' : '');
+      h += '<span class="' + cls + '" data-i="' + i + '" role="button" tabindex="0" aria-label="' + esc(ch) + (r ? (r[0] < 0 ? '（とばした）' : '（' + r[0] + '点）') : i === st.pos ? '（いまの字）' : '') + '">' + esc(ch) + '</span>';
+    }
+    line.innerHTML = h;
+  }
+  function docJump(e) {
+    var sp = e.target.closest('#docLine span[data-i]'); if (!sp || mode !== 'doc' || !DOC.st) return;
+    if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    docGo(+sp.dataset.i);
+  }
+  $('#docLine').addEventListener('click', docJump);
+  $('#docLine').addEventListener('keydown', docJump);
+  // 文章をえらぶ窓
+  function openDocSheet() {
+    var box = $('#docList'), st = DOC.st, best = store.get('docBest', {}), h = '';
+    DOC_G.forEach(function (gn, gi) {
+      h += '<div class="doc-g">' + esc(gn) + '</div>';
+      DOCS.filter(function (d) { return d.g === gi; }).forEach(function (d) {
+        var cur2 = st && st.id === d.id && !st.fin, n = docTotal(d), bs = Math.max(0, Math.min(3, best[d.id] | 0));
+        var stat = (cur2 ? '<span class="st go">つづきから ' + Object.keys(st.res).length + ' / ' + n + '字</span>' : '<span class="st">' + n + '字</span>') +
+          (bs ? '<span class="st best" aria-label="いちばんよかったとき 星' + bs + 'つ">' + '★'.repeat(bs) + '</span>' : '');
+        h += '<div class="doc-it' + (cur2 ? ' on' : '') + '"><button type="button" class="doc-go" data-id="' + d.id + '"><b>' + esc(d.t) + '</b><small>' + esc(d.by) + '</small>' +
+          '<span class="pv">' + esc(d.x.replace(/\n/g, '　')) + '</span><span class="sts">' + stat + '</span></button>' +
+          (cur2 ? '<button type="button" class="btn sm doc-re" data-re="' + d.id + '">はじめから</button>' : '') + '</div>';
+      });
+    });
+    box.innerHTML = h;
+    openSheet($('#docSheet'));
+  }
+  $('#docList').addEventListener('click', function (e) {
+    var go = e.target.closest('[data-id]'), re = e.target.closest('[data-re]');
+    if (!go && !re) return;
+    DOC.chosen = true; closeSheet(); DOC.chosen = false;
+    if (re) { docStart(re.dataset.re); return; }
+    var id = go.dataset.id, st = DOC.st;
+    if (st && st.id === id && !st.fin) { if (mode !== 'doc') setMode('doc'); else docGo(st.pos); }
+    else docStart(id);
+  });
+  $('#docPick').addEventListener('click', openDocSheet);
+  // 何もえらばずに窓を閉じたら、文章をなぞる前の画面へもどす
+  function docSheetClosed() { if (!DOC.chosen && mode === 'doc' && !DOC.active && !DOC.sum) setMode(DOC.prev || 'practice'); }
+
   // ---------------- 検索 ----------------
   var q = $('#q'), results = $('#results');
   function search(s) {
     s = s.trim(); if (!s) return null;
     var z = s.replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); });
     var m = z.match(/^(\d{1,2})\s*(画|かく)?$/);
-    if (m) { var n = +m[1], l = ALL.filter(function (k) { return k.n === n; }); return { list: l, msg: l.length ? n + '画の漢字（' + l.length + '字）' : n + '画の常用漢字はありません。' }; }
+    if (m) { var n = +m[1], l = ALL.filter(function (k) { return !k.kana && k.n === n; }); return { list: l, msg: l.length ? n + '画の漢字（' + l.length + '字）' : n + '画の常用漢字はありません。' }; }
     var chars = Array.from(s), hit = [], nj = [];
     chars.forEach(function (ch) {
       if (!isKanji(ch)) return;
@@ -937,16 +1210,24 @@
     });
     if (hit.length || nj.length) return { list: hit.map(function (c) { return K.get(c); }), msg: nj.length ? '「' + nj.join('') + '」は常用漢字ではないため、書き順データがありません。' : '' };
     var h = kata2hira(s).replace(/[\s　、。・.]/g, '');
-    if (/^[ぁ-ゖ]+$/.test(h)) {
+    if (/^[ぁ-ゖー]+$/.test(h)) {
+      // かなの字そのもの（v558）：1字なら ひらがな・カタカナを先に、2字より長いときは 漢字のあとに並べる
+      var kc = [];
+      Array.from(s).forEach(function (ch) { var k = isKana(ch) && K.get(ch); if (k && kc.indexOf(k) < 0) kc.push(k); });
+      if (kc.length === 1) { var pc = K.get(kanaPair(kc[0].c)); if (pc) kc.push(pc); }
       var ex = [], pre = [];
-      ALL.forEach(function (k) {
+      if (/^[ぁ-ゖ]+$/.test(h)) ALL.forEach(function (k) {
+        if (k.kana) return;
         if (k.rd.indexOf(h) >= 0) ex.push(k);
         else if (k.rd.some(function (r) { return r.indexOf(h) === 0; })) pre.push(k);
       });
-      var l2 = ex.concat(pre);
-      return { list: l2, msg: l2.length ? '「' + h + '」と読む漢字' + (ex.length ? '（' + ex.length + '字）' : '') + (pre.length ? '・「' + h + '…」で始まる読み（' + pre.length + '字）' : '') : '「' + h + '」と読む常用漢字は見つかりませんでした。' };
+      var one = h.length === 1, l2 = one ? kc.concat(ex, pre) : ex.concat(pre, kc), parts = [];
+      if (kc.length && one) parts.push('かなの「' + kc.map(function (k) { return k.c; }).join('」「') + '」');
+      if (ex.length || pre.length) parts.push('「' + h + '」と読む漢字' + (ex.length ? '（' + ex.length + '字）' : '') + (pre.length ? '・「' + h + '…」で始まる読み（' + pre.length + '字）' : ''));
+      if (kc.length && !one) parts.push('かなの字（' + kc.length + '字）');
+      return { list: l2, msg: l2.length ? parts.join('・') : '「' + h + '」と読む常用漢字は見つかりませんでした。' };
     }
-    return { list: [], msg: '見つかりませんでした。漢字・ひらがな・画数（例：5画）で探せます。' };
+    return { list: [], msg: '見つかりませんでした。漢字・ひらがな・カタカナ・画数（例：5画）で探せます。' };
   }
   function showResults(r) {
     if (!r) { results.hidden = true; return; }
@@ -956,7 +1237,7 @@
       var g = document.createElement('div'); g.className = 'res-grid';
       r.list.slice(0, 120).forEach(function (k) {
         var b = document.createElement('button'); b.type = 'button'; b.className = 'res-item'; b.dataset.c = k.c;
-        b.innerHTML = '<b>' + esc(k.c) + '</b><small>' + esc(k.rd[0] || '') + '・' + k.n + '画</small>';
+        b.innerHTML = '<b>' + esc(k.c) + '</b><small>' + esc(k.kana ? GRADE[k.g] : k.rd[0] || '') + '・' + k.n + '画</small>';
         g.appendChild(b);
       });
       results.appendChild(g);
@@ -992,8 +1273,10 @@
     if (!openSheetEl) return;
     if (openSheetEl === $('#micSheet')) stopRec();
     if (openSheetEl === $('#voiceSheet')) hush();   // 声の設定の試しの読み上げを止める
+    var wasDoc = openSheetEl === $('#docSheet');
     openSheetEl.hidden = true; $('#backdrop').hidden = true; openSheetEl = null;
     if (lastFocus && lastFocus.focus) try { lastFocus.focus(); } catch (e) { }
+    if (wasDoc) docSheetClosed();
   }
   $('#backdrop').addEventListener('click', closeSheet);
   Array.from(document.querySelectorAll('[data-close]')).forEach(function (b) { b.addEventListener('click', closeSheet); });
@@ -1112,13 +1395,20 @@
     var seen = [], list = [];
     alts.forEach(function (t) {
       t = t.replace(/(という|って|の)(漢字|字)/g, '');
-      Array.from(t).forEach(function (ch) { var c = ALIAS[ch] || ch; if (K.has(c) && seen.indexOf(c) < 0) { seen.push(c); list.push(K.get(c)); } });
+      Array.from(t).forEach(function (ch) { var c = ALIAS[ch] || ch; if (isKanji(c) && K.has(c) && seen.indexOf(c) < 0) { seen.push(c); list.push(K.get(c)); } });
     });
+    if (!list.length) {   // 「ひらがなのあ」「カタカナのア」（v558）
+      var km = alts.map(function (t) { return t.match(/(ひらがな|平仮名|カタカナ|片仮名)の?\s*([ぁ-ゖァ-ヺー])/); }).filter(Boolean)[0];
+      if (km) {
+        var hira = /ひらがな|平仮名/.test(km[1]), cc = km[2], isH = /[ぁ-ゖ]/.test(cc), kk = K.get(hira === isH ? cc : kanaPair(cc) || cc);
+        if (kk) list = [kk];
+      }
+    }
     if (!list.length) { var r = search(alts[0]); if (r) list = r.list.slice(0, 30); }
     $('#micState').innerHTML = '<div class="transcript">' + esc(alts[0]) + '</div><button class="btn" id="micAgain" type="button">もう一度話す</button>';
     $('#micAgain').addEventListener('click', micListen);
     var box = $('#micCands'); box.innerHTML = '';
-    if (!list.length) { box.innerHTML = '<span class="empty">常用漢字が見つかりませんでした。</span>'; return; }
+    if (!list.length) { box.innerHTML = '<span class="empty">字が見つかりませんでした。</span>'; return; }
     list.forEach(function (k) {
       var b = document.createElement('button'); b.type = 'button'; b.textContent = k.c;
       b.addEventListener('click', function () { closeSheet(); load(k.c); scrollToStage(); });
@@ -1142,10 +1432,11 @@
   toggle('#oNums', 'nums'); toggle('#oGhost', 'ghost'); toggle('#oLoop', 'loop');
   $('#modeView').addEventListener('click', function () { if (mode !== 'view') setMode('view'); });
   $('#modePractice').addEventListener('click', function () { if (mode !== 'practice') setMode('practice'); });
+  $('#modeDoc').addEventListener('click', function () { if (mode !== 'doc') setMode('doc'); else openDocSheet(); });
   $('#kPrev').addEventListener('click', function () { load(ORDER[(cur.o - 1 + ORDER.length) % ORDER.length].c); });
   $('#kNext').addEventListener('click', function () { load(ORDER[(cur.o + 1) % ORDER.length].c); });
   $('#kRand').addEventListener('click', function () { load(ORDER[Math.floor(Math.random() * ORDER.length)].c); });
-  window.addEventListener('resize', function () { if (mode === 'practice') sizePC(); if (openSheetEl === $('#hwSheet')) hwSize(); });
+  window.addEventListener('resize', function () { if (mode !== 'view') sizePC(); if (openSheetEl === $('#hwSheet')) hwSize(); });
   try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { drawPC(); hwDraw(); }); } catch (e) { }
   try { new MutationObserver(function () { drawPC(); hwDraw(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); } catch (e) { }
 
@@ -1165,7 +1456,7 @@
   var hm = (location.hash || '').match(/^#u([0-9a-f]{4,5})$/i);
   if (hm) { var ch = String.fromCodePoint(parseInt(hm[1], 16)); if (K.has(ch)) start = ch; }
   cur = K.get(start);
-  showTab(String(cur.g));
+  showTab(tabOf(cur));
   load(start, { full: true, delay: 900 });
   setTimeout(function () { try { ensureRec(); } catch (e) { } }, 2500);
 
@@ -1176,7 +1467,8 @@
   window.KKJ_APP = {
     load: load, search: search, analyze: analyze, setMode: setMode, micResults: micResults, recognize: function (s, f, n) { return ensureRec().recognize(s, f || 300, n || 12); },
     cur: function () { return cur; }, mode: function () { return mode; }, P: function () { return P; }, PR: function () { return PR; }, K: K, ALL: ALL, geo: geo,
-    strokeTips: strokeTips, sayText: sayText, kakuYomi: kakuYomi
+    strokeTips: strokeTips, sayText: sayText, kakuYomi: kakuYomi, kinfo: kinfo, sinfo: sinfo, ORDER: ORDER,
+    DOCS: DOCS, docOk: docOk, doc: function () { return DOC; }, docStart: docStart, docGo: docGo, openDocSheet: openDocSheet
   };
 })();
 

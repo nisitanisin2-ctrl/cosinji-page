@@ -81,6 +81,45 @@ button { font: inherit; color: inherit; }
 .seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--chip); border-radius: 999px; padding: 4px; gap: 4px; }
 .seg button { border: 0; background: transparent; border-radius: 999px; height: 38px; cursor: pointer; font-weight: 700; font-size: 14px; color: var(--ink-2); }
 .seg button[aria-selected="true"] { background: var(--sheet); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.seg.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.seg.three button { padding: 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 380px) { .seg.three button { font-size: 12.5px; } }
+
+/* 📜 文章をなぞる（v558）：題・いまの行・進み具合 */
+.doc-bar { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+.doc-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.doc-t { min-width: 0; }
+.doc-t b { font-family: var(--f-disp); font-weight: 600; font-size: 17px; }
+.doc-t small { display: block; font-size: 11.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btn.sm { min-height: 34px; padding: 4px 12px; font-size: 13px; flex: none; }
+.doc-line { display: flex; flex-wrap: wrap; gap: 2px; font-family: var(--f-disp); font-weight: 600; font-size: 22px; line-height: 1; min-height: 34px; }
+.doc-line span { display: grid; place-items: center; min-width: 28px; height: 34px; padding: 0 1px; border-radius: 5px; border: 1.5px solid transparent; color: var(--ink-2); opacity: .6; cursor: pointer; }
+.doc-line span.p { min-width: 0; opacity: .6; cursor: default; }
+.doc-line span.d { color: var(--ink); opacity: 1; }
+.doc-line span.s3 { color: var(--green); }
+.doc-line span.s1 { color: var(--warn); }
+.doc-line span.sk { opacity: .45; text-decoration: line-through; }
+.doc-line span.c { color: var(--mark); opacity: 1; border-color: var(--mark); background: var(--mark-soft); }
+.doc-line span[data-i]:hover { border-color: var(--rule); }
+.doc-prog { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.doc-meter { flex: 1; height: 6px; border-radius: 99px; background: var(--chip); overflow: hidden; }
+.doc-meter i { display: block; height: 100%; width: 0; background: var(--green); border-radius: inherit; transition: width .3s; }
+.doc-list { display: grid; gap: 8px; }
+.doc-g { font-size: 12px; font-weight: 700; color: var(--green); letter-spacing: .06em; margin-top: 6px; }
+.doc-it { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); padding: 2px 8px 2px 2px; }
+.doc-it.on { border-color: var(--green); box-shadow: 0 0 0 1px var(--green); }
+.doc-go { flex: 1; min-width: 0; border: 0; background: transparent; color: inherit; text-align: left; padding: 8px 10px; cursor: pointer; display: grid; gap: 1px; border-radius: 10px; }
+.doc-go:hover { background: var(--chip); }
+.doc-go b { font-family: var(--f-disp); font-weight: 600; font-size: 17px; }
+.doc-go small { font-size: 12px; color: var(--ink-2); }
+.doc-go .pv { font-family: var(--f-disp); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.doc-go .sts { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.doc-go .st { font-size: 12px; color: var(--ink-2); font-weight: 700; }
+.doc-go .st.go { color: var(--green); }
+.doc-go .st.best { color: var(--mark); letter-spacing: .1em; }
+.doc-low { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.doc-low button { width: 46px; height: 46px; border: 1px solid var(--rule); border-radius: 6px; background: var(--sheet); color: var(--ink); font-family: var(--f-disp); font-weight: 600; font-size: 26px; cursor: pointer; line-height: 1; }
+.doc-low button:hover { border-color: var(--mark); color: var(--mark); }
 
 .masu { position: relative; width: 100%; max-width: 420px; aspect-ratio: 1 / 1; margin: 0 auto; background: var(--sheet); border: 2.5px solid var(--rule); border-radius: 4px; touch-action: manipulation; }
 .masu svg, .masu canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -180,6 +219,11 @@ button { font: inherit; color: inherit; }
 .yomi dd { margin: 0; min-width: 0; }
 .yomi .okuri { color: var(--ink-2); }
 .yomi .sep { color: var(--rule); margin: 0 .35em; }
+/* かなの「もとの字」「ひらがな⇔カタカナ」（おすと開く。v558） */
+.yomi .kl, .yomi .kl0 { font-family: var(--f-disp); font-weight: 600; font-size: 20px; line-height: 1; min-width: 32px; height: 30px; padding: 0 6px; margin-right: 4px; border: 1px solid var(--rule); border-radius: 6px; background: var(--sheet); color: var(--ink); vertical-align: middle; display: inline-grid; place-items: center; }
+.yomi .kl { cursor: pointer; }
+.yomi .kl:hover { border-color: var(--mark); color: var(--mark); }
+.yomi .kl0 { border-style: dashed; }
 .parts { margin: 10px 0 0; font-size: 14px; color: var(--ink-2); }
 .parts b { color: var(--ink); font-weight: 700; }
 .nav-k { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
@@ -227,6 +271,11 @@ button { font: inherit; color: inherit; }
 .kgrid button { aspect-ratio: 1 / 1; max-width: 100%; border: 1px solid var(--line); background: var(--paper); border-radius: 4px; font-family: var(--f-disp); font-weight: 600; font-size: 24px; cursor: pointer; line-height: 1; padding: 0; }
 .kgrid button:hover { border-color: var(--green); }
 .kgrid button[aria-current="true"] { background: var(--mark); color: var(--sheet); border-color: var(--mark); }
+/* ひらがな・カタカナは五十音の表（5列）。v558 */
+.kgrid.kana { grid-template-columns: repeat(5, minmax(0, 58px)); justify-content: center; max-height: 430px; }
+.kgrid .kg-h { grid-column: 1 / -1; font-size: 12px; font-weight: 700; color: var(--green); letter-spacing: .06em; margin: 10px 0 2px; }
+.kgrid .kg-blank { aspect-ratio: 1 / 1; }
+.kgrid button.old { color: var(--ink-2); }
 .empty { font-size: 14px; color: var(--ink-2); padding: 12px 0; }
 
 footer { max-width: 1120px; margin: 0 auto; padding-inline: 16px; padding-block: 0 40px; font-size: 12px; color: var(--ink-2); line-height: 1.7; }
