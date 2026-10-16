@@ -9736,6 +9736,47 @@ async function runKakijun558(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+/* ✍️ かきじゅん帳 v559：iPhone SE（幅320px。SE 第2・第3世代の「拡大表示」も）・375px で、カードの外へはみ出さない */
+async function runKakijunSE(browser) {
+  console.log('\n── ✍️ かきじゅん帳：iPhone SE の幅でも はみ出さない（v559） ──');
+  const KKJ = 'file://' + path.join(ROOT, 'kakijun', 'index.html');
+  // カード・窓・見出しの中の物が、その入れ物の外へ出ていないか（横に送る入れ物の中はのぞく）。ボタンの字が切れていないか
+  const fit = page => page.evaluate(() => {
+    const vis = e => { for (let x = e; x; x = x.parentElement) if (x.hidden) return false; const cs = getComputedStyle(e); return cs.display !== 'none' && cs.visibility !== 'hidden'; };
+    const bad = [];
+    document.querySelectorAll('.card, .sheet, .top-in').forEach(card => {
+      if (!vis(card)) return;
+      const cr = card.getBoundingClientRect();
+      card.querySelectorAll('*').forEach(e => {
+        if (!vis(e)) return;
+        for (let p = e.parentElement; p && p !== card; p = p.parentElement) if (/(auto|scroll)/.test(getComputedStyle(p).overflowX)) return;
+        const r = e.getBoundingClientRect();
+        if (r.width && (r.right > cr.right + 0.5 || r.left < cr.left - 0.5)) bad.push(e.id ? '#' + e.id : e.tagName.toLowerCase() + '.' + String(e.className).split(' ')[0]);
+      });
+    });
+    const cut = [...document.querySelectorAll('.seg button, .btn, .chip, .ctl')].filter(e => vis(e) && e.scrollWidth > e.clientWidth + 1).map(e => e.textContent.trim());
+    return [document.documentElement.scrollWidth <= document.documentElement.clientWidth, [...new Set(bad)].slice(0, 6).join(',') || 'なし', cut.join(',') || 'なし'].join(' / ');
+  });
+  for (const [wd, ht] of [[320, 568], [375, 667]]) {
+    const ctx = await browser.newContext({ viewport: { width: wd, height: ht }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+    await ctx.addInitScript(() => { Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { speak: () => {}, cancel: () => {}, getVoices: () => [] } }); });
+    const page = await ctx.newPage();
+    const errs = []; page.on('pageerror', e => errs.push(e.message));
+    await page.goto(KKJ + '#from=hyo'); await page.waitForFunction(() => window.KKJ_APP && KKJ_APP.cur()); await page.waitForTimeout(300);
+    check('  ' + wd + 'px 書き順を見る：はみ出さない・字が切れない', await fit(page), 'true / なし / なし');
+    await page.evaluate(() => { const b = document.getElementById('bSpeed'); b.click(); b.click(); });   // ふつう → はやい → ゆっくり（いちばん長い字）
+    check('  ' + wd + 'px 　速さ「ゆっくり」でも1行に収まる', await page.evaluate(() => { const c = [...document.querySelectorAll('.controls > *')].map(e => e.getBoundingClientRect().top); return document.getElementById('bSpeed').textContent + '/' + (Math.max(...c) - Math.min(...c) < 12); }) + ' / ' + await fit(page), 'ゆっくり/true / true / なし / なし');
+    await page.evaluate(() => { KKJ_APP.load('ぱ', { autoplay: false }); KKJ_APP.setMode('practice'); }); await page.waitForTimeout(200);
+    check('  ' + wd + 'px なぞって練習（かな）', await fit(page), 'true / なし / なし');
+    await page.evaluate(() => KKJ_APP.docStart('hojo')); await page.waitForTimeout(300);
+    check('  ' + wd + 'px 文章をなぞる', await fit(page), 'true / なし / なし');
+    await page.evaluate(() => KKJ_APP.openDocSheet()); await page.waitForTimeout(200);
+    check('  ' + wd + 'px 文章をえらぶ窓', await fit(page), 'true / なし / なし');
+    await page.evaluate(() => document.getElementById('backdrop').click());
+    check('  ' + wd + 'px エラーなし', errs.join(' | '), '');
+    await ctx.close();
+  }
+}
 
 /* 🌗 端末のダークテーマ・節電モードでも文字が消えない（v541）。
    端末がダークになると（Pixel の節電モードなど）、色を決めていない文字が白くなり、白い地に溶けていた。
@@ -14208,6 +14249,7 @@ async function runQrShare(browser) {
     if (!only || only === 'rk556') await runRenraku556(browser);
     if (!only || only === 'koe557') await runKoeUser557(browser);
     if (!only || only === 'kkj558') await runKakijun558(browser);
+    if (!only || only === 'kkjse') await runKakijunSE(browser);
     if (!only || only === 'firsthint') await runFirstHint(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
