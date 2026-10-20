@@ -9777,6 +9777,79 @@ async function runKakijunSE(browser) {
     await ctx.close();
   }
 }
+/* 💾 別の名前で保存（v560）：保存した記録を開いて直したあと、違う名前を付けて 別の記録として残す（元の記録はそのまま） */
+async function runSaveAs560(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 💾 別の名前で保存（v560） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const menu = () => page.evaluate(() => { openMoreMenu(); const sa = document.getElementById('moreSaveAs'); const r = [document.getElementById('moreSaveLb').textContent, getComputedStyle(sa).display !== 'none', sa.parentElement.classList.contains('more-grid3')].join('/'); /* 見えているか（hidden の印だけでなく）で見る */ closeMoreMenu(); return r; });
+  const rec = name => page.evaluate(n => { const s = getSaves().find(x => x.name === n); return s ? String(s.data[0][0]) + '@' + (s.tab || 0) : 'なし'; }, name);
+  await page.evaluate(() => { localStorage.removeItem('excalc_saves'); currentSaveId = null; saveDirty = false; markBackedUp(); });   // 書き出しをすすめる ⚠ は出さない
+  check('  記録を開いていないとき：☰ は「名前を付けて保存」だけ（別の名前で保存は出さない）', await menu(), '名前を付けて保存/false/false');
+  await page.evaluate(async () => { setCellVal(0, 0, '100'); window.appPrompt = async () => '見積'; await saveAsData(); });
+  check('  名前を付けて保存すると、その記録を開いた状態になる', await page.evaluate(() => [getSaves().length, getSaves()[0].name, getSaves()[0].id === currentSaveId, document.getElementById('recordTitle').textContent].join('/')), '1/見積/true/📄 見積 ✓');
+  await w(1300);   // 保存ボタンの「✓ 保存済」が もとの名前に戻ってから
+  check('  記録を開いているとき：☰ に「上書き保存」と「📝 別の名前で保存」（3つ並べる）', await menu(), '上書き保存/true/true');
+  await page.evaluate(() => setCellVal(0, 0, '250')); await w(100);
+  check('  直すと 未保存の印（●）', await page.evaluate(() => document.getElementById('recordTitle').textContent), '📄 見積 ●');
+  // ☰ → 📝 別の名前で保存（新しい名前を入れる）
+  const asked = await page.evaluate(async () => {
+    let seen = null; window.appPrompt = async (m, d) => { seen = [m, d]; return '見積（値引き後）'; };
+    openMoreMenu(); document.getElementById('moreSaveAs').click();
+    await new Promise(r => setTimeout(r, 300));
+    return seen;
+  });
+  check('  聞くときの文と、名前の候補（元の名前 (2)）', asked.join(' | '), '別の名前で保存します。新しい名前を入れてください\n（「見積」は 保存したときのまま残ります） | 見積 (2)');
+  check('  新しい記録ができ、元の「見積」は保存したときのまま（100）', [await rec('見積'), await rec('見積（値引き後）'), await page.evaluate(() => getSaves().length)].join(' / '), '100@0 / 250@0 / 2');
+  check('  いま開いているのは新しい記録（未保存の印は消える）・知らせる', await page.evaluate(() => [document.getElementById('recordTitle').textContent, getSaves().find(s => s.id === currentSaveId).name, (document.getElementById('appToast') || {}).textContent || ''].join(' / ')), '📄 見積（値引き後） ✓ / 見積（値引き後） / 「見積（値引き後）」として別に保存しました（「見積」はそのまま）');
+  await page.evaluate(async () => { setCellVal(0, 0, '300'); await saveData(); });
+  check('  そのあとの上書き保存は 新しい記録へ（元の「見積」は変わらない）', [await rec('見積'), await rec('見積（値引き後）')].join(' / '), '100@0 / 300@0');
+  // 同じ名前を入れたときは聞く（「名前を入れ直す」→ 入れ直した名前で保存）
+  const dup = await page.evaluate(async () => {
+    const names = ['見積', '見積 改']; let conf = null, n = 0;
+    window.appPrompt = async () => names[n++];
+    window.appConfirm = async (m, y, no) => { conf = [m, y, no].join(' | '); return false; };
+    await saveAsData();
+    return conf + ' / ' + n + ' / ' + getSaves().map(s => s.name).join('、');
+  });
+  check('  同じ名前の記録があるときは聞く（入れ直せる・上書きはしない）', dup, '「見積」という名前の記録が もうあります。\n同じ名前で、もう1つ別に保存しますか？（前のものは そのまま残ります） | 別に保存する | 名前を入れ直す / 2 / 見積 改、見積（値引き後）、見積');
+  const dup2 = await page.evaluate(async () => { window.appPrompt = async () => '見積'; window.appConfirm = async () => true; await saveAsData(); return getSaves().filter(s => s.name === '見積').length; });
+  check('  「別に保存する」なら 同じ名前でもう1つ（前のものは残る）', dup2, 2);
+  // 開いていた記録と同じタブに入る
+  const tabbed = await page.evaluate(async () => {
+    const saves = getSaves(); const s = saves.find(x => x.name === '見積 改'); s.tab = 2; persistSaves(saves);
+    loadSave(s.id); await new Promise(r => setTimeout(r, 200));
+    window.appPrompt = async () => '見積 改2'; await saveAsData();
+    return getSaves().find(x => x.name === '見積 改2').tab;
+  });
+  check('  開いていた記録と同じタブ（フォルダ）に入る', tabbed, 2);
+  // 保存データ一覧のいちばん上にも ボタン
+  await page.evaluate(() => showSaveList()); await w(250);
+  check('  保存データ一覧の上に「上書き保存」「📝 別の名前で保存」', await page.evaluate(() => [...document.querySelectorAll('#saveNowBar button')].map(b => b.textContent).join(' | ')), '💾 上書き保存 | 📝 別の名前で保存');
+  await page.evaluate(() => { window.appPrompt = async () => '見積 改3'; }); await page.click('#saveNowBar .pri'); await w(300);
+  check('  一覧のボタンで保存すると、保存したタブ（フォルダ）を出して すぐ一覧に出る', await page.evaluate(() => /見積 改3/.test(document.getElementById('saveListBody').textContent) + '/' + getSaves().find(s => s.id === currentSaveId).name + '/' + saveActiveTab), 'true/見積 改3/2');
+  // 🔒 ロック中の記録を開いたとき：上書きできないので「名前を付けて保存」だけ
+  await page.evaluate(() => { closeSaveList(); const saves = getSaves(); const s = saves.find(x => x.name === '見積（値引き後）'); s.locked = true; persistSaves(saves); loadSave(s.id); }); await w(1300);
+  check('  ロック中の記録を開いたとき：☰ は「名前を付けて保存」だけ', await menu(), '名前を付けて保存/false/false');
+  await page.evaluate(() => showSaveList()); await w(200);
+  check('  　一覧の上のボタンも「名前を付けて保存」だけ', await page.evaluate(() => [...document.querySelectorAll('#saveNowBar button')].map(b => b.textContent).join(' | ')), '📝 いまの表を名前を付けて保存');
+  await page.evaluate(() => closeSaveList()); await w(150);
+  // 自分のボタン・パソコンのキー
+  check('  自分のボタンに登録できる便利機能に「📝 別名で保存」', await page.evaluate(() => { const a = REG_ACTIONS.find(x => x.id === 'saveas'); return a ? a.icon + a.name + '/' + (typeof REG_ACTION_FN.saveas) : 'なし'; }), '📝別名で保存/function');
+  const keys = await page.evaluate(async () => {
+    const log = []; const o1 = window.saveData, o2 = window.saveAsData;
+    window.saveData = async () => log.push('save'); window.saveAsData = async () => log.push('saveas');
+    document.activeElement && document.activeElement.blur && document.activeElement.blur();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true, cancelable: true }));
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'S', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true }));
+    window.saveData = o1; window.saveAsData = o2;
+    return log.join(',');
+  });
+  check('  パソコン：Ctrl+S で保存・Ctrl+Shift+S で別の名前で保存', keys, 'save,saveas');
+  check('  使い方の説明にも書いた', await page.evaluate(() => /📝別の名前で保存/.test(window.EXCALC_HELP_DETAIL || '') || /別の名前で保存/.test(document.body.innerHTML)), true);
+  check('  JSエラーが出ていない', errs.join(' | '), '');
+  await ctx.close();
+}
 
 /* 🌗 端末のダークテーマ・節電モードでも文字が消えない（v541）。
    端末がダークになると（Pixel の節電モードなど）、色を決めていない文字が白くなり、白い地に溶けていた。
@@ -14250,6 +14323,7 @@ async function runQrShare(browser) {
     if (!only || only === 'koe557') await runKoeUser557(browser);
     if (!only || only === 'kkj558') await runKakijun558(browser);
     if (!only || only === 'kkjse') await runKakijunSE(browser);
+    if (!only || only === 'saveas') await runSaveAs560(browser);
     if (!only || only === 'firsthint') await runFirstHint(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);

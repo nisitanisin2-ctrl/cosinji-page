@@ -697,6 +697,10 @@ body.ui-easy #settingsPanel.show-all .set-easy .ez-all { margin: 4px 0 6px; }
 .more-uimode-note { font-size: 12px; color: var(--text-sub, #666); margin-top: 4px; line-height: 1.5; }
 .set-easy .ez-all { width: 100%; margin: 12px 0 8px; }
 .more-fold { display: block; margin-bottom: 8px; }   /* v459 からいつも出す（いまの表：保存・開く・戻す） */
+/* 記録を開いているときは 上書き保存・別の名前で保存・開く の3つ（v560）。絵の下に字を置いて、狭い画面でも読めるように */
+.more-fold .more-grid.more-grid3 .more-item { flex-direction: column; justify-content: center; gap: 3px; padding: 9px 4px; font-size: 13px; text-align: center; line-height: 1.25; }
+.more-fold .more-grid.more-grid3 .more-item span { font-size: 20px; }
+.more-item[hidden] { display: none; }   /* .more-item の display:flex が hidden に勝たないように */
 .more-grid.more-grid3 { grid-template-columns: repeat(3, 1fr); }
 .np-side-only { display: none; }
 body.np-side .np-side-only { display: flex; }
@@ -3082,6 +3086,13 @@ body.dark .save-mode { background: #143a35; color: #7fcabd; }
 .save-state-row b { color: var(--text); }
 .save-state-row .ss-mark { flex-shrink: 0; font-size: 13px; }
 .save-state-row.ss-warn { color: var(--danger); }
+/* いまの表の保存（v560）：記録を開いているときは「上書き保存」と「別の名前で保存」を並べる */
+.save-now { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 14px 8px; }
+.save-now:empty { display: none; }
+.save-now-btn { flex: 1 1 140px; min-width: 0; padding: 8px 10px; border-radius: var(--r-btn); border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text);
+  font-size: 13px; font-weight: bold; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; touch-action: manipulation; }
+.save-now-btn.pri { background: var(--acc); border-color: var(--acc); color: #fff; }
+.save-now-btn:active { opacity: .75; }
 .save-state-row.ss-warn b { color: var(--danger); }
 body.dark .save-state-row.ss-warn, body.dark .save-state-row.ss-warn b { color: #ff8a80; }
 .save-tool-btn {
@@ -3934,6 +3945,7 @@ body.dark {
         <button class="more-rec" id="moreRec" onclick="moreDo(showSaveList)" title="いま開いている記録（押すと保存したものの一覧）"></button>
         <div class="more-grid">
           <button class="more-item" id="moreSave" onclick="moreDo(saveData)"><span>💾</span><b id="moreSaveLb">保存</b></button>
+          <button class="more-item" id="moreSaveAs" onclick="moreDo(saveAsData)" hidden title="いまの表を、別の名前を付けて新しい記録として保存します（開いている記録はそのまま残ります）"><span>📝</span><b>別の名前で保存</b></button>
           <button class="more-item menu-item" id="listBtn" onclick="moreDo(showSaveList)" title="保存した表の一覧（開く・新規・書き出し）"><span>📂</span>開く</button>
         </div>
       </div>
@@ -4823,6 +4835,7 @@ body.dark {
       <button class="modal-close" onclick="closeSaveList()">✕</button>
     </div>
     <div class="save-state" id="saveStateBanner"></div>
+    <div class="save-now" id="saveNowBar"></div>
     <div class="save-tabbar" id="saveTabBar" title="タップで切替／長押しで名前を変更"></div>
     <div class="save-viewbar">
       <select class="save-sortsel" id="saveSortSel" onchange="setSaveSort(this.value)" title="並べ替え">
@@ -9158,6 +9171,11 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v560', t:'💾 保存：開いた記録を直したあと「別の名前で保存」', li:[
+    '保存した記録を開いて直したあと、<b>☰ の「📝 別の名前で保存」</b>で、違う名前を付けて<b>別の記録として保存</b>できるようにしました。開いていた記録は、保存したときのまま残ります（前は 保存ボタンの長押しでしかできず、見つけにくかった）',
+    '名前の候補は「元の名前 (2)」です。同じ名前の記録があるときは、別に保存してよいか聞きます（上書きはしません）。保存したあとは新しい記録が開いた状態になり、☰ の「💾 上書き保存」はそちらに入ります',
+    '保存データ一覧のいちばん上にも「💾 上書き保存」「📝 別の名前で保存」のボタンを置きました。新しい記録は、開いていた記録と同じタブ（フォルダ）に入ります',
+    'パソコンでは <b>Ctrl+S</b> で保存、<b>Ctrl+Shift+S</b> で別の名前で保存。自分のボタンにも「📝 別名で保存」を登録できます' ]},
   { v:'v559', t:'✍️ かきじゅん帳：iPhone SE で はみ出さないように', li:[
     '✍️かきじゅん帳を <b>iPhone SE</b> などの小さい画面（幅320px。SE 第2・第3世代の「拡大表示」も）で開くと、再生のボタンの列が入りきらず、マスや「書き順を見る／なぞって練習／文章をなぞる」が右へはみ出していたのを直しました',
     '小さい画面では 余白とボタンを少し小さくして、1行に収めます。速さを「ゆっくり」にしたときも収まります（SE 第2・第3世代の幅375pxでも）' ]},
@@ -15610,6 +15628,7 @@ const REG_ACTIONS=[
   {id:'undo',  icon:'↩', name:'戻す',       desc:'直前の変更を元に戻す'},
   {id:'redo',  icon:'↪', name:'進む',       desc:'元に戻した操作をやり直す'},
   {id:'save',  icon:'💾', name:'保存',       desc:'名前を付けて保存'},
+  {id:'saveas',icon:'📝', name:'別名で保存', desc:'別の名前を付けて保存（開いている記録はそのまま残す）'},
   {id:'list',  icon:'🗂', name:'リスト',     desc:'保存データの一覧を開く'},
   {id:'reset', icon:'🗑', name:'リセット',   desc:'今の表のかたちの中身を消す'},
   {id:'csv',   icon:'📄', name:'CSV出力',    desc:'表をCSVファイルに書き出す'},
@@ -15617,7 +15636,7 @@ const REG_ACTIONS=[
   {id:'dark',  icon:'🌙', name:'ナイト',     desc:'ダークモードを切替'},
   {id:'mode',  icon:'🎯', name:'ひな形',     desc:'ひな形から作る（表のかたち・ひな形）を開く'},
 ];
-const REG_ACTION_FN={ enter:eq, bs:bs, undo:undoLast, redo:redoLast, save:()=>saveData(), list:showSaveList,
+const REG_ACTION_FN={ enter:eq, bs:bs, undo:undoLast, redo:redoLast, save:()=>saveData(), saveas:()=>saveAsData(), list:showSaveList,
                        reset:resetAll, csv:exportCSV, csvin:()=>document.getElementById('importCSVInput').click(),
                        dark:toggleDark, mode:onModeBtnClick };
 function regEntry(i){ return userKeys[i]||{type:'text',value:''}; }
@@ -19104,6 +19123,7 @@ document.addEventListener('keydown', e=>{
     if (k==='c') { e.preventDefault(); copyCell(); return; }
     if (k==='v') { e.preventDefault(); pasteCell(); return; }
     if (k==='z') { e.preventDefault(); undoLast(); return; }
+    if (k==='s'||k==='S') { e.preventDefault(); if(e.shiftKey) saveAsData(); else saveData(); return; }   // v560：Ctrl+S 保存・Ctrl+Shift+S 別の名前で保存
   }
   if      (k>='0'&&k<='9') { e.preventDefault(); num(k); }
   else if (k==='.') { e.preventDefault(); dot(); }
@@ -21603,6 +21623,9 @@ function openMoreMenu(){
     if(rt && rec){ rec.textContent=rt.textContent; rec.title=rt.title; rec.classList.toggle('dirty', rt.classList.contains('dirty')); }
     const sb=document.getElementById('saveBtn'), lb=document.getElementById('moreSaveLb');
     if(sb && lb) lb.textContent=(sb.innerText||sb.textContent).replace(/\s+/g,'');
+    // 記録を開いていて上書きできるときは「📝 別の名前で保存」も並べる（v560。前は保存ボタンの長押しだけだった）
+    const sa=document.getElementById('moreSaveAs');
+    if(sa){ const on=!!openRecordForSaveAs(); sa.hidden=!on; sa.parentElement.classList.toggle('more-grid3', on); }
     const ub=document.getElementById('undoBtn'), mu=document.getElementById('moreUndo');
     if(ub && mu) mu.disabled=ub.disabled;
   }
@@ -22116,7 +22139,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v559';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v560';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -23402,7 +23425,7 @@ function updateSaveBtnLabel(cur){
   const over=!!(cur && !cur.locked);
   b.classList.add('sv2');
   b.innerHTML=over?'上書き<br>保存':'名前を付けて<br>保存';
-  b.title=over?'タップで「'+cur.name+'」に上書き保存／長押しで名前を付けて保存':'名前を付けて保存（リストに残します。いまの表は自動で端末に残っています）';
+  b.title=over?'タップで「'+cur.name+'」に上書き保存／長押しで別の名前で保存（「'+cur.name+'」はそのまま）':'名前を付けて保存（リストに残します。いまの表は自動で端末に残っています）';
 }
 function flashSaveBtn(t){
   const b=document.getElementById('saveBtn'); if(!b) return;
@@ -23448,7 +23471,7 @@ function appPrompt(message, defaultValue='', multiline=false){
     const box=document.createElement('div');
     box.style.cssText='background:var(--panel,#fff);color:var(--text,#222);min-width:280px;max-width:90vw;padding:18px;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.35);font-size:15px';
     const msg=document.createElement('div');
-    msg.textContent=message; msg.style.cssText='margin-bottom:10px;font-weight:600';
+    msg.textContent=message; msg.style.cssText='margin-bottom:10px;font-weight:600;line-height:1.5;white-space:pre-wrap';   // \n で 行を変える（v560）
     const input=document.createElement(multiline?'textarea':'input');
     if(multiline){ input.rows=5; } else { input.type='text'; }
     input.value=defaultValue;
@@ -23522,25 +23545,51 @@ function nextBookName(saves){
   for(let n=1;n<10000;n++){ const name='Book'+n; if(!used.has(name)) return name; }
   return 'Book'+Date.now();
 }
-/* 名前を付けて保存（新しい記録を作る）。保存ボタンの長押しでも呼ばれる */
+/* いま開いていて、上書きできる記録（🔒ロック中・開いていないときは null）。「別の名前で保存」を出すかどうかに使う */
+function openRecordForSaveAs(){
+  const cur=(currentSaveId!=null)?getSaves().find(s=>s.id===currentSaveId):null;
+  return (cur && !cur.locked) ? cur : null;
+}
+/* 別の名前の候補：「見積」→「見積 (2)」、「見積 (2)」→「見積 (3)」。今ある記録と重ならない番号にする（v560） */
+function nextCopyName(name, saves){
+  const used=new Set((saves||[]).map(s=>String(s.name).trim()));
+  const m=/^(.*?)\s*\((\d+)\)$/.exec(String(name).trim());
+  const base=(m?m[1]:String(name).trim())||'Book';
+  for(let n=m?(+m[2]+1):2;n<10000;n++){ const c=base+' ('+n+')'; if(!used.has(c)) return c; }
+  return base+' ('+Date.now()+')';
+}
+/* 名前を付けて保存（新しい記録を作る）。☰ の「📝 別の名前で保存」・一覧のボタン・保存ボタンの長押し・Ctrl+Shift+S でも呼ばれる。
+   記録を開いているときは「別の名前で保存」：いまの表を新しい記録として残し、開いていた記録は保存したときのまま残す（v560）。
+   名前の候補は「元の名前 (2)」。同じ名前の記録があるときは、別に保存してよいか聞く（上書きはしない） */
 async function saveAsData() {
   const btn=document.getElementById('saveBtn');
   const saves=getSaves();
   const cur=(currentSaveId!=null)?saves.find(s=>s.id===currentSaveId):null;
   const defaultName=nextBookName(saves);
-  const name=await appPrompt('保存名を入力してください', cur?cur.name:defaultName);
-  if(name===null) return;
+  const asCopy=!!cur;   // 開いている記録がある＝別の名前で保存
+  let name=asCopy?nextCopyName(cur.name, saves):defaultName;
+  for(;;){
+    name=await appPrompt(asCopy
+      ? '別の名前で保存します。新しい名前を入れてください\n（「'+cur.name+'」は 保存したときのまま残ります）'
+      : '保存名を入力してください', name);
+    if(name===null) return;
+    name=name.trim()||(asCopy?nextCopyName(cur.name, saves):defaultName);
+    if(!saves.some(s=>String(s.name).trim()===name)) break;
+    if(await appConfirm('「'+name+'」という名前の記録が もうあります。\n同じ名前で、もう1つ別に保存しますか？（前のものは そのまま残ります）', '別に保存する', '名前を入れ直す')) break;
+  }
   const id=Date.now();
+  const tab=(cur && [0,1,2].includes(cur.tab||0))?(cur.tab||0):0;   // 開いていた記録と同じタブに並べる
   saves.unshift({
-    id, name:name.trim()||defaultName,
+    id, name,
     timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces, mode:workspaceMode,
-    data:data.map(row=>[...row]), styles:{...cellStyles}, tab:0,
+    data:data.map(row=>[...row]), styles:{...cellStyles}, tab,
     modeSheets:makeAllModesSnap(), curMode:workspaceMode   // 全モードのシート一式（data/styles はモード登録・互換用の開いているシート分）
   });
   if(!persistSaves(saves)) return;           // 書けていないのに「保存済み」にしない
   currentSaveId=id;                          // 以後この記録に上書きできるようにする
   saveDirty=false; updateRecordTitle();
   if(btn) flashSaveBtn('✓ 保存済');
+  toast(asCopy ? '「'+name+'」として別に保存しました（「'+cur.name+'」はそのまま）' : '「'+name+'」として保存しました', 3200);
 }
 /* 保存ボタンの長押し＝名前を付けて保存 */
 (function(){
@@ -23650,7 +23699,7 @@ function renderSaveStateBanner(){
   const d=daysSinceBackup();
   const rows=[];
   rows.push(['✓','<b>いまの表</b>は端末に自動保存されています（アプリを閉じても戻ってきます）', '']);
-  if(cur&&saveDirty)  rows.push(['●','<b>「'+escHtml(cur.name)+'」に未保存の変更</b>があります。☰ の <b>💾保存</b>で上書きできます','']);
+  if(cur&&saveDirty)  rows.push(['●','<b>「'+escHtml(cur.name)+'」に未保存の変更</b>があります。下の<b>💾上書き保存</b>か、<b>📝別の名前で保存</b>（新しい記録になります）で残せます','']);
   else if(cur)        rows.push(['✓','<b>「'+escHtml(cur.name)+'」に保存済み</b>です','']);
   else if(saves.length) rows.push(['·','いまの表は<b>まだ記録に保存していません</b>。☰ の <b>💾保存</b>で名前を付けられます','']);
   else                rows.push(['·','記録はまだ1件もありません。☰ の <b>💾保存</b>で名前を付けて残せます','']);
@@ -23661,6 +23710,21 @@ function renderSaveStateBanner(){
   }
   el.innerHTML=rows.map(([m,t,c])=>
     `<div class="save-state-row ${c}"><span class="ss-mark">${m}</span><span>${t}</span></div>`).join('');
+  // いまの表を保存するボタン（v560）。記録を開いていれば「上書き保存」と「別の名前で保存」を並べる
+  const bar=document.getElementById('saveNowBar');
+  if(bar){
+    const op=openRecordForSaveAs();
+    bar.innerHTML=op
+      ? `<button class="save-now-btn" onclick="saveNowAct('over')" title="「${escHtml(op.name)}」に上書き保存します">💾 上書き保存</button><button class="save-now-btn pri" onclick="saveNowAct('as')" title="いまの表を新しい記録として保存します（「${escHtml(op.name)}」はそのまま残ります）">📝 別の名前で保存</button>`
+      : `<button class="save-now-btn pri" onclick="saveNowAct('as')">📝 いまの表を名前を付けて保存</button>`;
+  }
+}
+/* 一覧の「上書き保存」「別の名前で保存」。保存したら一覧を描き直す（新しい記録がすぐ見えるように） */
+async function saveNowAct(kind){
+  if(kind==='over') await saveData(); else await saveAsData();
+  const cur=(currentSaveId!=null)?getSaves().find(s=>s.id===currentSaveId):null;
+  if(cur && (cur.tab||0)!==saveActiveTab) setSaveTab(cur.tab||0);   // 保存したタブ（フォルダ）を出す
+  renderSaveStateBanner(); renderSaveList();
 }
 /* 背景タップで閉じる：pointerdownとclickの両方が背景（オーバーレイ自身）で
    起きた時だけ閉じる。タブ切替でモーダルが縮んで再センタリングした直後に、
