@@ -3962,13 +3962,13 @@ async function runExport(browser) {
   // ── ☰メニューの整理（v375・v459） ──
   await page.evaluate(() => openMoreMenu()); await page.waitForTimeout(400);
   check('  項目の数（v459：道具の一覧は ☰ の外の窓に）', await page.evaluate(() =>
-    document.querySelectorAll('#moreMenuOverlay .more-item').length), 21);   // v465：戻す・声を外し、⌨（右置きのときだけ出る）を足した
+    document.querySelectorAll('#moreMenuOverlay .more-item').length), 22);   // v465：戻す・声を外し、⌨（右置きのときだけ出る）を足した。v560：📝別の名前で保存（記録を開いているときだけ見える）
   check('  はじめは畳んである', await page.evaluate(() =>
     document.getElementById('moreAccAll').open),
     false);
   check('  すぐ見えるのは いまの表（保存・開く・戻す）と 道具・声・設定・使い方', await page.evaluate(() =>
     [...document.querySelectorAll('#moreMenuOverlay .more-item')]
-      .filter(x => !x.closest('.more-acc')).map(x => x.textContent.trim().replace(/\s+/g, '')).join('/')),
+      .filter(x => !x.closest('.more-acc') && getComputedStyle(x).display !== 'none').map(x => x.textContent.trim().replace(/\s+/g, '')).join('/')),
     '💾名前を付けて保存/📂開く/🧰道具/⚙設定/📖使い方');
   check('  ほかの機能の中', await page.evaluate(() =>
     [...document.querySelectorAll('#moreAccAll > .more-grid:first-of-type .more-item')].map(x => x.textContent.trim()).join('/')),
@@ -7937,7 +7937,7 @@ async function runRenraku(browser) {
   // ── 一覧・さがす
   check('  よみ順：あかさたな の見出しと索引（よみのない漢字は最後の「他」）', await page.evaluate(() => [[...document.querySelectorAll('#rkList .rk-grp')].map(g => g.firstChild.textContent).join(''), [...document.querySelectorAll('#rkIdx button')].map(b => b.textContent).join('')].join(' / ')), 'あさたやABC他 / あさたやA他');
   check('  　「他」の行は 〇〇病院・佐藤 花子（よみなし）。名前の下は電話', await page.evaluate(() => { const g = [...document.querySelectorAll('#rkList .rk-grp')].find(x => x.dataset.sec === '他'); const out = []; for (let e = g.nextElementSibling; e && e.classList.contains('rk-it'); e = e.nextElementSibling) out.push(e.querySelector('.nm').firstChild.textContent + '：' + e.querySelector('.sb').textContent); return out.join(' / '); }), '〇〇病院：勤務先 0284-22-3333 / 佐藤 花子：携帯 080-3333-4444');
-  check('  　もうすぐ誕生日（2週間以内）', await page.evaluate(() => { const b = document.querySelector('#rkList .rk-bd'); return b ? b.textContent.replace(/\s+/g, ' ') : ''; }), ['🎂 もうすぐ誕生日 鈴木 一郎 10/20（あと' + Math.round((new Date(new Date().getFullYear(), 9, 20) - new Date(new Date().setHours(0, 0, 0, 0))) / 86400000) + '日）'].map(s => /あと-/.test(s) ? '' : s)[0]);
+  check('  　もうすぐ誕生日（2週間以内）', await page.evaluate(() => { const b = document.querySelector('#rkList .rk-bd'); return b ? b.textContent.replace(/\s+/g, ' ') : ''; }), (n => n < 0 ? '' : '🎂 もうすぐ誕生日 鈴木 一郎 10/20（' + (n ? 'あと' + n + '日' : '今日') + '）')(Math.round((new Date(new Date().getFullYear(), 9, 20) - new Date(new Date().setHours(0, 0, 0, 0))) / 86400000)));   /* 当日は「今日」と出る */
   check('  さがす：よみ・カタカナのよみ・番号の一部・住所・会社・メモの言葉', await page.evaluate(() => ['たろう', 'すずき', '1111', '足利', 'みどり', '歳暮', '山田 090', 'ﾀｶﾊｼ'].map(q => q + '=' + rkSearchTest(q).join('+')).join(' / ')),
     'たろう=山田 太郎 / すずき=鈴木 一郎 / 1111=山田 太郎 / 足利=伊藤 一郎+鈴木 一郎 / みどり=佐藤 花子 / 歳暮=山田 太郎 / 山田 090=山田 太郎+山田 花子 / ﾀｶﾊｼ=高橋 健二');
   await page.fill('#rkFind', 'はなこ'); await w(200);
