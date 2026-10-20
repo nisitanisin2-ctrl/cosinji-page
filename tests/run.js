@@ -10187,14 +10187,27 @@ async function runDasetsu562(browser) {
   check('  ✕ で 終わりたい時刻をやめる', await page.evaluate(() => DS.state().jobs[0].goal + '|' + document.querySelector('.ds-time[data-tk="goal"]').textContent), '|決めない');
   // はやさを 台/時（時間○台）で
   await page.evaluate(() => DS.setJob({ rate: 20, fleet: 0 })); await page.evaluate(() => DS.rateBy('car')); await w(150);
-  check('  はやさを「時間○台」で入れる（いまのはやさを換算）', await page.evaluate(() => DS.state().jobs[0].carsH + '/' + document.getElementById('dsConv').textContent + '/' + [...document.querySelectorAll('#dsSet .ds-chips button')].filter(b => /台$/.test(b.textContent)).length), '4.7/＝ 19.98㎥/時/6');
+  check('  はやさを「時間○台」で入れる（いまのはやさを換算）', await page.evaluate(() => DS.state().jobs[0].carsH + '/' + document.getElementById('dsConv').textContent + '/' + [...document.querySelectorAll('#dsSet .ds-chips button')].filter(b => /台$/.test(b.textContent)).length), '4.7/＝ 19.98㎥/時（1台 約12.8分）/6');
   await page.evaluate(() => DS.set('carsH', 5)); await w(150);
-  check('  時間5台 → 21.25㎥/時・1台 12分ごと', await page.evaluate(() => { const P = DS.plan(); return P.rate + '/' + P.per + '/' + document.getElementById('dsConv').textContent; }), '21.25/12/＝ 21.25㎥/時');
+  check('  時間5台 → 21.25㎥/時・1台 12分ごと', await page.evaluate(() => { const P = DS.plan(); return P.rate + '/' + P.per + '/' + document.getElementById('dsConv').textContent; }), '21.25/12/＝ 21.25㎥/時（1台 約12.0分）');
   await page.evaluate(() => DS.rateBy('m3')); await w(100);
   check('  ㎥/時 にもどす（21.3）', await page.evaluate(() => DS.state().jobs[0].rateBy + '/' + DS.state().jobs[0].rate), 'm3/21.3');
+  // 1台の取り時間（分）で決める
+  await page.evaluate(() => { DS.setJob({ rate: 20, fleet: 0, goal: '' }); DS.rateBy('min'); }); await w(150);
+  check('  1台の取り時間で決める（いまのはやさを換算・13分）', await page.evaluate(() => DS.state().jobs[0].minPer + '/' + document.getElementById('dsConv').textContent + '/' + [...document.querySelectorAll('.ds-unit button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(',')), '13/＝ 19.62㎥/時（1時間に 4.6台）。どの車も 13分で取る/㎥/時,台/時（時間○台）,1台の取り時間*');
+  await page.evaluate(() => DS.set('minPer', 15)); await w(150);
+  check('  取り時間 15分 → どの車も15分（最後の少ない車も）・11:45 に終わる', await page.evaluate(() => { const P = DS.plan(), r = P.rows; return [r[1].s - r[0].s, r[r.length - 1].e - r[r.length - 1].s, r[r.length - 1].vol, P.end, document.querySelectorAll('#dsRes .ds-sum > div')[2].textContent.trim().startsWith('🔁 1台 15分ごと（1時間に 4.0台）'), document.querySelector('#dsRes .ds-sum > div:nth-child(2)').textContent.trim()].join('/'); }), '15/15/4/705/true/⏱ 打設 8:30〜11:45（3時間15分）');
+  await page.fill('#dsSet input[data-k="minPer"]', '17.5'); await w(150);
+  check('  取り時間を打って入れる（17.5分）', await page.evaluate(() => DS.state().jobs[0].minPer + '/' + DS.plan().rows[1].s), '17.5/527.5');
+  await page.evaluate(() => DS.set('minPer', 15)); await page.click('.ds-time[data-tk="goal"]'); await w(150); await page.fill('#dsTpIn', '10:30'); await page.click('.ds-pop [data-x="ok"]'); await w(300);
+  check('  間に合わない → 要る取り時間（9分）を出す', await page.evaluate(() => { const G = DS.goal(); return [G.impossible, G.perNeed, document.querySelector('#dsGoal .ds-goal.ng').textContent.includes('1台 9分（28.33㎥/時）'), document.querySelector('#dsGoal .ds-goal.ng .ds-b').textContent.startsWith('取り時間 9分・')].join('/'); }), 'true/9/true/true');
+  await page.click('#dsGoal .ds-goal .ds-b.pri'); await w(250);
+  check('  押すと 取り時間 9分 にして 10:30 までに終わる', await page.evaluate(() => DS.state().jobs[0].minPer + '/' + (DS.plan().end <= 630.5) + '/' + DS.text().includes('1台 9分（28.33㎥/時）')), '9/true/true');
+  await page.evaluate(() => { DS.setJob({ goal: '' }); DS.rateBy('m3'); }); await w(100);
+  check('  ㎥/時 にもどす（取り時間 9分 → 28.3㎥/時）', await page.evaluate(() => DS.state().jobs[0].rateBy + '/' + DS.state().jobs[0].rate), 'm3/28.3');
   // 変なデータ
-  await page.evaluate(() => { closeDasetsu(); localStorage.setItem('excalc_dasetsu', JSON.stringify({ jobs: [{ id: 'x', name: 'x', goal: '25:00', rateBy: 'evil', carsH: 999, parts: [] }] })); openDasetsu(); }); await w(300);
-  check('  変なデータ：終わりたい時刻・はやさの入れ方を片づける', await page.evaluate(() => { const j = DS.state().jobs[0]; return j.goal + '|' + j.rateBy + '|' + j.carsH; }), '|m3|5');
+  await page.evaluate(() => { closeDasetsu(); localStorage.setItem('excalc_dasetsu', JSON.stringify({ jobs: [{ id: 'x', name: 'x', goal: '25:00', rateBy: 'evil', carsH: 999, minPer: 0, parts: [] }, { id: 'y', name: 'y', rateBy: 'min', minPer: 12.5, parts: [] }] })); openDasetsu(); }); await w(300);
+  check('  変なデータ：終わりたい時刻・はやさの入れ方・取り時間を片づける', await page.evaluate(() => { const [j, k] = DS.state().jobs; return j.goal + '|' + j.rateBy + '|' + j.carsH + '|' + j.minPer + '|' + k.rateBy + '|' + k.minPer; }), '|m3|5|15|min|12.5');
   await page.evaluate(() => closeDasetsu()); await w(200);
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();

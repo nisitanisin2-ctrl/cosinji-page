@@ -5,6 +5,7 @@
      昼休みには次の車を始めない。往復と洗いの時間から「車は何台で回せるか」も出す（台数を決めると待ちも出す）。
    ・🎯 終わりの時刻と車の台数（v562）：終わりたい時刻から、回す車の台数（とペース）を逆算する。間に合わないときは要るはやさも。
      車の台数ごとの終わりの予定を並べ、押すと配車表がその台数になる。打設のはやさは ㎥/時 でも 台/時（時間○台）でも入れられる。
+   ・1台の取り時間（v562）：1台を何分で取るか（荷卸しの時間）でも はやさを決められる。そのときは どの車も同じ分で並べる。
    ・時刻は 自前の窓（時・分を押して ✓ 決定）で決める（端末の時刻の窓では 決められないことがあったため。v562）。
    ・時間の目安：JIS A 5308 の運搬時間（練混ぜ〜荷卸し地点に着くまで 1.5時間）と、
      JASS 5 の 練混ぜ〜打込み終了（外気温 25℃未満 120分・25℃以上 90分）をこえる車があれば知らせる。
@@ -31,7 +32,8 @@ const PT={
   cyl:{n:'円柱・杭', ic:'⬤', f:[['d','直径','mm',''],['h','高さ・長さ','m',''],['n','本数','本','1']], vol:p=>Math.PI*Math.pow(p.d/2000,2)*p.h*p.n, ex:p=>'π×'+f1(p.d/2000)+'²×'+f1(p.h)+'×'+f1(p.n)+'本'},
 };
 const PT_KEYS=Object.keys(PT);
-const LOSS=[0,3,5,10], UNITS=[0.1,0.25,0.5,1], LOADS=[4.5,4.25,4,3,2,1], RATES=[10,15,20,30,40], CARS_H=[2,3,4,5,6,8];
+const LOSS=[0,3,5,10], UNITS=[0.1,0.25,0.5,1], LOADS=[4.5,4.25,4,3,2,1], RATES=[10,15,20,30,40], CARS_H=[2,3,4,5,6,8], MIN_PER=[10,12,15,20,25,30];
+const PACE_BY=[['m3','㎥/時'],['car','台/時（時間○台）'],['min','1台の取り時間']];
 const f1x=v=>(Math.round(v*10)/10).toFixed(1);
 
 let st=null, pop=null, showMix=false, moreOpen=false;
@@ -41,8 +43,8 @@ function newPart(type){ const t=PT[type]?type:'direct'; const vals={}; PT[t].f.f
 function blankJob(name, from){
   const d=new Date();
   const j={id:uid('j'), name:name||('打設 '+(d.getMonth()+1)+'/'+d.getDate()), upd:Date.now(), parts:[newPart('direct')],
-    loss:5, unit:0.25, load:4.25, even:true, rate:20, rateBy:'m3', carsH:5, start:'08:30', travel:30, mix:10, wash:10, early:5, lunch:true, l1:'12:00', l2:'13:00', fleet:0, hot:false, goal:''};
-  if(from) ['loss','unit','load','even','rate','rateBy','carsH','start','travel','mix','wash','early','lunch','l1','l2','fleet','hot'].forEach(k=>j[k]=from[k]);
+    loss:5, unit:0.25, load:4.25, even:true, rate:20, rateBy:'m3', carsH:5, minPer:15, start:'08:30', travel:30, mix:10, wash:10, early:5, lunch:true, l1:'12:00', l2:'13:00', fleet:0, hot:false, goal:''};
+  if(from) ['loss','unit','load','even','rate','rateBy','carsH','minPer','start','travel','mix','wash','early','lunch','l1','l2','fleet','hot'].forEach(k=>j[k]=from[k]);
   return j;
 }
 const num=(v,lo,hi,d)=>{ const n=+v; return (isFinite(n)&&n>=lo&&n<=hi)?n:d; };
@@ -61,7 +63,7 @@ function clean(o){
     }).filter(Boolean);
     j.parts=parts.length?parts:[newPart('direct')];
     j.loss=num(x.loss,0,50,5); j.unit=UNITS.includes(+x.unit)?+x.unit:0.25; j.load=num(x.load,0.25,12,4.25); j.even=x.even!==false;
-    j.rate=num(x.rate,1,300,20); j.rateBy=x.rateBy==='car'?'car':'m3'; j.carsH=num(x.carsH,0.5,60,5); j.goal=tm(x.goal,''); j.start=tm(x.start,'08:30'); j.travel=num(x.travel,0,300,30); j.mix=num(x.mix,0,120,10); j.wash=num(x.wash,0,180,10); j.early=num(x.early,0,60,5);
+    j.rate=num(x.rate,1,300,20); j.rateBy=PACE_BY.some(u=>u[0]===x.rateBy)?x.rateBy:'m3'; j.carsH=num(x.carsH,0.5,60,5); j.minPer=num(x.minPer,1,180,15); j.goal=tm(x.goal,''); j.start=tm(x.start,'08:30'); j.travel=num(x.travel,0,300,30); j.mix=num(x.mix,0,120,10); j.wash=num(x.wash,0,180,10); j.early=num(x.early,0,60,5);
     j.lunch=x.lunch!==false; j.l1=tm(x.l1,'12:00'); j.l2=tm(x.l2,'13:00'); j.fleet=Math.round(num(x.fleet,0,99,0)); j.hot=x.hot===true;
     if(!s.jobs.some(y=>y.id===j.id)) s.jobs.push(j);
   });
@@ -81,10 +83,17 @@ const toMin=t=>{ const m=/^(\d+):(\d+)$/.exec(t||''); return m?(+m[1])*60+(+m[2]
 const hm=x=>{ let m=Math.round(x); const neg=m<0; m=Math.abs(m); if(!neg && m>=1440) return '翌'+hm(m-1440); const h=Math.floor(m/60)%48; return (neg?'-':'')+h+':'+String(m%60).padStart(2,'0'); };
 const hhmm=m=>{ m=((Math.round(m)%1440)+1440)%1440; return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); };
 /* 打設のはやさ（㎥/時）。「時間○台」で入れたときは 1台に積む量をかける */
-const rateOf=j=>j.rateBy==='car'?j.carsH*j.load:j.rate;
-const rateTxt=(r,j)=>m3s(r)+'㎥/時（1時間に '+f1x(r/j.load)+'台）';
+const rateOf=j=>j.rateBy==='car'?j.carsH*j.load:j.rateBy==='min'?j.load/j.minPer*60:j.rate;
+/* はやさの言い方（入れた単位を先に）。per＝1台の取り時間（分） */
+function paceTxt(j, rate, per){
+  if(per==null) per=j.load/rate*60;
+  if(j.rateBy==='min') return '1台 '+m3s(per)+'分（'+m3s(rate)+'㎥/時）';
+  if(j.rateBy==='car') return '1時間に '+f1x(rate/j.load)+'台（'+m3s(rate)+'㎥/時）';
+  return m3s(rate)+'㎥/時（1時間に '+f1x(rate/j.load)+'台）';
+}
 const dur=x=>{ const m=Math.round(x); return (m>=60?Math.floor(m/60)+'時間':'')+((m%60)||m<60?(m%60)+'分':''); };
-/* 段取りを出す。o.rate（㎥/時）・o.fleet（回す車の台数。0＝決めない）で いまの設定を変えて試せる */
+/* 段取りを出す。o.rate（㎥/時）・o.per（1台の取り時間・分）・o.fleet（回す車の台数。0＝決めない）で いまの設定を変えて試せる。
+   取り時間で決めたときは、どの車も同じ分で荷卸しする（最後の少ない車も） */
 function plan(j, o){
   o=o||{};
   const design=j.parts.reduce((s,p)=>s+partVol(p),0);
@@ -101,10 +110,11 @@ function plan(j, o){
       while(k>0){ for(let i=0;i<N&&k>0;i++,k--) loads[i]+=U; }
     } else { loads=Array(N).fill(L); loads[N-1]=orderC-L*(N-1); }
   }
-  const rate=o.rate!=null?o.rate:rateOf(j), fleet=o.fleet!=null?o.fleet:j.fleet, start=toMin(j.start), L1=toMin(j.l1), L2=toMin(j.l2), lunch=j.lunch&&L2>L1;
+  const perFix=o.per!=null?o.per:(o.rate==null&&j.rateBy==='min'?j.minPer:null);
+  const rate=perFix!=null?j.load/perFix*60:(o.rate!=null?o.rate:rateOf(j)), fleet=o.fleet!=null?o.fleet:j.fleet, start=toMin(j.start), L1=toMin(j.l1), L2=toMin(j.l2), lunch=j.lunch&&L2>L1;
   const rows=[], trucks=[]; let t=start, cum=0, lunchUsed=false, idle=0;
   loads.forEach((c,i)=>{
-    const vol=c/100, dis=vol/rate*60;
+    const vol=c/100, dis=perFix!=null?perFix:vol/rate*60;
     let s=t;
     if(lunch && s>=L1 && s<L2){ s=L2; lunchUsed=true; }
     const depPlan=s-j.early-j.travel-0;
@@ -121,7 +131,7 @@ function plan(j, o){
   });
   const end=rows.length?rows[rows.length-1].e:start;
   const span=end-start-(lunchUsed?Math.max(0, Math.min(L2,end)-Math.max(L1,start)):0);
-  const per=j.load/rate*60, perH=span>0?N/(span/60):0;   // 1台あたりの荷卸しの分・平均して1時間に何台
+  const per=perFix!=null?perFix:j.load/rate*60, perH=span>0?N/(span/60):0;   // 1台あたりの荷卸しの分・平均して1時間に何台
   const cycle=j.early+per+j.travel+j.wash+j.mix+j.travel;
   const limit=j.hot?90:120;
   const warn=[];
@@ -132,13 +142,14 @@ function plan(j, o){
     if(idle>=1) warn.push(`車が ${fleet}台では足りないので、待ちが出ます（ポンプが止まる時間 合計 約${Math.round(idle)}分）。下の 🎯 で台数をふやすと減ります。`);
     if(end>=17*60) warn.push(`打設の終わりが ${hm(end)} です。`);
   }
-  return {design, need, order:orderC/100, N, loads:loads.map(c=>c/100), rows, start, end, span, lunchUsed, per, perH, cycle, trucks:trucks.length, warn, limit, idle, rate, fleet};
+  return {design, need, order:orderC/100, N, loads:loads.map(c=>c/100), rows, start, end, span, lunchUsed, per, perH, cycle, trucks:trucks.length, warn, limit, idle, rate, fleet, perFix};
 }
 /* 回す車の台数ごとの 終わりの予定（いちばん少ない台数〜これ以上ふやしても早くならない台数） */
-function fleetTable(j, rate){
-  const base=plan(j, {fleet:0, rate}), rows=[];
+function fleetTable(j, o){
+  o=o||{};
+  const base=plan(j, Object.assign({}, o, {fleet:0})), rows=[];
   if(!base.N) return {base, rows};
-  for(let f=1; f<=base.trucks; f++){ const P=f===base.trucks?base:plan(j, {fleet:f, rate}); rows.push({f, end:P.end, span:P.span, idle:P.idle, perH:P.perH}); }
+  for(let f=1; f<=base.trucks; f++){ const P=f===base.trucks?base:plan(j, Object.assign({}, o, {fleet:f})); rows.push({f, end:P.end, span:P.span, idle:P.idle, perH:P.perH}); }
   return {base, rows};
 }
 /* 終わりたい時刻から逆算：何台で回せば間に合うか。いまのはやさで間に合わないときは、要るはやさと台数 */
@@ -150,16 +161,23 @@ function goalCalc(j){
   const L1=toMin(j.l1), L2=toMin(j.l2), lunch=j.lunch&&L2>L1;
   const avail=T-S-(lunch?Math.max(0, Math.min(L2,T)-Math.max(L1,S)):0);
   const need=avail>0?base.order/avail*60:Infinity, rateNow=rateOf(j);
-  const G={T, avail, need, carsH:need/j.load, rate:rateNow, fastest:base.end};
+  const G={T, avail, need, carsH:need/j.load, rate:rateNow, per:base.per, fastest:base.end};
   const tb=fleetTable(j), ok=tb.rows.find(r=>r.end<=T+0.5);
   if(ok) return Object.assign(G, {fleet:ok.f, end:ok.end, fmax:tb.base.trucks});
   G.impossible=true;
   if(!(avail>0)) return G;
+  if(j.rateBy==='min'){   // 取り時間で決めているときは 0.5分ずつ短くして試す
+    for(let p=Math.floor(Math.min(j.minPer-0.5, j.load/need*60)*2)/2; p>=1-1e-9; p-=0.5){
+      const t2=fleetTable(j, {per:p}), ok2=t2.rows.find(x=>x.end<=T+0.5);
+      if(ok2) return Object.assign(G, {perNeed:p, rateNeed:j.load/p*60, fleetNeed:ok2.f, endNeed:ok2.end, fmaxNeed:t2.base.trucks});
+    }
+    return G;
+  }
   const step=j.rateBy==='car'?0.5*j.load:0.5;   // 「時間○台」で入れているときは 0.5台ずつ
   let r=j.rateBy==='car'?Math.ceil(Math.max(need, rateNow)/j.load*2)/2*j.load:Math.ceil(Math.max(need, rateNow)*2)/2;
   if(r<=rateNow+1e-9) r+=step;
   for(let i=0;i<1200 && r<=300+1e-9;i++, r+=step){
-    const t2=fleetTable(j, r), ok2=t2.rows.find(x=>x.end<=T+0.5);
+    const t2=fleetTable(j, {rate:r}), ok2=t2.rows.find(x=>x.end<=T+0.5);
     if(ok2) return Object.assign(G, {rateNeed:Math.round(r*1000)/1000, fleetNeed:ok2.f, endNeed:ok2.end, fmaxNeed:t2.base.trucks});
   }
   return G;
@@ -214,11 +232,13 @@ function renderSet(){
     <div class="ds-row"><span class="ds-l">発注の単位</span><div class="ds-chips">${chips('unit',UNITS,j.unit,x=>x+'㎥')}</div></div>
     <div class="ds-row"><span class="ds-l">1台に積む量</span><div class="ds-chips">${chips('load',LOADS,j.load,x=>x+'㎥')}<label class="ds-in"><input data-k="load" inputmode="decimal" value="${LOADS.includes(j.load)?'':j.load}" placeholder="ほか">㎥</label></div></div>
     <div class="ds-row"><span class="ds-l">台ごとの量</span><div class="ds-chips"><button class="${j.even?'on':''}" onclick="DS.set('even',true)">どの車も同じくらい</button><button class="${!j.even?'on':''}" onclick="DS.set('even',false)">最後の1台で調整</button></div></div>
-    <div class="ds-row"><span class="ds-l">打設のはやさ <span class="ds-unit">${[['m3','㎥/時'],['car','台/時（時間○台）']].map(u=>`<button class="${j.rateBy===u[0]?'on':''}" onclick="DS.rateBy('${u[0]}')">${u[1]}</button>`).join('')}</span></span>
+    <div class="ds-row"><span class="ds-l">打設のはやさ</span><span class="ds-unit">${PACE_BY.map(u=>`<button class="${j.rateBy===u[0]?'on':''}" onclick="DS.rateBy('${u[0]}')">${u[1]}</button>`).join('')}</span>
       <div class="ds-chips">${j.rateBy==='car'
         ?`${chips('carsH',CARS_H,j.carsH,x=>x+'台')}<label class="ds-in"><input data-k="carsH" inputmode="decimal" value="${CARS_H.includes(j.carsH)?'':j.carsH}" placeholder="ほか">台/時</label>`
+        :j.rateBy==='min'
+        ?`${chips('minPer',MIN_PER,j.minPer,x=>x+'分')}<label class="ds-in"><input data-k="minPer" inputmode="decimal" value="${MIN_PER.includes(j.minPer)?'':j.minPer}" placeholder="ほか">分/台</label>`
         :`${chips('rate',RATES,j.rate)}<label class="ds-in"><input data-k="rate" inputmode="decimal" value="${RATES.includes(j.rate)?'':j.rate}" placeholder="ほか">㎥/時</label>`}</div>
-      <span class="ds-conv" id="dsConv">＝ ${j.rateBy==='car'?m3s(rateOf(j))+'㎥/時':'1時間に '+f1x(rateOf(j)/j.load)+'台'}</span></div>
+      <span class="ds-conv" id="dsConv">${convTxt(j)}</span></div>
     <div class="ds-grid">
       <div class="ds-f"><span>打設の開始</span><button type="button" class="ds-time" data-tk="start" onclick="DS.time('start')">${esc(hm(toMin(j.start)))}</button></div>
       <label>運搬（片道）<span><input data-k="travel" inputmode="numeric" value="${j.travel}"><small>分</small></span></label>
@@ -244,8 +264,8 @@ function renderGoal(){
   if(G&&G.err) g=`<div class="ds-warn">⚠ ${esc(G.err)}</div>`;
   else if(G&&!G.impossible) g=`<div class="ds-goal ok">🏁 <b>${hm(G.T)}</b> までに終わらせるには、車を <b>${G.fleet}台</b> 回します → <b>${hm(G.end)}</b> に終わる予定。<small>平均で 1時間に ${f1x(G.carsH)}台（${f1x(G.need)}㎥/時）のペースが要ります。</small>
       ${cur===G.fleet?'<span class="ds-tag">✓ 配車表は この台数です</span>':`<button class="ds-b pri" onclick="DS.goalApply()">${G.fleet}台で配車表を作る</button>`}</div>`;
-  else if(G) g=`<div class="ds-goal ng">⚠ いまの打設のはやさ（${esc(rateTxt(G.rate,j))}）では、車を何台にしても いちばん早くて <b>${hm(G.fastest)}</b> に終わります。
-      ${G.rateNeed?`はやさを <b>${esc(rateTxt(G.rateNeed,j))}</b> にすると、車 <b>${G.fleetNeed}台</b> で <b>${hm(G.endNeed)}</b> に終わります。<button class="ds-b pri" onclick="DS.goalApply()">そのはやさ・${G.fleetNeed}台にする</button>`
+  else if(G) g=`<div class="ds-goal ng">⚠ いまの打設のはやさ（${esc(paceTxt(j, G.rate, G.per))}）では、車を何台にしても いちばん早くて <b>${hm(G.fastest)}</b> に終わります。
+      ${G.rateNeed?`はやさを <b>${esc(paceTxt(j, G.rateNeed, G.perNeed))}</b> にすると、車 <b>${G.fleetNeed}台</b> で <b>${hm(G.endNeed)}</b> に終わります。<button class="ds-b pri" onclick="DS.goalApply()">${j.rateBy==='min'?'取り時間 '+m3s(G.perNeed)+'分':'そのはやさ'}・${G.fleetNeed}台にする</button>`
         :'打設のはやさを上げても間に合いません。開始の時刻を早めるか、2回に分けて打つことを考えてください。'}</div>`;
   const rows=tb.rows.filter(r=>r.f>fmax-12 || (G&&r.f===G.fleet));
   b.innerHTML=head+`
@@ -271,7 +291,7 @@ function renderRes(){
     <div class="ds-sum">
       <div>🚛 ${loadTxt}</div>
       <div>⏱ 打設 <b>${hm(P.start)}〜${hm(P.end)}</b>（${dur(P.span)}${P.lunchUsed?'・昼休みをのぞく':''}）</div>
-      <div>${limited?`🔁 車 <b>${j.fleet}台</b>で回す（1回り 約${Math.round(P.cycle)}分）・平均 1時間に ${f1x(P.perH)}台`:`🔁 1台 約${Math.round(P.per)}分ごと（1時間に ${f1x(60/P.per)}台）・車は <b>${P.trucks}台</b>で回せます（1回り 約${Math.round(P.cycle)}分）`}</div>
+      <div>${limited?`🔁 車 <b>${j.fleet}台</b>で回す（1回り 約${Math.round(P.cycle)}分）・平均 1時間に ${f1x(P.perH)}台`:`🔁 1台 ${P.perFix!=null?m3s(P.per):'約'+Math.round(P.per)}分ごと（1時間に ${f1x(60/P.per)}台）・車は <b>${P.trucks}台</b>で回せます（1回り 約${Math.round(P.cycle)}分）`}</div>
     </div>
     ${P.warn.map(w=>`<div class="ds-warn">⚠ ${esc(w)}</div>`).join('')}
     <div class="ds-th"><span>配車表</span><label class="ds-sw sm"><input type="checkbox" ${showMix?'checked':''} onchange="DS.mixCol(this.checked)"> 練混ぜの時刻も</label></div>
@@ -290,8 +310,8 @@ function resultText(){
   L.push('設計数量 '+m3(P.design)+'㎥ → 割増し'+j.loss+'% '+m3(P.need)+'㎥ → 発注 '+m3(P.order)+'㎥');
   L.push('台数 '+P.N+'台（'+loadSummary(P, j)+'）');
   const fmax=plan(j, {fleet:0}).trucks, limited=j.fleet>0&&j.fleet<fmax, G=goalCalc(j);
-  L.push('打設 '+hm(P.start)+'〜'+hm(P.end)+'（'+dur(P.span)+(P.lunchUsed?'・昼休み '+j.l1+'〜'+j.l2+' をのぞく':'')+'）・'+rateTxt(P.rate,j));
-  L.push(limited?'車 '+j.fleet+'台で回す・平均 1時間に '+f1x(P.perH)+'台（運搬 片道'+j.travel+'分）':'1台 約'+Math.round(P.per)+'分ごと・車は '+P.trucks+'台で回せます（運搬 片道'+j.travel+'分）');
+  L.push('打設 '+hm(P.start)+'〜'+hm(P.end)+'（'+dur(P.span)+(P.lunchUsed?'・昼休み '+j.l1+'〜'+j.l2+' をのぞく':'')+'）・'+paceTxt(j, P.rate, P.per));
+  L.push(limited?'車 '+j.fleet+'台で回す・平均 1時間に '+f1x(P.perH)+'台（運搬 片道'+j.travel+'分）':'1台 '+(P.perFix!=null?m3s(P.per):'約'+Math.round(P.per))+'分ごと・車は '+P.trucks+'台で回せます（運搬 片道'+j.travel+'分）');
   if(G&&!G.err) L.push(G.impossible?'🏁 終わりたい時刻 '+hm(G.T)+'：いまのはやさでは いちばん早くて '+hm(G.fastest):'🏁 終わりたい時刻 '+hm(G.T)+'：車 '+G.fleet+'台で '+hm(G.end)+' に終わる');
   P.warn.forEach(w=>L.push('⚠ '+w));
   L.push('', '▼ 配車表（号・車・工場を出る・着く・荷卸し・量・累計）');
@@ -332,18 +352,25 @@ function onInput(e){
   if(el.type==='checkbox' && e.type==='input') return;   // 切りかえは change で受ける
   if(k==='lunch'){ j.lunch=el.checked; touch(); renderSet(); renderOut(); return; }
   const v=toolNum(el.value);
-  const lim={loss:[0,50],load:[0.25,12],rate:[1,300],carsH:[0.5,60],travel:[0,300],mix:[0,120],wash:[0,180],early:[0,60]}[k];
+  const lim={loss:[0,50],load:[0.25,12],rate:[1,300],carsH:[0.5,60],minPer:[1,180],travel:[0,300],mix:[0,120],wash:[0,180],early:[0,60]}[k];
   if(!lim) return;
-  if(el.value.trim()===''){ if(k==='loss'||k==='load'||k==='rate'||k==='carsH') return; }
+  if(el.value.trim()===''){ if(k==='loss'||k==='load'||k==='rate'||k==='carsH'||k==='minPer') return; }
   if(isFinite(v)&&v>=lim[0]&&v<=lim[1]){ j[k]=v; touch(); renderOut(); renderConv();
-    if(k==='loss'||k==='load'||k==='rate'||k==='carsH') document.querySelectorAll(`#dsSet [onclick^="DS.set('${k}'"]`).forEach(b=>b.classList.remove('on')); }
+    if(k==='loss'||k==='load'||k==='rate'||k==='carsH'||k==='minPer') document.querySelectorAll(`#dsSet [onclick^="DS.set('${k}'"]`).forEach(b=>b.classList.remove('on')); }
 }
-function renderConv(){ const j=job(), c=$('dsConv'); if(c) c.textContent='＝ '+(j.rateBy==='car'?m3s(rateOf(j))+'㎥/時':'1時間に '+f1x(rateOf(j)/j.load)+'台'); }
+function convTxt(j){
+  const r=rateOf(j);
+  if(j.rateBy==='min') return '＝ '+m3s(r)+'㎥/時（1時間に '+f1x(60/j.minPer)+'台）。どの車も '+m3s(j.minPer)+'分で取る';
+  return '＝ '+(j.rateBy==='car'?m3s(r)+'㎥/時':'1時間に '+f1x(r/j.load)+'台')+'（1台 約'+f1x(j.load/r*60)+'分）';
+}
+function renderConv(){ const c=$('dsConv'); if(c) c.textContent=convTxt(job()); }
 /* はやさの入れ方を ㎥/時 ⇔ 台/時 に。いまのはやさは そのまま（近い値に） */
 function rateBy(u){
-  const j=job(); if(u!=='car'&&u!=='m3'||u===j.rateBy) return;
+  const j=job(); if(!PACE_BY.some(x=>x[0]===u)||u===j.rateBy) return;
   const r=rateOf(j);
-  if(u==='car') j.carsH=Math.max(0.5, Math.round(r/j.load*10)/10); else j.rate=Math.max(1, Math.round(r*10)/10);
+  if(u==='car') j.carsH=Math.max(0.5, Math.round(r/j.load*10)/10);
+  else if(u==='min') j.minPer=Math.max(1, Math.min(180, Math.round(j.load/r*60*2)/2));
+  else j.rate=Math.max(1, Math.round(r*10)/10);
   j.rateBy=u; touch(); renderSet(); renderOut();
 }
 function setFleet(f){ const j=job(); j.fleet=Math.max(0, Math.min(99, Math.round(+f)||0)); touch(); renderOut(); }
@@ -352,9 +379,9 @@ function goalApply(){
   const j=job(), G=goalCalc(j); if(!G||G.err) return;
   if(!G.impossible){ j.fleet=G.fleet>=G.fmax?0:G.fleet; toast('車 '+G.fleet+'台で配車表を作りました（'+hm(G.end)+' に終わる予定）', 3500); }
   else if(G.rateNeed){
-    if(j.rateBy==='car') j.carsH=Math.round(G.rateNeed/j.load*10)/10; else j.rate=G.rateNeed;
+    if(j.rateBy==='min') j.minPer=G.perNeed; else if(j.rateBy==='car') j.carsH=Math.round(G.rateNeed/j.load*10)/10; else j.rate=G.rateNeed;
     j.fleet=G.fleetNeed>=G.fmaxNeed?0:G.fleetNeed;
-    toast('はやさを '+rateTxt(G.rateNeed,j)+'・車 '+G.fleetNeed+'台にしました', 3500);
+    toast('はやさを '+paceTxt(j, G.rateNeed, G.perNeed)+'・車 '+G.fleetNeed+'台にしました', 3500);
   } else return;
   touch(); renderSet(); renderOut();
 }
@@ -518,7 +545,7 @@ const DS_CSS=`
 .ds-pop>b{ display:block; font-size:16px; margin-bottom:8px; } .ds-pop label{ display:block; font-size:12px; font-weight:bold; color:var(--text-light,#777); }
 .ds-pop input{ display:block; width:100%; box-sizing:border-box; margin-top:3px; height:44px; padding:0 10px; font-size:17px; border:1px solid rgba(120,132,156,.5); border-radius:8px; background:var(--modal-bg,#fff); color:var(--text,#222); }
 .ds-pop-acts{ display:flex; gap:6px; justify-content:flex-end; margin-top:14px; } .ds-pop-acts .ds-b.del{ margin-right:auto; }
-.ds-unit{ display:inline-flex; gap:4px; margin-left:6px; vertical-align:middle; } .ds-unit button{ height:26px; padding:0 9px; border-radius:13px; border:1px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#333); font-size:12px; font-weight:bold; cursor:pointer; }
+.ds-unit{ display:flex; flex-wrap:wrap; gap:4px; width:100%; } .ds-unit button{ height:26px; padding:0 9px; border-radius:13px; border:1px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#333); font-size:12px; font-weight:bold; cursor:pointer; }
 .ds-unit button.on{ background:var(--text,#333); border-color:var(--text,#333); color:var(--modal-bg,#fff); }
 .ds-conv{ width:100%; font-size:12.5px; color:var(--text-light,#777); }
 .ds-f,.ds-f2{ font-size:12px; font-weight:bold; color:var(--text-light,#777); min-width:0; } .ds-f>span{ display:block; }
