@@ -9929,7 +9929,7 @@ async function runDasetsu561(browser) {
     '12.000,3.600,7.560,10.800,9.600,2.550,7.854,52.300,0.000');
   await page.fill('#dsParts .ds-part input[data-f="v"]', '52.3'); await w(200);
   check('  数量 → 割増し5% → 発注（0.25㎥単位で切り上げ）→ 台数', await page.evaluate(() => [...document.querySelectorAll('#dsRes .ds-cards b')].map(b => b.textContent).join(',') + '/' + document.getElementById('dsSum').textContent), '52.30,54.92,55.00,13/設計数量 52.30 ㎥');
-  check('  台ごとの量（どの車も同じくらい）・時刻・回す車', await page.evaluate(() => [...document.querySelectorAll('#dsRes .ds-sum > div')].map(d => d.textContent.trim()).join(' | ')), '🚛 4.25㎥×12台＋4㎥×1台 | ⏱ 打設 8:30〜11:15（2時間45分） | 🔁 1台 約13分ごと・車は 8台で回せます（1回り 約98分）');
+  check('  台ごとの量（どの車も同じくらい）・時刻・回す車', await page.evaluate(() => [...document.querySelectorAll('#dsRes .ds-sum > div')].map(d => d.textContent.trim()).join(' | ')), '🚛 4.25㎥×12台＋4㎥×1台 | ⏱ 打設 8:30〜11:15（2時間45分） | 🔁 1台 約13分ごと（1時間に 4.7台）・車は 8台で回せます（1回り 約98分）');
   check('  配車表の1台目（出発・着・荷卸し・量・累計）と最後', await page.evaluate(() => { const r = document.querySelectorAll('#dsRes .ds-t tbody tr'); const c = x => [...x.children].map(td => td.textContent).join(' '); return r.length + ' | ' + c(r[0]) + ' | ' + c(r[r.length - 1]); }), '13 | 1 1 7:55 8:25 8:30-8:43 4.25 4.25 | 13 5(2) 10:28 10:58 11:03-11:15 4 55');
   await page.evaluate(() => DS.set('even', false)); await w(100);
   check('  最後の1台で調整', await page.evaluate(() => document.querySelector('#dsRes .ds-sum > div').textContent.trim()), '🚛 4.25㎥×12台＋最後 4㎥');
@@ -9938,7 +9938,7 @@ async function runDasetsu561(browser) {
   await page.evaluate(() => DS.setJob({ loss: 5, unit: 0.25, even: true, start: '10:30' })); await w(100);
   check('  昼休み：次の車は 13:00 から・表に 🍙 の行', await page.evaluate(() => { const P = DS.plan(); return P.rows.findIndex(r => r.s >= 780) + '/' + Math.round(P.rows[8].s) + '/' + document.querySelector('#dsRes tr.lunch').textContent + '/' + DS.text().includes('昼休み 12:00〜13:00 をのぞく'); }), '8/780/🍙 昼休み 12:00〜13:00/true');
   await page.evaluate(() => DS.setJob({ start: '08:30', fleet: 4 })); await w(100);
-  check('  使える車を4台にすると待ちが出る（知らせる）', await page.evaluate(() => { const P = DS.plan(); return P.trucks + '/' + (P.idle > 0) + '/' + P.warn.some(x => x.includes('車が足りない')) + '/' + !!document.querySelector('#dsRes .ds-warn'); }), '4/true/true/true');
+  check('  使える車を4台にすると待ちが出る（知らせる）', await page.evaluate(() => { const P = DS.plan(); return P.trucks + '/' + (P.idle > 0) + '/' + P.warn.some(x => x.includes('車が 4台では足りない')) + '/' + !!document.querySelector('#dsRes .ds-warn'); }), '4/true/true/true');
   await page.evaluate(() => DS.setJob({ fleet: 0, travel: 85 })); await w(100);
   check('  運搬が長い：JIS の 1.5時間をこえると知らせる', await page.evaluate(() => DS.plan().warn.filter(x => x.includes('JIS A 5308')).length), 1);
   await page.evaluate(() => DS.setJob({ travel: 70, hot: true })); await w(100);
@@ -9955,7 +9955,7 @@ async function runDasetsu561(browser) {
   check('  梁を足す → 合計', await page.evaluate(() => document.getElementById('dsSum').textContent + '/' + document.getElementById('dsPv1').textContent), '設計数量 15.60 ㎥（2か所）/0.3×0.6×5×4本 ＝ 3.60 ㎥');
   // 表に入れる
   await page.evaluate(() => sel(0, 0)); await page.evaluate(() => DS.toTable()); await w(500);
-  check('  ▦ 表に入れる：数量のまとめと配車表', await page.evaluate(() => [isDlgOpen('dasetsuOverlay'), data[0][0], data[1][0], data[2][1], data[4][2], data[6][2], data[7][2], data[9][0], data[9][2], data[10][2]].join('/')), 'false/打設の段取り/部位/10×8×0.15/15.6/16.5/4/号/工場を出る/7:55');
+  check('  ▦ 表に入れる：数量のまとめと配車表', await page.evaluate(() => [isDlgOpen('dasetsuOverlay'), data[0][0], data[1][0], data[2][1], data[4][2], data[6][2], data[7][2], data[8][0], data[9][2], data[11][0], data[11][2], data[12][2]].join('/')), 'false/打設の段取り/部位/10×8×0.15/15.6/16.5/4/回す車/8:30〜9:20/号/工場を出る/7:55');
   // 新しい打設（設定は前と同じ）
   await page.evaluate(async () => { openDasetsu(); DS.set('rate', 30); window.appPrompt = async () => '〇〇邸 基礎'; await DS.jobNew(); }); await w(200);
   check('  新しい打設：設定は前と同じ・数量は空', await page.evaluate(() => { const s = DS.state(), j = s.jobs.find(x => x.id === s.cur); return [s.jobs.length, j.name, j.rate, j.parts.length, j.parts[0].type, document.querySelector('#dsJob select').selectedOptions[0].textContent].join('/'); }), '2/〇〇邸 基礎/30/1/direct/〇〇邸 基礎');
@@ -10129,6 +10129,88 @@ TEL 03-1234-5678
   await hp.evaluate(() => closeReceipt());
   check('  エラーなし（http）', herr.join(' | '), '');
   await hc.close();
+}
+async function runDasetsu562(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🚛 打設の段取り：時刻の窓・終わりの時刻から逆算・車の台数ごとの予定（v562） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { localStorage.setItem('excalc_dasetsu', JSON.stringify({ cur: 'j1', jobs: [{ id: 'j1', name: 'テスト床', parts: [{ id: 'p1', type: 'direct', name: '', vals: { v: '52.3' } }], loss: 5, unit: 0.25, load: 4.25, even: true, rate: 20, start: '08:30', travel: 30, mix: 10, wash: 10, early: 5, lunch: true, l1: '12:00', l2: '13:00', fleet: 0 }] })); openDasetsu(); }); await w(500);
+  check('  時刻は ボタン（端末の時刻の窓は使わない）', await page.evaluate(() => document.querySelectorAll('#dasetsuOverlay input[type=time]').length + '/' + [...document.querySelectorAll('#dasetsuOverlay .ds-time')].map(b => b.dataset.tk + ':' + b.textContent).join(',')), '0/start:8:30,l1:12:00,l2:13:00,goal:決めない');
+  await page.click('.ds-time[data-tk="start"]'); await w(200);
+  check('  押すと 時・分の窓（いまの時刻が選ばれている）', await page.evaluate(() => [document.querySelector('.ds-pop b').textContent, document.querySelectorAll('#dsTpH button').length, document.querySelectorAll('#dsTpM button').length, document.querySelector('#dsTpH .on').textContent, document.querySelector('#dsTpM .on').textContent, document.getElementById('dsTpBig').textContent].join('/')), '打設の開始/24/12/8/30/8:30');
+  await page.click('#dsTpH button[data-h="9"]'); await page.click('#dsTpM button[data-m="15"]'); await w(100);
+  check('  時・分を押すと 大きく出る', await page.textContent('#dsTpBig'), '9:15');
+  await page.click('.ds-pop [data-x="ok"]'); await w(250);
+  check('  ✓ 決定 → 開始が 9:15 に（ボタン・配車表・覚える）', await page.evaluate(() => [!document.querySelector('.ds-pop-bg'), document.querySelector('.ds-time[data-tk="start"]').textContent, DS.state().jobs[0].start, DS.plan().rows[0].s, JSON.parse(localStorage.getItem('excalc_dasetsu') || '{}').jobs ? 'ok' : 'wait'].join('/')), 'true/9:15/09:15/555/ok');
+  await page.click('.ds-time[data-tk="start"]'); await w(150); await page.click('#dsTpH button[data-h="11"]'); await page.click('.ds-pop [data-x="cancel"]'); await w(150);
+  check('  やめる → 変わらない', await page.evaluate(() => DS.state().jobs[0].start + '/' + !document.querySelector('.ds-pop-bg')), '09:15/true');
+  await page.click('.ds-time[data-tk="start"]'); await w(150); await page.fill('#dsTpIn', '1030'); await w(80);
+  check('  打って入れる（1030 → 10:30）', await page.textContent('#dsTpBig'), '10:30');
+  await page.click('.ds-pop button[data-d="1"]'); await page.click('.ds-pop [data-x="ok"]'); await w(200);
+  check('  ＋1分 → 10:31 で決定', await page.evaluate(() => DS.state().jobs[0].start), '10:31');
+  await page.click('.ds-time[data-tk="start"]'); await w(150); await page.fill('#dsTpIn', '2575'); await page.click('.ds-pop [data-x="ok"]'); await w(150);
+  check('  おかしな時刻は決めない（窓は残す）', await page.evaluate(() => !!document.querySelector('.ds-pop-bg') + '/' + DS.state().jobs[0].start + '/' + document.getElementById('appToast').textContent.includes('時刻の形')), 'true/10:31/true');
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  端末の「戻る」は 時刻の窓だけ閉じる', await page.evaluate(() => !document.querySelector('.ds-pop-bg') + '/' + isDlgOpen('dasetsuOverlay')), 'true/true');
+  check('  時刻の読み方（8:30・830・0830・8時30分・8時・15・２４：００・12:60）', await page.evaluate(() => ['8:30', '830', '0830', '8時30分', '8時', '15', '２４：００', '12:60', 'abc'].map(t => DS.parseTime(t)).join(',')), '510,510,510,510,480,900,,,');
+  // 昼休みの時刻：押しても ☑ は変わらない
+  await page.evaluate(() => DS.setJob({ start: '08:30' })); await w(150);
+  await page.click('.ds-time[data-tk="l1"]'); await w(150);
+  check('  昼休みの時刻を押しても ☑（昼休み）は そのまま', await page.evaluate(() => document.querySelector('#dsSet input[data-k="lunch"]').checked + '/' + document.querySelector('.ds-pop b').textContent), 'true/昼休みの始まり');
+  await page.click('#dsTpH button[data-h="11"]'); await page.click('#dsTpM button[data-m="30"]'); await page.click('.ds-pop [data-x="ok"]'); await w(200);
+  check('  昼休みを 11:30〜13:00 に', await page.evaluate(() => DS.state().jobs[0].l1 + '/' + document.querySelector('.ds-time[data-tk="l1"]').textContent), '11:30/11:30');
+  await page.click('.ds-time[data-tk="l2"]'); await w(150); await page.fill('#dsTpIn', '1100'); await page.click('.ds-pop [data-x="ok"]'); await w(200);
+  check('  終わりが始まりより前なら知らせる（昼休みなしで出す）', await page.evaluate(() => document.getElementById('appToast').textContent.includes('始まりより後') + '/' + DS.plan().lunchUsed), 'true/false');
+  await page.evaluate(() => DS.setJob({ l1: '12:00', l2: '13:00' })); await w(150);
+  // 車の台数ごとの終わりの予定
+  check('  車の台数ごとの終わり（台数をふやすと早く終わる・いちばん下は いちばん早い）', await page.evaluate(() => { const r = DS.fleets(); const b = [...document.querySelectorAll('#dsGoal .ds-ft button')]; return [r.length, r.every((x, i) => i === 0 || x.end <= r[i - 1].end + 0.01), Math.round(r[r.length - 1].end) === Math.round(DS.plan(null, { fleet: 0 }).end), b.length, b[b.length - 1].classList.contains('on'), b[b.length - 1].textContent.includes('いちばん早い')].join('/'); }), '8/true/true/8/true/true');
+  await page.click('#dsGoal .ds-ft button[data-f="3"]'); await w(200);
+  check('  台数を押す → 配車表がその台数に（3台で回す・待ちを知らせる）', await page.evaluate(() => { const P = DS.plan(); return [DS.state().jobs[0].fleet, Math.max(...P.rows.map(r => r.truck)), Math.round(P.end) === Math.round(DS.fleets()[2].end), document.querySelector('#dsRes .ds-sum').textContent.includes('車 3台で回す'), !!document.querySelector('#dsRes .ds-warn'), document.querySelector('#dsGoal .ds-ft button.on').dataset.f].join('/'); }), '3/3/true/true/true/3');
+  // 終わりたい時刻から逆算
+  await page.evaluate(() => DS.fleet(0)); await page.click('.ds-time[data-tk="goal"]'); await w(150);
+  check('  終わりたい時刻の窓（はじめは いちばん早い終わりのころ）', await page.evaluate(() => document.querySelector('.ds-pop b').textContent + '/' + document.getElementById('dsTpBig').textContent), '終わりたい時刻/11:30');
+  await page.fill('#dsTpIn', '15:00'); await page.click('.ds-pop [data-x="ok"]'); await w(250);
+  const g = await page.evaluate(() => { const G = DS.goal(), first = DS.fleets().find(r => r.end <= 900.5); return [G.fleet === first.f, G.end <= 900, G.fleet < DS.fleets().length, document.querySelector('#dsGoal .ds-goal.ok').textContent.includes('15:00 までに終わらせるには、車を ' + G.fleet + '台 回します'), document.querySelector('#dsGoal .ds-ft button.goal').dataset.f == G.fleet, G.fleet].join('/'); });
+  check('  15:00 までに終わらせる → いちばん少ない台数を逆算（🏁 の印）', g.split('/').slice(0, 5).join('/'), 'true/true/true/true/true');
+  const gf = +g.split('/')[5];
+  await page.click('#dsGoal .ds-goal .ds-b.pri'); await w(250);
+  check('  「○台で配車表を作る」→ 配車表がその台数・15:00 までに終わる', await page.evaluate(() => { const P = DS.plan(); return DS.state().jobs[0].fleet + '/' + (P.end <= 900) + '/' + !!document.querySelector('#dsGoal .ds-tag'); }), gf + '/true/true');
+  check('  コピーの文にも 車の台数と 終わりたい時刻', await page.evaluate(() => { const t = DS.text(); return t.includes('車 ' + DS.state().jobs[0].fleet + '台で回す') + '/' + /🏁 終わりたい時刻 15:00：車 \d+台で \d+:\d\d に終わる/.test(t); }), 'true/true');
+  // 間に合わない終わりの時刻
+  await page.evaluate(() => DS.fleet(0)); await page.click('.ds-time[data-tk="goal"]'); await w(150); await page.fill('#dsTpIn', '10:00'); await page.click('.ds-pop [data-x="ok"]'); await w(300);
+  check('  間に合わない → いちばん早い終わりと、要るはやさ・台数', await page.evaluate(() => { const G = DS.goal(); return [G.impossible, G.rateNeed > 20, G.fleetNeed > 0, G.endNeed <= 600, document.querySelector('#dsGoal .ds-goal.ng').textContent.includes('いちばん早くて 11:15')].join('/'); }), 'true/true/true/true/true');
+  await page.click('#dsGoal .ds-goal .ds-b.pri'); await w(250);
+  check('  「そのはやさ・○台にする」→ 10:00 までに終わる', await page.evaluate(() => { const P = DS.plan(), j = DS.state().jobs[0]; return (j.rate > 20) + '/' + (P.end <= 600.5) + '/' + !!document.querySelector('#dsGoal .ds-goal.ok'); }), 'true/true/true');
+  await page.click('.ds-time[data-tk="goal"]'); await w(150); await page.fill('#dsTpIn', '7:00'); await page.click('.ds-pop [data-x="ok"]'); await w(200);
+  check('  開始より前の終わりの時刻は 知らせる', await page.evaluate(() => document.querySelector('#dsGoal .ds-warn').textContent.includes('打設の開始（8:30）より後')), true);
+  await page.click('#dsGoal .ds-mini'); await w(150);
+  check('  ✕ で 終わりたい時刻をやめる', await page.evaluate(() => DS.state().jobs[0].goal + '|' + document.querySelector('.ds-time[data-tk="goal"]').textContent), '|決めない');
+  // はやさを 台/時（時間○台）で
+  await page.evaluate(() => DS.setJob({ rate: 20, fleet: 0 })); await page.evaluate(() => DS.rateBy('car')); await w(150);
+  check('  はやさを「時間○台」で入れる（いまのはやさを換算）', await page.evaluate(() => DS.state().jobs[0].carsH + '/' + document.getElementById('dsConv').textContent + '/' + [...document.querySelectorAll('#dsSet .ds-chips button')].filter(b => /台$/.test(b.textContent)).length), '4.7/＝ 19.98㎥/時（1台 約12.8分）/6');
+  await page.evaluate(() => DS.set('carsH', 5)); await w(150);
+  check('  時間5台 → 21.25㎥/時・1台 12分ごと', await page.evaluate(() => { const P = DS.plan(); return P.rate + '/' + P.per + '/' + document.getElementById('dsConv').textContent; }), '21.25/12/＝ 21.25㎥/時（1台 約12.0分）');
+  await page.evaluate(() => DS.rateBy('m3')); await w(100);
+  check('  ㎥/時 にもどす（21.3）', await page.evaluate(() => DS.state().jobs[0].rateBy + '/' + DS.state().jobs[0].rate), 'm3/21.3');
+  // 1台の取り時間（分）で決める
+  await page.evaluate(() => { DS.setJob({ rate: 20, fleet: 0, goal: '' }); DS.rateBy('min'); }); await w(150);
+  check('  1台の取り時間で決める（いまのはやさを換算・13分）', await page.evaluate(() => DS.state().jobs[0].minPer + '/' + document.getElementById('dsConv').textContent + '/' + [...document.querySelectorAll('.ds-unit button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(',')), '13/＝ 19.62㎥/時（1時間に 4.6台）。どの車も 13分で取る/㎥/時,台/時（時間○台）,1台の取り時間*');
+  await page.evaluate(() => DS.set('minPer', 15)); await w(150);
+  check('  取り時間 15分 → どの車も15分（最後の少ない車も）・11:45 に終わる', await page.evaluate(() => { const P = DS.plan(), r = P.rows; return [r[1].s - r[0].s, r[r.length - 1].e - r[r.length - 1].s, r[r.length - 1].vol, P.end, document.querySelectorAll('#dsRes .ds-sum > div')[2].textContent.trim().startsWith('🔁 1台 15分ごと（1時間に 4.0台）'), document.querySelector('#dsRes .ds-sum > div:nth-child(2)').textContent.trim()].join('/'); }), '15/15/4/705/true/⏱ 打設 8:30〜11:45（3時間15分）');
+  await page.fill('#dsSet input[data-k="minPer"]', '17.5'); await w(150);
+  check('  取り時間を打って入れる（17.5分）', await page.evaluate(() => DS.state().jobs[0].minPer + '/' + DS.plan().rows[1].s), '17.5/527.5');
+  await page.evaluate(() => DS.set('minPer', 15)); await page.click('.ds-time[data-tk="goal"]'); await w(150); await page.fill('#dsTpIn', '10:30'); await page.click('.ds-pop [data-x="ok"]'); await w(300);
+  check('  間に合わない → 要る取り時間（9分）を出す', await page.evaluate(() => { const G = DS.goal(); return [G.impossible, G.perNeed, document.querySelector('#dsGoal .ds-goal.ng').textContent.includes('1台 9分（28.33㎥/時）'), document.querySelector('#dsGoal .ds-goal.ng .ds-b').textContent.startsWith('取り時間 9分・')].join('/'); }), 'true/9/true/true');
+  await page.click('#dsGoal .ds-goal .ds-b.pri'); await w(250);
+  check('  押すと 取り時間 9分 にして 10:30 までに終わる', await page.evaluate(() => DS.state().jobs[0].minPer + '/' + (DS.plan().end <= 630.5) + '/' + DS.text().includes('1台 9分（28.33㎥/時）')), '9/true/true');
+  await page.evaluate(() => { DS.setJob({ goal: '' }); DS.rateBy('m3'); }); await w(100);
+  check('  ㎥/時 にもどす（取り時間 9分 → 28.3㎥/時）', await page.evaluate(() => DS.state().jobs[0].rateBy + '/' + DS.state().jobs[0].rate), 'm3/28.3');
+  // 変なデータ
+  await page.evaluate(() => { closeDasetsu(); localStorage.setItem('excalc_dasetsu', JSON.stringify({ jobs: [{ id: 'x', name: 'x', goal: '25:00', rateBy: 'evil', carsH: 999, minPer: 0, parts: [] }, { id: 'y', name: 'y', rateBy: 'min', minPer: 12.5, parts: [] }] })); openDasetsu(); }); await w(300);
+  check('  変なデータ：終わりたい時刻・はやさの入れ方・取り時間を片づける', await page.evaluate(() => { const [j, k] = DS.state().jobs; return j.goal + '|' + j.rateBy + '|' + j.carsH + '|' + j.minPer + '|' + k.rateBy + '|' + k.minPer; }), '|m3|5|15|min|12.5');
+  await page.evaluate(() => closeDasetsu()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
 }
 async function runSaveAs560(browser) {
   const { ctx, page, errs } = await newPage(browser);
@@ -14680,6 +14762,7 @@ async function runQrShare(browser) {
     if (!only || only === 'kuji' || only === 'v561') await runKuji561(browser);
     if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
     if (!only || only === 'receipt' || only === 'v561') await runReceipt561(browser);
+    if (!only || only === 'dasetsu' || only === 'ds562') await runDasetsu562(browser);
     if (!only || only === 'firsthint') await runFirstHint(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
