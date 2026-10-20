@@ -1,4 +1,4 @@
-const CACHE = 'excalc-v561';
+const CACHE = 'excalc-v562';
 const CACHE_PREFIX = 'excalc-';   // このアプリのキャッシュだけを見分けるための名前
 // 📷レシート読み取りの「文字を読む部品」（vendor/ocr。約8MB）は、使った人の分だけ 別の控えに入れて、版上げでは消さない。
 // 部品を入れかえたときは 数字を上げる（古い控えは消す）。v561
