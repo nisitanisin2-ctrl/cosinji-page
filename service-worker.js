@@ -1,6 +1,10 @@
-const CACHE = 'excalc-v560';
+const CACHE = 'excalc-v561';
 const CACHE_PREFIX = 'excalc-';   // このアプリのキャッシュだけを見分けるための名前
-const ASSETS = ['./', './index.html', './help.js', './photomemo.js', './techo.js', './subsc.js', './heya.js', './annai.js', './shimai.js', './meishi.js', './renraku.js', './renraku-yomi.js', './renraku-icons.js', './trim.js', './manner.js', './boki.js', './kurashi.js', './keisan.js', './ruler.js', './kakudo.js', './regi.js', './kakeizu.js', './koe/phrase.js', './hyovoice.js', './manifest.json',
+// 📷レシート読み取りの「文字を読む部品」（vendor/ocr。約8MB）は、使った人の分だけ 別の控えに入れて、版上げでは消さない。
+// 部品を入れかえたときは 数字を上げる（古い控えは消す）。v561
+const OCR_CACHE = 'hyo-ocr-v1';
+const isOcr = u => u.origin === self.location.origin && u.pathname.includes('/vendor/ocr/');
+const ASSETS = ['./', './index.html', './help.js', './photomemo.js', './techo.js', './subsc.js', './heya.js', './annai.js', './shimai.js', './meishi.js', './renraku.js', './renraku-yomi.js', './renraku-icons.js', './trim.js', './manner.js', './boki.js', './kurashi.js', './keisan.js', './ruler.js', './kakudo.js', './tatekae.js', './kuji.js', './dasetsu.js', './receipt.js', './regi.js', './kakeizu.js', './koe/phrase.js', './hyovoice.js', './manifest.json',
   './saien/index.html', './saien/css/style.css', './saien/js/version.js', './saien/js/veg-data.js', './saien/js/veg-more.js', './saien/js/util.js', './saien/js/plan.js', './saien/js/grow.js', './saien/js/sick.js', './saien/js/weather.js', './saien/js/qr.js', './saien/js/advice.js', './saien/js/myplan.js', './saien/js/export.js', './saien/js/fieldmap.js', './saien/js/records.js', './saien/js/share.js', './saien/js/voice.js', './saien/js/store.js', './saien/js/app.js', './saien/icon-192.png',
   './icon-192.png', './icon-512.png',
   './icon-maskable-192.png', './icon-maskable-512.png', './apple-touch-icon.png',
@@ -27,7 +31,7 @@ self.addEventListener('activate', e => {
     caches.keys().then(keys =>
       // 自分の古いキャッシュだけを消す。キャッシュは「サイト（オリジン）ごと」に
       // 共通なので、名前で絞らないと同じサイトにある別のアプリの分まで消してしまう。
-      Promise.all(keys.filter(k => (k !== CACHE && k.startsWith(CACHE_PREFIX)) || isLegacy(k)).map(k => caches.delete(k)))
+      Promise.all(keys.filter(k => (k !== CACHE && k.startsWith(CACHE_PREFIX)) || (k.startsWith('hyo-ocr-') && k !== OCR_CACHE) || isLegacy(k)).map(k => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
@@ -44,6 +48,12 @@ function netFetch(req){
 // オフライン時のみキャッシュから返す（更新が確実に反映されるようにするため）。
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  // 文字を読む部品は 変わらないので、控えにあれば それを返す（電波がなくても読める）
+  if (isOcr(new URL(e.request.url))) {
+    e.respondWith(caches.open(OCR_CACHE).then(c => c.match(e.request, { ignoreSearch: true }).then(hit => hit ||
+      fetch(e.request).then(res => { if (res && res.ok) c.put(e.request, res.clone()).catch(() => {}); return res; }))));
+    return;
+  }
   e.respondWith(
     netFetch(e.request).then(res => {
       if (res && res.ok) {
