@@ -39,7 +39,8 @@
 (function(){ try{
   const id=new URLSearchParams(location.search).get('app');
   const APPS={tansui:'💧 単位水量',kantab:'🧪 カンタブ',veggie:'🌱 野菜',volume:'📷 容積',photomemo:'📝 写真メモ',linklist:'🔗 リンク集',
-    touban:'📅 当番表',subsc:'🔐 サブスク',heya:'🛏 部屋割り',annai:'🏨 案内ページ',shimai:'📦 しまい場所',meishi:'💼 名刺管理',renraku:'📇 連絡帳',trim:'✂ トリミング',manner:'📜 マナー帳',boki:'📒 会計の手引き',kurashi:'🧭 くらしの便利帳',keisan:'🔢 便利計算',ruler:'📏 定規',kakudo:'📐 角度計',regi:'🛍 即売レジ',kakeizu:'🌳 家系図',calctmpl:'📋 式テンプレ',fintmpl:'📑 決算テンプレ'};
+    touban:'📅 当番表',subsc:'🔐 サブスク',heya:'🛏 部屋割り',annai:'🏨 案内ページ',shimai:'📦 しまい場所',meishi:'💼 名刺管理',renraku:'📇 連絡帳',trim:'✂ トリミング',manner:'📜 マナー帳',boki:'📒 会計の手引き',kurashi:'🧭 くらしの便利帳',keisan:'🔢 便利計算',ruler:'📏 定規',kakudo:'📐 角度計',regi:'🛍 即売レジ',kakeizu:'🌳 家系図',calctmpl:'📋 式テンプレ',fintmpl:'📑 決算テンプレ',
+    tatekae:'💴 立て替え精算',kuji:'🎲 くじ・班分け',dasetsu:'🚛 打設の段取り',receipt:'📷 レシート読み取り'};   // v561
   if(!id || !APPS[id]) return;
   window.APP_TOOL=id; document.documentElement.classList.add('app-tool');
   const dir='apps/'+id+'/', set=(sel,attr,v)=>document.querySelectorAll(sel).forEach(e=>e.setAttribute(attr,v));
@@ -9171,6 +9172,12 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v561', t:'🧰 新しい道具を4つ：立て替え精算・くじ・打設の段取り・レシート読み取り', li:[
+    '<b>💴 立て替え精算</b>：旅行や飲み会で何人かが立て替えた分を入れると、<b>だれが だれに いくら払えば終わるか</b>を、払う回数が少なくなるように出します。子どもは ×0.5 などの負担の重み、立て替えごとの「だれの分」、端数（1円・10円・100円）も決められます。済んだ払いには ✓',
+    '<b>🎲 くじ・班分け</b>：名前を入れて、<b>当たり</b>（全員に回るまで前に当たった人を外すことも）・<b>順番</b>・<b>班分け</b>（班の数か1班の人数で。班長も）・<b>あみだくじ</b>（名前を押すと線をたどる）。休みの人は名前を押して外せます',
+    '<b>🚛 打設の段取り</b>：生コンの数量を部位ごと（スラブ・梁・柱・壁・基礎・布基礎・円柱）に出し、割増し・1台に積む量から<b>発注量と台数</b>、打設のはやさ・開始の時刻・運搬の時間から<b>配車表</b>（1台ずつの 出発・着・荷卸し・累計）と、車が何台で回せるかを出します',
+    '<b>📷 レシート読み取り</b>：レシートを撮ると、この端末の中で文字を読み取り（写真はどこにも送りません）、<b>店・日付・合計・消費税・品目</b>を取り出します。直してから表に入れたり、残して月ごとの合計を見たりできます。はじめて読むときだけ、文字を読む部品（約8MB）を読み込みます',
+    'どれも ☰ や 🧰道具 の一覧から開けます。結果は <b>📋 コピー・📤 共有（LINE など）・▦ 表に入れる</b> ができ、人の名前は 📅当番表の名簿や 📇連絡帳のグループからまとめて入れられます' ]},
   { v:'v560', t:'💾 保存：開いた記録を直したあと「別の名前で保存」', li:[
     '保存した記録を開いて直したあと、<b>☰ の「📝 別の名前で保存」</b>で、違う名前を付けて<b>別の記録として保存</b>できるようにしました。開いていた記録は、保存したときのまま残ります（前は 保存ボタンの長押しでしかできず、見つけにくかった）',
     '名前の候補は「元の名前 (2)」です。同じ名前の記録があるときは、別に保存してよいか聞きます（上書きはしません）。保存したあとは新しい記録が開いた状態になり、☰ の「💾 上書き保存」はそちらに入ります',
@@ -11871,6 +11878,10 @@ const KEY_FUNCS={
   a_keisan:{g:'設定・機能',label:'🔢便利計算',short:'便利計算',run:()=>openKeisan()},   // v494
   a_ruler:{g:'設定・機能',label:'📏定規',short:'定規',run:()=>openRuler()},   // v496
   a_kakudo:{g:'設定・機能',label:'📐角度計',short:'角度',run:()=>openKakudo()},   // v518
+  a_tatekae:{g:'設定・機能',label:'💴立て替え精算',short:'精算',run:()=>openTatekae()},   // v561
+  a_kuji:{g:'設定・機能',label:'🎲くじ・班分け',short:'くじ',run:()=>openKuji()},   // v561
+  a_dasetsu:{g:'設定・機能',label:'🚛打設の段取り',short:'打設',run:()=>openDasetsu()},   // v561
+  a_receipt:{g:'設定・機能',label:'📷レシート読み取り',short:'レシート',run:()=>openReceipt()},   // v561
   a_tools:{g:'設定・機能',label:'🧰道具',short:'道具',run:()=>openToolsList()},   // 道具の一覧を開く（v429）
   a_memo:{g:'設定・機能',label:'📄メモ',short:'メモ',run:()=>openNotesApp()},
   a_kaikei:{g:'設定・機能',label:'🧾会計アプリ',short:'会計',run:()=>openKaikeiApp()},
@@ -13501,6 +13512,99 @@ function putToCell(val, msg, closeFn){
   if(closeFn) closeFn();
   return true;
 }
+/* ── 道具の結果を 表に入れる・コピー・共有（v561：立て替え精算・くじ・打設の段取り・レシート読み取り）──
+   表に入れる：選んでいるセルから右下へ。表が足りなければ行・列を増やす（いちばん大きい表まで）。
+   中身のあるセルに重なるときは聞く。↶戻る 1回で元に戻せる。電卓・決まった形の表のときは ▦通常 に切りかえて入れる */
+async function toolPasteRows(rows, op, closeFn){
+  rows=(rows||[]).filter(r=>Array.isArray(r) && r.length);
+  if(!rows.length) return false;
+  if(tableMode==='dentaku' || isStructMode()){
+    if(!await appConfirm('いまの画面には入れられないので、▦ 通常の表に切りかえて入れます。よいですか？', '切りかえて入れる', 'やめる')) return false;
+    switchMode('normal');
+  }
+  const r0=Math.max(0, selR), c0=Math.max(0, selC);
+  const h=rows.length, w=Math.max(...rows.map(r=>r.length));
+  const needR=Math.min(MAXROWS, r0+h), needC=Math.min(MAXCOLS, c0+w), cut=(r0+h>MAXROWS)||(c0+w>MAXCOLS);
+  let filled=0;
+  for(let i=0;i<h;i++) for(let j=0;j<w;j++){ const r=r0+i, c=c0+j; if(r<ROWS && c<COLS && String(data[r][c]==null?'':data[r][c])!=='') filled++; }
+  const at=ALPHA[c0]+(r0+1);
+  if(filled && !await appConfirm('選んでいるセル（'+at+'）から '+h+'行×'+w+'列 に入れます。\n中身のあるセルが '+filled+'個 あり、上書きされます（↶戻る で元に戻せます）。', '入れる', 'やめる')) return false;
+  pushSnapshot(op||'道具の結果を入れる');
+  const wasUndoing=undoing; undoing=true;
+  try{
+    if(needR>ROWS || needC>COLS) setSheetSize(Math.max(ROWS,needR), Math.max(COLS,needC));
+    rows.forEach((row,i)=>row.forEach((v,j)=>{ const r=r0+i, c=c0+j; if(r>=ROWS||c>=COLS||isLockedCell(r,c)) return; setCellVal(r,c, v==null?'':String(v)); }));
+  } finally { undoing=wasUndoing; }
+  recalcAll(); buildSheet();
+  if(typeof persistModes==='function') persistModes();
+  if(typeof saveSheets==='function') saveSheets();
+  sel(r0,c0);
+  if(closeFn) closeFn();
+  toast('表の '+at+' から '+h+'行×'+w+'列 を入れました'+(cut?'（表に入りきらない分は省きました）':'')+'。↶戻る で元に戻せます', 3400);
+  return true;
+}
+/* 文をコピーする（LINE・メールに貼れる）。コピーできない端末では、選んでコピーする窓を出す */
+async function toolCopyText(text, msg){
+  try{ await navigator.clipboard.writeText(text); toast(msg||'コピーしました（LINE などに貼れます）'); return true; }
+  catch(_){
+    const ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly',''); ta.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
+    document.body.appendChild(ta); ta.select(); let ok=false; try{ ok=document.execCommand('copy'); }catch(_){} ta.remove();
+    if(ok){ toast(msg||'コピーしました（LINE などに貼れます）'); return true; }
+    await appPrompt('うまくコピーできませんでした。下の文を長押ししてコピーしてください', text, true);
+    return false;
+  }
+}
+/* 端末の共有（LINE・メール など）へ。共有できないときはコピー */
+async function toolShareText(title, text){
+  if(navigator.share){ try{ await navigator.share({ title, text }); return true; }catch(e){ if(e && e.name==='AbortError') return false; } }
+  return toolCopyText(text, '共有のかわりにコピーしました（LINE などに貼れます）');
+}
+/* 金額・数の入れ方を広く受け付ける：12,000／１２０００／¥12000／1万2千／1.2万／三千五百 */
+function toolNum(s){
+  let t=String(s==null?'':s).replace(/[０-９．，－]/g, c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/[¥￥\\円,\s]/g,'').replace(/^ー/,'-');
+  if(!t) return NaN;
+  const neg=/^-/.test(t); if(neg) t=t.slice(1);
+  let v=NaN;
+  const m=/^(\d+(?:\.\d+)?)万(.*)$/.exec(t);
+  if(m){ const rest=m[2]?(/^\d+$/.test(m[2])?Number(m[2]):kanjiRunToNumber(m[2])):0; if(rest!=null) v=parseFloat(m[1])*10000+rest; }
+  else if(/^\d+(\.\d+)?$/.test(t)) v=Number(t);
+  else { const n=kanjiRunToNumber(t); if(n!=null) v=n; }
+  return neg?-v:v;
+}
+/* 名簿から名前をまとめて入れる（v561：立て替え精算・くじ）。📅当番表の名簿・📇連絡帳のグループ・★お気に入り から1つ選ぶ。
+   extra は道具の分（[{label, names}]）。選んだ名前の配列を返す（やめたら null） */
+function toolNameSources(){
+  const src=[], clean=a=>[...new Set(a.map(v=>String(v||'').replace(/[\u0000-\u001F\u007F]/g,' ').trim().slice(0,24)).filter(Boolean))];
+  try{ const t=JSON.parse(localStorage.getItem('excalc_touban')||'null'); const ns=clean((t&&Array.isArray(t.roster)?t.roster:[]).map(m=>m&&m.name)); if(ns.length) src.push({label:'📅 当番表の名簿', names:ns}); }catch(_){}
+  try{
+    const o=JSON.parse(localStorage.getItem('excalc_renraku')||'null'), items=(o&&Array.isArray(o.items))?o.items.filter(x=>x&&typeof x==='object'):[];
+    const nm=x=>x.fn||[x.fam,x.giv].filter(Boolean).join(' ')||x.nick||x.org||'';
+    ((o&&Array.isArray(o.groups))?o.groups:[]).forEach(g=>{ if(!g||!g.n) return; const ns=clean(items.filter(x=>Array.isArray(x.groups)&&x.groups.includes(g.n)).map(nm)); if(ns.length) src.push({label:'📇 連絡帳：'+(g.ic?g.ic+' ':'')+g.n, names:ns}); });
+    const fav=clean(items.filter(x=>x.fav).map(nm)); if(fav.length) src.push({label:'📇 連絡帳：★ お気に入り', names:fav});
+  }catch(_){}
+  return src;
+}
+function toolPickNames(extra){
+  const src=(extra||[]).concat(toolNameSources()).filter(x=>x && x.names && x.names.length);
+  if(!src.length){ toast('入れられる名簿がありません。📅 当番表の名簿や、📇 連絡帳のグループ・★お気に入り から入れられます', 4600); return Promise.resolve(null); }
+  return new Promise(resolve=>{
+    appModalOpen=true;
+    const ov=document.createElement('div'); ov.className='tool-pick-names';
+    ov.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding-top:8vh;background:rgba(0,0,0,.45)';
+    const box=document.createElement('div');
+    box.style.cssText='background:var(--panel,#fff);color:var(--text,#222);width:min(420px,92vw);max-height:78vh;overflow:auto;padding:16px;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.35);font-size:15px';
+    box.innerHTML='<div style="font-weight:bold;margin-bottom:10px">どの名簿の人を入れますか？</div>'
+      +src.map((x,i)=>'<button type="button" data-i="'+i+'" style="display:block;width:100%;text-align:left;margin:0 0 8px;padding:10px 12px;border-radius:10px;border:1px solid rgba(120,132,156,.4);background:var(--acc-weak,rgba(33,115,70,.12));color:var(--text,#222);cursor:pointer"><b style="font-size:15px">'+escHtml(x.label)+'</b>（'+x.names.length+'人）<br><small style="color:var(--text-light,#777)">'+escHtml(x.names.slice(0,6).join('、')+(x.names.length>6?' …':''))+'</small></button>').join('')
+      +'<div style="text-align:right;margin-top:4px"><button type="button" data-x="1" style="padding:8px 14px;font-size:14px;border:1px solid #999;border-radius:6px;background:#eee;color:#222;cursor:pointer">やめる</button></div>';
+    let done=false;
+    const close=v=>{ if(done) return; done=true; relBack(); appModalOpen=false; try{ ov.remove(); }catch(_){} resolve(v); };
+    const relBack=modalBack(()=>close(null));
+    box.addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; if(b.dataset.x) close(null); else close(src[+b.dataset.i].names.slice()); });
+    ov.addEventListener('mousedown', e=>{ if(e.target===ov) close(null); });
+    ov.appendChild(box); document.body.appendChild(ov);
+  });
+}
+
 /* ── 消費税（v349で1か所にまとめた）──────────────────────
    税率は設定の taxPct（％）。パーセントから倍率を出すところと、
    お金の端数（切り捨て）の決まりを、ここだけに置く。
@@ -14636,6 +14740,98 @@ const openKakudoLoader=function(...a){
 };
 window.openKakudo=openKakudoLoader;
 window.closeKakudo=function(){};
+/* ── 立て替え精算（v561。tatekae.js に分けてある）──
+   何人かで立て替えた分を、だれが だれに いくら払えば終わるかまで出す。はじめて開いたときに tatekae.js を読む。 */
+let tatekaePartLoading=null;
+function loadTatekaePart(){
+  if(window.TATEKAE_PART_LOADED) return Promise.resolve(true);
+  if(tatekaePartLoading) return tatekaePartLoading;
+  tatekaePartLoading=new Promise(res=>{
+    const sc=document.createElement('script');
+    sc.src='tatekae.js';
+    sc.onload=()=>{ window.TATEKAE_PART_LOADED=true; tatekaePartLoading=null; res(true); };
+    sc.onerror=()=>{ tatekaePartLoading=null; sc.remove(); res(false); };
+    document.head.appendChild(sc);
+  });
+  return tatekaePartLoading;
+}
+const openTatekaeLoader=function(...a){
+  return loadTatekaePart().then(ok=>{
+    if(!ok){ toast('立て替え精算を読み込めませんでした。インターネットにつながるところで、一度アプリを開き直してください'); return; }
+    if(window.openTatekae!==openTatekaeLoader) return window.openTatekae(...a);
+  });
+};
+window.openTatekae=openTatekaeLoader;
+window.closeTatekae=function(){};
+/* ── くじ・班分け（v561。kuji.js に分けてある）──
+   名前を入れて、当たり・順番・班分け・あみだくじ。はじめて開いたときに kuji.js を読む。 */
+let kujiPartLoading=null;
+function loadKujiPart(){
+  if(window.KUJI_PART_LOADED) return Promise.resolve(true);
+  if(kujiPartLoading) return kujiPartLoading;
+  kujiPartLoading=new Promise(res=>{
+    const sc=document.createElement('script');
+    sc.src='kuji.js';
+    sc.onload=()=>{ window.KUJI_PART_LOADED=true; kujiPartLoading=null; res(true); };
+    sc.onerror=()=>{ kujiPartLoading=null; sc.remove(); res(false); };
+    document.head.appendChild(sc);
+  });
+  return kujiPartLoading;
+}
+const openKujiLoader=function(...a){
+  return loadKujiPart().then(ok=>{
+    if(!ok){ toast('くじ・班分けを読み込めませんでした。インターネットにつながるところで、一度アプリを開き直してください'); return; }
+    if(window.openKuji!==openKujiLoader) return window.openKuji(...a);
+  });
+};
+window.openKuji=openKujiLoader;
+window.closeKuji=function(){};
+/* ── 打設の段取り（v561。dasetsu.js に分けてある）──
+   生コンの数量（部位ごと）から、発注量・ミキサー車の台数・配車の時間割を出す。はじめて開いたときに dasetsu.js を読む。 */
+let dasetsuPartLoading=null;
+function loadDasetsuPart(){
+  if(window.DASETSU_PART_LOADED) return Promise.resolve(true);
+  if(dasetsuPartLoading) return dasetsuPartLoading;
+  dasetsuPartLoading=new Promise(res=>{
+    const sc=document.createElement('script');
+    sc.src='dasetsu.js';
+    sc.onload=()=>{ window.DASETSU_PART_LOADED=true; dasetsuPartLoading=null; res(true); };
+    sc.onerror=()=>{ dasetsuPartLoading=null; sc.remove(); res(false); };
+    document.head.appendChild(sc);
+  });
+  return dasetsuPartLoading;
+}
+const openDasetsuLoader=function(...a){
+  return loadDasetsuPart().then(ok=>{
+    if(!ok){ toast('打設の段取りを読み込めませんでした。インターネットにつながるところで、一度アプリを開き直してください'); return; }
+    if(window.openDasetsu!==openDasetsuLoader) return window.openDasetsu(...a);
+  });
+};
+window.openDasetsu=openDasetsuLoader;
+window.closeDasetsu=function(){};
+/* ── レシート読み取り（v561。receipt.js に分けてある）──
+   レシートを撮ると、店・日付・合計・品目を読み取る（文字を読む部品 vendor/ocr はさらにその時に読む）。はじめて開いたときに receipt.js を読む。 */
+let receiptPartLoading=null;
+function loadReceiptPart(){
+  if(window.RECEIPT_PART_LOADED) return Promise.resolve(true);
+  if(receiptPartLoading) return receiptPartLoading;
+  receiptPartLoading=new Promise(res=>{
+    const sc=document.createElement('script');
+    sc.src='receipt.js';
+    sc.onload=()=>{ window.RECEIPT_PART_LOADED=true; receiptPartLoading=null; res(true); };
+    sc.onerror=()=>{ receiptPartLoading=null; sc.remove(); res(false); };
+    document.head.appendChild(sc);
+  });
+  return receiptPartLoading;
+}
+const openReceiptLoader=function(...a){
+  return loadReceiptPart().then(ok=>{
+    if(!ok){ toast('レシート読み取りを読み込めませんでした。インターネットにつながるところで、一度アプリを開き直してください'); return; }
+    if(window.openReceipt!==openReceiptLoader) return window.openReceipt(...a);
+  });
+};
+window.openReceipt=openReceiptLoader;
+window.closeReceipt=function(){};
 /* ── 📏定規（v496。ruler.js に分けてある）──
    スマホの画面を定規にする（カード・硬貨で校正）＋写真に並べた基準から長さを測る。はじめて開いたときに ruler.js を読む。 */
 let rulerPartLoading=null;
@@ -15125,6 +15321,7 @@ const NP_TOOLS=[
   {id:'volume',   label:'📷容積',       ov:'volumeOverlay',    run:()=>openVolume(),   close:()=>closeVolume()},
   {id:'ruler',    label:'📏定規',       ov:'rulerOverlay',     run:()=>openRuler(),    close:()=>closeRuler()},    // ruler.js（開いたときに読む。v496）
   {id:'kakudo',   label:'📐角度計',     ov:'kakudoOverlay',    run:()=>openKakudo(),   close:()=>closeKakudo()},   // kakudo.js（開いたときに読む。v518）
+  {id:'dasetsu',  label:'🚛打設の段取り',ov:'dasetsuOverlay',  run:()=>openDasetsu(),  close:()=>closeDasetsu()},  // dasetsu.js（開いたときに読む。v561）
   {id:'photomemo',label:'📝写真メモ',   ov:'photoMemoOverlay', run:()=>openPhotoMemo(),close:()=>closePhotoMemo()},
   {id:'linklist', label:'🔗リンク集',   ov:'linkListOverlay',  run:()=>openLinkList(), close:()=>closeLinkList()},
   {id:'touban',   label:'📅当番表',     ov:'toubanOverlay',    run:()=>openTouban(),   close:()=>closeTouban()},
@@ -15142,6 +15339,9 @@ const NP_TOOLS=[
   {id:'boki',     label:'📒会計の手引き',ov:'bokiOverlay',     run:()=>openBoki(),     close:()=>closeBoki()},     // boki.js（開いたときに読む。v490）
   {id:'kurashi',  label:'🧭くらしの便利帳',ov:'kurashiOverlay', run:()=>openKurashi(),  close:()=>closeKurashi()},  // kurashi.js（開いたときに読む。v491）
   {id:'keisan',   label:'🔢便利計算',   ov:'keisanOverlay',    run:()=>openKeisan(),   close:()=>closeKeisan()},   // keisan.js（開いたときに読む。v494）
+  {id:'tatekae',  label:'💴立て替え精算',ov:'tatekaeOverlay',  run:()=>openTatekae(),  close:()=>closeTatekae()},  // tatekae.js（開いたときに読む。v561）
+  {id:'kuji',     label:'🎲くじ・班分け',ov:'kujiOverlay',     run:()=>openKuji(),     close:()=>closeKuji()},     // kuji.js（開いたときに読む。v561）
+  {id:'receipt',  label:'📷レシート読み取り',ov:'receiptOverlay',run:()=>openReceipt(), close:()=>closeReceipt()},  // receipt.js（開いたときに読む。v561）
   {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},                        // 別のアプリとして開くので全画面・フリックの対象外
   {id:'calctmpl', label:'📋式テンプレ', ov:'calcTmplOverlay',  run:()=>openCalcTmpl(), close:()=>closeCalcTmpl()},
   {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
@@ -21779,6 +21979,10 @@ const TOOL_HINTS={
   kakeizu:'はじめに自分（本人）を入れます。人を押すと「＋父」「＋母」「＋夫・妻」「＋子」「＋きょうだい」で家族を足せます。続柄は本人から自動で付きます。「🎯 この人を中心に」で見たいところへ。図は指で動かし、2本指で大きさを変えられます。',
   regi:'はじめに「📦 商品」で写真・名前・値段・在庫を登録します（写真は四角に切り取れます。登録は「💾 保存」で次の売り出しにも使えます）。右上の ⚙ 設定でアイコンの大きさと縦横のスクロール、消費税の計算（税率と内税・外税は商品ごと）を選べます。売るときは商品を押すと1つずつ入り、お預かりを入れるとお釣りが出ます。「🏷 値引き」で円引き・％引き・品ごとの値引き。会計のあとに「🧾 レシート・領収書を印刷」（宛名も入れられます）。「📋 履歴・売上」から Excel に書き出せます。まちがえて会計したときは履歴の「訂正」で会計する前に戻せます。',
   kakudo:'「📐 傾き」はスマホを面に置くか、立てて辺を当てると角度が出ます（寸勾配・％も）。平らな所で一度「🎯 0点合わせ」をすると正確になります。「📷 距離・高さ」はカメラの高さを入れて、＋を物の根元→てっぺんに合わせると距離と高さが出ます。',
+  tatekae:'はじめに「＋ 人を足す」で いっしょに精算する人を入れ、立て替えた分を「払った人・金額」で足していきます。下の「💴 精算」に、だれが だれに いくら払えば終わるかが出ます。',
+  kuji:'名前を入れて（📇 名簿から も入れられます）、上で「当たり・順番・班分け・あみだ」を選び、大きなボタンで決めます。結果はコピーや表に入れられます。',
+  dasetsu:'部位ごとに寸法を入れると数量が出ます。下で ロス・1台の積む量・打設のはやさ・開始時刻を決めると、発注量・台数・配車の時間割が出ます。',
+  receipt:'「📷 撮る」でレシートを撮るか、「🖼 写真から」で選びます。読み取った 店・日付・合計・品目は直せます。はじめて読むときは 文字を読む部品（約8MB）を読み込みます。',
   ruler:'はじめに「🎯 校正」でカードや硬貨を画面に当てて合わせると、定規が正しい長さになります。「📷 写真で測る」は基準の物と並べて撮ってなぞります。',
   keisan:'8つの計算から選びます。入れた数は覚えるので、次も続きから使えます。',
   kurashi:'10のテーマから選ぶか、上の欄で「AED」「死亡届」「失業保険」のようにさがします。ページの中の 🧮 道具で、期限や金額の目安も出せます。',
@@ -21869,10 +22073,10 @@ function homeSetStartup(on){ setStartPage(on?'home':'last'); }
    ★よく使う（自分で選ぶ。選んでいなければ さいきん使ったもの）→ まとまりごと → 隠している道具（畳む）。
    ☰・ホーム・🧰ボタンのどこから開いても同じ窓。隠した道具も下の「隠している道具」から開ける */
 const TOOL_CATS=[
-  ['🏠 くらし',   ['keisan','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
+  ['🏠 くらし',   ['keisan','tatekae','kuji','receipt','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
   ['📖 知識・手引き',['kurashi','manner','boki']],   // 計算ではなく読む道具（v513）
   ['💼 仕事',     ['techo','meishi','calctmpl','fintmpl','kaikei']],
-  ['🏗 現場・畑', ['tansui','kantab','volume','ruler','kakudo','veggie']],
+  ['🏗 現場・畑', ['tansui','kantab','dasetsu','volume','ruler','kakudo','veggie']],
   ['📚 声・まなぶ',['koe','eigo','sansu','kakijun']],
   ['🏨 お店・宿', ['regi','heya','annai']],
 ];
@@ -22139,7 +22343,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v560';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v561';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -24004,6 +24208,10 @@ const ST_GROUPS=[
   {k:'excalc_shimai',     n:'しまい場所メモ（写真は別）'},
   {k:'excalc_meishi',     n:'名刺管理（写真は別）'},
   {k:'excalc_renraku',    n:'連絡帳（写真は別）'},
+  {k:'excalc_tatekae',    n:'立て替え精算'},
+  {k:'excalc_kuji',       n:'くじ・班分けの名前'},
+  {k:'excalc_dasetsu',    n:'打設の段取り'},
+  {k:'excalc_receipt',    n:'読み取ったレシート'},
   {k:'excalc_links',      n:'リンク集'},
   {k:'excalc_userkeys',   n:'自分のボタン'},
   {k:'excalc_custommodes',n:'ひな形の一覧に登録したもの'},
@@ -24189,6 +24397,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_ts_warn','excalc_userkeys',
   'excalc_uimode','excalc_trim','excalc_manner','excalc_boki','excalc_kurashi','excalc_keisan','excalc_ruler','excalc_tool_fav','excalc_tool_hints','excalc_seq_step','excalc_regi_ui',   // v460〜v462・v501
   'hyo_voice',   // 🔈 読み上げの声（v540。声の計算帳・ほかの道具と同じ）
+  'excalc_tatekae','excalc_kuji','excalc_dasetsu','excalc_receipt',   // 💴立て替え精算・🎲くじ・🚛打設の段取り・📷レシート（v561。写真は持たない）
 ];
 function settingsBundle(){
   const o={};

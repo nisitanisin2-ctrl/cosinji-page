@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,ruler,kakudo,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
+    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,receipt,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -3105,11 +3105,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,calctmpl,fintmpl');
+    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,receipt,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 29);   // v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
+    document.getElementById('startPageSel').options.length), 33);   // v561 で 🚛💴🎲📷 の4つ、v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'saienOverlay', 'volumeOverlay',
@@ -9778,6 +9778,357 @@ async function runKakijunSE(browser) {
   }
 }
 /* 💾 別の名前で保存（v560）：保存した記録を開いて直したあと、違う名前を付けて 別の記録として残す（元の記録はそのまま） */
+async function runTatekae561(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 💴 立て替え精算（v561） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキー・🏠くらし・バックアップ・端末の空き・単独アプリの入口', await page.evaluate(() => [!window.TATEKAE_PART_LOADED, !!NP_TOOLS.find(t => t.id === 'tatekae' && t.ov === 'tatekaeOverlay'), !!KEY_FUNCS.a_tatekae, TOOL_CATS.find(c => c[0].includes('くらし'))[1].includes('tatekae'), SETTINGS_BACKUP_KEYS.includes('excalc_tatekae'), ST_GROUPS.some(g => g.k === 'excalc_tatekae'), !!TOOL_HINTS.tatekae].join('/')) + '/' + fs.existsSync(path.join(ROOT, 'apps', 'tatekae', 'manifest.json')), 'true/true/true/true/true/true/true/true');
+  check('  金額の入れ方（12,000・１２０００・¥1,000・1万2千・1.2万・三千五百・-500・ちがう字）', await page.evaluate(() => ['12,000', '１２０００', '¥1,000', '1万2千', '1.2万', '三千五百', '-500', 'abc', ''].map(toolNum).join(',')), '12000,12000,1000,12000,12000,3500,-500,NaN,NaN');
+  await page.evaluate(() => openTatekae()); await w(500);
+  check('  開く（はじめの精算ができている・まだ人はいない）', await page.evaluate(() => [isDlgOpen('tatekaeOverlay'), window.TATEKAE_PART_LOADED, TK.state().events.length, /^精算 \d+\/\d+$/.test(TK.state().events[0].name), !!document.querySelector('#tkMems .tk-note')].join('/')), 'true/true/1/true/true');
+  await page.evaluate(async () => { window.appPrompt = async () => '田中、鈴木、佐藤、山田'; await TK.memAdd(); }); await w(200);
+  check('  人を「、」区切りでまとめて足す', await page.evaluate(() => TK.state().events[0].members.map(m => m.n).join(',') + '/' + document.getElementById('tkMemN').textContent), '田中,鈴木,佐藤,山田/（4人）');
+  const add = async (who, amt, what) => { await page.selectOption('#tkWho', { label: who }); await page.fill('#tkAmt', amt); await page.fill('#tkWhat', what); await page.click('#tkFBtn .tk-b.pri'); await w(120); };
+  await add('田中', '12,000', 'ガソリン'); await add('鈴木', '1万8千', '宿'); await add('佐藤', '6000', '夕食');
+  check('  立て替えを足す（件数・合計）', await page.evaluate(() => document.getElementById('tkItN').textContent + '/' + document.getElementById('tkAmt').value), '（3件・合計 36,000円）/');
+  check('  精算：ひとりずつの差し引き（＋もらう・−払う）', await page.evaluate(() => TK.settle().bal.join(',') + '/' + [...document.querySelectorAll('#tkRes .tk-t tbody tr')].map(r => r.textContent.replace(/\s+/g, '')).join(' | ')),
+    '3000,9000,-3000,-9000/田中12,0009,000＋3,000もらう | 鈴木18,0009,000＋9,000もらう | 佐藤6,0009,000−3,000払う | 山田09,000−9,000払う | 合計36,00036,000');
+  check('  払い方（だれ → だれ）は少ない回数で', await page.evaluate(() => [...document.querySelectorAll('#tkRes .tk-pay')].map(b => b.textContent.replace(/\s+/g, '')).join(' | ')), '佐藤→田中3,000円 | 山田→鈴木9,000円');
+  check('  1人あたりの目安', await page.evaluate(() => document.querySelector('#tkRes h4 small').textContent), '合計 36,000円・4人（1人あたり 約9,000円）');
+  await page.click('#tkRes .tk-pay'); await w(150);
+  check('  済んだ払いに ✓（覚える・文に（済））', await page.evaluate(() => document.querySelector('#tkRes .tk-pay').classList.contains('done') + '/' + Object.keys(JSON.parse(localStorage.getItem('excalc_tatekae')).events[0].done).length + '/' + TK.text().includes('佐藤 → 田中　3,000円（済）')), 'true/1/true');
+  check('  📋 コピー：LINE に貼れる文', await page.evaluate(async () => { let t = ''; navigator.clipboard.writeText = async x => { t = x; }; await TK.copy(); return t.split('\n').slice(0, 6).join('|'); }),
+    '💴 ' + await page.evaluate(() => TK.state().events[0].name) + ' の精算|合計 36,000円（4人）||▼ 払う|・佐藤 → 田中　3,000円（済）|・山田 → 鈴木　9,000円');
+  // 直す：立て替えを押すと上で直せる
+  await page.evaluate(() => TK.itemEdit(TK.state().events[0].items[2].id)); await w(150);
+  check('  立て替えを押すと上で直せる（金額・何に・ボタンが「✓ 直す」）', await page.evaluate(() => document.getElementById('tkAmt').value + '/' + document.getElementById('tkWhat').value + '/' + document.getElementById('tkFormH').textContent + '/' + document.querySelector('#tkFBtn .tk-b.pri').textContent), '6000/夕食/✏️ 立て替えを直す/✓ 直す');
+  await page.evaluate(() => { TK.forToggle(TK.state().events[0].members[1].id); TK.forToggle(TK.state().events[0].members[3].id); }); await w(100);
+  check('  「だれの分」を外す（全員 → 田中・佐藤）', await page.evaluate(() => [...document.querySelectorAll('#tkFor .tk-chip.on')].map(b => b.textContent).join(',')), '田中,佐藤');
+  await page.fill('#tkAmt', '6000'); await page.click('#tkFBtn .tk-b.pri'); await w(150);
+  check('  直した分で計算し直す（夕食は 田中・佐藤の分）', await page.evaluate(() => TK.settle().bal.join(',') + '/' + document.querySelectorAll('#tkItems .tk-it')[2].textContent.includes('田中・佐藤の分')), '1500,10500,-4500,-7500/true');
+  // 重み：山田は子ども（×0.5）→ 払うだけ（×0）。端数を100円に
+  await page.evaluate(() => { const id = TK.state().events[0].members[3].id; TK.memEdit(id); TK.popW(0.5); TK.memSave(id); }); await w(150);
+  check('  負担の重み（子ども ×0.5）が人の札に出る', await page.evaluate(() => [...document.querySelectorAll('#tkMems .tk-chip:not(.add)')].map(b => b.textContent).join(',')), '田中,鈴木,佐藤,山田×0.5');
+  check('  重みで分ける（山田は半分・合計は0のまま・丸めは1円まで）', await page.evaluate(() => { const s = TK.settle(); return s.owe.map(Math.round).join(',') + '/' + s.bal.reduce((a, b) => a + b, 0) + '/' + s.bal.every((b, i) => Math.abs(b - (s.paid[i] - s.owe[i])) < 1); }), '11571,8571,11571,4286/0/true');
+  await page.evaluate(() => { const id = TK.state().events[0].members[3].id; TK.memEdit(id); TK.popW(0); TK.memSave(id); }); await w(150);
+  check('  払うだけの人（×0）は負担なし', await page.evaluate(() => TK.settle().bal.join(',') + '/' + document.querySelector('#tkMems .tk-chip:nth-child(4)').textContent), '-1000,8000,-7000,0/山田×0');
+  await page.evaluate(() => TK.round(100)); await w(100);
+  check('  端数の単位を選ぶ（100円・覚える）', await page.evaluate(() => document.querySelector('#tkRes .tk-seg button.on').textContent + '/' + JSON.parse(localStorage.getItem('excalc_tatekae')).events[0].round), '100円/100');
+  // 新しい精算（同じ人で）
+  await page.evaluate(async () => { window.appPrompt = async () => 'キャンプ'; window.appConfirm = async () => true; await TK.evNew(); }); await w(200);
+  check('  新しい精算：同じ人で始める（立て替えは空）', await page.evaluate(() => { const st = TK.state(), e = st.events.find(x => x.id === st.cur); return [st.events.length, e.name, e.members.map(m => m.n + m.w).join(','), e.items.length, document.getElementById('tkEvSel').selectedOptions[0].textContent].join('/'); }), '2/キャンプ/田中1,鈴木1,佐藤1,山田0/0/キャンプ');
+  // 払うのは1人・3人で割る → 端数のふり分け
+  await add('田中', '10000', 'テント');
+  await page.evaluate(() => { const id = TK.state().events[1].members[3].id; window.appConfirm = async () => true; return TK.memDel(id); }); await w(200);
+  check('  1万円を3人で：端数は合計が0になるようにふり分ける', await page.evaluate(() => TK.settle().bal.join(',')), '6666,-3333,-3333');
+  // 人を消す：その人の立て替えと「その人だけの分」も消える（聞いてから）
+  await add('鈴木', '3000', '薪'); await add('佐藤', '1200', '鈴木のおやつ');
+  await page.evaluate(() => { const e = TK.state().events[1]; TK.itemEdit(e.items[2].id); TK.forToggle(e.members[0].id); TK.forToggle(e.members[2].id); TK.itemSave(); }); await w(150);
+  const delMsg = await page.evaluate(async () => { let m = ''; window.appConfirm = async x => { m = x; return true; }; const e = TK.state().events[1]; await TK.memDel(e.members[1].id); return m; });
+  check('  人を消す前に、消える立て替えを知らせる', delMsg, '鈴木 さんを消しますか？\n・鈴木 さんが立て替えた 1件（3,000円）も消えます\n・鈴木 さんだけの分の立て替え 1件も消えます');
+  check('  消したあと（人2人・立て替え1件）', await page.evaluate(() => { const e = TK.state().events[1]; return e.members.map(m => m.n).join(',') + '/' + e.items.map(x => x.what).join(','); }), '田中,佐藤/テント');
+  // 表に入れる
+  await page.evaluate(() => { setSheetSize(3, 3); sel(1, 1); }); await w(200);
+  await page.evaluate(() => TK.toTableGo('all')); await w(500);
+  check('  ▦ 表に入れる：選んだセルから（足りない行・列は増やす）・道具は閉じる', await page.evaluate(() => [isDlgOpen('tatekaeOverlay'), ROWS >= 9, COLS >= 5, data[1][1], data[2][1], data[2][2], data[3][1], data[3][2], data[3][3]].join('/')), 'false/true/true/キャンプ の精算/払う人/もらう人/佐藤/田中/5000');
+  await page.evaluate(() => undoLast()); await w(300);
+  check('  ↶戻る 1回で元どおり（表の大きさも）', await page.evaluate(() => [ROWS, COLS, data[1][1], data[2][1]].join('/')), '3/3//');
+  // 中身があるセルに重なるときは聞く
+  const ask = await page.evaluate(async () => { setCellVal(1, 1, 'だいじ'); sel(1, 1); let m = ''; window.appConfirm = async x => { m = x; return false; }; const r = await toolPasteRows([['a', 'b'], ['c', 'd']], 'てすと'); return m.split('\n')[1] + '/' + r + '/' + data[1][1]; });
+  check('  中身のあるセルに重なるときは聞く（やめると入れない）', ask, '中身のあるセルが 1個 あり、上書きされます（↶戻る で元に戻せます）。/false/だいじ');
+  // 読み込むときの片づけ（変なデータでも こわれない・文字はそのまま出す）
+  await page.evaluate(() => localStorage.setItem('excalc_tatekae', JSON.stringify({ cur: 'e1', events: [{ id: 'e1', name: '<img src=x onerror="window.__tk=1">', round: 7, members: [{ id: 'm1', n: '<b>太</b>', w: 99 }, { id: 'm2', n: '', w: 1 }, { id: 'm3', n: '花', w: -1 }], items: [{ who: 'm1', amt: -5 }, { who: 'zz', amt: 100 }, { who: 'm1', amt: '1000', what: '<script>x</script>', for: ['m3', 'nope'] }] }, 'bad'] })));
+  await page.evaluate(() => openTatekae()); await w(400);
+  check('  変なデータ：人・立て替えを片づけて、文字は文字のまま出す', await page.evaluate(() => { const e = TK.state().events[0]; return [e.members.map(m => m.n + ':' + m.w).join(','), e.items.length, e.items[0].for.length, e.round, window.__tk === undefined, !document.querySelector('#tatekaeOverlay img'), document.getElementById('tkEvSel').selectedOptions[0].textContent].join('/'); }), '<b>太</b>:1,花:1/1/1/1/true/true/<img src=x onerror="window.__tk=1">');
+  await page.evaluate(() => closeTatekae()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+async function runKuji561(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🎲 くじ・班分け（v561） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキー・🏠くらし・バックアップ・単独アプリの入口', await page.evaluate(() => [!window.KUJI_PART_LOADED, !!NP_TOOLS.find(t => t.id === 'kuji' && t.ov === 'kujiOverlay'), !!KEY_FUNCS.a_kuji, TOOL_CATS.find(c => c[0].includes('くらし'))[1].includes('kuji'), SETTINGS_BACKUP_KEYS.includes('excalc_kuji'), ST_GROUPS.some(g => g.k === 'excalc_kuji')].join('/')) + '/' + fs.existsSync(path.join(ROOT, 'apps', 'kuji', 'manifest.json')), 'true/true/true/true/true/true/true');
+  await page.evaluate(() => { window.KJ_NO_ANIM = 1; openKuji(); }); await w(400);
+  check('  はじめは名前を書く欄が出ている', await page.evaluate(() => isDlgOpen('kujiOverlay') + '/' + !!document.getElementById('kjText') + '/' + document.querySelector('#kjTabs .on').textContent), 'true/true/🎯 当たり');
+  const NAMES = ['田中', '鈴木', '佐藤', '山田', '高橋', '伊藤', '渡辺', '中村', '小林', '加藤'];
+  await page.fill('#kjText', NAMES.slice(0, 5).join('\n') + '\n' + NAMES.slice(5).join('、') + '\n田中');
+  await page.click('#kjGo'); await w(300);
+  check('  書いた名前で そのまま決める（同じ名前は (2) を付ける）', await page.evaluate(() => { const s = KJ.state(); return s.names.length + '/' + s.names[10] + '/' + s.last.list.length + '/' + s.names.includes(s.last.list[0]) + '/' + !!document.querySelector('#kjRes .kj-hit') + '/' + s.hist.length; }), '11/田中(2)/1/true/true/1');
+  await page.evaluate(() => KJ.setNames(KJ.state().names.slice(0, 10))); await w(100);
+  // 当たり：3人ずつ、前に当たった人を外す
+  await page.evaluate(() => { KJ.set('excl', true); KJ.step('pickN', 1); KJ.step('pickN', 1); }); await w(100);
+  check('  何人選ぶか（＋−）とボタンの名前', await page.evaluate(() => KJ.state().pickN + '/' + document.getElementById('kjGo').textContent), '3/🎲 3人を選ぶ');
+  const rounds = [];
+  for (let i = 0; i < 3; i++) { await page.click('#kjGo'); await w(150); rounds.push(await page.evaluate(() => KJ.state().last.list.join(','))); }
+  check('  前に当たった人を外す：3回で9人ちがう人', new Set(rounds.join(',').split(',')).size, 9);
+  await page.click('#kjGo'); await w(200);
+  check('  全員に回ったら はじめから（当たった人の控えも はじめから）', await page.evaluate(() => { const s = KJ.state(); return s.last.reset + '/' + s.last.list.length + '/' + s.won.length; }), 'true/3/3');
+  // 休み
+  await page.evaluate(() => { KJ.toggle(0); KJ.toggle(1); }); await w(100);
+  check('  名前を押すと休み（数にも出る）', await page.evaluate(() => document.getElementById('kjCnt').textContent + '/' + document.querySelectorAll('#kjNames .kj-chip.off').length), '（8人・休み 2人）/2');
+  await page.evaluate(() => KJ.mode('order')); await page.click('#kjGo'); await w(200);
+  check('  順番：休みの人は入らない・全員1回ずつ', await page.evaluate(() => { const l = KJ.state().last.list; return l.length + '/' + new Set(l).size + '/' + !l.includes('田中') + '/' + !l.includes('鈴木') + '/' + document.querySelectorAll('#kjRes .kj-order li').length; }), '8/8/true/true/8');
+  // 班分け
+  await page.evaluate(() => { KJ.toggle(0); KJ.toggle(1); KJ.mode('team'); KJ.step('teamN', 1); }); await w(100);
+  check('  班分け：班の数と人数の見通し', await page.evaluate(() => document.querySelector('#kjOpt .kj-tip').textContent), '3班に分けます（4人の班が1つ・3人の班が2つ）');
+  await page.click('#kjGo'); await w(200);
+  check('  班分け：人数の差は1人まで・全員どこかの班', await page.evaluate(() => { const t = KJ.state().last.teams; return t.map(x => x.length).sort().join(',') + '/' + t.flat().length + '/' + new Set(t.flat()).size + '/' + document.querySelectorAll('#kjRes .kj-team').length; }), '3,3,4/10/10/3');
+  await page.evaluate(() => { KJ.set('teamBy', 'size'); KJ.set('teamLabel', 'abc'); KJ.set('leader', true); }); await w(100);
+  await page.click('#kjGo'); await w(200);
+  check('  1班の人数で（4人 → 3班）・A班・班長に ★', await page.evaluate(() => { const r = KJ.state().last; return r.teams.length + '/' + r.labels.join(',') + '/' + KJ.text().split('\n').filter(l => /^[ABC]班.*：★/.test(l)).length + '/' + KJ.text().endsWith('★＝班長'); }), '3/A班,B班,C班/3/true');
+  await page.evaluate(() => { setSheetSize(5, 5); sel(0, 0); }); await w(100);
+  await page.evaluate(() => KJ.toTable()); await w(500);
+  check('  ▦ 表に入れる：班ごとに列', await page.evaluate(() => [data[0][0], data[0][1], data[0][2], data[1][0].startsWith('★'), ROWS >= 5, isDlgOpen('kujiOverlay')].join('/')), 'A班/B班/C班/true/true/false');
+  // あみだ
+  await page.evaluate(() => { openKuji(); KJ.mode('amida'); }); await w(300);
+  await page.click('#kjGo'); await w(300);
+  check('  あみだ：名前の数だけ たて線・どの名前も別々の下に着く', await page.evaluate(() => { const a = KJ.state().amida; const ends = a.names.map((_, i) => KJ.trace(i).end); return a.names.length + '/' + document.querySelectorAll('#kjRes svg line.v').length + '/' + new Set(ends).size + '/' + a.prizes.filter(p => p === '当たり').length + '/' + document.querySelectorAll('#kjRes svg g.pz text').length; }), '10/10/10/1/10');
+  check('  まだ開けていない下は ？', await page.evaluate(() => [...document.querySelectorAll('#kjRes svg g.pz text')].every(t => t.textContent === '？')), true);
+  await page.evaluate(() => document.querySelector('#kjRes svg g.nm').dispatchEvent(new MouseEvent('click', { bubbles: true }))); await w(200);
+  check('  名前を押すと たどる（線と下の答え）', await page.evaluate(() => { const a = KJ.state().amida, end = KJ.trace(0).end; return a.open.join(',') + '/' + document.querySelectorAll('#kjRes svg polyline.path').length + '/' + (document.querySelectorAll('#kjRes svg g.pz text')[end].textContent === a.prizes[end]) + '/' + document.querySelector('#kjRes .kj-alist').textContent.startsWith('田中 → '); }), '0/1/true/true');
+  check('  ぜんぶ開けるまでは コピーできない', await page.evaluate(() => { let t = ''; navigator.clipboard.writeText = async x => { t = x; }; KJ.copy(); return t === '' && !document.querySelector('#kjRes .kj-acts [onclick="KJ.copy()"]'); }), true);
+  await page.evaluate(() => KJ.openAll()); await w(200);
+  check('  🔓 ぜんぶ開ける → 結果の文・これまでの結果に残る', await page.evaluate(async () => { let t = ''; navigator.clipboard.writeText = async x => { t = x; }; await KJ.copy(); await new Promise(r => setTimeout(r, 50)); return t.split('\n').length + '/' + t.startsWith('🪜 あみだくじ') + '/' + KJ.state().hist[0].mode; }), '11/true/amida');
+  await page.evaluate(() => { KJ.set('prizeKind', 'own'); KJ.prizes('司会\n書記\n会計'); }); await page.click('#kjGo'); await w(200);
+  check('  下に書くことを自分で（足りない分は はずれ）', await page.evaluate(() => KJ.state().amida.prizes.slice().sort().join(',')), ['会計', '司会', '書記'].concat(Array(7).fill('はずれ')).sort().join(','));
+  // 名前の組を保存して呼ぶ
+  await page.evaluate(() => KJ.lists()); await w(150);
+  await page.fill('#kjListName', '3年2組'); await page.evaluate(() => KJ.listSave()); await w(100);
+  await page.evaluate(() => KJ.setNames(['だれか'])); await page.evaluate(() => KJ.lists()); await w(150);
+  await page.evaluate(() => document.querySelector('.kj-li .kj-b').click()); await w(150);
+  check('  📂 名前の組：保存して呼ぶ', await page.evaluate(() => KJ.state().lists.map(l => l.name + ':' + l.names.length).join(',') + '/' + KJ.state().names.length), '3年2組:10/10');
+  // 名簿から（当番表）
+  await page.evaluate(() => localStorage.setItem('excalc_touban', JSON.stringify({ roster: [{ name: 'Aさん' }, { name: 'Bさん' }, { name: '' }, { name: 'Cさん' }] })));
+  await page.evaluate(() => { KJ.names(); }); await w(200);
+  check('  📇 名簿から：当番表の名簿・名前の組が出る', await page.evaluate(() => [...document.querySelectorAll('.tool-pick-names button[data-i] b')].map(b => b.textContent).join(',')), '📂 3年2組,📅 当番表の名簿');
+  await page.evaluate(() => document.querySelectorAll('.tool-pick-names button[data-i]')[1].click()); await w(200);
+  await page.evaluate(() => document.querySelector('.kj-pick button[data-v="set"]').click()); await w(200);
+  check('  入れかえる → 名簿の3人', await page.evaluate(() => KJ.state().names.join(',')), 'Aさん,Bさん,Cさん');
+  // 乱数のかたより
+  check('  乱数にかたよりがない（6つに 6万回）', await page.evaluate(() => { const c = Array(6).fill(0); for (let i = 0; i < 60000; i++) c[KJ.rnd(6)]++; return c.every(x => Math.abs(x - 10000) < 500); }), true);
+  check('  並べかえは どの並びも出る（3人で 6万回）', await page.evaluate(() => { const m = {}; for (let i = 0; i < 60000; i++) { const k = KJ.shuffle(['a', 'b', 'c']).join(''); m[k] = (m[k] || 0) + 1; } return Object.keys(m).length + '/' + Object.values(m).every(x => Math.abs(x - 10000) < 500); }), '6/true');
+  // 変なデータ・文字はそのまま
+  await page.evaluate(() => { closeKuji(); localStorage.setItem('excalc_kuji', JSON.stringify({ names: ['<img src=x onerror=f()>', 5, null, 'ok'], off: ['zz'], mode: 'evil', pickN: 1e9, teamN: -3, lists: [{ name: '', names: ['a'] }, 'x'], amida: { names: ['a', 'b'], rungs: [[true, true]], open: [9, 0] }, hist: [{ mode: 'pick', text: '<b>x</b>' }] })); openKuji(); }); await w(300);
+  check('  変なデータ：片づけて開く・文字は文字のまま', await page.evaluate(() => { const s = KJ.state(); return [s.names.join('|'), s.off.length, s.mode, s.pickN, s.teamN, s.lists.length, s.amida.open.join(','), s.hist.length, !document.querySelector('#kujiOverlay img')].join('/'); }), '<img src=x onerror=f()>|5|ok/0/pick/200/2/0/0/1/true');
+  await page.evaluate(() => closeKuji()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+async function runDasetsu561(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🚛 打設の段取り（v561） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキー・🏗現場のまとまり・バックアップ・単独アプリの入口', await page.evaluate(() => [!window.DASETSU_PART_LOADED, !!NP_TOOLS.find(t => t.id === 'dasetsu' && t.ov === 'dasetsuOverlay'), !!KEY_FUNCS.a_dasetsu, TOOL_CATS.find(c => c[0].includes('現場'))[1].includes('dasetsu'), SETTINGS_BACKUP_KEYS.includes('excalc_dasetsu'), ST_GROUPS.some(g => g.k === 'excalc_dasetsu')].join('/')) + '/' + fs.existsSync(path.join(ROOT, 'apps', 'dasetsu', 'manifest.json')), 'true/true/true/true/true/true/true');
+  await page.evaluate(() => openDasetsu()); await w(400);
+  check('  開く（はじめは「㎥で入れる」が1つ・段取りはまだ）', await page.evaluate(() => isDlgOpen('dasetsuOverlay') + '/' + document.querySelectorAll('#dsParts .ds-part').length + '/' + document.querySelector('#dsParts select').value + '/' + !!document.querySelector('#dsRes .ds-empty')), 'true/1/direct/true');
+  check('  部位ごとの数量（スラブ・梁・柱・壁・基礎・布基礎・円柱・直接）', await page.evaluate(() => [
+    { type: 'slab', vals: { l: '10', w: '8', t: '150' } }, { type: 'beam', vals: { b: '300', h: '600', l: '5', n: '4' } }, { type: 'col', vals: { b: '600', d: '600', h: '3.5', n: '6' } },
+    { type: 'wall', vals: { l: '10', h: '3', t: '180', n: '2' } }, { type: 'found', vals: { l: '2', w: '2', h: '0.8', n: '3' } }, { type: 'nuno', vals: { l: '20', bw: '450', bt: '150', rw: '150', rh: '400' } },
+    { type: 'cyl', vals: { d: '1000', h: '10', n: '' } }, { type: 'direct', vals: { v: '５２．３' } }, { type: 'slab', vals: { l: '10', w: '', t: '150' } }].map(p => DS.partVol(p).toFixed(3)).join(',')),
+    '12.000,3.600,7.560,10.800,9.600,2.550,7.854,52.300,0.000');
+  await page.fill('#dsParts .ds-part input[data-f="v"]', '52.3'); await w(200);
+  check('  数量 → 割増し5% → 発注（0.25㎥単位で切り上げ）→ 台数', await page.evaluate(() => [...document.querySelectorAll('#dsRes .ds-cards b')].map(b => b.textContent).join(',') + '/' + document.getElementById('dsSum').textContent), '52.30,54.92,55.00,13/設計数量 52.30 ㎥');
+  check('  台ごとの量（どの車も同じくらい）・時刻・回す車', await page.evaluate(() => [...document.querySelectorAll('#dsRes .ds-sum > div')].map(d => d.textContent.trim()).join(' | ')), '🚛 4.25㎥×12台＋4㎥×1台 | ⏱ 打設 8:30〜11:15（2時間45分） | 🔁 1台 約13分ごと・車は 8台で回せます（1回り 約98分）');
+  check('  配車表の1台目（出発・着・荷卸し・量・累計）と最後', await page.evaluate(() => { const r = document.querySelectorAll('#dsRes .ds-t tbody tr'); const c = x => [...x.children].map(td => td.textContent).join(' '); return r.length + ' | ' + c(r[0]) + ' | ' + c(r[r.length - 1]); }), '13 | 1 1 7:55 8:25 8:30-8:43 4.25 4.25 | 13 5(2) 10:28 10:58 11:03-11:15 4 55');
+  await page.evaluate(() => DS.set('even', false)); await w(100);
+  check('  最後の1台で調整', await page.evaluate(() => document.querySelector('#dsRes .ds-sum > div').textContent.trim()), '🚛 4.25㎥×12台＋最後 4㎥');
+  await page.evaluate(() => { DS.set('loss', 0); DS.set('unit', 0.5); }); await w(100);
+  check('  割増し0%・0.5㎥単位（52.3 → 52.5）', await page.evaluate(() => DS.plan().order + '/' + DS.plan().N), '52.5/13');
+  await page.evaluate(() => DS.setJob({ loss: 5, unit: 0.25, even: true, start: '10:30' })); await w(100);
+  check('  昼休み：次の車は 13:00 から・表に 🍙 の行', await page.evaluate(() => { const P = DS.plan(); return P.rows.findIndex(r => r.s >= 780) + '/' + Math.round(P.rows[8].s) + '/' + document.querySelector('#dsRes tr.lunch').textContent + '/' + DS.text().includes('昼休み 12:00〜13:00 をのぞく'); }), '8/780/🍙 昼休み 12:00〜13:00/true');
+  await page.evaluate(() => DS.setJob({ start: '08:30', fleet: 4 })); await w(100);
+  check('  使える車を4台にすると待ちが出る（知らせる）', await page.evaluate(() => { const P = DS.plan(); return P.trucks + '/' + (P.idle > 0) + '/' + P.warn.some(x => x.includes('車が足りない')) + '/' + !!document.querySelector('#dsRes .ds-warn'); }), '4/true/true/true');
+  await page.evaluate(() => DS.setJob({ fleet: 0, travel: 85 })); await w(100);
+  check('  運搬が長い：JIS の 1.5時間をこえると知らせる', await page.evaluate(() => DS.plan().warn.filter(x => x.includes('JIS A 5308')).length), 1);
+  await page.evaluate(() => DS.setJob({ travel: 70, hot: true })); await w(100);
+  check('  外気温25℃以上：練混ぜから荷卸し終わりまで 90分をこえると知らせる（25℃未満なら120分）', await page.evaluate(() => { const a = DS.plan().warn.some(x => x.includes('目安の 90分')); DS.setJob({ hot: false }); const b = DS.plan().warn.some(x => x.includes('目安の')); return a + '/' + b; }), 'true/false');
+  await page.evaluate(() => DS.setJob({ travel: 30 })); await w(100);
+  // 部位の形を変える
+  await page.selectOption('#dsParts .ds-part select', 'slab'); await w(150);
+  await page.fill('#dsParts .ds-part input[data-f="l"]', '10'); await page.fill('#dsParts .ds-part input[data-f="w"]', '8'); await w(150);
+  check('  部位の形を変える：スラブ（厚さは150mmから）・式と㎥', await page.evaluate(() => document.querySelector('#dsParts .ds-part input[data-f="t"]').value + '/' + document.getElementById('dsPv0').textContent), '150/10×8×0.15 ＝ 12.00 ㎥');
+  await page.click('.ds-add .ds-b'); await w(150);
+  check('  ＋ 部位を足す（前と同じ形）', await page.evaluate(() => [...document.querySelectorAll('#dsParts select')].map(s => s.value).join(',')), 'slab,slab');
+  await page.evaluate(() => { const s = document.querySelectorAll('#dsParts select')[1]; s.value = 'beam'; s.dispatchEvent(new Event('change', { bubbles: true })); }); await w(150);
+  await page.evaluate(() => { const p = document.querySelectorAll('#dsParts .ds-part')[1]; const f = (k, v) => { const i = p.querySelector('input[data-f="' + k + '"]'); i.value = v; i.dispatchEvent(new Event('input', { bubbles: true })); }; f('b', '300'); f('h', '600'); f('l', '5'); f('n', '4'); }); await w(150);
+  check('  梁を足す → 合計', await page.evaluate(() => document.getElementById('dsSum').textContent + '/' + document.getElementById('dsPv1').textContent), '設計数量 15.60 ㎥（2か所）/0.3×0.6×5×4本 ＝ 3.60 ㎥');
+  // 表に入れる
+  await page.evaluate(() => sel(0, 0)); await page.evaluate(() => DS.toTable()); await w(500);
+  check('  ▦ 表に入れる：数量のまとめと配車表', await page.evaluate(() => [isDlgOpen('dasetsuOverlay'), data[0][0], data[1][0], data[2][1], data[4][2], data[6][2], data[7][2], data[9][0], data[9][2], data[10][2]].join('/')), 'false/打設の段取り/部位/10×8×0.15/15.6/16.5/4/号/工場を出る/7:55');
+  // 新しい打設（設定は前と同じ）
+  await page.evaluate(async () => { openDasetsu(); DS.set('rate', 30); window.appPrompt = async () => '〇〇邸 基礎'; await DS.jobNew(); }); await w(200);
+  check('  新しい打設：設定は前と同じ・数量は空', await page.evaluate(() => { const s = DS.state(), j = s.jobs.find(x => x.id === s.cur); return [s.jobs.length, j.name, j.rate, j.parts.length, j.parts[0].type, document.querySelector('#dsJob select').selectedOptions[0].textContent].join('/'); }), '2/〇〇邸 基礎/30/1/direct/〇〇邸 基礎');
+  await page.evaluate(() => { closeDasetsu(); localStorage.setItem('excalc_dasetsu', JSON.stringify({ cur: 'j1', jobs: [{ id: 'j1', name: '<img src=x onerror=f()>', parts: [{ type: 'evil', vals: {} }, { type: 'slab', name: '<b>床</b>', vals: { l: '<i>', w: 2, t: '100' } }], loss: 999, unit: 3, load: 0, rate: -5, start: '25:99', fleet: 1e6 }, null] })); openDasetsu(); }); await w(300);
+  check('  変なデータ：片づけて開く・文字は文字のまま', await page.evaluate(() => { const j = DS.state().jobs[0]; return [j.parts.length, j.parts[0].name, j.loss, j.unit, j.load, j.rate, j.start, j.fleet, !document.querySelector('#dasetsuOverlay img'), document.querySelector('#dsJob select').selectedOptions[0].textContent].join('/'); }), '1/<b>床</b>/5/0.25/4.25/20/08:30/0/true/<img src=x onerror=f()>');
+  await page.evaluate(() => closeDasetsu()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+async function runReceipt561(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📷 レシート読み取り（v561） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const SAMPLES = [
+`ファ ミリ ー マ ー ト 足利 中 央 店
+栃木 県 足利 市 中 央 町 1-2-3
+TEL 0284-00-1234
+2026 年 10 月 20 日 ( 火 ) 12:34
+レジ #2 責 :0123
+お に ぎり 鮭 \\150
+お 茶 500ml \\128
+か ら あ げ ク ン \\238
+小計 \\516
+(内 消費 税 等 8% _。 \\38)
+合計 \\516
+お 預り \\1.000
+お 釣り \\484`,
+`スーパーマルエツ
+〒100-0001 東京都千代田区1-1
+TEL 03-1234-5678
+2026/10/19(日) 18:05
+レジ0003 #1234
+牛乳                  198※
+食パン                148※
+バナナ
+  2コX単98            196※
+にんじん
+  3コX単50            150※
+値引                  -30
+小計                 ¥662
+外税 8%対象 ¥662
+外税 8%               ¥52
+合計                 ¥714
+お預り               ¥1,000
+お釣り                ¥286
+※印は軽減税率対象商品です`,
+`セブン-イレブン
+足利中央店
+栃木県足利市中央町2-3
+電話:0284-11-2222
+2026年10月18日(土) 07:45
+登録番号 T1234567890123
+レジ2 No.0456
+サンドイッチ 軽 ¥380
+コーヒーL ¥250
+タバコ 外 ¥600
+合計 ¥1,230
+(10%対象 ¥850 内消費税等 ¥77)
+(8%対象 ¥380 内消費税等 ¥28)
+電子マネー支払 ¥1,230`,
+`領収書
+ドラッグストア さくら
+令和6年10月20日 15:20
+ハンドソープ          ¥328
+マスク 30枚           ¥598
+お買上げ点数 2点
+お買上げ計           ¥926
+内消費税(10%)          ¥84
+クレジット            ¥926`,
+`ﾗｰﾒﾝ 太陽軒
+26/10/20 19:02
+醤油ﾗｰﾒﾝ    850円
+餃子         400円
+ビール       550円
+合 計      1,800円`
+];
+  check('  開くまでは読まない・道具とマイキー・🏠くらし・バックアップ・単独アプリの入口・部品のライセンス', await page.evaluate(() => [!window.RECEIPT_PART_LOADED, !window.Tesseract, !!NP_TOOLS.find(t => t.id === 'receipt' && t.ov === 'receiptOverlay'), !!KEY_FUNCS.a_receipt, TOOL_CATS.find(c => c[0].includes('くらし'))[1].includes('receipt'), SETTINGS_BACKUP_KEYS.includes('excalc_receipt'), ST_GROUPS.some(g => g.k === 'excalc_receipt')].join('/')) + '/' + fs.existsSync(path.join(ROOT, 'apps', 'receipt', 'manifest.json')) + '/' + ['LICENSE', 'README.md', 'tesseract.min.js.LICENSE.txt', 'worker.min.js.LICENSE.txt'].every(f => fs.existsSync(path.join(ROOT, 'vendor', 'ocr', f))), 'true/true/true/true/true/true/true/true/true');
+  {
+    const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
+    check('  service-worker：新しい4つは控えに入れる・文字を読む部品は版上げで消さない別の控え', ['tatekae.js', 'kuji.js', 'dasetsu.js', 'receipt.js'].every(f => sw.includes("'./" + f + "'")) + '/' + !/vendor\/ocr/.test(sw.match(/const ASSETS = \[[\s\S]*?\];/)[0]) + '/' + /const OCR_CACHE = 'hyo-ocr-v\d+'/.test(sw) + '/' + sw.includes("k.startsWith('hyo-ocr-') && k !== OCR_CACHE"), 'true/true/true/true');
+    const sizes = ['tesseract.min.js', 'worker.min.js', 'tesseract-core-simd-lstm.js', 'tesseract-core-simd-lstm.wasm', 'tesseract-core-lstm.js', 'tesseract-core-lstm.wasm', 'jpn.traineddata.gz'].map(f => fs.statSync(path.join(ROOT, 'vendor', 'ocr', f)).size);
+    check('  文字を読む部品がそろっている（あわせて 9MB より小さい）', sizes.every(s => s > 50000) + '/' + (sizes.reduce((a, b) => a + b, 0) < 9e6), 'true/true');
+  }
+  await page.evaluate(() => openReceipt()); await w(400);
+  check('  ファイルから開いたときは 写真は読めないと知らせる（文字を貼るはできる）', await page.evaluate(() => isDlgOpen('receiptOverlay') + '/' + !!document.querySelector('#rcFileWarn .rc-warn') + '/' + (RC.cam(), document.getElementById('appToast').textContent.includes('📋 文字を貼る'))), 'true/true/true');
+  const parsed = await page.evaluate(S => S.map(t => { const p = RC.parse(t); return [p.store, p.date, p.total, p.tax8, p.tax10, p.items.map(x => x.n + ':' + x.p).join(',')].join('|'); }), SAMPLES);
+  check('  コンビニ（¥ が \\ に読まれる・1.000）', parsed[0], 'ファミリーマート足利中央店|2026-10-20|516|38|0|おにぎり鮭:150,お茶 500ml:128,からあげクン:238');
+  check('  スーパー（2コX単98 の行・値引き・外税）', parsed[1], 'スーパーマルエツ|2026-10-19|714|52|0|牛乳:198,食パン:148,バナナ ×2:196,にんじん ×3:150,値引:-30');
+  check('  8%と10%の税・登録番号や電話は品目にしない', parsed[2], 'セブン-イレブン|2026-10-18|1230|28|77|サンドイッチ:380,コーヒーL:250,タバコ:600');
+  check('  令和の日付・お買上げ計・点数は品目にしない', parsed[3], 'ドラッグストアさくら|2024-10-20|926|0|84|ハンドソープ:328,マスク 30枚:598');
+  check('  半角カナ・「円」・合 計（あいだの空白）', parsed[4], 'ラーメン太陽軒|2026-10-20|1800|0|0|醤油ラーメン:850,餃子:400,ビール:550');
+  check('  行のおしりの金額（時刻・電話・番号は金額にしない）', await page.evaluate(() => ['12:34', 'TEL 0284-00-1234', '小計 ¥1,234', 'おにぎり 150※', '値引 -30', 'お茶 Y128', 'No.0123', 'レジ#2', 'ラーメン 850円', '2026年10月20日', 'マスク 30枚 ¥598'].map(l => { const a = RC.tail(l); return a ? a.v : '-'; }).join(',')), '-,-,1234,150,-30,128,-,-,850,-,598');
+  // 📋 文字を貼る → 直す
+  await page.evaluate(S => { navigator.clipboard.readText = async () => S[1]; window.appPrompt = async (m, d) => d; return RC.paste(); }, SAMPLES); await w(300);
+  check('  📋 文字を貼る → 店・日付・合計・税・品目が欄に入る', await page.evaluate(() => { const v = k => document.querySelector('#rcForm [data-c="' + k + '"]').value; return [v('store'), v('date'), v('total'), v('tax8'), v('tax10'), document.querySelectorAll('#rcForm .rc-it').length, document.querySelector('#rcCheck').textContent.trim()].join('/'); }), 'スーパーマルエツ/2026-10-19/714/52//5/✓ 品目の合計 662円＋消費税 52円 が 合計と合っています');
+  await page.fill('#rcForm [data-c="total"]', '700'); await w(100);
+  check('  合計を直すと、品目の合計とちがうと知らせる', await page.evaluate(() => document.querySelector('#rcCheck').textContent.trim()), '⚠ 品目の合計は 662円、合計は 700円（差 38円）。読みまちがいがあるかもしれません。');
+  await page.fill('#rcForm [data-c="total"]', '714'); await page.evaluate(() => RC.itemAdd()); await w(100);
+  await page.fill('#rcForm .rc-it:last-child input[data-f="n"]', 'レジ袋'); await page.fill('#rcForm .rc-it:last-child input[data-f="p"]', '5'); await w(100);
+  check('  品目を足す（品名・金額）', await page.evaluate(() => RC.cur().items.slice(-1).map(x => x.n + ':' + x.p).join() + '/' + document.querySelectorAll('#rcForm .rc-it').length), 'レジ袋:5/6');
+  await page.evaluate(() => RC.itemDel(5)); await w(100);
+  check('  📋 コピー：中身の文', await page.evaluate(async () => { let t = ''; navigator.clipboard.writeText = async x => { t = x; }; await RC.copy(); return t.split('\n')[0] + '|' + t.split('\n').slice(-1)[0]; }), '🧾 スーパーマルエツ　2026/10/19|合計 714円（うち消費税 8% 52円）');
+  await page.evaluate(() => RC.keep()); await w(150);
+  await page.evaluate(S => { RC.show(RC.parse(S[2])); RC.keep(); }, SAMPLES); await w(150);
+  check('  💾 残す：2枚（タブに数）', await page.evaluate(() => RC.state().list.length + '/' + document.querySelector('#rcTabs button:last-child').textContent), '2/📒 残したレシート（2）');
+  await page.evaluate(() => RC.tab('list')); await w(200);
+  check('  📒 残したレシート：日付の新しい順・月ごとの合計', await page.evaluate(() => [...document.querySelectorAll('#rcList .rc-row')].map(r => r.textContent.replace(/\s+/g, '')).join(' | ') + ' / ' + document.querySelector('#rcList .rc-lsum b').textContent + ' / ' + [...document.querySelectorAll('#rcList .rc-lh option')].map(o => o.textContent).join(',')),
+    '10/19スーパーマルエツ714円 | 10/18セブン-イレブン1,230円 / 1,944円 / ぜんぶ（2枚）,2026年10月');
+  await page.evaluate(() => sel(0, 0)); await page.evaluate(() => RC.listTable()); await w(500);
+  check('  ▦ 一覧を表に入れる（日付は日付のセル）', await page.evaluate(() => [isDlgOpen('receiptOverlay'), data[0][0], getCellDisplay(1, 0), data[1][1], data[1][2], data[2][2], data[2][3]].join('/')), 'false/日付/2026/10/18/セブン-イレブン/1230/714/52');
+  await page.evaluate(() => { openReceipt(); RC.openRec(RC.state().list.find(r => r.store.startsWith('スーパー')).id); }); await w(300);
+  check('  一覧から開くと直せる（読み取る のタブ）', await page.evaluate(() => [RC.state().tab, document.querySelector('#rcForm h4').textContent.startsWith('✏️'), document.querySelector('#rcForm [data-c="total"]').value].join('/')), 'read/true/714');
+  await page.evaluate(() => sel(5, 0)); await page.evaluate(() => RC.toTableGo('items')); await w(500);
+  check('  ▦ 品目ごとに表に入れる（品名・金額・合計の行）', await page.evaluate(() => [data[5][2], data[6][2], data[6][3], data[10][2], data[10][3], data[11][2], data[11][3]].join('/')), '品目/牛乳/198/値引/-30/合計/714');
+  await page.evaluate(() => { openReceipt(); RC.tab('list'); window.appConfirm = async () => true; return RC.listDel(); }); await w(200);
+  check('  🗑 まとめて消す', await page.evaluate(() => RC.state().list.length + '/' + !!document.querySelector('#rcList .rc-empty')), '0/true');
+  // 変なデータ
+  await page.evaluate(() => { closeReceipt(); localStorage.setItem('excalc_receipt', JSON.stringify({ tab: 'list', list: [{ store: '<img src=x onerror=f()>', date: '2026-13-99', total: 'abc', items: [{ n: '<b>a</b>', p: 1e12 }, null] }, 5, null] })); openReceipt(); }); await w(300);
+  check('  変なデータ：片づけて開く・文字は文字のまま', await page.evaluate(() => { const r = RC.state().list; return [r.length, r[0].store, r[0].date, r[0].total, r[0].items.length, r[0].items[0].p, !document.querySelector('#receiptOverlay img')].join('/'); }), '1/<img src=x onerror=f()>//0/1/0/true');
+  await page.evaluate(() => closeReceipt()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+  // 本物の読み取り（http で開く。service worker も動かす）
+  const http = require('http');
+  const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.wasm': 'application/wasm', '.gz': 'application/gzip', '.css': 'text/css' };
+  const srv = http.createServer((req, rsp) => { let u = decodeURIComponent(req.url.split('?')[0]); if (u.endsWith('/')) u += 'index.html'; const f = path.join(ROOT, path.normalize(u));
+    if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { rsp.writeHead(404); rsp.end(); return; }
+    rsp.writeHead(200, { 'Content-Type': types[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-cache' }); fs.createReadStream(f).pipe(rsp); });
+  await new Promise(r => srv.listen(0, '127.0.0.1', r));
+  const hc = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'allow' });
+  const hp = await hc.newPage(); const herr = [], ocrReq = [];
+  hp.on('pageerror', e => herr.push(e.message));
+  hp.on('requestfinished', r => { if (r.url().includes('/vendor/ocr/')) ocrReq.push(r.url().split('/').pop()); });
+  await hp.goto(`http://127.0.0.1:${srv.address().port}/index.html`); await hp.waitForTimeout(500);
+  await hp.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_back_ask', '0'); });
+  await hp.reload(); await hp.waitForTimeout(1200);
+  const ctl = await hp.evaluate(() => Promise.race([navigator.serviceWorker.ready.then(() => new Promise(r => { if (navigator.serviceWorker.controller) r('ok'); else navigator.serviceWorker.addEventListener('controllerchange', () => r('ok')); })), new Promise(r => setTimeout(() => r('timeout'), 8000))]));
+  const photo = () => hp.evaluate(async () => {
+    document.getElementById('rcForm').hidden = true;
+    const W = 1100, H = 1500, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+    x.fillStyle = '#8a8f96'; x.fillRect(0, 0, W, H);
+    x.save(); x.translate(W / 2, H / 2); x.rotate(-1.5 * Math.PI / 180); x.translate(-W / 2, -H / 2);
+    x.fillStyle = '#f7f5ef'; x.fillRect(170, 60, 760, 1380); x.fillStyle = '#262626';
+    const L = [['ファミリーマート 足利中央店', 34, 'c'], ['栃木県足利市中央町1-2-3', 24, 'c'], ['TEL 0284-00-1234', 24, 'c'], ['2026年10月20日(火) 12:34', 26, 'l'], ['レジ#2 責:0123', 24, 'l'], ['おにぎり 鮭', '¥150'], ['お茶 500ml', '¥128'], ['からあげクン', '¥238'], ['小計', '¥516'], ['(内消費税等 8%', '¥38)'], ['合計', '¥516', 36], ['お預り', '¥1,000'], ['お釣り', '¥484']];
+    let y = 130;
+    for (const r of L) {
+      if (typeof r[1] === 'number') { x.font = (r[1] >= 30 ? 'bold ' : '') + r[1] + 'px "Noto Sans CJK JP", sans-serif'; x.textAlign = r[2] === 'c' ? 'center' : 'left'; x.fillText(r[0], r[2] === 'c' ? 550 : 210, y); y += r[1] + 30; }
+      else { const s = r[2] || 28; x.font = (s >= 34 ? 'bold ' : '') + s + 'px "Noto Sans CJK JP", sans-serif'; x.textAlign = 'left'; x.fillText(r[0], 210, y); x.textAlign = 'right'; x.fillText(r[1], 890, y); y += s + 30; }
+    }
+    x.restore();
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const im = x.getImageData(0, 0, W, H), d = im.data; for (let i = 0; i < d.length; i += 4) { const n = (rnd() - 0.5) * 26; d[i] += n; d[i + 1] += n; d[i + 2] += n; } x.putImageData(im, 0, 0);
+    const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85));
+    RC.setImage(new File([blob], 'r.jpg', { type: 'image/jpeg' }));
+  });
+  await hp.evaluate(() => openReceipt()); await hp.waitForTimeout(300);
+  await photo();
+  const done = () => hp.waitForFunction(() => { const f = document.getElementById('rcForm'); return f && !f.hidden && document.getElementById('rcProg').hidden; }, null, { timeout: 120000 });
+  await done();
+  const sum = () => hp.evaluate(() => { const c = RC.cur(); return [c.store, c.date, c.total, c.tax8, c.items.map(x => x.n + ':' + x.p).join(',')].join('|'); });
+  check('  📷 写真を読み取る（この端末の中で・傾き・ざらつきあり）', ctl + ' / ' + await sum(), 'ok / ファミリーマート足利中央店|2026-10-20|516|38|おにぎり鮭:150,お茶 500ml:128,からあげクン:238');
+  check('  読み込んだ部品（SIMD か そうでない方の1つだけ）', [...new Set(ocrReq)].sort().join(','), ['jpn.traineddata.gz', 'tesseract.min.js', 'worker.min.js'].concat(ocrReq.some(f => f.includes('simd')) ? ['tesseract-core-simd-lstm.js', 'tesseract-core-simd-lstm.wasm'] : ['tesseract-core-lstm.js', 'tesseract-core-lstm.wasm']).sort().join(','));
+  check('  部品は版上げで消さない別の控え（hyo-ocr-v1）に入る', await hp.evaluate(async () => { const ks = await caches.keys(), o = []; for (const k of ks) { const c = await caches.open(k); const n = (await c.keys()).filter(r => r.url.includes('/vendor/ocr/')).length; if (n) o.push(k + ':' + n); } return o.join(','); }), 'hyo-ocr-v1:5');
+  // 電波がなくても（サーバーを止めて）もう一度読める
+  await hp.evaluate(() => { closeReceipt(); }); await hp.waitForTimeout(300);
+  { const cl = new Promise(r => srv.close(r)); srv.closeAllConnections(); await cl; }
+  await hp.evaluate(() => openReceipt()); await hp.waitForTimeout(300);
+  await photo(); await done();
+  check('  電波がなくても 控えの部品で読める', await sum(), 'ファミリーマート足利中央店|2026-10-20|516|38|おにぎり鮭:150,お茶 500ml:128,からあげクン:238');
+  await hp.evaluate(() => closeReceipt());
+  check('  エラーなし（http）', herr.join(' | '), '');
+  await hc.close();
+}
 async function runSaveAs560(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 💾 別の名前で保存（v560） ──');
@@ -9894,7 +10245,7 @@ async function runSchemeFix(browser) {
     await page.evaluate(() => closeShimai()); await w(600);
     await page.evaluate(() => localStorage.setItem('excalc_renraku', JSON.stringify({ v: 1, groups: [{ n: '家族', ic: '👪' }], colors: { yellow: '要連絡' }, items: [{ id: 'a1', fam: '山田', giv: '太郎', famK: 'やまだ', givK: 'たろう', tels: [{ t: 'cell', v: '090-1111-2222' }], groups: ['家族'], fav: true, bday: '--' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') },
       { id: 'a2', fam: '佐藤', giv: '花子', famK: 'さとう', givK: 'はなこ', tels: [{ t: 'cell', v: '080-3333-4444' }], color: 'yellow' }, { id: 'a3', fam: '鈴木', giv: '一郎', famK: 'すずき', givK: 'いちろう', tels: [{ t: 'cell', v: '080-5555-6666' }], color: 'blue' }] })));
-    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo', 'renraku']) {
+    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo', 'renraku', 'tatekae', 'kuji', 'dasetsu', 'receipt']) {
       await page.evaluate(id => NP_TOOLS.find(t => t.id === id).run(), id); await w(1100);
       found.push(id + ':' + await page.evaluate(SCAN));
       if (id === 'kurashi' || id === 'keisan') { await page.evaluate(id => { const c = document.querySelector(id === 'kurashi' ? '#krList .kr-card' : '#ksList .ks-card'); if (c) c.click(); }, id); await w(800); found.push(id + '-page:' + await page.evaluate(SCAN)); }
@@ -9907,7 +10258,7 @@ async function runSchemeFix(browser) {
     }
     await page.evaluate(() => { toggleSettings(); openVoiceSet(); }); await w(500);
     found.push('voice:' + await page.evaluate(SCAN));
-    check('  　読めない文字がない（しまい場所・部屋割り・案内ページ・容積・カンタブ・便利計算・くらしの便利帳・角度計・連絡帳（色分け・表で直す）・読み上げの声）', found.filter(s => !/:$/.test(s)).join(' | '), '');
+    check('  　読めない文字がない（しまい場所・部屋割り・案内ページ・容積・カンタブ・便利計算・くらしの便利帳・角度計・連絡帳（色分け・表で直す）・立て替え精算・くじ・打設の段取り・レシート・読み上げの声）', found.filter(s => !/:$/.test(s)).join(' | '), '');
     check('  　エラーなし', errs.join(' | '), '');
     await ctx.close();
   }
@@ -13152,11 +13503,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/31');   // v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/35');   // v561 で 💴🎲🚛📷 の4つ、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'receipt', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -13184,7 +13535,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,receipt:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -14324,6 +14675,10 @@ async function runQrShare(browser) {
     if (!only || only === 'kkj558') await runKakijun558(browser);
     if (!only || only === 'kkjse') await runKakijunSE(browser);
     if (!only || only === 'saveas') await runSaveAs560(browser);
+    if (!only || only === 'tatekae' || only === 'v561') await runTatekae561(browser);
+    if (!only || only === 'kuji' || only === 'v561') await runKuji561(browser);
+    if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
+    if (!only || only === 'receipt' || only === 'v561') await runReceipt561(browser);
     if (!only || only === 'firsthint') await runFirstHint(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
