@@ -31,7 +31,7 @@ self.addEventListener('activate', e => {
     caches.keys().then(keys =>
       // 自分の古いキャッシュだけを消す。キャッシュは「サイト（オリジン）ごと」に
       // 共通なので、名前で絞らないと同じサイトにある別のアプリの分まで消してしまう。
-      Promise.all(keys.filter(k => (k !== CACHE && k.startsWith(CACHE_PREFIX)) || isLegacy(k) || (k.startsWith('hyo-ocr-') && k !== OCR_CACHE)).map(k => caches.delete(k)))
+      Promise.all(keys.filter(k => (k !== CACHE && k.startsWith(CACHE_PREFIX)) || (k.startsWith('hyo-ocr-') && k !== OCR_CACHE) || isLegacy(k)).map(k => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });

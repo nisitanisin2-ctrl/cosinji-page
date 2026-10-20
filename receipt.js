@@ -44,7 +44,7 @@ function findDate(L){
 /* 行のおしりの金額。¥・円・税のしるし（※ * 軽 外 内）を見て、時刻・電話番号・番号は金額にしない */
 function tailAmount(l){
   const s=l.replace(/[)\]}」』]+\s*$/,'').trim();
-  const m=/^(.*?)([-−△▲]?)\s*([¥\\]|[Yy](?=\d))?\s*(\d{1,3}(?:[,.]\d{3})+|\d+)\s*(円)?\s*(?:[※*軽外内非]|[A-Za-z]{1,2})?\s*$/.exec(s);
+  const m=/^(.*?)([-−△▲]?)\s*([¥\\]|[Yy](?=\d))?\s*(\d{1,3}(?:[,.]\d{3})+|\d+)\s*(円)?(?:\s*[※*軽外内非]|\s+[TXtx])?\s*$/.exec(s);   // 500ml・2L・6P のような品名の数は金額にしない
   if(!m) return null;
   const head=m[1].trim(), mark=!!(m[3]||m[5]), digits=m[4];
   if(/^0\d/.test(digits)) return null;                       // 0123（番号）

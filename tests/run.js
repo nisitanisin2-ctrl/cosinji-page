@@ -10047,7 +10047,8 @@ TEL 03-1234-5678
   check('  8%と10%の税・登録番号や電話は品目にしない', parsed[2], 'セブン-イレブン|2026-10-18|1230|28|77|サンドイッチ:380,コーヒーL:250,タバコ:600');
   check('  令和の日付・お買上げ計・点数は品目にしない', parsed[3], 'ドラッグストアさくら|2024-10-20|926|0|84|ハンドソープ:328,マスク 30枚:598');
   check('  半角カナ・「円」・合 計（あいだの空白）', parsed[4], 'ラーメン太陽軒|2026-10-20|1800|0|0|醤油ラーメン:850,餃子:400,ビール:550');
-  check('  行のおしりの金額（時刻・電話・番号は金額にしない）', await page.evaluate(() => ['12:34', 'TEL 0284-00-1234', '小計 ¥1,234', 'おにぎり 150※', '値引 -30', 'お茶 Y128', 'No.0123', 'レジ#2', 'ラーメン 850円', '2026年10月20日', 'マスク 30枚 ¥598'].map(l => { const a = RC.tail(l); return a ? a.v : '-'; }).join(',')), '-,-,1234,150,-30,128,-,-,850,-,598');
+  check('  行のおしりの金額（時刻・電話・番号は金額にしない）', await page.evaluate(() => ['12:34', 'TEL 0284-00-1234', '小計 ¥1,234', 'おにぎり 150※', '値引 -30', 'お茶 Y128', 'No.0123', 'レジ#2', 'ラーメン 850円', '2026年10月20日', 'マスク 30枚 ¥598', 'お茶 500ml', '水 2L', 'たまご 6P', 'パン 120 T'].map(l => { const a = RC.tail(l); return a ? a.v : '-'; }).join(',')), '-,-,1234,150,-30,128,-,-,850,-,598,-,-,-,120');
+  check('  品名と金額が2行に分かれていても（500ml は金額にしない）', await page.evaluate(() => RC.parse('ローソン\nお茶 500ml\n    ¥128\nおにぎり 鮭 ¥150\n合計 ¥278').items.map(x => x.n + ':' + x.p).join(',')), 'お茶 500ml:128,おにぎり鮭:150');
   // 📋 文字を貼る → 直す
   await page.evaluate(S => { navigator.clipboard.readText = async () => S[1]; window.appPrompt = async (m, d) => d; return RC.paste(); }, SAMPLES); await w(300);
   check('  📋 文字を貼る → 店・日付・合計・税・品目が欄に入る', await page.evaluate(() => { const v = k => document.querySelector('#rcForm [data-c="' + k + '"]').value; return [v('store'), v('date'), v('total'), v('tax8'), v('tax10'), document.querySelectorAll('#rcForm .rc-it').length, document.querySelector('#rcCheck').textContent.trim()].join('/'); }), 'スーパーマルエツ/2026-10-19/714/52//5/✓ 品目の合計 662円＋消費税 52円 が 合計と合っています');
