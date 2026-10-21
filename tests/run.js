@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,receipt,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
+    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -3105,7 +3105,7 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,receipt,calctmpl,fintmpl');
+    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
@@ -9965,170 +9965,169 @@ async function runDasetsu561(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
-async function runReceipt561(browser) {
+async function runOkaeshi564(browser) {
   const { ctx, page, errs } = await newPage(browser);
-  console.log('\n── 📷 レシート読み取り（v561） ──');
+  console.log('\n── 🎁 いただきもの・お返し帳（v564）・📷 レシート読み取りを外す ──');
   const w = ms => page.waitForTimeout(ms);
-  const SAMPLES = [
-`ファ ミリ ー マ ー ト 足利 中 央 店
-栃木 県 足利 市 中 央 町 1-2-3
-TEL 0284-00-1234
-2026 年 10 月 20 日 ( 火 ) 12:34
-レジ #2 責 :0123
-お に ぎり 鮭 \\150
-お 茶 500ml \\128
-か ら あ げ ク ン \\238
-小計 \\516
-(内 消費 税 等 8% _。 \\38)
-合計 \\516
-お 預り \\1.000
-お 釣り \\484`,
-`スーパーマルエツ
-〒100-0001 東京都千代田区1-1
-TEL 03-1234-5678
-2026/10/19(日) 18:05
-レジ0003 #1234
-牛乳                  198※
-食パン                148※
-バナナ
-  2コX単98            196※
-にんじん
-  3コX単50            150※
-値引                  -30
-小計                 ¥662
-外税 8%対象 ¥662
-外税 8%               ¥52
-合計                 ¥714
-お預り               ¥1,000
-お釣り                ¥286
-※印は軽減税率対象商品です`,
-`セブン-イレブン
-足利中央店
-栃木県足利市中央町2-3
-電話:0284-11-2222
-2026年10月18日(土) 07:45
-登録番号 T1234567890123
-レジ2 No.0456
-サンドイッチ 軽 ¥380
-コーヒーL ¥250
-タバコ 外 ¥600
-合計 ¥1,230
-(10%対象 ¥850 内消費税等 ¥77)
-(8%対象 ¥380 内消費税等 ¥28)
-電子マネー支払 ¥1,230`,
-`領収書
-ドラッグストア さくら
-令和6年10月20日 15:20
-ハンドソープ          ¥328
-マスク 30枚           ¥598
-お買上げ点数 2点
-お買上げ計           ¥926
-内消費税(10%)          ¥84
-クレジット            ¥926`,
-`ﾗｰﾒﾝ 太陽軒
-26/10/20 19:02
-醤油ﾗｰﾒﾝ    850円
-餃子         400円
-ビール       550円
-合 計      1,800円`
-];
-  check('  開くまでは読まない・道具とマイキー・🏠くらし・バックアップ・単独アプリの入口・部品のライセンス', await page.evaluate(() => [!window.RECEIPT_PART_LOADED, !window.Tesseract, !!NP_TOOLS.find(t => t.id === 'receipt' && t.ov === 'receiptOverlay'), !!KEY_FUNCS.a_receipt, TOOL_CATS.find(c => c[0].includes('くらし'))[1].includes('receipt'), SETTINGS_BACKUP_KEYS.includes('excalc_receipt'), ST_GROUPS.some(g => g.k === 'excalc_receipt')].join('/')) + '/' + fs.existsSync(path.join(ROOT, 'apps', 'receipt', 'manifest.json')) + '/' + ['LICENSE', 'README.md', 'tesseract.min.js.LICENSE.txt', 'worker.min.js.LICENSE.txt'].every(f => fs.existsSync(path.join(ROOT, 'vendor', 'ocr', f))), 'true/true/true/true/true/true/true/true/true');
+  const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const ago = n => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - n); return iso(d); };
+  const slash = s => s.split('-').map(Number).join('/');
+  const CANDLE = '\u{1F56F}️';
+  // 📷 レシート読み取りは外した（読み取りが正確でないため）
+  check('  📷 レシート読み取りを外した（ファイル・部品・入口・道具・マイキー・くらし・バックアップ・案内）',
+    [fs.existsSync(path.join(ROOT, 'receipt.js')), fs.existsSync(path.join(ROOT, 'vendor')), fs.existsSync(path.join(ROOT, 'apps', 'receipt'))].join('/') + '/'
+    + await page.evaluate(() => [!!NP_TOOLS.find(t => t.id === 'receipt'), !!KEY_FUNCS.a_receipt, typeof window.openReceipt, TOOL_CATS.some(c => c[1].includes('receipt')), SETTINGS_BACKUP_KEYS.includes('excalc_receipt'), 'receipt' in TOOL_HINTS].join('/')),
+    'false/false/false/false/false/undefined/false/false/false');
   {
     const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
-    check('  service-worker：新しい4つは控えに入れる・文字を読む部品は版上げで消さない別の控え', ['tatekae.js', 'kuji.js', 'dasetsu.js', 'receipt.js'].every(f => sw.includes("'./" + f + "'")) + '/' + !/vendor\/ocr/.test(sw.match(/const ASSETS = \[[\s\S]*?\];/)[0]) + '/' + /const OCR_CACHE = 'hyo-ocr-v\d+'/.test(sw) + '/' + sw.includes("k.startsWith('hyo-ocr-') && k !== OCR_CACHE"), 'true/true/true/true');
-    const sizes = ['tesseract.min.js', 'worker.min.js', 'tesseract-core-simd-lstm.js', 'tesseract-core-simd-lstm.wasm', 'tesseract-core-lstm.js', 'tesseract-core-lstm.wasm', 'jpn.traineddata.gz'].map(f => fs.statSync(path.join(ROOT, 'vendor', 'ocr', f)).size);
-    check('  文字を読む部品がそろっている（あわせて 9MB より小さい）', sizes.every(s => s > 50000) + '/' + (sizes.reduce((a, b) => a + b, 0) < 9e6), 'true/true');
+    check('  service-worker：お返し帳を控えに入れる・レシートの部品の控え（hyo-ocr-）は消す', [sw.includes("'./okaeshi.js'"), sw.includes('receipt'), /vendor\/ocr|isOcr|OCR_CACHE/.test(sw), /const OLD_OCR_PREFIX = 'hyo-ocr-'/.test(sw), sw.includes('k.startsWith(OLD_OCR_PREFIX)')].join('/'), 'true/false/false/true/true');
+    const rd = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8'), hl = fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8');
+    check('  README・説明書：レシートの代わりに お返し帳', [rd.includes('`okaeshi.js`'), rd.includes('receipt.js'), rd.includes('vendor/'), hl.includes('🎁いただきもの・お返し帳'), hl.includes('レシート読み取り')].join('/'), 'true/false/false/true/false');
   }
-  await page.evaluate(() => openReceipt()); await w(400);
-  check('  ファイルから開いたときは 写真は読めないと知らせる（文字を貼るはできる）', await page.evaluate(() => isDlgOpen('receiptOverlay') + '/' + !!document.querySelector('#rcFileWarn .rc-warn') + '/' + (RC.cam(), document.getElementById('appToast').textContent.includes('📋 文字を貼る'))), 'true/true/true');
-  const parsed = await page.evaluate(S => S.map(t => { const p = RC.parse(t); return [p.store, p.date, p.total, p.tax8, p.tax10, p.items.map(x => x.n + ':' + x.p).join(',')].join('|'); }), SAMPLES);
-  check('  コンビニ（¥ が \\ に読まれる・1.000）', parsed[0], 'ファミリーマート足利中央店|2026-10-20|516|38|0|おにぎり鮭:150,お茶 500ml:128,からあげクン:238');
-  check('  スーパー（2コX単98 の行・値引き・外税）', parsed[1], 'スーパーマルエツ|2026-10-19|714|52|0|牛乳:198,食パン:148,バナナ ×2:196,にんじん ×3:150,値引:-30');
-  check('  8%と10%の税・登録番号や電話は品目にしない', parsed[2], 'セブン-イレブン|2026-10-18|1230|28|77|サンドイッチ:380,コーヒーL:250,タバコ:600');
-  check('  令和の日付・お買上げ計・点数は品目にしない', parsed[3], 'ドラッグストアさくら|2024-10-20|926|0|84|ハンドソープ:328,マスク 30枚:598');
-  check('  半角カナ・「円」・合 計（あいだの空白）', parsed[4], 'ラーメン太陽軒|2026-10-20|1800|0|0|醤油ラーメン:850,餃子:400,ビール:550');
-  check('  行のおしりの金額（時刻・電話・番号は金額にしない）', await page.evaluate(() => ['12:34', 'TEL 0284-00-1234', '小計 ¥1,234', 'おにぎり 150※', '値引 -30', 'お茶 Y128', 'No.0123', 'レジ#2', 'ラーメン 850円', '2026年10月20日', 'マスク 30枚 ¥598', 'お茶 500ml', '水 2L', 'たまご 6P', 'パン 120 T'].map(l => { const a = RC.tail(l); return a ? a.v : '-'; }).join(',')), '-,-,1234,150,-30,128,-,-,850,-,598,-,-,-,120');
-  check('  品名と金額が2行に分かれていても（500ml は金額にしない）', await page.evaluate(() => RC.parse('ローソン\nお茶 500ml\n    ¥128\nおにぎり 鮭 ¥150\n合計 ¥278').items.map(x => x.n + ':' + x.p).join(',')), 'お茶 500ml:128,おにぎり鮭:150');
-  // 📋 文字を貼る → 直す
-  await page.evaluate(S => { navigator.clipboard.readText = async () => S[1]; window.appPrompt = async (m, d) => d; return RC.paste(); }, SAMPLES); await w(300);
-  check('  📋 文字を貼る → 店・日付・合計・税・品目が欄に入る', await page.evaluate(() => { const v = k => document.querySelector('#rcForm [data-c="' + k + '"]').value; return [v('store'), v('date'), v('total'), v('tax8'), v('tax10'), document.querySelectorAll('#rcForm .rc-it').length, document.querySelector('#rcCheck').textContent.trim()].join('/'); }), 'スーパーマルエツ/2026-10-19/714/52//5/✓ 品目の合計 662円＋消費税 52円 が 合計と合っています');
-  await page.fill('#rcForm [data-c="total"]', '700'); await w(100);
-  check('  合計を直すと、品目の合計とちがうと知らせる', await page.evaluate(() => document.querySelector('#rcCheck').textContent.trim()), '⚠ 品目の合計は 662円、合計は 700円（差 38円）。読みまちがいがあるかもしれません。');
-  await page.fill('#rcForm [data-c="total"]', '714'); await page.evaluate(() => RC.itemAdd()); await w(100);
-  await page.fill('#rcForm .rc-it:last-child input[data-f="n"]', 'レジ袋'); await page.fill('#rcForm .rc-it:last-child input[data-f="p"]', '5'); await w(100);
-  check('  品目を足す（品名・金額）', await page.evaluate(() => RC.cur().items.slice(-1).map(x => x.n + ':' + x.p).join() + '/' + document.querySelectorAll('#rcForm .rc-it').length), 'レジ袋:5/6');
-  await page.evaluate(() => RC.itemDel(5)); await w(100);
-  check('  📋 コピー：中身の文', await page.evaluate(async () => { let t = ''; navigator.clipboard.writeText = async x => { t = x; }; await RC.copy(); return t.split('\n')[0] + '|' + t.split('\n').slice(-1)[0]; }), '🧾 スーパーマルエツ　2026/10/19|合計 714円（うち消費税 8% 52円）');
-  await page.evaluate(() => RC.keep()); await w(150);
-  await page.evaluate(S => { RC.show(RC.parse(S[2])); RC.keep(); }, SAMPLES); await w(150);
-  check('  💾 残す：2枚（タブに数）', await page.evaluate(() => RC.state().list.length + '/' + document.querySelector('#rcTabs button:last-child').textContent), '2/📒 残したレシート（2）');
-  await page.evaluate(() => RC.tab('list')); await w(200);
-  check('  📒 残したレシート：日付の新しい順・月ごとの合計', await page.evaluate(() => [...document.querySelectorAll('#rcList .rc-row')].map(r => r.textContent.replace(/\s+/g, '')).join(' | ') + ' / ' + document.querySelector('#rcList .rc-lsum b').textContent + ' / ' + [...document.querySelectorAll('#rcList .rc-lh option')].map(o => o.textContent).join(',')),
-    '10/19スーパーマルエツ714円 | 10/18セブン-イレブン1,230円 / 1,944円 / ぜんぶ（2枚）,2026年10月');
-  await page.evaluate(() => sel(0, 0)); await page.evaluate(() => RC.listTable()); await w(500);
-  check('  ▦ 一覧を表に入れる（日付は日付のセル）', await page.evaluate(() => [isDlgOpen('receiptOverlay'), data[0][0], getCellDisplay(1, 0), data[1][1], data[1][2], data[2][2], data[2][3]].join('/')), 'false/日付/2026/10/18/セブン-イレブン/1230/714/52');
-  await page.evaluate(() => { openReceipt(); RC.openRec(RC.state().list.find(r => r.store.startsWith('スーパー')).id); }); await w(300);
-  check('  一覧から開くと直せる（読み取る のタブ）', await page.evaluate(() => [RC.state().tab, document.querySelector('#rcForm h4').textContent.startsWith('✏️'), document.querySelector('#rcForm [data-c="total"]').value].join('/')), 'read/true/714');
-  await page.evaluate(() => sel(5, 0)); await page.evaluate(() => RC.toTableGo('items')); await w(500);
-  check('  ▦ 品目ごとに表に入れる（品名・金額・合計の行）', await page.evaluate(() => [data[5][2], data[6][2], data[6][3], data[10][2], data[10][3], data[11][2], data[11][3]].join('/')), '品目/牛乳/198/値引/-30/合計/714');
-  await page.evaluate(() => { openReceipt(); RC.tab('list'); window.appConfirm = async () => true; return RC.listDel(); }); await w(200);
-  check('  🗑 まとめて消す', await page.evaluate(() => RC.state().list.length + '/' + !!document.querySelector('#rcList .rc-empty')), '0/true');
+  check('  前のレシートの記録は 勝手に消さず、端末の空きの一覧から 🧹 で消せる', await page.evaluate(() => { localStorage.setItem('excalc_receipt', '{"list":[]}'); const r = stScan().rows.find(x => x.k === 'excalc_receipt'); localStorage.removeItem('excalc_receipt'); return r ? r.n + '/' + r.how : '(なし)'; }), '読み取ったレシート（道具は外しました）/clear');
+  // 🎁 お返し帳
+  check('  開くまでは読まない・道具とマイキー・🏠くらし・バックアップ・端末の空き・単独アプリの入口', await page.evaluate(() => [!window.OKAESHI_PART_LOADED, !!NP_TOOLS.find(t => t.id === 'okaeshi' && t.ov === 'okaeshiOverlay'), !!KEY_FUNCS.a_okaeshi, TOOL_CATS.find(c => c[0].includes('くらし'))[1].includes('okaeshi'), SETTINGS_BACKUP_KEYS.includes('excalc_okaeshi'), ST_GROUPS.some(g => g.k === 'excalc_okaeshi')].join('/')) + '/' + fs.existsSync(path.join(ROOT, 'apps', 'okaeshi', 'manifest.json')), 'true/true/true/true/true/true/true');
+  await page.evaluate(() => openOkaeshi()); await w(500);
+  check('  開く（3つのタブ・はじめの案内）', await page.evaluate(() => [isDlgOpen('okaeshiOverlay'), window.OKAESHI_PART_LOADED, [...document.querySelectorAll('#okTabs button')].map(b => b.textContent).join(','), !!document.querySelector('#okMain .ok-intro')].join('/')), 'true/true/📒 記録,👤 人ごと,' + CANDLE + ' 法事/true');
+  // いただいた（香典帳のように続けて）
+  await page.evaluate(() => OKA.add('in')); await w(300);
+  check('  🎁 いただいた：はじめは 香典・今日・お返し まだ・目安の割合', await page.evaluate(() => [document.querySelector('.ok-fh b').textContent, document.querySelector('.ok-kd.on').textContent, document.getElementById('okFDate').value, document.querySelector('.ok-seg3 .on').textContent, document.querySelector('#okFGuide .ok-guide b').textContent].join('/')),
+    '🎁 いただいた を入れる/' + CANDLE + ' 香典・お供え/' + ago(0) + '/まだ/3分の1〜半分');
+  await page.fill('#okFEv', '父 山田一郎の葬儀'); await page.fill('#okFName', '鈴木 一郎'); await page.fill('#okFAmt', '1万'); await w(150);
+  const due79 = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 79); return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate(); })();
+  check('  金額を入れると 目安の金額と 時期の日（四十九日のあと1か月）', await page.evaluate(() => [...document.querySelectorAll('#okFGuide .ok-guide b')].map(b => b.textContent).join('|')), '3分の1〜半分 → 3,300〜5,000円|（' + due79 + 'ごろまで）');
+  await page.click('.ok-pop-acts .ok-b.pri'); await w(300);
+  check('  ✓ 入れて 次の人：行事・種類・日付は そのまま、名前と金額は空・名前の欄へ', await page.evaluate(() => [OKA.state().items.length, document.getElementById('okFEv').value, document.querySelector('.ok-kd.on').textContent, document.getElementById('okFName').value, document.getElementById('okFAmt').value, document.querySelector('.ok-fh small').textContent, document.activeElement && document.activeElement.id].join('/')),
+    '1/父 山田一郎の葬儀/' + CANDLE + ' 香典・お供え///続けて 2件め/okFName');
+  await page.fill('#okFName', '高橋 次郎'); await page.fill('#okFAmt', '5000'); await page.press('#okFAmt', 'Enter'); await w(150);
+  check('  Enter では保存しない（スマホの「完了」でキーボードを閉じるだけ）', await page.evaluate(() => OKA.state().items.length + '/' + (document.activeElement ? document.activeElement.id : '')), '1/');
+  await page.click('.ok-pop-acts .ok-b.pri'); await w(300);
+  // 📇 連絡帳から
+  await page.evaluate(() => localStorage.setItem('excalc_renraku', JSON.stringify({ v: 1, groups: [], items: [{ id: 'c1', fam: '山田', giv: '太郎', famK: 'やまだ', givK: 'たろう', tels: [{ t: 'cell', v: '090-1111-2222' }], mails: [], adrs: [{ t: 'home', zip: '326-0001', region: '栃木県', city: '足利市', street: '中央町1-2-3' }], groups: [] }, { id: 'c2', fam: '佐藤', giv: '花子', famK: 'さとう', givK: 'はなこ', tels: [], mails: [], adrs: [], groups: [] }] })));
+  await page.evaluate(() => OKA.rkPick()); await w(250);
+  check('  📇 連絡帳から えらぶ：よみの順', await page.evaluate(() => [...document.querySelectorAll('#okRkL .ok-rk b')].map(b => b.textContent).join(',')), '佐藤 花子,山田 太郎');
+  await page.fill('#okRkQ', 'ヤマダ'); await w(150);
+  check('  　カタカナでも さがせる', await page.evaluate(() => [...document.querySelectorAll('#okRkL .ok-rk b')].map(b => b.textContent).join(',')), '山田 太郎');
+  await page.click('#okRkL .ok-rk'); await w(250);
+  check('  　えらぶと 名前と、連絡帳の住所・電話', await page.evaluate(() => [document.querySelectorAll('.ok-pop').length, document.getElementById('okFName').value, document.querySelector('#okFRk .ok-rkb span').textContent].join('/')), '1/山田 太郎/📇 連絡帳の人〒326-0001 栃木県 足利市 中央町1-2-3☎ 090-1111-2222');
+  await page.click('.ok-qa button:nth-child(5)'); await page.evaluate(() => OKA.fSave(false)); await w(300);
+  check('  ✓ 入れる：窓を閉じ、行事ごとに 受付の順で出る', await page.evaluate(() => [!document.querySelector('.ok-pop'), document.querySelectorAll('#okList .ok-g').length, document.querySelector('.ok-gh .w > b').textContent, [...document.querySelectorAll('#okList .ok-it')].map(b => b.querySelector('.no').textContent + b.querySelector('.w b').textContent + b.querySelector('.a').textContent).join(',')].join('/')),
+    'true/1/父 山田一郎の葬儀/1鈴木 一郎10,000円,2高橋 次郎5,000円,3山田 太郎 📇30,000円');
+  check('  　見出し：日付・件数・合計・お返しのめやす', await page.evaluate(() => [...document.querySelectorAll('.ok-gh small')].map(s => s.textContent).join('|')), slash(ago(0)) + '・🎁 3件 45,000円|お返し まだ 3件（めやす 15,000〜22,500円）');
+  check('  　連絡帳とつながる（住所も入る）', await page.evaluate(() => { const x = OKA.state().items[2]; return [x.name, x.rk, x.adr, x.amt, x.ret.st].join('/'); }), '山田 太郎/c1/〒326-0001 栃木県 足利市 中央町1-2-3/30000/mada');
+  // お返し 済み
+  await page.evaluate(() => OKA.edit(OKA.state().items[1].id)); await w(250);
+  check('  記録を押すと 直す窓（✓ 直す・🗑 消す）', await page.evaluate(() => [document.querySelector('.ok-fh b').textContent, document.getElementById('okFName').value, document.getElementById('okFAmt').value, [...document.querySelectorAll('.ok-pop-acts .ok-b')].map(b => b.textContent).join(',')].join('/')), '✏️ 直す/高橋 次郎/5000/🗑 消す,やめる,✓ 直す');
+  await page.evaluate(() => OKA.fRet('sumi')); await w(150);
+  await page.fill('#okFRWhat', 'お茶'); await page.fill('#okFRAmt', '2500'); await page.evaluate(() => OKA.fSave(false)); await w(300);
+  check('  お返し 済み（日・品・金額）→ 札が ✓ に', await page.evaluate(() => { const x = OKA.state().items[1]; return [x.ret.st, x.ret.what, x.ret.amt, x.ret.date === OKA.state().items[0].date, document.querySelectorAll('#okList .ok-it')[1].querySelector('.ok-pl').textContent].join('/'); }), 'sumi/お茶/2500/true/✓ お返し 済み');
+  await page.evaluate(() => OKA.filt('mada')); await w(200);
+  check('  しぼる：お返し まだ（2件）', await page.evaluate(() => [document.querySelector('.ok-chip.on').textContent, document.querySelectorAll('#okList .ok-it').length].join('/')), 'お返しまだ2件/2');
+  await page.evaluate(() => OKA.filt('all')); await w(150);
+  // 結婚祝い：時期が すぎたものを知らせる
+  await page.evaluate(() => { OKA.add('in'); OKA.fKind('kekkon'); }); await w(200);
+  await page.fill('#okFEv', '長女の結婚'); await page.fill('#okFDate', ago(40)); await page.fill('#okFName', '佐藤 花子'); await page.fill('#okFAmt', '30000'); await w(150);
+  check('  結婚祝い：半返し・式から1か月（表書き「内祝」）', await page.evaluate(() => [...document.querySelectorAll('#okFGuide .ok-guide b')].map(b => b.textContent).join('|') + '|' + document.querySelector('#okFGuide').textContent.includes('内祝（ふたりの名前か 新しい姓）')),
+    '半返し → 15,000円|（' + slash(ago(10)) + 'ごろまで）|true');
+  await page.evaluate(() => OKA.fSave(false)); await w(300);
+  check('  時期が すぎたものを 上で知らせる・札も ⚠', await page.evaluate(() => [document.querySelector('.ok-alert').textContent, [...document.querySelectorAll('#okList .ok-pl.late')].map(p => p.textContent).join(','), document.querySelector('.ok-gh .w > b').textContent].join('/')), '⚠ お返しの時期が 過ぎているもの 1件/⚠ お返し 時期すぎ/父 山田一郎の葬儀');
+  // 子どもへのお祝い：お返しは いらない
+  await page.evaluate(() => { OKA.add('in'); OKA.fKind('kodomo'); }); await w(200);
+  check('  子どもへのお祝い：お返しは いらない（はじめから「しない」）', await page.evaluate(() => [document.querySelector('#okFGuide .ok-guide b').textContent, document.querySelector('.ok-seg3 .on').textContent].join('/')), 'いりません/しない');
+  await page.fill('#okFEv', '次男の小学校入学'); await page.fill('#okFName', '田中 三郎'); await page.fill('#okFAmt', '1万'); await page.evaluate(() => OKA.fSave(false)); await w(250);
+  check('  　「しない」で入る', await page.evaluate(() => OKA.state().items.find(x => x.name === '田中 三郎').ret.st), 'nashi');
+  // さしあげた：前のやりとり・連絡帳のつながりを外す
+  await page.evaluate(() => OKA.add('out')); await w(200);
+  await page.fill('#okFName', '佐藤 花子'); await w(150);
+  check('  📤 さしあげた：この方との前のやりとり・贈るときの表書き・お返しの欄はない', await page.evaluate(() => [document.querySelector('.ok-fh b').textContent, document.querySelector('#okFRk .ok-prev').textContent, !!document.querySelector('#okFGuide .ok-guide.out'), !document.querySelector('.ok-seg3')].join('/')),
+    '📤 さしあげた を入れる/この方との 前のやりとり🎁 いただいた　' + slash(ago(40)) + ' 💒長女の結婚　30,000円/true/true');
+  await page.evaluate(() => { OKA.rkPick(); OKA.rkFind('さとう'); OKA.rkSel(0); }); await w(200);
+  const linked = await page.evaluate(() => !!document.querySelector('#okFRk .ok-rkb'));
+  await page.fill('#okFName', '佐藤 花子さん'); await w(100);
+  const still = await page.evaluate(() => !!document.querySelector('#okFRk .ok-rkb'));
+  await page.fill('#okFName', '佐藤 一郎'); await w(100);
+  check('  名前を書きかえると 連絡帳とのつながりを外す（「さん」を付けただけなら そのまま）', [linked, still, await page.evaluate(() => !!document.querySelector('#okFRk .ok-rkb'))].join('/'), 'true/true/false');
+  await page.fill('#okFName', '佐藤 花子'); await page.fill('#okFEv', '佐藤さんのお母さまの葬儀'); await page.fill('#okFDate', ago(5)); await page.fill('#okFAmt', '10000');
+  await page.evaluate(() => OKA.fSave(false)); await w(300);
+  check('  　さしあげた分には お返しを付けない・数（すべて6・まだ3・いただいた5・さしあげた1）', await page.evaluate(() => [OKA.state().items.find(x => x.dir === 'out').ret.st, [...document.querySelectorAll('.ok-chip small')].map(s => s.textContent).join(',')].join('/')), 'nashi/6件,3件,5件,1件');
+  // 並べ方・さがす
+  await page.evaluate(() => OKA.grp('kind')); await w(150);
+  check('  種類ごと', await page.evaluate(() => [...document.querySelectorAll('.ok-gh .w > b')].map(b => b.textContent).join(',')), CANDLE + ' 香典・お供え,💒 結婚祝い,🎒 子どもへのお祝い（入学など）');
+  await page.evaluate(() => OKA.grp('date')); await w(150);
+  const ym = d => { const [y, m] = d.split('-').map(Number); return y + '年' + m + '月'; };
+  check('  月ごと（新しい月から）', await page.evaluate(() => [...document.querySelectorAll('.ok-gh .w > b')].map(b => b.textContent).join(',')), [...new Set([ago(0), ago(5), ago(40)].map(ym))].join(','));
+  await page.evaluate(() => OKA.grp('ev')); await w(150);
+  await page.fill('#okQ', 'たかはし'); await w(150);
+  await page.fill('#okQ', '高橋'); await w(150);
+  check('  さがす（名前・行事・品物）', await page.evaluate(() => [...document.querySelectorAll('#okList .ok-it .w b')].map(b => b.textContent).join(',')), '高橋 次郎');
+  await page.fill('#okQ', 'お茶'); await w(150);
+  check('  　お返しの品でも さがせる', await page.evaluate(() => [...document.querySelectorAll('#okList .ok-it .w b')].map(b => b.textContent).join(',')), '高橋 次郎');
+  await page.fill('#okQ', ''); await w(150);
+  // 👤 人ごと
+  await page.evaluate(() => OKA.tab('person')); await w(250);
+  check('  👤 人ごと：さいきん順（同じ名前は 1人に）', await page.evaluate(() => [...document.querySelectorAll('#okPList .ok-it .w b')].map(b => b.textContent).join(',')), '鈴木 一郎,高橋 次郎,山田 太郎 📇,田中 三郎,佐藤 花子');
+  await page.evaluate(() => { const i = [...document.querySelectorAll('#okPList .ok-it .w b')].findIndex(b => b.textContent.startsWith('佐藤')); OKA.person(i); }); await w(250);
+  check('  　人を押すと：いただいた・さしあげた の合計と やりとり（新しい順）', await page.evaluate(() => [document.querySelector('.ok-pop .ok-fh b').textContent, document.querySelector('.ok-psum').textContent, [...document.querySelectorAll('.ok-pop .ok-it .w b')].map(b => b.textContent).join(',')].join('/')), '👤 佐藤 花子/🎁 いただいた1件・30,000円📤 さしあげた1件・10,000円/さしあげた,いただいた');
+  check('  　📋 コピー', await page.evaluate(() => { let t = ''; navigator.clipboard.writeText = async x => { t = x; }; OKA.pCopy(); return t.split('\n').slice(0, 3).join('|'); }), '👤 佐藤 花子 さんとの やりとり||・' + slash(ago(5)) + ' さしあげた 香典・お供え 佐藤さんのお母さまの葬儀 10,000円');
+  await page.evaluate(() => OKA.pAdd('in')); await w(250);
+  check('  　この方から いただいた を足す（名前が入っている）', await page.evaluate(() => [document.querySelectorAll('.ok-pop').length, [...document.querySelectorAll('.ok-fh b')].pop().textContent, document.getElementById('okFName').value].join('/')), '2/🎁 いただいた を入れる/佐藤 花子');
+  await page.keyboard.press('Escape'); await w(200);
+  check('  Esc は いちばん上の窓だけ閉じる', await page.evaluate(() => [document.querySelectorAll('.ok-pop').length, isDlgOpen('okaeshiOverlay')].join('/')), '1/true');
+  await page.evaluate(() => OKA.popClose()); await w(150);
+  // 🕯️ 法事
+  check('  法要の日（亡くなった日を1日目として数える）', await page.evaluate(() => OKA.hoyo('2025-01-10').join(',')), '初七日:2025-01-16,四十九日:2025-02-27,百か日:2025-04-19,一周忌:2026-01-10,三回忌:2027-01-10,七回忌:2031-01-10,十三回忌:2037-01-10,十七回忌:2041-01-10,二十三回忌:2047-01-10,二十七回忌:2051-01-10,三十三回忌:2057-01-10,五十回忌:2074-01-10');
+  check('  　2月29日に亡くなったとき（うるう年でない年は 2月28日）', await page.evaluate(() => { const h = OKA.hoyo('2024-02-29'); return [h[3], h[4], h[6]].join(','); }), '一周忌:2025-02-28,三回忌:2026-02-28,十三回忌:2036-02-29');
+  check('  　前の土日（水・土・日の日）', await page.evaluate(() => ['2026-10-07', '2026-10-03', '2026-10-04'].map(d => OKA.weekend(d).join('〜')).join(' | ')), '2026-10-03〜2026-10-04 | 2026-09-27〜2026-10-03 | 2026-10-03〜2026-10-04');
+  check('  　新盆（四十九日が お盆の前にすむか）', await page.evaluate(() => ['2025-01-10', '2025-06-01', '2025-06-26', '2025-07-01'].map(d => { const n = OKA.niibon(d); return n.aug + '/' + n.jul; }).join(',')), '2025/2025,2025/2026,2025/2026,2026/2026');
+  await page.evaluate(() => OKA.tab('hoji')); await w(250);
+  check('  🕯️ 法事のタブ：はじめは 案内', await page.evaluate(() => [document.querySelector('.ok-big.hj').textContent, !!document.querySelector('#okMain .ok-empty')].join('/')), '＋ 故人を入れる命日から 法要の日を出します/true');
+  await page.evaluate(() => OKA.hjEdit('')); await w(200);
+  await page.fill('#okHName', '父 山田一郎'); await page.fill('#okHDate', ago(-1)); await page.evaluate(() => OKA.hjSave('')); await w(200);
+  check('  　命日が 今日より先なら 入れない', await page.evaluate(() => [OKA.state().hoji.length, document.getElementById('appToast').textContent, document.querySelectorAll('.ok-pop').length].join('/')), '0/命日が 今日より先に なっています/1');
+  await page.fill('#okHDate', ago(30)); await page.evaluate(() => OKA.hjSave('')); await w(300);
+  check('  　これからの法事（2年先まで・あと何日・前の土日）', await page.evaluate(() => [...document.querySelectorAll('.ok-up')].map(r => r.querySelector('.w b').textContent).join(',') + '/' + document.querySelector('.ok-up .w small').textContent.startsWith('あと 18日・前の土日 ')), '父 山田一郎 の 四十九日,父 山田一郎 の 百か日,父 山田一郎 の 一周忌,父 山田一郎 の 三回忌/true');
+  check('  　故人ごと：命日・次の法要・ぜんぶの日（12）・新盆', await page.evaluate(() => [document.querySelector('.ok-hj h4').textContent, document.querySelector('.ok-next b').textContent, document.querySelectorAll('.ok-hjall tr').length - 1, !!document.querySelector('.ok-nb')].join('/')), CANDLE + ' 父 山田一郎/四十九日/12/true');
+  check('  　📋 コピー', await page.evaluate(() => { let t = ''; navigator.clipboard.writeText = async x => { t = x; }; OKA.hjCopy(OKA.state().hoji[0].id); return t.split('\n')[0] + '|' + t.split('\n').length; }), CANDLE + ' 父 山田一郎 の法要|17');
+  await page.evaluate(() => OKA.hjFind(OKA.state().hoji[0].id)); await w(250);
+  check('  　🔎 記録で さがす（「父」をのぞいた名前で）', await page.evaluate(() => [document.querySelector('#okTabs .on').textContent, document.getElementById('okQ').value, document.querySelectorAll('#okList .ok-it').length].join('/')), '📒 記録/山田一郎/3');
+  // 出す：コピー・お返しの準備の表・表に入れる・印刷
+  check('  📋 コピーの文（行事ごと）', await page.evaluate(() => OKA.text(0)), ['🎁 父 山田一郎の葬儀', '', '・' + slash(ago(0)) + ' いただいた 鈴木 一郎 10,000円 お返し まだ', '・' + slash(ago(0)) + ' いただいた 高橋 次郎 5,000円 お返し 済み（' + slash(ago(0)) + ' お茶 2,500円）', '・' + slash(ago(0)) + ' いただいた 山田 太郎 30,000円 お返し まだ', '', 'いただいた 3件・45,000円', 'お返し まだ 2件（めやす 13,300〜20,000円）'].join('\n'));
+  check('  お返しの準備の表（名前・住所・いただいた・めやす）', await page.evaluate(() => JSON.stringify(OKA.rows(0, 'prep'))), JSON.stringify([['名前', '住所', 'いただいた', 'お返しのめやす', 'お返しの品', '済み'], ['鈴木 一郎', '', 10000, '3,300〜5,000', '', ''], ['高橋 次郎', '', 5000, '1,700〜2,500', 'お茶', '済み'], ['山田 太郎', '〒326-0001 栃木県 足利市 中央町1-2-3', 30000, '10,000〜15,000', '', '']]));
+  await page.evaluate(() => { window.__pr = 0; window.print = () => { window.__pr++; }; OKA.out(0); }); await w(200);
+  check('  一覧を出す窓', await page.evaluate(() => [...document.querySelectorAll('.ok-pick button')].map(b => b.textContent.split('（')[0]).join(',')), '📋 コピー,📤 共有,▦ 表に入れる,▦ お返しの準備の表,🖨 印刷');
+  await page.evaluate(() => OKA.outGo('print')); await w(500);
+  check('  🖨 印刷：A4 たての表（名前・住所・お返し）', await page.evaluate(() => { const pa = document.getElementById('printArea'); return [window.__pr, pa.querySelectorAll('tbody tr').length, pa.textContent.includes('〒326-0001'), pa.textContent.includes('お返し 済み（'), document.getElementById('printDynamicStyle').textContent.includes('A4 portrait')].join('/'); }), '1/3/true/true/true');
+  await page.evaluate(() => { setSheetSize(3, 3); sel(0, 0); OKA.out(0); OKA.outGo('table'); }); await w(600);
+  check('  ▦ 表に入れる（見出し＋3行・道具は閉じる）', await page.evaluate(() => [isDlgOpen('okaeshiOverlay'), ROWS >= 4, COLS >= 13, data[0][0], data[0][4], data[1][4], data[3][4], data[3][7], data[2][8]].join('/')), 'false/true/true/日付/名前/鈴木 一郎/山田 太郎/〒326-0001 栃木県 足利市 中央町1-2-3/済み');
+  await page.evaluate(() => undoLast()); await w(300);
+  // 📜 マナー帳を この上に開く（先に開いたマナー帳が下に隠れない）
+  await page.evaluate(async () => { await openManner(); closeManner(); openOkaeshi(); document.body.appendChild(document.getElementById('okaeshiOverlay')); }); await w(300);
+  await page.evaluate(() => OKA.add('in')); await w(200);
+  await page.evaluate(async () => { await OKA.manner('fun-kaeshi'); }); await w(400);
+  check('  📜 マナー帳で くわしく：いちばん上に「香典返し」を開く', await page.evaluate(() => { const v = document.getElementById('mnViewOverlay'), r = v.querySelector('.modal').getBoundingClientRect(), top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return [isDlgOpen('mnViewOverlay'), document.getElementById('mnViewHdr').textContent, !!(document.getElementById('okaeshiOverlay').compareDocumentPosition(v) & Node.DOCUMENT_POSITION_FOLLOWING), v.contains(top)].join('/'); }), 'true/📜 香典返し/true/true');
+  await page.evaluate(() => closeManner()); await w(300);
+  check('  　閉じると お返し帳の入れる窓に戻る', await page.evaluate(() => [isDlgOpen('okaeshiOverlay'), document.querySelectorAll('.ok-pop').length].join('/')), 'true/1');
+  // 表の電卓キーに届かない
+  check('  道具の中のキーは 表に届かない', await page.evaluate(() => { let n = 0; const f = () => { n++; }; document.addEventListener('keydown', f); const b = document.querySelector('.ok-kd'); b.focus(); b.dispatchEvent(new KeyboardEvent('keydown', { key: '7', bubbles: true })); document.removeEventListener('keydown', f); return n; }), 0);
+  await page.evaluate(() => closeOkaeshi()); await w(200);
   // 変なデータ
-  await page.evaluate(() => { closeReceipt(); localStorage.setItem('excalc_receipt', JSON.stringify({ tab: 'list', list: [{ store: '<img src=x onerror=f()>', date: '2026-13-99', total: 'abc', items: [{ n: '<b>a</b>', p: 1e12 }, null] }, 5, null] })); openReceipt(); }); await w(300);
-  check('  変なデータ：片づけて開く・文字は文字のまま', await page.evaluate(() => { const r = RC.state().list; return [r.length, r[0].store, r[0].date, r[0].total, r[0].items.length, r[0].items[0].p, !document.querySelector('#receiptOverlay img')].join('/'); }), '1/<img src=x onerror=f()>//0/1/0/true');
-  await page.evaluate(() => closeReceipt()); await w(200);
+  await page.evaluate(() => { localStorage.setItem('excalc_okaeshi', JSON.stringify({ tab: 'evil', filt: 'x', grp: 'y', lk: { in: 'zzz' }, items: [{ id: "a');window.__ok=2;('", dir: 'in', kind: 'zzz', name: '<img src=x onerror="window.__ok=1">', ev: '<b>式</b>', date: '2026-02-30', amt: '1e12', ret: { st: 'sumi', amt: -5, what: '<i>品</i>', date: 'x' } }, { name: '', amt: 100 }, null, 5, { id: 'dup', name: 'A', dir: 'out', ret: { st: 'sumi' } }, { id: 'dup', name: 'B' }], hoji: [{ name: '<s>祖父</s>', date: '1999-12-31' }, { name: 'x', date: 'bad' }] })); openOkaeshi(); }); await w(400);
+  check('  変なデータ：片づけて開く・文字は文字のまま', await page.evaluate(() => { const s = OKA.state(), a = s.items[0]; return [s.tab, s.filt, s.grp, s.lk.in, s.items.length, /^[A-Za-z0-9_-]+$/.test(a.id), a.kind, a.name, a.date, a.amt, a.ret.st, a.ret.amt, a.ret.what, s.items[1].ret.st, s.items[1].id !== s.items[2].id, s.hoji.length, s.hoji[0].name, window.__ok === undefined, !document.querySelector('#okaeshiOverlay img'), document.querySelector('.ok-gh .w > b').textContent].join('/'); }),
+    'list/all/ev/koden/3/true/hoka/<img src=x onerror="window.__ok=1">//0/sumi/0/<i>品</i>/nashi/true/1/<s>祖父</s>/true/true/<b>式</b>');
+  await page.evaluate(() => { OKA.edit(OKA.state().items[0].id); }); await w(200);
+  check('  　直す窓でも 文字は文字のまま', await page.evaluate(() => [document.getElementById('okFName').value, document.getElementById('okFEv').value, window.__ok === undefined].join('/')), '<img src=x onerror="window.__ok=1">/<b>式</b>/true');
+  await page.evaluate(() => closeOkaeshi()); await w(200);
   check('  エラーなし', errs.join(' | '), '');
+  // ?app=okaeshi：お返し帳だけのアプリ ／ ?app=receipt（外した道具）はふつうの表電卓
+  const ap = await ctx.newPage(); const aerr = []; ap.on('pageerror', e => aerr.push(e.message));
+  await ap.goto(INDEX + '?app=okaeshi'); await ap.waitForTimeout(2400);
+  check('  ?app=okaeshi：お返し帳を全画面で（名前・アイコン・manifest）', await ap.evaluate(() => [window.APP_TOOL, isDlgOpen('okaeshiOverlay'), document.querySelector('#okaeshiOverlay .modal').classList.contains('modal-full'), document.title, document.querySelector('link[rel=manifest]').getAttribute('href'), document.querySelector('meta[name=apple-mobile-web-app-title]').getAttribute('content')].join('/')), 'okaeshi/true/true/🎁 お返し帳/apps/okaeshi/manifest.json/お返し帳');
+  await ap.goto(INDEX + '?app=receipt'); await ap.waitForTimeout(1800);
+  check('  ?app=receipt（ホーム画面の 📷 から）：表電卓を開いて なくなったと知らせる', await ap.evaluate(() => [window.APP_TOOL || 'なし', document.title.startsWith('表電卓'), document.getElementById('appToast').textContent].join('/')), 'なし/true/📷 レシート読み取りは なくなりました。表電卓を開いています');
+  check('  エラーなし（単独のアプリ）', aerr.join(' | '), '');
+  await ap.close();
   await ctx.close();
-  // 本物の読み取り（http で開く。service worker も動かす）
-  const http = require('http');
-  const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.wasm': 'application/wasm', '.gz': 'application/gzip', '.css': 'text/css' };
-  const srv = http.createServer((req, rsp) => { let u = decodeURIComponent(req.url.split('?')[0]); if (u.endsWith('/')) u += 'index.html'; const f = path.join(ROOT, path.normalize(u));
-    if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { rsp.writeHead(404); rsp.end(); return; }
-    rsp.writeHead(200, { 'Content-Type': types[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-cache' }); fs.createReadStream(f).pipe(rsp); });
-  await new Promise(r => srv.listen(0, '127.0.0.1', r));
-  const hc = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'allow' });
-  const hp = await hc.newPage(); const herr = [], ocrReq = [];
-  hp.on('pageerror', e => herr.push(e.message));
-  hp.on('requestfinished', r => { if (r.url().includes('/vendor/ocr/')) ocrReq.push(r.url().split('/').pop()); });
-  await hp.goto(`http://127.0.0.1:${srv.address().port}/index.html`); await hp.waitForTimeout(500);
-  await hp.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_back_ask', '0'); });
-  await hp.reload(); await hp.waitForTimeout(1200);
-  const ctl = await hp.evaluate(() => Promise.race([navigator.serviceWorker.ready.then(() => new Promise(r => { if (navigator.serviceWorker.controller) r('ok'); else navigator.serviceWorker.addEventListener('controllerchange', () => r('ok')); })), new Promise(r => setTimeout(() => r('timeout'), 8000))]));
-  const photo = () => hp.evaluate(async () => {
-    document.getElementById('rcForm').hidden = true;
-    const W = 1100, H = 1500, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
-    x.fillStyle = '#8a8f96'; x.fillRect(0, 0, W, H);
-    x.save(); x.translate(W / 2, H / 2); x.rotate(-1.5 * Math.PI / 180); x.translate(-W / 2, -H / 2);
-    x.fillStyle = '#f7f5ef'; x.fillRect(170, 60, 760, 1380); x.fillStyle = '#262626';
-    const L = [['ファミリーマート 足利中央店', 34, 'c'], ['栃木県足利市中央町1-2-3', 24, 'c'], ['TEL 0284-00-1234', 24, 'c'], ['2026年10月20日(火) 12:34', 26, 'l'], ['レジ#2 責:0123', 24, 'l'], ['おにぎり 鮭', '¥150'], ['お茶 500ml', '¥128'], ['からあげクン', '¥238'], ['小計', '¥516'], ['(内消費税等 8%', '¥38)'], ['合計', '¥516', 36], ['お預り', '¥1,000'], ['お釣り', '¥484']];
-    let y = 130;
-    for (const r of L) {
-      if (typeof r[1] === 'number') { x.font = (r[1] >= 30 ? 'bold ' : '') + r[1] + 'px "Noto Sans CJK JP", sans-serif'; x.textAlign = r[2] === 'c' ? 'center' : 'left'; x.fillText(r[0], r[2] === 'c' ? 550 : 210, y); y += r[1] + 30; }
-      else { const s = r[2] || 28; x.font = (s >= 34 ? 'bold ' : '') + s + 'px "Noto Sans CJK JP", sans-serif'; x.textAlign = 'left'; x.fillText(r[0], 210, y); x.textAlign = 'right'; x.fillText(r[1], 890, y); y += s + 30; }
-    }
-    x.restore();
-    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    const im = x.getImageData(0, 0, W, H), d = im.data; for (let i = 0; i < d.length; i += 4) { const n = (rnd() - 0.5) * 26; d[i] += n; d[i + 1] += n; d[i + 2] += n; } x.putImageData(im, 0, 0);
-    const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85));
-    RC.setImage(new File([blob], 'r.jpg', { type: 'image/jpeg' }));
-  });
-  await hp.evaluate(() => openReceipt()); await hp.waitForTimeout(300);
-  await photo();
-  const done = () => hp.waitForFunction(() => { const f = document.getElementById('rcForm'); return f && !f.hidden && document.getElementById('rcProg').hidden; }, null, { timeout: 120000 });
-  await done();
-  const sum = () => hp.evaluate(() => { const c = RC.cur(); return [c.store, c.date, c.total, c.tax8, c.items.map(x => x.n + ':' + x.p).join(',')].join('|'); });
-  check('  📷 写真を読み取る（この端末の中で・傾き・ざらつきあり）', ctl + ' / ' + await sum(), 'ok / ファミリーマート足利中央店|2026-10-20|516|38|おにぎり鮭:150,お茶 500ml:128,からあげクン:238');
-  check('  読み込んだ部品（SIMD か そうでない方の1つだけ）', [...new Set(ocrReq)].sort().join(','), ['jpn.traineddata.gz', 'tesseract.min.js', 'worker.min.js'].concat(ocrReq.some(f => f.includes('simd')) ? ['tesseract-core-simd-lstm.js', 'tesseract-core-simd-lstm.wasm'] : ['tesseract-core-lstm.js', 'tesseract-core-lstm.wasm']).sort().join(','));
-  check('  部品は版上げで消さない別の控え（hyo-ocr-v1）に入る', await hp.evaluate(async () => { const ks = await caches.keys(), o = []; for (const k of ks) { const c = await caches.open(k); const n = (await c.keys()).filter(r => r.url.includes('/vendor/ocr/')).length; if (n) o.push(k + ':' + n); } return o.join(','); }), 'hyo-ocr-v1:5');
-  // 電波がなくても（サーバーを止めて）もう一度読める
-  await hp.evaluate(() => { closeReceipt(); }); await hp.waitForTimeout(300);
-  { const cl = new Promise(r => srv.close(r)); srv.closeAllConnections(); await cl; }
-  await hp.evaluate(() => openReceipt()); await hp.waitForTimeout(300);
-  await photo(); await done();
-  check('  電波がなくても 控えの部品で読める', await sum(), 'ファミリーマート足利中央店|2026-10-20|516|38|おにぎり鮭:150,お茶 500ml:128,からあげクン:238');
-  await hp.evaluate(() => closeReceipt());
-  check('  エラーなし（http）', herr.join(' | '), '');
-  await hc.close();
 }
 async function runDasetsu562(browser) {
   const { ctx, page, errs } = await newPage(browser);
@@ -10586,7 +10585,9 @@ async function runSchemeFix(browser) {
     await page.evaluate(() => closeShimai()); await w(600);
     await page.evaluate(() => localStorage.setItem('excalc_renraku', JSON.stringify({ v: 1, groups: [{ n: '家族', ic: '👪' }], colors: { yellow: '要連絡' }, items: [{ id: 'a1', fam: '山田', giv: '太郎', famK: 'やまだ', givK: 'たろう', tels: [{ t: 'cell', v: '090-1111-2222' }], groups: ['家族'], fav: true, bday: '--' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') },
       { id: 'a2', fam: '佐藤', giv: '花子', famK: 'さとう', givK: 'はなこ', tels: [{ t: 'cell', v: '080-3333-4444' }], color: 'yellow' }, { id: 'a3', fam: '鈴木', giv: '一郎', famK: 'すずき', givK: 'いちろう', tels: [{ t: 'cell', v: '080-5555-6666' }], color: 'blue' }] })));
-    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo', 'renraku', 'tatekae', 'kuji', 'dasetsu', 'receipt']) {
+    await page.evaluate(() => { const d = new Date(); d.setDate(d.getDate() - 60); const old = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');   // 🎁 お返し帳は 札（まだ・時期すぎ・済み・しない・さしあげた）が出る中身で
+      localStorage.setItem('excalc_okaeshi', JSON.stringify({ items: [{ id: 'o1', dir: 'in', kind: 'kekkon', ev: '長女の結婚', date: old, name: '佐藤 花子', amt: 30000, t: 1 }, { id: 'o2', dir: 'in', kind: 'koden', ev: '父の葬儀', date: old, name: '鈴木 一郎', amt: 10000, ret: { st: 'sumi', what: 'お茶' }, t: 2 }, { id: 'o3', dir: 'in', kind: 'kodomo', ev: '入学', date: old, name: '田中 三郎', amt: 10000, t: 3 }, { id: 'o4', dir: 'out', kind: 'koden', ev: '山田さんの葬儀', date: old, name: '山田 太郎', amt: 5000, t: 4 }, { id: 'o5', dir: 'in', kind: 'koden', ev: '父の葬儀', date: old, name: '高橋 次郎', amt: 5000, t: 5 }] })); });
+    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo', 'renraku', 'tatekae', 'kuji', 'dasetsu', 'okaeshi']) {
       await page.evaluate(id => NP_TOOLS.find(t => t.id === id).run(), id); await w(1100);
       found.push(id + ':' + await page.evaluate(SCAN));
       if (id === 'kurashi' || id === 'keisan') { await page.evaluate(id => { const c = document.querySelector(id === 'kurashi' ? '#krList .kr-card' : '#ksList .ks-card'); if (c) c.click(); }, id); await w(800); found.push(id + '-page:' + await page.evaluate(SCAN)); }
@@ -10599,7 +10600,7 @@ async function runSchemeFix(browser) {
     }
     await page.evaluate(() => { toggleSettings(); openVoiceSet(); }); await w(500);
     found.push('voice:' + await page.evaluate(SCAN));
-    check('  　読めない文字がない（しまい場所・部屋割り・案内ページ・容積・カンタブ・便利計算・くらしの便利帳・角度計・連絡帳（色分け・表で直す）・立て替え精算・くじ・打設の段取り・レシート・読み上げの声）', found.filter(s => !/:$/.test(s)).join(' | '), '');
+    check('  　読めない文字がない（しまい場所・部屋割り・案内ページ・容積・カンタブ・便利計算・くらしの便利帳・角度計・連絡帳（色分け・表で直す）・立て替え精算・くじ・打設の段取り・お返し帳・読み上げの声）', found.filter(s => !/:$/.test(s)).join(' | '), '');
     check('  　エラーなし', errs.join(' | '), '');
     await ctx.close();
   }
@@ -13844,11 +13845,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/35');   // v561 で 💴🎲🚛📷 の4つ、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/35');   // v561 で 💴🎲🚛📷 の4つ（v564 で 📷 を 🎁お返し帳 に）、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'receipt', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'okaeshi', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -13876,7 +13877,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,receipt:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,okaeshi:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -15019,7 +15020,7 @@ async function runQrShare(browser) {
     if (!only || only === 'tatekae' || only === 'v561') await runTatekae561(browser);
     if (!only || only === 'kuji' || only === 'v561') await runKuji561(browser);
     if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
-    if (!only || only === 'receipt' || only === 'v561') await runReceipt561(browser);
+    if (!only || only === 'okaeshi' || only === 'v564') await runOkaeshi564(browser);
     if (!only || only === 'dasetsu' || only === 'ds562') await runDasetsu562(browser);
     if (!only || only === 'hyoplus' || only === 'v563') await runHyoPlus563(browser);
     if (!only || only === 'firsthint') await runFirstHint(browser);
