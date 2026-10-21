@@ -6587,7 +6587,7 @@ async function runHelpSplit(browser) {
   const hg = await page.evaluate(() => { const imgs = [...document.querySelectorAll('#helpBody .hg-shot')];
     return { secs: document.querySelectorAll('#helpBody .hg-sec').length, imgs: imgs.map(i => i.getAttribute('src')), first: document.querySelector('#helpBody').firstElementChild.className,
       marks: [...document.querySelectorAll('#g-screen .hg-list .hg-n')].map(n => n.textContent).join(','), detail: !!document.getElementById('h-detail') }; });
-  check('  はじめにかんたん説明書（写真と番号）、そのあとにくわしい説明', hg.first + '/' + hg.secs + '/' + hg.detail + '/' + hg.marks, 'hg-top/16/true/1,2,3,4,5,6,7,8,9,10,11');
+  check('  はじめにかんたん説明書（写真と番号）、そのあとにくわしい説明', hg.first + '/' + hg.secs + '/' + hg.detail + '/' + hg.marks, 'hg-top/17/true/1,2,3,4,5,6,7,8,9,10,11');   // v563：📊 表を強くする の節を足した
   check('  番号つきの説明はふつうの文の流れ（太字ごとに列に分かれない。v476）', await page.evaluate(() => {
     const li = [...document.querySelectorAll('#helpBody .hg-list li')].find(x => x.querySelector('.hg-n') && x.querySelectorAll('b').length >= 3);
     const steps = document.querySelector('#helpBody .hg-steps > div');
