@@ -1615,6 +1615,24 @@ body.dark .cell.paste-flash { background: #1f5132 !important; }
   gap: 10px; align-items: center; flex-wrap: wrap;
 }
 .shop-tax-bar.open { display: flex; }
+/* 消費税モードの帯の「税率」ボタンと、税率・1円未満を決める小さな窓（v565） */
+.zei-set { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 8px; border-radius: 8px;
+  border: 1px solid var(--acc); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.zei-set small { font-size: calc(11px * var(--info-scale, 1)); padding: 1px 6px; border-radius: 6px; background: var(--acc-weak, rgba(33,115,70,.12)); color: var(--acc-text); }
+.tax-set-bg { position: fixed; inset: 0; z-index: 99990; display: flex; align-items: flex-start; justify-content: center; padding-top: 10vh; background: rgba(0,0,0,.45); }
+.tax-set { width: min(400px, 92vw); box-sizing: border-box; padding: 16px; border-radius: 14px; background: var(--panel, #fff); color: var(--text, #222);
+  box-shadow: 0 10px 40px rgba(0,0,0,.35); font-size: 15px; }
+.tax-set-h { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
+.tax-set-l { font-size: 12px; font-weight: bold; color: var(--text-light, #666); margin: 12px 0 5px; }
+.tax-set-rate { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tax-set-rate b { min-width: 3em; text-align: center; font-size: 20px; }
+.tax-set button { min-height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid rgba(120,132,156,.45); background: transparent; color: var(--text, #222);
+  font-size: 15px; font-weight: bold; cursor: pointer; touch-action: manipulation; }
+.tax-set button.on { background: var(--acc); border-color: var(--acc); color: var(--on-acc, #fff); }
+.tax-set-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.tax-set-ex { margin-top: 10px; padding: 8px 10px; border-radius: 10px; background: var(--acc-weak, rgba(33,115,70,.1)); font-size: 13.5px; line-height: 1.6; }
+.tax-set-note { margin-top: 8px; font-size: 12.5px; line-height: 1.6; color: var(--text-sub, #555); }
+.tax-set-acts { display: flex; justify-content: flex-end; margin-top: 12px; }
 .ys-hint { font-weight: normal; color: var(--text-light); }
 
 /* 合計（または平均）。入力欄と同じ帯の右側に置き、数値が無いときは丸ごと隠す。
@@ -4306,6 +4324,14 @@ body.dark {
       <span class="set-stepper"><button class="step-btn" onclick="changeTax(-1)">−</button><span class="sc-val" id="taxRate">10%</span><button class="step-btn" onclick="changeTax(1)">＋</button></span>
     </div>
     <div class="set-row">
+      <span class="set-label">消費税の1円未満<small>消費税モード・電卓の税込／税抜・声の計算・買物の税込</small></span>
+      <select class="fmt-select" id="taxRoundSel" onchange="setTaxRound(this.value)" style="flex-shrink:0">
+        <option value="down">切り捨て</option>
+        <option value="round">四捨五入</option>
+        <option value="up">切り上げ</option>
+      </select>
+    </div>
+    <div class="set-row">
       <span class="set-label">日付の表示<small>新しく入れる日付の形式</small></span>
       <select class="fmt-select" id="defDateFmt" onchange="changeDefaultDateFmt(this.value)" style="flex-shrink:0">
         <option value="ymd">2026/7/7</option>
@@ -4394,7 +4420,7 @@ body.dark {
 </div>
 
 <div class="shop-tax-bar zei-bar" id="zeiBar">
-  <span>税率 <b id="zeiRate">10%</b></span>
+  <button type="button" class="zei-set" onclick="openTaxSet()" title="税率と 1円未満の処理を変える">税率 <b id="zeiRate">10%</b><small id="zeiRound">切り捨て</small></button>
   <span>税込計 <b id="zeiTotalInc">¥0</b></span>
   <span>消費税計 <b id="zeiTotalTax">¥0</b></span>
 </div>
@@ -8365,7 +8391,7 @@ async function exportXLSX(){
         const k=kinds[key], c=+key;
         if(!k || k.k!=='pk' || !(c>=0 && c<COLS) || !Array.isArray(k.o)) continue;
         let list=''; for(const o of k.o){ const t=String(o).replace(/[",]/g,''); if(!t) continue; if((list+','+t).length>250) break; list+=(list?',':'')+t; }
-        if(list) dvs.push(`<dataValidation type="list" allowBlank="1" showErrorMessage="0" sqref="${xlColLetter(c)}${(k.r1|0)+1}:${xlColLetter(c)}${Math.max(ROWS,(k.r1|0)+1)}"><formula1>"${xlEsc(list)}"</formula1></dataValidation>`);
+        if(list) dvs.push(`<dataValidation type="list" allowBlank="1" showErrorMessage="0" sqref="${xlColLetter(c)}${(k.r1|0)+1}:${xlColLetter(c)}${k.r2!=null?(k.r2|0)+1:Math.max(ROWS,(k.r1|0)+1)}"><formula1>"${xlEsc(list)}"</formula1></dataValidation>`);
       }
       const dvXml=dvs.length?`<dataValidations count="${dvs.length}">${dvs.join('')}</dataValidations>`:'';
       return `${P}<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="${dim}"/><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/>${colsXml}<sheetData>${sheetRows}</sheetData>${mergeXml}${dvXml}</worksheet>`;
@@ -9307,6 +9333,12 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v565', t:'🧾 消費税：1円未満を 切り捨て・四捨五入・切り上げ から選べて、答えは円（整数）に', li:[
+    '消費税の<b>1円未満</b>を <b>切り捨て・四捨五入・切り上げ</b> から選べるようにしました（はじめは 切り捨て）。⚙ 設定の「消費税の1円未満」か、消費税モードの下の帯の <b>「税率」</b> を押して変えます',
+    '<b>税込から税抜</b>を出すときは、先に<b>うち消費税</b>（税込×10/110）を出して <b>税込−消費税</b> にします。税抜→税込→税抜 と往復しても 金額が合います（例：税込 57,500円 → 税抜 52,273円・消費税 5,227円 → 税込 57,500円）',
+    '<b>式テンプレ「消費税（税抜⇄税込）」</b>も 答えが円になりました。表の中の「1円未満の消費税」を押すと 切り捨て・四捨五入・切り上げ から選べます（前に入れた表は、式テンプレから入れ直すと 新しい式になります）',
+    '<b>🧮 電卓の 税込・税抜</b>のキーと、<b>🎤 声</b>の「5000円の税抜」なども 円の答えになり、履歴に 消費税の額も残ります'
+  ]},
   { v:'v564', t:'🎁 いただきもの・お返し帳（📷 レシート読み取りは外しました）', li:[
     '<b>🎁 いただきもの・お返し帳</b>（🧰 道具の 🏠 くらし）：香典・お祝い・お見舞い・お中元などを「🎁 いただいた／📤 さしあげた」で残します。種類ごとに <b>お返しの目安</b>（半返し・3分の1〜半分）と<b>時期</b>・表書き・水引が出て、お返しは「まだ／済み／しない」で付けられます。時期が近いもの・過ぎたものは 上で知らせます',
     '<b>香典帳のように続けて</b>：「✓ 入れて 次の人」で、行事・種類・日付は そのまま、名前と金額だけ入れていけます。行事ごとに 合計と お返しの予算のめやすも出ます。一覧は <b>📋 コピー・▦ 表に入れる（お返しの準備の表：名前・住所・いただいた額・めやす も）・🖨 印刷</b>',
@@ -13778,15 +13810,26 @@ function toolPickNames(extra){
   });
 }
 
-/* ── 消費税（v349で1か所にまとめた）──────────────────────
-   税率は設定の taxPct（％）。パーセントから倍率を出すところと、
-   お金の端数（切り捨て）の決まりを、ここだけに置く。
-   電卓は「お金とはかぎらない」ので、丸め方だけそれぞれで決める。 */
+/* ── 消費税（v349で1か所にまとめた。v565 で 1円未満の処理を選べるように）──────────
+   税率は設定の taxPct（％）、1円未満は設定の taxRound（切り捨て・四捨五入・切り上げ）。
+   1円未満を処理するのは 消費税の額（法律の決まりと同じ）。税込から税抜を出すときも、先に「うち消費税」を出して
+   税抜＝税込−消費税 にする。こうすると 税抜→税込→税抜 と往復しても金額が合う（57,500 ⇄ 52,273）。
+   電卓の ％ や × は「お金とはかぎらない」ので、そちらの丸め方は電卓の決まりで。 */
+const TAX_ROUND_N={down:'切り捨て', round:'四捨五入', up:'切り上げ'};
 function taxMul(pct){ return 1+(pct==null?taxPct:pct)/100; }        // 税抜→税込の倍率
 function taxAdd(v, pct){ return v*taxMul(pct); }                     // 税抜→税込（丸めなし）
 function taxSub(v, pct){ return v/taxMul(pct); }                     // 税込→税抜（丸めなし）
-function taxOfEx(ex, pct){ return Math.floor(ex*((pct==null?taxPct:pct)/100) + 1e-6); }   // 税抜からの消費税額（円・切り捨て。1e-6は誤差の補正）
-function taxExOfInc(inc, pct){ return Math.floor(taxSub(inc,pct) + 1e-6); }               // 税込からの税抜（円・切り捨て）
+function taxYen(x, mode){                                            // 消費税の 1円未満の処理（マイナスは 0 をはさんで同じ形）
+  const m=TAX_ROUND_N[mode]?mode:taxRound, y=+Math.abs(x).toFixed(6);   // toFixed：5227.200000000001 のような誤差を消す
+  const r=m==='up'?Math.ceil(y):m==='round'?Math.round(y):Math.floor(y);
+  return (x<0&&r)?-r:r;
+}
+const taxPctOf=pct=>(pct==null?taxPct:pct);
+const taxFix=v=>Math.round(v*1000)/1000;                                                 // 足し引きの誤差を消す（小数3桁まで）
+function taxOfEx(ex, pct){ return taxYen(ex*taxPctOf(pct)/100); }                       // 税抜にかかる消費税（円）
+function taxOfInc(inc, pct){ const p=taxPctOf(pct); return taxYen(inc*p/(100+p)); }      // 税込にふくまれる消費税（うち消費税・円）
+function taxIncOfEx(ex, pct){ return taxFix(ex+taxOfEx(ex,pct)); }                       // 税抜 → 税込
+function taxExOfInc(inc, pct){ return taxFix(inc-taxOfInc(inc,pct)); }                   // 税込 → 税抜（税込−うち消費税）
 
 /* ── 割合（v350で1か所にまとめた）──────────────────────
    1割＝10％。割合額・足す・引くの計算を、割合モードと電卓で共通に使う。 */
@@ -15094,7 +15137,7 @@ setTimeout(()=>{ loadKoePhrase(); }, 3000);
 /* 型に合えば答え（{say, a, f, v, cls}）。読み込む前や合わないときは null */
 function dtPhrase(raw){
   if(!window.KoePhrase) return null;
-  try{ return window.KoePhrase.match(raw, {tax:taxPct, today:()=>new Date()}); }catch(_){ return null; }
+  try{ return window.KoePhrase.match(raw, {tax:taxPct, round:taxRound, today:()=>new Date()}); }catch(_){ return null; }
 }
 window.closePhotoMemo=function(){ /* まだ読み込んでいない＝開いていない */ };
 /* はい／いいえを聞く小さな画面（画面の上寄りに出す） */
@@ -16765,12 +16808,63 @@ function makeCellSizeResizer(corner){
 function applyTaxRate(){
   document.getElementById('taxRate').textContent=taxPct+'%';
   const zr=document.getElementById('zeiRate'); if(zr) zr.textContent=taxPct+'%';
+  const zd=document.getElementById('zeiRound'); if(zd) zd.textContent=TAX_ROUND_N[taxRound];
+  const rs=document.getElementById('taxRoundSel'); if(rs) rs.value=taxRound;
   localStorage.setItem('excalc_taxrate', taxPct);
-  if(tableMode==='zei') recalcMode();
+  if(tableMode==='zei'||tableMode==='shopping') recalcMode();
+  if(document.getElementById('taxSetBox')) taxSetRender();
 }
 function changeTax(delta){
   taxPct=Math.max(0, Math.min(30, taxPct+delta));
   applyTaxRate();
+}
+/* 消費税の1円未満（v565）：'down' 切り捨て／'round' 四捨五入／'up' 切り上げ */
+function setTaxRound(v){
+  if(!TAX_ROUND_N[v]) return;
+  taxRound=v; try{ localStorage.setItem('excalc_taxround', v); }catch(_){}
+  applyTaxRate();
+}
+/* 消費税モードの帯の「税率」を押したとき：税率と 1円未満の処理を決める小さな窓（v565） */
+function taxSetExample(){
+  const ex=1235, raw=ex*taxPct/100, t=taxOfEx(ex);
+  return '例：税抜 '+fmt(ex)+'円 → 消費税 '+fmt(raw)+'円 → <b>'+fmt(t)+'円</b>（'+TAX_ROUND_N[taxRound]+'）・税込 <b>'+fmt(ex+t)+'円</b>';
+}
+function taxSetRender(){
+  const b=document.getElementById('taxSetBox'); if(!b) return;
+  b.innerHTML='<div class="tax-set-h">🧾 消費税の計算</div>'
+    +'<div class="tax-set-l">税率</div>'
+    +'<div class="tax-set-rate"><button type="button" data-a="dn" aria-label="税率を下げる">−</button><b>'+taxPct+'%</b><button type="button" data-a="upr" aria-label="税率を上げる">＋</button>'
+    +'<button type="button" data-a="p8" class="'+(taxPct===8?'on':'')+'">8%</button><button type="button" data-a="p10" class="'+(taxPct===10?'on':'')+'">10%</button></div>'
+    +'<div class="tax-set-l">1円未満の消費税</div>'
+    +'<div class="tax-set-seg" role="group" aria-label="1円未満の消費税">'+Object.keys(TAX_ROUND_N).map(k=>'<button type="button" data-r="'+k+'" class="'+(taxRound===k?'on':'')+'" aria-pressed="'+(taxRound===k)+'">'+TAX_ROUND_N[k]+'</button>').join('')+'</div>'
+    +'<div class="tax-set-ex">'+taxSetExample()+'</div>'
+    +'<div class="tax-set-note">お店や会社で決めた方法に合わせます（切り捨てが多い）。税込から税抜を出すときは、先に「うち消費税」を出して 税込−消費税 にします。⚙ 設定の「計算」でも変えられます。</div>'
+    +'<div class="tax-set-acts"><button type="button" data-a="x">閉じる</button></div>';
+}
+function openTaxSet(){
+  if(document.getElementById('taxSetBox')) return;
+  appModalOpen=true;
+  const ov=document.createElement('div'); ov.className='tax-set-bg';
+  const box=document.createElement('div'); box.id='taxSetBox'; box.className='tax-set'; box.setAttribute('role','dialog'); box.setAttribute('aria-label','消費税の計算');
+  ov.appendChild(box); document.body.appendChild(ov);
+  let done=false;
+  const onKey=e=>{ if(e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); close(); } };   // 押したボタンは描き直しで消えるので、キーは window で受ける
+  const close=()=>{ if(done) return; done=true; relBack(); window.removeEventListener('keydown', onKey, true); appModalOpen=false; try{ ov.remove(); }catch(_){} };
+  const relBack=modalBack(()=>close());
+  window.addEventListener('keydown', onKey, true);
+  box.addEventListener('click', e=>{
+    const t=e.target.closest('button'); if(!t) return;
+    const again=t.dataset.r?'[data-r="'+t.dataset.r+'"]':'[data-a="'+t.dataset.a+'"]';
+    if(t.dataset.r) setTaxRound(t.dataset.r);
+    else if(t.dataset.a==='dn') changeTax(-1);
+    else if(t.dataset.a==='upr') changeTax(1);
+    else if(t.dataset.a==='p8'||t.dataset.a==='p10'){ taxPct=t.dataset.a==='p8'?8:10; applyTaxRate(); }
+    else if(t.dataset.a==='x'){ close(); return; }
+    const nb=box.querySelector(again); if(nb) try{ nb.focus(); }catch(_){}   // 描き直したあとも 同じボタンに
+  });
+  ov.addEventListener('mousedown', e=>{ if(e.target===ov) close(); });
+  taxSetRender();
+  const f=box.querySelector('button.on'); if(f) try{ f.focus(); }catch(_){}
 }
 /* ── 小計・統計文字サイズ ── */
 function applyInfoSize() {
@@ -17641,13 +17735,14 @@ function dtPercent(){
   disp_val=fmtNum(part);
   waiting=false; dtRender();
 }
-/* 消費税：dir=1 で税込、dir=-1 で税抜。税率は設定の taxPct をそのまま使う */
+/* 消費税：dir=1 で税込、dir=-1 で税抜。税率は設定の taxPct、消費税の1円未満は設定の taxRound（v565。円にそろえる）。
+   税抜は 税込にふくまれる消費税（うち消費税）を先に出して 引く。履歴には消費税の額も残す */
 function dtTax(dir){
   if(dtStyle==='expr'){ dtExprAppend((dir>0?'*':'/')+taxMul()); return; }
   const cur=parseFloat(disp_val); if(!isFinite(cur)) return;
-  const r=dir>0?taxAdd(cur):taxSub(cur);
-  const val=fmtNum(Math.round(r*100)/100);
-  dtPush(fmtNum(cur)+(dir>0?' 税込':' 税抜')+taxPct+'%', val);
+  const tax=dir>0?taxOfEx(cur):taxOfInc(cur);
+  const val=fmtNum(dir>0?taxIncOfEx(cur):taxExOfInc(cur));
+  dtPush(fmtNum(cur)+(dir>0?' 税込':' 税抜')+taxPct+'%（消費税 '+fmtNum(tax)+'）', val);
   dtSeq='';
   disp_val=val; op1=null; cur_op=null; waiting=false;
   dtRender();
@@ -18787,14 +18882,15 @@ const SPEECH_RECIPES=[
    test:t=>/(消費税|税込|税こみ|税抜|税ぬき)/.test(t),
    run:(m,t)=>{ const a=+m[1];
      const r=(m[2]!=null&&m[2]!=='')?+m[2]:(typeof taxPct==='number'?taxPct:10);
+     const note=x=>Math.abs(x-Math.round(x))>1e-9?`（1円未満は${TAX_ROUND_N[taxRound]}）`:'';   // 端数が出たときだけ、どうしたかを書く（v565）
      if(/(税抜|税ぬき)/.test(t)){
-       const ex=a/(1+r/100);
-       return { e:`${withCommas(m[1])}円（税込）の税抜き（税率${r}%）`, v:ex, u:'円', dp:2,
-                sub:`うち消費税 ${srYen(a-ex)}` };
+       const tx=taxOfInc(a,r);
+       return { e:`${withCommas(m[1])}円（税込）の税抜き（税率${r}%）`, v:taxFix(a-tx), u:'円',
+                sub:`うち消費税 ${srYen(tx)}${note(a*r/(100+r))}` };
      }
-     const inc=a*(1+r/100);
-     return { e:`${withCommas(m[1])}円 に 消費税${r}%`, v:inc, u:'円',
-              sub:`消費税 ${srYen(inc-a)}` }; }},
+     const tx=taxOfEx(a,r);
+     return { e:`${withCommas(m[1])}円 に 消費税${r}%`, v:taxFix(a+tx), u:'円',
+              sub:`消費税 ${srYen(tx)}${note(a*r/100)}` }; }},
   /* ⑪ 12800円を15パーセント引き／増し */
   {id:'offon', g:'お金', ex:'12800円を15パーセント引き', re:new RegExp(SR_N+'円?(?:を|から|に)?'+SR_N+SR_P+'(引き|びき|オフ|off|値引き|増し|まし|アップ|up)'),
    run:m=>{ const a=+m[1], r=+m[2];
@@ -19543,6 +19639,7 @@ document.addEventListener('keydown', e=>{
 let tableMode='normal';      // 'normal' | 'simple' | 'shopping' | 'warikan' | 'zei' | 'youseki' | 'yosan'
 let warikanPeople=2;
 let taxPct=10;               // 消費税の税率(%)。設定で変更
+let taxRound='down';         // 消費税の1円未満：'down' 切り捨て／'round' 四捨五入／'up' 切り上げ（v565。設定で変更）
 const modeStates={};         // モードキー -> {cols, data:[50][26]}（各モードの入力をリセットまで保持）
 const MODE_STORE_KEY='excalc_modeStore';
 
@@ -19649,10 +19746,15 @@ const CALC_TEMPLATES=[
     ['元の値段',''],['割引率(%)',''],['または値引き額(円)',''],
     ['割引後の値段','=IF(B3>0,B1-B3,B1*(1-B2/100))'],['引かれた金額','=B1-B4'],
     ['実質の割引率(%)','=IF(B1>0,B5/B1*100,0)']]},
-  {id:'tax', icon:'🧾', name:'消費税（税抜⇄税込）', desc:'税抜→税込も、税込→税抜の逆算も', rows:[
-    ['税率(%)','10'],
-    ['〔税抜 → 税込〕',null],['税抜価格',''],['税込価格','=B3*(1+B1/100)'],['消費税額','=B3*B1/100'],
-    ['〔税込 → 税抜〕',null],['税込価格',''],['税抜価格','=B7/(1+B1/100)'],['うち消費税','=B7-B8']]},
+  /* v565：消費税は円にそろえる（1円未満は B2 で えらぶ。押すと 切り捨て・四捨五入・切り上げ）。税込→税抜は うち消費税を先に出して引く */
+  {id:'tax', icon:'🧾', name:'消費税（税抜⇄税込）', desc:'税抜→税込も、税込→税抜の逆算も。1円未満は 切り捨て・四捨五入・切り上げ', rows:[
+    ['税率(%)',()=>String(taxPct)],
+    ['1円未満の消費税',()=>TAX_ROUND_N[taxRound]],
+    ['〔税抜 → 税込〕',null],['税抜価格',''],['税込価格','=B4+B6'],
+    ['消費税額','=IF(B2="切り上げ",ROUNDUP(B4*B1/100,0),IF(B2="四捨五入",ROUND(B4*B1/100,0),ROUNDDOWN(B4*B1/100,0)))'],
+    ['〔税込 → 税抜〕',null],['税込価格',''],['税抜価格','=B8-B10'],
+    ['うち消費税','=IF(B2="切り上げ",ROUNDUP(B8*B1/(100+B1),0),IF(B2="四捨五入",ROUND(B8*B1/(100+B1),0),ROUNDDOWN(B8*B1/(100+B1),0)))']],
+   ct:{1:{k:'pk', r1:1, r2:1, o:['切り捨て','四捨五入','切り上げ'], h:'1円未満の消費税'}}},
   {id:'pct', icon:'🎯', name:'割合（3パターン）', desc:'何%か・全体の◯%分・全体の逆算', rows:[
     ['〔何％かを求める〕',null],['部分の値',''],['全体の値',''],['割合(%)','=IF(B3>0,B2/B3*100,0)'],
     ['〔全体の◯％分を求める〕',null],['全体の値',''],['割合(%)',''],['その値','=B6*B7/100'],
@@ -19798,7 +19900,7 @@ function applyTemplateObj(t, closeFn){
   cellStyles={};
   let firstInput=-1;
   t.rows.forEach((row,i)=>{
-    const label=row[0], v=row[1];
+    const label=row[0], v=(typeof row[1]==='function')?row[1]():row[1];   // 関数は その時の設定から（消費税の税率・1円未満。v565）
     data[i][0]=label;
     if(v===null){                                          // 見出し行（グレー背景・太字・入力なし）
       cellStyles[`${i},0`]={bold:true, bg:'#e6e6e6'};
@@ -19815,6 +19917,7 @@ function applyTemplateObj(t, closeFn){
       if(firstInput<0 && v==='') firstInput=i;             // 最初の空入力にカーソル
     }
   });
+  if(t.ct) cellStyles._ct=JSON.parse(JSON.stringify(t.ct));   // 押すと えらべるマス（消費税の 1円未満 など。v565）
   ROWS=Math.max(2, Math.min(MAXROWS, t.rows.length));
   COLS=2;
   localStorage.setItem('excalc_rows',ROWS); localStorage.setItem('excalc_cols',COLS);
@@ -20091,9 +20194,9 @@ function recalcMode(){
     }
     let sub=0; for(let r=1;r<ROWS;r++){const v=parseFloat(data[r][3]); if(!isNaN(v)) sub+=v;}
     document.getElementById('shopSubtotal').textContent='¥'+fmt(sub);
-    // 小計に軽減税率8%・標準税率10%をかけた税込額を参考表示（内税額の端数は切り捨て）
-    document.getElementById('shopTax8').textContent='¥'+fmt(Math.floor(taxAdd(sub,8)));
-    document.getElementById('shopTax10').textContent='¥'+fmt(Math.floor(taxAdd(sub,10)));
+    // 小計に軽減税率8%・標準税率10%をかけた税込額を参考表示（消費税の1円未満は 設定の処理。v565）
+    document.getElementById('shopTax8').textContent='¥'+fmt(taxIncOfEx(sub,8));
+    document.getElementById('shopTax10').textContent='¥'+fmt(taxIncOfEx(sub,10));
   } else if(tableMode==='zei'){
     /* 列: 0=税抜(入力) 1=消費税(自動) 2=税込(入力)。
        税抜と税込はどちらか一方を入力すると残りが計算される（入力時に他方はクリア済み）。*/
@@ -20105,12 +20208,12 @@ function recalcMode(){
       let body='', tax='', inc='';
       if(hasEx){
         body=Math.round(parseFloat(exRaw)*1000)/1000;
-        tax=taxOfEx(body);
-        inc=body+tax;
+        tax=taxOfEx(body);                       // 1円未満は 設定の処理（v565）
+        inc=taxFix(body+tax);
       } else if(hasInc){
         inc=Math.round(parseFloat(incRaw)*1000)/1000;
-        body=taxExOfInc(inc);                    // 例: 2200/1.1=2000
-        tax=inc-body;
+        tax=taxOfInc(inc);                       // うち消費税を先に（例：57,500 → 5,227）
+        body=taxFix(inc-tax);                    // 税抜＝税込−消費税（往復しても合う）
       }
       data[r][1]=(tax===''?'':String(tax));   // 消費税は確定列としてdataにも保持
       const e0=document.getElementById(`c${r}_0`);
@@ -22525,7 +22628,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v564';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v565';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -22752,7 +22855,7 @@ function hpRun(act, arg){
 function hpKinds(){ const o=cellStyles._ct; return (o && typeof o==='object' && !Array.isArray(o)) ? o : null; }
 function hpKindAt(r,c){
   const o=hpKinds(), k=o && o[c];
-  if(!k || r<(k.r1|0) || !hpOk()) return null;
+  if(!k || r<(k.r1|0) || (k.r2!=null && r>(k.r2|0)) || !hpOk()) return null;   // r2：その行まで（式テンプレの 1マスだけの えらぶ欄。v565）
   if((data[r][c]==='' || data[r][c]==null) && hpIsTotalRow(r)) return null;   // 合計の行の 空いたセルは ふつうのセル
   return k;
 }
@@ -22832,7 +22935,7 @@ function hpPickOpen(r,c){
   const cur=String(data[r][c]==null?'':data[r][c]);
   const ov=document.createElement('div'); ov.className='hp-pick-bg'; ov.id='hpPickBg';
   const box=document.createElement('div'); box.className='hp-pick'; box.setAttribute('role','listbox');
-  box.innerHTML='<div class="hp-pick-h">'+escHtml(hpHeadName(c,(k.r1|0)-1))+'（'+ALPHA[c]+(r+1)+'）</div>'
+  box.innerHTML='<div class="hp-pick-h">'+escHtml(k.h?String(k.h):hpHeadName(c,(k.r1|0)-1))+'（'+ALPHA[c]+(r+1)+'）</div>'
     +'<div class="hp-pick-list">'+(opts.length?opts.map((o,i)=>'<button type="button" role="option" class="hp-pick-o'+(o===cur?' on':'')+'" data-i="'+i+'">'+escHtml(o)+'</button>').join('')
       :'<div class="hp-pick-none">えらぶ言葉がありません。⚙ で決めてください</div>')+'</div>'
     +'<div class="hp-pick-x"><button type="button" data-a="clear">🧹 空にする</button><button type="button" data-a="free">✏️ ほかの字</button></div>'
@@ -23165,6 +23268,10 @@ function hpRemapKey(k, v, mapFn){
     const o={};
     for(const key in v){
       const it=v[key], c2=fc(+key); if(c2==null || !it) continue;
+      if(it.r2!=null){   // 決まった行だけの えらぶ欄（v565）：その行についていく。行が消えたら やめる
+        const a=fr(it.r1|0), b=fr(it.r2|0); if(a==null || b==null) continue;
+        o[c2]=Object.assign({}, it, {r1:Math.min(a,b), r2:Math.max(a,b)}); continue;
+      }
       const r1=it.r1|0;
       let nr=r1>0 ? fr(r1-1) : -1;            // 見出しの行についていく（見出しのすぐ下に足した行も入る）
       nr=(nr==null) ? fr(r1) : nr+1;
@@ -25191,7 +25298,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_numpad_landw','excalc_numscale','excalc_pagebar','excalc_pdf_settings','excalc_pm_custom_colors','excalc_pm_phrases',
   'excalc_pm_prefs','excalc_prn','excalc_savesort','excalc_savetabnames','excalc_saveview','excalc_show_resizerbar',
   'excalc_show_sheettabs','excalc_skin','excalc_speechauto','excalc_speechlayout','excalc_speechspeak','excalc_startpage',
-  'excalc_sumfunc','excalc_taxrate','excalc_tbfold','excalc_toolsbtn_hide','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
+  'excalc_sumfunc','excalc_taxrate','excalc_taxround','excalc_tbfold','excalc_toolsbtn_hide','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
   'excalc_ts_warn','excalc_userkeys',
   'excalc_uimode','excalc_trim','excalc_manner','excalc_boki','excalc_kurashi','excalc_keisan','excalc_ruler','excalc_tool_fav','excalc_tool_hints','excalc_seq_step','excalc_regi_ui',   // v460〜v462・v501
   'hyo_voice',   // 🔈 読み上げの声（v540。声の計算帳・ほかの道具と同じ）
@@ -25786,6 +25893,7 @@ const savedDec=parseInt(localStorage.getItem('excalc_dec'));
 if(!isNaN(savedDec)&&savedDec>=-1&&savedDec<=10){ decPlaces=savedDec; document.getElementById('decCount').textContent=decPlaces<0?'自':decPlaces; }
 const savedTax=parseInt(localStorage.getItem('excalc_taxrate'));
 if(!isNaN(savedTax)&&savedTax>=0&&savedTax<=30) taxPct=savedTax;
+try{ const r=localStorage.getItem('excalc_taxround'); if(TAX_ROUND_N[r]) taxRound=r; }catch(_){}
 dtSyncStyleUi();
 applyTaxRate();
 const savedSumFunc=localStorage.getItem('excalc_sumfunc');

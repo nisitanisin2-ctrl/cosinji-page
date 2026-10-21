@@ -799,7 +799,7 @@ async function runShared(browser) {
     const keep = taxPct; taxPct = 8; const r = taxMul(); taxPct = keep; return r; }), 1.08);
   check('  税抜1000円の消費税（切り捨て）', await page.evaluate(() => taxOfEx(1000)), 100);
   check('  税込2200円の税抜（切り捨て）', await page.evaluate(() => taxExOfInc(2200)), 2000);
-  check('  端数のある税抜', await page.evaluate(() => taxOfEx(199) + '/' + taxExOfInc(199)), '19/180');
+  check('  端数のある税抜（税込199円 → うち消費税 18円 → 税抜 181円。v565）', await page.evaluate(() => taxOfEx(199) + '/' + taxExOfInc(199)), '19/181');
   check('  消費税モードも同じ答え', await page.evaluate(async () => {
     switchMode('zei'); await new Promise(z => setTimeout(z, 300));
     setCellVal(1, 0, '1000'); setCellVal(2, 2, '2200'); recalcMode();
@@ -3482,7 +3482,7 @@ async function runVoiceSay(browser) {
   // ── おまけの数 ──
   check('  消費税の額も出す', (await r('5000円に消費税10パーセント')).split('|')[3], '消費税 500円');
   check('  税率を言わなければ設定の税率', await v('5000円に消費税'), '5,500円');
-  check('  税抜きの逆算もできる', await v('5000円の税抜'), '4,545.45円');
+  check('  税抜きの逆算もできる（うち消費税 454円を引く。v565）', await v('5000円の税抜'), '4,546円');
   check('  面積は坪とまわりも出す', (await r('幅3.5メートル、長さ12メートル')).split('|')[3],
     '12.71坪／まわり 31m');
   check('  燃費は使う量も出す', (await r('ガソリン170円、燃費18キロ、200キロ走る')).split('|')[3], '使う量 11.11L');
@@ -10129,6 +10129,94 @@ async function runOkaeshi564(browser) {
   await ap.close();
   await ctx.close();
 }
+async function runTax565(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🧾 消費税：1円未満の処理を選ぶ・答えは円に（v565） ──');
+  const w = ms => page.waitForTimeout(ms);
+  // 計算のもと（税込から税抜は うち消費税を先に出して引く）
+  check('  はじめは 切り捨て', await page.evaluate(() => taxRound + '/' + TAX_ROUND_N[taxRound]), 'down/切り捨て');
+  check('  切り捨て：税抜 52,272 → 消費税 5,227・税込 57,499／税込 57,500 → うち消費税 5,227・税抜 52,273', await page.evaluate(() => [taxOfEx(52272), taxIncOfEx(52272), taxOfInc(57500), taxExOfInc(57500)].join('/')), '5227/57499/5227/52273');
+  check('  　往復しても合う（税込 57,500 → 税抜 52,273 → 税込 57,500）', await page.evaluate(() => taxIncOfEx(taxExOfInc(57500))), 57500);
+  check('  四捨五入・切り上げ', await page.evaluate(() => ['round', 'up'].map(m => [taxYen(5227.5, m), taxYen(5227.2, m), taxYen(5227.0, m)].join(',')).join(' | ')), '5228,5227,5227 | 5228,5228,5227');
+  check('  　誤差で 1円 ずれない（52272×0.1＝5227.200000000001 を 5228 にしない）', await page.evaluate(() => [taxYen(52272 * 0.1, 'up'), taxYen(1100 * 10 / 110, 'up'), taxYen(0.1 + 0.2, 'down')].join(',')), '5228,100,0');
+  check('  　マイナス（返品など）は 0 をはさんで同じ形', await page.evaluate(() => [taxYen(-5227.2, 'down'), taxYen(-5227.2, 'up'), taxYen(-0.4, 'down')].join(',')), '-5227,-5228,0');
+  check('  8%（軽減税率）', await page.evaluate(() => [taxOfEx(1234, 8), taxIncOfEx(1234, 8), taxOfInc(1332, 8), taxExOfInc(1332, 8)].join('/')), '98/1332/98/1234');
+  // 設定
+  await page.evaluate(() => setTaxRound('up')); await w(100);
+  check('  設定で 切り上げ（覚える・設定の画面にも出る・バックアップに入る）', await page.evaluate(() => [taxRound, localStorage.getItem('excalc_taxround'), document.getElementById('taxRoundSel').value, SETTINGS_BACKUP_KEYS.includes('excalc_taxround')].join('/')), 'up/up/up/true');
+  await page.reload(); await w(900);
+  check('  　開き直しても 切り上げ', await page.evaluate(() => taxRound + '/' + document.getElementById('taxRoundSel').value + '/' + taxExOfInc(57500)), 'up/up/52272');
+  await page.evaluate(() => setTaxRound('nanika')); await w(50);
+  check('  　知らない値は受け付けない', await page.evaluate(() => taxRound), 'up');
+  await page.evaluate(() => setTaxRound('down')); await w(50);
+  // 消費税モード
+  await page.evaluate(async () => { switchMode('zei'); await new Promise(z => setTimeout(z, 300)); setCellVal(1, 2, '57500'); setCellVal(2, 0, '52273'); setCellVal(3, 0, '52272'); recalcMode(); });
+  await w(200);
+  const zrows = () => page.evaluate(() => [1, 2, 3].map(r => [0, 1, 2].map(c => document.getElementById(`c${r}_${c}`).textContent).join(' ')).join(' | '));
+  check('  消費税モード（切り捨て）：税込 57,500 → 52,273・5,227／税抜 52,273 → 57,500／52,272 → 57,499', await zrows(), '52,273 5,227 57500 | 52273 5,227 57,500 | 52272 5,227 57,499');
+  check('  　下の帯：税率と 1円未満・合計', await page.evaluate(() => document.getElementById('zeiBar').textContent.replace(/\s+/g, ' ').trim()), '税率 10%切り捨て 税込計 ¥172,499 消費税計 ¥15,681');
+  await page.click('#zeiBar .zei-set'); await w(250);
+  check('  　帯の「税率」を押すと 小さな窓（税率・1円未満・例）', await page.evaluate(() => { const b = document.getElementById('taxSetBox'); return [!!b, b.querySelector('.tax-set-seg .on').textContent, b.querySelector('.tax-set-rate b').textContent, b.querySelector('.tax-set-ex').textContent].join('/'); }), 'true/切り捨て/10%/例：税抜 1,235円 → 消費税 123.5円 → 123円（切り捨て）・税込 1,358円');
+  await page.click('.tax-set-seg button[data-r="up"]'); await w(200);
+  check('  　切り上げにすると すぐ計算し直す（税込 57,500 → 52,272・5,228）', await zrows() + ' / ' + await page.evaluate(() => [document.getElementById('zeiRound').textContent, document.querySelector('.tax-set-ex').textContent.includes('124円（切り上げ）')].join('/')), '52,272 5,228 57500 | 52273 5,228 57,501 | 52272 5,228 57,500 / 切り上げ/true');
+  await page.click('.tax-set-rate button[data-a="p8"]'); await w(200);
+  check('  　8% のボタン', await page.evaluate(() => taxPct + '/' + document.getElementById('zeiRate').textContent + '/' + document.querySelector('.tax-set-rate b').textContent), '8/8%/8%');
+  await page.click('.tax-set-rate button[data-a="p10"]'); await page.click('.tax-set-seg button[data-r="round"]'); await w(150);
+  await page.keyboard.press('Escape'); await w(200);
+  check('  　Esc で窓を閉じる（表の画面はそのまま）', await page.evaluate(() => [!!document.getElementById('taxSetBox'), tableMode, taxRound, appModalOpen].join('/')), 'false/zei/round/false');
+  await page.evaluate(() => { setTaxRound('down'); }); await w(100);
+  // 買物モードの 税込（参考）
+  await page.evaluate(async () => { switchMode('shopping'); await new Promise(z => setTimeout(z, 300)); setCellVal(1, 0, 'みかん'); setCellVal(1, 1, '199'); setCellVal(1, 2, '1'); recalcMode(); });
+  await w(150);
+  const shop = () => page.evaluate(() => document.getElementById('shopTax8').textContent + '/' + document.getElementById('shopTax10').textContent);
+  const s1 = await shop(); await page.evaluate(() => setTaxRound('up')); await w(100); const s2 = await shop(); await page.evaluate(() => setTaxRound('down')); await w(100);
+  check('  買物モードの 税込（参考）も 1円未満の設定どおり', s1 + ' | ' + s2, '¥214/¥218 | ¥215/¥219');
+  await page.evaluate(async () => { switchMode('normal'); await new Promise(z => setTimeout(z, 300)); });
+  // 式テンプレ
+  await page.evaluate(() => { taxPct = 8; applyCalcTemplate('tax'); }); await w(400);
+  check('  式テンプレ：税率と 1円未満は いまの設定から', await page.evaluate(() => [data[0][1], data[1][1], data[1][0], currentTemplate() && currentTemplate().id].join('/')), '8/切り捨て/1円未満の消費税/tax');
+  await page.evaluate(() => { taxPct = 10; setCellVal(0, 1, '10'); setCellVal(3, 1, '52272'); setCellVal(7, 1, '57500'); }); await w(200);
+  const tcol = () => page.evaluate(() => [3, 4, 5, 7, 8, 9].map(r => getCellDisplay(r, 1)).join(','));
+  check('  　答えは円（税抜 52272 → 税込 57499・消費税 5227／税込 57500 → 税抜 52273・うち 5227）', await tcol(), '52272,57499,5227,57500,52273,5227');
+  await page.tap('#c1_1'); await w(250);
+  check('  　「1円未満の消費税」を押すと えらぶ窓', await page.evaluate(() => [document.querySelector('#hpPickBg .hp-pick-h').textContent, [...document.querySelectorAll('#hpPickBg .hp-pick-o')].map(b => b.textContent.replace('✓', '').trim()).join(',')].join('/')), '1円未満の消費税（B2）/切り捨て,四捨五入,切り上げ');
+  await page.evaluate(() => [...document.querySelectorAll('.hp-pick-o')].find(b => b.textContent.includes('切り上げ')).click()); await w(250);
+  check('  　切り上げを えらぶと 式の答えが変わる', await page.evaluate(() => data[1][1]) + ' / ' + await tcol(), '切り上げ / 52272,57500,5228,57500,52272,5228');
+  await page.evaluate(() => setCellVal(1, 1, '四捨五入')); await w(150);
+  await page.evaluate(() => setCellVal(3, 1, '45')); await w(150);
+  check('  　四捨五入（税抜 45 → 消費税 4.5 → 5）', await page.evaluate(() => getCellDisplay(5, 1) + '/' + getCellDisplay(4, 1)), '5/50');
+  check('  　えらぶ欄は B2 だけ（ほかのセルは ふつう）', await page.evaluate(() => [!!hpKindAt(1, 1), !!hpKindAt(3, 1), !!hpKindAt(0, 1), !!hpKindAt(9, 1)].join('/')), 'true/false/false/false');
+  // Excel：式とえらぶ欄（B2 だけ）
+  const dl = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.evaluate(() => exportXLSX())]).then(a => a[0]).catch(() => null);
+  if (dl) {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'excalc-tax-')), saved = path.join(tmp, 'tax.xlsx');
+    await dl.saveAs(saved);
+    const { readZipEntry } = require('./zip.js');
+    const xl = String(readZipEntry(saved, 'xl/worksheets/sheet1.xml'));
+    check('  　Excel：ROUNDDOWN などの式のまま・えらぶ欄は B2 だけ', [xl.includes('ROUNDDOWN(B4*B1/100,0)'), xl.includes('ROUNDUP(B8*B1/(100+B1),0)'), /sqref="B2:B2"/.test(xl)].join('/'), 'true/true/true');
+    fs.rmSync(tmp, { recursive: true, force: true });
+  } else check('  　Excel に書き出せる', 'ダウンロードされず', 'できる');
+  // 行を足しても えらぶ欄は B2 についていく
+  await page.evaluate(() => { sel(0, 0); insertRowAt(1); }); await w(300);
+  check('  　上に行を足すと えらぶ欄も1つ下へ（B3 だけ）', await page.evaluate(() => JSON.stringify([cellStyles._ct[1].r1, cellStyles._ct[1].r2, !!hpKindAt(2, 1), !!hpKindAt(1, 1), !!hpKindAt(3, 1)])), '[2,2,true,false,false]');
+  await page.evaluate(() => undoLast()); await w(300);
+  // 電卓の 税込・税抜キー
+  await page.evaluate(async () => { switchMode('dentaku'); await new Promise(z => setTimeout(z, 400)); dtStyle = 'simple'; dtAllClear(); disp_val = '52272'; dtTax(1); }); await w(100);
+  check('  電卓の 税込：52272 → 57499（履歴に消費税）', await page.evaluate(() => document.getElementById('dtMain').textContent + ' / ' + dtTape[dtTape.length - 1].e), '57499 / 52272 税込10%（消費税 5227）');
+  await page.evaluate(() => { dtAllClear(); disp_val = '57500'; dtTax(-1); }); await w(100);
+  check('  電卓の 税抜：57500 → 52273', await page.evaluate(() => document.getElementById('dtMain').textContent + ' / ' + dtTape[dtTape.length - 1].e), '52273 / 57500 税抜10%（消費税 5227）');
+  await page.evaluate(() => { setTaxRound('up'); dtAllClear(); disp_val = '57500'; dtTax(-1); }); await w(100);
+  check('  　切り上げなら 52272', await page.evaluate(() => document.getElementById('dtMain').textContent), '52272');
+  await page.evaluate(() => setTaxRound('down'));
+  // 声
+  check('  🎤 声（表）：「57500円の税抜」→ 52,273円（うち消費税 5,227円・1円未満は切り捨て）', await page.evaluate(() => { const o = speechRecipe('57500円の税抜'); return srNum(o.v, o.dp) + o.u + '|' + o.sub; }), '52,273円|うち消費税 5,227円（1円未満は切り捨て）');
+  check('  　割り切れるときは 書き足さない', await page.evaluate(() => speechRecipe('5000円に消費税10パーセント').sub), '消費税 500円');
+  await page.evaluate(() => loadKoePhrase()); await w(300);
+  check('  🎤 声（電卓）：「税込57500円のうち消費税」→ 5227', await page.evaluate(() => { window.speechSay = () => {}; disp_val = '0'; voiceAcceptDentaku('税込57500円のうち消費税'); return disp_val; }), '5227');
+  check('  　声の計算帳では これまでどおり（1円未満は そのまま）', await page.evaluate(() => { const r = window.KoePhrase.match('税込57500円のうち消費税', { tax: 10, today: () => new Date() }); return String(Math.round(r.v * 100) / 100); }), '5227.27');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runDasetsu562(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🚛 打設の段取り：時刻の窓・終わりの時刻から逆算・車の台数ごとの予定（v562） ──');
@@ -15021,6 +15109,7 @@ async function runQrShare(browser) {
     if (!only || only === 'kuji' || only === 'v561') await runKuji561(browser);
     if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
     if (!only || only === 'okaeshi' || only === 'v564') await runOkaeshi564(browser);
+    if (!only || only === 'tax' || only === 'v565') await runTax565(browser);
     if (!only || only === 'dasetsu' || only === 'ds562') await runDasetsu562(browser);
     if (!only || only === 'hyoplus' || only === 'v563') await runHyoPlus563(browser);
     if (!only || only === 'firsthint') await runFirstHint(browser);
