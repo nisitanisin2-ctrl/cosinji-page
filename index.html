@@ -22802,9 +22802,11 @@ function hpCellTap(r,c){
   }
   return false;
 }
-/* スペースキーで ☑⇄☐ */
+/* スペースキーで ☑⇄☐（えらぶだけの列は えらぶ窓） */
 function hpKeySpace(){
   if(cellEditing) return false;
+  const k=hpKindAt(selR,selC);
+  if(k && k.k==='pk'){ if(!isLockedCell(selR,selC)) hpPickOpen(selR,selC); return true; }
   const st=hpCkCell(selR,selC); if(st==null) return false;
   setCellVal(selR,selC, st?'':'1');
   return true;

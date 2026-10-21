@@ -677,7 +677,8 @@ function fOk(){
   let cd=null;
   if(st.tab==='v'){
     const boxes=[...document.querySelectorAll('#hpFv input[data-i]')];
-    const on=boxes.filter(x=>x.checked).map(x=>st.vals[+x.dataset.i].k);
+    const finding=!!String(st.q||'').trim();   // さがしているときは、見えているものだけ（Excel と同じ）
+    const on=boxes.filter(x=>x.checked && (!finding || x.closest('.hp-v').style.display!=='none')).map(x=>st.vals[+x.dataset.i].k);
     if(!on.length){ toast('1つ以上 えらんでください'); return; }
     if(on.length<boxes.length) cd={v:on};
   } else if(st.tab==='n'){
@@ -1035,6 +1036,7 @@ function chartRender(){
 }
 function chartDraw(){
   const box=$('hpChBox'); if(!box) return;
+  tipHide();   // 前の図の吹き出しは捨てる（描き直すと 中身ごと入れかわるため）
   const m=chartModel();
   const notes=(m.notes||[]).slice();
   if(!m.series.length || !m.cats.length){ box.innerHTML='<div class="hp-ch-empty">数の入った列がありません。<br>グラフにしたい表（見出しの行＋項目の列＋数の列）の中を えらんでから 開いてください。</div>'; $('hpChNote').textContent=''; $('hpChTbl').innerHTML=''; return; }

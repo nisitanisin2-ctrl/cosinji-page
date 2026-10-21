@@ -10282,6 +10282,9 @@ async function runHyoPlus563(browser) {
   check('  えらぶと 入る（窓は閉じる）', await page.evaluate(() => data[2][3] + '/' + !document.getElementById('hpPickBg')), 'ポイント/true');
   await page.tap('#c2_3'); await w(250); await page.evaluate(() => window.history.back()); await w(400);
   check('  端末の「戻る」は えらぶ窓だけ閉じる', await page.evaluate(() => !document.getElementById('hpPickBg') + '/' + data[2][3]), 'true/ポイント');
+  await page.evaluate(() => sel(2, 3)); await page.keyboard.press('Space'); await w(250);
+  check('  スペースキーでも えらぶ窓', await page.evaluate(() => !!document.getElementById('hpPickBg')), true);
+  await page.evaluate(() => hpPickHide()); await w(100);
   await page.tap('#c2_3'); await w(250); await page.click('.hp-pick-x [data-a="clear"]'); await w(200);
   check('  🧹 空にする', await page.evaluate(() => JSON.stringify(data[2][3])), '""');
   await page.evaluate(() => undoLast()); await w(150);
@@ -10352,6 +10355,11 @@ async function runHyoPlus563(browser) {
   await page.evaluate(() => { hpRun('filter', 0); }); await w(300);
   await page.evaluate(() => HP.fClear()); await w(300);
   await page.evaluate(() => { hpRun('filter', 3); }); await w(300);
+  await page.evaluate(() => { HP.fFind('カー'); HP.fOk(); }); await w(300);
+  check('  えらぶ：さがして しぼる（見えているものだけ）', await page.evaluate(() => JSON.stringify(cellStyles._flt.cond[3])), '{"v":["カード"]}');
+  await page.evaluate(() => { hpRun('filter', 3); }); await w(300);
+  await page.evaluate(() => HP.fClear()); await w(300);
+  await page.evaluate(() => { hpRun('filter', 3); }); await w(300);
   await page.evaluate(() => { HP.fTab('q'); }); await w(100);
   await page.evaluate(() => { document.getElementById('hpFt').value = 'カー'; HP.fOk(); }); await w(300);
   check('  字で（カー を含む）', await page.evaluate(() => JSON.stringify(cellStyles._flt.cond[3]) + '/' + cellStyles._flt.hid.join(',')), '{"q":"カー"}/1,2,4,5,6');
@@ -10400,6 +10408,10 @@ async function runHyoPlus563(browser) {
   const box = await page.locator('#hpChBox svg path').nth(3).boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await w(150);
   check('  ふれると その日の数（吹き出し）', await page.evaluate(() => { const t = document.querySelector('.hp-tip'); return t ? [...t.children].map(c => c.textContent).join('|') : '(なし)'; }), '10/4|12,000金額');
+  await page.evaluate(() => { HP.chType('line'); HP.chType('bar'); }); await w(250);
+  const box2 = await page.locator('#hpChBox svg path').nth(1).boundingBox();
+  await page.mouse.move(box2.x + box2.width / 2, box2.y + box2.height / 2); await w(150);
+  check('  描き直しても 吹き出しが出る', await page.evaluate(() => { const t = document.querySelector('#hpChBox .hp-tip'); return t ? t.firstChild.textContent : '(なし)'; }), '10/2');
   await page.evaluate(() => HP.chLc(1)); await w(250);
   check('  項目を 費目に', await page.evaluate(() => HP.chartModel().cats.join(',')), '食費,日用品,食費,光熱費,食費,交通費');
   await page.evaluate(() => { HP.chLc(0); HP.chType('pie'); }); await w(250);
