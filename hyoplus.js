@@ -323,7 +323,7 @@ function kindApply(){
       else if(s===0){ data[r][c]=''; fixed++; }
     }
   }
-  else o[c]={k:'pk', r1:st.r1, o:st.opts.slice(0,MAXOPT)};
+  else o[c]=Object.assign({k:'pk', r1:st.r1, o:st.opts.slice(0,MAXOPT)}, (was && was.k==='pk' && was.r2!=null && (was.r1|0)===st.r1) ? {r2:was.r2, h:was.h} : {});   // 1マスだけの えらぶ欄（式テンプレ）は そのまま1マス（v565）
   if(Object.keys(o).length) cellStyles._ct=o; else delete cellStyles._ct;
   afterEdit();
   toast(!st.k ? (ALPHA[c]+'列を ふつうの列に戻しました') :

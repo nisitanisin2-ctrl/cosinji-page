@@ -12,6 +12,10 @@
 let OPT={tax:10, today:()=>new Date()};
 const settings={ get tax(){ return OPT.tax; } };
 const taxF=()=>1+(+OPT.tax)/100;
+/* 消費税の1円未満（表電卓の電卓から round を渡されたときだけ 円にそろえる。声の計算帳では そのまま）v565 */
+const TAX_RN={down:'切り捨て', round:'四捨五入', up:'切り上げ'};
+const taxYen=v=>{ const m=OPT.round; if(!TAX_RN[m]) return v; const y=+Math.abs(v).toFixed(6), r=m==='up'?Math.ceil(y):m==='round'?Math.round(y):Math.floor(y); return (v<0&&r)?-r:r; };
+const taxYenF=()=>TAX_RN[OPT.round]?'（1円未満は'+TAX_RN[OPT.round]+'）':'';
 const today=()=>OPT.today();
 const WARI=(m1,m2)=>(+m1)/10+(m2?(+m2)/100:0);
 const WD='日月火水木金土';
@@ -473,9 +477,9 @@ const PHRASES=[
    f:g=>{ const a=pn(g.a), p=pn(g.p), v=a*p/100; return pOut(v,'',{a:fmt(Math.floor(v+1e-9))+'ポイント', say:fmt(Math.floor(v+1e-9))+'ポイント です', f:fmtU(a,'円')+' × '+fmt(p)+'%'}); }},
   // ── 税・源泉 ──
   {c:'税・源泉', p:['(税込み|税込|税込価格){a}円?(の|に含まれる|のうちの|のうち)<ZEIGAKU>','{a}円?(は|が|って)?(税込み|税込)(の|で|だと)(うち|うちの)?<ZEIGAKU>'],
-   f:g=>{ const a=pn(g.a), v=a-a/taxF(); return pOut(v,'円',{pre:'消費税 ', sayPre:'消費税は ', f:fmtU(a,'円')+' − '+fmtU(a,'円')+' ÷ '+fmt(taxF())}); }},
+   f:g=>{ const a=pn(g.a), v=taxYen(a-a/taxF()); return pOut(v,'円',{pre:'消費税 ', sayPre:'消費税は ', f:fmtU(a,'円')+' − '+fmtU(a,'円')+' ÷ '+fmt(taxF())+taxYenF()}); }},
   {c:'税・源泉', p:['{a}円?(の|に)?<ZEIGAKU2>','{a}円?(に|の)(かかる|つく|付く)(消費税|税金|税)'],
-   f:g=>{ const a=pn(g.a), v=a*(taxF()-1); return pOut(v,'円',{pre:'消費税 ', sayPre:'消費税は ', f:fmtU(a,'円')+' × '+settings.tax+'%'}); }},
+   f:g=>{ const a=pn(g.a), v=taxYen(a*(taxF()-1)); return pOut(v,'円',{pre:'消費税 ', sayPre:'消費税は ', f:fmtU(a,'円')+' × '+settings.tax+'%'+taxYenF()}); }},
   {c:'税・源泉', p:['{a}円?(の|から|に)?<GENSEN>(は|って)?','{a}円?(の|の報酬の|の原稿料の)<GENSEN>(額|分)?'],
    f:g=>{ const a=pn(g.a), v=Math.floor(gensen(a)+1e-9); return pOut(v,'円',{pre:'源泉徴収 ', sayPre:'源泉徴収は ', f:gensenF(a)}); }},
   {c:'税・源泉', p:['{a}円?(の|から)?<GENSEN>(後|を引いた|を引くと|引き後|差し引き後|を差し引いた|を引いたら)(の)?<TEDORI>?','{a}円?(の|から)?<GENSEN>(された|を引かれた|引かれた)(あと|後)?(の)?<TEDORI>','{a}円?(の)?<TEDORI>(は)?(源泉徴収後|源泉後)'],
