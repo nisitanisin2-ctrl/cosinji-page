@@ -905,7 +905,7 @@ const INK_D={surface:'#1e2a45', primary:'#ffffff', secondary:'#c3c2b7', muted:'#
 const FONT='system-ui,-apple-system,"Hiragino Sans","Noto Sans JP","Yu Gothic UI","Meiryo","Segoe UI",sans-serif';
 const MAX_CATS=100, MAX_SER=8;
 /* 文字のだいたいの幅（SVG に置く前に はみ出さないかを見る） */
-function tw(s, size){ let w=0; for(const ch of String(s)){ const cp=ch.codePointAt(0); w+= cp>0x2E7F ? size : (cp>=48&&cp<=57) ? size*0.6 : size*0.58; } return w; }
+function tw(s, size){ let w=0; for(const ch of String(s)){ const cp=ch.codePointAt(0); w+= cp>0x2E7F ? size : /[\/.,:;()\-\s'!|]/.test(ch) ? size*0.36 : size*0.62; } return w; }
 function cut(s, size, max){ s=String(s); if(tw(s,size)<=max) return s; let o=''; for(const ch of s){ if(tw(o+ch+'…',size)>max) break; o+=ch; } return o+'…'; }
 /* 目盛り：0・1万・2万 のように切りのよい数 */
 function niceTicks(lo, hi, n){
@@ -1116,7 +1116,14 @@ function chartSvg(m, type, W, dark, o){
   let lo=Math.min(...all), hi=Math.max(...all);
   if(type==='bar'){ lo=Math.min(0,lo); hi=Math.max(0,hi); }
   else if(lo>=0 && lo<hi*0.35) lo=0;
-  const ticks=niceTicks(lo, hi, 4), y0v=ticks[0], y1v=ticks[ticks.length-1];
+  const PH=Math.max(150, Math.min(300, Math.round(W*0.5)));
+  let ticks=niceTicks(lo, hi, 4), y0v=ticks[0];
+  const y1v=ticks[ticks.length-1], step=ticks.length>1 ? ticks[1]-ticks[0] : 1;
+  if(lo<0 && hi>0 && lo>-step){   // マイナスが少しだけのときは 下を詰める（棒の下に数を出す分は空ける）
+    const room=(type==='bar' && !multi) ? 20/PH*(y1v-lo) : 0;
+    y0v=Math.max(ticks[0], Math.floor((lo-room)/(step/5))*(step/5));
+    ticks=ticks.filter(t=>t>=y0v-1e-9);
+  }
   const legH=multi ? 24 : 0;
   const tickW=Math.max(...ticks.map(t=>tw(axisLabel(t),11)));
   const endLab=type==='line' && S.length<=4;
@@ -1126,7 +1133,7 @@ function chartSvg(m, type, W, dark, o){
     const lens=S.map(s=>{ const i=lastIdx(s); return i<0?0:tw((multi?cut(s.name,11,70)+' ':'')+nf(s.vals[i]),11); });
     right=Math.min(W*0.32, Math.max(...lens)+14);
   }
-  const L=tickW+14, T=head+legH+12, B=26, PH=Math.max(150, Math.min(300, Math.round(W*0.5)));
+  const L=tickW+14, T=head+legH+12, B=26;
   const H=T+PH+B, PW=W-L-right;
   const band=PW/N;
   const yAt=v=>T+PH-(v-y0v)/(y1v-y0v)*PH;
@@ -1136,10 +1143,10 @@ function chartSvg(m, type, W, dark, o){
   // x の見出し（重ならないよう 間引く・長いものは …）
   const maxLab=Math.max(...m.cats.map(c=>tw(String(c),11)));
   const fitW=Math.max(28, band*2.6);
-  const every=Math.max(1, Math.ceil(Math.min(maxLab, fitW)/Math.max(1,band*0.95)));
+  const every=Math.max(1, Math.ceil((Math.min(maxLab, fitW)+3)/Math.max(1,band)));
   let xl='';
   m.cats.forEach((c,i)=>{ if(i%every && i!==N-1) return; if(i!==N-1 && N-1-i<every && (N-1)%every) return;
-    const x=L+band*(i+0.5); xl+=`<text x="${x.toFixed(1)}" y="${T+PH+17}" text-anchor="middle" font-size="11" fill="${K.muted}">${esc(cut(c,11,Math.max(26,band*every*0.92)))}</text>`; });
+    const x=L+band*(i+0.5); xl+=`<text x="${x.toFixed(1)}" y="${T+PH+17}" text-anchor="middle" font-size="11" fill="${K.muted}">${esc(cut(c,11,Math.max(26,band*every-3)))}</text>`; });
   if(every>1) notes.push('下の見出しは '+every+'つおきに出しています');
   let marks='', lab='';
   if(type==='bar'){
