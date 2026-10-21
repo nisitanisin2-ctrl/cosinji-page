@@ -425,10 +425,10 @@ async function runCellMenu(browser) {
   check('  長押しでメニューが出る',
         await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show')), true);
   check('  長押しでは保護にならない', await page.evaluate(() => isLockedCell(1, 1)), false);
-  check('  並びは コピー→貼り付け→消去→書式→保護',
+  check('  並びは コピー→貼り付け→消去→書式→保護→グラフ・色・しぼる（v563）',
         await page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent)
           .map(b => b.textContent.trim().split(' ').pop()).join('/')),
-        'コピー/貼り付け/消去/書式/保護');
+        'コピー/貼り付け/消去/書式/保護/グラフ・色・しぼる');
 
   // 端末でコピーした文字を貼れる
   await page.evaluate(() => navigator.clipboard.writeText('こんにちは'));
@@ -3962,7 +3962,7 @@ async function runExport(browser) {
   // ── ☰メニューの整理（v375・v459） ──
   await page.evaluate(() => openMoreMenu()); await page.waitForTimeout(400);
   check('  項目の数（v459：道具の一覧は ☰ の外の窓に）', await page.evaluate(() =>
-    document.querySelectorAll('#moreMenuOverlay .more-item').length), 22);   // v465：戻す・声を外し、⌨（右置きのときだけ出る）を足した。v560：📝別の名前で保存（記録を開いているときだけ見える）
+    document.querySelectorAll('#moreMenuOverlay .more-item').length), 27);   // v465：戻す・声を外し、⌨（右置きのときだけ出る）を足した。v560：📝別の名前で保存（記録を開いているときだけ見える）。v563：📊 表を強くする の5つ
   check('  はじめは畳んである', await page.evaluate(() =>
     document.getElementById('moreAccAll').open),
     false);
@@ -10212,6 +10212,252 @@ async function runDasetsu562(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+/* ── 表を強くする（v563）：☑ チェック欄・📋 えらぶだけの列・🎨 条件で色・🔎 しぼり込み・📑 項目ごとの合計・📊 グラフ・SUMIF など ── */
+async function runHyoPlus563(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📊 表を強くする：チェック欄・えらぶ列・条件で色・しぼり込み・まとめ表・グラフ・SUMIF（v563） ──');
+  const w = ms => page.waitForTimeout(ms);
+  // 家計簿の表（見出し＋6行＋合計の行）
+  const KAKEI = [['日付', '費目', '金額', '支払', '済'], ['2026/10/1', '食費', '1200', '現金', '済'], ['2026/10/2', '日用品', '800', 'カード', ''], ['2026/10/3', '食費', '3500', 'カード', '○'], ['2026/10/4', '光熱費', '12000', '現金', ''], ['2026/10/5', '食費', '-300', '現金', ''], ['2026/10/6', '交通費', '600', 'カード', ''], ['合計', '', '=SUM(C2:C7)', '', '']];
+  const setKakei = () => page.evaluate(rows => { resetAll(); setSheetSize(14, 5); rows.forEach((row, r) => row.forEach((v, c) => setCellVal(r, c, v))); recalcAll(); clearRangeSelection(); sel(1, 1); }, KAKEI);
+
+  check('  はじめは部品を読まない・入口（☰・見出しの長押し・セルの長押し・マイキー）', await page.evaluate(() => [!window.HP_PART_LOADED, document.querySelectorAll('#moreAccHp .more-item').length, !!document.getElementById('cellMenuHp'), ['a_chart', 'a_cfmt', 'a_filter', 'a_coltype', 'a_pivot'].every(k => !!KEY_FUNCS[k]), !!document.getElementById('hpBar') && document.getElementById('hpBar').hidden].join('/')), 'true/5/true/true/true');
+
+  // ── 式：SUMIF・COUNTIF・AVERAGEIF・…IFS・SUBTOTAL・TRUE/FALSE ──
+  await setKakei();
+  const fx = await page.evaluate(() => {
+    const f = s => { setCellVal(12, 4, s); const d = getCellDisplay(12, 4); setCellVal(12, 4, ''); return d; };
+    return [
+      f('=SUMIF(B2:B7,"食費",C2:C7)'), f('=SUMIF(C2:C7,">=1000")'), f('=COUNTIF(B2:B7,"食費")'), f('=COUNTIF(C2:C7,"<0")'),
+      f('=COUNTIF(D2:D7,"<>現金")'), f('=COUNTIF(B2:B7,"*費")'), f('=COUNTIF(B2:B7,"?用品")'), f('=AVERAGEIF(B2:B7,"食費",C2:C7)'),
+      f('=SUMIFS(C2:C7,B2:B7,"食費",D2:D7,"現金")'), f('=COUNTIFS(B2:B7,"食費",C2:C7,">1000")'), f('=AVERAGEIFS(C2:C7,D2:D7,"カード")'),
+      f('=SUMIF(A2:A7,">=2026/10/4",C2:C7)'), f('=COUNTIF(E2:E7,"")'), f('=SUBTOTAL(9,C2:C7)'), f('=SUBTOTAL(1,C2:C7)'), f('=SUBTOTAL(2,C2:C7)'),
+      f('=SUBTOTAL(4,C2:C7)'), f('=TRUE+FALSE'), f('=TRUE()*5'), f('=AVERAGEIF(B2:B7,"なし",C2:C7)'), f('=SUMIF(1,2)'), f('=SUMIF(B2:B7,B2,C2:C7)'),
+      f('=SUMIF(B2:B7,"食費")'), f('=COUNTIF(C2:C7,1200)'), f('=SUMIF(C2:C7,"<"&C3)')
+    ].join('|');
+  });
+  check('  SUMIF・COUNTIF（>=・<>・*・?・日付・空）・AVERAGEIF・SUMIFS・COUNTIFS・AVERAGEIFS・SUBTOTAL・TRUE/FALSE・エラー',
+    fx, '4400|16700|3|1|3|5|1|1466.667|900|2|1633.333|12300|4|17800|2966.667|6|12000|1|5|#DIV/0!|#VALUE!|4400|0|1|300');
+  check('  使い方の関数の一覧・Excel 読み込みでも使える関数に入る', await page.evaluate(() => ['SUMIF', 'COUNTIF', 'AVERAGEIF', 'SUMIFS', 'COUNTIFS', 'SUBTOTAL', 'TRUE'].every(n => FORMULA_FUNCS[n] && XLSX_FUNCS.has(n)) + '/' + xlsxFormulaCompatible('SUMIF(A1:A3,"x",B1:B3)+SUBTOTAL(9,B1:B3)')), 'true/true');
+  check('  ほかのシートを見る SUMIF', await page.evaluate(() => { addSheet(); setCellVal(0, 0, "=SUMIF('シート1'!B2:B7,\"食費\",'シート1'!C2:C7)"); const d = getCellDisplay(0, 0); deleteSheet(curSheet); return d + '/' + sheets.length; }), '4400/1');
+
+  // ── ☑ チェック欄 ──
+  await setKakei();
+  await page.evaluate(() => hpRun('kind', 4)); await w(400);
+  check('  ☑ の窓（はじめは ふつう・見出しは1行目）', await page.evaluate(() => [HP.view(), HP.state().k, HP.state().r1, document.querySelectorAll('.hp-kind').length].join('/')), 'kind//1/3');
+  await page.evaluate(() => HP.kSet('ck')); await w(150);
+  check('  ☑ を えらぶと ☑ の行だけの合計（済・○ も ☑ とみる）', await page.evaluate(() => document.querySelector('.hp-sum').textContent.replace(/\s+/g, '')), '☑の行：4,700（2行）☐の行：13,100（4行）');
+  await page.evaluate(() => HP.kOk()); await w(300);
+  check('  決める → 済・○ は 1 に、表には ☑／☐（見出しと 合計の行の空きは そのまま）', await page.evaluate(() => [JSON.stringify(cellStyles._ct), [1, 2, 3, 4].map(r => data[r][4]).join(','), [0, 1, 2, 3, 7].map(r => getCellDisplay(r, 4)).join(','), document.getElementById('c1_4').classList.contains('hp-ck-on'), document.getElementById('c2_4').getAttribute('aria-checked'), document.getElementById('c7_4').classList.contains('hp-ck'), document.getElementById('c10_4').classList.contains('hp-idle')].join('/')), '{"4":{"k":"ck","r1":1}}/1,,1,/済,☑,☐,☑,/true/false/false/true');
+  await page.tap('#c2_4'); await w(200);
+  check('  押すと ☑（選んだセルも そこ）', await page.evaluate(() => [data[2][4], getCellDisplay(2, 4), selR + ',' + selC, document.getElementById('c2_4').classList.contains('hp-ck-on')].join('/')), '1/☑/2,4/true');
+  await page.tap('#c2_4'); await w(200);
+  await page.keyboard.press('Space'); await w(150);
+  check('  もう一度押すと ☐、スペースキーでも ☑⇄☐', await page.evaluate(() => data[2][4]), '1');
+  await page.evaluate(() => undoLast()); await w(150);
+  check('  ↶戻る で ☑ をはずす前に', await page.evaluate(() => data[2][4]), '');
+  check('  COUNTIF(…,1)・SUMIF(…,1,…) で ☑ の数と合計', await page.evaluate(() => { setCellVal(12, 0, '=COUNTIF(E2:E7,1)'); setCellVal(12, 1, '=SUMIF(E2:E7,TRUE,C2:C7)'); const a = getCellDisplay(12, 0) + ',' + getCellDisplay(12, 1); setCellVal(12, 0, ''); setCellVal(12, 1, ''); return a; }), '2,4700');
+  await page.evaluate(() => { toggleUserLock(3, 4); }); await w(100);
+  await page.tap('#c3_4'); await w(200);
+  check('  保護したセルは 押しても変わらない', await page.evaluate(() => data[3][4]), '1');
+  await page.evaluate(() => { toggleUserLock(3, 4); setCellVal(5, 4, '=1'); }); await w(100);
+  await page.tap('#c5_4'); await w(150);
+  check('  式のセルは ☑ にせず答えを出す（押しても書きかえない）', await page.evaluate(() => [getCellDisplay(5, 4), data[5][4], document.getElementById('c5_4').classList.contains('hp-ck')].join('/')), '1/=1/false');
+  await page.evaluate(() => setCellVal(5, 4, '')); await w(80);
+  await page.evaluate(() => hpRun('kind', 4)); await w(300);
+  await page.evaluate(() => HP.kSumPut()); await w(400);
+  check('  ☑ の合計を表に入れる（いちばん下の次の行に SUMIF の式）', await page.evaluate(() => [data[8][2], data[8][1], getCellDisplay(8, 2), selR + ',' + selC].join('/')), '=SUMIF(E2:E8,1,C2:C8)/☑の合計/4700/8,2');
+  check('  合計の行は ☑ にならない（2つ続いても）', await page.evaluate(() => [hpIsTotalRow(7), hpIsTotalRow(8), getCellDisplay(7, 4), getCellDisplay(8, 4), hpFltRegion({ h: 0 }).r2, hpFltRegion({ h: 0 }).tot].join('/')), 'true/true///6/7');
+
+  // ── 📋 えらぶだけの列 ──
+  await page.evaluate(() => hpRun('kind', 3)); await w(300);
+  await page.evaluate(() => HP.kSet('pk')); await w(150);
+  check('  えらぶ言葉は 入っている字から（現金・カード）', await page.evaluate(() => document.getElementById('hpKo').value), '現金\nカード');
+  check('  言葉の区切り（改行・、・／・, 重なりは1つ）', await page.evaluate(() => HP.parseOpts('現金、カード／ポイント\n現金, 振込').join('|')), '現金|カード|ポイント|振込');
+  await page.evaluate(() => { document.getElementById('hpKo').value = '現金\nカード\nポイント'; HP.kOk(); }); await w(300);
+  check('  えらぶだけの列（▾ の印・見出しには付かない）', await page.evaluate(() => [JSON.stringify(cellStyles._ct[3]), document.getElementById('c2_3').classList.contains('hp-pk'), document.getElementById('c0_3').classList.contains('hp-pk'), document.getElementById('c11_3').classList.contains('hp-idle')].join('/')), '{"k":"pk","r1":1,"o":["現金","カード","ポイント"]}/true/false/true');
+  await page.tap('#c2_3'); await w(300);
+  check('  押すと えらぶ窓（いまの言葉に ✓）', await page.evaluate(() => [!!document.getElementById('hpPickBg'), [...document.querySelectorAll('.hp-pick-o')].map(b => b.textContent + (b.classList.contains('on') ? '✓' : '')).join(','), selR + ',' + selC].join('/')), 'true/現金,カード✓,ポイント/2,3');
+  await page.click('.hp-pick-o[data-i="2"]'); await w(200);
+  check('  えらぶと 入る（窓は閉じる）', await page.evaluate(() => data[2][3] + '/' + !document.getElementById('hpPickBg')), 'ポイント/true');
+  await page.tap('#c2_3'); await w(250); await page.evaluate(() => window.history.back()); await w(400);
+  check('  端末の「戻る」は えらぶ窓だけ閉じる', await page.evaluate(() => !document.getElementById('hpPickBg') + '/' + data[2][3]), 'true/ポイント');
+  await page.tap('#c2_3'); await w(250); await page.click('.hp-pick-x [data-a="clear"]'); await w(200);
+  check('  🧹 空にする', await page.evaluate(() => JSON.stringify(data[2][3])), '""');
+  await page.evaluate(() => undoLast()); await w(150);
+
+  // ── 🎨 条件で色 ──
+  await page.evaluate(() => { sel(1, 2); hpRun('cf', 2); }); await w(400);
+  check('  色の窓：決まりは まだ無い・たたき台が6つ', await page.evaluate(() => [HP.view(), document.querySelectorAll('.hp-rule').length, document.querySelectorAll('.hp-tpl').length].join('/')), 'cf/0/6');
+  await page.evaluate(() => HP.cfNew('neg')); await w(150);
+  check('  マイナスは赤い字：いま何セル（見本つき）', await page.evaluate(() => document.getElementById('hpCcnt').textContent + '/' + document.getElementById('hpCsw').style.color), 'いま 1 セルに付きます/var(--hpf-red)');
+  await page.evaluate(() => HP.cfSave()); await w(200);
+  await page.evaluate(() => HP.cfNew('top')); await w(120);
+  await page.evaluate(() => { document.getElementById('hpCn').value = '2'; HP.cfSave(); }); await w(200);
+  check('  決まり2つ（あとから足したほうが上）・表に色', await page.evaluate(() => [cellStyles._cf.map(r => r.t + ':' + JSON.stringify(r.st)).join(','), document.getElementById('c5_2').style.color, document.getElementById('c4_2').style.fontWeight, document.getElementById('c3_2').style.fontWeight, document.getElementById('c7_2').style.fontWeight].join('/')), 'top:{"b":1},neg:{"fc":"red"}/var(--hpf-red)/bold/bold/');
+  await page.evaluate(() => setCellVal(2, 2, '-50')); await w(100);
+  check('  中身を直すと すぐ色も変わる', await page.evaluate(() => document.getElementById('c2_2').style.color), 'var(--hpf-red)');
+  await page.evaluate(() => { HP.close(); ['2020/1/1', '2099/1/2', '2099/1/3', '2020/5/5', '2099/1/5', '2099/1/6'].forEach((v, i) => setCellVal(i + 1, 0, v)); setCellVal(1, 4, ''); setCellVal(3, 4, '1'); hpRun('cf', 0); }); await w(400);
+  await page.evaluate(() => HP.cfNew('past')); await w(150);
+  check('  期限が過ぎたら黄色（日付の列を見て 行ぜんぶ・☑ の行は外す）', await page.evaluate(() => { const r = HP.state().ru; return [r.t, r.row, r.kc, r.c1 + '-' + r.c2, r.nock, JSON.stringify(r.st), document.getElementById('hpCcnt').textContent].join('/'); }), 'past/1/0/0-4/4/{"bg":"yellow"}/いま 10 セルに付きます');
+  await page.evaluate(() => HP.cfSave()); await w(200);
+  check('  行ぜんぶ黄色（日付が過ぎた2行）', await page.evaluate(() => [1, 4].map(r => [0, 1, 2, 3, 4].map(c => document.getElementById(`c${r}_${c}`).style.background === 'var(--hpb-yellow)' ? 'Y' : '-').join('')).join(',') + '/' + document.getElementById('c2_0').style.background), 'YYYYY,YYYYY/');
+  await page.evaluate(() => setCellVal(1, 4, '1')); await w(150);
+  check('  ☑ を付けると その行は外れる', await page.evaluate(() => document.getElementById('c1_0').style.background), '');
+  await page.evaluate(() => HP.cfMove(1, -1)); await w(150);
+  check('  順番を入れかえ（↑）', await page.evaluate(() => cellStyles._cf.map(r => r.t).join(',')), 'top,past,neg');
+  await page.evaluate(() => HP.cfEdit(2)); await w(150);
+  await page.evaluate(() => { HP.cfSt('bg', 'red'); }); await w(100);
+  await page.evaluate(() => HP.cfSave()); await w(200);
+  check('  直す（赤い字＋赤い背景）', await page.evaluate(() => JSON.stringify(cellStyles._cf[2].st) + '/' + document.getElementById('c5_2').style.background), '{"fc":"red","bg":"red"}/var(--hpb-red)');
+  await page.evaluate(() => HP.cfDel(1)); await w(200);
+  check('  消す（↶戻る で戻せる）', await page.evaluate(() => { const a = cellStyles._cf.map(r => r.t).join(','); undoLast(); return a + '>' + cellStyles._cf.map(r => r.t).join(','); }), 'top,neg>top,past,neg');
+  check('  夜の画面は 夜の色（決まりは同じ）', await page.evaluate(() => { const a = getComputedStyle(document.body).getPropertyValue('--hpb-yellow').trim(); toggleDark(); const b = getComputedStyle(document.body).getPropertyValue('--hpb-yellow').trim(); toggleDark(); return a + '>' + b; }), '#fff59d>#5c5000');
+  check('  書き出し用は 明るい色（Excel・印刷）', await page.evaluate(() => { const m = hpCfCompute(); return JSON.stringify(hpEffStyle(5, 2, m)); }), '{"color":"#d32f2f","bg":"#ffcdd2"}');
+  const dl = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.evaluate(() => exportXLSX())]).then(a => a[0]).catch(() => null);
+  if (dl) {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'excalc-hp-')), saved = path.join(tmp, 'hp.xlsx');
+    await dl.saveAs(saved);
+    const { readZipEntry } = require('./zip.js');
+    const styles = String(readZipEntry(saved, 'xl/styles.xml')), sheet = String(readZipEntry(saved, 'xl/worksheets/sheet1.xml'));
+    check('  Excel に書き出すと 条件の色も入る（黄色・赤）・式は SUMIF のまま・えらぶ列は Excel でも えらぶ欄', [styles.includes('FFFFF59D'), styles.includes('FFFFCDD2'), sheet.includes('SUMIF(E2:E8,1,C2:C8)'), /<dataValidations count="1"><dataValidation type="list" allowBlank="1" showErrorMessage="0" sqref="D2:D14"><formula1>"現金,カード,ポイント"<\/formula1>/.test(sheet)].join('/'), 'true/true/true/true');
+    fs.rmSync(tmp, { recursive: true, force: true });
+  } else check('  Excel に書き出せる', 'ダウンロードされず', 'できる');
+
+  // ── 🔎 しぼり込み ──
+  await setKakei();
+  await page.evaluate(() => { sel(2, 1); hpRun('filter', 1); }); await w(400);
+  check('  始めると：見出しは1行目・合計の SUM は しぼった分の SUBTOTAL に・▾ の印・帯', await page.evaluate(() => [JSON.stringify(cellStyles._flt), data[7][2], document.querySelectorAll('#sheet .hp-fb').length, !document.getElementById('hpBar').hidden, document.querySelector('.hp-note').textContent].join('/')), '{"h":0,"cond":{},"hid":[]}/=SUBTOTAL(9,C2:C7)/5/true/C8 の合計を、しぼった分だけの合計（SUBTOTAL）にしました。');
+  check('  えらぶ：出てくる字と数（数え方・並び）', await page.evaluate(() => HP.state().vals.map(v => v.k + v.n).join(',')), '交通費1,光熱費1,食費3,日用品1');
+  await page.evaluate(() => { document.querySelectorAll('#hpFv input[data-i]').forEach(x => { x.checked = HP.state().vals[+x.dataset.i].k === '食費'; }); HP.fOk(); }); await w(300);
+  check('  食費だけ：隠す行・帯・合計の行は しぼった分', await page.evaluate(() => [cellStyles._flt.hid.join(','), document.querySelectorAll('#sheet tr.hp-hid').length, document.querySelector('#hpBar .hp-bar-t').textContent, document.querySelector('#hpBar .hp-bar-n').textContent, getCellDisplay(7, 2)].join('/')), '2,4,6/3/🔎 費目：食費/3/6行/4400');
+  await page.evaluate(() => sel(1, 2)); await w(100);
+  check('  右上の合計も しぼった分（合計の行は入れない・🔎 の印）', await page.evaluate(() => document.getElementById('statsTitle').textContent + ' ' + document.getElementById('sSum').textContent), '合計C🔎 4,400');
+  await page.keyboard.press('ArrowDown'); await w(80);
+  check('  ↓ は 隠した行を飛ばす', await page.evaluate(() => selR + ',' + selC), '3,2');
+  await page.evaluate(() => { rangeR1 = 1; rangeC1 = 2; rangeR2 = 3; rangeC2 = 2; clearSelection(); }); await w(150);
+  check('  まとめて消しても 隠した行は消さない', await page.evaluate(() => [1, 2, 3].map(r => data[r][2]).join(',')), ',800,');
+  await page.evaluate(() => undoLast()); await w(150);
+  await page.evaluate(() => { hpRun('filter', 2); }); await w(300);
+  await page.evaluate(() => { HP.fTab('n'); }); await w(100);
+  await page.evaluate(() => { document.getElementById('hpFlo').value = '1千'; HP.fOk(); }); await w(300);
+  check('  数で（1千 以上）も重ねる', await page.evaluate(() => [JSON.stringify(cellStyles._flt.cond), cellStyles._flt.hid.join(','), document.querySelector('#hpBar .hp-bar-t').textContent].join('/')), '{"1":{"v":["食費"]},"2":{"lo":1000}}/2,4,5,6/🔎 費目：食費／金額：1,000以上');
+  await page.evaluate(() => setCellVal(1, 2, '10')); await w(150);
+  check('  中身を直しても 行は そのまま（🔄 でしぼり直す）', await page.evaluate(() => { const a = cellStyles._flt.hid.join(','); hpFltReapply(); return a + '>' + cellStyles._flt.hid.join(','); }), '2,4,5,6>1,2,4,5,6');
+  await page.evaluate(() => { undoLast(); hpFltReapply(); hpRun('filter', 0); }); await w(300);
+  await page.evaluate(() => { HP.fTab('n'); }); await w(100);
+  check('  日付の列は「いつから・いつまで」', await page.evaluate(() => document.getElementById('hpFlo').type + '/' + HP.state().isDate), 'date/true');
+  await page.evaluate(() => { document.getElementById('hpFlo').value = '2026-10-03'; HP.fOk(); }); await w(300);
+  check('  10/3 から（食費・1000以上と重ねて）', await page.evaluate(() => [cellStyles._flt.hid.join(','), document.querySelector('#hpBar .hp-bar-t').textContent].join('/')), '1,2,4,5,6/🔎 日付：10/3から／費目：食費／金額：1,000以上');
+  await page.evaluate(() => { hpRun('filter', 0); }); await w(300);
+  await page.evaluate(() => HP.fClear()); await w(300);
+  await page.evaluate(() => { hpRun('filter', 3); }); await w(300);
+  await page.evaluate(() => { HP.fTab('q'); }); await w(100);
+  await page.evaluate(() => { document.getElementById('hpFt').value = 'カー'; HP.fOk(); }); await w(300);
+  check('  字で（カー を含む）', await page.evaluate(() => JSON.stringify(cellStyles._flt.cond[3]) + '/' + cellStyles._flt.hid.join(',')), '{"q":"カー"}/1,2,4,5,6');
+  await page.reload(); await w(900);
+  check('  開き直しても しぼったまま（帯・隠す行）', await page.evaluate(() => [cellStyles._flt.hid.join(','), document.querySelectorAll('#sheet tr.hp-hid').length, !document.getElementById('hpBar').hidden].join('/')), '1,2,4,5,6/5/true');
+  check('  印刷（PDF）は 見えている行だけ', await page.evaluate(() => { const h = buildPdfHtml({ border: 'all' }); return (h.match(/<tr>/g) || []).length + '/' + ROWS; }), '9/14');
+  await page.evaluate(() => hpFltOff()); await w(200);
+  check('  やめる → 全部出す（帯・▾ も消える。SUBTOTAL は そのまま）', await page.evaluate(() => [cellStyles._flt === undefined, document.querySelectorAll('#sheet tr.hp-hid').length, document.querySelectorAll('#sheet .hp-fb').length, document.getElementById('hpBar').hidden, data[7][2]].join('/')), 'true/0/0/true/=SUBTOTAL(9,C2:C7)');
+  // 「これだけ」・並べかえ
+  await page.evaluate(() => { sel(3, 1); hpRun('menu'); }); await w(400);
+  check('  セルの長押し → 表を強くする（「食費」だけを出す もある）', await page.evaluate(() => [...document.querySelectorAll('.hp-mi b')].map(b => b.textContent).join(',')), 'グラフにする,条件で色をつける,「食費」だけを出す,しぼり込み・並べかえ,チェック欄・えらぶだけの列,項目ごとの合計');
+  await page.evaluate(() => HP.go('quick')); await w(300);
+  check('  「食費」だけを出す', await page.evaluate(() => JSON.stringify(cellStyles._flt.cond) + '/' + cellStyles._flt.hid.join(',')), '{"1":{"v":["食費"]}}/2,4,6');
+  await page.evaluate(() => { setCellVal(1, 4, '=C2*2'); setCellVal(4, 4, '=C5*2'); cellStyles['4,1'] = { bold: true }; hpRun('filter', 2); }); await w(300);
+  await page.evaluate(() => HP.sortBy(2, true)); await w(300);
+  check('  大きい順：行ごと動く（式は自分の行のまま・書式も・隠す印も・合計の行は動かない）', await page.evaluate(() => [[1, 2, 3, 4, 5, 6].map(r => data[r][2]).join(','), data[1][4], data[3][4], !!(cellStyles['1,1'] && cellStyles['1,1'].bold), cellStyles._flt.hid.join(','), data[7][2]].join('/')), '12000,3500,1200,800,600,-300/=C2*2/=C4*2/true/1,4,5/=SUBTOTAL(9,C2:C7)');
+  await page.evaluate(() => undoLast()); await w(300);
+  check('  ↶戻る で 並べかえる前に', await page.evaluate(() => [1, 2, 3, 4, 5, 6].map(r => data[r][2]).join(',') + '/' + cellStyles._flt.hid.join(',')), '1200,800,3500,12000,-300,600/2,4,6');
+  await page.evaluate(() => { hpFltOff(); hpRun('filter', 1); }); await w(300);
+  await page.evaluate(() => HP.sortBy(1, false)); await w(300);
+  check('  あいうえお順（字）', await page.evaluate(() => [1, 2, 3, 4, 5, 6].map(r => data[r][1]).join(',')), '交通費,光熱費,食費,食費,食費,日用品');
+  await page.evaluate(() => { hpFltOff(); }); await w(100);
+
+  // ── 📑 項目ごとの合計 ──
+  await setKakei();
+  await page.evaluate(() => { sel(1, 1); hpRun('pivot', 1); }); await w(400);
+  check('  まとめ表（多い順・合計の行も・もとの合計の行は入れない）', await page.evaluate(() => HP.pivotRows().map(r => r.join(':')).join('|')), '費目:金額の合計|光熱費:12000|食費:4400|日用品:800|交通費:600|合計:17800');
+  await page.evaluate(() => HP.pv('fn', 'cnt')); await w(120);
+  check('  件数（同じ数は 出てきた順）', await page.evaluate(() => HP.pivotRows().map(r => r.join(':')).join('|')), '費目:件数|食費:3|日用品:1|光熱費:1|交通費:1|合計:6');
+  await page.evaluate(() => { HP.pv('fn', 'sum'); HP.pv('order', 'first'); HP.pv('pct'); }); await w(120);
+  await page.evaluate(() => HP.pvMake()); await w(600);
+  const pvs = await page.evaluate(() => ({ name: sheets[curSheet].name, n: sheets.length, a: [0, 1, 2, 3, 4, 5].map(r => [0, 1, 2].map(c => getCellDisplay(r, c)).join(':')).join('|'), f: data[1][1], p: data[1][2], bold: !!(cellStyles['0,0'] && cellStyles['0,0'].bold) }));
+  check('  新しいシートに SUMIF の式で（割合％・見出しは太字）', [pvs.name, pvs.n, pvs.a, pvs.f, pvs.p, pvs.bold].join('/'), "まとめ（費目）/2/費目:金額の合計:割合％|食費:4400:24.7|日用品:800:4.5|光熱費:12000:67.4|交通費:600:3.4|合計:17800:100/=SUMIF('シート1'!B2:B7,A2,'シート1'!C2:C7)/=IF(B6=0,0,ROUND(B2/B6*100,1))/true");
+  await page.evaluate(() => { switchSheet(0); setCellVal(1, 2, '2200'); switchSheet(1); }); await w(300);
+  check('  もとの表を直すと まとめも変わる', await page.evaluate(() => getCellDisplay(1, 1) + '/' + getCellDisplay(5, 1)), '5400/18800');
+  await page.evaluate(() => { window.__p = window.prompt; window.prompt = () => '家計'; renameSheet(0); window.prompt = window.__p; }); await w(200);
+  check('  もとのシートの名前を変えても 式がついていく', await page.evaluate(() => data[1][1] + '/' + getCellDisplay(1, 1)), "=SUMIF('家計'!B2:B7,A2,'家計'!C2:C7)/5400");
+  await page.evaluate(() => switchSheet(0)); await w(300);
+
+  // ── 📊 グラフ ──
+  await page.evaluate(() => { clearRangeSelection(); sel(2, 2); hpRun('chart'); }); await w(500);
+  const ch = await page.evaluate(() => { const m = HP.chartModel(), s = HP.state(); return [s.type, m.cats.join(','), m.series.map(x => x.name + '=' + x.vals.join(',')).join(';'), s.src.lcs.join(','), s.src.scs.join(','), document.querySelectorAll('#hpChBox svg path').length, document.getElementById('hpChNote').textContent].join('/'); });
+  check('  まわりの表から（日付は 10/1 と短く・合計の行は入れない・折れ線）', ch, 'line/10/1,10/2,10/3,10/4,10/5,10/6/金額=2200,800,3500,12000,-300,600/0,1,3,4/2/1/A1:E8 から・いちばん下の合計の行は 入れていません');
+  await page.evaluate(() => HP.chType('bar')); await w(250);
+  check('  棒：棒は6本（角の丸い形）・いちばん大きい棒に数・マイナスの棒にも数', await page.evaluate(() => { const svg = document.querySelector('#hpChBox svg'); return [svg.querySelectorAll('path').length, [...svg.querySelectorAll('text')].filter(t => t.getAttribute('font-weight') === 'bold').map(t => t.textContent).join(','), svg.getAttribute('role')].join('/'); }), '6/12,000,-300/img');
+  const box = await page.locator('#hpChBox svg path').nth(3).boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await w(150);
+  check('  ふれると その日の数（吹き出し）', await page.evaluate(() => { const t = document.querySelector('.hp-tip'); return t ? [...t.children].map(c => c.textContent).join('|') : '(なし)'; }), '10/4|12,000金額');
+  await page.evaluate(() => HP.chLc(1)); await w(250);
+  check('  項目を 費目に', await page.evaluate(() => HP.chartModel().cats.join(',')), '食費,日用品,食費,光熱費,食費,交通費');
+  await page.evaluate(() => { HP.chLc(0); HP.chType('pie'); }); await w(250);
+  check('  円：大きい順に5つ＋その他・マイナスは入れない（知らせる）', await page.evaluate(() => { const p = HP.pieParts(HP.chartModel(), 0); return [p.parts.map(x => x.name + '=' + x.v).join(','), p.dropped, document.getElementById('hpChNote').textContent.includes('0・マイナス・空の 1つは 円に入れていません')].join('/'); }), '10/4=12000,10/3=3500,10/1=2200,10/2=800,10/6=600/1/true');
+  await page.evaluate(() => { HP.chType('bar'); HP.chTable(); }); await w(250);
+  check('  📋 表で見る', await page.evaluate(() => [...document.querySelectorAll('#hpChTbl tr')].map(tr => [...tr.children].map(td => td.textContent).join(':')).slice(0, 3).join('|')), ':金額|10/1:2,200|10/2:800');
+  const dlg = await Promise.all([page.waitForEvent('download', { timeout: 9000 }), page.evaluate(() => HP.chSave(false))]).then(a => a[0]).catch(() => null);
+  let pngOk = 'ダウンロードされず';
+  if (dlg) { const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'excalc-hpg-')), p = path.join(tmp, 'g.png'); await dlg.saveAs(p); const b = fs.readFileSync(p); pngOk = [dlg.suggestedFilename().startsWith('hyo-graph_'), b.slice(1, 4).toString(), b.length > 5000].join('/'); fs.rmSync(tmp, { recursive: true, force: true }); }
+  check('  🖼 画像で保存（PNG・名前は英数字）', pngOk, 'true/PNG/true');
+  await page.evaluate(() => { window.__pr = window.print; window.print = () => { window.__printed = document.getElementById('printArea').innerHTML; }; HP.chPrint(); }); await w(500);
+  check('  🖨 印刷（題つきの図と表）', await page.evaluate(() => { window.print = window.__pr; const h = window.__printed || ''; return [h.includes('<svg'), h.includes('hp-tbl'), /@page\{ size: A4 landscape/.test(document.getElementById('printDynamicStyle').textContent)].join('/'); }), 'true/true/true');
+  await page.evaluate(() => HP.close()); await w(200);
+  await page.evaluate(() => { setCellVal(0, 5, 'ポイント'); [12, 8, 35, 0, 23, 6].forEach((v, i) => setCellVal(i + 1, 5, String(v))); setSheetSize(14, 6); clearRangeSelection(); sel(2, 2); hpRun('chart'); }); await w(500);
+  check('  大きさがちがう列は はじめ外す（ボタンで足せる）', await page.evaluate(() => [HP.state().on.join(','), [...document.querySelectorAll('#hpBody .hp-chips .hp-chip')].map(b => b.textContent).join(','), document.getElementById('hpChNote').textContent.includes('大きさがちがう列は 外しています')].join('/')), '2/✓ 金額,ポイント/true');
+  await page.evaluate(() => HP.chSer(5)); await w(250);
+  check('  足すと 2本・見本（凡例）が出る・題は シート名', await page.evaluate(() => [HP.chartModel().series.length, [...document.querySelectorAll('#hpChBox svg text')].some(t => t.textContent === 'ポイント'), document.getElementById('hpChT').value].join('/')), '2/true/家計');
+  await page.evaluate(() => { HP.close(); rangeR1 = 0; rangeC1 = 1; rangeR2 = 4; rangeC2 = 2; extendRange(4, 2); hpRun('chart'); }); await w(500);
+  check('  範囲をえらんで グラフ（その範囲だけ）', await page.evaluate(() => HP.chartModel().cats.join(',') + '/' + HP.chartModel().series.map(s => s.name).join(',')), '食費,日用品,食費,光熱費/金額');
+  await page.evaluate(() => HP.chFlip(true)); await w(250);
+  check('  行と列を入れかえる', await page.evaluate(() => HP.chartModel().cats.join(',') + '/' + HP.chartModel().series.map(s => s.name).join(',')), '金額/食費,日用品,食費,光熱費');
+  await page.evaluate(() => { HP.close(); clearRangeSelection(); hmDo('hpChart', 5); }); await w(500);
+  check('  列の見出しの長押しから：その列だけ', await page.evaluate(() => HP.state().on.join(',') + '/' + document.getElementById('hpChT').value), '5/ポイント');
+  await page.evaluate(() => { HP.close(); hmDo('hpChart', 1); }); await w(500);
+  check('  字の列（費目）の長押しから：費目ごとの合計の円グラフ', await page.evaluate(() => { const m = HP.chartModel(); return [HP.state().type, m.cats.join(','), m.series[0].vals.join(','), HP.state().title].join('/'); }), 'pie/光熱費,食費,日用品,交通費/12000,5400,800,600/費目ごとの金額');
+  check('  目盛りは切りのよい数・1万 は 万', await page.evaluate(() => HP.niceTicks(-300, 12000, 4).join(',')), '-5000,0,5000,10000,15000');
+  await page.evaluate(() => HP.close()); await w(200);
+  await page.evaluate(() => { if (!document.body.classList.contains('dark')) toggleDark(); sel(2, 2); hpRun('chart'); }); await w(500);
+  check('  夜の画面は 夜の色の組（線は #3987e5）', await page.evaluate(() => [...document.querySelectorAll('#hpChBox svg path')].some(p => p.getAttribute('stroke') === '#3987e5' || p.getAttribute('fill') === '#3987e5')), true);
+  await page.evaluate(() => { HP.close(); toggleDark(); }); await w(200);
+
+  // ── 行・列の増減・決まった形の表・記録 ──
+  await setKakei();
+  await page.evaluate(() => { cellStyles._ct = { 4: { k: 'ck', r1: 1 }, 3: { k: 'pk', r1: 1, o: ['現金', 'カード'] } }; cellStyles._cf = [{ r1: 1, r2: 249, c1: 0, c2: 4, t: 'past', row: 1, kc: 0, nock: 4, st: { bg: 'yellow' } }]; cellStyles._flt = { h: 0, cond: { 1: { v: ['食費'] } }, hid: [2, 4, 6] }; buildSheet(); }); await w(150);
+  await page.evaluate(() => insertRowAt(1)); await w(200);
+  check('  見出しのすぐ下に行を足す（☑ の列に入る・色の決まり・隠す行も1つずれる）', await page.evaluate(() => [JSON.stringify(cellStyles._ct[4]), cellStyles._cf[0].r1 + '-' + cellStyles._cf[0].r2, cellStyles._flt.h, cellStyles._flt.hid.join(','), getCellDisplay(1, 4)].join('/')), '{"k":"ck","r1":1}/1-249/0/3,5,7/☐');
+  await page.evaluate(() => deleteColAt(0)); await w(200);
+  check('  見る列（日付）を消すと その色の決まりは消える・ほかは左へ', await page.evaluate(() => [JSON.stringify(cellStyles._ct), JSON.stringify(cellStyles._cf || null), JSON.stringify(cellStyles._flt.cond)].join('/')), '{"2":{"k":"pk","r1":1,"o":["現金","カード"]},"3":{"k":"ck","r1":1}}/null/{"0":{"v":["食費"]}}');
+  await page.evaluate(() => switchMode('shopping')); await w(300);
+  check('  決まった形の表（買物）では使わない（帯・▾ なし、押すと知らせる）', await page.evaluate(() => { hpRun('chart'); return [hpOk(), document.getElementById('hpBar').hidden, document.querySelectorAll('.hp-fb').length, document.getElementById('appToast').textContent.includes('この表のかたちでは使えません')].join('/'); }), 'false/true/0/true');
+  await page.evaluate(() => switchMode('normal')); await w(300);
+  check('  ▦ 通常 に戻ると そのまま', await page.evaluate(() => [hpOk(), !document.getElementById('hpBar').hidden, JSON.stringify(cellStyles._ct[3])].join('/')), 'true/true/{"k":"ck","r1":1}');
+  check('  記録（名前を付けて保存）にも入り、開き直すと戻る', await page.evaluate(async () => {
+    localStorage.removeItem('excalc_saves'); currentSaveId = null;
+    const want = JSON.stringify([cellStyles._ct, cellStyles._flt.cond]);
+    window.appPrompt = async () => '表を強く'; await saveAsData();
+    const id = currentSaveId; resetAll(); await new Promise(r => setTimeout(r, 150));
+    const gone = !cellStyles._ct && !cellStyles._flt;
+    loadSave(id); await new Promise(r => setTimeout(r, 300));
+    return [gone, JSON.stringify([cellStyles._ct, cellStyles._flt.cond]) === want, document.querySelectorAll('#sheet tr.hp-hid').length > 0].join('/');
+  }), 'true/true/true');
+  check('  使い方に「📊 表を強くする」', await page.evaluate(async () => { await openHelp(); const r = !!document.getElementById('g-hyoplus') + '/' + document.getElementById('helpFuncTbl').textContent.includes('SUMIF'); closeHelp(); return r; }).catch(e => 'err:' + e.message), 'true/true');
+  check('  service worker が部品を控える', fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8').includes("'./hyoplus.js'"), true);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 async function runSaveAs560(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 💾 別の名前で保存（v560） ──');
@@ -14427,7 +14673,7 @@ async function runCellXl(browser) {
   check('  いまの中身の続きに文字が入る（Excel と同じ）', await page.evaluate(() => data[1][0]), '12005あいう');
   await page.evaluate(() => { document.activeElement.blur(); hideEditBar(); document.body.classList.remove('kb-edit'); clearCopySrc(); });
   await page.evaluate(() => showCellMenu(2, 2)); await page.waitForTimeout(100);
-  check('  以前の操作の長押しメニューは5つ', await page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent).length), 5);
+  check('  以前の操作の長押しメニューは6つ（v563：📊 グラフ・色・しぼる）', await page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent).length), 6);
   await page.evaluate(() => hideCellMenu());
   await page.reload(); await page.waitForTimeout(900);
   check('  開き直しても以前の操作のまま', await page.evaluate(() => cellGesture), 'old');
@@ -14763,6 +15009,7 @@ async function runQrShare(browser) {
     if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
     if (!only || only === 'receipt' || only === 'v561') await runReceipt561(browser);
     if (!only || only === 'dasetsu' || only === 'ds562') await runDasetsu562(browser);
+    if (!only || only === 'hyoplus' || only === 'v563') await runHyoPlus563(browser);
     if (!only || only === 'firsthint') await runFirstHint(browser);
     // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
     if (!only || only === 'visual') await require('./visual').runVisual(browser, check);

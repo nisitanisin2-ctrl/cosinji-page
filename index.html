@@ -3588,6 +3588,63 @@ body.simple-mode .rh  { height: calc(46px * var(--cell-scale, 1)); }
   background: rgba(192,57,43,0.07);
 }
 body.dark .cell.cell-err { color: #ff8a80 !important; background: rgba(255,138,128,0.10); }
+/* ── 表を強くする（v563）── */
+/* 🎨 条件で付く色。夜は 暗い地に合う色にする（決まりには「赤」「黄色」のような名前だけを持たせている） */
+:root { --hpf-red:#d32f2f; --hpf-blue:#1565c0; --hpf-green:#2e7d32; --hpf-gray:#9e9e9e; --hpf-orange:#e65100;
+  --hpb-yellow:#fff59d; --hpb-red:#ffcdd2; --hpb-green:#c8e6c9; --hpb-blue:#bbdefb; --hpb-gray:#e0e0e0; --hpb-orange:#ffe0b2; }
+body.dark { --hpf-red:#ff8a80; --hpf-blue:#82b1ff; --hpf-green:#81c784; --hpf-gray:#8a93a6; --hpf-orange:#ffb74d;
+  --hpb-yellow:#5c5000; --hpb-red:#5e2328; --hpb-green:#1f4d2c; --hpb-blue:#1c3b63; --hpb-gray:#3a4152; --hpb-orange:#5e3a08; }
+/* ☑ チェック欄：字は隠して四角を描く（コピー・書き出しでは ☑／☐ の字になる） */
+.cell.hp-ck { position: relative; color: transparent !important; text-align: center; }
+.cell.hp-ck::before { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+  width: calc(18px * var(--cell-scale, 1)); height: calc(18px * var(--cell-scale, 1)); box-sizing: border-box;
+  border: 2px solid var(--text-light); border-radius: 4px; background: var(--sheet-cell-bg, var(--cell-bg)); }
+.cell.hp-ck.hp-ck-on::before { border-color: var(--acc); background: var(--acc); }
+.cell.hp-ck.hp-ck-on::after { content: ''; position: absolute; left: 50%; top: 50%;
+  width: calc(5px * var(--cell-scale, 1)); height: calc(10px * var(--cell-scale, 1)); box-sizing: content-box;
+  border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: translate(-50%,-62%) rotate(45deg); }
+.cell.hp-ck.hp-idle::before { opacity: .35; }
+/* 📋 えらぶだけの列：右に ▾ */
+.cell.hp-pk { position: relative; padding-right: calc(15px * var(--cell-scale, 1)); }
+.cell.hp-pk::after { content: '▾'; position: absolute; right: 3px; top: 50%; transform: translateY(-50%);
+  font-size: calc(12px * var(--cell-scale, 1)); color: var(--text-light); pointer-events: none; }
+.cell.hp-pk.hp-idle::after { opacity: .45; }
+/* えらぶ窓 */
+.hp-pick-bg { position: fixed; inset: 0; z-index: 1200; background: rgba(0,0,0,.12); }
+.hp-pick { position: fixed; box-sizing: border-box; max-height: min(60vh, 420px); overflow: auto; padding: 6px;
+  background: var(--modal-bg); color: var(--text); border: 1px solid var(--save-item-border); border-radius: var(--r-card); box-shadow: var(--elev-2); }
+.hp-pick-h { font-size: 12px; font-weight: bold; color: var(--text-sub); padding: 4px 6px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hp-pick-list { display: flex; flex-direction: column; gap: 4px; }
+.hp-pick-o { min-height: 44px; padding: 8px 12px; border-radius: var(--r-btn); border: 1px solid var(--save-item-border); background: transparent;
+  color: var(--text); font-size: 16px; text-align: left; cursor: pointer; }
+.hp-pick-o.on { border-color: var(--acc); background: var(--acc-weak); font-weight: bold; }
+.hp-pick-o.on::before { content: '✓ '; color: var(--acc-text); }
+.hp-pick-none { font-size: 13px; color: var(--text-sub); padding: 8px 6px; }
+.hp-pick-x { display: flex; gap: 4px; margin-top: 6px; }
+.hp-pick-x button { flex: 1; min-height: 40px; padding: 4px 6px; border-radius: var(--r-btn); border: 1px solid var(--save-item-border);
+  background: var(--cell-hover); color: var(--text); font-size: 12.5px; font-weight: bold; cursor: pointer; }
+.hp-pick-set { display: block; width: 100%; min-height: 36px; margin-top: 4px; border: none; background: none; color: var(--text-sub); font-size: 12.5px; text-decoration: underline; cursor: pointer; }
+/* 🔎 しぼり込み：隠した行・見出しの ▾・表の上の帯 */
+#sheet tr.hp-hid { display: none; }
+.ch .hp-fb { display: inline-block; margin-left: 2px; padding: 0 4px; min-width: 14px; border-radius: 4px; line-height: 1.45;
+  color: var(--acc-text); font-size: 1.1em; cursor: pointer; }
+.ch .hp-fb.on { background: var(--acc); color: var(--on-acc); }
+.ch.sel .hp-fb, .ch.hsel .hp-fb { color: #fff; }
+.hp-bar { display: flex; align-items: center; gap: 6px; padding: 3px 6px; flex-shrink: 0; min-width: 0;
+  background: var(--acc-weak); border-bottom: 1px solid var(--formula-border); font-size: 12.5px; color: var(--text); }
+.hp-bar[hidden] { display: none; }
+.hp-bar-t { flex: 1; min-width: 0; text-align: left; background: none; border: none; padding: 4px 2px; color: var(--text);
+  font-size: 12.5px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.hp-bar-n { flex: none; font-variant-numeric: tabular-nums; color: var(--text-sub); }
+.hp-bar-b { flex: none; min-height: 30px; padding: 2px 8px; border-radius: var(--r-btn); border: 1px solid var(--formula-border);
+  background: var(--formula-bg); color: var(--text); font-size: 12.5px; font-weight: bold; cursor: pointer; }
+body.dentaku-mode .hp-bar { display: none !important; }
+/* 見出しの長押しメニューの「この列で」 */
+.hm-sec { margin: 12px 0 6px; font-size: 12px; font-weight: bold; color: var(--text-sub); }
+.hm-btn.hp { background: var(--cell-hover); color: var(--text); border: 1px solid var(--save-item-border); padding: 11px 14px; }
+.hm-btn.hp:active { background: var(--cell-border); }
+body.cg-excel #cellMenu #cellMenuHp { grid-column: 1 / -1; }
+#cellMenu.edit-bar #cellMenuHp { display: none !important; }   /* 打ち直している間の帯には出さない */
 /* ここから3つはフォーム型モード（FORM_MODES）用。v291 で単位水量をモードから
    外したので今は使っていないが、仕組みごと残してある。
    計算工程の先頭・グループ区切りの二重線 */
@@ -3957,7 +4014,7 @@ body.dark {
       </div>
       <!-- ほかの機能（v459）。中身は前の ⋯ と同じ。畳んでいても上のバーへの登録や長押しはそのまま効く -->
       <details class="more-acc" id="moreAccAll" ontoggle="saveMoreAcc(this)">
-        <summary>… ほかの機能<small>ホーム・進む・ナイトモード・ひな形・電卓・書き出し・シート・QR・リセット</small></summary>
+        <summary>… ほかの機能<small>ホーム・進む・ナイトモード・ひな形・電卓・グラフ・しぼり込み・チェック欄・書き出し・シート・QR・リセット</small></summary>
         <div class="more-grid">
           <button class="more-item" id="moreHomeBtn" onclick="moreDo(openHome)"><span>🏠</span>ホーム</button>
           <button class="more-item menu-item" id="redoBtn" onclick="moreDo(redoLast)" disabled><span>↷</span>進む</button>
@@ -3966,6 +4023,15 @@ body.dark {
           <button class="more-item" onclick="moreDo(()=>switchMode('normal'))"><span>▦</span>通常の表</button>
           <button class="more-item" onclick="moreDo(()=>switchMode('dentaku'))"><span>🧮</span>電卓</button>
           <button class="more-item np-side-only" id="moreNumpadBtn" onclick="moreDo(toggleNumpadEdge)"><span>⌨</span>テンキーを隠す／出す</button>
+        </div>
+        <!-- 表を強くする（v563）。列の見出し（A・B…）の長押し・セルの長押しからも開ける -->
+        <div class="more-sec">📊 表を強くする</div>
+        <div class="more-grid" id="moreAccHp">
+          <button class="more-item" onclick="moreDo(()=>hpRun('chart'))" title="えらんだ範囲（なければ まわりの表）を 棒・折れ線・円グラフに。画像で保存・印刷も"><span>📊</span>グラフ</button>
+          <button class="more-item" onclick="moreDo(()=>hpRun('cf'))" title="マイナスは赤・期限が過ぎたら黄色 など、決まりを作れば自動で色が付きます"><span>🎨</span>条件で色</button>
+          <button class="more-item" onclick="moreDo(()=>hpRun('filter'))" title="見出しの ▾ で この店だけ・1万円以上だけ を出す。合計も しぼった分だけに"><span>🔎</span>しぼり込み</button>
+          <button class="more-item" onclick="moreDo(()=>hpRun('kind'))" title="済のチェック欄や、現金／カードから選ぶだけの列を作ります"><span>☑</span>チェック欄</button>
+          <button class="more-item" onclick="moreDo(()=>hpRun('pivot'))" title="食費・日用品… ごとの合計を、別の表に自動でまとめます"><span>📑</span>項目ごとの合計</button>
         </div>
         <div class="more-sec">📤 書き出す・読み込む</div>
         <div class="more-grid" id="moreAccOut">
@@ -4289,6 +4355,9 @@ body.dark {
        表がずれないように、バーの下へ浮かせて出す -->
   <div class="digit-hint" id="digitHint" hidden aria-live="polite"></div>
 </div>
+
+<!-- 🔎 しぼり込み中の帯（v563）。しぼり込みを使っているときだけ出る -->
+<div class="hp-bar" id="hpBar" hidden></div>
 
 <div class="sheet-wrap">
   <div id="fillHandle" aria-hidden="true"></div>
@@ -6056,6 +6125,7 @@ body.dark {
   <button onclick="cellMenuAct('insrow')" class="cm-xl">➕ 行を挿入</button>
   <button onclick="cellMenuAct('inscol')" class="cm-xl">➕ 列を挿入</button>
   <button onclick="cellMenuAct('lock')" id="cellMenuLock">🔒 保護</button>
+  <button onclick="cellMenuAct('hp')" id="cellMenuHp">📊 グラフ・色・しぼる</button>
 </div>
 
 <!-- 🔎セルの検索・移動 -->
@@ -6414,7 +6484,17 @@ const FORMULA_FUNCS={
   /* 下の3つは引数の読み方が特別なので、解析器の中で直接扱う（run は持たない） */
   IF:     {sig:'(条件, 真のとき, 偽のとき)', desc:'条件で答えを変える', special:1},
   VLOOKUP:{sig:'(探す値, 範囲, 何列目, 0)', desc:'範囲の左端から探して、その行の指定列を返す（末尾0で完全一致）。=V参照(…) でも可', special:1},
-  XLOOKUP:{sig:'(探す値, 検索範囲, 戻す範囲, "見つからない時")', desc:'対応する値を返す（文字も可）。=X参照(…) でも可', special:1}
+  XLOOKUP:{sig:'(探す値, 検索範囲, 戻す範囲, "見つからない時")', desc:'対応する値を返す（文字も可）。=X参照(…) でも可', special:1},
+  /* 条件つきの集計（v563）。これも範囲をそのまま受け取るので、解析器の中で直接扱う */
+  SUMIF:     {sig:'(範囲, 条件, 合計する範囲)', desc:'条件に合う行だけ合計（例 =SUMIF(B2:B20,"食費",C2:C20)、=SUMIF(C2:C20,">=10000")）', special:1},
+  COUNTIF:   {sig:'(範囲, 条件)', desc:'条件に合うセルの数（例 =COUNTIF(D2:D20,1) で ☑ の数）', special:1},
+  AVERAGEIF: {sig:'(範囲, 条件, 平均する範囲)', desc:'条件に合う行だけ平均', special:1},
+  SUMIFS:    {sig:'(合計する範囲, 範囲1, 条件1, 範囲2, 条件2…)', desc:'いくつもの条件に合う行だけ合計', special:1},
+  COUNTIFS:  {sig:'(範囲1, 条件1, 範囲2, 条件2…)', desc:'いくつもの条件に合う行の数', special:1},
+  AVERAGEIFS:{sig:'(平均する範囲, 範囲1, 条件1…)', desc:'いくつもの条件に合う行だけ平均', special:1},
+  SUBTOTAL:  {sig:'(9, 範囲)', desc:'しぼり込みで隠した行を除いて集計（9＝合計・1＝平均・2＝数の個数・3＝空でない個数・4＝最大・5＝最小）', special:1},
+  TRUE:      {sig:'', desc:'1 と同じ（☑ チェック欄の「付いている」）', run:()=>1},
+  FALSE:     {sig:'', desc:'0 と同じ', run:()=>0}
 };
 const FORMULA_ALIAS={ AVG:'AVERAGE' };   // 昔からの短い名前
 function formulaFunc(name){ return FORMULA_FUNCS[FORMULA_ALIAS[name]||name]||null; }
@@ -6561,6 +6641,7 @@ function getCellDisplay(r, c) {
     const jd = jikanCellDisplay(r, c);
     if (jd != null) return jd;
   }
+  if (cellStyles._ct) { const ck=hpCkCell(r,c); if (ck!=null) return ck ? '☑' : '☐'; }   // ☑ チェック欄（v563）
   const raw = String(data[r][c]);
   const d = cellDec(r, c);
   const rm = cellRound(r, c);
@@ -6869,6 +6950,40 @@ function parseArith(s) {
           ws(); if (pos<s.length && s[pos]===')') pos++;
           return take ? thenVal : elseVal;
         }
+        // 条件つきの集計（v563）。範囲を数の並びにせず、そのまま受け取る
+        if (name === 'SUMIF' || name === 'COUNTIF' || name === 'AVERAGEIF') {
+          const rng = parseRangeArg(); if (!rng) fErr('#VALUE!', name);
+          ws(); if (pos<s.length && s[pos]===',') pos++;
+          ws(); const crit = expr();
+          let srng = null;
+          ws(); if (name!=='COUNTIF' && pos<s.length && s[pos]===',') { pos++; srng = parseRangeArg(); if (!srng) fErr('#VALUE!', name); }
+          ws(); if (pos<s.length && s[pos]===')') pos++;
+          return hpIfAgg(name, srng||rng, [[rng, crit]]);
+        }
+        if (name === 'SUMIFS' || name === 'COUNTIFS' || name === 'AVERAGEIFS') {
+          let target = null;
+          if (name!=='COUNTIFS') { target = parseRangeArg(); if (!target) fErr('#VALUE!', name); ws(); if (pos<s.length && s[pos]===',') pos++; }
+          const pairs = [];
+          ws();
+          while (pos<s.length && s[pos]!==')') {
+            const g = parseRangeArg(); if (!g) fErr('#VALUE!', name);
+            ws(); if (pos<s.length && s[pos]===',') pos++;
+            ws(); pairs.push([g, expr()]);
+            ws(); if (pos<s.length && s[pos]===',') pos++;
+            ws();
+          }
+          if (pos<s.length && s[pos]===')') pos++;
+          if (!pairs.length) fErr('#VALUE!', name);
+          return hpIfAgg(name, target||pairs[0][0], pairs);
+        }
+        if (name === 'SUBTOTAL') {
+          ws(); const fn = Math.round(toNum(expr()));
+          const rngs = [];
+          ws();
+          while (pos<s.length && s[pos]===',') { pos++; const g = parseRangeArg(); if (!g) fErr('#VALUE!', 'SUBTOTAL'); rngs.push(g); ws(); }
+          if (pos<s.length && s[pos]===')') pos++;
+          return hpSubtotal(fn, rngs);
+        }
         const vals = parseArgs();
         if (pos<s.length && s[pos]===')') pos++;
         const fn = formulaFunc(name);
@@ -6878,6 +6993,8 @@ function parseArith(s) {
       if (!/[0-9]/.test(s[pos]||'')) {
         if (name==='PI') return Math.PI;
         if (name==='E')  return Math.E;
+        if (name==='TRUE')  return 1;   // ☑ チェック欄の「はい」は 1（v563）
+        if (name==='FALSE') return 0;
       }
       let row='';
       while (pos<s.length && /[0-9]/.test(s[pos])) row+=s[pos++];
@@ -6907,6 +7024,7 @@ function recalcAll() {
         const el=document.getElementById(`c${r}_${c}`);
         if (el) setCellDisp(el, r,c);
       }
+  hpAfterRecalc();   // 🎨 条件の色・☑ の見た目を いまの中身に合わせる（v563）
   autoFitSheet();
 }
 /* ── セル結合 ──
@@ -6936,6 +7054,7 @@ function stripAllMerges(){
 /* ── スプレッドシート構築 ── */
 function buildSheet() {
   copySrcR=copySrcC=-1;
+  hpCfMap=hpCfCompute();   // 🎨 条件で付く色（v563。下の applyCellStyle で重ねる）
   updateEnterArrow();
   const t=document.getElementById('sheet');
   t.innerHTML='';
@@ -7020,6 +7139,7 @@ function buildSheet() {
           refreshDisp(); return;
         }
         formulaEditMode=false; fi.classList.remove('formula-mode');
+        if (hpCellTap(r,c)) return;   // ☑ チェック欄は押すと ☑⇄☐、えらぶだけの列は えらぶ窓（v563）
         // v418：Excel と同じ操作のとき、選んでいる範囲の中をタップしたら範囲はそのままで帯を出す
         if (cellGesture==='excel' && rangeR1>=0 && document.activeElement!==fi){
           const g=selRect();
@@ -7037,6 +7157,7 @@ function buildSheet() {
     }
   }
   if (isStructMode()) recalcMode();
+  hpAfterBuild();   // 🔎 しぼり込みで隠す行・見出しの ▾・表の上の帯（v563）
   autoFitSheet();
 }
 
@@ -7537,6 +7658,7 @@ function cellMenuAct(a){
   else if(a==='paste'){ pasteCellSmart(); }
   else if(a==='clear'){ clearSelection(); }
   else if(a==='lock'){ toggleUserLock(selR,selC); }
+  else if(a==='hp'){ hpRun('menu'); }   // 📊 グラフ・🎨 条件で色・🔎 しぼり込み・☑ チェック欄・📑 まとめ表（v563）
 }
 /* 選択セル（範囲があれば範囲全体）の値を消去（枠線・書式は残す） */
 function clearSelection(){
@@ -7544,7 +7666,7 @@ function clearSelection(){
   if(rangeR1>=0){
     const r1=Math.min(rangeR1,rangeR2), r2=Math.max(rangeR1,rangeR2);
     const c1=Math.min(rangeC1,rangeC2), c2=Math.max(rangeC1,rangeC2);
-    for(let r=r1;r<=r2;r++) for(let c=c1;c<=c2;c++) cells.push([r,c]);
+    for(let r=r1;r<=r2;r++){ if(hpHidRow(r)) continue; for(let c=c1;c<=c2;c++) cells.push([r,c]); }   // しぼり込みで隠した行は消さない（v563）
   } else cells.push([selR,selC]);
   const entries=[];
   cells.forEach(([r,c])=>{ if(!isLockedCell(r,c) && data[r][c]!=='') entries.push({r,c,val:data[r][c]}); });
@@ -7734,16 +7856,18 @@ function buildPdfHtml(ps){
   if(ps.header) html+=`<thead><tr><td class="pa-run" colspan="${COLS}">${escHtml(ps.header)}</td></tr></thead>`;
   if(ps.footer) html+=`<tfoot><tr><td class="pa-run" colspan="${COLS}">${escHtml(ps.footer)}</td></tr></tfoot>`;
   html+='<tbody>';
+  const cfm=hpCfCompute();   // 🎨 条件で付く色も印刷する（v563）
   for(let r=0;r<ROWS;r++){
+    if(hpHidRow(r)) continue;   // 🔎 しぼり込みで隠した行は印刷しない（見えている表のとおり。v563）
     html+='<tr>';
     for(let c=0;c<COLS;c++){
       const td=document.getElementById(`c${r}_${c}`);
       const disp = td ? td.textContent : '';
-      const s=cellStyles[`${r},${c}`]||{};
+      const s=hpEffStyle(r,c,cfm)||{};
       let st='';
       if(s.bold)      st+='font-weight:bold;';
       if(s.italic)    st+='font-style:italic;';
-      if(s.underline) st+='text-decoration:underline;';
+      if(s.underline||s.strike) st+='text-decoration:'+[s.underline?'underline':'', s.strike?'line-through':''].join(' ').trim()+';';
       if(s.color)     st+='color:'+s.color+';';
       if(s.bg)        st+='background:'+s.bg+';';
       if(s.bd){   // ユーザーが引いた枠線も印刷に反映
@@ -8201,11 +8325,12 @@ async function exportXLSX(){
     /* いま表示中のグローバル状態（data等）から1シート分の worksheet XML を作る */
     const buildWorksheetXml=()=>{
       const merges=[]; let sheetRows='';
+      const cfm=hpCfCompute();   // 🎨 条件で付く色も そのまま書き出す（v563）
       for(let r=0;r<ROWS;r++){
         let row=`<row r="${r+1}">`;
         for(let c=0;c<COLS;c++){
           if(coverOf(r,c)) continue;
-          const ref=xlColLetter(c)+(r+1), raw=data[r][c]??'', s=cellStyles[`${r},${c}`]||{};
+          const ref=xlColLetter(c)+(r+1), raw=data[r][c]??'', s=hpEffStyle(r,c,cfm)||{};
           const styled=!!(s.bold||s.italic||s.underline||s.strike||s.color||s.bg||s.bd||s.align||s.dfmt);
           const sIdx=styled?regXf(s):0, sAttr=sIdx?` s="${sIdx}"`:'';
           const mg=mergeAt(r,c);
@@ -8233,7 +8358,17 @@ async function exportXLSX(){
       const colsXml=colDefs?`<cols>${colDefs}</cols>`:'';
       const mergeXml=merges.length?`<mergeCells count="${merges.length}">${merges.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells>`:'';
       const dim=`A1:${xlColLetter(Math.max(0,COLS-1))}${ROWS}`;
-      return `${P}<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="${dim}"/><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/>${colsXml}<sheetData>${sheetRows}</sheetData>${mergeXml}</worksheet>`;
+      // 📋 えらぶだけの列は、Excel でも えらぶ欄（入力規則のリスト）にする（v563）
+      let dvs=[];
+      const kinds=(!STRUCT_MODES[tableMode] && cellStyles._ct && typeof cellStyles._ct==='object') ? cellStyles._ct : null;
+      if(kinds) for(const key in kinds){
+        const k=kinds[key], c=+key;
+        if(!k || k.k!=='pk' || !(c>=0 && c<COLS) || !Array.isArray(k.o)) continue;
+        let list=''; for(const o of k.o){ const t=String(o).replace(/[",]/g,''); if(!t) continue; if((list+','+t).length>250) break; list+=(list?',':'')+t; }
+        if(list) dvs.push(`<dataValidation type="list" allowBlank="1" showErrorMessage="0" sqref="${xlColLetter(c)}${(k.r1|0)+1}:${xlColLetter(c)}${Math.max(ROWS,(k.r1|0)+1)}"><formula1>"${xlEsc(list)}"</formula1></dataValidation>`);
+      }
+      const dvXml=dvs.length?`<dataValidations count="${dvs.length}">${dvs.join('')}</dataValidations>`:'';
+      return `${P}<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="${dim}"/><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/>${colsXml}<sheetData>${sheetRows}</sheetData>${mergeXml}${dvXml}</worksheet>`;
     };
     /* シート名をExcelの制約（31字・使えない記号・重複不可）に合わせる */
     const uniqueSheetName=(nm,used)=>{
@@ -9172,6 +9307,13 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v563', t:'📊 表を強くする：グラフ・条件で色・しぼり込み・チェック欄', li:[
+    '<b>📊 表からグラフ</b>：えらんだ範囲（なければ まわりの表）を <b>棒・折れ線・円</b>のグラフにします。ふれると数が出て、<b>🖼 画像で保存・📤 共有・🖨 印刷</b>（PDF にも）。家計の月ごとの推移や、売上の比べっこに',
+    '<b>🎨 条件で色をつける</b>：「マイナスは赤い字」「期限が過ぎたら黄色（行ぜんぶ）」「大きいほうから3つを太字」「☑ の行を灰色に」など、決まりを1回作れば 中身に合わせて自動で色が付きます',
+    '<b>🔎 しぼり込み・並べかえ</b>：列の見出しの <b>▾</b> で「この店だけ」「1万円以上だけ」「10月だけ」を出し、<b>右上の合計も しぼった分だけ</b>に（いちばん下の合計の行も しぼった分の合計にします）。小さい順・大きい順の並べかえも',
+    '<b>📑 項目ごとの合計</b>：「食費・日用品…」ごとの合計・件数・平均を、新しいシートに式でまとめます（もとを直すと まとめも変わります）',
+    '<b>☑ チェック欄・📋 えらぶだけの列</b>：押すたびに ☑⇄☐ の「済」の列や、「現金／カード」から えらぶだけの列が作れます。<b>☑ した行だけの合計</b>も出せます',
+    '新しい式 <b>SUMIF・COUNTIF・AVERAGEIF・SUMIFS・COUNTIFS・SUBTOTAL</b> が使えます。開くのは <b>列の見出し（A・B…）の長押し</b>・<b>セルの長押し →「📊 グラフ・色・しぼる」</b>・<b>☰ → ほかの機能 → 📊 表を強くする</b> から' ]},
   { v:'v562', t:'🚛 打設の段取り：時刻を決められるように・終わりの時刻から台数を逆算', li:[
     '<b>打設の開始・昼休みの時刻が決められない</b>ことがあったのを直しました。時刻のボタンを押すと 表電卓の窓が出て、<b>時・分を押して「✓ 決定」</b>で決まります（830・8:30 のように打っても入ります）',
     '新しく <b>🎯 終わりの時刻と車の台数</b>：<b>終わりたい時刻</b>を決めると、間に合う いちばん少ない<b>車の台数</b>と、要るペース（1時間に何台）を逆算します。いまのはやさで間に合わないときは、いちばん早い終わりと、要る打設のはやさ・台数を出します',
@@ -11336,6 +11478,7 @@ function remapAllFormulas(mapFn){
 function remapCellStyles(mapFn){
   const ns={};
   for(const k in cellStyles){
+    if(k.charCodeAt(0)===95){ const v=hpRemapKey(k, cellStyles[k], mapFn); if(v!=null) ns[k]=v; continue; }   // _ct・_cf・_flt（v563）
     const p=k.split(','), r=+p[0], c=+p[1];
     const res=mapFn(r,c);
     if(res && res[0]>=0 && res[0]<MAXROWS && res[1]>=0 && res[1]<MAXCOLS) ns[`${res[0]},${res[1]}`]=cellStyles[k];
@@ -11451,7 +11594,14 @@ function openHeaderMenu(kind, index){
       `<button class="hm-btn add" onclick="hmDo('insColLeft',${index})">⬅ 左に1列追加</button>`+
       `<button class="hm-btn add" onclick="hmDo('insColRight',${index})">➡ 右に1列追加</button>`+
       `<button class="hm-btn del" onclick="hmDo('delCol',${index})">🗑 この列を削除</button>`+
-      `<button class="hm-btn multi" onclick="hmDo('multi',${index})">☑ ほかの列も選ぶ（幅をそろえる）</button>`;
+      `<button class="hm-btn multi" onclick="hmDo('multi',${index})">☑ ほかの列も選ぶ（幅をそろえる）</button>`+
+      // 表を強くする（v563）
+      `<div class="hm-sec">📊 この列で</div>`+
+      `<button class="hm-btn hp" onclick="hmDo('hpFilter',${index})">🔎 しぼり込み・並べかえ</button>`+
+      `<button class="hm-btn hp" onclick="hmDo('hpKind',${index})">☑ チェック欄・えらぶだけの列</button>`+
+      `<button class="hm-btn hp" onclick="hmDo('hpCf',${index})">🎨 条件で色をつける</button>`+
+      `<button class="hm-btn hp" onclick="hmDo('hpPivot',${index})">📑 項目ごとの合計（まとめ表）</button>`+
+      `<button class="hm-btn hp" onclick="hmDo('hpChart',${index})">📊 グラフにする</button>`;
   }
   openDlg('headerMenuOverlay');
 }
@@ -11469,6 +11619,11 @@ function hmDo(action, index){
   else if(action==='insColRight') insertColAt(index+1);
   else if(action==='delCol') deleteColAt(index);
   else if(action==='multi') hdrMultiStartAdd();
+  else if(action==='hpFilter') hpRun('filter', index);   // 表を強くする（v563）
+  else if(action==='hpKind') hpRun('kind', index);
+  else if(action==='hpCf') hpRun('cf', index);
+  else if(action==='hpPivot') hpRun('pivot', index);
+  else if(action==='hpChart') hpRun('chart', index);
 }
 /* 行・列見出しに長押しを付ける。短いタップは従来どおり選択、グリップ(端)は幅/高さ変更のまま。 */
 function makeHeaderLongPress(el, kind, index){
@@ -11888,6 +12043,11 @@ const KEY_FUNCS={
   a_kuji:{g:'設定・機能',label:'🎲くじ・班分け',short:'くじ',run:()=>openKuji()},   // v561
   a_dasetsu:{g:'設定・機能',label:'🚛打設の段取り',short:'打設',run:()=>openDasetsu()},   // v561
   a_receipt:{g:'設定・機能',label:'📷レシート読み取り',short:'レシート',run:()=>openReceipt()},   // v561
+  a_chart:{g:'設定・機能',label:'📊表からグラフ',short:'グラフ',run:()=>hpRun('chart')},   // v563 表を強くする
+  a_cfmt:{g:'設定・機能',label:'🎨条件で色',short:'条件色',run:()=>hpRun('cf')},
+  a_filter:{g:'設定・機能',label:'🔎しぼり込み',short:'しぼる',run:()=>hpRun('filter')},
+  a_coltype:{g:'設定・機能',label:'☑チェック欄・えらぶ列',short:'チェック',run:()=>hpRun('kind')},
+  a_pivot:{g:'設定・機能',label:'📑項目ごとの合計',short:'まとめ',run:()=>hpRun('pivot')},
   a_tools:{g:'設定・機能',label:'🧰道具',short:'道具',run:()=>openToolsList()},   // 道具の一覧を開く（v429）
   a_memo:{g:'設定・機能',label:'📄メモ',short:'メモ',run:()=>openNotesApp()},
   a_kaikei:{g:'設定・機能',label:'🧾会計アプリ',short:'会計',run:()=>openKaikeiApp()},
@@ -16641,6 +16801,7 @@ function updateDateBadge(){
   if(b) b.classList.toggle('on', !!cellDateFmt(selR,selC));
 }
 function sel(r,c) {
+  if (hpHidRow(r)) r=hpVisNear(r, r>=selR?1:-1);   // しぼり込みで隠した行には止まらない（進む向きの次の見える行へ。v563）
   { const a=anchorOf(r,c); r=a[0]; c=a[1]; }   // 結合セルは代表(左上)を選ぶ
   const wasFormula=formulaEditMode;
   formulaEditMode=false;
@@ -17047,7 +17208,11 @@ function updateStats(c) {
   const cells=[];
   if(isRange){ for(let r=g.r1;r<=g.r2;r++) for(let cc=g.c1;cc<=g.c2;cc++) cells.push([r,cc]); }
   else for(const cc of (mcols||[c])) for(let r=0;r<ROWS;r++) cells.push([r,cc]);
+  // しぼり込みで隠した行は数えない（Excel の下の合計と同じ）。しぼっているときは いちばん下の合計の行も入れない（v563）
+  const hid=hpHidSet(), totFrom=hid ? hpFltRegion(hpFlt()).tot : -1;
+  if(hid && cells.some(([r])=>hid.has(r))) lastStatScope+='🔎';
   for (const [r,c] of cells) {
+    if (hid && (hid.has(r) || (totFrom>=0 && r>=totFrom))) continue;
     const raw=data[r][c]; if(raw==='') continue;
     if (cellDateFmt(r,c)) continue;   // 日付セルは合計・平均に含めない（通し番号が混ざるのを防ぐ）
     if (String(raw).startsWith('=')) {
@@ -19362,6 +19527,7 @@ document.addEventListener('keydown', e=>{
     else if (!e.shiftKey&&selR>0) { clearRangeSelection(); sel(selR-1,selC); }
   }
   else if (k==='Tab') { e.preventDefault(); if(selC<COLS-1) sel(selR,selC+1); }
+  else if (k===' ') { if (hpKeySpace()) e.preventDefault(); }   // ☑ チェック欄はスペースで ☑⇄☐（v563）
   else if (k==='F2') { e.preventDefault(); if(!editBlocked()) document.getElementById('formulaInput').focus(); }
 });
 
@@ -21264,7 +21430,9 @@ function renameSheet(idx){
   const name=prompt('シートの名前', cur.name);
   if(name===null) return;
   const t=name.trim(); if(!t) return;
+  const old=cur.name;
   cur.name=t.slice(0,20);
+  if(hpRenameRefs(old, cur.name)){ recalcAll(); persistModes(); }   // ほかのシートの式の「名前!A1」も新しい名前に（v563）
   renderSheetBar();
   saveSheets();
 }
@@ -22349,7 +22517,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v562';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v563';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -22505,7 +22673,11 @@ function applyCellStyle(td, r, c){
   td.style.removeProperty('--dsize');
   td.classList.remove('cell-locked');
   if(r===selR && c===selC){ updateDateBadge(); if(typeof kfmtSyncState==='function') kfmtSyncState(); }   // 選択セルの書式が変わったら印を更新
-  const s=cellStyles[`${r},${c}`]; if(!s) return;
+  hpCellExtra(td, r, c);   // ☑ チェック欄・▾ えらぶだけの列（v563）
+  let s=cellStyles[`${r},${c}`];
+  const cf=(hpCfMap && hpCfMap.size) ? hpCfMap.get(r+','+c) : null;   // 🎨 条件で付く色を重ねる（v563）
+  if(cf) s=Object.assign({}, s||{}, hpCfStyle(cf,false));
+  if(!s) return;
   if(s.locked)    td.classList.add('cell-locked');
   if(s.bold)      td.style.fontWeight='bold';
   if(s.italic)    td.style.fontStyle='italic';
@@ -22531,6 +22703,614 @@ function repaintCell(r,c){
     setCellDisp(td, r,c);
   applyCellStyle(td,r,c);
   autoFitSheet();   // 装飾(文字サイズ等)変更後も列幅・縮小を更新
+}
+/* ══ 表を強くする（v563）════════════════════════════════════════════
+   ☑ チェック欄・📋 えらぶだけの列・🎨 条件で色・🔎 しぼり込み を、表に出す側。
+   決める窓と 📊 グラフ・📑 項目ごとの合計 は hyoplus.js にあり、はじめて使うときに読む。
+   決まりは シートごとに cellStyles の特別なキーに持たせる（保存・シート・記録・戻る に そのまま乗る）：
+     _ct  … 列の種類 {列: {k:'ck'（チェック欄）|'pk'（えらぶだけ）, r1:始まりの行, o:['現金','カード']}}
+     _cf  … 色の決まり [{r1,c1,r2,c2, t:種類, v,v2,n, row:1（行ぜんぶ）, kc:見る列, nock:☑の行は外す列, st:{fc,bg,b,s}}]
+     _flt … しぼり込み {h:見出しの行, cond:{列:{v:[見えている字…]}|{lo,hi}|{q:含む字}}, hid:[隠している行]}
+   どれも「r,c」の形ではないので、セルごとの書式を回す処理にはかからない（行・列の増減は remapCellStyles で直す）。
+   中身は書きかえずに、まるごと新しいものに置きかえる（シートの控えと中身を分け合っているため）。
+   しぼり込みは Excel と同じく「しぼったときに」行を隠す。あとで中身を直しても行は消えない（🔄 でしぼり直す）。 */
+var hpCfMap;           // 'r,c' → 条件で付く見た目 {fc,bg,b,s}（いま開いているシートの分）
+var hpHidMemo;         // {src:隠している行の配列, set:Set}
+var hpPickDone;        // えらぶ窓を「戻る」で閉じる見張りを外す
+var hpPartLoading;     // 初めに buildSheet が先に走っても消さないよう、ここでは値を入れない
+function hpOk(){ return !isStructMode() && !(typeof isFormMode==='function' && isFormMode()) && tableMode!=='dentaku'; }
+/* 決める窓（hyoplus.js）を読んでから動かす */
+function loadHpPart(){
+  if(window.HP_PART_LOADED) return Promise.resolve(true);
+  if(hpPartLoading) return hpPartLoading;
+  hpPartLoading=new Promise(res=>{
+    const sc=document.createElement('script');
+    sc.src='hyoplus.js';
+    sc.onload=()=>{ window.HP_PART_LOADED=true; hpPartLoading=null; res(true); };
+    sc.onerror=()=>{ hpPartLoading=null; sc.remove(); res(false); };
+    document.head.appendChild(sc);
+  });
+  return hpPartLoading;
+}
+function hpRun(act, arg){
+  if(!hpOk()){ toast('この表のかたちでは使えません（▦ 通常の表・簡易の表で使えます）'); return Promise.resolve(); }
+  return loadHpPart().then(ok=>{
+    if(!ok){ toast('部品を読み込めませんでした。インターネットにつながるところで、一度アプリを開き直してください'); return; }
+    if(window.HP && typeof window.HP[act]==='function') return window.HP[act](arg);
+  });
+}
+
+/* ── ☑ チェック欄・📋 えらぶだけの列 ── */
+function hpKinds(){ const o=cellStyles._ct; return (o && typeof o==='object' && !Array.isArray(o)) ? o : null; }
+function hpKindAt(r,c){
+  const o=hpKinds(), k=o && o[c];
+  if(!k || r<(k.r1|0) || !hpOk()) return null;
+  if((data[r][c]==='' || data[r][c]==null) && hpIsTotalRow(r)) return null;   // 合計の行の 空いたセルは ふつうのセル
+  return k;
+}
+/* チェック欄の中身 → 1（☑）／0（☐）／null（字や式なので そのまま出す）。「済」「○」も ☑ とみる */
+function hpCkState(v){
+  const t=String(v==null?'':v).replace(/[︎️]/g,'').trim();
+  if(t===''||t==='☐'||t==='□'||/^false$/i.test(t)) return 0;
+  if(t==='☑'||t==='✓'||t==='✔'||t==='○'||t==='〇'||t==='済'||/^true$/i.test(t)) return 1;
+  if(t==='0') return 0;
+  if(t==='1') return 1;
+  return null;   // 1200 のような数は ☑ にせず、そのまま出す
+}
+function hpCkCell(r,c){
+  const k=hpKindAt(r,c); if(!k || k.k!=='ck') return null;
+  const raw=(data[r] && data[r][c]!=null) ? String(data[r][c]) : '';
+  return raw.startsWith('=') ? null : hpCkState(raw);
+}
+function hpRowBlank(r, skip){
+  const row=data[r]; if(!row) return true;
+  for(let c=0;c<COLS;c++){ if(c!==skip && row[c]!=='' && row[c]!=null) return false; }
+  return true;
+}
+/* applyCellStyle から呼ぶ：☑・▾ の見た目（中身が空の行の ☐・▾ はうすく） */
+function hpCellExtra(td, r, c){
+  const k=hpKindAt(r,c);
+  const ck=(k && k.k==='ck') ? hpCkCell(r,c) : null;
+  const pk=!!(k && k.k==='pk');
+  td.classList.toggle('hp-ck', ck!=null);
+  td.classList.toggle('hp-ck-on', ck===1);
+  td.classList.toggle('hp-pk', pk);
+  td.classList.toggle('hp-idle', (ck===0 || pk) && (data[r][c]===''||data[r][c]==null) && hpRowBlank(r,c));
+  if(ck!=null){ td.setAttribute('role','checkbox'); td.setAttribute('aria-checked', ck?'true':'false'); }
+  else if(td.getAttribute('role')==='checkbox'){ td.setAttribute('role','gridcell'); td.removeAttribute('aria-checked'); }
+}
+function hpKindsRefresh(){
+  const o=hpKinds(); if(!o || !hpOk()) return;
+  for(const key in o){
+    const c=+key; if(!(c>=0 && c<COLS)) continue;
+    for(let r=0;r<ROWS;r++){ const td=document.getElementById(`c${r}_${c}`); if(td) hpCellExtra(td,r,c); }
+  }
+}
+/* セルを押したとき：チェック欄は ☑⇄☐、えらぶだけの列は えらぶ窓（ほかのセルは false でふつうに選ぶ） */
+function hpCellTap(r,c){
+  const k=hpKindAt(r,c); if(!k) return false;
+  if(k.k==='ck'){
+    const st=hpCkCell(r,c); if(st==null) return false;   // 式や字のセルは ふつうに選ぶ
+    clearRangeSelection(); sel(r,c);
+    setCellVal(r,c, st?'':'1');                           // 保護したセルは setCellVal が知らせて止める
+    return true;
+  }
+  if(k.k==='pk'){
+    clearRangeSelection(); sel(r,c);
+    if(!isLockedCell(r,c)) hpPickOpen(r,c); else flashLocked(r,c);
+    return true;
+  }
+  return false;
+}
+/* スペースキーで ☑⇄☐ */
+function hpKeySpace(){
+  if(cellEditing) return false;
+  const st=hpCkCell(selR,selC); if(st==null) return false;
+  setCellVal(selR,selC, st?'':'1');
+  return true;
+}
+/* 列の見出しの名前（見出しの行の字。なければ A・B…） */
+function hpHeadName(c, h){
+  const t=(h>=0 && data[h]) ? String(data[h][c]==null?'':data[h][c]).trim() : '';
+  return (t && !t.startsWith('=')) ? t : ALPHA[c]+'列';
+}
+/* えらぶ窓：セルの下（入らなければ上）に、えらべる言葉を並べる */
+function hpPickOpen(r,c){
+  hpPickHide();
+  const k=hpKindAt(r,c); if(!k) return;
+  const opts=(Array.isArray(k.o)?k.o:[]).map(x=>String(x)).filter(x=>x!=='').slice(0,60);
+  const cur=String(data[r][c]==null?'':data[r][c]);
+  const ov=document.createElement('div'); ov.className='hp-pick-bg'; ov.id='hpPickBg';
+  const box=document.createElement('div'); box.className='hp-pick'; box.setAttribute('role','listbox');
+  box.innerHTML='<div class="hp-pick-h">'+escHtml(hpHeadName(c,(k.r1|0)-1))+'（'+ALPHA[c]+(r+1)+'）</div>'
+    +'<div class="hp-pick-list">'+(opts.length?opts.map((o,i)=>'<button type="button" role="option" class="hp-pick-o'+(o===cur?' on':'')+'" data-i="'+i+'">'+escHtml(o)+'</button>').join('')
+      :'<div class="hp-pick-none">えらぶ言葉がありません。⚙ で決めてください</div>')+'</div>'
+    +'<div class="hp-pick-x"><button type="button" data-a="clear">🧹 空にする</button><button type="button" data-a="free">✏️ ほかの字</button></div>'
+    +'<button type="button" class="hp-pick-set" data-a="set">⚙ えらぶ言葉を変える</button>';
+  ov.appendChild(box); document.body.appendChild(ov);
+  const td=document.getElementById(`c${r}_${c}`), rc=td?td.getBoundingClientRect():{left:16,top:80,bottom:110};
+  const W=Math.min(280, window.innerWidth-16);
+  box.style.width=W+'px';
+  const h=box.offsetHeight;
+  let top=rc.bottom+4; if(top+h>window.innerHeight-8) top=Math.max(8, rc.top-h-4);
+  box.style.left=Math.max(8, Math.min(window.innerWidth-W-8, rc.left))+'px';
+  box.style.top=top+'px';
+  hpPickDone=modalBack(()=>hpPickHide());
+  ov.addEventListener('click', e=>{
+    if(e.target===ov){ hpPickHide(); return; }
+    const b=e.target.closest('button'); if(!b) return;
+    if(b.dataset.i!=null){ const v=opts[+b.dataset.i]; hpPickHide(); if(v!==cur) setCellVal(r,c,v); return; }
+    const a=b.dataset.a; hpPickHide();
+    if(a==='clear'){ if(cur!=='') setCellVal(r,c,''); }
+    else if(a==='free') editCellInBar(r,c);
+    else if(a==='set') hpRun('kind', c);
+  });
+  const first=box.querySelector('.hp-pick-o.on')||box.querySelector('.hp-pick-o');
+  if(first) try{ first.focus({preventScroll:true}); }catch(_){}
+}
+function hpPickHide(){
+  const ov=document.getElementById('hpPickBg'); if(ov) ov.remove();
+  const d=hpPickDone; hpPickDone=null; if(d) d();
+}
+
+/* ── 🎨 条件で色 ── */
+var HP_FC={red:'#d32f2f', blue:'#1565c0', green:'#2e7d32', gray:'#9e9e9e', orange:'#e65100'};
+var HP_BG={yellow:'#fff59d', red:'#ffcdd2', green:'#c8e6c9', blue:'#bbdefb', gray:'#e0e0e0', orange:'#ffe0b2'};
+function hpRules(){ const a=cellStyles._cf; return (Array.isArray(a) && a.length) ? a : null; }
+function hpStPick(st){
+  const o={};
+  if(st && HP_FC[st.fc]) o.fc=st.fc;
+  if(st && HP_BG[st.bg]) o.bg=st.bg;
+  if(st && st.b) o.b=1;
+  if(st && st.s) o.s=1;
+  return Object.keys(o).length ? o : null;
+}
+/* 色を書式の形に。画面では夜の色にも切りかわる変数、書き出し・印刷では明るい画面の色 */
+function hpCfStyle(cf, hex){
+  const o={};
+  if(cf.fc) o.color=hex ? HP_FC[cf.fc] : `var(--hpf-${cf.fc})`;
+  if(cf.bg) o.bg=hex ? HP_BG[cf.bg] : `var(--hpb-${cf.bg})`;
+  if(cf.b) o.bold=true;
+  if(cf.s) o.strike=true;
+  return o;
+}
+/* 書き出し・印刷用：セルの書式に 条件の色を重ねたもの */
+function hpEffStyle(r, c, map){
+  const s=cellStyles[`${r},${c}`], m=map||hpCfMap, cf=m && m.get(r+','+c);
+  return cf ? Object.assign({}, s||{}, hpCfStyle(cf,true)) : (s||null);
+}
+/* セルの値（式は答え）。e=空・n=数・s=字・d=日付の通し番号 */
+function hpCellVal(r, c){
+  const raw=(data[r] && data[r][c]!=null) ? String(data[r][c]) : '';
+  if(raw==='') return {e:true, n:null, s:'', d:null};
+  let v=raw;
+  if(raw.startsWith('=')){ try{ v=cellRawValue(evalSheetIdx(), r, c); }catch(e){ return {e:false, n:null, s:'', d:null}; } }
+  else { const t=raw.trim(); if(t!=='' && !isNaN(t)) v=Number(t); }
+  const n=(typeof v==='number' && isFinite(v)) ? v : null;
+  return {e:(v===''), n, s:String(v==null?'':v).trim(), d:(n!=null && cellDateFmt(r,c)) ? Math.floor(n) : null};
+}
+/* 1つの決まりの「当たるか」を返す（上から○つ・同じものは 先に全体を見ておく） */
+function hpCfTest(ru, probe, today, val){
+  const t=ru.t;
+  const num=x=>{ const s=String(x==null?'':x).replace(/,/g,'').trim(); return (s!=='' && !isNaN(s)) ? Number(s) : null; };
+  const v=num(ru.v), v2=num(ru.v2), n=Math.max(1, Math.min(9999, (ru.n|0)||3));
+  if(t==='top' || t==='bot'){
+    const xs=probe.map(([r,c])=>val(r,c).n).filter(x=>x!=null).sort((a,b)=>t==='top'?b-a:a-b);
+    if(!xs.length) return ()=>false;
+    const th=xs[Math.min(n, xs.length)-1];
+    return (r,c)=>{ const x=val(r,c).n; return x!=null && (t==='top' ? x>=th : x<=th); };
+  }
+  if(t==='dup'){
+    const cnt=new Map();
+    probe.forEach(([r,c])=>{ const s=val(r,c).s.toLowerCase(); if(s!=='') cnt.set(s,(cnt.get(s)||0)+1); });
+    return (r,c)=>{ const s=val(r,c).s.toLowerCase(); return s!=='' && cnt.get(s)>1; };
+  }
+  const q=String(ru.v==null?'':ru.v).trim().toLowerCase();
+  return (r,c)=>{
+    if(t==='ck' || t==='unck'){
+      const raw=String(data[r][c]==null?'':data[r][c]);
+      return !raw.startsWith('=') && hpCkState(raw)===(t==='ck'?1:0);
+    }
+    const x=val(r,c);
+    switch(t){
+      case 'neg':   return x.n!=null && x.d==null && x.n<0;
+      case 'gt':    return x.n!=null && v!=null && x.n>v;
+      case 'ge':    return x.n!=null && v!=null && x.n>=v;
+      case 'lt':    return x.n!=null && v!=null && x.n<v;
+      case 'le':    return x.n!=null && v!=null && x.n<=v;
+      case 'bt':    return x.n!=null && v!=null && v2!=null && x.n>=Math.min(v,v2) && x.n<=Math.max(v,v2);
+      case 'eq':    return (v!=null && x.n!=null) ? x.n===v : (!x.e && q!=='' && x.s.toLowerCase()===q);
+      case 'has':   return q!=='' && x.s.toLowerCase().indexOf(q)>=0;
+      case 'blank': return x.e;
+      case 'past':  return x.d!=null && x.d<today;
+      case 'today': return x.d!=null && x.d===today;
+      case 'soon':  return x.d!=null && x.d>=today && x.d<=today+n;   // 今日から n日のうち
+    }
+    return false;
+  };
+}
+/* いまのシートの「条件で付く見た目」をすべて出す（上にある決まりほど強い） */
+function hpCfCompute(){
+  const out=new Map();
+  const rules=hpRules(); if(!rules || !hpOk()) return out;
+  const today=todaySerial(), memo=new Map();
+  const val=(r,c)=>{ const k=r+','+c; let x=memo.get(k); if(!x){ x=hpCellVal(r,c); memo.set(k,x); } return x; };
+  const put=(r,c,st)=>{ const k=r+','+c, o=out.get(k); out.set(k, o ? Object.assign({}, o, st) : st); };
+  for(let i=rules.length-1;i>=0;i--){
+    const ru=rules[i]; if(!ru || ru.off) continue;
+    const st=hpStPick(ru.st); if(!st) continue;
+    const r1=Math.max(0, ru.r1|0), r2=Math.min(ROWS-1, ru.r2==null ? ROWS-1 : ru.r2|0);
+    const c1=Math.max(0, ru.c1|0), c2=Math.min(COLS-1, ru.c2==null ? COLS-1 : ru.c2|0);
+    if(r1>r2 || c1>c2) continue;
+    const rowMode=!!ru.row && ru.kc>=0 && ru.kc<COLS;
+    const rank=(ru.t==='top' || ru.t==='bot' || ru.t==='dup');   // 順位・同じもの は 合計の行を比べる仲間に入れない
+    const probe=[];
+    for(let r=r1;r<=r2;r++){
+      if(rank && hpIsTotalRow(r)) continue;
+      if(rowMode) probe.push([r, ru.kc]); else for(let c=c1;c<=c2;c++) probe.push([r,c]);
+    }
+    const test=hpCfTest(ru, probe, today, val);
+    const nock=(ru.nock!=null && ru.nock>=0 && ru.nock<COLS) ? ru.nock : -1;
+    for(const [r,c] of probe){
+      if(nock>=0){ const raw=String(data[r][nock]==null?'':data[r][nock]); if(!raw.startsWith('=') && hpCkState(raw)===1) continue; }
+      if(!test(r,c)) continue;
+      if(rowMode){ for(let cc=c1;cc<=c2;cc++) put(r,cc,st); } else put(r,c,st);
+    }
+  }
+  return out;
+}
+/* 中身が変わったあと：色が変わるセルだけ塗り直す */
+function hpCfRefresh(){
+  const prev=hpCfMap||new Map(), next=hpCfCompute();
+  hpCfMap=next;
+  if(!prev.size && !next.size) return;
+  const keys=new Set([...prev.keys(), ...next.keys()]);
+  keys.forEach(k=>{
+    const a=prev.get(k), b=next.get(k);
+    if(a===b || (a && b && JSON.stringify(a)===JSON.stringify(b))) return;
+    const p=k.split(','), r=+p[0], c=+p[1];
+    const td=document.getElementById(`c${r}_${c}`); if(td) applyCellStyle(td,r,c);
+  });
+}
+/* recalcAll のあとに呼ぶ */
+function hpAfterRecalc(){
+  if(cellStyles._cf || (hpCfMap && hpCfMap.size)) hpCfRefresh();
+  if(cellStyles._ct) hpKindsRefresh();
+}
+/* 日付の決まり（期限が過ぎた・今日）は 日がかわったら 塗り直す */
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState==='visible' && cellStyles && cellStyles._cf) try{ hpCfRefresh(); }catch(_){}
+});
+
+/* ── 🔎 しぼり込み ── */
+function hpFlt(){ const f=cellStyles._flt; return (f && typeof f==='object' && !Array.isArray(f)) ? f : null; }
+function hpHidSet(){
+  const f=hpFlt(), a=(f && Array.isArray(f.hid)) ? f.hid : null;
+  if(!a || !a.length || !hpOk()) return null;
+  if(!hpHidMemo || hpHidMemo.src!==a) hpHidMemo={src:a, set:new Set(a)};
+  return hpHidMemo.set;
+}
+function hpHidRow(r){ const s=hpHidSet(); return !!(s && s.has(r)); }
+/* ほかのシートで隠している行（SUBTOTAL 用） */
+function hpHidOf(idx){
+  if(typeof curSheet==='number' && idx===curSheet) return hpHidSet();
+  const sh=(typeof sheets!=='undefined' && sheets && sheets[idx]) ? sheets[idx] : null; if(!sh) return null;
+  const st=sh.store||{}, cur=st.current||'normal', ms=st.states && st.states[cur];
+  if(!ms || STRUCT_MODES[cur] || cur==='dentaku') return null;
+  const f=ms.styles && ms.styles._flt;
+  return (f && Array.isArray(f.hid) && f.hid.length) ? new Set(f.hid) : null;
+}
+/* 隠した行に止まらないよう、dir の向き（なければ反対）で いちばん近い見える行 */
+function hpVisNear(r, dir){
+  const s=hpHidSet(); if(!s || !s.has(r)) return r;
+  for(let x=r; x>=0 && x<ROWS; x+=dir) if(!s.has(x)) return x;
+  for(let x=r; x>=0 && x<ROWS; x-=dir) if(!s.has(x)) return x;
+  return r;
+}
+/* 合計の行か（「合計」「☑の合計」などの字、または 縦の範囲を集計する式がある行） */
+function hpIsTotalRow(r){
+  for(let c=0;c<COLS;c++){
+    const v=String(data[r][c]==null?'':data[r][c]).trim();
+    if(/^(総計|小計|計|total|sum)$/i.test(v) || /合計$/.test(v)) return true;
+    if(/^=\s*(SUM|SUBTOTAL|AVERAGE|AVG|COUNT|COUNTA|MAX|MIN|SUMIFS?|COUNTIFS?|AVERAGEIFS?)\s*\(/i.test(v)){
+      const m=/[A-Za-z]{1,2}\$?(\d+)\s*:\s*\$?[A-Za-z]{1,2}\$?(\d+)/.exec(v);
+      if(m && m[1]!==m[2]) return true;
+    }
+  }
+  return false;
+}
+/* しぼる行の範囲：見出しの下から、中身のあるいちばん下の行まで（いちばん下に続く合計の行は外す） */
+function hpFltRegion(f){
+  const h=Math.max(-1, Math.min(ROWS-1, (f && f.h!=null) ? f.h|0 : 0));
+  let r2=h;
+  for(let r=ROWS-1;r>h;r--){ if(!hpRowBlank(r,-1)){ r2=r; break; } }
+  let tot=-1;
+  while(r2>h+1 && hpIsTotalRow(r2)){ tot=r2; r2--; }
+  return {h, r1:h+1, r2, tot};
+}
+function hpCellText(r,c){ const t=getCellDisplay(r,c); return String(t==null?'':t).trim(); }
+function hpFltMatch(f, r){
+  const cond=f.cond||{};
+  for(const key in cond){
+    const c=+key, cd=cond[key];
+    if(!cd || !(c>=0 && c<COLS)) continue;
+    if(Array.isArray(cd.v) && cd.v.indexOf(hpCellText(r,c))<0) return false;
+    if(cd.lo!=null || cd.hi!=null){
+      const n=hpCellVal(r,c).n;
+      if(n==null || (cd.lo!=null && n<cd.lo) || (cd.hi!=null && n>cd.hi)) return false;
+    }
+    if(cd.q && hpCellText(r,c).toLowerCase().indexOf(String(cd.q).toLowerCase())<0) return false;
+  }
+  return true;
+}
+/* いまの条件で しぼり直す（隠す行を決めて 画面に出す） */
+function hpFltApply(){
+  const f=hpFlt(); if(!f || !hpOk()) return;
+  const g=hpFltRegion(f), hid=[];
+  for(let r=g.r1;r<=g.r2;r++) if(!hpFltMatch(f,r)) hid.push(r);
+  cellStyles._flt=Object.assign({}, f, {hid});
+  hpHidMemo=null;
+  hpRowsShow(); hpHeadMarks(); hpBarRender();
+  if(hpHidRow(selR)) sel(hpVisNear(selR,1), selC); else updateStats(selC);
+  recalcAll();   // SUBTOTAL の答えを出し直す
+  persistModes(); if(typeof saveSheets==='function') saveSheets();
+}
+function hpFltReapply(){ hpFltApply(); const f=hpFlt(); if(f) toast('いまの中身で しぼり直しました'); }
+/* しぼり込みをやめる（全部の行を出す） */
+function hpFltOff(){
+  if(!cellStyles._flt) return;
+  delete cellStyles._flt;
+  hpHidMemo=null;
+  hpRowsShow(); hpHeadMarks(); hpBarRender();
+  updateStats(selC); recalcAll();
+  persistModes(); if(typeof saveSheets==='function') saveSheets();
+  toast('しぼり込みをやめました（全部の行を出しています）');
+}
+function hpRowsShow(){
+  const s=hpHidSet();
+  for(let r=0;r<ROWS;r++){
+    const rh=document.getElementById('rh'+r), tr=rh && rh.parentElement;
+    if(tr) tr.classList.toggle('hp-hid', !!(s && s.has(r)));
+  }
+}
+/* 列の見出し（A・B…）に ▾ を付ける。押すと その列の しぼり込み・並べかえ */
+function hpHeadMarks(){
+  const f=hpOk() ? hpFlt() : null;
+  for(let c=0;c<COLS;c++){
+    const th=document.getElementById('ch'+c); if(!th) continue;
+    let b=th.querySelector('.hp-fb');
+    if(!f){ if(b) b.remove(); continue; }
+    if(!b){
+      b=document.createElement('span'); b.className='hp-fb'; b.setAttribute('role','button'); b.tabIndex=0;
+      const cc=c;
+      b.addEventListener('pointerdown', e=>e.stopPropagation());
+      b.addEventListener('mousedown', e=>e.stopPropagation());
+      b.addEventListener('touchstart', e=>e.stopPropagation(), {passive:true});
+      b.addEventListener('click', e=>{ e.stopPropagation(); e.preventDefault(); hpRun('filter', cc); });
+      b.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.stopPropagation(); e.preventDefault(); hpRun('filter', cc); } });
+      th.appendChild(b);
+    }
+    const on=!!(f.cond && f.cond[c]);
+    b.classList.toggle('on', on);
+    b.textContent=on ? '▼' : '▾';
+    b.title=on ? 'この列でしぼり込み中（押すと条件・並べかえ）' : '押すと この列で しぼり込み・並べかえ';
+    b.setAttribute('aria-label', ALPHA[c]+'列のしぼり込み'+(on?'（しぼり込み中）':''));
+  }
+}
+/* 条件のひとこと（帯に出す） */
+function hpCondLabel(f, c){
+  const cd=f.cond && f.cond[c]; if(!cd) return '';
+  const nm=hpHeadName(c, f.h==null?0:f.h|0);
+  const isD=cd.dt;
+  const fmtV=x=>isD ? formatDate(x,'md') : withCommas(String(x));
+  if(Array.isArray(cd.v)){
+    const shown=cd.v.slice(0,2).map(x=>x===''?'（空）':x).join('・');
+    return nm+'：'+shown+(cd.v.length>2?' ほか'+(cd.v.length-2):'');
+  }
+  if(cd.lo!=null || cd.hi!=null){
+    if(cd.lo!=null && cd.hi!=null) return nm+'：'+fmtV(cd.lo)+'〜'+fmtV(cd.hi);
+    return nm+'：'+(cd.lo!=null ? fmtV(cd.lo)+(isD?'から':'以上') : fmtV(cd.hi)+(isD?'まで':'以下'));
+  }
+  if(cd.q) return nm+'：「'+cd.q+'」を含む';
+  return nm;
+}
+/* 表の上の帯：しぼっている条件・何行見えているか・🔄・やめる */
+function hpBarRender(){
+  const bar=document.getElementById('hpBar'); if(!bar) return;
+  const f=hpOk() ? hpFlt() : null;
+  if(!f){ bar.hidden=true; bar.innerHTML=''; return; }
+  const g=hpFltRegion(f), all=Math.max(0, g.r2-g.r1+1);
+  const s=hpHidSet(), hidN=s ? [...s].filter(r=>r>=g.r1 && r<=g.r2).length : 0;
+  const cols=Object.keys(f.cond||{}).map(Number).filter(c=>f.cond[c] && c<COLS).sort((a,b)=>a-b);
+  const desc=cols.length ? cols.map(c=>hpCondLabel(f,c)).join('／') : '列の見出しの ▾ で条件を決めます';
+  bar.innerHTML='<button type="button" class="hp-bar-t" onclick="hpRun(\'filter\','+(cols.length?cols[0]:'selC')+')">🔎 '+escHtml(desc)+'</button>'
+    +'<span class="hp-bar-n">'+(all-hidN)+'/'+all+'行</span>'
+    +'<button type="button" class="hp-bar-b" onclick="hpFltReapply()" title="いまの中身で しぼり直す" aria-label="しぼり直す">🔄</button>'
+    +'<button type="button" class="hp-bar-b" onclick="hpFltOff()">✕ やめる</button>';
+  bar.hidden=false;
+}
+/* buildSheet のあとに呼ぶ */
+function hpAfterBuild(){
+  hpHidMemo=null;
+  if(cellStyles._flt || document.querySelector('#sheet tr.hp-hid')) hpRowsShow();
+  hpHeadMarks(); hpBarRender();
+}
+
+/* ── 行・列の増減：特別なキーの中の 行・列の番号を直す ── */
+function hpMapRow(mapFn, r){ const x=mapFn(r,-1); return (x && x[0]>=0 && x[0]<MAXROWS) ? x[0] : null; }
+function hpMapCol(mapFn, c){ const x=mapFn(-1,c); return (x && x[1]>=0 && x[1]<MAXCOLS) ? x[1] : null; }
+/* a〜b の幅を写す。すぐ上（左）に続けて足した行（列）も入れる。いちばん下（右）までのものは そのまま端まで */
+function hpMapSpan(a, b, f, max){
+  let na=null, nb=null;
+  for(let i=a;i<=b;i++){ const j=f(i); if(j!=null){ if(na==null) na=j; nb=j; } }
+  if(na==null) return null;
+  if(a>0){ const up=f(a-1); if(up!=null && up+1<na) na=up+1; }
+  if(b>=max-1) nb=max-1;
+  return [na, Math.max(na, nb)];
+}
+function hpRemapKey(k, v, mapFn){
+  const fr=r=>hpMapRow(mapFn,r), fc=c=>hpMapCol(mapFn,c);
+  if(k==='_ct'){
+    if(!v || typeof v!=='object') return null;
+    const o={};
+    for(const key in v){
+      const it=v[key], c2=fc(+key); if(c2==null || !it) continue;
+      const r1=it.r1|0;
+      let nr=r1>0 ? fr(r1-1) : -1;            // 見出しの行についていく（見出しのすぐ下に足した行も入る）
+      nr=(nr==null) ? fr(r1) : nr+1;
+      o[c2]=Object.assign({}, it, {r1:(nr==null ? r1 : nr)});
+    }
+    return Object.keys(o).length ? o : null;
+  }
+  if(k==='_cf'){
+    if(!Array.isArray(v)) return null;
+    const out=[];
+    v.forEach(ru=>{
+      if(!ru) return;
+      const rs=hpMapSpan(ru.r1|0, ru.r2==null ? MAXROWS-1 : ru.r2|0, fr, MAXROWS);
+      const cs=hpMapSpan(ru.c1|0, ru.c2==null ? MAXCOLS-1 : ru.c2|0, fc, MAXCOLS);
+      if(!rs || !cs) return;
+      const n=Object.assign({}, ru, {r1:rs[0], r2:rs[1], c1:cs[0], c2:cs[1]});
+      if(ru.kc!=null){ const x=fc(ru.kc); if(x==null) return; n.kc=x; }
+      if(ru.nock!=null){ const x=fc(ru.nock); if(x==null) delete n.nock; else n.nock=x; }
+      out.push(n);
+    });
+    return out.length ? out : null;
+  }
+  if(k==='_flt'){
+    if(!v || typeof v!=='object') return null;
+    let h=(v.h==null) ? 0 : v.h|0;
+    if(h>=0){ const x=fr(h); if(x==null) return null; h=x; }
+    const cond={};
+    for(const key in (v.cond||{})){ const c2=fc(+key); if(c2!=null && v.cond[key]) cond[c2]=v.cond[key]; }
+    const hid=(Array.isArray(v.hid) ? v.hid : []).map(fr).filter(x=>x!=null);
+    return Object.assign({}, v, {h, cond, hid});
+  }
+  return v;   // 知らない特別なキーは そのまま
+}
+
+/* ── 条件つきの集計（SUMIF・COUNTIF・AVERAGEIF・…IFS・SUBTOTAL）── */
+function hpCritNum(v){
+  if(typeof v==='number') return isFinite(v) ? v : null;
+  const t=String(v==null?'':v).trim();
+  if(t==='') return null;
+  if(/^true$/i.test(t)) return 1;
+  if(/^false$/i.test(t)) return 0;
+  const u=t.replace(/,/g,'');
+  return (u!=='' && !isNaN(u)) ? Number(u) : null;
+}
+/* 条件（数・"済"・">=10000"・"<>現金"・"*店"・"2026/10/1" など）→ 当たるか を見る関数 */
+function hpCrit(cr){
+  if(typeof cr==='number') return v=>{ const n=hpCritNum(v); return n!=null && n===cr; };
+  let s=String(cr==null?'':cr), op='=';
+  const m=/^(<=|>=|<>|=|<|>)/.exec(s); if(m){ op=m[1]; s=s.slice(op.length); }
+  const t=s.trim();
+  let x=hpCritNum(t);
+  if(x==null && /[\/\-年月]/.test(t)) x=parseDateInput(t);   // 日付で比べる
+  if(x!=null){
+    return v=>{
+      const n=hpCritNum(v); if(n==null) return op==='<>';
+      return op==='=' ? n===x : op==='<>' ? n!==x : op==='<' ? n<x : op==='>' ? n>x : op==='<=' ? n<=x : n>=x;
+    };
+  }
+  if(t===''){
+    if(op==='=') return v=>String(v==null?'':v).trim()==='';
+    if(op==='<>') return v=>String(v==null?'':v).trim()!=='';
+    return ()=>false;
+  }
+  const low=t.toLowerCase();
+  const re=/[*?]/.test(t) ? new RegExp('^'+t.replace(/[.+^${}()|[\]\\]/g,'\\$&').replace(/\*/g,'.*').replace(/\?/g,'.')+'$','i') : null;
+  const eq=v=>{ const sv=String(v==null?'':v).trim(); return re ? re.test(sv) : sv.toLowerCase()===low; };
+  if(op==='=') return eq;
+  if(op==='<>') return v=>!eq(v);
+  return v=>{
+    const sv=String(v==null?'':v).trim().toLowerCase(); if(sv==='' || hpCritNum(v)!=null) return false;
+    const k=sv.localeCompare(low,'ja');
+    return op==='<' ? k<0 : op==='>' ? k>0 : op==='<=' ? k<=0 : k>=0;
+  };
+}
+/* kind：SUMIF・COUNTIF・AVERAGEIF・SUMIFS・COUNTIFS・AVERAGEIFS。pairs=[[範囲,条件]…]、target=足す（平均する）範囲 */
+function hpIfAgg(kind, target, pairs){
+  const isCount=(kind==='COUNTIF' || kind==='COUNTIFS');
+  const base=(kind==='SUMIFS' || kind==='AVERAGEIFS') ? target : pairs[0][0];
+  const tests=pairs.map(([g,cr])=>[g, hpCrit(cr)]);
+  const H=base.r2-base.r1, W=base.c2-base.c1;
+  let sum=0, cnt=0;
+  for(let dr=0;dr<=H;dr++) for(let dc=0;dc<=W;dc++){
+    let ok=true;
+    for(const [g,t] of tests){
+      let v;
+      try{ v=cellRawValue(g.idx, g.r1+dr, g.c1+dc); }
+      catch(e){ if(isFormulaError(e)){ ok=false; break; } throw e; }   // エラーのセルは 当たらない
+      if(!t(v)){ ok=false; break; }
+    }
+    if(!ok) continue;
+    if(isCount){ cnt++; continue; }
+    const v=cellRawValue(target.idx, target.r1+dr, target.c1+dc);
+    if(typeof v==='number' && isFinite(v)){ sum+=v; cnt++; }
+  }
+  if(isCount) return cnt;
+  if(kind==='AVERAGEIF' || kind==='AVERAGEIFS'){ if(!cnt) fErr('#DIV/0!', kind); return sum/cnt; }
+  return sum;
+}
+/* SUBTOTAL(番号, 範囲…)：しぼり込みで隠した行と、中の SUBTOTAL を数えない */
+function hpSubtotal(fn, rngs){
+  const f=fn>100 ? fn-100 : fn;
+  if(!rngs.length || !(f>=1 && f<=11)) fErr('#VALUE!','SUBTOTAL');
+  const xs=[]; let filled=0;
+  for(const g of rngs){
+    const hid=hpHidOf(g.idx), src=sheetDataOf(g.idx);
+    for(let r=g.r1;r<=g.r2;r++){
+      if(hid && hid.has(r)) continue;
+      for(let c=g.c1;c<=g.c2;c++){
+        const raw=(src && src[r] && src[r][c]!=null) ? String(src[r][c]) : '';
+        if(raw==='' || /^=.*SUBTOTAL\s*\(/i.test(raw)) continue;
+        const v=cellRawValue(g.idx, r, c);
+        if(v==='') continue;
+        filled++;
+        if(typeof v==='number' && isFinite(v)) xs.push(v);
+      }
+    }
+  }
+  const n=xs.length, sum=xs.reduce((a,b)=>a+b,0);
+  const vr=pop=>{ const d=n-(pop?0:1); if(d<=0) fErr('#DIV/0!','SUBTOTAL'); const m=sum/n; return xs.reduce((a,b)=>a+(b-m)*(b-m),0)/d; };
+  switch(f){
+    case 1: if(!n) fErr('#DIV/0!','SUBTOTAL'); return sum/n;
+    case 2: return n;
+    case 3: return filled;
+    case 4: return n ? xs.reduce((a,b)=>Math.max(a,b)) : 0;
+    case 5: return n ? xs.reduce((a,b)=>Math.min(a,b)) : 0;
+    case 6: return n ? xs.reduce((a,b)=>a*b,1) : 0;
+    case 7: return Math.sqrt(vr(false));
+    case 8: return Math.sqrt(vr(true));
+    case 9: return sum;
+    case 10: return vr(false);
+    default: return vr(true);
+  }
+}
+
+/* ── シートの名前を変えたら、ほかのシートの式の「名前!A1」も直す（📑 まとめ表などが #REF! にならないように）── */
+function hpRenameRefs(oldN, newN){
+  if(!oldN || oldN===newN || typeof sheets==='undefined') return 0;
+  const esc=x=>String(x).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const quoted="'"+String(newN).replace(/'/g,"''")+"'!";
+  const reQ=new RegExp("'"+esc(String(oldN).replace(/'/g,"''"))+"'!", 'g');
+  const reU=new RegExp('(^=|[=+\\-*/^(,:&<> %])'+esc(oldN)+'!', 'g');
+  let n=0;
+  const fix=v=>{
+    if(typeof v!=='string' || v[0]!=='=' || v.indexOf(oldN)<0) return v;
+    const w=v.replace(reQ, quoted).replace(reU, (m,p)=>p+quoted);
+    if(w!==v) n++;
+    return w;
+  };
+  const fixRows=rows=>{ if(!Array.isArray(rows)) return; rows.forEach(row=>{ if(Array.isArray(row)) for(let c=0;c<row.length;c++) row[c]=fix(row[c]); }); };
+  sheets.forEach((sh,i)=>{
+    if(i===curSheet){ fixRows(data); return; }
+    const st=sh && sh.store && sh.store.states; if(!st) return;
+    for(const m in st) if(st[m]) fixRows(st[m].data);
+  });
+  for(const m in modeStates) if(m!==tableMode && modeStates[m]) fixRows(modeStates[m].data);
+  return n;
 }
 function fmtKey(){ return `${fmtR},${fmtC}`; }
 function fmtStyle(create){
@@ -23354,6 +24134,7 @@ function commitFill() {
     for(let step=1;step<=steps;step++){
       const r=fillSrcR+dr*step, c=fillSrcC+dc*step;
       if(r<0||r>=ROWS||c<0||c>=COLS) break;
+      if(hpHidRow(r)) continue;   // しぼり込みで隠した行には入れない（v563）
       setCellVal(r,c,adjustFormula(srcVal,dr*step,dc*step));
     }
     // 数値・日付・末尾が数字の文字なら「連番にする」ボタンを出す
@@ -23385,7 +24166,7 @@ function fillAsSequence(stepBy){
   const srcStr=String(data[f.srcR][f.srcC]).trim();
   const srcFmt=cellDateFmt(f.srcR,f.srcC);
   const cells=[];
-  for(let step=1;step<=f.steps;step++){ const r=f.srcR+f.dr*step, c=f.srcC+f.dc*step; if(r<0||r>=ROWS||c<0||c>=COLS)break; cells.push([r,c,step]); }
+  for(let step=1;step<=f.steps;step++){ const r=f.srcR+f.dr*step, c=f.srcC+f.dc*step; if(r<0||r>=ROWS||c<0||c>=COLS)break; if(hpHidRow(r)) continue; cells.push([r,c,step]); }
   if(/^-?\d+(\.\d+)?$/.test(srcStr)){
     const base=Number(srcStr);
     cells.forEach(([r,c,step])=>{ if(isLockedCell(r,c))return; setCellVal(r,c,String(add(base,step))); if(srcFmt){ (cellStyles[`${r},${c}`]=cellStyles[`${r},${c}`]||{}).dfmt=srcFmt; repaintCell(r,c); } });
