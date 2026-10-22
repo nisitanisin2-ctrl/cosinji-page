@@ -3010,6 +3010,7 @@ async function rkTrashDel(){
   xs.forEach(x=>{ if(x.photo){ rkPicDel(x.id); delete rkPics[x.id]; } });
   rk.items=rk.items.filter(x=>!ids.has(x.id));
   if(rkSel) ids.forEach(id=>rkSel.delete(id));
+  if(rkSo) rkSo.undo=rkSo.undo.filter(u=>!ids.has(u.id));   // 消した人には ↶ で戻らない
   rkSave(); rkRender(); if(rkSo && isDlgOpen('rkSortOverlay')) rkSoRender();
   toast(xs.length+'人 消しました'); return true;
 }

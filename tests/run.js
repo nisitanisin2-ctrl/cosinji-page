@@ -9655,6 +9655,7 @@ async function runRenraku566(browser) {
     '🎉 ここまで 仕分けました ✓ 残す 7人・🗑 消す候補 2人・⏭ あとで 1人 🗑 消す候補を まとめて消す（2人） 🗑 消す候補を 一覧で見る（もどす・書き出して控え） ▶ まだ仕分けていない人を 続けて（1人） 一覧に もどる / true');
   await page.evaluate(() => RK.trashDel()); await w(400);
   check('  　まとめて消す：消す候補の 2人が 消える（ほかは そのまま）', await page.evaluate(() => rkState().items.length + '人 / ' + rkState().items.some(x => /田中|高橋/.test(rkNameOf(x))) + ' / ' + document.querySelector('#rkSoBody .rk-so-end').innerText.includes('まとめて消す')), '10人 / false / false');
+  check('  　↶ は 消した人を とばして 残した人に戻る', await page.evaluate(() => { RK.soUndo(); const n = document.querySelector('#rkSoBody .rk-who .n').textContent.trim(); RK.soKeep(); return n + ' / ' + !!document.querySelector('#rkSoBody .rk-so-end'); }), '足利タクシー / true');
   await page.evaluate(() => RK.soStart('todo')); await w(300);
   check('  　「続けて」：あとで にした人だけ', await so(), '木村 七海 | 1 ／ 1人 ✓ 残す 0・🗑 消す候補 0・⏭ あとで 0');
   await page.evaluate(() => RK.soKeep()); await w(250);
