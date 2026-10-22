@@ -1,4 +1,4 @@
-/* ✍️かきじゅん帳：手書きの字を、常用漢字の筆順データと照らし合わせて候補を出す（app.js より先に読む） */
+/* ✍️かきじゅん帳：手書きの字を、字の筆順データ（常用漢字・かな・人名用漢字など）と照らし合わせて候補を出す（app.js より先に読む） */
 /* 手書き漢字認識（ストローク照合型）
    - 入力ストロークと各漢字の筆順データを、Hungarian 法で最適対応づけして距離を計算
    - 書き順・書く向きが違っても候補に出るよう、順序と向きは小さな減点にとどめる */
@@ -199,7 +199,7 @@
     this.refs = records.map(function (r) {
       var strokes = r.paths.map(parsePath);
       var nf = normalize(strokes, 109);
-      nf.c = r.c; nf.n = strokes.length;
+      nf.c = r.c; nf.n = strokes.length; nf.w = r.w || 0;   // w：めずらしい字の 少しの減点（v567。形が同じくらいなら 常用漢字を先に）
       return nf;
     });
   }
@@ -213,14 +213,14 @@
     for (var i = 0; i < this.refs.length; i++) {
       var ref = this.refs[i];
       if (Math.abs(ref.n - n) > tol) continue;
-      pre.push([coarse(inp, ref) + 0.03 * Math.abs(ref.n - n), i]);
+      pre.push([coarse(inp, ref) + 0.03 * Math.abs(ref.n - n) + ref.w, i]);
     }
     pre.sort(function (a, b) { return a[0] - b[0]; });
     // 2段目：Hungarian 法で精密に照合
     var res = [];
     for (var q = 0; q < Math.min(pre.length, 240); q++) {
       var rf = this.refs[pre[q][1]];
-      res.push([compare(inp, rf) + 0.03 * Math.abs(rf.n - n), rf.c]);
+      res.push([compare(inp, rf) + 0.03 * Math.abs(rf.n - n) + rf.w, rf.c]);
     }
     res.sort(function (a, b) { return a[0] - b[0]; });
     return res.slice(0, limit || 12).map(function (x) { return { c: x[1], score: x[0] }; });

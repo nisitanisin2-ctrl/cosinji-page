@@ -7171,7 +7171,7 @@ async function runKakijun(browser) {
   const reqs = []; page.on('request', r => { if (!/^file:|^data:|^blob:/.test(r.url())) reqs.push(r.url()); });
   const w = ms => page.waitForTimeout(ms);
   await page.goto(KKJ); await w(1500);
-  check('  2136字（小1 80・小2 160・小3 200・小4 202・小5 193・小6 191・中学以降 1110）', await page.evaluate(() => { const g = {}; KKJ_APP.ALL.forEach(k => { g[k.g] = (g[k.g] || 0) + 1; }); return KKJ_APP.ALL.filter(k => !k.kana).length + ' ' + [1, 2, 3, 4, 5, 6, 7].map(i => g[i]).join(','); }), '2136 80,160,200,202,193,191,1110');   // v558 から かなも入る（kkj558）
+  check('  2136字（小1 80・小2 160・小3 200・小4 202・小5 193・小6 191・中学以降 1110）', await page.evaluate(() => { const g = {}; KKJ_APP.ALL.forEach(k => { g[k.g] = (g[k.g] || 0) + 1; }); return KKJ_APP.ALL.filter(k => k.g <= 7).length + ' ' + [1, 2, 3, 4, 5, 6, 7].map(i => g[i]).join(','); }), '2136 80,160,200,202,193,191,1110');   // v558 から かなも入る（kkj558）
   check('  はじめは「永」（書き順を見る）・単独で開いたときは「← 表電卓」を出さない', await page.evaluate(() => [KKJ_APP.cur().c, KKJ_APP.mode(), document.getElementById('backHyo').hidden, location.hash].join('/')), '永/view/true/#u6c38');
   check('  よけいなもの（手書き・声の窓・練習の紙）は出さない', await page.evaluate(() => ['hwSheet', 'micSheet', 'backdrop', 'pc', 'prResult'].map(i => getComputedStyle(document.getElementById(i)).display).join(',')), 'none,none,none,none,none');
 
@@ -7205,7 +7205,7 @@ async function runKakijun(browser) {
   const sr = q => page.evaluate(q => { const r = KKJ_APP.search(q); return r ? r.list.length + ':' + r.list.slice(0, 5).map(k => k.c).join('') + ':' + r.msg : 'null'; }, q);
   check('  漢字で探す', await sr('山川'), '2:山川:');
   check('  よみで探す（ひらがな・カタカナ）', [(await sr('やま')).split(':')[1].includes('山'), (await sr('ヤマ')).split(':')[1].includes('山')].join('/'), 'true/true');
-  check('  画数で探す（全角の数字も）', [await sr('1画'), (await sr('２３画')).split(':')[2]].join('/'), '2:一乙:1画の漢字（2字）/23画の漢字（1字）');
+  check('  画数で探す（全角の数字も）', [await sr('1画'), (await sr('２３画')).split(':')[2]].join('/'), '2:一乙:1画の漢字（2字）/23画の漢字（9字）');
   check('  常用漢字でない字は知らせる', (await sr('鬱')).split(':').slice(0, 1) + '/' + /常用漢字ではない/.test(await sr('丼丸')), '1/false');
   await page.fill('#q', 'さくら'); await w(150);
   check('  検索欄：候補を出す・Enter で開く', [await page.evaluate(() => !document.getElementById('results').hidden && document.querySelectorAll('#results .res-item').length > 0)].join(''), 'true');
@@ -9830,7 +9830,7 @@ async function runKakijun558(browser) {
   await page.goto(KKJ); await page.waitForFunction(() => window.KKJ_APP && KKJ_APP.cur()); await w(300);
 
   // データ
-  check('  ひらがな82字・カタカナ84字（漢字は2136字のまま）', await page.evaluate(() => { const g = {}; KKJ_APP.ALL.forEach(k => { g[k.g] = (g[k.g] || 0) + 1; }); return [g[8], g[9], KKJ_APP.ALL.filter(k => !k.kana).length].join('/'); }), '82/84/2136');
+  check('  ひらがな82字・カタカナ84字（常用漢字は2136字のまま）', await page.evaluate(() => { const g = {}; KKJ_APP.ALL.forEach(k => { g[k.g] = (g[k.g] || 0) + 1; }); return [g[8], g[9], KKJ_APP.ALL.filter(k => k.g <= 7).length].join('/'); }), '82/84/2136');
   check('  全部のかなの全部の画に、名前と書き方がある（「線」のままの画はない）', await page.evaluate(() => KKJ_APP.ALL.filter(k => k.kana).filter(k => { for (let i = 0; i < k.n; i++) { const s = KKJ_APP.sinfo(k, i); if (s.name === '線' || !s.tip) return true; } return false; }).map(k => k.c).join('')), '');
   check('  全部のかなに字のコツがある（undefined・空の「」を出さない）', await page.evaluate(() => KKJ_APP.ALL.filter(k => k.kana).filter(k => { const t = KKJ_APP.analyze(k).tips; return !t.length || t.concat(KKJ_APP.strokeTips(k).flat().map(x => x.h + x.s)).some(x => /undefined|NaN|「」/.test(typeof x === 'object' ? x.h : x)); }).map(k => k.c).join('')), '');
   check('  並びは ひらがな → カタカナ → 1年（五十音の表の順）', await page.evaluate(() => { const O = KKJ_APP.ORDER; return [O.slice(0, 5).map(k => k.c).join(''), O.slice(82, 87).map(k => k.c).join(''), O[166].g].join('/'); }), 'あいうえお/アイウエオ/1');
@@ -9948,6 +9948,71 @@ async function runKakijun558(browser) {
   await ctx.close();
 }
 /* ✍️ かきじゅん帳 v559：iPhone SE（幅320px。SE 第2・第3世代の「拡大表示」も）・375px で、カードの外へはみ出さない */
+async function runKakijun567(browser) {
+  console.log('\n── ✍️ かきじゅん帳：人名用漢字・地名や名字の漢字（晋・匡・伊 など）（v567） ──');
+  const dir = path.join(ROOT, 'kakijun'), KKJ = 'file://' + path.join(dir, 'index.html');
+  const sw = fs.readFileSync(path.join(dir, 'service-worker.js'), 'utf8'), html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8'), d2 = fs.readFileSync(path.join(dir, 'js/data2.js'), 'utf8');
+  check('  js/data2.js を kana.js のあと・recog.js の前に読む・service-worker が持つ（控えの番号も上げた）', [/js\/kana\.js"><\/script>\s*<script src="js\/data2\.js"><\/script>\s*<script src="js\/recog\.js">/.test(html), sw.includes("'./js/data2.js'"), Number((/const CACHE = 'kakijun-v(\d+)'/.exec(sw) || [])[1]) >= 8].join('/'), 'true/true/true');
+  check('  データの出どころと権利（KanjiVG・KANJIDIC2・CC BY-SA 3.0）・画面の下にも人名用漢字のこと', [/KanjiVG/.test(d2.slice(0, 600)) && /KANJIDIC2/.test(d2.slice(0, 600)) && /CC BY-SA 3\.0 で提供/.test(d2.slice(0, 600)), /人名用漢字（862字）/.test(html)].join('/'), 'true/true');
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/favicon/.test(m.text())) errs.push('console: ' + m.text()); });
+  const w = ms => page.waitForTimeout(ms);
+  await page.goto(KKJ); await page.waitForFunction(() => window.KKJ_APP && KKJ_APP.cur()); await w(300);
+
+  // ── データ
+  check('  字の数：常用漢字 2136（そのまま）・人名用漢字 862・そのほか 370・かな 166', await page.evaluate(() => { const g = {}; KKJ_APP.ALL.forEach(k => { g[k.g] = (g[k.g] || 0) + 1; }); return [KKJ_APP.ALL.filter(k => k.g <= 7).length, g[10], g[11], g[8] + g[9], KKJ_APP.NKAN].join('/'); }), '2136/862/370/166/3368');
+  check('  晋・匡・伊・柏・辻・翔・凜・雫・嶋 は人名用（10）、澤・邊・鮭・蛙・匝 は そのほか（11）', await page.evaluate(() => [...'晋匡伊柏辻翔凜雫嶋澤邊鮭蛙匝'].map(c => c + (KKJ_APP.K.get(c) || {}).g).join(' ')), '晋10 匡10 伊10 柏10 辻10 翔10 凜10 雫10 嶋10 澤11 邊11 鮭11 蛙11 匝11');
+  check('  どの字も 画数＝線の数＝画の種類の数・番号の位置は 画数×2・部品の画は 1〜画数・読みがある', await page.evaluate(() => KKJ_APP.ALL.filter(k => k.g >= 10).filter(k => !(k.n === k.paths.length && k.n === k.types.length && k.nums.length === k.n * 2 && k.comps.every(p => p[3] >= 1 && p[4] <= k.n && p[3] <= p[4]) && k.rd.length)).map(k => k.c).join('')), '');
+  check('  常用漢字と同じ字は 入れない（頬・填 は 頰・塡 のまま）', await page.evaluate(() => [KKJ_APP.K.has('頬'), KKJ_APP.K.has('填'), KKJ_APP.ALL.filter(k => k.g >= 10 && KKJ_APP.ALL.some(j => j.g <= 7 && j.c === k.c)).length].join('/')), 'false/false/0');
+  check('  旧字体の人名用漢字（社・海 など）は 線も その形（示へん 8画・社 は 7画）', await page.evaluate(() => [KKJ_APP.K.get('社').n, KKJ_APP.K.get('社').n, KKJ_APP.K.get('海').n, KKJ_APP.K.get('海').n].join('/')), '8/7/10/9');
+  check('  全部の新しい字の コツ・画ごとのコツに undefined・空の「」を出さない', await page.evaluate(() => KKJ_APP.ALL.filter(k => k.g >= 10).filter(k => { const an = KKJ_APP.analyze(k); return /undefined|NaN|「」/.test(JSON.stringify(an.tips) + (an.layout || '') + (an.formula || '') + JSON.stringify(KKJ_APP.strokeTips(k))); }).map(k => k.c).join('')), '');
+
+  // ── 探す
+  const sr = q => page.evaluate(q => { const r = KKJ_APP.search(q); return r ? r.list.length + ':' + r.list.slice(0, 6).map(k => k.c).join('') + ':' + r.msg : 'null'; }, q);
+  check('  漢字で探す：晋・匡・伊藤（知らせは出さない）', [await sr('晋'), await sr('匡'), await sr('伊藤')].join(' | '), '1:晋: | 1:匡: | 2:伊藤:');
+  check('  髙橋・山﨑：はしご高・たつさき は 高・崎 の書き順で出すと知らせる', [await sr('髙橋'), await sr('山﨑')].join(' | '), '2:高橋:「髙」は「高」の書き順で出します（その形の書き順データがないため）。 | 2:山崎:「﨑」は「崎」の書き順で出します（その形の書き順データがないため）。');
+  check('  データにない字は 知らせる（何字のほかか）', await sr('龘'), '0::「龘」は書き順データがありません（常用漢字・人名用漢字・地名などの漢字 3368字のほかの字です）。');
+  check('  よみで探す：常用漢字を先に・人名用も出る（すすむ → 進 …… 晋）', await page.evaluate(() => { const r = KKJ_APP.search('すすむ'); const l = r.list.filter(k => !k.kana).map(k => k.c + k.g); return l.join(' '); }), '進3 漸7 晋10 迪10');
+  check('  画数で探す：人名用・そのほかの字も（常用漢字が先）', await page.evaluate(() => { const r = KKJ_APP.search('6画'); const l = r.list; return [l[0].g <= 7, l.some(k => k.c === '匡'), l.findIndex(k => k.g >= 10) > l.filter(k => k.g <= 7).length - 1].join('/'); }), 'true/true/true');
+
+  // ── 字の説明
+  await page.evaluate(() => KKJ_APP.load('晋', { autoplay: false })); await w(150);
+  check('  「晋」：人名用漢字・10画・音訓・組み立て（上下）・コツ', await page.evaluate(() => [document.getElementById('big').textContent, [...document.querySelectorAll('#meta .tag')].map(t => t.textContent).slice(0, 2).join(' '), document.getElementById('yomi').textContent, document.getElementById('parts').textContent, document.querySelectorAll('#tips li').length >= 3].join(' | ')),
+    '晋 | 人名用漢字 10画 | 音シン訓すすむ | 組み立て：上下　亚 ＋ 日 | true');
+  check('  　書き順の一覧も 10画', await page.evaluate(() => document.querySelectorAll('#steps .step').length + '/' + document.querySelectorAll('#lInk path').length), '10/10');
+  await page.evaluate(() => KKJ_APP.load('鮭', { autoplay: false })); await w(150);
+  check('  「鮭」：そのほかの漢字・17画', await page.evaluate(() => [...document.querySelectorAll('#meta .tag')].map(t => t.textContent).slice(0, 2).join(' ')), 'そのほかの漢字 17画');
+
+  // ── 字を選ぶ：タブ
+  check('  字を選ぶ：「人名用」「そのほか」のタブ（中学以降のあと・最近見たの前）', await page.evaluate(() => [...document.querySelectorAll('#gtabs button')].map(b => b.textContent).slice(-4).join(',')), '中学以降,人名用,そのほか,最近見た');
+  await page.click('#gtabs [data-t="10"]'); await w(150);
+  check('  　人名用：862字（よみの五十音順）', await page.evaluate(() => [document.getElementById('gridCount').textContent, document.querySelectorAll('#kgrid button').length, document.querySelector('#kgrid button').textContent].join('/')), '人名用漢字・862字/862/阿');
+  await page.click('#gtabs [data-t="11"]'); await w(150);
+  check('  　そのほか：370字', await page.evaluate(() => [document.getElementById('gridCount').textContent, document.querySelectorAll('#kgrid button').length].join('/')), 'そのほかの漢字・370字/370');
+  await page.click('#kgrid [data-c="狛"]'); await w(200);
+  check('  　おすと その字（狛）', await page.evaluate(() => KKJ_APP.cur().c), '狛');
+
+  // ── ✏️ 手書き：人名用の字も出る・形が同じくらいなら 常用漢字を先に
+  const rec = c => page.evaluate(c => { const k = KKJ_APP.K.get(c); const pts = k.paths.map(d => KRecog.parsePath(d).map(q => [q[0] * 300 / 109, q[1] * 300 / 109])); return KKJ_APP.recognize(pts, 300, 5).map(r => r.c).join(''); }, c);
+  check('  手書き：お手本どおりに書くと 1番目（晋・匡・柏・山・話）', [await rec('晋'), await rec('匡'), await rec('柏'), await rec('山'), await rec('話')].map(s => s[0]).join(''), '晋匡柏山話');
+
+  // ── なぞって練習
+  await page.evaluate(() => KKJ_APP.load('匡', { autoplay: false })); await w(100);
+  await page.click('#modePractice'); await w(250);
+  const box = await page.evaluate(() => { const r = document.getElementById('pc').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width }; });
+  const polys = await page.evaluate(() => KKJ_APP.geo(KKJ_APP.cur()).polys);
+  for (const poly of polys) {
+    const P = poly.map(q => [box.x + q[0] / 109 * box.w, box.y + q[1] / 109 * box.w]);
+    await page.mouse.move(P[0][0], P[0][1]); await page.mouse.down();
+    for (const q of P.slice(1)) await page.mouse.move(q[0], q[1], { steps: 2 });
+    await page.mouse.up(); await w(120);
+  }
+  await w(300);
+  check('  なぞって練習（匡・6画）：書けたら 点数と ★', await page.evaluate(() => { const r = document.getElementById('prResult'); return [!r.hidden, /★/.test(r.textContent), KKJ_APP.PR().miss].join('/'); }), 'true/true/0');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runKakijunSE(browser) {
   console.log('\n── ✍️ かきじゅん帳：iPhone SE の幅でも はみ出さない（v559） ──');
   const KKJ = 'file://' + path.join(ROOT, 'kakijun', 'index.html');
@@ -15316,6 +15381,7 @@ async function runQrShare(browser) {
     if (!only || only === 'koe557') await runKoeUser557(browser);
     if (!only || only === 'kkj558') await runKakijun558(browser);
     if (!only || only === 'kkjse') await runKakijunSE(browser);
+    if (!only || only === 'kkj567' || only === 'v567') await runKakijun567(browser);
     if (!only || only === 'saveas') await runSaveAs560(browser);
     if (!only || only === 'tatekae' || only === 'v561') await runTatekae561(browser);
     if (!only || only === 'kuji' || only === 'v561') await runKuji561(browser);
