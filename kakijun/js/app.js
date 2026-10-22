@@ -1,5 +1,6 @@
 /* ✍️かきじゅん帳（表電卓 v532）：常用漢字2136字とひらがな・カタカナ（v558）の書き順アニメーション・綺麗に書くコツ・なぞり練習・文章をなぞる（v558）。
-   字は漢字・よみ・画数のほか、✏️ 手書き・🎤 声でも探せる。データは js/data.js、手書きの照合は js/recog.js */
+   v567 から 人名用漢字（晋・匡・伊 など）と、地名・名字・身近なことばに使う そのほかの漢字も（js/data2.js）。
+   字は漢字・よみ・画数のほか、✏️ 手書き・🎤 声でも探せる。データは js/data.js・js/data2.js、手書きの照合は js/recog.js */
 (function () {
   'use strict';
   var $ = function (s) { return document.querySelector(s); };
@@ -25,8 +26,9 @@
   try { reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { }
 
   // ---------------- データ ----------------
-  // 常用漢字（data.js）のあとに、ひらがな・カタカナ（kana.js。v558。学年の代わりに 8＝ひらがな・9＝カタカナ）
-  var RAW = (Array.isArray(window.KKJ_DATA) ? window.KKJ_DATA : []).concat(Array.isArray(window.KKJ_KANA) ? window.KKJ_KANA : []);
+  // 常用漢字（data.js）のあとに、ひらがな・カタカナ（kana.js。v558。学年の代わりに 8＝ひらがな・9＝カタカナ）、
+  // 人名用漢字（data2.js。v567。10）・そのほかの漢字（地名・名字・身近なことば。11）
+  var RAW = (Array.isArray(window.KKJ_DATA) ? window.KKJ_DATA : []).concat(Array.isArray(window.KKJ_KANA) ? window.KKJ_KANA : [], Array.isArray(window.KKJ_DATA2) ? window.KKJ_DATA2 : []);
   var K = new Map();
   var kata2hira = function (s) { return s.replace(/[ァ-ヶ]/g, function (ch) { return String.fromCharCode(ch.charCodeAt(0) - 0x60); }); };
   var ALL = RAW.map(function (r, i) {
@@ -39,7 +41,7 @@
       rd.push(s.replace('.', ''));
       if (s.indexOf('.') > 0) rd.push(s.split('.')[0]);
     });
-    o.kana = o.g >= 8;
+    o.kana = o.g === 8 || o.g === 9;
     if (o.kana) {
       rd = [kata2hira(o.c)];
       if (/\u309A/.test(o.c.normalize('NFD'))) o.circ = o.n - 1;   // 半濁点（゜）の丸の画
@@ -49,10 +51,13 @@
     K.set(o.c, o);
     return o;
   });
-  var ALIAS = { '\u{20B9F}': '叱', '剝': '剥', '頬': '頰', '填': '塡' };
-  var GRADE = { 1: '小学1年', 2: '小学2年', 3: '小学3年', 4: '小学4年', 5: '小学5年', 6: '小学6年', 7: '中学以降', 8: 'ひらがな', 9: 'カタカナ' };
-  // ひらがな・カタカナ（五十音の表の順）→ 学年順（各学年は50音順）
-  var rank = function (g) { return g >= 8 ? g - 20 : g; };
+  // 同じ字の ちがう形。髙（はしご高）・﨑（たつさき）・濵・𠮷（つちよし）は 書き順データがないので、ふつうの形で出す（v567）
+  var ALIAS = { '\u{20B9F}': '叱', '剝': '剥', '頬': '頰', '填': '塡', '髙': '高', '﨑': '崎', '濵': '濱', '\u{20BB7}': '吉' };
+  var NOFORM = { '髙': 1, '﨑': 1, '濵': 1, '\u{20BB7}': 1 };
+  var GRADE = { 1: '小学1年', 2: '小学2年', 3: '小学3年', 4: '小学4年', 5: '小学5年', 6: '小学6年', 7: '中学以降', 8: 'ひらがな', 9: 'カタカナ', 10: '人名用漢字', 11: 'そのほかの漢字' };
+  // ひらがな・カタカナ（五十音の表の順）→ 学年順（各学年は50音順）→ 人名用漢字 → そのほかの漢字
+  var rank = function (g) { return g === 8 || g === 9 ? g - 20 : g; };
+  var NKAN = ALL.filter(function (k) { return !k.kana; }).length;   // 漢字の数（常用・人名用・そのほか）
   var ORDER = ALL.slice().sort(function (a, b) { return rank(a.g) - rank(b.g) || (a.kana ? a.i - b.i : a.key.localeCompare(b.key, 'ja') || a.i - b.i); });
   ORDER.forEach(function (k, i) { k.o = i; });
   var isKanji = function (ch) { return /[㐀-鿿豈-﫿\u{20000}-\u{2ffff}]/u.test(ch); };
@@ -614,7 +619,7 @@
   }
 
   // ---------------- 学年別一覧 ----------------
-  var TABS = [['h', 'ひらがな'], ['k', 'カタカナ'], ['1', '1年'], ['2', '2年'], ['3', '3年'], ['4', '4年'], ['5', '5年'], ['6', '6年'], ['7', '中学以降'], ['r', '最近見た']];
+  var TABS = [['h', 'ひらがな'], ['k', 'カタカナ'], ['1', '1年'], ['2', '2年'], ['3', '3年'], ['4', '4年'], ['5', '5年'], ['6', '6年'], ['7', '中学以降'], ['10', '人名用'], ['11', 'そのほか'], ['r', '最近見た']];
   var curTab = null;
   var tabOf = function (k) { return k.g === 8 ? 'h' : k.g === 9 ? 'k' : String(k.g); };
   // ひらがな・カタカナは五十音の表の形で並べる（・はあき）。v558
@@ -1201,14 +1206,16 @@
     s = s.trim(); if (!s) return null;
     var z = s.replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); });
     var m = z.match(/^(\d{1,2})\s*(画|かく)?$/);
-    if (m) { var n = +m[1], l = ALL.filter(function (k) { return !k.kana && k.n === n; }); return { list: l, msg: l.length ? n + '画の漢字（' + l.length + '字）' : n + '画の常用漢字はありません。' }; }
-    var chars = Array.from(s), hit = [], nj = [];
+    if (m) { var n = +m[1], l = ALL.filter(function (k) { return !k.kana && k.n === n; }); return { list: l, msg: l.length ? n + '画の漢字（' + l.length + '字）' : n + '画の漢字はありません。' }; }
+    var chars = Array.from(s), hit = [], nj = [], sub = [];
     chars.forEach(function (ch) {
       if (!isKanji(ch)) return;
       var c = ALIAS[ch] || ch;
-      if (K.has(c)) { if (hit.indexOf(c) < 0) hit.push(c); } else if (nj.indexOf(ch) < 0) nj.push(ch);
+      if (K.has(c)) { if (hit.indexOf(c) < 0) hit.push(c); if (NOFORM[ch] && sub.indexOf(ch) < 0) sub.push(ch); } else if (nj.indexOf(ch) < 0) nj.push(ch);
     });
-    if (hit.length || nj.length) return { list: hit.map(function (c) { return K.get(c); }), msg: nj.length ? '「' + nj.join('') + '」は常用漢字ではないため、書き順データがありません。' : '' };
+    if (hit.length || nj.length) return { list: hit.map(function (c) { return K.get(c); }),
+      msg: (sub.length ? sub.map(function (ch) { return '「' + ch + '」は「' + ALIAS[ch] + '」'; }).join('・') + 'の書き順で出します（その形の書き順データがないため）。' : '') +
+        (nj.length ? '「' + nj.join('') + '」は書き順データがありません（常用漢字・人名用漢字・地名などの漢字 ' + NKAN + '字のほかの字です）。' : '') };
     var h = kata2hira(s).replace(/[\s　、。・.]/g, '');
     if (/^[ぁ-ゖー]+$/.test(h)) {
       // かなの字そのもの（v558）：1字なら ひらがな・カタカナを先に、2字より長いときは 漢字のあとに並べる
@@ -1225,7 +1232,7 @@
       if (kc.length && one) parts.push('かなの「' + kc.map(function (k) { return k.c; }).join('」「') + '」');
       if (ex.length || pre.length) parts.push('「' + h + '」と読む漢字' + (ex.length ? '（' + ex.length + '字）' : '') + (pre.length ? '・「' + h + '…」で始まる読み（' + pre.length + '字）' : ''));
       if (kc.length && !one) parts.push('かなの字（' + kc.length + '字）');
-      return { list: l2, msg: l2.length ? parts.join('・') : '「' + h + '」と読む常用漢字は見つかりませんでした。' };
+      return { list: l2, msg: l2.length ? parts.join('・') : '「' + h + '」と読む漢字は見つかりませんでした。' };
     }
     return { list: [], msg: '見つかりませんでした。漢字・ひらがな・カタカナ・画数（例：5画）で探せます。' };
   }
@@ -1322,7 +1329,7 @@
   });
   hwc.addEventListener('pointercancel', function () { HW.live = null; hwDraw(); });
   function ensureRec() {
-    if (!HW.rec) HW.rec = new KRecog.Recognizer(ALL.map(function (k) { return { c: k.c, paths: k.paths }; }));
+    if (!HW.rec) HW.rec = new KRecog.Recognizer(ALL.map(function (k) { return { c: k.c, paths: k.paths, w: k.g === 10 ? 0.015 : k.g === 11 ? 0.03 : 0 }; }));
     return HW.rec;
   }
   function hwRecognize() {
@@ -1465,7 +1472,7 @@
 
   // テスト用
   window.KKJ_APP = {
-    load: load, search: search, analyze: analyze, setMode: setMode, micResults: micResults, recognize: function (s, f, n) { return ensureRec().recognize(s, f || 300, n || 12); },
+    load: load, search: search, analyze: analyze, setMode: setMode, micResults: micResults, NKAN: NKAN, showTab: function (t) { showTab(t); }, recognize: function (s, f, n) { return ensureRec().recognize(s, f || 300, n || 12); },
     cur: function () { return cur; }, mode: function () { return mode; }, P: function () { return P; }, PR: function () { return PR; }, K: K, ALL: ALL, geo: geo,
     strokeTips: strokeTips, sayText: sayText, kakuYomi: kakuYomi, kinfo: kinfo, sinfo: sinfo, ORDER: ORDER,
     DOCS: DOCS, docOk: docOk, doc: function () { return DOC; }, docStart: docStart, docGo: docGo, openDocSheet: openDocSheet
