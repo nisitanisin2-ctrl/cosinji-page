@@ -1,6 +1,7 @@
 /* 🧮 そろばん（v568。表電卓の道具。はじめて開いたときに読む。apps/soroban/ から単独のアプリとしても開ける）
    ・珠をはじいて計算：下の珠（1つ1）は 押すと 梁（はり）まで上がり、上がっている珠を押すと 下がる。上の珠（5）は 押すたびに 下りる／上がる。
    ・🧹 ご破算（ぜんぶ 払う）・🔢 数を入れると そろばんに置く・👁 いまの数を 出す／かくす・桁（9・11・13）・🔈 珠の音。
+   ・答え合わせで まちがえたら「🧮 そろばんで 見る」で 正しい答えの珠の形を見せる。表で えらんでいるセルの数も置ける。
    ・🎯 練習：見取り算（数を見て 足し引き）・読み上げ算（「願いましては 〜円なり 〜円では」と 声で読む）。答えを そろばんに置いて「答え合わせ」。
      レベル：桁（1〜4けた）・口数（3〜10口）・引き算あり／なし（とちゅうで マイナスにならない）。読む速さ。
    ・読み上げの声は 表電卓の「🔈 読み上げの声」と同じ（hyovoice.js）。
@@ -164,9 +165,16 @@ function prHtml(){
     : `<div class="sb-yomi">${pr.reading ? (pr.idx<0?'🔈 願いましては…':`🔈 ${pr.idx+1} / ${N} 口目`) : pr.idx>=N ? '🔈 では。そろばんの答えを たしかめて「答え合わせ」を押してください。' : '🔈 読み上げの準備…'}</div>`;
   const res=pr.done ? `<div class="sb-res ${pr.ok?'ok':'ng'}">${pr.ok?'⭕ 正解！':'❌ ざんねん'}<small>${pr.ok?'':'そろばん：'+fmt(pr.v)+' ・ '}答え：${fmt(pr.ans)}</small></div>` : '';
   const acts=pr.done
-    ? `<button type="button" class="sb-b pri" onclick="SOROBAN.start()">▶ 次の問題</button>`
+    ? `<button type="button" class="sb-b pri" onclick="SOROBAN.start()">▶ 次の問題</button>${pr.ok?'':'<button type="button" class="sb-b" onclick="SOROBAN.showAns()">🧮 そろばんで 見る</button>'}`
     : `<button type="button" class="sb-b pri" onclick="SOROBAN.check()">✅ 答え合わせ</button>${st.mode==='yomi'?`<button type="button" class="sb-b" onclick="SOROBAN.again()">🔁 もう一度 読む</button>`:''}<button type="button" class="sb-b" onclick="SOROBAN.giveup()">答えを見る</button>`;
   return list+res+`<div class="sb-acts">${acts}</div>`;
+}
+// 答えを そろばんに置いて見せる（数も出す）
+function showAns(){
+  if(!pr || !pr.done) return;
+  if(!setValue(pr.ans)){ st.rods=13; save(); dg=Array(13).fill(0); setValue(pr.ans); }
+  prShow=true; click(); render();
+  const b=$('sbBox'); if(b && b.scrollIntoView) b.scrollIntoView({block:'nearest', behavior:'smooth'});
 }
 function giveup(){ if(!pr || pr.done) return; stopSpeak(); pr.done=true; pr.ok=false; pr.v=value(); st.rec.n++; st.rec.run=0; save(); render(); }
 
@@ -184,6 +192,7 @@ function render(){
     <div class="sb-tools"><button type="button" class="sb-b" onclick="SOROBAN.clear()">🧹 ご破算</button>
       ${tab==='free'?'<button type="button" class="sb-b" onclick="SOROBAN.put()">🔢 数を置く</button>':''}
       <button type="button" class="sb-b" onclick="SOROBAN.toggleShow()">${shown()?'🙈 数をかくす':'👁 数を出す'}</button></div>
+    ${tab==='free' ? (()=>{ const c=cellNum(); return c ? `<button type="button" class="sb-cell" onclick="SOROBAN.putCell()">▦ 表のセル ${esc(c.lab)} の <b>${fmt(c.n)}</b> を そろばんに置く</button>` : ''; })() : ''}
     ${tab!=='free'?`<div class="sb-sec"><h4>🎯 レベル</h4>
       <div class="sb-opt"><span>けた</span>${[1,2,3,4].map(v=>`<button type="button" class="${st.lv.keta===v?'on':''}" onclick="SOROBAN.lv('keta',${v})">${v}</button>`).join('')}</div>
       <div class="sb-opt"><span>口数</span>${[3,5,7,10].map(v=>`<button type="button" class="${st.lv.kuchi===v?'on':''}" onclick="SOROBAN.lv('kuchi',${v})">${v}</button>`).join('')}</div>
@@ -206,6 +215,19 @@ async function put(){
   if(!setValue(+n)){ toastS(st.rods+'けたまでの数です（⚙ で桁をふやせます）'); return; }
   click(); paintSoroban();
 }
+// 表電卓で えらんでいるセルの数（計算の答えなど）。0以上の整数のときだけ（道具だけのアプリでは 出さない）
+function cellNum(){
+  if(window.APP_TOOL || typeof getCellDisplay!=='function' || typeof selR!=='number' || typeof selC!=='number') return null;
+  let t=''; try{ t=String(getCellDisplay(selR, selC)); }catch(_){ return null; }
+  const n=t.normalize('NFKC').replace(/[,，\s円]/g,'');
+  if(!/^\d+$/.test(n) || n.length>13) return null;
+  return {lab:(typeof xlColLetter==='function' ? xlColLetter(selC) : '')+(selR+1), n:+n};
+}
+function putCell(){
+  const c=cellNum(); if(!c){ toastS('表の えらんだセルに 0以上の整数が ありません'); return; }
+  if(!setValue(c.n)){ st.rods=13; save(); dg=Array(13).fill(0); setValue(c.n); }
+  click(); render();
+}
 function clearAll(){ dg=Array(st.rods).fill(0); click(); paintSoroban(); }
 function toggleShow(){ if(tab==='free'){ st.show=!st.show; save(); } else prShow=!prShow; render(); }
 function setLv(k, v){ if(!(k in st.lv)) return; st.lv[k]=v; save(); pr=null; stopSpeak(); render(); }
@@ -226,6 +248,7 @@ const SB_CSS=`
 .sb-svg .rod{ stroke:#8d6e63; stroke-width:2; } .sb-svg .beam{ fill:#5d4037; } .sb-svg .dot{ fill:#f3e3c7; }
 .sb-svg .bd{ fill:#4e342e; stroke:#2e1d17; stroke-width:.8; cursor:pointer; transition:d .12s ease; } .sb-svg .bd.on{ fill:#3e2723; }
 body.dark .sb-svg .bd{ fill:#8d6e63; stroke:#d7ccc8; } body.dark .sb-svg .bd.on{ fill:#a1887f; }
+.sb-cell{ display:block; width:100%; min-height:40px; margin:0 0 10px; padding:4px 10px; border-radius:12px; border:1px dashed rgba(120,132,156,.6); background:transparent; color:var(--text,#222); font-size:14px; cursor:pointer; }
 .sb-tools{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin:10px 0; }
 .sb-b{ min-height:46px; padding:0 8px; border-radius:12px; border:1px solid rgba(120,132,156,.45); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:14px; font-weight:bold; cursor:pointer; touch-action:manipulation; }
 .sb-b.pri{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); font-size:15.5px; }
@@ -270,7 +293,7 @@ function openSoroban(){
 function closeSoroban(){ if(!$('sorobanOverlay')||!isDlgOpen('sorobanOverlay')) return; closeDlg('sorobanOverlay', ()=>stopSpeak()); }
 
 window.SOROBAN={ tab:setTab, tap:tapBead, clear:clearAll, put:()=>{ put(); }, toggleShow, lv:setLv, rods:setRods, snd:setSnd,
-  start:startPractice, check, again:readAloud, giveup,
+  start:startPractice, check, again:readAloud, giveup, showAns, putCell,
   value, set:n=>{ const ok=setValue(n); paintSoroban(); return ok; }, digits:()=>dg.slice(), problem:()=>pr?JSON.parse(JSON.stringify(pr)):null, state:()=>JSON.parse(JSON.stringify(st)) };
 Object.assign(window, { openSoroban, closeSoroban });
 })();

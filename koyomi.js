@@ -37,7 +37,11 @@ const hhmm=ms=>{ const t=new Date(ms+JST); return t.getUTCHours()+':'+String(t.g
 const md=dn=>{ const o=ymdOf(dn); return o.m+'/'+o.d; };
 const mdw=dn=>{ const o=ymdOf(dn); return o.m+'/'+o.d+'（'+WD[o.w]+'）'; };
 const ymdJ=dn=>{ const o=ymdOf(dn); return o.y+'年'+o.m+'月'+o.d+'日（'+WD[o.w]+'）'; };
-function wareki(y){ return y>=2019 ? '令和'+(y===2019?'元':y-2018)+'年' : y>=1989 ? '平成'+(y===1989?'元':y-1988)+'年' : y>=1926 ? '昭和'+(y===1926?'元':y-1925)+'年' : y>=1912 ? '大正'+(y===1912?'元':y-1911)+'年' : '明治'+(y-1867)+'年'; }
+// 和暦（改元の日から 新しい元号。2019年は 4/30 まで 平成31年・5/1 から 令和元年）
+const ERAS=[[2019,5,1,'令和'],[1989,1,8,'平成'],[1926,12,25,'昭和'],[1912,7,30,'大正'],[1868,1,1,'明治']];
+function warekiOf(dn){ const y=ymdOf(dn).y; for(const [ey,em,ed,n] of ERAS){ if(dn>=dnOf(ey,em,ed)){ const k=y-ey+1; return n+(k===1?'元':k)+'年'; } } return ''; }
+// 月の見出し：月の中で 改元があれば 両方（1989年1月 → 昭和64年／平成元年）
+function warekiMonth(y,m){ const a=warekiOf(dnOf(y,m,1)), b=warekiOf(dnOf(m===12?y+1:y, m===12?1:m+1, 1)-1); return a===b ? a : a+'／'+b; }
 
 /* ───────── 干支 ───────── */
 const JIKKAN='甲乙丙丁戊己庚辛壬癸', JUNISHI='子丑寅卯辰巳午未申酉戌亥';
@@ -402,7 +406,7 @@ function calHtml(){
   const leg=[st.show.kc?'<span><i class="k-ichiryu">万</i>一粒万倍日</span><span><i class="k-tensha">天</i>天赦日</span><span><i class="k-tora">寅</i>寅の日</span><span><i class="k-mi">巳</i>巳の日</span><span><i class="k-tsuchinotomi">己</i>己巳の日</span><span><i class="k-kinoene">甲</i>甲子の日</span>':'',
     st.show.kyo?'<span><i class="k-fujoju">不</i>不成就日</span><span><i class="k-sanrin">隣</i>三隣亡</span>':'', st.show.moon?'<span>🌑🌓🌕🌗 月の満ち欠け</span>':'', '<span class="dy">土用</span>'].join('');
   return `<div class="ky-nav"><button type="button" class="ky-nb" onclick="KOYOMI.go(-1)" aria-label="前の月">‹</button>
-      <button type="button" class="ky-ym" onclick="KOYOMI.ask()"><b>${y}年 ${m}月</b><small>${wareki(y)}・${ksName(yk)}（${ksYomi(yk)}）年${l1&&l2?'・旧暦 '+(l1.leap?'閏':'')+l1.m+'月〜'+(l2.leap?'閏':'')+l2.m+'月':''}</small></button>
+      <button type="button" class="ky-ym" onclick="KOYOMI.ask()"><b>${y}年 ${m}月</b><small>${warekiMonth(y,m)}・${ksName(yk)}（${ksYomi(yk)}）年${l1&&l2?'・旧暦 '+(l1.leap?'閏':'')+l1.m+'月〜'+(l2.leap?'閏':'')+l2.m+'月':''}</small></button>
       <button type="button" class="ky-nb" onclick="KOYOMI.go(1)" aria-label="次の月">›</button>
       <button type="button" class="ky-today" onclick="KOYOMI.today()">今日</button></div>
     <div class="ky-wk">${[...WD].map((d,i)=>`<span class="${i===0?'sun':i===6?'sat':''}">${d}</span>`).join('')}</div>
@@ -434,7 +438,7 @@ function dayHtml(dn){
       stg ? '<span class="ky-tip">🌱 '+esc(MOON_TIP[stg])+'（言い伝え）</span>' : ''));
   }
   return `<div class="ky-day"><div class="ky-dh"><b>${ymdJ(dn)}</b>${td?'<span class="ky-now">今日</span>':diff>0?`<small>${diff}日後</small>`:`<small>${-diff}日前</small>`}</div>
-    <div class="ky-dsub">${wareki(i.y)}・旧暦 ${l?(l.leap?'閏':'')+l.m+'月'+l.d+'日':'—'}・${ksName(i.ks)}（${ksYomi(i.ks)}）の日</div>
+    <div class="ky-dsub">${warekiOf(dn)}・旧暦 ${l?(l.leap?'閏':'')+l.m+'月'+l.d+'日':'—'}・${ksName(i.ks)}（${ksYomi(i.ks)}）の日</div>
     ${rows.join('')||'<div class="ky-row"><span class="ic">📅</span><div>とくに 暦の行事は ありません。</div></div>'}
     <div class="ky-acts"><button type="button" class="ky-b" onclick="KOYOMI.copy(${dn})">📋 コピー</button></div></div>`;
 }

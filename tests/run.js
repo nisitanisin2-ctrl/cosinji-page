@@ -10094,6 +10094,14 @@ async function runKoyomi568(browser) {
   // 年月を入れる
   await page.evaluate(() => { window.appPrompt = async () => '平成31年5月'; KOYOMI.ask(); }); await w(300);
   check('  年月を押して 和暦でも（平成31年5月 → 2019年5月・5/1 天皇の即位の日）', await page.evaluate(dn => [JSON.stringify(KOYOMI.view()), document.querySelector('#kyGrid .ky-c[data-dn="' + dn + '"] .ev').textContent, document.querySelector('.ky-ym small').textContent].join('/'), dnOf568(2019, 5, 1)), '{"y":2019,"m":5,"sel":"5/1"}/天皇の即位の日/令和元年・己亥（つちのとい）年・旧暦 3月〜4月');
+  const era = () => page.evaluate(() => document.querySelector('.ky-ym small').textContent.split('・')[0]);
+  await page.evaluate(() => { window.appPrompt = async () => '2019/4'; KOYOMI.ask(); }); await w(300);
+  const era1 = await era();
+  await page.evaluate(() => { window.appPrompt = async () => '1989/1'; KOYOMI.ask(); }); await w(300);
+  const era2 = await era();
+  const era3 = await page.evaluate(() => { KOYOMI.pick(Math.floor(Date.UTC(1989, 0, 7) / 864e5)); const a = document.querySelector('#kyDay .ky-dsub').textContent.split('・')[0]; KOYOMI.pick(Math.floor(Date.UTC(1989, 0, 8) / 864e5)); return a + '/' + document.querySelector('#kyDay .ky-dsub').textContent.split('・')[0]; });
+  check('  和暦は 改元の日で分ける（2019年4月は 平成31年・1989年1月は 昭和64年／平成元年・1/7 と 1/8）', [era1, era2, era3].join('/'), '平成31年/昭和64年／平成元年/昭和64年/平成元年');
+  await page.evaluate(() => { window.appPrompt = async () => '令和元年5月'; KOYOMI.ask(); }); await w(300);
   await page.evaluate(() => { window.appPrompt = async () => '2200/1'; KOYOMI.ask(); }); await w(300);
   check('  見られない年は 知らせて そのまま', await page.evaluate(() => JSON.stringify(KOYOMI.view()) + '/' + document.getElementById('appToast').textContent), '{"y":2019,"m":5,"sel":"5/1"}/年月が わかりませんでした（1900〜2100年）');
   await page.evaluate(() => { KOYOMI.go(-1500); }); await w(100);
@@ -10222,6 +10230,14 @@ async function runSoroban568(browser) {
   check('  🙈 数をかくす', await page.evaluate(() => [document.getElementById('sbVal').textContent, [...document.querySelectorAll('.sb-tools .sb-b')].map(b => b.textContent).join(',')].join('/')), '（数は かくしています）/🧹 ご破算,🔢 数を置く,👁 数を出す');
   await page.evaluate(() => { SOROBAN.toggleShow(); SOROBAN.clear(); }); await w(100);
   check('  🧹 ご破算で 0', await page.evaluate(() => SOROBAN.value() + '/' + document.querySelectorAll('#sbSvg .bd.on').length), '0/0');
+  check('  表のセルが 空なら「表のセル」のボタンは出さない', await page.evaluate(() => !!document.querySelector('.sb-cell')), false);
+  await page.evaluate(() => { closeSoroban(); setCellVal(1, 1, '=12*3'); selR = 1; selC = 1; openSoroban(); }); await page.waitForTimeout(300);
+  check('  ▦ 表で えらんでいるセルの数（計算の答え）を置くボタン', await page.evaluate(() => document.querySelector('.sb-cell').textContent), '▦ 表のセル B2 の 36 を そろばんに置く');
+  await page.click('.sb-cell'); await page.waitForTimeout(150);
+  check('  押すと そろばんに 36', await page.evaluate(() => SOROBAN.value() + '/' + document.querySelector('#sbVal b').textContent), '36/36');
+  await page.evaluate(() => { closeSoroban(); setCellVal(1, 1, '12.5'); openSoroban(); }); await page.waitForTimeout(300);
+  check('  整数でないセルのときは 出さない', await page.evaluate(() => !!document.querySelector('.sb-cell')), false);
+  await page.evaluate(() => { SOROBAN.clear(); setCellVal(1, 1, ''); }); await page.waitForTimeout(100);
   // 👀 見取り算
   await page.evaluate(() => { SOROBAN.tab('mitori'); SOROBAN.lv('keta', 3); SOROBAN.lv('kuchi', 7); SOROBAN.lv('hiki', true); }); await w(150);
   check('  👀 見取り算：数はかくす・レベル（けた・口数・引き算）を覚える', await page.evaluate(() => [document.querySelector('.sb-tabs .on').textContent, !!document.querySelector('#sbVal .hid'), JSON.stringify(SOROBAN.state().lv), document.querySelector('.sb-start .sb-b').textContent].join('/')), '👀 見取り算/true/{"keta":3,"kuchi":7,"hiki":true,"speed":"mid"}/▶ はじめる（3けた・7口・引き算あり）');
@@ -10229,9 +10245,12 @@ async function runSoroban568(browser) {
   await page.evaluate(() => { SOROBAN.start(); SOROBAN.set(SOROBAN.problem().ans); SOROBAN.check(); }); await w(150);
   check('  答えを そろばんに置いて「✅ 答え合わせ」→ ⭕ 正解・答えの行・記録', await page.evaluate(() => { const p = SOROBAN.problem(), r = SOROBAN.state().rec; return [document.querySelector('.sb-res').firstChild.textContent, document.querySelector('.sb-mitori .tot .n').textContent === p.ans.toLocaleString('ja-JP'), r.n, r.ok, r.run, r.best, document.querySelector('.sb-acts .sb-b').textContent].join('/'); }), '⭕ 正解！/true/1/1/1/1/▶ 次の問題');
   await page.evaluate(() => { SOROBAN.start(); SOROBAN.set(SOROBAN.problem().ans + 1); SOROBAN.check(); }); await w(150);
+  check('  ちがうと「🧮 そろばんで 見る」も出る（正解のときは 出さない）', await page.evaluate(() => [...document.querySelectorAll('.sb-acts .sb-b')].map(b => b.textContent).join(',')), '▶ 次の問題,🧮 そろばんで 見る');
   check('  ちがうと ❌（そろばんの数と答え）・続けての数は 0 に・いちばんは そのまま', await page.evaluate(() => { const p = SOROBAN.problem(), r = SOROBAN.state().rec; return [document.querySelector('.sb-res').firstChild.textContent, document.querySelector('.sb-res small').textContent === 'そろばん：' + (p.ans + 1).toLocaleString('ja-JP') + ' ・ 答え：' + p.ans.toLocaleString('ja-JP'), r.n, r.ok, r.run, r.best, document.querySelector('.sb-rec').textContent].join('/'); }), '❌ ざんねん/true/2/1/0/1/これまで 2問・正解 1問（50%）・いま 0問 連続・いちばん 1問 連続');
   await page.evaluate(() => { SOROBAN.start(); SOROBAN.giveup(); }); await w(150);
   check('  答えを見る（数えるのは 1問・正解にしない）', await page.evaluate(() => { const r = SOROBAN.state().rec; return [r.n, r.ok, !!document.querySelector('.sb-res.ng')].join('/'); }), '3/1/true');
+  await page.click('.sb-acts .sb-b:not(.pri)'); await w(200);
+  check('  🧮 そろばんで 見る：珠を答えの形に・数も出す', await page.evaluate(() => { const p = SOROBAN.problem(); return [SOROBAN.value() === p.ans, document.querySelector('#sbVal b').textContent === p.ans.toLocaleString('ja-JP'), document.querySelector('.sb-tools .sb-b:last-child').textContent].join('/'); }), 'true/true/🙈 数をかくす');
   // 🔈 読み上げ算（声は まねる）
   await page.evaluate(() => { window.__said = []; window.HyoVoice = Object.assign({}, window.HyoVoice, { available: true, speak: (t, o) => { window.__said.push(t); setTimeout(() => o && o.onend && o.onend(), 20); }, cancel: () => {} }); SOROBAN.tab('yomi'); SOROBAN.lv('keta', 2); SOROBAN.lv('kuchi', 3); SOROBAN.lv('speed', 'fast'); const r = Math.random; Math.random = () => 0.1; SOROBAN.start(); Math.random = r; }); await w(150);
   check('  🔈 読み上げ算：読んでいる間は 数を出さない', await page.evaluate(() => [!!document.querySelector('.sb-mitori'), document.querySelector('.sb-yomi').textContent.slice(0, 2), JSON.stringify(SOROBAN.problem().nums)].join('/')), 'false/🔈/[19,-11,19]');
