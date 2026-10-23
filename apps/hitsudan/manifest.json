@@ -1,0 +1,39 @@
+{
+  "name": "筆談ボード",
+  "short_name": "筆談ボード",
+  "description": "耳の遠い人と話すとき、声を大きな文字に・打った字を大きく出して読み上げ・よく使う言葉を1回で・手で書く板（表電卓の道具）",
+  "id": "/app-hitsudan",
+  "start_url": "../../index.html?app=hitsudan",
+  "scope": "../../index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f9a825",
+  "orientation": "any",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
