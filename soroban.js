@@ -263,7 +263,7 @@ body.dark .sb-svg .bd{ fill:#8d6e63; stroke:#d7ccc8; } body.dark .sb-svg .bd.on{
 .sb-yomi{ font-size:17px; font-weight:bold; padding:10px 0; }
 .sb-res{ font-size:22px; font-weight:bold; margin:6px 0; } .sb-res small{ display:block; font-size:14px; font-weight:normal; color:var(--text,#333); }
 .sb-res.ok{ color:#2e7d32; } .sb-res.ng{ color:#c62828; } body.dark .sb-res.ok{ color:#81c784; } body.dark .sb-res.ng{ color:#ef9a9a; }
-.sb-acts{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; } .sb-acts .sb-b{ flex:1 1 30%; }
+.sb-acts{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; } .sb-acts .sb-b{ flex:1 1 auto; white-space:nowrap; }   /* 文字は折らず、入らないときは ボタンごと次の行へ */
 .sb-sec{ margin:0 0 10px; padding:10px 12px 12px; border-radius:14px; border:1px solid rgba(120,132,156,.28); background:var(--modal-bg,#fff); }
 .sb-sec h4{ margin:0 0 6px; font-size:15px; }
 .sb-opt{ display:flex; flex-wrap:wrap; align-items:center; gap:5px; margin:5px 0; } .sb-opt span{ min-width:4.6em; font-size:12.5px; font-weight:bold; color:var(--text-light,#666); }
