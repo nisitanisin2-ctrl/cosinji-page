@@ -1,0 +1,39 @@
+{
+  "name": "こよみ（吉日・月・農事）",
+  "short_name": "こよみ",
+  "description": "六曜・一粒万倍日・天赦日などの吉日、二十四節気・雑節、月の満ち欠け、種まきの言い伝えと畑の目安が わかるカレンダー（表電卓の道具）",
+  "id": "/app-koyomi",
+  "start_url": "../../index.html?app=koyomi",
+  "scope": "../../index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#00695c",
+  "orientation": "any",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

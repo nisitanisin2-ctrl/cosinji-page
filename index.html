@@ -40,7 +40,8 @@
   const id=new URLSearchParams(location.search).get('app');
   const APPS={tansui:'💧 単位水量',kantab:'🧪 カンタブ',veggie:'🌱 野菜',volume:'📷 容積',photomemo:'📝 写真メモ',linklist:'🔗 リンク集',
     touban:'📅 当番表',subsc:'🔐 サブスク',heya:'🛏 部屋割り',annai:'🏨 案内ページ',shimai:'📦 しまい場所',meishi:'💼 名刺管理',renraku:'📇 連絡帳',trim:'✂ トリミング',manner:'📜 マナー帳',boki:'📒 会計の手引き',kurashi:'🧭 くらしの便利帳',keisan:'🔢 便利計算',ruler:'📏 定規',kakudo:'📐 角度計',regi:'🛍 即売レジ',kakeizu:'🌳 家系図',calctmpl:'📋 式テンプレ',fintmpl:'📑 決算テンプレ',
-    tatekae:'💴 立て替え精算',kuji:'🎲 くじ・班分け',dasetsu:'🚛 打設の段取り',okaeshi:'🎁 お返し帳'};   // v561・v564
+    tatekae:'💴 立て替え精算',kuji:'🎲 くじ・班分け',dasetsu:'🚛 打設の段取り',okaeshi:'🎁 お返し帳',
+    koyomi:'🗓 こよみ',hoi:'⛩ 方位と恵方',soroban:'🧮 そろばん'};   // v561・v564・v568
   if(!id || !APPS[id]) return;
   window.APP_TOOL=id; document.documentElement.classList.add('app-tool');
   const dir='apps/'+id+'/', set=(sel,attr,v)=>document.querySelectorAll(sel).forEach(e=>e.setAttribute(attr,v));
@@ -9333,6 +9334,12 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v568', t:'🗓 こよみ（吉日・月・農事）・⛩ 方位と恵方・🧮 そろばん の道具', li:[
+    '🗓<b>こよみ</b>：カレンダーに <b>六曜</b>（大安・仏滅など）・<b>吉日</b>（一粒万倍日・天赦日・寅の日・巳の日 など）・<b>凶日</b>（不成就日・三隣亡）・祝日・<b>二十四節気・雑節</b>（八十八夜・土用・彼岸 など）・<b>月の満ち欠け</b>が出ます。日を押すと 旧暦・干支・意味が出ます',
+    '「🔍 吉日さがし」で 結婚・引っ越し・財布・開業・納車などの <b>よい日</b>を並べ、「🌾 農事のこよみ」で 節気や新月・満月ごとの <b>畑の目安と 種まきの言い伝え</b>が見られます',
+    '⛩<b>方位と恵方</b>：スマホの向きのセンサーで <b>方位磁石</b>になり、<b>今年の恵方・鬼門・裏鬼門</b>が 盤に出ます（恵方を向くと ふるえます）。玄関や畑の向きを 残しておけます',
+    '🧮<b>そろばん</b>：珠を押して はじけます。<b>見取り算・読み上げ算</b>の練習（けた・口数・引き算・速さを えらぶ）と、数を そろばんで見せることも できます。道具の一覧（🏠くらし・📚声・まなぶ）から開けます'
+  ]},
   { v:'v567', t:'✍️ かきじゅん帳：人名用漢字（晋・匡・伊 など）と 地名・名字の漢字も', li:[
     '✍️かきじゅん帳に、常用漢字のほかの字を <b>1232字</b> 入れました。<b>人名用漢字 862字</b>（晋・匡・伊・柏・辻・翔・凜・雫 など。旧字体の 社・海 なども その形で）と、<b>地名・名字・身近なことばの漢字 370字</b>（澤・邊・匝・狛・鮭・蛙 など）です。漢字は ぜんぶで 3368字になりました',
     '常用漢字と同じように、<b>書き順のアニメーション・綺麗に書くコツ・なぞって練習・✏️ 手書き・🎤 声・よみ・画数</b>で使えます。「字を選ぶ」に <b>「人名用」「そのほか」</b>のタブがふえました',
@@ -12093,6 +12100,9 @@ const KEY_FUNCS={
   a_kuji:{g:'設定・機能',label:'🎲くじ・班分け',short:'くじ',run:()=>openKuji()},   // v561
   a_dasetsu:{g:'設定・機能',label:'🚛打設の段取り',short:'打設',run:()=>openDasetsu()},   // v561
   a_okaeshi:{g:'設定・機能',label:'🎁お返し帳',short:'お返し',run:()=>openOkaeshi()},   // v564
+  a_koyomi:{g:'設定・機能',label:'🗓こよみ',short:'こよみ',run:()=>openKoyomi()},   // v568
+  a_hoi:{g:'設定・機能',label:'⛩方位と恵方',short:'方位',run:()=>openHoi()},   // v568
+  a_soroban:{g:'設定・機能',label:'🧮そろばん',short:'そろばん',run:()=>openSoroban()},   // v568
   a_chart:{g:'設定・機能',label:'📊表からグラフ',short:'グラフ',run:()=>hpRun('chart')},   // v563 表を強くする
   a_cfmt:{g:'設定・機能',label:'🎨条件で色',short:'条件色',run:()=>hpRun('cf')},
   a_filter:{g:'設定・機能',label:'🔎しぼり込み',short:'しぼる',run:()=>hpRun('filter')},
@@ -15060,6 +15070,33 @@ const openOkaeshiLoader=function(...a){
 };
 window.openOkaeshi=openOkaeshiLoader;
 window.closeOkaeshi=function(){};
+/* ── 🗓 こよみ・⛩ 方位と恵方・🧮 そろばん（v568。koyomi.js・hoi.js・soroban.js に分けてある）──
+   はじめて開いたときに読む。こよみと 方位は 天文の時刻の表（koyomi-data.js）を先に読む。 */
+const sidePartLoading={}, sidePartFile={};   // 道具ごと・ファイルごとの 読み込み（同じファイルを2度読まない。こよみと方位が いっしょに天文の表を待てるように）
+function loadSidePart(files){
+  const key=files.join(',');
+  if(sidePartLoading[key]) return sidePartLoading[key];
+  const one=src=>sidePartFile[src] || (sidePartFile[src]=new Promise(res=>{
+    const sc=document.createElement('script'); sc.src=src; sc.dataset.part=src;
+    sc.onload=()=>res(true); sc.onerror=()=>{ sc.remove(); delete sidePartFile[src]; res(false); };
+    document.head.appendChild(sc);
+  }));
+  const p=files.reduce((pr,f)=>pr.then(ok=>ok?one(f):false), Promise.resolve(true)).then(ok=>{ if(!ok) delete sidePartLoading[key]; return ok; });
+  sidePartLoading[key]=p; return p;
+}
+function sidePartOpener(name, files, label){
+  const fn=function(...a){
+    return loadSidePart(files).then(ok=>{
+      if(!ok){ toast(label+'を読み込めませんでした。インターネットにつながるところで、一度アプリを開き直してください'); return; }
+      if(window[name]!==fn) return window[name](...a);
+    });
+  };
+  window[name]=fn;
+}
+sidePartOpener('openKoyomi', ['koyomi-data.js','koyomi.js'], 'こよみ');
+sidePartOpener('openHoi', ['koyomi-data.js','hoi.js'], '方位と恵方');
+sidePartOpener('openSoroban', ['soroban.js'], 'そろばん');
+window.closeKoyomi=function(){}; window.closeHoi=function(){}; window.closeSoroban=function(){};
 /* ── 📏定規（v496。ruler.js に分けてある）──
    スマホの画面を定規にする（カード・硬貨で校正）＋写真に並べた基準から長さを測る。はじめて開いたときに ruler.js を読む。 */
 let rulerPartLoading=null;
@@ -15570,6 +15607,9 @@ const NP_TOOLS=[
   {id:'tatekae',  label:'💴立て替え精算',ov:'tatekaeOverlay',  run:()=>openTatekae(),  close:()=>closeTatekae()},  // tatekae.js（開いたときに読む。v561）
   {id:'kuji',     label:'🎲くじ・班分け',ov:'kujiOverlay',     run:()=>openKuji(),     close:()=>closeKuji()},     // kuji.js（開いたときに読む。v561）
   {id:'okaeshi',  label:'🎁お返し帳',   ov:'okaeshiOverlay',   run:()=>openOkaeshi(),  close:()=>closeOkaeshi()},  // okaeshi.js（開いたときに読む。v564）
+  {id:'koyomi',   label:'🗓こよみ',     ov:'koyomiOverlay',    run:()=>openKoyomi(),   close:()=>closeKoyomi()},   // koyomi.js（開いたときに読む。v568）
+  {id:'hoi',      label:'⛩方位と恵方', ov:'hoiOverlay',       run:()=>openHoi(),      close:()=>closeHoi()},      // hoi.js（開いたときに読む。v568）
+  {id:'soroban',  label:'🧮そろばん',   ov:'sorobanOverlay',   run:()=>openSoroban(),  close:()=>closeSoroban()},  // soroban.js（開いたときに読む。v568）
   {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},                        // 別のアプリとして開くので全画面・フリックの対象外
   {id:'calctmpl', label:'📋式テンプレ', ov:'calcTmplOverlay',  run:()=>openCalcTmpl(), close:()=>closeCalcTmpl()},
   {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
@@ -22279,6 +22319,9 @@ const TOOL_HINTS={
   kuji:'名前を入れて（📇 名簿から も入れられます）、上で「当たり・順番・班分け・あみだ」を選び、大きなボタンで決めます。結果はコピーや表に入れられます。',
   dasetsu:'部位ごとに寸法を入れると数量が出ます。下で ロス・1台の積む量・打設のはやさ・開始時刻を決めると、発注量・台数・配車の時間割が出ます。🎯 で終わりたい時刻を決めると、要る車の台数を逆算します。',
   okaeshi:'「🎁 いただいた」「📤 さしあげた」で残します。香典やお祝いは、お返しの目安（半返しなど）と時期が出ます。済んだら「お返し 済み」に。「🕯️ 法事」では 命日から 一周忌・三回忌などの年と日が分かります。',
+  koyomi:'日を押すと、六曜・吉日・二十四節気・月の満ち欠けなど その日の暦が 下に出ます。左右になぞると 月がかわります。「🔍 吉日さがし」で 結婚・引っ越し・財布などに よい日を さがせます。',
+  hoi:'「🧭 方位を使う」を押して スマホを水平に持つと、方位磁石になります。金色が 今年の恵方、赤が 鬼門・裏鬼門です。恵方を向くと 知らせます。',
+  soroban:'珠を押すと 動きます（下の珠は 押すと梁まで上がり、上がっている珠を押すと下がる）。「👀 見取り算」「🔈 読み上げ算」で 練習できます。',
   ruler:'はじめに「🎯 校正」でカードや硬貨を画面に当てて合わせると、定規が正しい長さになります。「📷 写真で測る」は基準の物と並べて撮ってなぞります。',
   keisan:'8つの計算から選びます。入れた数は覚えるので、次も続きから使えます。',
   kurashi:'10のテーマから選ぶか、上の欄で「AED」「死亡届」「失業保険」のようにさがします。ページの中の 🧮 道具で、期限や金額の目安も出せます。',
@@ -22369,11 +22412,11 @@ function homeSetStartup(on){ setStartPage(on?'home':'last'); }
    ★よく使う（自分で選ぶ。選んでいなければ さいきん使ったもの）→ まとまりごと → 隠している道具（畳む）。
    ☰・ホーム・🧰ボタンのどこから開いても同じ窓。隠した道具も下の「隠している道具」から開ける */
 const TOOL_CATS=[
-  ['🏠 くらし',   ['keisan','tatekae','kuji','okaeshi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
+  ['🏠 くらし',   ['keisan','tatekae','kuji','okaeshi','koyomi','hoi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
   ['📖 知識・手引き',['kurashi','manner','boki']],   // 計算ではなく読む道具（v513）
   ['💼 仕事',     ['techo','meishi','calctmpl','fintmpl','kaikei']],
   ['🏗 現場・畑', ['tansui','kantab','dasetsu','volume','ruler','kakudo','veggie']],
-  ['📚 声・まなぶ',['koe','eigo','sansu','kakijun']],
+  ['📚 声・まなぶ',['koe','eigo','sansu','kakijun','soroban']],
   ['🏨 お店・宿', ['regi','heya','annai']],
 ];
 const TOOL_FAV_KEY='excalc_tool_fav';
@@ -22639,7 +22682,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v567';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v568';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -25127,6 +25170,9 @@ const ST_GROUPS=[
   {k:'excalc_kuji',       n:'くじ・班分けの名前'},
   {k:'excalc_dasetsu',    n:'打設の段取り'},
   {k:'excalc_okaeshi',    n:'いただきもの・お返し帳'},
+  {k:'excalc_koyomi',     n:'こよみ（表示・吉日さがしの選び）'},
+  {k:'excalc_hoi',        n:'方位と恵方（残した向き）'},
+  {k:'excalc_soroban',    n:'そろばん（けた・練習の記録）'},
   {k:'excalc_receipt',    n:'読み取ったレシート（道具は外しました）', how:'clear'},   // v561〜v563 の 📷レシート読み取りの残り。勝手には消さない
   {k:'excalc_links',      n:'リンク集'},
   {k:'excalc_userkeys',   n:'自分のボタン'},
@@ -25315,6 +25361,7 @@ const SETTINGS_BACKUP_KEYS=[
   'hyo_voice',   // 🔈 読み上げの声（v540。声の計算帳・ほかの道具と同じ）
   'excalc_tatekae','excalc_kuji','excalc_dasetsu',   // 💴立て替え精算・🎲くじ・🚛打設の段取り（v561）
   'excalc_okaeshi',   // 🎁いただきもの・お返し帳（v564）
+  'excalc_koyomi','excalc_hoi','excalc_soroban',   // 🗓こよみ・⛩方位と恵方（残した向き）・🧮そろばん（v568）
 ];
 function settingsBundle(){
   const o={};
