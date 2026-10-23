@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
+    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -3105,11 +3105,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,calctmpl,fintmpl');
+    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 33);   // v561 で 🚛💴🎲📷 の4つ、v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
+    document.getElementById('startPageSel').options.length), 36);   // v568 で 🗓⛩🧮 の3つ、v561 で 🚛💴🎲📷 の4つ、v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'saienOverlay', 'volumeOverlay',
@@ -10013,6 +10013,265 @@ async function runKakijun567(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+
+/* 🗓 こよみ（吉日・月・農事）・⛩ 方位と恵方・🧮 そろばん（v568）
+   暦の答えは 国立天文台の暦要項・内閣府の祝日の表と くらべたもの（天文の時刻は PyEphem でも たしかめた） */
+const dnOf568 = (y, m, d) => Math.floor(Date.UTC(y, m - 1, d) / 864e5);
+async function runKoyomi568(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🗓 こよみ（吉日・月・農事）（v568） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキー・🏠くらし・バックアップ・端末の空き・吹き出し・単独アプリの入口', await page.evaluate(() => [typeof window.KOYOMI, typeof window.KOYOMI_ASTRO, !!NP_TOOLS.find(t => t.id === 'koyomi' && t.ov === 'koyomiOverlay'), !!KEY_FUNCS.a_koyomi, TOOL_CATS.find(c => c[0].includes('くらし'))[1].includes('koyomi'), SETTINGS_BACKUP_KEYS.includes('excalc_koyomi'), ST_GROUPS.some(g => g.k === 'excalc_koyomi'), 'koyomi' in TOOL_HINTS].join('/')) + '/' + fs.existsSync(path.join(ROOT, 'apps', 'koyomi', 'manifest.json')),
+    'undefined/undefined/true/true/true/true/true/true/true');
+  {
+    const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8'), rd = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8'), hl = fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8'), dat = fs.readFileSync(path.join(ROOT, 'koyomi-data.js'), 'utf8');
+    check('  service-worker・README に こよみ・天文の表・方位と恵方・そろばん、説明書にも', ['koyomi.js', 'koyomi-data.js', 'hoi.js', 'soroban.js'].map(f => sw.includes("'./" + f + "'") && rd.includes('`' + f + '`')).join('/') + '/' + ['🗓こよみ＝', '⛩方位と恵方＝', '🧮そろばん＝'].map(t => hl.includes(t)).join('/'), 'true/true/true/true/true/true/true');
+    check('  天文の表：1899〜2101年・astronomy-engine（MIT）で計算と書く・小さい', [dat.includes('astronomy-engine（MIT License'), dat.includes('"y0":1899,"y1":2101'), dat.length < 60000].join('/'), 'true/true/true');
+  }
+  // 日付を 2026/10/23 に止める（今日の印・吉日さがし・農事のこよみ が毎回同じになるように）
+  await page.clock.install({ time: new Date('2026-10-23T10:00:00') }); await page.clock.resume(); await page.reload(); await w(900);
+  await page.evaluate(() => openKoyomi()); await w(900);
+  check('  開く：天文の表と こよみを読む・3つのタブ・今月（今日を選ぶ）', await page.evaluate(dn => [isDlgOpen('koyomiOverlay'), typeof window.KOYOMI_ASTRO, [...document.querySelectorAll('#kyTabs button')].map(b => b.textContent).join(','), JSON.stringify(KOYOMI.view()), document.querySelector('.ky-ym b').textContent, document.querySelectorAll('#kyGrid .ky-c').length, document.querySelector('#kyGrid .ky-c.today').dataset.dn === String(dn), document.querySelector('#kyGrid .ky-c.sel').dataset.dn === String(dn)].join('/'), dnOf568(2026, 10, 23)),
+    'true/object/📅 カレンダー,🔍 吉日さがし,🌾 農事のこよみ/{"y":2026,"m":10,"sel":"10/23"}/2026年 10月/35/true/true');
+  check('  見出し：和暦・年の干支・旧暦の月', await page.evaluate(() => document.querySelector('.ky-ym small').textContent), '令和8年・丙午（ひのえうま）年・旧暦 8月〜9月');
+  // ── 暦の計算 ──
+  check('  二十四節気 2026年（国立天文台の暦要項と同じ日）', await page.evaluate(() => KOYOMI.sekki(2026).join(',')),
+    '立春 2/4,雨水 2/19,啓蟄 3/5,春分 3/20,清明 4/5,穀雨 4/20,立夏 5/5,小満 5/21,芒種 6/6,夏至 6/21,小暑 7/7,大暑 7/23,立秋 8/7,処暑 8/23,白露 9/7,秋分 9/23,寒露 10/8,霜降 10/23,立冬 11/7,小雪 11/22,大雪 12/7,冬至 12/22,小寒 1/5,大寒 1/20');
+  check('  立春：2021年は 2/3（節分が 2/2 になった年）・2024 2/4・2025 2/3・2026 2/4', await page.evaluate(() => [2021, 2024, 2025, 2026].map(y => { const r = KOYOMI.risshun(y); return r.m + '/' + r.d; }).join(',') + '|' + KOYOMI.info(2021, 2, 2).zs.join('')), '2/3,2/4,2/3,2/4|節分');
+  const info = (y, m, d) => page.evaluate(([y, m, d]) => { const i = KOYOMI.info(y, m, d); return ['旧' + (i.lun ? (i.lun.leap ? '閏' : '') + i.lun.m + '/' + i.lun.d : '-'), i.rk, i.ks, i.kichi.join('・'), i.kyo.join('・'), i.hol, i.sekki, i.zs.join('・'), i.gy.join('・'), i.doyo, i.q].join(' '); }, [y, m, d]);
+  check('  2024/1/1：旧11/20・赤口・甲子・天赦日と一粒万倍日と甲子の日が重なる・元日', await info(2024, 1, 1), '旧11/20 赤口 甲子 天赦日・一粒万倍日・甲子の日  元日     -1');
+  check('  旧正月（旧1/1 は いつも先勝）：2024/2/10・2025/1/29・2026/2/17', [await info(2024, 2, 10), await info(2025, 1, 29), await info(2026, 2, 17)].join(' | '),
+    '旧1/1 先勝 甲辰      旧正月  0 | 旧1/1 先勝 戊戌      旧正月 冬 0 | 旧1/1 先勝 壬戌      旧正月  0');
+  check('  閏月：2023年は閏2月（3/22から）・2033年は閏11月（12/22から。2033年問題）・2025年は閏6月', await page.evaluate(() => [KOYOMI.info(2023, 3, 22).lun, KOYOMI.info(2033, 12, 22).lun, KOYOMI.info(2025, 7, 25).lun, KOYOMI.info(2034, 1, 20).lun].map(l => (l.leap ? '閏' : '') + l.m + '/' + l.d).join(',')), '閏2/1,閏11/1,閏6/1,12/1');
+  check('  2026/10/23：旧9/13・先負・庚午・一粒万倍日・三隣亡・霜降・秋の土用・十三夜', await info(2026, 10, 23), '旧9/13 先負 庚午 一粒万倍日 三隣亡  霜降  十三夜 秋 -1');
+  check('  不成就日（旧3/1）・満月（2026/10/26）', [await info(2023, 4, 20), await info(2026, 10, 26)].join(' | '), '旧3/1 先負 戊申  不成就日  穀雨   春 0 | 旧9/16 赤口 癸酉 一粒万倍日      秋 2');
+  check('  天赦日 2024年', await page.evaluate(() => { const o = []; for (let m = 1; m <= 12; m++) for (let d = 1; d <= 31; d++) { if (new Date(2024, m - 1, d).getMonth() !== m - 1) continue; if (KOYOMI.info(2024, m, d).kichi.includes('天赦日')) o.push(m + '/' + d); } return o.join(' '); }), '1/1 3/15 5/30 7/29 8/12 10/11 12/26');
+  check('  天赦日 2026年', await page.evaluate(() => { const o = []; for (let m = 1; m <= 12; m++) for (let d = 1; d <= 31; d++) { if (new Date(2026, m - 1, d).getMonth() !== m - 1) continue; if (KOYOMI.info(2026, m, d).kichi.includes('天赦日')) o.push(m + '/' + d); } return o.join(' '); }), '3/5 5/4 5/20 7/19 10/1 12/16');
+  check('  祝日 2026年（振替休日 5/6・国民の休日 9/22）', await page.evaluate(() => KOYOMI.holidays(2026).join(',')),
+    '1/1 元日,1/12 成人の日,2/11 建国記念の日,2/23 天皇誕生日,3/20 春分の日,4/29 昭和の日,5/3 憲法記念日,5/4 みどりの日,5/5 こどもの日,5/6 振替休日,7/20 海の日,8/11 山の日,9/21 敬老の日,9/22 国民の休日,9/23 秋分の日,10/12 スポーツの日,11/3 文化の日,11/23 勤労感謝の日');
+  check('  祝日 2019年（即位の日・即位礼正殿の儀・天皇誕生日なし）', await page.evaluate(() => KOYOMI.holidays(2019).join(',')),
+    '1/1 元日,1/14 成人の日,2/11 建国記念の日,3/21 春分の日,4/29 昭和の日,4/30 国民の休日,5/1 天皇の即位の日,5/2 国民の休日,5/3 憲法記念日,5/4 みどりの日,5/5 こどもの日,5/6 振替休日,7/15 海の日,8/11 山の日,8/12 振替休日,9/16 敬老の日,9/23 秋分の日,10/14 体育の日,10/22 即位礼正殿の儀,11/3 文化の日,11/4 振替休日,11/23 勤労感謝の日');
+  check('  祝日 2021年（オリンピックで 海の日・スポーツの日・山の日が移った）', await page.evaluate(() => KOYOMI.holidays(2021).filter(h => /海|スポーツ|山|振替/.test(h)).join(',')), '7/22 海の日,7/23 スポーツの日,8/8 山の日,8/9 振替休日');
+  check('  雑節 2026年', await page.evaluate(() => { const o = []; for (let m = 1; m <= 12; m++) for (let d = 1; d <= 31; d++) { if (new Date(2026, m - 1, d).getMonth() !== m - 1) continue; const i = KOYOMI.info(2026, m, d); if (i.zs.length) o.push(m + '/' + d + ' ' + i.zs.join('・')); } return o.join(','); }),
+    '1/17 冬の土用の入り,2/3 節分,3/17 春の彼岸入り,3/20 彼岸の中日,3/23 春の彼岸明け,3/25 春の社日,4/17 春の土用の入り,5/2 八十八夜,6/11 入梅,7/2 半夏生,7/20 夏の土用の入り,9/1 二百十日,9/11 二百二十日,9/20 秋の彼岸入り,9/21 秋の社日,9/23 彼岸の中日,9/26 秋の彼岸明け,10/20 秋の土用の入り');
+  check('  月の満ち欠け 2026年10月（下弦・新月・上弦・満月）', await page.evaluate(() => { const o = []; for (let d = 1; d <= 31; d++) { const q = KOYOMI.info(2026, 10, d).q; if (q >= 0) o.push(d + ':' + ['新月', '上弦', '満月', '下弦'][q]); } return o.join(' '); }), '3:下弦 11:新月 19:上弦 26:満月');
+  check('  表のはし（1900/1/1・2100/12/31）も 旧暦が出る', [await info(1900, 1, 1), await info(2100, 12, 31)].join(' | '), '旧12/1 赤口 甲戌        0 | 旧12/1 赤口 丁未      大晦日  0');
+  check('  その日の暦の文（コピーする文）', await page.evaluate(() => KOYOMI.dayText(2026, 10, 23)), '2026年10月23日（金）\n旧暦 9月13日・庚午の日・先負\n吉日：一粒万倍日\n凶日：三隣亡\n二十四節気：霜降\n秋の土用\n十三夜\n月齢 12.5');
+  // ── カレンダーの画面 ──
+  const cell = (y, m, d) => page.evaluate(dn => { const c = document.querySelector('#kyGrid .ky-c[data-dn="' + dn + '"]'); return c ? [c.querySelector('.d').textContent, (c.querySelector('.rk') || {}).textContent || '', [...c.querySelectorAll('.mk i')].map(i => i.textContent).join(''), (c.querySelector('.ev') || {}).textContent || '', c.className.split(' ').filter(k => !['ky-c', 'today', 'sel'].includes(k)).join(' ')].join('|') : 'なし'; }, dnOf568(y, m, d));
+  check('  日の枠：10/23（先負・万・隣・霜降・土用）', await cell(2026, 10, 23), '23|先負|万隣|霜降|doyo');
+  check('  日の枠：10/12 スポーツの日（赤）・10/26 満月・10/1 天赦日・9/27（前の月）', [await cell(2026, 10, 12), await cell(2026, 10, 26), await cell(2026, 10, 1), await cell(2026, 9, 27)].join(' / '), '12|仏滅||スポーツの日|sun / 26🌕|赤口|万||doyo / 1|仏滅|天万|| / 27🌕|赤口|||out sun');
+  check('  下の印の説明と 出すものの札', await page.evaluate(() => [document.querySelectorAll('.ky-leg span').length, [...document.querySelectorAll('.ky-show button')].map(b => b.textContent + (b.classList.contains('on') ? '●' : '')).join(',')].join('/')), '10/六曜●,吉日●,凶日●,月●,節気・雑節・行事●');
+  await page.evaluate(() => { KOYOMI.show('rk'); KOYOMI.show('kc'); }); await w(150);
+  check('  六曜・吉日を 出さない（覚える）・凶日は出たまま', await page.evaluate(() => [document.querySelectorAll('#kyGrid .rk').length, document.querySelectorAll('#kyGrid .mk i.k-ichiryu').length, document.querySelectorAll('#kyGrid .mk i.k-sanrin').length > 0, JSON.parse(localStorage.getItem('excalc_koyomi')).show.rk].join('/')), '0/0/true/false');
+  await page.evaluate(() => { KOYOMI.show('rk'); KOYOMI.show('kc'); }); await w(150);
+  // 日を押す
+  await page.click('#kyGrid .ky-c[data-dn="' + dnOf568(2026, 10, 26) + '"]'); await w(200);
+  check('  日を押すと 選んで 下に その日の暦（10/26 満月）', await page.evaluate(() => [KOYOMI.view().sel, document.querySelector('#kyDay .ky-dh').textContent, [...document.querySelectorAll('#kyDay .ky-row')].map(r => r.querySelector('.ic').textContent + (r.querySelector('b') ? r.querySelector('b').firstChild.textContent : '')).join(',')].join('|')),
+    '10/26|2026年10月26日（月）3日後|📿六曜：赤口,✨吉日：一粒万倍日,🟫秋の土用,🌕月：満月');
+  await page.evaluate(dn => KOYOMI.pick(dn), dnOf568(2026, 10, 23)); await w(200);
+  check('  10/23：六曜・吉日・凶日・節気・土用・十三夜・月齢（言い伝えも）', await page.evaluate(() => [document.querySelector('#kyDay .ky-dsub').textContent, [...document.querySelectorAll('#kyDay .ky-row')].map(r => r.querySelector('.ic').textContent + (r.querySelector('b') ? r.querySelector('b').firstChild.textContent : '')).join(','), !!document.querySelector('#kyDay .ky-tip'), /間日は 未・酉・亥の日/.test(document.getElementById('kyDay').textContent)].join('|')),
+    '令和8年・旧暦 9月13日・庚午（かのえうま）の日|📿六曜：先負,✨吉日：一粒万倍日,⚠️凶日：三隣亡,🌾二十四節気：霜降,🟫秋の土用,🎑十三夜,🌔月：月齢 12.5|true|true');
+  check('  その月の暦の一覧（節気・雑節・月・天赦日・祝日・行事）', await page.evaluate(() => [...document.querySelectorAll('.ky-sec .ky-li')].map(b => b.textContent).join(',')),
+    '10/1（木）✨ 天赦日,10/3（土）🌗 下弦の月,10/8（木）🌾 寒露,10/11（日）🌑 新月,10/12（月）🎌 スポーツの日,10/19（月）🌓 上弦の月,10/20（火）🍃 秋の土用の入り,10/23（金）🌾 霜降,10/23（金）🎑 十三夜,10/26（月）🌕 満月');
+  await page.evaluate(() => KOYOMI.copy(Math.floor(Date.UTC(2026, 9, 23) / 864e5))); await w(300);
+  check('  📋 コピー（だめなときは 文を出す）', await page.evaluate(() => /^(コピーしました|2026年10月23日)/.test(document.getElementById('appToast').textContent)), true);
+  // なぞって月をかえる
+  const cdp = await page.context().newCDPSession(page);
+  const swipe = async (sel, dx) => {
+    const r = await page.evaluate(s => { const b = document.querySelector(s).getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + Math.min(b.height / 2, 120) }; }, sel);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: r.x, y: r.y }] });
+    for (let i = 1; i <= 6; i++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: r.x + dx * i / 6, y: r.y }] }); await page.waitForTimeout(16); }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await page.waitForTimeout(400);
+  };
+  await page.evaluate(() => { document.getElementById('kyBody').scrollTop = 0; }); await w(100);
+  await swipe('#kyGrid', -150);
+  check('  左へなぞると 次の月（1日を選ぶ。なぞった先の日は押さない）', await page.evaluate(() => JSON.stringify(KOYOMI.view()) + '/' + document.querySelector('.ky-ym b').textContent), '{"y":2026,"m":11,"sel":"11/1"}/2026年 11月');
+  await swipe('#kyGrid', 150);
+  check('  右へなぞると 前の月（今月なので 今日を選ぶ）', await page.evaluate(() => JSON.stringify(KOYOMI.view())), '{"y":2026,"m":10,"sel":"10/23"}');
+  await page.evaluate(() => { KOYOMI.go(1); KOYOMI.go(1); KOYOMI.go(1); }); await w(100);
+  check('  ‹ › で 年をまたぐ（2027年1月）・今日 で戻る', await page.evaluate(() => { const a = JSON.stringify(KOYOMI.view()); KOYOMI.today(); return a + '/' + JSON.stringify(KOYOMI.view()); }), '{"y":2027,"m":1,"sel":"1/1"}/{"y":2026,"m":10,"sel":"10/23"}');
+  // 年月を入れる
+  await page.evaluate(() => { window.appPrompt = async () => '平成31年5月'; KOYOMI.ask(); }); await w(300);
+  check('  年月を押して 和暦でも（平成31年5月 → 2019年5月・5/1 天皇の即位の日）', await page.evaluate(dn => [JSON.stringify(KOYOMI.view()), document.querySelector('#kyGrid .ky-c[data-dn="' + dn + '"] .ev').textContent, document.querySelector('.ky-ym small').textContent].join('/'), dnOf568(2019, 5, 1)), '{"y":2019,"m":5,"sel":"5/1"}/天皇の即位の日/令和元年・己亥（つちのとい）年・旧暦 3月〜4月');
+  const era = () => page.evaluate(() => document.querySelector('.ky-ym small').textContent.split('・')[0]);
+  await page.evaluate(() => { window.appPrompt = async () => '2019/4'; KOYOMI.ask(); }); await w(300);
+  const era1 = await era();
+  await page.evaluate(() => { window.appPrompt = async () => '1989/1'; KOYOMI.ask(); }); await w(300);
+  const era2 = await era();
+  const era3 = await page.evaluate(() => { KOYOMI.pick(Math.floor(Date.UTC(1989, 0, 7) / 864e5)); const a = document.querySelector('#kyDay .ky-dsub').textContent.split('・')[0]; KOYOMI.pick(Math.floor(Date.UTC(1989, 0, 8) / 864e5)); return a + '/' + document.querySelector('#kyDay .ky-dsub').textContent.split('・')[0]; });
+  check('  和暦は 改元の日で分ける（2019年4月は 平成31年・1989年1月は 昭和64年／平成元年・1/7 と 1/8）', [era1, era2, era3].join('/'), '平成31年/昭和64年／平成元年/昭和64年/平成元年');
+  await page.evaluate(() => { window.appPrompt = async () => '令和元年5月'; KOYOMI.ask(); }); await w(300);
+  await page.evaluate(() => { window.appPrompt = async () => '2200/1'; KOYOMI.ask(); }); await w(300);
+  check('  見られない年は 知らせて そのまま', await page.evaluate(() => JSON.stringify(KOYOMI.view()) + '/' + document.getElementById('appToast').textContent), '{"y":2019,"m":5,"sel":"5/1"}/年月が わかりませんでした（1900〜2100年）');
+  await page.evaluate(() => { KOYOMI.go(-1500); }); await w(100);
+  check('  1900年より前へは 行かない', await page.evaluate(() => JSON.stringify(KOYOMI.view()) + '/' + document.getElementById('appToast').textContent), '{"y":2019,"m":5,"sel":"5/1"}/1900年〜2100年の こよみが 見られます');
+  // 節分 → ⛩ 方位と恵方（先に開いて閉じた 方位の画面が こよみの下に隠れない）
+  await page.evaluate(async () => { await openHoi(); closeHoi(); document.body.appendChild(document.getElementById('koyomiOverlay')); window.appPrompt = async () => '2026/2'; KOYOMI.ask(); }); await w(300);
+  await page.evaluate(dn => KOYOMI.pick(dn), dnOf568(2026, 2, 3)); await w(200);
+  check('  節分の日：👹 雑節：節分 と「⛩ 今年の恵方を見る」', await page.evaluate(() => [...document.querySelectorAll('#kyDay .ky-row')].map(r => r.querySelector('.ic').textContent + r.querySelector('b').firstChild.textContent).join(',') + '/' + document.querySelector('#kyDay .ky-link').textContent), '📿六曜：先負,👹雑節：節分,🟫冬の土用,🌕月：月齢 15.3・十六夜（いざよい）/⛩ 今年の恵方を見る');
+  await page.click('#kyDay .ky-link'); await w(800);
+  check('  ⛩ を押すと 方位と恵方が こよみの上に開く', await page.evaluate(() => { const v = document.getElementById('hoiOverlay'), r = v.querySelector('.modal').getBoundingClientRect(), top = document.elementFromPoint(r.left + r.width / 2, r.top + 80); return [isDlgOpen('hoiOverlay'), isDlgOpen('koyomiOverlay'), v.contains(top), document.querySelector('.hoi-eh .t b').textContent].join('/'); }), 'true/true/true/南南東やや南');
+  await page.evaluate(() => closeHoi()); await w(300);
+  check('  閉じると こよみに戻る', await page.evaluate(() => isDlgOpen('hoiOverlay') + '/' + isDlgOpen('koyomiOverlay')), 'false/true');
+  // ── 🔍 吉日さがし ──
+  await page.evaluate(() => KOYOMI.tab('kichi')); await w(250);
+  const res = n => page.evaluate(n => [document.querySelector('.ky-cnt').textContent, [...document.querySelectorAll('.ky-res')].slice(0, n).map(b => b.querySelector('.d').firstChild.textContent + ':' + ((b.querySelector('.st') || {}).textContent || '') + [...b.querySelectorAll('.w em')].map(e => (e.classList.contains('bad') ? '×' : '') + e.textContent).join('・')).join(' ')].join('|'), n);
+  check('  🔍 吉日さがし：目的9つ（はじめは 結婚・入籍）・半年・日付順', await page.evaluate(() => [document.querySelectorAll('.ky-pp button').length, document.querySelector('.ky-pp button.on').textContent, document.querySelector('.ky-opt button.on').textContent].join('/')), '9/💍 結婚・入籍結納・顔合わせ/半年');
+  check('  結婚：これから半年の よい日（大安・天赦日・一粒万倍日…）', await res(4), 'これから半年で 37日|10/25（日）:★大安 10/31（土）:★大安 11/6（金）:★大安 11/8（日）:★一粒万倍日・先勝');
+  await page.evaluate(() => KOYOMI.sort('good')); await w(150);
+  check('  よい順（重なっている日が上）', await res(2), 'これから半年で 37日|12/15（火）:★★大安・一粒万倍日 12/27（日）:★★大安・一粒万倍日');
+  await page.evaluate(() => { KOYOMI.purpose('jotou'); KOYOMI.sort('date'); KOYOMI.off(true); }); await w(150);
+  check('  上棟：土日・祝日だけ・三隣亡の日は出さない', await page.evaluate(() => [[...document.querySelectorAll('.ky-res')].every(b => b.classList.contains('off')), [...document.querySelectorAll('.ky-res em')].some(e => e.textContent === '三隣亡')].join('/')) + '|' + await res(3), 'true/false|これから半年で 14日|10/25（日）:★大安 10/31（土）:★大安 11/8（日）:★先勝・一粒万倍日');
+  await page.evaluate(() => { KOYOMI.purpose('soshiki'); KOYOMI.off(false); KOYOMI.span(90); }); await w(150);
+  check('  葬儀：友引の日を並べる（★は出さない・3か月）', await res(3), 'これから3か月で 14日|10/28（水）:友引 11/3（火）:友引 11/13（金）:友引');
+  await page.evaluate(() => KOYOMI.purpose('tane')); await w(150);
+  check('  種まき：一粒万倍日・月の満ち欠け（土用は 間日だけ）', await res(3), 'これから3か月で 7日|10/26（月）:★一粒万倍日・満月のころ 11/19（木）:★一粒万倍日・月が満ちていく間 11/20（金）:★一粒万倍日・月が満ちていく間');
+  await page.click('.ky-res'); await w(300);
+  check('  結果を押すと カレンダーで その日', await page.evaluate(() => [JSON.parse(localStorage.getItem('excalc_koyomi')).tab, JSON.stringify(KOYOMI.view())].join('/')), 'cal/{"y":2026,"m":10,"sel":"10/26"}');
+  // ── 🌾 農事のこよみ ──
+  await page.evaluate(() => KOYOMI.tab('noji')); await w(200);
+  check('  🌾 農事のこよみ：いまの節気と 次の節気まで・畑の目安', await page.evaluate(() => [document.querySelector('.ky-now-sk .t b').textContent, document.querySelector('.ky-now-sk .p').textContent, document.querySelector('.ky-now-sk .farm').textContent].join('/')), '霜降/10/23〜11/6・次の「立冬」まで あと15日/【畑】玉ねぎの苗の植え付け・霜よけの準備。');
+  check('  これからの 節気・雑節・新月・満月', await page.evaluate(() => [...document.querySelectorAll('.ky-li.tall')].slice(0, 5).map(b => b.querySelector('.d').firstChild.textContent + b.querySelector('b').textContent).join(',')), '10/23（金）🌾 霜降,10/26（月）🌕 満月,11/7（土）🌾 立冬,11/9（月）🌑 新月,11/22（日）🌾 小雪');
+  // 変なデータ・閉じる・単独アプリ
+  await page.evaluate(() => { closeKoyomi(); localStorage.setItem('excalc_koyomi', JSON.stringify({ tab: '<b>x', show: 'zz', pk: "x');alert(1);('", span: 7, off: 'yes', sort: 1 })); openKoyomi(); }); await w(300);
+  check('  変なデータ：片づけて開く', await page.evaluate(() => JSON.stringify(KOYOMI.state())), '{"tab":"cal","show":{"rk":true,"kc":true,"kyo":true,"moon":true,"ev":true},"pk":"kekkon","span":180,"off":true,"sort":"date"}');
+  await page.keyboard.press('Escape'); await w(300);
+  check('  Esc で閉じる', await page.evaluate(() => isDlgOpen('koyomiOverlay')), false);
+  check('  エラーなし', errs.join(' | '), '');
+  const ap = await ctx.newPage(); const aerr = []; ap.on('pageerror', e => aerr.push(e.message));
+  await ap.goto(INDEX + '?app=koyomi'); await ap.waitForTimeout(2600);
+  check('  ?app=koyomi：こよみを全画面で（名前・アイコン・manifest・← 表電卓）', await ap.evaluate(() => [window.APP_TOOL, isDlgOpen('koyomiOverlay'), document.querySelector('#koyomiOverlay .modal').classList.contains('modal-full'), document.title, document.querySelector('link[rel=manifest]').getAttribute('href'), document.querySelector('meta[name=apple-mobile-web-app-title]').getAttribute('content'), document.querySelector('#koyomiOverlay .tool-back').textContent].join('/')), 'koyomi/true/true/🗓 こよみ/apps/koyomi/manifest.json/こよみ/←表電卓');
+  check('  エラーなし（単独のアプリ）', aerr.join(' | '), '');
+  await ap.close();
+  await ctx.close();
+}
+
+async function runHoi568(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ⛩ 方位と恵方（v568） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキー・🏠くらし・バックアップ・端末の空き・吹き出し・単独アプリの入口', await page.evaluate(() => [typeof window.HOI, !!NP_TOOLS.find(t => t.id === 'hoi' && t.ov === 'hoiOverlay'), !!KEY_FUNCS.a_hoi, TOOL_CATS.find(c => c[0].includes('くらし'))[1].includes('hoi'), SETTINGS_BACKUP_KEYS.includes('excalc_hoi'), ST_GROUPS.some(g => g.k === 'excalc_hoi'), 'hoi' in TOOL_HINTS].join('/')) + '/' + fs.existsSync(path.join(ROOT, 'apps', 'hoi', 'manifest.json')),
+    'undefined/true/true/true/true/true/true/true');
+  await page.clock.install({ time: new Date('2026-10-23T10:00:00') }); await page.clock.resume(); await page.reload(); await w(900);
+  await page.evaluate(() => { window.__vib = 0; navigator.vibrate = () => { window.__vib++; return true; }; openHoi(); }); await w(700);
+  check('  開く：天文の表も読む・いまの恵方（2026年は 南南東やや南）・いつまでか・来年の恵方', await page.evaluate(() => [isDlgOpen('hoiOverlay'), typeof window.KOYOMI_ASTRO, document.querySelector('.hoi-eh .t').textContent, document.querySelector('.hoi-eh .s').textContent, document.querySelectorAll('#hoiDial .kimon').length, document.querySelectorAll('#hoiDial .l12').length].join('/')),
+    'true/object/⛩ いまの恵方：南南東やや南（165°・丙（ひのえ）の方位）/2026年（丙午）の立春から 2027年の節分まで。2027年の恵方は 北北西やや北（2027年の節分 2/3 から）。/2/12');
+  check('  恵方は 年の十干で めぐる（南南東が2回）', await page.evaluate(() => [2024, 2025, 2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033].map(y => { const e = HOI.ehou(y); return y + ':' + e.deg + e.name; }).join(',')),
+    '2024:75東北東やや東,2025:255西南西やや西,2026:165南南東やや南,2027:345北北西やや北,2028:165南南東やや南,2029:75東北東やや東,2030:255西南西やや西,2031:165南南東やや南,2032:345北北西やや北,2033:165南南東やや南');
+  check('  恵方の年は 節分の日に かわる（2021・2025年の節分は 2/2、2026年は 2/3）', await page.evaluate(() => [[2021, 2, 1], [2021, 2, 2], [2025, 2, 1], [2025, 2, 2], [2026, 2, 2], [2026, 2, 3], [2026, 12, 31]].map(a => HOI.ehouYear(...a)).join(',')), '2020,2021,2024,2025,2025,2026,2026');
+  check('  方位の名前（16方位・十二支・二十四方位）', await page.evaluate(() => [0, 45, 90, 165, 180, 225, 255, 345, 359].map(d => { const x = HOI.dir(d); return d + ':' + x.d16 + x.shi + x.d24; }).join(',')), '0:北子子,45:北東寅艮,90:東卯卯,165:南南東午丙,180:南午午,225:南西申坤,255:西南西酉庚,345:北北西子壬,359:北子子');
+  // 指で 盤を回す（センサーが動く前）
+  const box = await page.evaluate(() => { const r = document.getElementById('hoiDialBox').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, r: r.width / 2 - 20 }; });
+  await page.evaluate(() => HOI.setHead(0)); await w(100);
+  await page.mouse.move(box.x + box.r, box.y); await page.mouse.down();
+  for (let i = 1; i <= 8; i++) { const a = Math.PI / 2 * i / 8; await page.mouse.move(box.x + box.r * Math.cos(a), box.y + box.r * Math.sin(a)); await w(16); }
+  await page.mouse.up(); await w(150);
+  check('  盤を 指でなぞって回す（右から下へ 90° → 上が 西）', await page.evaluate(() => HOI.head() + '/' + document.querySelector('#hoiNow b').textContent), '270/西');
+  await w(2400);
+  check('  センサーが来ないときは 知らせて 回すボタンを出す', await page.evaluate(() => [/方位のセンサーが 使えないようです/.test(document.getElementById('hoiCtl').textContent), document.querySelectorAll('#hoiCtl .hoi-rot button').length].join('/')), 'true/4');
+  await page.evaluate(() => { HOI.rot(15); HOI.rot(-1); }); await w(100);
+  check('  ↻ 15° ↺ 1°', await page.evaluate(() => HOI.head()), '284');
+  // センサー（iPhone の webkitCompassHeading・Android の 絶対の向き）
+  await page.evaluate(() => { for (let i = 0; i < 40; i++) HOI.feed({ webkitCompassHeading: 100 }); }); await w(150);
+  check('  iPhone の向き 100°：偏角（関東〜九州 西へ7°）を直して 93°・センサーで動いている', await page.evaluate(() => [HOI.head(), document.querySelector('#hoiNow b').textContent, /方位センサーで 動いています/.test(document.getElementById('hoiCtl').textContent), /西へ 7°/.test(document.getElementById('hoiCtl').textContent), document.querySelector('.hoi-decl button.on').textContent].join('/')), '93/東/true/true/関東〜九州（西へ 7°）');
+  await page.evaluate(() => HOI.decl(0)); await w(150);
+  check('  偏角を 直さない にすると 100°', await page.evaluate(() => HOI.head() + '/' + JSON.parse(localStorage.getItem('excalc_hoi')).decl), '100/0');
+  await page.evaluate(() => { for (let i = 0; i < 40; i++) HOI.feed({ absolute: true, alpha: 270 }); HOI.feed({ absolute: false, alpha: 10 }); }); await w(150);
+  check('  Android の 絶対の向き（alpha 270 → 東 90°）・絶対でない向きは使わない', await page.evaluate(() => HOI.head()), '90');
+  await page.evaluate(() => { for (let i = 0; i < 40; i++) HOI.feed({ webkitCompassHeading: 166 }); }); await w(150);
+  check('  恵方を向くと 知らせて ふるえる（1回だけ）', await page.evaluate(() => [document.getElementById('hoiTo').textContent, document.getElementById('hoiTo').classList.contains('on'), window.__vib].join('/')), '🎉 恵方を向いています/true/1');
+  await page.evaluate(() => { for (let i = 0; i < 40; i++) HOI.feed({ webkitCompassHeading: 120 }); }); await w(150);
+  check('  恵方まで 何度 どちらへ', await page.evaluate(() => document.getElementById('hoiTo').textContent), '恵方（南南東やや南）まで：右へ 45°');
+  // 向きを残す
+  await page.evaluate(() => { HOI.setHead(165); window.appPrompt = async () => '玄関'; HOI.pin(); }); await w(200);
+  await page.evaluate(() => { HOI.setHead(45); window.appPrompt = async () => '勝手口'; HOI.pin(); }); await w(200);
+  check('  📌 この向きを残す：名前・方位・度・二十四方位（鬼門も）・日付・盤に しるし', await page.evaluate(() => [[...document.querySelectorAll('.hoi-pin')].map(p => p.querySelector('b').textContent + ':' + p.querySelector('small').textContent).join(','), document.querySelectorAll('#hoiDial .pin').length, JSON.parse(localStorage.getItem('excalc_hoi')).pins.length].join('/')),
+    '玄関:南南東・165°・丙・2026/10/23,勝手口:北東・45°・艮（鬼門）・2026/10/23/2/2');
+  await page.evaluate(() => { window.appConfirm = async () => true; HOI.pinDel(0); }); await w(200);
+  check('  🗑 で消す', await page.evaluate(() => [...document.querySelectorAll('.hoi-pin b')].map(b => b.textContent).join(',')), '勝手口');
+  await page.evaluate(() => HOI.ring()); await w(150);
+  check('  二十四方位の目盛り（艮・坤は 鬼門の色、恵方の 丙）', await page.evaluate(() => [document.querySelectorAll('#hoiDial .l24').length, [...document.querySelectorAll('#hoiDial .l24.ki')].map(t => t.textContent).join(''), [...document.querySelectorAll('#hoiDial .l24.eh')].map(t => t.textContent).join(''), [...document.querySelectorAll('.hoi-acts .hoi-b')][1].textContent].join('/')), '24/艮坤/丙/十二支の目盛りに');
+  await page.evaluate(() => { localStorage.setItem('excalc_hoi', JSON.stringify({ decl: 99, ring: 'x', pins: [{ n: '<img src=x onerror=alert(1)>', d: 'abc', t: 'zz' }, 5, null] })); closeHoi(); openHoi(); }); await w(300);
+  check('  変なデータ：片づけて開く・文字は文字のまま', await page.evaluate(() => [JSON.stringify(HOI.state()), !document.querySelector('.hoi-pin img')].join('/')), '{"decl":7,"ring":"12","pins":[{"n":"<img src=x onerror=a","d":0,"t":""}]}/true');
+  await page.evaluate(() => closeHoi()); await w(200);
+  check('  閉じると センサーを止める', await page.evaluate(() => { const h0 = HOI.head(); window.dispatchEvent(Object.assign(new Event('deviceorientationabsolute'), { absolute: true, alpha: 10 })); return HOI.head() === h0; }), true);
+  check('  エラーなし', errs.join(' | '), '');
+  const ap = await ctx.newPage(); const aerr = []; ap.on('pageerror', e => aerr.push(e.message));
+  await ap.goto(INDEX + '?app=hoi'); await ap.waitForTimeout(2600);
+  check('  ?app=hoi：方位と恵方を全画面で（名前・アイコン・manifest）', await ap.evaluate(() => [window.APP_TOOL, isDlgOpen('hoiOverlay'), document.querySelector('#hoiOverlay .modal').classList.contains('modal-full'), document.title, document.querySelector('link[rel=manifest]').getAttribute('href'), document.querySelector('meta[name=apple-mobile-web-app-title]').getAttribute('content')].join('/')), 'hoi/true/true/⛩ 方位と恵方/apps/hoi/manifest.json/方位と恵方');
+  check('  エラーなし（単独のアプリ）', aerr.join(' | '), '');
+  await ap.close();
+  await ctx.close();
+}
+
+async function runSoroban568(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🧮 そろばん（v568） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキー・📚声・まなぶ・バックアップ・端末の空き・吹き出し・単独アプリの入口', await page.evaluate(() => [typeof window.SOROBAN, !!NP_TOOLS.find(t => t.id === 'soroban' && t.ov === 'sorobanOverlay'), !!KEY_FUNCS.a_soroban, TOOL_CATS.find(c => c[0].includes('まなぶ'))[1].includes('soroban'), SETTINGS_BACKUP_KEYS.includes('excalc_soroban'), ST_GROUPS.some(g => g.k === 'excalc_soroban'), 'soroban' in TOOL_HINTS].join('/')) + '/' + fs.existsSync(path.join(ROOT, 'apps', 'soroban', 'manifest.json')),
+    'undefined/true/true/true/true/true/true/true');
+  await page.evaluate(() => openSoroban()); await w(800);
+  check('  開く：3つのタブ・はじめは 自由に・9けた（スマホの幅）・0・定位点3つ', await page.evaluate(() => [isDlgOpen('sorobanOverlay'), [...document.querySelectorAll('.sb-tabs button')].map(b => b.textContent).join(','), document.querySelector('.sb-tabs .on').textContent, SOROBAN.state().rods, SOROBAN.value(), document.querySelector('#sbVal b').textContent, document.querySelectorAll('#sbSvg .bd').length, document.querySelectorAll('#sbSvg .dot').length].join('/')),
+    'true/🧮 自由に,👀 見取り算,🔈 読み上げ算/🧮 自由に/9/0/0/45/3');
+  check('  珠を押す：下の珠3つ目→3・上の珠→8・上がっている下の珠1つ目→5・上の珠→0', await page.evaluate(() => { const o = []; SOROBAN.tap(8, '3'); o.push(SOROBAN.value()); SOROBAN.tap(8, 'h'); o.push(SOROBAN.value()); SOROBAN.tap(8, '1'); o.push(SOROBAN.value()); SOROBAN.tap(8, 'h'); o.push(SOROBAN.value()); return o.join(','); }), '3,8,5,0');
+  await page.click('#sbSvg .bd[data-r="7"][data-b="2"]'); await w(100);
+  await page.click('#sbSvg .bd[data-r="6"][data-b="h"]'); await w(100);
+  check('  画面の珠を押しても動く（十の位に 2・百の位に 5）・梁に寄った珠の印', await page.evaluate(() => [SOROBAN.value(), document.querySelector('#sbVal b').textContent, document.querySelectorAll('#sbSvg .bd.on').length].join('/')), '520/520/3');
+  await page.evaluate(() => { window.appPrompt = async () => '１２,３４５円'; SOROBAN.put(); }); await w(200);
+  check('  🔢 数を置く（全角・カンマ・円も）：12,345 → 珠の並び', await page.evaluate(() => SOROBAN.value() + '/' + SOROBAN.digits().join('') + '/' + document.querySelector('#sbVal b').textContent), '12345/000012345/12,345');
+  await page.evaluate(() => { window.appPrompt = async () => '1234567890'; SOROBAN.put(); }); await w(200);
+  check('  9けたより大きい数は 置かずに知らせる', await page.evaluate(() => SOROBAN.value() + '/' + document.getElementById('appToast').textContent), '12345/9けたまでの数です（⚙ で桁をふやせます）');
+  await page.evaluate(() => { window.appPrompt = async () => '-5'; SOROBAN.put(); }); await w(200);
+  check('  マイナス・小数は 置かない', await page.evaluate(() => SOROBAN.value() + '/' + document.getElementById('appToast').textContent), '12345/0以上の 整数を入れてください');
+  await page.evaluate(() => SOROBAN.rods(13)); await w(150);
+  check('  13けたにすると 数はそのまま・定位点は5つ（覚える）', await page.evaluate(() => [SOROBAN.value(), SOROBAN.digits().length, document.querySelectorAll('#sbSvg .dot').length, JSON.parse(localStorage.getItem('excalc_soroban')).rods].join('/')), '12345/13/5/13');
+  await page.evaluate(() => SOROBAN.toggleShow()); await w(100);
+  check('  🙈 数をかくす', await page.evaluate(() => [document.getElementById('sbVal').textContent, [...document.querySelectorAll('.sb-tools .sb-b')].map(b => b.textContent).join(',')].join('/')), '（数は かくしています）/🧹 ご破算,🔢 数を置く,👁 数を出す');
+  await page.evaluate(() => { SOROBAN.toggleShow(); SOROBAN.clear(); }); await w(100);
+  check('  🧹 ご破算で 0', await page.evaluate(() => SOROBAN.value() + '/' + document.querySelectorAll('#sbSvg .bd.on').length), '0/0');
+  check('  表のセルが 空なら「表のセル」のボタンは出さない', await page.evaluate(() => !!document.querySelector('.sb-cell')), false);
+  await page.evaluate(() => { closeSoroban(); setCellVal(1, 1, '=12*3'); selR = 1; selC = 1; openSoroban(); }); await page.waitForTimeout(300);
+  check('  ▦ 表で えらんでいるセルの数（計算の答え）を置くボタン', await page.evaluate(() => document.querySelector('.sb-cell').textContent), '▦ 表のセル B2 の 36 を そろばんに置く');
+  await page.click('.sb-cell'); await page.waitForTimeout(150);
+  check('  押すと そろばんに 36', await page.evaluate(() => SOROBAN.value() + '/' + document.querySelector('#sbVal b').textContent), '36/36');
+  await page.evaluate(() => { closeSoroban(); setCellVal(1, 1, '12.5'); openSoroban(); }); await page.waitForTimeout(300);
+  check('  整数でないセルのときは 出さない', await page.evaluate(() => !!document.querySelector('.sb-cell')), false);
+  await page.evaluate(() => { SOROBAN.clear(); setCellVal(1, 1, ''); }); await page.waitForTimeout(100);
+  // 👀 見取り算
+  await page.evaluate(() => { SOROBAN.tab('mitori'); SOROBAN.lv('keta', 3); SOROBAN.lv('kuchi', 7); SOROBAN.lv('hiki', true); }); await w(150);
+  check('  👀 見取り算：数はかくす・レベル（けた・口数・引き算）を覚える', await page.evaluate(() => [document.querySelector('.sb-tabs .on').textContent, !!document.querySelector('#sbVal .hid'), JSON.stringify(SOROBAN.state().lv), document.querySelector('.sb-start .sb-b').textContent].join('/')), '👀 見取り算/true/{"keta":3,"kuchi":7,"hiki":true,"speed":"mid"}/▶ はじめる（3けた・7口・引き算あり）');
+  check('  問題：3けた・7口・引き算ありでも とちゅうで マイナスにならない（300問）', await page.evaluate(() => { let bad = 0, minus = 0; for (let k = 0; k < 300; k++) { SOROBAN.start(); const p = SOROBAN.problem(); let s = 0; p.nums.forEach((n, i) => { if (Math.abs(n) < 100 || Math.abs(n) > 999) bad++; if (n < 0) minus++; if (i === 0 && n < 0) bad++; s += n; if (s < 0) bad++; }); if (s !== p.ans || p.nums.length !== 7) bad++; } return bad + '/' + (minus > 0); }), '0/true');
+  await page.evaluate(() => { SOROBAN.start(); SOROBAN.set(SOROBAN.problem().ans); SOROBAN.check(); }); await w(150);
+  check('  答えを そろばんに置いて「✅ 答え合わせ」→ ⭕ 正解・答えの行・記録', await page.evaluate(() => { const p = SOROBAN.problem(), r = SOROBAN.state().rec; return [document.querySelector('.sb-res').firstChild.textContent, document.querySelector('.sb-mitori .tot .n').textContent === p.ans.toLocaleString('ja-JP'), r.n, r.ok, r.run, r.best, document.querySelector('.sb-acts .sb-b').textContent].join('/'); }), '⭕ 正解！/true/1/1/1/1/▶ 次の問題');
+  await page.evaluate(() => { SOROBAN.start(); SOROBAN.set(SOROBAN.problem().ans + 1); SOROBAN.check(); }); await w(150);
+  check('  ちがうと「🧮 そろばんで 見る」も出る（正解のときは 出さない）', await page.evaluate(() => [...document.querySelectorAll('.sb-acts .sb-b')].map(b => b.textContent).join(',')), '▶ 次の問題,🧮 そろばんで 見る');
+  check('  ちがうと ❌（そろばんの数と答え）・続けての数は 0 に・いちばんは そのまま', await page.evaluate(() => { const p = SOROBAN.problem(), r = SOROBAN.state().rec; return [document.querySelector('.sb-res').firstChild.textContent, document.querySelector('.sb-res small').textContent === 'そろばん：' + (p.ans + 1).toLocaleString('ja-JP') + ' ・ 答え：' + p.ans.toLocaleString('ja-JP'), r.n, r.ok, r.run, r.best, document.querySelector('.sb-rec').textContent].join('/'); }), '❌ ざんねん/true/2/1/0/1/これまで 2問・正解 1問（50%）・いま 0問 連続・いちばん 1問 連続');
+  await page.evaluate(() => { SOROBAN.start(); SOROBAN.giveup(); }); await w(150);
+  check('  答えを見る（数えるのは 1問・正解にしない）', await page.evaluate(() => { const r = SOROBAN.state().rec; return [r.n, r.ok, !!document.querySelector('.sb-res.ng')].join('/'); }), '3/1/true');
+  await page.click('.sb-acts .sb-b:not(.pri)'); await w(200);
+  check('  🧮 そろばんで 見る：珠を答えの形に・数も出す', await page.evaluate(() => { const p = SOROBAN.problem(); return [SOROBAN.value() === p.ans, document.querySelector('#sbVal b').textContent === p.ans.toLocaleString('ja-JP'), document.querySelector('.sb-tools .sb-b:last-child').textContent].join('/'); }), 'true/true/🙈 数をかくす');
+  // 🔈 読み上げ算（声は まねる）
+  await page.evaluate(() => { window.__said = []; window.HyoVoice = Object.assign({}, window.HyoVoice, { available: true, speak: (t, o) => { window.__said.push(t); setTimeout(() => o && o.onend && o.onend(), 20); }, cancel: () => {} }); SOROBAN.tab('yomi'); SOROBAN.lv('keta', 2); SOROBAN.lv('kuchi', 3); SOROBAN.lv('speed', 'fast'); const r = Math.random; Math.random = () => 0.1; SOROBAN.start(); Math.random = r; }); await w(150);
+  check('  🔈 読み上げ算：読んでいる間は 数を出さない', await page.evaluate(() => [!!document.querySelector('.sb-mitori'), document.querySelector('.sb-yomi').textContent.slice(0, 2), JSON.stringify(SOROBAN.problem().nums)].join('/')), 'false/🔈/[19,-11,19]');
+  await w(2200);
+  check('  「願いましては」から 引き算は「引いては」、最後は「では」', await page.evaluate(() => window.__said.join('|') + '/' + document.querySelector('.sb-yomi').textContent), '願いましては。|19円なり。|引いては、11円なり。|19円では。/🔈 では。そろばんの答えを たしかめて「答え合わせ」を押してください。');
+  await page.evaluate(() => { window.__said = []; SOROBAN.again(); }); await w(60);
+  await page.evaluate(() => { SOROBAN.set(27); SOROBAN.check(); }); await w(1500);
+  check('  読んでいる途中で 答え合わせ → 読むのを やめる・正解', await page.evaluate(() => [window.__said.join('|'), document.querySelector('.sb-res').firstChild.textContent, document.querySelectorAll('.sb-mitori .r').length].join('/')), '願いましては。/⭕ 正解！/4');
+  await page.evaluate(() => { window.__said = []; SOROBAN.start(); }); await w(10);
+  await page.evaluate(() => { SOROBAN.start(); }); await w(2200);
+  check('  読み始めてすぐ 次の問題 → 前の読み上げの続きは 混ざらない', await page.evaluate(() => [window.__said.filter(t => t === '願いましては。').length, window.__said.filter(t => /円/.test(t)).length].join('/')), '2/3');
+  await page.evaluate(() => { localStorage.setItem('excalc_soroban', JSON.stringify({ rods: 'x', show: 0, snd: 'q', mode: '<b>', lv: { keta: 9, kuchi: 'a', hiki: 'yes', speed: 'zz' }, rec: { n: -5, ok: 'a', best: null, run: 3 } })); closeSoroban(); openSoroban(); }); await w(300);
+  check('  変なデータ：片づけて開く', await page.evaluate(() => JSON.stringify(SOROBAN.state())), '{"rods":9,"show":true,"snd":true,"mode":"mitori","lv":{"keta":2,"kuchi":5,"hiki":true,"speed":"mid"},"rec":{"n":0,"ok":0,"best":0,"run":3}}');
+  check('  エラーなし', errs.join(' | '), '');
+  const ap = await ctx.newPage(); const aerr = []; ap.on('pageerror', e => aerr.push(e.message));
+  await ap.goto(INDEX + '?app=soroban'); await ap.waitForTimeout(2400);
+  check('  ?app=soroban：そろばんを全画面で（名前・アイコン・manifest）', await ap.evaluate(() => [window.APP_TOOL, isDlgOpen('sorobanOverlay'), document.querySelector('#sorobanOverlay .modal').classList.contains('modal-full'), document.title, document.querySelector('link[rel=manifest]').getAttribute('href'), document.querySelector('meta[name=apple-mobile-web-app-title]').getAttribute('content')].join('/')), 'soroban/true/true/🧮 そろばん/apps/soroban/manifest.json/そろばん');
+  check('  エラーなし（単独のアプリ）', aerr.join(' | '), '');
+  await ap.close();
+  await ctx.close();
+}
 async function runKakijunSE(browser) {
   console.log('\n── ✍️ かきじゅん帳：iPhone SE の幅でも はみ出さない（v559） ──');
   const KKJ = 'file://' + path.join(ROOT, 'kakijun', 'index.html');
@@ -10951,7 +11210,7 @@ async function runSchemeFix(browser) {
       { id: 'a2', fam: '佐藤', giv: '花子', famK: 'さとう', givK: 'はなこ', tels: [{ t: 'cell', v: '080-3333-4444' }], color: 'yellow' }, { id: 'a3', fam: '鈴木', giv: '一郎', famK: 'すずき', givK: 'いちろう', tels: [{ t: 'cell', v: '080-5555-6666' }], color: 'blue' }] })));
     await page.evaluate(() => { const d = new Date(); d.setDate(d.getDate() - 60); const old = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');   // 🎁 お返し帳は 札（まだ・時期すぎ・済み・しない・さしあげた）が出る中身で
       localStorage.setItem('excalc_okaeshi', JSON.stringify({ items: [{ id: 'o1', dir: 'in', kind: 'kekkon', ev: '長女の結婚', date: old, name: '佐藤 花子', amt: 30000, t: 1 }, { id: 'o2', dir: 'in', kind: 'koden', ev: '父の葬儀', date: old, name: '鈴木 一郎', amt: 10000, ret: { st: 'sumi', what: 'お茶' }, t: 2 }, { id: 'o3', dir: 'in', kind: 'kodomo', ev: '入学', date: old, name: '田中 三郎', amt: 10000, t: 3 }, { id: 'o4', dir: 'out', kind: 'koden', ev: '山田さんの葬儀', date: old, name: '山田 太郎', amt: 5000, t: 4 }, { id: 'o5', dir: 'in', kind: 'koden', ev: '父の葬儀', date: old, name: '高橋 次郎', amt: 5000, t: 5 }] })); });
-    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo', 'renraku', 'tatekae', 'kuji', 'dasetsu', 'okaeshi']) {
+    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo', 'renraku', 'tatekae', 'kuji', 'dasetsu', 'okaeshi', 'koyomi', 'hoi', 'soroban']) {
       await page.evaluate(id => NP_TOOLS.find(t => t.id === id).run(), id); await w(1100);
       found.push(id + ':' + await page.evaluate(SCAN));
       if (id === 'kurashi' || id === 'keisan') { await page.evaluate(id => { const c = document.querySelector(id === 'kurashi' ? '#krList .kr-card' : '#ksList .ks-card'); if (c) c.click(); }, id); await w(800); found.push(id + '-page:' + await page.evaluate(SCAN)); }
@@ -10964,7 +11223,7 @@ async function runSchemeFix(browser) {
     }
     await page.evaluate(() => { toggleSettings(); openVoiceSet(); }); await w(500);
     found.push('voice:' + await page.evaluate(SCAN));
-    check('  　読めない文字がない（しまい場所・部屋割り・案内ページ・容積・カンタブ・便利計算・くらしの便利帳・角度計・連絡帳（色分け・表で直す）・立て替え精算・くじ・打設の段取り・お返し帳・読み上げの声）', found.filter(s => !/:$/.test(s)).join(' | '), '');
+    check('  　読めない文字がない（しまい場所・部屋割り・案内ページ・容積・カンタブ・便利計算・くらしの便利帳・角度計・連絡帳（色分け・表で直す）・立て替え精算・くじ・打設の段取り・お返し帳・こよみ・方位と恵方・そろばん・読み上げの声）', found.filter(s => !/:$/.test(s)).join(' | '), '');
     check('  　エラーなし', errs.join(' | '), '');
     await ctx.close();
   }
@@ -14209,11 +14468,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/35');   // v561 で 💴🎲🚛📷 の4つ（v564 で 📷 を 🎁お返し帳 に）、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/38');   // v568 で 🗓こよみ・⛩方位と恵方・🧮そろばん、v561 で 💴🎲🚛📷 の4つ（v564 で 📷 を 🎁お返し帳 に）、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'okaeshi', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -14241,7 +14500,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,okaeshi:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,okaeshi:B,koyomi:B,hoi:B,soroban:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -15382,6 +15641,9 @@ async function runQrShare(browser) {
     if (!only || only === 'kkj558') await runKakijun558(browser);
     if (!only || only === 'kkjse') await runKakijunSE(browser);
     if (!only || only === 'kkj567' || only === 'v567') await runKakijun567(browser);
+    if (!only || only === 'koyomi' || only === 'v568') await runKoyomi568(browser);
+    if (!only || only === 'hoi' || only === 'v568') await runHoi568(browser);
+    if (!only || only === 'soroban' || only === 'v568') await runSoroban568(browser);
     if (!only || only === 'saveas') await runSaveAs560(browser);
     if (!only || only === 'tatekae' || only === 'v561') await runTatekae561(browser);
     if (!only || only === 'kuji' || only === 'v561') await runKuji561(browser);

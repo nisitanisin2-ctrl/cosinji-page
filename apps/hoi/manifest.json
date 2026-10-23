@@ -1,0 +1,39 @@
+{
+  "name": "方位と恵方",
+  "short_name": "方位と恵方",
+  "description": "スマホの向きのセンサーで 方位磁石。今年の恵方・鬼門・裏鬼門を 見て、向きを残しておける（表電卓の道具）",
+  "id": "/app-hoi",
+  "start_url": "../../index.html?app=hoi",
+  "scope": "../../index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1565c0",
+  "orientation": "any",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
