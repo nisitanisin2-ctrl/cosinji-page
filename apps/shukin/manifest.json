@@ -1,0 +1,39 @@
+{
+  "name": "出欠・集金表",
+  "short_name": "出欠・集金",
+  "description": "町内会・PTA・同窓会 などの 名簿に 出欠と 集金の ✓。合計と まだの 人・印刷（表電卓の道具）",
+  "id": "/app-shukin",
+  "start_url": "../../index.html?app=shukin",
+  "scope": "../../index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3949ab",
+  "orientation": "any",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

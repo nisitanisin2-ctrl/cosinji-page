@@ -42,7 +42,8 @@
     touban:'📅 当番表',subsc:'🔐 サブスク',heya:'🛏 部屋割り',annai:'🏨 案内ページ',shimai:'📦 しまい場所',meishi:'💼 名刺管理',renraku:'📇 連絡帳',trim:'✂ トリミング',manner:'📜 マナー帳',boki:'📒 会計の手引き',kurashi:'🧭 くらしの便利帳',keisan:'🔢 便利計算',ruler:'📏 定規',kakudo:'📐 角度計',regi:'🛍 即売レジ',kakeizu:'🌳 家系図',calctmpl:'📋 式テンプレ',fintmpl:'📑 決算テンプレ',
     tatekae:'💴 立て替え精算',kuji:'🎲 くじ・班分け',dasetsu:'🚛 打設の段取り',okaeshi:'🎁 お返し帳',
     koyomi:'🗓 こよみ',hoi:'⛩ 方位と恵方',soroban:'🧮 そろばん',hitsudan:'🗣 筆談ボード',keijiban:'📢 電光掲示板',
-    hadetimer:'⏱ ど派手タイマー',hadecount:'🎉 ど派手カウンター',seikyu:'📃 請求書づくり'};   // v561・v564・v568・v569・v575
+    hadetimer:'⏱ ど派手タイマー',hadecount:'🎉 ど派手カウンター',seikyu:'📃 請求書づくり',
+    yatta:'🔁 前にやった日 帳',shukin:'📋 出欠・集金表',shiori:'🧳 旅のしおり'};   // v561・v564・v568・v569・v575・v579
   if(!id || !APPS[id]) return;
   window.APP_TOOL=id; document.documentElement.classList.add('app-tool');
   const dir='apps/'+id+'/', set=(sel,attr,v)=>document.querySelectorAll(sel).forEach(e=>e.setAttribute(attr,v));
@@ -9335,6 +9336,12 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v579', t:'🔁 前にやった日 帳・📋 出欠・集金表・🧳 旅のしおり', li:[
+    '🔁<b>前にやった日 帳</b>：エアコンの フィルター掃除・布団干し・散髪 などを「✓ きょう やった」で 残すと、最後に やった日と「あれから ○日」が 出ます。目安（○日ごと）に 近づくと 黄色、過ぎると 赤。よくある もの 16 から 1回で 足せます',
+    '📋<b>出欠・集金表</b>：町内会・PTA・同窓会 などの 名簿に、出欠（出席・欠席・未定）と 集金の ✓ を つけます。上に 人数・集まった 金額・まだの 人が 出て、印刷・コピー（まだの 方の 一覧）も。前の 表の 名簿を 写して 次の 会にも 使えます',
+    '🧳<b>旅のしおり</b>：旅行ごとに 日程・持ち物（国内／海外の 見本）・お金（予算と 使った お金）・お土産・宿と 連絡先（電話・地図）・外貨の 換算を 1つに まとめます。「📋 しおりを コピー」で LINE に 送れ、A4 で 印刷も できます',
+    'どれも 🧰 道具の「🏠 くらし」に あります（ホーム画面の アイコンにも できます）'
+  ]},
   { v:'v578', t:'📃 請求書づくり：業種の 見本を 8つ 追加（🏨 宿泊も）', li:[
     '🧩 パターンの「<b>📚 業種の 見本</b>」に 8つ 足しました：🏠 リフォーム・内装／🚚 運送・チャーター／🖨 印刷（チラシ）／🍱 お弁当・仕出し（消費税 8％）／<b>🏨 宿泊（旅館・ホテル）</b>／🧹 ハウスクリーニング／🌳 造園・庭木／📦 卸・物販（掛け率）。🚛 生コン と あわせて 9つです',
     'オプションに「<b>消費税なし</b>」を つけられます（入湯税・宿泊税・立替金 など）。消費税を かけずに 合計に だけ 足し、請求書では ※ を つけて「※ 消費税の 対象外 ○円」と 出します。🏨 宿泊の 見本では 入湯税・宿泊税が はじめから 消費税なし（人泊の 数に 合わせる）です',
@@ -12164,6 +12171,9 @@ const KEY_FUNCS={
   a_hadetimer:{g:'設定・機能',label:'⏱ど派手タイマー',short:'タイマー',run:()=>openHadeTimer()},   // v575
   a_hadecount:{g:'設定・機能',label:'🎉ど派手カウンター',short:'カウンタ',run:()=>openHadeCount()},   // v575
   a_seikyu:{g:'設定・機能',label:'📃請求書づくり',short:'請求書',run:()=>openSeikyu()},   // v575
+  a_yatta:{g:'設定・機能',label:'🔁前にやった日 帳',short:'やった日',run:()=>openYatta()},   // v579
+  a_shukin:{g:'設定・機能',label:'📋出欠・集金表',short:'集金',run:()=>openShukin()},   // v579
+  a_shiori:{g:'設定・機能',label:'🧳旅のしおり',short:'しおり',run:()=>openShiori()},   // v579
   a_chart:{g:'設定・機能',label:'📊表からグラフ',short:'グラフ',run:()=>hpRun('chart')},   // v563 表を強くする
   a_cfmt:{g:'設定・機能',label:'🎨条件で色',short:'条件色',run:()=>hpRun('cf')},
   a_filter:{g:'設定・機能',label:'🔎しぼり込み',short:'しぼる',run:()=>hpRun('filter')},
@@ -15167,6 +15177,11 @@ sidePartOpener('openHadeTimer', ['hade-fx.js','hade-timer.js'], 'ど派手タイ
 sidePartOpener('openHadeCount', ['hade-fx.js','hade-count.js'], 'ど派手カウンター');
 sidePartOpener('openSeikyu', ['seikyu.js'], '請求書づくり');
 window.closeHadeTimer=function(){}; window.closeHadeCount=function(){}; window.closeSeikyu=function(){};
+/* ── 🔁 前にやった日 帳・📋 出欠・集金表・🧳 旅のしおり（v579。yatta.js・shukin.js・shiori.js）── */
+sidePartOpener('openYatta', ['yatta.js'], '前にやった日 帳');
+sidePartOpener('openShukin', ['shukin.js'], '出欠・集金表');
+sidePartOpener('openShiori', ['shiori.js'], '旅のしおり');
+window.closeYatta=function(){}; window.closeShukin=function(){}; window.closeShiori=function(){};
 /* ── 📏定規（v496。ruler.js に分けてある）──
    スマホの画面を定規にする（カード・硬貨で校正）＋写真に並べた基準から長さを測る。はじめて開いたときに ruler.js を読む。 */
 let rulerPartLoading=null;
@@ -15685,6 +15700,9 @@ const NP_TOOLS=[
   {id:'hadetimer',label:'⏱ど派手タイマー',ov:'hadeTimerOverlay',run:()=>openHadeTimer(),close:()=>closeHadeTimer()}, // hade-timer.js（開いたときに読む。v575）
   {id:'hadecount',label:'🎉ど派手カウンター',ov:'hadeCountOverlay',run:()=>openHadeCount(),close:()=>closeHadeCount()}, // hade-count.js（開いたときに読む。v575）
   {id:'seikyu',   label:'📃請求書づくり',ov:'seikyuOverlay',    run:()=>openSeikyu(),   close:()=>closeSeikyu()},   // seikyu.js（開いたときに読む。v575）
+  {id:'yatta',    label:'🔁前にやった日 帳',ov:'yattaOverlay',  run:()=>openYatta(),    close:()=>closeYatta()},    // yatta.js（開いたときに読む。v579）
+  {id:'shukin',   label:'📋出欠・集金表',ov:'shukinOverlay',    run:()=>openShukin(),   close:()=>closeShukin()},   // shukin.js（開いたときに読む。v579）
+  {id:'shiori',   label:'🧳旅のしおり', ov:'shioriOverlay',    run:()=>openShiori(),   close:()=>closeShiori()},   // shiori.js（開いたときに読む。v579）
   {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},                        // 別のアプリとして開くので全画面・フリックの対象外
   {id:'calctmpl', label:'📋式テンプレ', ov:'calcTmplOverlay',  run:()=>openCalcTmpl(), close:()=>closeCalcTmpl()},
   {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
@@ -22402,6 +22420,9 @@ const TOOL_HINTS={
   hadetimer:'時間を決めて「▶ スタート」。全画面の 大きな数字と 光の輪が 花火・宇宙・ネオン などの 背景で 動き、のこり10秒と 0 で ど派手に 盛り上げます。⏱ ストップウォッチ・🔁 くり返しも。',
   hadecount:'画面を 押すたびに 数が ふえて はじけます。つづけて 早く押すと コンボ、10・50・100 や 目標で 花火。カウンターは 8つまで（「並べて」で いっしょに）。',
   seikyu:'① 品物と定価 → ② 値引き → ③ オプション → ④ 条件で値下げ → ⑤ 消費税 → ⑥ 端数を省いた 請求額 の 順に 入れると、本体価格と 消費税を 出して 請求書（見積書・納品書も）に します。',
+  yatta:'エアコンの フィルター・布団干し・散髪 など、「✓ きょう やった」を 押すだけで 最後に やった日と「あれから ○日」が 出ます。目安の 日数に 近づくと 黄色、過ぎると 赤。よくある ものから 1回で 足せます',
+  shukin:'町内会・PTA・同窓会 などの 名簿に、出欠（出席・欠席・未定）と 集金の ✓ を つけます。上に 合計と まだの 人数・金額が 出て、印刷・コピーも できます',
+  shiori:'旅行ごとに 🗓 日程・🎒 持ち物・💴 お金・🎁 お土産・🏨 宿と 連絡先・💱 外貨の 換算を 1つに まとめます。「📋 しおりを コピー」で LINE に 送れます',
   ruler:'はじめに「🎯 校正」でカードや硬貨を画面に当てて合わせると、定規が正しい長さになります。「📷 写真で測る」は基準の物と並べて撮ってなぞります。',
   keisan:'8つの計算から選びます。入れた数は覚えるので、次も続きから使えます。',
   kurashi:'10のテーマから選ぶか、上の欄で「AED」「死亡届」「失業保険」のようにさがします。ページの中の 🧮 道具で、期限や金額の目安も出せます。',
@@ -22492,7 +22513,7 @@ function homeSetStartup(on){ setStartPage(on?'home':'last'); }
    ★よく使う（自分で選ぶ。選んでいなければ さいきん使ったもの）→ まとまりごと → 隠している道具（畳む）。
    ☰・ホーム・🧰ボタンのどこから開いても同じ窓。隠した道具も下の「隠している道具」から開ける */
 const TOOL_CATS=[
-  ['🏠 くらし',   ['keisan','hadetimer','hadecount','tatekae','kuji','okaeshi','koyomi','hoi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
+  ['🏠 くらし',   ['keisan','hadetimer','hadecount','yatta','shukin','shiori','tatekae','kuji','okaeshi','koyomi','hoi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
   ['📖 知識・手引き',['kurashi','manner','boki']],   // 計算ではなく読む道具（v513）
   ['💼 仕事',     ['techo','seikyu','meishi','calctmpl','fintmpl','kaikei']],
   ['🏗 現場・畑', ['tansui','kantab','dasetsu','volume','ruler','kakudo','veggie']],
@@ -22762,7 +22783,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v578';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v579';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -25258,6 +25279,9 @@ const ST_GROUPS=[
   {k:'excalc_hadetimer',  n:'ど派手タイマー（よく使う時間・演出・動いているタイマー）'},
   {k:'excalc_hadecount',  n:'ど派手カウンター（数・名前・目標・1時間ごとの記録）'},
   {k:'excalc_seikyu',     n:'請求書づくり（自分の会社・振込先・残した書類・よく使う品物）'},
+  {k:'excalc_yatta',      n:'前にやった日 帳（やった日の 記録・目安）'},
+  {k:'excalc_shukin',     n:'出欠・集金表（名簿・出欠・集金）'},
+  {k:'excalc_shiori',     n:'旅のしおり（日程・持ち物・お金・お土産・宿）'},
   {k:'excalc_receipt',    n:'読み取ったレシート（道具は外しました）', how:'clear'},   // v561〜v563 の 📷レシート読み取りの残り。勝手には消さない
   {k:'excalc_links',      n:'リンク集'},
   {k:'excalc_userkeys',   n:'自分のボタン'},
@@ -25449,6 +25473,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_koyomi','excalc_hoi','excalc_soroban',   // 🗓こよみ・⛩方位と恵方（残した向き）・🧮そろばん（v568）
   'excalc_hitsudan','excalc_keijiban',   // 🗣筆談ボード（よく使う言葉）・📢電光掲示板（文・時計・予約・絵の一覧。写真は入らない）（v569〜v571）
   'excalc_hadetimer','excalc_hadecount','excalc_seikyu',   // ⏱ど派手タイマー・🎉ど派手カウンター・📃請求書づくり（v575）
+  'excalc_yatta','excalc_shukin','excalc_shiori',   // 🔁前にやった日 帳・📋出欠・集金表・🧳旅のしおり（v579）
 ];
 function settingsBundle(){
   const o={};
