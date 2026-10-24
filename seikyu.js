@@ -21,7 +21,14 @@
    ・値引きに「1つあたり ○円引き」（数量 × ○円。定価より 大きくは 引かない）と「単価を ○円に」（定価 − 単価 を 1つずつ 引く）。
    ・オプションに 単位と「数量は 品物の 合計に 合わせる」（1m³あたりの 割増 など）。
    ・⭐ よく使う 品物（配合と 定価の 表）・オプション・条件を 一覧で 直す・消す。品名を ⭐ の 名前に すると 定価も 入れかわる。
-   ・書類の 明細は 値引き・割増・円の 値下げも「数量 × 単価」で 出す（品物の 単位が そろっているとき）。 */
+   ・書類の 明細は 値引き・割増・円の 値下げも「数量 × 単価」で 出す（品物の 単位が そろっているとき）。
+   v578：
+   ・業種の 見本を 8つ 足す（🏠 リフォーム・内装／🚚 運送・チャーター／🖨 印刷（チラシ）／🍱 お弁当・仕出し（8％）／🏨 宿泊（旅館・ホテル）／
+     🧹 ハウスクリーニング／🌳 造園・庭木／📦 卸・物販）。
+   ・オプションに「消費税なし」（入湯税・宿泊税・立替金 など）：税の 計算・条件・値下げに 入れず 合計にだけ 足す。請求額からは その分を 引いてから
+     本体と 税に 分ける。書類では ※ を つけ「※ 消費税の 対象外 ○円」と 出す（小計は 税抜の 明細の 合計）。
+     見本は「📚 業種の 見本」の 札から えらぶ。上の 列には 自分の パターン・いま 入れている 見本・★ の 見本だけ 出す。
+   ・値引きの 明細の 名前（出精値引き など。12字まで）・品名の 欄の 例（iex）。条件を 満たしたのに 下げる 量が 0 なら 知らせる。 */
 (function(){
 'use strict';
 const KEY='excalc_seikyu';
@@ -38,11 +45,31 @@ const MAX_YEN=99999999999, MAX_QTY=999999, MAX_PAT=20;
 const ID_RE=/^[a-z0-9]{4,12}$/;
 // 正規表現は undefined を「undefined」という 字として 見て 通してしまう → 字の ときだけ（v577。v575 は 新しい 書類の id が 空で、残すと 前の 書類に 上書きしていた）
 const okId=x=>typeof x==='string' && ID_RE.test(x);
-// 見本の パターン（v577）。同じ id で 自分の パターンを 残すと、こちらの かわりに それが 出る（消すと 見本に もどる）
-const BUILTIN=[{id:'namakon', name:'🚛 生コン', iname:'配合', items:[{name:'', price:0, qty:1, unit:'m³'}], disc:{m:'unit', v:0},
-  opts:[{name:'小型指定', price:0, qty:1, unit:'m³', per:'qty', on:false}, {name:'小型小口指定', price:0, qty:1, unit:'台', per:'free', on:false},
-    {name:'大型小口 2m³以下', price:0, qty:1, unit:'台', per:'free', on:false}, {name:'大型小口 1.5m³以下', price:0, qty:1, unit:'台', per:'free', on:false}],
-  rules:[{name:'プラント渡し', on:true, c:'manual', th:0, ok:false, red:'yen', rv:1000}], tax:{rate:10, rnd:'floor'}}];
+// 業種の 見本（v577 生コン・v578 で 7業種を 足す）。同じ id で 自分の パターンを 残すと、こちらの かわりに それが 出る（消すと 見本に もどる）
+// 金額は どれも 0（会社ごとに ちがうので 入れてから 残す）。desc は「📚 業種の 見本」の 説明・iex は 品名の 欄の 例
+const bO=(name, unit, per)=>({name, price:0, qty:1, unit, per:per ? 'qty' : 'free', on:false});   // per：数量を 品物の 合計に 合わせる
+const bR=(name, c, red, th)=>({name, on:true, c, th:th||0, ok:false, red, rv:0});
+const T10={rate:10, rnd:'floor'};
+const BUILTIN=[
+  {id:'namakon', name:'🚛 生コン', desc:'配合（m³）・1m³あたりの 値引き・小型／小口の 割増・プラント渡し', iname:'配合', iex:'24-18-20N', items:[{unit:'m³'}], disc:{m:'unit'},
+    opts:[bO('小型指定','m³',true), bO('小型小口指定','台'), bO('大型小口 2m³以下','台'), bO('大型小口 1.5m³以下','台')], rules:[Object.assign(bR('プラント渡し','manual','yen'), {rv:1000})], tax:T10},
+  {id:'reform', name:'🏠 リフォーム・内装', desc:'工事（㎡）・出精値引き・養生／廃材の 処分／運搬／駐車場／諸経費', iname:'工事', iex:'クロス 張り替え', items:[{unit:'㎡'}], disc:{m:'yen', lab:'出精値引き'},
+    opts:[bO('養生費','式'), bO('廃材 処分費','式'), bO('運搬費','式'), bO('駐車場代','日'), bO('諸経費','式')], rules:[], tax:T10},
+  {id:'unso', name:'🚚 運送・チャーター', desc:'運賃（台）・高速代・待機料・早朝深夜の 割増・作業・燃料・帰り便', iname:'運賃', iex:'4t車 チャーター（横浜→東京）', items:[{unit:'台'}], disc:{m:'none'},
+    opts:[bO('高速道路代（実費）','式'), bO('待機料','時間'), bO('早朝・深夜 割増','台',true), bO('積み込み・荷下ろし 作業','人'), bO('燃料 サーチャージ','台',true)], rules:[bR('帰り便','manual','pct')], tax:T10},
+  {id:'insatsu', name:'🖨 印刷（チラシ）', desc:'品目（千枚）・デザイン・修正・折り加工・特急・配送・大口割', iname:'品目', iex:'チラシ A4 両面カラー', items:[{unit:'千枚'}], disc:{m:'none'},
+    opts:[bO('デザイン料','式'), bO('データ 修正','回'), bO('折り加工','千枚',true), bO('特急 仕上げ','式'), bO('配送料','式')], rules:[bR('大口割（5千枚 以上）','qty','yen',5)], tax:T10},
+  {id:'bento', name:'🍱 お弁当・仕出し', desc:'品目（個）・お茶・デザート・大口割・消費税 8％（軽減税率）', iname:'品目', iex:'幕の内 弁当', items:[{unit:'個'}], disc:{m:'none'},
+    opts:[bO('お茶','本',true), bO('デザート','個',true)], rules:[bR('大口割（50個 以上）','qty','yen',50)], tax:{rate:8, rnd:'floor'}},
+  {id:'shukuhaku', name:'🏨 宿泊（旅館・ホテル）', desc:'宿泊料（人泊）・追加 料理・飲み物・入湯税／宿泊税（消費税なし）・駐車場・連泊割・団体割', iname:'宿泊', iex:'1泊2食付き（大人）', items:[{unit:'人泊'}], disc:{m:'none'},
+    opts:[bO('追加 料理','品'), bO('飲み物','式'), Object.assign(bO('入湯税','人泊',true), {nt:true}), Object.assign(bO('宿泊税','人泊',true), {nt:true}), bO('駐車場','台'), bO('アーリー チェックイン','回'), bO('レイト チェックアウト','回')],
+    rules:[bR('連泊割','manual','pct'), bR('団体割','manual','pct')], tax:T10},
+  {id:'seisou', name:'🧹 ハウスクリーニング', desc:'作業（台）・防カビ コート・室外機・出張費・駐車場・複数台割', iname:'作業', iex:'エアコン 洗浄（壁かけ）', items:[{unit:'台'}], disc:{m:'none'},
+    opts:[bO('防カビ コート','台',true), bO('室外機 洗浄','台'), bO('出張費','回'), bO('駐車場代','回')], rules:[bR('複数台割（2台 以上）','qty','yen',2)], tax:T10},
+  {id:'zouen', name:'🌳 造園・庭木', desc:'作業（本）・消毒・高所の 作業・枝葉の 処分・草刈り・年間 契約', iname:'作業', iex:'庭木 剪定（高さ 3m まで）', items:[{unit:'本'}], disc:{m:'none'},
+    opts:[bO('消毒','本',true), bO('高所 作業','本'), bO('枝葉 処分費','袋'), bO('草刈り','㎡')], rules:[bR('年間 契約','manual','pct')], tax:T10},
+  {id:'oroshi', name:'📦 卸・物販', desc:'商品（ケース）・掛け率・送料・代引き・梱包・まとめ買い', iname:'商品', iex:'〇〇 タオル（10枚 入り）', items:[{unit:'ケース'}], disc:{m:'kake'},
+    opts:[bO('送料','式'), bO('代引き 手数料','回'), bO('梱包料','箱')], rules:[bR('まとめ買い（定価 10万円 以上）','teika','pct',100000)], tax:T10}];
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const oneLine=(v,n)=>String(v==null?'':v).replace(/[\u0000-\u001F\u007F]/g,' ').replace(/\s+/g,' ').trim().slice(0,n);
@@ -73,11 +100,11 @@ const endOfNextMonth=s=>{ const d=new Date((dateOk(s)||ymd(new Date()))+'T00:00:
 /* ───────── 状態 ───────── */
 let st=null, dirty=false, saveT=0;
 const newItem=()=>({name:'', price:0, qty:1, unit:'式'});
-const newOpt=()=>({name:'', price:0, qty:1, unit:'', per:'free', on:true});
+const newOpt=()=>({name:'', price:0, qty:1, unit:'', per:'free', nt:false, on:true});
 const newRule=()=>({id:rid(), name:'', on:true, c:'optn', th:3, ok:false, red:'yen', rv:0});
 function cleanItem(x){ if(!x || typeof x!=='object') return null; return {name:oneLine(x.name,40), price:numIn(x.price,0,MAX_YEN,0), qty:numIn(x.qty,0,MAX_QTY,1,true), unit:oneLine(x.unit,6)}; }
 // per：'qty' は 数量を 品物の 合計に 合わせる（1m³あたりの 割増 など）・'free' は 手で 入れる
-function cleanOpt(x){ if(!x || typeof x!=='object') return null; return {name:oneLine(x.name,40), price:numIn(x.price,0,MAX_YEN,0), qty:numIn(x.qty,0,MAX_QTY,1,true), unit:oneLine(x.unit,6), per:x.per==='qty' ? 'qty' : 'free', on:x.on!==false}; }
+function cleanOpt(x){ if(!x || typeof x!=='object') return null; return {name:oneLine(x.name,40), price:numIn(x.price,0,MAX_YEN,0), qty:numIn(x.qty,0,MAX_QTY,1,true), unit:oneLine(x.unit,6), per:x.per==='qty' ? 'qty' : 'free', nt:!!x.nt, on:x.on!==false}; }   // nt：消費税なし（入湯税・宿泊税・立替金 など。v578）
 function cleanRule(x){
   if(!x || typeof x!=='object') return null;
   return {id:okId(x.id) ? x.id : rid(), name:oneLine(x.name,40), on:x.on!==false, c:CONDS.some(c=>c[0]===x.c) ? x.c : 'optn',
@@ -89,9 +116,9 @@ function cleanInv(v){
   const date=dateOk(v.date)||ymd(new Date());
   return {id:okId(v.id) ? v.id : rid(), kind:KINDS.some(k=>k[0]===v.kind) ? v.kind : 'seikyu', no:oneLine(v.no,24), date, due:v.due==='' ? '' : (dateOk(v.due)||endOfNextMonth(date)),
     to:{name:oneLine(to.name,50), hon:HONS.some(h=>h[0]===to.hon) ? to.hon : '御中'}, subject:oneLine(v.subject,60), memo:multi(v.memo,400),
-    iname:oneLine(v.iname,6), pat:okId(v.pat) ? v.pat : '',   // iname：品物の 呼び名（生コンは 配合）・pat：入れた パターン
+    iname:oneLine(v.iname,6), iex:oneLine(v.iex,30), pat:okId(v.pat) ? v.pat : '',   // iname：品物の 呼び名（生コンは 配合）・iex：品名の 例・pat：入れた パターン
     items:(Array.isArray(v.items) ? v.items : []).map(cleanItem).filter(Boolean).slice(0,MAX_ITEMS),
-    disc:{m:DISC.some(x=>x[0]===d.m) ? d.m : 'none', v:numIn(d.v,-MAX_YEN,MAX_YEN,0,true), base:numIn(d.base,0,MAX_YEN,0), up:numIn(d.up,-MAX_YEN,MAX_YEN,0,true), upm:d.upm==='yen' ? 'yen' : '%'},
+    disc:{m:DISC.some(x=>x[0]===d.m) ? d.m : 'none', v:numIn(d.v,-MAX_YEN,MAX_YEN,0,true), base:numIn(d.base,0,MAX_YEN,0), up:numIn(d.up,-MAX_YEN,MAX_YEN,0,true), upm:d.upm==='yen' ? 'yen' : '%', lab:oneLine(d.lab,12)},
     opts:(Array.isArray(v.opts) ? v.opts : []).map(cleanOpt).filter(Boolean).slice(0,MAX_OPTS),
     rules:(Array.isArray(v.rules) ? v.rules : []).map(cleanRule).filter(Boolean).slice(0,MAX_RULES),
     tax:{rate:TAXR.some(r=>r[0]===+t.rate) ? +t.rate : 10, rnd:RNDS.some(r=>r[0]===t.rnd) ? t.rnd : 'floor'},
@@ -115,8 +142,8 @@ function cleanMaster(m){
 function cleanPat(x){
   if(!x || typeof x!=='object') return null;
   const name=oneLine(x.name,20); if(!name) return null;
-  const v=cleanInv({items:x.items, disc:x.disc, opts:x.opts, rules:x.rules, tax:x.tax, iname:x.iname});
-  return {id:okId(x.id) ? x.id : rid(), name, iname:v.iname, items:v.items.length ? v.items : [newItem()], disc:v.disc, opts:v.opts, rules:v.rules, tax:v.tax};
+  const v=cleanInv({items:x.items, disc:x.disc, opts:x.opts, rules:x.rules, tax:x.tax, iname:x.iname, iex:x.iex});
+  return {id:okId(x.id) ? x.id : rid(), name, iname:v.iname, iex:v.iex, items:v.items.length ? v.items : [newItem()], disc:v.disc, opts:v.opts, rules:v.rules, tax:v.tax};
 }
 let builtC=null;
 const builtins=()=>builtC||(builtC=BUILTIN.map(cleanPat));
@@ -161,6 +188,8 @@ function autoName(r){
 const ruleName=r=>r.name||autoName(r);
 const INM=v=>v.iname||'品物';
 const optUnit=(o, uu)=>o.unit||(o.per==='qty' ? uu : '');   // 合計に 合わせる ときは 品物の 単位を かりる
+// 金額の 見出し：1m³あたり・1台あたり（「式」は 1つしか ないので 金額だけ）
+const optLab=un=>un==='式' ? '金額' : '<span class="w">金額・</span>1'+esc(un||'つ')+'あたり';
 // 品物の 単位が そろっているか（そろっていれば「1m³あたり」のように 出す）
 function uinfo(v){
   const items=v.items.filter(it=>it.name || it.price), us=[...new Set((items.length ? items : v.items).map(it=>it.unit))], uu=us.length===1 ? us[0] : '';   // まだ 空なら 空の 行の 単位で
@@ -172,23 +201,25 @@ function calc(v){
   const A=items.reduce((a,it)=>a+yenOf(it.price*it.qty), 0);
   const opts=v.opts.filter(o=>o.on && (o.name || o.price)).map(o=>o.per==='qty' ? Object.assign({}, o, {qty, unit:o.unit||uu}) : o);
   const O=opts.reduce((a,o)=>a+yenOf(o.price*o.qty), 0), optN=opts.length;
+  // 消費税なしの オプション（N）は 税の 計算・条件・値下げに 入れず、合計にだけ 足す
+  const N=opts.filter(o=>o.nt).reduce((a,o)=>a+yenOf(o.price*o.qty), 0), Ot=O-N, optT=opts.filter(o=>!o.nt).length;
   // ② 値引き（dq：明細に 数量 × 単価 で 出すとき）
-  const d=v.disc; let D=0, dl='お値引き', how='', dq=null;
+  const d=v.disc, DL=d.lab||'お値引き'; let D=0, dl=DL, how='', dq=null;
   if(d.m==='unit'){ const p=Math.max(0, d.v);
     if(p>0){ const full=items.every(it=>it.price>=p);
       D=full ? yenOf(p*qty) : items.reduce((a,it)=>a+yenOf(Math.min(p, it.price)*it.qty), 0);
       how=u1+'あたり '+fmt(p)+'円 × '+fmtQ(qty)+uu;
-      if(full && same) dq={qty, unit:uu, price:-p}; else dl='お値引き（'+u1+'あたり '+fmt(p)+'円）';
+      if(full && same) dq={qty, unit:uu, price:-p}; else dl=DL+'（'+u1+'あたり '+fmt(p)+'円）';
       if(!full) warn.push('定価が '+fmt(p)+'円より 安い '+INM(v)+'は、定価までの 値引きに しました'); } }
   else if(d.m==='utarget'){ const t=d.v;
     if(t>0){ const ps=[...new Set(items.map(it=>it.price))];
       D=items.reduce((a,it)=>a+yenOf(Math.max(0, it.price-t)*it.qty), 0);
       if(same && ps.length===1 && ps[0]>t){ const p=ps[0]-t; D=yenOf(p*qty); dq={qty, unit:uu, price:-p}; how='定価 '+fmt(ps[0])+'円 → 単価 '+fmt(t)+'円（'+u1+'あたり '+fmt(p)+'円 引き）'; }
-      else { dl='お値引き（単価 '+fmt(t)+'円に）'; how='単価を '+fmt(t)+'円に'; }
+      else { dl=DL+'（単価 '+fmt(t)+'円に）'; how='単価を '+fmt(t)+'円に'; }
       if(items.some(it=>it.price>0 && it.price<t)) warn.push('定価が '+fmt(t)+'円より 安い '+INM(v)+'は、定価の ままです'); } }
-  else if(d.m==='rate'){ D=yenOf(A*d.v/100); dl='お値引き（'+fmtP(d.v)+'％引き）'; how='定価の合計 '+fmt(A)+'円 の '+fmtP(d.v)+'％'; }
+  else if(d.m==='rate'){ D=yenOf(A*d.v/100); dl=DL+'（'+fmtP(d.v)+'％引き）'; how='定価の合計 '+fmt(A)+'円 の '+fmtP(d.v)+'％'; }
   else if(d.m==='kake'){ const k=kakeOf(d.v); if(k==null){ if(d.v) warn.push('掛け率は 8（8掛け）・0.8・80 の ように 入れてください'); }
-    else { const S=yenOf(A*k); D=A-S; dl='お値引き（定価の '+fmtP(k*100)+'％で）'; how='定価の合計 × '+fmtP(k*100)+'％ ＝ '+fmt(S)+'円'; } }
+    else { const S=yenOf(A*k); D=A-S; dl=DL+'（定価の '+fmtP(k*100)+'％で）'; how='定価の合計 × '+fmtP(k*100)+'％ ＝ '+fmt(S)+'円'; } }
   else if(d.m==='yen'){ D=yenOf(d.v); how=fmt(D)+'円 引く'; }
   else if(d.m==='target'){ if(d.v>0 || A===0){ D=A-yenOf(d.v); how=fmt(d.v)+'円に する'; } }
   else if(d.m==='base'){ if(d.base>0){ const S=baseSell(d); D=A-S; how='基準額 '+fmt(d.base)+'円 '+(d.upm==='yen' ? (d.up<0 ? '−' : '＋')+fmt(Math.abs(d.up))+'円' : (d.up<0 ? '−' : '＋')+fmtP(Math.abs(d.up))+'％')+' ＝ '+fmt(S)+'円'; } }
@@ -196,26 +227,27 @@ function calc(v){
   if(D>A){ warn.push('値引きが 定価の合計より 大きいので、定価の合計までに しました'); D=A; }
   const B=A-D;
   // ④ 条件で 値下げ（値下げの前の 数で 見る）
-  const pre={qty, optn:optN, opty:O, teika:A, sum:A+O};
+  const pre={qty, optn:optT, opty:Ot, teika:A, sum:A+Ot};
   let Rs=0; const rr=[];
   v.rules.forEach(r=>{
     if(!r.on){ rr.push({r, use:false, met:false, need:0, amt:0}); return; }
     const met=r.c==='manual' ? !!r.ok : condVal(r.c, pre)>=r.th, need=met || r.c==='manual' ? 0 : r.th-condVal(r.c, pre);
     let amt=0; if(met) amt=r.red==='yen' ? yenOf(r.rv*qty) : yenOf(A*r.rv/100);
-    const room=B+O-Rs; if(amt>room){ warn.push('「'+ruleName(r)+'」の 値下げが 大きすぎるので、0円までに しました'); amt=Math.max(0, room); }
+    const room=B+Ot-Rs; if(amt>room){ warn.push('「'+ruleName(r)+'」の 値下げが 大きすぎるので、0円までに しました'); amt=Math.max(0, room); }
     Rs+=amt; rr.push({r, use:true, met, need, amt});
   });
-  const E=B+O-Rs, R=v.tax.rate, rf=RND[v.tax.rnd]||RND.floor, T=rf(E*R/100), F=E+T;
+  const E=B+Ot-Rs, R=v.tax.rate, rf=RND[v.tax.rnd]||RND.floor, T=rf(E*R/100), F=E+T+N;
   // ⑥ 端数を省いた 請求額 → 本体価格と 消費税額
-  const G=v.final>0 ? v.final : F, t=rf(G*R/(100+R)), b=G-t, adj=b-E;
+  const G=v.final>0 ? v.final : F, GT=Math.max(0, G-N), t=rf(GT*R/(100+R)), b=GT-t, adj=b-E;   // 消費税なしの 分を 引いてから 本体と 税に 分ける
   if(v.final>0 && v.final>F) warn.push('請求額が 合計（'+fmt(F)+'円）より 多いので、差は「端数調整」として 足します');
-  return {qty, A, O, optN, D, dl, how, dq, B, pre, rr, Rs, E, R, T, F, G, t, b, adj, warn, items, opts, same, uu, u1};
+  if(v.final>0 && v.final<N) warn.push('請求額が 消費税なしの 金額（'+fmt(N)+'円）より 少なくなっています');
+  return {qty, A, O, N, optN, D, dl, how, dq, B, pre, rr, Rs, E, R, T, F, G, t, b, adj, warn, items, opts, same, uu, u1};
 }
 function lines(v, c){
   const L=[];
   c.items.forEach(it=>L.push({name:it.name||INM(v), qty:it.qty, unit:it.unit, price:it.price, amt:yenOf(it.price*it.qty)}));
   if(c.D>0) L.push(c.dq ? {name:c.dl, qty:c.dq.qty, unit:c.dq.unit, price:c.dq.price, amt:-c.D} : {name:c.dl, amt:-c.D});
-  c.opts.forEach(o=>L.push({name:o.name||'オプション', qty:o.qty, unit:o.unit||'', price:o.price, amt:yenOf(o.price*o.qty)}));
+  c.opts.forEach(o=>L.push({name:o.name||'オプション', qty:o.qty, unit:o.unit||'', price:o.price, amt:yenOf(o.price*o.qty), nt:!!o.nt}));
   // 円の 値下げ（1つにつき）は 数量 × 単価 で（削った ときは 金額だけ）
   c.rr.filter(x=>x.use && x.met && x.amt>0).forEach(x=>L.push(x.r.red==='yen' && c.same && x.amt===yenOf(x.r.rv*c.qty)
     ? {name:ruleName(x.r), qty:c.qty, unit:c.uu, price:-x.r.rv, amt:-x.amt} : {name:ruleName(x.r), amt:-x.amt}));
@@ -238,7 +270,7 @@ function docHtml(v, c){
   const lead=v.kind==='mitsumori' ? '下記のとおり 御見積 申し上げます。' : v.kind==='nohin' ? '下記のとおり 納品いたしました。' : '下記のとおり ご請求 申し上げます。';
   const amtLab=v.kind==='mitsumori' ? '御見積金額' : v.kind==='nohin' ? '合計金額' : 'ご請求金額', dueLab=v.kind==='mitsumori' ? '有効期限' : 'お支払期限';
   const sealT=me.sealTx || me.name;
-  const rows=L.map(l=>`<tr class="${l.amt<0?'neg':''}"><td class="nm">${esc(l.name)}</td><td class="r">${l.qty!=null ? fmtQ(l.qty) : ''}</td><td class="c">${esc(l.unit||'')}</td><td class="r">${l.price!=null ? sgn(l.price) : ''}</td><td class="r">${sgn(l.amt)}</td></tr>`).join('')
+  const rows=L.map(l=>`<tr class="${l.amt<0?'neg':''}"><td class="nm">${esc(l.name)}${l.nt ? ' <span class="nt">※</span>' : ''}</td><td class="r">${l.qty!=null ? fmtQ(l.qty) : ''}</td><td class="c">${esc(l.unit||'')}</td><td class="r">${l.price!=null ? sgn(l.price) : ''}</td><td class="r">${sgn(l.amt)}</td></tr>`).join('')
     +Array.from({length:Math.max(0, 8-L.length)}, ()=>'<tr class="blank"><td class="nm">&nbsp;</td><td></td><td></td><td></td><td></td></tr>').join('');
   return `<div class="sk-doc">
   <div class="sk-h1">${esc(Array.from(kind).join(' '))}</div>
@@ -258,10 +290,10 @@ function docHtml(v, c){
   </div>
   <table class="sk-tbl"><thead><tr><th class="nm">品名</th><th>数量</th><th>単位</th><th>単価</th><th>金額</th></tr></thead>
     <tbody>${rows}</tbody>
-    <tfoot><tr><td colspan="4" class="r">小計（税抜）</td><td class="r">${fmt(c.b)}</td></tr>
+    <tfoot><tr><td colspan="4" class="r">小計（税抜）</td><td class="r">${fmt(c.b+c.N)}</td></tr>
       <tr><td colspan="4" class="r">消費税（${c.R}％）</td><td class="r">${fmt(c.t)}</td></tr>
       <tr class="tot"><td colspan="4" class="r">合計（税込）</td><td class="r">${fmt(c.G)}</td></tr></tfoot></table>
-  <div class="sk-taxbox">${c.R ? c.R+'％対象 '+fmt(c.b)+'円　消費税 '+fmt(c.t)+'円' : '消費税の 対象外 '+fmt(c.b)+'円'}</div>
+  <div class="sk-taxbox">${c.R ? c.R+'％対象 '+fmt(c.b)+'円　消費税 '+fmt(c.t)+'円'+(c.N ? '　※ 消費税の 対象外 '+fmt(c.N)+'円' : '') : '消費税の 対象外 '+fmt(c.b+c.N)+'円'}</div>
   ${v.kind==='seikyu' && me.bank ? `<div class="sk-bank"><b>お振込先</b><div>${esc(me.bank).replace(/\n/g,'<br>')}</div></div>` : ''}
   ${v.memo ? `<div class="sk-memo"><b>備考</b><div>${esc(v.memo).replace(/\n/g,'<br>')}</div></div>` : ''}
 </div>`;
@@ -271,8 +303,9 @@ function docText(v, c){
   const out=[kind+'　No.'+v.no+'　'+jdate(v.date), (v.to.name ? v.to.name+' '+v.to.hon : '')];
   if(v.subject) out.push('件名：'+v.subject);
   out.push((v.kind==='mitsumori' ? '御見積金額' : v.kind==='nohin' ? '合計金額' : 'ご請求金額')+'：'+fmt(c.G)+'円（税込）', '');
-  L.forEach(l=>out.push('・'+l.name+(l.qty!=null ? '　'+fmtQ(l.qty)+(l.unit||'')+' × '+sgn(l.price) : '')+'　'+sgn(l.amt)+'円'));
-  out.push('', '小計（税抜） '+fmt(c.b)+'円', '消費税（'+c.R+'％） '+fmt(c.t)+'円', '合計（税込） '+fmt(c.G)+'円');
+  L.forEach(l=>out.push('・'+l.name+(l.nt ? ' ※' : '')+(l.qty!=null ? '　'+fmtQ(l.qty)+(l.unit||'')+' × '+sgn(l.price) : '')+'　'+sgn(l.amt)+'円'));
+  out.push('', '小計（税抜） '+fmt(c.b+c.N)+'円', '消費税（'+c.R+'％） '+fmt(c.t)+'円', '合計（税込） '+fmt(c.G)+'円');
+  if(c.N) out.push('（※ 消費税の 対象外 '+fmt(c.N)+'円）');
   if(v.kind!=='nohin' && v.due) out.push((v.kind==='mitsumori' ? '有効期限' : 'お支払期限')+'：'+jdate(v.due));
   if(v.kind==='seikyu' && me.bank) out.push('お振込先：'+me.bank.replace(/\n/g,' '));
   if(v.memo) out.push('備考：'+v.memo.replace(/\n/g,' '));
@@ -288,17 +321,21 @@ function patSum(p){
   const dm={none:'なし', rate:'割引率', kake:'掛け率', yen:'値引き額', unit:u1+'あたり', utarget:'単価を 決める', target:'金額を 決める', base:'基準額から'}[p.disc.m];
   return INM(p)+' '+p.items.length+'行・値引き '+dm+'・オプション '+p.opts.length+'・条件 '+p.rules.length+'・消費税 '+(p.tax.rate ? p.tax.rate+'％' : 'なし');
 }
-let patEd=false;
+let patEd=false, mihon=false;
+const descOf=id=>(BUILTIN.find(b=>b.id===id)||{}).desc||'';
 function secPat(v){
-  const ps=allPats();
+  const ps=allPats(), own=new Set(st.m.pats.map(p=>p.id)), cp=patOf(v.pat);
+  // 上の 列：自分の パターン（見本を 上書きした ものも）・いま 入れている 見本・★ の 見本。ほかの 見本は「📚 業種の 見本」に
+  const row=ps.filter(p=>own.has(p.id) || p.id===v.pat || p.id===st.m.defPat), mi=builtins().filter(b=>!own.has(b.id));
   return `<div class="sk-sec sk-pat"><h4>🧩 パターン<small>いつもの 形を 1回で 入れる</small></h4>
-    <div class="sk-pats">${ps.map(p=>`<button type="button" class="sk-pb${v.pat===p.id?' on':''}" onclick="SEIKYU.patUse('${p.id}')">${esc(p.name)}${st.m.defPat===p.id ? '<i aria-label="新しく 作るときに 使う">★</i>' : ''}</button>`).join('')}</div>
-    ${(()=>{ const cp=patOf(v.pat); return cp && patZero(cp) ? `<p class="sk-note sk-hint">💡 金額を 入れてから「＋ いまの形を パターンに」→ 名前は そのまま（${esc(cp.name)}）で 残すと、次から その金額で 入ります。</p>` : ''; })()}
-    <div class="sk-acts sm"><button type="button" class="sk-b" onclick="SEIKYU.patSave()">＋ いまの形を パターンに</button><button type="button" class="sk-b${patEd?' pri':''}" onclick="SEIKYU.patEd()">⚙ 直す・消す</button></div>
+    ${row.length ? `<div class="sk-pats">${row.map(p=>`<button type="button" class="sk-pb${v.pat===p.id?' on':''}" onclick="SEIKYU.patUse('${p.id}')">${esc(p.name)}${st.m.defPat===p.id ? '<i aria-label="新しく 作るときに 使う">★</i>' : ''}</button>`).join('')}</div>` : ''}
+    ${cp && patZero(cp) ? `<p class="sk-note sk-hint">💡 金額を 入れてから「＋ いまの形を パターンに」→ 名前は そのまま（${esc(cp.name)}）で 残すと、次から その金額で 入ります。</p>` : ''}
+    <div class="sk-acts sm">${mi.length ? `<button type="button" class="sk-b${mihon?' pri':''}" aria-expanded="${mihon}" onclick="SEIKYU.mihon()">📚 業種の 見本（${mi.length}）</button>` : ''}<button type="button" class="sk-b" onclick="SEIKYU.patSave()">＋ いまの形を パターンに</button><button type="button" class="sk-b${patEd?' pri':''}" onclick="SEIKYU.patEd()">⚙ 直す・消す</button></div>
+    ${mihon && mi.length ? `<div class="sk-mihon">${mi.map(p=>`<button type="button" class="sk-mc${v.pat===p.id?' on':''}" onclick="SEIKYU.patUse('${p.id}')"><b>${esc(p.name)}</b><small>${esc(descOf(p.id))}</small></button>`).join('')}</div>` : ''}
     ${patEd ? `<div class="sk-ped">${ps.map(p=>{ const b=isBuilt(p.id), own=st.m.pats.some(x=>x.id===p.id);
       return `<div class="sk-li"><div class="t"><b>${esc(p.name)}</b>${b ? (own ? ' <small>（見本を 自分の 形に）</small>' : ' <small>（見本）</small>') : ''}<br><span>${esc(patSum(p))}</span></div>
       <span class="bt"><button type="button" class="${st.m.defPat===p.id?'on':''}" title="新しく 作るときに 使う" aria-label="新しく 作るときに 使う" aria-pressed="${st.m.defPat===p.id}" onclick="SEIKYU.patDef('${p.id}')">★</button><button type="button" aria-label="名前を かえる" onclick="SEIKYU.patRen('${p.id}')">✏</button>${!b || own ? `<button type="button" aria-label="${b ? '見本に もどす' : '消す'}" onclick="SEIKYU.patDel('${p.id}')">${b ? '↺' : '🗑'}</button>` : ''}</span></div>`; }).join('')}
-      <p class="sk-note">★ を つけた パターンで「＋ 新しく」が 始まります。見本（🚛 生コン）は、金額を 入れて 同じ 名前で 残すと 次から その金額で 入り、↺ で 見本に もどります。</p></div>` : ''}
+      <p class="sk-note">★ を つけた パターンで「＋ 新しく」が 始まります。見本は、金額を 入れて 同じ 名前で 残すと 次から その金額で 入り（上の 列に 出ます）、↺ で 見本に もどります。</p></div>` : ''}
   </div>`;
 }
 function secDoc(v){
@@ -314,7 +351,7 @@ function secDoc(v){
   </div>`;
 }
 function secItems(v){
-  const nm=INM(v), ph=v.iname==='配合' ? '配合（例：24-18-20N）' : (v.iname||'品名'), u=uinfo(v);
+  const ex=v.iex||(v.iname==='配合' ? '24-18-20N' : ''), nm=INM(v), ph=(v.iname||'品名')+(ex ? '（例：'+ex+'）' : ''), u=uinfo(v);
   return `<div class="sk-sec"><h4><i class="sk-n">1</i> ${esc(nm)}と 定価<small>定価は <span class="sk-u1">${esc(u.u1)}</span>の 値段</small></h4>
     ${v.items.map((it,i)=>`<div class="sk-line">
       <input class="nm" type="text" list="skProdList" maxlength="40" value="${esc(it.name)}" placeholder="${esc(ph)}" aria-label="品名" oninput="SEIKYU.it(${i},'name',this.value)" onchange="SEIKYU.itPick(${i})">
@@ -338,6 +375,7 @@ function secDisc(v){
   else if(d.m==='base') inp=`<label class="sk-f"><span>基準額</span><input type="text" inputmode="numeric" data-yen="1" value="${d.base ? fmt(d.base) : ''}" placeholder="原価・仕入れ値など" oninput="SEIKYU.dv('base',this.value)"><em>円</em></label>
       <label class="sk-f"><span>上乗せ</span><input type="text" inputmode="decimal" value="${d.up||''}" placeholder="15" oninput="SEIKYU.dv('up',this.value)">
         <span class="sk-seg">${[['%','％'],['yen','円']].map(([k,n])=>`<button type="button" class="${d.upm===k?'on':''}" onclick="SEIKYU.dv('upm','${k}')">${n}</button>`).join('')}</span></label>`;
+  if(d.m!=='none') inp+=`<label class="sk-f"><span>明細の 名前</span><input type="text" maxlength="12" value="${esc(d.lab)}" placeholder="お値引き" aria-label="値引きの 明細の 名前" oninput="SEIKYU.dv('lab',this.value)"></label>`;
   return `<div class="sk-sec"><h4><i class="sk-n">2</i> 値引き<small>定価の合計から</small></h4>
     <div class="sk-opt wrap">${DISC.map(([k,n])=>`<button type="button" class="${d.m===k?'on':''}" onclick="SEIKYU.dv('m','${k}')">${k==='unit' ? U+'あたり ○円引き' : n}</button>`).join('')}</div>${inp}
     <div class="sk-res" id="skD"></div></div>`;
@@ -349,11 +387,11 @@ function secOpts(v){
       return `<div class="sk-line op${o.on?'':' off'}">
       <label class="ck"><input type="checkbox" ${o.on?'checked':''} aria-label="つける" onchange="SEIKYU.op(${i},'on',this.checked)"></label>
       <input class="nm" type="text" list="skOptList" maxlength="40" value="${esc(o.name)}" placeholder="オプションの 名前" aria-label="オプションの 名前" oninput="SEIKYU.op(${i},'name',this.value)" onchange="SEIKYU.opPick(${i})">
-      <label class="p"><small><span class="w">金額・</span>1<span id="skOpU${i}">${esc(optUnit(o, u.uu)||'つ')}</span>あたり</small><input type="text" inputmode="numeric" data-yen="1" value="${o.price ? fmt(o.price) : ''}" placeholder="0" aria-label="金額" oninput="SEIKYU.op(${i},'price',this.value)"></label>
+      <label class="p"><small id="skOpL${i}">${optLab(optUnit(o, u.uu))}</small><input type="text" inputmode="numeric" data-yen="1" value="${o.price ? fmt(o.price) : ''}" placeholder="0" aria-label="金額" oninput="SEIKYU.op(${i},'price',this.value)"></label>
       <label class="q"><small>数量</small><input id="skOpQ${i}" type="text" inputmode="decimal" value="${fmtQ(lk ? u.qty : o.qty)}" aria-label="数量"${lk ? ' class="lnk" readonly tabindex="-1"' : ''} oninput="SEIKYU.op(${i},'qty',this.value)"></label>
       <label class="u"><small>単位</small><input id="skOpN${i}" type="text" maxlength="6" value="${esc(o.unit)}" placeholder="${lk ? esc(u.uu) : ''}" aria-label="単位" oninput="SEIKYU.op(${i},'unit',this.value)"></label>
       <span class="bt"><button type="button" aria-label="よく使うオプションに 残す" onclick="SEIKYU.keepOpt(${i})">⭐</button><button type="button" aria-label="消す" onclick="SEIKYU.delOp(${i})">✕</button></span>
-      <div class="sub"><label class="lk"><input type="checkbox" ${lk?'checked':''} onchange="SEIKYU.op(${i},'per',this.checked?'qty':'free')"> 数量は ${esc(nm)}の 合計に 合わせる</label><span class="osum" id="skOpS${i}"></span></div></div>`; }).join('')}
+      <div class="sub"><label class="lk"><input type="checkbox" ${lk?'checked':''} onchange="SEIKYU.op(${i},'per',this.checked?'qty':'free')"> 数量は ${esc(nm)}の 合計に 合わせる</label><label class="lk"><input type="checkbox" ${o.nt?'checked':''} onchange="SEIKYU.op(${i},'nt',this.checked)"> 消費税なし</label><span class="osum" id="skOpS${i}"></span></div></div>`; }).join('')}
     <div class="sk-acts sm"><button type="button" class="sk-b" onclick="SEIKYU.addOp()">＋ オプションを 足す</button>${st.m.optm.length ? `<select class="sk-sel" aria-label="よく使うオプションから" onchange="SEIKYU.addOptm(this.value); this.value=''"><option value="">⭐ よく使うオプションから…</option>${st.m.optm.map((p,i)=>`<option value="${i}">${esc(p.name)}（${fmt(p.price)}円）</option>`).join('')}</select>` : ''}</div>
     <div class="sk-res" id="skO"></div></div>`;
 }
@@ -458,21 +496,22 @@ function recalc(){
     const lk=o.per==='qty', q=lk ? c.qty : o.qty, un=optUnit(o, c.uu), qe=$('skOpQ'+i), ne=$('skOpN'+i);
     if(lk && qe && qe.value!==fmtQ(q)) qe.value=fmtQ(q);
     if(ne) ne.placeholder=lk ? c.uu : '';
-    set('skOpU'+i, esc(un||'つ'));
-    set('skOpS'+i, o.price ? `${fmt(o.price)} × ${fmtQ(q)}${esc(un)} ＝ <b>${fmt(yenOf(o.price*q))}円</b>${o.on ? '' : '（外しています）'}` : '');
+    set('skOpL'+i, optLab(un));
+    set('skOpS'+i, o.price ? `${fmt(o.price)} × ${fmtQ(q)}${esc(un)} ＝ <b>${fmt(yenOf(o.price*q))}円</b>${o.nt ? '（消費税なし）' : ''}${o.on ? '' : '（外しています）'}` : '');
   });
-  set('skO', `オプション ${c.optN}つ <b>＋${fmt(c.O)}円</b>　ここまで <b>${fmt(c.B+c.O)}円</b>`);
+  set('skO', `オプション ${c.optN}つ <b>＋${fmt(c.O)}円</b>${c.N ? '（うち 消費税なし '+fmt(c.N)+'円）' : ''}　ここまで <b>${fmt(c.B+c.O)}円</b>`);
   v.rules.forEach((r,i)=>set('skRuN'+i, esc(r.name||'あてはまる')));
   c.rr.forEach((x,i)=>set('skRu'+i, !x.use ? '<span class="off">使わない</span>'
-    : x.met ? `<span class="ok">✓ クリア！ 定価を 値下げ −${fmt(x.amt)}円</span>`
+    : x.met ? (x.r.rv>0 ? `<span class="ok">✓ クリア！ 定価を 値下げ −${fmt(x.amt)}円</span>` : '<span class="ng">✓ 条件は クリア（下げる 量を 入れてください）</span>')
     : x.r.c==='manual' ? '<span class="ng">✓ を 入れると 値下げ</span>'
     : `<span class="ng">あと ${x.r.c==='optn' ? fmtQ(x.need)+'つ' : x.r.c==='qty' ? fmtQ(x.need) : fmt(x.need)+'円'} で 値下げ</span>`));
-  set('skR', c.Rs>0 ? `値下げの 合計 <b>−${fmt(c.Rs)}円</b>　税抜の 小計 <b>${fmt(c.E)}円</b>` : `税抜の 小計 <b>${fmt(c.E)}円</b>`);
-  set('skT', `税抜 ${fmt(c.E)}円 ＋ 消費税（${c.R}％）${fmt(c.T)}円 ＝ <b class="big">${fmt(c.F)}円</b>（税込）`);
-  set('skG', `<div class="g"><span>請求額</span><b>${fmt(c.G)}円</b></div><div class="g2"><span>本体価格 <b>${fmt(c.b)}円</b></span><span>消費税 <b>${fmt(c.t)}円</b></span></div>`
+  const nTx=c.N ? '（ほかに 消費税なし '+fmt(c.N)+'円）' : '';
+  set('skR', c.Rs>0 ? `値下げの 合計 <b>−${fmt(c.Rs)}円</b>　税抜の 小計 <b>${fmt(c.E)}円</b>${nTx}` : `税抜の 小計 <b>${fmt(c.E)}円</b>${nTx}`);
+  set('skT', `税抜 ${fmt(c.E)}円 ＋ 消費税（${c.R}％）${fmt(c.T)}円${c.N ? ' ＋ 消費税なし '+fmt(c.N)+'円' : ''} ＝ <b class="big">${fmt(c.F)}円</b>（税込）`);
+  set('skG', `<div class="g"><span>請求額</span><b>${fmt(c.G)}円</b></div><div class="g2"><span>本体価格 <b>${fmt(c.b)}円</b></span><span>消費税 <b>${fmt(c.t)}円</b></span>${c.N ? `<span>消費税なし <b>${fmt(c.N)}円</b></span>` : ''}</div>`
     +(c.adj ? `<div class="g3">合計 ${fmt(c.F)}円 との 差 ${sgn(c.G-c.F)}円 → 明細に「${esc(c.adj<0 ? st.m.def.adj : '端数調整')}」${sgn(c.adj)}円（税抜）</div>` : '<div class="g3">端数の 調整は ありません</div>'));
   set('skWarn', c.warn.map(w=>`<p class="sk-warn">⚠ ${esc(w)}</p>`).join(''));
-  set('skFoot', `<div class="t"><small>${esc(KN(v.kind))}${dirty ? ' ・ <span class="dt">残していない 変更あり</span>' : ''}</small><b>${fmt(c.G)}円</b><small>（本体 ${fmt(c.b)}円・税 ${fmt(c.t)}円）</small></div><button type="button" class="sk-b pri" onclick="SEIKYU.view()">📃 見る</button>`);
+  set('skFoot', `<div class="t"><small>${esc(KN(v.kind))}${dirty ? ' ・ <span class="dt">残していない 変更あり</span>' : ''}</small><b>${fmt(c.G)}円</b><small>（本体 ${fmt(c.b)}円・税 ${fmt(c.t)}円${c.N ? '・税なし '+fmt(c.N)+'円' : ''}）</small></div><button type="button" class="sk-b pri" onclick="SEIKYU.view()">📃 見る</button>`);
   return c;
 }
 
@@ -517,23 +556,24 @@ function setOp(i, k, val){
   const o=V().opts[i]; if(!o) return;
   if(k==='on'){ o.on=!!val; touch(); render(); return; }
   if(k==='per'){ o.per=val==='qty' ? 'qty' : 'free'; touch(); render(); return; }
+  if(k==='nt'){ o.nt=!!val; touch(); render(); return; }
   if(k==='name') o.name=oneLine(val,40); else if(k==='price') o.price=numIn(val,0,MAX_YEN,0); else if(k==='qty'){ if(o.per==='qty') return; o.qty=numIn(val,0,MAX_QTY,0,true); }
   else if(k==='unit') o.unit=oneLine(val,6); else return;
   touch(); recalc();
 }
 function opPick(i){
   const o=V().opts[i]; if(!o) return; const p=st.m.optm.find(x=>x.name===o.name); if(!p || o.price) return;
-  o.price=p.price; if(p.unit) o.unit=p.unit; o.per=p.per; touch(); render();
+  o.price=p.price; if(p.unit) o.unit=p.unit; o.per=p.per; o.nt=p.nt; touch(); render();
 }
 function addOp(){ const v=V(); if(v.opts.length>=MAX_OPTS){ toastS('オプションは '+MAX_OPTS+' まで です'); return; } v.opts.push(newOpt()); touch(); render(); }
 function delOp(i){ V().opts.splice(i,1); touch(); render(); }
 function keepOpt(i){
   const o=V().opts[i]; if(!o || !o.name){ toastS('名前を 入れてから 残してください'); return; }
-  const ps=st.m.optm, j=ps.findIndex(p=>p.name===o.name), p={name:o.name, price:o.price, qty:1, unit:o.unit, per:o.per, on:true};
+  const ps=st.m.optm, j=ps.findIndex(p=>p.name===o.name), p={name:o.name, price:o.price, qty:1, unit:o.unit, per:o.per, nt:o.nt, on:true};
   if(j>=0) ps[j]=p; else { if(ps.length>=MAX_OPTM){ toastS('よく使うオプションは '+MAX_OPTM+' まで です'); return; } ps.push(p); }
   save(); toastS('⭐「'+o.name+'」を 残しました'); render();
 }
-function addOptm(j){ const p=st.m.optm[+j]; if(!p) return; const v=V(); if(v.opts.length>=MAX_OPTS){ toastS('オプションは '+MAX_OPTS+' まで です'); return; } v.opts.push({name:p.name, price:p.price, qty:1, unit:p.unit, per:p.per, on:true}); touch(); render(); }
+function addOptm(j){ const p=st.m.optm[+j]; if(!p) return; const v=V(); if(v.opts.length>=MAX_OPTS){ toastS('オプションは '+MAX_OPTS+' まで です'); return; } v.opts.push({name:p.name, price:p.price, qty:1, unit:p.unit, per:p.per, nt:p.nt, on:true}); touch(); render(); }
 function setRu(i, k, val){
   const r=V().rules[i]; if(!r) return;
   if(k==='on' || k==='ok'){ r[k]=!!val; touch(); render(); return; }
@@ -555,19 +595,20 @@ function setDv(k, val){
   const d=V().disc;
   if(k==='m'){ if(!DISC.some(x=>x[0]===val)) return; d.m=val; touch(); render(); return; }
   if(k==='upm'){ d.upm=val==='yen' ? 'yen' : '%'; touch(); render(); return; }
-  if(k==='v') d.v=numIn(val,-MAX_YEN,MAX_YEN,0,true); else if(k==='base') d.base=numIn(val,0,MAX_YEN,0); else if(k==='up') d.up=numIn(val,-MAX_YEN,MAX_YEN,0,true); else return;
+  if(k==='v') d.v=numIn(val,-MAX_YEN,MAX_YEN,0,true); else if(k==='base') d.base=numIn(val,0,MAX_YEN,0); else if(k==='up') d.up=numIn(val,-MAX_YEN,MAX_YEN,0,true);
+  else if(k==='lab') d.lab=oneLine(val,12); else return;
   touch(); recalc();
 }
 /* ───────── 🧩 パターン（v577）───────── */
 const hasBody=v=>v.items.some(it=>it.name || it.price) || v.opts.length>0 || v.rules.length>0 || v.disc.m!=='none';
 function applyPat(v, p){
   const c=JSON.parse(JSON.stringify(p));
-  v.iname=c.iname; v.items=c.items.length ? c.items : [newItem()]; v.disc=c.disc; v.opts=c.opts; v.rules=c.rules.map(r=>Object.assign(r, {id:rid()})); v.tax=c.tax; v.final=0; v.pat=p.id;
+  v.iname=c.iname; v.iex=c.iex; v.items=c.items.length ? c.items : [newItem()]; v.disc=c.disc; v.opts=c.opts; v.rules=c.rules.map(r=>Object.assign(r, {id:rid()})); v.tax=c.tax; v.final=0; v.pat=p.id;
 }
 async function patUse(id){
   const p=patOf(id); if(!p) return;
   if(hasBody(V()) && typeof appConfirm==='function' && !(await appConfirm('いまの ①〜⑤（'+INM(V())+'・値引き・オプション・条件・消費税）を「'+p.name+'」の 形に おきかえますか？\n（宛先・日付・番号・備考は そのまま）', 'おきかえる', 'やめる'))) return;
-  applyPat(V(), p); touch(); render(); toastS('🧩「'+p.name+'」を 入れました');
+  mihon=false; applyPat(V(), p); touch(); render(); toastS('🧩「'+p.name+'」を 入れました');
 }
 const patZero=p=>!p.items.some(it=>it.price) && !p.opts.some(o=>o.price);   // 金額が まだ 入っていない（見本の まま）
 async function patSave(){
@@ -581,7 +622,7 @@ async function patSave(){
   if(same && typeof appConfirm==='function' && !(await appConfirm('「'+name+'」を いまの 形で 上書きしますか？', '上書き', 'やめる'))) return;
   const ps=st.m.pats, id=same ? same.id : rid(), i=ps.findIndex(x=>x.id===id), w=V();
   if(i<0 && ps.length>=MAX_PAT){ toastS('パターンは '+MAX_PAT+' まで です。⚙ 直す・消す で 消してください'); return; }
-  const p=cleanPat({id, name, iname:w.iname, items:w.items, disc:w.disc, opts:w.opts, rules:w.rules, tax:w.tax});
+  const p=cleanPat({id, name, iname:w.iname, iex:w.iex, items:w.items, disc:w.disc, opts:w.opts, rules:w.rules, tax:w.tax});
   if(i>=0) ps[i]=p; else ps.push(p);
   w.pat=id; save(); render(); toastS('🧩「'+name+'」を '+(same ? '上書き' : '残し')+'ました');
 }
@@ -722,7 +763,7 @@ const DOC_RULES=`
 .sk-doc .sk-tbl th{ background:#eef0f4; border:1px solid #333; padding:5px 6px; font-weight:bold; text-align:center; }
 .sk-doc .sk-tbl td{ border:1px solid #333; padding:4px 7px; vertical-align:top; font-size:12.5px; }
 .sk-doc .sk-tbl td.nm{ width:46%; overflow-wrap:anywhere; } .sk-doc .sk-tbl td.r{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; } .sk-doc .sk-tbl td.c{ text-align:center; }
-.sk-doc .sk-tbl tr.neg td{ color:#b3001b; } .sk-doc .sk-tbl tr.blank td{ height:1.55em; }
+.sk-doc .sk-tbl tr.neg td{ color:#b3001b; } .sk-doc .sk-tbl .nt{ font-size:11px; } .sk-doc .sk-tbl tr.blank td{ height:1.55em; }
 .sk-doc .sk-tbl tfoot td{ font-weight:bold; } .sk-doc .sk-tbl tfoot tr.tot td{ font-size:15px; background:#f6f7fa; }
 .sk-doc .sk-taxbox{ font-size:12px; text-align:right; margin:0 0 10px; }
 .sk-doc .sk-bank, .sk-doc .sk-memo{ border:1px solid #333; padding:6px 10px; margin:0 0 8px; font-size:12.5px; } .sk-doc .sk-bank b, .sk-doc .sk-memo b{ display:block; font-size:12px; margin-bottom:2px; }
@@ -756,6 +797,9 @@ const SK_CSS=`
 .sk-pats{ display:flex; flex-wrap:wrap; gap:6px; }
 .sk-pb{ min-height:44px; padding:0 16px; border-radius:22px; border:1.5px solid var(--acc); background:transparent; color:var(--text,#222); font-size:15px; font-weight:bold; cursor:pointer; }
 .sk-pb.on{ background:var(--acc); color:var(--on-acc,#fff); } .sk-pb i{ font-style:normal; color:#e0a000; margin-left:5px; } .sk-pb.on i{ color:#ffe066; }
+.sk-mihon{ display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:6px; margin-top:8px; }
+.sk-mc{ display:flex; flex-direction:column; align-items:flex-start; gap:3px; min-height:58px; padding:8px 10px; border-radius:12px; border:1.5px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); text-align:left; cursor:pointer; font:inherit; }
+.sk-mc b{ font-size:15px; } .sk-mc small{ font-size:11.5px; line-height:1.4; color:var(--text-light,#666); } .sk-mc.on{ border-color:var(--acc); box-shadow:inset 0 0 0 1.5px var(--acc); }
 .sk-hint{ margin:8px 0 0; padding:6px 10px; border-radius:10px; background:rgba(255,200,0,.13); color:var(--text,#222); }
 .sk-ped{ margin-top:8px; border-top:1px dashed rgba(120,132,156,.35); } .sk-ped .t small{ font-size:11.5px; color:var(--text-light,#666); }
 .sk-ped .bt button.on{ background:var(--acc); border-color:var(--acc); color:#ffe066; }
@@ -825,10 +869,10 @@ function closeSeikyu(){ if(!$('seikyuOverlay') || !isDlgOpen('seikyuOverlay')) r
 
 window.SEIKYU={ doc:setDoc, it:setIt, itPick, addIt, delIt, keepProd, addProd, op:setOp, opPick, addOp, delOp, keepOpt, addOptm,
   ru:setRu, addRu, delRu, keepRule, addRulem, dv:setDv, tax:setTax, fin:setFin, cut, me:setMe, def:setDef,
-  patUse, patSave, patRen, patDel, patDef, patEd:()=>{ patEd=!patEd; render(); }, pats:()=>allPats().map(p=>p.id+':'+p.name), mEdit, mDel,
-  rows:()=>lines(V(), calc(V())).map(l=>[l.name, l.qty!=null ? l.qty : '', l.unit||'', l.price!=null ? l.price : '', l.amt].join('|')),
+  patUse, patSave, patRen, patDel, patDef, patEd:()=>{ patEd=!patEd; render(); }, mihon:()=>{ mihon=!mihon; render(); }, pats:()=>allPats().map(p=>p.id+':'+p.name), mEdit, mDel,
+  rows:()=>lines(V(), calc(V())).map(l=>[l.name+(l.nt ? '※' : ''), l.qty!=null ? l.qty : '', l.unit||'', l.price!=null ? l.price : '', l.amt].join('|')),
   keep, fresh:()=>{ fresh(); }, openInv:i=>{ openInv(i); }, dupInv, delInv:i=>{ delInv(i); }, view, print:printDoc, copy:copyDoc, zoom:()=>{ zoom=!zoom; fitPaper(); },
-  calc:()=>{ const c=calc(V()); return {A:c.A, qty:c.qty, D:c.D, B:c.B, O:c.O, optN:c.optN, Rs:c.Rs, rules:c.rr.map(x=>x.use ? (x.met ? 'ok:'+x.amt : 'ng:'+x.need) : 'off'), E:c.E, T:c.T, F:c.F, G:c.G, t:c.t, b:c.b, adj:c.adj, warn:c.warn.slice(), dl:c.dl}; },
+  calc:()=>{ const c=calc(V()); return {A:c.A, qty:c.qty, D:c.D, B:c.B, O:c.O, N:c.N, optN:c.optN, Rs:c.Rs, rules:c.rr.map(x=>x.use ? (x.met ? 'ok:'+x.amt : 'ng:'+x.need) : 'off'), E:c.E, T:c.T, F:c.F, G:c.G, t:c.t, b:c.b, adj:c.adj, warn:c.warn.slice(), dl:c.dl}; },
   lines:()=>lines(V(), calc(V())).map(l=>l.name+'='+l.amt), text:()=>docText(V(), calc(V())), html:()=>docHtml(V(), calc(V())),
   state:()=>{ save(); return JSON.parse(JSON.stringify(st)); }, dirty:()=>dirty, kake:kakeOf };
 Object.assign(window, { openSeikyu, closeSeikyu });
