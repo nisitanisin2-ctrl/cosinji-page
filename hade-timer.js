@@ -60,7 +60,7 @@ function load(){
   const pre=Array.isArray(o.pre) ? o.pre.filter(p=>p && typeof p==='object').map(p=>({n:oneLine(p.n,16), s:int(p.s,1,MAX_SEC,0)})).filter(p=>p.n && p.s).slice(0, MAX_PRE) : DEF_PRE.map(p=>({n:p.n, s:p.s}));
   const iv=(o.iv && typeof o.iv==='object') ? o.iv : {};
   st={mode:MODES.some(m=>m[0]===o.mode) ? o.mode : 'down', sec:int(o.sec,1,MAX_SEC,180),
-    theme:FX.hasTheme(o.theme) ? o.theme : 'hanabi', level:FX.hasLevel(o.level) ? o.level : (reduceMotion() ? 'calm' : 'max'),
+    theme:FX.hasTheme(o.theme) ? o.theme : 'hanabi', level:FX.hasLevel(o.level) ? o.level : (reduceMotion() ? 'calm' : 'ultra'),   // はじめは ド派手（v576）
     snd:o.snd!==false, vibe:o.vibe!==false, flash:o.flash!==false, every:EVERY.some(x=>x[0]===o.every) ? o.every : 5,
     pre, iv:{w:int(iv.w,5,3600,20), r:int(iv.r,0,3600,10), n:int(iv.n,1,99,8)}, run:cleanRun(o.run)};
 }
@@ -117,9 +117,12 @@ SC.digits=function(str, cx, cy, fs, o){
     const k=this.pop[i]!=null ? Math.max(0, 1-(t-this.pop[i])/0.4) : 0, s=1+0.38*Math.sin(k*Math.PI)*k;
     const ph=(jt-i*0.06)/0.5, jy=ph>0 && ph<1 ? -Math.sin(ph*Math.PI)*fs*0.24 : 0, jr=ph>0 && ph<1 ? Math.sin(ph*Math.PI*2)*0.14 : 0;   // 跳ねる（左から 順に）
     g.save(); g.translate(mx, cy+jy); if(jr) g.rotate(jr); g.scale(s, s);
-    if(e.level!=='calm'){ g.shadowColor=o.glow||ink[2]; g.shadowBlur=fs*0.16; }
+    const bo=e.boost();
+    if(e.level!=='calm'){ g.shadowColor=bo>=2 ? 'hsl('+((t*160+i*45)%360).toFixed(0)+',100%,60%)' : (o.glow||ink[2]); g.shadowBlur=fs*(bo ? 0.26 : 0.16); }
     g.lineJoin='round'; g.lineWidth=fs*0.07; g.strokeStyle='rgba(0,0,0,.55)'; g.strokeText(ch, 0, 0);
-    g.fillStyle=fill; g.fillText(ch, 0, 0); g.restore();
+    let f2=fill;
+    if(bo>=2 && !o.col){ const h=(t*160+i*45)%360; f2=g.createLinearGradient(0, -fs*0.5, 0, fs*0.5); f2.addColorStop(0, '#ffffff'); f2.addColorStop(0.5, 'hsl('+h.toFixed(0)+',100%,70%)'); f2.addColorStop(1, 'hsl('+((h+60)%360).toFixed(0)+',100%,55%)'); }
+    g.fillStyle=f2; g.fillText(ch, 0, 0); g.restore();
   }
   this.prev=str;
   // はじけ飛ぶ 前の数字
@@ -174,7 +177,7 @@ function vignette(g, W, H, a, col){
 
 /* ───────── 全画面（ステージ）───────── */
 let sc=null, stageRel=null, wl=null, raf=0, lastTs=0, frozen=false, prevSec=null, prevMin=null, prevPh=null, prevTenth=null;
-let alarmOn=false, alarmUntil=0, nextAlarm=0, banT=0, ticker=0, pv=null, cur=null, overNote='', prevShow=null, shows={n:0, last:-1};
+let alarmOn=false, alarmUntil=0, nextAlarm=0, banT=0, ticker=0, pv=null, cur=null, overNote='', prevShow=null, shows={n:0, last:-1, multi:0};
 const stageOpen=()=>!!$('htFull');
 function openStage(){
   if(stageOpen()){ paintBar(); return; }
@@ -342,7 +345,9 @@ function alarmStep(now){
 
 /* ───────── 1こま ごとの 動き ───────── */
 function onSecond(v){
-  const e=sc.e, s=v.sec, r=st.run; e.pulse=1;
+  const e=sc.e, s=v.sec, r=st.run, bo=e.boost(); e.pulse=1;
+  if(bo>=1 && sc.head && !(r.m==='down' && s<=10)){ e.burst(sc.head[0], sc.head[1], {n:16, sp:340, rs:0.8}); }
+  if(bo>=2 && !(r.m==='down' && s<=10)){ e.shell(null, {sc:rnd(0.7,1)}); e.kick(0.18); snd('tick'); }
   if(r.m==='down'){
     if(s<=10 && s>=1){
       sc.big={n:s, t0:e.t};
@@ -379,8 +384,11 @@ const SHOWS=[
 function showTime(k){
   if(!sc) return;
   const e=sc.e, W=e.W, H=e.H, c=[W/2, H*0.47, Math.min(W*0.44, H*0.36)], i=(k-1)%SHOWS.length, w=WORDS[i];
-  SHOWS[i](e, c); shows.n++; shows.last=i;
-  e.text(rnd(W*0.3, W*0.7), H*rnd(0.17, 0.25), w, {sz:Math.min(64, W/e.d/(Array.from(w).length*0.95)), pop:true, rot:rnd(-0.18,0.18), vy:-20, life:1.15, grad:['#ffffff', e.ink()[1], e.ink()[2]]});
+  const bo=e.boost(), list=bo>=2 ? [i, (i+3)%SHOWS.length, (i+5)%SHOWS.length] : bo>=1 ? [i, (i+4)%SHOWS.length] : [i];   // ド派手 2つ・ドド派手 3つ
+  list.forEach((j,n)=>e.after(n*0.22, ()=>SHOWS[j](e, c))); shows.n++; shows.last=i; shows.multi=list.length;
+  const big=1+0.2*bo, rainbow=['#ffffff','#fff36b','#ff8a3d','#ff2bd6','#7cf0ff'];
+  e.text(rnd(W*0.3, W*0.7), H*rnd(0.17, 0.25), w, {sz:Math.min(64*big, W/e.d/(Array.from(w).length*0.95)), pop:true, rot:rnd(-0.18,0.18), vy:-20, life:1.15+0.2*bo, grad:bo>=2 ? rainbow : ['#ffffff', e.ink()[1], e.ink()[2]]});
+  if(bo>=1){ e.flash(e.pal()[i%e.pal().length], 0.22+0.08*bo); e.kick(0.4*bo); }
   sc.jumpT=e.t; e.pulse=1; vib([30,30,30]);
 }
 function update(){
@@ -518,11 +526,11 @@ function render(){
     <button type="button" class="ht-go" onclick="HADE_TIMER.start()">▶ スタート</button>
     <div class="ht-sec"><h4>🎆 演出</h4>
       <div class="ht-opt"><span>テーマ</span>${FX.THEMES.map(([v,n])=>`<button type="button" class="th th-${v}${st.theme===v?' on':''}" onclick='HADE_TIMER.opt("theme", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>
-      ${opt('level', FX.LEVELS, '演出の 強さ')}${opt('every', EVERY, '間の 演出')}
+      <div class="ht-opt"><span>演出の 強さ</span>${FX.LEVELS.map(([v,n])=>`<button type="button" class="lv-${v}${st.level===v?' on':''}" onclick='HADE_TIMER.opt("level", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>${opt('every', EVERY, '間の 演出')}
       ${opt('snd', [[true,'🔊 鳴らす'],[false,'🔇 鳴らさない']], '音')}
       ${opt('vibe', [[true,'ふるえる'],[false,'ふるえない']], '振動')}
       ${opt('flash', [[true,'光る'],[false,'光らない']], '画面の 点滅')}
-      <p class="ht-note">全画面のあいだは 画面を消しません（対応している端末）。「← 戻る」で 閉じても 時間は 進み、右下に 残りの時間が 出ます。0 になると 開いて 知らせます（アプリを 閉じていたときは 次に開いたとき）。光が まぶしいときは「ひかえめ」か「光らない」に。</p></div>
+      <p class="ht-note">全画面のあいだは 画面を消しません（対応している端末）。「← 戻る」で 閉じても 時間は 進み、右下に 残りの時間が 出ます。0 になると 開いて 知らせます（アプリを 閉じていたときは 次に開いたとき）。光が まぶしいときは「ひかえめ」か「光らない」に。<b>ド派手</b>は 粒が 1.6倍で 背景に 光のすじ、<b>ドド派手</b>は 2.4倍で 流れ星・虹色の ふち・大きな ゆれも（とても 激しいので 光や ゆれが 苦手な方は ご注意ください）。</p></div>
   </div>`;
   paintRunCard(); loop();
 }
@@ -604,6 +612,8 @@ const HT_CSS=`
 .ht-opt button.th:not(.on){ color:#fff; border-color:transparent; text-shadow:0 1px 2px rgba(0,0,0,.6); }
 .ht-opt button.th-hanabi:not(.on){ background:linear-gradient(135deg,#03061a,#2b1b4c); } .ht-opt button.th-uchu:not(.on){ background:linear-gradient(135deg,#02030c,#2a1a6e); }
 .ht-opt button.th-neon:not(.on){ background:linear-gradient(135deg,#24004a,#ff2bd6); } .ht-opt button.th-matsuri:not(.on){ background:linear-gradient(135deg,#2a0b25,#a3121b); }
+.ht-opt button.lv-ultra:not(.on){ background:linear-gradient(135deg,#fff3c4,#ffb000); border-color:#e08a00; color:#5a2a00; font-weight:bold; }
+.ht-opt button.lv-mega:not(.on){ background:linear-gradient(90deg,#ff3b6b,#ffb000,#3ee8ff,#c77dff,#ff3b6b); background-size:300% 100%; animation:htRain 2.4s linear infinite; border-color:transparent; color:#fff; font-weight:900; text-shadow:0 1px 2px rgba(0,0,0,.7); }
 .ht-opt button.th-honoo:not(.on){ background:linear-gradient(135deg,#1a0300,#ff4500); } .ht-opt button.th-yume:not(.on){ background:linear-gradient(135deg,#b04f8a,#6a54c8); }
 .ht-note{ font-size:12.5px; color:var(--text-light,#666); line-height:1.6; margin:6px 0 0; } .ht-note.big{ font-size:14px; }
 .ht-full{ position:fixed; inset:0; z-index:99990; background:#000; overflow:hidden; touch-action:manipulation; user-select:none; -webkit-user-select:none; }
@@ -665,9 +675,9 @@ function closeHadeTimer(){ if(!$('hadeTimerOverlay') || !isDlgOpen('hadeTimerOve
 window.HADE_TIMER={ mode:setMode, opt:setOpt, set:setSec, add:addSec, typed, ivTyped, ivSet, usePre, addPre:n=>addPre(n), delPre:i=>{ delPre(i); },
   start, pause, resume, toggle:togglePause, plus, restart, stop, back, lap, next, stopAlarm:()=>stopAlarm(), show,
   state:()=>JSON.parse(JSON.stringify(st)), view:()=>{ const v=viewOf(st.run, Date.now()); return {str:v.str, frac:+v.frac.toFixed(4), sec:v.sec, ph:v.ph ? v.ph.ph+':'+v.ph.round : ''}; },
-  stage:stageOpen, alarm:()=>alarmOn, chip:()=>{ const c=$('htChip'); return c ? c.textContent : ''; }, fx:()=>({n:sc ? sc.e.count() : 0, prev:pv ? pv.e.count() : 0, played:FX.played()}),
+  stage:stageOpen, alarm:()=>alarmOn, chip:()=>{ const c=$('htChip'); return c ? c.textContent : ''; }, fx:()=>({n:sc ? sc.e.count() : 0, prev:pv ? pv.e.count() : 0, played:FX.played(), cap:sc ? sc.e.cap : 0, level:sc ? sc.e.level : ''}),
   banner:()=>{ const b=$('htBan'); return b ? b.textContent : ''; }, label:()=>[($('htLab')||{}).textContent||'', ($('htSub')||{}).textContent||''].join('|'),
-  freeze:b=>{ frozen=!!b; }, tick, shows:()=>({n:shows.n, last:shows.last}),
+  freeze:b=>{ frozen=!!b; }, tick, shows:()=>({n:shows.n, last:shows.last, multi:shows.multi}),
   shift:ms=>{ const r=st.run; if(!r) return; ms=+ms||0; if(r.m==='down'){ if(r.p) r.left-=ms; else r.end-=ms; } else if(r.p) r.acc+=ms; else r.s0-=ms; save(); } };   // 時計を 進める（たしかめ用）
 Object.assign(window, { openHadeTimer:()=>openHadeTimer(), closeHadeTimer });
 })();

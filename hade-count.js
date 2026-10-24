@@ -5,6 +5,7 @@
    ・−（へらす）・↶ もどす（1つ前に）・0 に もどす。目標を 決めると メーターが たまる（「あと ○」）。
    ・カウンターは 8つまで（名前・色・絵文字・目標・足す数を それぞれに）。「並べて」で いっしょに 数える（男女別・種類別 など）。
    ・Bluetooth の リモコン・キーボードでも 数えられる（スペース・Enter・↑・→ で ＋、↓・← で −）。
+   ・演出の強さ（v576）：ド派手は 押すたびに 大きな輪・5ごとに 花火、ドド派手は 押すたびに ゆれて 数字が 七色・コンボ 5ごとに ほめ言葉。
    ・1時間ごとの数を 記録（2週間 残す）。「📋 数を コピー」で 文字にして 貼れる。
    ・数・名前・目標・記録・えらんだものは excalc_hadecount（この端末の中だけ）。 */
 (function(){
@@ -15,6 +16,7 @@ const COLS=[['gold','金','#ffd23f'],['pink','ピンク','#ff5fa8'],['cyan','水
 const EMOS=['⭐','💖','🎉','🔥','🌸','💰','🍀','⚡','👍','🐟','🍺','🏃','🚗','🐦','👤','✅'];
 const STEPS=[1,2,5,10];
 const VIEWS=[['one','1つを 大きく'],['grid','並べて']];
+const PRAISE=['ナイス！','いいね！','すごい！','最高！','神！','天才！'];   // ドド派手の コンボで 出る ことば
 const NUMF='"Hiragino Sans","Noto Sans JP","Noto Sans CJK JP","Segoe UI",Roboto,sans-serif';
 const TAU=Math.PI*2;
 const $=id=>document.getElementById(id);
@@ -47,7 +49,7 @@ function load(){
   o=(o && typeof o==='object') ? o : {};
   const list=(Array.isArray(o.list) ? o.list : []).map(cleanC).filter(Boolean).slice(0, MAX_C);
   if(!list.length) list.push(newC('カウンター', 0));
-  st={list, cur:int(o.cur,0,list.length-1,0), theme:FX.hasTheme(o.theme) ? o.theme : 'neon', level:FX.hasLevel(o.level) ? o.level : (reduceMotion() ? 'calm' : 'max'),
+  st={list, cur:int(o.cur,0,list.length-1,0), theme:FX.hasTheme(o.theme) ? o.theme : 'neon', level:FX.hasLevel(o.level) ? o.level : (reduceMotion() ? 'calm' : 'ultra'),
     snd:o.snd!==false, vibe:o.vibe!==false, flash:o.flash!==false, view:VIEWS.some(v=>v[0]===o.view) ? o.view : 'one'};
 }
 function prune(){
@@ -76,8 +78,10 @@ function drawNum(c, T, big){
   const k=c._pop!=null ? Math.max(0, 1-(t-c._pop)/0.32) : 0, kd=c._dn!=null ? Math.max(0, 1-(t-c._dn)/0.3) : 0, sc=1+0.34*Math.sin(k*Math.PI)*k-0.18*kd;
   g.save(); g.translate(cx, cy); g.scale(sc, sc);
   g.font='900 '+Math.round(fs)+'px '+NUMF; g.textAlign='center'; g.textBaseline='middle';
-  const fill=g.createLinearGradient(0, -fs*0.5, 0, fs*0.5); fill.addColorStop(0, '#ffffff'); fill.addColorStop(0.55, col); fill.addColorStop(1, col);
-  if(e.level!=='calm'){ g.shadowColor=col; g.shadowBlur=fs*(0.14+0.25*k); }
+  const fill=g.createLinearGradient(0, -fs*0.5, 0, fs*0.5), bo=e.boost(), hh=(t*150)%360;
+  if(bo>=2){ fill.addColorStop(0, '#ffffff'); fill.addColorStop(0.45, 'hsl('+hh.toFixed(0)+',100%,68%)'); fill.addColorStop(1, 'hsl('+((hh+70)%360).toFixed(0)+',100%,55%)'); }   // ドド派手は 七色
+  else { fill.addColorStop(0, '#ffffff'); fill.addColorStop(0.55, col); fill.addColorStop(1, col); }
+  if(e.level!=='calm'){ g.shadowColor=bo>=2 ? 'hsl('+hh.toFixed(0)+',100%,60%)' : col; g.shadowBlur=fs*(0.14+0.25*k+0.1*bo); }
   g.lineJoin='round'; g.lineWidth=fs*0.07; g.strokeStyle='rgba(0,0,0,.6)'; g.strokeText(s, 0, fs*0.03);
   g.fillStyle=fill; g.fillText(s, 0, fs*0.03); g.restore();
   // 名前
@@ -175,6 +179,9 @@ function plus(i, k, x, y){
   e.pulse=1; e.warp=Math.min(1, e.warp+0.18); e.heat=Math.min(1, e.heat+0.07);
   snd('pop', Math.min(14, combo-1)); vib(12);
   if(combo>=8 && e.level!=='calm') e.kick(Math.min(0.5, combo*0.012));
+  const bo=e.boost();
+  if(bo>=1){ e.ring(x, y, col, 1.4+0.4*bo); if(c.n%5===0) e.shell(x, {sc:0.8}); }   // ド派手：大きな 輪・5 ごとに 花火
+  if(bo>=2){ e.kick(0.16); e.glow(x, y, 120, col, 0.35); if(combo>=5 && combo%5===0) e.text(x, y-70*d, PRAISE[(combo/5-1)%PRAISE.length], {sz:44, pop:true, rot:rnd(-0.2,0.2), vy:-40, life:1, grad:['#ffffff','#fff36b','#ff2bd6']}); }   // ドド派手：押すたびに ゆれる・ほめ言葉
   // 節目
   const m=[1000,500,100,50,10].find(m=>Math.floor(before/m)<Math.floor(c.n/m));
   if(m) milestone(c, m, i);
@@ -294,9 +301,9 @@ function paintSide(){
     <div class="hc-sec"><h4>📊 1時間ごとの 数<small>2週間 残します</small></h4><div id="hcHours">${hoursHtml(c)}</div></div>
     <div class="hc-sec"><h4>🎆 演出</h4>
       <div class="hc-opt"><span>テーマ</span>${FX.THEMES.map(([v,n])=>`<button type="button" class="th th-${v}${st.theme===v?' on':''}" onclick='HADE_COUNT.opt("theme", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>
-      ${opt('level', FX.LEVELS, '演出の 強さ')}${opt('view', VIEWS, '並べ方')}
+      <div class="hc-opt"><span>演出の 強さ</span>${FX.LEVELS.map(([v,n])=>`<button type="button" class="lv-${v}${st.level===v?' on':''}" onclick='HADE_COUNT.opt("level", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>${opt('view', VIEWS, '並べ方')}
       ${opt('snd', [[true,'🔊 鳴らす'],[false,'🔇 鳴らさない']], '音')}${opt('vibe', [[true,'ふるえる'],[false,'ふるえない']], '振動')}${opt('flash', [[true,'光る'],[false,'光らない']], '画面の 点滅')}
-      <p class="hc-note">画面を 押すたびに ＋。つづけて 早く押すと コンボです。Bluetooth の リモコンや キーボードでも 数えられます（スペース・Enter・↑・→ で ＋、↓・← で −）。「並べて」は カウンターが 2つ以上のとき（押したタイルが ふえます。右下の − で へらす）。</p></div>`;
+      <p class="hc-note">画面を 押すたびに ＋。つづけて 早く押すと コンボです。Bluetooth の リモコンや キーボードでも 数えられます（スペース・Enter・↑・→ で ＋、↓・← で −）。「並べて」は カウンターが 2つ以上のとき（押したタイルが ふえます。右下の − で へらす）。<b>ド派手</b>は 押すたびに 大きな輪と 5ごとに 花火、<b>ドド派手</b>は 画面が ゆれて 数字が 七色・コンボで ほめ言葉（とても 激しいので ご注意ください）。</p></div>`;
 }
 function render(){
   const b=$('hcBody'); if(!b) return;
@@ -392,6 +399,8 @@ const HC_CSS=`
 .hc-opt button.th:not(.on){ color:#fff; border-color:transparent; text-shadow:0 1px 2px rgba(0,0,0,.6); }
 .hc-opt button.th-hanabi:not(.on){ background:linear-gradient(135deg,#03061a,#2b1b4c); } .hc-opt button.th-uchu:not(.on){ background:linear-gradient(135deg,#02030c,#2a1a6e); }
 .hc-opt button.th-neon:not(.on){ background:linear-gradient(135deg,#24004a,#ff2bd6); } .hc-opt button.th-matsuri:not(.on){ background:linear-gradient(135deg,#2a0b25,#a3121b); }
+.hc-opt button.lv-ultra:not(.on){ background:linear-gradient(135deg,#fff3c4,#ffb000); border-color:#e08a00; color:#5a2a00; font-weight:bold; }
+.hc-opt button.lv-mega:not(.on){ background:linear-gradient(90deg,#ff3b6b,#ffb000,#3ee8ff,#c77dff,#ff3b6b); background-size:300% 100%; animation:hcRain 2.4s linear infinite; border-color:transparent; color:#fff; font-weight:900; text-shadow:0 1px 2px rgba(0,0,0,.7); }
 .hc-opt button.th-honoo:not(.on){ background:linear-gradient(135deg,#1a0300,#ff4500); } .hc-opt button.th-yume:not(.on){ background:linear-gradient(135deg,#b04f8a,#6a54c8); }
 .hc-f{ display:flex; align-items:center; gap:8px; margin:6px 0; } .hc-f span{ min-width:5.4em; font-size:12.5px; font-weight:bold; color:var(--text-light,#666); }
 .hc-f input{ flex:1; min-width:0; min-height:40px; padding:0 10px; border-radius:10px; border:1px solid rgba(120,132,156,.55); background:var(--cell-bg,#fff); color:var(--text,#222); font-size:16px; }
@@ -426,7 +435,7 @@ function closeHadeCount(){ if(!$('hadeCountOverlay') || !isDlgOpen('hadeCountOve
 
 window.HADE_COUNT={ tap:(i,x,y)=>{ plus(i==null ? st.cur : i, null, x, y); paintTabs(); }, plus:(i,k)=>{ plus(i==null ? st.cur : i, k); paintTabs(); }, minus:(i,k)=>{ minus(i, k); paintTabs(); },
   undo:()=>{ undoLast(); paintTabs(); }, reset:i=>{ reset(i).then(()=>paintTabs()); }, add:n=>{ addC(n); }, del:i=>{ delC(i); }, sel, set:setC, opt:setOpt, full:setFull, isFull, copy:copyText,
-  state:()=>{ save(); return JSON.parse(JSON.stringify(st)); }, combo:()=>combo, fx:()=>({n:eng ? eng.count() : 0, played:FX.played()}), tiles:()=>tiles.map(T=>T.i+':'+Math.round(T.w)+'x'+Math.round(T.h)),
+  state:()=>{ save(); return JSON.parse(JSON.stringify(st)); }, combo:()=>combo, fx:()=>({n:eng ? eng.count() : 0, played:FX.played(), cap:eng ? eng.cap : 0, level:eng ? eng.level : '', shake:eng ? +eng.shake.toFixed(2) : 0}), tiles:()=>tiles.map(T=>T.i+':'+Math.round(T.w)+'x'+Math.round(T.h)),
   banner:()=>{ const b=$('hcBan'); return b ? b.textContent : ''; }, freeze:b=>{ frozen=!!b; }, draw:()=>{ if(eng){ eng.resize(); paint(); } } };
 Object.assign(window, { openHadeCount, closeHadeCount });
 })();
