@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
+    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -3105,11 +3105,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,calctmpl,fintmpl');
+    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 36);   // v568 で 🗓⛩🧮 の3つ、v561 で 🚛💴🎲📷 の4つ、v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
+    document.getElementById('startPageSel').options.length), 38);   // v569 で 🗣📢 の2つ、v568 で 🗓⛩🧮 の3つ、v561 で 🚛💴🎲📷 の4つ、v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'saienOverlay', 'volumeOverlay',
@@ -10272,6 +10272,202 @@ async function runSoroban568(browser) {
   await ap.close();
   await ctx.close();
 }
+/* 🗣 筆談ボード・📢 電光掲示板（v569） */
+async function runHitsudan569(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🗣 筆談ボード（v569） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキー・📚声・まなぶ・バックアップ・端末の空き・吹き出し・単独アプリの入口', await page.evaluate(() => [typeof window.HITSUDAN, !!NP_TOOLS.find(t => t.id === 'hitsudan' && t.ov === 'hitsudanOverlay'), !!KEY_FUNCS.a_hitsudan, TOOL_CATS.find(c => c[0].includes('まなぶ'))[1].includes('hitsudan'), SETTINGS_BACKUP_KEYS.includes('excalc_hitsudan'), ST_GROUPS.some(g => g.k === 'excalc_hitsudan'), 'hitsudan' in TOOL_HINTS].join('/')) + '/' + fs.existsSync(path.join(ROOT, 'apps', 'hitsudan', 'manifest.json')),
+    'undefined/true/true/true/true/true/true/true');
+  {
+    const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8'), rd = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8'), hl = fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8');
+    check('  service-worker・README・説明書に 筆談ボード・電光掲示板', ['hitsudan.js', 'keijiban.js'].map(f => sw.includes("'./" + f + "'") && rd.includes('`' + f + '`')).join('/') + '/' + ['🗣筆談ボード＝', '📢電光掲示板＝'].map(t => hl.includes(t)).join('/'), 'true/true/true/true');
+  }
+  // 声の聞き取り・読み上げを まねる
+  await page.evaluate(() => {
+    window.__recs = []; window.__say = [];
+    window.SpeechRecognition = class { constructor() { window.__recs.push(this); } start() { this.started = true; } abort() { this.aborted = true; setTimeout(() => this.onend && this.onend(), 0); } stop() { this.abort(); } };
+    window.HyoVoice = Object.assign({}, window.HyoVoice, { available: true, speak: (t, o) => { window.__say.push(t); setTimeout(() => o && o.onend && o.onend(), 30); }, cancel: () => {} });
+  });
+  const emit = (parts, end) => page.evaluate(([parts, end]) => { const r = window.__recs[window.__recs.length - 1]; r.onresult({ resultIndex: 0, results: parts.map(([t, f]) => Object.assign([{ transcript: t }], { isFinal: f })) }); if (end) r.onend(); }, [parts, end]);
+  const big = () => page.evaluate(() => [document.getElementById('hdSrc').textContent, document.getElementById('hdTxt').textContent].join('|'));
+  await page.evaluate(() => openHitsudan()); await w(600);
+  check('  開く：話す・打つ・書く／はじめは 話す・よく使う言葉 12・案内', await page.evaluate(() => [isDlgOpen('hitsudanOverlay'), [...document.querySelectorAll('.hd-modes button')].map(b => b.textContent + (b.classList.contains('on') ? '●' : '')).join(','), document.querySelectorAll('.hd-ph button').length, document.querySelector('.hd-mic').firstChild.textContent].join('/') + '/' + document.getElementById('hdTxt').textContent),
+    'true/🎤 話す●,⌨ 打つ,✍ 書く/12/🎤 話す/「🎤 話す」を押して 話すと、ここに 大きく 出ます');
+  await page.click('.hd-mic'); await w(150);
+  check('  🎤 話す：聞きはじめる（日本語・区切りごと・途中の声も）', await page.evaluate(() => { const r = window.__recs[0]; return [window.__recs.length, r.started, r.lang, r.continuous, r.interimResults, document.querySelector('.hd-mic').classList.contains('on'), document.getElementById('hdTxt').textContent].join('/'); }), '1/true/ja-JP/false/true/true/話してください…');
+  await emit([['きょうは', false]], false); await w(100);
+  check('  話している途中も 大きく出す（🎤 聞いています…）', await big(), '🎤 聞いています…|きょうは');
+  await emit([['今日は 雨ですね', true]], true); await w(450);
+  check('  区切りの文字は そのまま大きく・記録にも・また聞きはじめる', [await big(), await page.evaluate(() => [HITSUDAN.hist().join(','), window.__recs.length, window.__recs[1].started, HITSUDAN.fontPx() >= 40].join('/'))].join(' / '), '🎤 聞こえた言葉|今日は 雨ですね / talk:今日は 雨ですね/2/true/true');
+  await page.click('.hd-acts .hd-b'); await w(400);
+  check('  🔈 読み上げる：読むあいだは 聞くのを休んで、読みおわったら また聞く', await page.evaluate(() => [window.__say.join(','), window.__recs[1].aborted, window.__recs.length, window.__recs[2] && window.__recs[2].started].join('/')), '今日は 雨ですね/true/3/true');
+  await page.click('.hd-mic'); await w(400);
+  check('  もう一度 押すと やめる（また聞かない）', await page.evaluate(() => [HITSUDAN.cur().listening, window.__recs[2].aborted, window.__recs.length, document.querySelector('.hd-mic').classList.contains('on')].join('/')), 'false/true/3/false');
+  await page.click('.hd-mic'); await w(100);
+  await page.evaluate(() => { const r = window.__recs[window.__recs.length - 1]; r.onerror({ error: 'not-allowed' }); r.onend(); }); await w(400);
+  check('  マイクが 許可されないときは 知らせて やめる', await page.evaluate(() => [HITSUDAN.cur().listening, window.__recs.length, /マイクが 使えません/.test(document.getElementById('appToast').textContent)].join('/')), 'false/4/true');
+  await page.evaluate(() => { window.SpeechRecognition = undefined; window.webkitSpeechRecognition = undefined; HITSUDAN.mode('type'); HITSUDAN.mode('talk'); }); await w(200);
+  await page.click('.hd-mic'); await w(200);
+  check('  声を聞けない端末では 案内（打つ・書く を すすめる）', await page.evaluate(() => [!!document.querySelector('#hdPanel .hd-note'), document.getElementById('appToast').textContent].join('/')), 'true/この端末では 声を 文字にできません。「⌨ 打つ」か「✍ 書く」を 使ってください');
+  // ⌨ 打つ
+  await page.evaluate(() => HITSUDAN.mode('type')); await w(150);
+  await page.fill('#hdIn', 'お薬は 飲みましたか？'); await w(150);
+  check('  ⌨ 打つ：打った字が その場で 大きく出る', await big(), '⌨ 打った言葉|お薬は 飲みましたか？');
+  await page.click('.hd-acts .hd-b.pri'); await w(200);
+  check('  🔈 読み上げる（打った字）', await page.evaluate(() => window.__say[window.__say.length - 1]), 'お薬は 飲みましたか？');
+  await page.evaluate(() => { window.appPrompt = async () => null; });
+  await page.click('.hd-acts .hd-b:nth-child(4)'); await w(200);
+  check('  ⭐ 残す：よく使う言葉の さいごに足す', await page.evaluate(() => [HITSUDAN.state().phrases.length, HITSUDAN.state().phrases[12], document.querySelectorAll('.hd-ph button').length, JSON.parse(localStorage.getItem('excalc_hitsudan')).phrases.length].join('/')), '13/お薬は 飲みましたか？/13/13');
+  await page.click('.hd-acts .hd-b:nth-child(3)'); await w(150);
+  check('  🆕 新しく：打った言葉は 記録に・欄は 空に', await page.evaluate(() => [document.getElementById('hdIn').value, HITSUDAN.hist()[0], document.getElementById('hdTxt').textContent].join('/')), '/type:お薬は 飲みましたか？/下に 打つと、ここに 大きく 出ます');
+  // ⭐ よく使う言葉
+  await page.evaluate(() => HITSUDAN.mode('talk')); await w(100);
+  await page.click('.hd-ph button:nth-child(4)'); await w(200);
+  check('  ⭐ を押すと 大きく出る（はじめは 読み上げない）', [await big(), await page.evaluate(() => window.__say.length)].join('/'), '⭐ よく使う言葉|少々 お待ちください/2');
+  await page.evaluate(() => HITSUDAN.yomu(true)); await w(100);
+  await page.click('.hd-ph button:nth-child(1)'); await w(200);
+  check('  「読み上げも」にすると 押した言葉を 読み上げる', await page.evaluate(() => window.__say[window.__say.length - 1] + '/' + JSON.parse(localStorage.getItem('excalc_hitsudan')).yomu), 'はい/true');
+  await page.evaluate(() => { window.appPrompt = async () => 'トイレは あちらです'; HITSUDAN.addPh(); }); await w(200);
+  await page.evaluate(() => { window.appPrompt = async () => 'はい'; HITSUDAN.addPh(); }); await w(200);
+  check('  ＋ 足す（同じ言葉は 足さない）', await page.evaluate(() => [HITSUDAN.state().phrases.length, HITSUDAN.state().phrases[13], document.getElementById('appToast').textContent].join('/')), '14/トイレは あちらです/もう あります：はい');
+  await page.evaluate(() => HITSUDAN.editMode()); await w(100);
+  await page.evaluate(() => { HITSUDAN.movePh(0, 1); window.appPrompt = async () => 'はい、そうです'; HITSUDAN.editPh(0); }); await w(200);
+  await page.evaluate(() => { window.appConfirm = async () => true; HITSUDAN.delPh(13); }); await w(200);
+  check('  ✏️ 直す・並べかえ・消す', await page.evaluate(() => [HITSUDAN.state().phrases.slice(0, 2).join(','), HITSUDAN.state().phrases.length, document.querySelectorAll('.hd-phe .r').length, document.querySelector('.hd-phe .r button[aria-label="上へ"]').disabled].join('/')), 'はい、そうです,はい/13/13/true');
+  await page.evaluate(() => { HITSUDAN.resetPh(); }); await w(200);
+  await page.evaluate(() => HITSUDAN.editMode()); await w(100);
+  check('  はじめに戻す', await page.evaluate(() => HITSUDAN.state().phrases.length + '/' + HITSUDAN.state().phrases[0] + '/' + document.querySelectorAll('.hd-ph button').length), '12/はい/12');
+  // 画面いっぱい・相手向き
+  await page.click('.hd-ph button:nth-child(5)'); await w(200);
+  const fs0 = await page.evaluate(() => HITSUDAN.fontPx());
+  await page.click('#hdBig'); await w(300);
+  check('  大きな字を押すと 画面いっぱい（もっと大きく）', await page.evaluate(fs0 => { const f = document.getElementById('hdFull'), t = document.getElementById('hdFTxt'); return [!!f, t.textContent, parseFloat(t.style.fontSize) > fs0, f.getBoundingClientRect().height === innerHeight].join('/'); }, fs0), 'true/もう一度 お願いします/true/true');
+  await page.evaluate(() => HITSUDAN.flip()); await w(300);
+  check('  ↻ 相手向き：さかさまに', await page.evaluate(() => document.getElementById('hdFBox').classList.contains('flip') + '/' + /^matrix\(-1, [-0-9.e]+, [-0-9.e]+, -1, 0, 0\)$/.test(getComputedStyle(document.getElementById('hdFBox')).transform)), 'true/true');
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  端末の「戻る」は 画面いっぱい だけ閉じる', await page.evaluate(() => [!!document.getElementById('hdFull'), isDlgOpen('hitsudanOverlay')].join('/')), 'false/true');
+  await page.click('#hdBig'); await w(200);
+  await page.keyboard.press('Escape'); await w(300);
+  check('  Esc でも 画面いっぱい だけ閉じる', await page.evaluate(() => [!!document.getElementById('hdFull'), isDlgOpen('hitsudanOverlay'), document.getElementById('hdFBox') === null].join('/')), 'false/true/true');
+  // 見た目
+  const fsXl = await page.evaluate(() => HITSUDAN.fontPx());
+  await page.evaluate(() => { HITSUDAN.scale('l'); HITSUDAN.color('by'); }); await w(200);
+  check('  文字の大きさ（大 は 64px まで）・色（黒地に黄）を 覚える', await page.evaluate(fsXl => [HITSUDAN.fontPx() <= 64, HITSUDAN.fontPx() < fsXl, document.getElementById('hdBig').className, getComputedStyle(document.getElementById('hdBig')).backgroundColor, JSON.parse(localStorage.getItem('excalc_hitsudan')).scale].join('/'), fsXl), 'true/true/hd-big by/rgb(17, 17, 17)/l');
+  // ✍ 書く
+  await page.evaluate(() => HITSUDAN.mode('write')); await w(200);
+  const pad = await page.evaluate(() => { const r = document.getElementById('hdPad').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
+  for (const [x0, y0] of [[0.2, 0.2], [0.5, 0.6]]) {
+    await page.mouse.move(pad.x + pad.w * x0, pad.y + pad.h * y0); await page.mouse.down();
+    for (let i = 1; i <= 6; i++) await page.mouse.move(pad.x + pad.w * (x0 + i * 0.04), pad.y + pad.h * (y0 + i * 0.02));
+    await page.mouse.up(); await w(50);
+  }
+  check('  ✍ 書く：指で書くと 線が残る（画面いっぱいには しない）', await page.evaluate(() => { const c = document.getElementById('hdPad'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++; return [HITSUDAN.strokes(), n > 100, !document.getElementById('hdFull'), document.querySelector('#hdPanel .hd-b').disabled].join('/'); }), '2/true/true/false');
+  await page.click('#hdPanel .hd-b'); await w(100);
+  check('  ↩ 1画もどす', await page.evaluate(() => HITSUDAN.strokes()), '1');
+  await page.click('#hdPanel .hd-b:nth-child(2)'); await w(100);
+  check('  🧹 ぜんぶ消す（ボタンは 押せなくなる）', await page.evaluate(() => HITSUDAN.strokes() + '/' + document.querySelector('#hdPanel .hd-b').disabled), '0/true');
+  // 閉じると 記録は消す・変なデータ
+  await page.evaluate(() => { closeHitsudan(); localStorage.setItem('excalc_hitsudan', JSON.stringify({ scale: 'x', color: '<b>', yomu: 'yes', pen: 1, phrases: ['<img src=x onerror="window.__x=1">', 5, '', 'あ'.repeat(80)] })); openHitsudan(); }); await w(300);
+  check('  閉じると 話した言葉の記録は 消える', await page.evaluate(() => HITSUDAN.hist().length + '/' + document.getElementById('hdTxt').textContent), '0/「🎤 話す」を押して 話すと、ここに 大きく 出ます');
+  check('  変なデータ：片づけて開く・文字は文字のまま', await page.evaluate(() => { const s = HITSUDAN.state(); return [s.scale, s.color, s.yomu, s.pen, s.phrases.length, s.phrases[1], s.phrases[2].length, !document.querySelector('.hd-ph img'), !window.__x].join('/'); }), 'xl/wb/false/m/3/5/60/true/true');
+  check('  エラーなし', errs.join(' | '), '');
+  const ap = await ctx.newPage(); const aerr = []; ap.on('pageerror', e => aerr.push(e.message));
+  await ap.goto(INDEX + '?app=hitsudan'); await ap.waitForTimeout(2400);
+  check('  ?app=hitsudan：筆談ボードを全画面で（名前・アイコン・manifest）', await ap.evaluate(() => [window.APP_TOOL, isDlgOpen('hitsudanOverlay'), document.querySelector('#hitsudanOverlay .modal').classList.contains('modal-full'), document.title, document.querySelector('link[rel=manifest]').getAttribute('href'), document.querySelector('meta[name=apple-mobile-web-app-title]').getAttribute('content')].join('/')), 'hitsudan/true/true/🗣 筆談ボード/apps/hitsudan/manifest.json/筆談ボード');
+  check('  エラーなし（単独のアプリ）', aerr.join(' | '), '');
+  await ap.close();
+  await ctx.close();
+}
+
+async function runKeijiban569(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📢 電光掲示板（v569） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキー・🏨お店・宿・バックアップ・端末の空き・吹き出し・単独アプリの入口', await page.evaluate(() => [typeof window.KEIJIBAN, !!NP_TOOLS.find(t => t.id === 'keijiban' && t.ov === 'keijibanOverlay'), !!KEY_FUNCS.a_keijiban, TOOL_CATS.find(c => c[0].includes('お店'))[1].includes('keijiban'), SETTINGS_BACKUP_KEYS.includes('excalc_keijiban'), ST_GROUPS.some(g => g.k === 'excalc_keijiban'), 'keijiban' in TOOL_HINTS].join('/')) + '/' + fs.existsSync(path.join(ROOT, 'apps', 'keijiban', 'manifest.json')),
+    'undefined/true/true/true/true/true/true/true');
+  // 画面を消さない・全画面・横向き を まねる（記録だけ）
+  await page.evaluate(() => {
+    window.__wl = 0; window.__wlRel = 0; window.__fs = 0; window.__lock = '';
+    Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async t => { window.__wl++; return { type: t, release: () => { window.__wlRel++; } }; } } });
+    Element.prototype.requestFullscreen = function () { window.__fs++; return Promise.resolve(); };
+    if (screen.orientation) { screen.orientation.lock = async o => { window.__lock = o; }; screen.orientation.unlock = () => { window.__lock = 'unlock'; }; }
+  });
+  await page.evaluate(() => openKeijiban()); await w(700);
+  check('  開く：見本・はじめの文・LED風 赤 流す・24点・よく使う文 12', await page.evaluate(() => { const s = KEIJIBAN.state(); return [isDlgOpen('keijibanOverlay'), document.getElementById('kjText').value, s.look, s.color, s.move, s.speed, s.rows, s.rot, s.list.length, document.querySelectorAll('.kj-li').length, document.getElementById('kjInfo').textContent].join('/'); }),
+    'true/受付は こちらです/led/red/scroll/mid/24/auto/12/12/24点の文字で 約8字ぶん');
+  check('  文字を 24点の高さの 点の表にする', await page.evaluate(() => { const b = KEIJIBAN.bitmap(); return [b.h, b.w > 150, b.n > 300].join('/'); }), '24/true/true');
+  check('  ← 流す：はじめは 右はしの外・1秒に 2.2字ぶん（24点×2.2）左へ・ひと回りで もとに', await page.evaluate(() => { const b = KEIJIBAN.bitmap(), L = b.w + 50; return [KEIJIBAN.pos(0, 50).x0, KEIJIBAN.pos(0.5, 50).x0, KEIJIBAN.pos(1, 50).x0, KEIJIBAN.pos(L / 52.8 + 0.001, 50).x0].join(','); }), '50,24,-2,50');
+  check('  見本に描く：右はしの外のときは 光らない・流れてくると 光る', await page.evaluate(() => [KEIJIBAN.draw(0), KEIJIBAN.draw(0.6) > 30].join('/')), '0/true');
+  await page.fill('#kjText', 'OK'); await w(100);
+  await page.evaluate(() => KEIJIBAN.opt('move', 'still')); await w(100);
+  check('  止める：短い文は まん中に 止まる', await page.evaluate(() => { const b = KEIJIBAN.bitmap(), C = 60; return [KEIJIBAN.pos(0, C).x0 === Math.floor((C - b.w) / 2), KEIJIBAN.pos(3.3, C).x0 === KEIJIBAN.pos(0, C).x0, KEIJIBAN.draw(0) > 0, document.getElementById('kjInfo').textContent.includes('長い文は 流します')].join('/'); }), 'true/true/true/true');
+  await page.evaluate(() => KEIJIBAN.opt('move', 'blink')); await w(100);
+  check('  点滅：0.5秒ごとに 点いて 消える', await page.evaluate(() => [KEIJIBAN.draw(0) > 0, KEIJIBAN.draw(0.6), KEIJIBAN.draw(1.1) > 0, KEIJIBAN.pos(0.6, 60).on].join('/')), 'true/0/true/false');
+  await page.evaluate(() => { KEIJIBAN.opt('move', 'still'); KEIJIBAN.text('ただいま 準備中です。しばらく お待ちください'); }); await w(100);
+  check('  止める でも 入りきらない文は 流す', await page.evaluate(() => [KEIJIBAN.pos(0, 30).fits, KEIJIBAN.pos(0, 30).x0, KEIJIBAN.pos(0.5, 30).x0 < 30].join('/')), 'false/30/true');
+  await page.evaluate(() => { KEIJIBAN.opt('move', 'scroll'); KEIJIBAN.opt('rows', 16); }); await w(100);
+  check('  点の細かさ 16点', await page.evaluate(() => KEIJIBAN.bitmap().h + '/' + document.getElementById('kjInfo').textContent.startsWith('16点の文字で')), '16/true');
+  await page.evaluate(() => { KEIJIBAN.opt('rows', 99); KEIJIBAN.opt('color', 'pink'); }); await w(100);
+  check('  ない えらびは 受けつけない', await page.evaluate(() => KEIJIBAN.state().rows + '/' + KEIJIBAN.state().color), '16/red');
+  await page.evaluate(() => { KEIJIBAN.opt('look', 'plain'); KEIJIBAN.opt('move', 'blink'); }); await w(100);
+  check('  ふつうの文字：点の細かさは 出さない・点滅も', await page.evaluate(() => [[...document.querySelectorAll('.kj-opt > span')].map(s => s.textContent).join(','), KEIJIBAN.draw(0.1), KEIJIBAN.draw(0.6)].join('/')), '見た目,色,動き,速さ,縦に持つと/1/0');
+  await page.evaluate(() => { KEIJIBAN.opt('look', 'led'); KEIJIBAN.opt('move', 'scroll'); KEIJIBAN.opt('rows', 24); KEIJIBAN.opt('color', 'rainbow'); }); await w(100);
+  check('  虹色でも 描ける・見た目を 覚える', await page.evaluate(() => [KEIJIBAN.draw(0.8) > 0, JSON.parse(localStorage.getItem('excalc_keijiban')).color].join('/')), 'true/rainbow');
+  // 改行・長さ
+  await page.fill('#kjText', '1行め\n2行め'); await w(100);
+  check('  改行は 空白に（1行で流す）', await page.evaluate(() => KEIJIBAN.state().text), '1行め　2行め');
+  // 全画面（縦に持っているとき）
+  await page.evaluate(() => KEIJIBAN.text('受付は こちらです'));
+  await page.click('.kj-go'); await w(600);
+  check('  ▶ 全画面で 出す：画面いっぱい・縦持ちは 90°回して横長・画面を消さない・全画面と横向きを たのむ', await page.evaluate(() => { const st = document.getElementById('kjStage'), r = document.getElementById('kjFull').getBoundingClientRect(); return [KEIJIBAN.isFull(), r.width === innerWidth && r.height === innerHeight, KEIJIBAN.rotated(), st.style.width, st.style.height, window.__wl, window.__fs, window.__lock].join('/'); }),
+    'true/true/true/900px/412px/1/1/landscape');
+  await w(300);
+  check('  全画面の板に 描いている', await page.evaluate(() => { const c = document.getElementById('kjFullCv'); return [c.width, c.height, KEIJIBAN.draw(0.9) > 50].join('/'); }), '900/412/true');
+  await page.mouse.click(200, 300); await w(200);
+  check('  画面を押すと ボタンが出る（文字と いっしょに回る）', await page.evaluate(() => [document.getElementById('kjFBar').classList.contains('show'), document.getElementById('kjStage').contains(document.getElementById('kjFBar'))].join('/')), 'true/true');
+  await page.evaluate(() => KEIJIBAN.pause()); await w(100);
+  check('  ⏸ 止める ↔ ▶ 動かす', await page.evaluate(() => [KEIJIBAN.paused(), document.getElementById('kjPauseB').textContent].join('/')), 'true/▶ 動かす');
+  await page.evaluate(() => KEIJIBAN.pause()); await w(100);
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  端末の「戻る」で 全画面だけ終わる（画面の消灯を もどす・横向きを はずす）', await page.evaluate(() => [KEIJIBAN.isFull(), isDlgOpen('keijibanOverlay'), window.__wlRel, window.__lock].join('/')), 'false/true/1/unlock');
+  await page.evaluate(() => KEIJIBAN.opt('rot', 'off')); await page.click('.kj-go'); await w(400);
+  check('  「回さない」なら 縦のまま', await page.evaluate(() => KEIJIBAN.rotated() + '/' + document.getElementById('kjStage').style.width), 'false/412px');
+  await page.keyboard.press('Escape'); await w(300);
+  check('  Esc でも 全画面だけ終わる', await page.evaluate(() => KEIJIBAN.isFull() + '/' + isDlgOpen('keijibanOverlay')), 'false/true');
+  await page.evaluate(() => KEIJIBAN.opt('rot', 'auto')); await page.setViewportSize({ width: 900, height: 412 }); await w(200);
+  await page.click('.kj-go'); await w(400);
+  check('  横に持っていれば 回さない', await page.evaluate(() => KEIJIBAN.rotated() + '/' + document.getElementById('kjStage').style.width), 'false/900px');
+  await page.evaluate(() => KEIJIBAN.stopFull()); await page.setViewportSize({ width: 412, height: 900 }); await w(200);
+  // よく使う文
+  await page.click('.kj-li:nth-child(2) .t'); await w(150);
+  check('  よく使う文を押すと 文字が かわる', await page.evaluate(() => KEIJIBAN.state().text + '/' + document.getElementById('kjText').value), '少々 お待ちください/少々 お待ちください');
+  await page.fill('#kjText', '本日 休業'); await w(100);
+  await page.evaluate(() => KEIJIBAN.keep()); await w(150);
+  await page.evaluate(() => KEIJIBAN.keep()); await w(150);
+  check('  ⭐ 残す：いちばん上に（同じ文は 残さない）', await page.evaluate(() => [KEIJIBAN.state().list.length, KEIJIBAN.state().list[0], document.querySelector('.kj-li .t').textContent, document.getElementById('appToast').textContent].join('/')), '13/本日 休業/本日 休業/もう あります');
+  await page.evaluate(() => { window.appConfirm = async () => true; KEIJIBAN.del(0); }); await w(200);
+  check('  🗑 で消す', await page.evaluate(() => KEIJIBAN.state().list.length + '/' + KEIJIBAN.state().list[0]), '12/受付は こちらです');
+  await page.click('.kj-li:nth-child(9) .go'); await w(400);
+  check('  ▶ で その文を すぐ全画面', await page.evaluate(() => [KEIJIBAN.isFull(), KEIJIBAN.state().text].join('/')), 'true/ストップ！');
+  await page.evaluate(() => KEIJIBAN.stopFull()); await w(200);
+  await page.evaluate(() => KEIJIBAN.clear()); await w(100);
+  await page.click('.kj-go'); await w(200);
+  check('  文字が 空なら 全画面にしない', await page.evaluate(() => KEIJIBAN.isFull() + '/' + document.getElementById('appToast').textContent), 'false/流す文字を 入れてください');
+  // 閉じる・変なデータ
+  await page.evaluate(() => { closeKeijiban(); localStorage.setItem('excalc_keijiban', JSON.stringify({ text: 5, look: 'x', color: 'pink', move: 1, speed: 'z', rows: 99, rot: '?', list: ['ok', 3, '', '<img src=x onerror="window.__x=1">'] })); openKeijiban(); }); await w(400);
+  check('  変なデータ：片づけて開く・文字は文字のまま', await page.evaluate(() => [JSON.stringify(KEIJIBAN.state()), !document.querySelector('.kj-li img'), !window.__x].join('/')),
+    '{"text":"受付は こちらです","look":"led","color":"red","move":"scroll","speed":"mid","rows":24,"rot":"auto","list":["ok","3","<img src=x onerror=\\"window.__x=1\\">"]}/true/true');
+  await page.evaluate(() => closeKeijiban()); await w(200);
+  check('  閉じると 動かすのを止める', await page.evaluate(() => KEIJIBAN.isFull() + '/' + isDlgOpen('keijibanOverlay')), 'false/false');
+  check('  エラーなし', errs.join(' | '), '');
+  const ap = await ctx.newPage(); const aerr = []; ap.on('pageerror', e => aerr.push(e.message));
+  await ap.goto(INDEX + '?app=keijiban'); await ap.waitForTimeout(2400);
+  check('  ?app=keijiban：電光掲示板を全画面で（名前・アイコン・manifest）', await ap.evaluate(() => [window.APP_TOOL, isDlgOpen('keijibanOverlay'), document.querySelector('#keijibanOverlay .modal').classList.contains('modal-full'), document.title, document.querySelector('link[rel=manifest]').getAttribute('href'), document.querySelector('meta[name=apple-mobile-web-app-title]').getAttribute('content')].join('/')), 'keijiban/true/true/📢 電光掲示板/apps/keijiban/manifest.json/電光掲示板');
+  check('  エラーなし（単独のアプリ）', aerr.join(' | '), '');
+  await ap.close();
+  await ctx.close();
+}
 async function runKakijunSE(browser) {
   console.log('\n── ✍️ かきじゅん帳：iPhone SE の幅でも はみ出さない（v559） ──');
   const KKJ = 'file://' + path.join(ROOT, 'kakijun', 'index.html');
@@ -11210,7 +11406,7 @@ async function runSchemeFix(browser) {
       { id: 'a2', fam: '佐藤', giv: '花子', famK: 'さとう', givK: 'はなこ', tels: [{ t: 'cell', v: '080-3333-4444' }], color: 'yellow' }, { id: 'a3', fam: '鈴木', giv: '一郎', famK: 'すずき', givK: 'いちろう', tels: [{ t: 'cell', v: '080-5555-6666' }], color: 'blue' }] })));
     await page.evaluate(() => { const d = new Date(); d.setDate(d.getDate() - 60); const old = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');   // 🎁 お返し帳は 札（まだ・時期すぎ・済み・しない・さしあげた）が出る中身で
       localStorage.setItem('excalc_okaeshi', JSON.stringify({ items: [{ id: 'o1', dir: 'in', kind: 'kekkon', ev: '長女の結婚', date: old, name: '佐藤 花子', amt: 30000, t: 1 }, { id: 'o2', dir: 'in', kind: 'koden', ev: '父の葬儀', date: old, name: '鈴木 一郎', amt: 10000, ret: { st: 'sumi', what: 'お茶' }, t: 2 }, { id: 'o3', dir: 'in', kind: 'kodomo', ev: '入学', date: old, name: '田中 三郎', amt: 10000, t: 3 }, { id: 'o4', dir: 'out', kind: 'koden', ev: '山田さんの葬儀', date: old, name: '山田 太郎', amt: 5000, t: 4 }, { id: 'o5', dir: 'in', kind: 'koden', ev: '父の葬儀', date: old, name: '高橋 次郎', amt: 5000, t: 5 }] })); });
-    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo', 'renraku', 'tatekae', 'kuji', 'dasetsu', 'okaeshi', 'koyomi', 'hoi', 'soroban']) {
+    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo', 'renraku', 'tatekae', 'kuji', 'dasetsu', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban']) {
       await page.evaluate(id => NP_TOOLS.find(t => t.id === id).run(), id); await w(1100);
       found.push(id + ':' + await page.evaluate(SCAN));
       if (id === 'kurashi' || id === 'keisan') { await page.evaluate(id => { const c = document.querySelector(id === 'kurashi' ? '#krList .kr-card' : '#ksList .ks-card'); if (c) c.click(); }, id); await w(800); found.push(id + '-page:' + await page.evaluate(SCAN)); }
@@ -11223,7 +11419,7 @@ async function runSchemeFix(browser) {
     }
     await page.evaluate(() => { toggleSettings(); openVoiceSet(); }); await w(500);
     found.push('voice:' + await page.evaluate(SCAN));
-    check('  　読めない文字がない（しまい場所・部屋割り・案内ページ・容積・カンタブ・便利計算・くらしの便利帳・角度計・連絡帳（色分け・表で直す）・立て替え精算・くじ・打設の段取り・お返し帳・こよみ・方位と恵方・そろばん・読み上げの声）', found.filter(s => !/:$/.test(s)).join(' | '), '');
+    check('  　読めない文字がない（しまい場所・部屋割り・案内ページ・容積・カンタブ・便利計算・くらしの便利帳・角度計・連絡帳（色分け・表で直す）・立て替え精算・くじ・打設の段取り・お返し帳・こよみ・方位と恵方・そろばん・筆談ボード・電光掲示板・読み上げの声）', found.filter(s => !/:$/.test(s)).join(' | '), '');
     check('  　エラーなし', errs.join(' | '), '');
     await ctx.close();
   }
@@ -14468,11 +14664,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/38');   // v568 で 🗓こよみ・⛩方位と恵方・🧮そろばん、v561 で 💴🎲🚛📷 の4つ（v564 で 📷 を 🎁お返し帳 に）、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/40');   // v569 で 🗣筆談ボード・📢電光掲示板、v568 で 🗓こよみ・⛩方位と恵方・🧮そろばん、v561 で 💴🎲🚛📷 の4つ（v564 で 📷 を 🎁お返し帳 に）、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -14500,7 +14696,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,okaeshi:B,koyomi:B,hoi:B,soroban:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,okaeshi:B,koyomi:B,hoi:B,soroban:B,hitsudan:B,keijiban:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -15644,6 +15840,8 @@ async function runQrShare(browser) {
     if (!only || only === 'koyomi' || only === 'v568') await runKoyomi568(browser);
     if (!only || only === 'hoi' || only === 'v568') await runHoi568(browser);
     if (!only || only === 'soroban' || only === 'v568') await runSoroban568(browser);
+    if (!only || only === 'hitsudan' || only === 'v569') await runHitsudan569(browser);
+    if (!only || only === 'keijiban' || only === 'v569') await runKeijiban569(browser);
     if (!only || only === 'saveas') await runSaveAs560(browser);
     if (!only || only === 'tatekae' || only === 'v561') await runTatekae561(browser);
     if (!only || only === 'kuji' || only === 'v561') await runKuji561(browser);
