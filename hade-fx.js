@@ -7,7 +7,10 @@
      ド派手は 粒 1.6倍（多くて 1500）・背景に 回る 光のすじ・遠くの花火と 紙ふぶきが ふえる・ふちが 色に 光る。
      ドド派手は 粒 2.4倍（多くて 2200）・さらに 流れ星・光の輪・虹色に まわる ふち・大きな ゆれ。
      重くなったら（1こまが 45ミリ秒を こえる）粒の 上限を 自動で 下げる。
-     画面の 点滅は やわらかく、1秒に 2回まで（まぶしすぎないように。どの強さでも）。 */
+     画面の 点滅は やわらかく、1秒に 2回まで（まぶしすぎないように。どの強さでも）。
+   ・⏰ 時間が 来た ときの 音（v580。ど派手タイマー）：🎺 ファンファーレ・⏰ 目覚まし（ジリリリ）・📟 ピピピ・🔔 チャイム（キーンコーン）・
+     🎵 オルゴール（きらきら星）・🕊 はと時計（ポッポー）・🥁 太鼓（ドンドン カッ）・🎮 ゲーム（クリアの 音）・🐤 小鳥（チュンチュン）。
+     1つの 音は 自分の 音の 道（bus）を 通すので、止める ときや 次の 音で すぐ 消せる。 */
 (function(){
 'use strict';
 if(window.HADE_FX) return;
@@ -34,7 +37,7 @@ const pick=a=>a[Math.floor(Math.random()*a.length)];
 const hasTheme=t=>THEMES.some(x=>x[0]===t), hasLevel=l=>LEVELS.some(x=>x[0]===l);
 
 /* ───────── 音（WebAudio。押したときに 鳴らせるように する）───────── */
-let AC=null, OUT=null, NOISE=null, vol=0.8, muted=false;
+let AC=null, OUT=null, NOISE=null, BUS=null, vol=0.8, muted=false;   // BUS：いま 鳴らす 音の 道（時間が 来た 音。v580）
 const played=[];   // 鳴らした音（たしかめ用。新しい 40 個）
 function ctx(){
   if(!AC){
@@ -49,7 +52,7 @@ function env(g, t0, a, d, peak){ g.gain.setValueAtTime(0.0001, t0); g.gain.expon
 function osc(type, f, t0, dur, peak, f2){
   const a=ctx(); if(!a) return;
   try{ const o=a.createOscillator(), g=a.createGain(); o.type=type; o.frequency.setValueAtTime(f, t0); if(f2) o.frequency.exponentialRampToValueAtTime(f2, t0+dur);
-    env(g, t0, 0.008, dur, peak); o.connect(g); g.connect(OUT); o.start(t0); o.stop(t0+dur+0.05); }catch(_){}
+    env(g, t0, 0.008, dur, peak); o.connect(g); g.connect(BUS||OUT); o.start(t0); o.stop(t0+dur+0.05); }catch(_){}
 }
 function noiseBuf(a){
   if(NOISE) return NOISE;
@@ -61,7 +64,7 @@ function nz(t0, dur, peak, type, f, f2, q){
   const a=ctx(); if(!a) return;
   try{ const s=a.createBufferSource(); s.buffer=noiseBuf(a); s.loop=true;
     const fl=a.createBiquadFilter(); fl.type=type||'lowpass'; fl.frequency.setValueAtTime(f||1200, t0); if(f2) fl.frequency.exponentialRampToValueAtTime(f2, t0+dur); fl.Q.value=q||0.8;
-    const g=a.createGain(); env(g, t0, 0.005, dur, peak); s.connect(fl); fl.connect(g); g.connect(OUT); s.start(t0); s.stop(t0+dur+0.05); }catch(_){}
+    const g=a.createGain(); env(g, t0, 0.005, dur, peak); s.connect(fl); fl.connect(g); g.connect(BUS||OUT); s.start(t0); s.stop(t0+dur+0.05); }catch(_){}
 }
 const T0=()=>{ const a=ctx(); return a ? a.currentTime+0.01 : 0; };
 const midi=m=>440*Math.pow(2, (m-69)/12);
@@ -91,6 +94,38 @@ const SND={
   }),
   drum:S('drum', (t, n)=>{ const k=Math.max(4, Math.min(40, n|0||16)); for(let i=0;i<k;i++) nz(t+i*0.045, 0.04, 0.12+0.2*i/k, 'bandpass', 1800, null, 1.2); }),
 };
+/* ───────── ⏰ 時間が 来た ときの 音（v580。ど派手タイマー）───────── */
+const TONES=[['fanfare','🎺 ファンファーレ'],['bell','⏰ 目覚まし'],['pipi','📟 ピピピ'],['chime','🔔 チャイム'],['orgel','🎵 オルゴール'],['hato','🕊 はと時計'],['taiko','🥁 太鼓'],['game','🎮 ゲーム'],['tori','🐤 小鳥']];
+const TONE_PER={fanfare:2.6, bell:2.4, pipi:1.4, chime:7.2, orgel:6, hato:3.4, taiko:2.8, game:3.2, tori:2.8};   // くり返す 間（秒）
+function bellHit(f, t0, k){ osc('sine', f, t0, 0.11, 0.07*k); osc('sine', f*1.48, t0, 0.08, 0.035*k); osc('sine', f*2.62, t0, 0.05, 0.018*k); }   // 目覚ましの ベルを 1回 たたく
+function church(f, t0, dur){ osc('sine', f, t0, dur, 0.2); osc('sine', f*2, t0, dur*0.55, 0.07); osc('sine', f*3.01, t0, dur*0.3, 0.035); osc('sine', f*0.5, t0, dur*1.15, 0.05); }   // 鐘
+function mbox(f, t0, k){ k=k||1; osc('sine', f, t0, 0.95, 0.15*k); osc('sine', f*4.02, t0, 0.14, 0.03*k); osc('triangle', f*2, t0, 0.35, 0.025*k); }   // オルゴールの 1音
+function pipe(f, t0, dur){ osc('sine', f, t0, dur, 0.24); osc('triangle', f, t0, dur*0.9, 0.05); nz(t0, dur*0.7, 0.025, 'bandpass', f*2, null, 4); }   // はと時計の 笛
+function don(t0, k){ osc('sine', 128, t0, 0.5, 0.85*k, 54); nz(t0, 0.11, 0.42*k, 'lowpass', 780); }   // 太鼓の ドン
+function ka(t0){ nz(t0, 0.045, 0.3, 'bandpass', 2700, null, 5); osc('square', 1500, t0, 0.025, 0.05); }   // 太鼓の ふちの カッ
+function chirp(t0, k){ osc('sine', 3200+k*250, t0, 0.06, 0.15, 5300+k*200); osc('sine', 5200, t0+0.06, 0.05, 0.08, 3700); }   // 小鳥の チュン
+const TSND={
+  bell:S('tBell', t=>{ for(let i=0;i<36;i++) bellHit(i%2 ? 2420 : 2750, t+i*0.042, i<3 ? 0.6+i*0.15 : 1); nz(t, 1.5, 0.035, 'bandpass', 3200, null, 2.5); }),
+  pipi:S('tPipi', t=>{ for(let i=0;i<4;i++){ osc('square', 2050, t+i*0.14, 0.075, 0.06); osc('sine', 2050, t+i*0.14, 0.085, 0.2); } }),
+  chime:S('tChime', t=>{ [76,72,74,67,67,74,76,72].forEach((m,i)=>church(midi(m), t+i*0.62, i===3 || i===7 ? 2.2 : 1.5)); }),
+  orgel:S('tOrgel', t=>{ const q=0.3; [84,84,91,91,93,93,91,0,89,89,88,88,86,86,84].forEach((m,i)=>{ if(m) mbox(midi(m), t+i*q); }); [60,64,67,64,65,64,62,60].forEach((m,i)=>mbox(midi(m+12), t+i*q*2, 0.45)); }),
+  hato:S('tHato', t=>{ for(let i=0;i<3;i++){ const at=t+i*0.95; pipe(midi(81), at, 0.2); pipe(midi(77), at+0.28, 0.42); } }),
+  taiko:S('tTaiko', t=>{ [[0,1],[0.42,1],[0.84,0.75],[1.02,1]].forEach(([at,k])=>don(t+at, k)); ka(t+1.44); ka(t+1.62); don(t+1.86, 1); }),
+  game:S('tGame', t=>{ const q=0.075; [[60,64,67,72],[62,65,69,74],[64,67,71,76]].forEach((row,j)=>row.forEach((m,i)=>osc('square', midi(m+12), t+(j*4+i)*q, q*0.9, 0.06)));
+    [72,76,79,84].forEach(m=>{ osc('square', midi(m+12), t+12*q, 0.5, 0.045); osc('triangle', midi(m), t+12*q, 0.6, 0.08); }); osc('triangle', midi(48), t, 12*q, 0.12); }),
+  tori:S('tTori', t=>{ [0,0.2,0.85,1.03,1.21].forEach((at,i)=>chirp(t+at, i%2)); }),
+};
+let tbus=null;
+function toneStop(){ const b=tbus; tbus=null; if(b && AC){ try{ const n=AC.currentTime; b.gain.cancelScheduledValues(n); b.gain.setValueAtTime(b.gain.value, n); b.gain.linearRampToValueAtTime(0.0001, n+0.08); setTimeout(()=>{ try{ b.disconnect(); }catch(_){} }, 300); }catch(_){} } }
+// first：はじめの 1回（ファンファーレは ファンファーレ、ほかは 同じ 音）・それ以外は くり返しの 音
+function tone(k, first){
+  toneStop();
+  const a=ctx();
+  if(a && !muted){ try{ tbus=a.createGain(); tbus.gain.value=1; tbus.connect(OUT); }catch(_){ tbus=null; } }
+  BUS=tbus;
+  try{ if(TSND[k]) TSND[k](); else (first ? SND.fanfare : SND.alarm)(); } finally { BUS=null; }
+}
+const tonePer=k=>TONE_PER[k]||2.6;
 function setVol(v){ vol=Math.max(0, Math.min(1, +v||0)); if(OUT) try{ OUT.gain.value=vol; }catch(_){} }
 function setMute(b){ muted=!!b; }
 function unlock(){ const a=ctx(); if(a && a.state!=='running'){ try{ a.resume(); }catch(_){} } }
@@ -424,5 +459,6 @@ E.finale=function(o){
 };
 
 window.HADE_FX={ THEMES, LEVELS, PAL, INK, Engine, snd:SND, setVol, setMute, unlock, vib, played:()=>played.slice(), hasTheme, hasLevel,
+  TONES, tone, toneStop, tonePer,
   ctx:()=>!!ctx() };
 })();
