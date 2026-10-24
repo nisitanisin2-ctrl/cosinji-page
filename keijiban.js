@@ -4,16 +4,20 @@
    ・🕐 時計（v570）：時:分／時:分:秒／午前・午後。数字の形（7セグ・ドット・まるい）・色（虹・時間で かわる も）・
      数字が かわるときの動き（くるっ・ぽろぽろ・ばらばら・ぱたぱた）・いつもの動き（なみ・ぴょん・ふわっ）・
      かざり（「:」の点滅・秒の光・星空・正時の花火・日付も ときどき）・点の細かさ。
-   ・⏰ 予約（v570）：決めた時刻（曜日も）になったら 決めた文を 流す（1回・3回・1〜10分・押すまで）。🔔 チャイム。
+   ・⏰ 予約（v570）：決めた時刻（曜日も）になったら 決めた文を 流す（1回・3回・1分〜1時間・押すまで）。🔔 チャイム。
      電光掲示板を 出している あいだだけ 流れる（全画面のあいだは 画面を消さない）。
+   ・🖼 絵（v571）：写真・画像や 絵文字で 作った絵を 全画面で出す。見せ方（そのまま・LED風（点））・大きさ（全体を見せる・
+     画面いっぱい）・動き（止める・ゆっくり ズーム）。予約で 決めた時刻に 決めた絵を 決めた時間（10秒〜1時間・分を打つ・押すまで）。
+   ・🕐 時計の種類（v571）：点で描く 電光の時計の ほかに 🕰 アナログ・📟 パタパタ・✨ ネオン・🫧 ぽよん・🌅 空と太陽・🔢 つぶつぶ
+     （描き方は keijiban-clock.js）。
    ・「▶ 全画面で 出す」：画面いっぱいに出す。縦に持っているときは 90° 回して 横長に出す（「回さない」も）。
      画面を消さない（対応している端末）・Android は 全画面＋横向きに。画面を押すと「⏸ 止める」「✕ 終わる」。端末の「戻る」でも 終わる。
-   ・文・見た目・時計・予約は excalc_keijiban（この端末の中だけ）。
+   ・文・見た目・時計・予約・絵の一覧は excalc_keijiban（この端末の中だけ）。写真の絵は IndexedDB（excalc_keijiban の pics）。
    LED風は 文字を 小さな絵にして（canvas）、明るい点を 丸い光で描く。点は 1列ずつ 動く（本物の掲示板と同じ）。
    時計の数字は 点の並び（7セグ・5×7 の点の字・ふつうの字）で作り、かわるときは 点を 1つずつ 動かす。 */
 (function(){
 'use strict';
-const KEY='excalc_keijiban', MAX_TXT=200, MAX_LIST=30, MAX_SC=20;
+const KEY='excalc_keijiban', MAX_TXT=200, MAX_LIST=30, MAX_SC=20, MAX_PICS=30;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clean=(v,n)=>String(v==null?'':v).replace(/[\r\n\t]+/g,'　').replace(/[\u0000-\u001F\u007F]/g,'').slice(0,n);
@@ -27,7 +31,8 @@ const SPEEDS=[['slow','ゆっくり',1.2],['mid','ふつう',2.2],['fast','は�
 const ROWS=[16,24,32];
 const ROTS=[['auto','縦に持っていたら 回す'],['off','回さない']];
 const FONT='"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Noto Sans CJK JP","Yu Gothic",Meiryo,sans-serif';
-const TABS=[['text','📝 文字'],['clock','🕐 時計'],['sched','⏰ 予約']];
+const TABS=[['text','📝 文字'],['pic','🖼 絵'],['clock','🕐 時計'],['sched','⏰ 予約']];
+const TAU=Math.PI*2;
 // 🕐 時計（v570）
 const CK_FMT=[['hm','時:分'],['hms','時:分:秒'],['ampm','午前・午後']];
 const CK_FACE=[['seg','7セグ'],['dot','ドット'],['round','まるい']];
@@ -37,10 +42,37 @@ const MIX=['roll','drop','scatter','flip'];   // いろいろ：毎回 この中
 const CK_IDLE=[['none','なし'],['wave','なみ'],['hop','ぴょん'],['glow','ふわっ']];
 const CK_DENS=[[1,'あらい'],[2,'ふつう'],[3,'こまかい']];
 const CK_DECO=[['colon','「:」の点滅'],['ring','秒の光'],['stars','星空'],['fire','正時の花火'],['date','日付も']];
-const DEF_CK={fmt:'hms', face:'seg', color:'red', anim:'drop', idle:'none', dens:2, colon:true, ring:true, stars:false, fire:true, date:false};
+const DEF_CK={fmt:'hms', face:'seg', color:'red', anim:'drop', idle:'none', dens:2, colon:true, ring:true, stars:false, fire:true, date:false, kind:'led', hand:'tick'};
+// 時計の種類（v571）：電光（点）の ほかは keijiban-clock.js が 描く
+const CK_KIND=[['led','💡 電光（点）'],['analog','🕰 アナログ'],['flip','📟 パタパタ'],['neon','✨ ネオン'],['jelly','🫧 ぽよん'],['sky','🌅 空と太陽'],['tsubu','🔢 つぶつぶ']];
+const CK_HAND=[['tick','カチッ'],['sweep','なめらか']];
+const KIND_NOTE={
+  analog:'秒針は カチッと ばねのように 止まり（「なめらか」も）、通った目もりが 光の尾を引きます。分針も 毎分 カチッと 進みます。',
+  flip:'数字の板の 上半分が パタッと 倒れて、下半分が 下りてきて 数字が かわります。',
+  neon:'ネオン管のように 光ります。数字が かわると ちらついてから 点き、床に 映りこみます。',
+  jelly:'前の数字が つぶれて、新しい数字が 上から 落ちてきて ぷるんと はずみます。',
+  sky:'時刻で 空の色が かわり、昼は 太陽、夜は 月が 空を わたります。雲・鳥・星・家の明かりも 時刻しだい。',
+  tsubu:'粒が 集まって 数字に なります。数字が かわると 粒が 飛んで 次の数字に 集まります。全画面で 押すと 粒が はじけます。'};
+// 🖼 絵（v571）
+const PIC_LOOK=[['photo','そのまま'],['led','LED風（点）']];
+const PIC_FIT=[['contain','全体を見せる'],['cover','画面いっぱい']];
+const PIC_MOVE=[['none','止める'],['zoom','ゆっくり ズーム']];
+const EMO=['🍙','🍱','☕','🍵','🚻','⚠️','🚧','⛔','✅','🎉','🎂','🎁','🌸','☀️','🌙','❄️','🔥','❤️','👍','🙇','🚗','🚚','📢','🎵','🐱','🐶','🏠','🏥','⏰','🌈'];
+const EMO_BG=[['black','黒','#000000'],['white','白','#ffffff'],['red','赤','#d32f2f'],['blue','青','#1565c0'],['green','緑','#2e7d32'],['yellow','黄','#ffd600'],['pink','ピンク','#f48fb1']];
+const lightBg=k=>k==='white'||k==='yellow'||k==='pink';
 const TR_DUR={none:1, roll:380, flip:420, drop:850, scatter:950};   // 数字が かわるときの 長さ（ミリ秒）
 // ⏰ 予約（v570）
-const SC_DUR=[['1','1回'],['3','3回'],['1m','1分'],['5m','5分'],['10m','10分'],['tap','押すまで']];
+const SC_DUR_T=[['1','1回'],['3','3回'],['1m','1分'],['5m','5分'],['10m','10分'],['30m','30分'],['60m','1時間'],['tap','押すまで']];   // 文
+const SC_DUR_P=[['10s','10秒'],['30s','30秒'],['1m','1分'],['5m','5分'],['10m','10分'],['30m','30分'],['60m','1時間'],['tap','押すまで']];   // 絵
+const SC_KIND=[['text','📝 文'],['pic','🖼 絵']];
+// 長さ：'1'・'3'（流す回数）・'tap'（押すまで）・'<N>s'（5〜600秒）・'<N>m'（1〜720分）
+function durOk(d){ if(d==='1'||d==='3'||d==='tap') return true; const m=/^(\d{1,3})([sm])$/.exec(typeof d==='string'?d:''); if(!m) return false; const n=+m[1]; return m[2]==='s' ? n>=5&&n<=600 : n>=1&&n<=720; }
+function durMs(d){ const m=/^(\d{1,3})([sm])$/.exec(d||''); return m ? (+m[1])*(m[2]==='s'?1000:60000) : 0; }
+function durTxt(d){
+  if(d==='1') return '1回'; if(d==='3') return '3回'; if(d==='tap') return '押すまで';
+  const m=/^(\d{1,3})([sm])$/.exec(d||''); if(!m) return ''; const n=+m[1];
+  return m[2]==='s' ? n+'秒' : n<60 ? n+'分' : Math.floor(n/60)+'時間'+(n%60 ? (n%60)+'分' : '');
+}
 const WD='日月火水木金土';
 const TP_M=[0,5,10,15,20,25,30,35,40,45,50,55];
 
@@ -52,28 +84,43 @@ function normDays(a){ const k=a.join(','); return !a.length || k==='0,1,2,3,4,5,
 const dayArr=d=>d==='all'?[0,1,2,3,4,5,6]:d==='wk'?[1,2,3,4,5]:d==='we'?[0,6]:d.slice();
 const dayOk=(s,w)=>dayArr(s.days).includes(w);
 const daysTxt=d=>d==='all'?'毎日':d==='wk'?'平日':d==='we'?'土日':d.map(i=>WD[i]).join('・');
-function cleanSc(s){
+function cleanSc(s, picIds){
   if(!s || typeof s!=='object') return null;
-  const t=typeof s.t==='string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(s.t) ? s.t : null, text=clean(s.text, MAX_TXT).trim();
-  if(!t || !text) return null;
+  const t=typeof s.t==='string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(s.t) ? s.t : null, text=clean(s.text, MAX_TXT).trim(), kind=s.kind==='pic' ? 'pic' : 'text';
+  if(!t || (kind==='text' && !text)) return null;
+  if(kind==='pic' && !(typeof s.pic==='string' && picIds && picIds.has(s.pic))) return null;   // 絵が ないものは 消す
   let days=['all','wk','we'].includes(s.days) ? s.days : Array.isArray(s.days) ? [...new Set(s.days.filter(d=>Number.isInteger(d) && d>=0 && d<=6))].sort((a,b)=>a-b) : 'all';
   if(Array.isArray(days)) days=normDays(days);
-  return {id:typeof s.id==='string' && /^[A-Za-z0-9_-]{1,24}$/.test(s.id) ? s.id : newId(), on:s.on!==false, t, days, text, dur:SC_DUR.some(x=>x[0]===s.dur)?s.dur:'3', chime:s.chime!==false};
+  let dur=durOk(s.dur) ? s.dur : kind==='pic' ? '1m' : '3';
+  if(kind==='pic' && (dur==='1' || dur==='3')) dur='1m';
+  return {id:typeof s.id==='string' && /^[A-Za-z0-9_-]{1,24}$/.test(s.id) ? s.id : newId(), on:s.on!==false, t, days, kind, text, pic:kind==='pic' ? s.pic : '', dur, chime:s.chime!==false};
+}
+// 絵の一覧：{id, kind:'img'（写真。IndexedDB）|'emoji'（絵文字・字）, e, bg, name}
+function cleanPic(p){
+  if(!p || typeof p!=='object' || typeof p.id!=='string' || !/^[A-Za-z0-9_-]{1,24}$/.test(p.id)) return null;
+  const name=clean(p.name, 30).trim();
+  if(p.kind==='emoji'){ const e=clean(p.e, 8).trim(); return e ? {id:p.id, kind:'emoji', e, bg:EMO_BG.some(x=>x[0]===p.bg)?p.bg:'black', name} : null; }
+  return p.kind==='img' ? {id:p.id, kind:'img', name} : null;
 }
 function load(){
   let o=null; try{ o=JSON.parse(localStorage.getItem(KEY)||'null'); }catch(_){}
   o=(o && typeof o==='object') ? o : {};
-  const ck=(o.ck && typeof o.ck==='object') ? o.ck : {}, one=(arr,v,d)=>arr.some(x=>x[0]===v)?v:d;
+  const ck=(o.ck && typeof o.ck==='object') ? o.ck : {}, pv=(o.picv && typeof o.picv==='object') ? o.picv : {}, one=(arr,v,d)=>arr.some(x=>x[0]===v)?v:d;
+  const pics=[], pseen=new Set();
+  (Array.isArray(o.pics) ? o.pics : []).forEach(x=>{ const q=cleanPic(x); if(q && !pseen.has(q.id) && pics.length<MAX_PICS){ pseen.add(q.id); pics.push(q); } });
   st={text:typeof o.text==='string' ? clean(o.text, MAX_TXT) : '受付は こちらです',
     look:LOOKS.some(x=>x[0]===o.look)?o.look:'led', color:COLS.some(x=>x[0]===o.color)?o.color:'red',
     move:MOVES.some(x=>x[0]===o.move)?o.move:'scroll', speed:SPEEDS.some(x=>x[0]===o.speed)?o.speed:'mid',
     rows:ROWS.includes(o.rows)?o.rows:24, rot:ROTS.some(x=>x[0]===o.rot)?o.rot:'auto',
     list:Array.isArray(o.list) ? o.list.map(x=>clean(x, MAX_TXT).trim()).filter(Boolean).slice(0,MAX_LIST) : DEF_LIST.slice(),
-    mode:o.mode==='clock'?'clock':'text',
+    mode:o.mode==='clock'||o.mode==='pic' ? o.mode : 'text',
     ck:{fmt:one(CK_FMT,ck.fmt,DEF_CK.fmt), face:one(CK_FACE,ck.face,DEF_CK.face), color:one(CK_COL,ck.color,DEF_CK.color),
       anim:one(CK_ANIM,ck.anim,DEF_CK.anim), idle:one(CK_IDLE,ck.idle,DEF_CK.idle), dens:one(CK_DENS,ck.dens,DEF_CK.dens),
-      colon:ck.colon!==false, ring:ck.ring!==false, stars:ck.stars===true, fire:ck.fire!==false, date:ck.date===true},
-    sched:Array.isArray(o.sched) ? o.sched.map(cleanSc).filter(Boolean).slice(0,MAX_SC) : []};
+      colon:ck.colon!==false, ring:ck.ring!==false, stars:ck.stars===true, fire:ck.fire!==false, date:ck.date===true,
+      kind:one(CK_KIND,ck.kind,DEF_CK.kind), hand:one(CK_HAND,ck.hand,DEF_CK.hand)},
+    sched:Array.isArray(o.sched) ? o.sched.map(x=>cleanSc(x, pseen)).filter(Boolean).slice(0,MAX_SC) : [],
+    pics, picv:{look:one(PIC_LOOK,pv.look,'photo'), fit:one(PIC_FIT,pv.fit,'contain'), move:one(PIC_MOVE,pv.move,'none')},
+    picCur:pseen.has(o.picCur) ? o.picCur : pics.length ? pics[0].id : ''};
   const seen=new Set(); st.sched.forEach(s=>{ while(seen.has(s.id)) s.id=newId(); seen.add(s.id); });
 }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(_){} }
@@ -371,7 +418,18 @@ function ckUpdate(chars, ms, h){
   });
   cst.length=chars.length;
 }
+// 電光（点）でない時計：keijiban-clock.js が 描く。正時の花火は ここで 合図する
+function ckDrawAnim(cv, ms){
+  const K=window.KJ_CLOCKS; if(!K || !cv.width || !cv.height) return 0;
+  const d=new Date(ms), ck=st.ck;
+  if(ck.fire && d.getMinutes()===0 && d.getSeconds()<3){ const hk=d.toDateString()+'|'+d.getHours(); if(lastHourFire!==hk){ lastHourFire=hk; K.fire(ms); } }
+  const o={d, fmt:ck.fmt, chars:ckChars(d).filter(c=>c[0]!=='L').map(([k,ch])=>({k:k==='c'?'c':'d', ch})), ampm:ck.fmt==='ampm' ? (d.getHours()<12?'午前':'午後') : '',
+    accent:ckColor(d), rainbow:ck.color==='rainbow', colon:ck.colon, date:ck.date, dateTxt:(d.getMonth()+1)+'/'+d.getDate()+'('+WD[d.getDay()]+')', hand:ck.hand, dpr:Math.min(2, window.devicePixelRatio||1)};
+  ckPrevKey=''; cv.__drawn=false;
+  return K.draw(ck.kind, cv, ms, o);
+}
 function ckDraw(cv, ms){
+  if(st.ck.kind!=='led') return ckDrawAnim(cv, ms);
   const W=cv.width, H=cv.height; if(!W || !H) return 0;
   const G=ckGeom(W,H), {R,C,pitch,oy,h}=G, d=new Date(ms), sec=d.getSeconds(), mil=d.getMilliseconds(), t=ms/1000, ck=st.ck;
   const chars=ckChars(d); ckUpdate(chars, ms, h);
@@ -435,6 +493,112 @@ function ckDraw(cv, ms){
   cv.__lit=n; return n;
 }
 
+/* ───────── 🖼 絵（v571）：写真は IndexedDB（excalc_keijiban の pics）に dataURL で しまう ───────── */
+let dbP=null;
+function picDb(){
+  if(dbP) return dbP;
+  dbP=new Promise((res,rej)=>{ try{ const r=indexedDB.open('excalc_keijiban',1); r.onupgradeneeded=()=>r.result.createObjectStore('pics'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }catch(e){ rej(e); } }).catch(e=>{ dbP=null; throw e; });
+  return dbP;
+}
+async function picGet(id){ try{ const db=await picDb(); return await new Promise(r=>{ const q=db.transaction('pics').objectStore('pics').get(id); q.onsuccess=()=>r(q.result||null); q.onerror=()=>r(null); }); }catch(_){ return null; } }
+async function picPut(id, data){ const db=await picDb(); return new Promise((res,rej)=>{ const t=db.transaction('pics','readwrite'); t.objectStore('pics').put(data,id); t.oncomplete=()=>res(true); t.onerror=()=>rej(t.error); }); }
+async function picDbDel(id){ try{ const db=await picDb(); await new Promise(r=>{ const t=db.transaction('pics','readwrite'); t.objectStore('pics').delete(id); t.oncomplete=r; t.onerror=r; }); }catch(_){} }
+const safeData=v=>typeof v==='string' && /^data:image\/(png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+\/=]+$/.test(v);
+const newPicId=()=>'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const picById=id=>st.pics.find(p=>p.id===id)||null;
+const picName=p=>!p ? '（絵が ありません）' : p.name || (p.kind==='emoji' ? p.e : '写真');
+// 写真を 読む（読みおわるまでは null。読めたら 見本と一覧を 描きなおす）
+const imgs=new Map();
+function picImg(id){
+  let e=imgs.get(id);
+  if(!e){
+    e={img:null, ok:false, bad:false, url:''}; imgs.set(id,e);
+    picGet(id).then(u=>{
+      if(!safeData(u)){ e.bad=true; return; }
+      const im=new Image(); im.onload=()=>{ e.img=im; e.ok=true; e.url=u; prevKey=''; paintThumbs(); }; im.onerror=()=>{ e.bad=true; }; im.src=u;
+    });
+  }
+  return e.ok ? e.img : null;
+}
+// 長い辺を max に した JPEG（すける所は 黒に）
+function resizeImg(file, max){
+  return new Promise((res,rej)=>{
+    const url=URL.createObjectURL(file), im=new Image();
+    im.onload=()=>{ const k=Math.min(1, max/Math.max(im.naturalWidth, im.naturalHeight)), c=document.createElement('canvas');
+      c.width=Math.max(1,Math.round(im.naturalWidth*k)); c.height=Math.max(1,Math.round(im.naturalHeight*k));
+      const g=c.getContext('2d'); g.fillStyle='#000'; g.fillRect(0,0,c.width,c.height); g.drawImage(im,0,0,c.width,c.height);
+      URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg',0.85)); };
+    im.onerror=()=>{ URL.revokeObjectURL(url); rej(new Error('img')); };
+    im.src=url;
+  });
+}
+// 絵文字（字）の絵：256×256 の すける絵。dark：黒い字（明るい うしろの色のとき）
+const emoC=new Map();
+function emojiCanvas(e, dark){
+  const k=e+'|'+(dark?1:0); let c=emoC.get(k); if(c) return c;
+  c=document.createElement('canvas'); c.width=c.height=256; const g=c.getContext('2d');
+  g.font='200px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",'+FONT; g.textAlign='center'; g.textBaseline='middle'; g.fillStyle=dark?'#111':'#fff';
+  const w=g.measureText(e).width; if(w>240){ const f=Math.floor(200*240/w); g.font=f+'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",'+FONT; }
+  g.fillText(e, 128, 138);
+  if(emoC.size>40) emoC.clear();
+  emoC.set(k,c); return c;
+}
+const picBg=p=>p && p.kind==='emoji' ? (EMO_BG.find(x=>x[0]===p.bg)||EMO_BG[0])[2] : '#000000';
+// LED風：絵を 点の数に ちぢめて、1点ずつ その色で 光らせる（大きさ・絵ごとに 1枚 作って 使いまわす）
+const ledPics=new Map();
+function picLed(W, H, p, src){
+  const iw=src.naturalWidth||src.width, ih=src.naturalHeight||src.height, k=[W,H,p.id,st.picv.fit,iw,ih].join('|');
+  let c=ledPics.get(k); if(c) return c;
+  const pitch=Math.max(4, H/56), R=Math.floor(H/pitch), C=Math.floor(W/pitch), ox=(W-C*pitch)/2, oy=(H-R*pitch)/2;
+  const sm=document.createElement('canvas'); sm.width=C; sm.height=R; const sg=sm.getContext('2d');
+  sg.fillStyle='#000'; sg.fillRect(0,0,C,R);
+  const sc=(st.picv.fit==='cover'?Math.max:Math.min)(C/iw, R/ih); sg.drawImage(src, (C-iw*sc)/2, (R-ih*sc)/2, iw*sc, ih*sc);
+  const d=sg.getImageData(0,0,C,R).data;
+  c=document.createElement('canvas'); c.width=W; c.height=H; const g=c.getContext('2d');
+  g.fillStyle='#050505'; g.fillRect(0,0,W,H);
+  let n=0; const r=pitch*0.42;
+  for(let y=0;y<R;y++) for(let x=0;x<C;x++){
+    const i=(y*C+x)*4, mx=Math.max(d[i],d[i+1],d[i+2]);
+    if(mx<28) g.fillStyle='rgba(255,255,255,.07)';
+    else { const b=Math.min(1.35, 255/mx); g.fillStyle='rgb('+Math.round(d[i]*b)+','+Math.round(d[i+1]*b)+','+Math.round(d[i+2]*b)+')'; n++; }
+    g.beginPath(); g.arc(ox+x*pitch+pitch/2, oy+y*pitch+pitch/2, r, 0, TAU); g.fill();
+  }
+  c.__n=n;
+  if(ledPics.size>6) ledPics.clear();
+  ledPics.set(k,c); return c;
+}
+// 絵を描く（t：出してからの秒。はじめの 0.6秒で ふわっと出る）。cap：下に 流す文（なくてもよい）
+function drawPic(cv, p, t, cap){
+  const W=cv.width, H=cv.height; if(!W || !H) return 0;
+  const g=cv.getContext('2d'); g.globalAlpha=1; g.globalCompositeOperation='source-over';
+  prevKey=''; ckPrevKey=''; cv.__drawn=false;
+  const bh=cap ? Math.round(H*0.2) : 0, ph=H-bh, led=st.picv.look==='led';
+  g.fillStyle=led ? '#050505' : picBg(p); g.fillRect(0,0,W,H);
+  const src=!p ? null : p.kind==='img' ? picImg(p.id) : emojiCanvas(p.e, !led && lightBg(p.bg));
+  let n=0;
+  if(src){
+    g.save(); g.beginPath(); g.rect(0,0,W,ph); g.clip(); g.globalAlpha=Math.min(1, Math.max(0,t)/0.6);
+    if(led){ const c=picLed(W, ph, p, src); g.drawImage(c, 0, 0); n=c.__n; }
+    else {
+      const iw=src.naturalWidth||src.width, ih=src.naturalHeight||src.height, zm=st.picv.move==='zoom';
+      const k=(st.picv.fit==='cover'?Math.max:Math.min)(W/iw, ph/ih)*(p.kind==='emoji' && st.picv.fit==='contain' ? 0.9 : 1)*(zm ? 1+0.08*(0.5-0.5*Math.cos(t*TAU/14)) : 1);
+      const dw=iw*k, dh=ih*k; g.drawImage(src, (W-dw)/2+(zm ? Math.sin(t*TAU/23)*W*0.02 : 0), (ph-dh)/2, dw, dh); n=1;
+    }
+    g.restore();
+  } else {
+    const e=p && imgs.get(p.id);
+    g.fillStyle='#8a8f99'; g.font='bold '+Math.round(ph*0.1)+'px '+FONT; g.textAlign='center'; g.textBaseline='middle';
+    g.fillText(!p || (e && e.bad) ? '（絵が 見つかりません）' : '…', W/2, ph/2); g.textAlign='left';
+  }
+  if(cap){   // 下の帯に 文を流す
+    g.fillStyle='rgba(0,0,0,.85)'; g.fillRect(0,ph,W,bh);
+    const fs=Math.round(bh*0.66); g.font='bold '+fs+'px '+FONT; g.textBaseline='middle'; g.textAlign='left';
+    const tw=g.measureText(cap).width, L=tw+W, sp=charsPerSec()*fs;
+    g.fillStyle=st.color==='rainbow' ? '#ffffff' : baseColor(); g.fillText(cap, W-((Math.max(0,t)*sp)%L), ph+bh/2+fs*0.04);
+  }
+  return n;
+}
+
 /* ───────── ⏰ 予約 ───────── */
 let ann=null, annQ=[], fired=new Set(), actx=null, chimes=0;
 function audioUnlock(){ try{ const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return; if(!actx) actx=new AC(); if(actx.state==='suspended') actx.resume(); }catch(_){} }
@@ -462,13 +626,14 @@ function checkSched(ms){
 }
 function startAnn(s, ms){
   if(ann){ if(annQ.length<10) annQ.push(s); return; }
-  ann={id:s.id, t:s.t, text:s.text, dur:s.dur, t0:ms, tp:now()}; textPass=0; prevKey='';
+  ann={id:s.id, t:s.t, kind:s.kind==='pic'?'pic':'text', pic:s.pic||'', text:s.text||'', dur:s.dur, t0:ms, tp:now()}; textPass=0; prevKey='';
+  if(ann.kind==='pic'){ const pc=picById(ann.pic); if(pc && pc.kind==='img') picImg(pc.id); }   // 写真を 読みはじめる
   if(s.chime) chime();
   vib(); paintAnn();
 }
 function annEndCheck(ms){
   if(!ann) return;
-  const d=ann.dur, end=(d==='1'||d==='3') ? textPass>=+d : d==='tap' ? ms-ann.t0>=3600000 : ms-ann.t0>=parseInt(d,10)*60000;
+  const d=ann.dur, end=(d==='1'||d==='3') ? textPass>=+d : d==='tap' ? ms-ann.t0>=3600000 : ms-ann.t0>=durMs(d);
   if(end) endAnn();
 }
 function endAnn(){
@@ -491,11 +656,13 @@ function nextTxt(ms){
   const nx=nextSched(ms);
   if(!nx) return st.sched.length ? '予約は ぜんぶ 休みに なっています' : '予約は まだ ありません';
   const d=nx.d, now=new Date(ms), dd=Math.round((new Date(d.getFullYear(),d.getMonth(),d.getDate())-new Date(now.getFullYear(),now.getMonth(),now.getDate()))/864e5);
-  return '⏰ 次は '+(dd===0?'今日':dd===1?'あした':(d.getMonth()+1)+'/'+d.getDate()+'('+WD[d.getDay()]+')')+' '+nx.s.t+'「'+nx.s.text+'」';
+  return '⏰ 次は '+(dd===0?'今日':dd===1?'あした':(d.getMonth()+1)+'/'+d.getDate()+'('+WD[d.getDay()]+')')+' '+nx.s.t+'「'+scLabel(nx.s)+'」';
 }
+// 予約で 出すもの（文・絵の名前）
+const scLabel=s=>s.kind==='pic' ? '🖼 '+picName(picById(s.pic))+(s.text ? '＋'+s.text : '') : s.text;
 function paintAnn(){
   const b=$('kjAnn');
-  if(b) b.innerHTML=ann ? `<div class="kj-ann" role="status">⏰ <b>${esc(ann.t)}</b>の予約「${esc(ann.text)}」を 流しています<button type="button" class="kj-b" onclick="KEIJIBAN.annEnd()">✓ 終える</button></div>` : '';
+  if(b) b.innerHTML=ann ? `<div class="kj-ann" role="status">⏰ <b>${esc(ann.t)}</b>の予約「${esc(scLabel(ann))}」を ${ann.kind==='pic'?'出して':'流して'}います<button type="button" class="kj-b" onclick="KEIJIBAN.annEnd()">✓ 終える</button></div>` : '';
   const fb=$('kjAnnB'); if(fb) fb.hidden=!ann;
   const pb=$('kjPauseB'); if(pb) pb.hidden=!!ann;
 }
@@ -508,13 +675,14 @@ function sizeCanvas(cv){
   const w=Math.max(1, Math.round((cv.__w||r.width)*dpr)), h=Math.max(1, Math.round((cv.__h||r.height)*dpr));
   if(cv.width!==w || cv.height!==h){ cv.width=w; cv.height=h; cv.__drawn=false; }
 }
-const frameMode=()=>$('kjFull') ? st.mode : (tab==='text' ? 'text' : 'clock');
+const frameMode=()=>$('kjFull') ? st.mode : (tab==='text' || tab==='pic' ? tab : 'clock');
 function frame(cv){
   const ms=Date.now();
   checkSched(ms);
   let n;
-  if(ann){ n=drawText(cv, now()-ann.tp, ann.text, 'scroll'); ckPrevKey=''; annEndCheck(ms); }
+  if(ann){ n=ann.kind==='pic' ? drawPic(cv, picById(ann.pic), now()-ann.tp, ann.text) : drawText(cv, now()-ann.tp, ann.text, 'scroll'); ckPrevKey=''; annEndCheck(ms); }
   else if(frameMode()==='clock'){ n=ckDraw(cv, ms); prevKey=''; }
+  else if(frameMode()==='pic') n=drawPic(cv, picById(st.picCur), curT(), '');
   else { n=drawText(cv, curT(), st.text, st.move); ckPrevKey=''; }
   return n;
 }
@@ -533,15 +701,16 @@ function restart(){ t0=now(); paused=false; prevKey=''; ckPrevKey=''; loop(); }
 
 /* ───────── 全画面 ───────── */
 async function startFull(mode){
-  mode=mode==='clock' ? 'clock' : 'text';
+  mode=mode==='clock' || mode==='pic' ? mode : 'text';
   if(mode==='text' && !st.text.trim() && !ann){ toastK('流す文字を 入れてください'); const ta=$('kjText'); if(ta) ta.focus(); return; }
+  if(mode==='pic' && !picById(st.picCur) && !ann){ toastK(st.pics.length ? '出す絵を えらんでください' : '「📷 写真・画像を 足す」か「😀 絵文字で 作る」で 絵を 足してください'); return; }
   if($('kjFull')) return;
   if(st.mode!==mode){ st.mode=mode; save(); }
   audioUnlock();   // チャイムを 鳴らせるように（ボタンを 押したときに）
-  const el=document.createElement('div'); el.id='kjFull'; el.className='kj-full'+(mode==='clock'?' ck':''); el.setAttribute('role','dialog'); el.setAttribute('aria-label','電光掲示板');
+  const el=document.createElement('div'); el.id='kjFull'; el.className='kj-full'+(mode==='clock'?' ck':mode==='pic'?' pc':''); el.setAttribute('role','dialog'); el.setAttribute('aria-label','電光掲示板');
   // ボタンも 文字といっしょに回す（縦に持って 横向きに出すとき）
   el.innerHTML=`<div class="kj-stage" id="kjStage"><canvas id="kjFullCv"></canvas>
-    <div class="kj-fbar" id="kjFBar"><button type="button" id="kjPauseB" onclick="KEIJIBAN.pause()">⏸ 止める</button><button type="button" id="kjAnnB" onclick="KEIJIBAN.annEnd()" hidden>✓ 予約の文を 終える</button><button type="button" onclick="KEIJIBAN.stopFull()">✕ 終わる</button></div></div>`;
+    <div class="kj-fbar" id="kjFBar"><button type="button" id="kjPauseB" onclick="KEIJIBAN.pause()">⏸ 止める</button><button type="button" id="kjAnnB" onclick="KEIJIBAN.annEnd()" hidden>✓ 予約を 終える</button><button type="button" onclick="KEIJIBAN.stopFull()">✕ 終わる</button></div></div>`;
   document.body.appendChild(el);
   el.addEventListener('click', e=>{
     if(e.target.closest('.kj-fbar')) return;
@@ -558,12 +727,13 @@ async function startFull(mode){
   await wake();
   layoutFull(); showBar(); restart();
 }
-// 時計を押したところに 花火（回しているときは 押した場所を 回しなおす）
+// 時計を押したところに 花火（回しているときは 押した場所を 回しなおす）。つぶつぶは 粒が はじける
 function tapFire(x, y){
-  const sg=$('kjStage'), cv=$('kjFullCv'); if(!sg || !cv || !geo || !cv.__w) return;
+  const sg=$('kjStage'), cv=$('kjFullCv'); if(!sg || !cv || !cv.__w) return;
   const r=sg.getBoundingClientRect(), rot=sg.classList.contains('rot'), w=cv.__w, h=cv.__h, sx=x-(r.left+r.width/2), sy=y-(r.top+r.height/2);
-  const u=rot ? w/2+sy : w/2+sx, v=rot ? h/2-sx : h/2+sy;
-  fwBurst(u*cv.width/w/geo.pitch, (v*cv.height/h-geo.oy)/geo.pitch, Date.now(), geo.R);
+  const u=rot ? w/2+sy : w/2+sx, v=rot ? h/2-sx : h/2+sy, px=u*cv.width/w, py=v*cv.height/h;
+  if(st.ck.kind!=='led'){ if(window.KJ_CLOCKS) KJ_CLOCKS.tap(st.ck.kind, cv, px, py, Date.now()); return; }
+  if(geo) fwBurst(px/geo.pitch, (py-geo.oy)/geo.pitch, Date.now(), geo.R);
 }
 function fullKey(e){
   if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); stopFull(); }
@@ -578,7 +748,7 @@ function layoutFull(){
 }
 function showBar(){ const b=$('kjFBar'); if(!b) return; b.classList.add('show'); clearTimeout(barT); barT=setTimeout(()=>{ if(!paused) b.classList.remove('show'); }, 3000); }
 function togglePause(){
-  if($('kjFull') && st.mode==='clock' && !ann) return;   // 時計は 止めない
+  if($('kjFull') && st.mode!=='text' && !ann) return;   // 時計・絵は 止めない
   if(paused){ t0=now()-pauseAt; paused=false; } else { pauseAt=now()-t0; paused=true; }
   const b=$('kjPauseB'); if(b) b.textContent=paused?'▶ 動かす':'⏸ 止める';
   showBar(); prevKey='';
@@ -646,7 +816,7 @@ function scEdit(i){
   if(i!=null && !s) return;
   if(!s && st.sched.length>=MAX_SC){ toastK('予約は '+MAX_SC+'まで です'); return; }
   const d=new Date(), def=p2((d.getHours()+1)%24)+':00';
-  ed={i:s?i:null, mins:toMin(s?s.t:def), days:s?(Array.isArray(s.days)?s.days.slice():s.days):'all', dur:s?s.dur:'3'};
+  ed={i:s?i:null, mins:toMin(s?s.t:def), days:s?(Array.isArray(s.days)?s.days.slice():s.days):'all', dur:s?s.dur:'3', kind:s?s.kind:'text', pic:s && s.kind==='pic' ? s.pic : (st.picCur || (st.pics[0] ? st.pics[0].id : ''))};
   const text=s ? s.text : (st.text.trim() || st.list[0] || '');
   const el=popOpen(`<b>⏰ ${s?'予約を 直す':'予約を 足す'}</b>
     <div class="kj-tp-big" id="kjTpBig"></div>
@@ -654,12 +824,16 @@ function scEdit(i){
     <div class="kj-tp-l">分</div><div class="kj-tp-g" id="kjTpM">${TP_M.map(m=>`<button type="button" data-m="${m}">${p2(m)}</button>`).join('')}</div>
     <div class="kj-tp-fine"><button type="button" data-d="-1">−1分</button><button type="button" data-d="1">＋1分</button><input id="kjTpIn" inputmode="numeric" autocomplete="off" placeholder="打つ：1230・12:30" aria-label="時刻を打って入れる"></div>
     <div class="kj-tp-l">曜日</div><div class="kj-days" id="kjScDays">${[['all','毎日'],['wk','平日'],['we','土日']].map(([k,n])=>`<button type="button" class="pre" data-dp="${k}">${n}</button>`).join('')}${[...WD].map((w,j)=>`<button type="button" class="wd" data-dy="${j}">${w}</button>`).join('')}</div>
-    <div class="kj-tp-l">流す文</div><input id="kjScTx" class="kj-sc-in" maxlength="${MAX_TXT}" value="${esc(text)}" placeholder="例：お昼休みです">
+    <div class="kj-tp-l">出すもの</div><div class="kj-days" id="kjScKind">${SC_KIND.map(([k,n])=>`<button type="button" class="kd" data-k="${k}">${n}</button>`).join('')}</div>
+    <div id="kjScPicBox"><div class="kj-tp-l">出す絵</div><div class="kj-sc-pics" id="kjScPics"></div></div>
+    <div class="kj-tp-l" id="kjScTxL">流す文</div><input id="kjScTx" class="kj-sc-in" maxlength="${MAX_TXT}" value="${esc(text)}" placeholder="例：お昼休みです">
     ${st.list.length?`<select id="kjScSel" class="kj-sc-sel" aria-label="よく使う文から えらぶ"><option value="">⭐ よく使う文から えらぶ</option>${st.list.map((t,j)=>`<option value="${j}">${esc(t)}</option>`).join('')}</select>`:''}
-    <div class="kj-tp-l">流す長さ</div><div class="kj-days" id="kjScDur">${SC_DUR.map(([k,n])=>`<button type="button" data-du="${k}">${n}</button>`).join('')}</div>
+    <div class="kj-tp-l" id="kjScDurL">流す長さ</div><div class="kj-days" id="kjScDur"></div>
+    <div class="kj-tp-fine mi"><span>ほか</span><input id="kjScMin" inputmode="numeric" autocomplete="off" placeholder="1〜720" aria-label="長さを 分で 打つ"><span>分</span><span class="end" id="kjScEnd"></span></div>
     <label class="kj-chk"><input type="checkbox" id="kjScCh"${!s||s.chime?' checked':''}> 🔔 チャイムを 鳴らす</label>
     <div class="kj-pop-acts">${s?'<button type="button" class="kj-b del" data-x="del">🗑 消す</button>':''}<button type="button" class="kj-b" data-x="try">▶ ためす</button><button type="button" class="kj-b" data-x="cancel">やめる</button><button type="button" class="kj-b pri" data-x="ok">✓ 決める</button></div>`);
-  const inp=$('kjTpIn');
+  const inp=$('kjTpIn'), mi=$('kjScMin');
+  if(!(SC_DUR_T.concat(SC_DUR_P)).some(x=>x[0]===ed.dur) && /m$/.test(ed.dur)) mi.value=parseInt(ed.dur,10);
   el.addEventListener('click', e=>{
     const b=e.target.closest('button'); if(!b) return;
     if(b.dataset.h!=null){ ed.mins=(+b.dataset.h)*60+ed.mins%60; inp.value=''; }
@@ -667,7 +841,9 @@ function scEdit(i){
     else if(b.dataset.d){ ed.mins=(ed.mins+(+b.dataset.d)+1440)%1440; inp.value=''; }
     else if(b.dataset.dp){ ed.days=b.dataset.dp; }
     else if(b.dataset.dy!=null){ const j=+b.dataset.dy, a=dayArr(ed.days); const k=a.indexOf(j); if(k>=0) a.splice(k,1); else a.push(j); a.sort((x,y)=>x-y); ed.days=a.length ? normDays(a) : []; }
-    else if(b.dataset.du){ ed.dur=b.dataset.du; }
+    else if(b.dataset.k){ ed.kind=b.dataset.k; if(ed.kind==='pic' && (ed.dur==='1' || ed.dur==='3')) ed.dur='1m'; }
+    else if(b.dataset.p){ ed.pic=b.dataset.p; }
+    else if(b.dataset.du){ ed.dur=b.dataset.du; mi.value=''; }
     else if(b.dataset.x==='ok'){ edSave(); return; }
     else if(b.dataset.x==='try'){ edTry(); return; }
     else if(b.dataset.x==='del'){ edDel(); return; }
@@ -676,45 +852,62 @@ function scEdit(i){
   });
   inp.addEventListener('input', ()=>{ const v=parseTime(inp.value); if(v!=null){ ed.mins=v; edPaint(); } });
   inp.addEventListener('keydown', e=>{ e.stopPropagation(); if(e.key==='Enter'){ e.preventDefault(); edSave(); } });
+  mi.addEventListener('input', ()=>{ const n=parseInt(mi.value.normalize('NFKC'),10); if(n>=1 && n<=720){ ed.dur=n+'m'; edPaint(); } });
+  mi.addEventListener('keydown', e=>{ e.stopPropagation(); if(e.key==='Enter'){ e.preventDefault(); edSave(); } });
   $('kjScTx').addEventListener('keydown', e=>e.stopPropagation());
   const sel=$('kjScSel'); if(sel) sel.addEventListener('change', ()=>{ const t=st.list[+sel.value]; if(t!=null) $('kjScTx').value=t; sel.value=''; });
   edPaint();
 }
+// 予約の窓の 絵の えらび（小さな絵）
+function edPaintPics(){
+  const b=pop && $('kjScPics'); if(!b || !ed) return;
+  b.innerHTML=st.pics.length ? st.pics.map(p=>`<button type="button" data-p="${p.id}" class="${p.id===ed.pic?'on':''}" aria-label="${esc(picName(p))}">${thumbHtml(p)}</button>`).join('')
+    : '<p class="kj-note">絵が まだ ありません。「🖼 絵」の札で 足してください。</p>';
+}
 function edPaint(){
   if(!pop || !ed) return;
-  const box=pop.el, a=Array.isArray(ed.days) ? ed.days : dayArr(ed.days);
+  const box=pop.el, a=Array.isArray(ed.days) ? ed.days : dayArr(ed.days), pic=ed.kind==='pic', L=pic ? SC_DUR_P : SC_DUR_T;
   $('kjTpBig').textContent=hm(ed.mins);
   box.querySelectorAll('#kjTpH button').forEach(b=>b.classList.toggle('on', +b.dataset.h===Math.floor(ed.mins/60)));
   box.querySelectorAll('#kjTpM button').forEach(b=>b.classList.toggle('on', +b.dataset.m===ed.mins%60));
   box.querySelectorAll('#kjScDays .pre').forEach(b=>b.classList.toggle('on', ed.days===b.dataset.dp));
   box.querySelectorAll('#kjScDays .wd').forEach(b=>b.classList.toggle('on', a.includes(+b.dataset.dy)));
-  box.querySelectorAll('#kjScDur button').forEach(b=>b.classList.toggle('on', ed.dur===b.dataset.du));
+  box.querySelectorAll('#kjScKind .kd').forEach(b=>b.classList.toggle('on', ed.kind===b.dataset.k));
+  $('kjScPicBox').hidden=!pic; edPaintPics();
+  $('kjScTxL').textContent=pic ? '絵の下に 流す文（なくても よい）' : '流す文';
+  $('kjScDurL').textContent=pic ? '出す長さ' : '流す長さ';
+  $('kjScDur').innerHTML=L.map(([k,n])=>`<button type="button" data-du="${k}" class="${ed.dur===k?'on':''}">${n}</button>`).join('');
+  const ms=durMs(ed.dur), endM=ed.mins+Math.ceil(ms/60000);
+  $('kjScEnd').textContent=ed.dur==='tap' ? '→ 押すまで（1時間で 止まる）' : ms>=60000 ? '→ '+hm(ed.mins)+'〜'+hm(endM%1440)+' まで' : ms ? '→ '+durTxt(ed.dur)+' だけ' : '';
 }
 function edVals(){
-  const inp=$('kjTpIn');
+  const inp=$('kjTpIn'), mi=$('kjScMin');
   if(inp && inp.value.trim()){ const v=parseTime(inp.value); if(v==null){ toastK('時刻の形が ちがいます（例：12:30・1230）'); return null; } ed.mins=v; }
+  if(mi && mi.value.trim()){ const n=parseInt(mi.value.normalize('NFKC'),10); if(!(n>=1 && n<=720)){ toastK('長さは 1〜720分で 打ってください'); return null; } ed.dur=n+'m'; }
   const text=clean($('kjScTx').value, MAX_TXT).trim();
-  if(!text){ toastK('流す文を 入れてください'); return null; }
-  return {t:hm(ed.mins), text, chime:$('kjScCh').checked};
+  if(ed.kind==='pic'){ if(!picById(ed.pic)){ toastK('出す絵を えらんでください'); return null; } }
+  else if(!text){ toastK('流す文を 入れてください'); return null; }
+  if(ed.kind==='pic' && (ed.dur==='1' || ed.dur==='3')) ed.dur='1m';
+  return {t:hm(ed.mins), text, chime:$('kjScCh').checked, kind:ed.kind, pic:ed.kind==='pic' ? ed.pic : ''};
 }
 function edSave(){
   const v=edVals(); if(!v) return;
   if(Array.isArray(ed.days) && !ed.days.length){ toastK('曜日を えらんでください'); return; }
-  const o={id:ed.i!=null ? st.sched[ed.i].id : newId(), on:true, t:v.t, days:ed.days, text:v.text, dur:ed.dur, chime:v.chime};
+  const o={id:ed.i!=null ? st.sched[ed.i].id : newId(), on:true, t:v.t, days:ed.days, kind:v.kind, text:v.text, pic:v.pic, dur:ed.dur, chime:v.chime};
   if(ed.i!=null) st.sched[ed.i]=o; else st.sched.push(o);
   st.sched.sort((a,b)=>a.t<b.t?-1:a.t>b.t?1:0);
   save(); audioUnlock(); popClose(); paintSched(); paintInfo();
-  toastK('⏰ '+o.t+'（'+daysTxt(o.days)+'）に「'+o.text+'」を 流します');
+  toastK('⏰ '+o.t+'（'+daysTxt(o.days)+'）に「'+scLabel(o)+'」を '+(o.kind==='pic' ? durTxt(o.dur)+' 出します' : '流します'));
 }
 function edTry(){
   const v=edVals(); if(!v) return;
   audioUnlock(); popClose();
-  ann=null; annQ=[]; startAnn({id:'try', t:v.t, text:v.text, dur:'1', chime:v.chime}, Date.now());
+  ann=null; annQ=[]; startAnn({id:'try', t:v.t, kind:v.kind, pic:v.pic, text:v.text, dur:v.kind==='pic' ? '10s' : '1', chime:v.chime}, Date.now());
 }
 async function edDel(){
   if(ed.i==null) return;
   const s=st.sched[ed.i]; if(!s) return;
-  if(typeof appConfirm==='function' && !await appConfirm(s.t+'「'+s.text+'」の予約を 消しますか？', '消す', 'やめる')) return;
+  if(typeof appConfirm==='function' && !await appConfirm(s.t+'「'+scLabel(s)+'」の予約を 消しますか？', '消す', 'やめる')) return;
   st.sched.splice(ed.i,1); save(); popClose(); paintSched(); paintInfo();
 }
 function scTog(i){ const s=st.sched[i]; if(!s) return; audioUnlock(); s.on=!s.on; save(); paintSched(); paintInfo(); }
@@ -723,7 +916,7 @@ function scTog(i){ const s=st.sched[i]; if(!s) return; audioUnlock(); s.on=!s.on
 function setTab(k){
   if(!TABS.some(x=>x[0]===k)) return;
   popClose(); tab=k; audioUnlock();
-  if(k!=='sched'){ const m=k==='clock'?'clock':'text'; if(st.mode!==m){ st.mode=m; save(); } }
+  if(k!=='sched' && st.mode!==k){ st.mode=k; save(); }
   render(); restart();
   const b=$('kjBody'); if(b) b.scrollTop=0;
 }
@@ -732,18 +925,26 @@ function setOpt(k, v){
   if(!ok) return; st[k]=v; save(); grids.clear(); prevKey=''; render(); restart();
 }
 function ckOpt(k, v){
-  const L={fmt:CK_FMT, face:CK_FACE, color:CK_COL, anim:CK_ANIM, idle:CK_IDLE, dens:CK_DENS}[k];
+  const L={fmt:CK_FMT, face:CK_FACE, color:CK_COL, anim:CK_ANIM, idle:CK_IDLE, dens:CK_DENS, kind:CK_KIND, hand:CK_HAND}[k];
   if(!L || !L.some(x=>x[0]===v)) return;
+  if(k==='kind' && window.KJ_CLOCKS) KJ_CLOCKS.reset();
   st.ck[k]=v; save(); geo=null; cst=[]; ckView='time'; vTr=null; ckPrevKey=''; grids.clear(); render(); restart();
 }
 function ckTog(k){
   if(!CK_DECO.some(x=>x[0]===k)) return;
   st.ck[k]=!st.ck[k]; save(); geo=null; cst=[]; ckView='time'; vTr=null; ckPrevKey=''; render(); restart();
 }
+function picOpt(k, v){
+  const L={look:PIC_LOOK, fit:PIC_FIT, move:PIC_MOVE}[k];
+  if(!L || !L.some(x=>x[0]===v)) return;
+  st.picv[k]=v; save(); ledPics.clear(); render(); restart();
+}
 function paintInfo(){
   const b=$('kjInfo'); if(!b) return;
-  if(tab==='clock'){ const nm=(L,v)=>(L.find(x=>x[0]===v)||L[0])[1]; b.textContent=nm(CK_FACE,st.ck.face)+'・'+nm(CK_FMT,st.ck.fmt)+'・かわるとき：'+nm(CK_ANIM,st.ck.anim); return; }
+  const nm=(L,v)=>(L.find(x=>x[0]===v)||L[0])[1];
+  if(tab==='clock'){ b.textContent=st.ck.kind==='led' ? nm(CK_FACE,st.ck.face)+'・'+nm(CK_FMT,st.ck.fmt)+'・かわるとき：'+nm(CK_ANIM,st.ck.anim) : nm(CK_KIND,st.ck.kind)+'・'+nm(CK_FMT,st.ck.fmt); return; }
   if(tab==='sched'){ const on=st.sched.filter(s=>s.on).length; b.textContent=st.sched.length ? '予約 '+st.sched.length+'件（使う '+on+'件）' : ''; return; }
+  if(tab==='pic'){ const p=picById(st.picCur); b.textContent=p ? picName(p)+'・'+nm(PIC_LOOK,st.picv.look)+'・'+nm(PIC_FIT,st.picv.fit) : '絵を 足してください'; return; }
   if(!st.text.trim()){ b.textContent='流す文字を 入れてください'; return; }
   if(st.look!=='led'){ b.textContent=''; return; }
   const bmp=bitmap(), chars=Math.max(1, Math.round(bmp.w/st.rows));
@@ -756,10 +957,23 @@ function paintList(){
 }
 function paintSched(){
   const b=$('kjScList'); if(!b) return;
-  b.innerHTML=st.sched.length ? st.sched.map((s,i)=>`<div class="kj-sc${s.on?'':' off'}"><button type="button" class="sw${s.on?' on':''}" onclick="KEIJIBAN.scTog(${i})" aria-pressed="${s.on}" aria-label="${s.on?'休みにする':'使う'}">${s.on?'ON':'OFF'}</button><button type="button" class="b" onclick="KEIJIBAN.scEdit(${i})"><b>${s.t}</b><small>${daysTxt(s.days)}・${(SC_DUR.find(x=>x[0]===s.dur)||SC_DUR[1])[1]}${s.chime?'・🔔':''}</small><span>${esc(s.text)}</span></button></div>`).join('')
-    : '<p class="kj-note">「＋ 予約を足す」で、決めた時刻に 流す文を 決められます（例：12:00「お昼休みです」・17:00「本日の作業は 終わりです」）。</p>';
+  b.innerHTML=st.sched.length ? st.sched.map((s,i)=>`<div class="kj-sc${s.on?'':' off'}"><button type="button" class="sw${s.on?' on':''}" onclick="KEIJIBAN.scTog(${i})" aria-pressed="${s.on}" aria-label="${s.on?'休みにする':'使う'}">${s.on?'ON':'OFF'}</button><button type="button" class="b" onclick="KEIJIBAN.scEdit(${i})"><b>${s.t}</b><small>${daysTxt(s.days)}・${durTxt(s.dur)}${s.chime?'・🔔':''}</small><span>${esc(scLabel(s))}</span></button></div>`).join('')
+    : '<p class="kj-note">「＋ 予約を足す」で、決めた時刻に 流す文や 出す絵を 決められます（例：12:00「お昼休みです」・17:00「本日の作業は 終わりです」・10:00 開店の絵を 1時間）。</p>';
   const n=$('kjNext'); if(n) n.textContent=nextTxt(Date.now());
 }
+// 絵の 小さな見本（写真は 読めたら 出す）
+function thumbHtml(p){
+  if(p.kind==='emoji') return `<span class="emo" style="background:${picBg(p)};color:${lightBg(p.bg)?'#111':'#fff'}">${esc(p.e)}</span>`;
+  const e=imgs.get(p.id);
+  if(e && e.ok && safeData(e.url)) return `<img src="${e.url}" alt="">`;
+  picImg(p.id); return `<span class="emo">${e && e.bad ? '？' : '…'}</span>`;
+}
+function paintPics(){
+  const b=$('kjPics'); if(!b) return;
+  b.innerHTML=st.pics.length ? st.pics.map((p,i)=>`<div class="kj-pic${p.id===st.picCur?' on':''}"><button type="button" class="th" onclick="KEIJIBAN.picPick(${i})" aria-label="${esc(picName(p))}">${thumbHtml(p)}</button><span class="nm">${esc(picName(p))}</span><div class="ab"><button type="button" class="go" onclick="KEIJIBAN.picGo(${i})" aria-label="全画面で出す">▶</button><button type="button" class="del" onclick="KEIJIBAN.picDel(${i})" aria-label="消す">🗑</button></div></div>`).join('')
+    : '<p class="kj-note">「📷 写真・画像を 足す」か「😀 絵文字で 作る」で 絵を 足せます。</p>';
+}
+function paintThumbs(){ paintPics(); edPaintPics(); paintSched(); }
 function textTab(){
   const o=(k, arr, lab)=>`<div class="kj-opt"><span>${lab}</span>${arr.map(a=>{ const v=Array.isArray(a)?a[0]:a, n=Array.isArray(a)?a[1]:a+'点'; return `<button type="button" class="${st[k]===v?'on':''}${k==='color'?' c-'+v:''}" onclick='KEIJIBAN.opt("${k}", ${JSON.stringify(v)})'>${n}</button>`; }).join('')}</div>`;
   return `<textarea id="kjText" class="kj-in" rows="2" maxlength="${MAX_TXT}" placeholder="流す文字（例：受付は こちらです）" oninput="KEIJIBAN.text(this.value)"></textarea>
@@ -772,23 +986,36 @@ function textTab(){
       ${st.look==='led' ? o('rows', ROWS, '点の細かさ') : ''}${o('rot', ROTS, '縦に持つと')}
       <p class="kj-note">全画面のあいだは 画面を消さないようにします（対応している端末）。画面を押すと「⏸ 止める」「✕ 終わる」が出ます。Android は 横向きの全画面に、iPhone は 縦に持っていても 90° 回して 横長に出します。</p></div>`;
 }
+const rotRow=()=>`<div class="kj-opt"><span>縦に持つと</span>${ROTS.map(([v,n])=>`<button type="button" class="${st.rot===v?'on':''}" onclick='KEIJIBAN.opt("rot", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>`;
+function picTab(){
+  const v=st.picv, o=(k, L, lab)=>`<div class="kj-opt"><span>${lab}</span>${L.map(([val,n])=>`<button type="button" class="${v[k]===val?'on':''}" onclick='KEIJIBAN.picOpt("${k}", ${JSON.stringify(val)})'>${n}</button>`).join('')}</div>`;
+  return `<div class="kj-sec"><h4>🖼 絵<small>押すと 見本に・▶ で すぐ全画面</small></h4>
+      <div class="kj-pics" id="kjPics"></div>
+      <div class="kj-acts sm"><button type="button" class="kj-b" onclick="KEIJIBAN.picAddFile()">📷 写真・画像を 足す</button><button type="button" class="kj-b" onclick="KEIJIBAN.picEmoji()">😀 絵文字で 作る</button></div>
+      <input type="file" id="kjPicFile" accept="image/*" hidden></div>
+    <button type="button" class="kj-go" onclick="KEIJIBAN.start()">▶ 全画面で 絵を出す</button>
+    <div class="kj-sec"><h4>⚙ 絵の見せ方</h4>${o('look', PIC_LOOK, '見せ方')}${o('fit', PIC_FIT, '大きさ')}${o('move', PIC_MOVE, '動き')}${rotRow()}
+      <p class="kj-note">「⏰ 予約」で、決めた時刻に 決めた絵を 決めた時間（10秒〜1時間・分を打つ・押すまで）だけ 出せます。<b>LED風</b>は 絵を 点の光で 出します。写真は この端末の中だけに しまいます（設定のバックアップには 入りません）。</p></div>`;
+}
 function clockTab(){
-  const c=st.ck, o=(k, L, lab)=>`<div class="kj-opt"><span>${lab}</span>${L.map(([v,n])=>`<button type="button" class="${c[k]===v?'on':''}${k==='color'?' c-'+v:''}" onclick='KEIJIBAN.ckOpt("${k}", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>`;
+  const c=st.ck, led=c.kind==='led', o=(k, L, lab)=>`<div class="kj-opt"><span>${lab}</span>${L.map(([v,n])=>`<button type="button" class="${c[k]===v?'on':''}${k==='color'?' c-'+v:''}" onclick='KEIJIBAN.ckOpt("${k}", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>`;
+  const deco=CK_DECO.filter(([k])=>led || k==='fire' || k==='date' || (k==='colon' && c.kind!=='analog'));
   return `<button type="button" class="kj-go" onclick="KEIJIBAN.startClock()">▶ 全画面で 時計を出す</button>
     <div class="kj-sec"><h4>🕐 時計の見た目</h4>
-      ${o('fmt', CK_FMT, '出し方')}${o('face', CK_FACE, '数字の形')}${o('color', CK_COL, '色')}
-      ${o('anim', CK_ANIM, 'かわるとき')}${o('idle', CK_IDLE, 'いつもの動き')}${o('dens', CK_DENS, '点の細かさ')}
-      <div class="kj-opt"><span>かざり</span>${CK_DECO.map(([k,n])=>`<button type="button" class="tg${c[k]?' on':''}" aria-pressed="${!!c[k]}" onclick="KEIJIBAN.ckTog('${k}')">${c[k]?'✓ ':''}${n}</button>`).join('')}</div>
-      <div class="kj-opt"><span>縦に持つと</span>${ROTS.map(([v,n])=>`<button type="button" class="${st.rot===v?'on':''}" onclick='KEIJIBAN.opt("rot", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>
-      <p class="kj-note">「かわるとき」の動きは 数字が かわるたびに 見られます（「時:分:秒」なら 毎秒）。<b>くるっ</b>＝ローラーのように回る・<b>ぽろぽろ</b>＝点が こぼれ落ちて 上から降って積もる・<b>ばらばら</b>＝点が 飛びちって 集まる・<b>ぱたぱた</b>＝パタッと めくれる・<b>いろいろ</b>＝毎回 ちがう動き。
-        <b>なみ</b>＝ゆらゆら波打つ・<b>ぴょん</b>＝1秒ごとに 跳ねる・<b>ふわっ</b>＝ゆっくり明るさが かわる。<b>秒の光</b>＝まわりを 1分で ひとまわり・<b>星空</b>＝まわりで 星が またたく・<b>正時の花火</b>＝毎時 0分に 花火（全画面の時計は 押したところにも 花火）・<b>日付も</b>＝ときどき 日付に かわる。<b>時間で かわる</b>色は 朝・昼・夕方・夜で かわります。</p></div>`;
+      ${o('kind', CK_KIND, '時計の種類')}${o('fmt', CK_FMT, '出し方')}${led ? o('face', CK_FACE, '数字の形') : ''}${c.kind!=='sky' ? o('color', CK_COL, '色') : ''}
+      ${c.kind==='analog' ? o('hand', CK_HAND, '秒針') : ''}${led ? o('anim', CK_ANIM, 'かわるとき')+o('idle', CK_IDLE, 'いつもの動き')+o('dens', CK_DENS, '点の細かさ') : ''}
+      <div class="kj-opt"><span>かざり</span>${deco.map(([k,n])=>`<button type="button" class="tg${c[k]?' on':''}" aria-pressed="${!!c[k]}" onclick="KEIJIBAN.ckTog('${k}')">${c[k]?'✓ ':''}${n}</button>`).join('')}</div>
+      ${rotRow()}
+      ${led ? `<p class="kj-note">「かわるとき」の動きは 数字が かわるたびに 見られます（「時:分:秒」なら 毎秒）。<b>くるっ</b>＝ローラーのように回る・<b>ぽろぽろ</b>＝点が こぼれ落ちて 上から降って積もる・<b>ばらばら</b>＝点が 飛びちって 集まる・<b>ぱたぱた</b>＝パタッと めくれる・<b>いろいろ</b>＝毎回 ちがう動き。
+        <b>なみ</b>＝ゆらゆら波打つ・<b>ぴょん</b>＝1秒ごとに 跳ねる・<b>ふわっ</b>＝ゆっくり明るさが かわる。<b>秒の光</b>＝まわりを 1分で ひとまわり・<b>星空</b>＝まわりで 星が またたく・<b>正時の花火</b>＝毎時 0分に 花火（全画面の時計は 押したところにも 花火）・<b>日付も</b>＝ときどき 日付に かわる。<b>時間で かわる</b>色は 朝・昼・夕方・夜で かわります。</p>`
+      : `<p class="kj-note">${KIND_NOTE[c.kind]||''} <b>正時の花火</b>＝毎時 0分に 花火（全画面の時計は 押したところにも${c.kind==='tsubu' ? '。つぶつぶは 粒が はじけます' : ' 花火'}）・<b>日付も</b>＝日付を 出す。</p>`}</div>`;
 }
 function schedTab(){
-  return `<div class="kj-sec"><h4>⏰ 予約<small>決めた時刻に 決めた文を 流します</small></h4>
+  return `<div class="kj-sec"><h4>⏰ 予約<small>決めた時刻に 決めた文や 絵を 出します</small></h4>
       <div class="kj-next" id="kjNext"></div><div id="kjScList"></div>
       <div class="kj-acts sm"><button type="button" class="kj-b" onclick="KEIJIBAN.scEdit()">＋ 予約を足す</button></div></div>
     <button type="button" class="kj-go" onclick="KEIJIBAN.startClock()">▶ 時計を 全画面で出して 待つ</button>
-    <p class="kj-note">予約の文は、この 電光掲示板（時計や文字）を 出している あいだだけ 流れます。全画面のあいだは 画面を消しません。スマホの画面を消したり、別のアプリに しているあいだは 流れません。チャイムは、一度 この画面の ボタンを押してから 鳴るように なります。流れている文は 画面の「✓ 終える」で 止められます。</p>`;
+    <p class="kj-note">予約の文や 絵は、この 電光掲示板（時計・文字・絵）を 出している あいだだけ 出ます。全画面のあいだは 画面を消しません。スマホの画面を消したり、別のアプリに しているあいだは 出ません。チャイムは、一度 この画面の ボタンを押してから 鳴るように なります。出ている予約は 画面の「✓ 終える」で 止められます。</p>`;
 }
 function render(){
   const b=$('kjBody'); if(!b) return;
@@ -797,11 +1024,66 @@ function render(){
     <div class="kj-info" id="kjInfo"></div>
     <div id="kjAnn"></div>
     <div class="kj-tabs" role="tablist">${TABS.map(([k,n])=>`<button type="button" role="tab" aria-selected="${tab===k}" class="${tab===k?'on':''}" onclick="KEIJIBAN.tab('${k}')">${n}</button>`).join('')}</div>
-    ${tab==='text' ? textTab() : tab==='clock' ? clockTab() : schedTab()}
+    ${tab==='text' ? textTab() : tab==='pic' ? picTab() : tab==='clock' ? clockTab() : schedTab()}
   </div>`;
   if(tab==='text'){ $('kjText').value=st.text; $('kjText').addEventListener('keydown', e=>{ if(e.key!=='Escape') e.stopPropagation(); }); paintList(); }
+  if(tab==='pic'){ paintPics(); $('kjPicFile').addEventListener('change', e=>{ const f=e.target.files && e.target.files[0]; e.target.value=''; if(f) addPicFile(f); }); }
   if(tab==='sched') paintSched();
   paintInfo(); paintAnn();
+}
+/* ───────── 🖼 絵を 足す・えらぶ・消す ───────── */
+function picAddFile(){
+  if(st.pics.length>=MAX_PICS){ toastK('絵は '+MAX_PICS+'まで です'); return; }
+  const f=$('kjPicFile'); if(f) f.click();
+}
+async function addPicFile(file){
+  if(st.pics.length>=MAX_PICS){ toastK('絵は '+MAX_PICS+'まで です'); return; }
+  try{
+    const url=await resizeImg(file, 1600), id=newPicId();
+    await picPut(id, url);
+    const im=new Image(); await new Promise((res,rej)=>{ im.onload=res; im.onerror=rej; im.src=url; });
+    imgs.set(id, {img:im, ok:true, bad:false, url});
+    st.pics.push({id, kind:'img', name:clean(String(file.name||'').replace(/\.[^.]*$/,''), 30).trim()}); st.picCur=id;
+    save(); paintPics(); paintInfo(); prevKey=''; toastK('🖼 絵を 足しました');
+  }catch(_){ toastK('絵を 読みこめませんでした'); }
+}
+function picEmoji(){
+  if(st.pics.length>=MAX_PICS){ toastK('絵は '+MAX_PICS+'まで です'); return; }
+  const cur={e:EMO[0], bg:'black'};
+  const el=popOpen(`<b>😀 絵文字で 絵を作る</b>
+    <div class="kj-emo-prev" id="kjEmoPrev"></div>
+    <div class="kj-emo-g">${EMO.map(e=>`<button type="button" data-e="${esc(e)}">${e}</button>`).join('')}</div>
+    <input id="kjEmoIn" class="kj-sc-in" maxlength="8" autocomplete="off" placeholder="ほかの絵文字や 字を 打つ（例：🍜・休）">
+    <div class="kj-tp-l">うしろの色</div><div class="kj-days" id="kjEmoBg">${EMO_BG.map(([k,n])=>`<button type="button" data-bg="${k}">${n}</button>`).join('')}</div>
+    <div class="kj-tp-l">名前（なくても よい）</div><input id="kjEmoName" class="kj-sc-in" maxlength="30" autocomplete="off" placeholder="例：お昼休み">
+    <div class="kj-pop-acts"><button type="button" class="kj-b" data-x="cancel">やめる</button><button type="button" class="kj-b pri" data-x="ok">✓ 作る</button></div>`);
+  const paint=()=>{ const pv=$('kjEmoPrev'); pv.style.background=picBg({kind:'emoji', bg:cur.bg}); pv.style.color=lightBg(cur.bg)?'#111':'#fff'; pv.textContent=cur.e;
+    el.querySelectorAll('[data-e]').forEach(b=>b.classList.toggle('on', b.dataset.e===cur.e)); el.querySelectorAll('[data-bg]').forEach(b=>b.classList.toggle('on', b.dataset.bg===cur.bg)); };
+  el.addEventListener('click', e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    if(b.dataset.e){ cur.e=b.dataset.e; $('kjEmoIn').value=''; }
+    else if(b.dataset.bg){ cur.bg=b.dataset.bg; }
+    else if(b.dataset.x==='cancel'){ popClose(); return; }
+    else if(b.dataset.x==='ok'){
+      const typed=clean($('kjEmoIn').value, 8).trim(), p={id:newPicId(), kind:'emoji', e:typed||cur.e, bg:cur.bg, name:clean($('kjEmoName').value, 30).trim()};
+      st.pics.push(p); st.picCur=p.id; save(); popClose(); paintPics(); paintInfo(); prevKey=''; toastK('🖼 絵を 足しました'); return;
+    }
+    paint();
+  });
+  $('kjEmoIn').addEventListener('input', ()=>{ const v=clean($('kjEmoIn').value, 8).trim(); if(v){ cur.e=v; paint(); } });
+  ['kjEmoIn','kjEmoName'].forEach(id=>$(id).addEventListener('keydown', e=>e.stopPropagation()));
+  paint();
+}
+function picPick(i){ const p=st.pics[i]; if(!p) return; st.picCur=p.id; save(); paintPics(); paintInfo(); restart(); }
+function picGo(i){ picPick(i); startFull('pic'); }
+async function picDelete(i){
+  const p=st.pics[i]; if(!p) return;
+  const used=st.sched.filter(s=>s.kind==='pic' && s.pic===p.id).length;
+  if(typeof appConfirm==='function' && !await appConfirm('「'+picName(p)+'」の絵を 消しますか？'+(used ? '（この絵を出す 予約 '+used+'件も 消えます）' : ''), '消す', 'やめる')) return;
+  st.pics.splice(i,1); st.sched=st.sched.filter(s=>!(s.kind==='pic' && s.pic===p.id));
+  if(st.picCur===p.id) st.picCur=st.pics[0] ? st.pics[0].id : '';
+  if(p.kind==='img'){ picDbDel(p.id); imgs.delete(p.id); }
+  ledPics.clear(); save(); paintPics(); paintInfo(); prevKey='';
 }
 const KJ_CSS=`
 #keijibanOverlay .kj-modal{ display:flex; flex-direction:column; }
@@ -809,8 +1091,8 @@ const KJ_CSS=`
 .kj-wrap{ max-width:820px; margin:0 auto; }
 .kj-prev{ display:block; width:100%; height:min(28vw,170px); border-radius:12px; background:#050505; cursor:pointer; box-shadow:0 0 0 3px #222 inset; }
 .kj-info{ font-size:12px; color:var(--text-light,#666); text-align:right; min-height:18px; margin:3px 2px 6px; }
-.kj-tabs{ display:grid; grid-template-columns:repeat(3,1fr); gap:4px; margin:0 0 8px; }
-.kj-tabs button{ min-height:46px; border-radius:12px; border:1px solid rgba(120,132,156,.4); background:var(--modal-bg,#fff); color:var(--text,#333); font-size:15px; font-weight:bold; cursor:pointer; }
+.kj-tabs{ display:grid; grid-template-columns:repeat(4,1fr); gap:4px; margin:0 0 8px; }
+.kj-tabs button{ min-height:46px; padding:0 2px; border-radius:12px; border:1px solid rgba(120,132,156,.4); background:var(--modal-bg,#fff); color:var(--text,#333); font-size:14.5px; font-weight:bold; cursor:pointer; white-space:nowrap; }
 .kj-tabs button.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); }
 .kj-in{ display:block; width:100%; box-sizing:border-box; padding:10px 12px; border-radius:12px; border:1px solid rgba(120,132,156,.55); background:var(--cell-bg,#fff); color:var(--text,#222); font:inherit; font-size:19px; line-height:1.4; resize:vertical; }
 .kj-go{ display:block; width:100%; min-height:60px; margin:8px 0 0; border-radius:14px; border:0; background:var(--acc); color:var(--on-acc,#fff); font-size:20px; font-weight:bold; cursor:pointer; }
@@ -849,11 +1131,29 @@ body.dark .kj-opt button.c-red:not(.on){ color:#ff8a80; } body.dark .kj-opt butt
 .kj-tp-fine{ display:flex; gap:6px; margin-top:8px; } .kj-tp-fine button{ flex:none; height:40px; padding:0 10px; border-radius:8px; border:1px solid rgba(120,132,156,.4); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:13.5px; font-weight:bold; cursor:pointer; }
 .kj-tp-fine input, .kj-sc-in{ flex:1; min-width:0; height:40px; box-sizing:border-box; padding:0 10px; border-radius:8px; border:1px solid rgba(120,132,156,.5); background:var(--cell-bg,#fff); color:var(--text,#222); font-size:16px; }
 .kj-sc-in{ display:block; width:100%; } .kj-sc-sel{ display:block; width:100%; margin-top:6px; height:40px; border-radius:8px; border:1px solid rgba(120,132,156,.5); background:var(--cell-bg,#fff); color:var(--text,#222); font-size:14px; }
-.kj-days{ display:flex; flex-wrap:wrap; gap:4px; } .kj-days .pre{ min-width:58px; } .kj-days .wd{ width:38px; padding:0; }
+.kj-days{ display:flex; flex-wrap:wrap; gap:4px; } .kj-days .pre{ min-width:58px; } .kj-days .wd{ width:38px; padding:0; } .kj-days .kd{ min-width:84px; }
+.kj-tp-fine.mi{ align-items:center; } .kj-tp-fine.mi span{ font-size:13px; font-weight:bold; color:var(--text-light,#777); } .kj-tp-fine.mi input{ flex:0 0 76px; } .kj-tp-fine.mi .end{ flex:1; color:var(--acc-text,var(--acc)); }
+.kj-sc-pics{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+.kj-sc-pics button{ aspect-ratio:4/3; padding:0; border-radius:8px; border:2px solid rgba(120,132,156,.35); background:#000; overflow:hidden; cursor:pointer; }
+.kj-sc-pics button.on{ border-color:var(--acc); box-shadow:0 0 0 2px var(--acc); }
+.kj-sc-pics img, .kj-pic .th img{ display:block; width:100%; height:100%; object-fit:cover; }
+.kj-sc-pics .emo, .kj-pic .emo{ display:flex; width:100%; height:100%; align-items:center; justify-content:center; font-size:26px; color:#fff; }
+.kj-pics{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.kj-pic{ min-width:0; padding:3px; border-radius:12px; border:2px solid transparent; } .kj-pic.on{ border-color:var(--acc); }
+.kj-pic .th{ display:block; width:100%; aspect-ratio:4/3; padding:0; border:0; border-radius:9px; overflow:hidden; background:#000; cursor:pointer; }
+.kj-pic .emo{ font-size:44px; }
+.kj-pic .nm{ display:block; margin:3px 2px 0; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.kj-pic .ab{ display:flex; gap:4px; margin-top:3px; }
+.kj-pic .ab button{ flex:1; height:34px; border-radius:8px; border:1px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#222); font-size:14px; cursor:pointer; }
+.kj-pic .ab .go{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); }
+.kj-emo-prev{ width:120px; height:90px; margin:4px auto 8px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:58px; font-weight:bold; box-shadow:0 0 0 1px rgba(120,132,156,.35) inset; }
+.kj-emo-g{ display:grid; grid-template-columns:repeat(6,1fr); gap:4px; margin-bottom:6px; }
+.kj-emo-g button{ height:42px; padding:0; font-size:24px; border-radius:8px; border:1px solid rgba(120,132,156,.35); background:transparent; cursor:pointer; }
+.kj-emo-g button.on{ border-color:var(--acc); box-shadow:0 0 0 2px var(--acc) inset; }
 .kj-chk{ display:flex; align-items:center; gap:6px; margin:10px 0 0; font-size:14.5px; } .kj-chk input{ width:20px; height:20px; }
 .kj-pop-acts{ position:sticky; bottom:0; display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end; margin-top:12px; padding:10px 0 14px; background:var(--panel,var(--modal-bg,#fff)); border-top:1px solid rgba(120,132,156,.22); } .kj-pop-acts .kj-b.del{ margin-right:auto; }
 .kj-full{ position:fixed; inset:0; z-index:99990; background:#000; overflow:hidden; touch-action:none; }
-.kj-full.ck #kjPauseB{ display:none; }
+.kj-full.ck #kjPauseB, .kj-full.pc #kjPauseB{ display:none; }
 .kj-stage{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); }
 .kj-stage.rot{ transform:translate(-50%,-50%) rotate(90deg); }
 .kj-stage canvas{ display:block; }
@@ -877,14 +1177,14 @@ function ensureDom(){
 function cleanup(){ popClose(); stopFull(); cancelAnimationFrame(raf); raf=0; ann=null; annQ=[]; }
 function openKeijiban(){
   ensureDom(); load(); bms.clear(); grids.clear(); geo=null; cst=[];
-  tab=st.mode==='clock' ? 'clock' : 'text';
+  tab=st.mode==='clock' || st.mode==='pic' ? st.mode : 'text';
   openDlg('keijibanOverlay', cleanup);
   render(); restart();
 }
 function closeKeijiban(){ if(!$('keijibanOverlay')||!isDlgOpen('keijibanOverlay')) return; closeDlg('keijibanOverlay', cleanup); }
 
 const curCv=()=>{ const cv=$('kjFullCv')||$('kjPrev'); if(cv) sizeCanvas(cv); return cv; };
-window.KEIJIBAN={ text:setText, start:()=>{ startFull(tab==='text'?'text':'clock'); }, startClock:()=>{ startFull('clock'); }, stopFull:()=>stopFull(), pause:togglePause,
+window.KEIJIBAN={ text:setText, start:()=>{ startFull(tab==='text' || tab==='pic' ? tab : 'clock'); }, startClock:()=>{ startFull('clock'); }, stopFull:()=>stopFull(), pause:togglePause,
   keep, del:i=>{ del(i); }, resetList:()=>{ resetList(); }, pick, go, clear:clearText, opt:setOpt,
   tab:setTab, ckOpt, ckTog, scEdit:i=>{ scEdit(i==null?null:i); }, scTog, annEnd:()=>endAnn(),
   state:()=>JSON.parse(JSON.stringify(st)), bitmap:()=>{ const b=bitmap(); return {w:b.w, h:b.h, n:b.n}; },
@@ -897,7 +1197,13 @@ window.KEIJIBAN={ text:setText, start:()=>{ startFull(tab==='text'?'text':'clock
   ckDots:ms=>{ const cv=curCv(); if(!cv) return []; rec=[]; ckPrevKey=''; ckDraw(cv, ms); const r=rec; rec=null; return r; },
   ckTrans:ms=>cst.filter(s=>s.prev!=null && ms-s.t0<TR_DUR[s.a]).map(s=>s.prev+'→'+s.ch), ckView:()=>ckView, ckColor:ms=>ckColor(new Date(ms)),
   fx:()=>({fw:fw.parts.length, fwOn:fw.until>Date.now(), chimes, stars:stars.length, last:fw.last ? fw.last.map(v=>Math.round(v)) : null}),
-  ann:()=>ann ? {t:ann.t, text:ann.text, dur:ann.dur, passes:textPass} : null, queue:()=>annQ.length,
-  next:ms=>nextTxt(ms==null?Date.now():ms), freeze:b=>{ frozen=!!b; } };
+  ann:()=>ann ? {t:ann.t, kind:ann.kind, pic:ann.pic, text:ann.text, dur:ann.dur, passes:textPass} : null, queue:()=>annQ.length,
+  next:ms=>nextTxt(ms==null?Date.now():ms), freeze:b=>{ frozen=!!b; },
+  // 🖼 絵・動く時計（v571）
+  picOpt, picPick, picGo, picDel:i=>{ picDelete(i); }, picAddFile, picEmoji, addPic:f=>addPicFile(f),
+  picDraw:t=>{ const cv=curCv(); if(!cv) return -1; return drawPic(cv, picById(st.picCur), t==null?5:t, ''); },
+  picReady:id=>{ const p=picById(id||st.picCur); if(!p) return false; if(p.kind==='emoji') return true; picImg(p.id); const e=imgs.get(p.id); return !!(e && e.ok); },
+  picStored:async id=>safeData(await picGet(id)),
+  anim:()=>window.KJ_CLOCKS ? KJ_CLOCKS.info() : null, animMoving:ms=>window.KJ_CLOCKS ? KJ_CLOCKS.moving(st.ck.kind, ms) : -1 };
 Object.assign(window, { openKeijiban, closeKeijiban });
 })();
