@@ -1,8 +1,8 @@
-const CACHE = 'excalc-v570';
+const CACHE = 'excalc-v571';
 const CACHE_PREFIX = 'excalc-';   // このアプリのキャッシュだけを見分けるための名前
 // v561〜v563 の 📷レシート読み取りが「文字を読む部品」を入れていた控え（hyo-ocr-〇）。道具を外したので 見つけたら消す（v564）
 const OLD_OCR_PREFIX = 'hyo-ocr-';
-const ASSETS = ['./', './index.html', './help.js', './photomemo.js', './techo.js', './subsc.js', './heya.js', './annai.js', './shimai.js', './meishi.js', './renraku.js', './renraku-yomi.js', './renraku-icons.js', './trim.js', './manner.js', './boki.js', './kurashi.js', './keisan.js', './ruler.js', './kakudo.js', './tatekae.js', './kuji.js', './dasetsu.js', './okaeshi.js', './koyomi-data.js', './koyomi.js', './hoi.js', './soroban.js', './hitsudan.js', './keijiban.js', './hyoplus.js', './regi.js', './kakeizu.js', './koe/phrase.js', './hyovoice.js', './manifest.json',
+const ASSETS = ['./', './index.html', './help.js', './photomemo.js', './techo.js', './subsc.js', './heya.js', './annai.js', './shimai.js', './meishi.js', './renraku.js', './renraku-yomi.js', './renraku-icons.js', './trim.js', './manner.js', './boki.js', './kurashi.js', './keisan.js', './ruler.js', './kakudo.js', './tatekae.js', './kuji.js', './dasetsu.js', './okaeshi.js', './koyomi-data.js', './koyomi.js', './hoi.js', './soroban.js', './hitsudan.js', './keijiban.js', './keijiban-clock.js', './hyoplus.js', './regi.js', './kakeizu.js', './koe/phrase.js', './hyovoice.js', './manifest.json',
   './saien/index.html', './saien/css/style.css', './saien/js/version.js', './saien/js/veg-data.js', './saien/js/veg-more.js', './saien/js/util.js', './saien/js/plan.js', './saien/js/grow.js', './saien/js/sick.js', './saien/js/weather.js', './saien/js/qr.js', './saien/js/advice.js', './saien/js/myplan.js', './saien/js/export.js', './saien/js/fieldmap.js', './saien/js/records.js', './saien/js/share.js', './saien/js/voice.js', './saien/js/store.js', './saien/js/app.js', './saien/icon-192.png',
   './icon-192.png', './icon-512.png',
   './icon-maskable-192.png', './icon-maskable-512.png', './apple-touch-icon.png',

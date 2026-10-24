@@ -9334,6 +9334,11 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v571', t:'📢 電光掲示板に 🖼 絵の予約・いろいろな 動く時計', li:[
+    '🖼<b>絵</b>の札が できました。写真・画像や 絵文字（🍙・🚻・⚠️ など。打った字も）で 作った絵を 全画面で 出せます。見せ方は そのまま／<b>LED風（点の光）</b>、大きさ・ゆっくりズームも えらべます',
+    '⏰ 予約で、文の かわりに <b>絵</b>も えらべます。<b>決めた時刻に 決めた絵を 決めた時間</b>（10秒〜1時間・分を打つ・押すまで）だけ 出します。絵の下に 文を 流すことも できます',
+    '🕐 時計に <b>種類</b>が ふえました：🕰 アナログ（秒針が カチッと はねる）・📟 パタパタ（めくり）・✨ ネオン（ちらついて 点く）・🫧 ぽよん（落ちてきて はずむ）・🌅 空と太陽（時刻で 空の色が かわる）・🔢 つぶつぶ（粒が 集まって 数字に。押すと はじける）'
+  ]},
   { v:'v570', t:'📢 電光掲示板に 🕐 動く時計・⏰ 予約', li:[
     '📢<b>電光掲示板</b>に「🕐 時計」が できました。<b>数字が かわるたびに 動きます</b>：くるっ（ローラー）・ぽろぽろ（点が こぼれ落ちて 上から降って積もる）・ばらばら（飛びちって 集まる）・ぱたぱた（めくれる）・いろいろ（毎回 ちがう）',
     '時:分:秒／時:分／午前・午後、数字の形（7セグ・ドット・まるい）、色（虹・時間で かわる も）、いつもの動き（なみ・ぴょん・ふわっ）、かざり（「:」の点滅・まわりを回る 秒の光・星空・毎時0分の 花火・ときどき 日付）を えらべます。全画面の時計を 押すと そこに 花火',
@@ -15112,7 +15117,7 @@ sidePartOpener('openSoroban', ['soroban.js'], 'そろばん');
 window.closeKoyomi=function(){}; window.closeHoi=function(){}; window.closeSoroban=function(){};
 /* ── 🗣 筆談ボード・📢 電光掲示板（v569。hitsudan.js・keijiban.js に分けてある。はじめて開いたときに読む）── */
 sidePartOpener('openHitsudan', ['hitsudan.js'], '筆談ボード');
-sidePartOpener('openKeijiban', ['keijiban.js'], '電光掲示板');
+sidePartOpener('openKeijiban', ['keijiban-clock.js','keijiban.js'], '電光掲示板');   // 動く時計の描き方（v571）も いっしょに
 window.closeHitsudan=function(){}; window.closeKeijiban=function(){};
 /* ── 📏定規（v496。ruler.js に分けてある）──
    スマホの画面を定規にする（カード・硬貨で校正）＋写真に並べた基準から長さを測る。はじめて開いたときに ruler.js を読む。 */
@@ -22342,7 +22347,7 @@ const TOOL_HINTS={
   hoi:'「🧭 方位を使う」を押して スマホを水平に持つと、方位磁石になります。金色が 今年の恵方、赤が 鬼門・裏鬼門です。恵方を向くと 知らせます。',
   soroban:'珠を押すと 動きます（下の珠は 押すと梁まで上がり、上がっている珠を押すと下がる）。「👀 見取り算」「🔈 読み上げ算」で 練習できます。',
   hitsudan:'「🎤 話す」を押して 話すと、声が 大きな文字に なります（耳の遠い方に 見せる）。「⌨ 打つ」「✍ 書く」と ⭐ よく使う言葉も。大きな字を押すと 画面いっぱいに出ます。',
-  keijiban:'文字を打って「▶ 全画面で 出す」を押すと、大きな文字が 流れます。「🕐 時計」で 数字が 動く時計、「⏰ 予約」で 決めた時刻に 文を 流せます。画面を押すと 止める・終わるが 出ます。',
+  keijiban:'文字を打って「▶ 全画面で 出す」を押すと、大きな文字が 流れます。「🖼 絵」で 写真や絵文字の絵、「🕐 時計」で 動く時計（アナログ・パタパタ など）、「⏰ 予約」で 決めた時刻に 文や絵を 出せます。',
   ruler:'はじめに「🎯 校正」でカードや硬貨を画面に当てて合わせると、定規が正しい長さになります。「📷 写真で測る」は基準の物と並べて撮ってなぞります。',
   keisan:'8つの計算から選びます。入れた数は覚えるので、次も続きから使えます。',
   kurashi:'10のテーマから選ぶか、上の欄で「AED」「死亡届」「失業保険」のようにさがします。ページの中の 🧮 道具で、期限や金額の目安も出せます。',
@@ -22703,7 +22708,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v570';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v571';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -25195,7 +25200,7 @@ const ST_GROUPS=[
   {k:'excalc_hoi',        n:'方位と恵方（残した向き）'},
   {k:'excalc_soroban',    n:'そろばん（けた・練習の記録）'},
   {k:'excalc_hitsudan',   n:'筆談ボード（よく使う言葉・見た目）'},
-  {k:'excalc_keijiban',   n:'電光掲示板（文・よく使う文・見た目・時計・予約）'},
+  {k:'excalc_keijiban',   n:'電光掲示板（文・よく使う文・見た目・時計・予約・絵の一覧。写真は別）'},
   {k:'excalc_receipt',    n:'読み取ったレシート（道具は外しました）', how:'clear'},   // v561〜v563 の 📷レシート読み取りの残り。勝手には消さない
   {k:'excalc_links',      n:'リンク集'},
   {k:'excalc_userkeys',   n:'自分のボタン'},
@@ -25385,7 +25390,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_tatekae','excalc_kuji','excalc_dasetsu',   // 💴立て替え精算・🎲くじ・🚛打設の段取り（v561）
   'excalc_okaeshi',   // 🎁いただきもの・お返し帳（v564）
   'excalc_koyomi','excalc_hoi','excalc_soroban',   // 🗓こよみ・⛩方位と恵方（残した向き）・🧮そろばん（v568）
-  'excalc_hitsudan','excalc_keijiban',   // 🗣筆談ボード（よく使う言葉）・📢電光掲示板（文・時計・予約）（v569・v570）
+  'excalc_hitsudan','excalc_keijiban',   // 🗣筆談ボード（よく使う言葉）・📢電光掲示板（文・時計・予約・絵の一覧。写真は入らない）（v569〜v571）
 ];
 function settingsBundle(){
   const o={};
