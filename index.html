@@ -9334,6 +9334,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v572', t:'📢 電光掲示板：流す速さを 5段に・全体に ゆっくり', li:[
+    '📢<b>電光掲示板</b>の 流す速さを <b>5段</b>（とても ゆっくり・ゆっくり・ふつう・はやい・とても はやい）から えらべるように しました',
+    '速さは <b>全体に 1段 ゆっくり</b>に なりました（前の「ゆっくり」が いまの「ふつう」）。予約の文や 絵の下に流す文も 同じ速さです'
+  ]},
   { v:'v571', t:'📢 電光掲示板に 🖼 絵の予約・いろいろな 動く時計', li:[
     '🖼<b>絵</b>の札が できました。写真・画像や 絵文字（🍙・🚻・⚠️ など。打った字も）で 作った絵を 全画面で 出せます。見せ方は そのまま／<b>LED風（点の光）</b>、大きさ・ゆっくりズームも えらべます',
     '⏰ 予約で、文の かわりに <b>絵</b>も えらべます。<b>決めた時刻に 決めた絵を 決めた時間</b>（10秒〜1時間・分を打つ・押すまで）だけ 出します。絵の下に 文を 流すことも できます',
@@ -22708,7 +22712,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v571';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v572';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

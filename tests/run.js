@@ -10397,7 +10397,7 @@ async function runKeijiban569(browser) {
   check('  開く：見本・はじめの文・LED風 赤 流す・24点・よく使う文 12', await page.evaluate(() => { const s = KEIJIBAN.state(); return [isDlgOpen('keijibanOverlay'), document.getElementById('kjText').value, s.look, s.color, s.move, s.speed, s.rows, s.rot, s.list.length, document.querySelectorAll('.kj-li').length, document.getElementById('kjInfo').textContent].join('/'); }),
     'true/受付は こちらです/led/red/scroll/mid/24/auto/12/12/24点の文字で 約8字ぶん');
   check('  文字を 24点の高さの 点の表にする', await page.evaluate(() => { const b = KEIJIBAN.bitmap(); return [b.h, b.w > 150, b.n > 300].join('/'); }), '24/true/true');
-  check('  ← 流す：はじめは 右はしの外・1秒に 2.2字ぶん（24点×2.2）左へ・ひと回りで もとに', await page.evaluate(() => { const b = KEIJIBAN.bitmap(), L = b.w + 50; return [KEIJIBAN.pos(0, 50).x0, KEIJIBAN.pos(0.5, 50).x0, KEIJIBAN.pos(1, 50).x0, KEIJIBAN.pos(L / 52.8 + 0.001, 50).x0].join(','); }), '50,24,-2,50');
+  check('  ← 流す：はじめは 右はしの外・1秒に 1.2字ぶん（24点×1.2。v572 で 1段 ゆっくり）左へ・ひと回りで もとに', await page.evaluate(() => { const b = KEIJIBAN.bitmap(), L = b.w + 50; return [KEIJIBAN.pos(0, 50).x0, KEIJIBAN.pos(0.5, 50).x0, KEIJIBAN.pos(1, 50).x0, KEIJIBAN.pos(L / 28.8 + 0.001, 50).x0].join(','); }), '50,36,22,50');
   check('  見本に描く：右はしの外のときは 光らない・流れてくると 光る', await page.evaluate(() => [KEIJIBAN.draw(0), KEIJIBAN.draw(0.6) > 30].join('/')), '0/true');
   await page.fill('#kjText', 'OK'); await w(100);
   await page.evaluate(() => KEIJIBAN.opt('move', 'still')); await w(100);
@@ -10803,6 +10803,25 @@ async function runKeijiban571(browser) {
   check('  エラーなし', errs.join(' | '), '');
   const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8'), rd = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
   check('  service-worker・README に keijiban-clock.js', [sw.includes("'./keijiban-clock.js'"), rd.includes('`keijiban-clock.js`')].join('/'), 'true/true');
+  await ctx.close();
+}
+
+async function runKeijiban572(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📢 電光掲示板 v572：流す速さを 5段・全体に 1段 ゆっくり ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => openKeijiban()); await w(500);
+  check('  速さは 5段（はじめは ふつう）', await page.evaluate(() => { const r = [...document.querySelectorAll('.kj-opt')].find(x => x.querySelector('span').textContent === '速さ'); return [[...r.querySelectorAll('button')].map(b => b.textContent).join(','), r.querySelector('.on').textContent, KEIJIBAN.state().speed].join('/'); }), 'とても ゆっくり,ゆっくり,ふつう,はやい,とても はやい/ふつう/mid');
+  check('  1秒で 流れる点（24点の文字）：とても ゆっくり 10・ゆっくり 16・ふつう 28・はやい 52・とても はやい 86', await page.evaluate(() => ['vslow', 'slow', 'mid', 'fast', 'vfast'].map(v => { KEIJIBAN.opt('speed', v); return 50 - KEIJIBAN.pos(1, 50).x0; }).join(',')), '10,16,28,52,86');
+  await page.click('.kj-opt button:has-text("とても ゆっくり")'); await w(150);
+  check('  ボタンで えらぶ・覚える', await page.evaluate(() => { const r = [...document.querySelectorAll('.kj-opt')].find(x => x.querySelector('span').textContent === '速さ'); return [KEIJIBAN.state().speed, JSON.parse(localStorage.getItem('excalc_keijiban')).speed, r.querySelector('.on').textContent].join('/'); }), 'vslow/vslow/とても ゆっくり');
+  await page.evaluate(() => { closeKeijiban(); const o = JSON.parse(localStorage.getItem('excalc_keijiban')); o.speed = 'fast'; localStorage.setItem('excalc_keijiban', JSON.stringify(o)); openKeijiban(); }); await w(300);
+  check('  前に「はやい」を えらんでいた人も 1段 ゆっくり（前の ふつうの速さ）', await page.evaluate(() => [KEIJIBAN.state().speed, 50 - KEIJIBAN.pos(1, 50).x0].join('/')), 'fast/52');
+  await page.evaluate(() => { closeKeijiban(); const o = JSON.parse(localStorage.getItem('excalc_keijiban')); o.speed = 'zz'; localStorage.setItem('excalc_keijiban', JSON.stringify(o)); openKeijiban(); KEIJIBAN.opt('speed', 'turbo'); }); await w(300);
+  check('  ない速さは ふつうに', await page.evaluate(() => [KEIJIBAN.state().speed, 50 - KEIJIBAN.pos(1, 50).x0].join('/')), 'mid/28');
+  check('  ふつうの文字も 同じ速さの えらび', await page.evaluate(() => { KEIJIBAN.opt('look', 'plain'); KEIJIBAN.opt('speed', 'vslow'); const a = KEIJIBAN.draw(0.5); KEIJIBAN.opt('speed', 'vfast'); const b = KEIJIBAN.draw(0.5); KEIJIBAN.opt('look', 'led'); KEIJIBAN.opt('speed', 'mid'); return [a, b].join('/'); }), '1/1');
+  await page.evaluate(() => closeKeijiban()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
 async function runKakijunSE(browser) {
@@ -16191,6 +16210,7 @@ async function runQrShare(browser) {
     if (!only || only === 'keijiban' || only === 'v569') await runKeijiban569(browser);
     if (!only || only === 'keijiban570' || only === 'keijiban' || only === 'v570') await runKeijiban570(browser);
     if (!only || only === 'keijiban571' || only === 'keijiban' || only === 'v571') await runKeijiban571(browser);
+    if (!only || only === 'keijiban572' || only === 'keijiban' || only === 'v572') await runKeijiban572(browser);
     if (!only || only === 'saveas') await runSaveAs560(browser);
     if (!only || only === 'tatekae' || only === 'v561') await runTatekae561(browser);
     if (!only || only === 'kuji' || only === 'v561') await runKuji561(browser);

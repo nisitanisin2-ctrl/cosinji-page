@@ -1,6 +1,6 @@
 /* 📢 電光掲示板（v569。表電卓の道具。はじめて開いたときに読む。apps/keijiban/ から単独のアプリとしても開ける）
    ・📝 文字：打った文字を 大きく流す。見た目は LED風（点で光る文字）／ふつうの文字。
-     色（赤・緑・黄・白・青・虹）・動き（← 流す・止める・点滅）・速さ・点の細かさ（16・24・32 点）。⭐ よく使う文。
+     色（赤・緑・黄・白・青・虹）・動き（← 流す・止める・点滅）・速さ（5段。v572 で 全体に 1段 ゆっくりに）・点の細かさ（16・24・32 点）。⭐ よく使う文。
    ・🕐 時計（v570）：時:分／時:分:秒／午前・午後。数字の形（7セグ・ドット・まるい）・色（虹・時間で かわる も）・
      数字が かわるときの動き（くるっ・ぽろぽろ・ばらばら・ぱたぱた）・いつもの動き（なみ・ぴょん・ふわっ）・
      かざり（「:」の点滅・秒の光・星空・正時の花火・日付も ときどき）・点の細かさ。
@@ -27,7 +27,8 @@ const DEF_LIST=['受付は こちらです','少々 お待ちください','た�
 const LOOKS=[['led','LED風（点）'],['plain','ふつうの文字']];
 const COLS=[['red','赤','#ff3b30'],['green','緑','#2bff6e'],['yellow','黄','#ffd60a'],['white','白','#f4f4f4'],['blue','青','#3aa0ff'],['rainbow','虹','']];
 const MOVES=[['scroll','← 流す'],['still','止める'],['blink','点滅']];
-const SPEEDS=[['slow','ゆっくり',1.2],['mid','ふつう',2.2],['fast','はやい',3.6]];   // 1秒に 流れる 字の数（字の高さ ぶん）
+// 1秒に 流れる 字の数（字の高さ ぶん）。v572：5段にして 全体に 1段 ゆっくり（前の「ゆっくり」が いまの「ふつう」）
+const SPEEDS=[['vslow','とても ゆっくり',0.45],['slow','ゆっくり',0.7],['mid','ふつう',1.2],['fast','はやい',2.2],['vfast','とても はやい',3.6]];
 const ROWS=[16,24,32];
 const ROTS=[['auto','縦に持っていたら 回す'],['off','回さない']];
 const FONT='"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Noto Sans CJK JP","Yu Gothic",Meiryo,sans-serif';
@@ -167,7 +168,7 @@ function grid(W, H, pitch, C, R, col){
 }
 
 /* ───────── 文字を流す（t 秒のとき）───────── */
-const charsPerSec=()=>(SPEEDS.find(x=>x[0]===st.speed)||SPEEDS[1])[2];
+const charsPerSec=()=>(SPEEDS.find(x=>x[0]===st.speed)||SPEEDS.find(x=>x[0]==='mid'))[2];
 // LED風：画面の列 C に対して 文字の左はしが 何列目か（x0）と、点いているか（on）
 function posFor(t, C, b, move){
   const fits=b.w<=C;
