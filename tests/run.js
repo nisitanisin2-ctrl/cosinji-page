@@ -10889,6 +10889,57 @@ async function runKeijiban573(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+
+async function runKeijiban574(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📢 電光掲示板 v574：縦に持つと 縦書きで 縦に流す ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => {
+    window.__lock = '';
+    Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async () => ({ release() { } }) } });
+    Element.prototype.requestFullscreen = function () { return Promise.resolve(); };
+    if (screen.orientation) { screen.orientation.lock = async o => { window.__lock = o; }; screen.orientation.unlock = () => { }; }
+  });
+  await page.evaluate(() => openKeijiban()); await w(500);
+  check('  縦に持つと：回す・回さない・縦書きで 縦に流す', await page.evaluate(() => { const r = [...document.querySelectorAll('.kj-opt')].find(x => x.querySelector('span').textContent === '縦に持つと'); return [...r.querySelectorAll('button')].map(b => b.textContent).join(','); }), '縦に持っていたら 回す,回さない,縦書きで 縦に流す');
+  await page.click('.kj-opt button:has-text("縦書きで 縦に流す")'); await w(300);
+  check('  縦書きに すると 見本も 縦長に・縦書きで 描く・覚える', await page.evaluate(() => { const cv = document.getElementById('kjPrev'), r = cv.getBoundingClientRect(); return [KEIJIBAN.state().rot, JSON.parse(localStorage.getItem('excalc_keijiban')).rot, cv.classList.contains('tate'), r.height > r.width, KEIJIBAN.vert(), KEIJIBAN.draw(1.5) > 50, document.getElementById('kjInfo').textContent].join('/'); }),
+    'tate/tate/true/true/true/true/縦に持つと 縦書きで 流します（24点の文字）');
+  check('  1字ずつ 縦に つなぐ（空白は 半分）', await page.evaluate(() => { const b = KEIJIBAN.vbox('受付は こちらです'); return [b.w, b.h, b.cuts.slice(0, 5).join(',')].join('/'); }), '24/204/24,48,72,84,108');
+  check('  ← 流す＝下から 上へ（1秒に 28段）・→ 流す＝上から 下へ', await page.evaluate(() => { const b = KEIJIBAN.vbox(KEIJIBAN.state().text), a = [KEIJIBAN.vpos(0, 40).y0, KEIJIBAN.vpos(1, 40).y0]; KEIJIBAN.opt('move', 'right'); a.push(KEIJIBAN.vpos(0, 40).y0 === -b.h, KEIJIBAN.vpos(1, 40).y0 + b.h, KEIJIBAN.draw(2) > 50); KEIJIBAN.opt('move', 'scroll'); return a.join('/'); }), '40/12/true/28/true');
+  check('  「ー」「〜」は 縦の棒に（横に倒す）・「一」は そのまま・「。」「、」は 右上に・「っ」も 少し 右上に', await page.evaluate(() => { const a = KEIJIBAN.vbox('ー'), c = KEIJIBAN.vbox('〜'), b = KEIJIBAN.vbox('一'), m = KEIJIBAN.vbox('。'), k = KEIJIBAN.vbox('、'), s = KEIJIBAN.vbox('っ'), u = KEIJIBAN.vbox('つ'); return [a.bh > a.bw * 2, c.bh > c.bw, b.bw > b.bh * 2, m.x0 >= 12 && m.y0 + m.bh <= 12, k.x0 >= 12 && k.y0 + k.bh <= 12, s.y0 + s.bh / 2 < u.y0 + u.bh / 2 - 2, s.x0 + s.bw / 2 > u.x0 + u.bw / 2].join('/'); }), 'true/true/true/true/true/true/true');
+  check('  止める：短い文は 縦の まん中に', await page.evaluate(() => { KEIJIBAN.text('OK'); KEIJIBAN.opt('move', 'still'); const b = KEIJIBAN.vbox('OK'), p = KEIJIBAN.vpos(3, 60); return [p.y0 === Math.floor((60 - b.h) / 2), p.fits].join('/'); }), 'true/true');
+  check('  ↑ 下から・1字ずつ も 縦に', await page.evaluate(() => { KEIJIBAN.opt('move', 'up'); const a = [KEIJIBAN.vpos(0, 60).dy, KEIJIBAN.vpos(1, 60).dy]; KEIJIBAN.text('ABC'); KEIJIBAN.opt('move', 'type'); a.push([0.05, 0.5, 1.5, 3.8].map(t => KEIJIBAN.vpos(t, 80).rev).join(',')); return a.join('/'); }), '60/0/24,48,72,0');
+  check('  入りきらない文は 流す', await page.evaluate(() => { KEIJIBAN.text('ただいま 準備中です。しばらく お待ちください'); const p = KEIJIBAN.vpos(0.5, 30); return [p.fits, p.y0 < 30, p.rev === Infinity].join('/'); }), 'false/true/true');
+  check('  なみ：横に ゆれながら 上へ', await page.evaluate(() => { KEIJIBAN.text('受付は こちらです'); KEIJIBAN.opt('move', 'wave'); const p = KEIJIBAN.vpos(1, 40); return [p.wave, p.y0, KEIJIBAN.draw(1.5) > 50].join('/'); }), 'true/12/true');
+  check('  ふつうの文字も 縦書き（かざり・1字ずつ）', await page.evaluate(() => { KEIJIBAN.opt('look', 'plain'); const r = ['none', 'glow', 'outline', 'shadow', 'solid'].map(d => { KEIJIBAN.opt('deco', d); return KEIJIBAN.draw(1); }); KEIJIBAN.opt('deco', 'glow'); KEIJIBAN.text('OK'); KEIJIBAN.opt('move', 'type'); r.push(KEIJIBAN.draw(1), KEIJIBAN.draw(3.5), KEIJIBAN.vert()); KEIJIBAN.opt('look', 'led'); KEIJIBAN.opt('move', 'scroll'); KEIJIBAN.text('受付は こちらです'); return r.join(','); }), '1,1,1,1,1,1,0,true');
+  check('  虹色は 文の 上から下へ 色が かわる（ふつうの文字）', await page.evaluate(() => { KEIJIBAN.opt('look', 'plain'); KEIJIBAN.opt('deco', 'none'); KEIJIBAN.opt('bg', 'black'); KEIJIBAN.opt('color', 'rainbow'); KEIJIBAN.opt('move', 'still'); KEIJIBAN.text('あい'); KEIJIBAN.draw(0); const cv = document.getElementById('kjPrev'), d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data, half = (a, b) => { let r = 0, g = 0, bl = 0, n = 0; for (let y = a; y < b; y++) for (let x = 0; x < cv.width; x++) { const i = (y * cv.width + x) * 4; if (d[i] + d[i + 1] + d[i + 2] > 300) { r += d[i]; g += d[i + 1]; bl += d[i + 2]; n++; } } return [r / n, g / n, bl / n]; }, A = half(0, cv.height >> 1), B = half(cv.height >> 1, cv.height); const far = Math.hypot(A[0] - B[0], A[1] - B[1], A[2] - B[2]) > 80; KEIJIBAN.opt('color', 'red'); KEIJIBAN.opt('look', 'led'); KEIJIBAN.opt('move', 'scroll'); KEIJIBAN.text('受付は こちらです'); return [far, A[1] > A[2], B[2] > B[1]].join('/'); }), 'true/true/true');
+  await page.click('.kj-go'); await w(500);
+  check('  全画面：回さずに 縦のまま・横向きに しない・縦書き', await page.evaluate(() => { const sg = document.getElementById('kjStage'); return [KEIJIBAN.isFull(), KEIJIBAN.rotated(), sg.style.width, sg.style.height, window.__lock, KEIJIBAN.vert(), KEIJIBAN.draw(1.5) > 50].join('/'); }), 'true/false/412px/900px//true/true');
+  await page.keyboard.press('Escape'); await w(300);
+  await page.setViewportSize({ width: 900, height: 412 }); await w(200);
+  await page.click('.kj-go'); await w(400);
+  check('  横に持てば 横書き', await page.evaluate(() => [KEIJIBAN.isFull(), KEIJIBAN.rotated(), KEIJIBAN.vert(), KEIJIBAN.draw(1.5) > 50].join('/')), 'true/false/false/true');
+  await page.keyboard.press('Escape'); await page.setViewportSize({ width: 412, height: 900 }); await w(300);
+  check('  時計・絵の札の 見本は 横長のまま・「回さない・文字は 縦書き」', await page.evaluate(() => { const lab = () => [...[...document.querySelectorAll('.kj-opt')].find(x => x.querySelector('span').textContent === '縦に持つと').querySelectorAll('button')].map(b => (b.classList.contains('on') ? '*' : '') + b.textContent).join(','); KEIJIBAN.tab('clock'); const a = [document.getElementById('kjPrev').classList.contains('tate'), lab()]; KEIJIBAN.tab('pic'); a.push(lab()); KEIJIBAN.tab('text'); a.push(document.getElementById('kjPrev').classList.contains('tate')); return a.join('/'); }),
+    'false/縦に持っていたら 回す,回さない,*回さない・文字は 縦書き/縦に持っていたら 回す,回さない,*回さない・文字は 縦書き/true');
+  await page.evaluate(() => KEIJIBAN.startClock()); await w(400);
+  check('  時計の全画面も 回さずに 縦のまま', await page.evaluate(() => { const sg = document.getElementById('kjStage'); return [KEIJIBAN.isFull(), KEIJIBAN.rotated(), sg.style.width, sg.style.height, window.__lock, KEIJIBAN.ckDraw(Date.now()) >= 0].join('/'); }), 'true/false/412px/900px//true');
+  await page.keyboard.press('Escape'); await w(300);
+  await page.evaluate(() => KEIJIBAN.opt('rot', 'auto')); await w(150);
+  check('  「回す」に もどすと 見本も 横長', await page.evaluate(() => [document.getElementById('kjPrev').classList.contains('tate'), KEIJIBAN.vert()].join('/')), 'false/false');
+  await page.evaluate(() => closeKeijiban()); await w(200);
+  await page.evaluate(() => { closeKeijiban(); const o = JSON.parse(localStorage.getItem('excalc_keijiban')); o.rot = 'tate'; o.sched = [{ id: 'v1', t: '10:00', text: '縦の お知らせ', dur: '1' }]; localStorage.setItem('excalc_keijiban', JSON.stringify(o)); });
+  await page.clock.install({ time: new Date('2026-10-24T09:59:40') }); await page.clock.resume(); await page.reload(); await w(900);
+  await page.evaluate(() => { window.__lock = ''; Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async () => ({ release() { } }) } }); Element.prototype.requestFullscreen = function () { return Promise.resolve(); }; if (screen.orientation) { screen.orientation.lock = async o => { window.__lock = o; }; screen.orientation.unlock = () => { }; } });
+  await page.evaluate(async () => { await openKeijiban(); KEIJIBAN.tab('sched'); KEIJIBAN.startClock(); }); await w(500);
+  await page.clock.setSystemTime(new Date('2026-10-24T09:59:58.5')); await w(2600);
+  check('  予約の文も 縦に持ったまま 縦書きで 流す', await page.evaluate(() => { const a = KEIJIBAN.ann(); return [a && a.text, KEIJIBAN.isFull(), KEIJIBAN.rotated(), KEIJIBAN.vert(), window.__lock].join('/'); }), '縦の お知らせ/true/false/true/');
+  await page.evaluate(() => { KEIJIBAN.annEnd(); KEIJIBAN.stopFull(); }); await w(300);
+  await page.evaluate(() => closeKeijiban()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runKakijunSE(browser) {
   console.log('\n── ✍️ かきじゅん帳：iPhone SE の幅でも はみ出さない（v559） ──');
   const KKJ = 'file://' + path.join(ROOT, 'kakijun', 'index.html');
@@ -16277,6 +16328,7 @@ async function runQrShare(browser) {
     if (!only || only === 'keijiban571' || only === 'keijiban' || only === 'v571') await runKeijiban571(browser);
     if (!only || only === 'keijiban572' || only === 'keijiban' || only === 'v572') await runKeijiban572(browser);
     if (!only || only === 'keijiban573' || only === 'keijiban' || only === 'v573') await runKeijiban573(browser);
+    if (!only || only === 'keijiban574' || only === 'keijiban' || only === 'v574') await runKeijiban574(browser);
     if (!only || only === 'saveas') await runSaveAs560(browser);
     if (!only || only === 'tatekae' || only === 'v561') await runTatekae561(browser);
     if (!only || only === 'kuji' || only === 'v561') await runKuji561(browser);

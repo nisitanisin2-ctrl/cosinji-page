@@ -14,6 +14,7 @@
    ・🕐 時計の種類（v571）：点で描く 電光の時計の ほかに 🕰 アナログ・📟 パタパタ・✨ ネオン・🫧 ぽよん・🌅 空と太陽・🔢 つぶつぶ
      （描き方は keijiban-clock.js）。
    ・「▶ 全画面で 出す」：画面いっぱいに出す。縦に持っているときは 90° 回して 横長に出す（「回さない」も）。
+     「縦書きで 縦に流す」（v574）：縦に持ったまま 文字を 縦に並べて 下から上へ 流す（ー・〜・かっこ は 横に倒し、、。は 右上に）。
      画面を消さない（対応している端末）・Android は 全画面＋横向きに。画面を押すと「⏸ 止める」「✕ 終わる」。端末の「戻る」でも 終わる。
    ・文・見た目・時計・予約・絵の一覧は excalc_keijiban（この端末の中だけ）。写真の絵は IndexedDB（excalc_keijiban の pics）。
    LED風は 文字を 小さな絵にして（canvas）、明るい点を 丸い光で描く。点は 1列ずつ 動く（本物の掲示板と同じ）。
@@ -44,7 +45,7 @@ const SCROLLS=new Set(['scroll','right','wave']);   // 流す動き（ほかは 
 // 1秒に 流れる 字の数（字の高さ ぶん）。v572：5段にして 全体に 1段 ゆっくり（前の「ゆっくり」が いまの「ふつう」）
 const SPEEDS=[['vslow','とても ゆっくり',0.45],['slow','ゆっくり',0.7],['mid','ふつう',1.2],['fast','はやい',2.2],['vfast','とても はやい',3.6]];
 const ROWS=[16,24,32];
-const ROTS=[['auto','縦に持っていたら 回す'],['off','回さない']];
+const ROTS=[['auto','縦に持っていたら 回す'],['off','回さない'],['tate','縦書きで 縦に流す']];   // tate：縦に持つと 縦書き（v574）
 const FONT='"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Noto Sans CJK JP","Yu Gothic",Meiryo,sans-serif';
 // 書体・かざり・背景（v573）。書体は 端末に入っている字で出す（なければ ゴシック）
 const FACES=[['gothic','ゴシック',FONT],['maru','丸ゴシック','"Hiragino Maru Gothic ProN","M PLUS Rounded 1c","Rounded Mplus 1c","Arial Rounded MT Bold",'+FONT],['mincho','明朝','"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP","Noto Serif CJK JP","MS PMincho",serif']];
@@ -269,12 +270,12 @@ function textFill(g, x, tw, y, fs, t){
   return baseColor();
 }
 const darker=c=>{ const m=/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(c||''); return m ? 'rgb('+[m[1],m[2],m[3]].map(h=>Math.round(parseInt(h,16)*0.38)).join(',')+')' : '#4a3410'; };
-// 文字を描く（かざり つき）。wave：1字ずつ 波打たせる
-function paintText(g, s, x, y, fs, tw, t, wave){
+// 文字を描く（かざり つき）。wave：1字ずつ 波打たせる。vo（縦書き）：fill＝色を 決めて渡す・rot＝横に倒した字（立体の向きを 合わせる）
+function paintText(g, s, x, y, fs, tw, t, wave, vo){
   const each=fn=>{ if(!wave){ fn(s, x, y); return; } let cx=x; for(const ch of Array.from(s)){ fn(ch, cx, y+Math.sin(t*4-cx/fs*1.3)*fs*0.12); cx+=g.measureText(ch).width; } };
-  const fill=textFill(g, x, tw, y, fs, t), d=st.deco;
+  const fill=(vo && vo.fill) || textFill(g, x, tw, y, fs, t), d=st.deco, ry=vo && vo.rot ? -1 : 1;
   g.lineJoin='round';
-  if(d==='solid'){ const n=Math.max(3, Math.round(fs*0.07)); g.fillStyle=darker(baseColor()); for(let i=n;i>=1;i--) each((c,xx,yy)=>g.fillText(c, xx+i, yy+i)); }
+  if(d==='solid'){ const n=Math.max(3, Math.round(fs*0.07)); g.fillStyle=darker(baseColor()); for(let i=n;i>=1;i--) each((c,xx,yy)=>g.fillText(c, xx+i, yy+i*ry)); }
   else if(d==='outline'){ g.strokeStyle='#ffffff'; g.lineWidth=fs*0.12; each((c,xx,yy)=>g.strokeText(c, xx, yy)); }
   else if(d==='shadow'){ g.shadowColor='rgba(0,0,0,.8)'; g.shadowBlur=fs*0.08; g.shadowOffsetX=fs*0.05; g.shadowOffsetY=fs*0.06; }
   else if(d==='glow'){ g.shadowColor=(st.color==='rainbow' || st.color==='gold') ? '#ffffff' : baseColor(); g.shadowBlur=Math.round(fs*0.12); }
@@ -283,6 +284,7 @@ function paintText(g, s, x, y, fs, tw, t, wave){
 }
 function drawText(cv, t, text, move){
   const W=cv.width, H=cv.height; if(!W || !H) return 0;
+  if(isVert(cv)) return drawTextV(cv, t, text, move);
   const g=cv.getContext('2d');
   g.globalAlpha=1;
   if(st.look==='led'){
@@ -325,6 +327,109 @@ function drawText(cv, t, text, move){
   return 1;
 }
 const draw=(cv, t)=>drawText(cv, t, st.text, st.move);
+/* ───────── 縦書き（v574）：縦に持って「縦書きで 縦に流す」のとき、文字を 縦に並べて 下から上へ 流す ───────── */
+const ROT_CH='ー－-―─〜～…‥（）()「」『』［］[]【】｛｝{}〈〉《》＜＞<>＝=';   // 縦書きでは 横に倒す字
+const PUNCT='、。，．,.';                                            // 縦書きでは 右上に よせる字
+const SMALL='ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ';                  // 小さい字も 少し 右上へ
+// 縦書きで よせる字の ずれ：字の形の まん中を ます目の まん中から 右へ ax・上へ ay の所へ（x,y は 字を書く位置）
+function vShift(g, ch, x, y, a){
+  const [ax, ay]=PUNCT.includes(ch) ? [a*0.25, a*0.25] : SMALL.includes(ch) ? [a*0.06, a*0.1] : [0, 0];
+  if(!ax) return null;
+  const m=g.measureText(ch);
+  return [ax-(x+(m.actualBoundingBoxRight-m.actualBoundingBoxLeft)/2), -ay-(y+(m.actualBoundingBoxDescent-m.actualBoundingBoxAscent)/2)];
+}
+const isVert=cv=>st.rot==='tate' && cv.height>cv.width*1.05;
+// LED風：1字を 横 R点の ます に描いて 縦に つなげた 点の表（cuts：1字ずつの 下はし）
+function bitmapV(text, R){
+  const txt=text.trim() ? text : ' ', k='v|'+R+'|'+st.font+'|'+txt;
+  if(bms.has(k)) return bms.get(k);
+  const chars=Array.from(txt), hs=chars.map(ch=>ch===' ' ? Math.round(R*0.5) : R), H=Math.max(1, hs.reduce((a,b)=>a+b,0));
+  const c=document.createElement('canvas'); c.width=R; c.height=H; const g=c.getContext('2d');
+  g.font='bold '+Math.round(R*0.9)+'px '+fontOf(); g.textAlign='center'; g.textBaseline='middle'; g.fillStyle='#fff';
+  const cuts=[]; let y=0;
+  chars.forEach((ch,i)=>{
+    if(ch.trim()){
+      g.save(); g.translate(R/2, y+hs[i]/2);
+      const v=ROT_CH.includes(ch) ? null : vShift(g, ch, 0, R*0.03, R);
+      if(ROT_CH.includes(ch)) g.rotate(Math.PI/2); else if(v) g.translate(v[0], v[1]);
+      g.fillText(ch, 0, R*0.03); g.restore();
+    }
+    y+=hs[i]; cuts.push(y);
+  });
+  const d=g.getImageData(0,0,R,H).data, lit=new Uint8Array(R*H);
+  let n=0; for(let i=0;i<R*H;i++){ if(d[i*4+3]>110){ lit[i]=1; n++; } }
+  const b={w:R, h:H, lit, n, cuts}; if(bms.size>30) bms.clear(); bms.set(k,b); return b;
+}
+// 縦書きの 上はしが 何段目か（y0）・点いているか・上下の ずれ（dy）・見せる段（rev）・なみ（wave）。← 流す＝上へ、→ 流す＝下へ
+function posForV(t, rows, b, move){
+  const fits=b.h<=rows, sp=charsPerSec()*b.w, L=b.h+rows, mv=SCROLLS.has(move) || fits ? move : 'scroll';
+  let y0=Math.floor((rows-b.h)/2), dy=0, rev=Infinity;
+  if(mv==='scroll' || mv==='wave') y0=rows-Math.floor((t*sp)%L);
+  else if(mv==='right') y0=Math.floor((t*sp)%L)-b.h;
+  else if(mv==='up'){ const P=upP(), ph=t%P; dy=ph<0.6 ? Math.round((1-easeOut(ph/0.6))*rows) : ph<P-0.6 ? 0 : -Math.round(easeOut((ph-(P-0.6))/0.6)*rows); }
+  else if(mv==='type'){ const n=b.cuts.length, S=typeS(), ph=t%(n*S+3); rev=ph>=n*S+2.5 ? 0 : b.cuts[Math.min(n, Math.floor(ph/S)+1)-1]; }
+  const on=move!=='blink' || Math.floor(t*2)%2===0;
+  return {y0, on, h:b.h, fits, dy, rev, wave:mv==='wave'};
+}
+function drawTextV(cv, t, text, move){
+  const W=cv.width, H=cv.height, g=cv.getContext('2d');
+  g.globalAlpha=1;
+  if(st.look==='led'){
+    const R=st.rows, pitch=W/R, rows=Math.ceil(H/pitch), b=bitmapV(text, R), p=posForV(t, rows, b, move), mvBg=BG_MOVE.has(st.bg);
+    textPass=Math.floor(t*charsPerSec()*R/(b.h+rows));
+    const key=['v',W,H,R,st.color,st.bg,st.font,text,p.y0,p.on,p.dy,p.rev,(mvBg||p.wave) ? t : st.color==='rainbow' ? Math.floor(t*8) : 0].join('|');
+    if(key===prevKey && cv.__drawn) return cv.__lit||0;
+    prevKey=key; cv.__drawn=true;
+    const col=st.color==='rainbow' ? '' : baseColor(), oy=(H-pitch*rows)/2;
+    if(st.bg==='black') g.drawImage(grid(W,H,pitch,R,rows,col), 0, 0);
+    else { drawBg(g, W, H, t); g.fillStyle='rgba(0,0,0,.38)'; g.fillRect(0,0,W,H); g.drawImage(grid(W,H,pitch,R,rows,col,true), 0, 0); }
+    let n=0;
+    if(p.on){
+      const one=st.color==='rainbow' ? null : sprite(baseColor(), pitch), shift=Math.floor(t*8);
+      for(let y=0;y<rows;y++){
+        const sy=y-p.y0-p.dy; if(sy<0 || sy>=b.h || sy>=p.rev) continue;
+        const spr=one || sprite(hue(Math.floor(sy/Math.max(2,R/3))+shift), pitch), dx=p.wave ? Math.round(Math.sin(t*4-sy*0.16)*R*0.14) : 0;
+        for(let x=0;x<R;x++){ if(!b.lit[sy*R+x]) continue; const xx=x+dx; if(xx<0 || xx>=R) continue; g.drawImage(spr, xx*pitch, oy+y*pitch, pitch, pitch); n++; }
+      }
+    }
+    cv.__lit=n; return n;
+  }
+  // ふつうの文字（縦書き）
+  prevKey=''; cv.__drawn=false;
+  drawBg(g, W, H, t);
+  const chars=Array.from(text.trim() ? text : ''), fs=Math.round(W*0.78);
+  g.font='bold '+fs+'px '+fontOf(); g.textBaseline='middle'; g.textAlign='left';
+  const hs=chars.map(ch=>ch===' ' ? fs*0.55 : fs*1.06), Hb=hs.reduce((a,b)=>a+b,0), fits=Hb<=H*0.96, sp=charsPerSec()*fs, L=Hb+H, mv=SCROLLS.has(move) || fits ? move : 'scroll';
+  let y=(H-Hb)/2, dy=0, shown=chars.length;
+  if(mv==='scroll' || mv==='wave'){ y=H-((t*sp)%L); textPass=Math.floor(t*sp/L); }
+  else if(mv==='right'){ y=((t*sp)%L)-Hb; textPass=Math.floor(t*sp/L); }
+  else {
+    textPass=Math.floor(t/4);
+    if(mv==='up'){ const P=upP(), ph=t%P; dy=ph<0.6 ? (1-easeOut(ph/0.6))*H : ph<P-0.6 ? 0 : -easeOut((ph-(P-0.6))/0.6)*H; }
+    else if(mv==='type'){ const n=chars.length, S=typeS(), ph=t%(n*S+3); shown=ph>=n*S+2.5 ? 0 : Math.min(n, Math.floor(ph/S)+1); }
+  }
+  const on=move!=='blink' || Math.floor(t*2)%2===0;
+  if(!on || !shown) return 0;
+  const top0=y+dy; let top=top0;
+  for(let i=0;i<shown;i++){
+    const ch=chars[i], mid=top+hs[i]/2; top+=hs[i];
+    if(!ch.trim() || mid+fs<0 || mid-fs>H) continue;
+    const cw=g.measureText(ch).width, dx=mv==='wave' ? Math.sin(t*4-mid/fs*1.3)*fs*0.12 : 0, rot=ROT_CH.includes(ch);
+    g.save(); g.translate(W/2+dx, mid);
+    const v=rot ? null : vShift(g, ch, -cw/2, fs*0.03, fs);
+    if(rot) g.rotate(Math.PI/2); else if(v) g.translate(v[0], v[1]);
+    paintText(g, ch, -cw/2, fs*0.03, fs, cw, t, false, {rot, fill:vFill(g, rot, top0-mid-(v ? v[1] : 0), Hb, fs, t)});
+    g.restore();
+  }
+  return 1;
+}
+// 縦書きの 色：虹は 文の 上から下へ 色が かわる・金は 1字ごとに 上から下へ（横に倒した字は 字の向きの x が 画面の 下向き）
+function vFill(g, rot, y0, len, fs, t){
+  let gr=null;
+  if(st.color==='rainbow'){ gr=rot ? g.createLinearGradient(y0,0,y0+len,0) : g.createLinearGradient(0,y0,0,y0+len); for(let i=0;i<=6;i++) gr.addColorStop(i/6, 'hsl('+((i*60+t*90)%360)+',100%,60%)'); }
+  else if(st.color==='gold' && rot){ gr=g.createLinearGradient(-fs*0.45,0,fs*0.45,0); gr.addColorStop(0,'#fff6c2'); gr.addColorStop(0.45,'#ffc83d'); gr.addColorStop(0.55,'#c88a0c'); gr.addColorStop(1,'#ffe07a'); }
+  return gr;
+}
 
 /* ───────── 🕐 時計の 数字（点の並び）───────── */
 // 5×7 の 点の字（電光掲示板らしい 角ばった字）
@@ -829,7 +934,7 @@ async function startFull(mode){
   window.addEventListener('resize', layoutFull);
   paintAnn();
   try{ if(document.documentElement.requestFullscreen && !document.fullscreenElement) await document.documentElement.requestFullscreen({navigationUI:'hide'}); }catch(_){}
-  try{ if(screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape'); }catch(_){}
+  try{ if(st.rot!=='tate' && screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape'); }catch(_){}   // 縦書きは 持ったまま
   await wake();
   layoutFull(); showBar(); restart();
 }
@@ -1075,6 +1180,7 @@ function paintInfo(){
   if(tab==='sched'){ const on=st.sched.filter(s=>s.on).length; b.textContent=st.sched.length ? '予約 '+st.sched.length+'件（使う '+on+'件）' : ''; return; }
   if(tab==='pic'){ const p=picById(st.picCur); b.textContent=p ? picName(p)+'・'+nm(PIC_LOOK,st.picv.look)+'・'+nm(PIC_FIT,st.picv.fit) : '絵を 足してください'; return; }
   if(!st.text.trim()){ b.textContent='流す文字を 入れてください'; return; }
+  if(st.rot==='tate'){ b.textContent='縦に持つと 縦書きで 流します'+(st.look==='led' ? '（'+st.rows+'点の文字）' : ''); return; }
   if(st.look!=='led'){ b.textContent=''; return; }
   const bmp=bitmap(), chars=Math.max(1, Math.round(bmp.w/st.rows));
   b.textContent=`${st.rows}点の文字で 約${chars}字ぶん`+(SCROLLS.has(st.move) ? '' : '（長い文は 流します）');
@@ -1115,9 +1221,10 @@ function textTab(){
       <div class="kj-opt"><span>背景</span>${BGS.map(([v,n,sw])=>`<button type="button" class="bgb${st.bg===v?' on':''}" onclick='KEIJIBAN.opt("bg", ${JSON.stringify(v)})'><i class="sw" style="background:${sw}"></i>${n}</button>`).join('')}</div>
       ${o('move', MOVES, '動き')}${o('speed', SPEEDS, '速さ')}
       ${st.look==='led' ? o('rows', ROWS, '点の細かさ') : ''}${o('rot', ROTS, '縦に持つと')}
-      <p class="kj-note">全画面のあいだは 画面を消さないようにします（対応している端末）。画面を押すと「⏸ 止める」「✕ 終わる」が出ます。Android は 横向きの全画面に、iPhone は 縦に持っていても 90° 回して 横長に出します。</p></div>`;
+      <p class="kj-note">全画面のあいだは 画面を消さないようにします（対応している端末）。画面を押すと「⏸ 止める」「✕ 終わる」が出ます。Android は 横向きの全画面に、iPhone は 縦に持っていても 90° 回して 横長に出します。「縦書きで 縦に流す」にすると、縦に持ったまま 文字を 縦に並べて 下から上へ 流します（→ 流す は 上から下へ。横に持てば 横書き）。</p></div>`;
 }
-const rotRow=()=>`<div class="kj-opt"><span>縦に持つと</span>${ROTS.map(([v,n])=>`<button type="button" class="${st.rot===v?'on':''}" onclick='KEIJIBAN.opt("rot", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>`;
+// 絵・時計の札：「縦書きで 縦に流す」は 絵や時計を 回さずに 出し、予約の文は 縦書き
+const rotRow=()=>`<div class="kj-opt"><span>縦に持つと</span>${ROTS.map(([v,n])=>`<button type="button" class="${st.rot===v?'on':''}" onclick='KEIJIBAN.opt("rot", ${JSON.stringify(v)})'>${v==='tate' ? '回さない・文字は 縦書き' : n}</button>`).join('')}</div>`;
 function picTab(){
   const v=st.picv, o=(k, L, lab)=>`<div class="kj-opt"><span>${lab}</span>${L.map(([val,n])=>`<button type="button" class="${v[k]===val?'on':''}" onclick='KEIJIBAN.picOpt("${k}", ${JSON.stringify(val)})'>${n}</button>`).join('')}</div>`;
   return `<div class="kj-sec"><h4>🖼 絵<small>押すと 見本に・▶ で すぐ全画面</small></h4>
@@ -1151,7 +1258,7 @@ function schedTab(){
 function render(){
   const b=$('kjBody'); if(!b) return;
   b.innerHTML=`<div class="kj-wrap">
-    <canvas id="kjPrev" class="kj-prev" onclick="KEIJIBAN.start()" aria-label="見本（押すと 全画面）"></canvas>
+    <canvas id="kjPrev" class="kj-prev${tab==='text' && st.rot==='tate' ? ' tate' : ''}" onclick="KEIJIBAN.start()" aria-label="見本（押すと 全画面）"></canvas>
     <div class="kj-info" id="kjInfo"></div>
     <div id="kjAnn"></div>
     <div class="kj-tabs" role="tablist">${TABS.map(([k,n])=>`<button type="button" role="tab" aria-selected="${tab===k}" class="${tab===k?'on':''}" onclick="KEIJIBAN.tab('${k}')">${n}</button>`).join('')}</div>
@@ -1221,6 +1328,7 @@ const KJ_CSS=`
 .kj-body{ flex:1; min-height:0; overflow:auto; padding:10px 10px calc(20px + var(--safe-bottom,0px)); color:var(--text,#222); font-size:15px; }
 .kj-wrap{ max-width:820px; margin:0 auto; }
 .kj-prev{ display:block; width:100%; height:min(28vw,170px); border-radius:12px; background:#050505; cursor:pointer; box-shadow:0 0 0 3px #222 inset; }
+.kj-prev.tate{ width:min(40vw,170px); height:min(72vw,320px); margin:0 auto; }   /* 縦書きの 見本（v574） */
 .kj-info{ font-size:12px; color:var(--text-light,#666); text-align:right; min-height:18px; margin:3px 2px 6px; }
 .kj-tabs{ display:grid; grid-template-columns:repeat(4,1fr); gap:4px; margin:0 0 8px; }
 .kj-tabs button{ min-height:46px; padding:0 2px; border-radius:12px; border:1px solid rgba(120,132,156,.4); background:var(--modal-bg,#fff); color:var(--text,#333); font-size:14.5px; font-weight:bold; cursor:pointer; white-space:nowrap; }
@@ -1326,6 +1434,9 @@ window.KEIJIBAN={ text:setText, start:()=>{ startFull(tab==='text' || tab==='pic
   tab:setTab, ckOpt, ckTog, scEdit:i=>{ scEdit(i==null?null:i); }, scTog, annEnd:()=>endAnn(),
   state:()=>JSON.parse(JSON.stringify(st)), bitmap:()=>{ const b=bitmap(); return {w:b.w, h:b.h, n:b.n}; },
   pos:(t, C)=>ledPos(t, C), draw:t=>{ const cv=curCv(); if(!cv) return -1; prevKey=''; return draw(cv, t); },
+  // 縦書き（v574。たしかめる用）：vpos＝縦の位置・vbox＝点の 縦横の大きさ（字が 倒れているか）・vert＝いま 縦書きか
+  vpos:(t, rows)=>posForV(t, rows, bitmapV(st.text, st.rows), st.move), vert:()=>{ const cv=curCv(); return !!cv && isVert(cv); },
+  vbox:txt=>{ const b=bitmapV(txt, st.rows); let x0=b.w, x1=-1, y0=b.h, y1=-1; for(let y=0;y<b.h;y++) for(let x=0;x<b.w;x++) if(b.lit[y*b.w+x]){ x0=Math.min(x0,x); x1=Math.max(x1,x); y0=Math.min(y0,y); y1=Math.max(y1,y); } return {w:b.w, h:b.h, bw:x1-x0+1, bh:y1-y0+1, x0, y0, cuts:b.cuts.slice()}; },
   isFull:()=>!!$('kjFull'), paused:()=>paused, rotated:()=>{ const s=$('kjStage'); return !!(s && s.classList.contains('rot')); },
   // 時計・予約（v570。たしかめる用）
   ckStr:ms=>ckStr(new Date(ms==null?Date.now():ms)),
