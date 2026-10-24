@@ -330,7 +330,7 @@ const CSS=`
 .sh-row .seg{ display:inline-flex; border:1px solid rgba(120,132,156,.45); border-radius:10px; overflow:hidden; flex:none; }
 .sh-row .seg button{ min-width:44px; min-height:38px; padding:0 6px; border:0; border-left:1px solid rgba(120,132,156,.3); background:transparent; color:var(--text,#222); font-size:13.5px; cursor:pointer; } .sh-row .seg button:first-child{ border-left:0; }
 .sh-row .seg button.on.o{ background:#2e9d4a; color:#fff; font-weight:bold; } .sh-row .seg button.on.x{ background:#e53935; color:#fff; font-weight:bold; } .sh-row .seg button.on.q{ background:rgba(120,132,156,.3); font-weight:bold; }
-.sh-row .r2{ display:flex; align-items:center; gap:6px; margin-top:4px; padding-left:calc(1.6em + 8px); } .sh-row .r2 small{ flex:1; min-width:0; font-size:12.5px; color:var(--text-light,#666); overflow-wrap:anywhere; }
+.sh-row .r2{ display:flex; align-items:center; gap:6px; margin-top:4px; padding-left:calc(1.6em + 8px); } .sh-row .r2 > small{ flex:1; min-width:0; font-size:12.5px; color:var(--text-light,#666); overflow-wrap:anywhere; }
 .sh-pay{ min-height:40px; min-width:118px; padding:0 10px; border-radius:10px; border:1.5px solid #f0a400; background:transparent; color:var(--text,#222); font-size:14px; font-weight:bold; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px; flex:none; }
 .sh-pay.paid, .sh-pay.over{ background:#2e9d4a; border-color:#2e9d4a; color:#fff; } .sh-pay small{ font-size:11.5px; font-weight:normal; color:inherit; }
 .sh-pay.part{ background:rgba(240,164,0,.18); } .sh-pay.none{ border-color:rgba(120,132,156,.4); color:var(--text-light,#666); font-weight:normal; }

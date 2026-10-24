@@ -3109,7 +3109,7 @@ async function runStartPage(browser) {
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 41);   // v575 で ⏱🎉📃 の3つ、v569 で 🗣📢 の2つ、v568 で 🗓⛩🧮 の3つ、v561 で 🚛💴🎲📷 の4つ、v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
+    document.getElementById('startPageSel').options.length), 44);   // v579 で 🔁📋🧳 の3つ、v575 で ⏱🎉📃 の3つ、v569 で 🗣📢 の2つ、v568 で 🗓⛩🧮 の3つ、v561 で 🚛💴🎲📷 の4つ、v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'saienOverlay', 'volumeOverlay',
