@@ -41,7 +41,7 @@ function cleanC(c, i){
   if(!c || typeof c!=='object') return null;
   const hist={};
   if(c.hist && typeof c.hist==='object') Object.keys(c.hist).slice(-KEEP_DAYS*24).forEach(k=>{ if(/^\d{4}-\d\d-\d\d \d\d$/.test(k)){ const v=int(c.hist[k], -MAX_N, MAX_N, null); if(v!=null) hist[k]=v; } });
-  return {id:/^[a-z0-9]{3,12}$/.test(c.id) ? c.id : rid(), name:oneLine(c.name,16)||('カウンター'+(i+1)), n:int(c.n,0,MAX_N,0), goal:int(c.goal,0,MAX_N,0),
+  return {id:typeof c.id==='string' && /^[a-z0-9]{3,12}$/.test(c.id) ? c.id : rid(), name:oneLine(c.name,16)||('カウンター'+(i+1)), n:int(c.n,0,MAX_N,0), goal:int(c.goal,0,MAX_N,0),
     step:STEPS.includes(+c.step) ? +c.step : 1, emo:emoOk(c.emo)||EMOS[i%EMOS.length], col:COLS.some(x=>x[0]===c.col) ? c.col : COLS[i%COLS.length][0], hist};
 }
 function load(){
