@@ -11310,6 +11310,111 @@ async function v579Fit(browser, open, label) {
     await c2.close();
   }
 }
+async function runPickNames579(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📇 名簿から えらぶ：名簿を 開いて 1人ずつ ✓（v579） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => {
+    localStorage.setItem('excalc_touban', JSON.stringify({ roster: [{ name: 'Aさん' }, { name: 'Bさん' }, { name: 'Cさん' }] }));
+    const items = [
+      { id: 'a1', fam: '山田', giv: '太郎', famK: 'やまだ', givK: 'たろう', groups: ['家族'], fav: true },
+      { id: 'a2', fam: '山田', giv: '花子', famK: 'ヤマダ', givK: 'ハナコ', groups: ['家族'] },
+      { id: 'a3', fam: '佐藤', giv: '一郎', famK: 'さとう', givK: 'いちろう', groups: ['町内会'] },
+      { id: 'a4', fam: '鈴木', giv: '次郎', famK: 'すずき', givK: 'じろう', groups: ['町内会'], fav: true },
+      { id: 'a5', fam: '高橋', giv: '健', famK: 'たかはし', givK: 'けん', groups: [] },
+    ];
+    ['伊藤 美咲', '渡辺 修', '中村 恵', '小林 誠', '加藤 優子', '吉田 大輔', '山本 さくら', '<b>松本</b> 翔太'].forEach((n, i) => { const [f, g] = n.split(' '); items.push({ id: 'b' + i, fam: f, giv: g, groups: i < 3 ? ['町内会'] : [] }); });
+    localStorage.setItem('excalc_renraku', JSON.stringify({ v: 1, groups: [{ n: '家族', ic: '🏠' }, { n: '町内会', ic: '🏘' }], items }));
+  });
+  await page.evaluate(async () => { await openTatekae(); }); await w(300);
+  await page.evaluate(() => { window.__p = TK.memImport(); }); await w(250);
+  check('  名簿が 並ぶ（当番表・グループ・★ お気に入り・全員）', await page.evaluate(() => [...document.querySelectorAll('.tpn-open b')].map(x => x.textContent).join(',')), '📅 当番表の名簿,📇 連絡帳：🏠 家族,📇 連絡帳：🏘 町内会,📇 連絡帳：★ お気に入り,📇 連絡帳：全員');
+  check('  はじめは 閉じて いて（中の 人の 名前を 少し）・入れる は 押せない', await page.evaluate(() => [document.querySelectorAll('.tpn-p').length, document.querySelector('.tpn-g[data-g="0"] small').textContent, document.querySelector('.tpn-b.pri').disabled, document.querySelector('.tpn-sum').textContent].join('/')), '0/Aさん、Bさん、Cさん/true/まだ えらんで いません');
+  check('  全員は よみの 順・名前は 字のまま', await page.evaluate(() => document.querySelector('.tpn-g[data-g="4"] small').textContent + '/' + !document.querySelector('.tool-pick-names b b')), '<b>松本</b> 翔太、佐藤 一郎、鈴木 次郎、高橋 健、山田 太郎、山田 花子 …/true');
+  await page.click('.tpn-open[data-open="1"]'); await w(150);
+  check('  🏠 家族 を 押すと 中の 人（グループの 全員は 入らない）', await page.evaluate(() => [[...document.querySelectorAll('.tpn-g[data-g="1"] .tpn-p span')].map(x => x.textContent).join(','), document.querySelector('.tpn-open[data-open="1"]').getAttribute('aria-expanded'), document.querySelectorAll('.tpn-p input:checked').length, !!document.querySelector('.tool-pick-names')].join('/')), '山田 太郎,山田 花子/true/0/true');
+  await page.click('.tpn-g[data-g="1"] .tpn-p:nth-child(2)'); await w(100);
+  check('  1人に ✓ → 名簿に「✓ 1人」・全員にも・下に 人数・「✓ 1人を 入れる」', await page.evaluate(() => [document.querySelector('[data-badge="1"]').textContent, document.querySelector('[data-badge="4"]').textContent, document.querySelector('[data-badge="2"]').hidden, document.querySelector('.tpn-sum').textContent, document.querySelector('.tpn-b.pri').textContent].join('/')), '✓ 1人/✓ 1人/true/えらんだ 人：1人/✓ 1人を 入れる');
+  await page.click('.tpn-open[data-open="3"]'); await w(150);
+  await page.click('.tpn-g[data-g="3"] .tpn-p:nth-child(2)'); await w(100);
+  check('  ほかの 名簿からも（★ お気に入りの 鈴木 次郎）', await page.evaluate(() => [...document.querySelectorAll('.tpn-p.on span')].map(x => x.textContent).join(',') + '/' + document.querySelector('.tpn-sum').textContent), '山田 花子,鈴木 次郎/えらんだ 人：2人');
+  await page.click('.tpn-g[data-g="3"] .tpn-p:nth-child(1)'); await w(100);
+  check('  同じ 人は どの 名簿でも 同じ ✓（家族の 山田 太郎にも）', await page.evaluate(() => document.querySelector('.tpn-g[data-g="1"] .tpn-p:nth-child(1) input').checked + '/' + document.querySelector('[data-badge="1"]').textContent), 'true/✓ 2人');
+  await page.click('.tpn-g[data-g="1"] .tpn-p:nth-child(1)'); await w(100);
+  check('  ✓ を 外す', await page.evaluate(() => document.querySelector('.tpn-g[data-g="3"] .tpn-p:nth-child(1) input').checked + '/' + document.querySelector('.tpn-sum').textContent), 'false/えらんだ 人：2人');
+  await page.click('.tpn-open[data-open="1"]'); await w(100);
+  check('  もう一度 押すと 閉じる（✓ は そのまま）', await page.evaluate(() => [document.querySelectorAll('.tpn-g[data-g="1"] .tpn-p').length, document.querySelector('[data-badge="1"]').textContent].join('/')), '0/✓ 1人');
+  await page.fill('.tpn-q', 'ｽｽﾞｷ'); await w(150);
+  check('  🔎 さがす（半角カナ → よみ）：あう 人の いる 名簿だけ 開く・✓ は そのまま', await page.evaluate(() => [...document.querySelectorAll('.tpn-g')].map(g => g.dataset.g + ':' + [...g.querySelectorAll('.tpn-p')].map(p => p.textContent + (p.querySelector('input').checked ? '✓' : '')).join('|')).join(' ')), '2:鈴木 次郎✓ 3:鈴木 次郎✓ 4:鈴木 次郎✓');
+  await page.fill('.tpn-q', 'はなこ'); await w(150);
+  check('  🔎 ひらがなで カタカナの よみも', await page.evaluate(() => [...document.querySelectorAll('.tpn-p span')].map(x => x.textContent).join(',')), '山田 花子,山田 花子');
+  await page.fill('.tpn-q', '渡辺'); await w(150);
+  await page.click('.tpn-all[data-all="2"]'); await w(100);
+  check('  🔎 さがして ぜんぶ → あう 人だけ', await page.evaluate(() => document.querySelector('.tpn-sum').textContent + '/' + document.querySelector('.tpn-all[data-all="2"]').textContent), 'えらんだ 人：3人/✕ はずす');
+  await page.click('.tpn-all[data-all="2"]'); await w(100);
+  await page.fill('.tpn-q', 'zzz'); await w(100);
+  check('  🔎 あう 人が いない', await page.evaluate(() => document.querySelector('.tpn-list').textContent), 'あう 人が いません');
+  await page.fill('.tpn-q', ''); await w(100);
+  check('  🔎 消すと もとの 開き方', await page.evaluate(() => [...document.querySelectorAll('.tpn-g.open')].map(g => g.dataset.g).join(',') + '/' + document.querySelector('.tpn-sum').textContent), '3/えらんだ 人：2人');
+  await page.click('.tpn-all[data-all="2"]'); await w(100);
+  check('  ✓ ぜんぶ（閉じた まま）→ ✕ はずす', await page.evaluate(() => [document.querySelector('[data-badge="2"]').textContent, document.querySelector('.tpn-all[data-all="2"]').textContent, document.querySelector('.tpn-sum').textContent].join('/')), '✓ 5人/✕ はずす/えらんだ 人：6人');
+  await page.click('.tpn-all[data-all="2"]'); await w(100);
+  check('  ✕ はずす → その 名簿の 人は ぜんぶ 外れる', await page.evaluate(() => [document.querySelector('[data-badge="2"]').hidden, document.querySelector('.tpn-sum').textContent].join('/')), 'true/えらんだ 人：1人');
+  await page.click('.tpn-g[data-g="3"] .tpn-p:nth-child(2)'); await w(100);
+  for (let i = 0; i < 24; i++) await page.keyboard.press('Tab');
+  check('  Tab は 窓の 中を 回る（下の 道具へ 出ない）', await page.evaluate(() => document.querySelector('.tpn-box').contains(document.activeElement)), true);
+  await page.click('.tpn-b.pri'); await w(300);
+  check('  ✓ 2人を 入れる → えらんだ 人だけ（名簿の 順）', await page.evaluate(async () => { await window.__p; const s = JSON.parse(localStorage.getItem('excalc_tatekae') || '{}'); const e = (s.events || []).find(x => x.id === s.cur) || (s.events || [])[0]; return [!document.querySelector('.tool-pick-names'), e ? e.members.map(m => m.n).join(',') : '', appModalOpen].join('/'); }), 'true/山田 花子,鈴木 次郎/false');
+  await page.evaluate(() => { window.__p = TK.memImport(); }); await w(250);
+  await page.click('.tpn-open[data-open="1"]'); await w(150);
+  check('  もう 入っている 人は「入っています」で ✓ できない', await page.evaluate(() => [...document.querySelectorAll('.tpn-g[data-g="1"] .tpn-p')].map(p => p.textContent + ':' + p.querySelector('input').disabled).join(',')), '山田 太郎:false,山田 花子入っています:true');
+  await page.click('.tpn-all[data-all="1"]'); await w(100);
+  check('  ぜんぶ は 入っている 人を とばす', await page.evaluate(() => [document.querySelector('.tpn-sum').textContent, document.querySelector('.tpn-all[data-all="1"]').textContent].join('/')), 'えらんだ 人：1人/✕ はずす');
+  await page.keyboard.press('Escape'); await w(200);
+  check('  Esc：名簿の 窓だけ 閉じる（道具は そのまま・何も 入らない）', await page.evaluate(async () => { await window.__p; return [(() => { const s = JSON.parse(localStorage.getItem('excalc_tatekae') || '{}'); const e = (s.events || []).find(x => x.id === s.cur) || (s.events || [])[0]; return e ? e.members.map(m => m.n).join(',') : ''; })(), !document.querySelector('.tool-pick-names'), isDlgOpen('tatekaeOverlay'), appModalOpen].join('/'); }), '山田 花子,鈴木 次郎/true/true/false');
+  await page.evaluate(() => { window.__p = TK.memImport(); }); await w(250);
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  端末の「戻る」：名簿の 窓だけ 閉じる', await page.evaluate(async () => { await window.__p; return [(() => { const s = JSON.parse(localStorage.getItem('excalc_tatekae') || '{}'); const e = (s.events || []).find(x => x.id === s.cur) || (s.events || [])[0]; return e ? e.members.map(m => m.n).join(',') : ''; })(), !document.querySelector('.tool-pick-names'), isDlgOpen('tatekaeOverlay')].join('/'); }), '山田 花子,鈴木 次郎/true/true');
+  await page.evaluate(() => { window.__p = TK.memImport(); }); await w(250);
+  await page.click('.tpn-b[data-x]'); await w(150);
+  check('  やめる', await page.evaluate(async () => { await window.__p; return [(() => { const s = JSON.parse(localStorage.getItem('excalc_tatekae') || '{}'); const e = (s.events || []).find(x => x.id === s.cur) || (s.events || [])[0]; return e ? e.members.map(m => m.n).join(',') : ''; })(), !document.querySelector('.tool-pick-names')].join('/'); }), '山田 花子,鈴木 次郎/true');
+  // 名簿が 1つ だけ なら はじめから 開く・多い 人は 300人まで 出す
+  await page.evaluate(() => { localStorage.removeItem('excalc_touban'); const items = []; for (let i = 0; i < 350; i++) items.push({ id: 'z' + i, fam: '人', giv: String(1000 + i) }); localStorage.setItem('excalc_renraku', JSON.stringify({ v: 1, items })); window.__p = toolPickNames(); }); await w(300);
+  check('  名簿が 1つなら はじめから 開く・300人まで 出して「ほか 50人」', await page.evaluate(() => [document.querySelectorAll('.tpn-g').length, document.querySelectorAll('.tpn-p').length, document.querySelector('.tpn-more').textContent.startsWith('ほか 50人')].join('/')), '1/300/true');
+  await page.fill('.tpn-q', '1349'); await w(150);
+  check('  🔎 さがすと 出る', await page.evaluate(() => [...document.querySelectorAll('.tpn-p span')].map(x => x.textContent).join(',')), '人 1349');
+  await page.click('.tpn-b[data-x]'); await w(150);
+  // 夜の色：名簿の 窓・確認の 窓の 字が 読める
+  const low = sel => page.evaluate(sel => {
+    const rgb = c => { const m = c.match(/[\d.]+/g); return { v: m.slice(0, 3).map(x => x / 255), a: m.length > 3 ? +m[3] : 1 }; };
+    const lum = c => rgb(c).v.map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
+    const bgOf = el => { for (let e = el; e && e.nodeType === 1; e = e.parentElement) { const cs = getComputedStyle(e); if (rgb(cs.backgroundColor).a >= 0.5) return cs.backgroundColor; } return 'rgb(255, 255, 255)'; };
+    const root = document.querySelector(sel); if (!root) return 'none';
+    const bad = [];
+    for (const el of root.querySelectorAll('*')) {
+      let t = ''; for (const n of el.childNodes) if (n.nodeType === 3) t += n.textContent;
+      if (!/[\p{L}\p{N}]/u.test(t) || !el.getClientRects().length) continue;
+      const a = lum(getComputedStyle(el).color), b = lum(bgOf(el)), r = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+      if (r < 3) bad.push(t.trim().slice(0, 10) + '(' + r.toFixed(1) + ')');
+    }
+    return bad.join(' / ');
+  }, sel);
+  await page.evaluate(() => { localStorage.setItem('excalc_touban', JSON.stringify({ roster: [{ name: 'Aさん' }, { name: 'Bさん' }] })); localStorage.setItem('excalc_renraku', JSON.stringify({ v: 1, groups: [{ n: '家族' }], items: [{ id: 'a1', fam: '山田', giv: '太郎', groups: ['家族'], fav: true }] })); });
+  for (const dark of [false, true]) {
+    await page.evaluate(d => { document.body.classList.toggle('dark', d); window.__p = toolPickNames(null, { have: ['Bさん'] }); }, dark); await w(250);
+    await page.evaluate(() => { document.querySelector('.tpn-open[data-open="0"]').click(); }); await w(100);
+    await page.evaluate(() => { document.querySelector('.tpn-g[data-g="0"] .tpn-p input').click(); }); await w(100);
+    check('  ' + (dark ? '夜' : '昼') + 'の色：名簿の 窓の 字が 読める', await low('.tool-pick-names'), '');
+    await page.evaluate(() => document.querySelector('.tpn-b[data-x]').click()); await w(100);
+    await page.evaluate(() => { window.__c = appConfirm('消しますか？', 'はい', 'いいえ'); document.body.lastElementChild.id = 'cfTest'; }); await w(150);
+    check('  ' + (dark ? '夜' : '昼') + 'の色：確認の 窓の 字が 読める（地は 窓の 色）', await page.evaluate(() => getComputedStyle(document.querySelector('#cfTest > div')).backgroundColor) + '/' + await low('#cfTest'), (dark ? 'rgb(30, 42, 69)' : 'rgb(255, 255, 255)') + '/');
+    await page.evaluate(() => document.querySelector('#cfTest button').click()); await w(100);
+  }
+  await page.evaluate(() => document.body.classList.remove('dark'));
+  await page.evaluate(() => closeTatekae()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runYatta579(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🔁 前にやった日 帳（v579） ──');
@@ -11377,7 +11482,7 @@ async function runShukin579(browser) {
   await page.evaluate(() => { undoLast(); openShukin(); }); await w(400);
   check('  新しい 表：前の 表の 名簿を 写す（出欠・集金は 空・会費は 同じ）', await page.evaluate(async () => { window.__p = ['同窓会 2026']; await SHUKIN.newListNow(); const s = SHUKIN.state(), l = s.lists[1]; return [s.lists.length, s.cur === l.id, l.mem.map(m => m.name + m.n).join(','), l.mem.every(m => !m.att && !m.paid), l.fee, document.querySelector('.sh-sel').selectedOptions[0].textContent.startsWith('同窓会 2026')].join('/'); }), '2/true/山田 太郎1,佐藤 花子2,鈴木 一郎1,田中 次郎1/true/3000/true');
   check('  表を えらぶ・出欠と 集金を 空に・表を 消す（聞いてから）', await page.evaluate(async () => { const s0 = SHUKIN.state(); SHUKIN.sel(s0.lists[0].id); const a = [document.querySelector('.sh-sum .h b').textContent]; await SHUKIN.resetNow(); a.push(SHUKIN.state().lists[0].mem.every(m => !m.att && !m.paid)); await SHUKIN.delListNow(); const s = SHUKIN.state(); a.push(s.lists.length, s.lists[0].title); return a.join('/'); }), '11月 町内会費/true/1/同窓会 2026');
-  check('  📇 名簿から（連絡帳の ★ お気に入り）', await page.evaluate(async () => { localStorage.setItem('excalc_renraku', JSON.stringify({ v: 1, items: [{ id: 'a1', fam: '高橋', giv: '健', fav: true }, { id: 'a2', fam: '山田', giv: '太郎', fav: true }] })); const pr = SHUKIN.pick(); await new Promise(r => setTimeout(r, 200)); const b = document.querySelector('.tool-pick-names button[data-i="0"]'); const lab = b ? b.textContent : ''; if (b) b.click(); await pr; await new Promise(r => setTimeout(r, 200)); return [lab.includes('お気に入り'), SHUKIN.state().lists[0].mem.map(m => m.name).join(',')].join('/'); }), 'true/山田 太郎,佐藤 花子,鈴木 一郎,田中 次郎,高橋 健');
+  check('  📇 名簿から（連絡帳の ★ お気に入り・入っている 人は えらべない）', await page.evaluate(async () => { localStorage.setItem('excalc_renraku', JSON.stringify({ v: 1, items: [{ id: 'a1', fam: '高橋', giv: '健', fav: true }, { id: 'a2', fam: '山田', giv: '太郎', fav: true }] })); const pr = SHUKIN.pick(); await new Promise(r => setTimeout(r, 200)); const lab = document.querySelector('.tpn-open[data-open="0"] b').textContent; document.querySelector('.tpn-open[data-open="0"]').click(); await new Promise(r => setTimeout(r, 100)); const dis = [...document.querySelectorAll('.tpn-g[data-g="0"] .tpn-p')].map(p => p.textContent + ':' + p.querySelector('input').disabled).join(','); document.querySelector('.tpn-all[data-all="0"]').click(); document.querySelector('.tpn-b.pri').click(); await pr; await new Promise(r => setTimeout(r, 200)); return [lab.includes('お気に入り'), dis, SHUKIN.state().lists[0].mem.map(m => m.name).join(',')].join('/'); }), 'true/高橋 健:false,山田 太郎入っています:true/山田 太郎,佐藤 花子,鈴木 一郎,田中 次郎,高橋 健');
   await page.evaluate(() => { closeShukin(); localStorage.setItem('excalc_shukin', JSON.stringify({ lists: [null, { id: 'BAD!', title: '<img src=x onerror="window.__s=1">', date: '2026-13-01', fee: '-5', who: 'zz', mem: [null, { name: '' }, { name: '<b>a</b>', n: 500, amt: 'x', att: 'q', paid: '1万', pd: 'x' }] }], cur: 'nope', filt: 'zz', grp: 1 })); openShukin(); }); await w(300);
   check('  変なデータ：片づけて 開く（文字は 文字のまま）', await page.evaluate(() => { const s = SHUKIN.state(), l = s.lists[0], m = l.mem[0]; return [s.lists.length, s.cur === l.id, l.title.slice(0, 4), l.date, l.fee, l.who, l.mem.length, m.name, m.n, m.amt, m.att, m.paid, m.pd, s.filt, s.grp, !!window.__s, !!document.querySelector('#shBody img')].join('/'); }), '1/true/<img//0/all/1/<b>a</b>/99/0//10000//all/true/false/false');
   await page.evaluate(() => closeShukin()); await w(200);
@@ -11581,8 +11686,8 @@ async function runKuji561(browser) {
   // 名簿から（当番表）
   await page.evaluate(() => localStorage.setItem('excalc_touban', JSON.stringify({ roster: [{ name: 'Aさん' }, { name: 'Bさん' }, { name: '' }, { name: 'Cさん' }] })));
   await page.evaluate(() => { KJ.names(); }); await w(200);
-  check('  📇 名簿から：当番表の名簿・名前の組が出る', await page.evaluate(() => [...document.querySelectorAll('.tool-pick-names button[data-i] b')].map(b => b.textContent).join(',')), '📂 3年2組,📅 当番表の名簿');
-  await page.evaluate(() => document.querySelectorAll('.tool-pick-names button[data-i]')[1].click()); await w(200);
+  check('  📇 名簿から：当番表の名簿・名前の組が出る', await page.evaluate(() => [...document.querySelectorAll('.tool-pick-names .tpn-open b')].map(b => b.textContent).join(',')), '📂 3年2組,📅 当番表の名簿');
+  await page.evaluate(() => { document.querySelector('.tpn-all[data-all="1"]').click(); document.querySelector('.tpn-b.pri').click(); }); await w(200);
   await page.evaluate(() => document.querySelector('.kj-pick button[data-v="set"]').click()); await w(200);
   check('  入れかえる → 名簿の3人', await page.evaluate(() => KJ.state().names.join(',')), 'Aさん,Bさん,Cさん');
   // 乱数のかたより
@@ -16836,6 +16941,7 @@ async function runQrShare(browser) {
     if (!only || only === 'yatta' || only === 'v579') await runYatta579(browser);
     if (!only || only === 'shukin' || only === 'v579') await runShukin579(browser);
     if (!only || only === 'shiori' || only === 'v579') await runShiori579(browser);
+    if (!only || only === 'picknames' || only === 'v579') await runPickNames579(browser);
     if (!only || only === 'saveas') await runSaveAs560(browser);
     if (!only || only === 'tatekae' || only === 'v561') await runTatekae561(browser);
     if (!only || only === 'kuji' || only === 'v561') await runKuji561(browser);

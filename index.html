@@ -120,6 +120,7 @@
   --kp-veil2: rgba(255,255,255,.07);
 }
 body.dark {
+  --panel: var(--modal-bg);   /* 窓の 地（確認・入力の 窓 など。v579：夜の色でも 白地に 薄い字に ならないように） */
   --acc-text: var(--acc-on-dark);
   --pm-acc: var(--acc);
   --acc-weak: rgba(33,115,70,.30);
@@ -1622,6 +1623,39 @@ body.dark .cell.paste-flash { background: #1f5132 !important; }
 .zei-set { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 8px; border-radius: 8px;
   border: 1px solid var(--acc); background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .zei-set small { font-size: calc(11px * var(--info-scale, 1)); padding: 1px 6px; border-radius: 6px; background: var(--acc-weak, rgba(33,115,70,.12)); color: var(--acc-text); }
+/* 📇 名簿から えらぶ（v579：名簿を 開いて 1人ずつ ✓ で えらぶ） */
+.tool-pick-names { position: fixed; inset: 0; z-index: 99999; display: flex; align-items: flex-start; justify-content: center; padding-top: 5vh; background: rgba(0,0,0,.45); }
+.tpn-box { display: flex; flex-direction: column; width: min(440px, 94vw); max-height: 88vh; box-sizing: border-box; border-radius: 14px; overflow: hidden; outline: none;
+  background: var(--modal-bg, #fff); color: var(--text, #222); box-shadow: 0 10px 40px rgba(0,0,0,.35); font-size: 15px; }
+.tpn-top { display: flex; flex-direction: column; gap: 6px; padding: 14px 14px 10px; border-bottom: 1px solid rgba(120,132,156,.28); }
+.tpn-t { font-size: 16px; }
+.tpn-help { font-size: 12.5px; line-height: 1.5; color: var(--text-sub, #555); }
+.tpn-q { width: 100%; box-sizing: border-box; min-height: 42px; padding: 8px 12px; font-size: 16px; border: 1px solid rgba(120,132,156,.55); border-radius: 10px; background: var(--cell-bg, #fff); color: var(--text, #222); }
+.tpn-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 10px 4px; }
+.tpn-g { margin: 0 0 8px; border: 1px solid rgba(120,132,156,.42); border-radius: 12px; overflow: hidden; }
+.tpn-g.open { border-color: var(--acc, #217346); }
+.tpn-gh { display: flex; align-items: center; background: var(--acc-weak, rgba(33,115,70,.12)); }
+.tpn-open { flex: 1 1 auto; min-width: 0; display: flex; gap: 6px; align-items: flex-start; padding: 10px 6px 10px 10px; border: none; background: transparent; color: var(--text, #222); font: inherit; text-align: left; cursor: pointer; }
+.tpn-ar { flex: 0 0 1em; font-weight: bold; color: var(--acc-text, #217346); }
+.tpn-gl { flex: 1 1 auto; min-width: 0; line-height: 1.45; overflow-wrap: anywhere; }
+.tpn-gl small { display: block; font-size: 12.5px; color: var(--text-sub, #555); }
+.tpn-n { font-size: 13px; color: var(--text-sub, #555); white-space: nowrap; }
+.tpn-badge { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 9px; background: var(--acc, #217346); color: var(--on-acc, #fff); font-size: 12px; font-weight: bold; white-space: nowrap; }
+.tpn-badge[hidden] { display: none; }
+.tpn-all { flex: 0 0 auto; min-height: 38px; margin: 6px 8px 6px 0; padding: 0 10px; border: 1px solid var(--acc, #217346); border-radius: 9px; background: var(--modal-bg, #fff); color: var(--acc-text, #217346); font: inherit; font-size: 13px; font-weight: bold; white-space: nowrap; cursor: pointer; }
+.tpn-all:disabled { opacity: .45; cursor: default; }
+.tpn-ps { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; padding: 8px; }
+.tpn-p { display: flex; align-items: center; gap: 8px; min-height: 44px; box-sizing: border-box; padding: 6px 8px; border: 1px solid rgba(120,132,156,.38); border-radius: 10px; line-height: 1.35; overflow-wrap: anywhere; cursor: pointer; }
+.tpn-p input { flex: 0 0 auto; width: 20px; height: 20px; margin: 0; accent-color: var(--acc, #217346); }
+.tpn-p.on { background: var(--acc-weak, rgba(33,115,70,.12)); border-color: var(--acc, #217346); font-weight: bold; }
+.tpn-p.have { opacity: .6; cursor: default; }
+.tpn-p small { display: block; font-size: 11px; font-weight: normal; color: var(--text-sub, #555); }
+.tpn-more, .tpn-none { grid-column: 1 / -1; padding: 8px; font-size: 13px; color: var(--text-sub, #555); }
+.tpn-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(120,132,156,.28); }
+.tpn-sum { flex: 1 1 auto; min-width: 8em; font-size: 14px; font-weight: bold; }
+.tpn-b { min-height: 42px; padding: 0 14px; border: 1px solid #999; border-radius: 10px; background: #eee; color: #222; font: inherit; font-size: 14px; cursor: pointer; }
+.tpn-b.pri { border-color: transparent; background: var(--acc, #217346); color: var(--on-acc, #fff); font-weight: bold; }
+.tpn-b.pri:disabled { opacity: .45; cursor: default; }
 .tax-set-bg { position: fixed; inset: 0; z-index: 99990; display: flex; align-items: flex-start; justify-content: center; padding-top: 10vh; background: rgba(0,0,0,.45); }
 .tax-set { width: min(400px, 92vw); box-sizing: border-box; padding: 16px; border-radius: 14px; background: var(--panel, #fff); color: var(--text, #222);
   box-shadow: 0 10px 40px rgba(0,0,0,.35); font-size: 15px; }
@@ -9336,11 +9370,13 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
-  { v:'v579', t:'🔁 前にやった日 帳・📋 出欠・集金表・🧳 旅のしおり', li:[
+  { v:'v579', t:'🔁 前にやった日 帳・📋 出欠・集金表・🧳 旅のしおり／📇 名簿から 1人ずつ', li:[
     '🔁<b>前にやった日 帳</b>：エアコンの フィルター掃除・布団干し・散髪 などを「✓ きょう やった」で 残すと、最後に やった日と「あれから ○日」が 出ます。目安（○日ごと）に 近づくと 黄色、過ぎると 赤。よくある もの 16 から 1回で 足せます',
     '📋<b>出欠・集金表</b>：町内会・PTA・同窓会 などの 名簿に、出欠（出席・欠席・未定）と 集金の ✓ を つけます。上に 人数・集まった 金額・まだの 人が 出て、印刷・コピー（まだの 方の 一覧）も。前の 表の 名簿を 写して 次の 会にも 使えます',
     '🧳<b>旅のしおり</b>：旅行ごとに 日程・持ち物（国内／海外の 見本）・お金（予算と 使った お金）・お土産・宿と 連絡先（電話・地図）・外貨の 換算を 1つに まとめます。「📋 しおりを コピー」で LINE に 送れ、A4 で 印刷も できます',
-    'どれも 🧰 道具の「🏠 くらし」に あります（ホーム画面の アイコンにも できます）'
+    'どれも 🧰 道具の「🏠 くらし」に あります（ホーム画面の アイコンにも できます）',
+    '📇<b>名簿から 入れる</b>（💴 立て替え精算・🎲 くじ・📋 出欠・集金表）：名簿（グループ）を 押すと 中の 人が 出て、<b>入れる 人に ✓</b> を つけて えらべます（いままでは グループの 全員が 入っていました）。「✓ ぜんぶ」で まとめて・🔎 名前や よみで さがす・ほかの 名簿からも・📇 連絡帳の 全員からも。もう 入っている 人は「入っています」と 出ます',
+    '夜の色（ダーク）で、確認や 入力の 窓の 字が 白い 地に 薄く 出て 読みにくかったのを 直しました'
   ]},
   { v:'v578', t:'📃 請求書づくり：業種の 見本を 8つ 追加（🏨 宿泊も）', li:[
     '🧩 パターンの「<b>📚 業種の 見本</b>」に 8つ 足しました：🏠 リフォーム・内装／🚚 運送・チャーター／🖨 印刷（チラシ）／🍱 お弁当・仕出し（消費税 8％）／<b>🏨 宿泊（旅館・ホテル）</b>／🧹 ハウスクリーニング／🌳 造園・庭木／📦 卸・物販（掛け率）。🚛 生コン と あわせて 9つです',
@@ -13868,37 +13904,115 @@ function toolNum(s){
   else { const n=kanjiRunToNumber(t); if(n!=null) v=n; }
   return neg?-v:v;
 }
-/* 名簿から名前をまとめて入れる（v561：立て替え精算・くじ）。📅当番表の名簿・📇連絡帳のグループ・★お気に入り から1つ選ぶ。
-   extra は道具の分（[{label, names}]）。選んだ名前の配列を返す（やめたら null） */
+/* 名簿から名前を入れる（v561：立て替え精算・くじ。v579：名簿を 開いて 1人ずつ ✓ で えらぶ）。
+   📅当番表の名簿・📇連絡帳のグループ・★お気に入り・全員 を 並べ、押すと 中の 人が 出る。✓ を つけた 人だけを 入れる（いくつの 名簿からでも）。
+   extra は道具の分（[{label, names}]）。opt.have は もう 入っている 名前（✓ できない）。えらんだ 名前の 配列を 返す（やめたら null） */
 function toolNameSources(){
-  const src=[], clean=a=>[...new Set(a.map(v=>String(v||'').replace(/[\u0000-\u001F\u007F]/g,' ').trim().slice(0,24)).filter(Boolean))];
+  const src=[], one=v=>String(v||'').replace(/[\u0000-\u001F\u007F]/g,' ').trim().slice(0,24), clean=a=>[...new Set(a.map(one).filter(Boolean))];
   try{ const t=JSON.parse(localStorage.getItem('excalc_touban')||'null'); const ns=clean((t&&Array.isArray(t.roster)?t.roster:[]).map(m=>m&&m.name)); if(ns.length) src.push({label:'📅 当番表の名簿', names:ns}); }catch(_){}
   try{
     const o=JSON.parse(localStorage.getItem('excalc_renraku')||'null'), items=(o&&Array.isArray(o.items))?o.items.filter(x=>x&&typeof x==='object'):[];
-    const nm=x=>x.fn||[x.fam,x.giv].filter(Boolean).join(' ')||x.nick||x.org||'';
-    ((o&&Array.isArray(o.groups))?o.groups:[]).forEach(g=>{ if(!g||!g.n) return; const ns=clean(items.filter(x=>Array.isArray(x.groups)&&x.groups.includes(g.n)).map(nm)); if(ns.length) src.push({label:'📇 連絡帳：'+(g.ic?g.ic+' ':'')+g.n, names:ns}); });
-    const fav=clean(items.filter(x=>x.fav).map(nm)); if(fav.length) src.push({label:'📇 連絡帳：★ お気に入り', names:fav});
+    const nm=x=>one(x.fn||[x.fam,x.giv].filter(Boolean).join(' ')||x.nick||x.org||'');
+    const yo={};   // 名前 → よみ（さがす・全員の 並び）
+    items.forEach(x=>{ const n=nm(x), y=[x.famK,x.givK].filter(v=>typeof v==='string'&&v).join(' ').slice(0,60); if(n && y && !yo[n]) yo[n]=y; });
+    const add=(label, ns)=>{ if(ns.length) src.push({label, names:ns, yomi:ns.map(n=>yo[n]||'')}); };
+    ((o&&Array.isArray(o.groups))?o.groups:[]).forEach(g=>{ if(!g||!g.n) return; add('📇 連絡帳：'+(g.ic?g.ic+' ':'')+g.n, clean(items.filter(x=>Array.isArray(x.groups)&&x.groups.includes(g.n)).map(nm))); });
+    add('📇 連絡帳：★ お気に入り', clean(items.filter(x=>x.fav).map(nm)));
+    const kana=n=>toolKana(yo[n]||n);
+    add('📇 連絡帳：全員', clean(items.map(nm)).sort((a,b)=>kana(a).localeCompare(kana(b),'ja')));
   }catch(_){}
   return src;
 }
-function toolPickNames(extra){
-  const src=(extra||[]).concat(toolNameSources()).filter(x=>x && x.names && x.names.length);
+/* さがす ときの 字を そろえる（全角・半角・大文字・カタカナ → ひらがな・空白なし） */
+function toolKana(s){ return String(s||'').normalize('NFKC').toLowerCase().replace(/[\s　・･]/g,'').replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60)); }
+function toolPickNames(extra, opt){
+  const src=[];
+  (extra||[]).concat(toolNameSources()).forEach(x=>{
+    if(!x || !Array.isArray(x.names)) return;
+    const seen=new Set(), names=[], yomi=[];
+    x.names.forEach((v,j)=>{ const n=String(v==null?'':v).trim(); if(!n || seen.has(n)) return; seen.add(n); names.push(n); yomi.push(Array.isArray(x.yomi)?String(x.yomi[j]||''):''); });
+    if(names.length) src.push({label:String(x.label||''), names, yomi});
+  });
   if(!src.length){ toast('入れられる名簿がありません。📅 当番表の名簿や、📇 連絡帳のグループ・★お気に入り から入れられます', 4600); return Promise.resolve(null); }
+  const have=new Set(((opt&&Array.isArray(opt.have))?opt.have:[]).map(v=>String(v==null?'':v).trim()));
+  // 人（名簿を またいで 同じ 名前は 1人）。k は all の 番号
+  const all=[], idx=new Map(), key=[];
+  src.forEach(s=>{ s.ks=s.names.map((n,j)=>{ if(!idx.has(n)){ idx.set(n, all.length); all.push(n); key.push(toolKana(n)); } const k=idx.get(n); if(s.yomi[j]) key[k]+='\u0001'+toolKana(s.yomi[j]); return k; }); });
+  const sel=new Set(), open=new Set(src.length===1?[0]:[]), MAXP=300, free=k=>!have.has(all[k]);
+  let q='', done=false;
   return new Promise(resolve=>{
     appModalOpen=true;
     const ov=document.createElement('div'); ov.className='tool-pick-names';
-    ov.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding-top:8vh;background:rgba(0,0,0,.45)';
-    const box=document.createElement('div');
-    box.style.cssText='background:var(--panel,#fff);color:var(--text,#222);width:min(420px,92vw);max-height:78vh;overflow:auto;padding:16px;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.35);font-size:15px';
-    box.innerHTML='<div style="font-weight:bold;margin-bottom:10px">どの名簿の人を入れますか？</div>'
-      +src.map((x,i)=>'<button type="button" data-i="'+i+'" style="display:block;width:100%;text-align:left;margin:0 0 8px;padding:10px 12px;border-radius:10px;border:1px solid rgba(120,132,156,.4);background:var(--acc-weak,rgba(33,115,70,.12));color:var(--text,#222);cursor:pointer"><b style="font-size:15px">'+escHtml(x.label)+'</b>（'+x.names.length+'人）<br><small style="color:var(--text-light,#777)">'+escHtml(x.names.slice(0,6).join('、')+(x.names.length>6?' …':''))+'</small></button>').join('')
-      +'<div style="text-align:right;margin-top:4px"><button type="button" data-x="1" style="padding:8px 14px;font-size:14px;border:1px solid #999;border-radius:6px;background:#eee;color:#222;cursor:pointer">やめる</button></div>';
-    let done=false;
-    const close=v=>{ if(done) return; done=true; relBack(); appModalOpen=false; try{ ov.remove(); }catch(_){} resolve(v); };
+    ov.innerHTML='<div class="tpn-box" role="dialog" aria-modal="true" aria-label="名簿から えらぶ" tabindex="-1">'
+      +'<div class="tpn-top"><b class="tpn-t">📇 名簿から えらぶ</b>'
+      +'<small class="tpn-help">名簿を 押すと 中の 人が 出ます。入れる 人に ✓（ほかの 名簿からも えらべます）</small>'
+      +(all.length>10?'<input class="tpn-q" type="search" placeholder="🔎 名前・よみで さがす" aria-label="名前・よみで さがす" autocomplete="off">':'')
+      +'</div><div class="tpn-list"></div>'
+      +'<div class="tpn-foot"><span class="tpn-sum" aria-live="polite"></span><button type="button" class="tpn-b" data-x="1">やめる</button><button type="button" class="tpn-b pri" data-ok="1">✓ 入れる</button></div></div>';
+    const box=ov.firstChild, list=box.querySelector('.tpn-list'), qIn=box.querySelector('.tpn-q'), sum=box.querySelector('.tpn-sum'), ok=box.querySelector('[data-ok]');
+    const shown=i=>q?src[i].ks.filter(k=>key[k].includes(q)):src[i].ks;   // さがして いるときは あう 人だけ
+    const row=k=>{ const h=!free(k); return '<label class="tpn-p'+(h?' have':'')+'"><input type="checkbox" data-k="'+k+'"'+(h?' disabled':'')+'><span>'+escHtml(all[k])+(h?'<small>入っています</small>':'')+'</span></label>'; };
+    function render(){
+      let h='';
+      src.forEach((s,i)=>{
+        const ks=shown(i); if(q && !ks.length) return;
+        const op=!!q || open.has(i), pv=s.names.slice(0,6).join('、')+(s.names.length>6?' …':'');
+        h+='<div class="tpn-g'+(op?' open':'')+'" data-g="'+i+'"><div class="tpn-gh">'
+          +'<button type="button" class="tpn-open" data-open="'+i+'" aria-expanded="'+op+'"><span class="tpn-ar" aria-hidden="true">'+(op?'▾':'▸')+'</span>'
+          +'<span class="tpn-gl"><b>'+escHtml(s.label)+'</b> <span class="tpn-n">'+s.names.length+'人</span><span class="tpn-badge" data-badge="'+i+'" hidden></span>'+(op?'':'<small>'+escHtml(pv)+'</small>')+'</span></button>'
+          +'<button type="button" class="tpn-all" data-all="'+i+'">✓ ぜんぶ</button></div>'
+          +(op?'<div class="tpn-ps">'+ks.slice(0,MAXP).map(row).join('')+(ks.length>MAXP?'<div class="tpn-more">ほか '+(ks.length-MAXP)+'人（🔎 さがす で しぼって ください）</div>':'')+'</div>':'')
+          +'</div>';
+      });
+      list.innerHTML=h || '<div class="tpn-none">あう 人が いません</div>';
+      sync();
+    }
+    function sync(){   // ✓・名簿ごとの 数・ぜんぶ／はずす・下の 合計
+      list.querySelectorAll('input[data-k]').forEach(c=>{ c.checked=sel.has(+c.dataset.k); c.parentNode.classList.toggle('on', c.checked); });
+      src.forEach((s,i)=>{
+        const b=list.querySelector('[data-badge="'+i+'"]'); if(b){ const n=s.ks.filter(k=>sel.has(k)).length; b.textContent='✓ '+n+'人'; b.hidden=!n; }
+        const a=list.querySelector('[data-all="'+i+'"]'); if(!a) return;
+        const ks=shown(i).filter(free), full=ks.length>0 && ks.every(k=>sel.has(k));
+        a.textContent=full?'✕ はずす':'✓ ぜんぶ'; a.disabled=!ks.length; a.dataset.full=full?'1':'';
+        a.setAttribute('aria-label', s.label+(full?'の ✓ を ぜんぶ はずす':'の 人を ぜんぶ えらぶ'));
+      });
+      sum.textContent=sel.size?'えらんだ 人：'+sel.size+'人':'まだ えらんで いません';
+      ok.disabled=!sel.size; ok.textContent=sel.size?'✓ '+sel.size+'人を 入れる':'✓ 入れる';
+    }
+    // キーは window で 先に 受ける（Esc で 下の 道具まで 閉じない・Tab が 窓の 外へ 出ない）
+    const onKey=e=>{
+      if(e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); close(null); return; }
+      if(e.key!=='Tab') return;
+      const f=a11yFocusable(box); if(!f.length) return;
+      e.stopImmediatePropagation();
+      const a=document.activeElement, first=f[0], last=f[f.length-1];
+      if(!box.contains(a) || a===box){ e.preventDefault(); (e.shiftKey?last:first).focus(); }
+      else if(e.shiftKey && a===first){ e.preventDefault(); last.focus(); }
+      else if(!e.shiftKey && a===last){ e.preventDefault(); first.focus(); }
+    };
+    const close=v=>{ if(done) return; done=true; relBack(); window.removeEventListener('keydown', onKey, true); appModalOpen=false; try{ ov.remove(); }catch(_){} resolve(v); };
     const relBack=modalBack(()=>close(null));
-    box.addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; if(b.dataset.x) close(null); else close(src[+b.dataset.i].names.slice()); });
+    window.addEventListener('keydown', onKey, true);
+    box.addEventListener('click', e=>{
+      const b=e.target.closest('button'); if(!b || b.disabled) return;
+      if(b.dataset.x) close(null);
+      else if(b.dataset.ok) close(all.filter((n,k)=>sel.has(k)));
+      else if(b.dataset.open!=null){
+        const i=+b.dataset.open; if(q) return;
+        if(open.has(i)) open.delete(i); else open.add(i);
+        render();
+        const g=list.querySelector('[data-g="'+i+'"]'), f=g&&g.querySelector('.tpn-open');
+        if(f) f.focus({preventScroll:true});
+        if(g && open.has(i)){ const lr=list.getBoundingClientRect(), gr=g.getBoundingClientRect(); if(gr.bottom>lr.bottom) list.scrollTop+=Math.max(0, Math.min(gr.top-lr.top, gr.bottom-lr.bottom)); }
+      }
+      else if(b.dataset.all!=null){ const ks=shown(+b.dataset.all).filter(free); if(b.dataset.full) ks.forEach(k=>sel.delete(k)); else ks.forEach(k=>sel.add(k)); sync(); }
+    });
+    box.addEventListener('change', e=>{ const c=e.target; if(!c.matches || !c.matches('input[data-k]')) return; const k=+c.dataset.k; if(c.checked && free(k)) sel.add(k); else sel.delete(k); sync(); });
+    if(qIn) qIn.addEventListener('input', ()=>{ q=toolKana(qIn.value); render(); });
     ov.addEventListener('mousedown', e=>{ if(e.target===ov) close(null); });
-    ov.appendChild(box); document.body.appendChild(ov);
+    render();
+    document.body.appendChild(ov);
+    try{ box.focus({preventScroll:true}); }catch(_){}
   });
 }
 

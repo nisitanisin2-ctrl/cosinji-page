@@ -231,7 +231,7 @@ async function memAdd(){
 }
 async function memImport(){
   const extra=st.events.filter(x=>x.id!==st.cur && x.members.length).sort((a,b)=>b.upd-a.upd).slice(0,3).map(x=>({label:'💴 「'+x.name+'」の人', names:x.members.map(m=>m.n)}));
-  const names=await toolPickNames(extra);
+  const names=await toolPickNames(extra, {have:ev().members.map(m=>m.n)});
   if(names && names.length) await addNames(names);
 }
 function memEdit(id){

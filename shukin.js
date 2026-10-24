@@ -215,7 +215,7 @@ async function addNames(){
 }
 async function pick(){
   if(!L()) await newList(); if(!L() || typeof toolPickNames!=='function') return;
-  const ns=await toolPickNames(); if(!ns || !ns.length) return;
+  const ns=await toolPickNames(null, {have:L().mem.map(m=>m.name)}); if(!ns || !ns.length) return;
   addList(ns.map(n=>({name:n, grp:''})));
 }
 function setAtt(id, v){ const m=mOf(id); if(!m || !['o','x',''].includes(v)) return; m.att=v; save(); render(); }
