@@ -21,7 +21,11 @@
    ・値引きに「1つあたり ○円引き」（数量 × ○円。定価より 大きくは 引かない）と「単価を ○円に」（定価 − 単価 を 1つずつ 引く）。
    ・オプションに 単位と「数量は 品物の 合計に 合わせる」（1m³あたりの 割増 など）。
    ・⭐ よく使う 品物（配合と 定価の 表）・オプション・条件を 一覧で 直す・消す。品名を ⭐ の 名前に すると 定価も 入れかわる。
-   ・書類の 明細は 値引き・割増・円の 値下げも「数量 × 単価」で 出す（品物の 単位が そろっているとき）。 */
+   ・書類の 明細は 値引き・割増・円の 値下げも「数量 × 単価」で 出す（品物の 単位が そろっているとき）。
+   v578：
+   ・業種の 見本を 7つ 足す（🏠 リフォーム・内装／🚚 運送・チャーター／🖨 印刷（チラシ）／🍱 お弁当・仕出し（8％）／🧹 ハウスクリーニング／🌳 造園・庭木／📦 卸・物販）。
+     見本は「📚 業種の 見本」の 札から えらぶ。上の 列には 自分の パターン・いま 入れている 見本・★ の 見本だけ 出す。
+   ・値引きの 明細の 名前（出精値引き など。12字まで）・品名の 欄の 例（iex）。条件を 満たしたのに 下げる 量が 0 なら 知らせる。 */
 (function(){
 'use strict';
 const KEY='excalc_seikyu';
@@ -38,11 +42,28 @@ const MAX_YEN=99999999999, MAX_QTY=999999, MAX_PAT=20;
 const ID_RE=/^[a-z0-9]{4,12}$/;
 // 正規表現は undefined を「undefined」という 字として 見て 通してしまう → 字の ときだけ（v577。v575 は 新しい 書類の id が 空で、残すと 前の 書類に 上書きしていた）
 const okId=x=>typeof x==='string' && ID_RE.test(x);
-// 見本の パターン（v577）。同じ id で 自分の パターンを 残すと、こちらの かわりに それが 出る（消すと 見本に もどる）
-const BUILTIN=[{id:'namakon', name:'🚛 生コン', iname:'配合', items:[{name:'', price:0, qty:1, unit:'m³'}], disc:{m:'unit', v:0},
-  opts:[{name:'小型指定', price:0, qty:1, unit:'m³', per:'qty', on:false}, {name:'小型小口指定', price:0, qty:1, unit:'台', per:'free', on:false},
-    {name:'大型小口 2m³以下', price:0, qty:1, unit:'台', per:'free', on:false}, {name:'大型小口 1.5m³以下', price:0, qty:1, unit:'台', per:'free', on:false}],
-  rules:[{name:'プラント渡し', on:true, c:'manual', th:0, ok:false, red:'yen', rv:1000}], tax:{rate:10, rnd:'floor'}}];
+// 業種の 見本（v577 生コン・v578 で 7業種を 足す）。同じ id で 自分の パターンを 残すと、こちらの かわりに それが 出る（消すと 見本に もどる）
+// 金額は どれも 0（会社ごとに ちがうので 入れてから 残す）。desc は「📚 業種の 見本」の 説明・iex は 品名の 欄の 例
+const bO=(name, unit, per)=>({name, price:0, qty:1, unit, per:per ? 'qty' : 'free', on:false});   // per：数量を 品物の 合計に 合わせる
+const bR=(name, c, red, th)=>({name, on:true, c, th:th||0, ok:false, red, rv:0});
+const T10={rate:10, rnd:'floor'};
+const BUILTIN=[
+  {id:'namakon', name:'🚛 生コン', desc:'配合（m³）・1m³あたりの 値引き・小型／小口の 割増・プラント渡し', iname:'配合', iex:'24-18-20N', items:[{unit:'m³'}], disc:{m:'unit'},
+    opts:[bO('小型指定','m³',true), bO('小型小口指定','台'), bO('大型小口 2m³以下','台'), bO('大型小口 1.5m³以下','台')], rules:[Object.assign(bR('プラント渡し','manual','yen'), {rv:1000})], tax:T10},
+  {id:'reform', name:'🏠 リフォーム・内装', desc:'工事（㎡）・出精値引き・養生／廃材の 処分／運搬／駐車場／諸経費', iname:'工事', iex:'クロス 張り替え', items:[{unit:'㎡'}], disc:{m:'yen', lab:'出精値引き'},
+    opts:[bO('養生費','式'), bO('廃材 処分費','式'), bO('運搬費','式'), bO('駐車場代','日'), bO('諸経費','式')], rules:[], tax:T10},
+  {id:'unso', name:'🚚 運送・チャーター', desc:'運賃（台）・高速代・待機料・早朝深夜の 割増・作業・燃料・帰り便', iname:'運賃', iex:'4t車 チャーター（横浜→東京）', items:[{unit:'台'}], disc:{m:'none'},
+    opts:[bO('高速道路代（実費）','式'), bO('待機料','時間'), bO('早朝・深夜 割増','台',true), bO('積み込み・荷下ろし 作業','人'), bO('燃料 サーチャージ','台',true)], rules:[bR('帰り便','manual','pct')], tax:T10},
+  {id:'insatsu', name:'🖨 印刷（チラシ）', desc:'品目（千枚）・デザイン・修正・折り加工・特急・配送・大口割', iname:'品目', iex:'チラシ A4 両面カラー', items:[{unit:'千枚'}], disc:{m:'none'},
+    opts:[bO('デザイン料','式'), bO('データ 修正','回'), bO('折り加工','千枚',true), bO('特急 仕上げ','式'), bO('配送料','式')], rules:[bR('大口割（5千枚 以上）','qty','yen',5)], tax:T10},
+  {id:'bento', name:'🍱 お弁当・仕出し', desc:'品目（個）・お茶・デザート・大口割・消費税 8％（軽減税率）', iname:'品目', iex:'幕の内 弁当', items:[{unit:'個'}], disc:{m:'none'},
+    opts:[bO('お茶','本',true), bO('デザート','個',true)], rules:[bR('大口割（50個 以上）','qty','yen',50)], tax:{rate:8, rnd:'floor'}},
+  {id:'seisou', name:'🧹 ハウスクリーニング', desc:'作業（台）・防カビ コート・室外機・出張費・駐車場・複数台割', iname:'作業', iex:'エアコン 洗浄（壁かけ）', items:[{unit:'台'}], disc:{m:'none'},
+    opts:[bO('防カビ コート','台',true), bO('室外機 洗浄','台'), bO('出張費','回'), bO('駐車場代','回')], rules:[bR('複数台割（2台 以上）','qty','yen',2)], tax:T10},
+  {id:'zouen', name:'🌳 造園・庭木', desc:'作業（本）・消毒・高所の 作業・枝葉の 処分・草刈り・年間 契約', iname:'作業', iex:'庭木 剪定（高さ 3m まで）', items:[{unit:'本'}], disc:{m:'none'},
+    opts:[bO('消毒','本',true), bO('高所 作業','本'), bO('枝葉 処分費','袋'), bO('草刈り','㎡')], rules:[bR('年間 契約','manual','pct')], tax:T10},
+  {id:'oroshi', name:'📦 卸・物販', desc:'商品（ケース）・掛け率・送料・代引き・梱包・まとめ買い', iname:'商品', iex:'〇〇 タオル（10枚 入り）', items:[{unit:'ケース'}], disc:{m:'kake'},
+    opts:[bO('送料','式'), bO('代引き 手数料','回'), bO('梱包料','箱')], rules:[bR('まとめ買い（定価 10万円 以上）','teika','pct',100000)], tax:T10}];
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const oneLine=(v,n)=>String(v==null?'':v).replace(/[\u0000-\u001F\u007F]/g,' ').replace(/\s+/g,' ').trim().slice(0,n);
@@ -89,9 +110,9 @@ function cleanInv(v){
   const date=dateOk(v.date)||ymd(new Date());
   return {id:okId(v.id) ? v.id : rid(), kind:KINDS.some(k=>k[0]===v.kind) ? v.kind : 'seikyu', no:oneLine(v.no,24), date, due:v.due==='' ? '' : (dateOk(v.due)||endOfNextMonth(date)),
     to:{name:oneLine(to.name,50), hon:HONS.some(h=>h[0]===to.hon) ? to.hon : '御中'}, subject:oneLine(v.subject,60), memo:multi(v.memo,400),
-    iname:oneLine(v.iname,6), pat:okId(v.pat) ? v.pat : '',   // iname：品物の 呼び名（生コンは 配合）・pat：入れた パターン
+    iname:oneLine(v.iname,6), iex:oneLine(v.iex,30), pat:okId(v.pat) ? v.pat : '',   // iname：品物の 呼び名（生コンは 配合）・iex：品名の 例・pat：入れた パターン
     items:(Array.isArray(v.items) ? v.items : []).map(cleanItem).filter(Boolean).slice(0,MAX_ITEMS),
-    disc:{m:DISC.some(x=>x[0]===d.m) ? d.m : 'none', v:numIn(d.v,-MAX_YEN,MAX_YEN,0,true), base:numIn(d.base,0,MAX_YEN,0), up:numIn(d.up,-MAX_YEN,MAX_YEN,0,true), upm:d.upm==='yen' ? 'yen' : '%'},
+    disc:{m:DISC.some(x=>x[0]===d.m) ? d.m : 'none', v:numIn(d.v,-MAX_YEN,MAX_YEN,0,true), base:numIn(d.base,0,MAX_YEN,0), up:numIn(d.up,-MAX_YEN,MAX_YEN,0,true), upm:d.upm==='yen' ? 'yen' : '%', lab:oneLine(d.lab,12)},
     opts:(Array.isArray(v.opts) ? v.opts : []).map(cleanOpt).filter(Boolean).slice(0,MAX_OPTS),
     rules:(Array.isArray(v.rules) ? v.rules : []).map(cleanRule).filter(Boolean).slice(0,MAX_RULES),
     tax:{rate:TAXR.some(r=>r[0]===+t.rate) ? +t.rate : 10, rnd:RNDS.some(r=>r[0]===t.rnd) ? t.rnd : 'floor'},
@@ -115,8 +136,8 @@ function cleanMaster(m){
 function cleanPat(x){
   if(!x || typeof x!=='object') return null;
   const name=oneLine(x.name,20); if(!name) return null;
-  const v=cleanInv({items:x.items, disc:x.disc, opts:x.opts, rules:x.rules, tax:x.tax, iname:x.iname});
-  return {id:okId(x.id) ? x.id : rid(), name, iname:v.iname, items:v.items.length ? v.items : [newItem()], disc:v.disc, opts:v.opts, rules:v.rules, tax:v.tax};
+  const v=cleanInv({items:x.items, disc:x.disc, opts:x.opts, rules:x.rules, tax:x.tax, iname:x.iname, iex:x.iex});
+  return {id:okId(x.id) ? x.id : rid(), name, iname:v.iname, iex:v.iex, items:v.items.length ? v.items : [newItem()], disc:v.disc, opts:v.opts, rules:v.rules, tax:v.tax};
 }
 let builtC=null;
 const builtins=()=>builtC||(builtC=BUILTIN.map(cleanPat));
@@ -161,6 +182,8 @@ function autoName(r){
 const ruleName=r=>r.name||autoName(r);
 const INM=v=>v.iname||'品物';
 const optUnit=(o, uu)=>o.unit||(o.per==='qty' ? uu : '');   // 合計に 合わせる ときは 品物の 単位を かりる
+// 金額の 見出し：1m³あたり・1台あたり（「式」は 1つしか ないので 金額だけ）
+const optLab=un=>un==='式' ? '金額' : '<span class="w">金額・</span>1'+esc(un||'つ')+'あたり';
 // 品物の 単位が そろっているか（そろっていれば「1m³あたり」のように 出す）
 function uinfo(v){
   const items=v.items.filter(it=>it.name || it.price), us=[...new Set((items.length ? items : v.items).map(it=>it.unit))], uu=us.length===1 ? us[0] : '';   // まだ 空なら 空の 行の 単位で
@@ -173,22 +196,22 @@ function calc(v){
   const opts=v.opts.filter(o=>o.on && (o.name || o.price)).map(o=>o.per==='qty' ? Object.assign({}, o, {qty, unit:o.unit||uu}) : o);
   const O=opts.reduce((a,o)=>a+yenOf(o.price*o.qty), 0), optN=opts.length;
   // ② 値引き（dq：明細に 数量 × 単価 で 出すとき）
-  const d=v.disc; let D=0, dl='お値引き', how='', dq=null;
+  const d=v.disc, DL=d.lab||'お値引き'; let D=0, dl=DL, how='', dq=null;
   if(d.m==='unit'){ const p=Math.max(0, d.v);
     if(p>0){ const full=items.every(it=>it.price>=p);
       D=full ? yenOf(p*qty) : items.reduce((a,it)=>a+yenOf(Math.min(p, it.price)*it.qty), 0);
       how=u1+'あたり '+fmt(p)+'円 × '+fmtQ(qty)+uu;
-      if(full && same) dq={qty, unit:uu, price:-p}; else dl='お値引き（'+u1+'あたり '+fmt(p)+'円）';
+      if(full && same) dq={qty, unit:uu, price:-p}; else dl=DL+'（'+u1+'あたり '+fmt(p)+'円）';
       if(!full) warn.push('定価が '+fmt(p)+'円より 安い '+INM(v)+'は、定価までの 値引きに しました'); } }
   else if(d.m==='utarget'){ const t=d.v;
     if(t>0){ const ps=[...new Set(items.map(it=>it.price))];
       D=items.reduce((a,it)=>a+yenOf(Math.max(0, it.price-t)*it.qty), 0);
       if(same && ps.length===1 && ps[0]>t){ const p=ps[0]-t; D=yenOf(p*qty); dq={qty, unit:uu, price:-p}; how='定価 '+fmt(ps[0])+'円 → 単価 '+fmt(t)+'円（'+u1+'あたり '+fmt(p)+'円 引き）'; }
-      else { dl='お値引き（単価 '+fmt(t)+'円に）'; how='単価を '+fmt(t)+'円に'; }
+      else { dl=DL+'（単価 '+fmt(t)+'円に）'; how='単価を '+fmt(t)+'円に'; }
       if(items.some(it=>it.price>0 && it.price<t)) warn.push('定価が '+fmt(t)+'円より 安い '+INM(v)+'は、定価の ままです'); } }
-  else if(d.m==='rate'){ D=yenOf(A*d.v/100); dl='お値引き（'+fmtP(d.v)+'％引き）'; how='定価の合計 '+fmt(A)+'円 の '+fmtP(d.v)+'％'; }
+  else if(d.m==='rate'){ D=yenOf(A*d.v/100); dl=DL+'（'+fmtP(d.v)+'％引き）'; how='定価の合計 '+fmt(A)+'円 の '+fmtP(d.v)+'％'; }
   else if(d.m==='kake'){ const k=kakeOf(d.v); if(k==null){ if(d.v) warn.push('掛け率は 8（8掛け）・0.8・80 の ように 入れてください'); }
-    else { const S=yenOf(A*k); D=A-S; dl='お値引き（定価の '+fmtP(k*100)+'％で）'; how='定価の合計 × '+fmtP(k*100)+'％ ＝ '+fmt(S)+'円'; } }
+    else { const S=yenOf(A*k); D=A-S; dl=DL+'（定価の '+fmtP(k*100)+'％で）'; how='定価の合計 × '+fmtP(k*100)+'％ ＝ '+fmt(S)+'円'; } }
   else if(d.m==='yen'){ D=yenOf(d.v); how=fmt(D)+'円 引く'; }
   else if(d.m==='target'){ if(d.v>0 || A===0){ D=A-yenOf(d.v); how=fmt(d.v)+'円に する'; } }
   else if(d.m==='base'){ if(d.base>0){ const S=baseSell(d); D=A-S; how='基準額 '+fmt(d.base)+'円 '+(d.upm==='yen' ? (d.up<0 ? '−' : '＋')+fmt(Math.abs(d.up))+'円' : (d.up<0 ? '−' : '＋')+fmtP(Math.abs(d.up))+'％')+' ＝ '+fmt(S)+'円'; } }
@@ -288,17 +311,21 @@ function patSum(p){
   const dm={none:'なし', rate:'割引率', kake:'掛け率', yen:'値引き額', unit:u1+'あたり', utarget:'単価を 決める', target:'金額を 決める', base:'基準額から'}[p.disc.m];
   return INM(p)+' '+p.items.length+'行・値引き '+dm+'・オプション '+p.opts.length+'・条件 '+p.rules.length+'・消費税 '+(p.tax.rate ? p.tax.rate+'％' : 'なし');
 }
-let patEd=false;
+let patEd=false, mihon=false;
+const descOf=id=>(BUILTIN.find(b=>b.id===id)||{}).desc||'';
 function secPat(v){
-  const ps=allPats();
+  const ps=allPats(), own=new Set(st.m.pats.map(p=>p.id)), cp=patOf(v.pat);
+  // 上の 列：自分の パターン（見本を 上書きした ものも）・いま 入れている 見本・★ の 見本。ほかの 見本は「📚 業種の 見本」に
+  const row=ps.filter(p=>own.has(p.id) || p.id===v.pat || p.id===st.m.defPat), mi=builtins().filter(b=>!own.has(b.id));
   return `<div class="sk-sec sk-pat"><h4>🧩 パターン<small>いつもの 形を 1回で 入れる</small></h4>
-    <div class="sk-pats">${ps.map(p=>`<button type="button" class="sk-pb${v.pat===p.id?' on':''}" onclick="SEIKYU.patUse('${p.id}')">${esc(p.name)}${st.m.defPat===p.id ? '<i aria-label="新しく 作るときに 使う">★</i>' : ''}</button>`).join('')}</div>
-    ${(()=>{ const cp=patOf(v.pat); return cp && patZero(cp) ? `<p class="sk-note sk-hint">💡 金額を 入れてから「＋ いまの形を パターンに」→ 名前は そのまま（${esc(cp.name)}）で 残すと、次から その金額で 入ります。</p>` : ''; })()}
-    <div class="sk-acts sm"><button type="button" class="sk-b" onclick="SEIKYU.patSave()">＋ いまの形を パターンに</button><button type="button" class="sk-b${patEd?' pri':''}" onclick="SEIKYU.patEd()">⚙ 直す・消す</button></div>
+    ${row.length ? `<div class="sk-pats">${row.map(p=>`<button type="button" class="sk-pb${v.pat===p.id?' on':''}" onclick="SEIKYU.patUse('${p.id}')">${esc(p.name)}${st.m.defPat===p.id ? '<i aria-label="新しく 作るときに 使う">★</i>' : ''}</button>`).join('')}</div>` : ''}
+    ${cp && patZero(cp) ? `<p class="sk-note sk-hint">💡 金額を 入れてから「＋ いまの形を パターンに」→ 名前は そのまま（${esc(cp.name)}）で 残すと、次から その金額で 入ります。</p>` : ''}
+    <div class="sk-acts sm">${mi.length ? `<button type="button" class="sk-b${mihon?' pri':''}" aria-expanded="${mihon}" onclick="SEIKYU.mihon()">📚 業種の 見本（${mi.length}）</button>` : ''}<button type="button" class="sk-b" onclick="SEIKYU.patSave()">＋ いまの形を パターンに</button><button type="button" class="sk-b${patEd?' pri':''}" onclick="SEIKYU.patEd()">⚙ 直す・消す</button></div>
+    ${mihon && mi.length ? `<div class="sk-mihon">${mi.map(p=>`<button type="button" class="sk-mc${v.pat===p.id?' on':''}" onclick="SEIKYU.patUse('${p.id}')"><b>${esc(p.name)}</b><small>${esc(descOf(p.id))}</small></button>`).join('')}</div>` : ''}
     ${patEd ? `<div class="sk-ped">${ps.map(p=>{ const b=isBuilt(p.id), own=st.m.pats.some(x=>x.id===p.id);
       return `<div class="sk-li"><div class="t"><b>${esc(p.name)}</b>${b ? (own ? ' <small>（見本を 自分の 形に）</small>' : ' <small>（見本）</small>') : ''}<br><span>${esc(patSum(p))}</span></div>
       <span class="bt"><button type="button" class="${st.m.defPat===p.id?'on':''}" title="新しく 作るときに 使う" aria-label="新しく 作るときに 使う" aria-pressed="${st.m.defPat===p.id}" onclick="SEIKYU.patDef('${p.id}')">★</button><button type="button" aria-label="名前を かえる" onclick="SEIKYU.patRen('${p.id}')">✏</button>${!b || own ? `<button type="button" aria-label="${b ? '見本に もどす' : '消す'}" onclick="SEIKYU.patDel('${p.id}')">${b ? '↺' : '🗑'}</button>` : ''}</span></div>`; }).join('')}
-      <p class="sk-note">★ を つけた パターンで「＋ 新しく」が 始まります。見本（🚛 生コン）は、金額を 入れて 同じ 名前で 残すと 次から その金額で 入り、↺ で 見本に もどります。</p></div>` : ''}
+      <p class="sk-note">★ を つけた パターンで「＋ 新しく」が 始まります。見本は、金額を 入れて 同じ 名前で 残すと 次から その金額で 入り（上の 列に 出ます）、↺ で 見本に もどります。</p></div>` : ''}
   </div>`;
 }
 function secDoc(v){
@@ -314,7 +341,7 @@ function secDoc(v){
   </div>`;
 }
 function secItems(v){
-  const nm=INM(v), ph=v.iname==='配合' ? '配合（例：24-18-20N）' : (v.iname||'品名'), u=uinfo(v);
+  const ex=v.iex||(v.iname==='配合' ? '24-18-20N' : ''), nm=INM(v), ph=(v.iname||'品名')+(ex ? '（例：'+ex+'）' : ''), u=uinfo(v);
   return `<div class="sk-sec"><h4><i class="sk-n">1</i> ${esc(nm)}と 定価<small>定価は <span class="sk-u1">${esc(u.u1)}</span>の 値段</small></h4>
     ${v.items.map((it,i)=>`<div class="sk-line">
       <input class="nm" type="text" list="skProdList" maxlength="40" value="${esc(it.name)}" placeholder="${esc(ph)}" aria-label="品名" oninput="SEIKYU.it(${i},'name',this.value)" onchange="SEIKYU.itPick(${i})">
@@ -338,6 +365,7 @@ function secDisc(v){
   else if(d.m==='base') inp=`<label class="sk-f"><span>基準額</span><input type="text" inputmode="numeric" data-yen="1" value="${d.base ? fmt(d.base) : ''}" placeholder="原価・仕入れ値など" oninput="SEIKYU.dv('base',this.value)"><em>円</em></label>
       <label class="sk-f"><span>上乗せ</span><input type="text" inputmode="decimal" value="${d.up||''}" placeholder="15" oninput="SEIKYU.dv('up',this.value)">
         <span class="sk-seg">${[['%','％'],['yen','円']].map(([k,n])=>`<button type="button" class="${d.upm===k?'on':''}" onclick="SEIKYU.dv('upm','${k}')">${n}</button>`).join('')}</span></label>`;
+  if(d.m!=='none') inp+=`<label class="sk-f"><span>明細の 名前</span><input type="text" maxlength="12" value="${esc(d.lab)}" placeholder="お値引き" aria-label="値引きの 明細の 名前" oninput="SEIKYU.dv('lab',this.value)"></label>`;
   return `<div class="sk-sec"><h4><i class="sk-n">2</i> 値引き<small>定価の合計から</small></h4>
     <div class="sk-opt wrap">${DISC.map(([k,n])=>`<button type="button" class="${d.m===k?'on':''}" onclick="SEIKYU.dv('m','${k}')">${k==='unit' ? U+'あたり ○円引き' : n}</button>`).join('')}</div>${inp}
     <div class="sk-res" id="skD"></div></div>`;
@@ -349,7 +377,7 @@ function secOpts(v){
       return `<div class="sk-line op${o.on?'':' off'}">
       <label class="ck"><input type="checkbox" ${o.on?'checked':''} aria-label="つける" onchange="SEIKYU.op(${i},'on',this.checked)"></label>
       <input class="nm" type="text" list="skOptList" maxlength="40" value="${esc(o.name)}" placeholder="オプションの 名前" aria-label="オプションの 名前" oninput="SEIKYU.op(${i},'name',this.value)" onchange="SEIKYU.opPick(${i})">
-      <label class="p"><small><span class="w">金額・</span>1<span id="skOpU${i}">${esc(optUnit(o, u.uu)||'つ')}</span>あたり</small><input type="text" inputmode="numeric" data-yen="1" value="${o.price ? fmt(o.price) : ''}" placeholder="0" aria-label="金額" oninput="SEIKYU.op(${i},'price',this.value)"></label>
+      <label class="p"><small id="skOpL${i}">${optLab(optUnit(o, u.uu))}</small><input type="text" inputmode="numeric" data-yen="1" value="${o.price ? fmt(o.price) : ''}" placeholder="0" aria-label="金額" oninput="SEIKYU.op(${i},'price',this.value)"></label>
       <label class="q"><small>数量</small><input id="skOpQ${i}" type="text" inputmode="decimal" value="${fmtQ(lk ? u.qty : o.qty)}" aria-label="数量"${lk ? ' class="lnk" readonly tabindex="-1"' : ''} oninput="SEIKYU.op(${i},'qty',this.value)"></label>
       <label class="u"><small>単位</small><input id="skOpN${i}" type="text" maxlength="6" value="${esc(o.unit)}" placeholder="${lk ? esc(u.uu) : ''}" aria-label="単位" oninput="SEIKYU.op(${i},'unit',this.value)"></label>
       <span class="bt"><button type="button" aria-label="よく使うオプションに 残す" onclick="SEIKYU.keepOpt(${i})">⭐</button><button type="button" aria-label="消す" onclick="SEIKYU.delOp(${i})">✕</button></span>
@@ -458,13 +486,13 @@ function recalc(){
     const lk=o.per==='qty', q=lk ? c.qty : o.qty, un=optUnit(o, c.uu), qe=$('skOpQ'+i), ne=$('skOpN'+i);
     if(lk && qe && qe.value!==fmtQ(q)) qe.value=fmtQ(q);
     if(ne) ne.placeholder=lk ? c.uu : '';
-    set('skOpU'+i, esc(un||'つ'));
+    set('skOpL'+i, optLab(un));
     set('skOpS'+i, o.price ? `${fmt(o.price)} × ${fmtQ(q)}${esc(un)} ＝ <b>${fmt(yenOf(o.price*q))}円</b>${o.on ? '' : '（外しています）'}` : '');
   });
   set('skO', `オプション ${c.optN}つ <b>＋${fmt(c.O)}円</b>　ここまで <b>${fmt(c.B+c.O)}円</b>`);
   v.rules.forEach((r,i)=>set('skRuN'+i, esc(r.name||'あてはまる')));
   c.rr.forEach((x,i)=>set('skRu'+i, !x.use ? '<span class="off">使わない</span>'
-    : x.met ? `<span class="ok">✓ クリア！ 定価を 値下げ −${fmt(x.amt)}円</span>`
+    : x.met ? (x.r.rv>0 ? `<span class="ok">✓ クリア！ 定価を 値下げ −${fmt(x.amt)}円</span>` : '<span class="ng">✓ 条件は クリア（下げる 量を 入れてください）</span>')
     : x.r.c==='manual' ? '<span class="ng">✓ を 入れると 値下げ</span>'
     : `<span class="ng">あと ${x.r.c==='optn' ? fmtQ(x.need)+'つ' : x.r.c==='qty' ? fmtQ(x.need) : fmt(x.need)+'円'} で 値下げ</span>`));
   set('skR', c.Rs>0 ? `値下げの 合計 <b>−${fmt(c.Rs)}円</b>　税抜の 小計 <b>${fmt(c.E)}円</b>` : `税抜の 小計 <b>${fmt(c.E)}円</b>`);
@@ -555,19 +583,20 @@ function setDv(k, val){
   const d=V().disc;
   if(k==='m'){ if(!DISC.some(x=>x[0]===val)) return; d.m=val; touch(); render(); return; }
   if(k==='upm'){ d.upm=val==='yen' ? 'yen' : '%'; touch(); render(); return; }
-  if(k==='v') d.v=numIn(val,-MAX_YEN,MAX_YEN,0,true); else if(k==='base') d.base=numIn(val,0,MAX_YEN,0); else if(k==='up') d.up=numIn(val,-MAX_YEN,MAX_YEN,0,true); else return;
+  if(k==='v') d.v=numIn(val,-MAX_YEN,MAX_YEN,0,true); else if(k==='base') d.base=numIn(val,0,MAX_YEN,0); else if(k==='up') d.up=numIn(val,-MAX_YEN,MAX_YEN,0,true);
+  else if(k==='lab') d.lab=oneLine(val,12); else return;
   touch(); recalc();
 }
 /* ───────── 🧩 パターン（v577）───────── */
 const hasBody=v=>v.items.some(it=>it.name || it.price) || v.opts.length>0 || v.rules.length>0 || v.disc.m!=='none';
 function applyPat(v, p){
   const c=JSON.parse(JSON.stringify(p));
-  v.iname=c.iname; v.items=c.items.length ? c.items : [newItem()]; v.disc=c.disc; v.opts=c.opts; v.rules=c.rules.map(r=>Object.assign(r, {id:rid()})); v.tax=c.tax; v.final=0; v.pat=p.id;
+  v.iname=c.iname; v.iex=c.iex; v.items=c.items.length ? c.items : [newItem()]; v.disc=c.disc; v.opts=c.opts; v.rules=c.rules.map(r=>Object.assign(r, {id:rid()})); v.tax=c.tax; v.final=0; v.pat=p.id;
 }
 async function patUse(id){
   const p=patOf(id); if(!p) return;
   if(hasBody(V()) && typeof appConfirm==='function' && !(await appConfirm('いまの ①〜⑤（'+INM(V())+'・値引き・オプション・条件・消費税）を「'+p.name+'」の 形に おきかえますか？\n（宛先・日付・番号・備考は そのまま）', 'おきかえる', 'やめる'))) return;
-  applyPat(V(), p); touch(); render(); toastS('🧩「'+p.name+'」を 入れました');
+  mihon=false; applyPat(V(), p); touch(); render(); toastS('🧩「'+p.name+'」を 入れました');
 }
 const patZero=p=>!p.items.some(it=>it.price) && !p.opts.some(o=>o.price);   // 金額が まだ 入っていない（見本の まま）
 async function patSave(){
@@ -581,7 +610,7 @@ async function patSave(){
   if(same && typeof appConfirm==='function' && !(await appConfirm('「'+name+'」を いまの 形で 上書きしますか？', '上書き', 'やめる'))) return;
   const ps=st.m.pats, id=same ? same.id : rid(), i=ps.findIndex(x=>x.id===id), w=V();
   if(i<0 && ps.length>=MAX_PAT){ toastS('パターンは '+MAX_PAT+' まで です。⚙ 直す・消す で 消してください'); return; }
-  const p=cleanPat({id, name, iname:w.iname, items:w.items, disc:w.disc, opts:w.opts, rules:w.rules, tax:w.tax});
+  const p=cleanPat({id, name, iname:w.iname, iex:w.iex, items:w.items, disc:w.disc, opts:w.opts, rules:w.rules, tax:w.tax});
   if(i>=0) ps[i]=p; else ps.push(p);
   w.pat=id; save(); render(); toastS('🧩「'+name+'」を '+(same ? '上書き' : '残し')+'ました');
 }
@@ -756,6 +785,9 @@ const SK_CSS=`
 .sk-pats{ display:flex; flex-wrap:wrap; gap:6px; }
 .sk-pb{ min-height:44px; padding:0 16px; border-radius:22px; border:1.5px solid var(--acc); background:transparent; color:var(--text,#222); font-size:15px; font-weight:bold; cursor:pointer; }
 .sk-pb.on{ background:var(--acc); color:var(--on-acc,#fff); } .sk-pb i{ font-style:normal; color:#e0a000; margin-left:5px; } .sk-pb.on i{ color:#ffe066; }
+.sk-mihon{ display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:6px; margin-top:8px; }
+.sk-mc{ display:flex; flex-direction:column; align-items:flex-start; gap:3px; min-height:58px; padding:8px 10px; border-radius:12px; border:1.5px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); text-align:left; cursor:pointer; font:inherit; }
+.sk-mc b{ font-size:15px; } .sk-mc small{ font-size:11.5px; line-height:1.4; color:var(--text-light,#666); } .sk-mc.on{ border-color:var(--acc); box-shadow:inset 0 0 0 1.5px var(--acc); }
 .sk-hint{ margin:8px 0 0; padding:6px 10px; border-radius:10px; background:rgba(255,200,0,.13); color:var(--text,#222); }
 .sk-ped{ margin-top:8px; border-top:1px dashed rgba(120,132,156,.35); } .sk-ped .t small{ font-size:11.5px; color:var(--text-light,#666); }
 .sk-ped .bt button.on{ background:var(--acc); border-color:var(--acc); color:#ffe066; }
@@ -825,7 +857,7 @@ function closeSeikyu(){ if(!$('seikyuOverlay') || !isDlgOpen('seikyuOverlay')) r
 
 window.SEIKYU={ doc:setDoc, it:setIt, itPick, addIt, delIt, keepProd, addProd, op:setOp, opPick, addOp, delOp, keepOpt, addOptm,
   ru:setRu, addRu, delRu, keepRule, addRulem, dv:setDv, tax:setTax, fin:setFin, cut, me:setMe, def:setDef,
-  patUse, patSave, patRen, patDel, patDef, patEd:()=>{ patEd=!patEd; render(); }, pats:()=>allPats().map(p=>p.id+':'+p.name), mEdit, mDel,
+  patUse, patSave, patRen, patDel, patDef, patEd:()=>{ patEd=!patEd; render(); }, mihon:()=>{ mihon=!mihon; render(); }, pats:()=>allPats().map(p=>p.id+':'+p.name), mEdit, mDel,
   rows:()=>lines(V(), calc(V())).map(l=>[l.name, l.qty!=null ? l.qty : '', l.unit||'', l.price!=null ? l.price : '', l.amt].join('|')),
   keep, fresh:()=>{ fresh(); }, openInv:i=>{ openInv(i); }, dupInv, delInv:i=>{ delInv(i); }, view, print:printDoc, copy:copyDoc, zoom:()=>{ zoom=!zoom; fitPaper(); },
   calc:()=>{ const c=calc(V()); return {A:c.A, qty:c.qty, D:c.D, B:c.B, O:c.O, optN:c.optN, Rs:c.Rs, rules:c.rr.map(x=>x.use ? (x.met ? 'ok:'+x.amt : 'ng:'+x.need) : 'off'), E:c.E, T:c.T, F:c.F, G:c.G, t:c.t, b:c.b, adj:c.adj, warn:c.warn.slice(), dl:c.dl}; },
