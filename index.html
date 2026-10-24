@@ -42,7 +42,8 @@
     touban:'📅 当番表',subsc:'🔐 サブスク',heya:'🛏 部屋割り',annai:'🏨 案内ページ',shimai:'📦 しまい場所',meishi:'💼 名刺管理',renraku:'📇 連絡帳',trim:'✂ トリミング',manner:'📜 マナー帳',boki:'📒 会計の手引き',kurashi:'🧭 くらしの便利帳',keisan:'🔢 便利計算',ruler:'📏 定規',kakudo:'📐 角度計',regi:'🛍 即売レジ',kakeizu:'🌳 家系図',calctmpl:'📋 式テンプレ',fintmpl:'📑 決算テンプレ',
     tatekae:'💴 立て替え精算',kuji:'🎲 くじ・班分け',dasetsu:'🚛 打設の段取り',okaeshi:'🎁 お返し帳',
     koyomi:'🗓 こよみ',hoi:'⛩ 方位と恵方',soroban:'🧮 そろばん',hitsudan:'🗣 筆談ボード',keijiban:'📢 電光掲示板',
-    hadetimer:'⏱ ど派手タイマー',hadecount:'🎉 ど派手カウンター',seikyu:'📃 請求書づくり'};   // v561・v564・v568・v569・v575
+    hadetimer:'⏱ ど派手タイマー',hadecount:'🎉 ど派手カウンター',seikyu:'📃 請求書づくり',
+    yatta:'🔁 前にやった日 帳',shukin:'📋 出欠・集金表',shiori:'🧳 旅のしおり'};   // v561・v564・v568・v569・v575・v579
   if(!id || !APPS[id]) return;
   window.APP_TOOL=id; document.documentElement.classList.add('app-tool');
   const dir='apps/'+id+'/', set=(sel,attr,v)=>document.querySelectorAll(sel).forEach(e=>e.setAttribute(attr,v));
@@ -119,6 +120,7 @@
   --kp-veil2: rgba(255,255,255,.07);
 }
 body.dark {
+  --panel: var(--modal-bg);   /* 窓の 地（確認・入力の 窓 など。v579：夜の色でも 白地に 薄い字に ならないように） */
   --acc-text: var(--acc-on-dark);
   --pm-acc: var(--acc);
   --acc-weak: rgba(33,115,70,.30);
@@ -1621,6 +1623,39 @@ body.dark .cell.paste-flash { background: #1f5132 !important; }
 .zei-set { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 8px; border-radius: 8px;
   border: 1px solid var(--acc); background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .zei-set small { font-size: calc(11px * var(--info-scale, 1)); padding: 1px 6px; border-radius: 6px; background: var(--acc-weak, rgba(33,115,70,.12)); color: var(--acc-text); }
+/* 📇 名簿から えらぶ（v579：名簿を 開いて 1人ずつ ✓ で えらぶ） */
+.tool-pick-names { position: fixed; inset: 0; z-index: 99999; display: flex; align-items: flex-start; justify-content: center; padding-top: 5vh; background: rgba(0,0,0,.45); }
+.tpn-box { display: flex; flex-direction: column; width: min(440px, 94vw); max-height: 88vh; box-sizing: border-box; border-radius: 14px; overflow: hidden; outline: none;
+  background: var(--modal-bg, #fff); color: var(--text, #222); box-shadow: 0 10px 40px rgba(0,0,0,.35); font-size: 15px; }
+.tpn-top { display: flex; flex-direction: column; gap: 6px; padding: 14px 14px 10px; border-bottom: 1px solid rgba(120,132,156,.28); }
+.tpn-t { font-size: 16px; }
+.tpn-help { font-size: 12.5px; line-height: 1.5; color: var(--text-sub, #555); }
+.tpn-q { width: 100%; box-sizing: border-box; min-height: 42px; padding: 8px 12px; font-size: 16px; border: 1px solid rgba(120,132,156,.55); border-radius: 10px; background: var(--cell-bg, #fff); color: var(--text, #222); }
+.tpn-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 10px 4px; }
+.tpn-g { margin: 0 0 8px; border: 1px solid rgba(120,132,156,.42); border-radius: 12px; overflow: hidden; }
+.tpn-g.open { border-color: var(--acc, #217346); }
+.tpn-gh { display: flex; align-items: center; background: var(--acc-weak, rgba(33,115,70,.12)); }
+.tpn-open { flex: 1 1 auto; min-width: 0; display: flex; gap: 6px; align-items: flex-start; padding: 10px 6px 10px 10px; border: none; background: transparent; color: var(--text, #222); font: inherit; text-align: left; cursor: pointer; }
+.tpn-ar { flex: 0 0 1em; font-weight: bold; color: var(--acc-text, #217346); }
+.tpn-gl { flex: 1 1 auto; min-width: 0; line-height: 1.45; overflow-wrap: anywhere; }
+.tpn-gl small { display: block; font-size: 12.5px; color: var(--text-sub, #555); }
+.tpn-n { font-size: 13px; color: var(--text-sub, #555); white-space: nowrap; }
+.tpn-badge { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 9px; background: var(--acc, #217346); color: var(--on-acc, #fff); font-size: 12px; font-weight: bold; white-space: nowrap; }
+.tpn-badge[hidden] { display: none; }
+.tpn-all { flex: 0 0 auto; min-height: 38px; margin: 6px 8px 6px 0; padding: 0 10px; border: 1px solid var(--acc, #217346); border-radius: 9px; background: var(--modal-bg, #fff); color: var(--acc-text, #217346); font: inherit; font-size: 13px; font-weight: bold; white-space: nowrap; cursor: pointer; }
+.tpn-all:disabled { opacity: .45; cursor: default; }
+.tpn-ps { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; padding: 8px; }
+.tpn-p { display: flex; align-items: center; gap: 8px; min-height: 44px; box-sizing: border-box; padding: 6px 8px; border: 1px solid rgba(120,132,156,.38); border-radius: 10px; line-height: 1.35; overflow-wrap: anywhere; cursor: pointer; }
+.tpn-p input { flex: 0 0 auto; width: 20px; height: 20px; margin: 0; accent-color: var(--acc, #217346); }
+.tpn-p.on { background: var(--acc-weak, rgba(33,115,70,.12)); border-color: var(--acc, #217346); font-weight: bold; }
+.tpn-p.have { opacity: .6; cursor: default; }
+.tpn-p small { display: block; font-size: 11px; font-weight: normal; color: var(--text-sub, #555); }
+.tpn-more, .tpn-none { grid-column: 1 / -1; padding: 8px; font-size: 13px; color: var(--text-sub, #555); }
+.tpn-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(120,132,156,.28); }
+.tpn-sum { flex: 1 1 auto; min-width: 8em; font-size: 14px; font-weight: bold; }
+.tpn-b { min-height: 42px; padding: 0 14px; border: 1px solid #999; border-radius: 10px; background: #eee; color: #222; font: inherit; font-size: 14px; cursor: pointer; }
+.tpn-b.pri { border-color: transparent; background: var(--acc, #217346); color: var(--on-acc, #fff); font-weight: bold; }
+.tpn-b.pri:disabled { opacity: .45; cursor: default; }
 .tax-set-bg { position: fixed; inset: 0; z-index: 99990; display: flex; align-items: flex-start; justify-content: center; padding-top: 10vh; background: rgba(0,0,0,.45); }
 .tax-set { width: min(400px, 92vw); box-sizing: border-box; padding: 16px; border-radius: 14px; background: var(--panel, #fff); color: var(--text, #222);
   box-shadow: 0 10px 40px rgba(0,0,0,.35); font-size: 15px; }
@@ -9335,6 +9370,14 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v579', t:'🔁 前にやった日 帳・📋 出欠・集金表・🧳 旅のしおり／📇 名簿から 1人ずつ', li:[
+    '🔁<b>前にやった日 帳</b>：エアコンの フィルター掃除・布団干し・散髪 などを「✓ きょう やった」で 残すと、最後に やった日と「あれから ○日」が 出ます。目安（○日ごと）に 近づくと 黄色、過ぎると 赤。よくある もの 16 から 1回で 足せます',
+    '📋<b>出欠・集金表</b>：町内会・PTA・同窓会 などの 名簿に、出欠（出席・欠席・未定）と 集金の ✓ を つけます。上に 人数・集まった 金額・まだの 人が 出て、印刷・コピー（まだの 方の 一覧）も。前の 表の 名簿を 写して 次の 会にも 使えます',
+    '🧳<b>旅のしおり</b>：旅行ごとに 日程・持ち物（国内／海外の 見本）・お金（予算と 使った お金）・お土産・宿と 連絡先（電話・地図）・外貨の 換算を 1つに まとめます。「📋 しおりを コピー」で LINE に 送れ、A4 で 印刷も できます',
+    'どれも 🧰 道具の「🏠 くらし」に あります（ホーム画面の アイコンにも できます）',
+    '📇<b>名簿から 入れる</b>（💴 立て替え精算・🎲 くじ・📋 出欠・集金表）：名簿（グループ）を 押すと 中の 人が 出て、<b>入れる 人に ✓</b> を つけて えらべます（いままでは グループの 全員が 入っていました）。「✓ ぜんぶ」で まとめて・🔎 名前や よみで さがす・ほかの 名簿からも・📇 連絡帳の 全員からも。もう 入っている 人は「入っています」と 出ます',
+    '夜の色（ダーク）で、確認や 入力の 窓の 字が 白い 地に 薄く 出て 読みにくかったのを 直しました'
+  ]},
   { v:'v578', t:'📃 請求書づくり：業種の 見本を 8つ 追加（🏨 宿泊も）', li:[
     '🧩 パターンの「<b>📚 業種の 見本</b>」に 8つ 足しました：🏠 リフォーム・内装／🚚 運送・チャーター／🖨 印刷（チラシ）／🍱 お弁当・仕出し（消費税 8％）／<b>🏨 宿泊（旅館・ホテル）</b>／🧹 ハウスクリーニング／🌳 造園・庭木／📦 卸・物販（掛け率）。🚛 生コン と あわせて 9つです',
     'オプションに「<b>消費税なし</b>」を つけられます（入湯税・宿泊税・立替金 など）。消費税を かけずに 合計に だけ 足し、請求書では ※ を つけて「※ 消費税の 対象外 ○円」と 出します。🏨 宿泊の 見本では 入湯税・宿泊税が はじめから 消費税なし（人泊の 数に 合わせる）です',
@@ -12164,6 +12207,9 @@ const KEY_FUNCS={
   a_hadetimer:{g:'設定・機能',label:'⏱ど派手タイマー',short:'タイマー',run:()=>openHadeTimer()},   // v575
   a_hadecount:{g:'設定・機能',label:'🎉ど派手カウンター',short:'カウンタ',run:()=>openHadeCount()},   // v575
   a_seikyu:{g:'設定・機能',label:'📃請求書づくり',short:'請求書',run:()=>openSeikyu()},   // v575
+  a_yatta:{g:'設定・機能',label:'🔁前にやった日 帳',short:'やった日',run:()=>openYatta()},   // v579
+  a_shukin:{g:'設定・機能',label:'📋出欠・集金表',short:'集金',run:()=>openShukin()},   // v579
+  a_shiori:{g:'設定・機能',label:'🧳旅のしおり',short:'しおり',run:()=>openShiori()},   // v579
   a_chart:{g:'設定・機能',label:'📊表からグラフ',short:'グラフ',run:()=>hpRun('chart')},   // v563 表を強くする
   a_cfmt:{g:'設定・機能',label:'🎨条件で色',short:'条件色',run:()=>hpRun('cf')},
   a_filter:{g:'設定・機能',label:'🔎しぼり込み',short:'しぼる',run:()=>hpRun('filter')},
@@ -13858,37 +13904,115 @@ function toolNum(s){
   else { const n=kanjiRunToNumber(t); if(n!=null) v=n; }
   return neg?-v:v;
 }
-/* 名簿から名前をまとめて入れる（v561：立て替え精算・くじ）。📅当番表の名簿・📇連絡帳のグループ・★お気に入り から1つ選ぶ。
-   extra は道具の分（[{label, names}]）。選んだ名前の配列を返す（やめたら null） */
+/* 名簿から名前を入れる（v561：立て替え精算・くじ。v579：名簿を 開いて 1人ずつ ✓ で えらぶ）。
+   📅当番表の名簿・📇連絡帳のグループ・★お気に入り・全員 を 並べ、押すと 中の 人が 出る。✓ を つけた 人だけを 入れる（いくつの 名簿からでも）。
+   extra は道具の分（[{label, names}]）。opt.have は もう 入っている 名前（✓ できない）。えらんだ 名前の 配列を 返す（やめたら null） */
 function toolNameSources(){
-  const src=[], clean=a=>[...new Set(a.map(v=>String(v||'').replace(/[\u0000-\u001F\u007F]/g,' ').trim().slice(0,24)).filter(Boolean))];
+  const src=[], one=v=>String(v||'').replace(/[\u0000-\u001F\u007F]/g,' ').trim().slice(0,24), clean=a=>[...new Set(a.map(one).filter(Boolean))];
   try{ const t=JSON.parse(localStorage.getItem('excalc_touban')||'null'); const ns=clean((t&&Array.isArray(t.roster)?t.roster:[]).map(m=>m&&m.name)); if(ns.length) src.push({label:'📅 当番表の名簿', names:ns}); }catch(_){}
   try{
     const o=JSON.parse(localStorage.getItem('excalc_renraku')||'null'), items=(o&&Array.isArray(o.items))?o.items.filter(x=>x&&typeof x==='object'):[];
-    const nm=x=>x.fn||[x.fam,x.giv].filter(Boolean).join(' ')||x.nick||x.org||'';
-    ((o&&Array.isArray(o.groups))?o.groups:[]).forEach(g=>{ if(!g||!g.n) return; const ns=clean(items.filter(x=>Array.isArray(x.groups)&&x.groups.includes(g.n)).map(nm)); if(ns.length) src.push({label:'📇 連絡帳：'+(g.ic?g.ic+' ':'')+g.n, names:ns}); });
-    const fav=clean(items.filter(x=>x.fav).map(nm)); if(fav.length) src.push({label:'📇 連絡帳：★ お気に入り', names:fav});
+    const nm=x=>one(x.fn||[x.fam,x.giv].filter(Boolean).join(' ')||x.nick||x.org||'');
+    const yo={};   // 名前 → よみ（さがす・全員の 並び）
+    items.forEach(x=>{ const n=nm(x), y=[x.famK,x.givK].filter(v=>typeof v==='string'&&v).join(' ').slice(0,60); if(n && y && !yo[n]) yo[n]=y; });
+    const add=(label, ns)=>{ if(ns.length) src.push({label, names:ns, yomi:ns.map(n=>yo[n]||'')}); };
+    ((o&&Array.isArray(o.groups))?o.groups:[]).forEach(g=>{ if(!g||!g.n) return; add('📇 連絡帳：'+(g.ic?g.ic+' ':'')+g.n, clean(items.filter(x=>Array.isArray(x.groups)&&x.groups.includes(g.n)).map(nm))); });
+    add('📇 連絡帳：★ お気に入り', clean(items.filter(x=>x.fav).map(nm)));
+    const kana=n=>toolKana(yo[n]||n);
+    add('📇 連絡帳：全員', clean(items.map(nm)).sort((a,b)=>kana(a).localeCompare(kana(b),'ja')));
   }catch(_){}
   return src;
 }
-function toolPickNames(extra){
-  const src=(extra||[]).concat(toolNameSources()).filter(x=>x && x.names && x.names.length);
+/* さがす ときの 字を そろえる（全角・半角・大文字・カタカナ → ひらがな・空白なし） */
+function toolKana(s){ return String(s||'').normalize('NFKC').toLowerCase().replace(/[\s　・･]/g,'').replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60)); }
+function toolPickNames(extra, opt){
+  const src=[];
+  (extra||[]).concat(toolNameSources()).forEach(x=>{
+    if(!x || !Array.isArray(x.names)) return;
+    const seen=new Set(), names=[], yomi=[];
+    x.names.forEach((v,j)=>{ const n=String(v==null?'':v).trim(); if(!n || seen.has(n)) return; seen.add(n); names.push(n); yomi.push(Array.isArray(x.yomi)?String(x.yomi[j]||''):''); });
+    if(names.length) src.push({label:String(x.label||''), names, yomi});
+  });
   if(!src.length){ toast('入れられる名簿がありません。📅 当番表の名簿や、📇 連絡帳のグループ・★お気に入り から入れられます', 4600); return Promise.resolve(null); }
+  const have=new Set(((opt&&Array.isArray(opt.have))?opt.have:[]).map(v=>String(v==null?'':v).trim()));
+  // 人（名簿を またいで 同じ 名前は 1人）。k は all の 番号
+  const all=[], idx=new Map(), key=[];
+  src.forEach(s=>{ s.ks=s.names.map((n,j)=>{ if(!idx.has(n)){ idx.set(n, all.length); all.push(n); key.push(toolKana(n)); } const k=idx.get(n); if(s.yomi[j]) key[k]+='\u0001'+toolKana(s.yomi[j]); return k; }); });
+  const sel=new Set(), open=new Set(src.length===1?[0]:[]), MAXP=300, free=k=>!have.has(all[k]);
+  let q='', done=false;
   return new Promise(resolve=>{
     appModalOpen=true;
     const ov=document.createElement('div'); ov.className='tool-pick-names';
-    ov.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding-top:8vh;background:rgba(0,0,0,.45)';
-    const box=document.createElement('div');
-    box.style.cssText='background:var(--panel,#fff);color:var(--text,#222);width:min(420px,92vw);max-height:78vh;overflow:auto;padding:16px;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.35);font-size:15px';
-    box.innerHTML='<div style="font-weight:bold;margin-bottom:10px">どの名簿の人を入れますか？</div>'
-      +src.map((x,i)=>'<button type="button" data-i="'+i+'" style="display:block;width:100%;text-align:left;margin:0 0 8px;padding:10px 12px;border-radius:10px;border:1px solid rgba(120,132,156,.4);background:var(--acc-weak,rgba(33,115,70,.12));color:var(--text,#222);cursor:pointer"><b style="font-size:15px">'+escHtml(x.label)+'</b>（'+x.names.length+'人）<br><small style="color:var(--text-light,#777)">'+escHtml(x.names.slice(0,6).join('、')+(x.names.length>6?' …':''))+'</small></button>').join('')
-      +'<div style="text-align:right;margin-top:4px"><button type="button" data-x="1" style="padding:8px 14px;font-size:14px;border:1px solid #999;border-radius:6px;background:#eee;color:#222;cursor:pointer">やめる</button></div>';
-    let done=false;
-    const close=v=>{ if(done) return; done=true; relBack(); appModalOpen=false; try{ ov.remove(); }catch(_){} resolve(v); };
+    ov.innerHTML='<div class="tpn-box" role="dialog" aria-modal="true" aria-label="名簿から えらぶ" tabindex="-1">'
+      +'<div class="tpn-top"><b class="tpn-t">📇 名簿から えらぶ</b>'
+      +'<small class="tpn-help">名簿を 押すと 中の 人が 出ます。入れる 人に ✓（ほかの 名簿からも えらべます）</small>'
+      +(all.length>10?'<input class="tpn-q" type="search" placeholder="🔎 名前・よみで さがす" aria-label="名前・よみで さがす" autocomplete="off">':'')
+      +'</div><div class="tpn-list"></div>'
+      +'<div class="tpn-foot"><span class="tpn-sum" aria-live="polite"></span><button type="button" class="tpn-b" data-x="1">やめる</button><button type="button" class="tpn-b pri" data-ok="1">✓ 入れる</button></div></div>';
+    const box=ov.firstChild, list=box.querySelector('.tpn-list'), qIn=box.querySelector('.tpn-q'), sum=box.querySelector('.tpn-sum'), ok=box.querySelector('[data-ok]');
+    const shown=i=>q?src[i].ks.filter(k=>key[k].includes(q)):src[i].ks;   // さがして いるときは あう 人だけ
+    const row=k=>{ const h=!free(k); return '<label class="tpn-p'+(h?' have':'')+'"><input type="checkbox" data-k="'+k+'"'+(h?' disabled':'')+'><span>'+escHtml(all[k])+(h?'<small>入っています</small>':'')+'</span></label>'; };
+    function render(){
+      let h='';
+      src.forEach((s,i)=>{
+        const ks=shown(i); if(q && !ks.length) return;
+        const op=!!q || open.has(i), pv=s.names.slice(0,6).join('、')+(s.names.length>6?' …':'');
+        h+='<div class="tpn-g'+(op?' open':'')+'" data-g="'+i+'"><div class="tpn-gh">'
+          +'<button type="button" class="tpn-open" data-open="'+i+'" aria-expanded="'+op+'"><span class="tpn-ar" aria-hidden="true">'+(op?'▾':'▸')+'</span>'
+          +'<span class="tpn-gl"><b>'+escHtml(s.label)+'</b> <span class="tpn-n">'+s.names.length+'人</span><span class="tpn-badge" data-badge="'+i+'" hidden></span>'+(op?'':'<small>'+escHtml(pv)+'</small>')+'</span></button>'
+          +'<button type="button" class="tpn-all" data-all="'+i+'">✓ ぜんぶ</button></div>'
+          +(op?'<div class="tpn-ps">'+ks.slice(0,MAXP).map(row).join('')+(ks.length>MAXP?'<div class="tpn-more">ほか '+(ks.length-MAXP)+'人（🔎 さがす で しぼって ください）</div>':'')+'</div>':'')
+          +'</div>';
+      });
+      list.innerHTML=h || '<div class="tpn-none">あう 人が いません</div>';
+      sync();
+    }
+    function sync(){   // ✓・名簿ごとの 数・ぜんぶ／はずす・下の 合計
+      list.querySelectorAll('input[data-k]').forEach(c=>{ c.checked=sel.has(+c.dataset.k); c.parentNode.classList.toggle('on', c.checked); });
+      src.forEach((s,i)=>{
+        const b=list.querySelector('[data-badge="'+i+'"]'); if(b){ const n=s.ks.filter(k=>sel.has(k)).length; b.textContent='✓ '+n+'人'; b.hidden=!n; }
+        const a=list.querySelector('[data-all="'+i+'"]'); if(!a) return;
+        const ks=shown(i).filter(free), full=ks.length>0 && ks.every(k=>sel.has(k));
+        a.textContent=full?'✕ はずす':'✓ ぜんぶ'; a.disabled=!ks.length; a.dataset.full=full?'1':'';
+        a.setAttribute('aria-label', s.label+(full?'の ✓ を ぜんぶ はずす':'の 人を ぜんぶ えらぶ'));
+      });
+      sum.textContent=sel.size?'えらんだ 人：'+sel.size+'人':'まだ えらんで いません';
+      ok.disabled=!sel.size; ok.textContent=sel.size?'✓ '+sel.size+'人を 入れる':'✓ 入れる';
+    }
+    // キーは window で 先に 受ける（Esc で 下の 道具まで 閉じない・Tab が 窓の 外へ 出ない）
+    const onKey=e=>{
+      if(e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); close(null); return; }
+      if(e.key!=='Tab') return;
+      const f=a11yFocusable(box); if(!f.length) return;
+      e.stopImmediatePropagation();
+      const a=document.activeElement, first=f[0], last=f[f.length-1];
+      if(!box.contains(a) || a===box){ e.preventDefault(); (e.shiftKey?last:first).focus(); }
+      else if(e.shiftKey && a===first){ e.preventDefault(); last.focus(); }
+      else if(!e.shiftKey && a===last){ e.preventDefault(); first.focus(); }
+    };
+    const close=v=>{ if(done) return; done=true; relBack(); window.removeEventListener('keydown', onKey, true); appModalOpen=false; try{ ov.remove(); }catch(_){} resolve(v); };
     const relBack=modalBack(()=>close(null));
-    box.addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; if(b.dataset.x) close(null); else close(src[+b.dataset.i].names.slice()); });
+    window.addEventListener('keydown', onKey, true);
+    box.addEventListener('click', e=>{
+      const b=e.target.closest('button'); if(!b || b.disabled) return;
+      if(b.dataset.x) close(null);
+      else if(b.dataset.ok) close(all.filter((n,k)=>sel.has(k)));
+      else if(b.dataset.open!=null){
+        const i=+b.dataset.open; if(q) return;
+        if(open.has(i)) open.delete(i); else open.add(i);
+        render();
+        const g=list.querySelector('[data-g="'+i+'"]'), f=g&&g.querySelector('.tpn-open');
+        if(f) f.focus({preventScroll:true});
+        if(g && open.has(i)){ const lr=list.getBoundingClientRect(), gr=g.getBoundingClientRect(); if(gr.bottom>lr.bottom) list.scrollTop+=Math.max(0, Math.min(gr.top-lr.top, gr.bottom-lr.bottom)); }
+      }
+      else if(b.dataset.all!=null){ const ks=shown(+b.dataset.all).filter(free); if(b.dataset.full) ks.forEach(k=>sel.delete(k)); else ks.forEach(k=>sel.add(k)); sync(); }
+    });
+    box.addEventListener('change', e=>{ const c=e.target; if(!c.matches || !c.matches('input[data-k]')) return; const k=+c.dataset.k; if(c.checked && free(k)) sel.add(k); else sel.delete(k); sync(); });
+    if(qIn) qIn.addEventListener('input', ()=>{ q=toolKana(qIn.value); render(); });
     ov.addEventListener('mousedown', e=>{ if(e.target===ov) close(null); });
-    ov.appendChild(box); document.body.appendChild(ov);
+    render();
+    document.body.appendChild(ov);
+    try{ box.focus({preventScroll:true}); }catch(_){}
   });
 }
 
@@ -15167,6 +15291,11 @@ sidePartOpener('openHadeTimer', ['hade-fx.js','hade-timer.js'], 'ど派手タイ
 sidePartOpener('openHadeCount', ['hade-fx.js','hade-count.js'], 'ど派手カウンター');
 sidePartOpener('openSeikyu', ['seikyu.js'], '請求書づくり');
 window.closeHadeTimer=function(){}; window.closeHadeCount=function(){}; window.closeSeikyu=function(){};
+/* ── 🔁 前にやった日 帳・📋 出欠・集金表・🧳 旅のしおり（v579。yatta.js・shukin.js・shiori.js）── */
+sidePartOpener('openYatta', ['yatta.js'], '前にやった日 帳');
+sidePartOpener('openShukin', ['shukin.js'], '出欠・集金表');
+sidePartOpener('openShiori', ['shiori.js'], '旅のしおり');
+window.closeYatta=function(){}; window.closeShukin=function(){}; window.closeShiori=function(){};
 /* ── 📏定規（v496。ruler.js に分けてある）──
    スマホの画面を定規にする（カード・硬貨で校正）＋写真に並べた基準から長さを測る。はじめて開いたときに ruler.js を読む。 */
 let rulerPartLoading=null;
@@ -15685,6 +15814,9 @@ const NP_TOOLS=[
   {id:'hadetimer',label:'⏱ど派手タイマー',ov:'hadeTimerOverlay',run:()=>openHadeTimer(),close:()=>closeHadeTimer()}, // hade-timer.js（開いたときに読む。v575）
   {id:'hadecount',label:'🎉ど派手カウンター',ov:'hadeCountOverlay',run:()=>openHadeCount(),close:()=>closeHadeCount()}, // hade-count.js（開いたときに読む。v575）
   {id:'seikyu',   label:'📃請求書づくり',ov:'seikyuOverlay',    run:()=>openSeikyu(),   close:()=>closeSeikyu()},   // seikyu.js（開いたときに読む。v575）
+  {id:'yatta',    label:'🔁前にやった日 帳',ov:'yattaOverlay',  run:()=>openYatta(),    close:()=>closeYatta()},    // yatta.js（開いたときに読む。v579）
+  {id:'shukin',   label:'📋出欠・集金表',ov:'shukinOverlay',    run:()=>openShukin(),   close:()=>closeShukin()},   // shukin.js（開いたときに読む。v579）
+  {id:'shiori',   label:'🧳旅のしおり', ov:'shioriOverlay',    run:()=>openShiori(),   close:()=>closeShiori()},   // shiori.js（開いたときに読む。v579）
   {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},                        // 別のアプリとして開くので全画面・フリックの対象外
   {id:'calctmpl', label:'📋式テンプレ', ov:'calcTmplOverlay',  run:()=>openCalcTmpl(), close:()=>closeCalcTmpl()},
   {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
@@ -22402,6 +22534,9 @@ const TOOL_HINTS={
   hadetimer:'時間を決めて「▶ スタート」。全画面の 大きな数字と 光の輪が 花火・宇宙・ネオン などの 背景で 動き、のこり10秒と 0 で ど派手に 盛り上げます。⏱ ストップウォッチ・🔁 くり返しも。',
   hadecount:'画面を 押すたびに 数が ふえて はじけます。つづけて 早く押すと コンボ、10・50・100 や 目標で 花火。カウンターは 8つまで（「並べて」で いっしょに）。',
   seikyu:'① 品物と定価 → ② 値引き → ③ オプション → ④ 条件で値下げ → ⑤ 消費税 → ⑥ 端数を省いた 請求額 の 順に 入れると、本体価格と 消費税を 出して 請求書（見積書・納品書も）に します。',
+  yatta:'エアコンの フィルター・布団干し・散髪 など、「✓ きょう やった」を 押すだけで 最後に やった日と「あれから ○日」が 出ます。目安の 日数に 近づくと 黄色、過ぎると 赤。よくある ものから 1回で 足せます',
+  shukin:'町内会・PTA・同窓会 などの 名簿に、出欠（出席・欠席・未定）と 集金の ✓ を つけます。上に 合計と まだの 人数・金額が 出て、印刷・コピーも できます',
+  shiori:'旅行ごとに 🗓 日程・🎒 持ち物・💴 お金・🎁 お土産・🏨 宿と 連絡先・💱 外貨の 換算を 1つに まとめます。「📋 しおりを コピー」で LINE に 送れます',
   ruler:'はじめに「🎯 校正」でカードや硬貨を画面に当てて合わせると、定規が正しい長さになります。「📷 写真で測る」は基準の物と並べて撮ってなぞります。',
   keisan:'8つの計算から選びます。入れた数は覚えるので、次も続きから使えます。',
   kurashi:'10のテーマから選ぶか、上の欄で「AED」「死亡届」「失業保険」のようにさがします。ページの中の 🧮 道具で、期限や金額の目安も出せます。',
@@ -22492,7 +22627,7 @@ function homeSetStartup(on){ setStartPage(on?'home':'last'); }
    ★よく使う（自分で選ぶ。選んでいなければ さいきん使ったもの）→ まとまりごと → 隠している道具（畳む）。
    ☰・ホーム・🧰ボタンのどこから開いても同じ窓。隠した道具も下の「隠している道具」から開ける */
 const TOOL_CATS=[
-  ['🏠 くらし',   ['keisan','hadetimer','hadecount','tatekae','kuji','okaeshi','koyomi','hoi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
+  ['🏠 くらし',   ['keisan','hadetimer','hadecount','yatta','shukin','shiori','tatekae','kuji','okaeshi','koyomi','hoi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
   ['📖 知識・手引き',['kurashi','manner','boki']],   // 計算ではなく読む道具（v513）
   ['💼 仕事',     ['techo','seikyu','meishi','calctmpl','fintmpl','kaikei']],
   ['🏗 現場・畑', ['tansui','kantab','dasetsu','volume','ruler','kakudo','veggie']],
@@ -22762,7 +22897,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v578';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v579';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -25258,6 +25393,9 @@ const ST_GROUPS=[
   {k:'excalc_hadetimer',  n:'ど派手タイマー（よく使う時間・演出・動いているタイマー）'},
   {k:'excalc_hadecount',  n:'ど派手カウンター（数・名前・目標・1時間ごとの記録）'},
   {k:'excalc_seikyu',     n:'請求書づくり（自分の会社・振込先・残した書類・よく使う品物）'},
+  {k:'excalc_yatta',      n:'前にやった日 帳（やった日の 記録・目安）'},
+  {k:'excalc_shukin',     n:'出欠・集金表（名簿・出欠・集金）'},
+  {k:'excalc_shiori',     n:'旅のしおり（日程・持ち物・お金・お土産・宿）'},
   {k:'excalc_receipt',    n:'読み取ったレシート（道具は外しました）', how:'clear'},   // v561〜v563 の 📷レシート読み取りの残り。勝手には消さない
   {k:'excalc_links',      n:'リンク集'},
   {k:'excalc_userkeys',   n:'自分のボタン'},
@@ -25449,6 +25587,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_koyomi','excalc_hoi','excalc_soroban',   // 🗓こよみ・⛩方位と恵方（残した向き）・🧮そろばん（v568）
   'excalc_hitsudan','excalc_keijiban',   // 🗣筆談ボード（よく使う言葉）・📢電光掲示板（文・時計・予約・絵の一覧。写真は入らない）（v569〜v571）
   'excalc_hadetimer','excalc_hadecount','excalc_seikyu',   // ⏱ど派手タイマー・🎉ど派手カウンター・📃請求書づくり（v575）
+  'excalc_yatta','excalc_shukin','excalc_shiori',   // 🔁前にやった日 帳・📋出欠・集金表・🧳旅のしおり（v579）
 ];
 function settingsBundle(){
   const o={};
