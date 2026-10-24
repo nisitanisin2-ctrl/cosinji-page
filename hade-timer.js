@@ -4,6 +4,8 @@
      時間が へるほど 背景が 激しくなり（星が 流れる・炎が 高くなる・遠くの花火が ふえる）、半分・のこり5分／3分／1分／30秒で 知らせる。
      のこり10秒は 大きな数字が 1つずつ 飛び出し、心臓の音と ゆれで 盛り上げる（3・2・1 は 爆発）。
      0 で 花火・紙ふぶき・絵文字・ファンファーレ。「✓ 止める」を 押すまで 2.6秒ごとに 鳴らす（1分で 音は やめる）。
+   ・動いているあいだは 5秒ごと（10秒・1分・なし も。v576）に 派手な演出を 8つ 順番に（花火の連発・衝撃波・紙ふぶきの大砲・絵文字の雨・
+     光のうず・流れ星・大きな花火・光のすじ）。「ドドーン！」などの 大きな字と 数字の ジャンプつき。のこり10秒・「よーい」・区切りの3秒前は 休む。
    ・時間は 時・分・秒を 打つか「＋1分」などの ボタン。⭐ よく使う時間（名前つき。12まで）を 残せる。
    ・動いているあいだは 画面を消さない（対応している端末）。「← 戻る」で 閉じても 時間は 進み、画面の 右下に 残りの時間が 出る
      （押すと もどる）。0 になったら 開いて 知らせる。アプリを 閉じていたあいだに 0 になったときは、次に開いたときに 知らせる。
@@ -15,6 +17,7 @@ const KEY='excalc_hadetimer', MAX_PRE=12, MAX_SEC=99*3600+59*60+59, MAX_LAP=99, 
 const MODES=[['down','⏳ タイマー'],['up','⏱ ストップウォッチ'],['iv','🔁 くり返し']];
 const DEF_PRE=[{n:'カップめん',s:180},{n:'ゆでたまご',s:480},{n:'歯みがき',s:180},{n:'ひと休み',s:600}];
 const QUICK=[[10,'＋10秒'],[30,'＋30秒'],[60,'＋1分'],[300,'＋5分'],[600,'＋10分']];
+const EVERY=[[5,'5秒ごと'],[10,'10秒ごと'],[60,'1分ごと'],[0,'なし']];   // 間の 派手な 演出（v576）
 const NUMF='"Hiragino Sans","Noto Sans JP","Noto Sans CJK JP","Segoe UI",Roboto,sans-serif';
 const TAU=Math.PI*2;
 const $=id=>document.getElementById(id);
@@ -58,7 +61,8 @@ function load(){
   const iv=(o.iv && typeof o.iv==='object') ? o.iv : {};
   st={mode:MODES.some(m=>m[0]===o.mode) ? o.mode : 'down', sec:int(o.sec,1,MAX_SEC,180),
     theme:FX.hasTheme(o.theme) ? o.theme : 'hanabi', level:FX.hasLevel(o.level) ? o.level : (reduceMotion() ? 'calm' : 'max'),
-    snd:o.snd!==false, vibe:o.vibe!==false, flash:o.flash!==false, pre, iv:{w:int(iv.w,5,3600,20), r:int(iv.r,0,3600,10), n:int(iv.n,1,99,8)}, run:cleanRun(o.run)};
+    snd:o.snd!==false, vibe:o.vibe!==false, flash:o.flash!==false, every:EVERY.some(x=>x[0]===o.every) ? o.every : 5,
+    pre, iv:{w:int(iv.w,5,3600,20), r:int(iv.r,0,3600,10), n:int(iv.n,1,99,8)}, run:cleanRun(o.run)};
 }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(_){} }
 const vib=p=>{ if(st && st.vibe) FX.vib(p); };
@@ -100,7 +104,8 @@ SC.digits=function(str, cx, cy, fs, o){
   const dw=g.measureText('0').width*1.02, ws=Array.from(str).map(ch=>/[0-9]/.test(ch) ? dw : dw*0.46);
   const total=ws.reduce((a,b)=>a+b,0), chars=Array.from(str), same=this.prev.length===str.length, dot=str.indexOf('.');
   let x=cx-total/2;
-  const fill=g.createLinearGradient(0, cy-fs*0.5, 0, cy+fs*0.5); fill.addColorStop(0, ink[0]); fill.addColorStop(1, o.col||ink[1]);
+  const fill=g.createLinearGradient(0, -fs*0.5, 0, fs*0.5); fill.addColorStop(0, ink[0]); fill.addColorStop(1, o.col||ink[1]);   // 字の 中で 上から下へ
+  const jt=this.jumpT!=null ? t-this.jumpT : 9;
   for(let i=0;i<chars.length;i++){
     const ch=chars[i], w=ws[i], mx=x+w/2; x+=w;
     if(!same) this.pop[i]=null;
@@ -110,7 +115,8 @@ SC.digits=function(str, cx, cy, fs, o){
       if(o.sparks) e.burst(mx, cy, {n:o.sparks, sp:260, ring:false, life:0.7});
     }
     const k=this.pop[i]!=null ? Math.max(0, 1-(t-this.pop[i])/0.4) : 0, s=1+0.38*Math.sin(k*Math.PI)*k;
-    g.save(); g.translate(mx, cy); g.scale(s, s);
+    const ph=(jt-i*0.06)/0.5, jy=ph>0 && ph<1 ? -Math.sin(ph*Math.PI)*fs*0.24 : 0, jr=ph>0 && ph<1 ? Math.sin(ph*Math.PI*2)*0.14 : 0;   // 跳ねる（左から 順に）
+    g.save(); g.translate(mx, cy+jy); if(jr) g.rotate(jr); g.scale(s, s);
     if(e.level!=='calm'){ g.shadowColor=o.glow||ink[2]; g.shadowBlur=fs*0.16; }
     g.lineJoin='round'; g.lineWidth=fs*0.07; g.strokeStyle='rgba(0,0,0,.55)'; g.strokeText(ch, 0, 0);
     g.fillStyle=fill; g.fillText(ch, 0, 0); g.restore();
@@ -168,7 +174,7 @@ function vignette(g, W, H, a, col){
 
 /* ───────── 全画面（ステージ）───────── */
 let sc=null, stageRel=null, wl=null, raf=0, lastTs=0, frozen=false, prevSec=null, prevMin=null, prevPh=null, prevTenth=null;
-let alarmOn=false, alarmUntil=0, nextAlarm=0, banT=0, ticker=0, pv=null, cur=null, overNote='';
+let alarmOn=false, alarmUntil=0, nextAlarm=0, banT=0, ticker=0, pv=null, cur=null, overNote='', prevShow=null, shows={n:0, last:-1};
 const stageOpen=()=>!!$('htFull');
 function openStage(){
   if(stageOpen()){ paintBar(); return; }
@@ -187,7 +193,7 @@ function openStage(){
   stageRel=typeof modalBack==='function' ? modalBack(()=>closeStage(true)) : null;
   window.addEventListener('keydown', stageKey, true);
   window.addEventListener('resize', onResize);
-  prevSec=prevMin=prevPh=prevTenth=null;
+  prevSec=prevMin=prevPh=prevTenth=prevShow=null;
   wake(); paintBar(); paintLaps(); hideChip(); loop();
 }
 function closeStage(byBack){
@@ -288,7 +294,7 @@ function restart(){
   const now=Date.now(); stopAlarm(true); marks=new Set(); overNote=''; if(sc) sc.big=null;
   if(r.m==='down'){ r.end=now+r.dur; r.left=0; }
   else { r.s0=now; r.acc=0; if(r.m==='up') r.laps=[]; }
-  r.p=false; r.done=false; save(); prevSec=prevMin=prevPh=null; paintBar(); paintLaps();
+  r.p=false; r.done=false; save(); prevSec=prevMin=prevPh=prevShow=null; paintBar(); paintLaps();
   banner('もう一度！', 'go1'); snd('whoosh'); if(sc) sc.e.burst(sc.e.W/2, sc.e.H*0.46, {n:60, sp:480});
 }
 function stop(){ stopAlarm(true); st.run=null; save(); stopTicker(); hideChip(); closeStage(); }
@@ -357,6 +363,26 @@ function onPhase(ph){
   if(ph.ph==='work'){ banner('ROUND '+ph.round+'/'+r.n+'  がんばれ！', 'go1'); snd('whistle'); e.burst(e.W/2, e.H*0.46, {n:80, sp:600, pal:['#ff3b30','#ffb000','#ffffff']}); e.kick(0.7); e.flash('#ff6a3d', 0.28); vib([90,60,90]); }
   else if(ph.ph==='rest'){ banner('休けい  あと '+(r.n-ph.round)+'回', 's'); snd('chime'); e.confetti(40, {pal:['#7cf0ff','#a8ffcf','#ffffff']}); vib(60); }
 }
+// 5秒ごとの 派手な 演出（8つを 順番に）。大きな 文字（ドドーン！ など）と 数字の ジャンプも
+const WORDS=['ドドーン！','バーン！','パーン！','キラッ！','ギュイーン！','シュッ！','ドーン！','ピカーッ！'];
+const EMO_T={hanabi:['🎆','✨','🎇'], uchu:['🚀','🌟','🪐','✨'], neon:['💜','🌈','⚡','✨'], matsuri:['🏮','🌸','🎐','🍡'], honoo:['🔥','💥','⚡'], yume:['🫧','💖','🦄','⭐']};
+const SHOWS=[
+  (e,c)=>{ for(let i=0;i<5;i++) e.after(i*0.16, ()=>e.shell(e.W*(0.12+0.76*i/4), {sc:1.05})); snd('boom'); e.kick(0.5); },   // 花火の 連発
+  (e,c)=>{ const p=e.pal(); for(let i=0;i<3;i++) e.after(i*0.13, ()=>{ e.ring(c[0], c[1], p[i%p.length], 2.4); e.burst(c[0], c[1], {n:50, sp:720, ring:false}); }); e.flash(p[0], 0.3); e.kick(0.9); snd('boom'); },   // 衝撃波
+  (e,c)=>{ e.confetti(80, {x:e.W*0.04, y:e.H*0.96}); e.confetti(80, {x:e.W*0.96, y:e.H*0.96}); snd('whoosh'); snd('crackle'); },   // 紙ふぶきの 大砲
+  (e,c)=>{ e.rain(EMO_T[e.theme]||['✨'], 18); snd('level'); },   // 絵文字の 雨
+  (e,c)=>{ e.spiral(c[0], c[1], c[2]*1.15, {n:60}); e.beams(c[0], c[1], {n:14, col:e.ink()[2], life:1.1}); snd('whoosh'); },   // 光の うず
+  (e,c)=>{ for(let i=0;i<6;i++) e.after(i*0.1, ()=>e.meteor()); snd('whistle'); },   // 流れ星
+  (e,c)=>{ e.explode(c[0], c[1]-c[2]*0.2, e.pal()[1], ['heart','star','ring'][Math.floor(Math.random()*3)], 1.7); e.glow(c[0], c[1], 260, e.ink()[2], 0.6); snd('boom'); e.kick(0.6); },   // まん中に 大きな 花火
+  (e,c)=>{ e.beams(c[0], c[1], {n:18, col:'#ffffff', vr:-2.2, life:1.2}); e.burst(c[0], c[1], {n:90, sp:820}); e.flash('#ffffff', 0.25); snd('coin'); },   // 光の すじ
+];
+function showTime(k){
+  if(!sc) return;
+  const e=sc.e, W=e.W, H=e.H, c=[W/2, H*0.47, Math.min(W*0.44, H*0.36)], i=(k-1)%SHOWS.length, w=WORDS[i];
+  SHOWS[i](e, c); shows.n++; shows.last=i;
+  e.text(rnd(W*0.3, W*0.7), H*rnd(0.17, 0.25), w, {sz:Math.min(64, W/e.d/(Array.from(w).length*0.95)), pop:true, rot:rnd(-0.18,0.18), vy:-20, life:1.15, grad:['#ffffff', e.ink()[1], e.ink()[2]]});
+  sc.jumpT=e.t; e.pulse=1; vib([30,30,30]);
+}
 function update(){
   const r=st.run; if(!r || !sc) return;
   const now=Date.now(), v=viewOf(r, now), e=sc.e; cur=v;
@@ -366,11 +392,16 @@ function update(){
   if(r.done){ e.amb=1; e.warp=0.9; e.heat=1; alarmStep(now); prevSec=v.sec; return; }
   if(r.p){ prevSec=v.sec; return; }
   if(isOver(r, now)){ finish(); return; }
+  if(st.every>0){   // 間の 派手な 演出（のこり10秒・くり返しの「よーい」と 区切りの 3秒前は 休む）
+    const el=r.m==='down' ? r.dur-Math.max(0, v.ms) : r.m==='up' ? v.ms : elapsed(r, now), k=Math.floor(el/(st.every*1000));
+    if(prevShow!=null && k>prevShow && !((r.m==='down' && v.sec<=10) || (r.m==='iv' && (v.ph.ph==='prep' || v.sec<=3)))) showTime(k);
+    prevShow=k;
+  }
   if(v.mode==='iv'){ const key=v.ph.ph+v.ph.round; if(prevPh!=null && key!==prevPh) onPhase(v.ph); prevPh=key; }
   if(v.mode==='up'){
     if(prevMin!=null && v.min>prevMin){ banner(v.min+'分！', 'go1'); snd('level'); e.shell(null); e.shell(null); e.shell(null); vib([60,40,60]); }
     prevMin=v.min;
-    const ten=Math.floor(v.sec/10); if(prevTenth!=null && ten>prevTenth && sc.head) e.burst(sc.head[0], sc.head[1], {n:24, sp:260}); prevTenth=ten;
+    const ten=Math.floor(v.sec/10); if(!st.every && prevTenth!=null && ten>prevTenth && sc.head) e.burst(sc.head[0], sc.head[1], {n:24, sp:260}); prevTenth=ten;
   }
   if(prevSec!=null && v.sec!==prevSec) onSecond(v);
   prevSec=v.sec;
@@ -487,7 +518,7 @@ function render(){
     <button type="button" class="ht-go" onclick="HADE_TIMER.start()">▶ スタート</button>
     <div class="ht-sec"><h4>🎆 演出</h4>
       <div class="ht-opt"><span>テーマ</span>${FX.THEMES.map(([v,n])=>`<button type="button" class="th th-${v}${st.theme===v?' on':''}" onclick='HADE_TIMER.opt("theme", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>
-      ${opt('level', FX.LEVELS, '演出の 強さ')}
+      ${opt('level', FX.LEVELS, '演出の 強さ')}${opt('every', EVERY, '間の 演出')}
       ${opt('snd', [[true,'🔊 鳴らす'],[false,'🔇 鳴らさない']], '音')}
       ${opt('vibe', [[true,'ふるえる'],[false,'ふるえない']], '振動')}
       ${opt('flash', [[true,'光る'],[false,'光らない']], '画面の 点滅')}
@@ -499,6 +530,7 @@ function setMode(k){ if(!MODES.some(m=>m[0]===k)) return; st.mode=k; save(); ren
 function setOpt(k, v){
   if(k==='theme'){ if(!FX.hasTheme(v)) return; st.theme=v; }
   else if(k==='level'){ if(!FX.hasLevel(v)) return; st.level=v; }
+  else if(k==='every'){ if(!EVERY.some(x=>x[0]===+v)) return; st.every=+v; }
   else if(k==='snd' || k==='vibe' || k==='flash'){ st[k]=v===true || v==='true'; }
   else return;
   save(); render();
@@ -635,6 +667,7 @@ window.HADE_TIMER={ mode:setMode, opt:setOpt, set:setSec, add:addSec, typed, ivT
   state:()=>JSON.parse(JSON.stringify(st)), view:()=>{ const v=viewOf(st.run, Date.now()); return {str:v.str, frac:+v.frac.toFixed(4), sec:v.sec, ph:v.ph ? v.ph.ph+':'+v.ph.round : ''}; },
   stage:stageOpen, alarm:()=>alarmOn, chip:()=>{ const c=$('htChip'); return c ? c.textContent : ''; }, fx:()=>({n:sc ? sc.e.count() : 0, prev:pv ? pv.e.count() : 0, played:FX.played()}),
   banner:()=>{ const b=$('htBan'); return b ? b.textContent : ''; }, label:()=>[($('htLab')||{}).textContent||'', ($('htSub')||{}).textContent||''].join('|'),
-  freeze:b=>{ frozen=!!b; }, tick };
+  freeze:b=>{ frozen=!!b; }, tick, shows:()=>({n:shows.n, last:shows.last}),
+  shift:ms=>{ const r=st.run; if(!r) return; ms=+ms||0; if(r.m==='down'){ if(r.p) r.left-=ms; else r.end-=ms; } else if(r.p) r.acc+=ms; else r.s0-=ms; save(); } };   // 時計を 進める（たしかめ用）
 Object.assign(window, { openHadeTimer:()=>openHadeTimer(), closeHadeTimer });
 })();
