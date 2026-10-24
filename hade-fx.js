@@ -3,13 +3,16 @@
    ・背景（テーマ）：🎆 花火（夜空と町）・🌌 宇宙（星が 流れる。速さを 変えられる）・🌈 ネオン（光る道と 夕日）・
      🏮 お祭り（ちょうちんと 桜）・🔥 炎（強さを 変えられる）・🫧 ゆめかわ（色が かわる空と あわ）。
    ・音は WebAudio で その場で 作る（音のファイルは 使わない）。振動は 対応している端末だけ。
-   ・演出の強さ：ひかえめ（粒を 少なく・画面の ゆれと 点滅なし）・ふつう・ど派手。
-     画面の 点滅は やわらかく、1秒に 2回まで（まぶしすぎないように）。 */
+   ・演出の強さ：ひかえめ（粒を 少なく・画面の ゆれと 点滅なし）・ふつう・派手・ド派手・ドド派手（v576）。
+     ド派手は 粒 1.6倍（多くて 1500）・背景に 回る 光のすじ・遠くの花火と 紙ふぶきが ふえる・ふちが 色に 光る。
+     ドド派手は 粒 2.4倍（多くて 2200）・さらに 流れ星・光の輪・虹色に まわる ふち・大きな ゆれ。
+     重くなったら（1こまが 45ミリ秒を こえる）粒の 上限を 自動で 下げる。
+     画面の 点滅は やわらかく、1秒に 2回まで（まぶしすぎないように。どの強さでも）。 */
 (function(){
 'use strict';
 if(window.HADE_FX) return;
 const THEMES=[['hanabi','🎆 花火'],['uchu','🌌 宇宙'],['neon','🌈 ネオン'],['matsuri','🏮 お祭り'],['honoo','🔥 炎'],['yume','🫧 ゆめかわ']];
-const LEVELS=[['calm','ひかえめ'],['norm','ふつう'],['max','ど派手']];
+const LEVELS=[['calm','ひかえめ'],['norm','ふつう'],['max','派手'],['ultra','ド派手'],['mega','ドド派手']];
 const PAL={
   hanabi:['#ff3b6b','#ffd23f','#3ee8ff','#9dff5c','#ff8a3d','#ffffff','#c77dff'],
   uchu:['#9fd8ff','#ffffff','#c7a6ff','#6cf0ff','#ffd6f5','#7aa2ff'],
@@ -23,8 +26,9 @@ const INK={
   hanabi:['#ffffff','#ffd23f','#ff9f43'], uchu:['#ffffff','#9fd8ff','#6c8cff'], neon:['#e9fbff','#00f0ff','#ff2bd6'],
   matsuri:['#fff6e0','#ffcc33','#ff4040'], honoo:['#fff8d0','#ffb000','#ff4500'], yume:['#ffffff','#ffb3e6','#b28dff'],
 };
-const MUL={calm:0.35, norm:0.7, max:1};
-const MAXP=900, TAU=Math.PI*2;
+const MUL={calm:0.35, norm:0.7, max:1, ultra:1.6, mega:2.4};
+const CAP={calm:500, norm:700, max:900, ultra:1500, mega:2200};   // 粒の 上限（重いときは 自動で 下げる）
+const TAU=Math.PI*2;
 const rnd=(a,b)=>a+Math.random()*(b-a);
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 const hasTheme=t=>THEMES.some(x=>x[0]===t), hasLevel=l=>LEVELS.some(x=>x[0]===l);
@@ -97,7 +101,7 @@ function Engine(cv){
   this.cv=cv; this.g=cv.getContext('2d'); this.ps=[]; this.later=[];
   this.theme='hanabi'; this.level='max'; this.W=1; this.H=1; this.d=1; this.t=0; this.dt=0;
   this.warp=0; this.heat=0; this.pulse=0; this.amb=0;   // 宇宙の速さ・炎の強さ・ネオンの明るさ（0〜1）・背景の 小さな花火など
-  this.shake=0; this.flashA=0; this.flashCol='#ffffff'; this.lastFlash=-9; this.noFlash=false;
+  this.shake=0; this.flashA=0; this.flashCol='#ffffff'; this.lastFlash=-9; this.noFlash=false; this.cap=CAP.max; this.avg=0.016;
   this.stars=[]; this.petals=[]; this.blobs=[]; this.bubbles=[]; this.cityCv=null;
   this.resize();
 }
@@ -111,14 +115,15 @@ E.resize=function(){
   if(!same) this.initBg();
 };
 E.setTheme=function(t){ if(hasTheme(t)) this.theme=t; };
-E.setLevel=function(l){ if(hasLevel(l)) this.level=l; };
+E.setLevel=function(l){ if(hasLevel(l) && l!==this.level){ this.level=l; this.cap=CAP[l]; } };
 E.k=function(){ return MUL[this.level]||1; };
+E.boost=function(){ return this.level==='mega' ? 2 : this.level==='ultra' ? 1 : 0; };   // ド派手 1・ドド派手 2
 E.n=function(n){ return Math.max(1, Math.round(n*this.k())); };
 E.pal=function(){ return PAL[this.theme]||PAL.hanabi; };
 E.ink=function(){ return INK[this.theme]||INK.hanabi; };
 E.count=function(){ return this.ps.length; };
 E.clear=function(){ this.ps.length=0; this.later.length=0; this.shake=0; this.flashA=0; };
-E.add=function(p){ if(this.ps.length>=MAXP) return null; this.ps.push(p); return p; };
+E.add=function(p){ if(this.ps.length>=this.cap) return null; this.ps.push(p); return p; };
 E.after=function(sec, fn){ this.later.push([this.t+sec, fn]); };
 // 光の粒（x,y は canvas の点。速さは 点／秒）
 E.spark=function(x, y, vx, vy, col, o){
@@ -139,7 +144,25 @@ E.implode=function(x, y, o){
 };
 E.ring=function(x, y, col, s){ return this.add({k:'r', x, y, r:6*this.d, vr:(s||1)*520*this.d, w:(s||1)*7*this.d, col, life:0.55, age:0}); };
 E.glow=function(x, y, r, col, life){ return this.add({k:'g', x, y, r:r*this.d, col, life:life||0.5, age:0}); };
-E.text=function(x, y, s, o){ o=o||{}; return this.add({k:'t', x, y, vy:(o.vy!=null?o.vy:-90)*this.d, s:String(s), sz:(o.sz||28)*this.d, col:o.col||'#ffffff', life:o.life||1.1, age:0}); };
+E.text=function(x, y, s, o){ o=o||{}; return this.add({k:'t', x, y, vy:(o.vy!=null?o.vy:-90)*this.d, s:String(s), sz:(o.sz||28)*this.d, col:o.col||'#ffffff', grad:o.grad||null, rot:o.rot||0, pop:!!o.pop, life:o.life||1.1, age:0}); };
+// 回る 光の すじ（まん中から）
+E.beams=function(x, y, o){ o=o||{}; return this.add({k:'b', x, y, n:o.n||12, rot:o.rot||rnd(0,TAU), vr:o.vr!=null ? o.vr : 1.6, len:o.len||Math.hypot(this.W, this.H)*0.6, col:o.col||'#ffffff', life:o.life||1.1, age:0}); };
+// 絵文字の 雨（上から 降る）
+E.rain=function(ch, n, o){
+  o=o||{}; n=this.n(n||16);
+  for(let i=0;i<n;i++) this.add({k:'e', x:rnd(0,this.W), y:-rnd(20,this.H*0.4), vx:rnd(-40,40)*this.d, vy:rnd(140,320)*this.d, ch:Array.isArray(ch)?pick(ch):ch, sz:(o.sz||rnd(26,46))*this.d, rot:rnd(-0.6,0.6), vr:rnd(-3,3), gr:260*this.d, life:rnd(2.2,3.2), age:0});
+};
+// 流れ星（ななめに 光が 走る）
+E.meteor=function(o){
+  o=o||{}; const d=this.d, x=rnd(this.W*0.25,this.W*1.1), y=rnd(-this.H*0.08,this.H*0.35), v=rnd(900,1300)*d, an=Math.PI*rnd(0.68,0.78), vx=Math.cos(an)*v, vy=Math.sin(an)*v, col=o.col||'#e6f2ff';
+  for(let i=0;i<10;i++) this.spark(x-vx*0.007*i, y-vy*0.007*i, vx, vy, i ? col : '#ffffff', {life:rnd(0.55,0.8), gr:0, dr:1, sz:2.8-i*0.18, tr:i===0});
+};
+// 光の うず（まわりながら 広がる 粒）
+E.spiral=function(x, y, R, o){
+  o=o||{}; const n=this.n(o.n||48), pal=o.pal||this.pal(), d=this.d;
+  for(let i=0;i<n;i++){ const an=TAU*i/n*2, r=R*(0.3+0.7*i/n), v=rnd(220,360)*d;
+    this.spark(x+Math.cos(an)*r, y+Math.sin(an)*r, -Math.sin(an)*v+Math.cos(an)*60*d, Math.cos(an)*v+Math.sin(an)*60*d, pick(pal), {life:rnd(0.6,1.0), gr:0, dr:0.97, sz:rnd(1.8,3), tr:true}); }
+};
 E.emoji=function(x, y, ch, o){
   o=o||{}; const n=this.n(o.n||8), sp=(o.sp||380)*this.d;
   for(let i=0;i<n;i++){ const a=o.up ? rnd(-Math.PI*0.88,-Math.PI*0.12) : rnd(0,TAU), v=sp*rnd(0.35,1);
@@ -181,16 +204,18 @@ E.explode=function(x, y, col, kind, sc){
   }
 };
 // 画面を ゆらす・光らせる（ひかえめ・点滅なし では しない）
-E.kick=function(s){ if(this.level!=='calm') this.shake=Math.min(1.2, this.shake+(s||0.5)); };
+E.kick=function(s){ if(this.level!=='calm') this.shake=Math.min(1.2+0.4*this.boost(), this.shake+(s||0.5)*(1+0.25*this.boost())); };
 E.flash=function(col, a){
   if(this.level==='calm' || this.noFlash) return false;
   if(this.t-this.lastFlash<0.5) return false;   // 1秒に 2回まで
   this.lastFlash=this.t; this.flashCol=col||'#ffffff'; this.flashA=Math.min(0.55, a||0.4); return true;
 };
-E.offset=function(){ if(this.shake<=0) return [0,0]; const m=this.shake*14*this.d; return [rnd(-m,m), rnd(-m,m)]; };
+E.offset=function(){ if(this.shake<=0) return [0,0]; const m=this.shake*14*this.d*(1+0.35*this.boost()); return [rnd(-m,m), rnd(-m,m)]; };
 
 E.step=function(dt){
   dt=Math.min(0.05, Math.max(0, dt||0)); this.t+=dt; this.dt=dt;
+  if(dt>0){ this.avg=this.avg*0.95+dt*0.05; const top=CAP[this.level]||900;   // 重いときは 粒の 上限を 下げる・軽くなったら もどす
+    if(this.avg>0.045 && this.cap>400) this.cap=Math.max(400, Math.round(this.cap*0.97)); else if(this.avg<0.024 && this.cap<top) this.cap=Math.min(top, this.cap+6); }
   if(this.later.length){ const now=this.t, due=this.later.filter(x=>x[0]<=now); this.later=this.later.filter(x=>x[0]>now); due.forEach(x=>{ try{ x[1](); }catch(_){} }); }
   this.ambient(dt);
   const ps=this.ps; let j=0;
@@ -208,6 +233,7 @@ E.step=function(dt){
     else if(p.k==='e'){ p.vy+=p.gr*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.rot+=p.vr*dt; if(p.y>this.H+60*this.d) continue; }
     else if(p.k==='r'){ p.r+=p.vr*dt; p.vr*=Math.pow(0.9, dt*60); }
     else if(p.k==='t'){ p.y+=p.vy*dt; p.vy*=Math.pow(0.95, dt*60); }
+    else if(p.k==='b'){ p.rot+=p.vr*dt; }
     ps[j++]=p;
   }
   ps.length=j;
@@ -216,6 +242,18 @@ E.step=function(dt){
 // 背景の 小さな 動き（花火の テーマの 遠くの花火・炎の 火の粉・ゆめかわの きらきら）
 E.ambient=function(dt){
   const a=this.amb*this.k(); if(a<=0) return;
+  const b=this.boost();
+  if(b>=1){   // ド派手：回る 光のすじ・遠くの花火・紙ふぶきが ちらちら
+    this.beamT=(this.beamT||0)-dt;
+    if(this.beamT<=0){ this.beamT=3.2; this.beams(this.W/2, this.H*0.47, {n:10+4*b, col:pick(this.pal()), life:3.4, vr:(Math.random()<0.5 ? -1 : 1)*0.6}); }
+    if(Math.random()<dt*0.9*b*this.amb) this.shell(null, {sc:rnd(0.6,0.9)});
+    if(Math.random()<dt*5*b) this.confetti(1);
+  }
+  if(b>=2){   // ドド派手：さらに 流れ星・光の輪
+    this.ringT=(this.ringT||0)-dt;
+    if(this.ringT<=0){ this.ringT=1.4; this.ring(rnd(this.W*0.1,this.W*0.9), rnd(this.H*0.1,this.H*0.6), pick(this.pal()), 1.3); }
+    if(Math.random()<dt*1.6) this.meteor();
+  }
   if(this.theme==='hanabi' && Math.random()<dt*0.9*a) this.shell(null, {sc:0.55, y:rnd(this.H*0.1, this.H*0.3)});
   else if(this.theme==='honoo' && Math.random()<dt*(10+30*this.heat)*a) this.spark(rnd(0,this.W), this.H+4*this.d, rnd(-30,30)*this.d, -rnd(90,260)*this.d*(0.6+this.heat), pick(['#ffb000','#ff6a00','#ffd36b']), {life:rnd(1,2.2), gr:-30, sz:rnd(1.2,2.4), dr:0.99});
   else if(this.theme==='yume' && Math.random()<dt*6*a) this.spark(rnd(0,this.W), rnd(0,this.H), 0, -20*this.d, '#ffffff', {life:0.8, gr:0, sz:rnd(1.4,2.8), fl:true});
@@ -323,6 +361,13 @@ E.drawBg=function(){
       else { g.fillStyle='rgba(255,255,255,.85)'; g.fillText(b.kind, b.x, b.y); }
     }
   }
+  const bo=this.boost();
+  if(bo>=1){
+    const h=(t*(bo>=2 ? 140 : 40))%360, a=(bo>=2 ? 0.26 : 0.14)+0.18*pu, gr=g.createRadialGradient(W/2, H/2, Math.min(W,H)*0.32, W/2, H/2, Math.max(W,H)*0.72);
+    gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'hsla('+h.toFixed(0)+',100%,60%,'+a.toFixed(3)+')');
+    g.globalCompositeOperation='lighter'; g.globalAlpha=1; g.fillStyle=gr; g.fillRect(0, 0, W, H);
+    if(bo>=2){ g.lineWidth=7*d; g.globalAlpha=0.55+0.3*pu; for(let i=0;i<4;i++){ g.strokeStyle='hsl('+((h+i*90)%360).toFixed(0)+',100%,60%)'; g.beginPath(); if(i===0){ g.moveTo(0,3*d); g.lineTo(W,3*d); } else if(i===1){ g.moveTo(W-3*d,0); g.lineTo(W-3*d,H); } else if(i===2){ g.moveTo(W,H-3*d); g.lineTo(0,H-3*d); } else { g.moveTo(3*d,H); g.lineTo(3*d,0); } g.stroke(); } }
+  }
   g.restore();
 };
 E.drawFx=function(){
@@ -349,9 +394,18 @@ E.drawFx=function(){
       g.save(); g.translate(p.x, p.y); g.rotate(p.rot); g.font=Math.round(p.sz)+'px "Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji",sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(p.ch, 0, 0); g.restore();
     } else if(p.k==='t'){
       g.globalCompositeOperation='source-over'; g.globalAlpha=Math.min(1, a*1.6);
-      const sz=Math.round(p.sz*(1+0.3*Math.max(0, 1-p.age*5)));
-      g.save(); g.translate(p.x, p.y); g.font='bold '+sz+'px "Hiragino Sans","Noto Sans JP","Noto Sans CJK JP",sans-serif'; g.textAlign='center'; g.textBaseline='middle';
-      g.lineJoin='round'; g.lineWidth=sz*0.16; g.strokeStyle='rgba(0,0,0,.6)'; g.strokeText(p.s, 0, 0); g.fillStyle=p.col; g.fillText(p.s, 0, 0); g.restore();
+      const k=p.pop ? (p.age<0.14 ? 0.35+p.age/0.14*0.95 : 1.3-Math.min(0.3, (p.age-0.14)*1.5)) : 1+0.3*Math.max(0, 1-p.age*5), sz=Math.round(p.sz*k);
+      g.save(); g.translate(p.x, p.y); if(p.rot) g.rotate(p.rot);
+      g.font=(p.pop ? '900 ' : 'bold ')+sz+'px "Hiragino Sans","Noto Sans JP","Noto Sans CJK JP",sans-serif'; g.textAlign='center'; g.textBaseline='middle';
+      g.lineJoin='round'; g.lineWidth=sz*(p.pop ? 0.2 : 0.16); g.strokeStyle=p.pop ? 'rgba(25,0,45,.88)' : 'rgba(0,0,0,.6)'; g.strokeText(p.s, 0, 0);
+      let fill=p.col; if(p.grad){ const gr=g.createLinearGradient(0, -sz*0.5, 0, sz*0.5); p.grad.forEach((c,i)=>gr.addColorStop(i/Math.max(1, p.grad.length-1), c)); fill=gr; }
+      g.fillStyle=fill; g.fillText(p.s, 0, 0); g.restore();
+    } else if(p.k==='b'){
+      g.globalCompositeOperation='lighter'; g.globalAlpha=Math.sin(Math.PI*Math.min(1, p.age/p.life))*0.55;
+      const gr=g.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.len); gr.addColorStop(0, p.col); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle=gr;
+      const w=Math.PI/p.n*0.42; g.beginPath();
+      for(let i=0;i<p.n;i++){ const an=p.rot+TAU*i/p.n; g.moveTo(p.x, p.y); g.arc(p.x, p.y, p.len, an-w, an+w); g.closePath(); }
+      g.fill();
     }
   }
   g.restore();
@@ -364,6 +418,9 @@ E.finale=function(o){
   this.confetti(o.conf||170);
   if(o.emo) this.emoji(this.W/2, this.H*0.95, o.emo, {n:16, up:true, sp:900, sz:40});
   this.kick(1); this.flash(o.flash||'#ffffff', 0.5);
+  const b=this.boost();
+  if(b>=1){ this.spiral(this.W/2, this.H*0.47, Math.min(this.W,this.H)*0.4, {n:70}); this.beams(this.W/2, this.H*0.47, {n:16, col:'#ffffff', life:2.2, vr:1.4}); this.after(0.8, ()=>this.confetti(o.conf||170)); }
+  if(b>=2){ for(let i=0;i<8;i++) this.after(i*0.25, ()=>this.meteor()); if(o.emo) this.rain(o.emo, 24); this.after(1.6, ()=>{ for(let i=0;i<6;i++) this.shell(this.W*(0.1+0.8*i/5), {sc:1.3}); }); }
 };
 
 window.HADE_FX={ THEMES, LEVELS, PAL, INK, Engine, snd:SND, setVol, setMute, unlock, vib, played:()=>played.slice(), hasTheme, hasLevel,

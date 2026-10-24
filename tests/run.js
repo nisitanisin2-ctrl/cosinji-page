@@ -10958,7 +10958,7 @@ async function runHadeTimer575(browser) {
     window.appConfirm = async () => true; window.appPrompt = async () => 'テスト';
   });
   await page.evaluate(() => openHadeTimer()); await w(700);
-  check('  はじめ：タイマー 3分・よく使う時間 4つ・テーマ 6つ・強さ 3つ・見本が 動く', await page.evaluate(() => { const s = HADE_TIMER.state(); return [s.mode, s.sec, ['htH', 'htM', 'htS'].map(i => document.getElementById(i).value).join(':'), document.querySelectorAll('.ht-pre').length, document.querySelectorAll('.ht-opt .th').length, [...document.querySelectorAll('.ht-opt')].find(x => x.querySelector('span').textContent === '演出の 強さ').querySelectorAll('button').length, document.querySelectorAll('.ht-modes button').length, HADE_TIMER.fx().prev >= 0, !!document.querySelector('#hadeTimerOverlay .tool-back')].join('/'); }), 'down/180/0:3:0/4/6/3/3/true/true');
+  check('  はじめ：タイマー 3分・よく使う時間 4つ・テーマ 6つ・強さ 5つ・見本が 動く', await page.evaluate(() => { const s = HADE_TIMER.state(); return [s.mode, s.sec, ['htH', 'htM', 'htS'].map(i => document.getElementById(i).value).join(':'), document.querySelectorAll('.ht-pre').length, document.querySelectorAll('.ht-opt .th').length, [...document.querySelectorAll('.ht-opt')].find(x => x.querySelector('span').textContent === '演出の 強さ').querySelectorAll('button').length, document.querySelectorAll('.ht-modes button').length, HADE_TIMER.fx().prev >= 0, !!document.querySelector('#hadeTimerOverlay .tool-back')].join('/'); }), 'down/180/0:3:0/4/6/5/3/true/true');
   await page.fill('#htM', '0'); await page.fill('#htS', '5');
   check('  時・分・秒を 打つ・＋10秒・クリア', await page.evaluate(() => { const a = [HADE_TIMER.state().sec]; HADE_TIMER.add(10); a.push(HADE_TIMER.state().sec, document.getElementById('htS').value); HADE_TIMER.set(0); a.push(HADE_TIMER.state().sec); HADE_TIMER.start(); a.push(HADE_TIMER.stage(), document.getElementById('appToast').textContent); return a.join('/'); }), '5/15/15/0/false/時間を 決めてください');
   check('  ⭐ よく使う時間：残す・押すと その時間・消す', await page.evaluate(async () => { HADE_TIMER.set(95); await HADE_TIMER.addPre('おやつ'); const a = [HADE_TIMER.state().pre.length, HADE_TIMER.state().pre[4].n + ':' + HADE_TIMER.state().pre[4].s, !!document.querySelector('.ht-pre.on')]; HADE_TIMER.usePre(0); a.push(HADE_TIMER.state().sec); HADE_TIMER.delPre(4); await new Promise(r => setTimeout(r, 50)); a.push(HADE_TIMER.state().pre.length); return a.join('/'); }), '5/おやつ:95/true/180/4');
@@ -11015,7 +11015,45 @@ async function runHadeTimer575(browser) {
     localStorage.setItem('excalc_hadetimer', JSON.stringify({ mode: 'x', sec: -5, theme: '<b>', level: 9, pre: [{ n: '<img src=x onerror="window.__x=1">', s: 60 }, { n: '', s: 9 }, 'zz', { n: 'a', s: 999999999 }], iv: { w: 1, r: -1, n: 500 }, run: { m: 'down', dur: 'x' } }));
     openHadeTimer();
   }); await w(400);
-  check('  変なデータ：片づけて 開く（文字は 文字のまま）', await page.evaluate(() => { const s = HADE_TIMER.state(); return [s.mode, s.sec, s.theme, s.level, s.pre.length, s.pre[0].n.slice(0, 4), JSON.stringify(s.iv), s.run, !!window.__x, !!document.querySelector('.ht-pre img')].join('/'); }), 'down/180/hanabi/max/1/<img/{"w":20,"r":10,"n":8}//false/false');
+  check('  変なデータ：片づけて 開く（文字は 文字のまま）', await page.evaluate(() => { const s = HADE_TIMER.state(); return [s.mode, s.sec, s.theme, s.level, s.pre.length, s.pre[0].n.slice(0, 4), JSON.stringify(s.iv), s.run, !!window.__x, !!document.querySelector('.ht-pre img')].join('/'); }), 'down/180/hanabi/ultra/1/<img/{"w":20,"r":10,"n":8}//false/false');
+  await page.evaluate(() => closeHadeTimer()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+async function runHadeTimer576(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ⏱ ど派手タイマー v576：5秒ごとの 派手な 演出 ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => {
+    window.__vib = []; navigator.vibrate = p => { window.__vib.push(JSON.stringify(p)); return true; };
+    Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async () => ({ release() { } }) } });
+  });
+  await page.evaluate(() => openHadeTimer()); await w(700);
+  check('  間の 演出：5秒ごと（はじめ）・10秒ごと・1分ごと・なし', await page.evaluate(() => { const r = [...document.querySelectorAll('.ht-opt')].find(x => x.querySelector('span').textContent === '間の 演出'); return [HADE_TIMER.state().every, [...r.querySelectorAll('button')].map(b => (b.classList.contains('on') ? '*' : '') + b.textContent).join(',')].join('/'); }), '5/*5秒ごと,10秒ごと,1分ごと,なし');
+  await page.evaluate(() => { HADE_TIMER.set(600); HADE_TIMER.start(); }); await w(400);
+  check('  5秒たつと 派手な 演出（花火の 連発・ドーン の音・ふるえる・粒）', await page.evaluate(async () => { const n0 = HADE_TIMER.shows().n; HADE_TIMER.shift(5000); await new Promise(r => setTimeout(r, 300)); const s = HADE_TIMER.shows(); return [s.n - n0, s.last, HADE_TIMER.fx().played.includes('boom'), window.__vib.includes('[30,30,30]'), HADE_TIMER.fx().n > 0].join('/'); }), '1/0/true/true/true');
+  check('  つぎの 5秒ごとに ちがう 演出（8つを 順番に・また はじめから）', await page.evaluate(async () => { const out = []; for (let i = 0; i < 8; i++) { HADE_TIMER.shift(5000); await new Promise(r => setTimeout(r, 220)); out.push(HADE_TIMER.shows().last); } return out.join(','); }), '1,2,3,4,5,6,7,0');
+  check('  一時停止の あいだは 出さない', await page.evaluate(async () => { HADE_TIMER.pause(); const n0 = HADE_TIMER.shows().n; HADE_TIMER.shift(5000); await new Promise(r => setTimeout(r, 300)); const a = HADE_TIMER.shows().n - n0; HADE_TIMER.resume(); return a; }), 0);
+  check('  のこり10秒は 休む（大きな 数字の じゃまを しない）', await page.evaluate(async () => { HADE_TIMER.stop(); HADE_TIMER.set(14); HADE_TIMER.start(); await new Promise(r => setTimeout(r, 300)); const n0 = HADE_TIMER.shows().n; HADE_TIMER.shift(5000); await new Promise(r => setTimeout(r, 300)); const a = [HADE_TIMER.shows().n - n0, HADE_TIMER.view().sec <= 9]; HADE_TIMER.stop(); return a.join('/'); }), '0/true');
+  check('  10秒ごと・なし を えらぶ・覚える', await page.evaluate(async () => {
+    const a = []; HADE_TIMER.opt('every', 10); HADE_TIMER.set(600); HADE_TIMER.start(); await new Promise(r => setTimeout(r, 300));
+    let n0 = HADE_TIMER.shows().n; HADE_TIMER.shift(5000); await new Promise(r => setTimeout(r, 250)); a.push(HADE_TIMER.shows().n - n0); HADE_TIMER.shift(5000); await new Promise(r => setTimeout(r, 250)); a.push(HADE_TIMER.shows().n - n0);
+    HADE_TIMER.back(); HADE_TIMER.opt('every', 0); HADE_TIMER.show(); await new Promise(r => setTimeout(r, 300)); n0 = HADE_TIMER.shows().n; HADE_TIMER.shift(20000); await new Promise(r => setTimeout(r, 300)); a.push(HADE_TIMER.shows().n - n0, JSON.parse(localStorage.getItem('excalc_hadetimer')).every);
+    HADE_TIMER.opt('every', 7); a.push(HADE_TIMER.state().every); HADE_TIMER.opt('every', 5); HADE_TIMER.stop(); return a.join('/'); }), '0/1/0/0/0');
+  check('  ストップウォッチ・くり返し（がんばる）でも 5秒ごと', await page.evaluate(async () => {
+    const a = []; HADE_TIMER.mode('up'); HADE_TIMER.start(); await new Promise(r => setTimeout(r, 300)); let n0 = HADE_TIMER.shows().n; HADE_TIMER.shift(5000); await new Promise(r => setTimeout(r, 300)); a.push(HADE_TIMER.shows().n - n0); HADE_TIMER.stop();
+    HADE_TIMER.mode('iv'); HADE_TIMER.ivSet(20, 10, 3); HADE_TIMER.start(); await new Promise(r => setTimeout(r, 300)); HADE_TIMER.next(); await new Promise(r => setTimeout(r, 300)); n0 = HADE_TIMER.shows().n; HADE_TIMER.shift(5000); await new Promise(r => setTimeout(r, 300)); a.push(HADE_TIMER.shows().n - n0, HADE_TIMER.view().ph); HADE_TIMER.stop(); HADE_TIMER.mode('down'); return a.join('/'); }), '1/1/work:1');
+  await page.evaluate(() => { closeHadeTimer(); const o = JSON.parse(localStorage.getItem('excalc_hadetimer')); o.every = 'x'; localStorage.setItem('excalc_hadetimer', JSON.stringify(o)); openHadeTimer(); }); await w(300);
+  check('  変なデータは 5秒ごとに もどす', await page.evaluate(() => HADE_TIMER.state().every), 5);
+  check('  演出の 強さ：ひかえめ・ふつう・派手・ド派手（はじめ）・ドド派手', await page.evaluate(() => { const r = [...document.querySelectorAll('.ht-opt')].find(x => x.querySelector('span').textContent === '演出の 強さ'); return [HADE_TIMER.state().level, [...r.querySelectorAll('button')].map(b => (b.classList.contains('on') ? '*' : '') + b.textContent).join(',')].join('/'); }), 'ultra/ひかえめ,ふつう,派手,*ド派手,ドド派手');
+  check('  5秒ごとの 演出は 派手 1つ・ド派手 2つ・ドド派手 3つ 重ねる（粒の 上限も 多く）', await page.evaluate(async () => {
+    const out = [];
+    for (const lv of ['max', 'ultra', 'mega']) { HADE_TIMER.opt('level', lv); HADE_TIMER.set(600); HADE_TIMER.start(); await new Promise(r => setTimeout(r, 300)); HADE_TIMER.shift(5000); await new Promise(r => setTimeout(r, 300)); const f = HADE_TIMER.fx(); out.push(lv + ':' + HADE_TIMER.shows().multi + ':' + f.level + ':' + (f.cap > 0 && f.cap <= { max: 900, ultra: 1500, mega: 2200 }[lv])); HADE_TIMER.stop(); }
+    HADE_TIMER.opt('level', 'zzz'); out.push(HADE_TIMER.state().level, JSON.parse(localStorage.getItem('excalc_hadetimer')).level); HADE_TIMER.opt('level', 'ultra'); return out.join('/'); }), 'max:1:max:true/ultra:2:ultra:true/mega:3:mega:true/mega/mega');
+  check('  ドド派手：毎秒 花火と カチッ（のこり10秒より 前）', await page.evaluate(async () => { HADE_TIMER.opt('level', 'mega'); HADE_TIMER.set(600); HADE_TIMER.start(); await new Promise(r => setTimeout(r, 2300)); const p = HADE_TIMER.fx().played; const a = p.filter(x => x === 'tick').length >= 1; HADE_TIMER.stop(); HADE_TIMER.opt('level', 'ultra'); return a; }), true);
+  await page.evaluate(async () => { closeHadeTimer(); await openHadeCount(); HADE_COUNT.opt('level', 'mega'); }); await w(400);
+  check('  カウンターも ド派手（はじめ）・ドド派手：押すたびに ゆれる', await page.evaluate(async () => { const a = [JSON.parse(localStorage.getItem('excalc_hadecount')).level, HADE_COUNT.fx().level]; for (let i = 0; i < 5; i++) { HADE_COUNT.tap(0); await new Promise(r => setTimeout(r, 40)); } a.push(HADE_COUNT.fx().shake > 0, HADE_COUNT.state().list[0].n, [...[...document.querySelectorAll('.hc-opt')].find(x => x.querySelector('span').textContent === '演出の 強さ').querySelectorAll('button')].map(b => (b.classList.contains('on') ? '*' : '') + b.textContent).join(',')); HADE_COUNT.opt('level', 'ultra'); closeHadeCount(); return a.join('/'); }), 'mega/mega/true/5/ひかえめ,ふつう,派手,ド派手,*ドド派手');
   await page.evaluate(() => closeHadeTimer()); await w(200);
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
@@ -16537,6 +16575,7 @@ async function runQrShare(browser) {
     if (!only || only === 'keijiban573' || only === 'keijiban' || only === 'v573') await runKeijiban573(browser);
     if (!only || only === 'keijiban574' || only === 'keijiban' || only === 'v574') await runKeijiban574(browser);
     if (!only || only === 'hadetimer' || only === 'hade' || only === 'v575') await runHadeTimer575(browser);
+    if (!only || only === 'hadetimer576' || only === 'hadetimer' || only === 'hade' || only === 'v576') await runHadeTimer576(browser);
     if (!only || only === 'hadecount' || only === 'hade' || only === 'v575') await runHadeCount575(browser);
     if (!only || only === 'seikyu' || only === 'v575') await runSeikyu575(browser);
     if (!only || only === 'saveas') await runSaveAs560(browser);
