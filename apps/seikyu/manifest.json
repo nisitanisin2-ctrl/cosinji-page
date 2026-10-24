@@ -1,0 +1,39 @@
+{
+  "name": "請求書づくり",
+  "short_name": "請求書づくり",
+  "description": "定価・値引き（率・金額・掛け率・基準額から）・オプション・条件の値下げ・消費税・端数を省いた請求額から 本体価格と 消費税を 出して、請求書・見積書・納品書（A4）に 印刷・PDF（表電卓の道具）",
+  "id": "/app-seikyu",
+  "start_url": "../../index.html?app=seikyu",
+  "scope": "../../index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1f5aa6",
+  "orientation": "any",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -41,7 +41,8 @@
   const APPS={tansui:'💧 単位水量',kantab:'🧪 カンタブ',veggie:'🌱 野菜',volume:'📷 容積',photomemo:'📝 写真メモ',linklist:'🔗 リンク集',
     touban:'📅 当番表',subsc:'🔐 サブスク',heya:'🛏 部屋割り',annai:'🏨 案内ページ',shimai:'📦 しまい場所',meishi:'💼 名刺管理',renraku:'📇 連絡帳',trim:'✂ トリミング',manner:'📜 マナー帳',boki:'📒 会計の手引き',kurashi:'🧭 くらしの便利帳',keisan:'🔢 便利計算',ruler:'📏 定規',kakudo:'📐 角度計',regi:'🛍 即売レジ',kakeizu:'🌳 家系図',calctmpl:'📋 式テンプレ',fintmpl:'📑 決算テンプレ',
     tatekae:'💴 立て替え精算',kuji:'🎲 くじ・班分け',dasetsu:'🚛 打設の段取り',okaeshi:'🎁 お返し帳',
-    koyomi:'🗓 こよみ',hoi:'⛩ 方位と恵方',soroban:'🧮 そろばん',hitsudan:'🗣 筆談ボード',keijiban:'📢 電光掲示板'};   // v561・v564・v568・v569
+    koyomi:'🗓 こよみ',hoi:'⛩ 方位と恵方',soroban:'🧮 そろばん',hitsudan:'🗣 筆談ボード',keijiban:'📢 電光掲示板',
+    hadetimer:'⏱ ど派手タイマー',hadecount:'🎉 ど派手カウンター',seikyu:'📃 請求書づくり'};   // v561・v564・v568・v569・v575
   if(!id || !APPS[id]) return;
   window.APP_TOOL=id; document.documentElement.classList.add('app-tool');
   const dir='apps/'+id+'/', set=(sel,attr,v)=>document.querySelectorAll(sel).forEach(e=>e.setAttribute(attr,v));
@@ -9334,6 +9335,12 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v575', t:'⏱ ど派手タイマー・🎉 ど派手カウンター・📃 請求書づくり', li:[
+    '⏱<b>ど派手タイマー</b>：大きな数字と 光の輪が 花火・宇宙・ネオン・お祭り・炎・ゆめかわ の 背景で 動き、数字が かわるたびに はじけます。<b>のこり10秒</b>は 大きな数字と 心臓の音、<b>0</b> で 花火・紙ふぶき・ファンファーレ。ストップウォッチ（ラップ）・くり返し（運動）も',
+    '🎉<b>ど派手カウンター</b>：押すたびに 数字が はじけて 光と 絵文字が 飛びます。早く押すと <b>コンボ</b>、10・50・100 と <b>目標</b>で 花火。いくつも 並べて 数えられ、1時間ごとの 記録も',
+    '📃<b>請求書づくり</b>：定価 → 値引き（率・掛け率・金額・基準額から）→ オプション → 条件で 定価を 値下げ → 消費税 → <b>端数を省いた 請求額</b>を 入れると 本体価格と 消費税を 出して、A4 の <b>請求書</b>（見積書・納品書も）に。印刷・PDF・文字で コピー',
+    'どれも 🧰 道具の「🏠 くらし」「💼 仕事」に あります（ホーム画面の アイコンにも できます）'
+  ]},
   { v:'v574', t:'📢 電光掲示板：縦に持って 縦書きで 流せます', li:[
     '📢<b>電光掲示板</b>の「縦に持つと」に <b>縦書きで 縦に流す</b> を 足しました。スマホを 縦に持ったまま、文字を 縦書きにして <b>下から上へ</b> 流します（→ 流す は 上から下へ）',
     'LED風・ふつうの文字の どちらでも。止める・点滅・↑ 下から・なみ・1字ずつ も 縦に 動きます。「。」「、」は 右上に、「ー」「〜」や かっこは 縦向きに',
@@ -12136,6 +12143,9 @@ const KEY_FUNCS={
   a_soroban:{g:'設定・機能',label:'🧮そろばん',short:'そろばん',run:()=>openSoroban()},   // v568
   a_hitsudan:{g:'設定・機能',label:'🗣筆談ボード',short:'筆談',run:()=>openHitsudan()},   // v569
   a_keijiban:{g:'設定・機能',label:'📢電光掲示板',short:'掲示板',run:()=>openKeijiban()},   // v569
+  a_hadetimer:{g:'設定・機能',label:'⏱ど派手タイマー',short:'タイマー',run:()=>openHadeTimer()},   // v575
+  a_hadecount:{g:'設定・機能',label:'🎉ど派手カウンター',short:'カウンタ',run:()=>openHadeCount()},   // v575
+  a_seikyu:{g:'設定・機能',label:'📃請求書づくり',short:'請求書',run:()=>openSeikyu()},   // v575
   a_chart:{g:'設定・機能',label:'📊表からグラフ',short:'グラフ',run:()=>hpRun('chart')},   // v563 表を強くする
   a_cfmt:{g:'設定・機能',label:'🎨条件で色',short:'条件色',run:()=>hpRun('cf')},
   a_filter:{g:'設定・機能',label:'🔎しぼり込み',short:'しぼる',run:()=>hpRun('filter')},
@@ -15134,6 +15144,11 @@ window.closeKoyomi=function(){}; window.closeHoi=function(){}; window.closeSorob
 sidePartOpener('openHitsudan', ['hitsudan.js'], '筆談ボード');
 sidePartOpener('openKeijiban', ['keijiban-clock.js','keijiban.js'], '電光掲示板');   // 動く時計の描き方（v571）も いっしょに
 window.closeHitsudan=function(){}; window.closeKeijiban=function(){};
+/* ── ⏱ ど派手タイマー・🎉 ど派手カウンター（v575。演出は hade-fx.js を いっしょに）・📃 請求書づくり（v575。seikyu.js）── */
+sidePartOpener('openHadeTimer', ['hade-fx.js','hade-timer.js'], 'ど派手タイマー');
+sidePartOpener('openHadeCount', ['hade-fx.js','hade-count.js'], 'ど派手カウンター');
+sidePartOpener('openSeikyu', ['seikyu.js'], '請求書づくり');
+window.closeHadeTimer=function(){}; window.closeHadeCount=function(){}; window.closeSeikyu=function(){};
 /* ── 📏定規（v496。ruler.js に分けてある）──
    スマホの画面を定規にする（カード・硬貨で校正）＋写真に並べた基準から長さを測る。はじめて開いたときに ruler.js を読む。 */
 let rulerPartLoading=null;
@@ -15649,6 +15664,9 @@ const NP_TOOLS=[
   {id:'soroban',  label:'🧮そろばん',   ov:'sorobanOverlay',   run:()=>openSoroban(),  close:()=>closeSoroban()},  // soroban.js（開いたときに読む。v568）
   {id:'hitsudan', label:'🗣筆談ボード', ov:'hitsudanOverlay',  run:()=>openHitsudan(), close:()=>closeHitsudan()}, // hitsudan.js（開いたときに読む。v569）
   {id:'keijiban', label:'📢電光掲示板', ov:'keijibanOverlay',  run:()=>openKeijiban(), close:()=>closeKeijiban()}, // keijiban.js（開いたときに読む。v569）
+  {id:'hadetimer',label:'⏱ど派手タイマー',ov:'hadeTimerOverlay',run:()=>openHadeTimer(),close:()=>closeHadeTimer()}, // hade-timer.js（開いたときに読む。v575）
+  {id:'hadecount',label:'🎉ど派手カウンター',ov:'hadeCountOverlay',run:()=>openHadeCount(),close:()=>closeHadeCount()}, // hade-count.js（開いたときに読む。v575）
+  {id:'seikyu',   label:'📃請求書づくり',ov:'seikyuOverlay',    run:()=>openSeikyu(),   close:()=>closeSeikyu()},   // seikyu.js（開いたときに読む。v575）
   {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},                        // 別のアプリとして開くので全画面・フリックの対象外
   {id:'calctmpl', label:'📋式テンプレ', ov:'calcTmplOverlay',  run:()=>openCalcTmpl(), close:()=>closeCalcTmpl()},
   {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
@@ -22363,6 +22381,9 @@ const TOOL_HINTS={
   soroban:'珠を押すと 動きます（下の珠は 押すと梁まで上がり、上がっている珠を押すと下がる）。「👀 見取り算」「🔈 読み上げ算」で 練習できます。',
   hitsudan:'「🎤 話す」を押して 話すと、声が 大きな文字に なります（耳の遠い方に 見せる）。「⌨ 打つ」「✍ 書く」と ⭐ よく使う言葉も。大きな字を押すと 画面いっぱいに出ます。',
   keijiban:'文字を打つか「📚 文の見本」から えらんで「▶ 全画面で 出す」を押すと、大きな文字が 流れます（色・書体・背景・動きも えらべます）。「🖼 絵」で 写真や絵文字の絵、「🕐 時計」で 動く時計（アナログ・パタパタ など）、「⏰ 予約」で 決めた時刻に 文や絵を 出せます。',
+  hadetimer:'時間を決めて「▶ スタート」。全画面の 大きな数字と 光の輪が 花火・宇宙・ネオン などの 背景で 動き、のこり10秒と 0 で ど派手に 盛り上げます。⏱ ストップウォッチ・🔁 くり返しも。',
+  hadecount:'画面を 押すたびに 数が ふえて はじけます。つづけて 早く押すと コンボ、10・50・100 や 目標で 花火。カウンターは 8つまで（「並べて」で いっしょに）。',
+  seikyu:'① 品物と定価 → ② 値引き → ③ オプション → ④ 条件で値下げ → ⑤ 消費税 → ⑥ 端数を省いた 請求額 の 順に 入れると、本体価格と 消費税を 出して 請求書（見積書・納品書も）に します。',
   ruler:'はじめに「🎯 校正」でカードや硬貨を画面に当てて合わせると、定規が正しい長さになります。「📷 写真で測る」は基準の物と並べて撮ってなぞります。',
   keisan:'8つの計算から選びます。入れた数は覚えるので、次も続きから使えます。',
   kurashi:'10のテーマから選ぶか、上の欄で「AED」「死亡届」「失業保険」のようにさがします。ページの中の 🧮 道具で、期限や金額の目安も出せます。',
@@ -22453,9 +22474,9 @@ function homeSetStartup(on){ setStartPage(on?'home':'last'); }
    ★よく使う（自分で選ぶ。選んでいなければ さいきん使ったもの）→ まとまりごと → 隠している道具（畳む）。
    ☰・ホーム・🧰ボタンのどこから開いても同じ窓。隠した道具も下の「隠している道具」から開ける */
 const TOOL_CATS=[
-  ['🏠 くらし',   ['keisan','tatekae','kuji','okaeshi','koyomi','hoi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
+  ['🏠 くらし',   ['keisan','hadetimer','hadecount','tatekae','kuji','okaeshi','koyomi','hoi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
   ['📖 知識・手引き',['kurashi','manner','boki']],   // 計算ではなく読む道具（v513）
-  ['💼 仕事',     ['techo','meishi','calctmpl','fintmpl','kaikei']],
+  ['💼 仕事',     ['techo','seikyu','meishi','calctmpl','fintmpl','kaikei']],
   ['🏗 現場・畑', ['tansui','kantab','dasetsu','volume','ruler','kakudo','veggie']],
   ['📚 声・まなぶ',['koe','hitsudan','eigo','sansu','kakijun','soroban']],
   ['🏨 お店・宿', ['regi','heya','annai','keijiban']],
@@ -22723,7 +22744,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v574';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v575';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -25216,6 +25237,9 @@ const ST_GROUPS=[
   {k:'excalc_soroban',    n:'そろばん（けた・練習の記録）'},
   {k:'excalc_hitsudan',   n:'筆談ボード（よく使う言葉・見た目）'},
   {k:'excalc_keijiban',   n:'電光掲示板（文・よく使う文・見た目・時計・予約・絵の一覧。写真は別）'},
+  {k:'excalc_hadetimer',  n:'ど派手タイマー（よく使う時間・演出・動いているタイマー）'},
+  {k:'excalc_hadecount',  n:'ど派手カウンター（数・名前・目標・1時間ごとの記録）'},
+  {k:'excalc_seikyu',     n:'請求書づくり（自分の会社・振込先・残した書類・よく使う品物）'},
   {k:'excalc_receipt',    n:'読み取ったレシート（道具は外しました）', how:'clear'},   // v561〜v563 の 📷レシート読み取りの残り。勝手には消さない
   {k:'excalc_links',      n:'リンク集'},
   {k:'excalc_userkeys',   n:'自分のボタン'},
@@ -25406,6 +25430,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_okaeshi',   // 🎁いただきもの・お返し帳（v564）
   'excalc_koyomi','excalc_hoi','excalc_soroban',   // 🗓こよみ・⛩方位と恵方（残した向き）・🧮そろばん（v568）
   'excalc_hitsudan','excalc_keijiban',   // 🗣筆談ボード（よく使う言葉）・📢電光掲示板（文・時計・予約・絵の一覧。写真は入らない）（v569〜v571）
+  'excalc_hadetimer','excalc_hadecount','excalc_seikyu',   // ⏱ど派手タイマー・🎉ど派手カウンター・📃請求書づくり（v575）
 ];
 function settingsBundle(){
   const o={};

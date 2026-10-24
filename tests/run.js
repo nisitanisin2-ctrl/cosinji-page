@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
+    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -3105,11 +3105,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,calctmpl,fintmpl');
+    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 38);   // v569 で 🗣📢 の2つ、v568 で 🗓⛩🧮 の3つ、v561 で 🚛💴🎲📷 の4つ、v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
+    document.getElementById('startPageSel').options.length), 41);   // v575 で ⏱🎉📃 の3つ、v569 で 🗣📢 の2つ、v568 で 🗓⛩🧮 の3つ、v561 で 🚛💴🎲📷 の4つ、v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'saienOverlay', 'volumeOverlay',
@@ -10940,6 +10940,208 @@ async function runKeijiban574(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+
+async function runHadeTimer575(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ⏱ ど派手タイマー（v575） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキー・くらし／仕事・バックアップ・端末の空き・吹き出し・単独アプリの入口（3つ）', await page.evaluate(() => [['hadetimer', 'hadeTimerOverlay', 'くらし', 'HADE_TIMER'], ['hadecount', 'hadeCountOverlay', 'くらし', 'HADE_COUNT'], ['seikyu', 'seikyuOverlay', '仕事', 'SEIKYU']].map(([id, ov, cat, api]) => [typeof window[api], !!NP_TOOLS.find(t => t.id === id && t.ov === ov), !!KEY_FUNCS['a_' + id], TOOL_CATS.find(c => c[0].includes(cat))[1].includes(id), SETTINGS_BACKUP_KEYS.includes('excalc_' + id), ST_GROUPS.some(g => g.k === 'excalc_' + id), id in TOOL_HINTS].join('/')).join(' ')) + '/' + ['hadetimer', 'hadecount', 'seikyu'].every(id => fs.existsSync(path.join(ROOT, 'apps', id, 'manifest.json'))),
+    'undefined/true/true/true/true/true/true undefined/true/true/true/true/true/true undefined/true/true/true/true/true/true/true');
+  {
+    const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8'), rd = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8'), hl = fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8');
+    check('  service-worker・README・説明書に 3つの道具', ['hade-fx.js', 'hade-timer.js', 'hade-count.js', 'seikyu.js'].map(f => sw.includes("'./" + f + "'") && rd.includes('`' + f + '`')).join('/') + '/' + ['⏱ど派手タイマー＝', '🎉ど派手カウンター＝', '📃請求書づくり＝'].map(t => hl.includes(t)).join('/'), 'true/true/true/true/true/true/true');
+  }
+  await page.evaluate(() => {
+    window.__wl = 0; window.__vib = [];
+    Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async () => { window.__wl++; return { release() { } }; } } });
+    navigator.vibrate = p => { window.__vib.push(JSON.stringify(p)); return true; };
+    window.appConfirm = async () => true; window.appPrompt = async () => 'テスト';
+  });
+  await page.evaluate(() => openHadeTimer()); await w(700);
+  check('  はじめ：タイマー 3分・よく使う時間 4つ・テーマ 6つ・強さ 3つ・見本が 動く', await page.evaluate(() => { const s = HADE_TIMER.state(); return [s.mode, s.sec, ['htH', 'htM', 'htS'].map(i => document.getElementById(i).value).join(':'), document.querySelectorAll('.ht-pre').length, document.querySelectorAll('.ht-opt .th').length, [...document.querySelectorAll('.ht-opt')].find(x => x.querySelector('span').textContent === '演出の 強さ').querySelectorAll('button').length, document.querySelectorAll('.ht-modes button').length, HADE_TIMER.fx().prev >= 0, !!document.querySelector('#hadeTimerOverlay .tool-back')].join('/'); }), 'down/180/0:3:0/4/6/3/3/true/true');
+  await page.fill('#htM', '0'); await page.fill('#htS', '5');
+  check('  時・分・秒を 打つ・＋10秒・クリア', await page.evaluate(() => { const a = [HADE_TIMER.state().sec]; HADE_TIMER.add(10); a.push(HADE_TIMER.state().sec, document.getElementById('htS').value); HADE_TIMER.set(0); a.push(HADE_TIMER.state().sec); HADE_TIMER.start(); a.push(HADE_TIMER.stage(), document.getElementById('appToast').textContent); return a.join('/'); }), '5/15/15/0/false/時間を 決めてください');
+  check('  ⭐ よく使う時間：残す・押すと その時間・消す', await page.evaluate(async () => { HADE_TIMER.set(95); await HADE_TIMER.addPre('おやつ'); const a = [HADE_TIMER.state().pre.length, HADE_TIMER.state().pre[4].n + ':' + HADE_TIMER.state().pre[4].s, !!document.querySelector('.ht-pre.on')]; HADE_TIMER.usePre(0); a.push(HADE_TIMER.state().sec); HADE_TIMER.delPre(4); await new Promise(r => setTimeout(r, 50)); a.push(HADE_TIMER.state().pre.length); return a.join('/'); }), '5/おやつ:95/true/180/4');
+  // スタート
+  await page.evaluate(() => { HADE_TIMER.set(3); HADE_TIMER.start(); }); await w(500);
+  check('  ▶ スタート：全画面・画面を消さない・名前・スタート！・覚える', await page.evaluate(() => { const r = JSON.parse(localStorage.getItem('excalc_hadetimer')).run; return [HADE_TIMER.stage(), window.__wl, HADE_TIMER.label(), HADE_TIMER.banner(), r.m, r.dur, r.p, document.querySelectorAll('#htBar button').length, HADE_TIMER.fx().played.includes('whoosh')].join('/'); }), 'true/1/⏳ 3秒|/スタート！/down/3000/false/5/true');
+  await w(1300);
+  check('  時間が へる・数字が はじける（粒）', await page.evaluate(() => { const v = HADE_TIMER.view(); return [v.sec <= 2 && v.sec >= 1, v.frac < 0.8, HADE_TIMER.fx().n > 0].join('/'); }), 'true/true/true');
+  check('  のこり10秒：心臓の音・ふるえる', await page.evaluate(() => { const p = HADE_TIMER.fx().played; return [p.includes('heart') || p.includes('boom'), window.__vib.length > 0].join('/'); }), 'true/true');
+  check('  ⏸ 一時停止：止まる・▶ 再開', await page.evaluate(async () => { HADE_TIMER.pause(); const a = HADE_TIMER.view().str; await new Promise(r => setTimeout(r, 700)); const b = HADE_TIMER.view().str, p = JSON.parse(localStorage.getItem('excalc_hadetimer')).run.p; const bar = document.querySelector('#htBar button').textContent; HADE_TIMER.resume(); return [a === b, p, bar, HADE_TIMER.state().run.p].join('/'); }), 'true/true/▶ 再開/false');
+  check('  ＋1分：のびる・↺ 最初から', await page.evaluate(() => { HADE_TIMER.plus(60); const a = HADE_TIMER.view().sec; HADE_TIMER.restart(); return [a >= 61, HADE_TIMER.view().sec >= 61, HADE_TIMER.banner()].join('/'); }), 'true/true/もう一度！');
+  await page.evaluate(() => { HADE_TIMER.stop(); }); await w(300);
+  check('  ■ やめる：全画面を 閉じて 消す', await page.evaluate(() => [HADE_TIMER.stage(), HADE_TIMER.state().run, !!document.getElementById('htChip')].join('/')), 'false//false');
+  // 0 になる
+  await page.evaluate(() => { HADE_TIMER.set(2); HADE_TIMER.start(); }); await w(2700);
+  check('  0：TIME UP!・花火・ファンファーレ・ふるえる・「✓ 止める」', await page.evaluate(() => [HADE_TIMER.alarm(), HADE_TIMER.banner(), HADE_TIMER.fx().played.includes('fanfare'), window.__vib.includes('[300,120,300,120,600]'), !document.getElementById('htStop').hidden, HADE_TIMER.state().run.done, HADE_TIMER.fx().n > 50, HADE_TIMER.view().str].join('/')), 'true/TIME UP!/true/true/true/true/true/00:00');
+  check('  ✓ 止める：音を 止める・← 戻ると おしまい', await page.evaluate(async () => { HADE_TIMER.stopAlarm(); const a = [HADE_TIMER.alarm(), document.getElementById('htStop').hidden, HADE_TIMER.banner(), [...document.querySelectorAll('#htBar button')].map(b => b.textContent).join(',')]; HADE_TIMER.back(); await new Promise(r => setTimeout(r, 100)); a.push(HADE_TIMER.stage(), HADE_TIMER.state().run); return a.join('/'); }), 'false/true/おつかれさま！/↺ もう一度,＋1分,← 戻る/false/');
+  // 閉じても 進む
+  await page.evaluate(() => { HADE_TIMER.set(2); HADE_TIMER.start(); }); await w(200);
+  await page.evaluate(() => closeHadeTimer()); await w(400);
+  check('  閉じても 進む：右下に 残りの時間', await page.evaluate(() => [isDlgOpen('hadeTimerOverlay'), HADE_TIMER.stage(), /^⏳ 00:0[12]$/.test(HADE_TIMER.chip())].join('/')), 'false/false/true');
+  await w(2600);
+  check('  0 になったら 開いて 知らせる', await page.evaluate(() => [isDlgOpen('hadeTimerOverlay'), HADE_TIMER.stage(), HADE_TIMER.alarm(), HADE_TIMER.chip()].join('/')), 'true/true/true/');
+  await page.evaluate(() => { HADE_TIMER.stopAlarm(); HADE_TIMER.back(); }); await w(200);
+  // ストップウォッチ
+  await page.evaluate(() => { HADE_TIMER.mode('up'); HADE_TIMER.start(); }); await w(1200);
+  check('  ⏱ ストップウォッチ：1/100秒・🏁 ラップ', await page.evaluate(async () => { const a = [/^00:01\.\d\d$/.test(HADE_TIMER.view().str)]; HADE_TIMER.lap(); await new Promise(r => setTimeout(r, 300)); HADE_TIMER.lap(); await new Promise(r => setTimeout(r, 100)); const r = HADE_TIMER.state().run; a.push(r.laps.length, document.querySelectorAll('#htLaps div').length, !!document.querySelector('#htLaps div.best'), !!document.querySelector('#htLaps div.worst'), /^LAP 2/.test(HADE_TIMER.banner()), HADE_TIMER.label()); HADE_TIMER.restart(); a.push(HADE_TIMER.state().run.laps.length); HADE_TIMER.stop(); return a.join('/'); }), 'true/2/2/true/true/true/⏱ ストップウォッチ|ラップ 2/0');
+  // くり返し
+  await page.evaluate(() => { HADE_TIMER.mode('iv'); HADE_TIMER.ivSet(20, 10, 2); HADE_TIMER.start(); }); await w(400);
+  const ivStep = async () => { await page.evaluate(() => HADE_TIMER.next()); await w(350); return page.evaluate(() => HADE_TIMER.view().ph + '|' + HADE_TIMER.label() + '|' + HADE_TIMER.banner()); };
+  check('  🔁 くり返し：よーい → がんばる → 休けい → がんばる → おわり', [await page.evaluate(() => HADE_TIMER.view().ph + '|' + HADE_TIMER.banner()), await ivStep(), await ivStep(), await ivStep(), await ivStep()].join(' / '),
+    'prep:0|よーい！ / work:1|🔁 くり返し|ROUND 1/2 ・ がんばる|ROUND 1/2  がんばれ！ / rest:1|🔁 くり返し|ROUND 1/2 ・ 休けい|休けい  あと 1回 / work:2|🔁 くり返し|ROUND 2/2 ・ がんばる|ROUND 2/2  がんばれ！ / done:2|🔁 くり返し|おわり|おつかれさま！');
+  check('  くり返しの 合計時間（さいごの 回の あとは 休まない）・回数を 打つ', await page.evaluate(() => { HADE_TIMER.stopAlarm(); HADE_TIMER.back(); HADE_TIMER.ivSet(20, 10, 8); const t = document.getElementById('htIvTot').textContent; document.getElementById('htIvN').value = '3'; HADE_TIMER.ivTyped(); return [t, HADE_TIMER.state().iv.n, document.getElementById('htIvTot').textContent].join('/'); }), 'ぜんぶで 3分53秒（はじめの「よーい」3秒を ふくむ）/3/ぜんぶで 1分23秒（はじめの「よーい」3秒を ふくむ）');
+  // 開きなおすと つづき
+  await page.evaluate(() => { HADE_TIMER.mode('down'); HADE_TIMER.set(30); HADE_TIMER.start(); }); await w(300);
+  await page.evaluate(() => { HADE_TIMER.back(); closeHadeTimer(); openHadeTimer(); }); await w(500);
+  check('  開きなおすと 動いている タイマーを すぐ 全画面に', await page.evaluate(() => [HADE_TIMER.stage(), HADE_TIMER.view().sec <= 30 && HADE_TIMER.view().sec >= 28].join('/')), 'true/true');
+  await page.evaluate(() => window.history.back()); await w(300);
+  check('  端末の「戻る」：全画面だけ 閉じる（タイマーは 進む）・設定に「動いている」札', await page.evaluate(() => [HADE_TIMER.stage(), isDlgOpen('hadeTimerOverlay'), !!document.querySelector('#htRunCard .ht-run'), /^⏳ 00:/.test(document.querySelector('#htRunCard .t').textContent)].join('/')), 'false/true/true/true');
+  await page.evaluate(() => HADE_TIMER.show()); await w(200);
+  await page.keyboard.press(' '); await w(150);
+  const kp = await page.evaluate(() => HADE_TIMER.state().run.p);
+  await page.keyboard.press('Escape'); await w(200);
+  check('  キー：スペースで 一時停止・Esc で 閉じる', kp + '/' + await page.evaluate(() => HADE_TIMER.stage()), 'true/false');
+  await page.evaluate(() => { HADE_TIMER.stop(); closeHadeTimer(); }); await w(200);
+  // アプリを 閉じていたあいだに 0
+  await page.evaluate(() => { const o = JSON.parse(localStorage.getItem('excalc_hadetimer')); o.run = { m: 'down', dur: 60000, end: Date.now() - 125000, left: 0, p: false, done: false, name: 'カップめん', id: 'abc123' }; localStorage.setItem('excalc_hadetimer', JSON.stringify(o)); openHadeTimer(); }); await w(600);
+  check('  閉じていたあいだに 0：開いたときに 知らせる（○分 前に 終わりました）', await page.evaluate(() => [HADE_TIMER.stage(), HADE_TIMER.alarm(), HADE_TIMER.label()].join('/')), 'true/true/⏳ カップめん|2分5秒 前に 終わりました');
+  await page.evaluate(() => { HADE_TIMER.stopAlarm(); HADE_TIMER.back(); }); await w(200);
+  check('  テーマ・強さ・音・振動・点滅を えらぶ・覚える', await page.evaluate(() => { HADE_TIMER.opt('theme', 'uchu'); HADE_TIMER.opt('level', 'calm'); HADE_TIMER.opt('vibe', false); HADE_TIMER.opt('flash', false); HADE_TIMER.opt('theme', 'zzz'); const o = JSON.parse(localStorage.getItem('excalc_hadetimer')); return [o.theme, o.level, o.vibe, o.flash, document.querySelector('.ht-opt .th.on').textContent].join('/'); }), 'uchu/calm/false/false/🌌 宇宙');
+  check('  音を 鳴らさない：鳴らさない', await page.evaluate(async () => { HADE_TIMER.opt('snd', false); const n = HADE_TIMER.fx().played.length; HADE_TIMER.set(30); HADE_TIMER.start(); await new Promise(r => setTimeout(r, 300)); HADE_TIMER.plus(60); const m = HADE_TIMER.fx().played.length; HADE_TIMER.stop(); HADE_TIMER.opt('snd', true); return m - n; }), 0);
+  await page.evaluate(() => {
+    closeHadeTimer();
+    localStorage.setItem('excalc_hadetimer', JSON.stringify({ mode: 'x', sec: -5, theme: '<b>', level: 9, pre: [{ n: '<img src=x onerror="window.__x=1">', s: 60 }, { n: '', s: 9 }, 'zz', { n: 'a', s: 999999999 }], iv: { w: 1, r: -1, n: 500 }, run: { m: 'down', dur: 'x' } }));
+    openHadeTimer();
+  }); await w(400);
+  check('  変なデータ：片づけて 開く（文字は 文字のまま）', await page.evaluate(() => { const s = HADE_TIMER.state(); return [s.mode, s.sec, s.theme, s.level, s.pre.length, s.pre[0].n.slice(0, 4), JSON.stringify(s.iv), s.run, !!window.__x, !!document.querySelector('.ht-pre img')].join('/'); }), 'down/180/hanabi/max/1/<img/{"w":20,"r":10,"n":8}//false/false');
+  await page.evaluate(() => closeHadeTimer()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+async function runHadeCount575(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🎉 ど派手カウンター（v575） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { window.__vib = []; navigator.vibrate = p => { window.__vib.push(JSON.stringify(p)); return true; }; window.appConfirm = async () => true; window.appPrompt = async () => '男性'; });
+  await page.evaluate(() => openHadeCount()); await w(600);
+  check('  はじめ：カウンター 1つ・0・タブ・← もどる', await page.evaluate(() => { const s = HADE_COUNT.state(); return [s.list.length, s.list[0].name, s.list[0].n, s.list[0].step, document.querySelectorAll('.hc-tab:not(.add)').length, !!document.querySelector('#hadeCountOverlay .tool-back'), s.theme, s.view].join('/'); }), '1/カウンター/0/1/1/true/neon/one');
+  const box = await page.evaluate(() => { const r = document.getElementById('hcCv').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+  for (let i = 0; i < 3; i++) { await page.mouse.click(box[0], box[1]); await w(80); }
+  await w(100);
+  check('  押すと ＋1・はじける（粒・音・振動）・タブの 数も', await page.evaluate(() => [HADE_COUNT.state().list[0].n, HADE_COUNT.combo(), HADE_COUNT.fx().n > 0, HADE_COUNT.fx().played.includes('pop'), window.__vib.includes('12'), document.querySelector('.hc-tab.on b').textContent].join('/')), '3/3/true/true/true/3');
+  check('  つづけて 早く押すと コンボ・×10 で 花火・10 の 節目', await page.evaluate(async () => { for (let i = 0; i < 9; i++){ HADE_COUNT.tap(0); await new Promise(r => setTimeout(r, 60)); } return [HADE_COUNT.state().list[0].n, HADE_COUNT.combo(), HADE_COUNT.banner(), HADE_COUNT.fx().played.includes('coin'), HADE_COUNT.fx().played.includes('level')].join('/'); }), '12/12/×10 COMBO!/true/true');
+  await w(700);
+  check('  間を あけると コンボは 1 から', await page.evaluate(() => { HADE_COUNT.tap(0); return HADE_COUNT.combo(); }), 1);
+  check('  50 を こえると 大きく', await page.evaluate(() => { HADE_COUNT.plus(0, 40); return [HADE_COUNT.state().list[0].n, HADE_COUNT.banner()].join('/'); }), '53/53！');
+  check('  目標：メーター・とどくと 花火と ファンファーレ', await page.evaluate(() => { HADE_COUNT.set('goal', '６０'); const g = HADE_COUNT.state().list[0].goal; HADE_COUNT.plus(0, 10); return [g, HADE_COUNT.state().list[0].n, HADE_COUNT.banner(), HADE_COUNT.fx().played.includes('fanfare'), window.__vib.includes('[300,120,300,120,600]')].join('/'); }), '60/63/🎉 目標 達成！/true/true');
+  check('  − へらす・↶ もどす・0 に（聞いてから）・もどす', await page.evaluate(async () => { const a = []; HADE_COUNT.minus(); a.push(HADE_COUNT.state().list[0].n); HADE_COUNT.undo(); a.push(HADE_COUNT.state().list[0].n); HADE_COUNT.reset(); await new Promise(r => setTimeout(r, 50)); a.push(HADE_COUNT.state().list[0].n); HADE_COUNT.undo(); a.push(HADE_COUNT.state().list[0].n); HADE_COUNT.reset(); await new Promise(r => setTimeout(r, 50)); HADE_COUNT.minus(); a.push(HADE_COUNT.state().list[0].n, document.getElementById('appToast').textContent); return a.join('/'); }), '62/63/0/63/0/0 より 少なくは できません');
+  check('  1回に 足す数（＋5）・名前・絵文字・色', await page.evaluate(() => { HADE_COUNT.set('step', 5); HADE_COUNT.tap(0); HADE_COUNT.set('name', '  来場者  '); HADE_COUNT.set('emo', '🐟'); HADE_COUNT.set('col', 'cyan'); HADE_COUNT.set('col', 'zz'); const c = HADE_COUNT.state().list[0]; return [c.n, c.step, c.name, c.emo, c.col, document.querySelector('.hc-tab.on span').textContent].join('/'); }), '5/5/来場者/🐟/cyan/🐟 来場者');
+  check('  1時間ごとの 記録（今の 時間に 数が 入る）', await page.evaluate(() => { const c = HADE_COUNT.state().list[0], d = new Date(), k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' ' + String(d.getHours()).padStart(2, '0'); return [c.hist[k], Object.values(c.hist).reduce((a, b) => a + b, 0)].join('/'); }), '5/5');
+  // ふやす・並べる
+  await page.evaluate(async () => { await HADE_COUNT.add(); await HADE_COUNT.add('女性'); }); await w(300);
+  check('  ＋ 足す：名前を 聞いて 足す・えらばれる', await page.evaluate(() => { const s = HADE_COUNT.state(); return [s.list.map(c => c.name).join(','), s.cur, document.querySelectorAll('.hc-tab:not(.add)').length].join('/'); }), '来場者,男性,女性/2/3');
+  await page.evaluate(() => HADE_COUNT.opt('view', 'grid')); await w(400);
+  check('  並べて：3つの タイル・それぞれ −', await page.evaluate(() => [HADE_COUNT.tiles().length, document.querySelectorAll('.hc-tmin').length].join('/')), '3/3');
+  const t2 = await page.evaluate(() => { const r = document.getElementById('hcCv').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height * 0.5]; });
+  await page.mouse.click(t2[0], t2[1]); await w(100);
+  await page.click('.hc-tmin[data-i="2"]'); await w(100);
+  check('  押した タイルが ふえる・− で へる', await page.evaluate(() => HADE_COUNT.state().list.map(c => c.n).join(',') + '/' + HADE_COUNT.state().cur), '5,1,0/1');
+  await page.keyboard.press(' '); await page.keyboard.press('ArrowUp'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter'); await w(100);
+  check('  リモコン・キー（スペース・Enter・↑ で ＋、↓ で −）', await page.evaluate(() => HADE_COUNT.state().list[1].n), 3);
+  await page.evaluate(() => HADE_COUNT.full(true)); await w(400);
+  check('  ⛶ 全画面：画面いっぱい・下に ボタン', await page.evaluate(() => { const s = document.getElementById('hcStage'), r = s.getBoundingClientRect(); return [HADE_COUNT.isFull(), s.parentElement === document.body, Math.round(r.width) === innerWidth && Math.round(r.height) === innerHeight, getComputedStyle(s.querySelector('.hc-fbar')).display].join('/'); }), 'true/true/true/flex');
+  await page.keyboard.press('Escape'); await w(300);
+  check('  Esc で 全画面を やめる（窓は そのまま）', await page.evaluate(() => [HADE_COUNT.isFull(), document.getElementById('hcStage').parentElement.id, isDlgOpen('hadeCountOverlay')].join('/')), 'false/hcHome/true');
+  await page.evaluate(() => HADE_COUNT.full(true)); await w(300);
+  await page.evaluate(() => window.history.back()); await w(300);
+  check('  端末の「戻る」も 全画面だけ やめる', await page.evaluate(() => [HADE_COUNT.isFull(), isDlgOpen('hadeCountOverlay')].join('/')), 'false/true');
+  check('  📋 数を コピー（文字）', await page.evaluate(() => { const t = HADE_COUNT.copy(); return [/の 数\n🐟 来場者：5/.test(t), t.includes('男性：3'), t.includes('女性：0')].join('/'); }), 'true/true/true');
+  check('  カウンターは 8つまで', await page.evaluate(async () => { for (let i = 0; i < 6; i++) await HADE_COUNT.add('c' + i); return [HADE_COUNT.state().list.length, document.getElementById('appToast').textContent, !document.querySelector('.hc-tab.add')].join('/'); }), '8/カウンターは 8つまで です/true');
+  check('  🗑 消す（聞いてから）', await page.evaluate(async () => { HADE_COUNT.del(7); await new Promise(r => setTimeout(r, 50)); return HADE_COUNT.state().list.length; }), 7);
+  check('  音を 鳴らさない', await page.evaluate(() => { HADE_COUNT.opt('snd', false); const n = HADE_COUNT.fx().played.length; HADE_COUNT.tap(0); HADE_COUNT.minus(0); const m = HADE_COUNT.fx().played.length; HADE_COUNT.opt('snd', true); return m - n; }), 0);
+  await page.evaluate(() => { closeHadeCount(); openHadeCount(); }); await w(400);
+  check('  閉じて 開いても 数・名前・並べ方を 覚えている', await page.evaluate(() => { const s = HADE_COUNT.state(); return [s.list.length, s.list[0].name, s.list[1].n, s.view, s.list[0].goal].join('/'); }), '7/来場者/3/grid/60');
+  await page.evaluate(() => {
+    closeHadeCount();
+    localStorage.setItem('excalc_hadecount', JSON.stringify({ list: [{ name: '<img src=x onerror="window.__x=1">', n: -5, goal: 'x', step: 7, emo: '<b>', col: 'zz', hist: { 'bad': 3, '2026-01-01 05': 'q' } }, 'zz', null], cur: 9, theme: 'q', view: 'x' }));
+    openHadeCount();
+  }); await w(400);
+  check('  変なデータ：片づけて 開く（文字は 文字のまま）', await page.evaluate(() => { const s = HADE_COUNT.state(), c = s.list[0]; return [s.list.length, c.name.slice(0, 4), c.n, c.goal, c.step, c.emo, c.col, JSON.stringify(c.hist), s.cur, s.theme, s.view, !!window.__x, !!document.querySelector('.hc-tab img')].join('/'); }), '1/<img/0/0/1/⭐/gold/{}/0/neon/one/false/false');
+  await page.evaluate(() => closeHadeCount()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+async function runSeikyu575(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📃 請求書づくり（v575） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { window.appConfirm = async () => true; window.__print = 0; window.print = () => { window.__print++; }; });
+  await page.evaluate(() => openSeikyu()); await w(500);
+  check('  はじめ：請求書・番号（日付-01）・今日・支払期限は 翌月末・品物 1行・← もどる', await page.evaluate(() => { const c = SEIKYU.state().cur, d = new Date(), ymd = x => x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'), eom = new Date(d.getFullYear(), d.getMonth() + 2, 0); return [c.kind, c.no === ymd(d).replace(/-/g, '') + '-01', c.date === ymd(d), c.due === ymd(eom), c.items.length, document.querySelectorAll('.sk-kinds button').length, !!document.querySelector('#seikyuOverlay .tool-back'), document.getElementById('skFoot').textContent.includes('0円')].join('/'); }), 'seikyu/true/true/true/1/3/true/true');
+  // 例：定価 100万 ×1・10％引き・オプション 3つ・「オプション3つ以上で 定価5％値下げ」・数量2以上で 2万円引き（届かない）・1万円未満を 切り捨て
+  await page.evaluate(() => {
+    SEIKYU.me('name', '表電卓工業 株式会社'); SEIKYU.me('reg', 't1234567890123'); SEIKYU.me('bank', '〇〇銀行 本店 普通 1234567'); SEIKYU.me('seal', true);
+    SEIKYU.doc('to', 'さくら商事 株式会社'); SEIKYU.doc('subject', '機械 一式');
+    SEIKYU.it(0, 'name', '機械 本体'); SEIKYU.it(0, 'price', '1,000,000'); SEIKYU.it(0, 'qty', '1'); SEIKYU.it(0, 'unit', '台');
+    SEIKYU.dv('m', 'rate'); SEIKYU.dv('v', '10');
+    ['延長保証:30000', '取付工事:50000', 'コーティング:20000'].forEach((x, i) => { const [n, p] = x.split(':'); SEIKYU.addOp(); SEIKYU.op(i, 'name', n); SEIKYU.op(i, 'price', p); });
+    SEIKYU.addRu(); SEIKYU.ru(0, 'c', 'optn'); SEIKYU.ru(0, 'th', '3'); SEIKYU.ru(0, 'red', 'pct'); SEIKYU.ru(0, 'rv', '5'); SEIKYU.ru(0, 'name', 'セット割');
+    SEIKYU.addRu(); SEIKYU.ru(1, 'c', 'qty'); SEIKYU.ru(1, 'th', '2'); SEIKYU.ru(1, 'red', 'yen'); SEIKYU.ru(1, 'rv', '20000');
+  }); await w(200);
+  const C = () => page.evaluate(() => SEIKYU.calc());
+  let c = await C();
+  check('  ① 定価の合計 → ② 10％引き → ③ オプション → ④ 条件で 値下げ（クリア／あと1）→ ⑤ 消費税', [c.A, c.D, c.B, c.O, c.optN, c.rules.join(','), c.Rs, c.E, c.T, c.F, c.G].join('/'), '1000000/100000/900000/100000/3/ok:50000,ng:1/50000/950000/95000/1045000/1045000');
+  check('  条件の 札：✓ クリア・あと 1 で 値下げ', await page.evaluate(() => [document.getElementById('skRu0').textContent, document.getElementById('skRu1').textContent].join('|')), '✓ クリア！ 定価を 値下げ −50,000円|あと 1 で 値下げ');
+  await page.evaluate(() => SEIKYU.cut(10000)); await w(100); c = await C();
+  check('  ⑥ 1万円未満を 切り捨て → 請求額の 本体価格と 消費税・端数値引き', [c.G, c.t, c.b, c.adj, await page.evaluate(() => document.getElementById('skFinal').value)].join('/'), '1040000/94545/945455/-4545/1,040,000');
+  check('  明細：上から 順に・合計が 本体価格に そろう', await page.evaluate(() => { const L = SEIKYU.lines(); return L.join(',') + '/' + L.reduce((a, x) => a + +x.split('=').pop(), 0); }), '機械 本体=1000000,お値引き（10％引き）=-100000,延長保証=30000,取付工事=50000,コーティング=20000,セット割=-50000,端数値引き=-4545/945455');
+  check('  請求額を 打つ（全角・カンマ・円）', await page.evaluate(() => { SEIKYU.fin('１，０３０，０００円'); const c = SEIKYU.calc(); return [c.G, c.t, c.b, c.adj].join('/'); }), '1030000/93636/936364/-13636');
+  check('  合計より 多い 請求額は「端数調整」と 知らせる', await page.evaluate(() => { SEIKYU.fin('1050000'); const c = SEIKYU.calc(), L = SEIKYU.lines(); const r = [c.adj, L[L.length - 1], c.warn.length]; SEIKYU.fin(''); return r.join('/'); }), '4546/端数調整=4546/1');
+  // 値引きの いろいろ
+  check('  掛け率：8・0.75・80 どれでも', await page.evaluate(() => { const r = []; SEIKYU.dv('m', 'kake'); for (const v of ['8', '0.75', '80']){ SEIKYU.dv('v', v); r.push(SEIKYU.calc().D); } r.push(SEIKYU.calc().dl); SEIKYU.dv('v', '300'); r.push(SEIKYU.calc().D, SEIKYU.calc().warn.length); return r.join('/'); }), '200000/250000/200000/お値引き（定価の 80％で）/0/1');
+  check('  値引き額（円）・この金額にする・高すぎる 金額', await page.evaluate(() => { const r = []; SEIKYU.dv('m', 'yen'); SEIKYU.dv('v', '12,345'); r.push(SEIKYU.calc().D); SEIKYU.dv('m', 'target'); SEIKYU.dv('v', '850000'); r.push(SEIKYU.calc().D); SEIKYU.dv('v', '1200000'); r.push(SEIKYU.calc().D, SEIKYU.calc().warn[0].slice(0, 10)); return r.join('/'); }), '12345/150000/0/決めた 値段が 定価');
+  check('  基準額から：○％ 上乗せ・○円 上乗せ・マイナスも', await page.evaluate(() => { const r = []; SEIKYU.dv('m', 'base'); SEIKYU.dv('base', '800000'); SEIKYU.dv('up', '15'); r.push(SEIKYU.calc().D); SEIKYU.dv('upm', 'yen'); SEIKYU.dv('up', '50000'); r.push(SEIKYU.calc().D); SEIKYU.dv('up', '-100000'); r.push(SEIKYU.calc().D, document.getElementById('skD').textContent.slice(0, 14)); SEIKYU.dv('m', 'rate'); SEIKYU.dv('v', '10'); return r.join('/'); }), '80000/150000/300000/基準額 800,000円 −');
+  check('  条件：手で ✓・定価の 円値下げは 数量の合計を かける', await page.evaluate(() => { SEIKYU.ru(1, 'c', 'manual'); const a = SEIKYU.calc().rules.join(','); SEIKYU.ru(1, 'ok', true); SEIKYU.it(0, 'qty', '2'); const c = SEIKYU.calc(); const r = [a, c.rules.join(','), c.Rs]; SEIKYU.it(0, 'qty', '1'); SEIKYU.ru(1, 'on', false); r.push(SEIKYU.calc().rules.join(',')); return r.join('/'); }), 'ok:50000,ng:0/ok:100000,ok:40000/140000/ok:50000,off');
+  check('  条件は 値下げの前の 数で 見る（オプションを 外すと 届かない）', await page.evaluate(() => { SEIKYU.op(2, 'on', false); const c = SEIKYU.calc(); const r = [c.optN, c.rules[0], c.O]; SEIKYU.op(2, 'on', true); return r.join('/'); }), '2/ng:1/80000');
+  check('  値下げが 大きすぎるときは 0円 まで', await page.evaluate(() => { SEIKYU.ru(0, 'rv', '100'); SEIKYU.ru(0, 'red', 'yen'); SEIKYU.ru(0, 'rv', '9999999'); const c = SEIKYU.calc(); const r = [c.E, c.warn.length > 0]; SEIKYU.ru(0, 'red', 'pct'); SEIKYU.ru(0, 'rv', '5'); return r.join('/'); }), '0/true');
+  check('  消費税：8％・1円未満の まるめ（切り捨て・四捨五入・切り上げ）・なし（定価 1,012,345・オプション 10万・セット割 5％）', await page.evaluate(() => { const r = []; SEIKYU.it(0, 'price', '1012345'); SEIKYU.dv('m', 'none'); SEIKYU.tax('rate', 8); for (const m of ['floor', 'round', 'ceil']){ SEIKYU.tax('rnd', m); const c = SEIKYU.calc(); r.push(c.E + ':' + c.T); } SEIKYU.tax('rate', 0); const c = SEIKYU.calc(); r.push(c.T + ':' + c.t + ':' + c.b); SEIKYU.tax('rate', 10); SEIKYU.tax('rnd', 'floor'); SEIKYU.it(0, 'price', '1000000'); SEIKYU.dv('m', 'rate'); return r.join('/'); }), '1061728:84938/1061728:84938/1061728:84939/0:0:1061728');
+  // 書類
+  await page.evaluate(() => SEIKYU.cut(10000)); await w(100);
+  check('  請求書の 形：題・宛名・請求金額・登録番号（大文字に）・振込先・角印・税率ごとの 金額', await page.evaluate(() => { const h = SEIKYU.html(); return ['請 求 書', 'さくら商事 株式会社', '御中', 'ご請求金額', '¥1,040,000-', '登録番号 T1234567890123', 'お振込先', 'class="sk-seal"', '10％対象 945,455円　消費税 94,545円', 'お支払期限', '件名：機械 一式'].map(x => h.includes(x)).join(''); }), 'truetruetruetruetruetruetruetruetruetruetrue'.replace(/true/g, 'true'));
+  check('  見積書・納品書に 切りかえ', await page.evaluate(() => { const r = []; SEIKYU.doc('kind', 'mitsumori'); let h = SEIKYU.html(); r.push(h.includes('見 積 書') && h.includes('御見積金額') && h.includes('有効期限') && document.querySelector('.sk-kinds button.on').textContent === '見積書'); SEIKYU.doc('kind', 'nohin'); h = SEIKYU.html(); r.push(h.includes('納 品 書') && h.includes('納品日') && !h.includes('お支払期限') && !h.includes('お振込先')); SEIKYU.doc('kind', 'seikyu'); return r.join('/'); }), 'true/true');
+  check('  文字で コピー', await page.evaluate(() => { const t = SEIKYU.text(); return [t.split('\n')[0].startsWith('請求書　No.'), t.includes('ご請求金額：1,040,000円（税込）'), t.includes('・セット割　−50,000円'), t.includes('小計（税抜） 945,455円'), t.includes('消費税（10％） 94,545円')].join('/'); }), 'true/true/true/true/true');
+  await page.evaluate(() => SEIKYU.view()); await w(400);
+  check('  📃 見る：A4 の 見本（画面に 合わせて 小さく）・🔍 大きく', await page.evaluate(() => { const p = document.getElementById('skPaper'), k = parseFloat(p.style.transform.replace('scale(', '')); const a = [isDlgOpen('seikyuDocOverlay'), !!p.querySelector('.sk-doc .sk-tbl'), k < 1 && k > 0.3, document.querySelectorAll('.sk-doc .sk-tbl tbody tr').length >= 8]; SEIKYU.zoom(); a.push(p.style.transform, document.getElementById('skZoom').textContent); SEIKYU.zoom(); return a.join('/'); }), 'true/true/true/true/scale(1)/🔍 全体');
+  check('  🖨 印刷：A4 の 紙に 書類だけ', await page.evaluate(async () => { SEIKYU.print(); await new Promise(r => setTimeout(r, 400)); const pa = document.getElementById('printArea'); return [window.__print, !!pa.querySelector('.sk-doc'), document.getElementById('printDynamicStyle').textContent.includes('size: A4 portrait'), getComputedStyle(pa).display].join('/'); }), '1/true/true/none');
+  await page.evaluate(() => window.history.back()); await w(300);
+  check('  端末の「戻る」は 見本だけ 閉じる', await page.evaluate(() => [isDlgOpen('seikyuDocOverlay'), isDlgOpen('seikyuOverlay')].join('/')), 'false/true');
+  // 残す・新しく・開く・複製・消す
+  check('  💾 残す：一覧に 入る・取引先を 覚える・変更なし', await page.evaluate(() => { SEIKYU.keep(); const s = SEIKYU.state(); return [s.invs.length, s.m.clis.map(c => c.name + c.hon).join(','), SEIKYU.dirty(), document.querySelectorAll('.sk-li').length].join('/'); }), '1/さくら商事 株式会社御中/false/1');
+  check('  ＋ 新しく：番号が つづき・品物は 空', await page.evaluate(async () => { SEIKYU.fresh(); await new Promise(r => setTimeout(r, 50)); const c = SEIKYU.state().cur; return [c.no.slice(-3), c.items.length, c.items[0].name, c.opts.length, c.final, SEIKYU.state().invs.length].join('/'); }), '-02/1//0/0/1');
+  check('  開く・複製（番号と 日付は 新しく）・消す（聞いてから）', await page.evaluate(async () => { SEIKYU.openInv(0); await new Promise(r => setTimeout(r, 50)); const a = [SEIKYU.state().cur.to.name, SEIKYU.calc().G]; SEIKYU.dupInv(0); const c = SEIKYU.state().cur; a.push(c.no.slice(-3), c.id !== SEIKYU.state().invs[0].id, SEIKYU.dirty()); SEIKYU.delInv(0); await new Promise(r => setTimeout(r, 50)); a.push(SEIKYU.state().invs.length); return a.join('/'); }), 'さくら商事 株式会社/1040000/-03/true/true/0');
+  check('  ⭐ よく使う 品物・オプション・条件 を 残して 足す', await page.evaluate(() => { SEIKYU.keepProd(0); SEIKYU.keepOpt(0); SEIKYU.keepRule(0); const m = SEIKYU.state().m; const a = [m.prods.map(p => p.name + ':' + p.price + p.unit).join(), m.optm.map(p => p.name).join(), m.rulem.map(r => r.name).join()]; SEIKYU.addProd(0); SEIKYU.addOptm(0); SEIKYU.addRulem(0); const c = SEIKYU.state().cur; a.push(c.items.length, c.opts.length, c.rules.length); return a.join('/'); }), '機械 本体:1000000台/延長保証/セット割/2/4/3');
+  // 画面で 打つ
+  await page.evaluate(() => SEIKYU.fresh()); await w(200);
+  await page.fill('.sk-line input.nm', 'テスト品'); await page.fill('.sk-line input[aria-label="定価"]', '12345'); await page.fill('.sk-line input[aria-label="数量"]', '3');
+  await page.click('.sk-kinds button:nth-child(2)'); await w(200);
+  check('  画面で 打つと すぐ 計算・はなれると カンマ', await page.evaluate(() => [document.getElementById('skA').textContent, document.querySelector('.sk-line input[aria-label="定価"]').value, document.getElementById('skFoot').textContent.includes('40,738円'), SEIKYU.state().cur.kind].join('/')), '定価の合計 37,035円（数量 3）/12,345/true/mitsumori');
+  check('  登録番号の 形が ちがうと 知らせる', await page.evaluate(async () => { SEIKYU.me('reg', 'T123'); SEIKYU.fresh(); await new Promise(r => setTimeout(r, 60)); return document.querySelector('.sk-me .sk-warn') ? document.querySelector('.sk-me .sk-warn').textContent.slice(0, 12) : ''; }), '登録番号は「T」と 数字');
+  await page.evaluate(() => { closeSeikyu(); openSeikyu(); }); await w(300);
+  check('  閉じて 開いても 書きかけ・自分の会社を 覚えている', await page.evaluate(() => { const s = SEIKYU.state(); return [s.cur.items[0].name || s.cur.kind, s.m.me.name, s.m.me.seal].join('/'); }), 'mitsumori/表電卓工業 株式会社/true');
+  await page.evaluate(() => {
+    closeSeikyu();
+    localStorage.setItem('excalc_seikyu', JSON.stringify({ m: { me: { name: '<img src=x onerror="window.__x=1">', seal: 1, reg: 5 }, prods: ['x', { name: '', price: 5 }], seq: { 'zz': 4 } }, invs: [null, 'x', { kind: 'zz', items: [{ name: 'a', price: -5, qty: 'q' }], disc: { m: 'q', v: 'x' }, tax: { rate: 7, rnd: 'x' }, final: -1, to: { hon: 'x' } }], cur: { kind: 'nohin', date: '2026-13-45', items: 'x', rules: [{ c: 'zz', red: 'q', th: 'x' }] } }));
+    openSeikyu();
+  }); await w(300);
+  check('  変なデータ：片づけて 開く（文字は 文字のまま）', await page.evaluate(() => { const s = SEIKYU.state(), v = s.invs[0], r = s.cur.rules[0]; return [s.invs.length, v.kind, v.items[0].price, v.items[0].qty, v.disc.m, v.tax.rate, v.tax.rnd, v.final, v.to.hon, s.cur.kind, /^\d{4}-\d\d-\d\d$/.test(s.cur.date), r.c, r.red, r.th, s.m.prods.length, !!window.__x, !!document.querySelector('#skBody img')].join('/'); }), '1/seikyu/0/1/none/10/floor/0/御中/nohin/true/optn/yen/0/0/false/false');
+  await page.evaluate(() => closeSeikyu()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runKakijunSE(browser) {
   console.log('\n── ✍️ かきじゅん帳：iPhone SE の幅でも はみ出さない（v559） ──');
   const KKJ = 'file://' + path.join(ROOT, 'kakijun', 'index.html');
@@ -11878,7 +12080,7 @@ async function runSchemeFix(browser) {
       { id: 'a2', fam: '佐藤', giv: '花子', famK: 'さとう', givK: 'はなこ', tels: [{ t: 'cell', v: '080-3333-4444' }], color: 'yellow' }, { id: 'a3', fam: '鈴木', giv: '一郎', famK: 'すずき', givK: 'いちろう', tels: [{ t: 'cell', v: '080-5555-6666' }], color: 'blue' }] })));
     await page.evaluate(() => { const d = new Date(); d.setDate(d.getDate() - 60); const old = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');   // 🎁 お返し帳は 札（まだ・時期すぎ・済み・しない・さしあげた）が出る中身で
       localStorage.setItem('excalc_okaeshi', JSON.stringify({ items: [{ id: 'o1', dir: 'in', kind: 'kekkon', ev: '長女の結婚', date: old, name: '佐藤 花子', amt: 30000, t: 1 }, { id: 'o2', dir: 'in', kind: 'koden', ev: '父の葬儀', date: old, name: '鈴木 一郎', amt: 10000, ret: { st: 'sumi', what: 'お茶' }, t: 2 }, { id: 'o3', dir: 'in', kind: 'kodomo', ev: '入学', date: old, name: '田中 三郎', amt: 10000, t: 3 }, { id: 'o4', dir: 'out', kind: 'koden', ev: '山田さんの葬儀', date: old, name: '山田 太郎', amt: 5000, t: 4 }, { id: 'o5', dir: 'in', kind: 'koden', ev: '父の葬儀', date: old, name: '高橋 次郎', amt: 5000, t: 5 }] })); });
-    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo', 'renraku', 'tatekae', 'kuji', 'dasetsu', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban']) {
+    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo', 'renraku', 'tatekae', 'kuji', 'dasetsu', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu']) {
       await page.evaluate(id => NP_TOOLS.find(t => t.id === id).run(), id); await w(1100);
       found.push(id + ':' + await page.evaluate(SCAN));
       if (id === 'kurashi' || id === 'keisan') { await page.evaluate(id => { const c = document.querySelector(id === 'kurashi' ? '#krList .kr-card' : '#ksList .ks-card'); if (c) c.click(); }, id); await w(800); found.push(id + '-page:' + await page.evaluate(SCAN)); }
@@ -11886,6 +12088,11 @@ async function runSchemeFix(browser) {
         await page.evaluate(() => RK.paintStart()); await w(300); found.push('renraku-paint:' + await page.evaluate(SCAN));
         await page.evaluate(() => { RK.paintEnd(); RK.table(); }); await w(600); found.push('renraku-table:' + await page.evaluate(SCAN));
         await page.evaluate(() => RK.closeTbl()); await w(400);
+      }
+      if (id === 'seikyu') {   // 📃 書類の 見本・自分の会社（v575）
+        await page.evaluate(() => { SEIKYU.it(0, 'name', '品物'); SEIKYU.it(0, 'price', '1000'); SEIKYU.addOp(); SEIKYU.addRu(); SEIKYU.dv('m', 'rate'); }); await w(300); found.push('seikyu-form:' + await page.evaluate(SCAN));
+        await page.evaluate(() => SEIKYU.view()); await w(500); found.push('seikyu-doc:' + await page.evaluate(SCAN));
+        await page.evaluate(() => closeDlg('seikyuDocOverlay')); await w(300);
       }
       if (id === 'keijiban') {   // 🕐 時計・⏰ 予約・予約の窓（v570）
         await page.evaluate(() => KEIJIBAN.tab('clock')); await w(300); found.push('keijiban-clock:' + await page.evaluate(SCAN));
@@ -11901,7 +12108,7 @@ async function runSchemeFix(browser) {
     }
     await page.evaluate(() => { toggleSettings(); openVoiceSet(); }); await w(500);
     found.push('voice:' + await page.evaluate(SCAN));
-    check('  　読めない文字がない（しまい場所・部屋割り・案内ページ・容積・カンタブ・便利計算・くらしの便利帳・角度計・連絡帳（色分け・表で直す）・立て替え精算・くじ・打設の段取り・お返し帳・こよみ・方位と恵方・そろばん・筆談ボード・電光掲示板（時計・予約・絵）・読み上げの声）', found.filter(s => !/:$/.test(s)).join(' | '), '');
+    check('  　読めない文字がない（しまい場所・部屋割り・案内ページ・容積・カンタブ・便利計算・くらしの便利帳・角度計・連絡帳（色分け・表で直す）・立て替え精算・くじ・打設の段取り・お返し帳・こよみ・方位と恵方・そろばん・筆談ボード・電光掲示板（時計・予約・絵）・ど派手タイマー・ど派手カウンター・請求書づくり（書類の見本）・読み上げの声）', found.filter(s => !/:$/.test(s)).join(' | '), '');
     check('  　エラーなし', errs.join(' | '), '');
     await ctx.close();
   }
@@ -15146,11 +15353,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/40');   // v569 で 🗣筆談ボード・📢電光掲示板、v568 で 🗓こよみ・⛩方位と恵方・🧮そろばん、v561 で 💴🎲🚛📷 の4つ（v564 で 📷 を 🎁お返し帳 に）、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/43');   // v575 で ⏱ど派手タイマー・🎉ど派手カウンター・📃請求書づくり、v569 で 🗣筆談ボード・📢電光掲示板、v568 で 🗓こよみ・⛩方位と恵方・🧮そろばん、v561 で 💴🎲🚛📷 の4つ（v564 で 📷 を 🎁お返し帳 に）、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -15178,7 +15385,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,okaeshi:B,koyomi:B,hoi:B,soroban:B,hitsudan:B,keijiban:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,okaeshi:B,koyomi:B,hoi:B,soroban:B,hitsudan:B,keijiban:B,hadetimer:B,hadecount:B,seikyu:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -16329,6 +16536,9 @@ async function runQrShare(browser) {
     if (!only || only === 'keijiban572' || only === 'keijiban' || only === 'v572') await runKeijiban572(browser);
     if (!only || only === 'keijiban573' || only === 'keijiban' || only === 'v573') await runKeijiban573(browser);
     if (!only || only === 'keijiban574' || only === 'keijiban' || only === 'v574') await runKeijiban574(browser);
+    if (!only || only === 'hadetimer' || only === 'hade' || only === 'v575') await runHadeTimer575(browser);
+    if (!only || only === 'hadecount' || only === 'hade' || only === 'v575') await runHadeCount575(browser);
+    if (!only || only === 'seikyu' || only === 'v575') await runSeikyu575(browser);
     if (!only || only === 'saveas') await runSaveAs560(browser);
     if (!only || only === 'tatekae' || only === 'v561') await runTatekae561(browser);
     if (!only || only === 'kuji' || only === 'v561') await runKuji561(browser);
