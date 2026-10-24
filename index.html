@@ -9334,6 +9334,11 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v574', t:'📢 電光掲示板：縦に持って 縦書きで 流せます', li:[
+    '📢<b>電光掲示板</b>の「縦に持つと」に <b>縦書きで 縦に流す</b> を 足しました。スマホを 縦に持ったまま、文字を 縦書きにして <b>下から上へ</b> 流します（→ 流す は 上から下へ）',
+    'LED風・ふつうの文字の どちらでも。止める・点滅・↑ 下から・なみ・1字ずつ も 縦に 動きます。「。」「、」は 右上に、「ー」「〜」や かっこは 縦向きに',
+    '時計・絵は 回さずに 縦のまま 出し、⏰ 予約の文も 縦書きで 流れます。横に持てば いつもの 横書きです'
+  ]},
   { v:'v573', t:'📢 電光掲示板：流れる文字・背景を ふやしました', li:[
     '📢<b>電光掲示板</b>の 文字の<b>色</b>を 11色に（オレンジ・水色・紫・ピンク・<b>金</b> など）。<b>書体</b>（ゴシック・丸ゴシック・明朝）も えらべます',
     '<b>背景</b>が 11種類に：紺・夜空（星が またたく）・夕やけ・しま（動く）・市松・<b>桜</b>（花びらが 散る）・<b>雪</b>・<b>紙ふぶき</b>・木の板・虹色（色が 流れる）',
@@ -22718,7 +22723,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v573';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v574';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
