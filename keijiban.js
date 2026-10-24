@@ -270,12 +270,12 @@ function textFill(g, x, tw, y, fs, t){
   return baseColor();
 }
 const darker=c=>{ const m=/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(c||''); return m ? 'rgb('+[m[1],m[2],m[3]].map(h=>Math.round(parseInt(h,16)*0.38)).join(',')+')' : '#4a3410'; };
-// 文字を描く（かざり つき）。wave：1字ずつ 波打たせる
-function paintText(g, s, x, y, fs, tw, t, wave){
+// 文字を描く（かざり つき）。wave：1字ずつ 波打たせる。vo（縦書き）：fill＝色を 決めて渡す・rot＝横に倒した字（立体の向きを 合わせる）
+function paintText(g, s, x, y, fs, tw, t, wave, vo){
   const each=fn=>{ if(!wave){ fn(s, x, y); return; } let cx=x; for(const ch of Array.from(s)){ fn(ch, cx, y+Math.sin(t*4-cx/fs*1.3)*fs*0.12); cx+=g.measureText(ch).width; } };
-  const fill=textFill(g, x, tw, y, fs, t), d=st.deco;
+  const fill=(vo && vo.fill) || textFill(g, x, tw, y, fs, t), d=st.deco, ry=vo && vo.rot ? -1 : 1;
   g.lineJoin='round';
-  if(d==='solid'){ const n=Math.max(3, Math.round(fs*0.07)); g.fillStyle=darker(baseColor()); for(let i=n;i>=1;i--) each((c,xx,yy)=>g.fillText(c, xx+i, yy+i)); }
+  if(d==='solid'){ const n=Math.max(3, Math.round(fs*0.07)); g.fillStyle=darker(baseColor()); for(let i=n;i>=1;i--) each((c,xx,yy)=>g.fillText(c, xx+i, yy+i*ry)); }
   else if(d==='outline'){ g.strokeStyle='#ffffff'; g.lineWidth=fs*0.12; each((c,xx,yy)=>g.strokeText(c, xx, yy)); }
   else if(d==='shadow'){ g.shadowColor='rgba(0,0,0,.8)'; g.shadowBlur=fs*0.08; g.shadowOffsetX=fs*0.05; g.shadowOffsetY=fs*0.06; }
   else if(d==='glow'){ g.shadowColor=(st.color==='rainbow' || st.color==='gold') ? '#ffffff' : baseColor(); g.shadowBlur=Math.round(fs*0.12); }
@@ -410,18 +410,25 @@ function drawTextV(cv, t, text, move){
   }
   const on=move!=='blink' || Math.floor(t*2)%2===0;
   if(!on || !shown) return 0;
-  let top=y+dy;
+  const top0=y+dy; let top=top0;
   for(let i=0;i<shown;i++){
     const ch=chars[i], mid=top+hs[i]/2; top+=hs[i];
     if(!ch.trim() || mid+fs<0 || mid-fs>H) continue;
-    const cw=g.measureText(ch).width, dx=mv==='wave' ? Math.sin(t*4-mid/fs*1.3)*fs*0.12 : 0;
+    const cw=g.measureText(ch).width, dx=mv==='wave' ? Math.sin(t*4-mid/fs*1.3)*fs*0.12 : 0, rot=ROT_CH.includes(ch);
     g.save(); g.translate(W/2+dx, mid);
-    const v=ROT_CH.includes(ch) ? null : vShift(g, ch, -cw/2, fs*0.03, fs);
-    if(ROT_CH.includes(ch)) g.rotate(Math.PI/2); else if(v) g.translate(v[0], v[1]);
-    paintText(g, ch, -cw/2, fs*0.03, fs, cw, t, false);
+    const v=rot ? null : vShift(g, ch, -cw/2, fs*0.03, fs);
+    if(rot) g.rotate(Math.PI/2); else if(v) g.translate(v[0], v[1]);
+    paintText(g, ch, -cw/2, fs*0.03, fs, cw, t, false, {rot, fill:vFill(g, rot, top0-mid-(v ? v[1] : 0), Hb, fs, t)});
     g.restore();
   }
   return 1;
+}
+// 縦書きの 色：虹は 文の 上から下へ 色が かわる・金は 1字ごとに 上から下へ（横に倒した字は 字の向きの x が 画面の 下向き）
+function vFill(g, rot, y0, len, fs, t){
+  let gr=null;
+  if(st.color==='rainbow'){ gr=rot ? g.createLinearGradient(y0,0,y0+len,0) : g.createLinearGradient(0,y0,0,y0+len); for(let i=0;i<=6;i++) gr.addColorStop(i/6, 'hsl('+((i*60+t*90)%360)+',100%,60%)'); }
+  else if(st.color==='gold' && rot){ gr=g.createLinearGradient(-fs*0.45,0,fs*0.45,0); gr.addColorStop(0,'#fff6c2'); gr.addColorStop(0.45,'#ffc83d'); gr.addColorStop(0.55,'#c88a0c'); gr.addColorStop(1,'#ffe07a'); }
+  return gr;
 }
 
 /* ───────── 🕐 時計の 数字（点の並び）───────── */
