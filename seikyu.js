@@ -549,7 +549,7 @@ const SK_CSS=`
 .sk-f input, .sk-f select, .sk-ta, .sk-line input, .sk-rule input, .sk-sel{ min-height:42px; padding:0 10px; border-radius:10px; border:1px solid rgba(120,132,156,.55); background:var(--cell-bg,#fff); color:var(--text,#222); font-size:16px; box-sizing:border-box; }
 .sk-f input{ flex:1; min-width:0; } .sk-f select{ flex:1 1 180px; min-width:0; } .sk-f em{ font-style:normal; font-size:13px; color:var(--text-light,#666); }
 .sk-ta{ display:block; width:100%; padding:8px 10px; font:inherit; font-size:15px; line-height:1.5; resize:vertical; flex:1; }
-.sk-row3{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:0 10px; }
+.sk-row3{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:0 10px; }
 .sk-row3 .sk-f > span{ min-width:3.2em; }
 .sk-opt{ display:flex; flex-wrap:wrap; align-items:center; gap:5px; margin:6px 0; } .sk-opt > span{ min-width:5em; font-size:12.5px; font-weight:bold; color:var(--text-light,#666); }
 .sk-opt button, .sk-seg button{ min-height:38px; padding:0 12px; border-radius:19px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:14px; cursor:pointer; }
@@ -562,7 +562,7 @@ const SK_CSS=`
 .sk-line .ck{ align-self:center; } .sk-line .ck input, .sk-rule .ck input{ width:22px; height:22px; min-height:0; }
 .sk-line .sum{ grid-column:1/-1; font-size:13px; color:var(--text-light,#666); text-align:right; } .sk-line .sum:empty{ display:none; }
 .bt{ display:inline-flex; gap:4px; } .bt button{ min-width:38px; min-height:40px; border-radius:10px; border:1px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#222); font-size:15px; cursor:pointer; }
-@media (max-width:520px){ .sk-line{ grid-template-columns:1fr 1fr 1fr auto; } .sk-line .nm{ grid-column:1/-1; } .sk-line.op{ grid-template-columns:2em 1fr 1fr auto; } .sk-line.op .nm{ grid-column:2/-1; } .sk-line.op label.p{ grid-column:1/3; } }
+@media (max-width:520px){ .sk-line{ grid-template-columns:1.7fr 0.9fr 0.8fr auto; } .sk-line label input{ padding:0 6px; } .sk-line .nm{ grid-column:1/-1; } .sk-line.op{ grid-template-columns:2em 1fr 1fr auto; } .sk-line.op .nm{ grid-column:2/-1; } .sk-line.op label.p{ grid-column:1/3; } }
 .sk-rule{ border:1px solid rgba(120,132,156,.35); border-radius:12px; padding:8px 10px; margin:0 0 8px; background:rgba(120,132,156,.05); }
 .sk-rule.off{ opacity:.6; } .sk-rule .hd{ display:flex; gap:8px; align-items:center; } .sk-rule .hd .nm{ flex:1; min-width:0; }
 .sk-rule .ck{ display:inline-flex; align-items:center; gap:4px; font-size:13.5px; font-weight:bold; white-space:nowrap; } .sk-rule .ck.big{ font-size:15px; }

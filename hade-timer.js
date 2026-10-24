@@ -229,6 +229,7 @@ function paintBar(){
   else mid=B('next()','⏭ 次へ');
   b.innerHTML=r.done ? B('restart()','↺ もう一度','pri')+(r.m==='down' ? B('plus(60)','＋1分') : '')+B('back()','← 戻る')
     : pp+mid+B('restart()','↺ 最初から')+B('stop()','■ やめる')+B('back()','← 戻る');
+  const f=$('htFull'); if(f) f.style.setProperty('--ht-bar', (b.offsetHeight+10)+'px');   // ボタンが 2段に なっても 上に 出す
 }
 function paintLaps(){
   const b=$('htLaps'); if(!b) return;
@@ -586,16 +587,16 @@ const HT_CSS=`
 @keyframes htBan{ 0%{ opacity:0; transform:scale(.2) rotate(-6deg); } 14%{ opacity:1; transform:scale(1.25) rotate(3deg); } 24%{ transform:scale(1) rotate(0); } 80%{ opacity:1; transform:scale(1); } 100%{ opacity:0; transform:translateY(-24px) scale(.96); } }
 @keyframes htBig{ 0%{ opacity:0; transform:scale(.1) rotate(-12deg); } 10%{ opacity:1; transform:scale(1.35) rotate(5deg); } 18%{ transform:scale(.92) rotate(-2deg); } 26%{ transform:scale(1.06); } 34%{ transform:scale(1); } 50%{ transform:scale(1.08); } 66%{ transform:scale(1); } 90%{ opacity:1; } 100%{ opacity:0; transform:translateY(-30px); } }
 @keyframes htRain{ 0%{ background-position:0% 50%; } 100%{ background-position:300% 50%; } }
-.ht-laps{ position:absolute; left:10px; bottom:calc(84px + var(--safe-bottom,0px)); display:flex; flex-direction:column; gap:3px; pointer-events:none; color:#fff; font-variant-numeric:tabular-nums; text-shadow:0 1px 4px rgba(0,0,0,.9); }
+.ht-laps{ position:absolute; left:10px; bottom:var(--ht-bar,84px); display:flex; flex-direction:column; gap:3px; pointer-events:none; color:#fff; font-variant-numeric:tabular-nums; text-shadow:0 1px 4px rgba(0,0,0,.9); }
 .ht-laps div{ display:flex; gap:8px; align-items:baseline; font-size:15px; background:rgba(0,0,0,.35); padding:2px 10px; border-radius:10px; }
 .ht-laps div.best{ color:#7dff9a; } .ht-laps div.worst{ color:#ff8f8f; } .ht-laps small{ opacity:.7; font-size:12px; }
-.ht-stop{ position:absolute; left:50%; bottom:calc(96px + var(--safe-bottom,0px)); transform:translateX(-50%); min-width:220px; min-height:72px; border:0; border-radius:36px; background:linear-gradient(135deg,#ffffff,#ffe9a8); color:#7a2b00; font-size:28px; font-weight:900; cursor:pointer; box-shadow:0 0 0 6px rgba(255,255,255,.25), 0 8px 30px rgba(255,200,80,.6); animation:htPulse 1s ease-in-out infinite; }
+.ht-stop{ position:absolute; left:50%; bottom:calc(var(--ht-bar,84px) + 12px); transform:translateX(-50%); min-width:220px; min-height:72px; border:0; border-radius:36px; background:linear-gradient(135deg,#ffffff,#ffe9a8); color:#7a2b00; font-size:28px; font-weight:900; cursor:pointer; box-shadow:0 0 0 6px rgba(255,255,255,.25), 0 8px 30px rgba(255,200,80,.6); animation:htPulse 1s ease-in-out infinite; }
 .ht-stop[hidden]{ display:none; }
 @keyframes htPulse{ 0%,100%{ transform:translateX(-50%) scale(1); } 50%{ transform:translateX(-50%) scale(1.08); } }
 .ht-bar{ position:absolute; left:0; right:0; bottom:0; display:flex; gap:6px; padding:8px 10px calc(10px + var(--safe-bottom,0px)); justify-content:center; flex-wrap:wrap; background:linear-gradient(0deg, rgba(0,0,0,.55), rgba(0,0,0,0)); }
 .ht-bar button{ flex:1 1 auto; max-width:180px; min-height:50px; padding:0 10px; border-radius:14px; border:1.5px solid rgba(255,255,255,.75); background:rgba(0,0,0,.35); color:#fff; font-size:16px; font-weight:bold; cursor:pointer; white-space:nowrap; }
 .ht-bar button.pri{ background:#fff; color:#3a0070; border-color:#fff; }
-.ht-chip{ position:fixed; right:12px; bottom:calc(14px + var(--safe-bottom,0px)); z-index:99980; min-height:44px; padding:0 16px; border-radius:22px; border:0; background:linear-gradient(135deg,#7b2bff,#ff2bd6); color:#fff; font-size:17px; font-weight:bold; font-variant-numeric:tabular-nums; box-shadow:0 4px 16px rgba(123,43,255,.5); cursor:pointer; }
+.ht-chip{ position:fixed; right:10px; top:calc(52px + var(--safe-top,0px)); z-index:99980; min-height:44px; padding:0 16px; border-radius:22px; border:0; background:linear-gradient(135deg,#7b2bff,#ff2bd6); color:#fff; font-size:17px; font-weight:bold; font-variant-numeric:tabular-nums; box-shadow:0 4px 16px rgba(123,43,255,.5); cursor:pointer; }
 @media (prefers-reduced-motion: reduce){ .ht-go, .ht-stop{ animation:none; } }
 `;
 function ensureDom(){
