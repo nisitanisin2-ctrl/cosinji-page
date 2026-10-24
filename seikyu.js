@@ -36,6 +36,8 @@ const CUTS=[[100,'百円未満'],[1000,'千円未満'],[10000,'1万円未満'],[
 const MAX_ITEMS=30, MAX_OPTS=30, MAX_RULES=12, MAX_INV=200, MAX_PROD=100, MAX_OPTM=100, MAX_RULEM=30, MAX_CLI=200;
 const MAX_YEN=99999999999, MAX_QTY=999999, MAX_PAT=20;
 const ID_RE=/^[a-z0-9]{4,12}$/;
+// 正規表現は undefined を「undefined」という 字として 見て 通してしまう → 字の ときだけ（v577。v575 は 新しい 書類の id が 空で、残すと 前の 書類に 上書きしていた）
+const okId=x=>typeof x==='string' && ID_RE.test(x);
 // 見本の パターン（v577）。同じ id で 自分の パターンを 残すと、こちらの かわりに それが 出る（消すと 見本に もどる）
 const BUILTIN=[{id:'namakon', name:'🚛 生コン', iname:'配合', items:[{name:'', price:0, qty:1, unit:'m³'}], disc:{m:'unit', v:0},
   opts:[{name:'小型指定', price:0, qty:1, unit:'m³', per:'qty', on:false}, {name:'小型小口指定', price:0, qty:1, unit:'台', per:'free', on:false},
@@ -78,16 +80,16 @@ function cleanItem(x){ if(!x || typeof x!=='object') return null; return {name:o
 function cleanOpt(x){ if(!x || typeof x!=='object') return null; return {name:oneLine(x.name,40), price:numIn(x.price,0,MAX_YEN,0), qty:numIn(x.qty,0,MAX_QTY,1,true), unit:oneLine(x.unit,6), per:x.per==='qty' ? 'qty' : 'free', on:x.on!==false}; }
 function cleanRule(x){
   if(!x || typeof x!=='object') return null;
-  return {id:ID_RE.test(x.id) ? x.id : rid(), name:oneLine(x.name,40), on:x.on!==false, c:CONDS.some(c=>c[0]===x.c) ? x.c : 'optn',
+  return {id:okId(x.id) ? x.id : rid(), name:oneLine(x.name,40), on:x.on!==false, c:CONDS.some(c=>c[0]===x.c) ? x.c : 'optn',
     th:numIn(x.th,0,MAX_YEN,0), ok:!!x.ok, red:REDS.some(r=>r[0]===x.red) ? x.red : 'yen', rv:numIn(x.rv,0,MAX_YEN,0,true)};
 }
 function cleanInv(v){
   if(!v || typeof v!=='object') return null;
   const d=(v.disc && typeof v.disc==='object') ? v.disc : {}, t=(v.tax && typeof v.tax==='object') ? v.tax : {}, to=(v.to && typeof v.to==='object') ? v.to : {};
   const date=dateOk(v.date)||ymd(new Date());
-  return {id:ID_RE.test(v.id) ? v.id : rid(), kind:KINDS.some(k=>k[0]===v.kind) ? v.kind : 'seikyu', no:oneLine(v.no,24), date, due:v.due==='' ? '' : (dateOk(v.due)||endOfNextMonth(date)),
+  return {id:okId(v.id) ? v.id : rid(), kind:KINDS.some(k=>k[0]===v.kind) ? v.kind : 'seikyu', no:oneLine(v.no,24), date, due:v.due==='' ? '' : (dateOk(v.due)||endOfNextMonth(date)),
     to:{name:oneLine(to.name,50), hon:HONS.some(h=>h[0]===to.hon) ? to.hon : '御中'}, subject:oneLine(v.subject,60), memo:multi(v.memo,400),
-    iname:oneLine(v.iname,6), pat:ID_RE.test(v.pat) ? v.pat : '',   // iname：品物の 呼び名（生コンは 配合）・pat：入れた パターン
+    iname:oneLine(v.iname,6), pat:okId(v.pat) ? v.pat : '',   // iname：品物の 呼び名（生コンは 配合）・pat：入れた パターン
     items:(Array.isArray(v.items) ? v.items : []).map(cleanItem).filter(Boolean).slice(0,MAX_ITEMS),
     disc:{m:DISC.some(x=>x[0]===d.m) ? d.m : 'none', v:numIn(d.v,-MAX_YEN,MAX_YEN,0,true), base:numIn(d.base,0,MAX_YEN,0), up:numIn(d.up,-MAX_YEN,MAX_YEN,0,true), upm:d.upm==='yen' ? 'yen' : '%'},
     opts:(Array.isArray(v.opts) ? v.opts : []).map(cleanOpt).filter(Boolean).slice(0,MAX_OPTS),
@@ -106,7 +108,7 @@ function cleanMaster(m){
     optm:(Array.isArray(m.optm) ? m.optm : []).map(cleanOpt).filter(x=>x && x.name).slice(0,MAX_OPTM),
     rulem:(Array.isArray(m.rulem) ? m.rulem : []).map(cleanRule).filter(Boolean).slice(0,MAX_RULEM),
     clis:(Array.isArray(m.clis) ? m.clis : []).filter(c=>c && typeof c==='object').map(c=>({name:oneLine(c.name,50), hon:HONS.some(h=>h[0]===c.hon) ? c.hon : '御中'})).filter(c=>c.name).slice(0,MAX_CLI),
-    pats:(Array.isArray(m.pats) ? m.pats : []).map(cleanPat).filter((p,i,a)=>p && a.findIndex(q=>q && q.id===p.id)===i).slice(0,MAX_PAT), defPat:ID_RE.test(m.defPat) ? m.defPat : '',
+    pats:(Array.isArray(m.pats) ? m.pats : []).map(cleanPat).filter((p,i,a)=>p && a.findIndex(q=>q && q.id===p.id)===i).slice(0,MAX_PAT), defPat:okId(m.defPat) ? m.defPat : '',
     seq, def:{note:multi(df.note,400), adj:oneLine(df.adj,20)||'端数値引き'}};
 }
 // パターン：①〜⑤ だけを 持つ（書類の 中身と 同じ 片づけ方）
@@ -114,7 +116,7 @@ function cleanPat(x){
   if(!x || typeof x!=='object') return null;
   const name=oneLine(x.name,20); if(!name) return null;
   const v=cleanInv({items:x.items, disc:x.disc, opts:x.opts, rules:x.rules, tax:x.tax, iname:x.iname});
-  return {id:ID_RE.test(x.id) ? x.id : rid(), name, iname:v.iname, items:v.items.length ? v.items : [newItem()], disc:v.disc, opts:v.opts, rules:v.rules, tax:v.tax};
+  return {id:okId(x.id) ? x.id : rid(), name, iname:v.iname, items:v.items.length ? v.items : [newItem()], disc:v.disc, opts:v.opts, rules:v.rules, tax:v.tax};
 }
 let builtC=null;
 const builtins=()=>builtC||(builtC=BUILTIN.map(cleanPat));
@@ -135,7 +137,10 @@ function load(){
   let o=null; try{ o=JSON.parse(localStorage.getItem(KEY)||'null'); }catch(_){}
   o=(o && typeof o==='object') ? o : {};
   st={m:cleanMaster(o.m), invs:(Array.isArray(o.invs) ? o.invs : []).map(cleanInv).filter(Boolean).slice(0,MAX_INV), cur:null};
+  st.invs.forEach((v,i,a)=>{ if(a.findIndex(x=>x.id===v.id)<i) v.id=rid(); });   // 同じ id は 1つに
   st.cur=cleanInv(o.cur)||null;
+  // v575 の 書類は id が 残っていない → 一覧の 同じ 種類・番号の ものを いまの 書類と みなす（残すと そこを 直す）
+  if(st.cur && o.cur && !okId(o.cur.id)){ const m=st.invs.find(x=>x.kind===st.cur.kind && x.no===st.cur.no); if(m) st.cur.id=m.id; }
   if(!st.cur){ st.cur=freshInv(); st.cur.no=nextNo(st.cur.date); }
   dirty=!!o.dirty;
 }
@@ -766,7 +771,7 @@ const SK_CSS=`
 .sk-line .sum{ grid-column:1/-1; font-size:13px; color:var(--text-light,#666); text-align:right; } .sk-line .sum:empty{ display:none; }
 .bt{ display:inline-flex; gap:4px; } .bt button{ min-width:38px; min-height:40px; border-radius:10px; border:1px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#222); font-size:15px; cursor:pointer; }
 @media (max-width:520px){ .sk-line{ grid-template-columns:1.7fr 0.9fr 0.8fr auto; } .sk-line label input{ padding:0 6px; } .sk-line .nm{ grid-column:1/-1; } .sk-line.op{ grid-template-columns:2em 1.25fr 0.8fr 3.3em auto; } .sk-line.op .nm{ grid-column:2/-1; } .sk-line.op label.p{ grid-column:1/3; }
-  .sk-mrow{ grid-template-columns:1fr 6.4em 3.2em auto; } .sk-mrow input{ padding:0 6px; } }
+  .sk-mrow{ grid-template-columns:1fr 3.6em auto; padding-bottom:6px; border-bottom:1px dashed rgba(120,132,156,.3); } .sk-mrow .nm{ grid-column:1/-1; } .sk-mrow.r{ border-bottom:0; } .sk-mrow input{ padding:0 6px; } }   /* 名前は 1行 まるごと（配合の 名前は 長い）*/
 @media (max-width:380px){ .sk-line.op label.p small .w{ display:none; } }
 .sk-rule{ border:1px solid rgba(120,132,156,.35); border-radius:12px; padding:8px 10px; margin:0 0 8px; background:rgba(120,132,156,.05); }
 .sk-rule.off{ opacity:.6; } .sk-rule .hd{ display:flex; gap:8px; align-items:center; } .sk-rule .hd .nm{ flex:1; min-width:0; }
