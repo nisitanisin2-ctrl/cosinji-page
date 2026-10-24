@@ -1,6 +1,9 @@
 /* 📢 電光掲示板（v569。表電卓の道具。はじめて開いたときに読む。apps/keijiban/ から単独のアプリとしても開ける）
    ・📝 文字：打った文字を 大きく流す。見た目は LED風（点で光る文字）／ふつうの文字。
-     色（赤・緑・黄・白・青・虹）・動き（← 流す・止める・点滅）・速さ（5段。v572 で 全体に 1段 ゆっくりに）・点の細かさ（16・24・32 点）。⭐ よく使う文。
+     色（11色。金・虹も）・書体（ゴシック・丸ゴシック・明朝）・かざり（ふつうの文字：光る・縁どり・影・立体）・
+     背景（黒・紺・夜空・夕やけ・しま・市松・桜・雪・紙ふぶき・木の板・虹色）・
+     動き（← 流す・→ 流す・止める・点滅・↑ 下から・なみ・1字ずつ）・速さ（5段。v572 で 全体に 1段 ゆっくりに）・
+     点の細かさ（16・24・32 点）。⭐ よく使う文・📚 文の見本（場面ごと）。（色・書体・かざり・背景・動き・見本は v573）
    ・🕐 時計（v570）：時:分／時:分:秒／午前・午後。数字の形（7セグ・ドット・まるい）・色（虹・時間で かわる も）・
      数字が かわるときの動き（くるっ・ぽろぽろ・ばらばら・ぱたぱた）・いつもの動き（なみ・ぴょん・ふわっ）・
      かざり（「:」の点滅・秒の光・星空・正時の花火・日付も ときどき）・点の細かさ。
@@ -25,13 +28,36 @@ const toastK=m=>{ if(typeof toast==='function') toast(m, 3000); };
 const p2=n=>String(n).padStart(2,'0');
 const DEF_LIST=['受付は こちらです','少々 お待ちください','ただいま 準備中です','営業中','本日は ありがとうございました','休憩中','足もとに ご注意ください','バック オーライ','ストップ！','入口は こちら →','← 出口','がんばれ！'];
 const LOOKS=[['led','LED風（点）'],['plain','ふつうの文字']];
-const COLS=[['red','赤','#ff3b30'],['green','緑','#2bff6e'],['yellow','黄','#ffd60a'],['white','白','#f4f4f4'],['blue','青','#3aa0ff'],['rainbow','虹','']];
-const MOVES=[['scroll','← 流す'],['still','止める'],['blink','点滅']];
+// 📚 文の見本（v573）：場面ごとに えらんで そのまま流せる
+const SAMPLES=[
+  ['🏪 お店',['営業中','本日 休業','ただいま 準備中です','いらっしゃいませ','ただいま セール中！','本日 特売日','売り切れました','ラストオーダーです','お会計は こちらです','またの お越しを お待ちしております']],
+  ['🏢 受付・案内',['受付は こちらです','少々 お待ちください','順番に お呼びします','番号札を お取りください','入口は こちら →','← 出口','会場は 2階です','関係者以外 立入禁止','お静かに お願いします','ご協力 ありがとうございます']],
+  ['🚧 工事・現場',['工事中 ご迷惑を おかけします','足もとに ご注意ください','頭上 注意','バック オーライ','ストップ！','徐行して ください','安全第一','作業中','立入禁止','本日の作業は 終了しました']],
+  ['🚗 駐車場・道',['満車','空車 あり','駐車場は こちら →','この先 行き止まり','一方通行','車に ご注意ください','左に 寄ってください','出口は こちら']],
+  ['🎉 お祝い',['お誕生日 おめでとう！','結婚 おめでとう！','祝 開店','祝 卒業','祝 入学','優勝 おめでとう！','ようこそ！','ありがとう！','がんばれ！','ファイト！']],
+  ['🏫 学校・行事',['受付 開始','まもなく 始まります','開演まで しばらく お待ちください','ただいま 休憩中です','会場内での 撮影は ご遠慮ください','本日は ご来場 ありがとうございました','お忘れ物に ご注意ください','次は 合唱です']],
+  ['🌸 季節',['あけまして おめでとうございます','ハッピー バレンタイン','お花見 日和','暑中 お見舞い 申し上げます','ハッピー ハロウィン','メリー クリスマス','よいお年を','春の セール 開催中']],
+  ['🙏 あいさつ',['おはようございます','こんにちは','こんばんは','ありがとうございました','お疲れさまでした','いってらっしゃい','おかえりなさい','ごゆっくり どうぞ']]];
+const COLS=[['red','赤','#ff3b30'],['orange','オレンジ','#ff9500'],['yellow','黄','#ffd60a'],['green','緑','#2bff6e'],['cyan','水色','#38e8ff'],['blue','青','#3aa0ff'],['purple','紫','#c77dff'],['pink','ピンク','#ff5fa8'],['white','白','#f4f4f4'],['gold','金','#ffc83d'],['rainbow','虹','']];
+const MOVES=[['scroll','← 流す'],['right','→ 流す'],['still','止める'],['blink','点滅'],['up','↑ 下から'],['wave','なみ'],['type','1字ずつ']];
+const SCROLLS=new Set(['scroll','right','wave']);   // 流す動き（ほかは 入りきらない文だけ 流す）
 // 1秒に 流れる 字の数（字の高さ ぶん）。v572：5段にして 全体に 1段 ゆっくり（前の「ゆっくり」が いまの「ふつう」）
 const SPEEDS=[['vslow','とても ゆっくり',0.45],['slow','ゆっくり',0.7],['mid','ふつう',1.2],['fast','はやい',2.2],['vfast','とても はやい',3.6]];
 const ROWS=[16,24,32];
 const ROTS=[['auto','縦に持っていたら 回す'],['off','回さない']];
 const FONT='"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Noto Sans CJK JP","Yu Gothic",Meiryo,sans-serif';
+// 書体・かざり・背景（v573）。書体は 端末に入っている字で出す（なければ ゴシック）
+const FACES=[['gothic','ゴシック',FONT],['maru','丸ゴシック','"Hiragino Maru Gothic ProN","M PLUS Rounded 1c","Rounded Mplus 1c","Arial Rounded MT Bold",'+FONT],['mincho','明朝','"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP","Noto Serif CJK JP","MS PMincho",serif']];
+const DECOS=[['none','なし'],['glow','光る'],['outline','縁どり'],['shadow','影'],['solid','立体']];
+// [値, 名前, 見本（CSS の背景）]
+const BGS=[['black','黒','#050505'],['navy','紺','linear-gradient(#0b1640,#050b22)'],['night','夜空','radial-gradient(circle at 30% 30%,#fff 0 1px,transparent 2px),linear-gradient(#050816,#1a1f4a)'],
+  ['sunset','夕やけ','linear-gradient(#2b1c5a,#c2416b,#ff9a3c)'],['stripe','しま','repeating-linear-gradient(135deg,#1a0f24 0 5px,#3a2350 5px 10px)'],['check','市松','conic-gradient(#141414 25%,#2c2c2c 0 50%,#141414 0 75%,#2c2c2c 0) 0 0/10px 10px'],
+  ['sakura','桜','radial-gradient(circle at 60% 40%,#ffc1dc 0 2px,transparent 3px),linear-gradient(#3a1028,#6b2147)'],['snow','雪','radial-gradient(circle at 40% 50%,#fff 0 1.5px,transparent 2.5px),linear-gradient(#0e1a3d,#24396e)'],
+  ['confetti','紙ふぶき','linear-gradient(90deg,#ff4d6d 0 25%,#ffd60a 0 50%,#2bff88 0 75%,#38bdf8 0)'],['wood','木の板','repeating-linear-gradient(90deg,#6b4423 0 4px,#7d5230 4px 6px,#5a381c 6px 9px)'],
+  ['rainbow','虹色','linear-gradient(90deg,#7a1f5c,#7a5a1f,#1f7a3a,#1f4f7a,#5a1f7a)']];
+const BG_MOVE=new Set(['night','stripe','sakura','snow','confetti','rainbow']);   // 動く背景
+const fontOf=()=>(FACES.find(x=>x[0]===st.font)||FACES[0])[2];
+const fr=n=>{ const x=Math.sin(n*127.1+311.7)*43758.5453; return x-Math.floor(x); };   // いつも同じ でたらめ（0〜1）
 const TABS=[['text','📝 文字'],['pic','🖼 絵'],['clock','🕐 時計'],['sched','⏰ 予約']];
 const TAU=Math.PI*2;
 // 🕐 時計（v570）
@@ -121,7 +147,8 @@ function load(){
       kind:one(CK_KIND,ck.kind,DEF_CK.kind), hand:one(CK_HAND,ck.hand,DEF_CK.hand)},
     sched:Array.isArray(o.sched) ? o.sched.map(x=>cleanSc(x, pseen)).filter(Boolean).slice(0,MAX_SC) : [],
     pics, picv:{look:one(PIC_LOOK,pv.look,'photo'), fit:one(PIC_FIT,pv.fit,'contain'), move:one(PIC_MOVE,pv.move,'none')},
-    picCur:pseen.has(o.picCur) ? o.picCur : pics.length ? pics[0].id : ''};
+    picCur:pseen.has(o.picCur) ? o.picCur : pics.length ? pics[0].id : '',
+    font:one(FACES,o.font,'gothic'), deco:one(DECOS,o.deco,'glow'), bg:one(BGS,o.bg,'black')};
   const seen=new Set(); st.sched.forEach(s=>{ while(seen.has(s.id)) s.id=newId(); seen.add(s.id); });
 }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(_){} }
@@ -129,15 +156,17 @@ function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(_){}
 /* ───────── 文字の点の表（LED風）───────── */
 const bms=new Map();
 function bitmapOf(text, R){
-  const txt=text.trim() ? text : ' ', k=R+'|'+txt;
+  const txt=text.trim() ? text : ' ', k=R+'|'+st.font+'|'+txt;
   if(bms.has(k)) return bms.get(k);
-  const c=document.createElement('canvas'), g=c.getContext('2d'), font='bold '+Math.round(R*0.9)+'px '+FONT;
+  const c=document.createElement('canvas'), g=c.getContext('2d'), font='bold '+Math.round(R*0.9)+'px '+fontOf();
   g.font=font; const w=Math.max(1, Math.ceil(g.measureText(txt).width)+1);
+  const cuts=[]; let acc='';
+  for(const ch of Array.from(txt)){ acc+=ch; cuts.push(Math.min(w, Math.ceil(g.measureText(acc).width)+1)); }   // 1字ずつ 出すときの 区切り
   c.width=w; c.height=R;
   g.font=font; g.textBaseline='middle'; g.fillStyle='#fff'; g.fillText(txt, 0, R/2+R*0.03);
   const d=g.getImageData(0,0,w,R).data, lit=new Uint8Array(w*R);
   let n=0; for(let i=0;i<w*R;i++){ if(d[i*4+3]>110){ lit[i]=1; n++; } }
-  const b={w, h:R, lit, n}; if(bms.size>30) bms.clear(); bms.set(k,b); return b;
+  const b={w, h:R, lit, n, cuts}; if(bms.size>30) bms.clear(); bms.set(k,b); return b;
 }
 const bitmap=()=>bitmapOf(st.text, st.rows);
 // 光る点の絵（色ごと・点の大きさごとに 1つ作って 使いまわす）
@@ -156,67 +185,143 @@ const colorOf=c=>(COLS.find(x=>x[0]===c)||COLS[0])[2] || '#f4f4f4';
 const baseColor=()=>colorOf(st.color);
 // 暗い点（消えている点）を ならべた 下地（大きさが かわったときだけ 作る）。col：点の色（'' は 白っぽく）
 const grids=new Map();
-function grid(W, H, pitch, C, R, col){
-  const k=[W,H,R,col].join('|'); if(grids.has(k)) return grids.get(k);
+function grid(W, H, pitch, C, R, col, clear){
+  const k=[W,H,R,col,clear?1:0].join('|'); if(grids.has(k)) return grids.get(k);
   const c=document.createElement('canvas'); c.width=W; c.height=H; const g=c.getContext('2d');
-  g.fillStyle='#050505'; g.fillRect(0,0,W,H);
-  g.fillStyle=col || 'rgba(255,255,255,.07)'; g.globalAlpha=col ? 0.11 : 1;
+  if(!clear){ g.fillStyle='#050505'; g.fillRect(0,0,W,H); }   // clear：背景の上に かさねる（点だけ）
+  g.fillStyle=col || 'rgba(255,255,255,.07)'; g.globalAlpha=col ? (clear ? 0.16 : 0.11) : 1;
   const r=pitch*0.38, oy=(H-pitch*R)/2;
   for(let y=0;y<R;y++) for(let x=0;x<C;x++){ g.beginPath(); g.arc(x*pitch+pitch/2, oy+y*pitch+pitch/2, r, 0, Math.PI*2); g.fill(); }
-  if(grids.size>6) grids.clear();
+  if(grids.size>8) grids.clear();
   grids.set(k,c); return c;
+}
+
+/* ───────── 背景（v573）：止まった絵は 1枚 作って 使いまわし、動く背景は 毎回 足して描く ───────── */
+const bgCache=new Map();
+function bgBase(W, H, k){
+  const key=[W,H,k].join('|'); if(bgCache.has(key)) return bgCache.get(key);
+  const c=document.createElement('canvas'); c.width=W; c.height=H; const g=c.getContext('2d');
+  const lin=(...cols)=>{ const gr=g.createLinearGradient(0,0,0,H); cols.forEach((cl,i)=>gr.addColorStop(i/(cols.length-1), cl)); g.fillStyle=gr; g.fillRect(0,0,W,H); };
+  if(k==='navy') lin('#0b1640','#050b22');
+  else if(k==='night') lin('#050816','#1a1f4a');
+  else if(k==='sunset') lin('#2b1c5a','#c2416b','#ff9a3c');
+  else if(k==='stripe') { g.fillStyle='#1a0f24'; g.fillRect(0,0,W,H); }
+  else if(k==='check'){ const s=Math.max(4,Math.round(H/4)); g.fillStyle='#141414'; g.fillRect(0,0,W,H); g.fillStyle='#2c2c2c'; for(let y=0;y*s<H;y++) for(let x=(y%2);x*s<W;x+=2) g.fillRect(x*s,y*s,s,s); }   // 下を ぬってから（すきまが すけないように）
+  else if(k==='sakura') lin('#3a1028','#6b2147');
+  else if(k==='snow') lin('#0e1a3d','#24396e');
+  else if(k==='confetti') lin('#140d22','#22143a');
+  else if(k==='wood'){   // 木の板：木目の すじ
+    g.fillStyle='#6b4423'; g.fillRect(0,0,W,H);
+    for(let i=0;i<46;i++){ const y=fr(i*3.7)*H, a=0.08+fr(i*5.3)*0.16, th=Math.max(1,H*(0.004+fr(i*2.1)*0.012));
+      g.strokeStyle=(i%3 ? 'rgba(40,20,5,' : 'rgba(255,220,170,')+a.toFixed(2)+')'; g.lineWidth=th; g.beginPath();
+      for(let x=0;x<=W;x+=Math.max(4,W/60)) g.lineTo(x, y+Math.sin(x/W*6+i)*H*0.02+Math.sin(x/W*23+i*2)*H*0.006); g.stroke(); }
+    const sh=g.createLinearGradient(0,0,0,H); sh.addColorStop(0,'rgba(255,255,255,.08)'); sh.addColorStop(1,'rgba(0,0,0,.25)'); g.fillStyle=sh; g.fillRect(0,0,W,H);
+  }
+  else { g.fillStyle='#050505'; g.fillRect(0,0,W,H); }
+  if(bgCache.size>12) bgCache.clear();
+  bgCache.set(key,c); return c;
+}
+function drawBg(g, W, H, t){
+  const k=st.bg, S=Math.min(W,H);
+  if(k==='rainbow'){   // 虹色：色が ゆっくり 横へ 流れる
+    const gr=g.createLinearGradient(0,0,W,0); for(let i=0;i<=6;i++) gr.addColorStop(i/6, 'hsl('+((i*60+t*40)%360).toFixed(0)+',70%,30%)');
+    g.fillStyle=gr; g.fillRect(0,0,W,H); return;
+  }
+  g.drawImage(bgBase(W,H,k), 0, 0);
+  if(k==='night'){ g.fillStyle='#fffbe8'; for(let i=0;i<80;i++){ g.globalAlpha=0.25+0.75*Math.max(0,Math.sin(t*(1+fr(i)*2)+i*1.7)); g.beginPath(); g.arc(fr(i*12.9)*W, fr(i*7.3)*H, S*0.006*(0.5+fr(i*3.1)), 0, Math.PI*2); g.fill(); } g.globalAlpha=1; }
+  else if(k==='stripe'){   // しま：ななめの帯が ゆっくり 流れる
+    const bw=H*0.35, off=(t*H*0.25)%(2*bw); g.fillStyle='#3a2350';
+    for(let x=-H-2*bw; x<W+H; x+=2*bw){ g.beginPath(); g.moveTo(x+off,0); g.lineTo(x+off+bw,0); g.lineTo(x+off+bw-H,H); g.lineTo(x+off-H,H); g.closePath(); g.fill(); }
+  }
+  else if(k==='sakura'){   // 桜：花びらが ゆらゆら 落ちる
+    for(let i=0;i<28;i++){ const v=(0.08+0.06*fr(i))*H, span=H*1.3, y=((t*v+fr(i*9.2)*span)%span)-H*0.15, x=((fr(i*5.1)*W+t*W*0.012+Math.sin(t*1.3+i)*W*0.03)%W+W)%W;
+      g.save(); g.translate(x,y); g.rotate(t*1.6+i); g.scale(1, 0.55+0.45*Math.cos(t*2.2+i)); g.fillStyle=i%3 ? '#ffc1dc' : '#ff9fc7'; g.beginPath(); g.ellipse(0,0,S*0.022,S*0.013,0,0,Math.PI*2); g.fill(); g.restore(); }
+  }
+  else if(k==='snow'){ g.fillStyle='#ffffff'; for(let i=0;i<70;i++){ const v=(0.05+0.08*fr(i*1.7))*H, span=H*1.2, y=((t*v+fr(i*4.4)*span)%span)-H*0.1, x=((fr(i*8.8)*W+Math.sin(t*0.9+i)*W*0.02)%W+W)%W;
+      g.globalAlpha=0.55+0.45*fr(i*2.6); g.beginPath(); g.arc(x,y,S*(0.004+0.007*fr(i*6.1)),0,Math.PI*2); g.fill(); } g.globalAlpha=1; }
+  else if(k==='confetti'){ const P=['#ff4d6d','#ffd60a','#2bff88','#38bdf8','#c77dff','#ff9500'];
+    for(let i=0;i<54;i++){ const v=(0.1+0.1*fr(i*2.3))*H, span=H*1.25, y=((t*v+fr(i*7.7)*span)%span)-H*0.12, x=((fr(i*3.3)*W+Math.sin(t*1.1+i)*W*0.03)%W+W)%W;
+      g.save(); g.translate(x,y); g.rotate(t*3+i); g.scale(1, Math.cos(t*5+i*1.3)); g.fillStyle=P[i%P.length]; g.fillRect(-S*0.012,-S*0.006,S*0.024,S*0.012); g.restore(); } }
 }
 
 /* ───────── 文字を流す（t 秒のとき）───────── */
 const charsPerSec=()=>(SPEEDS.find(x=>x[0]===st.speed)||SPEEDS.find(x=>x[0]==='mid'))[2];
-// LED風：画面の列 C に対して 文字の左はしが 何列目か（x0）と、点いているか（on）
+const easeOut=p=>1-Math.pow(1-Math.min(1,Math.max(0,p)),3);
+const upP=()=>1.2+4.3/charsPerSec();     // ↑ 下から：0.6秒で 出て、止まって、0.6秒で 上へ 消える（ゆっくりほど 長く 止まる）
+const typeS=()=>0.45/charsPerSec();      // 1字ずつ：1字の 間（秒）
+// LED風：画面の列 C に対して 文字の左はしが 何列目か（x0）・点いているか（on）・上下の ずれ（dy）・見せる幅（rev）・なみ（wave）
 function posFor(t, C, b, move){
-  const fits=b.w<=C;
-  let x0;
-  if(move==='scroll' || !fits){ const sp=charsPerSec()*st.rows, L=b.w+C; x0=C-Math.floor((t*sp)%L); }
-  else x0=Math.floor((C-b.w)/2);
+  const fits=b.w<=C, R=b.h, sp=charsPerSec()*st.rows, L=b.w+C, mv=SCROLLS.has(move) || fits ? move : 'scroll';   // 入りきらない文は 流す
+  let x0=Math.floor((C-b.w)/2), dy=0, rev=Infinity;
+  if(mv==='scroll' || mv==='wave') x0=C-Math.floor((t*sp)%L);
+  else if(mv==='right') x0=Math.floor((t*sp)%L)-b.w;
+  else if(mv==='up'){ const P=upP(), ph=t%P; dy=ph<0.6 ? Math.round((1-easeOut(ph/0.6))*R) : ph<P-0.6 ? 0 : -Math.round(easeOut((ph-(P-0.6))/0.6)*R); }
+  else if(mv==='type'){ const n=b.cuts.length, S=typeS(), ph=t%(n*S+3); rev=ph>=n*S+2.5 ? 0 : b.cuts[Math.min(n, Math.floor(ph/S)+1)-1]; }
   const on=move!=='blink' || Math.floor(t*2)%2===0;
-  return {x0, on, w:b.w, fits};
+  return {x0, on, w:b.w, fits, dy, rev, wave:mv==='wave'};
 }
 const ledPos=(t, C)=>posFor(t, C, bitmap(), st.move);
 let textPass=0;   // 流しおえた回数（予約の文を 何回 流したか）
+// ふつうの文字の 色（虹・金は 色の帯）
+function textFill(g, x, tw, y, fs, t){
+  if(st.color==='rainbow'){ const gr=g.createLinearGradient(x,0,x+tw,0); for(let i=0;i<=6;i++) gr.addColorStop(i/6, 'hsl('+((i*60+t*90)%360)+',100%,60%)'); return gr; }
+  if(st.color==='gold'){ const gr=g.createLinearGradient(0,y-fs*0.45,0,y+fs*0.45); gr.addColorStop(0,'#fff6c2'); gr.addColorStop(0.45,'#ffc83d'); gr.addColorStop(0.55,'#c88a0c'); gr.addColorStop(1,'#ffe07a'); return gr; }
+  return baseColor();
+}
+const darker=c=>{ const m=/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(c||''); return m ? 'rgb('+[m[1],m[2],m[3]].map(h=>Math.round(parseInt(h,16)*0.38)).join(',')+')' : '#4a3410'; };
+// 文字を描く（かざり つき）。wave：1字ずつ 波打たせる
+function paintText(g, s, x, y, fs, tw, t, wave){
+  const each=fn=>{ if(!wave){ fn(s, x, y); return; } let cx=x; for(const ch of Array.from(s)){ fn(ch, cx, y+Math.sin(t*4-cx/fs*1.3)*fs*0.12); cx+=g.measureText(ch).width; } };
+  const fill=textFill(g, x, tw, y, fs, t), d=st.deco;
+  g.lineJoin='round';
+  if(d==='solid'){ const n=Math.max(3, Math.round(fs*0.07)); g.fillStyle=darker(baseColor()); for(let i=n;i>=1;i--) each((c,xx,yy)=>g.fillText(c, xx+i, yy+i)); }
+  else if(d==='outline'){ g.strokeStyle='#ffffff'; g.lineWidth=fs*0.12; each((c,xx,yy)=>g.strokeText(c, xx, yy)); }
+  else if(d==='shadow'){ g.shadowColor='rgba(0,0,0,.8)'; g.shadowBlur=fs*0.08; g.shadowOffsetX=fs*0.05; g.shadowOffsetY=fs*0.06; }
+  else if(d==='glow'){ g.shadowColor=(st.color==='rainbow' || st.color==='gold') ? '#ffffff' : baseColor(); g.shadowBlur=Math.round(fs*0.12); }
+  g.fillStyle=fill; each((c,xx,yy)=>g.fillText(c, xx, yy));
+  g.shadowBlur=0; g.shadowOffsetX=0; g.shadowOffsetY=0; g.shadowColor='transparent';
+}
 function drawText(cv, t, text, move){
   const W=cv.width, H=cv.height; if(!W || !H) return 0;
   const g=cv.getContext('2d');
   g.globalAlpha=1;
   if(st.look==='led'){
-    const R=st.rows, pitch=H/R, C=Math.ceil(W/pitch), b=bitmapOf(text, R), p=posFor(t, C, b, move);
+    const R=st.rows, pitch=H/R, C=Math.ceil(W/pitch), b=bitmapOf(text, R), p=posFor(t, C, b, move), mvBg=BG_MOVE.has(st.bg);
     textPass=Math.floor(t*charsPerSec()*R/(b.w+C));
-    const key=[W,H,R,st.color,text,p.x0,p.on,st.color==='rainbow'?Math.floor(t*8):0].join('|');
+    const key=[W,H,R,st.color,st.bg,st.font,text,p.x0,p.on,p.dy,p.rev,(mvBg||p.wave) ? t : st.color==='rainbow' ? Math.floor(t*8) : 0].join('|');
     if(key===prevKey && cv.__drawn) return cv.__lit||0;
     prevKey=key; cv.__drawn=true;
-    g.drawImage(grid(W,H,pitch,C,R, st.color==='rainbow'?'':baseColor()), 0, 0);
+    const col=st.color==='rainbow' ? '' : baseColor();
+    if(st.bg==='black') g.drawImage(grid(W,H,pitch,C,R,col), 0, 0);
+    else { drawBg(g, W, H, t); g.fillStyle='rgba(0,0,0,.38)'; g.fillRect(0,0,W,H); g.drawImage(grid(W,H,pitch,C,R,col,true), 0, 0); }   // 背景の上は 少し暗くして 点を 目立たせる
     let n=0;
     if(p.on){
       const oy=(H-pitch*R)/2, one=st.color==='rainbow' ? null : sprite(baseColor(), pitch), shift=Math.floor(t*8);
       for(let x=0;x<C;x++){
-        const sx=x-p.x0; if(sx<0 || sx>=b.w) continue;
-        const spr=one || sprite(hue(Math.floor(sx/Math.max(2,R/3))+shift), pitch);
-        for(let y=0;y<R;y++){ if(b.lit[y*b.w+sx]){ g.drawImage(spr, x*pitch, oy+y*pitch, pitch, pitch); n++; } }
+        const sx=x-p.x0; if(sx<0 || sx>=b.w || sx>=p.rev) continue;
+        const spr=one || sprite(hue(Math.floor(sx/Math.max(2,R/3))+shift), pitch), dd=p.dy+(p.wave ? Math.round(Math.sin(t*4-sx*0.16)*R*0.14) : 0);
+        for(let y=0;y<R;y++){ if(!b.lit[y*b.w+sx]) continue; const yy=y+dd; if(yy<0 || yy>=R) continue; g.drawImage(spr, x*pitch, oy+yy*pitch, pitch, pitch); n++; }
       }
     }
     cv.__lit=n; return n;
   }
   // ふつうの文字
   prevKey=''; cv.__drawn=false;
-  g.fillStyle='#050505'; g.fillRect(0,0,W,H);
+  drawBg(g, W, H, t);
   const txt=text.trim() ? text : '', fs=Math.round(H*0.74);
-  g.font='bold '+fs+'px '+FONT; g.textBaseline='middle';
-  const tw=g.measureText(txt).width, fits=tw<=W*0.96;
-  let x;
-  if(move==='scroll' || !fits){ const sp=charsPerSec()*fs, L=tw+W; x=W-((t*sp)%L); textPass=Math.floor(t*sp/L); }
-  else { x=(W-tw)/2; textPass=Math.floor(t/4); }
+  g.font='bold '+fs+'px '+fontOf(); g.textBaseline='middle'; g.textAlign='left';
+  const tw=g.measureText(txt).width, fits=tw<=W*0.96, sp=charsPerSec()*fs, L=tw+W, mv=SCROLLS.has(move) || fits ? move : 'scroll';
+  let x=(W-tw)/2, dy=0, shown=txt;
+  if(mv==='scroll' || mv==='wave'){ x=W-((t*sp)%L); textPass=Math.floor(t*sp/L); }
+  else if(mv==='right'){ x=((t*sp)%L)-tw; textPass=Math.floor(t*sp/L); }
+  else {
+    textPass=Math.floor(t/4);
+    if(mv==='up'){ const P=upP(), ph=t%P; dy=ph<0.6 ? (1-easeOut(ph/0.6))*H : ph<P-0.6 ? 0 : -easeOut((ph-(P-0.6))/0.6)*H; }
+    else if(mv==='type'){ const cs=Array.from(txt), n=cs.length, S=typeS(), ph=t%(n*S+3); shown=ph>=n*S+2.5 ? '' : cs.slice(0, Math.min(n, Math.floor(ph/S)+1)).join(''); }
+  }
   const on=move!=='blink' || Math.floor(t*2)%2===0;
-  if(!on || !txt) return 0;
-  if(st.color==='rainbow'){ const gr=g.createLinearGradient(x,0,x+tw,0); for(let i=0;i<=6;i++) gr.addColorStop(i/6, 'hsl('+((i*60+t*90)%360)+',100%,60%)'); g.fillStyle=gr; }
-  else g.fillStyle=baseColor();
-  g.shadowColor=g.fillStyle===baseColor() ? baseColor() : '#fff'; g.shadowBlur=Math.round(fs*0.12);
-  g.fillText(txt, x, H/2+fs*0.03); g.shadowBlur=0;
+  if(!on || !shown) return 0;
+  paintText(g, shown, x, H/2+fs*0.03+dy, fs, tw, t, mv==='wave');
   return 1;
 }
 const draw=(cv, t)=>drawText(cv, t, st.text, st.move);
@@ -786,6 +891,27 @@ async function resetList(){
   st.list=DEF_LIST.slice(); save(); paintList();
 }
 function clearText(){ setText(''); const ta=$('kjText'); if(ta){ ta.value=''; ta.focus(); } }
+// 📚 文の見本：場面を えらんで、文を押すと その文を 流す（⭐ で よく使う文にも）
+let smpCat=0;
+function samples(){
+  const el=popOpen(`<b>📚 文の見本</b><div class="kj-days kj-smp-c" id="kjSmpC">${SAMPLES.map(([n],i)=>`<button type="button" data-c="${i}">${n}</button>`).join('')}</div><div class="kj-smp" id="kjSmpL"></div>
+    <div class="kj-pop-acts"><button type="button" class="kj-b" data-x="cancel">閉じる</button></div>`);
+  const paint=()=>{
+    el.querySelectorAll('#kjSmpC button').forEach(b=>b.classList.toggle('on', +b.dataset.c===smpCat));
+    $('kjSmpL').innerHTML=SAMPLES[smpCat][1].map((t,i)=>`<div class="kj-li"><button type="button" class="t" data-u="${i}">${esc(t)}</button><button type="button" class="del" data-k="${i}" aria-label="よく使う文に 残す">⭐</button></div>`).join('');
+  };
+  el.addEventListener('click', e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    if(b.dataset.c!=null){ smpCat=+b.dataset.c; paint(); return; }
+    if(b.dataset.x==='cancel'){ popClose(); return; }
+    const t=SAMPLES[smpCat][1][+(b.dataset.u!=null ? b.dataset.u : b.dataset.k)]; if(t==null) return;
+    if(b.dataset.u!=null){ st.text=t; save(); popClose(); const ta=$('kjText'); if(ta) ta.value=t; prevKey=''; paintInfo(); restart(); toastK('「'+t+'」を 流します'); return; }
+    if(st.list.includes(t)){ toastK('もう あります'); return; }
+    if(st.list.length>=MAX_LIST){ toastK('残せるのは '+MAX_LIST+'まで です'); return; }
+    st.list.unshift(t); save(); paintList(); toastK('⭐ よく使う文に 残しました');
+  });
+  paint();
+}
 
 /* ───────── ⏰ 予約を 足す・直す（時刻は 時・分を押して えらぶ。打っても よい）───────── */
 let pop=null, ed=null;
@@ -922,7 +1048,9 @@ function setTab(k){
   const b=$('kjBody'); if(b) b.scrollTop=0;
 }
 function setOpt(k, v){
-  const ok={look:LOOKS.some(x=>x[0]===v), color:COLS.some(x=>x[0]===v), move:MOVES.some(x=>x[0]===v), speed:SPEEDS.some(x=>x[0]===v), rows:ROWS.includes(v), rot:ROTS.some(x=>x[0]===v)}[k];
+  const ok={look:LOOKS.some(x=>x[0]===v), color:COLS.some(x=>x[0]===v), move:MOVES.some(x=>x[0]===v), speed:SPEEDS.some(x=>x[0]===v), rows:ROWS.includes(v), rot:ROTS.some(x=>x[0]===v),
+    font:FACES.some(x=>x[0]===v), deco:DECOS.some(x=>x[0]===v), bg:BGS.some(x=>x[0]===v)}[k];
+  if(k==='font' && ok) bms.clear();
   if(!ok) return; st[k]=v; save(); grids.clear(); prevKey=''; render(); restart();
 }
 function ckOpt(k, v){
@@ -949,7 +1077,7 @@ function paintInfo(){
   if(!st.text.trim()){ b.textContent='流す文字を 入れてください'; return; }
   if(st.look!=='led'){ b.textContent=''; return; }
   const bmp=bitmap(), chars=Math.max(1, Math.round(bmp.w/st.rows));
-  b.textContent=`${st.rows}点の文字で 約${chars}字ぶん`+(st.move!=='scroll' ? '（長い文は 流します）' : '');
+  b.textContent=`${st.rows}点の文字で 約${chars}字ぶん`+(SCROLLS.has(st.move) ? '' : '（長い文は 流します）');
 }
 function paintList(){
   const b=$('kjList'); if(!b) return;
@@ -979,11 +1107,13 @@ function textTab(){
   const o=(k, arr, lab)=>`<div class="kj-opt"><span>${lab}</span>${arr.map(a=>{ const v=Array.isArray(a)?a[0]:a, n=Array.isArray(a)?a[1]:a+'点'; return `<button type="button" class="${st[k]===v?'on':''}${k==='color'?' c-'+v:''}" onclick='KEIJIBAN.opt("${k}", ${JSON.stringify(v)})'>${n}</button>`; }).join('')}</div>`;
   return `<textarea id="kjText" class="kj-in" rows="2" maxlength="${MAX_TXT}" placeholder="流す文字（例：受付は こちらです）" oninput="KEIJIBAN.text(this.value)"></textarea>
     <button type="button" class="kj-go" onclick="KEIJIBAN.start()">▶ 全画面で 出す</button>
-    <div class="kj-acts"><button type="button" class="kj-b" onclick="KEIJIBAN.keep()">⭐ 残す</button><button type="button" class="kj-b" onclick="KEIJIBAN.clear()">🧹 文字を消す</button></div>
+    <div class="kj-acts"><button type="button" class="kj-b" onclick="KEIJIBAN.keep()">⭐ 残す</button><button type="button" class="kj-b" onclick="KEIJIBAN.samples()">📚 文の見本</button><button type="button" class="kj-b" onclick="KEIJIBAN.clear()">🧹 文字を消す</button></div>
     <div class="kj-sec"><h4>⭐ よく使う文<small>押すと 文字が かわる・▶ で すぐ全画面</small></h4><div id="kjList"></div>
       <div class="kj-acts sm"><button type="button" class="kj-b" onclick="KEIJIBAN.resetList()">はじめの文に 戻す</button></div></div>
     <div class="kj-sec"><h4>⚙ 見た目</h4>
-      ${o('look', LOOKS, '見た目')}${o('color', COLS, '色')}${o('move', MOVES, '動き')}${o('speed', SPEEDS, '速さ')}
+      ${o('look', LOOKS, '見た目')}${o('color', COLS, '色')}${o('font', FACES, '書体')}${st.look==='plain' ? o('deco', DECOS, 'かざり') : ''}
+      <div class="kj-opt"><span>背景</span>${BGS.map(([v,n,sw])=>`<button type="button" class="bgb${st.bg===v?' on':''}" onclick='KEIJIBAN.opt("bg", ${JSON.stringify(v)})'><i class="sw" style="background:${sw}"></i>${n}</button>`).join('')}</div>
+      ${o('move', MOVES, '動き')}${o('speed', SPEEDS, '速さ')}
       ${st.look==='led' ? o('rows', ROWS, '点の細かさ') : ''}${o('rot', ROTS, '縦に持つと')}
       <p class="kj-note">全画面のあいだは 画面を消さないようにします（対応している端末）。画面を押すと「⏸ 止める」「✕ 終わる」が出ます。Android は 横向きの全画面に、iPhone は 縦に持っていても 90° 回して 横長に出します。</p></div>`;
 }
@@ -1110,7 +1240,13 @@ const KJ_CSS=`
 .kj-opt button{ min-height:38px; padding:0 12px; border-radius:19px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:14px; cursor:pointer; }
 .kj-opt button.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); font-weight:bold; }
 .kj-opt button.c-red:not(.on){ color:#d32f2f; } .kj-opt button.c-green:not(.on){ color:#2e7d32; } .kj-opt button.c-yellow:not(.on){ color:#8d6e00; } .kj-opt button.c-blue:not(.on){ color:#1565c0; } .kj-opt button.c-time:not(.on){ color:#e65100; }
+.kj-opt button.c-orange:not(.on){ color:#e65100; } .kj-opt button.c-cyan:not(.on){ color:#00796b; } .kj-opt button.c-purple:not(.on){ color:#7b1fa2; } .kj-opt button.c-pink:not(.on){ color:#c2185b; } .kj-opt button.c-gold:not(.on){ color:#8a6100; }
 body.dark .kj-opt button.c-red:not(.on){ color:#ff8a80; } body.dark .kj-opt button.c-green:not(.on){ color:#69f0ae; } body.dark .kj-opt button.c-yellow:not(.on){ color:#ffd740; } body.dark .kj-opt button.c-blue:not(.on){ color:#82b1ff; } body.dark .kj-opt button.c-time:not(.on){ color:#ffab40; }
+body.dark .kj-opt button.c-orange:not(.on){ color:#ffab40; } body.dark .kj-opt button.c-cyan:not(.on){ color:#84ffff; } body.dark .kj-opt button.c-purple:not(.on){ color:#ea80fc; } body.dark .kj-opt button.c-pink:not(.on){ color:#ff80ab; } body.dark .kj-opt button.c-gold:not(.on){ color:#ffd740; }
+.kj-opt button.bgb{ display:inline-flex; align-items:center; gap:5px; padding:0 10px 0 6px; }
+.kj-opt button.bgb .sw{ display:inline-block; width:22px; height:22px; border-radius:6px; box-shadow:0 0 0 1px rgba(120,132,156,.5) inset; flex:none; }
+.kj-smp-c{ margin:6px 0 8px; } .kj-smp-c button{ padding:0 10px; }
+.kj-smp .kj-li .t{ min-height:42px; font-size:15px; } .kj-smp .kj-li .del{ font-size:18px; }
 .kj-note{ font-size:12.5px; color:var(--text-light,#666); line-height:1.6; margin:6px 0 0; }
 .kj-ann{ display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:0 0 8px; padding:8px 10px; border-radius:12px; background:rgba(255,193,7,.18); border:1px solid rgba(255,193,7,.6); font-size:14px; }
 .kj-ann .kj-b{ margin-left:auto; min-height:38px; }
@@ -1186,7 +1322,7 @@ function closeKeijiban(){ if(!$('keijibanOverlay')||!isDlgOpen('keijibanOverlay'
 
 const curCv=()=>{ const cv=$('kjFullCv')||$('kjPrev'); if(cv) sizeCanvas(cv); return cv; };
 window.KEIJIBAN={ text:setText, start:()=>{ startFull(tab==='text' || tab==='pic' ? tab : 'clock'); }, startClock:()=>{ startFull('clock'); }, stopFull:()=>stopFull(), pause:togglePause,
-  keep, del:i=>{ del(i); }, resetList:()=>{ resetList(); }, pick, go, clear:clearText, opt:setOpt,
+  keep, del:i=>{ del(i); }, resetList:()=>{ resetList(); }, pick, go, clear:clearText, opt:setOpt, samples,
   tab:setTab, ckOpt, ckTog, scEdit:i=>{ scEdit(i==null?null:i); }, scTog, annEnd:()=>endAnn(),
   state:()=>JSON.parse(JSON.stringify(st)), bitmap:()=>{ const b=bitmap(); return {w:b.w, h:b.h, n:b.n}; },
   pos:(t, C)=>ledPos(t, C), draw:t=>{ const cv=curCv(); if(!cv) return -1; prevKey=''; return draw(cv, t); },

@@ -10408,10 +10408,10 @@ async function runKeijiban569(browser) {
   check('  止める でも 入りきらない文は 流す', await page.evaluate(() => [KEIJIBAN.pos(0, 30).fits, KEIJIBAN.pos(0, 30).x0, KEIJIBAN.pos(0.5, 30).x0 < 30].join('/')), 'false/30/true');
   await page.evaluate(() => { KEIJIBAN.opt('move', 'scroll'); KEIJIBAN.opt('rows', 16); }); await w(100);
   check('  点の細かさ 16点', await page.evaluate(() => KEIJIBAN.bitmap().h + '/' + document.getElementById('kjInfo').textContent.startsWith('16点の文字で')), '16/true');
-  await page.evaluate(() => { KEIJIBAN.opt('rows', 99); KEIJIBAN.opt('color', 'pink'); }); await w(100);
+  await page.evaluate(() => { KEIJIBAN.opt('rows', 99); KEIJIBAN.opt('color', 'mauve'); }); await w(100);
   check('  ない えらびは 受けつけない', await page.evaluate(() => KEIJIBAN.state().rows + '/' + KEIJIBAN.state().color), '16/red');
   await page.evaluate(() => { KEIJIBAN.opt('look', 'plain'); KEIJIBAN.opt('move', 'blink'); }); await w(100);
-  check('  ふつうの文字：点の細かさは 出さない・点滅も', await page.evaluate(() => [[...document.querySelectorAll('.kj-opt > span')].map(s => s.textContent).join(','), KEIJIBAN.draw(0.1), KEIJIBAN.draw(0.6)].join('/')), '見た目,色,動き,速さ,縦に持つと/1/0');
+  check('  ふつうの文字：点の細かさは 出さない・点滅も', await page.evaluate(() => [[...document.querySelectorAll('.kj-opt > span')].map(s => s.textContent).join(','), KEIJIBAN.draw(0.1), KEIJIBAN.draw(0.6)].join('/')), '見た目,色,書体,かざり,背景,動き,速さ,縦に持つと/1/0');
   await page.evaluate(() => { KEIJIBAN.opt('look', 'led'); KEIJIBAN.opt('move', 'scroll'); KEIJIBAN.opt('rows', 24); KEIJIBAN.opt('color', 'rainbow'); }); await w(100);
   check('  虹色でも 描ける・見た目を 覚える', await page.evaluate(() => [KEIJIBAN.draw(0.8) > 0, JSON.parse(localStorage.getItem('excalc_keijiban')).color].join('/')), 'true/rainbow');
   // 改行・長さ
@@ -10455,9 +10455,9 @@ async function runKeijiban569(browser) {
   await page.click('.kj-go'); await w(200);
   check('  文字が 空なら 全画面にしない', await page.evaluate(() => KEIJIBAN.isFull() + '/' + document.getElementById('appToast').textContent), 'false/流す文字を 入れてください');
   // 閉じる・変なデータ
-  await page.evaluate(() => { closeKeijiban(); localStorage.setItem('excalc_keijiban', JSON.stringify({ text: 5, look: 'x', color: 'pink', move: 1, speed: 'z', rows: 99, rot: '?', list: ['ok', 3, '', '<img src=x onerror="window.__x=1">'] })); openKeijiban(); }); await w(400);
+  await page.evaluate(() => { closeKeijiban(); localStorage.setItem('excalc_keijiban', JSON.stringify({ text: 5, look: 'x', color: 'mauve', move: 1, speed: 'z', rows: 99, rot: '?', list: ['ok', 3, '', '<img src=x onerror="window.__x=1">'] })); openKeijiban(); }); await w(400);
   check('  変なデータ：片づけて開く・文字は文字のまま', await page.evaluate(() => [JSON.stringify(KEIJIBAN.state()), !document.querySelector('.kj-li img'), !window.__x].join('/')),
-    '{"text":"受付は こちらです","look":"led","color":"red","move":"scroll","speed":"mid","rows":24,"rot":"auto","list":["ok","3","<img src=x onerror=\\"window.__x=1\\">"],"mode":"text","ck":{"fmt":"hms","face":"seg","color":"red","anim":"drop","idle":"none","dens":2,"colon":true,"ring":true,"stars":false,"fire":true,"date":false,"kind":"led","hand":"tick"},"sched":[],"pics":[],"picv":{"look":"photo","fit":"contain","move":"none"},"picCur":""}/true/true');
+    '{"text":"受付は こちらです","look":"led","color":"red","move":"scroll","speed":"mid","rows":24,"rot":"auto","list":["ok","3","<img src=x onerror=\\"window.__x=1\\">"],"mode":"text","ck":{"fmt":"hms","face":"seg","color":"red","anim":"drop","idle":"none","dens":2,"colon":true,"ring":true,"stars":false,"fire":true,"date":false,"kind":"led","hand":"tick"},"sched":[],"pics":[],"picv":{"look":"photo","fit":"contain","move":"none"},"picCur":"","font":"gothic","deco":"glow","bg":"black"}/true/true');
   await page.evaluate(() => closeKeijiban()); await w(200);
   check('  閉じると 動かすのを止める', await page.evaluate(() => KEIJIBAN.isFull() + '/' + isDlgOpen('keijibanOverlay')), 'false/false');
   check('  エラーなし', errs.join(' | '), '');
@@ -10820,6 +10820,71 @@ async function runKeijiban572(browser) {
   await page.evaluate(() => { closeKeijiban(); const o = JSON.parse(localStorage.getItem('excalc_keijiban')); o.speed = 'zz'; localStorage.setItem('excalc_keijiban', JSON.stringify(o)); openKeijiban(); KEIJIBAN.opt('speed', 'turbo'); }); await w(300);
   check('  ない速さは ふつうに', await page.evaluate(() => [KEIJIBAN.state().speed, 50 - KEIJIBAN.pos(1, 50).x0].join('/')), 'mid/28');
   check('  ふつうの文字も 同じ速さの えらび', await page.evaluate(() => { KEIJIBAN.opt('look', 'plain'); KEIJIBAN.opt('speed', 'vslow'); const a = KEIJIBAN.draw(0.5); KEIJIBAN.opt('speed', 'vfast'); const b = KEIJIBAN.draw(0.5); KEIJIBAN.opt('look', 'led'); KEIJIBAN.opt('speed', 'mid'); return [a, b].join('/'); }), '1/1');
+  await page.evaluate(() => closeKeijiban()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+async function runKeijiban573(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📢 電光掲示板 v573：流れる文字・背景を 増やす ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => openKeijiban()); await w(500);
+  const labels = () => page.evaluate(() => [...document.querySelectorAll('.kj-opt > span')].map(s => s.textContent).join(','));
+  check('  見た目の えらび（LED風）：書体・背景が ふえた', await labels(), '見た目,色,書体,背景,動き,速さ,点の細かさ,縦に持つと');
+  check('  色 11・書体 3・背景 11・動き 7', await page.evaluate(() => { const r = l => [...document.querySelectorAll('.kj-opt')].find(x => x.querySelector('span').textContent === l); return ['色', '書体', '背景', '動き'].map(l => [...r(l).querySelectorAll('button')].map(b => b.textContent).join(',')).join(' / '); }),
+    '赤,オレンジ,黄,緑,水色,青,紫,ピンク,白,金,虹 / ゴシック,丸ゴシック,明朝 / 黒,紺,夜空,夕やけ,しま,市松,桜,雪,紙ふぶき,木の板,虹色 / ← 流す,→ 流す,止める,点滅,↑ 下から,なみ,1字ずつ');
+  check('  どの色でも 光る（LED風）', await page.evaluate(() => ['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'purple', 'pink', 'white', 'gold', 'rainbow'].map(c => { KEIJIBAN.opt('color', c); return KEIJIBAN.draw(1.5) > 50; }).every(Boolean) + '/' + KEIJIBAN.state().color), 'true/rainbow');
+  await page.evaluate(() => KEIJIBAN.opt('color', 'red'));
+  check('  書体を えらぶ（LED風・ふつうの文字）', await page.evaluate(() => ['maru', 'mincho', 'gothic'].map(f => { KEIJIBAN.opt('font', f); const a = KEIJIBAN.bitmap().n > 50, b = KEIJIBAN.draw(1.5) > 50; KEIJIBAN.opt('look', 'plain'); const c = KEIJIBAN.draw(1.5); KEIJIBAN.opt('look', 'led'); return [KEIJIBAN.state().font, a, b, c].join(':'); }).join(' ')), 'maru:true:true:1 mincho:true:true:1 gothic:true:true:1');
+  check('  背景：どれも描ける・動く背景は 時間で かわる（止まった文字で くらべる）', await page.evaluate(() => {
+    KEIJIBAN.text('OK'); KEIJIBAN.opt('move', 'still');
+    const sum = () => { const cv = document.getElementById('kjPrev'), d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; let h = 0; for (let i = 0; i < d.length; i += 7) h = (h * 31 + d[i]) % 1000000007; return h; };   // 見た目を かえると 見本の canvas は 作りなおす
+    const out = [];
+    for (const look of ['led', 'plain']) {
+      KEIJIBAN.opt('look', look);
+      for (const b of ['black', 'navy', 'night', 'sunset', 'stripe', 'check', 'sakura', 'snow', 'confetti', 'wood', 'rainbow']) { KEIJIBAN.opt('bg', b); const n = KEIJIBAN.draw(0.3), a = sum(); KEIJIBAN.draw(1.7); out.push(look[0] + ':' + b + ':' + (n > 0 ? 1 : 0) + (a === sum() ? 's' : 'm')); }
+    }
+    KEIJIBAN.opt('look', 'led'); KEIJIBAN.opt('bg', 'black');
+    return out.join(' ');
+  }), 'l:black:1s l:navy:1s l:night:1m l:sunset:1s l:stripe:1m l:check:1s l:sakura:1m l:snow:1m l:confetti:1m l:wood:1s l:rainbow:1m p:black:1s p:navy:1s p:night:1m p:sunset:1s p:stripe:1m p:check:1s p:sakura:1m p:snow:1m p:confetti:1m p:wood:1s p:rainbow:1m');
+  await page.evaluate(() => KEIJIBAN.opt('look', 'plain')); await w(100);
+  check('  ふつうの文字：かざりの えらびが 出る', await labels(), '見た目,色,書体,かざり,背景,動き,速さ,縦に持つと');
+  check('  かざり（なし・光る・縁どり・影・立体）：それぞれ ちがう見た目', await page.evaluate(() => {
+    const sum = () => { const cv = document.getElementById('kjPrev'), d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; let h = 0; for (let i = 0; i < d.length; i += 3) h = (h * 31 + d[i]) % 1000000007; return h; };
+    const r = ['none', 'glow', 'outline', 'shadow', 'solid'].map(d => { KEIJIBAN.opt('deco', d); return [KEIJIBAN.state().deco, KEIJIBAN.draw(1), sum()]; });
+    KEIJIBAN.opt('deco', 'glow');
+    return r.map(x => x[0] + ':' + x[1]).join(' ') + '/' + new Set(r.map(x => x[2])).size;
+  }), 'none:1 glow:1 outline:1 shadow:1 solid:1/5');
+  check('  金・虹は 色の帯（ふつうの文字）', await page.evaluate(() => { KEIJIBAN.opt('color', 'gold'); const a = KEIJIBAN.draw(1); KEIJIBAN.opt('color', 'rainbow'); const b = KEIJIBAN.draw(1); KEIJIBAN.opt('color', 'red'); return a + '/' + b; }), '1/1');
+  check('  ふつうの文字でも 新しい動き（1字ずつは 消える間も）', await page.evaluate(() => { const r = ['right', 'up', 'wave', 'type'].map(m => { KEIJIBAN.opt('move', m); return m + ':' + KEIJIBAN.draw(1); }); r.push('blank:' + KEIJIBAN.draw(3.5)); return r.join(' '); }), 'right:1 up:1 wave:1 type:1 blank:0');
+  await page.evaluate(() => { KEIJIBAN.opt('look', 'led'); KEIJIBAN.text('受付は こちらです'); }); await w(100);
+  check('  → 流す：左の外から 右へ（1秒に 28点）', await page.evaluate(() => { KEIJIBAN.opt('move', 'right'); const b = KEIJIBAN.bitmap(); return [KEIJIBAN.pos(0, 50).x0 === -b.w, KEIJIBAN.pos(1, 50).x0 - KEIJIBAN.pos(0, 50).x0, KEIJIBAN.draw(2) > 50].join('/'); }), 'true/28/true');
+  check('  ↑ 下から：下から出て 止まり、上へ消える（短い文）', await page.evaluate(() => { KEIJIBAN.text('OK'); KEIJIBAN.opt('move', 'up'); const p = t => KEIJIBAN.pos(t, 60); return [p(0).dy, p(0.3).dy > 0, p(1).dy, p(4.6).dy < 0, p(1).x0 === Math.floor((60 - KEIJIBAN.bitmap().w) / 2), KEIJIBAN.draw(1) > 20].join('/'); }), '24/true/0/true/true/true');
+  check('  1字ずつ：1字ずつ 出て、止まって、消えて くりかえす', await page.evaluate(() => { KEIJIBAN.text('ABC'); KEIJIBAN.opt('move', 'type'); const b = KEIJIBAN.bitmap(), r = t => KEIJIBAN.pos(t, 60).rev; return [r(0.05) > 0 && r(0.05) < b.w, r(0.5) > r(0.05), r(1.5) >= b.w - 1, r(3.8), r(4.2) === r(0.05), KEIJIBAN.draw(3.8)].join('/'); }), 'true/true/true/0/true/0');
+  check('  なみ：流しながら 波打つ', await page.evaluate(() => { KEIJIBAN.text('受付は こちらです'); KEIJIBAN.opt('move', 'wave'); const p = KEIJIBAN.pos(1, 50); return [p.wave, p.x0, KEIJIBAN.draw(1.5) > 50].join('/'); }), 'true/22/true');
+  check('  入りきらない文は ↑ 下から・1字ずつ でも 流す', await page.evaluate(() => { KEIJIBAN.text('ただいま 準備中です。しばらく お待ちください'); return ['up', 'type'].map(m => { KEIJIBAN.opt('move', m); const p = KEIJIBAN.pos(0.5, 30); return [p.fits, p.x0 < 30, p.dy, p.rev === Infinity, document.getElementById('kjInfo').textContent.includes('長い文は 流します')].join(','); }).join(' '); }), 'false,true,0,true,true false,true,0,true,true');
+  await page.evaluate(() => { KEIJIBAN.opt('move', 'scroll'); KEIJIBAN.text('受付は こちらです'); }); await w(100);
+  // 📚 文の見本
+  await page.click('.kj-acts .kj-b:has-text("文の見本")'); await w(250);
+  check('  📚 文の見本：場面 8つ・文の一覧', await page.evaluate(() => [document.querySelector('.kj-pop > b').textContent, document.querySelectorAll('#kjSmpC button').length, document.querySelector('#kjSmpC .on').textContent, document.querySelectorAll('#kjSmpL .kj-li').length, document.querySelector('#kjSmpL .t').textContent].join('/')), '📚 文の見本/8/🏪 お店/10/営業中');
+  await page.click('#kjSmpC [data-c="2"]'); await w(100);
+  await page.click('#kjSmpL .kj-li:nth-child(4) .del'); await w(150);
+  check('  ⭐ すでにある文は 残さない', await page.evaluate(() => [document.querySelector('#kjSmpC .on').textContent, document.querySelector('#kjSmpL .kj-li:nth-child(4) .t').textContent, document.getElementById('appToast').textContent, KEIJIBAN.state().list.length].join('/')), '🚧 工事・現場/バック オーライ/もう あります/12');
+  await page.click('#kjSmpL .kj-li:nth-child(3) .del'); await w(150);
+  check('  ⭐ で よく使う文に 残す（窓は そのまま）', await page.evaluate(() => [KEIJIBAN.state().list.length, KEIJIBAN.state().list[0], !!document.querySelector('.kj-pop'), document.getElementById('appToast').textContent].join('/')), '13/頭上 注意/true/⭐ よく使う文に 残しました');
+  await page.click('#kjSmpL .kj-li:nth-child(7) .t'); await w(200);
+  check('  文を押すと その文を 流す', await page.evaluate(() => [KEIJIBAN.state().text, document.getElementById('kjText').value, !document.querySelector('.kj-pop'), document.getElementById('appToast').textContent].join('/')), '安全第一/安全第一/true/「安全第一」を 流します');
+  await page.click('.kj-acts .kj-b:has-text("文の見本")'); await w(200);
+  check('  開きなおすと 前の場面から', await page.evaluate(() => document.querySelector('#kjSmpC .on').textContent), '🚧 工事・現場');
+  await page.keyboard.press('Escape'); await w(150);
+  check('  Esc で 窓だけ 閉じる', await page.evaluate(() => [!document.querySelector('.kj-pop'), isDlgOpen('keijibanOverlay')].join('/')), 'true/true');
+  // 覚える・時計にも 新しい色・変なデータ
+  await page.evaluate(() => { KEIJIBAN.opt('font', 'maru'); KEIJIBAN.opt('bg', 'sakura'); KEIJIBAN.opt('deco', 'outline'); KEIJIBAN.opt('color', 'gold'); KEIJIBAN.opt('move', 'wave'); });
+  check('  えらんだものを 覚える', await page.evaluate(() => { const o = JSON.parse(localStorage.getItem('excalc_keijiban')); return [o.font, o.bg, o.deco, o.color, o.move].join('/'); }), 'maru/sakura/outline/gold/wave');
+  check('  時計の色にも 新しい色（金など）', await page.evaluate(() => { KEIJIBAN.tab('clock'); KEIJIBAN.ckOpt('color', 'gold'); const a = KEIJIBAN.state().ck.color, b = KEIJIBAN.ckDraw(Date.now()) > 50; KEIJIBAN.tab('text'); return a + '/' + b; }), 'gold/true');
+  await page.evaluate(() => { closeKeijiban(); localStorage.setItem('excalc_keijiban', JSON.stringify({ text: 'x', font: 'zz', deco: 1, bg: '<b>', color: 'mauve', move: 'spin' })); openKeijiban(); }); await w(300);
+  check('  変なデータ：書体・かざり・背景・色・動きを 片づける', await page.evaluate(() => { const s = KEIJIBAN.state(); return [s.font, s.deco, s.bg, s.color, s.move].join('/'); }), 'gothic/glow/black/red/scroll');
   await page.evaluate(() => closeKeijiban()); await w(200);
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
@@ -16211,6 +16276,7 @@ async function runQrShare(browser) {
     if (!only || only === 'keijiban570' || only === 'keijiban' || only === 'v570') await runKeijiban570(browser);
     if (!only || only === 'keijiban571' || only === 'keijiban' || only === 'v571') await runKeijiban571(browser);
     if (!only || only === 'keijiban572' || only === 'keijiban' || only === 'v572') await runKeijiban572(browser);
+    if (!only || only === 'keijiban573' || only === 'keijiban' || only === 'v573') await runKeijiban573(browser);
     if (!only || only === 'saveas') await runSaveAs560(browser);
     if (!only || only === 'tatekae' || only === 'v561') await runTatekae561(browser);
     if (!only || only === 'kuji' || only === 'v561') await runKuji561(browser);
