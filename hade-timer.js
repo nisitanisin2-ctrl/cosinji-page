@@ -9,10 +9,13 @@
    ・時間は 時・分・秒を 打つか「＋1分」などの ボタン。⭐ よく使う時間（名前つき。12まで）を 残せる。
    ・動いているあいだは 画面を消さない（対応している端末）。「← 戻る」で 閉じても 時間は 進み、画面の 右下に 残りの時間が 出る
      （押すと もどる）。0 になったら 開いて 知らせる。アプリを 閉じていたあいだに 0 になったときは、次に開いたときに 知らせる。
+   ・🖼 数え方の 見せ方（v580。hade-look.js）：⭕ 光の輪・🔠 画面いっぱい・🎞 絵が 動く（ロケット・ろうそく・砂時計・ばくだん・風船・花）・
+     🐾 動物（ねこ・うさぎ・いぬ・ペンギン・かえる・くま）。設定の 上の 見本も えらんだ 見せ方で 動く（0 の しめくくりまで）。
+   ・⏰ 時間が 来た 音（v580。hade-fx.js）：9つから えらぶ（押すと 聞ける）。「✓ 止める」・「← 戻る」で すぐ 止まる。
    ・えらんだもの・よく使う時間・動いているタイマーは excalc_hadetimer（この端末の中だけ）。 */
 (function(){
 'use strict';
-const FX=window.HADE_FX;
+const FX=window.HADE_FX, LOOK=window.HADE_LOOK||null;   // 見せ方（v580。読めなかったら 光の輪だけ）
 const KEY='excalc_hadetimer', MAX_PRE=12, MAX_SEC=99*3600+59*60+59, MAX_LAP=99, PREP=3000, ALARM_MS=60000;
 const MODES=[['down','⏳ タイマー'],['up','⏱ ストップウォッチ'],['iv','🔁 くり返し']];
 const DEF_PRE=[{n:'カップめん',s:180},{n:'ゆでたまご',s:480},{n:'歯みがき',s:180},{n:'ひと休み',s:600}];
@@ -62,11 +65,17 @@ function load(){
   st={mode:MODES.some(m=>m[0]===o.mode) ? o.mode : 'down', sec:int(o.sec,1,MAX_SEC,180),
     theme:FX.hasTheme(o.theme) ? o.theme : 'hanabi', level:FX.hasLevel(o.level) ? o.level : (reduceMotion() ? 'calm' : 'ultra'),   // はじめは ド派手（v576）
     snd:o.snd!==false, vibe:o.vibe!==false, flash:o.flash!==false, every:EVERY.some(x=>x[0]===o.every) ? o.every : 5,
+    look:LOOK && LOOK.has('look', o.look) ? o.look : 'ring', pic:LOOK && LOOK.has('pic', o.pic) ? o.pic : 'rocket', ani:LOOK && LOOK.has('ani', o.ani) ? o.ani : 'neko',   // 見せ方（v580）
+    tone:FX.TONES && FX.TONES.some(x=>x[0]===o.tone) ? o.tone : 'fanfare',   // 時間が 来た 音（v580）
     pre, iv:{w:int(iv.w,5,3600,20), r:int(iv.r,0,3600,10), n:int(iv.n,1,99,8)}, run:cleanRun(o.run)};
 }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(_){} }
 const vib=p=>{ if(st && st.vibe) FX.vib(p); };
 const snd=(name, ...a)=>{ const f=FX.snd[name]; if(f && st && st.snd) f(...a); };   // 音は この道具の 設定で（カウンターと 別々）
+const toneSnd=first=>{ if(st && st.snd && FX.tone) FX.tone(st.tone, first); };   // 時間が 来た 音（v580）
+const lookKind=()=>LOOK && st.look!=='ring' ? st.look : 'ring';
+const lookSub=()=>st.look==='pic' ? st.pic : st.look==='ani' ? st.ani : '';
+function lk(s){ const k=lookKind(), sub=lookSub(); if(!s.lk || s.lk.k!==k || s.lk.sub!==sub) s.lk={k, sub}; return s.lk; }   // 見せ方ごとに 覚える もの
 
 /* ───────── 時間の 計算 ───────── */
 const elapsed=(r, now)=>r.p ? r.acc : r.acc+Math.max(0, now-r.s0);
@@ -175,6 +184,21 @@ function vignette(g, W, H, a, col){
   g.save(); g.fillStyle=gr; g.fillRect(0, 0, W, H); g.restore();
 }
 
+// 見せ方に わたす ようす（v580）。p：進み（タイマーは 0→1。ストップウォッチは 1分で 1回り）
+function lookS(v, r, e, bot){
+  const mode=v.mode, done=!!(r && r.done), paused=!!(r && r.p);
+  const p=mode==='up' ? v.frac : 1-v.frac, sec=v.sec;
+  const last10=!!(r && mode==='down' && !done && !paused && sec<=10);
+  let bstr, bsub='';
+  if(mode==='down') bstr=done ? '0' : sec<=60 ? String(sec) : v.str.replace(/^0(\d:)/, '$1');
+  else if(mode==='iv'){ bstr=sec<=99 ? String(sec) : v.str.replace(/^0(\d:)/, '$1'); bsub=v.ph.ph==='work' ? 'がんばれ！' : v.ph.ph==='rest' ? '休けい' : v.ph.ph==='prep' ? 'よーい' : ''; }
+  else { bstr=hms(Math.floor(v.ms/1000)).replace(/^0(\d:)/, '$1'); bsub='.'+p2(Math.floor(v.ms%1000/10)); }
+  if(done && sc && sc.e===e && sc.doneAt==null) sc.doneAt=e.t;
+  return {t:e.t, W:e.W, H:e.H, d:e.d, prev:false, mode, p:Math.max(0, Math.min(1, p)), lvl:v.frac, str:v.str, bstr, bsub,
+    sstr:mode==='up' ? hms(Math.floor(v.ms/1000)) : v.str, sec, ph:v.ph ? v.ph.ph : '', last10, paused, done,
+    doneT:done && sc && sc.doneAt!=null ? e.t-sc.doneAt : 0, tickT:sc && sc.e===e ? sc.tickT : null, bot, ink:e.ink(), level:e.level};
+}
+
 /* ───────── 全画面（ステージ）───────── */
 let sc=null, stageRel=null, wl=null, raf=0, lastTs=0, frozen=false, prevSec=null, prevMin=null, prevPh=null, prevTenth=null;
 let alarmOn=false, alarmUntil=0, nextAlarm=0, banT=0, ticker=0, pv=null, cur=null, overNote='', prevShow=null, shows={n:0, last:-1, multi:0};
@@ -204,7 +228,7 @@ function closeStage(byBack){
   el.remove(); sc=null;
   window.removeEventListener('keydown', stageKey, true); window.removeEventListener('resize', onResize);
   if(!byBack && stageRel) stageRel(); stageRel=null;
-  unwake(); alarmOn=false;
+  unwake(); alarmOn=false; if(FX.toneStop) FX.toneStop();
   if(st.run && st.run.done){ st.run=null; save(); }   // 終わった タイマーは 閉じたら おしまい
   if(st.run) startTicker(); else { stopTicker(); hideChip(); }
   if($('hadeTimerOverlay') && isDlgOpen('hadeTimerOverlay')){ render(); loop(); }
@@ -294,7 +318,7 @@ function plus(sec){
 }
 function restart(){
   const r=st.run; if(!r) return;
-  const now=Date.now(); stopAlarm(true); marks=new Set(); overNote=''; if(sc) sc.big=null;
+  const now=Date.now(); stopAlarm(true); marks=new Set(); overNote=''; if(sc){ sc.big=null; sc.lk=null; sc.doneAt=null; }
   if(r.m==='down'){ r.end=now+r.dur; r.left=0; }
   else { r.s0=now; r.acc=0; if(r.m==='up') r.laps=[]; }
   r.p=false; r.done=false; save(); prevSec=prevMin=prevPh=prevShow=null; paintBar(); paintLaps();
@@ -317,6 +341,7 @@ function next(){
 }
 function stopAlarm(quiet){
   const was=alarmOn; alarmOn=false; const b=$('htStop'); if(b) b.hidden=true;
+  if(FX.toneStop) FX.toneStop();   // 試しに 聞いた 音も 止める
   if(was && !quiet){ banner('おつかれさま！', 's'); snd('chime'); paintBar(); }
 }
 function finish(){
@@ -327,25 +352,26 @@ function finish(){
   overNote=late>15000 ? lenTxt(late/1000)+' 前に 終わりました' : '';
   if(!($('hadeTimerOverlay') && isDlgOpen('hadeTimerOverlay'))) openHadeTimer(true);
   openStage();
-  alarmOn=true; alarmUntil=now+ALARM_MS; nextAlarm=now+3200;
+  alarmOn=true; alarmUntil=now+ALARM_MS; nextAlarm=now+(st.tone==='fanfare' ? 3200 : FX.tonePer(st.tone)*1000);
   const b=$('htStop'); if(b) b.hidden=false;
   paintBar();
   banner(r.m==='iv' ? 'おつかれさま！' : 'TIME UP!', 'big');
-  if(sc){ const e=sc.e; e.finale({shells:14, conf:200, emo:['🎉','✨','🎊','⭐','🥳'], flash:'#fff3c4'}); e.burst(e.W/2, e.H*0.46, {n:120, sp:700}); }
-  snd('fanfare'); vib([300,120,300,120,600]);
+  if(sc){ const e=sc.e; e.finale({shells:14, conf:200, emo:['🎉','✨','🎊','⭐','🥳'], flash:'#fff3c4'}); e.burst(e.W/2, e.H*0.46, {n:120, sp:700});
+    sc.doneAt=e.t; if(lookKind()!=='ring') LOOK.finish(e, lookKind(), lookSub(), lk(sc), snd); }   // 絵ごとの しめくくり（v580）
+  toneSnd(true); vib([300,120,300,120,600]);
 }
 function alarmStep(now){
   if(!alarmOn) return;
   if(now>alarmUntil){ alarmOn=false; return; }
   if(now>=nextAlarm){
-    nextAlarm=now+2600; snd('alarm'); vib([200,100,200]);
+    nextAlarm=now+FX.tonePer(st.tone)*1000; toneSnd(false); vib([200,100,200]);
     if(sc){ const e=sc.e; e.shell(null, {sc:1.1}); e.shell(null, {sc:1}); e.flash('#ffffff', 0.3); e.kick(0.4); }
   }
 }
 
 /* ───────── 1こま ごとの 動き ───────── */
 function onSecond(v){
-  const e=sc.e, s=v.sec, r=st.run, bo=e.boost(); e.pulse=1;
+  const e=sc.e, s=v.sec, r=st.run, bo=e.boost(); e.pulse=1; sc.tickT=e.t;
   if(bo>=1 && sc.head && !(r.m==='down' && s<=10)){ e.burst(sc.head[0], sc.head[1], {n:16, sp:340, rs:0.8}); }
   if(bo>=2 && !(r.m==='down' && s<=10)){ e.shell(null, {sc:rnd(0.7,1)}); e.kick(0.18); snd('tick'); }
   if(r.m==='down'){
@@ -415,7 +441,9 @@ function update(){
   prevSec=v.sec;
 }
 function paintStage(){
-  const e=sc.e, g=e.g, W=e.W, H=e.H, d=e.d, r=st.run, v=cur || viewOf(r, Date.now());
+  const e=sc.e, g=e.g, W=e.W, H=e.H, d=e.d, r=st.run, v=cur || viewOf(r, Date.now()), look=lookKind();
+  const fu=$('htFull'); if(fu) fu.classList.toggle('lk', look!=='ring');   // 絵・動物の 明るい 地でも 上の 字が 読めるように
+  if(look!=='ring'){ paintLook(look, r, v); paintTop(r, v); return; }
   e.drawBg();
   const [ox,oy]=e.offset(); g.save(); g.translate(ox, oy);
   const cx=W/2, cy=H*0.47, R=Math.min(W*0.44, H*0.36);
@@ -433,7 +461,24 @@ function paintStage(){
   }
   g.restore();
   g.save(); g.translate(ox, oy); e.drawFx(); g.restore();
-  // 上の文字
+  paintTop(r, v);
+}
+// 画面いっぱい・絵・動物（v580。hade-look.js で 描く）
+function paintLook(look, r, v){
+  const e=sc.e, g=e.g, W=e.W, H=e.H, d=e.d, [ox,oy]=e.offset();
+  const last10=r && r.m==='down' && !r.done && !r.p && v.sec<=10, bar=$('htBar');
+  if(look==='big') e.drawBg();
+  const S=lookS(v, r, e, H-((bar ? bar.offsetHeight : 70)+12)*d);
+  g.save(); if(look==='big') g.translate(ox, oy);
+  LOOK.draw(e, look, lookSub(), S, lk(sc));
+  g.restore();
+  sc.head=sc.lk.head || [W/2, H/2];
+  if(last10 && look!=='ani'){ const ph=(Date.now()%1000)/1000; vignette(g, W, H, 0.22+0.3*Math.pow(1-ph,2)); }
+  if(r && r.p) LOOK.pill(g, '⏸ 一時停止中', W/2, H*0.5, Math.min(W, H)*0.07, {bg:'rgba(0,0,0,'+(0.5+0.15*Math.sin(e.t*4)).toFixed(3)+')'});
+  g.save(); g.translate(ox, oy); e.drawFx(); g.restore();
+}
+// 上の文字
+function paintTop(r, v){
   const lab=$('htLab'), sub=$('htSub');
   if(lab){
     let a='', b='';
@@ -448,12 +493,26 @@ function paintPrev(){
   const c=$('htPrev'); if(!c) return;
   if(!pv || pv.e.cv!==c){ pv=new Scene(c); }
   const e=pv.e; e.setTheme(st.theme); e.setLevel(st.level); e.noFlash=!st.flash; e.resize(); e.amb=0.6; e.warp=0.35; e.heat=0.55;
-  const r=st.run, v=viewOf(r, Date.now()), W=e.W, H=e.H, R=Math.min(W*0.4, H*0.4);
+  const r=st.run, v=viewOf(r, Date.now()), W=e.W, H=e.H, R=Math.min(W*0.4, H*0.4), look=lookKind();
+  if(look!=='ring'){   // 見せ方の 見本（v580）：動いて いる タイマーが あれば その時間、なければ 9.5秒で 0 まで 進めて しめくくりも 見せる
+    const S=r && !r.done ? Object.assign(lookS(v, r, e, H), {prev:true, tickT:Math.floor(e.t)}) : prevS(e), L=lk(pv);
+    if(look==='big') e.drawBg();
+    LOOK.draw(e, look, lookSub(), S, L);
+    if(S.done && !pv.fin){ pv.fin=true; LOOK.finish(e, look, lookSub(), L, ()=>{}); } else if(!S.done) pv.fin=false;
+    e.drawFx(); return;
+  }
   e.drawBg();
   pv.ring(r ? v.frac : 0.72, W/2, H*0.5, R, {emit:0.5});
   const units=Array.from(v.str).reduce((a,ch)=>a+(/[0-9]/.test(ch) ? 1 : 0.46), 0), fs=Math.min(R*1.55/(units*0.62), R*0.62);
   pv.digits(v.str, W/2, H*0.5, fs, {sparks:3});
   e.drawFx();
+}
+function prevS(e){
+  const T=Math.max(0, e.t-(pv.t0||0))%13, done=T>=9.5, pp=done ? 1 : T/9.5;
+  let str, sec, bstr, bsub='', sstr, mode='down';
+  if(st.mode==='up'){ mode='up'; const ms=pp*60000; str=fmtUp(ms); sec=Math.floor(ms/1000); sstr=hms(sec); bstr=sstr.replace(/^0(\d:)/, '$1'); bsub='.'+p2(Math.floor(ms%1000/10)); }
+  else { const total=(st.mode==='iv' ? st.iv.w : st.sec)||1, rem=done ? 0 : Math.max(1, Math.ceil(total*(1-pp))); str=hms(rem); sec=rem; sstr=str; bstr=done ? '0' : rem<=60 ? String(rem) : str.replace(/^0(\d:)/, '$1'); }
+  return {t:e.t, W:e.W, H:e.H, d:e.d, prev:true, mode, p:pp, lvl:mode==='up' ? pp : 1-pp, str, bstr, bsub, sstr, sec, ph:'', last10:false, paused:false, done, doneT:done ? T-9.5 : 0, tickT:Math.floor(e.t), bot:e.H, ink:e.ink(), level:e.level};
 }
 function loop(){ if(!raf){ lastTs=performance.now(); raf=requestAnimationFrame(frame); } }
 function frame(ts){
@@ -524,15 +583,31 @@ function render(){
     <div id="htRunCard"></div>
     <div class="ht-sec" id="htSet">${setPanel()}</div>
     <button type="button" class="ht-go" onclick="HADE_TIMER.start()">▶ スタート</button>
+    ${lookSec()}
     <div class="ht-sec"><h4>🎆 演出</h4>
       <div class="ht-opt"><span>テーマ</span>${FX.THEMES.map(([v,n])=>`<button type="button" class="th th-${v}${st.theme===v?' on':''}" onclick='HADE_TIMER.opt("theme", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>
       <div class="ht-opt"><span>演出の 強さ</span>${FX.LEVELS.map(([v,n])=>`<button type="button" class="lv-${v}${st.level===v?' on':''}" onclick='HADE_TIMER.opt("level", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>${opt('every', EVERY, '間の 演出')}
       ${opt('snd', [[true,'🔊 鳴らす'],[false,'🔇 鳴らさない']], '音')}
+      ${FX.TONES ? opt('tone', FX.TONES, '時間が 来た 音')+'<p class="ht-note">押すと 聞けます。0 に なったら 「✓ 止める」まで くり返します（1分まで）。</p>' : ''}
       ${opt('vibe', [[true,'ふるえる'],[false,'ふるえない']], '振動')}
       ${opt('flash', [[true,'光る'],[false,'光らない']], '画面の 点滅')}
       <p class="ht-note">全画面のあいだは 画面を消しません（対応している端末）。「← 戻る」で 閉じても 時間は 進み、右下に 残りの時間が 出ます。0 になると 開いて 知らせます（アプリを 閉じていたときは 次に開いたとき）。光が まぶしいときは「ひかえめ」か「光らない」に。<b>ド派手</b>は 粒が 1.6倍で 背景に 光のすじ、<b>ドド派手</b>は 2.4倍で 流れ星・虹色の ふち・大きな ゆれも（とても 激しいので 光や ゆれが 苦手な方は ご注意ください）。</p></div>
   </div>`;
   paintRunCard(); loop();
+}
+// 🖼 数え方の 見せ方（v580）
+const LOOK_NOTE={ring:'光の輪が 残りの 時間ぶん へって いきます（いままでの 見せ方）。',
+  big:'画面いっぱいの 大きな 数字で 数えます（のこり1分からは 秒だけ）。うしろの 色の 帯が 残りの 時間です。',
+  pic:'絵が 時間に 合わせて 動き、0 で 絵ごとの しめくくり（発射・ふっと 消える・くるっと・ドカーン・パーン・さく）。',
+  ani:'動物が 時間の 札を 持って ゴールへ 歩きます。1秒ごとに ぴょん・のこり10秒は 数を さけび、0 で 大よろこび。ストップウォッチは 歩きつづけ、くり返しは がんばる＝走る・休む＝ねる。'};
+function lookSec(){
+  if(!LOOK) return '';
+  const one=(k, v, n)=>{ const i=n.indexOf(' '), on=st[k]===v && (k==='look' || st.look===k); return `<button type="button" class="${on ? 'on' : ''}" aria-pressed="${on}" onclick='HADE_TIMER.opt("${k}", ${JSON.stringify(v)})'><span class="i">${n.slice(0, i)}</span><span>${esc(n.slice(i+1))}</span></button>`; };
+  return `<div class="ht-sec" id="htLookSec"><h4>🖼 数え方の 見せ方<small>上の 見本で 動きが 分かります</small></h4>
+    <div class="ht-looks">${LOOK.LOOKS.map(([v,n])=>one('look', v, n)).join('')}</div>
+    ${st.look==='pic' ? `<div class="ht-looks sub" aria-label="絵">${LOOK.PICS.map(([v,n])=>one('pic', v, n)).join('')}</div>` : ''}
+    ${st.look==='ani' ? `<div class="ht-looks sub" aria-label="動物">${LOOK.ANIS.map(([v,n])=>one('ani', v, n)).join('')}</div>` : ''}
+    <p class="ht-note">${LOOK_NOTE[st.look]||''}</p></div>`;
 }
 function setMode(k){ if(!MODES.some(m=>m[0]===k)) return; st.mode=k; save(); render(); }
 function setOpt(k, v){
@@ -540,10 +615,13 @@ function setOpt(k, v){
   else if(k==='level'){ if(!FX.hasLevel(v)) return; st.level=v; }
   else if(k==='every'){ if(!EVERY.some(x=>x[0]===+v)) return; st.every=+v; }
   else if(k==='snd' || k==='vibe' || k==='flash'){ st[k]=v===true || v==='true'; }
+  else if(k==='look' || k==='pic' || k==='ani'){ if(!LOOK || !LOOK.has(k, v)) return; if(k==='look') st.look=v; else { st[k]=v; st.look=k; } if(pv){ pv.lk=null; pv.t0=pv.e.t; pv.fin=false; } }   // 見せ方（v580）
+  else if(k==='tone'){ if(!FX.TONES || !FX.TONES.some(x=>x[0]===v)) return; st.tone=v; }   // 時間が 来た 音（v580）
   else return;
   save(); render();
   if(pv){ const e=pv.e; e.setTheme(st.theme); e.setLevel(st.level); e.noFlash=!st.flash; e.resize(); e.burst(e.W/2, e.H/2, {n:50, sp:400}); if(k==='theme') e.shell(null, {sc:0.8}); }
   if(k==='snd' && st.snd){ FX.unlock(); snd('coin'); }
+  if(k==='tone'){ FX.unlock(); if(st.snd) toneSnd(true); else toastT('🔇 音が「鳴らさない」に なっています（「音」で かえられます）'); }
   if(k==='vibe' && st.vibe) vib(50);
 }
 function setSec(s){ st.sec=int(s,0,MAX_SEC,0); picked=''; save(); const set=$('htSet'); if(set) set.innerHTML=setPanel(); }
@@ -606,6 +684,12 @@ const HT_CSS=`
 .ht-run .t{ flex:1; font-size:22px; font-weight:bold; font-variant-numeric:tabular-nums; }
 .ht-b{ min-height:42px; padding:0 12px; border-radius:12px; border:1px solid rgba(255,255,255,.55); background:transparent; color:inherit; font-size:15px; font-weight:bold; cursor:pointer; }
 .ht-b.pri{ background:#fff; color:#4a00a8; border-color:#fff; }
+.ht-looks{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; margin:4px 0 8px; }
+.ht-looks.sub{ grid-template-columns:repeat(3,minmax(0,1fr)); }
+.ht-looks button{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; min-height:64px; padding:6px 3px; border-radius:14px; border:1px solid rgba(120,132,156,.45); background:var(--modal-bg,#fff); color:var(--text,#222); font-size:13px; font-weight:bold; line-height:1.25; cursor:pointer; overflow-wrap:anywhere; }
+.ht-looks.sub button{ min-height:56px; }
+.ht-looks button .i{ font-size:25px; line-height:1; }
+.ht-looks button.on{ background:linear-gradient(135deg,#ff2bd6,#7b2bff); border-color:transparent; color:#fff; box-shadow:0 3px 12px rgba(123,43,255,.35); }
 .ht-opt{ display:flex; flex-wrap:wrap; align-items:center; gap:5px; margin:6px 0; } .ht-opt span{ min-width:5.4em; font-size:12.5px; font-weight:bold; color:var(--text-light,#666); }
 .ht-opt button{ min-height:38px; padding:0 12px; border-radius:19px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:14px; cursor:pointer; }
 .ht-opt button.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); font-weight:bold; }
@@ -620,6 +704,7 @@ const HT_CSS=`
 .ht-full canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
 .ht-top{ position:absolute; left:0; right:0; top:calc(8px + var(--safe-top,0px)); display:flex; flex-direction:column; align-items:center; gap:2px; pointer-events:none; color:#fff; text-shadow:0 2px 6px rgba(0,0,0,.8); }
 .ht-top #htLab{ font-size:clamp(16px,4.6vw,26px); font-weight:bold; } .ht-top #htSub{ font-size:clamp(13px,3.6vw,20px); font-weight:bold; opacity:.92; }
+.ht-full.lk .ht-top span:not(:empty){ background:rgba(0,0,0,.42); padding:1px 12px; border-radius:12px; opacity:1; }
 .ht-ban{ position:absolute; left:4%; right:4%; top:16%; white-space:nowrap; text-align:center; font-weight:900; font-size:clamp(30px,10vw,86px); line-height:1.1; color:#fff; pointer-events:none; opacity:0;
   background:linear-gradient(90deg,#fff36b,#ff8a3d,#ff2bd6,#7cf0ff,#fff36b); background-size:300% 100%; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
   filter:drop-shadow(0 0 10px rgba(255,255,255,.55)) drop-shadow(0 4px 2px rgba(0,0,0,.6)); }
@@ -678,6 +763,7 @@ window.HADE_TIMER={ mode:setMode, opt:setOpt, set:setSec, add:addSec, typed, ivT
   stage:stageOpen, alarm:()=>alarmOn, chip:()=>{ const c=$('htChip'); return c ? c.textContent : ''; }, fx:()=>({n:sc ? sc.e.count() : 0, prev:pv ? pv.e.count() : 0, played:FX.played(), cap:sc ? sc.e.cap : 0, level:sc ? sc.e.level : ''}),
   banner:()=>{ const b=$('htBan'); return b ? b.textContent : ''; }, label:()=>[($('htLab')||{}).textContent||'', ($('htSub')||{}).textContent||''].join('|'),
   freeze:b=>{ frozen=!!b; }, tick, shows:()=>({n:shows.n, last:shows.last, multi:shows.multi}),
+  look:()=>LOOK && sc && sc.lk ? LOOK.info(sc.lk) : null, prevLook:()=>LOOK && pv && pv.lk ? LOOK.info(pv.lk) : null, prevAt:sec=>{ if(pv) pv.t0=pv.e.t-(+sec||0); },   // 見本の 時間を 進める（たしかめ用）
   shift:ms=>{ const r=st.run; if(!r) return; ms=+ms||0; if(r.m==='down'){ if(r.p) r.left-=ms; else r.end-=ms; } else if(r.p) r.acc+=ms; else r.s0-=ms; save(); } };   // 時計を 進める（たしかめ用）
 Object.assign(window, { openHadeTimer:()=>openHadeTimer(), closeHadeTimer });
 })();

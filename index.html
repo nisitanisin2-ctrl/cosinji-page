@@ -9370,6 +9370,12 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v580', t:'⏱ ど派手タイマー：時間が 来た 音・数え方の 見せ方（画面いっぱい・絵・動物）', li:[
+    '⏰<b>時間が 来た 音</b>を 9つから えらべます：🎺 ファンファーレ（いままで）・⏰ 目覚まし（ジリリリ）・📟 ピピピ・🔔 チャイム（キーンコーン）・🎵 オルゴール・🕊 はと時計（ポッポー）・🥁 太鼓・🎮 ゲーム・🐤 小鳥（チュンチュン）。押すと その場で 聞けます',
+    '🖼<b>数え方の 見せ方</b>：⭕ 光の輪（いままで）・<b>🔠 画面いっぱい</b>（画面を うめる 大きな 数字が 1秒ごとに どんっと 入れかわる。のこり1分からは 秒だけ）・<b>🎞 絵が 動く</b>・<b>🐾 動物</b>',
+    '🎞 絵は 6つ：🚀 ロケット（燃料が たまって 0 で 発射）・🕯 ろうそく（短く なって ふっと 消える）・⏳ 砂時計・💣 ばくだん（火が 導火線を 進んで ドカーン）・🎈 風船（ふくらんで パーン）・🌻 花（芽が 出て 0 で さく）',
+    '🐾 動物は 6つ：🐱 ねこ・🐰 うさぎ・🐶 いぬ・🐧 ペンギン・🐸 かえる・🐻 くま が 時間の 札を 持って ゴールへ 歩きます（1秒ごとに ぴょん・のこり10秒は 数を さけんで 0 で 大よろこび。くり返しは がんばる＝走る・休む＝ねる）。設定の 上の 見本で 動きが 見られます'
+  ]},
   { v:'v579', t:'🔁 前にやった日 帳・📋 出欠・集金表・🧳 旅のしおり／📇 名簿から 1人ずつ', li:[
     '🔁<b>前にやった日 帳</b>：エアコンの フィルター掃除・布団干し・散髪 などを「✓ きょう やった」で 残すと、最後に やった日と「あれから ○日」が 出ます。目安（○日ごと）に 近づくと 黄色、過ぎると 赤。よくある もの 16 から 1回で 足せます',
     '📋<b>出欠・集金表</b>：町内会・PTA・同窓会 などの 名簿に、出欠（出席・欠席・未定）と 集金の ✓ を つけます。上に 人数・集まった 金額・まだの 人が 出て、印刷・コピー（まだの 方の 一覧）も。前の 表の 名簿を 写して 次の 会にも 使えます',
@@ -15287,7 +15293,7 @@ sidePartOpener('openHitsudan', ['hitsudan.js'], '筆談ボード');
 sidePartOpener('openKeijiban', ['keijiban-clock.js','keijiban.js'], '電光掲示板');   // 動く時計の描き方（v571）も いっしょに
 window.closeHitsudan=function(){}; window.closeKeijiban=function(){};
 /* ── ⏱ ど派手タイマー・🎉 ど派手カウンター（v575。演出は hade-fx.js を いっしょに）・📃 請求書づくり（v575。seikyu.js）── */
-sidePartOpener('openHadeTimer', ['hade-fx.js','hade-timer.js'], 'ど派手タイマー');
+sidePartOpener('openHadeTimer', ['hade-fx.js','hade-look.js','hade-timer.js'], 'ど派手タイマー');   // 見せ方（v580）は hade-look.js
 sidePartOpener('openHadeCount', ['hade-fx.js','hade-count.js'], 'ど派手カウンター');
 sidePartOpener('openSeikyu', ['seikyu.js'], '請求書づくり');
 window.closeHadeTimer=function(){}; window.closeHadeCount=function(){}; window.closeSeikyu=function(){};
@@ -22897,7 +22903,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v579';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v580';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
