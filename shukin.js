@@ -8,7 +8,9 @@
    ・上に 合計：出席・欠席・未定の 人数と 返事の 数、集まった 金額／予定、まだの 件数と 金額。しぼる・🔎 さがす・班ごとに 分けて 小計。
    ・↕ 並べかえ（v582）：▲▼ か ≡ を ドラッグ・班の 順・逆さま・入れた 順に もどす。✏ で「何番目」も。番号・印刷・コピーも その 順。
    ・⚙ で まとめて 出欠（全員 出席に・未定を 欠席に）。名前を 押しても 直せる。
-   ・🖨 印刷（A4 の 表。出欠だけは 受付の □ 欄つき）・📋 文字で コピー（まだの 方の 一覧も）・▦ 表に 入れる。中身は excalc_shukin（この端末の中だけ）。 */
+   ・🖨 印刷（A4 の 表。出欠だけは 受付の □ 欄つき）・📋 文字で コピー（まだの 方の 一覧も）・▦ 表に 入れる。中身は excalc_shukin（この端末の中だけ）。
+   ・💾 外部保存（v582）：この表／ぜんぶの 表を ファイル（.json）に 保存・📤 共有で ドライブ・LINE・メールへ・Excel 用 CSV。
+     📂 ファイルから 読む（同じ 表は ファイルの 内容に 置きかえ、ほかは 足す。表電卓 全体の バックアップ ファイルからも）。 */
 (function(){
 'use strict';
 const KEY='excalc_shukin', MAX_L=60, MAX_M=400, MAX_YEN=99999999;
@@ -114,10 +116,12 @@ function render(){
   const l=L(), top=b.scrollTop;
   if(!l){
     b.innerHTML=`<div class="sh-wrap"><div class="sh-empty"><p>町内会・PTA・同窓会 などの 名簿に、出欠と 集金の ✓ を つけます。<br>出欠だけ・集金だけ の 表も 作れます。</p>
-      <button type="button" class="sh-b pri" onclick="SHUKIN.newList()">＋ 新しい 表を 作る</button></div></div>`;
+      <button type="button" class="sh-b pri" onclick="SHUKIN.newList()">＋ 新しい 表を 作る</button>
+      <p><button type="button" class="sh-b" onclick="SHUKIN.fileIn()">📂 ファイルから 読む</button></p><p class="sh-note">前に「💾 ファイルに 保存」した 表を この端末に 入れられます。</p></div></div>`;
     return;
   }
   if(!fOk(l, st.filt)) st.filt='all';
+  if(l.mem.length<8) q='';   // 🔎 が 出ない ときは しぼらない
   const s=sums(l), k=kindOf(l);
   const cnt={}; FILTS[k].forEach(([f])=>{ cnt[f]=l.mem.filter(m=>hit(l, m, f)).length; });
   const bar=`<div class="sh-top"><select class="sh-sel" aria-label="表を えらぶ" onchange="SHUKIN.sel(this.value)">${st.lists.map(x=>`<option value="${x.id}"${x.id===l.id?' selected':''}>${esc(x.title)}${x.date ? '（'+md(x.date)+'）' : ''}</option>`).join('')}</select>
@@ -136,7 +140,8 @@ function render(){
     <div id="shListBox">${listHtml(l)}</div>
     <div class="sh-acts"><button type="button" class="sh-b pri" onclick="SHUKIN.addNames()">＋ 名前を 入れる</button><button type="button" class="sh-b" onclick="SHUKIN.pick()">📇 名簿から</button>${l.mem.length>1 ? '<button type="button" class="sh-b" onclick="SHUKIN.order(true)">↕ 並べかえ</button>' : ''}</div>
     <div class="sh-acts"><button type="button" class="sh-b" onclick="SHUKIN.print()">🖨 印刷</button><button type="button" class="sh-b" onclick="SHUKIN.copy()">📋 コピー</button><button type="button" class="sh-b" onclick="SHUKIN.table()">▦ 表に 入れる</button></div>
-    <p class="sh-note">${k==='pay' ? '集金の ボタンを 押すと 受け取り（日付も 入ります）、もう一度で 取り消せます。' : k==='att' ? '出席・欠席・未定を 押します。' : '出欠は 出席・欠席・未定を 押します。集金の ボタンを 押すと 受け取り（日付も 入ります）、もう一度で 取り消せます。'}名前か ✏ を 押すと 直せます（${k==='att' ? '' : '一部だけ・この人だけ ちがう 金額・'}人数・班・順番）。中身は この端末の中だけに 残ります（設定の バックアップに 入ります）。</p>
+    <div class="sh-acts"><button type="button" class="sh-b" onclick="SHUKIN.file()">💾 ファイルに 保存・読む（外部保存）</button></div>
+    <p class="sh-note">${k==='pay' ? '集金の ボタンを 押すと 受け取り（日付も 入ります）、もう一度で 取り消せます。' : k==='att' ? '出席・欠席・未定を 押します。' : '出欠は 出席・欠席・未定を 押します。集金の ボタンを 押すと 受け取り（日付も 入ります）、もう一度で 取り消せます。'}名前か ✏ を 押すと 直せます（${k==='att' ? '' : '一部だけ・この人だけ ちがう 金額・'}人数・班・順番）。中身は この端末の中に 残ります（設定の バックアップにも 入ります）。ほかの 端末や ドライブに 残すときは 💾 で。</p>
   </div>`;
   b.scrollTop=top;
 }
@@ -473,6 +478,76 @@ function rows(){
 }
 function toTable(){ const l=L(); if(!l || !l.mem.length){ toastS('名簿が ありません'); return; } if(typeof toolPasteRows==='function') toolPasteRows(rows(), KIND_T[kindOf(l)], closeShukin); }
 
+/* ───────── 💾 外部保存：ファイルに 保存・共有・CSV・ファイルから 読む ───────── */
+let fileAll=false;   // ぜんぶの 表を 保存する か（覚えない）
+const stamp=()=>{ const d=new Date(); return d.getFullYear()+pad2(d.getMonth()+1)+pad2(d.getDate())+'-'+pad2(d.getHours())+pad2(d.getMinutes()); };
+const fileName=ext=>'shukin-'+stamp()+'.'+ext;   // 端末に よっては 日本語の 名前が 化けるので 英数字
+function canShareFile(){ try{ return !!(navigator.share && navigator.canShare && navigator.canShare({files:[new File(['{}'], 'a.json', {type:'application/json'})]})); }catch(_){ return false; } }
+function openFile(){
+  const l=L(), n=st.lists.length;
+  if(!l){ fileIn(); return; }
+  if(n<2) fileAll=false;
+  popOpen(ph('💾 ファイルに 保存・読む')+`
+    <p class="sh-note" style="margin-top:0">この端末の 外（ダウンロード・ドライブ・LINE・メール など）に 残せます。機種変更や、係を かわる 人に 渡すときにも。</p>
+    ${n>1 ? `<div class="sh-f"><span>保存する 表</span><span class="sh-seg2 fsc"><button type="button" class="${fileAll?'':'on'}" aria-pressed="${!fileAll}" onclick="SHUKIN.fileScope(false)">この表（${esc(l.title)}）</button><button type="button" class="${fileAll?'on':''}" aria-pressed="${fileAll}" onclick="SHUKIN.fileScope(true)">ぜんぶの 表（${n}）</button></span></div>` : ''}
+    <div class="sh-fbtns"><button type="button" class="sh-b pri" onclick="SHUKIN.fileSave('save')">⬇ ファイルに 保存（.json）</button>
+    ${canShareFile() ? '<button type="button" class="sh-b" onclick="SHUKIN.fileSave(\'share\')">📤 共有で 渡す（ドライブ・LINE・メール など）</button>' : ''}
+    <button type="button" class="sh-b" onclick="SHUKIN.fileSave('csv')">⬇ Excel 用の CSV（この表）</button></div>
+    <div class="sh-fsep"></div>
+    <div class="sh-fbtns"><button type="button" class="sh-b" onclick="SHUKIN.fileIn()">📂 ファイルから 読む（.json）</button></div>
+    <p class="sh-note">読むと、同じ 表は ファイルの 内容に 置きかわり、ほかの 表は 足されます（聞いてから）。表電卓 全体の バックアップ ファイルからも 読めます。</p>`, 'file');
+}
+function setFileScope(all){
+  fileAll=!!all && st.lists.length>1;
+  if(pop && pop.kind==='file') pop.el.querySelectorAll('.sh-seg2.fsc button').forEach((b,i)=>{ const on=(i===1)===fileAll; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+}
+// 保存する 中身（ためす とき 用にも）
+function fileJson(all){
+  const l=L(), lists=all ? st.lists : (l ? [l] : []);
+  return JSON.stringify({app:'hyodenki', type:'shukin', version:1, exportedAt:new Date().toISOString(), lists});
+}
+function csvText(){ const q=v=>'"'+(typeof csvSafe==='function' ? csvSafe(v) : String(v==null ? '' : v)).replace(/"/g,'""')+'"'; return '\ufeff'+rows().map(r=>r.map(q).join(',')).join('\r\n')+'\r\n'; }
+function dl(name, text, type){
+  const a=Object.assign(document.createElement('a'), {href:URL.createObjectURL(new Blob([text], {type})), download:name});
+  document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+async function fileSave(how){
+  const l=L(); if(!l){ toastS('表が ありません'); return; }
+  if(how==='csv'){ if(!l.mem.length){ toastS('名簿が ありません'); return; } dl(fileName('csv'), csvText(), 'text/csv;charset=utf-8'); toastS('⬇ CSV を 保存しました（Excel で 開けます）', 3200); return; }
+  const all=fileAll && st.lists.length>1, text=fileJson(all), name=fileName('json'), what=all ? 'ぜんぶの 表（'+st.lists.length+'）' : '「'+l.title+'」';
+  if(how==='share'){
+    try{ await navigator.share({files:[new File([text], name, {type:'application/json'})], title:'出欠・集金表'}); toastS('📤 '+what+'を 渡しました'); return; }
+    catch(e){ if(e && e.name==='AbortError') return; }   // 共有できない ときは 保存に する
+  }
+  dl(name, text, 'application/json'); toastS('⬇ '+what+'を ファイルに 保存しました（'+name+'）', 3600);
+}
+// 📂 ファイルを えらぶ
+function fileIn(){ const i=$('shFileIn'); if(i){ i.value=''; i.click(); } }
+async function fileGot(inp){
+  const f=inp && inp.files && inp.files[0]; if(inp) inp.value=''; if(!f) return 0;
+  if(f.size>3000000){ toastS('ファイルが 大きすぎます'); return 0; }
+  let t=''; try{ t=await f.text(); }catch(_){ toastS('ファイルを 読めませんでした'); return 0; }
+  return importText(t, f.name);
+}
+// 中身を 読む：出欠・集金表の ファイル・この端末の 中身の 形・表電卓 全体の バックアップ（settings.excalc_shukin）
+async function importText(t, name){
+  let o=null; try{ o=JSON.parse(String(t||'')); }catch(_){}
+  if(o && o.settings && typeof o.settings.excalc_shukin==='string'){ try{ o=JSON.parse(o.settings.excalc_shukin); }catch(_){ o=null; } }
+  const lists=(o && typeof o==='object' && Array.isArray(o.lists) && (o.type==='shukin' || !o.type) ? o.lists : []).map(cleanL).filter(Boolean);
+  lists.forEach((x,i,a)=>{ if(a.findIndex(y=>y.id===x.id)<i) x.id=rid(); });
+  if(!lists.length){ toastS('出欠・集金表の ファイルでは ありません'); return 0; }
+  const rep=lists.filter(x=>st.lists.some(y=>y.id===x.id)), add=lists.filter(x=>!st.lists.some(y=>y.id===x.id)), room=Math.max(0, MAX_L-st.lists.length), over=Math.max(0, add.length-room);
+  const msg='「'+oneLine(name||'ファイル',40)+'」から 表を 読みます。'+(add.length ? '\n・新しく 足す 表：'+(add.length-over)+'件' : '')+(rep.length ? '\n・同じ 表を ファイルの 内容に 置きかえ：'+rep.length+'件' : '')+(over ? '\n（表は '+MAX_L+' までなので '+over+'件は 入りません）' : '')+'\n読みますか？';
+  if(typeof appConfirm==='function' && !(await appConfirm(msg, '読む', 'やめる'))) return 0;
+  rep.forEach(x=>{ const i=st.lists.findIndex(y=>y.id===x.id); if(i>=0) st.lists[i]=x; });
+  add.slice(0, add.length-over).forEach(x=>st.lists.push(x));
+  const n=rep.length+add.length-over; if(!n) return 0;
+  st.cur=(rep[0]||add[0]).id; st.filt='all'; ordOff(); q=''; save(); popClose(); render();
+  const b=$('shBody'); if(b) b.scrollTop=0;
+  toastS('📂 '+n+'件の 表を 読みました', 3200);
+  return n;
+}
+
 /* ───────── 窓 ───────── */
 const DOC=`
 .sh-doc{ color:#111; background:#fff; font-family:"Hiragino Sans","Noto Sans JP","Noto Sans CJK JP",sans-serif; font-size:12px; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
@@ -543,6 +618,8 @@ const CSS=`
 .sh-kinds button{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; min-height:64px; padding:6px 4px; border-radius:12px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); cursor:pointer; font-family:inherit; text-align:center; }
 .sh-kinds button b{ font-size:14px; } .sh-kinds button small{ font-size:11.5px; color:var(--text-light,#666); line-height:1.3; }
 .sh-kinds button.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); } .sh-kinds button.on small{ color:var(--on-acc,#fff); opacity:.9; }
+.sh-fbtns{ display:flex; flex-direction:column; gap:8px; margin:10px 0 0; } .sh-fbtns .sh-b{ width:100%; } .sh-fsep{ height:1px; background:rgba(120,132,156,.3); margin:14px 0 4px; }
+.sh-empty p .sh-b{ margin-top:14px; }
 .sh-ck2{ display:flex; align-items:flex-start; gap:8px; margin:10px 0 4px; font-size:14px; line-height:1.5; cursor:pointer; } .sh-ck2 input{ width:20px; height:20px; flex:none; margin:1px 0 0; }
 @media (max-width:400px){ .sh-row .seg button{ min-width:40px; padding:0 4px; font-size:13px; } .sh-pay{ min-width:104px; padding:0 6px; } .sh-kinds button b{ font-size:13px; } .sh-row.one .r1{ gap:6px; } .sh-row.one .nm{ font-size:15px; } }
 `+DOC.replace(/\.sh-doc/g, '#printArea .sh-doc');
@@ -554,6 +631,7 @@ function ensureDom(){
   <div class="modal vol-modal sh-modal modal-full" style="position:relative">
     <div class="modal-header"><span>📋 出欠・集金表</span><button class="modal-close" onclick="closeShukin()" aria-label="閉じる">✕</button></div>
     <div class="sh-body" id="shBody"></div>
+    <input type="file" id="shFileIn" accept=".json,application/json" hidden onchange="SHUKIN.fileGot(this)">
   </div></div>`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
   const ov=$('shukinOverlay');
@@ -572,6 +650,7 @@ function closeShukin(){ if(!$('shukinOverlay') || !isDlgOpen('shukinOverlay')) r
 window.SHUKIN={ newList, newKind:setNewKind, newGo, newListGo, addNames:()=>addNames(), pick:()=>pick(), att:setAtt, pay:id=>pay(id), edit:openEdit, editSave, delM:id=>delM(id),
   setup:openSetup, setupSave, who:setWho, kind:setKind, bulk:h=>bulk(h), delList:()=>delList(), reset:()=>resetMarks(), sel, filt:setFilt, grp:setGrp, find, close:popClose,
   order:setOrder, move, sortBy, drag:dragStart, print:printDoc, copy, table:toTable, text, rows, html:()=>{ const l=L(); return l ? docHtml(l) : ''; },
+  file:openFile, fileScope:setFileScope, fileSave:h=>fileSave(h), fileIn, fileGot:i=>fileGot(i), fileJson:a=>fileJson(a===undefined ? fileAll && st.lists.length>1 : !!a), csv:csvText, importNow:(t,n)=>importText(t,n),
   // ためす とき 用
   state:()=>JSON.parse(JSON.stringify(st)), sums:()=>{ const l=L(); return l ? sums(l) : null; }, parse:parseNames, addList, applyOrder,
   payState:()=>{ const l=L(); return l ? l.mem.map(m=>m.name+':'+payOf(l,m)+':'+dueOf(l,m)) : []; }, ids:()=>{ const l=L(); return l ? l.mem.map(m=>m.id) : []; },

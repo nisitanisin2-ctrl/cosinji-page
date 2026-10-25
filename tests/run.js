@@ -11526,7 +11526,7 @@ async function runShukin579(browser) {
   const w = ms => page.waitForTimeout(ms);
   await page.evaluate(() => { window.appConfirm = async () => true; window.__p = []; window.appPrompt = async (m, d) => window.__p.length ? window.__p.shift() : d; window.__print = 0; window.print = () => { window.__print++; }; });
   await page.evaluate(() => openShukin()); await w(400);
-  check('  はじめは「＋ 新しい 表を 作る」だけ', await page.evaluate(() => [document.querySelectorAll('#shBody .sh-empty .sh-b').length, SHUKIN.state().lists.length].join('/')), '1/0');
+  check('  はじめは「＋ 新しい 表を 作る」（と v582 の「📂 ファイルから 読む」）だけ', await page.evaluate(() => [document.querySelectorAll('#shBody .sh-empty .sh-b').length, SHUKIN.state().lists.length].join('/')), '2/0');
   await page.evaluate(() => { SHUKIN.newListNow({ title: '11月 町内会費' }); }); await w(200);
   check('  新しい 表（名前・きょうの 日付・会費は まだ）', await page.evaluate(() => { const s = SHUKIN.state(), l = s.lists[0]; return [s.lists.length, l.title, /^\d{4}-\d\d-\d\d$/.test(l.date), l.fee, l.who, document.querySelector('.sh-sum .f').textContent.startsWith('会費は ⚙ で 決めます')].join('/'); }), '1/11月 町内会費/true/0/all/true');
   check('  名前を まとめて 入れる（改行・「、」・「名前／班」・同じ 人は 入れない）', await page.evaluate(() => { SHUKIN.addList(SHUKIN.parse('山田 太郎／1班\n佐藤 花子／1班、鈴木 一郎／2班、田中 次郎\n山田 太郎／1班')); return SHUKIN.state().lists[0].mem.map(m => m.name + ':' + m.grp).join(','); }), '山田 太郎:1班,佐藤 花子:1班,鈴木 一郎:2班,田中 次郎:');
@@ -11624,6 +11624,85 @@ async function runShukin582(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
   await v579Fit(browser, async p2 => { await p2.evaluate(async () => { window.appConfirm = async () => true; await openShukin(); SHUKIN.newListNow({ title: '秋の 運動会 打ち上げ', kind: 'att' }); SHUKIN.addList(SHUKIN.parse('山田 太郎／1班\n長谷川 ひろゆき／2班、佐藤 花子／1班、田中 次郎、伊藤 さくら、中村 あおい、小林 まさる、高橋 健')); const ids = SHUKIN.ids(); SHUKIN.att(ids[0], 'o'); SHUKIN.att(ids[1], 'x'); }); return [['出欠だけ', null], ['並べかえ', () => SHUKIN.order(true)], ['集金だけ', async () => { SHUKIN.order(false); SHUKIN.newListNow({ title: '11月 町内会費', kind: 'pay', fee: 3000, copy: true }); await SHUKIN.payNow(SHUKIN.ids()[0]); }], ['新しい 表', () => SHUKIN.newList()], ['設定', () => { SHUKIN.close(); SHUKIN.setup(); }], ['直す', () => { SHUKIN.close(); SHUKIN.edit(SHUKIN.ids()[1]); }]]; }, '出欠だけ・集金だけ・並べかえ');
+}
+async function runShukinFile582(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📋 出欠・集金表：💾 外部保存（ファイルに 保存・読む）（v582） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const dl = async fn => { const [d] = await Promise.all([page.waitForEvent('download'), page.evaluate(fn)]); return [d.suggestedFilename(), fs.readFileSync(await d.path(), 'utf8')]; };
+  const put = (name, text) => page.setInputFiles('#shFileIn', { name, mimeType: 'application/json', buffer: Buffer.from(text, 'utf8') });
+  await page.evaluate(() => { window.__cm = []; window.__ok = true; window.appConfirm = async m => { window.__cm.push(m); return window.__ok; }; });
+  await page.evaluate(() => openShukin()); await w(400);
+  check('  空の 画面にも「📂 ファイルから 読む」', await page.evaluate(() => [...document.querySelectorAll('#shBody .sh-empty .sh-b')].map(b => b.textContent).join(',')), '＋ 新しい 表を 作る,📂 ファイルから 読む');
+  await page.evaluate(async () => { SHUKIN.newListNow({ title: '秋の 運動会', kind: 'att', date: '2026-10-25' }); SHUKIN.addList(SHUKIN.parse('山田 太郎／1班、佐藤 花子／2班、鈴木 一郎')); const a = SHUKIN.ids(); SHUKIN.att(a[0], 'o'); SHUKIN.att(a[1], 'x'); SHUKIN.newListNow({ title: '11月 町内会費', kind: 'pay', fee: 3000, date: '2026-11-01', copy: true }); const b = SHUKIN.ids(); await SHUKIN.payNow(b[0]); SHUKIN.edit(b[1]); document.getElementById('shEPaid').value = '1000'; document.getElementById('shEMemo').value = '=1+2'; SHUKIN.editSave(b[1]); }); await w(200);
+  check('  一覧の 下に「💾 ファイルに 保存・読む」', await page.evaluate(() => !![...document.querySelectorAll('#shBody .sh-b')].find(b => b.textContent.startsWith('💾 ファイルに 保存・読む'))), true);
+  await page.evaluate(() => [...document.querySelectorAll('#shBody .sh-b')].find(b => b.textContent.startsWith('💾')).click()); await w(200);
+  check('  💾 の 窓：この表／ぜんぶの 表・保存（.json）・Excel 用 CSV・ファイルから 読む', await page.evaluate(() => [[...document.querySelectorAll('.sh-pop .sh-seg2.fsc button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(','), [...document.querySelectorAll('.sh-pop .sh-fbtns .sh-b')].map(b => b.textContent).filter(t => !t.startsWith('📤')).join(',')].join(' | ')), 'この表（11月 町内会費）*,ぜんぶの 表（2） | ⬇ ファイルに 保存（.json）,⬇ Excel 用の CSV（この表）,📂 ファイルから 読む（.json）');
+  const [n1, t1] = await dl(() => SHUKIN.fileSave('save'));
+  const j1 = JSON.parse(t1);
+  check('  ⬇ この表を 保存：英数字の ファイル名・中身（種類・会費・名簿・受け取り）', [/^shukin-\d{8}-\d{4}\.json$/.test(n1), j1.app, j1.type, j1.lists.length, j1.lists[0].title, j1.lists[0].kind, j1.lists[0].fee, j1.lists[0].mem.map(m => m.name + ':' + m.paid).join(',')].join('/'), 'true/hyodenki/shukin/1/11月 町内会費/pay/3000/山田 太郎:3000,佐藤 花子:1000,鈴木 一郎:0');
+  await page.evaluate(() => SHUKIN.fileScope(true)); await w(100);
+  const [, t2] = await dl(() => SHUKIN.fileSave('save'));
+  const j2 = JSON.parse(t2);
+  check('  ぜんぶの 表を 保存（2つ・出欠も）', [await page.evaluate(() => document.querySelector('.sh-pop .sh-seg2.fsc button.on').textContent), j2.lists.length, j2.lists.map(l => l.title + ':' + l.kind).join(','), j2.lists[0].mem.map(m => m.att || '-').join('')].join('/'), 'ぜんぶの 表（2）/2/秋の 運動会:att,11月 町内会費:pay/ox-');
+  const [n3, t3] = await dl(() => SHUKIN.fileSave('csv'));
+  const lines = t3.split('\r\n');
+  check('  ⬇ Excel 用 CSV（この表・BOM・式に ならない）', [/^shukin-\d{8}-\d{4}\.csv$/.test(n3), t3.charCodeAt(0) === 0xfeff, lines[0].slice(1), lines[2].replace(/\d{4}-\d\d-\d\d/, 'DATE'), lines.length].join(' | '), 'true | true | "No.","班","名前","人数","予定","受取","集金","日付","メモ" | "2","2班","佐藤 花子","1","3000","1000","一部","DATE","\'=1+2" | 6');
+  await page.evaluate(() => { window.__cm = []; }); 
+  const j4 = JSON.parse(t2); j4.lists[1].title = '11月 町内会費（集めおわり）'; j4.lists[1].mem[2].paid = 3000; j4.lists[0].id = 'newlist01'; j4.lists[0].title = '<img src=x onerror="window.__x=1">新年会';
+  await put('kaihi.json', JSON.stringify(j4)); await w(300);
+  check('  📂 読む：聞いてから・同じ 表は 置きかえ・ほかは 足す・読んだ 表を 出す', await page.evaluate(() => { const s = SHUKIN.state(); return [window.__cm[0], s.lists.length, s.lists.map(l => l.title.slice(0, 10)).join(','), s.lists[1].mem[2].paid, s.cur === s.lists[1].id, !document.querySelector('.sh-pop'), document.querySelector('.sh-sum .h b').textContent, !!window.__x, !!document.querySelector('#shBody img')].join(' / '); }), '「kaihi.json」から 表を 読みます。\n・新しく 足す 表：1件\n・同じ 表を ファイルの 内容に 置きかえ：1件\n読みますか？ / 3 / 秋の 運動会,11月 町内会費（集,<img src=x / 3000 / true / true / 11月 町内会費（集めおわり） / false / false');
+  await page.evaluate(() => { window.__ok = false; window.__cm = []; });
+  await put('kaihi2.json', JSON.stringify({ app: 'hyodenki', type: 'shukin', lists: [{ id: 'other0001', title: 'やめる 表', mem: [] }] })); await w(300);
+  check('  「やめる」なら 何も かわらない', await page.evaluate(() => [window.__cm.length, SHUKIN.state().lists.length].join('/')), '1/3');
+  await page.evaluate(() => { window.__ok = true; window.__cm = []; });
+  await put('heya.json', JSON.stringify({ app: 'hyodenki', type: 'heya', data: { rooms: [], bookings: [] } })); await w(300);
+  check('  ちがう ファイル：読まない（お知らせ）', await page.evaluate(() => [window.__cm.length, SHUKIN.state().lists.length, document.getElementById('appToast').textContent].join('/')), '0/3/出欠・集金表の ファイルでは ありません');
+  await put('backup.json', JSON.stringify({ app: 'hyodenki', type: 'saves', settings: { excalc_shukin: JSON.stringify({ lists: [{ id: 'bkup0001', title: 'バックアップの 表', kind: 'pay', fee: 500, mem: [{ name: 'X' }, { name: 'Y' }] }] }) } })); await w(300);
+  check('  表電卓 全体の バックアップ ファイルからも 読める', await page.evaluate(() => { const s = SHUKIN.state(), l = s.lists[3]; return [s.lists.length, l.title, l.kind, l.mem.length, SHUKIN.sums().due].join('/'); }), '4/バックアップの 表/pay/2/1000');
+  await page.evaluate(() => { closeShukin(); localStorage.removeItem('excalc_shukin'); openShukin(); }); await w(300);
+  const chooser = page.waitForEvent('filechooser');
+  await page.click('#shBody .sh-empty .sh-b:not(.pri)');
+  await (await chooser).setFiles({ name: 'all.json', mimeType: 'application/json', buffer: Buffer.from(t2, 'utf8') }); await w(300);
+  check('  別の 端末に 入れる つもりで：空の 画面から 読むと もとどおり（出欠・受け取り・並び）', await page.evaluate(() => { const s = SHUKIN.state(); return [s.lists.length, s.lists.map(l => l.title).join(','), s.lists[0].mem.map(m => m.name + (m.att || '-')).join(','), s.lists[1].mem.map(m => m.paid).join(',')].join(' / '); }), '2 / 秋の 運動会,11月 町内会費 / 山田 太郎o,佐藤 花子x,鈴木 一郎- / 3000,1000,0');
+  await page.evaluate(() => { closeShukin(); localStorage.setItem('excalc_shukin', JSON.stringify({ lists: Array.from({ length: 59 }, (_, i) => ({ id: 'list' + String(i).padStart(4, '0'), title: '表' + i, mem: [] })) })); openShukin(); window.__cm = []; }); await w(300);
+  await put('many.json', JSON.stringify({ type: 'shukin', lists: [{ id: 'list0003', title: '表3（新しい）', mem: [] }, { id: 'more0001', title: 'A', mem: [] }, { id: 'more0002', title: 'B', mem: [] }, { id: 'more0003', title: 'C', mem: [] }] })); await w(300);
+  check('  表は 60 まで（入らない 数を 知らせる）', await page.evaluate(() => { const s = SHUKIN.state(); return [window.__cm[0].includes('新しく 足す 表：1件'), window.__cm[0].includes('2件は 入りません'), s.lists.length, s.lists[3].title, s.lists[59].title].join('/'); }), 'true/true/60/表3（新しい）/A');
+  await page.evaluate(() => closeShukin()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+  await v579Fit(browser, async p2 => { await p2.evaluate(async () => { await openShukin(); SHUKIN.newListNow({ title: '秋の 運動会 打ち上げ（10月25日）', kind: 'att' }); SHUKIN.addList(SHUKIN.parse('山田 太郎、佐藤 花子')); SHUKIN.newListNow({ title: '11月 町内会費', kind: 'pay', copy: true }); }); return [['💾 ファイル', () => SHUKIN.file()], ['空の 画面', () => { SHUKIN.close(); localStorage.removeItem('excalc_shukin'); closeShukin(); openShukin(); }]]; }, '💾 ファイルの 窓');
+}
+async function runHadeCount582(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🎉 ど派手カウンター：🎲 範囲内で ランダムに 増やす（v582） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { window.__vib = []; navigator.vibrate = p => { window.__vib.push(JSON.stringify(p)); return true; }; window.appConfirm = async () => true; });
+  await page.evaluate(() => openHadeCount()); await w(600);
+  check('  はじめは ランダム なし（＋1）・「🎲 ランダム」の ボタン', await page.evaluate(() => { const c = HADE_COUNT.state().list[0]; return [c.rnd, c.ra, c.rb, document.querySelector('#hcSide .hc-opt').textContent.includes('🎲 ランダム'), !!document.querySelector('.hc-rng')].join('/'); }), 'false/1/6/true/false');
+  await page.click('#hcSide .hc-opt button:has-text("🎲 ランダム")'); await w(200);
+  check('  🎲 ランダム を 押すと はんい（1〜6）と 見本が 出る', await page.evaluate(() => [HADE_COUNT.state().list[0].rnd, document.getElementById('hcRa').value, document.getElementById('hcRb').value, [...document.querySelectorAll('.hc-rng .hc-opt button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(','), document.querySelector('#hcSide .hc-opt button.on').textContent].join('/')), 'true/1/6/🎲 1〜6*,1〜10,1〜100,10〜50/🎲 ランダム');
+  check('  押すたびに 1〜6 の どれか（200回：ぜんぶ 出る・ほかは 出ない・合計が あう）', await page.evaluate(() => { const n0 = HADE_COUNT.state().list[0].n, seen = {}; let sum = 0; for (let i = 0; i < 200; i++) { HADE_COUNT.tap(0); const r = HADE_COUNT.lastRoll(); seen[r] = (seen[r] || 0) + 1; sum += r; } return [Object.keys(seen).sort().join(','), HADE_COUNT.state().list[0].n - n0 === sum].join('/'); }), '1,2,3,4,5,6/true');
+  await w(800);
+  check('  いちばん 大きい 数で「大当たり！」（振動も）・いちばん 小さい 数は ふつう', await page.evaluate(() => { HADE_COUNT.set('rng', '1-10'); const n = HADE_COUNT.state().list[0].n; if (n % 50) HADE_COUNT.plus(0, 50 - n % 50); const n0 = HADE_COUNT.state().list[0].n, r = Math.random; window.__vib = []; Math.random = () => 0.99999; HADE_COUNT.tap(0); const a = [HADE_COUNT.state().list[0].n - n0, HADE_COUNT.lastRoll(), HADE_COUNT.banner(), window.__vib.includes('[40,30,80]')]; Math.random = () => 0; window.__vib = []; HADE_COUNT.tap(0); Math.random = r; a.push(HADE_COUNT.lastRoll(), window.__vib.includes('[40,30,80]')); return a.join('/'); }), '10/10/大当たり！ +10/true/1/false');
+  check('  − も 同じ はんいで へる・↶ もどすは ちょうど 1つ前に・数を 決めて 足す ときは そのまま', await page.evaluate(() => { const r = Math.random; Math.random = () => 0.5; const n0 = HADE_COUNT.state().list[0].n; HADE_COUNT.minus(0); const n1 = HADE_COUNT.state().list[0].n; Math.random = r; HADE_COUNT.undo(); const a = [n0 - n1, HADE_COUNT.state().list[0].n === n0]; HADE_COUNT.plus(0, 3); a.push(HADE_COUNT.state().list[0].n - n0, HADE_COUNT.lastRoll()); return a.join('/'); }), '6/true/3/0');
+  check('  はんいを 入れる：逆なら 入れかえ・全角も・0・空・1000より 大きい 数は 入らない', await page.evaluate(() => { const a = [], g = () => { const c = HADE_COUNT.state().list[0]; return c.ra + '〜' + c.rb; }; HADE_COUNT.set('ra', '２０'); a.push(g()); HADE_COUNT.set('rb', '5'); a.push(g()); HADE_COUNT.set('ra', '0'); HADE_COUNT.set('rb', ''); HADE_COUNT.set('rb', '5000'); a.push(g(), document.getElementById('hcRa').value + '〜' + document.getElementById('hcRb').value); return a.join(' / '); }), '10〜20 / 5〜10 / 5〜10 / 5〜10');
+  await page.click('.hc-rng .hc-opt button:has-text("1〜100")'); await w(150);
+  check('  見本を 押すと その はんい（説明も）', await page.evaluate(() => { const c = HADE_COUNT.state().list[0]; return [c.ra, c.rb, document.querySelector('.hc-rng .hc-opt button.on').textContent, document.querySelector('.hc-rng .hc-note').textContent.includes('1〜100 の どれか')].join('/'); }), '1/100/1〜100/true');
+  check('  ＋5 を 押すと ランダムは おわる（はんいは 覚えている）', await page.evaluate(() => { HADE_COUNT.set('step', 5); const n0 = HADE_COUNT.state().list[0].n; HADE_COUNT.tap(0); const c = HADE_COUNT.state().list[0]; return [c.rnd, c.step, c.n - n0, c.ra + '〜' + c.rb, !!document.querySelector('.hc-rng'), HADE_COUNT.lastRoll()].join('/'); }), 'false/5/5/1〜100/false/0');
+  await page.evaluate(() => { HADE_COUNT.set('step', 'rnd'); HADE_COUNT.add('B'); }); await w(200);
+  check('  カウンターごと（足した カウンターは ＋1）', await page.evaluate(() => { const n0 = HADE_COUNT.state().list[1].n; HADE_COUNT.tap(1); const s = HADE_COUNT.state(); return [s.cur, s.list[1].rnd, s.list[1].n - n0, s.list[0].rnd].join('/'); }), '1/false/1/true');
+  await page.evaluate(() => HADE_COUNT.sel(0)); await w(100);
+  await page.keyboard.press('ArrowUp'); await w(100);
+  check('  キー・リモコンでも ランダム', await page.evaluate(() => { const r = HADE_COUNT.lastRoll(); return r >= 1 && r <= 100; }), true);
+  await page.evaluate(() => { closeHadeCount(); openHadeCount(); }); await w(400);
+  check('  閉じて 開いても ランダムと はんいを 覚えている', await page.evaluate(() => { const c = HADE_COUNT.state().list[0]; return [c.rnd, c.ra, c.rb, !!document.querySelector('.hc-rng')].join('/'); }), 'true/1/100/true');
+  await page.evaluate(() => { closeHadeCount(); localStorage.setItem('excalc_hadecount', JSON.stringify({ list: [{ name: 'A', rnd: 'yes', ra: 50, rb: 3 }, { name: 'B', rnd: true, ra: -5, rb: 99999 }] })); openHadeCount(); }); await w(400);
+  check('  変なデータ：ランダムは true だけ・はんいは 1〜1000 で 小さい 順', await page.evaluate(() => HADE_COUNT.state().list.map(c => [c.rnd, c.ra, c.rb].join('/')).join(' | ')), 'false/3/50 | true/1/6');
+  await page.evaluate(() => closeHadeCount()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+  await v579Fit(browser, async p2 => { await p2.evaluate(async () => { await openHadeCount(); HADE_COUNT.set('step', 'rnd'); }); return [['🎲 ランダム', () => document.querySelector('.hc-rng').scrollIntoView({ block: 'center' })]]; }, '🎲 ランダムの 設定');
 }
 async function runShiori579(browser) {
   const { ctx, page, errs } = await newPage(browser);
@@ -12616,7 +12695,12 @@ async function runSchemeFix(browser) {
         await page.evaluate(() => { SHUKIN.order(false); SHUKIN.newList(); SHUKIN.newKind('att'); }); await w(300); found.push('shukin-new:' + await page.evaluate(SCAN));
         await page.evaluate(() => { SHUKIN.newGo(); const ids = SHUKIN.ids(); SHUKIN.att(ids[0], 'o'); SHUKIN.att(ids[1], 'x'); }); await w(300); found.push('shukin-att:' + await page.evaluate(SCAN));
         await page.evaluate(async () => { SHUKIN.newListNow({ title: '集金', kind: 'pay', fee: 1000, copy: true }); await SHUKIN.payNow(SHUKIN.ids()[0]); }); await w(300); found.push('shukin-pay:' + await page.evaluate(SCAN));
+        await page.evaluate(() => SHUKIN.file()); await w(300); found.push('shukin-file:' + await page.evaluate(SCAN));   /* 💾 外部保存（v582） */
         await page.evaluate(() => SHUKIN.close()); await w(200);
+      }
+      if (id === 'hadecount') {   // 🎲 ランダムの はんい（v582）
+        await page.evaluate(() => { HADE_COUNT.set('step', 'rnd'); document.querySelector('.hc-rng').scrollIntoView({ block: 'center' }); }); await w(300); found.push('hadecount-rnd:' + await page.evaluate(SCAN));
+        await page.evaluate(() => HADE_COUNT.set('step', 1)); await w(200);
       }
       if (id === 'shiori') {   // 🧳 日程・持ち物・お金・宿・換算（v579）
         await page.evaluate(() => { SHIORI.newTrip(); document.getElementById('soTTitle').value = '箱根'; SHIORI.setupSave(true); const t = SHIORI.state().trips[0]; SHIORI.planAdd(t.start); document.getElementById('soPT').value = '09:00'; document.getElementById('soPW').value = '出発'; document.getElementById('soPP').value = '東京駅'; SHIORI.planSave(''); }); await w(300); found.push('shiori-plan:' + await page.evaluate(SCAN));
@@ -17081,6 +17165,8 @@ async function runQrShare(browser) {
     if (!only || only === 'yatta' || only === 'v579') await runYatta579(browser);
     if (!only || only === 'shukin' || only === 'v579') await runShukin579(browser);
     if (!only || only === 'shukin582' || only === 'shukin' || only === 'v582') await runShukin582(browser);
+    if (!only || only === 'shukin582' || only === 'shukinfile' || only === 'shukin' || only === 'v582') await runShukinFile582(browser);
+    if (!only || only === 'hadecount582' || only === 'hadecount' || only === 'hade' || only === 'v582') await runHadeCount582(browser);
     if (!only || only === 'shiori' || only === 'v579') await runShiori579(browser);
     if (!only || only === 'picknames' || only === 'v579') await runPickNames579(browser);
     if (!only || only === 'saveas') await runSaveAs560(browser);
