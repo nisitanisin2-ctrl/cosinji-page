@@ -1,11 +1,13 @@
 /* 🎉 ど派手カウンター（v575。表電卓の道具。はじめて開いたときに読む。apps/hadecount/ から単独のアプリとしても開ける）
-   ・大きな画面を 押すたびに ＋（1回に 足す数は 1・2・5・10）。数字が はじけ、押したところから 光の粒・絵文字・輪が 飛び、
+   ・大きな画面を 押すたびに ＋（1回に 足す数は 1・2・5・10・🎲 ランダム）。数字が はじけ、押したところから 光の粒・絵文字・輪が 飛び、
      つづけて 早く押すと コンボ（音が だんだん 高くなる。×10・×25・×50・×100 で 花火）。
    ・10 ごとに 小さな花火、50・100・500・1000 で 大きく、目標の数に とどくと 花火・紙ふぶき・ファンファーレ（背景は hade-fx.js）。
    ・−（へらす）・↶ もどす（1つ前に）・0 に もどす。目標を 決めると メーターが たまる（「あと ○」）。
    ・カウンターは 8つまで（名前・色・絵文字・目標・足す数を それぞれに）。「並べて」で いっしょに 数える（男女別・種類別 など）。
    ・Bluetooth の リモコン・キーボードでも 数えられる（スペース・Enter・↑・→ で ＋、↓・← で −）。
    ・演出の強さ（v576）：ド派手は 押すたびに 大きな輪・5ごとに 花火、ドド派手は 押すたびに ゆれて 数字が 七色・コンボ 5ごとに ほめ言葉。
+   ・🎲 ランダム（v582）：決めた はんい（最小〜最大。見本 1〜6・1〜10・1〜100・10〜50）の どれかを 押すたびに 足す。
+     − も 同じ はんいで へる（↶ もどす は ちょうど 1つ前に）。いちばん 大きい 数が 出ると「大当たり！」。
    ・1時間ごとの数を 記録（2週間 残す）。「📋 数を コピー」で 文字にして 貼れる。
    ・数・名前・目標・記録・えらんだものは excalc_hadecount（この端末の中だけ）。 */
 (function(){
@@ -15,6 +17,7 @@ const KEY='excalc_hadecount', MAX_C=8, MAX_N=9999999, MAX_UNDO=50, KEEP_DAYS=14;
 const COLS=[['gold','金','#ffd23f'],['pink','ピンク','#ff5fa8'],['cyan','水色','#38e8ff'],['lime','黄緑','#9dff5c'],['orange','オレンジ','#ff8a3d'],['violet','紫','#c77dff'],['red','赤','#ff4040'],['white','白','#f4f4f4']];
 const EMOS=['⭐','💖','🎉','🔥','🌸','💰','🍀','⚡','👍','🐟','🍺','🏃','🚗','🐦','👤','✅'];
 const STEPS=[1,2,5,10];
+const MAX_R=1000, RNG=[[1,6,'🎲 1〜6'],[1,10,'1〜10'],[1,100,'1〜100'],[10,50,'10〜50']];   // 🎲 ランダムの はんい（v582）と 見本
 const VIEWS=[['one','1つを 大きく'],['grid','並べて']];
 const PRAISE=['ナイス！','いいね！','すごい！','最高！','神！','天才！'];   // ドド派手の コンボで 出る ことば
 const NUMF='"Hiragino Sans","Noto Sans JP","Noto Sans CJK JP","Segoe UI",Roboto,sans-serif';
@@ -35,14 +38,17 @@ const dayKey=d=>d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
 const emoOk=e=>{ e=Array.from(oneLine(e,8)).slice(0,2).join(''); return e && !/[<>&"'`]/.test(e) ? e : ''; };
 
 /* ───────── 状態 ───────── */
-let st=null, undo=[], combo=0, lastTap=0, lastIdx=-1, saveT=0;
-const newC=(name, i)=>({id:rid(), name:name||'カウンター', n:0, goal:0, step:1, emo:EMOS[(i||0)%EMOS.length], col:COLS[(i||0)%COLS.length][0], hist:{}});
+let st=null, undo=[], combo=0, lastTap=0, lastIdx=-1, saveT=0, lastRoll=0;
+const newC=(name, i)=>({id:rid(), name:name||'カウンター', n:0, goal:0, step:1, rnd:false, ra:1, rb:6, emo:EMOS[(i||0)%EMOS.length], col:COLS[(i||0)%COLS.length][0], hist:{}});
+// 🎲 ランダム：はんいの 中の 数を 1つ（最小〜最大 どれも 同じ くらい 出る）
+const roll=c=>c.ra+Math.floor(Math.random()*(c.rb-c.ra+1));
 function cleanC(c, i){
   if(!c || typeof c!=='object') return null;
   const hist={};
   if(c.hist && typeof c.hist==='object') Object.keys(c.hist).slice(-KEEP_DAYS*24).forEach(k=>{ if(/^\d{4}-\d\d-\d\d \d\d$/.test(k)){ const v=int(c.hist[k], -MAX_N, MAX_N, null); if(v!=null) hist[k]=v; } });
+  let ra=int(c.ra,1,MAX_R,1), rb=int(c.rb,1,MAX_R,6); if(ra>rb) [ra,rb]=[rb,ra];
   return {id:typeof c.id==='string' && /^[a-z0-9]{3,12}$/.test(c.id) ? c.id : rid(), name:oneLine(c.name,16)||('カウンター'+(i+1)), n:int(c.n,0,MAX_N,0), goal:int(c.goal,0,MAX_N,0),
-    step:STEPS.includes(+c.step) ? +c.step : 1, emo:emoOk(c.emo)||EMOS[i%EMOS.length], col:COLS.some(x=>x[0]===c.col) ? c.col : COLS[i%COLS.length][0], hist};
+    step:STEPS.includes(+c.step) ? +c.step : 1, rnd:c.rnd===true, ra, rb, emo:emoOk(c.emo)||EMOS[i%EMOS.length], col:COLS.some(x=>x[0]===c.col) ? c.col : COLS[i%COLS.length][0], hist};
 }
 function load(){
   let o=null; try{ o=JSON.parse(localStorage.getItem(KEY)||'null'); }catch(_){}
@@ -87,7 +93,9 @@ function drawNum(c, T, big){
   // 名前
   const ns=Math.round(Math.min(T.w*0.07, (big ? 26 : 20)*d));
   g.save(); g.font='bold '+ns+'px '+NUMF; g.textAlign='center'; g.textBaseline='top'; g.fillStyle='rgba(255,255,255,.95)'; g.lineWidth=ns*0.18; g.strokeStyle='rgba(0,0,0,.55)'; g.lineJoin='round';
-  const name=c.emo+' '+c.name; g.strokeText(name, cx, T.y+(big ? 14 : 8)*d); g.fillText(name, cx, T.y+(big ? 14 : 8)*d); g.restore();
+  const name=c.emo+' '+c.name; g.strokeText(name, cx, T.y+(big ? 14 : 8)*d); g.fillText(name, cx, T.y+(big ? 14 : 8)*d);
+  if(c.rnd && (big || T.h>260*d)){ const rs=Math.round(ns*0.78), rt='🎲 '+fmtN(c.ra)+'〜'+fmtN(c.rb), ry=T.y+(big ? 14 : 8)*d+ns*1.25; g.font='bold '+rs+'px '+NUMF; g.lineWidth=rs*0.18; g.fillStyle='rgba(255,243,150,.95)'; g.strokeText(rt, cx, ry); g.fillText(rt, cx, ry); }   // 🎲 ランダムの はんい
+  g.restore();
   // 目標の メーター
   if(c.goal>0){
     const mw=T.w*0.78, mh=Math.max(8*d, Math.min(18*d, T.h*0.05)), mx=cx-mw/2, my=T.y+T.h*(big ? 0.8 : 0.82), f=Math.min(1, c.n/c.goal);
@@ -165,9 +173,10 @@ function addHist(c, k){ const key=hourKey(new Date()); c.hist[key]=(c.hist[key]|
 function plus(i, k, x, y){
   const c=st.list[i]; if(!c) return;
   FX.unlock();
-  k=int(k,1,1000,c.step); const before=c.n; c.n=Math.min(MAX_N, c.n+k); const dk=c.n-before; if(!dk) return;
+  const rolled=k==null && c.rnd;   // 🎲 ランダム（数を 決めて 呼ばれた ときは そのまま）
+  k=int(k,1,1000,rolled ? roll(c) : c.step); const before=c.n; c.n=Math.min(MAX_N, c.n+k); const dk=c.n-before; if(!dk) return;
   undo.push({id:c.id, n:before}); if(undo.length>MAX_UNDO) undo.shift();
-  addHist(c, dk); saveSoon(); paintHoursSoon();
+  addHist(c, dk); saveSoon(); paintHoursSoon(); lastRoll=rolled ? k : 0;
   const now=Date.now(); combo=(now-lastTap<650 && lastIdx===i) ? combo+1 : 1; lastTap=now; lastIdx=i;
   if(!eng) return;
   const e=eng, d=e.d, col=colOf(c.col); e._tapT=e.t; c._pop=e.t;
@@ -175,7 +184,11 @@ function plus(i, k, x, y){
   const pal=[col, '#ffffff', col, FX.PAL[e.theme][0]];
   e.burst(x, y, {n:12+Math.min(48, combo*2), sp:300+Math.min(400, combo*12), pal, rs:0.8+Math.min(1, combo/30)});
   e.emoji(x, y, c.emo, {n:combo>=10 ? 4 : combo>=5 ? 2 : 1, sp:420, up:true, sz:34});
-  e.text(x, y-30*d, '+'+dk, {sz:30+Math.min(30, combo), col});
+  e.text(x, y-30*d, (rolled ? '🎲+' : '+')+fmtN(dk), {sz:(rolled ? 38 : 30)+Math.min(30, combo), col});
+  if(rolled){
+    e.emoji(x, y, '🎲', {n:1, sp:300, up:true, sz:30});
+    if(c.rb>c.ra && k===c.rb){ banner('大当たり！ +'+fmtN(dk)); e.ring(x, y, '#fff36b', 1.8); for(let j=0;j<3;j++) e.shell(null); snd('level'); vib([40,30,80]); }   // いちばん 大きい 数
+  }
   e.pulse=1; e.warp=Math.min(1, e.warp+0.18); e.heat=Math.min(1, e.heat+0.07);
   snd('pop', Math.min(14, combo-1)); vib(12);
   if(combo>=8 && e.level!=='calm') e.kick(Math.min(0.5, combo*0.012));
@@ -206,11 +219,12 @@ function goal(c){
 function minus(i, k){
   const c=st.list[i==null ? st.cur : i]; if(!c) return;
   FX.unlock();
-  k=int(k,1,1000,c.step); const before=c.n; c.n=Math.max(0, c.n-k); const dk=before-c.n;
+  const rolled=k==null && c.rnd;
+  k=int(k,1,1000,rolled ? roll(c) : c.step); const before=c.n; c.n=Math.max(0, c.n-k); const dk=before-c.n;
   if(!dk){ toastC('0 より 少なくは できません'); return; }
   undo.push({id:c.id, n:before}); if(undo.length>MAX_UNDO) undo.shift();
   addHist(c, -dk); saveSoon(); paintHoursSoon(); combo=0;
-  if(eng){ const e=eng, idx=st.list.indexOf(c), [x,y]=tileCenter(idx); c._dn=e.t; e.implode(x, y, {n:26, r:150, pal:[colOf(c.col),'#ffffff']}); e.text(x, y+40*e.d, '−'+dk, {sz:28, col:'#ffb3b3', vy:60}); }
+  if(eng){ const e=eng, idx=st.list.indexOf(c), [x,y]=tileCenter(idx); c._dn=e.t; e.implode(x, y, {n:26, r:150, pal:[colOf(c.col),'#ffffff']}); e.text(x, y+40*e.d, (rolled ? '🎲−' : '−')+fmtN(dk), {sz:28, col:'#ffb3b3', vy:60}); }
   snd('down'); vib(25);
 }
 function undoLast(){
@@ -292,7 +306,10 @@ function paintSide(){
   const b=$('hcSide'); if(!b) return;
   const c=curC(), opt=(k, list, lab)=>`<div class="hc-opt"><span>${lab}</span>${list.map(([v,n])=>`<button type="button" class="${st[k]===v?'on':''}" onclick='HADE_COUNT.opt("${k}", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>`;
   b.innerHTML=`<div class="hc-sec"><h4>⚙ このカウンター<small>${esc(c.emo)} ${esc(c.name)}</small></h4>
-      <div class="hc-opt"><span>1回に 足す数</span>${STEPS.map(v=>`<button type="button" class="${c.step===v?'on':''}" onclick="HADE_COUNT.set('step', ${v})">＋${v}</button>`).join('')}</div>
+      <div class="hc-opt"><span>1回に 足す数</span>${STEPS.map(v=>`<button type="button" class="${!c.rnd && c.step===v?'on':''}" onclick="HADE_COUNT.set('step', ${v})">＋${v}</button>`).join('')}<button type="button" class="${c.rnd?'on':''}" onclick="HADE_COUNT.set('step', 'rnd')">🎲 ランダム</button></div>
+      ${c.rnd ? `<div class="hc-rng"><div class="hc-f"><span>ランダムの はんい</span><input id="hcRa" type="number" inputmode="numeric" min="1" max="${MAX_R}" value="${c.ra}" aria-label="いちばん 小さい 数" onchange="HADE_COUNT.set('ra', this.value)"><b>〜</b><input id="hcRb" type="number" inputmode="numeric" min="1" max="${MAX_R}" value="${c.rb}" aria-label="いちばん 大きい 数" onchange="HADE_COUNT.set('rb', this.value)"><em>の どれか</em></div>
+        <div class="hc-opt"><span>見本</span>${RNG.map(([a,b,t])=>`<button type="button" class="${c.ra===a && c.rb===b?'on':''}" onclick="HADE_COUNT.set('rng', '${a}-${b}')">${t}</button>`).join('')}</div>
+        <p class="hc-note">押すたびに ${fmtN(c.ra)}〜${fmtN(c.rb)} の どれかを くじ引きで 足します（− も 同じ はんいで へります。まちがえたら ↶ もどす）。いちばん 大きい ${fmtN(c.rb)} が 出ると「大当たり！」。</p></div>` : ''}
       <label class="hc-f"><span>名前</span><input id="hcName" type="text" maxlength="16" value="${esc(c.name)}" onchange="HADE_COUNT.set('name', this.value)"></label>
       <label class="hc-f"><span>目標の数</span><input id="hcGoal" type="number" inputmode="numeric" min="0" max="${MAX_N}" value="${c.goal||''}" placeholder="なし" onchange="HADE_COUNT.set('goal', this.value)"></label>
       <div class="hc-opt"><span>絵文字</span>${EMOS.map(x=>`<button type="button" class="emo${c.emo===x?' on':''}" onclick='HADE_COUNT.set("emo", ${JSON.stringify(x)})'>${x}</button>`).join('')}</div>
@@ -334,7 +351,14 @@ function setC(k, v){
   const c=curC();
   if(k==='name'){ const n=oneLine(v,16); if(!n){ paintSide(); return; } c.name=n; }
   else if(k==='goal'){ c.goal=int(String(v||'0').normalize('NFKC').replace(/,/g,''), 0, MAX_N, 0); }
-  else if(k==='step'){ if(!STEPS.includes(+v)) return; c.step=+v; }
+  else if(k==='step'){ if(v==='rnd') c.rnd=true; else if(STEPS.includes(+v)){ c.step=+v; c.rnd=false; } else return; }
+  else if(k==='ra' || k==='rb' || k==='rng'){   // 🎲 ランダムの はんい（小さい ほうと 大きい ほうが 逆なら 入れかえる）
+    const p=k==='rng' ? String(v).split('-') : null, n=x=>int(String(x==null ? '' : x).normalize('NFKC').replace(/,/g,''), 1, MAX_R, null);
+    let a=p ? n(p[0]) : k==='ra' ? n(v) : c.ra, b=p ? n(p[1]) : k==='rb' ? n(v) : c.rb;
+    if(a==null || b==null){ paintSide(); return; }
+    if(a>b) [a,b]=[b,a];
+    c.ra=a; c.rb=b; c.rnd=true;
+  }
   else if(k==='emo'){ const e=emoOk(v); if(!e) return; c.emo=e; }
   else if(k==='col'){ if(!COLS.some(x=>x[0]===v)) return; c.col=v; }
   else return;
@@ -405,6 +429,9 @@ const HC_CSS=`
 .hc-f{ display:flex; align-items:center; gap:8px; margin:6px 0; } .hc-f span{ min-width:5.4em; font-size:12.5px; font-weight:bold; color:var(--text-light,#666); }
 .hc-f input{ flex:1; min-width:0; min-height:40px; padding:0 10px; border-radius:10px; border:1px solid rgba(120,132,156,.55); background:var(--cell-bg,#fff); color:var(--text,#222); font-size:16px; }
 .hc-acts{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.hc-rng{ margin:4px 0 8px; padding:8px 10px; border-radius:12px; background:rgba(255,200,0,.1); border:1px dashed rgba(224,138,0,.55); }
+.hc-rng .hc-f input{ flex:0 1 6.5em; text-align:center; font-weight:bold; } .hc-rng .hc-f b{ font-size:16px; } .hc-rng .hc-f em{ font-style:normal; font-size:12.5px; color:var(--text-light,#666); }
+.hc-rng .hc-note{ margin-top:4px; }
 .hc-tot{ display:flex; gap:16px; font-size:14px; margin-bottom:6px; } .hc-tot b{ font-size:20px; font-variant-numeric:tabular-nums; }
 .hc-hours .r{ display:flex; align-items:center; gap:8px; font-size:13.5px; margin:3px 0; } .hc-hours .h{ width:3.2em; text-align:right; color:var(--text-light,#666); }
 .hc-hours .bar{ flex:1; height:14px; border-radius:7px; background:rgba(120,132,156,.15); overflow:hidden; } .hc-hours .bar i{ display:block; height:100%; border-radius:7px; }
@@ -436,6 +463,6 @@ function closeHadeCount(){ if(!$('hadeCountOverlay') || !isDlgOpen('hadeCountOve
 window.HADE_COUNT={ tap:(i,x,y)=>{ plus(i==null ? st.cur : i, null, x, y); paintTabs(); }, plus:(i,k)=>{ plus(i==null ? st.cur : i, k); paintTabs(); }, minus:(i,k)=>{ minus(i, k); paintTabs(); },
   undo:()=>{ undoLast(); paintTabs(); }, reset:i=>{ reset(i).then(()=>paintTabs()); }, add:n=>{ addC(n); }, del:i=>{ delC(i); }, sel, set:setC, opt:setOpt, full:setFull, isFull, copy:copyText,
   state:()=>{ save(); return JSON.parse(JSON.stringify(st)); }, combo:()=>combo, fx:()=>({n:eng ? eng.count() : 0, played:FX.played(), cap:eng ? eng.cap : 0, level:eng ? eng.level : '', shake:eng ? +eng.shake.toFixed(2) : 0}), tiles:()=>tiles.map(T=>T.i+':'+Math.round(T.w)+'x'+Math.round(T.h)),
-  banner:()=>{ const b=$('hcBan'); return b ? b.textContent : ''; }, freeze:b=>{ frozen=!!b; }, draw:()=>{ if(eng){ eng.resize(); paint(); } } };
+  banner:()=>{ const b=$('hcBan'); return b ? b.textContent : ''; }, freeze:b=>{ frozen=!!b; }, draw:()=>{ if(eng){ eng.resize(); paint(); } }, lastRoll:()=>lastRoll };
 Object.assign(window, { openHadeCount, closeHadeCount });
 })();
