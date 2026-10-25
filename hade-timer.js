@@ -11,7 +11,10 @@
      （押すと もどる）。0 になったら 開いて 知らせる。アプリを 閉じていたあいだに 0 になったときは、次に開いたときに 知らせる。
    ・🖼 数え方の 見せ方（v580。hade-look.js）：⭕ 光の輪・🔠 画面いっぱい・🎞 絵が 動く（ロケット・ろうそく・砂時計・ばくだん・風船・花）・
      🐾 動物（ねこ・うさぎ・いぬ・ペンギン・かえる・くま）。設定の 上の 見本も えらんだ 見せ方で 動く（0 の しめくくりまで）。
-   ・⏰ 時間が 来た 音（v580。hade-fx.js）：9つから えらぶ（押すと 聞ける）。「✓ 止める」・「← 戻る」で すぐ 止まる。
+   ・⏰ 時間が 来た 音（v580。hade-fx.js）：9つから えらぶ（押すと 聞ける）。「✓ 止める」・「← 戻る」で すぐ 止まる。🔀 おまかせ（v583）は 毎回 ちがう 音。
+   ・🔊 演出の 音（v583）：🎆 花火（いままで）・🥁 和・🎮 ゲーム・🎹 楽器・🐤 自然・🚀 宇宙・🔔 やさしい・🔀 おまかせ（演出ごとに かわる）。
+     数えている あいだの 音（花火の ドーン・パチパチ・のこり10秒・区切り・スタート など）を セットごとに かえる。
+   ・⏱ 1秒ごとの 音（v583）：なし（いままで）・🕰 チクタク・📟 ピッ・🥁 トン・🎹 ドレミ（上って 下りる）・💧 ぽちゃ。のこり10秒は 数える 音が あるので 鳴らさない。
    ・えらんだもの・よく使う時間・動いているタイマーは excalc_hadetimer（この端末の中だけ）。 */
 (function(){
 'use strict';
@@ -66,13 +69,19 @@ function load(){
     theme:FX.hasTheme(o.theme) ? o.theme : 'hanabi', level:FX.hasLevel(o.level) ? o.level : (reduceMotion() ? 'calm' : 'ultra'),   // はじめは ド派手（v576）
     snd:o.snd!==false, vibe:o.vibe!==false, flash:o.flash!==false, every:EVERY.some(x=>x[0]===o.every) ? o.every : 5,
     look:LOOK && LOOK.has('look', o.look) ? o.look : 'ring', pic:LOOK && LOOK.has('pic', o.pic) ? o.pic : 'rocket', ani:LOOK && LOOK.has('ani', o.ani) ? o.ani : 'neko',   // 見せ方（v580）
-    tone:FX.TONES && FX.TONES.some(x=>x[0]===o.tone) ? o.tone : 'fanfare',   // 時間が 来た 音（v580）
+    tone:o.tone==='rand' || (FX.TONES && FX.TONES.some(x=>x[0]===o.tone)) ? o.tone : 'fanfare',   // 時間が 来た 音（v580。🔀 おまかせ は v583）
+    sset:o.sset==='rand' || (FX.hasSset && FX.hasSset(o.sset)) ? o.sset : 'hanabi', tick:FX.hasTick && FX.hasTick(o.tick) ? o.tick : 'none',   // 演出の 音・1秒ごとの 音（v583）
     pre, iv:{w:int(iv.w,5,3600,20), r:int(iv.r,0,3600,10), n:int(iv.n,1,99,8)}, run:cleanRun(o.run)};
 }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(_){} }
 const vib=p=>{ if(st && st.vibe) FX.vib(p); };
-const snd=(name, ...a)=>{ const f=FX.snd[name]; if(f && st && st.snd) f(...a); };   // 音は この道具の 設定で（カウンターと 別々）
-const toneSnd=first=>{ if(st && st.snd && FX.tone) FX.tone(st.tone, first); };   // 時間が 来た 音（v580）
+// 音は この道具の 設定で（カウンターと 別々）。演出の 音は えらんだ セットで（v583。🔀 おまかせ は スタートと 演出ごとに えらびなおす）
+let setNow='hanabi', toneNow='fanfare', tickN=0;
+const pickOf=a=>a[Math.floor(Math.random()*a.length)];
+function setPick(){ setNow=st.sset==='rand' ? pickOf(FX.SSETS || [['hanabi']])[0] : st.sset; }
+const snd=(name, ...a)=>{ if(!st || !st.snd) return; if(FX.setSnd) FX.setSnd(st.sset==='rand' ? setNow : st.sset, name, ...a); else { const f=FX.snd[name]; if(f) f(...a); } };
+function tonePick(){ toneNow=st.tone==='rand' ? pickOf(FX.TONES || [['fanfare']])[0] : st.tone; }
+const toneSnd=first=>{ if(st && st.snd && FX.tone) FX.tone(toneNow, first); };   // 時間が 来た 音（v580）
 const lookKind=()=>LOOK && st.look!=='ring' ? st.look : 'ring';
 const lookSub=()=>st.look==='pic' ? st.pic : st.look==='ani' ? st.ani : '';
 function lk(s){ const k=lookKind(), sub=lookSub(); if(!s.lk || s.lk.k!==k || s.lk.sub!==sub) s.lk={k, sub}; return s.lk; }   // 見せ方ごとに 覚える もの
@@ -290,7 +299,7 @@ function start(){
     st.run={m:'down', dur:st.sec*1000, end:now+st.sec*1000, left:0, p:false, done:false, name:picked, id:rid()};
   } else if(st.mode==='up') st.run={m:'up', s0:now, acc:0, p:false, done:false, laps:[], id:rid()};
   else st.run={m:'iv', w:st.iv.w, r:st.iv.r, n:st.iv.n, s0:now, acc:0, p:false, done:false, id:rid()};
-  marks=new Set(); overNote=''; save();
+  marks=new Set(); overNote=''; tickN=0; setPick(); save();
   openStage();
   if(sc){ const e=sc.e; e.after(0.05, ()=>{ e.burst(e.W/2, e.H*0.46, {n:70, sp:520}); e.kick(0.5); }); }
   banner(st.mode==='iv' ? 'よーい！' : 'スタート！', 'go1'); snd(st.mode==='iv' ? 'drum' : 'whoosh', 18); vib(60);
@@ -352,7 +361,7 @@ function finish(){
   overNote=late>15000 ? lenTxt(late/1000)+' 前に 終わりました' : '';
   if(!($('hadeTimerOverlay') && isDlgOpen('hadeTimerOverlay'))) openHadeTimer(true);
   openStage();
-  alarmOn=true; alarmUntil=now+ALARM_MS; nextAlarm=now+(st.tone==='fanfare' ? 3200 : FX.tonePer(st.tone)*1000);
+  tonePick(); alarmOn=true; alarmUntil=now+ALARM_MS; nextAlarm=now+(toneNow==='fanfare' ? 3200 : FX.tonePer(toneNow)*1000);
   const b=$('htStop'); if(b) b.hidden=false;
   paintBar();
   banner(r.m==='iv' ? 'おつかれさま！' : 'TIME UP!', 'big');
@@ -364,7 +373,7 @@ function alarmStep(now){
   if(!alarmOn) return;
   if(now>alarmUntil){ alarmOn=false; return; }
   if(now>=nextAlarm){
-    nextAlarm=now+FX.tonePer(st.tone)*1000; toneSnd(false); vib([200,100,200]);
+    nextAlarm=now+FX.tonePer(toneNow)*1000; toneSnd(false); vib([200,100,200]);
     if(sc){ const e=sc.e; e.shell(null, {sc:1.1}); e.shell(null, {sc:1}); e.flash('#ffffff', 0.3); e.kick(0.4); }
   }
 }
@@ -373,7 +382,8 @@ function alarmStep(now){
 function onSecond(v){
   const e=sc.e, s=v.sec, r=st.run, bo=e.boost(); e.pulse=1; sc.tickT=e.t;
   if(bo>=1 && sc.head && !(r.m==='down' && s<=10)){ e.burst(sc.head[0], sc.head[1], {n:16, sp:340, rs:0.8}); }
-  if(bo>=2 && !(r.m==='down' && s<=10)){ e.shell(null, {sc:rnd(0.7,1)}); e.kick(0.18); snd('tick'); }
+  if(bo>=2 && !(r.m==='down' && s<=10)){ e.shell(null, {sc:rnd(0.7,1)}); e.kick(0.18); if(st.tick==='none') snd('tick'); }
+  if(st.tick!=='none' && FX.tickSnd && !(r.m==='down' && s<=10) && !(r.m==='iv' && s<=3 && v.ph.ph!=='done')){ tickN++; if(st.snd) FX.tickSnd(st.tick, tickN-1); }   // ⏱ 1秒ごとの 音（v583。のこり10秒・区切りの 3秒前は 数える 音が あるので 休む）
   if(r.m==='down'){
     if(s<=10 && s>=1){
       sc.big={n:s, t0:e.t};
@@ -411,6 +421,7 @@ function showTime(k){
   if(!sc) return;
   const e=sc.e, W=e.W, H=e.H, c=[W/2, H*0.47, Math.min(W*0.44, H*0.36)], i=(k-1)%SHOWS.length, w=WORDS[i];
   const bo=e.boost(), list=bo>=2 ? [i, (i+3)%SHOWS.length, (i+5)%SHOWS.length] : bo>=1 ? [i, (i+4)%SHOWS.length] : [i];   // ド派手 2つ・ドド派手 3つ
+  if(st.sset==='rand') setPick();   // 🔀 おまかせ：演出ごとに 音の セットを かえる（v583）
   list.forEach((j,n)=>e.after(n*0.22, ()=>SHOWS[j](e, c))); shows.n++; shows.last=i; shows.multi=list.length;
   const big=1+0.2*bo, rainbow=['#ffffff','#fff36b','#ff8a3d','#ff2bd6','#7cf0ff'];
   e.text(rnd(W*0.3, W*0.7), H*rnd(0.17, 0.25), w, {sz:Math.min(64*big, W/e.d/(Array.from(w).length*0.95)), pop:true, rot:rnd(-0.18,0.18), vy:-20, life:1.15+0.2*bo, grad:bo>=2 ? rainbow : ['#ffffff', e.ink()[1], e.ink()[2]]});
@@ -588,7 +599,9 @@ function render(){
       <div class="ht-opt"><span>テーマ</span>${FX.THEMES.map(([v,n])=>`<button type="button" class="th th-${v}${st.theme===v?' on':''}" onclick='HADE_TIMER.opt("theme", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>
       <div class="ht-opt"><span>演出の 強さ</span>${FX.LEVELS.map(([v,n])=>`<button type="button" class="lv-${v}${st.level===v?' on':''}" onclick='HADE_TIMER.opt("level", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>${opt('every', EVERY, '間の 演出')}
       ${opt('snd', [[true,'🔊 鳴らす'],[false,'🔇 鳴らさない']], '音')}
-      ${FX.TONES ? opt('tone', FX.TONES, '時間が 来た 音')+'<p class="ht-note">押すと 聞けます。0 に なったら 「✓ 止める」まで くり返します（1分まで）。</p>' : ''}
+      ${FX.SSETS ? opt('sset', FX.SSETS.concat([['rand','🔀 おまかせ']]), '演出の 音')+'<p class="ht-note">数えている あいだの 音（花火の ドーン・パチパチ、のこり10秒、区切り など）を かえます。押すと 聞けます。🔀 おまかせ は 演出ごとに かわります。</p>' : ''}
+      ${FX.TICKS ? opt('tick', FX.TICKS, '1秒ごとの 音') : ''}
+      ${FX.TONES ? opt('tone', FX.TONES.concat([['rand','🔀 おまかせ']]), '時間が 来た 音')+'<p class="ht-note">押すと 聞けます。0 に なったら 「✓ 止める」まで くり返します（1分まで）。🔀 おまかせ は 毎回 ちがう 音です。</p>' : ''}
       ${opt('vibe', [[true,'ふるえる'],[false,'ふるえない']], '振動')}
       ${opt('flash', [[true,'光る'],[false,'光らない']], '画面の 点滅')}
       <p class="ht-note">全画面のあいだは 画面を消しません（対応している端末）。「← 戻る」で 閉じても 時間は 進み、右下に 残りの時間が 出ます。0 になると 開いて 知らせます（アプリを 閉じていたときは 次に開いたとき）。光が まぶしいときは「ひかえめ」か「光らない」に。<b>ド派手</b>は 粒が 1.6倍で 背景に 光のすじ、<b>ドド派手</b>は 2.4倍で 流れ星・虹色の ふち・大きな ゆれも（とても 激しいので 光や ゆれが 苦手な方は ご注意ください）。</p></div>
@@ -616,13 +629,23 @@ function setOpt(k, v){
   else if(k==='every'){ if(!EVERY.some(x=>x[0]===+v)) return; st.every=+v; }
   else if(k==='snd' || k==='vibe' || k==='flash'){ st[k]=v===true || v==='true'; }
   else if(k==='look' || k==='pic' || k==='ani'){ if(!LOOK || !LOOK.has(k, v)) return; if(k==='look') st.look=v; else { st[k]=v; st.look=k; } if(pv){ pv.lk=null; pv.t0=pv.e.t; pv.fin=false; } }   // 見せ方（v580）
-  else if(k==='tone'){ if(!FX.TONES || !FX.TONES.some(x=>x[0]===v)) return; st.tone=v; }   // 時間が 来た 音（v580）
+  else if(k==='tone'){ if(v!=='rand' && (!FX.TONES || !FX.TONES.some(x=>x[0]===v))) return; st.tone=v; }   // 時間が 来た 音（v580。🔀 おまかせ は v583）
+  else if(k==='sset'){ if(v!=='rand' && !(FX.hasSset && FX.hasSset(v))) return; st.sset=v; setPick(); }   // 演出の 音（v583）
+  else if(k==='tick'){ if(!(FX.hasTick && FX.hasTick(v))) return; st.tick=v; }   // 1秒ごとの 音（v583）
   else return;
   save(); render();
   if(pv){ const e=pv.e; e.setTheme(st.theme); e.setLevel(st.level); e.noFlash=!st.flash; e.resize(); e.burst(e.W/2, e.H/2, {n:50, sp:400}); if(k==='theme') e.shell(null, {sc:0.8}); }
   if(k==='snd' && st.snd){ FX.unlock(); snd('coin'); }
-  if(k==='tone'){ FX.unlock(); if(st.snd) toneSnd(true); else toastT('🔇 音が「鳴らさない」に なっています（「音」で かえられます）'); }
+  if(k==='tone'){ FX.unlock(); if(st.snd){ tonePick(); toneSnd(true); } else toastT('🔇 音が「鳴らさない」に なっています（「音」で かえられます）'); }
+  if(k==='sset' || (k==='tick' && v!=='none')){ FX.unlock(); if(st.snd) demo(k); else toastT('🔇 音が「鳴らさない」に なっています（「音」で かえられます）'); }
   if(k==='vibe' && st.vibe) vib(50);
+}
+// 演出の 音・1秒ごとの 音を ためしに 鳴らす（v583）
+let demoT=[];
+function demo(k){
+  demoT.forEach(clearTimeout); demoT=[];
+  const seq=k==='sset' ? [['boom'],['crackle'],['heart'],['beep', 1320, 0.16],['level']] : [0,1,2,3,4,5];
+  seq.forEach((x,i)=>demoT.push(setTimeout(()=>{ if(!st || !st.snd) return; if(k==='sset') snd(...x); else if(st.tick!=='none') FX.tickSnd(st.tick, x); }, i*(k==='sset' ? 380 : 450))));
 }
 function setSec(s){ st.sec=int(s,0,MAX_SEC,0); picked=''; save(); const set=$('htSet'); if(set) set.innerHTML=setPanel(); }
 function addSec(s){ setSec(Math.min(MAX_SEC, st.sec+int(s,1,3600,0))); }
@@ -762,7 +785,7 @@ window.HADE_TIMER={ mode:setMode, opt:setOpt, set:setSec, add:addSec, typed, ivT
   state:()=>JSON.parse(JSON.stringify(st)), view:()=>{ const v=viewOf(st.run, Date.now()); return {str:v.str, frac:+v.frac.toFixed(4), sec:v.sec, ph:v.ph ? v.ph.ph+':'+v.ph.round : ''}; },
   stage:stageOpen, alarm:()=>alarmOn, chip:()=>{ const c=$('htChip'); return c ? c.textContent : ''; }, fx:()=>({n:sc ? sc.e.count() : 0, prev:pv ? pv.e.count() : 0, played:FX.played(), cap:sc ? sc.e.cap : 0, level:sc ? sc.e.level : ''}),
   banner:()=>{ const b=$('htBan'); return b ? b.textContent : ''; }, label:()=>[($('htLab')||{}).textContent||'', ($('htSub')||{}).textContent||''].join('|'),
-  freeze:b=>{ frozen=!!b; }, tick, shows:()=>({n:shows.n, last:shows.last, multi:shows.multi}),
+  freeze:b=>{ frozen=!!b; }, tick, shows:()=>({n:shows.n, last:shows.last, multi:shows.multi}), sound:()=>({set:st.sset==='rand' ? setNow : st.sset, tone:toneNow, tickN}),
   look:()=>LOOK && sc && sc.lk ? LOOK.info(sc.lk) : null, prevLook:()=>LOOK && pv && pv.lk ? LOOK.info(pv.lk) : null, prevAt:sec=>{ if(pv) pv.t0=pv.e.t-(+sec||0); },   // 見本の 時間を 進める（たしかめ用）
   shift:ms=>{ const r=st.run; if(!r) return; ms=+ms||0; if(r.m==='down'){ if(r.p) r.left-=ms; else r.end-=ms; } else if(r.p) r.acc+=ms; else r.s0-=ms; save(); } };   // 時計を 進める（たしかめ用）
 Object.assign(window, { openHadeTimer:()=>openHadeTimer(), closeHadeTimer });

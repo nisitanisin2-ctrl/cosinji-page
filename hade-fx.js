@@ -10,7 +10,13 @@
      画面の 点滅は やわらかく、1秒に 2回まで（まぶしすぎないように。どの強さでも）。
    ・⏰ 時間が 来た ときの 音（v580。ど派手タイマー）：🎺 ファンファーレ・⏰ 目覚まし（ジリリリ）・📟 ピピピ・🔔 チャイム（キーンコーン）・
      🎵 オルゴール（きらきら星）・🕊 はと時計（ポッポー）・🥁 太鼓（ドンドン カッ）・🎮 ゲーム（クリアの 音）・🐤 小鳥（チュンチュン）。
-     1つの 音は 自分の 音の 道（bus）を 通すので、止める ときや 次の 音で すぐ 消せる。 */
+     1つの 音は 自分の 音の 道（bus）を 通すので、止める ときや 次の 音で すぐ 消せる。
+   ・🎉 押した ときの 音（v583。ど派手カウンター）：🎈 ポン・🪙 チャリン・🥁 ドン・🎮 ピコッ・🔔 チーン・🎹 木琴（ドレミで 上がる）・
+     👏 パチッ・💧 ぽちゃ・⚡ ピュン。どれも 短く、つづけて 押すと 音が 上がる ものも ある。
+   ・👆 押した ところの 演出（v583）：✨ きらきら・🎲 サイコロ・🎆 花火・⭐ 星・💖 ハート・🫧 あわ・💥 どかん・🪙 コイン・🌸 花びら・🎊 紙ふぶき（E.tapFx）。
+   ・🔊 演出の 音の セット（v583。ど派手タイマー）：🎆 花火（いままで）・🥁 和（太鼓・拍子木・鈴・笛）・🎮 ゲーム（ピコピコ）・🎹 楽器（木琴・ベル・ハープ）・
+     🐤 自然（小鳥・水・風・かえる）・🚀 宇宙（ピュン・ビヨーン）・🔔 やさしい（ポン・チーン）。ドーン・パチパチ・のこり10秒の 音 などを セットごとに かえる（setSnd）。
+   ・⏱ 1秒ごとの 音（v583）：🕰 チクタク・📟 ピッ・🥁 トン・🎹 ドレミ（だんだん 上がる）・💧 ぽちゃ（tickSnd）。 */
 (function(){
 'use strict';
 if(window.HADE_FX) return;
@@ -126,6 +132,94 @@ function tone(k, first){
   try{ if(TSND[k]) TSND[k](); else (first ? SND.fanfare : SND.alarm)(); } finally { BUS=null; }
 }
 const tonePer=k=>TONE_PER[k]||2.6;
+/* ───────── 🎉 押した ときの 音（v583。ど派手カウンター）───────── */
+const TAPS=[['pop','🎈 ポン'],['coin','🪙 チャリン'],['taiko','🥁 ドン'],['piko','🎮 ピコッ'],['bell','🔔 チーン'],['mokkin','🎹 木琴'],['clap','👏 パチッ'],['water','💧 ぽちゃ'],['laser','⚡ ピュン']];
+const SCALE=[0,2,4,5,7,9,11,12];   // ドレミファソラシド
+const TAP_SND={
+  pop:i=>SND.pop(i),
+  coin:S('kCoin', (t, i)=>{ const u=Math.min(7, i|0); osc('square', midi(83+u), t, 0.05, 0.1); osc('square', midi(88+u), t+0.05, 0.17, 0.1); }),
+  taiko:S('kTaiko', (t, i)=>{ if((i|0)%4===3) ka(t); else don(t, 0.8); }),   // 4回目ごとに カッ
+  piko:S('kPiko', (t, i)=>{ const k=Math.max(0, i|0), m=72+PENTA[k%5]+12*Math.min(2, Math.floor(k/5)); osc('square', midi(m), t, 0.07, 0.075, midi(m+12)); }),
+  bell:S('kBell', (t, i)=>{ const f=midi(84+PENTA[Math.max(0, i|0)%5]); osc('sine', f, t, 0.6, 0.17); osc('sine', f*2.76, t, 0.24, 0.05); osc('sine', f*5.4, t, 0.1, 0.02); }),
+  mokkin:S('kMokkin', (t, i)=>{ const k=Math.max(0, i|0), f=midi(72+SCALE[k%8]+12*Math.min(1, Math.floor(k/8))); osc('sine', f, t, 0.26, 0.32); osc('sine', f*3.99, t, 0.04, 0.08); osc('triangle', f*2, t, 0.07, 0.05); }),
+  clap:S('kClap', t=>{ [0, 0.011, 0.024].forEach((dl, j)=>nz(t+dl, 0.03+j*0.02, 0.3, 'bandpass', 1400, null, 1.2)); nz(t+0.03, 0.12, 0.06, 'bandpass', 1100, null, 0.8); }),
+  water:S('kWater', (t, i)=>{ const f=380+(Math.max(0, i|0)%5)*55; osc('sine', f, t, 0.09, 0.34, f*2.8); osc('sine', f*1.6, t+0.035, 0.06, 0.09, f*3.4); }),
+  laser:S('kLaser', t=>{ osc('sawtooth', 2000, t, 0.18, 0.05, 240); osc('sine', 1800, t, 0.16, 0.13, 220); }),
+};
+const hasTap=k=>TAPS.some(x=>x[0]===k);
+function tapSnd(k, i){ (TAP_SND[k]||TAP_SND.pop)(i); }
+/* ───────── 🔊 演出の 音の セット（v583。ど派手タイマー）─────────
+   花火の 音（boom・crackle）・のこり10秒（heart・beep）・区切り（whoosh・level・coin・whistle・taiko・chime・drum・down・pop・tick）を セットごとに かえる */
+const SSETS=[['hanabi','🎆 花火'],['wa','🥁 和'],['game','🎮 ゲーム'],['gakki','🎹 楽器'],['shizen','🐤 自然'],['uchu','🚀 宇宙'],['yasashi','🔔 やさしい']];
+function mar(f, t0, k){ k=k||1; osc('sine', f, t0, 0.45, 0.28*k); osc('sine', f*3.99, t0, 0.05, 0.06*k); osc('triangle', f*2, t0, 0.08, 0.04*k); }   // 木琴の 1音
+const kot=(f, t0, k)=>{ k=k||1; osc('triangle', f, t0, 0.5, 0.24*k); osc('sine', f*2, t0, 0.25, 0.06*k); nz(t0, 0.02, 0.05*k, 'highpass', 3000); };   // 琴の 1音
+const SET_DEF={
+  wa:{   // 太鼓・拍子木・鈴・笛・琴
+    boom:t=>{ don(t, 1); don(t+0.13, 0.6); }, crackle:t=>{ ka(t); }, whoosh:t=>{ osc('sine', 900, t, 0.32, 0.12, 1700); nz(t, 0.3, 0.05, 'bandpass', 2000, null, 2); },
+    beep:(t, f, d)=>{ nz(t, 0.03, 0.45, 'bandpass', 2600, null, 9); osc('triangle', (f||880)*1.5, t, 0.05, 0.12); }, heart:t=>{ don(t, 0.6); },
+    level:t=>{ for(let i=0;i<6;i++) bellHit(3100+i*90, t+i*0.035, 0.9); }, coin:t=>{ bellHit(3000, t, 1); bellHit(3600, t+0.05, 0.8); },
+    whistle:t=>{ pipe(midi(86), t, 0.28); pipe(midi(89), t+0.3, 0.4); }, tick:t=>{ ka(t); }, taiko:t=>{ don(t, 1); ka(t+0.26); },
+    chime:t=>{ church(midi(55), t, 2.6); }, drum:(t, n)=>{ const k=Math.max(4, Math.min(40, n|0||16)); for(let i=0;i<k;i++) don(t+i*0.07, 0.25+0.5*i/k); },
+    down:t=>{ don(t, 0.5); }, pop:(t, i)=>{ kot(midi(67+PENTA[Math.max(0, i|0)%5]), t); },
+  },
+  game:{   // ピコピコ（8ビット）
+    boom:t=>{ osc('square', 110, t, 0.3, 0.12, 40); nz(t, 0.45, 0.3, 'lowpass', 3000, 300); }, crackle:t=>{ for(let i=0;i<4;i++) osc('square', midi(84+i*4), t+i*0.04, 0.03, 0.05); },
+    whoosh:t=>{ osc('square', 200, t, 0.3, 0.06, 1600); }, beep:(t, f, d)=>{ osc('square', f||880, t, d||0.1, 0.09); }, heart:t=>{ osc('square', 196, t, 0.08, 0.08); osc('square', 165, t+0.1, 0.08, 0.08); },
+    level:t=>{ [72,76,79,84,88,91].forEach((m,i)=>osc('square', midi(m), t+i*0.05, 0.06, 0.07)); }, coin:t=>{ osc('square', midi(83), t, 0.05, 0.1); osc('square', midi(88), t+0.05, 0.2, 0.1); },
+    whistle:t=>{ osc('square', 400, t, 0.25, 0.06, 2000); }, tick:t=>{ osc('square', 1760, t, 0.02, 0.04); }, taiko:t=>{ osc('triangle', 110, t, 0.2, 0.3, 55); },
+    chime:t=>{ [79,84,88,91].forEach((m,i)=>osc('square', midi(m), t+i*0.12, 0.2, 0.06)); }, drum:(t, n)=>{ const k=Math.max(4, Math.min(40, n|0||16)); for(let i=0;i<k;i++) osc('square', midi(60+(i%8)*2), t+i*0.045, 0.04, 0.05); },
+    down:t=>{ osc('square', 600, t, 0.25, 0.07, 150); }, pop:(t, i)=>{ const m=72+PENTA[Math.max(0, i|0)%5]; osc('square', midi(m), t, 0.07, 0.07, midi(m+12)); },
+  },
+  gakki:{   // 木琴・ベル・ハープ・ティンパニ
+    boom:t=>{ [48,55,64].forEach(m=>mar(midi(m), t, 1)); osc('sine', 98, t, 0.6, 0.35, 90); }, crackle:t=>{ [96,100,103].forEach((m,i)=>osc('sine', midi(m), t+i*0.05, 0.25, 0.06)); },
+    whoosh:t=>{ [60,64,67,72,76,79,84].forEach((m,i)=>osc('triangle', midi(m), t+i*0.035, 0.35, 0.1)); }, beep:(t, f, d)=>{ mar(f||880, t, 0.9); }, heart:t=>{ mar(midi(48), t, 0.8); },
+    level:t=>{ [72,76,79,84,88].forEach((m,i)=>{ mar(midi(m), t+i*0.07, 0.7); osc('sine', midi(m+12), t+i*0.07, 0.4, 0.04); }); }, coin:t=>{ osc('sine', midi(88), t, 0.45, 0.16); osc('sine', midi(88)*2.76, t, 0.15, 0.04); },
+    whistle:t=>{ pipe(midi(84), t, 0.25); pipe(midi(88), t+0.25, 0.35); }, tick:t=>{ osc('sine', 1200, t, 0.04, 0.2); nz(t, 0.015, 0.06, 'bandpass', 2400, null, 4); }, taiko:t=>{ osc('sine', 98, t, 0.6, 0.6, 90); nz(t, 0.08, 0.2, 'lowpass', 600); },
+    chime:t=>{ church(midi(76), t, 1.6); church(midi(72), t+0.4, 1.8); }, drum:(t, n)=>{ const k=Math.max(4, Math.min(40, n|0||16)); for(let i=0;i<k;i++) mar(midi(60+SCALE[i%8]+12*Math.floor(i/8%2)), t+i*0.05, 0.4); },
+    down:t=>{ mar(midi(55), t, 0.6); mar(midi(48), t+0.12, 0.6); }, pop:(t, i)=>{ mar(midi(72+SCALE[Math.max(0, i|0)%8]), t, 0.8); },
+  },
+  shizen:{   // 小鳥・水・風・かえる・ししおどし
+    boom:t=>{ nz(t, 0.9, 0.3, 'lowpass', 1500, 200); nz(t+0.05, 0.6, 0.12, 'bandpass', 700, 300, 1); }, crackle:t=>{ for(let i=0;i<3;i++){ const at=t+i*0.09+Math.random()*0.04, f=500+Math.random()*500; osc('sine', f, at, 0.07, 0.2, f*2.6); } },
+    whoosh:t=>{ nz(t, 0.8, 0.22, 'bandpass', 400, 1200, 2); }, beep:(t, f, d)=>{ chirp(t, (f||880)>1000 ? 1 : 0); }, heart:t=>{ osc('square', 180, t, 0.08, 0.08, 140); osc('square', 200, t+0.1, 0.08, 0.06, 150); },
+    level:t=>{ [0,0.12,0.24,0.5].forEach((d,i)=>chirp(t+d, i%2)); }, coin:t=>{ osc('sine', 500, t, 0.08, 0.3, 1400); },
+    whistle:t=>{ osc('sine', 2000, t, 0.25, 0.15, 3000); osc('sine', 3000, t+0.28, 0.3, 0.12, 2200); }, tick:t=>{ osc('sine', 4200, t, 0.03, 0.05); osc('sine', 4200, t+0.05, 0.03, 0.05); },
+    taiko:t=>{ osc('sine', 260, t, 0.25, 0.4, 200); nz(t, 0.05, 0.25, 'bandpass', 800, null, 3); }, chime:t=>{ [0,0.15,0.3,0.7,0.85,1.0].forEach((d,i)=>chirp(t+d, i%2)); },
+    drum:(t, n)=>{ const k=Math.max(4, Math.min(40, n|0||16)); for(let i=0;i<k;i++){ const f=600+Math.random()*900; osc('sine', f, t+i*0.04+Math.random()*0.02, 0.04, 0.08, f*1.8); } },
+    down:t=>{ osc('sine', 900, t, 0.2, 0.25, 300); }, pop:(t, i)=>{ const f=400+PENTA[Math.max(0, i|0)%5]*40; osc('sine', f, t, 0.08, 0.3, f*2.6); },
+  },
+  uchu:{   // ピュン・ビヨーン・ソナー
+    boom:t=>{ osc('sawtooth', 1200, t, 0.5, 0.07, 60); nz(t, 0.6, 0.28, 'lowpass', 2000, 100); }, crackle:t=>{ for(let i=0;i<3;i++) osc('square', 2400-i*400, t+i*0.06, 0.05, 0.04, 800); },
+    whoosh:t=>{ osc('sine', 150, t, 0.6, 0.2, 1800); osc('sine', 153, t, 0.6, 0.1, 1830); }, beep:(t, f, d)=>{ osc('sine', f||880, t, d||0.1, 0.25); osc('sine', f||880, t+0.12, d||0.1, 0.08); }, heart:t=>{ osc('sine', 880, t, 0.4, 0.15); },
+    level:t=>{ osc('sine', 300, t, 0.5, 0.2, 2400); osc('triangle', 600, t, 0.5, 0.08, 4800); }, coin:t=>{ osc('square', 1800, t, 0.1, 0.06, 900); },
+    whistle:t=>{ osc('sine', 2400, t, 0.3, 0.15, 400); }, tick:t=>{ osc('sine', 2400, t, 0.03, 0.08); }, taiko:t=>{ osc('sine', 80, t, 0.5, 0.6, 30); },
+    chime:t=>{ [72,79,84,91].forEach((m,i)=>osc('sine', midi(m), t+i*0.18, 1.2, 0.1)); }, drum:(t, n)=>{ const k=Math.max(4, Math.min(40, n|0||16)); for(let i=0;i<k;i++) osc('sine', 300+i*60, t+i*0.04, 0.035, 0.08); },
+    down:t=>{ osc('sine', 1200, t, 0.35, 0.18, 150); }, pop:(t, i)=>{ const f=midi(76+PENTA[Math.max(0, i|0)%5]); osc('sine', f, t, 0.1, 0.2, f*2); },
+  },
+  yasashi:{   // ポン・チーン（小さめ・やわらかい）
+    boom:t=>{ osc('sine', 220, t, 0.45, 0.3, 160); }, crackle:t=>{ osc('sine', midi(96), t, 0.2, 0.05); }, whoosh:t=>{ nz(t, 0.4, 0.08, 'bandpass', 600, 1800, 1); },
+    beep:(t, f, d)=>{ osc('sine', (f||880)*0.75, t, (d||0.1)*1.5, 0.18); }, heart:t=>{ osc('sine', 330, t, 0.2, 0.15); },
+    level:t=>{ [72,76,79,84].forEach((m,i)=>osc('sine', midi(m), t+i*0.09, 0.5, 0.12)); }, coin:t=>{ osc('sine', midi(84), t, 0.5, 0.14); },
+    whistle:t=>{ osc('sine', midi(79), t, 0.25, 0.12); osc('sine', midi(84), t+0.2, 0.35, 0.12); }, tick:t=>{ osc('sine', 1000, t, 0.03, 0.05); }, taiko:t=>{ osc('sine', 165, t, 0.4, 0.3, 120); },
+    chime:t=>{ osc('sine', midi(84), t, 1.2, 0.12); osc('sine', midi(79), t+0.3, 1.4, 0.12); }, drum:(t, n)=>{ const k=Math.max(4, Math.min(40, n|0||16)); for(let i=0;i<k;i++) osc('sine', 1000+i*20, t+i*0.06, 0.03, 0.04); },
+    down:t=>{ osc('sine', 440, t, 0.3, 0.15, 330); }, pop:(t, i)=>{ osc('sine', midi(72+PENTA[Math.max(0, i|0)%5]), t, 0.18, 0.2); },
+  },
+};
+const SET_SND={};
+Object.keys(SET_DEF).forEach(k=>{ SET_SND[k]={}; Object.keys(SET_DEF[k]).forEach(n=>{ SET_SND[k][n]=S(k+':'+n, SET_DEF[k][n]); }); });
+const hasSset=k=>SSETS.some(x=>x[0]===k);
+// セットの 音を 鳴らす（花火 や セットに ない 音は いつもの 音）
+function setSnd(set, name, ...a){ const m=SET_SND[set], f=m && m[name]; if(f) f(...a); else if(SND[name]) SND[name](...a); }
+/* ───────── ⏱ 1秒ごとの 音（v583。ど派手タイマー）───────── */
+const TICKS=[['none','なし'],['tiktak','🕰 チクタク'],['pi','📟 ピッ'],['ton','🥁 トン'],['doremi','🎹 ドレミ'],['pochi','💧 ぽちゃ']];
+const TICK_SND={
+  tiktak:S('s:tiktak', (t, n)=>{ const hi=(n|0)%2===0; nz(t, 0.02, 0.18, 'bandpass', hi ? 3400 : 2500, null, 7); osc('sine', hi ? 2200 : 1700, t, 0.02, 0.05); }),
+  pi:S('s:pi', t=>{ osc('sine', 1760, t, 0.05, 0.1); }),
+  ton:S('s:ton', t=>{ osc('sine', 180, t, 0.12, 0.35, 120); nz(t, 0.03, 0.08, 'lowpass', 900); }),
+  doremi:S('s:doremi', (t, n)=>{ const k=Math.max(0, n|0)%14, m=60+SCALE[k<=7 ? k : 14-k]; mar(midi(m+12), t, 0.7); }),   // ドレミ…ド、シラソ…レ と 上って 下りる
+  pochi:S('s:pochi', t=>{ osc('sine', 420, t, 0.07, 0.25, 1100); }),
+};
+const hasTick=k=>TICKS.some(x=>x[0]===k);
+function tickSnd(k, n){ const f=TICK_SND[k]; if(f) f(n); }
 function setVol(v){ vol=Math.max(0, Math.min(1, +v||0)); if(OUT) try{ OUT.gain.value=vol; }catch(_){} }
 function setMute(b){ muted=!!b; }
 function unlock(){ const a=ctx(); if(a && a.state!=='running'){ try{ a.resume(); }catch(_){} } }
@@ -236,6 +330,47 @@ E.explode=function(x, y, col, kind, sc){
   }
   if(kind==='crackle'){
     this.after(0.7, ()=>{ for(let j=0;j<this.n(18);j++) this.spark(x+rnd(-110,110)*s, y+rnd(-80,110)*s, 0, 0, '#ffffff', {life:0.22, gr:0, sz:rnd(1.6,2.6)}); if(this.onCrackle) this.onCrackle(); });
+  }
+};
+// 👆 押した ところの 演出（v583。o：col 色・pal・emo 絵文字・combo・dice ランダムの さいころ）
+const TAP_FX=[['kira','✨ きらきら'],['dice','🎲 サイコロ'],['hanabi','🎆 花火'],['star','⭐ 星'],['heart','💖 ハート'],['awa','🫧 あわ'],['dokan','💥 どかん'],['coin','🪙 コイン'],['hana','🌸 花びら'],['kami','🎊 紙ふぶき']];
+const hasTapFx=k=>TAP_FX.some(x=>x[0]===k);
+E.fly=function(x, y, ch, o){   // 絵文字を 1つ（向き・速さ・重さを 決めて）
+  const d=this.d, a=o.a!=null ? o.a : rnd(-Math.PI*0.85, -Math.PI*0.15), v=(o.v!=null ? o.v : rnd(260,520))*d;
+  return this.add({k:'e', x:x+(o.dx||0)*d, y:y+(o.dy||0)*d, vx:Math.cos(a)*v+(o.vx||0)*d, vy:Math.sin(a)*v+(o.vy||0)*d, ch:Array.isArray(ch) ? pick(ch) : ch, sz:(o.sz||30)*d, rot:o.rot!=null ? o.rot : rnd(-0.6,0.6), vr:o.vr!=null ? o.vr : rnd(-4,4), gr:(o.gr!=null ? o.gr : 520)*d, life:o.life||rnd(1.0,1.6), age:0});
+};
+E.tapFx=function(k, x, y, o){
+  o=o||{}; const c=Math.max(1, o.combo||1), col=o.col||pick(this.pal()), big=c>=10 ? 2 : c>=5 ? 1 : 0;
+  if(k==='dice'){   // サイコロが ころがる
+    for(let i=0;i<this.n(2+big);i++) this.fly(x, y, '🎲', {v:rnd(280,560), sz:rnd(30,44), vr:rnd(-12,12), gr:900, life:rnd(1.0,1.5)});
+    this.burst(x, y, {n:10, sp:260, pal:['#ffffff','#ff4040','#ffffff'], rs:0.7});
+  } else if(k==='hanabi'){   // 押した ところで 花火が ひらく
+    this.explode(x, y, col, pick(['peony','ring','star','double','crackle']), 0.62+Math.min(0.4, c*0.02));
+  } else if(k==='star'){
+    this.emoji(x, y, ['⭐','🌟','✨'], {n:4+big, sp:560, sz:30});
+    this.burst(x, y, {n:16, sp:420, pal:['#fff36b','#ffd23f','#ffffff'], ring:false});
+  } else if(k==='heart'){
+    this.explode(x, y, '#ff5f9e', 'heart', 0.4+Math.min(0.3, c*0.015));
+    for(let i=0;i<this.n(3);i++) this.fly(x, y, ['💖','💗','💕'], {a:-Math.PI/2, v:rnd(120,220), dx:rnd(-30,30), vx:rnd(-50,50), sz:rnd(24,36), vr:rnd(-1,1), gr:-30, life:rnd(1.1,1.6)});
+  } else if(k==='awa'){   // あわが のぼる
+    for(let i=0;i<this.n(6+2*big);i++) this.fly(x, y, '🫧', {a:-Math.PI/2, v:rnd(90,240), dx:rnd(-40,40), dy:rnd(-10,20), vx:rnd(-40,40), sz:rnd(18,40), rot:0, vr:rnd(-0.6,0.6), gr:-40, life:rnd(1.2,2.0)});
+    this.ring(x, y, '#9fe8ff', 0.6);
+  } else if(k==='dokan'){   // 衝撃の 輪
+    this.ring(x, y, '#ffffff', 1.5); this.ring(x, y, col, 1.0); this.after(0.08, ()=>this.ring(x, y, '#ffb000', 1.9));
+    this.glow(x, y, 140, '#ffd27a', 0.35); this.fly(x, y, '💥', {a:-Math.PI/2, v:40, sz:64, vr:0, gr:0, life:0.5});
+    this.burst(x, y, {n:22, sp:620, pal:['#ffffff','#ffb000','#ff4500'], ring:false}); this.kick(0.25);
+  } else if(k==='coin'){   // コインが 飛び出して 落ちる
+    for(let i=0;i<this.n(4+big);i++) this.fly(x, y, '🪙', {a:rnd(-Math.PI*0.8,-Math.PI*0.2), v:rnd(360,640), sz:rnd(24,34), rot:0, vr:rnd(-14,14), gr:1100, life:rnd(1.0,1.4)});
+    this.burst(x, y, {n:12, sp:300, pal:['#ffd23f','#fff3c4','#ffb000'], rs:0.6});
+  } else if(k==='hana'){   // 花びらが 舞う
+    for(let i=0;i<this.n(5+2*big);i++) this.fly(x, y, ['🌸','🌸','💮','🌼'], {a:rnd(0,TAU), v:rnd(80,260), vy:-80, sz:rnd(18,30), vr:rnd(-3,3), gr:120, life:rnd(1.4,2.2)});
+    this.burst(x, y, {n:8, sp:200, pal:['#ffd1e6','#ffffff','#ff9ad5'], ring:false});
+  } else if(k==='kami'){   // 紙ふぶきが 吹き上がる
+    this.confetti(big ? 40 : 24, {x, y, life:2.2});
+  } else {   // ✨ きらきら（いつもの）
+    this.burst(x, y, {n:12+Math.min(48, c*2), sp:300+Math.min(400, c*12), pal:o.pal||[col,'#ffffff',col,this.pal()[0]], rs:0.8+Math.min(1, c/30)});
+    this.emoji(x, y, o.emo||'✨', {n:big===2 ? 4 : big ? 2 : 1, sp:420, up:true, sz:34});
+    if(o.dice) this.emoji(x, y, '🎲', {n:1, sp:300, up:true, sz:30});
   }
 };
 // 画面を ゆらす・光らせる（ひかえめ・点滅なし では しない）
@@ -459,6 +594,6 @@ E.finale=function(o){
 };
 
 window.HADE_FX={ THEMES, LEVELS, PAL, INK, Engine, snd:SND, setVol, setMute, unlock, vib, played:()=>played.slice(), hasTheme, hasLevel,
-  TONES, tone, toneStop, tonePer,
+  TONES, tone, toneStop, tonePer, TAPS, tapSnd, hasTap, TAP_FX, hasTapFx, SSETS, setSnd, hasSset, TICKS, tickSnd, hasTick,
   ctx:()=>!!ctx() };
 })();
