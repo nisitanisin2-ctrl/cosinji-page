@@ -11102,17 +11102,17 @@ async function runHadeTimer580(browser) {
     return out.join(','); }), 'rocket:true:pic,candle:true:pic,sand:true:pic,bomb:true:pic,balloon:true:pic,flower:true:pic');
   check('  💣 ばくだん：0 で ドカーン（爆発の 音・たくさんの 粒）', await page.evaluate(async () => { HADE_TIMER.opt('pic', 'bomb'); HADE_TIMER.set(5); HADE_TIMER.start(); await sl(300); HADE_TIMER.shift(6000); await sl(250); const f = HADE_TIMER.fx(); const r = [f.played.includes('boom'), f.n > 150].join('/'); HADE_TIMER.stopAlarm(); HADE_TIMER.stop(); return r; }), 'true/true');
   // 🐾 動物
-  check('  🐾 動物：ゴールへ 進む・はんぶん！・のこり10秒は 数を さけぶ・0 で ゴールして やったー！', await page.evaluate(async () => {
+  check('  🐾 動物が 自分で 数える（ねこ＝めくる）：1秒ごとに 動く・はんぶん！・空が 夕やけへ・のこり10秒は 数を さけぶ・0 で やったー！', await page.evaluate(async () => {
     HADE_TIMER.opt('ani', 'neko'); HADE_TIMER.set(60); HADE_TIMER.start(); await sl(400);
-    const a = HADE_TIMER.look(); HADE_TIMER.shift(30500); await sl(400); const b = HADE_TIMER.look(); HADE_TIMER.shift(24000); await sl(400); const c = HADE_TIMER.look(); HADE_TIMER.shift(6000); await sl(600); const d = HADE_TIMER.look();
+    const a = HADE_TIMER.look(); await sl(1300); const a2 = HADE_TIMER.look(); HADE_TIMER.shift(30500); await sl(400); const b = HADE_TIMER.look(); HADE_TIMER.shift(24000); await sl(400); const c = HADE_TIMER.look(); HADE_TIMER.shift(6000); await sl(600); const d = HADE_TIMER.look();
     HADE_TIMER.stopAlarm(); HADE_TIMER.stop();
-    return [a.x < 0.25, a.pose, b.x > a.x, b.say, /^[1-9]！$/.test(c.say), d.x > 0.6 && d.x >= b.x, d.pose, d.say].join('/'); }), 'true/walk/true/はんぶん！/true/true/cheer/やったー！');
-  check('  動物は 6つ（どれも 歩く）・空の 色', await page.evaluate(async () => { const out = []; for (const k of ['neko', 'usagi', 'inu', 'pen', 'kaeru', 'kuma']) { HADE_TIMER.opt('ani', k); HADE_TIMER.set(30); HADE_TIMER.start(); await sl(250); const L = HADE_TIMER.look(); out.push(L.sub + ':' + L.pose); if (k === 'kuma') { const cv = document.getElementById('htCv'), px = cv.getContext('2d').getImageData(Math.round(cv.width / 2), Math.round(cv.height * 0.3), 1, 1).data; out.push('sky:' + (px[2] > px[0] && px[2] > 150)); } HADE_TIMER.stop(); await sl(100); } return out.join(','); }),
-    'neko:walk,usagi:walk,inu:walk,pen:walk,kaeru:walk,kuma:walk,sky:true');
-  check('  ストップウォッチは 歩きつづける・くり返しは よーい…・がんばる＝走る・休む＝ねる', await page.evaluate(async () => {
-    HADE_TIMER.opt('ani', 'pen'); HADE_TIMER.mode('up'); HADE_TIMER.start(); await sl(300); const a = HADE_TIMER.look(); HADE_TIMER.shift(20000); await sl(300); const b = HADE_TIMER.look(); HADE_TIMER.stop();
+    return [a.pose, a.act, a.dusk < 0.05, a2.v > a.v, b.say, b.dusk > 0.45 && b.dusk < 0.65, /^[1-9]！$/.test(c.say), c.dusk > 0.85, d.pose, d.say, d.dusk].join('/'); }), 'act/めくる/true/true/はんぶん！/true/true/true/cheer/やったー！/1');
+  check('  動物は 6つ（それぞれの 数え方で 1秒ごとに 動く）・空の 色', await page.evaluate(async () => { const out = []; for (const k of ['neko', 'usagi', 'inu', 'pen', 'kaeru', 'kuma']) { HADE_TIMER.opt('ani', k); HADE_TIMER.set(30); HADE_TIMER.start(); await sl(300); const v0 = HADE_TIMER.look().v; await sl(1300); const L = HADE_TIMER.look(); out.push(L.sub + ':' + L.act + ':' + L.pose + ':' + (L.v > v0)); if (k === 'kuma') { const cv = document.getElementById('htCv'), px = cv.getContext('2d').getImageData(Math.round(cv.width / 2), Math.round(cv.height * 0.25), 1, 1).data; out.push('sky:' + (px[2] > px[0] && px[2] > 150)); } HADE_TIMER.stop(); await sl(100); } return out.join(','); }),
+    'neko:めくる:act:true,usagi:なわとび:act:true,inu:ほえる:act:true,pen:指揮:act:true,kaeru:鳴く:act:true,kuma:太鼓:act:true,sky:true');
+  check('  ストップウォッチも 数える（空は 昼のまま）・くり返しは よーい…・がんばる＝はやく・休む＝ねる', await page.evaluate(async () => {
+    HADE_TIMER.opt('ani', 'pen'); HADE_TIMER.mode('up'); HADE_TIMER.start(); await sl(300); HADE_TIMER.shift(20000); await sl(300); const a = HADE_TIMER.look(); HADE_TIMER.stop();
     HADE_TIMER.mode('iv'); HADE_TIMER.ivSet(20, 10, 2); HADE_TIMER.start(); await sl(300); const c = HADE_TIMER.look(); HADE_TIMER.shift(3200); await sl(300); const d = HADE_TIMER.look(); HADE_TIMER.shift(20500); await sl(300); const e = HADE_TIMER.look(); HADE_TIMER.stop(); HADE_TIMER.mode('down');
-    return [a.pose, a.x, b.x, c.pose, c.say, d.pose, d.say, e.pose].join('/'); }), 'walk/0.42/0.42/stand/よーい…/run/がんばる！/sleep');
+    return [a.pose, a.dusk, c.pose, c.say, d.pose, d.say, e.pose].join('/'); }), 'act/0/stand/よーい…/fast/がんばる！/sleep');
   check('  一時停止は 立ち止まる', await page.evaluate(async () => { HADE_TIMER.opt('ani', 'kuma'); HADE_TIMER.set(30); HADE_TIMER.start(); await sl(300); HADE_TIMER.pause(); await sl(250); const r = HADE_TIMER.look().pose; HADE_TIMER.stop(); return r; }), 'stand');
   // 見本・覚える・変なデータ
   check('  設定の 見本も えらんだ 見せ方で 動く（0 まで 進むと しめくくり）', await page.evaluate(async () => { HADE_TIMER.opt('pic', 'balloon'); await sl(300); const a = HADE_TIMER.prevLook(); HADE_TIMER.prevAt(9.8); await sl(300); const b = HADE_TIMER.prevLook(); return [a.k, a.sub, a.v > 0, b.v].join('/'); }), 'pic/balloon/true/0');

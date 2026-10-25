@@ -599,7 +599,7 @@ function render(){
 const LOOK_NOTE={ring:'光の輪が 残りの 時間ぶん へって いきます（いままでの 見せ方）。',
   big:'画面いっぱいの 大きな 数字で 数えます（のこり1分からは 秒だけ）。うしろの 色の 帯が 残りの 時間です。',
   pic:'絵が 時間に 合わせて 動き、0 で 絵ごとの しめくくり（発射・ふっと 消える・くるっと・ドカーン・パーン・さく）。',
-  ani:'動物が 時間の 札を 持って ゴールへ 歩きます。1秒ごとに ぴょん・のこり10秒は 数を さけび、0 で 大よろこび。ストップウォッチは 歩きつづけ、くり返しは がんばる＝走る・休む＝ねる。'};
+  ani:'動物が 自分で 数えます：ねこ＝めくりの 数字板・うさぎ＝なわとび・いぬ＝ほえる・ペンギン＝指揮・かえる＝鳴く・くま＝太鼓（1秒ごとに 動いて、道具に 時間が 出ます）。残りが へるほど 空が 夕やけに なり、のこり10秒は 数を さけんで、0 で 大よろこび。'};
 function lookSec(){
   if(!LOOK) return '';
   const one=(k, v, n)=>{ const i=n.indexOf(' '), on=st[k]===v && (k==='look' || st.look===k); return `<button type="button" class="${on ? 'on' : ''}" aria-pressed="${on}" onclick='HADE_TIMER.opt("${k}", ${JSON.stringify(v)})'><span class="i">${n.slice(0, i)}</span><span>${esc(n.slice(i+1))}</span></button>`; };
