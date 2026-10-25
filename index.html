@@ -9370,6 +9370,10 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v586', t:'🪜 あみだくじ：線が 下に 着いてから 答えを 出す', li:[
+    '名前を押したとき、線が まだ 下に 着いていないのに 下の 答えが 先に 出ていたのを 直しました。線を 引いている あいだは「？」の ままで、下に 着いたら 答えが ぽんと 出ます',
+    'つづけて 押しても、先に 押した 人の 線は とちゅうから つづきます。🔓 ぜんぶ開ける も、のこりの 線を いっしょに 引いてから 答えを 出します（名前の 一覧・これまでの 結果も 着いてから）'
+  ]},
   { v:'v585', t:'🪜 あみだくじ：作ったら 全画面で 全体が 見える', li:[
     '🎲 くじ・班分けの <b>🪜 あみだ</b>を 作ると、<b>⛶ 全画面</b>で あみだくじ 全体が 画面に おさまって 見えます（横に 動かさなくても 名前から 下の 答えまで ぜんぶ）',
     '全画面のまま 名前を押すと 線を たどります。🔓 ぜんぶ開ける・📋 コピーも。人数が 多いと 名前は 縦書きに なり、スマホを 横向きに すると 大きく なります',
@@ -22931,7 +22935,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v585';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v586';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

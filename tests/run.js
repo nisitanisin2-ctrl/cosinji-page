@@ -11838,6 +11838,57 @@ async function runKujiAmida585(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runKujiReveal586(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🪜 あみだくじ：線が 下に 着いてから 答えを 出す（v586） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(async () => { window.appConfirm = async () => true; await openKuji(); KJ.setNames(['田中', '佐藤', '鈴木', '高橋', '伊藤']); KJ.mode('amida'); await KJ.go(); }); await w(500);
+  const at = (box, i) => page.evaluate(([box, i]) => { const a = KJ.state().amida, end = KJ.trace(i).end, p = document.querySelector(box + ' polyline.path[data-i="' + i + '"]'), L = p && p.getTotalLength ? p.getTotalLength() : 0; return { prize: document.querySelectorAll(box + ' g.pz text')[end].textContent, right: a.prizes[end], off: p ? parseFloat(getComputedStyle(p).strokeDashoffset) : -1, L, drawing: KJ.drawing() }; }, [box, i]);
+  await page.click('#kjFullBox g.nm:nth-of-type(1)'); await w(60);
+  let a = await at('#kjFullBox', 0);
+  check('  押した すぐ：線を 引きはじめ・下の 答えは まだ ？・名前の 一覧にも 出ない', [a.prize, a.off > a.L * 0.8, a.drawing.join(','), await page.evaluate(() => !document.querySelector('#kjRes .kj-alist')), await page.evaluate(() => document.querySelector('#kjFullBox g.nm').classList.contains('on'))].join('/'), '？/true/0/true/true');
+  await w(500); a = await at('#kjFullBox', 0);
+  check('  とちゅう（0.5秒）：線は とちゅう・答えは まだ ？', [a.prize, a.off > 1 && a.off < a.L * 0.9].join('/'), '？/true');
+  await w(800); a = await at('#kjFullBox', 0);
+  check('  線が 下に 着くと 答えが 出る（ぽんと）・一覧にも', [a.prize === a.right, a.off, a.drawing.length, await page.evaluate(() => !!document.querySelector('#kjFullBox g.pz.on')), await page.evaluate(() => document.querySelector('#kjRes .kj-alist').textContent.startsWith('田中 → '))].join('/'), 'true/0/0/true/true');
+  await page.click('#kjFullBox g.nm:nth-of-type(2)'); await w(300);
+  await page.click('#kjFullBox g.nm:nth-of-type(3)'); await w(60);
+  const b1 = await at('#kjFullBox', 1), c1 = await at('#kjFullBox', 2);
+  check('  つづけて 押しても：先の 線は とちゅうから つづく（いきなり 全部 出ない）・どちらの 答えも まだ', [b1.prize, c1.prize, b1.off > 1, c1.off > c1.L * 0.8, b1.off < b1.L * 0.9].join('/'), '？/？/true/true/true');
+  await w(850);
+  const b2 = await at('#kjFullBox', 1), c2 = await at('#kjFullBox', 2);
+  check('  先の 人は 先に 着いて 答え・あとの 人は まだ', [b2.prize === b2.right, c2.prize].join('/'), 'true/？');
+  await w(500);
+  check('  あとの 人も 着いたら 答え', await at('#kjFullBox', 2).then(c => c.prize === c.right), true);
+  const h0 = await page.evaluate(() => { const h = document.getElementById('kjHist'); h.hidden = false; h.open = true; return document.querySelectorAll('#kjHist pre').length; });
+  await page.click('#kjFullBar button:first-child'); await w(80);
+  check('  🔓 ぜんぶ開ける：のこりは いっしょに 線を 引いて、まだ ？（🔓 は 消え、コピーは まだ 出ない）', await page.evaluate(() => { const a = KJ.state().amida, rest = [3, 4].map(i => KJ.trace(i).end); return [a.open.length, rest.every(e => document.querySelectorAll('#kjFullBox g.pz text')[e].textContent === '？'), KJ.drawing().sort().join(','), [...document.querySelectorAll('#kjFullBar button')].map(b => b.textContent).join(','), document.getElementById('kjFullTip').textContent, document.querySelector('#kjRes .kj-acts').textContent].join('/'); }), '5/true/3,4/✕ 閉じる/名前を押すと たどります/⛶ 全画面で 見る');
+  check('  これまでの 結果（履歴）にも まだ 出ない', await page.evaluate(h0 => [KJ.state().hist.length, document.querySelectorAll('#kjHist pre').length - h0].join('/'), h0), '1/0');
+  await page.evaluate(() => KJ.openAll()); await w(30);
+  check('  線を 引いている あいだに もう 一度 ぜんぶ開けても：履歴は ふえない', await page.evaluate(() => [KJ.state().hist.length, KJ.drawing().sort().join(',')].join('/')), '1/3,4');
+  await w(1300);
+  check('  着いたら ぜんぶの 答え・📋 コピー・「ぜんぶ 開けました」', await page.evaluate(() => [[...document.querySelectorAll('#kjFullBox g.pz text')].every(t => t.textContent !== '？'), KJ.drawing().length, document.querySelector('#kjFullBar button').textContent, document.getElementById('kjFullTip').textContent].join('/')), 'true/0/📋 コピー/ぜんぶ 開けました');
+  check('  履歴にも 着いてから 出る', await page.evaluate(h0 => [document.querySelectorAll('#kjHist pre').length - h0, document.querySelector('#kjHist pre').textContent.includes('伊藤 → ')].join('/'), h0), '1/true');
+  await page.evaluate(async () => { KJ.full(false); await KJ.go(); KJ.full(false); }); await w(300);
+  await page.evaluate(() => document.querySelector('#kjRes svg g.nm').dispatchEvent(new MouseEvent('click', { bubbles: true }))); await w(60);
+  check('  窓の 中の あみだでも 同じ（着くまで ？）', await at('#kjRes', 0).then(x => x.prize), '？');
+  await w(1300);
+  check('  窓の 中でも 着いたら 答え', await at('#kjRes', 0).then(x => x.prize === x.right && x.off === 0), true);
+  await page.evaluate(() => { document.querySelectorAll('#kjRes svg g.nm')[1].dispatchEvent(new MouseEvent('click', { bubbles: true })); KJ.mode('pick'); }); await w(1300);
+  check('  線を 引いている とちゅうで ほかの モード（当たり）に 変えても：あみだは 出てこない', await page.evaluate(() => [!!document.querySelector('#kjRes svg.kj-amida'), KJ.drawing().length, document.querySelector('.kj-tabs .on').textContent].join('/')), 'false/0/🎯 当たり');
+  await page.evaluate(() => KJ.mode('amida')); await w(100);
+  check('  あみだに もどると 答えが 出ている', await at('#kjRes', 1).then(x => x.prize === x.right && x.off === 0), true);
+  await page.evaluate(() => document.querySelectorAll('#kjRes svg g.nm')[2].dispatchEvent(new MouseEvent('click', { bubbles: true }))); await w(100);
+  await page.evaluate(async () => { await KJ.go(); }); await w(100);
+  check('  線を 引いている とちゅうで 作りなおすと：新しい あみだは ぜんぶ ？ のまま（前の 線の 続きは 出ない）', await page.evaluate(() => [KJ.drawing().length, KJ.state().amida.open.length, [...document.querySelectorAll('#kjFullBox g.pz text')].every(t => t.textContent === '？')].join('/')), '0/0/true');
+  await w(1300);
+  check('  あとから 前の 答えも 出てこない', await page.evaluate(() => [...document.querySelectorAll('#kjFullBox g.pz text')].every(t => t.textContent === '？') && !document.querySelector('#kjFullBox polyline.path')), true);
+  await page.evaluate(() => { window.KJ_NO_ANIM = true; KJ.open(0); }); await w(50);
+  check('  動きを 止める 設定（たしかめ用）なら すぐ 答え', await at('#kjFullBox', 0).then(x => x.prize === x.right), true);
+  await page.evaluate(() => { KJ.full(false); closeKuji(); }); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runShiori579(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🧳 旅のしおり（v579） ──');
@@ -17317,6 +17368,7 @@ async function runQrShare(browser) {
     if (!only || only === 'tatekae' || only === 'v561') await runTatekae561(browser);
     if (!only || only === 'kuji' || only === 'v561') await runKuji561(browser);
     if (!only || only === 'kuji' || only === 'kuji585' || only === 'v585') await runKujiAmida585(browser);
+    if (!only || only === 'kuji' || only === 'kuji586' || only === 'v586') await runKujiReveal586(browser);
     if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
     if (!only || only === 'okaeshi' || only === 'v564') await runOkaeshi564(browser);
     if (!only || only === 'tax' || only === 'v565') await runTax565(browser);
