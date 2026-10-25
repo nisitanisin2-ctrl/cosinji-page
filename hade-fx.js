@@ -332,7 +332,7 @@ E.explode=function(x, y, col, kind, sc){
     this.after(0.7, ()=>{ for(let j=0;j<this.n(18);j++) this.spark(x+rnd(-110,110)*s, y+rnd(-80,110)*s, 0, 0, '#ffffff', {life:0.22, gr:0, sz:rnd(1.6,2.6)}); if(this.onCrackle) this.onCrackle(); });
   }
 };
-// 👆 押した ところの 演出（v583。o：col 色・pal・emo 絵文字・combo・dice ランダムの さいころ）
+// 👆 押した ところの 演出（v583。o：col 色・pal・emo 絵文字・combo）
 const TAP_FX=[['kira','✨ きらきら'],['dice','🎲 サイコロ'],['hanabi','🎆 花火'],['star','⭐ 星'],['heart','💖 ハート'],['awa','🫧 あわ'],['dokan','💥 どかん'],['coin','🪙 コイン'],['hana','🌸 花びら'],['kami','🎊 紙ふぶき']];
 const hasTapFx=k=>TAP_FX.some(x=>x[0]===k);
 E.fly=function(x, y, ch, o){   // 絵文字を 1つ（向き・速さ・重さを 決めて）
@@ -370,7 +370,6 @@ E.tapFx=function(k, x, y, o){
   } else {   // ✨ きらきら（いつもの）
     this.burst(x, y, {n:12+Math.min(48, c*2), sp:300+Math.min(400, c*12), pal:o.pal||[col,'#ffffff',col,this.pal()[0]], rs:0.8+Math.min(1, c/30)});
     this.emoji(x, y, o.emo||'✨', {n:big===2 ? 4 : big ? 2 : 1, sp:420, up:true, sz:34});
-    if(o.dice) this.emoji(x, y, '🎲', {n:1, sp:300, up:true, sz:30});
   }
 };
 // 画面を ゆらす・光らせる（ひかえめ・点滅なし では しない）
