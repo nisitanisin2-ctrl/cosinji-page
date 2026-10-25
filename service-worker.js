@@ -1,4 +1,4 @@
-const CACHE = 'excalc-v583';
+const CACHE = 'excalc-v584';
 const CACHE_PREFIX = 'excalc-';   // このアプリのキャッシュだけを見分けるための名前
 // v561〜v563 の 📷レシート読み取りが「文字を読む部品」を入れていた控え（hyo-ocr-〇）。道具を外したので 見つけたら消す（v564）
 const OLD_OCR_PREFIX = 'hyo-ocr-';

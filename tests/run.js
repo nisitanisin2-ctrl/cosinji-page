@@ -11783,6 +11783,23 @@ async function runHadeTimer583(browser) {
   await ctx.close();
   await v579Fit(browser, async p2 => { await p2.evaluate(async () => { localStorage.setItem('excalc_hadetimer', JSON.stringify({ snd: false })); await openHadeTimer(); }); return [['音の 設定', () => [...document.querySelectorAll('#htBody .ht-opt')].find(x => x.textContent.startsWith('演出の 音')).scrollIntoView({ block: 'center' })]]; }, '音の 設定');
 }
+async function runHadeCount584(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🎉 ど派手カウンター：ランダムの ときに サイコロを 出さない（v584） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { navigator.vibrate = () => true; window.appConfirm = async () => true; });
+  await page.evaluate(() => openHadeCount()); await w(600);
+  check('  🎲 ランダムで 足す：✨ きらきら でも サイコロは 出ない・＋の 数字にも 出ない', await page.evaluate(async () => { HADE_COUNT.set('rng', '1-6'); HADE_COUNT.set('fx', 'kira'); await new Promise(r => setTimeout(r, 1800)); const seen = []; for (let i = 0; i < 12; i++) { HADE_COUNT.tap(0); seen.push(...HADE_COUNT.parts()); } return [HADE_COUNT.state().list[0].rnd, seen.some(s => String(s).includes('🎲')), seen.filter(s => /^\+\d/.test(String(s))).length >= 12].join('/'); }), 'true/false/true');
+  check('  − へらす の 数字にも 出ない', await page.evaluate(() => { HADE_COUNT.minus(0); return HADE_COUNT.parts().filter(s => String(s).startsWith('−')).every(s => !String(s).includes('🎲')) && HADE_COUNT.parts().some(s => String(s).startsWith('−')); }), true);
+  await w(1800);
+  check('  🔀 おまかせ でも ランダムの ときは サイコロを えらばない（60回）', await page.evaluate(() => { HADE_COUNT.set('fx', 'rand'); const fx = new Set(); let dice = false; for (let i = 0; i < 60; i++) { HADE_COUNT.tap(0); fx.add(HADE_COUNT.lastFx()); if (HADE_COUNT.parts().some(s => String(s).includes('🎲'))) dice = true; } return [fx.has('dice'), dice, fx.size > 4].join('/'); }), 'false/false/true');
+  check('  同じ くじの 目でも：ランダムの ときは サイコロ 以外・ランダムで ない ときは サイコロも 出る', await page.evaluate(() => { const r = Math.random; Math.random = () => 0.15; HADE_COUNT.tap(0); const a = HADE_COUNT.lastFx(); HADE_COUNT.set('step', 1); HADE_COUNT.tap(0); const b = HADE_COUNT.lastFx(); Math.random = r; HADE_COUNT.set('step', 'rnd'); return [a, b].join('/'); }), 'hanabi/dice');
+  await w(1800);
+  check('  「🎲 サイコロ」を 自分で えらんだ ときは 出る', await page.evaluate(() => { HADE_COUNT.set('fx', 'dice'); HADE_COUNT.tap(0); return [HADE_COUNT.lastFx(), HADE_COUNT.parts().some(s => s === '🎲')].join('/'); }), 'dice/true');
+  await page.evaluate(() => closeHadeCount()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runShiori579(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🧳 旅のしおり（v579） ──');
@@ -17249,6 +17266,7 @@ async function runQrShare(browser) {
     if (!only || only === 'hadecount582' || only === 'hadecount' || only === 'hade' || only === 'v582') await runHadeCount582(browser);
     if (!only || only === 'hadecount583' || only === 'hadecount' || only === 'hade' || only === 'v583') await runHadeCount583(browser);
     if (!only || only === 'hadetimer583' || only === 'hadetimer' || only === 'hade' || only === 'v583') await runHadeTimer583(browser);
+    if (!only || only === 'hadecount584' || only === 'hadecount' || only === 'hade' || only === 'v584') await runHadeCount584(browser);
     if (!only || only === 'shiori' || only === 'v579') await runShiori579(browser);
     if (!only || only === 'picknames' || only === 'v579') await runPickNames579(browser);
     if (!only || only === 'saveas') await runSaveAs560(browser);

@@ -6,7 +6,7 @@
    ・カウンターは 8つまで（名前・色・絵文字・目標・足す数を それぞれに）。「並べて」で いっしょに 数える（男女別・種類別 など）。
    ・Bluetooth の リモコン・キーボードでも 数えられる（スペース・Enter・↑・→ で ＋、↓・← で −）。
    ・演出の強さ（v576）：ド派手は 押すたびに 大きな輪・5ごとに 花火、ドド派手は 押すたびに ゆれて 数字が 七色・コンボ 5ごとに ほめ言葉。
-   ・🎲 ランダム（v582）：決めた はんい（最小〜最大。見本 1〜6・1〜10・1〜100・10〜50）の どれかを 押すたびに 足す。
+   ・🎲 ランダム（v582）：決めた はんい（最小〜最大。見本 1〜6・1〜10・1〜100・10〜50）の どれかを 押すたびに 足す（v584：サイコロは 出さない）。
      − も 同じ はんいで へる（↶ もどす は ちょうど 1つ前に）。いちばん 大きい 数が 出ると「大当たり！」。
    ・押した 音（v583）：🎈 ポン・🪙 チャリン・🥁 ドン・🎮 ピコッ・🔔 チーン・🎹 木琴・👏 パチッ・💧 ぽちゃ・⚡ ピュン・🔀 おまかせ（毎回 ちがう）。
      押した ところの 演出（v583）：✨ きらきら・🎲 サイコロ・🎆 花火・⭐ 星・💖 ハート・🫧 あわ・💥 どかん・🪙 コイン・🌸 花びら・🎊 紙ふぶき・🔀 おまかせ。
@@ -102,7 +102,7 @@ function drawNum(c, T, big){
   const ns=Math.round(Math.min(T.w*0.07, (big ? 26 : 20)*d));
   g.save(); g.font='bold '+ns+'px '+NUMF; g.textAlign='center'; g.textBaseline='top'; g.fillStyle='rgba(255,255,255,.95)'; g.lineWidth=ns*0.18; g.strokeStyle='rgba(0,0,0,.55)'; g.lineJoin='round';
   const name=c.emo+' '+c.name; g.strokeText(name, cx, T.y+(big ? 14 : 8)*d); g.fillText(name, cx, T.y+(big ? 14 : 8)*d);
-  if(c.rnd && (big || T.h>260*d)){ const rs=Math.round(ns*0.78), rt='🎲 '+fmtN(c.ra)+'〜'+fmtN(c.rb), ry=T.y+(big ? 14 : 8)*d+ns*1.25; g.font='bold '+rs+'px '+NUMF; g.lineWidth=rs*0.18; g.fillStyle='rgba(255,243,150,.95)'; g.strokeText(rt, cx, ry); g.fillText(rt, cx, ry); }   // 🎲 ランダムの はんい
+  if(c.rnd && (big || T.h>260*d)){ const rs=Math.round(ns*0.78), rt='ランダム '+fmtN(c.ra)+'〜'+fmtN(c.rb), ry=T.y+(big ? 14 : 8)*d+ns*1.25; g.font='bold '+rs+'px '+NUMF; g.lineWidth=rs*0.18; g.fillStyle='rgba(255,243,150,.95)'; g.strokeText(rt, cx, ry); g.fillText(rt, cx, ry); }   // 🎲 ランダムの はんい
   g.restore();
   // 目標の メーター
   if(c.goal>0){
@@ -189,10 +189,10 @@ function plus(i, k, x, y){
   if(!eng) return;
   const e=eng, d=e.d, col=colOf(c.col); e._tapT=e.t; c._pop=e.t;
   if(x==null){ [x,y]=tileCenter(i); y+=rnd(-30,30)*d; x+=rnd(-60,60)*d; }
-  // 押した ところの 演出（カウンターごと。🔀 おまかせは 毎回 ちがう。✨ きらきら は ランダムの とき サイコロも）
-  const fk=c.fx==='rand' ? pickOf(FXK) : c.fx; lastFx=fk;
-  e.tapFx(fk, x, y, {col, pal:[col, '#ffffff', col, FX.PAL[e.theme][0]], emo:c.emo, combo, dice:rolled});
-  e.text(x, y-30*d, (rolled ? '🎲+' : '+')+fmtN(dk), {sz:(rolled ? 38 : 30)+Math.min(30, combo), col});
+  // 押した ところの 演出（カウンターごと。🔀 おまかせは 毎回 ちがう）。🎲 ランダムで 足す ときも サイコロは 出さない（v584。「🎲 サイコロ」を えらんだ ときだけ）
+  const fk=c.fx==='rand' ? pickOf(c.rnd ? FXK.filter(k=>k!=='dice') : FXK) : c.fx; lastFx=fk;
+  e.tapFx(fk, x, y, {col, pal:[col, '#ffffff', col, FX.PAL[e.theme][0]], emo:c.emo, combo});
+  e.text(x, y-30*d, '+'+fmtN(dk), {sz:(rolled ? 38 : 30)+Math.min(30, combo), col});
   if(rolled && c.rb>c.ra && k===c.rb){ banner('大当たり！ +'+fmtN(dk)); e.ring(x, y, '#fff36b', 1.8); for(let j=0;j<3;j++) e.shell(null); snd('level'); vib([40,30,80]); }   // いちばん 大きい 数
   e.pulse=1; e.warp=Math.min(1, e.warp+0.18); e.heat=Math.min(1, e.heat+0.07);
   tapSnd(c, Math.min(14, combo-1)); vib(12);
@@ -229,7 +229,7 @@ function minus(i, k){
   if(!dk){ toastC('0 より 少なくは できません'); return; }
   undo.push({id:c.id, n:before}); if(undo.length>MAX_UNDO) undo.shift();
   addHist(c, -dk); saveSoon(); paintHoursSoon(); combo=0;
-  if(eng){ const e=eng, idx=st.list.indexOf(c), [x,y]=tileCenter(idx); c._dn=e.t; e.implode(x, y, {n:26, r:150, pal:[colOf(c.col),'#ffffff']}); e.text(x, y+40*e.d, (rolled ? '🎲−' : '−')+fmtN(dk), {sz:28, col:'#ffb3b3', vy:60}); }
+  if(eng){ const e=eng, idx=st.list.indexOf(c), [x,y]=tileCenter(idx); c._dn=e.t; e.implode(x, y, {n:26, r:150, pal:[colOf(c.col),'#ffffff']}); e.text(x, y+40*e.d, '−'+fmtN(dk), {sz:28, col:'#ffb3b3', vy:60}); }
   snd('down'); vib(25);
 }
 function undoLast(){
@@ -476,6 +476,7 @@ function closeHadeCount(){ if(!$('hadeCountOverlay') || !isDlgOpen('hadeCountOve
 window.HADE_COUNT={ tap:(i,x,y)=>{ plus(i==null ? st.cur : i, null, x, y); paintTabs(); }, plus:(i,k)=>{ plus(i==null ? st.cur : i, k); paintTabs(); }, minus:(i,k)=>{ minus(i, k); paintTabs(); },
   undo:()=>{ undoLast(); paintTabs(); }, reset:i=>{ reset(i).then(()=>paintTabs()); }, add:n=>{ addC(n); }, del:i=>{ delC(i); }, sel, set:setC, opt:setOpt, full:setFull, isFull, copy:copyText,
   state:()=>{ save(); return JSON.parse(JSON.stringify(st)); }, combo:()=>combo, fx:()=>({n:eng ? eng.count() : 0, played:FX.played(), cap:eng ? eng.cap : 0, level:eng ? eng.level : '', shake:eng ? +eng.shake.toFixed(2) : 0}), tiles:()=>tiles.map(T=>T.i+':'+Math.round(T.w)+'x'+Math.round(T.h)),
-  banner:()=>{ const b=$('hcBan'); return b ? b.textContent : ''; }, freeze:b=>{ frozen=!!b; }, draw:()=>{ if(eng){ eng.resize(); paint(); } }, lastRoll:()=>lastRoll, lastSnd:()=>lastSnd, lastFx:()=>lastFx };
+  banner:()=>{ const b=$('hcBan'); return b ? b.textContent : ''; }, freeze:b=>{ frozen=!!b; }, draw:()=>{ if(eng){ eng.resize(); paint(); } }, lastRoll:()=>lastRoll, lastSnd:()=>lastSnd, lastFx:()=>lastFx,
+  parts:()=>eng ? eng.ps.filter(p=>p.k==='e' || p.k==='t').map(p=>p.ch||p.s) : [] };   // 画面に 出ている 絵文字と 字（たしかめ用）
 Object.assign(window, { openHadeCount, closeHadeCount });
 })();
