@@ -8,6 +8,9 @@
    ・演出の強さ（v576）：ド派手は 押すたびに 大きな輪・5ごとに 花火、ドド派手は 押すたびに ゆれて 数字が 七色・コンボ 5ごとに ほめ言葉。
    ・🎲 ランダム（v582）：決めた はんい（最小〜最大。見本 1〜6・1〜10・1〜100・10〜50）の どれかを 押すたびに 足す。
      − も 同じ はんいで へる（↶ もどす は ちょうど 1つ前に）。いちばん 大きい 数が 出ると「大当たり！」。
+   ・押した 音（v583）：🎈 ポン・🪙 チャリン・🥁 ドン・🎮 ピコッ・🔔 チーン・🎹 木琴・👏 パチッ・💧 ぽちゃ・⚡ ピュン・🔀 おまかせ（毎回 ちがう）。
+     押した ところの 演出（v583）：✨ きらきら・🎲 サイコロ・🎆 花火・⭐ 星・💖 ハート・🫧 あわ・💥 どかん・🪙 コイン・🌸 花びら・🎊 紙ふぶき・🔀 おまかせ。
+     どちらも カウンターごとに えらべる（並べて 数える ときに 音で 聞き分けられる）。えらぶと その場で 鳴る・出る（hade-fx.js）。
    ・1時間ごとの数を 記録（2週間 残す）。「📋 数を コピー」で 文字にして 貼れる。
    ・数・名前・目標・記録・えらんだものは excalc_hadecount（この端末の中だけ）。 */
 (function(){
@@ -18,6 +21,7 @@ const COLS=[['gold','金','#ffd23f'],['pink','ピンク','#ff5fa8'],['cyan','水
 const EMOS=['⭐','💖','🎉','🔥','🌸','💰','🍀','⚡','👍','🐟','🍺','🏃','🚗','🐦','👤','✅'];
 const STEPS=[1,2,5,10];
 const MAX_R=1000, RNG=[[1,6,'🎲 1〜6'],[1,10,'1〜10'],[1,100,'1〜100'],[10,50,'10〜50']];   // 🎲 ランダムの はんい（v582）と 見本
+const TAPK=FX.TAPS.map(x=>x[0]), FXK=FX.TAP_FX.map(x=>x[0]);   // 押した 音・押した ところの 演出（v583。'rand' は おまかせ）
 const VIEWS=[['one','1つを 大きく'],['grid','並べて']];
 const PRAISE=['ナイス！','いいね！','すごい！','最高！','神！','天才！'];   // ドド派手の コンボで 出る ことば
 const NUMF='"Hiragino Sans","Noto Sans JP","Noto Sans CJK JP","Segoe UI",Roboto,sans-serif';
@@ -38,8 +42,9 @@ const dayKey=d=>d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
 const emoOk=e=>{ e=Array.from(oneLine(e,8)).slice(0,2).join(''); return e && !/[<>&"'`]/.test(e) ? e : ''; };
 
 /* ───────── 状態 ───────── */
-let st=null, undo=[], combo=0, lastTap=0, lastIdx=-1, saveT=0, lastRoll=0;
-const newC=(name, i)=>({id:rid(), name:name||'カウンター', n:0, goal:0, step:1, rnd:false, ra:1, rb:6, emo:EMOS[(i||0)%EMOS.length], col:COLS[(i||0)%COLS.length][0], hist:{}});
+let st=null, undo=[], combo=0, lastTap=0, lastIdx=-1, saveT=0, lastRoll=0, lastSnd='', lastFx='';
+const newC=(name, i)=>({id:rid(), name:name||'カウンター', n:0, goal:0, step:1, rnd:false, ra:1, rb:6, tap:'pop', fx:'kira', emo:EMOS[(i||0)%EMOS.length], col:COLS[(i||0)%COLS.length][0], hist:{}});
+const pickOf=a=>a[Math.floor(Math.random()*a.length)];
 // 🎲 ランダム：はんいの 中の 数を 1つ（最小〜最大 どれも 同じ くらい 出る）
 const roll=c=>c.ra+Math.floor(Math.random()*(c.rb-c.ra+1));
 function cleanC(c, i){
@@ -48,7 +53,8 @@ function cleanC(c, i){
   if(c.hist && typeof c.hist==='object') Object.keys(c.hist).slice(-KEEP_DAYS*24).forEach(k=>{ if(/^\d{4}-\d\d-\d\d \d\d$/.test(k)){ const v=int(c.hist[k], -MAX_N, MAX_N, null); if(v!=null) hist[k]=v; } });
   let ra=int(c.ra,1,MAX_R,1), rb=int(c.rb,1,MAX_R,6); if(ra>rb) [ra,rb]=[rb,ra];
   return {id:typeof c.id==='string' && /^[a-z0-9]{3,12}$/.test(c.id) ? c.id : rid(), name:oneLine(c.name,16)||('カウンター'+(i+1)), n:int(c.n,0,MAX_N,0), goal:int(c.goal,0,MAX_N,0),
-    step:STEPS.includes(+c.step) ? +c.step : 1, rnd:c.rnd===true, ra, rb, emo:emoOk(c.emo)||EMOS[i%EMOS.length], col:COLS.some(x=>x[0]===c.col) ? c.col : COLS[i%COLS.length][0], hist};
+    step:STEPS.includes(+c.step) ? +c.step : 1, rnd:c.rnd===true, ra, rb, tap:c.tap==='rand' || TAPK.includes(c.tap) ? c.tap : 'pop', fx:c.fx==='rand' || FXK.includes(c.fx) ? c.fx : 'kira',
+    emo:emoOk(c.emo)||EMOS[i%EMOS.length], col:COLS.some(x=>x[0]===c.col) ? c.col : COLS[i%COLS.length][0], hist};
 }
 function load(){
   let o=null; try{ o=JSON.parse(localStorage.getItem(KEY)||'null'); }catch(_){}
@@ -66,6 +72,8 @@ function save(){ clearTimeout(saveT); saveT=0; try{ prune(); localStorage.setIte
 function saveSoon(){ clearTimeout(saveT); saveT=setTimeout(save, 400); }
 const vib=p=>{ if(st && st.vibe) FX.vib(p); };
 const snd=(name, ...a)=>{ const f=FX.snd[name]; if(f && st && st.snd) f(...a); };   // 音は この道具の 設定で（タイマーと 別々）
+// 押した 音（カウンターごと。🔀 おまかせは 毎回 ちがう 音）
+function tapSnd(c, i){ const k=c.tap==='rand' ? pickOf(TAPK) : c.tap; lastSnd=k; if(st && st.snd) FX.tapSnd(k, i); }
 const curC=()=>st.list[st.cur]||st.list[0];
 
 /* ───────── 描く ───────── */
@@ -181,16 +189,13 @@ function plus(i, k, x, y){
   if(!eng) return;
   const e=eng, d=e.d, col=colOf(c.col); e._tapT=e.t; c._pop=e.t;
   if(x==null){ [x,y]=tileCenter(i); y+=rnd(-30,30)*d; x+=rnd(-60,60)*d; }
-  const pal=[col, '#ffffff', col, FX.PAL[e.theme][0]];
-  e.burst(x, y, {n:12+Math.min(48, combo*2), sp:300+Math.min(400, combo*12), pal, rs:0.8+Math.min(1, combo/30)});
-  e.emoji(x, y, c.emo, {n:combo>=10 ? 4 : combo>=5 ? 2 : 1, sp:420, up:true, sz:34});
+  // 押した ところの 演出（カウンターごと。🔀 おまかせは 毎回 ちがう。✨ きらきら は ランダムの とき サイコロも）
+  const fk=c.fx==='rand' ? pickOf(FXK) : c.fx; lastFx=fk;
+  e.tapFx(fk, x, y, {col, pal:[col, '#ffffff', col, FX.PAL[e.theme][0]], emo:c.emo, combo, dice:rolled});
   e.text(x, y-30*d, (rolled ? '🎲+' : '+')+fmtN(dk), {sz:(rolled ? 38 : 30)+Math.min(30, combo), col});
-  if(rolled){
-    e.emoji(x, y, '🎲', {n:1, sp:300, up:true, sz:30});
-    if(c.rb>c.ra && k===c.rb){ banner('大当たり！ +'+fmtN(dk)); e.ring(x, y, '#fff36b', 1.8); for(let j=0;j<3;j++) e.shell(null); snd('level'); vib([40,30,80]); }   // いちばん 大きい 数
-  }
+  if(rolled && c.rb>c.ra && k===c.rb){ banner('大当たり！ +'+fmtN(dk)); e.ring(x, y, '#fff36b', 1.8); for(let j=0;j<3;j++) e.shell(null); snd('level'); vib([40,30,80]); }   // いちばん 大きい 数
   e.pulse=1; e.warp=Math.min(1, e.warp+0.18); e.heat=Math.min(1, e.heat+0.07);
-  snd('pop', Math.min(14, combo-1)); vib(12);
+  tapSnd(c, Math.min(14, combo-1)); vib(12);
   if(combo>=8 && e.level!=='calm') e.kick(Math.min(0.5, combo*0.012));
   const bo=e.boost();
   if(bo>=1){ e.ring(x, y, col, 1.4+0.4*bo); if(c.n%5===0) e.shell(x, {sc:0.8}); }   // ド派手：大きな 輪・5 ごとに 花火
@@ -310,6 +315,9 @@ function paintSide(){
       ${c.rnd ? `<div class="hc-rng"><div class="hc-f"><span>ランダムの はんい</span><input id="hcRa" type="number" inputmode="numeric" min="1" max="${MAX_R}" value="${c.ra}" aria-label="いちばん 小さい 数" onchange="HADE_COUNT.set('ra', this.value)"><b>〜</b><input id="hcRb" type="number" inputmode="numeric" min="1" max="${MAX_R}" value="${c.rb}" aria-label="いちばん 大きい 数" onchange="HADE_COUNT.set('rb', this.value)"><em>の どれか</em></div>
         <div class="hc-opt"><span>見本</span>${RNG.map(([a,b,t])=>`<button type="button" class="${c.ra===a && c.rb===b?'on':''}" onclick="HADE_COUNT.set('rng', '${a}-${b}')">${t}</button>`).join('')}</div>
         <p class="hc-note">押すたびに ${fmtN(c.ra)}〜${fmtN(c.rb)} の どれかを くじ引きで 足します（− も 同じ はんいで へります。まちがえたら ↶ もどす）。いちばん 大きい ${fmtN(c.rb)} が 出ると「大当たり！」。</p></div>` : ''}
+      <div class="hc-opt hc-tap"><span>押した 音</span>${FX.TAPS.map(([v,n])=>`<button type="button" class="${c.tap===v?'on':''}" onclick="HADE_COUNT.set('tap', '${v}')">${n}</button>`).join('')}<button type="button" class="${c.tap==='rand'?'on':''}" onclick="HADE_COUNT.set('tap', 'rand')">🔀 おまかせ</button></div>
+      <div class="hc-opt hc-tfx"><span>押した ところ</span>${FX.TAP_FX.map(([v,n])=>`<button type="button" class="${c.fx===v?'on':''}" onclick="HADE_COUNT.set('fx', '${v}')">${n}</button>`).join('')}<button type="button" class="${c.fx==='rand'?'on':''}" onclick="HADE_COUNT.set('fx', 'rand')">🔀 おまかせ</button></div>
+      <p class="hc-note">音と 押した ところの 演出は カウンターごとに えらべます（並べて 数える とき 音で 聞き分けられます）。えらぶと ためしに 鳴って・出ます。🔀 おまかせ は 押すたびに ちがいます。</p>
       <label class="hc-f"><span>名前</span><input id="hcName" type="text" maxlength="16" value="${esc(c.name)}" onchange="HADE_COUNT.set('name', this.value)"></label>
       <label class="hc-f"><span>目標の数</span><input id="hcGoal" type="number" inputmode="numeric" min="0" max="${MAX_N}" value="${c.goal||''}" placeholder="なし" onchange="HADE_COUNT.set('goal', this.value)"></label>
       <div class="hc-opt"><span>絵文字</span>${EMOS.map(x=>`<button type="button" class="emo${c.emo===x?' on':''}" onclick='HADE_COUNT.set("emo", ${JSON.stringify(x)})'>${x}</button>`).join('')}</div>
@@ -359,10 +367,14 @@ function setC(k, v){
     if(a>b) [a,b]=[b,a];
     c.ra=a; c.rb=b; c.rnd=true;
   }
+  else if(k==='tap'){ if(v!=='rand' && !TAPK.includes(v)) return; c.tap=v; }   // 押した 音（v583）
+  else if(k==='fx'){ if(v!=='rand' && !FXK.includes(v)) return; c.fx=v; }   // 押した ところの 演出（v583）
   else if(k==='emo'){ const e=emoOk(v); if(!e) return; c.emo=e; }
   else if(k==='col'){ if(!COLS.some(x=>x[0]===v)) return; c.col=v; }
   else return;
   save(); paintTabs(); paintSide();
+  if(k==='tap'){ FX.unlock(); tapSnd(c, 0); }   // ためしに 鳴らす（鳴らさない 設定なら 鳴らない）
+  if(k==='fx' && eng){ const [x,y]=tileCenter(st.list.indexOf(c)), fk=v==='rand' ? pickOf(FXK) : v; lastFx=fk; eng.tapFx(fk, x, y, {col:colOf(c.col), emo:c.emo, combo:1}); loop(); }   // ためしに 出す
 }
 function setOpt(k, v){
   if(k==='theme'){ if(!FX.hasTheme(v)) return; st.theme=v; }
@@ -432,6 +444,7 @@ const HC_CSS=`
 .hc-rng{ margin:4px 0 8px; padding:8px 10px; border-radius:12px; background:rgba(255,200,0,.1); border:1px dashed rgba(224,138,0,.55); }
 .hc-rng .hc-f input{ flex:0 1 6.5em; text-align:center; font-weight:bold; } .hc-rng .hc-f b{ font-size:16px; } .hc-rng .hc-f em{ font-style:normal; font-size:12.5px; color:var(--text-light,#666); }
 .hc-rng .hc-note{ margin-top:4px; }
+.hc-tap button, .hc-tfx button{ padding:0 10px; }
 .hc-tot{ display:flex; gap:16px; font-size:14px; margin-bottom:6px; } .hc-tot b{ font-size:20px; font-variant-numeric:tabular-nums; }
 .hc-hours .r{ display:flex; align-items:center; gap:8px; font-size:13.5px; margin:3px 0; } .hc-hours .h{ width:3.2em; text-align:right; color:var(--text-light,#666); }
 .hc-hours .bar{ flex:1; height:14px; border-radius:7px; background:rgba(120,132,156,.15); overflow:hidden; } .hc-hours .bar i{ display:block; height:100%; border-radius:7px; }
@@ -463,6 +476,6 @@ function closeHadeCount(){ if(!$('hadeCountOverlay') || !isDlgOpen('hadeCountOve
 window.HADE_COUNT={ tap:(i,x,y)=>{ plus(i==null ? st.cur : i, null, x, y); paintTabs(); }, plus:(i,k)=>{ plus(i==null ? st.cur : i, k); paintTabs(); }, minus:(i,k)=>{ minus(i, k); paintTabs(); },
   undo:()=>{ undoLast(); paintTabs(); }, reset:i=>{ reset(i).then(()=>paintTabs()); }, add:n=>{ addC(n); }, del:i=>{ delC(i); }, sel, set:setC, opt:setOpt, full:setFull, isFull, copy:copyText,
   state:()=>{ save(); return JSON.parse(JSON.stringify(st)); }, combo:()=>combo, fx:()=>({n:eng ? eng.count() : 0, played:FX.played(), cap:eng ? eng.cap : 0, level:eng ? eng.level : '', shake:eng ? +eng.shake.toFixed(2) : 0}), tiles:()=>tiles.map(T=>T.i+':'+Math.round(T.w)+'x'+Math.round(T.h)),
-  banner:()=>{ const b=$('hcBan'); return b ? b.textContent : ''; }, freeze:b=>{ frozen=!!b; }, draw:()=>{ if(eng){ eng.resize(); paint(); } }, lastRoll:()=>lastRoll };
+  banner:()=>{ const b=$('hcBan'); return b ? b.textContent : ''; }, freeze:b=>{ frozen=!!b; }, draw:()=>{ if(eng){ eng.resize(); paint(); } }, lastRoll:()=>lastRoll, lastSnd:()=>lastSnd, lastFx:()=>lastFx };
 Object.assign(window, { openHadeCount, closeHadeCount });
 })();

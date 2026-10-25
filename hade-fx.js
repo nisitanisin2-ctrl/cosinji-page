@@ -10,7 +10,10 @@
      画面の 点滅は やわらかく、1秒に 2回まで（まぶしすぎないように。どの強さでも）。
    ・⏰ 時間が 来た ときの 音（v580。ど派手タイマー）：🎺 ファンファーレ・⏰ 目覚まし（ジリリリ）・📟 ピピピ・🔔 チャイム（キーンコーン）・
      🎵 オルゴール（きらきら星）・🕊 はと時計（ポッポー）・🥁 太鼓（ドンドン カッ）・🎮 ゲーム（クリアの 音）・🐤 小鳥（チュンチュン）。
-     1つの 音は 自分の 音の 道（bus）を 通すので、止める ときや 次の 音で すぐ 消せる。 */
+     1つの 音は 自分の 音の 道（bus）を 通すので、止める ときや 次の 音で すぐ 消せる。
+   ・🎉 押した ときの 音（v583。ど派手カウンター）：🎈 ポン・🪙 チャリン・🥁 ドン・🎮 ピコッ・🔔 チーン・🎹 木琴（ドレミで 上がる）・
+     👏 パチッ・💧 ぽちゃ・⚡ ピュン。どれも 短く、つづけて 押すと 音が 上がる ものも ある。
+   ・👆 押した ところの 演出（v583）：✨ きらきら・🎲 サイコロ・🎆 花火・⭐ 星・💖 ハート・🫧 あわ・💥 どかん・🪙 コイン・🌸 花びら・🎊 紙ふぶき（E.tapFx）。 */
 (function(){
 'use strict';
 if(window.HADE_FX) return;
@@ -126,6 +129,22 @@ function tone(k, first){
   try{ if(TSND[k]) TSND[k](); else (first ? SND.fanfare : SND.alarm)(); } finally { BUS=null; }
 }
 const tonePer=k=>TONE_PER[k]||2.6;
+/* ───────── 🎉 押した ときの 音（v583。ど派手カウンター）───────── */
+const TAPS=[['pop','🎈 ポン'],['coin','🪙 チャリン'],['taiko','🥁 ドン'],['piko','🎮 ピコッ'],['bell','🔔 チーン'],['mokkin','🎹 木琴'],['clap','👏 パチッ'],['water','💧 ぽちゃ'],['laser','⚡ ピュン']];
+const SCALE=[0,2,4,5,7,9,11,12];   // ドレミファソラシド
+const TAP_SND={
+  pop:i=>SND.pop(i),
+  coin:S('kCoin', (t, i)=>{ const u=Math.min(7, i|0); osc('square', midi(83+u), t, 0.05, 0.1); osc('square', midi(88+u), t+0.05, 0.17, 0.1); }),
+  taiko:S('kTaiko', (t, i)=>{ if((i|0)%4===3) ka(t); else don(t, 0.8); }),   // 4回目ごとに カッ
+  piko:S('kPiko', (t, i)=>{ const k=Math.max(0, i|0), m=72+PENTA[k%5]+12*Math.min(2, Math.floor(k/5)); osc('square', midi(m), t, 0.07, 0.075, midi(m+12)); }),
+  bell:S('kBell', (t, i)=>{ const f=midi(84+PENTA[Math.max(0, i|0)%5]); osc('sine', f, t, 0.6, 0.17); osc('sine', f*2.76, t, 0.24, 0.05); osc('sine', f*5.4, t, 0.1, 0.02); }),
+  mokkin:S('kMokkin', (t, i)=>{ const k=Math.max(0, i|0), f=midi(72+SCALE[k%8]+12*Math.min(1, Math.floor(k/8))); osc('sine', f, t, 0.26, 0.32); osc('sine', f*3.99, t, 0.04, 0.08); osc('triangle', f*2, t, 0.07, 0.05); }),
+  clap:S('kClap', t=>{ [0, 0.011, 0.024].forEach((dl, j)=>nz(t+dl, 0.03+j*0.02, 0.3, 'bandpass', 1400, null, 1.2)); nz(t+0.03, 0.12, 0.06, 'bandpass', 1100, null, 0.8); }),
+  water:S('kWater', (t, i)=>{ const f=380+(Math.max(0, i|0)%5)*55; osc('sine', f, t, 0.09, 0.34, f*2.8); osc('sine', f*1.6, t+0.035, 0.06, 0.09, f*3.4); }),
+  laser:S('kLaser', t=>{ osc('sawtooth', 2000, t, 0.18, 0.05, 240); osc('sine', 1800, t, 0.16, 0.13, 220); }),
+};
+const hasTap=k=>TAPS.some(x=>x[0]===k);
+function tapSnd(k, i){ (TAP_SND[k]||TAP_SND.pop)(i); }
 function setVol(v){ vol=Math.max(0, Math.min(1, +v||0)); if(OUT) try{ OUT.gain.value=vol; }catch(_){} }
 function setMute(b){ muted=!!b; }
 function unlock(){ const a=ctx(); if(a && a.state!=='running'){ try{ a.resume(); }catch(_){} } }
@@ -236,6 +255,47 @@ E.explode=function(x, y, col, kind, sc){
   }
   if(kind==='crackle'){
     this.after(0.7, ()=>{ for(let j=0;j<this.n(18);j++) this.spark(x+rnd(-110,110)*s, y+rnd(-80,110)*s, 0, 0, '#ffffff', {life:0.22, gr:0, sz:rnd(1.6,2.6)}); if(this.onCrackle) this.onCrackle(); });
+  }
+};
+// 👆 押した ところの 演出（v583。o：col 色・pal・emo 絵文字・combo・dice ランダムの さいころ）
+const TAP_FX=[['kira','✨ きらきら'],['dice','🎲 サイコロ'],['hanabi','🎆 花火'],['star','⭐ 星'],['heart','💖 ハート'],['awa','🫧 あわ'],['dokan','💥 どかん'],['coin','🪙 コイン'],['hana','🌸 花びら'],['kami','🎊 紙ふぶき']];
+const hasTapFx=k=>TAP_FX.some(x=>x[0]===k);
+E.fly=function(x, y, ch, o){   // 絵文字を 1つ（向き・速さ・重さを 決めて）
+  const d=this.d, a=o.a!=null ? o.a : rnd(-Math.PI*0.85, -Math.PI*0.15), v=(o.v!=null ? o.v : rnd(260,520))*d;
+  return this.add({k:'e', x:x+(o.dx||0)*d, y:y+(o.dy||0)*d, vx:Math.cos(a)*v+(o.vx||0)*d, vy:Math.sin(a)*v+(o.vy||0)*d, ch:Array.isArray(ch) ? pick(ch) : ch, sz:(o.sz||30)*d, rot:o.rot!=null ? o.rot : rnd(-0.6,0.6), vr:o.vr!=null ? o.vr : rnd(-4,4), gr:(o.gr!=null ? o.gr : 520)*d, life:o.life||rnd(1.0,1.6), age:0});
+};
+E.tapFx=function(k, x, y, o){
+  o=o||{}; const c=Math.max(1, o.combo||1), col=o.col||pick(this.pal()), big=c>=10 ? 2 : c>=5 ? 1 : 0;
+  if(k==='dice'){   // サイコロが ころがる
+    for(let i=0;i<this.n(2+big);i++) this.fly(x, y, '🎲', {v:rnd(280,560), sz:rnd(30,44), vr:rnd(-12,12), gr:900, life:rnd(1.0,1.5)});
+    this.burst(x, y, {n:10, sp:260, pal:['#ffffff','#ff4040','#ffffff'], rs:0.7});
+  } else if(k==='hanabi'){   // 押した ところで 花火が ひらく
+    this.explode(x, y, col, pick(['peony','ring','star','double','crackle']), 0.62+Math.min(0.4, c*0.02));
+  } else if(k==='star'){
+    this.emoji(x, y, ['⭐','🌟','✨'], {n:4+big, sp:560, sz:30});
+    this.burst(x, y, {n:16, sp:420, pal:['#fff36b','#ffd23f','#ffffff'], ring:false});
+  } else if(k==='heart'){
+    this.explode(x, y, '#ff5f9e', 'heart', 0.4+Math.min(0.3, c*0.015));
+    for(let i=0;i<this.n(3);i++) this.fly(x, y, ['💖','💗','💕'], {a:-Math.PI/2, v:rnd(120,220), dx:rnd(-30,30), vx:rnd(-50,50), sz:rnd(24,36), vr:rnd(-1,1), gr:-30, life:rnd(1.1,1.6)});
+  } else if(k==='awa'){   // あわが のぼる
+    for(let i=0;i<this.n(6+2*big);i++) this.fly(x, y, '🫧', {a:-Math.PI/2, v:rnd(90,240), dx:rnd(-40,40), dy:rnd(-10,20), vx:rnd(-40,40), sz:rnd(18,40), rot:0, vr:rnd(-0.6,0.6), gr:-40, life:rnd(1.2,2.0)});
+    this.ring(x, y, '#9fe8ff', 0.6);
+  } else if(k==='dokan'){   // 衝撃の 輪
+    this.ring(x, y, '#ffffff', 1.5); this.ring(x, y, col, 1.0); this.after(0.08, ()=>this.ring(x, y, '#ffb000', 1.9));
+    this.glow(x, y, 140, '#ffd27a', 0.35); this.fly(x, y, '💥', {a:-Math.PI/2, v:40, sz:64, vr:0, gr:0, life:0.5});
+    this.burst(x, y, {n:22, sp:620, pal:['#ffffff','#ffb000','#ff4500'], ring:false}); this.kick(0.25);
+  } else if(k==='coin'){   // コインが 飛び出して 落ちる
+    for(let i=0;i<this.n(4+big);i++) this.fly(x, y, '🪙', {a:rnd(-Math.PI*0.8,-Math.PI*0.2), v:rnd(360,640), sz:rnd(24,34), rot:0, vr:rnd(-14,14), gr:1100, life:rnd(1.0,1.4)});
+    this.burst(x, y, {n:12, sp:300, pal:['#ffd23f','#fff3c4','#ffb000'], rs:0.6});
+  } else if(k==='hana'){   // 花びらが 舞う
+    for(let i=0;i<this.n(5+2*big);i++) this.fly(x, y, ['🌸','🌸','💮','🌼'], {a:rnd(0,TAU), v:rnd(80,260), vy:-80, sz:rnd(18,30), vr:rnd(-3,3), gr:120, life:rnd(1.4,2.2)});
+    this.burst(x, y, {n:8, sp:200, pal:['#ffd1e6','#ffffff','#ff9ad5'], ring:false});
+  } else if(k==='kami'){   // 紙ふぶきが 吹き上がる
+    this.confetti(big ? 40 : 24, {x, y, life:2.2});
+  } else {   // ✨ きらきら（いつもの）
+    this.burst(x, y, {n:12+Math.min(48, c*2), sp:300+Math.min(400, c*12), pal:o.pal||[col,'#ffffff',col,this.pal()[0]], rs:0.8+Math.min(1, c/30)});
+    this.emoji(x, y, o.emo||'✨', {n:big===2 ? 4 : big ? 2 : 1, sp:420, up:true, sz:34});
+    if(o.dice) this.emoji(x, y, '🎲', {n:1, sp:300, up:true, sz:30});
   }
 };
 // 画面を ゆらす・光らせる（ひかえめ・点滅なし では しない）
@@ -459,6 +519,6 @@ E.finale=function(o){
 };
 
 window.HADE_FX={ THEMES, LEVELS, PAL, INK, Engine, snd:SND, setVol, setMute, unlock, vib, played:()=>played.slice(), hasTheme, hasLevel,
-  TONES, tone, toneStop, tonePer,
+  TONES, tone, toneStop, tonePer, TAPS, tapSnd, hasTap, TAP_FX, hasTapFx,
   ctx:()=>!!ctx() };
 })();

@@ -11704,6 +11704,36 @@ async function runHadeCount582(browser) {
   await ctx.close();
   await v579Fit(browser, async p2 => { await p2.evaluate(async () => { await openHadeCount(); HADE_COUNT.set('step', 'rnd'); }); return [['🎲 ランダム', () => document.querySelector('.hc-rng').scrollIntoView({ block: 'center' })]]; }, '🎲 ランダムの 設定');
 }
+async function runHadeCount583(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🎉 ど派手カウンター：押した 音・押した ところの 演出（v583） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { navigator.vibrate = () => true; window.appConfirm = async () => true; });
+  await page.evaluate(() => openHadeCount()); await w(600);
+  check('  はじめは 🎈 ポン と ✨ きらきら・音は 9つ＋🔀 おまかせ・演出は 10＋🔀 おまかせ', await page.evaluate(() => { const c = HADE_COUNT.state().list[0]; const row = s => [...document.querySelectorAll(s + ' button')]; return [c.tap, c.fx, row('.hc-tap').length, row('.hc-tfx').length, row('.hc-tap').find(b => b.classList.contains('on')).textContent, row('.hc-tfx').find(b => b.classList.contains('on')).textContent, row('.hc-tap').pop().textContent, row('.hc-tfx').pop().textContent].join('/'); }), 'pop/kira/10/11/🎈 ポン/✨ きらきら/🔀 おまかせ/🔀 おまかせ');
+  check('  音を えらぶと ためしに 鳴る・押すと その 音（9つ ぜんぶ）', await page.evaluate(async () => { const want = { pop: 'pop', coin: 'kCoin', taiko: 'kTaiko', piko: 'kPiko', bell: 'kBell', mokkin: 'kMokkin', clap: 'kClap', water: 'kWater', laser: 'kLaser' }, bad = []; const orig = HADE_FX.tapSnd, got = []; HADE_FX.tapSnd = (k, i) => { got.push(k); orig(k, i); }; for (const [k, nm] of Object.entries(want)) { got.length = 0; HADE_COUNT.set('tap', k); const p1 = HADE_FX.played().slice(-2); HADE_COUNT.tap(0); const p2 = HADE_FX.played().slice(-3); if (got.join() !== k + ',' + k || !p1.includes(nm) || !p2.includes(nm) || HADE_COUNT.lastSnd() !== k || HADE_COUNT.state().list[0].tap !== k || document.querySelector('.hc-tap button.on').getAttribute('onclick').indexOf("'" + k + "'") < 0) bad.push(k); await new Promise(r => setTimeout(r, 30)); } HADE_FX.tapSnd = orig; return bad.join(',') || 'ok'; }), 'ok');
+  await w(700);
+  check('  つづけて 押すと 毎回 鳴って 音が 上がる（コンボの 番号）', await page.evaluate(() => { HADE_COUNT.set('tap', 'mokkin'); const orig = HADE_FX.tapSnd, got = []; HADE_FX.tapSnd = (k, i) => { got.push(k + i); orig(k, i); }; for (let i = 0; i < 6; i++) HADE_COUNT.tap(0); HADE_FX.tapSnd = orig; return got.join(','); }), 'mokkin0,mokkin1,mokkin2,mokkin3,mokkin4,mokkin5');
+  check('  🔀 おまかせ（音）：押すたびに ちがう 音（40回で 4つ より 多い）', await page.evaluate(() => { HADE_COUNT.set('tap', 'rand'); const seen = new Set(); for (let i = 0; i < 40; i++) { HADE_COUNT.tap(0); seen.add(HADE_COUNT.lastSnd()); } return [HADE_COUNT.state().list[0].tap, seen.size > 4, [...seen].every(k => HADE_FX.TAPS.some(x => x[0] === k))].join('/'); }), 'rand/true/true');
+  await w(1500);
+  check('  押した ところの 演出を えらぶと ためしに 出る・押すと その 演出（10 ぜんぶ）', await page.evaluate(async () => { const bad = []; for (const [k] of HADE_FX.TAP_FX) { HADE_COUNT.set('fx', k); const a = HADE_COUNT.lastFx(); const n1 = HADE_COUNT.fx().n; HADE_COUNT.tap(0); const n2 = HADE_COUNT.fx().n; if (a !== k || HADE_COUNT.lastFx() !== k || !(n1 > 0) || !(n2 >= n1) || HADE_COUNT.state().list[0].fx !== k) bad.push(k + ':' + a + ':' + n1 + ':' + n2); await new Promise(r => setTimeout(r, 250)); } return bad.join(',') || 'ok'; }), 'ok');
+  check('  🔀 おまかせ（演出）：押すたびに ちがう 演出', await page.evaluate(() => { HADE_COUNT.set('fx', 'rand'); const seen = new Set(); for (let i = 0; i < 40; i++) { HADE_COUNT.tap(0); seen.add(HADE_COUNT.lastFx()); } return [HADE_COUNT.state().list[0].fx, seen.size > 4, [...seen].every(k => HADE_FX.TAP_FX.some(x => x[0] === k))].join('/'); }), 'rand/true/true');
+  await w(1500);
+  check('  🎲 ランダムで 足す ときも どの 演出でも 動く（数は はんいの 中）', await page.evaluate(() => { HADE_COUNT.set('rng', '1-6'); const bad = []; for (const [k] of HADE_FX.TAP_FX) { HADE_COUNT.set('fx', k); const n0 = HADE_COUNT.state().list[0].n; HADE_COUNT.tap(0); const d = HADE_COUNT.state().list[0].n - n0; if (d < 1 || d > 6 || HADE_COUNT.lastFx() !== k) bad.push(k); } HADE_COUNT.set('step', 1); return bad.join(',') || 'ok'; }), 'ok');
+  await page.evaluate(() => { HADE_COUNT.set('tap', 'bell'); HADE_COUNT.set('fx', 'heart'); HADE_COUNT.add('B'); }); await w(200);
+  check('  カウンターごと（足した カウンターは ポン と きらきら・もとの カウンターは そのまま）', await page.evaluate(() => { const s = HADE_COUNT.state(); return [s.cur, s.list[1].tap, s.list[1].fx, s.list[0].tap, s.list[0].fx, document.querySelector('.hc-tap button.on').textContent].join('/'); }), '1/pop/kira/bell/heart/🎈 ポン');
+  check('  並べて：押した タイルの カウンターの 音と 演出', await page.evaluate(() => { HADE_COUNT.opt('view', 'grid'); HADE_COUNT.tap(0); const a = [HADE_COUNT.lastSnd(), HADE_COUNT.lastFx()]; HADE_COUNT.tap(1); a.push(HADE_COUNT.lastSnd(), HADE_COUNT.lastFx()); HADE_COUNT.opt('view', 'one'); return a.join('/'); }), 'bell/heart/pop/kira');
+  check('  音を 鳴らさない ときは えらんでも 押しても 鳴らない', await page.evaluate(() => { HADE_COUNT.sel(0); HADE_COUNT.opt('snd', false); const n = HADE_FX.played().length; HADE_COUNT.set('tap', 'coin'); HADE_COUNT.tap(0); const m = HADE_FX.played().length; HADE_COUNT.opt('snd', true); return [m - n, HADE_COUNT.lastSnd()].join('/'); }), '0/coin');
+  await page.evaluate(() => { closeHadeCount(); openHadeCount(); }); await w(400);
+  check('  閉じて 開いても 音と 演出を 覚えている', await page.evaluate(() => HADE_COUNT.state().list.map(c => c.tap + ':' + c.fx).join(',')), 'coin:heart,pop:kira');
+  await page.evaluate(() => { closeHadeCount(); localStorage.setItem('excalc_hadecount', JSON.stringify({ list: [{ name: 'A', tap: 'zz', fx: '<b>' }, { name: 'B', tap: 'rand', fx: 'rand' }, { name: 'C', tap: 'laser', fx: 'kami' }] })); openHadeCount(); }); await w(400);
+  check('  変なデータ：知らない 音・演出は いつもの', await page.evaluate(() => HADE_COUNT.state().list.map(c => c.tap + ':' + c.fx).join(',')), 'pop:kira,rand:rand,laser:kami');
+  check('  set に 知らない 値：かわらない', await page.evaluate(() => { HADE_COUNT.sel(2); HADE_COUNT.set('tap', 'zz'); HADE_COUNT.set('fx', 'boom'); const c = HADE_COUNT.state().list[2]; return c.tap + ':' + c.fx; }), 'laser:kami');
+  await page.evaluate(() => closeHadeCount()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+  await v579Fit(browser, async p2 => { await p2.evaluate(async () => { await openHadeCount(); HADE_COUNT.set('step', 'rnd'); }); return [['音と 演出', () => document.querySelector('.hc-tap').scrollIntoView({ block: 'center' })]]; }, '音と 演出の 設定');
+}
 async function runShiori579(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🧳 旅のしおり（v579） ──');
@@ -12700,6 +12730,7 @@ async function runSchemeFix(browser) {
       }
       if (id === 'hadecount') {   // 🎲 ランダムの はんい（v582）
         await page.evaluate(() => { HADE_COUNT.set('step', 'rnd'); document.querySelector('.hc-rng').scrollIntoView({ block: 'center' }); }); await w(300); found.push('hadecount-rnd:' + await page.evaluate(SCAN));
+        await page.evaluate(() => { HADE_COUNT.set('tap', 'bell'); HADE_COUNT.set('fx', 'heart'); document.querySelector('.hc-tfx').scrollIntoView({ block: 'center' }); }); await w(300); found.push('hadecount-tap:' + await page.evaluate(SCAN));   /* 押した 音・演出（v583） */
         await page.evaluate(() => HADE_COUNT.set('step', 1)); await w(200);
       }
       if (id === 'shiori') {   // 🧳 日程・持ち物・お金・宿・換算（v579）
@@ -17167,6 +17198,7 @@ async function runQrShare(browser) {
     if (!only || only === 'shukin582' || only === 'shukin' || only === 'v582') await runShukin582(browser);
     if (!only || only === 'shukin582' || only === 'shukinfile' || only === 'shukin' || only === 'v582') await runShukinFile582(browser);
     if (!only || only === 'hadecount582' || only === 'hadecount' || only === 'hade' || only === 'v582') await runHadeCount582(browser);
+    if (!only || only === 'hadecount583' || only === 'hadecount' || only === 'hade' || only === 'v583') await runHadeCount583(browser);
     if (!only || only === 'shiori' || only === 'v579') await runShiori579(browser);
     if (!only || only === 'picknames' || only === 'v579') await runPickNames579(browser);
     if (!only || only === 'saveas') await runSaveAs560(browser);
