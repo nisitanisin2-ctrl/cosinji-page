@@ -3,7 +3,9 @@
    ・🎯 当たり：何人かを選ぶ（前に当たった人を外して、全員に回るまで続けることもできる）
    ・🔢 順番：全員の順番
    ・👥 班分け：班の数か 1班の人数で分ける（人数の差は1人まで。班長も決められる）
-   ・🪜 あみだ：横線をひいたあみだくじ。上の名前を押すと線をたどる。下に書くこと（当たり・数・自分で書く）は選べる
+   ・🪜 あみだ：横線をひいたあみだくじ。上の名前を押すと線をたどる。下に書くこと（当たり・数・自分で書く）は選べる。
+     作ると ⛶ 全画面（v585）：画面いっぱいに あみだ全体が おさまる（人数が 多いと 名前は 縦書き。横向きに すると 大きく なる）。
+     全画面でも 名前を押すと たどる・🔓 ぜんぶ開ける・📋 コピー。「✕ 閉じる」・端末の「戻る」・Esc で もどる
    くじは端末の乱数（crypto.getRandomValues）で、かたよりなく決める。休みの人は 名前を押すと外せる。
    結果は 📋コピー・📤共有・▦表に入れる。名前の組（クラス・部 など）は保存して呼び出せる。
    中身は excalc_kuji（この端末の中だけ）。 */
@@ -17,7 +19,7 @@ const MODES=[['pick','🎯 当たり'],['order','🔢 順番'],['team','👥 班
 const COLORS=['#e53935','#1e88e5','#43a047','#fb8c00','#8e24aa','#00897b','#d81b60','#6d4c41','#3949ab','#7cb342','#f4511e','#00acc1'];
 const ABC='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
-let st=null, editing=false, anim=0, pop=null;
+let st=null, editing=false, anim=0, pop=null, full=null;   // full：あみだの 全画面（v585）
 
 /* ───────── 乱数（かたよりなく） ───────── */
 function rnd(n){
@@ -127,7 +129,8 @@ async function go(){
     if(act.length>MAX_AMIDA){ toast('あみだは '+MAX_AMIDA+'人までです（班分けか順番をつかってください）', 4000); return; }
     if(st.amida && st.amida.open.length && st.amida.open.length<st.amida.names.length && !await appConfirm('いまのあみだは まだ開けていない人がいます。新しく作り直しますか？', '作り直す', 'やめる')) return;
     st.amida=makeAmida(act, prizeList(act.length)); save(); renderRes();
-    toast('あみだを作りました。上の名前を押すと たどります');
+    setFull(true);   // 作ったら 全画面で 全体を 見せる（v585。上に「名前を押すと たどります」が 出る）
+    if(!full) toast('あみだを作りました。上の名前を押すと たどります');
     return;
   }
   if(!act.length){ toast('先に名前を入れてください'); return; }
@@ -279,12 +282,75 @@ function renderAmida(){
   b.innerHTML=`<div class="kj-res-h">🪜 あみだ <small>上の名前を押すと たどります</small></div>
     <div class="kj-amida-wrap">${svg}</div>
     ${a.open.length?`<div class="kj-alist">${a.open.map(i=>`<span style="--c:${COLORS[i%COLORS.length]}"><b>${esc(a.names[i])}</b> → ${esc(a.prizes[trace(a,i).end])}</span>`).join('')}</div>`:''}
-    <div class="kj-acts">${all?`<button onclick="KJ.copy()">📋 コピー</button><button onclick="KJ.share()">📤 共有</button><button onclick="KJ.toTable()">▦ 表に入れる</button>`:`<button onclick="KJ.openAll()">🔓 ぜんぶ開ける</button>`}</div>`;
+    <div class="kj-acts"><button class="kj-fullbtn" onclick="KJ.full(true)">⛶ 全画面で 見る</button>${all?`<button onclick="KJ.copy()">📋 コピー</button><button onclick="KJ.share()">📤 共有</button><button onclick="KJ.toTable()">▦ 表に入れる</button>`:`<button onclick="KJ.openAll()">🔓 ぜんぶ開ける</button>`}</div>`;
+}
+
+/* ───────── ⛶ あみだの 全画面（v585）：画面いっぱいに 全体が おさまる ───────── */
+function fullGeom(a, W, H){
+  const n=a.names.length, colW=W/n, L=a.rungs.length, len=x=>[...String(x)].length;
+  const nmax=Math.max(1, ...a.names.map(len)), pmax=Math.max(1, ...a.prizes.map(len));
+  const vert=colW<58;   // せまい ときは 縦書き
+  const fs=vert ? Math.max(9, Math.min(19, colW*0.6)) : Math.max(11, Math.min(20, (colW-10)/Math.min(nmax, 5)));
+  const ch=fs*1.08;
+  const nameH=vert ? Math.min(H*0.3, Math.min(nmax, 7)*ch+14) : fs*1.5+16;
+  const pzH=vert ? Math.min(H*0.24, Math.min(pmax, 5)*ch+14) : fs*1.5+14;
+  const top=nameH+10, bot=H-pzH-10, rowH=Math.max(3, (bot-top)/(L+1));
+  return {n, W, H, colW, vert, fs, ch, nameH, pzH, top, bot, rowH, x:i=>colW*(i+0.5), y:l=>top+(l+1)*rowH};
+}
+// 字を 入れる（横書きは 1行・縦書きは 1字ずつ 下へ）
+function boxText(G, s, cx, y0, h){
+  if(!G.vert){ const k=Math.max(2, Math.floor((G.colW-8)/(G.fs*0.98))); return `<text x="${cx.toFixed(1)}" y="${(y0+h/2+G.fs*0.36).toFixed(1)}" style="font-size:${G.fs.toFixed(1)}px">${esc(short(String(s), k))}</text>`; }
+  const max=Math.max(1, Math.floor((h-10)/G.ch)); let c=[...String(s)]; if(c.length>max) c=c.slice(0, Math.max(1, max-1)).concat(['︙']);
+  const y1=y0+(h-c.length*G.ch)/2+G.fs*0.9;
+  return `<text x="${cx.toFixed(1)}" y="${y1.toFixed(1)}" style="font-size:${G.fs.toFixed(1)}px">${c.map((x,i)=>`<tspan x="${cx.toFixed(1)}" dy="${i ? G.ch.toFixed(1) : 0}">${esc(/^[ー－\-―〜~]$/.test(x) ? '｜' : x)}</tspan>`).join('')}</text>`;
+}
+function fullSvg(a, G){
+  const ends=new Map(a.open.map(i=>[trace(a,i).end, i])), pw=Math.max(3, Math.min(7, G.colW*0.14)).toFixed(1), r=Math.min(8, G.colW*0.18).toFixed(1);
+  let s=`<svg class="kj-amida full" viewBox="0 0 ${G.W} ${G.H}" width="${G.W}" height="${G.H}" role="img" aria-label="あみだくじ（全画面）">`;
+  for(let i=0;i<G.n;i++) s+=`<line x1="${G.x(i).toFixed(1)}" y1="${G.top.toFixed(1)}" x2="${G.x(i).toFixed(1)}" y2="${G.bot.toFixed(1)}" class="v"/>`;
+  a.rungs.forEach((row,l)=>row.forEach((on,c)=>{ if(on) s+=`<line x1="${G.x(c).toFixed(1)}" y1="${G.y(l).toFixed(1)}" x2="${G.x(c+1).toFixed(1)}" y2="${G.y(l).toFixed(1)}" class="h"/>`; }));
+  a.open.forEach(i=>{ const t=trace(a,i); s+=`<polyline class="path" style="--c:${COLORS[i%COLORS.length]};stroke-width:${pw}px" points="${t.pts.map(([c,l])=>G.x(c).toFixed(1)+','+(l<0?G.top:l>=a.rungs.length?G.bot:G.y(l)).toFixed(1)).join(' ')}"/>`; });
+  a.names.forEach((n,i)=>{ const op=a.open.includes(i), x0=G.x(i)-G.colW/2+2;
+    s+=`<g class="nm${op?' on':''}" onclick="KJ.open(${i})" style="--c:${COLORS[i%COLORS.length]}"><rect x="${x0.toFixed(1)}" y="2" width="${(G.colW-4).toFixed(1)}" height="${G.nameH.toFixed(1)}" rx="${r}"/>${boxText(G, n, G.x(i), 2, G.nameH)}</g>`; });
+  a.prizes.forEach((p,c)=>{ const who=ends.get(c), shown=who!=null, x0=G.x(c)-G.colW/2+2, y0=G.bot+8;
+    s+=`<g class="pz${shown?' on':''}"${shown?` style="--c:${COLORS[who%COLORS.length]}"`:''}><rect x="${x0.toFixed(1)}" y="${y0.toFixed(1)}" width="${(G.colW-4).toFixed(1)}" height="${G.pzH.toFixed(1)}" rx="${r}"/>${boxText(G, shown?p:'？', G.x(c), y0, G.pzH)}</g>`; });
+  return s+'</svg>';
+}
+function renderFull(){
+  if(!full) return;
+  const a=st.amida; if(!a){ setFull(false); return; }
+  const box=$('kjFullBox'), bar=$('kjFullBar'), tip=$('kjFullTip'); if(!box) return;
+  // 上と 下の 字・ボタンを 先に 入れてから 大きさを はかる（あみだが 下に はみ出さない ように）
+  const all=a.open.length>=a.names.length, port=window.innerWidth<window.innerHeight;
+  if(tip) tip.textContent=all ? 'ぜんぶ 開けました' : (a.names.length>12 && port ? '名前を押すと たどります（横向きに すると 大きく 見えます）' : '名前を押すと たどります');
+  if(bar) bar.innerHTML=(all ? `<button type="button" onclick="KJ.copy()">📋 コピー</button>` : `<button type="button" onclick="KJ.openAll()">🔓 ぜんぶ開ける</button>`)+`<button type="button" class="pri" onclick="KJ.full(false)">✕ 閉じる</button>`;
+  box.innerHTML='';
+  const W=Math.max(120, box.clientWidth), H=Math.max(160, box.clientHeight), G=fullGeom(a, W, H);
+  box.innerHTML=fullSvg(a, G);
+}
+function fullKey(e){ if(full && e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); setFull(false); } }
+function setFull(on){
+  if(on){
+    if(!st || !st.amida) return;
+    if(full){ renderFull(); return; }
+    const el=document.createElement('div'); el.className='kj-full'; el.id='kjFull';
+    el.setAttribute('role','dialog'); el.setAttribute('aria-modal','true'); el.setAttribute('aria-label','あみだくじ（全画面）');
+    el.innerHTML=`<div class="kj-full-top"><b>🪜 あみだくじ</b><small id="kjFullTip"></small></div><div class="kj-full-box" id="kjFullBox"></div><div class="kj-full-bar" id="kjFullBar"></div>`;
+    document.body.appendChild(el);
+    full={el, rel:null};
+    const me=full; full.rel=typeof modalBack==='function' ? modalBack(()=>{ if(full===me) setFull(false); }) : null;   // 端末の「戻る」で 全画面だけ 閉じる
+    window.addEventListener('keydown', fullKey, true);
+    renderFull();
+  } else if(full){
+    const f=full; full=null;
+    window.removeEventListener('keydown', fullKey, true);
+    f.el.remove(); if(f.rel) f.rel();
+  }
 }
 function openOne(i){
   const a=st.amida; if(!a||i<0||i>=a.names.length||a.open.includes(i)) return;
-  a.open.push(i); save(); renderAmida();
-  const ps=document.querySelectorAll('#kjRes .kj-amida polyline.path'), p=ps[ps.length-1];
+  a.open.push(i); save(); renderAmida(); renderFull();
+  const ps=document.querySelectorAll(full ? '#kjFullBox .kj-amida polyline.path' : '#kjRes .kj-amida polyline.path'), p=ps[ps.length-1];
   if(p && p.getTotalLength && !window.KJ_NO_ANIM){ const L=p.getTotalLength(); p.style.strokeDasharray=L; p.style.strokeDashoffset=L; p.getBoundingClientRect(); p.style.transition='stroke-dashoffset 1.1s ease-in-out'; p.style.strokeDashoffset='0'; }
   if(a.open.length===a.names.length){ st.hist.unshift({t:Date.now(), mode:'amida', text:amidaText()}); st.hist=st.hist.slice(0,MAX_HIST); save(); renderHist(); }
 }
@@ -292,7 +358,7 @@ function openAll(){
   const a=st.amida; if(!a) return;
   a.names.forEach((_,i)=>{ if(!a.open.includes(i)) a.open.push(i); });
   st.hist.unshift({t:Date.now(), mode:'amida', text:amidaText()}); st.hist=st.hist.slice(0,MAX_HIST);
-  save(); renderAmida(); renderHist();
+  save(); renderAmida(); renderHist(); renderFull();
 }
 
 /* ───────── 名前 ───────── */
@@ -426,6 +492,12 @@ const KJ_CSS=`
 @media (prefers-reduced-motion: reduce){ .pop{ animation:none; } }
 .kj-acts{ display:flex; gap:6px; margin-top:12px; } .kj-acts button{ flex:1; height:44px; border-radius:10px; border:1px solid rgba(120,132,156,.35); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:14px; font-weight:bold; cursor:pointer; }
 .kj-amida-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px; }
+.kj-full{ position:fixed; inset:0; z-index:5000; display:flex; flex-direction:column; background:var(--modal-bg,#fff); color:var(--text,#222); padding:calc(6px + var(--safe-top,0px)) 8px calc(8px + var(--safe-bottom,0px)); box-sizing:border-box; }
+.kj-full-top{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; padding:4px 6px 6px; } .kj-full-top b{ font-size:17px; } .kj-full-top small{ font-size:13px; color:var(--text-light,#666); }
+.kj-full-box{ flex:1; min-height:0; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+.kj-full-box .kj-amida{ display:block; margin:0; }
+.kj-full-bar{ display:flex; gap:8px; padding-top:8px; } .kj-full-bar button{ flex:1; min-height:48px; border-radius:12px; border:1px solid rgba(120,132,156,.45); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:15px; font-weight:bold; cursor:pointer; }
+.kj-full-bar button.pri{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); }
 .kj-amida{ display:block; margin:0 auto; touch-action:pan-x pan-y; }
 .kj-amida line.v{ stroke:rgba(120,132,156,.85); stroke-width:3; } .kj-amida line.h{ stroke:rgba(120,132,156,.85); stroke-width:3; stroke-linecap:round; }
 .kj-amida .path{ fill:none; stroke:var(--c); stroke-width:6; stroke-linejoin:round; stroke-linecap:round; opacity:.9; }
@@ -465,17 +537,17 @@ function ensureDom(){
     </div></div>
   </div></div>`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
-  window.addEventListener('resize', ()=>{ if(isDlgOpen('kujiOverlay') && st && st.mode==='amida') renderAmida(); });
+  window.addEventListener('resize', ()=>{ if(isDlgOpen('kujiOverlay') && st && st.mode==='amida') renderAmida(); renderFull(); });
   if(typeof applyNpToolFull==='function') applyNpToolFull();
 }
 function openKuji(){
   ensureDom(); load(); editing=false;
-  openDlg('kujiOverlay', ()=>{ popClose(); clearInterval(anim); anim=0; });
+  openDlg('kujiOverlay', ()=>{ popClose(); setFull(false); clearInterval(anim); anim=0; });
   render();
 }
-function closeKuji(){ if(!$('kujiOverlay')||!isDlgOpen('kujiOverlay')) return; if(editing) namesDone(); popClose(); clearInterval(anim); anim=0; closeDlg('kujiOverlay'); }
+function closeKuji(){ if(!$('kujiOverlay')||!isDlgOpen('kujiOverlay')) return; if(editing) namesDone(); popClose(); setFull(false); clearInterval(anim); anim=0; closeDlg('kujiOverlay'); }
 
-window.KJ={ go, mode:setMode, set, step, prizes, wonReset, histClear, toggle, edit, namesDone, clear, names, lists, listSave, listLoad, listDel, open:openOne, openAll, copy, share, toTable, popClose:()=>popClose(),
+window.KJ={ go, mode:setMode, set, step, prizes, wonReset, histClear, toggle, edit, namesDone, clear, names, lists, listSave, listLoad, listDel, open:openOne, openAll, copy, share, toTable, popClose:()=>popClose(), full:setFull, isFull:()=>!!full,
   state:()=>JSON.parse(JSON.stringify(st)), setNames:a=>{ setNames(a); editing=false; render(); }, text:curText, rows:tableRows, rnd, shuffle, trace:(i)=>trace(st.amida,i), clean, makeAmida };
 Object.assign(window, { openKuji, closeKuji });
 })();
