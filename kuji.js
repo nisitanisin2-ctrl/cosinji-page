@@ -5,7 +5,8 @@
    ・👥 班分け：班の数か 1班の人数で分ける（人数の差は1人まで。班長も決められる）
    ・🪜 あみだ：横線をひいたあみだくじ。上の名前を押すと線をたどる。下に書くこと（当たり・数・自分で書く）は選べる。
      作ると ⛶ 全画面（v585）：画面いっぱいに あみだ全体が おさまる（人数が 多いと 名前は 縦書き。横向きに すると 大きく なる）。
-     全画面でも 名前を押すと たどる・🔓 ぜんぶ開ける・📋 コピー。「✕ 閉じる」・端末の「戻る」・Esc で もどる
+     全画面でも 名前を押すと たどる・🔓 ぜんぶ開ける・📋 コピー。「✕ 閉じる」・端末の「戻る」・Esc で もどる。
+     下の 答えは 線が 下に 着いてから 出す（v586。ぜんぶ開ける も いっしょに 線を 引いてから）
    くじは端末の乱数（crypto.getRandomValues）で、かたよりなく決める。休みの人は 名前を押すと外せる。
    結果は 📋コピー・📤共有・▦表に入れる。名前の組（クラス・部 など）は保存して呼び出せる。
    中身は excalc_kuji（この端末の中だけ）。 */
@@ -20,6 +21,10 @@ const COLORS=['#e53935','#1e88e5','#43a047','#fb8c00','#8e24aa','#00897b','#d81b
 const ABC='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 let st=null, editing=false, anim=0, pop=null, full=null;   // full：あみだの 全画面（v585）
+// 線を 引いている あいだ（v586）：番号 → 引きはじめた 時刻。線が 下に 着くまで 下の 答えは「？」の まま
+const DRAW_MS=1100, reveal=new Map(), popped=new Set();
+const noAnim=()=>!!window.KJ_NO_ANIM || !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+const shownOpen=a=>a.open.filter(i=>!reveal.has(i));   // 答えまで 出して よい 人
 
 /* ───────── 乱数（かたよりなく） ───────── */
 function rnd(n){
@@ -128,6 +133,7 @@ async function go(){
     if(act.length<2){ toast('あみだは 2人から作れます'); return; }
     if(act.length>MAX_AMIDA){ toast('あみだは '+MAX_AMIDA+'人までです（班分けか順番をつかってください）', 4000); return; }
     if(st.amida && st.amida.open.length && st.amida.open.length<st.amida.names.length && !await appConfirm('いまのあみだは まだ開けていない人がいます。新しく作り直しますか？', '作り直す', 'やめる')) return;
+    reveal.clear(); popped.clear();
     st.amida=makeAmida(act, prizeList(act.length)); save(); renderRes();
     setFull(true);   // 作ったら 全画面で 全体を 見せる（v585。上に「名前を押すと たどります」が 出る）
     if(!full) toast('あみだを作りました。上の名前を押すと たどります');
@@ -268,21 +274,46 @@ function renderAmida(){
   const b=$('kjRes'), a=st.amida;
   if(!a){ b.innerHTML=`<div class="kj-empty">「🪜 あみだを作る」を押すと、あみだくじができます。<br>名前の数だけ たて線ができます（${MAX_AMIDA}人まで）。</div>`; return; }
   const G=amidaGeom(a), k=G.dx>=70?5:4;
-  const ends=new Map(a.open.map(i=>[trace(a,i).end, i]));
+  const ends=new Map(shownOpen(a).map(i=>[trace(a,i).end, i]));
   let svg=`<svg class="kj-amida" viewBox="0 0 ${G.w} ${G.h}" width="${G.w}" height="${G.h}" role="img" aria-label="あみだくじ">`;
   for(let i=0;i<G.n;i++) svg+=`<line x1="${G.x(i)}" y1="${G.top}" x2="${G.x(i)}" y2="${G.bot}" class="v"/>`;
   a.rungs.forEach((r,l)=>r.forEach((on,c)=>{ if(on) svg+=`<line x1="${G.x(c)}" y1="${G.y(l)}" x2="${G.x(c+1)}" y2="${G.y(l)}" class="h"/>`; }));
-  a.open.forEach(i=>{ const t=trace(a,i); svg+=`<polyline class="path" style="--c:${COLORS[i%COLORS.length]}" points="${t.pts.map(([c,l])=>G.x(c)+','+(l<0?G.top:l>=a.rungs.length?G.bot:G.y(l))).join(' ')}"/>`; });
+  a.open.forEach(i=>{ const t=trace(a,i); svg+=`<polyline class="path" data-i="${i}" style="--c:${COLORS[i%COLORS.length]}" points="${t.pts.map(([c,l])=>G.x(c)+','+(l<0?G.top:l>=a.rungs.length?G.bot:G.y(l))).join(' ')}"/>`; });
   a.names.forEach((n,i)=>{ const op=a.open.includes(i);
     svg+=`<g class="nm${op?' on':''}" onclick="KJ.open(${i})" style="--c:${COLORS[i%COLORS.length]}"><rect x="${G.x(i)-G.dx/2+3}" y="4" width="${G.dx-6}" height="38" rx="8"/><text x="${G.x(i)}" y="28">${esc(short(n,k))}</text></g>`; });
   a.prizes.forEach((p,c)=>{ const who=ends.get(c), shown=who!=null;
-    svg+=`<g class="pz${shown?' on':''}"${shown?` style="--c:${COLORS[who%COLORS.length]}"`:''}><rect x="${G.x(c)-G.dx/2+3}" y="${G.bot+4}" width="${G.dx-6}" height="34" rx="8"/><text x="${G.x(c)}" y="${G.bot+26}">${shown?esc(short(p,k)):'？'}</text></g>`; });
+    svg+=`<g class="pz${shown?' on':''}${shown && popped.has(who)?' pop':''}"${shown?` style="--c:${COLORS[who%COLORS.length]}"`:''}><rect x="${G.x(c)-G.dx/2+3}" y="${G.bot+4}" width="${G.dx-6}" height="34" rx="8"/><text x="${G.x(c)}" y="${G.bot+26}">${shown?esc(short(p,k)):'？'}</text></g>`; });
   svg+='</svg>';
-  const all=a.open.length>=a.names.length;
+  const all=a.open.length>=a.names.length && !reveal.size, so=shownOpen(a);
   b.innerHTML=`<div class="kj-res-h">🪜 あみだ <small>上の名前を押すと たどります</small></div>
     <div class="kj-amida-wrap">${svg}</div>
-    ${a.open.length?`<div class="kj-alist">${a.open.map(i=>`<span style="--c:${COLORS[i%COLORS.length]}"><b>${esc(a.names[i])}</b> → ${esc(a.prizes[trace(a,i).end])}</span>`).join('')}</div>`:''}
+    ${so.length?`<div class="kj-alist">${so.map(i=>`<span style="--c:${COLORS[i%COLORS.length]}"><b>${esc(a.names[i])}</b> → ${esc(a.prizes[trace(a,i).end])}</span>`).join('')}</div>`:''}
     <div class="kj-acts"><button class="kj-fullbtn" onclick="KJ.full(true)">⛶ 全画面で 見る</button>${all?`<button onclick="KJ.copy()">📋 コピー</button><button onclick="KJ.share()">📤 共有</button><button onclick="KJ.toTable()">▦ 表に入れる</button>`:`<button onclick="KJ.openAll()">🔓 ぜんぶ開ける</button>`}</div>`;
+  drawAnim(b);
+}
+// 線を 引く（描きなおしても とちゅうから つづける）。ease は CSS の ease-in-out に 近い
+const easeIO=k=>k<0.5 ? 2*k*k : 1-Math.pow(-2*k+2, 2)/2;
+function drawAnim(root){
+  if(!root || !reveal.size) return;
+  const now=performance.now();
+  root.querySelectorAll('polyline.path[data-i]').forEach(p=>{
+    const t0=reveal.get(+p.dataset.i); if(t0==null || !p.getTotalLength) return;
+    const L=p.getTotalLength(), k=Math.min(1, Math.max(0, (now-t0)/DRAW_MS)), left=Math.max(0, DRAW_MS-(now-t0));
+    p.style.transition='none'; p.style.strokeDasharray=L; p.style.strokeDashoffset=L*(1-easeIO(k));
+    p.getBoundingClientRect();
+    p.style.transition='stroke-dashoffset '+Math.round(left)+'ms '+(k>0.02 ? 'ease-out' : 'ease-in-out'); p.style.strokeDashoffset='0';
+  });
+}
+// 線を 引きはじめる → 下に 着いたら 答えを 出す（ぽんと）
+function startDraw(list){
+  if(!list.length || noAnim()) return;
+  const t0=performance.now();
+  list.forEach(i=>reveal.set(i, t0));
+  setTimeout(()=>{
+    const done=list.filter(i=>reveal.get(i)===t0); if(!done.length) return;
+    done.forEach(i=>{ reveal.delete(i); popped.add(i); });
+    renderAmida(); renderFull(); popped.clear();
+  }, DRAW_MS+60);
 }
 
 /* ───────── ⛶ あみだの 全画面（v585）：画面いっぱいに 全体が おさまる ───────── */
@@ -305,15 +336,15 @@ function boxText(G, s, cx, y0, h){
   return `<text x="${cx.toFixed(1)}" y="${y1.toFixed(1)}" style="font-size:${G.fs.toFixed(1)}px">${c.map((x,i)=>`<tspan x="${cx.toFixed(1)}" dy="${i ? G.ch.toFixed(1) : 0}">${esc(/^[ー－\-―〜~]$/.test(x) ? '｜' : x)}</tspan>`).join('')}</text>`;
 }
 function fullSvg(a, G){
-  const ends=new Map(a.open.map(i=>[trace(a,i).end, i])), pw=Math.max(3, Math.min(7, G.colW*0.14)).toFixed(1), r=Math.min(8, G.colW*0.18).toFixed(1);
+  const ends=new Map(shownOpen(a).map(i=>[trace(a,i).end, i])), pw=Math.max(3, Math.min(7, G.colW*0.14)).toFixed(1), r=Math.min(8, G.colW*0.18).toFixed(1);
   let s=`<svg class="kj-amida full" viewBox="0 0 ${G.W} ${G.H}" width="${G.W}" height="${G.H}" role="img" aria-label="あみだくじ（全画面）">`;
   for(let i=0;i<G.n;i++) s+=`<line x1="${G.x(i).toFixed(1)}" y1="${G.top.toFixed(1)}" x2="${G.x(i).toFixed(1)}" y2="${G.bot.toFixed(1)}" class="v"/>`;
   a.rungs.forEach((row,l)=>row.forEach((on,c)=>{ if(on) s+=`<line x1="${G.x(c).toFixed(1)}" y1="${G.y(l).toFixed(1)}" x2="${G.x(c+1).toFixed(1)}" y2="${G.y(l).toFixed(1)}" class="h"/>`; }));
-  a.open.forEach(i=>{ const t=trace(a,i); s+=`<polyline class="path" style="--c:${COLORS[i%COLORS.length]};stroke-width:${pw}px" points="${t.pts.map(([c,l])=>G.x(c).toFixed(1)+','+(l<0?G.top:l>=a.rungs.length?G.bot:G.y(l)).toFixed(1)).join(' ')}"/>`; });
+  a.open.forEach(i=>{ const t=trace(a,i); s+=`<polyline class="path" data-i="${i}" style="--c:${COLORS[i%COLORS.length]};stroke-width:${pw}px" points="${t.pts.map(([c,l])=>G.x(c).toFixed(1)+','+(l<0?G.top:l>=a.rungs.length?G.bot:G.y(l)).toFixed(1)).join(' ')}"/>`; });
   a.names.forEach((n,i)=>{ const op=a.open.includes(i), x0=G.x(i)-G.colW/2+2;
     s+=`<g class="nm${op?' on':''}" onclick="KJ.open(${i})" style="--c:${COLORS[i%COLORS.length]}"><rect x="${x0.toFixed(1)}" y="2" width="${(G.colW-4).toFixed(1)}" height="${G.nameH.toFixed(1)}" rx="${r}"/>${boxText(G, n, G.x(i), 2, G.nameH)}</g>`; });
   a.prizes.forEach((p,c)=>{ const who=ends.get(c), shown=who!=null, x0=G.x(c)-G.colW/2+2, y0=G.bot+8;
-    s+=`<g class="pz${shown?' on':''}"${shown?` style="--c:${COLORS[who%COLORS.length]}"`:''}><rect x="${x0.toFixed(1)}" y="${y0.toFixed(1)}" width="${(G.colW-4).toFixed(1)}" height="${G.pzH.toFixed(1)}" rx="${r}"/>${boxText(G, shown?p:'？', G.x(c), y0, G.pzH)}</g>`; });
+    s+=`<g class="pz${shown?' on':''}${shown && popped.has(who)?' pop':''}"${shown?` style="--c:${COLORS[who%COLORS.length]}"`:''}><rect x="${x0.toFixed(1)}" y="${y0.toFixed(1)}" width="${(G.colW-4).toFixed(1)}" height="${G.pzH.toFixed(1)}" rx="${r}"/>${boxText(G, shown?p:'？', G.x(c), y0, G.pzH)}</g>`; });
   return s+'</svg>';
 }
 function renderFull(){
@@ -321,12 +352,13 @@ function renderFull(){
   const a=st.amida; if(!a){ setFull(false); return; }
   const box=$('kjFullBox'), bar=$('kjFullBar'), tip=$('kjFullTip'); if(!box) return;
   // 上と 下の 字・ボタンを 先に 入れてから 大きさを はかる（あみだが 下に はみ出さない ように）
-  const all=a.open.length>=a.names.length, port=window.innerWidth<window.innerHeight;
+  const all=a.open.length>=a.names.length && !reveal.size, port=window.innerWidth<window.innerHeight;
   if(tip) tip.textContent=all ? 'ぜんぶ 開けました' : (a.names.length>12 && port ? '名前を押すと たどります（横向きに すると 大きく 見えます）' : '名前を押すと たどります');
   if(bar) bar.innerHTML=(all ? `<button type="button" onclick="KJ.copy()">📋 コピー</button>` : `<button type="button" onclick="KJ.openAll()">🔓 ぜんぶ開ける</button>`)+`<button type="button" class="pri" onclick="KJ.full(false)">✕ 閉じる</button>`;
   box.innerHTML='';
   const W=Math.max(120, box.clientWidth), H=Math.max(160, box.clientHeight), G=fullGeom(a, W, H);
   box.innerHTML=fullSvg(a, G);
+  drawAnim(box);
 }
 function fullKey(e){ if(full && e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); setFull(false); } }
 function setFull(on){
@@ -349,16 +381,15 @@ function setFull(on){
 }
 function openOne(i){
   const a=st.amida; if(!a||i<0||i>=a.names.length||a.open.includes(i)) return;
-  a.open.push(i); save(); renderAmida(); renderFull();
-  const ps=document.querySelectorAll(full ? '#kjFullBox .kj-amida polyline.path' : '#kjRes .kj-amida polyline.path'), p=ps[ps.length-1];
-  if(p && p.getTotalLength && !window.KJ_NO_ANIM){ const L=p.getTotalLength(); p.style.strokeDasharray=L; p.style.strokeDashoffset=L; p.getBoundingClientRect(); p.style.transition='stroke-dashoffset 1.1s ease-in-out'; p.style.strokeDashoffset='0'; }
+  a.open.push(i); save(); startDraw([i]); renderAmida(); renderFull();   // 線を 引いて、下に 着いたら 答え（v586）
   if(a.open.length===a.names.length){ st.hist.unshift({t:Date.now(), mode:'amida', text:amidaText()}); st.hist=st.hist.slice(0,MAX_HIST); save(); renderHist(); }
 }
 function openAll(){
   const a=st.amida; if(!a) return;
-  a.names.forEach((_,i)=>{ if(!a.open.includes(i)) a.open.push(i); });
+  const add=a.names.map((_,i)=>i).filter(i=>!a.open.includes(i));
+  add.forEach(i=>a.open.push(i));
   st.hist.unshift({t:Date.now(), mode:'amida', text:amidaText()}); st.hist=st.hist.slice(0,MAX_HIST);
-  save(); renderAmida(); renderHist(); renderFull();
+  save(); startDraw(add); renderAmida(); renderHist(); renderFull();   // ぜんぶ いっしょに 線を 引いて から 答え（v586）
 }
 
 /* ───────── 名前 ───────── */
@@ -506,6 +537,8 @@ const KJ_CSS=`
 .kj-amida g.nm.on rect,.kj-amida g.pz.on rect{ fill:var(--c); stroke:var(--c); }
 .kj-amida text{ text-anchor:middle; font-size:13px; font-weight:bold; fill:var(--text,#222); pointer-events:none; }
 .kj-amida g.on text{ fill:#fff; }
+.kj-amida g.pz.pop{ transform-box:fill-box; transform-origin:center; animation:kjPz .5s cubic-bezier(.2,.9,.3,1.3); }
+@keyframes kjPz{ 0%{ transform:scale(.4); opacity:.3; } 60%{ transform:scale(1.18); opacity:1; } 100%{ transform:scale(1); } }
 .kj-alist{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; } .kj-alist span{ padding:4px 10px; border-radius:14px; border:2px solid var(--c); font-size:14px; }
 .kj-hist{ margin:0 0 10px; padding:8px 12px; border-radius:14px; border:1px solid rgba(120,132,156,.25); }
 .kj-hist summary{ cursor:pointer; font-weight:bold; color:var(--acc-text,var(--acc)); padding:4px 0; }
@@ -547,7 +580,7 @@ function openKuji(){
 }
 function closeKuji(){ if(!$('kujiOverlay')||!isDlgOpen('kujiOverlay')) return; if(editing) namesDone(); popClose(); setFull(false); clearInterval(anim); anim=0; closeDlg('kujiOverlay'); }
 
-window.KJ={ go, mode:setMode, set, step, prizes, wonReset, histClear, toggle, edit, namesDone, clear, names, lists, listSave, listLoad, listDel, open:openOne, openAll, copy, share, toTable, popClose:()=>popClose(), full:setFull, isFull:()=>!!full,
+window.KJ={ go, mode:setMode, set, step, prizes, wonReset, histClear, toggle, edit, namesDone, clear, names, lists, listSave, listLoad, listDel, open:openOne, openAll, copy, share, toTable, popClose:()=>popClose(), full:setFull, isFull:()=>!!full, drawing:()=>[...reveal.keys()],
   state:()=>JSON.parse(JSON.stringify(st)), setNames:a=>{ setNames(a); editing=false; render(); }, text:curText, rows:tableRows, rnd, shuffle, trace:(i)=>trace(st.amida,i), clean, makeAmida };
 Object.assign(window, { openKuji, closeKuji });
 })();
