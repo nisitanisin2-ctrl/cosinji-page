@@ -13,7 +13,10 @@
      1つの 音は 自分の 音の 道（bus）を 通すので、止める ときや 次の 音で すぐ 消せる。
    ・🎉 押した ときの 音（v583。ど派手カウンター）：🎈 ポン・🪙 チャリン・🥁 ドン・🎮 ピコッ・🔔 チーン・🎹 木琴（ドレミで 上がる）・
      👏 パチッ・💧 ぽちゃ・⚡ ピュン。どれも 短く、つづけて 押すと 音が 上がる ものも ある。
-   ・👆 押した ところの 演出（v583）：✨ きらきら・🎲 サイコロ・🎆 花火・⭐ 星・💖 ハート・🫧 あわ・💥 どかん・🪙 コイン・🌸 花びら・🎊 紙ふぶき（E.tapFx）。 */
+   ・👆 押した ところの 演出（v583）：✨ きらきら・🎲 サイコロ・🎆 花火・⭐ 星・💖 ハート・🫧 あわ・💥 どかん・🪙 コイン・🌸 花びら・🎊 紙ふぶき（E.tapFx）。
+   ・🔊 演出の 音の セット（v583。ど派手タイマー）：🎆 花火（いままで）・🥁 和（太鼓・拍子木・鈴・笛）・🎮 ゲーム（ピコピコ）・🎹 楽器（木琴・ベル・ハープ）・
+     🐤 自然（小鳥・水・風・かえる）・🚀 宇宙（ピュン・ビヨーン）・🔔 やさしい（ポン・チーン）。ドーン・パチパチ・のこり10秒の 音 などを セットごとに かえる（setSnd）。
+   ・⏱ 1秒ごとの 音（v583）：🕰 チクタク・📟 ピッ・🥁 トン・🎹 ドレミ（だんだん 上がる）・💧 ぽちゃ（tickSnd）。 */
 (function(){
 'use strict';
 if(window.HADE_FX) return;
@@ -145,6 +148,78 @@ const TAP_SND={
 };
 const hasTap=k=>TAPS.some(x=>x[0]===k);
 function tapSnd(k, i){ (TAP_SND[k]||TAP_SND.pop)(i); }
+/* ───────── 🔊 演出の 音の セット（v583。ど派手タイマー）─────────
+   花火の 音（boom・crackle）・のこり10秒（heart・beep）・区切り（whoosh・level・coin・whistle・taiko・chime・drum・down・pop・tick）を セットごとに かえる */
+const SSETS=[['hanabi','🎆 花火'],['wa','🥁 和'],['game','🎮 ゲーム'],['gakki','🎹 楽器'],['shizen','🐤 自然'],['uchu','🚀 宇宙'],['yasashi','🔔 やさしい']];
+function mar(f, t0, k){ k=k||1; osc('sine', f, t0, 0.45, 0.28*k); osc('sine', f*3.99, t0, 0.05, 0.06*k); osc('triangle', f*2, t0, 0.08, 0.04*k); }   // 木琴の 1音
+const kot=(f, t0, k)=>{ k=k||1; osc('triangle', f, t0, 0.5, 0.24*k); osc('sine', f*2, t0, 0.25, 0.06*k); nz(t0, 0.02, 0.05*k, 'highpass', 3000); };   // 琴の 1音
+const SET_DEF={
+  wa:{   // 太鼓・拍子木・鈴・笛・琴
+    boom:t=>{ don(t, 1); don(t+0.13, 0.6); }, crackle:t=>{ ka(t); }, whoosh:t=>{ osc('sine', 900, t, 0.32, 0.12, 1700); nz(t, 0.3, 0.05, 'bandpass', 2000, null, 2); },
+    beep:(t, f, d)=>{ nz(t, 0.03, 0.45, 'bandpass', 2600, null, 9); osc('triangle', (f||880)*1.5, t, 0.05, 0.12); }, heart:t=>{ don(t, 0.6); },
+    level:t=>{ for(let i=0;i<6;i++) bellHit(3100+i*90, t+i*0.035, 0.9); }, coin:t=>{ bellHit(3000, t, 1); bellHit(3600, t+0.05, 0.8); },
+    whistle:t=>{ pipe(midi(86), t, 0.28); pipe(midi(89), t+0.3, 0.4); }, tick:t=>{ ka(t); }, taiko:t=>{ don(t, 1); ka(t+0.26); },
+    chime:t=>{ church(midi(55), t, 2.6); }, drum:(t, n)=>{ const k=Math.max(4, Math.min(40, n|0||16)); for(let i=0;i<k;i++) don(t+i*0.07, 0.25+0.5*i/k); },
+    down:t=>{ don(t, 0.5); }, pop:(t, i)=>{ kot(midi(67+PENTA[Math.max(0, i|0)%5]), t); },
+  },
+  game:{   // ピコピコ（8ビット）
+    boom:t=>{ osc('square', 110, t, 0.3, 0.12, 40); nz(t, 0.45, 0.3, 'lowpass', 3000, 300); }, crackle:t=>{ for(let i=0;i<4;i++) osc('square', midi(84+i*4), t+i*0.04, 0.03, 0.05); },
+    whoosh:t=>{ osc('square', 200, t, 0.3, 0.06, 1600); }, beep:(t, f, d)=>{ osc('square', f||880, t, d||0.1, 0.09); }, heart:t=>{ osc('square', 196, t, 0.08, 0.08); osc('square', 165, t+0.1, 0.08, 0.08); },
+    level:t=>{ [72,76,79,84,88,91].forEach((m,i)=>osc('square', midi(m), t+i*0.05, 0.06, 0.07)); }, coin:t=>{ osc('square', midi(83), t, 0.05, 0.1); osc('square', midi(88), t+0.05, 0.2, 0.1); },
+    whistle:t=>{ osc('square', 400, t, 0.25, 0.06, 2000); }, tick:t=>{ osc('square', 1760, t, 0.02, 0.04); }, taiko:t=>{ osc('triangle', 110, t, 0.2, 0.3, 55); },
+    chime:t=>{ [79,84,88,91].forEach((m,i)=>osc('square', midi(m), t+i*0.12, 0.2, 0.06)); }, drum:(t, n)=>{ const k=Math.max(4, Math.min(40, n|0||16)); for(let i=0;i<k;i++) osc('square', midi(60+(i%8)*2), t+i*0.045, 0.04, 0.05); },
+    down:t=>{ osc('square', 600, t, 0.25, 0.07, 150); }, pop:(t, i)=>{ const m=72+PENTA[Math.max(0, i|0)%5]; osc('square', midi(m), t, 0.07, 0.07, midi(m+12)); },
+  },
+  gakki:{   // 木琴・ベル・ハープ・ティンパニ
+    boom:t=>{ [48,55,64].forEach(m=>mar(midi(m), t, 1)); osc('sine', 98, t, 0.6, 0.35, 90); }, crackle:t=>{ [96,100,103].forEach((m,i)=>osc('sine', midi(m), t+i*0.05, 0.25, 0.06)); },
+    whoosh:t=>{ [60,64,67,72,76,79,84].forEach((m,i)=>osc('triangle', midi(m), t+i*0.035, 0.35, 0.1)); }, beep:(t, f, d)=>{ mar(f||880, t, 0.9); }, heart:t=>{ mar(midi(48), t, 0.8); },
+    level:t=>{ [72,76,79,84,88].forEach((m,i)=>{ mar(midi(m), t+i*0.07, 0.7); osc('sine', midi(m+12), t+i*0.07, 0.4, 0.04); }); }, coin:t=>{ osc('sine', midi(88), t, 0.45, 0.16); osc('sine', midi(88)*2.76, t, 0.15, 0.04); },
+    whistle:t=>{ pipe(midi(84), t, 0.25); pipe(midi(88), t+0.25, 0.35); }, tick:t=>{ osc('sine', 1200, t, 0.04, 0.2); nz(t, 0.015, 0.06, 'bandpass', 2400, null, 4); }, taiko:t=>{ osc('sine', 98, t, 0.6, 0.6, 90); nz(t, 0.08, 0.2, 'lowpass', 600); },
+    chime:t=>{ church(midi(76), t, 1.6); church(midi(72), t+0.4, 1.8); }, drum:(t, n)=>{ const k=Math.max(4, Math.min(40, n|0||16)); for(let i=0;i<k;i++) mar(midi(60+SCALE[i%8]+12*Math.floor(i/8%2)), t+i*0.05, 0.4); },
+    down:t=>{ mar(midi(55), t, 0.6); mar(midi(48), t+0.12, 0.6); }, pop:(t, i)=>{ mar(midi(72+SCALE[Math.max(0, i|0)%8]), t, 0.8); },
+  },
+  shizen:{   // 小鳥・水・風・かえる・ししおどし
+    boom:t=>{ nz(t, 0.9, 0.3, 'lowpass', 1500, 200); nz(t+0.05, 0.6, 0.12, 'bandpass', 700, 300, 1); }, crackle:t=>{ for(let i=0;i<3;i++){ const at=t+i*0.09+Math.random()*0.04, f=500+Math.random()*500; osc('sine', f, at, 0.07, 0.2, f*2.6); } },
+    whoosh:t=>{ nz(t, 0.8, 0.22, 'bandpass', 400, 1200, 2); }, beep:(t, f, d)=>{ chirp(t, (f||880)>1000 ? 1 : 0); }, heart:t=>{ osc('square', 180, t, 0.08, 0.08, 140); osc('square', 200, t+0.1, 0.08, 0.06, 150); },
+    level:t=>{ [0,0.12,0.24,0.5].forEach((d,i)=>chirp(t+d, i%2)); }, coin:t=>{ osc('sine', 500, t, 0.08, 0.3, 1400); },
+    whistle:t=>{ osc('sine', 2000, t, 0.25, 0.15, 3000); osc('sine', 3000, t+0.28, 0.3, 0.12, 2200); }, tick:t=>{ osc('sine', 4200, t, 0.03, 0.05); osc('sine', 4200, t+0.05, 0.03, 0.05); },
+    taiko:t=>{ osc('sine', 260, t, 0.25, 0.4, 200); nz(t, 0.05, 0.25, 'bandpass', 800, null, 3); }, chime:t=>{ [0,0.15,0.3,0.7,0.85,1.0].forEach((d,i)=>chirp(t+d, i%2)); },
+    drum:(t, n)=>{ const k=Math.max(4, Math.min(40, n|0||16)); for(let i=0;i<k;i++){ const f=600+Math.random()*900; osc('sine', f, t+i*0.04+Math.random()*0.02, 0.04, 0.08, f*1.8); } },
+    down:t=>{ osc('sine', 900, t, 0.2, 0.25, 300); }, pop:(t, i)=>{ const f=400+PENTA[Math.max(0, i|0)%5]*40; osc('sine', f, t, 0.08, 0.3, f*2.6); },
+  },
+  uchu:{   // ピュン・ビヨーン・ソナー
+    boom:t=>{ osc('sawtooth', 1200, t, 0.5, 0.07, 60); nz(t, 0.6, 0.28, 'lowpass', 2000, 100); }, crackle:t=>{ for(let i=0;i<3;i++) osc('square', 2400-i*400, t+i*0.06, 0.05, 0.04, 800); },
+    whoosh:t=>{ osc('sine', 150, t, 0.6, 0.2, 1800); osc('sine', 153, t, 0.6, 0.1, 1830); }, beep:(t, f, d)=>{ osc('sine', f||880, t, d||0.1, 0.25); osc('sine', f||880, t+0.12, d||0.1, 0.08); }, heart:t=>{ osc('sine', 880, t, 0.4, 0.15); },
+    level:t=>{ osc('sine', 300, t, 0.5, 0.2, 2400); osc('triangle', 600, t, 0.5, 0.08, 4800); }, coin:t=>{ osc('square', 1800, t, 0.1, 0.06, 900); },
+    whistle:t=>{ osc('sine', 2400, t, 0.3, 0.15, 400); }, tick:t=>{ osc('sine', 2400, t, 0.03, 0.08); }, taiko:t=>{ osc('sine', 80, t, 0.5, 0.6, 30); },
+    chime:t=>{ [72,79,84,91].forEach((m,i)=>osc('sine', midi(m), t+i*0.18, 1.2, 0.1)); }, drum:(t, n)=>{ const k=Math.max(4, Math.min(40, n|0||16)); for(let i=0;i<k;i++) osc('sine', 300+i*60, t+i*0.04, 0.035, 0.08); },
+    down:t=>{ osc('sine', 1200, t, 0.35, 0.18, 150); }, pop:(t, i)=>{ const f=midi(76+PENTA[Math.max(0, i|0)%5]); osc('sine', f, t, 0.1, 0.2, f*2); },
+  },
+  yasashi:{   // ポン・チーン（小さめ・やわらかい）
+    boom:t=>{ osc('sine', 220, t, 0.45, 0.3, 160); }, crackle:t=>{ osc('sine', midi(96), t, 0.2, 0.05); }, whoosh:t=>{ nz(t, 0.4, 0.08, 'bandpass', 600, 1800, 1); },
+    beep:(t, f, d)=>{ osc('sine', (f||880)*0.75, t, (d||0.1)*1.5, 0.18); }, heart:t=>{ osc('sine', 330, t, 0.2, 0.15); },
+    level:t=>{ [72,76,79,84].forEach((m,i)=>osc('sine', midi(m), t+i*0.09, 0.5, 0.12)); }, coin:t=>{ osc('sine', midi(84), t, 0.5, 0.14); },
+    whistle:t=>{ osc('sine', midi(79), t, 0.25, 0.12); osc('sine', midi(84), t+0.2, 0.35, 0.12); }, tick:t=>{ osc('sine', 1000, t, 0.03, 0.05); }, taiko:t=>{ osc('sine', 165, t, 0.4, 0.3, 120); },
+    chime:t=>{ osc('sine', midi(84), t, 1.2, 0.12); osc('sine', midi(79), t+0.3, 1.4, 0.12); }, drum:(t, n)=>{ const k=Math.max(4, Math.min(40, n|0||16)); for(let i=0;i<k;i++) osc('sine', 1000+i*20, t+i*0.06, 0.03, 0.04); },
+    down:t=>{ osc('sine', 440, t, 0.3, 0.15, 330); }, pop:(t, i)=>{ osc('sine', midi(72+PENTA[Math.max(0, i|0)%5]), t, 0.18, 0.2); },
+  },
+};
+const SET_SND={};
+Object.keys(SET_DEF).forEach(k=>{ SET_SND[k]={}; Object.keys(SET_DEF[k]).forEach(n=>{ SET_SND[k][n]=S(k+':'+n, SET_DEF[k][n]); }); });
+const hasSset=k=>SSETS.some(x=>x[0]===k);
+// セットの 音を 鳴らす（花火 や セットに ない 音は いつもの 音）
+function setSnd(set, name, ...a){ const m=SET_SND[set], f=m && m[name]; if(f) f(...a); else if(SND[name]) SND[name](...a); }
+/* ───────── ⏱ 1秒ごとの 音（v583。ど派手タイマー）───────── */
+const TICKS=[['none','なし'],['tiktak','🕰 チクタク'],['pi','📟 ピッ'],['ton','🥁 トン'],['doremi','🎹 ドレミ'],['pochi','💧 ぽちゃ']];
+const TICK_SND={
+  tiktak:S('s:tiktak', (t, n)=>{ const hi=(n|0)%2===0; nz(t, 0.02, 0.18, 'bandpass', hi ? 3400 : 2500, null, 7); osc('sine', hi ? 2200 : 1700, t, 0.02, 0.05); }),
+  pi:S('s:pi', t=>{ osc('sine', 1760, t, 0.05, 0.1); }),
+  ton:S('s:ton', t=>{ osc('sine', 180, t, 0.12, 0.35, 120); nz(t, 0.03, 0.08, 'lowpass', 900); }),
+  doremi:S('s:doremi', (t, n)=>{ const k=Math.max(0, n|0)%14, m=60+SCALE[k<=7 ? k : 14-k]; mar(midi(m+12), t, 0.7); }),   // ドレミ…ド、シラソ…レ と 上って 下りる
+  pochi:S('s:pochi', t=>{ osc('sine', 420, t, 0.07, 0.25, 1100); }),
+};
+const hasTick=k=>TICKS.some(x=>x[0]===k);
+function tickSnd(k, n){ const f=TICK_SND[k]; if(f) f(n); }
 function setVol(v){ vol=Math.max(0, Math.min(1, +v||0)); if(OUT) try{ OUT.gain.value=vol; }catch(_){} }
 function setMute(b){ muted=!!b; }
 function unlock(){ const a=ctx(); if(a && a.state!=='running'){ try{ a.resume(); }catch(_){} } }
@@ -519,6 +594,6 @@ E.finale=function(o){
 };
 
 window.HADE_FX={ THEMES, LEVELS, PAL, INK, Engine, snd:SND, setVol, setMute, unlock, vib, played:()=>played.slice(), hasTheme, hasLevel,
-  TONES, tone, toneStop, tonePer, TAPS, tapSnd, hasTap, TAP_FX, hasTapFx,
+  TONES, tone, toneStop, tonePer, TAPS, tapSnd, hasTap, TAP_FX, hasTapFx, SSETS, setSnd, hasSset, TICKS, tickSnd, hasTick,
   ctx:()=>!!ctx() };
 })();

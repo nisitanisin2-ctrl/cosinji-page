@@ -11072,8 +11072,8 @@ async function runHadeTimer580(browser) {
   check('  開くまでは 見せ方（hade-look.js）を 読まない', await page.evaluate(() => !document.querySelector('script[data-part="hade-look.js"]') && !window.HADE_LOOK), true);
   await page.evaluate(() => openHadeTimer()); await w(700);
   check('  開くと 読む・service-worker・README にも', await page.evaluate(() => !!document.querySelector('script[data-part="hade-look.js"]') && !!window.HADE_LOOK) + '/' + (sw.includes("'./hade-look.js'") && rd.includes('`hade-look.js`')), 'true/true');
-  check('  はじめは ⭕ 光の輪・🎺 ファンファーレ／見せ方 4つ・時間が 来た 音 9つ', await page.evaluate(() => { const s = HADE_TIMER.state(); const r = [...document.querySelectorAll('.ht-opt')].find(x => x.querySelector('span').textContent === '時間が 来た 音'); return [s.look, s.tone, [...document.querySelectorAll('#htLookSec .ht-looks:not(.sub) button')].map(b => b.textContent.replace(/\s+/g, '') + (b.classList.contains('on') ? '*' : '')).join(','), r ? [...r.querySelectorAll('button')].map(b => b.textContent).join(',') : '', document.querySelectorAll('#htLookSec .ht-looks.sub').length].join('/'); }),
-    'ring/fanfare/⭕光の輪*,🔠画面いっぱい,🎞絵が動く,🐾動物/🎺 ファンファーレ,⏰ 目覚まし,📟 ピピピ,🔔 チャイム,🎵 オルゴール,🕊 はと時計,🥁 太鼓,🎮 ゲーム,🐤 小鳥/0');
+  check('  はじめは ⭕ 光の輪・🎺 ファンファーレ／見せ方 4つ・時間が 来た 音 9つ（と v583 の 🔀 おまかせ）', await page.evaluate(() => { const s = HADE_TIMER.state(); const r = [...document.querySelectorAll('.ht-opt')].find(x => x.querySelector('span').textContent === '時間が 来た 音'); return [s.look, s.tone, [...document.querySelectorAll('#htLookSec .ht-looks:not(.sub) button')].map(b => b.textContent.replace(/\s+/g, '') + (b.classList.contains('on') ? '*' : '')).join(','), r ? [...r.querySelectorAll('button')].map(b => b.textContent).join(',') : '', document.querySelectorAll('#htLookSec .ht-looks.sub').length].join('/'); }),
+    'ring/fanfare/⭕光の輪*,🔠画面いっぱい,🎞絵が動く,🐾動物/🎺 ファンファーレ,⏰ 目覚まし,📟 ピピピ,🔔 チャイム,🎵 オルゴール,🕊 はと時計,🥁 太鼓,🎮 ゲーム,🐤 小鳥,🔀 おまかせ/0');
   check('  🎞 絵 を えらぶと 6つ・🐾 動物 は 6つ（えらんだ ものが 光る）', await page.evaluate(() => { const row = () => [...document.querySelectorAll('#htLookSec .ht-looks.sub button')].map(b => b.textContent.replace(/\s+/g, '') + (b.classList.contains('on') ? '*' : '')).join(','); HADE_TIMER.opt('look', 'pic'); const a = row(); HADE_TIMER.opt('ani', 'usagi'); return a + '/' + row() + '/' + HADE_TIMER.state().look; }),
     '🚀ロケット*,🕯ろうそく,⏳砂時計,💣ばくだん,🎈風船,🌻花/🐱ねこ,🐰うさぎ*,🐶いぬ,🐧ペンギン,🐸かえる,🐻くま/ani');
   check('  音を えらぶと その場で 聞ける（9つ）', await page.evaluate(async () => { HADE_TIMER.opt('snd', true); const out = []; for (const k of ['bell', 'pipi', 'chime', 'orgel', 'hato', 'taiko', 'game', 'tori', 'fanfare']) { HADE_TIMER.opt('tone', k); await sl(30); out.push(HADE_TIMER.fx().played.slice(-1)[0]); } return out.join(','); }), 'tBell,tPipi,tChime,tOrgel,tHato,tTaiko,tGame,tTori,fanfare');
@@ -11733,6 +11733,55 @@ async function runHadeCount583(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
   await v579Fit(browser, async p2 => { await p2.evaluate(async () => { await openHadeCount(); HADE_COUNT.set('step', 'rnd'); }); return [['音と 演出', () => document.querySelector('.hc-tap').scrollIntoView({ block: 'center' })]]; }, '音と 演出の 設定');
+}
+async function runHadeTimer583(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ⏱ ど派手タイマー v583：演出の 音・1秒ごとの 音・時間が 来た 音の おまかせ ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => {
+    window.sl = ms => new Promise(r => setTimeout(r, ms));
+    navigator.vibrate = () => true;
+    Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async () => ({ release() { } }) } });
+  });
+  await page.evaluate(async () => { await openHadeTimer(); }); await w(500);
+  const rowOf = lab => page.evaluate(lab => { const r = [...document.querySelectorAll('#htBody .ht-opt')].find(x => x.querySelector('span') && x.querySelector('span').textContent === lab); return r ? [...r.querySelectorAll('button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(',') : ''; }, lab);
+  check('  演出の 音：🎆 花火（はじめ）・和・ゲーム・楽器・自然・宇宙・やさしい・🔀 おまかせ', await rowOf('演出の 音'), '🎆 花火*,🥁 和,🎮 ゲーム,🎹 楽器,🐤 自然,🚀 宇宙,🔔 やさしい,🔀 おまかせ');
+  check('  1秒ごとの 音：なし（はじめ）・チクタク・ピッ・トン・ドレミ・ぽちゃ', await rowOf('1秒ごとの 音'), 'なし*,🕰 チクタク,📟 ピッ,🥁 トン,🎹 ドレミ,💧 ぽちゃ');
+  check('  時間が 来た 音に 🔀 おまかせ', await rowOf('時間が 来た 音').then(t => [t.split(',').length, t.split(',')[0], t.split(',').pop()].join('/')), '10/🎺 ファンファーレ*/🔀 おまかせ');
+  check('  演出の 音を えらぶと ためしに 鳴る（ドーン・パチパチ・のこり10秒・…）', await page.evaluate(async () => { const out = []; for (const [k] of HADE_FX.SSETS) { HADE_TIMER.opt('sset', k); await sl(2000); const p = HADE_FX.played().slice(-8).join(','); const want = k === 'hanabi' ? ['boom', 'crackle', 'heart', 'beep', 'level'] : ['boom', 'crackle', 'heart', 'beep', 'level'].map(n => k + ':' + n); out.push(k + ':' + want.every(x => p.includes(x))); } return out.join(','); }), 'hanabi:true,wa:true,game:true,gakki:true,shizen:true,uchu:true,yasashi:true');
+  check('  セットごとに ちがう 音（同じ 名前の 音で なく）', await page.evaluate(() => { const n = new Set(HADE_FX.SSETS.map(([k]) => k)); return n.size; }), 7);
+  await page.evaluate(() => { HADE_TIMER.opt('sset', 'game'); HADE_TIMER.opt('every', 5); HADE_TIMER.set(30); HADE_TIMER.start(); }); await w(1600);
+  check('  スタート：えらんだ セットの 音（🎮 ゲーム）', await page.evaluate(() => [HADE_TIMER.sound().set, HADE_FX.played().slice(-12).some(x => x === 'game:whoosh')].join('/')), 'game/true');
+  await page.evaluate(() => HADE_TIMER.shift(21000)); await w(2600);
+  check('  のこり10秒：🎮 ゲームの 音（heart・beep）・花火の 音は 鳴らない', await page.evaluate(() => { const p = HADE_FX.played(); return [p.includes('game:heart'), p.includes('game:beep'), !p.slice(-20).some(x => x === 'boom' || x === 'crackle' || x === 'heart' || x === 'beep')].join('/'); }), 'true/true/true');
+  await page.evaluate(() => { HADE_TIMER.stop(); HADE_TIMER.opt('sset', 'shizen'); HADE_TIMER.opt('level', 'mega'); HADE_TIMER.set(60); HADE_TIMER.start(); }); await w(400);
+  await page.evaluate(() => HADE_TIMER.shift(5200)); await w(2500);
+  check('  間の 演出・花火の 粒も 🐤 自然の 音に（いつもの ドーン・パチパチは 鳴らない）', await page.evaluate(() => { const p = HADE_FX.played().slice(-30); return [HADE_TIMER.shows().n >= 1, p.some(x => x.startsWith('shizen:')), !p.some(x => x === 'boom' || x === 'crackle')].join('/'); }), 'true/true/true');
+  await page.evaluate(() => { HADE_TIMER.stop(); HADE_TIMER.opt('level', 'max'); HADE_TIMER.opt('sset', 'rand'); HADE_TIMER.set(120); HADE_TIMER.start(); }); await w(300);
+  check('  🔀 おまかせ：演出ごとに セットが かわる', await page.evaluate(async () => { const seen = new Set([HADE_TIMER.sound().set]); for (let i = 0; i < 8; i++) { HADE_TIMER.shift(5000); await sl(650); seen.add(HADE_TIMER.sound().set); } return [HADE_TIMER.shows().n >= 6, seen.size >= 2, [...seen].every(k => HADE_FX.SSETS.some(x => x[0] === k))].join('/'); }), 'true/true/true');
+  await page.evaluate(() => { HADE_TIMER.stop(); HADE_TIMER.opt('sset', 'hanabi'); HADE_TIMER.opt('tick', 'doremi'); }); await w(2900);
+  check('  1秒ごとの 音を えらぶと ためしに 鳴る（ドレミ）', await page.evaluate(() => HADE_FX.played().slice(-10).filter(x => x === 's:doremi').length >= 5), true);
+  await page.evaluate(() => { HADE_TIMER.set(20); HADE_TIMER.start(); }); await w(3300);
+  check('  数えている あいだ 1秒ごとに 鳴る', await page.evaluate(() => [HADE_TIMER.sound().tickN >= 2, HADE_FX.played().slice(-15).filter(x => x === 's:doremi').length >= 2].join('/')), 'true/true');
+  await page.evaluate(() => HADE_TIMER.shift(10500)); await w(400);
+  const t0 = await page.evaluate(() => HADE_TIMER.sound().tickN); await w(2300);
+  check('  のこり10秒は 1秒ごとの 音を 休む（数える 音が あるので）', await page.evaluate(t0 => [HADE_TIMER.sound().tickN === t0, HADE_TIMER.view().sec <= 9].join('/'), t0), 'true/true');
+  await page.evaluate(() => { HADE_TIMER.stop(); HADE_TIMER.opt('tick', 'tiktak'); HADE_TIMER.mode('up'); HADE_TIMER.start(); }); await w(3300);
+  check('  ストップウォッチでも 鳴る（チクタク）', await page.evaluate(() => HADE_FX.played().slice(-12).filter(x => x === 's:tiktak').length >= 2), true);
+  await page.evaluate(() => { HADE_TIMER.stop(); HADE_TIMER.mode('down'); HADE_TIMER.opt('tick', 'none'); HADE_TIMER.opt('tone', 'rand'); }); await w(600);
+  check('  時間が 来た 音の 🔀 おまかせ：えらぶと どれかが 鳴る', await page.evaluate(() => [HADE_TIMER.state().tone, HADE_FX.TONES.some(x => x[0] === HADE_TIMER.sound().tone)].join('/')), 'rand/true');
+  check('  0 に なると 毎回 どれかの 音（くり返しも 同じ 音）', await page.evaluate(async () => { const seen = new Set(); for (let i = 0; i < 6; i++) { HADE_TIMER.set(3); HADE_TIMER.start(); HADE_TIMER.shift(3500); await sl(700); seen.add(HADE_TIMER.sound().tone); HADE_TIMER.stopAlarm(); HADE_TIMER.stop(); await sl(50); } return [seen.size >= 2, [...seen].every(k => HADE_FX.TONES.some(x => x[0] === k))].join('/'); }), 'true/true');
+  await page.evaluate(() => { HADE_TIMER.opt('sset', 'uchu'); HADE_TIMER.opt('tick', 'pi'); closeHadeTimer(); }); await w(200);
+  await page.evaluate(async () => { await openHadeTimer(); }); await w(400);
+  check('  閉じて 開いても 覚えている', await page.evaluate(() => { const s = HADE_TIMER.state(); return [s.sset, s.tick, s.tone].join('/'); }), 'uchu/pi/rand');
+  await page.evaluate(() => { closeHadeTimer(); localStorage.setItem('excalc_hadetimer', JSON.stringify({ sset: 'zz', tick: '<b>', tone: 'q' })); }); await w(100);
+  await page.evaluate(async () => { await openHadeTimer(); }); await w(400);
+  check('  変な データ：いつもの（花火・なし・ファンファーレ）', await page.evaluate(() => { const s = HADE_TIMER.state(); return [s.sset, s.tick, s.tone].join('/'); }), 'hanabi/none/fanfare');
+  check('  知らない 値は えらべない', await page.evaluate(() => { HADE_TIMER.opt('sset', 'zz'); HADE_TIMER.opt('tick', 'rand'); HADE_TIMER.opt('tone', 'zz'); const s = HADE_TIMER.state(); return [s.sset, s.tick, s.tone].join('/'); }), 'hanabi/none/fanfare');
+  await page.evaluate(() => closeHadeTimer()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+  await v579Fit(browser, async p2 => { await p2.evaluate(async () => { localStorage.setItem('excalc_hadetimer', JSON.stringify({ snd: false })); await openHadeTimer(); }); return [['音の 設定', () => [...document.querySelectorAll('#htBody .ht-opt')].find(x => x.textContent.startsWith('演出の 音')).scrollIntoView({ block: 'center' })]]; }, '音の 設定');
 }
 async function runShiori579(browser) {
   const { ctx, page, errs } = await newPage(browser);
@@ -17199,6 +17248,7 @@ async function runQrShare(browser) {
     if (!only || only === 'shukin582' || only === 'shukinfile' || only === 'shukin' || only === 'v582') await runShukinFile582(browser);
     if (!only || only === 'hadecount582' || only === 'hadecount' || only === 'hade' || only === 'v582') await runHadeCount582(browser);
     if (!only || only === 'hadecount583' || only === 'hadecount' || only === 'hade' || only === 'v583') await runHadeCount583(browser);
+    if (!only || only === 'hadetimer583' || only === 'hadetimer' || only === 'hade' || only === 'v583') await runHadeTimer583(browser);
     if (!only || only === 'shiori' || only === 'v579') await runShiori579(browser);
     if (!only || only === 'picknames' || only === 'v579') await runPickNames579(browser);
     if (!only || only === 'saveas') await runSaveAs560(browser);
