@@ -133,7 +133,7 @@ async function go(){
     if(act.length<2){ toast('あみだは 2人から作れます'); return; }
     if(act.length>MAX_AMIDA){ toast('あみだは '+MAX_AMIDA+'人までです（班分けか順番をつかってください）', 4000); return; }
     if(st.amida && st.amida.open.length && st.amida.open.length<st.amida.names.length && !await appConfirm('いまのあみだは まだ開けていない人がいます。新しく作り直しますか？', '作り直す', 'やめる')) return;
-    reveal.clear(); popped.clear();
+    reveal.clear(); popped.clear(); renderHist();
     st.amida=makeAmida(act, prizeList(act.length)); save(); renderRes();
     setFull(true);   // 作ったら 全画面で 全体を 見せる（v585。上に「名前を押すと たどります」が 出る）
     if(!full) toast('あみだを作りました。上の名前を押すと たどります');
@@ -284,11 +284,11 @@ function renderAmida(){
   a.prizes.forEach((p,c)=>{ const who=ends.get(c), shown=who!=null;
     svg+=`<g class="pz${shown?' on':''}${shown && popped.has(who)?' pop':''}"${shown?` style="--c:${COLORS[who%COLORS.length]}"`:''}><rect x="${G.x(c)-G.dx/2+3}" y="${G.bot+4}" width="${G.dx-6}" height="34" rx="8"/><text x="${G.x(c)}" y="${G.bot+26}">${shown?esc(short(p,k)):'？'}</text></g>`; });
   svg+='</svg>';
-  const all=a.open.length>=a.names.length && !reveal.size, so=shownOpen(a);
+  const all=a.open.length>=a.names.length && !reveal.size, rest=a.open.length<a.names.length, so=shownOpen(a);
   b.innerHTML=`<div class="kj-res-h">🪜 あみだ <small>上の名前を押すと たどります</small></div>
     <div class="kj-amida-wrap">${svg}</div>
     ${so.length?`<div class="kj-alist">${so.map(i=>`<span style="--c:${COLORS[i%COLORS.length]}"><b>${esc(a.names[i])}</b> → ${esc(a.prizes[trace(a,i).end])}</span>`).join('')}</div>`:''}
-    <div class="kj-acts"><button class="kj-fullbtn" onclick="KJ.full(true)">⛶ 全画面で 見る</button>${all?`<button onclick="KJ.copy()">📋 コピー</button><button onclick="KJ.share()">📤 共有</button><button onclick="KJ.toTable()">▦ 表に入れる</button>`:`<button onclick="KJ.openAll()">🔓 ぜんぶ開ける</button>`}</div>`;
+    <div class="kj-acts"><button class="kj-fullbtn" onclick="KJ.full(true)">⛶ 全画面で 見る</button>${all?`<button onclick="KJ.copy()">📋 コピー</button><button onclick="KJ.share()">📤 共有</button><button onclick="KJ.toTable()">▦ 表に入れる</button>`:rest?`<button onclick="KJ.openAll()">🔓 ぜんぶ開ける</button>`:''}</div>`;
   drawAnim(b);
 }
 // 線を 引く（描きなおしても とちゅうから つづける）。ease は CSS の ease-in-out に 近い
@@ -312,7 +312,8 @@ function startDraw(list){
   setTimeout(()=>{
     const done=list.filter(i=>reveal.get(i)===t0); if(!done.length) return;
     done.forEach(i=>{ reveal.delete(i); popped.add(i); });
-    renderAmida(); renderFull(); popped.clear();
+    if(st.mode==='amida') renderAmida();   // ほかの モードに 変えて いたら 描かない
+    renderFull(); if(!reveal.size) renderHist(); popped.clear();   // 履歴も 答えが 出てから
   }, DRAW_MS+60);
 }
 
@@ -354,7 +355,7 @@ function renderFull(){
   // 上と 下の 字・ボタンを 先に 入れてから 大きさを はかる（あみだが 下に はみ出さない ように）
   const all=a.open.length>=a.names.length && !reveal.size, port=window.innerWidth<window.innerHeight;
   if(tip) tip.textContent=all ? 'ぜんぶ 開けました' : (a.names.length>12 && port ? '名前を押すと たどります（横向きに すると 大きく 見えます）' : '名前を押すと たどります');
-  if(bar) bar.innerHTML=(all ? `<button type="button" onclick="KJ.copy()">📋 コピー</button>` : `<button type="button" onclick="KJ.openAll()">🔓 ぜんぶ開ける</button>`)+`<button type="button" class="pri" onclick="KJ.full(false)">✕ 閉じる</button>`;
+  if(bar) bar.innerHTML=(all ? `<button type="button" onclick="KJ.copy()">📋 コピー</button>` : a.open.length<a.names.length ? `<button type="button" onclick="KJ.openAll()">🔓 ぜんぶ開ける</button>` : '')+`<button type="button" class="pri" onclick="KJ.full(false)">✕ 閉じる</button>`;
   box.innerHTML='';
   const W=Math.max(120, box.clientWidth), H=Math.max(160, box.clientHeight), G=fullGeom(a, W, H);
   box.innerHTML=fullSvg(a, G);
@@ -382,14 +383,14 @@ function setFull(on){
 function openOne(i){
   const a=st.amida; if(!a||i<0||i>=a.names.length||a.open.includes(i)) return;
   a.open.push(i); save(); startDraw([i]); renderAmida(); renderFull();   // 線を 引いて、下に 着いたら 答え（v586）
-  if(a.open.length===a.names.length){ st.hist.unshift({t:Date.now(), mode:'amida', text:amidaText()}); st.hist=st.hist.slice(0,MAX_HIST); save(); renderHist(); }
+  if(a.open.length===a.names.length){ st.hist.unshift({t:Date.now(), mode:'amida', text:amidaText()}); st.hist=st.hist.slice(0,MAX_HIST); save(); if(!reveal.size) renderHist(); }
 }
 function openAll(){
   const a=st.amida; if(!a) return;
-  const add=a.names.map((_,i)=>i).filter(i=>!a.open.includes(i));
+  const add=a.names.map((_,i)=>i).filter(i=>!a.open.includes(i)); if(!add.length) return;
   add.forEach(i=>a.open.push(i));
   st.hist.unshift({t:Date.now(), mode:'amida', text:amidaText()}); st.hist=st.hist.slice(0,MAX_HIST);
-  save(); startDraw(add); renderAmida(); renderHist(); renderFull();   // ぜんぶ いっしょに 線を 引いて から 答え（v586）
+  save(); startDraw(add); renderAmida(); if(!reveal.size) renderHist(); renderFull();   // ぜんぶ いっしょに 線を 引いて から 答え（v586）
 }
 
 /* ───────── 名前 ───────── */
