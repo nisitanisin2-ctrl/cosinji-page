@@ -1,0 +1,39 @@
+{
+  "name": "ビンゴ",
+  "short_name": "ビンゴ",
+  "description": "抽選器が ガラガラ まわって 玉が コロコロ 出る ビンゴ。出た 数の 表・読み上げ・カードの 印刷と たしかめ（表電卓の道具）",
+  "id": "/app-bingo",
+  "start_url": "../../index.html?app=bingo",
+  "scope": "../../index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#e8491d",
+  "orientation": "any",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

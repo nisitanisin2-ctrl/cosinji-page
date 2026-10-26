@@ -43,7 +43,7 @@
     tatekae:'💴 立て替え精算',kuji:'🎲 くじ・班分け',dasetsu:'🚛 打設の段取り',okaeshi:'🎁 お返し帳',
     koyomi:'🗓 こよみ',hoi:'⛩ 方位と恵方',soroban:'🧮 そろばん',hitsudan:'🗣 筆談ボード',keijiban:'📢 電光掲示板',
     hadetimer:'⏱ ど派手タイマー',hadecount:'🎉 ど派手カウンター',seikyu:'📃 請求書づくり',
-    yatta:'🔁 前にやった日 帳',shukin:'📋 出欠・集金表',shiori:'🧳 旅のしおり'};   // v561・v564・v568・v569・v575・v579
+    yatta:'🔁 前にやった日 帳',shukin:'📋 出欠・集金表',shiori:'🧳 旅のしおり',bingo:'🎱 ビンゴ'};   // v561・v564・v568・v569・v575・v579・v587
   if(!id || !APPS[id]) return;
   window.APP_TOOL=id; document.documentElement.classList.add('app-tool');
   const dir='apps/'+id+'/', set=(sel,attr,v)=>document.querySelectorAll(sel).forEach(e=>e.setAttribute(attr,v));
@@ -9370,6 +9370,12 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v587', t:'🎱 ビンゴ', li:[
+    '🧰 道具の「🏠 くらし」に <b>🎱 ビンゴ</b> が できました。「🎱 まわす」を 押すと 六角の 抽選器が ガラガラ まわって、玉が 出口から レールを コロコロ 転がって 出てきます。受け皿で 止まると 大きな 玉で「B の 12」と 出て、読み上げも します',
+    '出た 数は 1〜75 の 表（B・I・N・G・O）に 色が つき、いま 出た 数は 光ります。出た 順・○こ目／のこり も わかります。まわして いる あいだに もう一度 押すと すぐ 出ます',
+    '⛶ 大きく で テレビや プロジェクターに 映す 画面に なります。⚙ で 数の はんい（1〜90 など）・演出の 長さ・音・読み上げを えらべます',
+    '🃏 カード：スマホを ビンゴカードに（押して 穴を あける・リーチ／ビンゴで お知らせ）。🖨 A4 に 4枚ずつ 印刷でき、🔎 たしかめ に カードの 番号を 入れると 本当に ビンゴか すぐ わかります'
+  ]},
   { v:'v586', t:'🪜 あみだくじ：線が 下に 着いてから 答えを 出す', li:[
     '名前を押したとき、線が まだ 下に 着いていないのに 下の 答えが 先に 出ていたのを 直しました。線を 引いている あいだは「？」の ままで、下に 着いたら 答えが ぽんと 出ます',
     'つづけて 押しても、先に 押した 人の 線は とちゅうから つづきます。🔓 ぜんぶ開ける も、のこりの 線を いっしょに 引いてから 答えを 出します（名前の 一覧・これまでの 結果も 着いてから）'
@@ -12248,6 +12254,7 @@ const KEY_FUNCS={
   a_yatta:{g:'設定・機能',label:'🔁前にやった日 帳',short:'やった日',run:()=>openYatta()},   // v579
   a_shukin:{g:'設定・機能',label:'📋出欠・集金表',short:'集金',run:()=>openShukin()},   // v579
   a_shiori:{g:'設定・機能',label:'🧳旅のしおり',short:'しおり',run:()=>openShiori()},   // v579
+  a_bingo:{g:'設定・機能',label:'🎱ビンゴ',short:'ビンゴ',run:()=>openBingo()},   // v587
   a_chart:{g:'設定・機能',label:'📊表からグラフ',short:'グラフ',run:()=>hpRun('chart')},   // v563 表を強くする
   a_cfmt:{g:'設定・機能',label:'🎨条件で色',short:'条件色',run:()=>hpRun('cf')},
   a_filter:{g:'設定・機能',label:'🔎しぼり込み',short:'しぼる',run:()=>hpRun('filter')},
@@ -15334,6 +15341,9 @@ sidePartOpener('openYatta', ['yatta.js'], '前にやった日 帳');
 sidePartOpener('openShukin', ['shukin.js'], '出欠・集金表');
 sidePartOpener('openShiori', ['shiori.js'], '旅のしおり');
 window.closeYatta=function(){}; window.closeShukin=function(){}; window.closeShiori=function(){};
+/* ── 🎱 ビンゴ（v587。bingo.js。抽選器が まわって 玉が 出る・出た 数の 表・カード）── */
+sidePartOpener('openBingo', ['bingo.js'], 'ビンゴ');
+window.closeBingo=function(){};
 /* ── 📏定規（v496。ruler.js に分けてある）──
    スマホの画面を定規にする（カード・硬貨で校正）＋写真に並べた基準から長さを測る。はじめて開いたときに ruler.js を読む。 */
 let rulerPartLoading=null;
@@ -15855,6 +15865,7 @@ const NP_TOOLS=[
   {id:'yatta',    label:'🔁前にやった日 帳',ov:'yattaOverlay',  run:()=>openYatta(),    close:()=>closeYatta()},    // yatta.js（開いたときに読む。v579）
   {id:'shukin',   label:'📋出欠・集金表',ov:'shukinOverlay',    run:()=>openShukin(),   close:()=>closeShukin()},   // shukin.js（開いたときに読む。v579）
   {id:'shiori',   label:'🧳旅のしおり', ov:'shioriOverlay',    run:()=>openShiori(),   close:()=>closeShiori()},   // shiori.js（開いたときに読む。v579）
+  {id:'bingo',    label:'🎱ビンゴ',     ov:'bingoOverlay',     run:()=>openBingo(),    close:()=>closeBingo()},    // bingo.js（開いたときに読む。v587）
   {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},                        // 別のアプリとして開くので全画面・フリックの対象外
   {id:'calctmpl', label:'📋式テンプレ', ov:'calcTmplOverlay',  run:()=>openCalcTmpl(), close:()=>closeCalcTmpl()},
   {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
@@ -22575,6 +22586,7 @@ const TOOL_HINTS={
   yatta:'エアコンの フィルター・布団干し・散髪 など、「✓ きょう やった」を 押すだけで 最後に やった日と「あれから ○日」が 出ます。目安の 日数に 近づくと 黄色、過ぎると 赤。よくある ものから 1回で 足せます',
   shukin:'町内会・PTA・同窓会 などの 名簿に、出欠（出席・欠席・未定）と 集金の ✓ を つけます（出欠だけ・集金だけ の 表も）。上に 合計と まだの 人数・金額。↕ で 順番も かえられ、印刷・コピー・💾 ファイルに 保存も できます',
   shiori:'旅行ごとに 🗓 日程・🎒 持ち物・💴 お金・🎁 お土産・🏨 宿と 連絡先・💱 外貨の 換算を 1つに まとめます。「📋 しおりを コピー」で LINE に 送れます',
+  bingo:'「🎱 まわす」で 抽選器が ガラガラ まわり、玉が コロコロ 出て「B の 12」と 大きく 出ます（読み上げも）。出た 数は 表に 色が つき、出た 順も わかります。⛶ 大きく で テレビにも。🃏 カード で 手元の カード・印刷も できます',
   ruler:'はじめに「🎯 校正」でカードや硬貨を画面に当てて合わせると、定規が正しい長さになります。「📷 写真で測る」は基準の物と並べて撮ってなぞります。',
   keisan:'8つの計算から選びます。入れた数は覚えるので、次も続きから使えます。',
   kurashi:'10のテーマから選ぶか、上の欄で「AED」「死亡届」「失業保険」のようにさがします。ページの中の 🧮 道具で、期限や金額の目安も出せます。',
@@ -22665,7 +22677,7 @@ function homeSetStartup(on){ setStartPage(on?'home':'last'); }
    ★よく使う（自分で選ぶ。選んでいなければ さいきん使ったもの）→ まとまりごと → 隠している道具（畳む）。
    ☰・ホーム・🧰ボタンのどこから開いても同じ窓。隠した道具も下の「隠している道具」から開ける */
 const TOOL_CATS=[
-  ['🏠 くらし',   ['keisan','hadetimer','hadecount','yatta','shukin','shiori','tatekae','kuji','okaeshi','koyomi','hoi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
+  ['🏠 くらし',   ['keisan','hadetimer','hadecount','yatta','shukin','shiori','tatekae','kuji','bingo','okaeshi','koyomi','hoi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
   ['📖 知識・手引き',['kurashi','manner','boki']],   // 計算ではなく読む道具（v513）
   ['💼 仕事',     ['techo','seikyu','meishi','calctmpl','fintmpl','kaikei']],
   ['🏗 現場・畑', ['tansui','kantab','dasetsu','volume','ruler','kakudo','veggie']],
@@ -22935,7 +22947,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v586';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v587';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -25434,6 +25446,7 @@ const ST_GROUPS=[
   {k:'excalc_yatta',      n:'前にやった日 帳（やった日の 記録・目安）'},
   {k:'excalc_shukin',     n:'出欠・集金表（名簿・出欠・集金）'},
   {k:'excalc_shiori',     n:'旅のしおり（日程・持ち物・お金・お土産・宿）'},
+  {k:'excalc_bingo',      n:'ビンゴ（出た 数・設定・自分の カード）'},
   {k:'excalc_receipt',    n:'読み取ったレシート（道具は外しました）', how:'clear'},   // v561〜v563 の 📷レシート読み取りの残り。勝手には消さない
   {k:'excalc_links',      n:'リンク集'},
   {k:'excalc_userkeys',   n:'自分のボタン'},
@@ -25626,6 +25639,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_hitsudan','excalc_keijiban',   // 🗣筆談ボード（よく使う言葉）・📢電光掲示板（文・時計・予約・絵の一覧。写真は入らない）（v569〜v571）
   'excalc_hadetimer','excalc_hadecount','excalc_seikyu',   // ⏱ど派手タイマー・🎉ど派手カウンター・📃請求書づくり（v575）
   'excalc_yatta','excalc_shukin','excalc_shiori',   // 🔁前にやった日 帳・📋出欠・集金表・🧳旅のしおり（v579）
+  'excalc_bingo',   // 🎱ビンゴ（v587）
 ];
 function settingsBundle(){
   const o={};

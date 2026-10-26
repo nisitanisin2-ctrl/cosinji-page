@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
+    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,bingo,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -3105,11 +3105,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,calctmpl,fintmpl');
+    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,bingo,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 44);   // v579 で 🔁📋🧳 の3つ、v575 で ⏱🎉📃 の3つ、v569 で 🗣📢 の2つ、v568 で 🗓⛩🧮 の3つ、v561 で 🚛💴🎲📷 の4つ、v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
+    document.getElementById('startPageSel').options.length), 45);   // v587 で 🎱ビンゴ、v579 で 🔁📋🧳 の3つ、v575 で ⏱🎉📃 の3つ、v569 で 🗣📢 の2つ、v568 で 🗓⛩🧮 の3つ、v561 で 🚛💴🎲📷 の4つ、v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'saienOverlay', 'volumeOverlay',
@@ -11889,6 +11889,117 @@ async function runKujiReveal586(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runBingo587(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🎱 ビンゴ：抽選器が まわって 玉が コロコロ 出る・出た 数の 表・カード（v587） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは 読まない・道具（くらし）・マイキー・バックアップ・端末の空き・吹き出し・単独アプリの 入口', await page.evaluate(() => [typeof window.BINGO, !!NP_TOOLS.find(t => t.id === 'bingo' && t.ov === 'bingoOverlay'), !!KEY_FUNCS.a_bingo, TOOL_CATS.find(c => c[0].includes('くらし'))[1].includes('bingo'), SETTINGS_BACKUP_KEYS.includes('excalc_bingo'), ST_GROUPS.some(g => g.k === 'excalc_bingo'), !!TOOL_HINTS.bingo].join('/')) + '/' + fs.existsSync(path.join(ROOT, 'apps', 'bingo', 'manifest.json')), 'undefined/true/true/true/true/true/true/true');
+  {
+    const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8'), rd = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8'), hl = fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8');
+    check('  service-worker・README・説明書に のる', [sw.includes("'./bingo.js'"), rd.includes('`bingo.js`'), hl.includes('🎱ビンゴ＝')].join('/'), 'true/true/true');
+  }
+  await page.evaluate(() => { window.__asked = 0; window.appConfirm = async () => { window.__asked++; return true; }; });
+  await page.evaluate(async () => { await openBingo(); BINGO.set('speed', 'fast'); }); await w(700);
+  check('  はじめ：抽選器（玉 26こ）・？ の 玉・「🎱 まわす」・1〜75 の 表（B I N G O）・もどす／はじめから／コピー は まだ 押せない・← もどる', await page.evaluate(() => [BINGO.balls(), document.querySelector('#bgRes .bg-big b').textContent, document.getElementById('bgGo').textContent, document.querySelectorAll('#bgBoard .bn').length, [...document.querySelectorAll('#bgBoard .h')].map(h => h.textContent).join(''), document.querySelectorAll('#bgBoard .bn.on').length, [...document.querySelectorAll('#bgActs button')].filter(b => b.disabled).length, !!document.querySelector('#bingoOverlay .tool-back')].join('/')), '26/？/🎱 まわす/75/BINGO/0/3/true');
+  await page.click('#bgGo'); await w(80);
+  check('  まわす：抽選器が まわる・答えは まだ 出さない（表・大きな 玉・出た 順も そのまま）・ボタンは「⏩ すぐ 出す」', await page.evaluate(() => [BINGO.busy(), BINGO.phase(), BINGO.state().drawn.length, document.querySelectorAll('#bgBoard .bn.on').length, document.querySelector('#bgRes .bg-big b').textContent, document.getElementById('bgGo').textContent, document.getElementById('bgHist').textContent.trim()].join('/')), 'true/spin/0/0/？/⏩ すぐ 出す/まだ ありません');
+  await w(650);
+  check('  とちゅう（0.7秒）も まだ 出さない', await page.evaluate(() => [BINGO.busy(), BINGO.state().drawn.length, document.querySelectorAll('#bgBoard .bn.on').length, document.querySelector('#bgRes .bg-big b').textContent].join('/')), 'true/0/0/？');
+  await page.waitForFunction(() => !BINGO.busy(), null, { timeout: 8000 }); await w(450);
+  check('  玉が 受け皿で 止まったら 出す：表に 色・光る・大きな 玉（B の 12 の ように）・○こ目／のこり・受け皿の 玉・読み上げ', await page.evaluate(() => { const s = BINGO.state(), n = s.drawn[0], k = Math.floor((n - 1) / 15), L = 'BINGO'[k], o = BINGO.out();
+    return [s.drawn.length, +document.querySelector('#bgBoard .bn.on').dataset.n === n, +document.querySelector('#bgBoard .bn.last').dataset.n === n, document.querySelector('#bgRes .bg-big small').textContent === L, document.querySelector('#bgRes .bg-big b').textContent === String(n), document.querySelector('#bgRes .bg-call').textContent === L + ' の ' + n,
+      document.querySelector('#bgRes .bg-sub').textContent.replace(/\s+/g, ''), o.n === n && o.rest, BINGO.said() === ['ビー', 'アイ', 'エヌ', 'ジー', 'オー'][k] + ' の ' + n, document.getElementById('bgGo').textContent, document.querySelector('#bgRes .bg-big').classList.contains('bgc' + k)].join('/'); }), '1/true/true/true/true/true/1こ目・のこり74/true/true/🎱 まわす/true');
+  check('  音：ゴロゴロ・ハンドルの カチッ・出口から ポトッ・レールに コトン・コロコロ・出た！', await page.evaluate(() => { const p = BINGO.played(); return ['rumble', 'ratchet', 'pon', 'koto', 'roll', 'chime'].filter(k => !p.includes(k)).join(',') || 'ぜんぶ'; }), 'ぜんぶ');
+  await page.evaluate(() => BINGO.spin()); await w(250);
+  check('  2回目：前の 玉は 受け皿から どける', await page.evaluate(() => [BINGO.busy(), BINGO.out() === null || BINGO.out().rest === false].join('/')), 'true/true');
+  await page.evaluate(() => BINGO.spin()); await w(200);
+  check('  まわして いる あいだに もう一度 押すと すぐ 出る', await page.evaluate(() => { const d = BINGO.state().drawn; return [BINGO.busy(), d.length, BINGO.out().rest, BINGO.out().n === d[1], document.querySelector('#bgRes .bg-call').textContent.endsWith(' ' + d[1]), d[0] !== d[1]].join('/'); }), 'false/2/true/true/true/true');
+  await page.evaluate(() => BINGO.spin()); await w(200);
+  await page.evaluate(() => closeBingo()); await w(300);
+  await page.evaluate(async () => { await openBingo(); }); await w(400);
+  check('  まわして いる とちゅうで 閉じると その 回は なし（2こ の まま）', await page.evaluate(() => [BINGO.busy(), BINGO.state().drawn.length, BINGO.phase(), document.querySelector('#bgRes .bg-sub').textContent.replace(/\s+/g, '')].join('/')), 'false/2/idle/2こ目・のこり73');
+  await page.evaluate(() => { if (document.activeElement) document.activeElement.blur(); }); await page.keyboard.press('Space'); await w(120);
+  check('  スペースキーでも まわせる', await page.evaluate(() => BINGO.busy()), true);
+  await page.evaluate(() => BINGO.skip()); await w(200);
+  await page.evaluate(() => { window.BINGO_NO_ANIM = true; for (let i = 0; i < 80; i++) BINGO.spin(); }); await w(1000);
+  check('  75こ ぜんぶ 出る（同じ 数は 出ない）・「🎉 ぜんぶ 出ました」・抽選器は 空・ファンファーレ', await page.evaluate(() => { const d = BINGO.state().drawn; return [d.length, new Set(d).size, d.slice().sort((a, b) => a - b).join(',') === Array.from({ length: 75 }, (_, i) => i + 1).join(','), document.getElementById('bgGo').textContent, document.getElementById('bgGo').disabled, BINGO.balls(), document.querySelectorAll('#bgBoard .bn.on').length, BINGO.played().includes('fanfare'), document.getElementById('bgCnt').textContent, document.querySelectorAll('#bgHist .mb').length].join('/'); }), '75/75/true/🎉 ぜんぶ 出ました/true/0/75/true/（75／75）/75');
+  await page.evaluate(() => { window.__asked = 0; BINGO.undo(); }); await w(200);
+  check('  ↶ 1つ もどす（聞いてから）：74こ・また まわせる・玉が 1つ もどる', await page.evaluate(() => [window.__asked, BINGO.state().drawn.length, document.getElementById('bgGo').disabled, BINGO.balls()].join('/')), '1/74/false/1');
+  await page.evaluate(() => BINGO.reset()); await w(200);
+  check('  🔄 はじめから（聞いてから）：0こ・玉 26こ・？', await page.evaluate(() => [window.__asked, BINGO.state().drawn.length, BINGO.balls(), document.querySelector('#bgRes .bg-big b').textContent, document.querySelectorAll('#bgBoard .bn.on').length].join('/')), '2/0/26/？/0');
+  await page.evaluate(() => { window.__asked = 0; document.querySelector('#bgBoard .bn[data-n="12"]').click(); }); await w(200);
+  check('  表の 数を 押すと（聞いてから）手で 入れる：B の 12', await page.evaluate(() => [window.__asked, BINGO.state().drawn.join(','), document.querySelector('#bgRes .bg-call').textContent, BINGO.out().n, BINGO.said()].join('/')), '1/12/B の 12/12/ビー の 12');
+  await page.evaluate(() => document.querySelector('#bgBoard .bn[data-n="12"]').click()); await w(200);
+  check('  出た 数を 押すと「○こ目」を 知らせる（消さない）', await page.evaluate(() => [window.__asked, BINGO.state().drawn.join(','), document.getElementById('appToast').textContent].join('/')), '1/12/B の 12：1こ目に 出ました');
+  await page.evaluate(() => { BINGO.set('quick', true); document.querySelector('#bgBoard .bn[data-n="70"]').click(); }); await w(200);
+  check('  ⚙「すぐ 入れる」：聞かずに 入れる（O の 70）', await page.evaluate(() => [window.__asked, BINGO.state().drawn.join(','), document.querySelector('#bgBoard .bn[data-n="70"]').className].join('/')), '1/12,70/bn on bgc4 last');
+  await page.evaluate(() => document.querySelector('#bgBoard .bn[data-n="12"]').click()); await w(200);
+  check('  「すぐ 入れる」の ときは 出た 数を 押すと もどせる（聞いてから）', await page.evaluate(() => [window.__asked, BINGO.state().drawn.join(',')].join('/')), '2/70');
+  await page.evaluate(() => { BINGO.set('quick', false); BINGO.add(3); BINGO.add(40); }); await w(100);
+  check('  📋 コピーの 文：列ごと・出た 順', await page.evaluate(() => BINGO.text().split('\n').slice(1).join('|')), '出た 数：3こ（のこり 72）|B：3|I：—|N：40|G：—|O：70|出た 順：O70 → B3 → N40');
+  await page.evaluate(() => BINGO.setMax(30)); await w(300);
+  check('  ⚙ 数の はんい 1〜30（聞いてから はじめから）：表は 30こ・文字なし・たしかめ は 出さない', await page.evaluate(() => [window.__asked, BINGO.state().max, BINGO.state().drawn.length, document.querySelectorAll('#bgBoard .bn').length, !!document.querySelector('#bgBoard .bg-bn'), BINGO.call(12), [...document.querySelectorAll('#bgActs button')].some(b => b.textContent.includes('たしかめ')), BINGO.balls()].join('/')), '3/30/0/30/true/12/false/26');
+  await page.evaluate(() => BINGO.spin()); await w(550);
+  check('  1〜30 でも 出る（読み上げは 数だけ・玉に 文字なし）', await page.evaluate(() => { const n = BINGO.state().drawn[0]; return [n >= 1 && n <= 30, BINGO.said() === String(n), !document.querySelector('#bgRes .bg-big small')].join('/'); }), 'true/true/true');
+  await page.evaluate(() => BINGO.setMax('45')); await w(250);
+  check('  自分で 決める（1〜45）', await page.evaluate(() => [window.__asked, BINGO.state().max, document.querySelectorAll('#bgBoard .bn').length].join('/')), '4/45/45');
+  await page.evaluate(() => BINGO.setMax('1')); await w(100);
+  check('  2 より 小さい 数は かえない', await page.evaluate(() => BINGO.state().max), 45);
+  await page.evaluate(() => BINGO.setMax(75)); await w(250);
+  check('  🃏 カード：同じ 組と 番号なら 同じ・列ごとの はんい・まん中は FREE・同じ 数なし', await page.evaluate(() => { const a = BINGO.cardNums('K7QF', 12), b = BINGO.cardNums('K7QF', 12), c = BINGO.cardNums('K7QF', 13);
+    return [a.join() === b.join(), a.join() !== c.join(), a.every((n, i) => n === 0 ? i === 12 : n >= (i % 5) * 15 + 1 && n <= (i % 5) * 15 + 15), a[12], new Set(a).size].join('/'); }), 'true/true/true/0/25');
+  check('  ビンゴの 決まり：よこ・ななめ・たて（FREE も 使う）・リーチの あと 1つ', await page.evaluate(() => { const a = BINGO.cardNums('K7QF', 12);
+    return [BINGO.judge(a, [a[0], a[1], a[2], a[3], a[4]]).text, BINGO.judge(a, [a[0], a[6], a[18], a[24]]).text, BINGO.judge(a, [a[2], a[7], a[17], a[22]]).text, BINGO.judge(a, [a[5], a[6], a[7], a[8]]).text === 'リーチ！ あと 1つ：O の ' + a[9], BINGO.judge(a, []).text].join(' | '); }), '🎉 ビンゴ！（よこ 1行め） | 🎉 ビンゴ！（ななめ） | 🎉 ビンゴ！（たて N の 列） | true | あと 3つで リーチ');
+  await page.evaluate(() => { BINGO.tab('card'); BINGO.cardMake('K7QF', 12); }); await w(300);
+  check('  カード画面：No. 12・組 K7QF・25 ます（まん中 FREE は はじめから あく）', await page.evaluate(() => [document.querySelector('.bg-cinfo b').textContent + '・' + document.querySelector('.bg-cinfo span').textContent, document.querySelectorAll('#bgCardTab .bg-card .cc').length, document.querySelector('#bgCardTab .cc.free').classList.contains('on'), document.querySelector('#bgCardTab .bg-cstat').textContent, BINGO.state().tab].join('/')), '🃏 カード No. 12・組 K7QF/25/true/あと 3つで リーチ/card');
+  await page.evaluate(() => [5, 6, 7].forEach(i => document.querySelector('#bgCardTab .cc[data-i="' + i + '"]').click())); await w(200);
+  check('  押すと 穴が あく（3つ → あと 1つで リーチ）', await page.evaluate(() => [BINGO.state().card.marks.length, document.querySelectorAll('#bgCardTab .cc.on').length, document.querySelector('#bgCardTab .bg-cstat').textContent].join('/')), '3/4/あと 1つで リーチ');
+  await page.evaluate(() => document.querySelector('#bgCardTab .cc[data-i="8"]').click()); await w(250);
+  check('  4つ そろうと「リーチ！」（お知らせ・音）', await page.evaluate(() => [document.querySelector('#bgCardTab .bg-cstat').textContent.startsWith('リーチ！ あと 1つ：O の '), document.getElementById('bgBanner').textContent, document.getElementById('bgBanner').classList.contains('on'), BINGO.played().includes('reach')].join('/')), 'true/リーチ！/true/true');
+  await page.evaluate(() => document.querySelector('#bgCardTab .cc[data-i="9"]').click()); await w(250);
+  check('  5つ そろうと「🎉 ビンゴ！」（ファンファーレ・紙ふぶき・そろった 列が 光る）', await page.evaluate(() => [document.querySelector('#bgCardTab .bg-cstat').textContent, document.getElementById('bgBanner').textContent, document.querySelectorAll('#bgCardTab .cc.win').length, BINGO.played().filter(x => x === 'fanfare').length >= 2].join('/')), '🎉 ビンゴ！（よこ 2行め）/🎉 ビンゴ！/5/true');
+  await page.evaluate(() => document.querySelector('#bgCardTab .cc[data-i="9"]').click()); await w(150);
+  check('  もう一度 押すと もどる（リーチに もどる）', await page.evaluate(() => [BINGO.state().card.marks.length, document.querySelector('#bgCardTab .bg-cstat').textContent.startsWith('リーチ！')].join('/')), '4/true');
+  await page.evaluate(() => { window.__asked = 0; BINGO.cardClear(); }); await w(200);
+  check('  🧹 穴を ふさぐ（聞いてから）', await page.evaluate(() => [window.__asked, BINGO.state().card.marks.length, document.querySelectorAll('#bgCardTab .cc.on').length].join('/')), '1/0/1');
+  await page.evaluate(() => BINGO.cardNew()); await w(200);
+  check('  🔄 新しい カード（同じ 組・ちがう 番号）', await page.evaluate(() => { const c = BINGO.state().card; return [c.code, c.no !== 12, c.no >= 1 && c.no <= 999, document.querySelector('.bg-cinfo b').textContent === '🃏 カード No. ' + c.no].join('/'); }), 'K7QF/true/true/true');
+  await page.evaluate(() => { BINGO.cardNoPop(); document.getElementById('bgCCode').value = 'ab 12'; document.getElementById('bgCNo').value = '７'; BINGO.cardMake(); }); await w(250);
+  check('  🔢 番号で 作る（全角・小文字でも）', await page.evaluate(() => { const c = BINGO.state().card; return [c.code, c.no, !document.querySelector('.bg-pop'), [...document.querySelectorAll('#bgCardTab .cc span')].map(s => s.textContent).join(',') === BINGO.cardNums('AB12', 7).filter(n => n).join(',')].join('/'); }), 'AB12/7/true/true');
+  await page.evaluate(() => { BINGO.tab('draw'); const a = BINGO.cardNums('K7QF', 12); [15, 16, 17, 18, 19, 0].forEach(i => BINGO.add(a[i])); }); await w(200);
+  await page.evaluate(() => { BINGO.verifyPop(); document.getElementById('bgVCode').value = 'k7qf'; const i = document.getElementById('bgVNo'); i.value = '12'; i.dispatchEvent(new Event('input')); }); await w(200);
+  check('  🔎 たしかめ：番号と 組（小文字でも）→ カード・出た 数に 穴・ビンゴか', await page.evaluate(() => [document.querySelector('#bgVOut .bg-vh').textContent, document.querySelectorAll('#bgVOut .cc.on').length, document.querySelector('#bgVOut .bg-cstat').textContent].join('/')), 'No. 12 ・ 組 K7QF/7/🎉 ビンゴ！（よこ 4行め）');
+  await page.evaluate(() => { const i = document.getElementById('bgVNo'); i.value = '13'; i.dispatchEvent(new Event('input')); }); await w(150);
+  check('  ほかの 番号は その カードで みる', await page.evaluate(() => document.querySelector('#bgVOut .bg-cstat').textContent === BINGO.judge(BINGO.cardNums('K7QF', 13), BINGO.state().drawn).text), true);
+  await page.evaluate(() => { BINGO.close(); window.__print = 0; window.print = () => { window.__print++; }; BINGO.printPop(); document.getElementById('bgPN').value = '6'; document.getElementById('bgPF').value = '3'; BINGO.print(); }); await w(500);
+  check('  🖨 印刷：A4 に 4枚ずつ（6枚 → 2ページ）・No. 3〜8・組の コード・同じ 並び', await page.evaluate(() => { const pa = document.getElementById('printArea'), cs = pa.querySelectorAll('.bg-doc .pc'), code = BINGO.state().code;
+    return [window.__print, pa.querySelectorAll('.bg-doc .pg').length, cs.length, cs[0].querySelector('.ft b').textContent, cs[5].querySelector('.ft b').textContent, cs[0].querySelector('.ft span').textContent === '組 ' + code, [...cs[0].querySelectorAll('.g span')].map(s => s.textContent.replace('★', '')).join(',') === BINGO.cardNums(code, 3).map(n => n || 'FREE').join(','), document.getElementById('printDynamicStyle').textContent.includes('A4 portrait'), BINGO.state().printN + ':' + BINGO.state().printFrom, !document.querySelector('.bg-pop')].join('/'); }), '1/2/6/No. 3/No. 8/true/true/true/6:3/true');
+  await page.evaluate(() => { window.__c0 = BINGO.state().code; BINGO.printPop(); BINGO.newCode(); }); await w(250);
+  check('  🔀 組の コードを 新しく（聞いてから）', await page.evaluate(() => [BINGO.state().code !== window.__c0, /^[ACEFHJKLMNPRTUWXY345679]{4}$/.test(BINGO.state().code), document.getElementById('bgPCode').textContent === BINGO.state().code].join('/')), 'true/true/true');
+  await page.evaluate(() => BINGO.close()); await w(150);
+  await page.evaluate(() => BINGO.show(true)); await w(300);
+  check('  ⛶ 大きく：見出し・ボタン・出た 順を しまう・「✕ もどす」', await page.evaluate(() => [BINGO.isShow(), getComputedStyle(document.querySelector('#bingoOverlay .modal-header')).display, getComputedStyle(document.getElementById('bgActs')).display, getComputedStyle(document.querySelector('.bg-histsec')).display, getComputedStyle(document.querySelector('.bg-showx')).display].join('/')), 'true/none/none/none/flex');
+  await page.evaluate(() => window.history.back()); await w(500);
+  check('  端末の「戻る」で 大きく を おわる（ビンゴは 開いた まま）', await page.evaluate(() => [BINGO.isShow(), isDlgOpen('bingoOverlay')].join('/')), 'false/true');
+  await page.evaluate(() => BINGO.show(true)); await w(200); await page.keyboard.press('Escape'); await w(250);
+  check('  Esc でも おわる', await page.evaluate(() => [BINGO.isShow(), isDlgOpen('bingoOverlay')].join('/')), 'false/true');
+  await page.evaluate(() => BINGO.setPop()); await w(200);
+  check('  ⚙ 設定：はんい 4つ（＋自分で）・長さ 3つ・音・読み上げ・表の 押し方', await page.evaluate(() => [...document.querySelectorAll('.bg-pop .bg-seg')].map(s => s.querySelectorAll('button').length).join(',') + '/' + [...document.querySelectorAll('.bg-pop .bg-seg button.on')].map(b => b.textContent).join(',')), '4,3,2,2,2/1〜75（BINGO）,⚡ はやい,🔊 出す,🗣 読む,たしかめて 入れる');
+  await page.evaluate(() => { document.querySelectorAll('.bg-pop .bg-seg')[2].querySelectorAll('button')[1].click(); document.querySelectorAll('.bg-pop .bg-seg')[3].querySelectorAll('button')[1].click(); }); await w(150);
+  check('  音・読み上げを 止める（押した ところが 光る）', await page.evaluate(() => [BINGO.state().sound, BINGO.state().voice, [...document.querySelectorAll('.bg-pop .bg-seg button.on')].map(b => b.textContent).slice(2, 4).join(',')].join('/')), 'false/false/🔇 出さない,読まない');
+  await page.evaluate(() => { BINGO.close(); history.length; }); await w(150);
+  await page.evaluate(() => closeBingo()); await page.reload(); await w(900);
+  await page.evaluate(async () => { window.appConfirm = async () => true; await openBingo(); }); await w(400);
+  check('  閉じて 開きなおしても 出た 数・カード・設定が 残る', await page.evaluate(() => { const s = BINGO.state(); return [s.drawn.length, s.card.code + ':' + s.card.no, s.sound, s.voice, s.speed, document.querySelectorAll('#bgBoard .bn.on').length].join('/'); }), '6/AB12:7/false/false/fast/6');
+  await page.evaluate(() => { closeBingo(); localStorage.setItem('excalc_bingo', JSON.stringify({ max: 500, speed: 'zz', drawn: [5, 5, '7', -1, 80, 99, 3.6, null, 'x'], code: 'ab-c<d', card: { code: '<x>', no: 'zz', marks: [1, 2] }, tab: 'zz', printN: 9999, printFrom: -5, sound: 0 })); openBingo(); }); await w(400);
+  check('  変な データ：かたづけて 開く', await page.evaluate(() => { const s = BINGO.state(); return [s.max, s.drawn.join(','), s.speed, s.code, s.card.no >= 1 && s.card.no <= 999 && s.card.marks.length === 0, s.tab, s.printN, s.printFrom, s.sound, document.querySelectorAll('#bgBoard .bn').length].join('/'); }), '99/5,7,80,99,4/norm/ABCD/true/draw/200/1/true/99');
+  await page.evaluate(() => closeBingo()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+  await v579Fit(browser, async p2 => { await p2.evaluate(async () => { window.BINGO_NO_ANIM = true; window.appConfirm = async () => true; await openBingo(); for (let i = 0; i < 12; i++) BINGO.spin(); });
+    return [['抽選', null], ['設定', () => BINGO.setPop()], ['たしかめ', () => { BINGO.close(); BINGO.verifyPop(); const i = document.getElementById('bgVNo'); i.value = '7'; i.dispatchEvent(new Event('input')); }],
+      ['カード', () => { BINGO.close(); BINGO.tab('card'); [0, 1, 2, 3].forEach(i => BINGO.mark(i)); }], ['番号で 作る', () => BINGO.cardNoPop()], ['印刷', () => { BINGO.close(); BINGO.printPop(); }], ['大きく', () => { BINGO.close(); BINGO.tab('draw'); BINGO.show(true); }]]; }, 'ビンゴ');
+}
 async function runShiori579(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🧳 旅のしおり（v579） ──');
@@ -12861,7 +12972,7 @@ async function runSchemeFix(browser) {
       { id: 'a2', fam: '佐藤', giv: '花子', famK: 'さとう', givK: 'はなこ', tels: [{ t: 'cell', v: '080-3333-4444' }], color: 'yellow' }, { id: 'a3', fam: '鈴木', giv: '一郎', famK: 'すずき', givK: 'いちろう', tels: [{ t: 'cell', v: '080-5555-6666' }], color: 'blue' }] })));
     await page.evaluate(() => { const d = new Date(); d.setDate(d.getDate() - 60); const old = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');   // 🎁 お返し帳は 札（まだ・時期すぎ・済み・しない・さしあげた）が出る中身で
       localStorage.setItem('excalc_okaeshi', JSON.stringify({ items: [{ id: 'o1', dir: 'in', kind: 'kekkon', ev: '長女の結婚', date: old, name: '佐藤 花子', amt: 30000, t: 1 }, { id: 'o2', dir: 'in', kind: 'koden', ev: '父の葬儀', date: old, name: '鈴木 一郎', amt: 10000, ret: { st: 'sumi', what: 'お茶' }, t: 2 }, { id: 'o3', dir: 'in', kind: 'kodomo', ev: '入学', date: old, name: '田中 三郎', amt: 10000, t: 3 }, { id: 'o4', dir: 'out', kind: 'koden', ev: '山田さんの葬儀', date: old, name: '山田 太郎', amt: 5000, t: 4 }, { id: 'o5', dir: 'in', kind: 'koden', ev: '父の葬儀', date: old, name: '高橋 次郎', amt: 5000, t: 5 }] })); });
-    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo', 'renraku', 'tatekae', 'kuji', 'dasetsu', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'yatta', 'shukin', 'shiori']) {
+    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo', 'renraku', 'tatekae', 'kuji', 'dasetsu', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'yatta', 'shukin', 'shiori', 'bingo']) {
       await page.evaluate(id => NP_TOOLS.find(t => t.id === id).run(), id); await w(1100);
       found.push(id + ':' + await page.evaluate(SCAN));
       if (id === 'kurashi' || id === 'keisan') { await page.evaluate(id => { const c = document.querySelector(id === 'kurashi' ? '#krList .kr-card' : '#ksList .ks-card'); if (c) c.click(); }, id); await w(800); found.push(id + '-page:' + await page.evaluate(SCAN)); }
@@ -12884,6 +12995,14 @@ async function runSchemeFix(browser) {
         await page.evaluate(async () => { SHUKIN.newListNow({ title: '集金', kind: 'pay', fee: 1000, copy: true }); await SHUKIN.payNow(SHUKIN.ids()[0]); }); await w(300); found.push('shukin-pay:' + await page.evaluate(SCAN));
         await page.evaluate(() => SHUKIN.file()); await w(300); found.push('shukin-file:' + await page.evaluate(SCAN));   /* 💾 外部保存（v582） */
         await page.evaluate(() => SHUKIN.close()); await w(200);
+      }
+      if (id === 'bingo') {   // 🎱 出た 数の 表・カード（リーチ・ビンゴ）・設定・たしかめ（v587）
+        await page.evaluate(() => { window.BINGO_NO_ANIM = true; for (let i = 0; i < 8; i++) BINGO.spin(); document.getElementById('bgBoard').scrollIntoView({ block: 'center' }); }); await w(300); found.push('bingo-board:' + await page.evaluate(SCAN));
+        await page.evaluate(() => { BINGO.tab('card'); [5, 6, 7, 8].forEach(i => BINGO.mark(i)); }); await w(300); found.push('bingo-reach:' + await page.evaluate(SCAN));
+        await page.evaluate(() => BINGO.mark(9)); await w(300); found.push('bingo-win:' + await page.evaluate(SCAN));
+        await page.evaluate(() => { BINGO.tab('draw'); BINGO.setPop(); }); await w(300); found.push('bingo-set:' + await page.evaluate(SCAN));
+        await page.evaluate(() => { BINGO.close(); BINGO.verifyPop(); const i = document.getElementById('bgVNo'); i.value = '5'; i.dispatchEvent(new Event('input')); }); await w(300); found.push('bingo-verify:' + await page.evaluate(SCAN));
+        await page.evaluate(() => BINGO.close()); await w(200);
       }
       if (id === 'kuji') {   // 🪜 あみだの 全画面（v585）
         await page.evaluate(async () => { window.KJ_NO_ANIM = true; KJ.setNames(['田中', '佐藤', '鈴木', '高橋', '伊藤']); KJ.mode('amida'); await KJ.go(); KJ.open(0); }); await w(400); found.push('kuji-full:' + await page.evaluate(SCAN));
@@ -16164,11 +16283,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/46');   // v575 で ⏱ど派手タイマー・🎉ど派手カウンター・📃請求書づくり、v569 で 🗣筆談ボード・📢電光掲示板、v568 で 🗓こよみ・⛩方位と恵方・🧮そろばん、v561 で 💴🎲🚛📷 の4つ（v564 で 📷 を 🎁お返し帳 に）、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/47');   // v575 で ⏱ど派手タイマー・🎉ど派手カウンター・📃請求書づくり、v569 で 🗣筆談ボード・📢電光掲示板、v568 で 🗓こよみ・⛩方位と恵方・🧮そろばん、v561 で 💴🎲🚛📷 の4つ（v564 で 📷 を 🎁お返し帳 に）、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'yatta', 'shukin', 'shiori', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'yatta', 'shukin', 'shiori', 'bingo', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -16196,7 +16315,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,okaeshi:B,koyomi:B,hoi:B,soroban:B,hitsudan:B,keijiban:B,hadetimer:B,hadecount:B,seikyu:B,yatta:B,shukin:B,shiori:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,okaeshi:B,koyomi:B,hoi:B,soroban:B,hitsudan:B,keijiban:B,hadetimer:B,hadecount:B,seikyu:B,yatta:B,shukin:B,shiori:B,bingo:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -17369,6 +17488,7 @@ async function runQrShare(browser) {
     if (!only || only === 'kuji' || only === 'v561') await runKuji561(browser);
     if (!only || only === 'kuji' || only === 'kuji585' || only === 'v585') await runKujiAmida585(browser);
     if (!only || only === 'kuji' || only === 'kuji586' || only === 'v586') await runKujiReveal586(browser);
+    if (!only || only === 'bingo' || only === 'v587') await runBingo587(browser);
     if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
     if (!only || only === 'okaeshi' || only === 'v564') await runOkaeshi564(browser);
     if (!only || only === 'tax' || only === 'v565') await runTax565(browser);
