@@ -11909,6 +11909,8 @@ async function runBingo587(browser) {
   check('  玉が 受け皿で 止まったら 出す：表に 色・光る・大きな 玉（B の 12 の ように）・○こ目／のこり・受け皿の 玉・読み上げ', await page.evaluate(() => { const s = BINGO.state(), n = s.drawn[0], k = Math.floor((n - 1) / 15), L = 'BINGO'[k], o = BINGO.out();
     return [s.drawn.length, +document.querySelector('#bgBoard .bn.on').dataset.n === n, +document.querySelector('#bgBoard .bn.last').dataset.n === n, document.querySelector('#bgRes .bg-big small').textContent === L, document.querySelector('#bgRes .bg-big b').textContent === String(n), document.querySelector('#bgRes .bg-call').textContent === L + ' の ' + n,
       document.querySelector('#bgRes .bg-sub').textContent.replace(/\s+/g, ''), o.n === n && o.rest, BINGO.said() === ['ビー', 'アイ', 'エヌ', 'ジー', 'オー'][k] + ' の ' + n, document.getElementById('bgGo').textContent, document.querySelector('#bgRes .bg-big').classList.contains('bgc' + k)].join('/'); }), '1/true/true/true/true/true/1こ目・のこり74/true/true/🎱 まわす/true');
+  await w(5200);
+  check('  止まって しばらく すると 描くのを やめる（電池に やさしく）', await page.evaluate(() => BINGO.running()), false);
   check('  音：ゴロゴロ・ハンドルの カチッ・出口から ポトッ・レールに コトン・コロコロ・出た！', await page.evaluate(() => { const p = BINGO.played(); return ['rumble', 'ratchet', 'pon', 'koto', 'roll', 'chime'].filter(k => !p.includes(k)).join(',') || 'ぜんぶ'; }), 'ぜんぶ');
   await page.evaluate(() => BINGO.spin()); await w(250);
   check('  2回目：前の 玉は 受け皿から どける', await page.evaluate(() => [BINGO.busy(), BINGO.out() === null || BINGO.out().rest === false].join('/')), 'true/true');

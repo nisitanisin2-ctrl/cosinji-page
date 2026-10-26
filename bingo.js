@@ -174,7 +174,7 @@ const RU=(()=>{ const dx=R1.x-R0.x, dy=R1.y-R0.y, L=Math.hypot(dx,dy); return {x
 const RN={x:RU.y, y:-RU.x};                     // レールの 上むき
 const RAIL_END=RU.L-BR-6;                       // 止め板の 手前（受け皿）
 const pathPt=s=>({x:R0.x+RU.x*s+RN.x*BR, y:R0.y+RU.y*s+RN.y*BR});
-const M={cv:null, g:null, k:1, ox:0, oy:0, balls:[], th:TH_HOLE, om:0, ph:'idle', t:0, plan:null, out:null, parts:[], raf:0, last:0, calm:0, glow:0, onDone:null, tick:0, spr:{}};
+const M={cv:null, g:null, k:1, ox:0, oy:0, balls:[], th:TH_HOLE, om:0, ph:'idle', t:0, plan:null, out:null, parts:[], raf:0, last:0, calm:0, idle:0, glow:0, onDone:null, tick:0, spr:{}};
 
 function hexPts(th){ const p=[]; for(let k=0;k<6;k++){ const a=th+k*Math.PI/3; p.push([CX+HR*Math.cos(a), CY+HR*Math.sin(a)]); } return p; }
 function inHex(x, y, m){ for(let k=0;k<6;k++){ const a=M.th+k*Math.PI/3+Math.PI/6; if(AP-((x-CX)*Math.cos(a)+(y-CY)*Math.sin(a))<m) return false; } return true; }
@@ -297,6 +297,7 @@ function mStep(dt){
   if(M.glow>0) M.glow=Math.max(0, M.glow-dt*0.8);
   let mx=0; for(const b of M.balls) mx=Math.max(mx, Math.abs(b.vx)+Math.abs(b.vy));
   M.calm=(mx<14 && M.ph==='idle') ? M.calm+dt : 0;
+  M.idle=(M.ph==='idle' && !M.parts.length && M.glow<=0) ? M.idle+dt : 0;
 }
 function loop(ts){
   M.raf=0;
@@ -304,9 +305,9 @@ function loop(ts){
   const dt=M.last ? Math.min(0.034, Math.max(0, (ts-M.last)/1000)) : 0.016; M.last=ts;
   mStep(dt); draw();
   if(M.raf) return;   // とちゅうで wake() が 次の こまを 頼んだ とき（2重に 動かさない）
-  if(M.ph!=='idle' || M.parts.length || M.glow>0 || M.calm<0.8) M.raf=requestAnimationFrame(loop); else M.last=0;
+  if(M.ph!=='idle' || M.parts.length || M.glow>0 || (M.calm<0.8 && M.idle<3)) M.raf=requestAnimationFrame(loop); else M.last=0;   // 止まって 3秒で 描くのを やめる（電池に やさしく）
 }
-function wake(){ if(M.cv && !M.raf && isDlgOpen('bingoOverlay')){ M.last=0; M.raf=requestAnimationFrame(loop); } }
+function wake(){ M.idle=0; if(M.cv && !M.raf && isDlgOpen('bingoOverlay')){ M.last=0; M.raf=requestAnimationFrame(loop); } }
 function mResize(){
   const cv=M.cv; if(!cv) return;
   const w=cv.clientWidth, h=cv.clientHeight; if(!w || !h) return;
@@ -908,7 +909,7 @@ window.BINGO={ spin, skip, undo:()=>{ undo(); }, reset:()=>{ reset(); }, tab:set
   cardNew:()=>{ cardNew(); }, cardNoPop, cardMake:(c,n)=>cardMake(c,n), cardClear:()=>{ cardClear(); }, mark:cardMark,
   // ためす とき 用
   state:()=>JSON.parse(JSON.stringify(st)), phase:()=>M.ph, busy:()=>!!busy, played:()=>played.slice(), said:()=>lastSaid, add:n=>addNum(+n), tap:n=>boardTap(+n),
-  balls:()=>M.balls.length, out:()=>M.out ? {n:M.out.n, rest:!!M.out.rest} : null, cardNums, call:n=>callText(n), isShow,
+  balls:()=>M.balls.length, out:()=>M.out ? {n:M.out.n, rest:!!M.out.rest} : null, running:()=>!!M.raf, cardNums, call:n=>callText(n), isShow,
   judge:(nums, drawn)=>{ const s=new Set(drawn), J=judge(nums, n=>s.has(n)); return {bingo:J.bingo, need:J.need, text:judgeText(J)}; } };
 Object.assign(window, { openBingo, closeBingo });
 })();
