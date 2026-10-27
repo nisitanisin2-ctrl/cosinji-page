@@ -11,6 +11,7 @@
      （押すと もどる）。0 になったら 開いて 知らせる。アプリを 閉じていたあいだに 0 になったときは、次に開いたときに 知らせる。
    ・🖼 数え方の 見せ方（v580。hade-look.js）：⭕ 光の輪・🔠 画面いっぱい・🎞 絵が 動く（ロケット・ろうそく・砂時計・ばくだん・風船・花）・
      🐾 動物（ねこ・うさぎ・いぬ・ペンギン・かえる・くま）。設定の 上の 見本も えらんだ 見せ方で 動く（0 の しめくくりまで）。
+     🫧 ぽよん（v589。hade-poyo.js）：📢 電光掲示板の ぽよん と 同じ 動き（つぶれて 落ちて ぷるん）に しぶき・輪・ゆれ・音。🕐 時計 でも 使える（秒も ぽよん）。
    ・⏰ 時間が 来た 音（v580。hade-fx.js）：9つから えらぶ（押すと 聞ける）。「✓ 止める」・「← 戻る」で すぐ 止まる。🔀 おまかせ（v583）は 毎回 ちがう 音。
    ・🔊 演出の 音（v583）：🎆 花火（いままで）・🥁 和・🎮 ゲーム・🎹 楽器・🐤 自然・🚀 宇宙・🔔 やさしい・🔀 おまかせ（演出ごとに かわる）。
      数えている あいだの 音（花火の ドーン・パチパチ・のこり10秒・区切り・スタート など）を セットごとに かえる。
@@ -225,7 +226,8 @@ function lookS(v, r, e, bot){
   if(done && sc && sc.e===e && sc.doneAt==null) sc.doneAt=e.t;
   return {t:e.t, W:e.W, H:e.H, d:e.d, prev:false, mode, p:Math.max(0, Math.min(1, p)), lvl:v.frac, str:v.str, bstr, bsub,
     sstr:mode==='up' ? hms(Math.floor(v.ms/1000)) : v.str, sec, ph:v.ph ? v.ph.ph : '', last10, paused, done,
-    doneT:done && sc && sc.doneAt!=null ? e.t-sc.doneAt : 0, tickT:sc && sc.e===e ? sc.tickT : null, bot, ink:e.ink(), level:e.level};
+    doneT:done && sc && sc.doneAt!=null ? e.t-sc.doneAt : 0, tickT:sc && sc.e===e ? sc.tickT : null, bot, ink:e.ink(), level:e.level,
+    ap:v.ap||'', csec:mode==='clock' && !!st.clock.sec, snd:sc && sc.e===e ? snd : null};   // 🫧 ぽよん で 使う（v589）
 }
 
 /* ───────── 全画面（ステージ）───────── */
@@ -461,6 +463,7 @@ function showTime(k){
   e.text(rnd(W*0.3, W*0.7), H*rnd(0.17, 0.25), w, {sz:Math.min(64*big, W/e.d/(Array.from(w).length*0.95)), pop:true, rot:rnd(-0.18,0.18), vy:-20, life:1.15+0.2*bo, grad:bo>=2 ? rainbow : ['#ffffff', e.ink()[1], e.ink()[2]]});
   if(bo>=1){ e.flash(e.pal()[i%e.pal().length], 0.22+0.08*bo); e.kick(0.4*bo); }
   sc.jumpT=e.t; e.pulse=1; vib([30,30,30]);
+  if(lookKind()==='poyo' && window.HADE_POYO && sc.lk) window.HADE_POYO.hop(sc.lk, e.t, 1+0.4*bo);   // 🫧 ぽよん：みんなで ぴょん（v589）
 }
 // 🕐 時計：分が かわったら 少し・0分は 時報（キーンコーン）・30分ごと・目覚まし（v588）
 function alarmDue(r, now){ if(!r || r.m!=='clock' || !r.al) return false; const d=new Date(now), hm=p2(d.getHours())+':'+p2(d.getMinutes()); return hm===r.al && r.alKey!==ymdOf(d)+' '+hm; }
@@ -518,6 +521,7 @@ function update(){
 function paintStage(){
   const e=sc.e, g=e.g, W=e.W, H=e.H, d=e.d, r=st.run, v=cur || viewOf(r, Date.now()), look=lookKind();
   const fu=$('htFull'); if(fu) fu.classList.toggle('lk', look!=='ring');   // 絵・動物の 明るい 地でも 上の 字が 読めるように
+  e.lightBg=look==='poyo';   // 🫧 ぽよん の 明るい 地では 光を 色の まま 重ねる（v589）
   if(look!=='ring'){ paintLook(look, r, v); paintTop(r, v); return; }
   e.drawBg();
   const [ox,oy]=e.offset(); g.save(); g.translate(ox, oy);
@@ -546,7 +550,7 @@ function paintLook(look, r, v){
   if(look==='big') e.drawBg();
   const want=barHidden() ? 10 : (bar ? bar.offsetHeight : 70); botH+=(want-botH)*0.18; if(Math.abs(want-botH)<0.5) botH=want;   // 下の ボタンが 隠れたら 絵を 下まで（v588）
   const S=lookS(v, r, e, H-(botH+12)*d);
-  g.save(); if(look==='big') g.translate(ox, oy);
+  g.save(); if(look==='big' || look==='poyo') g.translate(ox, oy);
   LOOK.draw(e, look, lookSub(), S, lk(sc));
   g.restore();
   sc.head=sc.lk.head || [W/2, H/2];
@@ -571,7 +575,7 @@ function paintPrev(){
   const c=$('htPrev'); if(!c) return;
   if(!pv || pv.e.cv!==c){ pv=new Scene(c); }
   const e=pv.e; e.setTheme(st.theme); e.setLevel(st.level); e.noFlash=!st.flash; e.resize(); e.amb=0.6; e.warp=0.35; e.heat=0.55;
-  const r=st.run, v=viewOf(r, Date.now()), W=e.W, H=e.H, R=Math.min(W*0.4, H*0.4), look=lookKind();
+  const r=st.run, v=viewOf(r, Date.now()), W=e.W, H=e.H, R=Math.min(W*0.4, H*0.4), look=lookKind(); e.lightBg=look==='poyo';
   if(look!=='ring'){   // 見せ方の 見本（v580）：動いて いる タイマーが あれば その時間、なければ 9.5秒で 0 まで 進めて しめくくりも 見せる
     const S=r && !r.done ? Object.assign(lookS(v, r, e, H), {prev:true, tickT:Math.floor(e.t)}) : prevS(e), L=lk(pv);
     if(look==='big') e.drawBg();
@@ -687,6 +691,7 @@ function render(){
 // 🖼 数え方の 見せ方（v580）
 const LOOK_NOTE={ring:'光の輪が 残りの 時間ぶん へって いきます（いままでの 見せ方）。',
   big:'画面いっぱいの 大きな 数字で 数えます（のこり1分からは 秒だけ）。うしろの 色の 帯が 残りの 時間です。',
+  poyo:'📢 電光掲示板の ぽよん と 同じ：前の 数字が つぶれて、新しい 数字が 落ちてきて ぷるんと はずみます。つぶれると しぶき、着地で 床に 輪（ド派手は 画面が ゆれて あわが はじけ「ぽよん！」、ドド派手は 虹色で 何度も はずむ）。5秒ごとの 演出と 0 の あとは みんなで ぴょん。🕐 時計は 秒も ぽよん。',
   pic:'絵が 時間に 合わせて 動き、0 で 絵ごとの しめくくり（発射・ふっと 消える・くるっと・ドカーン・パーン・さく）。',
   ani:'動物が 自分で 数えます：ねこ＝めくりの 数字板・うさぎ＝なわとび・いぬ＝ほえる・ペンギン＝指揮・かえる＝鳴く・くま＝太鼓（1秒ごとに 動いて、道具に 時間が 出ます）。残りが へるほど 空が 夕やけに なり、のこり10秒は 数を さけんで、0 で 大よろこび。'};
 function lookSec(){
@@ -796,9 +801,10 @@ const HT_CSS=`
 .ht-run .t{ flex:1; font-size:22px; font-weight:bold; font-variant-numeric:tabular-nums; }
 .ht-b{ min-height:42px; padding:0 12px; border-radius:12px; border:1px solid rgba(255,255,255,.55); background:transparent; color:inherit; font-size:15px; font-weight:bold; cursor:pointer; }
 .ht-b.pri{ background:#fff; color:#4a00a8; border-color:#fff; }
-.ht-looks{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; margin:4px 0 8px; }
+.ht-looks{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; margin:4px 0 8px; }
+@media (max-width:400px){ .ht-looks:not(.sub){ grid-template-columns:repeat(3,minmax(0,1fr)); } }   /* 見せ方 5つ（v589）：せまい 画面は 3つずつ */
 .ht-looks.sub{ grid-template-columns:repeat(3,minmax(0,1fr)); }
-.ht-looks button{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; min-height:64px; padding:6px 3px; border-radius:14px; border:1px solid rgba(120,132,156,.45); background:var(--modal-bg,#fff); color:var(--text,#222); font-size:13px; font-weight:bold; line-height:1.25; cursor:pointer; overflow-wrap:anywhere; }
+.ht-looks button{ word-break:keep-all; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; min-height:64px; padding:6px 3px; border-radius:14px; border:1px solid rgba(120,132,156,.45); background:var(--modal-bg,#fff); color:var(--text,#222); font-size:13px; font-weight:bold; line-height:1.25; cursor:pointer; overflow-wrap:anywhere; }
 .ht-looks.sub button{ min-height:56px; }
 .ht-looks button .i{ font-size:25px; line-height:1; }
 .ht-looks button.on{ background:linear-gradient(135deg,#ff2bd6,#7b2bff); border-color:transparent; color:#fff; box-shadow:0 3px 12px rgba(123,43,255,.35); }
@@ -877,10 +883,12 @@ window.HADE_TIMER={ mode:setMode, opt:setOpt, set:setSec, add:addSec, typed, ivT
   start, pause, resume, toggle:togglePause, plus, restart, stop, back, lap, next, stopAlarm:()=>stopAlarm(), show, clock:setClock, showNow, bar:()=>barShow(),
   barHidden, fs:()=>fsOn, clockView:()=>{ const v=clockView(Date.now()); return {str:v.str, sec:v.sec, ap:v.ap, date:v.date}; }, alarmDue:()=>alarmDue(st.run, Date.now()),
   state:()=>JSON.parse(JSON.stringify(st)), view:()=>{ const v=viewOf(st.run, Date.now()); return {str:v.str, frac:+v.frac.toFixed(4), sec:v.sec, ph:v.ph ? v.ph.ph+':'+v.ph.round : ''}; },
-  stage:stageOpen, alarm:()=>alarmOn, chip:()=>{ const c=$('htChip'); return c ? c.textContent : ''; }, fx:()=>({n:sc ? sc.e.count() : 0, prev:pv ? pv.e.count() : 0, played:FX.played(), cap:sc ? sc.e.cap : 0, level:sc ? sc.e.level : ''}),
+  stage:stageOpen, alarm:()=>alarmOn, chip:()=>{ const c=$('htChip'); return c ? c.textContent : ''; }, fx:()=>({n:sc ? sc.e.count() : 0, prev:pv ? pv.e.count() : 0, played:FX.played(), cap:sc ? sc.e.cap : 0, level:sc ? sc.e.level : '', light:sc ? !!sc.e.lightBg : false, plight:pv ? !!pv.e.lightBg : false}),
   banner:()=>{ const b=$('htBan'); return b ? b.textContent : ''; }, label:()=>[($('htLab')||{}).textContent||'', ($('htSub')||{}).textContent||''].join('|'),
   freeze:b=>{ frozen=!!b; }, tick, shows:()=>({n:shows.n, last:shows.last, multi:shows.multi}), sound:()=>({set:st.sset==='rand' ? setNow : st.sset, tone:toneNow, tickN}),
-  look:()=>LOOK && sc && sc.lk ? LOOK.info(sc.lk) : null, prevLook:()=>LOOK && pv && pv.lk ? LOOK.info(pv.lk) : null, prevAt:sec=>{ if(pv) pv.t0=pv.e.t-(+sec||0); },   // 見本の 時間を 進める（たしかめ用）
+  look:()=>LOOK && sc && sc.lk ? LOOK.info(sc.lk) : null, prevLook:()=>LOOK && pv && pv.lk ? LOOK.info(pv.lk) : null,
+  prevAt:sec=>{ if(pv) pv.t0=pv.e.t-(+sec||0); },   // 見本の 時間を 進める（たしかめ用）
+  poyo:()=>window.HADE_POYO && sc && sc.lk && lookKind()==='poyo' ? window.HADE_POYO.info(sc.lk) : null,   // 🫧 ぽよん（v589。たしかめ用）
   shift:ms=>{ const r=st.run; if(!r) return; ms=+ms||0; if(r.m==='down'){ if(r.p) r.left-=ms; else r.end-=ms; } else if(r.p) r.acc+=ms; else r.s0-=ms; save(); } };   // 時計を 進める（たしかめ用）
 Object.assign(window, { openHadeTimer:()=>openHadeTimer(), closeHadeTimer });
 })();

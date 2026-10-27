@@ -12,6 +12,9 @@
      ⛶ 全画面（v588）：電光掲示板と 同じように 画面 ぜんぶ（ブラウザの 全画面。下の 表示も 消える）。下の ボタンは しばらくで 隠れ、右上の ☰ で また 出る。
      押した ところの 演出（v583）：✨ きらきら・🎲 サイコロ・🎆 花火・⭐ 星・💖 ハート・🫧 あわ・💥 どかん・🪙 コイン・🌸 花びら・🎊 紙ふぶき・🔀 おまかせ。
      どちらも カウンターごとに えらべる（並べて 数える ときに 音で 聞き分けられる）。えらぶと その場で 鳴る・出る（hade-fx.js）。
+   ・🫧 数字の 見せ方（v589）：✨ 光る 数字（いままで）・🫧 ぽよん（📢 電光掲示板の ぽよん と 同じ。hade-poyo.js）。
+     押して 数が かわると 前の 数字が つぶれて しぶきが はね、新しい 数字が 落ちてきて ぷるんと はずむ（着地で 床に 輪・ド派手は ゆれて あわが はじける）。
+     早く 押すと 動きを 短く して 数が 読める ように する。節目・目標では みんなで ぴょん。地は パステルの 空と あわ。
    ・1時間ごとの数を 記録（2週間 残す）。「📋 数を コピー」で 文字にして 貼れる。
    ・数・名前・目標・記録・えらんだものは excalc_hadecount（この端末の中だけ）。 */
 (function(){
@@ -24,6 +27,7 @@ const STEPS=[1,2,5,10];
 const MAX_R=1000, RNG=[[1,6,'🎲 1〜6'],[1,10,'1〜10'],[1,100,'1〜100'],[10,50,'10〜50']];   // 🎲 ランダムの はんい（v582）と 見本
 const TAPK=FX.TAPS.map(x=>x[0]), FXK=FX.TAP_FX.map(x=>x[0]);   // 押した 音・押した ところの 演出（v583。'rand' は おまかせ）
 const VIEWS=[['one','1つを 大きく'],['grid','並べて']];
+const P=window.HADE_POYO||null, NLOOKS=[['glow','✨ 光る 数字'],['poyo','🫧 ぽよん']];   // 数字の 見せ方（v589）
 const PRAISE=['ナイス！','いいね！','すごい！','最高！','神！','天才！'];   // ドド派手の コンボで 出る ことば
 const NUMF='"Hiragino Sans","Noto Sans JP","Noto Sans CJK JP","Segoe UI",Roboto,sans-serif';
 const TAU=Math.PI*2;
@@ -63,7 +67,7 @@ function load(){
   const list=(Array.isArray(o.list) ? o.list : []).map(cleanC).filter(Boolean).slice(0, MAX_C);
   if(!list.length) list.push(newC('カウンター', 0));
   st={list, cur:int(o.cur,0,list.length-1,0), theme:FX.hasTheme(o.theme) ? o.theme : 'neon', level:FX.hasLevel(o.level) ? o.level : (reduceMotion() ? 'calm' : 'ultra'),
-    snd:o.snd!==false, vibe:o.vibe!==false, flash:o.flash!==false, view:VIEWS.some(v=>v[0]===o.view) ? o.view : 'one'};
+    snd:o.snd!==false, vibe:o.vibe!==false, flash:o.flash!==false, view:VIEWS.some(v=>v[0]===o.view) ? o.view : 'one', look:o.look==='poyo' && P ? 'poyo' : 'glow'};
 }
 function prune(){
   const lim=dayKey(new Date(Date.now()-KEEP_DAYS*86400000));
@@ -79,6 +83,9 @@ const curC=()=>st.list[st.cur]||st.list[0];
 
 /* ───────── 描く ───────── */
 let eng=null, raf=0, lastTs=0, frozen=false, tiles=[], banT=0, fullRel=null, barT=0, fsOn=false, barSp=60;   // 下の ボタン・ブラウザの 全画面（v588）
+const poyoL=new Map(), poyoBg={};   // 🫧 ぽよん：カウンターごとに 覚える もの・地の あわ（v589）
+const PL=c=>{ let L=poyoL.get(c.id); if(!L){ L={}; poyoL.set(c.id, L); } return L; };
+const isPoyo=()=>!!(P && st && st.look==='poyo');
 // 全画面で 下の ボタンの ために あける 高さ（隠れたら 少しずつ 広く。v588）
 function barSpace(){ const want=barHidden() ? 8 : 60; barSp+=(want-barSp)*0.2; if(Math.abs(want-barSp)<0.5) barSp=want; return barSp; }
 function layout(){
@@ -92,6 +99,10 @@ function layout(){
 function drawNum(c, T, big){
   const e=eng, g=e.g, d=e.d, col=colOf(c.col), s=fmtN(c.n), t=e.t;
   const cx=T.x+T.w/2, cy=T.y+T.h*(big ? 0.47 : 0.52);
+  if(isPoyo()){   // 🫧 ぽよん（v589）：つぶれて 落ちて ぷるん
+    const top=T.y+T.h*(big ? 0.14 : 0.18), bot=T.y+T.h*(c.goal>0 ? 0.77 : 0.9);
+    P.draw(g, e, {x:T.x+T.w*0.03, y:top, w:T.w*0.94, h:Math.max(10, bot-top)}, s, {t, col, snd, bgL:poyoBg, intro:true}, PL(c));
+  } else {
   const fs=Math.max(14*d, Math.min(T.w*0.86/(Array.from(s).length*0.6+0.2), T.h*(big ? 0.4 : 0.42)));
   const k=c._pop!=null ? Math.max(0, 1-(t-c._pop)/0.32) : 0, kd=c._dn!=null ? Math.max(0, 1-(t-c._dn)/0.3) : 0, sc=1+0.34*Math.sin(k*Math.PI)*k-0.18*kd;
   g.save(); g.translate(cx, cy); g.scale(sc, sc);
@@ -102,6 +113,7 @@ function drawNum(c, T, big){
   if(e.level!=='calm'){ g.shadowColor=bo>=2 ? 'hsl('+hh.toFixed(0)+',100%,60%)' : col; g.shadowBlur=fs*(0.14+0.25*k+0.1*bo); }
   g.lineJoin='round'; g.lineWidth=fs*0.07; g.strokeStyle='rgba(0,0,0,.6)'; g.strokeText(s, 0, fs*0.03);
   g.fillStyle=fill; g.fillText(s, 0, fs*0.03); g.restore();
+  }
   // 名前
   const ns=Math.round(Math.min(T.w*0.07, (big ? 26 : 20)*d));
   g.save(); g.font='bold '+ns+'px '+NUMF; g.textAlign='center'; g.textBaseline='top'; g.fillStyle='rgba(255,255,255,.95)'; g.lineWidth=ns*0.18; g.strokeStyle='rgba(0,0,0,.55)'; g.lineJoin='round';
@@ -123,13 +135,15 @@ function drawNum(c, T, big){
 function rr(g, x, y, w, h, r){ g.beginPath(); g.moveTo(x+r, y); g.arcTo(x+w, y, x+w, y+h, r); g.arcTo(x+w, y+h, x, y+h, r); g.arcTo(x, y+h, x, y, r); g.arcTo(x, y, x+w, y, r); g.closePath(); }
 function paint(){
   const e=eng, g=e.g, d=e.d;
-  e.drawBg(); layout();
+  e.lightBg=isPoyo(); if(e.lightBg) P.bg(g, e.W, e.H, e.t, {boost:e.boost()}, poyoBg); else e.drawBg();   // 🫧 ぽよん は パステルの 空と あわ（v589。光は 色の まま 重ねる）
+  layout();
   const [ox,oy]=e.offset(); g.save(); g.translate(ox, oy);
   const big=tiles.length===1;
   tiles.forEach(T=>{
     const c=st.list[T.i]; if(!c) return;
-    if(!big){ g.save(); g.fillStyle='rgba(0,0,0,.32)'; rr(g, T.x, T.y, T.w, T.h, 14*d); g.fill(); g.lineWidth=(T.i===st.cur ? 3 : 1.5)*d; g.strokeStyle=colOf(c.col); g.globalAlpha=T.i===st.cur ? 0.95 : 0.55; g.stroke(); g.restore(); }
-    drawNum(c, T, big);
+    if(!big){ g.save(); g.fillStyle=isPoyo() ? 'rgba(255,255,255,.4)' : 'rgba(0,0,0,.32)'; rr(g, T.x, T.y, T.w, T.h, 14*d); g.fill(); g.lineWidth=(T.i===st.cur ? 3 : 1.5)*d; g.strokeStyle=colOf(c.col); g.globalAlpha=T.i===st.cur ? 0.95 : 0.55; g.stroke(); g.restore(); }
+    if(!big && isPoyo()){ g.save(); rr(g, T.x, T.y, T.w, T.h, 14*d); g.clip(); drawNum(c, T, big); g.restore(); }   // 🫧 ぽよん：落ちてくる 数字は 枠の 中だけ
+    else drawNum(c, T, big);
   });
   // コンボ
   const since=e.t-(lastTap ? e._tapT||0 : 0);
@@ -212,6 +226,7 @@ function plus(i, k, x, y){
 }
 function milestone(c, m, i){
   const e=eng, [x,y]=tileCenter(i), col=colOf(c.col);
+  if(isPoyo()) P.hop(PL(c), e.t+0.45, m>=100 ? 2 : 1.4);   // 🫧 ぽよん：落ちて きた あと みんなで ぴょん（v589）
   if(m===10){ e.shell(x); e.shell(x+rnd(-120,120)*e.d); snd('coin'); return; }
   if(m===50){ banner(fmtN(c.n)+'！'); for(let j=0;j<4;j++) e.shell(null); e.confetti(70); snd('level'); vib([60,40,60]); e.kick(0.5); return; }
   banner(fmtN(c.n)+(m>=500 ? '！ すごい！' : ' 達成！'), m>=100 ? 'big' : '');
@@ -220,6 +235,7 @@ function milestone(c, m, i){
 }
 function goal(c){
   const e=eng;
+  if(isPoyo()) P.hop(PL(c), e.t+0.45, 2);
   banner('🎉 目標 達成！', 'big');
   e.finale({shells:16, conf:240, emo:[c.emo,'🎉','🎊','✨','🥳'], flash:'#fff3c4'});
   e.burst(e.W/2, e.H/2, {n:140, sp:760});
@@ -336,9 +352,9 @@ function paintSide(){
     <div class="hc-sec"><h4>📊 1時間ごとの 数<small>2週間 残します</small></h4><div id="hcHours">${hoursHtml(c)}</div></div>
     <div class="hc-sec"><h4>🎆 演出</h4>
       <div class="hc-opt"><span>テーマ</span>${FX.THEMES.map(([v,n])=>`<button type="button" class="th th-${v}${st.theme===v?' on':''}" onclick='HADE_COUNT.opt("theme", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>
-      <div class="hc-opt"><span>演出の 強さ</span>${FX.LEVELS.map(([v,n])=>`<button type="button" class="lv-${v}${st.level===v?' on':''}" onclick='HADE_COUNT.opt("level", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>${opt('view', VIEWS, '並べ方')}
+      <div class="hc-opt"><span>演出の 強さ</span>${FX.LEVELS.map(([v,n])=>`<button type="button" class="lv-${v}${st.level===v?' on':''}" onclick='HADE_COUNT.opt("level", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>${P ? opt('look', NLOOKS, '数字の 見せ方') : ''}${opt('view', VIEWS, '並べ方')}
       ${opt('snd', [[true,'🔊 鳴らす'],[false,'🔇 鳴らさない']], '音')}${opt('vibe', [[true,'ふるえる'],[false,'ふるえない']], '振動')}${opt('flash', [[true,'光る'],[false,'光らない']], '画面の 点滅')}
-      <p class="hc-note">画面を 押すたびに ＋。つづけて 早く押すと コンボです。Bluetooth の リモコンや キーボードでも 数えられます（スペース・Enter・↑・→ で ＋、↓・← で −）。「並べて」は カウンターが 2つ以上のとき（押したタイルが ふえます。右下の − で へらす）。<b>ド派手</b>は 押すたびに 大きな輪と 5ごとに 花火、<b>ドド派手</b>は 画面が ゆれて 数字が 七色・コンボで ほめ言葉（とても 激しいので ご注意ください）。</p></div>`;
+      <p class="hc-note">画面を 押すたびに ＋。つづけて 早く押すと コンボです。Bluetooth の リモコンや キーボードでも 数えられます（スペース・Enter・↑・→ で ＋、↓・← で −）。「並べて」は カウンターが 2つ以上のとき（押したタイルが ふえます。右下の − で へらす）。<b>ド派手</b>は 押すたびに 大きな輪と 5ごとに 花火、<b>ドド派手</b>は 画面が ゆれて 数字が 七色・コンボで ほめ言葉（とても 激しいので ご注意ください）。${P ? '<b>🫧 ぽよん</b>は 📢 電光掲示板の ぽよん と 同じ 数字：前の 数字が つぶれて しぶきが はね、新しい 数字が 落ちてきて ぷるんと はずみます（着地で 床に 輪、ド派手は ゆれて あわが はじけ「ぽよん！」）。' : ''}</p></div>`;
 }
 function render(){
   const b=$('hcBody'); if(!b) return;
@@ -391,6 +407,7 @@ function setOpt(k, v){
   if(k==='theme'){ if(!FX.hasTheme(v)) return; st.theme=v; }
   else if(k==='level'){ if(!FX.hasLevel(v)) return; st.level=v; }
   else if(k==='view'){ if(!VIEWS.some(x=>x[0]===v)) return; st.view=v; }
+  else if(k==='look'){ if(!NLOOKS.some(x=>x[0]===v) || (v==='poyo' && !P)) return; st.look=v; poyoL.clear(); }   // 数字の 見せ方（v589。えらぶと 数字が 落ちてくる）
   else if(k==='snd' || k==='vibe' || k==='flash'){ st[k]=v===true || v==='true'; }
   else return;
   save();
@@ -489,8 +506,8 @@ function closeHadeCount(){ if(!$('hadeCountOverlay') || !isDlgOpen('hadeCountOve
 
 window.HADE_COUNT={ tap:(i,x,y)=>{ plus(i==null ? st.cur : i, null, x, y); paintTabs(); }, plus:(i,k)=>{ plus(i==null ? st.cur : i, k); paintTabs(); }, minus:(i,k)=>{ minus(i, k); paintTabs(); },
   undo:()=>{ undoLast(); paintTabs(); }, reset:i=>{ reset(i).then(()=>paintTabs()); }, add:n=>{ addC(n); }, del:i=>{ delC(i); }, sel, set:setC, opt:setOpt, full:setFull, isFull, copy:copyText,
-  bar:()=>barShow(), barHidden, fs:()=>fsOn,
-  state:()=>{ save(); return JSON.parse(JSON.stringify(st)); }, combo:()=>combo, fx:()=>({n:eng ? eng.count() : 0, played:FX.played(), cap:eng ? eng.cap : 0, level:eng ? eng.level : '', shake:eng ? +eng.shake.toFixed(2) : 0}), tiles:()=>tiles.map(T=>T.i+':'+Math.round(T.w)+'x'+Math.round(T.h)),
+  bar:()=>barShow(), barHidden, fs:()=>fsOn, poyo:i=>{ const c=st.list[i==null ? st.cur : i]; return P && c && poyoL.has(c.id) ? P.info(poyoL.get(c.id)) : null; },
+  state:()=>{ save(); return JSON.parse(JSON.stringify(st)); }, combo:()=>combo, fx:()=>({n:eng ? eng.count() : 0, played:FX.played(), cap:eng ? eng.cap : 0, level:eng ? eng.level : '', shake:eng ? +eng.shake.toFixed(2) : 0, light:eng ? !!eng.lightBg : false}), tiles:()=>tiles.map(T=>T.i+':'+Math.round(T.w)+'x'+Math.round(T.h)),
   banner:()=>{ const b=$('hcBan'); return b ? b.textContent : ''; }, freeze:b=>{ frozen=!!b; }, draw:()=>{ if(eng){ eng.resize(); paint(); } }, lastRoll:()=>lastRoll, lastSnd:()=>lastSnd, lastFx:()=>lastFx,
   parts:()=>eng ? eng.ps.filter(p=>p.k==='e' || p.k==='t').map(p=>p.ch||p.s) : [] };   // 画面に 出ている 絵文字と 字（たしかめ用）
 Object.assign(window, { openHadeCount, closeHadeCount });
