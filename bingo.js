@@ -9,6 +9,9 @@
    ・🃏 カード：5×5（まん中は FREE）。読まれた 数を 押して 穴を あける。リーチ・ビンゴで お知らせ。
      カードは「組の コード」と「番号」で 決まる（同じなら いつも 同じ 並び）。🖨 A4 に 4枚ずつ 印刷・🔢 番号で 作る・
      🔎 たしかめ（番号を 入れると 出た 数で ビンゴか わかる）。
+   ・🔍 ズーム（v588）：まわる ところ → 出口から 転がる 玉 → 受け皿の 玉 を カメラが 追って 大きく 映す（なし・ふつう・どアップ）。
+   ・🎆 演出の 強さ（v588）：ふつう・派手（光の すじ・紙ふぶき）・ド派手（ゆれ・ドラムロール・花火・「B の 12！」の 帯・虹色に 光る 玉）・
+     ドドド派手（花火 たくさん・虹色の 光・ファンファーレ）。
    ・音は WebAudio で その場で 作る（ファイルは 使わない）。読み上げは 設定の「🔈 読み上げの声」と 同じ 声。
    ・中身は excalc_bingo（この端末の中だけ）。 */
 (function(){
@@ -26,6 +29,9 @@ const COL=[{b:'#1e88e5',d:'#0b3d91',l:'#bbdefb'},{b:'#e53935',d:'#8e1414',l:'#ff
 const RANGES=[[75,'1〜75（BINGO）'],[90,'1〜90'],[50,'1〜50'],[30,'1〜30']];
 const SPEEDS=[['fast','⚡ はやい',1.0,2.2],['norm','🎱 ふつう',1.9,1.25],['slow','🐢 じっくり',3.6,0.9]];   // 名前・まわす 秒・転がる 速さ
 const spOf=k=>SPEEDS.find(s=>s[0]===k)||SPEEDS[1];
+const ZOOMS=[['off','なし'],['norm','🔍 ふつう'],['big','🔍 どアップ']];   // まわる ところを 大きく（v588）
+const FXL=[['norm','ふつう'],['max','🎆 派手'],['ultra','🎆 ド派手'],['mega','🌈 ドドド派手']];   // 演出の 強さ（v588）
+const fxL=()=>Math.max(0, FXL.findIndex(x=>x[0]===(st && st.fx)));
 
 /* ───────── 乱数（かたよりなく） ───────── */
 function rnd(n){
@@ -40,7 +46,7 @@ let st=null, busy=null, pop=null, showRel=null;   // busy：まわして いる 
 const CA='ACEFHJKLMNPRTUWXY345679';   // 組の コードに 使う 字（見まちがえ やすい 字は 使わない）
 function newCode(){ let s=''; for(let i=0;i<4;i++) s+=CA[rnd(CA.length)]; return s; }
 function okCode(v){ const s=String(v==null?'':v).normalize('NFKC').toUpperCase().replace(/[^A-Z0-9]/g,''); return s.length>=1 && s.length<=8 ? s : ''; }
-function defaults(){ const code=newCode(); return {v:1, max:75, speed:'norm', sound:true, voice:true, quick:false, drawn:[], code, card:{code, no:1+rnd(999), marks:[]}, tab:'draw', printN:20, printFrom:1}; }
+function defaults(){ const code=newCode(); return {v:1, max:75, speed:'norm', sound:true, voice:true, quick:false, zoom:'norm', fx:'max', drawn:[], code, card:{code, no:1+rnd(999), marks:[]}, tab:'draw', printN:20, printFrom:1}; }
 function cleanCard(c, dflt){
   if(!c || typeof c!=='object') return dflt;
   const code=okCode(c.code), no=int(c.no,1,MAXNO,0); if(!code || !no) return dflt;
@@ -53,6 +59,7 @@ function load(){
   const d=defaults(), max=int(o.max,2,99,75), seen=new Set();
   const drawn=(Array.isArray(o.drawn) ? o.drawn : []).map(x=>Math.round(+x)).filter(n=>Number.isInteger(n) && n>=1 && n<=max && !seen.has(n) && seen.add(n));
   st={v:1, max, speed:spOf(o.speed)[0], sound:o.sound!==false, voice:o.voice!==false, quick:o.quick===true, drawn,
+    zoom:ZOOMS.some(z=>z[0]===o.zoom) ? o.zoom : 'norm', fx:FXL.some(x=>x[0]===o.fx) ? o.fx : 'max',
     code:okCode(o.code)||d.code, card:cleanCard(o.card, d.card), tab:o.tab==='card' ? 'card' : 'draw',
     printN:int(o.printN,1,MAXP,20), printFrom:int(o.printFrom,1,MAXNO,1)};
 }
@@ -130,6 +137,10 @@ const SND={
   roll:S('roll', (t,v)=>{ const k=Math.min(1, Math.abs(v)/320); nz(t, 0.02, 0.03+0.09*k, 'bandpass', 650+Math.random()*450, 5); osc('sine', 150, t, 0.035, 0.03+0.05*k); }),   // コロコロ
   kachi:S('kachi', (t,v)=>{ const k=Math.min(1, Math.abs(v)/300); osc('triangle', 1250, t, 0.08, 0.08+0.16*k); osc('sine', 2600, t, 0.05, 0.03+0.05*k); }),   // 止め板に カチン
   chime:S('chime', t=>{ [84,88,91,96].forEach((m,i)=>{ osc('sine', midi(m), t+i*0.07, 0.9, 0.16); osc('triangle', midi(m+12), t+i*0.07, 0.25, 0.03); }); nz(t+0.28, 0.4, 0.05, 'highpass', 6000); }),   // 出た！
+  boom:S('boom', t=>{ nz(t, 0.9, 0.42, 'lowpass', 900); osc('sine', 95, t, 0.6, 0.45, 40); }),   // 花火 ドーン（v588）
+  crackle:S('crackle', t=>{ for(let i=0;i<10;i++) nz(t+Math.random()*0.5, 0.02, 0.14, 'highpass', 3200); }),
+  snare:S('snare', (t,k)=>nz(t, 0.05, 0.05+0.12*(k||0), 'bandpass', 1900, 1.1)),   // ドラムロール
+  level:S('level', t=>{ [72,76,79,84,88].forEach((m,i)=>osc('triangle', midi(m), t+i*0.06, 0.16, 0.24)); }),
   tap:S('tap', t=>osc('triangle', 880, t, 0.09, 0.22, 1320)),
   untap:S('untap', t=>osc('triangle', 700, t, 0.08, 0.16, 470)),
   reach:S('reach', t=>{ [[67,71,74],[69,72,77]].forEach((ch,j)=>ch.forEach(m=>{ osc('square', midi(m), t+j*0.16, 0.14+j*0.25, 0.06); osc('triangle', midi(m), t+j*0.16, 0.2+j*0.3, 0.1); })); }),
@@ -174,7 +185,8 @@ const RU=(()=>{ const dx=R1.x-R0.x, dy=R1.y-R0.y, L=Math.hypot(dx,dy); return {x
 const RN={x:RU.y, y:-RU.x};                     // レールの 上むき
 const RAIL_END=RU.L-BR-6;                       // 止め板の 手前（受け皿）
 const pathPt=s=>({x:R0.x+RU.x*s+RN.x*BR, y:R0.y+RU.y*s+RN.y*BR});
-const M={cv:null, g:null, k:1, ox:0, oy:0, balls:[], th:TH_HOLE, om:0, ph:'idle', t:0, plan:null, out:null, parts:[], raf:0, last:0, calm:0, idle:0, glow:0, onDone:null, tick:0, spr:{}};
+const M={cv:null, g:null, k:1, ox:0, oy:0, balls:[], th:TH_HOLE, om:0, ph:'idle', t:0, plan:null, out:null, parts:[], raf:0, last:0, calm:0, idle:0, glow:0, onDone:null, tick:0, spr:{},
+  cam:{x:VW/2, y:VH/2, z:1}, zq:1, zoomT:0, shake:0, flash:0, flashC:'#ffffff', beams:0, t2:0, drT:0, boomT:0};   // カメラ（ズーム）・ゆれ・光る・光の すじ（v588）
 
 function hexPts(th){ const p=[]; for(let k=0;k<6;k++){ const a=th+k*Math.PI/3; p.push([CX+HR*Math.cos(a), CY+HR*Math.sin(a)]); } return p; }
 function inHex(x, y, m){ for(let k=0;k<6;k++){ const a=M.th+k*Math.PI/3+Math.PI/6; if(AP-((x-CX)*Math.cos(a)+(y-CY)*Math.sin(a))<m) return false; } return true; }
@@ -219,7 +231,7 @@ function startDrop(){
 function settle(){
   const o=M.out; if(!o) return;
   const p=pathPt(RAIL_END); Object.assign(o, {x:p.x, y:p.y, s:RAIL_END, v:0, rot:0, rest:true});
-  M.ph='idle'; M.glow=1; burst(o.x, o.y);
+  M.ph='idle'; M.glow=1; M.zoomT=1.7; burst(o.x, o.y);   // 受け皿の 玉を しばらく 大きく（v588）
   const f=M.onDone; M.onDone=null; if(f) f();
 }
 function mFinish(){   // すぐ 出す
@@ -228,6 +240,13 @@ function mFinish(){   // すぐ 出す
 }
 function mCancel(){ M.ph='idle'; M.om=0; M.onDone=null; M.out=null; rumbleOff(); }
 function mPutTray(n){ const p=pathPt(RAIL_END); M.out={x:p.x, y:p.y, n, rot:0, s:RAIL_END, v:0, rest:true, q:0}; M.glow=1; burst(p.x, p.y); }
+// 🎆 花火（下から 上がって はじける。v588）
+function shells(n, delay){ const pal=['#ff3b6b','#ffd23f','#3ee8ff','#9dff5c','#ff8a3d','#c77dff','#ffffff']; for(let i=0;i<n;i++) M.parts.push({k:'sh', x:30+Math.random()*(VW-60), y:VH+8, vy:-(260+Math.random()*90), ty:26+Math.random()*90, c:pal[Math.floor(Math.random()*pal.length)], delay:(delay||0)+i*0.14, age:0, life:6}); wake(); }
+function shellPop(x, y, c){
+  M.parts.push({k:'ring', x, y, c, age:0, life:0.4});
+  for(let i=0;i<42;i++){ const a=i/42*TAU+Math.random()*0.15, v=120+Math.random()*120; M.parts.push({x, y, vx:Math.cos(a)*v, vy:Math.sin(a)*v, age:0, life:1.0+Math.random()*0.6, c:i%4===3 ? '#ffffff' : c, s:1.8+Math.random()*1.9, star:i%4===0, gv:130}); }
+  const t=performance.now(); if(t-M.boomT>110){ M.boomT=t; SND.boom(); if(Math.random()<0.5) SND.crackle(); }
+}
 function burst(x, y){
   for(let i=0;i<30;i++){ const a=Math.random()*TAU, v=110+Math.random()*260;
     M.parts.push({x, y, vx:Math.cos(a)*v, vy:Math.sin(a)*v-150, age:0, life:0.55+Math.random()*0.55, c:i%6===5 ? '#ffd54f' : COL[i%5].b, s:1.4+Math.random()*2.4, star:i%3===0}); }
@@ -293,11 +312,52 @@ function mStep(dt){
   }
   for(let i=0;i<4;i++) physics(dt/4);
   if(M.out && !M.out.rest && (M.ph==='drop' || M.ph==='roll')) outStep(dt*(M.plan ? M.plan.ts : 1));
-  if(M.parts.length){ for(const p of M.parts){ p.age+=dt; p.vy+=520*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx*=1-1.4*dt; } M.parts=M.parts.filter(p=>p.age<p.life); }
+  if(M.parts.length){ for(const p of M.parts){
+      if(p.k==='sh'){ if(p.delay>0){ p.delay-=dt; continue; } p.age+=dt; p.y+=p.vy*dt; if(p.y<=p.ty){ p.dead=true; shellPop(p.x, p.y, p.c); } continue; }
+      if(p.k==='ring'){ p.age+=dt; continue; }
+      p.age+=dt; p.vy+=(p.gv||520)*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx*=1-1.4*dt; }
+    M.parts=M.parts.filter(p=>!p.dead && p.age<p.life); }
+  fxStep(dt);
   if(M.glow>0) M.glow=Math.max(0, M.glow-dt*0.8);
   let mx=0; for(const b of M.balls) mx=Math.max(mx, Math.abs(b.vx)+Math.abs(b.vy));
   M.calm=(mx<14 && M.ph==='idle') ? M.calm+dt : 0;
   M.idle=(M.ph==='idle' && !M.parts.length && M.glow<=0) ? M.idle+dt : 0;
+}
+// カメラ：まわる 箱 → 転がる 玉 → 受け皿の 玉 を 追う（v588）
+function camTarget(){
+  const z=st && st.zoom==='big' ? 1.35 : st && st.zoom==='norm' ? 1 : 0;
+  if(!z || noAnim()) return [VW/2, VH/2, 1];
+  if(M.ph==='spin') return [CX, CY+4, 1+0.55*z];
+  if((M.ph==='drop' || M.ph==='roll') && M.out) return [M.out.x-12, M.out.y-14, 1+0.8*z];
+  if(M.out && M.out.rest && M.zoomT>0) return [M.out.x-6, M.out.y-12, 1+1.3*z];
+  return [VW/2, VH/2, 1];
+}
+function camMoving(){ const [x,y,z]=camTarget(), c=M.cam; return Math.abs(x-c.x)+Math.abs(y-c.y)>0.3 || Math.abs(z-c.z)>0.004; }
+function fxStep(dt){
+  M.t2+=dt; const L=fxL();
+  const [tx,ty,tz]=camTarget(), c=M.cam, a=1-Math.exp(-dt*(M.ph==='roll' || M.ph==='drop' ? 7 : 3.4));
+  c.x+=(tx-c.x)*a; c.y+=(ty-c.y)*a; c.z+=(tz-c.z)*a;
+  if(!camMoving()){ c.x=tx; c.y=ty; c.z=tz; }
+  if(M.zoomT>0) M.zoomT=Math.max(0, M.zoomT-dt);
+  if(M.ph==='spin'){
+    if(L>=1) M.beams=Math.min(1, M.beams+dt*2);
+    if(L>=2){ M.shake=Math.max(M.shake, 0.22); M.drT+=dt; if(M.drT>0.045){ M.drT=0; SND.snare(Math.min(1, M.t/(M.plan ? M.plan.T : 1))); }
+      if(Math.random()<0.5){ const P=hexPts(M.th)[Math.floor(Math.random()*6)]; M.parts.push({x:P[0], y:P[1], vx:(Math.random()-0.5)*160, vy:-60-Math.random()*120, age:0, life:0.5, c:L>=3 ? 'hsl('+Math.floor(Math.random()*360)+',100%,62%)' : '#ffd54f', s:1.3, star:Math.random()<0.3}); } }
+  } else if(M.beams>0 && !(L>=3 && M.zoomT>0)) M.beams=Math.max(0, M.beams-dt*0.8);
+  if(L>=2 && M.ph==='roll' && M.out && Math.random()<0.7) M.parts.push({x:M.out.x-BR, y:M.out.y, vx:-40-Math.random()*60, vy:-30-Math.random()*50, age:0, life:0.45, c:'#fff3a0', s:1.2, star:true});
+  if(M.shake>0) M.shake=Math.max(0, M.shake-dt*(M.ph==='spin' ? 0.6 : 1.6));
+  if(M.flash>0) M.flash=Math.max(0, M.flash-dt*2.4);
+}
+// 玉が 出た ときの 演出（強さで ふえる。動きを へらす 設定では 光・ゆれ・花火は 出さない）
+function celebrate(n){
+  const L=fxL(); if(!L) return;
+  if(L>=2) banner('🎉 '+callText(n)+'！', 'call');
+  if(noAnim()) return;
+  const o=M.out, x=o ? o.x : VW*0.88, y=o ? o.y : VH*0.86, zoom=st.zoom!=='off';
+  burst(x, y); M.flash=0.22; M.flashC='#fff6d0'; confetti(L>=3 ? 160 : L>=2 ? 100 : 50);
+  if(L>=2){ shells(L>=3 ? 10 : 5, zoom ? 1.3 : 0.1); M.shake=Math.max(M.shake, L>=3 ? 1.3 : 0.8); M.flash=L>=3 ? 0.45 : 0.32; M.flashC=COL[grp(n)].l; SND.boom(); vib([60,40,90]); }   // 受け皿の 玉を 大きく 見せて から 花火
+  if(L>=3){ M.beams=1.6; SND.level(); }
+  wake();
 }
 function loop(ts){
   M.raf=0;
@@ -305,7 +365,7 @@ function loop(ts){
   const dt=M.last ? Math.min(0.034, Math.max(0, (ts-M.last)/1000)) : 0.016; M.last=ts;
   mStep(dt); draw();
   if(M.raf) return;   // とちゅうで wake() が 次の こまを 頼んだ とき（2重に 動かさない）
-  if(M.ph!=='idle' || M.parts.length || M.glow>0 || (M.calm<0.8 && M.idle<3)) M.raf=requestAnimationFrame(loop); else M.last=0;   // 止まって 3秒で 描くのを やめる（電池に やさしく）
+  if(M.ph!=='idle' || M.parts.length || M.glow>0 || M.zoomT>0 || M.shake>0 || M.flash>0 || M.beams>0 || camMoving() || (M.calm<0.8 && M.idle<3)) M.raf=requestAnimationFrame(loop); else M.last=0;   // 止まって 3秒で 描くのを やめる（電池に やさしく）
 }
 function wake(){ M.idle=0; if(M.cv && !M.raf && isDlgOpen('bingoOverlay')){ M.last=0; M.raf=requestAnimationFrame(loop); } }
 function mResize(){
@@ -320,7 +380,7 @@ function mResize(){
 
 /* 描く */
 function sprite(ci){
-  const r=Math.max(4, Math.round(BR*M.k)), key=ci+':'+r; if(M.spr[key]) return M.spr[key];
+  const r=Math.max(4, Math.round(BR*M.k*M.zq)), key=ci+':'+r; if(M.spr[key]) return M.spr[key];
   const s=r*2+2, c=document.createElement('canvas'); c.width=c.height=s;
   const g=c.getContext('2d'), C=COL[ci], m=s/2, gr=g.createRadialGradient(m-r*0.35, m-r*0.4, r*0.08, m, m, r);
   gr.addColorStop(0,'#ffffff'); gr.addColorStop(0.2, C.l); gr.addColorStop(0.62, C.b); gr.addColorStop(1, C.d);
@@ -328,7 +388,7 @@ function sprite(ci){
   return (M.spr[key]=c);
 }
 function drawBall(g, x, y, n, rot, num){
-  const spr=sprite(grp(n)), sz=spr.width/M.k;
+  const spr=sprite(grp(n)), sz=spr.width/(M.k*M.zq);
   g.drawImage(spr, x-sz/2, y-sz/2, sz, sz);
   const ox=Math.cos(rot)*BR*0.14, oy=Math.sin(rot)*BR*0.14;   // 白い まる（数を 書く ところ）が まわる
   g.fillStyle='#ffffff'; g.beginPath(); g.arc(x+ox, y+oy, BR*(num ? 0.6 : 0.46), 0, TAU); g.fill();
@@ -348,8 +408,14 @@ function draw(){
   const bg=g.createLinearGradient(0, 0, 0, cv.height);
   if(dark){ bg.addColorStop(0,'#1d2147'); bg.addColorStop(1,'#3b2658'); } else { bg.addColorStop(0,'#fff6e5'); bg.addColorStop(1,'#ffd49c'); }
   g.fillStyle=bg; g.fillRect(0, 0, cv.width, cv.height);
-  const fy=M.oy+FLOOR*M.k; g.fillStyle=dark ? '#3e2b23' : '#c98f52'; g.fillRect(0, fy, cv.width, cv.height-fy);   // 台（下まで）
-  g.setTransform(M.k, 0, 0, M.k, M.ox, M.oy);
+  // カメラ（ズーム）：見る ところを まん中に。絵の 外は 見せない。ゆれも ここで（v588）
+  const c=M.cam, K=M.k*c.z, hw=cv.width/2/K, hh=cv.height/2/K;
+  const cx=hw*2>=VW ? VW/2 : Math.min(VW-hw, Math.max(hw, c.x)), cy=hh*2>=VH ? VH/2 : Math.min(VH-hh, Math.max(hh, c.y));
+  const sx=M.shake>0 ? (Math.random()-0.5)*M.shake*9/c.z : 0, sy=M.shake>0 ? (Math.random()-0.5)*M.shake*9/c.z : 0;
+  M.zq=Math.pow(2, Math.round(Math.log2(Math.max(1, c.z))*2)/2);
+  g.setTransform(K, 0, 0, K, cv.width/2-(cx+sx)*K, cv.height/2-(cy+sy)*K);
+  if(M.beams>0.01) drawBeams(g, dark);
+  g.fillStyle=dark ? '#3e2b23' : '#c98f52'; g.fillRect(-2000, FLOOR, VW+4000, 2000);   // 台（下まで）
   // 旗（かざり）
   g.lineWidth=1.2; g.strokeStyle=dark ? 'rgba(255,255,255,.35)' : 'rgba(120,80,40,.45)';
   g.beginPath(); g.moveTo(-12, 6); g.quadraticCurveTo(VW/2, 40, VW+12, 6); g.stroke();
@@ -371,7 +437,7 @@ function draw(){
   // 六角の 箱：奥 → 玉 → 前の 板 → わく → 出口 → 金具
   const P=hexPts(M.th);
   hexPath(g, P); g.fillStyle=dark ? 'rgba(8,12,36,.62)' : 'rgba(38,50,82,.42)'; g.fill();
-  const num=BR*M.k/Math.min(2, window.devicePixelRatio||1)>=9;   // 玉が 大きく 見える ときは 中の 玉にも 数を 書く
+  const num=BR*K/Math.min(2, window.devicePixelRatio||1)>=9;   // 玉が 大きく 見える ときは 中の 玉にも 数を 書く
   g.save(); hexPath(g, P); g.clip(); for(const b of M.balls) drawBall(g, b.x, b.y, b.n, b.rot, num); g.restore();
   hexPath(g, P); const gl=g.createLinearGradient(CX-HR, CY-HR, CX+HR, CY+HR);
   gl.addColorStop(0,'rgba(255,255,255,.30)'); gl.addColorStop(0.45,'rgba(255,255,255,.05)'); gl.addColorStop(1,'rgba(255,255,255,.14)'); g.fillStyle=gl; g.fill();
@@ -390,8 +456,20 @@ function draw(){
     if(M.glow>0){ g.strokeStyle='rgba(255,213,79,'+M.glow.toFixed(3)+')'; g.lineWidth=3; g.beginPath(); g.arc(o.x, o.y, BR*(1.3+(1-M.glow)*1.8), 0, TAU); g.stroke(); }
     drawBall(g, o.x, o.y, o.n, o.rot, true);
   }
-  for(const p of M.parts){ g.globalAlpha=Math.max(0, 1-p.age/p.life); g.fillStyle=p.c; if(p.star) star(g, p.x, p.y, p.s*1.8); else { g.beginPath(); g.arc(p.x, p.y, p.s, 0, TAU); g.fill(); } }
+  for(const p of M.parts){
+    if(p.k==='sh'){ if(p.delay>0) continue; g.globalAlpha=1; g.strokeStyle=p.c; g.lineWidth=2; g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x, p.y+16); g.stroke(); g.fillStyle='#ffffff'; g.beginPath(); g.arc(p.x, p.y, 2.2, 0, TAU); g.fill(); continue; }
+    if(p.k==='ring'){ const u=p.age/p.life; g.globalAlpha=Math.max(0, 1-u); g.fillStyle='#ffffff'; g.beginPath(); g.arc(p.x, p.y, 9*(1-u)+1, 0, TAU); g.fill(); g.strokeStyle=p.c; g.lineWidth=3*(1-u)+0.6; g.beginPath(); g.arc(p.x, p.y, 6+u*50, 0, TAU); g.stroke(); continue; }
+    g.globalAlpha=Math.max(0, 1-p.age/p.life); g.fillStyle=p.c; if(p.star) star(g, p.x, p.y, p.s*1.8); else { g.beginPath(); g.arc(p.x, p.y, p.s, 0, TAU); g.fill(); } }
   g.globalAlpha=1;
+  if(M.flash>0.01){ g.setTransform(1,0,0,1,0,0); g.globalAlpha=Math.min(0.7, M.flash); g.fillStyle=M.flashC; g.fillRect(0, 0, cv.width, cv.height); g.globalAlpha=1; }   // 光る（v588）
+}
+// 光の すじ（箱の うしろで まわる。ドドド派手は 虹色。v588）
+function drawBeams(g, dark){
+  const n=10, a0=M.t2*0.9, al=Math.min(1, M.beams)*(dark ? 0.2 : 0.26), rb=st.fx==='mega';
+  g.save();
+  for(let i=0;i<n;i++){ const a=a0+i*TAU/n; g.fillStyle=rb ? 'hsla('+Math.floor((M.t2*140+i*36)%360)+',100%,62%,'+al.toFixed(3)+')' : 'rgba(255,236,150,'+al.toFixed(3)+')';
+    g.beginPath(); g.moveTo(CX, CY); g.arc(CX, CY, 760, a-0.085, a+0.085); g.closePath(); g.fill(); }
+  g.restore();
 }
 
 /* ───────── 紙ふぶき（ビンゴ・ぜんぶ 出た とき）───────── */
@@ -417,8 +495,17 @@ function fxLoop(ts){
 let banT=0;
 function banner(text, kind){
   const b=$('bgBanner'); if(!b) return;
-  b.textContent=text; b.className='bg-banner'; void b.offsetWidth; b.className='bg-banner on '+(kind||'');
+  b.textContent=text; b.className='bg-banner'; b.style.left=b.style.top=''; void b.offsetWidth; b.className='bg-banner on '+(kind||'');
+  if(kind==='call') placeCall(b);
   clearTimeout(banT); banT=setTimeout(()=>{ b.className='bg-banner'; }, 2400);
+}
+// 「B の 12！」の 帯は 抽選器の 上の ほう（受け皿の 玉に かぶらない ように。v588）
+function placeCall(b){
+  const cv=M.cv, P=b.parentElement; if(!cv || !P) return;
+  const r=cv.getBoundingClientRect(), p=P.getBoundingClientRect(); if(r.height<40) return;
+  const half=b.offsetWidth/2+8, cx=r.left-p.left+r.width/2;
+  b.style.left=Math.round(Math.max(half, Math.min(p.width-half, cx)))+'px';
+  b.style.top=Math.round(r.top-p.top+r.height*0.22)+'px';
 }
 
 /* ───────── 抽選の 流れ ───────── */
@@ -444,7 +531,7 @@ function reveal(){
   if(!M.out || M.out.n!==n || !M.out.rest) mPutTray(n);
   mSync();
   renderDraw(true);
-  SND.chime(); vib(30);
+  SND.chime(); vib(30); celebrate(n);
   setTimeout(()=>{ if(st && !busy && st.drawn[st.drawn.length-1]===n) say(yomiText(n)); }, 380);
   if(st.drawn.length>=st.max) allDone();
 }
@@ -502,7 +589,7 @@ function renderRes(fresh){
   if(busy){ b.innerHTML=`<div class="bg-big wait"><b>？</b></div><div class="bg-rt"><div class="bg-call sm">ガラガラ… コロコロ…</div><div class="bg-sub">${cnt}こ 出ました ・ のこり <b>${left}</b></div></div>`; return; }
   if(n==null){ b.innerHTML=`<div class="bg-big none"><b>？</b></div><div class="bg-rt"><div class="bg-call sm">「🎱 まわす」を 押すと 抽選器が まわって 玉が 出ます</div><div class="bg-sub">1〜${st.max} の ${st.max}こ</div></div>`; return; }
   const L=letterOf(n);
-  b.innerHTML=`<div class="bg-big bgc${grp(n)}${fresh?' pop':''}">${L?`<small>${L}</small>`:''}<b>${n}</b></div>
+  b.innerHTML=`<div class="bg-big bgc${grp(n)}${fresh ? (fxL()>=2 ? ' pop mega' : ' pop') : ''}">${L?`<small>${L}</small>`:''}<b>${n}</b></div>
     <div class="bg-rt"><div class="bg-call">${esc(callText(n))}</div><div class="bg-sub"><b>${cnt}</b>こ目 ・ のこり <b>${left}</b></div>
     <button type="button" class="bg-say" onclick="BINGO.sayAgain()">🔊 もう一度 読む</button></div>`;
 }
@@ -615,10 +702,13 @@ function setPop(){
     <h5>数の はんい</h5>${seg(RANGES, st.max, 'BINGO.setMax')}
     <div class="bg-f"><span>自分で 決める</span><em>1 〜</em><input id="bgMax" type="text" inputmode="numeric" maxlength="3" value="${custom ? st.max : ''}" placeholder="2〜99"><button type="button" class="bg-b" onclick="BINGO.setMax(document.getElementById('bgMax').value)">決める</button></div>
     <h5>演出の 長さ</h5>${seg(SPEEDS.map(s=>[s[0], s[1]]), st.speed, "BINGO.set.bind(null,'speed')")}
+    <h5>🔍 ズーム（まわる ところを 大きく 映す）</h5>${seg(ZOOMS, st.zoom, "BINGO.set.bind(null,'zoom')")}
+    <h5>🎆 演出の 強さ</h5>${seg(FXL, st.fx, "BINGO.set.bind(null,'fx')")}
     <h5>音</h5>${seg([[true,'🔊 出す'],[false,'🔇 出さない']], st.sound, "BINGO.set.bind(null,'sound')")}
     <h5>読み上げ（「ビー の 12」）</h5>${seg([[true,'🗣 読む'],[false,'読まない']], st.voice, "BINGO.set.bind(null,'voice')")}
     <h5>表の 数を 押したら</h5>${seg([[false,'たしかめて 入れる'],[true,'すぐ 入れる・もどす']], st.quick, "BINGO.set.bind(null,'quick')")}
     <p class="bg-note">数の はんいを かえると はじめから に なります。1〜75 の ときは B・I・N・G・O の 列で 出て、🃏 カードと 🔎 たしかめ が 使えます。<br>
+    🔍 ズームは カメラが まわる 箱 → 転がる 玉 → 受け皿の 玉 を 追います。🎆 ド派手 から 画面が ゆれて 花火と「B の 12！」の 帯、ドドド派手は 花火が たくさん（光や ゆれが 苦手な 方は「ふつう」に）。<br>
     「すぐ 入れる」は 自分の 抽選器（ガラガラ）を 使って、この 画面を 出た 数の 表に する とき 向けです。読み上げの 声の 種類は 表電卓の ⚙ 設定 →「🔈 読み上げの声」で えらべます。</p>`);
 }
 async function setMax(v){
@@ -632,6 +722,8 @@ async function setMax(v){
 }
 function setOpt(k, v){
   if(k==='speed' && SPEEDS.some(s=>s[0]===v)) st.speed=v;
+  else if(k==='zoom' && ZOOMS.some(z=>z[0]===v)) st.zoom=v;
+  else if(k==='fx' && FXL.some(x=>x[0]===v)){ st.fx=v; const L=fxL(); if(L>=1 && M.cv && !noAnim()){ burst(VW*0.5, VH*0.4); if(L>=2) shells(L>=3 ? 6 : 3, 0); if(L>=3) M.beams=1.2; } }   // えらぶと 少し 見せる
   else if(['sound','voice','quick'].includes(k)) st[k]=!!v;
   else return;
   save();
@@ -748,6 +840,9 @@ const CSS=`
 .bg-big b{ font-size:calc(var(--bs)*.34); font-weight:900; color:#1a1a1a; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
 .bg-big.none, .bg-big.wait{ --c:#b0bec5; --cd:#607d8b; --cl:#eceff1; } .bg-big.none b, .bg-big.wait b{ color:#78909c; }
 .bg-big.pop{ animation:bgPop .7s cubic-bezier(.2,.9,.3,1.3); }
+.bg-big.mega{ animation:bgPopMega 1s cubic-bezier(.2,.9,.3,1.3), bgGlow 1.2s linear .9s 3; }   /* ド派手（v588） */
+@keyframes bgPopMega{ 0%{ transform:scale(.1) rotate(-540deg); opacity:.2; } 55%{ transform:scale(1.22) rotate(15deg); opacity:1; } 75%{ transform:scale(.92) rotate(-5deg); } 100%{ transform:scale(1) rotate(0); } }
+@keyframes bgGlow{ 0%,100%{ box-shadow:0 0 20px 8px #ff3b6b, 0 10px 22px rgba(0,0,0,.28); } 33%{ box-shadow:0 0 24px 10px #ffd23f, 0 10px 22px rgba(0,0,0,.28); } 66%{ box-shadow:0 0 24px 10px #3ee8ff, 0 10px 22px rgba(0,0,0,.28); } }
 .bg-big.wait{ animation:bgWob .9s ease-in-out infinite; }
 @keyframes bgPop{ 0%{ transform:scale(.25) rotate(-220deg); opacity:.3; } 55%{ transform:scale(1.18) rotate(12deg); opacity:1; } 78%{ transform:scale(.95) rotate(-4deg); } 100%{ transform:scale(1) rotate(0); } }
 @keyframes bgWob{ 0%,100%{ transform:rotate(-8deg); } 50%{ transform:rotate(8deg); } }
@@ -814,7 +909,7 @@ const CSS=`
 .bg-pacts{ display:flex; justify-content:flex-end; gap:6px; margin:12px 0 0; } .bg-pacts .bg-b{ min-width:7em; }
 .bg-fx{ position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; z-index:25; }
 .bg-banner{ display:none; position:absolute; left:50%; top:42%; z-index:26; pointer-events:none; padding:10px 28px; border-radius:24px; background:#e53935; color:#fff; font-size:clamp(34px, 11vw, 84px); font-weight:900; white-space:nowrap; box-shadow:0 10px 30px rgba(0,0,0,.35); transform:translate(-50%,-50%); }
-.bg-banner.on{ display:block; animation:bgBan 2.4s ease forwards; } .bg-banner.reach{ background:#e65100; } .bg-banner.all{ background:#6a1b9a; }
+.bg-banner.on{ display:block; animation:bgBan 2.4s ease forwards; } .bg-banner.reach{ background:#e65100; } .bg-banner.all{ background:#6a1b9a; } .bg-banner.call{ background:#c2185b; top:24%; }
 @keyframes bgBan{ 0%{ transform:translate(-50%,-50%) scale(.3); opacity:0; } 14%{ transform:translate(-50%,-50%) scale(1.15); opacity:1; } 24%{ transform:translate(-50%,-50%) scale(1); } 80%{ opacity:1; } 100%{ transform:translate(-50%,-50%) scale(1.04); opacity:0; } }
 .bg-showx{ display:none; }
 .bg-modal.show{ background:radial-gradient(ellipse at 50% 0%, #34306b, #141633 72%); }
@@ -832,6 +927,7 @@ const CSS=`
   .bg-modal.show .bg-res{ justify-content:center; min-height:0; }
   .bg-modal.show .bg-big{ --bs:clamp(96px, 22vh, 220px); }
   .bg-modal.show .bg-call{ font-size:clamp(32px, 9vh, 76px); }
+  .bg-modal.show .bg-call.sm{ font-size:clamp(18px, 4.4vh, 36px); }
   .bg-modal.show .bg-rt{ flex:0 1 auto; }
   .bg-modal.show .bg-go{ max-width:520px; margin-left:auto; margin-right:auto; }
   .bg-modal.show .bg-b75 .h{ height:calc((100vh - 110px)/16); font-size:clamp(18px, 3.4vh, 32px); }
@@ -909,7 +1005,8 @@ window.BINGO={ spin, skip, undo:()=>{ undo(); }, reset:()=>{ reset(); }, tab:set
   cardNew:()=>{ cardNew(); }, cardNoPop, cardMake:(c,n)=>cardMake(c,n), cardClear:()=>{ cardClear(); }, mark:cardMark,
   // ためす とき 用
   state:()=>JSON.parse(JSON.stringify(st)), phase:()=>M.ph, busy:()=>!!busy, played:()=>played.slice(), said:()=>lastSaid, add:n=>addNum(+n), tap:n=>boardTap(+n),
-  balls:()=>M.balls.length, out:()=>M.out ? {n:M.out.n, rest:!!M.out.rest} : null, running:()=>!!M.raf, cardNums, call:n=>callText(n), isShow,
+  balls:()=>M.balls.length, out:()=>M.out ? {n:M.out.n, rest:!!M.out.rest, x:+M.out.x.toFixed(1), y:+M.out.y.toFixed(1)} : null, running:()=>!!M.raf,
+  cam:()=>({x:+M.cam.x.toFixed(1), y:+M.cam.y.toFixed(1), z:+M.cam.z.toFixed(3)}), fxNow:()=>({shake:+M.shake.toFixed(2), flash:+M.flash.toFixed(2), beams:+M.beams.toFixed(2), shells:M.parts.filter(p=>p.k==='sh').length, parts:M.parts.length}), cardNums, call:n=>callText(n), isShow,
   judge:(nums, drawn)=>{ const s=new Set(drawn), J=judge(nums, n=>s.has(n)); return {bingo:J.bingo, need:J.need, text:judgeText(J)}; } };
 Object.assign(window, { openBingo, closeBingo });
 })();

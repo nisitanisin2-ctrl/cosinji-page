@@ -15,12 +15,19 @@
    ・🔊 演出の 音（v583）：🎆 花火（いままで）・🥁 和・🎮 ゲーム・🎹 楽器・🐤 自然・🚀 宇宙・🔔 やさしい・🔀 おまかせ（演出ごとに かわる）。
      数えている あいだの 音（花火の ドーン・パチパチ・のこり10秒・区切り・スタート など）を セットごとに かえる。
    ・⏱ 1秒ごとの 音（v583）：なし（いままで）・🕰 チクタク・📟 ピッ・🥁 トン・🎹 ドレミ（上って 下りる）・💧 ぽちゃ。のこり10秒は 数える 音が あるので 鳴らさない。
+   ・⛶ 全画面（v588）：電光掲示板と 同じように 画面 ぜんぶ（ブラウザの 全画面。下の 表示も 消える）。下の ボタンは しばらくで 隠れ、
+     画面を 押す か 右上の ☰ で また 出る。止めている・終わった・鳴っている ときは 出た まま。
+   ・🕐 時計（v588）：いまの 時刻を ど派手に（見せ方・テーマ・演出は タイマーと 同じ）。24時間／12時間・秒を 出す／出さない。
+     時報（毎時 0分に キーンコーン。30分ごと も）・⏰ 目覚まし（決めた 時刻に「時間が 来た 音」で 知らせる。✓ 止める まで）。
+     「← 戻る」で 閉じても 右下に 時刻が 出て、表電卓を 開いて いれば 目覚ましが 鳴る。
    ・えらんだもの・よく使う時間・動いているタイマーは excalc_hadetimer（この端末の中だけ）。 */
 (function(){
 'use strict';
 const FX=window.HADE_FX, LOOK=window.HADE_LOOK||null;   // 見せ方（v580。読めなかったら 光の輪だけ）
 const KEY='excalc_hadetimer', MAX_PRE=12, MAX_SEC=99*3600+59*60+59, MAX_LAP=99, PREP=3000, ALARM_MS=60000;
-const MODES=[['down','⏳ タイマー'],['up','⏱ ストップウォッチ'],['iv','🔁 くり返し']];
+const MODES=[['down','⏳ タイマー'],['up','⏱ ストップウォッチ'],['iv','🔁 くり返し'],['clock','🕐 時計']];
+const JIHO=[['none','なし'],['hour','1時間ごと'],['half','30分ごと']];   // 時計の 時報（v588）
+const WDAY='日月火水木金土', BAR_MS=3500;
 const DEF_PRE=[{n:'カップめん',s:180},{n:'ゆでたまご',s:480},{n:'歯みがき',s:180},{n:'ひと休み',s:600}];
 const QUICK=[[10,'＋10秒'],[30,'＋30秒'],[60,'＋1分'],[300,'＋5分'],[600,'＋10分']];
 const EVERY=[[5,'5秒ごと'],[10,'10秒ごと'],[60,'1分ごと'],[0,'なし']];   // 間の 派手な 演出（v576）
@@ -39,6 +46,8 @@ const reduceMotion=()=>{ try{ return matchMedia('(prefers-reduced-motion: reduce
 function hms(totalS){ totalS=Math.max(0, Math.floor(totalS)); const h=Math.floor(totalS/3600), m=Math.floor(totalS%3600/60), s=totalS%60; return (h ? h+':'+p2(m) : p2(m))+':'+p2(s); }
 const fmtDown=ms=>hms(Math.ceil(Math.max(0, ms)/1000));
 const fmtUp=ms=>{ ms=Math.max(0, ms); return hms(Math.floor(ms/1000))+'.'+p2(Math.floor(ms%1000/10)); };
+const okHM=v=>{ const m=/^(\d{1,2}):(\d{2})$/.exec(String(v==null?'':v).normalize('NFKC').trim()); if(!m) return ''; const h=+m[1], mi=+m[2]; return h<24 && mi<60 ? p2(h)+':'+p2(mi) : ''; };
+const ymdOf=d=>d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
 const lenTxt=s=>{ s=Math.max(0, Math.round(s)); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60; return (h ? h+'時間' : '')+(m ? m+'分' : '')+(x || (!h && !m) ? x+'秒' : ''); };
 
 /* ───────── 状態 ───────── */
@@ -51,6 +60,7 @@ function cleanRun(r){
     if(dur==null || end==null || left==null) return null;
     return {m:'down', dur, end, left, p:!!r.p, done:!!r.done, name:oneLine(r.name,16), id};
   }
+  if(r.m==='clock') return {m:'clock', p:false, done:false, id, al:okHM(r.al), alKey:/^\d{4}-\d\d-\d\d \d\d:\d\d$/.test(String(r.alKey==null ? '' : r.alKey)) ? String(r.alKey) : ''};   // 🕐 時計（v588。alKey：鳴らした 日と 時刻）
   if(r.m==='up' || r.m==='iv'){
     const s0=num(r.s0, 0, BIG), acc=num(r.acc, 0, BIG); if(s0==null || acc==null) return null;
     const o={m:r.m, s0, acc, p:!!r.p, done:!!r.done, id};
@@ -71,7 +81,8 @@ function load(){
     look:LOOK && LOOK.has('look', o.look) ? o.look : 'ring', pic:LOOK && LOOK.has('pic', o.pic) ? o.pic : 'rocket', ani:LOOK && LOOK.has('ani', o.ani) ? o.ani : 'neko',   // 見せ方（v580）
     tone:o.tone==='rand' || (FX.TONES && FX.TONES.some(x=>x[0]===o.tone)) ? o.tone : 'fanfare',   // 時間が 来た 音（v580。🔀 おまかせ は v583）
     sset:o.sset==='rand' || (FX.hasSset && FX.hasSset(o.sset)) ? o.sset : 'hanabi', tick:FX.hasTick && FX.hasTick(o.tick) ? o.tick : 'none',   // 演出の 音・1秒ごとの 音（v583）
-    pre, iv:{w:int(iv.w,5,3600,20), r:int(iv.r,0,3600,10), n:int(iv.n,1,99,8)}, run:cleanRun(o.run)};
+    pre, iv:{w:int(iv.w,5,3600,20), r:int(iv.r,0,3600,10), n:int(iv.n,1,99,8)}, run:cleanRun(o.run),
+    clock:{h12:!!(o.clock && o.clock.h12===true), sec:!(o.clock && o.clock.sec===false), jiho:o.clock && JIHO.some(x=>x[0]===o.clock.jiho) ? o.clock.jiho : 'hour', al:okHM(o.clock && o.clock.al)}};
 }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(_){} }
 const vib=p=>{ if(st && st.vibe) FX.vib(p); };
@@ -100,7 +111,15 @@ function ivPhase(r, el){
   return {ph:'done', round:r.n, left:0, len:1};
 }
 const ivTotal=iv=>PREP+iv.n*iv.w*1000+(iv.n-1)*iv.r*1000;
+// 🕐 時計の ようす（v588）。frac：1分の 中の 進み（光の輪が 1分で 1回り）
+function clockView(now){
+  const d=new Date(now), h=d.getHours(), m=d.getMinutes(), s=d.getSeconds(), ms=s*1000+d.getMilliseconds(), c=st.clock;
+  const hm=(c.h12 ? String(h%12||12) : p2(h))+':'+p2(m);
+  return {mode:'clock', ms, str:hm, frac:ms/60000, sec:s, min:m, hour:h, ap:c.h12 ? (h<12 ? '午前' : '午後') : '', date:(d.getMonth()+1)+'月'+d.getDate()+'日（'+WDAY[d.getDay()]+'）'};
+}
 function viewOf(r, now){
+  if(r && r.m==='clock') return clockView(now);
+  if(!r && st.mode==='clock') return clockView(now||Date.now());
   if(!r) return st.mode==='up' ? {mode:'up', str:fmtUp(0), frac:0, sec:0, min:0, ms:0}
     : st.mode==='iv' ? {mode:'iv', str:hms(st.iv.w), frac:1, sec:st.iv.w, ms:st.iv.w*1000, ph:{ph:'prep', round:0, left:0, len:1}}
     : {mode:'down', str:hms(st.sec), frac:1, sec:st.sec, ms:st.sec*1000};
@@ -196,11 +215,12 @@ function vignette(g, W, H, a, col){
 // 見せ方に わたす ようす（v580）。p：進み（タイマーは 0→1。ストップウォッチは 1分で 1回り）
 function lookS(v, r, e, bot){
   const mode=v.mode, done=!!(r && r.done), paused=!!(r && r.p);
-  const p=mode==='up' ? v.frac : 1-v.frac, sec=v.sec;
+  const p=mode==='up' || mode==='clock' ? v.frac : 1-v.frac, sec=v.sec;
   const last10=!!(r && mode==='down' && !done && !paused && sec<=10);
   let bstr, bsub='';
   if(mode==='down') bstr=done ? '0' : sec<=60 ? String(sec) : v.str.replace(/^0(\d:)/, '$1');
   else if(mode==='iv'){ bstr=sec<=99 ? String(sec) : v.str.replace(/^0(\d:)/, '$1'); bsub=v.ph.ph==='work' ? 'がんばれ！' : v.ph.ph==='rest' ? '休けい' : v.ph.ph==='prep' ? 'よーい' : ''; }
+  else if(mode==='clock'){ bstr=v.str; bsub=[v.ap, st.clock.sec ? p2(v.sec)+'秒' : ''].filter(Boolean).join(' '); }   // 🕐 時計（v588）
   else { bstr=hms(Math.floor(v.ms/1000)).replace(/^0(\d:)/, '$1'); bsub='.'+p2(Math.floor(v.ms%1000/10)); }
   if(done && sc && sc.e===e && sc.doneAt==null) sc.doneAt=e.t;
   return {t:e.t, W:e.W, H:e.H, d:e.d, prev:false, mode, p:Math.max(0, Math.min(1, p)), lvl:v.frac, str:v.str, bstr, bsub,
@@ -211,6 +231,7 @@ function lookS(v, r, e, bot){
 /* ───────── 全画面（ステージ）───────── */
 let sc=null, stageRel=null, wl=null, raf=0, lastTs=0, frozen=false, prevSec=null, prevMin=null, prevPh=null, prevTenth=null;
 let alarmOn=false, alarmUntil=0, nextAlarm=0, banT=0, ticker=0, pv=null, cur=null, overNote='', prevShow=null, shows={n:0, last:-1, multi:0};
+let barT2=0, fsOn=false, botH=70, prevClk=null;   // 下の ボタンを 隠す・ブラウザの 全画面・絵の 下の あき・時計の 分（v588）
 const stageOpen=()=>!!$('htFull');
 function openStage(){
   if(stageOpen()){ paintBar(); return; }
@@ -220,8 +241,10 @@ function openStage(){
   el.innerHTML=`<canvas id="htCv"></canvas><div class="ht-top"><span id="htLab"></span><span id="htSub"></span></div>
     <div class="ht-ban" id="htBan" aria-live="polite"></div><div class="ht-laps" id="htLaps"></div>
     <button type="button" class="ht-stop" id="htStop" hidden onclick="HADE_TIMER.stopAlarm()">✓ 止める</button>
-    <div class="ht-bar" id="htBar"></div>`;
+    <div class="ht-bar" id="htBar"></div><button type="button" class="ht-more" id="htMore" aria-label="ボタンを 出す" onclick="HADE_TIMER.bar()">☰</button>`;
   document.body.appendChild(el);
+  $('htBar').addEventListener('pointerdown', ()=>barShow());   // ボタンを さわって いる あいだは 隠さない
+  enterFs();
   sc=new Scene($('htCv')); sc.e.setTheme(st.theme); sc.e.setLevel(st.level); sc.e.noFlash=!st.flash;
   sc.e.onCrackle=()=>snd('crackle');
   sc.e.onBoom=()=>{ if(Math.random()<0.6) snd('boom'); };
@@ -229,12 +252,12 @@ function openStage(){
   stageRel=typeof modalBack==='function' ? modalBack(()=>closeStage(true)) : null;
   window.addEventListener('keydown', stageKey, true);
   window.addEventListener('resize', onResize);
-  prevSec=prevMin=prevPh=prevTenth=prevShow=null;
+  prevSec=prevMin=prevPh=prevTenth=prevShow=prevClk=null; botH=70;
   wake(); paintBar(); paintLaps(); hideChip(); loop();
 }
 function closeStage(byBack){
   const el=$('htFull'); if(!el) return;
-  el.remove(); sc=null;
+  el.remove(); sc=null; clearTimeout(barT2); exitFs();
   window.removeEventListener('keydown', stageKey, true); window.removeEventListener('resize', onResize);
   if(!byBack && stageRel) stageRel(); stageRel=null;
   unwake(); alarmOn=false; if(FX.toneStop) FX.toneStop();
@@ -244,6 +267,13 @@ function closeStage(byBack){
   else paintChip();
 }
 function onResize(){ if(sc) sc.e.resize(); if(pv) pv.e.resize(); }
+// ブラウザの 全画面（電光掲示板と 同じ。下の 表示も 消える）。できない 端末は そのまま（v588）
+async function enterFs(){ try{ const de=document.documentElement; if(de.requestFullscreen && !document.fullscreenElement){ await de.requestFullscreen({navigationUI:'hide'}); fsOn=true; } }catch(_){ fsOn=false; } }
+function exitFs(){ if(!fsOn) return; fsOn=false; try{ if(document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(()=>{}); }catch(_){} }
+// 下の ボタン：しばらく さわらないと 隠す（止めている・終わった・鳴っている ときは 出した まま）
+function barShow(){ const f=$('htFull'); if(!f) return; f.classList.remove('bar-hide'); clearTimeout(barT2); barT2=setTimeout(barAuto, BAR_MS); }
+function barAuto(){ const f=$('htFull'), r=st && st.run; if(!f) return; if(!r || r.p || r.done || alarmOn){ barT2=setTimeout(barAuto, BAR_MS); return; } f.classList.add('bar-hide'); }
+const barHidden=()=>{ const f=$('htFull'); return !!(f && f.classList.contains('bar-hide')); };
 function stageKey(e){
   if(!stageOpen()) return;
   if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); if(alarmOn) stopAlarm(); else closeStage(); }
@@ -251,6 +281,7 @@ function stageKey(e){
   else if((e.key==='l' || e.key==='L') && st.run && st.run.m==='up'){ e.preventDefault(); e.stopPropagation(); lap(); }
 }
 function stageTap(ev){
+  barShow();
   if(alarmOn){ stopAlarm(); return; }
   if(!sc) return;
   const r=$('htCv').getBoundingClientRect(), d=sc.e.d, x=(ev.clientX-r.left)*d, y=(ev.clientY-r.top)*d;
@@ -269,9 +300,11 @@ function paintBar(){
   if(r.m==='down') mid=B('plus(60)','＋1分');
   else if(r.m==='up') mid=B('lap()','🏁 ラップ');
   else mid=B('next()','⏭ 次へ');
+  if(r.m==='clock'){ b.innerHTML=B('showNow()','🎆 いま 派手に')+B('stop()','■ やめる')+B('back()','← 戻る'); barShow(); return; }   // 🕐 時計（v588）
   b.innerHTML=r.done ? B('restart()','↺ もう一度','pri')+(r.m==='down' ? B('plus(60)','＋1分') : '')+B('back()','← 戻る')
     : pp+mid+B('restart()','↺ 最初から')+B('stop()','■ やめる')+B('back()','← 戻る');
   const f=$('htFull'); if(f) f.style.setProperty('--ht-bar', (b.offsetHeight+10)+'px');   // ボタンが 2段に なっても 上に 出す
+  barShow();
 }
 function paintLaps(){
   const b=$('htLaps'); if(!b) return;
@@ -298,23 +331,24 @@ function start(){
     if(!(st.sec>0)){ toastT('時間を 決めてください'); return; }
     st.run={m:'down', dur:st.sec*1000, end:now+st.sec*1000, left:0, p:false, done:false, name:picked, id:rid()};
   } else if(st.mode==='up') st.run={m:'up', s0:now, acc:0, p:false, done:false, laps:[], id:rid()};
+  else if(st.mode==='clock'){ const d=new Date(now), hm=p2(d.getHours())+':'+p2(d.getMinutes()); st.run={m:'clock', p:false, done:false, id:rid(), al:st.clock.al, alKey:st.clock.al===hm ? ymdOf(d)+' '+hm : ''}; }   // 🕐 時計（v588。いまの 分は もう 鳴らさない）
   else st.run={m:'iv', w:st.iv.w, r:st.iv.r, n:st.iv.n, s0:now, acc:0, p:false, done:false, id:rid()};
   marks=new Set(); overNote=''; tickN=0; setPick(); save();
   openStage();
   if(sc){ const e=sc.e; e.after(0.05, ()=>{ e.burst(e.W/2, e.H*0.46, {n:70, sp:520}); e.kick(0.5); }); }
-  banner(st.mode==='iv' ? 'よーい！' : 'スタート！', 'go1'); snd(st.mode==='iv' ? 'drum' : 'whoosh', 18); vib(60);
+  banner(st.mode==='iv' ? 'よーい！' : st.mode==='clock' ? '🕐 時計' : 'スタート！', 'go1'); snd(st.mode==='iv' ? 'drum' : 'whoosh', 18); vib(60);
 }
 function pause(){
-  const r=st.run; if(!r || r.p || r.done) return;
+  const r=st.run; if(!r || r.p || r.done || r.m==='clock') return;
   const now=Date.now(); if(r.m==='down') r.left=Math.max(0, r.end-now); else r.acc+=Math.max(0, now-r.s0);
   r.p=true; save(); paintBar(); banner('一時停止', 's'); snd('down');
 }
 function resume(){
-  const r=st.run; if(!r || !r.p || r.done) return;
+  const r=st.run; if(!r || !r.p || r.done || r.m==='clock') return;
   const now=Date.now(); if(r.m==='down') r.end=now+r.left; else r.s0=now;
   r.p=false; save(); paintBar(); banner('再開！', 's'); snd('whoosh');
 }
-function togglePause(){ const r=st.run; if(!r || r.done) return; if(r.p) resume(); else pause(); }
+function togglePause(){ const r=st.run; if(!r || r.done || r.m==='clock') return; if(r.p) resume(); else pause(); }
 function plus(sec){
   const r=st.run; sec=int(sec,1,3600,60);
   if(!r || r.m!=='down') return;
@@ -326,7 +360,7 @@ function plus(sec){
   if(sc) sc.e.burst(sc.head ? sc.head[0] : sc.e.W/2, sc.head ? sc.head[1] : sc.e.H/2, {n:40, sp:380});
 }
 function restart(){
-  const r=st.run; if(!r) return;
+  const r=st.run; if(!r || r.m==='clock') return;
   const now=Date.now(); stopAlarm(true); marks=new Set(); overNote=''; if(sc){ sc.big=null; sc.lk=null; sc.doneAt=null; }
   if(r.m==='down'){ r.end=now+r.dur; r.left=0; }
   else { r.s0=now; r.acc=0; if(r.m==='up') r.laps=[]; }
@@ -428,17 +462,47 @@ function showTime(k){
   if(bo>=1){ e.flash(e.pal()[i%e.pal().length], 0.22+0.08*bo); e.kick(0.4*bo); }
   sc.jumpT=e.t; e.pulse=1; vib([30,30,30]);
 }
+// 🕐 時計：分が かわったら 少し・0分は 時報（キーンコーン）・30分ごと・目覚まし（v588）
+function alarmDue(r, now){ if(!r || r.m!=='clock' || !r.al) return false; const d=new Date(now), hm=p2(d.getHours())+':'+p2(d.getMinutes()); return hm===r.al && r.alKey!==ymdOf(d)+' '+hm; }
+function fireAlarm(r, now){
+  const d=new Date(now); r.alKey=ymdOf(d)+' '+r.al; save();
+  if(!($('hadeTimerOverlay') && isDlgOpen('hadeTimerOverlay'))) openHadeTimer(true);
+  openStage();
+  tonePick(); alarmOn=true; alarmUntil=now+ALARM_MS; nextAlarm=now+(toneNow==='fanfare' ? 3200 : FX.tonePer(toneNow)*1000);
+  const b=$('htStop'); if(b) b.hidden=false;
+  paintBar(); banner('⏰ '+r.al.replace(/^0/, '')+' です！', 'big');
+  if(sc){ const e=sc.e; e.finale({shells:12, conf:180, emo:['⏰','✨','🌅','⭐','🎉'], flash:'#fff3c4'}); e.burst(e.W/2, e.H*0.46, {n:110, sp:680}); }
+  toneSnd(true); vib([300,120,300,120,600]);
+}
+function clockStep(r, v, now){
+  const e=sc.e, key=v.hour*60+v.min, c=[e.W/2, e.H*0.47];
+  if(prevClk!=null && key!==prevClk){
+    const hh=st.clock.h12 ? (v.hour%12||12) : v.hour;
+    if(v.min===0 && st.clock.jiho!=='none'){   // 時報
+      banner((st.clock.h12 ? v.ap+' ' : '')+hh+'時です！', 'big');
+      e.finale({shells:8, conf:120, emo:['🔔','✨','🎉'], flash:'#fff3c4'}); e.burst(c[0], c[1], {n:90, sp:620}); vib([120,80,120]);
+      if(st.snd && FX.tone && !alarmOn) FX.tone('chime', true);
+    } else if(v.min===30 && st.clock.jiho==='half'){ banner(hh+'時 30分', 's'); e.shell(null); e.shell(null); snd('chime'); vib(60); }
+    else { e.burst(c[0], c[1], {n:40, sp:420}); sc.jumpT=e.t; }   // 分が かわった
+  }
+  prevClk=key;
+  if(alarmDue(r, now)) fireAlarm(r, now);
+  alarmStep(now);
+}
+function showNow(){ if(!sc) return; showTime(shows.n+1); barShow(); }
 function update(){
   const r=st.run; if(!r || !sc) return;
   const now=Date.now(), v=viewOf(r, now), e=sc.e; cur=v;
   if(v.mode==='down'){ const pg=1-v.frac; e.warp=Math.min(1, pg*pg*1.1+(v.sec<=10 && !r.done ? 0.35 : 0)); e.heat=Math.min(1, pg); e.amb=0.3+0.7*pg; }
   else if(v.mode==='up'){ e.warp=0.3; e.heat=0.45; e.amb=0.45; }
+  else if(v.mode==='clock'){ e.warp=0.3; e.heat=0.4; e.amb=0.5; }
   else { const wk=v.ph.ph==='work'; e.warp=wk ? 0.75 : 0.12; e.heat=wk ? 0.85 : 0.2; e.amb=wk ? 0.7 : 0.3; }
+  if(r.m==='clock') clockStep(r, v, now);
   if(r.done){ e.amb=1; e.warp=0.9; e.heat=1; alarmStep(now); prevSec=v.sec; return; }
   if(r.p){ prevSec=v.sec; return; }
   if(isOver(r, now)){ finish(); return; }
   if(st.every>0){   // 間の 派手な 演出（のこり10秒・くり返しの「よーい」と 区切りの 3秒前は 休む）
-    const el=r.m==='down' ? r.dur-Math.max(0, v.ms) : r.m==='up' ? v.ms : elapsed(r, now), k=Math.floor(el/(st.every*1000));
+    const el=r.m==='down' ? r.dur-Math.max(0, v.ms) : r.m==='up' ? v.ms : r.m==='clock' ? ((v.hour*60+v.min)*60+v.sec)*1000 : elapsed(r, now), k=Math.floor(el/(st.every*1000));
     if(prevShow!=null && k>prevShow && !((r.m==='down' && v.sec<=10) || (r.m==='iv' && (v.ph.ph==='prep' || v.sec<=3)))) showTime(k);
     prevShow=k;
   }
@@ -468,6 +532,7 @@ function paintStage(){
   else {
     const units=Array.from(v.str).reduce((a,ch)=>a+(/[0-9]/.test(ch) ? 1 : 0.46), 0), fs=Math.min(R*1.55/(units*0.62), R*0.62);
     sc.digits(v.str, cx, cy, fs, {sparks:e.level==='calm' ? 0 : 8, col:col ? col.c2 : null, glow:col ? col.c1 : null});
+    if(v.mode==='clock'){ const sub=[v.ap, st.clock.sec ? p2(v.sec)+'秒' : ''].filter(Boolean).join(' '); if(sub){ g.save(); g.font='bold '+Math.round(fs*0.3)+'px '+NUMF; g.textAlign='center'; g.textBaseline='middle'; g.lineJoin='round'; g.lineWidth=fs*0.04; g.strokeStyle='rgba(0,0,0,.55)'; g.strokeText(sub, cx, cy+fs*0.82); g.fillStyle=e.ink()[1]; g.fillText(sub, cx, cy+fs*0.82); g.restore(); } }
     if(r && r.p){ g.save(); g.font='bold '+Math.round(fs*0.28)+'px '+NUMF; g.textAlign='center'; g.fillStyle='rgba(255,255,255,'+(0.55+0.45*Math.sin(e.t*4))+')'; g.fillText('一時停止中', cx, cy+fs*0.85); g.restore(); }
   }
   g.restore();
@@ -479,7 +544,8 @@ function paintLook(look, r, v){
   const e=sc.e, g=e.g, W=e.W, H=e.H, d=e.d, [ox,oy]=e.offset();
   const last10=r && r.m==='down' && !r.done && !r.p && v.sec<=10, bar=$('htBar');
   if(look==='big') e.drawBg();
-  const S=lookS(v, r, e, H-((bar ? bar.offsetHeight : 70)+12)*d);
+  const want=barHidden() ? 10 : (bar ? bar.offsetHeight : 70); botH+=(want-botH)*0.18; if(Math.abs(want-botH)<0.5) botH=want;   // 下の ボタンが 隠れたら 絵を 下まで（v588）
+  const S=lookS(v, r, e, H-(botH+12)*d);
   g.save(); if(look==='big') g.translate(ox, oy);
   LOOK.draw(e, look, lookSub(), S, lk(sc));
   g.restore();
@@ -493,7 +559,8 @@ function paintTop(r, v){
   const lab=$('htLab'), sub=$('htSub');
   if(lab){
     let a='', b='';
-    if(r.m==='down'){ a='⏳ '+(r.name || lenTxt(r.dur/1000)); b=r.done ? (overNote || 'おわり') : ''; }
+    if(r.m==='clock'){ a='🕐 '+v.date; b=r.al ? '⏰ '+r.al.replace(/^0/, '')+' に 鳴らす' : ''; }   // 🕐 時計（v588）
+    else if(r.m==='down'){ a='⏳ '+(r.name || lenTxt(r.dur/1000)); b=r.done ? (overNote || 'おわり') : ''; }
     else if(r.m==='up'){ a='⏱ ストップウォッチ'; b=r.laps.length ? 'ラップ '+r.laps.length : ''; }
     else { a='🔁 くり返し'; b=v.ph.ph==='prep' ? 'よーい' : v.ph.ph==='done' ? 'おわり' : 'ROUND '+v.ph.round+'/'+r.n+' ・ '+(v.ph.ph==='work' ? 'がんばる' : '休けい'); }
     if(lab.textContent!==a) lab.textContent=a; if(sub.textContent!==b) sub.textContent=b;
@@ -513,12 +580,13 @@ function paintPrev(){
     e.drawFx(); return;
   }
   e.drawBg();
-  pv.ring(r ? v.frac : 0.72, W/2, H*0.5, R, {emit:0.5});
+  pv.ring(r || st.mode==='clock' ? v.frac : 0.72, W/2, H*0.5, R, {emit:0.5});
   const units=Array.from(v.str).reduce((a,ch)=>a+(/[0-9]/.test(ch) ? 1 : 0.46), 0), fs=Math.min(R*1.55/(units*0.62), R*0.62);
   pv.digits(v.str, W/2, H*0.5, fs, {sparks:3});
   e.drawFx();
 }
 function prevS(e){
+  if(st.mode==='clock') return Object.assign(lookS(clockView(Date.now()), null, e, e.H), {prev:true, tickT:Math.floor(e.t)});   // 🕐 時計（v588）
   const T=Math.max(0, e.t-(pv.t0||0))%13, done=T>=9.5, pp=done ? 1 : T/9.5;
   let str, sec, bstr, bsub='', sstr, mode='down';
   if(st.mode==='up'){ mode='up'; const ms=pp*60000; str=fmtUp(ms); sec=Math.floor(ms/1000); sstr=hms(sec); bstr=sstr.replace(/^0(\d:)/, '$1'); bsub='.'+p2(Math.floor(ms%1000/10)); }
@@ -543,12 +611,14 @@ function stopTicker(){ if(ticker){ clearInterval(ticker); ticker=0; } }
 function tick(){
   const r=st && st.run; if(!r){ stopTicker(); hideChip(); return; }
   if(stageOpen()) return;
+  if(r.m==='clock' && alarmDue(r, Date.now())){ fireAlarm(r, Date.now()); return; }   // 閉じて いても 目覚まし（v588）
   if(isOver(r, Date.now())){ finish(); return; }
   paintChip(); paintRunCard();
 }
 function chipText(){
   const r=st.run; if(!r) return '';
   const v=viewOf(r, Date.now());
+  if(r.m==='clock') return '🕐 '+(v.ap ? v.ap+' ' : '')+v.str+(r.al ? ' ⏰' : '');   // 🕐 時計（v588）
   return (r.m==='down' ? '⏳ ' : r.m==='up' ? '⏱ ' : '🔁 ')+(r.p ? '⏸ ' : '')+(r.done ? 'おわり' : r.m==='up' ? hms(Math.floor(v.ms/1000)) : v.str);
 }
 function paintChip(){
@@ -579,6 +649,12 @@ function setPanel(){
         <div class="ht-pres">${st.pre.map((p,i)=>`<span class="ht-pre${picked===p.n && st.sec===p.s ? ' on':''}"><button type="button" onclick="HADE_TIMER.usePre(${i})"><b>${esc(p.n)}</b><small>${esc(lenTxt(p.s))}</small></button><button type="button" class="x" onclick="HADE_TIMER.delPre(${i})" aria-label="${esc(p.n)} を消す">✕</button></span>`).join('') || '<p class="ht-note">まだ ありません</p>'}</div>
         <div class="ht-chips"><button type="button" onclick="HADE_TIMER.addPre()">＋ いまの時間を 残す</button></div></div>`;
   }
+  if(st.mode==='clock'){   // 🕐 時計（v588）
+    const c=st.clock, o=(k, list, lab)=>`<div class="ht-opt"><span>${lab}</span>${list.map(([v,n])=>`<button type="button" class="${c[k]===v?'on':''}" onclick='HADE_TIMER.clock("${k}", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>`;
+    return `${o('h12', [[false,'24時間'],[true,'12時間（午前・午後）']], '表示')}${o('sec', [[true,'出す'],[false,'出さない']], '秒')}${o('jiho', JIHO, '時報')}
+      <div class="ht-opt ht-al"><span>⏰ 目覚まし</span><input type="time" id="htAl" value="${c.al}" aria-label="目覚ましの 時刻" onchange="HADE_TIMER.clock('al', this.value)"><button type="button" class="${c.al?'':'on'}" onclick="HADE_TIMER.clock('al', '')">なし</button></div>
+      <p class="ht-note big">「▶ 時計を 出す」で 全画面の 大きな 時計に なります（見せ方・テーマ・演出は 下で えらべます）。時報は 毎時 0分に キーンコーン（30分ごと は 30分にも 知らせる）。⏰ 目覚ましの 時刻に なると「時間が 来た 音」で「✓ 止める」まで 知らせます。「← 戻る」で 閉じても、表電卓を 開いて いる あいだは 鳴ります。</p>`;
+  }
   if(st.mode==='up') return `<p class="ht-note big">「▶ スタート」で 0 から 数えます。🏁 ラップで 区切りの時間を 残し、いちばん はやい周（緑）と おそい周（赤）が 分かります。1分ごとに 花火。</p>`;
   const iv=st.iv, box=(k, v, lab, max)=>`<label class="ht-num sm"><input id="htIv${k}" type="number" inputmode="numeric" min="0" max="${max}" value="${v}" oninput="HADE_TIMER.ivTyped()" aria-label="${lab}"><span>${lab}</span></label>`;
   return `<div class="ht-nums">${box('W',iv.w,'がんばる 秒',3600)}${box('R',iv.r,'休む 秒',3600)}${box('N',iv.n,'回',99)}</div>
@@ -593,7 +669,7 @@ function render(){
     <div class="ht-modes" role="tablist">${MODES.map(([k,n])=>`<button type="button" role="tab" aria-selected="${st.mode===k}" class="${st.mode===k?'on':''}" onclick="HADE_TIMER.mode('${k}')">${n}</button>`).join('')}</div>
     <div id="htRunCard"></div>
     <div class="ht-sec" id="htSet">${setPanel()}</div>
-    <button type="button" class="ht-go" onclick="HADE_TIMER.start()">▶ スタート</button>
+    <button type="button" class="ht-go" onclick="HADE_TIMER.start()">▶ ${st.mode==='clock' ? '時計を 出す' : 'スタート'}</button>
     ${lookSec()}
     <div class="ht-sec"><h4>🎆 演出</h4>
       <div class="ht-opt"><span>テーマ</span>${FX.THEMES.map(([v,n])=>`<button type="button" class="th th-${v}${st.theme===v?' on':''}" onclick='HADE_TIMER.opt("theme", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>
@@ -623,6 +699,17 @@ function lookSec(){
     <p class="ht-note">${LOOK_NOTE[st.look]||''}</p></div>`;
 }
 function setMode(k){ if(!MODES.some(m=>m[0]===k)) return; st.mode=k; save(); render(); }
+// 🕐 時計の 設定（v588）。動いて いる 時計にも すぐ 効く
+function setClock(k, v){
+  const c=st.clock;
+  if(k==='h12' || k==='sec') c[k]=v===true || v==='true';
+  else if(k==='jiho'){ if(!JIHO.some(x=>x[0]===v)) return; c.jiho=v; }
+  else if(k==='al'){ const a=okHM(v); if(v && !a){ toastT('時刻を 入れてください（例：7:30）'); return; } c.al=a; }
+  else return;
+  const r=st.run; if(r && r.m==='clock' && k==='al'){ r.al=c.al; const d=new Date(Date.now()), hm=p2(d.getHours())+':'+p2(d.getMinutes()); r.alKey=c.al===hm ? ymdOf(d)+' '+hm : ''; }
+  save(); const set=$('htSet'); if(set) set.innerHTML=setPanel(); paintRunCard();
+  if(k==='al') toastT(c.al ? '⏰ '+c.al.replace(/^0/, '')+' に 鳴らします' : '⏰ 目覚ましを なしに しました');
+}
 function setOpt(k, v){
   if(k==='theme'){ if(!FX.hasTheme(v)) return; st.theme=v; }
   else if(k==='level'){ if(!FX.hasLevel(v)) return; st.level=v; }
@@ -681,7 +768,9 @@ const HT_CSS=`
 .ht-body{ flex:1; min-height:0; overflow:auto; padding:10px 10px calc(20px + var(--safe-bottom,0px)); color:var(--text,#222); font-size:15px; }
 .ht-wrap{ max-width:760px; margin:0 auto; }
 .ht-prev{ display:block; width:100%; height:min(44vw,230px); border-radius:18px; background:#05061a; cursor:pointer; box-shadow:0 6px 22px rgba(40,0,80,.35); }
-.ht-modes{ display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin:10px 0 8px; }
+.ht-modes{ display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin:10px 0 8px; }
+@media (max-width:560px){ .ht-modes{ grid-template-columns:repeat(2,1fr); } }
+.ht-al input{ min-height:42px; padding:0 10px; border-radius:12px; border:1px solid rgba(120,132,156,.55); background:var(--cell-bg,#fff); color:var(--text,#222); font-size:20px; font-weight:bold; }
 .ht-modes button{ min-height:48px; border-radius:12px; border:1px solid rgba(120,132,156,.45); background:var(--modal-bg,#fff); color:var(--text,#222); font-size:15px; font-weight:bold; cursor:pointer; padding:0 4px; }
 .ht-modes button.on{ background:linear-gradient(135deg,#ff2bd6,#7b2bff); border-color:transparent; color:#fff; }
 .ht-sec{ margin:0 0 10px; padding:10px 12px 12px; border-radius:14px; border:1px solid rgba(120,132,156,.28); background:var(--modal-bg,#fff); }
@@ -743,7 +832,11 @@ const HT_CSS=`
 .ht-stop{ position:absolute; left:50%; bottom:calc(var(--ht-bar,84px) + 12px); transform:translateX(-50%); min-width:220px; min-height:72px; border:0; border-radius:36px; background:linear-gradient(135deg,#ffffff,#ffe9a8); color:#7a2b00; font-size:28px; font-weight:900; cursor:pointer; box-shadow:0 0 0 6px rgba(255,255,255,.25), 0 8px 30px rgba(255,200,80,.6); animation:htPulse 1s ease-in-out infinite; }
 .ht-stop[hidden]{ display:none; }
 @keyframes htPulse{ 0%,100%{ transform:translateX(-50%) scale(1); } 50%{ transform:translateX(-50%) scale(1.08); } }
-.ht-bar{ position:absolute; left:0; right:0; bottom:0; display:flex; gap:6px; padding:8px 10px calc(10px + var(--safe-bottom,0px)); justify-content:center; flex-wrap:wrap; background:linear-gradient(0deg, rgba(0,0,0,.55), rgba(0,0,0,0)); }
+.ht-bar{ position:absolute; left:0; right:0; bottom:0; display:flex; gap:6px; padding:8px 10px calc(10px + var(--safe-bottom,0px)); justify-content:center; flex-wrap:wrap; background:linear-gradient(0deg, rgba(0,0,0,.55), rgba(0,0,0,0)); transition:opacity .3s, transform .3s; }
+.ht-full.bar-hide .ht-bar{ opacity:0; transform:translateY(26px); pointer-events:none; }   /* 下の ボタンを 隠す（v588） */
+.ht-full.bar-hide{ --ht-bar:calc(14px + var(--safe-bottom,0px)) !important; }
+.ht-more{ position:absolute; right:10px; top:calc(8px + var(--safe-top,0px)); z-index:3; width:46px; height:46px; border-radius:23px; border:1.5px solid rgba(255,255,255,.6); background:rgba(0,0,0,.4); color:#fff; font-size:21px; cursor:pointer; opacity:0; pointer-events:none; transition:opacity .3s; }
+.ht-full.bar-hide .ht-more{ opacity:.75; pointer-events:auto; }
 .ht-bar button{ flex:1 1 auto; max-width:180px; min-height:50px; padding:0 10px; border-radius:14px; border:1.5px solid rgba(255,255,255,.75); background:rgba(0,0,0,.35); color:#fff; font-size:16px; font-weight:bold; cursor:pointer; white-space:nowrap; }
 .ht-bar button.pri{ background:#fff; color:#3a0070; border-color:#fff; }
 .ht-chip{ position:fixed; right:10px; top:calc(52px + var(--safe-top,0px)); z-index:99980; min-height:44px; padding:0 16px; border-radius:22px; border:0; background:linear-gradient(135deg,#7b2bff,#ff2bd6); color:#fff; font-size:17px; font-weight:bold; font-variant-numeric:tabular-nums; box-shadow:0 4px 16px rgba(123,43,255,.5); cursor:pointer; }
@@ -781,7 +874,8 @@ function openHadeTimer(fromRun){
 function closeHadeTimer(){ if(!$('hadeTimerOverlay') || !isDlgOpen('hadeTimerOverlay')) return; closeDlg('hadeTimerOverlay', cleanup); }
 
 window.HADE_TIMER={ mode:setMode, opt:setOpt, set:setSec, add:addSec, typed, ivTyped, ivSet, usePre, addPre:n=>addPre(n), delPre:i=>{ delPre(i); },
-  start, pause, resume, toggle:togglePause, plus, restart, stop, back, lap, next, stopAlarm:()=>stopAlarm(), show,
+  start, pause, resume, toggle:togglePause, plus, restart, stop, back, lap, next, stopAlarm:()=>stopAlarm(), show, clock:setClock, showNow, bar:()=>barShow(),
+  barHidden, fs:()=>fsOn, clockView:()=>{ const v=clockView(Date.now()); return {str:v.str, sec:v.sec, ap:v.ap, date:v.date}; }, alarmDue:()=>alarmDue(st.run, Date.now()),
   state:()=>JSON.parse(JSON.stringify(st)), view:()=>{ const v=viewOf(st.run, Date.now()); return {str:v.str, frac:+v.frac.toFixed(4), sec:v.sec, ph:v.ph ? v.ph.ph+':'+v.ph.round : ''}; },
   stage:stageOpen, alarm:()=>alarmOn, chip:()=>{ const c=$('htChip'); return c ? c.textContent : ''; }, fx:()=>({n:sc ? sc.e.count() : 0, prev:pv ? pv.e.count() : 0, played:FX.played(), cap:sc ? sc.e.cap : 0, level:sc ? sc.e.level : ''}),
   banner:()=>{ const b=$('htBan'); return b ? b.textContent : ''; }, label:()=>[($('htLab')||{}).textContent||'', ($('htSub')||{}).textContent||''].join('|'),
