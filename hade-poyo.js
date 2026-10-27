@@ -291,7 +291,7 @@ function finish(e, L, snd){
   e.confetti(120); e.emoji(W/2, H*0.92, ['🫧','🎉','✨','💖','⭐'], {n:14, up:true, sp:900, sz:40}); e.kick(1); e.flash('#ffffff', 0.32);
   e.text(W/2, H*0.68, 'ぽよよ〜ん！', {sz:clamp(W/e.d/8, 28, 72), pop:true, life:1.8, vy:-30, grad:['#ffffff','#ffb3e6','#a26bff']});
   if(snd){ snd('poyon', 2); e.after(0.28, ()=>snd('poyon', 1)); e.after(0.5, ()=>snd('level')); }
-  hop(L, e.t+0.55, 2);
+  hop(L, e.t+0.55, 2); L.introB=L.batch;   // この ぴょん は 字を 出さない（上の「TIME UP!」と 重ならない ように）
 }
 // たしかめ用（いまの ようす）
 function info(L){
