@@ -11811,13 +11811,13 @@ async function runKujiAmida585(browser) {
   await page.evaluate(async n => { window.KJ_NO_ANIM = true; window.appConfirm = async () => true; await openKuji(); KJ.setNames(n); KJ.mode('amida'); }, N.slice(0, 10)); await w(300);
   await page.click('#kjGo'); await w(400);
   const fit = () => page.evaluate(() => { const s = document.querySelector('#kjFullBox svg').getBoundingClientRect(), b = document.getElementById('kjFullBox').getBoundingClientRect(); return s.left >= b.left - 0.5 && s.top >= b.top - 0.5 && s.right <= b.right + 0.5 && s.bottom <= b.bottom + 0.5 && s.right <= innerWidth && s.bottom <= innerHeight; });
-  check('  作ると すぐ 全画面：名前・たて線・下の ？ が ぜんぶ 画面に おさまる', await page.evaluate(() => [KJ.isFull(), !!document.getElementById('kjFull'), document.querySelectorAll('#kjFullBox g.nm').length, document.querySelectorAll('#kjFullBox line.v').length, [...document.querySelectorAll('#kjFullBox g.pz text')].every(t => t.textContent === '？'), document.getElementById('kjFullTip').textContent, [...document.querySelectorAll('#kjFullBar button')].map(b => b.textContent).join(',')].join('/')) + '/' + await fit(), 'true/true/10/10/true/名前を押すと たどります/🔓 ぜんぶ開ける,✕ 閉じる/true');
+  check('  作ると すぐ 全画面：名前・たて線・下の ？ が ぜんぶ 画面に おさまる', await page.evaluate(() => [KJ.isFull(), !!document.getElementById('kjFull'), document.querySelectorAll('#kjFullBox g.nm').length, document.querySelectorAll('#kjFullBox line.v').length, [...document.querySelectorAll('#kjFullBox g.pz text')].every(t => t.textContent === '？'), document.getElementById('kjFullTip').textContent, [...document.querySelectorAll('#kjFullBar button:not(.snd)')].map(b => b.textContent).join(',')].join('/')) + '/' + await fit(), 'true/true/10/10/true/名前を押すと たどります/🔓 ぜんぶ開ける,✕ 閉じる/true');
   check('  横線も ぜんぶ 同じ（窓の 中の あみだと 同じ くじ）', await page.evaluate(() => [document.querySelectorAll('#kjFullBox line.h').length === document.querySelectorAll('#kjRes line.h').length, document.querySelectorAll('#kjFullBox line.h').length > 0].join('/')), 'true/true');
   await page.click('#kjFullBox g.nm:nth-of-type(1)'); await w(200);
   check('  全画面で 名前を 押すと たどる（線・下の 答え・窓の 中も）', await page.evaluate(() => { const a = KJ.state().amida, end = KJ.trace(0).end; return [a.open.join(','), document.querySelectorAll('#kjFullBox polyline.path').length, document.querySelectorAll('#kjFullBox g.pz text')[end].textContent === a.prizes[end], document.querySelector('#kjFullBox g.nm').classList.contains('on'), document.querySelectorAll('#kjRes polyline.path').length].join('/'); }), '0/1/true/true/1');
-  await page.click('#kjFullBar button:first-child'); await w(200);
-  check('  🔓 ぜんぶ開ける → 全部の 線・📋 コピー・「ぜんぶ 開けました」', await page.evaluate(() => [KJ.state().amida.open.length, document.querySelectorAll('#kjFullBox polyline.path').length, [...document.querySelectorAll('#kjFullBox g.pz text')].every(t => t.textContent !== '？'), [...document.querySelectorAll('#kjFullBar button')].map(b => b.textContent).join(','), document.getElementById('kjFullTip').textContent, KJ.state().hist[0].mode].join('/')), '10/10/true/📋 コピー,✕ 閉じる/ぜんぶ 開けました/amida');
-  check('  全画面の 📋 コピー', await page.evaluate(async () => { let t = ''; navigator.clipboard.writeText = async x => { t = x; }; document.querySelector('#kjFullBar button').click(); await new Promise(r => setTimeout(r, 50)); return t.startsWith('🪜 あみだくじ') && t.split('\n').length === 11; }), true);
+  await page.click('#kjFullBar button:not(.snd)'); await w(200);
+  check('  🔓 ぜんぶ開ける → 全部の 線・📋 コピー・「ぜんぶ 開けました」', await page.evaluate(() => [KJ.state().amida.open.length, document.querySelectorAll('#kjFullBox polyline.path').length, [...document.querySelectorAll('#kjFullBox g.pz text')].every(t => t.textContent !== '？'), [...document.querySelectorAll('#kjFullBar button:not(.snd)')].map(b => b.textContent).join(','), document.getElementById('kjFullTip').textContent, KJ.state().hist[0].mode].join('/')), '10/10/true/📋 コピー,✕ 閉じる/ぜんぶ 開けました/amida');
+  check('  全画面の 📋 コピー', await page.evaluate(async () => { let t = ''; navigator.clipboard.writeText = async x => { t = x; }; document.querySelector('#kjFullBar button:not(.snd)').click(); await new Promise(r => setTimeout(r, 50)); return t.startsWith('🪜 あみだくじ') && t.split('\n').length === 11; }), true);
   await page.click('#kjFullBar button.pri'); await w(200);
   check('  ✕ 閉じる：窓に もどる（窓の 中に「⛶ 全画面で 見る」）', await page.evaluate(() => [KJ.isFull(), !!document.getElementById('kjFull'), isDlgOpen('kujiOverlay'), !!document.querySelector('#kjRes .kj-fullbtn')].join('/')), 'false/false/true/true');
   await page.click('#kjRes .kj-fullbtn'); await w(200);
@@ -11841,6 +11841,52 @@ async function runKujiAmida585(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runKujiSound592(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🪜 あみだくじ：当たり・はずれで 音（v592） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const since = n => page.evaluate(n => KJ.played().slice(n).join(','), n), count = () => page.evaluate(() => KJ.played().length);
+  const ends = () => page.evaluate(() => { const a = KJ.state().amida, e = a.names.map((_, i) => a.prizes[KJ.trace(i).end]); return { hit: e.indexOf('当たり'), miss: e.indexOf('はずれ') }; });
+  await page.evaluate(async () => { window.appConfirm = async () => true; await openKuji(); KJ.setNames(['田中', '佐藤', '鈴木', '高橋', '伊藤']); KJ.mode('amida'); KJ.set('prizeKind', 'hit'); await KJ.go(); }); await w(500);
+  check('  はじめは 音を 出す（設定に 🔊 の チェック・全画面にも 🔊）', await page.evaluate(() => [KJ.state().sound, !!document.getElementById('kjSound') && document.getElementById('kjSound').checked, document.querySelector('#kjFullBar button.snd').textContent].join('/')), 'true/true/🔊');
+  const who = await ends();
+  let n = await count();
+  await page.click(`#kjFullBox g.nm:nth-of-type(${who.hit + 1})`); await w(80);
+  check('  押すと 線を 引く あいだ ドラムロール（答えは まだ）', await since(n), 'roll');
+  await w(1300);
+  check('  当たりに 着くと 当たりの 音（カランカラン＋ファンファーレ）', await since(n), 'roll,hit');
+  n = await count();
+  await page.click(`#kjFullBox g.nm:nth-of-type(${who.miss + 1})`); await w(1400);
+  check('  はずれに 着くと はずれの 音（ぷぅ〜）', await since(n), 'roll,miss');
+  n = await count();
+  await page.click('#kjFullBar button:not(.snd)'); await w(1400);
+  check('  🔓 ぜんぶ開ける：まとめて 1回（のこりは はずれ だけ）', await since(n), 'roll,miss');
+  await page.evaluate(async () => { KJ.full(false); KJ.set('hitN', 2); await KJ.go(); }); await w(400);
+  n = await count();
+  await page.click('#kjFullBar button:not(.snd)'); await w(1400);
+  check('  ぜんぶ開ける：当たりが あれば 当たりの 音', await since(n), 'roll,hit');
+  await page.evaluate(async () => { KJ.full(false); KJ.set('prizeKind', 'num'); await KJ.go(); }); await w(400);
+  n = await count();
+  await page.click('#kjFullBox g.nm:nth-of-type(1)'); await w(1400);
+  check('  1〜5の 数：ポン', await since(n), 'roll,pon');
+  check('  答えの 種類（当たり・大当たり・はずれ・ハズレ・外れ・司会・3）', await page.evaluate(() => ['当たり', '大当たり', 'はずれ', 'ハズレ', '外れ', '司会', '3'].map(KJ.prizeKind).join(',')), 'hit,hit,miss,miss,miss,pon,pon');
+  await page.click('#kjFullBar button.snd'); await w(100);
+  check('  全画面の 🔊 を 押すと 🔇（しまう）', await page.evaluate(() => [document.querySelector('#kjFullBar button.snd').textContent, KJ.state().sound, JSON.parse(localStorage.getItem('excalc_kuji')).sound].join('/')), '🔇/false/false');
+  n = await count();
+  await page.click('#kjFullBox g.nm:nth-of-type(2)'); await w(1400);
+  check('  🔇 の ときは 音を 出さない（答えは 出る）', await page.evaluate(n => [KJ.played().length - n, KJ.drawing().length, KJ.state().amida.open.includes(1)].join('/'), n), '0/0/true');
+  await page.evaluate(() => KJ.full(false)); await w(200);
+  check('  設定の チェックも 外れて いる', await page.evaluate(() => document.getElementById('kjSound').checked), false);
+  await page.evaluate(async () => { KJ.set('sound', true); window.KJ_NO_ANIM = true; KJ.set('prizeKind', 'hit'); KJ.set('hitN', 1); await KJ.go(); }); await w(300);
+  const who2 = await ends();
+  n = await count();
+  await page.click(`#kjFullBox g.nm:nth-of-type(${who2.hit + 1})`); await w(120);
+  check('  動きを へらす 設定：すぐ 当たりの 音（ドラムロール なし）', await since(n), 'hit');
+  await page.evaluate(() => { window.KJ_NO_ANIM = false; KJ.full(false); closeKuji(); }); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
 async function runKujiReveal586(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🪜 あみだくじ：線が 下に 着いてから 答えを 出す（v586） ──');
@@ -11864,13 +11910,13 @@ async function runKujiReveal586(browser) {
   await w(500);
   check('  あとの 人も 着いたら 答え', await at('#kjFullBox', 2).then(c => c.prize === c.right), true);
   const h0 = await page.evaluate(() => { const h = document.getElementById('kjHist'); h.hidden = false; h.open = true; return document.querySelectorAll('#kjHist pre').length; });
-  await page.click('#kjFullBar button:first-child'); await w(80);
-  check('  🔓 ぜんぶ開ける：のこりは いっしょに 線を 引いて、まだ ？（🔓 は 消え、コピーは まだ 出ない）', await page.evaluate(() => { const a = KJ.state().amida, rest = [3, 4].map(i => KJ.trace(i).end); return [a.open.length, rest.every(e => document.querySelectorAll('#kjFullBox g.pz text')[e].textContent === '？'), KJ.drawing().sort().join(','), [...document.querySelectorAll('#kjFullBar button')].map(b => b.textContent).join(','), document.getElementById('kjFullTip').textContent, document.querySelector('#kjRes .kj-acts').textContent].join('/'); }), '5/true/3,4/✕ 閉じる/名前を押すと たどります/⛶ 全画面で 見る');
+  await page.click('#kjFullBar button:not(.snd)'); await w(80);
+  check('  🔓 ぜんぶ開ける：のこりは いっしょに 線を 引いて、まだ ？（🔓 は 消え、コピーは まだ 出ない）', await page.evaluate(() => { const a = KJ.state().amida, rest = [3, 4].map(i => KJ.trace(i).end); return [a.open.length, rest.every(e => document.querySelectorAll('#kjFullBox g.pz text')[e].textContent === '？'), KJ.drawing().sort().join(','), [...document.querySelectorAll('#kjFullBar button:not(.snd)')].map(b => b.textContent).join(','), document.getElementById('kjFullTip').textContent, document.querySelector('#kjRes .kj-acts').textContent].join('/'); }), '5/true/3,4/✕ 閉じる/名前を押すと たどります/⛶ 全画面で 見る');
   check('  これまでの 結果（履歴）にも まだ 出ない', await page.evaluate(h0 => [KJ.state().hist.length, document.querySelectorAll('#kjHist pre').length - h0].join('/'), h0), '1/0');
   await page.evaluate(() => KJ.openAll()); await w(30);
   check('  線を 引いている あいだに もう 一度 ぜんぶ開けても：履歴は ふえない', await page.evaluate(() => [KJ.state().hist.length, KJ.drawing().sort().join(',')].join('/')), '1/3,4');
   await w(1300);
-  check('  着いたら ぜんぶの 答え・📋 コピー・「ぜんぶ 開けました」', await page.evaluate(() => [[...document.querySelectorAll('#kjFullBox g.pz text')].every(t => t.textContent !== '？'), KJ.drawing().length, document.querySelector('#kjFullBar button').textContent, document.getElementById('kjFullTip').textContent].join('/')), 'true/0/📋 コピー/ぜんぶ 開けました');
+  check('  着いたら ぜんぶの 答え・📋 コピー・「ぜんぶ 開けました」', await page.evaluate(() => [[...document.querySelectorAll('#kjFullBox g.pz text')].every(t => t.textContent !== '？'), KJ.drawing().length, document.querySelector('#kjFullBar button:not(.snd)').textContent, document.getElementById('kjFullTip').textContent].join('/')), 'true/0/📋 コピー/ぜんぶ 開けました');
   check('  履歴にも 着いてから 出る', await page.evaluate(h0 => [document.querySelectorAll('#kjHist pre').length - h0, document.querySelector('#kjHist pre').textContent.includes('伊藤 → ')].join('/'), h0), '1/true');
   await page.evaluate(async () => { KJ.full(false); await KJ.go(); KJ.full(false); }); await w(300);
   await page.evaluate(() => document.querySelector('#kjRes svg g.nm').dispatchEvent(new MouseEvent('click', { bubbles: true }))); await w(60);
@@ -17778,6 +17824,7 @@ async function runQrShare(browser) {
     if (!only || only === 'kuji' || only === 'v561') await runKuji561(browser);
     if (!only || only === 'kuji' || only === 'kuji585' || only === 'v585') await runKujiAmida585(browser);
     if (!only || only === 'kuji' || only === 'kuji586' || only === 'v586') await runKujiReveal586(browser);
+    if (!only || only === 'kuji' || only === 'kuji592' || only === 'v592') await runKujiSound592(browser);
     if (!only || only === 'bingo' || only === 'v587') await runBingo587(browser);
     if (!only || only === 'bingo' || only === 'bingo588' || only === 'v588') await runBingo588(browser);
     if (!only || only === 'hade' || only === 'hade588' || only === 'v588') await runHadeFull588(browser);
