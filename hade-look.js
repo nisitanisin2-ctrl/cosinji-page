@@ -10,6 +10,8 @@
      のこり10秒は 数を さけび、0 で 大よろこび。くり返しの 休む あいだは ねる。
    ・🫧 ぽよん（v589。描き方は hade-poyo.js）：📢 電光掲示板の ぽよん と 同じ。前の 数字が つぶれて、新しい 数字が 落ちてきて ぷるんと はずむ。
      しぶき・床の 輪・ゆれ・はじける あわ・「ぽよん！」の 字と 音（演出の 強さで ふえる）。5秒ごとの 演出と 0 の あとは みんなで ぴょん。
+   ・🕐 時計（v590・v591）：秒を 出しても 時・分の 字が 小さく ならない 並べ方（縦は 時・分・秒を 縦に 積む・横は 時:分 の 下か 右に 秒）を
+     見せ方 みんなで 使う（clockPlan）。⭕ 光の輪 は 秒を 輪の 中に（hade-timer.js）・🎞 絵 は 札に・🐾 動物 は 道具に 秒も。
    ・絵は すべて canvas に その場で 描く（画像の ファイルは 使わない）。
    ・S（その こまの ようす）は hade-timer.js が 作る：p（進み 0〜1）・str（時間の 字）・sec・mode・ph・last10・paused・done・doneT・tickT・bot など。
      L は 見せ方ごとの 覚えておく もの（煙の 粒・前の 数字・動物の 位置 など）。 */
@@ -90,6 +92,39 @@ function candleFlame(g,x,y,w,h,sway){
 const dtOf=(L,t)=>{ const d=clamp(t-(L.lt==null?t:L.lt), 0, 0.05); L.lt=t; return d; };
 
 /* ───────── 🔠 画面いっぱい ───────── */
+// 大きな 字 1つ（まん中 x・y、大きさ fs、ふくらみ sc、こさ al）
+function bigGlyph(g, S, ink, text, x, y, fs, sc, al){
+  g.save(); g.globalAlpha=clamp(al,0,1); g.translate(x, y); g.scale(sc, sc);
+  g.font='900 '+Math.round(fs)+'px '+NUMF; g.textAlign='center'; g.textBaseline='middle';
+  if(S.level!=='calm'){ g.shadowColor=S.last10 ? '#ff3b30' : ink[2]; g.shadowBlur=Math.min(fs*0.1, 36*S.d); }
+  g.lineJoin='round'; g.lineWidth=Math.max(2, fs*0.045); g.strokeStyle='rgba(0,0,0,.62)'; g.strokeText(text, 0, fs*0.035);
+  g.shadowBlur=0; g.fillStyle=S.last10 ? lin(g, 0, -fs*0.42, 0, fs*0.42, ['#fff6c8','#ffb000','#ff2d2d']) : lin(g, 0, -fs*0.42, 0, fs*0.42, [ink[0], ink[1], ink[2]]);
+  g.fillText(text, 0, fs*0.035); g.restore();
+}
+// 🕐 時計（v591）：🫧 ぽよん と 同じ 並べ方（縦は 時・分・秒を 縦に 積む・横は 時:分 の 下に 秒）。かわった 字は はねて、前の 字は 大きく なって 消える
+function drawBigClock(g, S, L, top, bot, ink){
+  const W=S.W, H=S.H, t=S.t, met=numMet(g, '900'), sub=S.ap||'', box={x:W*0.025, y:top, w:W*0.95, h:Math.max(10, bot-top)};
+  const fit=(rows, dir, b)=>fitRows(rows, met, b, dir, sub), plan=clockPlan(S, L, box, sub, fit);
+  if(!plan) return false;
+  const lay=placeRows(plan.rows, met, box, plan.dir, sub, fit(plan.rows, plan.dir, box)), off=0.035+met.mid/100;   // 字の まん中を 行の まん中に
+  if(L.bkey!==plan.kind+plan.rows.length){ L.bkey=plan.kind+plan.rows.length; L.brows=[]; }
+  let hi=Infinity;
+  lay.rows.forEach((R,i)=>{
+    const q=L.brows[i]||(L.brows[i]={}), chars=Array.from(R.str), fs=R.fs, y=R.cy-off*fs;
+    if(q.str!==R.str){ const prev=q.str==null ? null : Array.from(q.str), same=!!prev && prev.length===chars.length;
+      q.cht=chars.map((c,j)=>same && prev[j]===c && q.cht ? q.cht[j] : t); q.olds=same ? prev.map((c,j)=>c!==chars[j] ? {c, j} : null).filter(Boolean) : [];
+      q.oldAll=same || !prev ? null : q.str; q.oldT=t; q.str=R.str; }
+    const xs=[]; let x=R.cx-R.w/2; for(const ch of chars){ const w=(/[0-9]/.test(ch) ? met.dw : met.colon)*fs/100; xs.push(x+w/2); x+=w; }   // 数字は 同じ 幅に（かわっても ずれない）
+    const ok=t-(q.oldT||0);
+    if(ok<0.34){ if(q.oldAll) bigGlyph(g, S, ink, q.oldAll, R.cx, y, fs, 1+0.7*ok/0.34, 1-ok/0.34); else for(const o of q.olds||[]) bigGlyph(g, S, ink, o.c, xs[o.j], y, fs, 1+0.8*ok/0.34, 1-ok/0.34); }
+    chars.forEach((c,j)=>{ const k=(t-(q.cht && q.cht[j]!=null ? q.cht[j] : -9))/0.6, b=k<1 && !S.prev ? 1+0.3*Math.exp(-5*k)*Math.cos(k*8.5) : 1; bigGlyph(g, S, ink, c, xs[j], y, fs, b, 1); });
+    if(R.gx!=null) bigGlyph(g, S, ink, ':', R.gx, y, fs, 1, 1);   // とても 横長：時:分 と 秒の あいだに 小さな「:」
+    hi=Math.min(hi, R.cy-R.h/2);
+  });
+  if(sub) pill(g, sub, W/2, lay.subY, clamp(lay.F*0.14, 12*S.d, 46*S.d), {bg:'rgba(0,0,0,.4)'});
+  L.str=lay.rows.map(R=>R.str).join('|'); L.plan=plan.kind; L.v=lay.F; L.fs=+(lay.F/Math.min(W,H)).toFixed(3); L.head=[W/2, hi];
+  return true;
+}
 function drawBig(g, e, S, L){
   const W=S.W, H=S.H, t=S.t, ink=S.ink||['#ffffff','#ffd23f','#ff9f43'];
   const top=S.prev ? H*0.04 : H*0.13, bot=S.prev ? H*0.96 : S.bot;
@@ -103,6 +138,8 @@ function drawBig(g, e, S, L){
     g.beginPath(); for(let i=0;i<=32;i++){ const x=W*i/32, y=y0+Math.sin(i/32*TAU*1.4+t*2.4)*amp+Math.sin(i/32*TAU*3.1-t*1.7)*amp*0.4; if(i) g.lineTo(x, y); else g.moveTo(x, y); }
     g.strokeStyle='rgba('+col+',.75)'; g.lineWidth=Math.max(2, 3*S.d); g.stroke(); g.restore();
   }
+  if(S.mode==='clock' && drawBigClock(g, S, L, top, bot, ink)) return;
+  L.plan='';
   const str=S.bstr||S.str, chars=Array.from(str);
   // 字が かわった ときの 時刻（字ごと）。字の 数が 同じなら かわった 字だけ 跳ねる
   if(L.str!==str){
@@ -119,14 +156,7 @@ function drawBig(g, e, S, L){
   const total=ws.reduce((a,b)=>a+b, 0), xs=[]; let x=W/2-total/2; ws.forEach(w=>{ xs.push(x+w/2); x+=w; });
   const beat=S.last10 ? 1+0.07*Math.pow(1-(((t-(L.newT||0))%1)+1)%1, 3) : 1;
   const dy=S.bsub ? -fs*0.1 : 0;
-  const one=(text, x0, sc, al)=>{
-    g.save(); g.globalAlpha=clamp(al,0,1); g.translate(x0, cy+dy); g.scale(sc, sc);
-    g.font='900 '+Math.round(fs)+'px '+NUMF; g.textAlign='center'; g.textBaseline='middle';
-    if(S.level!=='calm'){ g.shadowColor=S.last10 ? '#ff3b30' : ink[2]; g.shadowBlur=Math.min(fs*0.1, 36*S.d); }
-    g.lineJoin='round'; g.lineWidth=Math.max(2, fs*0.045); g.strokeStyle='rgba(0,0,0,.62)'; g.strokeText(text, 0, fs*0.035);
-    g.shadowBlur=0; g.fillStyle=S.last10 ? lin(g, 0, -fs*0.42, 0, fs*0.42, ['#fff6c8','#ffb000','#ff2d2d']) : lin(g, 0, -fs*0.42, 0, fs*0.42, [ink[0], ink[1], ink[2]]);
-    g.fillText(text, 0, fs*0.035); g.restore();
-  };
+  const one=(text, x0, sc, al)=>bigGlyph(g, S, ink, text, x0, cy+dy, fs, sc, al);
   const ok=t-(L.oldT||0);
   if(ok<0.34){
     if(L.oldAll) one(L.oldAll, W/2, 1+0.7*ok/0.34, 1-ok/0.34);
@@ -406,7 +436,23 @@ function drawPic(g, e, S, L, sub){
   g.restore();
   L.head=P.c(h[0], h[1]); L.lay=P;
   if(S.last10 && S.sec>0){ const k=1-clamp((S.t-(S.tickT==null ? S.t : S.tickT))/0.6, 0, 1); pill(g, String(S.sec), P.px, P.py-P.pf*0.3, P.pf*(1.7+0.25*k*k), {bg:'rgba(210,20,20,.82)', line:'#ffe08a'}); }
+  else if(S.mode==='clock') L.time=clockPill(g, S, P.px, P.py, P.pf);   // 🕐 時計（v591）
   else pill(g, S.done ? END[sub]||'おわり' : S.str, P.px, P.py, P.pf, S.done ? {bg:'rgba(255,140,0,.85)'} : {});
+}
+// 🕐 時計の 札（v591）：時:分 の 右に 秒を 小さく（とても 横長の ときと 同じ 並べ方。床を そろえる）。午前・午後は 左に 小さく
+function clockPill(g, S, x, y, fs){
+  const hm=String(S.bstr||S.str), ss=S.csec ? ':'+String(S.sec).padStart(2,'0') : '', ap=S.ap||'', f2=fs*0.62, fa=fs*0.5;
+  const font=n=>{ g.font='900 '+Math.round(n)+'px '+NUMF; };
+  g.save(); g.textBaseline='alphabetic'; g.textAlign='left';
+  font(fs); const w1=g.measureText(hm).width; font(f2); const w2=ss ? g.measureText(ss).width+fs*0.06 : 0; font(fa); const w0=ap ? g.measureText(ap).width+fs*0.22 : 0;
+  const w=w0+w1+w2+fs*0.9, h=fs*1.32, base=y+fs*0.37;
+  rr(g, x-w/2, y-h/2, w, h, h/2); g.fillStyle='rgba(0,0,0,.5)'; g.fill(); g.strokeStyle='rgba(255,255,255,.55)'; g.lineWidth=Math.max(1, fs*0.05); g.stroke();
+  let cx=x-w/2+fs*0.45; g.fillStyle='#ffffff';
+  if(ap){ font(fa); g.fillText(ap, cx, base); cx+=w0; }
+  font(fs); g.fillText(hm, cx, base); cx+=w1+fs*0.06;
+  if(ss){ font(f2); g.fillText(ss, cx, base); }
+  g.restore();
+  return (ap ? ap+' ' : '')+hm+ss;
 }
 
 /* ───────── 🐾 動物（v581：動物が 自分で 数える。1秒ごとに 数える 動きを して、道具に 時間が 出る）─────────
@@ -706,7 +752,9 @@ function drawAni(g, e, S, L, k){
   L.dusk=+dusk.toFixed(3);
   stageScene(g, S, L, gy, dusk, k==='kaeru');
   const mood=S.done ? 'happy' : sleep ? 'sleep' : S.last10 ? 'tense' : S.mode==='down' && S.p>=0.5 ? 'focus' : 'n';
-  const C={t, since, active, sleep, prep, fast, mood, last10:S.last10, done:S.done, doneT:S.doneT||0, sec:S.sec, str:S.sstr||S.str, prev:S.prev, beat, beats:L.beats||0};
+  const str=S.mode==='clock' && S.csec ? String(S.bstr||S.str)+':'+String(S.sec).padStart(2,'0') : S.sstr||S.str;   // 🕐 時計で 秒も 出す ときは 道具に 秒も（v591。ねこは 秒の 板を めくる）
+  const C={t, since, active, sleep, prep, fast, mood, last10:S.last10, done:S.done, doneT:S.doneT||0, sec:S.sec, str, prev:S.prev, beat, beats:L.beats||0};
+  L.time=S.mode==='clock' ? str : '';
   g.save(); g.translate(W/2, gy); g.scale(a, a);
   const r=(PERF[k]||PERF.neko)(g, C, L) || {};
   // 数える 字（上へ 出て 消える）
@@ -732,21 +780,70 @@ function drawAni(g, e, S, L, k){
 }
 
 /* ───────── 🫧 ぽよん（v589。描き方は hade-poyo.js）───────── */
-// 🕐 時計の 行（v590）：秒を 出しても 時・分 が 小さく ならない ように 並べ方を かえる。画面の 形で いちばん 字が 大きく なる ものを えらぶ
-//   s：時・分（・秒）を 縦に 積む（縦の 画面）／v：時:分 の 下に 秒／h：時:分 の 右に 秒（とても 横長）／r：時:分 の 1行（秒なし）
-//   秒は 時・分 が 小さく ならない かぎり 大きく する。下の ボタンが 出たり 隠れたり しても かえない（画面いっぱいの 大きさで くらべる）
-function clockRows(g, P, S, L, box, sub){
-  const W=S.W, H=S.H, hm=String(S.bstr||S.str), i=hm.indexOf(':'), ss=String(S.sec).padStart(2,'0'), sec=!!S.csec;
+/* ───────── 🕐 時計の 並べ方（v590：🫧 ぽよん・v591：ほかの 見せ方も 同じ）─────────
+   秒を 出しても 時・分 が 小さく ならない ように、画面の 形で いちばん 字が 大きく なる 並べ方を えらぶ：
+   s：時・分（・秒）を 縦に 積む（縦の 画面）／v：時:分 の 下に 秒／h：時:分 の 右に 秒（とても 横長）／r：時:分 の 1行（秒なし）。
+   秒の 大きさは 時・分 が 小さく ならない かぎり 大きく。下の ボタンが 出たり 隠れたり しても かえない（画面いっぱいの 大きさで くらべる）。
+   ⭕ 光の輪 は 秒の 行を 光の輪 に 入れる（秒なしでも 輪は 出す）。 */
+const GV=24, GH=30;   // 行の あいだ（100px の 字に 対して。縦・横）
+// 字の 形（100px で はかって 覚える）。dw：数字の 幅・colon：「:」の 幅・h：字の 高さ・mid：字の まん中と textBaseline 'middle' の ずれ
+const MET={};
+function numMet(g, weight, colonK){
+  const key=weight+'|'+(colonK||0); if(MET[key]) return MET[key];
+  g.save(); g.font=weight+' 100px '+NUMF; g.textBaseline='middle';
+  let dw=0; for(const c of '0123456789') dw=Math.max(dw, g.measureText(c).width);
+  const m=g.measureText('8'), asc=m.actualBoundingBoxAscent||36, des=m.actualBoundingBoxDescent||36, colon=colonK ? dw*colonK : g.measureText(':').width;
+  g.restore();
+  return (MET[key]={dw, colon, h:asc+des, mid:(des-asc)/2});
+}
+// 行の 大きさ（100px）。光の輪 の 行は 2けたが 入る 輪（目もりまで）
+function rowSize(r, met){
+  if(r.ring){ const R=Math.hypot(met.dw, met.h/2)/0.9; return {w:R*2.26, h:R*2.26, R}; }
+  let w=0; for(const ch of Array.from(String(r.str))) w+=/[0-9]/.test(ch) ? met.dw : met.colon;
+  return {w, h:met.h, R:0};
+}
+// いちばん 大きい 行（k=1）の 字の 大きさ。dir：'v'（縦に 積む）／'h'（横に 並べる・1行）
+function fitRows(rows, met, box, dir, sub){
+  const n=rows.length, sz=rows.map(r=>rowSize(r, met)), ks=rows.map(r=>r.k||1);
+  if(dir==='v' && n>1){
+    const W100=Math.max(...sz.map((z,i)=>z.w*ks[i])), H100=sz.reduce((a,z,i)=>a+z.h*ks[i], 0)+GV*(n-1)+(sub ? 40 : 0);
+    return 100*Math.min(box.w*0.92/Math.max(1, W100), box.h*0.94/Math.max(1, H100));
+  }
+  const W100=sz.reduce((a,z,i)=>a+z.w*ks[i], 0)+GH*(n-1), H100=Math.max(...sz.map((z,i)=>z.h*ks[i]));
+  return 100*Math.min(box.w*0.92/Math.max(1, W100), box.h*(sub ? 0.6 : 0.7)/Math.max(1, H100));
+}
+// 行の 置き場所：[{str, ring, fs（字の 大きさ）, cx, cy（まん中）, w, h, R（輪の 半径）, gx（横の ときの 前の 行との あいだ）}]・subY（午前・午後）
+function placeRows(rows, met, box, dir, sub, F){
+  const n=rows.length, sz=rows.map(r=>rowSize(r, met)), sc=rows.map(r=>F*(r.k||1)/100), out=[];
+  const one=(r, i, cx, cy, gx)=>({str:String(r.str), ring:!!r.ring, fs:F*(r.k||1), cx, cy, w:sz[i].w*sc[i], h:sz[i].h*sc[i], R:sz[i].R*sc[i], gx});
+  if(dir==='v' && n>1){
+    const gap=GV*F/100, hs=sz.map((z,i)=>z.h*sc[i]), blockH=hs.reduce((a,b)=>a+b, 0)+gap*(n-1);
+    let y=box.y+(box.h-blockH-(sub ? F*0.4 : 0))/2;
+    rows.forEach((r,i)=>{ out.push(one(r, i, box.x+box.w/2, y+hs[i]/2, null)); y+=hs[i]+(i<n-1 ? gap : 0); });
+    return {F, rows:out, subY:y+F*0.24};
+  }
+  const gap=GH*F/100, ws=sz.map((z,i)=>z.w*sc[i]), total=ws.reduce((a,b)=>a+b, 0)+gap*(n-1);
+  const cy0=box.y+box.h*(sub ? 0.46 : 0.53), floor=cy0+sz[0].h*sc[0]/2;   // 小さい 字は 大きい 字と 床を そろえる（輪は まん中）
+  let x=box.x+(box.w-total)/2;
+  rows.forEach((r,i)=>{ out.push(one(r, i, x+ws[i]/2, r.ring || !i ? cy0 : floor-sz[i].h*sc[i]/2, i ? x-gap/2 : null)); x+=ws[i]+gap; });
+  return {F, rows:out, subY:floor+F*0.36};
+}
+// 並べ方を えらぶ。fit(rows, dir, box)：その 並べ方での 大きい 字の 大きさ。L.cfit に 覚える。
+//   o.ring：秒の 行を 光の輪 に・o.kS／o.kV：秒の 大きさの はんい（縦に 積む／下に）・o.kH：右に 置く ときの 大きさ
+function clockPlan(S, L, box, sub, fit, o){
+  o=o||{};
+  const W=S.W, H=S.H, hm=String(S.bstr||S.str), i=hm.indexOf(':'), sec=!!S.csec, ring=!!o.ring;
   if(i<0) return null;
-  const hh=hm.slice(0,i), mm=hm.slice(i+1);
-  const lay=(kind, k)=>kind==='s' ? {dir:'v', rows:[{str:hh, k:1}, {str:mm, k:1}].concat(sec ? [{str:ss, k}] : [])}
-    : kind==='v' ? {dir:'v', rows:[{str:hm, k:1}, {str:ss, k}]} : kind==='h' ? {dir:'h', rows:[{str:hm, k:1}, {str:ss, k}]} : null;
-  const key=[W, H, hm.length, !!sub, sec].join('|');
+  const hh=hm.slice(0,i), mm=hm.slice(i+1), ss=sec ? String(S.sec).padStart(2,'0') : '', third=sec || ring;
+  const tail=k=>third ? [ring ? {str:ss, k, ring:true} : {str:ss, k}] : [];
+  const lay=(kind, k)=>kind==='s' ? {kind, dir:'v', rows:[{str:hh, k:1}, {str:mm, k:1}].concat(tail(k))}
+    : kind==='v' ? {kind, dir:'v', rows:[{str:hm, k:1}].concat(tail(k))} : kind==='h' ? {kind, dir:'h', rows:[{str:hm, k:1}].concat(tail(k))} : {kind:'r', dir:'h', rows:[{str:hm, k:1}]};
+  const key=[W, H, hm.length, !!sub, sec, ring].join('|');
   if(!L.cfit || L.cfit.key!==key){
     const fb=Object.assign({}, box, {h:Math.max(10, (S.prev ? H*0.95 : H-22*S.d)-box.y)});
-    const F=(kind, k)=>{ const c=lay(kind, k); return c ? P.fit(g, fb, c.rows, c.dir, sub) : P.fit(g, fb, [{str:hm, k:1}], 'h', sub); };
-    const grow=(kind, lo, hi)=>{ const f=F(kind, lo); let k=hi; while(k>lo+1e-6 && F(kind, k)<f*0.995) k-=0.02; return {kind, k:+Math.max(lo, k).toFixed(2), f}; };
-    const cs=sec ? [grow('s', 0.55, 0.75), grow('v', 0.42, 0.6), {kind:'h', k:0.5, f:F('h', 0.5)}] : [{kind:'s', k:1, f:F('s', 1)}, {kind:'r', k:1, f:F('r', 1)}];
+    const F=(kind, k)=>{ const c=lay(kind, k); return fit(c.rows, c.dir, fb); };
+    const grow=(kind, [lo, hi])=>{ const f=F(kind, lo); let k=hi; while(k>lo+1e-6 && F(kind, k)<f*0.995) k-=0.02; return {kind, k:+Math.max(lo, k).toFixed(2), f}; };
+    const cs=third ? [grow('s', o.kS||[0.55, 0.75]), grow('v', o.kV||[0.42, 0.6]), {kind:'h', k:o.kH||0.5, f:F('h', o.kH||0.5)}] : [{kind:'s', k:1, f:F('s', 1)}, {kind:'r', k:1, f:F('r', 1)}];
     cs[0].f*=0.87;   // 縦に 積むのは ほかより だいぶ 大きく なる とき だけ
     L.cfit=Object.assign({key}, cs.reduce((a,b)=>b.f>a.f ? b : a));
   }
@@ -760,9 +857,9 @@ function drawPoyo(g, e, S, L){
   const o={t, rainbow:true, sub:S.bsub||'', urgent:S.last10, snd:S.prev ? null : S.snd, intro:true};
   if(S.done && S.doneT>1.2 && t-(L.doneHop==null ? -9 : L.doneHop)>1.8){ L.doneHop=t; P.hop(L, t, 1.4); }   // 0 の あとも ときどき みんなで ぴょん
   let cr=null;
-  if(S.mode==='clock'){ o.sub=S.ap||''; cr=clockRows(g, P, S, L, box, o.sub); }   // 🕐 時計は 秒も ぽよん
-  if(cr){ o.dir=cr.dir; P.drawRows(g, e, box, cr.rows, o, L); }
-  else P.draw(g, e, box, S.bstr||S.str, o, L);
+  if(S.mode==='clock'){ o.sub=S.ap||''; cr=clockPlan(S, L, box, o.sub, (rows, dir, b)=>P.fit(g, b, rows, dir, o.sub)); }   // 🕐 時計は 秒も ぽよん
+  if(cr){ o.dir=cr.dir; P.drawRows(g, e, box, cr.rows, o, L); L.plan=cr.kind; }
+  else { P.draw(g, e, box, S.bstr||S.str, o, L); L.plan=''; }
   L.v=(L.rows||[L]).reduce((a,R)=>a+(R.batch||0), 0);
 }
 
@@ -790,6 +887,8 @@ function finish(e, look, sub, L, snd){
   else if(look==='poyo' && window.HADE_POYO) window.HADE_POYO.finish(e, L, snd);   // ぜんぶ つぶれて 大しぶき・ぽよよ〜ん（v589）
 }
 // たしかめ用（いまの ようす）
-function info(L){ return {k:L.k||'', sub:L.sub||'', v:L.v==null ? null : L.v, x:L.x==null ? null : L.x, fs:L.fs==null ? null : L.fs, str:L.str||'', pose:L.pose||'', say:L.say||'', act:L.act||'', dusk:L.dusk==null ? null : L.dusk, head:L.head ? L.head.map(n=>Math.round(n)) : null}; }
-window.HADE_LOOK={ LOOKS, PICS, ANIS, END, draw, finish, info, pill, has:(kind, k)=>has(kind==='pic' ? PICS : kind==='ani' ? ANIS : LOOKS, k) };
+function info(L){ return {k:L.k||'', sub:L.sub||'', v:L.v==null ? null : L.v, x:L.x==null ? null : L.x, fs:L.fs==null ? null : L.fs, str:L.str||'', pose:L.pose||'', say:L.say||'', act:L.act||'', dusk:L.dusk==null ? null : L.dusk, head:L.head ? L.head.map(n=>Math.round(n)) : null,
+  plan:L.plan||'', time:L.time||''}; }
+window.HADE_LOOK={ LOOKS, PICS, ANIS, END, draw, finish, info, pill, has:(kind, k)=>has(kind==='pic' ? PICS : kind==='ani' ? ANIS : LOOKS, k),
+  numMet, fitRows, placeRows, clockPlan };   // 🕐 時計の 並べ方（v591。⭕ 光の輪 でも 使う）
 })();

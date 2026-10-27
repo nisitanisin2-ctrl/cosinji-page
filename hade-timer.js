@@ -205,6 +205,28 @@ SC.bigNum=function(n, ph, cx, cy, R){
   g.lineJoin='round'; g.lineWidth=fs*0.06; g.strokeStyle='rgba(60,0,0,.8)'; g.strokeText(String(n), 0, fs*0.04);
   g.fillStyle=fill; g.fillText(String(n), 0, fs*0.04); g.restore();
 };
+// 🕐 時計の 光の輪（v591）：時・分は ほかの 見せ方と 同じ 並べ方で 大きく（縦は 時・分を 縦に 積む・横は 時:分 の 1行）、
+// 秒は 光の輪の 中に（秒なしでも 輪は 出す。輪は 1分で 1回り）。o：見本（S.prev）・火花の 出る 割合。行ごとの 数字は 跳ねる のも 上の 行から 順に
+function paintRingClock(o2, v, top, bot, prev, emit){
+  if(!LOOK || !LOOK.clockPlan) return false;
+  const e=o2.e, g=e.g, W=e.W, H=e.H, sub=v.ap||'', met=LOOK.numMet(g, 'bold', 0.46);
+  const S={W, H, d:e.d, prev, bstr:v.str, str:v.str, sec:v.sec, csec:!!st.clock.sec}, box={x:W*0.03, y:top, w:W*0.94, h:Math.max(10, bot-top)};
+  const fit=(rows, dir, b)=>LOOK.fitRows(rows, met, b, dir, sub), plan=LOOK.clockPlan(S, o2, box, sub, fit, {ring:true, kS:[0.42, 0.56], kV:[0.36, 0.5], kH:0.42});
+  if(!plan) return false;
+  const lay=LOOK.placeRows(plan.rows, met, box, plan.dir, sub, fit(plan.rows, plan.dir, box));
+  if(o2.rkey!==plan.kind+plan.rows.length){ o2.rkey=plan.kind+plan.rows.length; o2.rst=[]; }
+  let n=0;
+  lay.rows.forEach((R,i)=>{
+    const rs=o2.rst[i]||(o2.rst[i]={e, prev:'', pop:[], fly:[]});
+    rs.jumpT=o2.jumpT==null ? null : o2.jumpT+n*0.06;
+    if(R.ring) o2.ring(v.frac, R.cx, R.cy, R.R, {emit, back:true});
+    if(R.str) SC.digits.call(rs, R.str, R.cx, R.cy-met.mid*R.fs/100, R.fs, {sparks:prev ? 3 : e.level==='calm' ? 0 : 8});
+    n+=Array.from(R.str).length;
+  });
+  if(sub){ const fs=Math.max(11*e.d, Math.min(34*e.d, lay.F*0.16)); g.save(); g.font='bold '+Math.round(fs)+'px '+NUMF; g.textAlign='center'; g.textBaseline='middle'; g.lineJoin='round'; g.lineWidth=fs*0.14; g.strokeStyle='rgba(0,0,0,.55)'; g.strokeText(sub, W/2, lay.subY); g.fillStyle=e.ink()[1]; g.fillText(sub, W/2, lay.subY); g.restore(); }
+  o2.crow={kind:plan.kind, str:lay.rows.map(R=>R.ring && !R.str ? '◯' : R.str).join('|'), fs:Math.round(lay.F), ring:Math.round((lay.rows.find(R=>R.ring)||{R:0}).R)};
+  return true;
+}
 // 赤い ふち（のこり10秒の どきどき）
 function vignette(g, W, H, a, col){
   if(a<=0.01) return;
@@ -525,6 +547,9 @@ function paintStage(){
   if(look!=='ring'){ paintLook(look, r, v); paintTop(r, v); return; }
   e.drawBg();
   const [ox,oy]=e.offset(); g.save(); g.translate(ox, oy);
+  if(v.mode==='clock' && paintRingClock(sc, v, H*0.13, H-(barBot()+12)*d, false, r && !r.p ? (e.level==='calm' ? 0.25 : 0.9) : 0)){   // 🕐 時計（v591）
+    g.restore(); g.save(); g.translate(ox, oy); e.drawFx(); g.restore(); paintTop(r, v); return;
+  }
   const cx=W/2, cy=H*0.47, R=Math.min(W*0.44, H*0.36);
   // のこり10秒の 赤い どきどき
   const last10=r && r.m==='down' && !r.done && !r.p && v.sec<=10;
@@ -544,12 +569,13 @@ function paintStage(){
   paintTop(r, v);
 }
 // 画面いっぱい・絵・動物（v580。hade-look.js で 描く）
+// 下の ボタンの 高さ（隠れたら 絵を 下まで。v588）
+function barBot(){ const bar=$('htBar'), want=barHidden() ? 10 : (bar ? bar.offsetHeight : 70); botH+=(want-botH)*0.18; if(Math.abs(want-botH)<0.5) botH=want; return botH; }
 function paintLook(look, r, v){
   const e=sc.e, g=e.g, W=e.W, H=e.H, d=e.d, [ox,oy]=e.offset();
-  const last10=r && r.m==='down' && !r.done && !r.p && v.sec<=10, bar=$('htBar');
+  const last10=r && r.m==='down' && !r.done && !r.p && v.sec<=10;
   if(look==='big') e.drawBg();
-  const want=barHidden() ? 10 : (bar ? bar.offsetHeight : 70); botH+=(want-botH)*0.18; if(Math.abs(want-botH)<0.5) botH=want;   // 下の ボタンが 隠れたら 絵を 下まで（v588）
-  const S=lookS(v, r, e, H-(botH+12)*d);
+  const S=lookS(v, r, e, H-(barBot()+12)*d);
   g.save(); if(look==='big' || look==='poyo') g.translate(ox, oy);
   LOOK.draw(e, look, lookSub(), S, lk(sc));
   g.restore();
@@ -584,6 +610,7 @@ function paintPrev(){
     e.drawFx(); return;
   }
   e.drawBg();
+  if(v.mode==='clock' && paintRingClock(pv, v, H*0.05, H*0.95, true, 0.5)){ e.drawFx(); return; }   // 🕐 時計（v591）
   pv.ring(r || st.mode==='clock' ? v.frac : 0.72, W/2, H*0.5, R, {emit:0.5});
   const units=Array.from(v.str).reduce((a,ch)=>a+(/[0-9]/.test(ch) ? 1 : 0.46), 0), fs=Math.min(R*1.55/(units*0.62), R*0.62);
   pv.digits(v.str, W/2, H*0.5, fs, {sparks:3});
@@ -887,6 +914,9 @@ window.HADE_TIMER={ mode:setMode, opt:setOpt, set:setSec, add:addSec, typed, ivT
   banner:()=>{ const b=$('htBan'); return b ? b.textContent : ''; }, label:()=>[($('htLab')||{}).textContent||'', ($('htSub')||{}).textContent||''].join('|'),
   freeze:b=>{ frozen=!!b; }, tick, shows:()=>({n:shows.n, last:shows.last, multi:shows.multi}), sound:()=>({set:st.sset==='rand' ? setNow : st.sset, tone:toneNow, tickN}),
   look:()=>LOOK && sc && sc.lk ? LOOK.info(sc.lk) : null, prevLook:()=>LOOK && pv && pv.lk ? LOOK.info(pv.lk) : null,
+  // 🕐 時計の 並べ方（v591）：kind（s 縦に 積む・v 下に 秒・h 右に 秒・r 1行）・str（行を「|」で。光の輪 の 秒なしは ◯）
+  clockLay:(p)=>{ const o=p ? pv : sc; if(!o) return null; const k=lookKind(); if(k==='ring') return o.crow||null; const L=o.lk; if(!L || !L.plan) return null;
+    return {kind:L.plan, str:k==='poyo' && window.HADE_POYO ? window.HADE_POYO.info(L).str : L.str||''}; },
   prevAt:sec=>{ if(pv) pv.t0=pv.e.t-(+sec||0); },   // 見本の 時間を 進める（たしかめ用）
   poyo:()=>window.HADE_POYO && sc && sc.lk && lookKind()==='poyo' ? window.HADE_POYO.info(sc.lk) : null,   // 🫧 ぽよん（v589。たしかめ用）
   shift:ms=>{ const r=st.run; if(!r) return; ms=+ms||0; if(r.m==='down'){ if(r.p) r.left-=ms; else r.end-=ms; } else if(r.p) r.acc+=ms; else r.s0-=ms; save(); } };   // 時計を 進める（たしかめ用）
