@@ -11075,8 +11075,8 @@ async function runHadeTimer580(browser) {
   check('  開くまでは 見せ方（hade-look.js）を 読まない', await page.evaluate(() => !document.querySelector('script[data-part="hade-look.js"]') && !window.HADE_LOOK), true);
   await page.evaluate(() => openHadeTimer()); await w(700);
   check('  開くと 読む・service-worker・README にも', await page.evaluate(() => !!document.querySelector('script[data-part="hade-look.js"]') && !!window.HADE_LOOK) + '/' + (sw.includes("'./hade-look.js'") && rd.includes('`hade-look.js`')), 'true/true');
-  check('  はじめは ⭕ 光の輪・🎺 ファンファーレ／見せ方 4つ・時間が 来た 音 9つ（と v583 の 🔀 おまかせ）', await page.evaluate(() => { const s = HADE_TIMER.state(); const r = [...document.querySelectorAll('.ht-opt')].find(x => x.querySelector('span').textContent === '時間が 来た 音'); return [s.look, s.tone, [...document.querySelectorAll('#htLookSec .ht-looks:not(.sub) button')].map(b => b.textContent.replace(/\s+/g, '') + (b.classList.contains('on') ? '*' : '')).join(','), r ? [...r.querySelectorAll('button')].map(b => b.textContent).join(',') : '', document.querySelectorAll('#htLookSec .ht-looks.sub').length].join('/'); }),
-    'ring/fanfare/⭕光の輪*,🔠画面いっぱい,🎞絵が動く,🐾動物/🎺 ファンファーレ,⏰ 目覚まし,📟 ピピピ,🔔 チャイム,🎵 オルゴール,🕊 はと時計,🥁 太鼓,🎮 ゲーム,🐤 小鳥,🔀 おまかせ/0');
+  check('  はじめは ⭕ 光の輪・🎺 ファンファーレ／見せ方 5つ（🫧 ぽよん は v589）・時間が 来た 音 9つ（と v583 の 🔀 おまかせ）', await page.evaluate(() => { const s = HADE_TIMER.state(); const r = [...document.querySelectorAll('.ht-opt')].find(x => x.querySelector('span').textContent === '時間が 来た 音'); return [s.look, s.tone, [...document.querySelectorAll('#htLookSec .ht-looks:not(.sub) button')].map(b => b.textContent.replace(/\s+/g, '') + (b.classList.contains('on') ? '*' : '')).join(','), r ? [...r.querySelectorAll('button')].map(b => b.textContent).join(',') : '', document.querySelectorAll('#htLookSec .ht-looks.sub').length].join('/'); }),
+    'ring/fanfare/⭕光の輪*,🔠画面いっぱい,🫧ぽよん,🎞絵が動く,🐾動物/🎺 ファンファーレ,⏰ 目覚まし,📟 ピピピ,🔔 チャイム,🎵 オルゴール,🕊 はと時計,🥁 太鼓,🎮 ゲーム,🐤 小鳥,🔀 おまかせ/0');
   check('  🎞 絵 を えらぶと 6つ・🐾 動物 は 6つ（えらんだ ものが 光る）', await page.evaluate(() => { const row = () => [...document.querySelectorAll('#htLookSec .ht-looks.sub button')].map(b => b.textContent.replace(/\s+/g, '') + (b.classList.contains('on') ? '*' : '')).join(','); HADE_TIMER.opt('look', 'pic'); const a = row(); HADE_TIMER.opt('ani', 'usagi'); return a + '/' + row() + '/' + HADE_TIMER.state().look; }),
     '🚀ロケット*,🕯ろうそく,⏳砂時計,💣ばくだん,🎈風船,🌻花/🐱ねこ,🐰うさぎ*,🐶いぬ,🐧ペンギン,🐸かえる,🐻くま/ani');
   check('  音を えらぶと その場で 聞ける（9つ）', await page.evaluate(async () => { HADE_TIMER.opt('snd', true); const out = []; for (const k of ['bell', 'pipi', 'chime', 'orgel', 'hato', 'taiko', 'game', 'tori', 'fanfare']) { HADE_TIMER.opt('tone', k); await sl(30); out.push(HADE_TIMER.fx().played.slice(-1)[0]); } return out.join(','); }), 'tBell,tPipi,tChime,tOrgel,tHato,tTaiko,tGame,tTori,fanfare');
@@ -11122,7 +11122,7 @@ async function runHadeTimer580(browser) {
   check('  えらんだ 見せ方・絵・動物・音を 覚える', await page.evaluate(async () => { HADE_TIMER.opt('pic', 'sand'); HADE_TIMER.opt('ani', 'kaeru'); HADE_TIMER.opt('tone', 'hato'); closeHadeTimer(); await sl(100); openHadeTimer(); await sl(200); const s = HADE_TIMER.state(); return [s.look, s.pic, s.ani, s.tone].join('/'); }), 'ani/sand/kaeru/hato');
   check('  変なデータは 光の輪・ロケット・ねこ・ファンファーレに', await page.evaluate(async () => { closeHadeTimer(); await sl(100); localStorage.setItem('excalc_hadetimer', JSON.stringify({ look: '<img src=x>', pic: 'x', ani: 9, tone: 'zzz' })); openHadeTimer(); await sl(200); const s = HADE_TIMER.state(); return [s.look, s.pic, s.ani, s.tone].join('/'); }), 'ring/rocket/neko/fanfare');
   await page.setViewportSize({ width: 320, height: 640 }); await w(300);
-  check('  320px：見せ方の ボタンの 字が 切れない・横に はみ出さない', await page.evaluate(async () => { const out = []; for (const k of ['pic', 'ani']) { HADE_TIMER.opt('look', k); await sl(80); const bs = [...document.querySelectorAll('#htLookSec .ht-looks button')]; out.push(bs.length + ':' + bs.every(b => b.scrollWidth <= b.clientWidth + 1 && b.scrollHeight <= b.clientHeight + 1)); } const body = document.getElementById('htBody'); out.push(body.scrollWidth <= body.clientWidth + 1); return out.join('/'); }), '10:true/10:true/true');
+  check('  320px：見せ方の ボタンの 字が 切れない・横に はみ出さない', await page.evaluate(async () => { const out = []; for (const k of ['pic', 'ani']) { HADE_TIMER.opt('look', k); await sl(80); const bs = [...document.querySelectorAll('#htLookSec .ht-looks button')]; out.push(bs.length + ':' + bs.every(b => b.scrollWidth <= b.clientWidth + 1 && b.scrollHeight <= b.clientHeight + 1)); } const body = document.getElementById('htBody'); out.push(body.scrollWidth <= body.clientWidth + 1); return out.join('/'); }), '11:true/11:true/true');
   await page.evaluate(() => closeHadeTimer()); await w(200);
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
@@ -12143,6 +12143,69 @@ async function runBingo588(browser) {
   await page.evaluate(() => { BINGO.set('fx', 'norm'); BINGO.show(true); BINGO.set('speed', 'slow'); BINGO.spin(); }); await w(500);
   check('  ⛶ 大きく（横）：まわして いる あいだも 「⏩ すぐ 出す」が 画面に 入る', await page.evaluate(() => { const g = document.getElementById('bgGo').getBoundingClientRect(); return [BINGO.busy(), g.bottom <= innerHeight + 1, parseFloat(getComputedStyle(document.querySelector('#bgRes .bg-call.sm')).fontSize) <= 36].join('/'); }), 'true/true/true');
   await page.evaluate(() => { BINGO.skip(); BINGO.show(false); closeBingo(); }); await w(300);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+async function runPoyo589(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🫧 ぽよん：ど派手タイマー（🕐 時計も）・ど派手カウンター（v589） ──');
+  const w = ms => page.waitForTimeout(ms);
+  {
+    const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8'), rd = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8'), hl = fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8');
+    check('  service-worker・README・説明書に のる', [sw.includes("'./hade-poyo.js'"), rd.includes('`hade-poyo.js`'), hl.includes('🫧 ぽよん')].join('/'), 'true/true/true');
+  }
+  check('  開くまでは 読まない', await page.evaluate(() => !document.querySelector('script[data-part="hade-poyo.js"]') && !window.HADE_POYO), true);
+  await page.evaluate(() => { window.appConfirm = async () => true; document.documentElement.requestFullscreen = () => Promise.resolve(); });
+  await page.evaluate(async () => { await openHadeTimer(); }); await w(300);
+  check('  タイマーを 開くと 読む・ぽよんの 音（ぽよよん・ぺちゃ）', await page.evaluate(() => [!!window.HADE_POYO, typeof HADE_FX.snd.poyon, typeof HADE_FX.snd.pecha].join('/')), 'true/function/function');
+  check('  ⏱ 見せ方に 🫧 ぽよん（5つ）', await page.evaluate(() => [...document.querySelectorAll('#htLookSec .ht-looks:not(.sub) button')].map(b => b.textContent.replace(/\s+/g, '')).join(',')), '⭕光の輪,🔠画面いっぱい,🫧ぽよん,🎞絵が動く,🐾動物');
+  await page.evaluate(() => HADE_TIMER.opt('look', 'poyo')); await w(1500);
+  check('  えらぶと 見本も ぽよん（明るい 地は 光を 色の まま 重ねる）・しまう', await page.evaluate(() => { const p = HADE_TIMER.prevLook(); return [HADE_TIMER.state().look, !!p && /^[\d:]+$/.test(p.str), HADE_TIMER.fx().plight, JSON.parse(localStorage.getItem('excalc_hadetimer')).look].join('/'); }), 'poyo/true/true/poyo');
+  await page.evaluate(() => { HADE_TIMER.mode('down'); HADE_TIMER.set(4); HADE_TIMER.opt('level', 'ultra'); }); await w(200);
+  await page.click('#hadeTimerOverlay .ht-go'); await w(120);
+  check('  スタート：数字が 上から 落ちてくる・明るい 地', await page.evaluate(() => { const p = HADE_TIMER.poyo(); return [p.str, p.moving >= 1, p.landed, HADE_TIMER.fx().light].join('/'); }), '4/true/0/true');
+  await page.waitForFunction(() => HADE_TIMER.poyo() && HADE_TIMER.poyo().str === '3', null, { timeout: 5000 }); await w(40);
+  check('  1秒 たつと：前の 数字が つぶれて しぶき・新しい 数字は まだ 空の 上', await page.evaluate(() => { const p = HADE_TIMER.poyo(); return [p.cells, p.nchg, p.moving, p.landed, p.fx > 0].join('/'); }), '3/1/1/0/true');
+  await page.waitForFunction(() => HADE_TIMER.poyo() && HADE_TIMER.poyo().landed === 1, null, { timeout: 3000 });
+  check('  着地：床に 輪と しぶき・ド派手は うしろの あわが はじける', await page.evaluate(() => { const p = HADE_TIMER.poyo(); return [p.str, p.fx > 0, p.popped > 0].join('/'); }), '3/true/true');
+  await page.waitForFunction(() => HADE_TIMER.alarm(), null, { timeout: 7000 }); await w(1000);
+  check('  0 で しめくくり：大しぶき・ぽよよん の 音・みんなで ぴょん', await page.evaluate(() => { const p = HADE_TIMER.poyo(), pl = HADE_TIMER.fx().played; return [p.str, pl.includes('poyon'), p.hop].join('/'); }), '0/true/true');
+  await page.evaluate(() => { HADE_TIMER.stopAlarm(); HADE_TIMER.stop(); HADE_TIMER.mode('clock'); }); await w(300);
+  await page.click('#hadeTimerOverlay .ht-go'); await w(800);
+  check('  🕐 時計も ぽよん：秒まで（HH:MM:SS）', await page.evaluate(() => /^\d\d:\d\d:\d\d$/.test(HADE_TIMER.poyo().str)), true);
+  const s0 = await page.evaluate(() => HADE_TIMER.poyo().str);
+  await page.waitForFunction(s => HADE_TIMER.poyo().str !== s, s0, { timeout: 3000 }); await w(40);
+  check('  1秒ごとに 秒の 数字が ぽよん（かわった 桁だけ 落ちる）', await page.evaluate(() => { const p = HADE_TIMER.poyo(); return [p.nchg >= 1 && p.nchg <= 6, p.moving >= 1].join('/'); }), 'true/true');
+  await page.waitForFunction(() => HADE_TIMER.poyo().hop, null, { timeout: 8000 });
+  check('  5秒ごとの 演出で みんなで ぴょん', await page.evaluate(() => HADE_TIMER.poyo().hop), true);
+  await page.evaluate(() => HADE_TIMER.clock('sec', false)); await w(400);
+  check('  秒を 出さない と HH:MM', await page.evaluate(() => /^\d\d:\d\d$/.test(HADE_TIMER.poyo().str)), true);
+  await page.evaluate(() => { HADE_TIMER.clock('sec', true); HADE_TIMER.clock('h12', true); }); await w(400);
+  check('  12時間：先の 0 なし', await page.evaluate(() => /^([1-9]|1[0-2]):\d\d:\d\d$/.test(HADE_TIMER.poyo().str)), true);
+  await page.evaluate(() => { HADE_TIMER.clock('h12', false); HADE_TIMER.stop(); HADE_TIMER.opt('look', 'ring'); closeHadeTimer(); }); await w(300);
+  // 🎉 カウンター
+  await page.evaluate(async () => { await openHadeCount(); }); await w(400);
+  check('  🎉 カウンター：数字の 見せ方（✨ 光る 数字・🫧 ぽよん）・はじめは 光る 数字', await page.evaluate(() => { const r = [...document.querySelectorAll('.hc-opt')].find(x => x.querySelector('span') && x.querySelector('span').textContent === '数字の 見せ方'); return [HADE_COUNT.state().look, r ? [...r.querySelectorAll('button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(',') : '', HADE_COUNT.poyo()].join('/'); }), 'glow/✨ 光る 数字*,🫧 ぽよん/');
+  await page.evaluate(() => HADE_COUNT.opt('look', 'poyo')); await page.waitForFunction(() => HADE_COUNT.poyo() && HADE_COUNT.poyo().landed === 1, null, { timeout: 4000 });
+  check('  🫧 ぽよん に すると 数字が 落ちてくる・明るい 地・しまう', await page.evaluate(() => { const p = HADE_COUNT.poyo(); return [HADE_COUNT.state().look, p.str, HADE_COUNT.fx().light, JSON.parse(localStorage.getItem('excalc_hadecount')).look].join('/'); }), 'poyo/0/true/poyo');
+  await page.evaluate(() => HADE_COUNT.plus(0)); await w(40);
+  check('  押すと 0 が つぶれて しぶき・1 が 落ちてくる', await page.evaluate(() => { const p = HADE_COUNT.poyo(); return [p.str, p.nchg, p.moving, p.fx > 0, p.sp >= 0.8].join('/'); }), '1/1/1/true/true');
+  await page.evaluate(async () => { for (let i = 0; i < 5; i++) { HADE_COUNT.plus(0); await new Promise(r => setTimeout(r, 90)); } }); await w(40);
+  check('  早く 押すと 動きを 短く して 数が 読める', await page.evaluate(() => { const p = HADE_COUNT.poyo(); return [p.str, p.sp < 0.6].join('/'); }), '6/true');
+  await page.evaluate(() => HADE_COUNT.plus(0, 3)); await w(2500);
+  await page.evaluate(() => HADE_COUNT.plus(0, 1)); await w(1000);
+  check('  9 → 10：2けた いっしょに かわると ぺちゃ・ぽよよん の 音・節目（10）で みんなで ぴょん', await page.evaluate(() => { const p = HADE_COUNT.poyo(), pl = HADE_COUNT.fx().played; return [p.str, p.nchg, p.sp > 0.8, pl.includes('pecha'), pl.includes('poyon'), p.hop].join('/'); }), '10/2/true/true/true/true');
+  await page.evaluate(() => { HADE_COUNT.opt('level', 'calm'); }); await w(1600);
+  await page.evaluate(() => HADE_COUNT.plus(0)); await w(800);
+  check('  ひかえめ：画面は ゆれない（しぶきは 少し）', await page.evaluate(() => { const p = HADE_COUNT.poyo(); return [p.str, HADE_COUNT.fx().shake].join('/'); }), '11/0');
+  await page.evaluate(() => { HADE_COUNT.opt('level', 'ultra'); HADE_COUNT.add('ふたつめ'); HADE_COUNT.opt('view', 'grid'); }); await w(800);
+  check('  並べて も ぽよん（カウンターごとに 落ちてくる）', await page.evaluate(() => [HADE_COUNT.poyo(0) && HADE_COUNT.poyo(0).str, HADE_COUNT.poyo(1) && HADE_COUNT.poyo(1).str].join('/')), '11/0');
+  await page.evaluate(() => HADE_COUNT.opt('look', 'glow')); await w(300);
+  check('  ✨ 光る 数字 に もどす', await page.evaluate(() => [HADE_COUNT.state().look, HADE_COUNT.poyo(), HADE_COUNT.fx().light].join('/')), 'glow//false');
+  await page.evaluate(() => { closeHadeCount(); const s = JSON.parse(localStorage.getItem('excalc_hadecount')); s.look = 'zz'; localStorage.setItem('excalc_hadecount', JSON.stringify(s)); });
+  await page.evaluate(async () => { await openHadeCount(); }); await w(300);
+  check('  変な データ：光る 数字', await page.evaluate(() => HADE_COUNT.state().look), 'glow');
+  await page.evaluate(() => closeHadeCount()); await w(200);
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
@@ -17638,6 +17701,7 @@ async function runQrShare(browser) {
     if (!only || only === 'bingo' || only === 'bingo588' || only === 'v588') await runBingo588(browser);
     if (!only || only === 'hade' || only === 'hade588' || only === 'v588') await runHadeFull588(browser);
     if (!only || only === 'seikyu' || only === 'seikyu588' || only === 'v588') await runSeikyuPrint588(browser);
+    if (!only || only === 'hade' || only === 'poyo' || only === 'v589') await runPoyo589(browser);
     if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
     if (!only || only === 'okaeshi' || only === 'v564') await runOkaeshi564(browser);
     if (!only || only === 'tax' || only === 'v565') await runTax565(browser);

@@ -99,6 +99,8 @@ const SND={
     nz(t+8*q, 0.5, 0.18, 'highpass', 5000);
   }),
   drum:S('drum', (t, n)=>{ const k=Math.max(4, Math.min(40, n|0||16)); for(let i=0;i<k;i++) nz(t+i*0.045, 0.04, 0.12+0.2*i/k, 'bandpass', 1800, null, 1.2); }),
+  poyon:S('poyon', (t, k)=>{ const f=(k|0)>1 ? 330 : 400; osc('sine', f*1.4, t, 0.1, 0.3, f*0.6); osc('sine', f, t+0.09, 0.12, 0.22, f*0.66); osc('sine', f*0.86, t+0.2, 0.15, 0.14, f*0.64); osc('triangle', f*2.8, t, 0.05, 0.05, f*1.3); }),   // ぽよよん（🫧 ぽよん の 着地。v589）
+  pecha:S('pecha', t=>{ nz(t, 0.1, 0.24, 'bandpass', 1500, 360, 1.4); osc('sine', 230, t, 0.08, 0.14, 110); }),   // ぺちゃ（🫧 ぽよん の 数字が つぶれる。v589）
 };
 /* ───────── ⏰ 時間が 来た ときの 音（v580。ど派手タイマー）───────── */
 const TONES=[['fanfare','🎺 ファンファーレ'],['bell','⏰ 目覚まし'],['pipi','📟 ピピピ'],['chime','🔔 チャイム'],['orgel','🎵 オルゴール'],['hato','🕊 はと時計'],['taiko','🥁 太鼓'],['game','🎮 ゲーム'],['tori','🐤 小鳥']];
@@ -539,22 +541,23 @@ E.drawBg=function(){
   }
   g.restore();
 };
+// lightBg（v589）：明るい 地（🫧 ぽよん）では 光を 足さずに 色の まま 重ねる（白く とばない ように）
 E.drawFx=function(){
-  const g=this.g, d=this.d;
+  const g=this.g, d=this.d, ADD=this.lightBg ? 'source-over' : 'lighter', soft=this.lightBg ? 0.5 : 1, CLR=this.lightBg ? 'rgba(255,255,255,0)' : 'rgba(0,0,0,0)';   // 明るい 地は 白へ ぼかす（にごらない ように）
   g.save();
   for(const p of this.ps){
     const a=Math.max(0, 1-p.age/p.life);
     if(p.k==='s'){
-      g.globalCompositeOperation='lighter'; g.globalAlpha=p.fl ? (Math.random()<0.5 ? a : a*0.15) : a; g.fillStyle=p.col;
+      g.globalCompositeOperation=ADD; g.globalAlpha=p.fl ? (Math.random()<0.5 ? a : a*0.15) : a; g.fillStyle=p.col;
       if(p.tr){ g.strokeStyle=p.col; g.lineWidth=p.sz*0.7; g.beginPath(); g.moveTo(p.px-(p.x-p.px)*4, p.py-(p.y-p.py)*4); g.lineTo(p.x,p.y); g.stroke(); }
       g.beginPath(); g.arc(p.x, p.y, p.sz*(0.55+0.45*a), 0, TAU); g.fill();
     } else if(p.k==='h'){
-      g.globalCompositeOperation='lighter'; g.globalAlpha=1; g.fillStyle='#fff3c4'; g.beginPath(); g.arc(p.x, p.y, 3*d, 0, TAU); g.fill();
+      g.globalCompositeOperation=ADD; g.globalAlpha=1; g.fillStyle=this.lightBg ? '#ff9f43' : '#fff3c4'; g.beginPath(); g.arc(p.x, p.y, 3*d, 0, TAU); g.fill();
     } else if(p.k==='g'){
-      g.globalCompositeOperation='lighter'; const r=p.r*(1+p.age/p.life*0.7), gr=g.createRadialGradient(p.x,p.y,0,p.x,p.y,r); gr.addColorStop(0, p.col); gr.addColorStop(1, 'rgba(0,0,0,0)');
-      g.globalAlpha=a*0.8; g.fillStyle=gr; g.fillRect(p.x-r, p.y-r, 2*r, 2*r);
+      g.globalCompositeOperation=ADD; const r=p.r*(1+p.age/p.life*0.7), gr=g.createRadialGradient(p.x,p.y,0,p.x,p.y,r); gr.addColorStop(0, p.col); gr.addColorStop(1, CLR);
+      g.globalAlpha=a*0.8*soft; g.fillStyle=gr; g.fillRect(p.x-r, p.y-r, 2*r, 2*r);
     } else if(p.k==='r'){
-      g.globalCompositeOperation='lighter'; g.globalAlpha=a; g.strokeStyle=p.col; g.lineWidth=p.w*a+1; g.beginPath(); g.arc(p.x, p.y, p.r, 0, TAU); g.stroke();
+      g.globalCompositeOperation=ADD; g.globalAlpha=a; g.strokeStyle=p.col; g.lineWidth=p.w*a+1; g.beginPath(); g.arc(p.x, p.y, p.r, 0, TAU); g.stroke();
     } else if(p.k==='c'){
       g.globalCompositeOperation='source-over'; g.globalAlpha=Math.min(1, a*2.5); g.fillStyle=p.col;
       g.save(); g.translate(p.x, p.y); g.rotate(p.rot); g.scale(1, Math.cos(p.sw*1.6)||0.05); g.fillRect(-p.w/2, -p.h/2, p.w, p.h); g.restore();
@@ -570,8 +573,8 @@ E.drawFx=function(){
       let fill=p.col; if(p.grad){ const gr=g.createLinearGradient(0, -sz*0.5, 0, sz*0.5); p.grad.forEach((c,i)=>gr.addColorStop(i/Math.max(1, p.grad.length-1), c)); fill=gr; }
       g.fillStyle=fill; g.fillText(p.s, 0, 0); g.restore();
     } else if(p.k==='b'){
-      g.globalCompositeOperation='lighter'; g.globalAlpha=Math.sin(Math.PI*Math.min(1, p.age/p.life))*0.55;
-      const gr=g.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.len); gr.addColorStop(0, p.col); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle=gr;
+      g.globalCompositeOperation=ADD; g.globalAlpha=Math.sin(Math.PI*Math.min(1, p.age/p.life))*0.55*soft;
+      const gr=g.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.len); gr.addColorStop(0, p.col); gr.addColorStop(1, CLR); g.fillStyle=gr;
       const w=Math.PI/p.n*0.42; g.beginPath();
       for(let i=0;i<p.n;i++){ const an=p.rot+TAU*i/p.n; g.moveTo(p.x, p.y); g.arc(p.x, p.y, p.len, an-w, an+w); g.closePath(); }
       g.fill();

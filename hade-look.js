@@ -8,13 +8,15 @@
    ・🐾 動物（v581：動物が 自分で 数える）：🐱 ねこ＝めくりの 数字板・🐰 うさぎ＝なわとび・🐶 いぬ＝ほえる・🐧 ペンギン＝指揮・
      🐸 かえる＝鳴く・🐻 くま＝太鼓。1秒ごとに 数える 動きを して、道具に 時間が 出る。残りが へるほど 空が 夕やけに なり 顔も 真剣に。
      のこり10秒は 数を さけび、0 で 大よろこび。くり返しの 休む あいだは ねる。
+   ・🫧 ぽよん（v589。描き方は hade-poyo.js）：📢 電光掲示板の ぽよん と 同じ。前の 数字が つぶれて、新しい 数字が 落ちてきて ぷるんと はずむ。
+     しぶき・床の 輪・ゆれ・はじける あわ・「ぽよん！」の 字と 音（演出の 強さで ふえる）。5秒ごとの 演出と 0 の あとは みんなで ぴょん。
    ・絵は すべて canvas に その場で 描く（画像の ファイルは 使わない）。
    ・S（その こまの ようす）は hade-timer.js が 作る：p（進み 0〜1）・str（時間の 字）・sec・mode・ph・last10・paused・done・doneT・tickT・bot など。
      L は 見せ方ごとの 覚えておく もの（煙の 粒・前の 数字・動物の 位置 など）。 */
 (function(){
 'use strict';
 if(window.HADE_LOOK) return;
-const LOOKS=[['ring','⭕ 光の輪'],['big','🔠 画面 いっぱい'],['pic','🎞 絵が 動く'],['ani','🐾 動物']];
+const LOOKS=[['ring','⭕ 光の輪'],['big','🔠 画面 いっぱい'],['poyo','🫧 ぽよん'],['pic','🎞 絵が 動く'],['ani','🐾 動物']];
 const PICS=[['rocket','🚀 ロケット'],['candle','🕯 ろうそく'],['sand','⏳ 砂時計'],['bomb','💣 ばくだん'],['balloon','🎈 風船'],['flower','🌻 花']];
 const ANIS=[['neko','🐱 ねこ'],['usagi','🐰 うさぎ'],['inu','🐶 いぬ'],['pen','🐧 ペンギン'],['kaeru','🐸 かえる'],['kuma','🐻 くま']];
 const END={rocket:'発射！', candle:'おしまい', sand:'おわり', bomb:'ドカーン！', balloon:'パーン！', flower:'さいた！'};
@@ -729,13 +731,27 @@ function drawAni(g, e, S, L, k){
   L.say=say; L.act=ACT[k]||''; L.v=L.beats||0; L.head=[W/2+head[0]*a, gy+head[1]*a];
 }
 
+/* ───────── 🫧 ぽよん（v589。描き方は hade-poyo.js）───────── */
+function drawPoyo(g, e, S, L){
+  const P=window.HADE_POYO; if(!P){ drawBig(g, e, S, L); return; }
+  const W=S.W, H=S.H, t=S.t;
+  P.bg(g, W, H, t, {boost:e ? e.boost() : 0, urgent:S.last10}, L);
+  const top=S.prev ? H*0.05 : H*0.13, bot=S.prev ? H*0.95 : S.bot;
+  let str=S.bstr||S.str, sub=S.bsub||'';
+  if(S.mode==='clock'){ sub=S.ap||''; if(S.csec) str=S.bstr+':'+String(S.sec).padStart(2,'0'); }   // 🕐 時計は 秒も ぽよん
+  if(S.done && S.doneT>1.2 && t-(L.doneHop==null ? -9 : L.doneHop)>1.8){ L.doneHop=t; P.hop(L, t, 1.4); }   // 0 の あとも ときどき みんなで ぴょん
+  P.draw(g, e, {x:W*0.03, y:top, w:W*0.94, h:Math.max(10, bot-top)}, str, {t, rainbow:true, sub, urgent:S.last10, snd:S.prev ? null : S.snd, intro:true}, L);
+  L.v=L.batch||0;
+}
+
 /* ───────── 入口 ───────── */
-// 描く。look：'big'・'pic'・'ani'（'ring' は hade-timer.js）。sub：絵／動物の 種類
+// 描く。look：'big'・'poyo'・'pic'・'ani'（'ring' は hade-timer.js）。sub：絵／動物の 種類
 function draw(e, look, sub, S, L){
   const g=e.g;
   if(look==='big') drawBig(g, e, S, L);
   else if(look==='pic') drawPic(g, e, S, L, has(PICS, sub) ? sub : 'rocket');
   else if(look==='ani') drawAni(g, e, S, L, has(ANIS, sub) ? sub : 'neko');
+  else if(look==='poyo') drawPoyo(g, e, S, L);
 }
 // 0 に なったとき（絵ごとの 派手な しめくくり）。snd は 音を 鳴らす 関数
 function finish(e, look, sub, L, snd){
@@ -749,6 +765,7 @@ function finish(e, look, sub, L, snd){
     else if(sub==='flower'){ e.burst(h[0], h[1], {n:100, sp:560, pal:['#ffd23f','#ff8fb1','#9dff5c','#ffffff']}); e.rain(['🌸','🌼','✨','🌻'], 14); snd('level'); }
   } else if(look==='ani'){ e.confetti(130); e.rain(['🎉','⭐','🎵','✨'], 16); e.burst(h[0], h[1], {n:80, sp:520}); snd('level'); }
   else if(look==='big'){ e.burst(W/2, H/2, {n:160, sp:900}); e.kick(0.8); }
+  else if(look==='poyo' && window.HADE_POYO) window.HADE_POYO.finish(e, L, snd);   // ぜんぶ つぶれて 大しぶき・ぽよよ〜ん（v589）
 }
 // たしかめ用（いまの ようす）
 function info(L){ return {k:L.k||'', sub:L.sub||'', v:L.v==null ? null : L.v, x:L.x==null ? null : L.x, fs:L.fs==null ? null : L.fs, str:L.str||'', pose:L.pose||'', say:L.say||'', act:L.act||'', dusk:L.dusk==null ? null : L.dusk, head:L.head ? L.head.map(n=>Math.round(n)) : null}; }
