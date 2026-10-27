@@ -12172,17 +12172,40 @@ async function runPoyo589(browser) {
   check('  0 で しめくくり：大しぶき・ぽよよん の 音・みんなで ぴょん', await page.evaluate(() => { const p = HADE_TIMER.poyo(), pl = HADE_TIMER.fx().played; return [p.str, pl.includes('poyon'), p.hop].join('/'); }), '0/true/true');
   await page.evaluate(() => { HADE_TIMER.stopAlarm(); HADE_TIMER.stop(); HADE_TIMER.mode('clock'); }); await w(300);
   await page.click('#hadeTimerOverlay .ht-go'); await w(800);
-  check('  🕐 時計も ぽよん：秒まで（HH:MM:SS）', await page.evaluate(() => /^\d\d:\d\d:\d\d$/.test(HADE_TIMER.poyo().str)), true);
+  check('  🕐 時計も ぽよん：縦の 画面は 時・分・秒を 縦に 積む（秒は 少し 小さく）（v590）', await page.evaluate(() => { const p = HADE_TIMER.poyo(); return [/^\d\d\|\d\d\|\d\d$/.test(p.str), p.rows, p.dir, p.rfs[2] < p.rfs[0]].join('/'); }), 'true/3/v/true');
   const s0 = await page.evaluate(() => HADE_TIMER.poyo().str);
   await page.waitForFunction(s => HADE_TIMER.poyo().str !== s, s0, { timeout: 3000 }); await w(40);
   check('  1秒ごとに 秒の 数字が ぽよん（かわった 桁だけ 落ちる）', await page.evaluate(() => { const p = HADE_TIMER.poyo(); return [p.nchg >= 1 && p.nchg <= 6, p.moving >= 1].join('/'); }), 'true/true');
   await page.waitForFunction(() => HADE_TIMER.poyo().hop, null, { timeout: 8000 });
   check('  5秒ごとの 演出で みんなで ぴょん', await page.evaluate(() => HADE_TIMER.poyo().hop), true);
+  // 字の 大きさは 下の ボタンが 隠れて から くらべる（v590）
+  const barGone = async () => { await page.waitForFunction(() => { const f = document.getElementById('htFull'); return !!f && f.classList.contains('bar-hide'); }, null, { timeout: 8000 }); await w(700); };
+  await barGone();
+  const fsP = await page.evaluate(() => HADE_TIMER.poyo().rfs[0]);
   await page.evaluate(() => HADE_TIMER.clock('sec', false)); await w(400);
-  check('  秒を 出さない と HH:MM', await page.evaluate(() => /^\d\d:\d\d$/.test(HADE_TIMER.poyo().str)), true);
+  check('  秒を 出さない：時・分の 2行', await page.evaluate(() => /^\d\d\|\d\d$/.test(HADE_TIMER.poyo().str)), true);
+  await barGone();
+  check('  秒を 出しても 時・分の 字は 小さく ならない（縦）', await page.evaluate(f => f >= HADE_TIMER.poyo().rfs[0] * 0.97, fsP), true);
   await page.evaluate(() => { HADE_TIMER.clock('sec', true); HADE_TIMER.clock('h12', true); }); await w(400);
-  check('  12時間：先の 0 なし', await page.evaluate(() => /^([1-9]|1[0-2]):\d\d:\d\d$/.test(HADE_TIMER.poyo().str)), true);
-  await page.evaluate(() => { HADE_TIMER.clock('h12', false); HADE_TIMER.stop(); HADE_TIMER.opt('look', 'ring'); closeHadeTimer(); }); await w(300);
+  check('  12時間：先の 0 なし', await page.evaluate(() => /^([1-9]|1[0-2])\|\d\d\|\d\d$/.test(HADE_TIMER.poyo().str)), true);
+  await page.evaluate(() => HADE_TIMER.clock('h12', false));
+  await page.setViewportSize({ width: 900, height: 420 }); await barGone();
+  check('  横の 画面：時:分 の 下に 秒（秒は 小さく）', await page.evaluate(() => { const p = HADE_TIMER.poyo(); return [/^\d\d:\d\d\|\d\d$/.test(p.str), p.dir, p.rfs[1] < p.rfs[0] * 0.65].join('/'); }), 'true/v/true');
+  const fsL = await page.evaluate(() => HADE_TIMER.poyo().rfs[0]);
+  await page.evaluate(() => HADE_TIMER.clock('sec', false)); await w(400); await barGone();
+  check('  横で 秒なし：時:分 の 1行・秒を 出しても 時:分 は 8割 より 大きい', await page.evaluate(f => { const p = HADE_TIMER.poyo(); return [/^\d\d:\d\d$/.test(p.str), p.rows, f >= p.fs * 0.8].join('/'); }, fsL), 'true/1/true');
+  await page.evaluate(() => HADE_TIMER.clock('sec', true)); await page.setViewportSize({ width: 1300, height: 400 }); await w(900);
+  check('  とても 横長：時:分 の 右に 秒', await page.evaluate(() => { const p = HADE_TIMER.poyo(); return [/^\d\d:\d\d\|\d\d$/.test(p.str), p.dir].join('/'); }), 'true/h');
+  await page.setViewportSize({ width: 412, height: 900 });
+  // 行を またいで 上の 行から 順に 落ちる（描く ところを じかに 使う）
+  check('  いくつかの 行が いっしょに かわると 上の 行から 順に 落ちる', await page.evaluate(() => {
+    const c = document.createElement('canvas'); c.width = 400; c.height = 800; const g = c.getContext('2d'), L = {}, box = { x: 0, y: 0, w: 400, h: 800 };
+    HADE_POYO.drawRows(g, null, box, [{ str: '12', k: 1 }, { str: '34', k: 1 }, { str: '56', k: 0.7 }], { t: 0, dir: 'v', intro: false }, L);
+    HADE_POYO.drawRows(g, null, box, [{ str: '13', k: 1 }, { str: '45', k: 1 }, { str: '67', k: 0.7 }], { t: 5, dir: 'v' }, L);
+    const i = HADE_POYO.info(L);
+    return [i.str, i.rows, i.dir, L.rows.map(R => R.cells.filter(x => x.t0 >= 5).map(x => (x.t0 - 5).toFixed(2)).join(',')).join('|')].join('/');
+  }), '13|45|67/3/v/0.00|0.07,0.14|0.21,0.28');
+  await page.evaluate(() => { HADE_TIMER.stop(); HADE_TIMER.opt('look', 'ring'); closeHadeTimer(); }); await w(300);
   // 🎉 カウンター
   await page.evaluate(async () => { await openHadeCount(); }); await w(400);
   check('  🎉 カウンター：数字の 見せ方（✨ 光る 数字・🫧 ぽよん）・はじめは 光る 数字', await page.evaluate(() => { const r = [...document.querySelectorAll('.hc-opt')].find(x => x.querySelector('span') && x.querySelector('span').textContent === '数字の 見せ方'); return [HADE_COUNT.state().look, r ? [...r.querySelectorAll('button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(',') : '', HADE_COUNT.poyo()].join('/'); }), 'glow/✨ 光る 数字*,🫧 ぽよん/');

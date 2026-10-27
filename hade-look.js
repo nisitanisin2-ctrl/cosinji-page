@@ -732,16 +732,38 @@ function drawAni(g, e, S, L, k){
 }
 
 /* ───────── 🫧 ぽよん（v589。描き方は hade-poyo.js）───────── */
+// 🕐 時計の 行（v590）：秒を 出しても 時・分 が 小さく ならない ように 並べ方を かえる。画面の 形で いちばん 字が 大きく なる ものを えらぶ
+//   s：時・分（・秒）を 縦に 積む（縦の 画面）／v：時:分 の 下に 秒／h：時:分 の 右に 秒（とても 横長）／r：時:分 の 1行（秒なし）
+//   秒は 時・分 が 小さく ならない かぎり 大きく する。下の ボタンが 出たり 隠れたり しても かえない（画面いっぱいの 大きさで くらべる）
+function clockRows(g, P, S, L, box, sub){
+  const W=S.W, H=S.H, hm=String(S.bstr||S.str), i=hm.indexOf(':'), ss=String(S.sec).padStart(2,'0'), sec=!!S.csec;
+  if(i<0) return null;
+  const hh=hm.slice(0,i), mm=hm.slice(i+1);
+  const lay=(kind, k)=>kind==='s' ? {dir:'v', rows:[{str:hh, k:1}, {str:mm, k:1}].concat(sec ? [{str:ss, k}] : [])}
+    : kind==='v' ? {dir:'v', rows:[{str:hm, k:1}, {str:ss, k}]} : kind==='h' ? {dir:'h', rows:[{str:hm, k:1}, {str:ss, k}]} : null;
+  const key=[W, H, hm.length, !!sub, sec].join('|');
+  if(!L.cfit || L.cfit.key!==key){
+    const fb=Object.assign({}, box, {h:Math.max(10, (S.prev ? H*0.95 : H-22*S.d)-box.y)});
+    const F=(kind, k)=>{ const c=lay(kind, k); return c ? P.fit(g, fb, c.rows, c.dir, sub) : P.fit(g, fb, [{str:hm, k:1}], 'h', sub); };
+    const grow=(kind, lo, hi)=>{ const f=F(kind, lo); let k=hi; while(k>lo+1e-6 && F(kind, k)<f*0.995) k-=0.02; return {kind, k:+Math.max(lo, k).toFixed(2), f}; };
+    const cs=sec ? [grow('s', 0.55, 0.75), grow('v', 0.42, 0.6), {kind:'h', k:0.5, f:F('h', 0.5)}] : [{kind:'s', k:1, f:F('s', 1)}, {kind:'r', k:1, f:F('r', 1)}];
+    cs[0].f*=0.87;   // 縦に 積むのは ほかより だいぶ 大きく なる とき だけ
+    L.cfit=Object.assign({key}, cs.reduce((a,b)=>b.f>a.f ? b : a));
+  }
+  return lay(L.cfit.kind, L.cfit.k);
+}
 function drawPoyo(g, e, S, L){
   const P=window.HADE_POYO; if(!P){ drawBig(g, e, S, L); return; }
   const W=S.W, H=S.H, t=S.t;
   P.bg(g, W, H, t, {boost:e ? e.boost() : 0, urgent:S.last10}, L);
-  const top=S.prev ? H*0.05 : H*0.13, bot=S.prev ? H*0.95 : S.bot;
-  let str=S.bstr||S.str, sub=S.bsub||'';
-  if(S.mode==='clock'){ sub=S.ap||''; if(S.csec) str=S.bstr+':'+String(S.sec).padStart(2,'0'); }   // 🕐 時計は 秒も ぽよん
+  const top=S.prev ? H*0.05 : H*0.13, bot=S.prev ? H*0.95 : S.bot, box={x:W*0.03, y:top, w:W*0.94, h:Math.max(10, bot-top)};
+  const o={t, rainbow:true, sub:S.bsub||'', urgent:S.last10, snd:S.prev ? null : S.snd, intro:true};
   if(S.done && S.doneT>1.2 && t-(L.doneHop==null ? -9 : L.doneHop)>1.8){ L.doneHop=t; P.hop(L, t, 1.4); }   // 0 の あとも ときどき みんなで ぴょん
-  P.draw(g, e, {x:W*0.03, y:top, w:W*0.94, h:Math.max(10, bot-top)}, str, {t, rainbow:true, sub, urgent:S.last10, snd:S.prev ? null : S.snd, intro:true}, L);
-  L.v=L.batch||0;
+  let cr=null;
+  if(S.mode==='clock'){ o.sub=S.ap||''; cr=clockRows(g, P, S, L, box, o.sub); }   // 🕐 時計は 秒も ぽよん
+  if(cr){ o.dir=cr.dir; P.drawRows(g, e, box, cr.rows, o, L); }
+  else P.draw(g, e, box, S.bstr||S.str, o, L);
+  L.v=(L.rows||[L]).reduce((a,R)=>a+(R.batch||0), 0);
 }
 
 /* ───────── 入口 ───────── */
