@@ -9,6 +9,7 @@
    ・🎲 ランダム（v582）：決めた はんい（最小〜最大。見本 1〜6・1〜10・1〜100・10〜50）の どれかを 押すたびに 足す（v584：サイコロは 出さない）。
      − も 同じ はんいで へる（↶ もどす は ちょうど 1つ前に）。いちばん 大きい 数が 出ると「大当たり！」。
    ・押した 音（v583）：🎈 ポン・🪙 チャリン・🥁 ドン・🎮 ピコッ・🔔 チーン・🎹 木琴・👏 パチッ・💧 ぽちゃ・⚡ ピュン・🔀 おまかせ（毎回 ちがう）。
+     ⛶ 全画面（v588）：電光掲示板と 同じように 画面 ぜんぶ（ブラウザの 全画面。下の 表示も 消える）。下の ボタンは しばらくで 隠れ、右上の ☰ で また 出る。
      押した ところの 演出（v583）：✨ きらきら・🎲 サイコロ・🎆 花火・⭐ 星・💖 ハート・🫧 あわ・💥 どかん・🪙 コイン・🌸 花びら・🎊 紙ふぶき・🔀 おまかせ。
      どちらも カウンターごとに えらべる（並べて 数える ときに 音で 聞き分けられる）。えらぶと その場で 鳴る・出る（hade-fx.js）。
    ・1時間ごとの数を 記録（2週間 残す）。「📋 数を コピー」で 文字にして 貼れる。
@@ -77,11 +78,14 @@ function tapSnd(c, i){ const k=c.tap==='rand' ? pickOf(TAPK) : c.tap; lastSnd=k;
 const curC=()=>st.list[st.cur]||st.list[0];
 
 /* ───────── 描く ───────── */
-let eng=null, raf=0, lastTs=0, frozen=false, tiles=[], banT=0, fullRel=null;
+let eng=null, raf=0, lastTs=0, frozen=false, tiles=[], banT=0, fullRel=null, barT=0, fsOn=false, barSp=60;   // 下の ボタン・ブラウザの 全画面（v588）
+// 全画面で 下の ボタンの ために あける 高さ（隠れたら 少しずつ 広く。v588）
+function barSpace(){ const want=barHidden() ? 8 : 60; barSp+=(want-barSp)*0.2; if(Math.abs(want-barSp)<0.5) barSp=want; return barSp; }
 function layout(){
   const e=eng, W=e.W, H=e.H, d=e.d;
-  if(st.view!=='grid' || st.list.length<2){ tiles=[{i:st.cur, x:0, y:0, w:W, h:H-(isFull() ? 60*d : 0)}]; return; }
-  const n=st.list.length, cols=W>H*1.1 ? Math.min(n, 4) : (n<=3 ? 1 : 2), rows=Math.ceil(n/cols), gap=8*d, top=10*d, bot=(isFull() ? 76 : 10)*d;   // 全画面は 下の ボタンの 分 あける
+  const bs=isFull() ? barSpace() : 0;
+  if(st.view!=='grid' || st.list.length<2){ tiles=[{i:st.cur, x:0, y:0, w:W, h:H-bs*d}]; return; }
+  const n=st.list.length, cols=W>H*1.1 ? Math.min(n, 4) : (n<=3 ? 1 : 2), rows=Math.ceil(n/cols), gap=8*d, top=10*d, bot=(isFull() ? bs+16 : 10)*d;   // 全画面は 下の ボタンの 分 あける
   const tw=(W-gap*(cols+1))/cols, th=(H-top-bot-gap*(rows-1))/rows;
   tiles=st.list.map((c,i)=>({i, x:gap+(i%cols)*(tw+gap), y:top+Math.floor(i/cols)*(th+gap), w:tw, h:th}));
 }
@@ -275,11 +279,11 @@ function setFull(on){
   const s=$('hcStage'); if(!s) return;
   if(on && !isFull()){
     FX.unlock();
-    s.classList.add('full'); document.body.appendChild(s);
+    s.classList.add('full'); document.body.appendChild(s); barSp=60;
     fullRel=typeof modalBack==='function' ? modalBack(()=>setFull(false)) : null;
-    wake();
+    wake(); enterFs(); barShow();
   } else if(!on && isFull()){
-    s.classList.remove('full');
+    s.classList.remove('full', 'bar-hide'); clearTimeout(barT); exitFs();
     const home=$('hcHome'); if(home) home.appendChild(s); else s.remove();
     if(fullRel){ const f=fullRel; fullRel=null; f(); }
     unwake();
@@ -287,6 +291,12 @@ function setFull(on){
   if(eng) eng.resize();
   paintSide(); loop();
 }
+// ブラウザの 全画面（電光掲示板と 同じ。下の 表示も 消える）。できない 端末は そのまま（v588）
+async function enterFs(){ try{ const de=document.documentElement; if(de.requestFullscreen && !document.fullscreenElement){ await de.requestFullscreen({navigationUI:'hide'}); fsOn=true; } }catch(_){ fsOn=false; } }
+function exitFs(){ if(!fsOn) return; fsOn=false; try{ if(document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(()=>{}); }catch(_){} }
+// 下の ボタン：しばらく さわらないと 隠す。右上の ☰ で また 出る（画面を 押すと 数えるので 押しても 出さない）
+function barShow(){ const s=$('hcStage'); if(!s) return; s.classList.remove('bar-hide'); clearTimeout(barT); barT=setTimeout(()=>{ if(isFull()) s.classList.add('bar-hide'); }, 3500); loop(); }
+const barHidden=()=>{ const s=$('hcStage'); return !!(s && s.classList.contains('bar-hide')); };
 let wl=null;
 async function wake(){ try{ if(navigator.wakeLock && navigator.wakeLock.request) wl=await navigator.wakeLock.request('screen'); }catch(_){ wl=null; } }
 function unwake(){ if(wl){ try{ wl.release(); }catch(_){} wl=null; } }
@@ -334,7 +344,8 @@ function render(){
   const b=$('hcBody'); if(!b) return;
   b.innerHTML=`<div class="hc-wrap"><div class="hc-tabs" id="hcTabs"></div>
     <div id="hcHome"><div class="hc-stage" id="hcStage"><canvas id="hcCv" aria-label="押すと 数が ふえます"></canvas><div id="hcMinus"></div><div class="hc-ban" id="hcBan" aria-live="polite"></div>
-      <div class="hc-fbar"><button type="button" onclick="HADE_COUNT.minus()">− へらす</button><button type="button" onclick="HADE_COUNT.undo()">↶ もどす</button><button type="button" onclick="HADE_COUNT.full(false)">← 戻る</button></div></div></div>
+      <div class="hc-fbar" onpointerdown="HADE_COUNT.bar()"><button type="button" onclick="HADE_COUNT.minus()">− へらす</button><button type="button" onclick="HADE_COUNT.undo()">↶ もどす</button><button type="button" onclick="HADE_COUNT.full(false)">← 戻る</button></div>
+      <button type="button" class="hc-more" onclick="HADE_COUNT.bar()" aria-label="ボタンを 出す">☰</button></div></div>
     <div class="hc-ctl"><button type="button" class="hc-b" onclick="HADE_COUNT.minus()">− へらす</button><button type="button" class="hc-b" onclick="HADE_COUNT.undo()">↶ もどす</button><button type="button" class="hc-b" onclick="HADE_COUNT.reset()">0 に</button><button type="button" class="hc-b pri" onclick="HADE_COUNT.full(true)">⛶ 全画面</button></div>
     <div id="hcSide"></div></div>`;
   eng=new FX.Engine($('hcCv')); eng.setTheme(st.theme); eng.setLevel(st.level); eng.noFlash=!st.flash; eng.warp=0.12; eng.heat=0.3;
@@ -409,7 +420,10 @@ const HC_CSS=`
 .hc-stage{ position:relative; height:min(56vh,520px); min-height:260px; border-radius:20px; overflow:hidden; background:#05061a; touch-action:manipulation; user-select:none; -webkit-user-select:none; box-shadow:0 8px 26px rgba(40,0,80,.4); }
 .hc-stage canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; cursor:pointer; }
 .hc-stage.full{ position:fixed; inset:0; height:auto; min-height:0; border-radius:0; z-index:99990; box-shadow:none; }
-.hc-fbar{ display:none; }
+.hc-fbar{ display:none; } .hc-more{ display:none; }
+.hc-stage.full .hc-fbar{ transition:opacity .3s, transform .3s; } .hc-stage.full.bar-hide .hc-fbar{ opacity:0; transform:translateY(26px); pointer-events:none; }   /* 下の ボタンを 隠す（v588） */
+.hc-stage.full .hc-more{ display:flex; align-items:center; justify-content:center; position:absolute; right:10px; top:calc(8px + var(--safe-top,0px)); z-index:3; width:46px; height:46px; border-radius:23px; border:1.5px solid rgba(255,255,255,.6); background:rgba(0,0,0,.4); color:#fff; font-size:21px; cursor:pointer; opacity:0; pointer-events:none; transition:opacity .3s; }
+.hc-stage.full.bar-hide .hc-more{ opacity:.75; pointer-events:auto; }
 .hc-stage.full .hc-fbar{ position:absolute; left:0; right:0; bottom:0; display:flex; gap:8px; justify-content:center; padding:8px 10px calc(10px + var(--safe-bottom,0px)); background:linear-gradient(0deg, rgba(0,0,0,.5), rgba(0,0,0,0)); }
 .hc-fbar button{ flex:1 1 auto; max-width:200px; min-height:50px; border-radius:14px; border:1.5px solid rgba(255,255,255,.75); background:rgba(0,0,0,.35); color:#fff; font-size:16px; font-weight:bold; cursor:pointer; }
 .hc-tmin{ position:absolute; width:42px; height:42px; border-radius:21px; border:1.5px solid rgba(255,255,255,.8); background:rgba(0,0,0,.45); color:#fff; font-size:24px; font-weight:bold; line-height:1; cursor:pointer; }
@@ -475,6 +489,7 @@ function closeHadeCount(){ if(!$('hadeCountOverlay') || !isDlgOpen('hadeCountOve
 
 window.HADE_COUNT={ tap:(i,x,y)=>{ plus(i==null ? st.cur : i, null, x, y); paintTabs(); }, plus:(i,k)=>{ plus(i==null ? st.cur : i, k); paintTabs(); }, minus:(i,k)=>{ minus(i, k); paintTabs(); },
   undo:()=>{ undoLast(); paintTabs(); }, reset:i=>{ reset(i).then(()=>paintTabs()); }, add:n=>{ addC(n); }, del:i=>{ delC(i); }, sel, set:setC, opt:setOpt, full:setFull, isFull, copy:copyText,
+  bar:()=>barShow(), barHidden, fs:()=>fsOn,
   state:()=>{ save(); return JSON.parse(JSON.stringify(st)); }, combo:()=>combo, fx:()=>({n:eng ? eng.count() : 0, played:FX.played(), cap:eng ? eng.cap : 0, level:eng ? eng.level : '', shake:eng ? +eng.shake.toFixed(2) : 0}), tiles:()=>tiles.map(T=>T.i+':'+Math.round(T.w)+'x'+Math.round(T.h)),
   banner:()=>{ const b=$('hcBan'); return b ? b.textContent : ''; }, freeze:b=>{ frozen=!!b; }, draw:()=>{ if(eng){ eng.resize(); paint(); } }, lastRoll:()=>lastRoll, lastSnd:()=>lastSnd, lastFx:()=>lastFx,
   parts:()=>eng ? eng.ps.filter(p=>p.k==='e' || p.k==='t').map(p=>p.ch||p.s) : [] };   // 画面に 出ている 絵文字と 字（たしかめ用）

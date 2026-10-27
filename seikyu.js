@@ -765,6 +765,8 @@ const DOC_RULES=`
 .sk-doc .sk-tbl td.nm{ width:46%; overflow-wrap:anywhere; } .sk-doc .sk-tbl td.r{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; } .sk-doc .sk-tbl td.c{ text-align:center; }
 .sk-doc .sk-tbl tr.neg td{ color:#b3001b; } .sk-doc .sk-tbl .nt{ font-size:11px; } .sk-doc .sk-tbl tr.blank td{ height:1.55em; }
 .sk-doc .sk-tbl tfoot td{ font-weight:bold; } .sk-doc .sk-tbl tfoot tr.tot td{ font-size:15px; background:#f6f7fa; }
+.sk-doc .sk-tbl tfoot{ display:table-row-group; }   /* 2ページに なっても 合計は 最後に 1回だけ（ページごとに くり返さない。v588） */
+.sk-doc .sk-tbl tr, .sk-doc .sk-top, .sk-doc .sk-amt, .sk-doc .sk-bank, .sk-doc .sk-memo{ break-inside:avoid; page-break-inside:avoid; }
 .sk-doc .sk-taxbox{ font-size:12px; text-align:right; margin:0 0 10px; }
 .sk-doc .sk-bank, .sk-doc .sk-memo{ border:1px solid #333; padding:6px 10px; margin:0 0 8px; font-size:12.5px; } .sk-doc .sk-bank b, .sk-doc .sk-memo b{ display:block; font-size:12px; margin-bottom:2px; }
 `;
