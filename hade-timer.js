@@ -343,7 +343,10 @@ function fitBan(b, text, kind){
 }
 function banner(text, kind){
   const b=$('htBan'); if(!b) return;
-  b.className='ht-ban '+(kind||''); b.textContent=text; fitBan(b, text, kind); void b.offsetWidth; b.classList.add('go');
+  b.className='ht-ban '+(kind||''); fitBan(b, text, kind);
+  const m=/^(\p{Extended_Pictographic}\uFE0F?)\s*/u.exec(text);   // 先の 絵文字は 虹色の 字に すると 丸く ぬりつぶされるので、そのままの 色で（v591）
+  if(m){ b.textContent=''; const em=document.createElement('span'); em.className='ht-emo'; em.textContent=m[1]+' '; b.append(em, text.slice(m[0].length)); } else b.textContent=text;
+  void b.offsetWidth; b.classList.add('go');
   clearTimeout(banT); banT=setTimeout(()=>{ const x=$('htBan'); if(x) x.classList.remove('go'); }, kind==='big' ? 4200 : 1900);
 }
 
@@ -854,6 +857,7 @@ const HT_CSS=`
   background:linear-gradient(90deg,#fff36b,#ff8a3d,#ff2bd6,#7cf0ff,#fff36b); background-size:300% 100%; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
   filter:drop-shadow(0 0 10px rgba(255,255,255,.55)) drop-shadow(0 4px 2px rgba(0,0,0,.6)); }
 .ht-ban.s{ font-size:clamp(24px,7.5vw,60px); }
+.ht-ban .ht-emo{ -webkit-text-fill-color:initial; }
 .ht-ban.go{ animation:htBan 1.9s cubic-bezier(.2,.9,.3,1.2) forwards, htRain 1.2s linear infinite; }
 .ht-ban.big.go{ top:12%; animation:htBig 4.2s cubic-bezier(.2,.9,.3,1.2) forwards, htRain .9s linear infinite; }
 @keyframes htBan{ 0%{ opacity:0; transform:scale(.2) rotate(-6deg); } 14%{ opacity:1; transform:scale(1.25) rotate(3deg); } 24%{ transform:scale(1) rotate(0); } 80%{ opacity:1; transform:scale(1); } 100%{ opacity:0; transform:translateY(-24px) scale(.96); } }
