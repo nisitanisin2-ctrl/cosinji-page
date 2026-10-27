@@ -7,6 +7,8 @@
      作ると ⛶ 全画面（v585）：画面いっぱいに あみだ全体が おさまる（人数が 多いと 名前は 縦書き。横向きに すると 大きく なる）。
      全画面でも 名前を押すと たどる・🔓 ぜんぶ開ける・📋 コピー。「✕ 閉じる」・端末の「戻る」・Esc で もどる。
      下の 答えは 線が 下に 着いてから 出す（v586。ぜんぶ開ける も いっしょに 線を 引いてから）
+     🔊 音（v592）：線を 引く あいだは ドラムロール、着いたら 当たり＝カランカラン（福引きの 鐘）と ファンファーレ・
+     はずれ＝ぷぅ〜（下がる ラッパ）・ほか（数・自分で 書いた 役 など）＝ポン。ぜんぶ開ける ときは まとめて 1回。音は 出す／出さない を えらべる
    くじは端末の乱数（crypto.getRandomValues）で、かたよりなく決める。休みの人は 名前を押すと外せる。
    結果は 📋コピー・📤共有・▦表に入れる。名前の組（クラス・部 など）は保存して呼び出せる。
    中身は excalc_kuji（この端末の中だけ）。 */
@@ -36,7 +38,7 @@ function rnd(n){
 function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=rnd(i+1); const t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
 
 /* ───────── 読み書き ───────── */
-function defaults(){ return {v:1, names:[], off:[], mode:'pick', pickN:1, excl:false, won:[], teamBy:'n', teamN:2, teamSize:4, leader:false, teamLabel:'num', prizeKind:'hit', hitN:1, prizes:'', lists:[], hist:[], amida:null, last:null}; }
+function defaults(){ return {v:1, sound:true, names:[], off:[], mode:'pick', pickN:1, excl:false, won:[], teamBy:'n', teamN:2, teamSize:4, leader:false, teamLabel:'num', prizeKind:'hit', hitN:1, prizes:'', lists:[], hist:[], amida:null, last:null}; }
 const int=(v,lo,hi,d)=>{ const n=Math.round(+v); return isFinite(n)?Math.max(lo,Math.min(hi,n)):d; };
 const strs=(a,n,len)=>(Array.isArray(a)?a:[]).map(x=>line(x,len)).filter(Boolean).slice(0,n);
 function uniq(names){
@@ -52,6 +54,7 @@ function clean(o){
   d.pickN=int(o.pickN,1,MAX_N,1); d.excl=o.excl===true; d.won=strs(o.won,MAX_N,30);
   d.teamBy=o.teamBy==='size'?'size':'n'; d.teamN=int(o.teamN,2,50,2); d.teamSize=int(o.teamSize,1,MAX_N,4);
   d.leader=o.leader===true; d.teamLabel=o.teamLabel==='abc'?'abc':'num';
+  d.sound=o.sound!==false;
   d.prizeKind=['hit','num','own'].includes(o.prizeKind)?o.prizeKind:'hit'; d.hitN=int(o.hitN,1,MAX_AMIDA,1); d.prizes=String(o.prizes||'').slice(0,2000);
   (Array.isArray(o.lists)?o.lists:[]).slice(0,MAX_LISTS).forEach(l=>{ if(!l||typeof l!=='object') return; const name=line(l.name,30), names=uniq(strs(l.names,MAX_N,24)); if(name&&names.length) d.lists.push({id:typeof l.id==='string'&&l.id?l.id.slice(0,40):uid('l'), name, names}); });
   (Array.isArray(o.hist)?o.hist:[]).slice(0,MAX_HIST).forEach(h=>{ if(h&&typeof h.text==='string'&&MODES.some(m=>m[0]===h.mode)) d.hist.push({t:+h.t||0, mode:h.mode, text:h.text.slice(0,3000)}); });
@@ -238,7 +241,8 @@ function renderOpt(){
   } else {
     b.innerHTML=`<div class="kj-seg sm"><span>下に書くこと</span>${[['hit','当たり'],['num','1〜'+(n||'n')+'の数'],['own','自分で書く']].map(o=>`<button class="${st.prizeKind===o[0]?'on':''}" onclick="KJ.set('prizeKind','${o[0]}')">${o[1]}</button>`).join('')}</div>
       ${st.prizeKind==='hit'?`<div class="kj-line"><span>当たりの数</span>${stepper('hitN',Math.min(st.hitN,Math.max(1,n)),1,Math.max(1,n),'本')}</div>`:''}
-      ${st.prizeKind==='own'?`<textarea id="kjPrizes" rows="4" placeholder="1行に1つ（例：司会・書記・会計）。足りない分は「はずれ」になります" oninput="KJ.prizes(this.value)">${esc(st.prizes)}</textarea>`:''}`;
+      ${st.prizeKind==='own'?`<textarea id="kjPrizes" rows="4" placeholder="1行に1つ（例：司会・書記・会計）。足りない分は「はずれ」になります" oninput="KJ.prizes(this.value)">${esc(st.prizes)}</textarea>`:''}
+      <label class="kj-sw"><input type="checkbox" id="kjSound" ${st.sound?'checked':''} onchange="KJ.set('sound',this.checked)"> 🔊 当たり・はずれで 音を 出す</label>`;
     const p=$('kjPrizes'); if(p) p.addEventListener('keydown', e=>e.stopPropagation());
     g.textContent=st.amida?'🪜 あみだを作り直す':'🪜 あみだを作る';
   }
@@ -262,6 +266,65 @@ function renderHist(){
   b.innerHTML=`<summary>🕘 これまでの結果（${st.hist.length}件）</summary>${st.hist.map(h=>`<pre>${esc(h.text)}</pre>`).join('')}<button class="kj-mini" onclick="KJ.histClear()">🗑 消す</button>`;
   b.open=open;
 }
+
+/* ───────── 🔊 あみだの 音（v592。WebAudio。押した ときに 用意する）───────── */
+let AC=null, OUT=null, NB=null;
+const played=[];   // 鳴らした 音（たしかめ用）
+function ac(){
+  if(!st || !st.sound) return null;
+  if(!AC){
+    const C=window.AudioContext||window.webkitAudioContext; if(!C) return null;
+    try{ AC=new C(); OUT=AC.createGain(); OUT.gain.value=0.75; OUT.connect(AC.destination); }catch(_){ AC=null; return null; }
+  }
+  if(AC.state==='suspended'){ try{ AC.resume(); }catch(_){} }
+  return AC;
+}
+function noiseBuf(a){ if(NB) return NB; const n=Math.floor(a.sampleRate*0.6), b=a.createBuffer(1,n,a.sampleRate), ch=b.getChannelData(0); for(let i=0;i<n;i++) ch[i]=Math.random()*2-1; return (NB=b); }
+function env(g,t,a,d,p){ g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002,p),t+a); g.gain.exponentialRampToValueAtTime(0.0001,t+a+d); }
+function osc(type,f,t,d,p,f2){
+  const a=ac(); if(!a) return;
+  try{ const o=a.createOscillator(), g=a.createGain(); o.type=type; o.frequency.setValueAtTime(f,t); if(f2) o.frequency.exponentialRampToValueAtTime(f2,t+d);
+    env(g,t,0.006,d,p); o.connect(g); g.connect(OUT); o.start(t); o.stop(t+d+0.05); }catch(_){}
+}
+function nz(t,d,p,type,f,q){
+  const a=ac(); if(!a) return;
+  try{ const s=a.createBufferSource(); s.buffer=noiseBuf(a); s.loop=true; const fl=a.createBiquadFilter(); fl.type=type||'bandpass'; fl.frequency.value=f||2000; fl.Q.value=q||1;
+    const g=a.createGain(); env(g,t,0.003,d,p); s.connect(fl); fl.connect(g); g.connect(OUT); s.start(t, Math.random()*0.3); s.stop(t+d+0.05); }catch(_){}
+}
+// ラッパ（やわらかい のこぎり波。vib：ゆらす）
+function horn(f,t,d,p,vib){
+  const a=ac(); if(!a) return;
+  try{ const o=a.createOscillator(), fl=a.createBiquadFilter(), g=a.createGain(); o.type='sawtooth'; o.frequency.setValueAtTime(f,t);
+    if(vib){ const l=a.createOscillator(), lg=a.createGain(); l.frequency.value=5.5; lg.gain.value=f*0.03; l.connect(lg); lg.connect(o.frequency); l.start(t+0.15); l.stop(t+d+0.05); o.frequency.exponentialRampToValueAtTime(f*0.93, t+d); }
+    fl.type='lowpass'; fl.frequency.setValueAtTime(1500,t); fl.frequency.exponentialRampToValueAtTime(450,t+d); fl.Q.value=1.5;
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(p,t+0.05); g.gain.setValueAtTime(p,t+d*0.7); g.gain.exponentialRampToValueAtTime(0.0001,t+d);
+    o.connect(fl); fl.connect(g); g.connect(OUT); o.start(t); o.stop(t+d+0.05); }catch(_){}
+}
+// 鐘を 1回（金物の ひびき）
+function bell(t,f,p){ [[1,1],[2.4,0.5],[3.9,0.3],[5.6,0.16]].forEach(([k,v])=>osc('sine', f*k, t, 0.45/(0.4+k*0.6), p*v)); nz(t, 0.015, p*0.6, 'highpass', 7000); }
+const midi=m=>440*Math.pow(2,(m-69)/12);
+const S=(name, fn)=>(...x)=>{ if(!st || !st.sound) return; played.push(name); if(played.length>100) played.shift(); const a=ac(); if(!a) return; fn(a.currentTime+0.005, ...x); };
+const SND={
+  roll:S('roll', (t,d)=>{ const n=Math.max(4, Math.floor(d/0.045)); for(let i=0;i<n;i++){ const k=i/n; nz(t+i*0.045, 0.05, 0.08+0.22*k, 'bandpass', 1700, 0.8); osc('sine', 170, t+i*0.045, 0.04, 0.03+0.06*k); } }),   // ドゥルルル（線を 引く あいだ。だんだん 大きく）
+  hit:S('hit', t=>{   // 当たり：カランカラン（福引きの 鐘）→ パッパッパッパーン
+    for(let i=0;i<7;i++) bell(t+i*0.11, i%2 ? 1480 : 1570, 0.15*(1-i*0.07));
+    const q=0.11, t2=t+0.82;
+    [[72,0,1],[76,1,1],[79,2,1],[84,3,5]].forEach(([m,at,len])=>{ osc('square', midi(m), t2+at*q, len*q, 0.07); osc('triangle', midi(m), t2+at*q, len*q+0.08, 0.17); });
+    [60,64,67,72].forEach(m=>osc('triangle', midi(m), t2+3*q, 0.9, 0.08)); nz(t2+3*q, 0.45, 0.08, 'highpass', 6000);
+  }),
+  miss:S('miss', t=>{ [[67,0,0.3],[66,0.33,0.3],[65,0.66,0.3],[64,0.99,1.05]].forEach(([m,at,d],i)=>horn(midi(m), t+at, d, 0.17, i===3)); }),   // はずれ：ぷ ぷ ぷ ぷぅ〜
+  pon:S('pon', t=>{ osc('sine', 880, t, 0.14, 0.26, 640); osc('triangle', midi(88), t+0.09, 0.4, 0.12); osc('triangle', midi(93), t+0.17, 0.5, 0.1); }),   // ほか：ポン♪
+};
+// 下の 答えの 種類：当たり／はずれ／ほか（数・役の 名前 など）
+const MISS=/はずれ|ハズレ|外れ|ハズれ|残念|ざんねん|^[×✕✖]$/, HIT=/当たり|当り|あたり|アタリ|当選|^[○〇◯◎⭕]$/;
+const prizeKind=p=>{ p=String(p||''); return MISS.test(p) ? 'miss' : HIT.test(p) ? 'hit' : 'pon'; };
+// 答えが 出た ときの 音（いっしょに 出た ときは まとめて 1回。当たりが あれば 当たり）
+function resultSnd(list){
+  const a=st.amida; if(!a || !list.length) return;
+  const ks=list.map(i=>prizeKind(a.prizes[trace(a,i).end]));
+  SND[ks.includes('hit') ? 'hit' : ks.every(k=>k==='miss') ? 'miss' : 'pon']();
+}
+function toggleSound(){ st.sound=!st.sound; save(); if(st.sound) ac(); renderOpt(); renderFull(); }
 
 /* ───────── あみだの絵 ───────── */
 function amidaGeom(a){
@@ -306,12 +369,15 @@ function drawAnim(root){
 }
 // 線を 引きはじめる → 下に 着いたら 答えを 出す（ぽんと）
 function startDraw(list){
-  if(!list.length || noAnim()) return;
+  if(!list.length) return;
+  if(noAnim()){ resultSnd(list); return; }   // 動き なし：すぐ 答えと 音
   const t0=performance.now();
   list.forEach(i=>reveal.set(i, t0));
+  SND.roll(DRAW_MS/1000);   // 🔊 線を 引く あいだ（v592）
   setTimeout(()=>{
     const done=list.filter(i=>reveal.get(i)===t0); if(!done.length) return;
     done.forEach(i=>{ reveal.delete(i); popped.add(i); });
+    resultSnd(done);   // 🔊 当たり・はずれ（v592）
     if(st.mode==='amida') renderAmida();   // ほかの モードに 変えて いたら 描かない
     renderFull(); if(!reveal.size) renderHist(); popped.clear();   // 履歴も 答えが 出てから
   }, DRAW_MS+60);
@@ -355,7 +421,7 @@ function renderFull(){
   // 上と 下の 字・ボタンを 先に 入れてから 大きさを はかる（あみだが 下に はみ出さない ように）
   const all=a.open.length>=a.names.length && !reveal.size, port=window.innerWidth<window.innerHeight;
   if(tip) tip.textContent=all ? 'ぜんぶ 開けました' : (a.names.length>12 && port ? '名前を押すと たどります（横向きに すると 大きく 見えます）' : '名前を押すと たどります');
-  if(bar) bar.innerHTML=(all ? `<button type="button" onclick="KJ.copy()">📋 コピー</button>` : a.open.length<a.names.length ? `<button type="button" onclick="KJ.openAll()">🔓 ぜんぶ開ける</button>` : '')+`<button type="button" class="pri" onclick="KJ.full(false)">✕ 閉じる</button>`;
+  if(bar) bar.innerHTML=`<button type="button" class="snd" onclick="KJ.sound()" aria-label="音を ${st.sound ? '出さない' : '出す'}" title="音">${st.sound ? '🔊' : '🔇'}</button>`+(all ? `<button type="button" onclick="KJ.copy()">📋 コピー</button>` : a.open.length<a.names.length ? `<button type="button" onclick="KJ.openAll()">🔓 ぜんぶ開ける</button>` : '')+`<button type="button" class="pri" onclick="KJ.full(false)">✕ 閉じる</button>`;
   box.innerHTML='';
   const W=Math.max(120, box.clientWidth), H=Math.max(160, box.clientHeight), G=fullGeom(a, W, H);
   box.innerHTML=fullSvg(a, G);
@@ -530,6 +596,7 @@ const KJ_CSS=`
 .kj-full-box .kj-amida{ display:block; margin:0; }
 .kj-full-bar{ display:flex; gap:8px; padding-top:8px; } .kj-full-bar button{ flex:1; min-height:48px; border-radius:12px; border:1px solid rgba(120,132,156,.45); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:15px; font-weight:bold; cursor:pointer; }
 .kj-full-bar button.pri{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); }
+.kj-full-bar button.snd{ flex:0 0 56px; font-size:20px; }
 .kj-amida{ display:block; margin:0 auto; touch-action:pan-x pan-y; }
 .kj-amida line.v{ stroke:rgba(120,132,156,.85); stroke-width:3; } .kj-amida line.h{ stroke:rgba(120,132,156,.85); stroke-width:3; stroke-linecap:round; }
 .kj-amida .path{ fill:none; stroke:var(--c); stroke-width:6; stroke-linejoin:round; stroke-linecap:round; opacity:.9; }
@@ -582,6 +649,7 @@ function openKuji(){
 function closeKuji(){ if(!$('kujiOverlay')||!isDlgOpen('kujiOverlay')) return; if(editing) namesDone(); popClose(); setFull(false); clearInterval(anim); anim=0; closeDlg('kujiOverlay'); }
 
 window.KJ={ go, mode:setMode, set, step, prizes, wonReset, histClear, toggle, edit, namesDone, clear, names, lists, listSave, listLoad, listDel, open:openOne, openAll, copy, share, toTable, popClose:()=>popClose(), full:setFull, isFull:()=>!!full, drawing:()=>[...reveal.keys()],
+  sound:toggleSound, played:()=>played.slice(), prizeKind,   // 🔊 音（v592）
   state:()=>JSON.parse(JSON.stringify(st)), setNames:a=>{ setNames(a); editing=false; render(); }, text:curText, rows:tableRows, rnd, shuffle, trace:(i)=>trace(st.amida,i), clean, makeAmida };
 Object.assign(window, { openKuji, closeKuji });
 })();
