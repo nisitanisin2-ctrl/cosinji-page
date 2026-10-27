@@ -9408,7 +9408,7 @@ async function runRenraku555(browser) {
   page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/favicon|ServiceWorker/.test(m.text())) errs.push('console: ' + m.text()); });
   page.on('dialog', d => d.accept());
   const w = ms => page.waitForTimeout(ms);
-  const row = id => page.evaluate(id => { const e = document.querySelector(`#rkList .rk-it[data-id="${id}"]`); return (e.querySelector('.nm small') ? 'よみ:' + e.querySelector('.nm small').textContent : 'よみなし') + ' / ' + ((e.querySelector('.sb') || {}).textContent || '-') + ' / ' + ((e.querySelector('.mm') || {}).textContent || '-'); }, id);
+  const row = id => page.evaluate(id => { const e = document.querySelector(`#rkList .rk-it[data-id="${id}"]`); if (!e) return '（一覧に ' + id + ' が ない）'; return (e.querySelector('.nm small') ? 'よみ:' + e.querySelector('.nm small').textContent : 'よみなし') + ' / ' + ((e.querySelector('.sb') || {}).textContent || '-') + ' / ' + ((e.querySelector('.mm') || {}).textContent || '-'); }, id);
   const viewK = () => page.evaluate(() => { const k = document.querySelector('#rkViewBody .rk-who .k'); return k ? k.textContent : 'よみなし'; });
   await page.goto('file://' + path.join(ROOT, 'index.html')); await w(1200);
   await page.mouse.click(200, 300); await w(150);
@@ -9475,6 +9475,9 @@ async function runRenraku555(browser) {
   await page.evaluate(() => { RK.closeScr(); RK.closeSub(); closeRenraku(); }); await w(400);
   await page.reload(); await w(1200);
   await page.evaluate(() => openRenraku()); await page.waitForSelector('#rkList .rk-it[data-id="c2"]', { timeout: 15000 }).catch(() => {}); await w(200);   // 一覧が出るまで（重いときは 900ms では まだ）
+  if (!(await page.evaluate(() => !!document.querySelector('#rkList .rk-it[data-id="c2"]')))) {   // とても 重いときは 開きなおす（全体テストで まれに 一覧が 出ない まま だった）
+    await page.evaluate(async () => { try { closeRenraku(); } catch (e) {} await new Promise(r => setTimeout(r, 300)); await openRenraku(); }); await page.waitForSelector('#rkList .rk-it[data-id="c2"]', { timeout: 15000 }).catch(() => {}); await w(200);
+  }
   check('  保存：ふりがな・メモを一覧に出すか は 読みなおしても同じ', await page.evaluate(() => JSON.stringify([rkState().furi, rkState().lmemo])) + ' / ' + (await row('c2')).split(' / ')[0], '["off",false] / よみなし');
   await page.evaluate(() => { RK.setFuri(''); RK.setLMemo(true); }); await w(300);
   check('  　もとに戻す', await row('c2'), 'よみ:たかひとさん / 携帯 090-4769-8774 / 📝 午後は不在\n2行目のメモ');
