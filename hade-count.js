@@ -401,7 +401,7 @@ function setC(k, v){
   else return;
   save(); paintTabs(); paintSide();
   if(k==='tap'){ FX.unlock(); tapSnd(c, 0); }   // ためしに 鳴らす（鳴らさない 設定なら 鳴らない）
-  if(k==='fx' && eng){ const [x,y]=tileCenter(st.list.indexOf(c)), fk=v==='rand' ? pickOf(FXK) : v; lastFx=fk; eng.tapFx(fk, x, y, {col:colOf(c.col), emo:c.emo, combo:1}); loop(); }   // ためしに 出す
+  if(k==='fx' && eng){ const [x,y]=tileCenter(st.list.indexOf(c)), fk=v==='rand' ? pickOf(c.rnd ? FXK.filter(f=>f!=='dice') : FXK) : v; lastFx=fk; eng.tapFx(fk, x, y, {col:colOf(c.col), emo:c.emo, combo:1}); loop(); }   // ためしに 出す（🎲 ランダムの ときの おまかせは サイコロ なし。v591）
 }
 function setOpt(k, v){
   if(k==='theme'){ if(!FX.hasTheme(v)) return; st.theme=v; }

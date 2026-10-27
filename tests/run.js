@@ -11110,7 +11110,7 @@ async function runHadeTimer580(browser) {
     const a = HADE_TIMER.look(); await sl(1300); const a2 = HADE_TIMER.look(); HADE_TIMER.shift(30500); await sl(400); const b = HADE_TIMER.look(); HADE_TIMER.shift(24000); await sl(400); const c = HADE_TIMER.look(); HADE_TIMER.shift(6000); await sl(600); const d = HADE_TIMER.look();
     HADE_TIMER.stopAlarm(); HADE_TIMER.stop();
     return [a.pose, a.act, a.dusk < 0.05, a2.v > a.v, b.say, b.dusk > 0.45 && b.dusk < 0.65, /^[1-9]！$/.test(c.say), c.dusk > 0.85, d.pose, d.say, d.dusk].join('/'); }), 'act/めくる/true/true/はんぶん！/true/true/true/cheer/やったー！/1');
-  check('  動物は 6つ（それぞれの 数え方で 1秒ごとに 動く）・空の 色', await page.evaluate(async () => { const out = []; for (const k of ['neko', 'usagi', 'inu', 'pen', 'kaeru', 'kuma']) { HADE_TIMER.opt('ani', k); HADE_TIMER.set(30); HADE_TIMER.start(); await sl(300); const v0 = HADE_TIMER.look().v; await sl(1300); const L = HADE_TIMER.look(); out.push(L.sub + ':' + L.act + ':' + L.pose + ':' + (L.v > v0)); if (k === 'kuma') { const cv = document.getElementById('htCv'), px = cv.getContext('2d').getImageData(Math.round(cv.width / 2), Math.round(cv.height * 0.25), 1, 1).data; out.push('sky:' + (px[2] > px[0] && px[2] > 150)); } HADE_TIMER.stop(); await sl(100); } return out.join(','); }),
+  check('  動物は 6つ（それぞれの 数え方で 1秒ごとに 動く）・空の 色', await page.evaluate(async () => { const out = []; for (const k of ['neko', 'usagi', 'inu', 'pen', 'kaeru', 'kuma']) { HADE_TIMER.opt('ani', k); HADE_TIMER.set(30); HADE_TIMER.start(); await sl(300); const v0 = HADE_TIMER.look().v; await sl(1300); const L = HADE_TIMER.look(); out.push(L.sub + ':' + L.act + ':' + L.pose + ':' + (L.v > v0)); if (k === 'kuma') { const cv = document.getElementById('htCv'), cx = cv.getContext('2d'), blue = [0.1, 0.3, 0.5, 0.7, 0.9].filter(f => { const px = cx.getImageData(Math.round(cv.width * f), Math.round(cv.height * 0.25), 1, 1).data; return px[2] > px[0] && px[2] > 150; }).length; out.push('sky:' + (blue >= 3)); } HADE_TIMER.stop(); await sl(100); } return out.join(','); }),
     'neko:めくる:act:true,usagi:なわとび:act:true,inu:ほえる:act:true,pen:指揮:act:true,kaeru:鳴く:act:true,kuma:太鼓:act:true,sky:true');
   check('  ストップウォッチも 数える（空は 昼のまま）・くり返しは よーい…・がんばる＝はやく・休む＝ねる', await page.evaluate(async () => {
     HADE_TIMER.opt('ani', 'pen'); HADE_TIMER.mode('up'); HADE_TIMER.start(); await sl(300); HADE_TIMER.shift(20000); await sl(300); const a = HADE_TIMER.look(); HADE_TIMER.stop();
@@ -12146,6 +12146,64 @@ async function runBingo588(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runClockLay591(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🕐 ど派手タイマーの 時計：ぽよん 以外の 見せ方も 同じ 並べ方（v591） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const barGone = async () => { await page.waitForFunction(() => { const f = document.getElementById('htFull'); return !!f && f.classList.contains('bar-hide'); }, null, { timeout: 8000 }); await w(700); };
+  const start = async (look, sub) => {
+    await page.evaluate(a => { try { HADE_TIMER.stop(); } catch (_) {} if (a.sub) HADE_TIMER.opt(a.look, a.sub); else HADE_TIMER.opt('look', a.look); }, { look, sub }); await w(250);
+    await page.click('#hadeTimerOverlay .ht-go'); await w(500);
+  };
+  const lay = () => page.evaluate(() => HADE_TIMER.clockLay());
+  await page.evaluate(() => { window.appConfirm = async () => true; document.documentElement.requestFullscreen = () => Promise.resolve(); });
+  await page.evaluate(async () => { await openHadeTimer(); HADE_TIMER.mode('clock'); HADE_TIMER.clock('sec', true); HADE_TIMER.clock('h12', false); }); await w(300);
+  // 縦の 画面（412×900）
+  await start('big');
+  check('  🔠 画面いっぱい：縦は 時・分・秒を 縦に 積む・「○秒」の 札は なし', await page.evaluate(() => { const c = HADE_TIMER.clockLay(), l = HADE_TIMER.look(); return [c.kind, /^\d\d\|\d\d\|\d\d$/.test(c.str), !/秒/.test(l.str)].join('/'); }), 's/true/true');
+  await barGone();
+  const fsBig = await page.evaluate(() => HADE_TIMER.look().v);
+  await page.evaluate(() => HADE_TIMER.clock('sec', false)); await w(300); await barGone();
+  check('  画面いっぱい 秒なし：時・分の 2段・秒を 出しても 字の 大きさは ほぼ そのまま', await page.evaluate(f => { const c = HADE_TIMER.clockLay(); return [c.kind, /^\d\d\|\d\d$/.test(c.str), f >= HADE_TIMER.look().v * 0.95].join('/'); }, fsBig), 's/true/true');
+  await page.evaluate(() => HADE_TIMER.clock('sec', true));
+  await start('ring');
+  check('  ⭕ 光の輪：時・分は 同じ 並べ方で 大きく・秒は 光の輪の 中', await page.evaluate(() => { const c = HADE_TIMER.clockLay(); return [c.kind, /^\d\d\|\d\d\|\d\d$/.test(c.str), c.ring > 0, c.fs > 200].join('/'); }), 's/true/true/true');
+  await page.evaluate(() => HADE_TIMER.clock('sec', false)); await w(400);
+  check('  光の輪 秒なし：輪は 出す（1分で 1回り）', await page.evaluate(() => /^\d\d\|\d\d\|◯$/.test(HADE_TIMER.clockLay().str)), true);
+  await page.evaluate(() => HADE_TIMER.clock('sec', true));
+  await start('pic', 'rocket');
+  check('  🎞 絵：札に 秒も（時:分 の 右に 小さく）', await page.evaluate(() => /^\d\d:\d\d:\d\d$/.test(HADE_TIMER.look().time)), true);
+  await start('ani', 'neko');
+  check('  🐾 動物：道具に 秒も（ねこは 秒の 板を めくる）', await page.evaluate(() => /^\d\d:\d\d:\d\d$/.test(HADE_TIMER.look().time)), true);
+  await page.evaluate(() => HADE_TIMER.clock('sec', false)); await w(400);
+  check('  動物 秒なし：時:分', await page.evaluate(() => /^\d\d:\d\d$/.test(HADE_TIMER.look().time)), true);
+  await page.evaluate(() => HADE_TIMER.clock('sec', true));
+  // 横の 画面
+  await page.setViewportSize({ width: 900, height: 420 }); await start('big');
+  check('  横：画面いっぱい は 時:分 の 下に 秒', await page.evaluate(() => { const c = HADE_TIMER.clockLay(); return [c.kind, /^\d\d:\d\d\|\d\d$/.test(c.str)].join('/'); }), 'v/true');
+  await start('ring');
+  check('  横：光の輪 は 時:分 の 横か 下に 秒の 輪', await page.evaluate(() => { const c = HADE_TIMER.clockLay(); return ['h', 'v'].includes(c.kind) && /^\d\d:\d\d\|\d\d$/.test(c.str); }), true);
+  await page.setViewportSize({ width: 1300, height: 400 }); await w(700);
+  check('  とても 横長：光の輪 は 右に', (await lay()).kind, 'h');
+  await start('big');
+  check('  とても 横長：画面いっぱい は 時:分 の 右に 秒', (await lay()).kind, 'h');
+  // 12時間・見本
+  await page.setViewportSize({ width: 412, height: 900 }); await page.evaluate(() => HADE_TIMER.clock('h12', true));
+  await start('big');
+  check('  12時間：画面いっぱい（先の 0 なし）', await page.evaluate(() => /^([1-9]|1[0-2])\|\d\d\|\d\d$/.test(HADE_TIMER.clockLay().str)), true);
+  await start('pic', 'sand');
+  check('  12時間：絵の 札に 午前／午後', await page.evaluate(() => /^(午前|午後) ([1-9]|1[0-2]):\d\d:\d\d$/.test(HADE_TIMER.look().time)), true);
+  await page.evaluate(() => { HADE_TIMER.clock('h12', false); HADE_TIMER.stop(); HADE_TIMER.opt('look', 'ring'); }); await w(900);
+  check('  設定の 見本も 同じ 並べ方（光の輪）', await page.evaluate(() => { const c = HADE_TIMER.clockLay(true); return !!c && /\|/.test(c.str); }), true);
+  // 時計 以外は 今まで どおり
+  await page.evaluate(() => { HADE_TIMER.mode('down'); HADE_TIMER.set(5); HADE_TIMER.opt('look', 'big'); }); await w(200);
+  await page.click('#hadeTimerOverlay .ht-go'); await w(600);
+  check('  タイマーは 今まで どおり（1行）', await page.evaluate(() => { const l = HADE_TIMER.look(); return [/^\d$/.test(l.str), l.plan].join('/'); }), 'true/');
+  await page.evaluate(() => { HADE_TIMER.stop(); HADE_TIMER.opt('look', 'ring'); closeHadeTimer(); }); await w(300);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
 async function runPoyo589(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🫧 ぽよん：ど派手タイマー（🕐 時計も）・ど派手カウンター（v589） ──');
@@ -17725,6 +17783,7 @@ async function runQrShare(browser) {
     if (!only || only === 'hade' || only === 'hade588' || only === 'v588') await runHadeFull588(browser);
     if (!only || only === 'seikyu' || only === 'seikyu588' || only === 'v588') await runSeikyuPrint588(browser);
     if (!only || only === 'hade' || only === 'poyo' || only === 'v589') await runPoyo589(browser);
+    if (!only || only === 'hade' || only === 'clock' || only === 'v591') await runClockLay591(browser);
     if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
     if (!only || only === 'okaeshi' || only === 'v564') await runOkaeshi564(browser);
     if (!only || only === 'tax' || only === 'v565') await runTax565(browser);
