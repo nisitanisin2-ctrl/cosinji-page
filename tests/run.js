@@ -12235,6 +12235,83 @@ async function runTimerVoice593(browser) {
   await ctx.close();
 }
 
+// ⚔ ど派手カウンター：2チーム 対戦（v594）
+async function runCountVs594(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🎉 ど派手カウンター：⚔ 対戦（v594） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const ns = () => page.evaluate(() => HADE_COUNT.state().list.slice(0, 2).map(c => c.n).join(','));
+  await page.evaluate(() => { window.appConfirm = async () => true; navigator.vibrate = () => true; document.documentElement.requestFullscreen = () => Promise.resolve(); });
+  await page.evaluate(() => openHadeCount()); await w(600);
+  await page.evaluate(() => HADE_COUNT.opt('view', 'vs')); await w(500);
+  check('  対戦に すると 紅組・白組（1つなら 相手を 足す）・陣地 2つ・− 2つ・下の ボタン', await page.evaluate(() => { const s = HADE_COUNT.state(), t = document.getElementById('hcCtl').textContent; return [s.list.map(c => c.name + c.col).join(','), HADE_COUNT.tiles().length, document.querySelectorAll('.hc-tmin').length, t.includes('けっか') && t.includes('もう一度') && !t.includes('0 に')].join('/'); }), '紅組red,白組white/2/2/true');
+  check('  はじめは まだ・VS・名前の 知らせ（絵文字は そのままの 色）', await page.evaluate(() => { const v = HADE_COUNT.vs(), e = document.querySelector('#hcBan .emo'); return [v.ph, v.label, HADE_COUNT.banner(), !!e && getComputedStyle(e).webkitTextFillColor !== 'rgba(0, 0, 0, 0)'].join('/'); }), 'idle/VS/⚔ 紅組 VS 白組/true');
+  const r = await page.evaluate(() => { const b = document.getElementById('hcCv').getBoundingClientRect(); return [b.left, b.top, b.width, b.height]; });
+  for (let i = 0; i < 2; i++) { await page.mouse.click(r[0] + r[2] / 2, r[1] + r[3] * 0.2); await w(90); }
+  await w(700);
+  check('  上を 押すと 紅組・先制・勝っている ほうが 広い', await page.evaluate(() => { const v = HADE_COUNT.vs(); return [HADE_COUNT.state().list.slice(0, 2).map(c => c.n).join(','), v.ph, v.lead, HADE_COUNT.banner(), v.r > 0.53].join('/'); }), '2,0/run/0/先制！ 紅組/true');
+  await page.evaluate(() => { for (let i = 0; i < 3; i++) HADE_COUNT.tap(1); }); await w(200);
+  check('  同点を はさんで 逆転（白組）', await page.evaluate(() => [HADE_COUNT.state().list.slice(0, 2).map(c => c.n).join(','), HADE_COUNT.vs().lead, HADE_COUNT.banner(), HADE_COUNT.fx().played.includes('whoosh')].join('/')), '2,3/1/逆転！ 白組/true');
+  await page.setViewportSize({ width: 900, height: 600 }); await w(900);
+  check('  横持ちは 左右・勝っている 白組が 広い', await page.evaluate(() => { const t = HADE_COUNT.tiles().map(x => x.split(':')[1].split('x').map(Number)); return [t[0][1] === t[1][1], t[1][0] > t[0][0]].join('/'); }), 'true/true');
+  await page.setViewportSize({ width: 412, height: 900 }); await w(300);
+  // ⏱ 時間で 決める
+  await page.evaluate(() => { HADE_COUNT.opt('vsEnd', 't30'); HADE_COUNT.again(); }); await w(200);
+  check('  ⏱ 30秒：もう一度で 0 から・押すと スタート の 札', await page.evaluate(() => [HADE_COUNT.state().list.slice(0, 2).map(c => c.n).join(','), HADE_COUNT.vs().ph, HADE_COUNT.vs().label].join('/')), '0,0/idle/⏱ 0:30　押すと スタート');
+  await page.evaluate(() => HADE_COUNT.tap(0)); await w(150);
+  await page.evaluate(() => HADE_COUNT.tap(1)); await w(150);
+  check('  押すと 3・2・1（押した 1回も フライングも 数えない）', await page.evaluate(() => [HADE_COUNT.state().list.slice(0, 2).map(c => c.n).join(','), HADE_COUNT.vs().ph, HADE_COUNT.banner(), HADE_COUNT.fx().played.includes('beep')].join('/')), '0,0/cd/3/true');
+  await page.evaluate(() => HADE_COUNT.vsShift(3100)); await w(400);
+  await page.evaluate(() => { HADE_COUNT.tap(0); HADE_COUNT.tap(0); for (let i = 0; i < 5; i++) HADE_COUNT.tap(1); }); await w(100);
+  check('  スタート → 数える・のこり 時間', await page.evaluate(() => { const v = HADE_COUNT.vs(); return [v.ph, HADE_COUNT.state().list.slice(0, 2).map(c => c.n).join(','), v.left > 25000 && v.left <= 30000].join('/'); }), 'run/2,5/true');
+  await page.evaluate(() => HADE_COUNT.vsShift(21000)); await w(400);
+  check('  のこり 10秒から カチ', await page.evaluate(() => [HADE_COUNT.vs().label <= '0:09', HADE_COUNT.fx().played.includes('tick')].join('/')), 'true/true');
+  await page.evaluate(() => HADE_COUNT.vsShift(10000)); await w(400);
+  check('  時間に なると そこまで！（笛）', await page.evaluate(() => [HADE_COUNT.vs().ph, HADE_COUNT.vs().win, HADE_COUNT.banner(), HADE_COUNT.fx().played.includes('whistle')].join('/')), 'end/1/そこまで！/true');
+  await w(1500);
+  check('  けっか：白組の 勝ち・ファンファーレ・勝った 回数・下の ボタンは もう一度', await page.evaluate(() => { const s = HADE_COUNT.state(); return [HADE_COUNT.banner(), HADE_COUNT.fx().played.includes('fanfare'), s.vs.wins[s.list[1].id], document.getElementById('hcFbar').textContent.includes('もう一度')].join('/'); }), '🏆 白組 の 勝ち！/true/1/true');
+  await page.evaluate(() => HADE_COUNT.tap(0)); await w(100);
+  const b1 = await page.evaluate(() => HADE_COUNT.banner());
+  await page.evaluate(() => { HADE_COUNT.vsShift(4500); HADE_COUNT.tap(0); }); await w(100);
+  check('  けっかの あとは 数えない（少し たって 押すと もう一度の 案内）', [await ns(), b1, await page.evaluate(() => HADE_COUNT.banner())].join('/'), '2,5/🏆 白組 の 勝ち！/🔁 もう一度 で 次の 勝負');
+  await page.evaluate(() => HADE_COUNT.again()); await w(100);
+  const a0 = await ns();
+  await page.evaluate(() => { HADE_COUNT.undo(); HADE_COUNT.undo(); }); await w(100);
+  check('  🔁 もう一度 は 2つとも 0・↶ もどす で もどせる', [a0, await ns()].join('/'), '0,0/2,5');
+  // 🏁 先に 10
+  await page.evaluate(() => { HADE_COUNT.opt('vsEnd', 'g10'); HADE_COUNT.again(); HADE_COUNT.plus(0, 6); HADE_COUNT.plus(1, 9); }); await w(100);
+  check('  🏁 先に 10：札・まだ', await page.evaluate(() => [HADE_COUNT.vs().ph, HADE_COUNT.vs().label].join('/')), 'run/🏁 先に 10');
+  await page.evaluate(() => HADE_COUNT.plus(1, 1)); await w(200);
+  check('  とどいた ほうの 勝ち（すぐ けっか）', await page.evaluate(() => { const s = HADE_COUNT.state(); return [HADE_COUNT.vs().ph, HADE_COUNT.vs().win, HADE_COUNT.banner(), s.vs.wins[s.list[1].id]].join('/'); }), 'end/1/🏆 白組 の 勝ち！/2');
+  // 🙌 自由
+  await page.evaluate(() => { HADE_COUNT.opt('vsEnd', 'free'); HADE_COUNT.again(); HADE_COUNT.vsEnd(); }); await w(100);
+  const f0 = await page.evaluate(() => HADE_COUNT.vs().ph);
+  await page.evaluate(() => { HADE_COUNT.tap(0); HADE_COUNT.tap(1); HADE_COUNT.vsEnd(); }); await w(200);
+  check('  🙌 自由：勝負の 前は けっか なし・🏁 けっか で 引き分け', await page.evaluate(f0 => { const s = HADE_COUNT.state(); return [f0, HADE_COUNT.vs().ph, HADE_COUNT.vs().win, HADE_COUNT.banner(), s.vs.wins[s.list[0].id] || 0, s.vs.wins[s.list[1].id]].join('/'); }, f0), 'idle/end/-1/🤝 引き分け！/0/2');
+  check('  設定：⚔ 対戦（終わり方・向かい合わせ・勝った 回数）', await page.evaluate(() => { const x = document.querySelector('.hc-vs'); return !!x && [x.querySelectorAll('.hc-opt')[0].querySelectorAll('button').length, x.querySelector('.hc-vsw').textContent.replace(/\s+/g, '')].join('/'); }), '7/勝った回数紅組0白組20に');
+  await page.evaluate(() => HADE_COUNT.wins0()); await w(100);
+  check('  勝った 回数を 0 に', await page.evaluate(() => JSON.stringify(HADE_COUNT.state().vs.wins)), '{}');
+  // キーボード（1・A と 2・L）
+  await page.evaluate(() => { HADE_COUNT.again(); ['1', 'a', '2', 'l', 'L'].forEach(k => window.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }))); }); await w(100);
+  check('  キーボード：1・A で 紅組、2・L で 白組', await ns(), '2,3');
+  // 向かい合わせ・ぽよん・全画面
+  await page.evaluate(() => { HADE_COUNT.opt('vsFace', true); HADE_COUNT.opt('look', 'poyo'); HADE_COUNT.full(true); }); await w(900);
+  check('  🔄 向かい合わせ（縦は 上下・上は さかさま）・ぽよん・全画面 でも 描ける', await page.evaluate(() => { HADE_COUNT.draw(); const t = HADE_COUNT.tiles(); return [HADE_COUNT.state().vs.face, t.length, HADE_COUNT.isFull(), HADE_COUNT.poyo(0) && HADE_COUNT.poyo(0).str, HADE_COUNT.poyo(1) && HADE_COUNT.poyo(1).str].join('/'); }), 'true/2/true/2/3');
+  await page.evaluate(() => { HADE_COUNT.full(false); HADE_COUNT.opt('look', 'glow'); }); await w(200);
+  await page.evaluate(() => closeHadeCount()); await w(300);
+  await page.evaluate(() => openHadeCount()); await w(500);
+  check('  開きなおしても 対戦・終わり方・向かい合わせ を 覚える', await page.evaluate(() => { const s = HADE_COUNT.state(); return [s.view, s.vs.end, s.vs.face, HADE_COUNT.vs().ph, HADE_COUNT.tiles().length].join('/'); }), 'vs/free/true/idle/2');
+  await page.evaluate(() => HADE_COUNT.opt('view', 'one')); await w(200);
+  check('  1つを 大きく に もどすと いつもの ボタン', await page.evaluate(() => { const t = document.getElementById('hcCtl').textContent; return [HADE_COUNT.tiles().length, t.includes('へらす') && t.includes('0 に'), !document.querySelector('.hc-vs')].join('/'); }), '1/true/true');
+  await page.evaluate(() => { closeHadeCount(); localStorage.removeItem('excalc_hadecount'); }); await w(200);
+  await page.evaluate(() => { openHadeCount(); }); await w(400);
+  await page.evaluate(() => { HADE_COUNT.set('name', '男性'); HADE_COUNT.opt('view', 'vs'); }); await w(200);
+  check('  名前を かえて いたら 相手は「あいて」', await page.evaluate(() => HADE_COUNT.state().list.map(c => c.name).join(',')), '男性,あいて');
+  await page.evaluate(() => closeHadeCount()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
 async function runClockLay591(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🕐 ど派手タイマーの 時計：ぽよん 以外の 見せ方も 同じ 並べ方（v591） ──');
@@ -17875,6 +17952,7 @@ async function runQrShare(browser) {
     if (!only || only === 'hade' || only === 'poyo' || only === 'v589') await runPoyo589(browser);
     if (!only || only === 'hade' || only === 'clock' || only === 'v591') await runClockLay591(browser);
     if (!only || only === 'hade' || only === 'voice593' || only === 'v593') await runTimerVoice593(browser);
+    if (!only || only === 'hade' || only === 'vs594' || only === 'v594') await runCountVs594(browser);
     if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
     if (!only || only === 'okaeshi' || only === 'v564') await runOkaeshi564(browser);
     if (!only || only === 'tax' || only === 'v565') await runTax565(browser);

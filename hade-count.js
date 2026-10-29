@@ -15,6 +15,9 @@
    ・🫧 数字の 見せ方（v589）：✨ 光る 数字（いままで）・🫧 ぽよん（📢 電光掲示板の ぽよん と 同じ。hade-poyo.js）。
      押して 数が かわると 前の 数字が つぶれて しぶきが はね、新しい 数字が 落ちてきて ぷるんと はずむ（着地で 床に 輪・ド派手は ゆれて あわが はじける）。
      早く 押すと 動きを 短く して 数が 読める ように する。節目・目標では みんなで ぴょん。地は パステルの 空と あわ。
+   ・⚔ 対戦（v594）：上の 2つの カウンターで 勝負（はじめは 🔴 紅組・⚪ 白組）。横持ちは 左右・縦持ちは 上下に 分けて、勝っている ほうの 陣地が 広がり 👑。
+     逆転・同点で 知らせ、終わり方は 🙌 自由（🏁 けっか で 決める）・⏱ 30秒／1分／3分（押すと 3・2・1 で スタート、のこり 10秒で 赤く）・🏁 先に 10／30／100。
+     勝つと 花火と ファンファーレ、勝った 回数を 名前の 横に 🏆。🔄 向かい合わせ（縦の とき 上の 組を さかさまに。机に 置いて 2人で）。キーボードは 1・A と 2・L。
    ・1時間ごとの数を 記録（2週間 残す）。「📋 数を コピー」で 文字にして 貼れる。
    ・数・名前・目標・記録・えらんだものは excalc_hadecount（この端末の中だけ）。 */
 (function(){
@@ -26,7 +29,9 @@ const EMOS=['⭐','💖','🎉','🔥','🌸','💰','🍀','⚡','👍','🐟',
 const STEPS=[1,2,5,10];
 const MAX_R=1000, RNG=[[1,6,'🎲 1〜6'],[1,10,'1〜10'],[1,100,'1〜100'],[10,50,'10〜50']];   // 🎲 ランダムの はんい（v582）と 見本
 const TAPK=FX.TAPS.map(x=>x[0]), FXK=FX.TAP_FX.map(x=>x[0]);   // 押した 音・押した ところの 演出（v583。'rand' は おまかせ）
-const VIEWS=[['one','1つを 大きく'],['grid','並べて']];
+const VIEWS=[['one','1つを 大きく'],['grid','並べて'],['vs','⚔ 対戦']];
+const VS_END=[['free','🙌 自由'],['t30','⏱ 30秒'],['t60','⏱ 1分'],['t180','⏱ 3分'],['g10','🏁 先に 10'],['g30','🏁 先に 30'],['g100','🏁 先に 100']];   // ⚔ 対戦の 終わり方（v594）
+const vsSec=k=>/^t\d+$/.test(k) ? +k.slice(1) : 0, vsGoal=k=>/^g\d+$/.test(k) ? +k.slice(1) : 0;
 const P=window.HADE_POYO||null, NLOOKS=[['glow','✨ 光る 数字'],['poyo','🫧 ぽよん']];   // 数字の 見せ方（v589）
 const PRAISE=['ナイス！','いいね！','すごい！','最高！','神！','天才！'];   // ドド派手の コンボで 出る ことば
 const NUMF='"Hiragino Sans","Noto Sans JP","Noto Sans CJK JP","Segoe UI",Roboto,sans-serif';
@@ -66,8 +71,11 @@ function load(){
   o=(o && typeof o==='object') ? o : {};
   const list=(Array.isArray(o.list) ? o.list : []).map(cleanC).filter(Boolean).slice(0, MAX_C);
   if(!list.length) list.push(newC('カウンター', 0));
+  const vo=o.vs && typeof o.vs==='object' ? o.vs : {}, wins={};   // ⚔ 対戦（v594）：終わり方・向かい合わせ・勝った 回数（カウンターごと）
+  if(vo.wins && typeof vo.wins==='object') list.forEach(c=>{ const v=int(vo.wins[c.id], 0, 9999, 0); if(v) wins[c.id]=v; });
   st={list, cur:int(o.cur,0,list.length-1,0), theme:FX.hasTheme(o.theme) ? o.theme : 'neon', level:FX.hasLevel(o.level) ? o.level : (reduceMotion() ? 'calm' : 'ultra'),
-    snd:o.snd!==false, vibe:o.vibe!==false, flash:o.flash!==false, view:VIEWS.some(v=>v[0]===o.view) ? o.view : 'one', look:o.look==='poyo' && P ? 'poyo' : 'glow'};
+    snd:o.snd!==false, vibe:o.vibe!==false, flash:o.flash!==false, view:VIEWS.some(v=>v[0]===o.view) ? o.view : 'one', look:o.look==='poyo' && P ? 'poyo' : 'glow',
+    vs:{end:VS_END.some(x=>x[0]===vo.end) ? vo.end : 'free', face:vo.face===true, wins}};
 }
 function prune(){
   const lim=dayKey(new Date(Date.now()-KEEP_DAYS*86400000));
@@ -80,6 +88,13 @@ const snd=(name, ...a)=>{ const f=FX.snd[name]; if(f && st && st.snd) f(...a); }
 // 押した 音（カウンターごと。🔀 おまかせは 毎回 ちがう 音）
 function tapSnd(c, i){ const k=c.tap==='rand' ? pickOf(TAPK) : c.tap; lastSnd=k; if(st && st.snd) FX.tapSnd(k, i); }
 const curC=()=>st.list[st.cur]||st.list[0];
+// ⚔ 対戦（v594）：上の 2つの カウンターで。ph は idle（まだ）・cd（3・2・1）・run（勝負中）・end（けっか）
+let vs={ph:'idle', t0:0, cd:0, cdN:0, lead:-1, top:-1, win:-1, r:0.5, lastS:0, resAt:0, hintAt:0, flipAt:0, endAt:0}, vsOff=0;
+const vNow=()=>Date.now()+vsOff;   // たしかめ用に 時間を 進められる
+const vsOn=()=>!!(st && st.view==='vs' && st.list.length>=2);
+const vsLead=()=>{ const a=st.list[0].n, b=st.list[1].n; return a>b ? 0 : b>a ? 1 : -1; };
+const vsLeft=()=>Math.max(0, vsSec(st.vs.end)*1000-(vNow()-vs.t0));
+const fmtT=ms=>{ const s=Math.max(0, Math.ceil(ms/1000)); return Math.floor(s/60)+':'+pad2(s%60); };
 
 /* ───────── 描く ───────── */
 let eng=null, raf=0, lastTs=0, frozen=false, tiles=[], banT=0, fullRel=null, barT=0, fsOn=false, barSp=60;   // 下の ボタン・ブラウザの 全画面（v588）
@@ -91,16 +106,22 @@ function barSpace(){ const want=barHidden() ? 8 : 60; barSp+=(want-barSp)*0.2; i
 function layout(){
   const e=eng, W=e.W, H=e.H, d=e.d;
   const bs=isFull() ? barSpace() : 0;
+  if(vsOn()){   // ⚔ 対戦：勝っている ほうの 陣地が 広がる（横持ちは 左右・縦持ちは 上下。向かい合わせは 上を さかさまに）
+    const h=H-bs*d, r=vs.r;
+    if(W>H*1.1){ const xm=Math.round(W*r); tiles=[{i:0, x:0, y:0, w:xm, h}, {i:1, x:xm, y:0, w:W-xm, h}]; }
+    else { const ym=Math.round(h*r); tiles=[{i:0, x:0, y:0, w:W, h:ym, rot:st.vs.face}, {i:1, x:0, y:ym, w:W, h:h-ym}]; }
+    return;
+  }
   if(st.view!=='grid' || st.list.length<2){ tiles=[{i:st.cur, x:0, y:0, w:W, h:H-bs*d}]; return; }
   const n=st.list.length, cols=W>H*1.1 ? Math.min(n, 4) : (n<=3 ? 1 : 2), rows=Math.ceil(n/cols), gap=8*d, top=10*d, bot=(isFull() ? bs+16 : 10)*d;   // 全画面は 下の ボタンの 分 あける
   const tw=(W-gap*(cols+1))/cols, th=(H-top-bot-gap*(rows-1))/rows;
   tiles=st.list.map((c,i)=>({i, x:gap+(i%cols)*(tw+gap), y:top+Math.floor(i/cols)*(th+gap), w:tw, h:th}));
 }
-function drawNum(c, T, big){
-  const e=eng, g=e.g, d=e.d, col=colOf(c.col), s=fmtN(c.n), t=e.t;
+function drawNum(c, T, big, o){
+  const e=eng, g=e.g, d=e.d, col=colOf(c.col), s=fmtN(c.n), t=e.t, gl=o && o.goal!=null ? o.goal : c.goal;
   const cx=T.x+T.w/2, cy=T.y+T.h*(big ? 0.47 : 0.52);
   if(isPoyo()){   // 🫧 ぽよん（v589）：つぶれて 落ちて ぷるん
-    const top=T.y+T.h*(big ? 0.14 : 0.18), bot=T.y+T.h*(c.goal>0 ? 0.77 : 0.9);
+    const top=T.y+T.h*(big ? 0.14 : 0.18), bot=T.y+T.h*(gl>0 ? 0.77 : 0.9);
     P.draw(g, e, {x:T.x+T.w*0.03, y:top, w:T.w*0.94, h:Math.max(10, bot-top)}, s, {t, col, snd, bgL:poyoBg, intro:true}, PL(c));
   } else {
   const fs=Math.max(14*d, Math.min(T.w*0.86/(Array.from(s).length*0.6+0.2), T.h*(big ? 0.4 : 0.42)));
@@ -115,19 +136,20 @@ function drawNum(c, T, big){
   g.fillStyle=fill; g.fillText(s, 0, fs*0.03); g.restore();
   }
   // 名前
-  const ns=Math.round(Math.min(T.w*0.07, (big ? 26 : 20)*d));
+  const ns=Math.round(Math.min(T.w*0.07, (big ? 26 : 20)*d)), ny=T.y+(big ? 14 : 8)*d+(o && o.ndy || 0);
   g.save(); g.font='bold '+ns+'px '+NUMF; g.textAlign='center'; g.textBaseline='top'; g.fillStyle='rgba(255,255,255,.95)'; g.lineWidth=ns*0.18; g.strokeStyle='rgba(0,0,0,.55)'; g.lineJoin='round';
-  const name=c.emo+' '+c.name; g.strokeText(name, cx, T.y+(big ? 14 : 8)*d); g.fillText(name, cx, T.y+(big ? 14 : 8)*d);
-  if(c.rnd && (big || T.h>260*d)){ const rs=Math.round(ns*0.78), rt='ランダム '+fmtN(c.ra)+'〜'+fmtN(c.rb), ry=T.y+(big ? 14 : 8)*d+ns*1.25; g.font='bold '+rs+'px '+NUMF; g.lineWidth=rs*0.18; g.fillStyle='rgba(255,243,150,.95)'; g.strokeText(rt, cx, ry); g.fillText(rt, cx, ry); }   // 🎲 ランダムの はんい
+  const name=c.emo+' '+c.name+(o && o.wins ? '　🏆'+o.wins : ''), nw=g.measureText(name).width; g.strokeText(name, cx, ny); g.fillText(name, cx, ny);
+  if(c.rnd && (big || T.h>260*d)){ const rs=Math.round(ns*0.78), rt='ランダム '+fmtN(c.ra)+'〜'+fmtN(c.rb), ry=ny+ns*1.25; g.font='bold '+rs+'px '+NUMF; g.lineWidth=rs*0.18; g.fillStyle='rgba(255,243,150,.95)'; g.strokeText(rt, cx, ry); g.fillText(rt, cx, ry); }   // 🎲 ランダムの はんい
+  if(o && o.crown){ const cs=Math.round(ns*1.5); g.font=cs+'px '+NUMF; g.textBaseline='middle'; g.fillText('👑', Math.max(T.x+cs*0.6, cx-nw/2-cs*0.62), ny+ns*0.5+Math.sin(t*5)*ns*0.12); }   // ⚔ 勝っている ほう
   g.restore();
   // 目標の メーター
-  if(c.goal>0){
-    const mw=T.w*0.78, mh=Math.max(8*d, Math.min(18*d, T.h*0.05)), mx=cx-mw/2, my=T.y+T.h*(big ? 0.8 : 0.82), f=Math.min(1, c.n/c.goal);
+  if(gl>0){
+    const mw=T.w*0.78, mh=Math.max(8*d, Math.min(18*d, T.h*0.05)), mx=cx-mw/2, my=T.y+T.h*(big ? 0.8 : 0.82), f=Math.min(1, c.n/gl);
     g.save(); g.fillStyle='rgba(255,255,255,.14)'; rr(g, mx, my, mw, mh, mh/2); g.fill();
     if(f>0){ const gr=g.createLinearGradient(mx, 0, mx+mw, 0); gr.addColorStop(0, '#ffffff'); gr.addColorStop(1, col); g.fillStyle=gr; if(e.level!=='calm'){ g.shadowColor=col; g.shadowBlur=mh*1.2; } rr(g, mx, my, Math.max(mh, mw*f), mh, mh/2); g.fill(); }
     g.shadowBlur=0; const ts=Math.round(Math.max(12*d, mh*1.15));
     g.font='bold '+ts+'px '+NUMF; g.textAlign='center'; g.textBaseline='top'; g.fillStyle='rgba(255,255,255,.92)';
-    g.fillText(c.n>=c.goal ? '🎉 目標 '+fmtN(c.goal)+' たっせい！' : '目標 '+fmtN(c.goal)+' まで あと '+fmtN(c.goal-c.n), cx, my+mh+6*d);
+    g.fillText(o && o.goal ? (c.n>=gl ? '🏁 '+fmtN(gl)+' とうちゃく！' : '先に '+fmtN(gl)+' ・ あと '+fmtN(gl-c.n)) : c.n>=c.goal ? '🎉 目標 '+fmtN(c.goal)+' たっせい！' : '目標 '+fmtN(c.goal)+' まで あと '+fmtN(c.goal-c.n), cx, my+mh+6*d);
     g.restore();
     if(f>0 && f<1 && Math.random()<0.3 && e.level!=='calm') e.spark(mx+mw*f, my+mh/2, rnd(-40,40)*d, rnd(-80,-20)*d, '#ffffff', {life:0.5, gr:60, sz:1.6});
   }
@@ -137,17 +159,22 @@ function paint(){
   const e=eng, g=e.g, d=e.d;
   e.lightBg=isPoyo(); if(e.lightBg) P.bg(g, e.W, e.H, e.t, {boost:e.boost()}, poyoBg); else e.drawBg();   // 🫧 ぽよん は パステルの 空と あわ（v589。光は 色の まま 重ねる）
   layout();
+  const V=vsOn(); if(V) paintVsBg(g);
   const [ox,oy]=e.offset(); g.save(); g.translate(ox, oy);
   const big=tiles.length===1;
   tiles.forEach(T=>{
     const c=st.list[T.i]; if(!c) return;
-    if(!big){ g.save(); g.fillStyle=isPoyo() ? 'rgba(255,255,255,.4)' : 'rgba(0,0,0,.32)'; rr(g, T.x, T.y, T.w, T.h, 14*d); g.fill(); g.lineWidth=(T.i===st.cur ? 3 : 1.5)*d; g.strokeStyle=colOf(c.col); g.globalAlpha=T.i===st.cur ? 0.95 : 0.55; g.stroke(); g.restore(); }
-    if(!big && isPoyo()){ g.save(); rr(g, T.x, T.y, T.w, T.h, 14*d); g.clip(); drawNum(c, T, big); g.restore(); }   // 🫧 ぽよん：落ちてくる 数字は 枠の 中だけ
-    else drawNum(c, T, big);
+    const o=V ? vsOpt(T) : null;
+    if(T.rot){ const x=T.x+T.w/2, y=T.y+T.h/2; g.save(); g.translate(x, y); g.rotate(Math.PI); g.translate(-x, -y); }   // 🔄 向かい合わせ
+    if(!big && !V){ g.save(); g.fillStyle=isPoyo() ? 'rgba(255,255,255,.4)' : 'rgba(0,0,0,.32)'; rr(g, T.x, T.y, T.w, T.h, 14*d); g.fill(); g.lineWidth=(T.i===st.cur ? 3 : 1.5)*d; g.strokeStyle=colOf(c.col); g.globalAlpha=T.i===st.cur ? 0.95 : 0.55; g.stroke(); g.restore(); }
+    if(!big && isPoyo()){ g.save(); rr(g, T.x, T.y, T.w, T.h, 14*d); g.clip(); drawNum(c, T, big, o); g.restore(); }   // 🫧 ぽよん：落ちてくる 数字は 枠の 中だけ
+    else drawNum(c, T, big, o);
+    if(T.rot) g.restore();
   });
+  if(V) paintVsMid(g);
   // コンボ
   const since=e.t-(lastTap ? e._tapT||0 : 0);
-  if(combo>=5 && since<0.9){
+  if(combo>=5 && since<0.9 && !V){
     const a=Math.min(1, (0.9-since)*2.5), s=Math.round(Math.min(64, 26+combo*0.6)*d), hue=(e.t*240)%360;
     g.save(); g.globalAlpha=a; g.font='900 '+s+'px '+NUMF; g.textAlign='center'; g.textBaseline='middle';
     g.lineJoin='round'; g.lineWidth=s*0.16; g.strokeStyle='rgba(0,0,0,.6)'; const y=e.H*(big ? 0.1 : 0.04)+s*0.9;
@@ -156,6 +183,39 @@ function paint(){
   g.restore();
   g.save(); g.translate(ox, oy); e.drawFx(); g.restore();
   paintMinus();
+}
+// ⚔ 対戦（v594）：陣地の 色・まん中の 線と 札（VS・のこり 時間・先に ○）
+function vsOpt(T){
+  const land=tiles[0].y===tiles[1].y;
+  return {goal:vsGoal(st.vs.end), crown:vs.ph==='end' ? vs.win===T.i : vsLead()===T.i, wins:st.vs.wins[st.list[T.i].id]||0, ndy:!land && (T.i===1 || T.rot) ? 26*eng.d : 0};
+}
+function paintVsBg(g){
+  const e=eng, lt=isPoyo(), L=vsLead();
+  tiles.forEach(T=>{
+    const c=st.list[T.i], win=vs.ph==='end' && vs.win===T.i, lose=vs.ph==='end' && vs.win>=0 && !win;
+    g.save(); g.globalAlpha=win ? 0.36+0.12*Math.sin(e.t*6) : L===T.i ? (lt ? 0.36 : 0.3) : (lt ? 0.24 : 0.18); g.fillStyle=colOf(c.col); g.fillRect(T.x, T.y, T.w, T.h);
+    if(lose){ g.globalAlpha=0.42; g.fillStyle=lt ? '#ffffff' : '#000000'; g.fillRect(T.x, T.y, T.w, T.h); }
+    g.restore();
+  });
+}
+function vsLabel(){
+  const k=st.vs.end, sec=vsSec(k), gl=vsGoal(k);
+  if(vs.ph==='end') return vs.win<0 ? '🤝 引き分け' : '🏆 けっか';
+  if(sec) return vs.ph==='run' ? fmtT(vsLeft()) : '⏱ '+fmtT(sec*1000)+(vs.ph==='idle' ? '　押すと スタート' : '');
+  return gl ? '🏁 先に '+gl : 'VS';
+}
+function paintVsMid(g){
+  const e=eng, d=e.d, A=tiles[0], B=tiles[1], land=A.y===B.y;
+  g.save(); g.lineCap='round'; g.strokeStyle='#ffffff'; g.lineWidth=4*d; g.globalAlpha=0.9;
+  if(e.level!=='calm'){ const L=vsLead(); g.shadowColor=L>=0 ? colOf(st.list[L].col) : '#ffffff'; g.shadowBlur=18*d; }
+  g.beginPath(); if(land){ g.moveTo(B.x, 0); g.lineTo(B.x, B.h); } else { g.moveTo(0, B.y); g.lineTo(e.W, B.y); } g.stroke(); g.restore();
+  const txt=vsLabel(), fs=Math.round(18*d), hot=vs.ph==='run' && vsSec(st.vs.end) && vsLeft()<=10000;
+  g.save(); g.font='900 '+fs+'px '+NUMF; const pw=g.measureText(txt).width+fs*1.4, ph=fs*1.9;
+  const x=land ? B.x : 10*d+pw/2, y=land ? 12*d+ph/2 : B.y, k=hot ? 1+0.08*Math.sin(e.t*12) : vs.ph==='cd' ? 1.1 : 1;
+  g.translate(x, y); g.scale(k, k);
+  g.fillStyle=hot ? 'rgba(214,28,40,.94)' : 'rgba(12,10,34,.86)'; rr(g, -pw/2, -ph/2, pw, ph, ph/2); g.fill();
+  g.lineWidth=2*d; g.strokeStyle='rgba(255,255,255,.85)'; g.stroke();
+  g.fillStyle='#ffffff'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(txt, 0, fs*0.05); g.restore();
 }
 // 並べて 数えるとき：タイルの 右下に「−」
 function paintMinus(){
@@ -179,7 +239,7 @@ function frame(ts){
   const dt=Math.min(0.05, Math.max(0, (ts-lastTs)/1000)); lastTs=ts;
   if(frozen) return;
   eng.resize(); eng.warp=Math.max(0.12, eng.warp-dt*0.6); eng.heat=Math.max(0.3, eng.heat-dt*0.3); eng.amb=0.35;
-  eng.step(dt); paint();
+  eng.step(dt); vsStep(dt); paint();
 }
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') loop(); });
 // バナーの 字の大きさ：1行に 入る 大きさに（全角は 1、半角は 0.62 字ぶん）
@@ -187,9 +247,12 @@ function fitBan(b, text, kind){
   const W=(b.parentElement ? b.parentElement.clientWidth : window.innerWidth)*0.92, u=Array.from(text).reduce((a,ch)=>a+(/[ -~]/.test(ch) ? 0.62 : 1), 0)||1;
   const max=kind==='big' ? 150 : kind==='s' ? 64 : 90; b.style.fontSize=Math.max(18, Math.min(max, W/u))+'px';
 }
+const EMO_RE=/(\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*)/u;
 function banner(text, kind){
   const b=$('hcBan'); if(!b) return;
-  b.className='hc-ban '+(kind||''); b.textContent=text; fitBan(b, text, kind); void b.offsetWidth; b.classList.add('go');
+  b.className='hc-ban '+(kind||''); b.textContent='';
+  String(text).split(EMO_RE).forEach((p,j)=>{ if(!p) return; if(j%2){ const sp=document.createElement('span'); sp.className='emo'; sp.textContent=p; b.appendChild(sp); } else b.appendChild(document.createTextNode(p)); });   // 絵文字は 虹色の 字に まぜない（v594）
+  fitBan(b, text, kind); void b.offsetWidth; b.classList.add('go');
   clearTimeout(banT); banT=setTimeout(()=>{ const x=$('hcBan'); if(x) x.classList.remove('go'); }, kind==='big' ? 3800 : 1700);
 }
 
@@ -199,11 +262,14 @@ function addHist(c, k){ const key=hourKey(new Date()); c.hist[key]=(c.hist[key]|
 function plus(i, k, x, y){
   const c=st.list[i]; if(!c) return;
   FX.unlock();
+  const V=vsOn() && i<2;
+  if(V && !vsTap()) return;   // ⚔ 対戦：3・2・1 の あいだ・けっかの あとは 数えない
   const rolled=k==null && c.rnd;   // 🎲 ランダム（数を 決めて 呼ばれた ときは そのまま）
   k=int(k,1,1000,rolled ? roll(c) : c.step); const before=c.n; c.n=Math.min(MAX_N, c.n+k); const dk=c.n-before; if(!dk) return;
   undo.push({id:c.id, n:before}); if(undo.length>MAX_UNDO) undo.shift();
   addHist(c, dk); saveSoon(); paintHoursSoon(); lastRoll=rolled ? k : 0;
   const now=Date.now(); combo=(now-lastTap<650 && lastIdx===i) ? combo+1 : 1; lastTap=now; lastIdx=i;
+  if(V) vsAfter(i);
   if(!eng) return;
   const e=eng, d=e.d, col=colOf(c.col); e._tapT=e.t; c._pop=e.t;
   if(x==null){ [x,y]=tileCenter(i); y+=rnd(-30,30)*d; x+=rnd(-60,60)*d; }
@@ -220,13 +286,14 @@ function plus(i, k, x, y){
   if(bo>=2){ e.kick(0.16); e.glow(x, y, 120, col, 0.35); if(combo>=5 && combo%5===0) e.text(x, y-70*d, PRAISE[(combo/5-1)%PRAISE.length], {sz:44, pop:true, rot:rnd(-0.2,0.2), vy:-40, life:1, grad:['#ffffff','#fff36b','#ff2bd6']}); }   // ドド派手：押すたびに ゆれる・ほめ言葉
   // 節目
   const m=[1000,500,100,50,10].find(m=>Math.floor(before/m)<Math.floor(c.n/m));
-  if(m) milestone(c, m, i);
-  if(c.goal>0 && before<c.goal && c.n>=c.goal) goal(c);
-  if([10,25,50,100,200,300].includes(combo)){ banner('×'+combo+' COMBO!', combo>=50 ? 'big' : ''); for(let j=0;j<Math.min(6, Math.ceil(combo/15)+1);j++) e.shell(null); snd('level'); vib([40,30,40]); }
+  if(m) milestone(c, m, i, V);
+  if(!V && c.goal>0 && before<c.goal && c.n>=c.goal) goal(c);
+  if(!V && [10,25,50,100,200,300].includes(combo)){ banner('×'+combo+' COMBO!', combo>=50 ? 'big' : ''); for(let j=0;j<Math.min(6, Math.ceil(combo/15)+1);j++) e.shell(null); snd('level'); vib([40,30,40]); }
 }
-function milestone(c, m, i){
+function milestone(c, m, i, V){
   const e=eng, [x,y]=tileCenter(i), col=colOf(c.col);
   if(isPoyo()) P.hop(PL(c), e.t+0.45, m>=100 ? 2 : 1.4);   // 🫧 ぽよん：落ちて きた あと みんなで ぴょん（v589）
+  if(V){ e.shell(x); if(m>=50){ e.shell(x+rnd(-100,100)*e.d, {sc:1.1}); snd('coin'); } return; }   // ⚔ 対戦中は 字を 出さない（逆転・けっかの 字を じゃましない）
   if(m===10){ e.shell(x); e.shell(x+rnd(-120,120)*e.d); snd('coin'); return; }
   if(m===50){ banner(fmtN(c.n)+'！'); for(let j=0;j<4;j++) e.shell(null); e.confetti(70); snd('level'); vib([60,40,60]); e.kick(0.5); return; }
   banner(fmtN(c.n)+(m>=500 ? '！ すごい！' : ' 達成！'), m>=100 ? 'big' : '');
@@ -241,6 +308,106 @@ function goal(c){
   e.burst(e.W/2, e.H/2, {n:140, sp:760});
   snd('fanfare'); setTimeout(()=>snd('crackle'), 1200); vib([300,120,300,120,600]);
 }
+/* ───────── ⚔ 対戦（v594） ───────── */
+function vsReset(){ const L=st && st.list.length>=2 ? vsLead() : -1; Object.assign(vs, {ph:'idle', t0:0, cd:0, cdN:0, win:-1, lastS:0, resAt:0, hintAt:0, flipAt:0, tieAt:0, endAt:0, lead:L, top:L}); }
+// 対戦に したとき：カウンターが 1つなら 相手を 足す（はじめての ままなら 紅組・白組）
+function vsPrep(){
+  const A=st.list[0];
+  if(A.name==='カウンター'){ A.name='紅組'; if(A.col==='gold') A.col='red'; if(A.emo==='⭐') A.emo='🔴'; }
+  if(st.list.length<2){ const kh=A.name==='紅組', B=newC(kh ? '白組' : 'あいて', 1); B.col=A.col==='red' ? 'white' : A.col==='cyan' ? 'pink' : 'cyan'; if(kh) B.emo='⚪'; st.list.push(B); }
+  vsReset(); vs.r=0.5;
+  banner('⚔ '+st.list[0].name+' VS '+st.list[1].name, 's');
+}
+// 押したとき：false なら 数えない
+function vsTap(){
+  const now=vNow();
+  if(vs.ph==='cd') return false;   // 3・2・1 の あいだ（フライング）
+  if(vs.ph==='end'){ if(now>=vs.hintAt){ vs.hintAt=now+2000; banner('🔁 もう一度 で 次の 勝負', 's'); } barShow(); return false; }
+  if(vs.ph==='idle'){
+    if(vsSec(st.vs.end)){ vsCount(); return false; }   // ⏱ 時間で 決める ときは 3・2・1 から（押した 1回は 数えない）
+    vs.ph='run'; vs.t0=now; paintCtl();
+  }
+  return true;
+}
+// へらす・もどす：知らせずに 先頭だけ 覚えなおす
+function vsQuiet(){ const L=vsLead(); vs.lead=L; if(L>=0) vs.top=L; }
+function vsCount(){ vs.ph='cd'; vs.cd=vNow(); vs.cdN=3; banner('3', 'big'); snd('beep', 660, 0.15); vib(40); paintCtl(); loop(); }
+// 数が かわった あと：先制・逆転（同点を はさんでも）・同点・先に ○
+function vsAfter(i){
+  const now=vNow(), L=vsLead(), was=vs.lead; vs.lead=L;
+  const gl=vsGoal(st.vs.end);
+  if(gl && st.list[i].n>=gl){ vsEnd('goal'); return; }
+  if(L===was) return;
+  if(L<0){ if(now>=vs.tieAt){ vs.tieAt=now+2500; banner('同点！', 's'); snd('pop'); } return; }
+  const prev=vs.top; vs.top=L;
+  if(prev===L || now<vs.flipAt) return;
+  const c=st.list[L];
+  if(prev<0){ banner('先制！ '+c.name, 's'); snd('coin'); return; }
+  vs.flipAt=now+1200; banner('逆転！ '+c.name); snd('whoosh'); vib([30,30,60]); vs.tieAt=now+1500;
+  if(eng){ const T=tiles.find(x=>x.i===L); if(T){ eng.ring(T.x+T.w/2, T.y+T.h/2, colOf(c.col), 2.2); eng.shell(T.x+T.w/2, {sc:0.9}); } eng.kick(0.3); }
+}
+function vsStep(dt){
+  if(!vsOn()) return;
+  const now=vNow(), a=st.list[0].n, b=st.list[1].n, df=(a-b)/(a+b+6), tr=0.5+0.2*Math.sign(df)*Math.sqrt(Math.abs(df));
+  vs.r+=(tr-vs.r)*Math.min(1, dt*5);   // 陣地は なめらかに 動く
+  if(vs.ph==='cd'){
+    const n=3-Math.floor((now-vs.cd)/1000);
+    if(n===vs.cdN) return;
+    vs.cdN=n;
+    if(n>0){ banner(String(n), 'big'); snd('beep', 660, 0.15); vib(40); return; }
+    vs.ph='run'; vs.t0=vs.cd+3000; vs.lastS=0; banner('スタート！'); snd('beep', 1320, 0.45); vib([60,40,60]);
+    if(eng){ eng.burst(eng.W/2, eng.H/2, {n:80, sp:600}); eng.kick(0.4); }
+    paintCtl();
+  } else if(vs.ph==='run' && vsSec(st.vs.end)){
+    const left=vsLeft(), s=Math.ceil(left/1000);
+    if(left<=0){ vsEnd('time'); return; }
+    if(s!==vs.lastS){ vs.lastS=s; if(s<=5) snd('beep', 990, 0.08); else if(s<=10) snd('tick'); }   // のこり 10秒から カチ・5秒から ピッ
+  } else if(vs.ph==='end' && vs.resAt && now>=vs.resAt){ vs.resAt=0; vsResult(); }
+}
+function vsEnd(why){
+  if(!vsOn() || vs.ph==='end') return;
+  const w=vsLead(), now=vNow();
+  vs.ph='end'; vs.win=w; vs.lead=w; vs.endAt=now; vs.hintAt=now+4000;
+  if(w>=0){ const id=st.list[w].id; st.vs.wins[id]=(st.vs.wins[id]||0)+1; }
+  save();
+  if(why==='time'){ vs.resAt=now+1200; banner('そこまで！', 'big'); snd('whistle'); vib([120,60,120]); if(eng) eng.kick(0.5); }
+  else vsResult();
+  paintTabs(); paintSide(); paintCtl(); barShow();
+}
+function vsResult(){
+  const w=vs.win, e=eng;
+  if(w<0){ banner('🤝 引き分け！', 'big'); snd('chime'); vib([80,60,80]); if(e){ e.confetti(90); e.shell(null); } return; }
+  const c=st.list[w], T=tiles.find(x=>x.i===w);
+  banner('🏆 '+c.name+' の 勝ち！', 'big');
+  if(e){ e.finale({shells:12, conf:200, emo:[c.emo,'🏆','🎉','✨'], flash:colOf(c.col)}); if(T) for(let j=0;j<4;j++) e.shell(T.x+T.w*rnd(0.15,0.85), {sc:1.1}); if(isPoyo()) P.hop(PL(c), e.t+0.3, 2); }
+  snd('fanfare'); setTimeout(()=>snd('crackle'), 1200); vib([200,80,200,80,400]);
+}
+// 🏁 けっか（自由の ときは これで 決める）
+function vsFinish(){
+  if(!vsOn()) return;
+  if(vs.ph==='end'){ toastC('もう けっかが 出ています（🔁 もう一度 で 次の 勝負）'); return; }
+  if(vs.ph==='cd' || (vs.ph==='idle' && !st.list[0].n && !st.list[1].n)){ toastC('まだ 勝負して いません'); return; }
+  vsEnd('hand');
+}
+// 🔁 もう一度：2つとも 0 から（↶ もどす で 1つずつ もどせる）
+function vsAgain(){
+  if(!vsOn()) return;
+  [st.list[0], st.list[1]].forEach(c=>{ if(c.n){ undo.push({id:c.id, n:c.n}); if(undo.length>MAX_UNDO) undo.shift(); addHist(c, -c.n); c.n=0; } });
+  save(); combo=0; vsReset();
+  banner(vsSec(st.vs.end) ? '押すと 3・2・1 で スタート' : 'よーい、スタート！', 's'); snd('whoosh');
+  if(eng){ eng.implode(eng.W/2, eng.H/2, {n:40, r:200}); loop(); }
+  paintTabs(); paintSide(); paintCtl();
+}
+function vsWins0(){ st.vs.wins={}; save(); paintSide(); }
+function vsSideHtml(){
+  const A=st.list[0], B=st.list[1], w=c=>st.vs.wins[c.id]||0;
+  const vopt=(k, list, lab, cur)=>`<div class="hc-opt"><span>${lab}</span>${list.map(([v,n])=>`<button type="button" class="${cur===v?'on':''}" onclick='HADE_COUNT.opt("${k}", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>`;
+  return `<div class="hc-sec hc-vs"><h4>⚔ 対戦<small>${esc(A.emo)} ${esc(A.name)} VS ${esc(B.emo)} ${esc(B.name)}</small></h4>
+      ${vopt('vsEnd', VS_END, '終わり方', st.vs.end)}${vopt('vsFace', [[false,'ふつう'],[true,'🔄 向かい合わせ']], '縦の とき', st.vs.face)}
+      <div class="hc-vsw"><span>勝った 回数</span><b>${esc(A.name)} ${w(A)}</b><b>${esc(B.name)} ${w(B)}</b><button type="button" class="hc-b" onclick="HADE_COUNT.wins0()">0 に</button></div>
+      <div class="hc-acts"><button type="button" class="hc-b pri" onclick="HADE_COUNT.again()">🔁 もう一度（0 から）</button><button type="button" class="hc-b" onclick="HADE_COUNT.vsEnd()">🏁 ここで けっか</button></div>
+      <p class="hc-note">上の 2つの カウンター（${esc(A.name)}・${esc(B.name)}）で 勝負します。名前・色・絵文字は 下の ⚙ で かえられます（タブを 押して えらぶ）。勝っている ほうの 陣地が 広がって 👑、逆転・同点で 知らせます。<b>⏱ 時間</b>は 画面を 押すと 3・2・1 で スタート（のこり 10秒で 赤く）、<b>🏁 先に ○</b>は とどいた ほうの 勝ち、<b>🙌 自由</b>は 🏁 けっか を 押した ときの 数で 決めます。<b>🔄 向かい合わせ</b>は 縦に 持ったとき 上の 組を さかさまに（机に 置いて 2人で 押す）。キーボードは 1・A で 上（左）、2・L で 下（右）。</p></div>`;
+}
 function minus(i, k){
   const c=st.list[i==null ? st.cur : i]; if(!c) return;
   FX.unlock();
@@ -248,14 +415,14 @@ function minus(i, k){
   k=int(k,1,1000,rolled ? roll(c) : c.step); const before=c.n; c.n=Math.max(0, c.n-k); const dk=before-c.n;
   if(!dk){ toastC('0 より 少なくは できません'); return; }
   undo.push({id:c.id, n:before}); if(undo.length>MAX_UNDO) undo.shift();
-  addHist(c, -dk); saveSoon(); paintHoursSoon(); combo=0;
+  addHist(c, -dk); saveSoon(); paintHoursSoon(); combo=0; if(vsOn()) vsQuiet();
   if(eng){ const e=eng, idx=st.list.indexOf(c), [x,y]=tileCenter(idx); c._dn=e.t; e.implode(x, y, {n:26, r:150, pal:[colOf(c.col),'#ffffff']}); e.text(x, y+40*e.d, '−'+fmtN(dk), {sz:28, col:'#ffb3b3', vy:60}); }
   snd('down'); vib(25);
 }
 function undoLast(){
   const u=undo.pop(); if(!u){ toastC('もどせる ものが ありません'); return; }
   const c=st.list.find(x=>x.id===u.id); if(!c){ undoLast(); return; }
-  const dk=u.n-c.n; c.n=u.n; addHist(c, dk); saveSoon(); combo=0;
+  const dk=u.n-c.n; c.n=u.n; addHist(c, dk); saveSoon(); combo=0; if(vsOn()) vsQuiet();
   if(eng){ const idx=st.list.indexOf(c), [x,y]=tileCenter(idx); c._dn=eng.t; eng.implode(x, y, {n:16, r:110}); }
   snd('down'); toastC('↶ 「'+c.name+'」を '+fmtN(c.n)+' に もどしました');
   paintSide();
@@ -274,7 +441,7 @@ function stageTap(ev){
   const r=$('hcCv').getBoundingClientRect(), d=eng.d, x=(ev.clientX-r.left)*d, y=(ev.clientY-r.top)*d;
   layout();
   const T=tiles.find(T=>x>=T.x && x<=T.x+T.w && y>=T.y && y<=T.y+T.h)||tiles[0]; if(!T) return;
-  if(tiles.length>1 && st.cur!==T.i){ st.cur=T.i; paintTabs(); paintSide(); }
+  if(tiles.length>1 && !vsOn() && st.cur!==T.i){ st.cur=T.i; paintTabs(); paintSide(); }
   plus(T.i, null, x, y);
   paintTabs();
 }
@@ -284,8 +451,9 @@ function onKey(e){
   if(typing || e.ctrlKey || e.metaKey || e.altKey) return;
   if(document.querySelector('body > div[style*="z-index:99999"]')) return;   // はい／いいえ の 窓が 出ているとき
   const k=e.key;
-  if([' ','Enter','ArrowUp','ArrowRight','PageDown','+','='].includes(k)){ e.preventDefault(); e.stopPropagation(); plus(st.cur); paintTabs(); }
-  else if(['ArrowDown','ArrowLeft','PageUp','-','Backspace'].includes(k)){ e.preventDefault(); e.stopPropagation(); minus(st.cur); paintTabs(); }
+  if(vsOn() && ['1','a','A','2','l','L'].includes(k)){ e.preventDefault(); e.stopPropagation(); plus('1aA'.includes(k) ? 0 : 1); paintTabs(); return; }   // ⚔ 対戦：2人で 1つの キーボード
+  if([' ','Enter','ArrowUp','ArrowRight','PageDown','+','='].includes(k)){ e.preventDefault(); e.stopPropagation(); plus(vsOn() && st.cur>1 ? 0 : st.cur); paintTabs(); }
+  else if(['ArrowDown','ArrowLeft','PageUp','-','Backspace'].includes(k)){ e.preventDefault(); e.stopPropagation(); minus(vsOn() && st.cur>1 ? 0 : st.cur); paintTabs(); }
   else if(k==='Escape' && isFull()){ e.preventDefault(); e.stopPropagation(); setFull(false); }
 }
 
@@ -336,7 +504,7 @@ function paintHoursSoon(){ if(hoursT) return; hoursT=setTimeout(()=>{ hoursT=0; 
 function paintSide(){
   const b=$('hcSide'); if(!b) return;
   const c=curC(), opt=(k, list, lab)=>`<div class="hc-opt"><span>${lab}</span>${list.map(([v,n])=>`<button type="button" class="${st[k]===v?'on':''}" onclick='HADE_COUNT.opt("${k}", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>`;
-  b.innerHTML=`<div class="hc-sec"><h4>⚙ このカウンター<small>${esc(c.emo)} ${esc(c.name)}</small></h4>
+  b.innerHTML=(vsOn() ? vsSideHtml() : '')+`<div class="hc-sec"><h4>⚙ このカウンター<small>${esc(c.emo)} ${esc(c.name)}</small></h4>
       <div class="hc-opt"><span>1回に 足す数</span>${STEPS.map(v=>`<button type="button" class="${!c.rnd && c.step===v?'on':''}" onclick="HADE_COUNT.set('step', ${v})">＋${v}</button>`).join('')}<button type="button" class="${c.rnd?'on':''}" onclick="HADE_COUNT.set('step', 'rnd')">🎲 ランダム</button></div>
       ${c.rnd ? `<div class="hc-rng"><div class="hc-f"><span>ランダムの はんい</span><input id="hcRa" type="number" inputmode="numeric" min="1" max="${MAX_R}" value="${c.ra}" aria-label="いちばん 小さい 数" onchange="HADE_COUNT.set('ra', this.value)"><b>〜</b><input id="hcRb" type="number" inputmode="numeric" min="1" max="${MAX_R}" value="${c.rb}" aria-label="いちばん 大きい 数" onchange="HADE_COUNT.set('rb', this.value)"><em>の どれか</em></div>
         <div class="hc-opt"><span>見本</span>${RNG.map(([a,b,t])=>`<button type="button" class="${c.ra===a && c.rb===b?'on':''}" onclick="HADE_COUNT.set('rng', '${a}-${b}')">${t}</button>`).join('')}</div>
@@ -354,20 +522,31 @@ function paintSide(){
       <div class="hc-opt"><span>テーマ</span>${FX.THEMES.map(([v,n])=>`<button type="button" class="th th-${v}${st.theme===v?' on':''}" onclick='HADE_COUNT.opt("theme", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>
       <div class="hc-opt"><span>演出の 強さ</span>${FX.LEVELS.map(([v,n])=>`<button type="button" class="lv-${v}${st.level===v?' on':''}" onclick='HADE_COUNT.opt("level", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>${P ? opt('look', NLOOKS, '数字の 見せ方') : ''}${opt('view', VIEWS, '並べ方')}
       ${opt('snd', [[true,'🔊 鳴らす'],[false,'🔇 鳴らさない']], '音')}${opt('vibe', [[true,'ふるえる'],[false,'ふるえない']], '振動')}${opt('flash', [[true,'光る'],[false,'光らない']], '画面の 点滅')}
-      <p class="hc-note">画面を 押すたびに ＋。つづけて 早く押すと コンボです。Bluetooth の リモコンや キーボードでも 数えられます（スペース・Enter・↑・→ で ＋、↓・← で −）。「並べて」は カウンターが 2つ以上のとき（押したタイルが ふえます。右下の − で へらす）。<b>ド派手</b>は 押すたびに 大きな輪と 5ごとに 花火、<b>ドド派手</b>は 画面が ゆれて 数字が 七色・コンボで ほめ言葉（とても 激しいので ご注意ください）。${P ? '<b>🫧 ぽよん</b>は 📢 電光掲示板の ぽよん と 同じ 数字：前の 数字が つぶれて しぶきが はね、新しい 数字が 落ちてきて ぷるんと はずみます（着地で 床に 輪、ド派手は ゆれて あわが はじけ「ぽよん！」）。' : ''}</p></div>`;
+      <p class="hc-note">画面を 押すたびに ＋。つづけて 早く押すと コンボです。Bluetooth の リモコンや キーボードでも 数えられます（スペース・Enter・↑・→ で ＋、↓・← で −）。「並べて」は カウンターが 2つ以上のとき（押したタイルが ふえます。右下の − で へらす）。「⚔ 対戦」は 上の 2つで 勝負（1つなら 相手を 足します）。<b>ド派手</b>は 押すたびに 大きな輪と 5ごとに 花火、<b>ドド派手</b>は 画面が ゆれて 数字が 七色・コンボで ほめ言葉（とても 激しいので ご注意ください）。${P ? '<b>🫧 ぽよん</b>は 📢 電光掲示板の ぽよん と 同じ 数字：前の 数字が つぶれて しぶきが はね、新しい 数字が 落ちてきて ぷるんと はずみます（着地で 床に 輪、ド派手は ゆれて あわが はじけ「ぽよん！」）。' : ''}</p></div>`;
 }
 function render(){
   const b=$('hcBody'); if(!b) return;
   b.innerHTML=`<div class="hc-wrap"><div class="hc-tabs" id="hcTabs"></div>
     <div id="hcHome"><div class="hc-stage" id="hcStage"><canvas id="hcCv" aria-label="押すと 数が ふえます"></canvas><div id="hcMinus"></div><div class="hc-ban" id="hcBan" aria-live="polite"></div>
-      <div class="hc-fbar" onpointerdown="HADE_COUNT.bar()"><button type="button" onclick="HADE_COUNT.minus()">− へらす</button><button type="button" onclick="HADE_COUNT.undo()">↶ もどす</button><button type="button" onclick="HADE_COUNT.full(false)">← 戻る</button></div>
+      <div class="hc-fbar" id="hcFbar" onpointerdown="HADE_COUNT.bar()"></div>
       <button type="button" class="hc-more" onclick="HADE_COUNT.bar()" aria-label="ボタンを 出す">☰</button></div></div>
-    <div class="hc-ctl"><button type="button" class="hc-b" onclick="HADE_COUNT.minus()">− へらす</button><button type="button" class="hc-b" onclick="HADE_COUNT.undo()">↶ もどす</button><button type="button" class="hc-b" onclick="HADE_COUNT.reset()">0 に</button><button type="button" class="hc-b pri" onclick="HADE_COUNT.full(true)">⛶ 全画面</button></div>
+    <div class="hc-ctl" id="hcCtl"></div>
     <div id="hcSide"></div></div>`;
   eng=new FX.Engine($('hcCv')); eng.setTheme(st.theme); eng.setLevel(st.level); eng.noFlash=!st.flash; eng.warp=0.12; eng.heat=0.3;
   eng.onCrackle=()=>snd('crackle'); eng.onBoom=()=>{ if(Math.random()<0.5) snd('boom'); };
   $('hcCv').addEventListener('pointerdown', stageTap);
-  paintTabs(); paintSide(); loop();
+  paintTabs(); paintSide(); paintCtl(); loop();
+}
+// 下の ボタン（⚔ 対戦は − の かわりに 🏁 けっか・🔁 もう一度。v594）
+function paintCtl(){
+  const c=$('hcCtl'), f=$('hcFbar'); if(!c || !f) return;
+  const V=vsOn(), fin=V && vs.ph==='end', k=V ? (fin ? 'e' : 'v') : 'n';
+  if(c.dataset.k===k) return;
+  c.dataset.k=k; c.classList.toggle('vs', V);
+  c.innerHTML=V ? `<button type="button" class="hc-b" onclick="HADE_COUNT.undo()">↶ もどす</button><button type="button" class="hc-b" onclick="HADE_COUNT.vsEnd()">🏁 けっか</button><button type="button" class="hc-b" onclick="HADE_COUNT.again()">🔁 もう一度</button><button type="button" class="hc-b pri" onclick="HADE_COUNT.full(true)">⛶ 全画面</button>`
+    : `<button type="button" class="hc-b" onclick="HADE_COUNT.minus()">− へらす</button><button type="button" class="hc-b" onclick="HADE_COUNT.undo()">↶ もどす</button><button type="button" class="hc-b" onclick="HADE_COUNT.reset()">0 に</button><button type="button" class="hc-b pri" onclick="HADE_COUNT.full(true)">⛶ 全画面</button>`;
+  f.innerHTML=V ? `<button type="button" onclick="HADE_COUNT.undo()">↶ もどす</button>${fin ? '<button type="button" onclick="HADE_COUNT.again()">🔁 もう一度</button>' : '<button type="button" onclick="HADE_COUNT.vsEnd()">🏁 けっか</button>'}<button type="button" onclick="HADE_COUNT.full(false)">← 戻る</button>`
+    : `<button type="button" onclick="HADE_COUNT.minus()">− へらす</button><button type="button" onclick="HADE_COUNT.undo()">↶ もどす</button><button type="button" onclick="HADE_COUNT.full(false)">← 戻る</button>`;
 }
 function sel(i){ if(!st.list[i]) return; st.cur=i; combo=0; save(); paintTabs(); paintSide(); }
 async function addC(name){
@@ -380,7 +559,7 @@ async function addC(name){
 async function delC(i){
   const c=st.list[i]; if(!c || st.list.length<2) return;
   if(typeof appConfirm==='function' && !(await appConfirm('「'+c.name+'」（'+fmtN(c.n)+'）を 消しますか？', '消す', 'やめる'))) return;
-  st.list.splice(i,1); st.cur=Math.min(st.cur, st.list.length-1); undo=undo.filter(u=>u.id!==c.id); save(); paintTabs(); paintSide();
+  st.list.splice(i,1); st.cur=Math.min(st.cur, st.list.length-1); undo=undo.filter(u=>u.id!==c.id); delete st.vs.wins[c.id]; if(i<2) vsReset(); save(); paintTabs(); paintSide(); paintCtl();
 }
 function setC(k, v){
   const c=curC();
@@ -406,7 +585,9 @@ function setC(k, v){
 function setOpt(k, v){
   if(k==='theme'){ if(!FX.hasTheme(v)) return; st.theme=v; }
   else if(k==='level'){ if(!FX.hasLevel(v)) return; st.level=v; }
-  else if(k==='view'){ if(!VIEWS.some(x=>x[0]===v)) return; st.view=v; }
+  else if(k==='view'){ if(!VIEWS.some(x=>x[0]===v)) return; st.view=v; if(v==='vs') vsPrep(); }
+  else if(k==='vsEnd'){ if(!VS_END.some(x=>x[0]===v)) return; st.vs.end=v; vsReset(); }   // ⚔ 対戦の 終わり方（かえると まだ の 状態に）
+  else if(k==='vsFace'){ st.vs.face=v===true || v==='true'; }
   else if(k==='look'){ if(!NLOOKS.some(x=>x[0]===v) || (v==='poyo' && !P)) return; st.look=v; poyoL.clear(); }   // 数字の 見せ方（v589。えらぶと 数字が 落ちてくる）
   else if(k==='snd' || k==='vibe' || k==='flash'){ st[k]=v===true || v==='true'; }
   else return;
@@ -415,6 +596,7 @@ function setOpt(k, v){
   if(k==='snd' && st.snd){ FX.unlock(); snd('coin'); }
   if(k==='vibe' && st.vibe) vib(50);
   paintSide();
+  if(k==='view' || k==='vsEnd'){ paintTabs(); paintCtl(); }
 }
 function copyText(){
   const now=new Date(), today=dayKey(now);
@@ -481,6 +663,11 @@ const HC_CSS=`
 .hc-hours .bar{ flex:1; height:14px; border-radius:7px; background:rgba(120,132,156,.15); overflow:hidden; } .hc-hours .bar i{ display:block; height:100%; border-radius:7px; }
 .hc-hours b{ min-width:3em; text-align:right; font-variant-numeric:tabular-nums; }
 .hc-note{ font-size:12.5px; color:var(--text-light,#666); line-height:1.6; margin:6px 0 0; }
+.hc-ban .emo{ -webkit-text-fill-color:initial; }   /* 絵文字は そのままの 色（v594） */
+.hc-vs{ border-color:rgba(255,64,64,.45); background:linear-gradient(90deg, rgba(255,64,64,.07), rgba(120,132,156,.05) 50%, rgba(56,232,255,.07)); }
+.hc-vsw{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:6px 0; } .hc-vsw span{ min-width:5.4em; font-size:12.5px; font-weight:bold; color:var(--text-light,#666); }
+.hc-ctl.vs .hc-b{ padding:0 4px; font-size:14px; white-space:nowrap; }
+.hc-vsw b{ font-size:15px; padding:5px 10px; border-radius:10px; background:rgba(255,200,0,.16); font-variant-numeric:tabular-nums; } .hc-vsw .hc-b{ min-height:36px; }
 `;
 function ensureDom(){
   if($('hadeCountOverlay')) return;
@@ -496,9 +683,9 @@ function ensureDom(){
   window.addEventListener('keydown', onKey, true);
   if(typeof applyNpToolFull==='function') applyNpToolFull();
 }
-function cleanup(){ setFull(false); save(); unwake(); const s=$('hcStage'); if(s) s.remove(); eng=null; undo=[]; combo=0; }
+function cleanup(){ setFull(false); save(); unwake(); const s=$('hcStage'); if(s) s.remove(); eng=null; undo=[]; combo=0; vsReset(); }
 function openHadeCount(){
-  ensureDom(); load(); undo=[]; combo=0;
+  ensureDom(); load(); undo=[]; combo=0; vsReset(); vs.r=0.5;
   openDlg('hadeCountOverlay', cleanup);
   render();
 }
@@ -509,6 +696,8 @@ window.HADE_COUNT={ tap:(i,x,y)=>{ plus(i==null ? st.cur : i, null, x, y); paint
   bar:()=>barShow(), barHidden, fs:()=>fsOn, poyo:i=>{ const c=st.list[i==null ? st.cur : i]; return P && c && poyoL.has(c.id) ? P.info(poyoL.get(c.id)) : null; },
   state:()=>{ save(); return JSON.parse(JSON.stringify(st)); }, combo:()=>combo, fx:()=>({n:eng ? eng.count() : 0, played:FX.played(), cap:eng ? eng.cap : 0, level:eng ? eng.level : '', shake:eng ? +eng.shake.toFixed(2) : 0, light:eng ? !!eng.lightBg : false}), tiles:()=>tiles.map(T=>T.i+':'+Math.round(T.w)+'x'+Math.round(T.h)),
   banner:()=>{ const b=$('hcBan'); return b ? b.textContent : ''; }, freeze:b=>{ frozen=!!b; }, draw:()=>{ if(eng){ eng.resize(); paint(); } }, lastRoll:()=>lastRoll, lastSnd:()=>lastSnd, lastFx:()=>lastFx,
-  parts:()=>eng ? eng.ps.filter(p=>p.k==='e' || p.k==='t').map(p=>p.ch||p.s) : [] };   // 画面に 出ている 絵文字と 字（たしかめ用）
+  parts:()=>eng ? eng.ps.filter(p=>p.k==='e' || p.k==='t').map(p=>p.ch||p.s) : [],
+  vs:()=>({on:vsOn(), ph:vs.ph, end:st.vs.end, face:st.vs.face, lead:vsOn() ? vsLead() : -1, win:vs.win, left:vsOn() && vsSec(st.vs.end) ? vsLeft() : null, r:+vs.r.toFixed(3), label:vsOn() ? vsLabel() : '', wins:Object.assign({}, st.vs.wins)}),
+  again:vsAgain, vsEnd:vsFinish, wins0:vsWins0, vsShift:ms=>{ vsOff+=ms; loop(); } };   // ⚔ 対戦（v594）   // 画面に 出ている 絵文字と 字（たしかめ用）
 Object.assign(window, { openHadeCount, closeHadeCount });
 })();
