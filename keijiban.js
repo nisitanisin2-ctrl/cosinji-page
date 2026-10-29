@@ -16,6 +16,10 @@
    ・「▶ 全画面で 出す」：画面いっぱいに出す。縦に持っているときは 90° 回して 横長に出す（「回さない」も）。
      「縦書きで 縦に流す」（v574）：縦に持ったまま 文字を 縦に並べて 下から上へ 流す（ー・〜・かっこ は 横に倒し、、。は 右上に）。
      画面を消さない（対応している端末）・Android は 全画面＋横向きに。画面を押すと「⏸ 止める」「✕ 終わる」。端末の「戻る」でも 終わる。
+   ・🔁 順番に 流す（v597）：いくつかの 文（20まで。⭐ の 🔁 や「＋ いまの 文」で 足す）を 1回ずつ／2回ずつ／3回ずつ 順に 流して くり返す。
+     全画面の「⏭ 次へ」で とばせる。
+   ・🏆 得点（v597）：スコアボード。2チームの 名前・色・得点（0〜999）と まん中の 字（1回表・前半 など）を 電光の 点で。数字の形は 7セグ・ドット・まるい。
+     全画面で 左（縦なら 上）を 押すと 左の チームに ＋1・右（下）で 右に ＋1（光って ピンポン）。下の ボタンで −1・0 に。←→ キーでも。左右の 入れかえ。
    ・文・見た目・時計・予約・絵の一覧は excalc_keijiban（この端末の中だけ）。写真の絵は IndexedDB（excalc_keijiban の pics）。
    LED風は 文字を 小さな絵にして（canvas）、明るい点を 丸い光で描く。点は 1列ずつ 動く（本物の掲示板と同じ）。
    時計の数字は 点の並び（7セグ・5×7 の点の字・ふつうの字）で作り、かわるときは 点を 1つずつ 動かす。 */
@@ -59,7 +63,10 @@ const BGS=[['black','黒','#050505'],['navy','紺','linear-gradient(#0b1640,#050
 const BG_MOVE=new Set(['night','stripe','sakura','snow','confetti','rainbow']);   // 動く背景
 const fontOf=()=>(FACES.find(x=>x[0]===st.font)||FACES[0])[2];
 const fr=n=>{ const x=Math.sin(n*127.1+311.7)*43758.5453; return x-Math.floor(x); };   // いつも同じ でたらめ（0〜1）
-const TABS=[['text','📝 文字'],['pic','🖼 絵'],['clock','🕐 時計'],['sched','⏰ 予約']];
+const TABS=[['text','📝 文字'],['pic','🖼 絵'],['clock','🕐 時計'],['sched','⏰ 予約'],['score','🏆 得点']];   // 🏆 得点 は v597
+// 🔁 順番に 流す・🏆 得点（v597）
+const MAX_SEQ=20, SEQ_PASS=[[1,'1回ずつ'],[2,'2回ずつ'],[3,'3回ずつ']], MAX_SCORE=999, SB_ROWS=52;   // 得点は 短い ほうを 52点（漢字の 名前が 読める 細かさ）
+const SB_FACE=[['seg','7セグ'],['dot','ドット'],['round','まるい']];
 const TAU=Math.PI*2;
 // 🕐 時計（v570）
 const CK_FMT=[['hm','時:分'],['hms','時:分:秒'],['ampm','午前・午後']];
@@ -106,6 +113,7 @@ const TP_M=[0,5,10,15,20,25,30,35,40,45,50,55];
 
 /* ───────── 状態 ───────── */
 let st=null, tab='text', raf=0, t0=0, paused=false, pauseAt=0, fullRel=null, wl=null, barT=0, prevKey='', ckPrevKey='', frozen=false;
+let seqI=0, sbFlash={a:-1e9, b:-1e9}, sbL=null;   // 🔁 いま 流している 文の 番号・🏆 得点が 入って 光る 時刻・並べ方（v597）
 const newId=()=>'s'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 // 曜日の並び → 'all'（毎日）・'wk'（平日）・'we'（土日）に まとめる
 function normDays(a){ const k=a.join(','); return !a.length || k==='0,1,2,3,4,5,6' ? 'all' : k==='1,2,3,4,5' ? 'wk' : k==='0,6' ? 'we' : a; }
@@ -150,6 +158,11 @@ function load(){
     pics, picv:{look:one(PIC_LOOK,pv.look,'photo'), fit:one(PIC_FIT,pv.fit,'contain'), move:one(PIC_MOVE,pv.move,'none')},
     picCur:pseen.has(o.picCur) ? o.picCur : pics.length ? pics[0].id : '',
     font:one(FACES,o.font,'gothic'), deco:one(DECOS,o.deco,'glow'), bg:one(BGS,o.bg,'black')};
+  const sq=(o.seq && typeof o.seq==='object') ? o.seq : {}, sb=(o.sb && typeof o.sb==='object') ? o.sb : {};
+  const team=(x, nm, col)=>{ x=(x && typeof x==='object') ? x : {}; return {name:clean(x.name, 12).trim()||nm, col:COLS.some(c=>c[0]===x.col) && x.col!=='rainbow' ? x.col : col, n:Math.max(0, Math.min(MAX_SCORE, Math.round(+x.n)||0))}; };
+  st.seq={list:Array.isArray(sq.list) ? sq.list.map(x=>clean(x, MAX_TXT).trim()).filter(Boolean).slice(0,MAX_SEQ) : [], pass:SEQ_PASS.some(x=>x[0]===sq.pass) ? sq.pass : 1};
+  st.sb={a:team(sb.a, 'ホーム', 'red'), b:team(sb.b, 'ビジター', 'cyan'), label:clean(sb.label, 16).trim(), face:one(SB_FACE,sb.face,'seg'), snd:sb.snd!==false};
+  if(o.mode==='score') st.mode='score';
   const seen=new Set(); st.sched.forEach(s=>{ while(seen.has(s.id)) s.id=newId(); seen.add(s.id); });
 }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(_){} }
@@ -875,7 +888,7 @@ function paintAnn(){
   const b=$('kjAnn');
   if(b) b.innerHTML=ann ? `<div class="kj-ann" role="status">⏰ <b>${esc(ann.t)}</b>の予約「${esc(scLabel(ann))}」を ${ann.kind==='pic'?'出して':'流して'}います<button type="button" class="kj-b" onclick="KEIJIBAN.annEnd()">✓ 終える</button></div>` : '';
   const fb=$('kjAnnB'); if(fb) fb.hidden=!ann;
-  const pb=$('kjPauseB'); if(pb) pb.hidden=!!ann;
+  const pb=$('kjPauseB'); if(pb) pb.hidden=!!ann || ($('kjFull') && st.mode==='score');   // 得点は 止めない（v597）
 }
 
 /* ───────── うごかす ───────── */
@@ -886,7 +899,7 @@ function sizeCanvas(cv){
   const w=Math.max(1, Math.round((cv.__w||r.width)*dpr)), h=Math.max(1, Math.round((cv.__h||r.height)*dpr));
   if(cv.width!==w || cv.height!==h){ cv.width=w; cv.height=h; cv.__drawn=false; }
 }
-const frameMode=()=>$('kjFull') ? st.mode : (tab==='text' || tab==='pic' ? tab : 'clock');
+const frameMode=()=>$('kjFull') ? st.mode : (tab==='text' || tab==='pic' || tab==='score' ? tab : 'clock');
 function frame(cv){
   const ms=Date.now();
   checkSched(ms);
@@ -894,6 +907,11 @@ function frame(cv){
   if(ann){ n=ann.kind==='pic' ? drawPic(cv, picById(ann.pic), now()-ann.tp, ann.text) : drawText(cv, now()-ann.tp, ann.text, 'scroll'); ckPrevKey=''; annEndCheck(ms); }
   else if(frameMode()==='clock'){ n=ckDraw(cv, ms); prevKey=''; }
   else if(frameMode()==='pic') n=drawPic(cv, picById(st.picCur), curT(), '');
+  else if(frameMode()==='score'){ n=drawScore(cv); ckPrevKey=''; }
+  else if(frameMode()==='seq'){   // 🔁 順番に：決めた 回数 流したら 次の 文へ
+    const L=st.seq.list; n=drawText(cv, curT(), L.length ? L[seqI%L.length] : '', st.move); ckPrevKey='';
+    if(!paused && L.length && textPass>=st.seq.pass){ seqI=(seqI+1)%L.length; t0=now(); textPass=0; prevKey=''; }
+  }
   else { n=drawText(cv, curT(), st.text, st.move); ckPrevKey=''; }
   return n;
 }
@@ -912,21 +930,24 @@ function restart(){ t0=now(); paused=false; prevKey=''; ckPrevKey=''; loop(); }
 
 /* ───────── 全画面 ───────── */
 async function startFull(mode){
-  mode=mode==='clock' || mode==='pic' ? mode : 'text';
+  mode=['clock','pic','seq','score'].includes(mode) ? mode : 'text';
   if(mode==='text' && !st.text.trim() && !ann){ toastK('流す文字を 入れてください'); const ta=$('kjText'); if(ta) ta.focus(); return; }
+  if(mode==='seq' && !st.seq.list.length){ toastK('順番に 流す 文を 足してください（⭐ の 🔁 か「＋ いまの 文を 足す」）'); return; }
   if(mode==='pic' && !picById(st.picCur) && !ann){ toastK(st.pics.length ? '出す絵を えらんでください' : '「📷 写真・画像を 足す」か「😀 絵文字で 作る」で 絵を 足してください'); return; }
   if($('kjFull')) return;
   if(st.mode!==mode){ st.mode=mode; save(); }
+  seqI=0; sbL=null;
   audioUnlock();   // チャイムを 鳴らせるように（ボタンを 押したときに）
-  const el=document.createElement('div'); el.id='kjFull'; el.className='kj-full'+(mode==='clock'?' ck':mode==='pic'?' pc':''); el.setAttribute('role','dialog'); el.setAttribute('aria-label','電光掲示板');
+  const el=document.createElement('div'); el.id='kjFull'; el.className='kj-full'+(mode==='clock'?' ck':mode==='pic'?' pc':mode==='score'?' sb':''); el.setAttribute('role','dialog'); el.setAttribute('aria-label','電光掲示板');
   // ボタンも 文字といっしょに回す（縦に持って 横向きに出すとき）
   el.innerHTML=`<div class="kj-stage" id="kjStage"><canvas id="kjFullCv"></canvas>
-    <div class="kj-fbar" id="kjFBar"><button type="button" id="kjPauseB" onclick="KEIJIBAN.pause()">⏸ 止める</button><button type="button" id="kjAnnB" onclick="KEIJIBAN.annEnd()" hidden>✓ 予約を 終える</button><button type="button" onclick="KEIJIBAN.stopFull()">✕ 終わる</button></div></div>`;
+    <div class="kj-fbar" id="kjFBar"><button type="button" id="kjPauseB" onclick="KEIJIBAN.pause()">⏸ 止める</button><button type="button" id="kjAnnB" onclick="KEIJIBAN.annEnd()" hidden>✓ 予約を 終える</button>${mode==='seq' ? '<button type="button" onclick="KEIJIBAN.seqNext()">⏭ 次へ</button>' : ''}${mode==='score' ? '<button type="button" onclick="KEIJIBAN.sbAdd(\'a\', -1)">−1 <small>'+esc(st.sb.a.name)+'</small></button><button type="button" onclick="KEIJIBAN.sbAdd(\'b\', -1)">−1 <small>'+esc(st.sb.b.name)+'</small></button><button type="button" onclick="KEIJIBAN.sbReset()">0 に</button>' : ''}<button type="button" onclick="KEIJIBAN.stopFull()">✕ 終わる</button></div></div>`;
   document.body.appendChild(el);
   el.addEventListener('click', e=>{
     if(e.target.closest('.kj-fbar')) return;
     if(ann && ann.dur==='tap') endAnn();
     else if(st.mode==='clock' && !ann) tapFire(e.clientX, e.clientY);
+    else if(st.mode==='score' && !ann){ const k=sbSide(e.clientX, e.clientY); if(k) sbAdd(k, 1); }   // 🏆 押した 側に ＋1
     showBar();
   });
   fullRel=typeof modalBack==='function' ? modalBack(()=>stopFull(true)) : null;
@@ -938,6 +959,95 @@ async function startFull(mode){
   await wake();
   layoutFull(); showBar(); restart();
 }
+/* ───────── 🏆 得点（スコアボード。v597）：名前・得点・まん中の 字を 電光の 点で ───────── */
+function sbGlyph(ch, h){
+  const f=st.sb.face, k='sb|'+f+'|'+ch+'|'+h; if(glyphs.has(k)) return glyphs.get(k);
+  const M=f==='dot' ? glyphDot(ch, Math.max(1,Math.round(h/7))) : f==='seg' ? glyphSeg(ch, h) : glyphRound(ch, h);
+  if(glyphs.size>400) glyphs.clear();
+  glyphs.set(k,M); return M;
+}
+function sbNum(n, h){
+  const f=st.sb.face, gs=[...String(n)].map(ch=>sbGlyph(ch, h)), gap=f==='dot' ? Math.max(1,Math.round(h/7)) : Math.max(1, Math.round(h*(f==='seg' ? 0.16 : 0.08)));
+  const w=gs.reduce((a,g)=>a+g.w, 0)+gap*(gs.length-1), M=mk(w, Math.max(...gs.map(g=>g.h)));
+  let ox=0; gs.forEach(g=>{ for(let y=0;y<g.h;y++) for(let x=0;x<g.w;x++){ const v=g.m[y*g.w+x]; if(v) M.m[y*M.w+ox+x]=v; } ox+=g.w+gap; });
+  return M;
+}
+// 幅 aw・高さ hmax に 入る いちばん 大きい もの
+function sbFit(make, hmax, aw){ let lo=5, hi=Math.max(5,hmax), best=null; while(lo<=hi){ const mid=(lo+hi)>>1, M=make(mid); if(M.w<=aw && M.h<=hmax){ best=M; lo=mid+1; } else hi=mid-1; } return best||make(5); }
+function sbLayout(C, R){
+  const s=st.sb, key=[C,R,s.a.name,s.b.name,s.a.n,s.b.n,s.label,s.face].join('|');
+  if(sbL && sbL.key===key) return sbL;
+  const land=C>=R*1.25, lab=s.label, labH=lab ? Math.max(9, Math.round(R*0.19)) : 0, H0=R-(lab ? labH+2 : 0), half=Math.floor((land ? C : H0)/2);
+  const regs=land ? [{x:0, y:0, w:half, h:H0}, {x:C-half, y:0, w:half, h:H0}] : [{x:0, y:0, w:C, h:half}, {x:0, y:H0-half, w:C, h:half}];
+  const items=[];
+  ['a','b'].forEach((k,i)=>{
+    const t=s[k], r=regs[i], col=colorOf(t.col);
+    const nm=sbFit(h=>glyphText(t.name, h), Math.max(7, Math.min(14, Math.round(r.h*0.24))), r.w-3), ny=r.y+1, sy=ny+nm.h+2, sh=r.y+r.h-1-sy;
+    const num=sbFit(h=>sbNum(t.n, h), sh, r.w-3);
+    items.push({M:nm, x:r.x+Math.floor((r.w-nm.w)/2), y:ny, col, k, kind:'name'}, {M:num, x:r.x+Math.floor((r.w-num.w)/2), y:sy+Math.floor((sh-num.h)/2), col, k, kind:'num'});
+  });
+  if(lab){ const M=sbFit(h=>glyphText(lab, h), labH, C-4); items.push({M, x:Math.floor((C-M.w)/2), y:R-1-M.h, col:'#ffffff', kind:'label'}); }
+  sbL={key, land, items, regs, C, R}; return sbL;
+}
+function drawScore(cv){
+  const W=cv.width, H=cv.height; if(!W || !H) return 0;
+  const g=cv.getContext('2d'), pitch=Math.min(W,H)/SB_ROWS, C=Math.max(8, Math.floor(W/pitch)), R=Math.max(8, Math.floor(H/pitch)), oy=(H-pitch*R)/2;
+  const L=sbLayout(C, R), ms=performance.now(), fl={a:ms-sbFlash.a<700, b:ms-sbFlash.b<700}, ph=Math.floor(ms/110)%2;
+  const key=['sb',W,H,L.key,fl.a?ph:'-',fl.b?ph:'-',st.sb.a.col,st.sb.b.col].join('|');
+  if(key===prevKey && cv.__drawn) return cv.__lit||0;
+  prevKey=key; cv.__drawn=true; g.globalAlpha=1;
+  g.drawImage(grid(W,H,pitch,C,R,''), 0, 0);
+  let n=0;
+  const put=(spr, X, Y, a)=>{ if(X<0 || X>=C || Y<0 || Y>=R) return; if(a<1) g.globalAlpha=a; g.drawImage(spr, X*pitch, oy+Y*pitch, pitch, pitch); if(a<1) g.globalAlpha=1; };
+  L.items.forEach(it=>{
+    const spr=sprite(it.kind==='num' && fl[it.k] && ph===0 ? '#ffffff' : it.col, pitch);   // 点が 入ると 数字が 白く ちかちか
+    for(let y=0;y<it.M.h;y++) for(let x=0;x<it.M.w;x++){ const v=it.M.m[y*it.M.w+x]; if(v===1){ put(spr, it.x+x, it.y+y, 1); n++; } else if(v===2) put(spr, it.x+x, it.y+y, 0.14); }
+  });
+  const dim=sprite('#9aa4b8', pitch);   // まん中の 区切り
+  if(L.land){ const xm=Math.floor(C/2); for(let y=1;y<L.regs[0].h-1;y+=2) put(dim, xm, y, 0.55); }
+  else { const ym=Math.floor((L.regs[0].h+L.regs[1].y)/2); for(let x=1;x<C-1;x+=2) put(dim, x, ym, 0.55); }
+  cv.__lit=n; return n;
+}
+// 押した 場所 → どちらの チームか（回しているときは 回しなおす）
+function sbSide(x, y){
+  const sg=$('kjStage'), cv=$('kjFullCv'); if(!sg || !cv || !cv.__w || !sbL) return '';
+  const r=sg.getBoundingClientRect(), rot=sg.classList.contains('rot'), w=cv.__w, h=cv.__h, sx=x-(r.left+r.width/2), sy=y-(r.top+r.height/2);
+  const u=rot ? w/2+sy : w/2+sx, v=rot ? h/2-sx : h/2+sy;
+  return sbL.land ? (u<w/2 ? 'a' : 'b') : (v<h/2 ? 'a' : 'b');
+}
+function sbBeep(up){
+  if(!st.sb.snd) return;
+  try{ audioUnlock(); if(!actx) return; const t=actx.currentTime+0.01;
+    (up ? [[988,0,0.16],[1319,0.12,0.32]] : [[523,0,0.22]]).forEach(([f,a,len])=>{ const o=actx.createOscillator(), gn=actx.createGain(); o.type='square'; o.frequency.value=f;
+      gn.gain.setValueAtTime(0.0001,t+a); gn.gain.exponentialRampToValueAtTime(0.12,t+a+0.01); gn.gain.exponentialRampToValueAtTime(0.0001,t+a+len);
+      o.connect(gn); gn.connect(actx.destination); o.start(t+a); o.stop(t+a+len+0.03); }); }catch(_){}
+}
+function sbAdd(k, d){
+  const t=st.sb[k]; if(!t) return;
+  const v=Math.max(0, Math.min(MAX_SCORE, t.n+d)); if(v===t.n) return;
+  t.n=v; save(); if(d>0) sbFlash[k]=performance.now(); prevKey='';
+  sbBeep(d>0); if(d>0) try{ if(navigator.vibrate) navigator.vibrate(30); }catch(_){}
+  if($('kjFull')) showBar(); else paintScore();
+}
+async function sbReset(){
+  if((st.sb.a.n || st.sb.b.n) && typeof appConfirm==='function' && !$('kjFull') && !await appConfirm('得点を 0 対 0 に もどしますか？', '0 に もどす', 'やめる')) return;
+  st.sb.a.n=0; st.sb.b.n=0; save(); prevKey=''; if($('kjFull')) showBar(); else paintScore();
+}
+function sbSwap(){ const s=st.sb; [s.a, s.b]=[s.b, s.a]; save(); prevKey=''; sbL=null; render(); }
+function sbSet(k, v){
+  const s=st.sb;
+  if(k==='an' || k==='bn'){ const t=s[k[0]], nm=clean(v, 12).trim(); if(!nm){ paintScore(); return; } t.name=nm; }
+  else if(k==='ac' || k==='bc'){ if(!COLS.some(c=>c[0]===v) || v==='rainbow') return; s[k[0]].col=v; render(); }
+  else if(k==='label') s.label=clean(v, 16).trim();
+  else if(k==='face'){ if(!SB_FACE.some(x=>x[0]===v)) return; s.face=v; render(); }
+  else if(k==='snd'){ s.snd=v===true || v==='true'; render(); if(s.snd) sbBeep(true); }
+  else return;
+  save(); prevKey=''; sbL=null; restart();
+}
+function paintScore(){
+  ['a','b'].forEach(k=>{ const e=$('kjSbN_'+k); if(e) e.textContent=st.sb[k].n; });
+  prevKey='';
+}
 // 時計を押したところに 花火（回しているときは 押した場所を 回しなおす）。つぶつぶは 粒が はじける
 function tapFire(x, y){
   const sg=$('kjStage'), cv=$('kjFullCv'); if(!sg || !cv || !cv.__w) return;
@@ -948,6 +1058,7 @@ function tapFire(x, y){
 }
 function fullKey(e){
   if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); stopFull(); }
+  else if(st.mode==='score' && ['ArrowLeft','ArrowRight','a','A','l','L'].includes(e.key)){ e.preventDefault(); e.stopPropagation(); sbAdd(/Left|a|A/.test(e.key) ? 'a' : 'b', 1); }
   else if(e.key===' '){ e.preventDefault(); e.stopPropagation(); togglePause(); }
 }
 function layoutFull(){
@@ -959,7 +1070,7 @@ function layoutFull(){
 }
 function showBar(){ const b=$('kjFBar'); if(!b) return; b.classList.add('show'); clearTimeout(barT); barT=setTimeout(()=>{ if(!paused) b.classList.remove('show'); }, 3000); }
 function togglePause(){
-  if($('kjFull') && st.mode!=='text' && !ann) return;   // 時計・絵は 止めない
+  if($('kjFull') && st.mode!=='text' && st.mode!=='seq' && !ann) return;   // 時計・絵・得点は 止めない
   if(paused){ t0=now()-pauseAt; paused=false; } else { pauseAt=now()-t0; paused=true; }
   const b=$('kjPauseB'); if(b) b.textContent=paused?'▶ 動かす':'⏸ 止める';
   showBar(); prevKey='';
@@ -990,6 +1101,24 @@ async function del(i){
   const t=st.list[i]; if(t==null) return;
   if(typeof appConfirm==='function' && !await appConfirm('「'+t+'」を 消しますか？', '消す', 'やめる')) return;
   st.list.splice(i,1); save(); paintList();
+}
+// 🔁 順番に 流す（v597）
+function seqAdd(i){
+  const t=i==null ? st.text.trim() : st.list[i]; if(!t){ toastK('流す文字を 入れてください'); return; }
+  if(st.seq.list.length>=MAX_SEQ){ toastK('順番に 流す 文は '+MAX_SEQ+'まで です'); return; }
+  st.seq.list.push(t); save(); paintSeq(); toastK('🔁 '+st.seq.list.length+'番目に 足しました');
+}
+function seqDel(i){ if(st.seq.list[i]==null) return; st.seq.list.splice(i,1); save(); paintSeq(); }
+function seqMove(i, d){ const L=st.seq.list, j=i+d; if(L[i]==null || j<0 || j>=L.length) return; [L[i],L[j]]=[L[j],L[i]]; save(); paintSeq(); }
+async function seqClear(){ if(!st.seq.list.length) return; if(typeof appConfirm==='function' && !await appConfirm('順番に 流す 文を ぜんぶ 消しますか？', '消す', 'やめる')) return; st.seq.list=[]; save(); paintSeq(); }
+function seqPass(v){ v=+v; if(!SEQ_PASS.some(x=>x[0]===v)) return; st.seq.pass=v; save(); paintSeq(); }
+function seqNext(){ const L=st.seq.list; if(!L.length) return; seqI=(seqI+1)%L.length; t0=now(); textPass=0; prevKey=''; paused=false; const b=$('kjPauseB'); if(b) b.textContent='⏸ 止める'; showBar(); }
+function paintSeq(){
+  const b=$('kjSeq'); if(!b) return;
+  const L=st.seq.list;
+  b.innerHTML=(L.length ? L.map((t,i)=>`<div class="kj-sq"><b>${i+1}</b><span class="t">${esc(t)}</span><button type="button" onclick="KEIJIBAN.seqMove(${i}, -1)" aria-label="上へ"${i?'':' disabled'}>▲</button><button type="button" onclick="KEIJIBAN.seqDel(${i})" aria-label="はずす">✕</button></div>`).join('')
+      : '<p class="kj-note">まだ ありません。⭐ の 文の 🔁 か「＋ いまの 文を 足す」で 足します。</p>')
+    +`<div class="kj-sqo"><span>1つの 文を</span>${SEQ_PASS.map(([v,n])=>`<button type="button" class="${st.seq.pass===v?'on':''}" onclick="KEIJIBAN.seqPass(${v})">${n}</button>`).join('')}</div>`;
 }
 async function resetList(){
   if(typeof appConfirm==='function' && !await appConfirm('よく使う文を はじめの '+DEF_LIST.length+'個に 戻しますか？（残した文は 消えます）', '戻す', 'やめる')) return;
@@ -1187,7 +1316,7 @@ function paintInfo(){
 }
 function paintList(){
   const b=$('kjList'); if(!b) return;
-  b.innerHTML=st.list.length ? st.list.map((t,i)=>`<div class="kj-li"><button type="button" class="t" onclick="KEIJIBAN.pick(${i})">${esc(t)}</button><button type="button" class="go" onclick="KEIJIBAN.go(${i})" aria-label="全画面で出す">▶</button><button type="button" class="del" onclick="KEIJIBAN.del(${i})" aria-label="消す">🗑</button></div>`).join('')
+  b.innerHTML=st.list.length ? st.list.map((t,i)=>`<div class="kj-li"><button type="button" class="t" onclick="KEIJIBAN.pick(${i})">${esc(t)}</button><button type="button" class="go" onclick="KEIJIBAN.go(${i})" aria-label="全画面で出す">▶</button><button type="button" class="go sq" onclick="KEIJIBAN.seqAdd(${i})" aria-label="順番に 流す 文に 足す" title="順番に 流す 文に 足す">🔁</button><button type="button" class="del" onclick="KEIJIBAN.del(${i})" aria-label="消す">🗑</button></div>`).join('')
     : '<p class="kj-note">「⭐ 残す」で 文を 残せます。</p>';
 }
 function paintSched(){
@@ -1216,6 +1345,9 @@ function textTab(){
     <div class="kj-acts"><button type="button" class="kj-b" onclick="KEIJIBAN.keep()">⭐ 残す</button><button type="button" class="kj-b" onclick="KEIJIBAN.samples()">📚 文の見本</button><button type="button" class="kj-b" onclick="KEIJIBAN.clear()">🧹 文字を消す</button></div>
     <div class="kj-sec"><h4>⭐ よく使う文<small>押すと 文字が かわる・▶ で すぐ全画面</small></h4><div id="kjList"></div>
       <div class="kj-acts sm"><button type="button" class="kj-b" onclick="KEIJIBAN.resetList()">はじめの文に 戻す</button></div></div>
+    <div class="kj-sec"><h4>🔁 順番に 流す<small>いくつかの 文を 順に・くり返し</small></h4><div id="kjSeq"></div>
+      <div class="kj-acts sm"><button type="button" class="kj-b" onclick="KEIJIBAN.seqAdd()">＋ いまの 文を 足す</button><button type="button" class="kj-b" onclick="KEIJIBAN.seqClear()">🗑 ぜんぶ はずす</button></div>
+      <button type="button" class="kj-go sq" onclick="KEIJIBAN.seqStart()">▶ 順番に 全画面で 流す</button></div>
     <div class="kj-sec"><h4>⚙ 見た目</h4>
       ${o('look', LOOKS, '見た目')}${o('color', COLS, '色')}${o('font', FACES, '書体')}${st.look==='plain' ? o('deco', DECOS, 'かざり') : ''}
       <div class="kj-opt"><span>背景</span>${BGS.map(([v,n,sw])=>`<button type="button" class="bgb${st.bg===v?' on':''}" onclick='KEIJIBAN.opt("bg", ${JSON.stringify(v)})'><i class="sw" style="background:${sw}"></i>${n}</button>`).join('')}</div>
@@ -1248,6 +1380,21 @@ function clockTab(){
         <b>なみ</b>＝ゆらゆら波打つ・<b>ぴょん</b>＝1秒ごとに 跳ねる・<b>ふわっ</b>＝ゆっくり明るさが かわる。<b>秒の光</b>＝まわりを 1分で ひとまわり・<b>星空</b>＝まわりで 星が またたく・<b>正時の花火</b>＝毎時 0分に 花火（全画面の時計は 押したところにも 花火）・<b>日付も</b>＝ときどき 日付に かわる。<b>時間で かわる</b>色は 朝・昼・夕方・夜で かわります。</p>`
       : `<p class="kj-note">${KIND_NOTE[c.kind]||''} <b>正時の花火</b>＝毎時 0分に 花火（全画面の時計は 押したところにも${c.kind==='tsubu' ? '。つぶつぶは 粒が はじけます' : ' 花火'}）・<b>日付も</b>＝日付を 出す。</p>`}</div>`;
 }
+function scoreTab(){
+  const s=st.sb, cs=COLS.filter(c=>c[0]!=='rainbow');
+  const row=k=>`<div class="kj-sbr" style="--c:${colorOf(s[k].col)}"><input class="kj-in nm" type="text" maxlength="12" value="${esc(s[k].name)}" aria-label="${k==='a'?'左':'右'}の チームの 名前" onchange="KEIJIBAN.sb('${k}n', this.value)">
+      <button type="button" class="pm" onclick="KEIJIBAN.sbAdd('${k}', -1)" aria-label="${esc(s[k].name)} −1">−</button><b id="kjSbN_${k}">${s[k].n}</b><button type="button" class="pm pl" onclick="KEIJIBAN.sbAdd('${k}', 1)" aria-label="${esc(s[k].name)} ＋1">＋</button></div>
+    <div class="kj-opt kj-sbc"><span>${k==='a'?'左':'右'}の 色</span>${cs.map(([v,n,h])=>`<button type="button" class="${s[k].col===v?'on':''}" style="--sw:${h}" onclick="KEIJIBAN.sb('${k}c', '${v}')"><i class="sw" style="background:${h}"></i>${n}</button>`).join('')}</div>`;
+  return `<button type="button" class="kj-go" onclick="KEIJIBAN.startScore()">▶ 全画面で 得点を 出す</button>
+    <div class="kj-sec"><h4>🏆 得点<small>押すと ＋1・− で へらす</small></h4>${row('a')}${row('b')}
+      <label class="kj-sbl"><span>まん中の 字</span><input class="kj-in" type="text" maxlength="16" value="${esc(s.label)}" placeholder="例：1回表・前半・第2セット（なくても よい）" onchange="KEIJIBAN.sb('label', this.value)"></label>
+      <div class="kj-acts sm"><button type="button" class="kj-b" onclick="KEIJIBAN.sbReset()">0 対 0 に</button><button type="button" class="kj-b" onclick="KEIJIBAN.sbSwap()">↔ 左右を 入れかえ</button></div></div>
+    <div class="kj-sec"><h4>⚙ 見た目</h4>
+      <div class="kj-opt"><span>数字の形</span>${SB_FACE.map(([v,n])=>`<button type="button" class="${s.face===v?'on':''}" onclick="KEIJIBAN.sb('face', '${v}')">${n}</button>`).join('')}</div>
+      <div class="kj-opt"><span>点が 入ると</span><button type="button" class="${s.snd?'on':''}" onclick="KEIJIBAN.sb('snd', true)">🔔 ピンポン</button><button type="button" class="${!s.snd?'on':''}" onclick="KEIJIBAN.sb('snd', false)">🔕 鳴らさない</button></div>
+      ${rotRow()}
+      <p class="kj-note">全画面で <b>左（縦に 出すときは 上）を 押すと 左の チームに ＋1</b>、右（下）で 右の チームに ＋1。数字が 光って ピンポンと 鳴ります。まちがえたら 画面を 押して 出る 下の ボタンの「−1」。キーボード・リモコンは ← → でも。得点は 閉じても 残ります（「0 対 0 に」で もどす）。</p></div>`;
+}
 function schedTab(){
   return `<div class="kj-sec"><h4>⏰ 予約<small>決めた時刻に 決めた文や 絵を 出します</small></h4>
       <div class="kj-next" id="kjNext"></div><div id="kjScList"></div>
@@ -1262,9 +1409,10 @@ function render(){
     <div class="kj-info" id="kjInfo"></div>
     <div id="kjAnn"></div>
     <div class="kj-tabs" role="tablist">${TABS.map(([k,n])=>`<button type="button" role="tab" aria-selected="${tab===k}" class="${tab===k?'on':''}" onclick="KEIJIBAN.tab('${k}')">${n}</button>`).join('')}</div>
-    ${tab==='text' ? textTab() : tab==='pic' ? picTab() : tab==='clock' ? clockTab() : schedTab()}
+    ${tab==='text' ? textTab() : tab==='pic' ? picTab() : tab==='clock' ? clockTab() : tab==='score' ? scoreTab() : schedTab()}
   </div>`;
-  if(tab==='text'){ $('kjText').value=st.text; $('kjText').addEventListener('keydown', e=>{ if(e.key!=='Escape') e.stopPropagation(); }); paintList(); }
+  if(tab==='text'){ $('kjText').value=st.text; $('kjText').addEventListener('keydown', e=>{ if(e.key!=='Escape') e.stopPropagation(); }); paintList(); paintSeq(); }
+  b.querySelectorAll('.kj-sbr input, .kj-sbl input').forEach(i=>i.addEventListener('keydown', e=>{ if(e.key!=='Escape') e.stopPropagation(); }));
   if(tab==='pic'){ paintPics(); $('kjPicFile').addEventListener('change', e=>{ const f=e.target.files && e.target.files[0]; e.target.value=''; if(f) addPicFile(f); }); }
   if(tab==='sched') paintSched();
   paintInfo(); paintAnn();
@@ -1335,6 +1483,17 @@ const KJ_CSS=`
 .kj-tabs button.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); }
 .kj-in{ display:block; width:100%; box-sizing:border-box; padding:10px 12px; border-radius:12px; border:1px solid rgba(120,132,156,.55); background:var(--cell-bg,#fff); color:var(--text,#222); font:inherit; font-size:19px; line-height:1.4; resize:vertical; }
 .kj-go{ display:block; width:100%; min-height:60px; margin:8px 0 0; border-radius:14px; border:0; background:var(--acc); color:var(--on-acc,#fff); font-size:20px; font-weight:bold; cursor:pointer; }
+.kj-go.sq{ min-height:52px; font-size:18px; margin-top:8px; }   /* 🔁 順番に（v597） */
+.kj-li .go.sq{ font-size:15px; }
+.kj-sq{ display:flex; align-items:center; gap:6px; margin:0 0 5px; padding:4px 4px 4px 10px; border-radius:10px; border:1px solid rgba(120,132,156,.3); }
+.kj-sq b{ flex:none; min-width:1.6em; font-size:14px; color:var(--acc); } .kj-sq .t{ flex:1; min-width:0; font-size:15px; overflow-wrap:anywhere; }
+.kj-sq button{ flex:none; width:40px; height:38px; border-radius:9px; border:1px solid rgba(120,132,156,.35); background:transparent; color:var(--text,#222); font-size:14px; cursor:pointer; } .kj-sq button:disabled{ opacity:.35; }
+.kj-sbr{ display:flex; align-items:center; gap:8px; margin:0 0 6px; padding:6px 8px; border-radius:12px; border-left:6px solid var(--c); background:rgba(120,132,156,.07); }   /* 🏆 得点（v597） */
+.kj-sbr .nm{ flex:1; min-width:0; font-size:17px; padding:8px 10px; }
+.kj-sbr b{ min-width:2.4em; text-align:center; font-size:30px; font-variant-numeric:tabular-nums; color:var(--text,#222); }
+.kj-sbr .pm{ flex:none; width:50px; height:50px; border-radius:14px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:26px; font-weight:bold; cursor:pointer; } .kj-sbr .pm.pl{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); }
+.kj-sbc button{ padding:0 8px; } .kj-sbc .sw{ display:inline-block; width:12px; height:12px; border-radius:6px; margin-right:4px; box-shadow:0 0 0 1px rgba(0,0,0,.3); vertical-align:-1px; }
+.kj-sbl{ display:flex; align-items:center; gap:8px; margin:8px 0 4px; } .kj-sbl span{ flex:none; font-size:12.5px; font-weight:bold; color:var(--text-light,#666); } .kj-sbl .kj-in{ font-size:16px; padding:8px 10px; }
 .kj-acts{ display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 10px; } .kj-acts .kj-b{ flex:1 1 auto; white-space:nowrap; } .kj-acts.sm{ margin:8px 0 0; } .kj-acts.sm .kj-b{ flex:0 1 auto; min-height:36px; font-size:13px; }
 .kj-b{ min-height:44px; padding:0 12px; border-radius:12px; border:1px solid rgba(120,132,156,.45); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:14.5px; font-weight:bold; cursor:pointer; }
 .kj-b.pri{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); } .kj-b.del{ color:#c62828; } body.dark .kj-b.del{ color:#ef9a9a; }
@@ -1344,9 +1503,9 @@ const KJ_CSS=`
 .kj-li .t{ flex:1; min-width:0; min-height:44px; padding:6px 10px; border-radius:10px; border:1px solid rgba(120,132,156,.35); background:transparent; color:var(--text,#222); font-size:15.5px; text-align:left; cursor:pointer; overflow-wrap:anywhere; }
 .kj-li .go, .kj-li .del{ flex:none; width:46px; border-radius:10px; border:1px solid rgba(120,132,156,.35); background:transparent; color:var(--text,#222); font-size:16px; cursor:pointer; }
 .kj-li .go{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); }
-.kj-opt{ display:flex; flex-wrap:wrap; align-items:center; gap:5px; margin:6px 0; } .kj-opt span{ min-width:5.6em; font-size:12.5px; font-weight:bold; color:var(--text-light,#666); }
-.kj-opt button{ min-height:38px; padding:0 12px; border-radius:19px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:14px; cursor:pointer; }
-.kj-opt button.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); font-weight:bold; }
+.kj-opt, .kj-sqo{ display:flex; flex-wrap:wrap; align-items:center; gap:5px; margin:6px 0; } .kj-opt span, .kj-sqo span{ min-width:5.6em; font-size:12.5px; font-weight:bold; color:var(--text-light,#666); }
+.kj-opt button, .kj-sqo button{ min-height:38px; padding:0 12px; border-radius:19px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:14px; cursor:pointer; }
+.kj-opt button.on, .kj-sqo button.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); font-weight:bold; }
 .kj-opt button.c-red:not(.on){ color:#d32f2f; } .kj-opt button.c-green:not(.on){ color:#2e7d32; } .kj-opt button.c-yellow:not(.on){ color:#8d6e00; } .kj-opt button.c-blue:not(.on){ color:#1565c0; } .kj-opt button.c-time:not(.on){ color:#e65100; }
 .kj-opt button.c-orange:not(.on){ color:#e65100; } .kj-opt button.c-cyan:not(.on){ color:#00796b; } .kj-opt button.c-purple:not(.on){ color:#7b1fa2; } .kj-opt button.c-pink:not(.on){ color:#c2185b; } .kj-opt button.c-gold:not(.on){ color:#8a6100; }
 body.dark .kj-opt button.c-red:not(.on){ color:#ff8a80; } body.dark .kj-opt button.c-green:not(.on){ color:#69f0ae; } body.dark .kj-opt button.c-yellow:not(.on){ color:#ffd740; } body.dark .kj-opt button.c-blue:not(.on){ color:#82b1ff; } body.dark .kj-opt button.c-time:not(.on){ color:#ffab40; }
@@ -1405,6 +1564,7 @@ body.dark .kj-opt button.c-orange:not(.on){ color:#ffab40; } body.dark .kj-opt b
 .kj-fbar{ position:absolute; left:50%; bottom:14px; transform:translateX(-50%); display:flex; gap:10px; opacity:0; pointer-events:none; transition:opacity .25s; }
 .kj-fbar.show{ opacity:1; pointer-events:auto; }
 .kj-fbar button{ min-height:52px; min-width:130px; border-radius:26px; border:2px solid #fff; background:rgba(0,0,0,.65); color:#fff; font-size:18px; font-weight:bold; cursor:pointer; white-space:nowrap; }
+.kj-fbar button small{ font-size:12px; font-weight:normal; margin-left:2px; } .kj-full.sb .kj-fbar button{ min-width:0; padding:0 14px; }
 `;
 function ensureDom(){
   if($('keijibanOverlay')) return;
@@ -1429,7 +1589,9 @@ function openKeijiban(){
 function closeKeijiban(){ if(!$('keijibanOverlay')||!isDlgOpen('keijibanOverlay')) return; closeDlg('keijibanOverlay', cleanup); }
 
 const curCv=()=>{ const cv=$('kjFullCv')||$('kjPrev'); if(cv) sizeCanvas(cv); return cv; };
-window.KEIJIBAN={ text:setText, start:()=>{ startFull(tab==='text' || tab==='pic' ? tab : 'clock'); }, startClock:()=>{ startFull('clock'); }, stopFull:()=>stopFull(), pause:togglePause,
+window.KEIJIBAN={ text:setText, start:()=>{ startFull(tab==='text' || tab==='pic' || tab==='score' ? tab : 'clock'); },
+  seqAdd, seqDel, seqMove, seqClear:()=>{ seqClear(); }, seqPass, seqNext, seqStart:()=>{ startFull('seq'); }, seqI:()=>seqI, pass:()=>textPass,
+  startScore:()=>{ startFull('score'); }, sb:sbSet, sbAdd, sbReset:()=>{ sbReset(); }, sbSwap, sbSide, sbLay:()=>sbL ? {land:sbL.land, C:sbL.C, R:sbL.R, items:sbL.items.map(it=>it.kind+(it.k||'')+':'+it.x+','+it.y+','+it.M.w+'x'+it.M.h)} : null, startClock:()=>{ startFull('clock'); }, stopFull:()=>stopFull(), pause:togglePause,
   keep, del:i=>{ del(i); }, resetList:()=>{ resetList(); }, pick, go, clear:clearText, opt:setOpt, samples,
   tab:setTab, ckOpt, ckTog, scEdit:i=>{ scEdit(i==null?null:i); }, scTog, annEnd:()=>endAnn(),
   state:()=>JSON.parse(JSON.stringify(st)), bitmap:()=>{ const b=bitmap(); return {w:b.w, h:b.h, n:b.n}; },
@@ -1446,7 +1608,7 @@ window.KEIJIBAN={ text:setText, start:()=>{ startFull(tab==='text' || tab==='pic
   ckTrans:ms=>cst.filter(s=>s.prev!=null && ms-s.t0<TR_DUR[s.a]).map(s=>s.prev+'→'+s.ch), ckView:()=>ckView, ckColor:ms=>ckColor(new Date(ms)),
   fx:()=>({fw:fw.parts.length, fwOn:fw.until>Date.now(), chimes, stars:stars.length, last:fw.last ? fw.last.map(v=>Math.round(v)) : null}),
   ann:()=>ann ? {t:ann.t, kind:ann.kind, pic:ann.pic, text:ann.text, dur:ann.dur, passes:textPass} : null, queue:()=>annQ.length,
-  next:ms=>nextTxt(ms==null?Date.now():ms), freeze:b=>{ frozen=!!b; },
+  next:ms=>nextTxt(ms==null?Date.now():ms), freeze:b=>{ frozen=!!b; }, ahead:sec=>{ t0-=sec; prevKey=''; },   // ahead：時間を 進める（たしかめ用。v597）
   // 🖼 絵・動く時計（v571）
   picOpt, picPick, picGo, picDel:i=>{ picDelete(i); }, picAddFile, picEmoji, addPic:f=>addPicFile(f),
   picDraw:t=>{ const cv=curCv(); if(!cv) return -1; return drawPic(cv, picById(st.picCur), t==null?5:t, ''); },

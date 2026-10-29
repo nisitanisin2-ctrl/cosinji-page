@@ -10460,7 +10460,7 @@ async function runKeijiban569(browser) {
   // 閉じる・変なデータ
   await page.evaluate(() => { closeKeijiban(); localStorage.setItem('excalc_keijiban', JSON.stringify({ text: 5, look: 'x', color: 'mauve', move: 1, speed: 'z', rows: 99, rot: '?', list: ['ok', 3, '', '<img src=x onerror="window.__x=1">'] })); openKeijiban(); }); await w(400);
   check('  変なデータ：片づけて開く・文字は文字のまま', await page.evaluate(() => [JSON.stringify(KEIJIBAN.state()), !document.querySelector('.kj-li img'), !window.__x].join('/')),
-    '{"text":"受付は こちらです","look":"led","color":"red","move":"scroll","speed":"mid","rows":24,"rot":"auto","list":["ok","3","<img src=x onerror=\\"window.__x=1\\">"],"mode":"text","ck":{"fmt":"hms","face":"seg","color":"red","anim":"drop","idle":"none","dens":2,"colon":true,"ring":true,"stars":false,"fire":true,"date":false,"kind":"led","hand":"tick"},"sched":[],"pics":[],"picv":{"look":"photo","fit":"contain","move":"none"},"picCur":"","font":"gothic","deco":"glow","bg":"black"}/true/true');
+    '{"text":"受付は こちらです","look":"led","color":"red","move":"scroll","speed":"mid","rows":24,"rot":"auto","list":["ok","3","<img src=x onerror=\\"window.__x=1\\">"],"mode":"text","ck":{"fmt":"hms","face":"seg","color":"red","anim":"drop","idle":"none","dens":2,"colon":true,"ring":true,"stars":false,"fire":true,"date":false,"kind":"led","hand":"tick"},"sched":[],"pics":[],"picv":{"look":"photo","fit":"contain","move":"none"},"picCur":"","font":"gothic","deco":"glow","bg":"black","seq":{"list":[],"pass":1},"sb":{"a":{"name":"ホーム","col":"red","n":0},"b":{"name":"ビジター","col":"cyan","n":0},"label":"","face":"seg","snd":true}}/true/true');
   await page.evaluate(() => closeKeijiban()); await w(200);
   check('  閉じると 動かすのを止める', await page.evaluate(() => KEIJIBAN.isFull() + '/' + isDlgOpen('keijibanOverlay')), 'false/false');
   check('  エラーなし', errs.join(' | '), '');
@@ -10487,7 +10487,7 @@ async function runKeijiban570(browser) {
     window.AudioContext = class { constructor() { this.state = 'running'; this.currentTime = 0; this.destination = {}; } resume() { } createOscillator() { window.__osc++; return { type: '', frequency: {}, connect() { }, start() { }, stop() { } }; } createGain() { return { gain: { setValueAtTime() { }, exponentialRampToValueAtTime() { } }, connect() { } }; } };
   });
   await page.evaluate(() => openKeijiban()); await w(600);
-  check('  タブ：📝 文字・🕐 時計・⏰ 予約（はじめは 文字）', await page.evaluate(() => [[...document.querySelectorAll('.kj-tabs button')].map(b => b.textContent).join(','), document.querySelector('.kj-tabs .on').textContent, KEIJIBAN.state().mode].join('/')), '📝 文字,🖼 絵,🕐 時計,⏰ 予約/📝 文字/text');
+  check('  タブ：📝 文字・🕐 時計・⏰ 予約（はじめは 文字）', await page.evaluate(() => [[...document.querySelectorAll('.kj-tabs button')].map(b => b.textContent).join(','), document.querySelector('.kj-tabs .on').textContent, KEIJIBAN.state().mode].join('/')), '📝 文字,🖼 絵,🕐 時計,⏰ 予約,🏆 得点/📝 文字/text');
   await page.click('.kj-tabs button:nth-child(3)'); await w(400);
   check('  🕐 時計：全画面のボタン・見た目の えらび・見本の説明・時計を 覚える', await page.evaluate(() => [document.querySelector('.kj-go').textContent, [...document.querySelectorAll('.kj-opt > span')].map(s => s.textContent).join(','), document.getElementById('kjInfo').textContent, KEIJIBAN.state().mode, JSON.parse(localStorage.getItem('excalc_keijiban')).mode].join('/')),
     '▶ 全画面で 時計を出す/時計の種類,出し方,数字の形,色,かわるとき,いつもの動き,点の細かさ,かざり,縦に持つと/7セグ・時:分:秒・かわるとき：ぽろぽろ/clock/clock');
@@ -10662,7 +10662,7 @@ async function runKeijiban571(browser) {
   });
   check('  開くまでは 動く時計の部品も 読まない', await page.evaluate(() => typeof window.KJ_CLOCKS), 'undefined');
   await page.evaluate(() => openKeijiban()); await w(600);
-  check('  札：📝 文字・🖼 絵・🕐 時計・⏰ 予約・動く時計の部品を 読んだ', await page.evaluate(() => [[...document.querySelectorAll('.kj-tabs button')].map(b => b.textContent).join(','), typeof window.KJ_CLOCKS, KJ_CLOCKS.KINDS.length].join('/')), '📝 文字,🖼 絵,🕐 時計,⏰ 予約/object/6');
+  check('  札：📝 文字・🖼 絵・🕐 時計・⏰ 予約・動く時計の部品を 読んだ', await page.evaluate(() => [[...document.querySelectorAll('.kj-tabs button')].map(b => b.textContent).join(','), typeof window.KJ_CLOCKS, KJ_CLOCKS.KINDS.length].join('/')), '📝 文字,🖼 絵,🕐 時計,⏰ 予約,🏆 得点/object/6');
   // 🖼 絵
   await page.click('.kj-tabs button:nth-child(2)'); await w(300);
   check('  🖼 絵：はじめは ない・足すボタン・全画面のボタン・見せ方', await page.evaluate(() => [KEIJIBAN.state().mode, document.getElementById('kjInfo').textContent, document.querySelectorAll('.kj-pic').length, [...document.querySelectorAll('.kj-acts.sm .kj-b')].map(b => b.textContent).join(','), document.querySelector('.kj-go').textContent, [...document.querySelectorAll('.kj-opt > span')].map(s => s.textContent).join(',')].join('/')),
@@ -12438,6 +12438,75 @@ async function runV596(browser) {
   const nHold = (await bp()).split(',').length;
   check('  なし・止めている ときは 鳴らさない（えらんだ ときの ためしの 1回だけ）・音の えらびを 覚える', [n0 + near.length + 1 === nOff, nHold === nOff + 1, await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_kakudo')).snd)].join('/'), 'true/true/hit');
   await page.evaluate(() => closeKakudo()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+// 📢 電光掲示板：🔁 順番に 流す・🏆 得点（v597）
+async function runKeijiban597(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📢 電光掲示板 v597：🔁 順番に 流す・🏆 得点 ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => {
+    window.appConfirm = async () => true;
+    Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async () => ({ release() { } }) } });
+    Element.prototype.requestFullscreen = function () { return Promise.resolve(); };
+    if (screen.orientation) { screen.orientation.lock = async () => { }; screen.orientation.unlock = () => { }; }
+  });
+  await page.evaluate(() => openKeijiban()); await w(600);
+  check('  ⭐ の 文に 🔁・「順番に 流す」の 札・タブに 🏆 得点', await page.evaluate(() => [document.querySelectorAll('#kjList .kj-li .sq').length === KEIJIBAN.state().list.length, !!document.getElementById('kjSeq'), [...document.querySelectorAll('.kj-tabs button')].map(b => b.textContent).join(',')].join('/')), 'true/true/📝 文字,🖼 絵,🕐 時計,⏰ 予約,🏆 得点');
+  await page.evaluate(() => KEIJIBAN.seqStart()); await w(200);
+  check('  文が ないと 全画面に しない（知らせ）', await page.evaluate(() => [KEIJIBAN.isFull(), (document.getElementById('appToast') || {}).textContent.includes('順番に 流す 文を 足して')].join('/')), 'false/true');
+  await page.evaluate(() => { KEIJIBAN.seqAdd(0); KEIJIBAN.seqAdd(1); KEIJIBAN.text('本日 特売日'); KEIJIBAN.seqAdd(); }); await w(200);
+  check('  🔁 で 足す・いまの 文を 足す（番号つきの 一覧）', await page.evaluate(() => [KEIJIBAN.state().seq.list.join('|'), [...document.querySelectorAll('#kjSeq .kj-sq b')].map(b => b.textContent).join(',')].join('/')), '受付は こちらです|少々 お待ちください|本日 特売日/1,2,3');
+  await page.evaluate(() => { KEIJIBAN.seqMove(2, -1); KEIJIBAN.seqDel(0); KEIJIBAN.seqPass(2); }); await w(150);
+  check('  ▲ で 上へ・✕ で はずす・2回ずつ（覚える）', await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('excalc_keijiban')).seq; return [s.list.join('|'), s.pass, document.querySelector('#kjSeq .kj-sqo button.on').textContent].join('/'); }), '本日 特売日|少々 お待ちください/2/2回ずつ');
+  await page.evaluate(() => { KEIJIBAN.seqPass(1); KEIJIBAN.seqStart(); }); await w(500);
+  const s0 = await page.evaluate(() => [KEIJIBAN.isFull(), KEIJIBAN.seqI(), [...document.querySelectorAll('#kjFBar button:not([hidden])')].map(b => b.textContent).join(',')].join('/'));
+  await page.evaluate(() => KEIJIBAN.ahead(120)); await w(300);
+  const s1 = await page.evaluate(() => KEIJIBAN.seqI());
+  await page.evaluate(() => KEIJIBAN.ahead(120)); await w(300);
+  const s2 = await page.evaluate(() => KEIJIBAN.seqI());
+  check('  全画面で 順番に（1回 流すと 次・さいごの あとは はじめに）・⏭ 次へ', [s0, s1, s2].join('/'), 'true/0/⏸ 止める,⏭ 次へ,✕ 終わる/1/0');
+  await page.evaluate(() => KEIJIBAN.seqNext()); await w(150);
+  check('  ⏭ 次へ で とばす', await page.evaluate(() => KEIJIBAN.seqI()), 1);
+  await page.evaluate(() => { KEIJIBAN.pause(); KEIJIBAN.ahead(200); }); await w(300);
+  check('  ⏸ 止めると 次へ 進まない', await page.evaluate(() => [KEIJIBAN.paused(), KEIJIBAN.seqI()].join('/')), 'true/1');
+  await page.evaluate(() => KEIJIBAN.stopFull()); await w(300);
+  // 🏆 得点
+  await page.evaluate(() => KEIJIBAN.tab('score')); await w(300);
+  check('  得点の 札：はじめは ホーム 0・ビジター 0・7セグ', await page.evaluate(() => { const s = KEIJIBAN.state().sb; return [s.a.name, s.a.n, s.b.name, s.b.n, s.face, s.snd, document.querySelectorAll('.kj-sbr').length].join('/'); }), 'ホーム/0/ビジター/0/seg/true/2');
+  await page.evaluate(() => { KEIJIBAN.sb('an', '  紅組  '); KEIJIBAN.sb('bn', '白組'); KEIJIBAN.sb('bc', 'white'); KEIJIBAN.sb('bc', 'rainbow'); KEIJIBAN.sb('label', '1回表'); KEIJIBAN.sbAdd('a', 1); KEIJIBAN.sbAdd('a', 1); KEIJIBAN.sbAdd('b', 1); KEIJIBAN.sbAdd('b', -5); }); await w(200);
+  check('  名前・色（虹は えらべない）・まん中の 字・＋1／−1（0 より 下に ならない）', await page.evaluate(() => { const s = KEIJIBAN.state().sb; return [s.a.name, s.b.name, s.b.col, s.label, s.a.n, s.b.n, document.getElementById('kjSbN_a').textContent].join('/'); }), '紅組/白組/white/1回表/2/0/2');
+  await page.evaluate(() => KEIJIBAN.sbAdd('b', 2000)); await w(100);
+  check('  999 まで', await page.evaluate(() => KEIJIBAN.state().sb.b.n), 999);
+  await page.evaluate(() => { KEIJIBAN.sbAdd('b', -998); KEIJIBAN.sbSwap(); }); await w(200);
+  check('  ↔ 左右を 入れかえ（名前・色・得点ごと）', await page.evaluate(() => { const s = KEIJIBAN.state().sb; return [s.a.name, s.a.n, s.a.col, s.b.name, s.b.n].join('/'); }), '白組/1/white/紅組/2');
+  await page.setViewportSize({ width: 900, height: 500 }); await w(200);
+  await page.evaluate(() => KEIJIBAN.startScore()); await w(600);
+  check('  全画面：横に 並ぶ（名前・得点・まん中の 字）・点が 光る・止める ボタンは 出さない', await page.evaluate(() => { const L = KEIJIBAN.sbLay(); return [L.land, L.items.map(x => x.split(':')[0]).join(','), KEIJIBAN.draw(0) > 0 || true, document.getElementById('kjPauseB').hidden, [...document.querySelectorAll('#kjFBar button:not([hidden])')].map(b => b.textContent.replace(/\s+/g, '')).join(',')].join('/'); }), 'true/namea,numa,nameb,numb,label/true/true/−1白組,−1紅組,0に,✕終わる');
+  await page.mouse.click(200, 250); await w(100); await page.mouse.click(700, 250); await w(100); await page.mouse.click(720, 300); await w(100);
+  check('  左を 押すと 左に ＋1・右で 右に ＋1', await page.evaluate(() => [KEIJIBAN.state().sb.a.n, KEIJIBAN.state().sb.b.n].join('/')), '2/4');
+  await page.keyboard.press('ArrowLeft'); await w(80); await page.keyboard.press('l'); await w(80);
+  check('  ← → キーでも', await page.evaluate(() => [KEIJIBAN.state().sb.a.n, KEIJIBAN.state().sb.b.n].join('/')), '3/5');
+  await page.evaluate(() => document.querySelectorAll('#kjFBar button:not([hidden])')[0].click()); await w(100);
+  check('  下の −1 で なおす', await page.evaluate(() => [KEIJIBAN.state().sb.a.n, KEIJIBAN.state().sb.b.n].join('/')), '2/5');
+  await page.evaluate(() => KEIJIBAN.stopFull()); await w(200);
+  await page.setViewportSize({ width: 412, height: 860 }); await w(200);
+  await page.evaluate(() => KEIJIBAN.startScore()); await w(600);
+  const rot = await page.evaluate(() => [KEIJIBAN.rotated(), KEIJIBAN.sbLay().land].join('/'));
+  await page.mouse.click(206, 150); await w(100);
+  check('  縦に 持つと 回して 横長（上＝左の チーム）', [rot, await page.evaluate(() => [KEIJIBAN.state().sb.a.n, KEIJIBAN.state().sb.b.n].join('/'))].join(' → '), 'true/true → 3/5');
+  await page.evaluate(() => { KEIJIBAN.stopFull(); KEIJIBAN.opt('rot', 'off'); KEIJIBAN.startScore(); }); await w(600);
+  check('  回さない ときは 上下に 並ぶ', await page.evaluate(() => { const L = KEIJIBAN.sbLay(); return [KEIJIBAN.rotated(), L.land].join('/'); }), 'false/false');
+  await page.mouse.click(206, 700); await w(100);
+  check('  下を 押すと 下（右の チーム）に ＋1', await page.evaluate(() => KEIJIBAN.state().sb.b.n), 6);
+  await page.evaluate(() => { KEIJIBAN.stopFull(); KEIJIBAN.opt('rot', 'auto'); KEIJIBAN.sb('face', 'dot'); KEIJIBAN.sb('snd', false); KEIJIBAN.sbReset(); }); await w(300);
+  check('  数字の形・音・0 対 0 に（聞いてから）', await page.evaluate(() => { const s = KEIJIBAN.state().sb; return [s.face, s.snd, s.a.n, s.b.n].join('/'); }), 'dot/false/0/0');
+  await page.evaluate(() => closeKeijiban()); await w(300);
+  await page.evaluate(() => openKeijiban()); await w(500);
+  check('  開きなおしても 得点・順番の 文を 覚える', await page.evaluate(() => { const s = KEIJIBAN.state(); return [s.sb.a.name, s.sb.label, s.seq.list.length].join('/'); }), '白組/1回表/2');
+  await page.evaluate(() => closeKeijiban()); await w(200);
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
@@ -18085,6 +18154,7 @@ async function runQrShare(browser) {
     if (!only || only === 'hade' || only === 'vs594' || only === 'v594') await runCountVs594(browser);
     if (!only || only === 'ics' || only === 'yatta' || only === 'techo' || only === 'v595') await runIcs595(browser);
     if (!only || only === 'seikyu' || only === 'regi' || only === 'kakudo' || only === 'v596') await runV596(browser);
+    if (!only || only === 'keijiban' || only === 'keijiban597' || only === 'v597') await runKeijiban597(browser);
     if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
     if (!only || only === 'okaeshi' || only === 'v564') await runOkaeshi564(browser);
     if (!only || only === 'tax' || only === 'v565') await runTax565(browser);
