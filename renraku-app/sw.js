@@ -1,6 +1,6 @@
 // 📇 連絡帳だけのアプリ（v550）の控え。表電卓（../service-worker.js）とは別の名前で持つ。
 // ネットワーク優先：つながっていれば いつも新しいものを取り、控えも新しくする。電波がないときだけ 控えを返す。
-const CACHE = 'renraku-app-v592';
+const CACHE = 'renraku-app-v593';
 const PREFIX = 'renraku-app-';
 // かならず要るもの（このフォルダの中）
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];

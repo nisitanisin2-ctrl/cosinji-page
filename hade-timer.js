@@ -32,6 +32,7 @@ const WDAY='日月火水木金土', BAR_MS=3500;
 const DEF_PRE=[{n:'カップめん',s:180},{n:'ゆでたまご',s:480},{n:'歯みがき',s:180},{n:'ひと休み',s:600}];
 const QUICK=[[10,'＋10秒'],[30,'＋30秒'],[60,'＋1分'],[300,'＋5分'],[600,'＋10分']];
 const EVERY=[[5,'5秒ごと'],[10,'10秒ごと'],[60,'1分ごと'],[0,'なし']];   // 間の 派手な 演出（v576）
+const VOICES=[['off','なし'],['last','数える'],['all','節目も']];   // 🗣 声で 数える（v593）
 const NUMF='"Hiragino Sans","Noto Sans JP","Noto Sans CJK JP","Segoe UI",Roboto,sans-serif';
 const TAU=Math.PI*2;
 const $=id=>document.getElementById(id);
@@ -82,6 +83,7 @@ function load(){
     look:LOOK && LOOK.has('look', o.look) ? o.look : 'ring', pic:LOOK && LOOK.has('pic', o.pic) ? o.pic : 'rocket', ani:LOOK && LOOK.has('ani', o.ani) ? o.ani : 'neko',   // 見せ方（v580）
     tone:o.tone==='rand' || (FX.TONES && FX.TONES.some(x=>x[0]===o.tone)) ? o.tone : 'fanfare',   // 時間が 来た 音（v580。🔀 おまかせ は v583）
     sset:o.sset==='rand' || (FX.hasSset && FX.hasSset(o.sset)) ? o.sset : 'hanabi', tick:FX.hasTick && FX.hasTick(o.tick) ? o.tick : 'none',   // 演出の 音・1秒ごとの 音（v583）
+    voice:VOICES.some(x=>x[0]===o.voice) ? o.voice : 'last',   // 🗣 声で 数える（v593）
     pre, iv:{w:int(iv.w,5,3600,20), r:int(iv.r,0,3600,10), n:int(iv.n,1,99,8)}, run:cleanRun(o.run),
     clock:{h12:!!(o.clock && o.clock.h12===true), sec:!(o.clock && o.clock.sec===false), jiho:o.clock && JIHO.some(x=>x[0]===o.clock.jiho) ? o.clock.jiho : 'hour', al:okHM(o.clock && o.clock.al)}};
 }
@@ -94,6 +96,25 @@ function setPick(){ setNow=st.sset==='rand' ? pickOf(FX.SSETS || [['hanabi']])[0
 const snd=(name, ...a)=>{ if(!st || !st.snd) return; if(FX.setSnd) FX.setSnd(st.sset==='rand' ? setNow : st.sset, name, ...a); else { const f=FX.snd[name]; if(f) f(...a); } };
 function tonePick(){ toneNow=st.tone==='rand' ? pickOf(FX.TONES || [['fanfare']])[0] : st.tone; }
 const toneSnd=first=>{ if(st && st.snd && FX.tone) FX.tone(toneNow, first); };   // 時間が 来た 音（v580）
+/* ───────── 🗣 声で 数える（v593。声は 表電卓の「🔈 読み上げの声」と 同じ。音を 鳴らさない ときは 声も 出さない）─────────
+   数える：タイマーは のこり10秒から「じゅう、きゅう…」と 0 で「時間です」・くり返しは 3・2・1 と スタート／休けい・
+   ストップウォッチは 1分ごと・時計は 時報と 目覚ましで 時刻。節目も：タイマーの 半分・のこり5分・3分・1分・30秒、くり返しの ラウンド */
+const NUMV=['','いち','に','さん','よん','ご','ろく','なな','はち','きゅう','じゅう'];
+const said=[];   // 読んだ 言葉（たしかめ用）
+let voicePrimed=false;
+function primeVoice(){   // iPhone などは 押した ときに 1回 読ませて おかないと あとで 読めない
+  if(voicePrimed || !st || st.voice==='off' || !st.snd || !('speechSynthesis' in window)) return;
+  voicePrimed=true; try{ const u=new SpeechSynthesisUtterance(' '); u.volume=0; speechSynthesis.speak(u); }catch(_){}
+}
+function sayV(text, lvl){   // lvl：'last'＝数える 以上・'all'＝節目も の ときだけ
+  if(!st || !st.snd || st.voice==='off' || (lvl==='all' && st.voice!=='all')) return;
+  said.push(text); if(said.length>80) said.shift();
+  if(!('speechSynthesis' in window)) return;
+  try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.lang='ja-JP'; u.rate=1.15; if(window.HyoVoice) HyoVoice.apply(u, {lang:'ja', rate:1.15}); speechSynthesis.speak(u); }catch(_){}
+}
+const hushV=()=>{ try{ if(window.speechSynthesis) speechSynthesis.cancel(); }catch(_){} };
+// 時刻を 読む 言葉（7:30 → 7時30分・7:00 → 7時）
+const hmV=hm=>{ const [h,m]=String(hm).split(':').map(Number); return h+'時'+(m ? m+'分' : ''); };
 const lookKind=()=>LOOK && st.look!=='ring' ? st.look : 'ring';
 const lookSub=()=>st.look==='pic' ? st.pic : st.look==='ani' ? st.ani : '';
 function lk(s){ const k=lookKind(), sub=lookSub(); if(!s.lk || s.lk.k!==k || s.lk.sub!==sub) s.lk={k, sub}; return s.lk; }   // 見せ方ごとに 覚える もの
@@ -352,7 +373,7 @@ function banner(text, kind){
 
 /* ───────── 操作 ───────── */
 function start(){
-  FX.unlock(); stopAlarm(true);
+  FX.unlock(); stopAlarm(true); primeVoice();
   const now=Date.now();
   if(st.mode==='down'){
     if(!(st.sec>0)){ toastT('時間を 決めてください'); return; }
@@ -364,6 +385,7 @@ function start(){
   openStage();
   if(sc){ const e=sc.e; e.after(0.05, ()=>{ e.burst(e.W/2, e.H*0.46, {n:70, sp:520}); e.kick(0.5); }); }
   banner(st.mode==='iv' ? 'よーい！' : st.mode==='clock' ? '🕐 時計' : 'スタート！', 'go1'); snd(st.mode==='iv' ? 'drum' : 'whoosh', 18); vib(60);
+  if(st.mode==='iv') sayV(NUMV[3], 'last'); else if(st.mode==='down' && st.sec<=10) sayV(NUMV[st.sec], 'last');   // 🗣 はじめの 秒も 読む（v593）
 }
 function pause(){
   const r=st.run; if(!r || r.p || r.done || r.m==='clock') return;
@@ -394,7 +416,7 @@ function restart(){
   r.p=false; r.done=false; save(); prevSec=prevMin=prevPh=prevShow=null; paintBar(); paintLaps();
   banner('もう一度！', 'go1'); snd('whoosh'); if(sc) sc.e.burst(sc.e.W/2, sc.e.H*0.46, {n:60, sp:480});
 }
-function stop(){ stopAlarm(true); st.run=null; save(); stopTicker(); hideChip(); closeStage(); }
+function stop(){ stopAlarm(true); hushV(); st.run=null; save(); stopTicker(); hideChip(); closeStage(); }
 function back(){ closeStage(); }
 function lap(){
   const r=st.run; if(!r || r.m!=='up' || r.p || r.done) return;
@@ -426,6 +448,7 @@ function finish(){
   const b=$('htStop'); if(b) b.hidden=false;
   paintBar();
   banner(r.m==='iv' ? 'おつかれさま！' : 'TIME UP!', 'big');
+  sayV(r.m==='iv' ? 'おつかれさまでした' : '時間です', 'last');   // 🗣（v593）
   if(sc){ const e=sc.e; e.finale({shells:14, conf:200, emo:['🎉','✨','🎊','⭐','🥳'], flash:'#fff3c4'}); e.burst(e.W/2, e.H*0.46, {n:120, sp:700});
     sc.doneAt=e.t; if(lookKind()!=='ring') LOOK.finish(e, lookKind(), lookSub(), lk(sc), snd); }   // 絵ごとの しめくくり（v580）
   toneSnd(true); vib([300,120,300,120,600]);
@@ -447,23 +470,23 @@ function onSecond(v){
   if(st.tick!=='none' && FX.tickSnd && !(r.m==='down' && s<=10) && !(r.m==='iv' && s<=3 && v.ph.ph!=='done')){ tickN++; if(st.snd) FX.tickSnd(st.tick, tickN-1); }   // ⏱ 1秒ごとの 音（v583。のこり10秒・区切りの 3秒前は 数える 音が あるので 休む）
   if(r.m==='down'){
     if(s<=10 && s>=1){
-      sc.big={n:s, t0:e.t};
+      sc.big={n:s, t0:e.t}; sayV(NUMV[s], 'last');   // 🗣 じゅう、きゅう…（v593）
       if(s<=3){ snd('boom'); snd('beep', 1320, 0.16); e.kick(0.9); e.flash('#ff3030', 0.32); vib(140); e.burst(e.W/2, e.H*0.46, {n:90, sp:620, pal:['#ff3b30','#ffb000','#ffffff']}); }
       else { snd('heart'); snd('beep', 660+(10-s)*45, 0.09); e.kick(0.3+(10-s)*0.04); vib(40); e.burst(e.W/2, e.H*0.46, {n:30, sp:380, pal:['#ff6a3d','#ffd23f']}); }
     }
     const dur=r.dur, ms=v.ms;
-    if(dur>=20000 && !marks.has('half') && ms<=dur/2){ marks.add('half'); banner('半分 すぎた！'); snd('whoosh'); e.confetti(50); }
-    for(const m of [5,3,1]){ if(dur>(m*60+30)*1000 && s===m*60 && !marks.has('m'+m)){ marks.add('m'+m); banner('のこり '+m+'分！'); snd('taiko'); e.shell(null); e.shell(null); vib([80,60,80]); } }
-    if(dur>60000 && s===30 && !marks.has('s30')){ marks.add('s30'); banner('のこり 30秒！'); snd('taiko'); e.kick(0.5); }
+    if(dur>=20000 && !marks.has('half') && ms<=dur/2){ marks.add('half'); banner('半分 すぎた！'); snd('whoosh'); e.confetti(50); sayV('半分 すぎました', 'all'); }
+    for(const m of [5,3,1]){ if(dur>(m*60+30)*1000 && s===m*60 && !marks.has('m'+m)){ marks.add('m'+m); banner('のこり '+m+'分！'); snd('taiko'); e.shell(null); e.shell(null); vib([80,60,80]); sayV('のこり '+m+'分です', 'all'); } }
+    if(dur>60000 && s===30 && !marks.has('s30')){ marks.add('s30'); banner('のこり 30秒！'); snd('taiko'); e.kick(0.5); sayV('のこり 30秒です', 'all'); }
   } else if(r.m==='iv'){
-    if(s<=3 && s>=1 && v.ph.ph!=='done'){ snd('beep', v.ph.ph==='work' ? 1046 : 784, 0.1); e.kick(0.25); vib(30); }
+    if(s<=3 && s>=1 && v.ph.ph!=='done'){ snd('beep', v.ph.ph==='work' ? 1046 : 784, 0.1); e.kick(0.25); vib(30); sayV(NUMV[s], 'last'); }
   }
 }
 function onPhase(ph){
   const e=sc.e, r=st.run;
   if(ph.ph==='prep') return;
-  if(ph.ph==='work'){ banner('ROUND '+ph.round+'/'+r.n+'  がんばれ！', 'go1'); snd('whistle'); e.burst(e.W/2, e.H*0.46, {n:80, sp:600, pal:['#ff3b30','#ffb000','#ffffff']}); e.kick(0.7); e.flash('#ff6a3d', 0.28); vib([90,60,90]); }
-  else if(ph.ph==='rest'){ banner('休けい  あと '+(r.n-ph.round)+'回', 's'); snd('chime'); e.confetti(40, {pal:['#7cf0ff','#a8ffcf','#ffffff']}); vib(60); }
+  if(ph.ph==='work'){ sayV(st.voice==='all' && r.n>1 ? 'ラウンド '+ph.round+'、スタート' : 'スタート', 'last'); banner('ROUND '+ph.round+'/'+r.n+'  がんばれ！', 'go1'); snd('whistle'); e.burst(e.W/2, e.H*0.46, {n:80, sp:600, pal:['#ff3b30','#ffb000','#ffffff']}); e.kick(0.7); e.flash('#ff6a3d', 0.28); vib([90,60,90]); }
+  else if(ph.ph==='rest'){ sayV('休けい', 'last'); banner('休けい  あと '+(r.n-ph.round)+'回', 's'); snd('chime'); e.confetti(40, {pal:['#7cf0ff','#a8ffcf','#ffffff']}); vib(60); }
 }
 // 5秒ごとの 派手な 演出（8つを 順番に）。大きな 文字（ドドーン！ など）と 数字の ジャンプも
 const WORDS=['ドドーン！','バーン！','パーン！','キラッ！','ギュイーン！','シュッ！','ドーン！','ピカーッ！'];
@@ -498,7 +521,7 @@ function fireAlarm(r, now){
   openStage();
   tonePick(); alarmOn=true; alarmUntil=now+ALARM_MS; nextAlarm=now+(toneNow==='fanfare' ? 3200 : FX.tonePer(toneNow)*1000);
   const b=$('htStop'); if(b) b.hidden=false;
-  paintBar(); banner('⏰ '+r.al.replace(/^0/, '')+' です！', 'big');
+  paintBar(); banner('⏰ '+r.al.replace(/^0/, '')+' です！', 'big'); sayV(hmV(r.al)+'です', 'last');
   if(sc){ const e=sc.e; e.finale({shells:12, conf:180, emo:['⏰','✨','🌅','⭐','🎉'], flash:'#fff3c4'}); e.burst(e.W/2, e.H*0.46, {n:110, sp:680}); }
   toneSnd(true); vib([300,120,300,120,600]);
 }
@@ -507,10 +530,10 @@ function clockStep(r, v, now){
   if(prevClk!=null && key!==prevClk){
     const hh=st.clock.h12 ? (v.hour%12||12) : v.hour;
     if(v.min===0 && st.clock.jiho!=='none'){   // 時報
-      banner((st.clock.h12 ? v.ap+' ' : '')+hh+'時です！', 'big');
+      banner((st.clock.h12 ? v.ap+' ' : '')+hh+'時です！', 'big'); sayV((st.clock.h12 ? v.ap : '')+hh+'時です', 'last');
       e.finale({shells:8, conf:120, emo:['🔔','✨','🎉'], flash:'#fff3c4'}); e.burst(c[0], c[1], {n:90, sp:620}); vib([120,80,120]);
       if(st.snd && FX.tone && !alarmOn) FX.tone('chime', true);
-    } else if(v.min===30 && st.clock.jiho==='half'){ banner(hh+'時 30分', 's'); e.shell(null); e.shell(null); snd('chime'); vib(60); }
+    } else if(v.min===30 && st.clock.jiho==='half'){ banner(hh+'時 30分', 's'); sayV(hh+'時30分です', 'last'); e.shell(null); e.shell(null); snd('chime'); vib(60); }
     else { e.burst(c[0], c[1], {n:40, sp:420}); sc.jumpT=e.t; }   // 分が かわった
   }
   prevClk=key;
@@ -536,7 +559,7 @@ function update(){
   }
   if(v.mode==='iv'){ const key=v.ph.ph+v.ph.round; if(prevPh!=null && key!==prevPh) onPhase(v.ph); prevPh=key; }
   if(v.mode==='up'){
-    if(prevMin!=null && v.min>prevMin){ banner(v.min+'分！', 'go1'); snd('level'); e.shell(null); e.shell(null); e.shell(null); vib([60,40,60]); }
+    if(prevMin!=null && v.min>prevMin){ sayV(v.min+'分', 'last'); banner(v.min+'分！', 'go1'); snd('level'); e.shell(null); e.shell(null); e.shell(null); vib([60,40,60]); }
     prevMin=v.min;
     const ten=Math.floor(v.sec/10); if(!st.every && prevTenth!=null && ten>prevTenth && sc.head) e.burst(sc.head[0], sc.head[1], {n:24, sp:260}); prevTenth=ten;
   }
@@ -709,6 +732,7 @@ function render(){
       <div class="ht-opt"><span>テーマ</span>${FX.THEMES.map(([v,n])=>`<button type="button" class="th th-${v}${st.theme===v?' on':''}" onclick='HADE_TIMER.opt("theme", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>
       <div class="ht-opt"><span>演出の 強さ</span>${FX.LEVELS.map(([v,n])=>`<button type="button" class="lv-${v}${st.level===v?' on':''}" onclick='HADE_TIMER.opt("level", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>${opt('every', EVERY, '間の 演出')}
       ${opt('snd', [[true,'🔊 鳴らす'],[false,'🔇 鳴らさない']], '音')}
+      ${opt('voice', VOICES, '🗣 声で 数える')}<p class="ht-note">数える：タイマーは のこり10秒から「じゅう、きゅう…」と 0 で「時間です」・くり返しは 3・2・1 と スタート／休けい・ストップウォッチは 1分ごと・時計は 時報と 目覚ましで 時刻を 読みます。節目も：タイマーの 半分・のこり5分・3分・1分・30秒、くり返しの ラウンドも 読みます。声は ⚙ 設定の「🔈 読み上げの声」で かえられます（音を 鳴らさない ときは 声も 出しません）。</p>
       ${FX.SSETS ? opt('sset', FX.SSETS.concat([['rand','🔀 おまかせ']]), '演出の 音')+'<p class="ht-note">数えている あいだの 音（花火の ドーン・パチパチ、のこり10秒、区切り など）を かえます。押すと 聞けます。🔀 おまかせ は 演出ごとに かわります。</p>' : ''}
       ${FX.TICKS ? opt('tick', FX.TICKS, '1秒ごとの 音') : ''}
       ${FX.TONES ? opt('tone', FX.TONES.concat([['rand','🔀 おまかせ']]), '時間が 来た 音')+'<p class="ht-note">押すと 聞けます。0 に なったら 「✓ 止める」まで くり返します（1分まで）。🔀 おまかせ は 毎回 ちがう 音です。</p>' : ''}
@@ -754,6 +778,7 @@ function setOpt(k, v){
   else if(k==='tone'){ if(v!=='rand' && (!FX.TONES || !FX.TONES.some(x=>x[0]===v))) return; st.tone=v; }   // 時間が 来た 音（v580。🔀 おまかせ は v583）
   else if(k==='sset'){ if(v!=='rand' && !(FX.hasSset && FX.hasSset(v))) return; st.sset=v; setPick(); }   // 演出の 音（v583）
   else if(k==='tick'){ if(!(FX.hasTick && FX.hasTick(v))) return; st.tick=v; }   // 1秒ごとの 音（v583）
+  else if(k==='voice'){ if(!VOICES.some(x=>x[0]===v)) return; st.voice=v; }   // 🗣 声で 数える（v593）
   else return;
   save(); render();
   if(pv){ const e=pv.e; e.setTheme(st.theme); e.setLevel(st.level); e.noFlash=!st.flash; e.resize(); e.burst(e.W/2, e.H/2, {n:50, sp:400}); if(k==='theme') e.shell(null, {sc:0.8}); }
@@ -761,6 +786,7 @@ function setOpt(k, v){
   if(k==='tone'){ FX.unlock(); if(st.snd){ tonePick(); toneSnd(true); } else toastT('🔇 音が「鳴らさない」に なっています（「音」で かえられます）'); }
   if(k==='sset' || (k==='tick' && v!=='none')){ FX.unlock(); if(st.snd) demo(k); else toastT('🔇 音が「鳴らさない」に なっています（「音」で かえられます）'); }
   if(k==='vibe' && st.vibe) vib(50);
+  if(k==='voice'){ hushV(); if(v==='off') return; if(!st.snd){ toastT('🔇 音が「鳴らさない」に なっています（「音」で かえられます）'); return; } voicePrimed=false; primeVoice(); sayV(v==='all' ? 'のこり 1分です' : 'さん、に、いち、時間です', 'last'); }   // ためしに 読む
 }
 // 演出の 音・1秒ごとの 音を ためしに 鳴らす（v583）
 let demoT=[];
@@ -912,6 +938,7 @@ function closeHadeTimer(){ if(!$('hadeTimerOverlay') || !isDlgOpen('hadeTimerOve
 
 window.HADE_TIMER={ mode:setMode, opt:setOpt, set:setSec, add:addSec, typed, ivTyped, ivSet, usePre, addPre:n=>addPre(n), delPre:i=>{ delPre(i); },
   start, pause, resume, toggle:togglePause, plus, restart, stop, back, lap, next, stopAlarm:()=>stopAlarm(), show, clock:setClock, showNow, bar:()=>barShow(),
+  said:()=>said.slice(),   // 🗣 読んだ 言葉（v593）
   barHidden, fs:()=>fsOn, clockView:()=>{ const v=clockView(Date.now()); return {str:v.str, sec:v.sec, ap:v.ap, date:v.date}; }, alarmDue:()=>alarmDue(st.run, Date.now()),
   state:()=>JSON.parse(JSON.stringify(st)), view:()=>{ const v=viewOf(st.run, Date.now()); return {str:v.str, frac:+v.frac.toFixed(4), sec:v.sec, ph:v.ph ? v.ph.ph+':'+v.ph.round : ''}; },
   stage:stageOpen, alarm:()=>alarmOn, chip:()=>{ const c=$('htChip'); return c ? c.textContent : ''; }, fx:()=>({n:sc ? sc.e.count() : 0, prev:pv ? pv.e.count() : 0, played:FX.played(), cap:sc ? sc.e.cap : 0, level:sc ? sc.e.level : '', light:sc ? !!sc.e.lightBg : false, plight:pv ? !!pv.e.lightBg : false}),

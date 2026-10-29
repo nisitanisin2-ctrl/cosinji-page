@@ -12192,6 +12192,49 @@ async function runBingo588(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runTimerVoice593(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ⏱ ど派手タイマー：🗣 声で 数える（v593） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const since = n => page.evaluate(n => HADE_TIMER.said().slice(n).join(','), n), cnt = () => page.evaluate(() => HADE_TIMER.said().length);
+  await page.evaluate(() => { window.appConfirm = async () => true; document.documentElement.requestFullscreen = () => Promise.resolve(); });
+  await page.evaluate(async () => { await openHadeTimer(); HADE_TIMER.opt('level', 'calm'); }); await w(200);
+  check('  はじめは「数える」・設定に 🗣 声で 数える（なし・数える・節目も）', await page.evaluate(() => { const r = [...document.querySelectorAll('.ht-opt')].find(x => x.querySelector('span') && x.querySelector('span').textContent === '🗣 声で 数える'); return [HADE_TIMER.state().voice, r ? [...r.querySelectorAll('button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(',') : ''].join('/'); }), 'last/なし,数える*,節目も');
+  let n = await cnt();
+  await page.evaluate(() => { HADE_TIMER.mode('down'); HADE_TIMER.set(13); HADE_TIMER.start(); }); await w(400); await page.evaluate(() => HADE_TIMER.shift(1500)); await w(2600);
+  check('  のこり10秒から 声で 数える（じゅう・きゅう…）', await since(n).then(t => /じゅう/.test(t) && /きゅう/.test(t) && !/時間です/.test(t)), true);
+  await page.evaluate(() => HADE_TIMER.shift(6500)); await page.waitForFunction(() => HADE_TIMER.alarm(), null, { timeout: 8000 }); await w(200);
+  check('  0 で「時間です」（いち の あと）', await since(n).then(t => { const a = t.split(','); return [a.includes('いち'), a[a.length - 1]].join('/'); }), 'true/時間です');
+  check('  数える：節目（のこり ○分）は 読まない', await since(n).then(t => /のこり|半分/.test(t)), false);
+  await page.evaluate(() => { HADE_TIMER.stopAlarm(true); HADE_TIMER.stop(); HADE_TIMER.opt('voice', 'all'); }); await w(300);
+  n = await cnt();
+  await page.evaluate(() => { HADE_TIMER.set(100); HADE_TIMER.start(); HADE_TIMER.shift(38800); }); await w(1600);
+  check('  節目も：のこり 1分', await since(n).then(t => t.split(',').includes('のこり 1分です')), true);
+  await page.evaluate(() => HADE_TIMER.shift(29000)); await w(1600);
+  check('  節目も：半分・のこり 30秒', await since(n).then(t => { const a = t.split(','); return [a.includes('半分 すぎました'), a.includes('のこり 30秒です')].join('/'); }), 'true/true');
+  await page.evaluate(() => { HADE_TIMER.stop(); HADE_TIMER.opt('voice', 'last'); HADE_TIMER.mode('iv'); HADE_TIMER.ivSet(5, 3, 2); }); await w(300);
+  n = await cnt();
+  await page.evaluate(() => HADE_TIMER.start()); await w(3800);
+  check('  くり返し：よーい の 3・2・1 と スタート', await since(n).then(t => { const a = t.split(','); return [a.includes('さん'), a.includes('いち'), a.includes('スタート')].join('/'); }), 'true/true/true');
+  await page.evaluate(() => HADE_TIMER.shift(4600)); await w(1200);
+  check('  くり返し：休けい', await since(n).then(t => t.split(',').includes('休けい')), true);
+  await page.evaluate(() => { HADE_TIMER.stop(); HADE_TIMER.mode('up'); }); await w(300);
+  n = await cnt();
+  await page.evaluate(() => HADE_TIMER.start()); await w(400); await page.evaluate(() => HADE_TIMER.shift(60300)); await w(1500);
+  check('  ストップウォッチ：1分ごとに「1分」', await since(n).then(t => t.split(',').includes('1分')), true);
+  await page.evaluate(() => { HADE_TIMER.stop(); HADE_TIMER.mode('down'); HADE_TIMER.opt('voice', 'off'); }); await w(300);
+  n = await cnt();
+  await page.evaluate(() => { HADE_TIMER.set(12); HADE_TIMER.start(); HADE_TIMER.shift(3000); }); await w(1500);
+  check('  なし：読まない（しまう）', await page.evaluate(n => [HADE_TIMER.said().length - n, JSON.parse(localStorage.getItem('excalc_hadetimer')).voice].join('/'), n), '0/off');
+  await page.evaluate(() => { HADE_TIMER.stop(); HADE_TIMER.opt('voice', 'last'); HADE_TIMER.opt('snd', false); }); await w(300);
+  n = await cnt();
+  await page.evaluate(() => { HADE_TIMER.set(12); HADE_TIMER.start(); HADE_TIMER.shift(3000); }); await w(1500);
+  check('  音を 鳴らさない ときは 声も 出さない', await page.evaluate(n => HADE_TIMER.said().length - n, n), 0);
+  await page.evaluate(() => { HADE_TIMER.stop(); HADE_TIMER.opt('snd', true); closeHadeTimer(); }); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
 async function runClockLay591(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🕐 ど派手タイマーの 時計：ぽよん 以外の 見せ方も 同じ 並べ方（v591） ──');
@@ -17831,6 +17874,7 @@ async function runQrShare(browser) {
     if (!only || only === 'seikyu' || only === 'seikyu588' || only === 'v588') await runSeikyuPrint588(browser);
     if (!only || only === 'hade' || only === 'poyo' || only === 'v589') await runPoyo589(browser);
     if (!only || only === 'hade' || only === 'clock' || only === 'v591') await runClockLay591(browser);
+    if (!only || only === 'hade' || only === 'voice593' || only === 'v593') await runTimerVoice593(browser);
     if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
     if (!only || only === 'okaeshi' || only === 'v564') await runOkaeshi564(browser);
     if (!only || only === 'tax' || only === 'v565') await runTax565(browser);
