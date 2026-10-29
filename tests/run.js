@@ -4512,7 +4512,11 @@ async function runPolish(browser) {
   check('  組み上がったら消えている', await page.evaluate(() =>
     !document.getElementById('appSplash')), true);
 
-  // 新しくなったこと
+  // 新しくなったこと（v603：一覧は whatsnew.js。起動では 読まず、見る ときに 読む）
+  check('  起動では 一覧（whatsnew.js）を 読まない', await page.evaluate(() =>
+    typeof WHATSNEW + '/' + document.querySelectorAll('script[src="whatsnew.js"]').length), 'undefined/0');
+  check('  読めば 一覧が 使える（1回だけ 読む）', await page.evaluate(async () => {
+    const a = await loadWhatsNew(), b = await loadWhatsNew(); return (a === b) + '/' + Array.isArray(a) + '/' + document.querySelectorAll('script[src="whatsnew.js"]').length; }), 'true/true/1');
   check('  いまの版の分が書いてある', await page.evaluate(() =>
     WHATSNEW.some(w => w.v === APP_VERSION)), true);
   check('  新しい順に並ぶ', await page.evaluate(() => WHATSNEW[0].v), await page.evaluate(() => APP_VERSION));
@@ -4555,8 +4559,9 @@ async function runPolish(browser) {
     const t = document.getElementById('appToast'); t.textContent = 'x'; saveFailed('ためし'); return t.textContent; }), 'x');
   check('  直ったらまた言える', await page.evaluate(() => {
     saveOk(); saveFailed('ためし2'); return document.getElementById('appToast').textContent.includes('ためし2'); }), true);
-  check('  自動保存の失敗につないである', raw.includes("saveFailed('いまの表の自動保存')"), true);
-  check('  色の設定の失敗も伝える', raw.includes('色の設定を覚えられませんでした'), true);
+  const appJs = fs.readFileSync(pathmod.join(root, 'app.js'), 'utf8');   // v603：本体の プログラムは app.js
+  check('  自動保存の失敗につないである', appJs.includes("saveFailed('いまの表の自動保存')"), true);
+  check('  色の設定の失敗も伝える', appJs.includes('色の設定を覚えられませんでした'), true);
 
   // README
   const rd = fs.readFileSync(pathmod.join(root, 'README.md'), 'utf8');
@@ -12943,6 +12948,75 @@ async function runUnits602(browser) {
   await ctx.close();
 }
 
+/* v603 A18 起動を速く（本体を app.js に・新しくなったことを whatsnew.js に・文字合わせは起動の最後に1回）・H1 テストを速く（組の表・同じ組は1回） */
+async function runBoot603(browser) {
+  console.log('\n── 🚀 起動を速く・テストを速く（v603） ──');
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'), app = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+  const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8'), wn = fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8');
+  const inl = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].reduce((a, m) => a + m[1].length, 0);
+  check('  index.html は 軽く（600KB より 小さい・中の プログラムは 小さな ものだけ）・本体は app.js を 読む',
+    [Buffer.byteLength(html) < 600 * 1024, inl < 10000, /<script src="app\.js" onerror="appLoadFail\(\)"><\/script>\s*<\/body>/.test(html)].join('/'), 'true/true/true');
+  check('  app.js に 版・whatsnew.js に 一覧（app.js には 持たない）・電波なしでも 使える ように 両方 先に 持つ',
+    [/const APP_VERSION='v\d+';/.test(app), wn.includes('const WHATSNEW=['), app.includes('const WHATSNEW=['), sw.includes("'./app.js'"), sw.includes("'./whatsnew.js'")].join('/'), 'true/true/false/true/true');
+  const ver = (/const APP_VERSION='(v\d+)'/.exec(app) || [])[1];
+  check('  whatsnew.js の いちばん上が いまの 版', (/const WHATSNEW=\[\s*\{ v:'(v\d+)'/.exec(wn) || [])[1], ver);
+
+  // 起動：画面の 組み直しが 少ない（前は 文字合わせが 起動中に 何度も 走り、組み直しが 90回 ほど あった）
+  {
+    const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true });
+    await ctx.addInitScript(() => { try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_back_ask', '0'); localStorage.setItem('excalc_startpage', 'last'); } catch (_) {} });
+    const page = await ctx.newPage();
+    const errs = []; page.on('pageerror', e => errs.push(e.message));
+    const cdp = await ctx.newCDPSession(page);
+    await cdp.send('Performance.enable');
+    await page.goto(INDEX); await page.waitForTimeout(1500);
+    const m = Object.fromEntries((await cdp.send('Performance.getMetrics')).metrics.map(x => [x.name, x.value]));
+    check('  起動の 画面の 組み直しが 少ない（45回 より 少ない）', m.LayoutCount < 45, true);
+    const r = await page.evaluate(() => {
+      const snap = () => [...document.querySelectorAll('.numpad-grid .btn, .numpad-regpage .ubtn')].map(b => b.style.fontSize + '|' + b.style.whiteSpace).join(',');
+      const a = snap(), fitted = [...document.querySelectorAll('.numpad-grid .btn')].filter(b => b.style.fontSize).length;
+      fitNumpadLabels();
+      return [npFitBoot, fitted > 0, npLabelsOverflow(), a === snap(), typeof WHATSNEW, document.querySelectorAll('script[src="whatsnew.js"]').length, !document.getElementById('appSplash')].join('/');
+    });
+    check('  文字合わせは 起動の 最後に まとめて（終わって いる・長い 名前は 縮んで いる・はみ出し なし・もう一度 合わせても 同じ）・一覧は まだ 読まない・読み込み表示は 消えた',
+      r, '0/true/false/true/undefined/0/true');
+    check('  読み上げ用の 名前は 画面が できた あとに 付く（名前の ない ボタン なし）', await page.evaluate(() =>
+      [...document.querySelectorAll('button')].filter(b => !(b.textContent || '').trim() && !b.title && !b.getAttribute('aria-label')).length), 0);
+    // 起動の あとは その場で 合わせる（ボタンの 大きさを 変えると すぐ）
+    check('  起動の あとは その場で 合わせる', await page.evaluate(() => {
+      const b = [...document.querySelectorAll('#numpadPage1 .btn')].find(x => x.clientWidth > 0); const was = b.style.fontSize;
+      b.textContent = 'とても とても 長い 名前の ボタン'; fitNumpadLabels(); const now = b.style.fontSize; return !!now && now !== was; }), true);
+    check('  JSエラーが出ていない', errs.length, 0);
+    if (errs.length) console.log('    ', errs);
+    await ctx.close();
+  }
+
+  // 本体（app.js）が 読めなかったとき：読み込み表示に 知らせと「もう一度 読み込む」
+  {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'excalc-boot-'));
+    fs.copyFileSync(path.join(ROOT, 'index.html'), path.join(tmp, 'index.html'));
+    const ctx = await browser.newContext({ viewport: { width: 412, height: 900 } });
+    const page = await ctx.newPage();
+    await page.goto('file://' + path.join(tmp, 'index.html')); await page.waitForTimeout(600);
+    check('  app.js が 無いと「読み込めませんでした」と「もう一度 読み込む」', await page.evaluate(() => {
+      const sp = document.getElementById('appSplash'), b = sp && sp.querySelector('.sp-retry');
+      return [!!sp && sp.classList.contains('sp-fail'), !!sp && sp.textContent.includes('読み込めませんでした'), !!b && b.getAttribute('onclick'), !!b && b.getBoundingClientRect().height >= 44].join('/'); }),
+      'true/true/location.reload()/true');
+    await ctx.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+
+  // H1：組の 表（同じ 組は 1回・名前で えらぶ・番号で えらぶ）
+  const list = JSON.parse(require('child_process').execFileSync(process.execPath, [__filename, '--list'], { encoding: 'utf8', maxBuffer: 16 << 20 }));
+  const fns = list.map(x => x.fn), dup = fns.filter((f, i) => fns.indexOf(f) !== i);
+  check('  組の 表：組は 170 より 多い・同じ 関数は 2度 入れない（声の聞き取りの 2つだけ）・どの 組にも 名前',
+    [list.length > 170, dup.join(','), list.every(x => x.names.length > 0)].join('/'), 'true/runKoeListen/true');
+  check('  名前で えらぶ（いくつも 名前の ある 組は 1回）・番号で えらぶ・知らない 名前',
+    JSON.stringify([pickSuites('v602,units').idx.length, pickSuites('hade').idx.length > 3, pickSuites('@0').idx, pickSuites('nosuch').unknown]), '[1,true,[0],["nosuch"]]');
+  check('  並べて 流す 係（run-par.js）は 組の 表を 使い、かかった 時間を 覚える（覚えは git に 入れない）',
+    [fs.readFileSync(path.join(__dirname, 'run-par.js'), 'utf8').includes("'--list'"), fs.readFileSync(path.join(ROOT, '.gitignore'), 'utf8').includes('tests/.par-times.json')].join('/'), 'true/true');
+}
+
 async function runClockLay591(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🕐 ど派手タイマーの 時計：ぽよん 以外の 見せ方も 同じ 並べ方（v591） ──');
@@ -17684,7 +17758,7 @@ async function runTecho(browser) {
   check('  読み込みで重ならずに足す', await page.evaluate(() => { const inc = JSON.parse(localStorage.getItem('excalc_techo')); const n0 = tc.items.length;
     const a = techoMergeBundle(inc); inc.items.push({ id: 'imp1', kind: 'memo', roles: ['qc'], date: '2026-09-30', title: '読み込んだメモ', upd: 1 });
     const b = techoMergeBundle(inc); return a + '/' + b + '/' + (tc.items.length - n0) + '/' + !!tc.items.find(i => i.title === '読み込んだメモ'); }), '0/1/1/true');
-  check('  端末の空き具合に出る', await page.evaluate(() => typeof ST_KEYS !== 'undefined' ? ST_KEYS.some(k => k.k === 'excalc_techo') : document.documentElement.innerHTML.includes("excalc_techo")), true);
+  check('  端末の空き具合に出る', await page.evaluate(() => ST_GROUPS.some(k => k.k === 'excalc_techo')), true);   // v603：本体が app.js に なったので、ページの 文字では なく 表で 見る
   check('  壊れた中身は捨てる', await page.evaluate(() => { const o = tcClean({ roles: [{ id: 'a', name: 'A', color: 'red' }, { id: 'a', name: 'dup' }], items: [{ id: '1', date: '2026-02-30', title: 'x' }, { id: '2', date: '2026-02-03', start: '25:00', roles: ['zz'], title: '<b>' }], ui: { view: 'zzz' } });
     return o.roles.length + '/' + o.roles[0].color + '/' + o.items.length + '/' + o.items[0].allDay + '/' + o.items[0].roles.join() + '/' + o.ui.view; }), '1/#1e88e5/1/true/a/split');
   // 「戻る」で上の窓から閉じる
@@ -18423,183 +18497,217 @@ async function runQrShare(browser) {
   await ctx.close();
 }
 
+/* 組の 一覧（v603 で 表に した）。[名前（どれか 1つ 当たれば 流す）, 流す 関数]。
+     node tests/run.js              … ぜんぶ（上から 順に）
+     node tests/run.js hade         … その 名前の 組だけ（カンマで いくつでも：formula,xlsx）
+     node tests/run.js @12          … 表の 12番目（0から 数える）だけ。tests/run-par.js が 使う
+     node tests/run.js --list       … 組の 一覧を JSON で 出す（tests/run-par.js が 使う）
+   1回の 実行で 同じ 組は 2度 流さない（hade と v589 を いっしょに 頼んでも 1回）。 */
+const SUITES = [
+  [['formula'], b => runFormula(b)],
+  [['xlsx'], b => runXlsx(b)],
+  [['a11y'], b => runA11y(b)],
+  [['mode'], b => runMode(b)],
+  [['digit'], b => runDigit(b)],
+  [['speech'], b => runSpeech(b)],
+  [['calcpage'], b => runCalcPage(b)],
+  [['regpick'], b => runRegPick(b)],
+  [['cellmenu'], b => runCellMenu(b)],
+  [['savelist'], b => runSaveList(b)],
+  [['topbar'], b => runTopBar(b)],
+  [['flicksym'], b => runFlickSym(b)],
+  [['nptools'], b => runNpTools(b)],
+  [['keys466'], b => runKeys466(b)],
+  [['seqcustom'], b => runSeqCustom(b)],
+  [['fmtrange'], b => runFmtRange(b)],
+  [['rangesum'], b => runRangeSum(b)],
+  [['hdrmulti'], b => runHdrMulti(b)],
+  [['colorpick'], b => runColorPick(b)],
+  [['veggie'], b => runVeggie(b)],
+  [['report'], b => runReport(b)],
+  [['shared'], b => runShared(b)],
+  [['setdedup'], b => runSetDedup(b)],
+  [['tmplunit'], b => runTmplUnit(b)],
+  [['vegdiary'], b => runVegDiary(b)],
+  [['startpage'], b => runStartPage(b)],
+  [['dtdec'], b => runDtDec(b)],
+  [['tsxlock'], b => runTsxLock(b)],
+  [['voicemath'], b => runVoiceMath(b)],
+  [['voicesay'], b => runVoiceSay(b)],
+  [['storage'], b => runStorage(b)],
+  [['export'], b => runExport(b)],
+  [['skin'], b => runSkin(b)],
+  [['safety'], b => runSafety(b)],
+  [['packaging'], b => runPackaging(b)],
+  [['onboard'], b => runOnboard(b)],
+  [['polish'], b => runPolish(b)],
+  [['safearea'], b => runSafeArea(b)],
+  [['compact'], b => runCompact(b)],
+  [['calconly'], b => runCalcOnly(b)],
+  [['voiceplace'], b => runVoicePlace(b)],
+  [['voicefull'], b => runVoiceFull(b)],
+  [['defsize'], b => runDefSize(b)],
+  [['cellfocus'], b => runCellFocus(b)],
+  [['kaikei'], b => runKaikei(b)],
+  [['touban'], b => runTouban(b)],
+  [['tbcolor'], b => runTbColor(b)],
+  [['tbroster'], b => runTbRoster(b)],
+  [['tbsave'], b => runTbSave(b)],
+  [['fmtpage'], b => runFmtPage(b)],
+  [['qrshare'], b => runQrShare(b)],
+  [['fmtcol'], b => runFmtCol(b)],
+  [['cellxl'], b => runCellXl(b)],
+  [['clip'], b => runClip(b)],
+  [['koe'], b => runKoe(b)],
+  [['koe', 'koelisten'], b => runKoeListen(b)],
+  [['koe', 'koelisten'], b => runKoeListen(b, 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Mobile Safari/537.36')],
+  [['dtphrase'], b => runDtPhrase(b)],
+  [['koebackup'], b => runKoeBackup(b)],
+  [['fx426'], b => runFx426(b)],
+  [['techo'], b => runTecho(b)],
+  [['toolskey'], b => runToolsKey(b)],
+  [['tbfold'], b => runTbFold(b)],
+  [['subsc'], b => runSubsc(b)],
+  [['heya'], b => runHeya(b)],
+  [['annai'], b => runAnnai(b)],
+  [['shimai'], b => runShimai(b)],
+  [['meishi'], b => runMeishi(b)],
+  [['trim'], b => runTrim(b)],
+  [['manner'], b => runManner(b)],
+  [['boki'], b => runBoki(b)],
+  [['kurashi'], b => runKurashi(b)],
+  [['volshape'], b => runVolShape(b)],
+  [['keisan'], b => runKeisan(b)],
+  [['defmk'], b => runDefMk(b)],
+  [['ruler'], b => runRuler(b)],
+  [['appiconpwa'], b => runAppIconPwa(b)],
+  [['regi'], b => runRegi(b)],
+  [['kakeizu'], b => runKakeizu(b)],
+  [['saien'], b => runSaien(b)],
+  [['kakudo'], b => runKakudo(b)],
+  [['uimode'], b => runUiMode(b)],
+  [['toolsfab'], b => runToolsFab(b)],
+  [['techoapp'], b => runTechoApp(b)],
+  [['brush1'], b => runBrush1(b)],
+  [['brush2'], b => runBrush2(b)],
+  [['brush3'], b => runBrush3(b)],
+  [['help'], b => runHelpSplit(b)],
+  [['backkey'], b => runBackKey(b)],
+  [['security'], b => runSecurity(b)],
+  [['memo'], b => runMemo(b)],
+  [['memo', 'memolist'], b => runMemoList(b)],
+  [['memo', 'memophoto'], b => runMemoPhoto(b)],
+  [['sansu'], b => runSansu(b)],
+  [['kakijun'], b => runKakijun(b)],
+  [['eigo'], b => runEigoSpeak(b)],
+  [['koe', 'koeidea'], b => runKoeIdeas(b)],
+  [['koe', 'koeout'], b => runKoeOut(b)],
+  [['backguard'], b => runBackGuard(b)],
+  [['hyovoice'], b => runHyoVoice(b)],
+  [['scheme'], b => runSchemeFix(b)],
+  [['renraku'], b => runRenraku(b)],
+  [['rkiro'], b => runRenrakuIro(b)],
+  [['rkyomi'], b => runRenrakuYomi(b)],
+  [['rkcno'], b => runRenrakuColorNo(b)],
+  [['rk550'], b => runRenraku550(b)],
+  [['rk551'], b => runRenraku551(b)],
+  [['rk552'], b => runRenraku552(b)],
+  [['backask'], b => runBackAsk(b)],
+  [['rk554'], b => runRenraku554(b)],
+  [['rk555'], b => runRenraku555(b)],
+  [['rk556'], b => runRenraku556(b)],
+  [['rk566', 'v566'], b => runRenraku566(b)],
+  [['koe557'], b => runKoeUser557(b)],
+  [['kkj558'], b => runKakijun558(b)],
+  [['kkjse'], b => runKakijunSE(b)],
+  [['kkj567', 'v567'], b => runKakijun567(b)],
+  [['koyomi', 'v568'], b => runKoyomi568(b)],
+  [['hoi', 'v568'], b => runHoi568(b)],
+  [['soroban', 'v568'], b => runSoroban568(b)],
+  [['hitsudan', 'v569'], b => runHitsudan569(b)],
+  [['keijiban', 'v569'], b => runKeijiban569(b)],
+  [['keijiban570', 'keijiban', 'v570'], b => runKeijiban570(b)],
+  [['keijiban571', 'keijiban', 'v571'], b => runKeijiban571(b)],
+  [['keijiban572', 'keijiban', 'v572'], b => runKeijiban572(b)],
+  [['keijiban573', 'keijiban', 'v573'], b => runKeijiban573(b)],
+  [['keijiban574', 'keijiban', 'v574'], b => runKeijiban574(b)],
+  [['hadetimer', 'hade', 'v575'], b => runHadeTimer575(b)],
+  [['hadetimer576', 'hadetimer', 'hade', 'v576'], b => runHadeTimer576(b)],
+  [['hadetimer580', 'hadetimer', 'hade', 'v580'], b => runHadeTimer580(b)],
+  [['hadecount', 'hade', 'v575'], b => runHadeCount575(b)],
+  [['seikyu', 'v575'], b => runSeikyu575(b)],
+  [['seikyu', 'v577'], b => runSeikyu577(b)],
+  [['seikyu', 'v578'], b => runSeikyu578(b)],
+  [['yatta', 'v579'], b => runYatta579(b)],
+  [['shukin', 'v579'], b => runShukin579(b)],
+  [['shukin582', 'shukin', 'v582'], b => runShukin582(b)],
+  [['shukin582', 'shukinfile', 'shukin', 'v582'], b => runShukinFile582(b)],
+  [['hadecount582', 'hadecount', 'hade', 'v582'], b => runHadeCount582(b)],
+  [['hadecount583', 'hadecount', 'hade', 'v583'], b => runHadeCount583(b)],
+  [['hadetimer583', 'hadetimer', 'hade', 'v583'], b => runHadeTimer583(b)],
+  [['hadecount584', 'hadecount', 'hade', 'v584'], b => runHadeCount584(b)],
+  [['shiori', 'v579'], b => runShiori579(b)],
+  [['picknames', 'v579'], b => runPickNames579(b)],
+  [['saveas'], b => runSaveAs560(b)],
+  [['tatekae', 'v561'], b => runTatekae561(b)],
+  [['kuji', 'v561'], b => runKuji561(b)],
+  [['kuji', 'kuji585', 'v585'], b => runKujiAmida585(b)],
+  [['kuji', 'kuji586', 'v586'], b => runKujiReveal586(b)],
+  [['kuji', 'kuji592', 'v592'], b => runKujiSound592(b)],
+  [['bingo', 'v587'], b => runBingo587(b)],
+  [['bingo', 'bingo588', 'v588'], b => runBingo588(b)],
+  [['hade', 'hade588', 'v588'], b => runHadeFull588(b)],
+  [['seikyu', 'seikyu588', 'v588'], b => runSeikyuPrint588(b)],
+  [['hade', 'poyo', 'v589'], b => runPoyo589(b)],
+  [['hade', 'clock', 'v591'], b => runClockLay591(b)],
+  [['hade', 'voice593', 'v593'], b => runTimerVoice593(b)],
+  [['hade', 'vs594', 'v594'], b => runCountVs594(b)],
+  [['ics', 'yatta', 'techo', 'v595'], b => runIcs595(b)],
+  [['seikyu', 'regi', 'kakudo', 'v596'], b => runV596(b)],
+  [['keijiban', 'keijiban597', 'v597'], b => runKeijiban597(b)],
+  [['hade', 'timer598', 'v598'], b => runTimer598(b)],
+  [['bingo', 'hitsudan', 'v599'], b => runV599(b)],
+  [['shiori', 'shiken', 'annai', 'v600'], b => runV600(b)],
+  [['trim', 'manner', 'boki', 'kurashi', 'yomi', 'v601'], b => runV601(b)],
+  [['units', 'v602'], b => runUnits602(b)],
+  [['boot', 'runpar', 'v603'], b => runBoot603(b)],
+  [['dasetsu', 'v561'], b => runDasetsu561(b)],
+  [['okaeshi', 'v564'], b => runOkaeshi564(b)],
+  [['tax', 'v565'], b => runTax565(b)],
+  [['dasetsu', 'ds562'], b => runDasetsu562(b)],
+  [['hyoplus', 'v563'], b => runHyoPlus563(b)],
+  [['firsthint'], b => runFirstHint(b)],
+  // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
+  [['visual'], b => require('./visual').runVisual(b, check)],
+];
+// 頼まれた 組の 番号（表の 順・同じ 組は 1回）。知らない 名前は unknown に
+function pickSuites(sel) {
+  if (!sel) return { idx: SUITES.map((_, i) => i), unknown: [] };
+  const idx = new Set(), unknown = [];
+  for (const part of sel.split(',').map(x => x.trim()).filter(Boolean)) {
+    if (/^@\d+$/.test(part)) { if (SUITES[+part.slice(1)]) idx.add(+part.slice(1)); else unknown.push(part); continue; }
+    let hit = false;
+    SUITES.forEach(([names], i) => { if (names.includes(part)) { idx.add(i); hit = true; } });
+    if (!hit) unknown.push(part);
+  }
+  return { idx: [...idx].sort((x, y) => x - y), unknown };
+}
+if (only === '--list') {
+  // 関数の 中身の 長さは、はじめて 並べて 流すときの「かかりそうな 時間」の 目安に 使う
+  console.log(JSON.stringify(SUITES.map(([names, fn], i) => {
+    const m = /\b(run[A-Za-z0-9_]+)\(b/.exec(String(fn));
+    let len = 0; try { len = m ? String(eval(m[1])).length : 0; } catch (_) {}
+    return { i, names, fn: m ? m[1] : 'runVisual', len };
+  })));
+  process.exit(0);
+}
+
 (async () => {
+  const { idx, unknown } = pickSuites(only);
+  if (unknown.length) { console.error('その 名前の 組は ありません: ' + unknown.join(', ')); if (!idx.length) process.exit(2); }
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
-    if (!only || only === 'formula') await runFormula(browser);
-    if (!only || only === 'xlsx') await runXlsx(browser);
-    if (!only || only === 'a11y') await runA11y(browser);
-    if (!only || only === 'mode') await runMode(browser);
-    if (!only || only === 'digit') await runDigit(browser);
-    if (!only || only === 'speech') await runSpeech(browser);
-    if (!only || only === 'calcpage') await runCalcPage(browser);
-    if (!only || only === 'regpick') await runRegPick(browser);
-    if (!only || only === 'cellmenu') await runCellMenu(browser);
-    if (!only || only === 'savelist') await runSaveList(browser);
-    if (!only || only === 'topbar') await runTopBar(browser);
-    if (!only || only === 'flicksym') await runFlickSym(browser);
-    if (!only || only === 'nptools') await runNpTools(browser);
-    if (!only || only === 'keys466') await runKeys466(browser);
-    if (!only || only === 'seqcustom') await runSeqCustom(browser);
-    if (!only || only === 'fmtrange') await runFmtRange(browser);
-    if (!only || only === 'rangesum') await runRangeSum(browser);
-    if (!only || only === 'hdrmulti') await runHdrMulti(browser);
-    if (!only || only === 'colorpick') await runColorPick(browser);
-    if (!only || only === 'veggie') await runVeggie(browser);
-    if (!only || only === 'report') await runReport(browser);
-    if (!only || only === 'shared') await runShared(browser);
-    if (!only || only === 'setdedup') await runSetDedup(browser);
-    if (!only || only === 'tmplunit') await runTmplUnit(browser);
-    if (!only || only === 'vegdiary') await runVegDiary(browser);
-    if (!only || only === 'startpage') await runStartPage(browser);
-    if (!only || only === 'dtdec') await runDtDec(browser);
-    if (!only || only === 'tsxlock') await runTsxLock(browser);
-    if (!only || only === 'voicemath') await runVoiceMath(browser);
-    if (!only || only === 'voicesay') await runVoiceSay(browser);
-    if (!only || only === 'storage') await runStorage(browser);
-    if (!only || only === 'export') await runExport(browser);
-    if (!only || only === 'skin') await runSkin(browser);
-    if (!only || only === 'safety') await runSafety(browser);
-    if (!only || only === 'packaging') await runPackaging(browser);
-    if (!only || only === 'onboard') await runOnboard(browser);
-    if (!only || only === 'polish') await runPolish(browser);
-    if (!only || only === 'safearea') await runSafeArea(browser);
-    if (!only || only === 'compact') await runCompact(browser);
-    if (!only || only === 'calconly') await runCalcOnly(browser);
-    if (!only || only === 'voiceplace') await runVoicePlace(browser);
-    if (!only || only === 'voicefull') await runVoiceFull(browser);
-    if (!only || only === 'defsize') await runDefSize(browser);
-    if (!only || only === 'cellfocus') await runCellFocus(browser);
-    if (!only || only === 'kaikei') await runKaikei(browser);
-    if (!only || only === 'touban') await runTouban(browser);
-    if (!only || only === 'tbcolor') await runTbColor(browser);
-    if (!only || only === 'tbroster') await runTbRoster(browser);
-    if (!only || only === 'tbsave') await runTbSave(browser);
-    if (!only || only === 'fmtpage') await runFmtPage(browser);
-    if (!only || only === 'qrshare') await runQrShare(browser);
-    if (!only || only === 'fmtcol') await runFmtCol(browser);
-    if (!only || only === 'cellxl') await runCellXl(browser);
-    if (!only || only === 'clip') await runClip(browser);
-    if (!only || only === 'koe') await runKoe(browser);
-    if (!only || only === 'koe' || only === 'koelisten') await runKoeListen(browser);
-    if (!only || only === 'koe' || only === 'koelisten') await runKoeListen(browser, 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Mobile Safari/537.36');
-    if (!only || only === 'dtphrase') await runDtPhrase(browser);
-    if (!only || only === 'koebackup') await runKoeBackup(browser);
-    if (!only || only === 'fx426') await runFx426(browser);
-    if (!only || only === 'techo') await runTecho(browser);
-    if (!only || only === 'toolskey') await runToolsKey(browser);
-    if (!only || only === 'tbfold') await runTbFold(browser);
-    if (!only || only === 'subsc') await runSubsc(browser);
-    if (!only || only === 'heya') await runHeya(browser);
-    if (!only || only === 'annai') await runAnnai(browser);
-    if (!only || only === 'shimai') await runShimai(browser);
-    if (!only || only === 'meishi') await runMeishi(browser);
-    if (!only || only === 'trim') await runTrim(browser);
-    if (!only || only === 'manner') await runManner(browser);
-    if (!only || only === 'boki') await runBoki(browser);
-    if (!only || only === 'kurashi') await runKurashi(browser);
-    if (!only || only === 'volshape') await runVolShape(browser);
-    if (!only || only === 'keisan') await runKeisan(browser);
-    if (!only || only === 'defmk') await runDefMk(browser);
-    if (!only || only === 'ruler') await runRuler(browser);
-    if (!only || only === 'appiconpwa') await runAppIconPwa(browser);
-    if (!only || only === 'regi') await runRegi(browser);
-    if (!only || only === 'kakeizu') await runKakeizu(browser);
-    if (!only || only === 'saien') await runSaien(browser);
-    if (!only || only === 'kakudo') await runKakudo(browser);
-    if (!only || only === 'uimode') await runUiMode(browser);
-    if (!only || only === 'toolsfab') await runToolsFab(browser);
-    if (!only || only === 'techoapp') await runTechoApp(browser);
-    if (!only || only === 'brush1') await runBrush1(browser);
-    if (!only || only === 'brush2') await runBrush2(browser);
-    if (!only || only === 'brush3') await runBrush3(browser);
-    if (!only || only === 'help') await runHelpSplit(browser);
-    if (!only || only === 'backkey') await runBackKey(browser);
-    if (!only || only === 'security') await runSecurity(browser);
-    if (!only || only === 'memo') await runMemo(browser);
-    if (!only || only === 'memo' || only === 'memolist') await runMemoList(browser);
-    if (!only || only === 'memo' || only === 'memophoto') await runMemoPhoto(browser);
-    if (!only || only === 'sansu') await runSansu(browser);
-    if (!only || only === 'kakijun') await runKakijun(browser);
-    if (!only || only === 'eigo') await runEigoSpeak(browser);
-    if (!only || only === 'koe' || only === 'koeidea') await runKoeIdeas(browser);
-    if (!only || only === 'koe' || only === 'koeout') await runKoeOut(browser);
-    if (!only || only === 'backguard') await runBackGuard(browser);
-    if (!only || only === 'hyovoice') await runHyoVoice(browser);
-    if (!only || only === 'scheme') await runSchemeFix(browser);
-    if (!only || only === 'renraku') await runRenraku(browser);
-    if (!only || only === 'rkiro') await runRenrakuIro(browser);
-    if (!only || only === 'rkyomi') await runRenrakuYomi(browser);
-    if (!only || only === 'rkcno') await runRenrakuColorNo(browser);
-    if (!only || only === 'rk550') await runRenraku550(browser);
-    if (!only || only === 'rk551') await runRenraku551(browser);
-    if (!only || only === 'rk552') await runRenraku552(browser);
-    if (!only || only === 'backask') await runBackAsk(browser);
-    if (!only || only === 'rk554') await runRenraku554(browser);
-    if (!only || only === 'rk555') await runRenraku555(browser);
-    if (!only || only === 'rk556') await runRenraku556(browser);
-    if (!only || only === 'rk566' || only === 'v566') await runRenraku566(browser);
-    if (!only || only === 'koe557') await runKoeUser557(browser);
-    if (!only || only === 'kkj558') await runKakijun558(browser);
-    if (!only || only === 'kkjse') await runKakijunSE(browser);
-    if (!only || only === 'kkj567' || only === 'v567') await runKakijun567(browser);
-    if (!only || only === 'koyomi' || only === 'v568') await runKoyomi568(browser);
-    if (!only || only === 'hoi' || only === 'v568') await runHoi568(browser);
-    if (!only || only === 'soroban' || only === 'v568') await runSoroban568(browser);
-    if (!only || only === 'hitsudan' || only === 'v569') await runHitsudan569(browser);
-    if (!only || only === 'keijiban' || only === 'v569') await runKeijiban569(browser);
-    if (!only || only === 'keijiban570' || only === 'keijiban' || only === 'v570') await runKeijiban570(browser);
-    if (!only || only === 'keijiban571' || only === 'keijiban' || only === 'v571') await runKeijiban571(browser);
-    if (!only || only === 'keijiban572' || only === 'keijiban' || only === 'v572') await runKeijiban572(browser);
-    if (!only || only === 'keijiban573' || only === 'keijiban' || only === 'v573') await runKeijiban573(browser);
-    if (!only || only === 'keijiban574' || only === 'keijiban' || only === 'v574') await runKeijiban574(browser);
-    if (!only || only === 'hadetimer' || only === 'hade' || only === 'v575') await runHadeTimer575(browser);
-    if (!only || only === 'hadetimer576' || only === 'hadetimer' || only === 'hade' || only === 'v576') await runHadeTimer576(browser);
-    if (!only || only === 'hadetimer580' || only === 'hadetimer' || only === 'hade' || only === 'v580') await runHadeTimer580(browser);
-    if (!only || only === 'hadecount' || only === 'hade' || only === 'v575') await runHadeCount575(browser);
-    if (!only || only === 'seikyu' || only === 'v575') await runSeikyu575(browser);
-    if (!only || only === 'seikyu' || only === 'v577') await runSeikyu577(browser);
-    if (!only || only === 'seikyu' || only === 'v578') await runSeikyu578(browser);
-    if (!only || only === 'yatta' || only === 'v579') await runYatta579(browser);
-    if (!only || only === 'shukin' || only === 'v579') await runShukin579(browser);
-    if (!only || only === 'shukin582' || only === 'shukin' || only === 'v582') await runShukin582(browser);
-    if (!only || only === 'shukin582' || only === 'shukinfile' || only === 'shukin' || only === 'v582') await runShukinFile582(browser);
-    if (!only || only === 'hadecount582' || only === 'hadecount' || only === 'hade' || only === 'v582') await runHadeCount582(browser);
-    if (!only || only === 'hadecount583' || only === 'hadecount' || only === 'hade' || only === 'v583') await runHadeCount583(browser);
-    if (!only || only === 'hadetimer583' || only === 'hadetimer' || only === 'hade' || only === 'v583') await runHadeTimer583(browser);
-    if (!only || only === 'hadecount584' || only === 'hadecount' || only === 'hade' || only === 'v584') await runHadeCount584(browser);
-    if (!only || only === 'shiori' || only === 'v579') await runShiori579(browser);
-    if (!only || only === 'picknames' || only === 'v579') await runPickNames579(browser);
-    if (!only || only === 'saveas') await runSaveAs560(browser);
-    if (!only || only === 'tatekae' || only === 'v561') await runTatekae561(browser);
-    if (!only || only === 'kuji' || only === 'v561') await runKuji561(browser);
-    if (!only || only === 'kuji' || only === 'kuji585' || only === 'v585') await runKujiAmida585(browser);
-    if (!only || only === 'kuji' || only === 'kuji586' || only === 'v586') await runKujiReveal586(browser);
-    if (!only || only === 'kuji' || only === 'kuji592' || only === 'v592') await runKujiSound592(browser);
-    if (!only || only === 'bingo' || only === 'v587') await runBingo587(browser);
-    if (!only || only === 'bingo' || only === 'bingo588' || only === 'v588') await runBingo588(browser);
-    if (!only || only === 'hade' || only === 'hade588' || only === 'v588') await runHadeFull588(browser);
-    if (!only || only === 'seikyu' || only === 'seikyu588' || only === 'v588') await runSeikyuPrint588(browser);
-    if (!only || only === 'hade' || only === 'poyo' || only === 'v589') await runPoyo589(browser);
-    if (!only || only === 'hade' || only === 'clock' || only === 'v591') await runClockLay591(browser);
-    if (!only || only === 'hade' || only === 'voice593' || only === 'v593') await runTimerVoice593(browser);
-    if (!only || only === 'hade' || only === 'vs594' || only === 'v594') await runCountVs594(browser);
-    if (!only || only === 'ics' || only === 'yatta' || only === 'techo' || only === 'v595') await runIcs595(browser);
-    if (!only || only === 'seikyu' || only === 'regi' || only === 'kakudo' || only === 'v596') await runV596(browser);
-    if (!only || only === 'keijiban' || only === 'keijiban597' || only === 'v597') await runKeijiban597(browser);
-    if (!only || only === 'hade' || only === 'timer598' || only === 'v598') await runTimer598(browser);
-    if (!only || only === 'bingo' || only === 'hitsudan' || only === 'v599') await runV599(browser);
-    if (!only || only === 'shiori' || only === 'shiken' || only === 'annai' || only === 'v600') await runV600(browser);
-    if (!only || only === 'trim' || only === 'manner' || only === 'boki' || only === 'kurashi' || only === 'yomi' || only === 'v601') await runV601(browser);
-    if (!only || only === 'units' || only === 'v602') await runUnits602(browser);
-    if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
-    if (!only || only === 'okaeshi' || only === 'v564') await runOkaeshi564(browser);
-    if (!only || only === 'tax' || only === 'v565') await runTax565(browser);
-    if (!only || only === 'dasetsu' || only === 'ds562') await runDasetsu562(browser);
-    if (!only || only === 'hyoplus' || only === 'v563') await runHyoPlus563(browser);
-    if (!only || only === 'firsthint') await runFirstHint(browser);
-    // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
-    if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
+    for (const i of idx) await SUITES[i][1](browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }

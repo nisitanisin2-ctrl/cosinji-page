@@ -27,7 +27,9 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 
 | | |
 |---|---|
-| `index.html` | アプリ本体（組み立て作業はいりません） |
+| `index.html` | アプリの入り口（画面の部品と見た目。組み立て作業はいりません） |
+| `app.js` | 表電卓の本体のプログラム（v603 で `index.html` から分けました。ページを読みながら同時に取ってこられるので、起動が速くなります。読めなかったときは「読み込めませんでした」と「もう一度 読み込む」を出します） |
+| `whatsnew.js` | 📣新しくなったことの一覧（版ごと）。「新しくなったこと」を開くときと、版が上がったことを知らせるときだけ読み込みます（v603） |
 | `help.js` | 📖説明書の中身。開いたときだけ読み込みます（v401 から別のファイル） |
 | `help/` | 説明書の「かんたん説明書」に出す実際の画面の写真（JPEG）。画面が変わったら `node tests/help-shots.js` で撮り直せます（v452 から） |
 | `photomemo.js` | 📝写真メモの処理。開いたときだけ読み込みます（v420 から別のファイル） |
@@ -92,20 +94,21 @@ Excel（.xlsx）の読み書き、CSV、PDF出力にも対応しています。
 
 ## 配る
 
-`index.html` `help.js`（と `help/` フォルダ） `photomemo.js` `techo.js` `subsc.js` `heya.js` `annai.js` `shimai.js` `meishi.js` `renraku.js` `renraku-yomi.js` `renraku-icons.js` `trim.js` `manner.js` `boki.js` `kurashi.js` `keisan.js` `ruler.js` `tatekae.js` `kuji.js` `dasetsu.js` `okaeshi.js` `koyomi.js` `koyomi-data.js` `hoi.js` `soroban.js` `hitsudan.js` `keijiban.js` `keijiban-clock.js` `hade-fx.js` `hade-look.js` `hade-poyo.js` `hade-timer.js` `hade-count.js` `seikyu.js` `yatta.js` `hyoics.js` `shukin.js` `shiori.js` `bingo.js` `shiken.js` `yomi.js` `hyoplus.js` `kakudo.js` `regi.js` `kakeizu.js` `hyovoice.js` `service-worker.js`、`apps/` フォルダ `renraku-app/` フォルダ `manifest.json` と `techo/` フォルダ、`icon-*.png` `apple-touch-icon.png` `ogp.png` `shot-*.png` を置くだけです。サーバー側の用意はいりません。
-`help.js` を置き忘れると説明書だけが、`photomemo.js` を置き忘れると写真メモだけが、`techo.js` を置き忘れると業務手帳だけが「読み込めませんでした」になります（ほかはそのまま動きます）。`hyovoice.js` を置き忘れると「🔈 読み上げの声」だけが開けません（読み上げは端末のふつうの声で動きます）。パソコン版（exe）に入れるときも `index.html` と同じ場所に置いてください。
+`index.html` `app.js` `whatsnew.js` `help.js`（と `help/` フォルダ） `photomemo.js` `techo.js` `subsc.js` `heya.js` `annai.js` `shimai.js` `meishi.js` `renraku.js` `renraku-yomi.js` `renraku-icons.js` `trim.js` `manner.js` `boki.js` `kurashi.js` `keisan.js` `ruler.js` `tatekae.js` `kuji.js` `dasetsu.js` `okaeshi.js` `koyomi.js` `koyomi-data.js` `hoi.js` `soroban.js` `hitsudan.js` `keijiban.js` `keijiban-clock.js` `hade-fx.js` `hade-look.js` `hade-poyo.js` `hade-timer.js` `hade-count.js` `seikyu.js` `yatta.js` `hyoics.js` `shukin.js` `shiori.js` `bingo.js` `shiken.js` `yomi.js` `hyoplus.js` `kakudo.js` `regi.js` `kakeizu.js` `hyovoice.js` `service-worker.js`、`apps/` フォルダ `renraku-app/` フォルダ `manifest.json` と `techo/` フォルダ、`icon-*.png` `apple-touch-icon.png` `ogp.png` `shot-*.png` を置くだけです。サーバー側の用意はいりません。
+`app.js` を置き忘れると表電卓そのものが動きません（「読み込めませんでした」が出ます）。`help.js` を置き忘れると説明書だけが、`photomemo.js` を置き忘れると写真メモだけが、`techo.js` を置き忘れると業務手帳だけが「読み込めませんでした」になります（ほかはそのまま動きます）。`hyovoice.js` を置き忘れると「🔈 読み上げの声」だけが開けません（読み上げは端末のふつうの声で動きます）。パソコン版（exe）に入れるときも `index.html` と同じ場所に置いてください。
 
 GitHub Pages の公開（Actions の「pages build and deployment」）が `Failed to get ID Token … Request timeout` で失敗したときは、GitHub 側の一時的な通信の不具合です。その実行を「Re-run jobs」でやり直すか、main に次の変更を入れれば公開し直されます。
 
 `kaikei/` `koe/` `notes/` `eigo/` `sansu/` `kakijun/` は、それぞれ1つのアプリとして独立しています。フォルダごと置けばそのまま動きます。
 
-版を上げるときは、`index.html` の `APP_VERSION` と `service-worker.js` の `CACHE` を**必ずそろえて**ください。ずれていると、古い版がいつまでも残ります。
+版を上げるときは、`app.js` の `APP_VERSION` と `service-worker.js` の `CACHE` を**必ずそろえて**ください（v603 から `APP_VERSION` は `index.html` ではなく `app.js` にあります）。ずれていると、古い版がいつまでも残ります。新しくなったことは `whatsnew.js` のいちばん上に足します。
 
 ## テスト
 
 ```
-node tests/run.js            # ぜんぶ
-node tests/run.js speech     # ひと組だけ
+node tests/run-par.js        # ぜんぶ（組ごとに同時に流す。速い）
+node tests/run.js            # ぜんぶ（1組ずつ順に）
+node tests/run.js speech     # ひと組だけ（カンマでいくつでも：speech,formula）
 ```
 
 数式・Excel の読み書き・声の聞き取り・着せかえ・データの守り・アイコンと manifest・はじめての案内などを見ています。**何かを直したら、これを通してから入れてください。**くわしくは `tests/README.md` を見てください。
