@@ -11187,7 +11187,7 @@ async function runSeikyu575(browser) {
   const w = ms => page.waitForTimeout(ms);
   await page.evaluate(() => { window.appConfirm = async () => true; window.__print = 0; window.print = () => { window.__print++; }; });
   await page.evaluate(() => openSeikyu()); await w(500);
-  check('  はじめ：請求書・番号（日付-01）・今日・支払期限は 翌月末・品物 1行・← もどる', await page.evaluate(() => { const c = SEIKYU.state().cur, d = new Date(), ymd = x => x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'), eom = new Date(d.getFullYear(), d.getMonth() + 2, 0); return [c.kind, c.no === ymd(d).replace(/-/g, '') + '-01', c.date === ymd(d), c.due === ymd(eom), c.items.length, document.querySelectorAll('.sk-kinds button').length, !!document.querySelector('#seikyuOverlay .tool-back'), document.getElementById('skFoot').textContent.includes('0円')].join('/'); }), 'seikyu/true/true/true/1/3/true/true');
+  check('  はじめ：請求書・番号（日付-01）・今日・支払期限は 翌月末・品物 1行・← もどる', await page.evaluate(() => { const c = SEIKYU.state().cur, d = new Date(), ymd = x => x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'), eom = new Date(d.getFullYear(), d.getMonth() + 2, 0); return [c.kind, c.no === ymd(d).replace(/-/g, '') + '-01', c.date === ymd(d), c.due === ymd(eom), c.items.length, document.querySelectorAll('.sk-kinds button').length, !!document.querySelector('#seikyuOverlay .tool-back'), document.getElementById('skFoot').textContent.includes('0円')].join('/'); }), 'seikyu/true/true/true/1/4/true/true');   // 書類は 4つ（領収書は v596）
   // 例：定価 100万 ×1・10％引き・オプション 3つ・「オプション3つ以上で 定価5％値下げ」・数量2以上で 2万円引き（届かない）・1万円未満を 切り捨て
   await page.evaluate(() => {
     SEIKYU.me('name', '表電卓工業 株式会社'); SEIKYU.me('reg', 't1234567890123'); SEIKYU.me('bank', '〇〇銀行 本店 普通 1234567'); SEIKYU.me('seal', true);
@@ -12367,6 +12367,77 @@ async function runIcs595(browser) {
   await page.click('.tc-choose button[data-i="0"]'); await pr; await w(300);
   check('  えらぶと まとめて（4件・くり返しに 🔁）', await page.evaluate(() => [document.querySelectorAll('.hics li').length, document.querySelectorAll('.hics li').length && [...document.querySelectorAll('.hics li')].filter(x => x.textContent.includes('🔁')).length, document.querySelector('.hics p').textContent.includes('予定 4件')].join('/')), '4/2/true');
   await page.evaluate(() => HyoIcs.close()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+// 🧾 領収書（請求書づくり）・👀 お客さんに 見せる（即売レジ）・🔔 水平で ピッ（角度計）（v596）
+async function runV596(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🧾 領収書・👀 レジの 大きな 金額・🔔 角度計の ピッ（v596） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { window.appConfirm = async () => true; window.__print = 0; window.print = () => { window.__print++; }; });
+  await page.evaluate(async () => { await openSeikyu(); SEIKYU.me('name', '株式会社 表電卓工業'); SEIKYU.me('reg', 'T1234567890123'); SEIKYU.me('seal', true);
+    SEIKYU.doc('to', '山田 太郎'); SEIKYU.doc('hon', '様'); SEIKYU.doc('subject', 'エアコン 取付工事'); SEIKYU.it(0, 'name', 'エアコン 取付'); SEIKYU.it(0, 'price', '68000'); SEIKYU.it(0, 'qty', '1'); }); await w(300);
+  check('  書類の 種類に 領収書（4つ）・請求書には「領収書を 作る」', await page.evaluate(() => [[...document.querySelectorAll('.sk-kinds button')].map(b => b.textContent).join(','), [...document.querySelectorAll('.sk-acts button')].some(b => b.textContent.includes('領収書を 作る'))].join('/')), '請求書,見積書,納品書,領収書/true');
+  await page.evaluate(() => SEIKYU.toRcpt()); await w(300);
+  check('  請求書 → 領収書（番号と 日付は 新しく・期限なし・但し書きは 件名・控えつき）', await page.evaluate(() => { const c = SEIKYU.state().cur, d = new Date(), ymd = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); return [c.kind, c.date === ymd, c.due, c.tada, c.rcopy, !!document.querySelector('.sk-rcset'), [...document.querySelectorAll('.sk-f span')].some(x => x.textContent === '支払期限')].join('/'); }), 'ryoshu/true//エアコン 取付工事/true/true/false');
+  check('  領収書の 形：本紙と 控え・金額・但し書き・内訳・登録番号・収入印紙（本紙だけ）・印（本紙だけ）', await page.evaluate(() => { const d = document.createElement('div'); d.innerHTML = SEIKYU.html(); const b = d.querySelectorAll('.sk-rcb'); return [b.length, b[0].querySelector('.sk-rch .t').textContent, b[1].querySelector('.sk-rch .t').textContent, b[0].querySelector('.sk-rca .v').textContent, b[0].querySelector('.sk-rct').textContent.replace(/\s+/g, ''), b[0].querySelector('.sk-rci').textContent.replace(/\s+/g, ''), b[0].textContent.includes('登録番号 T1234567890123'), !!b[0].querySelector('.sk-stamp'), !!b[1].querySelector('.sk-stamp'), !!b[0].querySelector('.sk-seal'), !!b[1].querySelector('.sk-seal'), !!d.querySelector('.sk-cut')].join('|'); }), '2|領 収 書|領 収 書（控）|¥74,800-|但しエアコン取付工事として上記正に領収いたしました。|内訳10％対象（税抜）68,000円消費税（10％）6,800円|true|true|false|true|false|true');
+  check('  収入印紙の 金額の 目安（税抜で 見る・5万円 未満は なし）', await page.evaluate(() => [49999, 50000, 1000000, 1000001, 3000000, 5000000, 10000000, 1.2e9].map(SEIKYU.duty).join(',')), '0,200,200,400,600,1000,2000,200000');
+  await page.evaluate(() => { SEIKYU.it(0, 'price', '45000'); SEIKYU.doc('tada', 'お品代として'); SEIKYU.doc('rcopy', false); }); await w(200);
+  check('  税抜 5万円 未満は 印紙なし・「として」は 重ねない・本紙だけ', await page.evaluate(() => { const d = document.createElement('div'); d.innerHTML = SEIKYU.html(); return [d.querySelectorAll('.sk-rcb').length, !!d.querySelector('.sk-stamp'), d.querySelector('.sk-rct').textContent.replace(/\s+/g, ''), !!d.querySelector('.sk-cut')].join('/'); }), '1/false/但しお品代として上記正に領収いたしました。/false');
+  check('  文字で コピー（領収書の 形）', await page.evaluate(() => SEIKYU.text().split('\n').slice(0, 5).join('|')), '領収書　No.' + await page.evaluate(() => SEIKYU.state().cur.no) + '　' + await page.evaluate(() => { const d = new Date(); return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日'; }) + '|山田 太郎 様|金額：49,500円（税込）|但し お品代 として 上記 正に 領収いたしました。|内訳：10％対象（税抜） 45,000円・消費税 4,500円');
+  await page.evaluate(() => { SEIKYU.it(0, 'price', '68000'); SEIKYU.doc('rcopy', true); SEIKYU.print(); }); await w(400);
+  await page.emulateMedia({ media: 'print' }); await w(200);
+  const pdf = await page.pdf({ format: 'A4' });
+  await page.emulateMedia({ media: 'screen' });
+  check('  印刷：本紙と 控えで A4 1枚', (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length, 1);
+  await page.evaluate(() => closeSeikyu()); await w(300);
+  // 👀 即売レジ
+  await page.evaluate(() => { localStorage.setItem('excalc_regi', JSON.stringify({ ev: { name: '秋祭り', date: '' }, items: [{ id: 'a1', name: 'クッキー', price: 300, stock0: 20, stock: 20 }, { id: 'b2', name: 'ジャム', price: 1200, stock0: 5, stock: 5 }], sales: [], no: 1 })); localStorage.removeItem('excalc_regi_ui'); });
+  await page.evaluate(() => openRegi()); await w(500);
+  await page.evaluate(() => rgCust()); await w(150);
+  check('  レジ：注文が ないと 出さない（知らせ）', await page.evaluate(() => [rgCv().on, (document.getElementById('appToast') || {}).textContent].join('/')), 'false/先に商品を入れてください');
+  await page.evaluate(() => { rgAdd('a1'); rgAdd('a1'); rgAdd('b2'); rgSetPaid(1000); rgCust(); }); await w(200);
+  check('  👀 お会計（点数）・預かりが たりない ときは お釣りを 出さない', await page.evaluate(() => [rgCv().on, rgCv().kind, rgCv().text].join('/')), 'true/cart/お会計 ¥1,800 3点');
+  await page.evaluate(() => { rgCustClose(); rgSetPaid(3000); rgCust(); }); await w(200);
+  check('  お預かりと お釣りも 大きく・画面の 幅に おさまる', await page.evaluate(() => { const v = document.querySelector('#rgCv .cv-v'); return [rgCv().text, v.scrollWidth <= innerWidth].join('/'); }), 'お会計 ¥1,800 3点 お預かり ¥3,000 お釣り ¥1,200/true');
+  await page.evaluate(() => rgCustRot()); await w(150);
+  check('  🔄 さかさま（向かいの 人へ）・向きを 覚える', await page.evaluate(() => [document.getElementById('rgCvIn').classList.contains('rot'), JSON.parse(localStorage.getItem('excalc_regi_ui')).cv, document.querySelector('#rgCv .cv-bar').textContent.includes('もとの 向きに')].join('/')), 'true/rot/true');
+  await page.keyboard.press('Escape'); await w(200);
+  check('  Esc で この 画面だけ もどる（レジは そのまま）', await page.evaluate(() => [rgCv().on, isDlgOpen('regiOverlay'), rgState().cart.length].join('/')), 'false/true/2');
+  await page.evaluate(() => rgPay()); await w(300);
+  check('  会計の あとの 窓に「お釣りを 見せる」', await page.evaluate(() => [...document.querySelectorAll('#rgDoneOverlay button')].some(b => b.textContent.includes('お釣りを お客さんに 見せる'))), true);
+  await page.evaluate(() => rgCust('done')); await w(200);
+  check('  お釣りと「ありがとうございました」（さかさまの まま）', await page.evaluate(() => [rgCv().kind, rgCv().text, document.getElementById('rgCvIn').classList.contains('rot')].join('/')), 'done/お釣り ¥1,200 合計 ¥1,800 お預かり ¥3,000 ありがとうございました/true');
+  await page.evaluate(() => { rgDoneClose(); closeRegi(); }); await w(300);
+  check('  レジを 閉じると いっしょに 消える', await page.evaluate(() => [rgCv().on, isDlgOpen('regiOverlay')].join('/')), 'false/false');
+  // 🔔 角度計
+  await page.evaluate(() => openKakudo()); await w(500);
+  check('  角度計：音の えらび（なし・水平で ピッ・近づくと ピッピッ。はじめは ピッ）', await page.evaluate(() => [[...document.querySelectorAll('#kgSnd button')].map(b => b.textContent).join(','), document.querySelector('#kgSnd button.on').textContent].join('/')), 'なし,水平で ピッ,近づくと ピッピッ/水平で ピッ');
+  const bp = () => page.evaluate(() => kgBeeps().join(','));
+  await page.evaluate(() => { kgSetMode('flat'); kgFeed({ beta: 3, gamma: 1, now: true }); }); await w(120);
+  const b0 = await bp();
+  await page.evaluate(() => kgFeed({ beta: 0.1, gamma: 0.05, now: true })); await w(120);
+  await page.evaluate(() => kgFeed({ beta: 0.15, gamma: 0.0, now: true })); await w(120);
+  check('  水平に なったら 1回 ピッ（水平の あいだは 鳴りつづけない）・数字が 緑', [b0, await bp(), await page.evaluate(() => document.getElementById('kgDeg').parentNode.classList.contains('ok'))].join('/'), '/1760:0.12/true');
+  const feed = async (...bs) => { for (const b of bs) { await page.evaluate(b => kgFeed({ beta: b, gamma: 0, now: true }), b); await w(60); } };
+  await feed(0.35, 0.05, 1, 0.05); await w(100);
+  check('  少し 外れただけでは 鳴らさない・はっきり 外れてから また 鳴る', await bp(), '1760:0.12,1760:0.12');
+  await page.evaluate(() => kgSetMode('long')); await feed(45, 89.9); await w(100);
+  check('  立てて 当てたとき 垂直でも ピッ', (await bp()).split(',').length, 3);
+  await page.evaluate(() => { kgSetMode('flat'); kgSetSnd('near'); }); await w(100);
+  const n0 = (await bp()).split(',').length;
+  await page.evaluate(async () => { for (let i = 0; i < 10; i++) { kgFeed({ beta: 1.2, gamma: 0, now: true }); await new Promise(r => setTimeout(r, 70)); } }); await w(100);
+  const near = (await bp()).split(',').slice(n0);
+  await page.evaluate(() => kgFeed({ beta: 0.02, gamma: 0, now: true })); await w(120);
+  check('  近づくと ピッピッ（3° より 近いと くり返し）・水平で ピー', [near.length >= 2 && near.every(x => x === '1175:0.05'), (await bp()).split(',').pop()].join('/'), 'true/1760:0.4');
+  await page.evaluate(() => kgSetSnd('off')); await feed(2, 0.02); await w(100);
+  const nOff = (await bp()).split(',').length;
+  await page.evaluate(() => kgSetSnd('hit')); await feed(2); await page.evaluate(() => kgHold()); await feed(0.02); await w(100);
+  const nHold = (await bp()).split(',').length;
+  check('  なし・止めている ときは 鳴らさない（えらんだ ときの ためしの 1回だけ）・音の えらびを 覚える', [n0 + near.length + 1 === nOff, nHold === nOff + 1, await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_kakudo')).snd)].join('/'), 'true/true/hit');
+  await page.evaluate(() => closeKakudo()); await w(200);
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
@@ -18013,6 +18084,7 @@ async function runQrShare(browser) {
     if (!only || only === 'hade' || only === 'voice593' || only === 'v593') await runTimerVoice593(browser);
     if (!only || only === 'hade' || only === 'vs594' || only === 'v594') await runCountVs594(browser);
     if (!only || only === 'ics' || only === 'yatta' || only === 'techo' || only === 'v595') await runIcs595(browser);
+    if (!only || only === 'seikyu' || only === 'regi' || only === 'kakudo' || only === 'v596') await runV596(browser);
     if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
     if (!only || only === 'okaeshi' || only === 'v564') await runOkaeshi564(browser);
     if (!only || only === 'tax' || only === 'v565') await runTax565(browser);

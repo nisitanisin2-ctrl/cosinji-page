@@ -28,11 +28,20 @@
    ・オプションに「消費税なし」（入湯税・宿泊税・立替金 など）：税の 計算・条件・値下げに 入れず 合計にだけ 足す。請求額からは その分を 引いてから
      本体と 税に 分ける。書類では ※ を つけ「※ 消費税の 対象外 ○円」と 出す（小計は 税抜の 明細の 合計）。
      見本は「📚 業種の 見本」の 札から えらぶ。上の 列には 自分の パターン・いま 入れている 見本・★ の 見本だけ 出す。
-   ・値引きの 明細の 名前（出精値引き など。12字まで）・品名の 欄の 例（iex）。条件を 満たしたのに 下げる 量が 0 なら 知らせる。 */
+   ・値引きの 明細の 名前（出精値引き など。12字まで）・品名の 欄の 例（iex）。条件を 満たしたのに 下げる 量が 0 なら 知らせる。
+   v596：
+   ・🧾 領収書：A4 の 上に 本紙・下に 控え（✂ きりとり線。控えは 印と 収入印紙の 枠なし。控えなしも えらべる）。
+     宛名・金額（税込）・但し書き（○○ として。なければ 件名・お品代）・「上記 正に 領収いたしました」・内訳（税率ごとの 税抜と 消費税・対象外）・
+     自分の 会社と 登録番号・角印。税抜 5万円 以上は 収入印紙の 枠と 金額の 目安（売上代金の 受取書）。
+     請求書から「🧾 この 請求書の 領収書を 作る」で 写して 新しく（番号と 日付は 新しく・但し書きは 件名）。 */
 (function(){
 'use strict';
 const KEY='excalc_seikyu';
-const KINDS=[['seikyu','請求書'],['mitsumori','見積書'],['nohin','納品書']];
+const KINDS=[['seikyu','請求書'],['mitsumori','見積書'],['nohin','納品書'],['ryoshu','領収書']];
+// 収入印紙（売上代金の 受取書。消費税を 分けて 書くので 税抜の 金額で 見る。5万円 未満は いらない。v596）
+const DUTY=[[1e6,200],[2e6,400],[3e6,600],[5e6,1000],[1e7,2000],[2e7,4000],[3e7,6000],[5e7,10000],[1e8,20000],[2e8,40000],[3e8,60000],[5e8,100000],[1e9,150000]];
+const dutyOf=x=>x<50000 ? 0 : (DUTY.find(d=>x<=d[0])||[0,200000])[1];
+const noDue=k=>k==='nohin' || k==='ryoshu';   // 期限の ない 書類
 const DISC=[['none','なし'],['rate','割引率（％引き）'],['kake','掛け率（○掛け）'],['yen','値引き額（円）'],['unit','1つあたり ○円引き'],['utarget','単価を ○円に'],['target','この金額にする'],['base','基準額から']];
 const CONDS=[['qty','数量の合計が'],['optn','オプションの数が'],['opty','オプションの金額が'],['teika','定価の合計が'],['sum','定価＋オプションが'],['manual','手で ✓ を入れたとき']];
 const REDS=[['yen','定価を ○円 下げる（1つにつき）'],['pct','定価を ○％ 下げる']];
@@ -116,6 +125,7 @@ function cleanInv(v){
   const date=dateOk(v.date)||ymd(new Date());
   return {id:okId(v.id) ? v.id : rid(), kind:KINDS.some(k=>k[0]===v.kind) ? v.kind : 'seikyu', no:oneLine(v.no,24), date, due:v.due==='' ? '' : (dateOk(v.due)||endOfNextMonth(date)),
     to:{name:oneLine(to.name,50), hon:HONS.some(h=>h[0]===to.hon) ? to.hon : '御中'}, subject:oneLine(v.subject,60), memo:multi(v.memo,400),
+    tada:oneLine(v.tada,40), rcopy:v.rcopy!==false,   // 🧾 領収書の 但し書き・控えも いっしょに（v596）
     iname:oneLine(v.iname,6), iex:oneLine(v.iex,30), pat:okId(v.pat) ? v.pat : '',   // iname：品物の 呼び名（生コンは 配合）・iex：品名の 例・pat：入れた パターン
     items:(Array.isArray(v.items) ? v.items : []).map(cleanItem).filter(Boolean).slice(0,MAX_ITEMS),
     disc:{m:DISC.some(x=>x[0]===d.m) ? d.m : 'none', v:numIn(d.v,-MAX_YEN,MAX_YEN,0,true), base:numIn(d.base,0,MAX_YEN,0), up:numIn(d.up,-MAX_YEN,MAX_YEN,0,true), upm:d.upm==='yen' ? 'yen' : '%', lab:oneLine(d.lab,12)},
@@ -265,7 +275,24 @@ function sealSvg(text){
     s+='<text x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" font-size="'+fs.toFixed(1)+'" text-anchor="middle" dominant-baseline="central" fill="#d3201f" font-family="\'Hiragino Mincho ProN\',\'Yu Mincho\',\'Noto Serif JP\',\'Noto Serif CJK JP\',serif" font-weight="bold">'+esc(c)+'</text>'; });
   return s+'</svg>';
 }
+// 🧾 領収書（v596）：上に 本紙・下に 控え
+const tadaOf=v=>(v.tada||v.subject||'お品代').replace(/\s*として$/,'');
+function rcptHtml(v, c){
+  const me=st.m.me, sealT=me.sealTx || me.name, duty=dutyOf(c.G-c.t);
+  const inner=c.R ? `<div>${c.R}％対象（税抜） ${fmt(c.b)}円</div><div>消費税（${c.R}％） ${fmt(c.t)}円</div>${c.N ? `<div>消費税の 対象外 ${fmt(c.N)}円</div>` : ''}` : '<div>消費税なし</div>';
+  const meH=`${me.name ? `<b>${esc(me.name)}</b>` : '<b class="none">（⚙ 自分の会社で 名前を 入れてください）</b>'}${me.zip || me.addr ? `<div>${me.zip ? '〒'+esc(me.zip)+' ' : ''}${esc(me.addr)}</div>` : ''}${me.tel ? `<div>TEL ${esc(me.tel)}</div>` : ''}${me.reg ? `<div>登録番号 ${esc(me.reg)}</div>` : ''}`;
+  const one=cp=>`<div class="sk-rcb${cp ? ' cp' : ''}">
+    <div class="sk-rch"><span class="t">領 収 書${cp ? '<small>（控）</small>' : ''}</span><span class="m">No. ${esc(v.no)}<br>${esc(jdate(v.date))}</span></div>
+    <div class="sk-to"><span class="n">${esc(v.to.name||'　　　　　　　　')}</span><span class="h">${esc(v.to.hon)}</span></div>
+    <div class="sk-rca"><span class="v">¥${fmt(c.G)}-</span><span class="s">（税込）</span></div>
+    <div class="sk-rct">但し　<u>${esc(tadaOf(v))}</u>　として<br>上記 正に 領収いたしました。</div>
+    <div class="sk-rcf"><div class="sk-rci"><b>内訳</b>${inner}</div>${!cp && duty ? `<div class="sk-stamp" title="収入印紙">収入<br>印紙<small>${fmt(duty)}円</small></div>` : ''}
+      <div class="sk-rcme"><div class="sk-me">${meH}</div>${!cp && me.seal && sealT ? `<div class="sk-sealbox">${sealSvg(sealT)}</div>` : ''}</div></div>
+  </div>`;
+  return `<div class="sk-doc sk-rc">${one(false)}${v.rcopy ? `<div class="sk-cut"><span>✂ きりとり</span></div>${one(true)}` : ''}</div>`;
+}
 function docHtml(v, c){
+  if(v.kind==='ryoshu') return rcptHtml(v, c);
   const me=st.m.me, kind=KN(v.kind), L=lines(v, c);
   const lead=v.kind==='mitsumori' ? '下記のとおり 御見積 申し上げます。' : v.kind==='nohin' ? '下記のとおり 納品いたしました。' : '下記のとおり ご請求 申し上げます。';
   const amtLab=v.kind==='mitsumori' ? '御見積金額' : v.kind==='nohin' ? '合計金額' : 'ご請求金額', dueLab=v.kind==='mitsumori' ? '有効期限' : 'お支払期限';
@@ -300,6 +327,13 @@ function docHtml(v, c){
 }
 function docText(v, c){
   const me=st.m.me, L=lines(v, c), kind=KN(v.kind);
+  if(v.kind==='ryoshu'){   // 🧾 領収書
+    const duty=dutyOf(c.G-c.t), o=['領収書　No.'+v.no+'　'+jdate(v.date), (v.to.name ? v.to.name+' '+v.to.hon : ''), '金額：'+fmt(c.G)+'円（税込）', '但し '+tadaOf(v)+' として 上記 正に 領収いたしました。'];
+    if(c.R) o.push('内訳：'+c.R+'％対象（税抜） '+fmt(c.b)+'円・消費税 '+fmt(c.t)+'円'+(c.N ? '・消費税の 対象外 '+fmt(c.N)+'円' : '')); else o.push('（消費税なし）');
+    if(duty) o.push('（収入印紙 '+fmt(duty)+'円）');
+    if(me.name) o.push('', me.name+(me.reg ? '（登録番号 '+me.reg+'）' : ''));
+    return o.filter((x,i)=>x!=='' || i>0).join('\n');
+  }
   const out=[kind+'　No.'+v.no+'　'+jdate(v.date), (v.to.name ? v.to.name+' '+v.to.hon : '')];
   if(v.subject) out.push('件名：'+v.subject);
   out.push((v.kind==='mitsumori' ? '御見積金額' : v.kind==='nohin' ? '合計金額' : 'ご請求金額')+'：'+fmt(c.G)+'円（税込）', '');
@@ -347,8 +381,12 @@ function secDoc(v){
     <label class="sk-f"><span>件名</span><input type="text" maxlength="60" value="${esc(v.subject)}" placeholder="例：〇〇工事 一式" oninput="SEIKYU.doc('subject', this.value)"></label>
     <div class="sk-row3"><label class="sk-f"><span>番号</span><input type="text" maxlength="24" value="${esc(v.no)}" oninput="SEIKYU.doc('no', this.value)"></label>
       <label class="sk-f"><span>${v.kind==='nohin' ? '納品日' : '発行日'}</span><input type="date" value="${esc(v.date)}" onchange="SEIKYU.doc('date', this.value)"></label>
-      ${v.kind!=='nohin' ? `<label class="sk-f"><span>${v.kind==='mitsumori' ? '有効期限' : '支払期限'}</span><input type="date" value="${esc(v.due)}" onchange="SEIKYU.doc('due', this.value)"></label>` : ''}</div>
-  </div>`;
+      ${!noDue(v.kind) ? `<label class="sk-f"><span>${v.kind==='mitsumori' ? '有効期限' : '支払期限'}</span><input type="date" value="${esc(v.due)}" onchange="SEIKYU.doc('due', this.value)"></label>` : ''}</div>
+  </div>${v.kind==='ryoshu' ? `<div class="sk-sec sk-rcset"><h4>🧾 領収書</h4>
+    <label class="sk-f"><span>但し書き</span><input type="text" maxlength="40" value="${esc(v.tada)}" placeholder="${esc(v.subject ? v.subject : 'お品代')}（○○ として）" oninput="SEIKYU.doc('tada', this.value)"></label>
+    <div class="sk-opt"><span>控え</span><button type="button" class="${v.rcopy?'on':''}" onclick="SEIKYU.doc('rcopy', true)">✂ 下に 控えも</button><button type="button" class="${!v.rcopy?'on':''}" onclick="SEIKYU.doc('rcopy', false)">本紙だけ</button></div>
+    <p class="sk-note">A4 の 上に 本紙、下に 控え（✂ で 切る）。税抜 5万円 以上は 収入印紙の 枠が 出ます（${fmt(50000)}円〜100万円は 200円 など。控えには 出ません）。</p></div>`
+    : v.kind==='seikyu' ? `<div class="sk-acts"><button type="button" class="sk-b" onclick="SEIKYU.toRcpt()">🧾 この 請求書の 領収書を 作る</button></div>` : ''}`;
 }
 function secItems(v){
   const ex=v.iex||(v.iname==='配合' ? '24-18-20N' : ''), nm=INM(v), ph=(v.iname||'品名')+(ex ? '（例：'+ex+'）' : ''), u=uinfo(v);
@@ -522,6 +560,8 @@ function setDoc(k, val){
   if(k==='hon'){ if(!HONS.some(h=>h[0]===val)) return; v.to.hon=val; touch(); render(); return; }
   if(k==='to'){ v.to.name=oneLine(val,50); const cl=st.m.clis.find(c=>c.name===v.to.name); if(cl && cl.hon!==v.to.hon){ v.to.hon=cl.hon; touch(); render(); return; } }
   else if(k==='subject') v.subject=oneLine(val,60);
+  else if(k==='tada') v.tada=oneLine(val,40);   // 🧾 但し書き（v596）
+  else if(k==='rcopy'){ v.rcopy=val===true || val==='true'; touch(); render(); return; }
   else if(k==='no') v.no=oneLine(val,24);
   else if(k==='date'){ const d=dateOk(val); if(!d) return; v.date=d; touch(); render(); return; }
   else if(k==='due'){ v.due=dateOk(val); }
@@ -700,8 +740,15 @@ async function openInv(i){
 }
 function dupInv(i){
   const v=st.invs[i]; if(!v) return;
-  const n=cleanInv(JSON.parse(JSON.stringify(v))); n.id=rid(); n.date=ymd(new Date()); n.due=n.kind==='nohin' ? '' : endOfNextMonth(n.date); n.no=nextNo(n.date); n.saved=0;
+  const n=cleanInv(JSON.parse(JSON.stringify(v))); n.id=rid(); n.date=ymd(new Date()); n.due=noDue(n.kind) ? '' : endOfNextMonth(n.date); n.no=nextNo(n.date); n.saved=0;
   st.cur=n; dirty=true; save(); render(); toastS('📄 複製しました（番号と 日付は 新しく）'); const b=$('skBody'); if(b) b.scrollTop=0;
+}
+// 🧾 いまの 請求書を 写して 領収書に（番号と 日付は 新しく・但し書きは 件名。v596）
+async function toRcpt(){
+  const v=V();
+  if(dirty && typeof appConfirm==='function' && !(await appConfirm('いまの 請求書は 残していない 変更が あります。残さずに 領収書を 作りますか？\n（先に 💾 残す と あとで 開けます）', '領収書を 作る', 'やめる'))) return;
+  const n=cleanInv(JSON.parse(JSON.stringify(v))); n.id=rid(); n.kind='ryoshu'; n.date=ymd(new Date()); n.due=''; n.no=nextNo(n.date); n.saved=0; n.tada=n.tada||n.subject;
+  st.cur=n; dirty=true; save(); render(); toastS('🧾 領収書に しました（番号と 日付は 新しく）'); const b=$('skBody'); if(b) b.scrollTop=0;
 }
 async function delInv(i){
   const v=st.invs[i]; if(!v) return;
@@ -769,12 +816,26 @@ const DOC_RULES=`
 .sk-doc .sk-tbl tr, .sk-doc .sk-top, .sk-doc .sk-amt, .sk-doc .sk-bank, .sk-doc .sk-memo{ break-inside:avoid; page-break-inside:avoid; }
 .sk-doc .sk-taxbox{ font-size:12px; text-align:right; margin:0 0 10px; }
 .sk-doc .sk-bank, .sk-doc .sk-memo{ border:1px solid #333; padding:6px 10px; margin:0 0 8px; font-size:12.5px; } .sk-doc .sk-bank b, .sk-doc .sk-memo b{ display:block; font-size:12px; margin-bottom:2px; }
+.sk-doc .sk-rcb{ border:4px double #111; padding:16px 22px 14px; break-inside:avoid; page-break-inside:avoid; }
+.sk-doc .sk-rch{ display:flex; align-items:flex-start; justify-content:space-between; margin:0 0 12px; } .sk-doc .sk-rch .t{ font-size:28px; font-weight:bold; letter-spacing:.3em; } .sk-doc .sk-rch .t small{ font-size:15px; letter-spacing:0; margin-left:6px; }
+.sk-doc .sk-rch .m{ text-align:right; font-size:12.5px; line-height:1.6; }
+.sk-doc .sk-rc .sk-to{ max-width:70%; }
+.sk-doc .sk-rca{ display:flex; align-items:baseline; justify-content:center; gap:10px; margin:16px auto 10px; width:72%; padding:8px 12px; border-bottom:3px solid #111; background:#f3f4f7; }
+.sk-doc .sk-rca .v{ font-size:32px; font-weight:bold; letter-spacing:.04em; font-variant-numeric:tabular-nums; } .sk-doc .sk-rca .s{ font-size:13px; }
+.sk-doc .sk-rct{ text-align:center; font-size:14px; line-height:1.9; margin:0 0 12px; } .sk-doc .sk-rct u{ text-decoration:none; border-bottom:1px solid #111; padding:0 8px; }
+.sk-doc .sk-rcf{ display:flex; align-items:flex-end; gap:14px; }
+.sk-doc .sk-rci{ border:1px solid #333; padding:6px 10px; font-size:12px; line-height:1.6; min-width:11em; } .sk-doc .sk-rci b{ display:block; font-size:11.5px; }
+.sk-doc .sk-stamp{ width:66px; height:78px; flex:none; border:1.5px dashed #555; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:13px; line-height:1.3; text-align:center; color:#333; }
+.sk-doc .sk-stamp small{ font-size:10.5px; margin-top:3px; }
+.sk-doc .sk-rcme{ flex:1; min-width:0; position:relative; padding-right:76px; min-height:70px; } .sk-doc .sk-rcme .sk-sealbox{ top:auto; bottom:0; right:2px; }
+.sk-doc .sk-cut{ position:relative; text-align:center; margin:26px 0; border-top:1.5px dashed #777; } .sk-doc .sk-cut span{ position:relative; top:-0.8em; padding:0 10px; background:#fff; font-size:11.5px; color:#555; }
+.sk-doc .sk-rcb.cp{ border-style:solid; border-width:1.5px; }
 `;
 const SK_CSS=`
 #seikyuOverlay .sk-modal, #seikyuDocOverlay .sk-modal{ display:flex; flex-direction:column; }
 .sk-body{ flex:1; min-height:0; overflow:auto; padding:10px 10px 0; color:var(--text,#222); font-size:15px; position:relative; }
 .sk-wrap{ max-width:820px; margin:0 auto; padding-bottom:12px; }
-.sk-kinds{ display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin:0 0 8px; }
+.sk-kinds{ display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin:0 0 8px; }
 .sk-kinds button{ min-height:46px; border-radius:12px; border:1px solid rgba(120,132,156,.45); background:var(--modal-bg,#fff); color:var(--text,#222); font-size:16px; font-weight:bold; cursor:pointer; }
 .sk-kinds button.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); }
 .sk-sec{ margin:0 0 10px; padding:10px 12px 12px; border-radius:14px; border:1px solid rgba(120,132,156,.28); background:var(--modal-bg,#fff); }
@@ -873,7 +934,7 @@ window.SEIKYU={ doc:setDoc, it:setIt, itPick, addIt, delIt, keepProd, addProd, o
   ru:setRu, addRu, delRu, keepRule, addRulem, dv:setDv, tax:setTax, fin:setFin, cut, me:setMe, def:setDef,
   patUse, patSave, patRen, patDel, patDef, patEd:()=>{ patEd=!patEd; render(); }, mihon:()=>{ mihon=!mihon; render(); }, pats:()=>allPats().map(p=>p.id+':'+p.name), mEdit, mDel,
   rows:()=>lines(V(), calc(V())).map(l=>[l.name+(l.nt ? '※' : ''), l.qty!=null ? l.qty : '', l.unit||'', l.price!=null ? l.price : '', l.amt].join('|')),
-  keep, fresh:()=>{ fresh(); }, openInv:i=>{ openInv(i); }, dupInv, delInv:i=>{ delInv(i); }, view, print:printDoc, copy:copyDoc, zoom:()=>{ zoom=!zoom; fitPaper(); },
+  keep, toRcpt:()=>{ toRcpt(); }, duty:dutyOf, fresh:()=>{ fresh(); }, openInv:i=>{ openInv(i); }, dupInv, delInv:i=>{ delInv(i); }, view, print:printDoc, copy:copyDoc, zoom:()=>{ zoom=!zoom; fitPaper(); },
   calc:()=>{ const c=calc(V()); return {A:c.A, qty:c.qty, D:c.D, B:c.B, O:c.O, N:c.N, optN:c.optN, Rs:c.Rs, rules:c.rr.map(x=>x.use ? (x.met ? 'ok:'+x.amt : 'ng:'+x.need) : 'off'), E:c.E, T:c.T, F:c.F, G:c.G, t:c.t, b:c.b, adj:c.adj, warn:c.warn.slice(), dl:c.dl}; },
   lines:()=>lines(V(), calc(V())).map(l=>l.name+'='+l.amt), text:()=>docText(V(), calc(V())), html:()=>docHtml(V(), calc(V())),
   state:()=>{ save(); return JSON.parse(JSON.stringify(st)); }, dirty:()=>dirty, kake:kakeOf };

@@ -7,22 +7,45 @@
    ・🖼 写真：写真の上で3点（はし・角・はし）を押して角度。
    ・📷 距離・高さ：カメラの真ん中の＋を、物の根元（地面）に合わせると、カメラの高さと下向きの角度から距離（高さ÷tan）。
      続けててっぺんに合わせると、その物の高さ。
-   ・設定は excalc_kakudo（校正・カメラの高さ）。 */
+   ・🔔 音（v596）：水平（立てて 当てるときは 垂直も）に なると「ピッ」と 鳴って ふるえる。「近づくと ピッピッ」は 3° より 近いと
+     近いほど 速く 鳴り、水平で「ピー」（駐車の 音の ように）。なし も えらべる。止めている ときは 鳴らさない。
+   ・設定は excalc_kakudo（校正・カメラの高さ・音）。 */
 (function(){
 const KG_KEY='excalc_kakudo';
 const $=id=>document.getElementById(id);
 const D=180/Math.PI, R=Math.PI/180;
 const cl=v=>Math.max(-1,Math.min(1,v));
 const f1=v=>(Math.round(v*10)/10).toFixed(1);
-let kg={tab:'level', mode:'auto', cal:{x:0,y:0}, h:1.5};
+let kg={tab:'level', mode:'auto', cal:{x:0,y:0}, h:1.5, snd:'hit'};
 let sm=null, have=false, raf=0, hold=null, ref=null, permAsked=false, lastFeed=0;
 let cam=null, base=null, top=null;   // 距離・高さ
 let pro=null, ph={img:null, pts:[]};  // 分度器・写真
 
 function kgLoad(){ try{ const o=JSON.parse(localStorage.getItem(KG_KEY)||'null')||{};
   kg={tab:['level','pro','photo','dist'].includes(o.tab)?o.tab:'level', mode:['auto','flat','long','short'].includes(o.mode)?o.mode:'auto',
-    cal:{x:+(o.cal&&o.cal.x)||0, y:+(o.cal&&o.cal.y)||0}, h:Math.min(50,Math.max(0.1,+o.h||1.5))}; }catch(_){} }
+    cal:{x:+(o.cal&&o.cal.x)||0, y:+(o.cal&&o.cal.y)||0}, h:Math.min(50,Math.max(0.1,+o.h||1.5)), snd:SNDS.some(x=>x[0]===o.snd)?o.snd:'hit'}; }catch(_){} }
 function kgSave(){ try{ localStorage.setItem(KG_KEY, JSON.stringify(kg)); }catch(_){} }
+
+/* ───────── 🔔 水平で ピッ（v596）───────── */
+const SNDS=[['off','なし'],['hit','水平で ピッ'],['near','近づくと ピッピッ']];
+let AC=null, lvIn=false, nextBeep=0, lastV=null; const beeps=[];   // beeps：鳴らした 音（たしかめ用）
+function ac(){ try{ if(!AC){ const C=window.AudioContext||window.webkitAudioContext; if(!C) return null; AC=new C(); } if(AC.state==='suspended') AC.resume().catch(()=>{}); }catch(_){ return null; } return AC; }
+function beep(f, d, v){
+  beeps.push(f+':'+d); if(beeps.length>40) beeps.shift();
+  const a=ac(); if(!a) return;
+  try{ const t=a.currentTime+0.01, o=a.createOscillator(), g=a.createGain(); o.type='sine'; o.frequency.value=f;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+0.01); g.gain.setValueAtTime(v, t+Math.max(0.02, d-0.03)); g.gain.linearRampToValueAtTime(0, t+d);
+    o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+d+0.02); }catch(_){}
+}
+// 水平（立てて 当てるときは 垂直も）に 入ったら 1回 ピッ。近づくと ピッピッ は 3° より 近いと 近いほど 速く
+function kgSound(a, m){
+  if(kg.snd==='off' || hold || kg.tab!=='level'){ lvIn=false; return; }
+  const v=m.mode==='flat' ? Math.abs(a) : Math.min(Math.abs(a), Math.abs(Math.abs(a)-90)), now=performance.now(); lastV=v;
+  if(!lvIn && v<0.25){ lvIn=true; beep(1760, kg.snd==='near' ? 0.4 : 0.12, 0.28); if(navigator.vibrate) try{ navigator.vibrate(kg.snd==='near' ? 80 : 30); }catch(_){} return; }
+  if(lvIn && v>0.45) lvIn=false;   // 少し 外れてから また 鳴らす（ふらつきで 鳴りつづけない）
+  if(kg.snd==='near' && !lvIn && v<3 && now>=nextBeep){ beep(1175, 0.05, 0.18); nextBeep=now+120+160*v; }
+}
+function kgSetSnd(v){ if(!SNDS.some(x=>x[0]===v)) return; kg.snd=v; kgSave(); lvIn=lastV!=null && lastV<0.25; if(v!=='off') beep(1760, 0.12, 0.25); kgRenderLevel(); }   // えらぶと ためしに 鳴る（いま 水平なら 続けて 鳴らさない）
 
 /* ───────── センサー ───────── */
 /* 水平に対する、端末の3つの軸の「上向きの成分」（x：画面の右、y：画面の上、z：画面から手前） */
@@ -78,6 +101,7 @@ function kgRenderLevel(){
     <div class="kg-sub" id="kgSub">${have?'':'スマホを動かすと出ます（センサーが使えない端末では出ません）'}</div>
     <div class="kg-what" id="kgWhat"></div>
     <div class="kg-acts"><button class="kg-b" id="kgRefBtn" onclick="kgRef()">${ref!=null?'↺ 差をやめる':'📍 ここを0に'}</button><button class="kg-b${hold?' on':''}" id="kgHoldBtn" onclick="kgHold()">${hold?'▶ 動かす':'⏸ 止める'}</button><button class="kg-b" onclick="kgCal()">🎯 0点合わせ</button></div>
+    <div class="kg-seg kg-snd" id="kgSnd"><span>🔔 音</span>${SNDS.map(o=>`<button class="${kg.snd===o[0]?'on':''}" onclick="kgSetSnd('${o[0]}')">${o[1]}</button>`).join('')}</div>
     <div class="kg-note">使い方：<b>置く</b>…背面を面にぴったり置くと、その面の傾き（気泡がまん中なら水平）。<b>長い辺・短い辺</b>…スマホを立てて辺を面に当てると、その辺の角度（自動で、当てている辺を見分けます。45°より急な坂は、上で「長い辺」「短い辺」を選んでください）。「📍 ここを0に」で、2つの面の角度の差を測れます。カメラの出っぱりやケースで傾くので、置くときは平らな所で一度「🎯 0点合わせ」をしてください。${kg.cal.x||kg.cal.y?' <a onclick="kgCalClear()">0点合わせを元に戻す</a>':''}</div>`;
   kgDrawLevel();
 }
@@ -91,6 +115,8 @@ function kgDrawLevel(){
   $('kgWhat').textContent=(ref!=null?'0にした所との差・':'')+lab+(hold?'（止めています）':'');
   $('kgSub').textContent=slopeText(a)+(Math.abs(a)<0.25?'　✓ 水平':'')+(m.mode!=='flat'&&Math.abs(Math.abs(a)-90)<0.25?'　✓ 垂直':'');
   const st=$('kgStage'); st.classList.toggle('flat', m.mode==='flat'); st.classList.toggle('ok', Math.abs(a)<0.25);
+  const big=deg.parentNode; if(big) big.classList.toggle('ok', Math.abs(a)<0.25 || (m.mode!=='flat' && Math.abs(Math.abs(a)-90)<0.25));
+  kgSound(a, m);
   const S=4;   // 1° で何 px
   if(m.mode==='flat'){ const bx=Math.max(-90,Math.min(90,-m.ax*S)), by=Math.max(-90,Math.min(90,m.ay*S)); $('kgBub').style.transform=`translate(${bx}px,${by}px)`; }
   else { const t=Math.max(-120,Math.min(120,-a*S)); $('kgTb').style.transform=`translateX(${t}px)`; }
@@ -252,7 +278,8 @@ const KG_CSS=`
 .kg-tube::before,.kg-tube::after{ content:''; position:absolute; top:4px; bottom:4px; width:2px; background:#00897b; } .kg-tube::before{ left:calc(50% - 26px); } .kg-tube::after{ left:calc(50% + 24px); }
 .kg-tb{ position:absolute; left:50%; top:5px; width:44px; height:30px; margin-left:-22px; border-radius:15px; background:radial-gradient(circle at 35% 35%,#fff,#aed581 45%,#7cb342); }
 .kg-stage.ok .kg-bub,.kg-stage.ok .kg-tb{ background:radial-gradient(circle at 35% 35%,#fff,#4fc3f7 45%,#0288d1); }
-.kg-big{ text-align:center; font-size:64px; font-weight:bold; line-height:1.1; font-variant-numeric:tabular-nums; } .kg-big small{ font-size:34px; }
+.kg-big{ text-align:center; font-size:64px; font-weight:bold; line-height:1.1; font-variant-numeric:tabular-nums; transition:color .15s; } .kg-big small{ font-size:34px; } .kg-big.ok{ color:#0a9d58; }
+.kg-snd{ align-items:center; } .kg-snd span{ flex:none; font-size:12.5px; font-weight:bold; color:var(--text-light,#666); margin-right:2px; } .kg-snd button{ font-size:12.5px; }
 .kg-sub{ text-align:center; font-size:15px; font-weight:bold; color:#00695c; min-height:1.4em; } body.dark .kg-sub{ color:#4db6ac; } .kg-what{ text-align:center; font-size:12.5px; color:var(--text-light,#888); }
 .kg-acts{ display:flex; flex-wrap:wrap; gap:6px; margin:10px 0; align-items:center; } .kg-acts .kg-b{ flex:1 1 auto; }
 .kg-b{ height:42px; padding:0 12px; border-radius:10px; border:1px solid rgba(120,132,156,.45); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:14px; font-weight:bold; cursor:pointer; } .kg-b.pri{ background:#00897b; border-color:#00897b; color:#fff; } .kg-b.on{ background:#e65100; border-color:#e65100; color:#fff; } .kg-b:disabled{ opacity:.4; }
@@ -285,14 +312,15 @@ function kgEnsureDom(){
   if(typeof applyNpToolFull==='function') applyNpToolFull();
 }
 function openKakudo(){
-  kgEnsureDom(); kgLoad(); hold=null; ref=null;
+  kgEnsureDom(); kgLoad(); hold=null; ref=null; lvIn=false;
+  const ov=$('kakudoOverlay'); if(ov && !ov.dataset.au){ ov.dataset.au='1'; ov.addEventListener('pointerdown', ()=>{ if(kg.snd!=='off') ac(); }, true); }   // 音は 画面に さわったときに 使えるように
   openDlg('kakudoOverlay', ()=>{ kgSensorOff(); kgCamStop(); });
   if(!needAsk()) kgSensorOn();
   kgShow(kg.tab);
 }
 function closeKakudo(){ if(!$('kakudoOverlay')||!isDlgOpen('kakudoOverlay')) return; kgSensorOff(); kgCamStop(); closeDlg('kakudoOverlay'); }
 
-Object.assign(window, { openKakudo, closeKakudo, kgShow, kgAsk, kgSetMode, kgRef, kgHold, kgCal, kgCalClear, kgProReset, kgPhIn, kgPhReset, kgCamToggle, kgSetH, kgBase, kgTop, $kg:$,
+Object.assign(window, { kgSetSnd, kgBeeps:()=>beeps.slice(), openKakudo, closeKakudo, kgShow, kgAsk, kgSetMode, kgRef, kgHold, kgCal, kgCalClear, kgProReset, kgPhIn, kgPhReset, kgCamToggle, kgSetH, kgBase, kgTop, $kg:$,
   kgFeed, kgState:()=>({tab:kg.tab, mode:kg.mode, cal:Object.assign({},kg.cal), h:kg.h, m:kgMeasure(), elev:elev(), base, top, ref, hold:!!hold, pro:pro&&JSON.parse(JSON.stringify(pro)), pts:ph.pts.slice()}),
   kgProSet:(o,a,b)=>{ pro={o,a,b}; kgProDraw(); }, kgPhSet:pts=>{ ph.pts=pts; kgPhDraw(); }, kgAngAt:angAt, kgSlope:slopeText });
 })();
