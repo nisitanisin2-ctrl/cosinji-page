@@ -9,7 +9,9 @@
    ・v456：🌐 英語・中国語（簡体・繁体）・韓国語・タイ語で見られる。訳は項目ごとに入れ、ページの右上で言語を切りかえる。
      ❓ で Netlify に置く方法を見られる。
    ・v457：右上の ❓ ヘルプ（作り方・外国語・Netlify の開設・置き方・名前・置き直し・設定・困ったとき）。
-   ・作ったものは端末の中（excalc_annai）だけ。書き出したページには、入れたことがそのまま載る（Wi-Fi のパスワードなどは載せてよいか考えて入れる）。 */
+   ・作ったものは端末の中（excalc_annai）だけ。書き出したページには、入れたことがそのまま載る（Wi-Fi のパスワードなどは載せてよいか考えて入れる）。
+   ・v600：📷 写真・館内図。表紙の写真（ページのいちばん上）と、項目ごとに写真を 6枚まで（ひとことも）。「🗺 館内図・写真の項目を足す」も。
+     写真は端末の IndexedDB（excalc_annai の pics）にしまい、書き出すページの中に入れる（1つのファイルのまま）。お客様のページでは 押すと 大きく 見られる（もう一度 押すと 拡大）。 */
 (function(){
 const AN_KEY='excalc_annai';
 const AN_SEASONS={all:'通年', winter:'冬', summer:'夏'};
@@ -21,6 +23,46 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 const uid=()=>'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const pad=n=>String(n).padStart(2,'0');
 const today=()=>{ const d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); };
+
+/* ── 📷 写真・館内図（v600）：IndexedDB（excalc_annai の pics）に JPEG の dataURL で しまう ── */
+const AN_MAXPIC=6, AN_PICPX=1600;
+const anPicOk=id=>typeof id==='string' && /^p[a-z0-9]{6,20}$/.test(id);
+const anNewPic=()=>'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const anSafeData=v=>typeof v==='string' && /^data:image\/(png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+\/=]+$/.test(v);
+let anDbP=null;
+function anDb(){
+  if(anDbP) return anDbP;
+  anDbP=new Promise((res,rej)=>{ try{ const r=indexedDB.open('excalc_annai',1); r.onupgradeneeded=()=>r.result.createObjectStore('pics'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }catch(e){ rej(e); } }).catch(e=>{ anDbP=null; throw e; });
+  return anDbP;
+}
+async function anPicGet(id){ try{ const db=await anDb(); return await new Promise(r=>{ const q=db.transaction('pics').objectStore('pics').get(id); q.onsuccess=()=>r(q.result||null); q.onerror=()=>r(null); }); }catch(_){ return null; } }
+async function anPicPut(id, data){ const db=await anDb(); return new Promise((res,rej)=>{ const t=db.transaction('pics','readwrite'); t.objectStore('pics').put(data,id); t.oncomplete=()=>res(true); t.onerror=()=>rej(t.error); }); }
+async function anPicDel(id){ try{ const db=await anDb(); await new Promise(r=>{ const t=db.transaction('pics','readwrite'); t.objectStore('pics').delete(id); t.oncomplete=r; t.onerror=r; }); }catch(_){} }
+async function anPicClear(){ try{ const db=await anDb(); await new Promise(r=>{ const t=db.transaction('pics','readwrite'); t.objectStore('pics').clear(); t.oncomplete=r; t.onerror=r; }); }catch(_){} }
+const anPicIds=d=>{ const a=[]; if(d.cover) a.push(d.cover); (d.sections||[]).forEach(s=>(s.pics||[]).forEach(p=>a.push(p.id))); return a; };
+async function anPicsMap(d){ const m={}; for(const id of anPicIds(d||an)){ const u=await anPicGet(id); if(anSafeData(u)) m[id]=u; } return m; }
+// 長い辺を AN_PICPX に した JPEG（すける所は 白に。館内図の PNG など）
+function anResize(file, max){
+  return new Promise((res,rej)=>{
+    const url=URL.createObjectURL(file), im=new Image();
+    im.onload=()=>{ const k=Math.min(1, max/Math.max(im.naturalWidth, im.naturalHeight)), c=document.createElement('canvas');
+      c.width=Math.max(1,Math.round(im.naturalWidth*k)); c.height=Math.max(1,Math.round(im.naturalHeight*k));
+      const g=c.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height); g.drawImage(im,0,0,c.width,c.height);
+      URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg',0.85)); };
+    im.onerror=()=>{ URL.revokeObjectURL(url); rej(new Error('img')); };
+    im.src=url;
+  });
+}
+async function anAddFiles(files, room){
+  const out=[];
+  for(const f of [...(files||[])].slice(0, Math.max(0, room))){
+    if(!/^image\//.test(f.type||'')) continue;
+    try{ const u=await anResize(f, AN_PICPX), id=anNewPic(); await anPicPut(id, u); out.push(id); }catch(_){ toast('読めない 写真が ありました'); }
+  }
+  return out;
+}
+// 画面の <img data-pic="id"> に 写真を 入れる
+function anFillPics(root){ (root||document).querySelectorAll('img[data-pic]').forEach(im=>{ const id=im.dataset.pic; anPicGet(id).then(u=>{ if(anSafeData(u) && im.dataset.pic===id) im.src=u; }); }); }
 
 /* ── 外国語（v456） ──
    お客様のページは 日本語＋選んだ言語 で出す。訳は宿の方が項目ごとに入れる（Google 翻訳を開くボタンで下書きできる）。
@@ -121,11 +163,13 @@ function anClean(o){
   if(!o || typeof o!=='object' || !Array.isArray(o.sections)) return d;
   return { v:1, name:String(o.name||'').slice(0,60), tagline:String(o.tagline||'').slice(0,120), tel:String(o.tel||'').slice(0,30),
     color:/^#[0-9a-f]{6}$/i.test(o.color)?o.color:d.color, url:String(o.url||'').slice(0,400), updated:String(o.updated||today()).slice(0,10),
+    cover:anPicOk(o.cover) ? o.cover : '',
     // v455 までのもの（langs なし）は、英・中・韓を出す
     langs:Array.isArray(o.langs) ? AN_LK.filter(k=>o.langs.includes(k)) : d.langs.slice(),
     tr:anCleanTr(o.tr,'name','tagline',[60,120]),
     sections:o.sections.filter(s=>s && typeof s==='object').slice(0,40).map(s=>({ id:safeId(s.id, uid), icon:String(s.icon||'ℹ').slice(0,4),
       title:String(s.title||'').slice(0,40), season:AN_SEASONS[s.season]?s.season:'all', body:String(s.body||'').slice(0,4000), open:!!s.open,
+      pics:(Array.isArray(s.pics) ? s.pics : []).filter(p=>p && anPicOk(p.id)).slice(0,AN_MAXPIC).map(p=>({id:p.id, cap:String(p.cap||'').replace(/[\u0000-\u001F]/g,' ').slice(0,60)})),
       tr:anCleanTr(s.tr,'title','body',[80,6000]) })) };
 }
 function anLoad(){ try{ an=anClean(JSON.parse(localStorage.getItem(AN_KEY)||'null')); }catch(_){ an=anDefault(); } }
@@ -154,14 +198,17 @@ function anBodyHtml(body, lang){
 
 /* ── お客様が見るページ（1つの HTML。外のものは何も読まない） ──
    訳は .i18n の中に言語ごとに並べておき、選んだ言語のものだけ出す（訳がなければ日本語）。 */
-function anPageHtml(d){
-  d=d||an;
+function anPageHtml(d, pics){
+  d=d||an; pics=pics||{};
   const c=d.color, langs=['ja'].concat((d.langs||[]).filter(k=>AN_UI[k])), multi=langs.length>1;
   const tag=(el,cls,ja,trs,f)=>`<${el} class="i18n${cls?' '+cls:''}"><${el==='div'?'div':'span'} lang="ja">${f(ja,'ja')}</${el==='div'?'div':'span'}>`+
     langs.slice(1).filter(k=>trs[k]!=null && String(trs[k]).trim()!=='').map(k=>`<${el==='div'?'div':'span'} lang="${k}" hidden>${f(trs[k],k)}</${el==='div'?'div':'span'}>`).join('')+`</${el}>`;
   const pick=(o,f)=>{ const r={}; for(const k in (o||{})) r[k]=o[k][f]; return r; };
   const txt=s=>esc(s);
-  const secs=d.sections.map(s=>`<details class="sec" data-s="${s.season}"${s.open?' open':''}><summary><span class="ic">${esc(s.icon)}</span>${tag('span','tt',s.title,pick(s.tr,'title'),txt)}${s.season!=='all'?`<span class="sz ${s.season}" data-k="${s.season==='winter'?'w':'s'}">${AN_SEASONS[s.season]}</span>`:''}</summary>${tag('div','bd',s.body,pick(s.tr,'body'),anBodyHtml)}</details>`).join('');
+  const phs=s=>{ const P=(s.pics||[]).filter(p=>anSafeData(pics[p.id])); return P.length ? `<div class="ph${P.length===1?' one':''}">${P.map(p=>`<figure><img src="${pics[p.id]}" alt="${esc(p.cap)}" loading="lazy">${p.cap?`<figcaption>${esc(p.cap)}</figcaption>`:''}</figure>`).join('')}</div>` : ''; };
+  const secs=d.sections.map(s=>`<details class="sec" data-s="${s.season}"${s.open?' open':''}><summary><span class="ic">${esc(s.icon)}</span>${tag('span','tt',s.title,pick(s.tr,'title'),txt)}${s.season!=='all'?`<span class="sz ${s.season}" data-k="${s.season==='winter'?'w':'s'}">${AN_SEASONS[s.season]}</span>`:''}</summary>${phs(s)}${tag('div','bd',s.body,pick(s.tr,'body'),anBodyHtml)}</details>`).join('');
+  const cover=d.cover && anSafeData(pics[d.cover]) ? `<img class="cv" src="${pics[d.cover]}" alt="">` : '';
+  const hasPh=/class="ph/.test(secs);
   const hasW=d.sections.some(s=>s.season==='winter'), hasS=d.sections.some(s=>s.season==='summer');
   const ui={}, gl={}; for(const k of langs){ ui[k]=AN_UI[k]; gl[k]=(anLang(k)||{}).g||k; }
   const js=JSON.stringify({ui, gl, langs, name:d.name, tn:pick(d.tr,'name')}).replace(/</g,'\\u003c');
@@ -196,17 +243,30 @@ details[open] summary::after{content:"−"}
 a{color:var(--c)}@media (prefers-color-scheme:dark){a{color:#8ab4f8}}
 a.tel,a.map{font-weight:bold}
 footer{text-align:center;color:var(--sub);font-size:12px;padding:8px 0 20px}
+header .cv{display:block;width:calc(100% + 36px);max-height:42vh;object-fit:cover;margin:calc(-18px - env(safe-area-inset-top)) -18px 14px}
+.ph{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 8px}.ph.one{grid-template-columns:1fr}.ph figure{margin:0}
+.ph img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;background:var(--line);cursor:zoom-in}.ph.one img{aspect-ratio:auto;max-height:70vh;object-fit:contain}
+.ph figcaption{font-size:12.5px;color:var(--sub);margin-top:3px;text-align:center}
+.lb{position:fixed;inset:0;z-index:9;background:rgba(0,0,0,.92);overflow:auto;-webkit-overflow-scrolling:touch}.lb:not(.z){display:flex;align-items:center}
+.lb img{display:block;width:100%;height:auto;cursor:zoom-in}.lb.z img{width:230%;max-width:none;cursor:zoom-out}
+.lb p{position:fixed;left:0;right:0;bottom:0;margin:0;padding:10px 14px calc(10px + env(safe-area-inset-bottom));color:#fff;background:rgba(0,0,0,.55);font-size:14px;text-align:center}
+.lb button{position:fixed;top:calc(10px + env(safe-area-inset-top));right:10px;width:44px;height:44px;border-radius:22px;border:0;background:rgba(255,255,255,.22);color:#fff;font-size:22px}
 </style></head><body>
-<header>${multi?`<label class="lang" aria-label="Language">🌐<select id="lang">${langs.map(k=>`<option value="${k}">${k==='ja'?'日本語':esc(anLang(k).n)}</option>`).join('')}</select></label>`:''}
+<header>${cover}${multi?`<label class="lang" aria-label="Language">🌐<select id="lang">${langs.map(k=>`<option value="${k}">${k==='ja'?'日本語':esc(anLang(k).n)}</option>`).join('')}</select></label>`:''}
 <h1>${tag('span','',d.name,pick(d.tr,'name'),txt)}</h1>${d.tagline?`<p>${tag('span','',d.tagline,pick(d.tr,'tagline'),txt)}</p>`:''}${d.tel?`<a class="call" href="tel:${esc(d.tel.replace(/[^\d+]/g,''))}">☎ <span data-k="call">フロントに電話</span> ${esc(d.tel)}</a>`:''}</header>
 ${hasW||hasS?`<nav id="nav"><button data-v="now" data-k="now">今の季節</button>${hasW?'<button data-v="winter" data-k="nw">❄ 冬</button>':''}${hasS?'<button data-v="summer" data-k="ns">☀ 夏</button>':''}<button data-v="all" data-k="all">全部</button></nav>`:''}
 <main id="main">${multi?'<div class="mt" id="mt" hidden><span data-k="mt"></span><br><a id="mtA" target="_blank" rel="noopener" data-k="mtb"></a></div>':''}${secs}</main>
 <footer><span data-k="upd">最終更新</span> ${esc(d.updated)}</footer>
+${hasPh?'<div class="lb" id="lb" hidden><img id="lbImg" alt=""><button type="button" id="lbX" aria-label="閉じる">✕</button><p id="lbCap"></p></div>':''}
 <script>
 (function(){var m=new Date().getMonth()+1,now=(m>=12||m<=4)?'winter':'summer';
 function show(v){var s=v==='now'?now:v;[].forEach.call(document.querySelectorAll('.sec'),function(e){var x=e.getAttribute('data-s');e.hidden=!(s==='all'||x==='all'||x===s);});
 [].forEach.call(document.querySelectorAll('nav button'),function(b){b.className=b.getAttribute('data-v')===v?'on':'';});}
 var n=document.getElementById('nav');if(n){n.addEventListener('click',function(e){var b=e.target.closest('button');if(b)show(b.getAttribute('data-v'));});show('now');}
+var lb=document.getElementById('lb');if(lb){var li=document.getElementById('lbImg'),lc=document.getElementById('lbCap');
+document.addEventListener('click',function(e){var im=e.target.closest&&e.target.closest('.ph img');if(!im)return;li.src=im.src;lc.textContent=im.alt||'';lc.hidden=!im.alt;lb.className='lb';lb.hidden=false;});
+li.addEventListener('click',function(e){e.stopPropagation();lb.classList.toggle('z');if(lb.classList.contains('z')){lb.scrollLeft=(lb.scrollWidth-lb.clientWidth)/2;lb.scrollTop=(lb.scrollHeight-lb.clientHeight)/2;}});
+lb.addEventListener('click',function(){lb.hidden=true;});document.addEventListener('keydown',function(e){if(e.key==='Escape')lb.hidden=true;});}
 var D=${js};
 function setLang(l){if(D.langs.indexOf(l)<0)l='ja';var fb=false;document.documentElement.lang=l;
 [].forEach.call(document.querySelectorAll('.i18n'),function(u){var c=u.children,has=null,ja=null,i;for(i=0;i<c.length;i++){if(c[i].lang===l)has=c[i];if(c[i].lang==='ja')ja=c[i];}
@@ -255,6 +315,13 @@ const AN_CSS=`
 .an-seg button{ flex:1; height:36px; border-radius:18px; border:1px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#333); font-weight:bold; cursor:pointer; }
 .an-seg button.on{ background:var(--acc); border-color:var(--acc); color:#fff; }
 .an-prev{ display:block; width:100%; max-width:390px; height:min(70vh,700px); margin:6px auto; border:8px solid #222; border-radius:26px; background:#fff; }
+.an-f input[hidden]{ display:none !important; }
+.an-cover{ display:flex; align-items:center; gap:8px; margin-top:4px; } .an-cover img{ width:96px; height:64px; object-fit:cover; border-radius:8px; background:rgba(120,132,156,.15); } .an-cover span{ font-weight:normal; }
+.an-mini.del{ border-color:rgba(211,47,47,.5); color:#d32f2f; margin-left:0; }
+.an-pics{ display:flex; flex-direction:column; gap:6px; margin:4px 0; }
+.an-pic{ display:flex; align-items:center; gap:6px; } .an-pic img{ flex:none; width:72px; height:54px; object-fit:cover; border-radius:6px; background:rgba(120,132,156,.15); }
+.an-pic input{ flex:1; min-width:0; margin-top:0 !important; } .an-pic button{ flex:none; width:36px; height:36px; border-radius:8px; border:1px solid rgba(120,132,156,.35); background:transparent; color:var(--text,#333); cursor:pointer; } .an-pic button:disabled{ opacity:.35; }
+.an-item .an-pc{ flex:none; font-size:11px; font-weight:bold; color:var(--text-light,#888); }
 .an-qr{ text-align:center; } .an-qr svg{ width:220px; height:220px; background:#fff; padding:6px; border-radius:8px; }
 .an-warn{ background:#fff8e1; color:#5d4037; border-radius:8px; padding:8px 10px; font-size:12.5px; margin:6px 0; line-height:1.6; }
 body.dark .an-warn{ background:#3e3420; color:#ffe0a3; }
@@ -313,12 +380,16 @@ function anRender(){
     <label class="an-f">ひとこと（名前の下に出ます）<input id="anTag" maxlength="120" value="${esc(an.tagline)}" onchange="anSetTop('tagline',this.value)"></label>
     <div class="an-row"><label class="an-f">フロントの電話（押すとかけられます）<input id="anTel" type="tel" maxlength="30" value="${esc(an.tel)}" onchange="anSetTop('tel',this.value)" placeholder="例：0260-00-0000"></label>
       <label class="an-f an-col">色<input id="anColor" type="color" value="${esc(an.color)}" onchange="anSetTop('color',this.value)" style="padding:2px"></label></div>
+    <div class="an-f">表紙の 写真（ページの いちばん上に 大きく）
+      <div class="an-cover">${an.cover?`<img data-pic="${an.cover}" alt="表紙の写真">`:'<span>なし</span>'}<button type="button" class="an-mini" onclick="document.getElementById('anCoverIn').click()">📷 ${an.cover?'かえる':'えらぶ'}</button>${an.cover?'<button type="button" class="an-mini del" onclick="anCoverDel()">🗑 外す</button>':''}</div>
+      <input type="file" id="anCoverIn" accept="image/*" hidden onchange="anCoverSet(this)"></div>
     <div class="an-sec">項目（上から順に出ます）</div>
     ${an.sections.map((s,i)=>`<div class="an-item" onclick="anEdit('${s.id}')"><span class="ic">${esc(s.icon)}</span>
       <span class="tt">${esc(s.title||'（見出しなし）')}<small>${esc(String(s.body).split('\n')[0]||'')}</small>${an.langs.length?`<span class="an-lgs">${an.langs.map(k=>{ const st=anTrState(s,k); return `<i class="${st}" title="${esc(anLang(k).j)}：${st==='ok'?'訳あり':st==='old'?'日本語が直されています':'訳なし'}">${esc(anLang(k).s)}${st==='old'?'⚠':''}</i>`; }).join('')}</span>`:''}</span>
-      <span class="sz ${s.season}">${AN_SEASONS[s.season]}</span>
+      ${s.pics&&s.pics.length?`<span class="an-pc" title="写真 ${s.pics.length}枚">📷${s.pics.length}</span>`:''}<span class="sz ${s.season}">${AN_SEASONS[s.season]}</span>
       <button onclick="event.stopPropagation();anMove('${s.id}',-1)" ${i===0?'disabled':''} aria-label="上へ">↑</button><button onclick="event.stopPropagation();anMove('${s.id}',1)" ${i===an.sections.length-1?'disabled':''} aria-label="下へ">↓</button></div>`).join('')}
     <button class="an-btn sub" onclick="anEdit(null)">＋ 項目を足す</button>
+    <button class="an-btn sub" onclick="anEdit(null,'map')">🗺 館内図・写真の 項目を足す</button>
     <div class="an-note">本文は1行ずつ書きます。「<b>・</b>」で始めると箇条書き、<b>電話番号</b>（0260-00-0000）は押すとかけられ、<b>https://</b> で始まるアドレスは押すと開き、「<b>地図:〇〇</b>」は地図で〇〇をさがすボタンになります。<br>冬・夏の項目は、お客様のページで<b>いまの季節のものだけ</b>先に出ます（12〜4月は冬、5〜11月は夏。ボタンで切りかえられます）。</div>
     <div class="an-sec">🌐 外国語で見られるようにする</div>
     <div class="an-note">お客様のページの右上に <b>🌐 言語の切りかえ</b> が出ます。お客様のスマホの言語に合わせて、はじめから切りかわります。<br>
@@ -330,7 +401,7 @@ function anRender(){
     <button class="an-btn sub" onclick="anExportHtml()">⬇ ページを書き出す（index.html）</button>
     <button class="an-btn sub" onclick="anHelp('anh-nf')">❓ Netlify の開設・置き方・設定（ヘルプ）</button>
     <div class="an-note">書き出した <b>index.html</b> を Netlify に置くと、お客様が見られるアドレスになります。項目を直したら、書き出して置き直してください。<br>
-      <b>ページに書いたことは、アドレスを知っている人なら誰でも見られます。</b>Wi-Fi のパスワードなどを載せるかは、よく考えて入れてください。</div>
+      <b>ページに書いたことは、アドレスを知っている人なら誰でも見られます。</b>Wi-Fi のパスワードなどを載せるかは、よく考えて入れてください。写真も ページの 中に 入ります（写真が 多いと ファイルが 大きく なります）。</div>
     <div class="an-sec">客室に置く QR コード</div>
     <label class="an-f">ページを置いたアドレス<input id="anUrl" type="url" value="${esc(an.url)}" placeholder="https://〇〇.netlify.app/" onchange="anSetTop('url',this.value)" autocapitalize="off" spellcheck="false"></label>
     <button class="an-btn sub" onclick="anShowQr()">🔳 QR コードを出す・印刷する</button>
@@ -339,6 +410,15 @@ function anRender(){
     <button class="an-btn sub" onclick="document.getElementById('anFileIn').click()">📂 保存したものを開く</button>
     <button class="an-btn del" onclick="anReset()">↺ 見本に戻す</button>`;
   b.scrollTop=st;
+  anFillPics(b);
+}
+async function anCoverSet(inp){
+  const ids=await anAddFiles(inp.files, 1); inp.value=''; if(!ids.length) return;
+  const old=an.cover; an.cover=ids[0]; anSave(); if(old) anPicDel(old); anRender(); toast('表紙の 写真を 入れました');
+}
+async function anCoverDel(){
+  if(!an.cover || !await appConfirm('表紙の 写真を 外しますか？','外す','やめる')) return;
+  const old=an.cover; an.cover=''; anSave(); anPicDel(old); anRender();
 }
 function anSetTop(k,v){
   v=String(v).trim();
@@ -351,25 +431,28 @@ function anMove(id,dir){ const i=an.sections.findIndex(s=>s.id===id), j=i+dir; i
 
 /* 項目を直す。言語を切りかえると、見出しと本文をその言語の訳に入れかえる（しるし・季節は共通） */
 let anEdW=null, anEdL='ja';
-function anEdit(id){
-  const s=id ? an.sections.find(x=>x.id===id) : {id:'', icon:'ℹ', title:'', season:'all', body:'', open:false, tr:{}};
+let anEdPics=[], anEdNew=[];
+function anEdit(id, preset){
+  const s=id ? an.sections.find(x=>x.id===id) : (preset==='map' ? {id:'', icon:'🗺', title:'館内図', season:'all', body:'', open:true, tr:{}, pics:[]} : {id:'', icon:'ℹ', title:'', season:'all', body:'', open:false, tr:{}, pics:[]});
   if(!s) return;
-  anEdId=id; anEdL='ja';
+  anEdId=id; anEdL='ja'; anEdPics=(s.pics||[]).map(p=>({id:p.id, cap:p.cap})); anEdNew=[];
   anEdW={ ja:{title:s.title, body:s.body} };
   for(const k of AN_LK){ const t=(s.tr||{})[k]||{title:'', body:'', src:''}; anEdW[k]={ title:t.title, body:t.body, src:t.src, t0:t.title+'\u0001'+t.body, ok:false }; }
   $('anEdHdr').textContent=id?'項目を直す':'項目を足す';
   $('anEdBody').innerHTML=`
     ${an.langs.length?`<div class="an-f">言語<div class="an-seg lg" id="anELang">${['ja'].concat(an.langs).map(k=>`<button type="button" data-l="${k}" class="${k==='ja'?'on':''}" onclick="anEdLang('${k}')">${k==='ja'?'日本語':esc(anLang(k).n)}${k!=='ja'&&anTrState(s,k)==='old'?' ⚠':''}</button>`).join('')}</div></div>`:''}
     <div id="anETxt"></div>
+    <div class="an-f">📷 写真・館内図（${AN_MAXPIC}枚まで。お客様の ページでは 押すと 大きく 見られます）<div class="an-pics" id="anEPics"></div>
+      <button type="button" class="an-btn sub" onclick="document.getElementById('anEPicIn').click()">📷 写真を 足す</button><input type="file" id="anEPicIn" accept="image/*" multiple hidden onchange="anEdAddPics(this)"></div>
     <div class="an-f">しるし<div class="an-icons" id="anEIcons">${AN_ICONS.map(ic=>`<button type="button" class="${ic===s.icon?'on':''}" onclick="document.querySelectorAll('#anEIcons button').forEach(x=>x.classList.toggle('on',x===this))">${ic}</button>`).join('')}</div></div>
     <div class="an-f">出す季節<div class="an-seg" id="anESeason">${Object.entries(AN_SEASONS).map(([k,l])=>`<button type="button" data-s="${k}" class="${k===s.season?'on':''}" onclick="document.querySelectorAll('#anESeason button').forEach(x=>x.classList.toggle('on',x===this))">${k==='winter'?'❄ ':k==='summer'?'☀ ':''}${l}</button>`).join('')}</div></div>
     <label class="an-f" style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text,#333)"><input type="checkbox" id="anEOpen" style="width:22px;min-height:22px;margin:0"${s.open?' checked':''}> はじめから開いておく（大事な項目に）</label>
     <button class="an-btn" onclick="anEdSave()">保存する</button>
     ${id?'<button class="an-btn del" onclick="anEdDelete()">🗑 この項目を消す</button>':''}
     <button class="an-btn sub" onclick="anCloseEd()">やめる</button>`;
-  anEdTxt();
-  openDlg('anEdOverlay', ()=>{ anEdId=null; });
-  if(!id) setTimeout(()=>{ const e=$('anETitle'); if(e) e.focus(); }, 60);
+  anEdTxt(); anEdPicsRender();
+  openDlg('anEdOverlay', anEdGone);
+  if(!id && preset!=='map') setTimeout(()=>{ const e=$('anETitle'); if(e) e.focus(); }, 60);
 }
 function anEdTxt(){
   const k=anEdL, w=anEdW[k], ja=anEdW.ja, box=$('anETxt');
@@ -385,6 +468,27 @@ function anEdTxt(){
     <div class="an-f">本文（${esc(L.j)}）<button type="button" class="an-mini" onclick="anGTSec('body')">🔤 Google 翻訳</button><textarea id="anEBody" maxlength="6000" lang="${k}" placeholder="空のままなら、お客様のページには日本語が出ます">${esc(w.body)}</textarea></div>
     <div class="an-note">🔤 を押すと Google 翻訳が開きます。訳をコピーして、ここに貼ってください。「・」の箇条書きや電話番号・https:// はそのまま使えます。「地図:」の後ろのお店の名前は<b>日本語のまま</b>にしておくと、地図でさがせます。</div>`;
 }
+// 写真の 一覧（ひとこと・↑・🗑）
+function anEdPicsRender(){
+  const b=$('anEPics'); if(!b) return;
+  b.innerHTML=anEdPics.length ? anEdPics.map((p,i)=>`<div class="an-pic"><img data-pic="${p.id}" alt=""><input type="text" maxlength="60" value="${esc(p.cap)}" placeholder="ひとこと（例：1階・大浴場）" oninput="anEdCap(${i},this.value)" aria-label="写真の ひとこと">
+      <button type="button" onclick="anEdPicMove(${i},-1)" ${i===0?'disabled':''} aria-label="前へ">↑</button><button type="button" onclick="anEdPicDel(${i})" aria-label="外す">🗑</button></div>`).join('')
+    : '<div class="an-note">まだ ありません。館内図・お部屋・お風呂・まわりの景色 などの 写真を 入れられます。</div>';
+  anFillPics(b);
+}
+async function anEdAddPics(inp){
+  const room=AN_MAXPIC-anEdPics.length;
+  if(room<=0){ inp.value=''; toast('写真は '+AN_MAXPIC+'枚まで です'); return; }
+  if(inp.files && inp.files.length>room) toast('写真は '+AN_MAXPIC+'枚まで です（はじめの '+room+'枚を 入れます）', 3200);
+  const ids=await anAddFiles(inp.files, room); inp.value='';
+  ids.forEach(id=>{ anEdPics.push({id, cap:''}); anEdNew.push(id); });
+  anEdPicsRender();
+}
+function anEdCap(i, v){ if(anEdPics[i]) anEdPics[i].cap=String(v||'').slice(0,60); }
+function anEdPicMove(i, d){ const j=i+d; if(!anEdPics[i] || !anEdPics[j]) return; [anEdPics[i],anEdPics[j]]=[anEdPics[j],anEdPics[i]]; anEdPicsRender(); }
+function anEdPicDel(i){ if(!anEdPics[i]) return; anEdPics.splice(i,1); anEdPicsRender(); }
+// 保存せずに 閉じたら、足しただけの 写真は 消す
+function anEdGone(){ anEdNew.forEach(id=>anPicDel(id)); anEdNew=[]; anEdId=null; }
 function anEdStash(){ const w=anEdW[anEdL], t=$('anETitle'), b=$('anEBody'); if(t) w.title=t.value; if(b) w.body=b.value; }
 function anEdLang(k){
   anEdStash(); anEdL=k;
@@ -412,43 +516,50 @@ function anEdSave(){
     tr[k]={ title:t, body:w.body, src:(changed||w.ok||!w.src)?sg:w.src };
   }
   const s={ id:anEdId||uid(), title, icon:(document.querySelector('#anEIcons button.on')||{}).textContent||'ℹ',
-    season:(document.querySelector('#anESeason button.on')||{}).dataset?.s||'all', body:ja.body, open:$('anEOpen').checked, tr };
+    season:(document.querySelector('#anESeason button.on')||{}).dataset?.s||'all', body:ja.body, open:$('anEOpen').checked, tr,
+    pics:anEdPics.map(p=>({id:p.id, cap:p.cap.trim()})) };
   const i=an.sections.findIndex(x=>x.id===s.id);
+  if(i>=0) (an.sections[i].pics||[]).forEach(p=>{ if(!s.pics.some(q=>q.id===p.id)) anPicDel(p.id); });   // 外した 写真は 消す
+  anEdNew=[];
   if(i>=0) an.sections[i]=s; else an.sections.push(s);
   anSave(); anCloseEd(); anRender(); toast('保存しました');
 }
 async function anEdDelete(){
   const s=an.sections.find(x=>x.id===anEdId); if(!s) return;
   if(!await appConfirm('「'+s.title+'」の項目を消しますか？','消す','やめる')) return;
+  (s.pics||[]).forEach(p=>anPicDel(p.id));
   an.sections=an.sections.filter(x=>x.id!==s.id); anSave(); anCloseEd(); anRender();
 }
-function anCloseEd(){ closeDlg('anEdOverlay', ()=>{ anEdId=null; }); }
+function anCloseEd(){ closeDlg('anEdOverlay', anEdGone); }
 
 /* 見え方（お客様のスマホの大きさで） */
 function anPreview(){
   $('anPvHdr').textContent='📱 お客様のスマホでの見え方';
   $('anPvBody').innerHTML='<iframe class="an-prev" id="anPvFrame" title="案内ページの見え方"></iframe><div class="an-note" style="text-align:center">項目を押すと開きます。上の季節のボタンも押せます。</div>';
   openDlg('anPvOverlay');
-  $('anPvFrame').srcdoc=anPageHtml();
+  anPicsMap().then(m=>{ const f=$('anPvFrame'); if(f) f.srcdoc=anPageHtml(an, m); });
 }
 function anClosePv(){ closeDlg('anPvOverlay'); }
 function anDownload(name, text, type){
   const a=Object.assign(document.createElement('a'), {href:URL.createObjectURL(new Blob([text],{type})), download:name});
   document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
-function anExportHtml(){ anDownload('index.html', anPageHtml(), 'text/html;charset=utf-8'); toast('index.html を書き出しました。Netlify などに置くと、お客様が見られます', 4000); }
-function anExportJson(){ anDownload('案内ページ_'+today()+'.json', JSON.stringify({app:'hyodenki', type:'annai', version:1, data:an}), 'application/json'); }
+async function anExportHtml(){ anDownload('index.html', anPageHtml(an, await anPicsMap()), 'text/html;charset=utf-8'); toast('index.html を書き出しました。Netlify などに置くと、お客様が見られます', 4000); }
+async function anExportJson(){ const pics=await anPicsMap(); anDownload('案内ページ_'+today()+'.json', JSON.stringify({app:'hyodenki', type:'annai', version:1, data:an, pics:Object.keys(pics).length?pics:undefined}), 'application/json'); }
 async function anImport(inp){
   const f=inp.files && inp.files[0]; inp.value=''; if(!f) return;
   let o=null; try{ o=JSON.parse(await f.text()); }catch(_){}
   const d=o && (o.type==='annai' ? o.data : o.annai);
   if(!d || !Array.isArray(d.sections)){ toast('案内ページのファイルではありません'); return; }
   if(!await appConfirm('いま作っている案内ページと置きかえますか？','置きかえる','やめる')) return;
-  an=anClean(d); anSave(); anRender(); toast('開きました');
+  an=anClean(d); await anPicClear();
+  const P=(o && o.type==='annai' ? o.pics : o && o.annaiPics)||{};
+  for(const id of anPicIds(an)) if(anSafeData(P[id])){ try{ await anPicPut(id, P[id]); }catch(_){} }
+  anSave(); anRender(); toast('開きました');
 }
 async function anReset(){
   if(!await appConfirm('いま作っている案内ページを消して、見本に戻しますか？','見本に戻す','やめる')) return;
-  an=anDefault(); anSave(); anRender();
+  an=anDefault(); anSave(); await anPicClear(); anRender();
 }
 
 /* 出す言語を選ぶ */
@@ -744,6 +855,7 @@ function anPrintCards(){
 }
 
 Object.assign(window, { openAnnai, closeAnnai, anSetTop, anMove, anEdit, anEdSave, anEdDelete, anCloseEd, anPreview, anClosePv,
+  anCoverSet, anCoverDel, anEdAddPics, anEdCap, anEdPicMove, anEdPicDel, anPicsMap, anPicGet, anPicPut, anAddFiles,
   anExportHtml, anExportJson, anImport, anReset, anShowQr, anPrintCards, anPageHtml, anBodyHtml, anState:()=>an, anQrSvg,
   anEdLang, anEdOk, anGT, anGTSec, anToggleLang, anTopTr, anTopTrSave, anNetlifyHelp, anHelp, anHelpJump, anCloseHelp, anSig, anTrState, anTopState, anTopMarkOk });
 })();

@@ -12693,6 +12693,125 @@ async function runV599(browser) {
   await ctx.close();
 }
 
+async function runV600(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🧳 しおりの 🗺 地図・📝 試験報告書・🏨 案内ページの 📷 写真（v600） ──');
+  const w = ms => page.waitForTimeout(ms);
+  // ── 🧳 旅のしおり：🗺 地図 ──
+  await page.evaluate(() => {
+    window.appConfirm = async () => true;
+    localStorage.setItem('excalc_shiori', JSON.stringify({ trips: [{ id: 'trip01', title: '箱根 温泉', emo: '♨', start: '2026-11-03', end: '2026-11-05',
+      plan: [{ id: 'p0001', d: '2026-11-03', t: '08:00', what: '東京駅 出発', place: '東京駅' }, { id: 'p0002', d: '2026-11-03', t: '10:00', what: '登山電車', place: '箱根湯本駅' },
+        { id: 'p0003', d: '2026-11-03', t: '13:00', what: '大涌谷で 黒たまご', place: '大涌谷' }, { id: 'p0004', d: '2026-11-03', t: '16:00', what: '宿に 着く', place: '箱根 強羅 旅館' },
+        { id: 'p0005', d: '2026-11-04', t: '10:00', what: '芦ノ湖 遊覧船', place: '芦ノ湖' }, { id: 'p0006', d: '2026-11-04', t: '15:00', what: '帰る' },
+        { id: 'p0007', d: '2026-11-05', t: '09:00', what: '朝ごはん', place: '強羅駅' }, { id: 'p0008', d: '2026-11-05', t: '10:00', what: 'おみやげ', place: '強羅駅' }, { id: 'p0009', d: '2026-11-05', t: '11:00', what: '美術館', place: '彫刻の森' }],
+      stay: [{ id: 's0001', kind: 'yado', name: '強羅 ○○旅館', tel: '0460-00-0000', addr: '神奈川県足柄下郡箱根町強羅' }] }], cur: 'trip01', tab: 'plan' }));
+    return openShiori();
+  }); await w(500);
+  await page.evaluate(() => SHIORI.today('2026-11-01')); await w(150);
+  const E = s => encodeURIComponent(s);
+  check('  🗺 予定の 場所は 押すと 地図・2か所 以上の 日に「この日の 道順」（続けて 同じ 場所は 1つ）',
+    await page.evaluate(() => { const m = [...document.querySelectorAll('.so-map')], r = [...document.querySelectorAll('.so-route')]; return [m.length, m[0].getAttribute('href'), m[0].target, r.length, r.map(x => x.textContent).join(',')].join('|'); }),
+    ['8', 'https://www.google.com/maps/search/?api=1&query=' + E('東京駅'), '_blank', '2', '🗺 この日の 道順（4か所）,🗺 この日の 道順（2か所）'].join('|'));
+  check('  道順の アドレス（はじめ・寄る ところ・さいご）・1か所の 日は 地図', await page.evaluate(() => [SHIORI.route('2026-11-03'), SHIORI.route('2026-11-04'), SHIORI.route('2026-11-05')].join(' ')),
+    ['https://www.google.com/maps/dir/?api=1&origin=' + E('東京駅') + '&destination=' + E('箱根 強羅 旅館') + '&waypoints=' + E('箱根湯本駅|大涌谷'),
+      'https://www.google.com/maps/search/?api=1&query=' + E('芦ノ湖'), 'https://www.google.com/maps/dir/?api=1&origin=' + E('強羅駅') + '&destination=' + E('彫刻の森')].join(' '));
+  check('  📋 コピーに 道順・地図の アドレス', await page.evaluate(() => SHIORI.text().split('\n').filter(l => l.startsWith('🗺')).map(l => l.split('：')[0] + '：' + l.split('：')[1].slice(0, 34)).join(',')),
+    '🗺 この日の 道順：https://www.google.com/maps/dir/?a,🗺 地図：https://www.google.com/maps/search,🗺 この日の 道順：https://www.google.com/maps/dir/?a');
+  check('  🖨 印刷：場所の ある 日に QR コード（道順・地図）', await page.evaluate(() => { const d = document.createElement('div'); d.innerHTML = SHIORI.html(); return [d.querySelectorAll('.dy').length, d.querySelectorAll('.dy .qr img[src^="data:image/png"]').length, [...d.querySelectorAll('.dy .qr small')].map(x => x.textContent).join(',')].join('|'); }), '3|3|🗺 この日の 道順,🗺 地図,🗺 この日の 道順');
+  await page.evaluate(() => SHIORI.planAdd('2026-11-04')); await w(200);
+  check('  予定の 場所は よく使う 場所（宿・この 旅の 場所）から えらべる', await page.evaluate(() => [...document.querySelectorAll('.so-kp button')].map(b => b.textContent.replace('📍 ', '')).join(',')), '強羅 ○○旅館,東京駅,箱根湯本駅,大涌谷,箱根 強羅 旅館,芦ノ湖,強羅駅,彫刻の森');
+  await page.click('.so-kp button:nth-child(4)'); await w(80);
+  await page.evaluate(() => { window.__open = []; window.open = (u, t) => { window.__open.push(u + ' ' + t); return null; }; SHIORI.mapTry(); }); await w(80);
+  check('  えらぶと 場所に 入る・🗺 で 地図を たしかめる', await page.evaluate(() => [document.getElementById('soPP').value, window.__open.join(',')].join('|')), '大涌谷|https://www.google.com/maps/search/?api=1&query=' + E('大涌谷') + ' _blank');
+  await page.evaluate(() => { document.getElementById('soPP').value = ''; SHIORI.mapTry(); SHIORI.close(); closeShiori(); }); await w(200);
+  check('  場所が 空なら 知らせる', await page.evaluate(() => document.getElementById('appToast').textContent), '場所を 入れて ください');
+  // ── 📝 試験報告書（単位水量・カンタブ）──
+  await page.evaluate(() => {
+    localStorage.setItem('excalc_kantab_table', JSON.stringify([{ r: 1.0, c: 0.01 }, { r: 2.0, c: 0.02 }, { r: 3.0, c: 0.03 }]));
+    localStorage.setItem('excalc_kantab_vals', JSON.stringify({ W: '175', r1: '1.5', r2: '1.6', r3: '4.0' }));
+    localStorage.setItem('excalc_tansui_vals', JSON.stringify({ W1: '175', C: '300', S: '800', G: '1000', P: '0', A1: '4.5', V: '7000', m1: '2000', m2: '18100', A2: '4.6' }));
+  });
+  await page.reload(); await w(900);
+  await page.evaluate(() => { window.appConfirm = async () => true; window.print = () => { window.__printed = (window.__printed || 0) + 1; }; openKantab(); }); await w(300);
+  check('  カンタブ：計算は ktResult に（表示は 前と 同じ）・範囲外は 平均に 入れない',
+    await page.evaluate(() => { const R = ktResult(); return [R.avg, R.judge, R.n, R.nOut, R.nInterp, document.getElementById('ktC_r1').textContent, document.getElementById('ktQ_r2').textContent, document.getElementById('ktC_r3').textContent, document.getElementById('ktResVal').textContent, document.getElementById('ktJudge').textContent].join('|'); }),
+    '0.027|ok|2|1|2|0.0150 % *|0.028|範囲外|0.027 kg/m³|合格');
+  check('  カンタブに 🖨 1ページ・🖼 画像・📤 共有・📝 試験報告書・印刷のしかた', await page.evaluate(() => [...document.querySelectorAll('#kantabOverlay .veg-pdf-btn, #kantabOverlay .prn-open')].map(b => b.textContent.replace(/（.*$/, '')).join(',')),
+    '🖨 結果を1ページのPDFに,🖼 画像で保存,📤 画像を共有,📝 試験報告書,🖨 印刷のしかた');
+  await page.evaluate(() => ktPdf()); await w(700);
+  check('  🖨 カンタブの 1ページ（表・平均・判定・めやす）・カンタブは 閉じる',
+    await page.evaluate(() => { const b = document.querySelector('#printArea #ktRepBox'); return [!!b, b.classList.contains('prn-doc'), b.querySelector('.vp-title').textContent, [...b.querySelectorAll('.sk-kt tbody tr')].map(r => [...r.children].map(c => c.textContent).join(' ').trim()).join(' / '), b.querySelector('.vp-big').textContent.replace(/\s+/g, ' '), isDlgOpen('kantabOverlay'), window.__printed > 0].join('|'); }),
+    'true|true|🧪 カンタブ試験（塩化物含有量） 報告書|① 1.5 0.0150 * 0.026 / ② 1.6 0.0160 * 0.028 / ③ 4.0 範囲外 — / 平均   0.027|塩化物含有量（2回の 平均） ＝ 0.027 kg/m³ ／ 判定 合格|false|true');
+  await page.evaluate(() => openTansui()); await w(300);
+  check('  単位水量にも 📝 試験報告書', await page.evaluate(() => [...document.querySelectorAll('#tansuiOverlay .sk-open')].map(b => b.textContent).join(',')), '📝 試験報告書（工事名・試験者・印の欄つき）');
+  await page.click('#tansuiOverlay .sk-open'); await w(400);
+  const today = await page.evaluate(() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); });
+  check('  開く：入れる 試験は 開いた 道具（ほかの 結果も 見える）・試験日は きょう',
+    await page.evaluate(() => [isDlgOpen('shikenOverlay'), [...document.querySelectorAll('.sk-ib')].map(b => (b.classList.contains('on') ? '✓' : '') + b.querySelector('small').textContent).join(','), document.querySelector('#skBody [data-k=date]').value, document.querySelector('#skBody [data-k=time]').value].join('|')),
+    'true|✓W 160.2 kg/m³・合格,0.027 kg/m³・合格|' + today + '|');
+  await page.fill('#skBody [data-k=co]', '○○生コン（株）'); await page.fill('#skBody [data-k=koji]', '○○ビル 新築工事'); await page.fill('#skBody [data-k=place]', '現場'); await page.fill('#skBody [data-k=temp]', '１８．５');
+  await page.fill('#skBody [data-k=ctemp]', '21'); await page.fill('#skBody [data-k=tester]', '山田 太郎'); await page.fill('#skBody [data-k=time]', '10:30');
+  await page.evaluate(() => { window.__kd = 0; document.addEventListener('keydown', () => { window.__kd++; }); });
+  await page.focus('#skBody [data-k=witness]'); await page.keyboard.type('12'); await page.fill('#skBody [data-k=witness]', '佐藤 一郎');
+  await page.click('.sk-seg button:nth-child(3)'); await page.click('.sk-ib:nth-child(2)'); await w(100);
+  check('  見出しを 入れると 覚える（全角の 数字も）・天候・両方 えらぶ・表の キーには 届かない',
+    await page.evaluate(() => { const h = JSON.parse(localStorage.getItem('excalc_shiken')); return [h.co, h.koji, h.place, h.temp, h.ctemp, h.tester, h.witness, h.weather, h.time, h.hanko, JSON.stringify(SHIKEN.chosen()), window.__kd].join('|'); }),
+    '○○生コン（株）|○○ビル 新築工事|現場|18.5|21|山田 太郎|佐藤 一郎|雨|10:30|true|{"tsx":true,"kt":true}|0');
+  check('  報告書：見出しの 表・単位水量・塩化物・印の 欄（試験者・立会者）',
+    await page.evaluate(() => { const d = document.createElement('div'); d.innerHTML = SHIKEN.html({ tsx: true, kt: true }); const hd = [...d.querySelectorAll('.sk-hd tr')].map(r => [...r.children].map(c => c.textContent).join(':')).join(' / '); return [d.querySelector('.sk-t').textContent, d.querySelector('.sk-co').textContent, hd, [...d.querySelectorAll('.sk-sec')].map(x => x.textContent).join(','), [...d.querySelectorAll('.sk-hanko b')].map(x => x.textContent).join(',')].join('|'); }),
+    'コンクリート 試験報告書|○○生コン（株）|工事名:○○ビル 新築工事 / 試験日:' + await page.evaluate(t => { const d = new Date(t + 'T00:00:00'); return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日（' + '日月火水木金土'[d.getDay()] + '）'; }, today) + '　10:30:天候:雨 / 試験場所:現場:気温:18.5 ℃ / 試験者:山田 太郎:コンクリート温度:21 ℃ / 立会者:佐藤 一郎|💧 単位水量試験（エアメータ法）,🧪 塩化物含有量試験（カンタブ）|試験者,立会者');
+  await page.click('.sk-ck input'); await w(50);
+  check('  片方だけ・印の 欄なし', await page.evaluate(() => { const d = document.createElement('div'); d.innerHTML = SHIKEN.html({ tsx: false, kt: true }); return [d.querySelector('.sk-t').textContent, d.querySelectorAll('.sk-sec').length, !!d.querySelector('.sk-hanko'), SHIKEN.head().hanko].join('|'); }), '塩化物含有量試験 報告書|1|false|false');
+  await page.evaluate(() => { SHIKEN.inc('tsx'); SHIKEN.inc('kt'); SHIKEN.print(); }); await w(150);
+  check('  どれも えらんで いないと 知らせる', await page.evaluate(() => [isDlgOpen('shikenOverlay'), document.getElementById('appToast').textContent].join('|')), 'true|入れる 試験を えらんで ください');
+  await page.evaluate(() => { SHIKEN.inc('tsx'); SHIKEN.inc('kt'); window.__printed = 0; SHIKEN.print(); }); await w(600);
+  check('  🖨 印刷：報告書を 組み立てて 窓は 閉じる（印刷のしかたも 効く）', await page.evaluate(() => [!!document.querySelector('#printArea #skRepBox.prn-doc'), isDlgOpen('shikenOverlay'), isDlgOpen('tansuiOverlay'), window.__printed, !!PRN_TOOLS.shiken && !!PRN_TOOLS.kt].join('|')), 'true|false|false|1|true');
+  await page.evaluate(() => { const h = JSON.parse(localStorage.getItem('excalc_shiken')); h.date = '2000-01-01'; h.dateSet = '2000-01-01'; h.time = '09:00'; localStorage.setItem('excalc_shiken', JSON.stringify(h)); openShikenRep('kt'); }); await w(300);
+  check('  次の 日は 試験日を きょうに もどす（見出しは そのまま）・カンタブから 開くと カンタブ', await page.evaluate(() => [document.querySelector('#skBody [data-k=date]').value, document.querySelector('#skBody [data-k=time]').value, document.querySelector('#skBody [data-k=koji]').value, JSON.stringify(SHIKEN.chosen())].join('|')), today + '||○○ビル 新築工事|{"tsx":false,"kt":true}');
+  await page.keyboard.press('Escape'); await w(200);
+  check('  Esc で 閉じる・バックアップと 端末の 空きに 見出し', await page.evaluate(() => [isDlgOpen('shikenOverlay'), SETTINGS_BACKUP_KEYS.includes('excalc_shiken'), ST_GROUPS.some(g => g.k === 'excalc_shiken')].join('|')), 'false|true|true');
+  // ── 🏨 案内ページ：📷 写真・館内図 ──
+  const feed = (sel, kinds) => page.evaluate(async ([sel, kinds]) => {
+    const mk = k => new Promise(res => { const c = document.createElement('canvas'); c.width = 900; c.height = 600; const g = c.getContext('2d'); g.fillStyle = k === 'map' ? '#fff' : '#3a7d44'; g.fillRect(0, 0, 900, 600); g.fillStyle = '#111'; g.font = 'bold 50px sans-serif'; g.fillText(k, 50, 100); c.toBlob(b => res(new File([b], k + '.png', { type: 'image/png' })), 'image/png'); });
+    const dt = new DataTransfer(); for (const k of kinds) dt.items.add(await mk(k));
+    dt.items.add(new File(['abc'], 'memo.txt', { type: 'text/plain' }));
+    const inp = document.querySelector(sel); inp.files = dt.files; inp.dispatchEvent(new Event('change'));
+  }, [sel, kinds]);
+  await page.evaluate(() => openAnnai()); await w(600);
+  check('  表紙の 写真の 欄・「🗺 館内図・写真の 項目を足す」', await page.evaluate(() => [!!document.getElementById('anCoverIn'), getComputedStyle(document.getElementById('anCoverIn')).display, [...document.querySelectorAll('#anBody .an-btn')].some(b => b.textContent === '🗺 館内図・写真の 項目を足す')].join('|')), 'true|none|true');
+  await feed('#anCoverIn', ['cover']); await w(900);
+  await page.evaluate(() => anEdit(null, 'map')); await w(300);
+  check('  館内図の 項目：見出し・しるし・はじめから 開く', await page.evaluate(() => [document.getElementById('anETitle').value, document.querySelector('#anEIcons button.on').textContent, document.getElementById('anEOpen').checked].join('|')), '館内図|🗺|true');
+  await feed('#anEPicIn', ['map', 'room']); await w(1200);
+  await page.evaluate(() => { const ins = document.querySelectorAll('.an-pic input'); ins[0].value = '1階'; ins[0].dispatchEvent(new Event('input')); ins[1].value = 'お部屋'; ins[1].dispatchEvent(new Event('input')); anEdPicMove(1, -1); anEdSave(); }); await w(400);
+  const st1 = await page.evaluate(() => { const a = anState(), s = a.sections[a.sections.length - 1]; return { cover: a.cover, pics: s.pics, id: s.id }; });
+  check('  写真を 入れる（写真で ない ものは 入れない）・ひとこと・並べかえ・一覧に 📷 の 数', await page.evaluate(st1 => [/^p[a-z0-9]{6,20}$/.test(st1.cover), st1.pics.map(p => p.cap).join(','), [...document.querySelectorAll('.an-item .an-pc')].map(x => x.textContent).join(','), !!document.querySelector('.an-cover img[data-pic]')].join('|'), st1), 'true|お部屋,1階|📷2|true');
+  check('  お客様の ページ：表紙・写真（押すと 大きく）・ひとこと', await page.evaluate(async () => { const h = anPageHtml(anState(), await anPicsMap()), d = new DOMParser().parseFromString(h, 'text/html'); return [!!d.querySelector('header img.cv[src^="data:image/jpeg"]'), d.querySelectorAll('.ph figure img[src^="data:image/jpeg"]').length, [...d.querySelectorAll('.ph figcaption')].map(x => x.textContent).join(','), !!d.getElementById('lb'), (h.match(/data:image\/jpeg/g) || []).length].join('|'); }), 'true|2|お部屋,1階|true|3');
+  // 見え方（iframe）で 押すと 大きく
+  await page.evaluate(() => anPreview()); await w(1200);
+  const lb = await page.evaluate(async () => { const d = document.getElementById('anPvFrame').contentDocument; d.querySelector('.ph img').click(); await new Promise(r => setTimeout(r, 100)); const a = [d.getElementById('lb').hidden, d.getElementById('lbCap').textContent]; d.getElementById('lbImg').click(); a.push(d.getElementById('lb').classList.contains('z')); d.getElementById('lb').click(); a.push(d.getElementById('lb').hidden); return a.join('|'); });
+  check('  見え方：写真を 押すと 大きく（ひとこと）・もう一度で 拡大・外を 押すと 閉じる', lb, 'false|お部屋|true|true');
+  await page.evaluate(() => anClosePv()); await w(200);
+  // やめると 足した 写真は 消す・外して 保存すると 消す
+  await page.evaluate(id => anEdit(id), st1.id); await w(200);
+  await feed('#anEPicIn', ['extra']); await w(900);
+  const extra = await page.evaluate(() => [...document.querySelectorAll('.an-pic img')].map(i => i.dataset.pic).pop());
+  await page.evaluate(() => anCloseEd()); await w(300);
+  check('  保存せずに やめると 足した 写真は 消える', await page.evaluate(async ([id, n]) => [await anPicGet(id), anState().sections.find(s => s.id === n).pics.length].join('|'), [extra, st1.id]), '|2');
+  await page.evaluate(id => { anEdit(id); anEdPicDel(0); anEdSave(); }, st1.id); await w(400);
+  check('  外して 保存すると その 写真も 消える', await page.evaluate(async p => [await anPicGet(p.id) === null, anState().sections.find(s => s.pics && s.pics.length).pics.length].join('|'), st1.pics[0]), 'true|1');
+  // 全体の バックアップ・作りかけの 保存
+  const bundle = await page.evaluate(async () => { const m = await annaiPicsBundle(); return Object.keys(m || {}).length; });
+  check('  全体の バックアップに 写真（使って いる ものだけ）', bundle, 2);
+  check('  へんな データ：写真の 名前は 決まった 形だけ', await page.evaluate(() => { const a = window.__anClean ? null : null; const d = anState(); const o = JSON.parse(JSON.stringify(d)); o.cover = '../x'; o.sections[0].pics = [{ id: 'p<img>' }, { id: 'pabcdef12', cap: 'ok' }]; localStorage.setItem('excalc_annai', JSON.stringify(o)); closeAnnai(); openAnnai(); const s = anState(); return [s.cover, s.sections[0].pics.map(p => p.id).join(',')].join('|'); }), '|pabcdef12');
+  await page.evaluate(() => anReset()); await w(500);
+  check('  見本に 戻すと 写真も 消す', await page.evaluate(async p => [anState().cover, await anPicGet(p)].join('|'), st1.pics[1].id), '|');
+  await page.evaluate(() => closeAnnai()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
 async function runClockLay591(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🕐 ど派手タイマーの 時計：ぽよん 以外の 見せ方も 同じ 並べ方（v591） ──');
@@ -12847,7 +12966,7 @@ async function runShiori579(browser) {
   await page.evaluate(() => { SHIORI.newTrip(); document.getElementById('soTTitle').value = '箱根 温泉'; document.getElementById('soTStart').value = '2026-10-30'; document.getElementById('soTEnd').value = '2026-11-01'; SHIORI.emo(document.querySelectorAll('.so-emos button')[5], '♨'); SHIORI.setupSave(true); }); await w(200);
   check('  新しい 旅：2泊3日・あと 6日・タブ 6つ', await page.evaluate(() => { const w = SHIORI.when(); return [SHIORI.state().trips.length, w.span, w.rel, w.text, document.querySelectorAll('.so-tabs button').length, document.querySelector('.so-head b').textContent, document.querySelector('.so-head .e').textContent].join('/'); }), '1/2泊3日/あと 6日/10月30日（金）〜11月1日（日）/6/箱根 温泉/♨');
   check('  帰る日が 行く日より 前・30日より 長い 旅は 作らない', await page.evaluate(() => { SHIORI.newTrip(); document.getElementById('soTStart').value = '2026-11-05'; document.getElementById('soTEnd').value = '2026-11-01'; SHIORI.setupSave(true); const a = [SHIORI.state().trips.length]; document.getElementById('soTEnd').value = '2026-12-31'; SHIORI.setupSave(true); a.push(SHIORI.state().trips.length); SHIORI.close(); return a.join('/'); }), '1/1');
-  check('  🗓 日程：3日ぶん・予定を 足す（時刻順）・済んだら ✓', await page.evaluate(() => { const r = [document.querySelectorAll('.so-day').length]; SHIORI.planAdd('2026-10-30'); document.getElementById('soPT').value = '10:30'; document.getElementById('soPW').value = '箱根湯本 着'; document.getElementById('soPP').value = '箱根湯本駅'; SHIORI.planSave(''); SHIORI.planAdd('2026-10-30'); document.getElementById('soPT').value = '08:00'; document.getElementById('soPW').value = '東京駅 出発'; SHIORI.planSave(''); const d1 = document.querySelectorAll('.so-day')[0]; r.push([...d1.querySelectorAll('.so-pl .tm')].map(x => x.textContent).join(','), d1.querySelector('.so-pl small').textContent); const id = SHIORI.state().trips[0].plan.find(p => p.what === '東京駅 出発').id; SHIORI.planOk(id, true); r.push(document.querySelector('.so-pl.ok .tx b').textContent); return r.join('/'); }), '3/08:00,10:30/📍 箱根湯本駅/東京駅 出発');
+  check('  🗓 日程：3日ぶん・予定を 足す（時刻順）・済んだら ✓', await page.evaluate(() => { const r = [document.querySelectorAll('.so-day').length]; SHIORI.planAdd('2026-10-30'); document.getElementById('soPT').value = '10:30'; document.getElementById('soPW').value = '箱根湯本 着'; document.getElementById('soPP').value = '箱根湯本駅'; SHIORI.planSave(''); SHIORI.planAdd('2026-10-30'); document.getElementById('soPT').value = '08:00'; document.getElementById('soPW').value = '東京駅 出発'; SHIORI.planSave(''); const d1 = document.querySelectorAll('.so-day')[0]; r.push([...d1.querySelectorAll('.so-pl .tm')].map(x => x.textContent).join(','), d1.querySelector('.so-pl small').textContent); const id = SHIORI.state().trips[0].plan.find(p => p.what === '東京駅 出発').id; SHIORI.planOk(id, true); r.push(document.querySelector('.so-pl.ok .tx b').textContent); return r.join('/'); }), '3/08:00,10:30/📍 箱根湯本駅 🗺/東京駅 出発');
   check('  予定を 直す（ほかの 日へ）・消す（聞いてから）', await page.evaluate(async () => { const t = SHIORI.state().trips[0], id = t.plan.find(p => p.what === '箱根湯本 着').id; SHIORI.planEdit(id); document.getElementById('soPD').value = '2026-10-31'; document.getElementById('soPW').value = '大涌谷'; SHIORI.planSave(id); const a = [document.querySelectorAll('.so-day')[1].querySelector('.so-pl .tx b').textContent]; await SHIORI.delOf('plan', id, p => p.what); a.push(SHIORI.state().trips[0].plan.length); return a.join('/'); }), '大涌谷/1');
   check('  日にちを かえても 予定は 消えない（日にちの 外）', await page.evaluate(() => { SHIORI.setup(); document.getElementById('soTStart').value = '2026-10-31'; SHIORI.setupSave(false); const r = [document.querySelectorAll('.so-day').length, !!document.querySelector('.so-day.out'), document.querySelector('.so-day.out .so-pl .tm').textContent]; SHIORI.setup(); document.getElementById('soTStart').value = '2026-10-30'; SHIORI.setupSave(false); r.push(document.querySelectorAll('.so-day.out').length); return r.join('/'); }), '3/true/10月30日（金） 08:00/0');
   check('  🎒 持ち物：国内の 見本 22・海外 9・✓・ぜんぶ 外す・同じ ものは 入れない', await page.evaluate(() => { SHIORI.tab('pack'); SHIORI.packPreset('jp'); const r = [SHIORI.state().trips[0].pack.length]; SHIORI.packPreset('intl'); const t = SHIORI.state().trips[0]; r.push(t.pack.length); SHIORI.packOk(t.pack[0].id, true); SHIORI.packOk(t.pack[1].id, true); r.push(document.querySelector('.so-prog').textContent.replace(/\s+/g, '')); SHIORI.packClear(); r.push(SHIORI.state().trips[0].pack.filter(p => p.ok).length); document.getElementById('soPkName').value = '財布'; SHIORI.packAdd(); r.push(SHIORI.state().trips[0].pack.length); document.getElementById('soPkName').value = 'カメラ'; document.getElementById('soPkCat').value = 'denshi'; SHIORI.packAdd(); const k = SHIORI.state().trips[0].pack.pop(); r.push(k.name + ':' + k.cat, document.querySelectorAll('.so-h').length); return r.join('/'); }), '22/31/2／31入れた/0/31/カメラ:denshi/5');
@@ -18339,6 +18458,7 @@ async function runQrShare(browser) {
     if (!only || only === 'keijiban' || only === 'keijiban597' || only === 'v597') await runKeijiban597(browser);
     if (!only || only === 'hade' || only === 'timer598' || only === 'v598') await runTimer598(browser);
     if (!only || only === 'bingo' || only === 'hitsudan' || only === 'v599') await runV599(browser);
+    if (!only || only === 'shiori' || only === 'shiken' || only === 'annai' || only === 'v600') await runV600(browser);
     if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
     if (!only || only === 'okaeshi' || only === 'v564') await runOkaeshi564(browser);
     if (!only || only === 'tax' || only === 'v565') await runTax565(browser);
