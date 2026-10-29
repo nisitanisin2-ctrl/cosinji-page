@@ -12567,6 +12567,132 @@ async function runTimer598(browser) {
   await ctx.close();
 }
 
+async function runV599(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🎱 ビンゴ：📱 スマホに カードを 配る・🗣 筆談：👥 向かい合わせ（v599） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const base = 'file://' + ROOT + '/';
+  await page.evaluate(() => { window.BINGO_NO_ANIM = 1; window.appConfirm = async () => true; localStorage.setItem('excalc_bingo', JSON.stringify({ code: 'KM7Q', card: { code: 'KM7Q', no: 3, marks: [] } })); openBingo(); }); await w(500);
+  check('  🎱 抽選・🃏 カード に「📱 配る」（はば いっぱい。1〜75 の ときだけ）',
+    await page.evaluate(() => {
+      const a = document.querySelector('#bgActs .bg-wide'), A = document.getElementById('bgActs'), r = [a.textContent, Math.abs(a.getBoundingClientRect().width - A.getBoundingClientRect().width) < 1];
+      BINGO.tab('card'); r.push(document.querySelector('#bgCardTab .bg-wide').textContent); BINGO.tab('draw');
+      BINGO.setMax(90); r.push(!!document.querySelector('#bgActs .bg-wide')); BINGO.qrPop(); r.push(!!document.querySelector('.bg-pop'), document.getElementById('appToast').textContent);
+      BINGO.setMax(75); r.push(!!document.querySelector('#bgActs .bg-wide')); return r.join('|');
+    }),
+    '📱 参加する 人の スマホに カードを 配る（QR）|true|📱 ほかの スマホに 配る（QR）|false|false|カードは 1〜75 の ときに 使えます|true');
+  await page.click('#bgActs .bg-wide'); await w(200);
+  check('  QR：…/apps/bingo/#bc=組の コード・QR の 絵・組・番号は おまかせ・この 端末の ファイルでは 知らせる',
+    await page.evaluate(() => { const cv = document.getElementById('bgQr'), u = BINGO.qrUrl(), q = qrEncode(u, 'M'); return [u, cv.width === (q.size + 8) * 6, document.querySelector('.bg-qrc').textContent, document.querySelector('.bg-qrn').textContent, !!document.querySelector('.bg-warn'), document.querySelector('.bg-pop .bg-seg .on').textContent].join('|'); }),
+    base + 'apps/bingo/#bc=KM7Q|true|組 KM7Q|カードの 番号は スマホごとに ばらばら（1000〜9999）|true|🎲 おまかせ');
+  await page.evaluate(() => { BINGO.qrSeq(1); BINGO.qrNext(1); BINGO.qrNext(1); BINGO.qrNext(-1); }); await w(100);
+  const btns = () => page.evaluate(() => [...document.querySelectorAll('.bg-pop .bg-pacts .bg-b')].map(b => b.textContent + (b.disabled ? '×' : '')).filter(t => !t.includes('送る')).join(','));
+  check('  🔢 1番から 順に：▶ 次の 人・◀ 1つ 前（アドレスに 番号・覚える）',
+    await page.evaluate(() => [BINGO.qrUrl().split('#')[1], document.querySelector('.bg-qrn').textContent, document.querySelector('.bg-pop .bg-seg .on').textContent, JSON.parse(localStorage.getItem('excalc_bingo')).qrNo].join('|')) + '|' + await btns(),
+    'bc=KM7Q&no=2|いまの QR は No. 2|🔢 1番から 順に|2|◀ 1つ 前,▶ 次の 人（No. 3）,📋 アドレスを コピー');
+  await page.evaluate(() => { BINGO.qrNext(1); BINGO.qrSeq(0); BINGO.qrSeq(1); }); await w(100);
+  check('  おまかせ に して もどしても 番号は つづき・3番から「↺ 1番に」', await page.evaluate(() => BINGO.qrUrl().split('#')[1]) + '|' + await btns(), 'bc=KM7Q&no=3|↺ 1番に,◀ 1つ 前,▶ 次の 人（No. 4）,📋 アドレスを コピー');
+  await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { value: { writeText: async t => { window.__clip = t; } }, configurable: true }); BINGO.qrCopy(); }); await w(150);
+  check('  📋 アドレスを コピー', await page.evaluate(() => window.__clip + '|' + document.getElementById('appToast').textContent), base + 'apps/bingo/#bc=KM7Q&no=3|📋 アドレスを コピーしました');
+  await page.keyboard.press('Escape'); await w(150);
+  check('  Esc は 小さな 窓だけ 閉じる', await page.evaluate(() => [!!document.querySelector('.bg-pop'), isDlgOpen('bingoOverlay')].join('/')), 'false/true');
+  // 参加する 人の スマホ（べつの 端末）
+  const c2 = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  const p2 = await c2.newPage(); const e2 = []; p2.on('pageerror', e => e2.push(e.message));
+  await p2.goto(base + 'apps/bingo/index.html#bc=km7q&no=12'); await p2.waitForTimeout(2600);
+  check('  参加する スマホ：QR の アドレスで ビンゴが 🃏 カード で 開く（組・番号）・アドレスの # は 消す',
+    await p2.evaluate(() => [window.APP_TOOL, isDlgOpen('bingoOverlay'), BINGO.state().tab, JSON.stringify(BINGO.state().card), location.hash, document.querySelector('.bg-cinfo').textContent, document.getElementById('appToast').textContent].join('|')),
+    'bingo|true|card|{"code":"KM7Q","no":12,"marks":[]}||🃏 カード No. 12組 KM7Q|🃏 あなたの カードは No. 12（組 KM7Q）です');
+  check('  親の「🔎 たしかめ」と 同じ 並び', await p2.evaluate(() => [...document.querySelectorAll('#bgCardTab .cc')].map(b => b.textContent.replace('★FREE', '0')).join(',')), (await page.evaluate(() => BINGO.cardNums('KM7Q', 12))).join(','));
+  await p2.evaluate(() => BINGO.mark(0));
+  await p2.goto(base + 'apps/bingo/index.html#bc=KM7Q'); await p2.waitForTimeout(2600);
+  check('  同じ 組の QR を もう一度 読んでも カードは そのまま（穴も）', await p2.evaluate(() => [BINGO.state().card.no, BINGO.state().card.marks.length, document.getElementById('appToast').textContent].join('|')), '12|1|🃏 組 KM7Q の カード（No. 12）です（前の 穴は 🧹 で ふさげます）');
+  await p2.goto(base + 'apps/bingo/index.html#bc=ZX9W'); await p2.waitForTimeout(2600);
+  check('  ちがう 組（番号 なし）：新しい カード・番号は 1000〜9999', await p2.evaluate(() => { const c = BINGO.state().card; return [c.code, c.no >= 1000 && c.no <= 9999, c.marks.length].join('/'); }), 'ZX9W/true/0');
+  await p2.goto(base + 'apps/bingo/index.html#bc=%21%21%21&no=5'); await p2.waitForTimeout(2600);
+  check('  へんな コード は 見ない（カードは そのまま・# は 消す）', await p2.evaluate(() => [BINGO.state().card.code, location.hash].join('|')), 'ZX9W|');
+  check('  エラーなし（参加する スマホ）', e2.join(' | '), '');
+  await c2.close();
+  // 🗣 筆談：👥 向かい合わせ
+  await page.evaluate(() => {
+    closeBingo(); window.__recs = []; window.__say = [];
+    window.SpeechRecognition = class { constructor() { window.__recs.push(this); } start() { this.started = true; } abort() { this.aborted = true; setTimeout(() => this.onend && this.onend(), 0); } stop() { this.abort(); } };
+    window.HyoVoice = Object.assign({}, window.HyoVoice, { available: true, speak: (t, o) => { window.__say.push(t); setTimeout(() => o && o.onend && o.onend(), 30); }, cancel: () => {} });
+    return openHitsudan();
+  }); await w(600);
+  await page.evaluate(() => { HITSUDAN.mode('type'); HITSUDAN.typed('受付は こちら'); }); await w(200);
+  check('  「👥 向かい合わせで 使う」ボタン', await page.evaluate(() => document.querySelector('.hd-duob').firstChild.textContent), '👥 向かい合わせで 使う');
+  await page.click('.hd-duob'); await w(300);
+  check('  開く：画面いっぱいに 上と下・上は さかさま（180°）・いま 出して いた 字は 上（向かいの人）へ',
+    await page.evaluate(() => { const d = document.getElementById('hdDuo'), T = getComputedStyle(document.getElementById('hdH_top')).transform, B = getComputedStyle(document.getElementById('hdH_bot')).transform; return [d.parentElement.id, d.getBoundingClientRect().height === innerHeight, /^matrix\(-1, [-0-9.e]+, [-0-9.e]+, -1, 0, 0\)$/.test(T), B, HITSUDAN.duoText('top'), HITSUDAN.duoText('bot')].join('|'); }),
+    'hitsudanOverlay|true|true|none|⌨ 打った言葉|受付は こちら||向かいの人の 言葉が ここに 大きく 出ます');
+  check('  下（あなた）：🎤・⌨・✍・🔈・✕ と よく使う言葉／上（向かいの人）：🎤・✍・🔈 と 返事の 言葉',
+    await page.evaluate(() => ['bot', 'top'].map(s => [...document.querySelectorAll('#hdB_' + s + ' button')].map(b => b.textContent).join(',') + ':' + document.querySelectorAll('#hdC_' + s + ' button').length + ':' + document.querySelector('#hdC_' + s + ' button').textContent).join(' / ')),
+    '🎤 話す,⌨ 打つ,✍ 書く,🔈 読む,✕ もどる:12:はい / 🎤 話す,✍ 書く,🔈 読む:9:はい');
+  await page.click('#hdC_bot button:nth-child(5)'); await w(150);
+  await page.click('#hdC_top button:nth-child(7)'); await w(150);
+  check('  ⭐ 下の 言葉は 上に、上の 返事は 下に 大きく 出る・記録に 👤（向かいの人）',
+    await page.evaluate(() => [HITSUDAN.duoText('top'), HITSUDAN.duoText('bot'), HITSUDAN.duoPx('bot') > 60, HITSUDAN.duoPx('top') > 40, document.getElementById('hdE_bot').textContent, HITSUDAN.hist().join(','), [...document.querySelectorAll('#hdHist .hd-h .s')].map(x => x.textContent).join(',')].join('|')),
+    '⭐ よく使う言葉|もう一度 お願いします|⭐ よく使う言葉|書いて ください|true|true|↑ 向かいに 出ています：もう一度 お願いします|ph:書いて ください,ph:もう一度 お願いします|👤⭐,⭐');
+  const emit = (t, fin) => page.evaluate(([t, fin]) => { const r = window.__recs[window.__recs.length - 1]; r.onresult({ resultIndex: 0, results: [Object.assign([{ transcript: t }], { isFinal: fin })] }); }, [t, fin]);
+  await page.click('#hdB_bot button:nth-child(1)'); await w(100);
+  await emit('お名前を', false); await w(80);
+  const live = await page.evaluate(() => [HITSUDAN.duoText('top'), document.getElementById('hdT_top').classList.contains('live'), document.querySelector('#hdB_bot button').textContent, document.getElementById('hdE_bot').textContent].join('|'));
+  await emit('お名前を 教えて ください', true); await w(80);
+  check('  🎤 下で 話すと 上に 出る（聞きとり中も うすく）', live + ' → ' + await page.evaluate(() => [HITSUDAN.duoText('top'), HITSUDAN.duoState().mic].join('|')),
+    '🎤 聞いています…|お名前を|true|⏹ やめる|🎤 聞いています… 話すと 向かいの人の 側に 出ます → 🎤 聞こえた言葉|お名前を 教えて ください|bot');
+  await page.evaluate(() => HITSUDAN.duoMic('top')); await w(80);
+  await emit('田中です', true); await w(80);
+  check('  上の 🎤 に かえると 上の 人の 声は 下に 出る（聞くのは 1つの まま）',
+    await page.evaluate(() => [HITSUDAN.duoText('bot'), HITSUDAN.duoText('top'), document.querySelector('#hdB_top button').textContent, document.querySelector('#hdB_bot button').textContent, window.__recs.length].join('|')),
+    '🎤 聞こえた言葉|田中です|🎤 聞こえた言葉|お名前を 教えて ください|⏹ やめる|🎤 話す|1');
+  await page.evaluate(() => HITSUDAN.duoMic('top')); await w(80);
+  check('  もう一度 押すと やめる', await page.evaluate(() => [HITSUDAN.duoState().listening, document.querySelector('#hdB_top button').textContent].join('|')), 'false|🎤 話す');
+  // ✍ 上の 人が 書く（さかさまの 板）
+  await page.evaluate(() => HITSUDAN.duoWr('top')); await w(100);
+  const R = await page.evaluate(() => { const b = document.getElementById('hdCv_top').getBoundingClientRect(); return [b.left, b.top, b.width, b.height]; });
+  const P = (x, y) => [R[0] + R[2] * (1 - x), R[1] + R[3] * (1 - y)];   // 上の 人から 見た 場所 → 画面の 場所
+  const line = async (y) => { await page.mouse.move(...P(0.2, y)); await page.mouse.down(); for (let i = 1; i <= 10; i++) await page.mouse.move(...P(0.2 + 0.6 * i / 10, y)); await page.mouse.up(); await w(60); };
+  await line(0.25);
+  const ink = id => page.evaluate(id => { const c = document.getElementById(id), g = c.getContext('2d'), x = Math.round(c.width / 2), band = (a, b) => { for (let y = Math.round(c.height * a); y < Math.round(c.height * b); y++) if (g.getImageData(x, y, 1, 1).data[3] > 0) return true; return false; }; return [band(0.15, 0.35), band(0.55, 0.95)].join(','); }, id);
+  check('  ✍ 上の 人が 書く：上の 板（上の 人から 見て 上の ほう）・下にも 同じ 字（下の 人から 見て 上の ほう）',
+    [await page.evaluate(() => { const s = HITSUDAN.duoState(); return [s.bot.k, s.bot.src, document.getElementById('hdCv_bot').hidden, HITSUDAN.duoText('bot'), document.getElementById('hdE_top').textContent, [...document.querySelectorAll('#hdB_top button')].map(b => b.textContent + (b.disabled ? '×' : '')).join(',')].join('|'); }), await ink('hdCv_top'), await ink('hdCv_bot')].join('|'),
+    '1|write|false|✍ 書いた字||✍ 指で 書くと、向かいの人の 側にも 出ます|↩ 1画,🧹 消す,✓ 書きおわり|true,false|true,false');
+  await line(0.75); await page.click('#hdB_top button:nth-child(1)'); await w(80);
+  const undo = await page.evaluate(() => HITSUDAN.duoState().bot.k);
+  await line(0.75); await page.click('#hdB_top button:nth-child(2)'); await w(80);
+  check('  ↩ 1画・🧹 消す', [undo, await page.evaluate(() => HITSUDAN.duoState().bot.k), await ink('hdCv_bot')].join('|'), '1|0|false,false');
+  await line(0.25); await page.click('#hdB_top button:nth-child(3)'); await w(100);
+  check('  ✓ 書きおわり：上は 下の 人の 言葉に もどる・下は 書いた 字の まま', await page.evaluate(() => [HITSUDAN.duoText('top'), HITSUDAN.duoText('bot'), document.getElementById('hdCv_top').hidden, document.getElementById('hdE_top').textContent].join('|')),
+    '🎤 聞こえた言葉|お名前を 教えて ください|✍ 書いた字||true|↑ 向かいに 書いた字が 出ています');
+  // ⌨ 打つ（下だけ）
+  await page.click('#hdB_bot button:nth-child(2)'); await w(150);
+  await page.evaluate(() => { window.__kd = 0; document.addEventListener('keydown', () => { window.__kd++; }); });
+  await page.fill('#hdDIn', 'こちらへ どうぞ'); await page.keyboard.type('123'); await w(150);
+  check('  ⌨ 打つ：下の 真ん中寄りに 打つ 欄・打つ たびに 上に 出る・表の キーには 届かない',
+    await page.evaluate(() => [document.activeElement.id, !document.getElementById('hdKb').hidden, document.getElementById('hdKb').getBoundingClientRect().top < innerHeight * 0.62, HITSUDAN.duoText('top'), window.__kd, document.querySelector('#hdB_bot button.on').textContent].join('|')),
+    'hdDIn|true|true|⌨ 打った言葉|こちらへ どうぞ123|0|⌨ 打つ');
+  await page.click('.hd-hkbb button:nth-child(1)'); await w(100);
+  check('  🆕 新しく：打った 言葉は 記録に・上は 空に', await page.evaluate(() => [HITSUDAN.hist()[0], HITSUDAN.duoText('top'), document.getElementById('hdDIn').value].join('|')), 'type:こちらへ どうぞ123||向かいの人の 言葉が ここに 大きく 出ます|');
+  await page.evaluate(() => { HITSUDAN.duoTyped('お大事に'); HITSUDAN.duoSay('bot'); HITSUDAN.duoSay('top'); }); await w(100);
+  check('  🔈 読む：下は 打った 言葉を 読む・上（書いた 字）は 読めない と 知らせる', await page.evaluate(() => [window.__say[window.__say.length - 1], document.getElementById('appToast').textContent].join('|')), 'お大事に|読み上げる 文字が ありません');
+  await page.evaluate(() => { HITSUDAN.yomu(true); HITSUDAN.duoPh('top', 8); }); await w(100);
+  check('  「読み上げも」なら 返事も 読む', await page.evaluate(() => [window.__say[window.__say.length - 1], HITSUDAN.duoText('bot')].join('|')), 'ありがとう|⭐ よく使う言葉|ありがとう');
+  await page.keyboard.press('Escape'); await w(250);
+  check('  Esc は 向かい合わせ だけ 閉じる・さいごに 上に 出した 字が ふだんの 画面に', await page.evaluate(() => [!!document.getElementById('hdDuo'), isDlgOpen('hitsudanOverlay'), document.getElementById('hdTxt').textContent].join('|')), 'false|true|お大事に');
+  await page.evaluate(() => HITSUDAN.duo()); await w(200);
+  await page.evaluate(() => window.history.back()); await w(500);
+  check('  端末の「戻る」も 向かい合わせ だけ 閉じる', await page.evaluate(() => [!!document.getElementById('hdDuo'), isDlgOpen('hitsudanOverlay')].join('/')), 'false/true');
+  await page.evaluate(() => HITSUDAN.duo()); await w(200);
+  await page.setViewportSize({ width: 900, height: 412 }); await w(400);
+  check('  横向き：上と下 それぞれ 左右に 並べる（字は 大きい まま）', await page.evaluate(() => [getComputedStyle(document.getElementById('hdH_bot')).flexDirection, HITSUDAN.duoText('top'), HITSUDAN.duoPx('top') > 40].join('|')), 'row|⌨ 打った言葉|お大事に|true');
+  await page.setViewportSize({ width: 412, height: 900 }); await w(200);
+  await page.evaluate(() => closeHitsudan()); await w(300);
+  check('  筆談ボードを 閉じると 向かい合わせも 消える', await page.evaluate(() => [!!document.getElementById('hdDuo'), isDlgOpen('hitsudanOverlay')].join('/')), 'false/false');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
 async function runClockLay591(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🕐 ど派手タイマーの 時計：ぽよん 以外の 見せ方も 同じ 並べ方（v591） ──');
@@ -18212,6 +18338,7 @@ async function runQrShare(browser) {
     if (!only || only === 'seikyu' || only === 'regi' || only === 'kakudo' || only === 'v596') await runV596(browser);
     if (!only || only === 'keijiban' || only === 'keijiban597' || only === 'v597') await runKeijiban597(browser);
     if (!only || only === 'hade' || only === 'timer598' || only === 'v598') await runTimer598(browser);
+    if (!only || only === 'bingo' || only === 'hitsudan' || only === 'v599') await runV599(browser);
     if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
     if (!only || only === 'okaeshi' || only === 'v564') await runOkaeshi564(browser);
     if (!only || only === 'tax' || only === 'v565') await runTax565(browser);
