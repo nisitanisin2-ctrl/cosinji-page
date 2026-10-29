@@ -10961,7 +10961,7 @@ async function runHadeTimer575(browser) {
     window.appConfirm = async () => true; window.appPrompt = async () => 'テスト';
   });
   await page.evaluate(() => openHadeTimer()); await w(700);
-  check('  はじめ：タイマー 3分・よく使う時間 4つ・テーマ 6つ・強さ 5つ・見せ方 4つ（🕐 時計は v588）・見本が 動く', await page.evaluate(() => { const s = HADE_TIMER.state(); return [s.mode, s.sec, ['htH', 'htM', 'htS'].map(i => document.getElementById(i).value).join(':'), document.querySelectorAll('.ht-pre').length, document.querySelectorAll('.ht-opt .th').length, [...document.querySelectorAll('.ht-opt')].find(x => x.querySelector('span').textContent === '演出の 強さ').querySelectorAll('button').length, document.querySelectorAll('.ht-modes button').length, HADE_TIMER.fx().prev >= 0, !!document.querySelector('#hadeTimerOverlay .tool-back')].join('/'); }), 'down/180/0:3:0/4/6/5/4/true/true');
+  check('  はじめ：タイマー 3分・よく使う時間 4つ・テーマ 6つ・強さ 5つ・見せ方 4つ（🕐 時計は v588）・見本が 動く', await page.evaluate(() => { const s = HADE_TIMER.state(); return [s.mode, s.sec, ['htH', 'htM', 'htS'].map(i => document.getElementById(i).value).join(':'), document.querySelectorAll('.ht-pre').length, document.querySelectorAll('.ht-opt .th').length, [...document.querySelectorAll('.ht-opt')].find(x => x.querySelector('span').textContent === '演出の 強さ').querySelectorAll('button').length, document.querySelectorAll('.ht-modes button').length, HADE_TIMER.fx().prev >= 0, !!document.querySelector('#hadeTimerOverlay .tool-back')].join('/'); }), 'down/180/0:3:0/4/6/5/6/true/true');
   await page.fill('#htM', '0'); await page.fill('#htS', '5');
   check('  時・分・秒を 打つ・＋10秒・クリア', await page.evaluate(() => { const a = [HADE_TIMER.state().sec]; HADE_TIMER.add(10); a.push(HADE_TIMER.state().sec, document.getElementById('htS').value); HADE_TIMER.set(0); a.push(HADE_TIMER.state().sec); HADE_TIMER.start(); a.push(HADE_TIMER.stage(), document.getElementById('appToast').textContent); return a.join('/'); }), '5/15/15/0/false/時間を 決めてください');
   check('  ⭐ よく使う時間：残す・押すと その時間・消す', await page.evaluate(async () => { HADE_TIMER.set(95); await HADE_TIMER.addPre('おやつ'); const a = [HADE_TIMER.state().pre.length, HADE_TIMER.state().pre[4].n + ':' + HADE_TIMER.state().pre[4].s, !!document.querySelector('.ht-pre.on')]; HADE_TIMER.usePre(0); a.push(HADE_TIMER.state().sec); HADE_TIMER.delPre(4); await new Promise(r => setTimeout(r, 50)); a.push(HADE_TIMER.state().pre.length); return a.join('/'); }), '5/おやつ:95/true/180/4');
@@ -12098,7 +12098,7 @@ async function runHadeFull588(browser) {
   check('  ■ やめる：全画面を 終える', await page.evaluate(() => [HADE_TIMER.stage(), HADE_TIMER.fs()].join('/')), 'false/false');
   // 🕐 時計（時刻を ずらして 時報・目覚ましを たしかめる）
   await page.evaluate(() => HADE_TIMER.mode('clock')); await w(300);
-  check('  🕐 時計：見せ方が 4つ（タイマー・ストップウォッチ・くり返し・時計）・設定（表示・秒・時報・目覚まし）・「▶ 時計を 出す」', await page.evaluate(() => [[...document.querySelectorAll('.ht-modes button')].map(b => b.textContent).join(','), [...document.querySelectorAll('#htSet .ht-opt > span')].map(s => s.textContent).join(','), !!document.getElementById('htAl'), document.querySelector('#hadeTimerOverlay .ht-go').textContent].join('/')), '⏳ タイマー,⏱ ストップウォッチ,🔁 くり返し,🕐 時計/表示,秒,時報,⏰ 目覚まし/true/▶ 時計を 出す');
+  check('  🕐 時計：見せ方が 4つ（タイマー・ストップウォッチ・くり返し・時計）・設定（表示・秒・時報・目覚まし）・「▶ 時計を 出す」', await page.evaluate(() => [[...document.querySelectorAll('.ht-modes button')].map(b => b.textContent).join(','), [...document.querySelectorAll('#htSet .ht-opt > span')].map(s => s.textContent).join(','), !!document.getElementById('htAl'), document.querySelector('#hadeTimerOverlay .ht-go').textContent].join('/')), '⏳ タイマー,⏱ ストップウォッチ,🔁 くり返し,📋 進行表,⏲ 同時に,🕐 時計/表示,秒,時報,⏰ 目覚まし/true/▶ 時計を 出す');
   await page.evaluate(() => { const real = Date.now.bind(Date); window.__real = real; window.__off = 0; Date.now = () => real() + window.__off; });
   await page.click('#hadeTimerOverlay .ht-go'); await w(600);
   check('  時計を 出す：全画面・いまの 時刻・日付と 曜日・下の ボタン（いま 派手に・やめる・戻る）', await page.evaluate(() => { const p = n => String(n).padStart(2, '0'), f = d => p(d.getHours()) + ':' + p(d.getMinutes()), d = new Date(), v = HADE_TIMER.clockView();
@@ -12507,6 +12507,62 @@ async function runKeijiban597(browser) {
   await page.evaluate(() => openKeijiban()); await w(500);
   check('  開きなおしても 得点・順番の 文を 覚える', await page.evaluate(() => { const s = KEIJIBAN.state(); return [s.sb.a.name, s.sb.label, s.seq.list.length].join('/'); }), '白組/1回表/2');
   await page.evaluate(() => closeKeijiban()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+// ⏱ ど派手タイマー：📋 進行表・⏲ 同時に（v598）
+async function runTimer598(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ⏱ ど派手タイマー：📋 進行表・⏲ 同時に（v598） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { window.appConfirm = async () => true; document.documentElement.requestFullscreen = () => Promise.resolve(); });
+  await page.evaluate(() => openHadeTimer()); await w(500);
+  check('  タブに 📋 進行表・⏲ 同時に', await page.evaluate(() => [...document.querySelectorAll('.ht-modes button')].map(b => b.textContent).join(',')), '⏳ タイマー,⏱ ストップウォッチ,🔁 くり返し,📋 進行表,⏲ 同時に,🕐 時計');
+  await page.evaluate(() => HADE_TIMER.mode('prog')); await w(200);
+  check('  進行表：はじめは 宴会の 見本（5段・ぜんぶで 57分）・見本 5つ', await page.evaluate(() => [HADE_TIMER.state().prog.list.map(x => x.n + x.s).join(','), document.getElementById('htProgTot').textContent.includes('ぜんぶで 57分（5段）'), [...document.querySelectorAll('#htSet .ht-chips button')].length].join('/')), '開会の あいさつ300,乾杯120,歓談1800,余興900,しめの あいさつ300/true/6');
+  await page.evaluate(() => { HADE_TIMER.progSample(1); HADE_TIMER.prog(0, 'n', '  朝の 報告  '); HADE_TIMER.prog(0, 'm', '１２'); HADE_TIMER.prog(0, 's', '30'); HADE_TIMER.prog(1, 's', '99'); HADE_TIMER.progMove(2, -1); HADE_TIMER.progAdd(); HADE_TIMER.progDel(1); }); await w(150);
+  check('  名前・分・秒（全角も）を 直す・▲・足す・消す', await page.evaluate(() => HADE_TIMER.state().prog.list.map(x => x.n + ':' + x.s).join(',')), '朝の 報告:750,議題 1:959,まとめ:300,5番目:300');
+  await page.evaluate(() => { HADE_TIMER.progSample(0); HADE_TIMER.opt('voice', 'all'); HADE_TIMER.start(); }); await w(500);
+  check('  スタート：よーい（段の 数と 時間）・はじめの 段の 名前', await page.evaluate(() => [HADE_TIMER.label(), HADE_TIMER.view().ph].join('/')), '📋 開会の あいさつ|よーい（5段・ぜんぶで 57分）/prep:0');
+  await page.evaluate(() => HADE_TIMER.shift(2600)); await w(800);
+  check('  1段目：名前を 大きく・声で「○○です」・次の 段', await page.evaluate(() => [HADE_TIMER.label(), HADE_TIMER.view().ph, HADE_TIMER.banner(), HADE_TIMER.said().slice(-1)[0]].join('/')), '📋 開会の あいさつ|1/5 ・ 次は 乾杯/work:1/開会の あいさつ/開会の あいさつです');
+  await page.evaluate(() => HADE_TIMER.shift(238500)); await w(800);
+  check('  3分 以上の 段は のこり 1分で「次は ○○」', await page.evaluate(() => [HADE_TIMER.view().sec <= 60, HADE_TIMER.banner(), HADE_TIMER.said().slice(-1)[0]].join('/')), 'true/のこり 1分  次は 乾杯/のこり 1分です。次は 乾杯');
+  await page.evaluate(() => HADE_TIMER.next()); await w(800);
+  check('  ⏭ 次へ で 次の 段（乾杯）', await page.evaluate(() => [HADE_TIMER.label(), HADE_TIMER.view().str, HADE_TIMER.banner()].join('/')), '📋 乾杯|2/5 ・ 次は 歓談/02:00/乾杯');
+  await page.evaluate(() => { HADE_TIMER.next(); HADE_TIMER.next(); HADE_TIMER.next(); }); await w(800);
+  check('  さいごの 段は「さいご」', await page.evaluate(() => HADE_TIMER.label()), '📋 しめの あいさつ|5/5 ・ さいご');
+  await page.evaluate(() => HADE_TIMER.next()); await w(900);
+  check('  おわると おつかれさま（時間が 来た 音）', await page.evaluate(() => [HADE_TIMER.state().run.done, HADE_TIMER.banner(), HADE_TIMER.alarm(), HADE_TIMER.said().slice(-1)[0]].join('/')), 'true/おつかれさま！/true/おつかれさまでした');
+  await page.evaluate(() => { HADE_TIMER.stopAlarm(); HADE_TIMER.stop(); HADE_TIMER.opt('voice', 'last'); }); await w(300);
+  // ⏲ 同時に
+  await page.evaluate(() => HADE_TIMER.mode('multi')); await w(200);
+  check('  同時に：はじめは ない・「⛶ 大きく 見る」・足す 欄と ⭐', await page.evaluate(() => [HADE_TIMER.state().multi.length, document.querySelector('.ht-go').textContent, !!document.getElementById('htMName'), document.querySelectorAll('#htSet .ht-chips button').length].join('/')), '0/⛶ 大きく 見る/true/4');
+  await page.evaluate(() => HADE_TIMER.start()); await w(150);
+  check('  ない ときは 大きく 見ない', await page.evaluate(() => [HADE_TIMER.mOn(), (document.getElementById('appToast') || {}).textContent].join('/')), 'false/タイマーを 足してください');
+  await page.evaluate(() => { document.getElementById('htMName').value = 'パスタ'; document.getElementById('htMM').value = '９'; document.getElementById('htMS').value = '0'; HADE_TIMER.mAddForm(); HADE_TIMER.mAddPre(0); HADE_TIMER.mAdd('ゆでたまご', 3); }); await w(300);
+  check('  名前と 時間で 足す（全角も）・⭐ から・すぐ 動く・カード', await page.evaluate(() => [HADE_TIMER.mList().map(x => x.replace(/:\d+$/, '')).join(','), document.querySelectorAll('#htMList .ht-mc').length, document.getElementById('htMName').value].join('/')), 'パスタ:run,カップめん:run,ゆでたまご:run/3/');
+  await page.evaluate(() => { for (let i = 0; i < 4; i++) HADE_TIMER.mAdd('x' + i, 60); }); await w(150);
+  check('  6本まで', await page.evaluate(() => [HADE_TIMER.state().multi.length, (document.getElementById('appToast') || {}).textContent].join('/')), '6/いっしょに 数えるのは 6本 まで です');
+  await page.evaluate(() => { HADE_TIMER.state().multi.filter(t => /^x/.test(t.n)).forEach(t => HADE_TIMER.mDel(t.id)); const p = HADE_TIMER.state().multi[0]; HADE_TIMER.mToggle(p.id); HADE_TIMER.mPlus(HADE_TIMER.state().multi[1].id, 60); }); await w(200);
+  check('  ✕ 消す・⏸ 止める・＋1分', await page.evaluate(() => HADE_TIMER.mList().map(x => { const [n, s, l] = x.split(':'); return n + ':' + s + ':' + (n === 'カップめん' ? +l > 230 : +l > 0); }).join(',')), 'パスタ:p:true,カップめん:run:true,ゆでたまご:run:true');
+  await page.evaluate(() => HADE_TIMER.start()); await w(500);
+  check('  ⛶ 大きく 見る：タイルが 3つ（名前・時間）', await page.evaluate(() => [HADE_TIMER.mOn(), [...document.querySelectorAll('#htMFG .ht-mt')].map(t => t.querySelector('.nm').textContent + '/' + t.dataset.s).join(',')].join('|')), 'true|パスタ/p,カップめん/run,ゆでたまご/run');
+  await w(3300);
+  check('  0 に なると できた！（光る・鳴る・声）', await page.evaluate(() => [HADE_TIMER.mList()[2], HADE_TIMER.mAlarm(), document.querySelector('#htMFG .ht-mt.done .tm').textContent, (document.getElementById('htMFBan') || {}).textContent, HADE_TIMER.said().slice(-1)[0]].join('/')), 'ゆでたまご:done:0/true/できた！/⏰ ゆでたまご できた！/ゆでたまご、時間です');
+  await page.click('#htMFG .ht-mt.done'); await w(300);
+  check('  押すと 止まる（音も）', await page.evaluate(() => [HADE_TIMER.mList()[2], HADE_TIMER.mAlarm()].join('/')), 'ゆでたまご:fin:0/false');
+  await page.evaluate(() => { HADE_TIMER.mClose(); closeHadeTimer(); }); await w(500);
+  check('  閉じると できたのは 片づけ・右下に いちばん 早く 終わる もの', await page.evaluate(() => [HADE_TIMER.mList().map(x => x.split(':')[0]).join(','), HADE_TIMER.chip().replace(/\d\d:\d\d/, 'mm:ss')].join('/')), 'パスタ,カップめん/⏲ カップめん mm:ss（2本）');
+  await page.evaluate(() => HADE_TIMER.mShift(1000000)); await w(900);
+  check('  閉じていても 0 に なると 開いて 知らせる', await page.evaluate(() => [isDlgOpen('hadeTimerOverlay'), HADE_TIMER.mOn(), HADE_TIMER.state().mode, HADE_TIMER.mAlarm(), HADE_TIMER.mList().join(',').replace(/:\d+/g, '')].join('/')), 'true/true/multi/true/パスタ:p,カップめん:done');
+  await page.keyboard.press('Escape'); await w(200);
+  check('  Esc で 音を 止める', await page.evaluate(() => HADE_TIMER.mAlarm()), false);
+  await page.evaluate(() => { HADE_TIMER.mClose(); closeHadeTimer(); }); await w(300);
+  await page.evaluate(() => openHadeTimer()); await w(400);
+  check('  開きなおしても 止めた タイマーは 残る', await page.evaluate(() => HADE_TIMER.mList().map(x => x.replace(/:\d+$/, '')).join(',')), 'パスタ:p');
+  await page.evaluate(() => closeHadeTimer()); await w(200);
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
@@ -18155,6 +18211,7 @@ async function runQrShare(browser) {
     if (!only || only === 'ics' || only === 'yatta' || only === 'techo' || only === 'v595') await runIcs595(browser);
     if (!only || only === 'seikyu' || only === 'regi' || only === 'kakudo' || only === 'v596') await runV596(browser);
     if (!only || only === 'keijiban' || only === 'keijiban597' || only === 'v597') await runKeijiban597(browser);
+    if (!only || only === 'hade' || only === 'timer598' || only === 'v598') await runTimer598(browser);
     if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
     if (!only || only === 'okaeshi' || only === 'v564') await runOkaeshi564(browser);
     if (!only || only === 'tax' || only === 'v565') await runTax565(browser);
