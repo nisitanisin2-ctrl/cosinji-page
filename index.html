@@ -6622,7 +6622,9 @@ function cellRawValue(idx, r, c){
   if(raw==='') return '';
   if(!raw.startsWith('=')){
     const t=raw.trim();
-    return (t!=='' && !isNaN(t)) ? Number(t) : raw;
+    if(t!=='' && !isNaN(t)) return Number(t);
+    const ue=unitEval(t);                    // 📐 単位つきの 計算は その 数（v602）
+    return ue ? ue.v : raw;
   }
   const key=idx+':'+r+','+c;
   if(evaluating.has(key)) fErr('#CYCLE!');   // 自分をたどり直した＝ぐるぐる参照
@@ -6711,6 +6713,104 @@ function roundAt(n, d, mode) {
   return r / p;
 }
 
+/* ── 📐 単位つきのまま計算（v602）──
+   セルに「3.5m×2.4m」「1.2m×0.8m×12枚」「500円×3個」「1m20cm+80cm」「15m³÷4.5m³」のように打つと、
+   単位をそろえて計算し、答えを単位つきで出す（数式ではなく ふつうの文字のまま。中身は打ったまま残る）。
+   ・× ÷（* / x）は 単位の ない 数（12 など）でも よい。＋ − は 両方に 単位が いる（「3-5人」のような はばや 2×4 は そのまま文字）。
+   ・長さ：同じ単位なら そのまま（ちがえば m）・面積：m²（坪・畳・ha だけなら そのまま）・体積：m³（L・mL だけなら そのまま）・
+     重さ：同じなら そのまま（ちがえば kg）・円・時間（秒・分・時間）・個 枚 本 台 人 日 など（数を かける だけ）・%。
+   ・SUM や =A1*2 などには、出た 数（8.4 など）が 入る。単位が 1つだけ（「1,200円」）の セルは 今までどおり。 */
+const UNIT_DEF=(()=>{ const U={}, add=(ns, d, f, show)=>ns.split(' ').forEach(n=>{ U[n]={d, f, s:show||n}; });
+  add('mm', {L:1}, 0.001); add('cm', {L:1}, 0.01); add('m', {L:1}, 1); add('km', {L:1}, 1000);
+  add('m2 平米 平方メートル', {L:2}, 1, 'm2'); add('cm2', {L:2}, 1e-4); add('坪', {L:2}, 400/121); add('畳', {L:2}, 1.62); add('ha', {L:2}, 1e4);
+  add('m3 立米 立方メートル', {L:3}, 1, 'm3'); add('L l リットル', {L:3}, 0.001, 'L'); add('mL ml cc', {L:3}, 1e-6, 'mL');
+  add('g', {M:1}, 0.001); add('kg', {M:1}, 1); add('t トン', {M:1}, 1000, 't');
+  add('円', {Y:1}, 1); add('秒', {T:1}, 1); add('分', {T:1}, 60); add('時間', {T:1}, 3600); add('%', {}, 0.01);
+  add('個 枚 本 台 人 日 箱 袋 回 冊 缶 杯 組 件 足 着 粒 匹 頭 羽 軒 戸 部 束 巻 丁 玉 皿 食 泊 便 セット ケース', {}, 1, '#');   // 数える 単位（かけるだけ）
+  return U; })();
+const UNIT_NAMES=Object.keys(UNIT_DEF).sort((a,b)=>b.length-a.length);
+const UNIT_SUP={2:'²', 3:'³', '-1':'⁻¹', '-2':'⁻²', '-3':'⁻³'};
+const unitCache=new Map();
+function unitEval(text){
+  const key=String(text==null?'':text);
+  if(unitCache.has(key)) return unitCache.get(key);
+  let out=null;
+  try{ out=unitEval0(key); }catch(_){ out=null; }
+  if(unitCache.size>500) unitCache.clear();
+  unitCache.set(key, out);
+  return out;
+}
+function unitEval0(text){
+  if(text.length>80 || !/[\d０-９]/.test(text) || text[0]==='=') return null;
+  const s=text.normalize('NFKC').replace(/[\s]+/g,'').replace(/[×✕xX*]/g,'*').replace(/[÷]/g,'/').replace(/[−–—]/g,'-');
+  let i=0, ops=0, units=0, real=0;   // real：% 以外の 単位の 数
+  const used=[];                                          // 使った 単位の 名前（答えの 単位を 決める）
+  const dims=(a,b,k)=>{ const d={}; for(const x of ['L','M','T','Y']){ const v=(a[x]||0)+k*(b[x]||0); if(v) d[x]=v; } return d; };
+  const same=(a,b)=>['L','M','T','Y'].every(x=>(a[x]||0)===(b[x]||0));
+  function num(){ const m=/^(\d[\d,]*(?:\.\d+)?|\.\d+)/.exec(s.slice(i)); if(!m) return null; i+=m[0].length; return parseFloat(m[0].replace(/,/g,'')); }
+  function unit(){
+    for(const n of UNIT_NAMES) if(s.startsWith(n, i)){
+      if(/\d$/.test(n) && /\d/.test(s[i+n.length]||'')) continue;   // 1m20cm の「m2」は 平方メートルでは ない
+      i+=n.length; return UNIT_DEF[n];
+    }
+    return null;
+  }
+  function qty(){                                         // 数＋単位（1m20cm・1時間30分 は つないで 足す）
+    if(s[i]==='('){ i++; const v=sum(); if(s[i]!==')') throw 0; i++; return v; }
+    const n=num(); if(n==null) throw 0;
+    const u=unit();
+    if(!u) return {v:n, d:{}, u:false, lab:new Set()};
+    units++; used.push(u); if(u.s!=='%') real++;
+    let q={v:n*u.f, d:{...u.d}, u:true, lab:new Set(u.s==='#' ? [UNIT_NAMES.find(k=>UNIT_DEF[k]===u && s.slice(0,i).endsWith(k))] : [])};
+    while(/^\d/.test(s.slice(i))){                         // すぐ うしろに 同じ 種類の 数＋単位
+      const j=i, n2=num(), u2=unit();
+      if(!u2 || u2.s==='#' || !same(u2.d, q.d) || !Object.keys(q.d).length){ i=j; break; }
+      units++; real++; used.push(u2); ops++; q.v+=n2*u2.f;
+    }
+    return q;
+  }
+  function prod(){
+    let a=qty();
+    while(s[i]==='*' || s[i]==='/'){
+      const op=s[i++]; const b=qty(); ops++;
+      if(op==='*') a={v:a.v*b.v, d:dims(a.d,b.d,1), u:a.u||b.u, lab:new Set([...a.lab, ...b.lab])};
+      else { if(!b.v) throw 0; a={v:a.v/b.v, d:dims(a.d,b.d,-1), u:a.u||b.u, lab:b.lab.size ? new Set() : a.lab}; }
+    }
+    return a;
+  }
+  function sum(){
+    let a=prod();
+    while(s[i]==='+' || s[i]==='-'){
+      const op=s[i++]; const b=prod(); ops++;
+      if(!a.u || !b.u || !same(a.d, b.d)) throw 0;       // ＋ − は 両方に 単位（同じ 種類）
+      a={v:op==='+' ? a.v+b.v : a.v-b.v, d:a.d, u:true, lab:new Set([...a.lab, ...b.lab])};
+    }
+    return a;
+  }
+  const r=sum();
+  if(i!==s.length || !ops || !real || !isFinite(r.v)) return null;   // % だけ（10%×3）は 今までどおり 数式に
+  return unitPick(r, used);
+}
+// 答えの 単位を 決める（{v:その 単位での 数, unit:'m²'}）
+function unitPick(r, used){
+  const D=r.d, k=['L','M','T','Y'].filter(x=>D[x]).map(x=>x+D[x]).join('');
+  const only=(test)=>{ const u=used.filter(test); return u.length && u.every(x=>x===u[0]) ? u[0] : null; };
+  const isL=u=>u.d.L===1 && Object.keys(u.d).length===1, isA=u=>u.d.L===2 && Object.keys(u.d).length===1, isV=u=>u.d.L===3 && Object.keys(u.d).length===1;
+  const isM=u=>u.d.M===1 && Object.keys(u.d).length===1, isT=u=>u.d.T===1 && Object.keys(u.d).length===1;
+  const show=(f, unit)=>({v:r.v/f, unit});
+  if(k===''){ const L=[...r.lab]; return {v:r.v, unit:L.length===1 ? L[0] : ''}; }
+  if(k==='L1'){ const u=only(isL); return u ? show(u.f, u.s) : show(1, 'm'); }
+  if(k==='L2'){ const u=only(isA); return u && u.f!==1 && u.s!=='cm2' ? show(u.f, u.s) : show(1, 'm²'); }
+  if(k==='L3'){ const u=only(isV); return u && (u.s==='L' || u.s==='mL') ? show(u.f, u.s) : show(1, 'm³'); }
+  if(k==='M1'){ const u=only(isM); return u ? show(u.f, u.s) : show(1, 'kg'); }
+  if(k==='T1'){ const u=only(isT); return u ? show(u.f, u.s) : (r.v>=3600 ? show(3600, '時間') : show(60, '分')); }
+  if(k==='Y1') return show(1, '円');
+  // 円/m²・kg/m³ など（t を 使って いれば t）
+  const tUsed=used.some(u=>u.s==='t'), sym={L:'m', M:tUsed ? 't' : 'kg', T:'秒', Y:'円'}, fac={L:1, M:tUsed ? 1000 : 1, T:1, Y:1};
+  let f=1; const up=[], dn=[];
+  for(const x of ['Y','M','L','T']){ const e=D[x]; if(!e) continue; f*=Math.pow(fac[x], e); const t=sym[x]+(Math.abs(e)>1 ? UNIT_SUP[Math.abs(e)] : ''); (e>0 ? up : dn).push(t); }
+  return show(f, (up.join('·')||'1')+(dn.length ? '/'+dn.join('·') : ''));
+}
 function getCellDisplay(r, c) {
   // 時間計算モード：開始・終了・時間のうち2つから残りを自動表示（データは触らない）
   if (typeof tableMode!=='undefined' && tableMode==='jikan' && r>0 && c>=1 && c<=3 && typeof jikanCellDisplay==='function') {
@@ -6732,6 +6832,8 @@ function getCellDisplay(r, c) {
       if (dfmt) return formatDate(Number(t), dfmt);   // 日付として表示
       return show(Number(t));
     }
+    const ue = unitEval(t);                  // 📐 単位つきのまま計算（v602）
+    if (ue) return show(ue.v) + ue.unit;
     return data[r][c];                       // 空・文字列はそのまま
   }
   let res;
@@ -9383,6 +9485,11 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v602', t:'📐 表電卓：単位つきのまま計算', li:[
+    'セルに「3.5m×2.4m」と打つと「8.4m²」、「3.5m×2.4m×0.15m」で「1.26m³」と、単位を そろえて 計算します（中身は 打ったまま 残ります）。',
+    'cm と m が まざっても だいじょうぶ（「90cm×180cm」→ 1.62m²）。「500円×3個」→ 1500円、「2.5t×4台」→ 10t、「6畳+4.5畳」→ 10.5畳 なども。',
+    'SUM・=A1*2・下の 合計には その 数が 入ります。「2×4」「3-5人」のような 書き方は 今までどおり 文字の まま です。'
+  ]},
   { v:'v601', t:'✂ トリミング：☀ 明るさ・🗂 まとめて／📖 読みもの：🔖 つづきから・🔈 読み上げ', li:[
     '✂ トリミング「☀ 明るさ」：明るさ・コントラストを つまみで（−50〜＋50）。✨ 自動 で ちょうど よく。保存する 写真にも 同じに 効きます。',
     '✂ トリミング「🗂 何枚も まとめて 同じ大きさに」：長い辺を そろえる（1600px など）か、横×縦 ぴったり（はみ出しは 真ん中で 切る）。',
@@ -17500,7 +17607,8 @@ function updateRowStats(r) {
       if(isNaN(v)) hasErr=true; else nums.push(v);
       continue;
     }
-    const v=parseFloat(raw); if(!isNaN(v)) nums.push(v);
+    const ue=unitEval(String(raw).trim()), v=ue ? ue.v : parseFloat(raw);   // 📐 単位つきの 計算は その 数（v602）
+    if(!isNaN(v)) nums.push(v);
   }
   renderStats(nums, hasErr);
 }
@@ -17722,7 +17830,8 @@ function updateStats(c) {
       else nums.push(v);
       continue;
     }
-    const v=parseFloat(raw); if(!isNaN(v)) nums.push(v);
+    const ue=unitEval(String(raw).trim()), v=ue ? ue.v : parseFloat(raw);   // 📐 単位つきの 計算は その 数（v602）
+    if(!isNaN(v)) nums.push(v);
   }
   renderStats(nums, hasErr);
 }
@@ -18774,6 +18883,7 @@ function speechToFormula(text){
   if(text==null) return null;
   let t=String(text).trim();
   if(t==='' || t.startsWith('=')) return null;        // 空・すでに数式は触らない
+  if(typeof unitEval==='function' && unitEval(t)) return null;   // 📐「3.5m×2.4m」は 単位つきの まま（v602）
   // 全角の数字・記号を半角へ。setCellVal の normalizeFullWidth は
   // 「全体が数値のときだけ」半角にするので、ここでは使わず自前で直す。
   t=toHalfAscii(t);
@@ -23054,7 +23164,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v601';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v602';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

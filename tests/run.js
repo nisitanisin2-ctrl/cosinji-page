@@ -12911,6 +12911,38 @@ async function runV601(browser) {
   await ctx.close();
 }
 
+async function runUnits602(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📐 単位つきのまま計算（v602） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const U = await page.evaluate(() => {
+    const T = ['3.5m×2.4m', '1.2m×0.8m×12枚', '3.5m×2.4m×0.15m', '500円×3個', '1,200円×3', '1m20cm+80cm', '30cm+45cm', '15m³÷4.5m³', '15㎥÷4.5', '2.5t×4台', '1000円×10%', '8時間×3日',
+      '1時間30分+45分', '12個÷3人', '2,500円÷1.5㎡', '2400kg÷1m3', '3坪×2', '6畳+4.5畳', '2L×6本', '90cm×180cm', '(3m+2m)×4m', '３．５ｍ×２．４ｍ', '3.5 m × 2.4 m', '1m20cm', '2m2×3', '1.5t×2+500kg',
+      '3-5人', '2×4', '10円', '5m×', '03-1234-5678', '2024-10-29', 'A3×2', 'x2', '1m2', '3m+2kg', '5m÷0m', '=3m×2m'];
+    return T.map(t => { const r = unitEval(t); return t + '→' + (r ? (Math.round(r.v * 1000) / 1000) + r.unit : '×'); });
+  });
+  check('  答えの 単位：面積 m²・体積 m³・長さ（同じ 単位／ちがえば m）・重さ・円・時間・数える 単位・%・坪・畳・L',
+    U.slice(0, 26).join(' / '),
+    ['3.5m×2.4m→8.4m²', '1.2m×0.8m×12枚→11.52m²', '3.5m×2.4m×0.15m→1.26m³', '500円×3個→1500円', '1,200円×3→3600円', '1m20cm+80cm→2m', '30cm+45cm→75cm', '15m³÷4.5m³→3.333', '15㎥÷4.5→3.333m³', '2.5t×4台→10t', '1000円×10%→100円', '8時間×3日→24時間',
+      '1時間30分+45分→2.25時間', '12個÷3人→4', '2,500円÷1.5㎡→1666.667円/m²', '2400kg÷1m3→2400kg/m³', '3坪×2→6坪', '6畳+4.5畳→10.5畳', '2L×6本→12L', '90cm×180cm→1.62m²', '(3m+2m)×4m→20m²', '３．５ｍ×２．４ｍ→8.4m²', '3.5 m × 2.4 m→8.4m²', '1m20cm→1.2m', '2m2×3→6m²', '1.5t×2+500kg→3500kg'].join(' / '));
+  check('  計算しない もの（はば・2×4・単位 1つ・とちゅう・電話・日付・ちがう 種類の ＋・0 で わる・数式）', U.slice(26).join(' / '),
+    ['3-5人→×', '2×4→×', '10円→×', '5m×→×', '03-1234-5678→×', '2024-10-29→×', 'A3×2→×', 'x2→×', '1m2→×', '3m+2kg→×', '5m÷0m→×', '=3m×2m→×'].join(' / '));
+  await page.evaluate(() => {
+    [['3.5m×2.4m', '=A1*2'], ['1.2m×0.8m×12枚', '=A1+A2'], ['500円×3個', '=SUM(A1:A3)'], ['3-5人', ''], ['2×4', '']].forEach((row, r) => row.forEach((v, c) => { if (v) setCellVal(r, c, v); }));
+    recalcAll(); sel(0, 0);
+  }); await w(300);
+  check('  セルに 単位つきで 出る・中身は 打ったまま・=A1*2 や SUM には その 数', await page.evaluate(() => [[0, 1, 2, 3, 4].map(r => document.getElementById('c' + r + '_0').textContent).join(','), [0, 1, 2].map(r => getCellDisplay(r, 1)).join(','), data[0][0], document.getElementById('formulaInput').value].join('|')),
+    '8.4m²,11.52m²,1500円,3-5人,2×4|16.8,19.92,1519.92|3.5m×2.4m|3.5m×2.4m');
+  check('  下の 合計にも その 数（「3-5人」「2×4」は 前と 同じく 3・2）', await page.evaluate(() => document.getElementById('sSum').textContent), '1,524.92');
+  await page.evaluate(() => { cellStyles['0,0'] = Object.assign({}, cellStyles['0,0'] || {}, { dec: 2 }); recalcAll(); }); await w(150);
+  check('  小数の けたの 設定も 効く', await page.evaluate(() => getCellDisplay(0, 0)), '8.40m²');
+  await page.evaluate(() => sel(7, 0)); await page.click('#formulaInput'); await page.keyboard.type('2.5m×1.2m'); await page.keyboard.press('Enter'); await w(200);
+  await page.evaluate(() => sel(8, 0)); await page.click('#formulaInput'); await page.keyboard.type('1200×3'); await page.keyboard.press('Enter'); await w(200);
+  check('  入力欄で 打って Enter：単位つきは 文字の まま（数式に しない）・単位の ない 式は 今までどおり 数式', await page.evaluate(() => [data[7][0], getCellDisplay(7, 0), data[8][0], getCellDisplay(8, 0)].join('|')), '2.5m×1.2m|3m²|=1200*3|3600');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
 async function runClockLay591(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🕐 ど派手タイマーの 時計：ぽよん 以外の 見せ方も 同じ 並べ方（v591） ──');
@@ -18559,6 +18591,7 @@ async function runQrShare(browser) {
     if (!only || only === 'bingo' || only === 'hitsudan' || only === 'v599') await runV599(browser);
     if (!only || only === 'shiori' || only === 'shiken' || only === 'annai' || only === 'v600') await runV600(browser);
     if (!only || only === 'trim' || only === 'manner' || only === 'boki' || only === 'kurashi' || only === 'yomi' || only === 'v601') await runV601(browser);
+    if (!only || only === 'units' || only === 'v602') await runUnits602(browser);
     if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
     if (!only || only === 'okaeshi' || only === 'v564') await runOkaeshi564(browser);
     if (!only || only === 'tax' || only === 'v565') await runTax565(browser);
