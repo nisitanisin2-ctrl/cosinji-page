@@ -3,7 +3,9 @@
    上に月カレンダー、下にその日の日表示（業務ごとの列）。「明日10時 営業 A社訪問」と声や文で言えば登録する。
    画面（HTML・CSS）もこのファイルが持ち、はじめて開いたときに差し込む（index.html を大きくしないため）。
    入れたものはこの端末の中だけ（localStorage excalc_techo）。📋リストの書き出しにも入る（index.html の techoBundle）。
-   ここの関数・変数は画面のボタンの onclick から呼ぶので、全体から見える名前にしている（頭に tc を付ける）。 */
+   ここの関数・変数は画面のボタンの onclick から呼ぶので、全体から見える名前にしている（頭に tc を付ける）。
+   📅 カレンダーに（v595）：予定を .ics に（予定を直す 窓の 📅 は その 予定、☰ の「📅 カレンダーに 書き出す」は この先 1か月・3か月・ぜんぶ の 予定を まとめて）。
+   くり返しは くり返しの まま（毎日・平日・毎週・隔週・毎月・毎年・いつまで・とばした日）。保存・送る・Google カレンダーで 開く は hyoics.js。 */
 
 /* ── 決まりごと ── */
 const TC_KEY='excalc_techo';
@@ -538,6 +540,7 @@ function tcEnsureDom(){
         <button role="menuitem" onclick="tcMenuDo(tcOpenFind)">🔍 さがす</button>
         <button role="menuitem" onclick="tcMenuDo(tcOpenBoard)">📝 メモ一覧</button>
         <button role="menuitem" onclick="tcMenuDo(tcOpenPrint)">🖨 印刷・PDF・画像</button>
+        <button role="menuitem" onclick="tcMenuDo(tcCalOpen)">📅 カレンダーに 書き出す</button>
         <button role="menuitem" onclick="tcMenuDo(tcOpenSet)">⚙ 設定</button>
         <button role="menuitem" id="tcMenuSync" onclick="tcMenuDo(()=>tcShSync({ask:true, say:true}))" hidden>⇅ 共有ファイルと合わせる</button>
         <button role="menuitem" class="tc-menux" onclick="tcMenuDo(closeTecho)"${window.APP_TECHO?' hidden':''}>✕ 業務手帳を閉じる</button>
@@ -593,7 +596,7 @@ function tcEnsureDom(){
       <div class="tc-f"><span class="tc-fl">くり返し</span><div class="tc-time"><select id="tcEdRep" onchange="tcEdSync()" aria-label="くり返し">${TC_REPS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>
         <span id="tcEdUntilW">いつまで <input type="date" id="tcEdUntil" aria-label="いつまで"></span></div></div>
       <div class="tc-f"><span class="tc-fl">くわしいメモ</span><div class="tc-inrow"><textarea id="tcEdN" rows="3" maxlength="5000" aria-label="くわしいメモ"></textarea><button type="button" class="tc-fmic" data-mic="n" onclick="tcMicTap('n')" aria-label="メモを声で足す">🎤</button></div></div>
-      <div class="tc-edbtns tc-edfoot"><button class="tc-del" id="tcEdDel" onclick="tcEdDelete()" aria-label="消す" title="消す">🗑</button><button id="tcEdDup" onclick="tcEdDup()" aria-label="複製" title="複製（同じものをもう1つ）">📋</button>
+      <div class="tc-edbtns tc-edfoot"><button class="tc-del" id="tcEdDel" onclick="tcEdDelete()" aria-label="消す" title="消す">🗑</button><button id="tcEdDup" onclick="tcEdDup()" aria-label="複製" title="複製（同じものをもう1つ）">📋</button><button id="tcEdCal" onclick="tcEdCal()" aria-label="カレンダーに 入れる" title="カレンダーに 入れる（スマホ・パソコンの カレンダー）">📅</button>
         <span class="tc-sp"></span><button onclick="tcCloseEdit()">やめる</button><button class="tc-save" onclick="tcEdSave()">保存</button></div>
     </div>
   </div>
@@ -630,6 +633,7 @@ function openTecho(){
   tcBindSplit();
   tcRender();
   tcShInit(false);
+  if(!window.HyoIcs && typeof loadSidePart==='function') loadSidePart(['hyoics.js']);   // 📅 カレンダーの 部品を 先に 読んでおく（v595）
   clearInterval(tcNowTimer);
   tcNowTimer=setInterval(()=>{ if(!isDlgOpen('techoOverlay')) return; if(tc.ui.dayMode==='list'){ if(tcSel===tcTodayIso()){ const sc=document.getElementById('tcScroll'), t=sc?sc.scrollTop:0; tcRenderDay(); if(sc) sc.scrollTop=t; } } else tcPlaceNow(); }, 60000);
 }
@@ -1033,11 +1037,43 @@ function tcOpenEdit(it, occ, heard){
   $('tcEdN').value=it.note||'';
   $('tcEdDel').style.display=it.id?'':'none';
   $('tcEdDup').style.display=it.id?'':'none';
+  $('tcEdCal').style.display=it.id && it.kind!=='memo'?'':'none';
   tcEdRenderRoles(); tcEdKind(it.kind, true);
   openDlg('techoEditOverlay', ()=>{ tcStopListen(); tcEd=null; });
   if(!it.id && !heard) setTimeout(()=>{ const t=$('tcEdT'); if(t && isDlgOpen('techoEditOverlay')) t.focus(); }, 120);
 }
 function tcCloseEdit(){ tcStopListen(); closeDlg('techoEditOverlay', ()=>{ tcEd=null; }); }
+/* ── 📅 カレンダーに（v595。hyoics.js）── */
+function tcIcsEv(it){
+  const r=it.rep;
+  return {uid:'techo-'+it.id, title:it.title||'予定', date:it.date, allDay:it.allDay, start:it.start, endTime:it.end,
+    desc:[it.note, '業務：'+tcRoleNames(it.roles), '📔 業務手帳 から'].filter(Boolean).join('\n'),
+    rrule:r && window.HyoIcs ? HyoIcs.rrule(tcRepKey(r), it.date, r.until, !it.allDay) : '', ex:r ? r.ex : []};
+}
+function tcWithIcs(fn){
+  if(window.HyoIcs){ fn(); return; }
+  if(typeof loadSidePart!=='function'){ toast('カレンダーの 部品が 読めません'); return; }
+  loadSidePart(['hyoics.js']).then(ok=>{ if(ok && window.HyoIcs) fn(); else toast('カレンダーの 部品を 読めませんでした。インターネットに つながる ところで もう一度 どうぞ'); });
+}
+// 予定を直す 窓の 📅：しまって ある その 予定（くり返しは くり返しの まま）
+function tcEdCal(){
+  const it=tcEd && tc.items.find(x=>x.id===tcEd.id);
+  if(!it || it.kind==='memo'){ toast('保存した 予定を カレンダーに 入れられます'); return; }
+  tcWithIcs(()=>HyoIcs.sheet([tcIcsEv(it)], {file:'techo-'+it.date+'.ics', name:'業務手帳', title:'予定を カレンダーに', note:it.rep ? 'くり返し（'+tcRepLabel(it)+'）の まま 入ります。' : ''}));
+}
+// この先の 予定（表示中の 業務・メモと 済みは のぞく）。くり返しは この先に 出る ものを くり返しの まま
+function tcCalList(days){
+  const T=tcTodayIso(), E=days ? tcAdd(T, days) : '9999-12-31', hid=tc.ui.hidden;
+  return tc.items.filter(it=>it.kind==='ev' && it.roles.some(id=>!hid.includes(id)) && (it.rep ? (n=>n && n<=E)(tcNextOcc(it, T)) : !it.done && it.date>=T && it.date<=E))
+    .sort((a,b)=>(a.date+(a.start||'')).localeCompare(b.date+(b.start||'')));
+}
+async function tcCalOpen(){
+  const k=await tcChoose('📅 カレンダーに 書き出す（スマホ・パソコンの カレンダーへ）。表示中の 業務の 予定（メモ・済みは のぞく）を どこまで？', ['この先 1か月', 'この先 3か月', 'この先 ぜんぶ']);
+  if(k<0) return;
+  const L=tcCalList([31, 92, 0][k]);
+  if(!L.length){ toast('この先の 予定が ありません'); return; }
+  tcWithIcs(()=>HyoIcs.sheet(L.map(tcIcsEv), {file:'techo-'+tcTodayIso()+'.ics', name:'業務手帳', title:'業務手帳の 予定を カレンダーに', note:'予定 '+L.length+'件（くり返しは くり返しの まま）。'}));
+}
 function tcEdRenderRoles(){
   if(!tcEd) return;
   document.getElementById('tcEdRoles').innerHTML=tc.roles.map(r=>{

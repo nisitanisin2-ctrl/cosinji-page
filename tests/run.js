@@ -12312,6 +12312,65 @@ async function runCountVs594(browser) {
   await ctx.close();
 }
 
+// 📅 カレンダーに 入れる（v595。hyoics.js・前にやった日 帳・業務手帳）
+async function runIcs595(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📅 カレンダーに 入れる：.ics（前にやった日・業務手帳。v595） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { window.appConfirm = async () => true; });
+  await page.evaluate(() => loadSidePart(['hyoics.js'])); await w(200);
+  check('  .ics の 形（CRLF・はじめと おわり・終日の おわりは 次の日・時刻の 予定は 1時間）', await page.evaluate(() => { const t = HyoIcs.build([{ uid: 'a', title: 'A', date: '2026-10-30', allDay: true }, { uid: 'b', title: 'B', date: '2026-10-30', start: '23:30' }]); return [t.startsWith('BEGIN:VCALENDAR\r\nVERSION:2.0\r\n'), t.endsWith('END:VCALENDAR\r\n'), !/[^\r]\n/.test(t), t.includes('DTSTART;VALUE=DATE:20261030\r\nDTEND;VALUE=DATE:20261031'), t.includes('DTSTART:20261030T233000\r\nDTEND:20261030T235900'), (t.match(/BEGIN:VEVENT/g) || []).length].join('/'); }), 'true/true/true/true/true/2');
+  check('  文字の 決まり（, ; \\ 改行）・長い 行は 75バイトで 折り返す（字の 途中で 切らない）', await page.evaluate(() => { const long = 'あいうえおかきくけこ'.repeat(6), t = HyoIcs.build([{ uid: 'x', title: 'A社, 見積; 提出\\控え', date: '2026-10-30', desc: '1行目\n2行目 ' + long }]), lines = t.split('\r\n'), enc = new TextEncoder(); const desc = t.slice(t.indexOf('DESCRIPTION:')).split('\r\n'); let j = 1; while (desc[j] && desc[j][0] === ' ') j++; const un = desc.slice(0, j).map((x, i) => i ? x.slice(1) : x).join(''); return [t.includes('SUMMARY:A社\\, 見積\\; 提出\\\\控え'), lines.every(l => enc.encode(l).length <= 75), un === 'DESCRIPTION:1行目\\n2行目 ' + long, !t.includes('�')].join('/'); }), 'true/true/true/true');
+  check('  くり返し（毎日・平日・毎週・隔週・毎月・毎年・いつまで）', await page.evaluate(() => [HyoIcs.rrule('d', '2026-11-02'), HyoIcs.rrule('wd', '2026-11-02'), HyoIcs.rrule('w', '2026-11-04'), HyoIcs.rrule('w2', '2026-11-04', '2026-12-31'), HyoIcs.rrule('m', '2026-11-15', '2027-03-31', true), HyoIcs.rrule('y', '2026-11-15'), HyoIcs.rrule('x', '2026-11-15')].join('|')), 'FREQ=DAILY|FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR|FREQ=WEEKLY;BYDAY=WE|FREQ=WEEKLY;INTERVAL=2;BYDAY=WE;UNTIL=20261231|FREQ=MONTHLY;BYMONTHDAY=15;UNTIL=20270331T235959|FREQ=YEARLY|');
+  check('  とばした日（くり返しの ときだけ）・知らせ（前・あと）・おわりが 前なら 次の日', await page.evaluate(() => { const t = HyoIcs.build([{ uid: 'r', title: 'R', date: '2026-11-02', start: '08:30', endTime: '08:45', rrule: 'FREQ=DAILY', ex: ['2026-11-03', 'bad'], alarm: 15 }, { uid: 's', title: 'S', date: '2026-11-02', allDay: true, ex: ['2026-11-03'], alarm: -540 }, { uid: 'n', title: 'N', date: '2026-11-02', start: '22:00', endTime: '01:00', rrule: 'FREQ=DAILY;X=<b>' }]); return [t.includes('EXDATE:20261103T083000\r\n'), (t.match(/EXDATE/g) || []).length, t.includes('TRIGGER:-PT15M'), t.includes('TRIGGER:PT540M'), t.includes('DTEND:20261103T010000'), (t.match(/RRULE:/g) || []).length].join('/'); }), 'true/1/true/true/true/1');
+  check('  Google カレンダーの「予定を作る」（終日・時刻・くり返し）', await page.evaluate(() => { const a = new URL(HyoIcs.gcal({ title: '展示会', date: '2026-11-20', allDay: true, end: '2026-11-21' })), b = new URL(HyoIcs.gcal({ title: '朝礼', date: '2026-11-02', start: '08:30', endTime: '08:45', rrule: 'FREQ=DAILY', desc: 'x' })); return [a.host, a.searchParams.get('action'), a.searchParams.get('dates'), b.searchParams.get('dates'), b.searchParams.get('recur'), b.searchParams.get('details')].join('|'); }), 'calendar.google.com|TEMPLATE|20261120/20261122|20261102T083000/20261102T084500|RRULE:FREQ=DAILY|x');
+  // 🔁 前にやった日 帳
+  await page.evaluate(() => openYatta()); await w(500);
+  const ids = await page.evaluate(() => { YATTA.today('2026-10-29'); return [YATTA.addItem('エアコンの フィルター', 14, '🌀', '2026-10-20'), YATTA.addItem('散髪', 30, '💈', '2026-09-20'), YATTA.addItem('電池', 0, '🔋', '2026-10-01'), YATTA.addItem('布団干し', 7, '🛏', '')]; }); await w(200);
+  check('  前にやった日：次の日（終日・朝 9時）・過ぎたら きょう・目安なし／記録なしは なし', await page.evaluate(ids => { const a = YATTA.calEv(ids[0]), b = YATTA.calEv(ids[1]); return [a.date, a.title, a.allDay, a.alarm, a.desc.includes('目安：14日ごと'), b.date, b.desc.includes('9日 過ぎています'), YATTA.calEv(ids[2]), YATTA.calEv(ids[3])].join('/'); }, ids), '2026-11-03/🌀 エアコンの フィルター/true/-540/true/2026-10-29/true//');
+  await page.evaluate(id => YATTA.open(id), ids[0]); await w(300);
+  check('  くわしくに「📅 次の日を カレンダーに」（目安なしの ものには 出ない）', await page.evaluate(id => { const a = [...document.querySelectorAll('.yt-pop button')].some(b => b.textContent.includes('次の日を カレンダーに')); YATTA.close(); YATTA.open(id); const b = [...document.querySelectorAll('.yt-pop button')].some(b => b.textContent.includes('次の日を カレンダーに')); YATTA.close(); return [a, b].join('/'); }, ids[2]), 'true/false');
+  await page.evaluate(id => YATTA.cal(id), ids[0]); await w(300);
+  check('  押すと 窓（保存・Google カレンダー・やめる）', await page.evaluate(() => [HyoIcs.isOpen(), document.querySelectorAll('.hics li').length, [...document.querySelectorAll('.hics button')].map(b => b.dataset.a).join(',')].join('/')), 'true/1/dl,g,no');
+  const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 5000 }).catch(() => null), page.click('.hics button.pri')]);
+  const txt = dl ? fs.readFileSync(await dl.path(), 'utf8') : '';
+  check('  📥 保存：ファイル名（英数字）・中身（終日・知らせ・名前）', [dl && dl.suggestedFilename(), txt.includes('DTSTART;VALUE=DATE:20261103'), txt.includes('SUMMARY:🌀 エアコンの フィルター'), txt.includes('TRIGGER:PT540M'), txt.includes('X-WR-CALNAME:前にやった日'), await page.evaluate(() => HyoIcs.isOpen())].join('/'), 'yatta-2026-11-03.ics/true/true/true/true/false');
+  await page.evaluate(() => YATTA.calAll()); await w(300);
+  check('  上の「📅 カレンダー」：目安と 記録が ある もの ぜんぶ（日付の 順）', await page.evaluate(() => [...document.querySelectorAll('.hics li')].map(x => x.textContent.replace(/\s+/g, '')).join('|')), '10月29日（木）💈散髪|11月3日（火）🌀エアコンのフィルター');
+  await page.evaluate(() => document.querySelector('.hics').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))); await w(200);
+  check('  Esc で 窓だけ 閉じる', await page.evaluate(() => [HyoIcs.isOpen(), isDlgOpen('yattaOverlay')].join('/')), 'false/true');
+  await page.evaluate(() => { const s = YATTA.state(); s.items.forEach(it => { if (it.every) YATTA.set(it.id, 'every', 0); }); YATTA.calAll(); }); await w(200);
+  check('  目安の ある ものが ないと 知らせ（窓は 出ない）', await page.evaluate(() => [HyoIcs.isOpen(), (document.getElementById('appToast') || {}).textContent || ''].join('/')), 'false/目安（○日ごと）と やった日が ある ものが ありません');
+  await page.evaluate(() => closeYatta()); await w(300);
+  // 📔 業務手帳
+  await page.evaluate(() => { window.TECHO_TODAY = '2026-10-29T09:00:00'; return openTecho(); }); await w(1000);
+  const tid = await page.evaluate(() => {
+    const mk = o => { const it = Object.assign({ id: tcNewId(), kind: 'ev', roles: ['sales'], allDay: false, start: '10:00', end: '11:30', title: '', note: '', done: false, rep: null, cre: Date.now(), upd: Date.now() }, o); tc.items.push(it); return it.id; };
+    const r = [mk({ date: '2026-10-30', title: 'A社 訪問', note: '見本' }), mk({ date: '2026-11-02', title: '朝礼', start: '08:30', end: '08:45', roles: ['factory'], rep: { f: 'wd', n: 1, until: '2026-12-25', ex: ['2026-11-03'], dd: [] } }), mk({ date: '2026-11-20', title: '監査', allDay: true, start: null, end: null, roles: ['qc'] }), mk({ date: '2027-03-01', title: '展示会', allDay: true, start: null, end: null }), mk({ date: '2026-10-31', kind: 'memo', title: 'メモ' }), mk({ date: '2026-10-31', title: '済んだ', done: true }), mk({ date: '2026-10-20', title: '前の', }), mk({ date: '2026-09-01', title: '毎週の 会議', rep: { f: 'w', n: 1, until: null, ex: [], dd: [] } })];
+    tcSave(); tcRender(); return r;
+  }); await w(300);
+  check('  業務手帳：この先の 予定（1か月・3か月・ぜんぶ。メモ・済み・前のは のぞく。くり返しは この先に あれば）', await page.evaluate(() => [tcCalList(31), tcCalList(92), tcCalList(0)].map(L => L.map(x => x.title).join(',')).join(' | ')), '毎週の 会議,A社 訪問,朝礼,監査 | 毎週の 会議,A社 訪問,朝礼,監査 | 毎週の 会議,A社 訪問,朝礼,監査,展示会');
+  check('  表示を 消した 業務の 予定は 入れない', await page.evaluate(() => { tc.ui.hidden = ['qc']; const a = tcCalList(31).map(x => x.title).join(','); tc.ui.hidden = []; return a; }), '毎週の 会議,A社 訪問,朝礼');
+  check('  予定 → .ics の 予定（業務・くり返し・とばした日）', await page.evaluate(id => { const e = tcIcsEv(tc.items.find(x => x.id === id)); return [e.title, e.start, e.endTime, e.rrule, e.ex.join(','), e.desc].join('|'); }, tid[1]), '朝礼|08:30|08:45|FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;UNTIL=20261225T235959|2026-11-03|業務：工場\n📔 業務手帳 から');
+  await page.evaluate(id => tcOpenItem(id, '2026-11-02'), tid[1]); await w(400);
+  const calBtn = await page.evaluate(() => getComputedStyle(document.getElementById('tcEdCal')).display !== 'none');
+  await page.evaluate(() => tcEdCal()); await w(300);
+  check('  予定を直す 窓の 📅 → その 予定（🔁 くり返しの まま）', [calBtn, await page.evaluate(() => [HyoIcs.isOpen(), document.querySelector('.hics li').textContent.includes('🔁'), document.querySelector('.hics p').textContent.includes('くり返し（平日')].join('/'))].join('/'), 'true/true/true/true');
+  const [dl2] = await Promise.all([page.waitForEvent('download', { timeout: 5000 }).catch(() => null), page.click('.hics button.pri')]);
+  const t2 = dl2 ? fs.readFileSync(await dl2.path(), 'utf8') : '';
+  check('  保存した 中身：時刻・くり返し・とばした日', [dl2 && dl2.suggestedFilename(), t2.includes('DTSTART:20261102T083000'), t2.includes('RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;UNTIL=20261225T235959'), t2.includes('EXDATE:20261103T083000')].join('/'), 'techo-2026-11-02.ics/true/true/true');
+  await page.evaluate(() => tcCloseEdit()); await w(300);
+  check('  メモ・新しい 予定の 窓には 📅 を 出さない', await page.evaluate(id => { tcOpenItem(id, '2026-10-31'); const a = getComputedStyle(document.getElementById('tcEdCal')).display; tcCloseEdit(); tcNewItem('ev', '2026-10-31'); const b = getComputedStyle(document.getElementById('tcEdCal')).display; tcCloseEdit(); return [a, b].join('/'); }, tid[4]), 'none/none');
+  await w(300);
+  check('  ☰ メニューに「📅 カレンダーに 書き出す」', await page.evaluate(() => [...document.querySelectorAll('#tcMenu button')].some(b => b.textContent.includes('カレンダーに 書き出す'))), true);
+  const pr = page.evaluate(() => tcCalOpen()); await w(300);
+  await page.click('.tc-choose button[data-i="0"]'); await pr; await w(300);
+  check('  えらぶと まとめて（4件・くり返しに 🔁）', await page.evaluate(() => [document.querySelectorAll('.hics li').length, document.querySelectorAll('.hics li').length && [...document.querySelectorAll('.hics li')].filter(x => x.textContent.includes('🔁')).length, document.querySelector('.hics p').textContent.includes('予定 4件')].join('/')), '4/2/true');
+  await page.evaluate(() => HyoIcs.close()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
 async function runClockLay591(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🕐 ど派手タイマーの 時計：ぽよん 以外の 見せ方も 同じ 並べ方（v591） ──');
@@ -17232,7 +17291,7 @@ async function runTecho(browser) {
   check('  上のタイトルバーは出さない・▲ の右に ☰', await page.evaluate(() => !document.querySelector('#techoOverlay .modal-header') + '/' + (document.getElementById('tcFoldBtn').nextElementSibling.id)), 'true/tcMenuBtn');
   check('  いちばん上は iPhone の安全な範囲の内側', await page.evaluate(() => { const st = getComputedStyle(document.querySelector('#techoOverlay .tc-modal')); document.documentElement.style.setProperty('--safe-top', '47px'); const t = getComputedStyle(document.querySelector('#techoOverlay .tc-modal')).paddingTop; document.documentElement.style.removeProperty('--safe-top'); return t; }), '47px');
   await page.click('#tcMenuBtn'); await page.waitForTimeout(80);
-  check('  ☰ でメニューが出る', await page.evaluate(() => isDlgOpen('tcMenuOv') + '/' + [...document.querySelectorAll('#tcMenu button:not([hidden])')].map(b => b.textContent.replace(/^\S+\s/, '')).join(',')), 'true/さがす,メモ一覧,印刷・PDF・画像,設定,業務手帳を閉じる');
+  check('  ☰ でメニューが出る', await page.evaluate(() => isDlgOpen('tcMenuOv') + '/' + [...document.querySelectorAll('#tcMenu button:not([hidden])')].map(b => b.textContent.replace(/^\S+\s/, '')).join(',')), 'true/さがす,メモ一覧,印刷・PDF・画像,カレンダーに 書き出す,設定,業務手帳を閉じる');
   await page.goBack({ waitUntil: 'commit' }).catch(() => {}); await page.waitForTimeout(400);
   check('  戻るでメニューだけ閉じる', await page.evaluate(() => isDlgOpen('tcMenuOv') + '/' + isDlgOpen('techoOverlay')), 'false/true');
   await page.click('#tcMenuBtn'); await page.waitForTimeout(80);
@@ -17953,6 +18012,7 @@ async function runQrShare(browser) {
     if (!only || only === 'hade' || only === 'clock' || only === 'v591') await runClockLay591(browser);
     if (!only || only === 'hade' || only === 'voice593' || only === 'v593') await runTimerVoice593(browser);
     if (!only || only === 'hade' || only === 'vs594' || only === 'v594') await runCountVs594(browser);
+    if (!only || only === 'ics' || only === 'yatta' || only === 'techo' || only === 'v595') await runIcs595(browser);
     if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
     if (!only || only === 'okaeshi' || only === 'v564') await runOkaeshi564(browser);
     if (!only || only === 'tax' || only === 'v565') await runTax565(browser);
