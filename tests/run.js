@@ -12812,6 +12812,105 @@ async function runV600(browser) {
   await ctx.close();
 }
 
+async function runV601(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ✂ トリミング：☀ 明るさ・🗂 まとめて／📖 読みもの：🔖 つづきから・🔈 読み上げ（v601） ──');
+  const w = ms => page.waitForTimeout(ms);
+  // 画像を 作って input に 入れる（[名前, 横, 縦, 色(0〜255 の 灰色)]）
+  const feed = (sel, specs, extra) => page.evaluate(async ([sel, specs, extra]) => {
+    const mk = ([nm, W, H, v]) => new Promise(res => { const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(0, 0, W, H); g.fillStyle = `rgb(${Math.min(255, v + 40)},${v},${v})`; g.fillRect(0, 0, W / 2, H / 2); c.toBlob(b => res(new File([b], nm + '.png', { type: 'image/png' })), 'image/png'); });
+    const dt = new DataTransfer(); for (const s of specs) dt.items.add(await mk(s));
+    if (extra) dt.items.add(new File(['abc'], 'memo.txt', { type: 'text/plain' }));
+    const inp = document.querySelector(sel); inp.files = dt.files; inp.dispatchEvent(new Event('change'));
+  }, [sel, specs, !!extra]);
+  check('  ☀ 書き出しの 式（明るさを かけて 0〜1 に おさめ、0.5 を 中心に コントラスト）', await page.evaluate(async () => {
+    await openTrim(); const c = document.createElement('canvas'); c.width = 3; c.height = 1; const g = c.getContext('2d'); [[128, 0], [191, 1], [250, 2]].forEach(([v, x]) => { g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(x, 0, 1, 1); });
+    trAdjPixels(c, { b: 20, c: 0 }); const a = [...g.getImageData(0, 0, 3, 1).data].filter((_, i) => i % 4 === 0);
+    trAdjPixels(c, { b: 0, c: 0 }); const same = [...g.getImageData(0, 0, 3, 1).data].filter((_, i) => i % 4 === 0);
+    const d = document.createElement('canvas'); d.width = 1; d.height = 1; const h = d.getContext('2d'); h.fillStyle = 'rgb(191,191,191)'; h.fillRect(0, 0, 1, 1); trAdjPixels(d, { b: 0, c: 50 });
+    return [a.join(','), same.join(','), h.getImageData(0, 0, 1, 1).data[0]].join('|'); }), '154,229,255|154,229,255|223');
+  await feed('#trPicIn', [['灰色', 800, 600, 120]]); await w(700);
+  await page.evaluate(() => trAdjShow(true)); await w(200);
+  check('  「☀ 明るさ」で 明るさ・コントラストの 欄（はじめは 0）', await page.evaluate(() => [!document.getElementById('trAdjRow').hidden, document.getElementById('trAdjB').value, document.getElementById('trAdjC').value, document.getElementById('trAdjBtn').classList.contains('on'), document.querySelectorAll('.tr-tools button').length].join('|')), 'true|0|0|true|6');
+  await page.evaluate(() => { const r = document.getElementById('trAdjB'); r.value = '30'; r.dispatchEvent(new Event('input')); const c = document.getElementById('trAdjC'); c.value = '-20'; c.dispatchEvent(new Event('input')); }); await w(100);
+  check('  動かすと 画面に すぐ（CSS の filter）・下の 行に ☀ ◐', await page.evaluate(() => [JSON.stringify(trAdjState()), document.getElementById('trCv').style.filter, document.getElementById('trAdjBv').textContent, document.getElementById('trInfo').textContent.split('（')[1]].join('|')),
+    '{"b":30,"c":-20}|brightness(1.3) contrast(0.8)|+30|写真 800×600・☀+30 ◐−20）');
+  await page.evaluate(() => { trSetFmt('png'); trOpenOut(); }); await w(500);
+  check('  できあがりにも 同じ 明るさ（見本も）', await page.evaluate(async () => { const r = await trMakeBlob(), bm = await createImageBitmap(r.blob), c = document.createElement('canvas'); c.width = bm.width; c.height = bm.height; const g = c.getContext('2d'); g.drawImage(bm, 0, 0); const px = g.getImageData(700, 500, 1, 1).data[0]; return [r.w + 'x' + r.h, px, document.getElementById('trPrev').style.filter].join('|'); }),
+    '800x600|' + Math.round(((Math.min(1, 120 / 255 * 1.3) - 0.5) * 0.8 + 0.5) * 255) + '|brightness(1.3) contrast(0.8)');
+  await page.evaluate(() => { trCloseOut(); trAdjReset(); trAdjAuto(); }); await w(150);
+  check('  ✨ 自動：くすんだ 写真は 明るさ・コントラストを 上げる', await page.evaluate(() => { const a = trAdjState(); return [a.c > 0, a.b !== 0 || a.c !== 0, document.getElementById('appToast').textContent.startsWith('✨ 明るさ')].join('|'); }), 'true|true|true');
+  await feed('#trPicIn', [['べつ', 400, 300, 200]]); await w(600);
+  check('  べつの 写真に すると 0 に もどる', await page.evaluate(() => [JSON.stringify(trAdjState()), document.getElementById('trCv').style.filter].join('|')), '{"b":0,"c":0}|');
+  await page.evaluate(() => closeTrim()); await w(200);
+  // 🗂 まとめて
+  await page.evaluate(() => { openTrim(); trBatchOpen(); }); await w(300);
+  check('  🗂 何枚も まとめて：はじめは 写真を えらぶ（ボタンは 押せない）', await page.evaluate(() => [isDlgOpen('trBatchOverlay'), document.querySelector('.tr-btadd').textContent, [...document.querySelectorAll('#trBtBody .tr-btn')].map(b => b.disabled).join(','), [...document.querySelectorAll('#trBtBody .tr-chip.on')].map(b => b.textContent).join(',')].join('|')),
+    'true|＋写真を えらぶ|true,true,true|📏 長い辺を そろえる,1600px,PNG,決めない');
+  await feed('#trBtIn', [['横長', 2400, 1200, 90], ['縦長', 900, 1600, 160], ['小さい', 500, 400, 60]], true); await w(1500);
+  check('  写真だけ 入る・1枚目の 見本（長い辺 1600）', await page.evaluate(() => [trBatchState().n, document.querySelectorAll('.tr-btp').length, document.getElementById('trBtEst').textContent.split('　')[0]].join('|')), '3|3|1枚目の できあがり：1600 × 800');
+  await page.evaluate(() => { trBatchSet('fmt', 'jpeg'); trBatchSet('L', 800); }); await w(100);
+  await page.evaluate(() => trBatchRun('zip')); await w(3000);
+  check('  📏 長い辺 800：形は そのまま（小さい 写真は 大きく しない）・🗜 ZIP（名前は 日本語の まま）',
+    await page.evaluate(async () => { const L = trBatchState().last, z = trBatchZip(), m = await xlsxUnzip(await z.arrayBuffer()); return [L.map(x => x.name).join(','), [...m.keys()].join(','), [...m.values()].every((u, i) => u.length === L[i].size), z.type].join('|'); }),
+    '横長_800x400.jpg,縦長_450x800.jpg,小さい_500x400.jpg|横長_800x400.jpg,縦長_450x800.jpg,小さい_500x400.jpg|true|application/zip');
+  await page.evaluate(() => { trBatchSet('mode', 'fit'); trBatchSet('WH', '1080x1080'); trBatchAdj('auto', true); }); await w(200);
+  check('  🔲 横×縦 ぴったり・✨ 1枚ずつ 自動（つまみは 止める）・設定は 覚える', await page.evaluate(() => [document.querySelector('#trBtBody .tr-wh input').value, [...document.querySelectorAll('.tr-btadj input[type=range]')].every(r => r.disabled), JSON.stringify(JSON.parse(localStorage.getItem('excalc_trim')).bt)].join('|')), '1080|true|{"mode":"fit","L":800,"W":1200,"H":900}'.replace('"W":1200,"H":900', '"W":1080,"H":1080'));
+  await page.evaluate(() => { window.__dl = []; const o = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () { if (this.download) window.__dl.push(this.download); else o.call(this); }; trBatchRun('each'); }); await w(4000);
+  check('  💾 1枚ずつ：どれも 1080×1080', await page.evaluate(() => [trBatchState().last.map(x => x.w + 'x' + x.h).join(','), window.__dl.join(',')].join('|')), '1080x1080,1080x1080,1080x1080|横長_1080x1080.jpg,縦長_1080x1080.jpg,小さい_1080x1080.jpg');
+  await page.evaluate(() => { trBatchDel(1); }); await w(150);
+  check('  ✕ で 外す', await page.evaluate(() => [trBatchState().n, document.querySelectorAll('.tr-btp').length].join('|')), '2|2');
+  await page.evaluate(() => { navigator.canShare = () => false; trBatchRun('share'); }); await w(2500);
+  check('  📤 送れない 端末では ZIP で 保存', await page.evaluate(() => [!!trBatchZip(), window.__dl.slice(-1)[0].endsWith('.zip')].join('|')), 'true|true');
+  await page.evaluate(() => trBatchClose()); await w(200);
+  check('  閉じると えらんだ 写真は 片づける', await page.evaluate(() => [isDlgOpen('trBatchOverlay'), trBatchState().n].join('|')), 'false|0');
+  await page.evaluate(() => closeTrim()); await w(200);
+  // ── 📖 読みもの ──
+  await page.evaluate(() => {
+    window.__say = []; window.__sayMs = 150; window.HyoVoice = Object.assign({}, window.HyoVoice, { available: true, speak: (t, o) => { window.__say.push(t); setTimeout(() => o && o.onend && o.onend(), window.__sayMs); }, cancel: () => { window.__say.push('[止]'); } });
+    localStorage.setItem('excalc_yomi', JSON.stringify({ manner: { recent: [{ id: "x');alert(1);('", t: 'わるい' }], last: { id: '<b>', top: 5 } }, '<x>': {} }));
+    return openManner();
+  }); await w(500);
+  check('  読む 部品（yomi.js）を いっしょに 読む・へんな データは 使わない', await page.evaluate(() => [typeof YOMIMONO, !!document.querySelector('script[src="yomi.js"]'), JSON.stringify(YOMIMONO.recent('manner')), YOMIMONO.last('manner'), document.querySelector('.yomi-top') === null].join('|')), 'object|true|[]||true');
+  const pg = await page.evaluate(() => mnPages().filter(p => p.cat !== 'tool').slice(0, 4).map(p => p.id));
+  await page.evaluate(id => mnOpen(id), pg[0]); await w(200);
+  await page.evaluate(() => { document.getElementById('mnViewBody').scrollTop = 300; }); await w(700);
+  const top0 = await page.evaluate(() => document.getElementById('mnViewBody').scrollTop);
+  await page.evaluate(() => mnCloseView()); await w(200);
+  check('  開いた ページと 読んだ 位置を 覚える → 一覧の 上に「🔖 つづきから」', await page.evaluate(() => { const L = YOMIMONO.last('manner'); return [L.id, L.top, document.querySelector('.yomi-cont b').textContent, !!document.querySelector('.yomi-cont small')].join('|'); }),
+    [pg[0], top0, await page.evaluate(id => mnPages().find(p => p.id === id).t, pg[0]), top0 > 40].join('|'));
+  await page.evaluate(ids => { mnOpen(ids[1]); mnOpen(ids[2]); mnCloseView(); }, pg); await w(200);
+  check('  🕘 最近 見た（新しい 順・つづきからの ページは のぞく）', await page.evaluate(() => [...document.querySelectorAll('.yomi-rec button')].map(b => b.textContent).join(',')), await page.evaluate(ids => [ids[1], ids[0]].map(id => mnPages().find(p => p.id === id).t).join(','), pg));
+  await page.evaluate(ids => { mnOpen(ids[0]); document.getElementById('mnViewBody').scrollTop = 250; }, pg); await w(700);
+  await page.evaluate(() => mnCloseView()); await w(200);
+  await page.click('.yomi-cont'); await w(500);
+  check('  「🔖 つづきから」で 前の 位置から', await page.evaluate(() => [mnState().cur, Math.abs(document.getElementById('mnViewBody').scrollTop - YOMIMONO.last('manner').top) <= 2, YOMIMONO.last('manner').top > 0].join('|')), pg[0] + '|true|true');
+  await page.evaluate(() => { document.getElementById('mnViewBody').scrollTop = 0; }); await w(500);
+  await page.click('#mnViewBody .mn-acts button:nth-child(2)'); await w(150);
+  const firstBlock = await page.evaluate(() => YOMIMONO.blocks('mnViewBody')[0]);
+  check('  🔈 読み上げ：上から 1まとまりずつ（読んで いる ところに 色）・ボタンは ⏹ 止める', await page.evaluate(() => [YOMIMONO.reading(), document.querySelector('#mnViewBody .mn-acts button:nth-child(2)').textContent, document.querySelectorAll('#mnViewBody .yomi-now').length, window.__say[0]].join('|')), 'true|⏹ 止める|1|' + firstBlock);
+  await w(800);
+  check('  読み進む（ボタン・入力・ページ送りは 読まない）', await page.evaluate(() => [window.__say.length > 3, window.__say.every(t => !/前のページ|次のページ|印刷|よく見る/.test(t))].join('|')), 'true|true');
+  await page.click('#mnViewBody .mn-acts button:nth-child(2)'); await w(150);
+  check('  もう一度 押すと 止める', await page.evaluate(() => [YOMIMONO.reading(), document.querySelector('#mnViewBody .mn-acts button:nth-child(2)').textContent, document.querySelectorAll('.yomi-now').length, window.__say.slice(-1)[0]].join('|')), 'false|🔈 読み上げ|0|[止]');
+  await page.click('#mnViewBody .mn-acts button:nth-child(2)'); await w(100);
+  await page.evaluate(() => mnCloseView()); await w(200);
+  check('  ページを 閉じると 読むのも 止める', await page.evaluate(() => [YOMIMONO.reading(), document.querySelectorAll('.yomi-now').length].join('|')), 'false|0');
+  await page.evaluate(() => closeManner()); await w(200);
+  for (const [open, close, list, it, body, acts] of [['openBoki', 'closeBoki', '#bkList', '.bk-it', 'bkViewBody', '.bk-acts'], ['openKurashi', 'closeKurashi', '#krCatBody', '.kr-it', 'krViewBody', '.kr-acts']]) {
+    await page.evaluate(f => window[f](), open); await w(500);
+    if (open === 'openKurashi') { await page.evaluate(() => krOpenCat(document.querySelector('.kr-card').dataset.cat)); await w(200); }
+    await page.evaluate(([list, it]) => document.querySelector(list + ' ' + it).click(), [list, it]); await w(200);
+    const r = await page.evaluate(([body, acts]) => [...document.querySelectorAll('#' + body + ' ' + acts + ' button')].map(b => b.textContent).join(','), [body, acts]);
+    await page.evaluate(([open]) => { if (open === 'openKurashi') { krCloseView(); krCloseCat(); } else bkCloseView(); }, [open]); await w(200);
+    check('  ' + (open === 'openBoki' ? '📒 会計の手引き' : '🧭 くらしの便利帳') + 'にも 🔈 読み上げ・🔖 つづきから', r + '|' + await page.evaluate(() => !!document.querySelector('.yomi-cont')), '☆ よく見る,🔈 読み上げ,🖨 印刷|true');
+    await page.evaluate(f => window[f](), close); await w(200);
+  }
+  check('  バックアップと 端末の 空きに 読みものの しおり', await page.evaluate(() => [SETTINGS_BACKUP_KEYS.includes('excalc_yomi'), ST_GROUPS.some(g => g.k === 'excalc_yomi'), Object.keys(JSON.parse(localStorage.getItem('excalc_yomi'))).sort().join(',')].join('|')), 'true|true|boki,kurashi,manner');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
 async function runClockLay591(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🕐 ど派手タイマーの 時計：ぽよん 以外の 見せ方も 同じ 並べ方（v591） ──');
@@ -18459,6 +18558,7 @@ async function runQrShare(browser) {
     if (!only || only === 'hade' || only === 'timer598' || only === 'v598') await runTimer598(browser);
     if (!only || only === 'bingo' || only === 'hitsudan' || only === 'v599') await runV599(browser);
     if (!only || only === 'shiori' || only === 'shiken' || only === 'annai' || only === 'v600') await runV600(browser);
+    if (!only || only === 'trim' || only === 'manner' || only === 'boki' || only === 'kurashi' || only === 'yomi' || only === 'v601') await runV601(browser);
     if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
     if (!only || only === 'okaeshi' || only === 'v564') await runOkaeshi564(browser);
     if (!only || only === 'tax' || only === 'v565') await runTax565(browser);

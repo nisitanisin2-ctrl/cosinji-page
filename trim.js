@@ -7,7 +7,10 @@
      （縦に近い線なら垂直にする。v487）。
    ・出す大きさ：そのまま／長い辺 2048〜640px／50%・25%／横×縦を手で（縦横比を保つ）。
      形式 JPEG・PNG・WebP、画質。「〜KB 以下に」を選ぶと画質（足りなければ大きさ）を下げてそこに収める。
-   ・写真は端末の中で処理するだけで、どこにも送らず、残しもしない（決めた設定だけ excalc_trim に覚える）。 */
+   ・写真は端末の中で処理するだけで、どこにも送らず、残しもしない（決めた設定だけ excalc_trim に覚える）。
+   ・v601：☀ 明るさ・◐ コントラスト（−50〜＋50。✨ 自動 で ちょうど よく）。画面は CSS の filter、書き出しは 同じ 式で 画素を 直す。
+   ・v601：🗂 何枚も まとめて 同じ大きさに（長い辺を そろえる／横×縦 ぴったり（はみ出しは 真ん中で 切る））。
+     明るさ・コントラスト（1枚ずつ 自動 も）・形式・画質・「〜KB 以下」も 同じに。📤 まとめて 送る・🗜 ZIP・💾 1枚ずつ。 */
 (function(){
 const TR_KEY='excalc_trim';
 const $=id=>document.getElementById(id);
@@ -18,7 +21,7 @@ const ASPECTS=[ ['free','自由',0], ['orig','元の形',-1], ['1:1','1:1',1], [
   ['card','名刺',91/55], ['a4','A4縦',210/297], ['id','証明写真',30/40] ];
 const SIZES=[ ['keep','そのまま'], ['l2048','長い辺 2048'], ['l1600','1600'], ['l1200','1200'], ['l800','800'], ['l640','640'], ['p50','50%'], ['p25','25%'] ];
 const KBS=[ [0,'決めない'], [1000,'1MB 以下'], [500,'500KB 以下'], [200,'200KB 以下'], [100,'100KB 以下'] ];
-let st={ aspect:'free', fmt:'jpeg', q:85, size:'keep', lock:true, kb:0 };
+let st={ aspect:'free', fmt:'jpeg', q:85, size:'keep', lock:true, kb:0, bt:{mode:'long', L:1600, W:1200, H:900} };
 let src=null;        // いまの写真（回転・反転をしたもの）canvas
 let srcName='写真';
 let crop=null;       // {x,y,w,h}（src の画素）
@@ -28,14 +31,74 @@ let lineMode=false, lineP=[];    // 📏 水平線：点（ステージの座標
 let disp={k:1, ox:0, oy:0};
 let outW=0, outH=0;  // 出す大きさ
 let estT=null, estSeq=0;
+let adj={b:0, c:0};  // ☀ 明るさ・◐ コントラスト（−50〜＋50。v601）
 
 function trLoadSt(){ try{ const o=JSON.parse(localStorage.getItem(TR_KEY)||'null'); if(o){
   if(ASPECTS.some(a=>a[0]===o.aspect)) st.aspect=o.aspect; if(['jpeg','png','webp'].includes(o.fmt)) st.fmt=o.fmt;
   if(o.q>=30 && o.q<=100) st.q=Math.round(o.q); if(SIZES.some(s=>s[0]===o.size) || o.size==='custom') st.size=o.size;
-  st.lock=o.lock!==false; if(KBS.some(k=>k[0]===o.kb)) st.kb=o.kb; } }catch(_){} }
+  st.lock=o.lock!==false; if(KBS.some(k=>k[0]===o.kb)) st.kb=o.kb;
+  const b=o.bt||{}, n=(v,d)=>Number.isInteger(v) && v>=16 && v<=MAX_OUT ? v : d;
+  st.bt={mode:b.mode==='fit' ? 'fit' : 'long', L:n(b.L,1600), W:n(b.W,1200), H:n(b.H,900)}; } }catch(_){} }
 function trSaveSt(){ try{ localStorage.setItem(TR_KEY, JSON.stringify(st)); }catch(_){} }
+const toBlobP=(c,type,q)=>new Promise(r=>c.toBlob(b=>r(b), type, q));
 const webpOk=(()=>{ try{ const c=document.createElement('canvas'); c.width=c.height=1; return c.toDataURL('image/webp').startsWith('data:image/webp'); }catch(_){ return false; } })();
 const fmtKB=n=>n>=1024*1024 ? (n/1024/1024).toFixed(n>=10*1024*1024?0:1)+'MB' : Math.max(1,Math.round(n/1024))+'KB';
+
+/* ── ☀ 明るさ・◐ コントラスト（v601）──
+   画面は CSS の brightness()・contrast()。書き出しは 同じ 式（明るさを かけて 0〜1 に おさめ、0.5 を 中心に コントラスト）で 画素を 直す */
+const adjOn=a=>!!(a && (a.b || a.c));
+const adjCss=a=>adjOn(a) ? `brightness(${(1+a.b/100).toFixed(2)}) contrast(${(1+a.c/100).toFixed(2)})` : '';
+function adjPixels(cv, a){
+  if(!adjOn(a)) return cv;
+  const g=cv.getContext('2d'), d=g.getImageData(0,0,cv.width,cv.height), px=d.data, B=1+a.b/100, C=1+a.c/100, lut=new Uint8ClampedArray(256);
+  for(let i=0;i<256;i++){ const x=Math.min(1, i/255*B); lut[i]=Math.round(((x-0.5)*C+0.5)*255); }
+  for(let i=0;i<px.length;i+=4){ px[i]=lut[px[i]]; px[i+1]=lut[px[i+1]]; px[i+2]=lut[px[i+2]]; }
+  g.putImageData(d,0,0); return cv;
+}
+// ✨ 自動：明るさの 2%〜98% が 0.02〜0.98 に 広がるように（−50〜＋50 に おさめる）
+function autoAdj(srcCv, sx, sy, sw, sh){
+  const k=Math.min(1, 256/Math.max(sw,sh)), c=document.createElement('canvas'); c.width=Math.max(1,Math.round(sw*k)); c.height=Math.max(1,Math.round(sh*k));
+  const g=c.getContext('2d'); g.drawImage(srcCv, sx, sy, sw, sh, 0, 0, c.width, c.height);
+  const px=g.getImageData(0,0,c.width,c.height).data, h=new Uint32Array(256); let n=0;
+  for(let i=0;i<px.length;i+=4){ h[Math.round(0.299*px[i]+0.587*px[i+1]+0.114*px[i+2])]++; n++; }
+  const at=f=>{ let s=0; for(let i=0;i<256;i++){ s+=h[i]; if(s>=n*f) return i/255; } return 1; };
+  const lo=at(0.02), hi=Math.max(lo+0.05, at(0.98)), bc=0.96/(hi-lo), C=1.92*lo/(hi-lo)+0.96, B=bc/C;
+  const v=x=>Math.max(-50, Math.min(50, Math.round((x-1)*100)));
+  return {b:v(B), c:v(C)};
+}
+// 切り抜いて w×h に（ゆっくり 段階的に 縮めて ぎざぎざを 抑える）。明るさ・コントラストも
+function stepDraw(srcCv, sx, sy, sw, sh, w, h, fmt, a){
+  let cur=document.createElement('canvas'); cur.width=Math.max(1,Math.round(sw)); cur.height=Math.max(1,Math.round(sh));
+  cur.getContext('2d').drawImage(srcCv, sx, sy, sw, sh, 0, 0, cur.width, cur.height);
+  while(cur.width/2>=w && cur.height/2>=h){
+    const n=document.createElement('canvas'); n.width=Math.round(cur.width/2); n.height=Math.round(cur.height/2);
+    const g=n.getContext('2d'); g.imageSmoothingQuality='high'; g.drawImage(cur,0,0,n.width,n.height); cur=n;
+  }
+  const o=document.createElement('canvas'); o.width=w; o.height=h;
+  const g=o.getContext('2d');
+  if(fmt==='jpeg'){ g.fillStyle='#fff'; g.fillRect(0,0,w,h); }   // JPEG は透けない
+  g.imageSmoothingQuality='high'; g.drawImage(cur,0,0,w,h);
+  return adjPixels(o, a);
+}
+// できあがり（「〜KB 以下」なら 画質→大きさ の 順に 下げて 収める）。{blob,w,h,q,shrunk}
+async function blobFit(draw, w, h, fmt, qPct, kb){
+  const type='image/'+fmt;
+  let q=fmt==='png'?undefined:qPct/100, cv=draw(w,h), b=await toBlobP(cv,type,q), shrunk=false;
+  const lim=kb*1024;
+  if(lim && b && b.size>lim){
+    if(fmt!=='png'){
+      let lo=0.3, hi=q, best=null;
+      for(let i=0;i<7;i++){ const m=(lo+hi)/2; const t=await toBlobP(cv,type,m); if(t && t.size<=lim){ best={b:t,q:m}; lo=m; } else hi=m; }
+      if(best){ b=best.b; q=best.q; }
+    }
+    let tries=0;
+    while(b && b.size>lim && tries<12 && w>32 && h>32){
+      const k=Math.max(0.5, Math.sqrt(lim/b.size)*0.95); w=Math.max(1,Math.round(w*k)); h=Math.max(1,Math.round(h*k)); shrunk=true;
+      cv=draw(w,h); b=await toBlobP(cv,type,fmt==='png'?undefined:Math.max(0.3,q||0.3)); tries++;
+    }
+  }
+  return {blob:b, w, h, q:q==null?null:Math.round(q*100), shrunk};
+}
 
 /* ── 画面 ── */
 const TR_CSS=`
@@ -81,7 +144,23 @@ const TR_CSS=`
 .tr-linebar button{ flex:1; height:44px; border-radius:10px; border:1px solid rgba(120,132,156,.35); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:14px; font-weight:bold; cursor:pointer; }
 .tr-linebar button.go{ flex:2; background:#e0c200; border-color:#e0c200; color:#222; }
 .tr-linebar button:disabled{ opacity:.45; }
-.tr-tools{ display:grid; grid-template-columns:repeat(5,1fr); gap:6px; padding:8px 10px 0; }
+.tr-tools{ display:grid; grid-template-columns:repeat(6,1fr); gap:5px; padding:8px 10px 0; }
+.tr-tools button.on{ background:#fff8c4; border-color:#e0c200; }
+.tr-tools button{ white-space:nowrap; overflow:hidden; font-size:11px; letter-spacing:-.02em; padding:0 2px; }
+.tr-adj{ padding:6px 10px 0; display:flex; flex-direction:column; gap:2px; }
+.tr-adj[hidden]{ display:none; }
+.tr-adj label{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:bold; color:var(--text,#333); }
+.tr-adj label input{ flex:1; min-width:0; height:30px; } .tr-adj label b{ width:34px; text-align:right; font-variant-numeric:tabular-nums; }
+.tr-adj .row{ display:flex; gap:6px; margin-top:2px; } .tr-adj .row button{ flex:1; height:38px; border-radius:10px; border:1px solid rgba(120,132,156,.35); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:13px; font-weight:bold; cursor:pointer; }
+.tr-btpics{ display:grid; grid-template-columns:repeat(auto-fill,minmax(72px,1fr)); gap:6px; }
+.tr-btp{ position:relative; aspect-ratio:1; border-radius:8px; overflow:hidden; background:#ddd; } .tr-btp img{ width:100%; height:100%; object-fit:cover; display:block; }
+.tr-btp button{ position:absolute; top:2px; right:2px; width:26px; height:26px; border-radius:13px; border:0; background:rgba(0,0,0,.6); color:#fff; font-size:13px; cursor:pointer; }
+.tr-btp i{ position:absolute; left:3px; bottom:2px; font-style:normal; font-size:11px; font-weight:bold; color:#fff; text-shadow:0 0 3px #000; }
+.tr-btadd{ aspect-ratio:1; border-radius:8px; border:2px dashed rgba(120,132,156,.6); background:transparent; color:var(--text,#333); font-size:24px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; }
+.tr-btadd small{ font-size:11px; font-weight:bold; }
+.tr-btadj label{ display:flex; align-items:center; gap:8px; font-size:13px; } .tr-btadj label input[type=range]{ flex:1; min-width:0; } .tr-btadj label b{ width:34px; text-align:right; }
+.tr-btadj .ck{ font-weight:bold; margin-top:4px; } .tr-btadj .ck input{ width:20px; height:20px; }
+.tr-btn:disabled{ opacity:.5; cursor:default; }
 .tr-tools button{ min-height:48px; border-radius:10px; border:1px solid rgba(120,132,156,.35); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:11.5px; font-weight:bold; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; }
 .tr-tools span{ font-size:19px; line-height:1; }
 .tr-info{ text-align:center; font-size:12.5px; color:var(--text-light,#888); padding:4px 10px 0; }
@@ -118,6 +197,7 @@ function trEnsureDom(){
       <div><b>写真を撮るか選ぶと、<br>いる所だけ切り抜いて、大きさも変えられます。</b></div>
       <button class="tr-big" onclick="document.getElementById('trCamIn').click()">📷 写真を撮る</button>
       <button class="tr-big sub" onclick="document.getElementById('trPicIn').click()">🖼 写真を選ぶ</button>
+      <button class="tr-big sub" onclick="trBatchOpen()">🗂 何枚も まとめて 同じ大きさに</button>
       <div style="font-size:12px">写真はこの端末の中で処理するだけで、どこにも送りません。</div>
     </div>
     <div id="trEdit" hidden style="display:flex;flex-direction:column;flex:1;min-height:0">
@@ -137,11 +217,17 @@ function trEnsureDom(){
         <div id="trLineMsg"></div>
         <div class="row"><button class="go" id="trLineGo" onclick="trLineApply()" disabled>この線を水平にする</button><button onclick="trLineMode(false)">やめる</button></div>
       </div>
+      <div class="tr-adj" id="trAdjRow" hidden>
+        <label>☀ 明るさ<input type="range" id="trAdjB" min="-50" max="50" step="1" value="0" oninput="trSetAdj('b',this.value)"><b id="trAdjBv">0</b></label>
+        <label>◐ コントラスト<input type="range" id="trAdjC" min="-50" max="50" step="1" value="0" oninput="trSetAdj('c',this.value)"><b id="trAdjCv">0</b></label>
+        <div class="row"><button onclick="trAdjAuto()">✨ 自動</button><button onclick="trAdjReset()">↺ 0 に もどす</button><button onclick="trAdjShow(false)">✓ とじる</button></div>
+      </div>
       <div class="tr-tools">
         <button onclick="trRotate(-1)"><span>⟲</span>左に回す</button>
         <button onclick="trRotate(1)"><span>⟳</span>右に回す</button>
         <button onclick="trFlip()"><span>⇋</span>左右反転</button>
         <button onclick="trResetCrop()"><span>⤢</span>全体に戻す</button>
+        <button id="trAdjBtn" onclick="trAdjShow()"><span>☀</span>明るさ</button>
         <button onclick="trAnother()"><span>📷</span>別の写真</button>
       </div>
       <div class="tr-foot"><button id="trNext" onclick="trOpenOut()">次へ：大きさを決めて保存 ▶</button></div>
@@ -156,6 +242,11 @@ function trEnsureDom(){
   <div class="modal"><div class="modal-header"><span id="trSubHdr">✂</span><button class="modal-close" onclick="trCloseSub()" aria-label="閉じる">✕</button></div>
     <div class="tr-body" id="trSubBody"></div></div>
 </div>
+<div class="modal-overlay" id="trBatchOverlay" onclick="if(event.target===this)trBatchClose()">
+  <div class="modal"><div class="modal-header"><span>🗂 まとめて 同じ大きさに</span><button class="modal-close" onclick="trBatchClose()" aria-label="閉じる">✕</button></div>
+    <div class="tr-body" id="trBtBody"></div></div>
+</div>
+<input type="file" id="trBtIn" accept="image/*" multiple hidden onchange="trBatchAdd(this)">
 <input type="file" id="trPicIn" accept="image/*" hidden onchange="trPick(this)">
 <input type="file" id="trCamIn" accept="image/*" capture="environment" hidden onchange="trPick(this)">`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
@@ -183,7 +274,8 @@ async function trPick(inp){
   const f=inp.files && inp.files[0]; inp.value=''; if(!f) return;
   try{ await trLoadFile(f); }catch(_){ toast('写真を読めませんでした'); }
 }
-async function trLoadFile(f){
+// 写真の ファイル → canvas（向きは 写真の とおり。とても 大きい ものは 少し 小さく）{c,k}
+async function loadCanvas(f){
   let bmp=null;
   try{ bmp=await createImageBitmap(f, {imageOrientation:'from-image'}); }catch(_){ bmp=null; }
   if(!bmp){
@@ -194,7 +286,11 @@ async function trLoadFile(f){
   const c=document.createElement('canvas'); c.width=Math.max(1,Math.round(w0*k)); c.height=Math.max(1,Math.round(h0*k));
   c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
   if(bmp.close) try{ bmp.close(); }catch(_){}
-  src=c; trSrcId++; ang=0; if($('trAng')) trSetAng(0); if(lineMode) trLineMode(false); srcName=String(f.name||'写真').replace(/\.[^.]+$/,'').slice(0,40)||'写真';
+  return {c, k};
+}
+async function trLoadFile(f){
+  const {c, k}=await loadCanvas(f);
+  src=c; trSrcId++; ang=0; if($('trAng')) trSetAng(0); if(lineMode) trLineMode(false); adj={b:0, c:0}; trAdjUi(); srcName=String(f.name||'写真').replace(/\.[^.]+$/,'').slice(0,40)||'写真';
   trApplyAspect(true);
   trShowEdit(true);
   if(k<1) toast('とても大きな写真なので、少し小さくして読み込みました（'+c.width+'×'+c.height+'）', 3500);
@@ -347,6 +443,7 @@ function trLayout(){
   cv.width=Math.max(1,Math.round(dw*dpr)); cv.height=Math.max(1,Math.round(dh*dpr)); cv.style.width=dw+'px'; cv.style.height=dh+'px';
   cv.style.left=disp.ox+'px'; cv.style.top=disp.oy+'px';
   const g=cv.getContext('2d'); g.clearRect(0,0,cv.width,cv.height); trDrawRot(g, cv.width, cv.height);
+  cv.style.filter=adjCss(adj);
   trBoxPos();
 }
 function trBoxPos(){
@@ -354,7 +451,7 @@ function trBoxPos(){
   b.style.left=(disp.ox+crop.x*disp.k)+'px'; b.style.top=(disp.oy+crop.y*disp.k)+'px';
   b.style.width=(crop.w*disp.k)+'px'; b.style.height=(crop.h*disp.k)+'px';
   b.classList.toggle('fixed', !!trRatio());
-  $('trInfo').textContent=`切り抜く範囲 ${Math.round(crop.w)}×${Math.round(crop.h)}（写真 ${src.width}×${src.height}${ang?'・'+fmtAng(ang):''}）`;
+  $('trInfo').textContent=`切り抜く範囲 ${Math.round(crop.w)}×${Math.round(crop.h)}（写真 ${src.width}×${src.height}${ang?'・'+fmtAng(ang):''}${adjOn(adj)?'・☀'+fmtAdj(adj.b)+' ◐'+fmtAdj(adj.c):''}）`;
 }
 
 /* ── 枠を動かす ── */
@@ -455,47 +552,20 @@ function trSetKB(k){ st.kb=k; trSaveSt();
   document.querySelectorAll('#trOutBody .tr-chip').forEach(b=>{ const m=/trSetKB\((\d+)\)/.exec(b.getAttribute('onclick')||''); if(m) b.classList.toggle('on', +m[1]===k); }); trEstimate(); }
 
 /* 切り抜いて大きさを変えた絵（ゆっくり段階的に縮めて、ぎざぎざを抑える） */
-function trRender(w, h){
-  let cur=document.createElement('canvas'); cur.width=Math.round(crop.w); cur.height=Math.round(crop.h);
-  cur.getContext('2d').drawImage(trSrcR(), crop.x, crop.y, crop.w, crop.h, 0, 0, cur.width, cur.height);
-  while(cur.width/2>=w && cur.height/2>=h){
-    const n=document.createElement('canvas'); n.width=Math.round(cur.width/2); n.height=Math.round(cur.height/2);
-    const g=n.getContext('2d'); g.imageSmoothingQuality='high'; g.drawImage(cur,0,0,n.width,n.height); cur=n;
-  }
-  const o=document.createElement('canvas'); o.width=w; o.height=h;
-  const g=o.getContext('2d');
-  if(st.fmt==='jpeg'){ g.fillStyle='#fff'; g.fillRect(0,0,w,h); }   // JPEG は透けない
-  g.imageSmoothingQuality='high'; g.drawImage(cur,0,0,w,h);
-  return o;
-}
-const toBlobP=(c,type,q)=>new Promise(r=>c.toBlob(b=>r(b), type, q));
+function trRender(w, h){ return stepDraw(trSrcR(), crop.x, crop.y, crop.w, crop.h, w, h, st.fmt, adj); }
 /* できあがり（「〜KB 以下」なら画質→大きさの順に下げて収める）。{blob,w,h,q,shrunk} */
 async function trMakeBlob(){
   if(!src || !crop) return null;
   let w=outW||trCropWH()[0], h=outH||trCropWH()[1];
   w=Math.max(1,Math.min(MAX_OUT,w)); h=Math.max(1,Math.min(MAX_OUT,h));
-  const type='image/'+st.fmt;
-  let q=st.fmt==='png'?undefined:st.q/100, cv=trRender(w,h), b=await toBlobP(cv,type,q), shrunk=false;
-  const lim=st.kb*1024;
-  if(lim && b && b.size>lim){
-    if(st.fmt!=='png'){
-      let lo=0.3, hi=q, best=null;
-      for(let i=0;i<7;i++){ const m=(lo+hi)/2; const t=await toBlobP(cv,type,m); if(t && t.size<=lim){ best={b:t,q:m}; lo=m; } else hi=m; }
-      if(best){ b=best.b; q=best.q; }
-    }
-    let tries=0;
-    while(b && b.size>lim && tries<12 && w>32 && h>32){
-      const k=Math.max(0.5, Math.sqrt(lim/b.size)*0.95); w=Math.max(1,Math.round(w*k)); h=Math.max(1,Math.round(h*k)); shrunk=true;
-      cv=trRender(w,h); b=await toBlobP(cv,type,st.fmt==='png'?undefined:Math.max(0.3,q||0.3)); tries++;
-    }
-  }
-  return {blob:b, w, h, q:q==null?null:Math.round(q*100), shrunk};
+  return blobFit(trRender, w, h, st.fmt, st.q, st.kb);
 }
 function trDrawPrev(){
   const p=$('trPrev'); if(!p) return;
   const k=Math.min(1, 600/Math.max(crop.w,crop.h));
   p.width=Math.max(1,Math.round(crop.w*k)); p.height=Math.max(1,Math.round(crop.h*k));
   p.getContext('2d').drawImage(trSrcR(), crop.x, crop.y, crop.w, crop.h, 0, 0, p.width, p.height);
+  p.style.filter=adjCss(adj);
 }
 let lastOut=null;
 function trEstimate(){
@@ -529,6 +599,167 @@ async function trShare(){
   }catch(e){ if(e && e.name==='AbortError') return; }
   toast('この端末では送れないので、保存します'); trSave();
 }
+/* ── ☀ 明るさ・◐ コントラスト の 画面（v601）── */
+const fmtAdj=v=>(v>0?'+':v<0?'−':'')+Math.abs(v);
+function trAdjUi(){
+  const b=$('trAdjB'), c=$('trAdjC'); if(!b || !c) return;
+  b.value=adj.b; c.value=adj.c; $('trAdjBv').textContent=fmtAdj(adj.b); $('trAdjCv').textContent=fmtAdj(adj.c);
+  const bt=$('trAdjBtn'), r=$('trAdjRow'); if(bt) bt.classList.toggle('on', adjOn(adj) || !!(r && !r.hidden));
+}
+function trAdjPaint(){ const cv=$('trCv'); if(cv) cv.style.filter=adjCss(adj); if(src && crop) trBoxPos(); }
+function trAdjShow(on){ const r=$('trAdjRow'); if(!r) return; r.hidden=on==null ? !r.hidden : !on; if(!r.hidden && lineMode) trLineMode(false); trAdjUi(); requestAnimationFrame(trLayout); }
+function trSetAdj(k, v){ if(!src || !['b','c'].includes(k)) return; adj[k]=Math.max(-50, Math.min(50, Math.round(+v)||0)); trAdjUi(); trAdjPaint(); }
+function trAdjAuto(){ if(!src || !crop) return; adj=autoAdj(trSrcR(), crop.x, crop.y, crop.w, crop.h); trAdjUi(); trAdjPaint(); toast('✨ 明るさ '+fmtAdj(adj.b)+'・コントラスト '+fmtAdj(adj.c)+' に しました'); }
+function trAdjReset(){ adj={b:0, c:0}; trAdjUi(); trAdjPaint(); }
+
+/* ── 🗂 何枚も まとめて 同じ大きさに（v601）── */
+const BT_MAX=50, BT_L=[2048,1600,1200,1000,800,640], BT_FIT=[[1200,900],[1600,1200],[1080,1080],[1920,1080],[900,1200]];
+let bt={files:[], b:0, c:0, auto:false, busy:false}, btLast=null, btZip=null, btPrevT=null, btPrevSeq=0;
+const btExt=()=>st.fmt==='jpeg' ? 'jpg' : st.fmt;
+const btBase=n=>String(n||'写真').replace(/\.[^.]+$/,'').replace(/[\\/:*?"<>|\u0000-\u001F]/g,'_').slice(0,40)||'写真';
+function trBatchOpen(){
+  trEnsureDom(); trLoadSt();
+  if(!isDlgOpen('trBatchOverlay')) openDlg('trBatchOverlay', trBatchGone);
+  trBatchRender();
+}
+function trBatchClose(){ if($('trBatchOverlay') && isDlgOpen('trBatchOverlay')) closeDlg('trBatchOverlay', trBatchGone); }
+function trBatchGone(){ bt.files.forEach(x=>{ try{ URL.revokeObjectURL(x.url); }catch(_){} }); bt.files=[]; clearTimeout(btPrevT); btPrevSeq++; }
+function trBatchAdd(inp){
+  const fs=[...(inp.files||[])].filter(f=>/^image\//.test(f.type||'')); inp.value='';
+  const room=BT_MAX-bt.files.length;
+  if(fs.length>room) toast('まとめて できるのは '+BT_MAX+'枚まで です', 3200);
+  fs.slice(0, Math.max(0,room)).forEach(f=>bt.files.push({f, url:URL.createObjectURL(f), name:btBase(f.name)}));
+  trBatchRender();
+}
+function trBatchDel(i){ const x=bt.files[i]; if(!x || bt.busy) return; try{ URL.revokeObjectURL(x.url); }catch(_){} bt.files.splice(i,1); trBatchRender(); }
+function trBatchSet(k, v){
+  if(bt.busy) return;
+  const B=st.bt, px=x=>Math.max(16, Math.min(MAX_OUT, Math.round(+x)||16));
+  if(k==='mode') B.mode=v==='fit' ? 'fit' : 'long';
+  else if(k==='L') B.L=px(v);
+  else if(k==='W' || k==='H') B[k]=px(v);
+  else if(k==='WH'){ const m=/^(\d+)x(\d+)$/.exec(v); if(m){ B.W=px(m[1]); B.H=px(m[2]); } }
+  else if(k==='q') st.q=Math.max(30, Math.min(100, Math.round(+v)||85));
+  else if(k==='kb'){ if(KBS.some(x=>x[0]===+v)) st.kb=+v; }
+  else if(k==='fmt'){ if(['jpeg','png'].includes(v) || v==='webp' && webpOk) st.fmt=v; }
+  else return;
+  trSaveSt(); trBatchRender();
+}
+function trBatchAdj(k, v){
+  if(k==='auto'){ bt.auto=!!v; trBatchRender(); return; }
+  if(!['b','c'].includes(k)) return;
+  bt[k]=Math.max(-50, Math.min(50, Math.round(+v)||0));
+  const e=$(k==='b' ? 'trBtBv' : 'trBtCv'); if(e) e.textContent=fmtAdj(bt[k]);
+  trBatchPrev();
+}
+function trBatchRender(){
+  const b=$('trBtBody'); if(!b) return;
+  const B=st.bt, n=bt.files.length, top=b.scrollTop, off=n && !bt.busy ? '' : ' disabled';
+  const fmts=[['jpeg','JPEG'],['png','PNG']].concat(webpOk?[['webp','WebP']]:[]);
+  b.innerHTML=`<div class="tr-btpics">${bt.files.map((x,i)=>`<div class="tr-btp"><img src="${x.url}" alt=""><i>${i+1}</i><button type="button" onclick="trBatchDel(${i})" aria-label="${i+1}枚目を 外す">✕</button></div>`).join('')}
+      ${n<BT_MAX?`<button type="button" class="tr-btadd" onclick="document.getElementById('trBtIn').click()">＋<small>${n?'足す':'写真を えらぶ'}</small></button>`:''}</div>
+    <div class="tr-note">${n ? n+'枚（'+BT_MAX+'枚まで）。どれも 同じ ように 作ります。' : '何枚でも まとめて えらべます（'+BT_MAX+'枚まで）。'}</div>
+    <div class="tr-sec">そろえ方</div>
+    <div class="tr-chips">${[['long','📏 長い辺を そろえる'],['fit','🔲 横×縦 ぴったり']].map(([k,l])=>`<button type="button" class="tr-chip${B.mode===k?' on':''}" onclick="trBatchSet('mode','${k}')">${l}</button>`).join('')}</div>
+    ${B.mode==='long'
+      ? `<div class="tr-chips" style="margin-top:8px">${BT_L.map(L=>`<button type="button" class="tr-chip${B.L===L?' on':''}" onclick="trBatchSet('L',${L})">${L}px</button>`).join('')}</div>
+         <div class="tr-note">長い 辺を ${B.L}px に します（それより 小さい 写真は そのまま）。形は 写真の まま です。</div>`
+      : `<div class="tr-wh">横<input type="number" id="trBtW" min="16" max="${MAX_OUT}" inputmode="numeric" value="${B.W}" onchange="trBatchSet('W',this.value)">×縦<input type="number" id="trBtH" min="16" max="${MAX_OUT}" inputmode="numeric" value="${B.H}" onchange="trBatchSet('H',this.value)">px</div>
+         <div class="tr-chips" style="margin-top:8px">${BT_FIT.map(([w,h])=>`<button type="button" class="tr-chip${B.W===w&&B.H===h?' on':''}" onclick="trBatchSet('WH','${w}x${h}')">${w}×${h}</button>`).join('')}</div>
+         <div class="tr-note">どの 写真も ${B.W}×${B.H} に します（形が ちがう ところは 真ん中で 切ります。小さい 写真は 大きく なって ぼやける ことが あります）。</div>`}
+    <div class="tr-sec">明るさ・コントラスト</div>
+    <div class="tr-btadj">
+      <label>☀ 明るさ<input type="range" min="-50" max="50" step="1" value="${bt.b}"${bt.auto?' disabled':''} oninput="trBatchAdj('b',this.value)" aria-label="明るさ"><b id="trBtBv">${fmtAdj(bt.b)}</b></label>
+      <label>◐ コントラスト<input type="range" min="-50" max="50" step="1" value="${bt.c}"${bt.auto?' disabled':''} oninput="trBatchAdj('c',this.value)" aria-label="コントラスト"><b id="trBtCv">${fmtAdj(bt.c)}</b></label>
+      <label class="ck"><input type="checkbox"${bt.auto?' checked':''} onchange="trBatchAdj('auto',this.checked)"> ✨ 1枚ずつ 自動で 整える</label></div>
+    <div class="tr-sec">形式</div>
+    <div class="tr-chips">${fmts.map(([k,l])=>`<button type="button" class="tr-chip${st.fmt===k?' on':''}" onclick="trBatchSet('fmt','${k}')">${l}</button>`).join('')}</div>
+    ${st.fmt==='png' ? '' : `<div class="tr-sec">画質</div><div class="tr-q"><input type="range" min="30" max="100" step="1" value="${st.q}" onchange="trBatchSet('q',this.value)" aria-label="画質"><b>${st.q}</b></div>`}
+    <div class="tr-sec">ファイルの大きさ</div>
+    <div class="tr-chips">${KBS.map(([k,l])=>`<button type="button" class="tr-chip${st.kb===k?' on':''}" onclick="trBatchSet('kb',${k})">${l}</button>`).join('')}</div>
+    <canvas class="tr-prev" id="trBtPrev" style="margin-top:12px"${n?'':' hidden'}></canvas>
+    <div class="tr-est" id="trBtEst">${n ? '1枚目で 見本を 作っています…' : '写真を えらぶと、ここに 1枚目の できあがりが 出ます'}</div>
+    <button type="button" class="tr-btn" onclick="trBatchRun('share')"${off}>📤 まとめて 送る・写真に 保存</button>
+    <button type="button" class="tr-btn sub" onclick="trBatchRun('zip')"${off}>🗜 ZIP に まとめて 保存</button>
+    <button type="button" class="tr-btn sub" onclick="trBatchRun('each')"${off}>💾 1枚ずつ 保存</button>
+    <div class="tr-note">写真は この 端末の 中で 作る だけです。iPhone は「📤」→「画像を保存」で 写真アプリに 入ります。</div>`;
+  b.scrollTop=top;
+  if(n) trBatchPrev();
+}
+// 1枚 作る（そろえ方・明るさ・形式・画質・KB）
+async function btOne(x){
+  const {c}=await loadCanvas(x.f), B=st.bt, W0=c.width, H0=c.height;
+  let sx=0, sy=0, sw=W0, sh=H0, w, h;
+  if(B.mode==='fit'){ const r=B.W/B.H; if(W0/H0>r){ sw=H0*r; sx=(W0-sw)/2; } else { sh=W0/r; sy=(H0-sh)/2; } w=B.W; h=B.H; }
+  else { const k=Math.min(1, B.L/Math.max(W0,H0)); w=Math.max(1,Math.round(W0*k)); h=Math.max(1,Math.round(H0*k)); }
+  const a=bt.auto ? autoAdj(c, sx, sy, sw, sh) : {b:bt.b, c:bt.c};
+  const r=await blobFit((ww,hh)=>stepDraw(c, sx, sy, sw, sh, ww, hh, st.fmt, a), w, h, st.fmt, st.q, st.kb);
+  r.a=a; return r;
+}
+function trBatchPrev(){
+  clearTimeout(btPrevT); const my=++btPrevSeq;
+  btPrevT=setTimeout(async ()=>{
+    const x=bt.files[0], e=$('trBtEst'), p=$('trBtPrev'); if(!x || !e || !p || bt.busy) return;
+    let r=null; try{ r=await btOne(x); }catch(_){ r=null; }
+    if(my!==btPrevSeq || !$('trBtPrev')) return;
+    if(!r || !r.blob){ e.textContent='1枚目を 読めませんでした'; return; }
+    try{ const bm=await createImageBitmap(r.blob), k=Math.min(1, 600/Math.max(bm.width,bm.height)); p.width=Math.max(1,Math.round(bm.width*k)); p.height=Math.max(1,Math.round(bm.height*k)); p.getContext('2d').drawImage(bm,0,0,p.width,p.height); if(bm.close) bm.close(); }catch(_){}
+    e.innerHTML=`1枚目の できあがり：<b>${r.w} × ${r.h}</b>　<b>${fmtKB(r.blob.size)}</b>`
+      +(bt.auto ? `<small>✨ 明るさ ${fmtAdj(r.a.b)}・コントラスト ${fmtAdj(r.a.c)}（1枚ずつ ちがいます）</small>` : '')
+      +(r.shrunk ? `<small>${st.kb}KB に 収めるため、大きさも 小さく しました</small>` : '')
+      +(st.kb && r.blob.size>st.kb*1024 ? `<small>この 形式では ${st.kb}KB に 収まりませんでした（JPEG に すると 小さく なります）</small>` : '');
+  }, 300);
+}
+// 写真を まとめた ZIP（ちぢめない。名前は UTF-8）
+async function zipStore(outs){
+  const enc=new TextEncoder(), parts=[], cen=[]; let off=0;
+  const u16=n=>[n&255,(n>>>8)&255], u32=n=>{ n>>>=0; return [n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255]; };
+  for(const o of outs){
+    const nm=enc.encode(o.name), d=new Uint8Array(await o.blob.arrayBuffer()), c=xlsxCrc32(d);
+    const lh=new Uint8Array([...u32(0x04034b50),...u16(20),...u16(0x0800),...u16(0),...u16(0),...u16(0x21),...u32(c),...u32(d.length),...u32(d.length),...u16(nm.length),...u16(0)]);
+    parts.push(lh, nm, d); cen.push({nm, c, n:d.length, off}); off+=lh.length+nm.length+d.length;
+  }
+  const cd=[]; let cs=0;
+  for(const e of cen){ const h=new Uint8Array([...u32(0x02014b50),...u16(20),...u16(20),...u16(0x0800),...u16(0),...u16(0),...u16(0x21),...u32(e.c),...u32(e.n),...u32(e.n),...u16(e.nm.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(e.off)]); cd.push(h, e.nm); cs+=h.length+e.nm.length; }
+  const end=new Uint8Array([...u32(0x06054b50),...u16(0),...u16(0),...u16(cen.length),...u16(cen.length),...u32(cs),...u32(off),...u16(0)]);
+  return new Blob([...parts, ...cd, end], {type:'application/zip'});
+}
+function btDl(blob, name){ const a=Object.assign(document.createElement('a'), {href:URL.createObjectURL(blob), download:name}); document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 2000); }
+async function trBatchRun(how){
+  if(bt.busy || !bt.files.length) return;
+  bt.busy=true; trBatchRender();
+  const outs=[], used=new Set(), N=bt.files.length;
+  try{
+    for(let i=0;i<N;i++){
+      const e=$('trBtEst'); if(e) e.innerHTML=`作っています… <b>${i+1} / ${N}</b>`;
+      let r=null; try{ r=await btOne(bt.files[i]); }catch(_){ r=null; }
+      if(!r || !r.blob) continue;
+      const base=bt.files[i].name; let nm=`${base}_${r.w}x${r.h}.${btExt()}`, k=2;
+      while(used.has(nm)) nm=`${base}_${k++}_${r.w}x${r.h}.${btExt()}`;
+      used.add(nm); outs.push({name:nm, blob:r.blob, w:r.w, h:r.h});
+      await new Promise(res=>setTimeout(res, 0));   // 画面を 止めない
+    }
+  } finally { bt.busy=false; }
+  trBatchRender();
+  btLast=outs.map(o=>({name:o.name, w:o.w, h:o.h, size:o.blob.size, type:o.blob.type})); btZip=null;
+  const e=$('trBtEst');
+  if(!outs.length){ toast('作れませんでした'); return; }
+  const total=outs.reduce((s,o)=>s+o.blob.size, 0);
+  if(e) e.innerHTML=`できました：<b>${outs.length}枚</b>・ぜんぶで <b>${fmtKB(total)}</b>`+(outs.length<N ? `<small>読めなかった 写真が ${N-outs.length}枚 ありました</small>` : '');
+  if(how==='share'){
+    const files=outs.map(o=>new File([o.blob], o.name, {type:o.blob.type}));
+    try{ if(navigator.canShare && navigator.canShare({files})){ await navigator.share({files}); return; } }catch(err){ if(err && err.name==='AbortError') return; }
+    toast('この 端末では まとめて 送れないので、ZIP で 保存します', 3500); how='zip';
+  }
+  if(how==='zip'){
+    const d=new Date(), p=n=>String(n).padStart(2,'0');
+    btZip=await zipStore(outs); btDl(btZip, `写真_${outs.length}枚_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}.zip`);
+    toast(`🗜 ${outs.length}枚を ZIP に しました（${fmtKB(btZip.size)}）`); return;
+  }
+  for(const o of outs){ btDl(o.blob, o.name); await new Promise(res=>setTimeout(res, 350)); }
+  toast(`💾 ${outs.length}枚 保存しました`);
+}
+
 function trAsk3(hdr, msg, a, b, c){
   return new Promise(res=>{
     $('trSubHdr').textContent=hdr;
@@ -543,5 +774,7 @@ function trAsk3(hdr, msg, a, b, c){
 Object.assign(window, { openTrim, closeTrim, trPick, trLoadFile, trAnother, trSetAspect, trResetCrop, trRotate, trFlip, trOpenOut, trCloseOut, trCloseSub,
   trSetAng, trNudge, trLineMode, trLineApply, trSetLine:(a,b)=>{ lineP=[a,b]; trDrawLine(); },
   trSetSize, trSetWH, trSetLock, trSetFmt, trSetQ, trSetKB, trSave, trShare, trMakeBlob, trSetCrop, trDragTo,
+  trAdjShow, trSetAdj, trAdjAuto, trAdjReset, trAdjState:()=>({...adj}), trBatchOpen, trBatchClose, trBatchAdd, trBatchDel, trBatchSet, trBatchAdj, trBatchRun,
+  trBatchState:()=>({n:bt.files.length, b:bt.b, c:bt.c, auto:bt.auto, busy:bt.busy, bt:{...st.bt}, fmt:st.fmt, q:st.q, kb:st.kb, last:btLast}), trBatchZip:()=>btZip, trAdjPixels:adjPixels, trAutoAdj:autoAdj,
   trState:()=>({st, ang, lineMode, crop:crop&&{...crop}, src:src&&{w:src.width,h:src.height}, outW, outH, disp:{...disp}, last:lastOut&&{w:lastOut.w,h:lastOut.h,size:lastOut.blob.size}}) });
 })();

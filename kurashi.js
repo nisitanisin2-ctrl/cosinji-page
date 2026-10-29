@@ -811,7 +811,7 @@ function krRender(){
     return;
   }
   const favs=kr.fav.map(id=>P.find(p=>p.id===id)).filter(Boolean);
-  L.innerHTML=`<div class="kr-grid10">${CATS.map(([id,ic,name,desc,col],i)=>`<button class="kr-card" style="--c:${col}" data-cat="${id}" onclick="krOpenCat('${id}')"><span class="no">${i+1}</span><span class="ic">${ic}</span><b>${name}</b><small>${desc}</small><span class="n">${P.filter(p=>p.cat===id).length}ページ ›</span></button>`).join('')}</div>`
+  L.innerHTML=(window.YOMIMONO ? YOMIMONO.topHtml('kurashi', P, 'krOpen', 'krViewBody') : '')+`<div class="kr-grid10">${CATS.map(([id,ic,name,desc,col],i)=>`<button class="kr-card" style="--c:${col}" data-cat="${id}" onclick="krOpenCat('${id}')"><span class="no">${i+1}</span><span class="ic">${ic}</span><b>${name}</b><small>${desc}</small><span class="n">${P.filter(p=>p.cat===id).length}ページ ›</span></button>`).join('')}</div>`
     +(favs.length?`<div class="kr-grp">★ よく見る</div>`+favs.map(p=>krItem(p,true)).join(''):'')
     +`<div class="kr-note" style="margin-top:14px">ここにあるのは一般的な内容です。制度・金額・電話番号は変わることがあるので、手続きの前には役所や公式の案内で確かめてください。<b>命に関わる時は迷わず 119番</b>。</div>`;
 }
@@ -827,18 +827,21 @@ function krCloseCat(){ if($('krCatOverlay') && isDlgOpen('krCatOverlay')){ krClo
 function krOpen(id){
   const p=P.find(x=>x.id===id); if(!p) return;
   krCur=id; krTempoStop();
+  if(window.YOMIMONO){ YOMIMONO.stop(); YOMIMONO.visit('kurashi', id, p.t.replace(/^🧮\s*/,'')); }
   const c=catOf(p.cat);
   $('krViewHdr').textContent=c[1]+' '+p.t.replace(/^🧮\s*/,'');
   const fav=kr.fav.includes(id);
   $('krViewBody').innerHTML=(typeof p.h==='function'?p.h():p.h)
-    +`<div class="kr-acts"><button onclick="krToggleFav('${id}')">${fav?'★ よく見るから外す':'☆ よく見る'}</button><button onclick="krPrint('${id}')">🖨 印刷</button></div>`
+    +`<div class="kr-acts"><button onclick="krToggleFav('${id}')">${fav?'★ よく見るから外す':'☆ よく見る'}</button>${window.YOMIMONO?`<button onclick="YOMIMONO.read(this,'krViewBody')">🔈 読み上げ</button>`:''}<button onclick="krPrint('${id}')">🖨 印刷</button></div>`
     +`<div class="kr-warn">一般的な内容です。制度・金額は変わることがあるので、最新の公式の案内で確かめてください。</div>`
     +(typeof pgNavHtml==='function'?pgNavHtml((ps=>ps.filter(x=>!/^🧮/.test(x.t)).concat(ps.filter(x=>/^🧮/.test(x.t))))(P.filter(x=>x.cat===p.cat)).map(x=>({id:x.id, t:x.t.replace(/^🧮\s*/,'')})), id, 'krOpen'):'');
   krChkSync();
-  if(!isDlgOpen('krViewOverlay')) openDlg('krViewOverlay', ()=>{ krCur=null; krTempoStop(); }); else $('krViewBody').scrollTop=0;
+  if(!isDlgOpen('krViewOverlay')) openDlg('krViewOverlay', krViewGone); else $('krViewBody').scrollTop=0;
+  if(window.YOMIMONO) YOMIMONO.watch($('krViewBody'), 'kurashi', ()=>krCur);
   if(p.init) try{ p.init(); }catch(_){}
 }
-function krCloseView(){ krTempoStop(); if($('krViewOverlay') && isDlgOpen('krViewOverlay')) closeDlg('krViewOverlay', ()=>{ krCur=null; }); }
+function krViewGone(){ krCur=null; krTempoStop(); if(window.YOMIMONO){ YOMIMONO.stop(); krRender(); } }
+function krCloseView(){ krTempoStop(); if($('krViewOverlay') && isDlgOpen('krViewOverlay')) closeDlg('krViewOverlay', krViewGone); }
 function krToggleFav(id){
   const i=kr.fav.indexOf(id); if(i>=0) kr.fav.splice(i,1); else kr.fav.push(id); krSave();
   const b=[...document.querySelectorAll('#krViewBody .kr-acts button')][0]; if(b) b.textContent=kr.fav.includes(id)?'★ よく見るから外す':'☆ よく見る';

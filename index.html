@@ -9383,6 +9383,13 @@ function saveOk(){ saveFailTold=false; }
    「あとで」でもその版は見たことにして、しつこく出さない。 */
 const SEEN_VER_KEY='excalc_seen_ver';
 const WHATSNEW=[
+  { v:'v601', t:'✂ トリミング：☀ 明るさ・🗂 まとめて／📖 読みもの：🔖 つづきから・🔈 読み上げ', li:[
+    '✂ トリミング「☀ 明るさ」：明るさ・コントラストを つまみで（−50〜＋50）。✨ 自動 で ちょうど よく。保存する 写真にも 同じに 効きます。',
+    '✂ トリミング「🗂 何枚も まとめて 同じ大きさに」：長い辺を そろえる（1600px など）か、横×縦 ぴったり（はみ出しは 真ん中で 切る）。',
+    '明るさ（1枚ずつ 自動 も）・形式・画質・「〜KB 以下」も 同じに して、📤 まとめて 送る・🗜 ZIP・💾 1枚ずつ 保存（50枚まで）。',
+    '📜 マナー帳・📒 会計の手引き・🧭 くらしの便利帳：一覧の 上に「🔖 つづきから」（前に 読んで いた ところから）と「🕘 最近 見た」。',
+    'ページの「🔈 読み上げ」で 上から 読みます（読んで いる ところに 色。もう一度 押すと 止める）。'
+  ]},
   { v:'v600', t:'🧳 しおりに 地図・📝 試験報告書・🏨 案内ページに 写真', li:[
     '🧳 旅のしおり：予定の 場所を 押すと 地図（Google マップ）。2か所 以上の 日は「🗺 この日の 道順」で 回る 順に 道案内。',
     '場所は よく使う 場所（宿・この 旅の 場所）から えらべます。📋 コピーには 道順の アドレス、🖨 印刷には 日ごとの QR コード。',
@@ -15195,13 +15202,8 @@ let mannerPartLoading=null;
 function loadMannerPart(){
   if(window.MANNER_PART_LOADED) return Promise.resolve(true);
   if(mannerPartLoading) return mannerPartLoading;
-  mannerPartLoading=new Promise(res=>{
-    const sc=document.createElement('script');
-    sc.src='manner.js';
-    sc.onload=()=>{ window.MANNER_PART_LOADED=true; mannerPartLoading=null; res(true); };
-    sc.onerror=()=>{ mannerPartLoading=null; sc.remove(); res(false); };
-    document.head.appendChild(sc);
-  });
+  // 📖 しおり・最近 見た・読み上げ（yomi.js。v601）を 先に 読む
+  mannerPartLoading=loadSidePart(['yomi.js','manner.js']).then(ok=>{ mannerPartLoading=null; if(ok) window.MANNER_PART_LOADED=true; return ok; });
   return mannerPartLoading;
 }
 const openMannerLoader=function(...a){
@@ -15218,13 +15220,8 @@ let bokiPartLoading=null;
 function loadBokiPart(){
   if(window.BOKI_PART_LOADED) return Promise.resolve(true);
   if(bokiPartLoading) return bokiPartLoading;
-  bokiPartLoading=new Promise(res=>{
-    const sc=document.createElement('script');
-    sc.src='boki.js';
-    sc.onload=()=>{ window.BOKI_PART_LOADED=true; bokiPartLoading=null; res(true); };
-    sc.onerror=()=>{ bokiPartLoading=null; sc.remove(); res(false); };
-    document.head.appendChild(sc);
-  });
+  // 📖 しおり・最近 見た・読み上げ（yomi.js。v601）を 先に 読む
+  bokiPartLoading=loadSidePart(['yomi.js','boki.js']).then(ok=>{ bokiPartLoading=null; if(ok) window.BOKI_PART_LOADED=true; return ok; });
   return bokiPartLoading;
 }
 const openBokiLoader=function(...a){
@@ -15241,13 +15238,8 @@ let kurashiPartLoading=null;
 function loadKurashiPart(){
   if(window.KURASHI_PART_LOADED) return Promise.resolve(true);
   if(kurashiPartLoading) return kurashiPartLoading;
-  kurashiPartLoading=new Promise(res=>{
-    const sc=document.createElement('script');
-    sc.src='kurashi.js';
-    sc.onload=()=>{ window.KURASHI_PART_LOADED=true; kurashiPartLoading=null; res(true); };
-    sc.onerror=()=>{ kurashiPartLoading=null; sc.remove(); res(false); };
-    document.head.appendChild(sc);
-  });
+  // 📖 しおり・最近 見た・読み上げ（yomi.js。v601）を 先に 読む
+  kurashiPartLoading=loadSidePart(['yomi.js','kurashi.js']).then(ok=>{ kurashiPartLoading=null; if(ok) window.KURASHI_PART_LOADED=true; return ok; });
   return kurashiPartLoading;
 }
 const openKurashiLoader=function(...a){
@@ -22704,10 +22696,10 @@ const TOOL_HINTS={
   bingo:'「🎱 まわす」で 抽選器が ガラガラ まわり、玉が コロコロ 出て「B の 12」と 大きく 出ます（読み上げも）。出た 数は 表に 色が つき、出た 順も わかります。⛶ 大きく で テレビにも。⚙ で 🔍 ズーム・🎆 演出の 強さ（ド派手 など）。🃏 カード で 手元の カード・印刷も できます。📱 の QR で 参加する 人の スマホに カードを 配れます',
   ruler:'はじめに「🎯 校正」でカードや硬貨を画面に当てて合わせると、定規が正しい長さになります。「📷 写真で測る」は基準の物と並べて撮ってなぞります。',
   keisan:'8つの計算から選びます。入れた数は覚えるので、次も続きから使えます。',
-  kurashi:'10のテーマから選ぶか、上の欄で「AED」「死亡届」「失業保険」のようにさがします。ページの中の 🧮 道具で、期限や金額の目安も出せます。',
-  boki:'上の欄で「仕訳」「監査」「減価償却」のようにさがすか、分類を押して読みます。🧮 道具の「仕訳ドリル」で簿記3級の仕訳を練習できます。',
-  manner:'上の欄で「香典」「返信はがき」「御中」のようにさがすか、分類を押して読みます。🧮 道具で、金額の大字・宛名の見本・法要の日も出せます。',
-  trim:'写真を撮るか選んで、傾いていれば「📏 線で水平」か角度のつまみで直し、白い枠の角や辺をつまんで動かします。「次へ」で大きさ（px・%・KB）と形式を決めて保存します。',
+  kurashi:'10のテーマから選ぶか、上の欄で「AED」「死亡届」「失業保険」のようにさがします。ページの中の 🧮 道具で、期限や金額の目安も出せます。🔖 つづきから・🔈 読み上げ も。',
+  boki:'上の欄で「仕訳」「監査」「減価償却」のようにさがすか、分類を押して読みます。🧮 道具の「仕訳ドリル」で簿記3級の仕訳を練習できます。🔖 つづきから・🔈 読み上げ も。',
+  manner:'上の欄で「香典」「返信はがき」「御中」のようにさがすか、分類を押して読みます。🧮 道具で、金額の大字・宛名の見本・法要の日も出せます。🔖 つづきから・🔈 読み上げ も。',
+  trim:'写真を撮るか選んで、傾いていれば「📏 線で水平」か角度のつまみで直し、白い枠の角や辺をつまんで動かします。「次へ」で大きさ（px・%・KB）と形式を決めて保存します。☀ で 明るさ、🗂 で 何枚も まとめて 同じ大きさに。',
   meishi:'「📷 名刺を撮って入れる」で表を撮り、名前や会社を入れます。名刺の文字をコピーして貼ると、電話・メールなどの欄に分けます。',
   renraku:'スマホの連絡帳アプリで連絡先を「ファイルにエクスポート」し、「⬆ スマホの連絡先を読み込む」でそのファイルを選びます。入れたあとは 右下の「◀」を押すと「＋ 入れる・🎨 色分け・☑ えらぶ・📇 スマホに戻す」が出ます（右端の「▶」で たたみます）。「🎨 色分け」で色をえらんで人を押すと色分け、右上の「📋 表で直す」で全員をその場で直せます。直したら「📇 スマホに戻す」で .vcf にして、スマホで読み込みます。',
 };
@@ -23062,7 +23054,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v600';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v601';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -25563,6 +25555,7 @@ const ST_GROUPS=[
   {k:'excalc_shiori',     n:'旅のしおり（日程・持ち物・お金・お土産・宿）'},
   {k:'excalc_bingo',      n:'ビンゴ（出た 数・設定・自分の カード）'},
   {k:'excalc_shiken',     n:'試験報告書の 見出し（工事名・試験者 など）'},
+  {k:'excalc_yomi',       n:'読みものの しおり・最近 見た ページ（マナー帳・会計の手引き・便利帳）'},
   {k:'excalc_receipt',    n:'読み取ったレシート（道具は外しました）', how:'clear'},   // v561〜v563 の 📷レシート読み取りの残り。勝手には消さない
   {k:'excalc_links',      n:'リンク集'},
   {k:'excalc_userkeys',   n:'自分のボタン'},
@@ -25757,6 +25750,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_yatta','excalc_shukin','excalc_shiori',   // 🔁前にやった日 帳・📋出欠・集金表・🧳旅のしおり（v579）
   'excalc_bingo',   // 🎱ビンゴ（v587）
   'excalc_shiken',   // 📝試験報告書の 見出し（v600）
+  'excalc_yomi',   // 📖読みものの しおり・最近 見た（v601）
 ];
 function settingsBundle(){
   const o={};
