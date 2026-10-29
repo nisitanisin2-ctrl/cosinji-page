@@ -1048,22 +1048,26 @@ function bkRender(){
     return;
   }
   if(bkCat==='★'){ L.innerHTML='<div class="bk-grp">★ よく見る</div>'+bk.fav.map(id=>P.find(p=>p.id===id)).filter(Boolean).map(bkItem).join(''); return; }
-  L.innerHTML=CATS.filter(c=>!bkCat||c[0]===bkCat).map(([k,l])=>`<div class="bk-grp">${l}</div>`+P.filter(p=>p.cat===k).map(bkItem).join('')).join('')
+  L.innerHTML=(window.YOMIMONO && !bkCat ? YOMIMONO.topHtml('boki', P, 'bkOpen', 'bkViewBody') : '')   // 🔖 つづきから・🕘 最近 見た（v601）
+    +CATS.filter(c=>!bkCat||c[0]===bkCat).map(([k,l])=>`<div class="bk-grp">${l}</div>`+P.filter(p=>p.cat===k).map(bkItem).join('')).join('')
     +'<div class="bk-note" style="margin-top:14px">ここにあるのは一般的な内容です。税金・法律は改正されることがあります。申告や届け出の前には、税務署・市役所・税理士や最新の公式の案内で確かめてください。</div>';
 }
 function bkOpen(id){
   const p=P.find(x=>x.id===id); if(!p) return;
   bkCur=id;
+  if(window.YOMIMONO){ YOMIMONO.stop(); YOMIMONO.visit('boki', id, p.t.replace(/^🧮\s*/,'')); }
   $('bkViewHdr').textContent='📒 '+p.t.replace(/^🧮\s*/,'');
   const fav=bk.fav.includes(id);
   $('bkViewBody').innerHTML=(typeof p.h==='function'?p.h():p.h)
-    +`<div class="bk-acts"><button onclick="bkToggleFav('${id}')">${fav?'★ よく見るから外す':'☆ よく見る'}</button><button onclick="bkPrint('${id}')">🖨 印刷</button></div>`
+    +`<div class="bk-acts"><button onclick="bkToggleFav('${id}')">${fav?'★ よく見るから外す':'☆ よく見る'}</button>${window.YOMIMONO?`<button onclick="YOMIMONO.read(this,'bkViewBody')">🔈 読み上げ</button>`:''}<button onclick="bkPrint('${id}')">🖨 印刷</button></div>`
     +(p.cat==='tool'?'':'<div class="bk-warn">一般的な内容です。税金・法律は改正されることがあるので、最新の公式の案内で確かめてください。</div>')
     +(typeof pgNavHtml==='function'?pgNavHtml(CATS.flatMap(c=>P.filter(x=>x.cat===c[0])).map(x=>({id:x.id, t:x.t.replace(/^🧮\s*/,'')})), id, 'bkOpen'):'');
-  if(!isDlgOpen('bkViewOverlay')) openDlg('bkViewOverlay', ()=>{ bkCur=null; }); else $('bkViewBody').scrollTop=0;
+  if(!isDlgOpen('bkViewOverlay')) openDlg('bkViewOverlay', bkViewGone); else $('bkViewBody').scrollTop=0;
+  if(window.YOMIMONO) YOMIMONO.watch($('bkViewBody'), 'boki', ()=>bkCur);
   if(p.init) try{ p.init(); }catch(_){}
 }
-function bkCloseView(){ if($('bkViewOverlay') && isDlgOpen('bkViewOverlay')) closeDlg('bkViewOverlay', ()=>{ bkCur=null; }); }
+function bkViewGone(){ bkCur=null; if(window.YOMIMONO){ YOMIMONO.stop(); bkRender(); } }
+function bkCloseView(){ if($('bkViewOverlay') && isDlgOpen('bkViewOverlay')) closeDlg('bkViewOverlay', bkViewGone); }
 function bkToggleFav(id){
   const i=bk.fav.indexOf(id); if(i>=0) bk.fav.splice(i,1); else bk.fav.push(id); bkSave();
   const b=[...document.querySelectorAll('#bkViewBody .bk-acts button')][0]; if(b) b.textContent=bk.fav.includes(id)?'★ よく見るから外す':'☆ よく見る';

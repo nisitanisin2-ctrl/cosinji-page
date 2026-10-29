@@ -46,7 +46,7 @@ let st=null, busy=null, pop=null, showRel=null;   // busy：まわして いる 
 const CA='ACEFHJKLMNPRTUWXY345679';   // 組の コードに 使う 字（見まちがえ やすい 字は 使わない）
 function newCode(){ let s=''; for(let i=0;i<4;i++) s+=CA[rnd(CA.length)]; return s; }
 function okCode(v){ const s=String(v==null?'':v).normalize('NFKC').toUpperCase().replace(/[^A-Z0-9]/g,''); return s.length>=1 && s.length<=8 ? s : ''; }
-function defaults(){ const code=newCode(); return {v:1, max:75, speed:'norm', sound:true, voice:true, quick:false, zoom:'norm', fx:'max', drawn:[], code, card:{code, no:1+rnd(999), marks:[]}, tab:'draw', printN:20, printFrom:1}; }
+function defaults(){ const code=newCode(); return {v:1, max:75, speed:'norm', sound:true, voice:true, quick:false, zoom:'norm', fx:'max', drawn:[], code, card:{code, no:1+rnd(999), marks:[]}, tab:'draw', printN:20, printFrom:1, qrSeq:false, qrNo:1}; }
 function cleanCard(c, dflt){
   if(!c || typeof c!=='object') return dflt;
   const code=okCode(c.code), no=int(c.no,1,MAXNO,0); if(!code || !no) return dflt;
@@ -61,7 +61,7 @@ function load(){
   st={v:1, max, speed:spOf(o.speed)[0], sound:o.sound!==false, voice:o.voice!==false, quick:o.quick===true, drawn,
     zoom:ZOOMS.some(z=>z[0]===o.zoom) ? o.zoom : 'norm', fx:FXL.some(x=>x[0]===o.fx) ? o.fx : 'max',
     code:okCode(o.code)||d.code, card:cleanCard(o.card, d.card), tab:o.tab==='card' ? 'card' : 'draw',
-    printN:int(o.printN,1,MAXP,20), printFrom:int(o.printFrom,1,MAXNO,1)};
+    printN:int(o.printN,1,MAXP,20), printFrom:int(o.printFrom,1,MAXNO,1), qrSeq:o.qrSeq===true, qrNo:int(o.qrNo,1,MAXNO,1)};
 }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); return true; }catch(_){ toastS('端末に しまえませんでした（空きが 少ない かも しれません）'); return false; } }
 // 数の 組（色）：1〜75 は B I N G O の 15こずつ。ほかは 5つに 分ける
@@ -607,7 +607,8 @@ function renderActs(){
     <button type="button" class="bg-b" onclick="BINGO.copy()"${has?'':' disabled'}>📋 コピー</button>
     ${st.max===75 ? `<button type="button" class="bg-b" onclick="BINGO.verifyPop()">🔎 たしかめ</button>` : ''}
     <button type="button" class="bg-b" onclick="BINGO.show(true)">⛶ 大きく</button>
-    <button type="button" class="bg-b" onclick="BINGO.setPop()">⚙ 設定</button>`;
+    <button type="button" class="bg-b" onclick="BINGO.setPop()">⚙ 設定</button>
+    ${st.max===75 ? `<button type="button" class="bg-b bg-wide" onclick="BINGO.qrPop()">📱 参加する 人の スマホに カードを 配る（QR）</button>` : ''}`;
 }
 function renderBoard(){
   const b=$('bgBoard'), c=$('bgCnt'); if(!b) return;
@@ -641,9 +642,10 @@ function renderCard(){
       <button type="button" class="bg-b" onclick="BINGO.cardNoPop()">🔢 番号で 作る</button>
       <button type="button" class="bg-b" onclick="BINGO.cardClear()"${c.marks.length ? '' : ' disabled'}>🧹 穴を ふさぐ</button>
       <button type="button" class="bg-b" onclick="BINGO.printPop()">🖨 カードを 印刷</button>
+      <button type="button" class="bg-b bg-wide" onclick="BINGO.qrPop()">📱 ほかの スマホに 配る（QR）</button>
     </div>
     <p class="bg-note">読み上げられた 数を 押すと 穴が あきます（もう一度 押すと もどります）。たて・よこ・ななめ の どれか 1列 そろうと ビンゴ！<br>
-    みんなで 遊ぶ ときは、親の 人が「🖨 カードを 印刷」で 配るか、組の コードと 番号を 伝えて「🔢 番号で 作る」で 作って もらいます。
+    みんなで 遊ぶ ときは、親の 人が「🖨 カードを 印刷」で 配るか、「📱 ほかの スマホに 配る」の QR を 読んで もらうか、組の コードと 番号を 伝えて「🔢 番号で 作る」で 作って もらいます。
     親は「🎱 抽選」の「🔎 たしかめ」に 番号を 入れると、ビンゴか どうか すぐ わかります。</p>`;
 }
 function cardMark(i){
@@ -761,8 +763,58 @@ function printPop(){
 }
 async function newCodeAsk(){
   if(!(await ask('組の コードを 新しく しますか？\n（前に 印刷した カードを たしかめる ときは、🔎 たしかめ で 前の コード「'+st.code+'」を 入れます）', '新しく'))) return;
-  st.code=newCode(); save(); if(pop) printPop(); toastS('組の コードを「'+st.code+'」に しました');
+  st.code=newCode(); st.qrNo=1; save(); if(pop) printPop(); toastS('組の コードを「'+st.code+'」に しました');
 }
+// 📱 参加する 人の スマホに カードを 配る（v599）
+// QR（…/apps/bingo/#bc=組の コード[&no=番号]）を 読むと、その スマホの ビンゴが「🃏 カード」で 開いて、この 組の カードが 出る
+function qrUrl(no){
+  let base='';
+  if(typeof qrAppUrl==='function') base=qrAppUrl('hyo');
+  else { try{ base=new URL('./', location.href).href; }catch(_){ base=location.href.replace(/[^/]*$/,''); } base=base.replace(/[?#].*$/,''); }
+  return base+'apps/bingo/#bc='+encodeURIComponent(st.code)+(no ? '&no='+no : '');
+}
+const isLocal=u=>/^(file:|content:|blob:)/i.test(u) || /^https?:\/\/(localhost|127\.|192\.168\.|10\.)/i.test(u);
+function qrPop(){
+  if(st.max!==75){ toastS('カードは 1〜75 の ときに 使えます'); return; }
+  const no=st.qrSeq ? st.qrNo : 0, url=qrUrl(no);
+  popOpen(`<div class="bg-ph"><b>📱 スマホに カードを 配る</b><button type="button" class="bg-x" onclick="BINGO.close()" aria-label="閉じる">✕</button></div>
+    <div class="bg-qr"><canvas id="bgQr" role="img" aria-label="カードを 配る QR コード"></canvas>
+      <div class="bg-qri"><div class="bg-qrc">組 <b class="bg-code">${esc(st.code)}</b></div>
+        ${no ? `<div class="bg-qrn">いまの QR は <b>No. ${no}</b></div>` : '<div class="bg-qrn">カードの 番号は スマホごとに ばらばら（1000〜9999）</div>'}</div></div>
+    ${isLocal(url) ? '<p class="bg-warn">いまは この 端末の 中の ファイル（または この 端末だけの アドレス）で 開いて いるので、ほかの スマホでは 開けません。インターネットに 置いた 表電卓で 開くと 使えます。</p>' : ''}
+    <h5>カードの 番号</h5>${seg([[0,'🎲 おまかせ'],[1,'🔢 1番から 順に']], no ? 1 : 0, 'BINGO.qrSeq')}
+    ${no ? `<div class="bg-pacts">${no>2 ? '<button type="button" class="bg-b" onclick="BINGO.qrNext(0)">↺ 1番に</button>' : ''}<button type="button" class="bg-b" onclick="BINGO.qrNext(-1)"${no>1 ? '' : ' disabled'}>◀ 1つ 前</button><button type="button" class="bg-b pri" onclick="BINGO.qrNext(1)">▶ 次の 人（No. ${no+1}）</button></div>` : ''}
+    <div class="bg-pacts"><button type="button" class="bg-b" onclick="BINGO.qrCopy()">📋 アドレスを コピー</button>${navigator.share ? '<button type="button" class="bg-b" onclick="BINGO.qrShare()">📤 送る</button>' : ''}</div>
+    <p class="bg-note">参加する 人の スマホの カメラで 読むと、その スマホの 🎱 ビンゴが「🃏 カード」で 開いて、組 ${esc(st.code)} の カードが 出ます（LINE などで アドレスを 送っても 同じ です）。
+    ${no ? '1人 読んだら「▶ 次の 人」を 押すと、番号が かぶりません。' : '番号は スマホごとに ばらばらに なります（まれに 同じ 番号が 出ます。かぶらない ように するなら「🔢 1番から 順に」）。'}
+    ビンゴの 人が 出たら「🔎 たしかめ」に その カードの 番号を 入れて たしかめます。</p>`);
+  qrDraw($('bgQr'), url, 6);
+}
+function qrSeqSet(v){ st.qrSeq=!!v; save(); qrPop(); }
+function qrNext(d){ if(!st.qrSeq) return; st.qrNo=d ? Math.max(1, Math.min(MAXNO, st.qrNo+(d<0 ? -1 : 1))) : 1; save(); qrPop(); if(d>0) SND.tap(); }
+async function qrCopy(){
+  const url=qrUrl(st.qrSeq ? st.qrNo : 0);
+  try{ await navigator.clipboard.writeText(url); toastS('📋 アドレスを コピーしました'); }
+  catch(_){ if(typeof appPrompt==='function') await appPrompt('この アドレスを コピーして ください', url); }
+}
+async function qrShare(){
+  const url=qrUrl(st.qrSeq ? st.qrNo : 0);
+  if(!navigator.share){ qrCopy(); return; }
+  try{ await navigator.share({ title:'🎱 ビンゴの カード', text:'ビンゴの カード（組 '+st.code+'）', url }); }catch(_){}
+}
+// QR から 開いた とき：🃏 カード に して、この 組の カードを 出す（同じ 組の カードが もう あれば そのまま）
+function takeHash(){
+  const h=String(location.hash||''); if(!/^#bc=/i.test(h)) return null;
+  let q=null; try{ q=new URLSearchParams(h.slice(1)); }catch(_){}
+  try{ window.history.replaceState(window.history.state, '', location.pathname+location.search); }catch(_){}   // 表電卓の history（計算の 記録）と まちがえない
+  const code=okCode(q && q.get('bc')), no=int(q && q.get('no'), 1, MAXNO, 0);
+  if(!code) return null;
+  const kept=st.card.code===code;
+  if(!kept) st.card={code, no:no||1000+rnd(9000), marks:[]};
+  st.tab='card'; save();
+  return {kept, code, no:st.card.no};
+}
+
 const DOC=`
 .bg-doc{ color:#111; background:#fff; font-family:"Hiragino Sans","Noto Sans JP","Noto Sans CJK JP",sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 .bg-doc .pg{ display:grid; grid-template-columns:1fr 1fr; gap:8mm 7mm; page-break-after:always; break-after:page; }
@@ -876,7 +928,7 @@ const CSS=`
 .bg-hist .mb i{ font-style:normal; font-size:10.5px; font-weight:bold; margin-right:5px; color:#fff; }
 .bg-hist .mb.now{ box-shadow:0 0 0 3px #ffd54f; }
 .bg-none{ font-size:13.5px; color:var(--text-light,#666); padding:4px; }
-.bg-cinfo{ display:flex; align-items:baseline; justify-content:center; gap:10px; margin:2px 0 8px; } .bg-cinfo b{ font-size:17px; } .bg-cinfo span{ font-size:13.5px; color:var(--text-light,#666); }
+.bg-cinfo{ display:flex; align-items:baseline; justify-content:center; gap:10px; margin:2px 0 8px; } .bg-cinfo b{ font-size:20px; } .bg-cinfo span{ font-size:13.5px; color:var(--text-light,#666); }
 .bg-card{ max-width:440px; margin:0 auto; padding:8px; border-radius:16px; border:2px solid rgba(120,132,156,.35); background:var(--modal-bg,#fff); }
 .bg-card .hd, .bg-card .gr{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:5px; }
 .bg-card .hd{ margin:0 0 5px; } .bg-card .hd b{ text-align:center; color:#fff; background:var(--c); border-radius:9px; font-size:24px; font-weight:900; padding:2px 0; }
@@ -894,6 +946,13 @@ const CSS=`
 .bg-cardtab .bg-note{ max-width:600px; margin-left:auto; margin-right:auto; }
 .bg-note{ font-size:12.5px; color:var(--text-light,#666); line-height:1.65; margin:12px 0 0; }
 .bg-vh{ text-align:center; font-weight:bold; margin:0 0 6px; } .bg-vout{ margin:10px 0 0; }
+.bg-acts .bg-wide{ grid-column:1/-1; }
+.bg-qr{ display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:10px 16px; margin:2px 0 6px; }
+.bg-qr canvas{ width:min(64vw, 46vh, 300px); height:auto; aspect-ratio:1; image-rendering:pixelated; border-radius:10px; box-shadow:0 0 0 1px rgba(120,132,156,.35); background:#fff; }
+.bg-qri{ display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center; }
+.bg-qrc{ font-size:15px; font-weight:bold; } .bg-qrc .bg-code{ font-size:30px; }
+.bg-qrn{ font-size:13.5px; color:var(--text-light,#666); max-width:15em; } .bg-qrn b{ font-size:22px; color:var(--text,#222); }
+.bg-warn{ margin:6px 0; padding:8px 10px; border-radius:10px; background:#fff3c4; color:#6d4c00; font-size:13px; line-height:1.55; }
 .bg-pop-bg{ position:absolute; inset:0; z-index:20; background:rgba(0,0,0,.45); display:flex; align-items:flex-end; justify-content:center; }
 .bg-pop{ width:100%; max-width:600px; max-height:90%; overflow:auto; background:var(--modal-bg,#fff); color:var(--text,#222); border-radius:16px 16px 0 0; padding:12px 14px calc(16px + var(--safe-bottom,0px)); box-shadow:0 -6px 24px rgba(0,0,0,.25); }
 .bg-ph{ display:flex; align-items:center; gap:8px; margin:0 0 8px; } .bg-ph b{ flex:1; min-width:0; font-size:17px; }
@@ -995,13 +1054,15 @@ function cleanup(){
 }
 function openBingo(){
   ensureDom(); load(); busy=null;
+  const q=takeHash();
   openDlg('bingoOverlay', cleanup);
   render(); mSync(!M.balls.length); mResize(); wake();
+  if(q) toastS(q.kept ? '🃏 組 '+q.code+' の カード（No. '+q.no+'）です'+(st.card.marks.length ? '（前の 穴は 🧹 で ふさげます）' : '') : '🃏 あなたの カードは No. '+q.no+'（組 '+q.code+'）です', 4500);
 }
 function closeBingo(){ if(!$('bingoOverlay') || !isDlgOpen('bingoOverlay')) return; closeDlg('bingoOverlay', cleanup); }
 
 window.BINGO={ spin, skip, undo:()=>{ undo(); }, reset:()=>{ reset(); }, tab:setTab, set:setOpt, setMax:v=>{ setMax(v); }, sayAgain, show:on=>show(!!on),
-  setPop, verifyPop, printPop, print:printCards, newCode:()=>{ newCodeAsk(); }, copy, text, close:()=>popClose(),
+  setPop, verifyPop, printPop, print:printCards, qrPop, qrSeq:v=>qrSeqSet(+v), qrNext, qrCopy:()=>{ qrCopy(); }, qrShare:()=>{ qrShare(); }, qrUrl:()=>qrUrl(st.qrSeq ? st.qrNo : 0), newCode:()=>{ newCodeAsk(); }, copy, text, close:()=>popClose(),
   cardNew:()=>{ cardNew(); }, cardNoPop, cardMake:(c,n)=>cardMake(c,n), cardClear:()=>{ cardClear(); }, mark:cardMark,
   // ためす とき 用
   state:()=>JSON.parse(JSON.stringify(st)), phase:()=>M.ph, busy:()=>!!busy, played:()=>played.slice(), said:()=>lastSaid, add:n=>addNum(+n), tap:n=>boardTap(+n),

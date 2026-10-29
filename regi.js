@@ -17,6 +17,8 @@
      記録は消さず「訂正」と残し、会計し直した会計には「No.○ の訂正」と残す（不正防止）。押したらすぐ戻す（確かめの窓は出さない。v507）。
    ・領収書の宛名（v504）：印刷の前の窓で宛名・敬称（様・御中）・但し書きを入れる（会計に残るので印刷し直しても同じ）。
    ・レシート（v503）：会計のあと・履歴から印刷（紙の幅 58mm・80mm・A4）。店の名前・住所・電話・登録番号・ひとことは ⚙ 設定。
+   ・👀 お客さんに 見せる（v596）：合計（点数・値引き）・お預かり・お釣りを 画面いっぱいの 大きな 字で。会計の あとの 窓からは お釣りと「ありがとうございました」。
+     🔄 さかさま（机に 置いて 向かいの お客さんへ。えらんだ 向きは 覚える）。✕・Esc・端末の「戻る」で もどる。
    ・入れたものは端末の中だけ（excalc_regi）。写真は小さくして保存する。 */
 (function(){
 const RG_KEY='excalc_regi', RG_UI_KEY='excalc_regi_ui', RG_SETS_KEY='excalc_regi_sets';
@@ -55,8 +57,8 @@ function rgUiLoad(){
   try{ const o=JSON.parse(localStorage.getItem(RG_UI_KEY)||'null')||{}, t=o.tax||{}, c=o.rc||{}, str=(v,n,d)=>typeof v==='string'?v.slice(0,n):d;
     ui={size:RG_SIZES[o.size]?o.size:'m', dir:o.dir==='h'?'h':'v', rows:[0,1,2,3,4].includes(+o.rows)?+o.rows:0,
       tax:{on:!!t.on, mode:t.mode==='out'?'out':'in', def:rateOk(t.def)??10, custom:rateOk(t.custom)??5, round:['floor','round','ceil'].includes(t.round)?t.round:'floor'},
-      rc:{w:['58','80','a4'].includes(c.w)?c.w:'58', shop:str(c.shop,40,''), addr:str(c.addr,80,''), tel:str(c.tel,30,''), tno:str(c.tno,20,''), note:str(c.note,80,RC0.note), auto:!!c.auto}};
-  }catch(_){ ui={size:'m', dir:'v', rows:0, tax:Object.assign({},TAX0), rc:Object.assign({},RC0)}; } }
+      rc:{w:['58','80','a4'].includes(c.w)?c.w:'58', shop:str(c.shop,40,''), addr:str(c.addr,80,''), tel:str(c.tel,30,''), tno:str(c.tno,20,''), note:str(c.note,80,RC0.note), auto:!!c.auto}, cv:o.cv==='rot'?'rot':'up'};
+  }catch(_){ ui={size:'m', dir:'v', rows:0, tax:Object.assign({},TAX0), rc:Object.assign({},RC0), cv:'up'}; } }
 /* 消費税：税率ごとにまとめて計算（インボイスと同じく、1回の会計で税率ごとに1回だけ端数を処理） */
 const taxOn=()=>!!(ui.tax&&ui.tax.on);
 const itemRate=it=>it&&it.rate!=null?it.rate:ui.tax.def;
@@ -191,6 +193,39 @@ function rgPay(){
   if(ui.rc.auto) rgPrintReceipt(sale.id);
 }
 function rgDoneClose(){ if(isDlgOpen('rgDoneOverlay')) closeDlg('rgDoneOverlay'); }
+
+/* ───────── 👀 お客さんに 見せる（v596）───────── */
+let cvKind='cart', cvRel=null;
+function rgCustHtml(){
+  if(cvKind==='done'){
+    const s=rg.sales.find(x=>x.id===rgLast); if(!s) return '';
+    return `<div class="cv-l">お釣り</div><div class="cv-v chg">${yen(s.change)}</div><div class="cv-s">合計 ${yen(s.total)}　お預かり ${yen(s.paid)}</div><div class="cv-ty">ありがとうございました</div>`;
+  }
+  const tot=total(), paid=rgPaid(), n=cart.reduce((a,l)=>a+l.qty,0), dd=orderDisc()+lineDisc();
+  return `<div class="cv-l">お会計</div><div class="cv-v">${yen(tot)}</div><div class="cv-s">${n}点${dd ? '　値引き −'+yen(dd) : ''}${taxOn() ? '　（税込）' : ''}</div>`
+    +(paid>0 && paid>=tot ? `<div class="cv-row"><span>お預かり</span><b>${yen(paid)}</b></div><div class="cv-row chg"><span>お釣り</span><b>${yen(paid-tot)}</b></div>` : '');
+}
+function rgCust(kind){
+  cvKind=kind==='done' ? 'done' : 'cart';
+  if(cvKind==='cart' && !cart.length){ toast('先に商品を入れてください'); return; }
+  let el=$('rgCv'); if(!el){ el=document.createElement('div'); el.id='rgCv'; el.className='rg-cv'; el.setAttribute('role','dialog'); el.setAttribute('aria-label','お客さんに 見せる 金額'); document.body.appendChild(el); }
+  const rot=ui.cv==='rot';
+  el.innerHTML=`<div class="cv-in${rot?' rot':''}" id="rgCvIn">${rgCustHtml()}</div><div class="cv-bar"><button type="button" onclick="rgCustRot()">🔄 ${rot?'もとの 向きに':'さかさまに（向かいの 人へ）'}</button><button type="button" onclick="rgCustClose()">✕ もどる</button></div>`;
+  if(!el.classList.contains('on')){
+    el.classList.add('on'); window.addEventListener('keydown', rgCvKey, true);
+    if(typeof modalBack==='function') cvRel=modalBack(()=>{ cvRel=null; rgCustClose(true); });   // 端末の「戻る」は この 画面だけ
+  }
+  rgCustFit();
+}
+// 長い 金額は 画面の 幅に おさまる 大きさに
+function rgCustFit(){ document.querySelectorAll('#rgCv .cv-v, #rgCv .cv-row').forEach(v=>{ v.style.fontSize=''; const W=window.innerWidth*0.94, w=v.scrollWidth; if(w>W) v.style.fontSize=(parseFloat(getComputedStyle(v).fontSize)*W/w).toFixed(1)+'px'; }); }
+function rgCustRot(){ ui.cv=ui.cv==='rot'?'up':'rot'; rgUiSave(); rgCust(cvKind); }
+function rgCustClose(fromBack){
+  const el=$('rgCv'); if(!el || !el.classList.contains('on')) return;
+  el.classList.remove('on'); window.removeEventListener('keydown', rgCvKey, true);
+  if(!fromBack && cvRel){ const r=cvRel; cvRel=null; r(); }
+}
+function rgCvKey(e){ if(e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); rgCustClose(); } else if(e.key!=='Tab') e.stopImmediatePropagation(); }
 
 /* ───────── 🧾 レシート ───────── */
 const RC_W={'58':58,'80':80,'a4':80};
@@ -584,7 +619,21 @@ const RG_CSS=`
 .rg-btn{ height:44px; padding:0 14px; border-radius:10px; border:1px solid rgba(120,132,156,.4); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:14px; font-weight:bold; cursor:pointer; }
 .rg-btn.pri{ background:#fb8c00; border-color:#fb8c00; color:#fff; } .rg-btn.pri:disabled{ opacity:.45; } .rg-btn.danger{ color:#d32f2f; border-color:rgba(211,47,47,.4); }
 .rg-btn.wide{ display:block; width:100%; margin:8px 0; } .rg-btn.big{ flex:1; height:52px; font-size:18px; }
-.rg-cart.empty .rg-payrow,.rg-cart.empty .rg-quick,.rg-cart.empty .rg-change,.rg-cart.empty .rg-acts,.rg-cart.empty .rg-total{ display:none; }
+.rg-cart.empty .rg-payrow,.rg-cart.empty .rg-quick,.rg-cart.empty .rg-change,.rg-cart.empty .rg-acts,.rg-cart.empty .rg-total,.rg-cart.empty .rg-cvbtn{ display:none; }
+.rg-cvbtn{ width:100%; margin-top:6px; }
+.rg-cv{ display:none; position:fixed; inset:0; z-index:99996; background:#05060d; color:#fff; flex-direction:column; user-select:none; -webkit-user-select:none; }
+.rg-cv.on{ display:flex; }
+.rg-cv .cv-in{ flex:1; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1.2vh; padding:12px; text-align:center; overflow:hidden; }
+.rg-cv .cv-in.rot{ transform:rotate(180deg); }
+.rg-cv .cv-l{ font-size:min(8vw,7vh); font-weight:bold; color:#c9d1e0; letter-spacing:.2em; }
+.rg-cv .cv-v{ font-size:min(22vw,24vh); font-weight:900; line-height:1.05; color:#ffe14d; white-space:nowrap; font-variant-numeric:tabular-nums; text-shadow:0 0 24px rgba(255,225,77,.35); }
+.rg-cv .cv-v.chg{ color:#5df2a0; text-shadow:0 0 24px rgba(93,242,160,.35); }
+.rg-cv .cv-s{ font-size:min(5.4vw,4.6vh); color:#c9d1e0; }
+.rg-cv .cv-row{ display:flex; align-items:baseline; gap:.5em; font-size:min(8vw,7vh); white-space:nowrap; } .rg-cv .cv-row span{ font-size:.6em; color:#c9d1e0; } .rg-cv .cv-row b{ font-variant-numeric:tabular-nums; }
+.rg-cv .cv-row.chg b{ color:#5df2a0; font-size:1.25em; }
+.rg-cv .cv-ty{ font-size:min(6.4vw,5.6vh); font-weight:bold; color:#ffb3d1; margin-top:1vh; }
+.rg-cv .cv-bar{ display:flex; gap:8px; justify-content:center; padding:8px 10px calc(10px + var(--safe-bottom,0px)); }
+.rg-cv .cv-bar button{ flex:1 1 auto; max-width:260px; min-height:48px; border-radius:14px; border:1.5px solid rgba(255,255,255,.6); background:rgba(255,255,255,.08); color:#fff; font-size:15px; font-weight:bold; cursor:pointer; }
 .rg-empty{ text-align:center; padding:40px 12px; color:var(--text-light,#888); line-height:2; }
 .rg-body{ padding:10px 14px calc(16px + var(--safe-bottom,0px)); overflow:auto; font-size:14px; line-height:1.6; color:var(--text,#222); }
 .rg-body h4{ font-size:14px; color:#e65100; margin:16px 0 6px; border-left:4px solid #fb8c00; padding-left:8px; }
@@ -648,6 +697,7 @@ function rgEnsureDom(){
       <div class="rg-payrow"><span style="font-size:13px;font-weight:bold">お預かり</span><input id="rgPaid" inputmode="numeric" placeholder="0" oninput="rgCartRender()"></div>
       <div class="rg-quick"><button onclick="rgSetPaid('just')">ちょうど</button><button onclick="rgSetPaid(1000)">¥1,000</button><button onclick="rgSetPaid(2000)">¥2,000</button><button onclick="rgSetPaid(3000)">¥3,000</button><button onclick="rgSetPaid(5000)">¥5,000</button><button onclick="rgSetPaid(10000)">¥10,000</button></div>
       <div class="rg-change" id="rgChange"></div>
+      <button class="rg-btn rg-cvbtn" onclick="rgCust()">👀 お客さんに 見せる（大きな 金額）</button>
       <div class="rg-acts"><button class="rg-btn" onclick="rgClearCart()">✕ 取り消し</button><button class="rg-btn" id="rgDiscBtn" onclick="rgDisc()">🏷 値引き</button><button class="rg-btn pri big" id="rgPayBtn" onclick="rgPay()">✓ 会計する</button></div>
     </div>
     </div>
@@ -663,7 +713,7 @@ function rgEnsureDom(){
   <div class="rg-cropz"><span>小</span><input type="range" id="rgCropZ" min="1" max="6" step="0.01" value="1" oninput="rgCropZoom(this.value)"><span>大</span></div>
   <div class="rg-hint">指で動かして位置を合わせます。つまみ（2本指）で大きくできます。</div>
   <div class="rg-row"><button class="rg-btn" onclick="closeDlg('rgCropOverlay')">やめる</button><button class="rg-btn pri" id="rgCropOkBtn" onclick="rgCropOk()">✓ この四角で使う</button></div></div></div></div>
-<div class="modal-overlay" id="rgDoneOverlay" onclick="if(event.target===this)rgDoneClose()"><div class="modal"><div class="modal-header"><span>✓ 会計しました</span><button class="modal-close" onclick="rgDoneClose()" aria-label="閉じる">✕</button></div><div class="rg-body"><div id="rgDoneBody"></div><button class="rg-btn wide" id="rgRcBtn" onclick="rgOpenRc()">🧾 レシート・領収書を印刷</button><button class="rg-btn pri wide" onclick="rgDoneClose()">次のお客さん</button><button class="rg-btn wide rg-fixbtn" id="rgDoneFix" onclick="rgFixSale()">↩ まちがえた（訂正して会計し直す）</button></div></div></div>
+<div class="modal-overlay" id="rgDoneOverlay" onclick="if(event.target===this)rgDoneClose()"><div class="modal"><div class="modal-header"><span>✓ 会計しました</span><button class="modal-close" onclick="rgDoneClose()" aria-label="閉じる">✕</button></div><div class="rg-body"><div id="rgDoneBody"></div><button class="rg-btn wide" onclick="rgCust('done')">👀 お釣りを お客さんに 見せる</button><button class="rg-btn wide" id="rgRcBtn" onclick="rgOpenRc()">🧾 レシート・領収書を印刷</button><button class="rg-btn pri wide" onclick="rgDoneClose()">次のお客さん</button><button class="rg-btn wide rg-fixbtn" id="rgDoneFix" onclick="rgFixSale()">↩ まちがえた（訂正して会計し直す）</button></div></div></div>
 <div class="modal-overlay" id="rgRcOverlay" onclick="if(event.target===this)closeDlg('rgRcOverlay')"><div class="modal"><div class="modal-header"><span>🧾 レシート・領収書</span><button class="modal-close" onclick="closeDlg('rgRcOverlay')" aria-label="閉じる">✕</button></div><div class="rg-body" id="rgRcBody"></div></div></div>`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
   rgCropBind();
@@ -698,10 +748,11 @@ function openRegi(){
   rgEnsureDom(); rgLoad(); rgUiLoad(); cart=[]; odReset();
   openDlg('regiOverlay', ()=>{ if(rgFullOn) rgFull(false); }); rgRefresh(); rgHeader(); setTimeout(rgGridLayout, 60);
 }
-function closeRegi(){ if(!$('regiOverlay')||!isDlgOpen('regiOverlay')) return; if(cart.length && !confirm('会計していない注文があります。閉じますか？（注文は消えます）')) return; if(rgFullOn) rgFull(false); ['rgRcOverlay','rgDoneOverlay','rgSetOverlay','rgCropOverlay','rgDiscOverlay','rgEditOverlay','rgItemsOverlay','rgHistOverlay'].forEach(id=>{ if(isDlgOpen(id)) closeDlg(id); }); closeDlg('regiOverlay'); }
+function closeRegi(){ if(!$('regiOverlay')||!isDlgOpen('regiOverlay')) return; if(cart.length && !confirm('会計していない注文があります。閉じますか？（注文は消えます）')) return; rgCustClose(); if(rgFullOn) rgFull(false); ['rgRcOverlay','rgDoneOverlay','rgSetOverlay','rgCropOverlay','rgDiscOverlay','rgEditOverlay','rgItemsOverlay','rgHistOverlay'].forEach(id=>{ if(isDlgOpen(id)) closeDlg(id); }); closeDlg('regiOverlay'); }
 const _ref=rgRefresh; rgRefresh=function(){ _ref(); rgHeader(); };
 
-Object.assign(window, { openRegi, closeRegi, rgAdd, rgQty, rgClearCart, rgSetPaid, rgDisc, rgOdType, rgOdSet, rgOdRound, rgLinePrice, rgLineQuick, rgCropZoom, rgCropOk, rgPay, rgDoneClose, rgCartRender:rgRenderCart,
+Object.assign(window, { rgCust, rgCustRot, rgCustClose, rgCv:()=>{ const el=$('rgCv'); return {on:!!(el && el.classList.contains('on')), kind:cvKind, rot:ui.cv, text:el ? [...el.querySelectorAll('.cv-in *')].filter(x=>!x.children.length).map(x=>x.textContent.replace(/\s+/g,' ').trim()).filter(Boolean).join(' ') : ''}; },
+  openRegi, closeRegi, rgAdd, rgQty, rgClearCart, rgSetPaid, rgDisc, rgOdType, rgOdSet, rgOdRound, rgLinePrice, rgLineQuick, rgCropZoom, rgCropOk, rgPay, rgDoneClose, rgCartRender:rgRenderCart,
   rgOpenItems, rgEditItem, rgSaveItem, rgDelItem, rgPhotoIn, rgPhotoClear, rgMove, rgEvSet, rgNewEvent, rgExportItems, rgImportItems,
   rgOpenHist, rgVoid, rgFixSale, rgFull, rgIsFull:()=>rgFullOn, rgExportXlsx, $rg:$, rgOpenSet, rgUiSet, rgPrintReceipt, rgRcSet, rgOpenRc, rgRcPrev, rgRcGo, rgReceiptHtml:id=>rgReceiptHtml(rg.sales.find(x=>x.id===id)), rgRc:()=>Object.assign({},ui.rc), rgTaxSet, rgRatePick, rgModePick, rgTax:()=>JSON.parse(JSON.stringify(Object.assign({}, ui.tax, {calc:taxCalc()}))), rgSetSave, rgSetLoad, rgSetDel, rgUi:()=>({size:ui.size, dir:ui.dir, rows:ui.rows}), rgSets:()=>rgSetsLoad(),
   rgState:()=>JSON.parse(JSON.stringify({rg, cart, od, disc:orderDisc(), ldisc:lineDisc(), total:total(), crop:rgCrop?{w:rgCrop.w,h:rgCrop.h,z:rgCrop.z,cx:rgCrop.cx,cy:rgCrop.cy}:null})), rgXlsxRows:()=>rgXlsxSheets().map(x=>x[0]), rgBuildXlsx });

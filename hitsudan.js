@@ -5,6 +5,8 @@
    ・⭐ よく使う言葉は 1回 押すだけで 大きく出る（足す・直す・並べかえ・消す。押したら読み上げる も えらべる）。
    ・✍ 手で書く板：指で書いて 見せる（1画もどす・ぜんぶ消す・線の太さ）。
    ・大きな字を押すと 画面いっぱいに出す。「↻ 相手向き」で さかさまにして 向かいの人に見せる。端末の「戻る」で もどる。
+   ・👥 向かい合わせ（v599）：画面を 上と下に 分けて、上は 向かいの人 向きに さかさま。それぞれの 大きな字には 向かいの人の 言葉が 出る
+     （🎤 話す・⭐ 言葉・✍ 書く は 上下 どちらからも。⌨ 打つ は 下だけ。上の ⭐ は 返事の 言葉）。
    ・文字の大きさ・色の組み合わせ・よく使う言葉などは excalc_hitsudan（この端末の中だけ）。
      話した・打った言葉の記録（🕘 さっきの言葉）は 残さない（閉じると消える）。 */
 (function(){
@@ -43,6 +45,7 @@ function fitText(box, el, cap){
   el.style.fontSize=best+'px';
 }
 function paintBig(){
+  paintDuo();
   const box=$('hdBig'), el=$('hdTxt'); if(!box || !el) return;
   box.className='hd-big '+st.color+(mode==='write'?' w':'');
   const live=listening && interim, t=live ? interim : cur.t;
@@ -54,13 +57,14 @@ function paintBig(){
 }
 function show(t, src){
   t=String(t==null?'':t).slice(0,1000);
+  if(duo && src==='talk'){ interim=''; duoPut(opp(duo.mic||'bot'), t, src); return; }   // 向かい合わせ：話した 人の 向かいに 出す
   cur={t, src}; interim='';
   if(t && src!=='type') addHist(t, src);
   paintBig();
 }
-function addHist(t, src){
-  if(hist[0] && hist[0].t===t && hist[0].src===src) return;
-  const d=new Date(); hist.unshift({t, src, at:d.getHours()+':'+String(d.getMinutes()).padStart(2,'0')});
+function addHist(t, src, who){
+  if(hist[0] && hist[0].t===t && hist[0].src===src && (hist[0].who||'')===(who||'')) return;
+  const d=new Date(); hist.unshift({t, src, who:who||'', at:d.getHours()+':'+String(d.getMinutes()).padStart(2,'0')});
   if(hist.length>MAX_HIST) hist.length=MAX_HIST;
   paintHist();
 }
@@ -236,6 +240,186 @@ function paintFull(){
 }
 function toggleFlip(){ flip=!flip; paintFull(); }
 
+/* ───────── 👥 向かい合わせ（上と下の 2画面。上は 向かいの人 向きに さかさま）v599 ───────── */
+// 大きな字の ところには 向かいの人の 言葉が 出る。🎤 は 押した 側の 人の 声を 向かいに 出す（聞き取りは 1つ）。
+// ✍ は 書いて いる 側の 板に 書くと、向かいにも 同じ 字が 出る（形は そのまま）。
+const REPLY=['はい','いいえ','わかりました','わかりません','もう一度 お願いします','ゆっくり お願いします','書いて ください','少し 待って ください','ありがとう'];
+const SIDES=['top','bot'], opp=s=>s==='top' ? 'bot' : 'top';
+let duo=null, duoRel=null;
+const blankMsg=()=>({t:'', src:'', k:null});
+function duoOpen(){
+  if(duo || !$('hitsudanOverlay') || !isDlgOpen('hitsudanOverlay')) return;
+  closeFull();
+  duo={m:{top:blankMsg(), bot:blankMsg()}, mic:listening ? 'bot' : null, wr:{top:false, bot:false}, kb:false};
+  if(cur.t && mode!=='write') duo.m.top={t:cur.t, src:cur.src, k:null};   // いま 出して いる 字は 向かいの 人へ
+  const el=document.createElement('div'); el.id='hdDuo'; el.setAttribute('role','dialog'); el.setAttribute('aria-label','向かい合わせ');
+  el.innerHTML=SIDES.map(s=>`<section class="hd-half ${s}" id="hdH_${s}" aria-label="${s==='top' ? '向かいの人の 側（さかさま）' : 'あなたの 側'}">
+      <div class="hd-hmain">${s==='bot' ? `<div class="hd-hkb" id="hdKb" hidden><textarea id="hdDIn" rows="2" maxlength="1000" placeholder="ここに 打つと 向かいの人の 側に 大きく 出ます"></textarea>
+        <div class="hd-hkbb"><button type="button" onclick="HITSUDAN.duoNew()">🆕 新しく</button><button type="button" onclick="HITSUDAN.duoKb(false)">✓ 打ちおわり</button></div></div>` : ''}
+        <div class="hd-hbox" id="hdBox_${s}"><div class="hd-src" id="hdS_${s}"></div><div class="hd-htxt" id="hdT_${s}"></div><canvas class="hd-hcv" id="hdCv_${s}" hidden></canvas></div></div>
+      <div class="hd-hside"><div class="hd-echo" id="hdE_${s}"></div><div class="hd-chips" id="hdC_${s}"></div><div class="hd-hbar" id="hdB_${s}"></div></div>
+    </section>`).join('<div class="hd-mid" aria-hidden="true"></div>');
+  $('hitsudanOverlay').appendChild(el);
+  for(const s of SIDES){
+    $('hdC_'+s).addEventListener('click', e=>{ const b=e.target.closest('button[data-i]'); if(b) duoPh(s, +b.dataset.i); });
+    bindDuoPad(s);
+  }
+  const ta=$('hdDIn');
+  ta.addEventListener('input', ()=>duoTyped(ta.value));
+  ta.addEventListener('keydown', e=>{ if(e.key!=='Escape') e.stopPropagation(); });
+  duoRel=typeof modalBack==='function' ? modalBack(()=>duoClose(true)) : null;
+  window.addEventListener('keydown', duoKey, true);
+  paintDuo(true);
+}
+function duoKey(e){
+  if(!duo || e.key!=='Escape') return;
+  if(typeof a11yTopDialog==='function' && a11yTopDialog()!==$('hitsudanOverlay')) return;
+  e.preventDefault(); e.stopImmediatePropagation(); duoClose();
+}
+function duoClose(byBack, quiet){
+  const el=$('hdDuo'); if(!el) return;
+  const ta=$('hdDIn'); if(duo && duo.kb && ta && ta.value.trim()) addHist(ta.value.trim(), 'type');
+  const last=duo ? duo.m.top : null;
+  el.remove(); window.removeEventListener('keydown', duoKey, true);
+  if(duoRel && !byBack) duoRel(); duoRel=null;
+  duo=null;
+  if(quiet) return;
+  if(last && last.t){ cur={t:last.t, src:last.src}; interim=''; }   // さいごに 向かいへ 出した 字を ふだんの 画面に
+  if(mode==='write'){ mode='talk'; }
+  render();
+}
+function duoPut(to, t, src){
+  if(!duo) return;
+  t=String(t==null?'':t).slice(0,1000);
+  duo.m[to]={t, src, k:null};
+  if(t && src!=='type') addHist(t, src, to==='bot' ? 'you' : '');
+  paintDuo();
+}
+function duoPh(s, i){
+  if(!duo || !SIDES.includes(s)) return;
+  const t=(s==='bot' ? st.phrases : REPLY)[i]; if(t==null) return;
+  duoPut(opp(s), t, 'ph');
+  if(st.yomu) say(t);
+}
+function duoMic(s){
+  if(!duo || !SIDES.includes(s)) return;
+  if(listening && duo.mic===s){ micStop(); return; }
+  duo.mic=s; duo.wr[s]=false;
+  if(listening){ interim=''; paintDuo(); return; }   // 聞いている まま 向きだけ かえる
+  micStart(); paintDuo();
+}
+function duoWr(s, on){
+  if(!duo || !SIDES.includes(s)) return;
+  on=on==null ? !duo.wr[s] : !!on;
+  duo.wr[s]=on;
+  if(on){ if(s==='bot' && duo.kb) duoKb(false); if(listening && duo.mic===s) micStop(); }
+  paintDuo();
+}
+function duoUndo(s){ const k=duo && duo.m[opp(s)].k; if(!k || !k.s.length) return; k.s.pop(); paintDuo(); }
+function duoClear(s){ const k=duo && duo.m[opp(s)].k; if(!k || !k.s.length) return; k.s=[]; paintDuo(); }
+function duoKb(on){
+  if(!duo) return;
+  on=on==null ? !duo.kb : !!on;
+  const ta=$('hdDIn'); if(!ta) return;
+  if(!on && duo.kb && ta.value.trim()) addHist(ta.value.trim(), 'type');
+  duo.kb=on;
+  if(on){ duo.wr.bot=false; ta.value=duo.m.top.src==='type' ? duo.m.top.t : ''; }
+  paintDuo();
+  if(on) setTimeout(()=>{ try{ ta.focus(); }catch(_){} }, 30);
+}
+function duoTyped(v){ if(!duo) return; duo.m.top={t:String(v||'').slice(0,1000), src:'type', k:null}; paintDuo(); }
+function duoNew(){
+  const ta=$('hdDIn'); if(!duo || !ta) return;
+  if(ta.value.trim()) addHist(ta.value.trim(), 'type');
+  ta.value=''; duoTyped(''); try{ ta.focus(); }catch(_){}
+}
+function duoSay(s){ const o=duo && duo.m[opp(s)]; if(o && o.t) say(o.t); else toastH('読み上げる 文字が ありません'); }
+// ✍ 板（上は さかさま なので 押した ところを ひっくり返して 読む）
+function bindDuoPad(s){
+  const c=$('hdCv_'+s); if(!c) return;
+  let line=null;
+  const pt=e=>{ const r=c.getBoundingClientRect(); let x=(e.clientX-r.left)/Math.max(1,r.width), y=(e.clientY-r.top)/Math.max(1,r.height); if(s==='top'){ x=1-x; y=1-y; } return [Math.min(1,Math.max(0,x)), Math.min(1,Math.max(0,y))]; };
+  c.addEventListener('pointerdown', e=>{
+    if(!duo || !duo.wr[s]) return; e.preventDefault();
+    const o=opp(s); let k=duo.m[o].k;
+    if(!k){ const r=c.getBoundingClientRect(); k={ar:Math.min(5, Math.max(0.2, r.width/Math.max(1,r.height))), pw:Math.max(1,r.width), s:[]}; duo.m[o]={t:'', src:'write', k}; }
+    line={w:penW(), p:[pt(e)]}; k.s.push(line); if(k.s.length>300) k.s.shift();
+    try{ c.setPointerCapture(e.pointerId); }catch(_){}
+    paintDuo();
+  });
+  c.addEventListener('pointermove', e=>{ if(!line || !duo) return; e.preventDefault(); if(line.p.length<3000) line.p.push(pt(e)); duoCv(s); duoCv(opp(s)); });
+  ['pointerup','pointercancel'].forEach(t=>c.addEventListener(t, ()=>{ if(!line) return; line=null; paintDuo(); }));
+}
+function duoCv(s){
+  const cv=$('hdCv_'+s), box=$('hdBox_'+s); if(!cv || !box || cv.hidden || !duo) return;
+  const w=box.clientWidth, h=box.clientHeight, dpr=Math.min(3, window.devicePixelRatio||1);
+  if(w<=0 || h<=0) return;
+  if(cv.width!==Math.round(w*dpr) || cv.height!==Math.round(h*dpr)){ cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr); }
+  cv.style.width=w+'px'; cv.style.height=h+'px';
+  const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,h);
+  const wr=duo.wr[s], k=wr ? duo.m[opp(s)].k : duo.m[s].k; if(!k || !k.s.length) return;
+  let bw=w, bh=h, ox=0, oy=0;   // 書く 側は 板 いっぱい。読む 側は 同じ 形のまま 入る 大きさに
+  if(!wr){ if(w/h>k.ar){ bh=h; bw=h*k.ar; } else { bw=w; bh=w/k.ar; } ox=(w-bw)/2; oy=(h-bh)/2; }
+  const sc=bw/k.pw;
+  g.lineCap='round'; g.lineJoin='round'; g.strokeStyle=inkColor();
+  for(const q of k.s){
+    g.lineWidth=Math.max(2, q.w*sc); g.beginPath();
+    q.p.forEach(([x,y],i)=>{ const X=ox+x*bw, Y=oy+y*bh; if(i) g.lineTo(X,Y); else { g.moveTo(X,Y); g.lineTo(X+0.01,Y); } });
+    g.stroke();
+  }
+}
+function duoBar(s){
+  if(duo.wr[s]){
+    const k=duo.m[opp(s)].k, n=k ? k.s.length : 0;
+    return `<button type="button" onclick="HITSUDAN.duoUndo('${s}')"${n ? '' : ' disabled'}>↩ 1画</button><button type="button" onclick="HITSUDAN.duoClear('${s}')"${n ? '' : ' disabled'}>🧹 消す</button><button type="button" class="on" onclick="HITSUDAN.duoWr('${s}')">✓ 書きおわり</button>`;
+  }
+  const on=listening && duo.mic===s;
+  return `<button type="button" class="${on ? 'rec' : ''}" onclick="HITSUDAN.duoMic('${s}')">${on ? '⏹ やめる' : '🎤 話す'}</button>`
+    +(s==='bot' ? `<button type="button" class="${duo.kb ? 'on' : ''}" onclick="HITSUDAN.duoKb()">⌨ 打つ</button>` : '')
+    +`<button type="button" onclick="HITSUDAN.duoWr('${s}')">✍ 書く</button><button type="button" onclick="HITSUDAN.duoSay('${s}')">🔈 読む</button>`
+    +(s==='bot' ? `<button type="button" onclick="HITSUDAN.duoClose()">✕ もどる</button>` : '');
+}
+function duoEcho(s){
+  const o=duo.m[opp(s)];
+  if(duo.wr[s]) return '✍ 指で 書くと、向かいの人の 側にも 出ます';
+  if(listening && duo.mic===s) return '🎤 聞いています… 話すと 向かいの人の 側に 出ます';
+  if(s==='bot' && duo.kb && !o.t) return '⌨ 打つと 向かいの人の 側に 出ます';
+  if(o.k && o.k.s.length) return '↑ 向かいに 書いた字が 出ています';
+  if(o.t) return '↑ 向かいに 出ています：'+o.t.replace(/\s+/g,' ');
+  return s==='bot' ? '⭐ 言葉を 押す・🎤 話す・⌨ 打つ・✍ 書く と、向かいの人の 側に 出ます' : '⭐ 返事を 押す・🎤 話す・✍ 書く と、こちらの 字が 向かいに 出ます';
+}
+function duoBox(s){
+  const box=$('hdBox_'+s), tx=$('hdT_'+s), sr=$('hdS_'+s), cv=$('hdCv_'+s); if(!box || !tx) return;
+  const wr=duo.wr[s], m=duo.m[s], live=!wr && listening && duo.mic===opp(s) && interim, ink=wr || (!live && !!(m.k && m.k.s.length));
+  box.className='hd-hbox '+st.color+(wr ? ' wr' : '');
+  cv.hidden=!ink;
+  let t='', ph='';
+  if(wr){ const k=duo.m[opp(s)].k; ph=k && k.s.length ? '' : '✍ ここに 指で 書いて ください'; sr.textContent='✍ 書いています'; }
+  else if(live){ t=interim; sr.textContent='🎤 聞いています…'; }
+  else if(ink){ sr.textContent='✍ 書いた字'; }
+  else if(m.t){ t=m.t; sr.textContent=SRC[m.src]||''; }
+  else { ph='向かいの人の 言葉が ここに 大きく 出ます'; sr.textContent=''; }
+  tx.classList.toggle('ph', !t && !!ph); tx.classList.toggle('live', !!live);
+  const show=t||ph, key=show+'|'+box.clientWidth+'x'+box.clientHeight+'|'+st.scale+'|'+(!!sr.textContent);
+  if(tx.textContent!==show) tx.textContent=show;
+  if(t){ if(tx._fk!==key){ fitText(box, tx, Math.max(capPx(), 120)*1.6); tx._fk=key; } }
+  else { tx.style.fontSize=''; tx._fk=''; }
+  if(ink){ duoCv(s); cv._ink=1; }
+  else if(cv._ink){ cv._ink=0; cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); }   // かくした 板は 消して おく
+}
+function paintDuo(){
+  const el=$('hdDuo'); if(!el || !duo) return;
+  el.className='hd-duo '+st.color+(duo.kb ? ' kb' : '');
+  const kb=$('hdKb'); if(kb) kb.hidden=!duo.kb;
+  for(const s of SIDES){
+    $('hdH_'+s).classList.toggle('wr', !!duo.wr[s]);
+    const b=$('hdB_'+s), hb=duoBar(s); if(b._h!==hb){ b.innerHTML=hb; b._h=hb; }
+    const c=$('hdC_'+s), hc=(s==='bot' ? st.phrases : REPLY).map((p,i)=>`<button type="button" data-i="${i}">${esc(p)}</button>`).join(''); if(c._h!==hc){ c.innerHTML=hc; c._h=hc; }
+    const e=$('hdE_'+s), te=duoEcho(s); if(e.textContent!==te) e.textContent=te;
+  }
+  for(const s of SIDES) duoBox(s);
+}
+
 /* ───────── 画面 ───────── */
 function setMode(m){
   if(!['talk','type','write'].includes(m)) return;
@@ -274,7 +458,7 @@ function paintPh(){
 function paintHist(){
   const b=$('hdHist'); if(!b) return;
   b.innerHTML=hist.length
-    ? hist.map((h,i)=>`<button type="button" class="hd-h" onclick="HITSUDAN.again(${i})"><span class="s">${h.src==='talk'?'🎤':h.src==='type'?'⌨':'⭐'}</span><span class="t">${esc(h.t)}</span><span class="at">${h.at}</span></button>`).join('')
+    ? hist.map((h,i)=>`<button type="button" class="hd-h" onclick="HITSUDAN.again(${i})"><span class="s">${h.who==='you'?'👤':''}${h.src==='talk'?'🎤':h.src==='type'?'⌨':'⭐'}</span><span class="t">${esc(h.t)}</span><span class="at">${h.at}</span></button>`).join('')
       +'<div class="hd-acts sm"><button type="button" class="hd-b" onclick="HITSUDAN.clearHist()">🧹 記録を消す</button></div>'
     : '<p class="hd-note">話した・打った・押した言葉が ここに 並びます（押すと もう一度 大きく 出ます）。閉じると 消えます。</p>';
 }
@@ -284,13 +468,14 @@ function render(){
     <div class="hd-big ${st.color}" id="hdBig" onclick="HITSUDAN.full()"><div class="hd-src" id="hdSrc"></div><div class="hd-txt" id="hdTxt"></div><canvas id="hdPad" class="hd-pad"></canvas></div>
     <div class="hd-modes" role="tablist">${[['talk','🎤 話す'],['type','⌨ 打つ'],['write','✍ 書く']].map(([k,n])=>`<button type="button" role="tab" aria-selected="${mode===k}" class="${mode===k?'on':''}" onclick="HITSUDAN.mode('${k}')">${n}</button>`).join('')}</div>
     <div id="hdPanel" class="hd-panel"></div>
+    <button type="button" class="hd-duob" onclick="HITSUDAN.duo()">👥 向かい合わせで 使う<small>画面を 上と下に 分けて、上は 向かいの 人 向きに（2人とも 書いたり 押したり できます）</small></button>
     <div class="hd-sec"><h4>⭐ よく使う言葉<small>押すと 大きく 出ます</small></h4><div id="hdPh"></div></div>
     <div class="hd-sec"><h4>🕘 さっきの言葉</h4><div id="hdHist"></div></div>
     <div class="hd-sec"><h4>⚙ 見た目</h4>
       <div class="hd-opt"><span>文字</span>${SCALES.map(([k,n])=>`<button type="button" class="${st.scale===k?'on':''}" onclick="HITSUDAN.scale('${k}')">${n}</button>`).join('')}</div>
       <div class="hd-opt"><span>色</span>${COLORS.map(([k,n])=>`<button type="button" class="c-${k}${st.color===k?' on':''}" onclick="HITSUDAN.color('${k}')">${n}</button>`).join('')}</div>
       <div class="hd-opt"><span>⭐を押したら</span>${[[false,'出すだけ'],[true,'読み上げも']].map(([v,n])=>`<button type="button" class="${st.yomu===v?'on':''}" onclick="HITSUDAN.yomu(${v})">${n}</button>`).join('')}</div>
-      <p class="hd-note">大きな字を押すと 画面いっぱいに 出ます。「↻ 相手向き」で さかさまにすると、向かいの人が 読めます。</p></div>
+      <p class="hd-note">大きな字を押すと 画面いっぱいに 出ます。「↻ 相手向き」で さかさまにすると、向かいの人が 読めます。「👥 向かい合わせ」は 机に 置いて 2人で 使います。</p></div>
   </div>`;
   const pad=$('hdPad'); pad.hidden=mode!=='write';
   paintPanel(); paintPh(); paintHist(); paintBig(); bindPad();
@@ -352,6 +537,45 @@ const HD_CSS=`
 .hd-fbar{ display:flex; gap:6px; padding:8px 10px calc(8px + var(--safe-bottom,0px)); background:rgba(0,0,0,.08); }
 .hd-full.by .hd-fbar, .hd-full.bw .hd-fbar, .hd-full.nb .hd-fbar{ background:rgba(255,255,255,.12); }
 .hd-fbar button{ flex:1; min-height:48px; border-radius:12px; border:1px solid currentColor; background:transparent; color:inherit; font-size:16px; font-weight:bold; cursor:pointer; }
+.hd-duob{ display:block; width:100%; margin:0 0 10px; min-height:54px; padding:6px 10px; border-radius:14px; border:1px dashed rgba(120,132,156,.7); background:rgba(120,132,156,.06); color:var(--text,#222); font-size:16px; font-weight:bold; cursor:pointer; }
+.hd-duob small{ display:block; margin-top:2px; font-size:12px; font-weight:normal; color:var(--text-light,#666); }
+.hd-duo{ position:fixed; inset:0; z-index:50; display:flex; flex-direction:column; background:#dfe4ec; color:#222; -webkit-user-select:none; user-select:none; }
+.hd-duo.by, .hd-duo.bw, .hd-duo.nb{ background:#000; color:#eee; }
+.hd-half{ flex:1 1 0; min-height:0; display:flex; flex-direction:column; gap:6px; padding:8px 10px; box-sizing:border-box; }
+.hd-half.bot{ padding-bottom:calc(8px + var(--safe-bottom,0px)); }
+.hd-half.top{ transform:rotate(180deg); padding-bottom:calc(8px + var(--safe-top,0px)); }
+.hd-mid{ flex:none; height:4px; margin:0 10px; border-radius:2px; background:rgba(120,132,156,.6); }
+.hd-hmain{ flex:1 1 auto; min-height:0; min-width:0; display:flex; flex-direction:column; gap:6px; }
+.hd-hbox{ position:relative; flex:1 1 auto; min-height:56px; border-radius:14px; display:flex; align-items:center; justify-content:center; padding:12px; overflow:hidden; box-shadow:inset 0 0 0 2px rgba(120,132,156,.35); }
+.hd-hbox.wb{ background:#fff; color:#111; } .hd-hbox.by{ background:#111; color:#ffd600; } .hd-hbox.bw{ background:#111; color:#fff; } .hd-hbox.nb{ background:#0d2c6c; color:#fff; }
+.hd-duo.by .hd-hbox, .hd-duo.bw .hd-hbox{ box-shadow:inset 0 0 0 2px rgba(255,255,255,.28); }
+.hd-hbox.wr{ box-shadow:inset 0 0 0 3px var(--acc,#1976d2); }
+.hd-htxt{ position:relative; width:100%; text-align:center; font-weight:bold; line-height:1.2; white-space:pre-wrap; overflow-wrap:anywhere; pointer-events:none; }
+.hd-htxt.ph{ font-size:15px !important; font-weight:normal; opacity:.55; }
+.hd-htxt.live{ opacity:.82; }
+.hd-hcv{ position:absolute; left:0; top:0; touch-action:none; }
+.hd-hcv[hidden]{ display:none; }
+.hd-hbox.wr .hd-hcv{ cursor:crosshair; }
+.hd-hside{ flex:none; display:flex; flex-direction:column; gap:6px; min-width:0; }
+.hd-echo{ min-height:18px; font-size:13px; line-height:18px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; opacity:.8; }
+.hd-chips{ display:flex; gap:6px; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; padding:1px; }
+.hd-chips::-webkit-scrollbar{ display:none; }
+.hd-chips button{ flex:none; min-height:44px; padding:0 13px; border-radius:22px; border:1px solid rgba(200,150,30,.7); background:#fff8e1; color:#3e2c00; font-size:15px; font-weight:bold; white-space:nowrap; cursor:pointer; }
+.hd-hbar{ display:flex; gap:6px; }
+.hd-hbar button{ flex:1 1 0; min-width:0; min-height:48px; padding:0 3px; border-radius:12px; border:1px solid rgba(120,132,156,.55); background:#fff; color:#222; font-size:14.5px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; }
+.hd-hbar button.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); }
+.hd-hbar button.rec{ background:#c62828; border-color:#c62828; color:#fff; animation:hdPulse 1.4s ease-in-out infinite; }
+.hd-hbar button:disabled{ opacity:.45; cursor:default; }
+.hd-hkb[hidden]{ display:none; }
+.hd-hkb textarea{ display:block; width:100%; box-sizing:border-box; min-height:62px; padding:8px 10px; border-radius:12px; border:2px solid var(--acc,#1976d2); background:#fff; color:#111; font:inherit; font-size:19px; line-height:1.4; resize:none; -webkit-user-select:text; user-select:text; }
+.hd-hkbb{ display:flex; gap:6px; margin-top:6px; }
+.hd-hkbb button{ flex:1; min-height:42px; border-radius:12px; border:1px solid rgba(120,132,156,.55); background:#fff; color:#222; font-size:14.5px; font-weight:bold; cursor:pointer; }
+@media (orientation:landscape) and (max-height:620px){
+  .hd-half{ flex-direction:row; gap:8px; padding-top:6px; }
+  .hd-half.bot{ padding-bottom:calc(6px + var(--safe-bottom,0px)); } .hd-half.top{ padding-bottom:calc(6px + var(--safe-top,0px)); }
+  .hd-hside{ width:min(46%, 420px); justify-content:flex-end; }
+  .hd-hkb textarea{ min-height:40px; } .hd-hkbb button{ min-height:36px; }
+}
 `;
 function ensureDom(){
   if($('hitsudanOverlay')) return;
@@ -367,7 +591,7 @@ function ensureDom(){
   window.addEventListener('resize', ()=>{ clearTimeout(fitT); fitT=setTimeout(()=>{ if(!isDlgOpen('hitsudanOverlay')) return; paintBig(); if(mode==='write') padDraw(); }, 150); });
   if(typeof applyNpToolFull==='function') applyNpToolFull();
 }
-function cleanup(){ listening=false; interim=''; stopRec(); closeFull(); hist=[]; strokes=[]; cur={t:'', src:''}; }
+function cleanup(){ listening=false; interim=''; stopRec(); duoClose(false, true); closeFull(); hist=[]; strokes=[]; cur={t:'', src:''}; }
 function openHitsudan(){
   ensureDom(); load(); mode='talk'; editPh=false; flip=false;
   openDlg('hitsudanOverlay', cleanup);
@@ -380,6 +604,9 @@ window.HITSUDAN={ mode:setMode, mic:micToggle, micStop, say:t=>{ say(typeof t===
   again:i=>{ const h=hist[i]; if(h){ if(mode==='write'){ mode='talk'; render(); } cur={t:h.t, src:h.src}; interim=''; paintBig(); } }, clearHist:()=>{ hist=[]; paintHist(); },
   full:openFull, closeFull:()=>closeFull(), flip:toggleFlip, padUndo, padClear, pen:setPen, scale:setScale, color:setColor, yomu:setYomu,
   show:(t,src)=>show(t, SRC[src]?src:'type'), state:()=>JSON.parse(JSON.stringify(st)), cur:()=>({t:cur.t, src:cur.src, interim, listening, mode}), hist:()=>hist.map(h=>h.src+':'+h.t),
-  strokes:()=>strokes.length, fontPx:()=>parseFloat(($('hdTxt')||{}).style.fontSize)||0 };
+  strokes:()=>strokes.length, fontPx:()=>parseFloat(($('hdTxt')||{}).style.fontSize)||0,
+  duo:duoOpen, duoClose:()=>duoClose(), duoMic, duoWr, duoKb, duoTyped, duoNew, duoPh, duoSay, duoUndo, duoClear,
+  duoState:()=>duo ? {top:Object.assign({}, duo.m.top, {k:duo.m.top.k ? duo.m.top.k.s.length : 0}), bot:Object.assign({}, duo.m.bot, {k:duo.m.bot.k ? duo.m.bot.k.s.length : 0}), mic:duo.mic, wr:Object.assign({}, duo.wr), kb:duo.kb, listening} : null,
+  duoText:s=>{ const t=$('hdT_'+s), r=$('hdS_'+s); return t ? (r ? r.textContent : '')+'|'+t.textContent : null; }, duoPx:s=>parseFloat(($('hdT_'+s)||{style:{}}).style.fontSize)||0, reply:()=>REPLY.slice() };
 Object.assign(window, { openHitsudan, closeHitsudan });
 })();

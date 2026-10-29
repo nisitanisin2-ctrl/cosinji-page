@@ -5,6 +5,8 @@
    ・急ぐ順（過ぎた・近い が 上）・名前・最近 やった 順。⚠ 過ぎた・⏳ 近い だけ 出す。
    ・押すと くわしく：やった日の 記録（60回まで。前回から ○日・1回ずつ 消せる）・ふだんの 間隔（平均）・次は いつごろ・名前／絵／目安／メモを 直す。
    ・よくある もの（エアコンの フィルター・換気扇・布団干し・散髪・歯ブラシ・浄水器 など 16）から 1回で 足す。
+   ・📅 カレンダーに（v595）：次に やる日を カレンダーへ（くわしくの「📅 次の日を カレンダーに」は 1つ、上の「📅 カレンダー」は 目安の ある もの ぜんぶ）。
+     終日の 予定で その日の 朝 9時に 知らせ。過ぎている ものは きょうの 日付で。.ics の 保存・送る・Google カレンダーで 開く は hyoics.js。
    ・📋 文字で コピー。中身は excalc_yatta（この端末の中だけ）。 */
 (function(){
 'use strict';
@@ -106,7 +108,7 @@ function render(){
   const all=ordered(), n={late:0, soon:0}; all.forEach(x=>{ if(n[x.f.st]!=null) n[x.f.st]++; });
   const list=st.filt==='all' ? all : all.filter(x=>x.f.st===st.filt), T=ymd(today());
   b.innerHTML=`<div class="yt-wrap">
-    <div class="yt-top"><button type="button" class="yt-b pri" onclick="YATTA.add()">＋ 足す</button><button type="button" class="yt-b" onclick="YATTA.copy()">📋 コピー</button>
+    <div class="yt-top"><button type="button" class="yt-b pri" onclick="YATTA.add()">＋ 足す</button><button type="button" class="yt-b" onclick="YATTA.copy()">📋 コピー</button><button type="button" class="yt-b" onclick="YATTA.calAll()">📅 カレンダー</button>
       <select class="yt-sel" aria-label="並べ方" onchange="YATTA.sort(this.value)">${[['due','急ぐ順'],['name','名前'],['recent','最近 やった 順']].map(([k,t])=>`<option value="${k}"${st.sort===k?' selected':''}>${t}</option>`).join('')}</select></div>
     <div class="yt-filt" role="tablist">${[['all','すべて',st.items.length],['late','⚠ 過ぎた',n.late],['soon','⏳ 近い',n.soon]].map(([k,t,c])=>`<button type="button" role="tab" aria-selected="${st.filt===k}" class="${st.filt===k?'on':''}${k!=='all' && c ? ' '+k : ''}" onclick="YATTA.filt('${k}')">${t} <b>${c}</b></button>`).join('')}</div>
     ${!st.items.length ? emptyHtml() : !list.length ? `<p class="yt-note">${st.filt==='late' ? '過ぎた ものは ありません 👍' : '近い ものは ありません'}</p>` : `<div class="yt-list">${list.map(({it,f})=>cardHtml(it, f, T)).join('')}</div>`}
@@ -157,6 +159,7 @@ function detailHtml(it){
       ${it.every ? '目安 '+it.every+'日ごと → <b class="stx">'+esc(stText(f, it))+'</b>'+(f.next ? '（次は '+mdw(f.next)+'）' : '') : '目安なし'}${f.avg!=null ? `<br>ふだんは 約 <b>${f.avg}日</b>ごと（${it.hist.length}回の 平均）` : ''}</div>
     <div class="yt-acts"><button type="button" class="yt-b pri" onclick="YATTA.done('${it.id}')">✓ きょう やった</button>
       <label class="yt-dt"><span>📅 ちがう日</span><input id="ytDate" type="date" max="${ymd(T)}" value="${ymd(addDays(T,-1))}" aria-label="やった日"></label><button type="button" class="yt-b" onclick="YATTA.doneOn('${it.id}', document.getElementById('ytDate').value)">＋ 入れる</button></div>
+    ${f.next ? `<div class="yt-acts"><button type="button" class="yt-b" onclick="YATTA.cal('${it.id}')">📅 次の日を カレンダーに</button></div>` : ''}
     <h5>やった日の 記録（${it.hist.length}回）</h5>
     ${ds.length ? `<div class="yt-hist">${ds.map((d,i)=>`<div class="yt-h"><span>${mdw(d)}</span><small>${i<ds.length-1 ? '前回から '+diff(d, ds[i+1])+'日' : 'はじめ'}</small><button type="button" aria-label="${md(d)}の 記録を 消す" onclick="YATTA.delHist('${it.id}', ${i})">🗑</button></div>`).join('')}</div>` : '<p class="yt-note">まだ ありません。</p>'}
     <h5>直す</h5>
@@ -249,6 +252,30 @@ function text(){
     L.forEach(({it,f})=>out.push('・'+it.name+(f.last ? '：最後 '+md(f.last)+'（'+agoText(f.days)+'）' : '')+(it.every ? '・目安 '+it.every+'日'+(f.st==='late' ? ' → '+(-f.left)+'日 過ぎ' : f.st==='soon' || f.st==='ok' ? ' → あと '+f.left+'日' : '') : ''))); });
   return out.join('\n');
 }
+/* ───────── 📅 カレンダーに（v595。hyoics.js） ───────── */
+// 次に やる日（終日・朝 9時に 知らせ）。目安が ない・まだ 記録が ない ものは なし。過ぎていたら きょう
+function calEv(it){
+  const f=info(it); if(!it.every || !f.next) return null;
+  const T=today(), d=f.next<T ? T : f.next;
+  return {uid:'yatta-'+it.id+'-'+ymd(d), title:it.emo+' '+it.name, date:ymd(d), allDay:true, alarm:-540,
+    desc:'前に やった日：'+mdw(f.last)+'（'+agoText(f.days)+'）\n目安：'+it.every+'日ごと'+(f.st==='late' ? '（'+(-f.left)+'日 過ぎています）' : '')+(it.memo ? '\nメモ：'+it.memo : '')+'\n🔁 前にやった日 帳 から'};
+}
+// カレンダーの 部品（hyoics.js）を 読んでから
+function withIcs(fn){
+  if(window.HyoIcs){ fn(); return; }
+  if(typeof loadSidePart!=='function'){ toastS('カレンダーの 部品が 読めません'); return; }
+  loadSidePart(['hyoics.js']).then(ok=>{ if(ok && window.HyoIcs) fn(); else toastS('カレンダーの 部品を 読めませんでした。インターネットに つながる ところで もう一度 どうぞ'); });
+}
+function cal(id){
+  const it=itOf(id), e=it && calEv(it);
+  if(!e){ toastS('目安（○日ごと）と やった日が あると、次の日を カレンダーに 入れられます'); return; }
+  withIcs(()=>HyoIcs.sheet([e], {file:'yatta-'+e.date+'.ics', name:'前にやった日', title:'次の日を カレンダーに', note:'終日の 予定で、その日の 朝 9時に 知らせます。'}));
+}
+function calAll(){
+  const L=ordered().map(x=>calEv(x.it)).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date));
+  if(!L.length){ toastS('目安（○日ごと）と やった日が ある ものが ありません'); return; }
+  withIcs(()=>HyoIcs.sheet(L, {file:'yatta-all.ics', name:'前にやった日', title:'次の日を まとめて カレンダーに', note:'目安の ある もの '+L.length+'件の 次の日（過ぎている ものは きょう）を 終日の 予定で 入れます。朝 9時に 知らせます。'}));
+}
 function copy(){ if(!st.items.length){ toastS('まだ 何も ありません'); return; } if(typeof toolCopyText==='function') toolCopyText(text(), '📋 コピーしました（LINE などに 貼れます）'); }
 
 /* ───────── 窓 ───────── */
@@ -325,11 +352,11 @@ function ensureDom(){
   if(typeof applyNpToolFull==='function') applyNpToolFull();
 }
 function cleanup(){ popClose(); clearTimeout(undoT); undo=null; const u=$('ytUndo'); if(u) u.classList.remove('on'); }
-function openYatta(){ ensureDom(); load(); openDlg('yattaOverlay', cleanup); render(); }
+function openYatta(){ ensureDom(); load(); openDlg('yattaOverlay', cleanup); render(); if(!window.HyoIcs && typeof loadSidePart==='function') loadSidePart(['hyoics.js']); }   // 📅 カレンダーの 部品を 先に 読んでおく（v595）
 function closeYatta(){ if(!$('yattaOverlay') || !isDlgOpen('yattaOverlay')) return; closeDlg('yattaOverlay', cleanup); }
 
 window.YATTA={ add:openAdd, addGo, preset, done, doneOn, undo:undoDo, open:openItem, close:popClose, set:setF, del:id=>{ delItem(id); }, delHist:(id,i)=>{ delHist(id,i); },
-  sort:setSort, filt:setFilt, copy, text,
+  sort:setSort, filt:setFilt, copy, text, cal, calAll, calEv:id=>{ const it=itOf(id); return it ? calEv(it) : null; },
   // ためす とき 用
   today:s=>{ fixedToday=s ? String(s) : null; if(st) render(); }, state:()=>JSON.parse(JSON.stringify(st)), clean:cleanIt, addItem:(n,e,emo,last)=>{ const it=addItem(n,e,emo,last); render(); return it ? it.id : null; },
   info:id=>{ const it=itOf(id); if(!it) return null; const f=info(it); return {st:f.st, days:f.days, left:f.left, next:f.next ? ymd(f.next) : '', avg:f.avg}; },

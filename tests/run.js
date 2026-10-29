@@ -4512,7 +4512,11 @@ async function runPolish(browser) {
   check('  組み上がったら消えている', await page.evaluate(() =>
     !document.getElementById('appSplash')), true);
 
-  // 新しくなったこと
+  // 新しくなったこと（v603：一覧は whatsnew.js。起動では 読まず、見る ときに 読む）
+  check('  起動では 一覧（whatsnew.js）を 読まない', await page.evaluate(() =>
+    typeof WHATSNEW + '/' + document.querySelectorAll('script[src="whatsnew.js"]').length), 'undefined/0');
+  check('  読めば 一覧が 使える（1回だけ 読む）', await page.evaluate(async () => {
+    const a = await loadWhatsNew(), b = await loadWhatsNew(); return (a === b) + '/' + Array.isArray(a) + '/' + document.querySelectorAll('script[src="whatsnew.js"]').length; }), 'true/true/1');
   check('  いまの版の分が書いてある', await page.evaluate(() =>
     WHATSNEW.some(w => w.v === APP_VERSION)), true);
   check('  新しい順に並ぶ', await page.evaluate(() => WHATSNEW[0].v), await page.evaluate(() => APP_VERSION));
@@ -4555,8 +4559,9 @@ async function runPolish(browser) {
     const t = document.getElementById('appToast'); t.textContent = 'x'; saveFailed('ためし'); return t.textContent; }), 'x');
   check('  直ったらまた言える', await page.evaluate(() => {
     saveOk(); saveFailed('ためし2'); return document.getElementById('appToast').textContent.includes('ためし2'); }), true);
-  check('  自動保存の失敗につないである', raw.includes("saveFailed('いまの表の自動保存')"), true);
-  check('  色の設定の失敗も伝える', raw.includes('色の設定を覚えられませんでした'), true);
+  const appJs = fs.readFileSync(pathmod.join(root, 'app.js'), 'utf8');   // v603：本体の プログラムは app.js
+  check('  自動保存の失敗につないである', appJs.includes("saveFailed('いまの表の自動保存')"), true);
+  check('  色の設定の失敗も伝える', appJs.includes('色の設定を覚えられませんでした'), true);
 
   // README
   const rd = fs.readFileSync(pathmod.join(root, 'README.md'), 'utf8');
@@ -10460,7 +10465,7 @@ async function runKeijiban569(browser) {
   // 閉じる・変なデータ
   await page.evaluate(() => { closeKeijiban(); localStorage.setItem('excalc_keijiban', JSON.stringify({ text: 5, look: 'x', color: 'mauve', move: 1, speed: 'z', rows: 99, rot: '?', list: ['ok', 3, '', '<img src=x onerror="window.__x=1">'] })); openKeijiban(); }); await w(400);
   check('  変なデータ：片づけて開く・文字は文字のまま', await page.evaluate(() => [JSON.stringify(KEIJIBAN.state()), !document.querySelector('.kj-li img'), !window.__x].join('/')),
-    '{"text":"受付は こちらです","look":"led","color":"red","move":"scroll","speed":"mid","rows":24,"rot":"auto","list":["ok","3","<img src=x onerror=\\"window.__x=1\\">"],"mode":"text","ck":{"fmt":"hms","face":"seg","color":"red","anim":"drop","idle":"none","dens":2,"colon":true,"ring":true,"stars":false,"fire":true,"date":false,"kind":"led","hand":"tick"},"sched":[],"pics":[],"picv":{"look":"photo","fit":"contain","move":"none"},"picCur":"","font":"gothic","deco":"glow","bg":"black"}/true/true');
+    '{"text":"受付は こちらです","look":"led","color":"red","move":"scroll","speed":"mid","rows":24,"rot":"auto","list":["ok","3","<img src=x onerror=\\"window.__x=1\\">"],"mode":"text","ck":{"fmt":"hms","face":"seg","color":"red","anim":"drop","idle":"none","dens":2,"colon":true,"ring":true,"stars":false,"fire":true,"date":false,"kind":"led","hand":"tick"},"sched":[],"pics":[],"picv":{"look":"photo","fit":"contain","move":"none"},"picCur":"","font":"gothic","deco":"glow","bg":"black","seq":{"list":[],"pass":1},"sb":{"a":{"name":"ホーム","col":"red","n":0},"b":{"name":"ビジター","col":"cyan","n":0},"label":"","face":"seg","snd":true}}/true/true');
   await page.evaluate(() => closeKeijiban()); await w(200);
   check('  閉じると 動かすのを止める', await page.evaluate(() => KEIJIBAN.isFull() + '/' + isDlgOpen('keijibanOverlay')), 'false/false');
   check('  エラーなし', errs.join(' | '), '');
@@ -10487,7 +10492,7 @@ async function runKeijiban570(browser) {
     window.AudioContext = class { constructor() { this.state = 'running'; this.currentTime = 0; this.destination = {}; } resume() { } createOscillator() { window.__osc++; return { type: '', frequency: {}, connect() { }, start() { }, stop() { } }; } createGain() { return { gain: { setValueAtTime() { }, exponentialRampToValueAtTime() { } }, connect() { } }; } };
   });
   await page.evaluate(() => openKeijiban()); await w(600);
-  check('  タブ：📝 文字・🕐 時計・⏰ 予約（はじめは 文字）', await page.evaluate(() => [[...document.querySelectorAll('.kj-tabs button')].map(b => b.textContent).join(','), document.querySelector('.kj-tabs .on').textContent, KEIJIBAN.state().mode].join('/')), '📝 文字,🖼 絵,🕐 時計,⏰ 予約/📝 文字/text');
+  check('  タブ：📝 文字・🕐 時計・⏰ 予約（はじめは 文字）', await page.evaluate(() => [[...document.querySelectorAll('.kj-tabs button')].map(b => b.textContent).join(','), document.querySelector('.kj-tabs .on').textContent, KEIJIBAN.state().mode].join('/')), '📝 文字,🖼 絵,🕐 時計,⏰ 予約,🏆 得点/📝 文字/text');
   await page.click('.kj-tabs button:nth-child(3)'); await w(400);
   check('  🕐 時計：全画面のボタン・見た目の えらび・見本の説明・時計を 覚える', await page.evaluate(() => [document.querySelector('.kj-go').textContent, [...document.querySelectorAll('.kj-opt > span')].map(s => s.textContent).join(','), document.getElementById('kjInfo').textContent, KEIJIBAN.state().mode, JSON.parse(localStorage.getItem('excalc_keijiban')).mode].join('/')),
     '▶ 全画面で 時計を出す/時計の種類,出し方,数字の形,色,かわるとき,いつもの動き,点の細かさ,かざり,縦に持つと/7セグ・時:分:秒・かわるとき：ぽろぽろ/clock/clock');
@@ -10662,7 +10667,7 @@ async function runKeijiban571(browser) {
   });
   check('  開くまでは 動く時計の部品も 読まない', await page.evaluate(() => typeof window.KJ_CLOCKS), 'undefined');
   await page.evaluate(() => openKeijiban()); await w(600);
-  check('  札：📝 文字・🖼 絵・🕐 時計・⏰ 予約・動く時計の部品を 読んだ', await page.evaluate(() => [[...document.querySelectorAll('.kj-tabs button')].map(b => b.textContent).join(','), typeof window.KJ_CLOCKS, KJ_CLOCKS.KINDS.length].join('/')), '📝 文字,🖼 絵,🕐 時計,⏰ 予約/object/6');
+  check('  札：📝 文字・🖼 絵・🕐 時計・⏰ 予約・動く時計の部品を 読んだ', await page.evaluate(() => [[...document.querySelectorAll('.kj-tabs button')].map(b => b.textContent).join(','), typeof window.KJ_CLOCKS, KJ_CLOCKS.KINDS.length].join('/')), '📝 文字,🖼 絵,🕐 時計,⏰ 予約,🏆 得点/object/6');
   // 🖼 絵
   await page.click('.kj-tabs button:nth-child(2)'); await w(300);
   check('  🖼 絵：はじめは ない・足すボタン・全画面のボタン・見せ方', await page.evaluate(() => [KEIJIBAN.state().mode, document.getElementById('kjInfo').textContent, document.querySelectorAll('.kj-pic').length, [...document.querySelectorAll('.kj-acts.sm .kj-b')].map(b => b.textContent).join(','), document.querySelector('.kj-go').textContent, [...document.querySelectorAll('.kj-opt > span')].map(s => s.textContent).join(',')].join('/')),
@@ -10961,7 +10966,7 @@ async function runHadeTimer575(browser) {
     window.appConfirm = async () => true; window.appPrompt = async () => 'テスト';
   });
   await page.evaluate(() => openHadeTimer()); await w(700);
-  check('  はじめ：タイマー 3分・よく使う時間 4つ・テーマ 6つ・強さ 5つ・見せ方 4つ（🕐 時計は v588）・見本が 動く', await page.evaluate(() => { const s = HADE_TIMER.state(); return [s.mode, s.sec, ['htH', 'htM', 'htS'].map(i => document.getElementById(i).value).join(':'), document.querySelectorAll('.ht-pre').length, document.querySelectorAll('.ht-opt .th').length, [...document.querySelectorAll('.ht-opt')].find(x => x.querySelector('span').textContent === '演出の 強さ').querySelectorAll('button').length, document.querySelectorAll('.ht-modes button').length, HADE_TIMER.fx().prev >= 0, !!document.querySelector('#hadeTimerOverlay .tool-back')].join('/'); }), 'down/180/0:3:0/4/6/5/4/true/true');
+  check('  はじめ：タイマー 3分・よく使う時間 4つ・テーマ 6つ・強さ 5つ・見せ方 4つ（🕐 時計は v588）・見本が 動く', await page.evaluate(() => { const s = HADE_TIMER.state(); return [s.mode, s.sec, ['htH', 'htM', 'htS'].map(i => document.getElementById(i).value).join(':'), document.querySelectorAll('.ht-pre').length, document.querySelectorAll('.ht-opt .th').length, [...document.querySelectorAll('.ht-opt')].find(x => x.querySelector('span').textContent === '演出の 強さ').querySelectorAll('button').length, document.querySelectorAll('.ht-modes button').length, HADE_TIMER.fx().prev >= 0, !!document.querySelector('#hadeTimerOverlay .tool-back')].join('/'); }), 'down/180/0:3:0/4/6/5/6/true/true');
   await page.fill('#htM', '0'); await page.fill('#htS', '5');
   check('  時・分・秒を 打つ・＋10秒・クリア', await page.evaluate(() => { const a = [HADE_TIMER.state().sec]; HADE_TIMER.add(10); a.push(HADE_TIMER.state().sec, document.getElementById('htS').value); HADE_TIMER.set(0); a.push(HADE_TIMER.state().sec); HADE_TIMER.start(); a.push(HADE_TIMER.stage(), document.getElementById('appToast').textContent); return a.join('/'); }), '5/15/15/0/false/時間を 決めてください');
   check('  ⭐ よく使う時間：残す・押すと その時間・消す', await page.evaluate(async () => { HADE_TIMER.set(95); await HADE_TIMER.addPre('おやつ'); const a = [HADE_TIMER.state().pre.length, HADE_TIMER.state().pre[4].n + ':' + HADE_TIMER.state().pre[4].s, !!document.querySelector('.ht-pre.on')]; HADE_TIMER.usePre(0); a.push(HADE_TIMER.state().sec); HADE_TIMER.delPre(4); await new Promise(r => setTimeout(r, 50)); a.push(HADE_TIMER.state().pre.length); return a.join('/'); }), '5/おやつ:95/true/180/4');
@@ -11187,7 +11192,7 @@ async function runSeikyu575(browser) {
   const w = ms => page.waitForTimeout(ms);
   await page.evaluate(() => { window.appConfirm = async () => true; window.__print = 0; window.print = () => { window.__print++; }; });
   await page.evaluate(() => openSeikyu()); await w(500);
-  check('  はじめ：請求書・番号（日付-01）・今日・支払期限は 翌月末・品物 1行・← もどる', await page.evaluate(() => { const c = SEIKYU.state().cur, d = new Date(), ymd = x => x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'), eom = new Date(d.getFullYear(), d.getMonth() + 2, 0); return [c.kind, c.no === ymd(d).replace(/-/g, '') + '-01', c.date === ymd(d), c.due === ymd(eom), c.items.length, document.querySelectorAll('.sk-kinds button').length, !!document.querySelector('#seikyuOverlay .tool-back'), document.getElementById('skFoot').textContent.includes('0円')].join('/'); }), 'seikyu/true/true/true/1/3/true/true');
+  check('  はじめ：請求書・番号（日付-01）・今日・支払期限は 翌月末・品物 1行・← もどる', await page.evaluate(() => { const c = SEIKYU.state().cur, d = new Date(), ymd = x => x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'), eom = new Date(d.getFullYear(), d.getMonth() + 2, 0); return [c.kind, c.no === ymd(d).replace(/-/g, '') + '-01', c.date === ymd(d), c.due === ymd(eom), c.items.length, document.querySelectorAll('.sk-kinds button').length, !!document.querySelector('#seikyuOverlay .tool-back'), document.getElementById('skFoot').textContent.includes('0円')].join('/'); }), 'seikyu/true/true/true/1/4/true/true');   // 書類は 4つ（領収書は v596）
   // 例：定価 100万 ×1・10％引き・オプション 3つ・「オプション3つ以上で 定価5％値下げ」・数量2以上で 2万円引き（届かない）・1万円未満を 切り捨て
   await page.evaluate(() => {
     SEIKYU.me('name', '表電卓工業 株式会社'); SEIKYU.me('reg', 't1234567890123'); SEIKYU.me('bank', '〇〇銀行 本店 普通 1234567'); SEIKYU.me('seal', true);
@@ -12098,7 +12103,7 @@ async function runHadeFull588(browser) {
   check('  ■ やめる：全画面を 終える', await page.evaluate(() => [HADE_TIMER.stage(), HADE_TIMER.fs()].join('/')), 'false/false');
   // 🕐 時計（時刻を ずらして 時報・目覚ましを たしかめる）
   await page.evaluate(() => HADE_TIMER.mode('clock')); await w(300);
-  check('  🕐 時計：見せ方が 4つ（タイマー・ストップウォッチ・くり返し・時計）・設定（表示・秒・時報・目覚まし）・「▶ 時計を 出す」', await page.evaluate(() => [[...document.querySelectorAll('.ht-modes button')].map(b => b.textContent).join(','), [...document.querySelectorAll('#htSet .ht-opt > span')].map(s => s.textContent).join(','), !!document.getElementById('htAl'), document.querySelector('#hadeTimerOverlay .ht-go').textContent].join('/')), '⏳ タイマー,⏱ ストップウォッチ,🔁 くり返し,🕐 時計/表示,秒,時報,⏰ 目覚まし/true/▶ 時計を 出す');
+  check('  🕐 時計：見せ方が 4つ（タイマー・ストップウォッチ・くり返し・時計）・設定（表示・秒・時報・目覚まし）・「▶ 時計を 出す」', await page.evaluate(() => [[...document.querySelectorAll('.ht-modes button')].map(b => b.textContent).join(','), [...document.querySelectorAll('#htSet .ht-opt > span')].map(s => s.textContent).join(','), !!document.getElementById('htAl'), document.querySelector('#hadeTimerOverlay .ht-go').textContent].join('/')), '⏳ タイマー,⏱ ストップウォッチ,🔁 くり返し,📋 進行表,⏲ 同時に,🕐 時計/表示,秒,時報,⏰ 目覚まし/true/▶ 時計を 出す');
   await page.evaluate(() => { const real = Date.now.bind(Date); window.__real = real; window.__off = 0; Date.now = () => real() + window.__off; });
   await page.click('#hadeTimerOverlay .ht-go'); await w(600);
   check('  時計を 出す：全画面・いまの 時刻・日付と 曜日・下の ボタン（いま 派手に・やめる・戻る）', await page.evaluate(() => { const p = n => String(n).padStart(2, '0'), f = d => p(d.getHours()) + ':' + p(d.getMinutes()), d = new Date(), v = HADE_TIMER.clockView();
@@ -12192,6 +12197,826 @@ async function runBingo588(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runTimerVoice593(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ⏱ ど派手タイマー：🗣 声で 数える（v593） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const since = n => page.evaluate(n => HADE_TIMER.said().slice(n).join(','), n), cnt = () => page.evaluate(() => HADE_TIMER.said().length);
+  await page.evaluate(() => { window.appConfirm = async () => true; document.documentElement.requestFullscreen = () => Promise.resolve(); });
+  await page.evaluate(async () => { await openHadeTimer(); HADE_TIMER.opt('level', 'calm'); }); await w(200);
+  check('  はじめは「数える」・設定に 🗣 声で 数える（なし・数える・節目も）', await page.evaluate(() => { const r = [...document.querySelectorAll('.ht-opt')].find(x => x.querySelector('span') && x.querySelector('span').textContent === '🗣 声で 数える'); return [HADE_TIMER.state().voice, r ? [...r.querySelectorAll('button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(',') : ''].join('/'); }), 'last/なし,数える*,節目も');
+  let n = await cnt();
+  await page.evaluate(() => { HADE_TIMER.mode('down'); HADE_TIMER.set(13); HADE_TIMER.start(); }); await w(400); await page.evaluate(() => HADE_TIMER.shift(1500)); await w(2600);
+  check('  のこり10秒から 声で 数える（じゅう・きゅう…）', await since(n).then(t => /じゅう/.test(t) && /きゅう/.test(t) && !/時間です/.test(t)), true);
+  await page.evaluate(() => HADE_TIMER.shift(6500)); await page.waitForFunction(() => HADE_TIMER.alarm(), null, { timeout: 8000 }); await w(200);
+  check('  0 で「時間です」（いち の あと）', await since(n).then(t => { const a = t.split(','); return [a.includes('いち'), a[a.length - 1]].join('/'); }), 'true/時間です');
+  check('  数える：節目（のこり ○分）は 読まない', await since(n).then(t => /のこり|半分/.test(t)), false);
+  await page.evaluate(() => { HADE_TIMER.stopAlarm(true); HADE_TIMER.stop(); HADE_TIMER.opt('voice', 'all'); }); await w(300);
+  n = await cnt();
+  await page.evaluate(() => { HADE_TIMER.set(100); HADE_TIMER.start(); HADE_TIMER.shift(38800); }); await w(1600);
+  check('  節目も：のこり 1分', await since(n).then(t => t.split(',').includes('のこり 1分です')), true);
+  await page.evaluate(() => HADE_TIMER.shift(29000)); await w(1600);
+  check('  節目も：半分・のこり 30秒', await since(n).then(t => { const a = t.split(','); return [a.includes('半分 すぎました'), a.includes('のこり 30秒です')].join('/'); }), 'true/true');
+  await page.evaluate(() => { HADE_TIMER.stop(); HADE_TIMER.opt('voice', 'last'); HADE_TIMER.mode('iv'); HADE_TIMER.ivSet(5, 3, 2); }); await w(300);
+  n = await cnt();
+  await page.evaluate(() => HADE_TIMER.start()); await w(3800);
+  check('  くり返し：よーい の 3・2・1 と スタート', await since(n).then(t => { const a = t.split(','); return [a.includes('さん'), a.includes('いち'), a.includes('スタート')].join('/'); }), 'true/true/true');
+  await page.evaluate(() => HADE_TIMER.shift(4600)); await w(1200);
+  check('  くり返し：休けい', await since(n).then(t => t.split(',').includes('休けい')), true);
+  await page.evaluate(() => { HADE_TIMER.stop(); HADE_TIMER.mode('up'); }); await w(300);
+  n = await cnt();
+  await page.evaluate(() => HADE_TIMER.start()); await w(400); await page.evaluate(() => HADE_TIMER.shift(60300)); await w(1500);
+  check('  ストップウォッチ：1分ごとに「1分」', await since(n).then(t => t.split(',').includes('1分')), true);
+  await page.evaluate(() => { HADE_TIMER.stop(); HADE_TIMER.mode('down'); HADE_TIMER.opt('voice', 'off'); }); await w(300);
+  n = await cnt();
+  await page.evaluate(() => { HADE_TIMER.set(12); HADE_TIMER.start(); HADE_TIMER.shift(3000); }); await w(1500);
+  check('  なし：読まない（しまう）', await page.evaluate(n => [HADE_TIMER.said().length - n, JSON.parse(localStorage.getItem('excalc_hadetimer')).voice].join('/'), n), '0/off');
+  await page.evaluate(() => { HADE_TIMER.stop(); HADE_TIMER.opt('voice', 'last'); HADE_TIMER.opt('snd', false); }); await w(300);
+  n = await cnt();
+  await page.evaluate(() => { HADE_TIMER.set(12); HADE_TIMER.start(); HADE_TIMER.shift(3000); }); await w(1500);
+  check('  音を 鳴らさない ときは 声も 出さない', await page.evaluate(n => HADE_TIMER.said().length - n, n), 0);
+  await page.evaluate(() => { HADE_TIMER.stop(); HADE_TIMER.opt('snd', true); closeHadeTimer(); }); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+// ⚔ ど派手カウンター：2チーム 対戦（v594）
+async function runCountVs594(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🎉 ど派手カウンター：⚔ 対戦（v594） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const ns = () => page.evaluate(() => HADE_COUNT.state().list.slice(0, 2).map(c => c.n).join(','));
+  await page.evaluate(() => { window.appConfirm = async () => true; navigator.vibrate = () => true; document.documentElement.requestFullscreen = () => Promise.resolve(); });
+  await page.evaluate(() => openHadeCount()); await w(600);
+  await page.evaluate(() => HADE_COUNT.opt('view', 'vs')); await w(500);
+  check('  対戦に すると 紅組・白組（1つなら 相手を 足す）・陣地 2つ・− 2つ・下の ボタン', await page.evaluate(() => { const s = HADE_COUNT.state(), t = document.getElementById('hcCtl').textContent; return [s.list.map(c => c.name + c.col).join(','), HADE_COUNT.tiles().length, document.querySelectorAll('.hc-tmin').length, t.includes('けっか') && t.includes('もう一度') && !t.includes('0 に')].join('/'); }), '紅組red,白組white/2/2/true');
+  check('  はじめは まだ・VS・名前の 知らせ（絵文字は そのままの 色）', await page.evaluate(() => { const v = HADE_COUNT.vs(), e = document.querySelector('#hcBan .emo'); return [v.ph, v.label, HADE_COUNT.banner(), !!e && getComputedStyle(e).webkitTextFillColor !== 'rgba(0, 0, 0, 0)'].join('/'); }), 'idle/VS/⚔ 紅組 VS 白組/true');
+  const r = await page.evaluate(() => { const b = document.getElementById('hcCv').getBoundingClientRect(); return [b.left, b.top, b.width, b.height]; });
+  for (let i = 0; i < 2; i++) { await page.mouse.click(r[0] + r[2] / 2, r[1] + r[3] * 0.2); await w(90); }
+  await w(700);
+  check('  上を 押すと 紅組・先制・勝っている ほうが 広い', await page.evaluate(() => { const v = HADE_COUNT.vs(); return [HADE_COUNT.state().list.slice(0, 2).map(c => c.n).join(','), v.ph, v.lead, HADE_COUNT.banner(), v.r > 0.53].join('/'); }), '2,0/run/0/先制！ 紅組/true');
+  await page.evaluate(() => { for (let i = 0; i < 3; i++) HADE_COUNT.tap(1); }); await w(200);
+  check('  同点を はさんで 逆転（白組）', await page.evaluate(() => [HADE_COUNT.state().list.slice(0, 2).map(c => c.n).join(','), HADE_COUNT.vs().lead, HADE_COUNT.banner(), HADE_COUNT.fx().played.includes('whoosh')].join('/')), '2,3/1/逆転！ 白組/true');
+  await page.setViewportSize({ width: 900, height: 600 }); await w(900);
+  check('  横持ちは 左右・勝っている 白組が 広い', await page.evaluate(() => { const t = HADE_COUNT.tiles().map(x => x.split(':')[1].split('x').map(Number)); return [t[0][1] === t[1][1], t[1][0] > t[0][0]].join('/'); }), 'true/true');
+  await page.setViewportSize({ width: 412, height: 900 }); await w(300);
+  // ⏱ 時間で 決める
+  await page.evaluate(() => { HADE_COUNT.opt('vsEnd', 't30'); HADE_COUNT.again(); }); await w(200);
+  check('  ⏱ 30秒：もう一度で 0 から・押すと スタート の 札', await page.evaluate(() => [HADE_COUNT.state().list.slice(0, 2).map(c => c.n).join(','), HADE_COUNT.vs().ph, HADE_COUNT.vs().label].join('/')), '0,0/idle/⏱ 0:30　押すと スタート');
+  await page.evaluate(() => HADE_COUNT.tap(0)); await w(150);
+  await page.evaluate(() => HADE_COUNT.tap(1)); await w(150);
+  check('  押すと 3・2・1（押した 1回も フライングも 数えない）', await page.evaluate(() => [HADE_COUNT.state().list.slice(0, 2).map(c => c.n).join(','), HADE_COUNT.vs().ph, HADE_COUNT.banner(), HADE_COUNT.fx().played.includes('beep')].join('/')), '0,0/cd/3/true');
+  await page.evaluate(() => HADE_COUNT.vsShift(3100)); await w(400);
+  await page.evaluate(() => { HADE_COUNT.tap(0); HADE_COUNT.tap(0); for (let i = 0; i < 5; i++) HADE_COUNT.tap(1); }); await w(100);
+  check('  スタート → 数える・のこり 時間', await page.evaluate(() => { const v = HADE_COUNT.vs(); return [v.ph, HADE_COUNT.state().list.slice(0, 2).map(c => c.n).join(','), v.left > 25000 && v.left <= 30000].join('/'); }), 'run/2,5/true');
+  await page.evaluate(() => HADE_COUNT.vsShift(21000)); await w(400);
+  check('  のこり 10秒から カチ', await page.evaluate(() => [HADE_COUNT.vs().label <= '0:09', HADE_COUNT.fx().played.includes('tick')].join('/')), 'true/true');
+  await page.evaluate(() => HADE_COUNT.vsShift(10000)); await w(400);
+  check('  時間に なると そこまで！（笛）', await page.evaluate(() => [HADE_COUNT.vs().ph, HADE_COUNT.vs().win, HADE_COUNT.banner(), HADE_COUNT.fx().played.includes('whistle')].join('/')), 'end/1/そこまで！/true');
+  await w(1500);
+  check('  けっか：白組の 勝ち・ファンファーレ・勝った 回数・下の ボタンは もう一度', await page.evaluate(() => { const s = HADE_COUNT.state(); return [HADE_COUNT.banner(), HADE_COUNT.fx().played.includes('fanfare'), s.vs.wins[s.list[1].id], document.getElementById('hcFbar').textContent.includes('もう一度')].join('/'); }), '🏆 白組 の 勝ち！/true/1/true');
+  await page.evaluate(() => HADE_COUNT.tap(0)); await w(100);
+  const b1 = await page.evaluate(() => HADE_COUNT.banner());
+  await page.evaluate(() => { HADE_COUNT.vsShift(4500); HADE_COUNT.tap(0); }); await w(100);
+  check('  けっかの あとは 数えない（少し たって 押すと もう一度の 案内）', [await ns(), b1, await page.evaluate(() => HADE_COUNT.banner())].join('/'), '2,5/🏆 白組 の 勝ち！/🔁 もう一度 で 次の 勝負');
+  await page.evaluate(() => HADE_COUNT.again()); await w(100);
+  const a0 = await ns();
+  await page.evaluate(() => { HADE_COUNT.undo(); HADE_COUNT.undo(); }); await w(100);
+  check('  🔁 もう一度 は 2つとも 0・↶ もどす で もどせる', [a0, await ns()].join('/'), '0,0/2,5');
+  // 🏁 先に 10
+  await page.evaluate(() => { HADE_COUNT.opt('vsEnd', 'g10'); HADE_COUNT.again(); HADE_COUNT.plus(0, 6); HADE_COUNT.plus(1, 9); }); await w(100);
+  check('  🏁 先に 10：札・まだ', await page.evaluate(() => [HADE_COUNT.vs().ph, HADE_COUNT.vs().label].join('/')), 'run/🏁 先に 10');
+  await page.evaluate(() => HADE_COUNT.plus(1, 1)); await w(200);
+  check('  とどいた ほうの 勝ち（すぐ けっか）', await page.evaluate(() => { const s = HADE_COUNT.state(); return [HADE_COUNT.vs().ph, HADE_COUNT.vs().win, HADE_COUNT.banner(), s.vs.wins[s.list[1].id]].join('/'); }), 'end/1/🏆 白組 の 勝ち！/2');
+  // 🙌 自由
+  await page.evaluate(() => { HADE_COUNT.opt('vsEnd', 'free'); HADE_COUNT.again(); HADE_COUNT.vsEnd(); }); await w(100);
+  const f0 = await page.evaluate(() => HADE_COUNT.vs().ph);
+  await page.evaluate(() => { HADE_COUNT.tap(0); HADE_COUNT.tap(1); HADE_COUNT.vsEnd(); }); await w(200);
+  check('  🙌 自由：勝負の 前は けっか なし・🏁 けっか で 引き分け', await page.evaluate(f0 => { const s = HADE_COUNT.state(); return [f0, HADE_COUNT.vs().ph, HADE_COUNT.vs().win, HADE_COUNT.banner(), s.vs.wins[s.list[0].id] || 0, s.vs.wins[s.list[1].id]].join('/'); }, f0), 'idle/end/-1/🤝 引き分け！/0/2');
+  check('  設定：⚔ 対戦（終わり方・向かい合わせ・勝った 回数）', await page.evaluate(() => { const x = document.querySelector('.hc-vs'); return !!x && [x.querySelectorAll('.hc-opt')[0].querySelectorAll('button').length, x.querySelector('.hc-vsw').textContent.replace(/\s+/g, '')].join('/'); }), '7/勝った回数紅組0白組20に');
+  await page.evaluate(() => HADE_COUNT.wins0()); await w(100);
+  check('  勝った 回数を 0 に', await page.evaluate(() => JSON.stringify(HADE_COUNT.state().vs.wins)), '{}');
+  // キーボード（1・A と 2・L）
+  await page.evaluate(() => { HADE_COUNT.again(); ['1', 'a', '2', 'l', 'L'].forEach(k => window.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }))); }); await w(100);
+  check('  キーボード：1・A で 紅組、2・L で 白組', await ns(), '2,3');
+  // 向かい合わせ・ぽよん・全画面
+  await page.evaluate(() => { HADE_COUNT.opt('vsFace', true); HADE_COUNT.opt('look', 'poyo'); HADE_COUNT.full(true); }); await w(900);
+  check('  🔄 向かい合わせ（縦は 上下・上は さかさま）・ぽよん・全画面 でも 描ける', await page.evaluate(() => { HADE_COUNT.draw(); const t = HADE_COUNT.tiles(); return [HADE_COUNT.state().vs.face, t.length, HADE_COUNT.isFull(), HADE_COUNT.poyo(0) && HADE_COUNT.poyo(0).str, HADE_COUNT.poyo(1) && HADE_COUNT.poyo(1).str].join('/'); }), 'true/2/true/2/3');
+  await page.evaluate(() => { HADE_COUNT.full(false); HADE_COUNT.opt('look', 'glow'); }); await w(200);
+  await page.evaluate(() => closeHadeCount()); await w(300);
+  await page.evaluate(() => openHadeCount()); await w(500);
+  check('  開きなおしても 対戦・終わり方・向かい合わせ を 覚える', await page.evaluate(() => { const s = HADE_COUNT.state(); return [s.view, s.vs.end, s.vs.face, HADE_COUNT.vs().ph, HADE_COUNT.tiles().length].join('/'); }), 'vs/free/true/idle/2');
+  await page.evaluate(() => HADE_COUNT.opt('view', 'one')); await w(200);
+  check('  1つを 大きく に もどすと いつもの ボタン', await page.evaluate(() => { const t = document.getElementById('hcCtl').textContent; return [HADE_COUNT.tiles().length, t.includes('へらす') && t.includes('0 に'), !document.querySelector('.hc-vs')].join('/'); }), '1/true/true');
+  await page.evaluate(() => { closeHadeCount(); localStorage.removeItem('excalc_hadecount'); }); await w(200);
+  await page.evaluate(() => { openHadeCount(); }); await w(400);
+  await page.evaluate(() => { HADE_COUNT.set('name', '男性'); HADE_COUNT.opt('view', 'vs'); }); await w(200);
+  check('  名前を かえて いたら 相手は「あいて」', await page.evaluate(() => HADE_COUNT.state().list.map(c => c.name).join(',')), '男性,あいて');
+  await page.evaluate(() => closeHadeCount()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+// 📅 カレンダーに 入れる（v595。hyoics.js・前にやった日 帳・業務手帳）
+async function runIcs595(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📅 カレンダーに 入れる：.ics（前にやった日・業務手帳。v595） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { window.appConfirm = async () => true; });
+  await page.evaluate(() => loadSidePart(['hyoics.js'])); await w(200);
+  check('  .ics の 形（CRLF・はじめと おわり・終日の おわりは 次の日・時刻の 予定は 1時間）', await page.evaluate(() => { const t = HyoIcs.build([{ uid: 'a', title: 'A', date: '2026-10-30', allDay: true }, { uid: 'b', title: 'B', date: '2026-10-30', start: '23:30' }]); return [t.startsWith('BEGIN:VCALENDAR\r\nVERSION:2.0\r\n'), t.endsWith('END:VCALENDAR\r\n'), !/[^\r]\n/.test(t), t.includes('DTSTART;VALUE=DATE:20261030\r\nDTEND;VALUE=DATE:20261031'), t.includes('DTSTART:20261030T233000\r\nDTEND:20261030T235900'), (t.match(/BEGIN:VEVENT/g) || []).length].join('/'); }), 'true/true/true/true/true/2');
+  check('  文字の 決まり（, ; \\ 改行）・長い 行は 75バイトで 折り返す（字の 途中で 切らない）', await page.evaluate(() => { const long = 'あいうえおかきくけこ'.repeat(6), t = HyoIcs.build([{ uid: 'x', title: 'A社, 見積; 提出\\控え', date: '2026-10-30', desc: '1行目\n2行目 ' + long }]), lines = t.split('\r\n'), enc = new TextEncoder(); const desc = t.slice(t.indexOf('DESCRIPTION:')).split('\r\n'); let j = 1; while (desc[j] && desc[j][0] === ' ') j++; const un = desc.slice(0, j).map((x, i) => i ? x.slice(1) : x).join(''); return [t.includes('SUMMARY:A社\\, 見積\\; 提出\\\\控え'), lines.every(l => enc.encode(l).length <= 75), un === 'DESCRIPTION:1行目\\n2行目 ' + long, !t.includes('�')].join('/'); }), 'true/true/true/true');
+  check('  くり返し（毎日・平日・毎週・隔週・毎月・毎年・いつまで）', await page.evaluate(() => [HyoIcs.rrule('d', '2026-11-02'), HyoIcs.rrule('wd', '2026-11-02'), HyoIcs.rrule('w', '2026-11-04'), HyoIcs.rrule('w2', '2026-11-04', '2026-12-31'), HyoIcs.rrule('m', '2026-11-15', '2027-03-31', true), HyoIcs.rrule('y', '2026-11-15'), HyoIcs.rrule('x', '2026-11-15')].join('|')), 'FREQ=DAILY|FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR|FREQ=WEEKLY;BYDAY=WE|FREQ=WEEKLY;INTERVAL=2;BYDAY=WE;UNTIL=20261231|FREQ=MONTHLY;BYMONTHDAY=15;UNTIL=20270331T235959|FREQ=YEARLY|');
+  check('  とばした日（くり返しの ときだけ）・知らせ（前・あと）・おわりが 前なら 次の日', await page.evaluate(() => { const t = HyoIcs.build([{ uid: 'r', title: 'R', date: '2026-11-02', start: '08:30', endTime: '08:45', rrule: 'FREQ=DAILY', ex: ['2026-11-03', 'bad'], alarm: 15 }, { uid: 's', title: 'S', date: '2026-11-02', allDay: true, ex: ['2026-11-03'], alarm: -540 }, { uid: 'n', title: 'N', date: '2026-11-02', start: '22:00', endTime: '01:00', rrule: 'FREQ=DAILY;X=<b>' }]); return [t.includes('EXDATE:20261103T083000\r\n'), (t.match(/EXDATE/g) || []).length, t.includes('TRIGGER:-PT15M'), t.includes('TRIGGER:PT540M'), t.includes('DTEND:20261103T010000'), (t.match(/RRULE:/g) || []).length].join('/'); }), 'true/1/true/true/true/1');
+  check('  Google カレンダーの「予定を作る」（終日・時刻・くり返し）', await page.evaluate(() => { const a = new URL(HyoIcs.gcal({ title: '展示会', date: '2026-11-20', allDay: true, end: '2026-11-21' })), b = new URL(HyoIcs.gcal({ title: '朝礼', date: '2026-11-02', start: '08:30', endTime: '08:45', rrule: 'FREQ=DAILY', desc: 'x' })); return [a.host, a.searchParams.get('action'), a.searchParams.get('dates'), b.searchParams.get('dates'), b.searchParams.get('recur'), b.searchParams.get('details')].join('|'); }), 'calendar.google.com|TEMPLATE|20261120/20261122|20261102T083000/20261102T084500|RRULE:FREQ=DAILY|x');
+  // 🔁 前にやった日 帳
+  await page.evaluate(() => openYatta()); await w(500);
+  const ids = await page.evaluate(() => { YATTA.today('2026-10-29'); return [YATTA.addItem('エアコンの フィルター', 14, '🌀', '2026-10-20'), YATTA.addItem('散髪', 30, '💈', '2026-09-20'), YATTA.addItem('電池', 0, '🔋', '2026-10-01'), YATTA.addItem('布団干し', 7, '🛏', '')]; }); await w(200);
+  check('  前にやった日：次の日（終日・朝 9時）・過ぎたら きょう・目安なし／記録なしは なし', await page.evaluate(ids => { const a = YATTA.calEv(ids[0]), b = YATTA.calEv(ids[1]); return [a.date, a.title, a.allDay, a.alarm, a.desc.includes('目安：14日ごと'), b.date, b.desc.includes('9日 過ぎています'), YATTA.calEv(ids[2]), YATTA.calEv(ids[3])].join('/'); }, ids), '2026-11-03/🌀 エアコンの フィルター/true/-540/true/2026-10-29/true//');
+  await page.evaluate(id => YATTA.open(id), ids[0]); await w(300);
+  check('  くわしくに「📅 次の日を カレンダーに」（目安なしの ものには 出ない）', await page.evaluate(id => { const a = [...document.querySelectorAll('.yt-pop button')].some(b => b.textContent.includes('次の日を カレンダーに')); YATTA.close(); YATTA.open(id); const b = [...document.querySelectorAll('.yt-pop button')].some(b => b.textContent.includes('次の日を カレンダーに')); YATTA.close(); return [a, b].join('/'); }, ids[2]), 'true/false');
+  await page.evaluate(id => YATTA.cal(id), ids[0]); await w(300);
+  check('  押すと 窓（保存・Google カレンダー・やめる）', await page.evaluate(() => [HyoIcs.isOpen(), document.querySelectorAll('.hics li').length, [...document.querySelectorAll('.hics button')].map(b => b.dataset.a).join(',')].join('/')), 'true/1/dl,g,no');
+  const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 5000 }).catch(() => null), page.click('.hics button.pri')]);
+  const txt = dl ? fs.readFileSync(await dl.path(), 'utf8') : '';
+  check('  📥 保存：ファイル名（英数字）・中身（終日・知らせ・名前）', [dl && dl.suggestedFilename(), txt.includes('DTSTART;VALUE=DATE:20261103'), txt.includes('SUMMARY:🌀 エアコンの フィルター'), txt.includes('TRIGGER:PT540M'), txt.includes('X-WR-CALNAME:前にやった日'), await page.evaluate(() => HyoIcs.isOpen())].join('/'), 'yatta-2026-11-03.ics/true/true/true/true/false');
+  await page.evaluate(() => YATTA.calAll()); await w(300);
+  check('  上の「📅 カレンダー」：目安と 記録が ある もの ぜんぶ（日付の 順）', await page.evaluate(() => [...document.querySelectorAll('.hics li')].map(x => x.textContent.replace(/\s+/g, '')).join('|')), '10月29日（木）💈散髪|11月3日（火）🌀エアコンのフィルター');
+  await page.evaluate(() => document.querySelector('.hics').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))); await w(200);
+  check('  Esc で 窓だけ 閉じる', await page.evaluate(() => [HyoIcs.isOpen(), isDlgOpen('yattaOverlay')].join('/')), 'false/true');
+  await page.evaluate(() => { const s = YATTA.state(); s.items.forEach(it => { if (it.every) YATTA.set(it.id, 'every', 0); }); YATTA.calAll(); }); await w(200);
+  check('  目安の ある ものが ないと 知らせ（窓は 出ない）', await page.evaluate(() => [HyoIcs.isOpen(), (document.getElementById('appToast') || {}).textContent || ''].join('/')), 'false/目安（○日ごと）と やった日が ある ものが ありません');
+  await page.evaluate(() => closeYatta()); await w(300);
+  // 📔 業務手帳
+  await page.evaluate(() => { window.TECHO_TODAY = '2026-10-29T09:00:00'; return openTecho(); }); await w(1000);
+  const tid = await page.evaluate(() => {
+    const mk = o => { const it = Object.assign({ id: tcNewId(), kind: 'ev', roles: ['sales'], allDay: false, start: '10:00', end: '11:30', title: '', note: '', done: false, rep: null, cre: Date.now(), upd: Date.now() }, o); tc.items.push(it); return it.id; };
+    const r = [mk({ date: '2026-10-30', title: 'A社 訪問', note: '見本' }), mk({ date: '2026-11-02', title: '朝礼', start: '08:30', end: '08:45', roles: ['factory'], rep: { f: 'wd', n: 1, until: '2026-12-25', ex: ['2026-11-03'], dd: [] } }), mk({ date: '2026-11-20', title: '監査', allDay: true, start: null, end: null, roles: ['qc'] }), mk({ date: '2027-03-01', title: '展示会', allDay: true, start: null, end: null }), mk({ date: '2026-10-31', kind: 'memo', title: 'メモ' }), mk({ date: '2026-10-31', title: '済んだ', done: true }), mk({ date: '2026-10-20', title: '前の', }), mk({ date: '2026-09-01', title: '毎週の 会議', rep: { f: 'w', n: 1, until: null, ex: [], dd: [] } })];
+    tcSave(); tcRender(); return r;
+  }); await w(300);
+  check('  業務手帳：この先の 予定（1か月・3か月・ぜんぶ。メモ・済み・前のは のぞく。くり返しは この先に あれば）', await page.evaluate(() => [tcCalList(31), tcCalList(92), tcCalList(0)].map(L => L.map(x => x.title).join(',')).join(' | ')), '毎週の 会議,A社 訪問,朝礼,監査 | 毎週の 会議,A社 訪問,朝礼,監査 | 毎週の 会議,A社 訪問,朝礼,監査,展示会');
+  check('  表示を 消した 業務の 予定は 入れない', await page.evaluate(() => { tc.ui.hidden = ['qc']; const a = tcCalList(31).map(x => x.title).join(','); tc.ui.hidden = []; return a; }), '毎週の 会議,A社 訪問,朝礼');
+  check('  予定 → .ics の 予定（業務・くり返し・とばした日）', await page.evaluate(id => { const e = tcIcsEv(tc.items.find(x => x.id === id)); return [e.title, e.start, e.endTime, e.rrule, e.ex.join(','), e.desc].join('|'); }, tid[1]), '朝礼|08:30|08:45|FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;UNTIL=20261225T235959|2026-11-03|業務：工場\n📔 業務手帳 から');
+  await page.evaluate(id => tcOpenItem(id, '2026-11-02'), tid[1]); await w(400);
+  const calBtn = await page.evaluate(() => getComputedStyle(document.getElementById('tcEdCal')).display !== 'none');
+  await page.evaluate(() => tcEdCal()); await w(300);
+  check('  予定を直す 窓の 📅 → その 予定（🔁 くり返しの まま）', [calBtn, await page.evaluate(() => [HyoIcs.isOpen(), document.querySelector('.hics li').textContent.includes('🔁'), document.querySelector('.hics p').textContent.includes('くり返し（平日')].join('/'))].join('/'), 'true/true/true/true');
+  const [dl2] = await Promise.all([page.waitForEvent('download', { timeout: 5000 }).catch(() => null), page.click('.hics button.pri')]);
+  const t2 = dl2 ? fs.readFileSync(await dl2.path(), 'utf8') : '';
+  check('  保存した 中身：時刻・くり返し・とばした日', [dl2 && dl2.suggestedFilename(), t2.includes('DTSTART:20261102T083000'), t2.includes('RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;UNTIL=20261225T235959'), t2.includes('EXDATE:20261103T083000')].join('/'), 'techo-2026-11-02.ics/true/true/true');
+  await page.evaluate(() => tcCloseEdit()); await w(300);
+  check('  メモ・新しい 予定の 窓には 📅 を 出さない', await page.evaluate(id => { tcOpenItem(id, '2026-10-31'); const a = getComputedStyle(document.getElementById('tcEdCal')).display; tcCloseEdit(); tcNewItem('ev', '2026-10-31'); const b = getComputedStyle(document.getElementById('tcEdCal')).display; tcCloseEdit(); return [a, b].join('/'); }, tid[4]), 'none/none');
+  await w(300);
+  check('  ☰ メニューに「📅 カレンダーに 書き出す」', await page.evaluate(() => [...document.querySelectorAll('#tcMenu button')].some(b => b.textContent.includes('カレンダーに 書き出す'))), true);
+  const pr = page.evaluate(() => tcCalOpen()); await w(300);
+  await page.click('.tc-choose button[data-i="0"]'); await pr; await w(300);
+  check('  えらぶと まとめて（4件・くり返しに 🔁）', await page.evaluate(() => [document.querySelectorAll('.hics li').length, document.querySelectorAll('.hics li').length && [...document.querySelectorAll('.hics li')].filter(x => x.textContent.includes('🔁')).length, document.querySelector('.hics p').textContent.includes('予定 4件')].join('/')), '4/2/true');
+  await page.evaluate(() => HyoIcs.close()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+// 🧾 領収書（請求書づくり）・👀 お客さんに 見せる（即売レジ）・🔔 水平で ピッ（角度計）（v596）
+async function runV596(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🧾 領収書・👀 レジの 大きな 金額・🔔 角度計の ピッ（v596） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { window.appConfirm = async () => true; window.__print = 0; window.print = () => { window.__print++; }; });
+  await page.evaluate(async () => { await openSeikyu(); SEIKYU.me('name', '株式会社 表電卓工業'); SEIKYU.me('reg', 'T1234567890123'); SEIKYU.me('seal', true);
+    SEIKYU.doc('to', '山田 太郎'); SEIKYU.doc('hon', '様'); SEIKYU.doc('subject', 'エアコン 取付工事'); SEIKYU.it(0, 'name', 'エアコン 取付'); SEIKYU.it(0, 'price', '68000'); SEIKYU.it(0, 'qty', '1'); }); await w(300);
+  check('  書類の 種類に 領収書（4つ）・請求書には「領収書を 作る」', await page.evaluate(() => [[...document.querySelectorAll('.sk-kinds button')].map(b => b.textContent).join(','), [...document.querySelectorAll('.sk-acts button')].some(b => b.textContent.includes('領収書を 作る'))].join('/')), '請求書,見積書,納品書,領収書/true');
+  await page.evaluate(() => SEIKYU.toRcpt()); await w(300);
+  check('  請求書 → 領収書（番号と 日付は 新しく・期限なし・但し書きは 件名・控えつき）', await page.evaluate(() => { const c = SEIKYU.state().cur, d = new Date(), ymd = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); return [c.kind, c.date === ymd, c.due, c.tada, c.rcopy, !!document.querySelector('.sk-rcset'), [...document.querySelectorAll('.sk-f span')].some(x => x.textContent === '支払期限')].join('/'); }), 'ryoshu/true//エアコン 取付工事/true/true/false');
+  check('  領収書の 形：本紙と 控え・金額・但し書き・内訳・登録番号・収入印紙（本紙だけ）・印（本紙だけ）', await page.evaluate(() => { const d = document.createElement('div'); d.innerHTML = SEIKYU.html(); const b = d.querySelectorAll('.sk-rcb'); return [b.length, b[0].querySelector('.sk-rch .t').textContent, b[1].querySelector('.sk-rch .t').textContent, b[0].querySelector('.sk-rca .v').textContent, b[0].querySelector('.sk-rct').textContent.replace(/\s+/g, ''), b[0].querySelector('.sk-rci').textContent.replace(/\s+/g, ''), b[0].textContent.includes('登録番号 T1234567890123'), !!b[0].querySelector('.sk-stamp'), !!b[1].querySelector('.sk-stamp'), !!b[0].querySelector('.sk-seal'), !!b[1].querySelector('.sk-seal'), !!d.querySelector('.sk-cut')].join('|'); }), '2|領 収 書|領 収 書（控）|¥74,800-|但しエアコン取付工事として上記正に領収いたしました。|内訳10％対象（税抜）68,000円消費税（10％）6,800円|true|true|false|true|false|true');
+  check('  収入印紙の 金額の 目安（税抜で 見る・5万円 未満は なし）', await page.evaluate(() => [49999, 50000, 1000000, 1000001, 3000000, 5000000, 10000000, 1.2e9].map(SEIKYU.duty).join(',')), '0,200,200,400,600,1000,2000,200000');
+  await page.evaluate(() => { SEIKYU.it(0, 'price', '45000'); SEIKYU.doc('tada', 'お品代として'); SEIKYU.doc('rcopy', false); }); await w(200);
+  check('  税抜 5万円 未満は 印紙なし・「として」は 重ねない・本紙だけ', await page.evaluate(() => { const d = document.createElement('div'); d.innerHTML = SEIKYU.html(); return [d.querySelectorAll('.sk-rcb').length, !!d.querySelector('.sk-stamp'), d.querySelector('.sk-rct').textContent.replace(/\s+/g, ''), !!d.querySelector('.sk-cut')].join('/'); }), '1/false/但しお品代として上記正に領収いたしました。/false');
+  check('  文字で コピー（領収書の 形）', await page.evaluate(() => SEIKYU.text().split('\n').slice(0, 5).join('|')), '領収書　No.' + await page.evaluate(() => SEIKYU.state().cur.no) + '　' + await page.evaluate(() => { const d = new Date(); return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日'; }) + '|山田 太郎 様|金額：49,500円（税込）|但し お品代 として 上記 正に 領収いたしました。|内訳：10％対象（税抜） 45,000円・消費税 4,500円');
+  await page.evaluate(() => { SEIKYU.it(0, 'price', '68000'); SEIKYU.doc('rcopy', true); SEIKYU.print(); }); await w(400);
+  await page.emulateMedia({ media: 'print' }); await w(200);
+  const pdf = await page.pdf({ format: 'A4' });
+  await page.emulateMedia({ media: 'screen' });
+  check('  印刷：本紙と 控えで A4 1枚', (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length, 1);
+  await page.evaluate(() => closeSeikyu()); await w(300);
+  // 👀 即売レジ
+  await page.evaluate(() => { localStorage.setItem('excalc_regi', JSON.stringify({ ev: { name: '秋祭り', date: '' }, items: [{ id: 'a1', name: 'クッキー', price: 300, stock0: 20, stock: 20 }, { id: 'b2', name: 'ジャム', price: 1200, stock0: 5, stock: 5 }], sales: [], no: 1 })); localStorage.removeItem('excalc_regi_ui'); });
+  await page.evaluate(() => openRegi()); await w(500);
+  await page.evaluate(() => rgCust()); await w(150);
+  check('  レジ：注文が ないと 出さない（知らせ）', await page.evaluate(() => [rgCv().on, (document.getElementById('appToast') || {}).textContent].join('/')), 'false/先に商品を入れてください');
+  await page.evaluate(() => { rgAdd('a1'); rgAdd('a1'); rgAdd('b2'); rgSetPaid(1000); rgCust(); }); await w(200);
+  check('  👀 お会計（点数）・預かりが たりない ときは お釣りを 出さない', await page.evaluate(() => [rgCv().on, rgCv().kind, rgCv().text].join('/')), 'true/cart/お会計 ¥1,800 3点');
+  await page.evaluate(() => { rgCustClose(); rgSetPaid(3000); rgCust(); }); await w(200);
+  check('  お預かりと お釣りも 大きく・画面の 幅に おさまる', await page.evaluate(() => { const v = document.querySelector('#rgCv .cv-v'); return [rgCv().text, v.scrollWidth <= innerWidth].join('/'); }), 'お会計 ¥1,800 3点 お預かり ¥3,000 お釣り ¥1,200/true');
+  await page.evaluate(() => rgCustRot()); await w(150);
+  check('  🔄 さかさま（向かいの 人へ）・向きを 覚える', await page.evaluate(() => [document.getElementById('rgCvIn').classList.contains('rot'), JSON.parse(localStorage.getItem('excalc_regi_ui')).cv, document.querySelector('#rgCv .cv-bar').textContent.includes('もとの 向きに')].join('/')), 'true/rot/true');
+  await page.keyboard.press('Escape'); await w(200);
+  check('  Esc で この 画面だけ もどる（レジは そのまま）', await page.evaluate(() => [rgCv().on, isDlgOpen('regiOverlay'), rgState().cart.length].join('/')), 'false/true/2');
+  await page.evaluate(() => rgPay()); await w(300);
+  check('  会計の あとの 窓に「お釣りを 見せる」', await page.evaluate(() => [...document.querySelectorAll('#rgDoneOverlay button')].some(b => b.textContent.includes('お釣りを お客さんに 見せる'))), true);
+  await page.evaluate(() => rgCust('done')); await w(200);
+  check('  お釣りと「ありがとうございました」（さかさまの まま）', await page.evaluate(() => [rgCv().kind, rgCv().text, document.getElementById('rgCvIn').classList.contains('rot')].join('/')), 'done/お釣り ¥1,200 合計 ¥1,800 お預かり ¥3,000 ありがとうございました/true');
+  await page.evaluate(() => { rgDoneClose(); closeRegi(); }); await w(300);
+  check('  レジを 閉じると いっしょに 消える', await page.evaluate(() => [rgCv().on, isDlgOpen('regiOverlay')].join('/')), 'false/false');
+  // 🔔 角度計
+  await page.evaluate(() => openKakudo()); await w(500);
+  check('  角度計：音の えらび（なし・水平で ピッ・近づくと ピッピッ。はじめは ピッ）', await page.evaluate(() => [[...document.querySelectorAll('#kgSnd button')].map(b => b.textContent).join(','), document.querySelector('#kgSnd button.on').textContent].join('/')), 'なし,水平で ピッ,近づくと ピッピッ/水平で ピッ');
+  const bp = () => page.evaluate(() => kgBeeps().join(','));
+  await page.evaluate(() => { kgSetMode('flat'); kgFeed({ beta: 3, gamma: 1, now: true }); }); await w(120);
+  const b0 = await bp();
+  await page.evaluate(() => kgFeed({ beta: 0.1, gamma: 0.05, now: true })); await w(120);
+  await page.evaluate(() => kgFeed({ beta: 0.15, gamma: 0.0, now: true })); await w(120);
+  check('  水平に なったら 1回 ピッ（水平の あいだは 鳴りつづけない）・数字が 緑', [b0, await bp(), await page.evaluate(() => document.getElementById('kgDeg').parentNode.classList.contains('ok'))].join('/'), '/1760:0.12/true');
+  const feed = async (...bs) => { for (const b of bs) { await page.evaluate(b => kgFeed({ beta: b, gamma: 0, now: true }), b); await w(60); } };
+  await feed(0.35, 0.05, 1, 0.05); await w(100);
+  check('  少し 外れただけでは 鳴らさない・はっきり 外れてから また 鳴る', await bp(), '1760:0.12,1760:0.12');
+  await page.evaluate(() => kgSetMode('long')); await feed(45, 89.9); await w(100);
+  check('  立てて 当てたとき 垂直でも ピッ', (await bp()).split(',').length, 3);
+  await page.evaluate(() => { kgSetMode('flat'); kgSetSnd('near'); }); await w(100);
+  const n0 = (await bp()).split(',').length;
+  await page.evaluate(async () => { for (let i = 0; i < 10; i++) { kgFeed({ beta: 1.2, gamma: 0, now: true }); await new Promise(r => setTimeout(r, 70)); } }); await w(100);
+  const near = (await bp()).split(',').slice(n0);
+  await page.evaluate(() => kgFeed({ beta: 0.02, gamma: 0, now: true })); await w(120);
+  check('  近づくと ピッピッ（3° より 近いと くり返し）・水平で ピー', [near.length >= 2 && near.every(x => x === '1175:0.05'), (await bp()).split(',').pop()].join('/'), 'true/1760:0.4');
+  await page.evaluate(() => kgSetSnd('off')); await feed(2, 0.02); await w(100);
+  const nOff = (await bp()).split(',').length;
+  await page.evaluate(() => kgSetSnd('hit')); await feed(2); await page.evaluate(() => kgHold()); await feed(0.02); await w(100);
+  const nHold = (await bp()).split(',').length;
+  check('  なし・止めている ときは 鳴らさない（えらんだ ときの ためしの 1回だけ）・音の えらびを 覚える', [n0 + near.length + 1 === nOff, nHold === nOff + 1, await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_kakudo')).snd)].join('/'), 'true/true/hit');
+  await page.evaluate(() => closeKakudo()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+// 📢 電光掲示板：🔁 順番に 流す・🏆 得点（v597）
+async function runKeijiban597(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📢 電光掲示板 v597：🔁 順番に 流す・🏆 得点 ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => {
+    window.appConfirm = async () => true;
+    Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async () => ({ release() { } }) } });
+    Element.prototype.requestFullscreen = function () { return Promise.resolve(); };
+    if (screen.orientation) { screen.orientation.lock = async () => { }; screen.orientation.unlock = () => { }; }
+  });
+  await page.evaluate(() => openKeijiban()); await w(600);
+  check('  ⭐ の 文に 🔁・「順番に 流す」の 札・タブに 🏆 得点', await page.evaluate(() => [document.querySelectorAll('#kjList .kj-li .sq').length === KEIJIBAN.state().list.length, !!document.getElementById('kjSeq'), [...document.querySelectorAll('.kj-tabs button')].map(b => b.textContent).join(',')].join('/')), 'true/true/📝 文字,🖼 絵,🕐 時計,⏰ 予約,🏆 得点');
+  await page.evaluate(() => KEIJIBAN.seqStart()); await w(200);
+  check('  文が ないと 全画面に しない（知らせ）', await page.evaluate(() => [KEIJIBAN.isFull(), (document.getElementById('appToast') || {}).textContent.includes('順番に 流す 文を 足して')].join('/')), 'false/true');
+  await page.evaluate(() => { KEIJIBAN.seqAdd(0); KEIJIBAN.seqAdd(1); KEIJIBAN.text('本日 特売日'); KEIJIBAN.seqAdd(); }); await w(200);
+  check('  🔁 で 足す・いまの 文を 足す（番号つきの 一覧）', await page.evaluate(() => [KEIJIBAN.state().seq.list.join('|'), [...document.querySelectorAll('#kjSeq .kj-sq b')].map(b => b.textContent).join(',')].join('/')), '受付は こちらです|少々 お待ちください|本日 特売日/1,2,3');
+  await page.evaluate(() => { KEIJIBAN.seqMove(2, -1); KEIJIBAN.seqDel(0); KEIJIBAN.seqPass(2); }); await w(150);
+  check('  ▲ で 上へ・✕ で はずす・2回ずつ（覚える）', await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('excalc_keijiban')).seq; return [s.list.join('|'), s.pass, document.querySelector('#kjSeq .kj-sqo button.on').textContent].join('/'); }), '本日 特売日|少々 お待ちください/2/2回ずつ');
+  await page.evaluate(() => { KEIJIBAN.seqPass(1); KEIJIBAN.seqStart(); }); await w(500);
+  const s0 = await page.evaluate(() => [KEIJIBAN.isFull(), KEIJIBAN.seqI(), [...document.querySelectorAll('#kjFBar button:not([hidden])')].map(b => b.textContent).join(',')].join('/'));
+  await page.evaluate(() => KEIJIBAN.ahead(120)); await w(300);
+  const s1 = await page.evaluate(() => KEIJIBAN.seqI());
+  await page.evaluate(() => KEIJIBAN.ahead(120)); await w(300);
+  const s2 = await page.evaluate(() => KEIJIBAN.seqI());
+  check('  全画面で 順番に（1回 流すと 次・さいごの あとは はじめに）・⏭ 次へ', [s0, s1, s2].join('/'), 'true/0/⏸ 止める,⏭ 次へ,✕ 終わる/1/0');
+  await page.evaluate(() => KEIJIBAN.seqNext()); await w(150);
+  check('  ⏭ 次へ で とばす', await page.evaluate(() => KEIJIBAN.seqI()), 1);
+  await page.evaluate(() => { KEIJIBAN.pause(); KEIJIBAN.ahead(200); }); await w(300);
+  check('  ⏸ 止めると 次へ 進まない', await page.evaluate(() => [KEIJIBAN.paused(), KEIJIBAN.seqI()].join('/')), 'true/1');
+  await page.evaluate(() => KEIJIBAN.stopFull()); await w(300);
+  // 🏆 得点
+  await page.evaluate(() => KEIJIBAN.tab('score')); await w(300);
+  check('  得点の 札：はじめは ホーム 0・ビジター 0・7セグ', await page.evaluate(() => { const s = KEIJIBAN.state().sb; return [s.a.name, s.a.n, s.b.name, s.b.n, s.face, s.snd, document.querySelectorAll('.kj-sbr').length].join('/'); }), 'ホーム/0/ビジター/0/seg/true/2');
+  await page.evaluate(() => { KEIJIBAN.sb('an', '  紅組  '); KEIJIBAN.sb('bn', '白組'); KEIJIBAN.sb('bc', 'white'); KEIJIBAN.sb('bc', 'rainbow'); KEIJIBAN.sb('label', '1回表'); KEIJIBAN.sbAdd('a', 1); KEIJIBAN.sbAdd('a', 1); KEIJIBAN.sbAdd('b', 1); KEIJIBAN.sbAdd('b', -5); }); await w(200);
+  check('  名前・色（虹は えらべない）・まん中の 字・＋1／−1（0 より 下に ならない）', await page.evaluate(() => { const s = KEIJIBAN.state().sb; return [s.a.name, s.b.name, s.b.col, s.label, s.a.n, s.b.n, document.getElementById('kjSbN_a').textContent].join('/'); }), '紅組/白組/white/1回表/2/0/2');
+  await page.evaluate(() => KEIJIBAN.sbAdd('b', 2000)); await w(100);
+  check('  999 まで', await page.evaluate(() => KEIJIBAN.state().sb.b.n), 999);
+  await page.evaluate(() => { KEIJIBAN.sbAdd('b', -998); KEIJIBAN.sbSwap(); }); await w(200);
+  check('  ↔ 左右を 入れかえ（名前・色・得点ごと）', await page.evaluate(() => { const s = KEIJIBAN.state().sb; return [s.a.name, s.a.n, s.a.col, s.b.name, s.b.n].join('/'); }), '白組/1/white/紅組/2');
+  await page.setViewportSize({ width: 900, height: 500 }); await w(200);
+  await page.evaluate(() => KEIJIBAN.startScore()); await w(600);
+  check('  全画面：横に 並ぶ（名前・得点・まん中の 字）・点が 光る・止める ボタンは 出さない', await page.evaluate(() => { const L = KEIJIBAN.sbLay(); return [L.land, L.items.map(x => x.split(':')[0]).join(','), KEIJIBAN.draw(0) > 0 || true, document.getElementById('kjPauseB').hidden, [...document.querySelectorAll('#kjFBar button:not([hidden])')].map(b => b.textContent.replace(/\s+/g, '')).join(',')].join('/'); }), 'true/namea,numa,nameb,numb,label/true/true/−1白組,−1紅組,0に,✕終わる');
+  await page.mouse.click(200, 250); await w(100); await page.mouse.click(700, 250); await w(100); await page.mouse.click(720, 300); await w(100);
+  check('  左を 押すと 左に ＋1・右で 右に ＋1', await page.evaluate(() => [KEIJIBAN.state().sb.a.n, KEIJIBAN.state().sb.b.n].join('/')), '2/4');
+  await page.keyboard.press('ArrowLeft'); await w(80); await page.keyboard.press('l'); await w(80);
+  check('  ← → キーでも', await page.evaluate(() => [KEIJIBAN.state().sb.a.n, KEIJIBAN.state().sb.b.n].join('/')), '3/5');
+  await page.evaluate(() => document.querySelectorAll('#kjFBar button:not([hidden])')[0].click()); await w(100);
+  check('  下の −1 で なおす', await page.evaluate(() => [KEIJIBAN.state().sb.a.n, KEIJIBAN.state().sb.b.n].join('/')), '2/5');
+  await page.evaluate(() => KEIJIBAN.stopFull()); await w(200);
+  await page.setViewportSize({ width: 412, height: 860 }); await w(200);
+  await page.evaluate(() => KEIJIBAN.startScore()); await w(600);
+  const rot = await page.evaluate(() => [KEIJIBAN.rotated(), KEIJIBAN.sbLay().land].join('/'));
+  await page.mouse.click(206, 150); await w(100);
+  check('  縦に 持つと 回して 横長（上＝左の チーム）', [rot, await page.evaluate(() => [KEIJIBAN.state().sb.a.n, KEIJIBAN.state().sb.b.n].join('/'))].join(' → '), 'true/true → 3/5');
+  await page.evaluate(() => { KEIJIBAN.stopFull(); KEIJIBAN.opt('rot', 'off'); KEIJIBAN.startScore(); }); await w(600);
+  check('  回さない ときは 上下に 並ぶ', await page.evaluate(() => { const L = KEIJIBAN.sbLay(); return [KEIJIBAN.rotated(), L.land].join('/'); }), 'false/false');
+  await page.mouse.click(206, 700); await w(100);
+  check('  下を 押すと 下（右の チーム）に ＋1', await page.evaluate(() => KEIJIBAN.state().sb.b.n), 6);
+  await page.evaluate(() => { KEIJIBAN.stopFull(); KEIJIBAN.opt('rot', 'auto'); KEIJIBAN.sb('face', 'dot'); KEIJIBAN.sb('snd', false); KEIJIBAN.sbReset(); }); await w(300);
+  check('  数字の形・音・0 対 0 に（聞いてから）', await page.evaluate(() => { const s = KEIJIBAN.state().sb; return [s.face, s.snd, s.a.n, s.b.n].join('/'); }), 'dot/false/0/0');
+  await page.evaluate(() => closeKeijiban()); await w(300);
+  await page.evaluate(() => openKeijiban()); await w(500);
+  check('  開きなおしても 得点・順番の 文を 覚える', await page.evaluate(() => { const s = KEIJIBAN.state(); return [s.sb.a.name, s.sb.label, s.seq.list.length].join('/'); }), '白組/1回表/2');
+  await page.evaluate(() => closeKeijiban()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+// ⏱ ど派手タイマー：📋 進行表・⏲ 同時に（v598）
+async function runTimer598(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ⏱ ど派手タイマー：📋 進行表・⏲ 同時に（v598） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { window.appConfirm = async () => true; document.documentElement.requestFullscreen = () => Promise.resolve(); });
+  await page.evaluate(() => openHadeTimer()); await w(500);
+  check('  タブに 📋 進行表・⏲ 同時に', await page.evaluate(() => [...document.querySelectorAll('.ht-modes button')].map(b => b.textContent).join(',')), '⏳ タイマー,⏱ ストップウォッチ,🔁 くり返し,📋 進行表,⏲ 同時に,🕐 時計');
+  await page.evaluate(() => HADE_TIMER.mode('prog')); await w(200);
+  check('  進行表：はじめは 宴会の 見本（5段・ぜんぶで 57分）・見本 5つ', await page.evaluate(() => [HADE_TIMER.state().prog.list.map(x => x.n + x.s).join(','), document.getElementById('htProgTot').textContent.includes('ぜんぶで 57分（5段）'), [...document.querySelectorAll('#htSet .ht-chips button')].length].join('/')), '開会の あいさつ300,乾杯120,歓談1800,余興900,しめの あいさつ300/true/6');
+  await page.evaluate(() => { HADE_TIMER.progSample(1); HADE_TIMER.prog(0, 'n', '  朝の 報告  '); HADE_TIMER.prog(0, 'm', '１２'); HADE_TIMER.prog(0, 's', '30'); HADE_TIMER.prog(1, 's', '99'); HADE_TIMER.progMove(2, -1); HADE_TIMER.progAdd(); HADE_TIMER.progDel(1); }); await w(150);
+  check('  名前・分・秒（全角も）を 直す・▲・足す・消す', await page.evaluate(() => HADE_TIMER.state().prog.list.map(x => x.n + ':' + x.s).join(',')), '朝の 報告:750,議題 1:959,まとめ:300,5番目:300');
+  await page.evaluate(() => { HADE_TIMER.progSample(0); HADE_TIMER.opt('voice', 'all'); HADE_TIMER.start(); }); await w(500);
+  check('  スタート：よーい（段の 数と 時間）・はじめの 段の 名前', await page.evaluate(() => [HADE_TIMER.label(), HADE_TIMER.view().ph].join('/')), '📋 開会の あいさつ|よーい（5段・ぜんぶで 57分）/prep:0');
+  await page.evaluate(() => HADE_TIMER.shift(2600)); await w(800);
+  check('  1段目：名前を 大きく・声で「○○です」・次の 段', await page.evaluate(() => [HADE_TIMER.label(), HADE_TIMER.view().ph, HADE_TIMER.banner(), HADE_TIMER.said().slice(-1)[0]].join('/')), '📋 開会の あいさつ|1/5 ・ 次は 乾杯/work:1/開会の あいさつ/開会の あいさつです');
+  await page.evaluate(() => HADE_TIMER.shift(238500)); await w(800);
+  check('  3分 以上の 段は のこり 1分で「次は ○○」', await page.evaluate(() => [HADE_TIMER.view().sec <= 60, HADE_TIMER.banner(), HADE_TIMER.said().slice(-1)[0]].join('/')), 'true/のこり 1分  次は 乾杯/のこり 1分です。次は 乾杯');
+  await page.evaluate(() => HADE_TIMER.next()); await w(800);
+  check('  ⏭ 次へ で 次の 段（乾杯）', await page.evaluate(() => [HADE_TIMER.label(), HADE_TIMER.view().str, HADE_TIMER.banner()].join('/')), '📋 乾杯|2/5 ・ 次は 歓談/02:00/乾杯');
+  await page.evaluate(() => { HADE_TIMER.next(); HADE_TIMER.next(); HADE_TIMER.next(); }); await w(800);
+  check('  さいごの 段は「さいご」', await page.evaluate(() => HADE_TIMER.label()), '📋 しめの あいさつ|5/5 ・ さいご');
+  await page.evaluate(() => HADE_TIMER.next()); await w(900);
+  check('  おわると おつかれさま（時間が 来た 音）', await page.evaluate(() => [HADE_TIMER.state().run.done, HADE_TIMER.banner(), HADE_TIMER.alarm(), HADE_TIMER.said().slice(-1)[0]].join('/')), 'true/おつかれさま！/true/おつかれさまでした');
+  await page.evaluate(() => { HADE_TIMER.stopAlarm(); HADE_TIMER.stop(); HADE_TIMER.opt('voice', 'last'); }); await w(300);
+  // ⏲ 同時に
+  await page.evaluate(() => HADE_TIMER.mode('multi')); await w(200);
+  check('  同時に：はじめは ない・「⛶ 大きく 見る」・足す 欄と ⭐', await page.evaluate(() => [HADE_TIMER.state().multi.length, document.querySelector('.ht-go').textContent, !!document.getElementById('htMName'), document.querySelectorAll('#htSet .ht-chips button').length].join('/')), '0/⛶ 大きく 見る/true/4');
+  await page.evaluate(() => HADE_TIMER.start()); await w(150);
+  check('  ない ときは 大きく 見ない', await page.evaluate(() => [HADE_TIMER.mOn(), (document.getElementById('appToast') || {}).textContent].join('/')), 'false/タイマーを 足してください');
+  await page.evaluate(() => { document.getElementById('htMName').value = 'パスタ'; document.getElementById('htMM').value = '９'; document.getElementById('htMS').value = '0'; HADE_TIMER.mAddForm(); HADE_TIMER.mAddPre(0); HADE_TIMER.mAdd('ゆでたまご', 3); }); await w(300);
+  check('  名前と 時間で 足す（全角も）・⭐ から・すぐ 動く・カード', await page.evaluate(() => [HADE_TIMER.mList().map(x => x.replace(/:\d+$/, '')).join(','), document.querySelectorAll('#htMList .ht-mc').length, document.getElementById('htMName').value].join('/')), 'パスタ:run,カップめん:run,ゆでたまご:run/3/');
+  await page.evaluate(() => { for (let i = 0; i < 4; i++) HADE_TIMER.mAdd('x' + i, 60); }); await w(150);
+  check('  6本まで', await page.evaluate(() => [HADE_TIMER.state().multi.length, (document.getElementById('appToast') || {}).textContent].join('/')), '6/いっしょに 数えるのは 6本 まで です');
+  await page.evaluate(() => { HADE_TIMER.state().multi.filter(t => /^x/.test(t.n)).forEach(t => HADE_TIMER.mDel(t.id)); const p = HADE_TIMER.state().multi[0]; HADE_TIMER.mToggle(p.id); HADE_TIMER.mPlus(HADE_TIMER.state().multi[1].id, 60); }); await w(200);
+  check('  ✕ 消す・⏸ 止める・＋1分', await page.evaluate(() => HADE_TIMER.mList().map(x => { const [n, s, l] = x.split(':'); return n + ':' + s + ':' + (n === 'カップめん' ? +l > 230 : +l > 0); }).join(',')), 'パスタ:p:true,カップめん:run:true,ゆでたまご:run:true');
+  await page.evaluate(() => HADE_TIMER.start()); await w(500);
+  check('  ⛶ 大きく 見る：タイルが 3つ（名前・時間）', await page.evaluate(() => [HADE_TIMER.mOn(), [...document.querySelectorAll('#htMFG .ht-mt')].map(t => t.querySelector('.nm').textContent + '/' + t.dataset.s).join(',')].join('|')), 'true|パスタ/p,カップめん/run,ゆでたまご/run');
+  await w(3300);
+  check('  0 に なると できた！（光る・鳴る・声）', await page.evaluate(() => [HADE_TIMER.mList()[2], HADE_TIMER.mAlarm(), document.querySelector('#htMFG .ht-mt.done .tm').textContent, (document.getElementById('htMFBan') || {}).textContent, HADE_TIMER.said().slice(-1)[0]].join('/')), 'ゆでたまご:done:0/true/できた！/⏰ ゆでたまご できた！/ゆでたまご、時間です');
+  await page.click('#htMFG .ht-mt.done'); await w(300);
+  check('  押すと 止まる（音も）', await page.evaluate(() => [HADE_TIMER.mList()[2], HADE_TIMER.mAlarm()].join('/')), 'ゆでたまご:fin:0/false');
+  await page.evaluate(() => { HADE_TIMER.mClose(); closeHadeTimer(); }); await w(500);
+  check('  閉じると できたのは 片づけ・右下に いちばん 早く 終わる もの', await page.evaluate(() => [HADE_TIMER.mList().map(x => x.split(':')[0]).join(','), HADE_TIMER.chip().replace(/\d\d:\d\d/, 'mm:ss')].join('/')), 'パスタ,カップめん/⏲ カップめん mm:ss（2本）');
+  await page.evaluate(() => HADE_TIMER.mShift(1000000)); await w(900);
+  check('  閉じていても 0 に なると 開いて 知らせる', await page.evaluate(() => [isDlgOpen('hadeTimerOverlay'), HADE_TIMER.mOn(), HADE_TIMER.state().mode, HADE_TIMER.mAlarm(), HADE_TIMER.mList().join(',').replace(/:\d+/g, '')].join('/')), 'true/true/multi/true/パスタ:p,カップめん:done');
+  await page.keyboard.press('Escape'); await w(200);
+  check('  Esc で 音を 止める', await page.evaluate(() => HADE_TIMER.mAlarm()), false);
+  await page.evaluate(() => { HADE_TIMER.mClose(); closeHadeTimer(); }); await w(300);
+  await page.evaluate(() => openHadeTimer()); await w(400);
+  check('  開きなおしても 止めた タイマーは 残る', await page.evaluate(() => HADE_TIMER.mList().map(x => x.replace(/:\d+$/, '')).join(',')), 'パスタ:p');
+  await page.evaluate(() => closeHadeTimer()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+async function runV599(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🎱 ビンゴ：📱 スマホに カードを 配る・🗣 筆談：👥 向かい合わせ（v599） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const base = 'file://' + ROOT + '/';
+  await page.evaluate(() => { window.BINGO_NO_ANIM = 1; window.appConfirm = async () => true; localStorage.setItem('excalc_bingo', JSON.stringify({ code: 'KM7Q', card: { code: 'KM7Q', no: 3, marks: [] } })); openBingo(); }); await w(500);
+  check('  🎱 抽選・🃏 カード に「📱 配る」（はば いっぱい。1〜75 の ときだけ）',
+    await page.evaluate(() => {
+      const a = document.querySelector('#bgActs .bg-wide'), A = document.getElementById('bgActs'), r = [a.textContent, Math.abs(a.getBoundingClientRect().width - A.getBoundingClientRect().width) < 1];
+      BINGO.tab('card'); r.push(document.querySelector('#bgCardTab .bg-wide').textContent); BINGO.tab('draw');
+      BINGO.setMax(90); r.push(!!document.querySelector('#bgActs .bg-wide')); BINGO.qrPop(); r.push(!!document.querySelector('.bg-pop'), document.getElementById('appToast').textContent);
+      BINGO.setMax(75); r.push(!!document.querySelector('#bgActs .bg-wide')); return r.join('|');
+    }),
+    '📱 参加する 人の スマホに カードを 配る（QR）|true|📱 ほかの スマホに 配る（QR）|false|false|カードは 1〜75 の ときに 使えます|true');
+  await page.click('#bgActs .bg-wide'); await w(200);
+  check('  QR：…/apps/bingo/#bc=組の コード・QR の 絵・組・番号は おまかせ・この 端末の ファイルでは 知らせる',
+    await page.evaluate(() => { const cv = document.getElementById('bgQr'), u = BINGO.qrUrl(), q = qrEncode(u, 'M'); return [u, cv.width === (q.size + 8) * 6, document.querySelector('.bg-qrc').textContent, document.querySelector('.bg-qrn').textContent, !!document.querySelector('.bg-warn'), document.querySelector('.bg-pop .bg-seg .on').textContent].join('|'); }),
+    base + 'apps/bingo/#bc=KM7Q|true|組 KM7Q|カードの 番号は スマホごとに ばらばら（1000〜9999）|true|🎲 おまかせ');
+  await page.evaluate(() => { BINGO.qrSeq(1); BINGO.qrNext(1); BINGO.qrNext(1); BINGO.qrNext(-1); }); await w(100);
+  const btns = () => page.evaluate(() => [...document.querySelectorAll('.bg-pop .bg-pacts .bg-b')].map(b => b.textContent + (b.disabled ? '×' : '')).filter(t => !t.includes('送る')).join(','));
+  check('  🔢 1番から 順に：▶ 次の 人・◀ 1つ 前（アドレスに 番号・覚える）',
+    await page.evaluate(() => [BINGO.qrUrl().split('#')[1], document.querySelector('.bg-qrn').textContent, document.querySelector('.bg-pop .bg-seg .on').textContent, JSON.parse(localStorage.getItem('excalc_bingo')).qrNo].join('|')) + '|' + await btns(),
+    'bc=KM7Q&no=2|いまの QR は No. 2|🔢 1番から 順に|2|◀ 1つ 前,▶ 次の 人（No. 3）,📋 アドレスを コピー');
+  await page.evaluate(() => { BINGO.qrNext(1); BINGO.qrSeq(0); BINGO.qrSeq(1); }); await w(100);
+  check('  おまかせ に して もどしても 番号は つづき・3番から「↺ 1番に」', await page.evaluate(() => BINGO.qrUrl().split('#')[1]) + '|' + await btns(), 'bc=KM7Q&no=3|↺ 1番に,◀ 1つ 前,▶ 次の 人（No. 4）,📋 アドレスを コピー');
+  await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { value: { writeText: async t => { window.__clip = t; } }, configurable: true }); BINGO.qrCopy(); }); await w(150);
+  check('  📋 アドレスを コピー', await page.evaluate(() => window.__clip + '|' + document.getElementById('appToast').textContent), base + 'apps/bingo/#bc=KM7Q&no=3|📋 アドレスを コピーしました');
+  await page.keyboard.press('Escape'); await w(150);
+  check('  Esc は 小さな 窓だけ 閉じる', await page.evaluate(() => [!!document.querySelector('.bg-pop'), isDlgOpen('bingoOverlay')].join('/')), 'false/true');
+  // 参加する 人の スマホ（べつの 端末）
+  const c2 = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  const p2 = await c2.newPage(); const e2 = []; p2.on('pageerror', e => e2.push(e.message));
+  await p2.goto(base + 'apps/bingo/index.html#bc=km7q&no=12'); await p2.waitForTimeout(2600);
+  check('  参加する スマホ：QR の アドレスで ビンゴが 🃏 カード で 開く（組・番号）・アドレスの # は 消す',
+    await p2.evaluate(() => [window.APP_TOOL, isDlgOpen('bingoOverlay'), BINGO.state().tab, JSON.stringify(BINGO.state().card), location.hash, document.querySelector('.bg-cinfo').textContent, document.getElementById('appToast').textContent].join('|')),
+    'bingo|true|card|{"code":"KM7Q","no":12,"marks":[]}||🃏 カード No. 12組 KM7Q|🃏 あなたの カードは No. 12（組 KM7Q）です');
+  check('  親の「🔎 たしかめ」と 同じ 並び', await p2.evaluate(() => [...document.querySelectorAll('#bgCardTab .cc')].map(b => b.textContent.replace('★FREE', '0')).join(',')), (await page.evaluate(() => BINGO.cardNums('KM7Q', 12))).join(','));
+  await p2.evaluate(() => BINGO.mark(0));
+  await p2.goto(base + 'apps/bingo/index.html#bc=KM7Q'); await p2.waitForTimeout(2600);
+  check('  同じ 組の QR を もう一度 読んでも カードは そのまま（穴も）', await p2.evaluate(() => [BINGO.state().card.no, BINGO.state().card.marks.length, document.getElementById('appToast').textContent].join('|')), '12|1|🃏 組 KM7Q の カード（No. 12）です（前の 穴は 🧹 で ふさげます）');
+  await p2.goto(base + 'apps/bingo/index.html#bc=ZX9W'); await p2.waitForTimeout(2600);
+  check('  ちがう 組（番号 なし）：新しい カード・番号は 1000〜9999', await p2.evaluate(() => { const c = BINGO.state().card; return [c.code, c.no >= 1000 && c.no <= 9999, c.marks.length].join('/'); }), 'ZX9W/true/0');
+  await p2.goto(base + 'apps/bingo/index.html#bc=%21%21%21&no=5'); await p2.waitForTimeout(2600);
+  check('  へんな コード は 見ない（カードは そのまま・# は 消す）', await p2.evaluate(() => [BINGO.state().card.code, location.hash].join('|')), 'ZX9W|');
+  check('  エラーなし（参加する スマホ）', e2.join(' | '), '');
+  await c2.close();
+  // 🗣 筆談：👥 向かい合わせ
+  await page.evaluate(() => {
+    closeBingo(); window.__recs = []; window.__say = [];
+    window.SpeechRecognition = class { constructor() { window.__recs.push(this); } start() { this.started = true; } abort() { this.aborted = true; setTimeout(() => this.onend && this.onend(), 0); } stop() { this.abort(); } };
+    window.HyoVoice = Object.assign({}, window.HyoVoice, { available: true, speak: (t, o) => { window.__say.push(t); setTimeout(() => o && o.onend && o.onend(), 30); }, cancel: () => {} });
+    return openHitsudan();
+  }); await w(600);
+  await page.evaluate(() => { HITSUDAN.mode('type'); HITSUDAN.typed('受付は こちら'); }); await w(200);
+  check('  「👥 向かい合わせで 使う」ボタン', await page.evaluate(() => document.querySelector('.hd-duob').firstChild.textContent), '👥 向かい合わせで 使う');
+  await page.click('.hd-duob'); await w(300);
+  check('  開く：画面いっぱいに 上と下・上は さかさま（180°）・いま 出して いた 字は 上（向かいの人）へ',
+    await page.evaluate(() => { const d = document.getElementById('hdDuo'), T = getComputedStyle(document.getElementById('hdH_top')).transform, B = getComputedStyle(document.getElementById('hdH_bot')).transform; return [d.parentElement.id, d.getBoundingClientRect().height === innerHeight, /^matrix\(-1, [-0-9.e]+, [-0-9.e]+, -1, 0, 0\)$/.test(T), B, HITSUDAN.duoText('top'), HITSUDAN.duoText('bot')].join('|'); }),
+    'hitsudanOverlay|true|true|none|⌨ 打った言葉|受付は こちら||向かいの人の 言葉が ここに 大きく 出ます');
+  check('  下（あなた）：🎤・⌨・✍・🔈・✕ と よく使う言葉／上（向かいの人）：🎤・✍・🔈 と 返事の 言葉',
+    await page.evaluate(() => ['bot', 'top'].map(s => [...document.querySelectorAll('#hdB_' + s + ' button')].map(b => b.textContent).join(',') + ':' + document.querySelectorAll('#hdC_' + s + ' button').length + ':' + document.querySelector('#hdC_' + s + ' button').textContent).join(' / ')),
+    '🎤 話す,⌨ 打つ,✍ 書く,🔈 読む,✕ もどる:12:はい / 🎤 話す,✍ 書く,🔈 読む:9:はい');
+  await page.click('#hdC_bot button:nth-child(5)'); await w(150);
+  await page.click('#hdC_top button:nth-child(7)'); await w(150);
+  check('  ⭐ 下の 言葉は 上に、上の 返事は 下に 大きく 出る・記録に 👤（向かいの人）',
+    await page.evaluate(() => [HITSUDAN.duoText('top'), HITSUDAN.duoText('bot'), HITSUDAN.duoPx('bot') > 60, HITSUDAN.duoPx('top') > 40, document.getElementById('hdE_bot').textContent, HITSUDAN.hist().join(','), [...document.querySelectorAll('#hdHist .hd-h .s')].map(x => x.textContent).join(',')].join('|')),
+    '⭐ よく使う言葉|もう一度 お願いします|⭐ よく使う言葉|書いて ください|true|true|↑ 向かいに 出ています：もう一度 お願いします|ph:書いて ください,ph:もう一度 お願いします|👤⭐,⭐');
+  const emit = (t, fin) => page.evaluate(([t, fin]) => { const r = window.__recs[window.__recs.length - 1]; r.onresult({ resultIndex: 0, results: [Object.assign([{ transcript: t }], { isFinal: fin })] }); }, [t, fin]);
+  await page.click('#hdB_bot button:nth-child(1)'); await w(100);
+  await emit('お名前を', false); await w(80);
+  const live = await page.evaluate(() => [HITSUDAN.duoText('top'), document.getElementById('hdT_top').classList.contains('live'), document.querySelector('#hdB_bot button').textContent, document.getElementById('hdE_bot').textContent].join('|'));
+  await emit('お名前を 教えて ください', true); await w(80);
+  check('  🎤 下で 話すと 上に 出る（聞きとり中も うすく）', live + ' → ' + await page.evaluate(() => [HITSUDAN.duoText('top'), HITSUDAN.duoState().mic].join('|')),
+    '🎤 聞いています…|お名前を|true|⏹ やめる|🎤 聞いています… 話すと 向かいの人の 側に 出ます → 🎤 聞こえた言葉|お名前を 教えて ください|bot');
+  await page.evaluate(() => HITSUDAN.duoMic('top')); await w(80);
+  await emit('田中です', true); await w(80);
+  check('  上の 🎤 に かえると 上の 人の 声は 下に 出る（聞くのは 1つの まま）',
+    await page.evaluate(() => [HITSUDAN.duoText('bot'), HITSUDAN.duoText('top'), document.querySelector('#hdB_top button').textContent, document.querySelector('#hdB_bot button').textContent, window.__recs.length].join('|')),
+    '🎤 聞こえた言葉|田中です|🎤 聞こえた言葉|お名前を 教えて ください|⏹ やめる|🎤 話す|1');
+  await page.evaluate(() => HITSUDAN.duoMic('top')); await w(80);
+  check('  もう一度 押すと やめる', await page.evaluate(() => [HITSUDAN.duoState().listening, document.querySelector('#hdB_top button').textContent].join('|')), 'false|🎤 話す');
+  // ✍ 上の 人が 書く（さかさまの 板）
+  await page.evaluate(() => HITSUDAN.duoWr('top')); await w(100);
+  const R = await page.evaluate(() => { const b = document.getElementById('hdCv_top').getBoundingClientRect(); return [b.left, b.top, b.width, b.height]; });
+  const P = (x, y) => [R[0] + R[2] * (1 - x), R[1] + R[3] * (1 - y)];   // 上の 人から 見た 場所 → 画面の 場所
+  const line = async (y) => { await page.mouse.move(...P(0.2, y)); await page.mouse.down(); for (let i = 1; i <= 10; i++) await page.mouse.move(...P(0.2 + 0.6 * i / 10, y)); await page.mouse.up(); await w(60); };
+  await line(0.25);
+  const ink = id => page.evaluate(id => { const c = document.getElementById(id), g = c.getContext('2d'), x = Math.round(c.width / 2), band = (a, b) => { for (let y = Math.round(c.height * a); y < Math.round(c.height * b); y++) if (g.getImageData(x, y, 1, 1).data[3] > 0) return true; return false; }; return [band(0.15, 0.35), band(0.55, 0.95)].join(','); }, id);
+  check('  ✍ 上の 人が 書く：上の 板（上の 人から 見て 上の ほう）・下にも 同じ 字（下の 人から 見て 上の ほう）',
+    [await page.evaluate(() => { const s = HITSUDAN.duoState(); return [s.bot.k, s.bot.src, document.getElementById('hdCv_bot').hidden, HITSUDAN.duoText('bot'), document.getElementById('hdE_top').textContent, [...document.querySelectorAll('#hdB_top button')].map(b => b.textContent + (b.disabled ? '×' : '')).join(',')].join('|'); }), await ink('hdCv_top'), await ink('hdCv_bot')].join('|'),
+    '1|write|false|✍ 書いた字||✍ 指で 書くと、向かいの人の 側にも 出ます|↩ 1画,🧹 消す,✓ 書きおわり|true,false|true,false');
+  await line(0.75); await page.click('#hdB_top button:nth-child(1)'); await w(80);
+  const undo = await page.evaluate(() => HITSUDAN.duoState().bot.k);
+  await line(0.75); await page.click('#hdB_top button:nth-child(2)'); await w(80);
+  check('  ↩ 1画・🧹 消す', [undo, await page.evaluate(() => HITSUDAN.duoState().bot.k), await ink('hdCv_bot')].join('|'), '1|0|false,false');
+  await line(0.25); await page.click('#hdB_top button:nth-child(3)'); await w(100);
+  check('  ✓ 書きおわり：上は 下の 人の 言葉に もどる・下は 書いた 字の まま', await page.evaluate(() => [HITSUDAN.duoText('top'), HITSUDAN.duoText('bot'), document.getElementById('hdCv_top').hidden, document.getElementById('hdE_top').textContent].join('|')),
+    '🎤 聞こえた言葉|お名前を 教えて ください|✍ 書いた字||true|↑ 向かいに 書いた字が 出ています');
+  // ⌨ 打つ（下だけ）
+  await page.click('#hdB_bot button:nth-child(2)'); await w(150);
+  await page.evaluate(() => { window.__kd = 0; document.addEventListener('keydown', () => { window.__kd++; }); });
+  await page.fill('#hdDIn', 'こちらへ どうぞ'); await page.keyboard.type('123'); await w(150);
+  check('  ⌨ 打つ：下の 真ん中寄りに 打つ 欄・打つ たびに 上に 出る・表の キーには 届かない',
+    await page.evaluate(() => [document.activeElement.id, !document.getElementById('hdKb').hidden, document.getElementById('hdKb').getBoundingClientRect().top < innerHeight * 0.62, HITSUDAN.duoText('top'), window.__kd, document.querySelector('#hdB_bot button.on').textContent].join('|')),
+    'hdDIn|true|true|⌨ 打った言葉|こちらへ どうぞ123|0|⌨ 打つ');
+  await page.click('.hd-hkbb button:nth-child(1)'); await w(100);
+  check('  🆕 新しく：打った 言葉は 記録に・上は 空に', await page.evaluate(() => [HITSUDAN.hist()[0], HITSUDAN.duoText('top'), document.getElementById('hdDIn').value].join('|')), 'type:こちらへ どうぞ123||向かいの人の 言葉が ここに 大きく 出ます|');
+  await page.evaluate(() => { HITSUDAN.duoTyped('お大事に'); HITSUDAN.duoSay('bot'); HITSUDAN.duoSay('top'); }); await w(100);
+  check('  🔈 読む：下は 打った 言葉を 読む・上（書いた 字）は 読めない と 知らせる', await page.evaluate(() => [window.__say[window.__say.length - 1], document.getElementById('appToast').textContent].join('|')), 'お大事に|読み上げる 文字が ありません');
+  await page.evaluate(() => { HITSUDAN.yomu(true); HITSUDAN.duoPh('top', 8); }); await w(100);
+  check('  「読み上げも」なら 返事も 読む', await page.evaluate(() => [window.__say[window.__say.length - 1], HITSUDAN.duoText('bot')].join('|')), 'ありがとう|⭐ よく使う言葉|ありがとう');
+  await page.keyboard.press('Escape'); await w(250);
+  check('  Esc は 向かい合わせ だけ 閉じる・さいごに 上に 出した 字が ふだんの 画面に', await page.evaluate(() => [!!document.getElementById('hdDuo'), isDlgOpen('hitsudanOverlay'), document.getElementById('hdTxt').textContent].join('|')), 'false|true|お大事に');
+  await page.evaluate(() => HITSUDAN.duo()); await w(200);
+  await page.evaluate(() => window.history.back()); await w(500);
+  check('  端末の「戻る」も 向かい合わせ だけ 閉じる', await page.evaluate(() => [!!document.getElementById('hdDuo'), isDlgOpen('hitsudanOverlay')].join('/')), 'false/true');
+  await page.evaluate(() => HITSUDAN.duo()); await w(200);
+  await page.setViewportSize({ width: 900, height: 412 }); await w(400);
+  check('  横向き：上と下 それぞれ 左右に 並べる（字は 大きい まま）', await page.evaluate(() => [getComputedStyle(document.getElementById('hdH_bot')).flexDirection, HITSUDAN.duoText('top'), HITSUDAN.duoPx('top') > 40].join('|')), 'row|⌨ 打った言葉|お大事に|true');
+  await page.setViewportSize({ width: 412, height: 900 }); await w(200);
+  await page.evaluate(() => closeHitsudan()); await w(300);
+  check('  筆談ボードを 閉じると 向かい合わせも 消える', await page.evaluate(() => [!!document.getElementById('hdDuo'), isDlgOpen('hitsudanOverlay')].join('/')), 'false/false');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+async function runV600(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🧳 しおりの 🗺 地図・📝 試験報告書・🏨 案内ページの 📷 写真（v600） ──');
+  const w = ms => page.waitForTimeout(ms);
+  // ── 🧳 旅のしおり：🗺 地図 ──
+  await page.evaluate(() => {
+    window.appConfirm = async () => true;
+    localStorage.setItem('excalc_shiori', JSON.stringify({ trips: [{ id: 'trip01', title: '箱根 温泉', emo: '♨', start: '2026-11-03', end: '2026-11-05',
+      plan: [{ id: 'p0001', d: '2026-11-03', t: '08:00', what: '東京駅 出発', place: '東京駅' }, { id: 'p0002', d: '2026-11-03', t: '10:00', what: '登山電車', place: '箱根湯本駅' },
+        { id: 'p0003', d: '2026-11-03', t: '13:00', what: '大涌谷で 黒たまご', place: '大涌谷' }, { id: 'p0004', d: '2026-11-03', t: '16:00', what: '宿に 着く', place: '箱根 強羅 旅館' },
+        { id: 'p0005', d: '2026-11-04', t: '10:00', what: '芦ノ湖 遊覧船', place: '芦ノ湖' }, { id: 'p0006', d: '2026-11-04', t: '15:00', what: '帰る' },
+        { id: 'p0007', d: '2026-11-05', t: '09:00', what: '朝ごはん', place: '強羅駅' }, { id: 'p0008', d: '2026-11-05', t: '10:00', what: 'おみやげ', place: '強羅駅' }, { id: 'p0009', d: '2026-11-05', t: '11:00', what: '美術館', place: '彫刻の森' }],
+      stay: [{ id: 's0001', kind: 'yado', name: '強羅 ○○旅館', tel: '0460-00-0000', addr: '神奈川県足柄下郡箱根町強羅' }] }], cur: 'trip01', tab: 'plan' }));
+    return openShiori();
+  }); await w(500);
+  await page.evaluate(() => SHIORI.today('2026-11-01')); await w(150);
+  const E = s => encodeURIComponent(s);
+  check('  🗺 予定の 場所は 押すと 地図・2か所 以上の 日に「この日の 道順」（続けて 同じ 場所は 1つ）',
+    await page.evaluate(() => { const m = [...document.querySelectorAll('.so-map')], r = [...document.querySelectorAll('.so-route')]; return [m.length, m[0].getAttribute('href'), m[0].target, r.length, r.map(x => x.textContent).join(',')].join('|'); }),
+    ['8', 'https://www.google.com/maps/search/?api=1&query=' + E('東京駅'), '_blank', '2', '🗺 この日の 道順（4か所）,🗺 この日の 道順（2か所）'].join('|'));
+  check('  道順の アドレス（はじめ・寄る ところ・さいご）・1か所の 日は 地図', await page.evaluate(() => [SHIORI.route('2026-11-03'), SHIORI.route('2026-11-04'), SHIORI.route('2026-11-05')].join(' ')),
+    ['https://www.google.com/maps/dir/?api=1&origin=' + E('東京駅') + '&destination=' + E('箱根 強羅 旅館') + '&waypoints=' + E('箱根湯本駅|大涌谷'),
+      'https://www.google.com/maps/search/?api=1&query=' + E('芦ノ湖'), 'https://www.google.com/maps/dir/?api=1&origin=' + E('強羅駅') + '&destination=' + E('彫刻の森')].join(' '));
+  check('  📋 コピーに 道順・地図の アドレス', await page.evaluate(() => SHIORI.text().split('\n').filter(l => l.startsWith('🗺')).map(l => l.split('：')[0] + '：' + l.split('：')[1].slice(0, 34)).join(',')),
+    '🗺 この日の 道順：https://www.google.com/maps/dir/?a,🗺 地図：https://www.google.com/maps/search,🗺 この日の 道順：https://www.google.com/maps/dir/?a');
+  check('  🖨 印刷：場所の ある 日に QR コード（道順・地図）', await page.evaluate(() => { const d = document.createElement('div'); d.innerHTML = SHIORI.html(); return [d.querySelectorAll('.dy').length, d.querySelectorAll('.dy .qr img[src^="data:image/png"]').length, [...d.querySelectorAll('.dy .qr small')].map(x => x.textContent).join(',')].join('|'); }), '3|3|🗺 この日の 道順,🗺 地図,🗺 この日の 道順');
+  await page.evaluate(() => SHIORI.planAdd('2026-11-04')); await w(200);
+  check('  予定の 場所は よく使う 場所（宿・この 旅の 場所）から えらべる', await page.evaluate(() => [...document.querySelectorAll('.so-kp button')].map(b => b.textContent.replace('📍 ', '')).join(',')), '強羅 ○○旅館,東京駅,箱根湯本駅,大涌谷,箱根 強羅 旅館,芦ノ湖,強羅駅,彫刻の森');
+  await page.click('.so-kp button:nth-child(4)'); await w(80);
+  await page.evaluate(() => { window.__open = []; window.open = (u, t) => { window.__open.push(u + ' ' + t); return null; }; SHIORI.mapTry(); }); await w(80);
+  check('  えらぶと 場所に 入る・🗺 で 地図を たしかめる', await page.evaluate(() => [document.getElementById('soPP').value, window.__open.join(',')].join('|')), '大涌谷|https://www.google.com/maps/search/?api=1&query=' + E('大涌谷') + ' _blank');
+  await page.evaluate(() => { document.getElementById('soPP').value = ''; SHIORI.mapTry(); SHIORI.close(); closeShiori(); }); await w(200);
+  check('  場所が 空なら 知らせる', await page.evaluate(() => document.getElementById('appToast').textContent), '場所を 入れて ください');
+  // ── 📝 試験報告書（単位水量・カンタブ）──
+  await page.evaluate(() => {
+    localStorage.setItem('excalc_kantab_table', JSON.stringify([{ r: 1.0, c: 0.01 }, { r: 2.0, c: 0.02 }, { r: 3.0, c: 0.03 }]));
+    localStorage.setItem('excalc_kantab_vals', JSON.stringify({ W: '175', r1: '1.5', r2: '1.6', r3: '4.0' }));
+    localStorage.setItem('excalc_tansui_vals', JSON.stringify({ W1: '175', C: '300', S: '800', G: '1000', P: '0', A1: '4.5', V: '7000', m1: '2000', m2: '18100', A2: '4.6' }));
+  });
+  await page.reload(); await w(900);
+  await page.evaluate(() => { window.appConfirm = async () => true; window.print = () => { window.__printed = (window.__printed || 0) + 1; }; openKantab(); }); await w(300);
+  check('  カンタブ：計算は ktResult に（表示は 前と 同じ）・範囲外は 平均に 入れない',
+    await page.evaluate(() => { const R = ktResult(); return [R.avg, R.judge, R.n, R.nOut, R.nInterp, document.getElementById('ktC_r1').textContent, document.getElementById('ktQ_r2').textContent, document.getElementById('ktC_r3').textContent, document.getElementById('ktResVal').textContent, document.getElementById('ktJudge').textContent].join('|'); }),
+    '0.027|ok|2|1|2|0.0150 % *|0.028|範囲外|0.027 kg/m³|合格');
+  check('  カンタブに 🖨 1ページ・🖼 画像・📤 共有・📝 試験報告書・印刷のしかた', await page.evaluate(() => [...document.querySelectorAll('#kantabOverlay .veg-pdf-btn, #kantabOverlay .prn-open')].map(b => b.textContent.replace(/（.*$/, '')).join(',')),
+    '🖨 結果を1ページのPDFに,🖼 画像で保存,📤 画像を共有,📝 試験報告書,🖨 印刷のしかた');
+  await page.evaluate(() => ktPdf()); await w(700);
+  check('  🖨 カンタブの 1ページ（表・平均・判定・めやす）・カンタブは 閉じる',
+    await page.evaluate(() => { const b = document.querySelector('#printArea #ktRepBox'); return [!!b, b.classList.contains('prn-doc'), b.querySelector('.vp-title').textContent, [...b.querySelectorAll('.sk-kt tbody tr')].map(r => [...r.children].map(c => c.textContent).join(' ').trim()).join(' / '), b.querySelector('.vp-big').textContent.replace(/\s+/g, ' '), isDlgOpen('kantabOverlay'), window.__printed > 0].join('|'); }),
+    'true|true|🧪 カンタブ試験（塩化物含有量） 報告書|① 1.5 0.0150 * 0.026 / ② 1.6 0.0160 * 0.028 / ③ 4.0 範囲外 — / 平均   0.027|塩化物含有量（2回の 平均） ＝ 0.027 kg/m³ ／ 判定 合格|false|true');
+  await page.evaluate(() => openTansui()); await w(300);
+  check('  単位水量にも 📝 試験報告書', await page.evaluate(() => [...document.querySelectorAll('#tansuiOverlay .sk-open')].map(b => b.textContent).join(',')), '📝 試験報告書（工事名・試験者・印の欄つき）');
+  await page.click('#tansuiOverlay .sk-open'); await w(400);
+  const today = await page.evaluate(() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); });
+  check('  開く：入れる 試験は 開いた 道具（ほかの 結果も 見える）・試験日は きょう',
+    await page.evaluate(() => [isDlgOpen('shikenOverlay'), [...document.querySelectorAll('.sk-ib')].map(b => (b.classList.contains('on') ? '✓' : '') + b.querySelector('small').textContent).join(','), document.querySelector('#skBody [data-k=date]').value, document.querySelector('#skBody [data-k=time]').value].join('|')),
+    'true|✓W 160.2 kg/m³・合格,0.027 kg/m³・合格|' + today + '|');
+  await page.fill('#skBody [data-k=co]', '○○生コン（株）'); await page.fill('#skBody [data-k=koji]', '○○ビル 新築工事'); await page.fill('#skBody [data-k=place]', '現場'); await page.fill('#skBody [data-k=temp]', '１８．５');
+  await page.fill('#skBody [data-k=ctemp]', '21'); await page.fill('#skBody [data-k=tester]', '山田 太郎'); await page.fill('#skBody [data-k=time]', '10:30');
+  await page.evaluate(() => { window.__kd = 0; document.addEventListener('keydown', () => { window.__kd++; }); });
+  await page.focus('#skBody [data-k=witness]'); await page.keyboard.type('12'); await page.fill('#skBody [data-k=witness]', '佐藤 一郎');
+  await page.click('.sk-seg button:nth-child(3)'); await page.click('.sk-ib:nth-child(2)'); await w(100);
+  check('  見出しを 入れると 覚える（全角の 数字も）・天候・両方 えらぶ・表の キーには 届かない',
+    await page.evaluate(() => { const h = JSON.parse(localStorage.getItem('excalc_shiken')); return [h.co, h.koji, h.place, h.temp, h.ctemp, h.tester, h.witness, h.weather, h.time, h.hanko, JSON.stringify(SHIKEN.chosen()), window.__kd].join('|'); }),
+    '○○生コン（株）|○○ビル 新築工事|現場|18.5|21|山田 太郎|佐藤 一郎|雨|10:30|true|{"tsx":true,"kt":true}|0');
+  check('  報告書：見出しの 表・単位水量・塩化物・印の 欄（試験者・立会者）',
+    await page.evaluate(() => { const d = document.createElement('div'); d.innerHTML = SHIKEN.html({ tsx: true, kt: true }); const hd = [...d.querySelectorAll('.sk-hd tr')].map(r => [...r.children].map(c => c.textContent).join(':')).join(' / '); return [d.querySelector('.sk-t').textContent, d.querySelector('.sk-co').textContent, hd, [...d.querySelectorAll('.sk-sec')].map(x => x.textContent).join(','), [...d.querySelectorAll('.sk-hanko b')].map(x => x.textContent).join(',')].join('|'); }),
+    'コンクリート 試験報告書|○○生コン（株）|工事名:○○ビル 新築工事 / 試験日:' + await page.evaluate(t => { const d = new Date(t + 'T00:00:00'); return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日（' + '日月火水木金土'[d.getDay()] + '）'; }, today) + '　10:30:天候:雨 / 試験場所:現場:気温:18.5 ℃ / 試験者:山田 太郎:コンクリート温度:21 ℃ / 立会者:佐藤 一郎|💧 単位水量試験（エアメータ法）,🧪 塩化物含有量試験（カンタブ）|試験者,立会者');
+  await page.click('.sk-ck input'); await w(50);
+  check('  片方だけ・印の 欄なし', await page.evaluate(() => { const d = document.createElement('div'); d.innerHTML = SHIKEN.html({ tsx: false, kt: true }); return [d.querySelector('.sk-t').textContent, d.querySelectorAll('.sk-sec').length, !!d.querySelector('.sk-hanko'), SHIKEN.head().hanko].join('|'); }), '塩化物含有量試験 報告書|1|false|false');
+  await page.evaluate(() => { SHIKEN.inc('tsx'); SHIKEN.inc('kt'); SHIKEN.print(); }); await w(150);
+  check('  どれも えらんで いないと 知らせる', await page.evaluate(() => [isDlgOpen('shikenOverlay'), document.getElementById('appToast').textContent].join('|')), 'true|入れる 試験を えらんで ください');
+  await page.evaluate(() => { SHIKEN.inc('tsx'); SHIKEN.inc('kt'); window.__printed = 0; SHIKEN.print(); }); await w(600);
+  check('  🖨 印刷：報告書を 組み立てて 窓は 閉じる（印刷のしかたも 効く）', await page.evaluate(() => [!!document.querySelector('#printArea #skRepBox.prn-doc'), isDlgOpen('shikenOverlay'), isDlgOpen('tansuiOverlay'), window.__printed, !!PRN_TOOLS.shiken && !!PRN_TOOLS.kt].join('|')), 'true|false|false|1|true');
+  await page.evaluate(() => { const h = JSON.parse(localStorage.getItem('excalc_shiken')); h.date = '2000-01-01'; h.dateSet = '2000-01-01'; h.time = '09:00'; localStorage.setItem('excalc_shiken', JSON.stringify(h)); openShikenRep('kt'); }); await w(300);
+  check('  次の 日は 試験日を きょうに もどす（見出しは そのまま）・カンタブから 開くと カンタブ', await page.evaluate(() => [document.querySelector('#skBody [data-k=date]').value, document.querySelector('#skBody [data-k=time]').value, document.querySelector('#skBody [data-k=koji]').value, JSON.stringify(SHIKEN.chosen())].join('|')), today + '||○○ビル 新築工事|{"tsx":false,"kt":true}');
+  await page.keyboard.press('Escape'); await w(200);
+  check('  Esc で 閉じる・バックアップと 端末の 空きに 見出し', await page.evaluate(() => [isDlgOpen('shikenOverlay'), SETTINGS_BACKUP_KEYS.includes('excalc_shiken'), ST_GROUPS.some(g => g.k === 'excalc_shiken')].join('|')), 'false|true|true');
+  // ── 🏨 案内ページ：📷 写真・館内図 ──
+  const feed = (sel, kinds) => page.evaluate(async ([sel, kinds]) => {
+    const mk = k => new Promise(res => { const c = document.createElement('canvas'); c.width = 900; c.height = 600; const g = c.getContext('2d'); g.fillStyle = k === 'map' ? '#fff' : '#3a7d44'; g.fillRect(0, 0, 900, 600); g.fillStyle = '#111'; g.font = 'bold 50px sans-serif'; g.fillText(k, 50, 100); c.toBlob(b => res(new File([b], k + '.png', { type: 'image/png' })), 'image/png'); });
+    const dt = new DataTransfer(); for (const k of kinds) dt.items.add(await mk(k));
+    dt.items.add(new File(['abc'], 'memo.txt', { type: 'text/plain' }));
+    const inp = document.querySelector(sel); inp.files = dt.files; inp.dispatchEvent(new Event('change'));
+  }, [sel, kinds]);
+  await page.evaluate(() => openAnnai()); await w(600);
+  check('  表紙の 写真の 欄・「🗺 館内図・写真の 項目を足す」', await page.evaluate(() => [!!document.getElementById('anCoverIn'), getComputedStyle(document.getElementById('anCoverIn')).display, [...document.querySelectorAll('#anBody .an-btn')].some(b => b.textContent === '🗺 館内図・写真の 項目を足す')].join('|')), 'true|none|true');
+  await feed('#anCoverIn', ['cover']); await w(900);
+  await page.evaluate(() => anEdit(null, 'map')); await w(300);
+  check('  館内図の 項目：見出し・しるし・はじめから 開く', await page.evaluate(() => [document.getElementById('anETitle').value, document.querySelector('#anEIcons button.on').textContent, document.getElementById('anEOpen').checked].join('|')), '館内図|🗺|true');
+  await feed('#anEPicIn', ['map', 'room']); await w(1200);
+  await page.evaluate(() => { const ins = document.querySelectorAll('.an-pic input'); ins[0].value = '1階'; ins[0].dispatchEvent(new Event('input')); ins[1].value = 'お部屋'; ins[1].dispatchEvent(new Event('input')); anEdPicMove(1, -1); anEdSave(); }); await w(400);
+  const st1 = await page.evaluate(() => { const a = anState(), s = a.sections[a.sections.length - 1]; return { cover: a.cover, pics: s.pics, id: s.id }; });
+  check('  写真を 入れる（写真で ない ものは 入れない）・ひとこと・並べかえ・一覧に 📷 の 数', await page.evaluate(st1 => [/^p[a-z0-9]{6,20}$/.test(st1.cover), st1.pics.map(p => p.cap).join(','), [...document.querySelectorAll('.an-item .an-pc')].map(x => x.textContent).join(','), !!document.querySelector('.an-cover img[data-pic]')].join('|'), st1), 'true|お部屋,1階|📷2|true');
+  check('  お客様の ページ：表紙・写真（押すと 大きく）・ひとこと', await page.evaluate(async () => { const h = anPageHtml(anState(), await anPicsMap()), d = new DOMParser().parseFromString(h, 'text/html'); return [!!d.querySelector('header img.cv[src^="data:image/jpeg"]'), d.querySelectorAll('.ph figure img[src^="data:image/jpeg"]').length, [...d.querySelectorAll('.ph figcaption')].map(x => x.textContent).join(','), !!d.getElementById('lb'), (h.match(/data:image\/jpeg/g) || []).length].join('|'); }), 'true|2|お部屋,1階|true|3');
+  // 見え方（iframe）で 押すと 大きく
+  await page.evaluate(() => anPreview()); await w(1200);
+  const lb = await page.evaluate(async () => { const d = document.getElementById('anPvFrame').contentDocument; d.querySelector('.ph img').click(); await new Promise(r => setTimeout(r, 100)); const a = [d.getElementById('lb').hidden, d.getElementById('lbCap').textContent]; d.getElementById('lbImg').click(); a.push(d.getElementById('lb').classList.contains('z')); d.getElementById('lb').click(); a.push(d.getElementById('lb').hidden); return a.join('|'); });
+  check('  見え方：写真を 押すと 大きく（ひとこと）・もう一度で 拡大・外を 押すと 閉じる', lb, 'false|お部屋|true|true');
+  await page.evaluate(() => anClosePv()); await w(200);
+  // やめると 足した 写真は 消す・外して 保存すると 消す
+  await page.evaluate(id => anEdit(id), st1.id); await w(200);
+  await feed('#anEPicIn', ['extra']); await w(900);
+  const extra = await page.evaluate(() => [...document.querySelectorAll('.an-pic img')].map(i => i.dataset.pic).pop());
+  await page.evaluate(() => anCloseEd()); await w(300);
+  check('  保存せずに やめると 足した 写真は 消える', await page.evaluate(async ([id, n]) => [await anPicGet(id), anState().sections.find(s => s.id === n).pics.length].join('|'), [extra, st1.id]), '|2');
+  await page.evaluate(id => { anEdit(id); anEdPicDel(0); anEdSave(); }, st1.id); await w(400);
+  check('  外して 保存すると その 写真も 消える', await page.evaluate(async p => [await anPicGet(p.id) === null, anState().sections.find(s => s.pics && s.pics.length).pics.length].join('|'), st1.pics[0]), 'true|1');
+  // 全体の バックアップ・作りかけの 保存
+  const bundle = await page.evaluate(async () => { const m = await annaiPicsBundle(); return Object.keys(m || {}).length; });
+  check('  全体の バックアップに 写真（使って いる ものだけ）', bundle, 2);
+  check('  へんな データ：写真の 名前は 決まった 形だけ', await page.evaluate(() => { const a = window.__anClean ? null : null; const d = anState(); const o = JSON.parse(JSON.stringify(d)); o.cover = '../x'; o.sections[0].pics = [{ id: 'p<img>' }, { id: 'pabcdef12', cap: 'ok' }]; localStorage.setItem('excalc_annai', JSON.stringify(o)); closeAnnai(); openAnnai(); const s = anState(); return [s.cover, s.sections[0].pics.map(p => p.id).join(',')].join('|'); }), '|pabcdef12');
+  await page.evaluate(() => anReset()); await w(500);
+  check('  見本に 戻すと 写真も 消す', await page.evaluate(async p => [anState().cover, await anPicGet(p)].join('|'), st1.pics[1].id), '|');
+  await page.evaluate(() => closeAnnai()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+async function runV601(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ✂ トリミング：☀ 明るさ・🗂 まとめて／📖 読みもの：🔖 つづきから・🔈 読み上げ（v601） ──');
+  const w = ms => page.waitForTimeout(ms);
+  // 画像を 作って input に 入れる（[名前, 横, 縦, 色(0〜255 の 灰色)]）
+  const feed = (sel, specs, extra) => page.evaluate(async ([sel, specs, extra]) => {
+    const mk = ([nm, W, H, v]) => new Promise(res => { const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(0, 0, W, H); g.fillStyle = `rgb(${Math.min(255, v + 40)},${v},${v})`; g.fillRect(0, 0, W / 2, H / 2); c.toBlob(b => res(new File([b], nm + '.png', { type: 'image/png' })), 'image/png'); });
+    const dt = new DataTransfer(); for (const s of specs) dt.items.add(await mk(s));
+    if (extra) dt.items.add(new File(['abc'], 'memo.txt', { type: 'text/plain' }));
+    const inp = document.querySelector(sel); inp.files = dt.files; inp.dispatchEvent(new Event('change'));
+  }, [sel, specs, !!extra]);
+  check('  ☀ 書き出しの 式（明るさを かけて 0〜1 に おさめ、0.5 を 中心に コントラスト）', await page.evaluate(async () => {
+    await openTrim(); const c = document.createElement('canvas'); c.width = 3; c.height = 1; const g = c.getContext('2d'); [[128, 0], [191, 1], [250, 2]].forEach(([v, x]) => { g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(x, 0, 1, 1); });
+    trAdjPixels(c, { b: 20, c: 0 }); const a = [...g.getImageData(0, 0, 3, 1).data].filter((_, i) => i % 4 === 0);
+    trAdjPixels(c, { b: 0, c: 0 }); const same = [...g.getImageData(0, 0, 3, 1).data].filter((_, i) => i % 4 === 0);
+    const d = document.createElement('canvas'); d.width = 1; d.height = 1; const h = d.getContext('2d'); h.fillStyle = 'rgb(191,191,191)'; h.fillRect(0, 0, 1, 1); trAdjPixels(d, { b: 0, c: 50 });
+    return [a.join(','), same.join(','), h.getImageData(0, 0, 1, 1).data[0]].join('|'); }), '154,229,255|154,229,255|223');
+  await feed('#trPicIn', [['灰色', 800, 600, 120]]); await w(700);
+  await page.evaluate(() => trAdjShow(true)); await w(200);
+  check('  「☀ 明るさ」で 明るさ・コントラストの 欄（はじめは 0）', await page.evaluate(() => [!document.getElementById('trAdjRow').hidden, document.getElementById('trAdjB').value, document.getElementById('trAdjC').value, document.getElementById('trAdjBtn').classList.contains('on'), document.querySelectorAll('.tr-tools button').length].join('|')), 'true|0|0|true|6');
+  await page.evaluate(() => { const r = document.getElementById('trAdjB'); r.value = '30'; r.dispatchEvent(new Event('input')); const c = document.getElementById('trAdjC'); c.value = '-20'; c.dispatchEvent(new Event('input')); }); await w(100);
+  check('  動かすと 画面に すぐ（CSS の filter）・下の 行に ☀ ◐', await page.evaluate(() => [JSON.stringify(trAdjState()), document.getElementById('trCv').style.filter, document.getElementById('trAdjBv').textContent, document.getElementById('trInfo').textContent.split('（')[1]].join('|')),
+    '{"b":30,"c":-20}|brightness(1.3) contrast(0.8)|+30|写真 800×600・☀+30 ◐−20）');
+  await page.evaluate(() => { trSetFmt('png'); trOpenOut(); }); await w(500);
+  check('  できあがりにも 同じ 明るさ（見本も）', await page.evaluate(async () => { const r = await trMakeBlob(), bm = await createImageBitmap(r.blob), c = document.createElement('canvas'); c.width = bm.width; c.height = bm.height; const g = c.getContext('2d'); g.drawImage(bm, 0, 0); const px = g.getImageData(700, 500, 1, 1).data[0]; return [r.w + 'x' + r.h, px, document.getElementById('trPrev').style.filter].join('|'); }),
+    '800x600|' + Math.round(((Math.min(1, 120 / 255 * 1.3) - 0.5) * 0.8 + 0.5) * 255) + '|brightness(1.3) contrast(0.8)');
+  await page.evaluate(() => { trCloseOut(); trAdjReset(); trAdjAuto(); }); await w(150);
+  check('  ✨ 自動：くすんだ 写真は 明るさ・コントラストを 上げる', await page.evaluate(() => { const a = trAdjState(); return [a.c > 0, a.b !== 0 || a.c !== 0, document.getElementById('appToast').textContent.startsWith('✨ 明るさ')].join('|'); }), 'true|true|true');
+  await feed('#trPicIn', [['べつ', 400, 300, 200]]); await w(600);
+  check('  べつの 写真に すると 0 に もどる', await page.evaluate(() => [JSON.stringify(trAdjState()), document.getElementById('trCv').style.filter].join('|')), '{"b":0,"c":0}|');
+  await page.evaluate(() => closeTrim()); await w(200);
+  // 🗂 まとめて
+  await page.evaluate(() => { openTrim(); trBatchOpen(); }); await w(300);
+  check('  🗂 何枚も まとめて：はじめは 写真を えらぶ（ボタンは 押せない）', await page.evaluate(() => [isDlgOpen('trBatchOverlay'), document.querySelector('.tr-btadd').textContent, [...document.querySelectorAll('#trBtBody .tr-btn')].map(b => b.disabled).join(','), [...document.querySelectorAll('#trBtBody .tr-chip.on')].map(b => b.textContent).join(',')].join('|')),
+    'true|＋写真を えらぶ|true,true,true|📏 長い辺を そろえる,1600px,PNG,決めない');
+  await feed('#trBtIn', [['横長', 2400, 1200, 90], ['縦長', 900, 1600, 160], ['小さい', 500, 400, 60]], true); await w(1500);
+  check('  写真だけ 入る・1枚目の 見本（長い辺 1600）', await page.evaluate(() => [trBatchState().n, document.querySelectorAll('.tr-btp').length, document.getElementById('trBtEst').textContent.split('　')[0]].join('|')), '3|3|1枚目の できあがり：1600 × 800');
+  await page.evaluate(() => { trBatchSet('fmt', 'jpeg'); trBatchSet('L', 800); }); await w(100);
+  await page.evaluate(() => trBatchRun('zip')); await w(3000);
+  check('  📏 長い辺 800：形は そのまま（小さい 写真は 大きく しない）・🗜 ZIP（名前は 日本語の まま）',
+    await page.evaluate(async () => { const L = trBatchState().last, z = trBatchZip(), m = await xlsxUnzip(await z.arrayBuffer()); return [L.map(x => x.name).join(','), [...m.keys()].join(','), [...m.values()].every((u, i) => u.length === L[i].size), z.type].join('|'); }),
+    '横長_800x400.jpg,縦長_450x800.jpg,小さい_500x400.jpg|横長_800x400.jpg,縦長_450x800.jpg,小さい_500x400.jpg|true|application/zip');
+  await page.evaluate(() => { trBatchSet('mode', 'fit'); trBatchSet('WH', '1080x1080'); trBatchAdj('auto', true); }); await w(200);
+  check('  🔲 横×縦 ぴったり・✨ 1枚ずつ 自動（つまみは 止める）・設定は 覚える', await page.evaluate(() => [document.querySelector('#trBtBody .tr-wh input').value, [...document.querySelectorAll('.tr-btadj input[type=range]')].every(r => r.disabled), JSON.stringify(JSON.parse(localStorage.getItem('excalc_trim')).bt)].join('|')), '1080|true|{"mode":"fit","L":800,"W":1200,"H":900}'.replace('"W":1200,"H":900', '"W":1080,"H":1080'));
+  await page.evaluate(() => { window.__dl = []; const o = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () { if (this.download) window.__dl.push(this.download); else o.call(this); }; trBatchRun('each'); }); await w(4000);
+  check('  💾 1枚ずつ：どれも 1080×1080', await page.evaluate(() => [trBatchState().last.map(x => x.w + 'x' + x.h).join(','), window.__dl.join(',')].join('|')), '1080x1080,1080x1080,1080x1080|横長_1080x1080.jpg,縦長_1080x1080.jpg,小さい_1080x1080.jpg');
+  await page.evaluate(() => { trBatchDel(1); }); await w(150);
+  check('  ✕ で 外す', await page.evaluate(() => [trBatchState().n, document.querySelectorAll('.tr-btp').length].join('|')), '2|2');
+  await page.evaluate(() => { navigator.canShare = () => false; trBatchRun('share'); }); await w(2500);
+  check('  📤 送れない 端末では ZIP で 保存', await page.evaluate(() => [!!trBatchZip(), window.__dl.slice(-1)[0].endsWith('.zip')].join('|')), 'true|true');
+  await page.evaluate(() => trBatchClose()); await w(200);
+  check('  閉じると えらんだ 写真は 片づける', await page.evaluate(() => [isDlgOpen('trBatchOverlay'), trBatchState().n].join('|')), 'false|0');
+  await page.evaluate(() => closeTrim()); await w(200);
+  // ── 📖 読みもの ──
+  await page.evaluate(() => {
+    window.__say = []; window.__sayMs = 150; window.HyoVoice = Object.assign({}, window.HyoVoice, { available: true, speak: (t, o) => { window.__say.push(t); setTimeout(() => o && o.onend && o.onend(), window.__sayMs); }, cancel: () => { window.__say.push('[止]'); } });
+    localStorage.setItem('excalc_yomi', JSON.stringify({ manner: { recent: [{ id: "x');alert(1);('", t: 'わるい' }], last: { id: '<b>', top: 5 } }, '<x>': {} }));
+    return openManner();
+  }); await w(500);
+  check('  読む 部品（yomi.js）を いっしょに 読む・へんな データは 使わない', await page.evaluate(() => [typeof YOMIMONO, !!document.querySelector('script[src="yomi.js"]'), JSON.stringify(YOMIMONO.recent('manner')), YOMIMONO.last('manner'), document.querySelector('.yomi-top') === null].join('|')), 'object|true|[]||true');
+  const pg = await page.evaluate(() => mnPages().filter(p => p.cat !== 'tool').slice(0, 4).map(p => p.id));
+  await page.evaluate(id => mnOpen(id), pg[0]); await w(200);
+  await page.evaluate(() => { document.getElementById('mnViewBody').scrollTop = 300; }); await w(700);
+  const top0 = await page.evaluate(() => document.getElementById('mnViewBody').scrollTop);
+  await page.evaluate(() => mnCloseView()); await w(200);
+  check('  開いた ページと 読んだ 位置を 覚える → 一覧の 上に「🔖 つづきから」', await page.evaluate(() => { const L = YOMIMONO.last('manner'); return [L.id, L.top, document.querySelector('.yomi-cont b').textContent, !!document.querySelector('.yomi-cont small')].join('|'); }),
+    [pg[0], top0, await page.evaluate(id => mnPages().find(p => p.id === id).t, pg[0]), top0 > 40].join('|'));
+  await page.evaluate(ids => { mnOpen(ids[1]); mnOpen(ids[2]); mnCloseView(); }, pg); await w(200);
+  check('  🕘 最近 見た（新しい 順・つづきからの ページは のぞく）', await page.evaluate(() => [...document.querySelectorAll('.yomi-rec button')].map(b => b.textContent).join(',')), await page.evaluate(ids => [ids[1], ids[0]].map(id => mnPages().find(p => p.id === id).t).join(','), pg));
+  await page.evaluate(ids => { mnOpen(ids[0]); document.getElementById('mnViewBody').scrollTop = 250; }, pg); await w(700);
+  await page.evaluate(() => mnCloseView()); await w(200);
+  await page.click('.yomi-cont'); await w(500);
+  check('  「🔖 つづきから」で 前の 位置から', await page.evaluate(() => [mnState().cur, Math.abs(document.getElementById('mnViewBody').scrollTop - YOMIMONO.last('manner').top) <= 2, YOMIMONO.last('manner').top > 0].join('|')), pg[0] + '|true|true');
+  await page.evaluate(() => { document.getElementById('mnViewBody').scrollTop = 0; }); await w(500);
+  await page.click('#mnViewBody .mn-acts button:nth-child(2)'); await w(150);
+  const firstBlock = await page.evaluate(() => YOMIMONO.blocks('mnViewBody')[0]);
+  check('  🔈 読み上げ：上から 1まとまりずつ（読んで いる ところに 色）・ボタンは ⏹ 止める', await page.evaluate(() => [YOMIMONO.reading(), document.querySelector('#mnViewBody .mn-acts button:nth-child(2)').textContent, document.querySelectorAll('#mnViewBody .yomi-now').length, window.__say[0]].join('|')), 'true|⏹ 止める|1|' + firstBlock);
+  await w(800);
+  check('  読み進む（ボタン・入力・ページ送りは 読まない）', await page.evaluate(() => [window.__say.length > 3, window.__say.every(t => !/前のページ|次のページ|印刷|よく見る/.test(t))].join('|')), 'true|true');
+  await page.click('#mnViewBody .mn-acts button:nth-child(2)'); await w(150);
+  check('  もう一度 押すと 止める', await page.evaluate(() => [YOMIMONO.reading(), document.querySelector('#mnViewBody .mn-acts button:nth-child(2)').textContent, document.querySelectorAll('.yomi-now').length, window.__say.slice(-1)[0]].join('|')), 'false|🔈 読み上げ|0|[止]');
+  await page.click('#mnViewBody .mn-acts button:nth-child(2)'); await w(100);
+  await page.evaluate(() => mnCloseView()); await w(200);
+  check('  ページを 閉じると 読むのも 止める', await page.evaluate(() => [YOMIMONO.reading(), document.querySelectorAll('.yomi-now').length].join('|')), 'false|0');
+  await page.evaluate(() => closeManner()); await w(200);
+  for (const [open, close, list, it, body, acts] of [['openBoki', 'closeBoki', '#bkList', '.bk-it', 'bkViewBody', '.bk-acts'], ['openKurashi', 'closeKurashi', '#krCatBody', '.kr-it', 'krViewBody', '.kr-acts']]) {
+    await page.evaluate(f => window[f](), open); await w(500);
+    if (open === 'openKurashi') { await page.evaluate(() => krOpenCat(document.querySelector('.kr-card').dataset.cat)); await w(200); }
+    await page.evaluate(([list, it]) => document.querySelector(list + ' ' + it).click(), [list, it]); await w(200);
+    const r = await page.evaluate(([body, acts]) => [...document.querySelectorAll('#' + body + ' ' + acts + ' button')].map(b => b.textContent).join(','), [body, acts]);
+    await page.evaluate(([open]) => { if (open === 'openKurashi') { krCloseView(); krCloseCat(); } else bkCloseView(); }, [open]); await w(200);
+    check('  ' + (open === 'openBoki' ? '📒 会計の手引き' : '🧭 くらしの便利帳') + 'にも 🔈 読み上げ・🔖 つづきから', r + '|' + await page.evaluate(() => !!document.querySelector('.yomi-cont')), '☆ よく見る,🔈 読み上げ,🖨 印刷|true');
+    await page.evaluate(f => window[f](), close); await w(200);
+  }
+  check('  バックアップと 端末の 空きに 読みものの しおり', await page.evaluate(() => [SETTINGS_BACKUP_KEYS.includes('excalc_yomi'), ST_GROUPS.some(g => g.k === 'excalc_yomi'), Object.keys(JSON.parse(localStorage.getItem('excalc_yomi'))).sort().join(',')].join('|')), 'true|true|boki,kurashi,manner');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+async function runUnits602(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📐 単位つきのまま計算（v602） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const U = await page.evaluate(() => {
+    const T = ['3.5m×2.4m', '1.2m×0.8m×12枚', '3.5m×2.4m×0.15m', '500円×3個', '1,200円×3', '1m20cm+80cm', '30cm+45cm', '15m³÷4.5m³', '15㎥÷4.5', '2.5t×4台', '1000円×10%', '8時間×3日',
+      '1時間30分+45分', '12個÷3人', '2,500円÷1.5㎡', '2400kg÷1m3', '3坪×2', '6畳+4.5畳', '2L×6本', '90cm×180cm', '(3m+2m)×4m', '３．５ｍ×２．４ｍ', '3.5 m × 2.4 m', '1m20cm', '2m2×3', '1.5t×2+500kg',
+      '3-5人', '2×4', '10円', '5m×', '03-1234-5678', '2024-10-29', 'A3×2', 'x2', '1m2', '3m+2kg', '5m÷0m', '=3m×2m'];
+    return T.map(t => { const r = unitEval(t); return t + '→' + (r ? (Math.round(r.v * 1000) / 1000) + r.unit : '×'); });
+  });
+  check('  答えの 単位：面積 m²・体積 m³・長さ（同じ 単位／ちがえば m）・重さ・円・時間・数える 単位・%・坪・畳・L',
+    U.slice(0, 26).join(' / '),
+    ['3.5m×2.4m→8.4m²', '1.2m×0.8m×12枚→11.52m²', '3.5m×2.4m×0.15m→1.26m³', '500円×3個→1500円', '1,200円×3→3600円', '1m20cm+80cm→2m', '30cm+45cm→75cm', '15m³÷4.5m³→3.333', '15㎥÷4.5→3.333m³', '2.5t×4台→10t', '1000円×10%→100円', '8時間×3日→24時間',
+      '1時間30分+45分→2.25時間', '12個÷3人→4', '2,500円÷1.5㎡→1666.667円/m²', '2400kg÷1m3→2400kg/m³', '3坪×2→6坪', '6畳+4.5畳→10.5畳', '2L×6本→12L', '90cm×180cm→1.62m²', '(3m+2m)×4m→20m²', '３．５ｍ×２．４ｍ→8.4m²', '3.5 m × 2.4 m→8.4m²', '1m20cm→1.2m', '2m2×3→6m²', '1.5t×2+500kg→3500kg'].join(' / '));
+  check('  計算しない もの（はば・2×4・単位 1つ・とちゅう・電話・日付・ちがう 種類の ＋・0 で わる・数式）', U.slice(26).join(' / '),
+    ['3-5人→×', '2×4→×', '10円→×', '5m×→×', '03-1234-5678→×', '2024-10-29→×', 'A3×2→×', 'x2→×', '1m2→×', '3m+2kg→×', '5m÷0m→×', '=3m×2m→×'].join(' / '));
+  await page.evaluate(() => {
+    [['3.5m×2.4m', '=A1*2'], ['1.2m×0.8m×12枚', '=A1+A2'], ['500円×3個', '=SUM(A1:A3)'], ['3-5人', ''], ['2×4', '']].forEach((row, r) => row.forEach((v, c) => { if (v) setCellVal(r, c, v); }));
+    recalcAll(); sel(0, 0);
+  }); await w(300);
+  check('  セルに 単位つきで 出る・中身は 打ったまま・=A1*2 や SUM には その 数', await page.evaluate(() => [[0, 1, 2, 3, 4].map(r => document.getElementById('c' + r + '_0').textContent).join(','), [0, 1, 2].map(r => getCellDisplay(r, 1)).join(','), data[0][0], document.getElementById('formulaInput').value].join('|')),
+    '8.4m²,11.52m²,1500円,3-5人,2×4|16.8,19.92,1519.92|3.5m×2.4m|3.5m×2.4m');
+  check('  下の 合計にも その 数（「3-5人」「2×4」は 前と 同じく 3・2）', await page.evaluate(() => document.getElementById('sSum').textContent), '1,524.92');
+  await page.evaluate(() => { cellStyles['0,0'] = Object.assign({}, cellStyles['0,0'] || {}, { dec: 2 }); recalcAll(); }); await w(150);
+  check('  小数の けたの 設定も 効く', await page.evaluate(() => getCellDisplay(0, 0)), '8.40m²');
+  await page.evaluate(() => sel(7, 0)); await page.click('#formulaInput'); await page.keyboard.type('2.5m×1.2m'); await page.keyboard.press('Enter'); await w(200);
+  await page.evaluate(() => sel(8, 0)); await page.click('#formulaInput'); await page.keyboard.type('1200×3'); await page.keyboard.press('Enter'); await w(200);
+  check('  入力欄で 打って Enter：単位つきは 文字の まま（数式に しない）・単位の ない 式は 今までどおり 数式', await page.evaluate(() => [data[7][0], getCellDisplay(7, 0), data[8][0], getCellDisplay(8, 0)].join('|')), '2.5m×1.2m|3m²|=1200*3|3600');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
+
+/* v603 A18 起動を速く（本体を app.js に・新しくなったことを whatsnew.js に・文字合わせは起動の最後に1回）・H1 テストを速く（組の表・同じ組は1回） */
+async function runBoot603(browser) {
+  console.log('\n── 🚀 起動を速く・テストを速く（v603） ──');
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'), app = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+  const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8'), wn = fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8');
+  const inl = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].reduce((a, m) => a + m[1].length, 0);
+  check('  index.html は 軽く（600KB より 小さい・中の プログラムは 小さな ものだけ）・本体は app.js を 読む',
+    [Buffer.byteLength(html) < 600 * 1024, inl < 10000, /<script src="app\.js" onerror="appLoadFail\(\)"><\/script>\s*<\/body>/.test(html)].join('/'), 'true/true/true');
+  check('  app.js に 版・whatsnew.js に 一覧（app.js には 持たない）・電波なしでも 使える ように 両方 先に 持つ',
+    [/const APP_VERSION='v\d+';/.test(app), wn.includes('const WHATSNEW=['), app.includes('const WHATSNEW=['), sw.includes("'./app.js'"), sw.includes("'./whatsnew.js'")].join('/'), 'true/true/false/true/true');
+  const ver = (/const APP_VERSION='(v\d+)'/.exec(app) || [])[1];
+  check('  whatsnew.js の いちばん上が いまの 版', (/const WHATSNEW=\[\s*\{ v:'(v\d+)'/.exec(wn) || [])[1], ver);
+
+  // 起動：画面の 組み直しが 少ない（前は 文字合わせが 起動中に 何度も 走り、組み直しが 90回 ほど あった）
+  {
+    const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true });
+    await ctx.addInitScript(() => { try { localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_back_ask', '0'); localStorage.setItem('excalc_startpage', 'last'); } catch (_) {} });
+    const page = await ctx.newPage();
+    const errs = []; page.on('pageerror', e => errs.push(e.message));
+    const cdp = await ctx.newCDPSession(page);
+    await cdp.send('Performance.enable');
+    await page.goto(INDEX); await page.waitForTimeout(1500);
+    const m = Object.fromEntries((await cdp.send('Performance.getMetrics')).metrics.map(x => [x.name, x.value]));
+    check('  起動の 画面の 組み直しが 少ない（45回 より 少ない）', m.LayoutCount < 45, true);
+    const r = await page.evaluate(() => {
+      const snap = () => [...document.querySelectorAll('.numpad-grid .btn, .numpad-regpage .ubtn')].map(b => b.style.fontSize + '|' + b.style.whiteSpace).join(',');
+      const a = snap(), fitted = [...document.querySelectorAll('.numpad-grid .btn')].filter(b => b.style.fontSize).length;
+      fitNumpadLabels();
+      return [npFitBoot, fitted > 0, npLabelsOverflow(), a === snap(), typeof WHATSNEW, document.querySelectorAll('script[src="whatsnew.js"]').length, !document.getElementById('appSplash')].join('/');
+    });
+    check('  文字合わせは 起動の 最後に まとめて（終わって いる・長い 名前は 縮んで いる・はみ出し なし・もう一度 合わせても 同じ）・一覧は まだ 読まない・読み込み表示は 消えた',
+      r, '0/true/false/true/undefined/0/true');
+    check('  読み上げ用の 名前は 画面が できた あとに 付く（名前の ない ボタン なし）', await page.evaluate(() =>
+      [...document.querySelectorAll('button')].filter(b => !(b.textContent || '').trim() && !b.title && !b.getAttribute('aria-label')).length), 0);
+    // 起動の あとは その場で 合わせる（ボタンの 大きさを 変えると すぐ）
+    check('  起動の あとは その場で 合わせる', await page.evaluate(() => {
+      const b = [...document.querySelectorAll('#numpadPage1 .btn')].find(x => x.clientWidth > 0); const was = b.style.fontSize;
+      b.textContent = 'とても とても 長い 名前の ボタン'; fitNumpadLabels(); const now = b.style.fontSize; return !!now && now !== was; }), true);
+    check('  JSエラーが出ていない', errs.length, 0);
+    if (errs.length) console.log('    ', errs);
+    await ctx.close();
+  }
+
+  // 本体（app.js）が 読めなかったとき：読み込み表示に 知らせと「もう一度 読み込む」
+  {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'excalc-boot-'));
+    fs.copyFileSync(path.join(ROOT, 'index.html'), path.join(tmp, 'index.html'));
+    const ctx = await browser.newContext({ viewport: { width: 412, height: 900 } });
+    const page = await ctx.newPage();
+    await page.goto('file://' + path.join(tmp, 'index.html')); await page.waitForTimeout(600);
+    check('  app.js が 無いと「読み込めませんでした」と「もう一度 読み込む」', await page.evaluate(() => {
+      const sp = document.getElementById('appSplash'), b = sp && sp.querySelector('.sp-retry');
+      return [!!sp && sp.classList.contains('sp-fail'), !!sp && sp.textContent.includes('読み込めませんでした'), !!b && b.getAttribute('onclick'), !!b && b.getBoundingClientRect().height >= 44].join('/'); }),
+      'true/true/location.reload()/true');
+    await ctx.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+
+  // H1：組の 表（同じ 組は 1回・名前で えらぶ・番号で えらぶ）
+  const list = JSON.parse(require('child_process').execFileSync(process.execPath, [__filename, '--list'], { encoding: 'utf8', maxBuffer: 16 << 20 }));
+  const fns = list.map(x => x.fn), dup = fns.filter((f, i) => fns.indexOf(f) !== i);
+  check('  組の 表：組は 170 より 多い・同じ 関数は 2度 入れない（声の聞き取りの 2つだけ）・どの 組にも 名前',
+    [list.length > 170, dup.join(','), list.every(x => x.names.length > 0)].join('/'), 'true/runKoeListen/true');
+  check('  名前で えらぶ（いくつも 名前の ある 組は 1回）・番号で えらぶ・知らない 名前',
+    JSON.stringify([pickSuites('v602,units').idx.length, pickSuites('hade').idx.length > 3, pickSuites('@0').idx, pickSuites('nosuch').unknown]), '[1,true,[0],["nosuch"]]');
+  check('  並べて 流す 係（run-par.js）は 組の 表を 使い、かかった 時間を 覚える（覚えは git に 入れない）',
+    [fs.readFileSync(path.join(__dirname, 'run-par.js'), 'utf8').includes("'--list'"), fs.readFileSync(path.join(ROOT, '.gitignore'), 'utf8').includes('tests/.par-times.json')].join('/'), 'true/true');
+}
+
 async function runClockLay591(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🕐 ど派手タイマーの 時計：ぽよん 以外の 見せ方も 同じ 並べ方（v591） ──');
@@ -12346,7 +13171,7 @@ async function runShiori579(browser) {
   await page.evaluate(() => { SHIORI.newTrip(); document.getElementById('soTTitle').value = '箱根 温泉'; document.getElementById('soTStart').value = '2026-10-30'; document.getElementById('soTEnd').value = '2026-11-01'; SHIORI.emo(document.querySelectorAll('.so-emos button')[5], '♨'); SHIORI.setupSave(true); }); await w(200);
   check('  新しい 旅：2泊3日・あと 6日・タブ 6つ', await page.evaluate(() => { const w = SHIORI.when(); return [SHIORI.state().trips.length, w.span, w.rel, w.text, document.querySelectorAll('.so-tabs button').length, document.querySelector('.so-head b').textContent, document.querySelector('.so-head .e').textContent].join('/'); }), '1/2泊3日/あと 6日/10月30日（金）〜11月1日（日）/6/箱根 温泉/♨');
   check('  帰る日が 行く日より 前・30日より 長い 旅は 作らない', await page.evaluate(() => { SHIORI.newTrip(); document.getElementById('soTStart').value = '2026-11-05'; document.getElementById('soTEnd').value = '2026-11-01'; SHIORI.setupSave(true); const a = [SHIORI.state().trips.length]; document.getElementById('soTEnd').value = '2026-12-31'; SHIORI.setupSave(true); a.push(SHIORI.state().trips.length); SHIORI.close(); return a.join('/'); }), '1/1');
-  check('  🗓 日程：3日ぶん・予定を 足す（時刻順）・済んだら ✓', await page.evaluate(() => { const r = [document.querySelectorAll('.so-day').length]; SHIORI.planAdd('2026-10-30'); document.getElementById('soPT').value = '10:30'; document.getElementById('soPW').value = '箱根湯本 着'; document.getElementById('soPP').value = '箱根湯本駅'; SHIORI.planSave(''); SHIORI.planAdd('2026-10-30'); document.getElementById('soPT').value = '08:00'; document.getElementById('soPW').value = '東京駅 出発'; SHIORI.planSave(''); const d1 = document.querySelectorAll('.so-day')[0]; r.push([...d1.querySelectorAll('.so-pl .tm')].map(x => x.textContent).join(','), d1.querySelector('.so-pl small').textContent); const id = SHIORI.state().trips[0].plan.find(p => p.what === '東京駅 出発').id; SHIORI.planOk(id, true); r.push(document.querySelector('.so-pl.ok .tx b').textContent); return r.join('/'); }), '3/08:00,10:30/📍 箱根湯本駅/東京駅 出発');
+  check('  🗓 日程：3日ぶん・予定を 足す（時刻順）・済んだら ✓', await page.evaluate(() => { const r = [document.querySelectorAll('.so-day').length]; SHIORI.planAdd('2026-10-30'); document.getElementById('soPT').value = '10:30'; document.getElementById('soPW').value = '箱根湯本 着'; document.getElementById('soPP').value = '箱根湯本駅'; SHIORI.planSave(''); SHIORI.planAdd('2026-10-30'); document.getElementById('soPT').value = '08:00'; document.getElementById('soPW').value = '東京駅 出発'; SHIORI.planSave(''); const d1 = document.querySelectorAll('.so-day')[0]; r.push([...d1.querySelectorAll('.so-pl .tm')].map(x => x.textContent).join(','), d1.querySelector('.so-pl small').textContent); const id = SHIORI.state().trips[0].plan.find(p => p.what === '東京駅 出発').id; SHIORI.planOk(id, true); r.push(document.querySelector('.so-pl.ok .tx b').textContent); return r.join('/'); }), '3/08:00,10:30/📍 箱根湯本駅 🗺/東京駅 出発');
   check('  予定を 直す（ほかの 日へ）・消す（聞いてから）', await page.evaluate(async () => { const t = SHIORI.state().trips[0], id = t.plan.find(p => p.what === '箱根湯本 着').id; SHIORI.planEdit(id); document.getElementById('soPD').value = '2026-10-31'; document.getElementById('soPW').value = '大涌谷'; SHIORI.planSave(id); const a = [document.querySelectorAll('.so-day')[1].querySelector('.so-pl .tx b').textContent]; await SHIORI.delOf('plan', id, p => p.what); a.push(SHIORI.state().trips[0].plan.length); return a.join('/'); }), '大涌谷/1');
   check('  日にちを かえても 予定は 消えない（日にちの 外）', await page.evaluate(() => { SHIORI.setup(); document.getElementById('soTStart').value = '2026-10-31'; SHIORI.setupSave(false); const r = [document.querySelectorAll('.so-day').length, !!document.querySelector('.so-day.out'), document.querySelector('.so-day.out .so-pl .tm').textContent]; SHIORI.setup(); document.getElementById('soTStart').value = '2026-10-30'; SHIORI.setupSave(false); r.push(document.querySelectorAll('.so-day.out').length); return r.join('/'); }), '3/true/10月30日（金） 08:00/0');
   check('  🎒 持ち物：国内の 見本 22・海外 9・✓・ぜんぶ 外す・同じ ものは 入れない', await page.evaluate(() => { SHIORI.tab('pack'); SHIORI.packPreset('jp'); const r = [SHIORI.state().trips[0].pack.length]; SHIORI.packPreset('intl'); const t = SHIORI.state().trips[0]; r.push(t.pack.length); SHIORI.packOk(t.pack[0].id, true); SHIORI.packOk(t.pack[1].id, true); r.push(document.querySelector('.so-prog').textContent.replace(/\s+/g, '')); SHIORI.packClear(); r.push(SHIORI.state().trips[0].pack.filter(p => p.ok).length); document.getElementById('soPkName').value = '財布'; SHIORI.packAdd(); r.push(SHIORI.state().trips[0].pack.length); document.getElementById('soPkName').value = 'カメラ'; document.getElementById('soPkCat').value = 'denshi'; SHIORI.packAdd(); const k = SHIORI.state().trips[0].pack.pop(); r.push(k.name + ':' + k.cat, document.querySelectorAll('.so-h').length); return r.join('/'); }), '22/31/2／31入れた/0/31/カメラ:denshi/5');
@@ -16933,7 +17758,7 @@ async function runTecho(browser) {
   check('  読み込みで重ならずに足す', await page.evaluate(() => { const inc = JSON.parse(localStorage.getItem('excalc_techo')); const n0 = tc.items.length;
     const a = techoMergeBundle(inc); inc.items.push({ id: 'imp1', kind: 'memo', roles: ['qc'], date: '2026-09-30', title: '読み込んだメモ', upd: 1 });
     const b = techoMergeBundle(inc); return a + '/' + b + '/' + (tc.items.length - n0) + '/' + !!tc.items.find(i => i.title === '読み込んだメモ'); }), '0/1/1/true');
-  check('  端末の空き具合に出る', await page.evaluate(() => typeof ST_KEYS !== 'undefined' ? ST_KEYS.some(k => k.k === 'excalc_techo') : document.documentElement.innerHTML.includes("excalc_techo")), true);
+  check('  端末の空き具合に出る', await page.evaluate(() => ST_GROUPS.some(k => k.k === 'excalc_techo')), true);   // v603：本体が app.js に なったので、ページの 文字では なく 表で 見る
   check('  壊れた中身は捨てる', await page.evaluate(() => { const o = tcClean({ roles: [{ id: 'a', name: 'A', color: 'red' }, { id: 'a', name: 'dup' }], items: [{ id: '1', date: '2026-02-30', title: 'x' }, { id: '2', date: '2026-02-03', start: '25:00', roles: ['zz'], title: '<b>' }], ui: { view: 'zzz' } });
     return o.roles.length + '/' + o.roles[0].color + '/' + o.items.length + '/' + o.items[0].allDay + '/' + o.items[0].roles.join() + '/' + o.ui.view; }), '1/#1e88e5/1/true/a/split');
   // 「戻る」で上の窓から閉じる
@@ -17112,7 +17937,7 @@ async function runTecho(browser) {
   check('  上のタイトルバーは出さない・▲ の右に ☰', await page.evaluate(() => !document.querySelector('#techoOverlay .modal-header') + '/' + (document.getElementById('tcFoldBtn').nextElementSibling.id)), 'true/tcMenuBtn');
   check('  いちばん上は iPhone の安全な範囲の内側', await page.evaluate(() => { const st = getComputedStyle(document.querySelector('#techoOverlay .tc-modal')); document.documentElement.style.setProperty('--safe-top', '47px'); const t = getComputedStyle(document.querySelector('#techoOverlay .tc-modal')).paddingTop; document.documentElement.style.removeProperty('--safe-top'); return t; }), '47px');
   await page.click('#tcMenuBtn'); await page.waitForTimeout(80);
-  check('  ☰ でメニューが出る', await page.evaluate(() => isDlgOpen('tcMenuOv') + '/' + [...document.querySelectorAll('#tcMenu button:not([hidden])')].map(b => b.textContent.replace(/^\S+\s/, '')).join(',')), 'true/さがす,メモ一覧,印刷・PDF・画像,設定,業務手帳を閉じる');
+  check('  ☰ でメニューが出る', await page.evaluate(() => isDlgOpen('tcMenuOv') + '/' + [...document.querySelectorAll('#tcMenu button:not([hidden])')].map(b => b.textContent.replace(/^\S+\s/, '')).join(',')), 'true/さがす,メモ一覧,印刷・PDF・画像,カレンダーに 書き出す,設定,業務手帳を閉じる');
   await page.goBack({ waitUntil: 'commit' }).catch(() => {}); await page.waitForTimeout(400);
   check('  戻るでメニューだけ閉じる', await page.evaluate(() => isDlgOpen('tcMenuOv') + '/' + isDlgOpen('techoOverlay')), 'false/true');
   await page.click('#tcMenuBtn'); await page.waitForTimeout(80);
@@ -17672,173 +18497,217 @@ async function runQrShare(browser) {
   await ctx.close();
 }
 
+/* 組の 一覧（v603 で 表に した）。[名前（どれか 1つ 当たれば 流す）, 流す 関数]。
+     node tests/run.js              … ぜんぶ（上から 順に）
+     node tests/run.js hade         … その 名前の 組だけ（カンマで いくつでも：formula,xlsx）
+     node tests/run.js @12          … 表の 12番目（0から 数える）だけ。tests/run-par.js が 使う
+     node tests/run.js --list       … 組の 一覧を JSON で 出す（tests/run-par.js が 使う）
+   1回の 実行で 同じ 組は 2度 流さない（hade と v589 を いっしょに 頼んでも 1回）。 */
+const SUITES = [
+  [['formula'], b => runFormula(b)],
+  [['xlsx'], b => runXlsx(b)],
+  [['a11y'], b => runA11y(b)],
+  [['mode'], b => runMode(b)],
+  [['digit'], b => runDigit(b)],
+  [['speech'], b => runSpeech(b)],
+  [['calcpage'], b => runCalcPage(b)],
+  [['regpick'], b => runRegPick(b)],
+  [['cellmenu'], b => runCellMenu(b)],
+  [['savelist'], b => runSaveList(b)],
+  [['topbar'], b => runTopBar(b)],
+  [['flicksym'], b => runFlickSym(b)],
+  [['nptools'], b => runNpTools(b)],
+  [['keys466'], b => runKeys466(b)],
+  [['seqcustom'], b => runSeqCustom(b)],
+  [['fmtrange'], b => runFmtRange(b)],
+  [['rangesum'], b => runRangeSum(b)],
+  [['hdrmulti'], b => runHdrMulti(b)],
+  [['colorpick'], b => runColorPick(b)],
+  [['veggie'], b => runVeggie(b)],
+  [['report'], b => runReport(b)],
+  [['shared'], b => runShared(b)],
+  [['setdedup'], b => runSetDedup(b)],
+  [['tmplunit'], b => runTmplUnit(b)],
+  [['vegdiary'], b => runVegDiary(b)],
+  [['startpage'], b => runStartPage(b)],
+  [['dtdec'], b => runDtDec(b)],
+  [['tsxlock'], b => runTsxLock(b)],
+  [['voicemath'], b => runVoiceMath(b)],
+  [['voicesay'], b => runVoiceSay(b)],
+  [['storage'], b => runStorage(b)],
+  [['export'], b => runExport(b)],
+  [['skin'], b => runSkin(b)],
+  [['safety'], b => runSafety(b)],
+  [['packaging'], b => runPackaging(b)],
+  [['onboard'], b => runOnboard(b)],
+  [['polish'], b => runPolish(b)],
+  [['safearea'], b => runSafeArea(b)],
+  [['compact'], b => runCompact(b)],
+  [['calconly'], b => runCalcOnly(b)],
+  [['voiceplace'], b => runVoicePlace(b)],
+  [['voicefull'], b => runVoiceFull(b)],
+  [['defsize'], b => runDefSize(b)],
+  [['cellfocus'], b => runCellFocus(b)],
+  [['kaikei'], b => runKaikei(b)],
+  [['touban'], b => runTouban(b)],
+  [['tbcolor'], b => runTbColor(b)],
+  [['tbroster'], b => runTbRoster(b)],
+  [['tbsave'], b => runTbSave(b)],
+  [['fmtpage'], b => runFmtPage(b)],
+  [['qrshare'], b => runQrShare(b)],
+  [['fmtcol'], b => runFmtCol(b)],
+  [['cellxl'], b => runCellXl(b)],
+  [['clip'], b => runClip(b)],
+  [['koe'], b => runKoe(b)],
+  [['koe', 'koelisten'], b => runKoeListen(b)],
+  [['koe', 'koelisten'], b => runKoeListen(b, 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Mobile Safari/537.36')],
+  [['dtphrase'], b => runDtPhrase(b)],
+  [['koebackup'], b => runKoeBackup(b)],
+  [['fx426'], b => runFx426(b)],
+  [['techo'], b => runTecho(b)],
+  [['toolskey'], b => runToolsKey(b)],
+  [['tbfold'], b => runTbFold(b)],
+  [['subsc'], b => runSubsc(b)],
+  [['heya'], b => runHeya(b)],
+  [['annai'], b => runAnnai(b)],
+  [['shimai'], b => runShimai(b)],
+  [['meishi'], b => runMeishi(b)],
+  [['trim'], b => runTrim(b)],
+  [['manner'], b => runManner(b)],
+  [['boki'], b => runBoki(b)],
+  [['kurashi'], b => runKurashi(b)],
+  [['volshape'], b => runVolShape(b)],
+  [['keisan'], b => runKeisan(b)],
+  [['defmk'], b => runDefMk(b)],
+  [['ruler'], b => runRuler(b)],
+  [['appiconpwa'], b => runAppIconPwa(b)],
+  [['regi'], b => runRegi(b)],
+  [['kakeizu'], b => runKakeizu(b)],
+  [['saien'], b => runSaien(b)],
+  [['kakudo'], b => runKakudo(b)],
+  [['uimode'], b => runUiMode(b)],
+  [['toolsfab'], b => runToolsFab(b)],
+  [['techoapp'], b => runTechoApp(b)],
+  [['brush1'], b => runBrush1(b)],
+  [['brush2'], b => runBrush2(b)],
+  [['brush3'], b => runBrush3(b)],
+  [['help'], b => runHelpSplit(b)],
+  [['backkey'], b => runBackKey(b)],
+  [['security'], b => runSecurity(b)],
+  [['memo'], b => runMemo(b)],
+  [['memo', 'memolist'], b => runMemoList(b)],
+  [['memo', 'memophoto'], b => runMemoPhoto(b)],
+  [['sansu'], b => runSansu(b)],
+  [['kakijun'], b => runKakijun(b)],
+  [['eigo'], b => runEigoSpeak(b)],
+  [['koe', 'koeidea'], b => runKoeIdeas(b)],
+  [['koe', 'koeout'], b => runKoeOut(b)],
+  [['backguard'], b => runBackGuard(b)],
+  [['hyovoice'], b => runHyoVoice(b)],
+  [['scheme'], b => runSchemeFix(b)],
+  [['renraku'], b => runRenraku(b)],
+  [['rkiro'], b => runRenrakuIro(b)],
+  [['rkyomi'], b => runRenrakuYomi(b)],
+  [['rkcno'], b => runRenrakuColorNo(b)],
+  [['rk550'], b => runRenraku550(b)],
+  [['rk551'], b => runRenraku551(b)],
+  [['rk552'], b => runRenraku552(b)],
+  [['backask'], b => runBackAsk(b)],
+  [['rk554'], b => runRenraku554(b)],
+  [['rk555'], b => runRenraku555(b)],
+  [['rk556'], b => runRenraku556(b)],
+  [['rk566', 'v566'], b => runRenraku566(b)],
+  [['koe557'], b => runKoeUser557(b)],
+  [['kkj558'], b => runKakijun558(b)],
+  [['kkjse'], b => runKakijunSE(b)],
+  [['kkj567', 'v567'], b => runKakijun567(b)],
+  [['koyomi', 'v568'], b => runKoyomi568(b)],
+  [['hoi', 'v568'], b => runHoi568(b)],
+  [['soroban', 'v568'], b => runSoroban568(b)],
+  [['hitsudan', 'v569'], b => runHitsudan569(b)],
+  [['keijiban', 'v569'], b => runKeijiban569(b)],
+  [['keijiban570', 'keijiban', 'v570'], b => runKeijiban570(b)],
+  [['keijiban571', 'keijiban', 'v571'], b => runKeijiban571(b)],
+  [['keijiban572', 'keijiban', 'v572'], b => runKeijiban572(b)],
+  [['keijiban573', 'keijiban', 'v573'], b => runKeijiban573(b)],
+  [['keijiban574', 'keijiban', 'v574'], b => runKeijiban574(b)],
+  [['hadetimer', 'hade', 'v575'], b => runHadeTimer575(b)],
+  [['hadetimer576', 'hadetimer', 'hade', 'v576'], b => runHadeTimer576(b)],
+  [['hadetimer580', 'hadetimer', 'hade', 'v580'], b => runHadeTimer580(b)],
+  [['hadecount', 'hade', 'v575'], b => runHadeCount575(b)],
+  [['seikyu', 'v575'], b => runSeikyu575(b)],
+  [['seikyu', 'v577'], b => runSeikyu577(b)],
+  [['seikyu', 'v578'], b => runSeikyu578(b)],
+  [['yatta', 'v579'], b => runYatta579(b)],
+  [['shukin', 'v579'], b => runShukin579(b)],
+  [['shukin582', 'shukin', 'v582'], b => runShukin582(b)],
+  [['shukin582', 'shukinfile', 'shukin', 'v582'], b => runShukinFile582(b)],
+  [['hadecount582', 'hadecount', 'hade', 'v582'], b => runHadeCount582(b)],
+  [['hadecount583', 'hadecount', 'hade', 'v583'], b => runHadeCount583(b)],
+  [['hadetimer583', 'hadetimer', 'hade', 'v583'], b => runHadeTimer583(b)],
+  [['hadecount584', 'hadecount', 'hade', 'v584'], b => runHadeCount584(b)],
+  [['shiori', 'v579'], b => runShiori579(b)],
+  [['picknames', 'v579'], b => runPickNames579(b)],
+  [['saveas'], b => runSaveAs560(b)],
+  [['tatekae', 'v561'], b => runTatekae561(b)],
+  [['kuji', 'v561'], b => runKuji561(b)],
+  [['kuji', 'kuji585', 'v585'], b => runKujiAmida585(b)],
+  [['kuji', 'kuji586', 'v586'], b => runKujiReveal586(b)],
+  [['kuji', 'kuji592', 'v592'], b => runKujiSound592(b)],
+  [['bingo', 'v587'], b => runBingo587(b)],
+  [['bingo', 'bingo588', 'v588'], b => runBingo588(b)],
+  [['hade', 'hade588', 'v588'], b => runHadeFull588(b)],
+  [['seikyu', 'seikyu588', 'v588'], b => runSeikyuPrint588(b)],
+  [['hade', 'poyo', 'v589'], b => runPoyo589(b)],
+  [['hade', 'clock', 'v591'], b => runClockLay591(b)],
+  [['hade', 'voice593', 'v593'], b => runTimerVoice593(b)],
+  [['hade', 'vs594', 'v594'], b => runCountVs594(b)],
+  [['ics', 'yatta', 'techo', 'v595'], b => runIcs595(b)],
+  [['seikyu', 'regi', 'kakudo', 'v596'], b => runV596(b)],
+  [['keijiban', 'keijiban597', 'v597'], b => runKeijiban597(b)],
+  [['hade', 'timer598', 'v598'], b => runTimer598(b)],
+  [['bingo', 'hitsudan', 'v599'], b => runV599(b)],
+  [['shiori', 'shiken', 'annai', 'v600'], b => runV600(b)],
+  [['trim', 'manner', 'boki', 'kurashi', 'yomi', 'v601'], b => runV601(b)],
+  [['units', 'v602'], b => runUnits602(b)],
+  [['boot', 'runpar', 'v603'], b => runBoot603(b)],
+  [['dasetsu', 'v561'], b => runDasetsu561(b)],
+  [['okaeshi', 'v564'], b => runOkaeshi564(b)],
+  [['tax', 'v565'], b => runTax565(b)],
+  [['dasetsu', 'ds562'], b => runDasetsu562(b)],
+  [['hyoplus', 'v563'], b => runHyoPlus563(b)],
+  [['firsthint'], b => runFirstHint(b)],
+  // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
+  [['visual'], b => require('./visual').runVisual(b, check)],
+];
+// 頼まれた 組の 番号（表の 順・同じ 組は 1回）。知らない 名前は unknown に
+function pickSuites(sel) {
+  if (!sel) return { idx: SUITES.map((_, i) => i), unknown: [] };
+  const idx = new Set(), unknown = [];
+  for (const part of sel.split(',').map(x => x.trim()).filter(Boolean)) {
+    if (/^@\d+$/.test(part)) { if (SUITES[+part.slice(1)]) idx.add(+part.slice(1)); else unknown.push(part); continue; }
+    let hit = false;
+    SUITES.forEach(([names], i) => { if (names.includes(part)) { idx.add(i); hit = true; } });
+    if (!hit) unknown.push(part);
+  }
+  return { idx: [...idx].sort((x, y) => x - y), unknown };
+}
+if (only === '--list') {
+  // 関数の 中身の 長さは、はじめて 並べて 流すときの「かかりそうな 時間」の 目安に 使う
+  console.log(JSON.stringify(SUITES.map(([names, fn], i) => {
+    const m = /\b(run[A-Za-z0-9_]+)\(b/.exec(String(fn));
+    let len = 0; try { len = m ? String(eval(m[1])).length : 0; } catch (_) {}
+    return { i, names, fn: m ? m[1] : 'runVisual', len };
+  })));
+  process.exit(0);
+}
+
 (async () => {
+  const { idx, unknown } = pickSuites(only);
+  if (unknown.length) { console.error('その 名前の 組は ありません: ' + unknown.join(', ')); if (!idx.length) process.exit(2); }
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
-    if (!only || only === 'formula') await runFormula(browser);
-    if (!only || only === 'xlsx') await runXlsx(browser);
-    if (!only || only === 'a11y') await runA11y(browser);
-    if (!only || only === 'mode') await runMode(browser);
-    if (!only || only === 'digit') await runDigit(browser);
-    if (!only || only === 'speech') await runSpeech(browser);
-    if (!only || only === 'calcpage') await runCalcPage(browser);
-    if (!only || only === 'regpick') await runRegPick(browser);
-    if (!only || only === 'cellmenu') await runCellMenu(browser);
-    if (!only || only === 'savelist') await runSaveList(browser);
-    if (!only || only === 'topbar') await runTopBar(browser);
-    if (!only || only === 'flicksym') await runFlickSym(browser);
-    if (!only || only === 'nptools') await runNpTools(browser);
-    if (!only || only === 'keys466') await runKeys466(browser);
-    if (!only || only === 'seqcustom') await runSeqCustom(browser);
-    if (!only || only === 'fmtrange') await runFmtRange(browser);
-    if (!only || only === 'rangesum') await runRangeSum(browser);
-    if (!only || only === 'hdrmulti') await runHdrMulti(browser);
-    if (!only || only === 'colorpick') await runColorPick(browser);
-    if (!only || only === 'veggie') await runVeggie(browser);
-    if (!only || only === 'report') await runReport(browser);
-    if (!only || only === 'shared') await runShared(browser);
-    if (!only || only === 'setdedup') await runSetDedup(browser);
-    if (!only || only === 'tmplunit') await runTmplUnit(browser);
-    if (!only || only === 'vegdiary') await runVegDiary(browser);
-    if (!only || only === 'startpage') await runStartPage(browser);
-    if (!only || only === 'dtdec') await runDtDec(browser);
-    if (!only || only === 'tsxlock') await runTsxLock(browser);
-    if (!only || only === 'voicemath') await runVoiceMath(browser);
-    if (!only || only === 'voicesay') await runVoiceSay(browser);
-    if (!only || only === 'storage') await runStorage(browser);
-    if (!only || only === 'export') await runExport(browser);
-    if (!only || only === 'skin') await runSkin(browser);
-    if (!only || only === 'safety') await runSafety(browser);
-    if (!only || only === 'packaging') await runPackaging(browser);
-    if (!only || only === 'onboard') await runOnboard(browser);
-    if (!only || only === 'polish') await runPolish(browser);
-    if (!only || only === 'safearea') await runSafeArea(browser);
-    if (!only || only === 'compact') await runCompact(browser);
-    if (!only || only === 'calconly') await runCalcOnly(browser);
-    if (!only || only === 'voiceplace') await runVoicePlace(browser);
-    if (!only || only === 'voicefull') await runVoiceFull(browser);
-    if (!only || only === 'defsize') await runDefSize(browser);
-    if (!only || only === 'cellfocus') await runCellFocus(browser);
-    if (!only || only === 'kaikei') await runKaikei(browser);
-    if (!only || only === 'touban') await runTouban(browser);
-    if (!only || only === 'tbcolor') await runTbColor(browser);
-    if (!only || only === 'tbroster') await runTbRoster(browser);
-    if (!only || only === 'tbsave') await runTbSave(browser);
-    if (!only || only === 'fmtpage') await runFmtPage(browser);
-    if (!only || only === 'qrshare') await runQrShare(browser);
-    if (!only || only === 'fmtcol') await runFmtCol(browser);
-    if (!only || only === 'cellxl') await runCellXl(browser);
-    if (!only || only === 'clip') await runClip(browser);
-    if (!only || only === 'koe') await runKoe(browser);
-    if (!only || only === 'koe' || only === 'koelisten') await runKoeListen(browser);
-    if (!only || only === 'koe' || only === 'koelisten') await runKoeListen(browser, 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Mobile Safari/537.36');
-    if (!only || only === 'dtphrase') await runDtPhrase(browser);
-    if (!only || only === 'koebackup') await runKoeBackup(browser);
-    if (!only || only === 'fx426') await runFx426(browser);
-    if (!only || only === 'techo') await runTecho(browser);
-    if (!only || only === 'toolskey') await runToolsKey(browser);
-    if (!only || only === 'tbfold') await runTbFold(browser);
-    if (!only || only === 'subsc') await runSubsc(browser);
-    if (!only || only === 'heya') await runHeya(browser);
-    if (!only || only === 'annai') await runAnnai(browser);
-    if (!only || only === 'shimai') await runShimai(browser);
-    if (!only || only === 'meishi') await runMeishi(browser);
-    if (!only || only === 'trim') await runTrim(browser);
-    if (!only || only === 'manner') await runManner(browser);
-    if (!only || only === 'boki') await runBoki(browser);
-    if (!only || only === 'kurashi') await runKurashi(browser);
-    if (!only || only === 'volshape') await runVolShape(browser);
-    if (!only || only === 'keisan') await runKeisan(browser);
-    if (!only || only === 'defmk') await runDefMk(browser);
-    if (!only || only === 'ruler') await runRuler(browser);
-    if (!only || only === 'appiconpwa') await runAppIconPwa(browser);
-    if (!only || only === 'regi') await runRegi(browser);
-    if (!only || only === 'kakeizu') await runKakeizu(browser);
-    if (!only || only === 'saien') await runSaien(browser);
-    if (!only || only === 'kakudo') await runKakudo(browser);
-    if (!only || only === 'uimode') await runUiMode(browser);
-    if (!only || only === 'toolsfab') await runToolsFab(browser);
-    if (!only || only === 'techoapp') await runTechoApp(browser);
-    if (!only || only === 'brush1') await runBrush1(browser);
-    if (!only || only === 'brush2') await runBrush2(browser);
-    if (!only || only === 'brush3') await runBrush3(browser);
-    if (!only || only === 'help') await runHelpSplit(browser);
-    if (!only || only === 'backkey') await runBackKey(browser);
-    if (!only || only === 'security') await runSecurity(browser);
-    if (!only || only === 'memo') await runMemo(browser);
-    if (!only || only === 'memo' || only === 'memolist') await runMemoList(browser);
-    if (!only || only === 'memo' || only === 'memophoto') await runMemoPhoto(browser);
-    if (!only || only === 'sansu') await runSansu(browser);
-    if (!only || only === 'kakijun') await runKakijun(browser);
-    if (!only || only === 'eigo') await runEigoSpeak(browser);
-    if (!only || only === 'koe' || only === 'koeidea') await runKoeIdeas(browser);
-    if (!only || only === 'koe' || only === 'koeout') await runKoeOut(browser);
-    if (!only || only === 'backguard') await runBackGuard(browser);
-    if (!only || only === 'hyovoice') await runHyoVoice(browser);
-    if (!only || only === 'scheme') await runSchemeFix(browser);
-    if (!only || only === 'renraku') await runRenraku(browser);
-    if (!only || only === 'rkiro') await runRenrakuIro(browser);
-    if (!only || only === 'rkyomi') await runRenrakuYomi(browser);
-    if (!only || only === 'rkcno') await runRenrakuColorNo(browser);
-    if (!only || only === 'rk550') await runRenraku550(browser);
-    if (!only || only === 'rk551') await runRenraku551(browser);
-    if (!only || only === 'rk552') await runRenraku552(browser);
-    if (!only || only === 'backask') await runBackAsk(browser);
-    if (!only || only === 'rk554') await runRenraku554(browser);
-    if (!only || only === 'rk555') await runRenraku555(browser);
-    if (!only || only === 'rk556') await runRenraku556(browser);
-    if (!only || only === 'rk566' || only === 'v566') await runRenraku566(browser);
-    if (!only || only === 'koe557') await runKoeUser557(browser);
-    if (!only || only === 'kkj558') await runKakijun558(browser);
-    if (!only || only === 'kkjse') await runKakijunSE(browser);
-    if (!only || only === 'kkj567' || only === 'v567') await runKakijun567(browser);
-    if (!only || only === 'koyomi' || only === 'v568') await runKoyomi568(browser);
-    if (!only || only === 'hoi' || only === 'v568') await runHoi568(browser);
-    if (!only || only === 'soroban' || only === 'v568') await runSoroban568(browser);
-    if (!only || only === 'hitsudan' || only === 'v569') await runHitsudan569(browser);
-    if (!only || only === 'keijiban' || only === 'v569') await runKeijiban569(browser);
-    if (!only || only === 'keijiban570' || only === 'keijiban' || only === 'v570') await runKeijiban570(browser);
-    if (!only || only === 'keijiban571' || only === 'keijiban' || only === 'v571') await runKeijiban571(browser);
-    if (!only || only === 'keijiban572' || only === 'keijiban' || only === 'v572') await runKeijiban572(browser);
-    if (!only || only === 'keijiban573' || only === 'keijiban' || only === 'v573') await runKeijiban573(browser);
-    if (!only || only === 'keijiban574' || only === 'keijiban' || only === 'v574') await runKeijiban574(browser);
-    if (!only || only === 'hadetimer' || only === 'hade' || only === 'v575') await runHadeTimer575(browser);
-    if (!only || only === 'hadetimer576' || only === 'hadetimer' || only === 'hade' || only === 'v576') await runHadeTimer576(browser);
-    if (!only || only === 'hadetimer580' || only === 'hadetimer' || only === 'hade' || only === 'v580') await runHadeTimer580(browser);
-    if (!only || only === 'hadecount' || only === 'hade' || only === 'v575') await runHadeCount575(browser);
-    if (!only || only === 'seikyu' || only === 'v575') await runSeikyu575(browser);
-    if (!only || only === 'seikyu' || only === 'v577') await runSeikyu577(browser);
-    if (!only || only === 'seikyu' || only === 'v578') await runSeikyu578(browser);
-    if (!only || only === 'yatta' || only === 'v579') await runYatta579(browser);
-    if (!only || only === 'shukin' || only === 'v579') await runShukin579(browser);
-    if (!only || only === 'shukin582' || only === 'shukin' || only === 'v582') await runShukin582(browser);
-    if (!only || only === 'shukin582' || only === 'shukinfile' || only === 'shukin' || only === 'v582') await runShukinFile582(browser);
-    if (!only || only === 'hadecount582' || only === 'hadecount' || only === 'hade' || only === 'v582') await runHadeCount582(browser);
-    if (!only || only === 'hadecount583' || only === 'hadecount' || only === 'hade' || only === 'v583') await runHadeCount583(browser);
-    if (!only || only === 'hadetimer583' || only === 'hadetimer' || only === 'hade' || only === 'v583') await runHadeTimer583(browser);
-    if (!only || only === 'hadecount584' || only === 'hadecount' || only === 'hade' || only === 'v584') await runHadeCount584(browser);
-    if (!only || only === 'shiori' || only === 'v579') await runShiori579(browser);
-    if (!only || only === 'picknames' || only === 'v579') await runPickNames579(browser);
-    if (!only || only === 'saveas') await runSaveAs560(browser);
-    if (!only || only === 'tatekae' || only === 'v561') await runTatekae561(browser);
-    if (!only || only === 'kuji' || only === 'v561') await runKuji561(browser);
-    if (!only || only === 'kuji' || only === 'kuji585' || only === 'v585') await runKujiAmida585(browser);
-    if (!only || only === 'kuji' || only === 'kuji586' || only === 'v586') await runKujiReveal586(browser);
-    if (!only || only === 'kuji' || only === 'kuji592' || only === 'v592') await runKujiSound592(browser);
-    if (!only || only === 'bingo' || only === 'v587') await runBingo587(browser);
-    if (!only || only === 'bingo' || only === 'bingo588' || only === 'v588') await runBingo588(browser);
-    if (!only || only === 'hade' || only === 'hade588' || only === 'v588') await runHadeFull588(browser);
-    if (!only || only === 'seikyu' || only === 'seikyu588' || only === 'v588') await runSeikyuPrint588(browser);
-    if (!only || only === 'hade' || only === 'poyo' || only === 'v589') await runPoyo589(browser);
-    if (!only || only === 'hade' || only === 'clock' || only === 'v591') await runClockLay591(browser);
-    if (!only || only === 'dasetsu' || only === 'v561') await runDasetsu561(browser);
-    if (!only || only === 'okaeshi' || only === 'v564') await runOkaeshi564(browser);
-    if (!only || only === 'tax' || only === 'v565') await runTax565(browser);
-    if (!only || only === 'dasetsu' || only === 'ds562') await runDasetsu562(browser);
-    if (!only || only === 'hyoplus' || only === 'v563') await runHyoPlus563(browser);
-    if (!only || only === 'firsthint') await runFirstHint(browser);
-    // 見た目の見比べは最後に（見本は tests/visual/base/。撮り直しは node tests/visual.js --update）
-    if (!only || only === 'visual') await require('./visual').runVisual(browser, check);
+    for (const i of idx) await SUITES[i][1](browser);
   } finally { await browser.close(); }
   console.log('\n' + '─'.repeat(50));
   if (fails.length) { console.log('通らなかったもの:'); fails.forEach(f => console.log('  ✗ ' + f)); }

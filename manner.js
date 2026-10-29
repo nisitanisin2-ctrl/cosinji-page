@@ -1024,22 +1024,26 @@ function mnRender(){
     return;
   }
   if(mnCat==='★'){ L.innerHTML='<div class="mn-grp">★ よく見る</div>'+mn.fav.map(id=>P.find(p=>p.id===id)).filter(Boolean).map(mnItem).join(''); return; }
-  L.innerHTML=CATS.filter(c=>!mnCat||c[0]===mnCat).map(([k,l])=>`<div class="mn-grp">${l}</div>`+P.filter(p=>p.cat===k).map(mnItem).join('')).join('')
+  L.innerHTML=(window.YOMIMONO && !mnCat ? YOMIMONO.topHtml('manner', P, 'mnOpen', 'mnViewBody') : '')   // 🔖 つづきから・🕘 最近 見た（v601）
+    +CATS.filter(c=>!mnCat||c[0]===mnCat).map(([k,l])=>`<div class="mn-grp">${l}</div>`+P.filter(p=>p.cat===k).map(mnItem).join('')).join('')
     +'<div class="mn-note" style="margin-top:14px">ここにあるのは一般的な目安です。地域・宗派・家のしきたりで違うことがあります。迷ったときは、身近な年長の人や式場・お寺・葬儀社に確かめてください。</div>';
 }
 function mnOpen(id){
   const p=P.find(x=>x.id===id); if(!p) return;
   mnCur=id;
+  if(window.YOMIMONO){ YOMIMONO.stop(); YOMIMONO.visit('manner', id, p.t.replace(/^🧮\s*/,'')); }
   $('mnViewHdr').textContent='📜 '+p.t.replace(/^🧮\s*/,'');
   const fav=mn.fav.includes(id);
   $('mnViewBody').innerHTML=(typeof p.h==='function'?p.h():p.h)
-    +`<div class="mn-acts"><button onclick="mnToggleFav('${id}')">${fav?'★ よく見るから外す':'☆ よく見る'}</button><button onclick="mnPrint('${id}')">🖨 印刷</button></div>`
+    +`<div class="mn-acts"><button onclick="mnToggleFav('${id}')">${fav?'★ よく見るから外す':'☆ よく見る'}</button>${window.YOMIMONO?`<button onclick="YOMIMONO.read(this,'mnViewBody')">🔈 読み上げ</button>`:''}<button onclick="mnPrint('${id}')">🖨 印刷</button></div>`
     +(p.cat==='tool'?'':'<div class="mn-warn">一般的な目安です。地域・宗派・家のしきたりで違うことがあります。</div>')
     +(typeof pgNavHtml==='function'?pgNavHtml(CATS.flatMap(c=>P.filter(x=>x.cat===c[0])).map(x=>({id:x.id, t:x.t.replace(/^🧮\s*/,'')})), id, 'mnOpen'):'');
-  if(!isDlgOpen('mnViewOverlay')) openDlg('mnViewOverlay', ()=>{ mnCur=null; }); else $('mnViewBody').scrollTop=0;
+  if(!isDlgOpen('mnViewOverlay')) openDlg('mnViewOverlay', mnViewGone); else $('mnViewBody').scrollTop=0;
+  if(window.YOMIMONO) YOMIMONO.watch($('mnViewBody'), 'manner', ()=>mnCur);
   if(p.init) try{ p.init(); }catch(_){}
 }
-function mnCloseView(){ if($('mnViewOverlay') && isDlgOpen('mnViewOverlay')) closeDlg('mnViewOverlay', ()=>{ mnCur=null; }); }
+function mnViewGone(){ mnCur=null; if(window.YOMIMONO){ YOMIMONO.stop(); mnRender(); } }
+function mnCloseView(){ if($('mnViewOverlay') && isDlgOpen('mnViewOverlay')) closeDlg('mnViewOverlay', mnViewGone); }
 function mnToggleFav(id){
   const i=mn.fav.indexOf(id); if(i>=0) mn.fav.splice(i,1); else mn.fav.push(id); mnSave();
   const b=[...document.querySelectorAll('#mnViewBody .mn-acts button')][0]; if(b) b.textContent=mn.fav.includes(id)?'★ よく見るから外す':'☆ よく見る';

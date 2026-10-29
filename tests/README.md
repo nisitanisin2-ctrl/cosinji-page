@@ -6,10 +6,13 @@
 ## 動かし方
 
 ```
-node tests/run-par.js        すべて（組ごとに同時に流す。早い）
-JOBS=2 node tests/run-par.js 同時に流す数を決める（はじめは CPU の数、4まで）
+node tests/run-par.js        すべて（組ごとに同時に流す。速い。v603：時間のかかる組から・同じ組は1回・通らなかった組は最後にもう一度）
+JOBS=2 node tests/run-par.js 同時に流す数を決める（はじめは CPU の数）
+node tests/run-par.js hade,bingo   その名前の組だけを同時に
+RETRY=0 node tests/run-par.js      通らなかった組をやり直さない
 node tests/run.js            すべて（1組ずつ順に）
-node tests/run.js formula    数式だけ
+node tests/run.js formula    数式だけ（名前はカンマでいくつでも：formula,xlsx）
+node tests/run.js --list     組の一覧（JSON。run-par.js が使う）
 node tests/run.js xlsx       Excel の読み書きだけ
 node tests/run.js a11y       読み上げ・キーボードだけ
 node tests/run.js mode       モードの行き来だけ
@@ -40,7 +43,8 @@ Playwright は同じ場所に入れず、`/opt/node22` にあるものを使い�
 | `mode.test.js` | モードを往復しても元に戻れるか。v304 で直した「容積から通常へ戻れない」不具合の手順そのものを固定してあります |
 | `kaikei.test.js` | 会計アプリ（`kaikei/`）の読み取りの一覧と、よその帳面の見本。Excelの往復・二重取り込み・食い違いの決めごとを見ています |
 | `visual.js` | 見た目のテスト。主な15の画面をいつも同じ条件で撮り、`visual/base/` の見本と1画素ずつ見比べます。違えば `visual/out/` に「いまの画面」と「違うところを赤くした画像」を置きます（`out/` はリポジトリに入れません） |
-| `run.js` | 実行係 |
+| `run.js` | 実行係。組の一覧は下のほうの `SUITES`（[名前, 流す関数]。名前がいくつもある組も、1回の実行では1度だけ流す。v603） |
+| `run-par.js` | 並べて流す係。組ごとに別の node で同時に流し、時間のかかる組から先に始める（かかった時間は `tests/.par-times.json` に覚える。git には入れない）。通らなかった組は最後に1つずつもう一度流し、2回とも通らなければ「通らなかった」、やり直しで通れば「不安定」として名前を出す（v603） |
 
 ## 足すとき
 

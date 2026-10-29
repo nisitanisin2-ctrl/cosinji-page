@@ -6,7 +6,9 @@
    ・🎁 お土産：だれに・何を・いくら。買ったら ✓。
    ・🏨 宿・連絡先：宿・交通・連絡先。電話は 押すと かけられる・住所は 地図で 開ける・予約番号・チェックインの 時刻 など。
    ・💱 換算：通貨と レート（1 USD = 150 円 など 自分で 入れる。ネットには つながない）で 外貨 ⇄ 円。使った お金の 外貨も 円に。
-   ・📋 文字で コピー（LINE で 共有）・🖨 印刷（A4 の しおり）。中身は excalc_shiori（この端末の中だけ）。 */
+   ・📋 文字で コピー（LINE で 共有）・🖨 印刷（A4 の しおり）。中身は excalc_shiori（この端末の中だけ）。
+   ・🗺 地図（v600）：予定の 場所を 押すと 地図（Google マップ）。2か所 以上の 日は「この日の 道順」（時刻の 順。寄る ところは 9つまで）。
+     場所の 入力は よく使う 場所（この 旅の 場所・宿）から えらべる。📋 コピーには 道順の アドレス、🖨 印刷には 日ごとの QR コード。 */
 (function(){
 'use strict';
 const KEY='excalc_shiori', MAX_T=30, MAX_DAYS=30, MAX_PLAN=300, MAX_PACK=200, MAX_SP=500, MAX_GIFT=200, MAX_STAY=50, MAX_YEN=999999999;
@@ -59,6 +61,39 @@ const TABS=[['plan','🗓 日程'],['pack','🎒 持ち物'],['money','💴 お�
 const EMOS=['🧳','✈','🚄','🚗','🏖','♨','⛰','🏯','🎡','🗼','🌸','🍁'];
 const keyOk=(list,k,d)=>list.some(x=>x[0]===k) ? k : d;
 const nameOf=(list,k)=>(list.find(x=>x[0]===k)||list[list.length-1])[1];
+
+/* ───────── 🗺 地図（Google マップの アドレス。v600）───────── */
+const mapQ=q=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q);
+const MAX_ROUTE=11;   // はじめ＋寄る ところ 9つ＋さいご
+// その日の 場所（時刻の 順。続けて 同じ 場所は 1つに）
+function dayPlaces(t, k){
+  const out=[];
+  t.plan.filter(p=>p.d===k && p.place).sort((x,y)=>(x.t||'99:99').localeCompare(y.t||'99:99')).forEach(p=>{ if(out[out.length-1]!==p.place) out.push(p.place); });
+  return out;
+}
+function routeUrl(places){
+  if(!places.length) return '';
+  if(places.length===1) return mapQ(places[0]);
+  const P=places.slice(0, MAX_ROUTE), w=P.slice(1,-1);
+  return 'https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(P[0])+'&destination='+encodeURIComponent(P[P.length-1])+(w.length ? '&waypoints='+encodeURIComponent(w.join('|')) : '');
+}
+// よく使う 場所（この 旅の 場所・宿の 名前。8つまで）
+function knownPlaces(t){
+  const a=[]; const add=x=>{ x=oneLine(x,40); if(x && !a.includes(x)) a.push(x); };
+  t.stay.filter(c=>c.kind==='yado').forEach(c=>add(c.name));
+  t.plan.forEach(p=>add(p.place));
+  return a.slice(0,8);
+}
+// 印刷用の QR（細かすぎる ときは 出さない）
+function qrImg(url){
+  if(typeof qrEncode!=='function' || !url) return '';
+  let q=null; try{ q=qrEncode(url, 'L'); }catch(_){ q=null; }
+  if(!q || q.size>81) return '';
+  const quiet=4, n=q.size+quiet*2, sc=4, cv=document.createElement('canvas'); cv.width=cv.height=n*sc;
+  const g=cv.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,cv.width,cv.height); g.fillStyle='#000';
+  for(let y=0;y<q.size;y++) for(let x=0;x<q.size;x++) if(q.modules[y][x]) g.fillRect((x+quiet)*sc,(y+quiet)*sc,sc,sc);
+  try{ return cv.toDataURL('image/png'); }catch(_){ return ''; }
+}
 
 /* ───────── 状態 ───────── */
 let st=null;
@@ -126,12 +161,12 @@ function planHtml(t){
   const ds=days(t), inR=new Set(ds.map(ymd)), out=t.plan.filter(p=>!inR.has(p.d));
   const sortP=a=>a.slice().sort((x,y)=>(x.t||'99:99').localeCompare(y.t||'99:99'));
   const item=p=>`<div class="so-pl${p.ok?' ok':''}"><label class="ck"><input type="checkbox" ${p.ok?'checked':''} aria-label="済んだ" onchange="SHIORI.planOk('${p.id}', this.checked)"></label>
-      <span class="tm">${esc(p.t||'—')}</span><span class="tx"><b>${esc(p.what)}</b>${p.place ? `<small>📍 ${esc(p.place)}</small>` : ''}${p.memo ? `<small>${esc(p.memo)}</small>` : ''}</span>
+      <span class="tm">${esc(p.t||'—')}</span><span class="tx"><b>${esc(p.what)}</b>${p.place ? `<small>📍 <a class="so-map" href="${esc(mapQ(p.place))}" target="_blank" rel="noopener" aria-label="${esc(p.place)}を 地図で 見る">${esc(p.place)} 🗺</a></small>` : ''}${p.memo ? `<small>${esc(p.memo)}</small>` : ''}</span>
       <button type="button" class="so-ic" onclick="SHIORI.planEdit('${p.id}')" aria-label="${esc(p.what)}を 直す">✏</button></div>`;
-  return ds.map((d,i)=>{ const k=ymd(d), L=sortP(t.plan.filter(p=>p.d===k)), isT=diff(d,today())===0;
+  return ds.map((d,i)=>{ const k=ymd(d), L=sortP(t.plan.filter(p=>p.d===k)), isT=diff(d,today())===0, pl=dayPlaces(t,k);
     return `<div class="so-day${isT?' today':''}"><h5>${i+1}日目 <span>${mdw(d)}</span>${isT ? '<em>きょう</em>' : ''}</h5>
       ${L.map(item).join('')||'<p class="so-none">まだ 予定が ありません</p>'}
-      <button type="button" class="so-add" onclick="SHIORI.planAdd('${k}')">＋ 予定を 足す</button></div>`; }).join('')
+      <div class="so-dacts"><button type="button" class="so-add" onclick="SHIORI.planAdd('${k}')">＋ 予定を 足す</button>${pl.length>=2 ? `<a class="so-route" href="${esc(routeUrl(pl))}" target="_blank" rel="noopener">🗺 この日の 道順（${Math.min(pl.length, MAX_ROUTE)}か所）</a>` : ''}</div></div>`; }).join('')
     +(out.length ? `<div class="so-day out"><h5>日にちの 外 <span>（旅の 日にちを かえたため）</span></h5>${sortP(out).map(p=>item(p).replace('<span class="tm">', '<span class="tm">'+esc(mdS(p.d))+' ')).join('')}</div>` : '');
 }
 // 🎒 持ち物
@@ -241,7 +276,8 @@ function planForm(t, p, d){
     <label class="so-f"><span>日</span><select id="soPD">${ds.map((k,i)=>`<option value="${k}"${k===cur?' selected':''}>${i+1}日目 ${mdS(k)}</option>`).join('')}${p && !ds.includes(p.d) ? `<option value="${p.d}" selected>${mdS(p.d)}</option>` : ''}</select></label>
     <label class="so-f"><span>時刻</span><input id="soPT" type="time" value="${esc(p ? p.t : '')}"></label>
     <label class="so-f"><span>予定</span><input id="soPW" type="text" maxlength="40" value="${esc(p ? p.what : '')}" placeholder="例：東京駅 出発（のぞみ 3号）"></label>
-    <label class="so-f"><span>場所</span><input id="soPP" type="text" maxlength="40" value="${esc(p ? p.place : '')}" placeholder="例：箱根湯本駅"></label>
+    <div class="so-f"><span>場所</span><input id="soPP" type="text" maxlength="40" value="${esc(p ? p.place : '')}" placeholder="例：箱根湯本駅（地図で さがせる 名前・住所）" aria-label="場所"><button type="button" class="so-ic" onclick="SHIORI.mapTry()" aria-label="地図で たしかめる">🗺</button></div>
+    ${knownPlaces(t).length ? `<div class="so-kp" aria-label="よく使う 場所">${knownPlaces(t).map(x=>`<button type="button" data-pl="${esc(x)}" onclick="SHIORI.pickPlace(this.dataset.pl)">📍 ${esc(x)}</button>`).join('')}</div>` : ''}
     <label class="so-f"><span>メモ</span><input id="soPM" type="text" maxlength="100" value="${esc(p ? p.memo : '')}" placeholder="例：指定席 7号車"></label>
     <div class="so-acts end">${p ? `<button type="button" class="so-b warn" onclick="SHIORI.planDel('${p.id}')">🗑 消す</button>` : ''}<button type="button" class="so-b pri" onclick="SHIORI.planSave('${p ? p.id : ''}')">✓ ${p ? '直す' : '足す'}</button></div>`, 'plan');
   const w=$('soPW'); if(w && !p) setTimeout(()=>{ try{ w.focus(); }catch(_){} }, 60);
@@ -332,7 +368,8 @@ function text(){
   const w=when(t), out=[t.emo+' '+t.title, '📅 '+w.text+'（'+w.span+'）'];
   if(t.memo) out.push(t.memo);
   days(t).forEach((d,i)=>{ const L=t.plan.filter(p=>p.d===ymd(d)).sort((x,y)=>(x.t||'99:99').localeCompare(y.t||'99:99'));
-    if(L.length){ out.push('', '■ '+(i+1)+'日目 '+mdw(d)); L.forEach(p=>out.push((p.t ? p.t+' ' : '・')+p.what+(p.place ? '（'+p.place+'）' : '')+(p.memo ? '　'+p.memo : ''))); } });
+    if(L.length){ out.push('', '■ '+(i+1)+'日目 '+mdw(d)); L.forEach(p=>out.push((p.t ? p.t+' ' : '・')+p.what+(p.place ? '（'+p.place+'）' : '')+(p.memo ? '　'+p.memo : '')));
+      const pl=dayPlaces(t, ymd(d)); if(pl.length) out.push('🗺 '+(pl.length>1 ? 'この日の 道順' : '地図')+'：'+routeUrl(pl)); } });
   if(t.stay.length){ out.push('', '■ 宿・連絡先'); t.stay.forEach(c=>out.push('・'+c.name+[c.when, c.no ? '予約番号 '+c.no : '', c.tel ? '☎ '+c.tel : '', c.addr].filter(Boolean).map(x=>'　'+x).join(''))); }
   const left=t.pack.filter(p=>!p.ok);
   if(t.pack.length) out.push('', '■ 持ち物（'+(t.pack.length-left.length)+'／'+t.pack.length+'）', t.pack.map(p=>(p.ok ? '☑' : '□')+p.name).join('　'));
@@ -344,7 +381,9 @@ function copy(){ if(!T()){ toastS('旅が ありません'); return; } if(typeof
 function docHtml(t){
   const w=when(t), m=money(t);
   const dayH=days(t).map((d,i)=>{ const L=t.plan.filter(p=>p.d===ymd(d)).sort((x,y)=>(x.t||'99:99').localeCompare(y.t||'99:99'));
-    return `<h3>${i+1}日目　${mdw(d)}</h3>${L.length ? `<table><tbody>${L.map(p=>`<tr><td class="tm">${esc(p.t)}</td><td><b>${esc(p.what)}</b>${p.place ? '　📍'+esc(p.place) : ''}${p.memo ? '<br><small>'+esc(p.memo)+'</small>' : ''}</td></tr>`).join('')}</tbody></table>` : '<p class="none">（予定なし）</p>'}`; }).join('');
+    const pl=dayPlaces(t, ymd(d)), qi=pl.length ? qrImg(routeUrl(pl)) : '';
+    return `<div class="dy"><div class="dl"><h3>${i+1}日目　${mdw(d)}</h3>${L.length ? `<table><tbody>${L.map(p=>`<tr><td class="tm">${esc(p.t)}</td><td><b>${esc(p.what)}</b>${p.place ? '　📍'+esc(p.place) : ''}${p.memo ? '<br><small>'+esc(p.memo)+'</small>' : ''}</td></tr>`).join('')}</tbody></table>` : '<p class="none">（予定なし）</p>'}</div>`
+      +(qi ? `<div class="qr"><img src="${qi}" alt=""><small>🗺 ${pl.length>1 ? 'この日の 道順' : '地図'}</small></div>` : '')+`</div>`; }).join('');
   return `<div class="so-doc"><h1>${esc(t.emo)} ${esc(t.title)}</h1><div class="meta">📅 ${esc(w.text)}（${w.span}）</div>${t.memo ? `<div class="memo">${esc(t.memo).replace(/\n/g,'<br>')}</div>` : ''}
     <h2>🗓 日程</h2>${dayH}
     ${t.stay.length ? `<h2>🏨 宿・連絡先</h2><table><tbody>${t.stay.map(c=>`<tr><td class="k">${nameOf(KINDS,c.kind)}</td><td><b>${esc(c.name)}</b>${[c.when, c.no ? '予約番号 '+c.no : '', c.tel ? '☎ '+c.tel : '', c.addr, c.memo].filter(Boolean).map(x=>'<br>'+esc(x)).join('')}</td></tr>`).join('')}</tbody></table>` : ''}
@@ -370,6 +409,8 @@ const DOC=`
 .so-doc table{ width:100%; border-collapse:collapse; border-spacing:0; } .so-doc td{ border:1px solid #bbb; padding:3px 6px; vertical-align:top; font-size:12px; }
 .so-doc td.tm{ width:4.5em; white-space:nowrap; text-align:center; } .so-doc td.k{ width:6em; white-space:nowrap; } .so-doc .none{ margin:0; color:#666; }
 .so-doc .pk{ display:flex; flex-wrap:wrap; gap:2px 14px; } .so-doc small{ color:#444; }
+.so-doc .dy{ display:flex; gap:8px; align-items:flex-start; break-inside:avoid; page-break-inside:avoid; } .so-doc .dy .dl{ flex:1; min-width:0; }
+.so-doc .dy .qr{ flex:none; width:25mm; margin-top:8px; text-align:center; } .so-doc .dy .qr img{ display:block; width:25mm; height:25mm; image-rendering:pixelated; } .so-doc .dy .qr small{ display:block; font-size:9px; }
 `;
 const CSS=`
 #shioriOverlay .so-modal{ display:flex; flex-direction:column; }
@@ -390,6 +431,10 @@ const CSS=`
 .so-pl{ display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px dashed rgba(120,132,156,.3); } .so-pl.ok .tx b{ text-decoration:line-through; opacity:.6; }
 .so-pl .tm{ min-width:3.6em; font-weight:bold; font-variant-numeric:tabular-nums; font-size:14px; } .so-pl .tx{ flex:1; min-width:0; display:flex; flex-direction:column; } .so-pl .tx small{ font-size:12.5px; color:var(--text-light,#666); }
 .ck input, .so-pk input{ width:22px; height:22px; } .so-none{ margin:4px 0; font-size:13.5px; color:var(--text-light,#666); }
+.so-dacts{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; margin-top:6px; } .so-dacts .so-add{ margin-top:0; }
+.so-route{ display:inline-flex; align-items:center; min-height:38px; padding:0 12px; border-radius:10px; border:1px solid rgba(46,125,50,.5); background:rgba(46,125,50,.08); color:#2e7d32; font-size:14px; font-weight:bold; text-decoration:none; }
+.so-map{ color:var(--acc); text-decoration:underline; text-underline-offset:2px; }
+.so-kp{ display:flex; flex-wrap:wrap; gap:5px; margin:-2px 0 8px; } .so-kp button{ min-height:36px; padding:0 10px; border-radius:18px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:13.5px; cursor:pointer; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .so-add{ margin-top:6px; min-height:38px; padding:0 12px; border-radius:10px; border:1px dashed rgba(120,132,156,.6); background:transparent; color:var(--text,#222); font-size:14px; cursor:pointer; }
 .so-ic{ min-width:40px; min-height:40px; border-radius:10px; border:1px solid rgba(120,132,156,.35); background:transparent; color:var(--text,#222); font-size:15px; cursor:pointer; flex:none; }
 .so-prog{ font-size:15px; margin:0 0 6px; } .so-prog b{ font-size:20px; } .so-prog small{ color:var(--text-light,#666); font-size:13px; }
@@ -457,7 +502,9 @@ window.SHIORI={ newTrip:()=>openSetup(true), setup:()=>openSetup(false), setupSa
   budget:setBudget, spCur, spAdd, spDel:id=>{ delOf('spend', id, p=>p.what); },
   giftAdd, giftOk:(id,on)=>setOk('gift',id,on), giftDel:id=>{ delOf('gift', id, g=>(g.to ? g.to+'：' : '')+g.what); },
   stayAdd:()=>stayForm(null), stayEdit:id=>{ const t=T(), c=t && t.stay.find(x=>x.id===id); if(c) stayForm(c); }, staySave, stayDel:id=>{ delOf('stay', id, c=>c.name); },
-  fx:setFx, conv, copy, text, print:printDoc, html:()=>{ const t=T(); return t ? docHtml(t) : ''; },
+  fx:setFx, conv, copy, text, print:printDoc,
+  mapTry:()=>{ const v=oneLine(val('soPP'),40); if(!v){ toastS('場所を 入れて ください'); return; } try{ window.open(mapQ(v), '_blank', 'noopener'); }catch(_){} },
+  pickPlace:v=>{ const e=$('soPP'); if(e){ e.value=oneLine(v,40); try{ e.focus(); }catch(_){} } }, mapUrl:mapQ, route:k=>{ const t=T(); return t ? routeUrl(dayPlaces(t, k)) : ''; }, places:k=>{ const t=T(); return t ? dayPlaces(t, k) : []; }, html:()=>{ const t=T(); return t ? docHtml(t) : ''; },
   // ためす とき 用
   today:s=>{ fixedToday=s ? String(s) : null; if(st) render(); }, state:()=>JSON.parse(JSON.stringify(st)), clean:cleanT,
   money:()=>{ const t=T(); return t ? money(t) : null; }, when:()=>{ const t=T(); return t ? when(t) : null; }, delOf };
