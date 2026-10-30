@@ -17,7 +17,7 @@
      早く 押すと 動きを 短く して 数が 読める ように する。節目・目標では みんなで ぴょん。地は パステルの 空と あわ。
    ・⚔ 対戦（v594）：上の 2つの カウンターで 勝負（はじめは 🔴 紅組・⚪ 白組）。横持ちは 左右・縦持ちは 上下に 分けて、勝っている ほうの 陣地が 広がり 👑。
      逆転・同点で 知らせ、終わり方は 🙌 自由（🏁 けっか で 決める）・⏱ 30秒／1分／3分（押すと 3・2・1 で スタート、のこり 10秒で 赤く）・🏁 先に 10／30／100。
-     勝つと 花火と ファンファーレ、勝った 回数を 名前の 横に 🏆。🔄 向かい合わせ（縦の とき 上の 組を さかさまに。机に 置いて 2人で）。キーボードは 1・A と 2・L。
+     勝つと 花火と ファンファーレ、勝った 回数を 名前の 横に 🏆。🔄 向かい合わせ（縦の とき 上の 組を さかさまに。机に 置いて 2人で。v604 から はじめから、お知らせ・のこり 時間・＋1・− も 向かいの 人 向き・全画面の 下で 切りかえ）。キーボードは 1・A と 2・L。
    ・1時間ごとの数を 記録（2週間 残す）。「📋 数を コピー」で 文字にして 貼れる。
    ・数・名前・目標・記録・えらんだものは excalc_hadecount（この端末の中だけ）。 */
 (function(){
@@ -75,7 +75,7 @@ function load(){
   if(vo.wins && typeof vo.wins==='object') list.forEach(c=>{ const v=int(vo.wins[c.id], 0, 9999, 0); if(v) wins[c.id]=v; });
   st={list, cur:int(o.cur,0,list.length-1,0), theme:FX.hasTheme(o.theme) ? o.theme : 'neon', level:FX.hasLevel(o.level) ? o.level : (reduceMotion() ? 'calm' : 'ultra'),
     snd:o.snd!==false, vibe:o.vibe!==false, flash:o.flash!==false, view:VIEWS.some(v=>v[0]===o.view) ? o.view : 'one', look:o.look==='poyo' && P ? 'poyo' : 'glow',
-    vs:{end:VS_END.some(x=>x[0]===vo.end) ? vo.end : 'free', face:vo.face===true, wins}};
+    vs:{end:VS_END.some(x=>x[0]===vo.end) ? vo.end : 'free', face:vo.fv===604 ? vo.face===true : true, fv:604, wins}};   // 🔄 向かい合わせは はじめから（v604）
 }
 function prune(){
   const lim=dayKey(new Date(Date.now()-KEEP_DAYS*86400000));
@@ -89,14 +89,19 @@ const snd=(name, ...a)=>{ const f=FX.snd[name]; if(f && st && st.snd) f(...a); }
 function tapSnd(c, i){ const k=c.tap==='rand' ? pickOf(TAPK) : c.tap; lastSnd=k; if(st && st.snd) FX.tapSnd(k, i); }
 const curC=()=>st.list[st.cur]||st.list[0];
 // ⚔ 対戦（v594）：上の 2つの カウンターで。ph は idle（まだ）・cd（3・2・1）・run（勝負中）・end（けっか）
+let vsPills=0;   // まん中の 札の 数（たしかめ用）
 let vs={ph:'idle', t0:0, cd:0, cdN:0, lead:-1, top:-1, win:-1, r:0.5, lastS:0, resAt:0, hintAt:0, flipAt:0, endAt:0}, vsOff=0;
 const vNow=()=>Date.now()+vsOff;   // たしかめ用に 時間を 進められる
 const vsOn=()=>!!(st && st.view==='vs' && st.list.length>=2);
 const vsLead=()=>{ const a=st.list[0].n, b=st.list[1].n; return a>b ? 0 : b>a ? 1 : -1; };
+// 🔄 向かい合わせ（v594・v604）：縦持ちの 対戦で、上の 組を 向かいの 人 向きに（数・名前・お知らせ・のこり 時間・＋1・−）
+const vsFace=()=>!!(vsOn() && st.vs.face && eng && !(eng.W>eng.H*1.1));
+const rotOf=i=>{ const T=tiles.find(x=>x.i===i); return !!(T && T.rot); };
 const vsLeft=()=>Math.max(0, vsSec(st.vs.end)*1000-(vNow()-vs.t0));
 const fmtT=ms=>{ const s=Math.max(0, Math.ceil(ms/1000)); return Math.floor(s/60)+':'+pad2(s%60); };
 
 /* ───────── 描く ───────── */
+let lastPort=null;
 let eng=null, raf=0, lastTs=0, frozen=false, tiles=[], banT=0, fullRel=null, barT=0, fsOn=false, barSp=60;   // 下の ボタン・ブラウザの 全画面（v588）
 const poyoL=new Map(), poyoBg={};   // 🫧 ぽよん：カウンターごとに 覚える もの・地の あわ（v589）
 const PL=c=>{ let L=poyoL.get(c.id); if(!L){ L={}; poyoL.set(c.id, L); } return L; };
@@ -160,6 +165,8 @@ function paint(){
   e.lightBg=isPoyo(); if(e.lightBg) P.bg(g, e.W, e.H, e.t, {boost:e.boost()}, poyoBg); else e.drawBg();   // 🫧 ぽよん は パステルの 空と あわ（v589。光は 色の まま 重ねる）
   layout();
   const V=vsOn(); if(V) paintVsBg(g);
+  syncFace();
+  const port=V && !(e.W>e.H*1.1); if(port!==lastPort){ lastPort=port; paintCtl(); }   // 縦・横が かわったら 下の ボタン（🔄 向かい合わせ は 縦だけ。v604）
   const [ox,oy]=e.offset(); g.save(); g.translate(ox, oy);
   const big=tiles.length===1;
   tiles.forEach(T=>{
@@ -209,13 +216,21 @@ function paintVsMid(g){
   g.save(); g.lineCap='round'; g.strokeStyle='#ffffff'; g.lineWidth=4*d; g.globalAlpha=0.9;
   if(e.level!=='calm'){ const L=vsLead(); g.shadowColor=L>=0 ? colOf(st.list[L].col) : '#ffffff'; g.shadowBlur=18*d; }
   g.beginPath(); if(land){ g.moveTo(B.x, 0); g.lineTo(B.x, B.h); } else { g.moveTo(0, B.y); g.lineTo(e.W, B.y); } g.stroke(); g.restore();
-  const txt=vsLabel(), fs=Math.round(18*d), hot=vs.ph==='run' && vsSec(st.vs.end) && vsLeft()<=10000;
-  g.save(); g.font='900 '+fs+'px '+NUMF; const pw=g.measureText(txt).width+fs*1.4, ph=fs*1.9;
-  const x=land ? B.x : 10*d+pw/2, y=land ? 12*d+ph/2 : B.y, k=hot ? 1+0.08*Math.sin(e.t*12) : vs.ph==='cd' ? 1.1 : 1;
-  g.translate(x, y); g.scale(k, k);
-  g.fillStyle=hot ? 'rgba(214,28,40,.94)' : 'rgba(12,10,34,.86)'; rr(g, -pw/2, -ph/2, pw, ph, ph/2); g.fill();
-  g.lineWidth=2*d; g.strokeStyle='rgba(255,255,255,.85)'; g.stroke();
-  g.fillStyle='#ffffff'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(txt, 0, fs*0.05); g.restore();
+  const txt=vsLabel(), two=!land && !!A.rot, hot=vs.ph==='run' && vsSec(st.vs.end) && vsLeft()<=10000;
+  let fs=Math.round(18*d);
+  g.save(); g.font='900 '+fs+'px '+NUMF; let pw=g.measureText(txt).width+fs*1.4;
+  if(two && pw>(e.W-30*d)/2){ fs=Math.max(Math.round(10*d), Math.floor(fs*(e.W-30*d)/2/pw)); g.font='900 '+fs+'px '+NUMF; pw=g.measureText(txt).width+fs*1.4; }   // 2つ 並ぶ ときは 重ならない 大きさに（v604）
+  const ph=fs*1.9; g.restore();
+  const k=hot ? 1+0.08*Math.sin(e.t*12) : vs.ph==='cd' ? 1.1 : 1;
+  const pill=(x, y, rot)=>{
+    g.save(); g.font='900 '+fs+'px '+NUMF; g.translate(x, y); if(rot) g.rotate(Math.PI); g.scale(k, k);
+    g.fillStyle=hot ? 'rgba(214,28,40,.94)' : 'rgba(12,10,34,.86)'; rr(g, -pw/2, -ph/2, pw, ph, ph/2); g.fill();
+    g.lineWidth=2*d; g.strokeStyle='rgba(255,255,255,.85)'; g.stroke();
+    g.fillStyle='#ffffff'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(txt, 0, fs*0.05); g.restore();
+  };
+  pill(land ? B.x : 10*d+pw/2, land ? 12*d+ph/2 : B.y, false);
+  vsPills=1;
+  if(two){ pill(e.W-10*d-pw/2, B.y, true); vsPills=2; }   // 🔄 向かいの 人にも（右の はしに さかさまで。v604）
 }
 // 並べて 数えるとき：タイルの 右下に「−」
 function paintMinus(){
@@ -226,7 +241,10 @@ function paintMinus(){
     box.innerHTML=tiles.length>1 ? tiles.map(T=>`<button type="button" class="hc-tmin" data-i="${T.i}" aria-label="${esc(st.list[T.i].name)} を へらす" onclick="HADE_COUNT.minus(${T.i})">−</button>`).join('') : '';
   }
   if(tiles.length>1 && eng){
-    const d=eng.d; box.querySelectorAll('.hc-tmin').forEach(b=>{ const T=tiles.find(x=>x.i===+b.dataset.i); if(!T) return; b.style.left=((T.x+T.w)/d-48)+'px'; b.style.top=((T.y+T.h)/d-48)+'px'; });
+    const d=eng.d; box.querySelectorAll('.hc-tmin').forEach(b=>{ const T=tiles.find(x=>x.i===+b.dataset.i); if(!T) return;
+      // 🔄 さかさまの 組（向かいの 人）は その人の 右下＝画面の 左上 に、さかさまで（v604）
+      b.style.left=(T.rot ? T.x/d+6 : (T.x+T.w)/d-48)+'px'; b.style.top=T.rot ? 'calc('+(T.y/d+6)+'px + var(--safe-top,0px))' : ((T.y+T.h)/d-48)+'px';
+      const tf=T.rot ? 'rotate(180deg)' : ''; if(b.style.transform!==tf) b.style.transform=tf; });
   }
 }
 function loop(){ if(!raf){ lastTs=performance.now(); raf=requestAnimationFrame(frame); } }
@@ -250,14 +268,32 @@ function fitBan(b, text, kind){
 const EMO_RE=/(\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*)/u;
 function banner(text, kind){
   const b=$('hcBan'); if(!b) return;
-  b.className='hc-ban '+(kind||''); b.textContent='';
-  String(text).split(EMO_RE).forEach((p,j)=>{ if(!p) return; if(j%2){ const sp=document.createElement('span'); sp.className='emo'; sp.textContent=p; b.appendChild(sp); } else b.appendChild(document.createTextNode(p)); });   // 絵文字は 虹色の 字に まぜない（v594）
-  fitBan(b, text, kind); void b.offsetWidth; b.classList.add('go');
-  clearTimeout(banT); banT=setTimeout(()=>{ const x=$('hcBan'); if(x) x.classList.remove('go'); }, kind==='big' ? 3800 : 1700);
+  const put=b=>{
+    b.className='hc-ban '+(kind||''); b.textContent='';
+    String(text).split(EMO_RE).forEach((p,j)=>{ if(!p) return; if(j%2){ const sp=document.createElement('span'); sp.className='emo'; sp.textContent=p; b.appendChild(sp); } else b.appendChild(document.createTextNode(p)); });   // 絵文字は 虹色の 字に まぜない（v594）
+    fitBan(b, text, kind); void b.offsetWidth; b.classList.add('go');
+  };
+  put(b);
+  // 🔄 向かい合わせの ときは 上の 人 向きにも（さかさまの 上の 陣地に 同じ お知らせ。v604）
+  const b2=$('hcBan2'); syncFace();
+  if(b2){ if(vsFace()) put(b2); else { b2.className='hc-ban'; b2.textContent=''; } }
+  clearTimeout(banT); banT=setTimeout(()=>{ ['hcBan','hcBan2'].forEach(id=>{ const x=$(id); if(x) x.classList.remove('go'); }); }, kind==='big' ? 3800 : 1700);
+}
+// 🔄 向かい合わせ：上の お知らせの 場所（上の 陣地）と 下の お知らせの 場所（下の 陣地）を 合わせる（v604）
+let faceK='';
+function syncFace(){
+  const stg=$('hcStage'); if(!stg || !eng) return;
+  const F=vsFace() && tiles.length===2 && !!tiles[0].rot, d=eng.d;
+  const mid=F ? Math.round(tiles[1].y/d) : 0, bh=F ? Math.round(tiles[1].h/d) : 0, k=F ? mid+'/'+bh : '';
+  if(k===faceK) return;
+  faceK=k; stg.classList.toggle('vsface', F);
+  const t=$('hcBanT'), b=$('hcBan');
+  if(t) t.style.height=F ? mid+'px' : '';
+  if(b) b.style.top=F ? (mid+Math.round(bh*0.2))+'px' : '';
 }
 
 /* ───────── 数える ───────── */
-function tileCenter(i){ const T=tiles.find(x=>x.i===i)||tiles[0]; return T ? [T.x+T.w/2, T.y+T.h*0.47] : [eng.W/2, eng.H/2]; }
+function tileCenter(i){ const T=tiles.find(x=>x.i===i)||tiles[0]; return T ? [T.x+T.w/2, T.y+T.h*(T.rot ? 0.53 : 0.47)] : [eng.W/2, eng.H/2]; }
 function addHist(c, k){ const key=hourKey(new Date()); c.hist[key]=(c.hist[key]||0)+k; }
 function plus(i, k, x, y){
   const c=st.list[i]; if(!c) return;
@@ -276,14 +312,15 @@ function plus(i, k, x, y){
   // 押した ところの 演出（カウンターごと。🔀 おまかせは 毎回 ちがう）。🎲 ランダムで 足す ときも サイコロは 出さない（v584。「🎲 サイコロ」を えらんだ ときだけ）
   const fk=c.fx==='rand' ? pickOf(c.rnd ? FXK.filter(k=>k!=='dice') : FXK) : c.fx; lastFx=fk;
   e.tapFx(fk, x, y, {col, pal:[col, '#ffffff', col, FX.PAL[e.theme][0]], emo:c.emo, combo});
-  e.text(x, y-30*d, '+'+fmtN(dk), {sz:(rolled ? 38 : 30)+Math.min(30, combo), col});
+  const R=V && rotOf(i);   // 🔄 向かいの 人の 組は 字も 向こう 向きに（v604）
+  e.text(x, y+(R ? 30 : -30)*d, '+'+fmtN(dk), {sz:(rolled ? 38 : 30)+Math.min(30, combo), col, rot:R ? Math.PI : 0, vy:R ? 90 : -90});
   if(rolled && c.rb>c.ra && k===c.rb){ banner('大当たり！ +'+fmtN(dk)); e.ring(x, y, '#fff36b', 1.8); for(let j=0;j<3;j++) e.shell(null); snd('level'); vib([40,30,80]); }   // いちばん 大きい 数
   e.pulse=1; e.warp=Math.min(1, e.warp+0.18); e.heat=Math.min(1, e.heat+0.07);
   tapSnd(c, Math.min(14, combo-1)); vib(12);
   if(combo>=8 && e.level!=='calm') e.kick(Math.min(0.5, combo*0.012));
   const bo=e.boost();
   if(bo>=1){ e.ring(x, y, col, 1.4+0.4*bo); if(c.n%5===0) e.shell(x, {sc:0.8}); }   // ド派手：大きな 輪・5 ごとに 花火
-  if(bo>=2){ e.kick(0.16); e.glow(x, y, 120, col, 0.35); if(combo>=5 && combo%5===0) e.text(x, y-70*d, PRAISE[(combo/5-1)%PRAISE.length], {sz:44, pop:true, rot:rnd(-0.2,0.2), vy:-40, life:1, grad:['#ffffff','#fff36b','#ff2bd6']}); }   // ドド派手：押すたびに ゆれる・ほめ言葉
+  if(bo>=2){ e.kick(0.16); e.glow(x, y, 120, col, 0.35); if(combo>=5 && combo%5===0) e.text(x, y+(R ? 70 : -70)*d, PRAISE[(combo/5-1)%PRAISE.length], {sz:44, pop:true, rot:(R ? Math.PI : 0)+rnd(-0.2,0.2), vy:R ? 40 : -40, life:1, grad:['#ffffff','#fff36b','#ff2bd6']}); }   // ドド派手：押すたびに ゆれる・ほめ言葉
   // 節目
   const m=[1000,500,100,50,10].find(m=>Math.floor(before/m)<Math.floor(c.n/m));
   if(m) milestone(c, m, i, V);
@@ -403,7 +440,7 @@ function vsSideHtml(){
   const A=st.list[0], B=st.list[1], w=c=>st.vs.wins[c.id]||0;
   const vopt=(k, list, lab, cur)=>`<div class="hc-opt"><span>${lab}</span>${list.map(([v,n])=>`<button type="button" class="${cur===v?'on':''}" onclick='HADE_COUNT.opt("${k}", ${JSON.stringify(v)})'>${n}</button>`).join('')}</div>`;
   return `<div class="hc-sec hc-vs"><h4>⚔ 対戦<small>${esc(A.emo)} ${esc(A.name)} VS ${esc(B.emo)} ${esc(B.name)}</small></h4>
-      ${vopt('vsEnd', VS_END, '終わり方', st.vs.end)}${vopt('vsFace', [[false,'ふつう'],[true,'🔄 向かい合わせ']], '縦の とき', st.vs.face)}
+      ${vopt('vsEnd', VS_END, '終わり方', st.vs.end)}${vopt('vsFace', [[false,'ふつう'],[true,'🔄 向かい合わせ']], '縦の とき', st.vs.face)}<p class="hc-note">🔄 向かい合わせ：机に 置いて 向かい合う ときに。上の 組の 数・名前・👑・お知らせ（3・2・1、先制、逆転、勝ち）・のこり 時間・＋1・− が 向かいの 人 向きに なります。1人で 持って 数える ときは「ふつう」。全画面の 下の ボタンでも 切りかえられます。</p>
       <div class="hc-vsw"><span>勝った 回数</span><b>${esc(A.name)} ${w(A)}</b><b>${esc(B.name)} ${w(B)}</b><button type="button" class="hc-b" onclick="HADE_COUNT.wins0()">0 に</button></div>
       <div class="hc-acts"><button type="button" class="hc-b pri" onclick="HADE_COUNT.again()">🔁 もう一度（0 から）</button><button type="button" class="hc-b" onclick="HADE_COUNT.vsEnd()">🏁 ここで けっか</button></div>
       <p class="hc-note">上の 2つの カウンター（${esc(A.name)}・${esc(B.name)}）で 勝負します。名前・色・絵文字は 下の ⚙ で かえられます（タブを 押して えらぶ）。勝っている ほうの 陣地が 広がって 👑、逆転・同点で 知らせます。<b>⏱ 時間</b>は 画面を 押すと 3・2・1 で スタート（のこり 10秒で 赤く）、<b>🏁 先に ○</b>は とどいた ほうの 勝ち、<b>🙌 自由</b>は 🏁 けっか を 押した ときの 数で 決めます。<b>🔄 向かい合わせ</b>は 縦に 持ったとき 上の 組を さかさまに（机に 置いて 2人で 押す）。キーボードは 1・A で 上（左）、2・L で 下（右）。</p></div>`;
@@ -416,7 +453,8 @@ function minus(i, k){
   if(!dk){ toastC('0 より 少なくは できません'); return; }
   undo.push({id:c.id, n:before}); if(undo.length>MAX_UNDO) undo.shift();
   addHist(c, -dk); saveSoon(); paintHoursSoon(); combo=0; if(vsOn()) vsQuiet();
-  if(eng){ const e=eng, idx=st.list.indexOf(c), [x,y]=tileCenter(idx); c._dn=e.t; e.implode(x, y, {n:26, r:150, pal:[colOf(c.col),'#ffffff']}); e.text(x, y+40*e.d, '−'+fmtN(dk), {sz:28, col:'#ffb3b3', vy:60}); }
+  if(eng){ const e=eng, idx=st.list.indexOf(c), [x,y]=tileCenter(idx); c._dn=e.t; e.implode(x, y, {n:26, r:150, pal:[colOf(c.col),'#ffffff']});
+    const R=vsOn() && idx<2 && rotOf(idx); e.text(x, y+(R ? -40 : 40)*e.d, '−'+fmtN(dk), {sz:28, col:'#ffb3b3', vy:R ? -60 : 60, rot:R ? Math.PI : 0}); }
   snd('down'); vib(25);
 }
 function undoLast(){
@@ -527,7 +565,7 @@ function paintSide(){
 function render(){
   const b=$('hcBody'); if(!b) return;
   b.innerHTML=`<div class="hc-wrap"><div class="hc-tabs" id="hcTabs"></div>
-    <div id="hcHome"><div class="hc-stage" id="hcStage"><canvas id="hcCv" aria-label="押すと 数が ふえます"></canvas><div id="hcMinus"></div><div class="hc-ban" id="hcBan" aria-live="polite"></div>
+    <div id="hcHome"><div class="hc-stage" id="hcStage"><canvas id="hcCv" aria-label="押すと 数が ふえます"></canvas><div id="hcMinus"></div><div class="hc-ban" id="hcBan" aria-live="polite"></div><div class="hc-banT" id="hcBanT" aria-hidden="true"><div class="hc-ban" id="hcBan2"></div></div>
       <div class="hc-fbar" id="hcFbar" onpointerdown="HADE_COUNT.bar()"></div>
       <button type="button" class="hc-more" onclick="HADE_COUNT.bar()" aria-label="ボタンを 出す">☰</button></div></div>
     <div class="hc-ctl" id="hcCtl"></div>
@@ -540,12 +578,13 @@ function render(){
 // 下の ボタン（⚔ 対戦は − の かわりに 🏁 けっか・🔁 もう一度。v594）
 function paintCtl(){
   const c=$('hcCtl'), f=$('hcFbar'); if(!c || !f) return;
-  const V=vsOn(), fin=V && vs.ph==='end', k=V ? (fin ? 'e' : 'v') : 'n';
+  const V=vsOn(), fin=V && vs.ph==='end', port=V && !!eng && !(eng.W>eng.H*1.1), k=V ? (fin ? 'e' : 'v')+(port ? (st.vs.face ? 'F' : 'f') : '') : 'n';
   if(c.dataset.k===k) return;
   c.dataset.k=k; c.classList.toggle('vs', V);
   c.innerHTML=V ? `<button type="button" class="hc-b" onclick="HADE_COUNT.undo()">↶ もどす</button><button type="button" class="hc-b" onclick="HADE_COUNT.vsEnd()">🏁 けっか</button><button type="button" class="hc-b" onclick="HADE_COUNT.again()">🔁 もう一度</button><button type="button" class="hc-b pri" onclick="HADE_COUNT.full(true)">⛶ 全画面</button>`
     : `<button type="button" class="hc-b" onclick="HADE_COUNT.minus()">− へらす</button><button type="button" class="hc-b" onclick="HADE_COUNT.undo()">↶ もどす</button><button type="button" class="hc-b" onclick="HADE_COUNT.reset()">0 に</button><button type="button" class="hc-b pri" onclick="HADE_COUNT.full(true)">⛶ 全画面</button>`;
-  f.innerHTML=V ? `<button type="button" onclick="HADE_COUNT.undo()">↶ もどす</button>${fin ? '<button type="button" onclick="HADE_COUNT.again()">🔁 もう一度</button>' : '<button type="button" onclick="HADE_COUNT.vsEnd()">🏁 けっか</button>'}<button type="button" onclick="HADE_COUNT.full(false)">← 戻る</button>`
+  const fb=port ? `<button type="button" class="hc-faceb${st.vs.face ? ' on' : ''}" aria-pressed="${st.vs.face}" onclick="HADE_COUNT.opt('vsFace', ${!st.vs.face})">🔄 向かい合わせ</button>` : '';   // v604
+  f.innerHTML=V ? `<button type="button" onclick="HADE_COUNT.undo()">↶ もどす</button>${fin ? '<button type="button" onclick="HADE_COUNT.again()">🔁 もう一度</button>' : '<button type="button" onclick="HADE_COUNT.vsEnd()">🏁 けっか</button>'}${fb}<button type="button" onclick="HADE_COUNT.full(false)">← 戻る</button>`
     : `<button type="button" onclick="HADE_COUNT.minus()">− へらす</button><button type="button" onclick="HADE_COUNT.undo()">↶ もどす</button><button type="button" onclick="HADE_COUNT.full(false)">← 戻る</button>`;
 }
 function sel(i){ if(!st.list[i]) return; st.cur=i; combo=0; save(); paintTabs(); paintSide(); }
@@ -596,7 +635,8 @@ function setOpt(k, v){
   if(k==='snd' && st.snd){ FX.unlock(); snd('coin'); }
   if(k==='vibe' && st.vibe) vib(50);
   paintSide();
-  if(k==='view' || k==='vsEnd'){ paintTabs(); paintCtl(); }
+  if(k==='view' || k==='vsEnd' || k==='vsFace'){ paintTabs(); paintCtl(); }
+  if(k==='vsFace') toastC(st.vs.face ? '🔄 向かい合わせ：縦の とき 上の 組は 向かいの 人 向き' : 'ふつう：上の 組も 手前 向き');
 }
 function copyText(){
   const now=new Date(), today=dayKey(now);
@@ -625,6 +665,10 @@ const HC_CSS=`
 .hc-stage.full.bar-hide .hc-more{ opacity:.75; pointer-events:auto; }
 .hc-stage.full .hc-fbar{ position:absolute; left:0; right:0; bottom:0; display:flex; gap:8px; justify-content:center; padding:8px 10px calc(10px + var(--safe-bottom,0px)); background:linear-gradient(0deg, rgba(0,0,0,.5), rgba(0,0,0,0)); }
 .hc-fbar button{ flex:1 1 auto; max-width:200px; min-height:50px; border-radius:14px; border:1.5px solid rgba(255,255,255,.75); background:rgba(0,0,0,.35); color:#fff; font-size:16px; font-weight:bold; cursor:pointer; }
+.hc-banT{ position:absolute; left:0; right:0; top:0; height:50%; transform:rotate(180deg); pointer-events:none; display:none; }   /* 🔄 向かいの 人 向きの お知らせ（v604） */
+.hc-stage.vsface .hc-banT{ display:block; }
+.hc-fbar .hc-faceb{ font-size:13.5px; line-height:1.2; }
+.hc-fbar .hc-faceb.on{ background:rgba(255,255,255,.9); color:#3a1d6e; border-color:#fff; }
 .hc-tmin{ position:absolute; width:42px; height:42px; border-radius:21px; border:1.5px solid rgba(255,255,255,.8); background:rgba(0,0,0,.45); color:#fff; font-size:24px; font-weight:bold; line-height:1; cursor:pointer; }
 .hc-ban{ position:absolute; left:3%; right:3%; top:30%; white-space:nowrap; text-align:center; font-weight:900; font-size:clamp(28px,9vw,76px); line-height:1.1; pointer-events:none; opacity:0;
   background:linear-gradient(90deg,#fff36b,#ff8a3d,#ff2bd6,#7cf0ff,#fff36b); background-size:300% 100%; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:#fff;
@@ -697,6 +741,7 @@ window.HADE_COUNT={ tap:(i,x,y)=>{ plus(i==null ? st.cur : i, null, x, y); paint
   state:()=>{ save(); return JSON.parse(JSON.stringify(st)); }, combo:()=>combo, fx:()=>({n:eng ? eng.count() : 0, played:FX.played(), cap:eng ? eng.cap : 0, level:eng ? eng.level : '', shake:eng ? +eng.shake.toFixed(2) : 0, light:eng ? !!eng.lightBg : false}), tiles:()=>tiles.map(T=>T.i+':'+Math.round(T.w)+'x'+Math.round(T.h)),
   banner:()=>{ const b=$('hcBan'); return b ? b.textContent : ''; }, freeze:b=>{ frozen=!!b; }, draw:()=>{ if(eng){ eng.resize(); paint(); } }, lastRoll:()=>lastRoll, lastSnd:()=>lastSnd, lastFx:()=>lastFx,
   parts:()=>eng ? eng.ps.filter(p=>p.k==='e' || p.k==='t').map(p=>p.ch||p.s) : [],
+  texts:()=>eng ? eng.ps.filter(p=>p.k==='t').map(p=>p.s+(Math.abs(Math.abs(p.rot)-Math.PI)<0.3 ? '@上' : '@下')) : [], pills:()=>vsPills, face:()=>vsFace(), rots:()=>tiles.map(T=>!!T.rot),   // 🔄 向かい合わせ（v604）
   vs:()=>({on:vsOn(), ph:vs.ph, end:st.vs.end, face:st.vs.face, lead:vsOn() ? vsLead() : -1, win:vs.win, left:vsOn() && vsSec(st.vs.end) ? vsLeft() : null, r:+vs.r.toFixed(3), label:vsOn() ? vsLabel() : '', wins:Object.assign({}, st.vs.wins)}),
   again:vsAgain, vsEnd:vsFinish, wins0:vsWins0, vsShift:ms=>{ vsOff+=ms; loop(); } };   // ⚔ 対戦（v594）   // 画面に 出ている 絵文字と 字（たしかめ用）
 Object.assign(window, { openHadeCount, closeHadeCount });
