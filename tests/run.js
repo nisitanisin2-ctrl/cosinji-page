@@ -13413,10 +13413,10 @@ async function runSentakuGuide606(browser) {
   await page.evaluate(() => { window.toolCopyText = t => { window.__copied = t; }; window.__said = ''; if (window.HyoVoice) { HyoVoice.available = true; HyoVoice.speak = t => { window.__said = t; }; } window.appConfirm = async () => true; });
   await page.evaluate(async () => { await openSentaku(); }); await w(400);
   check('  中身を 先に 読む（sentaku-guide.js → sentaku.js）', await page.evaluate(() => { const a = document.querySelector('script[data-part="sentaku-guide.js"]'), b = document.querySelector('script[data-part="sentaku.js"]'); return [!!a, !!b, !!(a && b && (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING))].join('/'); }), 'true/true/true');
-  check('  中身：服 32・素材 17・基本の こつ 10・id は かさならない・記号の 例は どれも ある 記号・家での 洗い方の めやす', await page.evaluate(() => { const G = window.SENTAKU_GUIDE, codes = SENTAKU.codes(); return [SENTAKU.guideIds('fuku').length, SENTAKU.guideIds('sozai').length, SENTAKU.guideIds('kihon').length, new Set(G.map(e => e.id)).size === G.length, G.flatMap(e => e.sym || []).filter(c => !codes.includes(c)).join(',') || 'ok', G.filter(e => e.k !== 'kihon' && !['ok', 'soft', 'pro'].includes(e.home)).length, G.filter(e => e.k !== 'kihon' && !(e.wash && e.dry && e.iron && e.note)).length, G.filter(e => e.k === 'kihon' && !(e.pts && e.pts.length >= 3)).length].join('/'); }), '32/17/10/true/ok/0/0/0');
+  check('  中身：服 58・素材 17・基本の こつ 10・id は かさならない・記号の 例は どれも ある 記号・家での 洗い方の めやす', await page.evaluate(() => { const G = window.SENTAKU_GUIDE, codes = SENTAKU.codes(); return [SENTAKU.guideIds('fuku').length, SENTAKU.guideIds('sozai').length, SENTAKU.guideIds('kihon').length, new Set(G.map(e => e.id)).size === G.length, G.flatMap(e => e.sym || []).filter(c => !codes.includes(c)).join(',') || 'ok', G.filter(e => e.k !== 'kihon' && !['ok', 'soft', 'pro'].includes(e.home)).length, G.filter(e => e.k !== 'kihon' && !(e.wash && e.dry && e.iron && e.note)).length, G.filter(e => e.k === 'kihon' && !(e.pts && e.pts.length >= 3)).length].join('/'); }), '58/17/10/true/ok/0/0/0');
   check('  上に 🔍 さがす 欄・タブ 5つ', await page.evaluate(() => [!!document.getElementById('snQ'), [...document.querySelectorAll('.sn-tabs button')].map(b => b.textContent.trim()).join(',')].join('/')), 'true/👕 タグを 読む,🧥 服・素材,📒 メモ,🔎 記号,📜 古い 表示');
   await page.evaluate(() => SENTAKU.tab('guide')); await w(200);
-  check('  🧥 服・素材：👕 服（32）・🧶 素材（17）・📘 基本の こつ（10）・🟢🟡🔴 の めやす', await page.evaluate(() => [[...document.querySelectorAll('.sn-chips button')].map(b => b.textContent.replace(/\s+/g, ' ').trim() + (b.classList.contains('on') ? '*' : '')).join(','), document.querySelectorAll('.sn-gb').length, document.querySelector('.sn-gb .n').textContent, document.querySelector('.sn-gb .h').textContent, !!document.querySelector('.sn-legend')].join('/')), '👕 服 32*,🧶 素材 17,📘 基本の こつ 10/32/Tシャツ・カットソー/🟢/true');
+  check('  🧥 服・素材：👕 服（58）・🧶 素材（17）・📘 基本の こつ（10）・🟢🟡🔴 の めやす', await page.evaluate(() => [[...document.querySelectorAll('.sn-chips button')].map(b => b.textContent.replace(/\s+/g, ' ').trim() + (b.classList.contains('on') ? '*' : '')).join(','), document.querySelectorAll('.sn-gb').length, document.querySelector('.sn-gb .n').textContent, document.querySelector('.sn-gb .h').textContent, !!document.querySelector('.sn-legend')].join('/')), '👕 服 58*,🧶 素材 17,📘 基本の こつ 10/58/Tシャツ・カットソー/🟢/true');
   await page.evaluate(() => [...document.querySelectorAll('.sn-gb')].find(b => b.textContent.includes('セーター')).click()); await w(250);
   check('  押すと 洗い方の 窓：家では・洗い方・干し方・アイロン・気を つける・よく ある 表示', await page.evaluate(() => { const p = document.querySelector('.sn-pop'); return [p.querySelector('.sn-ph b').textContent, p.querySelector('.sn-home').textContent, [...p.querySelectorAll('.sn-gd dt')].map(e => e.textContent.trim()).join(','), p.querySelector('.sn-gd dd').textContent.slice(0, 12), p.querySelectorAll('.sn-gsym button').length].join('/'); }), 'セーター・ニット/🟡 家では：手洗い・弱い コース/🫧 洗い方,👕 干し方,♨ アイロン,⚠ 気を つける/30℃ 以下の 水で、お/5');
   await page.evaluate(() => document.querySelector('.sn-pop .sn-gsym button').click()); await w(200);
@@ -13444,6 +13444,28 @@ async function runSentakuGuide606(browser) {
   await page.evaluate(() => { SENTAKU.guide('jeans'); }); await w(150);
   await page.keyboard.press('Escape'); await w(150);
   check('  Esc は 窓だけ 閉じる', await page.evaluate(() => [!!document.querySelector('.sn-pop'), isDlgOpen('sentakuOverlay')].join('/')), 'false/true');
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+/* 🧺 洗濯表示：服を 58に・まとまりごとに 並べる（v607） */
+async function runSentakuFuku607(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🧺 洗濯表示：服 58・まとまりごと（v607） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(async () => { await openSentaku(); SENTAKU.tab('guide'); }); await w(300);
+  check('  服は 9つの まとまり（見出しと 数）・どの 服も どこかの まとまりに 入る', await page.evaluate(() => [[...document.querySelectorAll('.sn-gh')].map(h => h.textContent.replace(/\s+/g, ' ').trim()).join(' | '), document.querySelectorAll('.sn-gl .sn-gb').length, window.SENTAKU_GUIDE.filter(e => e.k === 'fuku' && !e.g).length].join('/')),
+    '👕 トップス 8 | 👖 ボトムス 4 | 🧥 上着・スーツ 6 | 👘 礼服・和服 5 | 🩲 下着・肌着・靴下 7 | 🧣 小物・くつ・かばん 8 | 🛏 寝具・家の 布 12 | 🍼 子ども・赤ちゃん 4 | 🦺 仕事・部活 4/58/0');
+  check('  上の ボタンで まとまりへ 飛ぶ（9つ）', await page.evaluate(async () => { const b = document.getElementById('snBody'), n = document.querySelectorAll('.sn-gjump button').length; b.scrollTop = 0; SENTAKU.gjump('inner'); await new Promise(r => setTimeout(r, 800)); const h = document.getElementById('snG_inner').getBoundingClientRect().top - b.getBoundingClientRect().top;
+    SENTAKU.gjump('work'); await new Promise(r => setTimeout(r, 800)); const r2 = document.getElementById('snG_work').getBoundingClientRect(), br = b.getBoundingClientRect(); return [n, h >= -2 && h < 60, r2.top >= br.top && r2.bottom <= br.bottom].join('/'); }), '9/true/true');
+  check('  ふえた 服：ポロシャツ・ハーフパンツ・ブルゾン・アウトドア・ドレス・喪服・着物・あったか インナー・ハンカチ・軍手・布マスク・バッグ・スリッパ・布団・枕・クッション・マット・テーブルクロス・エプロン・ペット・抱っこひも・布おむつ・給食着・白衣・道着・スポーツウェア', await page.evaluate(() => ['ポロシャツ', '短パン', 'ジャンパー', '登山', 'パーティードレス', '喪服', '振袖', '発熱', 'ハンカチ', '軍手', 'マスク', 'エコバッグ', 'スリッパ', '羽毛布団', '抱き枕', '座布団', 'バスマット', 'ランチョンマット', '割烹着', '犬', '抱っこ紐', '布おむつ', '給食着', '白衣', '剣道着', 'ヨガ'].map(q => SENTAKU.search(q).g[0]).join(',')),
+    'polo,shorts,blouson,outdoor,dress,reifuku,kimono,heatinner,handkerchief,gunte,mask,bag,slippers,futon,pillow,cushion,mat,tablecloth,apron,pet,babycarrier,clothdiaper,kyushoku,whitecoat,budogi,sportswear');
+  check('  ほかの 言い方も ふやした（ピーコート・Gジャン・セーラー服・スカーフ・革ジャン・ボアジャケット・敷きパッド・のれん・5本指・野球・タンクトップ）', await page.evaluate(() => ['ピーコート', 'Gジャン', 'セーラー服', 'スカーフ', '革ジャン', 'ボアジャケット', '敷きパッド', 'のれん', '5本指', '野球', 'タンクトップ'].map(q => SENTAKU.search(q).g[0]).join(',')), 'coat,jeans,suit,muffler,leather,fleece,sheets,curtain,socks,gym,underwear');
+  check('  ことばが ぴったり 同じ ものを 先に（まくら → 枕 が まくらカバー より 先・ウール → 素材の ウール）', await page.evaluate(() => [SENTAKU.search('まくら').g.slice(0, 2).join(','), SENTAKU.search('ウール').g[0]].join('/')), 'pillow,sheets/wool');
+  await page.evaluate(() => SENTAKU.guide('futon')); await w(200);
+  check('  布団の 窓：🔴 クリーニングが 安心・記号の 例は なし', await page.evaluate(() => { const p = document.querySelector('.sn-pop'); return [p.querySelector('.sn-ph b').textContent, p.querySelector('.sn-home').textContent, !!p.querySelector('.sn-gsym'), p.querySelectorAll('.sn-gd dt').length].join('/'); }), '布団（掛け布団・敷き布団）/🔴 家では：クリーニングが 安心/false/4');
+  await page.evaluate(() => { SENTAKU.close(); SENTAKU.gk('sozai'); }); await w(150);
+  check('  素材・基本の こつは まとまり なしで 並べる', await page.evaluate(() => [document.querySelectorAll('.sn-gh').length, document.querySelectorAll('.sn-gb').length].join('/')), '0/17');
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();
@@ -19135,6 +19157,7 @@ const SUITES = [
   [['mikurabe', 'mkfull', 'v606'], b => runMikuFull606(b)],
   [['gijiroku', 'gjtime', 'v606'], b => runGijiTime606(b)],
   [['sentaku', 'sguide', 'v606'], b => runSentakuGuide606(b)],
+  [['sentaku', 'sfuku', 'v607'], b => runSentakuFuku607(b)],
   [['dasetsu', 'v561'], b => runDasetsu561(b)],
   [['okaeshi', 'v564'], b => runOkaeshi564(b)],
   [['tax', 'v565'], b => runTax565(b)],

@@ -225,14 +225,24 @@ const GFIELDS=[['wash','🫧','洗い方'],['dry','👕','干し方'],['iron','�
 // ひらがなと カタカナ・全角と 半角・大文字と 小文字を 同じに、区切りの 記号は 消して くらべる
 const kana=s=>String(s||'').normalize('NFKC').toLowerCase().replace(/[\u3041-\u3096]/g, c=>String.fromCharCode(c.charCodeAt(0)+0x60)).replace(/[\s・、。,.／/()（）「」『』〜~:：]/g,'');
 const gText=e=>GFIELDS.map(([k])=>e[k]||'').concat(e.pts||[]).join(' ');
-const GIDX=GUIDE.map(e=>({e, n:kana(e.n), al:kana(e.al), t:kana(gText(e))}));
+// tok：名前と ほかの 言い方を ことばごとに（ぴったり 同じ ことばは 強く。例：「まくら」は まくらカバー より 枕）
+const GIDX=GUIDE.map(e=>({e, n:kana(e.n), al:kana(e.al), t:kana(gText(e)), tok:new Set(String(e.n).split(/[・（）()\s]+/).concat(String(e.al||'').split(/\s+/)).map(kana).filter(Boolean))}));
 function guideHtml(){
   const k=st.gk||'fuku', L2=GUIDE.filter(e=>e.k===k);
   return `<p class="sn-lead">服・素材を 押すと 洗い方・干し方・アイロンが 出ます。上の 🔍 で さがす ことも できます（タグの 表示が いちばん 確かです）。</p>
     <div class="sn-chips" role="tablist">${GKS.map(([g,n])=>`<button type="button" role="tab" aria-selected="${k===g}" class="${k===g?'on':''}" onclick="SENTAKU.gk('${g}')">${n} <small>${GUIDE.filter(e=>e.k===g).length}</small></button>`).join('')}</div>
     ${k!=='kihon' ? `<p class="sn-legend">${Object.values(HOME).map(([c,t])=>c+' '+t).join('　')}</p>` : ''}
-    <div class="sn-gl">${L2.map(gbtn).join('')}</div>`;
+    ${k==='fuku' ? fukuHtml(L2) : `<div class="sn-gl">${L2.map(gbtn).join('')}</div>`}`;
 }
+// 服は まとまりごとに 見出しを つけて 並べる（上の ボタンで その まとまりへ 飛ぶ。v607）
+const FG=[['tops','👕 トップス'],['bottoms','👖 ボトムス'],['outer','🧥 上着・スーツ'],['formal','👘 礼服・和服'],['inner','🩲 下着・肌着・靴下'],['komono','🧣 小物・くつ・かばん'],['home','🛏 寝具・家の 布'],['kids','🍼 子ども・赤ちゃん'],['work','🦺 仕事・部活']];
+function fukuHtml(L2){
+  const grp=FG.map(([g,n])=>[g, n, L2.filter(e=>e.g===g)]).filter(x=>x[2].length), rest=L2.filter(e=>!FG.some(f=>f[0]===e.g));
+  if(rest.length) grp.push(['other', '📦 その ほか', rest]);
+  return `<div class="sn-gjump">${grp.map(([g,n])=>`<button type="button" onclick="SENTAKU.gjump('${g}')">${n}</button>`).join('')}</div>
+    ${grp.map(([g,n,L3])=>`<h4 class="sn-gh" id="snG_${g}">${n} <small>${L3.length}</small></h4><div class="sn-gl">${L3.map(gbtn).join('')}</div>`).join('')}`;
+}
+function gjump(g){ const h=$('snG_'+g); if(h) h.scrollIntoView({block:'start', behavior:'smooth'}); }
 const gbtn=e=>`<button type="button" class="sn-gb" onclick="SENTAKU.guide('${e.id}')"><span class="i" aria-hidden="true">${e.ic}</span><span class="n">${esc(e.n)}</span>${HOME[e.home] ? `<span class="h" title="${HOME[e.home][1]}" aria-label="${HOME[e.home][1]}">${HOME[e.home][0]}</span>` : ''}</button>`;
 // 洗い方の カード（pop：小さな 窓の 中。記号を 押して 閉じたら この 窓に もどる）
 function cardHtml(e, pop){
@@ -253,8 +263,8 @@ function setGk(g){ if(!GKS.some(x=>x[0]===g)) return; st.gk=g; save(); render();
 function search(q){
   const terms=String(q||'').split(/[\s　]+/).map(kana).filter(Boolean);
   if(!terms.length) return {g:[], s:[], m:[]};
-  const score=fields=>{ let t=0; for(const w of terms){ let best=0; fields.forEach(([txt, pt])=>{ if(txt.includes(w)) best=Math.max(best, pt+(txt===w ? 5 : 0)); }); if(!best) return 0; t+=best; } return t; };
-  const g=GIDX.map(x=>({e:x.e, s:score([[x.n, 10], [x.al, 6], [x.t, 1]])})).filter(x=>x.s>0).sort((a,b)=>b.s-a.s).map(x=>x.e);
+  const score=(fields, tok)=>{ let t=0; for(const w of terms){ let best=0; fields.forEach(([txt, pt])=>{ if(txt.includes(w)) best=Math.max(best, pt+(txt===w ? 5 : 0)); }); if(!best) return 0; t+=best+(tok && tok.has(w) ? 5 : 0); } return t; };
+  const g=GIDX.map(x=>({e:x.e, s:score([[x.n, 10], [x.al, 6], [x.t, 1]], x.tok)})).filter(x=>x.s>0).sort((a,b)=>b.s-a.s).map(x=>x.e);
   const sy=L.map(x=>x[0]).map(c=>{ const y=SYM[c], cat=CATS.find(k=>k[0]===y.c); return {c, s:score([[kana(y.n), 6], [kana(c), 3], [kana(cat ? cat[2] : ''), 2], [kana(y.m+' '+y.tip), 1]])}; }).filter(x=>x.s>0).sort((a,b)=>b.s-a.s).map(x=>x.c);
   const m=st.items.filter(x=>score([[kana(x.n), 5], [kana(x.who+' '+x.memo), 1]])>0);
   return {g, s:sy, m};
@@ -474,6 +484,8 @@ const CSS=`
 .sn-sl div{ display:flex; flex-direction:column; gap:2px; font-size:14px; } .sn-sl small{ font-size:12.5px; color:var(--text-light,#555); line-height:1.5; }
 .sn-tips{ margin:8px 0 0; padding:8px 10px; border-radius:10px; background:rgba(255,193,7,.16); font-size:13.5px; line-height:1.7; }
 .sn-legend{ margin:0 0 8px; font-size:12.5px; color:var(--text-light,#555); }
+.sn-gjump{ display:flex; flex-wrap:wrap; gap:4px; margin:0 0 4px; } .sn-gjump button{ min-height:34px; padding:0 10px; border-radius:17px; border:1px solid rgba(120,132,156,.4); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:12.5px; cursor:pointer; }
+.sn-gh{ margin:14px 0 6px; font-size:15px; scroll-margin-top:8px; } .sn-gh small{ font-size:12px; color:var(--text-light,#666); font-weight:normal; }
 .sn-gl{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:6px; }
 .sn-gb{ display:flex; align-items:center; gap:8px; min-height:52px; padding:6px 10px; border-radius:12px; border:1px solid rgba(120,132,156,.35); background:var(--modal-bg,#fff); color:var(--text,#222); text-align:left; cursor:pointer; font:inherit; }
 .sn-gb .i{ font-size:24px; flex:none; } .sn-gb .n{ flex:1; min-width:0; font-size:14px; font-weight:bold; line-height:1.35; overflow-wrap:anywhere; } .sn-gb .h{ flex:none; font-size:13px; }
@@ -540,7 +552,7 @@ function openSentaku(){ ensureDom(); load(); query=''; const qi=$('snQ'); if(qi)
 function closeSentaku(){ if(!$('sentakuOverlay') || !isDlgOpen('sentakuOverlay')) return; closeDlg('sentakuOverlay', cleanup); }
 
 window.SENTAKU={ tab:setTab, sel, info, zoom, close:()=>popClose(), tagPick, tagDel, clear, memoFromSel, say, sayCode, copy, who:setWho,
-  edit, edSet, edSym, edPic, edPicDel, edSave, del, q:setQ, guide, gk:setGk, gsay, gcopy,
+  edit, edSet, edSym, edPic, edPicDel, edSave, del, q:setQ, guide, gk:setGk, gjump, gsay, gcopy,
   // ためす とき 用
   search:q=>{ const r=search(q); return {g:r.g.map(e=>e.id), s:r.s, m:r.m.map(x=>x.n)}; }, guideIds:k=>GUIDE.filter(e=>!k || e.k===k).map(e=>e.id), kana, gPlain:id=>{ const e=gOf(id); return e ? gPlain(e) : ''; },
   state:()=>JSON.parse(JSON.stringify(st)), codes:()=>L.map(x=>x[0]), svg, summary:s=>{ const r=summary(s); return {lines:r.lines.map(l=>l.n+':'+l.s.code), tips:r.tips}; }, summaryText, sayText,
