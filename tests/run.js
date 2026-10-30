@@ -13017,6 +13017,55 @@ async function runBoot603(browser) {
     [fs.readFileSync(path.join(__dirname, 'run-par.js'), 'utf8').includes("'--list'"), fs.readFileSync(path.join(ROOT, '.gitignore'), 'utf8').includes('tests/.par-times.json')].join('/'), 'true/true');
 }
 
+// 🎉 ど派手カウンター ⚔ 対戦：🔄 向かい合わせ（上の 組を 向かいの 人 向きに。v604）
+async function runVsFace604(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🎉 ど派手カウンター：⚔ 対戦の 🔄 向かい合わせ（v604） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { window.appConfirm = async () => true; navigator.vibrate = () => true; document.documentElement.requestFullscreen = () => Promise.resolve(); localStorage.removeItem('excalc_hadecount'); });
+  await page.evaluate(() => openHadeCount()); await w(600);
+  await page.evaluate(() => HADE_COUNT.opt('view', 'vs')); await w(400);
+  check('  はじめから 向かい合わせ（縦は 上の 組が さかさま・まん中の 札は 2つ）', await page.evaluate(() => { HADE_COUNT.draw(); return [HADE_COUNT.state().vs.face, HADE_COUNT.face(), HADE_COUNT.pills(), HADE_COUNT.tiles().length].join('/'); }), 'true/true/2/2');
+  // 前の 版で 覚えた「ふつう」は 1回だけ 向かい合わせに。v604 で えらんだ「ふつう」は そのまま
+  const reopen = async vsObj => { await page.evaluate(v => { closeHadeCount(); const o = JSON.parse(localStorage.getItem('excalc_hadecount')); o.vs = v; localStorage.setItem('excalc_hadecount', JSON.stringify(o)); }, vsObj); await w(300); await page.evaluate(() => openHadeCount()); await w(500); return page.evaluate(() => HADE_COUNT.state().vs.face); };
+  check('  前の 版の「ふつう」→ 向かい合わせ・v604 で えらんだ「ふつう」は ふつう', [await reopen({ end: 'free', face: false, wins: {} }), await reopen({ end: 'free', face: false, fv: 604, wins: {} })].join('/'), 'true/false');
+  await page.evaluate(() => { HADE_COUNT.opt('vsFace', true); HADE_COUNT.opt('vsEnd', 't30'); HADE_COUNT.again(); HADE_COUNT.full(true); }); await w(800);
+  // 3・2・1 の お知らせは 上の 人 向きにも
+  await page.evaluate(() => HADE_COUNT.tap(0)); await w(300);
+  check('  お知らせ（3）は 下の 陣地と 上の 陣地（さかさま）の 2つ', await page.evaluate(() => {
+    const b = document.getElementById('hcBan'), b2 = document.getElementById('hcBan2'), t = document.getElementById('hcBanT');
+    return [b.textContent, b2.textContent, getComputedStyle(t).display, getComputedStyle(t).transform, parseFloat(b.style.top) > parseFloat(t.style.height), b2.classList.contains('go')].join('/'); }),
+    '3/3/block/matrix(-1, 0, 0, -1, 0, 0)/true/true');
+  await page.evaluate(() => HADE_COUNT.vsShift(3100)); await w(400);
+  await page.evaluate(() => HADE_COUNT.tap(0)); await w(150);
+  check('  先制の お知らせも 上に・上の 組の ＋1 は 向かいの 人 向き', await page.evaluate(() => [HADE_COUNT.banner(), document.getElementById('hcBan2').textContent, HADE_COUNT.texts().includes('+1@上')].join('/')), '先制！ 紅組/先制！ 紅組/true');
+  await page.evaluate(() => HADE_COUNT.tap(1)); await w(120);
+  check('  下の 組の ＋1 は 手前 向き・同点の お知らせも 上に', await page.evaluate(() => [HADE_COUNT.texts().includes('+1@下'), HADE_COUNT.banner(), document.getElementById('hcBan2').textContent].join('/')), 'true/同点！/同点！');
+  check('  上の 組の − は 左上（向かいの 人の 右下）に さかさまで・下の 組の − は 右下', await page.evaluate(() => {
+    const c = document.getElementById('hcCv').getBoundingClientRect(), a = document.querySelector('.hc-tmin[data-i="0"]'), b = document.querySelector('.hc-tmin[data-i="1"]'), ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+    return [a.style.transform, ra.left - c.left < 60, ra.top - c.top < 70, b.style.transform || '-', rb.right > c.right - 70, rb.top > c.top + c.height / 2].join('/'); }), 'rotate(180deg)/true/true/-/true/true');
+  await page.evaluate(() => HADE_COUNT.minus(0)); await w(120);
+  check('  − の 字も 向かいの 人 向き', await page.evaluate(() => HADE_COUNT.texts().includes('−1@上')), true);
+  check('  全画面の 下に「🔄 向かい合わせ」（押して いる 印）', await page.evaluate(() => { const b = document.querySelector('#hcFbar .hc-faceb'); return !!b && [b.textContent, b.getAttribute('aria-pressed'), b.classList.contains('on')].join('/'); }), '🔄 向かい合わせ/true/true');
+  // 横持ち：左右に 分かれるので さかさまに しない
+  await page.setViewportSize({ width: 900, height: 500 }); await w(700);
+  check('  横持ちは さかさまに しない（札 1つ・お知らせ 1つ・下の ボタンに 🔄 なし）', await page.evaluate(() => { HADE_COUNT.draw(); return [HADE_COUNT.face(), HADE_COUNT.pills(), document.getElementById('hcStage').classList.contains('vsface'), !!document.querySelector('#hcFbar .hc-faceb'), HADE_COUNT.rots().join(',')].join('/'); }), 'false/1/false/false/false,false');
+  await page.setViewportSize({ width: 412, height: 900 }); await w(700);
+  // 下の ボタンで ふつうに
+  await page.evaluate(() => document.querySelector('#hcFbar .hc-faceb').click()); await w(300);
+  check('  🔄 を 押すと ふつう（上の 組も 手前 向き・札 1つ・お知らせ 1つ・覚える）', await page.evaluate(() => { HADE_COUNT.draw(); const s = HADE_COUNT.state(); return [s.vs.face, s.vs.fv, HADE_COUNT.face(), HADE_COUNT.pills(), getComputedStyle(document.getElementById('hcBanT')).display, document.getElementById('hcBan').style.top || '-', document.querySelector('#hcFbar .hc-faceb').getAttribute('aria-pressed')].join('/'); }), 'false/604/false/1/none/-/false');
+  await page.evaluate(() => HADE_COUNT.tap(1)); await w(150);
+  check('  ふつうの ときは ＋1 も 手前 向き', await page.evaluate(() => HADE_COUNT.texts().filter(t => t.startsWith('+')).every(t => t.endsWith('@下'))), true);
+  await page.evaluate(() => document.querySelector('#hcFbar .hc-faceb').click()); await w(300);
+  check('  もう一度 押すと 向かい合わせ', await page.evaluate(() => [HADE_COUNT.state().vs.face, HADE_COUNT.face()].join('/')), 'true/true');
+  await page.evaluate(() => { HADE_COUNT.full(false); }); await w(300);
+  check('  設定に 向かい合わせの 説明', await page.evaluate(() => [...document.querySelectorAll('.hc-vs .hc-note')].some(n => n.textContent.includes('向かいの 人 向き'))), true);
+  await page.evaluate(() => closeHadeCount()); await w(200);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 async function runClockLay591(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🕐 ど派手タイマーの 時計：ぽよん 以外の 見せ方も 同じ 並べ方（v591） ──');
@@ -18671,6 +18720,7 @@ const SUITES = [
   [['trim', 'manner', 'boki', 'kurashi', 'yomi', 'v601'], b => runV601(b)],
   [['units', 'v602'], b => runUnits602(b)],
   [['boot', 'runpar', 'v603'], b => runBoot603(b)],
+  [['hade', 'hadecount', 'vsface', 'v604'], b => runVsFace604(b)],
   [['dasetsu', 'v561'], b => runDasetsu561(b)],
   [['okaeshi', 'v564'], b => runOkaeshi564(b)],
   [['tax', 'v565'], b => runTax565(b)],
