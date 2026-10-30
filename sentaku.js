@@ -4,6 +4,8 @@
    ・🔎 記号の 一覧：41種類を 分けごとに。押すと 意味と こつ
    ・📒 お手入れ メモ：家族の 服ごとに 名前・だれの・服と タグの 写真・記号・メモ（素材・買った 店）を 残す
    ・📜 古い 表示：2016年11月までの 記号（洗濯機の 絵・「手洗イ」・アイロンの「高・中・低」など）と 今の 記号の 対応
+   ・🧥 服・素材（v606）：服（ズボン・靴下・セーター など）と 素材（綿・ウール・シルク など）の 洗い方・干し方・アイロン・気を つける こと、基本の こつ。
+     中身は sentaku-guide.js（先に 読む）。上の 🔍 で 服・素材・記号・メモを まとめて さがせる
    中身は excalc_sentaku、写真は IndexedDB（excalc_sentaku）。この端末の中だけ。 */
 (function(){
 'use strict';
@@ -140,7 +142,7 @@ function load(){
   let o=null; try{ o=JSON.parse(localStorage.getItem(KEY)||'null'); }catch(_){}
   o=o && typeof o==='object' ? o : {};
   st={v:1, items:(Array.isArray(o.items) ? o.items : []).map(cleanIt).filter(Boolean).slice(0, MAX_IT), sel:cleanSyms(o.sel), selTag:okPic(o.selTag) ? o.selTag : '',
-    tab:['read','list','memo','old'].includes(o.tab) ? o.tab : 'read', who:oneLine(o.who, 16)};
+    tab:TABS.some(t=>t[0]===o.tab) ? o.tab : 'read', who:oneLine(o.who, 16), gk:GKS.some(g=>g[0]===o.gk) ? o.gk : 'fuku'};
 }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); return true; }catch(_){ toastS('端末の 空きが 足りず、保存 できませんでした'); return false; } }
 
@@ -196,14 +198,81 @@ function summaryText(sym){
 }
 
 /* ───────── 画面 ───────── */
-const TABS=[['read','👕 タグを 読む'],['list','🔎 記号の 一覧'],['memo','📒 お手入れ メモ'],['old','📜 古い 表示']];
+const TABS=[['read','👕 タグを 読む'],['guide','🧥 服・素材'],['memo','📒 メモ'],['list','🔎 記号'],['old','📜 古い 表示']];
+let query='';   // 🔍 さがす ことば（残さない）
 function render(){
   const b=$('snBody'); if(!b || !st) return;
-  const top=b.scrollTop;
-  b.innerHTML=`<div class="sn-wrap"><div class="sn-tabs" role="tablist">${TABS.map(([k,n])=>`<button type="button" role="tab" aria-selected="${st.tab===k}" class="${st.tab===k?'on':''}" onclick="SENTAKU.tab('${k}')">${n}${k==='memo' && st.items.length ? ' <small>'+st.items.length+'</small>' : ''}</button>`).join('')}</div>
-    ${st.tab==='read' ? readHtml() : st.tab==='list' ? listHtml() : st.tab==='memo' ? memoHtml() : oldHtml()}</div>`;
+  if(!$('snMain')){   // 🔍 の 欄は 作り直さない（打って いる あいだ キーボードが 閉じない ように）
+    b.innerHTML=`<div class="sn-wrap"><div class="sn-qbar"><span aria-hidden="true">🔍</span><input type="search" id="snQ" maxlength="40" autocomplete="off" enterkeyhint="search" placeholder="服・素材・記号を さがす（例：セーター・ウール・靴下）" aria-label="服・素材・記号を さがす" oninput="SENTAKU.q(this.value)">
+      <button type="button" class="sn-qx" id="snQx" onclick="SENTAKU.q('', true)" aria-label="さがすのを やめる" hidden>✕</button></div><div id="snMain"></div></div>`;
+  }
+  const main=$('snMain'), top=b.scrollTop;
+  main.innerHTML=query ? searchHtml(query)
+    : `<div class="sn-tabs" role="tablist">${TABS.map(([k,n])=>`<button type="button" role="tab" aria-selected="${st.tab===k}" class="${st.tab===k?'on':''}" onclick="SENTAKU.tab('${k}')">${n}${k==='memo' && st.items.length ? ' <small>'+st.items.length+'</small>' : ''}</button>`).join('')}</div>
+    ${st.tab==='read' ? readHtml() : st.tab==='guide' ? guideHtml() : st.tab==='list' ? listHtml() : st.tab==='memo' ? memoHtml() : oldHtml()}`;
+  const qx=$('snQx'); if(qx) qx.hidden=!query;
   b.scrollTop=top;
-  fillPics(b);
+  fillPics(main);
+}
+
+/* ───────── 🧥 服・素材の 洗い方（v606。中身は sentaku-guide.js） ───────── */
+const GKS=[['fuku','👕 服'],['sozai','🧶 素材'],['kihon','📘 基本の こつ']];
+const HOME={ok:['🟢','洗濯機で OK'], soft:['🟡','手洗い・弱い コース'], pro:['🔴','クリーニングが 安心']};
+const GUIDE=(Array.isArray(window.SENTAKU_GUIDE) ? window.SENTAKU_GUIDE : []).filter(e=>e && typeof e.id==='string' && GKS.some(g=>g[0]===e.k) && e.n)
+  .map(e=>Object.assign({}, e, {sym:(Array.isArray(e.sym) ? e.sym : []).filter(c=>SYM[c])}));
+const gOf=id=>GUIDE.find(e=>e.id===id)||null;
+const GFIELDS=[['wash','🫧','洗い方'],['dry','👕','干し方'],['iron','♨','アイロン'],['note','⚠','気を つける']];
+// ひらがなと カタカナ・全角と 半角・大文字と 小文字を 同じに、区切りの 記号は 消して くらべる
+const kana=s=>String(s||'').normalize('NFKC').toLowerCase().replace(/[\u3041-\u3096]/g, c=>String.fromCharCode(c.charCodeAt(0)+0x60)).replace(/[\s・、。,.／/()（）「」『』〜~:：]/g,'');
+const gText=e=>GFIELDS.map(([k])=>e[k]||'').concat(e.pts||[]).join(' ');
+const GIDX=GUIDE.map(e=>({e, n:kana(e.n), al:kana(e.al), t:kana(gText(e))}));
+function guideHtml(){
+  const k=st.gk||'fuku', L2=GUIDE.filter(e=>e.k===k);
+  return `<p class="sn-lead">服・素材を 押すと 洗い方・干し方・アイロンが 出ます。上の 🔍 で さがす ことも できます（タグの 表示が いちばん 確かです）。</p>
+    <div class="sn-chips" role="tablist">${GKS.map(([g,n])=>`<button type="button" role="tab" aria-selected="${k===g}" class="${k===g?'on':''}" onclick="SENTAKU.gk('${g}')">${n} <small>${GUIDE.filter(e=>e.k===g).length}</small></button>`).join('')}</div>
+    ${k!=='kihon' ? `<p class="sn-legend">${Object.values(HOME).map(([c,t])=>c+' '+t).join('　')}</p>` : ''}
+    <div class="sn-gl">${L2.map(gbtn).join('')}</div>`;
+}
+const gbtn=e=>`<button type="button" class="sn-gb" onclick="SENTAKU.guide('${e.id}')"><span class="i" aria-hidden="true">${e.ic}</span><span class="n">${esc(e.n)}</span>${HOME[e.home] ? `<span class="h" title="${HOME[e.home][1]}" aria-label="${HOME[e.home][1]}">${HOME[e.home][0]}</span>` : ''}</button>`;
+// 洗い方の カード（pop：小さな 窓の 中。記号を 押して 閉じたら この 窓に もどる）
+function cardHtml(e, pop){
+  const body=e.pts ? `<ul class="sn-pts">${e.pts.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`
+    : `<dl class="sn-gd">${GFIELDS.filter(([k])=>e[k]).map(([k,ic,n])=>`<dt><span aria-hidden="true">${ic}</span> ${n}</dt><dd>${esc(e[k])}</dd>`).join('')}</dl>`;
+  return `<article class="sn-card" data-g="${e.id}">${pop ? '' : `<h4><span aria-hidden="true">${e.ic}</span> ${esc(e.n)}</h4>`}
+    ${HOME[e.home] ? `<p class="sn-home ${e.home}">${HOME[e.home][0]} 家では：<b>${HOME[e.home][1]}</b></p>` : ''}${body}
+    ${e.sym && e.sym.length ? `<div class="sn-gsym"><small>よく ある 表示（例。押すと 意味）</small><div>${e.sym.map(c=>`<button type="button" onclick="SENTAKU.info('${c}', '${pop ? 'g:'+e.id : ''}')">${svg(c, 34)}<span>${esc(SYM[c].n)}</span></button>`).join('')}</div></div>` : ''}
+    <div class="sn-cacts"><button type="button" class="sn-b sm" onclick="SENTAKU.gsay('${e.id}')">🔈 読み上げ</button><button type="button" class="sn-b sm" onclick="SENTAKU.gcopy('${e.id}')">📋 コピー</button>${pop ? '<button type="button" class="sn-b sm" onclick="SENTAKU.close()">とじる</button>' : ''}</div></article>`;
+}
+function guide(id){ const e=gOf(id); if(!e) return; popOpen(head(e.ic, e.n)+cardHtml(e, true)); }
+const gPlain=e=>e.n+'\n'+(HOME[e.home] ? '家では：'+HOME[e.home][1]+'\n' : '')+(e.pts ? e.pts.map(t=>'・'+t).join('\n') : GFIELDS.filter(([k])=>e[k]).map(([k,ic,n])=>n+'：'+e[k]).join('\n'));
+function gsay(id){ const e=gOf(id); if(e) speak(gPlain(e).replace(/\n/g, '。')); }
+function gcopy(id){ const e=gOf(id); if(e && typeof toolCopyText==='function') toolCopyText('🧺 '+gPlain(e), '📋 コピーしました'); }
+function setGk(g){ if(!GKS.some(x=>x[0]===g)) return; st.gk=g; save(); render(); }
+
+/* 🔍 さがす：服・素材・こつ（名前 → ほかの 言い方 → 中身 の 順に 強い）・記号・お手入れ メモ */
+function search(q){
+  const terms=String(q||'').split(/[\s　]+/).map(kana).filter(Boolean);
+  if(!terms.length) return {g:[], s:[], m:[]};
+  const score=fields=>{ let t=0; for(const w of terms){ let best=0; fields.forEach(([txt, pt])=>{ if(txt.includes(w)) best=Math.max(best, pt+(txt===w ? 5 : 0)); }); if(!best) return 0; t+=best; } return t; };
+  const g=GIDX.map(x=>({e:x.e, s:score([[x.n, 10], [x.al, 6], [x.t, 1]])})).filter(x=>x.s>0).sort((a,b)=>b.s-a.s).map(x=>x.e);
+  const sy=L.map(x=>x[0]).map(c=>{ const y=SYM[c], cat=CATS.find(k=>k[0]===y.c); return {c, s:score([[kana(y.n), 6], [kana(c), 3], [kana(cat ? cat[2] : ''), 2], [kana(y.m+' '+y.tip), 1]])}; }).filter(x=>x.s>0).sort((a,b)=>b.s-a.s).map(x=>x.c);
+  const m=st.items.filter(x=>score([[kana(x.n), 5], [kana(x.who+' '+x.memo), 1]])>0);
+  return {g, s:sy, m};
+}
+function searchHtml(q){
+  const r=search(q);
+  if(!r.g.length && !r.s.length && !r.m.length) return `<p class="sn-note">「${esc(q)}」は 見つかりませんでした。ことばを かえて さがして ください（例：ニット・綿・ズボン・アイロン・平干し）。</p>`;
+  return `${r.g.length ? `<h4 class="sn-rh2">🧥 服・素材・こつ <small>${r.g.length}</small></h4>${r.g.slice(0, 3).map(e=>cardHtml(e, false)).join('')}
+      ${r.g.length>3 ? `<p class="sn-more">ほかにも：</p><div class="sn-gl">${r.g.slice(3).map(gbtn).join('')}</div>` : ''}` : ''}
+    ${r.s.length ? `<h4 class="sn-rh2">🏷 記号 <small>${r.s.length}</small></h4><div class="sn-srow">${r.s.slice(0, 8).map(c=>`<button type="button" class="sn-sr" onclick="SENTAKU.info('${c}')">${svg(c, 40)}<span><b>${esc(SYM[c].n)}</b><small>${esc(SYM[c].m)}</small></span></button>`).join('')}</div>` : ''}
+    ${r.m.length ? `<h4 class="sn-rh2">📒 お手入れ メモ <small>${r.m.length}</small></h4><div class="sn-items">${r.m.map(x=>`<button type="button" class="sn-item" onclick="SENTAKU.edit('${x.id}')"><span class="sn-noimg" aria-hidden="true">👕</span><span class="sn-it"><b>${esc(x.n)}</b>${x.who ? `<small>${esc(x.who)}</small>` : ''}<span class="sn-mini">${x.sym.map(c=>svg(c, 22)).join('')}</span></span></button>`).join('')}</div>` : ''}`;
+}
+function setQ(v, focus){
+  query=oneLine(v, 40);
+  const i=$('snQ'); if(i && i.value!==v && !query) i.value='';
+  render();
+  const b=$('snBody'); if(b) b.scrollTop=0;
+  if(focus && i) i.focus();
 }
 // 分けごとに 記号を ならべる（えらぶ 用）。on：えらんだ 記号の 配列・fn：押した ときの 関数
 function pickRows(on, fn){
@@ -269,11 +338,13 @@ function popOpen(html, onClose){
 function popClose(keep){ if(!pop) return; const p=pop; pop=null; p.rel(); p.el.remove(); if(!keep) afterClose(p); }
 function afterClose(p){ if(p.onClose) p.onClose(); else edDrop(); }
 const head=(ic, t)=>`<div class="sn-ph"><span aria-hidden="true">${ic}</span><b>${esc(t)}</b><button type="button" class="sn-x" onclick="SENTAKU.close()" aria-label="閉じる">✕</button></div>`;
-function info(code){
+// from：'g:服の id' なら 閉じた あと その 服の 窓に もどる
+function info(code, from){
   const s=SYM[code]; if(!s) return;
+  const back=typeof from==='string' && /^g:/.test(from) && gOf(from.slice(2)) ? ()=>guide(from.slice(2)) : null;
   const cat=CATS.find(c=>c[0]===s.c);
   popOpen(head(cat[1], s.n)+`<div class="sn-info">${svg(code, 120)}<div><small>${esc(cat[2])}</small><p><b>${esc(s.m)}</b></p><p>💡 ${esc(s.tip)}</p></div></div>
-    <div class="sn-acts"><button type="button" class="sn-b" onclick="SENTAKU.sayCode('${code}')">🔈 読み上げ</button><button type="button" class="sn-b" onclick="SENTAKU.close()">とじる</button></div>`);
+    <div class="sn-acts"><button type="button" class="sn-b" onclick="SENTAKU.sayCode('${code}')">🔈 読み上げ</button><button type="button" class="sn-b" onclick="SENTAKU.close()">${back ? '← もどる' : 'とじる'}</button></div>`, back);
 }
 function zoom(id){ if(!okPic(id)) return; const back=!!ed; if(back) edKeepTop(); popOpen(head('🔍', '写真')+`<img class="sn-big" data-pic="${id}" alt="写真">`, back ? ()=>edRender() : null); }
 
@@ -339,7 +410,7 @@ async function del(id){
 }
 
 /* ───────── 操作 ───────── */
-function setTab(k){ if(!TABS.some(t=>t[0]===k)) return; st.tab=k; save(); const b=$('snBody'); if(b) b.scrollTop=0; render(); }
+function setTab(k){ if(!TABS.some(t=>t[0]===k)) return; st.tab=k; query=''; const qi=$('snQ'); if(qi) qi.value=''; save(); const b=$('snBody'); if(b) b.scrollTop=0; render(); }
 function sel(code){ if(!SYM[code]) return; const c=catOf(code), had=st.sel.includes(code); st.sel=st.sel.filter(x=>catOf(x)!==c); if(!had) st.sel.push(code); st.sel=CATS.map(([k])=>st.sel.find(x=>catOf(x)===k)).filter(Boolean); save(); render(); }
 async function tagPick(input){
   const f=input && input.files && input.files[0]; if(input) input.value=''; if(!f) return;
@@ -378,6 +449,11 @@ const CSS=`
 #sentakuOverlay .sn-modal{ display:flex; flex-direction:column; }
 .sn-body{ flex:1; min-height:0; overflow:auto; padding:10px 10px 0; color:var(--text,#222); font-size:15px; }
 .sn-wrap{ max-width:820px; margin:0 auto; padding-bottom:70px; }
+.sn-qbar{ display:flex; align-items:center; gap:6px; margin:0 0 10px; padding:0 4px 0 12px; border-radius:24px; border:2px solid rgba(120,132,156,.45); background:var(--cell-bg,#fff); }
+.sn-qbar:focus-within{ border-color:var(--acc); } .sn-qbar > span{ font-size:17px; }
+.sn-qbar input{ flex:1; min-width:0; height:44px; border:0; outline:none; background:transparent; color:var(--text,#222); font-size:16px; font-family:inherit; }
+.sn-qbar input::-webkit-search-cancel-button{ display:none; }
+.sn-qx{ width:38px; height:38px; flex:none; border-radius:19px; border:0; background:rgba(120,132,156,.15); color:var(--text,#222); font-size:16px; cursor:pointer; }
 .sn-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin:0 0 10px; }
 .sn-tabs button{ flex:1 1 auto; min-height:44px; padding:0 12px; border-radius:22px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:14.5px; font-weight:bold; cursor:pointer; }
 .sn-tabs button.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); } .sn-tabs small{ font-size:12px; opacity:.85; }
@@ -397,6 +473,21 @@ const CSS=`
 .sn-sl{ display:flex; gap:10px; align-items:flex-start; padding:6px 0; border-top:1px solid rgba(120,132,156,.2); } .sn-sl:first-of-type{ border-top:0; }
 .sn-sl div{ display:flex; flex-direction:column; gap:2px; font-size:14px; } .sn-sl small{ font-size:12.5px; color:var(--text-light,#555); line-height:1.5; }
 .sn-tips{ margin:8px 0 0; padding:8px 10px; border-radius:10px; background:rgba(255,193,7,.16); font-size:13.5px; line-height:1.7; }
+.sn-legend{ margin:0 0 8px; font-size:12.5px; color:var(--text-light,#555); }
+.sn-gl{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:6px; }
+.sn-gb{ display:flex; align-items:center; gap:8px; min-height:52px; padding:6px 10px; border-radius:12px; border:1px solid rgba(120,132,156,.35); background:var(--modal-bg,#fff); color:var(--text,#222); text-align:left; cursor:pointer; font:inherit; }
+.sn-gb .i{ font-size:24px; flex:none; } .sn-gb .n{ flex:1; min-width:0; font-size:14px; font-weight:bold; line-height:1.35; overflow-wrap:anywhere; } .sn-gb .h{ flex:none; font-size:13px; }
+.sn-card{ margin:0 0 12px; padding:12px; border-radius:14px; border:1px solid rgba(120,132,156,.35); background:var(--modal-bg,#fff); } .sn-card h4{ margin:0 0 6px; font-size:17px; }
+.sn-home{ margin:0 0 8px; font-size:14px; } .sn-home b{ font-size:14.5px; }
+.sn-gd{ margin:0; } .sn-gd dt{ margin:8px 0 2px; font-size:13px; font-weight:bold; color:var(--text-light,#555); } .sn-gd dd{ margin:0; font-size:14.5px; line-height:1.7; }
+.sn-pts{ margin:4px 0 0; padding-left:1.3em; } .sn-pts li{ margin:0 0 6px; font-size:14.5px; line-height:1.7; }
+.sn-gsym{ margin:10px 0 0; } .sn-gsym small{ display:block; margin:0 0 4px; font-size:12px; color:var(--text-light,#666); }
+.sn-gsym > div{ display:flex; flex-wrap:wrap; gap:4px; } .sn-gsym button{ display:flex; flex-direction:column; align-items:center; gap:2px; width:74px; padding:4px 2px; border-radius:10px; border:1px solid rgba(120,132,156,.3); background:transparent; color:var(--text,#222); font-size:10.5px; line-height:1.25; cursor:pointer; }
+.sn-cacts{ display:flex; gap:6px; flex-wrap:wrap; margin:10px 0 0; }
+.sn-rh2{ margin:6px 0 8px; font-size:15.5px; } .sn-rh2 small{ font-size:12px; color:var(--text-light,#666); } .sn-more{ margin:4px 0 6px; font-size:13px; color:var(--text-light,#666); }
+.sn-srow{ display:flex; flex-direction:column; gap:6px; margin:0 0 12px; }
+.sn-sr{ display:flex; align-items:center; gap:10px; padding:6px 10px; border-radius:12px; border:1px solid rgba(120,132,156,.35); background:var(--modal-bg,#fff); color:var(--text,#222); text-align:left; cursor:pointer; font:inherit; }
+.sn-sr span{ display:flex; flex-direction:column; gap:2px; min-width:0; } .sn-sr b{ font-size:14.5px; } .sn-sr small{ font-size:12.5px; color:var(--text-light,#555); line-height:1.45; }
 .sn-ch{ margin:14px 0 6px; font-size:15px; } .sn-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:6px; }
 .sn-cell{ display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 4px; border-radius:12px; border:1px solid rgba(120,132,156,.35); background:var(--modal-bg,#fff); color:var(--text,#222); cursor:pointer; font-size:12px; line-height:1.3; text-align:center; }
 .sn-chips{ display:flex; gap:6px; flex-wrap:wrap; margin:0 0 10px; } .sn-chips button{ min-height:38px; padding:0 14px; border-radius:19px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:14px; cursor:pointer; } .sn-chips button.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); }
@@ -445,12 +536,13 @@ function ensureDom(){
   if(typeof applyNpToolFull==='function') applyNpToolFull();
 }
 function cleanup(){ popClose(); ed=null; }
-function openSentaku(){ ensureDom(); load(); openDlg('sentakuOverlay', cleanup); render(); }
+function openSentaku(){ ensureDom(); load(); query=''; const qi=$('snQ'); if(qi) qi.value=''; openDlg('sentakuOverlay', cleanup); render(); }
 function closeSentaku(){ if(!$('sentakuOverlay') || !isDlgOpen('sentakuOverlay')) return; closeDlg('sentakuOverlay', cleanup); }
 
 window.SENTAKU={ tab:setTab, sel, info, zoom, close:()=>popClose(), tagPick, tagDel, clear, memoFromSel, say, sayCode, copy, who:setWho,
-  edit, edSet, edSym, edPic, edPicDel, edSave, del,
+  edit, edSet, edSym, edPic, edPicDel, edSave, del, q:setQ, guide, gk:setGk, gsay, gcopy,
   // ためす とき 用
+  search:q=>{ const r=search(q); return {g:r.g.map(e=>e.id), s:r.s, m:r.m.map(x=>x.n)}; }, guideIds:k=>GUIDE.filter(e=>!k || e.k===k).map(e=>e.id), kana, gPlain:id=>{ const e=gOf(id); return e ? gPlain(e) : ''; },
   state:()=>JSON.parse(JSON.stringify(st)), codes:()=>L.map(x=>x[0]), svg, summary:s=>{ const r=summary(s); return {lines:r.lines.map(l=>l.n+':'+l.s.code), tips:r.tips}; }, summaryText, sayText,
   cats:()=>CATS.map(c=>c[0]+':'+byCat(c[0]).length), picIds:()=>new Promise(r=>{ db().then(d=>{ const q=d.transaction('pics').objectStore('pics').getAllKeys(); q.onsuccess=()=>r(q.result||[]); q.onerror=()=>r([]); }).catch(()=>r([])); }),
   addPicData:async(data)=>{ if(!okData(data)) return ''; const id='p'+rid()+rid().slice(0,4); await picPut(id, data); return id; }, edState:()=>ed ? JSON.parse(JSON.stringify(ed)) : null };

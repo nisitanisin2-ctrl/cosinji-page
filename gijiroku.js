@@ -125,12 +125,14 @@ function editHtml(m){
   const c=counts(m), q=quorum(m), prev=before(m).flatMap(x=>x.items.flatMap(i=>i.todos.filter(t=>!t.done).map(t=>({m:x, i, t}))));
   const names=m.ppl.map(p=>p.n), dl=`<datalist id="gjNames">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>`;
   const K=(...a)=>esc(JSON.stringify(a));
+  // 時刻は 自前の 窓で えらぶ（端末の 時刻の 窓では 決められない ことが ある。v606）
+  const tfl=(lab, key, val)=>`<div class="gj-f gj-tf"><span>${lab}</span><button type="button" class="gj-tb${val ? '' : ' none'}" data-tk="${key}" onclick="GIJIROKU.time('${key}')" aria-label="${lab}の 時刻を えらぶ">${val ? '🕐 '+val : '🕐 えらぶ'}</button></div>`;
   const fld=(lab, key, val, o)=>`<label class="gj-f"><span>${lab}</span><input type="${o&&o.type||'text'}" value="${esc(val)}" ${o&&o.ph ? `placeholder="${esc(o.ph)}"` : ''} ${o&&o.list ? `list="${o.list}"` : ''} ${o&&o.im ? `inputmode="${o.im}"` : ''} oninput="GIJIROKU.set(${K(key)}, this.value)"></label>`;
   return `<div class="gj-eh"><button type="button" class="gj-b" onclick="GIJIROKU.back()">← 一覧</button><b id="gjEhT">${esc(mTitle(m))}</b></div>
     <section class="gj-sec"><h4>📌 会議</h4>
       ${fld('会の 名前', 'org', m.org, {ph:'例：○○町内会', list:'gjOrgs'})}<datalist id="gjOrgs">${orgs().map(o=>`<option value="${esc(o)}">`).join('')}</datalist>
       ${fld('会議の 名前', 't', m.t, {ph:'例：第3回 役員会'})}
-      <div class="gj-row">${fld('日付', 'date', m.date, {type:'date'})}${fld('はじめ', 'st', m.st, {type:'time'})}${fld('おわり', 'en', m.en, {type:'time'})}</div>
+      <div class="gj-row">${fld('日付', 'date', m.date, {type:'date'})}${tfl('はじめ', 'st', m.st)}${tfl('おわり', 'en', m.en)}</div>
       ${fld('場所', 'place', m.place, {ph:'例：公民館 2階'})}
     </section>
     <section class="gj-sec"><h4>👥 出席者 <small>出席 ${c.p}人${c.a ? '・欠席 '+c.a+'人' : ''}${c.d ? '・委任 '+c.d+'人' : ''}</small></h4>
@@ -158,7 +160,7 @@ function editHtml(m){
       <div class="gj-acts"><button type="button" class="gj-b" onclick="GIJIROKU.iadd()">＋ 議題を 足す</button></div>
     </section>
     <section class="gj-sec"><h4>📅 次回</h4>
-      <div class="gj-row">${fld('日付', 'ndate', m.next.date, {type:'date'})}${fld('時刻', 'nst', m.next.st, {type:'time'})}</div>${fld('場所', 'nplace', m.next.place, {ph:'例：公民館'})}
+      <div class="gj-row">${fld('日付', 'ndate', m.next.date, {type:'date'})}${tfl('時刻', 'nst', m.next.st)}</div>${fld('場所', 'nplace', m.next.place, {ph:'例：公民館'})}
       ${m.next.date ? '<div class="gj-acts"><button type="button" class="gj-b" onclick="GIJIROKU.cal()">📅 次回を カレンダーに</button></div>' : ''}</section>
     <section class="gj-sec"><h4>📎 その他</h4>${ta('gjMemo', m.memo, '例：配った 資料・連絡事項', 2, K('memo'))}</section>
     <div class="gj-out"><button type="button" class="gj-b pri" onclick="GIJIROKU.print()">🖨 印刷・PDF</button><button type="button" class="gj-b" onclick="GIJIROKU.image()">🖼 画像</button><button type="button" class="gj-b" onclick="GIJIROKU.copy()">📋 文字で コピー</button>
@@ -217,6 +219,74 @@ function popOpen(html){
   return el;
 }
 function popClose(){ if(!pop) return; const p=pop; pop=null; p.rel(); p.el.remove(); }
+/* 🕐 時刻を えらぶ 窓（v606）。時・分を 押して「✓ 決定」。打って 入れる（1900・19:00・7時半・午後7時）ことも できる */
+const TP_TITLE={st:'はじめの 時刻', en:'おわりの 時刻', nst:'次回の 時刻'};
+const TP_H=[...Array(24).keys()], TP_M=[0,5,10,15,20,25,30,35,40,45,50,55];
+const toMin=s=>okT(s) ? +s.slice(0,2)*60 + +s.slice(3) : null;
+const hhmm=n=>pad2(Math.floor(n/60))+':'+pad2(n%60);
+function parseTime(s){
+  let t=String(s||'').normalize('NFKC').replace(/\s+/g,'');
+  if(!t) return null;
+  const pm=/^(午後|pm)/i.test(t);
+  t=t.replace(/^(午前|午後|am|pm)/i,'').replace(/時半$/,'時30分');
+  let h, mi=0, x;
+  if((x=/^(\d{1,2})(?::|時)(\d{1,2})?分?$/.exec(t))){ h=+x[1]; mi=x[2] ? +x[2] : 0; }
+  else if(/^\d{3,4}$/.test(t)){ const n=t.padStart(4,'0'); h=+n.slice(0,2); mi=+n.slice(2); }
+  else if(/^\d{1,2}$/.test(t)) h=+t;
+  else return null;
+  if(pm && h<12) h+=12;
+  return h<24 && mi<60 ? h*60+mi : null;
+}
+// まだ 決めて いない ときに 出す 時刻：はじめは いまの 時刻（30分 きざみ）、おわりは はじめの 1時間 あと、次回は 今回の はじめ
+function defTime(m, k){
+  const now=new Date(), r=Math.floor((now.getHours()*60+now.getMinutes())/30)*30, s=toMin(m.st);
+  if(k==='en') return s!=null ? Math.min(s+60, 23*60+55) : Math.min(r+60, 23*60+30);
+  if(k==='nst' && s!=null) return s;
+  return r;
+}
+function time(k){
+  const m=mOf(cur); if(!m || !TP_TITLE[k]) return;
+  const curV=k==='nst' ? m.next.st : m[k];
+  let mins=toMin(curV); if(mins==null) mins=defTime(m, k);
+  const el=popOpen(`<div class="gj-ph"><span aria-hidden="true">🕐</span><b>${TP_TITLE[k]}</b><button type="button" class="gj-x" onclick="GIJIROKU.close()" aria-label="閉じる">✕</button></div>
+    <div class="gj-tpbig" id="gjTpBig" aria-live="polite"></div>
+    <div class="gj-tpl">時</div><div class="gj-tpg" id="gjTpH">${TP_H.map(h=>`<button type="button" data-h="${h}">${h}</button>`).join('')}</div>
+    <div class="gj-tpl">分</div><div class="gj-tpg" id="gjTpM">${TP_M.map(x=>`<button type="button" data-m="${x}">${pad2(x)}</button>`).join('')}</div>
+    <div class="gj-tpfine"><button type="button" data-d="-5">−5分</button><button type="button" data-d="-1">−1分</button><button type="button" data-d="1">＋1分</button><button type="button" data-d="5">＋5分</button></div>
+    <div class="gj-tpfine"><input id="gjTpIn" inputmode="numeric" autocomplete="off" placeholder="打つ：1900・19:00・7時半" aria-label="時刻を 打って 入れる"></div>
+    <div class="gj-acts end">${curV ? '<button type="button" class="gj-b warn" data-x="clear">決めない</button>' : ''}<button type="button" class="gj-b" data-x="cancel">やめる</button><button type="button" class="gj-b pri" data-x="ok">✓ 決定</button></div>`);
+  if(!el) return;
+  const inp=$('gjTpIn');
+  const show=()=>{
+    $('gjTpBig').textContent=hhmm(mins);
+    el.querySelectorAll('#gjTpH button').forEach(b=>b.classList.toggle('on', +b.dataset.h===Math.floor(mins/60)));
+    el.querySelectorAll('#gjTpM button').forEach(b=>b.classList.toggle('on', +b.dataset.m===mins%60));
+  };
+  const ok=()=>{
+    if(inp.value.trim()){ const v=parseTime(inp.value); if(v==null){ toastS('時刻の 形が ちがいます（例：19:00・1900・7時半）'); inp.focus(); return; } mins=v; }
+    timeSet(k, hhmm(mins));
+  };
+  el.addEventListener('click', e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    if(b.dataset.h!=null){ mins=(+b.dataset.h)*60+mins%60; inp.value=''; show(); }
+    else if(b.dataset.m!=null){ mins=Math.floor(mins/60)*60+(+b.dataset.m); inp.value=''; show(); }
+    else if(b.dataset.d){ mins=(mins+(+b.dataset.d)+1440)%1440; inp.value=''; show(); }
+    else if(b.dataset.x==='ok') ok();
+    else if(b.dataset.x==='clear') timeSet(k, '');
+    else if(b.dataset.x==='cancel') popClose();
+  });
+  inp.addEventListener('input', ()=>{ const v=parseTime(inp.value); if(v!=null){ mins=v; show(); } });
+  inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); ok(); } });
+  show();
+}
+function timeSet(k, v){
+  const m=mOf(cur); if(!m || !TP_TITLE[k]) return;
+  v=okT(v) ? v : '';
+  if(k==='nst') m.next.st=v; else m[k]=v;
+  m.up=Date.now(); save(); popClose(); render();
+  if(v && (k==='st' || k==='en') && m.st && m.en && toMin(m.en)<=toMin(m.st)) toastS('⚠ おわりが はじめより 前に なって います', 3600);
+  else toastS(v ? '🕐 '+TP_TITLE[k]+'を '+v+' に しました' : '🕐 '+TP_TITLE[k]+'を 決めない ことに しました');
+}
 let addTpl='teirei';
 function add(){
   const os=orgs(), def=st.ui.org || os[0] || '';
@@ -405,7 +475,7 @@ const CSS=`
 .gj-sec h4{ margin:0 0 8px; font-size:15.5px; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; } .gj-sec h4 small{ font-size:12.5px; color:var(--text-light,#666); font-weight:normal; }
 .gj-f{ display:flex; align-items:center; gap:8px; margin:6px 0; flex:1; min-width:0; } .gj-f > span{ min-width:4.6em; font-size:12.5px; font-weight:bold; color:var(--text-light,#666); line-height:1.3; }
 .gj-f input, .gj-add input{ flex:1; min-width:0; min-height:42px; padding:0 10px; border-radius:10px; border:1px solid rgba(120,132,156,.55); background:var(--cell-bg,#fff); color:var(--text,#222); font-size:16px; box-sizing:border-box; font-family:inherit; }
-.gj-row{ display:flex; gap:8px; flex-wrap:wrap; } .gj-row .gj-f{ flex:1 1 200px; } .gj-row .gj-f:has(input[type=date]){ flex:1 1 240px; } .gj-row .gj-f:has(input[type=time]){ flex:1 1 140px; }   /* スマホでは 日付の 下に はじめ・おわりを 1行で */
+.gj-row{ display:flex; gap:8px; flex-wrap:wrap; } .gj-row .gj-f{ flex:1 1 200px; } .gj-row .gj-f:has(input[type=date]){ flex:1 1 240px; } .gj-row .gj-tf{ flex:1 1 140px; }   /* スマホでは 日付の 下に はじめ・おわりを 1行で */
 .gj-ppl{ display:flex; flex-wrap:wrap; gap:6px; }
 .gj-p{ display:inline-flex; align-items:stretch; border-radius:20px; border:1.5px solid #2e9d4a; overflow:hidden; background:rgba(46,157,74,.08); }
 .gj-p.s-a{ border-color:rgba(120,132,156,.6); background:rgba(120,132,156,.1); opacity:.8; } .gj-p.s-d{ border-color:#f0a400; background:rgba(240,164,0,.1); }
@@ -430,6 +500,16 @@ const CSS=`
 .gj-pop-bg{ position:absolute; inset:0; z-index:20; background:rgba(0,0,0,.45); display:flex; align-items:flex-end; justify-content:center; }
 .gj-pop{ width:100%; max-width:640px; max-height:90%; overflow:auto; background:var(--modal-bg,#fff); color:var(--text,#222); border-radius:16px 16px 0 0; padding:12px 14px calc(16px + var(--safe-bottom,0px)); box-shadow:0 -6px 24px rgba(0,0,0,.25); }
 .gj-ph{ display:flex; align-items:center; gap:8px; margin:0 0 8px; } .gj-ph > span{ font-size:26px; line-height:1; } .gj-ph b{ flex:1; font-size:17px; }
+.gj-tb{ flex:1; min-width:0; min-height:42px; padding:0 10px; border-radius:10px; border:1px solid rgba(120,132,156,.55); background:var(--cell-bg,#fff); color:var(--text,#222); font-size:16px; font-weight:bold; text-align:left; cursor:pointer; font-variant-numeric:tabular-nums; font-family:inherit; }
+.gj-tb.none{ color:var(--text-light,#777); font-weight:normal; }
+.gj-tpbig{ margin:2px 0 8px; text-align:center; font-size:40px; font-weight:bold; font-variant-numeric:tabular-nums; color:var(--acc-text,var(--acc)); }
+.gj-tpl{ font-size:12px; font-weight:bold; color:var(--text-light,#777); margin:6px 0 4px; }
+.gj-tpg{ display:grid; grid-template-columns:repeat(6,1fr); gap:4px; }
+.gj-tpg button{ height:40px; border-radius:8px; border:1px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#222); font-size:16px; font-weight:bold; cursor:pointer; touch-action:manipulation; font-variant-numeric:tabular-nums; }
+.gj-tpg button.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); }
+.gj-tpfine{ display:flex; gap:6px; margin-top:8px; } .gj-tpfine button{ flex:1; height:40px; border-radius:8px; border:1px solid rgba(120,132,156,.4); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:14px; font-weight:bold; cursor:pointer; touch-action:manipulation; }
+.gj-tpfine input{ flex:1; min-width:0; height:42px; padding:0 10px; border-radius:10px; border:1px solid rgba(120,132,156,.55); background:var(--cell-bg,#fff); color:var(--text,#222); font-size:16px; box-sizing:border-box; font-family:inherit; }
+@media (max-height:700px){ .gj-tpbig{ font-size:30px; margin:0 0 2px; } .gj-tpg button, .gj-tpfine button{ height:34px; } }
 .gj-x{ min-width:44px; min-height:44px; border-radius:12px; border:1px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#222); font-size:18px; cursor:pointer; }
 .gj-tpl{ display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:6px; margin:8px 0; }
 .gj-tpl button{ display:flex; flex-direction:column; align-items:flex-start; gap:3px; padding:8px 10px; border-radius:12px; border:1.5px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#222); text-align:left; cursor:pointer; font:inherit; }
@@ -464,11 +544,11 @@ function openGijiroku(){ ensureDom(); load(); cur=null; openDlg('gijirokuOverlay
 function closeGijiroku(){ if(!$('gijirokuOverlay') || !isDlgOpen('gijirokuOverlay')) return; closeDlg('gijirokuOverlay', cleanup); }
 
 window.GIJIROKU={ tab:k=>{ st.ui.tab=k==='todo' ? 'todo' : 'list'; save(); render(); }, org:o=>{ st.ui.org=oneLine(o, 40); save(); render(); }, who:w=>{ st.ui.who=oneLine(w, 30); save(); render(); },
-  add, tpl:setTpl, addGo, open:openM, back, del, set:setF, padd, paste, pick, pprev, pst, pdel, iadd, imove, idel, tadd, tdel, tdone, done:doneAny, vote, mic, close:popClose,
+  add, tpl:setTpl, addGo, open:openM, back, del, set:setF, time, padd, paste, pick, pprev, pst, pdel, iadd, imove, idel, tadd, tdel, tdone, done:doneAny, vote, mic, close:popClose,
   print, image, copy, cal, nextMeet,
   // ためす とき 用
   today:s=>{ fixedToday=s ? String(s) : null; if(st) render(); }, state:()=>JSON.parse(JSON.stringify(st)), cur:()=>cur, text:id=>{ const m=mOf(id||cur); return m ? plainText(m) : ''; },
   doc:id=>{ const m=mOf(id||cur); return m ? docHtml(m) : ''; }, newMeet:(org,tpl,cp)=>{ const m=newMeet(org, tpl, cp); return m.id; }, quorum:id=>{ const m=mOf(id||cur); return m ? quorum(m) : null; }, voteText, calEv:id=>{ const m=mOf(id||cur); return m ? calEv(m) : null; },
-  openTodos:()=>openTodos().map(x=>x.t.t+'@'+(x.t.who||'')+'@'+(x.t.due||'')) };
+  parseTime, openTodos:()=>openTodos().map(x=>x.t.t+'@'+(x.t.who||'')+'@'+(x.t.due||'')) };
 Object.assign(window, { openGijiroku, closeGijiroku });
 })();
