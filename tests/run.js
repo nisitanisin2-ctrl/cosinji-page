@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,bingo,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
+    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,bingo,mikurabe,gijiroku,sentaku,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -3105,11 +3105,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,bingo,calctmpl,fintmpl');
+    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,bingo,mikurabe,gijiroku,sentaku,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 45);   // v587 で 🎱ビンゴ、v579 で 🔁📋🧳 の3つ、v575 で ⏱🎉📃 の3つ、v569 で 🗣📢 の2つ、v568 で 🗓⛩🧮 の3つ、v561 で 🚛💴🎲📷 の4つ、v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
+    document.getElementById('startPageSel').options.length), 48);   // v605 で 📸📝🧺 の3つ、v587 で 🎱ビンゴ、v579 で 🔁📋🧳 の3つ、v575 で ⏱🎉📃 の3つ、v569 で 🗣📢 の2つ、v568 で 🗓⛩🧮 の3つ、v561 で 🚛💴🎲📷 の4つ、v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'saienOverlay', 'volumeOverlay',
@@ -13066,6 +13066,252 @@ async function runVsFace604(browser) {
   await ctx.close();
 }
 
+/* 📸 見比べ（v605）。3つの 道具の 組みこみ・ファイルも ここで 確かめる */
+async function runMikurabe605(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📸 見比べ：前と 後の 写真を 1組に（v605） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは 読まない・道具（見比べ＝現場・議事録＝仕事・洗濯表示＝くらし）・マイキー・バックアップ・端末の空き・吹き出し（3つ）', await page.evaluate(() => [['mikurabe', 'mikurabeOverlay', 'MIKURABE', '現場'], ['gijiroku', 'gijirokuOverlay', 'GIJIROKU', '仕事'], ['sentaku', 'sentakuOverlay', 'SENTAKU', 'くらし']].map(([id, ov, api, cat]) => [typeof window[api], !!NP_TOOLS.find(t => t.id === id && t.ov === ov), !!KEY_FUNCS['a_' + id], TOOL_CATS.find(c => c[0].includes(cat))[1].includes(id), SETTINGS_BACKUP_KEYS.includes('excalc_' + id), ST_GROUPS.some(g => g.k === 'excalc_' + id), !!TOOL_HINTS[id]].join('/')).join(' ')),
+    'undefined/true/true/true/true/true/true undefined/true/true/true/true/true/true undefined/true/true/true/true/true/true');
+  {
+    const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8'), rd = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8'), hl = fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8'), ix = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+    check('  service-worker・README（ファイルの 表・配る）・説明書・?app= の 名前に 3つの 道具', ['mikurabe.js', 'gijiroku.js', 'sentaku.js'].map(f => [sw.includes("'./" + f + "'"), rd.includes('| `' + f + '` |'), rd.split('## 配る')[1].includes('`' + f + '`')].join('')).join('/') + '/'
+      + ['📸見比べ＝', '📝議事録＝', '🧺洗濯表示＝'].map(t => hl.includes(t)).join('/') + '/' + ["mikurabe:'📸 見比べ'", "gijiroku:'📝 議事録'", "sentaku:'🧺 洗濯表示'"].map(t => ix.includes(t)).join('/'),
+      'truetruetrue/truetruetrue/truetruetrue/true/true/true/true/true/true');
+  }
+  const Y = await page.evaluate(() => new Date().getFullYear()), td = await page.evaluate(() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); });
+  await page.evaluate(() => { window.__asked = []; window.appConfirm = async m => { window.__asked.push(String(m).split('\n')[0]); return true; }; window.print = () => { window.__printed = (window.__printed || 0) + 1; }; });
+  await page.evaluate(async () => { await openMikurabe(); }); await w(500);
+  check('  はじめ：説明と「＋ 新しい 見比べ」だけ（写真帳は まだ）・← もどる', await page.evaluate(() => [!!document.querySelector('#mkBody .mk-empty'), [...document.querySelectorAll('#mkBody .mk-acts.top button')].map(b => b.textContent).join(','), !!document.querySelector('#mikurabeOverlay .tool-back')].join('/')), 'true/＋ 新しい 見比べ/true');
+  const pic = (bf, W = 1200, H = 900, png) => page.evaluate(([bf, W, H, png]) => { const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); g.fillStyle = bf ? '#8d6e63' : '#e3f2fd'; g.fillRect(0, 0, W, H); g.fillStyle = bf ? '#3e2723' : '#1565c0'; g.fillRect(W * 0.4, H * 0.3, W * 0.2, H * 0.2); return c.toDataURL(png ? 'image/png' : 'image/jpeg', 0.9); }, [bf, W, H, png]);
+  const A = await pic(true), B = await pic(false);
+  await page.evaluate(() => MIKURABE.add()); await w(200);
+  check('  ＋ 新しい 見比べ：組の 画面・2枚 そろうまで 見比べは 出さない・前／後は「まだ」・「👻 前に 合わせて 撮る」は 前が ある とき だけ', await page.evaluate(() => [MIKURABE.state().list.length, !!MIKURABE.cur(), !!document.getElementById('mkCmp'), !!document.querySelector('.mk-note'), document.querySelectorAll('.mk-st.none').length, [...document.querySelectorAll('.mk-slot button')].some(b => b.textContent.includes('前に 合わせて'))].join('/')), '1/true/false/true/2/false');
+  await page.evaluate(async ([A, Y]) => { MIKURABE.set('t', '浴室の 床'); MIKURABE.set('place', '山田様邸'); MIKURABE.set('memo', 'タイルを はがして 防水'); await MIKURABE.putData('a', A, Y + '-10-01'); }, [A, Y]); await w(200);
+  check('  前だけ：まだ 見比べない・後の ところに「👻 前に 合わせて 撮る」・題は 名前', await page.evaluate(() => [!!document.getElementById('mkCmp'), [...document.querySelectorAll('.mk-slot button')].some(b => b.textContent.includes('前に 合わせて')), document.getElementById('mkTitle').textContent].join('/')), 'false/true/浴室の 床');
+  await page.evaluate(async ([B, Y]) => { await MIKURABE.putData('b', B, Y + '-10-30'); }, [B, Y]); await w(400);
+  check('  2枚 そろう：↔ スライダー（はじめ）・境目 50%・前／後の 日付・あいだ 29日・写真は 4つ（大きい 写真と 見本）・前の 写真の 形の 枠', await page.evaluate(async () => { const s = MIKURABE.state(), p = s.list[0], c = document.getElementById('mkCmp'); return [s.ui.mode, [...document.querySelectorAll('.mk-modes button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(','), document.getElementById('mkBw').style.clipPath, document.getElementById('mkKnob').getAttribute('aria-valuenow'), [...document.querySelectorAll('#mkCmp .mk-lab')].map(e => e.textContent).join(','), document.querySelector('.mk-gap').textContent, p.a.w + 'x' + p.a.h, (await MIKURABE.picIds()).length, c.style.aspectRatio, Math.round(c.getBoundingClientRect().width / c.getBoundingClientRect().height * 100)].join('/'); }),
+    'slide/↔ スライダー*,⇆ 並べる,👻 透かす/inset(0px 0px 0px 50%)/50/前 10/1,後 10/30/前から 後まで 29日/1200x900/4/1200 / 900/133');
+  const box = await page.evaluate(() => { const r = document.getElementById('mkCmp').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
+  await page.mouse.move(box.x + box.w * 0.75, box.y + box.h / 2); await page.mouse.down(); await w(50);
+  const p1 = await page.evaluate(() => MIKURABE.pos());
+  await page.mouse.move(box.x + box.w * 0.2, box.y + box.h / 2, { steps: 4 }); await page.mouse.up(); await w(500);
+  check('  境目を 指で 動かす（押した ところ → なぞった ところ）・覚えて おく', p1 + '/' + await page.evaluate(() => [MIKURABE.pos(), document.getElementById('mkLine').style.left, document.getElementById('mkBw').style.clipPath, JSON.parse(localStorage.getItem('excalc_mikurabe')).ui.pos].join('/')), '75/20/20%/inset(0px 0px 0px 20%)/20');
+  await page.focus('#mkKnob'); await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight');
+  check('  境目は ← → キーでも（2ずつ）', await page.evaluate(() => MIKURABE.pos() + '/' + document.getElementById('mkKnob').getAttribute('aria-valuenow')), '24/24');
+  await page.evaluate(() => MIKURABE.mode('side')); await w(200);
+  check('  ⇆ 並べる：左右（はじめ）→ ⬒ 上下', await page.evaluate(() => { const a = [document.querySelector('.mk-side').className, document.querySelectorAll('.mk-side figure').length]; MIKURABE.dir('v'); a.push(document.querySelector('.mk-side').className, MIKURABE.state().ui.dir); return a.join('/'); }), 'mk-side h/2/mk-side v/v');
+  await page.evaluate(() => MIKURABE.mode('fade')); await w(200);
+  check('  👻 透かす：後の 濃さ 50% → 80%（覚える）', await page.evaluate(() => { const a = [document.getElementById('mkBw').style.opacity, !!document.getElementById('mkLine')]; MIKURABE.fade(80); a.push(document.getElementById('mkBw').style.opacity); return a.join('/'); }) + '/' + (await w(500), await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_mikurabe')).ui.fade)), '0.5/false/0.8/80');
+  await page.evaluate(() => { MIKURABE.mode('slide'); MIKURABE.adjust(); }); await w(200);
+  check('  🎯 位置合わせ：透かす に して（濃さは 25〜75% に）大きさ・かたむき を 出す', await page.evaluate(() => [MIKURABE.state().ui.mode, MIKURABE.adj(), document.getElementById('mkCmp').classList.contains('adj'), document.querySelectorAll('.mk-adj input[type=range]').length, MIKURABE.state().ui.fade].join('/')), 'fade/true/true/2/50');
+  await page.evaluate(() => { MIKURABE.tf('s', 1.5); MIKURABE.tf('r', 10); });
+  const b2 = await page.evaluate(() => { const r = document.getElementById('mkCmp').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
+  await page.mouse.move(b2.x + b2.w / 2, b2.y + b2.h / 2); await page.mouse.down(); await page.mouse.move(b2.x + b2.w * 0.6, b2.y + b2.h * 0.45, { steps: 3 }); await page.mouse.up(); await w(500);
+  check('  後の 写真を 指で 動かす（右へ 10%・上へ 5%）・大きさ 1.5・かたむき 10°（覚える）', await page.evaluate(() => { const t = JSON.parse(localStorage.getItem('excalc_mikurabe')).list[0].tf; return [Math.round(t.x), Math.round(t.y), t.s, t.r, / rotate\(10deg\) scale\(1\.5\)$/.test(document.getElementById('mkB').style.transform)].join('/'); }), '10/-5/1.5/10/true');
+  await page.evaluate(() => MIKURABE.adjust()); await w(200);
+  check('  位置合わせを おわる：前の 見せ方（スライダー）に もどる・ずれは そのまま', await page.evaluate(() => [MIKURABE.state().ui.mode, MIKURABE.adj(), MIKURABE.state().list[0].tf.s, /scale\(1\.5\)/.test(document.getElementById('mkB').style.transform)].join('/')), 'slide/false/1.5/true');
+  check('  🖼 並べた 画像：左右（横 1000）・上下（縦長）', await page.evaluate(async () => { const h = await MIKURABE.pairCanvas('h', 1000), v = await MIKURABE.pairCanvas('v', 1000); return [h.w, h.h < h.w, v.w, v.h > v.w].join('/'); }), '1000/true/1000/true');
+  await page.evaluate(() => MIKURABE.shot()); await w(800);
+  check('  🖼 並べた 画像（保存・送る）：仕上がりを 見せてから', await page.evaluate(() => isDlgOpen('shotPrevOverlay') && document.getElementById('shotPrevImg').src.startsWith('data:image/png')), true);
+  await page.evaluate(() => closeShotPreview()); await w(200);
+  await page.evaluate(async () => { await MIKURABE.print(); }); await w(300);
+  check('  🖨 印刷：名前・場所・あいだの 日数・前／後と 日付・横長は 上下に 並べる・後は 位置合わせ どおり・メモ', await page.evaluate(() => { const pa = document.getElementById('printArea'); return [window.__printed, pa.querySelector('.mk-dt').textContent, pa.querySelector('.mk-ds').textContent.trim(), [...pa.querySelectorAll('figcaption')].map(e => e.textContent.replace(/^.*?(前|後).*?(\d+月\d+日)$/, '$1 $2')).join(','), pa.querySelector('.mk-dg').className, /scale\(1\.5\)/.test(pa.querySelector('figure.b img').getAttribute('style')), pa.querySelectorAll('img[src^="data:image/jpeg"]').length, pa.querySelector('.mk-dm').textContent].join('/'); }),
+    '1/浴室の 床/📍 山田様邸　前から 後まで 29日/前 10月1日,後 10月30日/mk-dg v/true/2/タイルを はがして 防水');
+  await page.evaluate(Y => MIKURABE.date('b', Y + '-11-05'), Y); await w(150);
+  check('  後の 日付を 直す → 35日', await page.evaluate(() => document.querySelector('.mk-gap').textContent), '前から 後まで 35日');
+  const ab = await page.evaluate(() => { const p = MIKURABE.state().list[0]; return [p.a.pic, p.b.pic]; });
+  await page.evaluate(() => MIKURABE.swap()); await w(150);
+  check('  ⇄ 入れかえ：前と 後が かわる・位置合わせは もとに・日付が 前後して いれば 知らせる', await page.evaluate(ab => { const p = MIKURABE.state().list[0]; return [p.a.pic === ab[1], p.b.pic === ab[0], JSON.stringify(p.tf), document.querySelector('.mk-gap').textContent].join('/'); }, ab), 'true/true/{"x":0,"y":0,"s":1,"r":0}/日付が 前後 しています');
+  await page.evaluate(() => MIKURABE.swap()); await w(150);
+  // 👻 前に 合わせて 撮る（カメラは 絵で 代わりを する）
+  await page.evaluate(() => { if (!navigator.mediaDevices) Object.defineProperty(navigator, 'mediaDevices', { value: {}, configurable: true });
+    window.__gum = 0; navigator.mediaDevices.getUserMedia = async () => { window.__gum++; const c = document.createElement('canvas'); c.width = 640; c.height = 480; const g = c.getContext('2d'); const draw = () => { g.fillStyle = '#2e7d32'; g.fillRect(0, 0, 640, 480); }; draw(); setInterval(draw, 60); return c.captureStream(15); }; });
+  await page.evaluate(() => MIKURABE.cam()); await w(1000);
+  check('  👻 前に 合わせて 撮る：カメラの 上に 前の 写真を 薄く（40%）・前の 写真と 同じ 形の 枠・📸 に 合わせる', await page.evaluate(() => { const v = document.getElementById('mkVid'), g = document.getElementById('mkGhost'), f = document.querySelector('.mk-camf'); return [MIKURABE.camOn(), window.__gum, v.videoWidth, g.dataset.pic === MIKURABE.state().list[0].a.pic, g.style.opacity, /1\.3333/.test(f.getAttribute('style')), Math.round(f.getBoundingClientRect().width / f.getBoundingClientRect().height * 100), document.activeElement.className].join('/'); }), 'true/1/640/true/0.4/true/133/mk-shut');
+  await page.keyboard.press('Escape'); await w(200);
+  check('  Esc は カメラだけ 閉じる（組の 画面は そのまま）', await page.evaluate(() => [MIKURABE.camOn(), !!document.querySelector('.mk-cam'), !!MIKURABE.cur(), isDlgOpen('mikurabeOverlay')].join('/')), 'false/false/true/true');
+  await page.evaluate(() => MIKURABE.cam()); await w(800);
+  await page.evaluate(() => window.history.back()); await w(700);
+  check('  端末の「戻る」も カメラだけ 閉じる', await page.evaluate(() => [MIKURABE.camOn(), !!document.querySelector('.mk-cam'), !!MIKURABE.cur(), isDlgOpen('mikurabeOverlay')].join('/')), 'false/false/true/true');
+  await page.evaluate(() => MIKURABE.cam()); await w(900);
+  const b0 = await page.evaluate(() => MIKURABE.state().list[0].b.pic);
+  await page.evaluate(() => MIKURABE.camShot()); await w(800);
+  check('  📸 撮る：後の 写真が かわる（日付は きょう）・位置合わせは もとに・カメラは 閉じる・前の 後の 写真は 消す', await page.evaluate(async b0 => { const p = MIKURABE.state().list[0], ids = await MIKURABE.picIds(); return [p.b.pic !== b0, p.b.w + 'x' + p.b.h, p.b.d, JSON.stringify(p.tf), MIKURABE.camOn(), ids.includes(b0), ids.length].join('/'); }, b0),
+    `true/640x480/${td}/{"x":0,"y":0,"s":1,"r":0}/false/false/4`);
+  await page.evaluate(() => { navigator.mediaDevices.getUserMedia = async () => { throw new Error('NotAllowedError'); }; MIKURABE.cam(); }); await w(500);
+  check('  カメラが 使えない ときは 知らせて 閉じる', await page.evaluate(() => [MIKURABE.camOn(), !!document.querySelector('.mk-cam'), document.getElementById('appToast').textContent.includes('カメラを 使えませんでした')].join('/')), 'false/false/true');
+  // 🖼 えらぶ（縦長の 写真に かえる）
+  const P = await pic(true, 800, 1000, true);
+  const a0 = await page.evaluate(() => MIKURABE.state().list[0].a.pic);
+  await page.setInputFiles('#mkIn_a', { name: 'mae.png', mimeType: 'image/png', buffer: Buffer.from(P.split(',')[1], 'base64') }); await w(900);
+  check('  🖼 えらぶ：前を 縦長に かえる（日付は ファイルの 日）・枠も 縦長・前の 写真は 消す', await page.evaluate(async a0 => { const p = MIKURABE.state().list[0], ids = await MIKURABE.picIds(); return [p.a.pic !== a0, p.a.w + 'x' + p.a.h, /^\d{4}-\d\d-\d\d$/.test(p.a.d), document.getElementById('mkCmp').style.aspectRatio, ids.includes(a0), ids.length].join('/'); }, a0), 'true/800x1000/true/800 / 1000/false/4');
+  await page.evaluate(async ([A, B, Y]) => { MIKURABE.back(); MIKURABE.add(); MIKURABE.set('t', '庭'); await MIKURABE.putData('a', B, Y + '-09-01'); await MIKURABE.putData('b', A, Y + '-09-02'); MIKURABE.back(); }, [A, B, Y]); await w(400);
+  check('  一覧：新しい 順・前と 後の 見本・日付・日数・🖨 写真帳', await page.evaluate(() => [[...document.querySelectorAll('.mk-card .mk-ct b')].map(e => e.textContent).join(','), document.querySelectorAll('.mk-card img').length, document.querySelector('.mk-card .mk-ct small:last-child').textContent, [...document.querySelectorAll('#mkBody .mk-acts.top button')].map(b => b.textContent).join(',')].join('/')), '庭,浴室の 床/4/前 9/1　→　後 9/2（1日）/＋ 新しい 見比べ,🖨 写真帳（まとめて 印刷）');
+  await page.evaluate(() => MIKURABE.book()); await w(250);
+  check('  🖨 写真帳：組を えらぶ（はじめは ぜんぶ ✓）・題', await page.evaluate(() => [document.querySelectorAll('.mk-bkr input:checked').length, document.getElementById('mkBookT').value].join('/')), '2/施工 前後 写真');
+  await page.evaluate(() => { document.querySelectorAll('.mk-bkr input')[0].click(); document.getElementById('mkBookT').value = '山田様邸 改修工事'; });
+  await page.evaluate(async () => { await MIKURABE.bookGo(); }); await w(400);
+  check('  ✓ を 外した 組は 印刷しない・題・左右に 並べる・小さな 窓は 閉じる', await page.evaluate(() => { const pa = document.getElementById('printArea'); return [pa.querySelector('.mk-dh').textContent, [...pa.querySelectorAll('.mk-dt')].map(e => e.textContent).join(','), pa.querySelector('.mk-dg').className, !!document.querySelector('.mk-pop'), window.__printed].join('/'); }), '山田様邸 改修工事/浴室の 床/mk-dg h/false/2');
+  await page.evaluate(() => MIKURABE.book()); await w(150);
+  await page.keyboard.press('Escape'); await w(150);
+  const e1 = await page.evaluate(() => [!!document.querySelector('.mk-pop'), isDlgOpen('mikurabeOverlay')].join('/'));
+  await page.evaluate(() => MIKURABE.open(MIKURABE.state().list[0].id)); await w(150);
+  await page.keyboard.press('Escape'); await w(150);
+  const e2 = await page.evaluate(() => [MIKURABE.cur(), isDlgOpen('mikurabeOverlay')].join('/'));
+  check('  Esc：小さな 窓 → 組の 画面（一覧へ）の 順に 閉じる', e1 + ' ' + e2, 'false/true /true');
+  await page.evaluate(async () => { await MIKURABE.del(MIKURABE.state().list.find(p => p.t === '庭').id); }); await w(400);
+  check('  🗑 消す：聞いてから 消す・写真も 消える', await page.evaluate(async () => [MIKURABE.state().list.length, window.__asked[window.__asked.length - 1], (await MIKURABE.picIds()).length].join('/')), '1/「庭」（写真 2枚）を 消しますか？/4');
+  await page.evaluate(() => closeMikurabe()); await w(200);
+  await page.evaluate(() => { const o = JSON.parse(localStorage.getItem('excalc_mikurabe')); o.list.push({ id: '<b>', t: 'x'.repeat(99), a: { pic: 'javascript:1', d: 'x' }, b: null, tf: { x: 999, s: 9, r: -99 } }, null, 5); o.ui = { mode: 'zzz', fade: 300, pos: -5 }; localStorage.setItem('excalc_mikurabe', JSON.stringify(o)); });
+  await page.evaluate(() => new Promise(r => { const q = indexedDB.open('excalc_mikurabe', 1); q.onsuccess = () => { const t = q.result.transaction('pics', 'readwrite'); t.objectStore('pics').put('data:image/jpeg;base64,AAAA', 'pstray0001'); t.oncomplete = () => { q.result.close(); r(); }; }; }));
+  await page.evaluate(async () => { await openMikurabe(); }); await w(700);
+  check('  開き直す：残って いる・おかしな 中身は 直す・どの 組も 使って いない 写真は 消す', await page.evaluate(async () => { const s = MIKURABE.state(), q = s.list[1], ids = await MIKURABE.picIds(); return [s.list.length, s.list[0].t, /^[a-z0-9]{4,12}$/.test(q.id), q.t.length, q.a, JSON.stringify(q.tf), s.ui.mode, s.ui.fade, s.ui.pos, ids.includes('pstray0001'), ids.length].join('/'); }), '2/浴室の 床/true/40//{"x":60,"y":0,"s":2.5,"r":-30}/slide/100/0/false/4');
+  // ⚙ 書き出し・読み込み（写真も）
+  await page.evaluate(() => { window.__blob = null; URL.createObjectURL = b => { window.__blob = b; return 'about:blank'; }; HTMLAnchorElement.prototype.click = function () {}; window.__asked = []; });
+  await page.evaluate(async () => { await exportSaves(); });
+  const exp = await page.evaluate(async () => window.__blob ? JSON.parse(await window.__blob.text()) : null);
+  const used = await page.evaluate(() => { const p = MIKURABE.state().list[0]; return [p.a.pic, p.a.thumb, p.b.pic, p.b.thumb].sort().join(','); });
+  check('  ⚙ 書き出し：記録が なくても 書き出せる・見比べの 写真も 入れるか 聞く（2枚）・入れると 使って いる 写真と 見本だけ・中身は 設定に', [!!exp, exp && Object.keys(exp.mikurabePics || {}).sort().join(',') === used, exp && typeof exp.settings.excalc_mikurabe, await page.evaluate(() => window.__asked.find(m => m.includes('見比べ')) || '')].join('/'), 'true/true/string/📸見比べの 写真（2枚）も いっしょに書き出しますか');
+  await page.evaluate(() => { closeMikurabe(); const o = JSON.parse(localStorage.getItem('excalc_mikurabe')); o.list = []; localStorage.setItem('excalc_mikurabe', JSON.stringify(o)); });
+  await page.evaluate(async () => { await openMikurabe(); }); await w(600);
+  check('  （空に すると 写真も 消える）', await page.evaluate(async () => (await MIKURABE.picIds()).length), 0);
+  const inc = JSON.parse(JSON.stringify(exp)); inc.mikurabePics['bad!'] = inc.mikurabePics[Object.keys(inc.mikurabePics)[0]]; inc.mikurabePics['pzzzzzzz9'] = 'javascript:alert(1)';
+  await page.evaluate(() => { window.appConfirm = async () => true; });
+  await page.evaluate(j => { importSaves({ target: { files: [new File([j], 'b.json', { type: 'application/json' })], value: '' } }); }, JSON.stringify(inc));
+  await page.waitForTimeout(3000);
+  await page.evaluate(async () => { await openMikurabe(); }); await page.waitForTimeout(900);
+  check('  ⚙ 読み込み：設定と いっしょに 見比べの 中身と 写真が もどる（おかしな 名前・中身の 写真は 入れない）', await page.evaluate(async () => { const s = MIKURABE.state(), ids = await MIKURABE.picIds(); return [s.list.length, s.list[0].t, ids.length, ids.includes('bad!'), ids.includes('pzzzzzzz9'), !!document.querySelector('.mk-card img')].join('/'); }), '2/浴室の 床/4/false/false/true');
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+/* 📝 議事録（v605） */
+async function runGijiroku605(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📝 議事録：会議・総会の 出席・議題・決まったこと・宿題（v605） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { window.__asked = []; window.appConfirm = async m => { window.__asked.push(String(m).split('\n')[0]); return true; }; window.print = () => { window.__printed = (window.__printed || 0) + 1; }; window.toolCopyText = t => { window.__copied = t; }; });
+  await page.evaluate(async () => { await openGijiroku(); GIJIROKU.today('2026-10-30'); }); await w(400);
+  check('  はじめ：📝 会議・📌 宿題 の タブ・＋ 新しい 会議・← もどる', await page.evaluate(() => [[...document.querySelectorAll('#gjBody [role=tab]')].map(b => b.textContent.trim()).join(','), [...document.querySelectorAll('#gjBody button')].some(b => b.textContent.includes('＋ 新しい 会議')), !!document.querySelector('#gijirokuOverlay .tool-back')].join('/')), '📝 会議,📌 宿題/true/true');
+  await page.evaluate(() => GIJIROKU.add()); await w(150);
+  check('  ＋ 新しい 会議：会の 名前・ひな形 5つ（定例会が えらばれて いる）', await page.evaluate(() => [!!document.getElementById('gjNewOrg'), [...document.querySelectorAll('.gj-tpl button')].map(b => b.querySelector('b').textContent + (b.classList.contains('on') ? '*' : '')).join(',')].join('/')), 'true/📋 定例会・役員会*,🏛 総会,💼 職場の 会議,⛑ 安全衛生委員会,📄 白紙');
+  await page.evaluate(() => { document.getElementById('gjNewOrg').value = 'さくら町内会'; GIJIROKU.tpl('sokai'); GIJIROKU.addGo(); }); await w(200);
+  check('  総会の ひな形：議題が 入る・日付は きょう・題は「会の 名前 の 会議」', await page.evaluate(() => { const m = GIJIROKU.state().list[0]; return [m.org, m.tpl, m.date, m.items.map(i => i.t).join('|'), document.getElementById('gjEhT').textContent].join('/'); }), 'さくら町内会/sokai/2026-10-30/第1号議案 事業報告|第2号議案 決算報告・監査報告|第3号議案 事業計画（案）|第4号議案 予算（案）|第5号議案 役員の 選出|その他/さくら町内会 の 会議');
+  await page.evaluate(() => { const el = document.getElementById('gjPIn'); el.value = '山田、佐藤，'; el.focus(); el.selectionStart = el.selectionEnd = el.value.length; const dt = new DataTransfer(); dt.setData('text/plain', '鈴木\n田中\r\n\n高橋'); el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); el.value += ',山田'; window.__pin = el.value; GIJIROKU.padd(); }); await w(150);
+  check('  出席者：改行の 名簿を 貼ると「、」に かえる', await page.evaluate(() => window.__pin), '山田、佐藤，鈴木、田中、高橋,山田');
+  check('  出席者：「、」「，」「,」で 区切って まとめて 足す（同じ 名前は 1人）・はじめは 出席', await page.evaluate(() => GIJIROKU.state().list[0].ppl.map(p => p.n + ':' + p.s).join(',')), '山田:p,佐藤:p,鈴木:p,田中:p,高橋:p');
+  await page.evaluate(() => { GIJIROKU.pst(2); GIJIROKU.pst(3); GIJIROKU.pst(3); GIJIROKU.pst(4); GIJIROKU.pst(4); GIJIROKU.pst(4); }); await w(150);
+  check('  名前を 押す たびに 出席 → 欠席 → 委任 → 出席・数', await page.evaluate(() => [GIJIROKU.state().list[0].ppl.map(p => p.s).join(''), [...document.querySelectorAll('.gj-sec h4')].find(h => h.textContent.includes('出席者')).querySelector('small').textContent].join('/')), 'ppadp/出席 3人・欠席 1人・委任 1人');
+  await page.evaluate(() => GIJIROKU.set('members', 8)); await w(100);
+  check('  会員 8人：過半数 5人・出席 3＋委任 1＝4人 → まだ 足りない', await page.evaluate(() => [JSON.stringify(GIJIROKU.quorum()), document.getElementById('gjQ').className, document.getElementById('gjQ').textContent].join('/')), '{"need":5,"have":4,"ok":false}/gj-q ng/⚠ 会員 8人 → 過半数は 5人。出席 3人＋委任 1人＝4人で、まだ 足りません。');
+  await page.evaluate(() => GIJIROKU.pst(1)); await w(100);
+  await page.evaluate(() => { GIJIROKU.pst(1); GIJIROKU.pst(1); GIJIROKU.set('members', 7); }); await w(100);
+  check('  会員 7人：過半数 4人 → 成立', await page.evaluate(() => [JSON.stringify(GIJIROKU.quorum()), document.getElementById('gjQ').className, document.getElementById('gjQ').textContent.slice(0, 1)].join('/')), '{"need":4,"have":4,"ok":true}/gj-q ok/✅');
+  // 打って いる あいだは 組み直さない（キーボードが 閉じない）
+  await page.evaluate(() => document.querySelector('input[list="gjNames"]').scrollIntoView({ block: 'center' }));
+  await page.click('input[list="gjNames"]'); await page.keyboard.type('山田');
+  check('  議長を 打つ：打って いる 欄から 出ない（組み直さない）・覚える', await page.evaluate(() => [document.activeElement && document.activeElement.value, GIJIROKU.state().list[0].chair].join('/')) + '/' + (await w(600), await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_gijiroku')).list[0].chair)), '山田/山田/山田');
+  await page.evaluate(() => { GIJIROKU.set('t', '第5回 定期総会'); GIJIROKU.set('rec', '佐藤'); GIJIROKU.set('sign0', '鈴木'); GIJIROKU.set('st', '19:00'); GIJIROKU.set('en', '20:30'); GIJIROKU.set('place', '公民館'); }); await w(100);
+  check('  題を 打つと 上の 題も かわる', await page.evaluate(() => document.getElementById('gjEhT').textContent), '第5回 定期総会');
+  const ids = await page.evaluate(() => GIJIROKU.state().list[0].items.map(i => i.id));
+  await page.evaluate(([i0, i1]) => { GIJIROKU.set(['item', i0, 'memo'], '事業報告を 読み上げた'); GIJIROKU.set(['item', i0, 'dec'], '原案どおり 承認'); GIJIROKU.vote(i0); GIJIROKU.set(['vote', i0, 'y'], 5); GIJIROKU.set(['vote', i0, 'n'], 0); GIJIROKU.tadd(i1); }, ids); await w(150);
+  check('  🗳 採決：賛成 5・反対 0 → 全会一致で 可決（字だけ 合わせる）', await page.evaluate(i0 => document.querySelector('[data-vr="' + i0 + '"]').textContent, ids[0]), '賛成 5・反対 0 → 全会一致で 可決');
+  check('  採決の 言い方', await page.evaluate(() => [GIJIROKU.voteText({ y: 5, n: 2, a: 1 }), GIJIROKU.voteText({ y: 3, n: 3, a: '' }), GIJIROKU.voteText({ y: 1, n: 4, a: '' }), GIJIROKU.voteText({ y: '', n: '', a: '' })].join('|')), '賛成 5・反対 2・棄権 1 → 賛成多数で 可決|賛成 3・反対 3 → 可否 同数|賛成 1・反対 4 → 否決|');
+  const t0 = await page.evaluate(i1 => GIJIROKU.state().list[0].items.find(i => i.id === i1).todos[0].id, ids[1]);
+  await page.evaluate(([i1, t]) => { GIJIROKU.set(['todo', i1, t, 't'], 'テントの 手配'); GIJIROKU.set(['todo', i1, t, 'who'], '鈴木'); GIJIROKU.set(['todo', i1, t, 'due'], '2026-11-15'); }, [ids[1], t0]); await w(150);
+  check('  宿題（だれが・いつまで）→ 📌 宿題の 一覧', await page.evaluate(() => GIJIROKU.openTodos().join(',')), 'テントの 手配@鈴木@2026-11-15');
+  check('  📋 文で コピー（LINE・メール）', await page.evaluate(() => { GIJIROKU.copy(); const t = window.__copied, L = t.split('\n'); return [L.slice(0, 8).join('|'), t.includes('（採決）賛成 5・反対 0 → 全会一致で 可決'), t.includes('（宿題）テントの 手配：鈴木（11/15まで）')].join('/'); }),
+    '【議事録】第5回 定期総会（さくら町内会）|日時：2026年10月30日（金） 19:00〜20:30|場所：公民館|出席：山田、佐藤、高橋（3人）|欠席：鈴木（1人）|委任：田中（1人）|会員 7人・出席＋委任 4人（過半数 4人）→ 成立|議長：山田　書記：佐藤/true/true');
+  await page.evaluate(() => GIJIROKU.print()); await w(300);
+  check('  🖨 印刷：議事録・表・議題・宿題・署名欄（議長＋署名人 2人）', await page.evaluate(() => { const pa = document.getElementById('printArea'); return [window.__printed, pa.textContent.includes('議 事 録'), pa.querySelectorAll('table').length, (pa.textContent.match(/印/g) || []).length, pa.textContent.includes('テントの 手配')].join('/'); }), '1/true/2/4/true');
+  check('  📅 次回を カレンダーに：日付が ない ときは 出さない', await page.evaluate(() => JSON.stringify(GIJIROKU.calEv())), 'null');
+  await page.evaluate(() => { GIJIROKU.set('ndate', '2026-11-20'); GIJIROKU.set('nst', '19:00'); GIJIROKU.set('nplace', '公民館'); }); await w(150);
+  check('  次回の 日時 → カレンダーの 予定（1時間 前に 知らせ）', await page.evaluate(() => { const e = GIJIROKU.calEv(); delete e.uid; return JSON.stringify(e); }), '{"title":"さくら町内会 会議","date":"2026-11-20","start":"19:00","allDay":false,"loc":"公民館","desc":"前回：第5回 定期総会（10/30）","alarm":60}');
+  const orig = await page.evaluate(() => GIJIROKU.cur());
+  await page.evaluate(() => GIJIROKU.nextMeet()); await w(250);
+  check('  📄 次の 会議を 作る：出席者（みんな 出席に）・議長・書記・会員の 数・次回の 日時と 場所を 引きつぐ・まだの 宿題が 出る', await page.evaluate(() => { const s = GIJIROKU.state(), m = s.list.find(x => x.id === GIJIROKU.cur()); return [s.list.length, m.org, m.ppl.map(p => p.n + ':' + p.s).join(','), m.chair, m.rec, m.members, m.date, m.st, m.place, document.getElementById('gjBody').textContent.includes('テントの 手配')].join('/'); }),
+    '2/さくら町内会/山田:p,佐藤:p,鈴木:p,田中:p,高橋:p/山田/佐藤/7/2026-11-20/19:00/公民館/true');
+  await page.evaluate(([o, i1, t]) => GIJIROKU.done(o, i1, t), [orig, ids[1], t0]); await w(150);
+  check('  前回からの 宿題に ✓ → 済み', await page.evaluate(() => GIJIROKU.openTodos().length), 0);
+  await page.evaluate(() => { GIJIROKU.back(); GIJIROKU.tab('todo'); }); await w(150);
+  check('  📌 宿題 タブ：まだの 宿題が ない', await page.evaluate(() => document.getElementById('gjBody').textContent.includes('テントの 手配')), false);
+  await page.evaluate(() => GIJIROKU.tab('list')); await w(150);
+  check('  一覧：会議が 2つ（新しい 順）', await page.evaluate(() => [...document.querySelectorAll('.gj-card b')].map(e => e.textContent).join(',')), 'さくら町内会 の 会議,第5回 定期総会');
+  await page.evaluate(() => GIJIROKU.add()); await w(150);
+  await page.keyboard.press('Escape'); await w(150);
+  const g1 = await page.evaluate(() => [!!document.querySelector('.gj-pop'), isDlgOpen('gijirokuOverlay')].join('/'));
+  await page.evaluate(() => GIJIROKU.open(GIJIROKU.state().list[0].id)); await w(150);
+  await page.keyboard.press('Escape'); await w(150);
+  check('  Esc：小さな 窓 → 会議の 画面（一覧へ）の 順に 閉じる', g1 + ' ' + await page.evaluate(() => [GIJIROKU.cur(), isDlgOpen('gijirokuOverlay')].join('/')), 'false/true /true');
+  await page.evaluate(async () => { await GIJIROKU.del(GIJIROKU.state().list[0].id); }); await w(200);
+  check('  🗑 消す：聞いてから', await page.evaluate(() => [GIJIROKU.state().list.length, window.__asked[window.__asked.length - 1]].join('/')), '1/「さくら町内会 の 会議」（11月20日（金））を 消しますか？');
+  await page.evaluate(() => closeGijiroku()); await w(200);
+  await page.evaluate(() => { const o = JSON.parse(localStorage.getItem('excalc_gijiroku')); o.list.push({ id: '<x>', t: 'y'.repeat(200), date: 'zz', ppl: [{ n: '<b>', s: 'q' }, null], items: [{ t: 'a', vote: { y: -5 }, todos: [{ t: 'b', due: 'x' }] }], members: -3 }, null); localStorage.setItem('excalc_gijiroku', JSON.stringify(o)); });
+  await page.evaluate(async () => { await openGijiroku(); }); await w(300);
+  check('  開き直す：残って いる・おかしな 中身は 直す', await page.evaluate(() => { const s = GIJIROKU.state(), q = s.list[1]; return [s.list.length, /^[a-z0-9]{4,12}$/.test(q.id), q.t.length, /^\d{4}-\d\d-\d\d$/.test(q.date), q.ppl.map(p => p.n + ':' + p.s).join(','), q.members, JSON.stringify(q.items[0].vote), q.items[0].todos[0].due].join('/'); }), '2/true/60/true/<b>:p/0/{"y":0,"n":"","a":""}/');
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+/* 🧺 洗濯表示（v605） */
+async function runSentaku605(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🧺 洗濯表示：タグの 記号から 洗い方・お手入れメモ（v605） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { window.__asked = []; window.appConfirm = async m => { window.__asked.push(String(m).split('\n')[0]); return true; }; window.toolCopyText = t => { window.__copied = t; }; window.__said = ''; if (window.HyoVoice) { HyoVoice.available = true; HyoVoice.speak = t => { window.__said = t; }; } });
+  await page.evaluate(async () => { await openSentaku(); }); await w(400);
+  check('  4つの タブ・7つの 分け（41の 記号）・はじめは 押せない ボタン・← もどる', await page.evaluate(() => [[...document.querySelectorAll('.sn-tabs button')].map(b => b.textContent.trim() + (b.classList.contains('on') ? '*' : '')).join(','), SENTAKU.cats().join(','), document.querySelectorAll('.sn-row').length, document.querySelectorAll('.sn-sym').length, [...document.querySelectorAll('.sn-acts button')].map(b => b.disabled ? 0 : 1).join(''), !!document.querySelector('#sentakuOverlay .tool-back')].join('/')),
+    '👕 タグを 読む*,🔎 記号の 一覧,📒 お手入れ メモ,📜 古い 表示/wash:14,bleach:3,tum:3,dry:8,iron:4,dc:5,wet:4/7/41/0000/true');
+  check('  記号の 絵（41とも）', await page.evaluate(() => SENTAKU.codes().filter(c => !/^<svg[^>]*viewBox="0 0 100 112"/.test(SENTAKU.svg(c, 40))).join(',') || 'ぜんぶ'), 'ぜんぶ');
+  await page.evaluate(() => { SENTAKU.sel('W40'); SENTAKU.sel('W30L'); SENTAKU.sel('BO'); SENTAKU.sel('TX'); SENTAKU.sel('DFS'); SENTAKU.sel('I1'); SENTAKU.sel('PX'); SENTAKU.sel('PX'); }); await w(150);
+  check('  同じ 分けは 1つだけ（押しなおすと 外れる）・分けの 順に ならぶ', await page.evaluate(() => SENTAKU.state().sel.join(',')), 'W30L,BO,TX,DFS,I1');
+  check('  この 服の 洗い方：5つ と こつ（おしゃれ着 洗剤・お湯は 使わない・乾燥機は 使わず 平干し・あて布）', await page.evaluate(() => [document.querySelectorAll('.sn-sum .sn-sl').length, document.querySelector('.sn-tips').textContent].join('/')), '5/💡 おしゃれ着用（中性）洗剤で、洗濯ネットに 入れて 弱い コースで。💡 お湯は 使わず、水か ぬるま湯で。💡 乾燥機は 使わずに、日陰で 平干し。💡 アイロンは あて布を すると 安心です。');
+  check('  ボタンが 押せる・🔈 読み上げ・📋 コピー', await page.evaluate(() => { SENTAKU.say(); SENTAKU.copy(); return [[...document.querySelectorAll('.sn-acts button')].map(b => b.disabled ? 0 : 1).join(''), window.__said, window.__copied.split('\n').join('|')].join('/'); }),
+    '1111/洗うは、30℃まで 弱い 洗い。漂白は、酸素系だけ OK。乾燥機は、乾燥機 ×。干し方は、日陰で 平干し。アイロンは、アイロン 低温（110℃）。おしゃれ着用（中性）洗剤で、洗濯ネットに 入れて 弱い コースで。お湯は 使わず、水か ぬるま湯で。乾燥機は 使わずに、日陰で 平干し。アイロンは あて布を すると 安心です。/🧺 洗濯表示|洗う：30℃まで 弱い 洗い|漂白：酸素系だけ OK|乾燥機：乾燥機 ×|干し方：日陰で 平干し|アイロン：アイロン 低温（110℃）||おしゃれ着用（中性）洗剤で、洗濯ネットに 入れて 弱い コースで。|お湯は 使わず、水か ぬるま湯で。|乾燥機は 使わずに、日陰で 平干し。|アイロンは あて布を すると 安心です。');
+  check('  家では 洗えない（WX）の こつ', await page.evaluate(() => JSON.stringify(SENTAKU.summary(['WX', 'P']))), '{"lines":["洗う:WX","ドライクリーニング:P"],"tips":["家では 洗わずに、クリーニング店へ（記号を 見せると 伝わります）。"]}');
+  // タグの 写真
+  const png = await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 600; c.height = 400; const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 600, 400); g.fillStyle = '#000'; g.fillRect(100, 100, 80, 80); return c.toDataURL('image/png'); });
+  await page.setInputFiles('#snTagIn', { name: 'tag.png', mimeType: 'image/png', buffer: Buffer.from(png.split(',')[1], 'base64') }); await w(800);
+  const tag = await page.evaluate(() => SENTAKU.state().selTag);
+  check('  📷 タグを 撮る・えらぶ：写真を 見ながら えらべる', await page.evaluate(async t => [/^p[a-z0-9]{6,20}$/.test(t), !!document.querySelector('.sn-tagbox img[src^="data:image"]'), (await SENTAKU.picIds()).includes(t)].join('/'), tag), 'true/true/true');
+  await page.evaluate(() => SENTAKU.memoFromSel()); await w(300);
+  check('  📒 メモに 残す：記号と タグの 写真を 写した メモの 画面・名前に 入る', await page.evaluate(t => { const e = SENTAKU.edState(); return [e.sym.join(','), e.tag === t, document.activeElement.id].join('/'); }, tag), 'W30L,BO,TX,DFS,I1/true/snEdN');
+  await page.evaluate(() => SENTAKU.edSave()); await w(150);
+  check('  名前が ない ときは 残さない', await page.evaluate(() => [SENTAKU.state().items.length, document.getElementById('appToast').textContent].join('/')), '0/名前を 入れて ください');
+  await page.evaluate(() => { SENTAKU.edSet('n', '白い ブラウス'); SENTAKU.edSet('who', '母'); SENTAKU.edSet('memo', '綿 100%'); SENTAKU.edSave(); }); await w(250);
+  check('  💾 残す → 📒 お手入れ メモ：服の 名前・だれの・記号の 絵・メモ', await page.evaluate(() => [SENTAKU.state().tab, SENTAKU.state().items.length, document.querySelector('.sn-item b').textContent, document.querySelector('.sn-item small').textContent, document.querySelectorAll('.sn-item .sn-mini svg').length, document.querySelector('.sn-item .mm').textContent, document.querySelector('.sn-tabs button.on small').textContent].join('/')), 'memo/1/白い ブラウス/母/5/綿 100%/1');
+  await page.evaluate(() => { SENTAKU.edit(); SENTAKU.edSet('n', '紺の セーター'); SENTAKU.edSet('who', '父'); SENTAKU.edSym('WH'); SENTAKU.edSym('DF'); SENTAKU.edSave(); }); await w(200);
+  check('  だれの で しぼる', await page.evaluate(() => { const a = [[...document.querySelectorAll('.sn-chips button')].map(b => b.textContent).join(',')]; SENTAKU.who('父'); a.push([...document.querySelectorAll('.sn-item b')].map(e => e.textContent).join(',')); SENTAKU.who(''); a.push(document.querySelectorAll('.sn-item').length); return a.join('/'); }), 'みんな,父,母/紺の セーター/2');
+  // メモの 画面で 写真を 撮りなおして やめる → その 写真は 消える。写真を 大きく して 閉じると メモの 画面に もどる
+  const it0 = await page.evaluate(() => SENTAKU.state().items.find(x => x.n === '白い ブラウス').id);
+  await page.evaluate(id => SENTAKU.edit(id), it0); await w(200);
+  await page.setInputFiles('#snEd_pic', { name: 'fuku.png', mimeType: 'image/png', buffer: Buffer.from(png.split(',')[1], 'base64') }); await w(800);
+  const np = await page.evaluate(() => SENTAKU.edState().pic);
+  await page.evaluate(() => { SENTAKU.edSet('memo', '綿 100%・ネット'); SENTAKU.zoom(SENTAKU.edState().pic); }); await w(200);
+  const z = await page.evaluate(() => [!!document.querySelector('.sn-big'), !!SENTAKU.edState()].join('/'));
+  await page.evaluate(() => SENTAKU.close()); await w(200);
+  check('  写真を 大きく して 閉じると メモの 画面に もどる（打った ものも そのまま）', z + '/' + await page.evaluate(() => [!!document.getElementById('snEdN'), document.getElementById('snEdM').value, !!SENTAKU.edState()].join('/')), 'true/true/true/綿 100%・ネット/true');
+  await page.evaluate(() => SENTAKU.close()); await w(300);
+  check('  残さずに 閉じる：撮った 写真は 消す・タグの 写真（タグを 読む）は 残す', await page.evaluate(async ([np, t]) => { const ids = await SENTAKU.picIds(); return [!!SENTAKU.edState(), ids.includes(np), ids.includes(t), SENTAKU.state().items.find(x => x.n === '白い ブラウス').memo].join('/'); }, [np, tag]), 'false/false/true/綿 100%');
+  await page.evaluate(async id => { await SENTAKU.del(id); }, it0); await w(300);
+  check('  🗑 消す：聞いてから・タグを 読む で 使って いる 写真は 残す', await page.evaluate(async t => [SENTAKU.state().items.length, window.__asked[window.__asked.length - 1], (await SENTAKU.picIds()).includes(t)].join('/'), tag), '1/「白い ブラウス」の メモを 消しますか？/true');
+  await page.evaluate(() => { SENTAKU.tab('read'); }); await page.evaluate(async () => { await SENTAKU.clear(); }); await w(300);
+  check('  🧹 やり直す：記号と タグの 写真を 外す（写真も 消す）', await page.evaluate(async t => [SENTAKU.state().sel.length, SENTAKU.state().selTag, (await SENTAKU.picIds()).includes(t)].join('/'), tag), '0//false');
+  await page.evaluate(() => SENTAKU.tab('list')); await w(150);
+  check('  🔎 記号の 一覧：41・押すと 意味と こつ（🔈 読み上げ）', await page.evaluate(() => { const a = [document.querySelectorAll('.sn-cell').length]; document.querySelector('.sn-cell').click(); a.push(!!document.querySelector('.sn-info'), document.querySelector('.sn-ph b').textContent); SENTAKU.sayCode('W95'); a.push(window.__said.split('。')[0]); return a.join('/'); }), '41/true/95℃まで 洗濯機/95℃まで 洗濯機');
+  await page.keyboard.press('Escape'); await w(150);
+  check('  Esc は 小さな 窓だけ 閉じる', await page.evaluate(() => [!!document.querySelector('.sn-pop'), isDlgOpen('sentakuOverlay')].join('/')), 'false/true');
+  await page.evaluate(() => SENTAKU.tab('old')); await w(150);
+  check('  📜 古い 表示：17・今の 記号の 絵（ない ものは「今は なし」）', await page.evaluate(() => [document.querySelectorAll('.sn-or').length, document.querySelectorAll('.sn-or .n svg').length, document.querySelectorAll('.sn-or .n').length - document.querySelectorAll('.sn-or .n svg').length].join('/')), '17/16/1');
+  await page.evaluate(() => closeSentaku()); await w(200);
+  await page.evaluate(() => { const o = JSON.parse(localStorage.getItem('excalc_sentaku')); o.items.push({ id: '<i>', n: '', sym: ['W40', 'W40', 'ZZ'] }, { n: 'x'.repeat(99), sym: ['W40', 'W30', 'B', 'zz'], pic: 'javascript:1' }, null); o.sel = ['ZZ', 'B']; o.tab = 'qq'; localStorage.setItem('excalc_sentaku', JSON.stringify(o)); });
+  await page.evaluate(async () => { await openSentaku(); }); await w(300);
+  check('  開き直す：残って いる・おかしな 中身は 直す（名前の ない 服は 入れない）', await page.evaluate(() => { const s = SENTAKU.state(); return [s.items.length, s.items[1] && s.items[1].n.length, s.items[1] && s.items[1].sym.join(','), s.items[1] && s.items[1].pic, s.sel.join(','), s.tab].join('/'); }), '2/40/W40,B//B/read');
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
 async function runClockLay591(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🕐 ど派手タイマーの 時計：ぽよん 以外の 見せ方も 同じ 並べ方（v591） ──');
@@ -14182,7 +14428,7 @@ async function runSchemeFix(browser) {
       { id: 'a2', fam: '佐藤', giv: '花子', famK: 'さとう', givK: 'はなこ', tels: [{ t: 'cell', v: '080-3333-4444' }], color: 'yellow' }, { id: 'a3', fam: '鈴木', giv: '一郎', famK: 'すずき', givK: 'いちろう', tels: [{ t: 'cell', v: '080-5555-6666' }], color: 'blue' }] })));
     await page.evaluate(() => { const d = new Date(); d.setDate(d.getDate() - 60); const old = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');   // 🎁 お返し帳は 札（まだ・時期すぎ・済み・しない・さしあげた）が出る中身で
       localStorage.setItem('excalc_okaeshi', JSON.stringify({ items: [{ id: 'o1', dir: 'in', kind: 'kekkon', ev: '長女の結婚', date: old, name: '佐藤 花子', amt: 30000, t: 1 }, { id: 'o2', dir: 'in', kind: 'koden', ev: '父の葬儀', date: old, name: '鈴木 一郎', amt: 10000, ret: { st: 'sumi', what: 'お茶' }, t: 2 }, { id: 'o3', dir: 'in', kind: 'kodomo', ev: '入学', date: old, name: '田中 三郎', amt: 10000, t: 3 }, { id: 'o4', dir: 'out', kind: 'koden', ev: '山田さんの葬儀', date: old, name: '山田 太郎', amt: 5000, t: 4 }, { id: 'o5', dir: 'in', kind: 'koden', ev: '父の葬儀', date: old, name: '高橋 次郎', amt: 5000, t: 5 }] })); });
-    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo', 'renraku', 'tatekae', 'kuji', 'dasetsu', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'yatta', 'shukin', 'shiori', 'bingo']) {
+    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo', 'renraku', 'tatekae', 'kuji', 'dasetsu', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'yatta', 'shukin', 'shiori', 'bingo', 'mikurabe', 'gijiroku', 'sentaku']) {
       await page.evaluate(id => NP_TOOLS.find(t => t.id === id).run(), id); await w(1100);
       found.push(id + ':' + await page.evaluate(SCAN));
       if (id === 'kurashi' || id === 'keisan') { await page.evaluate(id => { const c = document.querySelector(id === 'kurashi' ? '#krList .kr-card' : '#ksList .ks-card'); if (c) c.click(); }, id); await w(800); found.push(id + '-page:' + await page.evaluate(SCAN)); }
@@ -14205,6 +14451,27 @@ async function runSchemeFix(browser) {
         await page.evaluate(async () => { SHUKIN.newListNow({ title: '集金', kind: 'pay', fee: 1000, copy: true }); await SHUKIN.payNow(SHUKIN.ids()[0]); }); await w(300); found.push('shukin-pay:' + await page.evaluate(SCAN));
         await page.evaluate(() => SHUKIN.file()); await w(300); found.push('shukin-file:' + await page.evaluate(SCAN));   /* 💾 外部保存（v582） */
         await page.evaluate(() => SHUKIN.close()); await w(200);
+      }
+      if (id === 'mikurabe') {   // 📸 2枚 そろった 組・位置合わせ・前と 後の 欄・写真帳（v605）
+        await page.evaluate(async () => { const mk = bf => { const c = document.createElement('canvas'); c.width = 400; c.height = 300; const g = c.getContext('2d'); g.fillStyle = bf ? '#8d6e63' : '#e3f2fd'; g.fillRect(0, 0, 400, 300); return c.toDataURL('image/jpeg'); }; MIKURABE.add(); MIKURABE.set('t', '浴室'); await MIKURABE.putData('a', mk(true), '2026-10-01'); await MIKURABE.putData('b', mk(false), '2026-10-30'); MIKURABE.adjust(); }); await w(400); found.push('mikurabe-pair:' + await page.evaluate(SCAN));
+        await page.evaluate(() => { MIKURABE.adjust(); MIKURABE.mode('side'); document.querySelector('.mk-slots').scrollIntoView({ block: 'center' }); }); await w(300); found.push('mikurabe-slots:' + await page.evaluate(SCAN));
+        await page.evaluate(() => { MIKURABE.back(); MIKURABE.book(); }); await w(300); found.push('mikurabe-book:' + await page.evaluate(SCAN));
+        await page.evaluate(() => MIKURABE.close()); await w(200);
+      }
+      if (id === 'gijiroku') {   // 📝 新しい 会議・出席者と 成立・採決と 宿題・宿題の 一覧（v605）
+        await page.evaluate(() => { GIJIROKU.add(); document.getElementById('gjNewOrg').value = '町内会'; }); await w(300); found.push('gijiroku-add:' + await page.evaluate(SCAN));
+        await page.evaluate(() => { GIJIROKU.addGo(); document.getElementById('gjPIn').value = '山田、佐藤、鈴木'; GIJIROKU.padd(); GIJIROKU.pst(1); GIJIROKU.pst(2); GIJIROKU.pst(2); GIJIROKU.set('members', 9); }); await w(300); found.push('gijiroku-ppl:' + await page.evaluate(SCAN));
+        await page.evaluate(() => { const m = GIJIROKU.state().list[0], i = m.items[2].id; GIJIROKU.vote(i); GIJIROKU.set(['vote', i, 'y'], 5); GIJIROKU.tadd(i); document.querySelector('[data-vr]').scrollIntoView({ block: 'center' }); }); await w(300); found.push('gijiroku-vote:' + await page.evaluate(SCAN));
+        await page.evaluate(() => { GIJIROKU.back(); GIJIROKU.tab('todo'); }); await w(300); found.push('gijiroku-todo:' + await page.evaluate(SCAN));
+        await page.evaluate(() => GIJIROKU.tab('list')); await w(200);
+      }
+      if (id === 'sentaku') {   // 🧺 この 服の 洗い方・メモの 画面・お手入れ メモ・一覧・古い 表示（v605）
+        await page.evaluate(() => { ['W30L', 'BO', 'TX', 'DFS', 'I1'].forEach(c => SENTAKU.sel(c)); document.querySelector('.sn-sum').scrollIntoView({ block: 'center' }); }); await w(300); found.push('sentaku-sum:' + await page.evaluate(SCAN));
+        await page.evaluate(() => SENTAKU.memoFromSel()); await w(300); found.push('sentaku-ed:' + await page.evaluate(SCAN));
+        await page.evaluate(() => { SENTAKU.edSet('n', 'ブラウス'); SENTAKU.edSet('who', '母'); SENTAKU.edSave(); }); await w(300); found.push('sentaku-memo:' + await page.evaluate(SCAN));
+        await page.evaluate(() => SENTAKU.tab('list')); await w(300); found.push('sentaku-list:' + await page.evaluate(SCAN));
+        await page.evaluate(() => SENTAKU.tab('old')); await w(300); found.push('sentaku-old:' + await page.evaluate(SCAN));
+        await page.evaluate(() => SENTAKU.tab('read')); await w(200);
       }
       if (id === 'bingo') {   // 🎱 出た 数の 表・カード（リーチ・ビンゴ）・設定・たしかめ（v587）
         await page.evaluate(() => { window.BINGO_NO_ANIM = true; for (let i = 0; i < 8; i++) BINGO.spin(); document.getElementById('bgBoard').scrollIntoView({ block: 'center' }); }); await w(300); found.push('bingo-board:' + await page.evaluate(SCAN));
@@ -17493,11 +17760,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/47');   // v575 で ⏱ど派手タイマー・🎉ど派手カウンター・📃請求書づくり、v569 で 🗣筆談ボード・📢電光掲示板、v568 で 🗓こよみ・⛩方位と恵方・🧮そろばん、v561 で 💴🎲🚛📷 の4つ（v564 で 📷 を 🎁お返し帳 に）、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/50');   // v605 で 📸見比べ・📝議事録・🧺洗濯表示、v575 で ⏱ど派手タイマー・🎉ど派手カウンター・📃請求書づくり、v569 で 🗣筆談ボード・📢電光掲示板、v568 で 🗓こよみ・⛩方位と恵方・🧮そろばん、v561 で 💴🎲🚛📷 の4つ（v564 で 📷 を 🎁お返し帳 に）、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'yatta', 'shukin', 'shiori', 'bingo', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'yatta', 'shukin', 'shiori', 'bingo', 'mikurabe', 'gijiroku', 'sentaku', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -17525,7 +17792,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,okaeshi:B,koyomi:B,hoi:B,soroban:B,hitsudan:B,keijiban:B,hadetimer:B,hadecount:B,seikyu:B,yatta:B,shukin:B,shiori:B,bingo:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,okaeshi:B,koyomi:B,hoi:B,soroban:B,hitsudan:B,keijiban:B,hadetimer:B,hadecount:B,seikyu:B,yatta:B,shukin:B,shiori:B,bingo:B,mikurabe:B,gijiroku:B,sentaku:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -18721,6 +18988,9 @@ const SUITES = [
   [['units', 'v602'], b => runUnits602(b)],
   [['boot', 'runpar', 'v603'], b => runBoot603(b)],
   [['hade', 'hadecount', 'vsface', 'v604'], b => runVsFace604(b)],
+  [['mikurabe', 'v605'], b => runMikurabe605(b)],
+  [['gijiroku', 'v605'], b => runGijiroku605(b)],
+  [['sentaku', 'v605'], b => runSentaku605(b)],
   [['dasetsu', 'v561'], b => runDasetsu561(b)],
   [['okaeshi', 'v564'], b => runOkaeshi564(b)],
   [['tax', 'v565'], b => runTax565(b)],

@@ -1,0 +1,39 @@
+{
+  "name": "見比べ",
+  "short_name": "見比べ",
+  "description": "施工の 前後・掃除・庭 などの 前と 後の 写真を、境目を 動かして 見比べる・並べた 画像で 送る・写真帳を 印刷（表電卓の道具）",
+  "id": "/app-mikurabe",
+  "start_url": "../../index.html?app=mikurabe",
+  "scope": "../../index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5e35b1",
+  "orientation": "any",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
