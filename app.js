@@ -8193,7 +8193,7 @@ sidePartOpener('openBingo', ['bingo.js'], 'ビンゴ');
 /* ── 📸 見比べ・📝 議事録・🧺 洗濯表示（v605。mikurabe.js・gijiroku.js・sentaku.js）── */
 sidePartOpener('openMikurabe', ['mikurabe.js'], '見比べ');
 sidePartOpener('openGijiroku', ['gijiroku.js'], '議事録');
-sidePartOpener('openSentaku', ['sentaku.js'], '洗濯表示');
+sidePartOpener('openSentaku', ['sentaku-guide.js','sentaku.js'], '洗濯表示');   // 服・素材の 洗い方（v606）を 先に
 window.closeMikurabe=function(){}; window.closeGijiroku=function(){}; window.closeSentaku=function(){};
 /* ── 📝 試験報告書（v600。単位水量・カンタブの 報告書と カンタブの 1ページ。shiken.js に 分けてある）── */
 ['openShikenRep','ktPdf','ktImage','shikenPrint','shikenImage'].forEach(n=>sidePartOpener(n, ['shiken.js'], '試験報告書'));
@@ -15463,9 +15463,9 @@ const TOOL_HINTS={
   shukin:'町内会・PTA・同窓会 などの 名簿に、出欠（出席・欠席・未定）と 集金の ✓ を つけます（出欠だけ・集金だけ の 表も）。上に 合計と まだの 人数・金額。↕ で 順番も かえられ、印刷・コピー・💾 ファイルに 保存も できます',
   shiori:'旅行ごとに 🗓 日程・🎒 持ち物・💴 お金・🎁 お土産・🏨 宿と 連絡先・💱 外貨の 換算を 1つに まとめます。「📋 しおりを コピー」で LINE に 送れます。予定の 場所を 押すと 地図、🗺 その日の 道順も 開けます',
   bingo:'「🎱 まわす」で 抽選器が ガラガラ まわり、玉が コロコロ 出て「B の 12」と 大きく 出ます（読み上げも）。出た 数は 表に 色が つき、出た 順も わかります。⛶ 大きく で テレビにも。⚙ で 🔍 ズーム・🎆 演出の 強さ（ド派手 など）。🃏 カード で 手元の カード・印刷も できます。📱 の QR で 参加する 人の スマホに カードを 配れます',
-  mikurabe:'「＋ 新しい 見比べ」で 前と 後の 写真を 入れると、境目を 指で 動かして 見比べられます（⇆ 並べる・👻 透かす も）。「👻 前に 合わせて 撮る」は 前の 写真を 薄く 重ねて 同じ 向きで 撮れます。「🖼 並べた 画像」で 保存・送る。',
+  mikurabe:'「＋ 新しい 見比べ」で 前と 後の 写真を 入れると、境目を 指で 動かして 見比べられます（⇆ 並べる・👻 透かす も）。「⛶ 全画面」で 画面いっぱいに 見比べられます（▶ で 境目が 自動で 動く）。「👻 前に 合わせて 撮る」は 前の 写真を 薄く 重ねて 同じ 向きで 撮れます。',
   gijiroku:'「＋ 新しい 会議」で ひな形（定例会・総会・職場の 会議 など）を えらび、出席者（📇 名簿から）・議題・決まったこと・宿題（だれが・いつまで）を 入れます。「🖨 印刷・PDF」で 署名欄つきの 議事録に。宿題は「📌 宿題」と 次の 会議で 確かめられます。',
-  sentaku:'服の タグの 記号を 絵から えらぶと、洗い方・乾燥機・アイロンの 温度などが 下に 出ます。「📒 メモに 残す」で 家族の 服の お手入れメモ（写真つき）に。「📜 古い 表示」で 昔の 記号も 読めます。',
+  sentaku:'服の タグの 記号を 絵から えらぶと、洗い方・乾燥機・アイロンの 温度などが 下に 出ます。「🧥 服・素材」で ズボン・靴下・セーター・ウール などの 洗い方、上の 🔍 で さがす ことも。「📒 メモに 残す」で 家族の 服の お手入れメモ（写真つき）に。',
   ruler:'はじめに「🎯 校正」でカードや硬貨を画面に当てて合わせると、定規が正しい長さになります。「📷 写真で測る」は基準の物と並べて撮ってなぞります。',
   keisan:'8つの計算から選びます。入れた数は覚えるので、次も続きから使えます。',
   kurashi:'10のテーマから選ぶか、上の欄で「AED」「死亡届」「失業保険」のようにさがします。ページの中の 🧮 道具で、期限や金額の目安も出せます。🔖 つづきから・🔈 読み上げ も。',
@@ -15826,7 +15826,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v605';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v606';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

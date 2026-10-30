@@ -124,7 +124,7 @@ function cmpHtml(p){
     <img class="mk-ia" data-pic="${a.pic}" alt="前の 写真">
     <div class="mk-bw" id="mkBw" style="${u.mode==='slide' ? 'clip-path:inset(0 0 0 '+u.pos+'%)' : 'opacity:'+(u.fade/100)}"><img class="mk-ib" id="mkB" data-pic="${b.pic}" alt="後の 写真" style="${bt}"></div>
     ${u.mode==='slide' ? `<div class="mk-line" id="mkLine" style="left:${u.pos}%"><span class="mk-knob" id="mkKnob" role="slider" tabindex="0" aria-label="前と 後の 境目" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${u.pos}">⇔</span></div>` : ''}
-    ${lab(a,'l')}${lab(b,'r')}</div>`;
+    ${lab(a,'l')}${lab(b,'r')}<button type="button" class="mk-fsb" onclick="MIKURABE.full()" aria-label="全画面で 見る" title="全画面で 見る">⛶</button></div>`;
 }
 let adj=false;   // 🎯 位置合わせ 中
 function viewHtml(p){
@@ -141,7 +141,7 @@ function viewHtml(p){
       <div class="mk-ctl">${u.mode==='side' ? `<div class="mk-seg"><button type="button" class="${u.dir==='h'?'on':''}" onclick="MIKURABE.dir('h')">◧ 左右</button><button type="button" class="${u.dir==='v'?'on':''}" onclick="MIKURABE.dir('v')">⬒ 上下</button></div>`
         : u.mode==='fade' ? `<label class="mk-rng"><span>後の 濃さ</span><input type="range" min="0" max="100" value="${u.fade}" aria-label="後の 写真の 濃さ" oninput="MIKURABE.fade(this.value)"></label>`
         : '<small class="mk-hint">境目を 指で 左右に 動かして 見比べます</small>'}
-        <button type="button" class="mk-b sm${adj ? ' pri' : ''}" onclick="MIKURABE.adjust()">🎯 位置合わせ${adj ? '（おわる）' : ''}</button></div>
+        <button type="button" class="mk-b sm${adj ? ' pri' : ''}" onclick="MIKURABE.adjust()">🎯 位置合わせ${adj ? '（おわる）' : ''}</button><button type="button" class="mk-b sm" onclick="MIKURABE.full()">⛶ 全画面</button></div>
       ${adj ? `<div class="mk-adj"><p>写真を 指で 動かすと 後の 写真が 動きます。前の 写真に 重なる ように 合わせて ください。</p>
         <label class="mk-rng"><span>大きさ</span><input type="range" min="50" max="250" value="${Math.round(p.tf.s*100)}" aria-label="後の 写真の 大きさ" oninput="MIKURABE.tf('s', this.value/100)"></label>
         <label class="mk-rng"><span>かたむき</span><input type="range" min="-30" max="30" step="0.5" value="${p.tf.r}" aria-label="後の 写真の かたむき" oninput="MIKURABE.tf('r', this.value)"></label>
@@ -163,6 +163,7 @@ function bindCmp(){
   let drag=null;
   box.addEventListener('pointerdown', e=>{
     if(e.button!==undefined && e.button>0) return;
+    if(e.target.closest('button')) return;   // ⛶ は 押せる ように
     const r=box.getBoundingClientRect();
     if(adj){ drag={x:e.clientX, y:e.clientY, tx:p.tf.x, ty:p.tf.y, w:r.width, h:r.height}; }
     else if(st.ui.mode==='slide'){ drag={slide:true, r}; setPos((e.clientX-r.left)/r.width*100); }
@@ -180,12 +181,15 @@ function bindCmp(){
   const k=$('mkKnob');
   if(k) k.addEventListener('keydown', e=>{ const d=e.key==='ArrowLeft' ? -2 : e.key==='ArrowRight' ? 2 : 0; if(d){ e.preventDefault(); setPos(st.ui.pos+d); saveSoon(); } });
 }
-function setPos(v){
-  st.ui.pos=Math.round(clamp(v, 0, 100));
-  const bw=$('mkBw'), ln=$('mkLine'), k=$('mkKnob');
-  if(bw) bw.style.clipPath='inset(0 0 0 '+st.ui.pos+'%)';
-  if(ln) ln.style.left=st.ui.pos+'%';
-  if(k) k.setAttribute('aria-valuenow', st.ui.pos);
+function setPos(v){ st.ui.pos=Math.round(clamp(v, 0, 100)); paintPos(st.ui.pos); }
+// 境目を 描く（全画面の 方も。自動で 動かす ときは 小数で なめらかに）
+function paintPos(v){
+  [['mkBw','mkLine','mkKnob'], ['mkFsBw','mkFsLine','mkFsKnob']].forEach(([a,b,c])=>{
+    const bw=$(a), ln=$(b), k=$(c);
+    if(bw && st.ui.mode==='slide') bw.style.clipPath='inset(0 0 0 '+v+'%)';
+    if(ln) ln.style.left=v+'%';
+    if(k) k.setAttribute('aria-valuenow', Math.round(v));
+  });
 }
 function applyTf(p){ const t='translate('+p.tf.x+'%, '+p.tf.y+'%) rotate('+p.tf.r+'deg) scale('+p.tf.s+')'; document.querySelectorAll('#mkB, .mk-side .ab img').forEach(im=>{ im.style.transform=t; }); }
 
@@ -196,7 +200,7 @@ function add(){
   adjOff(); cur=p.id; render(); const b=$('mkBody'); if(b) b.scrollTop=0;
 }
 function openP(id){ if(!pOf(id)) return; adjOff(); cur=id; render(); const b=$('mkBody'); if(b) b.scrollTop=0; }
-function back(){ camStop(); adjOff(); save(); cur=null; render(); }
+function back(){ fsClose(false, true); camStop(); adjOff(); save(); cur=null; render(); }
 function setF(k, v){ const p=pOf(cur); if(!p) return; if(k==='t') p.t=oneLine(v, 40); else if(k==='place') p.place=oneLine(v, 60); else if(k==='memo') p.memo=multi(v, 400); else return; saveSoon(); const t=$('mkTitle'); if(t) t.textContent=pTitle(p); }
 async function putSlot(k, s){
   const p=pOf(cur); if(!p || !s) return false;
@@ -223,7 +227,7 @@ async function del(id){
 }
 function setMode(m){ if(!MODES.some(x=>x[0]===m)) return; st.ui.mode=m; adj=false; adjPrev=''; save(); render(); }
 function setDir(d){ st.ui.dir=d==='v' ? 'v' : 'h'; save(); render(); }
-function setFade(v){ st.ui.fade=clamp(Math.round(+v||0), 0, 100); const bw=$('mkBw'); if(bw) bw.style.opacity=st.ui.fade/100; saveSoon(); }
+function setFade(v){ st.ui.fade=clamp(Math.round(+v||0), 0, 100); ['mkBw','mkFsBw'].forEach(id=>{ const bw=$(id); if(bw && st.ui.mode==='fade') bw.style.opacity=st.ui.fade/100; }); saveSoon(); }
 let adjPrev='';   // 位置合わせの 前の 見せ方（おわったら もどす）
 function adjOff(){ if(adj && adjPrev && st) st.ui.mode=adjPrev; adj=false; adjPrev=''; }
 function adjust(){
@@ -233,6 +237,116 @@ function adjust(){
 }
 function setTf(k, v){ const p=pOf(cur); if(!p) return; if(k==='s') p.tf.s=clamp(+v||1, 0.5, 2.5); else if(k==='r') p.tf.r=clamp(+v||0, -30, 30); else if(k==='x' || k==='y') p.tf[k]=clamp(+v||0, -60, 60); else return; applyTf(p); saveSoon(); }
 function tfReset(){ const p=pOf(cur); if(!p) return; p.tf=cleanTf(null); save(); render(); }
+
+/* ───────── ⛶ 全画面で 見比べる（v606）─────────
+   画面いっぱいに 前と 後を 出す（端末の 全画面も 使う。使えない 端末では 道具の 画面いっぱい）。
+   ↔ 境目は 画面の どこを なぞっても 動く・← → キー。▶ で 境目が 自動で 行ったり 来たり（お客さんに 見せる とき）。
+   ⇆ 並べるは 縦持ちなら 上下、横持ちなら 左右（大きく 見える 方）。端末の「戻る」・Esc・✕ で もどる */
+let fs=null;   // {el, rel, anim, dimT, onResize, onFull, wasFull}
+const FS_MODES=[['slide','↔ 境目'],['side','⇆ 並べる'],['fade','👻 透かす']];
+function fsOpen(){
+  const p=pOf(cur); if(!p || !p.a || !p.b) return;
+  fsClose(false, true); camStop(); popClose(); adjOff();
+  const host=document.querySelector('#mikurabeOverlay .mk-modal'); if(!host) return;
+  const el=document.createElement('div'); el.className='mk-fs'; el.tabIndex=-1;
+  el.setAttribute('role','dialog'); el.setAttribute('aria-modal','true'); el.setAttribute('aria-label','全画面で 見比べる');
+  host.appendChild(el);
+  const me={el, rel:null, anim:0, dimT:0, wasFull:false}; fs=me;
+  me.rel=typeof modalBack==='function' ? modalBack(()=>{ if(fs===me) fsClose(true); }) : ()=>{};
+  fsRender();
+  let drag=null;
+  el.addEventListener('pointerdown', e=>{
+    fsWake();
+    if(e.target.closest('button, input, label')) return;
+    if((e.button!==undefined && e.button>0) || st.ui.mode!=='slide') return;
+    fsStop();
+    const f=$('mkFsF'); if(!f) return;
+    drag={r:f.getBoundingClientRect()}; setPos((e.clientX-drag.r.left)/drag.r.width*100);
+    try{ el.setPointerCapture(e.pointerId); }catch(_){}
+    e.preventDefault();
+  });
+  el.addEventListener('pointermove', e=>{ if(drag) setPos((e.clientX-drag.r.left)/drag.r.width*100); });
+  const end=()=>{ if(drag){ drag=null; saveSoon(); } };
+  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+  el.addEventListener('keydown', e=>{
+    fsWake();
+    if(st.ui.mode==='slide' && (e.key==='ArrowLeft' || e.key==='ArrowRight')){ e.preventDefault(); fsStop(); setPos(st.ui.pos+(e.key==='ArrowLeft' ? -2 : 2)); saveSoon(); }
+  });
+  me.onResize=()=>fsLayout();
+  window.addEventListener('resize', me.onResize);
+  me.onFull=()=>{
+    if(fs!==me) return;
+    const fe=document.fullscreenElement||document.webkitFullscreenElement;
+    if(fe===el) me.wasFull=true; else if(me.wasFull){ fsClose(); return; }   // 端末の 全画面を 外したら（戻る・Esc）もどる
+    setTimeout(fsLayout, 60);
+  };
+  document.addEventListener('fullscreenchange', me.onFull); document.addEventListener('webkitfullscreenchange', me.onFull);
+  try{ const rq=el.requestFullscreen||el.webkitRequestFullscreen; if(rq){ const r=rq.call(el, {navigationUI:'hide'}); if(r && r.catch) r.catch(()=>{}); } }catch(_){}
+  try{ el.focus({preventScroll:true}); }catch(_){}
+  fsWake();
+}
+function fsRender(){
+  if(!fs) return;
+  const p=pOf(cur); if(!p || !p.a || !p.b){ fsClose(); return; }
+  const u=st.ui, a=p.a, b=p.b, g=gap(a.d, b.d);
+  const lab=(s,k)=>`<span class="mk-lab ${k}">${k==='l' ? '前' : '後'}${s && s.d ? ' '+esc(sd(s.d)) : ''}</span>`;
+  const bt=`transform:translate(${p.tf.x}%, ${p.tf.y}%) rotate(${p.tf.r}deg) scale(${p.tf.s})`;
+  const frames=u.mode==='side'
+    ? `<div class="mk-fsf"><img data-pic="${a.pic}" alt="前の 写真">${lab(a,'l')}</div><div class="mk-fsf"><div class="mk-bw"><img data-pic="${b.pic}" alt="後の 写真" style="${bt}"></div>${lab(b,'r')}</div>`
+    : `<div class="mk-fsf" id="mkFsF"><img data-pic="${a.pic}" alt="前の 写真"><div class="mk-bw" id="mkFsBw" style="${u.mode==='slide' ? 'clip-path:inset(0 0 0 '+u.pos+'%)' : 'opacity:'+(u.fade/100)}"><img data-pic="${b.pic}" alt="後の 写真" style="${bt}"></div>
+        ${u.mode==='slide' ? `<div class="mk-line" id="mkFsLine" style="left:${u.pos}%"><span class="mk-knob" id="mkFsKnob" role="slider" tabindex="0" aria-label="前と 後の 境目" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${u.pos}">⇔</span></div>` : ''}${lab(a,'l')}${lab(b,'r')}</div>`;
+  fs.el.innerHTML=`<div class="mk-fss" id="mkFsS">${frames}</div>
+    <div class="mk-fst">${esc(pTitle(p))}${g!=null && g>0 ? '　'+g+'日' : ''}</div>
+    ${u.mode==='fade' ? `<label class="mk-fsr"><span>後の 濃さ</span><input type="range" min="0" max="100" value="${u.fade}" aria-label="後の 写真の 濃さ" oninput="MIKURABE.fade(this.value)"></label>` : ''}
+    <div class="mk-fsbar" id="mkFsBar"><button type="button" onclick="MIKURABE.fullClose()" aria-label="全画面を 閉じる">✕</button>${FS_MODES.map(([k,n])=>`<button type="button" class="${u.mode===k?'on':''}" aria-pressed="${u.mode===k}" onclick="MIKURABE.fullMode('${k}')">${n}</button>`).join('')}${u.mode==='slide' ? `<button type="button" id="mkFsPlay" onclick="MIKURABE.play()" aria-label="${fs.anim ? '止める' : '境目を 自動で 動かす'}">${fs.anim ? '⏸' : '▶'}</button>` : ''}</div>`;
+  fillPics(fs.el); fsLayout();
+}
+// 写真の 形の まま、画面に 入る いちばん 大きい 大きさに。並べる ときは 左右と 上下の 大きく 見える 方
+function fsLayout(){
+  if(!fs) return;
+  const p=pOf(cur), stg=$('mkFsS'); if(!p || !p.a || !stg) return;
+  const W=stg.clientWidth, H=stg.clientHeight, R=p.a.w/p.a.h, G=6, fr=[...stg.querySelectorAll('.mk-fsf')];
+  if(!W || !H) return;
+  let w;
+  if(st.ui.mode==='side'){
+    const wRow=Math.min((W-G)/2, H*R), wCol=Math.min(W, (H-G)/2*R), row=wRow>=wCol;
+    stg.classList.toggle('col', !row); w=row ? wRow : wCol;
+  } else { stg.classList.remove('col'); w=Math.min(W, H*R); }
+  fr.forEach(f=>{ f.style.width=Math.floor(w)+'px'; f.style.height=Math.floor(w/R)+'px'; });
+}
+function fsMode(m){ if(!fs || !FS_MODES.some(x=>x[0]===m)) return; fsStop(); st.ui.mode=m; save(); fsRender(); fsWake(); }
+// ▶ 境目を 自動で 行ったり 来たり（5秒で 1往復）。指で さわると 止まる
+function fsPlay(on){
+  if(!fs) return;
+  if(on==null) on=!fs.anim;
+  fsStop();
+  if(on){
+    if(st.ui.mode!=='slide'){ st.ui.mode='slide'; save(); fsRender(); }
+    const t0=performance.now(), ph=Math.asin(clamp((st.ui.pos-50)/45, -1, 1)), me=fs;
+    const loop=t=>{ if(fs!==me || !me.anim) return; const v=50+45*Math.sin(ph+(t-t0)/5000*2*Math.PI); st.ui.pos=Math.round(v); paintPos(+v.toFixed(2)); me.anim=requestAnimationFrame(loop); };
+    me.anim=requestAnimationFrame(loop);
+  }
+  fsPlayBtn();
+}
+function fsStop(){ if(!fs || !fs.anim) return; cancelAnimationFrame(fs.anim); fs.anim=0; paintPos(st.ui.pos); saveSoon(); fsPlayBtn(); }
+function fsPlayBtn(){ const b=$('mkFsPlay'); if(b && fs){ b.textContent=fs.anim ? '⏸' : '▶'; b.setAttribute('aria-label', fs.anim ? '止める' : '境目を 自動で 動かす'); } }
+// 下の ボタンは しばらく さわらないと 薄く する
+function fsWake(){
+  if(!fs) return; clearTimeout(fs.dimT);
+  const b=$('mkFsBar'); if(b) b.classList.remove('dim');
+  fs.dimT=setTimeout(()=>{ const x=$('mkFsBar'); if(x) x.classList.add('dim'); }, 3000);
+}
+function fsClose(fromBack, noRender){
+  if(!fs) return; const f=fs; fs=null;
+  if(f.anim) cancelAnimationFrame(f.anim);
+  clearTimeout(f.dimT);
+  window.removeEventListener('resize', f.onResize);
+  document.removeEventListener('fullscreenchange', f.onFull); document.removeEventListener('webkitfullscreenchange', f.onFull);
+  try{ const fe=document.fullscreenElement||document.webkitFullscreenElement; if(fe===f.el){ const ex=document.exitFullscreen||document.webkitExitFullscreen; if(ex){ const r=ex.call(document); if(r && r.catch) r.catch(()=>{}); } } }catch(_){}
+  if(!fromBack && f.rel) f.rel();
+  f.el.remove(); save();
+  if(!noRender) render();
+}
 
 /* ───────── 👻 前に 合わせて 撮る（カメラに 前の 写真を 薄く 重ねる） ───────── */
 let cam=null;   // {el, stream, facing, rel}
@@ -426,6 +540,20 @@ const CSS=`
 .mk-f{ display:flex; align-items:center; gap:8px; margin:6px 0; } .mk-f.top{ align-items:flex-start; } .mk-f > span{ min-width:3.2em; font-size:12.5px; font-weight:bold; color:var(--text-light,#666); }
 .mk-f input, .mk-f textarea{ flex:1; min-width:0; min-height:42px; padding:0 10px; border-radius:10px; border:1px solid rgba(120,132,156,.55); background:var(--cell-bg,#fff); color:var(--text,#222); font-size:16px; box-sizing:border-box; font-family:inherit; } .mk-f textarea{ padding:8px 10px; resize:vertical; }
 .mk-out{ display:flex; gap:6px; flex-wrap:wrap; margin:12px 0 0; }
+.mk-fsb{ position:absolute; right:8px; bottom:8px; width:44px; height:44px; border-radius:22px; border:0; background:rgba(0,0,0,.55); color:#fff; font-size:22px; line-height:1; cursor:pointer; z-index:2; }
+.mk-fs{ position:absolute; inset:0; z-index:40; background:#000; color:#fff; overflow:hidden; touch-action:none; user-select:none; -webkit-user-select:none; outline:none; }
+.mk-fs:fullscreen{ width:100%; height:100%; }
+.mk-fss{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:6px; }
+.mk-fss.col{ flex-direction:column; }
+.mk-fsf{ position:relative; flex:none; overflow:hidden; background:#111; }
+.mk-fsf img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; pointer-events:none; -webkit-user-drag:none; }
+.mk-fst{ position:absolute; top:calc(10px + env(safe-area-inset-top, 0px)); left:0; right:0; margin:0 auto; width:max-content; max-width:60%; padding:4px 12px; border-radius:14px; background:rgba(0,0,0,.5); font-size:14px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none; }
+.mk-fsbar{ position:absolute; left:0; right:0; margin:0 auto; width:max-content; bottom:calc(12px + env(safe-area-inset-bottom, 0px)); display:flex; flex-wrap:wrap; justify-content:center; gap:6px; padding:6px; border-radius:30px; background:rgba(0,0,0,.6); transition:opacity .4s; max-width:calc(100% - 16px); box-sizing:border-box; }
+.mk-fsbar.dim{ opacity:.3; }
+.mk-fsbar button{ min-width:46px; height:46px; padding:0 12px; border-radius:23px; border:1px solid rgba(255,255,255,.45); background:rgba(255,255,255,.12); color:#fff; font-size:15px; font-weight:bold; cursor:pointer; white-space:nowrap; }
+.mk-fsbar button.on{ background:#fff; color:#111; border-color:#fff; }
+.mk-fsr{ position:absolute; left:50%; transform:translateX(-50%); bottom:calc(76px + env(safe-area-inset-bottom, 0px)); width:min(86%, 440px); display:flex; align-items:center; gap:10px; padding:8px 14px; border-radius:22px; background:rgba(0,0,0,.6); font-size:13px; font-weight:bold; box-sizing:border-box; }
+.mk-fsr input{ flex:1; min-width:0; }
 .mk-cam{ position:absolute; inset:0; z-index:30; background:#000; display:flex; flex-direction:column; }
 .mk-camv{ position:relative; flex:1; min-height:0; container-type:size; display:flex; align-items:center; justify-content:center; }
 .mk-camf{ position:relative; overflow:hidden; width:100%; height:100%; } .mk-camf video, .mk-camf img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; } .mk-camf img{ pointer-events:none; }
@@ -452,20 +580,22 @@ function ensureDom(){
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
   const ov=$('mikurabeOverlay');
   ov.addEventListener('keydown', e=>{ if(e.key!=='Escape' && e.key!=='Tab') e.stopPropagation(); });
-  window.addEventListener('keydown', e=>{   // Esc：カメラ → 小さな 窓 → 組の 画面（一覧へ）の 順に 閉じる
+  window.addEventListener('keydown', e=>{   // Esc：全画面 → カメラ → 小さな 窓 → 組の 画面（一覧へ）の 順に 閉じる
     if(e.key!=='Escape' || !isDlgOpen('mikurabeOverlay') || (typeof appModalOpen!=='undefined' && appModalOpen)) return;
     if(typeof a11yTopDialog==='function' && a11yTopDialog()!==ov) return;
+    if(fs){ e.preventDefault(); e.stopImmediatePropagation(); fsClose(); return; }
     if(cam){ e.preventDefault(); e.stopImmediatePropagation(); camStop(); return; }
     if(pop){ e.preventDefault(); e.stopImmediatePropagation(); popClose(); return; }
     if(cur){ e.preventDefault(); e.stopImmediatePropagation(); back(); }
   }, true);
   if(typeof applyNpToolFull==='function') applyNpToolFull();
 }
-function cleanup(){ camStop(); popClose(); adjOff(); save(); cur=null; }
+function cleanup(){ fsClose(false, true); camStop(); popClose(); adjOff(); save(); cur=null; }
 function openMikurabe(){ ensureDom(); load(); cur=null; adj=false; adjPrev=''; openDlg('mikurabeOverlay', cleanup); render(); gc(); }
 function closeMikurabe(){ if(!$('mikurabeOverlay') || !isDlgOpen('mikurabeOverlay')) return; closeDlg('mikurabeOverlay', cleanup); }
 
 window.MIKURABE={ add, open:openP, back, set:setF, pick, unset, date, swap, del, mode:setMode, dir:setDir, fade:setFade, adjust, tf:setTf, tfReset, cam:camOpen, camClose:()=>camStop(), camShot, camFlip,
+  full:fsOpen, fullClose:()=>fsClose(), fullMode:fsMode, play:fsPlay, fsOn:()=>!!fs, playing:()=>!!(fs && fs.anim),
   shot, print, book, bookSel:(id,on)=>{ if(!bookSel) return; if(on) bookSel.add(id); else bookSel.delete(id); }, bookGo, close:popClose,
   // ためす とき 用
   state:()=>JSON.parse(JSON.stringify(st)), cur:()=>cur, pos:v=>{ if(v!=null){ setPos(v); saveSoon(); } return st.ui.pos; }, adj:()=>adj, camOn:()=>!!cam,
