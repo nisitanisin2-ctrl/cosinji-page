@@ -28,13 +28,44 @@ const dOf=s=>{ const a=s.split('-').map(Number); return new Date(a[0], a[1]-1, a
 const jd=(s, yr)=>{ if(!okD(s)) return ''; const d=dOf(s); return (yr || d.getFullYear()!==dOf(todayS()).getFullYear() ? d.getFullYear()+'年' : '')+(d.getMonth()+1)+'月'+d.getDate()+'日（'+WD[d.getDay()]+'）'; };
 const md=s=>{ if(!okD(s)) return ''; const d=dOf(s); return (d.getMonth()+1)+'/'+d.getDate(); };
 const ST={p:'出席', a:'欠席', d:'委任'};
+// 会議の ひな形：[key, 名前, 議題, まとまり, 署名欄を はじめから 出すか]（v608 で 24に ふやした。議題は「📋 テンプレートから」でも 足せる）
+const TPL_G=[['chonai','🏘 町内会・自治会'],['pta','🏫 PTA・学校・子ども会'],['kanri','🏢 マンション 管理組合'],['work','💼 職場・会社・現場'],['dantai','🤝 サークル・団体'],['etc','🏠 家族・その他']];
 const TPL=[
-  ['teirei','📋 定例会・役員会',['前回の 議事録・宿題の 確認','報告事項','協議事項','その他']],
-  ['sokai','🏛 総会',['第1号議案 事業報告','第2号議案 決算報告・監査報告','第3号議案 事業計画（案）','第4号議案 予算（案）','第5号議案 役員の 選出','その他']],
-  ['shokuba','💼 職場の 会議',['前回の 宿題の 確認','報告・共有','決めたい こと','次の 予定']],
-  ['anzen','⛑ 安全衛生委員会',['前月の 災害・ヒヤリハット','職場の 巡視の 結果','健康管理（健康診断・熱中症 など）','今月の 重点の 取り組み','その他']],
-  ['blank','📄 白紙',[]],
+  ['teirei','📋 定例会・役員会',['前回の 議事録・宿題の 確認','報告事項','協議事項','その他'],'chonai',false],
+  ['sokai','🏛 総会',['第1号議案 事業報告','第2号議案 決算報告・監査報告','第3号議案 事業計画（案）','第4号議案 予算（案）','第5号議案 役員の 選出','その他'],'chonai',true],
+  ['gyoji','🎪 行事の 打ち合わせ（祭り・運動会）',['行事の 日時・場所','役割分担','準備する 物・買い物','予算・会計','当日の 流れ','雨の とき・安全の 対策','その他'],'chonai',false],
+  ['bosai','🚒 防災・防犯の 会議',['防災訓練の 日程','避難場所・連絡網の 確認','備蓄品の 点検','見回り・防犯の 当番','その他'],'chonai',false],
+  ['pta_un','🏫 PTA 運営委員会',['会長 あいさつ','各委員会からの 報告','学校からの 連絡','行事の 準備・役割分担','会計 報告','その他'],'pta',false],
+  ['pta_sokai','🏫 PTA 総会',['第1号議案 活動報告','第2号議案 決算報告・監査報告','第3号議案 活動計画（案）','第4号議案 予算（案）','第5号議案 役員の 選出・承認','第6号議案 規約の 改正','その他'],'pta',true],
+  ['kodomo','🧒 子ども会・育成会',['行事の 予定','役割分担','会費・会計','安全・見守り','その他'],'pta',false],
+  ['bukatsu','⚽ 部活・スポーツ少年団の 保護者会',['大会・練習の 予定','送迎・当番','会費・会計','道具・ユニフォーム','その他'],'pta',false],
+  ['kanri_riji','🏢 管理組合 理事会',['前回 議事録の 確認','管理会社からの 報告','収支・会計の 報告','修繕・点検の 予定','住民からの 要望・苦情','規約・使用細則','その他'],'kanri',true],
+  ['kanri_sokai','🏢 管理組合 総会',['第1号議案 事業報告・決算報告','第2号議案 監査報告','第3号議案 事業計画・予算（案）','第4号議案 役員の 選任','第5号議案 大規模修繕','第6号議案 規約の 改正','その他'],'kanri',true],
+  ['shokuba','💼 職場の 会議',['前回の 宿題の 確認','報告・共有','決めたい こと','次の 予定'],'work',false],
+  ['chorei','🌅 朝礼・ミーティング',['連絡事項','今日の 予定','安全の ひとこと','困りごと・共有'],'work',false],
+  ['anzen','⛑ 安全衛生委員会',['前月の 災害・ヒヤリハット','職場の 巡視の 結果','健康管理（健康診断・熱中症 など）','今月の 重点の 取り組み','その他'],'work',false],
+  ['genba','🏗 現場の 打ち合わせ（工程会議）',['工程の 確認','安全の 確認','搬入・車両の 予定','品質・検査','近隣への 配慮','その他'],'work',false],
+  ['eigyo','📈 営業会議',['前月の 実績','今月の 目標・見込み','案件の 進み具合','課題と 対策','その他'],'work',false],
+  ['pj','🗂 プロジェクト 会議',['進み具合の 確認','課題・リスク','決める こと','宿題の 確認','次回までの 予定'],'work',false],
+  ['torishimari','🏛 取締役会',['前回 議事録の 承認','業務執行の 報告','決議事項','報告事項','その他'],'work',true],
+  ['circle','🎨 サークル・同好会',['活動の 予定','会費・会計','発表会・イベント','新しい 会員','その他'],'dantai',false],
+  ['npo','🤝 NPO・ボランティア団体の 理事会',['活動報告','会計報告','助成金・寄付','今後の 活動計画','その他'],'dantai',true],
+  ['shotenkai','🏪 商店会・組合',['前回の 確認','イベント・売り出し','会費・会計','共同の 取り組み','その他'],'dantai',false],
+  ['senior','🌸 シニアクラブ（老人会）',['行事の 予定（旅行・お楽しみ会）','会費・会計','見守り・声かけ','健康づくり','その他'],'dantai',false],
+  ['shobo','🚒 消防団・自主防災会',['訓練・点検の 予定','出動の 報告','器具・備品','会計','その他'],'dantai',false],
+  ['kazoku','🏠 家族会議',['話し合いたい こと','家計・お金','家事の 分担','予定（旅行・行事）','決めた こと'],'etc',false],
+  ['blank','📄 白紙',[],'etc',false],
 ];
+// 「📋 テンプレートから」で 出す、どの 会議にも ある 進め方の 議題
+const AG_FLOW=['🏛 会議の 進め方',['開会の あいさつ','議長の 選出','議事録署名人の 選出','定足数の 確認（成立の 宣言）','前回 議事録の 承認','会計 報告','監査 報告','質疑応答','次回の 日程','閉会の あいさつ']];
+// 議題の 名前を 打つ ときの 候補（datalist）
+const AG_ALL=[...new Set(AG_FLOW[1].concat(...TPL.map(t=>t[2])))];
+// 「決まったこと」に 1回 押すだけで 入る ことば
+const DEC_W=['原案どおり 承認','異議なく 承認','全会一致で 可決','賛成多数で 可決','報告を 了承','継続審議','次回に 持ち越し','役員会に 一任'];
+// 🖨 印刷に 出す もの（会議ごと。チェックを 外すと 出さない。v608）
+const PRK=[['c','議長'],['r','書記'],['s','署名人'],['sg','署名・押印の 欄']];
+// pr が ない 前の 会議は、前と 同じ 見た目（署名欄は 議長・署名人の 名前が あるか 総会の とき）
+function cleanPr(o, m){ const d={c:true, r:true, s:true, sg:!!(m && (m.chair || (Array.isArray(m.signs) && (m.signs[0] || m.signs[1])) || m.tpl==='sokai'))}; if(!o || typeof o!=='object') return d; const r={}; PRK.forEach(([k])=>{ r[k]=typeof o[k]==='boolean' ? o[k] : d[k]; }); return r; }
 
 /* ───────── 中身 ───────── */
 let st=null;   // {v, list:[M], ui:{tab, org, who}}
@@ -56,7 +87,7 @@ function cleanM(m){
     place:oneLine(m.place, 60), chair:oneLine(m.chair, 30), rec:oneLine(m.rec, 30), signs:[0,1].map(i=>oneLine(Array.isArray(m.signs) ? m.signs[i] : '', 30)),
     members:intIn(m.members, 0, 99999), ppl, items:(Array.isArray(m.items) ? m.items : []).map(cleanItem).filter(Boolean).slice(0, MAX_I),
     next:{date:okD(nx.date) ? nx.date : '', st:okT(nx.st) ? nx.st : '', place:oneLine(nx.place, 60)}, memo:multi(m.memo, 2000), tpl:TPL.some(t=>t[0]===m.tpl) ? m.tpl : 'teirei',
-    at:+m.at||Date.now(), up:+m.up||+m.at||Date.now()};
+    pr:cleanPr(m.pr, m), at:+m.at||Date.now(), up:+m.up||+m.at||Date.now()};
 }
 function load(){
   let o=null; try{ o=JSON.parse(localStorage.getItem(KEY)||'null'); }catch(_){}
@@ -145,19 +176,22 @@ function editHtml(m){
       ${dl}
       <div class="gj-row">${fld('議長', 'chair', m.chair, {list:'gjNames'})}${fld('書記', 'rec', m.rec, {list:'gjNames'})}</div>
       <div class="gj-row">${fld('署名人 1', 'sign0', m.signs[0], {list:'gjNames'})}${fld('署名人 2', 'sign1', m.signs[1], {list:'gjNames'})}</div>
+      <div class="gj-pr" role="group" aria-label="印刷に 出す もの"><small>🖨 印刷に 出す</small>${PRK.map(([k,n])=>`<label class="gj-chk${m.pr[k] ? ' on' : ''}"><input type="checkbox" data-pr="${k}"${m.pr[k] ? ' checked' : ''} onchange="GIJIROKU.pr('${k}', this.checked)">${n}</label>`).join('')}</div>
     </section>
     ${prev.length ? `<section class="gj-sec"><h4>↩ 前回からの 宿題 <small>${prev.length}件</small></h4><div class="gj-todos">${prev.map(x=>`<div class="gj-td${late(x.t)?' late':''}"><button type="button" class="gj-ck" aria-label="${esc(x.t.t)} を 済みに" onclick="GIJIROKU.done('${x.m.id}','${x.i.id}','${x.t.id}')">☐</button>
       <div class="tx"><b>${esc(x.t.t)}</b><small>${x.t.who ? '👤 '+esc(x.t.who)+'　' : ''}${x.t.due ? (late(x.t) ? '⚠ ' : '📅 ')+esc(md(x.t.due))+' まで' : ''}　（${esc(md(x.m.date))} の ${esc(x.i.t||'議題')}）</small></div></div>`).join('')}</div></section>` : ''}
     <section class="gj-sec"><h4>🗂 議題 <small>${m.items.length}</small></h4>
-      ${m.items.map((it,k)=>`<div class="gj-item"><div class="gj-ih"><span class="no">${k+1}</span><input type="text" value="${esc(it.t)}" placeholder="議題" aria-label="議題 ${k+1} の 名前" oninput="GIJIROKU.set(${K('item', it.id, 't')}, this.value)">
+      ${m.items.map((it,k)=>`<div class="gj-item"><div class="gj-ih"><span class="no">${k+1}</span><input type="text" value="${esc(it.t)}" placeholder="議題" list="gjAgL" aria-label="議題 ${k+1} の 名前" oninput="GIJIROKU.set(${K('item', it.id, 't')}, this.value)">
           <button type="button" class="gj-ib" aria-label="上へ" onclick="GIJIROKU.imove('${it.id}', -1)"${k ? '' : ' disabled'}>↑</button><button type="button" class="gj-ib" aria-label="下へ" onclick="GIJIROKU.imove('${it.id}', 1)"${k<m.items.length-1 ? '' : ' disabled'}>↓</button><button type="button" class="gj-ib" aria-label="議題を 消す" onclick="GIJIROKU.idel('${it.id}')">🗑</button></div>
         <small class="gj-lb">話し合ったこと</small>${ta('gjM_'+it.id, it.memo, '例：会場の 案を 2つ 出した。', 3, K('item', it.id, 'memo'))}
         <small class="gj-lb">決まったこと</small>${ta('gjD_'+it.id, it.dec, '例：会場は 公民館に する。', 2, K('item', it.id, 'dec'))}
+        <div class="gj-dw" aria-label="決まったことに 入れる ことば">${DEC_W.map((w,j)=>`<button type="button" onclick="GIJIROKU.decAdd('${it.id}', ${j})">${w}</button>`).join('')}</div>
         ${it.vote ? `<div class="gj-vote"><span>🗳 採決</span><label>賛成<input type="text" inputmode="numeric" value="${esc(it.vote.y)}" oninput="GIJIROKU.set(${K('vote', it.id, 'y')}, this.value)"></label><label>反対<input type="text" inputmode="numeric" value="${esc(it.vote.n)}" oninput="GIJIROKU.set(${K('vote', it.id, 'n')}, this.value)"></label><label>棄権<input type="text" inputmode="numeric" value="${esc(it.vote.a)}" oninput="GIJIROKU.set(${K('vote', it.id, 'a')}, this.value)"></label><button type="button" class="gj-ib" aria-label="採決を 外す" onclick="GIJIROKU.vote('${it.id}')">✕</button><b data-vr="${it.id}">${esc(voteText(it.vote))}</b></div>` : ''}
         ${it.todos.length ? `<div class="gj-tl">${it.todos.map(t=>`<div class="gj-t${t.done?' dn':''}${late(t) && !t.done?' late':''}"><button type="button" class="gj-ck" aria-label="${esc(t.t)}：${t.done ? '済み' : 'まだ'}" onclick="GIJIROKU.tdone('${it.id}','${t.id}')">${t.done ? '☑' : '☐'}</button>
             <input type="text" value="${esc(t.t)}" aria-label="宿題" oninput="GIJIROKU.set(${K('todo', it.id, t.id, 't')}, this.value)"><input type="text" class="w" value="${esc(t.who)}" placeholder="担当" list="gjNames" aria-label="担当" oninput="GIJIROKU.set(${K('todo', it.id, t.id, 'who')}, this.value)"><input type="date" class="dd" value="${esc(t.due)}" aria-label="期限" onchange="GIJIROKU.set(${K('todo', it.id, t.id, 'due')}, this.value, 1)"><button type="button" class="gj-ib" aria-label="宿題を 消す" onclick="GIJIROKU.tdel('${it.id}','${t.id}')">✕</button></div>`).join('')}</div>` : ''}
         <div class="gj-acts sm"><button type="button" class="gj-b sm" onclick="GIJIROKU.tadd('${it.id}')">＋ 宿題</button>${it.vote ? '' : `<button type="button" class="gj-b sm" onclick="GIJIROKU.vote('${it.id}')">🗳 採決を 書く</button>`}</div></div>`).join('')}
-      <div class="gj-acts"><button type="button" class="gj-b" onclick="GIJIROKU.iadd()">＋ 議題を 足す</button></div>
+      <div class="gj-acts"><button type="button" class="gj-b" onclick="GIJIROKU.iadd()">＋ 議題を 足す</button><button type="button" class="gj-b" onclick="GIJIROKU.agOpen()">📋 テンプレートから 足す</button></div>
+      <datalist id="gjAgL">${AG_ALL.map(t=>`<option value="${esc(t)}">`).join('')}</datalist>
     </section>
     <section class="gj-sec"><h4>📅 次回</h4>
       <div class="gj-row">${fld('日付', 'ndate', m.next.date, {type:'date'})}${tfl('時刻', 'nst', m.next.st)}</div>${fld('場所', 'nplace', m.next.place, {ph:'例：公民館'})}
@@ -200,7 +234,8 @@ function newMeet(org, tplK, copyPpl){
   const t=TPL.find(x=>x[0]===tplK)||TPL[0];
   const prev=org ? ordered().find(x=>x.org===org) : null;
   const m=cleanM({id:rid(), org, t:'', date:todayS(), tpl:t[0], items:t[2].map(n=>({id:rid(), t:n})), ppl:copyPpl && prev ? prev.ppl.map(p=>({n:p.n, s:'p'})) : [],
-    chair:copyPpl && prev ? prev.chair : '', rec:copyPpl && prev ? prev.rec : '', place:prev && prev.next.place ? prev.next.place : prev ? prev.place : '', members:prev ? prev.members : '', at:Date.now()});
+    chair:copyPpl && prev ? prev.chair : '', rec:copyPpl && prev ? prev.rec : '', place:prev && prev.next.place ? prev.next.place : prev ? prev.place : '', members:prev ? prev.members : '',
+    pr:prev ? Object.assign({}, prev.pr) : {c:true, r:true, s:true, sg:!!t[4]}, at:Date.now()});
   if(prev && prev.next.date) m.date=prev.next.date;
   if(prev && prev.next.st) m.st=prev.next.st;
   st.list.unshift(m); st.list=st.list.slice(0, MAX_M); save();
@@ -250,8 +285,8 @@ function time(k){
   let mins=toMin(curV); if(mins==null) mins=defTime(m, k);
   const el=popOpen(`<div class="gj-ph"><span aria-hidden="true">🕐</span><b>${TP_TITLE[k]}</b><button type="button" class="gj-x" onclick="GIJIROKU.close()" aria-label="閉じる">✕</button></div>
     <div class="gj-tpbig" id="gjTpBig" aria-live="polite"></div>
-    <div class="gj-tpl">時</div><div class="gj-tpg" id="gjTpH">${TP_H.map(h=>`<button type="button" data-h="${h}">${h}</button>`).join('')}</div>
-    <div class="gj-tpl">分</div><div class="gj-tpg" id="gjTpM">${TP_M.map(x=>`<button type="button" data-m="${x}">${pad2(x)}</button>`).join('')}</div>
+    <div class="gj-tpll">時</div><div class="gj-tpg" id="gjTpH">${TP_H.map(h=>`<button type="button" data-h="${h}">${h}</button>`).join('')}</div>
+    <div class="gj-tpll">分</div><div class="gj-tpg" id="gjTpM">${TP_M.map(x=>`<button type="button" data-m="${x}">${pad2(x)}</button>`).join('')}</div>
     <div class="gj-tpfine"><button type="button" data-d="-5">−5分</button><button type="button" data-d="-1">−1分</button><button type="button" data-d="1">＋1分</button><button type="button" data-d="5">＋5分</button></div>
     <div class="gj-tpfine"><input id="gjTpIn" inputmode="numeric" autocomplete="off" placeholder="打つ：1900・19:00・7時半" aria-label="時刻を 打って 入れる"></div>
     <div class="gj-acts end">${curV ? '<button type="button" class="gj-b warn" data-x="clear">決めない</button>' : ''}<button type="button" class="gj-b" data-x="cancel">やめる</button><button type="button" class="gj-b pri" data-x="ok">✓ 決定</button></div>`);
@@ -289,19 +324,80 @@ function timeSet(k, v){
 }
 let addTpl='teirei';
 function add(){
-  const os=orgs(), def=st.ui.org || os[0] || '';
+  const os=orgs();
   addTpl='teirei';
   popOpen(`<div class="gj-ph"><span aria-hidden="true">📝</span><b>新しい 会議</b><button type="button" class="gj-x" onclick="GIJIROKU.close()" aria-label="閉じる">✕</button></div>
-    <label class="gj-f"><span>会の 名前</span><input type="text" id="gjNewOrg" maxlength="40" value="${esc(def)}" placeholder="例：○○町内会" list="gjOrgs2"></label><datalist id="gjOrgs2">${os.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>
-    <div class="gj-tpl" role="radiogroup" aria-label="ひな形">${TPL.map(t=>`<button type="button" role="radio" aria-checked="${t[0]==='teirei'}" class="${t[0]==='teirei'?'on':''}" data-t="${t[0]}" onclick="GIJIROKU.tpl('${t[0]}')"><b>${t[1]}</b><small>${t[2].length ? esc(t[2].join('・')) : '議題なし'}</small></button>`).join('')}</div>
-    ${os.length ? '<label class="gj-ck2"><input type="checkbox" id="gjNewCopy" checked> 前回の 出席者・議長・書記を 写す（同じ 会の とき）</label>' : ''}
-    <div class="gj-acts end"><button type="button" class="gj-b" onclick="GIJIROKU.close()">やめる</button><button type="button" class="gj-b pri" onclick="GIJIROKU.addGo()">＋ 作る</button></div>`);
+    <label class="gj-f"><span>会の 名前</span><input type="text" id="gjNewOrg" maxlength="40" value="" placeholder="例：○○町内会" list="gjOrgs2" oninput="GIJIROKU.addOrg(this.value)"></label><datalist id="gjOrgs2">${os.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>
+    ${os.length ? `<div class="gj-orgs"><small>前と 同じ 会なら：</small>${os.slice(0, 8).map(o=>`<button type="button" data-o="${esc(o)}" onclick="GIJIROKU.addOrg(this.dataset.o, true)">${esc(o)}</button>`).join('')}</div>` : ''}
+    <label class="gj-ck2" id="gjNewCopyL" hidden><input type="checkbox" id="gjNewCopy" checked> 前回の 出席者・議長・書記・印刷の 選び方を 写す</label>
+    <p class="gj-lb">ひな形（議題が 入ります。あとから「📋 テンプレートから」で 足す ことも できます）</p>
+    ${TPL_G.map(([g,gn])=>`<h5 class="gj-tplh">${gn}</h5><div class="gj-tpl" role="radiogroup" aria-label="${gn}">${TPL.filter(t=>t[3]===g).map(t=>`<button type="button" role="radio" aria-checked="${t[0]==='teirei'}" class="${t[0]==='teirei'?'on':''}" data-t="${t[0]}" onclick="GIJIROKU.tpl('${t[0]}')"><b>${t[1]}</b><small>${t[2].length ? esc(t[2].join('・')) : '議題なし'}</small></button>`).join('')}</div>`).join('')}
+    <div class="gj-acts end gj-stick"><button type="button" class="gj-b" onclick="GIJIROKU.close()">やめる</button><button type="button" class="gj-b pri" onclick="GIJIROKU.addGo()">＋ 作る</button></div>`);
+}
+// 会の 名前が これまでの 会と 同じ ときだけ「前回を 写す」を 出す（ボタンで えらんだ ときは その 会の 前回の ひな形に）
+function addOrg(v, pick){
+  const o=oneLine(v, 40), prev=o ? ordered().find(x=>x.org===o) : null, inp=$('gjNewOrg'), lab=$('gjNewCopyL');
+  if(pick && inp) inp.value=o;
+  if(lab) lab.hidden=!prev;
+  if(pick && prev) setTpl(prev.tpl);
 }
 function setTpl(k){ if(!TPL.some(t=>t[0]===k)) return; addTpl=k; document.querySelectorAll('.gj-tpl button').forEach(b=>{ const on=b.dataset.t===k; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); }); }
 function addGo(){
-  const org=oneLine(($('gjNewOrg')||{}).value, 40), cp=$('gjNewCopy') ? $('gjNewCopy').checked : false;
+  const org=oneLine(($('gjNewOrg')||{}).value, 40), lab=$('gjNewCopyL'), cp=!!(lab && !lab.hidden && $('gjNewCopy') && $('gjNewCopy').checked);
   const m=newMeet(org, addTpl, cp);
   popClose(); cur=m.id; render(); const b=$('gjBody'); if(b) b.scrollTop=0;
+}
+// 🖨 印刷に 出す もの（会議ごと。新しい 会議は 同じ 会の 前回を 写す）
+function setPr(k, v){
+  const m=mOf(cur); if(!m || !PRK.some(x=>x[0]===k)) return;
+  m.pr[k]=!!v; m.up=Date.now(); save();
+  const l=document.querySelector('.gj-pr input[data-pr="'+k+'"]'); if(l && l.parentElement) l.parentElement.classList.toggle('on', !!v);
+}
+// 決まったこと に ことばを 足す（打って いる 文の 後ろに 改行して）
+function decAdd(iid, j){
+  const m=mOf(cur), it=m && m.items.find(x=>x.id===iid), w=DEC_W[j]; if(!it || !w) return;
+  it.dec=multi(it.dec ? it.dec+'\n'+w : w, 1500); m.up=Date.now(); save();
+  const t=$('gjD_'+iid); if(t) t.value=it.dec;
+}
+/* 📋 テンプレートから 議題を 足す（v608）：今の 会議の ひな形を いちばん 上に、ほかの 会議の 議題も。押して えらび、まとめて 足す */
+let agSel=null;
+function agOpen(){
+  const m=mOf(cur); if(!m) return;
+  agSel=[];
+  const have=new Set(m.items.map(i=>i.t)), mine=TPL.find(t=>t[0]===m.tpl);
+  const groups=(mine && mine[2].length ? [[mine[1]+'（この 会議）', mine[2]]] : []).concat([AG_FLOW], TPL.filter(t=>t[2].length && t!==mine).map(t=>[t[1], t[2]]));
+  popOpen(`<div class="gj-ph"><span aria-hidden="true">📋</span><b>テンプレートから 議題を 足す</b><button type="button" class="gj-x" onclick="GIJIROKU.close()" aria-label="閉じる">✕</button></div>
+    <input type="search" class="gj-agq" id="gjAgQ" placeholder="🔍 しぼる（例：会計・行事・修繕）" autocomplete="off" oninput="GIJIROKU.agFilter(this.value)">
+    <p class="gj-note sm">押した 議題が えらばれます（もう 入って いる ものは 押せません）。</p>
+    <div class="gj-agl">${groups.map(([n,items])=>`<div class="gj-agg"><h5>${esc(n)}</h5><div class="gj-agc">${items.map(t=>`<button type="button" class="gj-ag${have.has(t) ? ' have' : ''}" data-t="${esc(t)}" aria-pressed="false"${have.has(t) ? ' disabled' : ''} onclick="GIJIROKU.agToggle(this)">${esc(t)}</button>`).join('')}</div></div>`).join('')}</div>
+    <div class="gj-acts end gj-stick"><button type="button" class="gj-b" onclick="GIJIROKU.close()">やめる</button><button type="button" class="gj-b pri" id="gjAgGo" onclick="GIJIROKU.agGo()" disabled>＋ 足す</button></div>`);
+}
+function agToggle(b){
+  if(!agSel || !b || b.disabled) return;
+  const t=b.dataset.t, i=agSel.indexOf(t);
+  if(i>=0) agSel.splice(i, 1); else agSel.push(t);
+  document.querySelectorAll('.gj-ag').forEach(x=>{ if(x.dataset.t===t){ x.classList.toggle('on', i<0); x.setAttribute('aria-pressed', i<0); } });
+  const g=$('gjAgGo'); if(g){ g.disabled=!agSel.length; g.textContent=agSel.length ? '＋ '+agSel.length+'つ 足す' : '＋ 足す'; }
+}
+function agFilter(q){
+  const w=String(q||'').normalize('NFKC').trim();
+  document.querySelectorAll('.gj-agg').forEach(g=>{ let n=0; g.querySelectorAll('.gj-ag').forEach(b=>{ const on=!w || b.dataset.t.normalize('NFKC').includes(w); b.hidden=!on; if(on) n++; }); g.hidden=!n; });
+}
+// 足す 場所：開会・議長の 選出 などは いちばん 上（進め方の 順）、閉会は いちばん 下、ほかは 最後の「その他」の 前
+const AG_OPEN=AG_FLOW[1].slice(0, 5), AG_CLOSE='閉会の あいさつ';
+function placeItem(m, t){
+  const it=cleanItem({id:rid(), t});
+  if(AG_OPEN.includes(t)){ let i=0; while(i<m.items.length && AG_OPEN.includes(m.items[i].t) && AG_OPEN.indexOf(m.items[i].t)<AG_OPEN.indexOf(t)) i++; m.items.splice(i, 0, it); return; }
+  let i=m.items.length;
+  if(t!==AG_CLOSE){ if(i && m.items[i-1].t===AG_CLOSE) i--; if(i && /^その他/.test(m.items[i-1].t)) i--; }
+  m.items.splice(i, 0, it);
+}
+function agGo(){
+  const m=mOf(cur); if(!m || !agSel || !agSel.length) return;
+  let n=0;
+  agSel.forEach(t=>{ if(m.items.length<MAX_I && !m.items.some(i=>i.t===t)){ placeItem(m, t); n++; } });
+  m.up=Date.now(); save(); popClose(); render();
+  toastS(n ? '📋 議題を '+n+'つ 足しました' : '議題は '+MAX_I+'まで です');
 }
 function nextMeet(){
   const m=mOf(cur); if(!m) return;
@@ -381,7 +477,7 @@ function plainText(m){
   if(c.a) L.push('欠席：'+names('a')+'（'+c.a+'人）');
   if(c.d) L.push('委任：'+names('d')+'（'+c.d+'人）');
   if(q) L.push('会員 '+m.members+'人・出席＋委任 '+q.have+'人（過半数 '+q.need+'人）→ '+(q.ok ? '成立' : '不成立'));
-  const roles=[m.chair ? '議長：'+m.chair : '', m.rec ? '書記：'+m.rec : ''].filter(Boolean).join('　'); if(roles) L.push(roles);
+  const roles=[m.pr.c && m.chair ? '議長：'+m.chair : '', m.pr.r && m.rec ? '書記：'+m.rec : ''].filter(Boolean).join('　'); if(roles) L.push(roles);
   m.items.forEach((it,k)=>{
     L.push('', '■ '+(k+1)+'. '+(it.t||'議題'));
     if(it.memo) L.push(it.memo);
@@ -419,7 +515,7 @@ function docHtml(m){
     <table class="gj-dh">${row('日時', esc(jd(m.date, true))+(m.st ? '　'+m.st+(m.en ? '〜'+m.en : '') : ''))}${row('場所', esc(m.place))}
     ${row('出席者', c.p ? names('p')+'（'+c.p+'名）' : '')}${row('欠席者', c.a ? names('a')+'（'+c.a+'名）' : '')}${row('委任', c.d ? names('d')+'（'+c.d+'名）' : '')}
     ${q ? row('成立', '会員 '+m.members+'名中　出席 '+c.p+'名・委任 '+c.d+'名　計 '+q.have+'名（過半数 '+q.need+'名）　'+(q.ok ? '<b>成立</b>' : '不成立')) : ''}
-    ${row('議長', esc(m.chair))}${row('書記', esc(m.rec))}</table>`;
+    ${m.pr.c ? row('議長', esc(m.chair)) : ''}${m.pr.r ? row('書記', esc(m.rec)) : ''}</table>`;
   m.items.forEach((it,k)=>{
     const v=voteText(it.vote);
     h+=`<div class="gj-di"><div class="gj-dih">${k+1}．${esc(it.t||'議題')}</div>
@@ -428,12 +524,14 @@ function docHtml(m){
   });
   if(m.next.date) h+=`<div class="gj-di"><div class="gj-dih">次回</div><div class="gj-dp">${esc(jd(m.next.date, true))}${m.next.st ? '　'+m.next.st : ''}${m.next.place ? '　'+esc(m.next.place) : ''}</div></div>`;
   if(m.memo) h+=`<div class="gj-di"><div class="gj-dih">その他</div><div class="gj-dp">${esc(m.memo)}</div></div>`;
-  if(m.chair || m.signs[0] || m.signs[1] || m.tpl==='sokai'){
-    h+=`<div class="gj-dsg"><p>以上の 議事の 経過と 結果を 明らかに するため、この 議事録を 作り、議長 及び 議事録署名人が 署名 押印する。</p>
+  // 署名・押印の 欄（🖨 印刷に 出す で 選んだ 人だけ）
+  if(m.pr.sg && (m.pr.c || m.pr.s)){
+    const who=m.pr.c && m.pr.s ? '議長 及び 議事録署名人' : m.pr.c ? '議長' : '議事録署名人';
+    h+=`<div class="gj-dsg"><p>以上の 議事の 経過と 結果を 明らかに するため、この 議事録を 作り、${who}が 署名 押印する。</p>
       <div class="gj-dsl">${esc(jd(todayS(), true))}</div>
-      <div class="gj-dsl">議　長　<span>${esc(m.chair)}</span>　印</div>
-      <div class="gj-dsl">議事録署名人　<span>${esc(m.signs[0])}</span>　印</div>
-      <div class="gj-dsl">議事録署名人　<span>${esc(m.signs[1])}</span>　印</div></div>`;
+      ${m.pr.c ? `<div class="gj-dsl">議　長　<span>${esc(m.chair)}</span>　印</div>` : ''}
+      ${m.pr.s ? `<div class="gj-dsl">議事録署名人　<span>${esc(m.signs[0])}</span>　印</div>
+      <div class="gj-dsl">議事録署名人　<span>${esc(m.signs[1])}</span>　印</div>` : ''}</div>`;
   }
   return `<div class="op-doc"><style>${DOC_CSS}</style><div class="gj-doc">${h}</div></div>`;
 }
@@ -503,7 +601,7 @@ const CSS=`
 .gj-tb{ flex:1; min-width:0; min-height:42px; padding:0 10px; border-radius:10px; border:1px solid rgba(120,132,156,.55); background:var(--cell-bg,#fff); color:var(--text,#222); font-size:16px; font-weight:bold; text-align:left; cursor:pointer; font-variant-numeric:tabular-nums; font-family:inherit; }
 .gj-tb.none{ color:var(--text-light,#777); font-weight:normal; }
 .gj-tpbig{ margin:2px 0 8px; text-align:center; font-size:40px; font-weight:bold; font-variant-numeric:tabular-nums; color:var(--acc-text,var(--acc)); }
-.gj-tpl{ font-size:12px; font-weight:bold; color:var(--text-light,#777); margin:6px 0 4px; }
+.gj-tpll{ font-size:12px; font-weight:bold; color:var(--text-light,#777); margin:6px 0 4px; }
 .gj-tpg{ display:grid; grid-template-columns:repeat(6,1fr); gap:4px; }
 .gj-tpg button{ height:40px; border-radius:8px; border:1px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#222); font-size:16px; font-weight:bold; cursor:pointer; touch-action:manipulation; font-variant-numeric:tabular-nums; }
 .gj-tpg button.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); }
@@ -514,7 +612,19 @@ const CSS=`
 .gj-tpl{ display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:6px; margin:8px 0; }
 .gj-tpl button{ display:flex; flex-direction:column; align-items:flex-start; gap:3px; padding:8px 10px; border-radius:12px; border:1.5px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#222); text-align:left; cursor:pointer; font:inherit; }
 .gj-tpl button b{ font-size:14.5px; } .gj-tpl button small{ font-size:11.5px; color:var(--text-light,#666); line-height:1.4; } .gj-tpl button.on{ border-color:var(--acc); box-shadow:0 0 0 2px var(--acc) inset; background:rgba(46,157,74,.08); }
-.gj-ck2{ display:flex; align-items:center; gap:8px; font-size:14px; margin:8px 0; } .gj-ck2 input{ width:22px; height:22px; }
+.gj-ck2{ display:flex; align-items:center; gap:8px; font-size:14px; margin:8px 0; } .gj-ck2 input{ width:22px; height:22px; } .gj-ck2[hidden]{ display:none; }
+.gj-tplh{ margin:12px 0 4px; font-size:14px; } .gj-tpl{ margin:4px 0; }
+.gj-orgs{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:0 0 8px; } .gj-orgs small{ font-size:12.5px; color:var(--text-light,#666); }
+.gj-orgs button{ min-height:34px; padding:0 12px; border-radius:17px; border:1px solid rgba(120,132,156,.45); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:13.5px; cursor:pointer; }
+.gj-stick{ position:sticky; bottom:calc(-16px - var(--safe-bottom,0px)); z-index:1; margin:12px -14px calc(-16px - var(--safe-bottom,0px)); padding:10px 14px calc(12px + var(--safe-bottom,0px)); background:var(--modal-bg,#fff); border-top:1px solid rgba(120,132,156,.25); }
+.gj-pr{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:10px 0 2px; padding:8px 10px; border-radius:12px; background:rgba(120,132,156,.08); } .gj-pr small{ font-size:12.5px; font-weight:bold; color:var(--text-light,#666); margin-right:2px; }
+.gj-chk{ display:inline-flex; align-items:center; gap:5px; min-height:36px; padding:0 10px; border-radius:18px; border:1px solid rgba(120,132,156,.45); background:var(--cell-bg,#fff); color:var(--text-light,#777); font-size:13.5px; cursor:pointer; }
+.gj-chk input{ width:18px; height:18px; margin:0; } .gj-chk.on{ color:var(--text,#222); font-weight:bold; border-color:var(--acc); }
+.gj-dw{ display:flex; gap:5px; overflow-x:auto; margin:5px 0 0; padding:0 0 2px; scrollbar-width:thin; } .gj-dw button{ flex:none; min-height:32px; padding:0 10px; border-radius:16px; border:1px solid rgba(120,132,156,.4); background:rgba(120,132,156,.07); color:var(--text,#222); font-size:12.5px; cursor:pointer; white-space:nowrap; }
+.gj-agq{ width:100%; min-height:42px; padding:0 12px; margin:0 0 6px; border-radius:21px; border:1px solid rgba(120,132,156,.55); background:var(--cell-bg,#fff); color:var(--text,#222); font-size:16px; box-sizing:border-box; font-family:inherit; }
+.gj-agg h5{ margin:10px 0 4px; font-size:13.5px; } .gj-agg[hidden]{ display:none; } .gj-agc{ display:flex; flex-wrap:wrap; gap:5px; }
+.gj-ag{ min-height:38px; padding:0 12px; border-radius:19px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:13.5px; cursor:pointer; } .gj-ag[hidden]{ display:none; }
+.gj-ag.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); font-weight:bold; } .gj-ag.have{ opacity:.45; text-decoration:line-through; cursor:default; }
 body.dark .gj-p .nm small{ color:#a5d6a7; } body.dark .gj-p.s-d .nm small{ color:#ffcc80; } body.dark .gj-card em, body.dark .gj-q.ng{ color:#ff8a80; } body.dark .gj-td.late .tx small:first-of-type{ color:#ff8a80; }
 @media (max-width:520px){ .gj-f > span{ min-width:3.8em; } }
 `;
@@ -544,11 +654,11 @@ function openGijiroku(){ ensureDom(); load(); cur=null; openDlg('gijirokuOverlay
 function closeGijiroku(){ if(!$('gijirokuOverlay') || !isDlgOpen('gijirokuOverlay')) return; closeDlg('gijirokuOverlay', cleanup); }
 
 window.GIJIROKU={ tab:k=>{ st.ui.tab=k==='todo' ? 'todo' : 'list'; save(); render(); }, org:o=>{ st.ui.org=oneLine(o, 40); save(); render(); }, who:w=>{ st.ui.who=oneLine(w, 30); save(); render(); },
-  add, tpl:setTpl, addGo, open:openM, back, del, set:setF, time, padd, paste, pick, pprev, pst, pdel, iadd, imove, idel, tadd, tdel, tdone, done:doneAny, vote, mic, close:popClose,
+  add, tpl:setTpl, addGo, addOrg, open:openM, pr:setPr, decAdd, agOpen, agToggle, agFilter, agGo, back, del, set:setF, time, padd, paste, pick, pprev, pst, pdel, iadd, imove, idel, tadd, tdel, tdone, done:doneAny, vote, mic, close:popClose,
   print, image, copy, cal, nextMeet,
   // ためす とき 用
   today:s=>{ fixedToday=s ? String(s) : null; if(st) render(); }, state:()=>JSON.parse(JSON.stringify(st)), cur:()=>cur, text:id=>{ const m=mOf(id||cur); return m ? plainText(m) : ''; },
   doc:id=>{ const m=mOf(id||cur); return m ? docHtml(m) : ''; }, newMeet:(org,tpl,cp)=>{ const m=newMeet(org, tpl, cp); return m.id; }, quorum:id=>{ const m=mOf(id||cur); return m ? quorum(m) : null; }, voteText, calEv:id=>{ const m=mOf(id||cur); return m ? calEv(m) : null; },
-  parseTime, openTodos:()=>openTodos().map(x=>x.t.t+'@'+(x.t.who||'')+'@'+(x.t.due||'')) };
+  parseTime, tpls:()=>TPL.map(t=>t[0]), agAll:()=>AG_ALL.slice(), openTodos:()=>openTodos().map(x=>x.t.t+'@'+(x.t.who||'')+'@'+(x.t.due||'')) };
 Object.assign(window, { openGijiroku, closeGijiroku });
 })();
