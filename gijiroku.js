@@ -4,7 +4,8 @@
    ・議題ごとに 話し合ったこと・決まったこと・🗳 採決（賛成・反対・棄権 → 可決／否決）・宿題（内容・担当・期限・✓）
    ・前回からの 宿題（同じ 会の まだの もの）を 上に 出して ✓。📌 宿題 の 一覧（だれが・いつまで・過ぎたら 赤）
    ・会員の 数を 入れると 総会の 成立（出席＋委任が 過半数か）を 出す
-   ・🖨 印刷・PDF（議事録の 形・署名欄）・🖼 画像・📋 文字で コピー・📅 次回を カレンダーに・📄 次の 会議を 作る
+   ・🖨 印刷・PDF（議事録の 形・署名欄）・📄 Word（.docx）・📊 Excel（.xlsx）（v609）・🖼 画像・📋 文字で コピー・📅 次回を カレンダーに・⏭ 次の 会議を 作る
+   ・💾 保存（すぐ この 端末に 保存して 知らせる）・🗂 控え（.json）に 保存・送る・読む（機種変更・係の 交代。v609）
    ・🎤 声で 書く（端末が できるとき）。ひな形：定例会・役員会／総会／職場の 会議／安全衛生委員会／白紙
    中身は excalc_gijiroku（この端末の中だけ）。 */
 (function(){
@@ -135,7 +136,7 @@ function homeHtml(){
 }
 function listHtml(){
   const os=orgs(), L=ordered().filter(m=>!st.ui.org || m.org===st.ui.org);
-  return `<div class="gj-acts top"><button type="button" class="gj-b pri" onclick="GIJIROKU.add()">＋ 新しい 会議</button></div>
+  return `<div class="gj-acts top"><button type="button" class="gj-b pri" onclick="GIJIROKU.add()">＋ 新しい 会議</button><button type="button" class="gj-b" onclick="GIJIROKU.saveOpen()">💾 控え（保存・読む）</button></div>
     ${os.length>1 ? `<div class="gj-chips"><button type="button" class="${st.ui.org?'':'on'}" onclick="GIJIROKU.org('')">ぜんぶ</button>${os.map(o=>`<button type="button" class="${st.ui.org===o?'on':''}" data-o="${esc(o)}" onclick="GIJIROKU.org(this.dataset.o)">${esc(o)}</button>`).join('')}</div>` : ''}
     ${L.length ? `<div class="gj-list">${L.map(m=>{ const c=counts(m), td=m.items.reduce((a,i)=>a+i.todos.length,0), left=m.items.reduce((a,i)=>a+i.todos.filter(t=>!t.done).length,0);
       return `<button type="button" class="gj-card" onclick="GIJIROKU.open('${m.id}')"><span class="d">${esc(jd(m.date))}${m.st ? ' '+m.st : ''}</span><b>${esc(mTitle(m))}</b>${m.org && m.t ? `<small>${esc(m.org)}</small>` : ''}
@@ -159,7 +160,7 @@ function editHtml(m){
   // 時刻は 自前の 窓で えらぶ（端末の 時刻の 窓では 決められない ことが ある。v606）
   const tfl=(lab, key, val)=>`<div class="gj-f gj-tf"><span>${lab}</span><button type="button" class="gj-tb${val ? '' : ' none'}" data-tk="${key}" onclick="GIJIROKU.time('${key}')" aria-label="${lab}の 時刻を えらぶ">${val ? '🕐 '+val : '🕐 えらぶ'}</button></div>`;
   const fld=(lab, key, val, o)=>`<label class="gj-f"><span>${lab}</span><input type="${o&&o.type||'text'}" value="${esc(val)}" ${o&&o.ph ? `placeholder="${esc(o.ph)}"` : ''} ${o&&o.list ? `list="${o.list}"` : ''} ${o&&o.im ? `inputmode="${o.im}"` : ''} oninput="GIJIROKU.set(${K(key)}, this.value)"></label>`;
-  return `<div class="gj-eh"><button type="button" class="gj-b" onclick="GIJIROKU.back()">← 一覧</button><b id="gjEhT">${esc(mTitle(m))}</b></div>
+  return `<div class="gj-eh"><button type="button" class="gj-b" onclick="GIJIROKU.back()">← 一覧</button><b id="gjEhT">${esc(mTitle(m))}</b><button type="button" class="gj-b gj-sv" onclick="GIJIROKU.saveOpen()">💾 保存</button></div>
     <section class="gj-sec"><h4>📌 会議</h4>
       ${fld('会の 名前', 'org', m.org, {ph:'例：○○町内会', list:'gjOrgs'})}<datalist id="gjOrgs">${orgs().map(o=>`<option value="${esc(o)}">`).join('')}</datalist>
       ${fld('会議の 名前', 't', m.t, {ph:'例：第3回 役員会'})}
@@ -197,8 +198,8 @@ function editHtml(m){
       <div class="gj-row">${fld('日付', 'ndate', m.next.date, {type:'date'})}${tfl('時刻', 'nst', m.next.st)}</div>${fld('場所', 'nplace', m.next.place, {ph:'例：公民館'})}
       ${m.next.date ? '<div class="gj-acts"><button type="button" class="gj-b" onclick="GIJIROKU.cal()">📅 次回を カレンダーに</button></div>' : ''}</section>
     <section class="gj-sec"><h4>📎 その他</h4>${ta('gjMemo', m.memo, '例：配った 資料・連絡事項', 2, K('memo'))}</section>
-    <div class="gj-out"><button type="button" class="gj-b pri" onclick="GIJIROKU.print()">🖨 印刷・PDF</button><button type="button" class="gj-b" onclick="GIJIROKU.image()">🖼 画像</button><button type="button" class="gj-b" onclick="GIJIROKU.copy()">📋 文字で コピー</button>
-      <button type="button" class="gj-b" onclick="GIJIROKU.nextMeet()">📄 次の 会議を 作る</button><button type="button" class="gj-b warn" onclick="GIJIROKU.del('${m.id}')">🗑 この 会議を 消す</button></div>`;
+    <div class="gj-out"><button type="button" class="gj-b pri" onclick="GIJIROKU.print()">🖨 印刷・PDF</button><button type="button" class="gj-b" onclick="GIJIROKU.out('docx')">📄 Word</button><button type="button" class="gj-b" onclick="GIJIROKU.out('xlsx')">📊 Excel</button><button type="button" class="gj-b" onclick="GIJIROKU.image()">🖼 画像</button><button type="button" class="gj-b" onclick="GIJIROKU.copy()">📋 文字で コピー</button>
+      <button type="button" class="gj-b" onclick="GIJIROKU.saveOpen()">💾 保存・控え</button><button type="button" class="gj-b" onclick="GIJIROKU.nextMeet()">⏭ 次の 会議を 作る</button><button type="button" class="gj-b warn" onclick="GIJIROKU.del('${m.id}')">🗑 この 会議を 消す</button></div>`;
 }
 
 /* ───────── 直す ───────── */
@@ -526,8 +527,7 @@ function docHtml(m){
   if(m.memo) h+=`<div class="gj-di"><div class="gj-dih">その他</div><div class="gj-dp">${esc(m.memo)}</div></div>`;
   // 署名・押印の 欄（🖨 印刷に 出す で 選んだ 人だけ）
   if(m.pr.sg && (m.pr.c || m.pr.s)){
-    const who=m.pr.c && m.pr.s ? '議長 及び 議事録署名人' : m.pr.c ? '議長' : '議事録署名人';
-    h+=`<div class="gj-dsg"><p>以上の 議事の 経過と 結果を 明らかに するため、この 議事録を 作り、${who}が 署名 押印する。</p>
+    h+=`<div class="gj-dsg"><p>${esc(signText(m))}</p>
       <div class="gj-dsl">${esc(jd(todayS(), true))}</div>
       ${m.pr.c ? `<div class="gj-dsl">議　長　<span>${esc(m.chair)}</span>　印</div>` : ''}
       ${m.pr.s ? `<div class="gj-dsl">議事録署名人　<span>${esc(m.signs[0])}</span>　印</div>
@@ -547,6 +547,279 @@ function cal(){
   const go=()=>HyoIcs.sheet([ev], {file:'gijiroku-next.ics', name:'議事録', title:'次回を カレンダーに', note:(ev.allDay ? '終日の 予定で' : '1時間 前に 知らせる 予定で')+' 入れます。'});
   if(window.HyoIcs){ go(); return; }
   if(typeof loadSidePart==='function') loadSidePart(['hyoics.js']).then(ok=>{ if(ok && window.HyoIcs) go(); else toastS('カレンダーの 部品を 読めませんでした'); });
+}
+
+/* ───────── 📄 Word・📊 Excel・💾 保存（v609） ─────────
+   Word（.docx）・Excel（.xlsx）は 外の 部品なしで 作る（ZIP は 表電卓の xlsxZip）。中身は 印刷と 同じ（🖨 印刷に 出す の 選び方も 守る）。
+   💾 保存：この 端末に すぐ 保存して 知らせる。🗂 控え（.json）は この 道具で また 読める（機種変更・係の 交代）。表電卓 全体の バックアップからも 読める。 */
+const MIME={docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', json:'application/json'};
+const XP='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+// XML に 入れる 字（XML で 使えない 字は 外す）
+const xe=s=>{ let t=String(s==null ? '' : s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, ''); if(typeof t.toWellFormed==='function') t=t.toWellFormed(); return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+const enc8=s=>new TextEncoder().encode(s);
+const fstamp=()=>{ const d=new Date(); return d.getFullYear()+pad2(d.getMonth()+1)+pad2(d.getDate())+'-'+pad2(d.getHours())+pad2(d.getMinutes()); };
+// ファイルの 名前：gijiroku-20261030.docx（会議の 日付。日本語の 名前は ブラウザに よっては 捨てられて 開けない ファイルに なるので 英数字）
+const fname=(m, ext)=>'gijiroku-'+m.date.replace(/-/g, '')+'.'+ext;
+const subTitle=m=>mTitle(m)+(m.org && m.t ? '（'+m.org+'）' : '');
+const nextText=m=>m.next.date ? jd(m.next.date, true)+(m.next.st ? '　'+m.next.st : '')+(m.next.place ? '　'+m.next.place : '') : '';
+const signText=m=>'以上の 議事の 経過と 結果を 明らかに するため、この 議事録を 作り、'+(m.pr.c && m.pr.s ? '議長 及び 議事録署名人' : m.pr.c ? '議長' : '議事録署名人')+'が 署名 押印する。';
+const todoLine=t=>(t.done ? '☑ ' : '')+t.t+(t.who || t.due ? '（'+[t.who, t.due ? md(t.due)+' まで' : ''].filter(Boolean).join('・')+'）' : '');
+// 上の 表（日時・場所・出席者…）。印刷と 同じ 行（空の 行は 出さない）
+function infoRows(m){
+  const c=counts(m), q=quorum(m), names=s=>m.ppl.filter(p=>p.s===s).map(p=>p.n).join('、');
+  return [['日時', jd(m.date, true)+(m.st ? '　'+m.st+(m.en ? '〜'+m.en : '') : '')], ['場所', m.place],
+    ['出席者', c.p ? names('p')+'（'+c.p+'名）' : ''], ['欠席者', c.a ? names('a')+'（'+c.a+'名）' : ''], ['委任', c.d ? names('d')+'（'+c.d+'名）' : ''],
+    ['成立', q ? '会員 '+m.members+'名中　出席 '+c.p+'名・委任 '+c.d+'名　計 '+q.have+'名（過半数 '+q.need+'名）　'+(q.ok ? '成立' : '不成立') : ''],
+    ['議長', m.pr.c ? m.chair : ''], ['書記', m.pr.r ? m.rec : '']].filter(x=>x[1]);
+}
+function coreXml(title){ const t=new Date().toISOString().replace(/\.\d+Z$/, 'Z'); return `${XP}<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${xe(title)}</dc:title><dc:creator>表電卓 議事録</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${t}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${t}</dcterms:modified></cp:coreProperties>`; }
+const REL='http://schemas.openxmlformats.org/officeDocument/2006/relationships/', CT='application/vnd.openxmlformats-';
+const rels=a=>`${XP}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${a.map((x,i)=>`<Relationship Id="rId${i+1}" Type="${x[0]}" Target="${x[1]}"/>`).join('')}</Relationships>`;
+const types=a=>`${XP}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="${CT}package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>${a.map(x=>`<Override PartName="${x[0]}" ContentType="${x[1]}"/>`).join('')}<Override PartName="/docProps/core.xml" ContentType="${CT}package.core-properties+xml"/></Types>`;
+async function zipOf(files, type){
+  if(typeof xlsxZip!=='function') throw new Error('zip');
+  return new Blob([await xlsxZip(files.map(([name, s])=>({name, u8:enc8(s)})))], {type});
+}
+
+// ── 📄 Word（.docx）：A4 縦。題・上の 表・議題（左に 青い 線）・決定／採決・宿題の 表・次回・その他・署名欄 ──
+const W_NS='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+const W_TW=9638, W_IND=240, W_HL=840;   // 字の 幅（A4・左右 20mm）・本文の 字下げ・【決定】の 幅（twip）
+// 字の ならび（改行は 段落の 中で 行を かえる）。o:{b, sz, u}
+function wR(text, o){
+  o=o||{};
+  const rp=(o.b ? '<w:b/><w:bCs/>' : '')+(o.sz ? `<w:sz w:val="${o.sz}"/><w:szCs w:val="${o.sz}"/>` : '')+(o.u ? '<w:u w:val="single"/>' : '');
+  return String(text==null ? '' : text).split('\n').map((ln,i)=>`<w:r>${rp ? '<w:rPr>'+rp+'</w:rPr>' : ''}${i ? '<w:br/>' : ''}<w:t xml:space="preserve">${xe(ln)}</w:t></w:r>`).join('');
+}
+// 段落。o:{jc, keep（次と 離さない）, bar（議題の 見出し）, ind:[左, ぶら下げ], before, after}
+function wP(runs, o){
+  o=o||{};
+  return `<w:p><w:pPr>${o.keep ? '<w:keepNext/>' : ''}${o.bar ? '<w:pBdr><w:left w:val="single" w:sz="36" w:space="4" w:color="1F5AA6"/></w:pBdr><w:shd w:val="clear" w:color="auto" w:fill="F2F5FA"/>' : ''}<w:spacing w:before="${o.before||0}" w:after="${o.after||0}"/>${o.ind ? `<w:ind w:left="${o.ind[0]}"${o.ind[1] ? ` w:hanging="${o.ind[1]}"` : ''}/>` : ''}${o.jc ? `<w:jc w:val="${o.jc}"/>` : ''}</w:pPr>${runs||''}</w:p>`;
+}
+// 表。cols：列の 幅、rows：[[{t, b, fill, jc}]]、o:{ind, head（1行目は 見出し。ページを またぐと くり返す）}
+function wTbl(cols, rows, o){
+  o=o||{};
+  const bd=t=>`<w:${t} w:val="single" w:sz="4" w:space="0" w:color="555555"/>`;
+  return `<w:tbl><w:tblPr><w:tblW w:w="${cols.reduce((a,b)=>a+b, 0)}" w:type="dxa"/>${o.ind ? `<w:tblInd w:w="${o.ind}" w:type="dxa"/>` : ''}<w:tblBorders>${['top','left','bottom','right','insideH','insideV'].map(bd).join('')}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="45" w:type="dxa"/><w:left w:w="110" w:type="dxa"/><w:bottom w:w="45" w:type="dxa"/><w:right w:w="110" w:type="dxa"/></w:tblCellMar></w:tblPr>`
+    +'<w:tblGrid>'+cols.map(w=>`<w:gridCol w:w="${w}"/>`).join('')+'</w:tblGrid>'
+    +rows.map((r,ri)=>`<w:tr><w:trPr><w:cantSplit/>${o.head && !ri ? '<w:tblHeader/>' : ''}</w:trPr>${r.map((c,ci)=>`<w:tc><w:tcPr><w:tcW w:w="${cols[ci]}" w:type="dxa"/>${c.fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${c.fill}"/>` : ''}</w:tcPr>${wP(wR(c.t, {b:c.b}), {jc:c.jc})}</w:tc>`).join('')}</w:tr>`).join('')+'</w:tbl>';
+}
+// 何行かの 字は 1行ずつ 段落に（行の 中の 改行だと、両端 そろえで 字の すきまが 広がる）。lab：1行目の 頭の【決定】など（2行目からは その 幅だけ 下げる）
+function wPs(text, o, lab){ return String(text==null ? '' : text).split('\n').map((ln,i)=>!lab ? wP(wR(ln), o) : i ? wP(wR(ln), Object.assign({}, o, {ind:[W_IND+W_HL], before:0})) : wP(wR(lab, {b:true})+wR(ln), o)).join(''); }
+// 署名の 線：名前を まん中に、線の 長さを そろえる（全角 14字ぶん）
+function signPad(n){ let w=0; for(const ch of String(n||'')) w+=ch.charCodeAt(0)>0xFF ? 1 : 0.5; const p=Math.max(1, Math.round((14-w)/2)); return '　'.repeat(p)+(n||'')+'　'.repeat(p); }
+function docxXml(m){
+  const L=[], head=t=>wP(wR(t, {b:true, sz:23}), {keep:true, bar:true, before:240, after:80}), F='F1F3F5';
+  L.push(wP(wR('議　事　録', {b:true, sz:36}), {jc:'center', after:60}));
+  L.push(wP(wR(subTitle(m), {sz:24}), {jc:'center', after:240}));
+  L.push(wTbl([1540, W_TW-1540], infoRows(m).map(([k,v])=>[{t:k, b:true, fill:F}, {t:v}])));
+  m.items.forEach((it,k)=>{
+    L.push(head((k+1)+'．'+(it.t||'議題')));
+    if(it.memo) L.push(wPs(it.memo, {ind:[W_IND]}));
+    if(it.dec) L.push(wPs(it.dec, {ind:[W_IND+W_HL, W_HL], before:40}, '【決定】'));
+    const v=voteText(it.vote); if(v) L.push(wP(wR('【採決】', {b:true})+wR(v), {ind:[W_IND+W_HL, W_HL], before:40}));
+    if(it.todos.length){
+      const tw=W_TW-W_IND, c2=Math.round(tw*.22), c3=Math.round(tw*.16), c4=Math.round(tw*.08);
+      L.push(wP('', {after:40}));
+      L.push(wTbl([tw-c2-c3-c4, c2, c3, c4], [[{t:'宿題', b:true, fill:F}, {t:'担当', b:true, fill:F}, {t:'期限', b:true, fill:F}, {t:'済', b:true, fill:F, jc:'center'}]]
+        .concat(it.todos.map(t=>[{t:t.t}, {t:t.who}, {t:md(t.due)}, {t:t.done ? '☑' : '', jc:'center'}])), {ind:W_IND, head:true}));
+    }
+  });
+  if(m.next.date){ L.push(head('次回')); L.push(wP(wR(nextText(m)), {ind:[W_IND]})); }
+  if(m.memo){ L.push(head('その他')); L.push(wPs(m.memo, {ind:[W_IND]})); }
+  // 署名・押印の 欄（🖨 印刷に 出す で 選んだ 人だけ）。ページの 途中で 分かれない ように つなげる
+  if(m.pr.sg && (m.pr.c || m.pr.s)){
+    const who=(m.pr.c ? [['議　長', m.chair]] : []).concat(m.pr.s ? [['議事録署名人', m.signs[0]], ['議事録署名人', m.signs[1]]] : []);
+    L.push(wP(wR(signText(m)), {keep:true, before:600, after:300}));
+    L.push(wP(wR(jd(todayS(), true)), {keep:true, jc:'right', after:420}));
+    who.forEach(([lab, n], i)=>L.push(wP(wR(lab+'　')+wR(signPad(n), {u:true})+wR('　印'), {keep:i<who.length-1, jc:'right', after:420})));
+  }
+  L.push(wP(''));   // 表で 終わらない ように
+  return `${XP}<w:document ${W_NS}><w:body>${L.join('')}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567" w:gutter="0"/><w:cols w:space="425"/></w:sectPr></w:body></w:document>`;
+}
+const W_STY=`${XP}<w:styles ${W_NS}><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Yu Gothic" w:eastAsia="游ゴシック" w:hAnsi="Yu Gothic" w:cs="Yu Gothic"/><w:kern w:val="2"/><w:sz w:val="21"/><w:szCs w:val="21"/><w:lang w:val="en-US" w:eastAsia="ja-JP" w:bidi="ar-SA"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>`
+  +'<w:style w:type="paragraph" w:default="1" w:styleId="a"><w:name w:val="Normal"/><w:qFormat/><w:pPr><w:widowControl w:val="0"/><w:jc w:val="both"/></w:pPr></w:style>'
+  +'<w:style w:type="table" w:default="1" w:styleId="a1"><w:name w:val="Normal Table"/><w:uiPriority w:val="99"/><w:semiHidden/><w:unhideWhenUsed/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style></w:styles>';
+const W_SET=`${XP}<w:settings ${W_NS}><w:defaultTabStop w:val="840"/><w:characterSpacingControl w:val="compressPunctuation"/><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`;
+function docxFiles(m){
+  const W=CT+'officedocument.wordprocessingml.';
+  return [['[Content_Types].xml', types([['/word/document.xml', W+'document.main+xml'], ['/word/styles.xml', W+'styles+xml'], ['/word/settings.xml', W+'settings+xml']])],
+    ['_rels/.rels', rels([[REL+'officeDocument', 'word/document.xml'], ['http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties', 'docProps/core.xml']])],
+    ['docProps/core.xml', coreXml('議事録 '+subTitle(m))], ['word/document.xml', docxXml(m)],
+    ['word/_rels/document.xml.rels', rels([[REL+'styles', 'styles.xml'], [REL+'settings', 'settings.xml']])], ['word/styles.xml', W_STY], ['word/settings.xml', W_SET]];
+}
+
+// ── 📊 Excel（.xlsx）：「議事録」（印刷と 同じ ならび・議題は 1行ずつ）・「宿題」（しぼり込める）・「出席者」 ──
+const X_W=[10, 18, 40, 28, 16, 30];   // 議事録の シートの 列の 幅（No.と 見出し／議題／話し合ったこと／決まったこと／採決／宿題）
+const X_LH=18.75;   // 1行の 高さ（游ゴシック 11）
+const X_S={title:1, sub:2, lab:3, val:4, head:5, num:6, right:7, line:8, date:9, wrap:10, left:11};
+const xcol=i=>String.fromCharCode(65+i);
+// 折り返した ときの 行の 数（おおよそ。全角は 2字ぶん）。Excel は 開いた ときに 高さを 合わせない ので 先に 決める
+function xLines(t, w){ return String(t==null ? '' : t).split('\n').reduce((a, ln)=>{ let u=0; for(const ch of ln) u+=ch.charCodeAt(0)>0xFF ? 2.05 : 1.1; return a+Math.max(1, Math.ceil(u/Math.max(4, w-1.5))); }, 0); }
+const xSerial=s=>Math.round((Date.UTC(+s.slice(0,4), +s.slice(5,7)-1, +s.slice(8,10))-Date.UTC(1899, 11, 30))/86400000);
+// 1枚の シート。rows：[{c:[{v, s, n（数）, span（右へ つなぐ 数）}|null], h}|null（空の 行）]、o:{w:列の 幅, grid:false（線を 出さない）, land（横向き）, freeze（1行目を 止める）, filter}
+function xSheet(rows, o){
+  const merges=[];
+  const body=rows.map((r,ri)=>{
+    if(!r) return '';
+    const R=ri+1; let at=0, lines=1;
+    const cells=r.c.map(c=>{
+      const i=at; if(!c){ at++; return ''; }
+      const span=c.span||1, st=c.s ? ` s="${c.s}"` : '', empty=c.v==null || c.v==='';
+      at+=span;
+      if(!empty && !c.n) lines=Math.max(lines, xLines(c.v, o.w.slice(i, i+span).reduce((a,b)=>a+b, 0)));
+      if(span>1) merges.push(xcol(i)+R+':'+xcol(i+span-1)+R);
+      let x=empty ? `<c r="${xcol(i)}${R}"${st}/>` : c.n ? `<c r="${xcol(i)}${R}"${st}><v>${+c.v}</v></c>` : `<c r="${xcol(i)}${R}"${st} t="inlineStr"><is><t xml:space="preserve">${xe(c.v)}</t></is></c>`;
+      for(let k=1;k<span;k++) x+=`<c r="${xcol(i+k)}${R}"${st}/>`;
+      return x;
+    }).join('');
+    const ht=r.h || (lines>1 ? Math.min(409, Math.ceil(lines*X_LH)+3) : 0);
+    return `<row r="${R}"${ht ? ` ht="${ht}" customHeight="1"` : ''}>${cells}</row>`;
+  }).join('');
+  return `${XP}<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0"${o.grid===false ? ' showGridLines="0"' : ''}>${o.freeze ? '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>' : ''}</sheetView></sheetViews>`
+    +`<sheetFormatPr defaultRowHeight="${X_LH}"/><cols>${o.w.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${body}</sheetData>${o.filter ? `<autoFilter ref="${o.filter}"/>` : ''}`
+    +`${merges.length ? `<mergeCells count="${merges.length}">${merges.map(x=>`<mergeCell ref="${x}"/>`).join('')}</mergeCells>` : ''}<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="${o.land ? 'landscape' : 'portrait'}" fitToWidth="1" fitToHeight="0"/></worksheet>`;
+}
+function xlsxSheets(m){
+  const S=X_S, R=[];
+  R.push({c:[{v:'議　事　録', s:S.title, span:6}], h:30});
+  R.push({c:[{v:subTitle(m), s:S.sub, span:6}], h:22});
+  R.push(null);
+  infoRows(m).forEach(([k,v])=>R.push({c:[{v:k, s:S.lab}, {v, s:S.val, span:5}]}));
+  if(m.items.length){
+    R.push(null);
+    R.push({c:['No.', '議題', '話し合ったこと', '決まったこと', '採決', '宿題（担当・期限）'].map(v=>({v, s:S.head})), h:24});
+    m.items.forEach((it,k)=>R.push({c:[{v:k+1, n:true, s:S.num}, {v:it.t||'議題', s:S.val}, {v:it.memo, s:S.val}, {v:it.dec, s:S.val}, {v:voteText(it.vote), s:S.val}, {v:it.todos.map(todoLine).join('\n'), s:S.val}]}));
+  }
+  if(m.next.date || m.memo){
+    R.push(null);
+    if(m.next.date) R.push({c:[{v:'次回', s:S.lab}, {v:nextText(m), s:S.val, span:5}]});
+    if(m.memo) R.push({c:[{v:'その他', s:S.lab}, {v:m.memo, s:S.val, span:5}]});
+  }
+  if(m.pr.sg && (m.pr.c || m.pr.s)){
+    R.push(null);
+    R.push({c:[{v:signText(m), s:S.wrap, span:6}], h:24});
+    R.push({c:[null, null, null, null, {v:jd(todayS(), true), s:S.right, span:2}], h:28});
+    const line=(lab, n)=>R.push({c:[null, null, null, {v:lab, s:S.right}, {v:n, s:S.line}, {v:'印', s:S.left}], h:32});
+    if(m.pr.c) line('議　長', m.chair);
+    if(m.pr.s){ line('議事録署名人', m.signs[0]); line('議事録署名人', m.signs[1]); }
+  }
+  const sheets=[['議事録', xSheet(R, {w:X_W, grid:false, land:true})]];
+  const td=m.items.flatMap((it,k)=>it.todos.map(t=>({k, it, t})));
+  if(td.length){
+    const T=[{c:['No.', '議題', '宿題', '担当', '期限', '済'].map(v=>({v, s:S.head})), h:24}];
+    td.forEach(({k, it, t})=>T.push({c:[{v:k+1, n:true, s:S.num}, {v:it.t||'議題', s:S.val}, {v:t.t, s:S.val}, {v:t.who, s:S.val}, t.due ? {v:xSerial(t.due), n:true, s:S.date} : {v:'', s:S.val}, {v:t.done ? '☑' : '', s:S.num}]}));
+    sheets.push(['宿題', xSheet(T, {w:[6, 20, 36, 14, 12, 6], freeze:true, filter:'A1:F'+T.length})]);
+  }
+  if(m.ppl.length){
+    const c=counts(m), P=[{c:['No.', '名前', '出欠'].map(v=>({v, s:S.head})), h:24}];
+    m.ppl.forEach((p,i)=>P.push({c:[{v:i+1, n:true, s:S.num}, {v:p.n, s:S.val}, {v:ST[p.s], s:S.num}]}));
+    P.push(null); P.push({c:[{v:'出席 '+c.p+'人'+(c.a ? '・欠席 '+c.a+'人' : '')+(c.d ? '・委任 '+c.d+'人' : ''), s:S.left, span:3}]});
+    sheets.push(['出席者', xSheet(P, {w:[6, 24, 10], freeze:true})]);
+  }
+  return sheets;
+}
+const X_FONT=(b, sz)=>`<font>${b ? '<b/>' : ''}<sz val="${sz}"/><name val="游ゴシック"/><family val="3"/><charset val="128"/></font>`;
+const X_FILL=c=>`<fill><patternFill patternType="solid"><fgColor rgb="FF${c}"/><bgColor indexed="64"/></patternFill></fill>`;
+const X_XF=(f, fill, bd, al, num)=>`<xf numFmtId="${num||0}" fontId="${f}" fillId="${fill}" borderId="${bd}" xfId="0"${num ? ' applyNumberFormat="1"' : ''}${f ? ' applyFont="1"' : ''}${fill ? ' applyFill="1"' : ''}${bd ? ' applyBorder="1"' : ''}${al ? ` applyAlignment="1"><alignment ${al}/></xf>` : '/>'}`;
+const X_THIN=`<left style="thin"><color rgb="FF808080"/></left><right style="thin"><color rgb="FF808080"/></right><top style="thin"><color rgb="FF808080"/></top><bottom style="thin"><color rgb="FF808080"/></bottom>`;
+const X_XFS=[X_XF(0,0,0), X_XF(2,0,0,'horizontal="center" vertical="center"'), X_XF(3,0,0,'horizontal="center" vertical="center" wrapText="1"'), X_XF(1,2,1,'vertical="top" wrapText="1"'), X_XF(0,0,1,'vertical="top" wrapText="1"'),
+  X_XF(1,3,1,'horizontal="center" vertical="center" wrapText="1"'), X_XF(0,0,1,'horizontal="center" vertical="top"'), X_XF(0,0,0,'horizontal="right" vertical="center"'), X_XF(0,0,2,'horizontal="center" vertical="center"'),
+  X_XF(0,0,1,'horizontal="center" vertical="top"', 164), X_XF(0,0,0,'vertical="top" wrapText="1"'), X_XF(0,0,0,'horizontal="left" vertical="center"')];
+const X_STY=`${XP}<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="yyyy/m/d"/></numFmts>`
+  +`<fonts count="4">${X_FONT(0,11)}${X_FONT(1,11)}${X_FONT(1,16)}${X_FONT(0,12)}</fonts>`
+  +`<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>${X_FILL('F1F3F5')}${X_FILL('DCE6F1')}</fills>`
+  +`<borders count="3"><border><left/><right/><top/><bottom/><diagonal/></border><border>${X_THIN}<diagonal/></border><border><left/><right/><top/><bottom style="thin"><color rgb="FF000000"/></bottom><diagonal/></border></borders>`
+  +`<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${X_XFS.length}">${X_XFS.join('')}</cellXfs><cellStyles count="1"><cellStyle name="標準" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+function xlsxFiles(m){
+  const sh=xlsxSheets(m), X=CT+'officedocument.spreadsheetml.';
+  const wb=`${XP}<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sh.map((x,i)=>`<sheet name="${xe(x[0])}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets></workbook>`;
+  return [['[Content_Types].xml', types([['/xl/workbook.xml', X+'sheet.main+xml'], ...sh.map((x,i)=>['/xl/worksheets/sheet'+(i+1)+'.xml', X+'worksheet+xml']), ['/xl/styles.xml', X+'styles+xml']])],
+    ['_rels/.rels', rels([[REL+'officeDocument', 'xl/workbook.xml'], ['http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties', 'docProps/core.xml']])],
+    ['docProps/core.xml', coreXml('議事録 '+subTitle(m))], ['xl/workbook.xml', wb],
+    ['xl/_rels/workbook.xml.rels', rels(sh.map((x,i)=>[REL+'worksheet', 'worksheets/sheet'+(i+1)+'.xml']).concat([[REL+'styles', 'styles.xml']]))], ['xl/styles.xml', X_STY]]
+    .concat(sh.map((x,i)=>['xl/worksheets/sheet'+(i+1)+'.xml', x[1]]));
+}
+
+// ── 💾 保存・送る ──
+let fileHow='save', fileAll=false, busy=false;   // ⬇ 端末に 保存／📤 送る・控えに ぜんぶの 会議を 入れる か（覚えない）
+function canShareAs(kind){ try{ return !!(navigator.share && navigator.canShare && navigator.canShare({files:[new File(['x'], 'a.'+kind, {type:MIME[kind]})]})); }catch(_){ return false; } }
+const shareAny=()=>['docx','xlsx','json'].some(canShareAs);
+function dlBlob(blob, name){
+  const a=Object.assign(document.createElement('a'), {href:URL.createObjectURL(blob), download:name});
+  document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+// 端末に 保存 か 📤 送る（送れない 端末・種類は 保存に する）
+async function give(blob, name, kind, what){
+  if(fileHow==='share' && canShareAs(kind)){
+    try{ await navigator.share({files:[new File([blob], name, {type:MIME[kind]})], title:name}); toastS('📤 '+what+'を 送りました'); return 'share'; }
+    catch(e){ if(e && e.name==='AbortError') return ''; }
+  }
+  dlBlob(blob, name); toastS('⬇ '+what+'を 保存しました：'+name, 4200); return 'save';
+}
+// 📄 Word・📊 Excel に する（いま 開いている 会議）
+async function out(kind){
+  const m=mOf(cur); if(!m || busy) return null;
+  save(); busy=true;
+  try{
+    const blob=await zipOf(kind==='xlsx' ? xlsxFiles(m) : docxFiles(m), MIME[kind==='xlsx' ? 'xlsx' : 'docx']);
+    await give(blob, fname(m, kind==='xlsx' ? 'xlsx' : 'docx'), kind==='xlsx' ? 'xlsx' : 'docx', kind==='xlsx' ? 'Excel の ファイル' : 'Word の ファイル');
+    return blob;
+  }catch(e){ if(window.console) console.error(e); toastS('ファイルに できませんでした'); return null; }
+  finally{ busy=false; }
+}
+// 🗂 控え（.json）：この 会議 か ぜんぶの 会議
+function fileJson(all){ const m=mOf(cur), list=all || !m ? st.list : [m]; return JSON.stringify({app:'hyodenki', type:'gijiroku', version:1, exportedAt:new Date().toISOString(), list}); }
+async function saveJson(){
+  const m=mOf(cur), all=fileAll || !m;
+  if(!st.list.length){ toastS('会議が ありません'); return ''; }
+  save();
+  return give(new Blob([fileJson(all)], {type:MIME.json}), 'gijiroku-'+fstamp()+'.json', 'json', all ? '控え（会議 '+st.list.length+'件）' : '控え（'+mTitle(m)+'）');
+}
+function fileHtml(ok){
+  const m=mOf(cur), n=st.list.length, sh=shareAny(), how=sh ? fileHow : 'save', d=new Date();
+  return `<div class="gj-ph"><span>💾</span><b>${m ? '保存' : '議事録の 控え'}</b><button type="button" class="gj-x" onclick="GIJIROKU.close()" aria-label="閉じる">✕</button></div>
+    ${m ? `<p class="gj-saved${ok ? '' : ' ng'}">${ok ? '✅ この 端末に 保存しました（'+pad2(d.getHours())+':'+pad2(d.getMinutes())+'）' : '⚠ この 端末に 保存 できませんでした（空きが 足りません）'}<small>書いた ことは 自動でも 保存 されます。一覧から いつでも 開けます。</small></p>`
+      : `<p class="gj-note">会議（${n}件）は この 端末に 自動で 保存 されています。控えの ファイルに すると、機種変更や 係の 交代の ときに 渡せます。</p>`}
+    ${sh ? `<div class="gj-seg hw" role="group" aria-label="ファイルの 渡し方"><button type="button" class="${how==='save' ? 'on' : ''}" aria-pressed="${how==='save'}" onclick="GIJIROKU.fileHow('save')">⬇ 端末に 保存</button><button type="button" class="${how==='share' ? 'on' : ''}" aria-pressed="${how==='share'}" onclick="GIJIROKU.fileHow('share')">📤 送る（LINE・メール）</button></div>` : ''}
+    ${m ? `<h5 class="gj-fh">📁 Word・Excel の ファイルに する</h5>
+      <div class="gj-fk"><button type="button" class="gj-fc w" onclick="GIJIROKU.out('docx')"><b>📄 Word</b><small>.docx・文書の 形で 直せる</small></button><button type="button" class="gj-fc x" onclick="GIJIROKU.out('xlsx')"><b>📊 Excel</b><small>.xlsx・表の 形で 直せる</small></button></div>` : ''}
+    <h5 class="gj-fh">🗂 議事録の 控え（.json）</h5>
+    <p class="gj-note sm">この 道具で また 開けます（機種変更・係の 交代・ほかの 端末へ）。</p>
+    ${m && n>1 ? `<div class="gj-seg sc" role="group" aria-label="控えに 入れる 会議"><button type="button" class="${fileAll ? '' : 'on'}" aria-pressed="${!fileAll}" onclick="GIJIROKU.fileAll(false)">この 会議</button><button type="button" class="${fileAll ? 'on' : ''}" aria-pressed="${fileAll}" onclick="GIJIROKU.fileAll(true)">ぜんぶの 会議（${n}）</button></div>` : ''}
+    <div class="gj-fbtns">${n ? `<button type="button" class="gj-b" onclick="GIJIROKU.saveJson()">🗂 控えを ${how==='share' ? '送る' : '保存'}</button>` : ''}<button type="button" class="gj-b" onclick="GIJIROKU.fileIn()">📂 控えを 読む</button></div>
+    <p class="gj-note sm">読むと、同じ 会議は ファイルの 内容に 置きかわり、ほかの 会議は 足されます（聞いてから）。表電卓 全体の バックアップ ファイルからも 読めます。</p>`;
+}
+// 💾 保存：すぐ この 端末に 保存して、ファイルにも できる 窓を 出す
+function saveOpen(){ const ok=save(); popOpen(fileHtml(ok)); if(pop) pop.kind='file'; return ok; }
+function popFile(){ if(!pop || pop.kind!=='file') return; const b=pop.el.querySelector('.gj-pop'); if(b) b.innerHTML=fileHtml(true); }
+function setHow(h){ fileHow=h==='share' ? 'share' : 'save'; popFile(); }
+function setAll(a){ fileAll=!!a; popFile(); }
+// 📂 控えを 読む
+function fileIn(){ const i=$('gjFileIn'); if(i){ i.value=''; i.click(); } }
+async function fileGot(inp){
+  const f=inp && inp.files && inp.files[0]; if(inp) inp.value=''; if(!f) return 0;
+  if(f.size>8000000){ toastS('ファイルが 大きすぎます'); return 0; }
+  let t=''; try{ t=await f.text(); }catch(_){ toastS('ファイルを 読めませんでした'); return 0; }
+  return importText(t, f.name);
+}
+// 中身を 読む：議事録の 控え・この 端末の 中身の 形・表電卓 全体の バックアップ（settings.excalc_gijiroku）
+async function importText(t, name){
+  let o=null; try{ o=JSON.parse(String(t||'')); }catch(_){}
+  if(o && o.settings && typeof o.settings.excalc_gijiroku==='string'){ try{ o=JSON.parse(o.settings.excalc_gijiroku); }catch(_){ o=null; } }
+  const list=(o && typeof o==='object' && Array.isArray(o.list) && (o.type==='gijiroku' || !o.type) ? o.list : []).map(cleanM).filter(Boolean);
+  list.forEach((x,i,a)=>{ if(a.findIndex(y=>y.id===x.id)<i) x.id=rid(); });
+  if(!list.length){ toastS('議事録の 控えの ファイルでは ありません'); return 0; }
+  const rep=list.filter(x=>st.list.some(y=>y.id===x.id)), add=list.filter(x=>!st.list.some(y=>y.id===x.id)), room=Math.max(0, MAX_M-st.list.length), over=Math.max(0, add.length-room);
+  if(!rep.length && add.length<=over){ toastS('会議が いっぱいで 読めません（'+MAX_M+' まで）'); return 0; }
+  const msg='「'+oneLine(name||'ファイル', 40)+'」から 会議を 読みます。'+(add.length>over ? '\n・新しく 足す 会議：'+(add.length-over)+'件' : '')+(rep.length ? '\n・同じ 会議を ファイルの 内容に 置きかえ：'+rep.length+'件' : '')+(over ? '\n・'+over+'件は 入りません（会議は '+MAX_M+' まで）' : '');
+  if(typeof appConfirm==='function' && !(await appConfirm(msg, '読む', 'やめる'))) return 0;
+  rep.forEach(x=>{ const i=st.list.findIndex(y=>y.id===x.id); if(i>=0) st.list[i]=x; });
+  add.slice(0, add.length-over).forEach(x=>st.list.push(x));
+  const n=rep.length+add.length-over;
+  if(!cur){ st.ui.tab='list'; st.ui.org=''; }
+  save(); popClose(); render();
+  toastS('📂 '+n+'件の 会議を 読みました', 3200);
+  return n;
 }
 
 /* ───────── 窓 ───────── */
@@ -625,6 +898,15 @@ const CSS=`
 .gj-agg h5{ margin:10px 0 4px; font-size:13.5px; } .gj-agg[hidden]{ display:none; } .gj-agc{ display:flex; flex-wrap:wrap; gap:5px; }
 .gj-ag{ min-height:38px; padding:0 12px; border-radius:19px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:13.5px; cursor:pointer; } .gj-ag[hidden]{ display:none; }
 .gj-ag.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); font-weight:bold; } .gj-ag.have{ opacity:.45; text-decoration:line-through; cursor:default; }
+.gj-eh .gj-sv{ flex:none; }
+.gj-saved{ margin:0 0 10px; padding:10px 12px; border-radius:12px; background:rgba(46,157,74,.12); font-size:14.5px; font-weight:bold; line-height:1.6; } .gj-saved small{ display:block; font-size:12.5px; font-weight:normal; color:var(--text-light,#666); } .gj-saved.ng{ background:rgba(229,57,53,.1); color:#c62828; }
+.gj-seg{ display:flex; gap:6px; margin:4px 0 8px; } .gj-seg button{ flex:1; min-width:0; min-height:42px; padding:0 8px; border-radius:21px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:14px; font-weight:bold; cursor:pointer; } .gj-seg button.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); }
+.gj-fh{ margin:14px 0 6px; font-size:14.5px; }
+.gj-fk{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.gj-fc{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; min-height:76px; padding:8px; border-radius:14px; border:2px solid rgba(120,132,156,.45); background:rgba(120,132,156,.06); color:var(--text,#222); cursor:pointer; font:inherit; text-align:center; }
+.gj-fc b{ font-size:18px; } .gj-fc small{ font-size:12px; color:var(--text-light,#666); line-height:1.4; } .gj-fc.w{ border-color:rgba(43,87,154,.65); } .gj-fc.x{ border-color:rgba(33,115,70,.65); }
+.gj-fbtns{ display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 0; } .gj-fbtns .gj-b{ flex:1 1 150px; }
+body.dark .gj-saved.ng{ color:#ff8a80; } body.dark .gj-fc.w{ border-color:rgba(120,160,230,.7); } body.dark .gj-fc.x{ border-color:rgba(100,190,140,.7); }
 body.dark .gj-p .nm small{ color:#a5d6a7; } body.dark .gj-p.s-d .nm small{ color:#ffcc80; } body.dark .gj-card em, body.dark .gj-q.ng{ color:#ff8a80; } body.dark .gj-td.late .tx small:first-of-type{ color:#ff8a80; }
 @media (max-width:520px){ .gj-f > span{ min-width:3.8em; } }
 `;
@@ -636,6 +918,7 @@ function ensureDom(){
   <div class="modal vol-modal gj-modal modal-full" style="position:relative">
     <div class="modal-header"><span>📝 議事録</span><button class="modal-close" onclick="closeGijiroku()" aria-label="閉じる">✕</button></div>
     <div class="gj-body" id="gjBody"></div>
+    <input type="file" id="gjFileIn" accept=".json,application/json" hidden onchange="GIJIROKU.fileGot(this)">
   </div></div>`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
   const ov=$('gijirokuOverlay');
@@ -655,10 +938,12 @@ function closeGijiroku(){ if(!$('gijirokuOverlay') || !isDlgOpen('gijirokuOverla
 
 window.GIJIROKU={ tab:k=>{ st.ui.tab=k==='todo' ? 'todo' : 'list'; save(); render(); }, org:o=>{ st.ui.org=oneLine(o, 40); save(); render(); }, who:w=>{ st.ui.who=oneLine(w, 30); save(); render(); },
   add, tpl:setTpl, addGo, addOrg, open:openM, pr:setPr, decAdd, agOpen, agToggle, agFilter, agGo, back, del, set:setF, time, padd, paste, pick, pprev, pst, pdel, iadd, imove, idel, tadd, tdel, tdone, done:doneAny, vote, mic, close:popClose,
-  print, image, copy, cal, nextMeet,
+  print, image, copy, cal, nextMeet, saveOpen, out, saveJson, fileHow:setHow, fileAll:setAll, fileIn, fileGot,
   // ためす とき 用
   today:s=>{ fixedToday=s ? String(s) : null; if(st) render(); }, state:()=>JSON.parse(JSON.stringify(st)), cur:()=>cur, text:id=>{ const m=mOf(id||cur); return m ? plainText(m) : ''; },
   doc:id=>{ const m=mOf(id||cur); return m ? docHtml(m) : ''; }, newMeet:(org,tpl,cp)=>{ const m=newMeet(org, tpl, cp); return m.id; }, quorum:id=>{ const m=mOf(id||cur); return m ? quorum(m) : null; }, voteText, calEv:id=>{ const m=mOf(id||cur); return m ? calEv(m) : null; },
-  parseTime, tpls:()=>TPL.map(t=>t[0]), agAll:()=>AG_ALL.slice(), openTodos:()=>openTodos().map(x=>x.t.t+'@'+(x.t.who||'')+'@'+(x.t.due||'')) };
+  parseTime, tpls:()=>TPL.map(t=>t[0]), agAll:()=>AG_ALL.slice(),
+  files:(id, kind)=>{ const m=mOf(id||cur); return m ? (kind==='xlsx' ? xlsxFiles(m) : docxFiles(m)) : null; }, blob:async (id, kind)=>{ const m=mOf(id||cur); return m ? zipOf(kind==='xlsx' ? xlsxFiles(m) : docxFiles(m), MIME[kind==='xlsx' ? 'xlsx' : 'docx']) : null; },
+  fname:(id, ext)=>{ const m=mOf(id||cur); return m ? fname(m, ext) : ''; }, fileJson, importText, xLines, xSerial, signPad, openTodos:()=>openTodos().map(x=>x.t.t+'@'+(x.t.who||'')+'@'+(x.t.due||'')) };
 Object.assign(window, { openGijiroku, closeGijiroku });
 })();
