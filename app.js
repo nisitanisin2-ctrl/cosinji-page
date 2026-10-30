@@ -5114,6 +5114,9 @@ const KEY_FUNCS={
   a_shukin:{g:'設定・機能',label:'📋出欠・集金表',short:'集金',run:()=>openShukin()},   // v579
   a_shiori:{g:'設定・機能',label:'🧳旅のしおり',short:'しおり',run:()=>openShiori()},   // v579
   a_bingo:{g:'設定・機能',label:'🎱ビンゴ',short:'ビンゴ',run:()=>openBingo()},   // v587
+  a_mikurabe:{g:'設定・機能',label:'📸見比べ',short:'見比べ',run:()=>openMikurabe()},   // v605
+  a_gijiroku:{g:'設定・機能',label:'📝議事録',short:'議事録',run:()=>openGijiroku()},   // v605
+  a_sentaku:{g:'設定・機能',label:'🧺洗濯表示',short:'洗濯',run:()=>openSentaku()},   // v605
   a_chart:{g:'設定・機能',label:'📊表からグラフ',short:'グラフ',run:()=>hpRun('chart')},   // v563 表を強くする
   a_cfmt:{g:'設定・機能',label:'🎨条件で色',short:'条件色',run:()=>hpRun('cf')},
   a_filter:{g:'設定・機能',label:'🔎しぼり込み',short:'しぼる',run:()=>hpRun('filter')},
@@ -8187,6 +8190,11 @@ sidePartOpener('openShiori', ['shiori.js'], '旅のしおり');
 window.closeYatta=function(){}; window.closeShukin=function(){}; window.closeShiori=function(){};
 /* ── 🎱 ビンゴ（v587。bingo.js。抽選器が まわって 玉が 出る・出た 数の 表・カード）── */
 sidePartOpener('openBingo', ['bingo.js'], 'ビンゴ');
+/* ── 📸 見比べ・📝 議事録・🧺 洗濯表示（v605。mikurabe.js・gijiroku.js・sentaku.js）── */
+sidePartOpener('openMikurabe', ['mikurabe.js'], '見比べ');
+sidePartOpener('openGijiroku', ['gijiroku.js'], '議事録');
+sidePartOpener('openSentaku', ['sentaku.js'], '洗濯表示');
+window.closeMikurabe=function(){}; window.closeGijiroku=function(){}; window.closeSentaku=function(){};
 /* ── 📝 試験報告書（v600。単位水量・カンタブの 報告書と カンタブの 1ページ。shiken.js に 分けてある）── */
 ['openShikenRep','ktPdf','ktImage','shikenPrint','shikenImage'].forEach(n=>sidePartOpener(n, ['shiken.js'], '試験報告書'));
 window.closeShikenRep=function(){};
@@ -8713,6 +8721,9 @@ const NP_TOOLS=[
   {id:'shukin',   label:'📋出欠・集金表',ov:'shukinOverlay',    run:()=>openShukin(),   close:()=>closeShukin()},   // shukin.js（開いたときに読む。v579）
   {id:'shiori',   label:'🧳旅のしおり', ov:'shioriOverlay',    run:()=>openShiori(),   close:()=>closeShiori()},   // shiori.js（開いたときに読む。v579）
   {id:'bingo',    label:'🎱ビンゴ',     ov:'bingoOverlay',     run:()=>openBingo(),    close:()=>closeBingo()},    // bingo.js（開いたときに読む。v587）
+  {id:'mikurabe', label:'📸見比べ',     ov:'mikurabeOverlay',  run:()=>openMikurabe(), close:()=>closeMikurabe()}, // mikurabe.js（開いたときに読む。v605）
+  {id:'gijiroku', label:'📝議事録',     ov:'gijirokuOverlay',  run:()=>openGijiroku(), close:()=>closeGijiroku()}, // gijiroku.js（開いたときに読む。v605）
+  {id:'sentaku',  label:'🧺洗濯表示',   ov:'sentakuOverlay',   run:()=>openSentaku(),  close:()=>closeSentaku()},  // sentaku.js（開いたときに読む。v605）
   {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},                        // 別のアプリとして開くので全画面・フリックの対象外
   {id:'calctmpl', label:'📋式テンプレ', ov:'calcTmplOverlay',  run:()=>openCalcTmpl(), close:()=>closeCalcTmpl()},
   {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
@@ -15452,6 +15463,9 @@ const TOOL_HINTS={
   shukin:'町内会・PTA・同窓会 などの 名簿に、出欠（出席・欠席・未定）と 集金の ✓ を つけます（出欠だけ・集金だけ の 表も）。上に 合計と まだの 人数・金額。↕ で 順番も かえられ、印刷・コピー・💾 ファイルに 保存も できます',
   shiori:'旅行ごとに 🗓 日程・🎒 持ち物・💴 お金・🎁 お土産・🏨 宿と 連絡先・💱 外貨の 換算を 1つに まとめます。「📋 しおりを コピー」で LINE に 送れます。予定の 場所を 押すと 地図、🗺 その日の 道順も 開けます',
   bingo:'「🎱 まわす」で 抽選器が ガラガラ まわり、玉が コロコロ 出て「B の 12」と 大きく 出ます（読み上げも）。出た 数は 表に 色が つき、出た 順も わかります。⛶ 大きく で テレビにも。⚙ で 🔍 ズーム・🎆 演出の 強さ（ド派手 など）。🃏 カード で 手元の カード・印刷も できます。📱 の QR で 参加する 人の スマホに カードを 配れます',
+  mikurabe:'「＋ 新しい 見比べ」で 前と 後の 写真を 入れると、境目を 指で 動かして 見比べられます（⇆ 並べる・👻 透かす も）。「👻 前に 合わせて 撮る」は 前の 写真を 薄く 重ねて 同じ 向きで 撮れます。「🖼 並べた 画像」で 保存・送る。',
+  gijiroku:'「＋ 新しい 会議」で ひな形（定例会・総会・職場の 会議 など）を えらび、出席者（📇 名簿から）・議題・決まったこと・宿題（だれが・いつまで）を 入れます。「🖨 印刷・PDF」で 署名欄つきの 議事録に。宿題は「📌 宿題」と 次の 会議で 確かめられます。',
+  sentaku:'服の タグの 記号を 絵から えらぶと、洗い方・乾燥機・アイロンの 温度などが 下に 出ます。「📒 メモに 残す」で 家族の 服の お手入れメモ（写真つき）に。「📜 古い 表示」で 昔の 記号も 読めます。',
   ruler:'はじめに「🎯 校正」でカードや硬貨を画面に当てて合わせると、定規が正しい長さになります。「📷 写真で測る」は基準の物と並べて撮ってなぞります。',
   keisan:'8つの計算から選びます。入れた数は覚えるので、次も続きから使えます。',
   kurashi:'10のテーマから選ぶか、上の欄で「AED」「死亡届」「失業保険」のようにさがします。ページの中の 🧮 道具で、期限や金額の目安も出せます。🔖 つづきから・🔈 読み上げ も。',
@@ -15542,10 +15556,10 @@ function homeSetStartup(on){ setStartPage(on?'home':'last'); }
    ★よく使う（自分で選ぶ。選んでいなければ さいきん使ったもの）→ まとまりごと → 隠している道具（畳む）。
    ☰・ホーム・🧰ボタンのどこから開いても同じ窓。隠した道具も下の「隠している道具」から開ける */
 const TOOL_CATS=[
-  ['🏠 くらし',   ['keisan','hadetimer','hadecount','yatta','shukin','shiori','tatekae','kuji','bingo','okaeshi','koyomi','hoi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
+  ['🏠 くらし',   ['keisan','hadetimer','hadecount','yatta','shukin','shiori','tatekae','kuji','bingo','sentaku','okaeshi','koyomi','hoi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
   ['📖 知識・手引き',['kurashi','manner','boki']],   // 計算ではなく読む道具（v513）
-  ['💼 仕事',     ['techo','seikyu','meishi','calctmpl','fintmpl','kaikei']],
-  ['🏗 現場・畑', ['tansui','kantab','dasetsu','volume','ruler','kakudo','veggie']],
+  ['💼 仕事',     ['techo','gijiroku','seikyu','meishi','calctmpl','fintmpl','kaikei']],
+  ['🏗 現場・畑', ['tansui','kantab','dasetsu','volume','mikurabe','ruler','kakudo','veggie']],
   ['📚 声・まなぶ',['koe','hitsudan','eigo','sansu','kakijun','soroban']],
   ['🏨 お店・宿', ['regi','heya','annai','keijiban']],
 ];
@@ -15812,7 +15826,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v604';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v605';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -18312,6 +18326,9 @@ const ST_GROUPS=[
   {k:'excalc_shukin',     n:'出欠・集金表（名簿・出欠・集金）'},
   {k:'excalc_shiori',     n:'旅のしおり（日程・持ち物・お金・お土産・宿）'},
   {k:'excalc_bingo',      n:'ビンゴ（出た 数・設定・自分の カード）'},
+  {k:'excalc_mikurabe',   n:'見比べ（組の 名前・日付・メモ。写真は 別）'},
+  {k:'excalc_gijiroku',   n:'議事録（会議・出席者・議題・宿題）'},
+  {k:'excalc_sentaku',    n:'洗濯表示（お手入れメモ。写真は 別）'},
   {k:'excalc_shiken',     n:'試験報告書の 見出し（工事名・試験者 など）'},
   {k:'excalc_yomi',       n:'読みものの しおり・最近 見た ページ（マナー帳・会計の手引き・便利帳）'},
   {k:'excalc_receipt',    n:'読み取ったレシート（道具は外しました）', how:'clear'},   // v561〜v563 の 📷レシート読み取りの残り。勝手には消さない
@@ -18509,6 +18526,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_bingo',   // 🎱ビンゴ（v587）
   'excalc_shiken',   // 📝試験報告書の 見出し（v600）
   'excalc_yomi',   // 📖読みものの しおり・最近 見た（v601）
+  'excalc_mikurabe','excalc_gijiroku','excalc_sentaku',   // 📸見比べ・📝議事録・🧺洗濯表示（v605。写真は 書き出すときに 聞く）
 ];
 function settingsBundle(){
   const o={};
@@ -18680,6 +18698,38 @@ async function renrakuRestoreBundle(inc, pics){
   await window.rkMergeStored(inc, pics);
   return true;
 }
+/* 📸見比べ・🧺洗濯表示の お手入れメモ（v605）の 写真は、それぞれの IndexedDB（store 'pics'）。中身（設定と いっしょに 入る）が 使っている ものだけ 書き出し、
+   読み込むときは 設定を 読み込む ときに いっしょに 入れる */
+const TOOL_PIC_DBS=[
+  {db:'excalc_mikurabe', pay:'mikurabePics', n:'📸見比べの 写真', no:'名前・日付・メモだけ', ids:o=>(Array.isArray(o.list)?o.list:[]).flatMap(p=>p?[p.a,p.b]:[]).flatMap(x=>x?[x.pic,x.thumb]:[])},
+  {db:'excalc_sentaku', pay:'sentakuPics', n:'🧺洗濯表示の 服・タグの 写真', no:'記号と メモだけ', ids:o=>(Array.isArray(o.items)?o.items:[]).flatMap(x=>x?[x.pic,x.tag]:[]).concat([o.selTag])},
+];
+const toolPicOk=id=>typeof id==='string' && /^[pt][a-z0-9]{6,20}$/.test(id);
+// 記録が なくても、この 道具の 中身が あれば 書き出し・読み込み できる（v605）
+const TOOL_OWN_KEYS=['excalc_mikurabe','excalc_gijiroku','excalc_sentaku'];
+const toolOwnData=()=>TOOL_OWN_KEYS.some(k=>{ try{ return !!localStorage.getItem(k); }catch(_){ return false; } });
+function toolPicDb(name){ return new Promise((res,rej)=>{ const r=indexedDB.open(name,1); r.onupgradeneeded=()=>r.result.createObjectStore('pics'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function toolPicsBundle(t){
+  let o=null; try{ o=JSON.parse(localStorage.getItem(t.db)||'null'); }catch(_){}
+  if(!o || typeof o!=='object') return null;
+  const ids=[...new Set(t.ids(o).filter(toolPicOk))]; if(!ids.length) return null;
+  try{
+    const db=await toolPicDb(t.db), out={};
+    for(const id of ids){ const d=await new Promise(r=>{ const q=db.transaction('pics').objectStore('pics').get(id); q.onsuccess=()=>r(q.result||null); q.onerror=()=>r(null); }); if(safeImg(d)) out[id]=d; }
+    db.close(); return Object.keys(out).length ? out : null;
+  }catch(_){ return null; }
+}
+async function toolPicsPut(t, pics){
+  if(!pics || typeof pics!=='object') return;
+  try{
+    const db=await toolPicDb(t.db);
+    for(const [id,d] of Object.entries(pics)){
+      if(!toolPicOk(id) || !safeImg(d)) continue;
+      await new Promise(r=>{ const tx=db.transaction('pics','readwrite'); tx.objectStore('pics').put(d,id); tx.oncomplete=r; tx.onerror=r; });
+    }
+    db.close();
+  }catch(_){}
+}
 const KOE_BACKUP_KEYS=['koe_book','koe_vars','koe_settings','koe_state','koe_misses','koe_catbudget','koe_alias','koe_fav','koe_recent'];
 function koeBundle(){
   const o={}; let n=0;
@@ -18701,7 +18751,7 @@ function settingsBundleCount(o){ return (o && typeof o==='object') ? SETTINGS_BA
 /* 保存データをJSONファイルに書き出し（別端末への移動・バックアップ用） */
 async function exportSaves() {
   const saves=getSaves();
-  if(saves.length===0 && !koeBundle() && !techoCount() && !shimaiBundle() && !meishiBundle() && !renrakuBundle()){ alert('保存データがありません'); return; }
+  if(saves.length===0 && !koeBundle() && !techoCount() && !shimaiBundle() && !meishiBundle() && !renrakuBundle() && !toolOwnData()){ alert('保存データがありません'); return; }
   // 野菜の日記に写真があれば、いっしょに持っていくか聞く（v374）
   const pics=vegPicBytes();
   let withPics=false;
@@ -18725,6 +18775,13 @@ async function exportSaves() {
   if(rkPics){
     rkWith=await appConfirm(`📇連絡帳の顔写真（${Object.keys(rkPics).length}枚）も いっしょに書き出しますか\n\n「はい」＝写真ごと（ファイルは大きくなります）\n「いいえ」＝写真ぬき（名前・電話・住所などだけ）`,'はい（写真ごと）','いいえ（写真ぬき）');
   }
+  // 📸見比べ・🧺洗濯表示の 写真も、入れるか聞く（v605。小さい 見本は 数えない）
+  const tpPics={};
+  for(const t of TOOL_PIC_DBS){
+    const b=await toolPicsBundle(t); if(!b) continue;
+    const n=Object.keys(b).filter(k=>k[0]==='p').length;
+    if(await appConfirm(`${t.n}（${n}枚）も いっしょに書き出しますか\n\n「はい」＝写真ごと（ファイルは大きくなります）\n「いいえ」＝写真ぬき（${t.no}）`,'はい（写真ごと）','いいえ（写真ぬき）')) tpPics[t.pay]=b;
+  }
   if(pics>0){
     withPics=await appConfirm(
       `野菜の育成日記の写真（${stFmt(pics)}）も いっしょに書き出しますか\n\n`
@@ -18747,7 +18804,8 @@ async function exportSaves() {
                   meishi:meishiBundle(),         // 💼名刺管理（v484）
                   meishiPics:mcWith?mcPics:null,     // 名刺の写真（聞いて「はい」のときだけ）
                   renraku:renrakuBundle(),       // 📇連絡帳（v542）
-                  renrakuPics:rkWith?rkPics:null };  // 連絡帳の顔写真（聞いて「はい」のときだけ）
+                  renrakuPics:rkWith?rkPics:null,    // 連絡帳の顔写真（聞いて「はい」のときだけ）
+                  ...tpPics };                       // 📸見比べ・🧺洗濯表示の 写真（聞いて「はい」のときだけ。v605）
   const blob=new Blob([JSON.stringify(payload)],{type:'application/json;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
   const a=Object.assign(document.createElement('a'),{
@@ -18785,7 +18843,8 @@ function importSaves(ev) {
       :(parsed && Array.isArray(parsed.saves)?parsed.saves:((koeIn||techoIn||smIn||mcIn||rkIn)?[]:null));
     if(!incoming){ alert('保存データの形式ではありません'); return; }
     const valid=incoming.filter(s=>s && Array.isArray(s.data));
-    if(valid.length===0 && !koeIn && !techoIn && !(smIn && Array.isArray(smIn.items) && smIn.items.length) && !(mcIn && Array.isArray(mcIn.items) && mcIn.items.length) && !(rkIn && Array.isArray(rkIn.items) && rkIn.items.length)){ alert('取り込める保存データが見つかりませんでした'); return; }
+    const ownIn=!!(parsed && parsed.settings && typeof parsed.settings==='object' && TOOL_OWN_KEYS.some(k=>typeof parsed.settings[k]==='string'));   // 📸見比べ・📝議事録・🧺洗濯表示だけ（v605）
+    if(valid.length===0 && !koeIn && !techoIn && !(smIn && Array.isArray(smIn.items) && smIn.items.length) && !(mcIn && Array.isArray(mcIn.items) && mcIn.items.length) && !(rkIn && Array.isArray(rkIn.items) && rkIn.items.length) && !ownIn){ alert('取り込める保存データが見つかりませんでした'); return; }
     const existing=getSaves();
     const usedIds=new Set(existing.map(s=>s.id));
     let added=0;
@@ -18824,6 +18883,7 @@ function importSaves(ev) {
       if(await appConfirm('設定（色・テンキーの配置・自分のボタン・リンク集など）も入っています。\n'
           +'いっしょに読み込みますか（今の設定は置きかえます。読み込むとアプリを開き直します）','はい','いいえ')){
         restoreSettingsBundle(parsed.settings);
+        for(const t of TOOL_PIC_DBS) if(parsed[t.pay]) await toolPicsPut(t, parsed[t.pay]);   // 📸見比べ・🧺洗濯表示の 写真（v605）
         location.reload();
       }
     };
