@@ -3,7 +3,8 @@
      単位水量・塩化物（カンタブ）の どちらか／両方を 1枚の 報告書に（印の 欄つき）。印刷（PDF）・画像で 保存・共有。
    ・見出しは excalc_shiken に 覚える（試験日と 時刻は その日の うちだけ。次の日は きょうに もどる）。
    ・カンタブの「🖨 結果を1ページのPDFに」「🖼 画像」（ktPdf・ktImage）も ここ。
-   ・試験の 値と 計算は 表電卓の 本体（tsxReportHtml('body')・ktResult）から もらう。 */
+   ・試験の 値と 計算は 表電卓の 本体（tsxReportHtml('body')・ktResult）から もらう。
+   ・「🧱 この 現場の 供試体を 入れる」（v611）：工事名と 試験日を 持って 🧱 供試体（kyoshi.js）の 入れる 窓へ。 */
 (function(){
 'use strict';
 const KEY='excalc_shiken';
@@ -230,6 +231,7 @@ function render(){
     <label class="sk-ck"><input type="checkbox" data-k="hanko"${H.hanko ? ' checked' : ''}> 印（はんこ）の 欄を 出す（試験者・立会者）</label>
     <div class="sk-acts"><button type="button" class="pri" onclick="SHIKEN.print()">🖨 印刷・PDF</button><button type="button" onclick="SHIKEN.image(false)">🖼 画像で 保存</button><button type="button" onclick="SHIKEN.image(true)">📤 画像を 共有</button></div>
     <button class="prn-open" onclick="openPrn('shiken')">🖨 印刷のしかた（文字の大きさ・1枚に収める など）</button>
+    <button type="button" class="prn-open" onclick="SHIKEN.kyoshi()">🧱 この 現場の 供試体を 入れる（試験の 日を カレンダーに）</button>
     <p class="sk-note">💧 単位水量と 🧪 塩化物（カンタブ）は、それぞれの 道具に いま 入って いる 値を 使います。両方 えらぶと 1枚に まとめます。</p>`;
   b.scrollTop=top;
 }
@@ -243,6 +245,7 @@ function openShikenRep(which){
 function closeShikenRep(){ if(!$('shikenOverlay') || !isDlgOpen('shikenOverlay')) return; closeDlg('shikenOverlay'); }
 
 window.SHIKEN={ inc:k=>{ if(!(k in inc)) return; inc[k]=!inc[k]; render(); }, weather:v=>{ setH('weather', v); render(); }, set:(k,v)=>{ setH(k,v); render(); },
+  kyoshi:()=>{ if(!H) load(); const pre={site:H.koji, date:H.date}; closeShikenRep(); if(typeof openKyoshi==='function') return openKyoshi(pre); },   // 🧱 供試体（v611）へ 工事名と 試験日を 持って いく
   print:()=>shikenPrint(), image:s=>shikenImage(!!s), html:w=>reportHtml(w||inc), ktHtml:ktReportHtml, head:()=>JSON.parse(JSON.stringify(H||{})), chosen:()=>Object.assign({}, inc), summary };
 Object.assign(window, { openShikenRep, closeShikenRep, shikenPrint, shikenImage, ktPdf, ktImage });
 })();
