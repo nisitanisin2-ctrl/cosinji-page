@@ -8202,7 +8202,7 @@ window.closeMikurabe=function(){}; window.closeGijiroku=function(){}; window.clo
 sidePartOpener('openKyoshi', ['kyoshi.js'], '供試体');
 window.closeKyoshi=function(){};
 function kyoshiKick(){
-  try{ if(navigator.onLine===false) return; const o=JSON.parse(localStorage.getItem('excalc_kyoshi')||'null'); if(!(o && o.q>0 && o.g && o.g.url && o.g.tok && o.g.on!==false)) return; }catch(_){ return; }
+  try{ if(navigator.onLine===false) return; const o=JSON.parse(localStorage.getItem('excalc_kyoshi')||'null'); if(!(o && o.q>0 && Array.isArray(o.dests) && o.dests.some(d=>d && d.url && d.tok && d.auto!==false))) return; }catch(_){ return; }   // q：入れたら すぐ 送る 送り先に まだ 送って いない 数（v612）
   loadSidePart(['kyoshi.js']).then(ok=>{ if(ok && window.KYOSHI) KYOSHI.sync('bg'); });
 }
 window.addEventListener('online', ()=>setTimeout(kyoshiKick, 1500));
@@ -15480,7 +15480,7 @@ const TOOL_HINTS={
   mikurabe:'「＋ 新しい 見比べ」で 前と 後の 写真を 入れると、境目を 指で 動かして 見比べられます（⇆ 並べる・👻 透かす も）。「⛶ 全画面」で 画面いっぱいに 見比べられます（▶ で 境目が 自動で 動く）。「👻 前に 合わせて 撮る」は 前の 写真を 薄く 重ねて 同じ 向きで 撮れます。',
   gijiroku:'「＋ 新しい 会議」で ひな形（定例会・総会・職場の 会議 など）を えらび、出席者（📇 名簿から）・議題・決まったこと・宿題（だれが・いつまで）を 入れます。「🖨 印刷・PDF」で 署名欄つきの 議事録に。📄 Word・📊 Excel の ファイルにも できます。「💾 保存」で すぐ 保存・控えの ファイルに。どんな 会議か 分からない ときは「📖 議事録の 例」（会議の 種類ごとに 5つ）を 見て ください。宿題は「📌 宿題」と 次の 会議で 確かめられます。',
   sentaku:'服の タグの 記号を 絵から えらぶと、洗い方・乾燥機・アイロンの 温度などが 下に 出ます。「🧥 服・素材」で ズボン・靴下・セーター・ウール などの 洗い方、上の 🔍 で さがす ことも。「📒 メモに 残す」で 家族の 服の お手入れメモ（写真つき）に。',
-  kyoshi:'「＋ 入れる」で 採った日・現場・配合・材齢（7日・28日 など）・本数を 入れると、試験の 日が 出ます。済んだら「✓ 試験した」。上の「☁」で 1回 設定すると、入れるだけで Google カレンダーに 自動で 入ります（設定しない ときは 📅 で カレンダーへ）。',
+  kyoshi:'「＋ 入れる」で 採った日・現場・配合・材齢（7日・28日 など）・本数を 入れると、試験の 日が 出ます。1日に 何件も ある ときは「＋ 入れて 次の 物件へ」。「📅 まとめて 送る」で カレンダーに まとめて 入れます（Google・iPhone の カレンダー・Outlook など）。上の「☁」で 1回 設定すると、入れるだけで Google カレンダーにも 入ります（アカウントごとに 送り先を 作れます）。',
   ruler:'はじめに「🎯 校正」でカードや硬貨を画面に当てて合わせると、定規が正しい長さになります。「📷 写真で測る」は基準の物と並べて撮ってなぞります。',
   keisan:'8つの計算から選びます。入れた数は覚えるので、次も続きから使えます。',
   kurashi:'10のテーマから選ぶか、上の欄で「AED」「死亡届」「失業保険」のようにさがします。ページの中の 🧮 道具で、期限や金額の目安も出せます。🔖 つづきから・🔈 読み上げ も。',
@@ -15841,7 +15841,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v611';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v612';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
