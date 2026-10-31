@@ -13540,7 +13540,7 @@ async function runGijiFile609(browser) {
   const M2 = { id: 'meet0002', org: 'さくら町内会', t: '第2回 役員会', date: '2026-09-25', st: '19:00', place: '公民館', ppl: [{ n: '山田 太郎', s: 'p' }], items: [{ id: 'item0101', t: '秋祭りの 準備', memo: '', dec: '', todos: [] }], at: 1, up: 1 };
   await page.evaluate(s => { localStorage.setItem('excalc_gijiroku', s); window.__cm = []; window.__ok = true; window.appConfirm = async m => { window.__cm.push(m); return window.__ok; }; }, JSON.stringify({ v: 1, list: [M1, M2], ui: { tab: 'list', org: '', who: '' } }));
   await page.evaluate(async () => { await openGijiroku(); GIJIROKU.today('2026-10-30'); }); await w(300);
-  check('  一覧：「＋ 新しい 会議」の となりに「💾 控え（保存・読む）」', await page.evaluate(() => [...document.querySelectorAll('#gjBody .gj-acts.top .gj-b')].map(b => b.textContent).join(',')), '＋ 新しい 会議,💾 控え（保存・読む）');
+  check('  一覧：「＋ 新しい 会議」の となりに「💾 控え（保存・読む）」（v610 で 📖 議事録の 例も）', await page.evaluate(() => [...document.querySelectorAll('#gjBody .gj-acts.top .gj-b')].map(b => b.textContent).join(',')), '＋ 新しい 会議,📖 議事録の 例,💾 控え（保存・読む）');
   await page.evaluate(() => GIJIROKU.open('meet0001')); await w(200);
   check('  会議の 画面：上に「💾 保存」・下に 📄 Word・📊 Excel・💾 保存・控え（次の 会議は ⏭ に）', await page.evaluate(() => [document.querySelector('.gj-eh .gj-sv').textContent, [...document.querySelectorAll('.gj-out .gj-b')].map(b => b.textContent).join(',')].join(' / ')),
     '💾 保存 / 🖨 印刷・PDF,📄 Word,📊 Excel,🖼 画像,📋 文字で コピー,💾 保存・控え,⏭ 次の 会議を 作る,🗑 この 会議を 消す');
@@ -13631,7 +13631,7 @@ async function runGijiFile609(browser) {
   check('  表電卓 全体の バックアップ ファイルからも 読める', await page.evaluate(() => { const m = GIJIROKU.state().list.find(x => x.id === 'bkup0001'); return [GIJIROKU.state().list.length, m.org, m.t, m.items.map(i => i.t).join()].join('/'); }), '4/PTA/運営委員会/運動会');
   // 別の 端末の つもり：空の 状態から 一覧の 💾 控え → 📂 読む
   await page.evaluate(() => { closeGijiroku(); localStorage.removeItem('excalc_gijiroku'); openGijiroku(); }); await w(300);
-  await page.click('#gjBody .gj-acts.top .gj-b:not(.pri)'); await w(200);
+  await page.click('#gjBody .gj-acts.top .gj-b[onclick*="saveOpen"]'); await w(200);
   check('  空の 一覧から 💾 控え：Word・Excel は 出さない・「控えを 保存」も 出さない（会議が ない）・📂 読む', await page.evaluate(() => [document.querySelector('.gj-pop .gj-ph b').textContent, document.querySelectorAll('.gj-fc').length, [...document.querySelectorAll('.gj-fbtns .gj-b')].map(b => b.textContent).join(',')].join(' / ')), '議事録の 控え / 0 / 📂 控えを 読む');
   const chooser = page.waitForEvent('filechooser');
   await page.click('.gj-fbtns .gj-b'); 
@@ -13652,6 +13652,76 @@ async function runGijiFile609(browser) {
   const [n5] = await dl(() => document.querySelector('.gj-fc.x').click());
   check('  送れなかった ときは 端末に 保存する', n5, 'gijiroku-20261030.xlsx');
   await page.evaluate(() => { GIJIROKU.close(); closeGijiroku(); }); await w(200);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+async function runGijiRei610(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 📝 議事録：📖 議事録の 例（会議の 種類ごとに 5つ）（v610） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(async () => { window.appConfirm = async () => true; await openGijiroku(); GIJIROKU.today('2026-10-30'); }); await w(300);
+  check('  空の 一覧：「📖 議事録の 例」の ボタンと 案内', await page.evaluate(() => [[...document.querySelectorAll('#gjBody .gj-acts.top .gj-b')].map(b => b.textContent).join(','), document.querySelector('#gjBody .gj-empty').textContent.includes('「📖 議事録の 例」で、会議の 種類ごとの 議事録の 例（5つずつ）')].join(' / ')), '＋ 新しい 会議,📖 議事録の 例,💾 控え（保存・読む） / true');
+  check('  例の 中身は 開く まで 読まない', await page.evaluate(() => [!!window.GIJIROKU_REI, !!document.querySelector('script[data-part="gijiroku-rei.js"]')].join('/')), 'false/false');
+  await page.click('#gjBody .gj-acts.top .gj-b[onclick*="rei"]'); await w(600);
+  check('  📖 を 押すと 読んで 種類の 一覧：6つの まとまり・23 種類（白紙 以外）・どれも 例 5', await page.evaluate(() => [!!window.GIJIROKU_REI, GIJIROKU.reiLv(), [...document.querySelectorAll('.gj-rei .gj-tplh')].map(h => h.textContent).join(','), document.querySelectorAll('.gj-rei .gj-rc').length, [...document.querySelectorAll('.gj-rei .gj-rc em')].every(e => e.textContent === '例 5'), GIJIROKU.tpls().filter(k => k !== 'blank').every(k => document.querySelector('.gj-rc[data-k="' + k + '"]'))].join(' / ')),
+    'true / idx::0:0 / 🏘 町内会・自治会,🏫 PTA・学校・子ども会,🏢 マンション 管理組合,💼 職場・会社・現場,🤝 サークル・団体,🏠 家族・その他 / 23 / true / true');
+  check('  「📝 議事録って？」：何を 書くか（6つ）と コツ', await page.evaluate(() => { const d = document.querySelector('.gj-rg'); return [d.querySelector('summary').textContent, d.querySelectorAll('ol li').length, d.querySelectorAll('ul li').length, d.textContent.includes('宿題（だれが・何を・いつまでに）')].join('/'); }), '📝 議事録って？ 何を 書けば いい？/6/5/true');
+  // 115の 例が どれも 正しく 読める
+  const V = await page.evaluate(() => {
+    const D = window.GIJIROKU_REI, bad = [], n = { ex: 0, items: 0, todos: 0, votes: 0, quorum: 0 };
+    Object.keys(D.types).forEach(k => { const d = D.types[k]; if (d.x.length !== 5 || !d.a || !d.w || d.k.length < 3) bad.push(k + ':info');
+      const titles = new Set();
+      d.x.forEach((s, i) => { const id = k + '#' + (i + 1), m = GIJIROKU.reiMeet(k, i), h = GIJIROKU.reiHead(s); n.ex++;
+        if (titles.has(h.n)) bad.push(id + ':同じ題'); titles.add(h.n);
+        if (!m || m.items.length < 2 || m.ppl.length < 2 || !m.org || !m.t || !m.place || !m.st || m.tpl !== k) { bad.push(id + ':基本'); return; }
+        const PD = m.ppl.filter(p => p.s !== 'a').length;
+        m.items.forEach(it => { n.items++; if (!it.t || /[｜@；¶]/.test(it.t + it.memo + it.dec)) bad.push(id + ':議題');
+          it.todos.forEach(t => { n.todos++; if (!t.t || !t.who || /[@；]/.test(t.t)) bad.push(id + ':宿題 ' + t.t); });
+          if (it.vote) { n.votes++; if (+it.vote.y + +it.vote.n + +it.vote.a > PD) bad.push(id + ':採決の 数'); } });
+        if (m.members) { n.quorum++; if (!GIJIROKU.quorumOf(m).ok) bad.push(id + ':成立 しない'); }
+        if (s.includes('\n>') && !m.next.date) bad.push(id + ':次回'); }); });
+    return [Object.keys(D.types).length, n.ex, n.items > 450, n.todos > 150, n.votes > 60, n.quorum, bad.join(',') || 'ok'].join(' / ');
+  });
+  check('  例 115（23 × 5）が どれも 読める：議題・宿題（担当つき）・採決（数が 合う）・総会は 成立・次回', V, '23 / 115 / true / true / true / 15 / ok');
+  await page.click('.gj-rc[data-k="genba"]'); await w(200);
+  check('  種類を 押す：どんな 会議か・だれが・いつ・よく ある 議題・書く ときの コツ・例 5つ', await page.evaluate(() => [GIJIROKU.reiLv(), document.querySelector('.gj-rt').textContent, document.querySelector('.gj-ra').textContent.includes('工事の 現場で'), [...document.querySelectorAll('.gj-rchips span')].map(s => s.textContent).join('・'), document.querySelectorAll('.gj-rk li').length, [...document.querySelectorAll('.gj-rc.ex b')].map(b => b.textContent).join(',')].join(' / ')),
+    'type:genba:0:1 / 🏗 現場の 打ち合わせ（工程会議） / true / 工程の 確認・安全の 確認・搬入・車両の 予定・品質・検査・近隣への 配慮・その他 / 3 / 基礎の 生コン 打設,鉄骨の 建て方と クレーン,台風が 近づく ときの 対策,近所からの 音の 苦情,中間検査の 準備');
+  await page.click('.gj-rc.ex >> nth=0'); await w(200);
+  check('  例を 押す：印刷と 同じ 形で 見せる（題・会議・上の 表・議題・決定・宿題）', await page.evaluate(() => { const p = document.querySelector('.gj-paper'); return [GIJIROKU.reiLv(), document.querySelector('.gj-rnav span').textContent, p.querySelector('.gj-dt').textContent, p.querySelector('.gj-ds').textContent, p.querySelectorAll('.gj-dih').length, p.querySelector('.gj-dh').textContent.includes('2026年5月20日（水）　16:00〜16:45'), p.textContent.includes('スランプ 18cm'), p.querySelectorAll('.gj-dtd').length].join(' / '); }),
+    'ex:genba:0:2 / 例 1 / 5基礎の 生コン 打設 / 議 事 録 / 週間 工程会議（大和建設 ○○ビル 新築工事） / 6 / true / true / 3');
+  await page.click('.gj-rnav button >> nth=1'); await w(100);
+  const n2 = await page.evaluate(() => document.querySelector('.gj-rnav span').textContent);
+  await page.click('.gj-rnav button >> nth=0'); await page.click('.gj-rnav button >> nth=0'); await w(100);
+  check('  ▶ で 次の 例・◀ で 前の 例（はしは 回る）', [n2, await page.evaluate(() => document.querySelector('.gj-rnav span').textContent)].join(' / '), '例 2 / 5鉄骨の 建て方と クレーン / 例 5 / 5中間検査の 準備');
+  await page.evaluate(() => window.history.back()); await w(400);
+  const b1 = await page.evaluate(() => GIJIROKU.reiLv());
+  await page.evaluate(() => window.history.back()); await w(400);
+  const b2 = await page.evaluate(() => GIJIROKU.reiLv());
+  await page.evaluate(() => window.history.back()); await w(400);
+  check('  端末の「戻る」は 1つ 上へ：例 → 種類 → 一覧 → 閉じる（議事録は 開いた まま）', [b1, b2, await page.evaluate(() => [GIJIROKU.reiLv(), !!document.querySelector('.gj-pop'), isDlgOpen('gijirokuOverlay')].join(' / '))].join(' / '), 'type:genba:4:1 / idx:genba:4:0 /  / false / true');
+  await page.evaluate(() => GIJIROKU.rei()); await w(300);
+  await page.click('.gj-rc[data-k="sokai"]'); await w(150); await page.click('.gj-rc.ex >> nth=0'); await w(150);
+  check('  総会の 例：成立・採決・署名欄（議長と 署名人 2人）', await page.evaluate(() => { const p = document.querySelector('.gj-paper'); return [p.querySelector('.gj-dh').textContent.includes('成立'), p.textContent.includes('【採決】賛成 20・反対 0・棄権 1 → 賛成多数で 可決'), p.querySelectorAll('.gj-dsl span').length, p.textContent.includes('議長 及び 議事録署名人が 署名 押印する')].join('/'); }), 'true/true/3/true');
+  await page.click('.gj-rei .gj-ph .gj-b'); await w(100);
+  const u1 = await page.evaluate(() => GIJIROKU.reiLv());
+  await page.click('.gj-rei .gj-ph .gj-b'); await w(100);
+  const u2 = await page.evaluate(() => GIJIROKU.reiLv());
+  check('  画面の「←」でも 1つ 上へ（例 → 種類 → 一覧）', [u1, u2].join(' / '), 'type:sokai:0:1 / idx:sokai:0:0');
+  await page.click('.gj-rc[data-k="kazoku"]'); await w(150); await page.click('.gj-rc.ex >> nth=3'); await w(150);
+  check('  家族会議の 例：名前を そのまま（お父さん・子ども）', await page.evaluate(() => document.querySelector('.gj-paper .gj-dh').textContent.includes('お父さん、お母さん、ゆうと（中2）、あかり（小5）（4名）')), true);
+  await page.click('.gj-rei .gj-acts .gj-b.pri'); await w(300);
+  check('  「この 例の 議題で 新しい 会議を 作る」：議題だけ 写す（会の 名前・出席者・中身は 空）・会議の 画面へ', await page.evaluate(() => { const s = GIJIROKU.state(), m = s.list.find(x => x.id === GIJIROKU.cur()); return [!document.querySelector('.gj-pop'), m.tpl, JSON.stringify(m.org), m.ppl.length, m.items.map(i => i.t).join('|'), m.items.every(i => !i.memo && !i.dec && !i.todos.length), document.getElementById('appToast').textContent].join(' / '); }),
+    'true / kazoku / "" / 0 / 話し合いたい こと|家計・お金|決めた こと / true / 📄 例の 議題で 新しい 会議を 作りました。会の 名前・日時から 入れて ください');
+  await page.evaluate(() => GIJIROKU.set('t', '4月の 家族会議')); await w(100);
+  await page.click('.gj-sec .gj-acts .gj-b[onclick*="reiHere"]'); await w(300);
+  check('  会議の 画面の「📖 例を 見る」：その 会議の 種類の 例から', await page.evaluate(() => [GIJIROKU.reiLv(), document.querySelector('.gj-rt').textContent].join(' / ')), 'type:kazoku:0:1 / 🏠 家族会議');
+  await page.click('.gj-rei .gj-acts .gj-b'); await w(300);
+  check('  「＋ この ひな形で 新しい 会議を 作る」：新しい 会議の 窓が その ひな形で 開く', await page.evaluate(() => [GIJIROKU.reiLv(), !!document.getElementById('gjNewOrg'), document.querySelector('.gj-tpl button.on').dataset.t].join(' / ')), ' / true / kazoku');
+  await page.click('.gj-rlink'); await w(300);
+  check('  新しい 会議の 窓の「📖 どんな 会議か わからない ときは」→ 例の 一覧', await page.evaluate(() => [GIJIROKU.reiLv(), !!document.getElementById('gjNewOrg'), document.querySelectorAll('.gj-rei .gj-rc').length].join(' / ')), 'idx::0:0 / false / 23');
+  await page.click('.gj-rei .gj-x'); await w(200);
+  check('  ✕ で 閉じる', await page.evaluate(() => [GIJIROKU.reiLv(), !!document.querySelector('.gj-pop')].join('/')), '/false');
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();
@@ -14809,6 +14879,9 @@ async function runSchemeFix(browser) {
         await page.evaluate(() => GIJIROKU.time('st')); await w(300); found.push('gijiroku-time:' + await page.evaluate(SCAN));   /* 🕐 時刻の 窓（v606） */
         await page.evaluate(() => { GIJIROKU.close(); GIJIROKU.agOpen(); document.querySelector('.gj-ag:not(:disabled)').click(); }); await w(300); found.push('gijiroku-agenda:' + await page.evaluate(SCAN));   /* 📋 テンプレートから（v608） */
         await page.evaluate(() => { GIJIROKU.close(); GIJIROKU.saveOpen(); }); await w(300); found.push('gijiroku-save:' + await page.evaluate(SCAN));   /* 💾 保存・Word・Excel・控え（v609） */
+        await page.evaluate(async () => { GIJIROKU.close(); await GIJIROKU.rei(); }); await w(500); found.push('gijiroku-rei:' + await page.evaluate(SCAN));   /* 📖 議事録の 例（v610） */
+        await page.evaluate(() => GIJIROKU.reiType('teirei')); await w(200); found.push('gijiroku-reitype:' + await page.evaluate(SCAN));
+        await page.evaluate(() => GIJIROKU.reiEx(0)); await w(200); found.push('gijiroku-reiex:' + await page.evaluate(SCAN));
         await page.evaluate(() => GIJIROKU.close()); await w(150);
         await page.evaluate(() => { GIJIROKU.back(); GIJIROKU.tab('todo'); }); await w(300); found.push('gijiroku-todo:' + await page.evaluate(SCAN));
         await page.evaluate(() => GIJIROKU.tab('list')); await w(200);
@@ -19348,6 +19421,7 @@ const SUITES = [
   [['sentaku', 'sfuku', 'v607'], b => runSentakuFuku607(b)],
   [['gijiroku', 'gjprint', 'v608'], b => runGijiPrint608(b)],
   [['gijiroku', 'gjfile', 'v609'], b => runGijiFile609(b)],
+  [['gijiroku', 'gjrei', 'v610'], b => runGijiRei610(b)],
   [['dasetsu', 'v561'], b => runDasetsu561(b)],
   [['okaeshi', 'v564'], b => runOkaeshi564(b)],
   [['tax', 'v565'], b => runTax565(b)],

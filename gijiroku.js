@@ -6,6 +6,7 @@
    ・会員の 数を 入れると 総会の 成立（出席＋委任が 過半数か）を 出す
    ・🖨 印刷・PDF（議事録の 形・署名欄）・📄 Word（.docx）・📊 Excel（.xlsx）（v609）・🖼 画像・📋 文字で コピー・📅 次回を カレンダーに・⏭ 次の 会議を 作る
    ・💾 保存（すぐ この 端末に 保存して 知らせる）・🗂 控え（.json）に 保存・送る・読む（機種変更・係の 交代。v609）
+   ・📖 議事録の 例：会議の 種類（23）ごとに どんな 会議か・書く ときの コツ・議事録の 例 5つ（gijiroku-rei.js。v610）
    ・🎤 声で 書く（端末が できるとき）。ひな形：定例会・役員会／総会／職場の 会議／安全衛生委員会／白紙
    中身は excalc_gijiroku（この端末の中だけ）。 */
 (function(){
@@ -136,12 +137,12 @@ function homeHtml(){
 }
 function listHtml(){
   const os=orgs(), L=ordered().filter(m=>!st.ui.org || m.org===st.ui.org);
-  return `<div class="gj-acts top"><button type="button" class="gj-b pri" onclick="GIJIROKU.add()">＋ 新しい 会議</button><button type="button" class="gj-b" onclick="GIJIROKU.saveOpen()">💾 控え（保存・読む）</button></div>
+  return `<div class="gj-acts top"><button type="button" class="gj-b pri" onclick="GIJIROKU.add()">＋ 新しい 会議</button><button type="button" class="gj-b" onclick="GIJIROKU.rei()">📖 議事録の 例</button><button type="button" class="gj-b" onclick="GIJIROKU.saveOpen()">💾 控え（保存・読む）</button></div>
     ${os.length>1 ? `<div class="gj-chips"><button type="button" class="${st.ui.org?'':'on'}" onclick="GIJIROKU.org('')">ぜんぶ</button>${os.map(o=>`<button type="button" class="${st.ui.org===o?'on':''}" data-o="${esc(o)}" onclick="GIJIROKU.org(this.dataset.o)">${esc(o)}</button>`).join('')}</div>` : ''}
     ${L.length ? `<div class="gj-list">${L.map(m=>{ const c=counts(m), td=m.items.reduce((a,i)=>a+i.todos.length,0), left=m.items.reduce((a,i)=>a+i.todos.filter(t=>!t.done).length,0);
       return `<button type="button" class="gj-card" onclick="GIJIROKU.open('${m.id}')"><span class="d">${esc(jd(m.date))}${m.st ? ' '+m.st : ''}</span><b>${esc(mTitle(m))}</b>${m.org && m.t ? `<small>${esc(m.org)}</small>` : ''}
         <small class="s">出席 ${c.p}人${c.a ? '・欠席 '+c.a : ''}${c.d ? '・委任 '+c.d : ''}・議題 ${m.items.length}${td ? '・宿題 '+td+(left ? `（<em>のこり ${left}</em>）` : '（済み）') : ''}</small></button>`; }).join('')}</div>`
-      : `<div class="gj-empty"><p>会議ごとに、出席者・議題・決まったこと・宿題を 残して、議事録の 形で 印刷・PDF・LINE に 送れます。</p><p>町内会・PTA の 役員会や 総会、職場の 会議、安全衛生委員会の ひな形が あります。</p></div>`}`;
+      : `<div class="gj-empty"><p>会議ごとに、出席者・議題・決まったこと・宿題を 残して、議事録の 形で 印刷・PDF・LINE に 送れます。</p><p>町内会・PTA の 役員会や 総会、職場の 会議、安全衛生委員会の ひな形が あります。</p><p>はじめての ときは「📖 議事録の 例」で、会議の 種類ごとの 議事録の 例（5つずつ）と 書き方の コツが 見られます。</p></div>`}`;
 }
 function todoHtml(){
   const all=openTodos(), whos=[...new Set(all.map(x=>x.t.who).filter(Boolean))];
@@ -191,7 +192,7 @@ function editHtml(m){
         ${it.todos.length ? `<div class="gj-tl">${it.todos.map(t=>`<div class="gj-t${t.done?' dn':''}${late(t) && !t.done?' late':''}"><button type="button" class="gj-ck" aria-label="${esc(t.t)}：${t.done ? '済み' : 'まだ'}" onclick="GIJIROKU.tdone('${it.id}','${t.id}')">${t.done ? '☑' : '☐'}</button>
             <input type="text" value="${esc(t.t)}" aria-label="宿題" oninput="GIJIROKU.set(${K('todo', it.id, t.id, 't')}, this.value)"><input type="text" class="w" value="${esc(t.who)}" placeholder="担当" list="gjNames" aria-label="担当" oninput="GIJIROKU.set(${K('todo', it.id, t.id, 'who')}, this.value)"><input type="date" class="dd" value="${esc(t.due)}" aria-label="期限" onchange="GIJIROKU.set(${K('todo', it.id, t.id, 'due')}, this.value, 1)"><button type="button" class="gj-ib" aria-label="宿題を 消す" onclick="GIJIROKU.tdel('${it.id}','${t.id}')">✕</button></div>`).join('')}</div>` : ''}
         <div class="gj-acts sm"><button type="button" class="gj-b sm" onclick="GIJIROKU.tadd('${it.id}')">＋ 宿題</button>${it.vote ? '' : `<button type="button" class="gj-b sm" onclick="GIJIROKU.vote('${it.id}')">🗳 採決を 書く</button>`}</div></div>`).join('')}
-      <div class="gj-acts"><button type="button" class="gj-b" onclick="GIJIROKU.iadd()">＋ 議題を 足す</button><button type="button" class="gj-b" onclick="GIJIROKU.agOpen()">📋 テンプレートから 足す</button></div>
+      <div class="gj-acts"><button type="button" class="gj-b" onclick="GIJIROKU.iadd()">＋ 議題を 足す</button><button type="button" class="gj-b" onclick="GIJIROKU.agOpen()">📋 テンプレートから 足す</button><button type="button" class="gj-b" onclick="GIJIROKU.reiHere()">📖 例を 見る</button></div>
       <datalist id="gjAgL">${AG_ALL.map(t=>`<option value="${esc(t)}">`).join('')}</datalist>
     </section>
     <section class="gj-sec"><h4>📅 次回</h4>
@@ -251,10 +252,10 @@ function popOpen(html){
   el.addEventListener('mousedown', ev=>{ if(ev.target===el) popClose(); });
   host.appendChild(el);
   const me={el, rel:null}; pop=me;
-  me.rel=typeof modalBack==='function' ? modalBack(()=>{ if(pop===me){ pop=null; el.remove(); } }) : ()=>{};
+  me.rel=typeof modalBack==='function' ? modalBack(()=>{ if(pop===me){ pop=null; el.remove(); if(me.onClose) me.onClose(); } }) : ()=>{};
   return el;
 }
-function popClose(){ if(!pop) return; const p=pop; pop=null; p.rel(); p.el.remove(); }
+function popClose(){ if(!pop) return; const p=pop; pop=null; if(p.onClose) p.onClose(); p.rel(); p.el.remove(); }
 /* 🕐 時刻を えらぶ 窓（v606）。時・分を 押して「✓ 決定」。打って 入れる（1900・19:00・7時半・午後7時）ことも できる */
 const TP_TITLE={st:'はじめの 時刻', en:'おわりの 時刻', nst:'次回の 時刻'};
 const TP_H=[...Array(24).keys()], TP_M=[0,5,10,15,20,25,30,35,40,45,50,55];
@@ -332,6 +333,7 @@ function add(){
     ${os.length ? `<div class="gj-orgs"><small>前と 同じ 会なら：</small>${os.slice(0, 8).map(o=>`<button type="button" data-o="${esc(o)}" onclick="GIJIROKU.addOrg(this.dataset.o, true)">${esc(o)}</button>`).join('')}</div>` : ''}
     <label class="gj-ck2" id="gjNewCopyL" hidden><input type="checkbox" id="gjNewCopy" checked> 前回の 出席者・議長・書記・印刷の 選び方を 写す</label>
     <p class="gj-lb">ひな形（議題が 入ります。あとから「📋 テンプレートから」で 足す ことも できます）</p>
+    <button type="button" class="gj-rlink" onclick="GIJIROKU.rei()">📖 どんな 会議か わからない ときは：議事録の 例を 見る</button>
     ${TPL_G.map(([g,gn])=>`<h5 class="gj-tplh">${gn}</h5><div class="gj-tpl" role="radiogroup" aria-label="${gn}">${TPL.filter(t=>t[3]===g).map(t=>`<button type="button" role="radio" aria-checked="${t[0]==='teirei'}" class="${t[0]==='teirei'?'on':''}" data-t="${t[0]}" onclick="GIJIROKU.tpl('${t[0]}')"><b>${t[1]}</b><small>${t[2].length ? esc(t[2].join('・')) : '議題なし'}</small></button>`).join('')}</div>`).join('')}
     <div class="gj-acts end gj-stick"><button type="button" class="gj-b" onclick="GIJIROKU.close()">やめる</button><button type="button" class="gj-b pri" onclick="GIJIROKU.addGo()">＋ 作る</button></div>`);
 }
@@ -822,6 +824,101 @@ async function importText(t, name){
   return n;
 }
 
+/* ───────── 📖 議事録の 例（v610） ─────────
+   会議の 種類ごとに「どんな 会議か・だれが・いつ・書く ときの コツ」と 議事録の 例 5つ（gijiroku-rei.js。はじめて 開いた ときに 読む）。
+   例は 印刷と 同じ 形で 見せる。「この 例の 議題で 作る」で 新しい 会議に。端末の「戻る」は 1つ 前の 画面へ。 */
+const REI=()=>window.GIJIROKU_REI||null;
+let rei=null;   // 例の 窓：{lv:'idx'（種類の 一覧）|'type'（種類）|'ex'（例）, k:会議の 種類, i:何番目の 例, g:[戻る の しるし]}
+function reiLoad(){ if(REI()) return Promise.resolve(true); return typeof loadSidePart==='function' ? loadSidePart(['gijiroku-rei.js']).then(ok=>!!(ok && REI())) : Promise.resolve(false); }
+// 例の 見出し（カードの 題・会議の 名前・議題の 名前）
+function reiHead(s){ const L=String(s).split('\n'), h=L[0].split('｜'); return {n:h[0]||'', t:h[2]||'', topics:L.filter(l=>l[0]==='・').map(l=>l.slice(1).split('｜')[0]).join('・')}; }
+// 例の 文字列 → 会議（cleanM の 形）。人数で 書いた ときの 名前は 架空の 名前の 一覧から 順に（書き方は gijiroku-rei.js の 頭）
+function reiMeet(k, i){
+  const D=REI(), s=D && D.types[k] && D.types[k].x[i]; if(!s) return null;
+  const L=s.split('\n').map(x=>x.trim()).filter(Boolean), h=L[0].split('｜').map(x=>x.trim()), yr=todayS().slice(0, 4);
+  const day=x=>/^\d\d-\d\d$/.test(x||'') && okD(yr+'-'+x) ? yr+'-'+x : todayS();
+  const when=(h[3]||'').split(' '), tm=(when[1]||'').split('-'), date=day(when[0]), ppl=[];
+  if(/^\d+\/\d+\/\d+$/.test(h[5]||'')){
+    const c=h[5].split('/').map(Number), N=D.names, off=(Math.max(0, TPL.findIndex(t=>t[0]===k))*7+i*11)%N.length; let j=0;
+    ['p','a','d'].forEach((sx,q)=>{ for(let n=0;n<c[q];n++) ppl.push({n:N[(off+j++)%N.length], s:sx}); });
+  } else (h[5]||'').split('、').map(x=>x.trim()).filter(Boolean).forEach(n=>ppl.push({n, s:'p'}));
+  const P=ppl.filter(p=>p.s==='p').map(p=>p.n), br=x=>String(x||'').replace(/¶/g, '\n');
+  const who=x=>/^\d+$/.test(x||'') ? (P[+x-1]||'') : (x||'');
+  const due=x=>{ if(!/^\d+$/.test(x||'')) return ''; const d=dOf(date); d.setDate(d.getDate()+(+x)); return ymd(d); };
+  const items=[], next={}; let memo='';
+  L.slice(1).forEach(l=>{
+    if(l[0]==='・'){
+      const f=l.slice(1).split('｜'), v=/^\d+-\d+-\d+$/.test(f[4]||'') ? f[4].split('-').map(Number) : null;
+      items.push({t:f[0], memo:br(f[1]), dec:br(f[2]), vote:v ? {y:v[0], n:v[1], a:v[2]} : null, todos:String(f[3]||'').split('；').filter(Boolean).map(x=>{ const a=x.split('@'); return {t:a[0], who:who(a[1]), due:due(a[2])}; })});
+    } else if(l[0]==='>'){ const a=l.slice(1).trim().split(' '); next.date=day(a[0]); if(okT(a[1]||'')){ next.st=a[1]; next.place=a.slice(2).join(' '); } else next.place=a.slice(1).join(' '); }
+    else if(l[0]==='※') memo=br(l.slice(1));
+  });
+  const t=TPL.find(x=>x[0]===k)||TPL[0];
+  return cleanM({org:h[1], t:h[2], date, st:tm[0], en:tm[1], place:h[4], ppl, chair:P[0]||'', rec:P[1]||'', signs:[P[2]||'', P[3]||''], members:h[6]||'', items, next, memo, tpl:k, pr:{c:true, r:true, s:!!t[4], sg:!!t[4]}});
+}
+async function reiOpen(k, i){
+  if(!(await reiLoad())){ toastS('例を 読めませんでした。インターネットに つながる ところで もう 一度 開いて ください', 4200); return false; }
+  popOpen('<div class="gj-rei" id="gjRei"></div>');
+  if(!pop) return false;
+  rei={lv:'idx', k:null, i:0, g:[]}; pop.kind='rei'; pop.onClose=reiEnd;
+  const D=REI();
+  if(k && D.types[k]){ reiPush(); rei.lv='type'; rei.k=k; if(i!=null && D.types[k].x[i]){ reiPush(); rei.lv='ex'; rei.i=+i; } }
+  reiDraw();
+  return true;
+}
+// 1つ 下の 画面へ 行く ときに「戻る」の しるしを 積む（端末の「戻る」で 1つ 上へ）
+function reiPush(){ const me={}; me.rel=typeof modalBack==='function' ? modalBack(()=>{ if(rei && rei.g[rei.g.length-1]===me){ rei.g.pop(); reiLvUp(); } }) : ()=>{}; rei.g.push(me); }
+function reiLvUp(){ if(!rei) return; rei.lv=rei.lv==='ex' ? 'type' : 'idx'; reiDraw(); }
+function reiUp(){ if(!rei) return; if(rei.lv==='idx'){ popClose(); return; } const me=rei.g.pop(); if(me) me.rel(); reiLvUp(); }
+function reiEnd(){ if(!rei) return; const g=rei.g; rei=null; g.reverse().forEach(me=>me.rel()); }
+function reiType(k){ if(!rei || !REI().types[k]) return; reiPush(); rei.lv='type'; rei.k=k; reiDraw(); }
+function reiEx(i){ if(!rei || !rei.k || !REI().types[rei.k].x[i]) return; reiPush(); rei.lv='ex'; rei.i=+i; reiDraw(); }
+function reiStep(d){ if(!rei || rei.lv!=='ex') return; const n=REI().types[rei.k].x.length; rei.i=(rei.i+d+n)%n; reiDraw(); }
+function reiDraw(){
+  const b=$('gjRei'); if(!b || !rei || !REI()) return;
+  b.innerHTML=rei.lv==='ex' ? reiExHtml() : rei.lv==='type' ? reiTypeHtml() : reiIdxHtml();
+  const p=b.closest('.gj-pop'); if(p) p.scrollTop=0;
+}
+const reiX='<button type="button" class="gj-x" onclick="GIJIROKU.close()" aria-label="閉じる">✕</button>';
+function reiIdxHtml(){
+  const D=REI(), G=D.guide;
+  return `<div class="gj-ph"><span aria-hidden="true">📖</span><b>議事録の 例</b>${reiX}</div>
+    <p class="gj-note">会議の 種類を えらぶと、どんな 会議か・書く ときの コツ・議事録の 例（5つずつ）が 見られます。例の 名前・数字は すべて 架空です。</p>
+    <details class="gj-rg"><summary>📝 議事録って？ 何を 書けば いい？</summary><p>${esc(G.what)}</p><b>書く こと</b><ol>${G.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ol><b>コツ</b><ul>${G.tips.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details>
+    ${TPL_G.map(([g, gn])=>{ const ts=TPL.filter(t=>t[3]===g && D.types[t[0]]); return ts.length ? `<h5 class="gj-tplh">${gn}</h5><div class="gj-rl">${ts.map(t=>`<button type="button" class="gj-rc" data-k="${t[0]}" onclick="GIJIROKU.reiType(this.dataset.k)"><b>${esc(t[1])}</b><small>${esc(D.types[t[0]].a)}</small><em>例 ${D.types[t[0]].x.length}</em></button>`).join('')}</div>` : ''; }).join('')}`;
+}
+function reiTypeHtml(){
+  const D=REI(), k=rei.k, d=D.types[k], t=TPL.find(x=>x[0]===k);
+  return `<div class="gj-ph"><button type="button" class="gj-b sm" onclick="GIJIROKU.reiUp()">← 会議の 種類</button><b></b>${reiX}</div>
+    <h4 class="gj-rt">${esc(t[1])}</h4>
+    <div class="gj-ra"><p><b>どんな 会議？</b>${esc(d.a)}</p><p><b>だれが・いつ</b>${esc(d.w)}</p></div>
+    ${t[2].length ? `<h5 class="gj-fh">🗂 よく ある 議題（ひな形）</h5><div class="gj-rchips">${t[2].map(x=>`<span>${esc(x)}</span>`).join('')}</div>` : ''}
+    <h5 class="gj-fh">✍ 書く ときの コツ</h5><ul class="gj-rk">${d.k.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+    <h5 class="gj-fh">📄 議事録の 例（${d.x.length}）</h5>
+    <div class="gj-rl">${d.x.map((s,i)=>{ const h=reiHead(s); return `<button type="button" class="gj-rc ex" onclick="GIJIROKU.reiEx(${i})"><em>例 ${i+1}</em><b>${esc(h.n)}</b><small>${esc(h.t)}：${esc(h.topics)}</small></button>`; }).join('')}</div>
+    <div class="gj-acts"><button type="button" class="gj-b" data-k="${k}" onclick="GIJIROKU.reiNew(this.dataset.k)">＋ この ひな形で 新しい 会議を 作る</button></div>`;
+}
+function reiExHtml(){
+  const D=REI(), k=rei.k, d=D.types[k], t=TPL.find(x=>x[0]===k), m=reiMeet(k, rei.i), n=d.x.length;
+  return `<div class="gj-ph"><button type="button" class="gj-b sm" onclick="GIJIROKU.reiUp()">← ${esc(t[1].replace(/^\S+\s/, ''))}</button><b></b>${reiX}</div>
+    <div class="gj-rnav"><button type="button" onclick="GIJIROKU.reiStep(-1)" aria-label="前の 例">◀</button><span>例 ${rei.i+1} / ${n}<b>${esc(reiHead(d.x[rei.i]).n)}</b></span><button type="button" onclick="GIJIROKU.reiStep(1)" aria-label="次の 例">▶</button></div>
+    <div class="gj-paper">${m ? docHtml(m) : ''}</div>
+    <p class="gj-note sm">名前・数字は すべて 架空の 例です。</p>
+    <div class="gj-acts"><button type="button" class="gj-b pri" onclick="GIJIROKU.reiUse()">📄 この 例の 議題で 新しい 会議を 作る</button></div>`;
+}
+// 例の 議題で 新しい 会議を 作る（会の 名前・出席者は 空。中身は 自分で 書く）
+function reiUse(){
+  if(!rei || rei.lv!=='ex') return null;
+  const ex=reiMeet(rei.k, rei.i); if(!ex) return null;
+  const m=newMeet('', rei.k, false);
+  m.items=ex.items.map(it=>cleanItem({t:it.t})).filter(Boolean); save();
+  popClose(); cur=m.id; render(); const b=$('gjBody'); if(b) b.scrollTop=0;
+  toastS('📄 例の 議題で 新しい 会議を 作りました。会の 名前・日時から 入れて ください', 3800);
+  return m.id;
+}
+// この ひな形で 作る：「＋ 新しい 会議」の 窓を、この ひな形を えらんだ 形で 開く
+function reiNew(k){ popClose(); add(); setTpl(k); }
+
 /* ───────── 窓 ───────── */
 const CSS=`
 #gijirokuOverlay .gj-modal{ display:flex; flex-direction:column; }
@@ -906,6 +1003,23 @@ const CSS=`
 .gj-fc{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; min-height:76px; padding:8px; border-radius:14px; border:2px solid rgba(120,132,156,.45); background:rgba(120,132,156,.06); color:var(--text,#222); cursor:pointer; font:inherit; text-align:center; }
 .gj-fc b{ font-size:18px; } .gj-fc small{ font-size:12px; color:var(--text-light,#666); line-height:1.4; } .gj-fc.w{ border-color:rgba(43,87,154,.65); } .gj-fc.x{ border-color:rgba(33,115,70,.65); }
 .gj-fbtns{ display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 0; } .gj-fbtns .gj-b{ flex:1 1 150px; }
+.gj-rlink{ display:block; width:100%; margin:4px 0 6px; padding:8px 12px; border-radius:12px; border:1px dashed rgba(31,90,166,.6); background:rgba(31,90,166,.06); color:var(--text,#222); font:inherit; font-size:13.5px; font-weight:bold; text-align:left; cursor:pointer; }
+.gj-rei .gj-ph .gj-b.sm{ flex:none; } .gj-rei .gj-ph b:empty{ flex:1; }
+.gj-rg{ margin:8px 0 6px; padding:8px 12px; border-radius:12px; background:rgba(31,90,166,.07); font-size:14px; line-height:1.7; } .gj-rg summary{ font-weight:bold; cursor:pointer; min-height:32px; } .gj-rg p{ margin:6px 0; } .gj-rg ol, .gj-rg ul{ margin:4px 0 8px; padding-left:1.4em; }
+.gj-rl{ display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:8px; }
+.gj-rc{ position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:3px; padding:10px 12px; border-radius:12px; border:1px solid rgba(120,132,156,.4); border-left:5px solid #1f5aa6; background:var(--modal-bg,#fff); color:var(--text,#222); text-align:left; cursor:pointer; font:inherit; }
+.gj-rc b{ font-size:15px; padding-right:3.4em; } .gj-rc small{ font-size:12.5px; color:var(--text-light,#666); line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.gj-rc em{ position:absolute; top:9px; right:10px; font-style:normal; font-size:11.5px; font-weight:bold; color:#1f5aa6; } .gj-rc.ex em{ position:static; } .gj-rc.ex b{ padding-right:0; }
+.gj-rt{ margin:4px 0 8px; font-size:18px; }
+.gj-ra{ padding:10px 12px; border-radius:12px; background:rgba(46,157,74,.08); font-size:14px; line-height:1.7; } .gj-ra p{ margin:0 0 6px; } .gj-ra p:last-child{ margin:0; } .gj-ra b{ display:block; font-size:12.5px; color:var(--text-light,#666); }
+.gj-rchips{ display:flex; flex-wrap:wrap; gap:5px; } .gj-rchips span{ padding:4px 10px; border-radius:14px; background:rgba(120,132,156,.12); font-size:13px; }
+.gj-rk{ margin:0; padding-left:1.3em; font-size:14px; line-height:1.7; }
+.gj-rnav{ display:flex; align-items:center; gap:8px; margin:0 0 8px; } .gj-rnav button{ flex:none; width:46px; min-height:44px; border-radius:12px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:18px; cursor:pointer; }
+.gj-rnav span{ flex:1; min-width:0; text-align:center; font-size:12.5px; color:var(--text-light,#666); } .gj-rnav span b{ display:block; font-size:15px; color:var(--text,#222); overflow-wrap:anywhere; }
+.gj-paper{ background:#fff; color:#000; border-radius:8px; padding:14px 12px; box-shadow:0 1px 6px rgba(0,0,0,.18); overflow-x:auto; }
+`+DOC_CSS.replace(/#printArea \.op-doc/g, '.gj-paper .op-doc')+`
+.gj-paper .op-doc .gj-doc{ font-size:13.5px; } .gj-paper .op-doc .gj-dh th, .gj-paper .op-doc .gj-dh td{ font-size:13px; } .gj-paper .op-doc .gj-dtd th, .gj-paper .op-doc .gj-dtd td{ font-size:12.5px; }
+body.dark .gj-rc{ border-left-color:#5b8def; } body.dark .gj-rc em{ color:#9cbcff; } body.dark .gj-rg{ background:rgba(120,160,230,.12); } body.dark .gj-rlink{ border-color:rgba(120,160,230,.7); background:rgba(120,160,230,.1); }
 body.dark .gj-saved.ng{ color:#ff8a80; } body.dark .gj-fc.w{ border-color:rgba(120,160,230,.7); } body.dark .gj-fc.x{ border-color:rgba(100,190,140,.7); }
 body.dark .gj-p .nm small{ color:#a5d6a7; } body.dark .gj-p.s-d .nm small{ color:#ffcc80; } body.dark .gj-card em, body.dark .gj-q.ng{ color:#ff8a80; } body.dark .gj-td.late .tx small:first-of-type{ color:#ff8a80; }
 @media (max-width:520px){ .gj-f > span{ min-width:3.8em; } }
@@ -939,11 +1053,13 @@ function closeGijiroku(){ if(!$('gijirokuOverlay') || !isDlgOpen('gijirokuOverla
 window.GIJIROKU={ tab:k=>{ st.ui.tab=k==='todo' ? 'todo' : 'list'; save(); render(); }, org:o=>{ st.ui.org=oneLine(o, 40); save(); render(); }, who:w=>{ st.ui.who=oneLine(w, 30); save(); render(); },
   add, tpl:setTpl, addGo, addOrg, open:openM, pr:setPr, decAdd, agOpen, agToggle, agFilter, agGo, back, del, set:setF, time, padd, paste, pick, pprev, pst, pdel, iadd, imove, idel, tadd, tdel, tdone, done:doneAny, vote, mic, close:popClose,
   print, image, copy, cal, nextMeet, saveOpen, out, saveJson, fileHow:setHow, fileAll:setAll, fileIn, fileGot,
+  rei:(k, i)=>reiOpen(k, i), reiHere:()=>{ const m=mOf(cur); return reiOpen(m && m.tpl!=='blank' ? m.tpl : null); }, reiType, reiEx, reiStep, reiUp, reiUse, reiNew,
   // ためす とき 用
   today:s=>{ fixedToday=s ? String(s) : null; if(st) render(); }, state:()=>JSON.parse(JSON.stringify(st)), cur:()=>cur, text:id=>{ const m=mOf(id||cur); return m ? plainText(m) : ''; },
   doc:id=>{ const m=mOf(id||cur); return m ? docHtml(m) : ''; }, newMeet:(org,tpl,cp)=>{ const m=newMeet(org, tpl, cp); return m.id; }, quorum:id=>{ const m=mOf(id||cur); return m ? quorum(m) : null; }, voteText, calEv:id=>{ const m=mOf(id||cur); return m ? calEv(m) : null; },
   parseTime, tpls:()=>TPL.map(t=>t[0]), agAll:()=>AG_ALL.slice(),
   files:(id, kind)=>{ const m=mOf(id||cur); return m ? (kind==='xlsx' ? xlsxFiles(m) : docxFiles(m)) : null; }, blob:async (id, kind)=>{ const m=mOf(id||cur); return m ? zipOf(kind==='xlsx' ? xlsxFiles(m) : docxFiles(m), MIME[kind==='xlsx' ? 'xlsx' : 'docx']) : null; },
-  fname:(id, ext)=>{ const m=mOf(id||cur); return m ? fname(m, ext) : ''; }, fileJson, importText, xLines, xSerial, signPad, openTodos:()=>openTodos().map(x=>x.t.t+'@'+(x.t.who||'')+'@'+(x.t.due||'')) };
+  fname:(id, ext)=>{ const m=mOf(id||cur); return m ? fname(m, ext) : ''; }, fileJson, importText, xLines, xSerial, signPad,
+  reiMeet, reiHead, reiLv:()=>rei ? [rei.lv, rei.k||'', rei.i, rei.g.length].join(':') : '', quorumOf:m=>quorum(m), openTodos:()=>openTodos().map(x=>x.t.t+'@'+(x.t.who||'')+'@'+(x.t.due||'')) };
 Object.assign(window, { openGijiroku, closeGijiroku });
 })();
