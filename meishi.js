@@ -1,6 +1,7 @@
 /* 💼 名刺管理（v484。表電卓の道具。はじめて開いたときに読む）
    もらった名刺を入れて、あとで名前・会社・ふりがなでさがす。
    ・名刺の表・裏を写真で残す（端末の IndexedDB excalc_meishi に、長い辺 1200px・画質 70% の JPEG で。1枚 約60KB。v485）。
+     縦に 撮った 写真は あとから ↺ ↻ で 90° ずつ 回せる（見る画面・大きく見る・直す画面。回した 写真を 保存し直す。v611）。
    ・名刺の文字を貼ると、名前・会社・役職・電話・メール・住所などの欄に分ける（mcParse）。
      iPhone は写真の「テキスト認識表示」、Android は Google レンズで文字をコピーして貼る。
    ・📞電話・✉メール・🌐サイト・📍地図をワンタッチ。📇スマホの連絡先に入れる（vCard）。
@@ -78,6 +79,20 @@ function mcResize(file, max){
     im.src=url;
   });
 }
+
+/* 写真を 90° 回す（dir：1＝右へ・-1＝左へ）。縦と 横が 入れかわる。回すたびに 画質が 落ちない よう、少し 高めの 画質で 保存し直す */
+const MC_ROT_Q=0.8;
+function mcImg(d){ return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=()=>rej(new Error('img')); im.src=d; }); }
+async function mcDims(d){ try{ const im=await mcImg(d); return {w:im.naturalWidth, h:im.naturalHeight}; }catch(_){ return null; } }
+async function mcRotate(d, dir){
+  const im=await mcImg(d), w=im.naturalWidth, h=im.naturalHeight, cv=document.createElement('canvas');
+  cv.width=h; cv.height=w;
+  const g=cv.getContext('2d');
+  if(dir>0){ g.translate(h, 0); g.rotate(Math.PI/2); } else { g.translate(0, w); g.rotate(-Math.PI/2); }
+  g.drawImage(im, 0, 0);
+  return cv.toDataURL('image/jpeg', MC_ROT_Q);
+}
+let mcRotBusy=false;
 
 /* ── 名刺の文字を欄に分ける ──
    スマホで名刺の写真から文字をコピーしたもの（1行に1つずつのことが多い）を貼ると、
@@ -233,6 +248,7 @@ const MC_CSS=`
 .mc-pv{ aspect-ratio:91/55; border-radius:8px; border:1px dashed rgba(120,132,156,.6); background:rgba(120,132,156,.08) center/contain no-repeat; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; font-size:13px; color:var(--text-light,#888); cursor:pointer; position:relative; }
 .mc-pv.has{ border-style:solid; }
 .mc-pv .x{ position:absolute; top:4px; right:4px; width:28px; height:28px; border-radius:14px; border:none; background:rgba(0,0,0,.55); color:#fff; font-size:14px; cursor:pointer; }
+.mc-pv .rt{ position:absolute; left:4px; bottom:4px; display:flex; gap:4px; } .mc-pv .rt button{ width:34px; height:30px; border-radius:15px; border:none; background:rgba(0,0,0,.55); color:#fff; font-size:17px; line-height:1; cursor:pointer; padding:0; }
 .mc-tagrow{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
 .mc-tagrow button{ height:32px; padding:0 11px; border-radius:16px; border:1px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#333); font-size:13px; cursor:pointer; }
 .mc-tagrow button.on{ background:var(--acc); border-color:var(--acc); color:#fff; }
@@ -242,6 +258,9 @@ const MC_CSS=`
 .mc-note{ font-size:12px; color:var(--text-light,#888); line-height:1.65; margin:6px 0; }
 .mc-card{ width:100%; aspect-ratio:91/55; border-radius:10px; background:rgba(120,132,156,.1) center/contain no-repeat; display:flex; align-items:center; justify-content:center; color:var(--text-light,#888); font-size:13px; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.15); }
 .mc-flip{ text-align:center; font-size:12px; color:var(--text-light,#888); margin:4px 0 8px; }
+.mc-rot{ display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin:0 0 10px; } .mc-rot .h{ flex:1 1 100%; text-align:center; font-size:13px; font-weight:bold; color:#b26a00; } .mc-rot .h[hidden]{ display:none; }
+.mc-rot button{ min-height:40px; padding:0 14px; border-radius:20px; border:1px solid rgba(120,132,156,.45); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:14px; font-weight:bold; cursor:pointer; }
+#mcSubBody .mc-rot{ margin-top:10px; } body.dark .mc-rot .h{ color:#ffcc80; }
 .mc-who{ text-align:center; margin:6px 0 10px; }
 .mc-who .k{ font-size:12px; color:var(--text-light,#888); }
 .mc-who .n{ font-size:22px; font-weight:bold; }
@@ -372,7 +391,8 @@ function mcView(id){
   const act=(ic,l,href,on)=>on?`<a href="${esc(href)}" target="_blank" rel="noopener"><span>${ic}</span>${l}</a>`:`<a class="off"><span>${ic}</span>${l}</a>`;
   const same=x.company?mc.items.filter(i=>i.id!==x.id && mcCoKey(i) && mcCoKey(i)===mcCoKey(x)):[];
   $('mcViewBody').innerHTML=`
-    ${(x.front||x.back)?`<div class="mc-card" id="mcCardPic" onclick="mcFlipOrBig()"></div><div class="mc-flip">${x.back?'押すと裏・表が入れかわります（長く押すと大きく）':'押すと大きく見られます'}</div>`:''}
+    ${(x.front||x.back)?`<div class="mc-card" id="mcCardPic" onclick="mcFlipOrBig()"></div><div class="mc-flip">${x.back?'押すと裏・表が入れかわります（長く押すと大きく）':'押すと大きく見られます'}</div>
+      <div class="mc-rot"><div class="h" id="mcRotHint" hidden>📐 縦に 撮った 写真です。↺ ↻ で 横に できます</div><button type="button" onclick="mcRotView(-1)" aria-label="写真を 左に 回す">↺ 左に 回す</button><button type="button" onclick="mcRotView(1)" aria-label="写真を 右に 回す">↻ 右に 回す</button></div>`:''}
     <div class="mc-who">${x.kana?`<div class="k">${esc(x.kana)}</div>`:''}<div class="n">${esc(x.name||'（名前なし）')}${x.fav?' <span style="color:#f9a825">★</span>':''}</div>
       <div class="c">${esc([x.company,x.dept,x.title].filter(Boolean).join(' '))}</div></div>
     <div class="mc-acts">
@@ -407,6 +427,25 @@ async function mcShowCard(){
   const side=(mcViewBack && x.back) || (!x.front && x.back) ? 'b' : 'f';
   const d=await mcPic(x.id, side);
   c.style.backgroundImage=d?`url("${d}")`:''; c.textContent=d?'':'（写真を読めませんでした）';
+  const hint=$('mcRotHint'); if(hint){ const s=d ? await mcDims(d) : null; hint.hidden=!(s && s.h>s.w); }
+}
+// 見ている 写真（表・裏の いま 出て いる 方）を 回して 保存し直す。一覧の 小さい 写真・大きく見るも 合わせる
+async function mcRotView(dir){
+  const x=mc.items.find(i=>i.id===mcViewId); if(!x || mcRotBusy) return false;
+  const side=(mcViewBack && x.back) || (!x.front && x.back) ? 'b' : 'f', k=x.id+'_'+side;
+  const d=await mcPic(x.id, side); if(!d) return false;
+  mcRotBusy=true;
+  try{
+    const r=await mcRotate(d, dir);
+    await mcPicPut(k, r); mcPics[k]=r;
+    x.updated=today(); x.ts=Date.now(); mcSave();   // 書き出して ほかの 端末で 読んだ ときにも 回した 写真に なる ように
+    await mcShowCard();
+    if(side==='f') mcFillThumbs();
+    const big=document.querySelector('#mcSubBody .mc-big'); if(big && isDlgOpen('mcSubOverlay')) big.src=r;
+    toast(dir>0 ? '↻ 写真を 右に 回しました' : '↺ 写真を 左に 回しました');
+    return true;
+  }catch(_){ toast('写真を 回せませんでした'); return false; }
+  finally{ mcRotBusy=false; }
 }
 function mcFlipOrBig(){
   const c=$('mcCardPic'); if(c && c.dataset.long){ delete c.dataset.long; return; }
@@ -417,7 +456,7 @@ async function mcShowBig(){
   const x=mc.items.find(i=>i.id===mcViewId); if(!x) return;
   const side=(mcViewBack && x.back) || (!x.front && x.back) ? 'b' : 'f';
   const d=await mcPic(x.id, side); if(!d) return;
-  $('mcSubHdr').textContent='📷 '+(side==='b'?'裏':'表'); $('mcSubBody').innerHTML=`<img class="mc-big" src="${d}" alt="名刺の写真">`; openDlg('mcSubOverlay');
+  $('mcSubHdr').textContent='📷 '+(side==='b'?'裏':'表'); $('mcSubBody').innerHTML=`<img class="mc-big" src="${d}" alt="名刺の写真"><div class="mc-rot"><button type="button" onclick="mcRotView(-1)" aria-label="写真を 左に 回す">↺ 左に 回す</button><button type="button" onclick="mcRotView(1)" aria-label="写真を 右に 回す">↻ 右に 回す</button></div>`; openDlg('mcSubOverlay');
 }
 function mcCloseView(){ if($('mcViewOverlay') && isDlgOpen('mcViewOverlay')) closeDlg('mcViewOverlay', ()=>{ mcViewId=null; }); }
 function mcToggleFav(id){ const x=mc.items.find(i=>i.id===id); if(!x) return; x.fav=!x.fav; mcSave(); mcRender(); mcView(id); }
@@ -467,7 +506,7 @@ async function mcEdPv(x){
     if(d===undefined) d=(x.id && x[side==='f'?'front':'back']) ? await mcPic(x.id, side) : null;
     pv.classList.toggle('has', !!d);
     pv.style.backgroundImage=d?`url("${d}")`:'';
-    pv.innerHTML=d?`<button type="button" class="x" onclick="event.stopPropagation();mcClearPic('${side}')" aria-label="写真を外す">✕</button>`:`📷<span>${side==='f'?'表を撮る・選ぶ':'裏（あれば）'}</span>`;
+    pv.innerHTML=d?`<button type="button" class="x" onclick="event.stopPropagation();mcClearPic('${side}')" aria-label="写真を外す">✕</button><span class="rt"><button type="button" onclick="event.stopPropagation();mcRotEd('${side}',-1)" aria-label="写真を 左に 回す">↺</button><button type="button" onclick="event.stopPropagation();mcRotEd('${side}',1)" aria-label="写真を 右に 回す">↻</button></span>`:`📷<span>${side==='f'?'表を撮る・選ぶ':'裏（あれば）'}</span>`;
   }
 }
 async function mcPickSide(side){
@@ -477,7 +516,21 @@ async function mcPickSide(side){
 }
 async function mcPickPhoto(inp){
   const fl=inp.files && inp.files[0]; inp.value=''; if(!fl) return;
-  try{ mcEdPic[mcPicSide]=await mcResize(fl, MC_PIC_MAX); mcEdPv(); }catch(_){ toast('写真を読めませんでした'); }
+  try{ mcEdPic[mcPicSide]=await mcResize(fl, MC_PIC_MAX); await mcEdPv(); }catch(_){ toast('写真を読めませんでした'); return; }
+  const s=await mcDims(mcEdPic[mcPicSide]);
+  if(s && s.h>s.w) toast('📐 縦の 写真です。横に する ときは 写真の ↺ ↻ を 押して ください', 4200);
+}
+// 直す 画面で 写真を 回す（「保存する」で 残る）
+async function mcRotEd(side, dir){
+  if(mcRotBusy) return false;
+  const x=mc.items.find(i=>i.id===mcEdId)||{};
+  let d=mcEdPic[side];
+  if(d===undefined) d=(x.id && x[side==='f'?'front':'back']) ? await mcPic(x.id, side) : null;
+  if(!d) return false;
+  mcRotBusy=true;
+  try{ mcEdPic[side]=await mcRotate(d, dir); await mcEdPv(); return true; }
+  catch(_){ toast('写真を 回せませんでした'); return false; }
+  finally{ mcRotBusy=false; }
 }
 function mcClearPic(side){ mcEdPic[side]=null; mcEdPv(); }
 async function mcNewTag(){
@@ -780,7 +833,7 @@ async function mcWipe(){
 async function mcMergeStored(d, pics){ mcLoad(); const r=await mcMerge(d, pics); if($('meishiOverlay') && isDlgOpen('meishiOverlay')) mcRender(); return r; }
 
 Object.assign(window, { openMeishi, closeMeishi, mcSetQ, mcSetView, mcSetTag, mcView, mcCloseView, mcFlipOrBig, mcShowBig, mcToggleFav,
-  mcAddPhoto, mcEdit, mcEdSave, mcCloseEd, mcCloseSub, mcRemove, mcPickSide, mcPickPhoto, mcClearPic, mcNewTag, mcOpenPaste, mcApplyPaste,
+  mcAddPhoto, mcEdit, mcEdSave, mcCloseEd, mcCloseSub, mcRemove, mcPickSide, mcPickPhoto, mcClearPic, mcNewTag, mcOpenPaste, mcApplyPaste, mcRotView, mcRotEd, mcRotate, mcDims,
   mcContact, mcShare, mcOpenMenu, mcPrint, mcCsv, mcVcfAll, mcExport, mcImport, mcWipe, mcMerge, mcMergeStored, mcPicsAll,
   mcParse, mcSearch, mcNorm, mcVcard, mcFromCsv, mcFromVcf, mcAddMany, mcFindSameTest:v=>mcFindSame(v,null), mcState:()=>mc });
 })();

@@ -13726,6 +13726,63 @@ async function runGijiRei610(browser) {
   if (errs.length) console.log('    ', errs);
   await ctx.close();
 }
+async function runMeishiRot611(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 💼 名刺管理：縦に 撮った 写真を あとから 回す（v611） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => openMeishi()); await w(600);
+  // 左上に 赤い 目じるしの ある 写真。角の 色で 向きを 見る（左上・右上・左下・右下）
+  await page.evaluate(() => {
+    window.__mk = async (W, H) => { const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.fillStyle = '#f00'; g.fillRect(0, 0, 80, 80); const bl = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.95)); return new File([bl], 'c.jpg', { type: 'image/jpeg' }); };
+    window.__look = async d => { const im = new Image(); await new Promise(r => { im.onload = r; im.src = d; }); const W = im.naturalWidth, H = im.naturalHeight, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d'); g.drawImage(im, 0, 0);
+      const px = (x, y) => { const p = g.getImageData(x, y, 1, 1).data; return p[0] > 180 && p[1] < 100 ? 'R' : 'W'; }; return W + 'x' + H + ' ' + px(15, 15) + px(W - 15, 15) + px(15, H - 15) + px(W - 15, H - 15); };
+    window.__pv = side => /url\("(.+)"\)/.exec(document.getElementById(side === 'b' ? 'mcPvB' : 'mcPvF').style.backgroundImage)[1];
+    window.__stored = async k => { const all = await mcPicsAll(); return all[k] ? __look(all[k]) : '-'; };
+  });
+  await page.evaluate(async () => { mcEdit(null); await mcPickPhoto({ files: [await __mk(600, 900)], value: '' }); }); await w(200);
+  check('  縦の 写真を 入れると 案内が 出る・小窓に ↺ ↻', await page.evaluate(async () => [await __look(__pv('f')), document.getElementById('appToast').textContent, [...document.querySelectorAll('#mcPvF .rt button')].map(b => b.textContent + ':' + b.getAttribute('aria-label')).join(',')].join(' / ')),
+    '600x900 RWWW / 📐 縦の 写真です。横に する ときは 写真の ↺ ↻ を 押して ください / ↺:写真を 左に 回す,↻:写真を 右に 回す');
+  await page.click('#mcPvF .rt button >> nth=1'); await w(300);
+  const r1 = await page.evaluate(async () => [await __look(__pv('f')), isDlgOpen('mcSubOverlay')].join(' / '));
+  await page.click('#mcPvF .rt button >> nth=0'); await w(300); await page.click('#mcPvF .rt button >> nth=0'); await w(300);
+  check('  直す画面：↻ で 右へ（左上 → 右上）・↺ で 左へ（2回で 左下）・小窓を 押した ことに ならない', [r1, await page.evaluate(async () => __look(__pv('f')))].join(' | '), '900x600 WRWW / false | 900x600 WWRW');
+  await page.evaluate(async () => { document.getElementById('mcE_name').value = '藤原 慎一'; document.getElementById('mcE_company').value = '阪神道路開発株式会社'; await mcEdSave(); }); await w(400);
+  const id = await page.evaluate(() => mcState().items[0].id);
+  check('  保存すると 回した 写真が 残る', await page.evaluate(k => __stored(k), id + '_f'), '900x600 WWRW');
+  await page.evaluate(i => { const x = mcState().items[0]; x.updated = '2026-01-01'; x.ts = 1; mcView(i); }, id); await w(400);
+  check('  見る画面：写真の 下に ↺ 左に 回す・↻ 右に 回す（横の 写真は 案内なし）', await page.evaluate(() => [[...document.querySelectorAll('#mcViewBody .mc-rot button')].map(b => b.textContent).join(','), document.getElementById('mcRotHint').hidden].join(' / ')), '↺ 左に 回す,↻ 右に 回す / true');
+  await page.click('#mcViewBody .mc-rot button >> nth=1'); await w(500);
+  check('  ↻ で 右に 回して すぐ 保存（縦に なったので 案内）・直した日・一覧の 小さい 写真も', await page.evaluate(async k => { const x = mcState().items[0], all = await mcPicsAll(); return [await __stored(k), !document.getElementById('mcRotHint').hidden, document.getElementById('mcRotHint').textContent, x.updated !== '2026-01-01', x.ts > 1, document.querySelector('#mcList .mc-it .ph').style.backgroundImage.includes(all[k].slice(0, 200)), document.getElementById('appToast').textContent].join(' / '); }, id + '_f'),
+    '600x900 RWWW / true / 📐 縦に 撮った 写真です。↺ ↻ で 横に できます / true / true / true / ↻ 写真を 右に 回しました');
+  check('  見る画面の 写真も 新しい 写真に', await page.evaluate(async k => document.getElementById('mcCardPic').style.backgroundImage.includes((await mcPicsAll())[k].slice(0, 200)), id + '_f'), true);
+  await page.evaluate(() => mcShowBig()); await w(400);
+  await page.click('#mcSubBody .mc-rot button >> nth=0'); await w(500);
+  check('  大きく 見る 画面でも ↺ ↻（大きい 写真も 見る画面も 合わせる）', await page.evaluate(async k => [await __stored(k), await __look(document.querySelector('#mcSubBody .mc-big').src), document.getElementById('mcRotHint').hidden].join(' / '), id + '_f'), '900x600 WWRW / 900x600 WWRW / true');
+  await page.evaluate(() => closeDlg('mcSubOverlay')); await w(200);
+  // 裏も ある ときは、出て いる 方だけ 回す
+  await page.evaluate(async i => { mcEdit(i); mcPicSide = 'b'; }, id); await w(300);
+  await page.evaluate(async () => { window.mcPicSide = 'b'; }); 
+  await page.evaluate(async () => { document.getElementById('mcPvB').click(); }); await w(300);
+  await page.evaluate(() => { const b = document.querySelector('#mcSubBody button'); if (b && isDlgOpen('mcSubOverlay')) closeDlg('mcSubOverlay'); }); await w(200);
+  await page.setInputFiles('#mcPicIn', { name: 'b.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(await page.evaluate(async () => { const f = await __mk(500, 800); const a = new Uint8Array(await f.arrayBuffer()); return Array.from(a); })) }); await w(500);
+  await page.evaluate(async () => { await mcEdSave(); }); await w(400);
+  await page.evaluate(i => mcView(i), id); await w(300);
+  await page.evaluate(() => mcFlipOrBig()); await w(300);
+  await page.click('#mcViewBody .mc-rot button >> nth=1'); await w(500);
+  check('  裏を 出して 回すと 裏 だけ 回る（表は そのまま）', await page.evaluate(async i => [await __stored(i + '_b'), await __stored(i + '_f')].join(' / '), id), '800x500 WRWW / 900x600 WWRW');
+  // 直す 画面で 回して「やめる」と 残らない
+  await page.evaluate(i => { mcCloseView(); mcEdit(i); }, id); await w(400);
+  await page.click('#mcPvF .rt button >> nth=1'); await w(300);
+  await page.evaluate(() => mcCloseEd()); await w(300);
+  check('  直す 画面で 回しても「やめる」なら 前の まま', await page.evaluate(k => __stored(k), id + '_f'), '900x600 WWRW');
+  // 開き直しても 回した まま
+  await page.evaluate(() => closeMeishi()); await w(800); await page.reload(); await w(900);
+  await page.evaluate(() => openMeishi()); await w(600);
+  check('  開き直しても 回した 写真の まま（端末に 保存）', await page.evaluate(async i => { const all = await mcPicsAll(); const look = async d => { const im = new Image(); await new Promise(r => { im.onload = r; im.src = d; }); return im.naturalWidth + 'x' + im.naturalHeight; }; return [await look(all[i + '_f']), await look(all[i + '_b'])].join(' / '); }, id), '900x600 / 800x500');
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
 async function runClockLay591(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🕐 ど派手タイマーの 時計：ぽよん 以外の 見せ方も 同じ 並べ方（v591） ──');
@@ -19312,6 +19369,7 @@ const SUITES = [
   [['annai'], b => runAnnai(b)],
   [['shimai'], b => runShimai(b)],
   [['meishi'], b => runMeishi(b)],
+  [['meishi', 'mcrot', 'v611'], b => runMeishiRot611(b)],
   [['trim'], b => runTrim(b)],
   [['manner'], b => runManner(b)],
   [['boki'], b => runBoki(b)],
