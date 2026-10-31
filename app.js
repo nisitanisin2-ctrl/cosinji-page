@@ -5117,6 +5117,7 @@ const KEY_FUNCS={
   a_mikurabe:{g:'設定・機能',label:'📸見比べ',short:'見比べ',run:()=>openMikurabe()},   // v605
   a_gijiroku:{g:'設定・機能',label:'📝議事録',short:'議事録',run:()=>openGijiroku()},   // v605
   a_sentaku:{g:'設定・機能',label:'🧺洗濯表示',short:'洗濯',run:()=>openSentaku()},   // v605
+  a_kyoshi:{g:'設定・機能',label:'🧱供試体',short:'供試体',run:()=>openKyoshi()},   // v611
   a_chart:{g:'設定・機能',label:'📊表からグラフ',short:'グラフ',run:()=>hpRun('chart')},   // v563 表を強くする
   a_cfmt:{g:'設定・機能',label:'🎨条件で色',short:'条件色',run:()=>hpRun('cf')},
   a_filter:{g:'設定・機能',label:'🔎しぼり込み',short:'しぼる',run:()=>hpRun('filter')},
@@ -8195,6 +8196,18 @@ sidePartOpener('openMikurabe', ['mikurabe.js'], '見比べ');
 sidePartOpener('openGijiroku', ['gijiroku.js'], '議事録');
 sidePartOpener('openSentaku', ['sentaku-guide.js','sentaku.js'], '洗濯表示');   // 服・素材の 洗い方（v606）を 先に
 window.closeMikurabe=function(){}; window.closeGijiroku=function(){}; window.closeSentaku=function(){};
+/* ── 🧱 供試体（v611。kyoshi.js。採った 供試体の 試験の 日・Google カレンダーに 自動で）──
+   ☁ Google カレンダーに まだ 送って いない 予定が あれば（excalc_kyoshi の q）、道具を 開かなくても 送る：
+   表電卓を 開いた とき・電波が もどった とき・画面に もどった とき。送り先は 自分で 設定した Apps Script だけ */
+sidePartOpener('openKyoshi', ['kyoshi.js'], '供試体');
+window.closeKyoshi=function(){};
+function kyoshiKick(){
+  try{ if(navigator.onLine===false) return; const o=JSON.parse(localStorage.getItem('excalc_kyoshi')||'null'); if(!(o && o.q>0 && Array.isArray(o.dests) && o.dests.some(d=>d && d.url && d.tok && d.auto!==false))) return; }catch(_){ return; }   // q：入れたら すぐ 送る 送り先に まだ 送って いない 数（v612）
+  loadSidePart(['kyoshi.js']).then(ok=>{ if(ok && window.KYOSHI) KYOSHI.sync('bg'); });
+}
+window.addEventListener('online', ()=>setTimeout(kyoshiKick, 1500));
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTimeout(kyoshiKick, 1500); });
+setTimeout(kyoshiKick, 5000);
 /* ── 📝 試験報告書（v600。単位水量・カンタブの 報告書と カンタブの 1ページ。shiken.js に 分けてある）── */
 ['openShikenRep','ktPdf','ktImage','shikenPrint','shikenImage'].forEach(n=>sidePartOpener(n, ['shiken.js'], '試験報告書'));
 window.closeShikenRep=function(){};
@@ -8724,6 +8737,7 @@ const NP_TOOLS=[
   {id:'mikurabe', label:'📸見比べ',     ov:'mikurabeOverlay',  run:()=>openMikurabe(), close:()=>closeMikurabe()}, // mikurabe.js（開いたときに読む。v605）
   {id:'gijiroku', label:'📝議事録',     ov:'gijirokuOverlay',  run:()=>openGijiroku(), close:()=>closeGijiroku()}, // gijiroku.js（開いたときに読む。v605）
   {id:'sentaku',  label:'🧺洗濯表示',   ov:'sentakuOverlay',   run:()=>openSentaku(),  close:()=>closeSentaku()},  // sentaku.js（開いたときに読む。v605）
+  {id:'kyoshi',   label:'🧱供試体',     ov:'kyoshiOverlay',    run:()=>openKyoshi(),   close:()=>closeKyoshi()},   // kyoshi.js（開いたときに読む。v611）
   {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},                        // 別のアプリとして開くので全画面・フリックの対象外
   {id:'calctmpl', label:'📋式テンプレ', ov:'calcTmplOverlay',  run:()=>openCalcTmpl(), close:()=>closeCalcTmpl()},
   {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
@@ -15466,6 +15480,7 @@ const TOOL_HINTS={
   mikurabe:'「＋ 新しい 見比べ」で 前と 後の 写真を 入れると、境目を 指で 動かして 見比べられます（⇆ 並べる・👻 透かす も）。「⛶ 全画面」で 画面いっぱいに 見比べられます（▶ で 境目が 自動で 動く）。「👻 前に 合わせて 撮る」は 前の 写真を 薄く 重ねて 同じ 向きで 撮れます。',
   gijiroku:'「＋ 新しい 会議」で ひな形（定例会・総会・職場の 会議 など）を えらび、出席者（📇 名簿から）・議題・決まったこと・宿題（だれが・いつまで）を 入れます。「🖨 印刷・PDF」で 署名欄つきの 議事録に。📄 Word・📊 Excel の ファイルにも できます。「💾 保存」で すぐ 保存・控えの ファイルに。どんな 会議か 分からない ときは「📖 議事録の 例」（会議の 種類ごとに 5つ）を 見て ください。宿題は「📌 宿題」と 次の 会議で 確かめられます。',
   sentaku:'服の タグの 記号を 絵から えらぶと、洗い方・乾燥機・アイロンの 温度などが 下に 出ます。「🧥 服・素材」で ズボン・靴下・セーター・ウール などの 洗い方、上の 🔍 で さがす ことも。「📒 メモに 残す」で 家族の 服の お手入れメモ（写真つき）に。',
+  kyoshi:'「＋ 入れる」で 採った日・現場・配合・材齢（7日・28日 など）・本数を 入れると、試験の 日が 出ます。1日に 何件も ある ときは「＋ 入れて 次の 物件へ」。「📅 まとめて 送る」で カレンダーに まとめて 入れます（Google・iPhone の カレンダー・Outlook など）。上の「☁」で 1回 設定すると、入れるだけで Google カレンダーにも 入ります（アカウントごとに 送り先を 作れます）。',
   ruler:'はじめに「🎯 校正」でカードや硬貨を画面に当てて合わせると、定規が正しい長さになります。「📷 写真で測る」は基準の物と並べて撮ってなぞります。',
   keisan:'8つの計算から選びます。入れた数は覚えるので、次も続きから使えます。',
   kurashi:'10のテーマから選ぶか、上の欄で「AED」「死亡届」「失業保険」のようにさがします。ページの中の 🧮 道具で、期限や金額の目安も出せます。🔖 つづきから・🔈 読み上げ も。',
@@ -15559,7 +15574,7 @@ const TOOL_CATS=[
   ['🏠 くらし',   ['keisan','hadetimer','hadecount','yatta','shukin','shiori','tatekae','kuji','bingo','sentaku','okaeshi','koyomi','hoi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
   ['📖 知識・手引き',['kurashi','manner','boki']],   // 計算ではなく読む道具（v513）
   ['💼 仕事',     ['techo','gijiroku','seikyu','meishi','calctmpl','fintmpl','kaikei']],
-  ['🏗 現場・畑', ['tansui','kantab','dasetsu','volume','mikurabe','ruler','kakudo','veggie']],
+  ['🏗 現場・畑', ['tansui','kantab','kyoshi','dasetsu','volume','mikurabe','ruler','kakudo','veggie']],
   ['📚 声・まなぶ',['koe','hitsudan','eigo','sansu','kakijun','soroban']],
   ['🏨 お店・宿', ['regi','heya','annai','keijiban']],
 ];
@@ -15826,7 +15841,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v610';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v612';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -18330,6 +18345,7 @@ const ST_GROUPS=[
   {k:'excalc_gijiroku',   n:'議事録（会議・出席者・議題・宿題）'},
   {k:'excalc_sentaku',    n:'洗濯表示（お手入れメモ。写真は 別）'},
   {k:'excalc_shiken',     n:'試験報告書の 見出し（工事名・試験者 など）'},
+  {k:'excalc_kyoshi',     n:'供試体（採った日・現場・材齢・試験 済み・Google カレンダーの 設定）'},
   {k:'excalc_yomi',       n:'読みものの しおり・最近 見た ページ（マナー帳・会計の手引き・便利帳）'},
   {k:'excalc_receipt',    n:'読み取ったレシート（道具は外しました）', how:'clear'},   // v561〜v563 の 📷レシート読み取りの残り。勝手には消さない
   {k:'excalc_links',      n:'リンク集'},
@@ -18527,6 +18543,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_shiken',   // 📝試験報告書の 見出し（v600）
   'excalc_yomi',   // 📖読みものの しおり・最近 見た（v601）
   'excalc_mikurabe','excalc_gijiroku','excalc_sentaku',   // 📸見比べ・📝議事録・🧺洗濯表示（v605。写真は 書き出すときに 聞く）
+  'excalc_kyoshi',   // 🧱供試体（v611。Google カレンダーの 設定も）
 ];
 function settingsBundle(){
   const o={};

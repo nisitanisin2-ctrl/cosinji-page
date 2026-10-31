@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,bingo,mikurabe,gijiroku,sentaku,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
+    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,bingo,mikurabe,gijiroku,sentaku,kyoshi,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -3105,11 +3105,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,bingo,mikurabe,gijiroku,sentaku,calctmpl,fintmpl');
+    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,bingo,mikurabe,gijiroku,sentaku,kyoshi,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 48);   // v605 で 📸📝🧺 の3つ、v587 で 🎱ビンゴ、v579 で 🔁📋🧳 の3つ、v575 で ⏱🎉📃 の3つ、v569 で 🗣📢 の2つ、v568 で 🗓⛩🧮 の3つ、v561 で 🚛💴🎲📷 の4つ、v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
+    document.getElementById('startPageSel').options.length), 49);   // v611 で 🧱供試体、v605 で 📸📝🧺 の3つ、v587 で 🎱ビンゴ、v579 で 🔁📋🧳 の3つ、v575 で ⏱🎉📃 の3つ、v569 で 🗣📢 の2つ、v568 で 🗓⛩🧮 の3つ、v561 で 🚛💴🎲📷 の4つ、v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'saienOverlay', 'volumeOverlay',
@@ -6634,7 +6634,7 @@ async function runSecurity(browser) {
   const csp = async (p) => p.evaluate(() => { const m = document.querySelector('meta[http-equiv="Content-Security-Policy"]'); return m ? m.content : ''; });
   const dir = (c, k) => ((c.split(';').map(x => x.trim()).find(x => x.startsWith(k + ' ')) || '').slice(k.length + 1));
   const c0 = await csp(page);
-  check('  CSP：表電卓は自分の所からだけ読み込む・外へ送らない', [dir(c0, 'default-src'), dir(c0, 'connect-src'), dir(c0, 'object-src'), dir(c0, 'base-uri'), dir(c0, 'script-src')].join(' | '), "'self' | 'self' data: blob: | 'none' | 'self' | 'self' 'unsafe-inline'");
+  check('  CSP：表電卓は自分の所からだけ読み込む・外へ送るのは 🧱 供試体の 自分の Apps Script（script.google.com）だけ（v611）', [dir(c0, 'default-src'), dir(c0, 'connect-src'), dir(c0, 'object-src'), dir(c0, 'base-uri'), dir(c0, 'script-src')].join(' | '), "'self' | 'self' data: blob: https://script.google.com https://script.googleusercontent.com | 'none' | 'self' | 'self' 'unsafe-inline'");
   for (const [sub, strict] of [['kaikei', false], ['koe', false], ['eigo', false], ['notes', true], ['saien', true], ['sansu', true], ['kakijun', true]]) {
     const sp = await ctx.newPage(); await sp.goto('file://' + path.join(ROOT, sub, 'index.html')); await sp.waitForTimeout(300);
     const c = await csp(sp);
@@ -14842,7 +14842,7 @@ async function runSchemeFix(browser) {
       { id: 'a2', fam: '佐藤', giv: '花子', famK: 'さとう', givK: 'はなこ', tels: [{ t: 'cell', v: '080-3333-4444' }], color: 'yellow' }, { id: 'a3', fam: '鈴木', giv: '一郎', famK: 'すずき', givK: 'いちろう', tels: [{ t: 'cell', v: '080-5555-6666' }], color: 'blue' }] })));
     await page.evaluate(() => { const d = new Date(); d.setDate(d.getDate() - 60); const old = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');   // 🎁 お返し帳は 札（まだ・時期すぎ・済み・しない・さしあげた）が出る中身で
       localStorage.setItem('excalc_okaeshi', JSON.stringify({ items: [{ id: 'o1', dir: 'in', kind: 'kekkon', ev: '長女の結婚', date: old, name: '佐藤 花子', amt: 30000, t: 1 }, { id: 'o2', dir: 'in', kind: 'koden', ev: '父の葬儀', date: old, name: '鈴木 一郎', amt: 10000, ret: { st: 'sumi', what: 'お茶' }, t: 2 }, { id: 'o3', dir: 'in', kind: 'kodomo', ev: '入学', date: old, name: '田中 三郎', amt: 10000, t: 3 }, { id: 'o4', dir: 'out', kind: 'koden', ev: '山田さんの葬儀', date: old, name: '山田 太郎', amt: 5000, t: 4 }, { id: 'o5', dir: 'in', kind: 'koden', ev: '父の葬儀', date: old, name: '高橋 次郎', amt: 5000, t: 5 }] })); });
-    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo', 'renraku', 'tatekae', 'kuji', 'dasetsu', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'yatta', 'shukin', 'shiori', 'bingo', 'mikurabe', 'gijiroku', 'sentaku']) {
+    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo', 'renraku', 'tatekae', 'kuji', 'dasetsu', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'yatta', 'shukin', 'shiori', 'bingo', 'mikurabe', 'gijiroku', 'sentaku', 'kyoshi']) {
       await page.evaluate(id => NP_TOOLS.find(t => t.id === id).run(), id); await w(1100);
       found.push(id + ':' + await page.evaluate(SCAN));
       if (id === 'kurashi' || id === 'keisan') { await page.evaluate(id => { const c = document.querySelector(id === 'kurashi' ? '#krList .kr-card' : '#ksList .ks-card'); if (c) c.click(); }, id); await w(800); found.push(id + '-page:' + await page.evaluate(SCAN)); }
@@ -14885,6 +14885,16 @@ async function runSchemeFix(browser) {
         await page.evaluate(() => GIJIROKU.close()); await w(150);
         await page.evaluate(() => { GIJIROKU.back(); GIJIROKU.tab('todo'); }); await w(300); found.push('gijiroku-todo:' + await page.evaluate(SCAN));
         await page.evaluate(() => GIJIROKU.tab('list')); await w(200);
+      }
+      if (id === 'kyoshi') {   // 🧱 試験の 予定（過ぎた・きょう）・採った 供試体・くわしく・入れる・☁ 設定（v611）
+        await page.evaluate(() => { const d = x => { const t = new Date(); t.setDate(t.getDate() - x); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); }; KYOSHI.addItem({ date: d(7), site: '○○ビル', mix: '24-18-20N', part: '2F スラブ', ages: [7, 28], n: 3 }); KYOSHI.addItem({ date: d(9), site: '△△邸', ages: [7], n: 3 }); KYOSHI.done(KYOSHI.state().items[0].id, 7); KYOSHI.view('plan'); }); await w(300); found.push('kyoshi-plan:' + await page.evaluate(SCAN));
+        await page.evaluate(() => KYOSHI.view('list')); await w(200); found.push('kyoshi-list:' + await page.evaluate(SCAN));
+        await page.evaluate(() => KYOSHI.open(KYOSHI.state().items[0].id)); await w(300); found.push('kyoshi-detail:' + await page.evaluate(SCAN));
+        await page.evaluate(() => { KYOSHI.close(); KYOSHI.add(); }); await w(300); found.push('kyoshi-add:' + await page.evaluate(SCAN));
+        await page.evaluate(() => { KYOSHI.close(); KYOSHI.gopen(); }); await w(300); found.push('kyoshi-g:' + await page.evaluate(SCAN));
+        await page.evaluate(() => { KYOSHI.close(); KYOSHI.gopen(); }); await w(300); found.push('kyoshi-glist:' + await page.evaluate(SCAN));   /* ☁ 送り先の 一覧（v612） */
+        await page.evaluate(() => { KYOSHI.close(); KYOSHI.batch(); }); await w(300); found.push('kyoshi-batch:' + await page.evaluate(SCAN));   /* 📅 まとめて 送る（v612） */
+        await page.evaluate(() => { KYOSHI.close(); KYOSHI.view('plan'); }); await w(200);
       }
       if (id === 'sentaku') {   // 🧺 この 服の 洗い方・メモの 画面・お手入れ メモ・一覧・古い 表示（v605）
         await page.evaluate(() => { ['W30L', 'BO', 'TX', 'DFS', 'I1'].forEach(c => SENTAKU.sel(c)); document.querySelector('.sn-sum').scrollIntoView({ block: 'center' }); }); await w(300); found.push('sentaku-sum:' + await page.evaluate(SCAN));
@@ -14939,7 +14949,7 @@ async function runSchemeFix(browser) {
     }
     await page.evaluate(() => { toggleSettings(); openVoiceSet(); }); await w(500);
     found.push('voice:' + await page.evaluate(SCAN));
-    check('  　読めない文字がない（しまい場所・部屋割り・案内ページ・容積・カンタブ・便利計算・くらしの便利帳・角度計・連絡帳（色分け・表で直す）・立て替え精算・くじ・打設の段取り・お返し帳・こよみ・方位と恵方・そろばん・筆談ボード・電光掲示板（時計・予約・絵）・ど派手タイマー・ど派手カウンター・請求書づくり（書類の見本）・前にやった日 帳・出欠・集金表・旅のしおり・読み上げの声）', found.filter(s => !/:$/.test(s)).join(' | '), '');
+    check('  　読めない文字がない（しまい場所・部屋割り・案内ページ・容積・カンタブ・便利計算・くらしの便利帳・角度計・連絡帳（色分け・表で直す）・立て替え精算・くじ・打設の段取り・お返し帳・こよみ・方位と恵方・そろばん・筆談ボード・電光掲示板（時計・予約・絵）・ど派手タイマー・ど派手カウンター・請求書づくり（書類の見本）・前にやった日 帳・出欠・集金表・旅のしおり・供試体・読み上げの声）', found.filter(s => !/:$/.test(s)).join(' | '), '');
     check('  　エラーなし', errs.join(' | '), '');
     await ctx.close();
   }
@@ -18184,11 +18194,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/50');   // v605 で 📸見比べ・📝議事録・🧺洗濯表示、v575 で ⏱ど派手タイマー・🎉ど派手カウンター・📃請求書づくり、v569 で 🗣筆談ボード・📢電光掲示板、v568 で 🗓こよみ・⛩方位と恵方・🧮そろばん、v561 で 💴🎲🚛📷 の4つ（v564 で 📷 を 🎁お返し帳 に）、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/51');   // v611 で 🧱供試体、v605 で 📸見比べ・📝議事録・🧺洗濯表示、v575 で ⏱ど派手タイマー・🎉ど派手カウンター・📃請求書づくり、v569 で 🗣筆談ボード・📢電光掲示板、v568 で 🗓こよみ・⛩方位と恵方・🧮そろばん、v561 で 💴🎲🚛📷 の4つ（v564 で 📷 を 🎁お返し帳 に）、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'yatta', 'shukin', 'shiori', 'bingo', 'mikurabe', 'gijiroku', 'sentaku', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'yatta', 'shukin', 'shiori', 'bingo', 'mikurabe', 'gijiroku', 'sentaku', 'kyoshi', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -18216,7 +18226,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,okaeshi:B,koyomi:B,hoi:B,soroban:B,hitsudan:B,keijiban:B,hadetimer:B,hadecount:B,seikyu:B,yatta:B,shukin:B,shiori:B,bingo:B,mikurabe:B,gijiroku:B,sentaku:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,okaeshi:B,koyomi:B,hoi:B,soroban:B,hitsudan:B,keijiban:B,hadetimer:B,hadecount:B,seikyu:B,yatta:B,shukin:B,shiori:B,bingo:B,mikurabe:B,gijiroku:B,sentaku:B,kyoshi:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -19237,6 +19247,344 @@ async function runQrShare(browser) {
   await ctx.close();
 }
 
+// 🧱 供試体（v611・v612。kyoshi.js）：Apps Script の 受け口を 作り物の CalendarApp・ContentService で 動かす（vm）
+// opt.shared：共有されて いる ほかの アカウントの カレンダー（getCalendarById で 開ける メールアドレス）
+function kyoshiGasMock(code, opt) {
+  const vm = require('vm');
+  const shared = (opt && opt.shared) || [];
+  const pad = n => String(n).padStart(2, '0'), ymd = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  const cals = []; let seq = 0;
+  const mkEv = (c, title, d, o) => {
+    const e = { id: 'ev' + (++seq) + '@google.com', title, date: ymd(d), desc: (o && o.description) || '', tags: {}, rem: [], color: '', deleted: false };
+    e.api = { getId: () => e.id, getTag: k => (k in e.tags ? e.tags[k] : null), setTag: (k, v) => { e.tags[k] = String(v); }, setTitle: t => { e.title = t; }, setDescription: t => { e.desc = t; },
+      setAllDayDate: d2 => { e.date = ymd(d2); }, removeAllReminders: () => { e.rem = []; }, addPopupReminder: m => { e.rem.push(m); }, setColor: x => { e.color = x; }, deleteEvent: () => { e.deleted = true; } };
+    c.events.push(e); return e.api;
+  };
+  const mkCal = name => {
+    const c = { name, events: [] };
+    c.api = { getName: () => c.name, getEventById: id => { const e = c.events.find(x => x.id === id && !x.deleted); return e ? e.api : null; },
+      getEventsForDay: d => c.events.filter(x => !x.deleted && x.date === ymd(d)).map(x => x.api), createAllDayEvent: (t, d, o) => mkEv(c, t, d, o) };
+    cals.push(c); return c;
+  };
+  const def = mkCal('自分');
+  const own = c => c !== def && !shared.includes(c.name);
+  const sb = {
+    CalendarApp: { getDefaultCalendar: () => def.api, getOwnedCalendarsByName: n => cals.filter(c => own(c) && c.name === n).map(c => c.api), createCalendar: n => mkCal(n).api,
+      getCalendarById: id => shared.includes(id) ? (cals.find(c => c.name === id) || mkCal(id)).api : null },
+    ContentService: { MimeType: { JSON: 'application/json' }, createTextOutput: s => ({ setMimeType: () => ({ body: s }) }) },
+    LockService: { getScriptLock: () => ({ waitLock: () => {}, releaseLock: () => {} }) },
+    Session: { getScriptTimeZone: () => 'Asia/Tokyo' },
+  };
+  vm.createContext(sb); vm.runInContext(code, sb);
+  return {
+    post: body => JSON.parse(sb.doPost({ postData: { contents: body } }).body),
+    get: () => JSON.parse(sb.doGet().body),
+    manual: (title, date) => def.api.createAllDayEvent(title, new Date(+date.slice(0, 4), +date.slice(5, 7) - 1, +date.slice(8, 10)), {}),   // 自分で 入れた 予定（印 なし）
+    events: () => cals.flatMap(c => c.events.filter(e => !e.deleted).map(e => ({ cal: c.name, id: e.id, title: e.title, date: e.date, tag: e.tags.hyo || '', rem: e.rem.join(','), color: e.color, desc: e.desc }))),
+    cals: () => cals.map(c => c.name),
+  };
+}
+async function runKyoshi611(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🧱 供試体（v611。試験の 日・📅 カレンダー・☁ Google カレンダーに 自動で） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const toastTx = () => page.evaluate(() => (document.getElementById('appToast') || {}).textContent || '');
+  const rd = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8'), sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8'), hl = fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8'), ix = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  check('  開くまでは 読まない・道具（現場・畑：カンタブの 次）・マイキー・バックアップ・端末の空き・吹き出し・送る 係・単独アプリの 入口',
+    await page.evaluate(() => [typeof window.KYOSHI, !!NP_TOOLS.find(t => t.id === 'kyoshi' && t.ov === 'kyoshiOverlay'), !!KEY_FUNCS.a_kyoshi, (l => l[l.indexOf('kantab') + 1])(TOOL_CATS.find(c => c[0].includes('現場'))[1]), SETTINGS_BACKUP_KEYS.includes('excalc_kyoshi'), ST_GROUPS.some(g => g.k === 'excalc_kyoshi'), !!TOOL_HINTS.kyoshi, typeof kyoshiKick].join('/'))
+      + '/' + ['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(ROOT, 'apps', 'kyoshi', f))),
+    'undefined/true/true/kyoshi/true/true/true/function/true');
+  check('  service-worker・README（表・配る）・説明書・?app= の 名前', [sw.includes("'./kyoshi.js'"), rd.includes('| `kyoshi.js` |'), rd.split('## 配る')[1].includes('`kyoshi.js`'), hl.includes('🧱供試体＝'), ix.includes("kyoshi:'🧱 供試体'")].join('/'), 'true/true/true/true/true');
+  {
+    const csp = (ix.match(/Content-Security-Policy" content="([^"]+)"/) || [])[1] || '';
+    check('  CSP：外へ 送れるのは 自分で 作る Apps Script（script.google.com）だけ', csp.split(';').map(x => x.trim()).find(x => x.startsWith('connect-src')), "connect-src 'self' data: blob: https://script.google.com https://script.googleusercontent.com");
+  }
+  await page.evaluate(() => { window.appConfirm = async () => true; });
+  await page.evaluate(async () => { await openKyoshi(); KYOSHI.today('2026-10-31'); }); await w(400);
+  check('  はじめは 案内・← もどる・☁ は まだ（設定の 入口）・タブ 2つ', await page.evaluate(() => [!!document.querySelector('#kyoBody .kyo-empty'), !!document.querySelector('#kyoshiOverlay .tool-back'), document.querySelector('.kyo-gbar').classList.contains('off'), document.querySelectorAll('.kyo-tabs button').length].join('/')), 'true/true/true/2');
+
+  /* ── 入れる ── */
+  await page.evaluate(() => KYOSHI.add()); await w(200);
+  check('  入れる 窓：採った日は きょう・材齢は 7日と 28日・本数 3・試験の 日の 見込み', await page.evaluate(() => [document.querySelector('.kyo-pop input[data-k="date"]').value, [...document.querySelectorAll('#kyoAgeChips button.on')].map(b => b.textContent).join(','), document.getElementById('kyoN').textContent, document.getElementById('kyoPrev').textContent.replace(/\s+/g, '')].join('/')),
+    '2026-10-31/7日,28日/3/試験の日7日→11月7日（土）28日→11月28日（土）');
+  await page.evaluate(() => { KYOSHI.drAge(28); KYOSHI.drAge(56); KYOSHI.drSet('date', '2026-10-27'); KYOSHI.drN(1); }); await w(100);
+  check('  材齢を 外す・足す・本数 ＋1・祝日は ⚠（11月3日 文化の日）', await page.evaluate(() => [[...document.querySelectorAll('#kyoAgeChips button.on')].map(b => b.textContent).join(','), document.getElementById('kyoN').textContent, document.getElementById('kyoPrev').textContent.replace(/\s+/g, ''), document.querySelector('#kyoPrev .kyo-d').className].join('/')),
+    '7日,56日/4/試験の日7日→11月3日（火）文化の日⚠文化の日56日→12月22日（火）/kyo-d sun');
+  await page.evaluate(() => { KYOSHI.drAge(7); KYOSHI.drAge(56); }); await w(50);
+  check('  材齢は 1つは 残す', await page.evaluate(() => [...document.querySelectorAll('#kyoAgeChips button.on')].map(b => b.textContent).join(',')), '56日');
+  await page.evaluate(() => { KYOSHI.drAge(7); KYOSHI.drAge(28); KYOSHI.drAge(56); KYOSHI.drN(-1); KYOSHI.drDay(-1); KYOSHI.drDay(0); }); await w(50);
+  await page.evaluate(() => KYOSHI.addGo()); await w(150);
+  check('  現場が 空なら 入れない', await page.evaluate(() => [KYOSHI.state().items.length, !!document.querySelector('.kyo-pop')].join('/')) + '/' + await toastTx(), '0/true/現場の 名前を 入れて ください');
+  await page.fill('.kyo-pop input[data-k="site"]', '○○ビル 新築工事'); await page.fill('.kyo-pop input[data-k="mix"]', '24-18-20N'); await w(80);
+  await page.click('.kyo-pop .kyo-acts.end .kyo-b.pri'); await w(500);
+  check('  ✓ 入れて おわる → 一覧に・送り先が ない ときは「📅 まとめて 送る」窓（ファイル・入れた 1件）', await page.evaluate(() => { const s = KYOSHI.state(), it = s.items[0]; return [s.items.length, it.date, it.site, it.mix, it.ages.map(a => a.d + ':' + a.n).join(','), s.def.ages.join(','), !!document.querySelector('.kyo-pop .kyo-dsts'), document.querySelector('.kyo-dsts button.on').textContent.includes('この スマホの カレンダー'), document.querySelectorAll('.kyo-bi input:checked').length].join('/'); }),
+    '1/2026-10-31/○○ビル 新築工事/24-18-20N/7:3,28:3/7,28/true/true/1');
+  await page.evaluate(() => KYOSHI.close()); await w(100);
+  const id1 = await page.evaluate(() => KYOSHI.state().items[0].id);
+  check('  .ics の 予定：終日・前の日の 17時に 知らせ・名前・中身', await page.evaluate(id => { const L = KYOSHI.ics(id), t = HyoIcs.build(L); return [L.length, L[0].uid, L[0].title, L[0].date, L[0].allDay, L[0].alarm, t.includes('DTSTART;VALUE=DATE:20261107'), t.includes('TRIGGER:-PT420M'), L[1].desc.split('\n').slice(0, 3).join('｜')].join('|'); }, id1),
+    '2|kyoshi-' + id1 + '-7|🧱 7日 試験：○○ビル 新築工事 24-18-20N 3本|2026-11-07|true|420|true|true|採った日：2026年10月31日（土）｜材齢：28日（試験の 日 2026年11月28日（土））｜配合：24-18-20N');
+  await page.evaluate(() => { localStorage.setItem('excalc_shiken', JSON.stringify({ koji: '△△マンション 新築工事' })); KYOSHI.add(); }); await w(200);
+  check('  前に 入れた 現場・配合・試験報告書の 工事名を 押すと 入る', await page.evaluate(() => { const sug = [...document.querySelectorAll('.kyo-sug button')].map(b => b.textContent); KYOSHI.pick(document.querySelector('.kyo-sug button[data-f="mix"]')); return [sug.join(','), document.querySelector('.kyo-pop input[data-k="mix"]').value].join('/'); }),
+    '△△マンション 新築工事,○○ビル 新築工事,24-18-20N/24-18-20N');
+  await page.evaluate(() => KYOSHI.close());
+
+  /* ── 📅 試験の 予定 ── */
+  const ids = await page.evaluate(() => [
+    KYOSHI.addItem({ date: '2026-10-24', site: '□□橋 下部工', mix: '30-12-20H', part: '橋脚 P2', no: 'No.7〜15', ages: [7, 28, 56], n: 3 }),
+    KYOSHI.addItem({ date: '2026-10-03', site: '△△邸', mix: '21-18-20N', ages: [7, 28], n: 3 }),
+    KYOSHI.addItem({ date: '2026-10-23', site: '◇◇工場', ages: [7], n: 6 }),
+    KYOSHI.addItem({ date: '2026-10-04', site: '☆☆団地', ages: [7, 28], n: 3 }),
+    KYOSHI.addItem({ date: '2026-10-07', site: '<img src=x onerror="window.__x=1">', memo: '<b>メモ</b>', ages: [28], n: 3 }),
+    KYOSHI.addItem({ date: '2026-10-06', site: '祝日の 現場', ages: [28], n: 3 }),
+  ]); await w(300);
+  check('  見出し：⚠ 過ぎた（2週間まで）・きょう・あした・この先は 日ごと（あと ○日）', await page.evaluate(() => [...document.querySelectorAll('#kyoView .kyo-h')].map(h => h.textContent.replace(/\s+/g, '')).join('|')),
+    '⚠過ぎた（まだ✓していない）|きょう10月31日（土）|あした11月1日（日）|11月3日（火）文化の日あと3日|11月4日（水）あと4日|11月7日（土）あと7日|11月21日（土）あと21日|11月28日（土）あと28日|12月19日（土）あと49日');
+  check('  行：過ぎた 1・きょう 2・あした 1・この先 6／日曜・祝日は 赤・土曜は 青／名前は 字の まま（タグに しない）', await page.evaluate(() => [document.querySelectorAll('#kyoView .kyo-row.late').length, document.querySelectorAll('#kyoView .kyo-row.today').length, document.querySelectorAll('#kyoView .kyo-row').length,
+    [...document.querySelectorAll('#kyoView .kyo-h .kyo-d')].map(d => d.classList.contains('sun') ? 'S' : d.classList.contains('sat') ? 's' : '-').join(''), document.querySelectorAll('#kyoBody img, #kyoBody b b').length, typeof window.__x, [...document.querySelectorAll('#kyoView .kyo-row .nm')].some(b => b.textContent === '<img src=x onerror="window.__x=1">')].join('/')),
+    '1/2/10/sSS-ssss/0/undefined/true');
+  check('  過ぎた 行に 試験の 日・採取・本数・打設箇所', await page.evaluate(() => document.querySelector('#kyoView .kyo-row.late .kyo-main').textContent.replace(/\s+/g, '')) + '|' + await page.evaluate(() => document.querySelectorAll('#kyoView .kyo-row')[1].textContent.replace(/\s+/g, '')),
+    '◇◇工場試験10月30日（金）・採取10月23日（金）・6本|7日□□橋下部工30-12-20H採取10月24日（土）・3本・橋脚P2・No.7〜15✓試験した');
+  await page.evaluate(id => KYOSHI.done(id, 7), ids[2]); await w(150);
+  check('  ✓ 試験した → 過ぎたから 消える・取り消しの 帯', await page.evaluate(id => [KYOSHI.state().items.find(x => x.id === id).ages[0].done, document.querySelectorAll('#kyoView .kyo-row.late').length, document.getElementById('kyoUndo').classList.contains('on'), document.getElementById('kyoUndo').textContent.includes('◇◇工場')].join('/'), ids[2]), '2026-10-31/0/true/true');
+  await page.evaluate(() => KYOSHI.undo()); await w(150);
+  check('  ↶ 取り消すと もどる', await page.evaluate(id => [KYOSHI.state().items.find(x => x.id === id).ages[0].done, document.querySelectorAll('#kyoView .kyo-row.late').length].join('/'), ids[2]), '/1');
+  await page.evaluate(id => KYOSHI.done(id, 7), ids[0]); await w(150);
+  check('  きょうの 試験は 済みでも 残る（済みの 印）', await page.evaluate(() => [...document.querySelectorAll('#kyoView .kyo-row.today, #kyoView .kyo-row.dn')].map(r => r.className.replace('kyo-row ', '') + ':' + r.querySelector('.kyo-do').textContent).join(',')), 'dn:✓済み,today:✓試験した');
+  check('  📋 コピーの 文', await page.evaluate(() => KYOSHI.text().split('\n').slice(0, 8).join('｜')),
+    '🧱 供試体の 試験（10月31日（土） 現在）｜｜⚠ 過ぎた（まだ 試験して いない）｜・10月30日（金） 7日：◇◇工場 6本（採取 10月23日）｜｜きょう 10月31日（土）｜・7日：□□橋 下部工 30-12-20H 3本（採取 10月24日） ✓済み｜・28日：△△邸 21-18-20N 3本（採取 10月3日）');
+
+  /* ── くわしく ── */
+  await page.evaluate(id => KYOSHI.open(id), ids[0]); await w(200);
+  check('  くわしく：材齢ごと（3つ・済み）・🗓（1件ずつ Google）・直す 欄・くわしくは 開いて いる', await page.evaluate(() => [document.querySelectorAll('.kyo-ae').length, document.querySelectorAll('.kyo-ae.dn').length, document.querySelectorAll('.kyo-ae .kyo-gc').length, document.querySelector('.kyo-pop input[data-k="site"]').value, document.querySelector('.kyo-pop details.kyo-more').open].join('/')), '3/1/3/□□橋 下部工/true');
+  await page.evaluate(id => { KYOSHI.setN(id, 28, 1); KYOSHI.age(id, 14); KYOSHI.age(id, 56); KYOSHI.set(id, 'date', '2026-10-25'); KYOSHI.set(id, 'site', ''); }, ids[0]); await w(200);
+  check('  本数 ＋1・材齢を 足す／外す・採った日を 直すと 試験の 日も・現場は 空に できない', await page.evaluate(id => { const it = KYOSHI.state().items.find(x => x.id === id); return [KYOSHI.tests().filter(x => x.id === id).map(x => x.d + ':' + x.date).join(','), it.ages.map(a => a.n).join(','), it.site, document.querySelectorAll('.kyo-ae').length].join('/'); }, ids[0]),
+    '7:2026-11-01,14:2026-11-08,28:2026-11-22/3,3,4/□□橋 下部工/3');
+  await page.evaluate(id => KYOSHI.del(id), ids[3]); await w(200);
+  check('  🗑 消す（窓も 閉じる）', await page.evaluate(id => [KYOSHI.state().items.some(x => x.id === id), !!document.querySelector('.kyo-pop')].join('/'), ids[3]), 'false/false');
+
+  /* ── 🧱 採った 供試体 ── */
+  await page.evaluate(() => { KYOSHI.addItem({ date: '2026-06-01', site: '古い 現場', ages: [7, 28], n: 3 }); KYOSHI.view('list'); }); await w(200);
+  check('  採った 日ごと（新しい 順）・カードに 材齢と 試験の 日', await page.evaluate(() => [[...document.querySelectorAll('#kyoList .kyo-h')].map(h => h.textContent.replace(/\s+/g, '').replace('採った日', '')).join(','), document.querySelector('#kyoList .kyo-card').textContent.replace(/\s+/g, '')].join('/')),
+    '10月31日（土）,10月25日（日）,10月23日（金）,10月7日（水）,10月6日（火）,10月3日（土）,6月1日（月）/○○ビル新築工事24-18-20N7日11月7日28日11月28日');
+  await page.evaluate(() => KYOSHI.q('はし')); await w(100);
+  check('  🔎 さがす（見つからない）', await page.evaluate(() => document.querySelector('#kyoList').textContent.trim()), '「はし」は 見つかりません。');
+  await page.evaluate(() => KYOSHI.q('下部')); await w(100);
+  check('  🔎 さがす（現場の 一部）', await page.evaluate(() => [...document.querySelectorAll('#kyoList .kyo-card .nm')].map(b => b.textContent).join(',')), '□□橋 下部工');
+  await page.evaluate(() => KYOSHI.q('')); await w(50);
+  check('  🧹 古い もの（試験が みな 3か月 より 前）を 片づける', await page.evaluate(async () => [await KYOSHI.tidy(), KYOSHI.state().items.some(x => x.site === '古い 現場'), await KYOSHI.tidy()].join('/')), '1/false/0');
+
+  /* ── ☁ Apps Script の 受け口（作り物の CalendarApp で 動かす） ── */
+  {
+    const tok = 'testtok123', code = await page.evaluate(t => KYOSHI.gasCode(t), tok), g = kyoshiGasMock(code, { shared: ['boss@example.com'] });
+    const P = o => g.post(JSON.stringify(Object.assign({ t: tok }, o)));
+    check('  コード：合言葉・doPost・doGet・版 2・合言葉が ちがう／こわれた 中身は ことわる', [code.includes("const AIKOTOBA = 'testtok123';"), /function doPost\(e\)/.test(code), g.get().ok, g.get().v, g.post(JSON.stringify({ t: 'nope', ping: true })).err, g.post('{x').err].join('/'), 'true/true/true/2/token/json');
+    check('  🧪 ためし：いつもの カレンダー・名前を 入れると 作る・メールアドレス（共有）・共有 されて いない', [P({ ping: true }).cal, P({ ping: true, cal: '供試体' }).cal, P({ ping: true, cal: 'boss@example.com' }).cal, P({ ping: true, cal: 'nobody@example.com' }).err, g.cals().join(',')].join('/'), '自分/供試体/boss@example.com/cal/自分,供試体,boss@example.com');
+    const r1 = P({ ops: [{ op: 'put', k: 'abcd1234-7', date: '2026-11-07', title: 'T1', desc: 'D1', alarm: 420, color: '6', cal: '' }] }).res[0];
+    check('  作る：終日・印（hyo）・知らせ（17時）・色', [r1.ok, /^ev\d+@google\.com$/.test(r1.id), JSON.stringify(g.events().map(e => [e.cal, e.date, e.title, e.tag, e.rem, e.color]))].join('/'), 'true/true/[["自分","2026-11-07","T1","abcd1234-7","420","6"]]');
+    const r2 = P({ ops: [{ op: 'put', k: 'abcd1234-7', date: '2026-11-07', title: 'T2', alarm: null, color: '8', cal: '' }] }).res[0];
+    check('  同じ 印は 2つ 作らない（id が なくても その日で 見つけて 直す）・知らせなし', [r2.id === r1.id, g.events().length, g.events()[0].title, g.events()[0].rem, g.events()[0].color].join('/'), 'true/1/T2//8');
+    P({ ops: [{ op: 'put', k: 'abcd1234-7', id: r1.id, date: '2026-11-09', sd: '2026-11-07', title: 'T3', alarm: 900, cal: '' }] });
+    check('  id で 見つけて 日を 移す', JSON.stringify(g.events().map(e => [e.date, e.title, e.rem])), '[["2026-11-09","T3","900"]]');
+    P({ ops: [{ op: 'put', k: 'abcd1234-7', id: 'gone@google.com', date: '2026-11-10', sd: '2026-11-09', title: 'T4', cal: '' }] });
+    check('  id が 見つからない ときは 前に 送った 日（sd）で さがす', JSON.stringify(g.events().map(e => [e.date, e.title])), '[["2026-11-10","T4"]]');
+    g.manual('自分の 予定', '2026-11-10');
+    const r5 = P({ ops: [{ op: 'del', k: 'abcd1234-7', date: '2026-11-10', sd: '2026-11-10', cal: '' }, { op: 'del', k: 'zzzz9999-7', date: '2026-11-10', cal: '' }, { op: 'del', k: 'abcd1234-7', date: '2026-11-10', cal: 'ない カレンダー' }] }).res;
+    check('  消す：印の ある ものだけ（自分で 入れた 予定は そのまま）・ない ものも ok・消す ときは カレンダーを 作らない', [r5.map(x => x.ok + ':' + x.gone).join(','), JSON.stringify(g.events().map(e => e.title)), g.cals().join(',')].join('/'), 'true:true,true:false,true:false/["自分の 予定"]/自分,供試体,boss@example.com');
+    const r6 = P({ ops: [{ op: 'put', k: 'bad key!', date: '2026-11-10', cal: '' }, { op: 'put', k: 'abcd1234-28', date: '2026-13-40', cal: '' }, { op: 'what', k: 'abcd1234-28' }, { op: 'put', k: 'abcd1234-28', date: '2026-11-28', title: 'x', cal: '供試体' }, { op: 'put', k: 'abcd1234-56', date: '2026-12-19', title: 'y', cal: 'boss@example.com' }, { op: 'put', k: 'abcd1234-91', date: '2027-01-23', title: 'z', cal: 'nobody@example.com' }] }).res;
+    check('  おかしい 印・日付・動き・見つからない カレンダーは 1つずつ ことわる（ほかは 通る。共有の カレンダーにも 入る）', r6.map(x => x.ok ? 'ok' : x.err).join(',') + '/' + g.events().filter(e => e.tag === 'abcd1234-56').map(e => e.cal).join(','), 'key,date,op,ok,ok,cal/boss@example.com');
+  }
+
+  /* ── ☁ 表電卓から 自動で（受け口を つないで ためす） ── */
+  const URL = 'https://script.google.com/macros/s/AKfycbTEST_kyoshi-0123456789abcdefghij/exec';
+  let net = 'ok', gas = null, reqN = 0;
+  await page.route('https://script.google.com/**', async route => {
+    reqN++;
+    const body = route.request().postData() || '';
+    if (net === 'down') return route.abort('internetdisconnected');
+    const out = gas ? gas.post(body) : { ok: false, err: 'token' };
+    if (net === 'lost') return route.abort('connectionreset');   // 受け口は 動いたが 返事が とどかない
+    await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(out) });
+  });
+  const idle = async () => { for (let i = 0; i < 80; i++) { await w(100); if (await page.evaluate(() => !KYOSHI.busy() && KYOSHI.plan().length === 0)) return true; } return false; };
+  const mine = () => gas.events().filter(e => e.tag);
+  check('  URL の 読み取り（クエリは 外す・ほかの スマホ 用の 合言葉・会社の Google・ちがう ところは だめ）', await page.evaluate(u => [KYOSHI.parseUrl(' ' + u + '?usp=sharing '), KYOSHI.parseUrl(u + '#aikotoba=abcdefgh'), KYOSHI.parseUrl(u.replace('/macros/', '/a/macros/example.co.jp/')), KYOSHI.parseUrl('https://evil.example.com/macros/s/AKfycbTEST_kyoshi-0123456789abcdefghij/exec'), KYOSHI.parseUrl(u.replace('https:', 'http:')), KYOSHI.parseUrl(u.replace('/exec', '/dev'))].map(p => p ? (p.url === u ? 'U' : p.url.includes('/a/macros/example.co.jp/') ? 'A' : '?') + (p.tok || '') : '-').join(','), URL), 'U,Uabcdefgh,A,-,-,-');
+  await page.evaluate(() => KYOSHI.view('plan')); await page.evaluate(() => KYOSHI.gopen()); await w(200);
+  const [dA, tok] = await page.evaluate(() => [KYOSHI.state().dests[0].id, KYOSHI.state().dests[0].tok]);
+  check('  ☁ はじめては 送り先を 1つ 作って 窓：合言葉（12字）・手順 ①〜⑤・コードに 合言葉・まだ つながって いない', [/^g[a-z0-9]{6}$/.test(dA), /^[a-z2-9]{12}$/.test(tok), await page.evaluate(() => document.querySelectorAll('.kyo-steps li').length), (await page.evaluate(t => KYOSHI.gasCode(t), tok)).includes("'" + tok + "'"), await page.evaluate(() => document.getElementById('kyoGSt').textContent.startsWith('○'))].join('/'), 'true/true/5/true/true');
+  gas = kyoshiGasMock(await page.evaluate(t => KYOSHI.gasCode(t), tok));
+  await page.fill('#kyoGUrl', URL); await page.evaluate(id => KYOSHI.gtest(id), dA); await w(300);
+  check('  🧪 ためしに 送る → つながった（カレンダーの 名前）', await page.evaluate(() => [document.getElementById('kyoGSt').textContent, KYOSHI.state().dests[0].url.endsWith('/exec'), KYOSHI.state().dests[0].calName, KYOSHI.state().dests[0].v].join('/')), '✅ つながりました。カレンダー「自分」に 入れます。/true/自分/2');
+  check('  つながると これからの 試験を ぜんぶ 送る（過ぎた ものは 送らない）', [await idle(), await page.evaluate(() => KYOSHI.tests().filter(x => x.date >= '2026-10-31').length), mine().length, mine().every(e => e.date >= '2026-10-31'), new Set(mine().map(e => e.tag)).size].join('/'), 'true/8/8/true/8');
+  await page.evaluate(() => KYOSHI.close()); await w(100);
+  check('  一覧の 上：自動で 入れて います・行に ☁✓・まとめて 送るの 数は なし', await page.evaluate(() => [document.querySelector('.kyo-gbar').className, document.querySelector('.kyo-gbar b').textContent, document.querySelectorAll('#kyoView .kyo-g.ok').length, document.querySelectorAll('#kyoView .kyo-g.wait').length, !!document.querySelector('#kyoTop .kyo-cnt')].join('/')), 'kyo-gbar ok/☁ Google カレンダーに 自動で 入れて います/8/0/false');
+  const n0 = mine().length;
+  await page.evaluate(() => KYOSHI.add()); await w(150);
+  check('  すぐ 送る 送り先が ある ときは 入れる 窓に まとめて 送る 窓の ✓ を 出さない', await page.evaluate(() => [!!document.getElementById('kyoAsk'), document.querySelector('.kyo-pop .kyo-note').textContent.includes('自動で 入ります')].join('/')), 'false/true');
+  await page.fill('.kyo-pop input[data-k="site"]', '新しい 現場'); await page.click('.kyo-pop .kyo-acts.end .kyo-b.pri'); await w(100);
+  check('  入れるだけで Google カレンダーに 入る（窓は 出ない）', [await idle(), mine().length - n0, await page.evaluate(() => !!document.querySelector('.kyo-pop') || (window.HyoIcs ? HyoIcs.isOpen() : false)), JSON.stringify(mine().filter(e => e.title.includes('新しい 現場')).map(e => [e.date, e.title, e.rem, e.color]))].join('/'),
+    'true/2/false/[["2026-11-07","🧱 7日 試験：新しい 現場 3本","420","6"],["2026-11-28","🧱 28日 試験：新しい 現場 3本","420","6"]]');
+  const nid = await page.evaluate(() => KYOSHI.state().items.find(x => x.site === '新しい 現場').id);
+  const idOf = (k) => (mine().find(e => e.tag === k) || {}).id;
+  const before = idOf(nid + '-7');
+  await page.evaluate(id => { KYOSHI.set(id, 'date', '2026-11-02'); KYOSHI.set(id, 'mix', '27-15-20N'); }, nid);
+  check('  直すと カレンダーも 直る（同じ 予定の まま 日を 移す・2つに しない）', [await idle(), idOf(nid + '-7') === before, mine().length - n0, JSON.stringify(mine().filter(e => e.tag.startsWith(nid)).map(e => [e.date, e.title]))].join('/'),
+    'true/true/2/[["2026-11-09","🧱 7日 試験：新しい 現場 27-15-20N 3本"],["2026-11-30","🧱 28日 試験：新しい 現場 27-15-20N 3本"]]');
+  await page.evaluate(id => KYOSHI.done(id, 7), nid);
+  check('  ✓ 試験した → カレンダーの 予定も 済み（✅・グラファイト）', [await idle(), JSON.stringify(mine().filter(e => e.tag === nid + '-7').map(e => [e.title, e.color, e.desc.includes('✓ 試験 済み（10月31日）')]))].join('/'), 'true/[["✅ 7日 試験 済み：新しい 現場 27-15-20N 3本","8",true]]');
+  await page.evaluate(id => { KYOSHI.age(id, 7); KYOSHI.age(id, 14); }, nid);
+  check('  材齢を 外すと その 予定を 消す・足すと 作る', [await idle(), JSON.stringify(mine().filter(e => e.tag.startsWith(nid)).map(e => [e.tag.split('-')[1], e.date]))].join('/'), 'true/[["28","2026-11-30"],["14","2026-11-16"]]');
+  await page.evaluate(id => KYOSHI.del(id), nid);
+  check('  🗑 消すと カレンダーの 予定も 消す', [await idle(), mine().filter(e => e.tag.startsWith(nid)).length, mine().length, (await page.evaluate(() => KYOSHI.state().dq.length))].join('/'), 'true/0/' + n0 + '/0');
+  await page.evaluate(id => KYOSHI.dset(id, 'cal', '供試体'), dA);
+  check('  カレンダーの 名前を かえると、これからの 予定を その カレンダーへ 移す', [await idle(), gas.cals().join(','), mine().filter(e => e.cal === '供試体').length, mine().filter(e => e.cal === '自分').length].join('/'), 'true/自分,供試体/' + n0 + '/0');
+  await page.evaluate(() => KYOSHI.gset('alarm', 'none'));
+  check('  知らせを かえると 直す（知らせない）', [await idle(), mine().every(e => e.rem === ''), mine().length].join('/'), 'true/true/' + n0);
+  await page.evaluate(() => KYOSHI.gset('alarm', 'p17')); await idle();
+  // 圏外 → 電波が もどったら 送る（道具を 開いた まま）
+  await ctx.setOffline(true); await w(200);
+  const r0 = reqN;
+  await page.evaluate(() => KYOSHI.addItem({ date: '2026-10-31', site: '圏外の 現場', ages: [7], n: 3 })); await page.evaluate(() => KYOSHI.sync('auto')); await w(200);
+  check('  圏外：送らずに ためる（⏳・電波が もどったら）・端末に 送る 数', await page.evaluate(() => [KYOSHI.plan().length, document.querySelector('.kyo-gbar').className, document.querySelector('.kyo-gbar small').textContent, JSON.parse(localStorage.getItem('excalc_kyoshi')).q].join('/')) + '/' + (reqN - r0), '1/kyo-gbar wait/電波が もどったら 送ります/1/0');
+  await ctx.setOffline(false); await w(2600);
+  check('  電波が もどると 送る（表電卓の kyoshiKick）', [await idle(), mine().some(e => e.title.includes('圏外の 現場')), await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_kyoshi')).q)].join('/'), 'true/true/0');
+  // 返事が とどかない → 次に 送っても 2つに しない
+  net = 'lost';
+  await page.evaluate(() => KYOSHI.addItem({ date: '2026-10-31', site: '返事なしの 現場', ages: [7], n: 3 })); await page.evaluate(() => KYOSHI.sync('auto')); await w(300);
+  check('  返事が とどかない：受け口では できて いるが、表電卓は まだ（⏳）', [mine().filter(e => e.title.includes('返事なし')).length, await page.evaluate(() => [KYOSHI.plan().length, KYOSHI.state().dests[0].net !== ''].join('/'))].join('/'), '1/1/true');
+  net = 'ok'; await page.evaluate(() => KYOSHI.sync('user'));
+  check('  もう一度 送っても 同じ 予定（印で 見つける）', [await idle(), mine().filter(e => e.title.includes('返事なし')).length].join('/'), 'true/1');
+  // 合言葉が ちがう
+  await page.evaluate(id => KYOSHI.dset(id, 'tok', 'wrongtoken1'), dA); await w(100);
+  await page.evaluate(() => KYOSHI.addItem({ date: '2026-10-31', site: '合言葉の 現場', ages: [7], n: 3 })); await page.evaluate(() => KYOSHI.sync('auto')); await w(300);
+  check('  合言葉が ちがう：⚠ と わけ', await page.evaluate(() => [document.querySelector('.kyo-gbar').className, document.querySelector('.kyo-gbar small').textContent.includes('合言葉が ちがいます'), KYOSHI.plan().length].join('/')), 'kyo-gbar err/true/1');
+  await page.evaluate(([id, t]) => KYOSHI.dset(id, 'tok', t), [dA, tok]);
+  check('  合言葉を もどすと 送れる', [await idle(), mine().some(e => e.title.includes('合言葉の 現場')), await page.evaluate(() => KYOSHI.state().dests[0].err)].join('/'), 'true/true/');
+  // 道具を 閉じて いても、表電卓を 開いた ときに 送る（つながらない → 開き直す）
+  net = 'down';
+  await page.evaluate(() => KYOSHI.addItem({ date: '2030-01-10', site: 'あとで 送る 現場', ages: [7, 28], n: 3 })); await page.evaluate(() => KYOSHI.sync('auto')); await w(300);
+  check('  つながらない：ためて おく（わけを 出す）', await page.evaluate(() => [KYOSHI.plan().length, document.querySelector('.kyo-gbar small').textContent.includes('つながりませんでした')].join('/')), '2/true');
+  await page.evaluate(() => closeKyoshi()); net = 'ok'; await w(900);   // 閉じた あとの「戻る」（history.back）が すんでから
+  await page.reload(); await w(900);
+  check('  開き直した すぐは 道具を 読まない', await page.evaluate(() => typeof window.KYOSHI), 'undefined');
+  await w(5600);
+  check('  表電卓を 開いた ときに 送る（道具を 開かなくても）', [await page.evaluate(() => typeof window.KYOSHI), mine().filter(e => e.title.includes('あとで 送る 現場')).map(e => e.date).join(','), await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_kyoshi')).q)].join('/'), 'object/2030-01-17,2030-02-07/0');
+  await page.evaluate(() => { window.appConfirm = async () => true; });
+  await page.evaluate(async () => { await openKyoshi(); KYOSHI.today('2026-10-31'); }); await w(200);
+  await page.evaluate(id => KYOSHI.gdel(id), dA); await w(200);
+  check('  🗑 送り先を 消す → 送らない（カレンダーの 予定は 残る）', await page.evaluate(() => [KYOSHI.state().dests.length, document.querySelector('.kyo-gbar').classList.contains('off'), KYOSHI.plan().length, KYOSHI.state().items.every(it => it.ages.every(a => !Object.keys(a.g).length))].join('/')) + '/' + (mine().length > 0), '0/true/0/true/true');
+  // こわれた 中身は 読むときに 直す
+  await page.evaluate(() => { closeKyoshi(); localStorage.setItem('excalc_kyoshi', JSON.stringify({ items: [{ id: 'BAD ID', date: '2026-10-31', site: 'x', ages: [{ d: 7 }, { d: 7 }, { d: 0 }, { d: 999, n: 99 }] }, { date: 'x', site: 'y', ages: [{ d: 7 }] }, { date: '2026-10-31', site: '', ages: [{ d: 7 }] }, null], dq: [{ k: 'bad key!' }, { k: 'ok-7', sd: 'x', dst: 'gzzz' }], dests: [{ url: 'https://evil.example.com/x', tok: '<>' }, null], def: { ages: ['a'], n: 0 }, auth: 'not a mail' })); });
+  await page.evaluate(async () => { await openKyoshi(); }); await w(200);
+  check('  こわれた 中身は 読むときに 直す', await page.evaluate(() => { const s = KYOSHI.state(); return [s.items.length, /^[a-z0-9]{8}$/.test(s.items[0].id), s.items[0].ages.map(a => a.d + ':' + a.n).join(','), s.dq.length, s.dests.length, s.dests[0].url, okTok(s.dests[0].tok), s.def.ages.join(','), s.def.n, s.auth].join('/'); function okTok(t) { return /^[a-z2-9]{12}$/.test(t); } }), '1/true/7:3/0/1//true/7,28/1/');
+  await page.evaluate(() => closeKyoshi()); await w(200);
+  // 📝 試験報告書 から
+  await page.evaluate(() => { localStorage.removeItem('excalc_shiken'); return openShikenRep('tsx'); }); await w(300);
+  await page.evaluate(() => { SHIKEN.set('koji', '◎◎庁舎 改修工事'); SHIKEN.set('date', '2026-10-30'); }); await w(100);
+  check('  📝 試験報告書に「🧱 この 現場の 供試体を 入れる」', await page.evaluate(() => [...document.querySelectorAll('#skBody button')].some(b => b.textContent.includes('供試体を 入れる'))), true);
+  await page.evaluate(() => SHIKEN.kyoshi()); await w(500);
+  check('  押すと 供試体の 入れる 窓（工事名・試験日が 入って いる）', await page.evaluate(() => [isDlgOpen('shikenOverlay'), isDlgOpen('kyoshiOverlay'), document.querySelector('.kyo-pop input[data-k="site"]').value, document.querySelector('.kyo-pop input[data-k="date"]').value].join('/')), 'false/true/◎◎庁舎 改修工事/2026-10-30');
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+// 🧱 供試体（v612）：1日に 何件も・📅 まとめて 送る（ファイル・Google）・送り先を アカウントごとに（すぐ／まとめて・メールアドレスの カレンダー）・🗓 の アカウント・▦ 表に 入れる・v611 の 中身を 読む
+async function runKyoshi612(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🧱 供試体：1日に 何件も・📅 まとめて 送る・送り先を アカウントごとに（v612） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { window.appConfirm = async () => true; });
+  await page.evaluate(async () => { await openKyoshi(); KYOSHI.today('2026-10-31'); }); await w(400);
+  /* ── 1日に 何件も ── */
+  await page.evaluate(() => KYOSHI.add()); await w(200);
+  await page.evaluate(() => { KYOSHI.drDay(-1); KYOSHI.drAge(56); KYOSHI.drN(1); });
+  await page.fill('.kyo-pop input[data-k="site"]', 'A棟'); await page.fill('.kyo-pop input[data-k="mix"]', '24-18-20N');
+  await page.click('text=＋ 入れて 次の 物件へ'); await w(200);
+  check('  ＋ 入れて 次の 物件へ：入れて、採った日・材齢・本数は そのまま、現場・配合は 空に・入れた 物件の 一覧', await page.evaluate(() => [KYOSHI.state().items.length, document.querySelector('.kyo-pop input[data-k="site"]').value, document.querySelector('.kyo-pop input[data-k="mix"]').value, document.querySelector('.kyo-pop input[data-k="date"]').value, [...document.querySelectorAll('#kyoAgeChips button.on')].map(b => b.textContent).join(','), document.getElementById('kyoN').textContent, document.getElementById('kyoSess').textContent.replace(/\s+/g, '')].join('/')),
+    '1///2026-10-30/7日,28日,56日/4/この窓で入れた物件（1）1.A棟24-18-20N10月30日採取');
+  await page.fill('.kyo-pop input[data-k="site"]', 'B棟'); await page.click('text=＋ 入れて 次の 物件へ'); await w(150);
+  await page.evaluate(() => KYOSHI.addGo(true)); await w(100);
+  check('  現場が 空で「次の 物件へ」は 入れない', await page.evaluate(() => [KYOSHI.state().items.length, !!document.querySelector('.kyo-pop')].join('/')), '2/true');
+  await page.fill('.kyo-pop input[data-k="site"]', 'C棟'); await page.click('.kyo-pop .kyo-acts.end .kyo-b.pri'); await w(400);
+  const [iA, iB, iC] = await page.evaluate(() => ['A棟', 'B棟', 'C棟'].map(n => KYOSHI.state().items.find(x => x.site === n).id));
+  check('  ✓ 入れて おわる：3件・まとめて 送る 窓（ファイル・その 窓で 入れた 3件・試験 9つ）', await page.evaluate(() => [KYOSHI.state().items.length, document.querySelector('.kyo-dsts button.on').textContent.includes('この スマホ'), document.querySelectorAll('.kyo-bi input:checked').length, document.getElementById('kyoBCnt').textContent, document.querySelector('#kyoBActs .kyo-b.pri').textContent].join('/')),
+    '3/true/3/送る もの（3件・試験 9つ）/📥 ファイルを 保存（3件）');
+  await page.evaluate(() => [...document.querySelectorAll('.kyo-bi')].find(l => l.querySelector('b').textContent === 'C棟').querySelector('input').click()); await w(100);
+  check('  1つ 外す（数と ボタンが かわる。一覧は その まま）', await page.evaluate(() => [document.getElementById('kyoBCnt').textContent, document.querySelector('#kyoBActs .kyo-b.pri').textContent, document.querySelectorAll('.kyo-bi input:checked').length].join('/')), '送る もの（2件・試験 6つ）/📥 ファイルを 保存（2件）/2');
+  const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 5000 }).catch(() => null), page.click('#kyoBActs .kyo-b.pri')]);
+  const txt = dl ? fs.readFileSync(await dl.path(), 'utf8') : '';
+  check('  📱 ファイル（.ics）に まとめて：えらんだ 2件の 試験 6つ・名前・日付・本数・外した ものは 入れない', [dl && /^kyoshi-20261031\.ics$/.test(dl.suggestedFilename()), (txt.match(/BEGIN:VEVENT/g) || []).length, txt.includes('X-WR-CALNAME:供試体'), txt.includes('SUMMARY:🧱 7日 試験：A棟 24-18-20N 4本'), txt.includes('DTSTART;VALUE=DATE:20261106'), txt.includes('B棟'), txt.includes('C棟')].join('/'), 'true/6/true/true/true/true/false');
+  check('  入れた ものは 📱✓・まだ なのは C棟だけ（上の 数）', await page.evaluate(() => [!!document.querySelector('.kyo-pop'), KYOSHI.notIn().length, document.querySelector('#kyoTop .kyo-cnt').textContent].join('/')), 'false/1/1');
+  await page.evaluate(id => KYOSHI.set(id, 'mix', '27-18-20N'), iA); await w(100);
+  await page.evaluate(() => KYOSHI.batch()); await w(200);
+  check('  直した ものと まだの ものを えらんで 出す（📱✓ は 入れた もの）', await page.evaluate(() => [...document.querySelectorAll('.kyo-bi')].map(l => l.querySelector('b').textContent + (l.querySelector('input').checked ? '☑' : '☐') + ((l.querySelector('.kyo-bd') || {}).textContent || '')).join(',')), 'C棟☑,B棟☐📱✓,A棟☑📱✓');
+  await page.evaluate(() => KYOSHI.bAll('none')); await w(50);
+  check('  はずす → 送れない', await page.evaluate(async () => [document.querySelectorAll('.kyo-bi input:checked').length, await KYOSHI.bGo('dl')].join('/')), '0/false');
+  await page.evaluate(() => { KYOSHI.bAll('today'); }); await w(50);
+  check('  きょう 採った（10月31日 に 採った ものは ない）・ぜんぶ', await page.evaluate(() => { const a = document.querySelectorAll('.kyo-bi input:checked').length; KYOSHI.bAll('all'); return a + '/' + document.querySelectorAll('.kyo-bi input:checked').length; }), '0/3');
+  await page.evaluate(() => KYOSHI.close());
+
+  /* ── 送り先を 2つ（会社＝入れたら すぐ・自分＝まとめて、メールアドレスの カレンダー） ── */
+  const UA = 'https://script.google.com/macros/s/AKfycbTEST_kyoshi-A123456789abcdefghij/exec', UB = 'https://script.google.com/macros/s/AKfycbTEST_kyoshi-B123456789abcdefghij/exec';
+  const G = {};
+  await page.route('https://script.google.com/**', async route => {
+    const u = route.request().url(), g = G[u.includes('kyoshi-A') ? 'A' : 'B'];
+    const out = g ? g.post(route.request().postData() || '') : { ok: false, err: 'token' };
+    await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(out) });
+  });
+  const idle = async () => { for (let i = 0; i < 80; i++) { await w(100); if (await page.evaluate(() => !KYOSHI.busy() && KYOSHI.plan().length === 0)) return true; } return false; };
+  const ev = k => G[k].events().filter(e => e.tag);
+  const dA = await page.evaluate(() => KYOSHI.gadd());
+  await page.evaluate(id => KYOSHI.dset(id, 'name', '会社'), dA);
+  G.A = kyoshiGasMock(await page.evaluate(id => KYOSHI.gasCode(KYOSHI.state().dests.find(d => d.id === id).tok), dA));
+  await page.fill('#kyoGUrl', UA); await page.evaluate(id => KYOSHI.gtest(id), dA);
+  check('  送り先「会社」（入れたら すぐ）：つながると ぜんぶ 送る', [await idle(), ev('A').length].join('/'), 'true/9');
+  const dB = await page.evaluate(() => KYOSHI.gadd());
+  await page.evaluate(id => { KYOSHI.dset(id, 'name', '自分'); KYOSHI.dset(id, 'auto', false); KYOSHI.dset(id, 'cal', 'boss@example.com'); }, dB);
+  G.B = kyoshiGasMock(await page.evaluate(id => KYOSHI.gasCode(KYOSHI.state().dests.find(d => d.id === id).tok), dB), { shared: ['boss@example.com'] });
+  await page.fill('#kyoGUrl', UB); await page.evaluate(id => KYOSHI.gtest(id), dB); await w(300);
+  check('  送り先「自分」（まとめて・共有の カレンダー）：つながっても すぐには 送らない', await page.evaluate(() => document.getElementById('kyoGSt').textContent) + '/' + ev('B').length + '/' + await page.evaluate(id => KYOSHI.plan(id).length, dB),
+    '✅ つながりました。カレンダー「boss@example.com」に 入れます。（「📅 まとめて 送る」で 送ります）/0/9');
+  await page.evaluate(() => KYOSHI.close()); await w(100);
+  check('  一覧の 上に 送り先ごと（会社：自動・自分：まとめて まだ 9件）', await page.evaluate(() => [...document.querySelectorAll('.kyo-gbar')].map(b => b.className.replace('kyo-gbar ', '') + ':' + b.querySelector('b').textContent).join('|')), 'ok:☁ 会社：Google カレンダーに 自動で 入れて います|later:📤 自分：まとめて 送る とき に 送ります（まだ 9件）');
+  await page.evaluate(() => KYOSHI.batch()); await w(200);
+  check('  まとめて 送る：送り先は まとめての「自分」・まだの もの ぜんぶ・送り先の えらび（会社・自分・ファイル）', await page.evaluate(() => [[...document.querySelectorAll('.kyo-dsts button')].map(b => (b.classList.contains('on') ? '●' : '') + b.querySelector('b').textContent).join(','), document.querySelectorAll('.kyo-bi input:checked').length, document.querySelector('#kyoBActs .kyo-b.pri').textContent].join('/')),
+    '☁ 会社,●☁ 自分,📱 この スマホの カレンダー・Outlook など/3/☁ 自分 に 送る（3件）');
+  await page.evaluate(id => KYOSHI.bSel(id, false), iC);
+  await page.evaluate(() => KYOSHI.bGo()); await idle();
+  check('  えらんだ ものだけ 送る（共有の カレンダー「boss@example.com」に）', [ev('B').length, ev('B').every(e => e.cal === 'boss@example.com'), ev('B').some(e => e.title.includes('C棟')), await page.evaluate(id => KYOSHI.plan(id).length, dB)].join('/'), '6/true/false/3');
+  await page.evaluate(id => KYOSHI.set(id, 'no', 'No.1〜9'), iA); await idle();
+  check('  直すと すぐの「会社」は 直り、まとめての「自分」は 次に 送る ときまで 待つ', [ev('A').filter(e => e.tag.startsWith(iA)).every(e => e.desc.includes('番号：No.1〜9')), ev('B').filter(e => e.tag.startsWith(iA)).some(e => e.desc.includes('番号')), await page.evaluate(id => KYOSHI.plan(id).length, dB), await page.evaluate(() => document.querySelectorAll('.kyo-gbar')[1].querySelector('b').textContent)].join('/'), 'true/false/6/📤 自分：まとめて 送る とき に 送ります（まだ 6件）');
+  await page.evaluate(id => KYOSHI.batch({ dst: id }), dB); await w(150);
+  check('  次の まとめて 送る：直した A棟と まだの C棟', await page.evaluate(() => [...document.querySelectorAll('.kyo-bi')].filter(l => l.querySelector('input').checked).map(l => l.querySelector('b').textContent).join(',')), 'C棟,A棟');
+  await page.evaluate(() => KYOSHI.bGo()); await idle();
+  check('  送ると 自分にも ぜんぶ（9つ・直した 中身）', [ev('B').length, ev('B').filter(e => e.tag.startsWith(iA)).every(e => e.desc.includes('番号：No.1〜9')), await page.evaluate(id => KYOSHI.plan(id).length, dB)].join('/'), '9/true/0');
+  await page.evaluate(id => KYOSHI.dset(id, 'cal', 'nobody@example.com'), dB);
+  await page.evaluate(id => KYOSHI.batch({ dst: id }), dB); await w(150); await page.evaluate(() => KYOSHI.bGo()); await w(600);
+  check('  共有 されて いない メールアドレス：送れない わけを 出す', await page.evaluate(() => KYOSHI.state().dests[1].err.includes('カレンダーが 見つかりません') + '/' + document.querySelectorAll('.kyo-gbar')[1].className), 'true/kyo-gbar err');
+  await page.evaluate(id => KYOSHI.dset(id, 'cal', 'boss@example.com'), dB);
+  await page.evaluate(id => KYOSHI.batch({ dst: id }), dB); await w(150); await page.evaluate(() => KYOSHI.bGo()); await w(600);
+  check('  もどすと また 入る（2つに しない）', [ev('B').length, ev('B').every(e => e.cal === 'boss@example.com'), await page.evaluate(() => KYOSHI.state().dests[1].err)].join('/'), '9/true/');
+  /* ── 🗓 1件ずつ 開く ときの アカウント ── */
+  await page.evaluate(() => KYOSHI.gset('auth', 'me@example.com'));
+  check('  🗓 1件ずつ Google カレンダーで 開く ときの アカウント（authuser）・メールで ない ものは 入れない', await page.evaluate(id => { const a = KYOSHI.gurlOf(id, 7); KYOSHI.gset('auth', 'not mail'); return [a.startsWith('https://calendar.google.com/calendar/render?'), new URL(a).searchParams.get('authuser'), KYOSHI.state().auth].join('/'); }, iA), 'true/me@example.com/me@example.com');
+  /* ── 送り先を 消す ── */
+  await page.evaluate(id => KYOSHI.gdel(id), dB); await w(200);
+  check('  送り先「自分」を 消す（控えも 消す・カレンダーの 予定は 残る）', await page.evaluate(id => [KYOSHI.state().dests.map(d => d.name).join(','), KYOSHI.state().items.every(it => it.ages.every(a => !(id in a.g))), document.querySelectorAll('.kyo-gbar').length].join('/'), dB) + '/' + ev('B').length, '会社/true/1/9');
+  /* ── ▦ 表に 入れる ── */
+  check('  ▦ 表の 行（試験 1つ ＝ 1行・採った日の 順）', await page.evaluate(() => { const r = KYOSHI.rows(); return [r.length, r[0].join(','), r[1].join(',')].join('|'); }), '10|採った日,現場,配合,打設箇所,番号,材齢（日）,試験の日,本数,試験 済み,メモ|2026-10-30,A棟,27-18-20N,,No.1〜9,7,2026-11-06,4,,');
+  await page.evaluate(() => KYOSHI.table()); await w(500);
+  check('  ▦ 表に 入れる（道具は 閉じる）', await page.evaluate(() => [isDlgOpen('kyoshiOverlay'), getCellDisplay(0, 0), getCellDisplay(0, 1), getCellDisplay(1, 1), getCellDisplay(9, 1)].join('/')), 'false/採った日/現場/A棟/C棟');
+  /* ── v611 の 中身（送り先 1つ）を 読む ── */
+  await page.evaluate(u => { localStorage.setItem('excalc_kyoshi', JSON.stringify({ items: [{ id: 'abcd1234', date: '2026-10-31', site: '旧', ages: [{ d: 7, n: 3, g: { id: 'ev1@google.com', sd: '2026-11-07', h: 'x', c: '' } }] }], dq: [{ k: 'abcd1234-28', id: 'ev2@google.com', sd: '2026-11-28' }], g: { url: u, tok: 'tokentoken1', on: true, cal: '供試体', alarm: 'p9' } })); }, UA);
+  await page.route('https://script.google.com/**', route => route.abort('internetdisconnected'));   // 読み替えだけ 見る
+  await page.evaluate(async () => { await openKyoshi(); }); await w(200);
+  check('  v611 の 形を 読む（送り先 1つ＝g1・控え・消す 予定・知らせ）', await page.evaluate(() => { const s = KYOSHI.state(), d = s.dests[0]; return [s.dests.length, d.id, d.name, d.url.includes('kyoshi-A'), d.tok, d.cal, d.auto, s.items[0].ages[0].g.g1.id, s.dq.map(x => x.dst + ':' + x.k).join(','), s.alarm].join('/'); }),
+    '1/g1/Google/true/tokentoken1/供試体/true/ev1@google.com/g1:abcd1234-28/p9');
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 /* 組の 一覧（v603 で 表に した）。[名前（どれか 1つ 当たれば 流す）, 流す 関数]。
      node tests/run.js              … ぜんぶ（上から 順に）
      node tests/run.js hade         … その 名前の 組だけ（カンマで いくつでも：formula,xlsx）
@@ -19422,6 +19770,8 @@ const SUITES = [
   [['gijiroku', 'gjprint', 'v608'], b => runGijiPrint608(b)],
   [['gijiroku', 'gjfile', 'v609'], b => runGijiFile609(b)],
   [['gijiroku', 'gjrei', 'v610'], b => runGijiRei610(b)],
+  [['kyoshi', 'ics', 'shiken', 'v611'], b => runKyoshi611(b)],
+  [['kyoshi', 'kyoshi612', 'v612'], b => runKyoshi612(b)],
   [['dasetsu', 'v561'], b => runDasetsu561(b)],
   [['okaeshi', 'v564'], b => runOkaeshi564(b)],
   [['tax', 'v565'], b => runTax565(b)],
