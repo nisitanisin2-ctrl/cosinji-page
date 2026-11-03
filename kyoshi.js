@@ -1,4 +1,4 @@
-/* 🧱 供試体（v611・v612。表電卓の 道具。apps/kyoshi/ から 単独の アプリとしても 開ける。はじめて 開いたときに 読む）
+/* 🧱 供試体（v611〜v614。表電卓の 道具。apps/kyoshi/ から 単独の アプリとしても 開ける。はじめて 開いたときに 読む）
    現場で 採った 供試体（テストピース）の 採った日・現場・配合・材齢（7日・28日 など）・本数を 入れると、
    試験の 日（採った日 ＋ 材齢）を 出す。
    ・📅 試験の 予定：⚠ 過ぎた（まだ ✓ して いない。2週間まで）・きょう・あした・この先（日ごと）。日曜・祝日は 赤、土曜は 青。
@@ -19,6 +19,10 @@
      この 道具を 開いた ときに 送る（入れたら すぐ の 送り先だけ）。送り先は 自分で 貼った script.google.com の URL だけ
      （index.html の connect-src も その 2つだけ 足して ある）。
    ・🗓 1件ずつ Google カレンダーで 開く ときの アカウント（authuser。v612）。
+   ・🗓 カレンダー（v614）：月の カレンダーに 採った日（採）と 試験の 日（赤＝過ぎた・橙＝きょう・緑＝この先・灰＝済み）。
+     日を 押すと 下に その日の 採取・試験。◀ ▶・今日・左右に なぞって 月を かえる。上に 遅れ・きょう・あした・7日 以内・まだ 合計 の 数。
+   ・📝 カレンダーに 入れる 書式（v614。⚙ → 📝）：予定の 名前（まだ・済み。{現場}{配合}{材齢}{本数}{打設箇所}{番号}{採った日}{試験日}）・
+     採った日にも 予定を 入れる（名前）・説明に 入れる もの・色（Google）。かえると すぐ 送る 送り先の 予定も 直る。
    ・📋 文字で コピー。中身は excalc_kyoshi（この 端末の 中。設定の バックアップに 入る）。 */
 (function(){
 'use strict';
@@ -65,7 +69,20 @@ const tdOf=(it, a)=>addDays(okDate(it.date), a.d);
 /* ───────── 決まり ───────── */
 const AGE_CHOICES=[1,3,7,14,28,56,91];
 const ALARMS=[['p17','前の日の 17時',420],['p9','前の日の 9時',900],['none','知らせない',null]];   // 終日の 予定の 0時から 何分 前
-const COLOR={todo:'6', done:'8'};   // Google カレンダーの 予定の 色（6＝みかん・8＝グラファイト）
+// 📝 カレンダーに 入れる 書式（v613）。はじめは v611・v612 と 同じ 名前・説明・色
+const FMT0={title:'🧱 {材齢}日 試験：{現場} {配合} {本数}本', titleDone:'✅ {材齢}日 試験 済み：{現場} {配合} {本数}本', samp:false, sampTitle:'採 {現場} {配合}',
+  desc:{sd:true, age:true, mix:true, part:true, no:true, n:true, done:true, memo:true, src:true}, color:{todo:'6', done:'8', samp:'5'}};
+const TAGS=['現場','配合','材齢','本数','打設箇所','番号','採った日','試験日'];
+const DESC_ITEMS=[['sd','採った日'],['age','材齢と 試験の 日'],['mix','配合'],['part','打設箇所'],['no','番号'],['n','本数'],['done','済み（いつ）'],['memo','メモ'],['src','（表電卓から）']];
+const GCOLORS=[['1','ラベンダー','#7986cb'],['2','セージ','#33b679'],['3','ブドウ','#8e24aa'],['4','フラミンゴ','#e67c73'],['5','バナナ','#f6bf26'],['6','ミカン','#f4511e'],['7','ピーコック','#039be5'],
+  ['8','グラファイト','#616161'],['9','ブルーベリー','#3f51b5'],['10','バジル','#0b8043'],['11','トマト','#d50000'],['','つけない（カレンダーの 色）','']];   // Google カレンダーの 予定の 色
+function cleanFmt(o){
+  o=(o && typeof o==='object') ? o : {};
+  const t=(v,d)=>oneLine(v,80)||d, desc={}, color={};
+  DESC_ITEMS.forEach(([k])=>{ desc[k]=!(o.desc && typeof o.desc==='object' && o.desc[k]===false); });
+  ['todo','done','samp'].forEach(k=>{ const v=o.color && typeof o.color==='object' && o.color[k]!=null ? String(o.color[k]) : FMT0.color[k]; color[k]=GCOLORS.some(c=>c[0]===v) ? v : FMT0.color[k]; });
+  return {title:t(o.title, FMT0.title), titleDone:t(o.titleDone, FMT0.titleDone), samp:o.samp===true, sampTitle:t(o.sampTitle, FMT0.sampTitle), desc, color};
+}
 
 /* ───────── 状態 ───────── */
 let st=null;
@@ -74,15 +91,18 @@ function cleanRec(x){   // 送り先に 送った 予定の 控え
   const g={id:oneLine(x.id,200), sd:okDate(x.sd) ? x.sd : '', h:oneLine(x.h,20), c:oneLine(x.c,100), e:oneLine(x.e,120)};
   return g.id || g.e ? g : null;
 }
+function cleanRecs(x){   // 送り先ごとの 控え（{送り先の id: 控え}）
+  const g={};
+  if(x && typeof x==='object'){
+    if('id' in x || 'h' in x){ const r=cleanRec(x); if(r) g.g1=r; }   // v611 の 形（送り先 1つ）
+    else Object.keys(x).forEach(k=>{ if(okDid(k) && Object.keys(g).length<MAX_DST){ const r=cleanRec(x[k]); if(r) g[k]=r; } });
+  }
+  return g;
+}
 function cleanAge(x){
   if(!x || typeof x!=='object') return null;
   const d=Number(x.d); if(!(Number.isInteger(d) && d>=1 && d<=365)) return null;   // 0日・366日 より 先は 入れない
-  const g={};
-  if(x.g && typeof x.g==='object'){
-    if('id' in x.g || 'h' in x.g){ const r=cleanRec(x.g); if(r) g.g1=r; }   // v611 の 形（送り先 1つ）
-    else Object.keys(x.g).forEach(k=>{ if(okDid(k) && Object.keys(g).length<MAX_DST){ const r=cleanRec(x.g[k]); if(r) g[k]=r; } });
-  }
-  return {d, n:intIn(x.n,1,30,3), done:okDate(x.done) ? x.done : '', g};
+  return {d, n:intIn(x.n,1,30,3), done:okDate(x.done) ? x.done : '', g:cleanRecs(x.g)};
 }
 function cleanIt(x){
   if(!x || typeof x!=='object') return null;
@@ -91,7 +111,7 @@ function cleanIt(x){
   const seen=new Set(), ages=(Array.isArray(x.ages) ? x.ages : []).map(cleanAge).filter(a=>a && !seen.has(a.d) && seen.add(a.d)).sort((a,b)=>a.d-b.d).slice(0,12);
   if(!ages.length) return null;
   const num=v=>{ const n=Number(v); return isFinite(n) && n>0 ? n : 0; }, at=num(x.at)||Date.now();
-  return {id:okId(x.id) ? x.id : rid(), date, site, mix:oneLine(x.mix,30), part:oneLine(x.part,30), no:oneLine(x.no,30), memo:multi(x.memo,200), ages, at, mt:num(x.mt)||at, fx:num(x.fx)};
+  return {id:okId(x.id) ? x.id : rid(), date, site, mix:oneLine(x.mix,30), part:oneLine(x.part,30), no:oneLine(x.no,30), memo:multi(x.memo,200), ages, at, mt:num(x.mt)||at, fx:num(x.fx), sg:cleanRecs(x.sg)};   // sg：採った日の 予定（v613）の 控え
 }
 const newTok=()=>rnd(12, 'abcdefghijkmnpqrstuvwxyz23456789');
 function cleanDst(x, i){   // ☁ Google の 送り先（アカウントごと）
@@ -110,7 +130,7 @@ function load(){
     dests=[cleanDst({id:'g1', name:'Google', url:o.g.url, tok:o.g.tok, cal:o.g.cal, calName:o.g.calName, auto:o.g.on!==false, last:o.g.last, err:o.g.err, net:o.g.net}, 0)];
   dests.forEach((D,i,a)=>{ if(a.findIndex(x=>x.id===D.id)<i) D.id='g'+rnd(6); });
   const ids=new Set(dests.map(D=>D.id));
-  items.forEach(it=>it.ages.forEach(a=>Object.keys(a.g).forEach(k=>{ if(!ids.has(k)) delete a.g[k]; })));   // ない 送り先の 控えは 消す
+  items.forEach(it=>[it.sg].concat(it.ages.map(a=>a.g)).forEach(g=>Object.keys(g).forEach(k=>{ if(!ids.has(k)) delete g[k]; })));   // ない 送り先の 控えは 消す
   const dq=(Array.isArray(o.dq) ? o.dq : []).map(d=>{
     if(!d || !okKey(d.k)) return null;
     const dst=okDid(d.dst) ? d.dst : 'g1';
@@ -119,7 +139,7 @@ function load(){
   const def=(o.def && typeof o.def==='object') ? o.def : {};
   const dAges=[...new Set((Array.isArray(def.ages) ? def.ages : [7,28]).map(v=>intIn(v,1,365,0)).filter(Boolean))].sort((a,b)=>a-b).slice(0,12);
   const al=[o.alarm, o.g && o.g.alarm].find(v=>ALARMS.some(a=>a[0]===v))||'p17';
-  st={items, dq, dests, alarm:al, auth:okMail(o.auth) ? o.auth : '', view:['plan','list'].includes(o.view) ? o.view : 'plan',
+  st={items, dq, dests, alarm:al, auth:okMail(o.auth) ? o.auth : '', view:['plan','cal','list'].includes(o.view) ? o.view : 'plan', fmt:cleanFmt(o.fmt),
     def:{ages:dAges.length ? dAges : [7,28], n:intIn(def.n,1,30,3), ask:def.ask!==false}, q:0};
 }
 function save(){
@@ -133,6 +153,11 @@ const dReady=D=>!!(D && D.url && D.tok);
 const autoDs=()=>st ? st.dests.filter(D=>dReady(D) && D.auto) : [];
 const gOn=()=>!!(st && st.dests.some(dReady));   // Google の 送り先が ある
 const sentTo=(a, D)=>!!(a.g[D.id] && a.g[D.id].id);   // その 送り先に 1回は 入れた
+// 採った日の 予定（v613）は 仮の 材齢 {d:0, samp:true}（控えは it.sg）。同じ 供試体には いつも 同じ もの（送る ものの 覚えで 見分ける）
+const sampC=new WeakMap();
+function sampOf(it){ let s=sampC.get(it); if(!s || s.g!==it.sg){ s={d:0, n:0, done:'', g:it.sg, samp:true}; sampC.set(it, s); } return s; }
+const keyOf=(it, a)=>it.id+'-'+(a.samp ? 's' : a.d);   // 予定の 印（Google の タグ hyo・.ics の UID）
+const evsOf=it=>st.fmt.samp ? it.ages.concat([sampOf(it)]) : it.ages;   // カレンダーに 入れる 予定（試験＋採った日）
 
 /* ───────── 試験の 一覧 ───────── */
 function tests(){
@@ -145,12 +170,24 @@ const stOf=x=>x.a.done ? 'dn' : x.dd<0 ? 'late' : x.dd===0 ? 'today' : '';
 const futOf=it=>{ const T=ymd(today()); return it.ages.filter(a=>ymd(tdOf(it, a))>=T); };   // この先（きょう から）の 試験
 
 /* ───────── 予定の 中身（☁ Google・📱 .ics で 同じ） ───────── */
+// 書式の {現場} などを その 供試体の 字に（空なら 消す）。採った日の 予定では 材齢・本数・試験日は ぜんぶを 並べる
+function fill(tpl, it, a){
+  const sd=okDate(it.date), md2=d=>(d.getMonth()+1)+'/'+d.getDate(), s=!!a.samp;
+  const v={現場:it.site, 配合:it.mix, 打設箇所:it.part, 番号:it.no, 採った日:md2(sd),
+    材齢:s ? it.ages.map(x=>x.d).join('・') : String(a.d), 本数:s ? String(it.ages.reduce((n,x)=>n+x.n, 0)) : String(a.n),
+    試験日:s ? it.ages.map(x=>md2(addDays(sd, x.d))).join('・') : md2(addDays(sd, a.d))};
+  const out=String(tpl||'').replace(/\{(現場|配合|材齢|本数|打設箇所|番号|採った日|試験日)\}/g, (_,k)=>v[k]||'').replace(/[ \u3000]{2,}/g,' ').replace(/[（(][ \u3000]*[)）]/g,'').trim();
+  return oneLine(out, 200) || it.site;
+}
 function evOf(it, a){
-  const sd=okDate(it.date), td=addDays(sd, a.d), dn=okDate(a.done);
-  const title=(a.done ? '✅ ' : '🧱 ')+a.d+'日 試験'+(a.done ? ' 済み' : '')+'：'+it.site+(it.mix ? ' '+it.mix : '')+' '+a.n+'本';
-  const desc=['採った日：'+ymdJa(sd), '材齢：'+a.d+'日（試験の 日 '+ymdJa(td)+'）', it.mix ? '配合：'+it.mix : '', it.part ? '打設箇所：'+it.part : '', it.no ? '番号：'+it.no : '',
-    '本数：'+a.n+'本', dn ? '✓ 試験 済み（'+md(dn)+'）' : '', it.memo ? 'メモ：'+it.memo : '', '（🧱 表電卓の 供試体 から）'].filter(Boolean).join('\n');
-  return {k:it.id+'-'+a.d, date:ymd(td), title, desc, color:a.done ? COLOR.done : COLOR.todo};
+  const f=st.fmt, D=f.desc, s=!!a.samp, sd=okDate(it.date), td=addDays(sd, s ? 0 : a.d), dn=s ? null : okDate(a.done);
+  const title=fill(s ? f.sampTitle : a.done ? f.titleDone : f.title, it, a);
+  const lines=s ? [D.sd ? '採った日：'+ymdJa(sd) : '', D.age ? '試験の 日：'+it.ages.map(x=>x.d+'日 → '+ymdJa(addDays(sd, x.d))).join('・') : '',
+      D.mix && it.mix ? '配合：'+it.mix : '', D.part && it.part ? '打設箇所：'+it.part : '', D.no && it.no ? '番号：'+it.no : '',
+      D.n ? '本数：'+it.ages.map(x=>x.d+'日 '+x.n+'本').join('・') : '', D.memo && it.memo ? 'メモ：'+it.memo : '', D.src ? '（🧱 表電卓の 供試体 から）' : '']
+    : [D.sd ? '採った日：'+ymdJa(sd) : '', D.age ? '材齢：'+a.d+'日（試験の 日 '+ymdJa(td)+'）' : '', D.mix && it.mix ? '配合：'+it.mix : '', D.part && it.part ? '打設箇所：'+it.part : '', D.no && it.no ? '番号：'+it.no : '',
+      D.n ? '本数：'+a.n+'本' : '', D.done && dn ? '✓ 試験 済み（'+md(dn)+'）' : '', D.memo && it.memo ? 'メモ：'+it.memo : '', D.src ? '（🧱 表電卓の 供試体 から）' : ''];
+  return {k:keyOf(it, a), date:ymd(td), title, desc:lines.filter(Boolean).join('\n'), color:s ? f.color.samp : a.done ? f.color.done : f.color.todo};
 }
 const alarmMin=()=>(ALARMS.find(x=>x[0]===st.alarm)||ALARMS[0])[2];
 const alarmNote=()=>{ const a=ALARMS.find(x=>x[0]===st.alarm)||ALARMS[0]; return a[2]==null ? '知らせは なし' : a[1]+'に 知らせ'; };
@@ -172,7 +209,7 @@ function plan(D){
   const out=[]; if(!st || !dReady(D)) return out;
   const T=ymd(today()), cal=D.cal, al=alarmMin();
   st.dq.forEach(d=>{ if(d.dst===D.id) out.push({t:'dq', D, d, op:{op:'del', k:d.k, id:d.id, date:d.sd, sd:d.sd, cal:d.c}}); });
-  st.items.forEach(it=>it.ages.forEach(a=>{
+  st.items.forEach(it=>{ evsOf(it).forEach(a=>{
     const e=evOf(it, a), g=a.g[D.id], sent=!!(g && g.id), past=e.date<T;
     let id=sent ? g.id : '', sd=sent ? g.sd : '';
     if(sent && (g.c||'')!==cal){
@@ -182,7 +219,10 @@ function plan(D){
     else if(sent && g.h===evHash(e)) return;   // もう 入って いる
     if(!sent && past) return;
     out.push({t:'put', D, it, a, h:evHash(e), op:{op:'put', k:e.k, date:e.date, sd, id, title:e.title, desc:e.desc, alarm:al, color:e.color, cal}});
-  }));
+  });
+    const sa=sampOf(it), sg=sa.g[D.id];   // 採った日の 予定を 止めた：この先の ものは 消す（過ぎた ものは 残す）
+    if(!st.fmt.samp && sg && sg.id && (sg.sd||'9')>=T) out.push({t:'un', D, it, a:sa, op:{op:'del', k:keyOf(it, sa), id:sg.id, date:sg.sd, sd:sg.sd, cal:sg.c||''}});
+  });
   return out;
 }
 // 送る ものの 覚え（送り先ごとに 試験 1つ → plan の 1つ）。save() と 画面を 作る たびに 作り直す
@@ -233,8 +273,8 @@ function applyRes(p, x){
   const ok=!!(x && x.ok), D=p.D;
   if(!st.dests.includes(D)) return ok;   // 送って いる 間に 送り先を 消した
   if(p.t==='dq'){ if(ok){ const i=st.dq.indexOf(p.d); if(i>=0) st.dq.splice(i,1); } else p.d.e=errOf(x); return ok; }
-  if(p.t==='mv'){ if(ok && p.a.g[D.id] && p.a.g[D.id].id===p.op.id) delete p.a.g[D.id]; return ok; }
-  const alive=st.items.includes(p.it) && p.it.ages.includes(p.a);
+  if(p.t==='mv' || p.t==='un'){ if(ok && p.a.g[D.id] && p.a.g[D.id].id===p.op.id) delete p.a.g[D.id]; return ok; }
+  const alive=st.items.includes(p.it) && (p.a.samp ? st.fmt.samp : p.it.ages.includes(p.a));
   if(ok && x.id){
     const id=oneLine(x.id,200);
     if(!alive){ st.dq.push({dst:D.id, k:p.op.k, id, sd:p.op.date, c:p.op.cal, e:''}); return true; }   // 送って いる 間に 消した もの は 消しに 行く
@@ -487,18 +527,26 @@ const isOpen=()=>!!($('kyoshiOverlay') && typeof isDlgOpen==='function' && isDlg
 const notInN=()=>st.items.filter(notIn).length;
 function topHtml(){
   const n=notInN();
-  return `<button type="button" class="kyo-b pri" onclick="KYOSHI.add()">＋ 入れる</button><button type="button" class="kyo-b" onclick="KYOSHI.batch()" aria-label="まとめて 送る${n ? '（まだ '+n+'件）' : ''}">📅 まとめて 送る${n ? `<b class="kyo-cnt">${n}</b>` : ''}</button><button type="button" class="kyo-b" onclick="KYOSHI.copy()">📋 コピー</button>`;
+  return `<button type="button" class="kyo-b pri" onclick="KYOSHI.add()">＋ 入れる</button><button type="button" class="kyo-b" onclick="KYOSHI.batch()" aria-label="まとめて 送る${n ? '（まだ '+n+'件）' : ''}">📅 まとめて 送る${n ? `<b class="kyo-cnt">${n}</b>` : ''}</button><button type="button" class="kyo-b" onclick="KYOSHI.copy()">📋 コピー</button><button type="button" class="kyo-b kyo-gear" onclick="KYOSHI.sopen()" aria-label="カレンダーの 設定（書式・送り先・知らせ）" title="カレンダーの 設定">⚙</button>`;
 }
+// 上の 数（遅れ・きょう・あした・7日 以内・まだ 合計。済んで いない 試験）
+function sumHtml(){
+  const L=tests().filter(x=>!x.a.done), n=f=>L.filter(f).length;
+  return [['late','遅れ',n(x=>x.dd<0)],['today','きょう',n(x=>x.dd===0)],['tom','あした',n(x=>x.dd===1)],['wk','7日 以内',n(x=>x.dd>=0 && x.dd<7)],['all','まだ 合計',L.length]]
+    .map(([k,t,c])=>`<span class="${k}${c ? ' on' : ''}">${t} <b>${c}</b> 件</span>`).join('');
+}
+const viewHtml=()=>st.view==='plan' ? planHtml() : st.view==='cal' ? calHtml() : listHtml();
 function render(){
   const b=$('kyoBody'); if(!b || !st) return;
   const top=b.scrollTop; pm=null;
   b.innerHTML=`<div class="kyo-wrap">
     <div class="kyo-top" id="kyoTop">${topHtml()}</div>
     <div id="kyoGBar">${gBarHtml()}</div>
-    <div class="kyo-tabs" role="tablist">${[['plan','📅 試験の 予定'],['list','🧱 採った 供試体']].map(([k,t])=>`<button type="button" role="tab" aria-selected="${st.view===k}" class="${st.view===k?'on':''}" onclick="KYOSHI.view('${k}')">${t}</button>`).join('')}</div>
-    <div id="kyoView">${st.view==='plan' ? planHtml() : listHtml()}</div>
+    <div class="kyo-sum" id="kyoSum" role="status" aria-label="まだ 済んで いない 試験の 数">${sumHtml()}</div>
+    <div class="kyo-tabs" role="tablist">${[['plan','📅 予定'],['cal','🗓 カレンダー'],['list','🧱 供試体']].map(([k,t])=>`<button type="button" role="tab" aria-selected="${st.view===k}" class="${st.view===k?'on':''}" onclick="KYOSHI.view('${k}')">${t}</button>`).join('')}</div>
+    <div id="kyoView">${viewHtml()}</div>
   </div>`;
-  b.scrollTop=top;
+  b.scrollTop=top; bindCal();
 }
 // ☁ の ようすが かわった ときに（打って いる 字を 消さない ように、入れる 欄の ない ところだけ 書き直す）
 function refresh(){
@@ -506,8 +554,9 @@ function refresh(){
   pm=null;
   const tp=$('kyoTop'); if(tp) tp.innerHTML=topHtml();
   const gb=$('kyoGBar'); if(gb) gb.innerHTML=gBarHtml();
-  if(st.view==='plan'){ const v=$('kyoView'); if(v) v.innerHTML=planHtml(); }
-  else { const l=$('kyoList'); if(l) l.innerHTML=listInner(); }
+  const sm=$('kyoSum'); if(sm) sm.innerHTML=sumHtml();
+  if(st.view==='list'){ const l=$('kyoList'); if(l) l.innerHTML=listInner(); }
+  else reView();
   if(pop && pop.kind==='item'){ const it=itOf(pop.id), ae=pop.el.querySelector('#kyoAgesEd'); if(it && ae) ae.innerHTML=agesEdHtml(it); }
   if(pop && pop.kind==='gd') reGst();
 }
@@ -548,7 +597,9 @@ function planHtml(){
   const T=today(), L=tests();
   const late=L.filter(x=>!x.a.done && x.dd<0 && x.dd>=-LATE_DAYS), tod=L.filter(x=>x.dd===0), tom=L.filter(x=>x.dd===1), later=L.filter(x=>x.dd>1);
   let h='';
+  const old=L.filter(x=>!x.a.done && x.dd<-LATE_DAYS).length;
   if(late.length) h+=`<h4 class="kyo-h late">⚠ 過ぎた（まだ ✓ して いない）</h4>`+late.map(x=>rowHtml(x, true)).join('');
+  if(old) h+=`<p class="kyo-none kyo-old">ほかに ${LATE_DAYS}日 より 前に 過ぎて まだの 試験が ${old}件（🗓 カレンダー・🧱 供試体 で ✓ か 🗑）</p>`;
   h+=`<h4 class="kyo-h today">きょう ${dHtml(T)}</h4>`+(tod.length ? tod.map(x=>rowHtml(x)).join('') : '<p class="kyo-none">きょうの 試験は ありません。</p>');
   if(tom.length) h+=`<h4 class="kyo-h">あした ${dHtml(addDays(T,1))}</h4>`+tom.map(x=>rowHtml(x)).join('');
   let cur='';
@@ -556,6 +607,41 @@ function planHtml(){
   if(!later.length && !tom.length) h+='<p class="kyo-none">この先の 試験は ありません。</p>';
   return h+`<p class="kyo-note">試験が 済んだら「✓ 試験した」。行を 押すと くわしく（材齢・本数・直す・消す）。${LATE_DAYS}日 より 前に 過ぎた ものは「🧱 採った 供試体」に あります。中身は この 端末の 中に 残ります（設定の バックアップに 入ります）。</p>`;
 }
+/* ───────── 🗓 カレンダー（v614） ───────── */
+let calM=null, calSel='';   // 見て いる 月（{y, m}）・えらんだ 日
+function calItems(){   // 日ごとの 採取（s）と 試験
+  const by={}, T=today(), put=(k,v)=>{ (by[k]||(by[k]=[])).push(v); };
+  st.items.forEach(it=>{ const sd=okDate(it.date); put(it.date, {s:true, it, sd}); it.ages.forEach(a=>{ const td=addDays(sd, a.d); put(ymd(td), {it, a, sd, td, dd:diff(td, T)}); }); });
+  Object.keys(by).forEach(k=>by[k].sort((x,y)=>(x.s ? 0 : 1)-(y.s ? 0 : 1) || (x.a && y.a ? x.a.d-y.a.d : 0) || x.it.site.localeCompare(y.it.site,'ja')));
+  return by;
+}
+function calHtml(){
+  const T=today(); if(!calM) calM={y:T.getFullYear(), m:T.getMonth()}; if(!okDate(calSel)) calSel=ymd(T);
+  const first=new Date(calM.y, calM.m, 1), start=addDays(first, -first.getDay()), days=new Date(calM.y, calM.m+1, 0).getDate(), weeks=Math.ceil((first.getDay()+days)/7), by=calItems(), tk=ymd(T);
+  let g='';
+  for(let i=0;i<weeks*7;i++){
+    const d=addDays(start, i), k=ymd(d), L=by[k]||[], ns=L.filter(x=>x.s).length, nt=L.length-ns, hn=hol(d);
+    g+=`<button type="button" class="kyo-cd ${dayCls(d)}${d.getMonth()!==calM.m ? ' out' : ''}${k===tk ? ' tod' : ''}${k===calSel ? ' sel' : ''}" data-day="${k}" onclick="KYOSHI.calDay('${k}')" aria-pressed="${k===calSel}" aria-label="${esc(mdw(d)+(hn ? ' '+hn : '')+(ns ? '・採取 '+ns+'件' : '')+(nt ? '・試験 '+nt+'件' : ''))}">`
+      +`<span class="n">${d.getDate()}</span>${L.slice(0,4).map(x=>x.s ? `<i class="cs">採 ${esc(x.it.site)}</i>` : `<i class="ct ${stOf(x)}"><b>${x.a.d}</b>${esc(x.it.site)}</i>`).join('')}${L.length>4 ? `<i class="cm">＋${L.length-4}</i>` : ''}</button>`;
+  }
+  return `<div class="kyo-calh"><button type="button" class="kyo-b sm" onclick="KYOSHI.calMove(-1)" aria-label="前の 月">◀</button><b id="kyoCalM">${calM.y}年${calM.m+1}月</b><button type="button" class="kyo-b sm" onclick="KYOSHI.calMove(1)" aria-label="次の 月">▶</button><button type="button" class="kyo-b sm" onclick="KYOSHI.calToday()">今日</button></div>
+    <div class="kyo-cal" id="kyoCal" data-hswipe="1"><div class="kyo-cw" aria-hidden="true">${[...WD].map((w,i)=>`<span class="${i===0 ? 'sun' : i===6 ? 'sat' : ''}">${w}</span>`).join('')}</div><div class="kyo-cg">${g}</div></div>
+    <div class="kyo-cdd" id="kyoCDay">${calDayHtml(calSel, by)}</div>
+    <p class="kyo-note">日を 押すと 下に その日の 採取と 試験。左右に なぞっても 月が かわります。<i class="kyo-cs">採</i> は 採った日、試験は 赤＝過ぎた・橙＝きょう・緑＝この先・灰＝済み（数字は 材齢）。</p>`;
+}
+function calDayHtml(k, by){
+  const d=okDate(k); if(!d) return '';
+  const L=(by||calItems())[k]||[], S=L.filter(x=>x.s), X=L.filter(x=>!x.s), T=today();
+  return `<h4 class="kyo-h">${dHtml(d)}</h4>
+    <h5 class="kyo-ch">採取 ${S.length}件</h5>${S.length ? S.map(x=>cardHtml(x.it, T)).join('') : '<p class="kyo-none">採取なし</p>'}
+    <h5 class="kyo-ch">試験 ${X.length}件</h5>${X.length ? X.map(x=>rowHtml(x)).join('') : '<p class="kyo-none">試験なし</p>'}`;
+}
+function reView(){ const v=$('kyoView'); if(!v || !st) return; v.innerHTML=viewHtml(); bindCal(); }
+function bindCal(){ const c=$('kyoCal'); if(c && typeof bindHSwipe==='function') bindHSwipe(c, n=>calMove(n)); }   // 左へ なぞる＝次の 月
+function calDay(k){ const d=okDate(k); if(!d) return; calSel=k; calM={y:d.getFullYear(), m:d.getMonth()}; reView(); }
+function calMove(n){ const T=today(), b=calM||{y:T.getFullYear(), m:T.getMonth()}, d=new Date(b.y, b.m+(+n||0), 1); calM={y:d.getFullYear(), m:d.getMonth()}; reView(); }
+function calToday(){ const T=today(); calM={y:T.getFullYear(), m:T.getMonth()}; calSel=ymd(T); reView(); }
+
 function listHits(){
   const q=lq.normalize('NFKC').trim().toLowerCase();
   return st.items.filter(it=>!q || [it.site,it.mix,it.part,it.no,it.memo].some(s=>s && s.normalize('NFKC').toLowerCase().includes(q)))
@@ -755,7 +841,7 @@ function setF(id, k, v){
   changed(it);
 }
 // 送った 予定を 消しに 行く（送り先 ぜんぶ）
-function goneOf(it, a){ Object.keys(a.g).forEach(dst=>{ const g=a.g[dst]; if(g && g.id && dOf(dst)) st.dq.push({dst, k:it.id+'-'+a.d, id:g.id, sd:g.sd, c:g.c||'', e:''}); }); if(st.dq.length>MAX_DQ) st.dq.splice(0, st.dq.length-MAX_DQ); }
+function goneOf(it, a){ Object.keys(a.g).forEach(dst=>{ const g=a.g[dst]; if(g && g.id && dOf(dst)) st.dq.push({dst, k:keyOf(it, a), id:g.id, sd:g.sd, c:g.c||'', e:''}); }); if(st.dq.length>MAX_DQ) st.dq.splice(0, st.dq.length-MAX_DQ); }
 function toggleAge(id, d){
   const it=itOf(id); d=intIn(d,1,365,0); if(!it || !d) return;
   const a=ageOf(it, d);
@@ -783,9 +869,9 @@ function undoDo(){
 }
 async function delItem(id){
   const it=itOf(id); if(!it) return false;
-  const sent=it.ages.some(a=>Object.keys(a.g).some(k=>a.g[k] && a.g[k].id));
+  const sent=it.ages.concat([sampOf(it)]).some(a=>Object.keys(a.g).some(k=>a.g[k] && a.g[k].id));
   if(typeof appConfirm==='function' && !(await appConfirm('「'+it.site+'」（'+md(okDate(it.date))+' 採取）を 消しますか？'+(sent ? '\n（Google カレンダーの 予定も 消します）' : ''), '消す', 'やめる'))) return false;
-  it.ages.forEach(a=>goneOf(it, a));
+  it.ages.concat([sampOf(it)]).forEach(a=>goneOf(it, a));
   const i=st.items.indexOf(it); if(i>=0) st.items.splice(i,1);
   popClose(); changed(); toastS('消しました');
   return true;
@@ -797,7 +883,7 @@ async function tidy(){
   st.items=st.items.filter(it=>!old.includes(it)); save(); render(); toastS('🧹 '+old.length+'件 片づけました');
   return old.length;
 }
-function setView(k){ if(!['plan','list'].includes(k)) return; st.view=k; save(); render(); }
+function setView(k){ if(!['plan','cal','list'].includes(k)) return; st.view=k; save(); render(); }
 function setQ(v){ lq=String(v==null?'':v).slice(0,40); listMax=LIST_STEP; const l=$('kyoList'); if(l) l.innerHTML=listInner(); }
 function more(){ listMax+=LIST_STEP; const l=$('kyoList'); if(l) l.innerHTML=listInner(); }
 
@@ -828,7 +914,7 @@ function toTable(){ if(!st.items.length){ toastS('まだ 何も ありません'
 
 /* ───────── 📅 カレンダーの ファイル（.ics。hyoics.js） ───────── */
 function icsEv(it, a){ const e=evOf(it, a), al=alarmMin(); return {uid:'kyoshi-'+e.k, title:e.title, date:e.date, allDay:true, alarm:al, desc:e.desc}; }
-function icsOfIt(it, onlyNext){ const T=ymd(today()); return it.ages.map(a=>icsEv(it, a)).filter(e=>!onlyNext || e.date>=T); }
+function icsOfIt(it, onlyNext){ const T=ymd(today()); return evsOf(it).map(a=>icsEv(it, a)).filter(e=>!onlyNext || e.date>=T); }
 function withIcs(fn){
   if(window.HyoIcs){ fn(); return; }
   if(typeof loadSidePart!=='function'){ toastS('カレンダーの 部品が 読めません'); return; }
@@ -844,7 +930,7 @@ function pendFor(it, dst){
   if(!futOf(it).length) return false;
   if(dst==='file') return !(it.fx && it.fx>=it.mt);
   const D=dOf(dst); if(!dReady(D)) return false;
-  return it.ages.some(a=>pmap(D).has(a));
+  return evsOf(it).some(a=>pmap(D).has(a)) || (!st.fmt.samp && pmap(D).has(sampOf(it)));
 }
 const batchItems=()=>st.items.filter(it=>futOf(it).length || (bt && bt.sel.has(it.id))).sort((a,b)=>b.date.localeCompare(a.date) || b.at-a.at);
 function bDefDst(){ const m=st.dests.find(D=>dReady(D) && !D.auto && st.items.some(it=>pendFor(it, D.id))); return m ? m.id : 'file'; }
@@ -892,7 +978,7 @@ function batchHtml(){
     <h5 id="kyoBCnt">${bCntHtml()}</h5>
     <div class="kyo-chips kyo-bsel">${[['pend','まだの もの'],['today','きょう 採った'],['all','ぜんぶ'],['none','はずす']].map(([k,t])=>`<button type="button" onclick="KYOSHI.bAll('${k}')">${t}</button>`).join('')}</div>
     <div class="kyo-blist" id="kyoBList">${batchListHtml()}</div>
-    <p class="kyo-note">送るのは この先（きょう から）の 試験だけです。☁✓・📱✓ は もう 入れた もの。</p>
+    <p class="kyo-note">送るのは この先（きょう から）の 試験${st.fmt.samp ? 'と 採った日' : ''}だけです。☁✓・📱✓ は もう 入れた もの。予定の 名前や 色は ⚙ →「📝 カレンダーに 入れる 書式」で かえられます。</p>
     <div class="kyo-acts end" id="kyoBActs">${bActsHtml()}</div>
     ${bt.dst==='file' ? `<p class="kyo-note">iPhone：保存した ファイルを 開いて「すべてを追加」→ 入れる カレンダー（iCloud・Google・Outlook など の アカウント）を えらぶ。Android：Samsung カレンダー など で 開く。パソコンの Outlook・Google カレンダー は ファイルを 読み込む（インポート）。Google に 自動で 入れて いる カレンダーに 入れると 2つに なります。</p>` : ''}`;
 }
@@ -932,8 +1018,11 @@ function dStText(D){
 }
 function reGst(){ const s=pop && pop.el.querySelector('#kyoGSt'); if(!s || pop.kind!=='gd') return; const D=dOf(pop.id); if(D) s.textContent=gMsg || dStText(D); }
 function gListHtml(){
-  return `<div class="kyo-ph"><span class="e" aria-hidden="true">☁</span><b>Google カレンダーに 送る</b><button type="button" class="kyo-x" onclick="KYOSHI.close()" aria-label="閉じる">✕</button></div>
-    <h5>送り先（Google の アカウントごと）</h5>
+  const it=sampleIt();
+  return `<div class="kyo-ph"><span class="e" aria-hidden="true">⚙</span><b>カレンダーの 設定</b><button type="button" class="kyo-x" onclick="KYOSHI.close()" aria-label="閉じる">✕</button></div>
+    <h5>📝 カレンダーに 入れる 書式</h5>
+    <button type="button" class="kyo-dcard" onclick="KYOSHI.fopen()"><b>📝 予定の 名前・説明・色・採った日</b><small>${esc(fill(st.fmt.title, it, it.ages[0]))}${st.fmt.samp ? '・'+esc(fill(st.fmt.sampTitle, it, {d:0, samp:true})) : ''}</small><i aria-hidden="true">直す ›</i></button>
+    <h5>☁ Google カレンダーの 送り先（アカウントごと）</h5>
     <div class="kyo-dlist">${st.dests.map(D=>`<button type="button" class="kyo-dcard" onclick="KYOSHI.gedit('${D.id}')"><b>☁ ${esc(D.name)}</b><small>${esc(D.url ? dStText(D) : '○ まだ 設定して いません（押すと 手順）')}</small><i aria-hidden="true">直す ›</i></button>`).join('')}</div>
     ${st.dests.length<MAX_DST ? `<button type="button" class="kyo-b" onclick="KYOSHI.gadd()">＋ 送り先を 足す（ほかの アカウント・カレンダー）</button>` : ''}
     <p class="kyo-note">Google の アカウントごとに 送り先を 作ります（会社の アカウント・自分の アカウント など。${MAX_DST}つまで）。1つの 送り先でも、「入れる カレンダー」に メールアドレスを 入れると、共有された ほかの アカウントの カレンダーに 入れられます。</p>
@@ -970,11 +1059,65 @@ function gdHtml(D){
     <label class="kyo-f"><span>合言葉</span><input type="text" maxlength="40" value="${esc(D.tok)}" autocomplete="off" spellcheck="false" onchange="KYOSHI.dset('${D.id}', 'tok', this.value)" aria-label="合言葉"></label>
     <p class="kyo-note">コードの 中の AIKOTOBA と 同じ ときだけ 受けつけます。ほかの スマホでは「📋 ほかの スマホ 用に コピー」を その スマホの 送り先の URL の 欄に 貼ると、URL と 合言葉が いっしょに 入ります。</p>
     <div class="kyo-acts">${D.url ? `<button type="button" class="kyo-b" onclick="KYOSHI.gcopyCfg('${D.id}')">📋 ほかの スマホ 用に コピー</button>` : ''}<button type="button" class="kyo-b warn" onclick="KYOSHI.gdel('${D.id}')">🗑 この 送り先を 消す</button></div>
-    <div class="kyo-acts"><button type="button" class="kyo-b" onclick="KYOSHI.gopen()">← 送り先の 一覧・知らせ</button></div>`;
+    <div class="kyo-acts"><button type="button" class="kyo-b" onclick="KYOSHI.sopen()">← カレンダーの 設定（書式・送り先・知らせ）</button></div>`;
 }
-function gopen(){ gMsg=''; if(!st.dests.length){ gadd(); return; } popOpen(gListHtml(), 'g'); }
+function sopen(){ gMsg=''; popOpen(gListHtml(), 'g'); }   // ⚙（送り先が なくても 開く）
+function gopen(){ gMsg=''; if(!st.dests.length){ gadd(); return; } sopen(); }   // ☁（はじめては 送り先を 作る）
 function gedit(id){ const D=dOf(id); if(!D) return; gMsg=''; popOpen(gdHtml(D), 'gd', id); }
-function reG(){ if(!pop) return; if(pop.kind==='g') rePop(gListHtml()); else if(pop.kind==='gd'){ const D=dOf(pop.id); if(D) rePop(gdHtml(D)); } }
+function reG(){ if(!pop) return; if(pop.kind==='g') rePop(gListHtml()); else if(pop.kind==='gd'){ const D=dOf(pop.id); if(D) rePop(gdHtml(D)); } else if(pop.kind==='fmt') rePop(fHtml()); }
+
+/* ───────── 📝 カレンダーに 入れる 書式（v613） ───────── */
+// 見本の 供試体（いちばん 新しく 入れた もの。なければ 見本）
+function sampleIt(){
+  const L=st.items.slice().sort((a,b)=>b.at-a.at);
+  return L[0] || {id:'sample00', date:ymd(today()), site:'○○ビル 新築工事', mix:'24-18-20N', part:'2F スラブ', no:'No.1〜6', memo:'', ages:[{d:7, n:3, done:'', g:{}}, {d:28, n:3, done:'', g:{}}], sg:{}, at:0, mt:0, fx:0};
+}
+const fval=k=>{ const i=$('kyoFt_'+k); return i ? (oneLine(i.value,80)||FMT0[k]) : st.fmt[k]; };   // 打って いる 途中の 字も 見本に
+function fPrevHtml(){
+  const it=sampleIt(), a=it.ages[0];
+  return '<b>見本（'+esc(it.site)+'）</b>'+[['まだ', fill(fval('title'), it, a)], ['済み', fill(fval('titleDone'), it, Object.assign({}, a, {done:ymd(today())}))]]
+    .concat(st.fmt.samp ? [['採った日', fill(fval('sampTitle'), it, {d:0, samp:true})]] : []).map(([t,v])=>`<span><em>${t}</em>${esc(v)}</span>`).join('');
+}
+function fHtml(){
+  const f=st.fmt;
+  const inp=(k, lb, ph)=>`<label class="kyo-f"><span>${lb}</span><input id="kyoFt_${k}" type="text" maxlength="80" value="${esc(f[k])}" placeholder="${esc(ph)}" autocomplete="off" spellcheck="false" oninput="KYOSHI.fprev()" onchange="KYOSHI.fset('${k}', this.value)" aria-label="${lb}の 予定の 名前"></label>
+    <div class="kyo-tags" aria-label="差し込む もの">${TAGS.map(t=>`<button type="button" onmousedown="event.preventDefault()" onclick="KYOSHI.ftag('${k}', '${t}')">＋${t}</button>`).join('')}</div>`;
+  return `<div class="kyo-ph"><span class="e" aria-hidden="true">📝</span><b>カレンダーに 入れる 書式</b><button type="button" class="kyo-x" onclick="KYOSHI.close()" aria-label="閉じる">✕</button></div>
+    <h5>試験の 予定の 名前</h5>
+    ${inp('title', 'まだ', FMT0.title)}
+    ${inp('titleDone', '済み', FMT0.titleDone)}
+    <div class="kyo-fprev" id="kyoFPrev">${fPrevHtml()}</div>
+    <h5>採った日にも 予定を 入れる</h5>
+    <label class="kyo-ck"><input type="checkbox"${f.samp ? ' checked' : ''} onchange="KYOSHI.fset('samp', this.checked)"> 採った日にも 入れる（🗓 カレンダーの「採」と 同じ 日）</label>
+    ${f.samp ? inp('sampTitle', '名前', FMT0.sampTitle) : ''}
+    <h5>説明（メモ欄）に 入れる もの</h5>
+    <div class="kyo-chips">${DESC_ITEMS.map(([k,t])=>`<button type="button" class="${f.desc[k] ? 'on' : ''}" aria-pressed="${f.desc[k]}" onclick="KYOSHI.fset('desc.${k}', ${!f.desc[k]})">${t}</button>`).join('')}</div>
+    <h5>色（Google カレンダー）</h5>
+    ${[['todo','試験 まだ'],['done','済み'],['samp','採った日']].map(([k,t])=>{ const c=GCOLORS.find(x=>x[0]===f.color[k])||GCOLORS[0]; return `<label class="kyo-f"><span>${t}</span><select onchange="KYOSHI.fset('color.${k}', this.value)" aria-label="${t}の 色">${GCOLORS.map(([v,n])=>`<option value="${v}"${f.color[k]===v ? ' selected' : ''}>${n}</option>`).join('')}</select><i class="kyo-sw" aria-hidden="true" style="background:${c[2]||'transparent'}"></i></label>`; }).join('')}
+    <div class="kyo-acts"><button type="button" class="kyo-b" onclick="KYOSHI.freset()">↺ はじめに もどす</button><button type="button" class="kyo-b" onclick="KYOSHI.sopen()">← カレンダーの 設定</button></div>
+    <p class="kyo-note">{現場}・{材齢} などは その 供試体の 字に かわります（空なら 消えます。採った日の 予定では 材齢・本数・試験日は ぜんぶ 並べます）。かえると「入れたら すぐ」の 送り先の 予定も 直ります。まとめて の 送り先は 次に 送る とき、ファイルは 次に 保存 する とき から。色は Google カレンダーだけ（「つけない」は これから 入れる 予定に 色を つけない）。</p>`;
+}
+function fopen(){ popOpen(fHtml(), 'fmt'); }
+function fprev(){ const p=$('kyoFPrev'); if(p) p.innerHTML=fPrevHtml(); }
+// 書式の 決まり（title・titleDone・sampTitle・samp・desc.○○・color.○○）
+function fset(k, v){
+  const f=st.fmt;
+  if(k==='title' || k==='titleDone' || k==='sampTitle'){ const t=oneLine(v,80)||FMT0[k]; if(t===f[k]){ fprev(); return; } f[k]=t; }
+  else if(k==='samp'){ if(!!v===f.samp) return; f.samp=!!v; }
+  else if(/^desc\./.test(k)){ const n=k.slice(5); if(!(n in f.desc) || f.desc[n]===!!v) return; f.desc[n]=!!v; }
+  else if(/^color\./.test(k)){ const n=k.slice(6), c=String(v==null ? '' : v); if(!(n in f.color) || !GCOLORS.some(x=>x[0]===c) || f.color[n]===c) return; f.color[n]=c; }
+  else return;
+  save(); reG(); render(); kick();
+}
+// 差し込む もの（打って いる ところに {現場} などを 入れる）
+function ftag(k, t){
+  const i=$('kyoFt_'+k); if(!i || !TAGS.includes(t)) return;
+  const a=i.selectionStart==null ? i.value.length : i.selectionStart, b=i.selectionEnd==null ? a : i.selectionEnd, ins='{'+t+'}';
+  i.value=(i.value.slice(0,a)+ins+i.value.slice(b)).slice(0,80);
+  fset(k, i.value);
+  const j=$('kyoFt_'+k); if(j){ try{ j.focus(); j.setSelectionRange(a+ins.length, a+ins.length); }catch(_){} }
+}
+function freset(){ st.fmt=cleanFmt(null); save(); reG(); render(); kick(); toastS('書式を はじめに もどしました'); }
 
 /* ───────── 窓 ───────── */
 const CSS=`
@@ -1057,7 +1200,28 @@ const CSS=`
 .kyo-bi.in .t > b{ color:var(--text-light,#555); } .kyo-bd{ font-style:normal; font-size:11.5px; color:#2e7d32; }
 .kyo-dlist{ display:flex; flex-direction:column; gap:6px; margin:0 0 8px; } .kyo-dcard{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; position:relative; width:100%; box-sizing:border-box; padding:8px 70px 8px 12px; border-radius:12px; border:1px solid rgba(120,132,156,.4); background:rgba(120,132,156,.06); color:var(--text,#222); text-align:left; font:inherit; cursor:pointer; }
 .kyo-dcard b{ font-size:15px; } .kyo-dcard small{ font-size:12.5px; color:var(--text-light,#666); line-height:1.45; overflow-wrap:anywhere; } .kyo-dcard i{ position:absolute; right:12px; top:50%; transform:translateY(-50%); font-style:normal; font-size:13px; color:var(--acc); font-weight:bold; }
-@media (max-width:420px){ .kyo-quick, .kyo-sug{ margin-left:0; } .kyo-f > span:first-child{ width:4em; } }
+.kyo-top .kyo-gear{ flex:0 0 auto; min-width:46px; padding:0 10px; font-size:18px; }
+.kyo-sum{ display:flex; flex-wrap:wrap; gap:5px; margin:0 0 8px; } .kyo-sum span{ padding:3px 10px; border-radius:16px; border:1px solid rgba(120,132,156,.4); font-size:13px; color:var(--text,#222); white-space:nowrap; } .kyo-sum b{ font-size:15px; margin:0 1px; }
+.kyo-sum .late.on{ border-color:rgba(229,57,53,.6); color:#c62828; background:rgba(229,57,53,.06); } .kyo-sum .today.on{ border-color:rgba(240,164,0,.7); color:#b26a00; background:rgba(240,164,0,.1); }
+.kyo-old{ color:#c62828; }
+.kyo-calh{ display:flex; align-items:center; gap:6px; margin:6px 0 8px; } .kyo-calh b{ flex:1; text-align:center; font-size:16px; }
+.kyo-cal{ border:1px solid rgba(120,132,156,.35); border-radius:12px; overflow:hidden; touch-action:pan-y; }
+.kyo-cw{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); background:rgba(120,132,156,.08); } .kyo-cw span{ text-align:center; font-size:12.5px; font-weight:bold; padding:4px 0; color:var(--text,#222); } .kyo-cw .sun{ color:#e53935; } .kyo-cw .sat{ color:#1e88e5; }
+.kyo-cg{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); }
+.kyo-cd{ display:flex; flex-direction:column; align-items:stretch; gap:2px; min-width:0; min-height:66px; padding:3px 2px 4px; border:0; border-top:1px solid rgba(120,132,156,.2); border-left:1px solid rgba(120,132,156,.2); background:var(--modal-bg,#fff); color:var(--text,#222); text-align:left; font:inherit; cursor:pointer; overflow:hidden; }
+.kyo-cd:nth-child(7n+1){ border-left:0; }
+.kyo-cd .n{ font-size:12.5px; font-weight:bold; padding:0 2px; } .kyo-cd.sun .n{ color:#e53935; } .kyo-cd.sat .n{ color:#1e88e5; }
+.kyo-cd.out .n{ opacity:.5; } .kyo-cd.tod{ box-shadow:inset 0 0 0 2px #f0a400; } .kyo-cd.sel{ background:rgba(240,164,0,.14); }
+.kyo-cd i{ display:block; font-style:normal; font-size:10.5px; line-height:1.4; padding:0 3px; border-radius:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .kyo-cd i b{ font-size:10px; margin-right:2px; }
+.kyo-cd .cs, .kyo-cs{ border:1px dashed #e8710a; color:#b25000; background:rgba(240,164,0,.07); font-style:normal; } .kyo-note .kyo-cs{ padding:0 4px; border-radius:4px; }
+.kyo-cd .ct{ background:rgba(46,157,74,.14); color:#2e7d32; } .kyo-cd .ct.late{ background:rgba(229,57,53,.12); color:#c62828; } .kyo-cd .ct.today{ background:rgba(240,164,0,.2); color:#b26a00; }
+.kyo-cd .ct.dn{ background:rgba(120,132,156,.12); color:var(--text-light,#666); text-decoration:line-through; } .kyo-cd .cm{ color:var(--text-light,#666); }
+.kyo-cdd{ margin:8px 0 0; } .kyo-ch{ margin:10px 0 4px; font-size:13.5px; color:var(--text-light,#555); }
+.kyo-tags{ display:flex; flex-wrap:wrap; gap:4px; margin:-2px 0 8px 5.1em; } .kyo-tags button{ min-height:32px; padding:0 8px; border-radius:16px; border:1px dashed rgba(120,132,156,.6); background:transparent; color:var(--text,#222); font-size:12.5px; cursor:pointer; }
+.kyo-fprev{ display:flex; flex-direction:column; gap:2px; margin:6px 0 0; padding:8px 12px; border-radius:12px; background:rgba(120,132,156,.1); font-size:13.5px; line-height:1.6; overflow-wrap:anywhere; } .kyo-fprev em{ display:inline-block; min-width:4.5em; font-style:normal; font-size:12px; color:var(--text-light,#666); }
+.kyo-f select{ flex:1; min-width:0; min-height:42px; padding:0 8px; border-radius:10px; border:1px solid rgba(120,132,156,.55); background:var(--cell-bg,#fff); color:var(--text,#222); font-size:15px; }
+.kyo-sw{ flex:none; width:26px; height:26px; border-radius:50%; border:1px solid rgba(120,132,156,.5); }
+@media (max-width:420px){ .kyo-quick, .kyo-sug, .kyo-tags{ margin-left:0; } .kyo-f > span:first-child{ width:4em; } .kyo-cd{ min-height:60px; } }
 `;
 function ensureDom(){
   if($('kyoshiOverlay')) return;
@@ -1094,13 +1258,14 @@ function closeKyoshi(){ if(!$('kyoshiOverlay') || !isDlgOpen('kyoshiOverlay')) r
 window.KYOSHI={ add:pre=>openAdd(pre), addGo:more=>addGo(!!more), drSet, drDay, drAge, drAgeCust, drN, pick, open:openItem, close:popClose, set:setF, age:toggleAge, ageCust, setN, done, undo:undoDo,
   del:id=>delItem(id), tidy:()=>tidy(), view:setView, q:setQ, more, copy, copyOne, text, table:toTable, rows:tableRows, cal:id=>openBatch({ids:[id]}), gcal1,
   batch:o=>openBatch(o), bDst, bSel, bAll, bGo:how=>bGo(how),
-  gopen, gadd, gedit, gdel:id=>gdel(id), gtest:id=>gtest(id), gurl, dset, gset, gcopy, gshare, gcopyCfg, sync:why=>sync(why||'user'),
+  gopen, sopen, gadd, gedit, gdel:id=>gdel(id), gtest:id=>gtest(id), gurl, dset, gset, gcopy, gshare, gcopyCfg, sync:why=>sync(why||'user'),
+  calDay, calMove, calToday, fopen, fprev, fset, ftag, freset, fill:(tpl, id, d)=>{ const it=itOf(id); if(!it) return ''; return fill(tpl, it, d==='s' ? sampOf(it) : ageOf(it, d)); },
   // ためす とき 用
   today:s=>{ fixedToday=s ? String(s) : null; if(st && isOpen()) render(); }, state:()=>JSON.parse(JSON.stringify(st)), clean:cleanIt, gasCode, parseUrl,
   addItem:o=>{ if(!st) load(); const it=addItem(o||{}); if(isOpen()) render(); return it ? it.id : null; },
   plan:id=>{ if(!st) load(); const L=id ? [dOf(id)].filter(Boolean) : autoDs(); return [].concat(...L.map(D=>plan(D).map(p=>Object.assign({t:p.t, dst:D.id}, p.op)))); },
   tests:()=>tests().map(x=>({id:x.it.id, site:x.it.site, d:x.a.d, date:ymd(x.td), dd:x.dd, done:x.a.done})),
-  ev:(id,d)=>{ const it=itOf(id), a=ageOf(it, d); return a ? evOf(it, a) : null; }, ics:id=>{ const it=itOf(id); return it ? icsOfIt(it) : []; }, gurlOf:(id,d)=>{ const it=itOf(id), a=ageOf(it, d); return a ? gcalUrl(it, a) : ''; },
+  ev:(id,d)=>{ const it=itOf(id), a=d==='s' ? (it && sampOf(it)) : ageOf(it, d); return a ? evOf(it, a) : null; }, ics:id=>{ const it=itOf(id); return it ? icsOfIt(it) : []; }, gurlOf:(id,d)=>{ const it=itOf(id), a=ageOf(it, d); return a ? gcalUrl(it, a) : ''; },
   gstate:(id,d,dst)=>{ const it=itOf(id), a=ageOf(it, d), D=dst ? dOf(dst) : st.dests.find(dReady); return a && D ? gState(it, a, D) : null; },
   notIn:()=>st.items.filter(notIn).map(it=>it.id), busy:()=>busyN>0 };
 Object.assign(window, { openKyoshi, closeKyoshi });
