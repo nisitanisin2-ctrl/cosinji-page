@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <!-- 決めた場所以外からはプログラム・画像などを読み込まない・外へ送らない（CSP。v526）。
      画面のボタンにプログラムを書き込んでいる作りなので、ページの中のプログラムは動かせるようにしてある -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; frame-src 'self' blob: data:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob: https://script.google.com https://script.googleusercontent.com; frame-src 'self' blob: data:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <!-- 指で広げて拡大できるようにしてある（v385）。以前は user-scalable=no で拡げられなかった。
      入力欄をタップしたときの勝手な拡大は、欄の文字を16px以上にすることで防ぐ。 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
@@ -44,7 +44,7 @@
     koyomi:'🗓 こよみ',hoi:'⛩ 方位と恵方',soroban:'🧮 そろばん',hitsudan:'🗣 筆談ボード',keijiban:'📢 電光掲示板',
     hadetimer:'⏱ ど派手タイマー',hadecount:'🎉 ど派手カウンター',seikyu:'📃 請求書づくり',
     yatta:'🔁 前にやった日 帳',shukin:'📋 出欠・集金表',shiori:'🧳 旅のしおり',bingo:'🎱 ビンゴ',
-    mikurabe:'📸 見比べ',gijiroku:'📝 議事録',sentaku:'🧺 洗濯表示'};   // v561・v564・v568・v569・v575・v579・v587・v605
+    mikurabe:'📸 見比べ',gijiroku:'📝 議事録',sentaku:'🧺 洗濯表示',kyoshi:'🧱 供試体'};   // v561・v564・v568・v569・v575・v579・v587・v605・v611
   if(!id || !APPS[id]) return;
   window.APP_TOOL=id; document.documentElement.classList.add('app-tool');
   const dir='apps/'+id+'/', set=(sel,attr,v)=>document.querySelectorAll(sel).forEach(e=>e.setAttribute(attr,v));

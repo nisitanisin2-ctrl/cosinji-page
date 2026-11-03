@@ -1,0 +1,39 @@
+{
+  "name": "供試体",
+  "short_name": "供試体",
+  "description": "現場で 採った 供試体の 採った日・現場・材齢を 入れると、7日・28日 などの 試験の 日が わかる。Google カレンダーに 自動で 入れることも できる（表電卓の道具）",
+  "id": "/app-kyoshi",
+  "start_url": "../../index.html?app=kyoshi",
+  "scope": "../../index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#546e7a",
+  "orientation": "any",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
