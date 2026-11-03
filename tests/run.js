@@ -11846,6 +11846,78 @@ async function runKujiAmida585(browser) {
   check('  エラーなし', errs.join(' | '), '');
   await ctx.close();
 }
+async function runKujiSeat617(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🪜 あみだくじ：上の 場所を 1人ずつ 自分で えらぶ（v617） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const N = ['田中', '佐藤', '鈴木', '高橋', '伊藤'];
+  const st = () => page.evaluate(() => { const a = KJ.state().amida; return a ? a.names.map(x => x || '_').join(',') : 'null'; });
+  const toastT = () => page.evaluate(() => { const t = document.getElementById('appToast'); return t ? t.textContent : ''; });
+  await page.evaluate(async n => { window.KJ_NO_ANIM = true; window.appConfirm = async () => true; await openKuji(); KJ.setNames(n); KJ.mode('amida'); }, N); await w(300);
+  check('  はじめは「名前の 順」', await page.evaluate(() => [KJ.state().seat, [...document.querySelectorAll('#kjOpt .kj-seg button')].filter(b => /名前の 順|えらぶ/.test(b.textContent)).map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join('|')].join('/')), 'list/名前の 順*|1人ずつ えらぶ');
+  await page.evaluate(() => [...document.querySelectorAll('#kjOpt .kj-seg button')].find(b => /1人ずつ えらぶ/.test(b.textContent)).click()); await w(150);
+  check('  「1人ずつ えらぶ」を 押す → 設定に 入り、説明が 出る', await page.evaluate(() => [KJ.state().seat, /空いた 番号/.test(document.getElementById('kjOpt').textContent)].join('/')), 'self/true');
+  await page.click('#kjGo'); await w(400);
+  check('  作ると 全画面：上は 空いた 番号 1〜5（点線）・「田中 さん、すきな 場所…」', await page.evaluate(() => [KJ.isFull(), [...document.querySelectorAll('#kjFullBox g.nm')].map(g => g.textContent + (g.classList.contains('empty') ? '' : '!')).join(','), !document.getElementById('kjFullSeat').hidden, document.querySelector('#kjFullSeat b').textContent, document.getElementById('kjFullTip').textContent].join('/')), 'true/1,2,3,4,5/true/👆 田中 さん、すきな 場所（番号）を 押して ください/空いて いる 番号を 押して ください');
+  check('  えらぶ 人の 名前が ならぶ（のこり 5人）', await page.evaluate(() => [[...document.querySelectorAll('#kjFullSeat .kj-seat-ch button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(','), /のこり 5人/.test(document.getElementById('kjFullSeat').textContent)].join('/')), '田中*,佐藤,鈴木,高橋,伊藤/true');
+  check('  えらぶ あいだは「🎲 のこりは おまかせ」（ぜんぶ開ける は 出ない）', await page.evaluate(() => [...document.querySelectorAll('#kjFullBar button')].map(b => b.textContent).join(',')), '🔊,🎲 おまかせ,✕ 閉じる');
+  const p0 = await page.evaluate(() => KJ.played().length);
+  await page.click('#kjFullBox g.nm:nth-of-type(3)'); await w(200);
+  check('  3番を 押す → 田中さんが 3番に 入る・ポン♪・つぎは 佐藤さん', [await st(), await page.evaluate(n => KJ.played().slice(n).join(','), p0), await page.evaluate(() => KJ.chooser()), await page.evaluate(() => document.querySelector('#kjFullBox g.nm:nth-of-type(3)').classList.contains('empty'))].join('/'), '_,_,田中,_,_/pon/佐藤/false');
+  check('  たどっては いない（線も 答えも 出ない）', await page.evaluate(() => [KJ.state().amida.open.length, document.querySelectorAll('#kjFullBox polyline.path').length].join('/')), '0/0');
+  await page.evaluate(() => [...document.querySelectorAll('#kjFullSeat .kj-seat-ch button')].find(b => b.textContent === '高橋').click()); await w(150);
+  check('  名前を 押して えらぶ 人を かえる（高橋さん）', await page.evaluate(() => [KJ.chooser(), document.querySelector('#kjFullSeat b span').textContent, document.querySelector('#kjFullSeat .kj-seat-ch button.on').textContent].join('/')), '高橋/高橋/高橋');
+  await page.click('#kjFullBox g.nm:nth-of-type(1)'); await w(150);
+  check('  高橋さんは 1番・つぎは 先頭に もどって 佐藤さん', [await st(), await page.evaluate(() => KJ.chooser())].join('/'), '高橋,_,田中,_,_/佐藤');
+  await page.click('#kjFullBox g.nm:nth-of-type(3)'); await w(150);
+  check('  入れた 場所を 押す → 外れて その 人が えらぶ 番に', [await st(), await page.evaluate(() => KJ.chooser())].join('/'), '高橋,_,_,_,_/田中');
+  await page.click('#kjFullBox g.nm:nth-of-type(5)'); await w(150);
+  await page.evaluate(() => KJ.openAll()); await w(150);
+  check('  みんなが えらぶ 前は ぜんぶ開ける も できない（知らせる）', [await st(), await page.evaluate(() => KJ.state().amida.open.length), /まだ 場所を えらんで いない 人/.test(await toastT())].join('/'), '高橋,_,_,_,田中/0/true');
+  await page.evaluate(() => [...document.querySelectorAll('#kjFullBar button')].find(b => /もどす/.test(b.textContent)).click()); await w(150);
+  check('  ↶ もどす：さいごに 入れた 1人を 外す（その 人が えらぶ 番）', [await st(), await page.evaluate(() => KJ.chooser())].join('/'), '高橋,_,_,_,_/田中');
+  await page.click('#kjFullBox g.nm:nth-of-type(2)'); await w(150);
+  await page.evaluate(() => KJ.full(false)); await w(200);
+  check('  窓の 中でも 同じ 案内（えらぶ 人・のこり 3人・↶・🎲）', await page.evaluate(() => [document.querySelector('#kjRes .kj-seat b span').textContent, /のこり 3人/.test(document.querySelector('#kjRes .kj-seat').textContent), [...document.querySelectorAll('#kjRes .kj-acts button')].map(b => b.textContent).join(','), [...document.querySelectorAll('#kjRes g.nm')].map(g => g.textContent).join(',')].join('/')), '佐藤/true/⛶ 全画面で 見る,↶ ひとつ もどす,🎲 のこりは おまかせ/高橋,田中,3,4,5');
+  await page.click('#kjRes g.nm:nth-of-type(4)'); await w(150);
+  check('  窓の 中で 4番を 押す → 佐藤さん', await st(), '高橋,田中,_,佐藤,_');
+  // 途中で しまっても 残る
+  await page.evaluate(() => closeKuji()); await w(800);
+  await page.reload(); await w(600);
+  await page.evaluate(async () => { window.KJ_NO_ANIM = true; window.appConfirm = async () => true; await openKuji(); KJ.mode('amida'); }); await w(300);
+  check('  とじて 開き直しても えらんだ 場所は そのまま（つぎは 鈴木さん）', [await st(), await page.evaluate(() => KJ.chooser()), await page.evaluate(() => document.querySelector('#kjRes .kj-seat b span').textContent)].join('/'), '高橋,田中,_,佐藤,_/鈴木/鈴木');
+  await page.evaluate(() => [...document.querySelectorAll('#kjRes .kj-acts button')].find(b => /おまかせ/.test(b.textContent)).click()); await w(200);
+  check('  🎲 のこりは おまかせ：のこり 2人が 空いた 3・5番に 入る', await page.evaluate(() => { const a = KJ.state().amida; return [a.names[0], a.names[1], a.names[3], [a.names[2], a.names[4]].sort().join('+'), a.open.length, KJ.seatLeft().length].join(','); }), '高橋,田中,佐藤,伊藤+鈴木,0,0');
+  check('  みんな えらぶと ふつうの あみだに（案内が 消え、🔓 ぜんぶ開ける・↶ ひとつ もどす）', await page.evaluate(() => [!document.querySelector('#kjRes .kj-seat'), /上の名前を押すと たどります/.test(document.querySelector('#kjRes .kj-res-h').textContent), [...document.querySelectorAll('#kjRes .kj-acts button')].map(b => b.textContent).join(','), /みんな/.test(document.getElementById('appToast').textContent) || /のこりの 人を くじで/.test(document.getElementById('appToast').textContent)].join('/')), 'true/true/⛶ 全画面で 見る,↶ ひとつ もどす,🔓 ぜんぶ開ける/true');
+  await page.click('#kjRes g.nm:nth-of-type(1)'); await w(200);
+  check('  名前を 押すと たどる（高橋さんの 答え）', await page.evaluate(() => { const a = KJ.state().amida; return [a.open.join(','), document.querySelectorAll('#kjRes polyline.path').length].join('/'); }), '0/1');
+  check('  たどり 始めたら もどせない（↶ が 消える）', await page.evaluate(() => [...document.querySelectorAll('#kjRes .kj-acts button')].some(b => /もどす/.test(b.textContent))), false);
+  await page.evaluate(() => KJ.openAll()); await w(200);
+  check('  ぜんぶ開ける → 結果・コピーに えらんだ 場所の 名前', await page.evaluate(() => { const a = KJ.state().amida, t = KJ.text(); return [a.open.length, a.names.every(n => t.includes(n)), [...document.querySelectorAll('#kjRes g.nm')].map(g => g.textContent).slice(0, 2).join(',')].join('/'); }), '5/true/高橋,田中');
+  // 作り直し：えらんで いる 途中なら きく
+  let asked = 0;
+  await page.exposeFunction('kjAsked', () => { asked++; });
+  await page.evaluate(async () => { window.appConfirm = async () => { window.kjAsked(); return true; }; await KJ.go(); }); await w(300);
+  await page.evaluate(() => KJ.full(false)); await w(150);
+  check('  作り直すと また 空いた 番号から（ぜんぶ 開けた あとは きかない）', [await st(), asked].join('/'), '_,_,_,_,_/0');
+  await page.click('#kjRes g.nm:nth-of-type(2)'); await w(150);
+  await page.evaluate(async () => { window.appConfirm = async () => { window.kjAsked(); return false; }; await KJ.go(); }); await w(200);
+  check('  えらんで いる 途中で 作り直す → きく（やめる なら そのまま）', [await st(), asked].join('/'), '_,田中,_,_,_/1');
+  // 名前の 順に もどす
+  await page.evaluate(async () => { window.appConfirm = async () => true; KJ.full(false); KJ.set('seat', 'list'); await KJ.go(); KJ.full(false); }); await w(300);
+  check('  「名前の 順」に もどすと 今までどおり（上は 名前・案内なし）', [await st(), await page.evaluate(() => [KJ.state().amida.pick === undefined, !document.querySelector('#kjRes .kj-seat')].join('/'))].join('/'), '田中,佐藤,鈴木,高橋,伊藤/true/true');
+  // 読みこみの 確かめ（clean）
+  check('  読みこみ：えらんで いない 場所は 空のまま・名簿に ない 名前／二重は 空に・途中なら 開けた 印は 消す', await page.evaluate(() => {
+    const base = KJ.makeAmida(['A', 'B', 'C', 'D'], ['当たり', 'はずれ', 'はずれ', 'はずれ'], true);
+    const d = KJ.clean({ mode: 'amida', seat: 'self', amida: Object.assign({}, base, { names: ['B', 'Z', 'B', ''], open: [0] }) });
+    const e = KJ.clean({ amida: Object.assign({}, base, { pool: ['A', 'B'] }) });
+    const f = KJ.clean({ amida: Object.assign({}, base, { names: ['D', 'C', 'B', 'A'], open: [1, 9] }) });
+    return [d.seat, d.amida.names.map(x => x || '_').join(','), d.amida.pool.join(''), d.amida.open.length, d.amida.pick, e.amida === null, f.amida.open.join(','), KJ.clean({ seat: 'x' }).seat].join('/');
+  }), 'self/B,_,_,_/ABCD/0/true/true/1/list');
+  await page.evaluate(() => { KJ.full(false); closeKuji(); }); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 async function runKujiSound592(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🪜 あみだくじ：当たり・はずれで 音（v592） ──');
@@ -19996,6 +20068,7 @@ const SUITES = [
   [['kuji', 'kuji585', 'v585'], b => runKujiAmida585(b)],
   [['kuji', 'kuji586', 'v586'], b => runKujiReveal586(b)],
   [['kuji', 'kuji592', 'v592'], b => runKujiSound592(b)],
+  [['kuji', 'kujiseat', 'v617'], b => runKujiSeat617(b)],
   [['bingo', 'v587'], b => runBingo587(b)],
   [['bingo', 'bingo588', 'v588'], b => runBingo588(b)],
   [['hade', 'hade588', 'v588'], b => runHadeFull588(b)],

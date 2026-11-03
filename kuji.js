@@ -9,6 +9,9 @@
      下の 答えは 線が 下に 着いてから 出す（v586。ぜんぶ開ける も いっしょに 線を 引いてから）
      🔊 音（v592）：線を 引く あいだは ドラムロール、着いたら 当たり＝カランカラン（福引きの 鐘）と ファンファーレ・
      はずれ＝ぷぅ〜（下がる ラッパ）・ほか（数・自分で 書いた 役 など）＝ポン。ぜんぶ開ける ときは まとめて 1回。音は 出す／出さない を えらべる
+     上の 場所（v617）：「名前の 順」か「1人ずつ えらぶ」（自分で 場所を えらぶ）。えらぶ ときは 作ると 上が 空いた 番号に なり、
+     えらぶ 人（名前を 押して かえられる）が すきな 番号を 押すと その 場所に 入る（入れた 場所を 押すと 外せる・↶ ひとつ もどす・🎲 のこりは おまかせ）。
+     みんなが えらぶまで 開けられない（ぜんぶ開ける も）。全画面でも 同じ
    くじは端末の乱数（crypto.getRandomValues）で、かたよりなく決める。休みの人は 名前を押すと外せる。
    結果は 📋コピー・📤共有・▦表に入れる。名前の組（クラス・部 など）は保存して呼び出せる。
    中身は excalc_kuji（この端末の中だけ）。 */
@@ -38,7 +41,7 @@ function rnd(n){
 function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=rnd(i+1); const t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
 
 /* ───────── 読み書き ───────── */
-function defaults(){ return {v:1, sound:true, names:[], off:[], mode:'pick', pickN:1, excl:false, won:[], teamBy:'n', teamN:2, teamSize:4, leader:false, teamLabel:'num', prizeKind:'hit', hitN:1, prizes:'', lists:[], hist:[], amida:null, last:null}; }
+function defaults(){ return {v:1, sound:true, seat:'list', names:[], off:[], mode:'pick', pickN:1, excl:false, won:[], teamBy:'n', teamN:2, teamSize:4, leader:false, teamLabel:'num', prizeKind:'hit', hitN:1, prizes:'', lists:[], hist:[], amida:null, last:null}; }
 const int=(v,lo,hi,d)=>{ const n=Math.round(+v); return isFinite(n)?Math.max(lo,Math.min(hi,n)):d; };
 const strs=(a,n,len)=>(Array.isArray(a)?a:[]).map(x=>line(x,len)).filter(Boolean).slice(0,n);
 function uniq(names){
@@ -54,18 +57,25 @@ function clean(o){
   d.pickN=int(o.pickN,1,MAX_N,1); d.excl=o.excl===true; d.won=strs(o.won,MAX_N,30);
   d.teamBy=o.teamBy==='size'?'size':'n'; d.teamN=int(o.teamN,2,50,2); d.teamSize=int(o.teamSize,1,MAX_N,4);
   d.leader=o.leader===true; d.teamLabel=o.teamLabel==='abc'?'abc':'num';
-  d.sound=o.sound!==false;
+  d.sound=o.sound!==false; d.seat=o.seat==='self'?'self':'list';
   d.prizeKind=['hit','num','own'].includes(o.prizeKind)?o.prizeKind:'hit'; d.hitN=int(o.hitN,1,MAX_AMIDA,1); d.prizes=String(o.prizes||'').slice(0,2000);
   (Array.isArray(o.lists)?o.lists:[]).slice(0,MAX_LISTS).forEach(l=>{ if(!l||typeof l!=='object') return; const name=line(l.name,30), names=uniq(strs(l.names,MAX_N,24)); if(name&&names.length) d.lists.push({id:typeof l.id==='string'&&l.id?l.id.slice(0,40):uid('l'), name, names}); });
   (Array.isArray(o.hist)?o.hist:[]).slice(0,MAX_HIST).forEach(h=>{ if(h&&typeof h.text==='string'&&MODES.some(m=>m[0]===h.mode)) d.hist.push({t:+h.t||0, mode:h.mode, text:h.text.slice(0,3000)}); });
   const a=o.amida;
   if(a&&Array.isArray(a.names)&&Array.isArray(a.rungs)&&a.names.length>=2&&a.names.length<=MAX_AMIDA&&a.rungs.length<=200){
-    const n=a.names.length, names=strs(a.names,MAX_AMIDA,30);
+    const n=a.names.length, pick=a.pick===true;
+    let names=strs(a.names,MAX_AMIDA,30), pool=null;
+    if(pick){   // 自分で えらぶ：まだ えらんで いない 場所は ''（v617）
+      pool=uniq(strs(a.pool,MAX_AMIDA,30)); const seen=new Set();
+      names=a.names.slice(0,n).map(x=>{ const v=line(x,30); if(!v || !pool.includes(v) || seen.has(v)) return ''; seen.add(v); return v; });
+      if(pool.length!==n) names=[];
+    }
     if(names.length===n){
       const prizes=(Array.isArray(a.prizes)?a.prizes:[]).slice(0,n).map(x=>line(x,20)); while(prizes.length<n) prizes.push('');
       const rungs=a.rungs.map(r=>Array.from({length:n-1},(_,c)=>!!(Array.isArray(r)&&r[c]===true)));
       rungs.forEach(r=>{ for(let c=1;c<r.length;c++) if(r[c]&&r[c-1]) r[c]=false; });
-      d.amida={names, prizes, rungs, open:[...new Set((Array.isArray(a.open)?a.open:[]).map(Number).filter(i=>Number.isInteger(i)&&i>=0&&i<n))]};
+      d.amida={names, prizes, rungs, open:pick && names.some(x=>!x) ? [] : [...new Set((Array.isArray(a.open)?a.open:[]).map(Number).filter(i=>Number.isInteger(i)&&i>=0&&i<n))]};
+      if(pick){ d.amida.pick=true; d.amida.pool=pool; }
     }
   }
   if(o.last&&typeof o.last==='object'&&MODES.some(m=>m[0]===o.last.mode)&&o.last.mode!=='amida'){
@@ -110,14 +120,42 @@ function prizeList(n){
   const h=Math.min(st.hitN, n);
   return Array.from({length:n},(_,i)=>i<h?'当たり':'はずれ');
 }
-function makeAmida(names, prizes){
+function makeAmida(names, prizes, self){
   const n=names.length, levels=Math.max(10, Math.min(36, n*3+4));
   const rungs=[];
   for(let l=0;l<levels;l++){ const row=Array(n-1).fill(false); for(let c=0;c<n-1;c++){ if(c>0&&row[c-1]) continue; if(rnd(100)<40) row[c]=true; } rungs.push(row); }
   for(let c=0;c<n-1;c++) if(!rungs.some(r=>r[c])){   // どのとなりにも 1本は横線を
     for(let t=0;t<80;t++){ const l=rnd(levels); if(!(c>0&&rungs[l][c-1]) && !rungs[l][c+1]){ rungs[l][c]=true; break; } }
   }
-  return {names:names.slice(), prizes:shuffle(prizes), rungs, open:[]};
+  const a={names:names.slice(), prizes:shuffle(prizes), rungs, open:[]};
+  if(self){ a.pick=true; a.pool=names.slice(); a.names=names.map(()=>''); }   // 上の 場所は 1人ずつ 自分で えらぶ（v617）
+  return a;
+}
+/* 上の 場所を 自分で えらぶ（v617） */
+let seatWho='', seatHist=[];   // いま えらぶ 人・この あみだで 入れた 場所の 順（↶ ひとつ もどす 用）
+const seatLeft=a=>a && a.pick ? a.pool.filter(n=>!a.names.includes(n)) : [];   // まだ えらんで いない 人
+const seating=a=>!!(a && a.pick && a.names.some(x=>!x));
+function chooser(a){ const left=seatLeft(a); if(!left.includes(seatWho)) seatWho=left[0]||''; return seatWho; }
+function seatDraw(){ renderAmida(); renderFull(); }
+function seatPick(n){ const a=st.amida; if(!seating(a) || !seatLeft(a).includes(n)) return; seatWho=n; seatDraw(); }
+function seatAt(i){
+  const a=st.amida, who=chooser(a); if(!who || a.names[i]) return;
+  a.names[i]=who; seatHist.push(i); seatWho=''; save(); SND.pon();
+  if(!seating(a)) toast('みんな えらびました。上の 名前を 押すと たどります', 3200);
+  seatDraw();
+}
+function seatOut(i){ const a=st.amida; if(!seating(a) || !a.names[i]) return; seatWho=a.names[i]; a.names[i]=''; seatHist=seatHist.filter(x=>x!==i); save(); seatDraw(); }
+function seatUndo(){ const a=st.amida; if(!a || !a.pick || a.open.length) return; const i=seatHist.pop(); if(i==null || !a.names[i]) return; seatWho=a.names[i]; a.names[i]=''; save(); seatDraw(); }
+function seatRest(){
+  const a=st.amida; if(!seating(a)) return;
+  const left=shuffle(seatLeft(a)); a.names.forEach((n,i)=>{ if(!n){ a.names[i]=left.shift(); seatHist.push(i); } });
+  seatWho=''; save(); toast('のこりの 人を くじで 入れました。上の 名前を 押すと たどります', 3200); seatDraw();
+}
+// 上で 案内する 文と、えらぶ 人の 名前（押すと かわる）
+function seatHtml(a, cls){
+  const who=chooser(a), left=seatLeft(a);
+  return `<div class="${cls}"><b>👆 <span>${esc(who)}</span> さん、すきな 場所（番号）を 押して ください</b><small>のこり ${left.length}人${left.length>1 ? '・えらぶ 人を かえる ときは 下の 名前を 押す' : ''}</small>
+    ${left.length>1 ? `<div class="kj-seat-ch">${left.map(n=>`<button type="button" class="${n===who?'on':''}" data-n="${esc(n)}" aria-pressed="${n===who}" onclick="KJ.seatWho(this.dataset.n)">${esc(n)}</button>`).join('')}</div>` : ''}</div>`;
 }
 function trace(a, i){
   let c=i; const pts=[[c,-1]];
@@ -135,11 +173,13 @@ async function go(){
   if(st.mode==='amida'){
     if(act.length<2){ toast('あみだは 2人から作れます'); return; }
     if(act.length>MAX_AMIDA){ toast('あみだは '+MAX_AMIDA+'人までです（班分けか順番をつかってください）', 4000); return; }
-    if(st.amida && st.amida.open.length && st.amida.open.length<st.amida.names.length && !await appConfirm('いまのあみだは まだ開けていない人がいます。新しく作り直しますか？', '作り直す', 'やめる')) return;
+    const A=st.amida, busy=A && ((A.open.length && A.open.length<A.names.length) || (seating(A) && A.names.some(Boolean)));
+    if(busy && !await appConfirm('いまのあみだは まだ開けていない人がいます。新しく作り直しますか？', '作り直す', 'やめる')) return;
     reveal.clear(); popped.clear(); renderHist();
-    st.amida=makeAmida(act, prizeList(act.length)); save(); renderRes();
+    seatWho=''; seatHist=[];
+    st.amida=makeAmida(act, prizeList(act.length), st.seat==='self'); save(); renderRes();
     setFull(true);   // 作ったら 全画面で 全体を 見せる（v585。上に「名前を押すと たどります」が 出る）
-    if(!full) toast('あみだを作りました。上の名前を押すと たどります');
+    if(!full) toast(st.seat==='self' ? 'あみだを作りました。1人ずつ すきな 場所を 押して ください' : 'あみだを作りました。上の名前を押すと たどります');
     return;
   }
   if(!act.length){ toast('先に名前を入れてください'); return; }
@@ -242,6 +282,8 @@ function renderOpt(){
     b.innerHTML=`<div class="kj-seg sm"><span>下に書くこと</span>${[['hit','当たり'],['num','1〜'+(n||'n')+'の数'],['own','自分で書く']].map(o=>`<button class="${st.prizeKind===o[0]?'on':''}" onclick="KJ.set('prizeKind','${o[0]}')">${o[1]}</button>`).join('')}</div>
       ${st.prizeKind==='hit'?`<div class="kj-line"><span>当たりの数</span>${stepper('hitN',Math.min(st.hitN,Math.max(1,n)),1,Math.max(1,n),'本')}</div>`:''}
       ${st.prizeKind==='own'?`<textarea id="kjPrizes" rows="4" placeholder="1行に1つ（例：司会・書記・会計）。足りない分は「はずれ」になります" oninput="KJ.prizes(this.value)">${esc(st.prizes)}</textarea>`:''}
+      <div class="kj-seg sm"><span>上の 場所</span>${[['list','名前の 順'],['self','1人ずつ えらぶ']].map(o=>`<button class="${st.seat===o[0]?'on':''}" onclick="KJ.set('seat','${o[0]}')">${o[1]}</button>`).join('')}</div>
+      ${st.seat==='self'?`<div class="kj-tip">作ると 上が 空いた 番号に なります。1人ずつ すきな 番号を 押すと、そこが その 人の 場所に なります（みんなが えらぶと たどれます）。</div>`:''}
       <label class="kj-sw"><input type="checkbox" id="kjSound" ${st.sound?'checked':''} onchange="KJ.set('sound',this.checked)"> 🔊 当たり・はずれで 音を 出す</label>`;
     const p=$('kjPrizes'); if(p) p.addEventListener('keydown', e=>e.stopPropagation());
     g.textContent=st.amida?'🪜 あみだを作り直す':'🪜 あみだを作る';
@@ -343,15 +385,16 @@ function renderAmida(){
   a.rungs.forEach((r,l)=>r.forEach((on,c)=>{ if(on) svg+=`<line x1="${G.x(c)}" y1="${G.y(l)}" x2="${G.x(c+1)}" y2="${G.y(l)}" class="h"/>`; }));
   a.open.forEach(i=>{ const t=trace(a,i); svg+=`<polyline class="path" data-i="${i}" style="--c:${COLORS[i%COLORS.length]}" points="${t.pts.map(([c,l])=>G.x(c)+','+(l<0?G.top:l>=a.rungs.length?G.bot:G.y(l))).join(' ')}"/>`; });
   a.names.forEach((n,i)=>{ const op=a.open.includes(i);
-    svg+=`<g class="nm${op?' on':''}" onclick="KJ.open(${i})" style="--c:${COLORS[i%COLORS.length]}"><rect x="${G.x(i)-G.dx/2+3}" y="4" width="${G.dx-6}" height="38" rx="8"/><text x="${G.x(i)}" y="28">${esc(short(n,k))}</text></g>`; });
+    svg+=`<g class="nm${op?' on':''}${n?'':' empty'}" onclick="KJ.open(${i})" style="--c:${COLORS[i%COLORS.length]}"><rect x="${G.x(i)-G.dx/2+3}" y="4" width="${G.dx-6}" height="38" rx="8"/><text x="${G.x(i)}" y="28">${n?esc(short(n,k)):i+1}</text></g>`; });
   a.prizes.forEach((p,c)=>{ const who=ends.get(c), shown=who!=null;
     svg+=`<g class="pz${shown?' on':''}${shown && popped.has(who)?' pop':''}"${shown?` style="--c:${COLORS[who%COLORS.length]}"`:''}><rect x="${G.x(c)-G.dx/2+3}" y="${G.bot+4}" width="${G.dx-6}" height="34" rx="8"/><text x="${G.x(c)}" y="${G.bot+26}">${shown?esc(short(p,k)):'？'}</text></g>`; });
   svg+='</svg>';
-  const all=a.open.length>=a.names.length && !reveal.size, rest=a.open.length<a.names.length, so=shownOpen(a);
-  b.innerHTML=`<div class="kj-res-h">🪜 あみだ <small>上の名前を押すと たどります</small></div>
+  const all=a.open.length>=a.names.length && !reveal.size, rest=a.open.length<a.names.length, so=shownOpen(a), seat=seating(a);
+  b.innerHTML=`<div class="kj-res-h">🪜 あみだ <small>${seat ? '空いて いる 番号を 押すと、そこが その 人の 場所に なります（入れた 名前を 押すと 外せます）' : '上の名前を押すと たどります'}</small></div>
+    ${seat ? seatHtml(a, 'kj-seat') : ''}
     <div class="kj-amida-wrap">${svg}</div>
     ${so.length?`<div class="kj-alist">${so.map(i=>`<span style="--c:${COLORS[i%COLORS.length]}"><b>${esc(a.names[i])}</b> → ${esc(a.prizes[trace(a,i).end])}</span>`).join('')}</div>`:''}
-    <div class="kj-acts"><button class="kj-fullbtn" onclick="KJ.full(true)">⛶ 全画面で 見る</button>${all?`<button onclick="KJ.copy()">📋 コピー</button><button onclick="KJ.share()">📤 共有</button><button onclick="KJ.toTable()">▦ 表に入れる</button>`:rest?`<button onclick="KJ.openAll()">🔓 ぜんぶ開ける</button>`:''}</div>`;
+    <div class="kj-acts"><button class="kj-fullbtn" onclick="KJ.full(true)">⛶ 全画面で 見る</button>${seat ? `${seatHist.length ? '<button onclick="KJ.seatUndo()">↶ ひとつ もどす</button>' : ''}<button onclick="KJ.seatRest()">🎲 のこりは おまかせ</button>` : all?`<button onclick="KJ.copy()">📋 コピー</button><button onclick="KJ.share()">📤 共有</button><button onclick="KJ.toTable()">▦ 表に入れる</button>`:rest?`${a.pick && !a.open.length && seatHist.length ? '<button onclick="KJ.seatUndo()">↶ ひとつ もどす</button>' : ''}<button onclick="KJ.openAll()">🔓 ぜんぶ開ける</button>`:''}</div>`;
   drawAnim(b);
 }
 // 線を 引く（描きなおしても とちゅうから つづける）。ease は CSS の ease-in-out に 近い
@@ -409,7 +452,7 @@ function fullSvg(a, G){
   a.rungs.forEach((row,l)=>row.forEach((on,c)=>{ if(on) s+=`<line x1="${G.x(c).toFixed(1)}" y1="${G.y(l).toFixed(1)}" x2="${G.x(c+1).toFixed(1)}" y2="${G.y(l).toFixed(1)}" class="h"/>`; }));
   a.open.forEach(i=>{ const t=trace(a,i); s+=`<polyline class="path" data-i="${i}" style="--c:${COLORS[i%COLORS.length]};stroke-width:${pw}px" points="${t.pts.map(([c,l])=>G.x(c).toFixed(1)+','+(l<0?G.top:l>=a.rungs.length?G.bot:G.y(l)).toFixed(1)).join(' ')}"/>`; });
   a.names.forEach((n,i)=>{ const op=a.open.includes(i), x0=G.x(i)-G.colW/2+2;
-    s+=`<g class="nm${op?' on':''}" onclick="KJ.open(${i})" style="--c:${COLORS[i%COLORS.length]}"><rect x="${x0.toFixed(1)}" y="2" width="${(G.colW-4).toFixed(1)}" height="${G.nameH.toFixed(1)}" rx="${r}"/>${boxText(G, n, G.x(i), 2, G.nameH)}</g>`; });
+    s+=`<g class="nm${op?' on':''}${n?'':' empty'}" onclick="KJ.open(${i})" style="--c:${COLORS[i%COLORS.length]}"><rect x="${x0.toFixed(1)}" y="2" width="${(G.colW-4).toFixed(1)}" height="${G.nameH.toFixed(1)}" rx="${r}"/>${boxText(G, n||String(i+1), G.x(i), 2, G.nameH)}</g>`; });
   a.prizes.forEach((p,c)=>{ const who=ends.get(c), shown=who!=null, x0=G.x(c)-G.colW/2+2, y0=G.bot+8;
     s+=`<g class="pz${shown?' on':''}${shown && popped.has(who)?' pop':''}"${shown?` style="--c:${COLORS[who%COLORS.length]}"`:''}><rect x="${x0.toFixed(1)}" y="${y0.toFixed(1)}" width="${(G.colW-4).toFixed(1)}" height="${G.pzH.toFixed(1)}" rx="${r}"/>${boxText(G, shown?p:'？', G.x(c), y0, G.pzH)}</g>`; });
   return s+'</svg>';
@@ -419,9 +462,11 @@ function renderFull(){
   const a=st.amida; if(!a){ setFull(false); return; }
   const box=$('kjFullBox'), bar=$('kjFullBar'), tip=$('kjFullTip'); if(!box) return;
   // 上と 下の 字・ボタンを 先に 入れてから 大きさを はかる（あみだが 下に はみ出さない ように）
-  const all=a.open.length>=a.names.length && !reveal.size, port=window.innerWidth<window.innerHeight;
-  if(tip) tip.textContent=all ? 'ぜんぶ 開けました' : (a.names.length>12 && port ? '名前を押すと たどります（横向きに すると 大きく 見えます）' : '名前を押すと たどります');
-  if(bar) bar.innerHTML=`<button type="button" class="snd" onclick="KJ.sound()" aria-label="音を ${st.sound ? '出さない' : '出す'}" title="音">${st.sound ? '🔊' : '🔇'}</button>`+(all ? `<button type="button" onclick="KJ.copy()">📋 コピー</button>` : a.open.length<a.names.length ? `<button type="button" onclick="KJ.openAll()">🔓 ぜんぶ開ける</button>` : '')+`<button type="button" class="pri" onclick="KJ.full(false)">✕ 閉じる</button>`;
+  const all=a.open.length>=a.names.length && !reveal.size, port=window.innerWidth<window.innerHeight, seat=seating(a), sb=$('kjFullSeat');
+  if(tip) tip.textContent=seat ? '空いて いる 番号を 押して ください' : all ? 'ぜんぶ 開けました' : (a.names.length>12 && port ? '名前を押すと たどります（横向きに すると 大きく 見えます）' : '名前を押すと たどります');
+  if(sb){ sb.hidden=!seat; sb.innerHTML=seat ? seatHtml(a, 'kj-seat full') : ''; }
+  if(seat && bar){ bar.innerHTML=`<button type="button" class="snd" onclick="KJ.sound()" aria-label="音を ${st.sound ? '出さない' : '出す'}" title="音">${st.sound ? '🔊' : '🔇'}</button>${seatHist.length ? '<button type="button" onclick="KJ.seatUndo()">↶ もどす</button>' : ''}<button type="button" onclick="KJ.seatRest()" title="のこりの 人を くじで 入れる">🎲 おまかせ</button><button type="button" class="pri" onclick="KJ.full(false)">✕ 閉じる</button>`; }
+  if(bar && !seat) bar.innerHTML=`<button type="button" class="snd" onclick="KJ.sound()" aria-label="音を ${st.sound ? '出さない' : '出す'}" title="音">${st.sound ? '🔊' : '🔇'}</button>`+(all ? `<button type="button" onclick="KJ.copy()">📋 コピー</button>` : a.open.length<a.names.length ? `<button type="button" onclick="KJ.openAll()">🔓 ぜんぶ開ける</button>` : '')+`<button type="button" class="pri" onclick="KJ.full(false)">✕ 閉じる</button>`;
   box.innerHTML='';
   const W=Math.max(120, box.clientWidth), H=Math.max(160, box.clientHeight), G=fullGeom(a, W, H);
   box.innerHTML=fullSvg(a, G);
@@ -434,7 +479,7 @@ function setFull(on){
     if(full){ renderFull(); return; }
     const el=document.createElement('div'); el.className='kj-full'; el.id='kjFull';
     el.setAttribute('role','dialog'); el.setAttribute('aria-modal','true'); el.setAttribute('aria-label','あみだくじ（全画面）');
-    el.innerHTML=`<div class="kj-full-top"><b>🪜 あみだくじ</b><small id="kjFullTip"></small></div><div class="kj-full-box" id="kjFullBox"></div><div class="kj-full-bar" id="kjFullBar"></div>`;
+    el.innerHTML=`<div class="kj-full-top"><b>🪜 あみだくじ</b><small id="kjFullTip"></small></div><div id="kjFullSeat" hidden></div><div class="kj-full-box" id="kjFullBox"></div><div class="kj-full-bar" id="kjFullBar"></div>`;
     document.body.appendChild(el);
     full={el, rel:null};
     const me=full; full.rel=typeof modalBack==='function' ? modalBack(()=>{ if(full===me) setFull(false); }) : null;   // 端末の「戻る」で 全画面だけ 閉じる
@@ -448,11 +493,13 @@ function setFull(on){
 }
 function openOne(i){
   const a=st.amida; if(!a||i<0||i>=a.names.length||a.open.includes(i)) return;
+  if(seating(a)){ if(a.names[i]) seatOut(i); else seatAt(i); return; }   // 自分で えらぶ あいだ（v617）
   a.open.push(i); save(); startDraw([i]); renderAmida(); renderFull();   // 線を 引いて、下に 着いたら 答え（v586）
   if(a.open.length===a.names.length){ st.hist.unshift({t:Date.now(), mode:'amida', text:amidaText()}); st.hist=st.hist.slice(0,MAX_HIST); save(); if(!reveal.size) renderHist(); }
 }
 function openAll(){
   const a=st.amida; if(!a) return;
+  if(seating(a)){ toast('まだ 場所を えらんで いない 人が います（「🎲 のこりは おまかせ」も 使えます）', 3600); return; }
   const add=a.names.map((_,i)=>i).filter(i=>!a.open.includes(i)); if(!add.length) return;
   add.forEach(i=>a.open.push(i));
   st.hist.unshift({t:Date.now(), mode:'amida', text:amidaText()}); st.hist=st.hist.slice(0,MAX_HIST);
@@ -603,6 +650,12 @@ const KJ_CSS=`
 .kj-amida g.nm{ cursor:pointer; } .kj-amida g rect{ fill:var(--modal-bg,#fff); stroke:rgba(120,132,156,.6); stroke-width:1.5; }
 .kj-amida g.nm rect{ fill:var(--acc-weak,rgba(33,115,70,.12)); stroke:var(--acc); }
 .kj-amida g.nm.on rect,.kj-amida g.pz.on rect{ fill:var(--c); stroke:var(--c); }
+.kj-amida g.nm.empty rect{ fill:transparent; stroke:var(--acc); stroke-width:2; stroke-dasharray:5 4; } .kj-amida g.nm.empty text{ fill:var(--acc-text,var(--acc)); }
+.kj-seat{ margin:0 0 8px; padding:8px 10px; border-radius:12px; border:2px solid var(--acc); background:var(--acc-weak,rgba(33,115,70,.08)); }
+.kj-seat b{ display:block; font-size:15px; line-height:1.5; } .kj-seat b span{ font-size:19px; color:var(--acc-text,var(--acc)); } .kj-seat small{ display:block; font-size:12.5px; color:var(--text-light,#666); margin-top:2px; }
+.kj-seat-ch{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; } .kj-seat-ch button{ min-height:36px; padding:0 12px; border-radius:18px; border:1px solid rgba(120,132,156,.5); background:var(--modal-bg,#fff); color:var(--text,#222); font-size:14px; font-weight:bold; cursor:pointer; }
+.kj-seat-ch button.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); }
+.kj-seat.full{ margin:0 6px 6px; } .kj-seat.full .kj-seat-ch{ flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px; } .kj-seat.full .kj-seat-ch button{ flex:none; }
 .kj-amida text{ text-anchor:middle; font-size:13px; font-weight:bold; fill:var(--text,#222); pointer-events:none; }
 .kj-amida g.on text{ fill:#fff; }
 .kj-amida g.pz.pop{ transform-box:fill-box; transform-origin:center; animation:kjPz .5s cubic-bezier(.2,.9,.3,1.3); }
@@ -650,6 +703,7 @@ function closeKuji(){ if(!$('kujiOverlay')||!isDlgOpen('kujiOverlay')) return; i
 
 window.KJ={ go, mode:setMode, set, step, prizes, wonReset, histClear, toggle, edit, namesDone, clear, names, lists, listSave, listLoad, listDel, open:openOne, openAll, copy, share, toTable, popClose:()=>popClose(), full:setFull, isFull:()=>!!full, drawing:()=>[...reveal.keys()],
   sound:toggleSound, played:()=>played.slice(), prizeKind,   // 🔊 音（v592）
+  seatWho:seatPick, seatRest, seatUndo, seatLeft:()=>seatLeft(st.amida), chooser:()=>chooser(st.amida),   // 上の 場所を 自分で えらぶ（v617）
   state:()=>JSON.parse(JSON.stringify(st)), setNames:a=>{ setNames(a); editing=false; render(); }, text:curText, rows:tableRows, rnd, shuffle, trace:(i)=>trace(st.amida,i), clean, makeAmida };
 Object.assign(window, { openKuji, closeKuji });
 })();
