@@ -19301,7 +19301,7 @@ async function runKyoshi611(browser) {
   }
   await page.evaluate(() => { window.appConfirm = async () => true; });
   await page.evaluate(async () => { await openKyoshi(); KYOSHI.today('2026-10-31'); }); await w(400);
-  check('  はじめは 案内・← もどる・☁ は まだ（設定の 入口）・タブ 2つ', await page.evaluate(() => [!!document.querySelector('#kyoBody .kyo-empty'), !!document.querySelector('#kyoshiOverlay .tool-back'), document.querySelector('.kyo-gbar').classList.contains('off'), document.querySelectorAll('.kyo-tabs button').length].join('/')), 'true/true/true/2');
+  check('  はじめは 案内・← もどる・☁ は まだ（設定の 入口）・タブ 2つ', await page.evaluate(() => [!!document.querySelector('#kyoBody .kyo-empty'), !!document.querySelector('#kyoshiOverlay .tool-back'), document.querySelector('.kyo-gbar').classList.contains('off'), document.querySelectorAll('.kyo-tabs button').length].join('/')), 'true/true/true/3');
 
   /* ── 入れる ── */
   await page.evaluate(() => KYOSHI.add()); await w(200);
@@ -19585,6 +19585,60 @@ async function runKyoshi612(browser) {
   await ctx.close();
 }
 
+// 🧱 供試体（v613）：📝 カレンダーに 入れる 書式・採った日の 予定・🗓 表電卓の 中の カレンダー
+async function runKyoshi613(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🧱 供試体：書式・採った日の 予定・🗓 カレンダー（v613） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { window.appConfirm = async () => true; });
+  await page.evaluate(async () => { await openKyoshi(); KYOSHI.today('2026-10-31'); }); await w(300);
+  const id = await page.evaluate(() => KYOSHI.addItem({ date: '2026-10-30', site: 'A棟', mix: '24-18-20N', part: '2F', ages: [7, 28], n: 3 }));
+  const id2 = await page.evaluate(() => KYOSHI.addItem({ date: '2026-10-31', site: 'B棟', ages: [7], n: 6 }));
+  await page.evaluate(() => KYOSHI.view('cal')); await w(200);
+  check('  🗓 カレンダー：月の 見出し・上の 数・採（2）と 試験の 日', await page.evaluate(() => [document.getElementById('kyoCalM').textContent, document.getElementById('kyoSum').textContent.replace(/\s+/g, ''), document.querySelectorAll('.kyo-cd .cs').length, document.querySelectorAll('.kyo-cd .ct').length].join('/')),
+    '2026年10月/遅れ0件きょう0件あした0件7日以内1件まだ合計3件/2/0');
+  await page.evaluate(() => KYOSHI.calMove(1)); await w(100);
+  check('  ▶ 次の 月に 試験（11月6日・7日・27日）・日を 押すと 下に その日', await page.evaluate(() => { KYOSHI.calDay('2026-11-06'); return [document.getElementById('kyoCalM').textContent, document.querySelectorAll('.kyo-cd .ct').length, document.querySelector('#kyoCDay').textContent.replace(/\s+/g, '').includes('試験1件'), document.querySelector('#kyoCDay .kyo-row .nm').textContent].join('/'); }), '2026年11月/3/true/A棟');
+  await page.evaluate(() => KYOSHI.calToday()); await w(100);
+  check('  今日：10月・きょうの 採取 1件（B棟）', await page.evaluate(() => [document.getElementById('kyoCalM').textContent, document.querySelector('#kyoCDay').textContent.replace(/\s+/g, '').includes('採取1件')].join('/')), '2026年10月/true');
+  /* ── 書式 ── */
+  check('  はじめの 書式は v612 と 同じ 名前・説明・色', await page.evaluate(id => { const e = KYOSHI.ev(id, 7); return [e.title, e.color, e.desc.split('\n')[0]].join('|'); }, id), '🧱 7日 試験：A棟 24-18-20N 3本|6|採った日：2026年10月30日（金）');
+  await page.evaluate(() => KYOSHI.fset('title', '【供試体】{現場} {材齢}日 ({試験日}) {本数}本')); await w(50);
+  await page.evaluate(() => KYOSHI.fset('desc.memo', false)); await page.evaluate(() => KYOSHI.fset('desc.src', false)); await page.evaluate(() => KYOSHI.fset('color.todo', '11'));
+  check('  名前を かえる（差し込み）・説明から はずす・色', await page.evaluate(id => { const e = KYOSHI.ev(id, 7); return [e.title, e.color, e.desc.includes('表電卓'), KYOSHI.fill('{現場}（{配合}）{番号}', id, 7)].join('|'); }, id), '【供試体】A棟 7日 (11/6) 3本|11|false|A棟（24-18-20N）');
+  await page.evaluate(() => KYOSHI.fopen()); await w(150);
+  check('  📝 書式の 窓：見本・差し込みの ボタン 8・色の 選び', await page.evaluate(() => [document.getElementById('kyoFPrev').textContent.replace(/\s+/g, '').includes('【供試体】'), document.querySelectorAll('.kyo-tags button').length / 2, document.querySelectorAll('.kyo-pop select').length].join('/')), 'true/8/3');
+  await page.evaluate(() => KYOSHI.ftag('titleDone', '材齢')); await w(50);
+  check('  ＋材齢 を 押すと 入る', await page.evaluate(() => document.getElementById('kyoFt_titleDone').value.includes('{材齢}')), true);
+  await page.evaluate(() => KYOSHI.close());
+  /* ── 採った日の 予定 ── */
+  await page.evaluate(() => KYOSHI.fset('samp', true)); await w(50);
+  check('  採った日にも 入れる：名前（材齢は 並べる）・日付・色', await page.evaluate(id => { const e = KYOSHI.ev(id, 's'); return e ? [e.title, e.date, e.color, e.k.endsWith('-s')].join('|') : 'なし'; }, id), '採 A棟 24-18-20N|2026-10-30|5|true');
+  check('  .ics に 採った日 ＋ 試験（3つ）', await page.evaluate(id => KYOSHI.ics(id).length, id), 3);
+  /* ── ☁ 送る（採った日も・止めたら この先の ものは 消す） ── */
+  const URL = 'https://script.google.com/macros/s/AKfycbTEST_kyoshi-0123456789abcdefghij/exec';
+  let gas = null;
+  await page.route('https://script.google.com/**', async route => { const out = gas ? gas.post(route.request().postData() || '') : { ok: false, err: 'token' }; await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(out) }); });
+  const idle = async () => { for (let i = 0; i < 80; i++) { await w(100); if (await page.evaluate(() => !KYOSHI.busy() && KYOSHI.plan().length === 0)) return true; } return false; };
+  const dA = await page.evaluate(() => KYOSHI.gadd());
+  gas = kyoshiGasMock(await page.evaluate(id => KYOSHI.gasCode(KYOSHI.state().dests.find(d => d.id === id).tok), dA));
+  await page.fill('#kyoGUrl', URL); await page.evaluate(id => KYOSHI.gtest(id), dA);
+  const mine = () => gas.events().filter(e => e.tag);
+  check('  つなぐと 試験と 採った日を 送る（A棟 3つ・B棟 2つ。A棟の 採った日は 過ぎて いるので 送らない）', [await idle(), mine().filter(e => e.tag.startsWith(id)).map(e => e.tag.split('-')[1]).sort().join(','), mine().filter(e => e.tag.startsWith(id2)).length].join('/'), 'true/28,7/2');
+  check('  送った 名前・色が 書式どおり', JSON.stringify(mine().filter(e => e.tag === id + '-7').map(e => [e.title, e.color])), '[["【供試体】A棟 7日 (11/6) 3本","11"]]');
+  await page.evaluate(() => KYOSHI.fset('title', '試験{材齢}日 {現場}')); await idle();
+  check('  書式を かえると 送った 予定も 直る（2つに しない）', [mine().filter(e => e.tag === id + '-7').map(e => e.title).join(','), mine().length].join('/'), '試験7日 A棟/4');
+  await page.evaluate(() => KYOSHI.fset('samp', false)); await idle();
+  check('  採った日を 止める → この先の ものは 消す', [mine().filter(e => e.tag.endsWith('-s')).length, mine().length].join('/'), '0/3');
+  /* ── こわれた 書式は 直す ── */
+  await page.evaluate(() => { closeKyoshi(); const o = JSON.parse(localStorage.getItem('excalc_kyoshi')); o.fmt = { title: '', samp: 'x', desc: { memo: 1 }, color: { todo: '99', done: '3' } }; o.view = 'zzz'; localStorage.setItem('excalc_kyoshi', JSON.stringify(o)); });
+  await w(900); await page.evaluate(async () => { await openKyoshi(); }); await w(200);
+  check('  こわれた 書式は はじめに もどす（色は 3 だけ 生きる）', await page.evaluate(() => { const f = KYOSHI.state().fmt; return [f.title, f.samp, f.desc.memo, f.color.todo, f.color.done, KYOSHI.state().view].join('|'); }), '🧱 {材齢}日 試験：{現場} {配合} {本数}本|false|true|6|3|plan');
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 /* 組の 一覧（v603 で 表に した）。[名前（どれか 1つ 当たれば 流す）, 流す 関数]。
      node tests/run.js              … ぜんぶ（上から 順に）
      node tests/run.js hade         … その 名前の 組だけ（カンマで いくつでも：formula,xlsx）
@@ -19772,6 +19826,7 @@ const SUITES = [
   [['gijiroku', 'gjrei', 'v610'], b => runGijiRei610(b)],
   [['kyoshi', 'ics', 'shiken', 'v611'], b => runKyoshi611(b)],
   [['kyoshi', 'kyoshi612', 'v612'], b => runKyoshi612(b)],
+  [['kyoshi', 'kyoshi613', 'v613'], b => runKyoshi613(b)],
   [['dasetsu', 'v561'], b => runDasetsu561(b)],
   [['okaeshi', 'v564'], b => runOkaeshi564(b)],
   [['tax', 'v565'], b => runTax565(b)],
