@@ -19203,10 +19203,10 @@ async function runFmtCol(browser) {
     '色と背景/書式・枠線のテンキーの色/文字と大きさ/テンキー/画面');
   check('  テンキーの組の中も畳める（はじめは閉じている）', await page.evaluate(() =>
     [...document.querySelectorAll('#setGrpKeys .set-sub')].map(d => (d.open ? '開' : '閉') + d.querySelector('summary').firstChild.textContent.trim()).join('/')),
-    '閉📍 テンキーの置き場所/閉🧮 電卓だけにする/閉📄 ページ・記号・調整バー/閉🔀 ボタンの配置/閉🧰 道具の窓に出す道具');
+    '閉📍 テンキーの置き場所/閉📍 セルのバーの置き場所/閉🧮 電卓だけにする/閉📄 ページ・記号・調整バー/閉🔀 ボタンの配置/閉🧰 道具の窓に出す道具');
   check('  組ははじめ閉じている', await page.evaluate(() => [...document.querySelectorAll('#setPage1 .set-grp')].every(d => !d.open)), true);
   check('  いままでの設定がどれかの組に入っている', await page.evaluate(() =>
-    ['skinSw', 'skinKeySeg', 'skinBgSel', 'cellSize', 'appWidth', 'keySize', 'infoSize', 'formulaSize', 'numSize', 'npadSize', 'npPlaceSeg',
+    ['skinSw', 'skinKeySeg', 'skinBgSel', 'cellSize', 'appWidth', 'keySize', 'infoSize', 'formulaSize', 'numSize', 'npadSize', 'npPlaceSeg', 'fbPlaceSeg',
      'calcOnlyBtn', 'pageBarBtn', 'funcPageBtn', 'resizerBarBtn', 'barSize', 'keypadEditBtn', 'toolsBtnList', 'startPageSel', 'compactSeg', 'fpcBox']
       .filter(id => { const e = document.getElementById(id); return !e || !e.closest('.set-grp'); }).join(',')), '');
   check('  書式・枠線のテンキーの色は自分の組', await page.evaluate(() => document.getElementById('fpcBox').closest('.set-grp').id), 'setGrpFpc');
@@ -19252,6 +19252,102 @@ async function runFmtCol(browser) {
   check('  エラーが出ない', errs.join(' | '), '');
   await ctx.close();
 }
+/* v619：範囲の帯に ⊞ 結合・印刷で 結合／列の幅／縦の位置 が 効く・セルのバーを テンキーの真上に */
+async function runHyo619(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 表電卓 v619：帯の 結合・印刷の 真ん中・セルのバーの 位置 ──');
+  await page.evaluate(() => { window.appConfirm = async () => true; });
+  const ctr = (r, c) => page.evaluate(([r, c]) => { const b = document.getElementById('c' + r + '_' + c).getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; }, [r, c]);
+  const tap = async (r, c) => { const q = await ctr(r, c); await page.mouse.click(q.x, q.y); };
+  const shown = () => page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent).map(b => b.textContent.trim()).join('/'));
+  await page.evaluate(() => { setCellVal(0, 0, '見積書'); setCellVal(1, 0, '品名'); setCellVal(1, 1, '数'); setCellVal(1, 2, '金額'); setCellVal(2, 0, 'りんご'); setCellVal(2, 1, '3'); setCellVal(2, 2, '300'); sel(0, 0); });
+  // 範囲を なぞって 選ぶと 帯が 出て、結合 も ある
+  let a = await ctr(0, 0), b = await ctr(0, 2);
+  await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.waitForTimeout(80);
+  await page.mouse.move(b.x, b.y, { steps: 8 }); await page.mouse.up(); await page.waitForTimeout(400);
+  check('  なぞって 範囲を 選んだ', await page.evaluate(() => JSON.stringify(selRect())), '{"r1":0,"c1":0,"r2":0,"c2":2}');
+  check('  範囲の 帯に ⊞ 結合 が 出る', await page.evaluate(() => document.getElementById('cellMenu').classList.contains('edit-bar') && !!document.getElementById('cellMenuMerge').offsetParent), true);
+  await page.evaluate(() => hideEditBar());
+  await tap(0, 1); await page.waitForTimeout(400);
+  check('  結合は 帯の はじめの 方（横に すべらせなくても 見える）', await page.evaluate(() => document.getElementById('cellMenuMerge').getBoundingClientRect().right <= innerWidth), true);
+  check('  範囲の 中を タップしても 帯に 結合', await shown(), '✂ 切り取り/⧉ コピー/📥 貼り付け/⊞ 結合/✏ 編集/🧹 消去/🎨 書式/➕ 行を挿入/➕ 列を挿入/🔒 保護');
+  await page.click('#cellMenuMerge'); await page.waitForTimeout(400);
+  check('  押すと 結合（3列）', await page.evaluate(() => JSON.stringify(mergeAt(0, 0)) + '/' + cellStyles['0,0'].align), '{"rs":1,"cs":3}/center');
+  check('  帯は 消える', await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show')), false);
+  // 1つの セルでは 出さない・結合した セルでは 解除
+  await page.waitForTimeout(500);
+  await tap(2, 0); await page.waitForTimeout(600); await tap(2, 0); await page.waitForTimeout(400);
+  check('  1つの セルの 帯には 結合 は 出ない', await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show') + '/' + !!document.getElementById('cellMenuMerge').offsetParent), 'true/false');
+  await page.evaluate(() => hideEditBar());
+  await page.waitForTimeout(500);
+  await tap(0, 0); await page.waitForTimeout(600); await tap(0, 0); await page.waitForTimeout(400);
+  check('  結合した セルの 帯には ⊟ 結合を解除', await page.evaluate(() => { const m = document.getElementById('cellMenuMerge'); return !!m.offsetParent + '/' + m.textContent; }), 'true/⊟ 結合を解除');
+  await page.click('#cellMenuMerge'); await page.waitForTimeout(400);
+  check('  押すと 解除', await page.evaluate(() => mergeAt(0, 0)), null);
+  await page.evaluate(() => undoLast()); await page.waitForTimeout(300);
+  check('  戻ると 結合に 戻る', await page.evaluate(() => JSON.stringify(mergeAt(0, 0))), '{"rs":1,"cs":3}');
+  // 印刷：結合した 見出しが 3列の 真ん中に 出る
+  const pr = await page.evaluate(() => {
+    const ps = Object.assign(loadPdfSettings(), { title: '', date: false, header: '', footer: '', border: 'all' });
+    const html = buildPdfHtml(ps);
+    const box = document.createElement('div'); box.className = 'pdf-preview-inner'; box.style.cssText = 'position:fixed;left:0;top:0;width:900px;z-index:99999;background:#fff';
+    box.innerHTML = html; document.body.appendChild(box);
+    const rows = box.querySelectorAll('tbody tr');
+    const h = rows[1].children[0], t = box.querySelector('table').getBoundingClientRect();
+    const sum3 = [0, 1, 2].map(i => rows[2].children[i].getBoundingClientRect().width).reduce((x, y) => x + y, 0);
+    const rg = document.createRange(); rg.selectNodeContents(h); const tr = rg.getBoundingClientRect(), hr = h.getBoundingClientRect();
+    const out = { span: h.colSpan, cells: rows[1].children.length, w: Math.abs(hr.width - sum3) < 1.5, mid: Math.abs((tr.left + tr.right) / 2 - (hr.left + hr.right) / 2) < 1.5, align: h.style.textAlign };
+    box.remove(); return JSON.stringify(out);
+  });
+  check('  印刷：結合は 横に 広げて 出す（3列）', pr, '{"span":3,"cells":1,"w":true,"mid":true,"align":"center"}');
+  // 列の 幅：画面で 広げた 列は 印刷でも 広い（中身の 幅だけに しない）
+  const cw = await page.evaluate(() => {
+    colWidths[1] = 200; setCellVal(1, 2, ''); setCellVal(2, 2, '');   // C列を 空に して 狭いのを 見る
+    const ps = Object.assign(loadPdfSettings(), { font: 'm', border: 'all' });
+    const box = document.createElement('div'); box.className = 'pdf-preview-inner'; box.style.cssText = 'position:fixed;left:0;top:0;width:1200px;background:#fff';
+    box.innerHTML = buildPdfHtml(ps); document.body.appendChild(box);
+    const rows = box.querySelectorAll('tbody tr'), w1 = rows[3].children[1].getBoundingClientRect().width, w5 = rows[3].children[COLS - 1].getBoundingClientRect().width;
+    box.remove(); delete colWidths[1]; setCellVal(1, 2, '金額'); setCellVal(2, 2, '300');
+    return Math.round(w1) + '/' + Math.round(w5);
+  });
+  check('  印刷：広げた 列は 画面と 同じ 割合（200px → 179px）・中身の ない 列は 狭い', cw, '179/16');
+  check('  印刷：中身の ある 列は 画面の 幅（60px）の 割合が いちばん狭い 幅', await page.evaluate(() => {
+    const box = document.createElement('div'); box.className = 'pdf-preview-inner'; box.style.cssText = 'position:fixed;left:0;top:0;width:1200px';
+    box.innerHTML = buildPdfHtml(Object.assign(loadPdfSettings(), { font: 'm' })); document.body.appendChild(box);
+    const w = box.querySelectorAll('tbody tr')[3].children[1].getBoundingClientRect().width; box.remove(); return Math.round(w); }), 54);
+  check('  印刷：縦の 位置・行の 高さ・文字の 大きさ も 出す', await page.evaluate(() => {
+    cellStyles['2,0'] = Object.assign(cellStyles['2,0'] || {}, { valign: 'bottom', size: 1.4 }); rowHeights[2] = 70;
+    const h = buildPdfHtml(Object.assign(loadPdfSettings(), { font: 'm' }));
+    delete rowHeights[2]; delete cellStyles['2,0'].valign; delete cellStyles['2,0'].size;
+    return /<tr style="height:63px">/.test(h) + '/' + /vertical-align:bottom;font-size:17\.5px;/.test(h); }), 'true/true');
+  check('  印刷：しぼり込みの 数え方は そのまま（見出しの <tr> だけ）', await page.evaluate(() => (buildPdfHtml({ border: 'all' }).match(/<tr>/g) || []).length === ROWS), true);
+  // セルのバーの 位置
+  const pos = () => page.evaluate(() => {
+    const f = document.querySelector('.formula-bar').getBoundingClientRect(), s = document.querySelector('.sheet-wrap').getBoundingClientRect(), n = document.getElementById('numpadSection').getBoundingClientRect();
+    return f.bottom <= s.top + 1 ? 'top' : Math.abs(f.bottom - n.top) <= 1.5 ? 'pad' : 'ずれ ' + Math.round(f.top) + '/' + Math.round(n.top); });
+  check('  はじめは 表の上', await pos(), 'top');
+  check('  設定に 置き場所（表の上／テンキーの真上）', await page.evaluate(() => [...document.querySelectorAll('#fbPlaceSeg button')].map(x => x.textContent + (x.classList.contains('on') ? '●' : '')).join('/')), '表の上●/テンキーの真上');
+  await page.evaluate(() => document.querySelector('#fbPlaceSeg [data-fb=pad]').click()); await page.waitForTimeout(300);
+  check('  テンキーの真上に 出せる', await pos(), 'pad');
+  check('  表は バーの 上', await page.evaluate(() => document.querySelector('.sheet-wrap').getBoundingClientRect().bottom <= document.querySelector('.formula-bar').getBoundingClientRect().top + 1), true);
+  await page.evaluate(() => { clearRangeSelection(); sel(4, 1); showEditBar(true); }); await page.waitForTimeout(250);
+  check('  帯は バーの すぐ上（バーを 隠さない）', await page.evaluate(() => Math.abs(document.getElementById('cellMenu').getBoundingClientRect().bottom - document.querySelector('.formula-bar').getBoundingClientRect().top) <= 1.5), true);
+  await page.evaluate(() => hideEditBar());
+  check('  桁の 読みは バーの 上に 出す', await page.evaluate(() => { const d = document.getElementById('digitHint'); d.hidden = false; d.textContent = '500万'; const r = d.getBoundingClientRect(), f = document.querySelector('.formula-bar').getBoundingClientRect(); d.hidden = true; return Math.abs(r.bottom - f.top) <= 1; }), true);
+  await page.reload(); await page.waitForTimeout(900);
+  check('  桁の 読みは 出さない ときは 箱も 出さない', await page.evaluate(() => { const d = document.getElementById('digitHint'); return d.hidden + '/' + getComputedStyle(d).display; }), 'true/none');
+  check('  開き直しても テンキーの真上', await pos() + '/' + await page.evaluate(() => localStorage.getItem('excalc_fb_place')), 'pad/pad');
+  await page.setViewportSize({ width: 1280, height: 800 }); await page.waitForTimeout(400);
+  check('  テンキーを 右に 出す 広い 画面では 表の上の まま', await page.evaluate(() => document.body.classList.contains('np-side') + '/' + (document.querySelector('.formula-bar').getBoundingClientRect().bottom <= document.querySelector('.sheet-wrap').getBoundingClientRect().top + 1)), 'true/true');
+  await page.setViewportSize({ width: 412, height: 900 }); await page.waitForTimeout(400);
+  await page.evaluate(() => setFbPlace('top')); await page.waitForTimeout(250);
+  check('  表の上に 戻せる', await pos(), 'top');
+  check('  設定の 控えに 入る', await page.evaluate(() => SETTINGS_BACKUP_KEYS.includes('excalc_fb_place')), true);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 async function runFmtPage(browser) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, acceptDownloads: true });
   const page = await ctx.newPage();
@@ -20077,6 +20173,7 @@ const SUITES = [
   [['qrshare'], b => runQrShare(b)],
   [['fmtcol'], b => runFmtCol(b)],
   [['cellxl'], b => runCellXl(b)],
+  [['cellxl', 'fmtpage', 'hyo619', 'v619'], b => runHyo619(b)],
   [['clip'], b => runClip(b)],
   [['koe'], b => runKoe(b)],
   [['koe', 'koelisten'], b => runKoeListen(b)],

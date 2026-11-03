@@ -672,6 +672,13 @@ body.tb-fold .fb-menu { display: flex; align-items: center; justify-content: cen
   border: none; background: var(--bar-bg, var(--acc)); color: #fff; font-size: calc(17px * var(--formula-scale, 1)); font-weight: bold; cursor: pointer; }
 body.tb-fold.rec-dirty .fb-menu::after { content: ''; position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: #ffd23f; box-shadow: 0 0 0 1.5px var(--bar-bg, var(--acc)); }
 body.tb-fold .formula-bar { padding-left: calc(6px + var(--safe-left)); }
+/* セルのバーを テンキーの真上に（v619）。テンキーが 下に あるときだけ（右に 出すとき・スマホの 横向きは 表の上の まま） */
+body.fb-low:not(.np-side) .formula-bar { order: 1; border-bottom: none; border-top: 1px solid var(--formula-border); }
+body.fb-low:not(.np-side) .digit-hint { top: auto; bottom: 100%; border-top: 1px solid var(--formula-border); border-bottom: none; border-radius: 8px 8px 0 0; box-shadow: 0 -2px 5px rgba(0,0,0,.18); }
+@media (orientation: landscape) and (max-height: 500px) {
+  body.fb-low:not(.np-side) .formula-bar { order: 0; border-top: none; border-bottom: 1px solid var(--formula-border); }
+  body.fb-low:not(.np-side) .digit-hint { top: 100%; bottom: auto; border-top: none; border-bottom: 1px solid var(--formula-border); border-radius: 0 0 8px 8px; box-shadow: 0 2px 5px rgba(0,0,0,.18); }
+}
 /* 🏠 ホーム（v459） */
 #homeOverlay { z-index: 1004; }
 .modal.home-modal { width: 100%; max-width: 460px; max-height: 94vh; overflow: auto; padding: 0 0 calc(12px + var(--safe-bottom, 0px)); }
@@ -1294,6 +1301,7 @@ body.dentaku-mode .formula-bar { display: none !important; }
 /* セル番号・入力欄・合計を1本にまとめた帯。以前は入力欄の帯と合計の帯で2本使っていた。 */
 /* 入力中の数字の桁の読み。数式バーの下へ浮かせて出すので、出ても表がずれない。
    4桁以下では出ないので、普段は何も見えない。 */
+.digit-hint[hidden] { display: none; }   /* 出さない ときに 空の 小さな 箱が バーの 下に 残っていた（v619） */
 .digit-hint {
   position: absolute; top: 100%; right: 6px; z-index: 6;
   display: flex; align-items: center; gap: 7px;
@@ -1424,6 +1432,9 @@ body.kb-edit { grid-template-columns: 1fr !important; }
   box-shadow: 0 -2px 8px rgba(0,0,0,.12); -webkit-overflow-scrolling: touch; }
 #cellMenu.edit-bar button { flex: none; width: auto; padding: 9px 11px; font-size: 13px; text-align: center; }
 #cellMenu.edit-bar:not(.bar-nokb) .cm-edit { display: none; }
+/* ⊞ 結合（v619）：範囲を 選んで いるとき・結合した セルの ときだけ */
+#cellMenu:not(.can-merge) .cm-merge { display: none !important; }
+#cellMenu .cm-merge { color: var(--acc-text, var(--acc)); }
 /* 選んだセルの枠の右下の角に置く小さな四角（v421。Excel のパソコン版と同じ形）。引っぱるとフィル。
    セルは中身がはみ出さないよう枠の内側で切っているので、四角は表の上に1つだけ別に置いて、角に合わせて動かす */
 .sheet-wrap { position: relative; }
@@ -3010,7 +3021,7 @@ body[data-pm="xs"] .pm-modal > .modal-header {
 .pdf-preview-inner .pa-title { font-size: var(--pvtitle, 16px); font-weight: bold; margin: 0 0 8px; }
 .pdf-preview-inner .pa-date  { font-size: 11px; color: #555; margin: 0 0 10px; }
 .pdf-preview-inner table { border-collapse: separate; border-spacing: 0; width: max-content; }
-.pdf-preview-inner td { border: 1px solid transparent; padding: 4px 7px; font-size: var(--pvfont, 12.5px); vertical-align: top; color: #000; }
+.pdf-preview-inner td { border: 1px solid transparent; padding: 4px 7px; font-size: var(--pvfont, 12.5px); vertical-align: middle; color: #000; }
 .pdf-preview-inner td.filled { border-color: #000; border-width: var(--pvbw, 1px); }
 .pdf-preview-inner td.num { text-align: right; }
 .pdf-preview-inner thead .pa-run, .pdf-preview-inner tfoot .pa-run { border: none; text-align: center; font-size: var(--pvrun, 11px); padding: 4px 3px; }
@@ -3857,7 +3868,7 @@ body.dark .tsx-res-val.ng   { color: #ff8a80; }
   #printArea .pa-title { font-size: 17px; font-weight: bold; margin: 0 0 8px; }
   #printArea .pa-date  { font-size: 11px; color: #555; margin: 0 0 10px; }
   #printArea table { border-collapse: separate; border-spacing: 0; width: 100%; }
-  #printArea td { border: 1px solid transparent; padding: 4px 7px; font-size: 12px; vertical-align: top; }
+  #printArea td { border: 1px solid transparent; padding: 4px 7px; font-size: 12px; vertical-align: middle; }   /* 画面と 同じ 真ん中（v619） */
   #printArea td.filled { border-color: #000; }
   #printArea td.num { text-align: right; }
   /* ヘッダー／フッターは thead/tfoot に入れることで各ページに繰り返し印刷される */
@@ -4309,6 +4320,11 @@ body.dark {
       <summary>📍 テンキーの置き場所<small>パソコンなど横に広い画面向け</small></summary>
     <div class="set-note"><b>右</b>にすると、表の右にテンキーを縦に置きます。表が上から下まで見えるので、パソコンやタブレットの横向きに向いています。<b>自動</b>は横に広い画面のときだけ右に置きます。スマホの横向きは、いつも右です。<span id="npPlaceNow"></span></div>
     <div class="skin-seg" id="npPlaceSeg"></div>
+    </details>
+    <details class="set-sub" id="setFbPlace">
+      <summary>📍 セルのバーの置き場所<small>表の上／テンキーの真上</small></summary>
+    <div class="set-note">セル番号・入力欄・合計が並んだ<b>セルのバー</b>を、<b>表の上</b>（これまでどおり）か<b>テンキーの真上</b>に出せます。テンキーの真上にすると、打ちながら指の近くで中身を見られます。テンキーを右に出しているとき・スマホの横向きは、表の上のままです。</div>
+    <div class="skin-seg" id="fbPlaceSeg"></div>
     </details>
     <details class="set-sub">
       <summary>🧮 電卓だけにする<small>テンキーを電卓のページに止める</small></summary>
@@ -6207,6 +6223,7 @@ body.dark {
   <button onclick="cellMenuAct('cut')" class="cm-xl">✂ 切り取り</button>
   <button onclick="cellMenuAct('copy')">⧉ コピー</button>
   <button onclick="cellMenuAct('paste')">📥 貼り付け</button>
+  <button onclick="cellMenuAct('merge')" id="cellMenuMerge" class="cm-merge">⊞ 結合</button>
   <button onclick="cellMenuAct('edit')" class="cm-xl cm-edit">✏ 編集</button>
   <button onclick="cellMenuAct('clear')">🧹 消去</button>
   <button onclick="cellMenuAct('fmt')">🎨 書式</button>
