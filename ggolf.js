@@ -9,6 +9,8 @@
    ・名前は 📝 まとめて 入れる（1行に「名前／チーム 合計 ホールインワン」。名前だけ・「、」区切り・「チーム：名前、名前」・Excel の 行も）か 📇 名簿から。
      同じ 名前の 人には 成績を 入れる（前もって 名簿だけ 入れて おける）。新しい 大会は 前の 大会の 名簿と 賞の 決め方を 写せる。
    ・🏆 順位・賞：賞の 一覧（🎤 発表の 順＝下の 賞から）・順位・チームの 順位。🖨 印刷（A4）・📋 コピー・▦ 表に 入れる。
+   ・📁 Excel（v618）：① 名簿の ひな形（.xlsx）を 書き出す → Excel や AI で 書く → ② Excel・CSV から 読み込む（この 大会に 入れる・入れかえる・
+     新しい 大会）。③ 競技結果を Excel に（賞・順位・チーム・名簿・大会）。
    ・中身は excalc_ggolf（この端末の中だけ）。 */
 (function(){
 'use strict';
@@ -134,17 +136,17 @@ function hioSub(c, H){
   if(!H.times) return 'まだ 出て いません'+(S.hio ? '（用意 '+S.hio+'個）' : '');
   return (S.hone ? H.who.length+'人（1人 1つ）' : H.times+'回')+(S.hio ? ' ／ 用意 '+S.hio+'個'+(H.need<=S.hio ? '・のこり '+(S.hio-H.need)+'個' : '・'+(H.need-S.hio)+'個 たりない') : '');
 }
-// 賞の 一覧（ふだんの 順）。rows：lab 位・name・team・sc 成績・mem チームの 人
+// 賞の 一覧（ふだんの 順）。rows：lab 位・name・team・sc 成績・mem チームの 人・p 位の 数・m 人／tm チーム（Excel に 数で 出す とき）
 function sections(c, R){
   const S=c.set, L=R.list, out=[], medal=['🥇','🥈','🥉'];
-  const row=(p, lab)=>{ const m=L[p-1]; return {lab:lab||p+'位', name:m.name, team:m.team, sc:scTxt(m)}; };
+  const row=(p, lab)=>{ const m=L[p-1]; return {lab:lab||p+'位', p, m, name:m.name, team:m.team, sc:scTxt(m)}; };
   const ind=Math.min(S.ind, R.N);
   if(ind) out.push({k:'ind', ic:'🥇', t:'個人賞', rows:Array.from({length:ind}, (_,i)=>row(i+1, (medal[i]||'')+(i+1)+'位'))});
-  if(R.tN) out.push({k:'team', ic:'👥', t:'チーム賞', rows:R.teams.slice(0, R.tN).map((t,i)=>({lab:(i+1)+'位', name:t.name, team:'', sc:tScTxt(c, t), mem:t.mem.map(m=>m.name).join('・')}))});
+  if(R.tN) out.push({k:'team', ic:'👥', t:'チーム賞', rows:R.teams.slice(0, R.tN).map((t,i)=>({lab:(i+1)+'位', p:i+1, tm:t, name:t.name, team:'', sc:tScTxt(c, t), mem:t.mem.map(m=>m.name).join('・')}))});
   if(R.tobi.length) out.push({k:'tobi', ic:'🎯', t:'とび賞', rows:R.tobi.map(p=>row(p))});
   if(R.booby) out.push({k:'booby', ic:'🎈', t:'ブービー賞', rows:[row(R.booby)]});
   if(R.bmaker) out.push({k:'bmaker', ic:'🎈', t:'ブービーメーカー賞', rows:[row(R.bmaker)]});
-  out.push({k:'hio', ic:'⛳', t:'ホールインワン賞', sub:hioSub(c, R.hio), rows:R.hio.who.map(m=>({lab:m.hio+'回', name:m.name, team:m.team, sc:''}))});
+  out.push({k:'hio', ic:'⛳', t:'ホールインワン賞', sub:hioSub(c, R.hio), rows:R.hio.who.map(m=>({lab:m.hio+'回', m, name:m.name, team:m.team, sc:''}))});
   if(R.N) out.push({k:'sanka', ic:'🎁', t:'参加賞', sub:R.N+'人', rows:[]});
   return out;
 }
@@ -179,7 +181,8 @@ function render(){
   const c=C(), top=b.scrollTop;
   if(!c){
     b.innerHTML=`<div class="gg-wrap"><div class="gg-empty"><p>グラウンドゴルフの 大会の 成績を まとめます。<br>1人ずつ <b>合計</b>と <b>ホールインワンの 数</b>を 入れるだけで、順位と 賞（個人賞・チーム賞・とび賞・ブービー賞・ホールインワン賞）が 出ます。</p>
-      <button type="button" class="gg-b pri" onclick="GGOLF.newCup()">＋ 新しい 大会を 作る</button></div></div>`;
+      <button type="button" class="gg-b pri" onclick="GGOLF.newCup()">＋ 新しい 大会を 作る</button>
+      <p><button type="button" class="gg-b" onclick="GGOLF.xl()">📁 Excel で 名簿を 入れる</button></p><p class="gg-note">Excel の ひな形を 書き出して 名簿を 書き、読み込むと 大会が できます（AI（Claude など）で 作った 表も 読めます）。</p></div></div>`;
     return;
   }
   const R=calc(c), wn=warnN(R);
@@ -205,8 +208,8 @@ function inHtml(c){
   const list=c.mem.length ? `<div class="gg-lh"><b>名簿（${c.mem.length}人）</b>${teams.length ? `<label class="gg-ck"><input type="checkbox" ${st.grp ? 'checked' : ''} onchange="GGOLF.grp(this.checked)"> チームごと</label>` : ''}</div>
     ${c.mem.length>=12 ? `<input class="gg-q" id="ggQ" type="search" placeholder="🔎 名前・チームで さがす" aria-label="名前・チームで さがす" value="${esc(q)}" oninput="GGOLF.find(this.value)" autocomplete="off">` : ''}
     <div id="ggListBox">${listHtml(c)}</div>`
-    : '<p class="gg-note">まだ だれも いません。上の 欄で 1人ずつ 足すか、下の「📝 まとめて 入れる」「📇 名簿から」で 名簿を 入れてください。</p>';
-  return add+list+`<div class="gg-acts"><button type="button" class="gg-b" onclick="GGOLF.bulk()">📝 まとめて 入れる</button><button type="button" class="gg-b" onclick="GGOLF.pick()">📇 名簿から</button></div>
+    : '<p class="gg-note">まだ だれも いません。上の 欄で 1人ずつ 足すか、下の「📝 まとめて 入れる」「📇 名簿から」「📁 Excel」で 名簿を 入れてください。</p>';
+  return add+list+`<div class="gg-acts"><button type="button" class="gg-b" onclick="GGOLF.bulk()">📝 まとめて 入れる</button><button type="button" class="gg-b" onclick="GGOLF.pick()">📇 名簿から</button><button type="button" class="gg-b" onclick="GGOLF.xl()">📁 Excel</button></div>
     <p class="gg-note">合計（打数）と ホールインワンの 数を 入れると「🏆 順位・賞」に 順位と 賞が 出ます。合計を 打って Enter で 次の 人へ 進みます。名前を 押すと 直す・消す が できます。</p>`;
 }
 function listHtml(c){
@@ -249,7 +252,7 @@ function resHtml(c, R){
       ${secs.map(s=>`<div class="sec k-${s.k}"><div class="st"><span class="ic" aria-hidden="true">${s.ic}</span><b>${s.t}</b>${s.sub ? `<small>${esc(s.sub)}</small>` : ''}</div>`
         +s.rows.map(r=>`<div class="pr"><span class="lb">${esc(r.lab)}</span><span class="nm">${esc(r.name)}${r.team ? `<small>（${esc(r.team)}）</small>` : ''}</span>${r.sc ? `<span class="sc">${esc(r.sc)}</span>` : ''}${r.mem ? `<small class="mm">${esc(r.mem)}</small>` : ''}</div>`).join('')+'</div>').join('')}</div>`
     +rankHtml(R)+teamHtml(c, R)
-    +`<div class="gg-acts"><button type="button" class="gg-b" onclick="GGOLF.print()">🖨 印刷</button><button type="button" class="gg-b" onclick="GGOLF.copy()">📋 コピー</button><button type="button" class="gg-b" onclick="GGOLF.table()">▦ 表に 入れる</button></div>
+    +`<div class="gg-acts"><button type="button" class="gg-b" onclick="GGOLF.print()">🖨 印刷</button><button type="button" class="gg-b" onclick="GGOLF.copy()">📋 コピー</button><button type="button" class="gg-b" onclick="GGOLF.table()">▦ 表に 入れる</button><button type="button" class="gg-b" onclick="GGOLF.xlRes()">📊 Excel</button></div>
     <p class="gg-note">順位は 合計の 少ない 順、同じ ときは ホールインワンの 多い 順です。それも 同じ 人には「同点」と 出ます。</p>`;
 }
 function rankHtml(R){
@@ -535,18 +538,260 @@ function text(){
   return out.join('\n');
 }
 function copy(){ if(!C()){ toastS('大会が ありません'); return; } if(typeof toolCopyText==='function') toolCopyText(text(), '📋 コピーしました（LINE などに 貼れます）'); }
+// 順位の 表（見出し・1人ずつ・まだの 人）
+function rankRows(R){
+  return [['順位','名前','チーム','合計','ホールインワン','賞']]
+    .concat(R.list.map((m,i)=>[i+1, m.name, m.team, m.tot, m.hio||'', (R.at[i+1]||[]).map(x=>x.l).concat(m.hio ? ['ホールインワン賞'] : []).join('・')]),
+      R.pend.map(m=>['まだ', m.name, m.team, '', m.hio||'', m.hio ? 'ホールインワン賞' : '']));
+}
+// チームの 順位の 表（first：はじめの 見出し・mem：メンバーの 列も）
+function teamRows(c, R, first, mem){
+  const avg=c.set.tmode==='avg';
+  return [[first,'チーム','人数', avg ? '平均' : '合計','ホールインワン','賞'].concat(mem ? ['メンバー'] : [])]
+    .concat(R.teams.map((t,i)=>[i+1, t.name, t.n, avg ? Math.round(t.score*10)/10 : t.sum, t.hio||'', i<R.tN ? 'チーム賞' : ''].concat(mem ? [t.mem.map(m=>m.name).join('・')] : [])));
+}
 function rows(){
   const c=C(); if(!c) return [];
-  const R=calc(c), avg=c.set.tmode==='avg', r=[['順位','名前','チーム','合計','ホールインワン','賞']];
-  R.list.forEach((m,i)=>r.push([i+1, m.name, m.team, m.tot, m.hio||'', (R.at[i+1]||[]).map(x=>x.l).concat(m.hio ? ['ホールインワン賞'] : []).join('・')]));
-  R.pend.forEach(m=>r.push(['まだ', m.name, m.team, '', m.hio||'', m.hio ? 'ホールインワン賞' : '']));
-  if(R.teams.length){
-    r.push(['','','','','',''], ['チーム順位','チーム','人数', avg ? '平均' : '合計','ホールインワン','賞']);
-    R.teams.forEach((t,i)=>r.push([i+1, t.name, t.n, avg ? Math.round(t.score*10)/10 : t.sum, t.hio||'', i<R.tN ? 'チーム賞' : '']));
-  }
+  const R=calc(c), r=rankRows(R);
+  if(R.teams.length) r.push(['','','','','',''], ...teamRows(c, R, 'チーム順位', false));
   return r;
 }
 function toTable(){ const c=C(); if(!c || !c.mem.some(m=>m.tot!=null)){ toastS('まだ 合計が 入って いません'); return; } if(typeof toolPasteRows==='function') toolPasteRows(rows(), 'グラウンドゴルフ', closeGgolf); }
+
+/* ───────── 📁 Excel：名簿の ひな形・読み込み・競技結果（v618） ─────────
+   ひな形（.xlsx）は「名簿」（名前・チーム・合計・ホールインワン）・「大会」・「説明」の 3枚。いまの 名簿も 入れて 書き出す。
+   読み込みは Excel（.xlsx）・CSV（UTF-8・Shift_JIS）・タブ区切り。見出し（名前・チーム・合計・ホールインワン。氏名・班・打数・HIO なども）を
+   さがして 列を 決める（列の 順・ほかの 列は 自由）。見出しが ない ときは 1行を「まとめて 入れる」と 同じに 読む。
+   競技結果（.xlsx）は 賞・順位・チーム・名簿（そのまま 読み込み直せる）・大会。ZIP は 表電卓の xlsxZip・xlsxUnzip を 使う。 */
+const XP='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>', XMIME='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const XHEAD=['名前','チーム','合計','ホールインワン'];
+let xlHow='save', xlBusy=false, xlGot=null;   // ⬇ 保存／📤 送る・作って いる 最中・読んだ 中身（たしかめの 窓の 間だけ。覚えない）
+const canShareX=()=>{ try{ return !!(navigator.share && navigator.canShare && navigator.canShare({files:[new File(['x'], 'a.xlsx', {type:XMIME})]})); }catch(_){ return false; } };
+const fstamp=d=>d.getFullYear()+pad2(d.getMonth()+1)+pad2(d.getDate());   // 端末に よっては 日本語の 名前が 化けるので 英数字
+// 1枚の シート（head：1行目を 見出しに して 止める。数は 数の セルに）
+function sheetXml(rows, widths, head){
+  const cols='<cols>'+widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')+'</cols>';
+  const body=rows.map((r,ri)=>`<row r="${ri+1}">`+r.map((v,ci)=>{
+    if(v==null || v==='') return '';
+    const ref=xlColLetter(ci)+(ri+1), s=head && ri===0 ? ' s="1"' : '';
+    return typeof v==='number' && isFinite(v) ? `<c r="${ref}"${s}><v>${v}</v></c>` : `<c r="${ref}" t="inlineStr"${s}><is><t xml:space="preserve">${xlEsc(String(v))}</t></is></c>`;
+  }).join('')+'</row>').join('');
+  const pane=head ? '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' : '';
+  return `${XP}<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${pane}${cols}<sheetData>${body}</sheetData></worksheet>`;
+}
+// [[シートの 名前, XML], …] → .xlsx の Blob
+async function bookBlob(sheets){
+  if(typeof xlsxZip!=='function') throw new Error('xlsx');
+  const enc=new TextEncoder(), M='http://schemas.openxmlformats.org/spreadsheetml/2006/main', R='http://schemas.openxmlformats.org/officeDocument/2006/relationships', PK='http://schemas.openxmlformats.org/package/2006/', O='application/vnd.openxmlformats-officedocument.spreadsheetml.';
+  const styles=`${XP}<styleSheet xmlns="${M}"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>`
+    +`<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE8F5E9"/><bgColor indexed="64"/></patternFill></fill></fills>`
+    +`<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>`
+    +`<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs>`
+    +`<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  const wb=`${XP}<workbook xmlns="${M}" xmlns:r="${R}"><sheets>${sheets.map((x,i)=>`<sheet name="${xlEsc(x[0])}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets></workbook>`;
+  const wbRels=`${XP}<Relationships xmlns="${PK}relationships">${sheets.map((x,i)=>`<Relationship Id="rId${i+1}" Type="${R}/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length+1}" Type="${R}/styles" Target="styles.xml"/></Relationships>`;
+  const rootRels=`${XP}<Relationships xmlns="${PK}relationships"><Relationship Id="rId1" Type="${R}/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+  const ct=`${XP}<Types xmlns="${PK}content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>`
+    +`<Override PartName="/xl/workbook.xml" ContentType="${O}sheet.main+xml"/>${sheets.map((x,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="${O}worksheet+xml"/>`).join('')}<Override PartName="/xl/styles.xml" ContentType="${O}styles+xml"/></Types>`;
+  const files=[['[Content_Types].xml', ct], ['_rels/.rels', rootRels], ['xl/workbook.xml', wb], ['xl/_rels/workbook.xml.rels', wbRels], ['xl/styles.xml', styles]]
+    .concat(sheets.map((x,i)=>['xl/worksheets/sheet'+(i+1)+'.xml', x[1]]));
+  return xlsxZip(files.map(([name, x])=>({name, u8:enc.encode(x)})));
+}
+const XHELP=[['⛳ グラウンドゴルフ（表電卓）の 名簿の ひな形'], [''],
+  ['「名簿」の シートの 1行に 1人 書きます。名前は かならず。チーム・合計・ホールインワンは なくても かまいません。'],
+  ['チームは A・1班・赤 など 好きな 名前。合計は 打数（数）、ホールインワンは 回数（数）。まだ 決まって いない ところは 空けて おきます。'],
+  ['見出し（名前・チーム・合計・ホールインワン）は かえないで ください。列の 順が かわっても、ほかの 列（No. など）が あっても 読めます。'],
+  ['書いたら 表電卓の ⛳ グラウンドゴルフ →「📁 Excel」→「② 📂 Excel・CSV から 読み込む」で この ファイルを えらびます。'],
+  ['いまの 大会に 入れる ときは、同じ 名前の 人に 成績が 入ります（名前だけ 先に 入れて、あとで 合計を 入れても よい）。'],
+  ['「大会」の シートの 名前と 日付は、新しい 大会と して 読み込む ときに 使います。'],
+  [''], ['例：'], XHEAD, ['山田 太郎', 'A', 48, 1], ['佐藤 花子', 'A', 52, ''], ['鈴木 一郎', 'B', '', '']];
+// 名簿の シート（入れた 順。読み込み直せる 形）
+const cupRows=c=>[XHEAD].concat((c ? c.mem.slice().sort(bySeq) : []).map(m=>[m.name, m.team, m.tot==null ? '' : m.tot, m.hio||'']));
+const cupInfo=c=>[['大会の 名前', c ? c.title : ''], ['日付', c && c.date ? c.date : '']];
+const W_MEIBO=[22,12,8,14];
+function tplBlob(){ const c=C(); return bookBlob([['名簿', sheetXml(cupRows(c), W_MEIBO, true)], ['大会', sheetXml(cupInfo(c), [14,40], false)], ['説明', sheetXml(XHELP, W_MEIBO, false)]]); }
+// 競技結果：賞・順位・チーム・名簿・大会
+function resBlob(){
+  const c=C(), R=calc(c), avg=c.set.tmode==='avg', prz=[['賞','位','名前','チーム','合計','ホールインワン']];
+  sections(c, R).forEach(s=>{
+    if(s.k==='sanka'){ prz.push([s.t, R.N+'人']); return; }
+    if(!s.rows.length){ prz.push([s.t, '', s.sub||'']); return; }
+    s.rows.forEach(r=>{
+      if(r.tm) prz.push([s.t, r.p+'位', r.mem, r.tm.name, avg ? Math.round(r.tm.score*10)/10 : r.tm.sum, r.tm.hio||'']);
+      else prz.push([s.t, s.k==='hio' ? r.m.hio+'回' : r.p+'位', r.m.name, r.m.team, r.m.tot==null ? '' : r.m.tot, r.m.hio||'']);
+    });
+  });
+  const info=cupInfo(c).concat([['参加', R.N+'人'+(R.pend.length ? '（まだ '+R.pend.length+'人）' : '')], ['ホールインワン', R.hio.times+'回'], ['賞の 決め方', RULE(c)], ['順位の 決め方', '合計の 少ない 順。同じ ときは ホールインワンの 多い 順']]);
+  const sh=[['賞', sheetXml(prz, [18,8,26,12,8,14], true)], ['順位', sheetXml(rankRows(R), [8,22,12,8,14,30], true)]];
+  if(R.teams.length) sh.push(['チーム', sheetXml(teamRows(c, R, '順位', true), [8,12,6,8,14,10,44], true)]);
+  sh.push(['名簿', sheetXml(cupRows(c), W_MEIBO, true)], ['大会', sheetXml(info, [14,60], false)]);
+  return bookBlob(sh);
+}
+function dlBlob(blob, name){
+  const a=Object.assign(document.createElement('a'), {href:URL.createObjectURL(blob), download:name});
+  document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+// 端末に 保存 か 📤 送る（送れない 端末は 保存）
+async function give(blob, name, what){
+  if(xlHow==='share' && canShareX()){
+    try{ await navigator.share({files:[new File([blob], name, {type:XMIME})], title:name}); toastS('📤 '+what+'を 送りました'); return 'share'; }
+    catch(e){ if(e && e.name==='AbortError') return ''; }
+  }
+  dlBlob(blob, name); toastS('⬇ '+what+'を 保存しました：'+name, 4200); return 'save';
+}
+// ① 名簿の ひな形（'tpl'）・③ 競技結果（'res'）
+async function xlOut(kind){
+  const c=C(), res=kind==='res';
+  if(res && !(c && c.mem.some(m=>m.tot!=null))){ toastS('まだ 合計が 入って いません'); return null; }
+  if(xlBusy) return null; xlBusy=true;
+  try{
+    const blob=res ? await resBlob() : await tplBlob(), d=c && okDate(c.date) ? okDate(c.date) : new Date();
+    await give(blob, (res ? 'ggolf-kekka-' : 'ggolf-meibo-')+fstamp(d)+'.xlsx', res ? '競技結果の Excel' : '名簿の ひな形（Excel）');
+    return blob;
+  }catch(e){ toastS('Excel の ファイルに できませんでした'); return null; }
+  finally{ xlBusy=false; }
+}
+// 📁 Excel の 窓
+function openXl(){
+  const c=C(), res=!!(c && c.mem.some(m=>m.tot!=null)), sh=canShareX(), how=sh ? xlHow : 'save';
+  popOpen(ph('📁 Excel で 入れる・出す')+`
+    <div class="gg-fcs">
+      <button type="button" class="gg-fc" onclick="GGOLF.xlOut('tpl')"><b>① 📄 名簿の ひな形を 書き出す</b><small>名前・チーム・合計・ホールインワン の 表${c && c.mem.length ? '（いまの '+c.mem.length+'人も 入ります）' : ''}。Excel で 書いて、② で 読み込みます。</small></button>
+      <button type="button" class="gg-fc" onclick="GGOLF.fileIn()"><b>② 📂 Excel・CSV から 読み込む</b><small>見出しが 名前・チーム・合計・ホールインワン の 表なら、列の 順は 自由です。</small></button>
+      <button type="button" class="gg-fc"${res ? '' : ' disabled'} onclick="GGOLF.xlOut('res')"><b>③ 📊 競技結果を Excel に 書き出す</b><small>${res ? '賞・順位・チームの 順位・名簿・大会 の シート。' : '合計を 入れると 書き出せます。'}</small></button>
+    </div>
+    ${sh ? `<div class="gg-seg" role="group" aria-label="ファイルの 渡し方"><button type="button" class="${how==='save' ? 'on' : ''}" aria-pressed="${how==='save'}" onclick="GGOLF.xlHow('save')">⬇ 端末に 保存</button><button type="button" class="${how==='share' ? 'on' : ''}" aria-pressed="${how==='share'}" onclick="GGOLF.xlHow('share')">📤 送る（LINE・メール など）</button></div>` : ''}
+    <p class="gg-help">名簿が 写真や 紙の ときは、AI（Claude など）に「名前・チーム・合計・ホールインワン の 列の Excel に して」と 頼むと、② で そのまま 読み込めます。</p>`, 'xl');
+}
+function setXlHow(h){
+  if(!['save','share'].includes(h)) return; xlHow=h;
+  if(pop && pop.kind==='xl') pop.el.querySelectorAll('.gg-seg button').forEach((b,i)=>{ const on=(i===0)===(h==='save'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+}
+/* ── 読む ── */
+// 文字の ファイル：UTF-8（BOM も）で 読めなければ Shift_JIS（Excel の CSV）
+function decodeText(buf){
+  const u8=new Uint8Array(buf);
+  try{ return new TextDecoder('utf-8', {fatal:true}).decode(u8).replace(/^﻿/,''); }catch(_){}
+  try{ return new TextDecoder('shift_jis').decode(u8); }catch(_){ return new TextDecoder().decode(u8); }
+}
+// CSV・タブ区切り → 文字の 2次元の 表（"…" の 中の 区切り・改行・"" も）
+function csvRows(text){
+  const first=(String(text).split(/\r?\n/).find(l=>l.trim())||''), d=(first.match(/\t/g)||[]).length>(first.match(/,/g)||[]).length ? '\t' : ',';
+  const rows=[]; let row=[], cell='', qt=false;
+  for(let i=0; i<text.length; i++){
+    const ch=text[i];
+    if(qt){ if(ch==='"'){ if(text[i+1]==='"'){ cell+='"'; i++; } else qt=false; } else cell+=ch; continue; }
+    if(ch==='"' && cell===''){ qt=true; continue; }
+    if(ch===d){ row.push(cell); cell=''; continue; }
+    if(ch==='\n' || ch==='\r'){ if(ch==='\r' && text[i+1]==='\n') i++; row.push(cell); rows.push(row); row=[]; cell=''; if(rows.length>=MAX_M*4) break; continue; }
+    cell+=ch;
+  }
+  if(cell!=='' || row.length){ row.push(cell); rows.push(row); }
+  return rows;
+}
+// シートの XML → 文字の 2次元の 表
+function gridOf(xml, shared){
+  const rows=[], re=/<c\b([^>]*?)(\/>|>([\s\S]*?)<\/c>)/g; let m;
+  while((m=re.exec(xml))){
+    const a=m[1], inner=m[3]||'', rm=/r="([A-Z]+)(\d+)"/.exec(a); if(!rm) continue;
+    const c=xlColToIdx(rm[1]), r=parseInt(rm[2],10)-1; if(r<0 || c<0 || r>MAX_M*4 || c>40) continue;
+    const t=(/t="([^"]+)"/.exec(a)||[])[1]||'', v=(/<v>([\s\S]*?)<\/v>/.exec(inner)||[])[1];
+    const val=t==='inlineStr' ? xlsxRichText(inner) : t==='s' ? shared[parseInt(v,10)]||'' : t==='b' ? (v==='1' ? 'TRUE' : '') : v!=null ? xlUnesc(v) : '';
+    (rows[r]=rows[r]||[])[c]=val;
+  }
+  return rows;
+}
+async function bookRows(buf){
+  if(typeof xlsxUnzip!=='function') throw new Error('xlsx');
+  const map=await xlsxUnzip(buf), names=[...map.keys()], dec=new TextDecoder(), shared=[];
+  const ss=names.find(n=>/sharedStrings\.xml$/i.test(n));
+  if(ss){ const x=dec.decode(map.get(ss)), re=/<si\b[^>]*>([\s\S]*?)<\/si>/g; let m; while((m=re.exec(x))) shared.push(xlsxRichText(m[1])); }
+  return xlsxWorkbookSheets(map, names, dec).map(sh=>({name:sh.name, rows:gridOf(sh.xml, shared)}));
+}
+// 見出しの 名前（空白・かっこの 中・- は 見ない）
+const XKEY={name:/^(名前|氏名|お名前|なまえ|選手名?|参加者名?|会員名?|メンバー|name)$/i, team:/^(チーム名?|班名?|組名?|グループ|所属|team)$/i,
+  tot:/^(合計(打数|スコア)?|総打数|打数|スコア|成績|計|score|total)$/i, hio:/^(ホールインワン(の)?(数|回数)?|hio(数|回数)?|ホールイン|holeinone|⛳)$/i};
+function headOf(rows){
+  for(let i=0; i<Math.min(rows.length, 15); i++){
+    const c={};
+    (rows[i]||[]).forEach((v,j)=>{ const t=String(v==null?'':v).normalize('NFKC').replace(/\s+/g,'').replace(/[(（][^)）]*[)）]/g,'').replace(/[-‐]/g,''); Object.keys(XKEY).forEach(k=>{ if(c[k]===undefined && XKEY[k].test(t)) c[k]=j; }); });
+    if(c.name!==undefined) return {i, c};
+  }
+  return null;
+}
+// 表 → 人の 並び（見出しが ない ときは 1行を「まとめて 入れる」と 同じに 読む）
+function membersOf(rows){
+  const h=headOf(rows), out=[];
+  if(h) rows.slice(h.i+1).forEach(r=>{
+    r=r||[]; const cell=k=>h.c[k]===undefined ? '' : String(r[h.c[k]]==null ? '' : r[h.c[k]]).trim();
+    const p=nameTeam(cell('name')); if(!p.name) return;
+    const x={name:p.name, team:teamIn(cell('team'))||p.team}, t=cell('tot'), hv=cell('hio');
+    if(t!=='') x.tot=totIn(t);
+    if(hv!==''){ x.hio=numIn(hv,0,MAX_HIO,0); x.hioSet=true; }
+    out.push(x);
+  });
+  else rows.forEach(r=>{ const line=(r||[]).map(v=>String(v==null?'':v).trim()).join('\t').replace(/\t+$/,''); if(line.trim()) out.push(...parseLines(line)); });
+  return {list:out.slice(0, MAX_M), head:!!h};
+}
+function dateIn(v){
+  v=String(v==null?'':v).trim().normalize('NFKC'); if(!v) return '';
+  if(/^\d{5}(\.\d+)?$/.test(v) && +v>20000 && +v<80000) return ymd(new Date(1899, 11, 30+Math.floor(+v)));   // Excel の 日付の 通し番号
+  const m=v.match(/^(\d{4})[-\/年.](\d{1,2})[-\/月.](\d{1,2})/); if(!m) return '';
+  const s=m[1]+'-'+pad2(+m[2])+'-'+pad2(+m[3]); return okDate(s) ? s : '';
+}
+// ファイル → {name, sheet, list, head, title, date}
+async function readFile(file){
+  const buf=await file.arrayBuffer(), u8=new Uint8Array(buf, 0, Math.min(4, buf.byteLength));
+  const sheets=u8[0]===0x50 && u8[1]===0x4B ? await bookRows(buf) : [{name:'', rows:csvRows(decodeText(buf))}];   // PK…＝.xlsx（ZIP）
+  // 「名簿」の シート → 見出しの ある シート → はじめの シート
+  const pk=sheets.find(x=>/名簿/.test(x.name)) || sheets.find(x=>headOf(x.rows)) || sheets[0];
+  const r=pk ? membersOf(pk.rows) : {list:[], head:false};
+  let title='', date='';
+  const info=sheets.find(x=>/^大会/.test(x.name));
+  if(info) info.rows.forEach(row=>{ const k=String((row||[])[0]==null ? '' : row[0]).replace(/\s+/g,''), v=(row||[])[1];
+    if(/^(大会の?名前|大会名)$/.test(k)) title=oneLine(v,40); else if(/^(日付|日にち|開催日)$/.test(k)) date=dateIn(v); });
+  return {name:oneLine(file.name,60), sheet:pk ? pk.name : '', list:r.list, head:r.head, title, date};
+}
+function fileIn(){ const i=$('ggFileIn'); if(i){ i.value=''; i.click(); } }
+async function fileGot(inp){
+  const f=inp && inp.files && inp.files[0]; if(!f) return null;
+  if(f.size>5e6){ toastS('ファイルが 大きすぎます'); return null; }
+  let r=null;
+  try{ r=await readFile(f); }catch(e){ toastS('読めませんでした（Excel の .xlsx か CSV を えらんで ください）', 4200); return null; }
+  showGot(r); return r;
+}
+// 読んだ 中身を 見せて、入れ方を えらぶ
+function showGot(r){
+  if(!r || !r.list.length){ toastS('名前が 見つかりませんでした（「名前」の 見出しの 列に 名前を 書いて ください）', 4600); return; }
+  xlGot=r;
+  const c=C(), n=r.list.length, sc=r.list.filter(x=>x.tot!=null).length, hio=r.list.reduce((a,x)=>a+(x.hioSet ? x.hio : 0), 0), teams=new Set(r.list.map(x=>x.team).filter(Boolean)).size;
+  popOpen(ph('📂 読み込む')+`
+    <p class="gg-help"><b>${esc(r.name)}</b>${r.sheet ? '（'+esc(r.sheet)+' の シート）' : ''}</p>
+    <p class="gg-got"><b>${n}人</b>${teams ? '・チーム '+teams : ''}${sc ? '・合計 入り '+sc+'人' : ''}${hio ? '・ホールインワン '+hio+'回' : ''}</p>
+    <ul class="gg-gl">${r.list.slice(0,6).map(x=>`<li>${esc(x.name)}${x.team ? '（'+esc(x.team)+'）' : ''}${x.tot!=null ? '　'+x.tot+'打' : ''}${x.hioSet && x.hio ? '・⛳'+x.hio : ''}</li>`).join('')}${n>6 ? `<li class="more">ほか ${n-6}人</li>` : ''}</ul>
+    <div role="radiogroup" aria-label="読み込み方">
+      ${c ? `<label class="gg-ck2"><input type="radio" name="ggXHow" value="add" checked onchange="GGOLF.gotHow(this.value)"> 「${esc(c.title)}」に 入れる（同じ 名前の 人には 成績を 入れる）</label>
+      <label class="gg-ck2"><input type="radio" name="ggXHow" value="rep" onchange="GGOLF.gotHow(this.value)"> 「${esc(c.title)}」の 名簿を 入れかえる（いまの ${c.mem.length}人と 成績は 消す）</label>` : ''}
+      <label class="gg-ck2"><input type="radio" name="ggXHow" value="new"${c ? '' : ' checked'} onchange="GGOLF.gotHow(this.value)"> 新しい 大会に する</label></div>
+    <label class="gg-f" id="ggXTitleRow"${c ? ' hidden' : ''}><span>大会の 名前</span><input id="ggXTitle" type="text" maxlength="40" value="${esc(r.title||'グラウンドゴルフ大会')}"></label>
+    <div class="gg-acts end"><button type="button" class="gg-b" onclick="GGOLF.close()">やめる</button><button type="button" class="gg-b pri" onclick="GGOLF.gotGo()">✓ 読み込む</button></div>`, 'got');
+}
+function gotHow(h){ const r=$('ggXTitleRow'); if(r) r.hidden=h!=='new'; }
+function gotGo(){
+  const el=document.querySelector('#ggolfOverlay input[name="ggXHow"]:checked');
+  return xlGot ? importNow(xlGot, el ? el.value : 'new', val('ggXTitle')) : null;
+}
+// 入れる（how：add この 大会に 足す・rep 名簿を 入れかえる・new 新しい 大会）
+async function importNow(r, how, title){
+  let c=C();
+  if(how==='rep' && c && c.mem.length && typeof appConfirm==='function'
+    && !(await appConfirm('「'+c.title+'」の いまの 名簿（'+c.mem.length+'人）と 成績を 消して、読み込んだ '+r.list.length+'人に 入れかえますか？', '入れかえる', 'やめる'))) return null;
+  popClose(); xlGot=null;
+  if(how==='new' || !c){ if(!newCupGo({title:oneLine(title,40)||r.title||'グラウンドゴルフ大会', date:r.date||undefined})) return null; c=C(); }
+  else if(how==='rep'){ c.mem=[]; c.ttb={}; }
+  st.view='in';
+  return addMany(r.list);
+}
 
 /* ───────── 窓 ───────── */
 const DOC=`
@@ -641,6 +886,14 @@ const CSS=`
 .gg-help{ margin:6px 0; font-size:13px; line-height:1.6; color:var(--text-light,#666); } .gg-help code{ padding:0 4px; border-radius:4px; background:rgba(120,132,156,.15); color:var(--text,#222); font-family:inherit; white-space:nowrap; }
 .gg-ta{ display:block; width:100%; box-sizing:border-box; min-height:9em; padding:8px 10px; border-radius:10px; border:1px solid rgba(120,132,156,.55); background:var(--cell-bg,#fff); color:var(--text,#222); font-size:16px; line-height:1.5; font-family:inherit; resize:vertical; }
 .gg-sep{ height:1px; background:rgba(120,132,156,.3); margin:12px 0 4px; }
+.gg-f[hidden]{ display:none; }
+.gg-fcs{ display:flex; flex-direction:column; gap:8px; margin:4px 0 10px; }
+.gg-fc{ display:flex; flex-direction:column; align-items:flex-start; gap:3px; width:100%; min-height:64px; padding:10px 12px; border-radius:12px; border:1px solid rgba(120,132,156,.45); background:rgba(120,132,156,.06); color:var(--text,#222); text-align:left; cursor:pointer; font-family:inherit; }
+.gg-fc b{ font-size:15.5px; } .gg-fc small{ font-size:12.5px; line-height:1.5; color:var(--text-light,#666); } .gg-fc:disabled{ opacity:.5; cursor:default; }
+.gg-seg{ display:flex; gap:6px; margin:0 0 8px; } .gg-seg button{ flex:1; min-height:42px; padding:0 8px; border-radius:21px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:14px; cursor:pointer; font-family:inherit; }
+.gg-seg button.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); font-weight:bold; }
+.gg-got{ margin:4px 0; font-size:15px; } .gg-got b{ font-size:18px; }
+.gg-gl{ margin:4px 0 8px; padding:6px 10px 6px 26px; border-radius:10px; background:rgba(120,132,156,.1); font-size:13.5px; line-height:1.6; } .gg-gl li{ overflow-wrap:anywhere; } .gg-gl .more{ list-style:none; color:var(--text-light,#666); }
 @media (max-width:400px){ .gg-b{ padding:0 10px; } .gg-tabs button{ font-size:14px; } .gg-prz .pr{ padding-left:4px; } }
 `+DOC.replace(/\.gg-doc/g, '#printArea .gg-doc');
 function ensureDom(){
@@ -651,6 +904,7 @@ function ensureDom(){
   <div class="modal vol-modal gg-modal modal-full" style="position:relative">
     <div class="modal-header"><span>⛳ グラウンドゴルフ</span><button class="modal-close" onclick="closeGgolf()" aria-label="閉じる">✕</button></div>
     <div class="gg-body" id="ggBody"></div>
+    <input type="file" id="ggFileIn" accept=".xlsx,.csv,.tsv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/plain" hidden onchange="GGOLF.fileGot(this)">
   </div></div>`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
   const ov=$('ggolfOverlay'), b=$('ggBody');
@@ -681,8 +935,9 @@ function closeGgolf(){ if(!$('ggolfOverlay') || !isDlgOpen('ggolfOverlay')) retu
 window.GGOLF={ newCup, newGo, newCupGo, sel, view:setView, setup:openSetup, setupSave, clear:()=>clearScores(), delCup:()=>delCup(), close:popClose,
   quick:()=>quick(), aHio, hio:setHio, edit:openEdit, editSave, delM:id=>delM(id), bulk:openBulk, bulkGo, pick:()=>pick(), find, grp:setGrp, ann:setAnn,
   up, fix, tup, tfix, print:printDoc, copy, table:toTable, text, rows, html:()=>{ const c=C(); return c ? docHtml(c) : ''; },
+  xl:openXl, xlOut:k=>xlOut(k), xlRes:()=>xlOut('res'), xlHow:setXlHow, fileIn, fileGot:i=>fileGot(i), gotHow, gotGo:()=>gotGo(),
   // ためす とき 用
-  state:()=>JSON.parse(JSON.stringify(st)), parse:parseLines, addMany, ids:()=>{ const c=C(); return c ? c.mem.slice().sort(bySeq).map(m=>m.id) : []; },
+  state:()=>JSON.parse(JSON.stringify(st)), parse:parseLines, addMany, tplBlob, resBlob, readFile, showGot, importNow:(r,h,t)=>importNow(r,h,t), csvRows, decodeText, ids:()=>{ const c=C(); return c ? c.mem.slice().sort(bySeq).map(m=>m.id) : []; },
   result:()=>{ const c=C(); if(!c) return null; const R=calc(c);
     return {order:R.list.map(m=>m.name), at:Object.keys(R.at).map(p=>p+':'+R.at[p].map(x=>x.l).join('+')), warn:warnN(R), pend:R.pend.map(m=>m.name),
       teams:R.teams.map(t=>t.name+':'+(c.set.tmode==='avg' ? fmt1(t.score) : t.sum)), hio:R.hio.times+'/'+R.hio.need+'/'+R.hio.have, notes:notes(c, R),
