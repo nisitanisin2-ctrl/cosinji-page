@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,bingo,mikurabe,gijiroku,sentaku,kyoshi,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
+    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,bingo,mikurabe,gijiroku,sentaku,kyoshi,ggolf,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -3105,11 +3105,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,bingo,mikurabe,gijiroku,sentaku,kyoshi,calctmpl,fintmpl');
+    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,bingo,mikurabe,gijiroku,sentaku,kyoshi,ggolf,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 49);   // v611 で 🧱供試体、v605 で 📸📝🧺 の3つ、v587 で 🎱ビンゴ、v579 で 🔁📋🧳 の3つ、v575 で ⏱🎉📃 の3つ、v569 で 🗣📢 の2つ、v568 で 🗓⛩🧮 の3つ、v561 で 🚛💴🎲📷 の4つ、v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
+    document.getElementById('startPageSel').options.length), 50);   // v616 で ⛳グラウンドゴルフ、v611 で 🧱供試体、v605 で 📸📝🧺 の3つ、v587 で 🎱ビンゴ、v579 で 🔁📋🧳 の3つ、v575 で ⏱🎉📃 の3つ、v569 で 🗣📢 の2つ、v568 で 🗓⛩🧮 の3つ、v561 で 🚛💴🎲📷 の4つ、v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'saienOverlay', 'volumeOverlay',
@@ -14899,7 +14899,7 @@ async function runSchemeFix(browser) {
       { id: 'a2', fam: '佐藤', giv: '花子', famK: 'さとう', givK: 'はなこ', tels: [{ t: 'cell', v: '080-3333-4444' }], color: 'yellow' }, { id: 'a3', fam: '鈴木', giv: '一郎', famK: 'すずき', givK: 'いちろう', tels: [{ t: 'cell', v: '080-5555-6666' }], color: 'blue' }] })));
     await page.evaluate(() => { const d = new Date(); d.setDate(d.getDate() - 60); const old = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');   // 🎁 お返し帳は 札（まだ・時期すぎ・済み・しない・さしあげた）が出る中身で
       localStorage.setItem('excalc_okaeshi', JSON.stringify({ items: [{ id: 'o1', dir: 'in', kind: 'kekkon', ev: '長女の結婚', date: old, name: '佐藤 花子', amt: 30000, t: 1 }, { id: 'o2', dir: 'in', kind: 'koden', ev: '父の葬儀', date: old, name: '鈴木 一郎', amt: 10000, ret: { st: 'sumi', what: 'お茶' }, t: 2 }, { id: 'o3', dir: 'in', kind: 'kodomo', ev: '入学', date: old, name: '田中 三郎', amt: 10000, t: 3 }, { id: 'o4', dir: 'out', kind: 'koden', ev: '山田さんの葬儀', date: old, name: '山田 太郎', amt: 5000, t: 4 }, { id: 'o5', dir: 'in', kind: 'koden', ev: '父の葬儀', date: old, name: '高橋 次郎', amt: 5000, t: 5 }] })); });
-    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo', 'renraku', 'tatekae', 'kuji', 'dasetsu', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'yatta', 'shukin', 'shiori', 'bingo', 'mikurabe', 'gijiroku', 'sentaku', 'kyoshi']) {
+    for (const id of ['heya', 'annai', 'volume', 'kantab', 'keisan', 'kurashi', 'kakudo', 'renraku', 'tatekae', 'kuji', 'dasetsu', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'yatta', 'shukin', 'shiori', 'bingo', 'mikurabe', 'gijiroku', 'sentaku', 'kyoshi', 'ggolf']) {
       await page.evaluate(id => NP_TOOLS.find(t => t.id === id).run(), id); await w(1100);
       found.push(id + ':' + await page.evaluate(SCAN));
       if (id === 'kurashi' || id === 'keisan') { await page.evaluate(id => { const c = document.querySelector(id === 'kurashi' ? '#krList .kr-card' : '#ksList .ks-card'); if (c) c.click(); }, id); await w(800); found.push(id + '-page:' + await page.evaluate(SCAN)); }
@@ -14966,6 +14966,14 @@ async function runSchemeFix(browser) {
         await page.evaluate(() => { SENTAKU.close(); SENTAKU.q('セーター'); }); await w(300); found.push('sentaku-search:' + await page.evaluate(SCAN));
         await page.evaluate(() => { SENTAKU.q('', true); SENTAKU.tab('read'); }); await w(200);
       }
+      if (id === 'ggolf') {   // ⛳ 名簿・順位と 賞（⚠・同点・賞の 札）・設定・まとめて（v616）
+        await page.evaluate(() => { GGOLF.newCupGo({ title: '大会' }); GGOLF.addMany(GGOLF.parse('山田／A 48 1\n佐藤／A 48 1\n鈴木／B 50\n田中／B 52 2\n高橋 55\n伊藤')); }); await w(300); found.push('ggolf-in:' + await page.evaluate(SCAN));
+        await page.evaluate(() => GGOLF.view('res')); await w(300); found.push('ggolf-res:' + await page.evaluate(SCAN));
+        await page.evaluate(() => document.querySelector('.gg-rk').scrollIntoView({ block: 'start' })); await w(200); found.push('ggolf-rank:' + await page.evaluate(SCAN));
+        await page.evaluate(() => GGOLF.setup()); await w(300); found.push('ggolf-set:' + await page.evaluate(SCAN));
+        await page.evaluate(() => { GGOLF.close(); GGOLF.bulk(); }); await w(300); found.push('ggolf-bulk:' + await page.evaluate(SCAN));
+        await page.evaluate(() => { GGOLF.close(); GGOLF.view('in'); }); await w(200);
+      }
       if (id === 'bingo') {   // 🎱 出た 数の 表・カード（リーチ・ビンゴ）・設定・たしかめ（v587）
         await page.evaluate(() => { window.BINGO_NO_ANIM = true; for (let i = 0; i < 8; i++) BINGO.spin(); document.getElementById('bgBoard').scrollIntoView({ block: 'center' }); }); await w(300); found.push('bingo-board:' + await page.evaluate(SCAN));
         await page.evaluate(() => { BINGO.tab('card'); [5, 6, 7, 8].forEach(i => BINGO.mark(i)); }); await w(300); found.push('bingo-reach:' + await page.evaluate(SCAN));
@@ -15008,7 +15016,7 @@ async function runSchemeFix(browser) {
     }
     await page.evaluate(() => { toggleSettings(); openVoiceSet(); }); await w(500);
     found.push('voice:' + await page.evaluate(SCAN));
-    check('  　読めない文字がない（しまい場所・部屋割り・案内ページ・容積・カンタブ・便利計算・くらしの便利帳・角度計・連絡帳（色分け・表で直す）・立て替え精算・くじ・打設の段取り・お返し帳・こよみ・方位と恵方・そろばん・筆談ボード・電光掲示板（時計・予約・絵）・ど派手タイマー・ど派手カウンター・請求書づくり（書類の見本）・前にやった日 帳・出欠・集金表・旅のしおり・供試体・読み上げの声）', found.filter(s => !/:$/.test(s)).join(' | '), '');
+    check('  　読めない文字がない（しまい場所・部屋割り・案内ページ・容積・カンタブ・便利計算・くらしの便利帳・角度計・連絡帳（色分け・表で直す）・立て替え精算・くじ・打設の段取り・お返し帳・こよみ・方位と恵方・そろばん・筆談ボード・電光掲示板（時計・予約・絵）・ど派手タイマー・ど派手カウンター・請求書づくり（書類の見本）・前にやった日 帳・出欠・集金表・旅のしおり・供試体・グラウンドゴルフ・読み上げの声）', found.filter(s => !/:$/.test(s)).join(' | '), '');
     check('  　エラーなし', errs.join(' | '), '');
     await ctx.close();
   }
@@ -18253,11 +18261,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/51');   // v611 で 🧱供試体、v605 で 📸見比べ・📝議事録・🧺洗濯表示、v575 で ⏱ど派手タイマー・🎉ど派手カウンター・📃請求書づくり、v569 で 🗣筆談ボード・📢電光掲示板、v568 で 🗓こよみ・⛩方位と恵方・🧮そろばん、v561 で 💴🎲🚛📷 の4つ（v564 で 📷 を 🎁お返し帳 に）、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/52');   // v616 で ⛳グラウンドゴルフ、v611 で 🧱供試体、v605 で 📸見比べ・📝議事録・🧺洗濯表示、v575 で ⏱ど派手タイマー・🎉ど派手カウンター・📃請求書づくり、v569 で 🗣筆談ボード・📢電光掲示板、v568 で 🗓こよみ・⛩方位と恵方・🧮そろばん、v561 で 💴🎲🚛📷 の4つ（v564 で 📷 を 🎁お返し帳 に）、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'yatta', 'shukin', 'shiori', 'bingo', 'mikurabe', 'gijiroku', 'sentaku', 'kyoshi', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'yatta', 'shukin', 'shiori', 'bingo', 'mikurabe', 'gijiroku', 'sentaku', 'kyoshi', 'ggolf', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -18285,7 +18293,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,okaeshi:B,koyomi:B,hoi:B,soroban:B,hitsudan:B,keijiban:B,hadetimer:B,hadecount:B,seikyu:B,yatta:B,shukin:B,shiori:B,bingo:B,mikurabe:B,gijiroku:B,sentaku:B,kyoshi:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,okaeshi:B,koyomi:B,hoi:B,soroban:B,hitsudan:B,keijiban:B,hadetimer:B,hadecount:B,seikyu:B,yatta:B,shukin:B,shiori:B,bingo:B,mikurabe:B,gijiroku:B,sentaku:B,kyoshi:B,ggolf:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -19724,6 +19732,111 @@ async function runKyoshi613(browser) {
   if (errs.length) console.log('    ', errs);
   await ctx.close();
 }
+// ⛳ グラウンドゴルフ（v616。ggolf.js）：合計と ホールインワンの 数だけで 順位と 賞
+async function runGgolf616(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ⛳ グラウンドゴルフ（v616。合計と ホールインワンの 数だけで 順位と 賞） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const res = () => page.evaluate(() => GGOLF.result());
+  const rd = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8'), sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8'), hl = fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8'), ix = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  check('  開くまでは 読まない・道具（くらし：ビンゴの 次）・マイキー・バックアップ・端末の空き・吹き出し・単独アプリの 入口',
+    await page.evaluate(() => [typeof window.GGOLF, !!NP_TOOLS.find(t => t.id === 'ggolf' && t.ov === 'ggolfOverlay'), !!KEY_FUNCS.a_ggolf, (l => l[l.indexOf('bingo') + 1])(TOOL_CATS.find(c => c[0].includes('くらし'))[1]), SETTINGS_BACKUP_KEYS.includes('excalc_ggolf'), ST_GROUPS.some(g => g.k === 'excalc_ggolf'), !!TOOL_HINTS.ggolf].join('/'))
+      + '/' + ['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(ROOT, 'apps', 'ggolf', f))),
+    'undefined/true/true/ggolf/true/true/true/true');
+  check('  service-worker・README（表・配る）・説明書・?app= の 名前', [sw.includes("'./ggolf.js'"), rd.includes('| `ggolf.js` |'), rd.split('## 配る')[1].includes('`ggolf.js`'), hl.includes('⛳グラウンドゴルフ＝'), ix.includes("ggolf:'⛳ グラウンドゴルフ'")].join('/'), 'true/true/true/true/true');
+  await page.evaluate(() => { window.appConfirm = async () => true; window.__print = 0; window.print = () => { window.__print++; }; });
+  await page.evaluate(() => openGgolf()); await w(500);
+  check('  はじめは「＋ 新しい 大会を 作る」だけ・← もどる', await page.evaluate(() => [document.querySelectorAll('#ggBody .gg-empty .gg-b').length, GGOLF.state().cups.length, !!document.querySelector('#ggolfOverlay .tool-back')].join('/')), '1/0/true');
+  await page.evaluate(() => GGOLF.newCupGo({ title: '秋の グラウンドゴルフ大会', date: '2026-11-15' })); await w(200);
+  check('  新しい 大会：はじめの 賞（個人 5位まで・チーム 1位・とび 10・15・20・25位・ブービー・ホールインワン 15個）', await page.evaluate(() => { const c = GGOLF.state().cups[0], s = c.set; return [c.title, c.date, s.ind, s.team, s.tmode, s.tobi.join(','), s.booby, s.bmaker, s.hio, s.hone, document.querySelector('.gg-tabs .on').textContent, !!document.getElementById('ggANm')].join('/'); }),
+    '秋の グラウンドゴルフ大会/2026-11-15/5/1/sum/10,15,20,25/true/false/15/false/✏ 成績を 入れる/true');
+  check('  まとめて 入れる：「名前／チーム 合計 ホールインワン」・全角・打・Excel の 行・名前だけ・「、」・「チーム：名前、名前」',
+    await page.evaluate(() => GGOLF.parse('山田 太郎／A 48 1\n佐藤 花子/Ａ　５２打\n鈴木 一郎\tB\t50\t2\n田中、高橋\nCチーム：伊藤、渡辺\n小林2\n\n加藤 47 HIO1\n井上 50 ⛳2').map(x => [x.name, x.team, x.tot === undefined ? '-' : x.tot, x.hioSet ? x.hio : '-'].join(':')).join(' | ')),
+    '山田 太郎:A:48:1 | 佐藤 花子:A:52:- | 鈴木 一郎:B:50:2 | 田中::-:- | 高橋::-:- | 伊藤:Cチーム:-:- | 渡辺:Cチーム:-:- | 小林2::-:- | 加藤::47:1 | 井上::50:2');
+  const NAMES = ['山田 太郎', '佐藤 花子', '鈴木 一郎', '田中 次郎', '高橋 三郎', '伊藤 久美', '渡辺 正', '山本 和子', '中村 勇', '小林 恵', '加藤 清', '吉田 茂', '山口 節子', '松本 博', '井上 学', '木村 幸子', '林 忠', '斎藤 勝', '清水 洋子', '山崎 進', '森 誠', '池田 豊', '橋本 昭', '阿部 春子', '石川 実', '前田 稔', '藤田 修', '小川 和夫', '岡田 弘', '後藤 光子'];
+  const TOT = [48, 52, 50, 47, 55, 49, 51, 53, 47, 58, 50, 54, 56, 49, 52, 60, 51, 57, 53, 48, 59, 50, 62, 55, 52, 61, 54, 57, 63, 58];
+  const HIO = [1, 0, 2, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0];
+  // 先に 名簿だけ（チームも）→ あとで 成績を まとめて 入れる（同じ 名前の 人に 入る）
+  check('  名簿だけ 入れる（30人・5チーム）→ まだ 30人', await page.evaluate(n => { const r = GGOLF.addMany(GGOLF.parse(n.map((x, i) => x + '／' + 'ABCDE'[i % 5]).join('\n'))); return [r.add, r.upd, GGOLF.result().pend.length, document.querySelectorAll('#ggBody .gg-row.empty').length, document.getElementById('ggSumN').textContent.replace(/\s+/g, '')].join('/'); }, NAMES), '30/0/30/30/入れた0／30人⛳ホールインワン0回まだ30人');
+  check('  成績を まとめて（同じ 名前の 人に 入る）', await page.evaluate(([n, t, h]) => { const r = GGOLF.addMany(GGOLF.parse(n.map((x, i) => x + ' ' + t[i] + ' ' + h[i]).join('\n'))); return [r.add, r.upd, GGOLF.state().cups[0].mem.length, GGOLF.state().cups[0].mem[2].team, document.getElementById('ggSumN').textContent.replace(/\s+/g, '')].join('/'); }, [NAMES, TOT, HIO]), '0/30/30/C/入れた30／30人⛳ホールインワン10回ぜんぶ入りました✓');
+  let r = await res();
+  check('  順位：合計の 少ない 順・同じ ときは ホールインワンの 多い 順（48打 ⛳2 が 48打 ⛳1 より 上）', r.order.slice(0, 7).join(','), '田中 次郎,中村 勇,山崎 進,山田 太郎,松本 博,伊藤 久美,鈴木 一郎');
+  check('  賞の 位：個人 1〜5位・とび 10・15・20・25位・ブービー 29位（30人）', r.at.join(','), '1:個人賞,2:個人賞,3:個人賞,4:個人賞,5:個人賞,10:とび賞,15:とび賞,20:とび賞,25:とび賞,29:ブービー賞');
+  check('  賞の 一覧', r.secs.join(' | '), 'ind=🥇1位 田中 次郎,🥈2位 中村 勇,🥉3位 山崎 進,4位 山田 太郎,5位 松本 博 | team=1位 B | tobi=10位 渡辺 正,15位 山本 和子,20位 阿部 春子,25位 後藤 光子 | booby=29位 橋本 昭 | hio=1回 田中 次郎,1回 中村 勇,2回 山崎 進,1回 山田 太郎,1回 松本 博,2回 鈴木 一郎,1回 渡辺 正,1回 石川 実 | sanka=');
+  check('  チームの 順位（合計）・ホールインワン 10回／要る 10個／用意 15個', r.teams.join(',') + ' ' + r.hio, 'B:312,D:314,E:323,A:327,C:335 10/10/15');
+  await page.evaluate(() => GGOLF.view('res')); await w(200);
+  check('  ⚠ 同じ 成績で 賞が かわる 所（1・2位／15・16位／19・20位／24・25位）だけ。賞に かからない 同点（8・9位）は 出さない', await page.evaluate(() => [...document.querySelectorAll('.gg-warn .w span')].map(s => s.textContent.split('：')[0]).join(',') + ' ' + document.querySelectorAll('.gg-rr .bd.tie').length + ' ' + !!document.querySelector('.gg-tabs .wn')), '1位・2位,15位・16位,19位・20位,24位・25位 16 true');
+  const tanaka = await page.evaluate(() => GGOLF.ids()[3]), naka = await page.evaluate(() => GGOLF.ids()[8]);
+  await page.evaluate(id => GGOLF.up(id), naka); await w(150);
+  r = await res();
+  check('  ▲（じゃんけんで 中村さんが 勝った）→ 1位と 2位が 入れかわり、⚠ は 3つに', r.order.slice(0, 2).join(',') + ' ' + r.warn, '中村 勇,田中 次郎 3');
+  await page.evaluate(() => { const b = document.querySelectorAll('.gg-warn .w button'); b[0].click(); }); await w(150);
+  r = await res();
+  check('  「✓ この 順で 決める」→ その 順の まま ⚠ が 消える', r.order.slice(14, 16).join(',') + ' ' + r.warn, '山本 和子,清水 洋子 2');
+  await page.evaluate(id => { GGOLF.edit(id); document.getElementById('ggETot').value = '４７'; GGOLF.editSave(id); }, tanaka); await w(150);
+  r = await res();
+  check('  決めた あとで 合計を 直す（47 → 47 は かわらない）', r.order.slice(0, 2).join(',') + ' ' + r.warn, '中村 勇,田中 次郎 2');
+  await page.evaluate(id => GGOLF.hio(id, 1), tanaka); await w(150);
+  r = await res();
+  check('  ⛳ が ふえると 決めなおし（田中 47打 ⛳2 → 1位）', r.order.slice(0, 2).join(',') + ' ' + r.warn + ' ' + r.hio, '田中 次郎,中村 勇 2 11/11/15');
+  await page.evaluate(id => GGOLF.hio(id, -1), tanaka); await w(150);
+  r = await res();
+  check('  ⛳ を もどすと 決めた 順も もどる', r.order.slice(0, 2).join(',') + ' ' + r.warn, '中村 勇,田中 次郎 2');
+  await page.evaluate(() => GGOLF.view('in')); await w(150);
+  // 名簿の 合計の 欄：打つ → しまう・Enter で 次の 人・数で ない ときは 赤
+  await page.evaluate(() => document.querySelectorAll('.gg-tot')[0].focus());
+  await page.keyboard.press('Control+A'); await page.keyboard.type('４６'); await page.keyboard.press('Enter'); await w(100);
+  check('  合計の 欄：全角で 打っても 入る（離れると 46 と 出る）・Enter で 次の 人へ（中身は 選んだ まま）', await page.evaluate(() => [GGOLF.state().cups[0].mem[0].tot, document.querySelectorAll('.gg-tot')[0].value, document.activeElement.getAttribute('aria-label'), document.activeElement.selectionEnd - document.activeElement.selectionStart].join('/')), '46/46/佐藤 花子の 合計（打数）/2');
+  await page.keyboard.type('5x'); await w(100);
+  check('  数で ない ときは 赤・まだ に もどる', await page.evaluate(() => [document.activeElement.classList.contains('bad'), GGOLF.state().cups[0].mem[1].tot, document.getElementById('ggSumN').textContent.includes('まだ 1人')].join('/')), 'true//true');
+  await page.keyboard.press('Backspace'); await page.keyboard.type('2'); await w(100);
+  check('  直すと もとに', await page.evaluate(() => [document.activeElement.classList.contains('bad'), GGOLF.state().cups[0].mem[1].tot, document.getElementById('ggSumN').textContent.includes('ぜんぶ 入りました')].join('/')), 'false/52/true');
+  check('  ⛳ －／＋（0 では － を 押せない）', await page.evaluate(() => { const row = document.querySelectorAll('.gg-row')[1], [mi, pl] = row.querySelectorAll('.gg-step button'); const a = [mi.disabled]; pl.click(); a.push(GGOLF.state().cups[0].mem[1].hio, row.querySelector('.hv').textContent, mi.disabled); mi.click(); a.push(GGOLF.state().cups[0].mem[1].hio); return a.join('/'); }), 'true/1/⛳1/false/0');
+  // 上の 欄で 1人ずつ（名前 → チーム → 合計 → 入れる）
+  await page.click('#ggANm'); await page.keyboard.type('森 花子'); await page.keyboard.press('Enter'); await page.keyboard.type('Ｆ'); await page.keyboard.press('Enter');
+  await page.evaluate(() => GGOLF.aHio(1)); await page.keyboard.type('49'); await page.keyboard.press('Enter'); await w(250);
+  check('  上の 欄で 足す（Enter で 進む）→ 名前に もどる・チームは そのまま', await page.evaluate(() => { const m = GGOLF.state().cups[0].mem.slice(-1)[0]; return [m.name, m.team, m.tot, m.hio, document.activeElement.id, document.getElementById('ggATm').value, document.getElementById('ggATot').value, document.getElementById('ggAHio').value].join('/'); }), '森 花子/F/49/1/ggANm/F//0');
+  check('  もう 合計の ある 人は 聞いてから 入れ直す', await page.evaluate(async () => { let m = ''; window.appConfirm = async x => { m = x; return false; }; document.getElementById('ggANm').value = '森 花子'; document.getElementById('ggATot').value = '40'; await GGOLF.quick(); const a = [GGOLF.state().cups[0].mem.slice(-1)[0].tot, m.split('\n')[0]]; window.appConfirm = async () => true; document.getElementById('ggANm').value = '森 花子'; document.getElementById('ggATot').value = '51'; await GGOLF.quick(); a.push(GGOLF.state().cups[0].mem.length, GGOLF.state().cups[0].mem.slice(-1)[0].tot); return a.join('/'); }), '49/森 花子 さんは もう 49打で 入って います。入れ直しますか？/31/51');
+  check('  もう いる 人の ⛳ は、欄が 0 なら そのまま（名簿の ＋ で 数えた 分を 消さない）', await page.evaluate(async () => { document.getElementById('ggANm').value = '鈴木 一郎'; document.getElementById('ggATm').value = ''; document.getElementById('ggATot').value = '50'; document.getElementById('ggAHio').value = '0'; await GGOLF.quick(); const m = GGOLF.state().cups[0].mem[2]; return [m.name, m.tot, m.hio, GGOLF.state().cups[0].mem.length].join('/'); }), '鈴木 一郎/50/2/31');
+  await page.evaluate(id => GGOLF.delM(id), await page.evaluate(() => GGOLF.ids()[30])); await w(150);
+  check('  消す（聞いてから）', await page.evaluate(() => GGOLF.state().cups[0].mem.length), 30);
+  check('  チームごと（小計）・🔎 さがす', await page.evaluate(() => { GGOLF.grp(true); const a = [[...document.querySelectorAll('.gg-gh')].map(h => h.firstChild.textContent + '(' + h.querySelector('small').textContent + ')').slice(0, 2).join(',')]; GGOLF.grp(false); GGOLF.find('山田'); a.push(document.querySelectorAll('#ggListBox .gg-row').length); GGOLF.find(''); return a.join(' / '); }), 'A(6人・合計 325打・⛳1),B(6人・合計 312打・⛳1) / 1');
+  check('  名前の 空白・全角半角の ちがいは 同じ 人（「山田太郎」→ 山田 太郎）', await page.evaluate(() => { const r = GGOLF.addMany(GGOLF.parse('山田太郎　４６')); return [r.add, r.upd, GGOLF.state().cups[0].mem.length, GGOLF.state().cups[0].mem[0].name].join('/'); }), '0/1/30/山田 太郎');
+  // ⚙ 賞の 決め方
+  await page.evaluate(() => { GGOLF.setup(); document.getElementById('ggSInd').value = '3'; document.getElementById('ggSTobi').value = '３、10，28'; document.getElementById('ggSBmaker').checked = true; document.getElementById('ggSHio').value = '8'; document.getElementById('ggSHone').checked = true; document.querySelector('input[name="ggSTm"][value="avg"]').checked = true; GGOLF.setupSave(); }); await w(200);
+  r = await res();
+  check('  ⚙：個人 3位まで・とび（3位は 個人賞と 同じで 出さない）・ブービーメーカー・1人 1つ・チームは 平均', [r.at.join(','), r.hio, r.teams[0]].join(' '), '1:個人賞,2:個人賞,3:個人賞,10:とび賞,28:とび賞,29:ブービー賞,30:ブービーメーカー賞 10/8/8 B:52.0');
+  check('  気を つける こと（とび賞と 個人賞・重なり・ホールインワンの 用意）', r.notes.join(' | '), 'とび賞の 3位は 個人賞と 同じなので 出しません');
+  await page.evaluate(() => { GGOLF.setup(); document.getElementById('ggSTobi').value = '29'; document.getElementById('ggSHio').value = '5'; GGOLF.setupSave(); }); await w(200);
+  check('  29位は とび賞と ブービー賞が 重なる・ホールインワン賞が たりない', (await res()).notes.join(' | '), '29位は とび賞と ブービー賞が 重なって います | ホールインワン賞が 3個 たりません（用意 5個・要る 8個）');
+  // 平均：割らずに くらべる（145/3＝48.33… と 193/4＝48.25）
+  await page.evaluate(() => GGOLF.newCupGo({ title: 'チーム戦', date: '2026-11-16' })); await w(150);
+  await page.evaluate(() => GGOLF.addMany(GGOLF.parse('a1／X 48\na2／X 48\na3／X 49\nb1／Y 48\nb2／Y 48\nb3／Y 48\nb4／Y 49\nc1／Z 50\nc2／Z 50 1\nc3／Z 49')));
+  r = await res();
+  check('  新しい 大会は 前の 大会の 賞の 決め方を 写す・平均は 割らずに くらべる', r.teams.join(',') + ' ' + await page.evaluate(() => GGOLF.state().cups[1].set.tmode), 'Y:48.3,X:48.3,Z:49.7 avg');
+  check('  名簿を 写して 新しい 大会（成績は 空）', await page.evaluate(() => { GGOLF.sel(GGOLF.state().cups[0].id); GGOLF.newCupGo({ title: '12月 月例会', copy: true }); const c = GGOLF.state().cups[2]; return [c.mem.length, c.mem.every(m => m.tot === null && m.hio === 0), c.mem[2].team, GGOLF.state().cur === c.id].join('/'); }), '30/true/C/true');
+  await page.evaluate(() => GGOLF.sel(GGOLF.state().cups[0].id)); await w(150);
+  await page.evaluate(() => { GGOLF.setup(); document.getElementById('ggSInd').value = '5'; document.getElementById('ggSTobi').value = '10、15、20、25'; document.getElementById('ggSBmaker').checked = false; document.getElementById('ggSHio').value = '15'; document.getElementById('ggSHone').checked = false; document.querySelector('input[name="ggSTm"][value="sum"]').checked = true; GGOLF.setupSave(); GGOLF.view('res'); }); await w(200);
+  check('  🎤 発表の 順：ホールインワン → ブービー → とび賞（下の 位から）→ チーム → 個人（5位 → 1位）', await page.evaluate(() => { GGOLF.ann(true); const a = [[...document.querySelectorAll('.gg-prz .sec .st b')].map(b => b.textContent).join(','), [...document.querySelectorAll('.gg-prz .k-tobi .pr .lb')].map(b => b.textContent).join(','), document.querySelector('.gg-prz .k-ind .pr .lb').textContent]; GGOLF.ann(false); return a.join(' | '); }),
+    'ホールインワン賞,ブービー賞,とび賞,チーム賞,個人賞,参加賞 | 25位,20位,15位,10位 | 5位');
+  check('  📋 コピー：大会・賞・順位・チーム', await page.evaluate(() => { const t = GGOLF.text(); return [t.split('\n')[0], t.includes('参加 30人・ホールインワン 10回'), t.includes('🥇 個人賞\n🥇1位　山田 太郎（A）　46打・⛳1\n🥈2位　中村 勇（D）　47打・⛳1\n🥉3位　田中 次郎（D）　47打・⛳1'), t.includes('🎈 ブービー賞\n29位　橋本 昭（C）　62打'), t.includes('⛳ ホールインワン賞（10回 ／ 用意 15個・のこり 5個）'), t.includes('🎁 参加賞（30人）'), t.includes('\n30. 岡田 弘（D）　63打'), t.includes('👥 チームの 順位\n1. B　合計 312打（6人）・⛳1')].join('/'); }), '⛳ 秋の グラウンドゴルフ大会（2026年11月15日（日））/true/true/true/true/true/true/true');
+  check('  ▦ 表に 入れる：見出し・1人ずつ（賞とホールインワン賞）・チーム', await page.evaluate(() => { const r = GGOLF.rows(); return [r.length, r[0].join(','), r[1].join(','), r[32].join(','), r[33].join(',')].join(' | '); }), '38 | 順位,名前,チーム,合計,ホールインワン,賞 | 1,山田 太郎,A,46,1,個人賞・ホールインワン賞 | チーム順位,チーム,人数,合計,ホールインワン,賞 | 1,B,6,312,1,チーム賞');
+  check('  🖨 印刷：A4 の 賞と 順位表・チームの 順位', await page.evaluate(async () => { GGOLF.print(); await new Promise(r => setTimeout(r, 400)); const pa = document.getElementById('printArea'); return [window.__print, pa.querySelectorAll('.gg-doc table').length, pa.querySelectorAll('.gg-doc table')[1].querySelectorAll('tbody tr').length, pa.querySelector('.gg-doc h1').textContent, document.getElementById('printDynamicStyle').textContent.includes('A4 portrait'), getComputedStyle(pa.querySelector('.gg-doc td')).borderTopStyle].join('/'); }), '1/3/30/⛳ 秋の グラウンドゴルフ大会/true/solid');
+  check('  🧹 成績を 空に（名簿は 残る）・🗑 大会を 消す', await page.evaluate(async () => { const id = GGOLF.state().cur; await GGOLF.clear(); const c = GGOLF.state().cups.find(x => x.id === id); const a = [c.mem.length, c.mem.every(m => m.tot === null && !m.hio && !m.tb), GGOLF.state().cups.length]; await GGOLF.delCup(); a.push(GGOLF.state().cups.length, GGOLF.state().cups.some(x => x.id === id)); return a.join('/'); }), '30/true/3/2/false');
+  await page.evaluate(() => { closeGgolf(); openGgolf(); }); await w(300);
+  check('  閉じて 開いても 残る', await page.evaluate(() => GGOLF.state().cups.map(c => c.title + ':' + c.mem.length).join(',')), 'チーム戦:10,12月 月例会:30');
+  await page.evaluate(() => { closeGgolf(); localStorage.setItem('excalc_ggolf', JSON.stringify({ cups: [null, 'x', { id: 'BAD!', title: '<b>大会</b>', date: '2026-02-30', set: { ind: '99', tobi: 'a,1,5,5,700', tmode: 'zz', hio: -3 }, ttb: { A: 'x', B: { n: 2, g: '1|0' } },
+    mem: [null, { name: '' }, { id: 'abcd', name: '<img src=x onerror="window.__g=1">', tot: '0', hio: '500' }, { id: 'abcd', name: 'b', tot: '48', team: 'T' }] }], cur: 'zz', view: 'res' })); openGgolf(); }); await w(300);
+  check('  変な データ：片づけて 開く（文字は 文字の まま）', await page.evaluate(() => { const s = GGOLF.state(), c = s.cups[0], S = c.set; return [s.cups.length, c.title, c.date, S.ind, S.tobi.join(','), S.tmode, S.hio, c.mem.length, c.mem[0].name.slice(0, 4), c.mem[0].tot, c.mem[0].hio, c.mem[0].id !== c.mem[1].id, Object.keys(c.ttb).join(','), s.view, !!window.__g, !!document.querySelector('#ggBody img')].join('/'); }), '1/<b>大会</b>//30/5/sum/0/2/<img//99/true/B/res/false/false');
+  await page.evaluate(() => closeGgolf()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+  await v579Fit(browser, async p2 => {
+    await p2.evaluate(async () => { window.appConfirm = async () => true; await openGgolf(); });
+    return [['はじめ', null], ['名簿', () => { GGOLF.newCupGo({ title: '秋の グラウンドゴルフ大会 2026', date: '2026-11-15' }); GGOLF.addMany(GGOLF.parse('山田 太郎／Aチーム 48 1\n佐藤 花子／Aチーム 48 1\n長い 名前の 人 です よ／Bチーム 52\n鈴木 一郎／Bチーム 50 2\n田中\n高橋 三郎 55')); GGOLF.grp(true); }],
+      ['順位・賞', () => { GGOLF.grp(false); GGOLF.view('res'); }], ['発表の 順', () => GGOLF.ann(true)], ['設定', () => GGOLF.setup()], ['まとめて', () => { GGOLF.close(); GGOLF.bulk(); }], ['直す', () => { GGOLF.close(); GGOLF.edit(GGOLF.ids()[0]); }], ['新しい 大会', () => { GGOLF.close(); GGOLF.newCup(); }]];
+  }, 'グラウンドゴルフ');
+}
 
 /* 組の 一覧（v603 で 表に した）。[名前（どれか 1つ 当たれば 流す）, 流す 関数]。
      node tests/run.js              … ぜんぶ（上から 順に）
@@ -19914,6 +20027,7 @@ const SUITES = [
   [['kyoshi', 'ics', 'shiken', 'v611'], b => runKyoshi611(b)],
   [['kyoshi', 'kyoshi612', 'v612'], b => runKyoshi612(b)],
   [['kyoshi', 'kyoshi613', 'v614'], b => runKyoshi613(b)],
+  [['ggolf', 'v616'], b => runGgolf616(b)],
   [['dasetsu', 'v561'], b => runDasetsu561(b)],
   [['okaeshi', 'v564'], b => runOkaeshi564(b)],
   [['tax', 'v565'], b => runTax565(b)],
