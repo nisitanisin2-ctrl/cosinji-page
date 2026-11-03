@@ -1,4 +1,4 @@
-/* 🧱 供試体（v611・v612。表電卓の 道具。apps/kyoshi/ から 単独の アプリとしても 開ける。はじめて 開いたときに 読む）
+/* 🧱 供試体（v611〜v615。v615 から メイン画面は「供試体 破壊予定ボード」の 形（ボード・カレンダー・試験一覧・破壊一覧・Excel連携）。カレンダーへ 送る 機能は 右上の 小さな 📅（まとめて 送る・⚙ 設定）に。表電卓の 道具。apps/kyoshi/ から 単独の アプリとしても 開ける。はじめて 開いたときに 読む）
    現場で 採った 供試体（テストピース）の 採った日・現場・配合・材齢（7日・28日 など）・本数を 入れると、
    試験の 日（採った日 ＋ 材齢）を 出す。
    ・📅 試験の 予定：⚠ 過ぎた（まだ ✓ して いない。2週間まで）・きょう・あした・この先（日ごと）。日曜・祝日は 赤、土曜は 青。
@@ -19,6 +19,10 @@
      この 道具を 開いた ときに 送る（入れたら すぐ の 送り先だけ）。送り先は 自分で 貼った script.google.com の URL だけ
      （index.html の connect-src も その 2つだけ 足して ある）。
    ・🗓 1件ずつ Google カレンダーで 開く ときの アカウント（authuser。v612）。
+   ・🗓 カレンダー（v614）：月の カレンダーに 採った日（採）と 試験の 日（赤＝過ぎた・橙＝きょう・緑＝この先・灰＝済み）。
+     日を 押すと 下に その日の 採取・試験。◀ ▶・今日・左右に なぞって 月を かえる。上に 遅れ・きょう・あした・7日 以内・まだ 合計 の 数。
+   ・📝 カレンダーに 入れる 書式（v614。⚙ → 📝）：予定の 名前（まだ・済み。{現場}{配合}{材齢}{本数}{打設箇所}{番号}{採った日}{試験日}）・
+     採った日にも 予定を 入れる（名前）・説明に 入れる もの・色（Google）。かえると すぐ 送る 送り先の 予定も 直る。
    ・📋 文字で コピー。中身は excalc_kyoshi（この 端末の 中。設定の バックアップに 入る）。 */
 (function(){
 'use strict';
@@ -60,12 +64,26 @@ const ymdJa=d=>d.getFullYear()+'年'+md(d)+'（'+WD[d.getDay()]+'）';
 const hol=d=>{ try{ return typeof tbHolName==='function' ? tbHolName(d) : ''; }catch(_){ return ''; } };   // 祝日（当番表と 同じ 計算）
 const dayCls=d=>hol(d) || d.getDay()===0 ? 'sun' : d.getDay()===6 ? 'sat' : '';
 const dHtml=d=>{ const hn=hol(d); return `<span class="kyo-d ${dayCls(d)}">${esc(mdw(d))}${hn ? `<small>${esc(hn)}</small>` : ''}</span>`; };
-const tdOf=(it, a)=>addDays(okDate(it.date), a.d);
+const daysOf=a=>a.dd||a.d;   // 破壊までの 日数（ふつうは 材齢どおり。σ28を 27日目に、など かえた ときは dd）
+const tdOf=(it, a)=>addDays(okDate(it.date), daysOf(a));
 
 /* ───────── 決まり ───────── */
 const AGE_CHOICES=[1,3,7,14,28,56,91];
 const ALARMS=[['p17','前の日の 17時',420],['p9','前の日の 9時',900],['none','知らせない',null]];   // 終日の 予定の 0時から 何分 前
-const COLOR={todo:'6', done:'8'};   // Google カレンダーの 予定の 色（6＝みかん・8＝グラファイト）
+// 📝 カレンダーに 入れる 書式（v613）。はじめは v611・v612 と 同じ 名前・説明・色
+const FMT0={title:'🧱 {材齢}日 試験：{現場} {配合} {本数}本', titleDone:'✅ {材齢}日 試験 済み：{現場} {配合} {本数}本', samp:false, sampTitle:'採 {現場} {配合}',
+  desc:{sd:true, age:true, mix:true, part:true, no:true, n:true, done:true, memo:true, src:true}, color:{todo:'6', done:'8', samp:'5'}};
+const TAGS=['現場','配合','材齢','本数','打設箇所','番号','採った日','試験日'];
+const DESC_ITEMS=[['sd','採った日'],['age','材齢と 試験の 日'],['mix','配合'],['part','打設箇所'],['no','番号'],['n','本数'],['done','済み（いつ）'],['memo','メモ'],['src','（表電卓から）']];
+const GCOLORS=[['1','ラベンダー','#7986cb'],['2','セージ','#33b679'],['3','ブドウ','#8e24aa'],['4','フラミンゴ','#e67c73'],['5','バナナ','#f6bf26'],['6','ミカン','#f4511e'],['7','ピーコック','#039be5'],
+  ['8','グラファイト','#616161'],['9','ブルーベリー','#3f51b5'],['10','バジル','#0b8043'],['11','トマト','#d50000'],['','つけない（カレンダーの 色）','']];   // Google カレンダーの 予定の 色
+function cleanFmt(o){
+  o=(o && typeof o==='object') ? o : {};
+  const t=(v,d)=>oneLine(v,80)||d, desc={}, color={};
+  DESC_ITEMS.forEach(([k])=>{ desc[k]=!(o.desc && typeof o.desc==='object' && o.desc[k]===false); });
+  ['todo','done','samp'].forEach(k=>{ const v=o.color && typeof o.color==='object' && o.color[k]!=null ? String(o.color[k]) : FMT0.color[k]; color[k]=GCOLORS.some(c=>c[0]===v) ? v : FMT0.color[k]; });
+  return {title:t(o.title, FMT0.title), titleDone:t(o.titleDone, FMT0.titleDone), samp:o.samp===true, sampTitle:t(o.sampTitle, FMT0.sampTitle), desc, color};
+}
 
 /* ───────── 状態 ───────── */
 let st=null;
@@ -74,15 +92,19 @@ function cleanRec(x){   // 送り先に 送った 予定の 控え
   const g={id:oneLine(x.id,200), sd:okDate(x.sd) ? x.sd : '', h:oneLine(x.h,20), c:oneLine(x.c,100), e:oneLine(x.e,120)};
   return g.id || g.e ? g : null;
 }
+function cleanRecs(x){   // 送り先ごとの 控え（{送り先の id: 控え}）
+  const g={};
+  if(x && typeof x==='object'){
+    if('id' in x || 'h' in x){ const r=cleanRec(x); if(r) g.g1=r; }   // v611 の 形（送り先 1つ）
+    else Object.keys(x).forEach(k=>{ if(okDid(k) && Object.keys(g).length<MAX_DST){ const r=cleanRec(x[k]); if(r) g[k]=r; } });
+  }
+  return g;
+}
 function cleanAge(x){
   if(!x || typeof x!=='object') return null;
   const d=Number(x.d); if(!(Number.isInteger(d) && d>=1 && d<=365)) return null;   // 0日・366日 より 先は 入れない
-  const g={};
-  if(x.g && typeof x.g==='object'){
-    if('id' in x.g || 'h' in x.g){ const r=cleanRec(x.g); if(r) g.g1=r; }   // v611 の 形（送り先 1つ）
-    else Object.keys(x.g).forEach(k=>{ if(okDid(k) && Object.keys(g).length<MAX_DST){ const r=cleanRec(x.g[k]); if(r) g[k]=r; } });
-  }
-  return {d, n:intIn(x.n,1,30,3), done:okDate(x.done) ? x.done : '', g};
+  const dd=intIn(x.dd,0,400,0);
+  return {d, dd:dd===d ? 0 : dd, n:intIn(x.n,1,30,3), done:okDate(x.done) ? x.done : '', g:cleanRecs(x.g)};
 }
 function cleanIt(x){
   if(!x || typeof x!=='object') return null;
@@ -91,7 +113,7 @@ function cleanIt(x){
   const seen=new Set(), ages=(Array.isArray(x.ages) ? x.ages : []).map(cleanAge).filter(a=>a && !seen.has(a.d) && seen.add(a.d)).sort((a,b)=>a.d-b.d).slice(0,12);
   if(!ages.length) return null;
   const num=v=>{ const n=Number(v); return isFinite(n) && n>0 ? n : 0; }, at=num(x.at)||Date.now();
-  return {id:okId(x.id) ? x.id : rid(), date, site, mix:oneLine(x.mix,30), part:oneLine(x.part,30), no:oneLine(x.no,30), memo:multi(x.memo,200), ages, at, mt:num(x.mt)||at, fx:num(x.fx)};
+  return {id:okId(x.id) ? x.id : rid(), date, site, mix:oneLine(x.mix,30), part:oneLine(x.part,30), no:oneLine(x.no,30), memo:multi(x.memo,200), ages, at, mt:num(x.mt)||at, fx:num(x.fx), sg:cleanRecs(x.sg)};   // sg：採った日の 予定（v613）の 控え
 }
 const newTok=()=>rnd(12, 'abcdefghijkmnpqrstuvwxyz23456789');
 function cleanDst(x, i){   // ☁ Google の 送り先（アカウントごと）
@@ -110,7 +132,7 @@ function load(){
     dests=[cleanDst({id:'g1', name:'Google', url:o.g.url, tok:o.g.tok, cal:o.g.cal, calName:o.g.calName, auto:o.g.on!==false, last:o.g.last, err:o.g.err, net:o.g.net}, 0)];
   dests.forEach((D,i,a)=>{ if(a.findIndex(x=>x.id===D.id)<i) D.id='g'+rnd(6); });
   const ids=new Set(dests.map(D=>D.id));
-  items.forEach(it=>it.ages.forEach(a=>Object.keys(a.g).forEach(k=>{ if(!ids.has(k)) delete a.g[k]; })));   // ない 送り先の 控えは 消す
+  items.forEach(it=>[it.sg].concat(it.ages.map(a=>a.g)).forEach(g=>Object.keys(g).forEach(k=>{ if(!ids.has(k)) delete g[k]; })));   // ない 送り先の 控えは 消す
   const dq=(Array.isArray(o.dq) ? o.dq : []).map(d=>{
     if(!d || !okKey(d.k)) return null;
     const dst=okDid(d.dst) ? d.dst : 'g1';
@@ -119,7 +141,7 @@ function load(){
   const def=(o.def && typeof o.def==='object') ? o.def : {};
   const dAges=[...new Set((Array.isArray(def.ages) ? def.ages : [7,28]).map(v=>intIn(v,1,365,0)).filter(Boolean))].sort((a,b)=>a-b).slice(0,12);
   const al=[o.alarm, o.g && o.g.alarm].find(v=>ALARMS.some(a=>a[0]===v))||'p17';
-  st={items, dq, dests, alarm:al, auth:okMail(o.auth) ? o.auth : '', view:['plan','list'].includes(o.view) ? o.view : 'plan',
+  st={items, dq, dests, alarm:al, auth:okMail(o.auth) ? o.auth : '', view:['board','cal','tests','list'].includes(o.view) ? o.view : o.view==='plan' ? 'board' : 'board', fmt:cleanFmt(o.fmt),
     def:{ages:dAges.length ? dAges : [7,28], n:intIn(def.n,1,30,3), ask:def.ask!==false}, q:0};
 }
 function save(){
@@ -133,11 +155,16 @@ const dReady=D=>!!(D && D.url && D.tok);
 const autoDs=()=>st ? st.dests.filter(D=>dReady(D) && D.auto) : [];
 const gOn=()=>!!(st && st.dests.some(dReady));   // Google の 送り先が ある
 const sentTo=(a, D)=>!!(a.g[D.id] && a.g[D.id].id);   // その 送り先に 1回は 入れた
+// 採った日の 予定（v613）は 仮の 材齢 {d:0, samp:true}（控えは it.sg）。同じ 供試体には いつも 同じ もの（送る ものの 覚えで 見分ける）
+const sampC=new WeakMap();
+function sampOf(it){ let s=sampC.get(it); if(!s || s.g!==it.sg){ s={d:0, n:0, done:'', g:it.sg, samp:true}; sampC.set(it, s); } return s; }
+const keyOf=(it, a)=>it.id+'-'+(a.samp ? 's' : a.d);   // 予定の 印（Google の タグ hyo・.ics の UID）
+const evsOf=it=>st.fmt.samp ? it.ages.concat([sampOf(it)]) : it.ages;   // カレンダーに 入れる 予定（試験＋採った日）
 
 /* ───────── 試験の 一覧 ───────── */
 function tests(){
   const T=today(), L=[];
-  st.items.forEach(it=>{ const sd=okDate(it.date); it.ages.forEach(a=>{ const td=addDays(sd, a.d); L.push({it, a, sd, td, dd:diff(td, T)}); }); });
+  st.items.forEach(it=>{ const sd=okDate(it.date); it.ages.forEach(a=>{ const td=addDays(sd, daysOf(a)); L.push({it, a, sd, td, dd:diff(td, T)}); }); });
   L.sort((x,y)=>x.dd-y.dd || x.it.site.localeCompare(y.it.site,'ja') || x.a.d-y.a.d);
   return L;
 }
@@ -145,12 +172,24 @@ const stOf=x=>x.a.done ? 'dn' : x.dd<0 ? 'late' : x.dd===0 ? 'today' : '';
 const futOf=it=>{ const T=ymd(today()); return it.ages.filter(a=>ymd(tdOf(it, a))>=T); };   // この先（きょう から）の 試験
 
 /* ───────── 予定の 中身（☁ Google・📱 .ics で 同じ） ───────── */
+// 書式の {現場} などを その 供試体の 字に（空なら 消す）。採った日の 予定では 材齢・本数・試験日は ぜんぶを 並べる
+function fill(tpl, it, a){
+  const sd=okDate(it.date), md2=d=>(d.getMonth()+1)+'/'+d.getDate(), s=!!a.samp;
+  const v={現場:it.site, 配合:it.mix, 打設箇所:it.part, 番号:it.no, 採った日:md2(sd),
+    材齢:s ? it.ages.map(x=>x.d).join('・') : String(a.d), 本数:s ? String(it.ages.reduce((n,x)=>n+x.n, 0)) : String(a.n),
+    試験日:s ? it.ages.map(x=>md2(addDays(sd, daysOf(x)))).join('・') : md2(addDays(sd, daysOf(a)))};
+  const out=String(tpl||'').replace(/\{(現場|配合|材齢|本数|打設箇所|番号|採った日|試験日)\}/g, (_,k)=>v[k]||'').replace(/[ \u3000]{2,}/g,' ').replace(/[（(][ \u3000]*[)）]/g,'').trim();
+  return oneLine(out, 200) || it.site;
+}
 function evOf(it, a){
-  const sd=okDate(it.date), td=addDays(sd, a.d), dn=okDate(a.done);
-  const title=(a.done ? '✅ ' : '🧱 ')+a.d+'日 試験'+(a.done ? ' 済み' : '')+'：'+it.site+(it.mix ? ' '+it.mix : '')+' '+a.n+'本';
-  const desc=['採った日：'+ymdJa(sd), '材齢：'+a.d+'日（試験の 日 '+ymdJa(td)+'）', it.mix ? '配合：'+it.mix : '', it.part ? '打設箇所：'+it.part : '', it.no ? '番号：'+it.no : '',
-    '本数：'+a.n+'本', dn ? '✓ 試験 済み（'+md(dn)+'）' : '', it.memo ? 'メモ：'+it.memo : '', '（🧱 表電卓の 供試体 から）'].filter(Boolean).join('\n');
-  return {k:it.id+'-'+a.d, date:ymd(td), title, desc, color:a.done ? COLOR.done : COLOR.todo};
+  const f=st.fmt, D=f.desc, s=!!a.samp, sd=okDate(it.date), td=addDays(sd, s ? 0 : daysOf(a)), dn=s ? null : okDate(a.done);
+  const title=fill(s ? f.sampTitle : a.done ? f.titleDone : f.title, it, a);
+  const lines=s ? [D.sd ? '採った日：'+ymdJa(sd) : '', D.age ? '試験の 日：'+it.ages.map(x=>x.d+'日 → '+ymdJa(addDays(sd, daysOf(x)))).join('・') : '',
+      D.mix && it.mix ? '配合：'+it.mix : '', D.part && it.part ? '打設箇所：'+it.part : '', D.no && it.no ? '番号：'+it.no : '',
+      D.n ? '本数：'+it.ages.map(x=>x.d+'日 '+x.n+'本').join('・') : '', D.memo && it.memo ? 'メモ：'+it.memo : '', D.src ? '（🧱 表電卓の 供試体 から）' : '']
+    : [D.sd ? '採った日：'+ymdJa(sd) : '', D.age ? '材齢：'+a.d+'日'+(daysOf(a)!==a.d ? '（'+daysOf(a)+'日目に 破壊）' : '')+'（試験の 日 '+ymdJa(td)+'）' : '', D.mix && it.mix ? '配合：'+it.mix : '', D.part && it.part ? '打設箇所：'+it.part : '', D.no && it.no ? '番号：'+it.no : '',
+      D.n ? '本数：'+a.n+'本' : '', D.done && dn ? '✓ 試験 済み（'+md(dn)+'）' : '', D.memo && it.memo ? 'メモ：'+it.memo : '', D.src ? '（🧱 表電卓の 供試体 から）' : ''];
+  return {k:keyOf(it, a), date:ymd(td), title, desc:lines.filter(Boolean).join('\n'), color:s ? f.color.samp : a.done ? f.color.done : f.color.todo};
 }
 const alarmMin=()=>(ALARMS.find(x=>x[0]===st.alarm)||ALARMS[0])[2];
 const alarmNote=()=>{ const a=ALARMS.find(x=>x[0]===st.alarm)||ALARMS[0]; return a[2]==null ? '知らせは なし' : a[1]+'に 知らせ'; };
@@ -172,7 +211,7 @@ function plan(D){
   const out=[]; if(!st || !dReady(D)) return out;
   const T=ymd(today()), cal=D.cal, al=alarmMin();
   st.dq.forEach(d=>{ if(d.dst===D.id) out.push({t:'dq', D, d, op:{op:'del', k:d.k, id:d.id, date:d.sd, sd:d.sd, cal:d.c}}); });
-  st.items.forEach(it=>it.ages.forEach(a=>{
+  st.items.forEach(it=>{ evsOf(it).forEach(a=>{
     const e=evOf(it, a), g=a.g[D.id], sent=!!(g && g.id), past=e.date<T;
     let id=sent ? g.id : '', sd=sent ? g.sd : '';
     if(sent && (g.c||'')!==cal){
@@ -182,7 +221,10 @@ function plan(D){
     else if(sent && g.h===evHash(e)) return;   // もう 入って いる
     if(!sent && past) return;
     out.push({t:'put', D, it, a, h:evHash(e), op:{op:'put', k:e.k, date:e.date, sd, id, title:e.title, desc:e.desc, alarm:al, color:e.color, cal}});
-  }));
+  });
+    const sa=sampOf(it), sg=sa.g[D.id];   // 採った日の 予定を 止めた：この先の ものは 消す（過ぎた ものは 残す）
+    if(!st.fmt.samp && sg && sg.id && (sg.sd||'9')>=T) out.push({t:'un', D, it, a:sa, op:{op:'del', k:keyOf(it, sa), id:sg.id, date:sg.sd, sd:sg.sd, cal:sg.c||''}});
+  });
   return out;
 }
 // 送る ものの 覚え（送り先ごとに 試験 1つ → plan の 1つ）。save() と 画面を 作る たびに 作り直す
@@ -233,8 +275,8 @@ function applyRes(p, x){
   const ok=!!(x && x.ok), D=p.D;
   if(!st.dests.includes(D)) return ok;   // 送って いる 間に 送り先を 消した
   if(p.t==='dq'){ if(ok){ const i=st.dq.indexOf(p.d); if(i>=0) st.dq.splice(i,1); } else p.d.e=errOf(x); return ok; }
-  if(p.t==='mv'){ if(ok && p.a.g[D.id] && p.a.g[D.id].id===p.op.id) delete p.a.g[D.id]; return ok; }
-  const alive=st.items.includes(p.it) && p.it.ages.includes(p.a);
+  if(p.t==='mv' || p.t==='un'){ if(ok && p.a.g[D.id] && p.a.g[D.id].id===p.op.id) delete p.a.g[D.id]; return ok; }
+  const alive=st.items.includes(p.it) && (p.a.samp ? st.fmt.samp : p.it.ages.includes(p.a));
   if(ok && x.id){
     const id=oneLine(x.id,200);
     if(!alive){ st.dq.push({dst:D.id, k:p.op.k, id, sd:p.op.date, c:p.op.cal, e:''}); return true; }   // 送って いる 間に 消した もの は 消しに 行く
@@ -481,110 +523,186 @@ function op_(op) {
 `;
 const gasCode=tok=>GAS.replace('%AIKOTOBA%', okTok(tok) ? tok : 'aikotoba');
 
-/* ───────── 画面 ───────── */
-let lq='', listMax=LIST_STEP;
+/* ───────── 画面（v615。「供試体 破壊予定ボード」と 同じ 形：1行＝1回の 試験） ───────── */
+let base='', month='', selDay='', testF='open', testMonth='', listF='open', tq='', lq='';
 const isOpen=()=>!!($('kyoshiOverlay') && typeof isDlgOpen==='function' && isDlgOpen('kyoshiOverlay'));
 const notInN=()=>st.items.filter(notIn).length;
-function topHtml(){
-  const n=notInN();
-  return `<button type="button" class="kyo-b pri" onclick="KYOSHI.add()">＋ 入れる</button><button type="button" class="kyo-b" onclick="KYOSHI.batch()" aria-label="まとめて 送る${n ? '（まだ '+n+'件）' : ''}">📅 まとめて 送る${n ? `<b class="kyo-cnt">${n}</b>` : ''}</button><button type="button" class="kyo-b" onclick="KYOSHI.copy()">📋 コピー</button>`;
+/* 日づけを 文字（YYYY-MM-DD）の まま あつかう */
+const S0=()=>ymd(today());
+const sAdd=(s, n)=>ymd(addDays(okDate(s), n));
+const sMd=s=>{ const d=okDate(s); return d ? (d.getMonth()+1)+'/'+d.getDate() : ''; };
+const sMdw=s=>{ const d=okDate(s); return d ? (d.getMonth()+1)+'/'+d.getDate()+'('+WD[d.getDay()]+')' : ''; };
+const sDow=s=>okDate(s).getDay();
+const ageCls=a=>a===7 ? 'a7' : a===28 ? 'a28' : a<7 ? 'a3' : '';
+const sig=a=>'σ'+a;
+/* 1行＝1回の 試験（供試体 1つ × 材齢 1つ） */
+function mkRow(it, a){ const dys=daysOf(a); return {id:it.id+'-'+a.d, it, a, sampled:it.date, name:it.site, age:a.d, days:dys, shifted:dys!==a.d, note:it.memo, done:!!a.done, b:sAdd(it.date, dys)}; }
+function rows(){ const L=[]; st.items.forEach(it=>it.ages.forEach(a=>L.push(mkRow(it, a)))); return L; }
+function rowOf(id){ const m=/^([a-z0-9]{4,12})-(\d{1,3})$/.exec(String(id)); const it=m && itOf(m[1]), a=it && ageOf(it, +m[2]); return a ? mkRow(it, a) : null; }
+const isLate=r=>!r.done && r.b<S0();
+const sortRows=L=>L.slice().sort((x,y)=>(x.done-y.done) || x.b.localeCompare(y.b) || x.sampled.localeCompare(y.sampled) || x.name.localeCompare(y.name,'ja'));
+
+function statsHtml(){
+  const t=S0(), t1=sAdd(t,1), R=rows(), open=R.filter(r=>!r.done);
+  const late=open.filter(isLate).length, tn=R.filter(r=>r.b===t).length, tOpen=open.filter(r=>r.b===t).length, tm=R.filter(r=>r.b===t1).length;
+  const wk=open.filter(r=>r.b>=t && r.b<=sAdd(t,6)).length;
+  return `<span class="kyo-stat late"><span>遅れ</span><b>${late}</b>件</span><span class="kyo-stat today"><span>今日</span><b>${tn}</b>件${tn ? `（残り ${tOpen}）` : ''}</span><span class="kyo-stat"><span>明日</span><b>${tm}</b>件</span><span class="kyo-stat"><span>7日以内の未破壊</span><b>${wk}</b>件</span><span class="kyo-stat"><span>未破壊 合計</span><b>${open.length}</b>件</span>`;
 }
+// ヘッダーの 小さな 印（カレンダーに 送る 設定を した ときだけ。目立たせない）
+function syncHtml(){
+  const L=st.dests.filter(dReady); if(!L.length) return '';
+  const n=L.reduce((s,D)=>s+plan(D).length, 0), D0=L.find(D=>D.err && plan(D).length);
+  if(syncing) return '<span class="kyo-sy">☁ 送信中…</span>';
+  if(D0) return `<button type="button" class="kyo-sy err" onclick="KYOSHI.gedit('${D0.id}')" title="${esc(D0.err)}">⚠ カレンダーに 送れて いません</button>`;
+  const w=L.find(D=>D.auto && plan(D).length), m=L.some(D=>!D.auto && plan(D).length);
+  return `<span class="kyo-sy">${w ? '☁ 送信まち '+plan(w).length+'件' : m ? '☁ 未送信 あり' : '☁ 送信ずみ'}</span>`;
+}
+function headHtml(){
+  const d=today();
+  return `<div class="kyo-head"><div class="kyo-today">今日 <b class="kyo-num">${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]})</b></div><div class="kyo-spacer"></div><span id="kyoSync">${syncHtml()}</span>
+    <button type="button" class="kyo-b" onclick="KYOSHI.excel()">Excel連携</button>
+    <button type="button" class="kyo-b pri" onclick="KYOSHI.add()">＋ 供試体を登録</button>
+    <button type="button" class="kyo-b kyo-cal-b" onclick="KYOSHI.batch()" title="カレンダーに 送る（Google・iPhone・Outlook など）" aria-label="カレンダーに 送る">📅</button></div>`;
+}
+const VIEWS=[['board','ボード'],['cal','カレンダー'],['tests','試験一覧'],['list','破壊一覧']];
+const viewHtml=()=>st.view==='board' ? boardHtml() : st.view==='cal' ? calHtml() : st.view==='tests' ? testsHtml() : listHtml();
 function render(){
   const b=$('kyoBody'); if(!b || !st) return;
-  const top=b.scrollTop; pm=null;
-  b.innerHTML=`<div class="kyo-wrap">
-    <div class="kyo-top" id="kyoTop">${topHtml()}</div>
-    <div id="kyoGBar">${gBarHtml()}</div>
-    <div class="kyo-tabs" role="tablist">${[['plan','📅 試験の 予定'],['list','🧱 採った 供試体']].map(([k,t])=>`<button type="button" role="tab" aria-selected="${st.view===k}" class="${st.view===k?'on':''}" onclick="KYOSHI.view('${k}')">${t}</button>`).join('')}</div>
-    <div id="kyoView">${st.view==='plan' ? planHtml() : listHtml()}</div>
-  </div>`;
-  b.scrollTop=top;
+  const top=b.scrollTop;
+  if(!base) base=S0(); if(!month) month=S0().slice(0,7); if(!okDate(selDay)) selDay=S0();
+  b.innerHTML=`<div class="kyo-wrap">${headHtml()}<div class="kyo-stats" id="kyoStats">${statsHtml()}</div>
+    <div class="kyo-toolbar"><div class="kyo-tabs" role="tablist">${VIEWS.map(([k,t])=>`<button type="button" role="tab" aria-selected="${st.view===k}" class="${st.view===k ? 'on' : ''}" onclick="KYOSHI.view('${k}')">${t}</button>`).join('')}</div><div id="kyoNav">${navHtml()}</div></div>
+    <div id="kyoView">${viewHtml()}</div>${legendHtml()}</div>`;
+  b.scrollTop=top; bindCal();
 }
 // ☁ の ようすが かわった ときに（打って いる 字を 消さない ように、入れる 欄の ない ところだけ 書き直す）
 function refresh(){
   if(!isOpen() || !st) return;
   pm=null;
-  const tp=$('kyoTop'); if(tp) tp.innerHTML=topHtml();
-  const gb=$('kyoGBar'); if(gb) gb.innerHTML=gBarHtml();
-  if(st.view==='plan'){ const v=$('kyoView'); if(v) v.innerHTML=planHtml(); }
-  else { const l=$('kyoList'); if(l) l.innerHTML=listInner(); }
-  if(pop && pop.kind==='item'){ const it=itOf(pop.id), ae=pop.el.querySelector('#kyoAgesEd'); if(it && ae) ae.innerHTML=agesEdHtml(it); }
+  const sy=$('kyoSync'); if(sy) sy.innerHTML=syncHtml();
+  const ss=$('kyoStats'); if(ss) ss.innerHTML=statsHtml();
+  const ae=document.activeElement, v=$('kyoView');
+  if(v && !(ae && v.contains(ae) && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName))) reView();
+  if(pop && pop.kind==='detail') reItem();
   if(pop && pop.kind==='gd') reGst();
+  if(pop && pop.kind==='batch'){ const bl=pop.el.querySelector('#kyoBList'); if(bl) bl.innerHTML=batchListHtml(); }
 }
 const lastText=s=>{ const d=new Date(s); if(isNaN(d.getTime())) return ''; return (diff(new Date(d.getFullYear(), d.getMonth(), d.getDate()), today())===0 ? 'きょう ' : md(d)+' ')+pad2(d.getHours())+':'+pad2(d.getMinutes()); };
 const calTxt=D=>'カレンダー「'+(D.calName||D.cal||'いつもの カレンダー')+'」';
-function gBarHtml(){
-  const L=st.dests.filter(dReady);
-  if(!L.length) return `<button type="button" class="kyo-gbar off" onclick="KYOSHI.gopen()"><span><b>☁ 入れるだけで Google カレンダーに</b><small>はじめに 1回だけ 設定します（10分ほど。パソコンが かんたん）</small></span></button>`;
-  const many=st.dests.length>1;
-  return L.map(D=>{
-    const nm=many ? D.name+'：' : '', n=plan(D).length;
-    if(syncing===D.id) return `<div class="kyo-gbar run" role="status"><span><b>☁ ${esc(nm)}Google カレンダーに 送って います…</b></span></div>`;
-    if(D.err && n) return `<button type="button" class="kyo-gbar err" onclick="KYOSHI.gedit('${D.id}')"><span><b>⚠ ${esc(nm)}Google カレンダーに 送れて いません（${n}件）</b><small>${esc(D.err)}</small></span></button>`;
-    if(!D.auto) return n ? `<div class="kyo-gbar later"><span><b>📤 ${esc(nm)}まとめて 送る とき に 送ります（まだ ${n}件）</b><small>${esc(D.net || calTxt(D))}</small></span><button type="button" class="kyo-b sm" onclick="KYOSHI.batch({dst:'${D.id}'})">📅 まとめて 送る</button></div>`
-      : `<button type="button" class="kyo-gbar ok" onclick="KYOSHI.gedit('${D.id}')"><span><b>☁ ${esc(nm)}まとめて 送る（ぜんぶ 入って います）</b><small>${esc(calTxt(D)+(D.last ? '・最後に 送った '+lastText(D.last) : ''))}</small></span></button>`;
-    if(n) return `<div class="kyo-gbar wait"><span><b>⏳ ${esc(nm)}まだ 送って いない ${n}件</b><small>${esc(navigator.onLine===false ? '電波が もどったら 送ります' : D.net || 'すぐ 送ります')}</small></span><button type="button" class="kyo-b sm" onclick="KYOSHI.sync()">☁ 今 送る</button></div>`;
-    return `<button type="button" class="kyo-gbar ok" onclick="KYOSHI.gedit('${D.id}')"><span><b>☁ ${esc(nm)}Google カレンダーに 自動で 入れて います</b><small>${esc([calTxt(D), D.last ? '最後に 送った '+lastText(D.last) : ''].filter(Boolean).join('・'))}</small></span></button>`;
-  }).join('');
+function legendHtml(){
+  return `<div class="kyo-legend"><span><i style="background:var(--k-d3)"></i>σ3・σ4など</span><span><i style="background:var(--k-d7)"></i>σ7</span><span><i style="background:var(--k-d28)"></i>σ28</span><span><i class="s"></i>採＝採取日（カレンダー）</span><span><i style="background:var(--k-late)"></i>遅れ（予定日を過ぎて未破壊）</span><span><i style="background:var(--k-done)"></i>破壊済</span><span>カードの ◯ を タップで 破壊済に できます</span></div>`;
 }
-function emptyHtml(){
-  return `<div class="kyo-empty"><p><b>現場で 採った 供試体を 入れると、試験の 日（7日・28日 など）が わかります。</b></p>
-    <p>「＋ 入れる」で 採った日・現場・配合・材齢・本数を 入れます。1日に 何件でも 続けて 入れて、「📅 まとめて 送る」で カレンダーに 入れられます。${gOn() ? 'Google カレンダーにも 送ります。' : '上の ☁ を 設定すると、入れるだけで Google カレンダーにも 入ります。'}</p>
-    <button type="button" class="kyo-b pri" onclick="KYOSHI.add()">＋ 入れる</button></div>`;
+function navHtml(){
+  if(st.view==='list' || st.view==='tests') return '';
+  const lbl=st.view==='board' ? sMdw(base)+' 〜 '+sMdw(sAdd(base,6)) : month.slice(0,4)+'年'+(+month.slice(5))+'月';
+  return `<div class="kyo-nav"><button type="button" class="kyo-b" onclick="KYOSHI.nav(-1)" aria-label="前へ">◀</button><span class="lbl kyo-num">${lbl}</span><button type="button" class="kyo-b" onclick="KYOSHI.nav(1)" aria-label="次へ">▶</button><button type="button" class="kyo-b" onclick="KYOSHI.navToday()">今日</button></div>`;
 }
-function rowHtml(x, showDate){
-  const {it, a}=x, s=stOf(x), lb=esc(it.site)+' '+a.d+'日';
-  return `<div class="kyo-row ${s}">
-    <span class="kyo-age" aria-hidden="true"><b>${a.d}</b>日</span>
-    <button type="button" class="kyo-main" onclick="KYOSHI.open('${it.id}')" aria-label="${lb}の くわしく">
-      <span><b class="nm">${esc(it.site)}</b>${it.mix ? ` <span class="mx">${esc(it.mix)}</span>` : ''}</span>
-      <small>${showDate ? '試験 '+dHtml(x.td)+'・' : ''}採取 ${esc(mdw(x.sd))}・${a.n}本${it.part ? '・'+esc(it.part) : ''}${it.no ? '・'+esc(it.no) : ''}${gIcon(it, a)}</small>
-    </button>
-    <button type="button" class="kyo-do${a.done ? ' dn' : ''}" onclick="KYOSHI.done('${it.id}', ${a.d})" aria-label="${lb}を ${a.done ? '済みから もどす' : '試験した に する'}">${a.done ? '✓<small>済み</small>' : '✓<small>試験<br>した</small>'}</button>
-  </div>`;
+function reView(){ const v=$('kyoView'); if(!v || !st) return; v.innerHTML=viewHtml(); const n=$('kyoNav'); if(n) n.innerHTML=navHtml(); bindCal(); }
+function reAll(){ render(); }
+
+/* カード */
+function cardHtml(r, showDate){
+  const late=isLate(r), cls=ageCls(r.age);
+  return `<div class="kyo-card ${cls} ${late ? 'late' : ''} ${r.done ? 'done' : ''}" data-id="${r.id}" role="button" tabindex="0" onclick="KYOSHI.detail('${r.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();KYOSHI.detail('${r.id}')}">
+    <span class="nm">${esc(r.name)}${r.it.mix ? ` <span class="mx">${esc(r.it.mix)}</span>` : ''}</span>
+    <button type="button" class="chk" onclick="event.stopPropagation();KYOSHI.chk('${r.id}')" title="${r.done ? '未破壊に戻す' : '破壊済にする'}" aria-label="${esc(r.name)}の ${sig(r.age)}を ${r.done ? '未破壊に戻す' : '破壊済にする'}">✓</button>
+    <span class="meta"><span class="age ${cls}">${sig(r.age)}</span>${r.shifted ? `<span class="shift">${r.days}日目</span>` : ''}<span>採取 <span class="kyo-num">${sMd(r.sampled)}</span></span>${showDate ? `<span>予定 <span class="kyo-num">${sMdw(r.b)}</span></span>` : ''}</span>
+    ${r.note ? `<span class="memo">📝 ${esc(r.note)}</span>` : ''}</div>`;
 }
-function planHtml(){
-  if(!st.items.length) return emptyHtml();
-  const T=today(), L=tests();
-  const late=L.filter(x=>!x.a.done && x.dd<0 && x.dd>=-LATE_DAYS), tod=L.filter(x=>x.dd===0), tom=L.filter(x=>x.dd===1), later=L.filter(x=>x.dd>1);
-  let h='';
-  if(late.length) h+=`<h4 class="kyo-h late">⚠ 過ぎた（まだ ✓ して いない）</h4>`+late.map(x=>rowHtml(x, true)).join('');
-  h+=`<h4 class="kyo-h today">きょう ${dHtml(T)}</h4>`+(tod.length ? tod.map(x=>rowHtml(x)).join('') : '<p class="kyo-none">きょうの 試験は ありません。</p>');
-  if(tom.length) h+=`<h4 class="kyo-h">あした ${dHtml(addDays(T,1))}</h4>`+tom.map(x=>rowHtml(x)).join('');
-  let cur='';
-  later.forEach(x=>{ const k=ymd(x.td); if(k!==cur){ cur=k; h+=`<h4 class="kyo-h">${dHtml(x.td)}<small>あと ${x.dd}日</small></h4>`; } h+=rowHtml(x); });
-  if(!later.length && !tom.length) h+='<p class="kyo-none">この先の 試験は ありません。</p>';
-  return h+`<p class="kyo-note">試験が 済んだら「✓ 試験した」。行を 押すと くわしく（材齢・本数・直す・消す）。${LATE_DAYS}日 より 前に 過ぎた ものは「🧱 採った 供試体」に あります。中身は この 端末の 中に 残ります（設定の バックアップに 入ります）。</p>`;
+/* ボード（遅れ ＋ 7日分の レーン） */
+function boardHtml(){
+  const t=S0(), R=rows(), late=sortRows(R.filter(isLate)), L=[];
+  L.push(`<div class="kyo-lane is-late${late.length ? '' : ' blank'}"><div class="kyo-lh"><span class="d">⚠ 遅れ</span><span class="c">${late.length}件</span></div><div class="kyo-cards">${late.map(r=>cardHtml(r, true)).join('') || '<div class="kyo-empty">遅れなし</div>'}</div></div>`);
+  for(let i=0;i<7;i++){
+    const d=sAdd(base, i), list=sortRows(R.filter(r=>r.b===d)), w=sDow(d), lbl=d===t ? '今日 ' : d===sAdd(t,1) ? '明日 ' : '', hn=hol(okDate(d));
+    L.push(`<div class="kyo-lane${d===t ? ' is-today' : ''}${list.length ? '' : ' blank'}"><div class="kyo-lh"><span class="d ${w===0 || hn ? 'sun' : w===6 ? 'sat' : ''}">${lbl}<span class="kyo-num">${sMdw(d)}</span>${hn ? `<small>${esc(hn)}</small>` : ''}</span><span class="c">${list.length}件</span></div><div class="kyo-cards">${list.map(r=>cardHtml(r, false)).join('') || '<div class="kyo-empty">予定なし</div>'}</div></div>`);
+  }
+  return `<div class="kyo-board-scroll"><div class="kyo-board">${L.join('')}</div></div>`;
 }
-function listHits(){
-  const q=lq.normalize('NFKC').trim().toLowerCase();
-  return st.items.filter(it=>!q || [it.site,it.mix,it.part,it.no,it.memo].some(s=>s && s.normalize('NFKC').toLowerCase().includes(q)))
-    .sort((a,b)=>b.date.localeCompare(a.date) || b.at-a.at);
+/* 試験（1回の 採取）ごとに まとめる */
+function groups(){
+  return st.items.map(it=>{ const items=it.ages.map(a=>mkRow(it, a)).sort((x,y)=>x.age-y.age); return {it, sampled:it.date, name:it.site, items, done:items.every(r=>r.done), notes:it.memo}; });
 }
-function cardHtml(it, T){
-  const sd=okDate(it.date), sub=[it.part, it.no].filter(Boolean).join('・');
-  return `<button type="button" class="kyo-card" onclick="KYOSHI.open('${it.id}')">
-    <span class="t"><b class="nm">${esc(it.site)}</b>${it.mix ? ` <span class="mx">${esc(it.mix)}</span>` : ''}${sub ? `<small>${esc(sub)}</small>` : ''}</span>
-    <span class="kyo-ages">${it.ages.map(a=>{ const td=addDays(sd, a.d), x={a, dd:diff(td, T)}; return `<i class="${stOf(x)}">${a.d}日 ${esc(md(td))}${a.done ? ' ✓' : ''}${gIcon(it, a)}</i>`; }).join('')}</span>
-  </button>`;
+const groupsOn=d=>groups().filter(g=>g.sampled===d).sort((a,b)=>a.name.localeCompare(b.name,'ja'));
+/* カレンダー（月） */
+function calHtml(){
+  const [y, m]=month.split('-').map(Number), first=new Date(y, m-1, 1), start=addDays(first, -first.getDay()), t=S0(), R=rows();
+  let g=[...WD].map((w,i)=>`<div class="wd ${i===0 ? 'sun' : i===6 ? 'sat' : ''}">${w}</div>`).join('');
+  for(let i=0;i<42;i++){
+    const d=addDays(start, i), s=ymd(d); if(i===35 && d.getMonth()!==m-1) break;
+    const list=sortRows(R.filter(r=>r.b===s)), samp=groupsOn(s), w=d.getDay(), hn=hol(d);
+    const pills=samp.map(x=>`<span class="kyo-pill samp" title="採取"><b>採</b>${esc(x.name)}</span>`).concat(list.map(r=>`<span class="kyo-pill ${r.done ? 'done' : ageCls(r.age)}">${esc(r.name)} ${sig(r.age)}</span>`));
+    g+=`<button type="button" class="kyo-day${d.getMonth()!==m-1 ? ' out' : ''}${s===t ? ' today' : ''}${s===selDay ? ' sel' : ''}" data-day="${s}" onclick="KYOSHI.calDay('${s}')" aria-pressed="${s===selDay}" aria-label="${esc(mdw(d)+(hn ? ' '+hn : '')+(samp.length ? '・採取 '+samp.length+'件' : '')+(list.length ? '・破壊 '+list.length+'件' : ''))}"><span class="dn ${w===0 || hn ? 'sun' : w===6 ? 'sat' : ''}">${d.getDate()}</span>${pills.slice(0,5).join('')}${pills.length>5 ? `<span class="more">他${pills.length-5}件</span>` : ''}</button>`;
+  }
+  return `<div class="kyo-cal" id="kyoCal" data-hswipe="1">${g}</div>${selDay ? `<div class="kyo-daypanel" id="kyoDay">${dayPanelHtml(selDay)}</div>` : ''}`;
 }
-function listInner(){
-  const T=today(), L=listHits(), shown=L.slice(0, listMax);
-  if(!L.length) return `<p class="kyo-none">${lq ? '「'+esc(lq)+'」は 見つかりません。' : 'まだ ありません。'}</p>`;
-  let h='', cur='';
-  shown.forEach(it=>{ if(it.date!==cur){ cur=it.date; h+=`<h4 class="kyo-h">${dHtml(okDate(it.date))}<small>採った 日</small></h4>`; } h+=cardHtml(it, T); });
-  if(L.length>shown.length) h+=`<button type="button" class="kyo-b kyo-moreb" onclick="KYOSHI.more()">もっと 見る（あと ${L.length-shown.length}件）</button>`;
-  return h;
+function dayPanelHtml(s){
+  const list=sortRows(rows().filter(r=>r.b===s)), samp=groupsOn(s);
+  return `<h3><span class="kyo-num">${sMdw(s)}</span></h3><h4>採取 ${samp.length}件</h4>
+    <div class="kyo-samplist">${samp.map(x=>`<div class="kyo-samprow" onclick="KYOSHI.detail('${x.items[0].id}')"><span class="nm">${esc(x.name)}</span><span class="bd kyo-num">${x.items.map(r=>`${sig(r.age)} → ${sMdw(r.b)}${r.done ? ' ✓' : ''}`).join('　')}</span></div>`).join('') || '<div class="kyo-empty">採取なし</div>'}</div>
+    <h4>破壊予定 ${list.length}件</h4><div class="kyo-cards kyo-grid">${list.map(r=>cardHtml(r, false)).join('') || '<div class="kyo-empty">予定なし</div>'}</div>`;
+}
+function bindCal(){ const c=$('kyoCal'); if(c && typeof bindHSwipe==='function') bindHSwipe(c, n=>nav(n)); }   // 左へ なぞる＝次の 月
+function calDay(s){ const d=okDate(s); if(!d) return; selDay=selDay===s ? '' : s; if(selDay){ month=s.slice(0,7); } reView(); }
+function nav(n){
+  n=+n||0;
+  if(st.view==='board') base=sAdd(base, 7*n);
+  else { const [y,m]=month.split('-').map(Number), d=new Date(y, m-1+n, 1); month=ymd(d).slice(0,7); }
+  reView();
+}
+function navToday(){ base=S0(); month=S0().slice(0,7); selDay=S0(); reView(); }
+/* 試験一覧（1行＝1回の 採取） */
+function cellHtml(r){
+  const t=S0(), st0=r.done ? ['done','✓済'] : isLate(r) ? ['late','遅れ'] : r.b===t ? ['today','今日'] : ['wait', r.b===sAdd(t,1) ? '明日' : '待ち'];
+  return `<button type="button" class="kyo-tc ${st0[0]}" onclick="KYOSHI.detail('${r.id}')">${sMdw(r.b)}${r.shifted ? `<span class="shift">${r.days}日目</span>` : ''}<span class="m">${st0[1]}</span></button>`;
+}
+function testsTable(){
+  const all=groups(), months=[...new Set(all.map(g=>g.sampled.slice(0,7)))].sort().reverse();
+  if(testMonth && !months.includes(testMonth)) testMonth='';
+  const q=tq.trim().toLowerCase();
+  let list=all.filter(g=>testF==='all' || (testF==='done' ? g.done : !g.done));
+  if(testMonth) list=list.filter(g=>g.sampled.startsWith(testMonth));
+  if(q) list=list.filter(g=>(g.name+' '+g.notes+' '+g.it.mix).toLowerCase().includes(q));
+  list.sort((a,b)=>testF==='open' ? a.sampled.localeCompare(b.sampled) || a.name.localeCompare(b.name,'ja') : b.sampled.localeCompare(a.sampled) || a.name.localeCompare(b.name,'ja'));
+  const cols=[...new Set([7, 28].concat(...list.map(g=>g.items.map(r=>r.age))))].sort((a,b)=>a-b);
+  const head=`<tr><th class="sticky">採取日</th><th>共試体名</th>${cols.map(a=>`<th class="ac"><span class="age ${ageCls(a)}">${sig(a)}</span> 破壊日</th>`).join('')}<th>進み</th><th>打合せ・メモ</th></tr>`;
+  const body=list.map((g,i)=>{
+    const dn=g.items.filter(r=>r.done).length, nd=i===0 || list[i-1].sampled!==g.sampled;
+    return `<tr class="${nd ? 'grp-start' : ''}"><td class="sd sticky">${nd ? sMdw(g.sampled) : ''}</td><td class="nm">${esc(g.name)}<button type="button" class="mini" onclick="KYOSHI.edit('${g.it.id}')" title="材齢の追加・変更">編集</button></td>${cols.map(a=>{ const rs=g.items.filter(r=>r.age===a); return `<td>${rs.length ? rs.map(cellHtml).join('') : '<span class="hint">—</span>'}</td>`; }).join('')}<td class="prog ${g.done ? 'all' : ''}">${g.done ? '完了' : dn+'/'+g.items.length+' 済'}</td><td class="memo">${esc(g.notes)}</td></tr>`;
+  }).join('') || `<tr><td colspan="${cols.length+4}" class="kyo-empty">該当する試験はありません</td></tr>`;
+  return {head, body, months};
+}
+function testsHtml(){
+  const T=testsTable();
+  return `<div class="kyo-tbar"><div class="kyo-tabs" id="kyoTf">${[['open','未完了'],['all','すべて'],['done','完了']].map(([k,t])=>`<button type="button" class="${testF===k ? 'on' : ''}" aria-selected="${testF===k}" onclick="KYOSHI.tf('${k}')">${t}</button>`).join('')}</div>
+    <select id="kyoTMonth" aria-label="採取月" onchange="KYOSHI.tmonth(this.value)"><option value="">採取月：すべて</option>${T.months.map(mo=>`<option value="${mo}"${mo===testMonth ? ' selected' : ''}>${mo.slice(0,4)}年${+mo.slice(5)}月</option>`).join('')}</select>
+    <input id="kyoTq" type="search" value="${esc(tq)}" placeholder="共試体名・メモで検索" aria-label="さがす" oninput="KYOSHI.tqs(this.value)"></div>
+    <div class="kyo-tests-wrap"><table class="kyo-tests"><thead id="kyoThead">${T.head}</thead><tbody id="kyoTbody">${T.body}</tbody></table></div>
+    <div class="hint" style="margin-top:6px">1行＝1回の採取。破壊日を押すと詳細（破壊済にする・編集）が開きます。</div>`;
+}
+function tf(k){ if(!['open','all','done'].includes(k)) return; testF=k; reView(); }
+function tmonth(v){ testMonth=String(v||''); reView(); }
+function tqs(v){ tq=String(v==null ? '' : v).slice(0,40); const T=testsTable(), h=$('kyoThead'), b=$('kyoTbody'); if(h) h.innerHTML=T.head; if(b) b.innerHTML=T.body; }
+/* 破壊一覧（1行＝1回の 破壊） */
+function listBody(){
+  const q=lq.trim().toLowerCase(), t=S0();
+  let L=rows().filter(r=>listF==='all' || (listF==='done' ? r.done : !r.done));
+  if(q) L=L.filter(r=>(r.name+' '+r.note+' '+r.it.mix).toLowerCase().includes(q));
+  L=L.sort((a,b)=>listF==='done' ? b.b.localeCompare(a.b) : a.b.localeCompare(b.b));
+  return L.map(r=>{
+    const late=isLate(r), stx=r.done ? '<span class="st done">破壊済</span>' : late ? '<span class="st late">遅れ</span>' : r.b===t ? '<span class="st today">今日</span>' : '<span class="st wait">待ち</span>';
+    return `<tr class="${late ? 'late' : ''} ${r.done ? 'done' : ''}" onclick="KYOSHI.detail('${r.id}')"><td class="kyo-num">${sMdw(r.b)}</td><td>${stx}</td><td class="nm">${esc(r.name)}</td><td><span class="age ${ageCls(r.age)}">${sig(r.age)}</span></td><td class="kyo-num">${sMdw(r.sampled)}</td><td class="memo">${esc(r.note)}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="kyo-empty">該当する供試体はありません</td></tr>';
 }
 function listHtml(){
-  if(!st.items.length) return emptyHtml();
-  return `<label class="kyo-q"><span aria-hidden="true">🔎</span><input type="search" value="${esc(lq)}" placeholder="現場・配合・番号で さがす" aria-label="さがす" oninput="KYOSHI.q(this.value)"></label>
-    <div id="kyoList">${listInner()}</div>
-    <div class="kyo-acts end"><button type="button" class="kyo-b" onclick="KYOSHI.table()">▦ 表に 入れる</button><button type="button" class="kyo-b" onclick="KYOSHI.tidy()">🧹 古い ものを 片づける</button></div>
-    <p class="kyo-note">▦ は 試験 1つを 1行に して 表に 入れます（Excel・印刷にも）。🧹 は 試験の 日が みな 3か月 より 前の ものを 一覧から 消します（カレンダーの 予定は そのまま）。</p>`;
+  return `<div class="kyo-tbar"><div class="kyo-tabs" id="kyoLf">${[['open','未破壊'],['all','すべて'],['done','破壊済']].map(([k,t])=>`<button type="button" class="${listF===k ? 'on' : ''}" aria-selected="${listF===k}" onclick="KYOSHI.lf('${k}')">${t}</button>`).join('')}</div>
+    <input id="kyoLq" type="search" value="${esc(lq)}" placeholder="共試体名・メモで検索" aria-label="さがす" oninput="KYOSHI.lqs(this.value)"></div>
+    <div class="kyo-tbl-wrap" style="margin-top:8px"><table><thead><tr><th>破壊日</th><th>状態</th><th>共試体名</th><th>材齢</th><th>採取日</th><th>打合せ・メモ</th></tr></thead><tbody id="kyoLbody">${listBody()}</tbody></table></div>`;
 }
+function lf(k){ if(!['open','all','done'].includes(k)) return; listF=k; reView(); }
+function lqs(v){ lq=String(v==null ? '' : v).slice(0,40); const b=$('kyoLbody'); if(b) b.innerHTML=listBody(); }
 
-/* ───────── 小さな窓（入れる・くわしく・まとめて 送る・☁ 送り先）───────── */
+/* ───────── 小さな窓（登録・詳細・Excel連携・まとめて 送る・☁ 送り先）───────── */
 let pop=null;   // {el, rel, kind, id}
 function popOpen(html, kind, id){
   popClose();
@@ -597,198 +715,178 @@ function popOpen(html, kind, id){
   const me=pop; pop.rel=modalBack(()=>{ if(pop===me){ pop=null; el.remove(); onPopGone(me); } });   // 端末の「戻る」は この窓だけ 閉じる
 }
 function popClose(){ if(!pop) return; const p=pop; pop=null; p.rel(); p.el.remove(); onPopGone(p); }
-function onPopGone(p){ if(p.kind==='add'){ dr=null; sess=[]; } if(p.kind==='batch') bt=null; }
+function onPopGone(p){ if(p.kind==='edit') ed=null; if(p.kind==='batch') bt=null; }
 const popBody=()=>pop ? pop.el.querySelector('.kyo-pop') : null;
 function rePop(html){ const b=popBody(); if(!b) return; const top=b.scrollTop; b.innerHTML=html; b.scrollTop=top; }
 
-// 入れる 欄（dr＝入れる 前の 下書き・id＝くわしくで 直す）
-function recentVals(k, n){ const out=[]; st.items.slice().sort((a,b)=>b.at-a.at).forEach(it=>{ const v=it[k]; if(v && !out.includes(v) && out.length<n) out.push(v); }); return out; }
+/* 詳細 */
+function detailHtml(r){
+  const b=r.b, d=okDate(b);
+  return `<div class="kyo-ph"><b>${esc(r.name)}</b><button type="button" class="kyo-x" onclick="KYOSHI.close()" aria-label="閉じる">✕</button></div>
+    <dl class="kyo-kv"><dt>破壊日</dt><dd class="kyo-num">${sMdw(b)}${r.shifted ? ` <span class="shift">${r.days}日目に変更</span>` : ''}${isLate(r) ? ' <span class="st late">遅れ</span>' : ''}${d.getDay()===0 ? ' <span class="err">日曜</span>' : hol(d) ? ' <span class="err">'+esc(hol(d))+'</span>' : ''}</dd>
+    <dt>材齢</dt><dd><span class="age ${ageCls(r.age)}">${sig(r.age)}</span></dd><dt>採取日</dt><dd class="kyo-num">${sMdw(r.sampled)}</dd>
+    ${r.it.mix ? `<dt>配合</dt><dd>${esc(r.it.mix)}</dd>` : ''}${r.it.part ? `<dt>打設箇所</dt><dd>${esc(r.it.part)}</dd>` : ''}${r.it.no ? `<dt>番号</dt><dd>${esc(r.it.no)}</dd>` : ''}<dt>本数</dt><dd>${r.a.n}本</dd>
+    <dt>打合せ・メモ</dt><dd>${esc(r.note) || '—'}</dd><dt>状態</dt><dd>${r.done ? '破壊済（'+esc(sMd(r.a.done))+'）' : '未破壊'}</dd></dl>
+    <div class="kyo-acts"><button type="button" class="kyo-b warn" onclick="KYOSHI.delAsk('${r.id}')">削除</button><span class="kyo-sp"></span><button type="button" class="kyo-b" onclick="KYOSHI.again('${r.it.id}')">この現場で新規登録</button><button type="button" class="kyo-b" onclick="KYOSHI.edit('${r.it.id}')">編集・材齢変更</button><button type="button" class="kyo-b pri" onclick="KYOSHI.chk('${r.id}', true)">${r.done ? '未破壊に戻す' : '破壊済にする'}</button></div>
+    <div class="kyo-acts" id="kyoDelAsk" hidden><span class="err kyo-sp">この供試体（${sig(r.age)}）を削除しますか？元に戻せません。</span><button type="button" class="kyo-b" onclick="KYOSHI.delNo()">やめる</button><button type="button" class="kyo-b warn" onclick="KYOSHI.delYes('${r.id}')">削除する</button></div>
+    <div class="kyo-acts"><button type="button" class="kyo-b" onclick="KYOSHI.close()">閉じる</button></div>`;
+}
+function detail(id){ const r=rowOf(id); if(!r) return; popOpen(detailHtml(r), 'detail', id); }
+function reItem(){ if(pop && pop.kind==='detail'){ const r=rowOf(pop.id); if(r) rePop(detailHtml(r)); else popClose(); } }
+function delAsk(){ const e=$('kyoDelAsk'); if(e) e.hidden=false; }
+function delNo(){ const e=$('kyoDelAsk'); if(e) e.hidden=true; }
+async function delYes(id){
+  const r=rowOf(id); if(!r) return false;
+  const it=r.it;
+  if(it.ages.length>1){ goneOf(it, r.a); it.ages.splice(it.ages.indexOf(r.a),1); popClose(); changed(it); toastS('削除しました'); return true; }
+  it.ages.concat([sampOf(it)]).forEach(a=>goneOf(it, a));
+  const i=st.items.indexOf(it); if(i>=0) st.items.splice(i,1);
+  popClose(); changed(); toastS('削除しました');
+  return true;
+}
+
+/* 登録・編集 */
+let ed=null;   // {id（直す とき）, date, site, mix, part, no, memo, n, ages:[], adj:{材齢:日数}, had:[], conf}
+const BASE_AGES=[3,4,7,14,28,56,91];
+const adjOf=a=>ed.adj[a]||a;
+const edAges=()=>ed.ages.slice().sort((a,b)=>a-b);
+function histOf(){
+  const m=new Map();
+  st.items.forEach(it=>{ const h=m.get(it.site); if(!h || it.date>h.sampled) m.set(it.site, {name:it.site, sampled:it.date, ages:new Set(it.ages.map(a=>a.d)), mix:it.mix, count:(h ? h.count : 0)+1}); else { h.count++; if(it.date===h.sampled) it.ages.forEach(a=>h.ages.add(a.d)); } });
+  return [...m.values()].sort((a,b)=>b.sampled.localeCompare(a.sampled) || b.count-a.count).slice(0,12);
+}
+function namesList(){ const L=[...new Set(st.items.map(it=>it.site))].sort((a,b)=>a.localeCompare(b,'ja')), sk=shikenKoji(); if(sk && !L.includes(sk)) L.unshift(sk); return L; }
 function shikenKoji(){ try{ const o=JSON.parse(localStorage.getItem('excalc_shiken')||'null'); return o && typeof o.koji==='string' ? oneLine(o.koji,40) : ''; }catch(_){ return ''; } }   // 📝 試験報告書の 工事名
-function siteSug(){ const L=recentVals('site', 6), sk=shikenKoji(); if(sk && !L.includes(sk)) L.unshift(sk); return L.slice(0,6); }
-const sugHtml=(k, list)=>list.length ? `<div class="kyo-sug" aria-label="${k==='site' ? '前に 入れた 現場' : '前に 入れた 配合'}">${list.map(v=>`<button type="button" data-f="${k}" data-v="${esc(v)}" onclick="KYOSHI.pick(this)">${esc(v)}</button>`).join('')}</div>` : '';
-function fieldsHtml(o, id){
-  const dr=id==='dr', on=dr ? `oninput="KYOSHI.drSet(this.dataset.k, this.value)"` : `onchange="KYOSHI.set('${id}', this.dataset.k, this.value)"`;
-  return `<label class="kyo-f"><span>採った日</span><input type="date" data-k="date" value="${esc(o.date)}" ${on} aria-label="採った日"></label>
-    ${dr ? `<div class="kyo-quick">${[[0,'きょう'],[-1,'きのう'],[-2,'おととい']].map(([n,t])=>`<button type="button" class="${o.date===ymd(addDays(today(),n)) ? 'on' : ''}" onclick="KYOSHI.drDay(${n})">${t}</button>`).join('')}</div>` : ''}
-    <label class="kyo-f"><span>現場</span><input type="text" data-k="site" maxlength="40" value="${esc(o.site)}" placeholder="例：○○ビル 新築工事" autocomplete="off" ${on} aria-label="現場の 名前"></label>
-    ${dr ? sugHtml('site', siteSug()) : ''}
-    <label class="kyo-f"><span>配合</span><input type="text" data-k="mix" maxlength="30" value="${esc(o.mix)}" placeholder="例：24-18-20N" autocomplete="off" ${on} aria-label="配合（呼び方）"></label>
-    ${dr ? sugHtml('mix', recentVals('mix', 6)) : ''}
-    <details class="kyo-more"${o.part || o.no || o.memo ? ' open' : ''}><summary>くわしく（打設箇所・番号・メモ）</summary>
-      <label class="kyo-f"><span>打設箇所</span><input type="text" data-k="part" maxlength="30" value="${esc(o.part)}" placeholder="例：2F スラブ" autocomplete="off" ${on} aria-label="打設箇所"></label>
-      <label class="kyo-f"><span>番号</span><input type="text" data-k="no" maxlength="30" value="${esc(o.no)}" placeholder="例：No.1〜6" autocomplete="off" ${on} aria-label="供試体の 番号"></label>
-      <label class="kyo-f top"><span>メモ</span><textarea data-k="memo" rows="2" maxlength="200" placeholder="例：現場水中養生 3本" ${on} aria-label="メモ">${esc(o.memo)}</textarea></label>
-    </details>`;
+function edAgesHtml(){
+  const opts=[...new Set(BASE_AGES.concat(ed.ages))].sort((a,b)=>a-b);
+  return opts.map(a=>`<button type="button" class="chip" aria-pressed="${ed.ages.includes(a)}" onclick="KYOSHI.edAge(${a})">${sig(a)}</button>`).join('')+`<span class="addage"><input id="kyoEdOther" type="number" min="1" max="365" inputmode="numeric" placeholder="日数" aria-label="ほかの材齢（日）"><button type="button" onclick="KYOSHI.edAgeCust()">＋追加</button></span>`;
 }
-const ageList=sel=>[...new Set(AGE_CHOICES.concat(sel))].sort((a,b)=>a-b);
-let dr=null, sess=[];   // 入れる 前の 下書き・この 窓で 入れた 供試体の id（1日に 何件も）
-function agesChipsDr(){ return ageList(dr.ages).map(d=>{ const on=dr.ages.includes(d); return `<button type="button" class="${on?'on':''}" aria-pressed="${on}" onclick="KYOSHI.drAge(${d})">${d}日</button>`; }).join(''); }
-function prevHtml(){
-  const sd=okDate(dr.date); if(!sd) return '採った日を 入れて ください';
-  return '<b>試験の 日</b>'+dr.ages.map(d=>{ const td=addDays(sd,d), hn=hol(td); return `<span>${d}日 → ${dHtml(td)}${hn || td.getDay()===0 ? ` <em>⚠ ${esc(hn||'日曜')}</em>` : ''}</span>`; }).join('');
+function edPrevHtml(){
+  if(!okDate(ed.date) || !ed.ages.length) return '採取日と材齢を入れると破壊日が出ます';
+  const had=ed.id ? new Set(ed.had) : null, mark=a=>!had ? '' : had.has(a) ? '<span class="chg keep">そのまま</span>' : '<span class="chg add">追加</span>';
+  let h=`破壊日（${ed.ages.length}件）<span class="hint">　－／＋で1日ずつ前後できます</span>`+edAges().map(a=>{
+    const d=adjOf(a), b=sAdd(ed.date, d), w=sDow(b), hn=hol(okDate(b));
+    return `<div class="prow"><span class="sg">${sig(a)}</span><button type="button" class="dj" onclick="KYOSHI.edAdj(${a}, -1)" aria-label="${sig(a)}を1日早める">－</button><b class="kyo-num dd">${sMdw(b)}</b><button type="button" class="dj" onclick="KYOSHI.edAdj(${a}, 1)" aria-label="${sig(a)}を1日遅らせる">＋</button>${d!==a ? `<span class="shift">${d}日目</span><button type="button" class="mini" onclick="KYOSHI.edAdj(${a}, 0)">${a}日に戻す</button>` : ''}${mark(a)}${w===0 ? ' <span class="warn">日曜です</span>' : hn ? ' <span class="warn">'+esc(hn)+'</span>' : ''}${b<S0() ? ' <span class="warn">過去日</span>' : ''}</div>`;
+  }).join('');
+  if(ed.id){ const it=itOf(ed.id); if(it) h+=it.ages.filter(a=>!ed.ages.includes(a.d)).map(a=>`<div class="prow"><span class="sg">${sig(a.d)}</span><span class="chg del">削除</span>${a.done ? ' <span class="warn">破壊済の記録も消えます</span>' : ''}</div>`).join(''); }
+  return h;
 }
-function sessHtml(){
-  const L=sess.map(itOf).filter(Boolean);
-  return L.length ? `<div class="kyo-sess" id="kyoSess" role="status"><b>この 窓で 入れた 物件（${L.length}）</b>${L.map((it,i)=>`<span>${i+1}. ${esc(it.site)}${it.mix ? ' '+esc(it.mix) : ''}<small>${esc(md(okDate(it.date)))} 採取</small></span>`).join('')}</div>` : '';
+function edHtml(){
+  const hs=ed.id ? [] : histOf();
+  return `<div class="kyo-ph"><b>${ed.id ? '試験を編集（'+sMd(ed.date)+' '+esc(ed.site)+'）' : '供試体を登録'}</b><button type="button" class="kyo-x" onclick="KYOSHI.close()" aria-label="閉じる">✕</button></div>
+    ${hs.length ? `<div class="hist"><span class="hint">履歴から登録（タップで現場名と材齢を入れます）</span><div class="hist-list">${hs.map(h=>`<button type="button" onclick="KYOSHI.edHist(this.dataset.n)" data-n="${esc(h.name)}"><span class="hn">${esc(h.name)}</span><span class="hm">前回 ${sMd(h.sampled)}　${[...h.ages].sort((a,b)=>a-b).map(sig).join('+')}</span></button>`).join('')}</div></div>` : ''}
+    <div class="field"><label for="kyoEdDate">採取日</label><input id="kyoEdDate" type="date" value="${esc(ed.date)}" oninput="KYOSHI.edSet('date', this.value)"></div>
+    ${ed.id ? '' : `<div class="kyo-quick">${[[0,'きょう'],[-1,'きのう'],[-2,'おととい']].map(([n,t])=>`<button type="button" onclick="KYOSHI.edDay(${n})">${t}</button>`).join('')}</div>`}
+    <div class="field"><label for="kyoEdSite">共試体名（業者・現場）</label><input id="kyoEdSite" list="kyoNames" maxlength="40" autocomplete="off" placeholder="例: アース建設" value="${esc(ed.site)}" oninput="KYOSHI.edSet('site', this.value)"><datalist id="kyoNames">${namesList().map(n=>`<option value="${esc(n)}">`).join('')}</datalist></div>
+    <div class="field"><label>材齢 <span class="hint">${ed.id ? '（タップで追加・解除。外した材齢は削除されます）' : '（タップで追加・解除。選んだ数だけ登録します）'}</span></label><div class="ages" id="kyoEdAges">${edAgesHtml()}</div></div>
+    <div class="field"><label for="kyoEdMemo">打合せ時間・メモ</label><input id="kyoEdMemo" maxlength="200" placeholder="例: 役所立会 10:00" value="${esc(ed.memo)}" oninput="KYOSHI.edSet('memo', this.value)"></div>
+    <details class="kyo-more"${ed.mix || ed.part || ed.no ? ' open' : ''}><summary>くわしく（配合・打設箇所・番号・本数）</summary>
+      <div class="field"><label for="kyoEdMix">配合</label><input id="kyoEdMix" maxlength="30" placeholder="例：24-18-20N" value="${esc(ed.mix)}" oninput="KYOSHI.edSet('mix', this.value)"></div>
+      <div class="field"><label for="kyoEdPart">打設箇所</label><input id="kyoEdPart" maxlength="30" placeholder="例：2F スラブ" value="${esc(ed.part)}" oninput="KYOSHI.edSet('part', this.value)"></div>
+      <div class="field"><label for="kyoEdNo">番号</label><input id="kyoEdNo" maxlength="30" placeholder="例：No.1〜6" value="${esc(ed.no)}" oninput="KYOSHI.edSet('no', this.value)"></div>
+      <div class="field"><label>本数（材齢 1つごと）</label><span class="kyo-step"><button type="button" onclick="KYOSHI.edN(-1)" aria-label="1本 へらす">−</button><b id="kyoEdN">${ed.n}</b><button type="button" onclick="KYOSHI.edN(1)" aria-label="1本 ふやす">＋</button></span></div></details>
+    <div class="preview" id="kyoEdPrev">${edPrevHtml()}</div><div class="err" id="kyoEdErr" hidden></div>
+    <div class="kyo-acts end"><button type="button" class="kyo-b" onclick="KYOSHI.close()">キャンセル</button>${ed.id ? '' : '<button type="button" class="kyo-b" onclick="KYOSHI.edGo(true)">登録して次の現場へ</button>'}<button type="button" class="kyo-b pri" id="kyoEdSave" onclick="KYOSHI.edGo()">${ed.id ? '保存' : '登録'}</button></div>`;
 }
-function addHtml(){
-  const auto=autoDs().length>0;
-  return `<div class="kyo-ph"><span class="e" aria-hidden="true">🧱</span><b>供試体を 入れる</b><button type="button" class="kyo-x" onclick="KYOSHI.close()" aria-label="閉じる">✕</button></div>
-    ${sessHtml()}
-    ${fieldsHtml(dr, 'dr')}
-    <div class="kyo-f top"><span>材齢</span><div class="kyo-chips" id="kyoAgeChips">${agesChipsDr()}</div></div>
-    <div class="kyo-f"><span></span><span class="kyo-cust"><input id="kyoCust" type="text" inputmode="numeric" maxlength="3" placeholder="例 21" aria-label="ほかの 材齢（日）"><em>日</em><button type="button" class="kyo-b sm" onclick="KYOSHI.drAgeCust()">＋ ほかの 日数</button></span></div>
-    <div class="kyo-f"><span>本数</span><span class="kyo-step"><button type="button" onclick="KYOSHI.drN(-1)" aria-label="1本 へらす">−</button><b id="kyoN">${dr.n}</b><button type="button" onclick="KYOSHI.drN(1)" aria-label="1本 ふやす">＋</button><em>本（材齢 1つ ごと）</em></span></div>
-    <div class="kyo-prev" id="kyoPrev">${prevHtml()}</div>
-    ${auto ? '' : `<label class="kyo-ck"><input type="checkbox" id="kyoAsk"${st.def.ask ? ' checked' : ''}> 入れ おわったら「📅 まとめて 送る」窓を 出す</label>`}
-    <div class="kyo-acts end"><button type="button" class="kyo-b" onclick="KYOSHI.addGo(true)">＋ 入れて 次の 物件へ</button><button type="button" class="kyo-b pri" onclick="KYOSHI.addGo()">✓ 入れて おわる</button></div>
-    <p class="kyo-note">1日に 何件も ある ときは「＋ 入れて 次の 物件へ」（採った日・材齢・本数は そのまま）。${auto ? '☁ 入れると、試験の 日が Google カレンダーにも 自動で 入ります（電波が ない ときは もどってから）。' : '入れ おわったら「📅 まとめて 送る」で カレンダーに まとめて 入れます。☁ を 設定すると、入れるだけで Google カレンダーに 入ります。'}</p>`;
+// pre：{site, date, mix}（📝 試験報告書・この現場で新規登録）
+function openEdit(id, pre){
+  const it=id ? itOf(id) : null; if(id && !it) return;
+  const p=(pre && typeof pre==='object' && !(pre instanceof Event)) ? pre : {};
+  ed={id:it ? it.id : '', date:it ? it.date : (okDate(p.date) ? p.date : S0()), site:it ? it.site : oneLine(p.site,40), mix:it ? it.mix : oneLine(p.mix,30), part:it ? it.part : '', no:it ? it.no : '', memo:it ? it.memo : '',
+    n:it ? (it.ages[0] ? it.ages[0].n : st.def.n) : st.def.n, ages:it ? it.ages.map(a=>a.d) : st.def.ages.slice(), adj:{}, had:it ? it.ages.map(a=>a.d) : [], conf:false};
+  if(it) it.ages.forEach(a=>{ if(a.dd) ed.adj[a.d]=a.dd; });
+  popOpen(edHtml(), 'edit');
+  const n=$('kyoEdSite'); if(n && !n.value) setTimeout(()=>{ try{ n.focus(); }catch(_){} }, 60);
 }
-function openAdd(pre){
-  popClose();
-  dr={date:ymd(today()), site:'', mix:'', part:'', no:'', memo:'', ages:st.def.ages.slice(), n:st.def.n}; sess=[];
-  if(pre && typeof pre==='object' && !(pre instanceof Event)){ if(okDate(pre.date)) dr.date=pre.date; if(pre.site) dr.site=oneLine(pre.site,40); if(pre.mix) dr.mix=oneLine(pre.mix,30); }
-  popOpen(addHtml(), 'add');
-  focusSite();
-}
-function focusSite(){ const n=pop && pop.el.querySelector('input[data-k="site"]'); if(n && !n.value) setTimeout(()=>{ try{ n.focus(); }catch(_){} }, 60); }
-function drSet(k, v){
-  if(!dr) return;
-  if(k==='date'){ if(okDate(v)) dr.date=v; }
-  else if(k==='site') dr.site=oneLine(v,40); else if(k==='mix') dr.mix=oneLine(v,30); else if(k==='part') dr.part=oneLine(v,30); else if(k==='no') dr.no=oneLine(v,30); else if(k==='memo') dr.memo=multi(v,200);
+function edPrev(){ const p=$('kyoEdPrev'); if(p) p.innerHTML=edPrevHtml(); const c=$('kyoEdAges'); if(c) c.innerHTML=edAgesHtml(); ed.conf=false; const e=$('kyoEdErr'); if(e) e.hidden=true; }
+function edSet(k, v){
+  if(!ed) return;
+  if(k==='date'){ if(okDate(v)) ed.date=v; }
+  else if(k==='site') ed.site=oneLine(v,40); else if(k==='mix') ed.mix=oneLine(v,30); else if(k==='part') ed.part=oneLine(v,30); else if(k==='no') ed.no=oneLine(v,30); else if(k==='memo') ed.memo=multi(v,200);
   else return;
-  const p=$('kyoPrev'); if(p) p.innerHTML=prevHtml();
-  if(k==='date' && pop) pop.el.querySelectorAll('.kyo-quick button').forEach((b,i)=>b.classList.toggle('on', dr.date===ymd(addDays(today(),-i))));
+  if(k==='date') edPrev();
 }
-function drDay(n){ if(!dr) return; dr.date=ymd(addDays(today(), +n||0)); const i=pop && pop.el.querySelector('input[data-k="date"]'); if(i) i.value=dr.date; drSet('date', dr.date); }
-function pick(el){
-  if(!el || !pop) return; const k=el.dataset.f, v=el.dataset.v||'';
-  if(pop.kind==='add' && dr){ drSet(k, v); const i=pop.el.querySelector(`input[data-k="${k}"]`); if(i) i.value=dr[k]; }
+function edDay(n){ if(!ed) return; ed.date=ymd(addDays(today(), +n||0)); const i=$('kyoEdDate'); if(i) i.value=ed.date; edPrev(); }
+function edAge(d){
+  if(!ed) return; d=intIn(d,1,365,0); if(!d) return;
+  const i=ed.ages.indexOf(d);
+  if(i>=0) ed.ages.splice(i,1); else { if(ed.ages.length>=12){ toastS('材齢は 12まで です'); return; } ed.ages.push(d); }
+  edPrev();
 }
-function drAge(d){
-  if(!dr) return; d=intIn(d,1,365,0); if(!d) return;
-  const i=dr.ages.indexOf(d);
-  if(i>=0){ if(dr.ages.length===1){ toastS('材齢を 1つは えらんで ください'); return; } dr.ages.splice(i,1); }
-  else { if(dr.ages.length>=12){ toastS('材齢は 12まで です'); return; } dr.ages.push(d); dr.ages.sort((a,b)=>a-b); }
-  const c=$('kyoAgeChips'); if(c) c.innerHTML=agesChipsDr(); const p=$('kyoPrev'); if(p) p.innerHTML=prevHtml();
+function edAgeCust(){ const i=$('kyoEdOther'), d=intIn(i ? i.value : '', 1, 365, 0); if(!d){ toastS('日数を 1〜365 で 入れて ください'); return; } if(ed && !ed.ages.includes(d)) edAge(d); else edPrev(); }
+function edAdj(a, v){
+  if(!ed || !ed.ages.includes(+a)) return; a=+a;
+  if(!v) delete ed.adj[a];
+  else { const d=adjOf(a)+(+v||0); if(d<1 || d>400) return; if(d===a) delete ed.adj[a]; else ed.adj[a]=d; }
+  edPrev();
 }
-function drAgeCust(){ const i=$('kyoCust'), d=intIn(i ? i.value : '', 1, 365, 0); if(!d){ toastS('日数を 1〜365 で 入れて ください'); return; } if(dr && !dr.ages.includes(d)) drAge(d); if(i) i.value=''; }
-function drN(k){ if(!dr) return; dr.n=Math.min(30, Math.max(1, dr.n+(+k||0))); const b=$('kyoN'); if(b) b.textContent=dr.n; }
-function addItem(o){   // 入れる（ためす ときも ここ）
-  if(st.items.length>=MAX_IT){ toastS('入れられるのは '+MAX_IT+'件 までです（🧱 採った 供試体 の 🧹 で 古い ものを 片づけて ください）', 4600); return null; }
-  const ages=[...new Set((o.ages||[]).map(v=>intIn(v,1,365,0)).filter(Boolean))].sort((a,b)=>a-b).slice(0,12), n=intIn(o.n,1,30,3);
-  const now=Date.now(), it=cleanIt({id:rid(), date:o.date, site:o.site, mix:o.mix, part:o.part, no:o.no, memo:o.memo, ages:ages.map(d=>({d, n})), at:now, mt:now});
+function edN(k){ if(!ed) return; ed.n=Math.min(30, Math.max(1, ed.n+(+k||0))); const b=$('kyoEdN'); if(b) b.textContent=ed.n; }
+function edHist(name){
+  if(!ed) return; const h=histOf().find(x=>x.name===name); ed.site=name; if(h && h.mix && !ed.mix) ed.mix=h.mix;
+  ed.ages=[...new Set([7, 28].concat(h ? [...h.ages] : []))]; rePop(edHtml());
+}
+function edErr(m){ const e=$('kyoEdErr'); if(e){ e.textContent=m; e.hidden=false; } }
+function addItem(o){   // 入れる（ためす ときも ここ）。o.adj：{材齢:破壊までの 日数}
+  if(st.items.length>=MAX_IT){ toastS('入れられるのは '+MAX_IT+'件 までです（Excel連携の 🧹 で 古い ものを 片づけて ください）', 4600); return null; }
+  const ages=[...new Set((o.ages||[]).map(v=>intIn(v,1,365,0)).filter(Boolean))].sort((a,b)=>a-b).slice(0,12), n=intIn(o.n,1,30,3), adj=o.adj||{};
+  const now=Date.now(), it=cleanIt({id:rid(), date:o.date, site:o.site, mix:o.mix, part:o.part, no:o.no, memo:o.memo, ages:ages.map(d=>({d, n, dd:adj[d]||0})), at:now, mt:now});
   if(!it) return null;
   st.items.push(it); st.def.ages=ages; st.def.n=n;
   save(); return it;
 }
-// 入れる（more：入れて 次の 物件へ）。現場が 空で、この 窓で もう 入れて いれば「おわる」だけ
-function addGo(more){
-  if(!dr) return null;
-  const site=oneLine(dr.site,40);
-  if(!okDate(dr.date)){ toastS('採った日を 入れて ください'); return null; }
-  const ask=$('kyoAsk'); if(ask) st.def.ask=ask.checked;
-  if(!site){
-    if(!more && sess.length){ finishAdd(); return null; }
-    toastS('現場の 名前を 入れて ください'); const i=pop && pop.el.querySelector('input[data-k="site"]'); if(i) try{ i.focus(); }catch(_){}
-    return null;
-  }
-  const it=addItem(dr); if(!it) return null;
-  sess.push(it.id);
+function edGo(more){
+  if(!ed) return null;
+  const site=oneLine(ed.site,40), ages=edAges();
+  if(!okDate(ed.date)){ edErr('採取日を入れてください'); return null; }
+  if(!site){ edErr('共試体名を入れてください'); return null; }
+  if(!ages.length){ edErr('材齢を選んでください'); return null; }
+  if(ed.id) return applyEdit(site, ages);
+  const it=addItem({date:ed.date, site, mix:ed.mix, part:ed.part, no:ed.no, memo:ed.memo, ages, n:ed.n, adj:ed.adj}); if(!it) return null;
   if(autoDs().length) kick(0);
-  if(more){
-    dr=Object.assign({}, dr, {site:'', mix:'', part:'', no:'', memo:''});
-    rePop(addHtml()); render(); focusSite();
-    toastS('🧱「'+it.site+'」を 入れました。次の 物件を どうぞ（'+sess.length+'件め まで）', 3000);
-    return it;
-  }
-  finishAdd();
+  toastS('🧱 '+site+' を '+ages.map(sig).join('+')+' の '+ages.length+'件 登録しました', 3200);
+  if(more){ ed.site=''; ed.mix=''; ed.part=''; ed.no=''; ed.memo=''; ed.adj=Object.assign({}, ed.adj); rePop(edHtml()); render(); const n=$('kyoEdSite'); if(n) try{ n.focus(); }catch(_){} return it; }
+  popClose(); render();
   return it;
 }
-function finishAdd(){
-  const L=sess.map(itOf).filter(Boolean);
-  popClose(); render();
-  if(!L.length) return;
-  const sd=okDate(L[0].date);
-  toastS(L.length===1 ? '🧱 入れました：'+L[0].ages.map(a=>a.d+'日 '+md(addDays(sd, a.d))).join('・') : '🧱 '+L.length+'件 入れました', 3600);
-  if(st.def.ask && !autoDs().length && L.some(it=>futOf(it).length)) openBatch({ids:L.map(it=>it.id)});   // まとめて 送る 窓（入れた ものを えらんで）
+function applyEdit(site, ages){
+  const it=itOf(ed.id); if(!it){ popClose(); return null; }
+  const sel=new Set(ages), gone=it.ages.filter(a=>!sel.has(a.d)), added=ages.filter(d=>!ageOf(it, d));
+  if(gone.some(a=>a.done) && !ed.conf){ ed.conf=true; edErr('破壊済の '+gone.filter(a=>a.done).map(a=>sig(a.d)).join('・')+' を削除します。よければもう一度［保存］を押してください'); return null; }
+  gone.forEach(a=>goneOf(it, a)); it.ages=it.ages.filter(a=>sel.has(a.d));
+  const n0=it.ages[0] ? it.ages[0].n : ed.n;
+  added.forEach(d=>it.ages.push({d, dd:0, n:ed.n, done:'', g:{}}));
+  it.ages.sort((x,y)=>x.d-y.d);
+  it.ages.forEach(a=>{ const v=ed.adj[a.d]; a.dd=(v && v!==a.d) ? v : 0; if(ed.n!==n0 && !added.includes(a.d)) a.n=ed.n; });
+  Object.assign(it, {date:ed.date, site, mix:ed.mix, part:ed.part, no:ed.no, memo:ed.memo});
+  st.def.ages=ages.slice();
+  popClose(); changed(it);
+  toastS(added.length || gone.length ? site+'：'+[added.length ? added.map(sig).join('・')+'を追加' : '', gone.length ? gone.map(a=>sig(a.d)).join('・')+'を削除' : ''].filter(Boolean).join('、')+'しました' : '保存しました', 3000);
+  return it;
 }
-
-// くわしく
-function agesEdHtml(it){
-  const sd=okDate(it.date), T=today(), on=gOn();
-  return it.ages.map(a=>{
-    const td=addDays(sd, a.d), dd=diff(td, T), s=stOf({a, dd}), dn=okDate(a.done);
-    const gt=st.dests.filter(dReady).map(D=>{ const v=gState(it, a, D); if(!v) return ''; const x=v==='wait' && !D.auto ? 'later' : v; return (st.dests.length>1 ? D.name : '☁')+'：'+(x==='err' ? '⚠ '+(a.g[D.id] && a.g[D.id].e ? a.g[D.id].e : '送れませんでした') : {ok:'入って います', wait:'⏳ まだ', later:'📤 まとめて 送る とき'}[x]); }).filter(Boolean).join('・');
-    return `<div class="kyo-ae ${s}">
-      <span class="kyo-age" aria-hidden="true"><b>${a.d}</b>日</span>
-      <span class="t">${dHtml(td)}<small>${esc((dn ? '✓ 済み（'+md(dn)+'）' : dd<0 ? (-dd)+'日 過ぎ' : dd===0 ? 'きょう' : 'あと '+dd+'日')+(gt ? '・'+gt : ''))}</small></span>
-      <span class="kyo-step sm"><button type="button" onclick="KYOSHI.setN('${it.id}', ${a.d}, -1)" aria-label="${a.d}日の 本数を へらす">−</button><b>${a.n}</b><button type="button" onclick="KYOSHI.setN('${it.id}', ${a.d}, 1)" aria-label="${a.d}日の 本数を ふやす">＋</button><em>本</em></span>
-      <button type="button" class="kyo-do2${a.done ? ' dn' : ''}" onclick="KYOSHI.done('${it.id}', ${a.d})">${a.done ? '↶ 済みを 外す' : '✓ 試験した'}</button>
-      ${on ? '' : `<button type="button" class="kyo-gc" onclick="KYOSHI.gcal1('${it.id}', ${a.d})" title="Google カレンダーで 開く（1件）" aria-label="${a.d}日を Google カレンダーで 開く">🗓</button>`}
-    </div>`;
-  }).join('');
-}
-function detailHtml(it){
-  return `<div class="kyo-ph"><span class="e" aria-hidden="true">🧱</span><b>${esc(it.site)}${it.mix ? ' <small>'+esc(it.mix)+'</small>' : ''}</b><button type="button" class="kyo-x" onclick="KYOSHI.close()" aria-label="閉じる">✕</button></div>
-    <h5>材齢ごとの 試験</h5>
-    <div class="kyo-aes" id="kyoAgesEd">${agesEdHtml(it)}</div>
-    <div class="kyo-f top"><span>材齢</span><div class="kyo-chips">${ageList(it.ages.map(a=>a.d)).map(d=>{ const on=it.ages.some(a=>a.d===d); return `<button type="button" class="${on?'on':''}" aria-pressed="${on}" onclick="KYOSHI.age('${it.id}', ${d})">${d}日</button>`; }).join('')}</div></div>
-    <div class="kyo-f"><span></span><span class="kyo-cust"><input id="kyoCust2" type="text" inputmode="numeric" maxlength="3" placeholder="例 21" aria-label="ほかの 材齢（日）"><em>日</em><button type="button" class="kyo-b sm" onclick="KYOSHI.ageCust('${it.id}')">＋ ほかの 日数</button></span></div>
-    <h5>直す</h5>
-    ${fieldsHtml(it, it.id)}
-    <div class="kyo-acts"><button type="button" class="kyo-b" onclick="KYOSHI.batch({ids:['${it.id}']})">📅 カレンダーに</button><button type="button" class="kyo-b" onclick="KYOSHI.copyOne('${it.id}')">📋 コピー</button></div>
-    ${gOn() ? '<p class="kyo-note">☁ Google カレンダーに 送った ものは、直すと カレンダーも 直ります（まとめて 送る 送り先は 次に 送る とき）。</p>' : ''}
-    <div class="kyo-acts end"><button type="button" class="kyo-b warn" onclick="KYOSHI.del('${it.id}')">🗑 この 供試体を 消す</button></div>`;
-}
-function openItem(id){ const it=itOf(id); if(!it) return; popOpen(detailHtml(it), 'item', id); }
-function reItem(){ if(pop && pop.kind==='item'){ const it=itOf(pop.id); if(it) rePop(detailHtml(it)); else popClose(); } }
+function again(id){ const it=itOf(id); if(!it) return; popClose(); openEdit('', {site:it.site, mix:it.mix}); const h=histOf().find(x=>x.name===it.site); if(ed && h){ ed.ages=[...new Set([7, 28].concat([...h.ages]))]; rePop(edHtml()); } }
 
 /* ───────── 入れる・かえる ───────── */
 function changed(it){ if(it) it.mt=Date.now(); save(); render(); reItem(); kick(); }   // it：中身を 直した（📱 ファイルに した あとの 直し）
-function setF(id, k, v){
-  const it=itOf(id); if(!it) return;
-  if(k==='date'){ if(!okDate(v)){ toastS('日付を えらんで ください'); reItem(); return; } if(v===it.date) return; it.date=v; }
-  else if(k==='site'){ const s=oneLine(v,40); if(!s){ toastS('現場の 名前は 空に できません'); reItem(); return; } it.site=s; }
-  else if(k==='mix') it.mix=oneLine(v,30); else if(k==='part') it.part=oneLine(v,30); else if(k==='no') it.no=oneLine(v,30); else if(k==='memo') it.memo=multi(v,200);
-  else return;
-  changed(it);
-}
 // 送った 予定を 消しに 行く（送り先 ぜんぶ）
-function goneOf(it, a){ Object.keys(a.g).forEach(dst=>{ const g=a.g[dst]; if(g && g.id && dOf(dst)) st.dq.push({dst, k:it.id+'-'+a.d, id:g.id, sd:g.sd, c:g.c||'', e:''}); }); if(st.dq.length>MAX_DQ) st.dq.splice(0, st.dq.length-MAX_DQ); }
-function toggleAge(id, d){
-  const it=itOf(id); d=intIn(d,1,365,0); if(!it || !d) return;
-  const a=ageOf(it, d);
-  if(a){ if(it.ages.length===1){ toastS('材齢を 1つは 残して ください（消すときは 🗑）'); return; } goneOf(it, a); it.ages.splice(it.ages.indexOf(a),1); }
-  else { if(it.ages.length>=12){ toastS('材齢は 12まで です'); return; } it.ages.push({d, n:it.ages[0] ? it.ages[0].n : st.def.n, done:'', g:{}}); it.ages.sort((x,y)=>x.d-y.d); }
-  changed(it);
-}
-function ageCust(id){ const i=$('kyoCust2'), d=intIn(i ? i.value : '', 1, 365, 0); if(!d){ toastS('日数を 1〜365 で 入れて ください'); return; } const it=itOf(id); if(it && !ageOf(it, d)) toggleAge(id, d); }
-function setN(id, d, k){ const it=itOf(id), a=ageOf(it, d); if(!a) return; const n=Math.min(30, Math.max(1, a.n+(+k||0))); if(n===a.n) return; a.n=n; changed(it); }
+function goneOf(it, a){ Object.keys(a.g).forEach(dst=>{ const g=a.g[dst]; if(g && g.id && dOf(dst)) st.dq.push({dst, k:keyOf(it, a), id:g.id, sd:g.sd, c:g.c||'', e:''}); }); if(st.dq.length>MAX_DQ) st.dq.splice(0, st.dq.length-MAX_DQ); }
 let undo=null, undoT=0;   // {id, d, done} ✓ の あと しばらく 取り消せる
-function done(id, d){
-  const it=itOf(id), a=ageOf(it, d); if(!a) return;
-  undo={id, d:a.d, done:a.done};
-  a.done=a.done ? '' : ymd(today());
-  changed(); showUndo(it, a);
+function chk(id, fromDetail){
+  const r=rowOf(id); if(!r) return false;
+  const a=r.a, was=!!a.done;
+  undo={id:r.it.id, d:a.d, done:a.done};
+  a.done=was ? '' : S0();
+  if(fromDetail) popClose();
+  changed(r.it); showUndo(r.it, a);
+  return true;
 }
 function showUndo(it, a){
   const u=$('kyoUndo'); if(!u) return;
-  u.innerHTML=`<span>${a.done ? '✓「'+esc(it.site)+'」の '+a.d+'日を 試験した に しました' : '「'+esc(it.site)+'」の '+a.d+'日を まだ に もどしました'}</span><button type="button" onclick="KYOSHI.undo()">↶ 取り消す</button>`;
-  u.classList.add('on'); clearTimeout(undoT); undoT=setTimeout(()=>{ u.classList.remove('on'); undo=null; }, 8000);
+  u.innerHTML=`<span>${a.done ? esc(it.site)+'（'+sig(a.d)+'）を破壊済にしました' : '未破壊に戻しました'}</span><button type="button" onclick="KYOSHI.undo()">↶ 取り消す</button>`;
+  u.classList.add('on'); clearTimeout(undoT); undoT=setTimeout(()=>{ u.classList.remove('on'); undo=null; }, 6000);
 }
 function undoDo(){
   if(!undo) return; const it=itOf(undo.id), a=ageOf(it, undo.d); if(a) a.done=undo.done;
-  undo=null; clearTimeout(undoT); const u=$('kyoUndo'); if(u) u.classList.remove('on'); changed(); toastS('取り消しました');
-}
-async function delItem(id){
-  const it=itOf(id); if(!it) return false;
-  const sent=it.ages.some(a=>Object.keys(a.g).some(k=>a.g[k] && a.g[k].id));
-  if(typeof appConfirm==='function' && !(await appConfirm('「'+it.site+'」（'+md(okDate(it.date))+' 採取）を 消しますか？'+(sent ? '\n（Google カレンダーの 予定も 消します）' : ''), '消す', 'やめる'))) return false;
-  it.ages.forEach(a=>goneOf(it, a));
-  const i=st.items.indexOf(it); if(i>=0) st.items.splice(i,1);
-  popClose(); changed(); toastS('消しました');
-  return true;
+  undo=null; clearTimeout(undoT); const u=$('kyoUndo'); if(u) u.classList.remove('on'); changed(it); toastS('取り消しました');
 }
 async function tidy(){
   const cut=addDays(today(), -90), old=st.items.filter(it=>it.ages.every(a=>tdOf(it, a)<cut));
@@ -797,11 +895,67 @@ async function tidy(){
   st.items=st.items.filter(it=>!old.includes(it)); save(); render(); toastS('🧹 '+old.length+'件 片づけました');
   return old.length;
 }
-function setView(k){ if(!['plan','list'].includes(k)) return; st.view=k; save(); render(); }
-function setQ(v){ lq=String(v==null?'':v).slice(0,40); listMax=LIST_STEP; const l=$('kyoList'); if(l) l.innerHTML=listInner(); }
-function more(){ listMax+=LIST_STEP; const l=$('kyoList'); if(l) l.innerHTML=listInner(); }
+function setView(k){ if(!['board','cal','tests','list'].includes(k)) return; st.view=k; save(); render(); }
 
-/* ───────── 文字で コピー・▦ 表に 入れる ───────── */
+/* ───────── Excel連携・文字で コピー・▦ 表に 入れる ───────── */
+let pending=[];
+function parseDate(v){
+  v=String(v).trim().replace(/\(.\)$/,'').replace(/（.）$/,'');
+  let m;
+  if((m=v.match(/^(\d{4})[\/\-年](\d{1,2})[\/\-月](\d{1,2})日?$/))) return ymd(new Date(+m[1], m[2]-1, +m[3]));
+  if((m=v.match(/^(\d{1,2})[\/月](\d{1,2})日?$/))){ const now=today(); let y=now.getFullYear(); if(+m[1]>now.getMonth()+3) y--; return ymd(new Date(y, m[1]-1, +m[2])); }   // 先の月なら 前年
+  if(/^\d{5}$/.test(v)){ const d=new Date(1899, 11, 30); d.setDate(d.getDate()+Number(v)); return ymd(d); }
+  return null;
+}
+function parsePaste(txt){
+  pending=[]; let skipped=0, dup=0;
+  const keys=new Set(rows().map(r=>r.sampled+'|'+r.name+'|'+r.age));
+  String(txt||'').split(/\r?\n/).forEach(line=>{
+    if(!line.trim()) return;
+    const c=line.split('\t'), s=parseDate(c[0]||''), n=oneLine(c[1],40), a=parseInt(c[2],10);
+    if(!s || !n || !(a>0 && a<=365)){ skipped++; return; }
+    const k=s+'|'+n+'|'+a; if(keys.has(k)){ dup++; return; } keys.add(k);
+    pending.push({sampled:s, name:n, age:a, note:multi(c[3]||'',200), done:c.slice(4).some(x=>x.trim()==='済')});
+  });
+  return {n:pending.length, dup, skipped};
+}
+function excelHtml(){
+  return `<div class="kyo-ph"><b>Excel連携</b><button type="button" class="kyo-x" onclick="KYOSHI.close()" aria-label="閉じる">✕</button></div>
+    <div class="field"><label for="kyoPaste">取り込み：Excelの入力欄（採取日・共試体名・材齢・打合せ）の行をコピーして貼り付け</label><textarea class="paste" id="kyoPaste" rows="5" placeholder="9月3日(水)&#9;アース建設&#9;28&#9;&#10;9月10日(水)&#9;アース建設&#9;28&#9;役所立会" oninput="KYOSHI.xparse(this.value)"></textarea></div>
+    <div class="preview" id="kyoXPrev">貼り付けると取り込める件数が表示されます。同じ採取日・名称・材齢の行は重複として飛ばします。</div>
+    <div class="kyo-acts"><button type="button" class="kyo-b pri" id="kyoXImport" disabled onclick="KYOSHI.ximport()">取り込む</button></div>
+    <hr><div class="field"><label>書き出し：未破壊の供試体を Excel の入力欄 A列 へ貼れる形でコピー</label></div>
+    <div class="kyo-acts"><button type="button" class="kyo-b" onclick="KYOSHI.xcopy(false)">未破壊分をコピー</button><button type="button" class="kyo-b" onclick="KYOSHI.xcopy(true)">全件をコピー</button><button type="button" class="kyo-b" onclick="KYOSHI.table()">▦ 表電卓の表に入れる</button></div>
+    <div class="kyo-acts"><button type="button" class="kyo-b" onclick="KYOSHI.copy()">📋 予定を文字でコピー（LINEなど）</button><button type="button" class="kyo-b" onclick="KYOSHI.tidy()">🧹 古いものを片づける</button></div>
+    <div class="kyo-acts"><button type="button" class="kyo-b" onclick="KYOSHI.close()">閉じる</button></div>`;
+}
+function openExcel(){ pending=[]; popOpen(excelHtml(), 'excel'); }
+function xparse(v){
+  const r=parsePaste(v), p=$('kyoXPrev'), b=$('kyoXImport');
+  if(p) p.innerHTML=!String(v||'').trim() ? '貼り付けると取り込める件数が表示されます。同じ採取日・名称・材齢の行は重複として飛ばします。'
+    : `取り込み <b class="kyo-num">${r.n}</b>件　／　重複 ${r.dup}件　／　読めない行 ${r.skipped}件`+(pending.length ? `<br>例: ${esc(pending[0].name)} 採取${sMdw(pending[0].sampled)} ${pending[0].age}日 → 破壊 ${sMdw(sAdd(pending[0].sampled, pending[0].age))}` : '');
+  if(b) b.disabled=!pending.length;
+  return r;
+}
+function ximport(){
+  if(!pending.length) return 0;
+  let n=0;
+  pending.forEach(p=>{
+    let it=st.items.find(x=>x.date===p.sampled && x.site===p.name);
+    if(it){ if(it.ages.length>=12 || ageOf(it, p.age)) return; it.ages.push({d:p.age, dd:0, n:st.def.n, done:p.done ? S0() : '', g:{}}); it.ages.sort((a,b)=>a.d-b.d); it.mt=Date.now(); n++; return; }
+    if(st.items.length>=MAX_IT) return;
+    it=addItem({date:p.sampled, site:p.name, memo:p.note, ages:[p.age], n:st.def.n}); if(it){ if(p.done) it.ages[0].done=S0(); n++; }
+  });
+  pending=[]; save(); render(); kick(0);
+  toastS(n+'件 取り込みました', 3000);
+  const t=$('kyoPaste'); if(t) t.value=''; xparse('');
+  return n;
+}
+async function xcopy(all){
+  const L=rows().filter(r=>all || !r.done).sort((a,b)=>a.sampled.localeCompare(b.sampled)), txt=L.map(r=>[r.sampled.replace(/-/g,'/'), r.name, r.age, r.note||''].join('\t')).join('\n');
+  if(typeof toolCopyText==='function') await toolCopyText(txt, L.length+'件コピーしました。Excelの入力欄A列に貼り付け');
+  return txt;
+}
 const line=x=>x.a.d+'日：'+x.it.site+(x.it.mix ? ' '+x.it.mix : '')+' '+x.a.n+'本（採取 '+md(x.sd)+'）'+(x.a.done ? ' ✓済み' : '');
 function text(){
   const T=today(), L=tests(), out=['🧱 供試体の 試験（'+mdw(T)+' 現在）'];
@@ -811,13 +965,7 @@ function text(){
   if(later.length){ out.push('', 'この先'); later.forEach(x=>out.push('・'+mdw(x.td)+' '+line(x))); }
   return out.join('\n');
 }
-function textOne(it){
-  const sd=okDate(it.date);
-  return ['🧱 '+it.site+(it.mix ? ' '+it.mix : ''), '採取 '+mdw(sd)+(it.part ? '・'+it.part : '')+(it.no ? '・'+it.no : '')]
-    .concat(it.ages.map(a=>'・'+a.d+'日 → '+mdw(addDays(sd, a.d))+' '+a.n+'本'+(a.done ? ' ✓済み' : ''))).concat(it.memo ? ['メモ：'+it.memo] : []).join('\n');
-}
 function copy(){ if(!st.items.length){ toastS('まだ 何も ありません'); return; } if(typeof toolCopyText==='function') toolCopyText(text(), '📋 コピーしました（LINE などに 貼れます）'); }
-function copyOne(id){ const it=itOf(id); if(it && typeof toolCopyText==='function') toolCopyText(textOne(it), '📋 コピーしました（LINE などに 貼れます）'); }
 // 試験 1つ ＝ 1行（採った日の 順）
 function tableRows(){
   const L=tests().slice().sort((x,y)=>x.it.date.localeCompare(y.it.date) || x.it.at-y.it.at || x.a.d-y.a.d);
@@ -828,7 +976,7 @@ function toTable(){ if(!st.items.length){ toastS('まだ 何も ありません'
 
 /* ───────── 📅 カレンダーの ファイル（.ics。hyoics.js） ───────── */
 function icsEv(it, a){ const e=evOf(it, a), al=alarmMin(); return {uid:'kyoshi-'+e.k, title:e.title, date:e.date, allDay:true, alarm:al, desc:e.desc}; }
-function icsOfIt(it, onlyNext){ const T=ymd(today()); return it.ages.map(a=>icsEv(it, a)).filter(e=>!onlyNext || e.date>=T); }
+function icsOfIt(it, onlyNext){ const T=ymd(today()); return evsOf(it).map(a=>icsEv(it, a)).filter(e=>!onlyNext || e.date>=T); }
 function withIcs(fn){
   if(window.HyoIcs){ fn(); return; }
   if(typeof loadSidePart!=='function'){ toastS('カレンダーの 部品が 読めません'); return; }
@@ -844,7 +992,7 @@ function pendFor(it, dst){
   if(!futOf(it).length) return false;
   if(dst==='file') return !(it.fx && it.fx>=it.mt);
   const D=dOf(dst); if(!dReady(D)) return false;
-  return it.ages.some(a=>pmap(D).has(a));
+  return evsOf(it).some(a=>pmap(D).has(a)) || (!st.fmt.samp && pmap(D).has(sampOf(it)));
 }
 const batchItems=()=>st.items.filter(it=>futOf(it).length || (bt && bt.sel.has(it.id))).sort((a,b)=>b.date.localeCompare(a.date) || b.at-a.at);
 function bDefDst(){ const m=st.dests.find(D=>dReady(D) && !D.auto && st.items.some(it=>pendFor(it, D.id))); return m ? m.id : 'file'; }
@@ -870,7 +1018,7 @@ function batchListHtml(){
     const sd=okDate(it.date), fut=futOf(it);
     h+=`<label class="kyo-bi${pendFor(it, bt.dst) ? '' : ' in'}"><input type="checkbox"${bt.sel.has(it.id) ? ' checked' : ''} onchange="KYOSHI.bSel('${it.id}', this.checked)" aria-label="${esc(it.site)}を 送る">
       <span class="t"><b>${esc(it.site)}</b>${it.mix ? ` <span class="mx">${esc(it.mix)}</span>` : ''}${badges(it)}
-      <small>${esc(fut.map(a=>a.d+'日 '+md(addDays(sd, a.d))).join('・') || 'この先の 試験は ありません')}</small></span></label>`;
+      <small>${esc(fut.map(a=>a.d+'日 '+md(addDays(sd, daysOf(a)))).join('・') || 'この先の 試験は ありません')}</small></span></label>`;
   });
   return h;
 }
@@ -888,12 +1036,13 @@ function batchHtml(){
   return `<div class="kyo-ph"><span class="e" aria-hidden="true">📅</span><b>まとめて カレンダーに 送る</b><button type="button" class="kyo-x" onclick="KYOSHI.close()" aria-label="閉じる">✕</button></div>
     <h5>送り先</h5>
     <div class="kyo-dsts" role="radiogroup" aria-label="送り先">${opts.map(([id,t,s])=>`<button type="button" role="radio" aria-checked="${bt.dst===id}" class="${bt.dst===id ? 'on' : ''}" onclick="KYOSHI.bDst('${id}')"><b>${esc(t)}</b><small>${esc(s)}</small></button>`).join('')}</div>
-    ${gOn() ? '' : '<p class="kyo-note">☁ Google カレンダーに 送るには、一覧の 上の「☁ 入れるだけで Google カレンダーに」で 送り先を 作ります（アカウントごとに いくつでも）。</p>'}
+    ${gOn() ? '' : '<p class="kyo-note">☁ Google カレンダーに 自動で 送るには、下の「⚙ 設定」で 送り先を 作ります（アカウントごとに いくつでも）。</p>'}
     <h5 id="kyoBCnt">${bCntHtml()}</h5>
     <div class="kyo-chips kyo-bsel">${[['pend','まだの もの'],['today','きょう 採った'],['all','ぜんぶ'],['none','はずす']].map(([k,t])=>`<button type="button" onclick="KYOSHI.bAll('${k}')">${t}</button>`).join('')}</div>
     <div class="kyo-blist" id="kyoBList">${batchListHtml()}</div>
-    <p class="kyo-note">送るのは この先（きょう から）の 試験だけです。☁✓・📱✓ は もう 入れた もの。</p>
+    <p class="kyo-note">送るのは この先（きょう から）の 試験${st.fmt.samp ? 'と 採った日' : ''}だけです。☁✓・📱✓ は もう 入れた もの。予定の 名前や 色は ⚙ →「📝 カレンダーに 入れる 書式」で かえられます。</p>
     <div class="kyo-acts end" id="kyoBActs">${bActsHtml()}</div>
+    <div class="kyo-acts"><button type="button" class="kyo-b sm" onclick="KYOSHI.sopen()">⚙ 設定（予定の書式・送り先・知らせ）</button></div>
     ${bt.dst==='file' ? `<p class="kyo-note">iPhone：保存した ファイルを 開いて「すべてを追加」→ 入れる カレンダー（iCloud・Google・Outlook など の アカウント）を えらぶ。Android：Samsung カレンダー など で 開く。パソコンの Outlook・Google カレンダー は ファイルを 読み込む（インポート）。Google に 自動で 入れて いる カレンダーに 入れると 2つに なります。</p>` : ''}`;
 }
 function bDst(d){ if(!bt || !(d==='file' || dReady(dOf(d)))) return; bt.dst=d; pm=null; if(!bt.keep) bt.sel=new Set(st.items.filter(it=>pendFor(it, d)).map(it=>it.id)); rePop(batchHtml()); }
@@ -932,8 +1081,11 @@ function dStText(D){
 }
 function reGst(){ const s=pop && pop.el.querySelector('#kyoGSt'); if(!s || pop.kind!=='gd') return; const D=dOf(pop.id); if(D) s.textContent=gMsg || dStText(D); }
 function gListHtml(){
-  return `<div class="kyo-ph"><span class="e" aria-hidden="true">☁</span><b>Google カレンダーに 送る</b><button type="button" class="kyo-x" onclick="KYOSHI.close()" aria-label="閉じる">✕</button></div>
-    <h5>送り先（Google の アカウントごと）</h5>
+  const it=sampleIt();
+  return `<div class="kyo-ph"><span class="e" aria-hidden="true">⚙</span><b>カレンダーの 設定</b><button type="button" class="kyo-x" onclick="KYOSHI.close()" aria-label="閉じる">✕</button></div>
+    <h5>📝 カレンダーに 入れる 書式</h5>
+    <button type="button" class="kyo-dcard" onclick="KYOSHI.fopen()"><b>📝 予定の 名前・説明・色・採った日</b><small>${esc(fill(st.fmt.title, it, it.ages[0]))}${st.fmt.samp ? '・'+esc(fill(st.fmt.sampTitle, it, {d:0, samp:true})) : ''}</small><i aria-hidden="true">直す ›</i></button>
+    <h5>☁ Google カレンダーの 送り先（アカウントごと）</h5>
     <div class="kyo-dlist">${st.dests.map(D=>`<button type="button" class="kyo-dcard" onclick="KYOSHI.gedit('${D.id}')"><b>☁ ${esc(D.name)}</b><small>${esc(D.url ? dStText(D) : '○ まだ 設定して いません（押すと 手順）')}</small><i aria-hidden="true">直す ›</i></button>`).join('')}</div>
     ${st.dests.length<MAX_DST ? `<button type="button" class="kyo-b" onclick="KYOSHI.gadd()">＋ 送り先を 足す（ほかの アカウント・カレンダー）</button>` : ''}
     <p class="kyo-note">Google の アカウントごとに 送り先を 作ります（会社の アカウント・自分の アカウント など。${MAX_DST}つまで）。1つの 送り先でも、「入れる カレンダー」に メールアドレスを 入れると、共有された ほかの アカウントの カレンダーに 入れられます。</p>
@@ -970,94 +1122,176 @@ function gdHtml(D){
     <label class="kyo-f"><span>合言葉</span><input type="text" maxlength="40" value="${esc(D.tok)}" autocomplete="off" spellcheck="false" onchange="KYOSHI.dset('${D.id}', 'tok', this.value)" aria-label="合言葉"></label>
     <p class="kyo-note">コードの 中の AIKOTOBA と 同じ ときだけ 受けつけます。ほかの スマホでは「📋 ほかの スマホ 用に コピー」を その スマホの 送り先の URL の 欄に 貼ると、URL と 合言葉が いっしょに 入ります。</p>
     <div class="kyo-acts">${D.url ? `<button type="button" class="kyo-b" onclick="KYOSHI.gcopyCfg('${D.id}')">📋 ほかの スマホ 用に コピー</button>` : ''}<button type="button" class="kyo-b warn" onclick="KYOSHI.gdel('${D.id}')">🗑 この 送り先を 消す</button></div>
-    <div class="kyo-acts"><button type="button" class="kyo-b" onclick="KYOSHI.gopen()">← 送り先の 一覧・知らせ</button></div>`;
+    <div class="kyo-acts"><button type="button" class="kyo-b" onclick="KYOSHI.sopen()">← カレンダーの 設定（書式・送り先・知らせ）</button></div>`;
 }
-function gopen(){ gMsg=''; if(!st.dests.length){ gadd(); return; } popOpen(gListHtml(), 'g'); }
+function sopen(){ gMsg=''; popOpen(gListHtml(), 'g'); }   // ⚙（送り先が なくても 開く）
+function gopen(){ gMsg=''; if(!st.dests.length){ gadd(); return; } sopen(); }   // ☁（はじめては 送り先を 作る）
 function gedit(id){ const D=dOf(id); if(!D) return; gMsg=''; popOpen(gdHtml(D), 'gd', id); }
-function reG(){ if(!pop) return; if(pop.kind==='g') rePop(gListHtml()); else if(pop.kind==='gd'){ const D=dOf(pop.id); if(D) rePop(gdHtml(D)); } }
+function reG(){ if(!pop) return; if(pop.kind==='g') rePop(gListHtml()); else if(pop.kind==='gd'){ const D=dOf(pop.id); if(D) rePop(gdHtml(D)); } else if(pop.kind==='fmt') rePop(fHtml()); }
+
+/* ───────── 📝 カレンダーに 入れる 書式（v613） ───────── */
+// 見本の 供試体（いちばん 新しく 入れた もの。なければ 見本）
+function sampleIt(){
+  const L=st.items.slice().sort((a,b)=>b.at-a.at);
+  return L[0] || {id:'sample00', date:ymd(today()), site:'○○ビル 新築工事', mix:'24-18-20N', part:'2F スラブ', no:'No.1〜6', memo:'', ages:[{d:7, n:3, done:'', g:{}}, {d:28, n:3, done:'', g:{}}], sg:{}, at:0, mt:0, fx:0};
+}
+const fval=k=>{ const i=$('kyoFt_'+k); return i ? (oneLine(i.value,80)||FMT0[k]) : st.fmt[k]; };   // 打って いる 途中の 字も 見本に
+function fPrevHtml(){
+  const it=sampleIt(), a=it.ages[0];
+  return '<b>見本（'+esc(it.site)+'）</b>'+[['まだ', fill(fval('title'), it, a)], ['済み', fill(fval('titleDone'), it, Object.assign({}, a, {done:ymd(today())}))]]
+    .concat(st.fmt.samp ? [['採った日', fill(fval('sampTitle'), it, {d:0, samp:true})]] : []).map(([t,v])=>`<span><em>${t}</em>${esc(v)}</span>`).join('');
+}
+function fHtml(){
+  const f=st.fmt;
+  const inp=(k, lb, ph)=>`<label class="kyo-f"><span>${lb}</span><input id="kyoFt_${k}" type="text" maxlength="80" value="${esc(f[k])}" placeholder="${esc(ph)}" autocomplete="off" spellcheck="false" oninput="KYOSHI.fprev()" onchange="KYOSHI.fset('${k}', this.value)" aria-label="${lb}の 予定の 名前"></label>
+    <div class="kyo-tags" aria-label="差し込む もの">${TAGS.map(t=>`<button type="button" onmousedown="event.preventDefault()" onclick="KYOSHI.ftag('${k}', '${t}')">＋${t}</button>`).join('')}</div>`;
+  return `<div class="kyo-ph"><span class="e" aria-hidden="true">📝</span><b>カレンダーに 入れる 書式</b><button type="button" class="kyo-x" onclick="KYOSHI.close()" aria-label="閉じる">✕</button></div>
+    <h5>試験の 予定の 名前</h5>
+    ${inp('title', 'まだ', FMT0.title)}
+    ${inp('titleDone', '済み', FMT0.titleDone)}
+    <div class="kyo-fprev" id="kyoFPrev">${fPrevHtml()}</div>
+    <h5>採った日にも 予定を 入れる</h5>
+    <label class="kyo-ck"><input type="checkbox"${f.samp ? ' checked' : ''} onchange="KYOSHI.fset('samp', this.checked)"> 採った日にも 入れる（🗓 カレンダーの「採」と 同じ 日）</label>
+    ${f.samp ? inp('sampTitle', '名前', FMT0.sampTitle) : ''}
+    <h5>説明（メモ欄）に 入れる もの</h5>
+    <div class="kyo-chips">${DESC_ITEMS.map(([k,t])=>`<button type="button" class="${f.desc[k] ? 'on' : ''}" aria-pressed="${f.desc[k]}" onclick="KYOSHI.fset('desc.${k}', ${!f.desc[k]})">${t}</button>`).join('')}</div>
+    <h5>色（Google カレンダー）</h5>
+    ${[['todo','試験 まだ'],['done','済み'],['samp','採った日']].map(([k,t])=>{ const c=GCOLORS.find(x=>x[0]===f.color[k])||GCOLORS[0]; return `<label class="kyo-f"><span>${t}</span><select onchange="KYOSHI.fset('color.${k}', this.value)" aria-label="${t}の 色">${GCOLORS.map(([v,n])=>`<option value="${v}"${f.color[k]===v ? ' selected' : ''}>${n}</option>`).join('')}</select><i class="kyo-sw" aria-hidden="true" style="background:${c[2]||'transparent'}"></i></label>`; }).join('')}
+    <div class="kyo-acts"><button type="button" class="kyo-b" onclick="KYOSHI.freset()">↺ はじめに もどす</button><button type="button" class="kyo-b" onclick="KYOSHI.sopen()">← カレンダーの 設定</button></div>
+    <p class="kyo-note">{現場}・{材齢} などは その 供試体の 字に かわります（空なら 消えます。採った日の 予定では 材齢・本数・試験日は ぜんぶ 並べます）。かえると「入れたら すぐ」の 送り先の 予定も 直ります。まとめて の 送り先は 次に 送る とき、ファイルは 次に 保存 する とき から。色は Google カレンダーだけ（「つけない」は これから 入れる 予定に 色を つけない）。</p>`;
+}
+function fopen(){ popOpen(fHtml(), 'fmt'); }
+function fprev(){ const p=$('kyoFPrev'); if(p) p.innerHTML=fPrevHtml(); }
+// 書式の 決まり（title・titleDone・sampTitle・samp・desc.○○・color.○○）
+function fset(k, v){
+  const f=st.fmt;
+  if(k==='title' || k==='titleDone' || k==='sampTitle'){ const t=oneLine(v,80)||FMT0[k]; if(t===f[k]){ fprev(); return; } f[k]=t; }
+  else if(k==='samp'){ if(!!v===f.samp) return; f.samp=!!v; }
+  else if(/^desc\./.test(k)){ const n=k.slice(5); if(!(n in f.desc) || f.desc[n]===!!v) return; f.desc[n]=!!v; }
+  else if(/^color\./.test(k)){ const n=k.slice(6), c=String(v==null ? '' : v); if(!(n in f.color) || !GCOLORS.some(x=>x[0]===c) || f.color[n]===c) return; f.color[n]=c; }
+  else return;
+  save(); reG(); render(); kick();
+}
+// 差し込む もの（打って いる ところに {現場} などを 入れる）
+function ftag(k, t){
+  const i=$('kyoFt_'+k); if(!i || !TAGS.includes(t)) return;
+  const a=i.selectionStart==null ? i.value.length : i.selectionStart, b=i.selectionEnd==null ? a : i.selectionEnd, ins='{'+t+'}';
+  i.value=(i.value.slice(0,a)+ins+i.value.slice(b)).slice(0,80);
+  fset(k, i.value);
+  const j=$('kyoFt_'+k); if(j){ try{ j.focus(); j.setSelectionRange(a+ins.length, a+ins.length); }catch(_){} }
+}
+function freset(){ st.fmt=cleanFmt(null); save(); reG(); render(); kick(); toastS('書式を はじめに もどしました'); }
 
 /* ───────── 窓 ───────── */
 const CSS=`
+#kyoshiOverlay{ --k-bg:#eef0f2; --k-panel:#ffffff; --k-ink:#1f2a33; --k-muted:#66727d; --k-line:#d5dade; --k-soft:#f6f7f8; --k-accent:#e8710a; --k-accent-ink:#ffffff; --k-accent-soft:#fdebd9; --k-late:#c62828; --k-late-soft:#fde3e1; --k-d7:#2364aa; --k-d7-soft:#e1ecf8; --k-d28:#2e7d4f; --k-d28-soft:#e0f1e6; --k-d3:#7a4bb0; --k-d3-soft:#efe6f8; --k-done:#9aa3ab; --k-done-soft:#eceef0; --k-sun:#c62828; --k-sat:#2364aa;
+  --modal-bg:var(--k-panel); --text:var(--k-ink); --text-light:var(--k-muted); --acc:var(--k-accent); --on-acc:var(--k-accent-ink); --cell-bg:var(--k-bg); }
+body.dark #kyoshiOverlay{ --k-bg:#14191d; --k-panel:#1d242a; --k-ink:#e6eaed; --k-muted:#9aa5ae; --k-line:#323c44; --k-soft:#232b32; --k-accent:#ff8f2e; --k-accent-ink:#1a1206; --k-accent-soft:#3a2614; --k-late:#ff6b62; --k-late-soft:#3d1f1f; --k-d7:#7fb2ec; --k-d7-soft:#1c2c3e; --k-d28:#6fcb95; --k-d28-soft:#1b3326; --k-d3:#c3a2ec; --k-d3-soft:#2d2140; --k-done:#6c767f; --k-done-soft:#262d33; --k-sun:#ff6b62; --k-sat:#7fb2ec; }
 #kyoshiOverlay .kyo-modal{ display:flex; flex-direction:column; }
-.kyo-body{ flex:1; min-height:0; overflow:auto; padding:10px 10px 0; color:var(--text,#222); font-size:15px; }
-.kyo-wrap{ max-width:760px; margin:0 auto; padding-bottom:70px; }
-.kyo-top{ display:flex; gap:6px; flex-wrap:wrap; margin:0 0 8px; } .kyo-top .kyo-b{ flex:1 1 auto; }
-.kyo-b{ min-height:44px; padding:0 14px; border-radius:12px; border:1px solid rgba(120,132,156,.45); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:15px; font-weight:bold; cursor:pointer; }
-.kyo-b.pri{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); } .kyo-b.warn{ color:#e53935; border-color:rgba(229,57,53,.5); background:transparent; }
-.kyo-b.sm{ min-height:38px; padding:0 10px; font-size:14px; } .kyo-moreb{ display:block; width:100%; margin:6px 0 0; }
-.kyo-cnt{ display:inline-block; min-width:1.5em; margin-left:6px; padding:1px 6px; border-radius:10px; background:#e53935; color:#fff; font-size:12.5px; line-height:1.5; }
-.kyo-gbar{ display:flex; align-items:center; gap:8px; width:100%; box-sizing:border-box; margin:0 0 8px; padding:8px 12px; border-radius:12px; border:1px solid rgba(120,132,156,.35); background:rgba(120,132,156,.07); color:var(--text,#222); text-align:left; font:inherit; cursor:pointer; }
-.kyo-gbar > span{ flex:1; min-width:0; } .kyo-gbar b{ display:block; font-size:14.5px; } .kyo-gbar small{ display:block; font-size:12.5px; color:var(--text-light,#666); line-height:1.45; overflow-wrap:anywhere; }
-.kyo-gbar.ok{ border-color:rgba(46,125,50,.45); background:rgba(46,157,74,.08); } .kyo-gbar.ok b{ color:#2e7d32; }
-.kyo-gbar.wait, .kyo-gbar.run, .kyo-gbar.later{ border-color:rgba(240,164,0,.55); background:rgba(240,164,0,.09); cursor:default; } .kyo-gbar.wait b, .kyo-gbar.later b{ color:#b26a00; }
-.kyo-gbar.err{ border-color:rgba(229,57,53,.5); background:rgba(229,57,53,.07); } .kyo-gbar.err b{ color:#c62828; } .kyo-gbar.off b{ color:var(--acc); }
-.kyo-tabs{ display:flex; gap:6px; margin:0 0 6px; } .kyo-tabs button{ flex:1; min-height:42px; border-radius:21px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:14.5px; cursor:pointer; }
-.kyo-tabs button.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); font-weight:bold; }
-.kyo-h{ display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 8px; margin:14px 0 6px; font-size:14.5px; } .kyo-h > small{ font-size:12.5px; font-weight:normal; color:var(--text-light,#666); }
-.kyo-h.late{ color:#c62828; } .kyo-h.today{ color:var(--acc); }
-.kyo-d.sun{ color:#e53935; } .kyo-d.sat{ color:#1e88e5; } .kyo-d small{ margin-left:4px; font-size:11.5px; font-weight:normal; }
-.kyo-none{ margin:4px 0 8px; font-size:13.5px; color:var(--text-light,#666); }
-.kyo-row{ display:flex; align-items:stretch; margin:0 0 6px; border-radius:14px; border:1px solid rgba(120,132,156,.3); border-left:6px solid rgba(120,132,156,.5); background:var(--modal-bg,#fff); overflow:hidden; }
-.kyo-row.late{ border-left-color:#e53935; background:rgba(229,57,53,.06); } .kyo-row.today{ border-left-color:#f0a400; background:rgba(240,164,0,.08); } .kyo-row.dn{ border-left-color:#2e9d4a; } .kyo-row.dn .kyo-main{ opacity:.62; }
-.kyo-age{ flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; width:52px; font-size:12px; color:var(--text-light,#666); border-right:1px solid rgba(120,132,156,.2); } .kyo-age b{ font-size:21px; line-height:1.05; color:var(--text,#222); }
-.kyo-main{ flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; padding:8px 10px; border:0; background:transparent; color:var(--text,#222); text-align:left; cursor:pointer; font:inherit; }
-.kyo-main .nm{ font-size:16px; overflow-wrap:anywhere; } .mx{ font-size:13.5px; font-weight:bold; color:var(--text-light,#555); } .kyo-main small{ font-size:12.5px; color:var(--text-light,#666); line-height:1.45; }
-.kyo-do{ flex:none; width:72px; border:0; border-left:1px solid rgba(120,132,156,.25); background:var(--acc); color:var(--on-acc,#fff); font-size:22px; font-weight:bold; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; line-height:1; }
-.kyo-do small{ font-size:11.5px; line-height:1.25; } .kyo-do.dn{ background:rgba(120,132,156,.18); color:var(--text,#222); }
-.kyo-g{ font-style:normal; font-size:11.5px; margin-left:5px; white-space:nowrap; } .kyo-g.ok{ color:#2e7d32; } .kyo-g.wait, .kyo-g.later{ color:#b26a00; } .kyo-g.err{ color:#e53935; }
-.kyo-note{ font-size:12.5px; color:var(--text-light,#666); line-height:1.6; margin:10px 0 0; }
-.kyo-empty{ padding:6px 2px; } .kyo-empty p{ margin:4px 0 10px; font-size:14px; line-height:1.6; }
-.kyo-q{ display:flex; align-items:center; gap:6px; margin:4px 0 2px; } .kyo-q input{ flex:1; min-width:0; min-height:42px; padding:0 10px; border-radius:10px; border:1px solid rgba(120,132,156,.55); background:var(--cell-bg,#fff); color:var(--text,#222); font-size:16px; box-sizing:border-box; }
-.kyo-card{ display:flex; flex-direction:column; gap:5px; width:100%; box-sizing:border-box; margin:0 0 6px; padding:9px 12px; border-radius:14px; border:1px solid rgba(120,132,156,.3); background:var(--modal-bg,#fff); color:var(--text,#222); text-align:left; font:inherit; cursor:pointer; }
-.kyo-card .t{ display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 6px; } .kyo-card .nm{ font-size:15.5px; overflow-wrap:anywhere; } .kyo-card .t small{ width:100%; font-size:12.5px; color:var(--text-light,#666); }
-.kyo-ages{ display:flex; flex-wrap:wrap; gap:4px; } .kyo-ages i{ font-style:normal; font-size:12.5px; padding:2px 8px; border-radius:10px; background:rgba(120,132,156,.12); }
-.kyo-ages i.late{ background:rgba(229,57,53,.12); color:#c62828; } .kyo-ages i.today{ background:rgba(240,164,0,.2); } .kyo-ages i.dn{ background:rgba(46,157,74,.14); color:#2e7d32; } .kyo-ages i .kyo-g{ margin-left:3px; }
+.kyo-body{ flex:1; min-height:0; overflow:auto; padding:12px 12px 0; background:var(--k-bg); color:var(--k-ink); font-size:14px; line-height:1.5; }
+.kyo-wrap{ max-width:1400px; margin:0 auto; display:flex; flex-direction:column; gap:12px; padding-bottom:70px; }
+.kyo-num{ font-variant-numeric:tabular-nums; font-family:ui-monospace,Consolas,monospace; }
+.kyo-head{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; } .kyo-today{ color:var(--k-muted); } .kyo-today b{ color:var(--k-ink); } .kyo-spacer{ flex:1; }
+.kyo-b{ min-height:38px; padding:6px 12px; border-radius:8px; border:1px solid var(--k-line); background:var(--k-panel); color:var(--k-ink); font-size:14px; cursor:pointer; }
+.kyo-b:hover{ border-color:var(--k-muted); } .kyo-b.pri{ background:var(--k-accent); border-color:var(--k-accent); color:var(--k-accent-ink); font-weight:bold; } .kyo-b.warn{ color:var(--k-late); border-color:var(--k-late); background:transparent; }
+.kyo-b.sm{ min-height:34px; padding:0 10px; font-size:13.5px; } .kyo-b:disabled{ opacity:.45; cursor:not-allowed; }
+.kyo-cal-b{ min-width:38px; padding:0 8px; border-color:transparent; background:transparent; color:var(--k-muted); font-size:16px; } .kyo-cal-b:hover{ border-color:var(--k-line); }
+.kyo-sy{ font-size:12px; color:var(--k-muted); border:0; background:none; padding:2px 4px; } .kyo-sy.err{ color:var(--k-late); font-weight:bold; cursor:pointer; text-decoration:underline; }
+.kyo-stats{ display:flex; flex-wrap:wrap; gap:8px; } .kyo-stat{ display:flex; align-items:baseline; gap:6px; padding:5px 12px; border-radius:999px; background:var(--k-panel); border:1px solid var(--k-line); }
+.kyo-stat b{ font-size:16px; font-family:ui-monospace,Consolas,monospace; } .kyo-stat.late{ border-color:var(--k-late); color:var(--k-late); background:var(--k-late-soft); } .kyo-stat.today{ border-color:var(--k-accent); background:var(--k-accent-soft); }
+.kyo-toolbar, .kyo-tbar{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.kyo-tabs{ display:flex; background:var(--k-panel); border:1px solid var(--k-line); border-radius:8px; padding:3px; gap:2px; } .kyo-tabs button{ border:0; background:none; padding:6px 14px; border-radius:6px; color:var(--k-muted); font-size:14px; cursor:pointer; }
+.kyo-tabs button.on{ background:var(--k-ink); color:var(--k-bg); font-weight:bold; }
+.kyo-nav{ display:flex; gap:4px; align-items:center; } .kyo-nav .lbl{ min-width:9em; text-align:center; font-weight:bold; }
+.kyo-tbar select, .kyo-tbar input{ border:1px solid var(--k-line); background:var(--k-panel); color:var(--k-ink); border-radius:8px; padding:7px 10px; min-width:0; font-size:14px; } .kyo-tbar input{ flex:1 1 180px; max-width:300px; }
+.kyo-board-scroll{ overflow-x:auto; padding-bottom:4px; } .kyo-board{ display:grid; grid-template-columns:repeat(8,minmax(160px,1fr)); gap:8px; min-width:1100px; }
+.kyo-lane{ background:var(--k-soft); border:1px solid var(--k-line); border-radius:8px; display:flex; flex-direction:column; min-width:0; min-height:200px; }
+.kyo-lh{ display:flex; justify-content:space-between; align-items:baseline; padding:8px 10px; border-bottom:1px solid var(--k-line); background:var(--k-panel); border-radius:8px 8px 0 0; } .kyo-lh .d{ font-weight:bold; } .kyo-lh .d small{ margin-left:4px; font-size:11px; font-weight:normal; } .kyo-lh .c{ color:var(--k-muted); font-size:12px; }
+.kyo-lane.is-late .kyo-lh{ background:var(--k-late); color:var(--k-accent-ink); border-color:var(--k-late); } .kyo-lane.is-late .kyo-lh .c, .kyo-lane.is-today .kyo-lh .c{ color:inherit; }
+.kyo-lane.is-today .kyo-lh{ background:var(--k-accent); color:var(--k-accent-ink); border-color:var(--k-accent); }
+.kyo-lane .sun{ color:var(--k-sun); } .kyo-lane .sat{ color:var(--k-sat); } .kyo-lane.is-late .sun, .kyo-lane.is-today .sun, .kyo-lane.is-late .sat, .kyo-lane.is-today .sat{ color:inherit; }
+.kyo-cards{ display:flex; flex-direction:column; gap:6px; padding:8px; } .kyo-cards.kyo-grid{ padding:0; display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); }
+.kyo-empty{ color:var(--k-muted); font-size:12.5px; text-align:center; padding:16px 4px; }
+.kyo-card{ position:relative; display:grid; grid-template-columns:1fr auto; gap:2px 8px; text-align:left; width:100%; box-sizing:border-box; background:var(--k-panel); border:1px solid var(--k-line); border-left:5px solid var(--k-muted); border-radius:6px; padding:7px 8px; cursor:pointer; color:var(--k-ink); }
+.kyo-card:hover{ border-color:var(--k-muted); } .kyo-card.a7{ border-left-color:var(--k-d7); } .kyo-card.a28{ border-left-color:var(--k-d28); } .kyo-card.a3{ border-left-color:var(--k-d3); }
+.kyo-card.late{ background:var(--k-late-soft); border-left-color:var(--k-late); } .kyo-card.done{ background:var(--k-done-soft); color:var(--k-done); border-left-color:var(--k-done); } .kyo-card.done .nm{ text-decoration:line-through; }
+.kyo-card .nm{ font-weight:bold; overflow-wrap:anywhere; min-width:0; } .kyo-card .mx{ font-size:12px; font-weight:normal; color:var(--k-muted); }
+.kyo-card .meta{ grid-column:1/2; font-size:12px; color:var(--k-muted); display:flex; flex-wrap:wrap; gap:2px 8px; } .kyo-card .memo{ grid-column:1/3; font-size:12px; overflow-wrap:anywhere; }
+.age{ display:inline-block; font-family:ui-monospace,Consolas,monospace; font-size:11px; font-weight:bold; padding:0 6px; border-radius:4px; background:var(--k-soft); }
+.age.a7{ background:var(--k-d7-soft); color:var(--k-d7); } .age.a28{ background:var(--k-d28-soft); color:var(--k-d28); } .age.a3{ background:var(--k-d3-soft); color:var(--k-d3); }
+.chk{ grid-row:1/3; grid-column:2; align-self:center; width:32px; height:32px; border-radius:50%; border:2px solid var(--k-line); background:var(--k-panel); display:grid; place-items:center; font-weight:bold; color:transparent; cursor:pointer; padding:0; }
+.chk:hover{ border-color:var(--k-d28); color:var(--k-d28); } .kyo-card.done .chk{ background:var(--k-d28); border-color:var(--k-d28); color:var(--k-accent-ink); }
+.shift{ font-size:11px; font-weight:bold; color:var(--k-accent); background:var(--k-accent-soft); border-radius:4px; padding:0 5px; }
+.kyo-cal{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:1px; background:var(--k-line); border:1px solid var(--k-line); border-radius:8px; overflow:hidden; touch-action:pan-y; }
+.kyo-cal .wd{ background:var(--k-panel); text-align:center; font-weight:bold; padding:6px 0; font-size:12px; } .kyo-cal .wd.sun, .dn.sun{ color:var(--k-sun); } .kyo-cal .wd.sat, .dn.sat{ color:var(--k-sat); }
+.kyo-day{ background:var(--k-panel); min-height:96px; padding:4px 5px; display:flex; flex-direction:column; gap:2px; text-align:left; border:0; border-radius:0; min-width:0; color:var(--k-ink); font:inherit; cursor:pointer; }
+.kyo-day.out{ background:var(--k-soft); color:var(--k-muted); } .kyo-day.today{ box-shadow:inset 0 0 0 2px var(--k-accent); } .kyo-day.sel{ background:var(--k-accent-soft); }
+.kyo-day .dn{ font-size:12px; font-weight:bold; font-family:ui-monospace,Consolas,monospace; }
+.kyo-pill{ font-size:11px; line-height:1.35; padding:1px 4px; border-radius:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; background:var(--k-soft); }
+.kyo-pill.a7{ background:var(--k-d7-soft); } .kyo-pill.a28{ background:var(--k-d28-soft); } .kyo-pill.a3{ background:var(--k-d3-soft); } .kyo-pill.done{ background:var(--k-done-soft); color:var(--k-done); text-decoration:line-through; }
+.kyo-pill.samp{ background:transparent; border:1px dashed var(--k-accent); } .kyo-pill.samp b{ color:var(--k-accent); margin-right:2px; } .kyo-day .more{ font-size:11px; color:var(--k-muted); }
+.kyo-daypanel{ background:var(--k-panel); border:1px solid var(--k-line); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:8px; margin-top:10px; } .kyo-daypanel h3{ margin:0; font-size:15px; } .kyo-daypanel h4{ margin:4px 0 0; font-size:13px; color:var(--k-muted); }
+.kyo-samplist{ display:flex; flex-direction:column; gap:6px; } .kyo-samprow{ display:flex; flex-wrap:wrap; gap:4px 10px; align-items:baseline; padding:6px 10px; border:1px dashed var(--k-accent); border-radius:6px; cursor:pointer; } .kyo-samprow .nm{ font-weight:bold; } .kyo-samprow .bd{ font-size:12px; color:var(--k-muted); }
+.kyo-tests-wrap, .kyo-tbl-wrap{ overflow-x:auto; background:var(--k-panel); border:1px solid var(--k-line); border-radius:8px; }
+.kyo-tests-wrap table, .kyo-tbl-wrap table{ border-collapse:collapse; width:100%; min-width:560px; } .kyo-tbl-wrap table{ min-width:640px; }
+.kyo-tests-wrap th, .kyo-tests-wrap td, .kyo-tbl-wrap th, .kyo-tbl-wrap td{ padding:7px 9px; border-bottom:1px solid var(--k-line); text-align:left; white-space:nowrap; vertical-align:middle; color:var(--k-ink); }
+.kyo-tests-wrap th, .kyo-tbl-wrap th{ font-size:12px; color:var(--k-muted); font-weight:bold; background:var(--k-soft); } .kyo-tests-wrap th.ac{ text-align:center; }
+td.memo{ white-space:normal; min-width:140px; } td.nm{ font-weight:bold; white-space:normal; min-width:7em; } td.sd{ font-weight:bold; font-family:ui-monospace,Consolas,monospace; }
+.sticky{ position:sticky; left:0; background:var(--k-panel); z-index:1; } tr.grp-start td{ border-top:2px solid var(--k-line); }
+.kyo-tbl-wrap tbody tr{ cursor:pointer; } .kyo-tbl-wrap tbody tr:hover td{ background:var(--k-accent-soft); } tr.late td{ background:var(--k-late-soft); } tr.done td{ color:var(--k-done); } tr.done td.nm{ text-decoration:line-through; }
+.st{ font-size:12px; font-weight:bold; padding:1px 8px; border-radius:999px; } .st.late{ background:var(--k-late); color:var(--k-accent-ink); } .st.done{ background:var(--k-done-soft); color:var(--k-done); } .st.wait{ background:var(--k-soft); color:var(--k-muted); } .st.today{ background:var(--k-accent); color:var(--k-accent-ink); }
+.kyo-tc{ display:flex; flex-direction:column; align-items:center; gap:1px; width:100%; min-width:76px; border:1px solid var(--k-line); border-radius:6px; background:var(--k-panel); color:var(--k-ink); padding:3px 4px; font-family:ui-monospace,Consolas,monospace; font-size:13px; cursor:pointer; }
+.kyo-tc .m{ font-family:inherit; font-size:10px; font-weight:bold; padding:0 6px; border-radius:999px; } .kyo-tc.wait .m{ background:var(--k-soft); color:var(--k-muted); }
+.kyo-tc.today{ border-color:var(--k-accent); background:var(--k-accent-soft); } .kyo-tc.today .m{ background:var(--k-accent); color:var(--k-accent-ink); }
+.kyo-tc.late{ border-color:var(--k-late); background:var(--k-late-soft); color:var(--k-late); } .kyo-tc.late .m{ background:var(--k-late); color:var(--k-accent-ink); } .kyo-tc.done{ background:var(--k-done-soft); color:var(--k-done); } .kyo-tc.done .m{ background:var(--k-d28); color:var(--k-accent-ink); }
+.prog{ font-size:12px; } .prog.all{ color:var(--k-d28); font-weight:bold; } .hint{ font-size:12px; color:var(--k-muted); font-weight:normal; }
+.mini{ border:1px solid var(--k-line); background:var(--k-panel); color:var(--k-ink); border-radius:6px; padding:2px 8px; font-size:12px; font-weight:normal; margin-left:6px; cursor:pointer; }
+.kyo-legend{ display:flex; flex-wrap:wrap; gap:6px 12px; font-size:12px; color:var(--k-muted); } .kyo-legend i{ display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:4px; vertical-align:-1px; } .kyo-legend i.s{ border:1px dashed var(--k-accent); }
 .kyo-undo{ display:none; align-items:center; gap:10px; margin:6px 10px calc(8px + var(--safe-bottom,0px)); padding:10px 12px; border-radius:12px; background:#263238; color:#fff; box-shadow:0 4px 14px rgba(0,0,0,.3); font-size:14px; z-index:3; }
 .kyo-undo.on{ display:flex; } .kyo-undo span{ flex:1; min-width:0; } .kyo-undo button{ min-height:38px; padding:0 12px; border-radius:10px; border:1px solid rgba(255,255,255,.5); background:transparent; color:#fff; font-size:14px; font-weight:bold; cursor:pointer; }
-.kyo-pop-bg{ position:absolute; inset:0; z-index:20; background:rgba(0,0,0,.45); display:flex; align-items:flex-end; justify-content:center; }
-.kyo-pop{ width:100%; max-width:640px; max-height:90%; overflow:auto; box-sizing:border-box; background:var(--modal-bg,#fff); color:var(--text,#222); border-radius:16px 16px 0 0; padding:12px 14px calc(16px + var(--safe-bottom,0px)); box-shadow:0 -6px 24px rgba(0,0,0,.25); }
-.kyo-ph{ display:flex; align-items:center; gap:8px; margin:0 0 8px; } .kyo-ph .e{ font-size:26px; line-height:1; } .kyo-ph b{ flex:1; min-width:0; font-size:17px; overflow-wrap:anywhere; } .kyo-ph b small{ font-size:13.5px; color:var(--text-light,#555); }
-.kyo-x{ min-width:44px; min-height:44px; border-radius:12px; border:1px solid rgba(120,132,156,.4); background:transparent; color:var(--text,#222); font-size:18px; cursor:pointer; }
-.kyo-pop h5{ margin:14px 0 6px; font-size:14.5px; }
-.kyo-f{ display:flex; align-items:center; gap:8px; margin:8px 0; min-width:0; } .kyo-f.top{ align-items:flex-start; } .kyo-f > span:first-child{ flex:none; width:4.6em; font-size:12.5px; font-weight:bold; color:var(--text-light,#666); line-height:1.3; }
-.kyo-f.top > span:first-child{ padding-top:10px; }
-.kyo-f input, .kyo-f textarea{ flex:1; min-width:0; min-height:42px; padding:0 10px; border-radius:10px; border:1px solid rgba(120,132,156,.55); background:var(--cell-bg,#fff); color:var(--text,#222); font-size:16px; box-sizing:border-box; font-family:inherit; }
-.kyo-f textarea{ padding:8px 10px; resize:vertical; }
-.kyo-quick, .kyo-sug{ display:flex; flex-wrap:wrap; gap:5px; margin:-2px 0 6px 5.1em; }
-.kyo-quick button, .kyo-sug button{ min-height:34px; max-width:100%; padding:0 10px; border-radius:17px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:13.5px; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.kyo-quick button.on{ background:rgba(120,132,156,.16); font-weight:bold; }
-.kyo-chips{ display:flex; flex-wrap:wrap; gap:5px; flex:1; min-width:0; } .kyo-chips button{ min-height:40px; min-width:52px; padding:0 10px; border-radius:20px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:14.5px; cursor:pointer; }
-.kyo-chips button.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); font-weight:bold; }
-.kyo-cust{ display:flex; align-items:center; gap:6px; flex:1; min-width:0; } .kyo-f .kyo-cust input{ flex:none; width:5em; min-height:40px; padding:0 8px; border-radius:10px; border:1px solid rgba(120,132,156,.55); background:var(--cell-bg,#fff); color:var(--text,#222); font-size:16px; box-sizing:border-box; }
-.kyo-cust em, .kyo-step em{ font-style:normal; font-size:13px; color:var(--text-light,#666); }
-.kyo-step{ display:inline-flex; align-items:center; gap:6px; } .kyo-step button{ width:44px; height:44px; border-radius:12px; border:1px solid rgba(120,132,156,.45); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:20px; font-weight:bold; cursor:pointer; }
-.kyo-step b{ min-width:1.6em; text-align:center; font-size:19px; } .kyo-step.sm button{ width:36px; height:36px; font-size:17px; } .kyo-step.sm b{ font-size:16px; min-width:1.3em; }
-.kyo-prev{ margin:10px 0 0; padding:9px 12px; border-radius:12px; background:rgba(120,132,156,.1); font-size:14px; line-height:1.7; display:flex; flex-direction:column; } .kyo-prev em{ font-style:normal; font-size:12.5px; color:#e53935; }
-.kyo-sess{ display:flex; flex-direction:column; gap:2px; margin:0 0 8px; padding:8px 12px; border-radius:12px; border:1px solid rgba(46,125,50,.4); background:rgba(46,157,74,.08); font-size:13.5px; }
-.kyo-sess b{ color:#2e7d32; } .kyo-sess span{ overflow-wrap:anywhere; } .kyo-sess small{ margin-left:6px; font-size:12px; color:var(--text-light,#666); }
-.kyo-more{ margin:4px 0; } .kyo-more summary{ cursor:pointer; min-height:36px; line-height:36px; font-size:13.5px; color:var(--text-light,#555); }
+.kyo-pop-bg{ position:absolute; inset:0; z-index:20; background:rgba(10,15,20,.45); display:flex; align-items:center; justify-content:center; padding:12px; box-sizing:border-box; }
+.kyo-pop{ width:100%; max-width:480px; max-height:100%; overflow:auto; box-sizing:border-box; background:var(--k-panel); color:var(--k-ink); border:1px solid var(--k-line); border-radius:12px; padding:16px 16px calc(16px + var(--safe-bottom,0px)); box-shadow:0 10px 40px rgba(0,0,0,.35); }
+.kyo-ph{ display:flex; align-items:center; gap:8px; margin:0 0 8px; } .kyo-ph .e{ font-size:26px; line-height:1; } .kyo-ph b{ flex:1; min-width:0; font-size:17px; overflow-wrap:anywhere; }
+.kyo-x{ min-width:40px; min-height:40px; border-radius:10px; border:1px solid var(--k-line); background:transparent; color:var(--k-ink); font-size:18px; cursor:pointer; }
+.kyo-pop h5{ margin:14px 0 6px; font-size:14.5px; } .kyo-pop hr{ border:0; border-top:1px solid var(--k-line); width:100%; margin:12px 0; }
+.field{ display:flex; flex-direction:column; gap:4px; margin:8px 0; } .field label{ font-size:12px; color:var(--k-muted); font-weight:bold; }
+.field input, .field textarea{ border:1px solid var(--k-line); background:var(--k-bg); color:var(--k-ink); border-radius:6px; padding:8px 10px; width:100%; box-sizing:border-box; font-size:16px; font-family:inherit; } textarea.paste{ min-height:110px; font-family:ui-monospace,Consolas,monospace; font-size:12px; }
+.ages{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; } .ages .chip{ min-width:58px; border:1px solid var(--k-line); background:var(--k-bg); color:var(--k-muted); border-radius:999px; padding:7px 12px; font-family:ui-monospace,Consolas,monospace; font-weight:bold; cursor:pointer; }
+.ages .chip[aria-pressed="true"]{ background:var(--k-ink); color:var(--k-bg); border-color:var(--k-ink); } .ages .chip[aria-pressed="true"]::before{ content:"✓ "; }
+.addage{ display:flex; gap:4px; align-items:center; } .addage input{ width:64px; border:1px solid var(--k-line); background:var(--k-bg); color:var(--k-ink); border-radius:6px; padding:6px 8px; font-size:16px; } .addage button{ border:1px solid var(--k-line); background:var(--k-panel); color:var(--k-ink); border-radius:6px; padding:6px 10px; cursor:pointer; }
+.hist{ display:flex; flex-direction:column; gap:6px; margin:0 0 6px; } .hist-list{ display:flex; flex-wrap:wrap; gap:6px; max-height:132px; overflow:auto; }
+.hist-list button{ display:flex; flex-direction:column; align-items:flex-start; gap:1px; border:1px solid var(--k-line); background:var(--k-soft); color:var(--k-ink); border-radius:8px; padding:5px 10px; text-align:left; max-width:100%; cursor:pointer; } .hist-list button:hover{ border-color:var(--k-accent); background:var(--k-accent-soft); }
+.hist-list .hn{ font-weight:bold; overflow-wrap:anywhere; } .hist-list .hm{ font-size:11px; color:var(--k-muted); }
+.kyo-quick{ display:flex; flex-wrap:wrap; gap:5px; margin:-2px 0 6px; } .kyo-quick button, .kyo-sug button{ min-height:34px; padding:0 10px; border-radius:17px; border:1px solid var(--k-line); background:transparent; color:var(--k-ink); font-size:13.5px; cursor:pointer; }
+.preview{ background:var(--k-soft); border-radius:6px; padding:8px 10px; font-size:13px; margin:8px 0 0; } .preview .warn, .warn{ color:var(--k-late); font-weight:bold; } .err{ color:var(--k-late); font-size:13px; }
+.prow{ display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; padding:3px 0; } .prow .sg{ min-width:3.2em; font-weight:bold; } .prow .dd{ min-width:6.5em; text-align:center; }
+.dj{ width:32px; height:32px; border:1px solid var(--k-line); background:var(--k-panel); color:var(--k-ink); border-radius:6px; font-weight:bold; line-height:1; cursor:pointer; } .dj:hover{ border-color:var(--k-accent); }
+.chg{ font-size:11px; font-weight:bold; padding:0 6px; border-radius:999px; margin-left:4px; } .chg.add{ background:var(--k-d28-soft); color:var(--k-d28); } .chg.del{ background:var(--k-late-soft); color:var(--k-late); } .chg.keep{ background:var(--k-soft); color:var(--k-muted); }
+.kyo-kv{ display:grid; grid-template-columns:6em 1fr; gap:4px 10px; margin:6px 0 0; } .kyo-kv dt{ color:var(--k-muted); font-size:12px; padding-top:2px; } .kyo-kv dd{ margin:0; overflow-wrap:anywhere; }
+.kyo-acts{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:10px 0 0; } .kyo-acts.end{ justify-content:flex-end; margin-top:14px; } .kyo-sp{ margin-right:auto; }
+.kyo-more{ margin:4px 0; } .kyo-more summary{ cursor:pointer; min-height:36px; line-height:36px; font-size:13.5px; color:var(--k-muted); }
+.kyo-step{ display:inline-flex; align-items:center; gap:6px; } .kyo-step button{ width:44px; height:44px; border-radius:12px; border:1px solid var(--k-line); background:var(--k-soft); color:var(--k-ink); font-size:20px; font-weight:bold; cursor:pointer; } .kyo-step b{ min-width:1.6em; text-align:center; font-size:19px; }
+.kyo-f{ display:flex; align-items:center; gap:8px; margin:8px 0; min-width:0; } .kyo-f > span:first-child{ flex:none; width:4.6em; font-size:12.5px; font-weight:bold; color:var(--k-muted); line-height:1.3; }
+.kyo-f input, .kyo-f textarea, .kyo-f select{ flex:1; min-width:0; min-height:42px; padding:0 10px; border-radius:10px; border:1px solid var(--k-line); background:var(--k-bg); color:var(--k-ink); font-size:16px; box-sizing:border-box; font-family:inherit; }
+.kyo-chips{ display:flex; flex-wrap:wrap; gap:5px; flex:1; min-width:0; } .kyo-chips button{ min-height:40px; min-width:52px; padding:0 10px; border-radius:20px; border:1px solid var(--k-line); background:transparent; color:var(--k-ink); font-size:14.5px; cursor:pointer; }
+.kyo-chips button.on{ background:var(--k-accent); border-color:var(--k-accent); color:var(--k-accent-ink); font-weight:bold; }
 .kyo-ck{ display:flex; align-items:center; gap:8px; margin:10px 0 0; font-size:14px; cursor:pointer; } .kyo-ck input{ width:22px; height:22px; flex:none; }
-.kyo-acts{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:10px 0 0; } .kyo-acts.end{ justify-content:flex-end; margin-top:14px; }
-.kyo-aes{ border:1px solid rgba(120,132,156,.25); border-radius:12px; overflow:hidden; }
-.kyo-ae{ display:flex; align-items:center; flex-wrap:wrap; gap:6px 8px; padding:6px 8px; border-bottom:1px solid rgba(120,132,156,.18); border-left:5px solid rgba(120,132,156,.4); } .kyo-ae:last-child{ border-bottom:0; }
-.kyo-ae.late{ border-left-color:#e53935; } .kyo-ae.today{ border-left-color:#f0a400; } .kyo-ae.dn{ border-left-color:#2e9d4a; }
-.kyo-ae .kyo-age{ width:40px; border-right:0; } .kyo-ae .t{ flex:1 1 9em; min-width:0; display:flex; flex-direction:column; font-size:14px; } .kyo-ae .t small{ font-size:12px; color:var(--text-light,#666); overflow-wrap:anywhere; }
-.kyo-do2{ min-height:38px; padding:0 10px; border-radius:10px; border:1px solid var(--acc); background:var(--acc); color:var(--on-acc,#fff); font-size:13.5px; font-weight:bold; cursor:pointer; } .kyo-do2.dn{ background:transparent; color:var(--text,#222); border-color:rgba(120,132,156,.45); }
-.kyo-gc{ min-width:38px; min-height:38px; border-radius:10px; border:1px solid rgba(120,132,156,.45); background:transparent; font-size:17px; cursor:pointer; }
-.kyo-gst{ margin:0 0 8px; padding:9px 12px; border-radius:12px; background:rgba(120,132,156,.1); font-size:14px; line-height:1.6; overflow-wrap:anywhere; }
-.kyo-steps{ margin:4px 0 8px; } .kyo-steps summary{ cursor:pointer; min-height:40px; line-height:40px; font-weight:bold; font-size:14.5px; color:var(--acc); }
-.kyo-steps ol{ margin:4px 0 0; padding-left:22px; font-size:14px; line-height:1.7; } .kyo-steps li{ margin:0 0 8px; } .kyo-steps li small{ display:block; font-size:12.5px; color:var(--text-light,#666); }
-.kyo-steps a{ color:var(--acc); font-weight:bold; }
-.kyo-dsts{ display:flex; flex-direction:column; gap:6px; } .kyo-dsts button{ display:flex; flex-direction:column; align-items:flex-start; gap:1px; width:100%; min-height:48px; padding:7px 12px; border-radius:12px; border:2px solid rgba(120,132,156,.35); background:transparent; color:var(--text,#222); text-align:left; font:inherit; cursor:pointer; }
-.kyo-dsts button b{ font-size:14.5px; } .kyo-dsts button small{ font-size:12px; color:var(--text-light,#666); } .kyo-dsts button.on{ border-color:var(--acc); background:rgba(120,132,156,.1); } .kyo-dsts button.on b::before{ content:'● '; color:var(--acc); }
+.kyo-note{ font-size:12.5px; color:var(--k-muted); line-height:1.6; margin:10px 0 0; } .kyo-note .kyo-cs{ border:1px dashed var(--k-accent); padding:0 4px; border-radius:4px; font-style:normal; }
+.kyo-gst{ margin:0 0 8px; padding:9px 12px; border-radius:12px; background:var(--k-soft); font-size:14px; line-height:1.6; overflow-wrap:anywhere; }
+.kyo-steps{ margin:4px 0 8px; } .kyo-steps summary{ cursor:pointer; min-height:40px; line-height:40px; font-weight:bold; font-size:14.5px; color:var(--k-accent); } .kyo-steps ol{ margin:4px 0 0; padding-left:22px; font-size:14px; line-height:1.7; } .kyo-steps li{ margin:0 0 8px; } .kyo-steps li small{ display:block; font-size:12.5px; color:var(--k-muted); } .kyo-steps a{ color:var(--k-accent); font-weight:bold; }
+.kyo-dsts{ display:flex; flex-direction:column; gap:6px; } .kyo-dsts button{ display:flex; flex-direction:column; align-items:flex-start; gap:1px; width:100%; min-height:48px; padding:7px 12px; border-radius:12px; border:2px solid var(--k-line); background:transparent; color:var(--k-ink); text-align:left; font:inherit; cursor:pointer; }
+.kyo-dsts button b{ font-size:14.5px; } .kyo-dsts button small{ font-size:12px; color:var(--k-muted); } .kyo-dsts button.on{ border-color:var(--k-accent); background:var(--k-soft); } .kyo-dsts button.on b::before{ content:'● '; color:var(--k-accent); }
+.kyo-h{ display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 8px; margin:14px 0 6px; font-size:14.5px; } .kyo-h > small{ font-size:12.5px; font-weight:normal; color:var(--k-muted); } .kyo-d.sun{ color:var(--k-sun); } .kyo-d.sat{ color:var(--k-sat); } .kyo-d small{ margin-left:4px; font-size:11.5px; font-weight:normal; } .kyo-none{ margin:4px 0 8px; font-size:13.5px; color:var(--k-muted); }
 .kyo-bsel{ margin:0 0 4px; } .kyo-bsel button{ min-height:36px; font-size:13.5px; }
-.kyo-blist{ max-height:46vh; overflow:auto; border:1px solid rgba(120,132,156,.25); border-radius:12px; padding:0 8px 6px; } .kyo-blist .kyo-h{ margin:10px 0 4px; font-size:13.5px; }
-.kyo-bi{ display:flex; align-items:flex-start; gap:8px; padding:6px 4px; border-bottom:1px solid rgba(120,132,156,.15); cursor:pointer; } .kyo-bi:last-child{ border-bottom:0; }
-.kyo-bi input{ width:22px; height:22px; flex:none; margin-top:2px; } .kyo-bi .t{ flex:1; min-width:0; display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 6px; font-size:14.5px; } .kyo-bi .t small{ width:100%; font-size:12.5px; color:var(--text-light,#666); }
-.kyo-bi.in .t > b{ color:var(--text-light,#555); } .kyo-bd{ font-style:normal; font-size:11.5px; color:#2e7d32; }
-.kyo-dlist{ display:flex; flex-direction:column; gap:6px; margin:0 0 8px; } .kyo-dcard{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; position:relative; width:100%; box-sizing:border-box; padding:8px 70px 8px 12px; border-radius:12px; border:1px solid rgba(120,132,156,.4); background:rgba(120,132,156,.06); color:var(--text,#222); text-align:left; font:inherit; cursor:pointer; }
-.kyo-dcard b{ font-size:15px; } .kyo-dcard small{ font-size:12.5px; color:var(--text-light,#666); line-height:1.45; overflow-wrap:anywhere; } .kyo-dcard i{ position:absolute; right:12px; top:50%; transform:translateY(-50%); font-style:normal; font-size:13px; color:var(--acc); font-weight:bold; }
-@media (max-width:420px){ .kyo-quick, .kyo-sug{ margin-left:0; } .kyo-f > span:first-child{ width:4em; } }
+.kyo-blist{ max-height:40vh; overflow:auto; border:1px solid var(--k-line); border-radius:12px; padding:0 8px 6px; } .kyo-blist .kyo-h{ margin:10px 0 4px; font-size:13.5px; }
+.kyo-bi{ display:flex; align-items:flex-start; gap:8px; padding:6px 4px; border-bottom:1px solid var(--k-line); cursor:pointer; } .kyo-bi:last-child{ border-bottom:0; } .kyo-bi input{ width:22px; height:22px; flex:none; margin-top:2px; }
+.kyo-bi .t{ flex:1; min-width:0; display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 6px; font-size:14.5px; } .kyo-bi .t small{ width:100%; font-size:12.5px; color:var(--k-muted); } .kyo-bi.in .t > b{ color:var(--k-muted); } .kyo-bd{ font-style:normal; font-size:11.5px; color:var(--k-d28); } .mx{ font-size:13px; font-weight:bold; color:var(--k-muted); }
+.kyo-dlist{ display:flex; flex-direction:column; gap:6px; margin:0 0 8px; } .kyo-dcard{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; position:relative; width:100%; box-sizing:border-box; padding:8px 70px 8px 12px; border-radius:12px; border:1px solid var(--k-line); background:var(--k-soft); color:var(--k-ink); text-align:left; font:inherit; cursor:pointer; }
+.kyo-dcard b{ font-size:15px; } .kyo-dcard small{ font-size:12.5px; color:var(--k-muted); line-height:1.45; overflow-wrap:anywhere; } .kyo-dcard i{ position:absolute; right:12px; top:50%; transform:translateY(-50%); font-style:normal; font-size:13px; color:var(--k-accent); font-weight:bold; }
+.kyo-tags{ display:flex; flex-wrap:wrap; gap:4px; margin:-2px 0 8px; } .kyo-tags button{ min-height:32px; padding:0 8px; border-radius:16px; border:1px dashed var(--k-muted); background:transparent; color:var(--k-ink); font-size:12.5px; cursor:pointer; }
+.kyo-fprev{ display:flex; flex-direction:column; gap:2px; margin:6px 0 0; padding:8px 12px; border-radius:12px; background:var(--k-soft); font-size:13.5px; line-height:1.6; overflow-wrap:anywhere; } .kyo-fprev em{ display:inline-block; min-width:4.5em; font-style:normal; font-size:12px; color:var(--k-muted); }
+.kyo-sw{ flex:none; width:26px; height:26px; border-radius:50%; border:1px solid var(--k-line); }
+@media (max-width:760px){ .kyo-board-scroll{ overflow:visible; } .kyo-board{ grid-template-columns:1fr; min-width:0; } .kyo-lane{ min-height:0; } .kyo-lane.blank{ display:none; } .kyo-day{ min-height:64px; padding:3px 2px; } .kyo-day .kyo-pill{ font-size:10px; padding:0 2px; } }
 `;
 function ensureDom(){
   if($('kyoshiOverlay')) return;
@@ -1065,7 +1299,7 @@ function ensureDom(){
   const box=document.createElement('div');
   box.innerHTML=`<div class="modal-overlay" id="kyoshiOverlay">
   <div class="modal vol-modal kyo-modal modal-full" style="position:relative">
-    <div class="modal-header"><span>🧱 供試体</span><button class="modal-close" onclick="closeKyoshi()" aria-label="閉じる">✕</button></div>
+    <div class="modal-header"><span>🧱 供試体 破壊予定ボード</span><button class="modal-close" onclick="closeKyoshi()" aria-label="閉じる">✕</button></div>
     <div class="kyo-body" id="kyoBody"></div>
     <div class="kyo-undo" id="kyoUndo" role="status"></div>
   </div></div>`;
@@ -1080,27 +1314,29 @@ function ensureDom(){
   }, true);
   if(typeof applyNpToolFull==='function') applyNpToolFull();
 }
-function cleanup(){ popClose(); dr=null; sess=[]; bt=null; clearTimeout(undoT); clearTimeout(retryT); undo=null; const u=$('kyoUndo'); if(u) u.classList.remove('on'); }
+function cleanup(){ popClose(); ed=null; bt=null; clearTimeout(undoT); clearTimeout(retryT); undo=null; const u=$('kyoUndo'); if(u) u.classList.remove('on'); }
 // pre：{site, date}（📝 試験報告書 から 来た とき。入れる 窓を 出す）
 function openKyoshi(pre){
-  ensureDom(); if(!st || !busyN) load(); lq=''; listMax=LIST_STEP;
+  ensureDom(); if(!st || !busyN) load(); lq=''; tq=''; base=''; month=''; selDay='';
   openDlg('kyoshiOverlay', cleanup); render();
   if(!window.HyoIcs && typeof loadSidePart==='function') loadSidePart(['hyoics.js']);   // 📅 カレンダーの 部品を 先に 読んでおく
   kick(600);
-  if(pre && typeof pre==='object' && !(pre instanceof Event) && (pre.site || pre.date)) openAdd(pre);
+  if(pre && typeof pre==='object' && !(pre instanceof Event) && (pre.site || pre.date)) openEdit('', pre);
 }
 function closeKyoshi(){ if(!$('kyoshiOverlay') || !isDlgOpen('kyoshiOverlay')) return; closeDlg('kyoshiOverlay', cleanup); }
 
-window.KYOSHI={ add:pre=>openAdd(pre), addGo:more=>addGo(!!more), drSet, drDay, drAge, drAgeCust, drN, pick, open:openItem, close:popClose, set:setF, age:toggleAge, ageCust, setN, done, undo:undoDo,
-  del:id=>delItem(id), tidy:()=>tidy(), view:setView, q:setQ, more, copy, copyOne, text, table:toTable, rows:tableRows, cal:id=>openBatch({ids:[id]}), gcal1,
+window.KYOSHI={ add:pre=>openEdit('', pre), edit:id=>openEdit(id), again, excel:openExcel, detail, chk:(id, f)=>chk(id, f), close:popClose, delAsk, delNo, delYes:id=>delYes(id), undo:undoDo,
+  edSet, edDay, edAge, edAgeCust, edAdj, edN, edHist, edGo:more=>edGo(!!more), xparse, ximport, xcopy:all=>xcopy(!!all), view:setView, nav, navToday, calDay, tf, tmonth, tqs, lf, lqs,
+  tidy:()=>tidy(), copy, text, table:toTable, rows:tableRows, cal:id=>openBatch({ids:[id]}), gcal1,
   batch:o=>openBatch(o), bDst, bSel, bAll, bGo:how=>bGo(how),
-  gopen, gadd, gedit, gdel:id=>gdel(id), gtest:id=>gtest(id), gurl, dset, gset, gcopy, gshare, gcopyCfg, sync:why=>sync(why||'user'),
+  gopen, sopen, gadd, gedit, gdel:id=>gdel(id), gtest:id=>gtest(id), gurl, dset, gset, gcopy, gshare, gcopyCfg, sync:why=>sync(why||'user'),
+  fopen, fprev, fset, ftag, freset, fill:(tpl, id, d)=>{ const it=itOf(id); if(!it) return ''; return fill(tpl, it, d==='s' ? sampOf(it) : ageOf(it, d)); },
   // ためす とき 用
-  today:s=>{ fixedToday=s ? String(s) : null; if(st && isOpen()) render(); }, state:()=>JSON.parse(JSON.stringify(st)), clean:cleanIt, gasCode, parseUrl,
+  today:s=>{ fixedToday=s ? String(s) : null; base=''; month=''; selDay=''; if(st && isOpen()) render(); }, state:()=>JSON.parse(JSON.stringify(st)), clean:cleanIt, gasCode, parseUrl,
   addItem:o=>{ if(!st) load(); const it=addItem(o||{}); if(isOpen()) render(); return it ? it.id : null; },
   plan:id=>{ if(!st) load(); const L=id ? [dOf(id)].filter(Boolean) : autoDs(); return [].concat(...L.map(D=>plan(D).map(p=>Object.assign({t:p.t, dst:D.id}, p.op)))); },
   tests:()=>tests().map(x=>({id:x.it.id, site:x.it.site, d:x.a.d, date:ymd(x.td), dd:x.dd, done:x.a.done})),
-  ev:(id,d)=>{ const it=itOf(id), a=ageOf(it, d); return a ? evOf(it, a) : null; }, ics:id=>{ const it=itOf(id); return it ? icsOfIt(it) : []; }, gurlOf:(id,d)=>{ const it=itOf(id), a=ageOf(it, d); return a ? gcalUrl(it, a) : ''; },
+  ev:(id,d)=>{ const it=itOf(id), a=d==='s' ? (it && sampOf(it)) : ageOf(it, d); return a ? evOf(it, a) : null; }, ics:id=>{ const it=itOf(id); return it ? icsOfIt(it) : []; }, gurlOf:(id,d)=>{ const it=itOf(id), a=ageOf(it, d); return a ? gcalUrl(it, a) : ''; },
   gstate:(id,d,dst)=>{ const it=itOf(id), a=ageOf(it, d), D=dst ? dOf(dst) : st.dests.find(dReady); return a && D ? gState(it, a, D) : null; },
   notIn:()=>st.items.filter(notIn).map(it=>it.id), busy:()=>busyN>0 };
 Object.assign(window, { openKyoshi, closeKyoshi });
