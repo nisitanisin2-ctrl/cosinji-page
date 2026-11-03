@@ -5118,6 +5118,7 @@ const KEY_FUNCS={
   a_gijiroku:{g:'設定・機能',label:'📝議事録',short:'議事録',run:()=>openGijiroku()},   // v605
   a_sentaku:{g:'設定・機能',label:'🧺洗濯表示',short:'洗濯',run:()=>openSentaku()},   // v605
   a_kyoshi:{g:'設定・機能',label:'🧱供試体',short:'供試体',run:()=>openKyoshi()},   // v611
+  a_ggolf:{g:'設定・機能',label:'⛳グラウンドゴルフ',short:'グラゴル',run:()=>openGgolf()},   // v616
   a_chart:{g:'設定・機能',label:'📊表からグラフ',short:'グラフ',run:()=>hpRun('chart')},   // v563 表を強くする
   a_cfmt:{g:'設定・機能',label:'🎨条件で色',short:'条件色',run:()=>hpRun('cf')},
   a_filter:{g:'設定・機能',label:'🔎しぼり込み',short:'しぼる',run:()=>hpRun('filter')},
@@ -8208,6 +8209,9 @@ function kyoshiKick(){
 window.addEventListener('online', ()=>setTimeout(kyoshiKick, 1500));
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTimeout(kyoshiKick, 1500); });
 setTimeout(kyoshiKick, 5000);
+/* ── ⛳ グラウンドゴルフ（v616。ggolf.js。合計と ホールインワンの 数だけで 順位と 賞）── */
+sidePartOpener('openGgolf', ['ggolf.js'], 'グラウンドゴルフ');
+window.closeGgolf=function(){};
 /* ── 📝 試験報告書（v600。単位水量・カンタブの 報告書と カンタブの 1ページ。shiken.js に 分けてある）── */
 ['openShikenRep','ktPdf','ktImage','shikenPrint','shikenImage'].forEach(n=>sidePartOpener(n, ['shiken.js'], '試験報告書'));
 window.closeShikenRep=function(){};
@@ -8738,6 +8742,7 @@ const NP_TOOLS=[
   {id:'gijiroku', label:'📝議事録',     ov:'gijirokuOverlay',  run:()=>openGijiroku(), close:()=>closeGijiroku()}, // gijiroku.js（開いたときに読む。v605）
   {id:'sentaku',  label:'🧺洗濯表示',   ov:'sentakuOverlay',   run:()=>openSentaku(),  close:()=>closeSentaku()},  // sentaku.js（開いたときに読む。v605）
   {id:'kyoshi',   label:'🧱供試体',     ov:'kyoshiOverlay',    run:()=>openKyoshi(),   close:()=>closeKyoshi()},   // kyoshi.js（開いたときに読む。v611）
+  {id:'ggolf',    label:'⛳グラウンドゴルフ', ov:'ggolfOverlay', run:()=>openGgolf(),    close:()=>closeGgolf()},    // ggolf.js（開いたときに読む。v616）
   {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},                        // 別のアプリとして開くので全画面・フリックの対象外
   {id:'calctmpl', label:'📋式テンプレ', ov:'calcTmplOverlay',  run:()=>openCalcTmpl(), close:()=>closeCalcTmpl()},
   {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
@@ -15481,6 +15486,7 @@ const TOOL_HINTS={
   gijiroku:'「＋ 新しい 会議」で ひな形（定例会・総会・職場の 会議 など）を えらび、出席者（📇 名簿から）・議題・決まったこと・宿題（だれが・いつまで）を 入れます。「🖨 印刷・PDF」で 署名欄つきの 議事録に。📄 Word・📊 Excel の ファイルにも できます。「💾 保存」で すぐ 保存・控えの ファイルに。どんな 会議か 分からない ときは「📖 議事録の 例」（会議の 種類ごとに 5つ）を 見て ください。宿題は「📌 宿題」と 次の 会議で 確かめられます。',
   sentaku:'服の タグの 記号を 絵から えらぶと、洗い方・乾燥機・アイロンの 温度などが 下に 出ます。「🧥 服・素材」で ズボン・靴下・セーター・ウール などの 洗い方、上の 🔍 で さがす ことも。「📒 メモに 残す」で 家族の 服の お手入れメモ（写真つき）に。',
   kyoshi:'「＋ 供試体を登録」で 採取日・現場・材齢（σ7・σ28 など）を 入れると、破壊日が 出ます。ボード（遅れ＋7日）・カレンダー・試験一覧・破壊一覧で 見られ、◯ を 押すと 破壊済に。Excel連携で 貼り付け・書き出し。Google などの カレンダーへは 右上の 小さな 📅 から（ふだんは 目立ちません）。',
+  ggolf:'「＋ 新しい 大会を 作る」で 大会を 作り、名前と 合計・ホールインワンの 数を 入れます（「📝 まとめて 入れる」なら「名前／チーム 合計 ホールインワン」を 何人分でも）。「🏆 順位・賞」に 順位と 個人賞・チーム賞・とび賞・ブービー賞・ホールインワン賞が 出ます。賞の 決め方は ⚙ で かえられます。',
   ruler:'はじめに「🎯 校正」でカードや硬貨を画面に当てて合わせると、定規が正しい長さになります。「📷 写真で測る」は基準の物と並べて撮ってなぞります。',
   keisan:'8つの計算から選びます。入れた数は覚えるので、次も続きから使えます。',
   kurashi:'10のテーマから選ぶか、上の欄で「AED」「死亡届」「失業保険」のようにさがします。ページの中の 🧮 道具で、期限や金額の目安も出せます。🔖 つづきから・🔈 読み上げ も。',
@@ -15571,7 +15577,7 @@ function homeSetStartup(on){ setStartPage(on?'home':'last'); }
    ★よく使う（自分で選ぶ。選んでいなければ さいきん使ったもの）→ まとまりごと → 隠している道具（畳む）。
    ☰・ホーム・🧰ボタンのどこから開いても同じ窓。隠した道具も下の「隠している道具」から開ける */
 const TOOL_CATS=[
-  ['🏠 くらし',   ['keisan','hadetimer','hadecount','yatta','shukin','shiori','tatekae','kuji','bingo','sentaku','okaeshi','koyomi','hoi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
+  ['🏠 くらし',   ['keisan','hadetimer','hadecount','yatta','shukin','shiori','tatekae','kuji','bingo','ggolf','sentaku','okaeshi','koyomi','hoi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
   ['📖 知識・手引き',['kurashi','manner','boki']],   // 計算ではなく読む道具（v513）
   ['💼 仕事',     ['techo','gijiroku','seikyu','meishi','calctmpl','fintmpl','kaikei']],
   ['🏗 現場・畑', ['tansui','kantab','kyoshi','dasetsu','volume','mikurabe','ruler','kakudo','veggie']],
@@ -15841,7 +15847,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v616';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v617';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -18346,6 +18352,7 @@ const ST_GROUPS=[
   {k:'excalc_sentaku',    n:'洗濯表示（お手入れメモ。写真は 別）'},
   {k:'excalc_shiken',     n:'試験報告書の 見出し（工事名・試験者 など）'},
   {k:'excalc_kyoshi',     n:'供試体（採った日・現場・材齢・試験 済み・Google カレンダーの 設定）'},
+  {k:'excalc_ggolf',      n:'グラウンドゴルフ（大会・名簿・合計・ホールインワン・賞の 決め方）'},
   {k:'excalc_yomi',       n:'読みものの しおり・最近 見た ページ（マナー帳・会計の手引き・便利帳）'},
   {k:'excalc_receipt',    n:'読み取ったレシート（道具は外しました）', how:'clear'},   // v561〜v563 の 📷レシート読み取りの残り。勝手には消さない
   {k:'excalc_links',      n:'リンク集'},
@@ -18544,6 +18551,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_yomi',   // 📖読みものの しおり・最近 見た（v601）
   'excalc_mikurabe','excalc_gijiroku','excalc_sentaku',   // 📸見比べ・📝議事録・🧺洗濯表示（v605。写真は 書き出すときに 聞く）
   'excalc_kyoshi',   // 🧱供試体（v611。Google カレンダーの 設定も）
+  'excalc_ggolf',   // ⛳グラウンドゴルフ（v616）
 ];
 function settingsBundle(){
   const o={};

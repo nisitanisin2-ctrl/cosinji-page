@@ -9,7 +9,7 @@
      下の 答えは 線が 下に 着いてから 出す（v586。ぜんぶ開ける も いっしょに 線を 引いてから）
      🔊 音（v592）：線を 引く あいだは ドラムロール、着いたら 当たり＝カランカラン（福引きの 鐘）と ファンファーレ・
      はずれ＝ぷぅ〜（下がる ラッパ）・ほか（数・自分で 書いた 役 など）＝ポン。ぜんぶ開ける ときは まとめて 1回。音は 出す／出さない を えらべる
-     上の 場所（v616）：「名前の 順」か「1人ずつ えらぶ」（自分で 場所を えらぶ）。えらぶ ときは 作ると 上が 空いた 番号に なり、
+     上の 場所（v617）：「名前の 順」か「1人ずつ えらぶ」（自分で 場所を えらぶ）。えらぶ ときは 作ると 上が 空いた 番号に なり、
      えらぶ 人（名前を 押して かえられる）が すきな 番号を 押すと その 場所に 入る（入れた 場所を 押すと 外せる・↶ ひとつ もどす・🎲 のこりは おまかせ）。
      みんなが えらぶまで 開けられない（ぜんぶ開ける も）。全画面でも 同じ
    くじは端末の乱数（crypto.getRandomValues）で、かたよりなく決める。休みの人は 名前を押すと外せる。
@@ -65,7 +65,7 @@ function clean(o){
   if(a&&Array.isArray(a.names)&&Array.isArray(a.rungs)&&a.names.length>=2&&a.names.length<=MAX_AMIDA&&a.rungs.length<=200){
     const n=a.names.length, pick=a.pick===true;
     let names=strs(a.names,MAX_AMIDA,30), pool=null;
-    if(pick){   // 自分で えらぶ：まだ えらんで いない 場所は ''（v616）
+    if(pick){   // 自分で えらぶ：まだ えらんで いない 場所は ''（v617）
       pool=uniq(strs(a.pool,MAX_AMIDA,30)); const seen=new Set();
       names=a.names.slice(0,n).map(x=>{ const v=line(x,30); if(!v || !pool.includes(v) || seen.has(v)) return ''; seen.add(v); return v; });
       if(pool.length!==n) names=[];
@@ -128,10 +128,10 @@ function makeAmida(names, prizes, self){
     for(let t=0;t<80;t++){ const l=rnd(levels); if(!(c>0&&rungs[l][c-1]) && !rungs[l][c+1]){ rungs[l][c]=true; break; } }
   }
   const a={names:names.slice(), prizes:shuffle(prizes), rungs, open:[]};
-  if(self){ a.pick=true; a.pool=names.slice(); a.names=names.map(()=>''); }   // 上の 場所は 1人ずつ 自分で えらぶ（v616）
+  if(self){ a.pick=true; a.pool=names.slice(); a.names=names.map(()=>''); }   // 上の 場所は 1人ずつ 自分で えらぶ（v617）
   return a;
 }
-/* 上の 場所を 自分で えらぶ（v616） */
+/* 上の 場所を 自分で えらぶ（v617） */
 let seatWho='', seatHist=[];   // いま えらぶ 人・この あみだで 入れた 場所の 順（↶ ひとつ もどす 用）
 const seatLeft=a=>a && a.pick ? a.pool.filter(n=>!a.names.includes(n)) : [];   // まだ えらんで いない 人
 const seating=a=>!!(a && a.pick && a.names.some(x=>!x));
@@ -493,7 +493,7 @@ function setFull(on){
 }
 function openOne(i){
   const a=st.amida; if(!a||i<0||i>=a.names.length||a.open.includes(i)) return;
-  if(seating(a)){ if(a.names[i]) seatOut(i); else seatAt(i); return; }   // 自分で えらぶ あいだ（v616）
+  if(seating(a)){ if(a.names[i]) seatOut(i); else seatAt(i); return; }   // 自分で えらぶ あいだ（v617）
   a.open.push(i); save(); startDraw([i]); renderAmida(); renderFull();   // 線を 引いて、下に 着いたら 答え（v586）
   if(a.open.length===a.names.length){ st.hist.unshift({t:Date.now(), mode:'amida', text:amidaText()}); st.hist=st.hist.slice(0,MAX_HIST); save(); if(!reveal.size) renderHist(); }
 }
@@ -703,7 +703,7 @@ function closeKuji(){ if(!$('kujiOverlay')||!isDlgOpen('kujiOverlay')) return; i
 
 window.KJ={ go, mode:setMode, set, step, prizes, wonReset, histClear, toggle, edit, namesDone, clear, names, lists, listSave, listLoad, listDel, open:openOne, openAll, copy, share, toTable, popClose:()=>popClose(), full:setFull, isFull:()=>!!full, drawing:()=>[...reveal.keys()],
   sound:toggleSound, played:()=>played.slice(), prizeKind,   // 🔊 音（v592）
-  seatWho:seatPick, seatRest, seatUndo, seatLeft:()=>seatLeft(st.amida), chooser:()=>chooser(st.amida),   // 上の 場所を 自分で えらぶ（v616）
+  seatWho:seatPick, seatRest, seatUndo, seatLeft:()=>seatLeft(st.amida), chooser:()=>chooser(st.amida),   // 上の 場所を 自分で えらぶ（v617）
   state:()=>JSON.parse(JSON.stringify(st)), setNames:a=>{ setNames(a); editing=false; render(); }, text:curText, rows:tableRows, rnd, shuffle, trace:(i)=>trace(st.amida,i), clean, makeAmida };
 Object.assign(window, { openKuji, closeKuji });
 })();
