@@ -1887,6 +1887,16 @@ body.resizer-off .numpad-resizer { display: none !important; }
 }
 .numpad-pagebar .np-page.np-axis:hover { background: var(--kp-key); }
 body.pagebar-off .numpad-pagebar { display: none; }
+/* 合計を テンキーの上の行に（v628）：ページ名の 並びの 右はし。▲ 自分のボタン は ページ名の すぐ 右へ */
+body.sum-pad .numpad-pagebar .np-page.np-axis { margin-left: 0; position: static; box-shadow: none; background: var(--kp-veil2); }
+body.sum-pad .numpad-pagebar .stats-section { flex: 0 0 auto; margin-left: auto; padding: 0 2px 0 8px; border-left: none; gap: 5px;
+  position: sticky; right: 0; background: var(--kp-bg); box-shadow: -8px 0 8px -4px var(--kp-bg); }
+body.sum-pad .numpad-pagebar .stats-title { color: var(--kp-sub); font-size: 11px; }
+body.sum-pad .numpad-pagebar .stat-val { color: var(--kp-ink); font-size: 15px; line-height: 1.2; max-width: 46vw; }
+body.sum-pad .numpad-pagebar .stat-yen { background: var(--kp-veil2); color: var(--kp-sub2); border-color: transparent; font-size: 11px; padding: 2px 6px; }
+body.sum-pad .numpad-pagebar .stat-yen.on { background: var(--acc); color: var(--on-acc); }
+.numpad-pagebar.np-tight .np-ax-more { display: none; }   /* 入りきらない ときは「▲ 自分」 */
+.numpad-pagebar.np-tight .np-page { padding-left: 5px; padding-right: 5px; }
 /* テンキーを閉じているときは出さない（横向きは幅18pxまで縮むため） */
 body.numpad-off .numpad-pagebar { display: none; }
 .np-page {
@@ -4487,6 +4497,11 @@ body.dark {
       <summary>📍 セルのバーの置き場所<small>表の上／テンキーの真上</small></summary>
     <div class="set-note">セル番号・入力欄・合計が並んだ<b>セルのバー</b>を、<b>表の上</b>（これまでどおり）か<b>テンキーの真上</b>に出せます。テンキーの真上にすると、打ちながら指の近くで中身を見られます。テンキーを右に出しているとき・スマホの横向きは、表の上のままです。</div>
     <div class="skin-seg" id="fbPlaceSeg"></div>
+    </details>
+    <details class="set-sub" id="setSumPlace">
+      <summary>📍 合計の置き場所<small>テンキーの上の行／セルのバー</small></summary>
+    <div class="set-note">選んでいる 列（範囲）の <b>合計</b>（例：合計B 1,282 ¥）を、<b>テンキーの上の行</b>（書式・枠線／数字／電卓 の 並びの 右）か、<b>セルのバー</b>（入力欄の 右。v627 まで）に 出します。テンキーの上の行に すると、セルのバーの <b>入力欄が 広く</b> なります。テンキーを 閉じて いる とき・右に 出す とき・スマホの 横向きの ときは セルのバーに 出ます。</div>
+    <div class="skin-seg" id="sumPlaceSeg"></div>
     </details>
     <details class="set-sub">
       <summary>🧮 電卓だけにする<small>テンキーを電卓のページに止める</small></summary>

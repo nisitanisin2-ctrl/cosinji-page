@@ -5808,6 +5808,59 @@ function renderFbPlace(){
   }
   Array.from(seg.children).forEach(el=>{ const on=el.dataset.fb===fbPlace; el.classList.toggle('on', on); el.setAttribute('aria-pressed', String(on)); });
 }
+/* ── 合計の 置き場所（v628）──
+   pad＝テンキーの上の行（書式・枠線／数字／電卓 の 並びの 右。前の「▲ 自分のボタン」の 所）／bar＝セルのバー（入力欄の 右。これまで）。
+   テンキーの上に すると、セルのバーの 入力欄が 広く なる（利用者の 声：セルのバーが 狭い）。
+   テンキーが 下に 出ていて ページ名の 行が 見えている ときだけ テンキーの上に 出す
+   （右に 出す とき・スマホの 横向き・テンキーを 閉じた とき・ページ表示を 隠した ときは セルのバー） */
+const SUM_PLACE_KEY='excalc_sum_place';
+const SUM_PLACES=[{id:'pad',n:'テンキーの上の行'},{id:'bar',n:'セルのバー'}];
+let sumPlace='pad';
+try{ if(localStorage.getItem(SUM_PLACE_KEY)==='bar') sumPlace='bar'; }catch(_){}
+function sumPadOn(){
+  const b=document.body.classList;
+  if(sumPlace!=='pad' || b.contains('np-side') || b.contains('numpad-off') || b.contains('pagebar-off') || b.contains('dentaku-mode')) return false;
+  try{ if(typeof numpadIsLandscape==='function' && numpadIsLandscape()) return false; }catch(_){}
+  return true;
+}
+let sumStatsEl=null;   // 合計の 欄（ページ名の 行を 描き直すと いったん 外れるので、ここで 覚えて おく）
+function syncSumPlace(){
+  const st=sumStatsEl || (sumStatsEl=document.getElementById('statsSection')), bar=document.getElementById('numpadPageBar'), fb=document.querySelector('.formula-bar');
+  if(!st || !bar || !fb) return;
+  const on=sumPadOn();
+  if(document.body.classList.contains('sum-pad')!==on) document.body.classList.toggle('sum-pad', on);
+  if(on){ if(st.parentNode!==bar || bar.lastElementChild!==st) bar.appendChild(st); }
+  else if(st.parentNode!==fb){ const edge=document.getElementById('numpadEdgeBtn'); fb.insertBefore(st, edge && edge.parentNode===fb ? edge : null); }
+  sumTightCheck();
+}
+/* 入りきらない ときは「▲ 自分のボタン」を「▲ 自分」に 縮める */
+function sumTightCheck(){
+  const bar=document.getElementById('numpadPageBar'); if(!bar) return;
+  const want=document.body.classList.contains('sum-pad');
+  bar.classList.remove('np-tight');
+  if(want && bar.scrollWidth>bar.clientWidth+1) bar.classList.add('np-tight');
+}
+function setSumPlace(v){
+  if(!SUM_PLACES.some(m=>m.id===v)) return;
+  sumPlace=v; try{ localStorage.setItem(SUM_PLACE_KEY, v); }catch(_){}
+  syncSumPlace(); renderSumPlace();
+  requestAnimationFrame(()=>{ if(typeof autoFitSheet==='function') try{ autoFitSheet(); }catch(_){} });
+  toast(v==='pad' ? (sumPadOn() ? '合計を テンキーの上の行に 出します（セルのバーの 入力欄が 広く なります）' : 'テンキーを 下に 出して いる ときに、合計を テンキーの上の行に 出します') : '合計を セルのバーに 出します');
+}
+function renderSumPlace(){
+  const seg=document.getElementById('sumPlaceSeg'); if(!seg) return;
+  if(seg.children.length!==SUM_PLACES.length){
+    seg.innerHTML=SUM_PLACES.map(m=>'<button class="skin-seg-btn" data-sp="'+m.id+'" onclick="setSumPlace(\''+m.id+'\')">'+m.n+'</button>').join('');
+  }
+  Array.from(seg.children).forEach(el=>{ const on=el.dataset.sp===sumPlace; el.classList.toggle('on', on); el.setAttribute('aria-pressed', String(on)); });
+}
+/* テンキーを 閉じる・右に 出す・ページ表示を 隠す などで 置き場所を 変える */
+(function(){
+  if(typeof MutationObserver==='undefined') return;
+  let t=0;
+  new MutationObserver(()=>{ if(t) return; t=requestAnimationFrame(()=>{ t=0; syncSumPlace(); }); }).observe(document.body, {attributes:true, attributeFilter:['class']});
+  window.addEventListener('resize', ()=>requestAnimationFrame(syncSumPlace));
+})();
 let numpadCollapsePx=Math.max(0, parseFloat(localStorage.getItem('excalc_numpad_collapse'))||0);
 function applyNumpadCollapse(){
   const vp=document.getElementById('numpadViewport'); if(!vp) return;
@@ -10002,12 +10055,15 @@ function renderNumpadPageBar(){
   const row=calcOnly ? [['sci','電卓']]
     : uiEasy ? NP_ROW_MAIN.filter(([k])=>k===null||k==='sci')          // かんたん表示：数字と電卓だけ（v461）
     : (inReg?NP_ROW_REG:NP_ROW_MAIN).filter(([k])=> k!=='func' || showFuncPage);
-  const axis=inReg ? [null,'▼ 数字'] : ['reg','▲ 自分のボタン'];
+  const axis=inReg ? [null,'▼ 数字'] : ['reg','▲ 自分<span class="np-ax-more">のボタン</span>'];
+  // 狭い ときは「自分のボタン」を「自分」と 見せる（合計を この 行に 出す とき。v628）
+  const lab=t=>String(t).replace('自分のボタン','自分<span class="np-ax-more">のボタン</span>');
   const html=row.map(([k,label])=>
       '<button class="np-page'+(k===cur?' on':'')+'" role="tab" aria-selected="'+(k===cur)+'"'+
-      ' data-np="'+(k===null?'':k)+'">'+label+'</button>').join('')
-    + ((calcOnly||uiEasy) ? '' : '<button class="np-page np-axis" data-np="'+(axis[0]===null?'':axis[0])+'">'+axis[1]+'</button>');
+      ' data-np="'+(k===null?'':k)+'">'+lab(label)+'</button>').join('')
+    + ((calcOnly||uiEasy) ? '' : '<button class="np-page np-axis" data-np="'+(axis[0]===null?'':axis[0])+'" title="'+(inReg?'数字の ページに もどる':'自分のボタン（登録した ボタンの ページ）')+'">'+axis[1]+'</button>');
   if(bar.dataset.html!==html){ bar.innerHTML=html; bar.dataset.html=html; }
+  if(typeof syncSumPlace==='function') syncSumPlace();   // 描き直すと 合計が 外れるので 戻す（v628）
 }
 (function setupNumpadPageBar(){
   const bar=document.getElementById('numpadPageBar'); if(!bar) return;
@@ -11349,13 +11405,14 @@ function refreshStatsDisplay() {
   const sumEl=document.getElementById('sSum');
   const sec=document.getElementById('statsSection');
   const v=currentStatValue();
-  if (v===null) { sumEl.textContent='—'; if(sec) sec.classList.add('stats-empty'); return; }
+  if (v===null) { sumEl.textContent='—'; if(sec) sec.classList.add('stats-empty'); if(document.body.classList.contains('sum-pad') && typeof sumTightCheck==='function') sumTightCheck(); return; }
   if(sec) sec.classList.remove('stats-empty');
   // エラーのセルを飛ばして出した合計は、そうと分かるように印を付ける
   sumEl.textContent = (statKanji ? toKanjiNum(v) : fmt(v)) + (lastStatHasErr ? ' ⚠' : '');
   sumEl.title = lastStatHasErr
     ? 'この列にエラーのセルがあります。そのセルを除いた' + word + 'です'
     : 'タップで数値コピー';
+  if(document.body.classList.contains('sum-pad') && typeof sumTightCheck==='function') sumTightCheck();   // テンキーの上の行に 入りきるか（v628）
 }
 function renderStats(nums, hasErr) {
   lastStatNums = nums;
@@ -16814,7 +16871,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v627';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v628';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -19536,6 +19593,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_kyoshi',   // 🧱供試体（v611。Google カレンダーの 設定も）
   'excalc_ggolf',   // ⛳グラウンドゴルフ（v616）
   'excalc_band_cfg',   // 🎛 帯の ボタン（出す ボタン・並び。v626）
+  'excalc_sum_place',   // 合計の 置き場所（テンキーの上の行／セルのバー。v628）
 ];
 function settingsBundle(){
   const o={};
@@ -20472,6 +20530,7 @@ a11yInit();          // 読み上げ・キーボード操作の下ごしらえ�
 saveDirty=false; updateRecordTitle();   // 起動直後は「📄 自動保存」（記録は開いていない）
 applyNpPlace(true);                        // テンキーの置き場所（v399）
 applyFbPlace();                            // セルのバーの置き場所（v619）
+syncSumPlace(); renderSumPlace();          // 合計の置き場所（v628）
 snapDaily();                               // 毎日 はじめの 表を 控える（v624）
 try{ const fd=sessionStorage.getItem('excalc_full_done'); if(fd){ sessionStorage.removeItem('excalc_full_done'); const o=JSON.parse(fd)||{}; setTimeout(()=>toast('⬆ インポートしました（'+(o.when||'')+' の 状態）'+(o.skip ? '（写真など '+o.skip+'か所は 戻せませんでした）' : ''), 5600), 700); } }catch(_){}
 try{ const sd=sessionStorage.getItem('excalc_snap_done'); if(sd){ sessionStorage.removeItem('excalc_snap_done'); setTimeout(()=>toast('「'+sd+'」の 表に 戻しました（☰ → 🕘 前の状態に戻す で また 戻せます）', 4800), 600); } }catch(_){}

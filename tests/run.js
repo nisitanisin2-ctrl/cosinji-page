@@ -19265,7 +19265,7 @@ async function runFmtCol(browser) {
   check('  テンキーの組は ⌨ テンキーの タブ（v624）', await page.evaluate(() => document.getElementById('setGrpKeys').closest('.set-page').id), 'setPage2');
   check('  テンキーの組の中も畳める（はじめは閉じている）', await page.evaluate(() =>
     [...document.querySelectorAll('#setGrpKeys .set-sub')].map(d => (d.open ? '開' : '閉') + d.querySelector('summary').firstChild.textContent.trim()).join('/')),
-    '閉📍 テンキーの置き場所/閉📍 セルのバーの置き場所/閉🧮 電卓だけにする/閉📄 ページ・記号・調整バー/閉🔀 ボタンの配置/閉🧰 道具の窓に出す道具');
+    '閉📍 テンキーの置き場所/閉📍 セルのバーの置き場所/閉📍 合計の置き場所/閉🧮 電卓だけにする/閉📄 ページ・記号・調整バー/閉🔀 ボタンの配置/閉🧰 道具の窓に出す道具');   // v628：📍 合計の置き場所
   check('  組ははじめ閉じている', await page.evaluate(() => [...document.querySelectorAll('#setPage1 .set-grp')].every(d => !d.open)), true);
   check('  いままでの設定がどれかの組に入っている', await page.evaluate(() =>
     ['skinSw', 'skinKeySeg', 'skinBgSel', 'cellSize', 'appWidth', 'keySize', 'infoSize', 'formulaSize', 'numSize', 'npadSize', 'npPlaceSeg', 'fbPlaceSeg',
@@ -19907,6 +19907,85 @@ async function runExport627(browser) {
   check('  JSエラーが出ていない（別の パソコン）', e1.length + e2.length, 0);
   if (e1.length || e2.length) console.log('    ', e1, e2);
   await A.close(); await B.close();
+}
+
+/* v628：合計を テンキーの上の行へ（▲ 自分のボタン の 所）。セルのバーの 入力欄を 広く */
+async function runSum628(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 表電卓 v628：合計を テンキーの上の行に（セルのバーを 広く） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const where = () => page.evaluate(() => { const st = document.getElementById('statsSection'); return st.parentNode.id || st.parentNode.className; });
+  const inputW = () => page.evaluate(() => Math.round(document.getElementById('formulaInput').getBoundingClientRect().width));
+  await page.setViewportSize({ width: 360, height: 760 }); await w(400);   // 小さめの スマホ
+  await page.evaluate(() => { ['256', '222', '582', '222'].forEach((v, i) => setCellVal(3 + i, 1, v)); recalcAll(); sel(3, 1); });
+  await w(400);
+  check('  はじめから 合計は テンキーの上の行（ページ名の 並びの 右はし）', await page.evaluate(() => {
+    const st = document.getElementById('statsSection'), bar = document.getElementById('numpadPageBar'), r = st.getBoundingClientRect(), b = bar.getBoundingClientRect(), ax = bar.querySelector('.np-axis').getBoundingClientRect();
+    return [st.parentNode === bar, bar.lastElementChild === st, document.getElementById('statsTitle').textContent + ' ' + document.getElementById('sSum').textContent, Math.abs(r.right - b.right) <= 3, ax.right <= r.left + 1, document.body.classList.contains('sum-pad')].join('/'); }),
+    'true/true/合計B 1,282/true/true/true');
+  check('  ページ名は そのまま（▲ 自分のボタン は ページ名の すぐ 右）', await page.evaluate(() => [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.innerText.trim()).join('|')), '書式・枠線|数字|電卓|▲ 自分のボタン');
+  const wPad = await inputW();
+  await page.evaluate(() => setSumPlace('bar')); await w(300);
+  const wBar = await inputW();
+  check('  セルのバーの 入力欄が 広く なる（合計を 外した 分）', [await where(), wPad > wBar + 80].join('/'), 'formula-bar/true');
+  await page.evaluate(() => setSumPlace('pad')); await w(300);
+  check('  　テンキーの上の行に もどす', await where(), 'numpadPageBar');
+  // タップの はたらきは そのまま
+  await page.click('#statsTitle'); await w(150);
+  check('  「合計」を 押すと 平均（テンキーの上でも）', await page.evaluate(() => document.getElementById('statsTitle').textContent + ' ' + document.getElementById('sSum').textContent), '平均B 320.5');
+  await page.click('#statsTitle'); await w(150);
+  await page.click('#statYenBtn'); await w(150);
+  check('  ¥ で 兆・億・万（漢数字）に', await page.evaluate(() => document.getElementById('statYenBtn').classList.contains('on') + '/' + document.getElementById('sSum').textContent), 'true/1282');
+  await page.click('#statYenBtn'); await w(150);
+  // 長い 範囲・自分のボタンの ページ でも 入りきる（「▲ 自分」に 縮む）
+  await page.evaluate(() => { setCellVal(3, 2, '12345678'); setCellVal(9, 4, '98765'); recalcAll(); clearRangeSelection(); sel(1, 0); rangeR1 = 1; rangeC1 = 0; extendRange(9, 4); }); await w(300);
+  check('  長い 範囲は「▲ 自分」に 縮めて 入りきる（ボタンの 名前は そのまま）', await page.evaluate(() => { const bar = document.getElementById('numpadPageBar'), ax = bar.querySelector('.np-axis');
+    return [bar.classList.contains('np-tight'), ax.innerText.trim(), ax.textContent.trim(), bar.scrollWidth <= bar.clientWidth + 1, document.getElementById('statsTitle').textContent].join('/'); }), 'true/▲ 自分/▲ 自分のボタン/true/合計A2:E10');
+  await page.evaluate(() => { clearRangeSelection(); sel(3, 1); }); await w(300);
+  check('  　短く なれば もとの「▲ 自分のボタン」', await page.evaluate(() => document.getElementById('numpadPageBar').classList.contains('np-tight') + '/' + document.querySelector('#numpadPageBar .np-axis').innerText.trim()), 'false/▲ 自分のボタン');
+  await page.evaluate(() => numpadPager.go('reg')); await w(400);
+  check('  自分のボタンの ページに 移っても 合計は 外れない', await page.evaluate(() => [document.getElementById('statsSection').parentNode.id, [...document.querySelectorAll('#numpadPageBar .np-page')].map(b => b.textContent.trim()).join('|'), document.getElementById('sSum').textContent].join('/')), 'numpadPageBar/自分のボタン左|自分のボタン|自分のボタン右|▼ 数字/1,282');
+  await page.evaluate(() => numpadPager.go(null)); await w(400);
+  check('  　数字の ページに もどっても', await where(), 'numpadPageBar');
+  // テンキーを 閉じる・ページ表示を 隠す・右に 出す → セルのバー
+  await page.evaluate(() => toggleNumpadEdge()); await w(500);
+  check('  テンキーを 閉じると セルのバーに（見える 所に）', [await where(), await page.evaluate(() => { const r = document.getElementById('statsSection').getBoundingClientRect(); return r.width > 0 && r.top >= 0 && r.bottom <= innerHeight; })].join('/'), 'formula-bar/true');
+  await page.evaluate(() => toggleNumpadEdge()); await w(500);
+  check('  　開くと テンキーの上の行に', await where(), 'numpadPageBar');
+  await page.evaluate(() => togglePageBar()); await w(400);
+  check('  ページ表示を 隠すと セルのバーに', await where(), 'formula-bar');
+  await page.evaluate(() => togglePageBar()); await w(400);
+  await page.setViewportSize({ width: 1100, height: 800 }); await w(300);
+  await page.evaluate(() => setNpPlace('side')); await w(600);
+  check('  テンキーを 右に 出すと セルのバーに（横に 広い 画面）', [await where(), await page.evaluate(() => document.body.classList.contains('np-side'))].join('/'), 'formula-bar/true');
+  await page.evaluate(() => setNpPlace('bottom')); await w(600);
+  await page.setViewportSize({ width: 360, height: 760 }); await w(400);
+  check('  　下に もどすと テンキーの上の行に', await where(), 'numpadPageBar');
+  // ⚙ 設定 → ⌨ テンキー →「📍 合計の置き場所」
+  await page.evaluate(() => { toggleSettings(); setSettingsTab(2); const d = document.getElementById('setSumPlace'); d.open = true; d.scrollIntoView({ block: 'center' }); }); await w(400);
+  check('  設定：テンキーの タブに「📍 合計の置き場所」（テンキーの上の行／セルのバー）', await page.evaluate(() => { const d = document.getElementById('setSumPlace'); return d.closest('.set-page').id + '/' + d.querySelector('summary').firstChild.textContent.trim() + '/' + [...document.querySelectorAll('#sumPlaceSeg button')].map(b => b.textContent + (b.classList.contains('on') ? '●' : '')).join('|'); }), 'setPage2/📍 合計の置き場所/テンキーの上の行●|セルのバー');
+  await page.click('#sumPlaceSeg [data-sp=bar]'); await w(300);
+  await page.evaluate(() => toggleSettings()); await w(300);
+  check('  「セルのバー」を 押すと セルのバー・覚える', [await where(), await page.evaluate(() => localStorage.getItem('excalc_sum_place'))].join('/'), 'formula-bar/bar');
+  await page.reload(); await w(1000);
+  check('  開き直しても セルのバー', await where(), 'formula-bar');
+  check('  設定の 書き出し・全保存にも 入る', await page.evaluate(() => settingsBundle().excalc_sum_place), 'bar');
+  await page.evaluate(() => setSumPlace('pad')); await w(300);
+  check('  設定を さがす：「合計」で 出る', await page.evaluate(() => { toggleSettings(); setFind('合計の置き場所'); const t = document.getElementById('setFindRes').textContent; setFind(''); toggleSettings(); return t.includes('合計の置き場所'); }), true);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+  // スマホの 横向き（テンキーが 右）では セルのバー
+  const L = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
+  const lp = await L.newPage(); const le = [];
+  lp.on('pageerror', e => le.push(e.message));
+  await lp.goto(INDEX); await lp.waitForTimeout(300);
+  await lp.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0'); });
+  await lp.reload(); await lp.waitForTimeout(1000);
+  await lp.evaluate(() => { setCellVal(0, 0, '5'); setCellVal(1, 0, '7'); recalcAll(); sel(0, 0); }); await lp.waitForTimeout(300);
+  check('  スマホの 横向きは セルのバーの まま', await lp.evaluate(() => document.getElementById('statsSection').parentNode.className + '/' + document.body.classList.contains('sum-pad')), 'formula-bar/false');
+  check('  JSエラーが出ていない（横向き）', le.length, 0);
+  await L.close();
 }
 
 async function runFmtPage(browser) {
@@ -20843,6 +20922,7 @@ const SUITES = [
   [['full', 'v625'], b => runFull625(b)],
   [['band', 'v626'], b => runBand626(b)],
   [['export627', 'v627'], b => runExport627(b)],
+  [['sum628', 'v628'], b => runSum628(b)],
   [['clip'], b => runClip(b)],
   [['koe'], b => runKoe(b)],
   [['koe', 'koelisten'], b => runKoeListen(b)],
