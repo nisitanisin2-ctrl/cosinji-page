@@ -20088,6 +20088,80 @@ async function runFill629(browser) {
   await ctx.close();
 }
 
+/* v631：結合で 値の 入った セルを 残す（左上で なくても）・2つ 以上なら 残す 値を 選ぶ（いくつでも。つなげる） */
+async function runMerge631(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 表電卓 v631：結合で 残す 値（値の ある セル・選べる・つなげる） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const pick = async (r1, c1, r2, c2) => { await page.evaluate(([r1, c1, r2, c2]) => { clearRangeSelection(); sel(r1, c1); rangeR1 = r1; rangeC1 = c1; extendRange(r2, c2); }, [r1, c1, r2, c2]); await w(150); };
+  const mergeNow = () => page.evaluate(() => { window.__mp = kfmtMerge(); });
+  const dlgOpen = () => page.evaluate(() => isDlgOpen('mergeKeepOverlay'));
+  await page.evaluate(() => { setSheetSize(20, 6); window.__asked = 0; window.appConfirm = async () => { window.__asked++; return true; }; });
+  await w(300);
+  // ── 値が 1つ（左上で ない） ──
+  await page.evaluate(() => { setCellVal(0, 1, '見積書'); recalcAll(); });
+  await pick(0, 0, 0, 2); await mergeNow(); await w(400);
+  check('  値が 1つ なら 聞かずに その 値を 残す（左上で なくても）', await page.evaluate(() => [JSON.stringify(mergeAt(0, 0)), data[0][0], data[0][1], document.getElementById('c0_0').textContent, isDlgOpen('mergeKeepOverlay'), window.__asked].join('/')), '{"rs":1,"cs":3}/見積書//見積書/false/0');
+  check('  　お知らせに どこの 値を 残したか', await page.evaluate(() => document.getElementById('appToast').textContent), '結合しました（1行 × 3列）。B1 の 値を 残しました');
+  // 日付の 形も いっしょに 移す
+  await page.evaluate(() => { setCellVal(1, 2, '2026/11/4'); recalcAll(); });
+  await pick(1, 0, 1, 2); await mergeNow(); await w(400);
+  check('  日付の セルの 値は 日付の 形ごと 左上へ', await page.evaluate(() => [!!cellDateFmt(1, 0), document.getElementById('c1_0').textContent.trim()].join('/')), 'true/2026/11/4');
+  // 数式は そのまま 移す
+  await page.evaluate(() => { setCellVal(2, 1, '=2*3'); recalcAll(); });
+  await pick(2, 0, 2, 1); await mergeNow(); await w(400);
+  check('  数式の セルは 数式の まま 左上へ', await page.evaluate(() => data[2][0] + '/' + getCellDisplay(2, 0)), '=2*3/6');
+  // ── 値が 2つ 以上 → 選ぶ 窓 ──
+  await page.evaluate(() => { setCellVal(3, 0, '東京都'); setCellVal(3, 1, '千代田区'); setCellVal(3, 2, '一丁目'); recalcAll(); });
+  await pick(3, 0, 3, 2); await mergeNow(); await w(400);
+  check('  値が 2つ 以上 なら 選ぶ 窓（ぜんぶ ✓・左上から 順に つなげた 見本）', await page.evaluate(() => [isDlgOpen('mergeKeepOverlay'), [...document.querySelectorAll('#mkBody .bcf-row')].map(r => r.querySelector('b').textContent + ':' + r.querySelector('.mk-val').textContent + (r.querySelector('input').checked ? '✓' : '')).join(' | '), document.querySelector('#mkBody .mk-prev').textContent, document.querySelector('#mkBody .mk-go').textContent].join(' / ')),
+    'true / A4:東京都✓ | B4:千代田区✓ | C4:一丁目✓ / 結合した セル：「東京都 千代田区 一丁目」 / ⊞ 結合する');
+  await page.evaluate(() => document.querySelector('#mkBody [data-mk-sep=none]').click()); await w(150);
+  await page.evaluate(() => { const i = document.querySelector('#mkBody [data-mk-i="2"]'); i.click(); }); await w(150);
+  check('  区切り「つなげる」・C4 を 外すと 見本も 変わる', await page.evaluate(() => document.querySelector('#mkBody .mk-prev').textContent + '/' + document.querySelector('#mkBody [data-mk-sep=none]').classList.contains('on')), '結合した セル：「東京都千代田区」/true');
+  await page.evaluate(() => document.querySelector('#mkBody .mk-go').click()); await w(500);
+  check('  結合する → 選んだ 値を つないで 残す（外した 値は 消える）', await page.evaluate(() => [JSON.stringify(mergeAt(3, 0)), data[3][0], data[3][1], data[3][2], isDlgOpen('mergeKeepOverlay')].join('/')), '{"rs":1,"cs":3}/東京都千代田区///false');
+  check('  　お知らせ・区切りを 覚える', await page.evaluate(() => document.getElementById('appToast').textContent + '/' + localStorage.getItem('excalc_merge_sep')), '結合しました（1行 × 3列）。2つの 値を つなげました/none');
+  await page.evaluate(() => undoLast()); await w(300);
+  check('  ↶戻す 1回で 結合前の 値に もどる', await page.evaluate(() => [mergeAt(3, 0), data[3][0], data[3][1], data[3][2]].join('/')), '/東京都/千代田区/一丁目');
+  // 1つだけ 選ぶ → その 値（形ごと）
+  await page.evaluate(() => { kfmtApply && 0; setCellVal(4, 0, '100'); setCellVal(4, 1, '1200'); (cellStyles['4,1'] = cellStyles['4,1'] || {}).nf = 'yen'; recalcAll(); });
+  await pick(4, 0, 4, 1); await mergeNow(); await w(400);
+  await page.evaluate(() => document.querySelector('#mkBody [data-mk-i="0"]').click()); await w(150);
+  check('  1つ だけ 選ぶと 見本は その 値（¥ の 形）', await page.evaluate(() => document.querySelector('#mkBody .mk-prev').textContent), '結合した セル：「¥1,200」');
+  await page.evaluate(() => document.querySelector('#mkBody .mk-go').click()); await w(500);
+  check('  　その 値を ¥ の 形ごと 左上へ（数の まま）', await page.evaluate(() => [data[4][0], (cellStyles['4,0'] || {}).nf, document.getElementById('c4_0').textContent.trim(), JSON.stringify(mergeAt(4, 0))].join('/')), '1200/yen/¥1,200/{"rs":1,"cs":2}');
+  // ぜんぶ 外す → 空で 結合
+  await page.evaluate(() => { setCellVal(5, 0, 'x'); setCellVal(5, 1, 'y'); recalcAll(); });
+  await pick(5, 0, 5, 1); await mergeNow(); await w(400);
+  await page.evaluate(() => { document.querySelector('#mkBody [data-mk-i="0"]').click(); }); await w(100);
+  await page.evaluate(() => { document.querySelector('#mkBody [data-mk-i="1"]').click(); }); await w(100);
+  check('  ぜんぶ 外すと「空で 結合する」', await page.evaluate(() => document.querySelector('#mkBody .mk-prev').textContent + '/' + document.querySelector('#mkBody .mk-go').textContent), '結合した セル：（空）/⊞ 空で 結合する');
+  await page.evaluate(() => document.querySelector('#mkBody .mk-go').click()); await w(500);
+  check('  　空で 結合', await page.evaluate(() => JSON.stringify(mergeAt(5, 0)) + '/' + (data[5][0] || '空') + '/' + (data[5][1] || '空')), '{"rs":1,"cs":2}/空/空');
+  // やめる・戻る
+  await page.evaluate(() => { setCellVal(6, 0, 'a'); setCellVal(6, 1, 'b'); recalcAll(); });
+  await pick(6, 0, 6, 1); await mergeNow(); await w(400);
+  await page.evaluate(() => document.querySelector('#mkBody .mk-no').click()); await w(400);
+  check('  やめる → 結合しない・値も そのまま', await page.evaluate(() => [mergeAt(6, 0), data[6][0], data[6][1], isDlgOpen('mergeKeepOverlay')].join('/')), '/a/b/false');
+  await pick(6, 0, 6, 1); await mergeNow(); await w(400);
+  await page.evaluate(() => window.history.back()); await w(500);
+  check('  端末の「戻る」も やめる', await page.evaluate(() => [mergeAt(6, 0), data[6][0], data[6][1], isDlgOpen('mergeKeepOverlay')].join('/')), '/a/b/false');
+  // 書式の 窓で 結合を 広げる ときも 同じ
+  await page.evaluate(() => { setCellVal(8, 0, 'あ'); setCellVal(8, 1, 'い'); recalcAll(); clearRangeSelection(); sel(8, 0); openCellFmt(); }); await w(400);
+  await page.evaluate(() => { window.__fm = fmtMergeSpan('cs', 1); }); await w(400);
+  check('  書式の 窓で 横に 広げても 選ぶ 窓（前は 何も 聞かずに 消えた）', await page.evaluate(() => isDlgOpen('mergeKeepOverlay') + '/' + [...document.querySelectorAll('#mkBody .bcf-row b')].map(b => b.textContent).join(',')), 'true/A9,B9');
+  await page.evaluate(() => document.querySelector('#mkBody .mk-go').click()); await w(500);
+  check('  　「つなげる」の まま あ・い を 残して 結合', await page.evaluate(() => JSON.stringify(mergeAt(8, 0)) + '/' + data[8][0]), '{"rs":1,"cs":2}/あい');
+  await page.evaluate(() => undoLast()); await w(300);
+  check('  　↶戻す で もどる（書式の 窓の 結合も 戻せる）', await page.evaluate(() => [mergeAt(8, 0), data[8][0], data[8][1]].join('/')), '/あ/い');
+  await page.evaluate(() => { try { closeCellFmt(); } catch (_) {} });
+  check('  区切りは 設定の 書き出し・全保存にも', await page.evaluate(() => settingsBundle().excalc_merge_sep), 'none');
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 async function runFmtPage(browser) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, acceptDownloads: true });
   const page = await ctx.newPage();
@@ -20144,9 +20218,8 @@ async function runFmtPage(browser) {
   check('  1つだけ選んで押しても何も起きない', await page.evaluate(() => mergeAt(5, 0)), null);
   await page.evaluate(() => { setCellVal(1, 0, 'a'); setCellVal(1, 1, 'b'); sel(1, 0); rangeR1 = 1; rangeC1 = 0; rangeR2 = 1; rangeC2 = 1; });
   await page.click(key('kf_merge')); await page.waitForTimeout(300);
-  check('  値が消えるときは先に聞く', await page.evaluate(() => {
-    const ov = document.querySelector('div[style*="99999"]'); return !!ov && ov.textContent.includes('左上のセルの値だけ'); }), true);
-  await page.evaluate(() => { const b = [...document.querySelectorAll('div[style*="99999"] button')].find(x => x.textContent === 'やめる'); if (b) b.click(); });
+  check('  値が 2つ 以上 なら 残す 値を 選ぶ 窓（v631。前は「左上の 値だけ 残る」と 聞いた）', await page.evaluate(() => isDlgOpen('mergeKeepOverlay') && [...document.querySelectorAll('#mkBody .bcf-row b')].map(b => b.textContent).join(',')), 'A2,B2');
+  await page.evaluate(() => document.querySelector('#mkBody .mk-no').click());
   await page.waitForTimeout(300);
   check('  やめたら結合しない', await page.evaluate(() => mergeAt(1, 0) + '/' + data[1][1]), 'null/b');
   // 取り消し線・今の状態の印
@@ -21024,6 +21097,7 @@ const SUITES = [
   [['export627', 'v627'], b => runExport627(b)],
   [['sum628', 'v628'], b => runSum628(b)],
   [['fill629', 'v629'], b => runFill629(b)],
+  [['merge631', 'v631'], b => runMerge631(b)],
   [['clip'], b => runClip(b)],
   [['koe'], b => runKoe(b)],
   [['koe', 'koelisten'], b => runKoeListen(b)],

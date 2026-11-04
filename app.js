@@ -16962,7 +16962,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v630';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v631';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -18164,7 +18164,8 @@ function kfmtVAlign(v){
   kfmtApply(s=>{ if(clear) delete s.valign; else s.valign=v; });
 }
 /* セルを結合して中央揃え（Excel と同じ）。範囲を選んでいれば結合、
-   結合したセルを選んで押せば解除。左上以外の値は消えるので、あれば先に聞く */
+   結合したセルを選んで押せば解除。v631：値の 入った セルが 1つなら その 値を 残し（左上でなくても）、
+   2つ 以上なら 残す 値を 選ぶ 窓を 出す（いくつでも 選べる。前は 左上の 値だけ 残った） */
 async function kfmtMerge(){
   if(isStructMode()){ toast('この表のかたちではセルを結合できません'); return; }
   const cells=kfmtCells();
@@ -18181,14 +18182,108 @@ async function kfmtMerge(){
     kfmtSyncState();
     return;
   }
-  const lost=cells.filter(([r,c])=>!(r===r1&&c===c1) && String(data[r][c]??'')!=='');
-  if(lost.length && !await appConfirm('結合すると、左上のセルの値だけが残ります（ほか '+lost.length+'個の値は消えます）。\n結合しますか','結合する','やめる')) return;
+  const vals=mergeValueCells(r1,c1,r2-r1+1,c2-c1+1);
+  const keep=await mergeKeepPick(vals);
+  if(!keep) return;   // やめる
   pushSnapshot('セルの結合');
+  mergePlaceKept(r1,c1,keep);
   applyMerge(r1,c1,r2-r1+1,c2-c1+1);
   clearRangeSelection(); sel(r1,c1);
   if(typeof recalcAll==='function') recalcAll();
-  toast('結合しました（'+(r2-r1+1)+'行 × '+(c2-c1+1)+'列）');
+  toast('結合しました（'+(r2-r1+1)+'行 × '+(c2-c1+1)+'列）'+mergeKeepNote(r1,c1,keep));
   kfmtSyncState();
+}
+/* ── 結合で 残す 値（v631）──
+   値の 入った セルが 1つ なら、その 値を 残す（左上に 移す。日付・¥・小数の 形も いっしょに）。
+   2つ 以上 なら、残す 値を 選ぶ 窓を 出す（いくつでも 選べる。2つ 以上 選ぶと 区切りを はさんで、左上から 順に つなげる） */
+const MERGE_SEP_KEY='excalc_merge_sep';
+const MERGE_SEPS=[{id:'sp',n:'スペース',v:' '},{id:'none',n:'つなげる',v:''},{id:'ten',n:'「、」',v:'、'},{id:'dot',n:'「・」',v:'・'}];
+const MERGE_FMT_KEYS=['dfmt','nf','dec','nodate'];   // 値と いっしょに 移す 形（日付・¥/%・小数・日付に しない）
+const MERGE_TEXT_KEYS=['bold','italic','underline','strike','color'];   // 左上に ない ときだけ 移す 文字の 飾り
+function mergeShownText(r,c){
+  let t='';
+  try{ t=String(getCellDisplay(r,c)); }catch(_){ t=String(data[r][c]??''); }
+  try{ if(typeof nfText==='function') t=String(nfText(r,c,t)); }catch(_){}
+  return t;
+}
+/* 範囲（左上 ar,ac から rs×cs）の 値の 入った セル（左上から 順に） */
+function mergeValueCells(ar,ac,rs,cs){
+  const out=[];
+  for(let r=ar;r<ar+rs && r<ROWS;r++) for(let c=ac;c<ac+cs && c<COLS;c++){
+    if(coverOf(r,c)) continue;   // 結合で 隠れて いる セル（中身は 空）
+    const raw=data[r][c]; if(String(raw??'').trim()==='') continue;
+    out.push({r, c, raw, text:mergeShownText(r,c)});
+  }
+  return out;
+}
+/* 残す 値を 決める。null＝やめる／{empty}＝空で 結合／{r,c}＝その セルの 値を そのまま／{text,n}＝つないだ 文字 */
+async function mergeKeepPick(cells){
+  if(!cells.length) return {empty:true};
+  if(cells.length===1) return {r:cells[0].r, c:cells[0].c};
+  const res=await mergeKeepDialog(cells);
+  if(!res) return null;
+  const pick=cells.filter((_,i)=>res.on[i]);
+  if(!pick.length) return {empty:true};
+  if(pick.length===1) return {r:pick[0].r, c:pick[0].c};
+  return {text:pick.map(x=>x.text).join(res.sep), n:pick.length};
+}
+/* 決めた 値を 左上（ar,ac）に 置く（結合の 前に 呼ぶ） */
+function mergePlaceKept(ar,ac,keep){
+  const ak=`${ar},${ac}`;
+  if(keep.empty){ data[ar][ac]=''; return; }
+  if(keep.text!=null){
+    data[ar][ac]=keep.text;
+    const s=cellStyles[ak]; if(s){ delete s.dfmt; delete s.nf; }   // つないだ 文字は 文字の まま 見せる
+    return;
+  }
+  if(keep.r===ar && keep.c===ac) return;   // 左上の 値を そのまま 残す
+  // ほかの セルの 値を 左上へ 移す（数式は そのまま。日付・¥・小数の 形も いっしょに）
+  data[ar][ac]=data[keep.r][keep.c];
+  const src=cellStyles[`${keep.r},${keep.c}`]||{}, dst=cellStyles[ak]=cellStyles[ak]||{};
+  MERGE_FMT_KEYS.forEach(k=>{ if(src[k]!=null) dst[k]=src[k]; else delete dst[k]; });
+  MERGE_TEXT_KEYS.forEach(k=>{ if(src[k]!=null && dst[k]==null) dst[k]=src[k]; });
+}
+function mergeKeepNote(ar,ac,keep){
+  if(keep.text!=null) return '。'+keep.n+'つの 値を つなげました';
+  if(keep.r!=null && !(keep.r===ar && keep.c===ac)) return '。'+ALPHA[keep.c]+(keep.r+1)+' の 値を 残しました';
+  return '';
+}
+/* 残す 値を 選ぶ 窓。{on:[…], sep} か null（やめる・戻る） */
+function mergeKeepDialog(cells){
+  return new Promise(resolve=>{
+    let ov=document.getElementById('mergeKeepOverlay');
+    if(!ov){
+      ov=document.createElement('div'); ov.className='modal-overlay'; ov.id='mergeKeepOverlay';
+      ov.innerHTML='<div class="modal snap-modal mk-modal"><div class="modal-header"><span>⊞ 結合して 残す 値</span><button class="modal-close" data-mk="x" aria-label="やめる">✕</button></div><div class="modal-body" id="mkBody"></div></div>';
+      document.body.appendChild(ov);
+    }
+    const body=document.getElementById('mkBody');
+    const on=cells.map(()=>true);   // はじめは ぜんぶ 残す（消える ものが ない）
+    let sepId='sp'; try{ const v=localStorage.getItem(MERGE_SEP_KEY); if(MERGE_SEPS.some(s=>s.id===v)) sepId=v; }catch(_){}
+    let done=false;
+    const finish=v=>{ if(done) return; done=true; closeDlg('mergeKeepOverlay'); resolve(v); };
+    const result=()=>{ const p=cells.filter((_,i)=>on[i]); const sep=(MERGE_SEPS.find(s=>s.id===sepId)||MERGE_SEPS[0]).v; return {p, txt:p.map(x=>x.text).join(sep)}; };
+    const render=()=>{
+      const {p, txt}=result();
+      body.innerHTML='<div class="snap-note">値の 入った セルが <b>'+cells.length+'つ</b> あります。結合した セルに <b>残す 値</b>を 選んで ください（いくつでも。2つ 以上 選ぶと、左上から 順に つなげます）。</div>'
+        +'<div class="bcf-list mk-list">'+cells.map((x,i)=>'<div class="bcf-row'+(on[i]?'':' off')+'"><label class="bcf-chk"><input type="checkbox" data-mk-i="'+i+'"'+(on[i]?' checked':'')+'><b>'+escHtml(ALPHA[x.c]+(x.r+1))+'</b><small class="mk-val">'+escHtml(x.text)+'</small></label></div>').join('')+'</div>'
+        +'<div class="bcf-sec">2つ 以上 残す ときの 区切り</div>'
+        +'<div class="skin-seg mk-seg'+(p.length>1?'':' mk-dim')+'">'+MERGE_SEPS.map(s=>'<button class="skin-seg-btn'+(s.id===sepId?' on':'')+'" data-mk-sep="'+s.id+'" aria-pressed="'+(s.id===sepId)+'">'+escHtml(s.n)+'</button>').join('')+'</div>'
+        +'<div class="mk-prev">結合した セル：<b>'+(p.length ? '「'+escHtml(txt)+'」' : '（空）')+'</b></div>'
+        +'<div class="mk-btns"><button class="snap-take mk-no" data-mk="x">やめる</button><button class="fbk-go mk-go" data-mk="go">⊞ '+(p.length ? '結合する' : '空で 結合する')+'</button></div>';
+    };
+    body.onclick=e=>{
+      const t=e.target;
+      const sb=t.closest && t.closest('[data-mk-sep]');
+      if(sb){ sepId=sb.dataset.mkSep; try{ localStorage.setItem(MERGE_SEP_KEY, sepId); }catch(_){} render(); return; }
+      const bt=t.closest && t.closest('[data-mk]');
+      if(bt){ if(bt.dataset.mk==='go') finish({on:on.slice(), sep:(MERGE_SEPS.find(s=>s.id===sepId)||MERGE_SEPS[0]).v}); else finish(null); }
+    };
+    body.onchange=e=>{ const i=e.target && e.target.dataset ? e.target.dataset.mkI : null; if(i==null) return; on[+i]=e.target.checked; render(); };
+    ov.onclick=e=>{ if(e.target===ov) finish(null); else if(e.target.closest && e.target.closest('.modal-header [data-mk="x"]')) finish(null); };
+    render();
+    openDlg('mergeKeepOverlay', ()=>{ if(!done){ done=true; resolve(null); } });   // 端末の「戻る」＝やめる
+  });
 }
 /* 書式のコピー/貼り付け（Excel の刷毛）。1回目＝選んでいるセルの書式を写す、
    貼りたいセル（範囲）を選んで2回目＝貼る。結合は写さない（形が変わってしまうため） */
@@ -18373,8 +18468,8 @@ function applyMerge(ar,ac,rs,cs){
   fmtR=ar; fmtC=ac; fmtCellsList=null; sel(ar,ac);   // 書式対象＝アンカーを維持（モーダルは開いたまま）
   persistModes();
 }
-/* 書式モーダル：結合する横(cs)・縦(rs)のセル数を増減 */
-function fmtMergeSpan(dim, delta){
+/* 書式モーダル：結合する横(cs)・縦(rs)のセル数を増減。v631：広げて 値の 入った セルを 含む ときは、範囲を 選んで 結合 と 同じに 残す 値を 決める */
+async function fmtMergeSpan(dim, delta){
   if(isStructMode()){ toast('この表のかたちではセルを結合できません'); return; }
   const ar=fmtR, ac=fmtC;
   if(isUserLocked(ar,ac)){ toast('ロックされたセルは結合できません'); return; }
@@ -18382,7 +18477,16 @@ function fmtMergeSpan(dim, delta){
   let rs=cur.rs, cs=cur.cs;
   if(dim==='cs') cs=Math.max(1, Math.min(COLS-ac, cs+delta));
   else           rs=Math.max(1, Math.min(ROWS-ar, rs+delta));
+  if(rs===cur.rs && cs===cur.cs) return;
+  let keep=null;
+  if(rs>cur.rs || cs>cur.cs){
+    keep=await mergeKeepPick(mergeValueCells(ar,ac,rs,cs));
+    if(!keep) return;   // やめる
+  }
+  pushSnapshot(rs>1||cs>1 ? 'セルの結合' : '結合の解除');
+  if(keep) mergePlaceKept(ar,ac,keep);
   applyMerge(ar,ac,rs,cs);
+  if(keep && typeof recalcAll==='function') recalcAll();
   syncCellFmt();
   toast(rs>1||cs>1 ? `結合：${rs}行 × ${cs}列` : '結合を解除しました');
 }
@@ -19715,6 +19819,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_band_cfg',   // 🎛 帯の ボタン（出す ボタン・並び。v626）
   'excalc_sum_place',   // 合計の 置き場所（テンキーの上の行／セルのバー。v628）
   'excalc_fill_how',   // 範囲選択と コピー（フィル）の しかた（角の つまみ／帯の ボタン／長押しして なぞる。v629）
+  'excalc_merge_sep',   // 結合で 2つ 以上 残す ときの 区切り（v631）
 ];
 function settingsBundle(){
   const o={};
