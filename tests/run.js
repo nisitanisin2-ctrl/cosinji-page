@@ -12781,7 +12781,7 @@ async function runKantab623(browser) {
   const csv = '﻿' + ['# 表電卓 カンタブの換算表', '# 名前,カンタブ 低濃度品（コンクリート用） Lot No. 772115', '読み値,塩化物イオン(%)'].concat(rows.map(r => r.join(','))).join('\r\n') + '\r\n';
   const f1 = path.join(tmp, 'kantab-table-772115.csv'); fs.writeFileSync(f1, csv);
   await page.evaluate(() => { window.appConfirm = async () => true; openKantab(); openKtSettings(); }); await page.waitForTimeout(300);
-  check('  設定に 📂 ファイルから読む・💾 ファイルに保存', await page.evaluate(() => [...document.querySelectorAll('#ktSettingsOverlay .kt-file-sec button')].map(b => b.textContent).join('/')), '📂 ファイルから読む/💾 ファイルに保存');
+  check('  設定に 📂 ファイルから読む・💾 ファイルに保存（v632：📊 入力用の Excel も）', await page.evaluate(() => [...document.querySelectorAll('#ktSettingsOverlay .kt-file-sec button')].map(b => b.firstChild.textContent.trim()).join('/')), '📂 ファイルから読む/💾 ファイルに保存/📊 入力用の Excel を書き出す');
   check('  はじめは まだ 登録されていない', await page.evaluate(() => document.getElementById('ktTName').textContent), 'いまの換算表：まだ登録されていません');
   await page.setInputFiles('#ktFile', f1); await page.waitForTimeout(500);
   check('  CSV を 読むと 64行（1.8〜8.1）', await page.evaluate(() => ktTable.length + '/' + ktTable[0].r + '/' + ktTable[63].r + '/' + ktTable[63].c), '64/1.8/8.1/0.1314');
@@ -12790,7 +12790,7 @@ async function runKantab623(browser) {
   check('  表の 値（4.8 → 0.0291・6.5 → 0.0616）', await page.evaluate(() => ktLookup(4.8).v + '/' + ktLookup(6.5).v), '0.0291/0.0616');
   await page.evaluate(() => { closeKtSettings(); ktInput('W', '175', document.getElementById('ktIn_W')); ['r1', 'r2', 'r3'].forEach((k, i) => { const el = document.getElementById('ktIn_' + k); if (el) { el.value = ['4.8', '4.9', '5.0'][i]; ktInput(k, el.value, el); } }); }); await page.waitForTimeout(200);
   check('  計算に 使われる（平均 0.053 kg/m³）', await page.evaluate(() => document.getElementById('ktResVal').textContent.replace(/\s/g, '')), '0.053kg/m³');
-  check('  カンタブの 画面にも いまの 換算表', await page.evaluate(() => { const m = document.getElementById('ktTNameMain'); return !m.hidden && m.textContent; }), '換算表：カンタブ 低濃度品（コンクリート用） Lot No. 772115（1.8〜8.1）');
+  check('  カンタブの 画面にも いまの 換算表（v632：ロット番号を いちばん上に 大きく）', await page.evaluate(() => { const m = document.getElementById('ktTNameMain'); return !m.hidden && m.querySelector('.kt-lot-no').textContent + '|' + m.querySelector('small').textContent; }), 'Lot No. 772115|カンタブ 低濃度品（コンクリート用）・読み値 1.8〜8.1');
   await page.evaluate(() => openShikenRep('kt')); await page.waitForTimeout(800);
   check('  報告書の 下に 表の 名前（1ページ・試験報告書）', await page.evaluate(() => { const a = SHIKEN.ktHtml(), b = SHIKEN.html({ tsx: false, kt: true }); closeShikenRep(); return /換算表は 「カンタブ 低濃度品（コンクリート用） Lot No\. 772115」 から/.test(a) + '/' + /換算表は 「カンタブ 低濃度品（コンクリート用） Lot No\. 772115」。/.test(b); }), 'true/true');
   await page.waitForTimeout(300);
@@ -20162,6 +20162,117 @@ async function runMerge631(browser) {
   await ctx.close();
 }
 
+/* v632：🧪 カンタブ：換算表の ロット番号を いちばん上に・前に 入れた 単位水量（押すと 入る・消せる）・読み値は 押すと 消える・読み値の リセット・平均値を セルに 入れる は 外した */
+async function runKantab632(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🧪 カンタブ v632：ロット番号・前に 入れた 単位水量・読み値の リセット ──');
+  const w = ms => page.waitForTimeout(ms);
+  const chips = () => page.evaluate(() => [...document.querySelectorAll('#ktWHist .kt-wh')].map(e => e.querySelector('.kt-wh-v').textContent + (e.classList.contains('on') ? '●' : '')).join(','));
+  await page.evaluate(() => { window.appConfirm = async () => true; ktTable = []; ktTName = ''; ktSavePrefs(); openKantab(); }); await w(400);
+  check('  換算表が ない ときは いちばん上に「まだ 登録されて いません」', await page.evaluate(() => { const m = document.getElementById('ktTNameMain'); return [!m.hidden, m === m.parentElement.firstElementChild, m.classList.contains('kt-lot-none'), m.querySelector('.kt-lot-no').textContent].join('/'); }), 'true/true/true/まだ 登録されて いません');
+  await page.click('#ktTNameMain'); await w(400);
+  check('  　押すと ⚙ 設定（換算表の 登録）', await page.evaluate(() => isDlgOpen('ktSettingsOverlay')), true);
+  await page.evaluate(() => { closeKtSettings(); ktTable = [{ r: 1.8, c: 0.0103 }, { r: 4.8, c: 0.0291 }, { r: 5.0, c: 0.0300 }, { r: 8.1, c: 0.1314 }]; ktTName = 'カンタブ 低濃度品（コンクリート用） Lot No. 772115'; ktSavePrefs(); ktRenderTName(); }); await w(300);
+  check('  いちばん上に ロット番号を 大きく（下に 品名と 読み値の 範囲）', await page.evaluate(() => { const m = document.getElementById('ktTNameMain'); return [m.classList.contains('kt-lot-none'), m.querySelector('.kt-lot-no').textContent, m.querySelector('small').textContent, parseFloat(getComputedStyle(m.querySelector('.kt-lot-no')).fontSize) >= 18].join('|'); }),
+    'false|Lot No. 772115|カンタブ 低濃度品（コンクリート用）・読み値 1.8〜8.1|true');
+  check('  「ロット番号 A-12」「LOT9876」も 読める・ロットが ない 名前は そのまま', await page.evaluate(() => [ktLotOf('ロット番号 A-12'), ktLotOf('カンタブ LOT9876'), ktLotOf('自分の表') || '（なし）'].join('/')), 'A-12/9876/（なし）');
+  check('  「▦ 平均値をセルに入れる」は 外した', await page.evaluate(() => !document.getElementById('ktInsertBtn') && typeof ktInsertToCell === 'undefined' && !/平均値をセルに/.test(document.getElementById('kantabOverlay').textContent)), true);
+  // ── 前に 入れた 単位水量 ──
+  const typeW = v => page.evaluate(v => { const el = document.getElementById('ktIn_W'); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }, v);   // 打って 確定（欄を 離れる）
+  await typeW('175'); await w(150);
+  await typeW('180'); await w(150);
+  check('  単位水量を 入れると 欄の 下に 並ぶ（新しい 順・いまの 値に 印）', await chips(), '180●,175');
+  await page.click('#ktWHist .kt-wh-v[data-w="175"]'); await w(200);
+  check('  押すと その 単位水量が 入る（計算にも）', await page.evaluate(() => document.getElementById('ktIn_W').value + '/' + ktVals.W) + ' ' + await chips(), '175/175 175●,180');
+  await page.click('#ktWHist .kt-wh-x[data-w="180"]'); await w(200);
+  check('  ✕ で 消せる', await chips(), '175●');
+  await page.evaluate(() => { for (let i = 1; i <= 12; i++) ktRecW(String(150 + i)); }); await w(100);
+  check('  多くても 新しい 10個まで', await page.evaluate(() => ktWHist().length + '/' + ktWHist()[0] + '/' + ktWHist()[9]), '10/162/153');
+  await page.evaluate(() => { ktWHistSave(['175', '180']); ktRenderWHist(); });
+  await page.evaluate(() => closeKantab()); await page.reload(); await w(900);
+  await page.evaluate(() => openKantab()); await w(400);
+  check('  開き直しても 残る', await chips(), '175●,180');
+  // ── 読み値は 枠を 押すと 消える ──
+  await page.evaluate(() => { ['r1', 'r2', 'r3'].forEach((k, i) => { const el = document.getElementById('ktIn_' + k); el.value = ['8.1', '5.0', '4.8'][i]; ktInput(k, el.value, el); }); });   // ① を 消すと 平均が 変わる 数に
+  await w(150);
+  const before = await page.evaluate(() => document.getElementById('ktResVal').textContent.replace(/\s/g, ''));
+  await page.click('#ktIn_r1'); await w(200);
+  check('  読み値の 枠を 押すと 前の 数字が 消える（計算も 入れ直し）', await page.evaluate(() => [document.getElementById('ktIn_r1').value || '空', ktVals.r1 || '空', document.getElementById('ktIn_r2').value].join('/')) + ' ' + (before !== await page.evaluate(() => document.getElementById('ktResVal').textContent.replace(/\s/g, ''))), '空/空/5.0 true');
+  await page.keyboard.type('5.0'); await w(150);
+  check('  　そのまま 新しい 読み値を 打てる', await page.evaluate(() => document.getElementById('ktIn_r1').value + '/' + ktVals.r1), '5.0/5.0');
+  await page.click('#ktIn_W'); await w(150);
+  check('  単位水量の 枠は 押しても 消えない', await page.evaluate(() => document.getElementById('ktIn_W').value), '175');
+  // ── 読み値の リセット ──
+  check('  リセットの ボタン（読み値の 下・枠を 押すと 消える と 書いて ある）', await page.evaluate(() => { const b = document.querySelector('#kantabOverlay .kt-reset'); return !!b && b.textContent + '|' + document.querySelector('#kantabOverlay .kt-reset-note').textContent; }), '↺ 読み値を リセット|枠を 押すと 前の 数字は 消えます');
+  await page.click('#kantabOverlay .kt-reset'); await w(300);
+  check('  リセットで ①〜③ を 消す（単位水量は そのまま・結果は —）', await page.evaluate(() => [['r1', 'r2', 'r3'].map(k => document.getElementById('ktIn_' + k).value || '空').join(','), ['r1', 'r2', 'r3'].map(k => ktVals[k] || '空').join(','), document.getElementById('ktIn_W').value, document.getElementById('ktResVal').textContent, document.getElementById('appToast').textContent].join(' / ')),
+    '空,空,空 / 空,空,空 / 175 / — / 読み値を リセット しました（単位水量は そのまま）');
+  check('  前に 入れた 単位水量は 設定の 書き出し・全保存にも', await page.evaluate(() => typeof settingsBundle().excalc_kantab_whist === 'string'), true);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
+/* v632：📊 カンタブの 換算表を 入力用の Excel に 書き出す → Excel で 入れて 保存 → 📂 ファイルから読む */
+async function runKantabXlsx632(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🧪 カンタブ v632：入力用の Excel（書き出す → 入れる → 読み込む） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const { readZipEntry, writeZip } = require('./zip.js');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ktxlsx-'));
+  // シートの セルを { A2: '# 名前', A5: '1.8', … } に（空の 枠だけの セルは ''）
+  const cellsOf = xml => { const o = {}; for (const m of xml.matchAll(/<c r="([A-Z]+\d+)"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) { const t = /<t[^>]*>([\s\S]*?)<\/t>/.exec(m[3] || ''), v = /<v>([\s\S]*?)<\/v>/.exec(m[3] || ''); o[m[1]] = t ? t[1] : v ? v[1] : ''; } return o; };
+  const T = [{ r: 1.8, c: 0.0103 }, { r: 4.8, c: 0.0291 }, { r: 5, c: 0.03 }, { r: 8.1, c: 0.1314 }];
+  const NAME = 'カンタブ 低濃度品（コンクリート用） Lot No. 772115';
+  await page.evaluate(([T, NAME]) => { window.appConfirm = async () => true; ktTable = T.map(p => Object.assign({}, p)); ktTName = NAME; ktSavePrefs(); openKantab(); openKtSettings(); }, [T, NAME]); await w(400);
+  check('  設定の ファイルの 所に「📊 入力用の Excel を書き出す」（横いっぱい・説明つき）', await page.evaluate(() => { const b = document.querySelector('#ktSettingsOverlay .kt-file-sec .kt-xlsx-btn'); return !!b && [b.firstChild.textContent.trim(), b.querySelector('small').textContent, b.getBoundingClientRect().width > 300, /入力用の Excel/.test(document.querySelector('#ktSettingsOverlay .kt-file-sec .ts-ref-note').textContent)].join('|'); }), '📊 入力用の Excel を書き出す|いまの表入り。入れて保存したら 📂 ファイルから読む|true|true');
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#ktSettingsOverlay .kt-xlsx-btn')]);
+  const f1 = path.join(tmp, dl.suggestedFilename()); await dl.saveAs(f1); await w(200);
+  check('  ファイルの 名前は ロット番号 入り（英数字）・お知らせ', dl.suggestedFilename() + '|' + await page.evaluate(() => document.getElementById('appToast').textContent), 'kantab-table-772115.xlsx|kantab-table-772115.xlsx を 書き出しました。Excel で 入れて 保存し、📂 ファイルから読む で 読み込めます');
+  const sx = readZipEntry(f1, 'xl/worksheets/sheet1.xml'), c1 = cellsOf(sx);
+  check('  1〜3行目は「#」の 説明・B2 に 名前・4行目に 見出し', [c1.A1.slice(0, 14), c1.A2, c1.B2, c1.A3.slice(0, 4), c1.A4, c1.B4].join('|'), '# 表電卓 カンタブの換算表|# 名前|' + NAME + '|# 例：|読み値|塩化物イオン(%)');
+  check('  5行目から いまの 表（数の まま）', ['A5', 'B5', 'A6', 'B6', 'A7', 'B7', 'A8', 'B8'].map(k => c1[k]).join(','), '1.8,0.0103,4.8,0.0291,5,0.03,8.1,0.1314');
+  check('  下に 入れる 欄（枠つき・50行ぶん）・見出しを 固定', [(sx.match(/<row /g) || []).length, /<c r="A54" s="5"\/><c r="B54" s="2"\/>/.test(sx), /<pane ySplit="4" topLeftCell="A5"[^>]*state="frozen"/.test(sx)].join('/'), '54/true/true');
+  const st = readZipEntry(f1, 'xl/styles.xml');
+  check('  シートの 名前「換算表」・数の 形（0.0# と 0.0000##）', [/<sheet name="換算表"/.test(readZipEntry(f1, 'xl/workbook.xml')), /formatCode="0\.0000##"/.test(st), /formatCode="0\.0#"/.test(st)].join('/'), 'true/true/true');
+  // ── そのまま 読み直すと 同じ 表に もどる ──
+  await page.evaluate(() => { ktTable = []; ktTName = ''; ktSavePrefs(); ktRenderTable(); }); await w(100);
+  await page.setInputFiles('#ktFile', f1); await w(700);
+  check('  書き出した ファイルを 📂 で 読むと 同じ 表と 名前', await page.evaluate(() => JSON.stringify(ktTable) + '|' + ktTName), JSON.stringify(T) + '|' + NAME);
+  // ── Excel で 入れて 保存した 形（文字は sharedStrings・数は 2.5100000000000001E-2 など・空の 枠） ──
+  const ns = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"', rns = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const ss = ['# 表電卓 カンタブの換算表（B2 に 製品名と ロット番号…）', '# 名前', 'カンタブ 高濃度品 Lot No. 880201', '読み値', '塩化物イオン(%)'];
+  const vals = [['2', '2.5100000000000001E-2'], ['2.2000000000000002', '2.7799999999999998E-2'], ['2.4', '3.0499999999999999E-2']];
+  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet ${ns}><sheetData>`
+    + `<row r="1"><c r="A1" s="3" t="s"><v>0</v></c></row><row r="2"><c r="A2" s="1" t="s"><v>1</v></c><c r="B2" s="4" t="s"><v>2</v></c></row>`
+    + `<row r="4"><c r="A4" s="1" t="s"><v>3</v></c><c r="B4" s="1" t="s"><v>4</v></c></row>`
+    + vals.map((v, i) => `<row r="${i + 5}"><c r="A${i + 5}" s="5"><v>${v[0]}</v></c><c r="B${i + 5}" s="2"><v>${v[1]}</v></c></row>`).join('')
+    + `<row r="8"><c r="A8" s="5"/><c r="B8" s="2"/></row></sheetData></worksheet>`;
+  const f2 = path.join(tmp, 'kantab-table-772115 (1).xlsx');
+  writeZip([
+    ['[Content_Types].xml', '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/></Types>'],
+    ['_rels/.rels', `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${rns}/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
+    ['xl/workbook.xml', `<?xml version="1.0"?><workbook ${ns} xmlns:r="${rns}"><sheets><sheet name="換算表" sheetId="1" r:id="rId1"/></sheets></workbook>`],
+    ['xl/_rels/workbook.xml.rels', `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${rns}/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="${rns}/sharedStrings" Target="sharedStrings.xml"/></Relationships>`],
+    ['xl/sharedStrings.xml', `<?xml version="1.0"?><sst ${ns} count="${ss.length}" uniqueCount="${ss.length}">` + ss.map(s => `<si><t xml:space="preserve">${s}</t></si>`).join('') + '</sst>'],
+    ['xl/worksheets/sheet1.xml', sheet],
+  ], f2);
+  await page.setInputFiles('#ktFile', f2); await w(700);
+  check('  Excel で 入れて 保存した ファイルも 読める（B2 の 名前・細かい 数は ととのえる）', await page.evaluate(() => JSON.stringify(ktTable) + '|' + ktTName), '[{"r":2,"c":0.0251},{"r":2.2,"c":0.0278},{"r":2.4,"c":0.0305}]|カンタブ 高濃度品 Lot No. 880201');
+  check('  　カンタブの 画面の いちばん上も 新しい ロットに', await page.evaluate(() => document.querySelector('#ktTNameMain .kt-lot-no').textContent), 'Lot No. 880201');
+  // ── 表が 空なら 見出しだけ・何も 入れずに 読むと 知らせる ──
+  await page.evaluate(() => { ktTable = []; ktTName = ''; ktSavePrefs(); ktRenderTable(); }); await w(100);
+  const [dl2] = await Promise.all([page.waitForEvent('download'), page.click('#ktSettingsOverlay .kt-xlsx-btn')]);
+  const f3 = path.join(tmp, 'empty-' + dl2.suggestedFilename()); await dl2.saveAs(f3);
+  const c3 = cellsOf(readZipEntry(f3, 'xl/worksheets/sheet1.xml'));
+  check('  表が 空でも 書き出せる（名前なし・見出しだけ）', [dl2.suggestedFilename(), c3.A2, c3.B2 === '' ? '空' : c3.B2, c3.A4, c3.A5 === '' ? '空' : c3.A5].join('|'), 'kantab-table.xlsx|# 名前|空|読み値|空');
+  await page.setInputFiles('#ktFile', f3); await w(500);
+  check('  何も 入れずに 読むと「まだ 値が 入って いません」（表は そのまま）', await page.evaluate(() => document.getElementById('appToast').textContent + '|' + ktTable.length), 'まだ 値が 入って いません（Excel の 5行目から 下に 読み値と 塩化物イオン(%) を 入れて 保存してから 読み込んでください）|0');
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 async function runFmtPage(browser) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, acceptDownloads: true });
   const page = await ctx.newPage();
@@ -21098,6 +21209,8 @@ const SUITES = [
   [['sum628', 'v628'], b => runSum628(b)],
   [['fill629', 'v629'], b => runFill629(b)],
   [['merge631', 'v631'], b => runMerge631(b)],
+  [['kantab632', 'v632'], b => runKantab632(b)],
+  [['kantab632', 'kantabxlsx', 'v632'], b => runKantabXlsx632(b)],
   [['clip'], b => runClip(b)],
   [['koe'], b => runKoe(b)],
   [['koe', 'koelisten'], b => runKoeListen(b)],

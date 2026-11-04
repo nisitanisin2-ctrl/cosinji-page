@@ -3704,11 +3704,30 @@ body.simple-mode .rh  { height: calc(46px * var(--cell-scale, 1)); }
 .kt-tname { margin: 10px 0 4px; padding: 8px 10px; border-radius: 10px; background: var(--cell-hover); font-size: 13.5px; line-height: 1.5; overflow-wrap: anywhere; }
 .kt-tname small { display: block; color: var(--text-sub, #666); font-size: 12px; }
 .kt-file-sec { margin: 8px 0 10px; }
-.kt-tname-main { margin: 4px 0 0; font-size: 12px; color: var(--text-sub, #666); text-align: center; overflow-wrap: anywhere; }
+/* 🧪 カンタブ（v632）：いまの 換算表の ロット番号を いちばん上に 大きく／前に 入れた 単位水量／読み値の リセット */
+.kt-lot { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; width: 100%; margin: 0 0 8px; padding: 8px 12px; border-radius: 12px;
+  border: 2px solid var(--acc); background: color-mix(in srgb, var(--acc) 8%, transparent); color: var(--text); text-align: left; cursor: pointer; }
+.kt-lot-t { font-size: 12px; font-weight: bold; color: var(--text-light); }
+.kt-lot-no { font-size: 18px; color: var(--acc-text, var(--acc)); letter-spacing: .02em; }
+.kt-lot small { flex-basis: 100%; font-size: 11.5px; color: var(--text-light); overflow-wrap: anywhere; }
+.kt-lot.kt-lot-none { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); }
+.kt-lot.kt-lot-none .kt-lot-no { font-size: 15px; color: var(--warn); }
+.kt-whist { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -2px 0 8px; }
+.kt-wh-lb { font-size: 12px; color: var(--text-light); }
+.kt-wh { display: inline-flex; align-items: stretch; border: 1px solid var(--save-item-border); border-radius: 16px; overflow: hidden; background: var(--save-item-bg); }
+.kt-wh.on { border-color: var(--acc); }
+.kt-wh-v { min-height: 32px; padding: 0 10px; border: none; background: none; color: var(--text); font-size: 15px; font-weight: bold; cursor: pointer; }
+.kt-wh.on .kt-wh-v { color: var(--acc-text, var(--acc)); }
+.kt-wh-x { min-width: 30px; border: none; border-left: 1px solid var(--save-item-border); background: none; color: var(--text-light); font-size: 13px; cursor: pointer; }
+.kt-reset-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 8px; }
+.kt-reset-note { font-size: 11.5px; color: var(--text-light); }
+.kt-reset { flex: none; min-height: 36px; padding: 0 12px; border-radius: var(--r-btn); border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text); font-size: 13.5px; font-weight: bold; cursor: pointer; }
 .kt-paste-btns { display: flex; gap: 8px; }
 .kt-pb { flex: 1 1 0; font-size: 15px; padding: 11px 6px; }
 .kt-pb-sub { background: var(--pm-chip, rgba(120,132,156,.13)); color: var(--text); }
 .kt-pb-sub:hover { background: rgba(120,132,156,.24); }
+.kt-xlsx-btn { display: block; width: 100%; margin-top: 8px; }   /* 📊 入力用の Excel（v632） */
+.kt-xlsx-btn small { display: block; margin-top: 2px; font-size: 12px; font-weight: 500; opacity: .88; }
 .ts-field { display: flex; align-items: center; gap: 3px; }
 .ts-judge {
   padding: 2px 10px; border-radius: var(--r-btn); font-weight: bold;
@@ -4818,23 +4837,24 @@ body.dark {
       </span>
     </div>
     <div class="modal-body">
+      <button class="kt-lot" id="ktTNameMain" onclick="openKtSettings()" title="換算表を 変える・確かめる（⚙ 設定）"></button>
       <div class="kt-in-row kt-w-row">
         <span class="kt-in-lb">単位水量 W</span>
         <input type="text" inputmode="decimal" id="ktIn_W" placeholder="例 175"
-          oninput="ktInput('W',this.value,this)" onfocus="ktCaretEnd(this)" onclick="ktCaretEnd(this)">
+          oninput="ktInput('W',this.value,this)" onchange="ktRecW(this.value)" onfocus="ktCaretEnd(this)" onclick="ktCaretEnd(this)">
         <span class="kt-in-unit">kg/m³</span>
       </div>
+      <div class="kt-whist" id="ktWHist" hidden></div>
       <div class="kt-grid" id="ktGrid">
         <div class="kt-gh"><span></span><span>読み値</span><span>換算表の値</span><span>塩化物含有量<small>kg/m³</small></span></div>
       </div>
+      <div class="kt-reset-row"><span class="kt-reset-note">枠を 押すと 前の 数字は 消えます</span><button class="kt-reset" onclick="ktResetReads()" title="読み値 ①〜③ を ぜんぶ 消す（単位水量は そのまま）">↺ 読み値を リセット</button></div>
       <div class="vol-result">
         <div class="kt-avg-lb">塩化物含有量 平均値</div>
         <div class="vol-result-main" id="ktResVal">—</div>
         <div class="vol-result-sub" id="ktResSub">単位水量と読み値を入れてください</div>
       </div>
       <div class="kt-judge-row"><span class="ts-judge" id="ktJudge">—</span></div>
-      <div class="kt-tname-main" id="ktTNameMain" hidden></div>
-      <button class="vol-insert" id="ktInsertBtn" onclick="ktInsertToCell()" disabled>▦ 平均値をセルに入れる</button>
       <div class="vol-hint">読み値ごとに<b>換算表</b>で塩化物イオン濃度(%)に直し、<b>単位水量</b>を掛けて塩化物含有量(kg/m³)を出します。最後にその<b>平均</b>で判定します（①〜③のうち<b>入れた分だけ</b>で平均します）。<br>換算表はカンタブの製品ごとに違うため、はじめに<b>⚙設定</b>でお使いの表を登録してください。読み値が表の行と行の間のときは前後から直線でおぎない、その値に<b>*</b>を付けます。表の範囲外のときは「範囲外」と出し、平均には入れません。</div>
       <button class="vol-insert veg-pdf-btn" onclick="ktPdf()">🖨 結果を1ページのPDFに</button>
       <div class="veg-outrow">
@@ -4867,11 +4887,12 @@ body.dark {
           製品によって数値が違うため、はじめから入っている値はありません。読み値が表のちょうど中間のときは、前後の行から直線でおぎなった値を使い、その旨を下の帯に表示します。</div>
         <div class="kt-tname" id="ktTName"></div>
         <div class="kt-file-sec">
-          <div class="ts-ref-note"><b>ファイルで入れる</b>：換算表のファイル（<b>.csv・.txt・Excel の .xlsx</b>）を読み込めます。試験紙の<b>ロットごと</b>にファイルを作っておけば、ロットが変わったときにすぐ入れかえられます。ファイルの「<code># 名前, ○○ Lot No. △△</code>」の行が表の名前になります。</div>
+          <div class="ts-ref-note"><b>ファイルで入れる</b>：換算表のファイル（<b>.csv・.txt・Excel の .xlsx</b>）を読み込めます。試験紙の<b>ロットごと</b>にファイルを作っておけば、ロットが変わったときにすぐ入れかえられます。ファイルの「<code># 名前, ○○ Lot No. △△</code>」の行が表の名前になります。<br><b>📊 入力用の Excel</b>：いまの表（なければ見出しだけ）が入った Excel を書き出します。<b>B2 に製品名とロット番号</b>、<b>5行目から下に読み値と塩化物イオン(%)</b> を入れて保存 → <b>📂 ファイルから読む</b>。</div>
           <div class="kt-paste-btns">
             <button class="ts-ref-btn kt-pb" onclick="document.getElementById('ktFile').click()">📂 ファイルから読む</button>
             <button class="ts-ref-btn kt-pb kt-pb-sub" onclick="ktSaveFile()">💾 ファイルに保存</button>
           </div>
+          <button class="ts-ref-btn kt-pb kt-xlsx-btn" onclick="ktSaveXlsx()" title="Excel で 読み値と 塩化物イオン(%) を 入れて、📂 ファイルから読む で 読み込めます">📊 入力用の Excel を書き出す<small>いまの表入り。入れて保存したら 📂 ファイルから読む</small></button>
           <input type="file" id="ktFile" accept=".csv,.txt,.tsv,.xlsx,text/csv,text/plain" hidden onchange="ktOpenFile(this)">
         </div>
         <div class="kt-preset-sec" id="ktPresetSec"></div>

@@ -15096,9 +15096,10 @@ function ktSaveVals(){ try{ localStorage.setItem(KT_VALS_KEY, JSON.stringify(ktV
 function openKantab(){
   ktRenderInputs(); ktCalc();
   openDlg('kantabOverlay');
-  ktRenderTName();   // いまの 換算表の 名前（ロット。v623）
+  ktRenderTName();   // いまの 換算表の ロット番号（v623。v632 から 画面の いちばん上に 大きく）
+  ktRenderWHist();   // 前に 入れた 単位水量（v632）
 }
-function closeKantab(){ closeDlg('kantabOverlay'); }
+function closeKantab(){ ktRecW(ktVals.W); closeDlg('kantabOverlay'); }
 function ktRenderInputs(){
   const grid=document.getElementById('ktGrid'); if(!grid) return;
   document.getElementById('ktIn_W').value = (ktVals.W!=null?ktVals.W:'');
@@ -15109,11 +15110,47 @@ function ktRenderInputs(){
     row.innerHTML='<span class="kt-gn">'+f.mark+'</span>'+
       '<input type="text" inputmode="decimal" id="ktIn_'+f.key+'" '+
         'value="'+(ktVals[f.key]!=null?ktVals[f.key]:'')+'" oninput="ktInput(\''+f.key+'\',this.value,this)" '+
-        'onfocus="ktCaretEnd(this)" onclick="ktCaretEnd(this)">'+
+        'onfocus="ktReadFocus(this,\''+f.key+'\')">'+
       '<span class="kt-gv kt-none" id="ktC_'+f.key+'">—</span>'+
       '<span class="kt-gv kt-none" id="ktQ_'+f.key+'">—</span>';
     grid.appendChild(row);
   });
+}
+/* 読み値の 枠を 押したら、前に 入れた 数字は 消す（v632。次の 試験の 読み値を そのまま 打てる） */
+function ktReadFocus(el, key){
+  if(!el || el.value==='') return;
+  el.value=''; ktInput(key, '', el);
+}
+/* ↺ 読み値を リセット（v632）：①〜③ を 消す。単位水量は そのまま（前に 入れた 単位水量にも 残す） */
+function ktResetReads(){
+  ktRecW(ktVals.W);
+  KT_READS.forEach(f=>{ ktVals[f.key]=''; const el=document.getElementById('ktIn_'+f.key); if(el) el.value=''; });
+  ktSaveVals(); ktCalc();
+  toast('読み値を リセット しました（単位水量は そのまま）');
+}
+/* ── 前に 入れた 単位水量（v632）：欄の すぐ 下に 並べる。押すと 入る・✕ で 消す。新しい 順に 10個まで ── */
+const KT_WHIST_KEY='excalc_kantab_whist', KT_WHIST_MAX=10;
+function ktWHist(){ try{ const a=JSON.parse(localStorage.getItem(KT_WHIST_KEY)||'[]'); return Array.isArray(a) ? a.filter(x=>typeof x==='string' && x!=='').slice(0, KT_WHIST_MAX) : []; }catch(_){ return []; } }
+function ktWHistSave(a){ try{ if(a.length) localStorage.setItem(KT_WHIST_KEY, JSON.stringify(a.slice(0, KT_WHIST_MAX))); else localStorage.removeItem(KT_WHIST_KEY); }catch(_){} }
+function ktRecW(v){
+  const t=String(v==null ? '' : v).trim(), n=parseFloat(t);
+  if(t==='' || !isFinite(n) || n<=0) return;
+  const s=String(n);   // 「175.0」も「175」に そろえる
+  ktWHistSave([s].concat(ktWHist().filter(x=>x!==s)));
+  ktRenderWHist();
+}
+function ktUseW(v){
+  const el=document.getElementById('ktIn_W'); if(el) el.value=v;
+  ktInput('W', v, el); ktRecW(v);
+}
+function ktDelW(v){ ktWHistSave(ktWHist().filter(x=>x!==v)); ktRenderWHist(); }
+function ktRenderWHist(){
+  const box=document.getElementById('ktWHist'); if(!box) return;
+  const a=ktWHist(), cur=String(parseFloat(ktVals.W));
+  box.hidden=!a.length;
+  box.innerHTML=a.length ? '<span class="kt-wh-lb">前に 入れた：</span>'+a.map(v=>'<span class="kt-wh'+(v===cur?' on':'')+'">'
+    +'<button type="button" class="kt-wh-v" data-w="'+escHtml(v)+'" onclick="ktUseW(this.dataset.w)" title="単位水量に '+escHtml(v)+' を 入れる">'+escHtml(v)+'</button>'
+    +'<button type="button" class="kt-wh-x" data-w="'+escHtml(v)+'" onclick="ktDelW(this.dataset.w)" aria-label="'+escHtml(v)+' を 消す" title="この 値を 前に 入れた 一覧から 消す">✕</button></span>').join('') : '';
 }
 /* 数字を入れる位置をいつも右端（末尾）にする。
    途中をタップしても末尾に移るので、続きの桁がそのまま打てる。 */
@@ -15163,7 +15200,7 @@ function ktResult(){
 }
 function ktCalc(){
   const vEl=document.getElementById('ktResVal'), sEl=document.getElementById('ktResSub');
-  const jEl=document.getElementById('ktJudge'), btn=document.getElementById('ktInsertBtn');
+  const jEl=document.getElementById('ktJudge'), btn=document.getElementById('ktInsertBtn');   // v632：ボタンは 外した（ない ときは 何も しない）
   if(!vEl) return;
   const R=ktResult(), cls={length:R.n}, nRead=R.nRead, nOut=R.nOut, nInterp=R.nInterp, noTable=R.noTable;
   R.rows.forEach(row=>{
@@ -15191,9 +15228,9 @@ function ktCalc(){
     sEl.textContent=cls.length+'回ぶんの平均（合格 '+tsFmt(ktWarn,2)+' 以下／管理値 '+tsFmt(ktLimit,2)+'）'
       + (nInterp?'　* は表の間を直線でおぎなった値です':'')
       + (nOut?'　※範囲外の'+nOut+'回は平均に入れていません':'');
-    btn.disabled=false;
+    if(btn) btn.disabled=false;
   } else {
-    vEl.textContent='—'; jEl.textContent='—'; btn.disabled=true;
+    vEl.textContent='—'; jEl.textContent='—'; if(btn) btn.disabled=true;
     if(noTable) sEl.textContent='換算表がまだ登録されていません。「⚙設定」でお使いのカンタブの表を入れてください';
     else if(nRead===0) sEl.textContent='読み値を入れてください（①〜③のうち入れた分だけで平均します）';
     else if(nOut===nRead) sEl.textContent='読み値がどれも登録した換算表の範囲外です（表に行を足すか、読み値を確かめてください）';
@@ -15201,11 +15238,6 @@ function ktCalc(){
   }
 }
 let ktLastCl=null;
-/* 出た値を、表の選択中のセルに入れる（容積計算と同じ使い勝手） */
-function ktInsertToCell(){
-  if(ktLastCl==null){ toast('先に単位水量と読み値を入れてください'); return; }
-  putToCell(ktLastCl, '塩化物イオン量をセルに入れました', closeKantab);
-}
 /* ── カンタブの設定ダイアログ ── */
 function openKtSettings(){ ktSyncUi(); ktRenderTable(); ktRenderPresets(); openDlg('ktSettingsOverlay'); }
 /* いま入っている 換算表の 名前と 範囲（v623） */
@@ -15218,8 +15250,21 @@ function ktRenderTName(){
   const i=ktTableInfo();
   el.innerHTML=i.n ? 'いまの換算表：<b>'+escHtml(i.name||'名前なし')+'</b><small>（'+i.n+'行・読み値 '+i.lo+'〜'+i.hi+'）</small>' : 'いまの換算表：<b>まだ登録されていません</b>';
   const m=document.getElementById('ktTNameMain');
-  if(m){ m.hidden=!i.n; m.textContent=i.n ? '換算表：'+(i.name||'名前なし')+'（'+i.lo+'〜'+i.hi+'）' : ''; }
+  if(m){
+    m.hidden=false;
+    m.classList.toggle('kt-lot-none', !i.n);
+    if(!i.n){ m.innerHTML='<span class="kt-lot-t">換算表</span><b class="kt-lot-no">まだ 登録されて いません</b><small>押すと ⚙ 設定（換算表の 登録）</small>'; }
+    else {
+      const lot=ktLotOf(i.name), prod=lot ? ktLotStrip(i.name) : (i.name||'名前なし');
+      m.innerHTML='<span class="kt-lot-t">換算表</span><b class="kt-lot-no">'+escHtml(lot ? 'Lot No. '+lot : prod)+'</b>'
+        +'<small>'+escHtml((lot && prod ? prod+'・' : '')+'読み値 '+i.lo+'〜'+i.hi)+'</small>';
+    }
+  }
 }
+/* 換算表の 名前から ロット番号を 取り出す（「Lot No. 772115」「ロット番号 772115」「LOT772115」など。v632） */
+const KT_LOT_RE=/(?:lot|ロット)\s*(?:no|ナンバー|番号|#)?\s*[.:：#]?\s*([A-Za-z0-9][A-Za-z0-9-]*)/i;
+function ktLotOf(name){ const m=KT_LOT_RE.exec(String(name||'')); return m ? m[1] : ''; }
+function ktLotStrip(name){ return String(name||'').replace(KT_LOT_RE, '').replace(/[（(]\s*[）)]/g,'').replace(/[\s　,，、（(]+$/,'').trim(); }
 function closeKtSettings(){ closeDlg('ktSettingsOverlay'); }
 function ktSyncUi(){
   const w=document.getElementById('ktWarn'), l=document.getElementById('ktLimit');
@@ -15314,7 +15359,7 @@ async function ktOpenFile(inp){
   let text='';
   try{ text=await ktFileText(file); }catch(_){ toast('ファイルを読めませんでした（.csv・.txt・.xlsx を えらんでください）', 3600); return; }
   const {rows, skipped, name}=ktParseTable(text);
-  if(!rows.length){ toast('換算表が 見つかりませんでした（1行に「読み値」と「濃度」の 数字を 2つ）', 3600); return; }
+  if(!rows.length){ toast(/^#\s*表電卓 カンタブの換算表（B2/m.test(text) ? 'まだ 値が 入って いません（Excel の 5行目から 下に 読み値と 塩化物イオン(%) を 入れて 保存してから 読み込んでください）' : '換算表が 見つかりませんでした（1行に「読み値」と「濃度」の 数字を 2つ）', 4200); return; }
   if(rows.length>KT_TABLE_MAX){ toast('行が多すぎます（'+KT_TABLE_MAX+'行まで）'); return; }
   const nm=name || String(file.name||'').replace(/\.[^.]+$/,'').slice(0,80);
   const sorted=rows.slice().sort((x,y)=>x.r-y.r);
@@ -15343,6 +15388,61 @@ function ktSaveFile(){
   const a=Object.assign(document.createElement('a'),{ href:URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})), download:name });
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1500);
   toast('換算表を '+name+' に 保存しました', 3200);
+}
+/* 📊 換算表を Excel（.xlsx）に 書き出す（v632）。Excel で 読み値と 塩化物イオン(%) を 入れて 保存し、📂 ファイルから読む で 読み込める。
+   1〜3行目は「#」で 始まる 説明（読み込みでは 読み飛ばす）、2行目「# 名前」の B 列が 表の 名前（製品・ロット番号）、
+   4行目が 見出し、5行目から 下に 1行ずつ。いまの 表が あれば その 値も 入れる（ロットが 変わったら 直して 使える） */
+function ktXlsxSheet(){
+  const t=ktTable.filter(p=>isFinite(p.r)&&isFinite(p.c)&&p.r!=null&&p.c!=null).slice().sort((x,y)=>x.r-y.r);
+  const rows=[
+    [{s:3, v:'# 表電卓 カンタブの換算表（B2 に 製品名と ロット番号、5行目から 下に 読み値と 塩化物イオン(%) を 1行ずつ 入れて 保存 → 🧪 カンタブ → ⚙ 設定 → 📂 ファイルから読む）'}],
+    [{s:1, v:'# 名前'}, {s:4, v:ktTName||''}],
+    [{s:3, v:'# 例：B2 ＝ カンタブ 低濃度品（コンクリート用） Lot No. 772115 ／ 読み値 1.8 → 塩化物イオン 0.0103（「#」で 始まる 行は 読み込みません）'}],
+    [{s:1, v:'読み値'}, {s:1, v:'塩化物イオン(%)'}],
+  ].concat(t.map(p=>[{s:5, v:p.r}, {s:2, v:p.c}]));
+  // 入れる 欄を 枠で 見せる（いまの 表の 下に 10行・少なくとも 50行ぶん）
+  for(let n=t.length; n<Math.max(t.length+10, 50); n++) rows.push([{s:5}, {s:2}]);
+  const cell=(c,ri,ci)=>{
+    const ref=xlColLetter(ci)+(ri+1), s=c && c.s ? ` s="${c.s}"` : '';
+    if(c==null || c.v==null || c.v==='') return s ? `<c r="${ref}"${s}/>` : '';
+    return typeof c.v==='number' ? `<c r="${ref}"${s}><v>${c.v}</v></c>` : `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${xlEsc(String(c.v))}</t></is></c>`;
+  };
+  const body=rows.map((r,ri)=>`<row r="${ri+1}">`+r.map((c,ci)=>cell(c,ri,ci)).join('')+'</row>').join('');
+  const X='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+  return `${X}<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="4" topLeftCell="A5" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A5" sqref="A5"/></sheetView></sheetViews>`
+    +`<cols><col min="1" max="1" width="14" customWidth="1"/><col min="2" max="2" width="44" customWidth="1"/></cols><sheetData>${body}</sheetData></worksheet>`;
+}
+async function ktXlsxBlob(){
+  const enc=new TextEncoder(), X='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>', M='http://schemas.openxmlformats.org/spreadsheetml/2006/main',
+    R='http://schemas.openxmlformats.org/officeDocument/2006/relationships', PK='http://schemas.openxmlformats.org/package/2006/', O='application/vnd.openxmlformats-officedocument.spreadsheetml.';
+  // 0 ふつう／1 見出し（太字・うすい緑・枠）／2 濃度（0.0000・枠）／3 説明（灰色の 斜体）／4 名前を 入れる 欄（うすい 黄色・枠）／5 読み値（0.0・枠）
+  // 数の 形は「0.0000##」「0.0#」：表の 桁より 細かい 数も 丸めずに 見せる
+  const bd='<left style="thin"><color rgb="FFB0BEC5"/></left><right style="thin"><color rgb="FFB0BEC5"/></right><top style="thin"><color rgb="FFB0BEC5"/></top><bottom style="thin"><color rgb="FFB0BEC5"/></bottom><diagonal/>';
+  const styles=`${X}<styleSheet xmlns="${M}"><numFmts count="2"><numFmt numFmtId="164" formatCode="0.0000##"/><numFmt numFmtId="165" formatCode="0.0#"/></numFmts>`
+    +`<fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><i/><sz val="10"/><color rgb="FF777777"/><name val="Calibri"/></font></fonts>`
+    +`<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>`
+    +`<fill><patternFill patternType="solid"><fgColor rgb="FFE8F5E9"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFF8E1"/><bgColor indexed="64"/></patternFill></fill></fills>`
+    +`<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border>${bd}</border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>`
+    +`<cellXfs count="6"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>`
+    +`<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/><xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>`
+    +`<xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/><xf numFmtId="165" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/></cellXfs>`
+    +`<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  const wb=`${X}<workbook xmlns="${M}" xmlns:r="${R}"><sheets><sheet name="換算表" sheetId="1" r:id="rId1"/></sheets></workbook>`;
+  const wbRels=`${X}<Relationships xmlns="${PK}relationships"><Relationship Id="rId1" Type="${R}/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="${R}/styles" Target="styles.xml"/></Relationships>`;
+  const rootRels=`${X}<Relationships xmlns="${PK}relationships"><Relationship Id="rId1" Type="${R}/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+  const ct=`${X}<Types xmlns="${PK}content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>`
+    +`<Override PartName="/xl/workbook.xml" ContentType="${O}sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="${O}worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="${O}styles+xml"/></Types>`;
+  const files=[['[Content_Types].xml', ct], ['_rels/.rels', rootRels], ['xl/workbook.xml', wb], ['xl/_rels/workbook.xml.rels', wbRels], ['xl/styles.xml', styles], ['xl/worksheets/sheet1.xml', ktXlsxSheet()]];
+  return xlsxZip(files.map(([name, x])=>({name, u8:enc.encode(x)})));
+}
+async function ktSaveXlsx(){
+  let blob=null;
+  try{ blob=await ktXlsxBlob(); }catch(e){ console.error(e); toast('Excel の ファイルを 作れませんでした'); return; }
+  const id=ktLotOf(ktTName) || (String(ktTName).match(/\d{4,}/)||[''])[0];
+  const name='kantab-table'+(id ? '-'+String(id).replace(/[^A-Za-z0-9-]/g,'') : '')+'.xlsx';   // 日本語の 名前は 端末で 消える ことが あるので 英数字
+  const url=URL.createObjectURL(blob), a=Object.assign(document.createElement('a'), {href:url, download:name});
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  toast(name+' を 書き出しました。Excel で 入れて 保存し、📂 ファイルから読む で 読み込めます', 4200);
 }
 /* ひな形のボタンを並べる */
 function ktRenderPresets(){
@@ -16962,7 +17062,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v631';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v632';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -19820,6 +19920,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_sum_place',   // 合計の 置き場所（テンキーの上の行／セルのバー。v628）
   'excalc_fill_how',   // 範囲選択と コピー（フィル）の しかた（角の つまみ／帯の ボタン／長押しして なぞる。v629）
   'excalc_merge_sep',   // 結合で 2つ 以上 残す ときの 区切り（v631）
+  'excalc_kantab_whist',   // 🧪 カンタブの 前に 入れた 単位水量（v632）
 ];
 function settingsBundle(){
   const o={};
