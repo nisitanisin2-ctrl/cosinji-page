@@ -14122,8 +14122,10 @@ function tsRegSet(kind,i,field,val){
 const KT_TABLE_KEY='excalc_kantab_table';
 let ktTable=[];                 // [{r:読み値, c:濃度%}]
 let ktWarn=0.25, ktLimit=0.30;  // 判定のしきい値(kg/m³)。管理値の既定は 0.30
+let ktTName='';                 // いま入っている 換算表の 名前（製品・ロット。v623）
 function ktLoadPrefs(){
   try{ const a=JSON.parse(localStorage.getItem(KT_TABLE_KEY)); if(Array.isArray(a)) ktTable=a; }catch(_){}
+  try{ ktTName=String(localStorage.getItem('excalc_kantab_tname')||'').slice(0,80); }catch(_){}
   const w=parseFloat(localStorage.getItem('excalc_kantab_warn'));  if(!isNaN(w)&&w>0&&w<=9) ktWarn=w;
   const l=parseFloat(localStorage.getItem('excalc_kantab_limit')); if(!isNaN(l)&&l>0&&l<=9) ktLimit=l;
 }
@@ -14132,6 +14134,7 @@ function ktSavePrefs(){
     localStorage.setItem(KT_TABLE_KEY, JSON.stringify(ktTable));
     localStorage.setItem('excalc_kantab_warn', String(ktWarn));
     localStorage.setItem('excalc_kantab_limit', String(ktLimit));
+    localStorage.setItem('excalc_kantab_tname', ktTName);
   }catch(_){}
 }
 /* 換算表から濃度を引く。ぴったり無ければ前後の行から直線でおぎなう。
@@ -14157,6 +14160,7 @@ function ktSaveVals(){ try{ localStorage.setItem(KT_VALS_KEY, JSON.stringify(ktV
 function openKantab(){
   ktRenderInputs(); ktCalc();
   openDlg('kantabOverlay');
+  ktRenderTName();   // いまの 換算表の 名前（ロット。v623）
 }
 function closeKantab(){ closeDlg('kantabOverlay'); }
 function ktRenderInputs(){
@@ -14268,6 +14272,18 @@ function ktInsertToCell(){
 }
 /* ── カンタブの設定ダイアログ ── */
 function openKtSettings(){ ktSyncUi(); ktRenderTable(); ktRenderPresets(); openDlg('ktSettingsOverlay'); }
+/* いま入っている 換算表の 名前と 範囲（v623） */
+function ktTableInfo(){
+  const t=ktTable.filter(p=>isFinite(p.r)&&isFinite(p.c)&&p.r!=null&&p.c!=null).map(p=>p.r).sort((x,y)=>x-y);
+  return { name:ktTName, n:t.length, lo:t[0], hi:t[t.length-1] };
+}
+function ktRenderTName(){
+  const el=document.getElementById('ktTName'); if(!el) return;
+  const i=ktTableInfo();
+  el.innerHTML=i.n ? 'いまの換算表：<b>'+escHtml(i.name||'名前なし')+'</b><small>（'+i.n+'行・読み値 '+i.lo+'〜'+i.hi+'）</small>' : 'いまの換算表：<b>まだ登録されていません</b>';
+  const m=document.getElementById('ktTNameMain');
+  if(m){ m.hidden=!i.n; m.textContent=i.n ? '換算表：'+(i.name||'名前なし')+'（'+i.lo+'〜'+i.hi+'）' : ''; }
+}
 function closeKtSettings(){ closeDlg('ktSettingsOverlay'); }
 function ktSyncUi(){
   const w=document.getElementById('ktWarn'), l=document.getElementById('ktLimit');
@@ -14280,6 +14296,7 @@ function changeKtTol(which, delta){
   ktSyncUi(); ktSavePrefs(); ktCalc();
 }
 function ktRenderTable(){
+  ktRenderTName();
   const body=document.getElementById('ktTblBody'); if(!body) return;
   if(!ktTable.length){
     body.innerHTML='<div class="kt-empty">まだ登録されていません。「＋ 行を追加」で、お使いのカンタブの<b>読み値</b>と<b>濃度(%)</b>を1組ずつ入れてください。</div>';
@@ -14301,23 +14318,31 @@ function ktEdit(i, key, v){
 /* 貼り付けた文字から「読み値・濃度」の組を読み取る。
    全角の数字や、区切りがスペース／タブ／カンマのどれでも読めるようにする。 */
 function ktParseTable(text){
-  const rows=[], skipped=[];
+  const rows=[], skipped=[]; let name='';
   const zen='０１２３４５６７８９．，－ー−';
   const han='0123456789.,---';
+  const fix=x=>Math.round(x*1e6)/1e6;   // Excel の 0.010300000000000001 などを ととのえる
   String(text||'').split(/[\r\n]+/).forEach(line=>{
+    // 「# 名前, ○○」の 行は 表の 名前（製品・ロット）。ほかの # の 行は メモとして 読み飛ばす（v623）
+    const raw=line.replace(/^\uFEFF/,'').replace(/^"+/,'').trim();
+    if(/^[#＃]/.test(raw)){
+      const nm=raw.match(/^[#＃]\s*(?:名前|なまえ|name)\s*[,，:：\t]\s*(.+)$/i);
+      if(nm && !name) name=nm[1].replace(/["\t,，]+$/,'').replace(/^"|"$/g,'').trim().slice(0,80);
+      return;
+    }
     const t=line.replace(/[^\x00-\x7F]/g, ch=>{ const i=zen.indexOf(ch); return i>=0?han[i]:' '; }).trim();
     if(!t) return;
-    const m=t.match(/-?\d+(?:\.\d+)?/g);
+    const m=t.match(/-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?/g);   // Excel は 小さな 数を 1.03E-2 と 書く
     if(!m || m.length<2){ if(/\d/.test(t)) skipped.push(line.trim()); return; }
     const r=parseFloat(m[0]), c=parseFloat(m[1]);
     if(!isFinite(r)||!isFinite(c)){ skipped.push(line.trim()); return; }
-    rows.push({r, c});
+    rows.push({r:fix(r), c:fix(c)});
   });
-  return {rows, skipped};
+  return {rows, skipped, name};
 }
 function ktImportTable(){
   const ta=document.getElementById('ktPaste'); if(!ta) return;
-  const {rows, skipped}=ktParseTable(ta.value);
+  const {rows, skipped, name}=ktParseTable(ta.value);
   if(!rows.length){ toast('読み取れる行がありませんでした（1行に数字を2つ並べてください）'); return; }
   if(rows.length>KT_TABLE_MAX){ toast('行が多すぎます（'+KT_TABLE_MAX+'行まで）'); return; }
   const msg='読み取った '+rows.length+' 行で、今の換算表（'+ktTable.length+'行）を置きかえます。よろしいですか？'
@@ -14325,11 +14350,63 @@ function ktImportTable(){
   const ask=(typeof appConfirm==='function')?appConfirm(msg,'置きかえる','やめる'):Promise.resolve(confirm(msg));
   ask.then(ok=>{
     if(!ok) return;
-    ktTable=rows.sort((a,b)=>a.r-b.r);
+    ktTable=rows.sort((a,b)=>a.r-b.r); ktTName=name||'';
     ktSavePrefs(); ktRenderTable(); ktCalc();
     ta.value='';
     toast(ktTable.length+'行を読み込みました');
   });
+}
+/* 📂 換算表を ファイルから 読む（v623）。.csv・.txt（UTF-8 でも Shift_JIS でも）・Excel の .xlsx。
+   「# 名前, ○○ Lot No. △△」の 行が あれば その 名前で、なければ ファイルの 名前で 覚える */
+async function ktFileText(file){
+  const buf=await file.arrayBuffer(), u8=new Uint8Array(buf);
+  if(u8.length>4 && u8[0]===0x50 && u8[1]===0x4B){   // .xlsx（中身は zip）
+    const map=await xlsxUnzip(buf), dec=new TextDecoder(), names=[...map.keys()];
+    const shared=[]; const ss=names.find(n=>/sharedStrings\.xml$/i.test(n));
+    if(ss){ const sx=dec.decode(map.get(ss)); const re=/<si\b[^>]*>([\s\S]*?)<\/si>/g; let mm; while((mm=re.exec(sx))) shared.push(xlsxRichText(mm[1])); }
+    if(typeof xlReportReset==='function') xlReportReset();
+    for(const ws of xlsxWorkbookSheets(map, names, dec)){
+      const p=parseXlsxSheet(ws.xml, shared, {styleForIdx:()=>null}, '');
+      if(p.hasContent) return p.arr.map(r=>r.join('\t')).join('\n');
+    }
+    return '';
+  }
+  return decodeCSVBuffer(buf);
+}
+async function ktOpenFile(inp){
+  const file=inp && inp.files && inp.files[0]; if(inp) inp.value=''; if(!file) return;
+  let text='';
+  try{ text=await ktFileText(file); }catch(_){ toast('ファイルを読めませんでした（.csv・.txt・.xlsx を えらんでください）', 3600); return; }
+  const {rows, skipped, name}=ktParseTable(text);
+  if(!rows.length){ toast('換算表が 見つかりませんでした（1行に「読み値」と「濃度」の 数字を 2つ）', 3600); return; }
+  if(rows.length>KT_TABLE_MAX){ toast('行が多すぎます（'+KT_TABLE_MAX+'行まで）'); return; }
+  const nm=name || String(file.name||'').replace(/\.[^.]+$/,'').slice(0,80);
+  const sorted=rows.slice().sort((x,y)=>x.r-y.r);
+  const msg='「'+(nm||'換算表')+'」の '+rows.length+' 行（読み値 '+sorted[0].r+'〜'+sorted[sorted.length-1].r+'）で、今の換算表（'+ktTable.length+'行）を置きかえます。'
+    +(skipped.length?'\n※数字が2つ揃わない '+skipped.length+' 行は読み飛ばします。':'')
+    +'\n入れたあと、試験紙の 容器の 表と ロット番号を 見くらべてください。';
+  const ok=(typeof appConfirm==='function') ? await appConfirm(msg,'置きかえる','やめる') : confirm(msg);
+  if(!ok) return;
+  ktTable=sorted; ktTName=nm;
+  ktSavePrefs(); ktRenderTable(); ktCalc();
+  toast((nm||'換算表')+' を 読み込みました（'+rows.length+'行）', 3200);
+}
+/* 💾 いまの 換算表を ファイルに 保存（v623）。Excel でも 開ける CSV。もう一度 📂 で 読める */
+function ktTableCsv(){
+  const t=ktTable.filter(p=>isFinite(p.r)&&isFinite(p.c)&&p.r!=null&&p.c!=null).slice().sort((a,b)=>a.r-b.r);
+  if(!t.length) return '';
+  const q=s=>/[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+  return '\uFEFF'+['# 表電卓 カンタブの換算表（🧪 カンタブ → ⚙ 設定 → 📂 ファイルから読む で 入れられます）',
+    '# 名前,'+q(ktTName||'名前なし'), '読み値,塩化物イオン(%)']
+    .concat(t.map(p=>p.r+','+Number(p.c).toFixed(Math.max(KT_CONC_DP, (String(p.c).split('.')[1]||'').length)))).join('\r\n')+'\r\n';
+}
+function ktSaveFile(){
+  const csv=ktTableCsv(); if(!csv){ toast('換算表がまだ空です'); return; }
+  const id=(String(ktTName).match(/\d{4,}/)||[''])[0];
+  const name='kantab-table'+(id ? '-'+id : '')+'.csv';   // 日本語の 名前は 端末で 消える ことが あるので 英数字
+  const a=Object.assign(document.createElement('a'),{ href:URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})), download:name });
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1500);
+  toast('換算表を '+name+' に 保存しました', 3200);
 }
 /* ひな形のボタンを並べる */
 function ktRenderPresets(){
@@ -14346,7 +14423,7 @@ function ktLoadPreset(id){
   const ask=(typeof appConfirm==='function')?appConfirm(msg,'入れる','やめる'):Promise.resolve(confirm(msg));
   ask.then(ok=>{
     if(!ok) return;
-    ktTable=p.rows.map(a=>({r:a[0], c:a[1]}));
+    ktTable=p.rows.map(a=>({r:a[0], c:a[1]})); ktTName=p.name+'（'+p.note+'）';
     ktSavePrefs(); ktRenderTable(); ktCalc();
     toast(p.name+' を入れました（実物と見くらべてください）');
   });
@@ -14355,7 +14432,7 @@ function ktExportTable(){
   const ta=document.getElementById('ktPaste'); if(!ta) return;
   const t=ktTable.filter(p=>isFinite(p.r)&&isFinite(p.c)).slice().sort((a,b)=>a.r-b.r);
   if(!t.length){ toast('換算表がまだ空です'); return; }
-  ta.value=t.map(p=>p.r+'\t'+p.c).join('\n');
+  ta.value=(ktTName ? '# 名前\t'+ktTName+'\n' : '')+t.map(p=>p.r+'\t'+p.c).join('\n');
   ta.focus(); ta.select();
   toast('今の表を下の欄に出しました（長押しでコピーできます）');
 }
@@ -15938,7 +16015,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v622';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v623';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -18410,6 +18487,7 @@ const ST_GROUPS=[
   {k:'excalc_volcal',     n:'容積（写真つき）',     how:'clear'},
   {k:'excalc_calc_tape',  n:'電卓の履歴',           how:'clear'},
   {k:'excalc_kantab_table', n:'カンタブの換算表'},
+  {k:'excalc_kantab_tname', n:'カンタブの換算表の名前'},
   {k:'excalc_ts_regs',    n:'配合・エアメータの登録'},
   {k:'excalc_veg_plots',  n:'育てている野菜'},
   {k:'excalc_skin_photo', n:'背景の写真',           how:'clear'},
@@ -18621,7 +18699,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_appwidth','excalc_barsize','excalc_calc_style','excalc_calconly','excalc_cellgesture','excalc_cellscale','excalc_cellsize',
   'excalc_compact','excalc_custommodes','excalc_dark','excalc_dec','excalc_default_cols','excalc_default_datefmt','excalc_default_rows',
   'excalc_digithint','excalc_dt_dec','excalc_dt_round','excalc_enterdir','excalc_flicksym','excalc_fmtcol','excalc_formulasize',
-  'excalc_funcpage','excalc_hiddenmodes','excalc_infosize','excalc_kantab_limit','excalc_kantab_table','excalc_kantab_warn',
+  'excalc_funcpage','excalc_hiddenmodes','excalc_infosize','excalc_kantab_limit','excalc_kantab_table','excalc_kantab_tname','excalc_kantab_warn',
   'excalc_key_assign','excalc_keypad_pos','excalc_keypad_pos2','excalc_keypad_pos_v2','excalc_keypad_posfmt3','excalc_keypad_posfmt4','excalc_kfcol','excalc_keyscale',
   'excalc_keysize','excalc_links','excalc_modeorder','excalc_np_place','excalc_fb_place','excalc_npad','excalc_numpad_hidden',
   'excalc_numpad_landw','excalc_numscale','excalc_pagebar','excalc_pdf_settings','excalc_pm_custom_colors','excalc_pm_phrases',
