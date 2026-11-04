@@ -1279,22 +1279,22 @@ const CELL_GESTURE_KEY='excalc_cellgesture';
 let cellGesture='excel';
 try{ if(localStorage.getItem(CELL_GESTURE_KEY)==='old') cellGesture='old'; }catch(_){}
 /* ── 範囲選択と コピー（フィル）の しかた（v629）──
-   hold  ＝長押し して なぞる（はじめ。v630 から）：すぐ なぞる＝範囲選択、0.5秒 押して ブルッと してから なぞる＝コピー
-   handle＝角の つまみ（v629 の はじめ）：セルの 中は どこから なぞっても 範囲選択。コピーは 角の 外に 出した 丸い つまみ だけ
+   handle＝角の つまみ（はじめ）：セルの 中は どこから なぞっても 範囲選択。コピーは 角の 外に 出した 丸い つまみ だけ
    band  ＝帯の ボタン：つまみは 出さない。範囲を 選んで 帯の「↓ 下へコピー」「→ 右へコピー」「1,2,3 連番」（Excel の Ctrl+D／Ctrl+R）
+   hold  ＝長押し して なぞる：すぐ なぞる＝範囲選択、0.5秒 押して ブルッと してから なぞる＝コピー
    v628 までは 選んだ セルの 右半分（指で 押しやすく 広げた ■ の 場所）が コピーで、範囲選択と 紙一重だった（利用者の 声） */
 const FILL_HOW_KEY='excalc_fill_how';
 const FILL_HOWS=[
-  {id:'hold',   n:'長押しして なぞる', note:'すぐ なぞると <b>範囲選択</b>。選んだ セルを <b>0.5秒 押して ブルッと してから</b>（点線の 枠） なぞると コピー（フィル）です。'},
   {id:'handle', n:'角の つまみ',       note:'選んだ セルの <b>角の 丸い つまみ</b>を 引っぱると コピー（フィル）。セルの 中は <b>どこから なぞっても 範囲選択</b>です（Excel・スプレッドシートと 同じ）。'},
   {id:'band',   n:'帯の ボタン',       note:'つまみは 出しません。なぞると いつも <b>範囲選択</b>。コピー したい 範囲（いちばん上〈左〉に 元の セル）を 選んで、帯の <b>↓ 下へコピー・→ 右へコピー・1,2,3 連番</b> を 押します（Excel の Ctrl+D／Ctrl+R）。'},
+  {id:'hold',   n:'長押しして なぞる', note:'すぐ なぞると <b>範囲選択</b>。選んだ セルを <b>0.5秒 押して ブルッと してから</b> なぞると コピー（フィル）です。'},
 ];
-let fillHow='hold';   // はじめは 長押し して なぞる（v630。v629 は 角の つまみ）
-try{ const v=localStorage.getItem(FILL_HOW_KEY); if(v==='band' || v==='handle') fillHow=v; }catch(_){}
+let fillHow='handle';
+try{ const v=localStorage.getItem(FILL_HOW_KEY); if(v==='band' || v==='hold') fillHow=v; }catch(_){}
 const BAND_FILL=['fill_down','fill_right','fill_series'];
 function setFillHow(v){
   if(!FILL_HOWS.some(m=>m.id===v)) return;
-  fillHow=v; try{ if(v==='hold') localStorage.removeItem(FILL_HOW_KEY); else localStorage.setItem(FILL_HOW_KEY, v); }catch(_){}
+  fillHow=v; try{ if(v==='handle') localStorage.removeItem(FILL_HOW_KEY); else localStorage.setItem(FILL_HOW_KEY, v); }catch(_){}
   // 帯の ボタンで コピー する ときは、自分で 決めた 範囲の 帯にも コピーの ボタンを 足す（ないと コピー できない）
   if(v==='band' && typeof bandCfgAll==='function'){
     const all=bandCfgAll();
@@ -18505,7 +18505,7 @@ function startCellPress(r,c,x,y){
   if(cellGesture==='excel'){
     // Excel と同じ：選んだセルの右下の ■ から引っぱるとフィル
     // メニューは長押しでは出さず、ダブルタップで直すときにキーボード（テンキー）の上に出す
-    if(fillHow==='handle' && lpFromActive && onFillHandle(r,c,x,y)){ fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; fillProbeStart(r,c,x,y); }
+    if(fillHow==='handle' && lpFromActive && onFillHandle(r,c,x,y)){ fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; fillProbeStart(r,c,x,y); fillGrabOn(r,c); }
     else if(fillHow==='hold' && lpFromActive){
       // 長押し して なぞる（v629）：0.5秒 動かさずに 押して いたら コピーの 用意（ブルッと して 点線の 枠）。その前に 動かせば 範囲選択
       lpFillTimer=setTimeout(()=>{
@@ -18532,7 +18532,7 @@ function moveCellPress(x,y){
       if(fillMode){   // フィル成立：ここで初めて元セルを強調＆文字選択を抑止
         const el=document.getElementById(`c${fillSrcR}_${fillSrcC}`); if(el) el.classList.add('fill-src');
         document.body.classList.add('fill-active');
-        if(navigator.vibrate){try{navigator.vibrate(30);}catch(_){}}
+        if(navigator.vibrate && !fillGrabbed){try{navigator.vibrate(30);}catch(_){}}   // 丸を 押した ときに もう ブルッと して いる（v630）
       } else if(lpFromActive){
         // 選択中のセルからすぐスライド＝範囲選択（フィルは長押し後のドラッグのまま）
         rangeDragging=true;
@@ -18558,6 +18558,7 @@ function endCellPress(){
   if(fillScrollRaf){ cancelAnimationFrame(fillScrollRaf); fillScrollRaf=0; }
   fillProbe=null;
   if(fillMode && moved){ fillJustCommitted=true; commitFill(); return; }   // ドラッグ＝フィル確定
+  fillGrabOff();   // 丸を 押しただけで 離した（v630）
   if(rangeDragging && moved){ rangeDragging=false; fillJustCommitted=true; if(cellGesture==='excel') showEditBar(true); return; }   // スライド＝範囲選択を確定（次のclickを1回無効化）。v418：帯を出す
   rangeDragging=false;
   fillMode=false; document.body.classList.remove('fill-active');
@@ -18570,8 +18571,24 @@ function cancelCellPress(){
   if(fillScrollRaf){ cancelAnimationFrame(fillScrollRaf); fillScrollRaf=0; }
   fillProbe=null;
   if(fillMode){ clearFillPreview(); const el=document.getElementById(`c${fillSrcR}_${fillSrcC}`); if(el) el.classList.remove('fill-src'); document.body.classList.remove('fill-active'); }
+  fillGrabOff();
   fillMode=false; fillSrcR=fillSrcC=fillEndR=fillEndC=-1;
   lpR=lpC=-1; lpStage=0; lpMoved=false; rangeDragging=false;
+}
+/* 右下の 丸（角の つまみ）を 押した 瞬間に、セルを 囲む 枠を オレンジに・丸も 大きく オレンジに して ブルッ（v630）。
+   つかめた ことが 分かる。前は 指を 動かすまで 何も 変わらなかった */
+let fillGrabbed=false;
+function fillGrabOn(r,c){
+  fillGrabbed=true;
+  const el=document.getElementById(`c${r}_${c}`); if(el) el.classList.add('fill-src');
+  const hd=document.getElementById('fillHandle'); if(hd) hd.classList.add('grab');
+  if(navigator.vibrate){ try{ navigator.vibrate(15); }catch(_){} }
+}
+function fillGrabOff(){
+  if(!fillGrabbed) return;
+  fillGrabbed=false;
+  document.querySelectorAll('#sheet .cell.fill-src').forEach(el=>{ if(!fillMode || !document.body.classList.contains('fill-active')) el.classList.remove('fill-src'); });
+  const hd=document.getElementById('fillHandle'); if(hd) hd.classList.remove('grab');
 }
 /* 座標(clientX,clientY)のセルまでフィル範囲プレビューを更新（タッチ・マウス共通） */
 function fillUpdateTo(clientX, clientY){
@@ -18599,6 +18616,7 @@ function adjustFormula(formula,dr,dc) {
 }
 function commitFill() {
   fillMode=false;
+  fillGrabOff();
   document.body.classList.remove('fill-active');
   const srcEl=document.getElementById(`c${fillSrcR}_${fillSrcC}`);
   if(srcEl) srcEl.classList.remove('fill-src');
