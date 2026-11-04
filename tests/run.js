@@ -2496,25 +2496,26 @@ async function runSetDedup(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 設定の重複を減らす ──');
 
-  check('  設定は3つのタブ', await page.evaluate(() =>
+  // v624：表の操作・見た目・テンキー・計算・保存とデータ の 5つ
+  check('  設定は5つのタブ', await page.evaluate(() =>
     [...document.querySelectorAll('.settings-tab')].map(b => b.textContent.trim()).join('/')),
-    '📐 表/🎨 見た目/🧮 計算');
-  check('  ページも3枚', await page.evaluate(() =>
-    document.querySelectorAll('.set-page').length), 3);
+    '📐表の操作/🎨見た目/⌨テンキー/🧮計算/💾保存とデータ');
+  check('  ページも5枚', await page.evaluate(() =>
+    document.querySelectorAll('.set-page').length), 5);
   check('  ⋯と同じボタンは設定から消えた', await page.evaluate(() =>
-    ['setPage3', 'darkBtn', 'sheetTabsBtn', 'defaultSizeBtn']
+    ['darkBtn', 'sheetTabsBtn', 'defaultSizeBtn']
       .filter(i => document.getElementById(i)).join(',') || 'なし'), 'なし');
   check('  行・列の追加/削除のボタンも消えた', await page.evaluate(() =>
     document.querySelectorAll('#setPage0 .btn-ins, #setPage0 .btn-del').length), 0);
 
   // タブの記憶が「データ」のままでも落ちない
-  await page.evaluate(() => localStorage.setItem('excalc_settings_tab', '3'));
+  await page.evaluate(() => localStorage.setItem('excalc_settings_tab', '7'));
   await page.reload(); await page.waitForTimeout(900);
   check('  前の「データ」タブを覚えていても開ける', await page.evaluate(() =>
     settingsTab + '/' + [...document.querySelectorAll('.set-page.open')].map(e => e.id).join(',')),
-    '2/setPage2');
+    '4/setPage4');
   check('  端をこえて選んでも収まる', await page.evaluate(() => {
-    setSettingsTab(9); const a = settingsTab; setSettingsTab(-3); return a + '/' + settingsTab; }), '2/0');
+    setSettingsTab(9); const a = settingsTab; setSettingsTab(-3); return a + '/' + settingsTab; }), '4/0');
 
   // 消した分は ⋯ にそろっている
   const more = () => page.evaluate(() =>
@@ -3962,7 +3963,7 @@ async function runExport(browser) {
   // ── ☰メニューの整理（v375・v459） ──
   await page.evaluate(() => openMoreMenu()); await page.waitForTimeout(400);
   check('  項目の数（v459：道具の一覧は ☰ の外の窓に）', await page.evaluate(() =>
-    document.querySelectorAll('#moreMenuOverlay .more-item').length), 27);   // v465：戻す・声を外し、⌨（右置きのときだけ出る）を足した。v560：📝別の名前で保存（記録を開いているときだけ見える）。v563：📊 表を強くする の5つ
+    document.querySelectorAll('#moreMenuOverlay .more-item').length), 37);   // v624：🖼画像・🕘前の状態・🔎検索・⬆⬅挿入・↕並べかえ・📌固定・👁隠したのを出す・Excel と同じ分け方   // v465：戻す・声を外し、⌨（右置きのときだけ出る）を足した。v560：📝別の名前で保存（記録を開いているときだけ見える）。v563：📊 表を強くする の5つ
   check('  はじめは畳んである', await page.evaluate(() =>
     document.getElementById('moreAccAll').open),
     false);
@@ -3970,15 +3971,15 @@ async function runExport(browser) {
     [...document.querySelectorAll('#moreMenuOverlay .more-item')]
       .filter(x => !x.closest('.more-acc') && getComputedStyle(x).display !== 'none').map(x => x.textContent.trim().replace(/\s+/g, '')).join('/')),
     '💾名前を付けて保存/📂開く/🧰道具/⚙設定/📖使い方');
-  check('  ほかの機能の中', await page.evaluate(() =>
-    [...document.querySelectorAll('#moreAccAll > .more-grid:first-of-type .more-item')].map(x => x.textContent.trim()).join('/')),
-    '🏠ホーム/↷進む/🌙ナイトモード/🎯ひな形から作る/▦通常の表/🧮電卓/⌨テンキーを隠す／出す');
-  check('  書き出しは畳んだ中', await page.evaluate(() =>
+  check('  ほかの機能は Excel と同じ分け方（v624）', await page.evaluate(() =>
+    [...document.querySelectorAll('#moreAccAll > .more-sec')].map(x => x.textContent.trim()).join('/')),
+    '📁 ファイル/✏ 編集/➕ 挿入/🎨 書式/📊 データ/👁 表示/表の中身を消す');
+  check('  ファイル：印刷・画像・書き出し・読込・前の状態・QR', await page.evaluate(() =>
     [...document.querySelectorAll('#moreAccOut .more-item')].map(x => x.textContent.trim()).join('/')),
-    '🖨PDF/📄CSV出力/📊Excel出力/📥CSV読込/📥Excel読込');
-  check('  そのほかも畳んだ中', await page.evaluate(() =>
+    '🖨印刷・PDF/🖼画像で送る/📊Excel出力/📄CSV出力/📥Excel読込/📥CSV読込/🕘前の状態に戻す/📱QRで共有');
+  check('  表示：固定・隠したの・シート・ナイト・ホーム…', await page.evaluate(() =>
     [...document.querySelectorAll('#moreAccMisc .more-item')].map(x => x.textContent.trim()).join('/')),
-    '🗂シート/▦既定の大きさ/📱QRで共有');
+    '📌枠の固定/👁隠したのを出す/🗂シート/🌙ナイトモード/🏠ホーム/▦通常の表/🧮電卓/⌨テンキーを隠す／出す/▦既定の大きさ');
   check('  スクロールしなくても収まる', await page.evaluate(() => {
     const b = document.querySelector('#moreMenuOverlay .modal-body');
     return b.scrollHeight <= b.clientHeight + 1; }), true);
@@ -6491,7 +6492,7 @@ async function runBrush3(browser) {
     !!document.querySelector('#setFindRes .set-find-none')), true);
   await find('置き場所');
   await page.evaluate(() => setFindGo(0)); await page.waitForTimeout(600);
-  check('  押すとそのタブへ移る', await page.evaluate(() => settingsTab), 1);
+  check('  押すとそのタブへ移る（v624：テンキーの 置き場所は ⌨ テンキーの タブ）', await page.evaluate(() => settingsTab), 2);
   check('  その項目が光る', await page.evaluate(() => !!document.querySelector('#settingsPanel .set-flash')), true);
   check('  さがす欄は空に戻る', await page.evaluate(() =>
     document.getElementById('setFindIn').value + '|' + document.getElementById('setFindRes').hidden), '|true');
@@ -7769,7 +7770,7 @@ async function runKoeOut(browser) {
     + ' | ' + document.querySelector('#sumTotal .big').textContent + ' | ' + document.querySelector('#sumTotal .rest').textContent + ' | ' + document.getElementById('sumOut').hidden),
     'りんご120円 × 3つ=360円 / 牛乳2本まとめて=500円 / 洗剤10%398円 × 2個・税 79円込み=875円 / パン=198円 | 合計（4件・8点）1,933円 | 残り3,067円 | false');
   // 🖼 画像
-  await page.click('#sumOut button.pri'); await w(450);
+  await page.click('#sumOut button.pri'); await page.waitForFunction(() => !!outFile && !document.getElementById('kdlg').hidden, null, { timeout: 8000 }).catch(() => {}); await w(250);   // 画像づくり（toBlob）は 混んでいると 0.5 秒 こえる
   check('  🖼 画像：一覧の上に見本を出す（窓が一覧の裏に隠れない）・名前は英数字', await page.evaluate(() => {
     const e = document.elementFromPoint(innerWidth / 2, innerHeight / 2), img = document.getElementById('outImg');
     return !document.getElementById('kdlg').hidden + '/' + !!(e && e.closest('#kdlg')) + '/' + !!(img && img.complete && img.naturalWidth) + '/' + /^yosan_\d{4}-\d\d-\d\d_\d{4}\.png$/.test(outFile.name);
@@ -7780,7 +7781,7 @@ async function runKoeOut(browser) {
   await page.evaluate(() => history.back()); await w(350);
   check('  　「戻る」で、まず小さな窓だけ閉じる（一覧はそのまま）', await page.evaluate(() => document.getElementById('kdlg').hidden + '/' + document.getElementById('p-sum').classList.contains('open')), 'true/true');
   // 📊 Excel
-  await page.click('#sumOut button:nth-child(2)'); await w(450);
+  await page.click('#sumOut button:nth-child(2)'); await page.waitForFunction(() => !!outFile && /\.xlsx$/.test(outFile.name) && !document.getElementById('kdlg').hidden, null, { timeout: 8000 }).catch(() => {}); await w(200);
   check('  📊 Excel：保存か共有の窓（件数・点数・合計、名前は英数字）', await page.evaluate(() => document.getElementById('kdlgBox').textContent.includes('4件・8点・合計 1,933円') + '/' + /^yosan_\d{4}-\d\d-\d\d_\d{4}\.xlsx$/.test(outFile.name)), 'true/true');
   const xlDl = await Promise.all([page.waitForEvent('download', { timeout: 9000 }), page.click('#kdlgBox .act.primary')]).then(a => a[0]).catch(() => null);
   const xlF = path.join(tmp, 'o.xlsx'); if (xlDl) await xlDl.saveAs(xlF);
@@ -19259,8 +19260,9 @@ async function runFmtCol(browser) {
   const KB = '#numpadPageFmt [data-key=kf_bold]';
   check('  はじめは すみ（v412）', await bg(KB), 'rgb(55, 71, 79)');
   await page.evaluate(() => { toggleSettings(); setSettingsTab(1); }); await page.waitForTimeout(300);
-  check('  見た目は5つの組（v466 で書式・枠線の色を分けた）', await page.evaluate(() => [...document.querySelectorAll('#setPage1 .set-grp')].map(d => d.querySelector('.set-grp-t b').textContent).join('/')),
-    '色と背景/書式・枠線のテンキーの色/文字と大きさ/テンキー/画面');
+  check('  見た目は4つの組（v624：テンキーは 自分の タブへ）', await page.evaluate(() => [...document.querySelectorAll('#setPage1 .set-grp')].map(d => d.querySelector('.set-grp-t b').textContent).join('/')),
+    '色と背景/書式・枠線のテンキーの色/文字と大きさ/画面');
+  check('  テンキーの組は ⌨ テンキーの タブ（v624）', await page.evaluate(() => document.getElementById('setGrpKeys').closest('.set-page').id), 'setPage2');
   check('  テンキーの組の中も畳める（はじめは閉じている）', await page.evaluate(() =>
     [...document.querySelectorAll('#setGrpKeys .set-sub')].map(d => (d.open ? '開' : '閉') + d.querySelector('summary').firstChild.textContent.trim()).join('/')),
     '閉📍 テンキーの置き場所/閉📍 セルのバーの置き場所/閉🧮 電卓だけにする/閉📄 ページ・記号・調整バー/閉🔀 ボタンの配置/閉🧰 道具の窓に出す道具');
@@ -19330,7 +19332,8 @@ async function runHyo619(browser) {
   await page.evaluate(() => hideEditBar());
   await tap(0, 1); await page.waitForTimeout(400);
   check('  結合は 帯の はじめの 方（横に すべらせなくても 見える）', await page.evaluate(() => document.getElementById('cellMenuMerge').getBoundingClientRect().right <= innerWidth), true);
-  check('  範囲の 中を タップしても 帯に 結合', await shown(), '✂ 切り取り/⧉ コピー/📥 貼り付け/⊞ 結合/✏ 編集/🧹 消去/🎨 書式/🔒 保護');
+  check('  範囲の 中を タップしても 帯に 結合（v624：文字だけの 範囲は 太字・中央も）', await shown(), '𝐁 太字/↔ 中央/✂ 切り取り/⧉ コピー/📥 貼り付け/⊞ 結合/✏ 編集/🧹 消去/🎨 書式/🔒 保護');
+  check('  　文字だけの 範囲は ⊞ 結合が 先頭（v624）', await page.evaluate(() => document.getElementById('cellMenuMerge').style.order), '0');
   await page.click('#cellMenuMerge'); await page.waitForTimeout(400);
   check('  押すと 結合（3列）', await page.evaluate(() => JSON.stringify(mergeAt(0, 0)) + '/' + cellStyles['0,0'].align), '{"rs":1,"cs":3}/center');
   check('  帯は 消える', await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show')), false);
@@ -19414,6 +19417,175 @@ async function runHyo619(browser) {
   await page.evaluate(() => setFbPlace('top')); await page.waitForTimeout(250);
   check('  表の上に 戻せる', await pos(), 'top');
   check('  設定の 控えに 入る', await page.evaluate(() => SETTINGS_BACKUP_KEYS.includes('excalc_fb_place')), true);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
+/* v624：Excel・スプレッドシートを 参考に した 使いやすさ（選んだものに 合わせた 帯・メニューの 分け方・固定・隠す・数式の 色・印刷の 範囲・画像・前の状態） */
+async function runHyo624(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 表電卓 v624：帯・メニュー・固定・隠す・数式の色・印刷・画像・前の状態 ──');
+  const w = ms => page.waitForTimeout(ms);
+  const ctr = (r, c) => page.evaluate(([r, c]) => { const b = document.getElementById('c' + r + '_' + c).getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; }, [r, c]);
+  const tap = async (r, c) => { const q = await ctr(r, c); await page.mouse.click(q.x, q.y); };
+  const ctxBtns = () => page.evaluate(() => [...document.querySelectorAll('#cellMenuCtx button')].map(b => b.textContent.trim()).join('/'));
+  const shown = () => page.evaluate(() => document.getElementById('cellMenu').classList.contains('show'));
+  await page.evaluate(() => { window.appConfirm = async () => true; ['品名,数,金額', 'りんご,3,1200', 'みかん,10,500', 'ぶどう,2,2400'].forEach((l, r) => l.split(',').forEach((v, c) => setCellVal(r, c, v))); recalcAll(); sel(1, 2); });
+  // ── 2. 選んだものに 合わせた 帯 ──
+  await tap(1, 2); await w(600);
+  check('  数字の セル：¥・%・桁区切り・小数＋−', await ctxBtns(), '¥ 円/％/1,000/.0＋/.0−');
+  await page.evaluate(() => [...document.querySelectorAll('#cellMenuCtx button')].find(b => b.dataset.act === 'nf_yen').click()); await w(250);
+  check('  ¥ を押すと ¥1,200（中身は 1200 の まま）・帯は 出たまま・押した 印', await page.evaluate(() => [document.getElementById('c1_2').textContent, data[1][2], document.getElementById('cellMenu').classList.contains('show'), document.querySelector('#cellMenuCtx [data-act=nf_yen]').classList.contains('on')].join('/')), '¥1,200/1200/true/true');
+  check('  合計は そのまま 数で 計算', await page.evaluate(() => { setCellVal(5, 2, '=C2*2'); recalcAll(); const v = getCellDisplay(5, 2); setCellVal(5, 2, ''); return v; }), '2400');
+  await page.evaluate(() => { document.querySelector('#cellMenuCtx [data-act=nf_yen]').click(); }); await w(150);
+  await page.evaluate(() => { sel(2, 1); setCellVal(2, 1, '0.256'); kfmtApply(s => { s.nf = 'pct'; }); }); await w(100);
+  check('  % は 25.6%・小数＋−で 25.60%→26%', await page.evaluate(() => { const a = document.getElementById('c2_1').textContent; bandDec(1); const b = document.getElementById('c2_1').textContent; bandDec(-1); bandDec(-1); bandDec(-1); const c = document.getElementById('c2_1').textContent; return [a, b, c].join('/'); }), '25.6%/25.60%/26%');
+  await page.evaluate(() => { kfmtApply(s => { delete s.nf; delete s.dec; }); setCellVal(2, 1, '10'); hideEditBar(); }); await w(500);
+  await tap(1, 0); await w(600); await tap(1, 0); await w(600);
+  check('  文字の セル：太字・寄せ', await ctxBtns(), '𝐁 太字/⇤ 左/↔ 中央/⇥ 右');
+  await page.evaluate(() => { hideEditBar(); clearRangeSelection(); sel(1, 1); }); await w(500);
+  let a = await ctr(1, 1), b = await ctr(3, 2);
+  await page.mouse.move(a.x, a.y); await page.mouse.down(); await w(80); await page.mouse.move(b.x, b.y, { steps: 8 }); await page.mouse.up(); await w(600);
+  check('  範囲：合計・並べかえ・グラフ（＋⊞ 結合）', [await ctxBtns(), await page.evaluate(() => !!document.getElementById('cellMenuMerge').offsetParent)].join('|'), 'Σ 合計/↑ 小さい順/↓ 大きい順/📊 グラフ|true');
+  await page.evaluate(() => document.querySelector('#cellMenuCtx [data-act=autosum]').click()); await w(400);
+  check('  Σ 合計：列ごとに 下へ =SUM（答えも）', await page.evaluate(() => [data[4][1], data[4][2], getCellDisplay(4, 2)].join('/')), '=SUM(B2:B4)/=SUM(C2:C4)/4100');
+  await page.evaluate(() => undoLast()); await w(300);
+  check('  戻すと 消える', await page.evaluate(() => data[4][2]), '');
+  // 並べかえ（見出しの 行は 残す・同じ 行の 式は ついていく）
+  await page.evaluate(() => { setCellVal(1, 3, '=B2*2'); setCellVal(2, 3, '=B3*2'); setCellVal(3, 3, '=B4*2'); recalcAll(); clearRangeSelection(); sel(0, 2); rangeR1 = 0; rangeC1 = 0; extendRange(3, 3); bandSort(-1); });
+  await w(300);
+  check('  ↓ 大きい順：1行目（見出し）は 残し、金額の 大きい順・式も ついていく', await page.evaluate(() => [0, 1, 2, 3].map(r => data[r][0] + ':' + data[r][2] + ':' + data[r][3]).join(' ')), '品名:金額: ぶどう:2400:=B2*2 りんご:1200:=B3*2 みかん:500:=B4*2');
+  await page.evaluate(() => undoLast()); await w(300);
+  check('  並べかえも 戻せる', await page.evaluate(() => data[1][0] + data[2][0] + data[3][0]), 'りんごみかんぶどう');
+  await page.evaluate(() => { for (let r = 1; r < 4; r++) setCellVal(r, 3, ''); recalcAll(); hideEditBar(); clearRangeSelection(); }); await w(300);
+  // ── 4. 列名・行番号を 押すと 帯 ──
+  await page.tap('#ch2'); await w(500);
+  check('  列名を 押すと その列の 帯（幅・挿入・削除・しぼり込み・隠す・固定）', [await shown(), await ctxBtns(), await page.evaluate(() => document.getElementById('cellMenu').classList.contains('ctx-hdr'))].join('|'), 'true|↔ 幅を中身に/⬅ 左に列/➡ 右に列/🗑 列を消す/🔎 しぼり込み/🙈 隠す/📌 ここまで固定|true');
+  check('  ふだんの ボタン（切り取り など）は 出さない', await page.evaluate(() => [...document.querySelectorAll('#cellMenu > button')].filter(b => b.offsetParent).length), 0);
+  await page.tap('#rh2'); await w(500);
+  check('  行番号を 押すと その行の 帯', await ctxBtns(), '⬆ 上に行/⬇ 下に行/🗑 行を消す/🙈 隠す/📌 ここまで固定');
+  await page.evaluate(() => document.querySelector('#cellMenuCtx [data-act=row_insB]').click()); await w(400);
+  check('  ⬇ 下に行 で 3行目の 下に 行が 入る', await page.evaluate(() => [data[2][0], data[3][0], data[4][0], ROWS].join('/')), 'みかん//ぶどう/16');
+  await page.evaluate(() => deleteRowAt(3)); await w(300);
+  await tap(4, 0); await w(500);
+  check('  セルを 押すと 帯は 消える', await shown(), false);
+  // ── 3. よく押す順に 左へ ──
+  check('  2回 以上 押した ボタンは 左へ', await page.evaluate(() => { bandUse = { paste: 5, copy: 2 }; sel(1, 0); showEditBar(true); const vis = [...document.querySelectorAll('#cellMenu button[data-act]')].filter(b => b.offsetParent).sort((x, y) => +x.style.order - +y.style.order).map(b => b.dataset.act); hideEditBar(); return vis.slice(0, 3).join(','); }), 'paste,copy,bold');
+  check('  押した 数を 覚える', await page.evaluate(() => { bandUse = {}; localStorage.removeItem('excalc_band_use'); sel(1, 0); showEditBar(true); cellMenuAct('copy'); return JSON.parse(localStorage.getItem('excalc_band_use')).copy; }), 1);
+  await page.evaluate(() => { bandUse = {}; localStorage.removeItem('excalc_band_use'); hideEditBar(); });
+  // ── 17. 見出しの 固定 ──
+  await page.evaluate(() => { setSheetSize(40, 8); sel(1, 1); freezePanes(); }); await w(300);
+  check('  📌 枠の固定：選んだ セルの 上と 左（1行・A列）', await page.evaluate(() => JSON.stringify(cellStyles._fz)), '{"r":1,"c":1}');
+  check('  固定した セルは 動かしても その場に（sticky）', await page.evaluate(() => [getComputedStyle(document.getElementById('c0_3')).position, getComputedStyle(document.getElementById('c5_0')).position, getComputedStyle(document.getElementById('c5_3')).position].join('/')), 'sticky/sticky/static');
+  check('  下へ 動かしても 1行目が 見える', await page.evaluate(async () => { const wrap = document.querySelector('.sheet-wrap'); wrap.scrollTop = 600; await new Promise(r => setTimeout(r, 100)); const top = document.getElementById('c0_2').getBoundingClientRect().top, wt = wrap.getBoundingClientRect().top; wrap.scrollTop = 0; return top - wt < 80; }), true);
+  check('  行を 上に 足すと 固定も 広がる', await page.evaluate(() => { insertRowAt(0); const a = JSON.stringify(cellStyles._fz); deleteRowAt(0); return a + '/' + JSON.stringify(cellStyles._fz); }), '{"r":2,"c":1}/{"r":1,"c":1}');
+  await page.evaluate(() => freezePanes()); await w(200);
+  check('  もう一度で やめる', await page.evaluate(() => (cellStyles._fz === undefined) + '/' + document.querySelectorAll('#sheet .fz').length), 'true/0');
+  // ── 20. 行・列を 隠す ──
+  await page.evaluate(() => { hideLines('c', [1]); hideLines('r', [2]); }); await w(300);
+  check('  隠す：列 B・3行目が 見えない（中身は そのまま）', await page.evaluate(() => [getComputedStyle(document.getElementById('c0_1')).display, getComputedStyle(document.getElementById('ch1')).display, getComputedStyle(document.getElementById('rh2').parentElement).display, data[2][0]].join('/')), 'none/none/none/みかん');
+  check('  となりの 見出しに 印', await page.evaluate(() => [document.getElementById('ch0').classList.contains('hid-next'), document.getElementById('ch2').classList.contains('hid-prev'), document.getElementById('rh1').classList.contains('hid-next')].join('/')), 'true/true/true');
+  check('  隠した 列・行には 止まらない', await page.evaluate(() => { sel(0, 0); sel(0, 1); const a = selC; sel(1, 0); sel(2, 0); return a + '/' + selR; }), '2/3');
+  check('  合計（右上）も 隠した 行は 数えない', await page.evaluate(() => { sel(1, 2); clearRangeSelection(); updateStats(2); return document.getElementById('sSum').textContent; }), '3,600');
+  check('  印刷にも 出ない', await page.evaluate(() => { const h = buildPdfHtml(Object.assign({}, PDF_DEFAULTS, { border: 'all' })); return [/みかん/.test(h), (h.match(/>数</g) || []).length].join('/'); }), 'false/0');
+  check('  列を 左に 足すと 隠した 列も ずれる', await page.evaluate(() => { insertColAt(0); const a = JSON.stringify(cellStyles._hid); deleteColAt(0); return a; }), '{"r":[2],"c":[2]}');
+  await page.evaluate(() => showLines()); await w(300);
+  check('  👁 隠したのを出す で ぜんぶ もどる', await page.evaluate(() => (cellStyles._hid === undefined) + '/' + getComputedStyle(document.getElementById('c0_1')).display), 'true/table-cell');
+  // ── 21. 列の 境目の ダブルタップ＝中身に 合わせる ──
+  await page.evaluate(() => { setCellVal(6, 0, 'とても長い品名のりんごジュース（大）'); colWidths = {}; commitSheetSizes(); autoFitSheet(); });
+  const g = await page.$('#ch0 .col-grip'); const gb = await g.boundingBox();
+  await page.mouse.click(gb.x + gb.width / 2, gb.y + gb.height / 2); await w(60); await page.mouse.click(gb.x + gb.width / 2, gb.y + gb.height / 2); await w(400);
+  check('  境目の ダブルタップで 中身が 入る 幅に', await page.evaluate(() => { const td = document.getElementById('c6_0'); return (colWidths[0] > 200) + '/' + (td.scrollWidth <= td.clientWidth + 1) + '/' + (getComputedStyle(td).getPropertyValue('--fit').trim() === ''); }), 'true/true/true');
+  await page.evaluate(() => { setCellVal(6, 0, ''); colWidths = {}; commitSheetSizes(); autoFitSheet(); });
+  // ── 13. 数式の セルに 色 ──
+  await page.evaluate(() => { sel(6, 1); startFormula(); const fi = document.getElementById('formulaInput'); fi.value = '=A2+c3*2+SUM(B2:B4)'; refreshDisp(); }); await w(150);
+  check('  数式の 番地の セルに 色の 枠（A2・C3・B2〜B4）', await page.evaluate(() => [...document.querySelectorAll('#sheet .fref')].map(e => e.id + '=' + e.style.getPropertyValue('--fref')).join(',')),
+    'c1_0=#1e88e5,c1_1=#8e24aa,c2_1=#8e24aa,c2_2=#e53935,c3_1=#8e24aa');
+  await page.evaluate(() => { const fi = document.getElementById('formulaInput'); fi.value = ''; formulaEditMode = false; fi.classList.remove('formula-mode'); sel(0, 0); }); await w(100);
+  check('  打ち終わると 消える', await page.evaluate(() => document.querySelectorAll('#sheet .fref').length), 0);
+  // ── 24. 範囲だけ 印刷・見出しを 毎ページに ──
+  check('  印刷：選んだ 範囲だけ（B2:C3）', await page.evaluate(() => { const h = buildPdfHtml(Object.assign({}, PDF_DEFAULTS, { border: 'all', area: { r1: 1, c1: 1, r2: 2, c2: 2 } })); return [/りんご/.test(h), /1200/.test(h), /500/.test(h), /2400/.test(h), (h.match(/<tr>/g) || []).length].join('/'); }), 'false/true/true/false/2');
+  check('  印刷：見出しの 行を 毎ページ（thead）', await page.evaluate(() => { const h = buildPdfHtml(Object.assign({}, PDF_DEFAULTS, { border: 'all', headRows: 1 })); const d = document.createElement('div'); d.innerHTML = h; return [d.querySelector('thead.pa-head') ? d.querySelector('thead.pa-head').textContent.includes('品名') : false, d.querySelector('tbody').textContent.includes('品名')].join('/'); }), 'true/false');
+  await page.evaluate(() => { clearRangeSelection(); sel(1, 1); rangeR1 = 1; rangeC1 = 1; extendRange(2, 2); exportPDF(); }); await w(400);
+  check('  印刷の 窓に「印刷する範囲」「見出しを毎ページに」', await page.evaluate(() => [[...document.querySelectorAll('#pdfArea button')].map(b => b.textContent + (b.disabled ? '×' : '')).join('|'), [...document.querySelectorAll('#pdfHeadRows button')].map(b => b.textContent).join('|')].join(' / ')), '表ぜんぶ|選んでいる範囲（B2:C3） / しない|1行目|1〜2行目');
+  await page.evaluate(() => { pdfSeg('pdfArea', document.querySelector('#pdfArea [data-v=sel]')); pdfSeg('pdfHeadRows', document.querySelector('#pdfHeadRows [data-v="1"]')); }); await w(200);
+  check('  選ぶと プレビューも その 範囲', await page.evaluate(() => { const t = document.getElementById('pdfPrevInner').textContent; return [t.includes('1200'), t.includes('ぶどう'), t.includes('金額'), t.includes('品名')].join('/'); }), 'true/false/true/false');   // 見出しの 行も 選んだ 列（B〜C）だけ
+  await page.evaluate(() => { window.print = () => {}; doExportPDF(); }); await w(300);
+  check('  範囲は 覚えない（見出しの 行は 覚える）', await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('excalc_pdf_settings')); return (s.area === undefined) + '/' + s.headRows; }), 'true/1');
+  await page.evaluate(() => { clearRangeSelection(); sel(0, 0); });
+  // ── 45. Excel に 固定・隠す・印刷の 設定・¥ ──
+  const xl = await page.evaluate(async () => {
+    cellStyles._fz = { r: 1, c: 1 }; cellStyles._hid = { c: [1], r: [3] }; cellStyles['1,2'] = Object.assign({}, cellStyles['1,2'] || {}, { nf: 'yen' });
+    const ps = loadPdfSettings(); ps.orient = 'landscape'; ps.headRows = 1; ps.header = '見積'; localStorage.setItem('excalc_pdf_settings', JSON.stringify(ps));
+    let blob = null; const oc = URL.createObjectURL; URL.createObjectURL = b => { blob = b; return 'blob:x'; };
+    const oa = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () {};
+    try { await exportXLSX(); } finally { URL.createObjectURL = oc; HTMLAnchorElement.prototype.click = oa; }
+    const m = await xlsxUnzip(await blob.arrayBuffer()), dec = new TextDecoder();
+    const ws = dec.decode(m.get('xl/worksheets/sheet1.xml')), wb = dec.decode(m.get('xl/workbook.xml')), st = dec.decode(m.get('xl/styles.xml'));
+    const p = parseXlsxSheet(ws, [], { styleForIdx: () => null }, '');
+    return [/<pane xSplit="1" ySplit="1" topLeftCell="B2" activePane="bottomRight" state="frozen"\/>/.test(ws), /<col min="2" max="2"[^>]*hidden="1"/.test(ws), /<row r="4" hidden="1">/.test(ws),
+      /orientation="landscape"/.test(ws), /<oddHeader>&amp;C見積<\/oddHeader>/.test(ws), /_xlnm\.Print_Titles" localSheetId="0">'[^']+'!\$1:\$1</.test(wb), /formatCode="&quot;¥&quot;#,##0"/.test(st),
+      JSON.stringify(p.styles._fz), JSON.stringify(p.styles._hid)].join('/');
+  });
+  check('  Excel に 固定・隠した 行と 列・横向き・ヘッダー・印刷タイトル・¥ の 形', xl, 'true/true/true/true/true/true/true/{"r":1,"c":1}/{"r":[3],"c":[1]}');
+  await page.evaluate(() => { delete cellStyles._fz; delete cellStyles._hid; delete cellStyles['1,2'].nf; buildSheet(); localStorage.removeItem('excalc_pdf_settings'); });
+  // ── 47. 画像で 送る ──
+  check('  🖼 画像で送る：中身の ある ところを PNG に', await page.evaluate(async () => { const b = await shareSheetImage({ noSend: true }); return [!!b, b && b.type, JSON.stringify(window.__sheetImage.area), window.__sheetImage.w > 100].join('/'); }), 'true/image/png/{"r1":0,"c1":0,"r2":3,"c2":2}/true');
+  const dl = await Promise.all([page.waitForEvent('download'), page.evaluate(() => { navigator.share = undefined; shareSheetImage(); })]).then(r => r[0]);
+  check('  送れない 端末は 画像を 保存（英数字の 名前）', /^hyo-\d{8}-\d{4}\.png$/.test(dl.suggestedFilename()), true);
+  // ── 5・7. ☰ の 分け方・最近使った操作 ──
+  await page.evaluate(() => { openMoreMenu(); document.getElementById('moreAccAll').open = true; }); await w(300);
+  check('  ☰ は ファイル・編集・挿入・書式・データ・表示 の 分け方', await page.evaluate(() => [...document.querySelectorAll('#moreAccAll .more-sec')].map(e => e.textContent.trim()).join('/')), '📁 ファイル/✏ 編集/➕ 挿入/🎨 書式/📊 データ/👁 表示/表の中身を消す');
+  check('  はじめは「最近使った」は 出ない', await page.evaluate(() => document.getElementById('moreRecent').hidden), true);
+  await page.evaluate(() => { [...document.querySelectorAll('#moreAccAll .more-item')].find(b => b.textContent.includes('検索・移動')).click(); }); await w(400);
+  await page.evaluate(() => { closeFindDlg(); }); await w(300);
+  await page.evaluate(() => { openMoreMenu(); }); await w(300);
+  check('  押した 操作が「🕘 最近使った」に 出る', await page.evaluate(() => [document.getElementById('moreRecent').hidden, [...document.querySelectorAll('#moreRecentList .more-rc')].map(b => b.textContent.trim()).join('/')].join('|')), 'false|🔎検索・移動');
+  await page.evaluate(() => document.querySelector('#moreRecentList .more-rc').click()); await w(400);
+  check('  最近使った から 押しても 同じ 操作', await page.evaluate(() => isDlgOpen('findOverlay')), true);
+  await page.evaluate(() => closeFindDlg()); await w(300);
+  // ── 6. 長押しで「これは何？」 ──
+  await page.evaluate(() => { openMoreMenu(); document.getElementById('moreAccAll').open = true; document.getElementById('moreFzBtn').scrollIntoView(); }); await w(300);
+  check('  長押しで 説明の 吹き出し（押した ことには ならない）', await page.evaluate(() => new Promise(res => {
+    const el = document.getElementById('moreFzBtn'), r = el.getBoundingClientRect(), x = r.left + 20, y = r.top + 10;
+    let ran = 0; const o = window.freezePanes; window.freezePanes = () => { ran++; };
+    el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch', clientX: x, clientY: y }));
+    setTimeout(() => {
+      const b = document.getElementById('tipBubble'), ok = !!b && b.classList.contains('show') && b.textContent.includes('枠の固定') && b.textContent.includes('上の 行と 左の 列');
+      el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerType: 'touch', clientX: x, clientY: y })); el.click();
+      setTimeout(() => { window.freezePanes = o; res(ok + '/' + ran + '/' + isDlgOpen('moreMenuOverlay')); }, 50);
+    }, 700); })), 'true/0/true');
+  await page.evaluate(() => closeMoreMenu()); await w(300);
+  check('  テンキーの 長押しの 窓に「このボタン」の 説明', await page.evaluate(() => { openKeyAssign('u_undo'); const t = document.querySelector('#keyAssignBody .ka-what'); const r = t ? t.textContent : ''; closeKeyAssign(); return r; }), 'このボタンタップで元に戻す');
+  // ── 25. 帯・メニューの 字は 濃く ──
+  check('  帯の 字は 濃い 色・14px 以上', await page.evaluate(() => { sel(1, 0); showEditBar(true); const b = document.querySelector('#cellMenu [data-act=copy]'); const cs = getComputedStyle(b); const r = [cs.color === getComputedStyle(document.body).color || cs.color === 'rgb(34, 34, 34)' || cs.color === 'rgb(51, 51, 51)', parseFloat(cs.fontSize) >= 14].join('/'); hideEditBar(); return r; }), 'true/true');
+  // ── 46. セルの バーに 表の 名前 ──
+  check('  上のバーを たたむと セルの バーに 表の 名前', await page.evaluate(() => { document.body.classList.add('tb-fold'); document.getElementById('recordTitle').textContent = '📄 見積書'; return new Promise(r => setTimeout(() => { const f = document.getElementById('fbRec'); r(getComputedStyle(f).display !== 'none' && f.textContent === '見積書'); document.body.classList.remove('tb-fold'); }, 50)); }), true);
+  // ── 35. 設定の タブ 5つ ──
+  await page.evaluate(() => { toggleSettings(); setSettingsTab(2); }); await w(300);
+  check('  設定の タブは 表の操作・見た目・テンキー・計算・保存とデータ', await page.evaluate(() => [...document.querySelectorAll('.settings-tab')].map(b => b.textContent.trim()).join('/')), '📐表の操作/🎨見た目/⌨テンキー/🧮計算/💾保存とデータ');
+  check('  テンキーの タブ：置き場所・セルのバー・電卓だけ… が 開いて 並ぶ', await page.evaluate(() => [document.getElementById('setGrpKeys').open, !!document.getElementById('setPage2').querySelector('#npPlaceSeg'), document.getElementById('setPage2').classList.contains('open')].join('/')), 'true/true/true');
+  await page.evaluate(() => setSettingsTab(4)); await w(200);
+  check('  保存とデータ：一覧・前の状態・書き出し・読み込み・空き具合', await page.evaluate(() => [...document.querySelectorAll('#setPage4 .set-act')].map(b => b.textContent.trim()).join('/')), '📂 保存した表の一覧/🕘 前の状態に戻す（毎日の控え）/⬇ 保存データを書き出す/⬆ 書き出したファイルを読み込む/📦 空き具合を見る');
+  check('  設定を さがすと 新しい タブにも 飛ぶ', await page.evaluate(() => { setFind('置き場所'); const x = setFindHits.find(h => /テンキーの置き場所/.test(h.label)); return x ? x.tab + '/' + x.where : 'なし'; }), '2/⌨ テンキー');
+  await page.evaluate(() => { setFind(''); toggleSettings(); }); await w(300);
+  // ── 44. 前の状態に 戻す ──
+  const snap = await page.evaluate(async () => {
+    window.SNAP_NO_RELOAD = true; saveSheets(); persistModes();
+    const o = await SNAP.take('manual');
+    setCellVal(1, 0, 'メロン'); persistModes(); saveSheets();
+    await SNAP.restore(o.id);
+    const all = await SNAP.all();
+    return [o.info.cells > 0, all.some(x => x.kind === 'restore'), JSON.parse(localStorage.getItem('excalc_modeStore')).states.normal.data[1][0], sessionStorage.getItem('excalc_snap_done') ? 'msg' : ''].join('/');
+  });
+  check('  控えて → 直して → 戻す（戻す前も 控える）', snap, 'true/true/りんご/msg');
+  await page.reload(); await w(1200);
+  check('  開き直すと 控えの 表・「戻しました」', await page.evaluate(() => [data[1][0], document.getElementById('appToast') ? document.getElementById('appToast').textContent.includes('戻しました') : false].join('/')), 'りんご/true');
+  check('  毎日 はじめの 表を 控える（1日 1つ）', await page.evaluate(async () => { await SNAP.daily(); await SNAP.daily(); const all = await SNAP.all(); return all.filter(x => x.kind === 'day').length; }), 1);
+  await page.evaluate(() => openSnapHistory()); await w(500);
+  check('  🕘 前の状態に戻す の 窓：控えの 一覧と「この状態に戻す」', await page.evaluate(() => [isDlgOpen('snapOverlay'), document.querySelectorAll('#snapBody .snap-item').length >= 2, !!document.querySelector('#snapBody .snap-take'), /はじめに 開いたとき/.test(document.getElementById('snapBody').textContent)].join('/')), 'true/true/true/true');
+  await page.evaluate(() => closeSnapHistory());
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();
@@ -19530,7 +19702,7 @@ async function runQrShare(browser) {
   check('  入りきらないときは null', await page.evaluate(() => qrEncode('x'.repeat(3000), 'M')), null);
   // 画面
   await page.evaluate(() => { openMoreMenu(); document.getElementById('moreAccAll').open = true; }); await page.waitForTimeout(300);
-  await page.click('#moreAccMisc .more-item[onclick*=openQrShare]'); await page.waitForTimeout(500);
+  await page.click('#moreAccOut .more-item[onclick*=openQrShare]'); await page.waitForTimeout(500);
   check('  ⋯ のそのほかから開く', await page.evaluate(() => isDlgOpen('qrShareOverlay')), true);
   check('  表電卓のアドレスを出す（index.html は付けない）', await page.evaluate(() =>
     document.getElementById('qrUrl').textContent.endsWith('/') && !/index\.html/.test(document.getElementById('qrUrl').textContent)), true);
@@ -20349,6 +20521,7 @@ const SUITES = [
   [['fmtcol'], b => runFmtCol(b)],
   [['cellxl'], b => runCellXl(b)],
   [['cellxl', 'fmtpage', 'hyo619', 'v619'], b => runHyo619(b)],
+  [['cellxl', 'fmtpage', 'hyo624', 'v624'], b => runHyo624(b)],
   [['clip'], b => runClip(b)],
   [['koe'], b => runKoe(b)],
   [['koe', 'koelisten'], b => runKoeListen(b)],
