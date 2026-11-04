@@ -1279,22 +1279,22 @@ const CELL_GESTURE_KEY='excalc_cellgesture';
 let cellGesture='excel';
 try{ if(localStorage.getItem(CELL_GESTURE_KEY)==='old') cellGesture='old'; }catch(_){}
 /* ── 範囲選択と コピー（フィル）の しかた（v629）──
-   handle＝角の つまみ（はじめ）：セルの 中は どこから なぞっても 範囲選択。コピーは 角の 外に 出した 丸い つまみ だけ
+   hold  ＝長押し して なぞる（はじめ。v630 から）：すぐ なぞる＝範囲選択、0.5秒 押して ブルッと してから なぞる＝コピー
+   handle＝角の つまみ（v629 の はじめ）：セルの 中は どこから なぞっても 範囲選択。コピーは 角の 外に 出した 丸い つまみ だけ
    band  ＝帯の ボタン：つまみは 出さない。範囲を 選んで 帯の「↓ 下へコピー」「→ 右へコピー」「1,2,3 連番」（Excel の Ctrl+D／Ctrl+R）
-   hold  ＝長押し して なぞる：すぐ なぞる＝範囲選択、0.5秒 押して ブルッと してから なぞる＝コピー
    v628 までは 選んだ セルの 右半分（指で 押しやすく 広げた ■ の 場所）が コピーで、範囲選択と 紙一重だった（利用者の 声） */
 const FILL_HOW_KEY='excalc_fill_how';
 const FILL_HOWS=[
+  {id:'hold',   n:'長押しして なぞる', note:'すぐ なぞると <b>範囲選択</b>。選んだ セルを <b>0.5秒 押して ブルッと してから</b>（点線の 枠） なぞると コピー（フィル）です。'},
   {id:'handle', n:'角の つまみ',       note:'選んだ セルの <b>角の 丸い つまみ</b>を 引っぱると コピー（フィル）。セルの 中は <b>どこから なぞっても 範囲選択</b>です（Excel・スプレッドシートと 同じ）。'},
   {id:'band',   n:'帯の ボタン',       note:'つまみは 出しません。なぞると いつも <b>範囲選択</b>。コピー したい 範囲（いちばん上〈左〉に 元の セル）を 選んで、帯の <b>↓ 下へコピー・→ 右へコピー・1,2,3 連番</b> を 押します（Excel の Ctrl+D／Ctrl+R）。'},
-  {id:'hold',   n:'長押しして なぞる', note:'すぐ なぞると <b>範囲選択</b>。選んだ セルを <b>0.5秒 押して ブルッと してから</b> なぞると コピー（フィル）です。'},
 ];
-let fillHow='handle';
-try{ const v=localStorage.getItem(FILL_HOW_KEY); if(v==='band' || v==='hold') fillHow=v; }catch(_){}
+let fillHow='hold';   // はじめは 長押し して なぞる（v630。v629 は 角の つまみ）
+try{ const v=localStorage.getItem(FILL_HOW_KEY); if(v==='band' || v==='handle') fillHow=v; }catch(_){}
 const BAND_FILL=['fill_down','fill_right','fill_series'];
 function setFillHow(v){
   if(!FILL_HOWS.some(m=>m.id===v)) return;
-  fillHow=v; try{ if(v==='handle') localStorage.removeItem(FILL_HOW_KEY); else localStorage.setItem(FILL_HOW_KEY, v); }catch(_){}
+  fillHow=v; try{ if(v==='hold') localStorage.removeItem(FILL_HOW_KEY); else localStorage.setItem(FILL_HOW_KEY, v); }catch(_){}
   // 帯の ボタンで コピー する ときは、自分で 決めた 範囲の 帯にも コピーの ボタンを 足す（ないと コピー できない）
   if(v==='band' && typeof bandCfgAll==='function'){
     const all=bandCfgAll();
@@ -16962,7 +16962,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v629';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v630';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

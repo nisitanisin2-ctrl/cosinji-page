@@ -19155,6 +19155,7 @@ async function runCellXl(browser) {
   await page.mouse.move(p.x, p.y); await page.mouse.down(); await page.waitForTimeout(700);
   let q = await ctr(3, 0); await page.mouse.move(q.x, q.y, { steps: 5 }); await page.mouse.up(); await page.waitForTimeout(300);
   check('  長押しして動かしてもフィルにならない', await page.evaluate(() => data[3][0]), '');
+  await page.evaluate(() => setFillHow('handle')); await page.waitForTimeout(150);   // v630：はじめは 長押し。つまみは「角の つまみ」に して 確かめる
   check('  選んだセルの枠の右下の角に小さな四角（v421）', await page.evaluate(() => {
     sel(0, 0); const h = document.getElementById('fillHandle'), hb = h.getBoundingClientRect(), tb = document.getElementById('c0_0').getBoundingClientRect();
     return getComputedStyle(h).display + '/' + Math.round(hb.width) + '/' + (Math.abs((hb.left + hb.width / 2) - (tb.right - 1)) <= 1.5 && Math.abs((hb.top + hb.height / 2) - (tb.bottom - 1)) <= 1.5); }), 'block/16/true');   // v629：指で 使う 画面は 16px の 丸い つまみ   // 指で使う画面は 10px（v470。マウスは 7px）
@@ -20007,9 +20008,11 @@ async function runFill629(browser) {
 
   // ── はじめは「角の つまみ」 ──
   await page.evaluate(() => { toggleSettings(); setSettingsTab(0); }); await w(300);
-  check('  設定：表の操作に「範囲選択と コピー（フィル）」3つ（はじめは 角の つまみ）', await page.evaluate(() => [fillHow, [...document.querySelectorAll('#fillHowSeg button')].map(b => b.textContent + (b.classList.contains('on') ? '●' : '')).join('|'), document.getElementById('fillHowSeg').closest('.set-page').id, /角の 丸い つまみ/.test(document.getElementById('fillHowNote').textContent)].join('/')),
-    'handle/角の つまみ●|帯の ボタン|長押しして なぞる/setPage0/true');
+  check('  設定：表の操作に「範囲選択と コピー（フィル）」3つ（v630：はじめは 長押しして なぞる）', await page.evaluate(() => [fillHow, [...document.querySelectorAll('#fillHowSeg button')].map(b => b.textContent + (b.classList.contains('on') ? '●' : '')).join('|'), document.getElementById('fillHowSeg').closest('.set-page').id, /0.5秒 押して ブルッと/.test(document.getElementById('fillHowNote').textContent)].join('/')),
+    'hold/長押しして なぞる●|角の つまみ|帯の ボタン/setPage0/true');
   await page.evaluate(() => toggleSettings()); await w(300);
+  check('  はじめは つまみを 出さない', await page.evaluate(() => { sel(0, 1); return getComputedStyle(document.getElementById('fillHandle')).display; }), 'none');
+  await page.evaluate(() => setFillHow('handle'));   // ここからは 角の つまみ
   await reset();
   check('  つまみは 角に 丸く（指の 画面は 16px）', await page.evaluate(() => { const h = document.getElementById('fillHandle'), s = getComputedStyle(h), hb = h.getBoundingClientRect(), tb = document.getElementById('c0_1').getBoundingClientRect();
     return [s.display, s.width, s.borderRadius, Math.abs((hb.left + hb.width / 2) - (tb.right - 1)) <= 1.5 && Math.abs((hb.top + hb.height / 2) - (tb.bottom - 1)) <= 1.5].join('/'); }), 'block/16px/50%/true');
@@ -20064,7 +20067,8 @@ async function runFill629(browser) {
   check('  覚える・設定の 書き出し（全保存）にも 入る', await page.evaluate(() => localStorage.getItem('excalc_fill_how') + '/' + settingsBundle().excalc_fill_how), 'band/band');
   await page.reload(); await w(1000);
   check('  開き直しても 帯の ボタン', await page.evaluate(() => fillHow + '/' + document.querySelector('#fillHowSeg .on').dataset.fh), 'band/band');
-  check('  角の つまみに もどすと 覚えた 中身を 消す（はじめの まま）', await page.evaluate(() => { setFillHow('handle'); return String(localStorage.getItem('excalc_fill_how')) + '/' + getComputedStyle(document.getElementById('fillHandle')).display; }), 'null/block');
+  check('  長押しに もどすと 覚えた 中身を 消す（はじめの まま）', await page.evaluate(() => { setFillHow('hold'); return String(localStorage.getItem('excalc_fill_how')) + '/' + getComputedStyle(document.getElementById('fillHandle')).display; }), 'null/none');
+  check('  角の つまみは 覚える', await page.evaluate(() => { setFillHow('handle'); const r = localStorage.getItem('excalc_fill_how') + '/' + getComputedStyle(document.getElementById('fillHandle')).display; setFillHow('hold'); return r; }), 'handle/block');
   check('  「以前の表電卓」の ときは 説明に 長押し と 出す', await page.evaluate(() => { setCellGesture('old'); const t = document.getElementById('fillHowNote').textContent; setCellGesture('excel'); return /以前の表電卓/.test(t); }), true);
   check('  設定を さがす：「フィル」「コピー」', await page.evaluate(() => { toggleSettings(); const r = ['フィル', '範囲選択'].map(q => { setFind(q); return document.getElementById('setFindRes').textContent.includes('範囲選択と コピー'); }); setFind(''); toggleSettings(); return r.join('/'); }), 'true/true');
   check('  JSエラーが出ていない', errs.length, 0);
