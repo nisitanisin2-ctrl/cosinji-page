@@ -1493,8 +1493,6 @@ function cellMenuAct(a){
   else if(a==='copy'){ clearCut(); copyCell(); if(typeof toast==='function') toast(clipData && clipData.rows && (clipData.rows.length>1||clipData.rows[0].length>1) ? `${clipData.rows.length}行×${clipData.rows[0].length}列をコピーしました` : 'コピーしました'); }
   else if(a==='cut'){ cutCell(); }
   else if(a==='edit'){ editCellInBar(selR,selC); }
-  else if(a==='insrow'){ insertRowAt(selR); }
-  else if(a==='inscol'){ insertColAt(selC); }
   else if(a==='paste'){ pasteCellSmart(); }
   else if(a==='clear'){ clearSelection(); }
   else if(a==='lock'){ toggleUserLock(selR,selC); }
@@ -15940,7 +15938,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v620';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v621';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
