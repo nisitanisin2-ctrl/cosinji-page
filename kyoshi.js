@@ -777,7 +777,7 @@ function edHtml(){
     ${hs.length ? `<div class="hist"><span class="hint">履歴から登録（タップで現場名と材齢を入れます）</span><div class="hist-list">${hs.map(h=>`<button type="button" onclick="KYOSHI.edHist(this.dataset.n)" data-n="${esc(h.name)}"><span class="hn">${esc(h.name)}</span><span class="hm">前回 ${sMd(h.sampled)}　${[...h.ages].sort((a,b)=>a-b).map(sig).join('+')}</span></button>`).join('')}</div></div>` : ''}
     <div class="field"><label for="kyoEdDate">採取日</label><input id="kyoEdDate" type="date" value="${esc(ed.date)}" oninput="KYOSHI.edSet('date', this.value)"></div>
     ${ed.id ? '' : `<div class="kyo-quick">${[[0,'きょう'],[-1,'きのう'],[-2,'おととい']].map(([n,t])=>`<button type="button" onclick="KYOSHI.edDay(${n})">${t}</button>`).join('')}</div>`}
-    <div class="field"><label for="kyoEdSite">共試体名（業者・現場）</label><input id="kyoEdSite" list="kyoNames" maxlength="40" autocomplete="off" placeholder="例: アース建設" value="${esc(ed.site)}" oninput="KYOSHI.edSet('site', this.value)"><datalist id="kyoNames">${namesList().map(n=>`<option value="${esc(n)}">`).join('')}</datalist></div>
+    <div class="field"><label for="kyoEdSite">共試体名（業者・現場）</label><input id="kyoEdSite" list="kyoNames" maxlength="40" autocomplete="off" placeholder="例: 〇〇建設" value="${esc(ed.site)}" oninput="KYOSHI.edSet('site', this.value)"><datalist id="kyoNames">${namesList().map(n=>`<option value="${esc(n)}">`).join('')}</datalist></div>
     <div class="field"><label>材齢 <span class="hint">${ed.id ? '（タップで追加・解除。外した材齢は削除されます）' : '（タップで追加・解除。選んだ数だけ登録します）'}</span></label><div class="ages" id="kyoEdAges">${edAgesHtml()}</div></div>
     <div class="field"><label for="kyoEdMemo">打合せ時間・メモ</label><input id="kyoEdMemo" maxlength="200" placeholder="例: 役所立会 10:00" value="${esc(ed.memo)}" oninput="KYOSHI.edSet('memo', this.value)"></div>
     <details class="kyo-more"${ed.mix || ed.part || ed.no ? ' open' : ''}><summary>くわしく（配合・打設箇所・番号・本数）</summary>
@@ -921,7 +921,7 @@ function parsePaste(txt){
 }
 function excelHtml(){
   return `<div class="kyo-ph"><b>Excel連携</b><button type="button" class="kyo-x" onclick="KYOSHI.close()" aria-label="閉じる">✕</button></div>
-    <div class="field"><label for="kyoPaste">取り込み：Excelの入力欄（採取日・共試体名・材齢・打合せ）の行をコピーして貼り付け</label><textarea class="paste" id="kyoPaste" rows="5" placeholder="9月3日(水)&#9;アース建設&#9;28&#9;&#10;9月10日(水)&#9;アース建設&#9;28&#9;役所立会" oninput="KYOSHI.xparse(this.value)"></textarea></div>
+    <div class="field"><label for="kyoPaste">取り込み：Excelの入力欄（採取日・共試体名・材齢・打合せ）の行をコピーして貼り付け</label><textarea class="paste" id="kyoPaste" rows="5" placeholder="9月3日(水)&#9;〇〇建設&#9;28&#9;&#10;9月10日(水)&#9;〇〇建設&#9;28&#9;役所立会" oninput="KYOSHI.xparse(this.value)"></textarea></div>
     <div class="preview" id="kyoXPrev">貼り付けると取り込める件数が表示されます。同じ採取日・名称・材齢の行は重複として飛ばします。</div>
     <div class="kyo-acts"><button type="button" class="kyo-b pri" id="kyoXImport" disabled onclick="KYOSHI.ximport()">取り込む</button></div>
     <hr><div class="field"><label>書き出し：未破壊の供試体を Excel の入力欄 A列 へ貼れる形でコピー</label></div>
