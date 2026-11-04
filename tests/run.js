@@ -15046,6 +15046,9 @@ async function runSchemeFix(browser) {
         await page.evaluate(() => { GGOLF.close(); GGOLF.bulk(); }); await w(300); found.push('ggolf-bulk:' + await page.evaluate(SCAN));
         await page.evaluate(() => { GGOLF.close(); GGOLF.xl(); }); await w(300); found.push('ggolf-xl:' + await page.evaluate(SCAN));   /* 📁 Excel（v618） */
         await page.evaluate(async () => { GGOLF.close(); GGOLF.showGot(await GGOLF.readFile(new File(['名前,チーム,合計\n山田,A,48\n'], 'a.csv'))); }); await w(300); found.push('ggolf-got:' + await page.evaluate(SCAN));
+        await page.evaluate(() => { GGOLF.close(); GGOLF.setSet({ inp: 'hole' }); GGOLF.card(GGOLF.ids()[0]); [3, 1, 2].forEach(v => GGOLF.cset(v)); }); await w(300); found.push('ggolf-card:' + await page.evaluate(SCAN));   /* 📝 スコアカード（v620） */
+        await page.evaluate(() => GGOLF.close()); await w(200); found.push('ggolf-hole:' + await page.evaluate(SCAN));
+        await page.evaluate(() => GGOLF.setSet({ inp: 'tot' }));
         await page.evaluate(() => { GGOLF.close(); GGOLF.view('in'); }); await w(200);
       }
       if (id === 'bingo') {   // 🎱 出た 数の 表・カード（リーチ・ビンゴ）・設定・たしかめ（v587）
@@ -19516,7 +19519,8 @@ async function runGgolfXl618(browser) {
   const save = async fn => { const [dl] = await Promise.all([page.waitForEvent('download'), page.evaluate(fn)]); return { name: dl.suggestedFilename(), bytes: fs.readFileSync(await dl.path()) }; };
   {
     const rdm = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8'), hl = fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8'), sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8'), wn = fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8');
-    check('  版・お知らせ・説明書・README・吹き出し', [await page.evaluate(() => APP_VERSION), /CACHE = 'excalc-v618'/.test(sw), /\{ v:'v618', t:'⛳ グラウンドゴルフ：📁 Excel/.test(wn), hl.includes('「📁 Excel」（v618）'), rdm.includes('v618：📁 Excel'), await page.evaluate(() => TOOL_HINTS.ggolf.includes('📁 Excel'))].join('/'), 'v618/true/true/true/true/true');
+    const ver = await page.evaluate(() => APP_VERSION);   // 版は v618 から 上がって いく（service-worker と そろう）
+    check('  版・お知らせ・説明書・README・吹き出し', [+ver.slice(1) >= 618, sw.includes("CACHE = 'excalc-" + ver + "'"), /\{ v:'v618', t:'⛳ グラウンドゴルフ：📁 Excel/.test(wn), hl.includes('「📁 Excel」（v618）'), rdm.includes('v618：📁 Excel'), await page.evaluate(() => TOOL_HINTS.ggolf.includes('📁 Excel'))].join('/'), 'true/true/true/true/true/true');
   }
   check('  Excel の 文字の 番号（&#27663; など。openpyxl で 作った ファイル）も 字に もどす', await page.evaluate(() => xlUnesc('&#27663;&#21517;・&#x6C0F;・&amp;#1;・&lt;b&gt;・&#99999999;')), '氏名・氏・&#1;・<b>・&#99999999;');
   await page.evaluate(() => { window.appConfirm = async () => true; });
@@ -19601,6 +19605,109 @@ async function runGgolfXl618(browser) {
     return [['はじめの Excel', () => GGOLF.xl()], ['Excel の 窓', () => { GGOLF.close(); GGOLF.newCupGo({ title: '秋の グラウンドゴルフ大会 2026' }); GGOLF.addMany(GGOLF.parse('山田 太郎／Aチーム 48 1\n佐藤 花子／Bチーム 50')); GGOLF.xl(); }],
       ['たしかめ', async () => GGOLF.showGot(await GGOLF.readFile(new File(['名前,チーム,合計,ホールインワン\n長い 名前の 人 です よ ほんとうに,Aチーム,48,1\n佐藤,B,52,0\n'], 'とても 長い ファイルの 名前 2026年 秋の 大会 名簿.csv')))]];
   }, 'グラウンドゴルフの Excel');
+}
+// ⛳ グラウンドゴルフ：ホールごとの スコア（v620）― ⚙ 入力の しかた・📝 スコアカード・合計の 出し方・印刷・Excel
+async function runGgolfHole620(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, hasTouch: true, acceptDownloads: true });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+  await page.goto(INDEX); await page.waitForTimeout(300);
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_back_ask', '0'); });
+  await page.reload(); await page.waitForTimeout(900);
+  console.log('\n── ⛳ グラウンドゴルフ：ホールごとの スコア（v620。⚙ 入力の しかた・📝 スコアカード） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const toastTx = () => page.evaluate(() => (document.getElementById('appToast') || {}).textContent || '');
+  const mem = () => page.evaluate(() => GGOLF.state().cups[0].mem.map(m => m.name + ':' + m.tot + ':' + m.hio + ':' + m.h.map(v => v == null ? '_' : v).join('')).join(' | '));
+  const save = async fn => { const [dl] = await Promise.all([page.waitForEvent('download'), page.evaluate(fn)]); return fs.readFileSync(await dl.path()); };
+  const sheet = (bytes, i) => page.evaluate(async ([a, i]) => { const map = await xlsxUnzip(new Uint8Array(a).buffer), dec = new TextDecoder(); return [(dec.decode(map.get('xl/workbook.xml')).match(/name="[^"]+"/g) || []).map(x => x.slice(6, -1)).join(','), dec.decode(map.get('xl/worksheets/sheet' + i + '.xml'))]; }, [Array.from(bytes), i]);
+  const cells = (xml, r) => (xml.match(new RegExp('<row r="' + r + '">(.*?)</row>')) || ['', ''])[1].replace(/<f>[^<]*<\/f>/g, '').replace(/<[^>]+>/g, '|').replace(/\|+/g, '|');
+  let r;
+  {
+    const hl = fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8'), rdm = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8'), wn = fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8'), sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
+    const ver = await page.evaluate(() => APP_VERSION);
+    check('  版・お知らせ・説明書・README・吹き出し', [+ver.slice(1) >= 620, sw.includes("CACHE = 'excalc-" + ver + "'"), /\{ v:'v620', t:'⛳ グラウンドゴルフ：ホールごと/.test(wn), hl.includes('「入力の しかた」（v620）'), rdm.includes('v620：⚙ 入力の しかた'), await page.evaluate(() => TOOL_HINTS.ggolf.includes('ホールごとの スコア'))].join('/'), 'true/true/true/true/true/true');
+  }
+  await page.evaluate(() => { window.appConfirm = async () => true; window.__p = []; window.appPrompt = async (m, d) => window.__p.length ? window.__p.shift() : d; window.__print = 0; window.print = () => { window.__print++; }; });
+  await page.evaluate(() => openGgolf()); await w(400);
+  await page.evaluate(() => { GGOLF.newCupGo({ title: '月例会', date: '2026-11-15' }); GGOLF.addMany(GGOLF.parse('山田 太郎／A 48 1\n佐藤 花子／A\n鈴木 一郎／B\n田中 次郎／B')); }); await w(150);
+  check('  はじめは 合計と ホールインワン（2コース × 8ホールは 決めて おく）', await page.evaluate(() => { const S = GGOLF.state().cups[0].set; return [S.inp, S.crs, S.hn, document.querySelector('.gg-sum').textContent.includes('入力：合計と ホールインワン'), !!document.querySelector('.gg-tot')].join('/'); }), 'tot/2/8/true/true');
+  // ⚙ 入力の しかた
+  check('  ⚙：入力の しかた（ホールごと を えらぶと コースと ホールの 欄が 出る）', await page.evaluate(() => { GGOLF.setup(); const row = document.getElementById('ggSHoleRow'), a = [row.hidden]; document.querySelector('input[name="ggSInp"][value="hole"]').click(); a.push(row.hidden, document.getElementById('ggSCrs').value, document.getElementById('ggSHn').value); GGOLF.setupSave(); return a.join('/'); }) + ' ' + await toastTx(),
+    'true/false/2/8 ✓ 保存しました（入力：ホールごとの スコア（A〜B の 2コース × 8ホール））');
+  check('  名簿は「📝 スコア」・上の 欄は 名前と チームだけ・合計だけの 人は そのまま', await page.evaluate(() => [document.querySelectorAll('.gg-row .gg-b.pri').length, !!document.getElementById('ggATot'), !!document.querySelector('.gg-tot'), [...document.querySelectorAll('.gg-row .hs')].map(x => x.textContent).join(','), document.querySelector('.gg-sum').textContent.includes('入力：ホールごとの スコア（A〜B の 2コース × 8ホール）')].join(' / ')),
+    '4 / false / false / 48打（合計だけ）⛳1,まだ,まだ,まだ / true');
+  // 📝 スコアカード
+  const ids = await page.evaluate(() => GGOLF.ids());
+  await page.evaluate(id => document.querySelector('.gg-row[data-id="' + id + '"] .gg-b.pri').click(), ids[1]); await w(150);
+  check('  スコアカード：A・B の 2行 × 8ホール・1番から・数の ボタン 10', await page.evaluate(() => [document.querySelectorAll('.gg-card .gg-cr').length, document.querySelectorAll('.gg-card .hc').length, document.querySelector('.gg-ctop .now').textContent, document.querySelectorAll('.gg-pad .pd').length, document.querySelector('.gg-ph b').textContent].join('/')),
+    '2/16/Aコース 1番/10/📝 佐藤 花子（A）');
+  for (const v of [3, 2, 1, 4]) await page.evaluate(v => [...document.querySelectorAll('.gg-pad .pd')].find(b => b.firstChild.textContent === String(v)).click(), v);
+  check('  数を 押すと 入って 次の ホールへ（1 は ⛳）・途中は 合計に しない', await page.evaluate(() => [document.querySelector('.gg-ctop .now').textContent, document.querySelector('.gg-ctop .tot').textContent, document.querySelectorAll('.gg-card .hc.hio').length, GGOLF.state().cups[0].mem[1].tot, document.querySelector('.gg-cr .cs').textContent].join('/')),
+    'Aコース 5番/途中 10打（あと 12）・⛳1/1//10途中');
+  await page.keyboard.press('3'); await page.keyboard.press('2'); await page.keyboard.press('Backspace'); await page.keyboard.press('Backspace'); await page.keyboard.press('ArrowRight');
+  check('  キーでも（数・⌫ は いまの ホール、空なら 前・→）', await page.evaluate(() => [GGOLF.state().cups[0].mem[1].h.join(','), GGOLF.cardAt().pos].join('/')), '3,2,1,4/5');
+  await page.evaluate(() => { GGOLF.cpos(4); [3, 2, 3, 2, 2, 3, 3, 2, 1, 3, 2].forEach(v => GGOLF.cset(v)); window.__p = ['12']; }); await page.evaluate(() => GGOLF.cbig()); await w(100);
+  check('  9+ は 打数を 聞く・ぜんぶ 入ると 合計と ⛳（お知らせ）', [await page.evaluate(() => { const m = GGOLF.state().cups[0].mem[1]; return [m.h.join(','), m.tot, m.hio, document.querySelector('.gg-ctop .tot').textContent, [...document.querySelectorAll('.gg-cr .cs')].map(x => x.textContent).join(',')].join(' / '); }), await toastTx()].join(' / '),
+    '3,2,1,4,3,2,3,2,2,3,3,2,1,3,2,12 / 48 / 2 / 合計 48打・⛳2 / 20計,28計 / ✓ 佐藤 花子 さんの スコアが そろいました（合計 48打・⛳2）');
+  await page.evaluate(() => GGOLF.cpos(15)); await page.evaluate(() => GGOLF.cdel());
+  check('  ⌫ で 消すと 途中に もどる（順位から 外れる）', await page.evaluate(() => { const m = GGOLF.state().cups[0].mem[1]; return [m.tot, m.hio, GGOLF.result().order.join(','), document.querySelector('.gg-sum .pend').textContent].join(' / '); }), ' / 2 / 山田 太郎 / まだ 3人（途中 1人）');
+  await page.evaluate(() => GGOLF.cset(2));
+  check('  次の 人 →（空いて いる はじめの ホール）・← 前の 人', await page.evaluate(() => { GGOLF.cnext(1); const a = [document.querySelector('.gg-ph b').textContent, GGOLF.cardAt().pos]; [2, 2, 2, 2, 2, 2, 2, 2].forEach(v => GGOLF.cset(v)); GGOLF.cnext(-1); a.push(document.querySelector('.gg-ph b').textContent, GGOLF.cardAt().pos); GGOLF.cnext(1); a.push(GGOLF.cardAt().pos); return a.join(' / '); }),
+    '📝 鈴木 一郎（B） / 0 / 📝 佐藤 花子（A） / 15 / 8');
+  await page.evaluate(() => GGOLF.close()); await w(150);
+  check('  名簿：合計・途中（あと 何ホール）・まだ', await page.evaluate(() => [...document.querySelectorAll('.gg-row .hs')].map(x => x.textContent).join(',')), '48打（合計だけ）⛳1,38打⛳2,途中 16打（あと 8）,まだ');
+  // 上の 欄：足して すぐ スコアカード
+  await page.click('#ggANm'); await page.keyboard.type('高橋 三郎'); await page.keyboard.press('Enter'); await page.keyboard.type('C'); await page.keyboard.press('Enter'); await w(200);
+  check('  上の 欄で 名前 → チーム → Enter で 足して その 人の スコアカード', await page.evaluate(() => [GGOLF.state().cups[0].mem.length, document.querySelector('.gg-ph b').textContent, GGOLF.cardAt().pos].join(' / ')), '5 / 📝 高橋 三郎（C） / 0');
+  await page.evaluate(() => GGOLF.close());
+  // ✏ 直す：スコアの ようす・名前を 直して スコアへ
+  check('  ✏ 直す：合計の 欄は なく、スコアの ようす・「📝」で 名前も 保存して スコアカード', await page.evaluate(id => { GGOLF.edit(id); const a = [!!document.getElementById('ggETot'), document.querySelector('.gg-esc').textContent]; document.getElementById('ggEName').value = '佐藤 花子さん'; GGOLF.editCard(id); a.push(GGOLF.state().cups[0].mem[1].name, document.querySelector('.gg-ph b').textContent); GGOLF.close(); return a.join(' / '); }, ids[1]),
+    'false / 合計 38打・⛳2（A 20・B 18） / 佐藤 花子さん / 📝 佐藤 花子さん（A）');
+  // 🏆 順位・コピー・表・印刷
+  r = await page.evaluate(() => { GGOLF.view('res'); return [document.querySelector('.gg-rr .sub').textContent, GGOLF.text().split('\n').filter(l => /^\d+\. /.test(l)).slice(0, 2).join(' / '), JSON.stringify(GGOLF.rows().slice(0, 2))]; });
+  check('  順位・📋 コピー・▦ 表に コースごとの 計', r.join(' || '), 'AA 20・B 18個人賞 || 1. 佐藤 花子さん（A）　38打・⛳2（A 20・B 18） / 2. 山田 太郎（A）　48打・⛳1 || [["順位","名前","チーム","合計","ホールインワン","賞","A計","B計"],[1,"佐藤 花子さん","A",38,2,"個人賞・ホールインワン賞",20,18]]');
+  check('  🖨 印刷に スコア表（ホール・コースの 計・途中は（ ））', await page.evaluate(async () => { GGOLF.print(); await new Promise(r => setTimeout(r, 400)); const t = document.querySelector('#printArea table.sc'); return [t.querySelectorAll('thead th').length, t.querySelectorAll('tbody tr').length, [...t.querySelectorAll('tbody tr')[0].children].map(x => x.textContent).join(','), t.querySelectorAll('tbody tr')[2].lastElementChild.previousElementSibling.textContent, t.querySelectorAll('td.hio').length].join(' / '); }),
+    '22 / 5 / 1,佐藤 花子さん,3,2,1,4,3,2,3,2,20,2,3,3,2,1,3,2,2,18,38,2 / (16) / 2');
+  // Excel：ひな形（A1〜B8・合計と ⛳ は 式）・読み直し
+  let x = await save(() => GGOLF.xlOut('tpl'));
+  let [nm, sx] = await sheet(x, 1);
+  check('  Excel の ひな形：A1〜B8 の 列・合計と ホールインワンは 式（答えも）・合計だけの 人は 数', [nm, cells(sx, 1), /<c r="S3"><f>SUM\(C3:R3\)<\/f><v>38<\/v><\/c><c r="T3"><f>COUNTIF\(C3:R3,1\)<\/f><v>2<\/v><\/c>/.test(sx), cells(sx, 2)].join(' / '),
+    '名簿,大会,説明 / |名前|チーム|A1|A2|A3|A4|A5|A6|A7|A8|B1|B2|B3|B4|B5|B6|B7|B8|合計|ホールインワン| / true / |山田 太郎|A|48|1|');
+  r = await page.evaluate(async a => GGOLF.readFile(new File([new Uint8Array(a)], 't.xlsx')), Array.from(x));
+  check('  ひな形を 読み直す：ホールの 列（2コース × 8）・合計だけの 人は 合計', [r.crs, r.hn, r.list.map(o => o.name + ':' + (o.h ? o.h.map(v => v == null ? '_' : v).join('') : '-') + ':' + (o.tot === undefined ? '-' : o.tot)).join(' | ')].join(' / '),
+    '2 / 8 / 山田 太郎:-:48 | 佐藤 花子さん:3214323223321322:- | 鈴木 一郎:22222222:- | 田中 次郎:-:- | 高橋 三郎:-:-');
+  x = await save(() => GGOLF.xlRes());
+  [nm, sx] = await sheet(x, 3);
+  check('  競技結果の Excel：「スコア」の シート（コースごとの 計・合計）', [nm, cells(sx, 1), cells(sx, 2)].join(' / '), '賞,順位,スコア,チーム,名簿,大会 / |順位|名前|チーム|A1|A2|A3|A4|A5|A6|A7|A8|A計|B1|B2|B3|B4|B5|B6|B7|B8|B計|合計|ホールインワン| / |1|佐藤 花子さん|A|3|2|1|4|3|2|3|2|20|2|3|3|2|1|3|2|2|18|38|2|');
+  // まとめて 入れる：数が 3つ 以上は ホールごと
+  check('  0打・数で ない 打数は まだ（1＝ホールインワンに しない）', await page.evaluate(() => GGOLF.parse('a 0 3 2\nb ０ ３ ２').map(o => o.h.map(v => v == null ? '_' : v).join('')).join(',')), '_32,_32');
+  check('  まとめて 入れる：3つ 以上の 数は ホールごとの 打数（2つ までは 合計と ⛳）', await page.evaluate(() => { GGOLF.addMany(GGOLF.parse('田中 次郎／B 3 3 3 3 3 3 3 3 1 2 2 2 2 2 2 2\n森 誠 50 1')); return GGOLF.state().cups[0].mem.filter(m => /田中|森/.test(m.name)).map(m => m.name + ':' + m.tot + ':' + m.hio + ':' + m.h.length).join(' | '); }), '田中 次郎:39:1:16 | 森 誠:50:1:0');
+  // コース・ホールの 数を かえる → 同じ コースの 同じ ホールへ
+  check('  2 × 9 に すると 写しなおして 途中に・2 × 8 に もどすと そろう', await page.evaluate(() => { GGOLF.setSet({ hn: 9 }); const m = () => GGOLF.state().cups[0].mem[3]; const a = [m().h.map(v => v == null ? '_' : v).join(''), m().tot]; GGOLF.setSet({ hn: 8 }); a.push(m().h.join(''), m().tot); return a.join(' / '); }), '33333333_12222222 /  / 3333333312222222 / 39');
+  // 合計と ホールインワン に もどす → 合計は そのまま・ホールの 打数は 持って おく
+  check('  合計と ホールインワン に もどしても 合計は 残る（打数は 持って いて、また ホールごとに すると 出しなおす）', await page.evaluate(() => { GGOLF.setSet({ inp: 'tot' }); GGOLF.view('in'); const a = [!!document.querySelector('.gg-tot'), GGOLF.state().cups[0].mem.map(m => m.tot).join(','), GGOLF.state().cups[0].mem[1].h.length]; GGOLF.setSet({ inp: 'hole' }); a.push(GGOLF.state().cups[0].mem.map(m => m.tot).join(',')); return a.join(' / '); }),
+    'true / 48,38,,39,,50 / 16 / 48,38,,39,,50');
+  // 読み込み：番号の 見出しの CSV → 新しい 大会は ホールごと（2 × 8）／合計の 大会には 合計に して
+  r = await page.evaluate(() => GGOLF.readFile(new File(['名前,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16\n中村,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2\n小林,1,2,3\n'], 'n.csv')));
+  check('  番号（1〜16）の 見出しも ホールの 列（8ホールずつ → 2コース）', [r.crs, r.hn, r.list.map(o => o.name + ':' + o.h.join('')).join(',')].join(' / '), '2 / 8 / 中村:3333333322222222,小林:123');
+  check('  たしかめの 窓に ホールごとの スコアの ようす', await page.evaluate(r => { GGOLF.showGot(r); const p = document.querySelector('.gg-pop'); const a = [p.querySelector('.gg-got').textContent, p.querySelectorAll('.gg-help')[1].textContent]; GGOLF.close(); return a.join(' / '); }, r), '2人・ホールごとの スコア 2人・ホールインワン 1回 / ホールごとの スコア（A〜B の 2コース × 8ホール）が 入って います。');
+  check('  新しい 大会に する → ホールごとの 入力（ファイルの 2 × 8）', await page.evaluate(async r => { GGOLF.setSet({ crs: 3 }); await GGOLF.importNow(r, 'new', '番号の 大会'); const s = GGOLF.state(), c = s.cups[s.cups.length - 1]; return [c.title, c.set.inp, c.set.crs, c.set.hn, c.mem.map(m => m.name + ':' + m.tot + ':' + m.hio).join(',')].join(' / '); }, r),
+    '番号の 大会 / hole / 2 / 8 / 中村:40:0,小林:null:1');
+  check('  合計と ホールインワン の 大会に 入れる → そろって いる 人は 合計と ⛳', await page.evaluate(async r => { GGOLF.newCupGo({ title: '合計の 大会' }); GGOLF.setSet({ inp: 'tot' }); await GGOLF.importNow(r, 'add'); const s = GGOLF.state(), c = s.cups[s.cups.length - 1]; return c.mem.map(m => m.name + ':' + m.tot + ':' + m.hio + ':' + m.h.length).join(','); }, r),
+    '中村:40:0:16,小林:null:0:3');
+  check('  3コースの ホールごとの 大会に 入れる → A・B の ホールへ', await page.evaluate(async r => { GGOLF.sel(GGOLF.state().cups[0].id); await GGOLF.importNow(r, 'add'); const c = GGOLF.state().cups[0], m = c.mem.find(x => x.name === '中村'); return [c.set.crs, m.h.map(v => v == null ? '_' : v).join(''), m.tot].join(' / '); }, r),
+    '3 / 3333333322222222 / ');
+  // 変な データ
+  await page.evaluate(() => { closeGgolf(); localStorage.setItem('excalc_ggolf', JSON.stringify({ cups: [{ id: 'abcd', title: 'x', set: { inp: 'hole', crs: '99', hn: '0' }, mem: [{ id: 'm001', name: 'a', h: ['3', 'x', null, 0, 120, '1', ''].concat(Array(200).fill(2)) }, { id: 'm002', name: 'b', tot: 50, h: 'zz' }] }] })); openGgolf(); }); await w(300);
+  check('  変な データ：コースは 6 まで・ホールは 1 から・打数は 1〜99・ホールは 108 まで', await page.evaluate(() => { const c = GGOLF.state().cups[0], a = c.mem[0], b = c.mem[1]; return [c.set.crs, c.set.hn, a.h.slice(0, 6).map(v => v == null ? '_' : v).join(','), a.h.length, a.tot, a.hio, b.h.length, b.tot].join(' / '); }), '6 / 1 / 3,_,_,_,99,1 / 108 /  / 1 / 0 / 50');
+  await page.evaluate(() => closeGgolf()); await w(200);
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+  await v579Fit(browser, async p2 => {
+    await p2.evaluate(async () => { window.appConfirm = async () => true; await openGgolf(); GGOLF.newCupGo({ title: '秋の グラウンドゴルフ大会 2026' }); GGOLF.setSet({ inp: 'hole' }); GGOLF.addMany(GGOLF.parse('山田 太郎／Aチーム 3 2 1 4 3 2 3 2 2 3 3 2 1 3 2 3\n長い 名前の 人 です よ／Bチーム 3 3\n佐藤 花子')); });
+    return [['名簿（ホールごと）', null], ['設定', () => GGOLF.setup()], ['スコアカード', () => { GGOLF.close(); GGOLF.card(GGOLF.ids()[1]); }],
+      ['18ホール × 6', () => { GGOLF.close(); GGOLF.setSet({ crs: 6, hn: 18 }); GGOLF.card(GGOLF.ids()[0]); }], ['順位・賞', () => { GGOLF.close(); GGOLF.setSet({ crs: 2, hn: 8 }); GGOLF.view('res'); }]];
+  }, 'ホールごとの スコア');
 }
 // 🧱 供試体（v611・v612。kyoshi.js）：Apps Script の 受け口を 作り物の CalendarApp・ContentService で 動かす（vm）
 // opt.shared：共有されて いる ほかの アカウントの カレンダー（getCalendarById で 開ける メールアドレス）
@@ -20319,6 +20426,7 @@ const SUITES = [
   [['kyoshi', 'kyoshi613', 'v614'], b => runKyoshi613(b)],
   [['ggolf', 'v616'], b => runGgolf616(b)],
   [['ggolf', 'ggolfxl', 'v618'], b => runGgolfXl618(b)],
+  [['ggolf', 'ggolfhole', 'v620'], b => runGgolfHole620(b)],
   [['dasetsu', 'v561'], b => runDasetsu561(b)],
   [['okaeshi', 'v564'], b => runOkaeshi564(b)],
   [['tax', 'v565'], b => runTax565(b)],
