@@ -3652,6 +3652,10 @@ body.simple-mode .rh  { height: calc(46px * var(--cell-scale, 1)); }
   border: 1px solid var(--cell-border, #ccc); border-radius: var(--r-btn);
   background: var(--cell-bg, #fff); color: var(--text); resize: vertical;
 }
+.kt-tname { margin: 10px 0 4px; padding: 8px 10px; border-radius: 10px; background: var(--cell-hover); font-size: 13.5px; line-height: 1.5; overflow-wrap: anywhere; }
+.kt-tname small { display: block; color: var(--text-sub, #666); font-size: 12px; }
+.kt-file-sec { margin: 8px 0 10px; }
+.kt-tname-main { margin: 4px 0 0; font-size: 12px; color: var(--text-sub, #666); text-align: center; overflow-wrap: anywhere; }
 .kt-paste-btns { display: flex; gap: 8px; }
 .kt-pb { flex: 1 1 0; font-size: 15px; padding: 11px 6px; }
 .kt-pb-sub { background: var(--pm-chip, rgba(120,132,156,.13)); color: var(--text); }
@@ -4643,6 +4647,7 @@ body.dark {
         <div class="vol-result-sub" id="ktResSub">単位水量と読み値を入れてください</div>
       </div>
       <div class="kt-judge-row"><span class="ts-judge" id="ktJudge">—</span></div>
+      <div class="kt-tname-main" id="ktTNameMain" hidden></div>
       <button class="vol-insert" id="ktInsertBtn" onclick="ktInsertToCell()" disabled>▦ 平均値をセルに入れる</button>
       <div class="vol-hint">読み値ごとに<b>換算表</b>で塩化物イオン濃度(%)に直し、<b>単位水量</b>を掛けて塩化物含有量(kg/m³)を出します。最後にその<b>平均</b>で判定します（①〜③のうち<b>入れた分だけ</b>で平均します）。<br>換算表はカンタブの製品ごとに違うため、はじめに<b>⚙設定</b>でお使いの表を登録してください。読み値が表の行と行の間のときは前後から直線でおぎない、その値に<b>*</b>を付けます。表の範囲外のときは「範囲外」と出し、平均には入れません。</div>
       <button class="vol-insert veg-pdf-btn" onclick="ktPdf()">🖨 結果を1ページのPDFに</button>
@@ -4674,6 +4679,15 @@ body.dark {
       <div class="ts-ref-sec">
         <div class="ts-ref-note"><b>換算表の登録</b>：お使いのカンタブ（試験紙）の容器や説明書にある<b>読み値 → 塩化物イオン濃度(%)</b>の対応を、そのまま入れてください。<br>
           製品によって数値が違うため、はじめから入っている値はありません。読み値が表のちょうど中間のときは、前後の行から直線でおぎなった値を使い、その旨を下の帯に表示します。</div>
+        <div class="kt-tname" id="ktTName"></div>
+        <div class="kt-file-sec">
+          <div class="ts-ref-note"><b>ファイルで入れる</b>：換算表のファイル（<b>.csv・.txt・Excel の .xlsx</b>）を読み込めます。試験紙の<b>ロットごと</b>にファイルを作っておけば、ロットが変わったときにすぐ入れかえられます。ファイルの「<code># 名前, ○○ Lot No. △△</code>」の行が表の名前になります。</div>
+          <div class="kt-paste-btns">
+            <button class="ts-ref-btn kt-pb" onclick="document.getElementById('ktFile').click()">📂 ファイルから読む</button>
+            <button class="ts-ref-btn kt-pb kt-pb-sub" onclick="ktSaveFile()">💾 ファイルに保存</button>
+          </div>
+          <input type="file" id="ktFile" accept=".csv,.txt,.tsv,.xlsx,text/csv,text/plain" hidden onchange="ktOpenFile(this)">
+        </div>
         <div class="kt-preset-sec" id="ktPresetSec"></div>
         <div class="kt-paste-sec">
           <div class="ts-ref-note"><b>まとめて入れる</b>：1行に「読み値」と「濃度」の2つの数字を並べて貼り付けてください。区切りは<b>スペース・タブ・カンマ</b>のどれでもよく、全角の数字も読めます。数字が2つ揃わない行（見出しなど）は読み飛ばします。

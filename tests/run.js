@@ -12770,6 +12770,61 @@ async function runV599(browser) {
   await ctx.close();
 }
 
+/* v623：🧪 カンタブの 換算表を ファイルで 読む・保存（ロットごとの ファイル） */
+async function runKantab623(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🧪 カンタブ v623：換算表を ファイルで 読む・保存 ──');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kantab-'));
+  const C = [103,106,109,112,115,118,122,125,129,133,138,142,147,152,157,163,169,175,182,188,195,203,211,219,228,237,247,257,268,279,291,303,316,330,344,360,376,392,410,429,448,469,490,513,537,562,588,616,645,676,708,742,777,815,854,896,939,985,1033,1084,1137,1193,1252,1314];
+  const rows = C.map((c, i) => [(1.8 + i * 0.1).toFixed(1), (c / 10000).toFixed(4)]);
+  const csv = '﻿' + ['# 表電卓 カンタブの換算表', '# 名前,カンタブ 低濃度品（コンクリート用） Lot No. 772115', '読み値,塩化物イオン(%)'].concat(rows.map(r => r.join(','))).join('\r\n') + '\r\n';
+  const f1 = path.join(tmp, 'kantab-table-772115.csv'); fs.writeFileSync(f1, csv);
+  await page.evaluate(() => { window.appConfirm = async () => true; openKantab(); openKtSettings(); }); await page.waitForTimeout(300);
+  check('  設定に 📂 ファイルから読む・💾 ファイルに保存', await page.evaluate(() => [...document.querySelectorAll('#ktSettingsOverlay .kt-file-sec button')].map(b => b.textContent).join('/')), '📂 ファイルから読む/💾 ファイルに保存');
+  check('  はじめは まだ 登録されていない', await page.evaluate(() => document.getElementById('ktTName').textContent), 'いまの換算表：まだ登録されていません');
+  await page.setInputFiles('#ktFile', f1); await page.waitForTimeout(500);
+  check('  CSV を 読むと 64行（1.8〜8.1）', await page.evaluate(() => ktTable.length + '/' + ktTable[0].r + '/' + ktTable[63].r + '/' + ktTable[63].c), '64/1.8/8.1/0.1314');
+  check('  表の 名前（ロット）を 覚える', await page.evaluate(() => ktTName + '|' + localStorage.getItem('excalc_kantab_tname')), 'カンタブ 低濃度品（コンクリート用） Lot No. 772115|カンタブ 低濃度品（コンクリート用） Lot No. 772115');
+  check('  設定に いまの 表の 名前と 範囲', await page.evaluate(() => document.getElementById('ktTName').textContent), 'いまの換算表：カンタブ 低濃度品（コンクリート用） Lot No. 772115（64行・読み値 1.8〜8.1）');
+  check('  表の 値（4.8 → 0.0291・6.5 → 0.0616）', await page.evaluate(() => ktLookup(4.8).v + '/' + ktLookup(6.5).v), '0.0291/0.0616');
+  await page.evaluate(() => { closeKtSettings(); ktInput('W', '175', document.getElementById('ktIn_W')); ['r1', 'r2', 'r3'].forEach((k, i) => { const el = document.getElementById('ktIn_' + k); if (el) { el.value = ['4.8', '4.9', '5.0'][i]; ktInput(k, el.value, el); } }); }); await page.waitForTimeout(200);
+  check('  計算に 使われる（平均 0.053 kg/m³）', await page.evaluate(() => document.getElementById('ktResVal').textContent.replace(/\s/g, '')), '0.053kg/m³');
+  check('  カンタブの 画面にも いまの 換算表', await page.evaluate(() => { const m = document.getElementById('ktTNameMain'); return !m.hidden && m.textContent; }), '換算表：カンタブ 低濃度品（コンクリート用） Lot No. 772115（1.8〜8.1）');
+  await page.evaluate(() => openShikenRep('kt')); await page.waitForTimeout(800);
+  check('  報告書の 下に 表の 名前（1ページ・試験報告書）', await page.evaluate(() => { const a = SHIKEN.ktHtml(), b = SHIKEN.html({ tsx: false, kt: true }); closeShikenRep(); return /換算表は 「カンタブ 低濃度品（コンクリート用） Lot No\. 772115」 から/.test(a) + '/' + /換算表は 「カンタブ 低濃度品（コンクリート用） Lot No\. 772115」。/.test(b); }), 'true/true');
+  await page.waitForTimeout(300);
+  // 保存した ファイルを もう一度 読める
+  const dl = await Promise.all([page.waitForEvent('download'), page.evaluate(() => ktSaveFile())]).then(r => r[0]);
+  check('  💾 ファイルの 名前は 英数字（ロット番号つき）', dl.suggestedFilename(), 'kantab-table-772115.csv');
+  const f2 = path.join(tmp, 'saved.csv'); await dl.saveAs(f2);
+  const saved = fs.readFileSync(f2, 'utf8');
+  check('  保存した 中身（名前の 行・見出し・値）', [saved.charCodeAt(0) === 0xFEFF, saved.split('\r\n')[1], saved.split('\r\n')[2], saved.split('\r\n')[3], saved.split('\r\n')[66]].join('|'), 'true|# 名前,カンタブ 低濃度品（コンクリート用） Lot No. 772115|読み値,塩化物イオン(%)|1.8,0.0103|8.1,0.1314');
+  await page.evaluate(() => { ktTable = [{ r: 1, c: 0.01 }]; ktTName = ''; ktSavePrefs(); openKtSettings(); }); await page.waitForTimeout(200);
+  await page.setInputFiles('#ktFile', f2); await page.waitForTimeout(500);
+  check('  保存した ファイルを 読み直せる', await page.evaluate(() => ktTable.length + '/' + ktTName), '64/カンタブ 低濃度品（コンクリート用） Lot No. 772115');
+  // Excel（.xlsx）・小さな 数は 1.03E-2 と 書かれる・名前の 行が ない ときは ファイル名
+  const { writeXlsx } = require('./zip.js');
+  const sx = '<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'
+    + '<row r="1"><c r="A1" t="inlineStr"><is><t>読み値</t></is></c><c r="B1" t="inlineStr"><is><t>塩化物イオン(%)</t></is></c></row>'
+    + rows.slice(0, 5).map((r, i) => `<row r="${i + 2}"><c r="A${i + 2}"><v>${r[0]}</v></c><c r="B${i + 2}"><v>${(Number(r[1]) * 100).toFixed(2)}E-2</v></c></row>`).join('')
+    + '</sheetData></worksheet>';
+  const f3 = path.join(tmp, 'lot-A12.xlsx'); writeXlsx(sx, f3);
+  await page.setInputFiles('#ktFile', f3); await page.waitForTimeout(600);
+  check('  Excel（.xlsx）も 読める（1.03E-2 → 0.0103）', await page.evaluate(() => ktTable.length + '/' + ktTable[0].c + '/' + ktTable[4].c), '5/0.0103/0.0115');
+  check('  名前の 行が ない ときは ファイルの 名前', await page.evaluate(() => ktTName), 'lot-A12');
+  // 貼り付けでも # 名前 の 行を 使う
+  await page.evaluate(() => { document.getElementById('ktPaste').value = '# 名前\tテストの 表\n1.0 0.0100\n2.0 0.0200'; ktImportTable(); }); await page.waitForTimeout(300);
+  check('  貼り付けでも「# 名前」の 行を 使う', await page.evaluate(() => ktTable.length + '/' + ktTName), '2/テストの 表');
+  await page.evaluate(() => { document.getElementById('ktPaste').value = '1.0 0.0100\n2.0 0.0200\n3.0 0.0300'; ktImportTable(); }); await page.waitForTimeout(300);
+  check('  名前の ない 貼り付けは 名前なし', await page.evaluate(() => ktTName + '|' + document.getElementById('ktTName').textContent), '|いまの換算表：名前なし（3行・読み値 1〜3）');
+  await page.evaluate(() => ktLoadPreset('teinoudo')); await page.waitForTimeout(300);
+  check('  ひな形を 入れると その 名前', await page.evaluate(() => ktTName), 'カンタブ 低濃度品（コンクリート用）（Lot No. 4750571 の表から）');
+  check('  設定の 控えに 名前も 入る', await page.evaluate(() => SETTINGS_BACKUP_KEYS.includes('excalc_kantab_tname')), true);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 async function runV600(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🧳 しおりの 🗺 地図・📝 試験報告書・🏨 案内ページの 📷 写真（v600） ──');
@@ -20407,6 +20462,7 @@ const SUITES = [
   [['hade', 'timer598', 'v598'], b => runTimer598(b)],
   [['bingo', 'hitsudan', 'v599'], b => runV599(b)],
   [['shiori', 'shiken', 'annai', 'v600'], b => runV600(b)],
+  [['kantab', 'shiken', 'v623'], b => runKantab623(b)],
   [['trim', 'manner', 'boki', 'kurashi', 'yomi', 'v601'], b => runV601(b)],
   [['units', 'v602'], b => runUnits602(b)],
   [['boot', 'runpar', 'v603'], b => runBoot603(b)],

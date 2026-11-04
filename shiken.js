@@ -134,9 +134,11 @@ function reportHtml(w){
   }
   if(H.memo) h+=`<div class="sk-sec">備考</div><div class="sk-memo">${esc(H.memo)}</div>`;
   if(H.hanko) h+=`<div class="sk-hanko"><div><b>試験者</b><i></i></div><div><b>立会者</b><i></i></div></div>`;
-  h+=`<div class="vp-foot">${w.tsx ? '単位水量：配合は kg/m³、質量は g、容積は cc で 入れた 値。' : ''}${w.kt ? '塩化物：換算表は お使いの カンタブの 表（⚙ 設定）。' : ''}（表電卓 ${typeof APP_VERSION!=='undefined' ? APP_VERSION : ''}）</div>`;
+  h+=`<div class="vp-foot">${w.tsx ? '単位水量：配合は kg/m³、質量は g、容積は cc で 入れた 値。' : ''}${w.kt ? '塩化物：換算表は '+ktTblLabel()+'。' : ''}（表電卓 ${typeof APP_VERSION!=='undefined' ? APP_VERSION : ''}）</div>`;
   return `<div class="op-doc" id="skRepBox"><style>${DOC_CSS}</style><div class="sk-doc">${h}</div></div>`;
 }
+// 換算表の 名前（製品・ロット。⚙ 設定で ファイルから 入れた ときの 名前。v623）
+const ktTblLabel=()=>{ const n=(typeof ktTName!=='undefined' && ktTName) ? String(ktTName) : ''; return n ? '「'+esc(n)+'」' : 'お使いの カンタブの 表（⚙ 設定）'; };
 // 🧪 カンタブだけの 1ページ（単位水量の「🖨 結果を1ページのPDFに」と 同じ 形）
 function ktReportHtml(){
   const k=ktParts(); if(!k) return '';
@@ -144,7 +146,7 @@ function ktReportHtml(){
   return `<div class="op-doc" id="ktRepBox"><style>${DOC_CSS}</style><div class="vp-head"><div class="vp-title">🧪 カンタブ試験（塩化物含有量） 報告書</div>
     <div class="vp-sub">読み値 → 換算表で 塩化物イオン 濃度（%）→ 単位水量を 掛けて kg/m³　／　${esc(stamp)}</div>${k.big}</div>
     <div class="vp-cols">${k.tbl}${k.rule}</div>
-    <div class="vp-foot">換算表は お使いの カンタブの 表（⚙ 設定）から 引いて います。　（表電卓 ${typeof APP_VERSION!=='undefined' ? APP_VERSION : ''}）</div></div>`;
+    <div class="vp-foot">換算表は ${ktTblLabel()} から 引いて います。　（表電卓 ${typeof APP_VERSION!=='undefined' ? APP_VERSION : ''}）</div></div>`;
 }
 
 /* ───────── 出す ───────── */
