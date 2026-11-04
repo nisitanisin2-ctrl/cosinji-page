@@ -1472,7 +1472,11 @@ body.kb-edit { grid-template-columns: 1fr !important; }
 #fillHandle { position: absolute; width: 7px; height: 7px; background: var(--acc); z-index: 1;
   box-shadow: 0 0 0 1px var(--sheet-cell-bg, var(--cell-bg)); pointer-events: none; display: none; }
 body.cg-excel #fillHandle.on { display: block; }
-@media (pointer: coarse) { #fillHandle { width: 10px; height: 10px; } }   /* 指で使う画面では少し大きく（v470） */
+@media (pointer: coarse) {   /* 指で使う画面では 丸い つまみ（v629。前は 10px の 四角） */
+  #fillHandle { width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 0 2px var(--sheet-cell-bg, var(--cell-bg)), 0 1px 3px rgba(0,0,0,.35); }
+}
+/* 長押し して なぞる（v629）：コピーの 用意が できた セル */
+#sheet td.cell.fill-arm { box-shadow: inset 0 0 0 2px var(--acc), inset 0 0 0 999px color-mix(in srgb, var(--acc) 14%, transparent); outline: 2px dashed var(--acc); outline-offset: -5px; }
 body.fill-active #fillHandle { display: none; }
 .cell-menu button:active { background: var(--cell-border); }
 /* フィル後の連番ボタン */
@@ -4378,7 +4382,10 @@ body.dark {
       <button class="skin-seg-btn" data-cg="excel" onclick="setCellGesture('excel')">Excel と同じ</button>
       <button class="skin-seg-btn" data-cg="old" onclick="setCellGesture('old')">以前の表電卓</button>
     </div>
-    <div class="set-note"><b>Excel と同じ</b>：ダブルタップで<b>中身を直す</b>（スマホではテンキーの場所にキーボードが出て、その上に<b>切り取り・コピー・貼り付け など</b>の帯が出ます。選んだ セルを もう一度 押すと、テンキーの いちばん上の 列に 帯が 出て、数字なら ¥・%、文字なら 太字・寄せ、範囲なら 合計・並べかえ と、選んだ ものに 合わせた ボタンが 並びます）、選んだセルの右下の<b>■</b>を引っぱると<b>フィル</b>。<br><b>以前の表電卓</b>：ダブルタップで<b>中身を直す</b>（Excel と同じ）、長押ししてから動かすと<b>フィル</b>、約1秒の長押しで<b>メニュー</b>。</div>
+    <div class="set-note"><b>Excel と同じ</b>：ダブルタップで<b>中身を直す</b>（スマホではテンキーの場所にキーボードが出て、その上に<b>切り取り・コピー・貼り付け など</b>の帯が出ます。選んだ セルを もう一度 押すと、テンキーの いちばん上の 列に 帯が 出て、数字なら ¥・%、文字なら 太字・寄せ、範囲なら 合計・並べかえ と、選んだ ものに 合わせた ボタンが 並びます）、選んだセルの<b>角の つまみ</b>を引っぱると<b>フィル</b>（下の「範囲選択と コピー（フィル）」で、帯の ボタン・長押しして なぞる にも 変えられます。v629）。<br><b>以前の表電卓</b>：ダブルタップで<b>中身を直す</b>（Excel と同じ）、長押ししてから動かすと<b>フィル</b>、約1秒の長押しで<b>メニュー</b>。</div>
+    <div class="set-sec">範囲選択と コピー（フィル）</div>
+    <div class="skin-seg" id="fillHowSeg"></div>
+    <div class="set-note" id="fillHowNote"></div>
     <div class="set-sec">帯の ボタン</div>
     <div class="set-note">セルを 押すと テンキーの 上に 出る <b>帯</b>に、どの ボタンを どの 順で 出すかを、帯の 種類（数字の セル・文字の セル・範囲・列名・行番号 など）ごとに 決められます。押しても 並びは 変わりません。</div>
     <button class="set-act" id="setBandBtn" onclick="toggleSettings();openBandCfg()" title="帯に 出す ボタンと 並びを 決める">🎛 帯の ボタン（出す ボタン・並び）</button>

@@ -1278,11 +1278,50 @@ function clearCopySrc() {
 const CELL_GESTURE_KEY='excalc_cellgesture';
 let cellGesture='excel';
 try{ if(localStorage.getItem(CELL_GESTURE_KEY)==='old') cellGesture='old'; }catch(_){}
-/* 右下の四角を、選んだセルの枠の右下の角に合わせる（v421） */
+/* ── 範囲選択と コピー（フィル）の しかた（v629）──
+   handle＝角の つまみ（はじめ）：セルの 中は どこから なぞっても 範囲選択。コピーは 角の 外に 出した 丸い つまみ だけ
+   band  ＝帯の ボタン：つまみは 出さない。範囲を 選んで 帯の「↓ 下へコピー」「→ 右へコピー」「1,2,3 連番」（Excel の Ctrl+D／Ctrl+R）
+   hold  ＝長押し して なぞる：すぐ なぞる＝範囲選択、0.5秒 押して ブルッと してから なぞる＝コピー
+   v628 までは 選んだ セルの 右半分（指で 押しやすく 広げた ■ の 場所）が コピーで、範囲選択と 紙一重だった（利用者の 声） */
+const FILL_HOW_KEY='excalc_fill_how';
+const FILL_HOWS=[
+  {id:'handle', n:'角の つまみ',       note:'選んだ セルの <b>角の 丸い つまみ</b>を 引っぱると コピー（フィル）。セルの 中は <b>どこから なぞっても 範囲選択</b>です（Excel・スプレッドシートと 同じ）。'},
+  {id:'band',   n:'帯の ボタン',       note:'つまみは 出しません。なぞると いつも <b>範囲選択</b>。コピー したい 範囲（いちばん上〈左〉に 元の セル）を 選んで、帯の <b>↓ 下へコピー・→ 右へコピー・1,2,3 連番</b> を 押します（Excel の Ctrl+D／Ctrl+R）。'},
+  {id:'hold',   n:'長押しして なぞる', note:'すぐ なぞると <b>範囲選択</b>。選んだ セルを <b>0.5秒 押して ブルッと してから</b> なぞると コピー（フィル）です。'},
+];
+let fillHow='handle';
+try{ const v=localStorage.getItem(FILL_HOW_KEY); if(v==='band' || v==='hold') fillHow=v; }catch(_){}
+const BAND_FILL=['fill_down','fill_right','fill_series'];
+function setFillHow(v){
+  if(!FILL_HOWS.some(m=>m.id===v)) return;
+  fillHow=v; try{ if(v==='handle') localStorage.removeItem(FILL_HOW_KEY); else localStorage.setItem(FILL_HOW_KEY, v); }catch(_){}
+  // 帯の ボタンで コピー する ときは、自分で 決めた 範囲の 帯にも コピーの ボタンを 足す（ないと コピー できない）
+  if(v==='band' && typeof bandCfgAll==='function'){
+    const all=bandCfgAll();
+    ['range','rtext'].forEach(k=>{
+      if(!Array.isArray(all[k]) || all[k].some(id=>BAND_FILL.includes(id))) return;
+      const x=all[k].slice(); x.splice(x[0]==='merge' ? 1 : 0, 0, ...BAND_FILL); bandCfgSet(k, x);
+    });
+  }
+  updateFillHandle(); renderFillHow();
+  toast(v==='handle' ? '角の つまみを 引っぱると コピー（セルの 中を なぞると 範囲選択）'
+      : v==='band' ? '範囲を 選んで 帯の「↓ 下へコピー」などで コピー（なぞると いつも 範囲選択）'
+      : '選んだ セルを 長押し して ブルッと してから なぞると コピー');
+}
+function renderFillHow(){
+  const seg=document.getElementById('fillHowSeg'); if(!seg) return;
+  if(seg.children.length!==FILL_HOWS.length){
+    seg.innerHTML=FILL_HOWS.map(m=>'<button class="skin-seg-btn" data-fh="'+m.id+'" onclick="setFillHow(\''+m.id+'\')">'+m.n+'</button>').join('');
+  }
+  Array.from(seg.children).forEach(el=>{ const on=el.dataset.fh===fillHow; el.classList.toggle('on', on); el.setAttribute('aria-pressed', String(on)); });
+  const nt=document.getElementById('fillHowNote'), m=FILL_HOWS.find(x=>x.id===fillHow);
+  if(nt && m) nt.innerHTML=m.note+(cellGesture==='old' ? '<br>（いまは セルの操作が「以前の表電卓」なので、長押しして 動かす＝コピー の ままです）' : '');
+}
+/* 右下の四角を、選んだセルの枠の右下の角に合わせる（v421）。v629：角の つまみ の ときだけ 出す */
 function updateFillHandle(){
   const h=document.getElementById('fillHandle'); if(!h) return;
   const td=document.getElementById(`c${selR}_${selC}`), wrap=h.parentElement;
-  if(cellGesture!=='excel' || !td || !td.offsetParent || !wrap){ h.classList.remove('on'); return; }
+  if(cellGesture!=='excel' || fillHow!=='handle' || !td || !td.offsetParent || !wrap){ h.classList.remove('on'); return; }
   const t=td.getBoundingClientRect(), w=wrap.getBoundingClientRect();
   const hs=(parseFloat(getComputedStyle(h).width)||7)/2;
   h.style.left=(t.right-w.left+wrap.scrollLeft-hs)+'px';   // 四角の真ん中を枠の線の角に
@@ -1293,6 +1332,7 @@ function applyCellGesture(){
   document.body.classList.toggle('cg-excel', cellGesture==='excel');
   updateFillHandle();
   document.querySelectorAll('#cellGestureSeg [data-cg]').forEach(b=>b.classList.toggle('on', b.dataset.cg===cellGesture));
+  if(typeof renderFillHow==='function') renderFillHow();
 }
 function setCellGesture(v){
   cellGesture=(v==='old')?'old':'excel';
@@ -1444,12 +1484,12 @@ const BAND_KINDS=[
 /* 帯に いつも ある ボタン（index.html の #cellMenu の data-act） */
 const BAND_COMMON=['cut','copy','paste','merge','edit','clear','fmt','lock'];
 const BAND_FMT=['nf_yen','nf_pct','nf_comma','dec_up','dec_dn','bold','al_l','al_c','al_r'];
-const BAND_RANGE=['autosum','sort_up','sort_dn','chart'];
+const BAND_RANGE=['autosum','sort_up','sort_dn','chart'];   // コピーの ボタン（BAND_FILL）は 範囲選択と コピーの しかた の ところ（v629）
 /* 置ける ボタン（帯の 種類ごと） */
 function bandPool(k){
   if(k==='col') return ['col_fit','col_insL','col_insR','col_del','col_flt','col_hide','col_show','col_frz'];
   if(k==='row') return ['row_insA','row_insB','row_del','row_hide','row_show','row_frz'];
-  if(k==='range' || k==='rtext') return BAND_RANGE.concat(BAND_FMT, BAND_COMMON);
+  if(k==='range' || k==='rtext') return BAND_FILL.concat(BAND_RANGE, BAND_FMT, BAND_COMMON);
   return BAND_FMT.concat(BAND_COMMON);
 }
 /* はじめの 並び（v624 と 同じ 見え方） */
@@ -1466,7 +1506,10 @@ function bandCfgAll(){ try{ const o=JSON.parse(localStorage.getItem(BAND_CFG_KEY
 function bandCfgFor(k){
   const kk=k||'empty', a=bandCfgAll()[kk], pool=bandPool(kk);
   if(Array.isArray(a)) return a.filter((id,i)=>typeof id==='string' && pool.includes(id) && a.indexOf(id)===i);
-  return BAND_DEF[kk] ? BAND_DEF[kk].slice() : [];
+  const d=BAND_DEF[kk] ? BAND_DEF[kk].slice() : [];
+  // 帯の ボタンで コピー する とき（v629）は、範囲の 帯の はじめに ↓ 下へコピー・→ 右へコピー・1,2,3 連番（文字の 範囲は ⊞ 結合の 次）
+  if(fillHow==='band' && (kk==='range' || kk==='rtext')) d.splice(d[0]==='merge' ? 1 : 0, 0, ...BAND_FILL);
+  return d;
 }
 function bandCfgSet(k, list){
   const o=bandCfgAll();
@@ -1481,6 +1524,9 @@ const BAND_LABEL={
   autosum:['Σ 合計','選んだ範囲の 下（横長なら 右）に、合計の式（=SUM）を 入れる'],
   sort_up:['↑ 小さい順','選んだ範囲の 行を、いま選んでいる列の 小さい順（あいうえお順）に 並べかえる'], sort_dn:['↓ 大きい順','選んだ範囲の 行を、いま選んでいる列の 大きい順に 並べかえる'],
   chart:['📊 グラフ','選んだ範囲を 棒・折れ線・円グラフに する'],
+  fill_down:['↓ 下へコピー','選んだ範囲の いちばん上の 行を、下の 行に コピーする（数式は ずらして。Excel の Ctrl+D）'],
+  fill_right:['→ 右へコピー','選んだ範囲の いちばん左の 列を、右の 列に コピーする（数式は ずらして。Excel の Ctrl+R）'],
+  fill_series:['1,2,3 連番','はじめの セルから 1つずつ 増やして 入れる（日付・「第1回」なども。縦長なら 下へ、横1行なら 右へ）'],
   cut:['✂ 切り取り','切り取って、貼り付けた 先へ 動かす'], copy:['⧉ コピー','選んでいる セル（範囲）を 写す'], paste:['📥 貼り付け','写した ものを ここに 貼る'],
   merge:['⊞ 結合','選んだ 範囲を 1つの セルに する（範囲を 選んだ ときだけ 出ます）'], edit:['✏ 編集','中身を 直す（キーボードが 出ます。打っている 間は 出ません）'],
   clear:['🧹 消去','中身を 消す（書式・枠線は 残す）'], fmt:['🎨 書式','小数・日付・文字の大きさ・色などを 決める 窓'], lock:['🔒 保護','まちがって 消さない ように 守る'],
@@ -1511,6 +1557,13 @@ function bandDef(id, kind){
       it.run=()=>bandSort(id==='sort_up' ? 1 : -1); return it;
     }
     case 'chart':   if(!rng) return null; it.run=()=>hpRun('chart'); return it;
+    case 'fill_down': case 'fill_right': case 'fill_series': {
+      if(!rng) return null;
+      const g=selRect();
+      if(id==='fill_down' && g.r2<=g.r1) return null;   // 1行だけなら 下へは コピー できない
+      if(id==='fill_right' && g.c2<=g.c1) return null;
+      it.run=()=>bandFill(id.slice(5)); return it;
+    }
     case 'col_fit': it.run=()=>fitColWidth(hdrGroupFor('col', selC)); return it;
     case 'col_insL': it.run=()=>insertColAt(selC); return it;
     case 'col_insR': it.run=()=>insertColAt(selC+1); return it;
@@ -1614,6 +1667,44 @@ async function bandCfgReset(all){
   bandCfgRender(); bandCfgApplyNow();
 }
 function bandCfgApplyNow(){ const m=document.getElementById('cellMenu'); if(m && m.classList.contains('show')) try{ bandRender(); }catch(_){} }
+/* ── 帯の コピー（v629）：↓ 下へ（Ctrl+D）・→ 右へ（Ctrl+R）・連番 ──
+   範囲の いちばん上の 行（左の 列）を 元に して、残りの セルに 入れる。数式は ずらす（$ は ずらさない）。
+   しぼり込みで 隠した 行・保護した セルには 入れない。何セルでも ↶戻す 1回で 戻る */
+function bandSeqVal(src, k, r, c, sr, sc){
+  const s=String(src==null ? '' : src).trim();
+  if(s==='' || s.startsWith('=')) return null;
+  if(/^-?\d+(\.\d+)?$/.test(s)){ const dec=seqDecimals(s), v=Number(s)+k; return dec ? String(Number(v.toFixed(dec))) : String(Math.round(v)); }
+  const t=seqTextValue(s, 1, k); return t==null ? null : t;
+}
+function bandFill(how){
+  const g=selRect(); if(!g) return;
+  const down = how==='down' || (how==='series' && g.r2>g.r1);   // 連番は 縦長なら 下へ、横1行なら 右へ
+  const cells=[];
+  if(down){ for(let c=g.c1;c<=g.c2;c++) for(let r=g.r1+1;r<=g.r2;r++) cells.push([r,c,g.r1,c,r-g.r1,0]); }
+  else { for(let r=g.r1;r<=g.r2;r++) for(let c=g.c1+1;c<=g.c2;c++) cells.push([r,c,r,g.c1,0,c-g.c1]); }
+  if(!cells.length) return;
+  pushSnapshot(how==='series' ? '連番' : down ? '下へコピー' : '右へコピー');
+  let n=0, locked=0;
+  const wasUndoing=undoing; undoing=true;
+  try{
+    cells.forEach(([r,c,sr,sc,dr,dc])=>{
+      if(hpHidRow(r)) return;   // しぼり込みで 隠した 行には 入れない
+      if(isLockedCell(r,c)){ locked++; return; }
+      const src=data[sr][sc], k=dr+dc;
+      let v=null;
+      if(how==='series'){
+        v=bandSeqVal(src, k, r, c, sr, sc);
+        const fmt=cellDateFmt(sr,sc);
+        if(v!=null){ setCellVal(r,c,v); if(fmt){ (cellStyles[`${r},${c}`]=cellStyles[`${r},${c}`]||{}).dfmt=fmt; repaintCell(r,c); } n++; return; }
+      }
+      setCellVal(r,c,adjustFormula(src, dr, dc)); n++;
+    });
+  } finally { undoing=wasUndoing; }
+  if(how==='series' && cellDateFmt(g.r1,g.c1)) persistModes();
+  recalcAll();
+  const a=ALPHA[g.c1]+(g.r1+1)+':'+ALPHA[g.c2]+(g.r2+1);
+  toast((how==='series' ? '1,2,3 連番' : down ? '↓ 下へコピー' : '→ 右へコピー')+'：'+a+'（'+n+'セル'+(locked ? '・保護の '+locked+'つは のぞく' : '')+'）。↶戻す で 戻せます');
+}
 /* ── 数の見せ方（¥・%・桁区切り）。中身（data）は そのまま、画面と 印刷の 見た目だけ ── */
 function nfText(r, c, t){
   const s=cellStyles[r+','+c], nf=s && s.nf; if(!nf) return t;
@@ -16871,7 +16962,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v628';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v629';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -18346,17 +18437,18 @@ const LP_FILL_MS=550, LP_MENU_MS=1000, LP_MOVE_TOL=8;
 /* 選んだセルの右下の ■ （フィルの取っ手）の上か。指で押しやすいよう、見た目より広めにとる。
    v470：■ は枠の角にまたがっているので、セルの外側（右・下のとなりのセル）を押しても取っ手とみなす */
 /* 指で押すときは、マウスより広くとる（v471）。指は ■ より大きく、押したところも少しずれるため */
-const FILL_HIT={ touch:{ inMax:40, inW:0.5, inH:0.9, out:30 }, mouse:{ inMax:26, inW:0.45, inH:0.7, out:16 } };
+/* v629：角の まわりだけに した（in＝セルの 中へ、out＝セルの 外へ）。前は 指だと 右の 40px・高さの 9割（セルの ほぼ 右半分）で、範囲選択と 紙一重だった */
+const FILL_HIT={ touch:{ in:12, out:28 }, mouse:{ in:12, out:10 } };
 let fillPressTouch=false;   // いまの押し始めが指か（touchstart で true、mousedown で false）
 function onFillHandle(r,c,x,y){
   const td=document.getElementById(`c${r}_${c}`); if(!td) return false;
   const h=fillPressTouch ? FILL_HIT.touch : FILL_HIT.mouse;
-  const b=td.getBoundingClientRect(), kx=Math.min(h.inMax, b.width*h.inW), ky=Math.min(h.inMax, b.height*h.inH);   // 横と縦は別々に（セルは横長なので）
-  return x>=b.right-kx && x<=b.right+h.out && y>=b.bottom-ky && y<=b.bottom+h.out;
+  const b=td.getBoundingClientRect();
+  return x>=b.right-h.in && x<=b.right+h.out && y>=b.bottom-h.in && y<=b.bottom+h.out;
 }
 /* 押した点が、選んでいるセルの取っ手の上か（となりのセルを押していても） */
 function fillHandleHit(x,y){
-  return cellGesture==='excel' && selR>=0 && selC>=0 && rangeR1<0 && onFillHandle(selR,selC,x,y);
+  return cellGesture==='excel' && fillHow==='handle' && selR>=0 && selC>=0 && rangeR1<0 && onFillHandle(selR,selC,x,y);
 }
 /* フィルの行き先は、指の位置そのものではなく「元のセルの真ん中を、指が動いた分だけ動かした点」で決める（v470）。
    ■ は角にあるので、指の位置で決めると少し動いただけで次の行・列に入り、思ったより1つ先までコピーされていた。
@@ -18402,9 +18494,9 @@ function fillAutoScroll(){
 function lpClearTimers(){ clearTimeout(lpFillTimer); clearTimeout(lpMenuTimer); lpFillTimer=lpMenuTimer=null; }
 function lpSetArmVisual(cls){
   const el=document.getElementById(`c${lpR}_${lpC}`);
-  if(el){ el.classList.remove('lock-arm','setgs-arm'); if(cls) el.classList.add(cls); }
+  if(el){ el.classList.remove('lock-arm','setgs-arm','fill-arm'); if(cls) el.classList.add(cls); }
 }
-function lpClearArmVisual(){ const el=document.getElementById(`c${lpR}_${lpC}`); if(el) el.classList.remove('lock-arm','setgs-arm'); }
+function lpClearArmVisual(){ const el=document.getElementById(`c${lpR}_${lpC}`); if(el) el.classList.remove('lock-arm','setgs-arm','fill-arm'); }
 function startCellPress(r,c,x,y){
   if(typeof hideSeqBtn==='function') hideSeqBtn();   // 別の操作を始めたら連番ボタンを消す
   lpR=r; lpC=c; lpX=x; lpY=y; lpMoved=false; lpStage=0;
@@ -18413,7 +18505,17 @@ function startCellPress(r,c,x,y){
   if(cellGesture==='excel'){
     // Excel と同じ：選んだセルの右下の ■ から引っぱるとフィル
     // メニューは長押しでは出さず、ダブルタップで直すときにキーボード（テンキー）の上に出す
-    if(lpFromActive && onFillHandle(r,c,x,y)){ fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; fillProbeStart(r,c,x,y); }
+    if(fillHow==='handle' && lpFromActive && onFillHandle(r,c,x,y)){ fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; fillProbeStart(r,c,x,y); }
+    else if(fillHow==='hold' && lpFromActive){
+      // 長押し して なぞる（v629）：0.5秒 動かさずに 押して いたら コピーの 用意（ブルッと して 点線の 枠）。その前に 動かせば 範囲選択
+      lpFillTimer=setTimeout(()=>{
+        lpFillTimer=null;
+        if(lpMoved || lpR!==r || lpC!==c) return;
+        fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; fillProbeStart(r,c,x,y);
+        lpSetArmVisual('fill-arm');
+        if(navigator.vibrate){ try{ navigator.vibrate(25); }catch(_){} }
+      }, LP_FILL_MS);
+    }
     return;
   }
   lpFillTimer=setTimeout(()=>{ lpFillTimer=null; if(!lpMoved){ fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; fillProbeStart(r,c,x,y); } }, LP_FILL_MS);
@@ -19594,6 +19696,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_ggolf',   // ⛳グラウンドゴルフ（v616）
   'excalc_band_cfg',   // 🎛 帯の ボタン（出す ボタン・並び。v626）
   'excalc_sum_place',   // 合計の 置き場所（テンキーの上の行／セルのバー。v628）
+  'excalc_fill_how',   // 範囲選択と コピー（フィル）の しかた（角の つまみ／帯の ボタン／長押しして なぞる。v629）
 ];
 function settingsBundle(){
   const o={};
@@ -20531,6 +20634,7 @@ saveDirty=false; updateRecordTitle();   // 起動直後は「📄 自動保存�
 applyNpPlace(true);                        // テンキーの置き場所（v399）
 applyFbPlace();                            // セルのバーの置き場所（v619）
 syncSumPlace(); renderSumPlace();          // 合計の置き場所（v628）
+renderFillHow();                           // 範囲選択と コピー（フィル）の しかた（v629）
 snapDaily();                               // 毎日 はじめの 表を 控える（v624）
 try{ const fd=sessionStorage.getItem('excalc_full_done'); if(fd){ sessionStorage.removeItem('excalc_full_done'); const o=JSON.parse(fd)||{}; setTimeout(()=>toast('⬆ インポートしました（'+(o.when||'')+' の 状態）'+(o.skip ? '（写真など '+o.skip+'か所は 戻せませんでした）' : ''), 5600), 700); } }catch(_){}
 try{ const sd=sessionStorage.getItem('excalc_snap_done'); if(sd){ sessionStorage.removeItem('excalc_snap_done'); setTimeout(()=>toast('「'+sd+'」の 表に 戻しました（☰ → 🕘 前の状態に戻す で また 戻せます）', 4800), 600); } }catch(_){}
