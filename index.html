@@ -3771,6 +3771,16 @@ body.dark { --hpf-red:#ff8a80; --hpf-blue:#82b1ff; --hpf-green:#81c784; --hpf-gr
 .ka-what b { display: block; font-size: 11.5px; color: var(--text-light); }
 /* 数式の 中の セルに 色（v624） */
 #sheet td.cell.fref { box-shadow: inset 0 0 0 2px var(--fref), inset 0 0 0 999px color-mix(in srgb, var(--fref) 10%, transparent); }
+/* 🗄 全保存（v625） */
+.fbk-now { font-size: 13px; line-height: 1.55; color: var(--text-light); padding: 8px 10px; border-radius: 10px; background: var(--cell-hover); margin-bottom: 10px; }
+.fbk-go { width: 100%; min-height: 50px; border-radius: var(--r-btn); border: none; background: var(--acc); color: #fff; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+.fbk-last { font-size: 13px; line-height: 1.55; color: var(--text); padding: 8px 10px; border-radius: 10px; border: 1px solid var(--acc); margin-bottom: 10px; overflow-wrap: anywhere; }
+.fbk-warn { font-size: 12.5px; line-height: 1.55; color: var(--text); padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, #f5a623 16%, transparent); margin-bottom: 10px; }
+.fbk-how { font-size: 12.5px; line-height: 1.6; color: var(--text-light); }
+.fbk-how b { color: var(--text); }
+.fbk-how ol { margin: 4px 0 0; padding-left: 20px; }
+.fbk-cover { position: fixed; inset: 0; z-index: 100000; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.55); color: #fff; font-size: 18px; font-weight: bold; }
+.set-act.set-act-main { border-color: var(--acc); font-weight: bold; }
 /* 前の状態に戻す（v624） */
 .modal.snap-modal { width: 100%; max-width: 440px; max-height: 88vh; }
 .snap-note { font-size: 13px; line-height: 1.6; color: var(--text); margin-bottom: 10px; }
@@ -4190,6 +4200,7 @@ body.dark {
           <button class="more-item" onclick="document.getElementById('importXLSXInput').click();closeMoreMenu()" title="エクセル(.xlsx)ファイルを今の表に読み込みます（上書き）"><span>📥</span>Excel読込</button>
           <button class="more-item" onclick="document.getElementById('importCSVInput').click();closeMoreMenu()" title="CSVファイルを今の表に読み込みます（上書き）"><span>📥</span>CSV読込</button>
           <button class="more-item" id="moreSnapBtn" onclick="moreDo(openSnapHistory)" title="毎日 はじめに 開いた ときの 表の 控えから、前の 状態に 戻せます（スプレッドシートの 変更履歴）"><span>🕘</span>前の状態に戻す</button>
+          <button class="more-item" id="moreFullBtn" onclick="moreDo(openFullBackup)" title="設定・保存した表・道具の データ・写真まで ぜんぶを 1つの ファイルに。別の パソコン・スマホで 読み込むと 同じ 状態に 戻せます"><span>🗄</span>全保存・復元</button>
           <button class="more-item" onclick="moreDo(openQrShare)" title="アプリのアドレスを QR コードで出す（相手のスマホのカメラで開けます）"><span>📱</span>QRで共有</button>
         </div>
         <div class="more-sec">✏ 編集</div>
@@ -4541,8 +4552,11 @@ body.dark {
     <div class="set-sec">前の状態に戻す</div>
     <div class="set-note">毎日 <b>はじめに 開いた とき</b>の 表を、この 端末の 中に 自動で 控えて います（14日分）。まちがえて 消した ときは ここから 戻せます。</div>
     <button class="set-act" onclick="toggleSettings();openSnapHistory()" title="毎日の 控えから 前の 状態に 戻す・今の 状態を 控える">🕘 前の状態に戻す（毎日の控え）</button>
-    <div class="set-sec">機種変え・バックアップ</div>
-    <div class="set-note">保存した 表・当番表・野菜の 日記・<b>設定</b>を 1つの ファイルに 書き出せます。新しい 端末で 読み込めば そのまま 使えます。</div>
+    <div class="set-sec">全保存（まるごと 移す）</div>
+    <div class="set-note"><b>設定も 写真も ぜんぶ</b>（いまの表・シート・保存した表・道具の データ・前の状態の 控え）を 1つの ファイルに します。別の パソコン・スマホで 読み込むと、<b>まったく 同じ 状態</b>に 戻せます（読み込んだ 端末の 中身は 置きかわります）。</div>
+    <button class="set-act set-act-main" onclick="toggleSettings();openFullBackup()" title="全保存する・全保存から 元に戻す">🗄 全保存・復元</button>
+    <div class="set-sec">えらんで 書き出す・足し合わせる</div>
+    <div class="set-note">保存した 表・当番表・野菜の 日記・<b>設定</b>を 1つの ファイルに 書き出せます。読み込むと いまの 中身に <b>足し合わせ</b>ます（置きかえません）。</div>
     <button class="set-act" onclick="toggleSettings();exportSaves()" title="保存データをファイルに書き出して他の端末へ移せます">⬇ 保存データを書き出す</button>
     <button class="set-act" onclick="toggleSettings();document.getElementById('importSavesInput').click()" title="書き出したファイルから保存データを読み込みます">⬆ 書き出したファイルを読み込む</button>
     <div class="set-sec">この端末の 空き</div>

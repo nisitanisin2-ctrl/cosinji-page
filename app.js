@@ -16648,6 +16648,7 @@ function setFindIndex(){
   out.push({ where:'☰', label:'📱 アプリを共有（QRコード）', text:'QR QRコード 共有 アドレス URL 教える 送る 広める', run:()=>openQrShare() });
   out.push({ where:'☰', label:'📤 書き出す・読み込む', text:'書き出す 読み込む PDF CSV Excel エクセル バックアップ',
              run:()=>moreMenuAt('moreAccOut') });
+  out.push({ where:'☰ › 📁 ファイル', label:'🗄 全保存・復元（設定も 写真も ぜんぶ）', text:'全保存 まるごと 全部 バックアップ 復元 元に戻す 引っ越し 機種変更 機種変え パソコン 移す 移行', run:()=>openFullBackup() });
   out.push({ where:'☰ › 📁 ファイル', label:'🖼 表を画像で送る', text:'画像 写真 スクショ LINE ライン 送る 共有', run:()=>shareSheetImage() });
   out.push({ where:'☰ › 👁 表示', label:'📌 枠の固定', text:'固定 枠の固定 ウィンドウ枠 見出し 動かない', run:()=>moreMenuAt('moreFzBtn') });
   out.push({ where:'☰ › 👁 表示', label:'👁 隠した行・列を出す', text:'隠す 非表示 再表示 出す', run:()=>moreMenuAt('moreShowHid') });
@@ -16729,7 +16730,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v624';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v625';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -19742,6 +19743,281 @@ async function exportSaves() {
   renderSaveStateBanner();
 }
 
+/* ══ 🗄 全保存（v625）══════════════════════════════════════════════════
+   この 端末の 中身を ぜんぶ（いまの表・シート・保存した表・設定・道具の データ・写真・前の状態の 控え）を
+   1つの ファイルに する。別の パソコン・スマホで 読み込むと、まったく 同じ 状態に 戻る。
+   ・localStorage は 名前を えらばず 全部、IndexedDB（写真・控え）は 入れ物ごと 全部（写真は 文字に して）入れる
+   ・読み込むと いまの 中身は ファイルの 中身に 置きかわる（足し合わせる のは 前からの「保存データを書き出す」）
+   ・パソコンの フォルダの 場所（業務手帳の 保存先）は その 端末 だけの ものなので 入れない */
+const FULL_TYPE='hyodentaku-full';
+const FULL_IDB_KNOWN=['excalc_snaps','excalc_annai','excalc_shimai','excalc_meishi','excalc_renraku','excalc_keijiban','excalc_mikurabe','excalc_sentaku','excalc_photomemo','memo-files','saien-note'];
+const FULL_IDB_SKIP=new Set(['excalc_techo_fs']);
+const FULL_TAG='$hyo';
+const FULL_TA={Uint8Array, Int8Array, Uint8ClampedArray, Uint16Array, Int16Array, Uint32Array, Int32Array, Float32Array, Float64Array};
+function fullB64(u8){ let s=''; for(let i=0;i<u8.length;i+=0x8000) s+=String.fromCharCode.apply(null, u8.subarray(i, i+0x8000)); return btoa(s); }
+function fullUnB64(b){ const s=atob(String(b||'')), u=new Uint8Array(s.length); for(let i=0;i<s.length;i++) u[i]=s.charCodeAt(i); return u; }
+function fullBlobBytes(b){
+  if(b.arrayBuffer) return b.arrayBuffer().then(x=>new Uint8Array(x));
+  return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(new Uint8Array(fr.result)); fr.onerror=()=>rej(fr.error); fr.readAsArrayBuffer(b); });
+}
+/* 入れ物の 中身を JSON に できる 形へ（写真＝Blob は 文字に、日付・バイト列は 印を 付けて） */
+async function fullEnc(v){
+  if(v==null || typeof v!=='object') return (typeof v==='number' && !isFinite(v)) ? {[FULL_TAG]:'num', d:String(v)} : v;
+  if(typeof Blob!=='undefined' && v instanceof Blob){
+    const o={[FULL_TAG]:'blob', m:v.type||'', d:fullB64(await fullBlobBytes(v))};
+    if(typeof File!=='undefined' && v instanceof File){ o.f=v.name; o.lm=v.lastModified; }
+    return o;
+  }
+  if(v instanceof Date) return {[FULL_TAG]:'date', d:v.getTime()};
+  if(v instanceof ArrayBuffer) return {[FULL_TAG]:'ab', d:fullB64(new Uint8Array(v))};
+  if(ArrayBuffer.isView(v)) return {[FULL_TAG]:'ta', c:v.constructor.name, d:fullB64(new Uint8Array(v.buffer, v.byteOffset, v.byteLength))};
+  if(v instanceof Map){ const a=[]; for(const [k,x] of v) a.push([await fullEnc(k), await fullEnc(x)]); return {[FULL_TAG]:'map', d:a}; }
+  if(v instanceof Set){ const a=[]; for(const x of v) a.push(await fullEnc(x)); return {[FULL_TAG]:'set', d:a}; }
+  if(Array.isArray(v)){ const a=new Array(v.length); for(let i=0;i<v.length;i++) a[i]=await fullEnc(v[i]); return a; }
+  const p=Object.getPrototypeOf(v);
+  if(p!==Object.prototype && p!==null) throw new Error('この 端末 だけの もの');   // フォルダの 場所 など
+  const o={}; for(const k of Object.keys(v)) o[k]=await fullEnc(v[k]); return o;
+}
+function fullDec(v){
+  if(v==null || typeof v!=='object') return v;
+  if(Array.isArray(v)) return v.map(fullDec);
+  const t=v[FULL_TAG];
+  if(typeof t==='string'){
+    if(t==='blob'){ const u=fullUnB64(v.d); return (v.f!=null && typeof File==='function') ? new File([u], v.f, {type:v.m||'', lastModified:+v.lm||Date.now()}) : new Blob([u], {type:v.m||''}); }
+    if(t==='date') return new Date(v.d);
+    if(t==='ab') return fullUnB64(v.d).buffer;
+    if(t==='ta'){ const C=FULL_TA[v.c]||Uint8Array, u=fullUnB64(v.d); return new C(u.buffer, 0, Math.floor(u.byteLength/(C.BYTES_PER_ELEMENT||1))); }
+    if(t==='map') return new Map((v.d||[]).map(([k,x])=>[fullDec(k), fullDec(x)]));
+    if(t==='set') return new Set((v.d||[]).map(fullDec));
+    if(t==='num') return Number(v.d);
+  }
+  const o={}; for(const k of Object.keys(v)) o[k]=fullDec(v[k]); return o;
+}
+/* IndexedDB を 開く。ver なし＝ある ものだけ（無い 入れ物は 作らない）。schema が あれば 足りない 棚を 作る。
+   ほかで 開いた ままで 待たされる ときは 5秒で あきらめる */
+function fullIdbOpen(name, ver, schema){
+  return new Promise(res=>{
+    let done=false; const fin=x=>{ if(done){ if(x) try{ x.close(); }catch(_){} return; } done=true; res(x); };
+    let r; try{ r=ver ? indexedDB.open(name, ver) : indexedDB.open(name); }catch(_){ fin(null); return; }
+    r.onupgradeneeded=()=>{
+      if(!schema){ try{ r.transaction.abort(); }catch(_){} return; }
+      const db=r.result;
+      schema.forEach(s=>{
+        let st;
+        if(db.objectStoreNames.contains(s.name)) st=r.transaction.objectStore(s.name);
+        else { const op={}; if(s.keyPath!=null) op.keyPath=s.keyPath; if(s.autoIncrement) op.autoIncrement=true; st=db.createObjectStore(s.name, op); }
+        (s.indexes||[]).forEach(ix=>{ try{ if(!st.indexNames.contains(ix.name)) st.createIndex(ix.name, ix.keyPath, {unique:!!ix.unique, multiEntry:!!ix.multiEntry}); }catch(_){} });
+      });
+    };
+    r.onsuccess=()=>fin(r.result);
+    r.onerror=e=>{ try{ e.preventDefault(); }catch(_){} fin(null); };
+    setTimeout(()=>fin(null), 5000);
+  });
+}
+async function fullIdbNames(){
+  const set=new Set();
+  try{ if(indexedDB.databases) (await indexedDB.databases()).forEach(d=>{ if(d && d.name) set.add(d.name); }); }catch(_){}
+  FULL_IDB_KNOWN.forEach(n=>set.add(n));
+  FULL_IDB_SKIP.forEach(n=>set.delete(n));
+  return [...set];
+}
+function fullTx(db, sn, mode, fn){
+  return new Promise((res,rej)=>{
+    let tx; try{ tx=db.transaction(sn, mode); }catch(e){ rej(e); return; }
+    const out=fn(tx.objectStore(sn));
+    tx.oncomplete=()=>res(out); tx.onerror=()=>rej(tx.error); tx.onabort=()=>rej(tx.error);
+  });
+}
+async function fullIdbDump(name, st){
+  const db=await fullIdbOpen(name); if(!db) return null;
+  const out={name, version:db.version, stores:[]};
+  try{
+    for(const sn of [...db.objectStoreNames]){
+      const raw=await fullTx(db, sn, 'readonly', s=>({
+        info:{name:sn, keyPath:s.keyPath, autoIncrement:!!s.autoIncrement,
+              indexes:[...s.indexNames].map(n=>{ const ix=s.index(n); return {name:n, keyPath:ix.keyPath, unique:!!ix.unique, multiEntry:!!ix.multiEntry}; })},
+        k:s.getAllKeys(), v:s.getAll()}));
+      const keys=raw.k.result||[], vals=raw.v.result||[], recs=[];
+      for(let i=0;i<vals.length;i++){
+        try{ recs.push([raw.info.keyPath==null ? await fullEnc(keys[i]) : null, await fullEnc(vals[i])]); st.recs++; }
+        catch(_){ st.skip++; }
+      }
+      out.stores.push(Object.assign(raw.info, {recs}));
+    }
+  } finally { try{ db.close(); }catch(_){} }
+  return out;
+}
+/* いまの 中身を ぜんぶ 集める */
+async function fullCollect(){
+  const st={recs:0, skip:0}, ls={};
+  for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k!=null) ls[k]=localStorage.getItem(k); }
+  const idb=[];
+  for(const n of await fullIdbNames()){ try{ const d=await fullIdbDump(n, st); if(d) idb.push(d); }catch(_){ st.skip++; } }
+  return { app:'hyodenki', type:FULL_TYPE, format:1, ver:APP_VERSION, exportedAt:Date.now(), ls, idb, st };
+}
+function fullValid(p){ return !!(p && typeof p==='object' && p.type===FULL_TYPE && p.ls && typeof p.ls==='object' && !Array.isArray(p.ls) && Array.isArray(p.idb)); }
+/* 中身の あらまし（保存した表・シート・設定など・写真や控え） */
+function fullInfo(p){
+  const ls=p.ls||{};
+  let saves=0, sheets=0;
+  try{ const a=JSON.parse(ls[SAVE_KEY]||'[]'); if(Array.isArray(a)) saves=a.length; }catch(_){}
+  try{ const o=JSON.parse(ls[SHEETS_KEY]||'null'); if(o && o.modes) for(const m in o.modes){ const x=o.modes[m]; if(x && Array.isArray(x.sheets)) sheets+=x.sheets.length; } }catch(_){}
+  let recs=0; (p.idb||[]).forEach(d=>(d.stores||[]).forEach(s=>{ recs+=(s.recs||[]).length; }));
+  return { saves, sheets, keys:Object.keys(ls).length, recs };
+}
+function fullInfoText(i){ return '保存した表 '+i.saves+'件・シート '+i.sheets+'枚・設定や 道具の データ '+i.keys+'項目・写真や 控え '+i.recs+'件'; }
+function fullWhen(t){ try{ return new Date(t).toLocaleString('ja-JP', {year:'numeric', month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'}); }catch(_){ return ''; } }
+
+/* ⬇ 全保存する */
+async function fullExport(){
+  if(typeof saveSheets==='function') try{ saveSheets(); }catch(_){}
+  toast('全保存の ファイルを 作っています…');
+  let p;
+  try{ p=await fullCollect(); }catch(e){ console.error(e); alert('全保存の ファイルを 作れませんでした'); return null; }
+  const st=p.st; delete p.st;
+  p.ls[BACKUP_KEY]=String(Date.now());   // 戻した 端末でも「ファイルに 書き出した」扱い（⚠ を 出さない）
+  p.info=fullInfo(p);
+  const blob=new Blob([JSON.stringify(p)], {type:'application/json'});
+  const d=new Date(), z=n=>String(n).padStart(2,'0');
+  const name='hyodentaku_full_'+d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+'_'+z(d.getHours())+z(d.getMinutes())+'.json';
+  const url=URL.createObjectURL(blob);
+  const a=Object.assign(document.createElement('a'), {href:url, download:name});
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 5000);
+  if(typeof markBackedUp==='function') markBackedUp();
+  if(typeof renderSaveStateBanner==='function') try{ renderSaveStateBanner(); }catch(_){}
+  window.__fullLast={name, size:blob.size, info:p.info, skip:st.skip};
+  toast('全保存しました：'+name+'（'+stFmt(blob.size)+'）'+(st.skip ? '。この 端末 だけの もの '+st.skip+'件は 入れていません' : ''), 5600);
+  const now=document.getElementById('fbkLast');
+  if(now){ now.hidden=false; now.innerHTML='✅ 全保存しました：<b>'+escHtml(name)+'</b>（'+escHtml(stFmt(blob.size))+'）<br>この ファイルを USB・メール・LINE・クラウド などで 別の 端末に 移してください。'; }
+  return p;
+}
+
+/* ⬆ 全保存から 元に戻す（ファイルを 選んだ とき）。「保存データ」の ファイルなら 前からの 読み込みへ */
+async function fullImport(ev){
+  const inp=ev && ev.target, file=inp && inp.files && inp.files[0];
+  if(!file) return;
+  let p=null;
+  try{ p=JSON.parse(await file.text()); }catch(_){ if(inp) inp.value=''; alert('読み込めませんでした：ファイルを 読み取れません'); return; }
+  if(!fullValid(p)){
+    if(p && p.app==='hyodenki'){ toast('これは「保存データ」の ファイルです。いまの 中身に 足して 読み込みます'); importSaves({target:{files:[file], value:''}}); }
+    else alert('全保存の ファイルでは ありません（hyodentaku_full_… の ファイルを 選んでください）');
+    if(inp) inp.value='';
+    return;
+  }
+  if(inp) inp.value='';
+  await fullRestore(p);
+}
+async function fullRestore(p){
+  if(!fullValid(p)){ alert('全保存の ファイルでは ありません'); return false; }
+  const i=fullInfo(p), when=fullWhen(p.exportedAt);
+  if(!await appConfirm('全保存（'+when+'）から 元に戻しますか？\n\n'+fullInfoText(i)
+    +'\n\nこの 端末の いまの 中身（表・設定・道具の データ・写真）は、すべて ファイルの 中身に 置きかわります。いまの 中身も 残したい ときは「やめる」を 押して、先に この 端末でも 全保存を してください。',
+    '置きかえる', 'やめる')) return false;
+  const cover=document.createElement('div'); cover.className='fbk-cover'; cover.textContent='🗄 元に戻しています…'; document.body.appendChild(cover);
+  const r=await fullRestoreData(p);
+  if(!r.ok){ cover.remove(); alert(r.msg); return false; }
+  try{ sessionStorage.setItem('excalc_full_done', JSON.stringify({when, skip:r.skip, ver:p.ver||''})); }catch(_){}
+  if(window.FULL_NO_RELOAD){ cover.remove(); return true; }
+  location.reload();
+  return true;
+}
+/* ファイルの 中身を 書き込む。localStorage は 入りきらなければ 元に 戻す（何も 変えない） */
+async function fullRestoreData(p){
+  const old={};
+  for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k!=null) old[k]=localStorage.getItem(k); }
+  try{
+    localStorage.clear();
+    for(const k of Object.keys(p.ls)){ const v=p.ls[k]; if(typeof v==='string') localStorage.setItem(k, v); }
+  }catch(e){
+    try{ localStorage.clear(); for(const k in old) localStorage.setItem(k, old[k]); }catch(_){}
+    return {ok:false, msg:'この 端末の 空きが 足りず、元に戻せませんでした（いまの 中身は そのままです）。'};
+  }
+  // exe 版は 保存した表を フォルダにも 書く（起動の ときに フォルダの 方が 読まれるため）
+  if(window.electronAPI){ try{ await window.electronAPI.writeSaves(localStorage.getItem(SAVE_KEY)||'[]'); }catch(_){} }
+  if(!window.FULL_NO_RELOAD) fullFreeze();   // 開き直すまで、いまの 画面の 表で 上書き されない ように
+  let skip=0;
+  const inFile=new Set();
+  for(const d of p.idb){
+    if(!d || typeof d.name!=='string' || FULL_IDB_SKIP.has(d.name) || !Array.isArray(d.stores)) continue;
+    inFile.add(d.name);
+    try{ if(!await fullIdbLoad(d)) skip++; }catch(e){ console.error(e); skip++; }
+  }
+  for(const n of await fullIdbNames()){ if(!inFile.has(n)) try{ await fullIdbClear(n); }catch(_){} }   // もとの 端末に なかった 写真などは 空に
+  return {ok:true, skip};
+}
+function fullFreeze(){
+  try{
+    const P=Storage.prototype, set=P.setItem, rm=P.removeItem, cl=P.clear;
+    P.setItem=function(k,v){ if(this===window.localStorage) return; return set.call(this,k,v); };
+    P.removeItem=function(k){ if(this===window.localStorage) return; return rm.call(this,k); };
+    P.clear=function(){ if(this===window.localStorage) return; return cl.call(this); };
+  }catch(_){}
+}
+async function fullIdbLoad(d){
+  let db=await fullIdbOpen(d.name);
+  const want=Math.max(1, d.version|0);
+  if(!db) db=await fullIdbOpen(d.name, want, d.stores);   // まだ ない 入れ物は ファイルと 同じ 形で 作る
+  else if(want>db.version && d.stores.some(s=>!db.objectStoreNames.contains(s.name))){ db.close(); db=await fullIdbOpen(d.name, want, d.stores); }
+  if(!db) return false;
+  let ok=true;
+  try{
+    for(const s of d.stores){
+      if(!s || !db.objectStoreNames.contains(s.name)){ ok=false; continue; }
+      const recs=(s.recs||[]).map(([k,v])=>[k==null ? null : fullDec(k), fullDec(v)]);
+      await fullTx(db, s.name, 'readwrite', os=>{
+        os.clear();
+        recs.forEach(([k,v])=>{ if(os.keyPath!=null || k==null) os.put(v); else os.put(v, k); });
+      });
+    }
+    for(const sn of [...db.objectStoreNames]) if(!d.stores.some(s=>s && s.name===sn)) await fullTx(db, sn, 'readwrite', os=>{ os.clear(); });
+  } finally { try{ db.close(); }catch(_){} }
+  return ok;
+}
+async function fullIdbClear(name){
+  const db=await fullIdbOpen(name); if(!db) return;
+  try{ for(const sn of [...db.objectStoreNames]) await fullTx(db, sn, 'readwrite', os=>{ os.clear(); }); }
+  finally { try{ db.close(); }catch(_){} }
+}
+
+/* 🗄 全保存の 窓 */
+async function openFullBackup(){
+  let ov=document.getElementById('fullBkOverlay');
+  if(!ov){
+    ov=document.createElement('div'); ov.className='modal-overlay'; ov.id='fullBkOverlay';
+    ov.innerHTML='<div class="modal snap-modal fbk-modal"><div class="modal-header"><span>🗄 全保存（まるごと 保存・復元）</span><button class="modal-close" onclick="closeFullBackup()">✕</button></div>'
+      +'<div class="modal-body" id="fullBkBody">'
+      +'<div class="snap-note"><b>この 端末の 中身を ぜんぶ</b>（いまの表・シート・保存した表・<b>設定</b>〈色・テンキー・マイキー など〉・道具の データ・<b>写真</b>・前の状態の 控え）<b>1つの ファイル</b>に します。<br>別の パソコンや スマホで「全保存から 元に戻す」で 読み込むと、<b>まったく 同じ 状態</b>に なります。</div>'
+      +'<div class="fbk-now" id="fbkNow">いまの 中身を 数えています…</div>'
+      +'<button class="fbk-go" id="fbkExport" onclick="fullExport()">⬇ 全保存する（ファイルに 書き出す）</button>'
+      +'<div class="fbk-last" id="fbkLast" hidden></div>'
+      +'<button class="snap-take fbk-in" onclick="document.getElementById(\'fullImportInput\').click()">⬆ 全保存から 元に戻す（ファイルを 選ぶ）</button>'
+      +'<div class="fbk-warn">⚠ 元に戻すと、その 端末の いまの 中身は ファイルの 中身に <b>置きかわります</b>。ファイルには 入れた ものが そのまま 入るので、人には 渡さないで ください。</div>'
+      +'<div class="fbk-how"><b>別の パソコンへ 移すには</b><ol><li>ここで <b>⬇ 全保存する</b></li><li>できた ファイル（hyodentaku_full_….json）を USB・メール・LINE・クラウド などで 移す</li><li>移した 先で 表電卓を 開き、☰ → … ほかの機能 → 📁 ファイル → <b>🗄 全保存・復元</b> →「⬆ 全保存から 元に戻す」で その ファイルを 選ぶ</li></ol></div>'
+      +'<input type="file" id="fullImportInput" accept="application/json,.json" hidden onchange="fullImport(event)">'
+      +'</div></div>';
+    ov.addEventListener('click', e=>{ if(e.target===ov) closeFullBackup(); });
+    document.body.appendChild(ov);
+  }
+  const last=document.getElementById('fbkLast'); if(last) last.hidden=true;
+  openDlg('fullBkOverlay');
+  await fullRenderNow();
+}
+function closeFullBackup(){ closeDlg('fullBkOverlay'); }
+async function fullRenderNow(){
+  const el=document.getElementById('fbkNow'); if(!el) return;
+  if(typeof saveSheets==='function') try{ saveSheets(); }catch(_){}
+  const ls={}; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k!=null) ls[k]=localStorage.getItem(k); }
+  let recs=0;
+  for(const n of await fullIdbNames()){
+    const db=await fullIdbOpen(n); if(!db) continue;
+    try{ for(const sn of [...db.objectStoreNames]){ const c=await fullTx(db, sn, 'readonly', s=>s.count()); recs+=c.result||0; } }catch(_){}
+    finally{ try{ db.close(); }catch(_){} }
+  }
+  const i=fullInfo({ls, idb:[]}); i.recs=recs;
+  el.innerHTML='いまの 中身：'+escHtml(fullInfoText(i));
+}
+
 /* ファイルから保存データを読み込み（既存リストに追加。重複IDは新規採番） */
 function importSaves(ev) {
   const file=ev.target.files&&ev.target.files[0];
@@ -19752,6 +20028,7 @@ function importSaves(ev) {
     let parsed;
     try{ parsed=JSON.parse(reader.result); }
     catch(e){ alert('読み込みに失敗しました：ファイルを解析できません'); return; }
+    if(fullValid(parsed)){ fullRestore(parsed); return; }   // 🗄 全保存の ファイル（v625）は まるごと 置きかえ
     // 声の計算帳だけで書き出したファイル（type:'koe'）も受け取る（v425）
     const koeIn=parsed && (parsed.type==='koe' ? parsed.data : parsed.koe);
     // 業務手帳だけで書き出したファイル（type:'techo'）も受け取る（v433）
@@ -20071,6 +20348,7 @@ applyNpPlace(true);                        // テンキーの置き場所（v399
 applyFbPlace();                            // セルのバーの置き場所（v619）
 syncFbRec();                               // セルのバーに 表の名前（v624）
 snapDaily();                               // 毎日 はじめの 表を 控える（v624）
+try{ const fd=sessionStorage.getItem('excalc_full_done'); if(fd){ sessionStorage.removeItem('excalc_full_done'); const o=JSON.parse(fd)||{}; setTimeout(()=>toast('🗄 全保存（'+(o.when||'')+'）から 元に戻しました'+(o.skip ? '（写真など '+o.skip+'か所は 戻せませんでした）' : ''), 5600), 700); } }catch(_){}
 try{ const sd=sessionStorage.getItem('excalc_snap_done'); if(sd){ sessionStorage.removeItem('excalc_snap_done'); setTimeout(()=>toast('「'+sd+'」の 表に 戻しました（☰ → 🕘 前の状態に戻す で また 戻せます）', 4800), 600); } }catch(_){}
 if(localStorage.getItem('excalc_trigmode')==='rad') trigMode='rad';
 applyTrigModeBtn();
