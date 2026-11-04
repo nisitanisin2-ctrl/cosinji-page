@@ -1405,19 +1405,6 @@ function hideEditBar(){
   bandHdrKind='';
 }
 function endKbEdit(){ document.body.classList.remove('kb-edit'); hideEditBar(); }
-/* ══ 帯の中身を 選んだものに 合わせる（v624）══════════════════════════
-   Excel の「選んだものに合わせて変わるリボン」と同じ考え。
-   数字のセル → ¥・%・桁区切り・小数＋−／文字のセル → 太字・寄せ
-   範囲 → 合計・並べかえ・グラフ（結合は いつもの ⊞）／列名 → 幅・挿入・削除・しぼり込み・隠す・固定／行番号 → 挿入・削除・隠す・固定
-   ボタンは よく押す順に 左へ（押した数を 覚える。excalc_band_use） */
-const BAND_USE_KEY='excalc_band_use';
-let bandUse={}; try{ const o=JSON.parse(localStorage.getItem(BAND_USE_KEY)); if(o && typeof o==='object' && !Array.isArray(o)) bandUse=o; }catch(_){}
-let bandCtx='', bandHdrKind='', bandLive=[];
-function bandCount(id){
-  if(!id) return;
-  bandUse[id]=(bandUse[id]||0)+1;
-  try{ localStorage.setItem(BAND_USE_KEY, JSON.stringify(bandUse)); }catch(_){}
-}
 /* いま選んでいるものの 種類 */
 function bandCellKind(){
   if(typeof selRect!=='function') return '';
@@ -1435,60 +1422,116 @@ function bandCellKind(){
   if(!isNaN(raw.replace(/,/g,''))) return 'num';
   return unitEval(raw) ? 'num' : 'text';
 }
+/* ══ 帯の中身を 選んだものに 合わせる（v624）・並びと 出す ボタンは ⚙ 設定で 決める（v626）══
+   Excel の「選んだものに合わせて変わるリボン」と同じ考え。
+   帯の 種類：数字の セル／文字の セル／空の セル・そのほか／範囲（数字あり）／範囲（文字だけ）／列名／行番号。
+   どの 帯に どの ボタンを どの 順で 出すかは ⚙ 設定 → 📐 表の操作 →「🎛 帯の ボタン」で 決める（excalc_band_cfg）。
+   v624 の「よく押す順に 左へ」は、押すたびに 場所が 変わって 使いにくいので やめた（v626）。 */
+const BAND_CFG_KEY='excalc_band_cfg';
+try{ localStorage.removeItem('excalc_band_use'); }catch(_){}   // v624 の 押した数（もう 使わない）
+let bandCtx='', bandHdrKind='', bandLive=[];
+function bandCount(){}   // v624 の なごり（呼ばれても 何も しない）
+/* 帯の 種類（設定の 画面に 出す 順） */
+const BAND_KINDS=[
+  {k:'num',   n:'数字の セル',        ic:'🔢'},
+  {k:'text',  n:'文字の セル',        ic:'🔤'},
+  {k:'empty', n:'空の セル・そのほか', ic:'⬜'},
+  {k:'range', n:'範囲（数字あり）',    ic:'▦'},
+  {k:'rtext', n:'範囲（文字だけ）',    ic:'🔠'},
+  {k:'col',   n:'列名（A・B…）',      ic:'⇕'},
+  {k:'row',   n:'行番号（1・2…）',     ic:'⇔'},
+];
+/* 帯に いつも ある ボタン（index.html の #cellMenu の data-act） */
+const BAND_COMMON=['cut','copy','paste','merge','edit','clear','fmt','lock'];
+const BAND_FMT=['nf_yen','nf_pct','nf_comma','dec_up','dec_dn','bold','al_l','al_c','al_r'];
+const BAND_RANGE=['autosum','sort_up','sort_dn','chart'];
+/* 置ける ボタン（帯の 種類ごと） */
+function bandPool(k){
+  if(k==='col') return ['col_fit','col_insL','col_insR','col_del','col_flt','col_hide','col_show','col_frz'];
+  if(k==='row') return ['row_insA','row_insB','row_del','row_hide','row_show','row_frz'];
+  if(k==='range' || k==='rtext') return BAND_RANGE.concat(BAND_FMT, BAND_COMMON);
+  return BAND_FMT.concat(BAND_COMMON);
+}
+/* はじめの 並び（v624 と 同じ 見え方） */
+const BAND_DEF={
+  num:  ['nf_yen','nf_pct','nf_comma','dec_up','dec_dn'].concat(BAND_COMMON),
+  text: ['bold','al_l','al_c','al_r'].concat(BAND_COMMON),
+  empty: BAND_COMMON.slice(),
+  range:['autosum','sort_up','sort_dn','chart'].concat(BAND_COMMON),
+  rtext:['merge','bold','al_c','sort_up','cut','copy','paste','edit','clear','fmt','lock'],
+  col:  ['col_fit','col_insL','col_insR','col_del','col_flt','col_hide','col_show','col_frz'],
+  row:  ['row_insA','row_insB','row_del','row_hide','row_show','row_frz'],
+};
+function bandCfgAll(){ try{ const o=JSON.parse(localStorage.getItem(BAND_CFG_KEY)||'null'); return (o && typeof o==='object' && !Array.isArray(o)) ? o : {}; }catch(_){ return {}; } }
+function bandCfgFor(k){
+  const kk=k||'empty', a=bandCfgAll()[kk], pool=bandPool(kk);
+  if(Array.isArray(a)) return a.filter((id,i)=>typeof id==='string' && pool.includes(id) && a.indexOf(id)===i);
+  return BAND_DEF[kk] ? BAND_DEF[kk].slice() : [];
+}
+function bandCfgSet(k, list){
+  const o=bandCfgAll();
+  if(list) o[k]=list; else delete o[k];
+  try{ if(Object.keys(o).length) localStorage.setItem(BAND_CFG_KEY, JSON.stringify(o)); else localStorage.removeItem(BAND_CFG_KEY); }catch(_){}
+}
+/* ボタンの 名前・説明（設定の 画面でも 使う）。ctx＝いま 押せる 形（なければ 名前だけ） */
+const BAND_LABEL={
+  nf_yen:['¥ 円','お金の形にする（1200 → ¥1,200）。もう一度 押すと もどす'], nf_pct:['％','パーセントにする（0.25 → 25%）。もう一度 押すと もどす'],
+  nf_comma:['1,000','3けたごとに「,」を付ける（12000 → 12,000）'], dec_up:['.0＋','小数を 1けた ふやす'], dec_dn:['.0−','小数を 1けた へらす'],
+  bold:['𝐁 太字','太い字にする。もう一度 押すと もどす'], al_l:['⇤ 左','左に 寄せる'], al_c:['↔ 中央','まん中に 寄せる'], al_r:['⇥ 右','右に 寄せる'],
+  autosum:['Σ 合計','選んだ範囲の 下（横長なら 右）に、合計の式（=SUM）を 入れる'],
+  sort_up:['↑ 小さい順','選んだ範囲の 行を、いま選んでいる列の 小さい順（あいうえお順）に 並べかえる'], sort_dn:['↓ 大きい順','選んだ範囲の 行を、いま選んでいる列の 大きい順に 並べかえる'],
+  chart:['📊 グラフ','選んだ範囲を 棒・折れ線・円グラフに する'],
+  cut:['✂ 切り取り','切り取って、貼り付けた 先へ 動かす'], copy:['⧉ コピー','選んでいる セル（範囲）を 写す'], paste:['📥 貼り付け','写した ものを ここに 貼る'],
+  merge:['⊞ 結合','選んだ 範囲を 1つの セルに する（範囲を 選んだ ときだけ 出ます）'], edit:['✏ 編集','中身を 直す（キーボードが 出ます。打っている 間は 出ません）'],
+  clear:['🧹 消去','中身を 消す（書式・枠線は 残す）'], fmt:['🎨 書式','小数・日付・文字の大きさ・色などを 決める 窓'], lock:['🔒 保護','まちがって 消さない ように 守る'],
+  col_fit:['↔ 幅を中身に','この列の幅を、いちばん長い 中身に 合わせる（列の境目の ダブルタップと 同じ）'], col_insL:['⬅ 左に列','この列の 左に 列を 足す'], col_insR:['➡ 右に列','この列の 右に 列を 足す'],
+  col_del:['🗑 列を消す','この列を 消す（中身が あるときは 先に 聞きます）'], col_flt:['🔎 しぼり込み','この列で しぼり込む・並べかえる'],
+  col_hide:['🙈 隠す','この列を 見えなく する（消えは しません。「👁 隠した列を出す」で もどる）'], col_show:['👁 隠した列を出す','隠した列を ぜんぶ 出す（隠した 列が ある ときだけ 出ます）'],
+  col_frz:['📌 ここまで固定','この列から 左を 固定する（右へ 動かしても 見えたまま）'],
+  row_insA:['⬆ 上に行','この行の 上に 行を 足す'], row_insB:['⬇ 下に行','この行の 下に 行を 足す'], row_del:['🗑 行を消す','この行を 消す（中身が あるときは 先に 聞きます）'],
+  row_hide:['🙈 隠す','この行を 見えなく する（消えは しません。「👁 隠した行を出す」で もどる）'], row_show:['👁 隠した行を出す','隠した行を ぜんぶ 出す（隠した 行が ある ときだけ 出ます）'],
+  row_frz:['📌 ここまで固定','この行から 上を 固定する（下へ 動かしても 見えたまま）'],
+};
+/* いま 押せる 形に する（その場で 使えない ものは null） */
+function bandDef(id, kind){
+  const L=BAND_LABEL[id]; if(!L) return null;
+  const s=cellStyles[selR+','+selC]||{}, fz=fzGet(), it={id, t:L[0], tip:L[1]};
+  const rng=(kind==='range' || kind==='rtext');
+  switch(id){
+    case 'nf_yen':  case 'nf_pct': case 'nf_comma': { const v=id.slice(3); it.on=s.nf===v; it.keep=1; it.run=()=>bandNf(v); return it; }
+    case 'dec_up':  it.keep=1; it.run=()=>bandDec(1); return it;
+    case 'dec_dn':  it.keep=1; it.run=()=>bandDec(-1); return it;
+    case 'bold':    it.on=!!s.bold; it.keep=1; it.run=()=>kfmtToggle('bold'); return it;
+    case 'al_l': case 'al_c': case 'al_r': { const a={al_l:'left', al_c:'center', al_r:'right'}[id]; it.on=s.align===a; it.keep=1; it.run=()=>kfmtAlign(a); return it; }
+    case 'autosum': if(!rng) return null; it.run=bandAutoSum; return it;
+    case 'sort_up': case 'sort_dn': {
+      if(!rng) return null;
+      const g=selRect(); if(g.r2<=g.r1) return null;   // 1行だけの 範囲は 並べかえられない
+      if(kind==='rtext' && id==='sort_up'){ it.t='↑ あいうえお順'; it.tip='選んだ範囲の 行を、いま選んでいる列の あいうえお順に 並べかえる'; }
+      it.run=()=>bandSort(id==='sort_up' ? 1 : -1); return it;
+    }
+    case 'chart':   if(!rng) return null; it.run=()=>hpRun('chart'); return it;
+    case 'col_fit': it.run=()=>fitColWidth(hdrGroupFor('col', selC)); return it;
+    case 'col_insL': it.run=()=>insertColAt(selC); return it;
+    case 'col_insR': it.run=()=>insertColAt(selC+1); return it;
+    case 'col_del':  it.run=()=>bandDelLine('c', selC); return it;
+    case 'col_flt':  it.run=()=>hpRun('filter', selC); return it;
+    case 'col_hide': it.run=()=>hideLines('c', hdrGroupFor('col', selC)); return it;
+    case 'col_show': if(!hidList('c').length) return null; it.run=()=>showLines('c'); return it;
+    case 'col_frz':  if(fz.c===selC+1) it.t='📌 固定をやめる'; it.run=()=>freezeAt('c', selC); return it;
+    case 'row_insA': it.run=()=>insertRowAt(selRow); return it;
+    case 'row_insB': it.run=()=>insertRowAt(selRow+1); return it;
+    case 'row_del':  it.run=()=>bandDelLine('r', selRow); return it;
+    case 'row_hide': it.run=()=>hideLines('r', hdrGroupFor('row', selRow)); return it;
+    case 'row_show': if(!hidList('r').length) return null; it.run=()=>showLines('r'); return it;
+    case 'row_frz':  if(fz.r===selRow+1) it.t='📌 固定をやめる'; it.run=()=>freezeAt('r', selRow); return it;
+  }
+  return null;
+}
+/* いま 帯に 出す 自分の ボタン（いつもの ボタンは index.html に ある） */
 function bandItems(kind){
-  const s=cellStyles[selR+','+selC]||{}, fz=fzGet();
-  if(kind==='num') return [
-    {id:'nf_yen',   t:'¥ 円',  tip:'お金の形にする（1200 → ¥1,200）。もう一度 押すと もどす', on:s.nf==='yen', keep:1, run:()=>bandNf('yen')},
-    {id:'nf_pct',   t:'％',     tip:'パーセントにする（0.25 → 25%）。もう一度 押すと もどす', on:s.nf==='pct', keep:1, run:()=>bandNf('pct')},
-    {id:'nf_comma', t:'1,000', tip:'3けたごとに「,」を付ける（12000 → 12,000）', on:s.nf==='comma', keep:1, run:()=>bandNf('comma')},
-    {id:'dec_up',   t:'.0＋',  tip:'小数を 1けた ふやす', keep:1, run:()=>bandDec(1)},
-    {id:'dec_dn',   t:'.0−',  tip:'小数を 1けた へらす', keep:1, run:()=>bandDec(-1)},
-  ];
-  if(kind==='text') return [
-    {id:'bold', t:'𝐁 太字',  tip:'太い字にする。もう一度 押すと もどす', on:!!s.bold, keep:1, run:()=>kfmtToggle('bold')},
-    {id:'al_l', t:'⇤ 左',    tip:'左に 寄せる', on:s.align==='left',   keep:1, run:()=>kfmtAlign('left')},
-    {id:'al_c', t:'↔ 中央',  tip:'まん中に 寄せる', on:s.align==='center', keep:1, run:()=>kfmtAlign('center')},
-    {id:'al_r', t:'⇥ 右',    tip:'右に 寄せる', on:s.align==='right',  keep:1, run:()=>kfmtAlign('right')},
-  ];
-  if(kind==='rtext'){
-    const g=selRect(), multi=g.r2>g.r1;
-    return [
-      {id:'bold', t:'𝐁 太字',  tip:'選んだ範囲を 太い字にする。もう一度 押すと もどす', on:!!s.bold, keep:1, run:()=>kfmtToggle('bold')},
-      {id:'al_c', t:'↔ 中央',  tip:'選んだ範囲を まん中に 寄せる', on:s.align==='center', keep:1, run:()=>kfmtAlign('center')},
-      multi ? {id:'sort_up', t:'↑ あいうえお順', tip:'選んだ範囲の 行を、いま選んでいる列の あいうえお順に 並べかえる', run:()=>bandSort(1)} : null,
-    ].filter(Boolean);
-  }
-  if(kind==='range') return [
-    {id:'autosum', t:'Σ 合計',     tip:'選んだ範囲の 下（横長なら 右）に、合計の式（=SUM）を 入れる', run:bandAutoSum},
-    {id:'sort_up', t:'↑ 小さい順', tip:'選んだ範囲の 行を、いま選んでいる列の 小さい順（あいうえお順）に 並べかえる', run:()=>bandSort(1)},
-    {id:'sort_dn', t:'↓ 大きい順', tip:'選んだ範囲の 行を、いま選んでいる列の 大きい順に 並べかえる', run:()=>bandSort(-1)},
-    {id:'chart',   t:'📊 グラフ',   tip:'選んだ範囲を 棒・折れ線・円グラフに する', run:()=>hpRun('chart')},
-  ];
-  if(kind==='col'){
-    const c=selC, hc=hidList('c').length;
-    return [
-      {id:'col_fit',  t:'↔ 幅を中身に', tip:'この列の幅を、いちばん長い 中身に 合わせる（列の境目の ダブルタップと 同じ）', run:()=>fitColWidth(hdrGroupFor('col', c))},
-      {id:'col_insL', t:'⬅ 左に列',     tip:'この列の 左に 列を 足す', run:()=>insertColAt(c)},
-      {id:'col_insR', t:'➡ 右に列',     tip:'この列の 右に 列を 足す', run:()=>insertColAt(c+1)},
-      {id:'col_del',  t:'🗑 列を消す',   tip:'この列を 消す（中身が あるときは 先に 聞きます）', run:()=>bandDelLine('c', c)},
-      {id:'col_flt',  t:'🔎 しぼり込み', tip:'この列で しぼり込む・並べかえる', run:()=>hpRun('filter', c)},
-      {id:'col_hide', t:'🙈 隠す',       tip:'この列を 見えなく する（消えは しません。「👁 隠した列を出す」で もどる）', run:()=>hideLines('c', hdrGroupFor('col', c))},
-      hc ? {id:'col_show', t:'👁 隠した列を出す', tip:'隠した列を ぜんぶ 出す', run:()=>showLines('c')} : null,
-      {id:'col_frz',  t:fz.c===c+1 ? '📌 固定をやめる' : '📌 ここまで固定', tip:'この列から 左を 固定する（右へ 動かしても 見えたまま）', run:()=>freezeAt('c', c)},
-    ].filter(Boolean);
-  }
-  if(kind==='row'){
-    const r=selRow, hr=hidList('r').length;
-    return [
-      {id:'row_insA', t:'⬆ 上に行',   tip:'この行の 上に 行を 足す', run:()=>insertRowAt(r)},
-      {id:'row_insB', t:'⬇ 下に行',   tip:'この行の 下に 行を 足す', run:()=>insertRowAt(r+1)},
-      {id:'row_del',  t:'🗑 行を消す', tip:'この行を 消す（中身が あるときは 先に 聞きます）', run:()=>bandDelLine('r', r)},
-      {id:'row_hide', t:'🙈 隠す',     tip:'この行を 見えなく する（消えは しません。「👁 隠した行を出す」で もどる）', run:()=>hideLines('r', hdrGroupFor('row', r))},
-      hr ? {id:'row_show', t:'👁 隠した行を出す', tip:'隠した行を ぜんぶ 出す', run:()=>showLines('r')} : null,
-      {id:'row_frz',  t:fz.r===r+1 ? '📌 固定をやめる' : '📌 ここまで固定', tip:'この行から 上を 固定する（下へ 動かしても 見えたまま）', run:()=>freezeAt('r', r)},
-    ].filter(Boolean);
-  }
-  return [];
+  if(kind!=='col' && kind!=='row' && isStructMode()) return [];
+  return bandCfgFor(kind).filter(id=>!BAND_COMMON.includes(id)).map(id=>bandDef(id, kind)).filter(Boolean);
 }
 function bandRender(){
   const m=document.getElementById('cellMenu'), box=document.getElementById('cellMenuCtx'); if(!m || !box) return;
@@ -1499,24 +1542,78 @@ function bandRender(){
     +(it.on!=null ? ' aria-pressed="'+!!it.on+'"' : '')+' onclick="cellMenuCtx('+i+')">'+escHtml(it.t)+'</button>').join('');
   m.classList.toggle('ctx-hdr', !!bandHdrKind && bandLive.length>0);
   m.dataset.ctx=kind;
-  bandOrder(m);
+  bandOrder(m, kind);
 }
-/* よく押す順に 左へ（2回 以上 押したものから。同じ 数なら もとの 並び） */
-function bandOrder(m){
-  const bs=[...m.querySelectorAll('button[data-act]')], rt=m.dataset.ctx==='rtext';
-  bs.map((b,i)=>({b, i:(rt && b.dataset.act==='merge') ? -1 : i, n:(bandUse[b.dataset.act]||0)>=2 ? bandUse[b.dataset.act] : 0}))   // 文字の 範囲は ⊞ 結合を 先頭に
-    .sort((x,y)=>(y.n-x.n)||(x.i-y.i))
-    .forEach((x,k)=>{ x.b.style.order=String(k); });
+/* 決めた 並びに する（決めて いない いつもの ボタンは 隠す。並びは 押しても 変わらない） */
+function bandOrder(m, kind){
+  const cfg=bandCfgFor(kind);
+  m.querySelectorAll('button[data-act]').forEach(b=>{
+    const i=cfg.indexOf(b.dataset.act);
+    b.style.order=String(i<0 ? 99 : i);
+    if(BAND_COMMON.includes(b.dataset.act)) b.classList.toggle('cm-off', i<0);
+  });
 }
 function cellMenuCtx(i){
   const it=bandLive[i]; if(!it) return;
   const m=document.getElementById('cellMenu'), fromBar=m.classList.contains('edit-bar'), hk=bandHdrKind;
   if(fromBar){ const fi=document.getElementById('formulaInput'); if(document.activeElement===fi) fi.blur(); if(document.body.classList.contains('kb-edit')) endKbEdit(); }
-  bandCount(it.id);
   if(it.keep){ it.run(); showEditBar(true, hk); return; }   // 書式は 続けて 押せるよう 帯を 出したまま
   hideCellMenu(); hideEditBar();
   it.run();
 }
+
+/* ══ 🎛 帯の ボタンを 決める 窓（v626）══ */
+let bandCfgKind='num';
+function openBandCfg(k){
+  if(k) bandCfgKind=k;
+  let ov=document.getElementById('bandCfgOverlay');
+  if(!ov){
+    ov=document.createElement('div'); ov.className='modal-overlay'; ov.id='bandCfgOverlay';
+    ov.innerHTML='<div class="modal snap-modal bcf-modal"><div class="modal-header"><span>🎛 帯の ボタン</span><button class="modal-close" onclick="closeBandCfg()">✕</button></div>'
+      +'<div class="modal-body" id="bandCfgBody"></div></div>';
+    ov.addEventListener('click', e=>{ if(e.target===ov) closeBandCfg(); });
+    document.body.appendChild(ov);
+  }
+  openDlg('bandCfgOverlay');
+  bandCfgRender();
+}
+function closeBandCfg(){ closeDlg('bandCfgOverlay'); }
+function bandCfgRender(){
+  const body=document.getElementById('bandCfgBody'); if(!body) return;
+  const k=bandCfgKind, on=bandCfgFor(k), off=bandPool(k).filter(id=>!on.includes(id));
+  const name=id=>(BAND_LABEL[id]||[id])[0], tip=id=>(BAND_LABEL[id]||['',''])[1];
+  const row=(id,i,sel)=>'<div class="bcf-row'+(sel?'':' off')+'">'
+    +'<label class="bcf-chk"><input type="checkbox"'+(sel?' checked':'')+' onchange="bandCfgToggle(\''+id+'\',this.checked)"><b>'+escHtml(name(id))+'</b><small>'+escHtml(tip(id))+'</small></label>'
+    +(sel ? '<button class="bcf-mv" onclick="bandCfgMove(\''+id+'\',-1)"'+(i===0?' disabled':'')+' aria-label="左へ">▲</button>'
+          +'<button class="bcf-mv" onclick="bandCfgMove(\''+id+'\',1)"'+(i===on.length-1?' disabled':'')+' aria-label="右へ">▼</button>' : '')
+    +'</div>';
+  const custom=Array.isArray(bandCfgAll()[k]);
+  body.innerHTML='<div class="snap-note">セルを 押すと テンキーの 上に 出る <b>帯</b>の ボタンを、帯の 種類ごとに 決めます。<b>☑ で 出す／出さない</b>、<b>▲▼ で 並べる 順番</b>（▲＝左へ）。決めた 並びは 押しても 変わりません。</div>'
+    +'<div class="bcf-kinds">'+BAND_KINDS.map(x=>'<button class="bcf-kind'+(x.k===k?' on':'')+'" onclick="bandCfgKind=\''+x.k+'\';bandCfgRender()">'+x.ic+' '+escHtml(x.n)+'</button>').join('')+'</div>'
+    +'<div class="bcf-prev-t">見本（この 順で 左から 並びます）</div>'
+    +'<div class="bcf-prev">'+(on.length ? on.map(id=>'<span>'+escHtml(name(id))+'</span>').join('') : '<i>（ボタン なし）</i>')+'</div>'
+    +'<div class="bcf-list">'+on.map((id,i)=>row(id,i,true)).join('')+'</div>'
+    +(off.length ? '<div class="bcf-sec">出さない ボタン（☑ で 帯の 右はしに 足す）</div><div class="bcf-list">'+off.map((id,i)=>row(id,i,false)).join('')+'</div>' : '')
+    +'<div class="bcf-foot"><button class="bcf-reset" onclick="bandCfgReset()"'+(custom?'':' disabled')+'>この 帯を はじめの 並びに 戻す</button>'
+    +'<button class="bcf-reset" onclick="bandCfgReset(true)"'+(Object.keys(bandCfgAll()).length?'':' disabled')+'>ぜんぶ 戻す</button></div>';
+}
+function bandCfgToggle(id, onv){
+  const k=bandCfgKind, a=bandCfgFor(k).filter(x=>x!==id);
+  if(onv) a.push(id);
+  bandCfgSet(k, a); bandCfgRender(); bandCfgApplyNow();
+}
+function bandCfgMove(id, d){
+  const k=bandCfgKind, a=bandCfgFor(k), i=a.indexOf(id), j=i+d;
+  if(i<0 || j<0 || j>=a.length) return;
+  [a[i], a[j]]=[a[j], a[i]];
+  bandCfgSet(k, a); bandCfgRender(); bandCfgApplyNow();
+}
+async function bandCfgReset(all){
+  if(all){ if(!await appConfirm('ぜんぶの 帯を はじめの 並びに 戻しますか？', '戻す', 'やめる')) return; try{ localStorage.removeItem(BAND_CFG_KEY); }catch(_){} }
+  else bandCfgSet(bandCfgKind, null);
+  bandCfgRender(); bandCfgApplyNow();
+}
+function bandCfgApplyNow(){ const m=document.getElementById('cellMenu'); if(m && m.classList.contains('show')) try{ bandRender(); }catch(_){} }
 /* ── 数の見せ方（¥・%・桁区切り）。中身（data）は そのまま、画面と 印刷の 見た目だけ ── */
 function nfText(r, c, t){
   const s=cellStyles[r+','+c], nf=s && s.nf; if(!nf) return t;
@@ -1835,18 +1932,6 @@ function renderMenuRecent(){
   });
 }
 
-/* ══ いま開いている 表の名前を セルのバーにも（上のバーを たたんで いるとき。v624）══ */
-function syncFbRec(){
-  const rt=document.getElementById('recordTitle'), fb=document.getElementById('fbRec'); if(!rt || !fb) return;
-  fb.textContent=(rt.textContent||'').replace(/^📄\s*/,'');
-  fb.title='いま開いている表：'+(rt.textContent||'').replace(/^📄\s*/,'')+'（押すと 保存した 表の 一覧）';
-  fb.classList.toggle('dirty', rt.classList.contains('dirty'));
-}
-(function(){
-  const rt=document.getElementById('recordTitle'); if(!rt || typeof MutationObserver==='undefined') return;
-  new MutationObserver(syncFbRec).observe(rt, {childList:true, characterData:true, subtree:true, attributes:true, attributeFilter:['class']});
-})();
-
 /* ══ 数式の 中の セルに 色を 付ける（v624。Excel と 同じ）══════════════════════
    =A1+B2 を 打って いる あいだ、A1 と B2 の セルを それぞれ 色の 枠で 囲む。A1:B3 は 範囲ごと */
 const FREF_COLORS=['#1e88e5','#e53935','#8e24aa','#2e7d32','#ef6c00','#00897b'];
@@ -2124,7 +2209,6 @@ function hideCellMenu(){
 }
 function cellMenuAct(a){
   const fromBar=document.getElementById('cellMenu').classList.contains('edit-bar');
-  if(fromBar) bandCount(a);   // よく押す順に 並べる（v624）
   if(fromBar){ const fi=document.getElementById('formulaInput'); if(document.activeElement===fi) fi.blur(); endKbEdit(); }   // 打ちかけの中身を確定してから
   hideCellMenu();
   if(a==='fmt'){ openCellFmt(); }
@@ -16730,7 +16814,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v625';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v626';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -19451,6 +19535,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_mikurabe','excalc_gijiroku','excalc_sentaku',   // 📸見比べ・📝議事録・🧺洗濯表示（v605。写真は 書き出すときに 聞く）
   'excalc_kyoshi',   // 🧱供試体（v611。Google カレンダーの 設定も）
   'excalc_ggolf',   // ⛳グラウンドゴルフ（v616）
+  'excalc_band_cfg',   // 🎛 帯の ボタン（出す ボタン・並び。v626）
 ];
 function settingsBundle(){
   const o={};
@@ -20346,7 +20431,6 @@ a11yInit();          // 読み上げ・キーボード操作の下ごしらえ�
 saveDirty=false; updateRecordTitle();   // 起動直後は「📄 自動保存」（記録は開いていない）
 applyNpPlace(true);                        // テンキーの置き場所（v399）
 applyFbPlace();                            // セルのバーの置き場所（v619）
-syncFbRec();                               // セルのバーに 表の名前（v624）
 snapDaily();                               // 毎日 はじめの 表を 控える（v624）
 try{ const fd=sessionStorage.getItem('excalc_full_done'); if(fd){ sessionStorage.removeItem('excalc_full_done'); const o=JSON.parse(fd)||{}; setTimeout(()=>toast('🗄 全保存（'+(o.when||'')+'）から 元に戻しました'+(o.skip ? '（写真など '+o.skip+'か所は 戻せませんでした）' : ''), 5600), 700); } }catch(_){}
 try{ const sd=sessionStorage.getItem('excalc_snap_done'); if(sd){ sessionStorage.removeItem('excalc_snap_done'); setTimeout(()=>toast('「'+sd+'」の 表に 戻しました（☰ → 🕘 前の状態に戻す で また 戻せます）', 4800), 600); } }catch(_){}

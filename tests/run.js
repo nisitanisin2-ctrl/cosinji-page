@@ -19470,10 +19470,10 @@ async function runHyo624(browser) {
   await page.evaluate(() => deleteRowAt(3)); await w(300);
   await tap(4, 0); await w(500);
   check('  セルを 押すと 帯は 消える', await shown(), false);
-  // ── 3. よく押す順に 左へ ──
-  check('  2回 以上 押した ボタンは 左へ', await page.evaluate(() => { bandUse = { paste: 5, copy: 2 }; sel(1, 0); showEditBar(true); const vis = [...document.querySelectorAll('#cellMenu button[data-act]')].filter(b => b.offsetParent).sort((x, y) => +x.style.order - +y.style.order).map(b => b.dataset.act); hideEditBar(); return vis.slice(0, 3).join(','); }), 'paste,copy,bold');
-  check('  押した 数を 覚える', await page.evaluate(() => { bandUse = {}; localStorage.removeItem('excalc_band_use'); sel(1, 0); showEditBar(true); cellMenuAct('copy'); return JSON.parse(localStorage.getItem('excalc_band_use')).copy; }), 1);
-  await page.evaluate(() => { bandUse = {}; localStorage.removeItem('excalc_band_use'); hideEditBar(); });
+  // ── 3. よく押す順に 左へ → v626 で やめた（押しても 並びは 変わらない。並びは ⚙ 設定の 🎛 帯の ボタンで 決める） ──
+  check('  押しても 並びは 変わらない（v626）', await page.evaluate(() => { const ord = () => { sel(1, 0); showEditBar(true); const v = [...document.querySelectorAll('#cellMenu button[data-act]')].filter(b => b.offsetParent).sort((x, y) => +x.style.order - +y.style.order).map(b => b.dataset.act).join(','); hideEditBar(); return v; };
+    const a = ord(); for (let i = 0; i < 3; i++) { sel(1, 0); showEditBar(true); cellMenuAct('copy'); } return (a === ord()) + '/' + a.split(',').slice(0, 3).join(','); }), 'true/bold,al_l,al_c');
+  await page.evaluate(() => hideEditBar());
   // ── 17. 見出しの 固定 ──
   await page.evaluate(() => { setSheetSize(40, 8); sel(1, 1); freezePanes(); }); await w(300);
   check('  📌 枠の固定：選んだ セルの 上と 左（1行・A列）', await page.evaluate(() => JSON.stringify(cellStyles._fz)), '{"r":1,"c":1}');
@@ -19561,7 +19561,7 @@ async function runHyo624(browser) {
   // ── 25. 帯・メニューの 字は 濃く ──
   check('  帯の 字は 濃い 色・14px 以上', await page.evaluate(() => { sel(1, 0); showEditBar(true); const b = document.querySelector('#cellMenu [data-act=copy]'); const cs = getComputedStyle(b); const r = [cs.color === getComputedStyle(document.body).color || cs.color === 'rgb(34, 34, 34)' || cs.color === 'rgb(51, 51, 51)', parseFloat(cs.fontSize) >= 14].join('/'); hideEditBar(); return r; }), 'true/true');
   // ── 46. セルの バーに 表の 名前 ──
-  check('  上のバーを たたむと セルの バーに 表の 名前', await page.evaluate(() => { document.body.classList.add('tb-fold'); document.getElementById('recordTitle').textContent = '📄 見積書'; return new Promise(r => setTimeout(() => { const f = document.getElementById('fbRec'); r(getComputedStyle(f).display !== 'none' && f.textContent === '見積書'); document.body.classList.remove('tb-fold'); }, 50)); }), true);
+  check('  セルの バーには 表の 名前を 出さない（v626：入力欄が 狭く なるので ☰ の 中だけ）', await page.evaluate(() => !document.getElementById('fbRec') && !!document.getElementById('recordTitle')), true);
   // ── 35. 設定の タブ 5つ ──
   await page.evaluate(() => { toggleSettings(); setSettingsTab(2); }); await w(300);
   check('  設定の タブは 表の操作・見た目・テンキー・計算・保存とデータ', await page.evaluate(() => [...document.querySelectorAll('.settings-tab')].map(b => b.textContent.trim()).join('/')), '📐表の操作/🎨見た目/⌨テンキー/🧮計算/💾保存とデータ');
@@ -19720,6 +19720,79 @@ async function runFull625(browser) {
   check('  JSエラーが出ていない（別の 端末）', errs2.length, 0);
   if (errs2.length) console.log('    ', errs2);
   await A.close(); await B.close();
+}
+
+/* v626：🎛 帯の ボタンを ⚙ 設定で 決める（帯の 種類ごとに 出す ボタン・並び。押しても 並びは 変わらない）・セルの バーから 表の 名前を 外す */
+async function runBand626(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 表電卓 v626：🎛 帯の ボタン（出す ボタン・並びを 設定で） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const ctr = (r, c) => page.evaluate(([r, c]) => { const b = document.getElementById('c' + r + '_' + c).getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; }, [r, c]);
+  const tap = async (r, c) => { const q = await ctr(r, c); await page.mouse.click(q.x, q.y); };
+  const band = () => page.evaluate(() => { const m = document.getElementById('cellMenu'); return m.classList.contains('show') ? [...m.querySelectorAll('button[data-act]')].filter(b => b.offsetParent).sort((a, b) => +a.style.order - +b.style.order).map(b => b.dataset.act).join(',') : '(なし)'; });
+  const bandAt = async (r, c) => { await page.evaluate(() => hideEditBar()); await w(150); await page.evaluate(([r, c]) => { clearRangeSelection(); sel(r, c); showEditBar(true); }, [r, c]); await w(200); const b = await band(); await page.evaluate(() => hideEditBar()); return b; };
+  await page.evaluate(() => { window.appConfirm = async () => true; [['品名', '数', '金額'], ['りんご', '3', '1200'], ['みかん', '10', '500']].forEach((row, r) => row.forEach((v, c) => setCellVal(r, c, v))); recalcAll(); sel(1, 2); });
+
+  check('  セルの バーに 表の 名前は 出さない（入力欄を 広く）', await page.evaluate(() => { document.body.classList.add('tb-fold'); const r = !document.getElementById('fbRec') && !document.querySelector('.formula-bar .fb-rec'); document.body.classList.remove('tb-fold'); return r; }), true);
+  check('  はじめの 並び：数字の セル', await bandAt(1, 2), 'nf_yen,nf_pct,nf_comma,dec_up,dec_dn,cut,copy,paste,edit,clear,fmt,lock');
+  check('  はじめの 並び：文字の セル', await bandAt(1, 0), 'bold,al_l,al_c,al_r,cut,copy,paste,edit,clear,fmt,lock');
+  check('  はじめの 並び：空の セル', await bandAt(5, 1), 'cut,copy,paste,edit,clear,fmt,lock');
+  check('  押しても 並びは 変わらない（v624 の よく押す順は やめた）', await page.evaluate(() => { for (let i = 0; i < 5; i++) { sel(1, 2); showEditBar(true); cellMenuAct('paste'); } hideEditBar(); return localStorage.getItem('excalc_band_use') + '/' + localStorage.getItem('excalc_band_cfg'); }), 'null/null');
+  check('  　5回 貼り付けを 押した あとも 同じ 並び', await bandAt(1, 2), 'nf_yen,nf_pct,nf_comma,dec_up,dec_dn,cut,copy,paste,edit,clear,fmt,lock');
+
+  // ⚙ 設定 → 📐 表の操作 →「🎛 帯の ボタン」
+  await page.evaluate(() => { toggleSettings(); setSettingsTab(0); }); await w(300);
+  check('  設定の 表の操作に「🎛 帯の ボタン」', await page.evaluate(() => { const b = document.getElementById('setBandBtn'); return !!b && b.closest('.set-page').id + '/' + b.textContent.trim(); }), 'setPage0/🎛 帯の ボタン（出す ボタン・並び）');
+  await page.evaluate(() => document.getElementById('setBandBtn').scrollIntoView({ block: 'center' }));
+  await page.click('#setBandBtn'); await w(500);
+  check('  窓が 開く（帯の 種類 7つ・はじめは 数字の セル）', await page.evaluate(() => [isDlgOpen('bandCfgOverlay'), [...document.querySelectorAll('.bcf-kind')].map(b => b.textContent.replace(/^\S+\s/, '')).join('|'), document.querySelector('.bcf-kind.on').textContent.includes('数字の セル')].join('/')),
+    'true/数字の セル|文字の セル|空の セル・そのほか|範囲（数字あり）|範囲（文字だけ）|列名（A・B…）|行番号（1・2…）/true');
+  check('  見本に いまの 並び', await page.evaluate(() => [...document.querySelectorAll('.bcf-prev span')].map(e => e.textContent).join('|')), '¥ 円|％|1,000|.0＋|.0−|✂ 切り取り|⧉ コピー|📥 貼り付け|⊞ 結合|✏ 編集|🧹 消去|🎨 書式|🔒 保護');
+  // ¥ を 外す・コピーを 左はしへ（▲ を 6回）・太字を 足す
+  await page.evaluate(() => { const r = [...document.querySelectorAll('.bcf-row')].find(x => x.textContent.includes('¥ 円')); r.querySelector('input').click(); }); await w(150);
+  for (let i = 0; i < 6; i++) { await page.evaluate(() => { const r = [...document.querySelectorAll('.bcf-row:not(.off)')].find(x => x.querySelector('b').textContent === '⧉ コピー'); r.querySelectorAll('.bcf-mv')[0].click(); }); await w(60); }
+  await page.evaluate(() => { const r = [...document.querySelectorAll('.bcf-row.off')].find(x => x.querySelector('b').textContent === '𝐁 太字'); r.querySelector('input').click(); }); await w(150);
+  check('  ☑ で 出す／出さない・▲ で 左へ・足すと 右はし（見本も すぐ 変わる）', await page.evaluate(() => [...document.querySelectorAll('.bcf-prev span')].map(e => e.textContent).join('|')), '⧉ コピー|％|1,000|.0＋|.0−|✂ 切り取り|📥 貼り付け|⊞ 結合|✏ 編集|🧹 消去|🎨 書式|🔒 保護|𝐁 太字');
+  check('  　いちばん 左は ▲ が 押せない', await page.evaluate(() => document.querySelector('.bcf-row:not(.off) .bcf-mv').disabled), true);
+  check('  　出さない ボタンは 下に（¥ 円 も ここに）', await page.evaluate(() => [...document.querySelectorAll('.bcf-row.off b')].map(e => e.textContent).join('|')), '¥ 円|⇤ 左|↔ 中央|⇥ 右');
+  // 列名の 帯：列を消す を 外す
+  await page.evaluate(() => { [...document.querySelectorAll('.bcf-kind')].find(b => b.textContent.includes('列名')).click(); }); await w(150);
+  check('  列名の 帯は 列の ボタンだけ', await page.evaluate(() => [...document.querySelectorAll('.bcf-row b')].map(e => e.textContent).join('|')), '↔ 幅を中身に|⬅ 左に列|➡ 右に列|🗑 列を消す|🔎 しぼり込み|🙈 隠す|👁 隠した列を出す|📌 ここまで固定');
+  await page.evaluate(() => { const r = [...document.querySelectorAll('.bcf-row')].find(x => x.querySelector('b').textContent === '🗑 列を消す'); r.querySelector('input').click(); }); await w(150);
+  // 空の セルで 保護を 外す
+  await page.evaluate(() => { [...document.querySelectorAll('.bcf-kind')].find(b => b.textContent.includes('空の セル')).click(); }); await w(150);
+  await page.evaluate(() => { const r = [...document.querySelectorAll('.bcf-row')].find(x => x.querySelector('b').textContent === '🔒 保護'); r.querySelector('input').click(); }); await w(150);
+  check('  決めた ものは 覚える（excalc_band_cfg）', await page.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem('excalc_band_cfg')))),
+    JSON.stringify({ num: ['copy', 'nf_pct', 'nf_comma', 'dec_up', 'dec_dn', 'cut', 'paste', 'merge', 'edit', 'clear', 'fmt', 'lock', 'bold'], col: ['col_fit', 'col_insL', 'col_insR', 'col_flt', 'col_hide', 'col_show', 'col_frz'], empty: ['cut', 'copy', 'paste', 'merge', 'edit', 'clear', 'fmt'] }));
+  await page.evaluate(() => closeBandCfg()); await w(300);
+  check('  帯に 効く：数字の セル（コピーが 左はし・¥ なし・太字が 右はし）', await bandAt(1, 2), 'copy,nf_pct,nf_comma,dec_up,dec_dn,cut,paste,edit,clear,fmt,lock,bold');
+  check('  　文字の セルは そのまま', await bandAt(1, 0), 'bold,al_l,al_c,al_r,cut,copy,paste,edit,clear,fmt,lock');
+  check('  　空の セルは 保護なし', await bandAt(5, 1), 'cut,copy,paste,edit,clear,fmt');
+  await page.tap('#ch1'); await w(500);
+  check('  　列名の 帯は 列を消す なし', await band(), 'col_fit,col_insL,col_insR,col_flt,col_hide,col_frz');
+  await page.evaluate(() => hideEditBar()); await w(200);
+  // 実際に タップして 出しても 同じ
+  await tap(1, 2); await w(500); await tap(1, 2); await w(600);
+  check('  タップで 出した 帯も 決めた 並び', await band(), 'copy,nf_pct,nf_comma,dec_up,dec_dn,cut,paste,edit,clear,fmt,lock,bold');
+  await page.evaluate(() => hideEditBar()); await w(200);
+  // 開き直しても 同じ
+  await page.reload(); await w(1000);
+  check('  開き直しても 同じ', await bandAt(1, 2), 'copy,nf_pct,nf_comma,dec_up,dec_dn,cut,paste,edit,clear,fmt,lock,bold');
+  check('  設定の 書き出し（機種変え）に 帯の 並びも 入る', await page.evaluate(() => typeof settingsBundle().excalc_band_cfg === 'string'), true);
+  check('  こわれた 中身・知らない ボタン・重なりは 捨てる', await page.evaluate(() => { const o = localStorage.getItem('excalc_band_cfg'); localStorage.setItem('excalc_band_cfg', JSON.stringify({ num: ['zzz', 'copy', 'copy', 'col_del', 'nf_yen'], text: 'abc' })); const r = bandCfgFor('num').join(',') + '|' + bandCfgFor('text').slice(0, 2).join(','); localStorage.setItem('excalc_band_cfg', o); return r; }), 'copy,nf_yen|bold,al_l');
+  // 範囲（文字だけ）は ⊞ 結合が 先頭のまま
+  check('  範囲（文字だけ）の はじめの 並びは ⊞ 結合が 先頭', await page.evaluate(() => { clearRangeSelection(); sel(0, 0); rangeR1 = 0; rangeC1 = 0; extendRange(0, 2); showEditBar(true); const v = [...document.querySelectorAll('#cellMenu button[data-act]')].filter(b => b.offsetParent).sort((a, b) => +a.style.order - +b.style.order).map(b => b.dataset.act).join(','); hideEditBar(); clearRangeSelection(); return v; }), 'merge,bold,al_c,cut,copy,paste,edit,clear,fmt,lock');
+  // もどす
+  await page.evaluate(() => openBandCfg('num')); await w(300);
+  await page.evaluate(() => { [...document.querySelectorAll('.bcf-reset')][0].click(); }); await w(200);
+  check('  「この 帯を はじめの 並びに 戻す」', await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('excalc_band_cfg'))).join(',') + '/' + bandCfgFor('num').slice(0, 2).join(',')), 'col,empty/nf_yen,nf_pct');
+  await page.evaluate(() => { window.appConfirm = async () => true; [...document.querySelectorAll('.bcf-reset')][1].click(); }); await w(300);   // 開き直したので 確かめの 窓を また 自動で「はい」に
+  check('  「ぜんぶ 戻す」', await page.evaluate(() => localStorage.getItem('excalc_band_cfg') + '/' + document.querySelectorAll('.bcf-reset:disabled').length), 'null/2');
+  await page.evaluate(() => closeBandCfg());
+  check('  設定の さがすで 見つかる（帯・並び）', await page.evaluate(() => { toggleSettings(); setFind('帯'); const t = document.getElementById('setFindRes').textContent; setFind(''); toggleSettings(); return t.includes('帯の ボタン'); }), true);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
 }
 
 async function runFmtPage(browser) {
@@ -20654,6 +20727,7 @@ const SUITES = [
   [['cellxl', 'fmtpage', 'hyo619', 'v619'], b => runHyo619(b)],
   [['cellxl', 'fmtpage', 'hyo624', 'v624'], b => runHyo624(b)],
   [['full', 'v625'], b => runFull625(b)],
+  [['band', 'v626'], b => runBand626(b)],
   [['clip'], b => runClip(b)],
   [['koe'], b => runKoe(b)],
   [['koe', 'koelisten'], b => runKoeListen(b)],
