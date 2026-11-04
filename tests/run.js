@@ -19060,7 +19060,7 @@ async function runCellXl(browser) {
   check('  スマホではテンキーを隠す（キーボードがその場所に出る）', await page.evaluate(() => document.body.classList.contains('kb-edit') === isTouchUI()
     && (!isTouchUI() || getComputedStyle(document.getElementById('numpadSection')).display === 'none')), true);
   check('  帯には切り取り・コピー・貼り付け（編集は出さない）', await page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent).map(b => b.textContent.trim().split(' ').pop()).join('/')),
-    '切り取り/コピー/貼り付け/消去/書式/行を挿入/列を挿入/保護');
+    '切り取り/コピー/貼り付け/消去/書式/保護');   // 行・列の挿入は 帯から 外した（v621。行番号・列名の 長押しで）
   await page.keyboard.type('たまご');
   await page.evaluate(() => cellMenuAct('copy')); await page.waitForTimeout(450);
   check('  帯のボタンを押すと、打ちかけの中身を確定してから働く', await page.evaluate(() => data[3][1] + '|' + clipData.val), 'たまご|たまご');
@@ -19168,7 +19168,7 @@ async function runCellXl(browser) {
   check('  貼り付けると移る', await page.evaluate(() => data[6][2] + '|' + data[6][0]), 'うつす|');
   check('  印は消える', await page.evaluate(() => document.querySelectorAll('.clip-src, .copy-src').length), 0);
   // 行を挿入
-  await page.evaluate(() => { sel(0, 0); cellMenuAct('insrow'); }); await page.waitForTimeout(200);
+  await page.evaluate(() => { sel(0, 0); insertRowAt(selR); }); await page.waitForTimeout(200);
   check('  行を挿入できる', await page.evaluate(() => data[0][0] + '|' + data[1][0]), '|12005');
   // 以前の表電卓
   await page.evaluate(() => setCellGesture('old')); await page.waitForTimeout(100);
@@ -19275,7 +19275,7 @@ async function runHyo619(browser) {
   await page.evaluate(() => hideEditBar());
   await tap(0, 1); await page.waitForTimeout(400);
   check('  結合は 帯の はじめの 方（横に すべらせなくても 見える）', await page.evaluate(() => document.getElementById('cellMenuMerge').getBoundingClientRect().right <= innerWidth), true);
-  check('  範囲の 中を タップしても 帯に 結合', await shown(), '✂ 切り取り/⧉ コピー/📥 貼り付け/⊞ 結合/✏ 編集/🧹 消去/🎨 書式/➕ 行を挿入/➕ 列を挿入/🔒 保護');
+  check('  範囲の 中を タップしても 帯に 結合', await shown(), '✂ 切り取り/⧉ コピー/📥 貼り付け/⊞ 結合/✏ 編集/🧹 消去/🎨 書式/🔒 保護');
   await page.click('#cellMenuMerge'); await page.waitForTimeout(400);
   check('  押すと 結合（3列）', await page.evaluate(() => JSON.stringify(mergeAt(0, 0)) + '/' + cellStyles['0,0'].align), '{"rs":1,"cs":3}/center');
   check('  帯は 消える', await page.evaluate(() => document.getElementById('cellMenu').classList.contains('show')), false);
