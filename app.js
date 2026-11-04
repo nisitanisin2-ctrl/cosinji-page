@@ -3903,7 +3903,7 @@ async function stInitPersist(){
 async function stPersistNow(){
   const ok=await stAskPersist();
   if(ok===true) toast('この端末では消えないようになりました');
-  else if(ok===false) toast('この端末では設定できませんでした。ときどき⬇書き出しをしてください');
+  else if(ok===false) toast('この端末では設定できませんでした。ときどき⬇エクスポートをしてください');
   else toast('この端末では確かめられませんでした');
   renderStorage();
 }
@@ -3928,7 +3928,7 @@ function maybeAskBackup(){
     sub:(d===null?'まだ一度もファイルに書き出していません。':'最後の書き出しから'+d+'日たちました。')
         +'端末のデータを消すと記録も消えます。',
     yes:'書き出す', no:'あとで',
-    onYes:()=>{ bkSnooze(); try{ exportSaves(); }catch(_){ toast('書き出せませんでした'); } },
+    onYes:()=>{ bkSnooze(); try{ fullExport(); }catch(_){ toast('書き出せませんでした'); } },   // v627：設定も 写真も ぜんぶ（エクスポート）
     onNo:()=>{ bkSnooze(); },
   });
   return true;
@@ -16732,7 +16732,7 @@ function setFindIndex(){
   out.push({ where:'☰', label:'📱 アプリを共有（QRコード）', text:'QR QRコード 共有 アドレス URL 教える 送る 広める', run:()=>openQrShare() });
   out.push({ where:'☰', label:'📤 書き出す・読み込む', text:'書き出す 読み込む PDF CSV Excel エクセル バックアップ',
              run:()=>moreMenuAt('moreAccOut') });
-  out.push({ where:'☰ › 📁 ファイル', label:'🗄 全保存・復元（設定も 写真も ぜんぶ）', text:'全保存 まるごと 全部 バックアップ 復元 元に戻す 引っ越し 機種変更 機種変え パソコン 移す 移行', run:()=>openFullBackup() });
+  out.push({ where:'☰ › 📁 ファイル', label:'🗄 エクスポート・インポート（設定も 写真も ぜんぶ）', text:'エクスポート インポート 全保存 まるごと 全部 バックアップ 復元 元に戻す 書き出し 読み込み 引っ越し 機種変更 機種変え パソコン 移す 移行 同じ 状態', run:()=>openFullBackup() });
   out.push({ where:'☰ › 📁 ファイル', label:'🖼 表を画像で送る', text:'画像 写真 スクショ LINE ライン 送る 共有', run:()=>shareSheetImage() });
   out.push({ where:'☰ › 👁 表示', label:'📌 枠の固定', text:'固定 枠の固定 ウィンドウ枠 見出し 動かない', run:()=>moreMenuAt('moreFzBtn') });
   out.push({ where:'☰ › 👁 表示', label:'👁 隠した行・列を出す', text:'隠す 非表示 再表示 出す', run:()=>moreMenuAt('moreShowHid') });
@@ -16814,7 +16814,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v626';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v627';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -18763,7 +18763,7 @@ function persistSaves(saves){
 let storageWarned=false;
 function warnStorageFull(what){
   const msg=what+'。端末の空き（ブラウザの保存領域）がいっぱいのようです。\n\n'
-    +'リストの「⬇ 書き出し」でファイルに残してから、「📦 空き具合」で大きいものを片づけてください。';
+    +'リストの「⬇ エクスポート」でファイルに残してから、「📦 空き具合」で大きいものを片づけてください。';
   if(!storageWarned){ storageWarned=true; try{ alert(msg); }catch(_){} }
   else if(typeof toast==='function') toast(what+'（端末の空きがいっぱいです）', 4000);
 }
@@ -19013,8 +19013,8 @@ function renderSaveStateBanner(){
   else if(saves.length) rows.push(['·','いまの表は<b>まだ記録に保存していません</b>。☰ の <b>💾保存</b>で名前を付けられます','']);
   else                rows.push(['·','記録はまだ1件もありません。☰ の <b>💾保存</b>で名前を付けて残せます','']);
   if(saves.length){
-    if(d===null)      rows.push(['⚠','<b>まだ一度もファイルに書き出していません</b>。ブラウザのデータを消すと記録も消えます。下の<b>⬇書き出し</b>をおすすめします','ss-warn']);
-    else if(d>=BACKUP_REMIND_DAYS) rows.push(['⚠','最後の書き出しから<b>'+d+'日</b>経っています。下の<b>⬇書き出し</b>をおすすめします','ss-warn']);
+    if(d===null)      rows.push(['⚠','<b>まだ一度もファイルに書き出していません</b>。ブラウザのデータを消すと記録も消えます。下の<b>⬇エクスポート</b>をおすすめします','ss-warn']);
+    else if(d>=BACKUP_REMIND_DAYS) rows.push(['⚠','最後の書き出しから<b>'+d+'日</b>経っています。下の<b>⬇エクスポート</b>をおすすめします','ss-warn']);
     else              rows.push(['✓','ファイルへの書き出しは<b>'+(d===0?'今日':d+'日前')+'</b>です','']);
   }
   el.innerHTML=rows.map(([m,t,c])=>
@@ -19401,17 +19401,17 @@ function renderStorage(){
       <div class="st-bar"><span class="${cls}" style="width:${Math.max(1,pct)}%"></span></div>
       <div class="st-total-t">ぜんぶで <b>${stFmt(total)}</b>（目安の上限 ${stFmt(ST_LIMIT)} の <b>${pct}%</b>）</div>
     </div>`;
-  if(pct>=85) html+=`<div class="st-alert">⚠ そろそろいっぱいです。<b>⬇書き出し</b>でファイルに残してから、下の<b>🧹</b>で片づけてください</div>`;
+  if(pct>=85) html+=`<div class="st-alert">⚠ そろそろいっぱいです。<b>⬇エクスポート</b>でファイルに残してから、下の<b>🧹</b>で片づけてください</div>`;
   // データが勝手に消されない状態かどうか（v382）
   if(stPersisted===true){
     html+=`<div class="st-persist">🔒 <b>この端末では、データが勝手に消されないようになっています</b>。
-      それでも端末をなくしたり初期化したりすると消えるので、ときどき<b>⬇書き出し</b>をしてください。</div>`;
+      それでも端末をなくしたり初期化したりすると消えるので、ときどき<b>⬇エクスポート</b>をしてください。</div>`;
   }else if(stPersisted===false){
     html+=`<div class="st-persist warn">⚠ <b>データが消えることがあります</b>。
       ブラウザは、端末の空きが減ったときや<b>しばらく開かないサイト</b>のデータを自動で消すことがあります
       （iPhoneのSafariでは<b>7日ほど開かないと消える</b>ことがあります）。
       下のボタンで「消さないでください」と端末にお願いできます。うまくいかないときは、
-      <b>ホーム画面に追加</b>して使うか、ときどき<b>⬇書き出し</b>をしてください。
+      <b>ホーム画面に追加</b>して使うか、ときどき<b>⬇エクスポート</b>をしてください。
       <button class="stp-btn" onclick="stPersistNow()">🔒 消えないようにする</button></div>`;
   }
   const top=rows.length?rows[0].b:1;
@@ -19956,9 +19956,11 @@ function fullWhen(t){ try{ return new Date(t).toLocaleString('ja-JP', {year:'num
 /* ⬇ 全保存する */
 async function fullExport(){
   if(typeof saveSheets==='function') try{ saveSheets(); }catch(_){}
-  toast('全保存の ファイルを 作っています…');
+  if(!isDlgOpen('fullBkOverlay')) await openFullBackup();   // できた ファイルと 移し方を 見せる 窓（v627）
+  const btn=document.getElementById('fbkExport'); if(btn) btn.disabled=true;
+  toast('エクスポートの ファイルを 作っています…');
   let p;
-  try{ p=await fullCollect(); }catch(e){ console.error(e); alert('全保存の ファイルを 作れませんでした'); return null; }
+  try{ p=await fullCollect(); }catch(e){ console.error(e); if(btn) btn.disabled=false; alert('エクスポートの ファイルを 作れませんでした'); return null; }
   const st=p.st; delete p.st;
   p.ls[BACKUP_KEY]=String(Date.now());   // 戻した 端末でも「ファイルに 書き出した」扱い（⚠ を 出さない）
   p.info=fullInfo(p);
@@ -19972,11 +19974,47 @@ async function fullExport(){
   if(typeof markBackedUp==='function') markBackedUp();
   if(typeof renderSaveStateBanner==='function') try{ renderSaveStateBanner(); }catch(_){}
   window.__fullLast={name, size:blob.size, info:p.info, skip:st.skip};
-  toast('全保存しました：'+name+'（'+stFmt(blob.size)+'）'+(st.skip ? '。この 端末 だけの もの '+st.skip+'件は 入れていません' : ''), 5600);
+  try{ fullLastFile=new File([blob], name, {type:'application/json'}); }catch(_){ fullLastFile=null; }
+  toast('エクスポートしました：'+name+'（'+stFmt(blob.size)+'）'+(st.skip ? '。この 端末 だけの もの '+st.skip+'件は 入れていません' : ''), 5600);
   const now=document.getElementById('fbkLast');
-  if(now){ now.hidden=false; now.innerHTML='✅ 全保存しました：<b>'+escHtml(name)+'</b>（'+escHtml(stFmt(blob.size))+'）<br>この ファイルを USB・メール・LINE・クラウド などで 別の 端末に 移してください。'; }
+  if(now){
+    now.hidden=false;
+    now.innerHTML='✅ エクスポートしました：<b>'+escHtml(name)+'</b>（'+escHtml(stFmt(blob.size))+'）<br>この ファイルを 別の パソコン・スマホに 移して、そこで <b>⬆ インポート</b> で 選ぶと、まったく 同じ 状態に なります。'
+      +(fullCanShare() ? '<button class="fbk-share" id="fbkShare" onclick="fullShare()">📤 LINE・メール・ドライブ などで 送る</button>' : '');
+  }
+  if(btn) btn.disabled=false;
   return p;
 }
+/* スマホなどで ファイルを そのまま 送る（LINE・メール・Google ドライブ など。v627） */
+let fullLastFile=null;
+function fullCanShare(){ try{ return !!(fullLastFile && navigator.share && navigator.canShare && navigator.canShare({files:[fullLastFile]})); }catch(_){ return false; } }
+function fullShare(){
+  if(!fullCanShare()){ toast('この 端末では 送れません。できた ファイルを USB・メール などで 移してください'); return; }
+  try{ navigator.share({files:[fullLastFile], title:fullLastFile.name}).catch(e=>{ if(!(e && e.name==='AbortError')) toast('送れませんでした。できた ファイルを USB・メール などで 移してください'); }); }
+  catch(_){ toast('送れませんでした。できた ファイルを USB・メール などで 移してください'); }
+}
+/* ⬆ インポート：ファイルを 選ぶ（全保存の ファイルなら まるごと 置きかえ・前の「保存データ」の ファイルなら 足し合わせ） */
+function fullPickImport(){ const i=document.getElementById('fullImportInput'); if(i) i.click(); }
+/* ほかに 開いている 表電卓の 画面（タブ・窓）には、インポートの 間 書き込みを 止めて もらい、終わったら 開き直して もらう（v627）。
+   止めないと、古い 中身の まま 開いていた 画面が、次の 操作で 古い 表を 書き戻して しまう */
+const FULL_BC='hyodentaku-full';
+function fullBcPost(type){ try{ const c=new BroadcastChannel(FULL_BC); c.postMessage({type}); c.close(); }catch(_){} }
+function fullCover(text){
+  let c=document.querySelector('.fbk-cover');
+  if(!c){ c=document.createElement('div'); c.className='fbk-cover'; document.body.appendChild(c); }
+  c.textContent=text; return c;
+}
+(function(){
+  try{
+    const c=new BroadcastChannel(FULL_BC);
+    c.onmessage=e=>{
+      const t=e && e.data && e.data.type;
+      if(t==='freeze'){ fullFreeze(); fullCover('⬆ 別の 画面で インポートしています…（終わったら 開き直します）'); }
+      else if(t==='reload'){ fullFreeze(); location.reload(); }
+    };
+  }catch(_){}
+})();
+function fullVerNum(v){ const m=/^v(\d+)/.exec(String(v||'')); return m ? +m[1] : 0; }
 
 /* ⬆ 全保存から 元に戻す（ファイルを 選んだ とき）。「保存データ」の ファイルなら 前からの 読み込みへ */
 async function fullImport(ev){
@@ -19985,8 +20023,8 @@ async function fullImport(ev){
   let p=null;
   try{ p=JSON.parse(await file.text()); }catch(_){ if(inp) inp.value=''; alert('読み込めませんでした：ファイルを 読み取れません'); return; }
   if(!fullValid(p)){
-    if(p && p.app==='hyodenki'){ toast('これは「保存データ」の ファイルです。いまの 中身に 足して 読み込みます'); importSaves({target:{files:[file], value:''}}); }
-    else alert('全保存の ファイルでは ありません（hyodentaku_full_… の ファイルを 選んでください）');
+    if(p && p.app==='hyodenki'){ toast('これは 前の「保存データ」の ファイルです。いまの 中身に 足して 読み込みます'); importSaves({target:{files:[file], value:''}}); }
+    else alert('表電卓で エクスポートした ファイルでは ありません（hyodentaku_full_… の ファイルを 選んでください）');
     if(inp) inp.value='';
     return;
   }
@@ -19994,13 +20032,17 @@ async function fullImport(ev){
   await fullRestore(p);
 }
 async function fullRestore(p){
-  if(!fullValid(p)){ alert('全保存の ファイルでは ありません'); return false; }
+  if(!fullValid(p)){ alert('表電卓で エクスポートした ファイルでは ありません'); return false; }
   const i=fullInfo(p), when=fullWhen(p.exportedAt);
-  if(!await appConfirm('全保存（'+when+'）から 元に戻しますか？\n\n'+fullInfoText(i)
-    +'\n\nこの 端末の いまの 中身（表・設定・道具の データ・写真）は、すべて ファイルの 中身に 置きかわります。いまの 中身も 残したい ときは「やめる」を 押して、先に この 端末でも 全保存を してください。',
+  const newer=fullVerNum(p.ver)>fullVerNum(APP_VERSION);   // 新しい 版で 作った ファイル（v627）
+  if(!await appConfirm('エクスポートした ファイル（'+when+' の 状態）を インポートしますか？\n\n'+fullInfoText(i)
+    +(newer ? '\n\n⚠ この ファイルは 新しい 版（'+p.ver+'）で 作られました。いまの 表電卓は '+APP_VERSION+' です。先に 表電卓を 新しく してから（開き直すと 新しく なります）インポートすると 確実です。' : '')
+    +'\n\nこの 端末の いまの 中身（表・設定・道具の データ・写真）は、すべて ファイルの 中身に 置きかわります。いまの 中身も 残したい ときは「やめる」を 押して、先に この 端末でも エクスポートしてください。',
     '置きかえる', 'やめる')) return false;
-  const cover=document.createElement('div'); cover.className='fbk-cover'; cover.textContent='🗄 元に戻しています…'; document.body.appendChild(cover);
+  const cover=fullCover('⬆ インポートしています…');
+  fullBcPost('freeze');   // ほかに 開いている 画面は 書き込みを 止める
   const r=await fullRestoreData(p);
+  fullBcPost('reload');   // 終わったら（入りきらず 何も 変えなかった ときも）開き直して もらう
   if(!r.ok){ cover.remove(); alert(r.msg); return false; }
   try{ sessionStorage.setItem('excalc_full_done', JSON.stringify({when, skip:r.skip, ver:p.ver||''})); }catch(_){}
   if(window.FULL_NO_RELOAD){ cover.remove(); return true; }
@@ -20016,7 +20058,7 @@ async function fullRestoreData(p){
     for(const k of Object.keys(p.ls)){ const v=p.ls[k]; if(typeof v==='string') localStorage.setItem(k, v); }
   }catch(e){
     try{ localStorage.clear(); for(const k in old) localStorage.setItem(k, old[k]); }catch(_){}
-    return {ok:false, msg:'この 端末の 空きが 足りず、元に戻せませんでした（いまの 中身は そのままです）。'};
+    return {ok:false, msg:'この 端末の 空きが 足りず、インポートできませんでした（いまの 中身は そのままです）。'};
   }
   // exe 版は 保存した表を フォルダにも 書く（起動の ときに フォルダの 方が 読まれるため）
   if(window.electronAPI){ try{ await window.electronAPI.writeSaves(localStorage.getItem(SAVE_KEY)||'[]'); }catch(_){} }
@@ -20070,16 +20112,15 @@ async function openFullBackup(){
   let ov=document.getElementById('fullBkOverlay');
   if(!ov){
     ov=document.createElement('div'); ov.className='modal-overlay'; ov.id='fullBkOverlay';
-    ov.innerHTML='<div class="modal snap-modal fbk-modal"><div class="modal-header"><span>🗄 全保存（まるごと 保存・復元）</span><button class="modal-close" onclick="closeFullBackup()">✕</button></div>'
+    ov.innerHTML='<div class="modal snap-modal fbk-modal"><div class="modal-header"><span>🗄 エクスポート・インポート（全保存）</span><button class="modal-close" onclick="closeFullBackup()">✕</button></div>'
       +'<div class="modal-body" id="fullBkBody">'
-      +'<div class="snap-note"><b>この 端末の 中身を ぜんぶ</b>（いまの表・シート・保存した表・<b>設定</b>〈色・テンキー・マイキー など〉・道具の データ・<b>写真</b>・前の状態の 控え）<b>1つの ファイル</b>に します。<br>別の パソコンや スマホで「全保存から 元に戻す」で 読み込むと、<b>まったく 同じ 状態</b>に なります。</div>'
+      +'<div class="snap-note"><b>この 端末の 中身を ぜんぶ</b>（いまの表・シート・保存した表・<b>設定</b>〈色・テンキー・マイキー・帯の ボタン など〉・道具の データ・<b>写真</b>・前の状態の 控え）<b>1つの ファイル</b>に します。<br>別の パソコンや スマホで <b>⬆ インポート</b> すると、<b>まったく 同じ 状態</b>に なります。</div>'
       +'<div class="fbk-now" id="fbkNow">いまの 中身を 数えています…</div>'
-      +'<button class="fbk-go" id="fbkExport" onclick="fullExport()">⬇ 全保存する（ファイルに 書き出す）</button>'
+      +'<button class="fbk-go" id="fbkExport" onclick="fullExport()">⬇ エクスポート（ぜんぶを ファイルに）</button>'
       +'<div class="fbk-last" id="fbkLast" hidden></div>'
-      +'<button class="snap-take fbk-in" onclick="document.getElementById(\'fullImportInput\').click()">⬆ 全保存から 元に戻す（ファイルを 選ぶ）</button>'
-      +'<div class="fbk-warn">⚠ 元に戻すと、その 端末の いまの 中身は ファイルの 中身に <b>置きかわります</b>。ファイルには 入れた ものが そのまま 入るので、人には 渡さないで ください。</div>'
-      +'<div class="fbk-how"><b>別の パソコンへ 移すには</b><ol><li>ここで <b>⬇ 全保存する</b></li><li>できた ファイル（hyodentaku_full_….json）を USB・メール・LINE・クラウド などで 移す</li><li>移した 先で 表電卓を 開き、☰ → … ほかの機能 → 📁 ファイル → <b>🗄 全保存・復元</b> →「⬆ 全保存から 元に戻す」で その ファイルを 選ぶ</li></ol></div>'
-      +'<input type="file" id="fullImportInput" accept="application/json,.json" hidden onchange="fullImport(event)">'
+      +'<button class="snap-take fbk-in" id="fbkImport" onclick="fullPickImport()">⬆ インポート（ファイルから 同じ 状態に）</button>'
+      +'<div class="fbk-warn">⚠ インポートすると、その 端末の いまの 中身は ファイルの 中身に <b>置きかわります</b>。ファイルには 入れた ものが そのまま 入るので、人には 渡さないで ください。</div>'
+      +'<div class="fbk-how"><b>別の パソコンへ 移すには</b><ol><li>ここで <b>⬇ エクスポート</b></li><li>できた ファイル（hyodentaku_full_….json）を USB・メール・LINE・クラウド などで 移す</li><li>移した 先で 表電卓を 開き、☰ → … ほかの機能 → 📁 ファイル → <b>⬆ インポート</b> で その ファイルを 選ぶ（📋 リストの 下・⚙ 設定 → 💾 保存とデータ からも）</li></ol></div>'
       +'</div></div>';
     ov.addEventListener('click', e=>{ if(e.target===ov) closeFullBackup(); });
     document.body.appendChild(ov);
@@ -20432,7 +20473,7 @@ saveDirty=false; updateRecordTitle();   // 起動直後は「📄 自動保存�
 applyNpPlace(true);                        // テンキーの置き場所（v399）
 applyFbPlace();                            // セルのバーの置き場所（v619）
 snapDaily();                               // 毎日 はじめの 表を 控える（v624）
-try{ const fd=sessionStorage.getItem('excalc_full_done'); if(fd){ sessionStorage.removeItem('excalc_full_done'); const o=JSON.parse(fd)||{}; setTimeout(()=>toast('🗄 全保存（'+(o.when||'')+'）から 元に戻しました'+(o.skip ? '（写真など '+o.skip+'か所は 戻せませんでした）' : ''), 5600), 700); } }catch(_){}
+try{ const fd=sessionStorage.getItem('excalc_full_done'); if(fd){ sessionStorage.removeItem('excalc_full_done'); const o=JSON.parse(fd)||{}; setTimeout(()=>toast('⬆ インポートしました（'+(o.when||'')+' の 状態）'+(o.skip ? '（写真など '+o.skip+'か所は 戻せませんでした）' : ''), 5600), 700); } }catch(_){}
 try{ const sd=sessionStorage.getItem('excalc_snap_done'); if(sd){ sessionStorage.removeItem('excalc_snap_done'); setTimeout(()=>toast('「'+sd+'」の 表に 戻しました（☰ → 🕘 前の状態に戻す で また 戻せます）', 4800), 600); } }catch(_){}
 if(localStorage.getItem('excalc_trigmode')==='rad') trigMode='rad';
 applyTrigModeBtn();

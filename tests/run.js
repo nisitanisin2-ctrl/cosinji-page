@@ -3963,7 +3963,7 @@ async function runExport(browser) {
   // ── ☰メニューの整理（v375・v459） ──
   await page.evaluate(() => openMoreMenu()); await page.waitForTimeout(400);
   check('  項目の数（v459：道具の一覧は ☰ の外の窓に）', await page.evaluate(() =>
-    document.querySelectorAll('#moreMenuOverlay .more-item').length), 38);   // v625：🗄 全保存・復元   // v624：🖼画像・🕘前の状態・🔎検索・⬆⬅挿入・↕並べかえ・📌固定・👁隠したのを出す・Excel と同じ分け方   // v465：戻す・声を外し、⌨（右置きのときだけ出る）を足した。v560：📝別の名前で保存（記録を開いているときだけ見える）。v563：📊 表を強くする の5つ
+    document.querySelectorAll('#moreMenuOverlay .more-item').length), 39);   // v625：🗄 全保存・復元 → v627：⬇ エクスポート・⬆ インポート   // v624：🖼画像・🕘前の状態・🔎検索・⬆⬅挿入・↕並べかえ・📌固定・👁隠したのを出す・Excel と同じ分け方   // v465：戻す・声を外し、⌨（右置きのときだけ出る）を足した。v560：📝別の名前で保存（記録を開いているときだけ見える）。v563：📊 表を強くする の5つ
   check('  はじめは畳んである', await page.evaluate(() =>
     document.getElementById('moreAccAll').open),
     false);
@@ -3976,7 +3976,7 @@ async function runExport(browser) {
     '📁 ファイル/✏ 編集/➕ 挿入/🎨 書式/📊 データ/👁 表示/表の中身を消す');
   check('  ファイル：印刷・画像・書き出し・読込・前の状態・QR', await page.evaluate(() =>
     [...document.querySelectorAll('#moreAccOut .more-item')].map(x => x.textContent.trim()).join('/')),
-    '🖨印刷・PDF/🖼画像で送る/📊Excel出力/📄CSV出力/📥Excel読込/📥CSV読込/🕘前の状態に戻す/🗄全保存・復元/📱QRで共有');
+    '🖨印刷・PDF/🖼画像で送る/📊Excel出力/📄CSV出力/📥Excel読込/📥CSV読込/⬇エクスポート/⬆インポート/🕘前の状態に戻す/📱QRで共有');
   check('  表示：固定・隠したの・シート・ナイト・ホーム…', await page.evaluate(() =>
     [...document.querySelectorAll('#moreAccMisc .more-item')].map(x => x.textContent.trim()).join('/')),
     '📌枠の固定/👁隠したのを出す/🗂シート/🌙ナイトモード/🏠ホーム/▦通常の表/🧮電卓/⌨テンキーを隠す／出す/▦既定の大きさ');
@@ -19567,7 +19567,7 @@ async function runHyo624(browser) {
   check('  設定の タブは 表の操作・見た目・テンキー・計算・保存とデータ', await page.evaluate(() => [...document.querySelectorAll('.settings-tab')].map(b => b.textContent.trim()).join('/')), '📐表の操作/🎨見た目/⌨テンキー/🧮計算/💾保存とデータ');
   check('  テンキーの タブ：置き場所・セルのバー・電卓だけ… が 開いて 並ぶ', await page.evaluate(() => [document.getElementById('setGrpKeys').open, !!document.getElementById('setPage2').querySelector('#npPlaceSeg'), document.getElementById('setPage2').classList.contains('open')].join('/')), 'true/true/true');
   await page.evaluate(() => setSettingsTab(4)); await w(200);
-  check('  保存とデータ：一覧・前の状態・全保存（v625）・書き出し・読み込み・空き具合', await page.evaluate(() => [...document.querySelectorAll('#setPage4 .set-act')].map(b => b.textContent.trim()).join('/')), '📂 保存した表の一覧/🕘 前の状態に戻す（毎日の控え）/🗄 全保存・復元/⬇ 保存データを書き出す/⬆ 書き出したファイルを読み込む/📦 空き具合を見る');
+  check('  保存とデータ：一覧・前の状態・全保存（v625）・書き出し・読み込み・空き具合', await page.evaluate(() => [...document.querySelectorAll('#setPage4 .set-act')].map(b => b.textContent.trim()).join('/')), '📂 保存した表の一覧/🕘 前の状態に戻す（毎日の控え）/⬇ エクスポート（ぜんぶを ファイルに）/⬆ インポート（ファイルから 同じ 状態に）/📄 保存した表だけ 書き出す/📦 空き具合を見る');
   check('  設定を さがすと 新しい タブにも 飛ぶ', await page.evaluate(() => { setFind('置き場所'); const x = setFindHits.find(h => /テンキーの置き場所/.test(h.label)); return x ? x.tab + '/' + x.where : 'なし'; }), '2/⌨ テンキー');
   await page.evaluate(() => { setFind(''); toggleSettings(); }); await w(300);
   // ── 44. 前の状態に 戻す ──
@@ -19631,11 +19631,12 @@ async function runFull625(browser) {
     t.close();
     await SNAP.take('manual');
   });
-  // ☰ → ファイル → 🗄 全保存・復元
+  // ☰ → ファイル → ⬇ エクスポート・⬆ インポート（v627。v625 では 🗄 全保存・復元 の 1つ）
   await page.evaluate(() => { openMoreMenu(); document.getElementById('moreAccAll').open = true; }); await w(300);
-  check('  ☰ の 📁 ファイルに 🗄 全保存・復元', await page.evaluate(() => { const b = document.getElementById('moreFullBtn'); return !!b && b.closest('#moreAccOut') !== null && b.textContent.trim(); }), '🗄全保存・復元');
-  await page.evaluate(() => document.getElementById('moreFullBtn').scrollIntoView({ block: 'center' }));
-  await page.click('#moreFullBtn'); await w(700);
+  check('  ☰ の 📁 ファイルに ⬇ エクスポート・⬆ インポート', await page.evaluate(() => ['moreExportBtn', 'moreImportBtn'].map(i => { const b = document.getElementById(i); return !!b && b.closest('#moreAccOut') !== null && b.textContent.trim(); }).join('/')), '⬇エクスポート/⬆インポート');
+  await page.evaluate(() => { closeMoreMenu(); }); await w(400);
+  await page.waitForFunction(() => !!localStorage.getItem('excalc_seen_ver'), null, { timeout: 6000 }).catch(() => {});   // 起動の すこし あとに 書く 項目を 待ってから 数える
+  await page.evaluate(() => openFullBackup()); await w(700);
   check('  窓が 開いて いまの 中身を 数える', await page.evaluate(() => isDlgOpen('fullBkOverlay') + '/' + document.getElementById('fbkNow').textContent),
     'true/いまの 中身：保存した表 1件・シート 1枚・設定や 道具の データ ' + await page.evaluate(() => localStorage.length) + '項目・写真や 控え ' + await page.evaluate(async () => { const s = await SNAP.all(); return s.length + 4; }) + '件');
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.click('#fbkExport')]);
@@ -19671,15 +19672,16 @@ async function runFull625(browser) {
   // 前からの「⬆ 書き出したファイルを読み込む」に 渡しても 全保存の 復元に なる（やめる を 押せば 何も 変わらない）
   await p2.evaluate(() => { window.appConfirm = async m => { window.__cm = m; return false; }; });
   await p2.setInputFiles('#importSavesInput', fp); await p2.waitForTimeout(800);
-  check('  前からの 読み込み口でも 全保存と 分かって 聞く（やめる＝そのまま）', await p2.evaluate(() => [/全保存（.+）から 元に戻しますか/.test(window.__cm || ''), (window.__cm || '').includes('保存した表 1件'), (window.__cm || '').includes('置きかわります'), data[0][0], localStorage.getItem('excalc_only_here')].join('/')),
+  check('  前からの 読み込み口でも 全保存と 分かって 聞く（やめる＝そのまま）', await p2.evaluate(() => [/ファイル（.+ の 状態）を インポートしますか/.test(window.__cm || ''), (window.__cm || '').includes('保存した表 1件'), (window.__cm || '').includes('置きかわります'), data[0][0], localStorage.getItem('excalc_only_here')].join('/')),
     'true/true/true/別の端末の表/x');
-  // 設定 → 💾 保存とデータ → 🗄 全保存・復元 → ⬆ 元に戻す
+  // 設定 → 💾 保存とデータ → ⬆ インポート（ファイルを 選ぶ 窓が 出る）
   await p2.evaluate(() => { toggleSettings(); setSettingsTab(4); }); await p2.waitForTimeout(300);
-  check('  設定の 保存とデータに 全保存', await p2.evaluate(() => [...document.querySelectorAll('#setPage4 .set-sec')].map(e => e.textContent.trim()).join('/')), 'いまの表の 保存/前の状態に戻す/全保存（まるごと 移す）/えらんで 書き出す・足し合わせる/この端末の 空き');
-  await p2.click('#setPage4 .set-act-main'); await p2.waitForTimeout(600);
-  check('  窓が 開く', await p2.evaluate(() => isDlgOpen('fullBkOverlay') + '/' + isDlgOpen('settingsPanel')), 'true/false');
+  check('  設定の 保存とデータに エクスポート・インポート', await p2.evaluate(() => [...document.querySelectorAll('#setPage4 .set-sec')].map(e => e.textContent.trim()).join('/')), 'いまの表の 保存/前の状態に戻す/別の パソコンへ 移す（エクスポート・インポート）/保存した表だけ 書き出す/この端末の 空き');
   await p2.evaluate(() => { window.appConfirm = async () => true; });
-  await Promise.all([p2.waitForEvent('load', { timeout: 20000 }), p2.setInputFiles('#fullImportInput', fp)]);
+  await p2.evaluate(() => document.getElementById('setImportBtn').scrollIntoView({ block: 'center' }));
+  const [fc] = await Promise.all([p2.waitForEvent('filechooser', { timeout: 8000 }), p2.click('#setImportBtn')]);
+  check('  ⬆ インポートで ファイルを 選ぶ 窓・設定は 閉じる', await p2.evaluate(() => isDlgOpen('settingsPanel')) + '/' + fc.isMultiple(), 'false/false');
+  await Promise.all([p2.waitForEvent('load', { timeout: 20000 }), fc.setFiles(fp)]);
   await p2.waitForTimeout(1500);
   check('  開き直して：表・式・書式が 同じ', await p2.evaluate(() => [data[0][0], getCellDisplay(1, 1), !!(cellStyles['1,0'] && cellStyles['1,0'].bold)].join('/')), '全保存の表/246/true');
   check('  保存した表・設定（税率・ナイトモード）・ほかの 道具の データも 同じ', await p2.evaluate(() => [getSaves().map(s => s.name).join(','), localStorage.getItem('excalc_taxrate'), document.body.classList.contains('dark'), localStorage.getItem('koe_test_key')].join('/')),
@@ -19698,7 +19700,7 @@ async function runFull625(browser) {
     const v = db.version; db.close();
     return [v, r.ks, r.ai, r.ix, r.all.result.map(x => x.id + x.name).join(',')].join('/'); }), '3/id/true/by_name/2みかん,1りんご');
   check('  前の状態の 控えも 持ってきた', await p2.evaluate(async () => (await SNAP.all()).some(o => o.kind === 'manual')), true);
-  check('  開き直したら お知らせ', await p2.evaluate(() => { const t = document.getElementById('appToast'); return !!t && /全保存（.+）から 元に戻しました/.test(t.textContent); }), true);
+  check('  開き直したら お知らせ', await p2.evaluate(() => { const t = document.getElementById('appToast'); return !!t && /インポートしました（.+ の 状態）/.test(t.textContent); }), true);
 
   // 空きが 足りない ときは 何も 変えない
   check('  入りきらない ときは 元の まま（途中で 止まらない）', await p2.evaluate(async () => {
@@ -19716,7 +19718,7 @@ async function runFull625(browser) {
   await p2.setInputFiles('#fullImportInput', sv); await p2.waitForTimeout(1200);
   check('  「保存データ」の ファイルは 足して 読み込む（置きかえない）', await p2.evaluate(() => getSaves().map(s => s.name).sort().join(',')), '見積A,足す記録');
   await p2.evaluate(() => closeFullBackup());
-  check('  設定の さがすで 見つかる（引っ越し・機種変更）', await p2.evaluate(() => { toggleSettings(); setFind('引っ越し'); const t = document.getElementById('setFindRes').textContent; setFind(''); toggleSettings(); return t.includes('全保存'); }), true);
+  check('  設定の さがすで 見つかる（引っ越し・機種変更・全保存）', await p2.evaluate(() => { toggleSettings(); const r = ['引っ越し', '機種変更', '全保存', 'エクスポート'].map(q => { setFind(q); return document.getElementById('setFindRes').textContent.includes('エクスポート・インポート'); }); setFind(''); toggleSettings(); return r.join('/'); }), 'true/true/true/true');
   check('  JSエラーが出ていない（別の 端末）', errs2.length, 0);
   if (errs2.length) console.log('    ', errs2);
   await A.close(); await B.close();
@@ -19793,6 +19795,118 @@ async function runBand626(browser) {
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();
+}
+
+/* v627：エクスポート／インポートを 全保存に そろえる（どこから 書き出しても 設定ごと まったく 同じ 状態に）
+   ・📋 リストの 下・⚙ 設定・☰ ファイル・書き出しの おすすめ → ⬇ エクスポート（全保存）
+   ・⬆ インポート：全保存の ファイルは まるごと 置きかえ／前の「保存データ」の ファイルは 足し合わせ
+   ・ほかに 開いている 画面は インポートの 間 書き込みを 止め、終わったら 開き直す
+   ・新しい 版で 作った ファイルは 知らせる・スマホは「📤 送る」 */
+async function runExport627(browser) {
+  console.log('\n── 表電卓 v627：⬇ エクスポート・⬆ インポート（設定も ぜんぶ・まったく 同じ 状態に） ──');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'exp627-'));
+  const boot = async (ctx, vp) => {
+    const p = await ctx.newPage(); const errs = [];
+    p.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+    await p.goto(INDEX); await p.waitForTimeout(300);
+    await p.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0'); });
+    await p.reload(); await p.waitForTimeout(900);
+    return { p, errs };
+  };
+  // ── もとの パソコン ──
+  const A = await browser.newContext({ viewport: { width: 1100, height: 800 }, acceptDownloads: true });
+  const { p: page, errs } = await boot(A);
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(async () => {
+    window.appConfirm = async () => true;
+    setCellVal(0, 0, 'エクスポートの表'); setCellVal(1, 0, '500'); setCellVal(1, 1, '=A2+1'); recalcAll();
+    sel(1, 0); kfmtApply(s => { s.bold = true; s.nf = 'yen'; });
+    saveSheets();
+    localStorage.setItem('excalc_saves', JSON.stringify([{ id: 3003, name: '見積B', timestamp: Date.now(), rows: 5, cols: 3, data: [['見積']], tab: 0, mode: null }]));
+    localStorage.setItem('excalc_taxrate', '8'); localStorage.setItem('excalc_band_cfg', JSON.stringify({ num: ['copy', 'nf_pct'] })); localStorage.setItem('excalc_dark', '1');
+    const db = await new Promise((res, rej) => { const r = indexedDB.open('excalc_shimai', 1); r.onupgradeneeded = () => r.result.createObjectStore('pics'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+    await new Promise(res => { const tx = db.transaction('pics', 'readwrite'); tx.objectStore('pics').put(new Blob([new Uint8Array([9, 8, 7])], { type: 'image/jpeg' }), 'ph1'); tx.oncomplete = res; }); db.close();
+  });
+  await page.waitForFunction(() => !!localStorage.getItem('excalc_seen_ver'), null, { timeout: 6000 }).catch(() => {});
+  // 📋 リストの 下の「⬇ エクスポート」＝ 全保存
+  await page.evaluate(() => showSaveList()); await w(500);
+  check('  📋 リストの 下は ⬇ エクスポート・⬆ インポート', await page.evaluate(() => ['saveExportBtn', 'saveImportBtn'].map(i => document.getElementById(i).textContent.trim()).join('/')), '⬇ エクスポート/⬆ インポート');
+  // スマホの「送る」が 使える つもりに する
+  await page.evaluate(() => { window.__shared = null; navigator.canShare = o => !!(o && o.files && o.files.length); navigator.share = async o => { window.__shared = o.files[0].name + '|' + o.files[0].type; }; });
+  const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.click('#saveExportBtn')]);
+  const fp = path.join(tmp, 'full.json'); await dl.saveAs(fp);
+  const J = JSON.parse(fs.readFileSync(fp, 'utf8'));
+  check('  リストの エクスポートも 設定ごと ぜんぶ（全保存の ファイル）', [/^hyodentaku_full_\d{4}-\d\d-\d\d_\d{4}\.json$/.test(dl.suggestedFilename()), J.type, J.ls.excalc_taxrate, J.ls.excalc_band_cfg, !!J.idb.find(d => d.name === 'excalc_shimai')].join('/'),
+    'true/hyodentaku-full/8/{"num":["copy","nf_pct"]}/true');
+  check('  できた ファイルと 移し方の 窓（📤 送る も）', await page.evaluate(() => [isDlgOpen('fullBkOverlay'), /エクスポートしました：hyodentaku_full_/.test(document.getElementById('fbkLast').textContent), !!document.getElementById('fbkShare')].join('/')), 'true/true/true');
+  await page.click('#fbkShare'); await w(200);
+  check('  📤 送る で その ファイルを 渡す', await page.evaluate(() => window.__shared), dl.suggestedFilename() + '|application/json');
+  await page.evaluate(() => closeFullBackup()); await w(300);
+  // ☰ の ⬇ エクスポートも 同じ
+  await page.evaluate(() => { closeSaveList(); openMoreMenu(); document.getElementById('moreAccAll').open = true; }); await w(400);
+  await page.evaluate(() => document.getElementById('moreExportBtn').scrollIntoView({ block: 'center' }));
+  const [dl2] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.click('#moreExportBtn')]);
+  check('  ☰ → 📁 ファイル → ⬇ エクスポート', /^hyodentaku_full_/.test(dl2.suggestedFilename()) + '/' + await page.evaluate(() => isDlgOpen('fullBkOverlay')), 'true/true');
+  await page.evaluate(() => closeFullBackup()); await w(300);
+  // 書き出しの おすすめ（しばらく 書き出して いない）→ 全保存
+  await page.evaluate(() => { localStorage.removeItem('excalc_last_backup'); localStorage.removeItem('excalc_backup_snooze'); });
+  const asked = await page.evaluate(() => maybeAskBackup());
+  const [dl3] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.evaluate(() => { document.querySelector('#noticeBar .nb-yes').click(); })]);
+  check('  書き出しの おすすめ →「書き出す」も 全保存', asked + '/' + /^hyodentaku_full_/.test(dl3.suggestedFilename()), 'true/true');
+  await page.evaluate(() => closeFullBackup()); await w(300);
+  // ⚙ 設定 → 💾 保存とデータ：エクスポート・インポート・保存した表だけ
+  await page.evaluate(() => { toggleSettings(); setSettingsTab(4); }); await w(300);
+  check('  設定の 保存とデータ', await page.evaluate(() => [...document.querySelectorAll('#setPage4 .set-act')].map(b => b.textContent.trim()).join('/')),
+    '📂 保存した表の一覧/🕘 前の状態に戻す（毎日の控え）/⬇ エクスポート（ぜんぶを ファイルに）/⬆ インポート（ファイルから 同じ 状態に）/📄 保存した表だけ 書き出す/📦 空き具合を見る');
+  await page.evaluate(() => toggleSettings()); await w(300);
+  check('  JSエラーが出ていない（もとの パソコン）', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+
+  // ── スマホ：📋 リストの 下の ボタン列が 窓の 中に 見える（前は「書き出しの おすすめ」が 出ていると 窓の 外へ 押し出されて いた） ──
+  for (const [W, H] of [[390, 780], [360, 640]]) {
+    const S = await browser.newContext({ viewport: { width: W, height: H }, hasTouch: true });
+    const { p: sp } = await boot(S);
+    await sp.evaluate(() => { localStorage.setItem('excalc_saves', JSON.stringify([{ id: 1, name: 'A', timestamp: Date.now(), rows: 5, cols: 3, data: [['x']], tab: 0, mode: null }])); localStorage.removeItem('excalc_last_backup'); showSaveList(); });
+    await sp.waitForTimeout(600);
+    check('  スマホ ' + W + '×' + H + '：📋 リストの 下の ⬇ エクスポート・⬆ インポートが 見える（おすすめが 出ていても）', await sp.evaluate(() => {
+      const m = document.querySelector('#saveListOverlay > .modal').getBoundingClientRect(), warn = /ファイルに書き出していません/.test(document.getElementById('saveStateBanner').textContent);
+      return warn + '/' + ['saveExportBtn', 'saveImportBtn'].map(i => { const r = document.getElementById(i).getBoundingClientRect(), e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return r.bottom <= m.bottom + 0.5 && r.bottom <= innerHeight && !!e && (e === document.getElementById(i) || document.getElementById(i).contains(e)); }).join('/'); }), 'true/true/true');
+    await S.close();
+  }
+
+  // ── 別の パソコン：表電卓を 2つの タブで 開いている ──
+  const B = await browser.newContext({ viewport: { width: 1100, height: 800 } });
+  const { p: t1, errs: e1 } = await boot(B);
+  const t2 = await B.newPage(); const e2 = [];
+  t2.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) e2.push(e.message); });
+  await t2.goto(INDEX); await t2.waitForTimeout(1000);
+  await t1.evaluate(() => { setCellVal(0, 0, '別のパソコンの表'); recalcAll(); saveSheets(); localStorage.setItem('excalc_only_b', '1'); });
+  await t2.evaluate(() => { window.__mark = 1; });
+  // 新しい 版で 作った ファイルなら 知らせる（やめる）
+  const newer = path.join(tmp, 'newer.json');
+  fs.writeFileSync(newer, JSON.stringify(Object.assign({}, J, { ver: 'v9999' })));
+  await t1.evaluate(() => { window.appConfirm = async m => { window.__cm = m; return false; }; });
+  await t1.setInputFiles('#fullImportInput', newer); await t1.waitForTimeout(800);
+  check('  新しい 版で 作った ファイルは 知らせる（やめれば そのまま）', await t1.evaluate(() => [(window.__cm || '').includes('新しい 版（v9999）'), (window.__cm || '').includes('いまの 表電卓は ' + APP_VERSION), data[0][0]].join('/')), 'true/true/別のパソコンの表');
+  // ☰ → 📁 ファイル → ⬆ インポート（ファイルを 選ぶ 窓）
+  await t1.evaluate(() => { window.appConfirm = async () => true; openMoreMenu(); document.getElementById('moreAccAll').open = true; }); await t1.waitForTimeout(400);
+  await t1.evaluate(() => document.getElementById('moreImportBtn').scrollIntoView({ block: 'center' }));
+  const [fc] = await Promise.all([t1.waitForEvent('filechooser', { timeout: 8000 }), t1.click('#moreImportBtn')]);
+  const t2load = t2.waitForEvent('load', { timeout: 20000 });
+  await Promise.all([t1.waitForEvent('load', { timeout: 20000 }), fc.setFiles(fp)]);
+  await t2load; await t1.waitForTimeout(1500); await t2.waitForTimeout(1500);
+  check('  インポートした タブ：表・式・書式・保存した表・設定・帯の 並び', await t1.evaluate(() => [data[0][0], getCellDisplay(1, 1), cellStyles['1,0'] && cellStyles['1,0'].bold, document.getElementById('c1_0').textContent, getSaves().map(s => s.name).join(','), localStorage.getItem('excalc_taxrate'), bandCfgFor('num').join(','), document.body.classList.contains('dark')].join('/')),
+    'エクスポートの表/501/true/¥500/見積B/8/copy,nf_pct/true');
+  check('  ほかの タブも 開き直して 同じ 中身（古い 表で 書き戻さない）', await t2.evaluate(() => [typeof window.__mark, data[0][0], String(localStorage.getItem('excalc_only_b'))].join('/')), 'undefined/エクスポートの表/null');
+  check('  写真（IndexedDB）も 同じ', await t1.evaluate(async () => { const db = await fullIdbOpen('excalc_shimai'); const r = await fullTx(db, 'pics', 'readonly', s => s.get('ph1')); db.close(); const b = r.result; return b instanceof Blob ? b.type + ':' + [...new Uint8Array(await b.arrayBuffer())].join(',') : 'なし'; }), 'image/jpeg:9,8,7');
+  // まったく 同じ 状態：ファイルの 全部の 項目が 同じ 値で 入っている（起動で 書きかわる ものを のぞく）
+  const diff = await t1.evaluate(ls => Object.keys(ls).filter(k => localStorage.getItem(k) !== ls[k]).concat(Object.keys(localStorage).filter(k => !(k in ls))), J.ls);
+  check('  localStorage は ファイルと まったく 同じ（ちがう 項目）', diff.filter(k => !['excalc_last_backup'].includes(k)).join(',') || 'なし', 'なし');
+  check('  開き直したら お知らせ', await t1.evaluate(() => { const t = document.getElementById('appToast'); return !!t && /⬆ インポートしました（.+ の 状態）/.test(t.textContent); }), true);
+  check('  JSエラーが出ていない（別の パソコン）', e1.length + e2.length, 0);
+  if (e1.length || e2.length) console.log('    ', e1, e2);
+  await A.close(); await B.close();
 }
 
 async function runFmtPage(browser) {
@@ -20728,6 +20842,7 @@ const SUITES = [
   [['cellxl', 'fmtpage', 'hyo624', 'v624'], b => runHyo624(b)],
   [['full', 'v625'], b => runFull625(b)],
   [['band', 'v626'], b => runBand626(b)],
+  [['export627', 'v627'], b => runExport627(b)],
   [['clip'], b => runClip(b)],
   [['koe'], b => runKoe(b)],
   [['koe', 'koelisten'], b => runKoeListen(b)],
