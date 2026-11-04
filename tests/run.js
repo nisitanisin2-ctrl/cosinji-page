@@ -19073,7 +19073,9 @@ async function runCellXl(browser) {
   check('  選んでいるセルをもう一度タップで帯が出る', await page.evaluate(() => { const m = document.getElementById('cellMenu'); return m.classList.contains('show') + '/' + m.classList.contains('bar-nokb'); }), 'true/true');
   check('  そのときキーボードは出さない', await page.evaluate(() => document.activeElement.id !== 'formulaInput' && !document.body.classList.contains('kb-edit')), true);
   check('  帯に ✏編集 も出る', await page.evaluate(() => !!document.querySelector('#cellMenu .cm-edit').offsetParent), true);
-  check('  帯はテンキーのすぐ上', await page.evaluate(() => Math.abs(document.getElementById('cellMenu').getBoundingClientRect().bottom - document.getElementById('numpadSection').getBoundingClientRect().top) <= 2), true);
+  check('  帯はテンキーのいちばん上の列（声・進む・戻す…）にかさなる（v619）', await page.evaluate(() => {
+    const m = document.getElementById('cellMenu').getBoundingClientRect(), v = document.querySelector('#numpadPage1 [data-key=u_voice]').getBoundingClientRect();
+    return Math.abs(m.top - v.top) <= 1.5 && Math.abs(m.bottom - v.bottom) <= 1.5 && m.top > document.getElementById('numpadSection').getBoundingClientRect().top; }), true);
   check('  キーボードが出たら、見えている画面の下の端に置く（v420。iPhone のずれも見る）', await page.evaluate(() => {
     const real = Object.getOwnPropertyDescriptor(window, 'visualViewport');
     Object.defineProperty(window, 'visualViewport', { configurable: true, value: { offsetTop: 120, offsetLeft: 0, height: 380, width: innerWidth, addEventListener() {} } });
@@ -19331,8 +19333,19 @@ async function runHyo619(browser) {
   check('  テンキーの真上に 出せる', await pos(), 'pad');
   check('  表は バーの 上', await page.evaluate(() => document.querySelector('.sheet-wrap').getBoundingClientRect().bottom <= document.querySelector('.formula-bar').getBoundingClientRect().top + 1), true);
   await page.evaluate(() => { clearRangeSelection(); sel(4, 1); showEditBar(true); }); await page.waitForTimeout(250);
-  check('  帯は バーの すぐ上（バーを 隠さない）', await page.evaluate(() => Math.abs(document.getElementById('cellMenu').getBoundingClientRect().bottom - document.querySelector('.formula-bar').getBoundingClientRect().top) <= 1.5), true);
+  const util = () => page.evaluate(() => { const b = document.querySelector('#numpadPage1 [data-key=u_voice]'), r = b.getBoundingClientRect(), e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return e.closest('#cellMenu') ? '帯' : e.closest('.btn.util') ? 'ボタン' : e.className; });
+  check('  帯は テンキーの いちばん上の 列に かさなる（バーは 隠さない）', await page.evaluate(() => { const m = document.getElementById('cellMenu').getBoundingClientRect(), f = document.querySelector('.formula-bar').getBoundingClientRect(), n = document.getElementById('numpadSection').getBoundingClientRect();
+    return m.top >= f.bottom && m.top > n.top && m.bottom < n.bottom; }), true);
+  check('  帯が 出ている 間は 声・進む・戻す の 列が 帯に なる', await util(), '帯');
   await page.evaluate(() => hideEditBar());
+  check('  帯が 消えると 元の ボタンに 戻る', await util(), 'ボタン');
+  await page.setViewportSize({ width: 860, height: 412 }); await page.waitForTimeout(400);
+  await page.evaluate(() => { sel(4, 1); showEditBar(true); }); await page.waitForTimeout(250);
+  check('  横向きでも テンキーの いちばん上の 列に かさなる', await page.evaluate(() => { const m = document.getElementById('cellMenu').getBoundingClientRect(), n = document.getElementById('numpadViewport').getBoundingClientRect();
+    return Math.abs(m.left - n.left) <= 1.5 && Math.abs(m.width - n.width) <= 1.5 && m.top >= n.top - 1 && m.bottom < n.bottom; }), true);
+  await page.evaluate(() => hideEditBar());
+  await page.setViewportSize({ width: 412, height: 900 }); await page.waitForTimeout(400);
+  check('  キーボードで 直すときは テンキーが ないので キーボードの 上（これまでどおり）', await page.evaluate(() => { document.body.classList.add('kb-edit'); showEditBar(); const on = document.getElementById('cellMenu').classList.contains('on-pad'); hideEditBar(); document.body.classList.remove('kb-edit'); return on; }), false);
   check('  桁の 読みは バーの 上に 出す', await page.evaluate(() => { const d = document.getElementById('digitHint'); d.hidden = false; d.textContent = '500万'; const r = d.getBoundingClientRect(), f = document.querySelector('.formula-bar').getBoundingClientRect(); d.hidden = true; return Math.abs(r.bottom - f.top) <= 1; }), true);
   await page.reload(); await page.waitForTimeout(900);
   check('  桁の 読みは 出さない ときは 箱も 出さない', await page.evaluate(() => { const d = document.getElementById('digitHint'); return d.hidden + '/' + getComputedStyle(d).display; }), 'true/none');

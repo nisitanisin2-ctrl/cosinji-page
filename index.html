@@ -1432,6 +1432,10 @@ body.kb-edit { grid-template-columns: 1fr !important; }
   box-shadow: 0 -2px 8px rgba(0,0,0,.12); -webkit-overflow-scrolling: touch; }
 #cellMenu.edit-bar button { flex: none; width: auto; padding: 9px 11px; font-size: 13px; text-align: center; }
 #cellMenu.edit-bar:not(.bar-nokb) .cm-edit { display: none; }
+/* テンキーが 出ているときの 帯は、テンキーの いちばん上の 列に かさねる（v619）。帯が 消えると 元の ボタン（声・進む・戻す・リセット…）に 戻る */
+#cellMenu.edit-bar.on-pad.show { align-items: stretch; padding: 0 3px; border: 2px solid var(--acc); border-radius: var(--r-btn);
+  box-shadow: 0 2px 8px rgba(0,0,0,.25); box-sizing: border-box; }
+#cellMenu.edit-bar.on-pad button { padding-top: 0; padding-bottom: 0; }
 /* ⊞ 結合（v619）：範囲を 選んで いるとき・結合した セルの ときだけ */
 #cellMenu:not(.can-merge) .cm-merge { display: none !important; }
 #cellMenu .cm-merge { color: var(--acc-text, var(--acc)); }

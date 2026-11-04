@@ -1349,8 +1349,34 @@ function showEditBar(noKb){
 /* 帯を置く（v420 で見直し）。キーボードが出ているときは「見えている画面（visualViewport）」の下の端に、
    上からの位置で置く。iPhone はキーボードが出ると画面ごとずれる（offsetTop）ので、下からの位置だと
    ずれやすい。拡大しているときも、見えている幅に合わせる */
+/* テンキーの いちばん上の 列（声・進む・戻す・リセット・通常 など）の 場所（v619）。
+   テンキーが 出て いないとき（キーボードで 直している・テンキーを 閉じた）は null */
+function padTopRow(){
+  const b=document.body; if(b.classList.contains('kb-edit') || b.classList.contains('numpad-off')) return null;
+  const vp=document.getElementById('numpadViewport'); if(!vp || !vp.offsetParent) return null;
+  const v=vp.getBoundingClientRect(); if(v.height<40 || v.width<120) return null;
+  let top=Infinity, bot=Infinity;
+  vp.querySelectorAll('.btn').forEach(x=>{
+    if(!x.offsetParent) return;
+    const r=x.getBoundingClientRect();
+    if(r.height<12 || r.width<12 || r.right<=v.left+2 || r.left>=v.right-2 || r.top<v.top-2 || r.top>=v.bottom) return;   // ほかの ページ（横に 隠れて いる）は 見ない
+    if(r.top<top-2){ top=r.top; bot=r.bottom; }
+    else if(Math.abs(r.top-top)<=2) bot=Math.min(bot, r.bottom);   // 2段の Enter などは 1段目の 高さで
+  });
+  if(!isFinite(top) || !isFinite(bot) || bot-top<16) return null;
+  return { left:v.left, width:v.width, top, height:bot-top };
+}
 function placeEditBar(){
   const menu=document.getElementById('cellMenu'); if(!menu || !menu.classList.contains('edit-bar')) return;
+  // テンキーが 出ているときは、いちばん上の 列（声・進む・戻す・リセット…）に かさねて 出す。帯が 消えると 元の ボタンに 戻る（v619）
+  const row=padTopRow();
+  menu.classList.toggle('on-pad', !!row);
+  if(row){
+    menu.style.left=Math.round(row.left)+'px'; menu.style.width=Math.round(row.width)+'px';
+    menu.style.height=Math.round(row.height)+'px'; menu.style.bottom='auto'; menu.style.top=Math.round(row.top)+'px';
+    return;
+  }
+  menu.style.height='';
   const vv=window.visualViewport, h=menu.offsetHeight||44;
   let top;
   if(document.body.classList.contains('kb-edit') && vv){
@@ -1374,7 +1400,7 @@ function placeEditBar(){
 }
 function hideEditBar(){
   const menu=document.getElementById('cellMenu'); if(!menu || !menu.classList.contains('edit-bar')) return;
-  menu.classList.remove('edit-bar','show','bar-nokb'); menu.style.bottom=''; menu.style.top=''; menu.style.left=''; menu.style.width='';
+  menu.classList.remove('edit-bar','show','bar-nokb','on-pad'); menu.style.bottom=''; menu.style.top=''; menu.style.left=''; menu.style.width=''; menu.style.height='';
 }
 function endKbEdit(){ document.body.classList.remove('kb-edit'); hideEditBar(); }
 /* テンキーを押したら、キーボードなしで出した帯は消す（打ち始めた＝メニューは要らない） */
@@ -1444,7 +1470,7 @@ function showCellMenu(r,c){
   const lockBtn=document.getElementById('cellMenuLock');
   lockBtn.textContent = isLockedCell(r,c) ? '🔓 保護をやめる' : '🔒 保護';
   syncMenuMerge();
-  menu.classList.remove('edit-bar'); menu.style.bottom=''; menu.style.width='';
+  menu.classList.remove('edit-bar','on-pad'); menu.style.bottom=''; menu.style.width=''; menu.style.height='';
   back.classList.add('show'); menu.classList.add('show');
   armOnRepress(menu); armOnRepress(back);   // 長押しの指を離しただけでは選ばれない／閉じない
   // セルの近く（下側優先、はみ出すなら上側）に配置
