@@ -672,6 +672,13 @@ body.tb-fold .fb-menu { display: flex; align-items: center; justify-content: cen
   border: none; background: var(--bar-bg, var(--acc)); color: #fff; font-size: calc(17px * var(--formula-scale, 1)); font-weight: bold; cursor: pointer; }
 body.tb-fold.rec-dirty .fb-menu::after { content: ''; position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: #ffd23f; box-shadow: 0 0 0 1.5px var(--bar-bg, var(--acc)); }
 body.tb-fold .formula-bar { padding-left: calc(6px + var(--safe-left)); }
+/* いま開いている 表の 名前（v624。上のバーを たたんで いるとき） */
+.fb-rec { display: none; }
+body.tb-fold .fb-rec { display: block; flex: 0 1 auto; min-width: 0; max-width: calc(64px * var(--formula-scale, 1)); padding: 0 4px; height: calc(30px * var(--formula-scale, 1));
+  border: 1px solid var(--formula-border); border-radius: var(--r-btn); background: var(--formula-bg); color: var(--text);
+  font-size: calc(10.5px * var(--formula-scale, 1)); font-weight: bold; line-height: 1.15; text-align: center; cursor: pointer;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-all; }
+body.tb-fold .fb-rec.dirty { border-color: #e0a800; box-shadow: inset 0 -2px 0 #ffd23f; }
 /* セルのバーを テンキーの真上に（v619）。テンキーが 下に あるときだけ（右に 出すとき・スマホの 横向きは 表の上の まま） */
 body.fb-low:not(.np-side) .formula-bar { order: 1; border-bottom: none; border-top: 1px solid var(--formula-border); }
 body.fb-low:not(.np-side) .digit-hint { top: auto; bottom: 100%; border-top: 1px solid var(--formula-border); border-bottom: none; border-radius: 8px 8px 0 0; box-shadow: 0 -2px 5px rgba(0,0,0,.18); }
@@ -856,13 +863,22 @@ body.tb-fold.dentaku-mode .dt-pane .dt-tape-empty { min-height: 38px; }
 .more-item:active { opacity: 0.7; }
 .more-item:disabled { opacity: 0.38; cursor: default; }
 .more-sec {
-  font-size: 13px; font-weight: bold; color: var(--text-light);
+  font-size: 13px; font-weight: bold; color: var(--text);
   margin: 12px 0 6px; padding-top: 9px; border-top: 1px solid var(--cell-border, #ddd);
 }
 .undo-item { justify-content: flex-start; margin-bottom: 6px; }
 .undo-count { margin-left: auto; font-size: 12px; color: var(--text-light); flex-shrink: 0; }
 .more-danger-sec { color: var(--danger); }
 .more-item.on { box-shadow: inset 0 0 0 2px var(--acc); }
+/* 最近使った操作（v624） */
+.more-recent { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; overflow-x: auto; scrollbar-width: none; }
+.more-recent[hidden] { display: none; }
+.more-recent-t { flex: none; font-size: 12px; font-weight: bold; color: var(--text); }
+.more-recent-list { display: flex; gap: 6px; min-width: 0; }
+.more-rc { flex: none; display: flex; align-items: center; gap: 5px; padding: 7px 10px; border-radius: 18px; border: 1px solid var(--acc);
+  background: var(--save-item-bg); color: var(--text); font-size: 13px; font-weight: bold; cursor: pointer; white-space: nowrap; }
+.more-rc span { font-size: 15px; }
+.more-rc:disabled { opacity: .4; }
 /* ⋯の中の畳めるところ（v375）。たまにしか使わないものはここへ */
 .more-acc { margin-top: 8px; }
 .more-acc > summary {
@@ -1046,6 +1062,12 @@ body.has-sheet-tabs .sheet-persist {
   white-space: nowrap; touch-action: manipulation;
 }
 .settings-tab.active { background: var(--acc); color: #fff; border-color: var(--acc); }
+/* 5つの タブ（v624）：絵の 下に 名前 */
+.settings-tabbar { gap: 3px; padding-left: 6px; padding-right: 6px; }
+.settings-tab { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; padding: 6px 1px 7px; font-size: 11px; line-height: 1.15; white-space: normal; }
+.settings-tab i { font-style: normal; font-size: 16px; line-height: 1.1; }
+#setPage2 #setGrpKeys > summary { display: none; }   /* テンキーの タブでは 組の 見出しは 出さず 開いたまま */
+#setPage2 #setGrpKeys { border: none; padding: 0; margin: 0; background: none; }
 .settings-body {
   background: #f0f0f0;
   padding: 10px; overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1;
@@ -1436,6 +1458,16 @@ body.kb-edit { grid-template-columns: 1fr !important; }
 #cellMenu.edit-bar.on-pad.show { align-items: stretch; padding: 0 3px; border: 2px solid var(--acc); border-radius: var(--r-btn);
   box-shadow: 0 2px 8px rgba(0,0,0,.25); box-sizing: border-box; }
 #cellMenu.edit-bar.on-pad button { padding-top: 0; padding-bottom: 0; }
+/* 選んだものに 合わせて 変わる ボタン（v624）。帯の 中だけで 出す */
+#cellMenu .cm-ctx { display: none; }
+#cellMenu.edit-bar .cm-ctx { display: contents; }
+#cellMenu.edit-bar .cm-cx { color: var(--acc-text, var(--acc)); background: var(--cell-hover); border-radius: var(--r-btn); }
+#cellMenu.edit-bar .cm-cx.on { background: var(--acc); color: #fff; }
+#cellMenu.ctx-hdr > button { display: none !important; }   /* 列名・行番号の ときは その列（行）の ボタンだけ */
+/* 帯・長押しの メニューの 字を 濃く・大きく（v624。外でも 読める ように） */
+.cell-menu button { color: var(--text); }
+#cellMenu.edit-bar button { font-size: 14px; font-weight: bold; }
+#cellMenu.edit-bar.on-pad button { font-size: 14.5px; }
 /* ⊞ 結合（v619）：範囲を 選んで いるとき・結合した セルの ときだけ */
 #cellMenu:not(.can-merge) .cm-merge { display: none !important; }
 #cellMenu .cm-merge { color: var(--acc-text, var(--acc)); }
@@ -3007,6 +3039,8 @@ body[data-pm="xs"] .pm-modal > .modal-header {
 .pdf-seg { display: flex; gap: 4px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
 .pdf-seg button { padding: 7px 11px; font-size: 12px; font-weight: bold; border: 1px solid var(--save-item-border); border-radius: var(--r-btn); background: var(--modal-bg); color: var(--text); cursor: pointer; touch-action: manipulation; }
 .pdf-seg button.on { background: var(--acc); color: #fff; border-color: var(--acc); }
+.pdf-seg button:disabled { opacity: .4; cursor: default; }
+.pdf-seg-wrap { flex-shrink: 1; min-width: 0; }
 .pdf-num { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-light); flex-shrink: 0; }
 .pdf-num input { width: 60px; padding: 8px; text-align: center; font-size: 15px; border: 1px solid var(--save-item-border); border-radius: var(--r-btn); background: var(--cell-bg,#fff); color: var(--text); }
 .pdf-chk { width: 22px; height: 22px; flex-shrink: 0; }
@@ -3712,6 +3746,43 @@ body.dark { --hpf-red:#ff8a80; --hpf-blue:#82b1ff; --hpf-green:#81c784; --hpf-gr
 .hp-pick-set { display: block; width: 100%; min-height: 36px; margin-top: 4px; border: none; background: none; color: var(--text-sub); font-size: 12.5px; text-decoration: underline; cursor: pointer; }
 /* 🔎 しぼり込み：隠した行・見出しの ▾・表の上の帯 */
 #sheet tr.hp-hid { display: none; }
+/* 隠した 列（v624）と、隠した 行・列の となりの 印（Excel の 二重線の ような） */
+#sheet .hc-hid { display: none; }
+#sheet .ch.hid-next { box-shadow: inset -3px 0 0 var(--acc); }
+#sheet .ch.hid-prev { box-shadow: inset 3px 0 0 var(--acc); }
+#sheet .rh.hid-next { box-shadow: inset 0 -3px 0 var(--acc); }
+#sheet .rh.hid-prev { box-shadow: inset 0 3px 0 var(--acc); }
+/* 見出しの 固定（v624。ウィンドウ枠の固定） */
+#sheet td.fz { position: sticky; z-index: 2; }
+#sheet td.cell.fz { background-color: var(--sheet-cell-bg, var(--cell-bg)); }
+#sheet td.cell.fz-r.fz-c { z-index: 3; }
+#sheet td.ch.fz, #sheet td.rh.fz { z-index: 5; }
+#sheet td.corner-resizer { z-index: 6; }
+#sheet td.fz-end-r { box-shadow: inset 0 -2px 0 var(--acc); }
+#sheet td.fz-end-c { box-shadow: inset -2px 0 0 var(--acc); }
+#sheet td.fz-end-r.fz-end-c { box-shadow: inset -2px -2px 0 var(--acc); }
+/* 長押しで「これは何？」（v624） */
+.tip-bubble { position: fixed; z-index: 3000; max-width: min(320px, calc(100vw - 16px)); padding: 9px 12px; border-radius: 12px;
+  background: #263238; color: #fff; font-size: 13.5px; line-height: 1.55; box-shadow: 0 4px 16px rgba(0,0,0,.3); pointer-events: none;
+  opacity: 0; transform: translateY(4px); transition: opacity .15s, transform .15s; visibility: hidden; }
+.tip-bubble.show { opacity: 1; transform: none; visibility: visible; }
+.tip-bubble b { display: block; font-size: 14.5px; margin-bottom: 2px; color: #ffd54f; }
+.ka-what { margin: 0 0 10px; padding: 8px 10px; border-radius: 10px; background: var(--cell-hover); font-size: 13px; line-height: 1.5; color: var(--text); }
+.ka-what b { display: block; font-size: 11.5px; color: var(--text-light); }
+/* 数式の 中の セルに 色（v624） */
+#sheet td.cell.fref { box-shadow: inset 0 0 0 2px var(--fref), inset 0 0 0 999px color-mix(in srgb, var(--fref) 10%, transparent); }
+/* 前の状態に戻す（v624） */
+.modal.snap-modal { width: 100%; max-width: 440px; max-height: 88vh; }
+.snap-note { font-size: 13px; line-height: 1.6; color: var(--text); margin-bottom: 10px; }
+.snap-take { width: 100%; min-height: 44px; border-radius: var(--r-btn); border: 1px solid var(--acc); background: var(--save-item-bg); color: var(--acc-text, var(--acc));
+  font-size: 15px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+.snap-list { display: flex; flex-direction: column; gap: 8px; }
+.snap-item { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--save-item-border); border-radius: 12px; background: var(--save-item-bg); }
+.snap-t { flex: 1; min-width: 0; }
+.snap-t b { display: block; font-size: 14.5px; color: var(--text); }
+.snap-t small { display: block; font-size: 12px; color: var(--text-light); margin-top: 2px; overflow-wrap: anywhere; }
+.snap-go { flex: none; min-height: 40px; padding: 0 12px; border-radius: var(--r-btn); border: none; background: var(--acc); color: #fff; font-size: 13.5px; font-weight: bold; cursor: pointer; }
+.snap-empty { font-size: 13px; color: var(--text-light); text-align: center; padding: 14px 0; }
 .ch .hp-fb { display: inline-block; margin-left: 2px; padding: 0 4px; min-width: 14px; border-radius: 4px; line-height: 1.45;
   color: var(--acc-text); font-size: 1.1em; cursor: pointer; }
 .ch .hp-fb.on { background: var(--acc); color: var(--on-acc); }
@@ -3881,6 +3952,7 @@ body.dark .tsx-res-val.ng   { color: #ff8a80; }
   #printArea td.num { text-align: right; }
   /* ヘッダー／フッターは thead/tfoot に入れることで各ページに繰り返し印刷される */
   #printArea thead .pa-run, #printArea tfoot .pa-run { border: none !important; text-align: center; font-size: 11px; color: #000; padding: 4px 3px; }
+  #printArea thead.pa-head { display: table-header-group; }   /* 見出しの 行を 毎ページに（v624） */
   @page { margin: 12mm; }
 }
 
@@ -4083,6 +4155,8 @@ body.dark {
       <button class="modal-close" onclick="closeMoreMenu()">✕</button>
     </div>
     <div class="modal-body">
+      <!-- 最近使った操作（v624）。ほかの機能の中で 押した ものを 3つ -->
+      <div class="more-recent" id="moreRecent" hidden><span class="more-recent-t">🕘 最近使った</span><div class="more-recent-list" id="moreRecentList"></div></div>
       <!-- 標準モード／かんたんモード（v482。前は ⚙設定 のいちばん上にあった） -->
       <div class="more-uimode">
         <div class="skin-seg" id="uiModeSeg"><button class="skin-seg-btn" data-m="full" onclick="setUiMode('full')">標準モード</button><button class="skin-seg-btn" data-m="easy" onclick="setUiMode('easy')">かんたんモード</button></div>
@@ -4105,38 +4179,55 @@ body.dark {
       </div>
       <!-- ほかの機能（v459）。中身は前の ⋯ と同じ。畳んでいても上のバーへの登録や長押しはそのまま効く -->
       <details class="more-acc" id="moreAccAll" ontoggle="saveMoreAcc(this)">
-        <summary>… ほかの機能<small>ホーム・進む・ナイトモード・ひな形・電卓・グラフ・しぼり込み・チェック欄・書き出し・シート・QR・リセット</small></summary>
-        <div class="more-grid">
-          <button class="more-item" id="moreHomeBtn" onclick="moreDo(openHome)"><span>🏠</span>ホーム</button>
-          <button class="more-item menu-item" id="redoBtn" onclick="moreDo(redoLast)" disabled><span>↷</span>進む</button>
-          <button class="more-item" id="darkMoreBtn" onclick="moreDo(toggleDark)"><span>🌙</span>ナイトモード</button>
-          <button class="more-item" onclick="moreDo(openModeMenu)"><span>🎯</span>ひな形から作る</button>
-          <button class="more-item" onclick="moreDo(()=>switchMode('normal'))"><span>▦</span>通常の表</button>
-          <button class="more-item" onclick="moreDo(()=>switchMode('dentaku'))"><span>🧮</span>電卓</button>
-          <button class="more-item np-side-only" id="moreNumpadBtn" onclick="moreDo(toggleNumpadEdge)"><span>⌨</span>テンキーを隠す／出す</button>
+        <summary>… ほかの機能<small>ファイル・編集・挿入・書式・データ・表示（Excel・スプレッドシートと 同じ 分け方）</small></summary>
+        <!-- v624：Excel・スプレッドシートの メニューと 同じ 分け方に -->
+        <div class="more-sec">📁 ファイル</div>
+        <div class="more-grid" id="moreAccOut">
+          <button class="more-item" onclick="moreDo(exportPDF)" title="今の表を印刷画面から「PDFに保存」で書き出せます（範囲だけ・見出しを毎ページ も えらべます）"><span>🖨</span>印刷・PDF</button>
+          <button class="more-item" id="moreImgBtn" onclick="moreDo(shareSheetImage)" title="いまの表（範囲を選んでいれば その範囲）を 画像に して、LINE などで 送る・保存する"><span>🖼</span>画像で送る</button>
+          <button class="more-item" onclick="moreDo(exportXLSX)" title="値・数式・書式（色・枠線・太字・寄せ・結合）・固定・印刷の設定をエクセル形式で書き出します"><span>📊</span>Excel出力</button>
+          <button class="more-item" onclick="moreDo(exportCSV)" title="中身を CSV（カンマ区切りの 文字）で 書き出します"><span>📄</span>CSV出力</button>
+          <button class="more-item" onclick="document.getElementById('importXLSXInput').click();closeMoreMenu()" title="エクセル(.xlsx)ファイルを今の表に読み込みます（上書き）"><span>📥</span>Excel読込</button>
+          <button class="more-item" onclick="document.getElementById('importCSVInput').click();closeMoreMenu()" title="CSVファイルを今の表に読み込みます（上書き）"><span>📥</span>CSV読込</button>
+          <button class="more-item" id="moreSnapBtn" onclick="moreDo(openSnapHistory)" title="毎日 はじめに 開いた ときの 表の 控えから、前の 状態に 戻せます（スプレッドシートの 変更履歴）"><span>🕘</span>前の状態に戻す</button>
+          <button class="more-item" onclick="moreDo(openQrShare)" title="アプリのアドレスを QR コードで出す（相手のスマホのカメラで開けます）"><span>📱</span>QRで共有</button>
         </div>
-        <!-- 表を強くする（v563）。列の見出し（A・B…）の長押し・セルの長押しからも開ける -->
-        <div class="more-sec">📊 表を強くする</div>
+        <div class="more-sec">✏ 編集</div>
+        <div class="more-grid" id="moreAccEdit">
+          <button class="more-item menu-item" id="redoBtn" onclick="moreDo(redoLast)" disabled title="戻した 操作を やり直す"><span>↷</span>進む</button>
+          <button class="more-item" onclick="moreDo(openFindDlg)" title="セル番号（A100）で 飛ぶ・文字で さがす"><span>🔎</span>検索・移動</button>
+        </div>
+        <div class="more-sec">➕ 挿入</div>
         <div class="more-grid" id="moreAccHp">
+          <button class="more-item" onclick="moreDo(insertRowAtSel)" title="選んでいる セルの 上に 行を 足す（行番号の 長押し・タップでも）"><span>⬆</span>行を挿入</button>
+          <button class="more-item" onclick="moreDo(insertColAtSel)" title="選んでいる セルの 左に 列を 足す（列名の 長押し・タップでも）"><span>⬅</span>列を挿入</button>
           <button class="more-item" onclick="moreDo(()=>hpRun('chart'))" title="えらんだ範囲（なければ まわりの表）を 棒・折れ線・円グラフに。画像で保存・印刷も"><span>📊</span>グラフ</button>
-          <button class="more-item" onclick="moreDo(()=>hpRun('cf'))" title="マイナスは赤・期限が過ぎたら黄色 など、決まりを作れば自動で色が付きます"><span>🎨</span>条件で色</button>
-          <button class="more-item" onclick="moreDo(()=>hpRun('filter'))" title="見出しの ▾ で この店だけ・1万円以上だけ を出す。合計も しぼった分だけに"><span>🔎</span>しぼり込み</button>
           <button class="more-item" onclick="moreDo(()=>hpRun('kind'))" title="済のチェック欄や、現金／カードから選ぶだけの列を作ります"><span>☑</span>チェック欄</button>
+          <button class="more-item" onclick="moreDo(openModeMenu)" title="買物・割り勘・見積 などの 表の かたち・ひな形から 作る"><span>🎯</span>ひな形から作る</button>
+        </div>
+        <div class="more-sec">🎨 書式</div>
+        <div class="more-grid" id="moreAccFmt">
+          <button class="more-item" onclick="moreDo(openCellFmt)" title="選んでいる セルの 小数・日付・文字の 大きさ・色・保護 など"><span>🔤</span>セルの書式</button>
+          <button class="more-item" onclick="moreDo(()=>{ if(numpadPager) numpadPager.go('fmt'); })" title="テンキーを 書式・枠線の ページに する（罫線・色・B・I・U・寄せ・結合）"><span>🖌</span>書式・枠線</button>
+          <button class="more-item" onclick="moreDo(()=>hpRun('cf'))" title="マイナスは赤・期限が過ぎたら黄色 など、決まりを作れば自動で色が付きます"><span>🎨</span>条件で色</button>
+        </div>
+        <div class="more-sec">📊 データ</div>
+        <div class="more-grid" id="moreAccData">
+          <button class="more-item" onclick="moreDo(()=>hpRun('filter'))" title="見出しの ▾ で この店だけ・1万円以上だけ を出す。合計も しぼった分だけに"><span>🔎</span>しぼり込み</button>
+          <button class="more-item" onclick="moreDo(()=>hpRun('filter', selC))" title="選んでいる 列で 小さい順・大きい順に 並べかえる（範囲を 選べば 帯の ↑↓ でも）"><span>↕</span>並べかえ</button>
           <button class="more-item" onclick="moreDo(()=>hpRun('pivot'))" title="食費・日用品… ごとの合計を、別の表に自動でまとめます"><span>📑</span>項目ごとの合計</button>
         </div>
-        <div class="more-sec">📤 書き出す・読み込む</div>
-        <div class="more-grid" id="moreAccOut">
-          <button class="more-item" onclick="moreDo(exportPDF)" title="今の表を印刷画面から「PDFに保存」で書き出せます"><span>🖨</span>PDF</button>
-          <button class="more-item" onclick="moreDo(exportCSV)"><span>📄</span>CSV出力</button>
-          <button class="more-item" onclick="moreDo(exportXLSX)" title="値・数式・書式（色・枠線・太字・寄せ・結合）をエクセル形式で書き出します"><span>📊</span>Excel出力</button>
-          <button class="more-item" onclick="document.getElementById('importCSVInput').click();closeMoreMenu()" title="CSVファイルを今の表に読み込みます（上書き）"><span>📥</span>CSV読込</button>
-          <button class="more-item" onclick="document.getElementById('importXLSXInput').click();closeMoreMenu()" title="エクセル(.xlsx)ファイルを今の表に読み込みます（上書き）"><span>📥</span>Excel読込</button>
-        </div>
-        <div class="more-sec">🛠 そのほか</div>
+        <div class="more-sec">👁 表示</div>
         <div class="more-grid" id="moreAccMisc">
+          <button class="more-item" id="moreFzBtn" onclick="moreDo(freezePanes)" title="選んでいる セルの 上の 行と 左の 列を 固定する（動かしても 見えたまま）。もう一度で やめる"><span>📌</span>枠の固定</button>
+          <button class="more-item" id="moreShowHid" onclick="moreDo(()=>showLines())" title="隠した 行・列を ぜんぶ 出す"><span>👁</span>隠したのを出す</button>
           <button class="more-item menu-item" id="sheetToggleBtn" onclick="moreDo(toggleSheetTabs)" title="シートのタブバーを表示/非表示"><span>🗂</span>シート</button>
+          <button class="more-item" id="darkMoreBtn" onclick="moreDo(toggleDark)" title="画面を 暗い 色に する／もどす"><span>🌙</span>ナイトモード</button>
+          <button class="more-item" id="moreHomeBtn" onclick="moreDo(openHome)" title="表・電卓・道具を えらぶ はじめの 画面"><span>🏠</span>ホーム</button>
+          <button class="more-item" onclick="moreDo(()=>switchMode('normal'))" title="ふつうの 表に もどす"><span>▦</span>通常の表</button>
+          <button class="more-item" onclick="moreDo(()=>switchMode('dentaku'))" title="ふつうの 電卓に する"><span>🧮</span>電卓</button>
+          <button class="more-item np-side-only" id="moreNumpadBtn" onclick="moreDo(toggleNumpadEdge)" title="テンキーを 隠す／出す"><span>⌨</span>テンキーを隠す／出す</button>
           <button class="more-item menu-item" id="defsizeTopBtn" title="新しい表や ▦通常 に戻したときの行数・列数を決めます"><span>▦</span>既定の大きさ</button>
-          <button class="more-item" onclick="moreDo(openQrShare)" title="アプリのアドレスを QR コードで出す（相手のスマホのカメラで開けます）"><span>📱</span>QRで共有</button>
         </div>
         <div class="more-sec more-danger-sec">表の中身を消す</div>
         <button class="more-item more-danger menu-item" id="resetBtn" onclick="moreDo(resetAll)"><span>🧹</span>リセット（戻るで元に戻せます）</button>
@@ -4218,9 +4309,11 @@ body.dark {
     <div class="set-find-res" id="setFindRes" hidden></div>
   </div>
   <div class="settings-tabbar">
-    <button class="settings-tab active" onclick="setSettingsTab(0)">📐 表</button>
-    <button class="settings-tab" onclick="setSettingsTab(1)">🎨 見た目</button>
-    <button class="settings-tab" onclick="setSettingsTab(2)">🧮 計算</button>
+    <button class="settings-tab active" onclick="setSettingsTab(0)"><i>📐</i>表の操作</button>
+    <button class="settings-tab" onclick="setSettingsTab(1)"><i>🎨</i>見た目</button>
+    <button class="settings-tab" onclick="setSettingsTab(2)"><i>⌨</i>テンキー</button>
+    <button class="settings-tab" onclick="setSettingsTab(3)"><i>🧮</i>計算</button>
+    <button class="settings-tab" onclick="setSettingsTab(4)"><i>💾</i>保存とデータ</button>
   </div>
   <div class="settings-body">
 
@@ -4241,7 +4334,7 @@ body.dark {
       <button class="skin-seg-btn" data-cg="excel" onclick="setCellGesture('excel')">Excel と同じ</button>
       <button class="skin-seg-btn" data-cg="old" onclick="setCellGesture('old')">以前の表電卓</button>
     </div>
-    <div class="set-note"><b>Excel と同じ</b>：ダブルタップで<b>中身を直す</b>（スマホではテンキーの場所にキーボードが出て、その上に<b>切り取り・コピー・貼り付け・行や列の挿入など</b>の帯が出ます）、選んだセルの右下の<b>■</b>を引っぱると<b>フィル</b>。<br><b>以前の表電卓</b>：ダブルタップで<b>中身を直す</b>（Excel と同じ）、長押ししてから動かすと<b>フィル</b>、約1秒の長押しで<b>メニュー</b>。</div>
+    <div class="set-note"><b>Excel と同じ</b>：ダブルタップで<b>中身を直す</b>（スマホではテンキーの場所にキーボードが出て、その上に<b>切り取り・コピー・貼り付け など</b>の帯が出ます。選んだ セルを もう一度 押すと、テンキーの いちばん上の 列に 帯が 出て、数字なら ¥・%、文字なら 太字・寄せ、範囲なら 合計・並べかえ と、選んだ ものに 合わせた ボタンが 並びます）、選んだセルの右下の<b>■</b>を引っぱると<b>フィル</b>。<br><b>以前の表電卓</b>：ダブルタップで<b>中身を直す</b>（Excel と同じ）、長押ししてから動かすと<b>フィル</b>、約1秒の長押しで<b>メニュー</b>。</div>
     <div class="set-sec">使いかた</div>
     <button class="set-act" id="setTourBtn" onclick="toggleSettings(); setTimeout(openTour, 320);">🚀 はじめての案内をもう一度見る</button>
     <button class="set-act" onclick="toggleSettings(); setTimeout(openQrShare, 320);">📱 アプリを共有（QRコード）</button>
@@ -4320,6 +4413,30 @@ body.dark {
     </div>
       </div>
     </details>
+    <details class="set-grp" id="setGrpScreen" ontoggle="saveSetGrp(this)">
+      <summary><span class="set-grp-ic">📱</span><span class="set-grp-t"><b>画面</b><small>はじめに開くページ・吹き出し・🔙 戻る・画面の詰め方</small></span></summary>
+      <div class="set-grp-body">
+    <div class="set-sec">はじめに開くページ</div>
+    <div class="set-row">
+      <span class="set-label">アプリを開いたとき<small>次に開いたときから効きます</small></span>
+      <select class="fmt-select" id="startPageSel" onchange="setStartPage(this.value)" style="flex-shrink:0"></select>
+    </div>
+    <div class="set-sec">道具の使い方の吹き出し</div>
+    <div class="set-note">道具を<b>はじめて開いたとき</b>に、使い方を1つだけ吹き出しで出します（1つの道具に1回だけ）。</div>
+    <div class="skin-seg" id="toolHintSeg"><button class="skin-seg-btn" data-h="1" onclick="setToolHints(true);renderToolHintSeg()">出す（もう一度はじめから）</button><button class="skin-seg-btn" data-h="0" onclick="setToolHints(false);renderToolHintSeg()">出さない</button></div>
+    <div class="set-sec">🔙 道具から 表電卓に戻るとき</div>
+    <div class="set-note">道具（連絡帳・業務手帳 など）で 端末の<b>「戻る」</b>を押して、次が表電卓のときに <b>「表電卓に戻りますか？」</b>と聞きます。押しまちがいで 道具が閉じないように。</div>
+    <div class="skin-seg" id="backAskSeg"><button class="skin-seg-btn" data-b="1" onclick="setBackAsk(true)">聞く</button><button class="skin-seg-btn" data-b="0" onclick="setBackAsk(false)">聞かない（すぐ戻る）</button></div>
+    <div class="set-sec">画面の詰め方<small style="font-weight:normal;margin-left:6px">せまい画面で表示量を増やす</small></div>
+    <div class="set-note">iPhone SE のように<b>背の低い画面</b>だと、電卓の答えや履歴が入りきらないことがあります。<b>詰める</b>にすると文字と余白を少しずつ縮めて、<b>1画面に見える量を増やします</b>。<b>自動</b>は画面の大きさで決めます。<span id="compactNow"></span></div>
+    <div class="skin-seg" id="compactSeg"></div>
+    <div class="set-note">🌙<b>ナイトモード</b>・🗂<b>シートのタブ</b>・▦<b>既定の大きさ</b>・書き出し／読み込みは、<b>☰ メニュー → … ほかの機能</b> にまとめてあります。</div>
+      </div>
+    </details>
+  </div>
+
+  <!-- ⌨ テンキー（v624。前は 見た目の 中の 組） -->
+  <div class="set-page" id="setPage2">
     <details class="set-grp" id="setGrpKeys" ontoggle="saveSetGrp(this)">
       <summary><span class="set-grp-ic">⌨</span><span class="set-grp-t"><b>テンキー</b><small>置き場所・電卓だけ・ページの表示・記号・調整バー・ボタンの配置・道具の窓</small></span></summary>
       <div class="set-grp-body">
@@ -4362,29 +4479,9 @@ body.dark {
     </details>
       </div>
     </details>
-    <details class="set-grp" id="setGrpScreen" ontoggle="saveSetGrp(this)">
-      <summary><span class="set-grp-ic">📱</span><span class="set-grp-t"><b>画面</b><small>はじめに開くページ・吹き出し・🔙 戻る・画面の詰め方</small></span></summary>
-      <div class="set-grp-body">
-    <div class="set-sec">はじめに開くページ</div>
-    <div class="set-row">
-      <span class="set-label">アプリを開いたとき<small>次に開いたときから効きます</small></span>
-      <select class="fmt-select" id="startPageSel" onchange="setStartPage(this.value)" style="flex-shrink:0"></select>
-    </div>
-    <div class="set-sec">道具の使い方の吹き出し</div>
-    <div class="set-note">道具を<b>はじめて開いたとき</b>に、使い方を1つだけ吹き出しで出します（1つの道具に1回だけ）。</div>
-    <div class="skin-seg" id="toolHintSeg"><button class="skin-seg-btn" data-h="1" onclick="setToolHints(true);renderToolHintSeg()">出す（もう一度はじめから）</button><button class="skin-seg-btn" data-h="0" onclick="setToolHints(false);renderToolHintSeg()">出さない</button></div>
-    <div class="set-sec">🔙 道具から 表電卓に戻るとき</div>
-    <div class="set-note">道具（連絡帳・業務手帳 など）で 端末の<b>「戻る」</b>を押して、次が表電卓のときに <b>「表電卓に戻りますか？」</b>と聞きます。押しまちがいで 道具が閉じないように。</div>
-    <div class="skin-seg" id="backAskSeg"><button class="skin-seg-btn" data-b="1" onclick="setBackAsk(true)">聞く</button><button class="skin-seg-btn" data-b="0" onclick="setBackAsk(false)">聞かない（すぐ戻る）</button></div>
-    <div class="set-sec">画面の詰め方<small style="font-weight:normal;margin-left:6px">せまい画面で表示量を増やす</small></div>
-    <div class="set-note">iPhone SE のように<b>背の低い画面</b>だと、電卓の答えや履歴が入りきらないことがあります。<b>詰める</b>にすると文字と余白を少しずつ縮めて、<b>1画面に見える量を増やします</b>。<b>自動</b>は画面の大きさで決めます。<span id="compactNow"></span></div>
-    <div class="skin-seg" id="compactSeg"></div>
-    <div class="set-note">🌙<b>ナイトモード</b>・🗂<b>シートのタブ</b>・▦<b>既定の大きさ</b>・書き出し／読み込みは、<b>☰ メニュー → … ほかの機能</b> にまとめてあります。</div>
-      </div>
-    </details>
   </div>
 
-  <div class="set-page" id="setPage2">
+  <div class="set-page" id="setPage3">
     <div class="set-sec">計算のしかた</div>
     <div class="set-row">
       <span class="set-label">小数点以下の桁数<small>「自」は自動</small></span>
@@ -4436,6 +4533,23 @@ body.dark {
     <button class="set-act" onclick="openModeVis()" title="「ひな形から作る」に出す表のかたちを選びます">ひな形の一覧に出すもの</button>
   </div>
 
+  <!-- 💾 保存とデータ（v624） -->
+  <div class="set-page" id="setPage4">
+    <div class="set-sec">いまの表の 保存</div>
+    <div class="set-note">いまの表は <b>書きかえる たびに 自動で 保存</b>しています（閉じても 戻ります）。名前を 付けて 残すときは ☰ の「💾 名前を付けて保存」。</div>
+    <button class="set-act" onclick="toggleSettings();showSaveList()" title="名前を 付けて 保存した 表の 一覧（開く・新規・名前の 変更・消す）">📂 保存した表の一覧</button>
+    <div class="set-sec">前の状態に戻す</div>
+    <div class="set-note">毎日 <b>はじめに 開いた とき</b>の 表を、この 端末の 中に 自動で 控えて います（14日分）。まちがえて 消した ときは ここから 戻せます。</div>
+    <button class="set-act" onclick="toggleSettings();openSnapHistory()" title="毎日の 控えから 前の 状態に 戻す・今の 状態を 控える">🕘 前の状態に戻す（毎日の控え）</button>
+    <div class="set-sec">機種変え・バックアップ</div>
+    <div class="set-note">保存した 表・当番表・野菜の 日記・<b>設定</b>を 1つの ファイルに 書き出せます。新しい 端末で 読み込めば そのまま 使えます。</div>
+    <button class="set-act" onclick="toggleSettings();exportSaves()" title="保存データをファイルに書き出して他の端末へ移せます">⬇ 保存データを書き出す</button>
+    <button class="set-act" onclick="toggleSettings();document.getElementById('importSavesInput').click()" title="書き出したファイルから保存データを読み込みます">⬆ 書き出したファイルを読み込む</button>
+    <div class="set-sec">この端末の 空き</div>
+    <div class="set-note">入れた ものは ぜんぶ この 端末の 中だけに あります（どこにも 送りません）。いっぱいに なったら、大きい ものから 片づけられます。</div>
+    <button class="set-act" onclick="toggleSettings();openStorage()" title="この端末に何がどれだけ入っているかを見て、大きいものから片づけます">📦 空き具合を見る</button>
+  </div>
+
   </div>
  </div>
 </div>
@@ -4444,6 +4558,7 @@ body.dark {
      合計は数値があるときだけ右側に出る。▼ はテンキーの開閉。 -->
 <div class="formula-bar">
   <button class="fb-menu" id="fbMenu" onclick="openMoreMenu()" aria-label="メニュー" title="メニュー（保存・戻す・リスト・設定・道具など）">☰</button>
+  <button class="fb-rec" id="fbRec" onclick="showSaveList()" title="いま開いている表（押すと 保存した 表の 一覧）">自動保存</button>
   <span class="cellref-wrap">
     <input id="cellRef" type="text" value="A1" readonly onclick="openCellFmt()" title="タップでこのセルの書式設定（小数点・装飾・色・大きさ）">
     <span id="dateBadge" class="date-badge" title="日付書式のセル"></span>
@@ -5084,6 +5199,21 @@ body.dark {
           <div class="pdf-preview-margin" id="pdfPrevMargin"><div class="pdf-preview-inner" id="pdfPrevInner"></div></div>
         </div>
         <div class="pdf-preview-cap" id="pdfPrevCap"></div>
+      </div>
+      <div class="pdf-row">
+        <span class="pdf-row-label">印刷する範囲<small>範囲を選んでから開くと えらべます</small></span>
+        <span class="pdf-seg pdf-seg-wrap" id="pdfArea">
+          <button data-v="all" onclick="pdfSeg('pdfArea',this)">表ぜんぶ</button>
+          <button data-v="sel" onclick="pdfSeg('pdfArea',this)" disabled>選んでいる範囲</button>
+        </span>
+      </div>
+      <div class="pdf-row">
+        <span class="pdf-row-label">見出しを毎ページに<small>何ページにもなるとき、上の行を どのページにも</small></span>
+        <span class="pdf-seg" id="pdfHeadRows">
+          <button data-v="0" onclick="pdfSeg('pdfHeadRows',this)">しない</button>
+          <button data-v="1" onclick="pdfSeg('pdfHeadRows',this)">1行目</button>
+          <button data-v="2" onclick="pdfSeg('pdfHeadRows',this)">1〜2行目</button>
+        </span>
       </div>
       <div class="pdf-row">
         <span class="pdf-row-label">タイトル<small>空欄なら印刷しません</small></span>
@@ -6238,15 +6368,16 @@ body.dark {
 <!-- セル長押しメニュー（貼り付け・コピー・保護・消去・書式） -->
 <div class="cellmenu-backdrop" id="cellMenuBackdrop" onclick="hideCellMenu()"></div>
 <div class="cell-menu" id="cellMenu" onpointerdown="if(this.classList.contains('edit-bar')) event.preventDefault()" onmousedown="if(this.classList.contains('edit-bar')) event.preventDefault()">
-  <button onclick="cellMenuAct('cut')" class="cm-xl">✂ 切り取り</button>
-  <button onclick="cellMenuAct('copy')">⧉ コピー</button>
-  <button onclick="cellMenuAct('paste')">📥 貼り付け</button>
-  <button onclick="cellMenuAct('merge')" id="cellMenuMerge" class="cm-merge">⊞ 結合</button>
-  <button onclick="cellMenuAct('edit')" class="cm-xl cm-edit">✏ 編集</button>
-  <button onclick="cellMenuAct('clear')">🧹 消去</button>
-  <button onclick="cellMenuAct('fmt')">🎨 書式</button>
-  <button onclick="cellMenuAct('lock')" id="cellMenuLock">🔒 保護</button>
-  <button onclick="cellMenuAct('hp')" id="cellMenuHp">📊 グラフ・色・しぼる</button>
+  <span class="cm-ctx" id="cellMenuCtx"></span><!-- 選んだものに 合わせて 変わる ボタン（v624） -->
+  <button onclick="cellMenuAct('cut')" class="cm-xl" data-act="cut" title="切り取って、貼り付けた 先へ 動かす">✂ 切り取り</button>
+  <button onclick="cellMenuAct('copy')" data-act="copy" title="選んでいる セル（範囲）を 写す">⧉ コピー</button>
+  <button onclick="cellMenuAct('paste')" data-act="paste" title="写した ものを ここに 貼る">📥 貼り付け</button>
+  <button onclick="cellMenuAct('merge')" id="cellMenuMerge" class="cm-merge" data-act="merge" title="選んだ 範囲を 1つの セルに する（もう一度で 解除）">⊞ 結合</button>
+  <button onclick="cellMenuAct('edit')" class="cm-xl cm-edit" data-act="edit" title="中身を 直す（キーボードが 出ます）">✏ 編集</button>
+  <button onclick="cellMenuAct('clear')" data-act="clear" title="中身を 消す（書式・枠線は 残す）">🧹 消去</button>
+  <button onclick="cellMenuAct('fmt')" data-act="fmt" title="小数・日付・文字の大きさ・色などを 決める 窓">🎨 書式</button>
+  <button onclick="cellMenuAct('lock')" id="cellMenuLock" data-act="lock" title="まちがって 消さない ように 守る">🔒 保護</button>
+  <button onclick="cellMenuAct('hp')" id="cellMenuHp" data-act="hp" title="グラフ・条件で色・しぼり込み などを 開く">📊 グラフ・色・しぼる</button>
 </div>
 
 <!-- 🔎セルの検索・移動 -->
