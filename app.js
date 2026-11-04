@@ -1325,9 +1325,18 @@ function isTouchUI(){
   try{ return matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints||0)>0; }catch(_){ return false; }
 }
 /* 直している間、切り取り・コピーなどを横一列の帯にして、キーボード（パソコンではテンキー）のすぐ上に出す（v414） */
+/* 帯・長押しメニューの「⊞ 結合」（v619）：範囲を選んでいるときは 結合、結合した セルを 選んで いれば 解除 */
+function syncMenuMerge(){
+  const m=document.getElementById('cellMenu'), b=document.getElementById('cellMenuMerge'); if(!m||!b) return;
+  const g=selRect(), rng=rangeR1>=0 && (g.r2>g.r1 || g.c2>g.c1);
+  const merged=!rng && selR>=0 && !!mergeAt(selR,selC);
+  m.classList.toggle('can-merge', !isStructMode() && (rng||merged));
+  b.textContent=merged ? '⊟ 結合を解除' : '⊞ 結合';
+}
 function showEditBar(noKb){
   const menu=document.getElementById('cellMenu'); if(!menu) return;
   menu.classList.toggle('bar-nokb', !!noKb);   // キーボードなしで出したときは「✏ 編集」も出す
+  syncMenuMerge();
   const lockBtn=document.getElementById('cellMenuLock');
   if(lockBtn) lockBtn.textContent = isLockedCell(selR,selC) ? '🔓 保護をやめる' : '🔒 保護';
   document.getElementById('cellMenuBackdrop').classList.remove('show');
@@ -1340,8 +1349,34 @@ function showEditBar(noKb){
 /* 帯を置く（v420 で見直し）。キーボードが出ているときは「見えている画面（visualViewport）」の下の端に、
    上からの位置で置く。iPhone はキーボードが出ると画面ごとずれる（offsetTop）ので、下からの位置だと
    ずれやすい。拡大しているときも、見えている幅に合わせる */
+/* テンキーの いちばん上の 列（声・進む・戻す・リセット・通常 など）の 場所（v619）。
+   テンキーが 出て いないとき（キーボードで 直している・テンキーを 閉じた）は null */
+function padTopRow(){
+  const b=document.body; if(b.classList.contains('kb-edit') || b.classList.contains('numpad-off')) return null;
+  const vp=document.getElementById('numpadViewport'); if(!vp || !vp.offsetParent) return null;
+  const v=vp.getBoundingClientRect(); if(v.height<40 || v.width<120) return null;
+  let top=Infinity, bot=Infinity;
+  vp.querySelectorAll('.btn').forEach(x=>{
+    if(!x.offsetParent) return;
+    const r=x.getBoundingClientRect();
+    if(r.height<12 || r.width<12 || r.right<=v.left+2 || r.left>=v.right-2 || r.top<v.top-2 || r.top>=v.bottom) return;   // ほかの ページ（横に 隠れて いる）は 見ない
+    if(r.top<top-2){ top=r.top; bot=r.bottom; }
+    else if(Math.abs(r.top-top)<=2) bot=Math.min(bot, r.bottom);   // 2段の Enter などは 1段目の 高さで
+  });
+  if(!isFinite(top) || !isFinite(bot) || bot-top<16) return null;
+  return { left:v.left, width:v.width, top, height:bot-top };
+}
 function placeEditBar(){
   const menu=document.getElementById('cellMenu'); if(!menu || !menu.classList.contains('edit-bar')) return;
+  // テンキーが 出ているときは、いちばん上の 列（声・進む・戻す・リセット…）に かさねて 出す。帯が 消えると 元の ボタンに 戻る（v619）
+  const row=padTopRow();
+  menu.classList.toggle('on-pad', !!row);
+  if(row){
+    menu.style.left=Math.round(row.left)+'px'; menu.style.width=Math.round(row.width)+'px';
+    menu.style.height=Math.round(row.height)+'px'; menu.style.bottom='auto'; menu.style.top=Math.round(row.top)+'px';
+    return;
+  }
+  menu.style.height='';
   const vv=window.visualViewport, h=menu.offsetHeight||44;
   let top;
   if(document.body.classList.contains('kb-edit') && vv){
@@ -1354,12 +1389,18 @@ function placeEditBar(){
     top=(r && r.height>0 && !document.body.classList.contains('np-side')) ? r.top-h : base-h;
     menu.style.left=''; menu.style.width='';
   }
+  // セルのバーを テンキーの 真上に 出して いるときは、バーを 隠さない ように その上に 置く（v619）
+  const fb=document.querySelector('.formula-bar');
+  if(fb && document.body.classList.contains('fb-low') && fb.offsetParent && getComputedStyle(fb).order==='1'){
+    const fr=fb.getBoundingClientRect();
+    if(fr.height>0 && fr.top-h<top) top=fr.top-h;
+  }
   menu.style.bottom='auto';
   menu.style.top=Math.max(0, Math.round(top))+'px';
 }
 function hideEditBar(){
   const menu=document.getElementById('cellMenu'); if(!menu || !menu.classList.contains('edit-bar')) return;
-  menu.classList.remove('edit-bar','show','bar-nokb'); menu.style.bottom=''; menu.style.top=''; menu.style.left=''; menu.style.width='';
+  menu.classList.remove('edit-bar','show','bar-nokb','on-pad'); menu.style.bottom=''; menu.style.top=''; menu.style.left=''; menu.style.width=''; menu.style.height='';
 }
 function endKbEdit(){ document.body.classList.remove('kb-edit'); hideEditBar(); }
 /* テンキーを押したら、キーボードなしで出した帯は消す（打ち始めた＝メニューは要らない） */
@@ -1428,7 +1469,8 @@ function showCellMenu(r,c){
   const menu=document.getElementById('cellMenu'), back=document.getElementById('cellMenuBackdrop');
   const lockBtn=document.getElementById('cellMenuLock');
   lockBtn.textContent = isLockedCell(r,c) ? '🔓 保護をやめる' : '🔒 保護';
-  menu.classList.remove('edit-bar'); menu.style.bottom=''; menu.style.width='';
+  syncMenuMerge();
+  menu.classList.remove('edit-bar','on-pad'); menu.style.bottom=''; menu.style.width=''; menu.style.height='';
   back.classList.add('show'); menu.classList.add('show');
   armOnRepress(menu); armOnRepress(back);   // 長押しの指を離しただけでは選ばれない／閉じない
   // セルの近く（下側優先、はみ出すなら上側）に配置
@@ -1456,6 +1498,7 @@ function cellMenuAct(a){
   else if(a==='paste'){ pasteCellSmart(); }
   else if(a==='clear'){ clearSelection(); }
   else if(a==='lock'){ toggleUserLock(selR,selC); }
+  else if(a==='merge'){ kfmtMerge(); }   // ⊞ 結合・⊟ 解除（v619）
   else if(a==='hp'){ hpRun('menu'); }   // 📊 グラフ・🎨 条件で色・🔎 しぼり込み・☑ チェック欄・📑 まとめ表（v563）
 }
 /* 選択セル（範囲があれば範囲全体）の値を消去（枠線・書式は残す） */
@@ -1655,14 +1698,37 @@ function buildPdfHtml(ps){
   if(ps.footer) html+=`<tfoot><tr><td class="pa-run" colspan="${COLS}">${escHtml(ps.footer)}</td></tr></tfoot>`;
   html+='<tbody>';
   const cfm=hpCfCompute();   // 🎨 条件で付く色も印刷する（v563）
+  /* 列の幅（v619）：中身のある列・幅を決めた列は、画面と同じ割合の幅を いちばん狭い幅に する。
+     中身の幅だけで組むと、真ん中に寄せた文字でも 列いっぱいに なって 寄って 見えなかった。
+     幅は 高さ0の 行に 置いた 箱で 決める（長い 文字は そのまま 広がる） */
+  const kw=pdfFontPx(ps)/14;   // 画面の 文字（14px）と 印刷の 文字の 比
+  let spr='';
+  for(let c=0;c<COLS;c++){
+    let used=!!colWidths[c];
+    for(let r=0;!used && r<ROWS;r++){ if(!hpHidRow(r) && String((data[r]||[])[c]??'')!=='') used=true; }
+    spr+=`<td class="pa-sp" style="padding:0;border:none;height:0;line-height:0"><div style="width:${used?Math.round((colWidths[c]||60)*kw):0}px;height:0"></div></td>`;
+  }
+  html+=`<tr class="pa-sp" aria-hidden="true">${spr}</tr>`;
   for(let r=0;r<ROWS;r++){
     if(hpHidRow(r)) continue;   // 🔎 しぼり込みで隠した行は印刷しない（見えている表のとおり。v563）
-    html+='<tr>';
+    html+=rowHeights[r] ? `<tr style="height:${Math.round(rowHeights[r]*kw)}px">` : '<tr>';   // 決めた 行の 高さ（v619）
     for(let c=0;c<COLS;c++){
+      // 結合（v619）：覆われた セルは 出さず、左上の セルを 広げる（真ん中に 寄せた 見出しが 表の 真ん中に 出る）
+      if(coverOf(r,c)){ if(!hpHidRow(anchorOf(r,c)[0])) continue; html+='<td></td>'; continue; }
+      const mg=mergeAt(r,c);
+      let span='';
+      if(mg){
+        let vr=0; for(let i=r;i<Math.min(ROWS,r+mg.rs);i++) if(!hpHidRow(i)) vr++;
+        const cs=Math.min(mg.cs, COLS-c);
+        if(cs>1) span+=` colspan="${cs}"`;
+        if(vr>1) span+=` rowspan="${vr}"`;
+      }
       const td=document.getElementById(`c${r}_${c}`);
       const disp = td ? td.textContent : '';
       const s=hpEffStyle(r,c,cfm)||{};
       let st='';
+      if(s.valign)    st+='vertical-align:'+s.valign+';';   // 文字の縦の位置（v619）
+      if(s.size && s.size!==1) st+='font-size:'+(pdfFontPx(ps)*s.size).toFixed(1)+'px;';   // 文字の大きさ（v619）
       if(s.bold)      st+='font-weight:bold;';
       if(s.italic)    st+='font-style:italic;';
       if(s.underline||s.strike) st+='text-decoration:'+[s.underline?'underline':'', s.strike?'line-through':''].join(' ').trim()+';';
@@ -1679,7 +1745,7 @@ function buildPdfHtml(ps){
       let cls=(ps.border==='all' || (ps.border==='filled' && disp!=='')) ? 'filled' : '';
       if(s.align) st+='text-align:'+s.align+';';
       else if(disp!=='' && !isNaN(disp.replace(/,/g,''))) cls+=' num';   // 数値は右寄せ
-      html+=`<td class="${cls}" style="${st}">${escHtml(disp)}</td>`;
+      html+=`<td class="${cls}"${span} style="${st}">${escHtml(disp)}</td>`;
     }
     html+='</tr>';
   }
@@ -4942,6 +5008,31 @@ function renderNpPlace(){
   if(nt) nt.textContent=document.body.classList.contains('np-side')?'いまは「右」で出ています':'いまは「下」で出ています';
 }
 window.addEventListener('resize', ()=>applyNpPlace());   // 最初の1回は起動の終わりで（下の方の変数がそろってから）
+/* ── セルのバー（☰・セル番号・入力欄・合計）の置き場所（v619）──
+   top＝表の上（これまでどおり）／pad＝テンキーの真上（打つ 指の 近くで 中身を 見られる）。
+   テンキーが 下に あるときだけ 効く（右に 出すとき・スマホの 横向きは 表の上の まま） */
+const FB_PLACE_KEY='excalc_fb_place';
+const FB_PLACES=[{id:'top',n:'表の上'},{id:'pad',n:'テンキーの真上'}];
+let fbPlace='top';
+try{ if(localStorage.getItem(FB_PLACE_KEY)==='pad') fbPlace='pad'; }catch(_){}
+function applyFbPlace(){
+  document.body.classList.toggle('fb-low', fbPlace==='pad');
+  renderFbPlace();
+  requestAnimationFrame(()=>{ if(typeof placeEditBar==='function') placeEditBar(); if(typeof autoFitSheet==='function') autoFitSheet(); });
+}
+function setFbPlace(v){
+  if(!FB_PLACES.some(m=>m.id===v)) return;
+  fbPlace=v; try{ localStorage.setItem(FB_PLACE_KEY, v); }catch(_){}
+  applyFbPlace();
+  toast(v==='pad' ? (document.body.classList.contains('np-side') ? 'テンキーを右に出している間は、セルのバーは表の上のままです' : 'セルのバーを テンキーの真上に 出します') : 'セルのバーを 表の上に 出します');
+}
+function renderFbPlace(){
+  const seg=document.getElementById('fbPlaceSeg'); if(!seg) return;
+  if(seg.children.length!==FB_PLACES.length){
+    seg.innerHTML=FB_PLACES.map(m=>'<button class="skin-seg-btn" data-fb="'+m.id+'" onclick="setFbPlace(\''+m.id+'\')">'+m.n+'</button>').join('');
+  }
+  Array.from(seg.children).forEach(el=>{ const on=el.dataset.fb===fbPlace; el.classList.toggle('on', on); el.setAttribute('aria-pressed', String(on)); });
+}
 let numpadCollapsePx=Math.max(0, parseFloat(localStorage.getItem('excalc_numpad_collapse'))||0);
 function applyNumpadCollapse(){
   const vp=document.getElementById('numpadViewport'); if(!vp) return;
@@ -15849,7 +15940,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v618';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v619';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -18534,7 +18625,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_digithint','excalc_dt_dec','excalc_dt_round','excalc_enterdir','excalc_flicksym','excalc_fmtcol','excalc_formulasize',
   'excalc_funcpage','excalc_hiddenmodes','excalc_infosize','excalc_kantab_limit','excalc_kantab_table','excalc_kantab_warn',
   'excalc_key_assign','excalc_keypad_pos','excalc_keypad_pos2','excalc_keypad_pos_v2','excalc_keypad_posfmt3','excalc_keypad_posfmt4','excalc_kfcol','excalc_keyscale',
-  'excalc_keysize','excalc_links','excalc_modeorder','excalc_np_place','excalc_npad','excalc_numpad_hidden',
+  'excalc_keysize','excalc_links','excalc_modeorder','excalc_np_place','excalc_fb_place','excalc_npad','excalc_numpad_hidden',
   'excalc_numpad_landw','excalc_numscale','excalc_pagebar','excalc_pdf_settings','excalc_pm_custom_colors','excalc_pm_phrases',
   'excalc_pm_prefs','excalc_prn','excalc_savesort','excalc_savetabnames','excalc_saveview','excalc_show_resizerbar',
   'excalc_show_sheettabs','excalc_skin','excalc_speechauto','excalc_speechlayout','excalc_speechspeak','excalc_startpage',
@@ -19171,6 +19262,7 @@ a11yInit();          // 読み上げ・キーボード操作の下ごしらえ�
 { const dd=document.getElementById('defDateFmt'); if(dd) dd.value=defaultDateFmt; }   // 日付の既定表示形式を復元
 saveDirty=false; updateRecordTitle();   // 起動直後は「📄 自動保存」（記録は開いていない）
 applyNpPlace(true);                        // テンキーの置き場所（v399）
+applyFbPlace();                            // セルのバーの置き場所（v619）
 if(localStorage.getItem('excalc_trigmode')==='rad') trigMode='rad';
 applyTrigModeBtn();
 restoreSheetSizes();
