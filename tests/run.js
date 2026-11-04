@@ -19157,7 +19157,7 @@ async function runCellXl(browser) {
   check('  長押しして動かしてもフィルにならない', await page.evaluate(() => data[3][0]), '');
   check('  選んだセルの枠の右下の角に小さな四角（v421）', await page.evaluate(() => {
     sel(0, 0); const h = document.getElementById('fillHandle'), hb = h.getBoundingClientRect(), tb = document.getElementById('c0_0').getBoundingClientRect();
-    return getComputedStyle(h).display + '/' + Math.round(hb.width) + '/' + (Math.abs((hb.left + hb.width / 2) - (tb.right - 1)) <= 1.5 && Math.abs((hb.top + hb.height / 2) - (tb.bottom - 1)) <= 1.5); }), 'block/10/true');   // 指で使う画面は 10px（v470。マウスは 7px）
+    return getComputedStyle(h).display + '/' + Math.round(hb.width) + '/' + (Math.abs((hb.left + hb.width / 2) - (tb.right - 1)) <= 1.5 && Math.abs((hb.top + hb.height / 2) - (tb.bottom - 1)) <= 1.5); }), 'block/16/true');   // v629：指で 使う 画面は 16px の 丸い つまみ   // 指で使う画面は 10px（v470。マウスは 7px）
   check('  別のセルを選ぶと四角も移る', await page.evaluate(() => {
     sel(2, 1); const hb = document.getElementById('fillHandle').getBoundingClientRect(), tb = document.getElementById('c2_1').getBoundingClientRect();
     const ok = Math.abs((hb.left + hb.width / 2) - (tb.right - 1)) <= 1.5 && Math.abs((hb.top + hb.height / 2) - (tb.bottom - 1)) <= 1.5; sel(0, 0); return ok; }), true);
@@ -19188,13 +19188,13 @@ async function runCellXl(browser) {
   await page.mouse.click(p.x, p.y); await page.waitForTimeout(400);
   check('  押しただけなら、ふつうに押したセル（右下のとなり）を選ぶ', await page.evaluate(() => selR + ',' + selC + '/' + (data[1][1] || '空')), '1,2/空');
   // v471：指では ■ を押したとみなす範囲をさらに広く（外側は角から約30px・内側は右下の約半分）
-  check('  指なら外側30px近くまで・内側も広くつかめる（マウスは狭いまま）', await page.evaluate(() => {
+  check('  指なら外側28pxまで・セルの中の右側は範囲選択（v629。前は内側の右半分もつまみだった）・マウスは狭いまま', await page.evaluate(() => {
     sel(0, 1); const b = document.getElementById('c0_1').getBoundingClientRect();
     fillPressTouch = true;
     const t = [fillHandleHit(b.right + 26, b.bottom + 26), fillHandleHit(b.right - Math.min(36, b.width * 0.45), b.bottom - b.height * 0.6), fillHandleHit(b.right + 40, b.bottom + 40)];
     fillPressTouch = false;
     const m = [fillHandleHit(b.right + 26, b.bottom + 26)];
-    return t.concat(m).join('/'); }), 'true/true/false/false');
+    return t.concat(m).join('/'); }), 'true/false/false/false');
   {
     const cdp = await page.context().newCDPSession(page);
     await page.evaluate(() => { for (let r = 1; r <= 6; r++) setCellVal(r, 1, ''); setCellVal(0, 1, '8'); sel(0, 1); }); await page.waitForTimeout(500);
@@ -19986,6 +19986,90 @@ async function runSum628(browser) {
   check('  スマホの 横向きは セルのバーの まま', await lp.evaluate(() => document.getElementById('statsSection').parentNode.className + '/' + document.body.classList.contains('sum-pad')), 'formula-bar/false');
   check('  JSエラーが出ていない（横向き）', le.length, 0);
   await L.close();
+}
+
+/* v629：範囲選択と コピー（フィル）の 取り違えを なくす。⚙ 設定で 角の つまみ（はじめ）／帯の ボタン／長押しして なぞる */
+async function runFill629(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 表電卓 v629：範囲選択と コピー（角の つまみ・帯の ボタン・長押しして なぞる） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const cdp = await page.context().newCDPSession(page);
+  const rect = (r, c) => page.evaluate(([r, c]) => { const b = document.getElementById('c' + r + '_' + c).getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height }; }, [r, c]);
+  const swipe = async (x0, y0, x1, y1, holdMs = 0) => {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y: y0 }] });
+    if (holdMs) await w(holdMs);
+    for (let i = 1; i <= 10; i++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x0 + (x1 - x0) * i / 10, y: y0 + (y1 - y0) * i / 10 }] }); await w(20); }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await w(350);
+  };
+  const st = () => page.evaluate(() => [[1, 2, 3, 4].map(r => data[r][1] || '空').join(','), rangeR1 >= 0 ? [rangeR1, rangeC1, rangeR2, rangeC2].join(':') : '選択なし'].join(' / '));
+  const reset = async () => { await page.evaluate(() => { try { hideEditBar(); hideSeqBtn(); } catch (_) {} clearRangeSelection(); for (let r = 1; r <= 6; r++) setCellVal(r, 1, ''); setCellVal(0, 1, '5'); recalcAll(); sel(0, 1); }); await w(400); };
+  await page.evaluate(() => setSheetSize(15, 6)); await w(300);   // D・E 列も 使う
+
+  // ── はじめは「角の つまみ」 ──
+  await page.evaluate(() => { toggleSettings(); setSettingsTab(0); }); await w(300);
+  check('  設定：表の操作に「範囲選択と コピー（フィル）」3つ（はじめは 角の つまみ）', await page.evaluate(() => [fillHow, [...document.querySelectorAll('#fillHowSeg button')].map(b => b.textContent + (b.classList.contains('on') ? '●' : '')).join('|'), document.getElementById('fillHowSeg').closest('.set-page').id, /角の 丸い つまみ/.test(document.getElementById('fillHowNote').textContent)].join('/')),
+    'handle/角の つまみ●|帯の ボタン|長押しして なぞる/setPage0/true');
+  await page.evaluate(() => toggleSettings()); await w(300);
+  await reset();
+  check('  つまみは 角に 丸く（指の 画面は 16px）', await page.evaluate(() => { const h = document.getElementById('fillHandle'), s = getComputedStyle(h), hb = h.getBoundingClientRect(), tb = document.getElementById('c0_1').getBoundingClientRect();
+    return [s.display, s.width, s.borderRadius, Math.abs((hb.left + hb.width / 2) - (tb.right - 1)) <= 1.5 && Math.abs((hb.top + hb.height / 2) - (tb.bottom - 1)) <= 1.5].join('/'); }), 'block/16px/50%/true');
+  check('  当たりは 角の まわりだけ（セルの 中の 右側は 範囲選択）', await page.evaluate(() => { const b = document.getElementById('c0_1').getBoundingClientRect(); fillPressTouch = true;
+    const r = [fillHandleHit(b.right - 6, b.bottom - 6), fillHandleHit(b.right + 25, b.bottom + 25), fillHandleHit(b.right - b.width * 0.25, b.bottom - b.height * 0.5), fillHandleHit(b.right - 20, b.bottom - 4), fillHandleHit(b.right + 35, b.bottom + 10)]; fillPressTouch = false; return r.join('/'); }), 'true/true/false/false/false');
+  let c = await rect(0, 1);
+  await swipe(c.r - c.w * 0.25, c.t + c.h * 0.5, c.r - c.w * 0.25, c.t + c.h * 3.5);
+  check('  セルの 右側から なぞっても 範囲選択（前は コピー に なっていた）', await st(), '空,空,空,空 / 0:1:3:1');
+  await reset(); c = await rect(0, 1);
+  await swipe(c.r + 8, c.b + 8, c.r + 8, c.b + 8 + c.h * 3.2);
+  check('  角の つまみを 引くと コピー', await st(), '5,5,5,空 / 選択なし');
+
+  // ── 長押しして なぞる ──
+  await page.evaluate(() => setFillHow('hold')); await reset(); c = await rect(0, 1);
+  check('  長押しの ときは つまみを 出さない', await page.evaluate(() => getComputedStyle(document.getElementById('fillHandle')).display + '/' + fillHandleHit(document.getElementById('c0_1').getBoundingClientRect().right + 5, document.getElementById('c0_1').getBoundingClientRect().bottom + 5)), 'none/false');
+  await swipe(c.l + c.w / 2, c.t + c.h / 2, c.l + c.w / 2, c.t + c.h * 3.5);
+  check('  すぐ なぞると 範囲選択', await st(), '空,空,空,空 / 0:1:3:1');
+  await reset(); c = await rect(0, 1);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: c.l + c.w / 2, y: c.t + c.h / 2 }] }); await w(700);
+  check('  0.5秒 押すと コピーの 用意（点線の 枠）', await page.evaluate(() => document.getElementById('c0_1').classList.contains('fill-arm') + '/' + fillMode), 'true/true');
+  for (let i = 1; i <= 10; i++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: c.l + c.w / 2, y: c.t + c.h / 2 + c.h * 3 * i / 10 }] }); await w(20); }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await w(350);
+  check('  　そのまま なぞると コピー', await st(), '5,5,5,空 / 選択なし');
+  await reset(); c = await rect(0, 1);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: c.l + c.w / 2, y: c.t + c.h / 2 }] }); await w(700);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await w(350);
+  check('  　動かさずに 離せば 何も しない（印も 消える）', await page.evaluate(() => document.getElementById('c0_1').classList.contains('fill-arm') + '/' + fillMode) + ' ' + await st(), 'false/false 空,空,空,空 / 選択なし');
+
+  // ── 帯の ボタン ──
+  await page.evaluate(() => setFillHow('band')); await reset(); c = await rect(0, 1);
+  check('  帯の ボタンの ときは つまみを 出さない', await page.evaluate(() => getComputedStyle(document.getElementById('fillHandle')).display), 'none');
+  await swipe(c.r + 8, c.b + 8, c.r + 8, c.b + 8 + c.h * 3.2);
+  check('  　角を 引いても コピー しない', await st(), '空,空,空,空 / 選択なし');
+  await reset(); c = await rect(0, 1);
+  await swipe(c.l + c.w / 2, c.t + c.h / 2, c.l + c.w / 2, c.t + c.h * 4.5);
+  const bandActs = () => page.evaluate(() => [...document.querySelectorAll('#cellMenu button[data-act]')].filter(b => b.offsetParent).sort((a, b) => +a.style.order - +b.style.order).map(b => b.dataset.act).slice(0, 4).join(','));
+  check('  なぞって 範囲を 選ぶと 帯の はじめに ↓ 下へコピー・1,2,3 連番（1列なので → は 出ない）', [await st(), await bandActs()].join(' | '), '空,空,空,空 / 0:1:4:1 | fill_down,fill_series,autosum,sort_up');
+  await page.evaluate(() => document.querySelector('#cellMenuCtx [data-act=fill_down]').click()); await w(300);
+  check('  ↓ 下へコピー（いちばん上を 下へ）・お知らせ', await st() + ' | ' + await page.evaluate(() => document.getElementById('appToast').textContent), '5,5,5,5 / 0:1:4:1 | ↓ 下へコピー：B1:B5（4セル）。↶戻す で 戻せます');
+  await page.evaluate(() => undoLast()); await w(200);
+  check('  　↶戻す 1回で ぜんぶ 戻る', await st(), '空,空,空,空 / 0:1:4:1');
+  await page.evaluate(() => { showEditBar(true); document.querySelector('#cellMenuCtx [data-act=fill_series]').click(); }); await w(300);
+  check('  1,2,3 連番', await st(), '6,7,8,9 / 0:1:4:1');
+  // 数式は ずらす・文字の 連番・日付・保護・→ 右へ
+  check('  数式は ずらす（$ は ずらさない）', await page.evaluate(() => { hideEditBar(); clearRangeSelection(); setCellVal(0, 0, '2'); setCellVal(1, 0, '3'); setCellVal(2, 0, '4'); setCellVal(0, 2, '=A1*10+$A$1'); for (let r = 1; r <= 2; r++) setCellVal(r, 2, ''); recalcAll(); sel(0, 2); rangeR1 = 0; rangeC1 = 2; extendRange(2, 2); bandFill('down'); return [data[1][2], data[2][2], getCellDisplay(2, 2)].join('|'); }), '=A2*10+$A$1|=A3*10+$A$1|42');
+  check('  「第1回」は 第2回・第3回（文字の 連番）', await page.evaluate(() => { clearRangeSelection(); setCellVal(0, 3, '第1回'); for (let r = 1; r <= 3; r++) setCellVal(r, 3, ''); sel(0, 3); rangeR1 = 0; rangeC1 = 3; extendRange(3, 3); bandFill('series'); return [1, 2, 3].map(r => data[r][3]).join('|'); }), '第2回|第3回|第4回');
+  check('  日付は 1日ずつ・日付の 形も 写す', await page.evaluate(() => { clearRangeSelection(); setCellVal(0, 4, '2026/11/4'); for (let r = 1; r <= 2; r++) setCellVal(r, 4, ''); sel(0, 4); rangeR1 = 0; rangeC1 = 4; extendRange(2, 4); bandFill('series'); return [1, 2].map(r => getCellDisplay(r, 4)).join('|') + '/' + !!cellDateFmt(2, 4); }), '2026/11/5|2026/11/6/true');
+  check('  → 右へコピー（左の 列を 右へ）・保護した セルは のぞく', await page.evaluate(() => { clearRangeSelection(); for (let c = 0; c <= 3; c++) setCellVal(6, c, ''); setCellVal(6, 0, 'A'); (cellStyles['6,2'] = cellStyles['6,2'] || {}).locked = true; sel(6, 0); rangeR1 = 6; rangeC1 = 0; extendRange(6, 3); bandFill('right'); const r = [0, 1, 2, 3].map(c => data[6][c] || '空').join(','); delete cellStyles['6,2'].locked; return r + ' | ' + document.getElementById('appToast').textContent; }), 'A,A,空,A | → 右へコピー：A7:D7（2セル・保護の 1つは のぞく）。↶戻す で 戻せます');
+  // 自分で 決めた 範囲の 帯にも 足す
+  check('  帯の ボタンに すると、自分で 決めた 範囲の 帯にも コピーの ボタンを 足す', await page.evaluate(() => { setFillHow('handle'); localStorage.setItem('excalc_band_cfg', JSON.stringify({ range: ['copy', 'autosum'], rtext: ['merge', 'bold'] })); setFillHow('band'); const o = JSON.parse(localStorage.getItem('excalc_band_cfg')); const r = o.range.join(',') + ' / ' + o.rtext.join(','); localStorage.removeItem('excalc_band_cfg'); return r; }),
+    'fill_down,fill_right,fill_series,copy,autosum / merge,fill_down,fill_right,fill_series,bold');
+  check('  覚える・設定の 書き出し（全保存）にも 入る', await page.evaluate(() => localStorage.getItem('excalc_fill_how') + '/' + settingsBundle().excalc_fill_how), 'band/band');
+  await page.reload(); await w(1000);
+  check('  開き直しても 帯の ボタン', await page.evaluate(() => fillHow + '/' + document.querySelector('#fillHowSeg .on').dataset.fh), 'band/band');
+  check('  角の つまみに もどすと 覚えた 中身を 消す（はじめの まま）', await page.evaluate(() => { setFillHow('handle'); return String(localStorage.getItem('excalc_fill_how')) + '/' + getComputedStyle(document.getElementById('fillHandle')).display; }), 'null/block');
+  check('  「以前の表電卓」の ときは 説明に 長押し と 出す', await page.evaluate(() => { setCellGesture('old'); const t = document.getElementById('fillHowNote').textContent; setCellGesture('excel'); return /以前の表電卓/.test(t); }), true);
+  check('  設定を さがす：「フィル」「コピー」', await page.evaluate(() => { toggleSettings(); const r = ['フィル', '範囲選択'].map(q => { setFind(q); return document.getElementById('setFindRes').textContent.includes('範囲選択と コピー'); }); setFind(''); toggleSettings(); return r.join('/'); }), 'true/true');
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
 }
 
 async function runFmtPage(browser) {
@@ -20923,6 +21007,7 @@ const SUITES = [
   [['band', 'v626'], b => runBand626(b)],
   [['export627', 'v627'], b => runExport627(b)],
   [['sum628', 'v628'], b => runSum628(b)],
+  [['fill629', 'v629'], b => runFill629(b)],
   [['clip'], b => runClip(b)],
   [['koe'], b => runKoe(b)],
   [['koe', 'koelisten'], b => runKoeListen(b)],
