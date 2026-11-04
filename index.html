@@ -673,12 +673,6 @@ body.tb-fold .fb-menu { display: flex; align-items: center; justify-content: cen
 body.tb-fold.rec-dirty .fb-menu::after { content: ''; position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: #ffd23f; box-shadow: 0 0 0 1.5px var(--bar-bg, var(--acc)); }
 body.tb-fold .formula-bar { padding-left: calc(6px + var(--safe-left)); }
 /* いま開いている 表の 名前（v624。上のバーを たたんで いるとき） */
-.fb-rec { display: none; }
-body.tb-fold .fb-rec { display: block; flex: 0 1 auto; min-width: 0; max-width: calc(64px * var(--formula-scale, 1)); padding: 0 4px; height: calc(30px * var(--formula-scale, 1));
-  border: 1px solid var(--formula-border); border-radius: var(--r-btn); background: var(--formula-bg); color: var(--text);
-  font-size: calc(10.5px * var(--formula-scale, 1)); font-weight: bold; line-height: 1.15; text-align: center; cursor: pointer;
-  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-all; }
-body.tb-fold .fb-rec.dirty { border-color: #e0a800; box-shadow: inset 0 -2px 0 #ffd23f; }
 /* セルのバーを テンキーの真上に（v619）。テンキーが 下に あるときだけ（右に 出すとき・スマホの 横向きは 表の上の まま） */
 body.fb-low:not(.np-side) .formula-bar { order: 1; border-bottom: none; border-top: 1px solid var(--formula-border); }
 body.fb-low:not(.np-side) .digit-hint { top: auto; bottom: 100%; border-top: 1px solid var(--formula-border); border-bottom: none; border-radius: 8px 8px 0 0; box-shadow: 0 -2px 5px rgba(0,0,0,.18); }
@@ -1470,6 +1464,7 @@ body.kb-edit { grid-template-columns: 1fr !important; }
 #cellMenu.edit-bar.on-pad button { font-size: 14.5px; }
 /* ⊞ 結合（v619）：範囲を 選んで いるとき・結合した セルの ときだけ */
 #cellMenu:not(.can-merge) .cm-merge { display: none !important; }
+#cellMenu.edit-bar .cm-off { display: none !important; }   /* 🎛 帯の ボタンで 出さない ことに した もの（v626） */
 #cellMenu .cm-merge { color: var(--acc-text, var(--acc)); }
 /* 選んだセルの枠の右下の角に置く小さな四角（v421。Excel のパソコン版と同じ形）。引っぱるとフィル。
    セルは中身がはみ出さないよう枠の内側で切っているので、四角は表の上に1つだけ別に置いて、角に合わせて動かす */
@@ -1892,6 +1887,16 @@ body.resizer-off .numpad-resizer { display: none !important; }
 }
 .numpad-pagebar .np-page.np-axis:hover { background: var(--kp-key); }
 body.pagebar-off .numpad-pagebar { display: none; }
+/* 合計を テンキーの上の行に（v628）：ページ名の 並びの 右はし。▲ 自分のボタン は ページ名の すぐ 右へ */
+body.sum-pad .numpad-pagebar .np-page.np-axis { margin-left: 0; position: static; box-shadow: none; background: var(--kp-veil2); }
+body.sum-pad .numpad-pagebar .stats-section { flex: 0 0 auto; margin-left: auto; padding: 0 2px 0 8px; border-left: none; gap: 5px;
+  position: sticky; right: 0; background: var(--kp-bg); box-shadow: -8px 0 8px -4px var(--kp-bg); }
+body.sum-pad .numpad-pagebar .stats-title { color: var(--kp-sub); font-size: 11px; }
+body.sum-pad .numpad-pagebar .stat-val { color: var(--kp-ink); font-size: 15px; line-height: 1.2; max-width: 46vw; }
+body.sum-pad .numpad-pagebar .stat-yen { background: var(--kp-veil2); color: var(--kp-sub2); border-color: transparent; font-size: 11px; padding: 2px 6px; }
+body.sum-pad .numpad-pagebar .stat-yen.on { background: var(--acc); color: var(--on-acc); }
+.numpad-pagebar.np-tight .np-ax-more { display: none; }   /* 入りきらない ときは「▲ 自分」 */
+.numpad-pagebar.np-tight .np-page { padding-left: 5px; padding-right: 5px; }
 /* テンキーを閉じているときは出さない（横向きは幅18pxまで縮むため） */
 body.numpad-off .numpad-pagebar { display: none; }
 .np-page {
@@ -2297,7 +2302,11 @@ html.app-techo::after{ content:'📔 業務手帳'; position:fixed; inset:0; z-i
 }
 /* 保存リストはタブ切替で内容量が変わっても高さがあまり動かないよう最小の高さを確保
    （空タブでモーダルが急に縮んで位置がずれるのを緩和） */
-#saveListBody { min-height: 42vh; }
+/* v627：窓の 高さを 決めて、一覧（#saveListBody）が 縮んで スクロールする ように する。
+   前は 一覧に 最低 42vh を 取っていたので、上の お知らせが 長いと 下の ボタン列（⬇ エクスポート など）が 窓の 外へ 押し出されて 見えなかった */
+#saveListOverlay > .modal { height: min(86vh, 760px); height: min(86dvh, 760px); max-height: 86vh; max-height: 86dvh; }
+#saveListBody { min-height: 0; }
+#saveListOverlay .save-state, #saveListOverlay .save-now, #saveListOverlay .save-tabbar, #saveListOverlay .save-viewbar, #saveListOverlay .save-toolbar { flex-shrink: 0; }
 .modal-header {
   background: var(--bar-bg, var(--acc)); color: white;
   padding: 12px 16px; font-size: 15px; font-weight: bold;
@@ -3771,11 +3780,34 @@ body.dark { --hpf-red:#ff8a80; --hpf-blue:#82b1ff; --hpf-green:#81c784; --hpf-gr
 .ka-what b { display: block; font-size: 11.5px; color: var(--text-light); }
 /* 数式の 中の セルに 色（v624） */
 #sheet td.cell.fref { box-shadow: inset 0 0 0 2px var(--fref), inset 0 0 0 999px color-mix(in srgb, var(--fref) 10%, transparent); }
+/* 🎛 帯の ボタン（v626） */
+.bcf-kinds { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.bcf-kind { min-height: 36px; padding: 0 10px; border-radius: 18px; border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text); font-size: 13px; font-weight: bold; cursor: pointer; }
+.bcf-kind.on { background: var(--acc); border-color: var(--acc); color: #fff; }
+.bcf-prev-t { font-size: 12px; color: var(--text-light); margin-bottom: 4px; }
+.bcf-prev { display: flex; gap: 4px; overflow-x: auto; padding: 6px; border: 2px solid var(--acc); border-radius: var(--r-btn); margin-bottom: 12px; background: var(--cell-hover); }
+.bcf-prev span { flex: none; padding: 6px 9px; border-radius: 8px; background: var(--save-item-bg); color: var(--text); font-size: 13px; font-weight: bold; white-space: nowrap; }
+.bcf-prev i { font-size: 13px; color: var(--text-light); padding: 6px; }
+.bcf-list { display: flex; flex-direction: column; gap: 6px; }
+.bcf-row { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid var(--save-item-border); border-radius: 12px; background: var(--save-item-bg); }
+.bcf-row.off { opacity: .75; }
+.bcf-chk { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.bcf-chk input { width: 22px; height: 22px; flex: none; accent-color: var(--acc); }
+.bcf-chk b { flex: none; font-size: 14.5px; color: var(--text); }
+.bcf-chk small { flex: 1; min-width: 0; font-size: 11.5px; line-height: 1.35; color: var(--text-light); }
+.bcf-mv { flex: none; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--save-item-border); background: var(--bg); color: var(--text); font-size: 15px; cursor: pointer; }
+.bcf-mv:disabled { opacity: .3; cursor: default; }
+.bcf-sec { font-size: 12.5px; font-weight: bold; color: var(--text-light); margin: 14px 0 6px; }
+.bcf-foot { display: flex; gap: 8px; margin-top: 14px; }
+.bcf-reset { flex: 1; min-height: 42px; border-radius: var(--r-btn); border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text); font-size: 13px; cursor: pointer; }
+.bcf-reset:disabled { opacity: .4; cursor: default; }
 /* 🗄 全保存（v625） */
 .fbk-now { font-size: 13px; line-height: 1.55; color: var(--text-light); padding: 8px 10px; border-radius: 10px; background: var(--cell-hover); margin-bottom: 10px; }
 .fbk-go { width: 100%; min-height: 50px; border-radius: var(--r-btn); border: none; background: var(--acc); color: #fff; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
 .fbk-last { font-size: 13px; line-height: 1.55; color: var(--text); padding: 8px 10px; border-radius: 10px; border: 1px solid var(--acc); margin-bottom: 10px; overflow-wrap: anywhere; }
 .fbk-warn { font-size: 12.5px; line-height: 1.55; color: var(--text); padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, #f5a623 16%, transparent); margin-bottom: 10px; }
+.fbk-share { display: block; width: 100%; min-height: 44px; margin-top: 8px; border-radius: var(--r-btn); border: 1px solid var(--acc); background: var(--save-item-bg); color: var(--acc-text, var(--acc)); font-size: 14.5px; font-weight: bold; cursor: pointer; }
+.fbk-go:disabled { opacity: .6; cursor: progress; }
 .fbk-how { font-size: 12.5px; line-height: 1.6; color: var(--text-light); }
 .fbk-how b { color: var(--text); }
 .fbk-how ol { margin: 4px 0 0; padding-left: 20px; }
@@ -4199,8 +4231,9 @@ body.dark {
           <button class="more-item" onclick="moreDo(exportCSV)" title="中身を CSV（カンマ区切りの 文字）で 書き出します"><span>📄</span>CSV出力</button>
           <button class="more-item" onclick="document.getElementById('importXLSXInput').click();closeMoreMenu()" title="エクセル(.xlsx)ファイルを今の表に読み込みます（上書き）"><span>📥</span>Excel読込</button>
           <button class="more-item" onclick="document.getElementById('importCSVInput').click();closeMoreMenu()" title="CSVファイルを今の表に読み込みます（上書き）"><span>📥</span>CSV読込</button>
+          <button class="more-item" id="moreExportBtn" onclick="moreDo(fullExport)" title="表・保存した表・設定・道具の データ・写真まで ぜんぶを 1つの ファイルに。別の パソコン・スマホで インポートすると まったく 同じ 状態に"><span>⬇</span>エクスポート</button>
+          <button class="more-item" id="moreImportBtn" onclick="fullPickImport();closeMoreMenu()" title="エクスポートした ファイルを 読み込んで、まったく 同じ 状態に する（いまの 中身は 置きかわります）"><span>⬆</span>インポート</button>
           <button class="more-item" id="moreSnapBtn" onclick="moreDo(openSnapHistory)" title="毎日 はじめに 開いた ときの 表の 控えから、前の 状態に 戻せます（スプレッドシートの 変更履歴）"><span>🕘</span>前の状態に戻す</button>
-          <button class="more-item" id="moreFullBtn" onclick="moreDo(openFullBackup)" title="設定・保存した表・道具の データ・写真まで ぜんぶを 1つの ファイルに。別の パソコン・スマホで 読み込むと 同じ 状態に 戻せます"><span>🗄</span>全保存・復元</button>
           <button class="more-item" onclick="moreDo(openQrShare)" title="アプリのアドレスを QR コードで出す（相手のスマホのカメラで開けます）"><span>📱</span>QRで共有</button>
         </div>
         <div class="more-sec">✏ 編集</div>
@@ -4346,6 +4379,9 @@ body.dark {
       <button class="skin-seg-btn" data-cg="old" onclick="setCellGesture('old')">以前の表電卓</button>
     </div>
     <div class="set-note"><b>Excel と同じ</b>：ダブルタップで<b>中身を直す</b>（スマホではテンキーの場所にキーボードが出て、その上に<b>切り取り・コピー・貼り付け など</b>の帯が出ます。選んだ セルを もう一度 押すと、テンキーの いちばん上の 列に 帯が 出て、数字なら ¥・%、文字なら 太字・寄せ、範囲なら 合計・並べかえ と、選んだ ものに 合わせた ボタンが 並びます）、選んだセルの右下の<b>■</b>を引っぱると<b>フィル</b>。<br><b>以前の表電卓</b>：ダブルタップで<b>中身を直す</b>（Excel と同じ）、長押ししてから動かすと<b>フィル</b>、約1秒の長押しで<b>メニュー</b>。</div>
+    <div class="set-sec">帯の ボタン</div>
+    <div class="set-note">セルを 押すと テンキーの 上に 出る <b>帯</b>に、どの ボタンを どの 順で 出すかを、帯の 種類（数字の セル・文字の セル・範囲・列名・行番号 など）ごとに 決められます。押しても 並びは 変わりません。</div>
+    <button class="set-act" id="setBandBtn" onclick="toggleSettings();openBandCfg()" title="帯に 出す ボタンと 並びを 決める">🎛 帯の ボタン（出す ボタン・並び）</button>
     <div class="set-sec">使いかた</div>
     <button class="set-act" id="setTourBtn" onclick="toggleSettings(); setTimeout(openTour, 320);">🚀 はじめての案内をもう一度見る</button>
     <button class="set-act" onclick="toggleSettings(); setTimeout(openQrShare, 320);">📱 アプリを共有（QRコード）</button>
@@ -4462,6 +4498,11 @@ body.dark {
     <div class="set-note">セル番号・入力欄・合計が並んだ<b>セルのバー</b>を、<b>表の上</b>（これまでどおり）か<b>テンキーの真上</b>に出せます。テンキーの真上にすると、打ちながら指の近くで中身を見られます。テンキーを右に出しているとき・スマホの横向きは、表の上のままです。</div>
     <div class="skin-seg" id="fbPlaceSeg"></div>
     </details>
+    <details class="set-sub" id="setSumPlace">
+      <summary>📍 合計の置き場所<small>テンキーの上の行／セルのバー</small></summary>
+    <div class="set-note">選んでいる 列（範囲）の <b>合計</b>（例：合計B 1,282 ¥）を、<b>テンキーの上の行</b>（書式・枠線／数字／電卓 の 並びの 右）か、<b>セルのバー</b>（入力欄の 右。v627 まで）に 出します。テンキーの上の行に すると、セルのバーの <b>入力欄が 広く</b> なります。テンキーを 閉じて いる とき・右に 出す とき・スマホの 横向きの ときは セルのバーに 出ます。</div>
+    <div class="skin-seg" id="sumPlaceSeg"></div>
+    </details>
     <details class="set-sub">
       <summary>🧮 電卓だけにする<small>テンキーを電卓のページに止める</small></summary>
     <div class="set-note">テンキーを<b>電卓のページから動かないように</b>します。<b>書式・枠線／数字／記号／登録</b>へは行かなくなり、フリックしても切り替わりません。かんたんな電卓として人に渡すときに使えます。<br><b>道具（🌱野菜・💧単位水量など）は、☰ → 🧰道具 から開けます</b>。<br>表は使えなくなるので、<b>▦表へ</b>のキーは隠れます。ここをもう一度押せばいつでも戻せます。</div>
@@ -4552,13 +4593,13 @@ body.dark {
     <div class="set-sec">前の状態に戻す</div>
     <div class="set-note">毎日 <b>はじめに 開いた とき</b>の 表を、この 端末の 中に 自動で 控えて います（14日分）。まちがえて 消した ときは ここから 戻せます。</div>
     <button class="set-act" onclick="toggleSettings();openSnapHistory()" title="毎日の 控えから 前の 状態に 戻す・今の 状態を 控える">🕘 前の状態に戻す（毎日の控え）</button>
-    <div class="set-sec">全保存（まるごと 移す）</div>
-    <div class="set-note"><b>設定も 写真も ぜんぶ</b>（いまの表・シート・保存した表・道具の データ・前の状態の 控え）を 1つの ファイルに します。別の パソコン・スマホで 読み込むと、<b>まったく 同じ 状態</b>に 戻せます（読み込んだ 端末の 中身は 置きかわります）。</div>
-    <button class="set-act set-act-main" onclick="toggleSettings();openFullBackup()" title="全保存する・全保存から 元に戻す">🗄 全保存・復元</button>
-    <div class="set-sec">えらんで 書き出す・足し合わせる</div>
-    <div class="set-note">保存した 表・当番表・野菜の 日記・<b>設定</b>を 1つの ファイルに 書き出せます。読み込むと いまの 中身に <b>足し合わせ</b>ます（置きかえません）。</div>
-    <button class="set-act" onclick="toggleSettings();exportSaves()" title="保存データをファイルに書き出して他の端末へ移せます">⬇ 保存データを書き出す</button>
-    <button class="set-act" onclick="toggleSettings();document.getElementById('importSavesInput').click()" title="書き出したファイルから保存データを読み込みます">⬆ 書き出したファイルを読み込む</button>
+    <div class="set-sec">別の パソコンへ 移す（エクスポート・インポート）</div>
+    <div class="set-note">表・保存した表・シート・<b>設定</b>・道具の データ・<b>写真</b>・前の状態の 控え まで <b>ぜんぶ</b>を 1つの ファイルに します。別の パソコンや スマホで インポートすると、<b>まったく 同じ 状態</b>に なります（インポートした 端末の 中身は 置きかわります）。</div>
+    <button class="set-act set-act-main" id="setExportBtn" onclick="toggleSettings();fullExport()" title="ぜんぶを 1つの ファイルに 書き出す">⬇ エクスポート（ぜんぶを ファイルに）</button>
+    <button class="set-act set-act-main" id="setImportBtn" onclick="fullPickImport();toggleSettings()" title="エクスポートした ファイルから、まったく 同じ 状態に する">⬆ インポート（ファイルから 同じ 状態に）</button>
+    <div class="set-sec">保存した表だけ 書き出す</div>
+    <div class="set-note">ほかの 人に 表を 渡す とき など。この ファイルを インポートすると、いまの 中身に <b>足し合わせ</b>ます（置きかえません）。</div>
+    <button class="set-act" onclick="toggleSettings();exportSaves()" title="保存した 表（と 当番表・野菜の 日記 など）だけを ファイルに 書き出す">📄 保存した表だけ 書き出す</button>
     <div class="set-sec">この端末の 空き</div>
     <div class="set-note">入れた ものは ぜんぶ この 端末の 中だけに あります（どこにも 送りません）。いっぱいに なったら、大きい ものから 片づけられます。</div>
     <button class="set-act" onclick="toggleSettings();openStorage()" title="この端末に何がどれだけ入っているかを見て、大きいものから片づけます">📦 空き具合を見る</button>
@@ -4572,7 +4613,6 @@ body.dark {
      合計は数値があるときだけ右側に出る。▼ はテンキーの開閉。 -->
 <div class="formula-bar">
   <button class="fb-menu" id="fbMenu" onclick="openMoreMenu()" aria-label="メニュー" title="メニュー（保存・戻す・リスト・設定・道具など）">☰</button>
-  <button class="fb-rec" id="fbRec" onclick="showSaveList()" title="いま開いている表（押すと 保存した 表の 一覧）">自動保存</button>
   <span class="cellref-wrap">
     <input id="cellRef" type="text" value="A1" readonly onclick="openCellFmt()" title="タップでこのセルの書式設定（小数点・装飾・色・大きさ）">
     <span id="dateBadge" class="date-badge" title="日付書式のセル"></span>
@@ -5171,11 +5211,12 @@ body.dark {
     </div>
     <div class="modal-body" id="saveListBody"></div>
     <div class="save-toolbar">
-      <button class="save-tool-btn" onclick="exportSaves()" title="保存データをファイルに書き出して他の端末へ移せます">⬇ 書き出し</button>
-      <button class="save-tool-btn" onclick="document.getElementById('importSavesInput').click()" title="書き出したファイルから保存データを読み込みます">⬆ 読み込み</button>
+      <button class="save-tool-btn" id="saveExportBtn" onclick="fullExport()" title="表・保存した表・設定・道具の データ・写真まで ぜんぶを 1つの ファイルに（別の パソコンで インポートすると 同じ 状態に）">⬇ エクスポート</button>
+      <button class="save-tool-btn" id="saveImportBtn" onclick="fullPickImport()" title="エクスポートした ファイルから、まったく 同じ 状態に する（前の「保存データ」の ファイルは 足し合わせ）">⬆ インポート</button>
       <button class="save-tool-btn" onclick="openStorage()" title="この端末に何がどれだけ入っているかを見て、大きいものから片づけます">📦 空き具合</button>
       <button class="save-tool-btn" id="saveLocBtn" onclick="changeSaveLocation()" style="display:none" title="保存データを書き込むフォルダを指定します（exe版のみ）">📁 保存場所</button>
       <input id="importSavesInput" type="file" accept="application/json,.json" style="display:none" onchange="importSaves(event)">
+      <input id="fullImportInput" type="file" accept="application/json,.json" style="display:none" onchange="fullImport(event)"><!-- ⬆ インポート（v627） -->
     </div>
     <div id="saveLocInfo" style="display:none;padding:4px 16px 8px;font-size:12px;color:var(--text-muted,#888);word-break:break-all"></div>
   </div>

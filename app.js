@@ -1405,19 +1405,6 @@ function hideEditBar(){
   bandHdrKind='';
 }
 function endKbEdit(){ document.body.classList.remove('kb-edit'); hideEditBar(); }
-/* ══ 帯の中身を 選んだものに 合わせる（v624）══════════════════════════
-   Excel の「選んだものに合わせて変わるリボン」と同じ考え。
-   数字のセル → ¥・%・桁区切り・小数＋−／文字のセル → 太字・寄せ
-   範囲 → 合計・並べかえ・グラフ（結合は いつもの ⊞）／列名 → 幅・挿入・削除・しぼり込み・隠す・固定／行番号 → 挿入・削除・隠す・固定
-   ボタンは よく押す順に 左へ（押した数を 覚える。excalc_band_use） */
-const BAND_USE_KEY='excalc_band_use';
-let bandUse={}; try{ const o=JSON.parse(localStorage.getItem(BAND_USE_KEY)); if(o && typeof o==='object' && !Array.isArray(o)) bandUse=o; }catch(_){}
-let bandCtx='', bandHdrKind='', bandLive=[];
-function bandCount(id){
-  if(!id) return;
-  bandUse[id]=(bandUse[id]||0)+1;
-  try{ localStorage.setItem(BAND_USE_KEY, JSON.stringify(bandUse)); }catch(_){}
-}
 /* いま選んでいるものの 種類 */
 function bandCellKind(){
   if(typeof selRect!=='function') return '';
@@ -1435,60 +1422,116 @@ function bandCellKind(){
   if(!isNaN(raw.replace(/,/g,''))) return 'num';
   return unitEval(raw) ? 'num' : 'text';
 }
+/* ══ 帯の中身を 選んだものに 合わせる（v624）・並びと 出す ボタンは ⚙ 設定で 決める（v626）══
+   Excel の「選んだものに合わせて変わるリボン」と同じ考え。
+   帯の 種類：数字の セル／文字の セル／空の セル・そのほか／範囲（数字あり）／範囲（文字だけ）／列名／行番号。
+   どの 帯に どの ボタンを どの 順で 出すかは ⚙ 設定 → 📐 表の操作 →「🎛 帯の ボタン」で 決める（excalc_band_cfg）。
+   v624 の「よく押す順に 左へ」は、押すたびに 場所が 変わって 使いにくいので やめた（v626）。 */
+const BAND_CFG_KEY='excalc_band_cfg';
+try{ localStorage.removeItem('excalc_band_use'); }catch(_){}   // v624 の 押した数（もう 使わない）
+let bandCtx='', bandHdrKind='', bandLive=[];
+function bandCount(){}   // v624 の なごり（呼ばれても 何も しない）
+/* 帯の 種類（設定の 画面に 出す 順） */
+const BAND_KINDS=[
+  {k:'num',   n:'数字の セル',        ic:'🔢'},
+  {k:'text',  n:'文字の セル',        ic:'🔤'},
+  {k:'empty', n:'空の セル・そのほか', ic:'⬜'},
+  {k:'range', n:'範囲（数字あり）',    ic:'▦'},
+  {k:'rtext', n:'範囲（文字だけ）',    ic:'🔠'},
+  {k:'col',   n:'列名（A・B…）',      ic:'⇕'},
+  {k:'row',   n:'行番号（1・2…）',     ic:'⇔'},
+];
+/* 帯に いつも ある ボタン（index.html の #cellMenu の data-act） */
+const BAND_COMMON=['cut','copy','paste','merge','edit','clear','fmt','lock'];
+const BAND_FMT=['nf_yen','nf_pct','nf_comma','dec_up','dec_dn','bold','al_l','al_c','al_r'];
+const BAND_RANGE=['autosum','sort_up','sort_dn','chart'];
+/* 置ける ボタン（帯の 種類ごと） */
+function bandPool(k){
+  if(k==='col') return ['col_fit','col_insL','col_insR','col_del','col_flt','col_hide','col_show','col_frz'];
+  if(k==='row') return ['row_insA','row_insB','row_del','row_hide','row_show','row_frz'];
+  if(k==='range' || k==='rtext') return BAND_RANGE.concat(BAND_FMT, BAND_COMMON);
+  return BAND_FMT.concat(BAND_COMMON);
+}
+/* はじめの 並び（v624 と 同じ 見え方） */
+const BAND_DEF={
+  num:  ['nf_yen','nf_pct','nf_comma','dec_up','dec_dn'].concat(BAND_COMMON),
+  text: ['bold','al_l','al_c','al_r'].concat(BAND_COMMON),
+  empty: BAND_COMMON.slice(),
+  range:['autosum','sort_up','sort_dn','chart'].concat(BAND_COMMON),
+  rtext:['merge','bold','al_c','sort_up','cut','copy','paste','edit','clear','fmt','lock'],
+  col:  ['col_fit','col_insL','col_insR','col_del','col_flt','col_hide','col_show','col_frz'],
+  row:  ['row_insA','row_insB','row_del','row_hide','row_show','row_frz'],
+};
+function bandCfgAll(){ try{ const o=JSON.parse(localStorage.getItem(BAND_CFG_KEY)||'null'); return (o && typeof o==='object' && !Array.isArray(o)) ? o : {}; }catch(_){ return {}; } }
+function bandCfgFor(k){
+  const kk=k||'empty', a=bandCfgAll()[kk], pool=bandPool(kk);
+  if(Array.isArray(a)) return a.filter((id,i)=>typeof id==='string' && pool.includes(id) && a.indexOf(id)===i);
+  return BAND_DEF[kk] ? BAND_DEF[kk].slice() : [];
+}
+function bandCfgSet(k, list){
+  const o=bandCfgAll();
+  if(list) o[k]=list; else delete o[k];
+  try{ if(Object.keys(o).length) localStorage.setItem(BAND_CFG_KEY, JSON.stringify(o)); else localStorage.removeItem(BAND_CFG_KEY); }catch(_){}
+}
+/* ボタンの 名前・説明（設定の 画面でも 使う）。ctx＝いま 押せる 形（なければ 名前だけ） */
+const BAND_LABEL={
+  nf_yen:['¥ 円','お金の形にする（1200 → ¥1,200）。もう一度 押すと もどす'], nf_pct:['％','パーセントにする（0.25 → 25%）。もう一度 押すと もどす'],
+  nf_comma:['1,000','3けたごとに「,」を付ける（12000 → 12,000）'], dec_up:['.0＋','小数を 1けた ふやす'], dec_dn:['.0−','小数を 1けた へらす'],
+  bold:['𝐁 太字','太い字にする。もう一度 押すと もどす'], al_l:['⇤ 左','左に 寄せる'], al_c:['↔ 中央','まん中に 寄せる'], al_r:['⇥ 右','右に 寄せる'],
+  autosum:['Σ 合計','選んだ範囲の 下（横長なら 右）に、合計の式（=SUM）を 入れる'],
+  sort_up:['↑ 小さい順','選んだ範囲の 行を、いま選んでいる列の 小さい順（あいうえお順）に 並べかえる'], sort_dn:['↓ 大きい順','選んだ範囲の 行を、いま選んでいる列の 大きい順に 並べかえる'],
+  chart:['📊 グラフ','選んだ範囲を 棒・折れ線・円グラフに する'],
+  cut:['✂ 切り取り','切り取って、貼り付けた 先へ 動かす'], copy:['⧉ コピー','選んでいる セル（範囲）を 写す'], paste:['📥 貼り付け','写した ものを ここに 貼る'],
+  merge:['⊞ 結合','選んだ 範囲を 1つの セルに する（範囲を 選んだ ときだけ 出ます）'], edit:['✏ 編集','中身を 直す（キーボードが 出ます。打っている 間は 出ません）'],
+  clear:['🧹 消去','中身を 消す（書式・枠線は 残す）'], fmt:['🎨 書式','小数・日付・文字の大きさ・色などを 決める 窓'], lock:['🔒 保護','まちがって 消さない ように 守る'],
+  col_fit:['↔ 幅を中身に','この列の幅を、いちばん長い 中身に 合わせる（列の境目の ダブルタップと 同じ）'], col_insL:['⬅ 左に列','この列の 左に 列を 足す'], col_insR:['➡ 右に列','この列の 右に 列を 足す'],
+  col_del:['🗑 列を消す','この列を 消す（中身が あるときは 先に 聞きます）'], col_flt:['🔎 しぼり込み','この列で しぼり込む・並べかえる'],
+  col_hide:['🙈 隠す','この列を 見えなく する（消えは しません。「👁 隠した列を出す」で もどる）'], col_show:['👁 隠した列を出す','隠した列を ぜんぶ 出す（隠した 列が ある ときだけ 出ます）'],
+  col_frz:['📌 ここまで固定','この列から 左を 固定する（右へ 動かしても 見えたまま）'],
+  row_insA:['⬆ 上に行','この行の 上に 行を 足す'], row_insB:['⬇ 下に行','この行の 下に 行を 足す'], row_del:['🗑 行を消す','この行を 消す（中身が あるときは 先に 聞きます）'],
+  row_hide:['🙈 隠す','この行を 見えなく する（消えは しません。「👁 隠した行を出す」で もどる）'], row_show:['👁 隠した行を出す','隠した行を ぜんぶ 出す（隠した 行が ある ときだけ 出ます）'],
+  row_frz:['📌 ここまで固定','この行から 上を 固定する（下へ 動かしても 見えたまま）'],
+};
+/* いま 押せる 形に する（その場で 使えない ものは null） */
+function bandDef(id, kind){
+  const L=BAND_LABEL[id]; if(!L) return null;
+  const s=cellStyles[selR+','+selC]||{}, fz=fzGet(), it={id, t:L[0], tip:L[1]};
+  const rng=(kind==='range' || kind==='rtext');
+  switch(id){
+    case 'nf_yen':  case 'nf_pct': case 'nf_comma': { const v=id.slice(3); it.on=s.nf===v; it.keep=1; it.run=()=>bandNf(v); return it; }
+    case 'dec_up':  it.keep=1; it.run=()=>bandDec(1); return it;
+    case 'dec_dn':  it.keep=1; it.run=()=>bandDec(-1); return it;
+    case 'bold':    it.on=!!s.bold; it.keep=1; it.run=()=>kfmtToggle('bold'); return it;
+    case 'al_l': case 'al_c': case 'al_r': { const a={al_l:'left', al_c:'center', al_r:'right'}[id]; it.on=s.align===a; it.keep=1; it.run=()=>kfmtAlign(a); return it; }
+    case 'autosum': if(!rng) return null; it.run=bandAutoSum; return it;
+    case 'sort_up': case 'sort_dn': {
+      if(!rng) return null;
+      const g=selRect(); if(g.r2<=g.r1) return null;   // 1行だけの 範囲は 並べかえられない
+      if(kind==='rtext' && id==='sort_up'){ it.t='↑ あいうえお順'; it.tip='選んだ範囲の 行を、いま選んでいる列の あいうえお順に 並べかえる'; }
+      it.run=()=>bandSort(id==='sort_up' ? 1 : -1); return it;
+    }
+    case 'chart':   if(!rng) return null; it.run=()=>hpRun('chart'); return it;
+    case 'col_fit': it.run=()=>fitColWidth(hdrGroupFor('col', selC)); return it;
+    case 'col_insL': it.run=()=>insertColAt(selC); return it;
+    case 'col_insR': it.run=()=>insertColAt(selC+1); return it;
+    case 'col_del':  it.run=()=>bandDelLine('c', selC); return it;
+    case 'col_flt':  it.run=()=>hpRun('filter', selC); return it;
+    case 'col_hide': it.run=()=>hideLines('c', hdrGroupFor('col', selC)); return it;
+    case 'col_show': if(!hidList('c').length) return null; it.run=()=>showLines('c'); return it;
+    case 'col_frz':  if(fz.c===selC+1) it.t='📌 固定をやめる'; it.run=()=>freezeAt('c', selC); return it;
+    case 'row_insA': it.run=()=>insertRowAt(selRow); return it;
+    case 'row_insB': it.run=()=>insertRowAt(selRow+1); return it;
+    case 'row_del':  it.run=()=>bandDelLine('r', selRow); return it;
+    case 'row_hide': it.run=()=>hideLines('r', hdrGroupFor('row', selRow)); return it;
+    case 'row_show': if(!hidList('r').length) return null; it.run=()=>showLines('r'); return it;
+    case 'row_frz':  if(fz.r===selRow+1) it.t='📌 固定をやめる'; it.run=()=>freezeAt('r', selRow); return it;
+  }
+  return null;
+}
+/* いま 帯に 出す 自分の ボタン（いつもの ボタンは index.html に ある） */
 function bandItems(kind){
-  const s=cellStyles[selR+','+selC]||{}, fz=fzGet();
-  if(kind==='num') return [
-    {id:'nf_yen',   t:'¥ 円',  tip:'お金の形にする（1200 → ¥1,200）。もう一度 押すと もどす', on:s.nf==='yen', keep:1, run:()=>bandNf('yen')},
-    {id:'nf_pct',   t:'％',     tip:'パーセントにする（0.25 → 25%）。もう一度 押すと もどす', on:s.nf==='pct', keep:1, run:()=>bandNf('pct')},
-    {id:'nf_comma', t:'1,000', tip:'3けたごとに「,」を付ける（12000 → 12,000）', on:s.nf==='comma', keep:1, run:()=>bandNf('comma')},
-    {id:'dec_up',   t:'.0＋',  tip:'小数を 1けた ふやす', keep:1, run:()=>bandDec(1)},
-    {id:'dec_dn',   t:'.0−',  tip:'小数を 1けた へらす', keep:1, run:()=>bandDec(-1)},
-  ];
-  if(kind==='text') return [
-    {id:'bold', t:'𝐁 太字',  tip:'太い字にする。もう一度 押すと もどす', on:!!s.bold, keep:1, run:()=>kfmtToggle('bold')},
-    {id:'al_l', t:'⇤ 左',    tip:'左に 寄せる', on:s.align==='left',   keep:1, run:()=>kfmtAlign('left')},
-    {id:'al_c', t:'↔ 中央',  tip:'まん中に 寄せる', on:s.align==='center', keep:1, run:()=>kfmtAlign('center')},
-    {id:'al_r', t:'⇥ 右',    tip:'右に 寄せる', on:s.align==='right',  keep:1, run:()=>kfmtAlign('right')},
-  ];
-  if(kind==='rtext'){
-    const g=selRect(), multi=g.r2>g.r1;
-    return [
-      {id:'bold', t:'𝐁 太字',  tip:'選んだ範囲を 太い字にする。もう一度 押すと もどす', on:!!s.bold, keep:1, run:()=>kfmtToggle('bold')},
-      {id:'al_c', t:'↔ 中央',  tip:'選んだ範囲を まん中に 寄せる', on:s.align==='center', keep:1, run:()=>kfmtAlign('center')},
-      multi ? {id:'sort_up', t:'↑ あいうえお順', tip:'選んだ範囲の 行を、いま選んでいる列の あいうえお順に 並べかえる', run:()=>bandSort(1)} : null,
-    ].filter(Boolean);
-  }
-  if(kind==='range') return [
-    {id:'autosum', t:'Σ 合計',     tip:'選んだ範囲の 下（横長なら 右）に、合計の式（=SUM）を 入れる', run:bandAutoSum},
-    {id:'sort_up', t:'↑ 小さい順', tip:'選んだ範囲の 行を、いま選んでいる列の 小さい順（あいうえお順）に 並べかえる', run:()=>bandSort(1)},
-    {id:'sort_dn', t:'↓ 大きい順', tip:'選んだ範囲の 行を、いま選んでいる列の 大きい順に 並べかえる', run:()=>bandSort(-1)},
-    {id:'chart',   t:'📊 グラフ',   tip:'選んだ範囲を 棒・折れ線・円グラフに する', run:()=>hpRun('chart')},
-  ];
-  if(kind==='col'){
-    const c=selC, hc=hidList('c').length;
-    return [
-      {id:'col_fit',  t:'↔ 幅を中身に', tip:'この列の幅を、いちばん長い 中身に 合わせる（列の境目の ダブルタップと 同じ）', run:()=>fitColWidth(hdrGroupFor('col', c))},
-      {id:'col_insL', t:'⬅ 左に列',     tip:'この列の 左に 列を 足す', run:()=>insertColAt(c)},
-      {id:'col_insR', t:'➡ 右に列',     tip:'この列の 右に 列を 足す', run:()=>insertColAt(c+1)},
-      {id:'col_del',  t:'🗑 列を消す',   tip:'この列を 消す（中身が あるときは 先に 聞きます）', run:()=>bandDelLine('c', c)},
-      {id:'col_flt',  t:'🔎 しぼり込み', tip:'この列で しぼり込む・並べかえる', run:()=>hpRun('filter', c)},
-      {id:'col_hide', t:'🙈 隠す',       tip:'この列を 見えなく する（消えは しません。「👁 隠した列を出す」で もどる）', run:()=>hideLines('c', hdrGroupFor('col', c))},
-      hc ? {id:'col_show', t:'👁 隠した列を出す', tip:'隠した列を ぜんぶ 出す', run:()=>showLines('c')} : null,
-      {id:'col_frz',  t:fz.c===c+1 ? '📌 固定をやめる' : '📌 ここまで固定', tip:'この列から 左を 固定する（右へ 動かしても 見えたまま）', run:()=>freezeAt('c', c)},
-    ].filter(Boolean);
-  }
-  if(kind==='row'){
-    const r=selRow, hr=hidList('r').length;
-    return [
-      {id:'row_insA', t:'⬆ 上に行',   tip:'この行の 上に 行を 足す', run:()=>insertRowAt(r)},
-      {id:'row_insB', t:'⬇ 下に行',   tip:'この行の 下に 行を 足す', run:()=>insertRowAt(r+1)},
-      {id:'row_del',  t:'🗑 行を消す', tip:'この行を 消す（中身が あるときは 先に 聞きます）', run:()=>bandDelLine('r', r)},
-      {id:'row_hide', t:'🙈 隠す',     tip:'この行を 見えなく する（消えは しません。「👁 隠した行を出す」で もどる）', run:()=>hideLines('r', hdrGroupFor('row', r))},
-      hr ? {id:'row_show', t:'👁 隠した行を出す', tip:'隠した行を ぜんぶ 出す', run:()=>showLines('r')} : null,
-      {id:'row_frz',  t:fz.r===r+1 ? '📌 固定をやめる' : '📌 ここまで固定', tip:'この行から 上を 固定する（下へ 動かしても 見えたまま）', run:()=>freezeAt('r', r)},
-    ].filter(Boolean);
-  }
-  return [];
+  if(kind!=='col' && kind!=='row' && isStructMode()) return [];
+  return bandCfgFor(kind).filter(id=>!BAND_COMMON.includes(id)).map(id=>bandDef(id, kind)).filter(Boolean);
 }
 function bandRender(){
   const m=document.getElementById('cellMenu'), box=document.getElementById('cellMenuCtx'); if(!m || !box) return;
@@ -1499,24 +1542,78 @@ function bandRender(){
     +(it.on!=null ? ' aria-pressed="'+!!it.on+'"' : '')+' onclick="cellMenuCtx('+i+')">'+escHtml(it.t)+'</button>').join('');
   m.classList.toggle('ctx-hdr', !!bandHdrKind && bandLive.length>0);
   m.dataset.ctx=kind;
-  bandOrder(m);
+  bandOrder(m, kind);
 }
-/* よく押す順に 左へ（2回 以上 押したものから。同じ 数なら もとの 並び） */
-function bandOrder(m){
-  const bs=[...m.querySelectorAll('button[data-act]')], rt=m.dataset.ctx==='rtext';
-  bs.map((b,i)=>({b, i:(rt && b.dataset.act==='merge') ? -1 : i, n:(bandUse[b.dataset.act]||0)>=2 ? bandUse[b.dataset.act] : 0}))   // 文字の 範囲は ⊞ 結合を 先頭に
-    .sort((x,y)=>(y.n-x.n)||(x.i-y.i))
-    .forEach((x,k)=>{ x.b.style.order=String(k); });
+/* 決めた 並びに する（決めて いない いつもの ボタンは 隠す。並びは 押しても 変わらない） */
+function bandOrder(m, kind){
+  const cfg=bandCfgFor(kind);
+  m.querySelectorAll('button[data-act]').forEach(b=>{
+    const i=cfg.indexOf(b.dataset.act);
+    b.style.order=String(i<0 ? 99 : i);
+    if(BAND_COMMON.includes(b.dataset.act)) b.classList.toggle('cm-off', i<0);
+  });
 }
 function cellMenuCtx(i){
   const it=bandLive[i]; if(!it) return;
   const m=document.getElementById('cellMenu'), fromBar=m.classList.contains('edit-bar'), hk=bandHdrKind;
   if(fromBar){ const fi=document.getElementById('formulaInput'); if(document.activeElement===fi) fi.blur(); if(document.body.classList.contains('kb-edit')) endKbEdit(); }
-  bandCount(it.id);
   if(it.keep){ it.run(); showEditBar(true, hk); return; }   // 書式は 続けて 押せるよう 帯を 出したまま
   hideCellMenu(); hideEditBar();
   it.run();
 }
+
+/* ══ 🎛 帯の ボタンを 決める 窓（v626）══ */
+let bandCfgKind='num';
+function openBandCfg(k){
+  if(k) bandCfgKind=k;
+  let ov=document.getElementById('bandCfgOverlay');
+  if(!ov){
+    ov=document.createElement('div'); ov.className='modal-overlay'; ov.id='bandCfgOverlay';
+    ov.innerHTML='<div class="modal snap-modal bcf-modal"><div class="modal-header"><span>🎛 帯の ボタン</span><button class="modal-close" onclick="closeBandCfg()">✕</button></div>'
+      +'<div class="modal-body" id="bandCfgBody"></div></div>';
+    ov.addEventListener('click', e=>{ if(e.target===ov) closeBandCfg(); });
+    document.body.appendChild(ov);
+  }
+  openDlg('bandCfgOverlay');
+  bandCfgRender();
+}
+function closeBandCfg(){ closeDlg('bandCfgOverlay'); }
+function bandCfgRender(){
+  const body=document.getElementById('bandCfgBody'); if(!body) return;
+  const k=bandCfgKind, on=bandCfgFor(k), off=bandPool(k).filter(id=>!on.includes(id));
+  const name=id=>(BAND_LABEL[id]||[id])[0], tip=id=>(BAND_LABEL[id]||['',''])[1];
+  const row=(id,i,sel)=>'<div class="bcf-row'+(sel?'':' off')+'">'
+    +'<label class="bcf-chk"><input type="checkbox"'+(sel?' checked':'')+' onchange="bandCfgToggle(\''+id+'\',this.checked)"><b>'+escHtml(name(id))+'</b><small>'+escHtml(tip(id))+'</small></label>'
+    +(sel ? '<button class="bcf-mv" onclick="bandCfgMove(\''+id+'\',-1)"'+(i===0?' disabled':'')+' aria-label="左へ">▲</button>'
+          +'<button class="bcf-mv" onclick="bandCfgMove(\''+id+'\',1)"'+(i===on.length-1?' disabled':'')+' aria-label="右へ">▼</button>' : '')
+    +'</div>';
+  const custom=Array.isArray(bandCfgAll()[k]);
+  body.innerHTML='<div class="snap-note">セルを 押すと テンキーの 上に 出る <b>帯</b>の ボタンを、帯の 種類ごとに 決めます。<b>☑ で 出す／出さない</b>、<b>▲▼ で 並べる 順番</b>（▲＝左へ）。決めた 並びは 押しても 変わりません。</div>'
+    +'<div class="bcf-kinds">'+BAND_KINDS.map(x=>'<button class="bcf-kind'+(x.k===k?' on':'')+'" onclick="bandCfgKind=\''+x.k+'\';bandCfgRender()">'+x.ic+' '+escHtml(x.n)+'</button>').join('')+'</div>'
+    +'<div class="bcf-prev-t">見本（この 順で 左から 並びます）</div>'
+    +'<div class="bcf-prev">'+(on.length ? on.map(id=>'<span>'+escHtml(name(id))+'</span>').join('') : '<i>（ボタン なし）</i>')+'</div>'
+    +'<div class="bcf-list">'+on.map((id,i)=>row(id,i,true)).join('')+'</div>'
+    +(off.length ? '<div class="bcf-sec">出さない ボタン（☑ で 帯の 右はしに 足す）</div><div class="bcf-list">'+off.map((id,i)=>row(id,i,false)).join('')+'</div>' : '')
+    +'<div class="bcf-foot"><button class="bcf-reset" onclick="bandCfgReset()"'+(custom?'':' disabled')+'>この 帯を はじめの 並びに 戻す</button>'
+    +'<button class="bcf-reset" onclick="bandCfgReset(true)"'+(Object.keys(bandCfgAll()).length?'':' disabled')+'>ぜんぶ 戻す</button></div>';
+}
+function bandCfgToggle(id, onv){
+  const k=bandCfgKind, a=bandCfgFor(k).filter(x=>x!==id);
+  if(onv) a.push(id);
+  bandCfgSet(k, a); bandCfgRender(); bandCfgApplyNow();
+}
+function bandCfgMove(id, d){
+  const k=bandCfgKind, a=bandCfgFor(k), i=a.indexOf(id), j=i+d;
+  if(i<0 || j<0 || j>=a.length) return;
+  [a[i], a[j]]=[a[j], a[i]];
+  bandCfgSet(k, a); bandCfgRender(); bandCfgApplyNow();
+}
+async function bandCfgReset(all){
+  if(all){ if(!await appConfirm('ぜんぶの 帯を はじめの 並びに 戻しますか？', '戻す', 'やめる')) return; try{ localStorage.removeItem(BAND_CFG_KEY); }catch(_){} }
+  else bandCfgSet(bandCfgKind, null);
+  bandCfgRender(); bandCfgApplyNow();
+}
+function bandCfgApplyNow(){ const m=document.getElementById('cellMenu'); if(m && m.classList.contains('show')) try{ bandRender(); }catch(_){} }
 /* ── 数の見せ方（¥・%・桁区切り）。中身（data）は そのまま、画面と 印刷の 見た目だけ ── */
 function nfText(r, c, t){
   const s=cellStyles[r+','+c], nf=s && s.nf; if(!nf) return t;
@@ -1835,18 +1932,6 @@ function renderMenuRecent(){
   });
 }
 
-/* ══ いま開いている 表の名前を セルのバーにも（上のバーを たたんで いるとき。v624）══ */
-function syncFbRec(){
-  const rt=document.getElementById('recordTitle'), fb=document.getElementById('fbRec'); if(!rt || !fb) return;
-  fb.textContent=(rt.textContent||'').replace(/^📄\s*/,'');
-  fb.title='いま開いている表：'+(rt.textContent||'').replace(/^📄\s*/,'')+'（押すと 保存した 表の 一覧）';
-  fb.classList.toggle('dirty', rt.classList.contains('dirty'));
-}
-(function(){
-  const rt=document.getElementById('recordTitle'); if(!rt || typeof MutationObserver==='undefined') return;
-  new MutationObserver(syncFbRec).observe(rt, {childList:true, characterData:true, subtree:true, attributes:true, attributeFilter:['class']});
-})();
-
 /* ══ 数式の 中の セルに 色を 付ける（v624。Excel と 同じ）══════════════════════
    =A1+B2 を 打って いる あいだ、A1 と B2 の セルを それぞれ 色の 枠で 囲む。A1:B3 は 範囲ごと */
 const FREF_COLORS=['#1e88e5','#e53935','#8e24aa','#2e7d32','#ef6c00','#00897b'];
@@ -2124,7 +2209,6 @@ function hideCellMenu(){
 }
 function cellMenuAct(a){
   const fromBar=document.getElementById('cellMenu').classList.contains('edit-bar');
-  if(fromBar) bandCount(a);   // よく押す順に 並べる（v624）
   if(fromBar){ const fi=document.getElementById('formulaInput'); if(document.activeElement===fi) fi.blur(); endKbEdit(); }   // 打ちかけの中身を確定してから
   hideCellMenu();
   if(a==='fmt'){ openCellFmt(); }
@@ -3819,7 +3903,7 @@ async function stInitPersist(){
 async function stPersistNow(){
   const ok=await stAskPersist();
   if(ok===true) toast('この端末では消えないようになりました');
-  else if(ok===false) toast('この端末では設定できませんでした。ときどき⬇書き出しをしてください');
+  else if(ok===false) toast('この端末では設定できませんでした。ときどき⬇エクスポートをしてください');
   else toast('この端末では確かめられませんでした');
   renderStorage();
 }
@@ -3844,7 +3928,7 @@ function maybeAskBackup(){
     sub:(d===null?'まだ一度もファイルに書き出していません。':'最後の書き出しから'+d+'日たちました。')
         +'端末のデータを消すと記録も消えます。',
     yes:'書き出す', no:'あとで',
-    onYes:()=>{ bkSnooze(); try{ exportSaves(); }catch(_){ toast('書き出せませんでした'); } },
+    onYes:()=>{ bkSnooze(); try{ fullExport(); }catch(_){ toast('書き出せませんでした'); } },   // v627：設定も 写真も ぜんぶ（エクスポート）
     onNo:()=>{ bkSnooze(); },
   });
   return true;
@@ -5724,6 +5808,59 @@ function renderFbPlace(){
   }
   Array.from(seg.children).forEach(el=>{ const on=el.dataset.fb===fbPlace; el.classList.toggle('on', on); el.setAttribute('aria-pressed', String(on)); });
 }
+/* ── 合計の 置き場所（v628）──
+   pad＝テンキーの上の行（書式・枠線／数字／電卓 の 並びの 右。前の「▲ 自分のボタン」の 所）／bar＝セルのバー（入力欄の 右。これまで）。
+   テンキーの上に すると、セルのバーの 入力欄が 広く なる（利用者の 声：セルのバーが 狭い）。
+   テンキーが 下に 出ていて ページ名の 行が 見えている ときだけ テンキーの上に 出す
+   （右に 出す とき・スマホの 横向き・テンキーを 閉じた とき・ページ表示を 隠した ときは セルのバー） */
+const SUM_PLACE_KEY='excalc_sum_place';
+const SUM_PLACES=[{id:'pad',n:'テンキーの上の行'},{id:'bar',n:'セルのバー'}];
+let sumPlace='pad';
+try{ if(localStorage.getItem(SUM_PLACE_KEY)==='bar') sumPlace='bar'; }catch(_){}
+function sumPadOn(){
+  const b=document.body.classList;
+  if(sumPlace!=='pad' || b.contains('np-side') || b.contains('numpad-off') || b.contains('pagebar-off') || b.contains('dentaku-mode')) return false;
+  try{ if(typeof numpadIsLandscape==='function' && numpadIsLandscape()) return false; }catch(_){}
+  return true;
+}
+let sumStatsEl=null;   // 合計の 欄（ページ名の 行を 描き直すと いったん 外れるので、ここで 覚えて おく）
+function syncSumPlace(){
+  const st=sumStatsEl || (sumStatsEl=document.getElementById('statsSection')), bar=document.getElementById('numpadPageBar'), fb=document.querySelector('.formula-bar');
+  if(!st || !bar || !fb) return;
+  const on=sumPadOn();
+  if(document.body.classList.contains('sum-pad')!==on) document.body.classList.toggle('sum-pad', on);
+  if(on){ if(st.parentNode!==bar || bar.lastElementChild!==st) bar.appendChild(st); }
+  else if(st.parentNode!==fb){ const edge=document.getElementById('numpadEdgeBtn'); fb.insertBefore(st, edge && edge.parentNode===fb ? edge : null); }
+  sumTightCheck();
+}
+/* 入りきらない ときは「▲ 自分のボタン」を「▲ 自分」に 縮める */
+function sumTightCheck(){
+  const bar=document.getElementById('numpadPageBar'); if(!bar) return;
+  const want=document.body.classList.contains('sum-pad');
+  bar.classList.remove('np-tight');
+  if(want && bar.scrollWidth>bar.clientWidth+1) bar.classList.add('np-tight');
+}
+function setSumPlace(v){
+  if(!SUM_PLACES.some(m=>m.id===v)) return;
+  sumPlace=v; try{ localStorage.setItem(SUM_PLACE_KEY, v); }catch(_){}
+  syncSumPlace(); renderSumPlace();
+  requestAnimationFrame(()=>{ if(typeof autoFitSheet==='function') try{ autoFitSheet(); }catch(_){} });
+  toast(v==='pad' ? (sumPadOn() ? '合計を テンキーの上の行に 出します（セルのバーの 入力欄が 広く なります）' : 'テンキーを 下に 出して いる ときに、合計を テンキーの上の行に 出します') : '合計を セルのバーに 出します');
+}
+function renderSumPlace(){
+  const seg=document.getElementById('sumPlaceSeg'); if(!seg) return;
+  if(seg.children.length!==SUM_PLACES.length){
+    seg.innerHTML=SUM_PLACES.map(m=>'<button class="skin-seg-btn" data-sp="'+m.id+'" onclick="setSumPlace(\''+m.id+'\')">'+m.n+'</button>').join('');
+  }
+  Array.from(seg.children).forEach(el=>{ const on=el.dataset.sp===sumPlace; el.classList.toggle('on', on); el.setAttribute('aria-pressed', String(on)); });
+}
+/* テンキーを 閉じる・右に 出す・ページ表示を 隠す などで 置き場所を 変える */
+(function(){
+  if(typeof MutationObserver==='undefined') return;
+  let t=0;
+  new MutationObserver(()=>{ if(t) return; t=requestAnimationFrame(()=>{ t=0; syncSumPlace(); }); }).observe(document.body, {attributes:true, attributeFilter:['class']});
+  window.addEventListener('resize', ()=>requestAnimationFrame(syncSumPlace));
+})();
 let numpadCollapsePx=Math.max(0, parseFloat(localStorage.getItem('excalc_numpad_collapse'))||0);
 function applyNumpadCollapse(){
   const vp=document.getElementById('numpadViewport'); if(!vp) return;
@@ -9918,12 +10055,15 @@ function renderNumpadPageBar(){
   const row=calcOnly ? [['sci','電卓']]
     : uiEasy ? NP_ROW_MAIN.filter(([k])=>k===null||k==='sci')          // かんたん表示：数字と電卓だけ（v461）
     : (inReg?NP_ROW_REG:NP_ROW_MAIN).filter(([k])=> k!=='func' || showFuncPage);
-  const axis=inReg ? [null,'▼ 数字'] : ['reg','▲ 自分のボタン'];
+  const axis=inReg ? [null,'▼ 数字'] : ['reg','▲ 自分<span class="np-ax-more">のボタン</span>'];
+  // 狭い ときは「自分のボタン」を「自分」と 見せる（合計を この 行に 出す とき。v628）
+  const lab=t=>String(t).replace('自分のボタン','自分<span class="np-ax-more">のボタン</span>');
   const html=row.map(([k,label])=>
       '<button class="np-page'+(k===cur?' on':'')+'" role="tab" aria-selected="'+(k===cur)+'"'+
-      ' data-np="'+(k===null?'':k)+'">'+label+'</button>').join('')
-    + ((calcOnly||uiEasy) ? '' : '<button class="np-page np-axis" data-np="'+(axis[0]===null?'':axis[0])+'">'+axis[1]+'</button>');
+      ' data-np="'+(k===null?'':k)+'">'+lab(label)+'</button>').join('')
+    + ((calcOnly||uiEasy) ? '' : '<button class="np-page np-axis" data-np="'+(axis[0]===null?'':axis[0])+'" title="'+(inReg?'数字の ページに もどる':'自分のボタン（登録した ボタンの ページ）')+'">'+axis[1]+'</button>');
   if(bar.dataset.html!==html){ bar.innerHTML=html; bar.dataset.html=html; }
+  if(typeof syncSumPlace==='function') syncSumPlace();   // 描き直すと 合計が 外れるので 戻す（v628）
 }
 (function setupNumpadPageBar(){
   const bar=document.getElementById('numpadPageBar'); if(!bar) return;
@@ -11265,13 +11405,14 @@ function refreshStatsDisplay() {
   const sumEl=document.getElementById('sSum');
   const sec=document.getElementById('statsSection');
   const v=currentStatValue();
-  if (v===null) { sumEl.textContent='—'; if(sec) sec.classList.add('stats-empty'); return; }
+  if (v===null) { sumEl.textContent='—'; if(sec) sec.classList.add('stats-empty'); if(document.body.classList.contains('sum-pad') && typeof sumTightCheck==='function') sumTightCheck(); return; }
   if(sec) sec.classList.remove('stats-empty');
   // エラーのセルを飛ばして出した合計は、そうと分かるように印を付ける
   sumEl.textContent = (statKanji ? toKanjiNum(v) : fmt(v)) + (lastStatHasErr ? ' ⚠' : '');
   sumEl.title = lastStatHasErr
     ? 'この列にエラーのセルがあります。そのセルを除いた' + word + 'です'
     : 'タップで数値コピー';
+  if(document.body.classList.contains('sum-pad') && typeof sumTightCheck==='function') sumTightCheck();   // テンキーの上の行に 入りきるか（v628）
 }
 function renderStats(nums, hasErr) {
   lastStatNums = nums;
@@ -16648,7 +16789,7 @@ function setFindIndex(){
   out.push({ where:'☰', label:'📱 アプリを共有（QRコード）', text:'QR QRコード 共有 アドレス URL 教える 送る 広める', run:()=>openQrShare() });
   out.push({ where:'☰', label:'📤 書き出す・読み込む', text:'書き出す 読み込む PDF CSV Excel エクセル バックアップ',
              run:()=>moreMenuAt('moreAccOut') });
-  out.push({ where:'☰ › 📁 ファイル', label:'🗄 全保存・復元（設定も 写真も ぜんぶ）', text:'全保存 まるごと 全部 バックアップ 復元 元に戻す 引っ越し 機種変更 機種変え パソコン 移す 移行', run:()=>openFullBackup() });
+  out.push({ where:'☰ › 📁 ファイル', label:'🗄 エクスポート・インポート（設定も 写真も ぜんぶ）', text:'エクスポート インポート 全保存 まるごと 全部 バックアップ 復元 元に戻す 書き出し 読み込み 引っ越し 機種変更 機種変え パソコン 移す 移行 同じ 状態', run:()=>openFullBackup() });
   out.push({ where:'☰ › 📁 ファイル', label:'🖼 表を画像で送る', text:'画像 写真 スクショ LINE ライン 送る 共有', run:()=>shareSheetImage() });
   out.push({ where:'☰ › 👁 表示', label:'📌 枠の固定', text:'固定 枠の固定 ウィンドウ枠 見出し 動かない', run:()=>moreMenuAt('moreFzBtn') });
   out.push({ where:'☰ › 👁 表示', label:'👁 隠した行・列を出す', text:'隠す 非表示 再表示 出す', run:()=>moreMenuAt('moreShowHid') });
@@ -16730,7 +16871,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v625';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v628';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -18679,7 +18820,7 @@ function persistSaves(saves){
 let storageWarned=false;
 function warnStorageFull(what){
   const msg=what+'。端末の空き（ブラウザの保存領域）がいっぱいのようです。\n\n'
-    +'リストの「⬇ 書き出し」でファイルに残してから、「📦 空き具合」で大きいものを片づけてください。';
+    +'リストの「⬇ エクスポート」でファイルに残してから、「📦 空き具合」で大きいものを片づけてください。';
   if(!storageWarned){ storageWarned=true; try{ alert(msg); }catch(_){} }
   else if(typeof toast==='function') toast(what+'（端末の空きがいっぱいです）', 4000);
 }
@@ -18929,8 +19070,8 @@ function renderSaveStateBanner(){
   else if(saves.length) rows.push(['·','いまの表は<b>まだ記録に保存していません</b>。☰ の <b>💾保存</b>で名前を付けられます','']);
   else                rows.push(['·','記録はまだ1件もありません。☰ の <b>💾保存</b>で名前を付けて残せます','']);
   if(saves.length){
-    if(d===null)      rows.push(['⚠','<b>まだ一度もファイルに書き出していません</b>。ブラウザのデータを消すと記録も消えます。下の<b>⬇書き出し</b>をおすすめします','ss-warn']);
-    else if(d>=BACKUP_REMIND_DAYS) rows.push(['⚠','最後の書き出しから<b>'+d+'日</b>経っています。下の<b>⬇書き出し</b>をおすすめします','ss-warn']);
+    if(d===null)      rows.push(['⚠','<b>まだ一度もファイルに書き出していません</b>。ブラウザのデータを消すと記録も消えます。下の<b>⬇エクスポート</b>をおすすめします','ss-warn']);
+    else if(d>=BACKUP_REMIND_DAYS) rows.push(['⚠','最後の書き出しから<b>'+d+'日</b>経っています。下の<b>⬇エクスポート</b>をおすすめします','ss-warn']);
     else              rows.push(['✓','ファイルへの書き出しは<b>'+(d===0?'今日':d+'日前')+'</b>です','']);
   }
   el.innerHTML=rows.map(([m,t,c])=>
@@ -19317,17 +19458,17 @@ function renderStorage(){
       <div class="st-bar"><span class="${cls}" style="width:${Math.max(1,pct)}%"></span></div>
       <div class="st-total-t">ぜんぶで <b>${stFmt(total)}</b>（目安の上限 ${stFmt(ST_LIMIT)} の <b>${pct}%</b>）</div>
     </div>`;
-  if(pct>=85) html+=`<div class="st-alert">⚠ そろそろいっぱいです。<b>⬇書き出し</b>でファイルに残してから、下の<b>🧹</b>で片づけてください</div>`;
+  if(pct>=85) html+=`<div class="st-alert">⚠ そろそろいっぱいです。<b>⬇エクスポート</b>でファイルに残してから、下の<b>🧹</b>で片づけてください</div>`;
   // データが勝手に消されない状態かどうか（v382）
   if(stPersisted===true){
     html+=`<div class="st-persist">🔒 <b>この端末では、データが勝手に消されないようになっています</b>。
-      それでも端末をなくしたり初期化したりすると消えるので、ときどき<b>⬇書き出し</b>をしてください。</div>`;
+      それでも端末をなくしたり初期化したりすると消えるので、ときどき<b>⬇エクスポート</b>をしてください。</div>`;
   }else if(stPersisted===false){
     html+=`<div class="st-persist warn">⚠ <b>データが消えることがあります</b>。
       ブラウザは、端末の空きが減ったときや<b>しばらく開かないサイト</b>のデータを自動で消すことがあります
       （iPhoneのSafariでは<b>7日ほど開かないと消える</b>ことがあります）。
       下のボタンで「消さないでください」と端末にお願いできます。うまくいかないときは、
-      <b>ホーム画面に追加</b>して使うか、ときどき<b>⬇書き出し</b>をしてください。
+      <b>ホーム画面に追加</b>して使うか、ときどき<b>⬇エクスポート</b>をしてください。
       <button class="stp-btn" onclick="stPersistNow()">🔒 消えないようにする</button></div>`;
   }
   const top=rows.length?rows[0].b:1;
@@ -19451,6 +19592,8 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_mikurabe','excalc_gijiroku','excalc_sentaku',   // 📸見比べ・📝議事録・🧺洗濯表示（v605。写真は 書き出すときに 聞く）
   'excalc_kyoshi',   // 🧱供試体（v611。Google カレンダーの 設定も）
   'excalc_ggolf',   // ⛳グラウンドゴルフ（v616）
+  'excalc_band_cfg',   // 🎛 帯の ボタン（出す ボタン・並び。v626）
+  'excalc_sum_place',   // 合計の 置き場所（テンキーの上の行／セルのバー。v628）
 ];
 function settingsBundle(){
   const o={};
@@ -19871,9 +20014,11 @@ function fullWhen(t){ try{ return new Date(t).toLocaleString('ja-JP', {year:'num
 /* ⬇ 全保存する */
 async function fullExport(){
   if(typeof saveSheets==='function') try{ saveSheets(); }catch(_){}
-  toast('全保存の ファイルを 作っています…');
+  if(!isDlgOpen('fullBkOverlay')) await openFullBackup();   // できた ファイルと 移し方を 見せる 窓（v627）
+  const btn=document.getElementById('fbkExport'); if(btn) btn.disabled=true;
+  toast('エクスポートの ファイルを 作っています…');
   let p;
-  try{ p=await fullCollect(); }catch(e){ console.error(e); alert('全保存の ファイルを 作れませんでした'); return null; }
+  try{ p=await fullCollect(); }catch(e){ console.error(e); if(btn) btn.disabled=false; alert('エクスポートの ファイルを 作れませんでした'); return null; }
   const st=p.st; delete p.st;
   p.ls[BACKUP_KEY]=String(Date.now());   // 戻した 端末でも「ファイルに 書き出した」扱い（⚠ を 出さない）
   p.info=fullInfo(p);
@@ -19887,11 +20032,47 @@ async function fullExport(){
   if(typeof markBackedUp==='function') markBackedUp();
   if(typeof renderSaveStateBanner==='function') try{ renderSaveStateBanner(); }catch(_){}
   window.__fullLast={name, size:blob.size, info:p.info, skip:st.skip};
-  toast('全保存しました：'+name+'（'+stFmt(blob.size)+'）'+(st.skip ? '。この 端末 だけの もの '+st.skip+'件は 入れていません' : ''), 5600);
+  try{ fullLastFile=new File([blob], name, {type:'application/json'}); }catch(_){ fullLastFile=null; }
+  toast('エクスポートしました：'+name+'（'+stFmt(blob.size)+'）'+(st.skip ? '。この 端末 だけの もの '+st.skip+'件は 入れていません' : ''), 5600);
   const now=document.getElementById('fbkLast');
-  if(now){ now.hidden=false; now.innerHTML='✅ 全保存しました：<b>'+escHtml(name)+'</b>（'+escHtml(stFmt(blob.size))+'）<br>この ファイルを USB・メール・LINE・クラウド などで 別の 端末に 移してください。'; }
+  if(now){
+    now.hidden=false;
+    now.innerHTML='✅ エクスポートしました：<b>'+escHtml(name)+'</b>（'+escHtml(stFmt(blob.size))+'）<br>この ファイルを 別の パソコン・スマホに 移して、そこで <b>⬆ インポート</b> で 選ぶと、まったく 同じ 状態に なります。'
+      +(fullCanShare() ? '<button class="fbk-share" id="fbkShare" onclick="fullShare()">📤 LINE・メール・ドライブ などで 送る</button>' : '');
+  }
+  if(btn) btn.disabled=false;
   return p;
 }
+/* スマホなどで ファイルを そのまま 送る（LINE・メール・Google ドライブ など。v627） */
+let fullLastFile=null;
+function fullCanShare(){ try{ return !!(fullLastFile && navigator.share && navigator.canShare && navigator.canShare({files:[fullLastFile]})); }catch(_){ return false; } }
+function fullShare(){
+  if(!fullCanShare()){ toast('この 端末では 送れません。できた ファイルを USB・メール などで 移してください'); return; }
+  try{ navigator.share({files:[fullLastFile], title:fullLastFile.name}).catch(e=>{ if(!(e && e.name==='AbortError')) toast('送れませんでした。できた ファイルを USB・メール などで 移してください'); }); }
+  catch(_){ toast('送れませんでした。できた ファイルを USB・メール などで 移してください'); }
+}
+/* ⬆ インポート：ファイルを 選ぶ（全保存の ファイルなら まるごと 置きかえ・前の「保存データ」の ファイルなら 足し合わせ） */
+function fullPickImport(){ const i=document.getElementById('fullImportInput'); if(i) i.click(); }
+/* ほかに 開いている 表電卓の 画面（タブ・窓）には、インポートの 間 書き込みを 止めて もらい、終わったら 開き直して もらう（v627）。
+   止めないと、古い 中身の まま 開いていた 画面が、次の 操作で 古い 表を 書き戻して しまう */
+const FULL_BC='hyodentaku-full';
+function fullBcPost(type){ try{ const c=new BroadcastChannel(FULL_BC); c.postMessage({type}); c.close(); }catch(_){} }
+function fullCover(text){
+  let c=document.querySelector('.fbk-cover');
+  if(!c){ c=document.createElement('div'); c.className='fbk-cover'; document.body.appendChild(c); }
+  c.textContent=text; return c;
+}
+(function(){
+  try{
+    const c=new BroadcastChannel(FULL_BC);
+    c.onmessage=e=>{
+      const t=e && e.data && e.data.type;
+      if(t==='freeze'){ fullFreeze(); fullCover('⬆ 別の 画面で インポートしています…（終わったら 開き直します）'); }
+      else if(t==='reload'){ fullFreeze(); location.reload(); }
+    };
+  }catch(_){}
+})();
+function fullVerNum(v){ const m=/^v(\d+)/.exec(String(v||'')); return m ? +m[1] : 0; }
 
 /* ⬆ 全保存から 元に戻す（ファイルを 選んだ とき）。「保存データ」の ファイルなら 前からの 読み込みへ */
 async function fullImport(ev){
@@ -19900,8 +20081,8 @@ async function fullImport(ev){
   let p=null;
   try{ p=JSON.parse(await file.text()); }catch(_){ if(inp) inp.value=''; alert('読み込めませんでした：ファイルを 読み取れません'); return; }
   if(!fullValid(p)){
-    if(p && p.app==='hyodenki'){ toast('これは「保存データ」の ファイルです。いまの 中身に 足して 読み込みます'); importSaves({target:{files:[file], value:''}}); }
-    else alert('全保存の ファイルでは ありません（hyodentaku_full_… の ファイルを 選んでください）');
+    if(p && p.app==='hyodenki'){ toast('これは 前の「保存データ」の ファイルです。いまの 中身に 足して 読み込みます'); importSaves({target:{files:[file], value:''}}); }
+    else alert('表電卓で エクスポートした ファイルでは ありません（hyodentaku_full_… の ファイルを 選んでください）');
     if(inp) inp.value='';
     return;
   }
@@ -19909,13 +20090,17 @@ async function fullImport(ev){
   await fullRestore(p);
 }
 async function fullRestore(p){
-  if(!fullValid(p)){ alert('全保存の ファイルでは ありません'); return false; }
+  if(!fullValid(p)){ alert('表電卓で エクスポートした ファイルでは ありません'); return false; }
   const i=fullInfo(p), when=fullWhen(p.exportedAt);
-  if(!await appConfirm('全保存（'+when+'）から 元に戻しますか？\n\n'+fullInfoText(i)
-    +'\n\nこの 端末の いまの 中身（表・設定・道具の データ・写真）は、すべて ファイルの 中身に 置きかわります。いまの 中身も 残したい ときは「やめる」を 押して、先に この 端末でも 全保存を してください。',
+  const newer=fullVerNum(p.ver)>fullVerNum(APP_VERSION);   // 新しい 版で 作った ファイル（v627）
+  if(!await appConfirm('エクスポートした ファイル（'+when+' の 状態）を インポートしますか？\n\n'+fullInfoText(i)
+    +(newer ? '\n\n⚠ この ファイルは 新しい 版（'+p.ver+'）で 作られました。いまの 表電卓は '+APP_VERSION+' です。先に 表電卓を 新しく してから（開き直すと 新しく なります）インポートすると 確実です。' : '')
+    +'\n\nこの 端末の いまの 中身（表・設定・道具の データ・写真）は、すべて ファイルの 中身に 置きかわります。いまの 中身も 残したい ときは「やめる」を 押して、先に この 端末でも エクスポートしてください。',
     '置きかえる', 'やめる')) return false;
-  const cover=document.createElement('div'); cover.className='fbk-cover'; cover.textContent='🗄 元に戻しています…'; document.body.appendChild(cover);
+  const cover=fullCover('⬆ インポートしています…');
+  fullBcPost('freeze');   // ほかに 開いている 画面は 書き込みを 止める
   const r=await fullRestoreData(p);
+  fullBcPost('reload');   // 終わったら（入りきらず 何も 変えなかった ときも）開き直して もらう
   if(!r.ok){ cover.remove(); alert(r.msg); return false; }
   try{ sessionStorage.setItem('excalc_full_done', JSON.stringify({when, skip:r.skip, ver:p.ver||''})); }catch(_){}
   if(window.FULL_NO_RELOAD){ cover.remove(); return true; }
@@ -19931,7 +20116,7 @@ async function fullRestoreData(p){
     for(const k of Object.keys(p.ls)){ const v=p.ls[k]; if(typeof v==='string') localStorage.setItem(k, v); }
   }catch(e){
     try{ localStorage.clear(); for(const k in old) localStorage.setItem(k, old[k]); }catch(_){}
-    return {ok:false, msg:'この 端末の 空きが 足りず、元に戻せませんでした（いまの 中身は そのままです）。'};
+    return {ok:false, msg:'この 端末の 空きが 足りず、インポートできませんでした（いまの 中身は そのままです）。'};
   }
   // exe 版は 保存した表を フォルダにも 書く（起動の ときに フォルダの 方が 読まれるため）
   if(window.electronAPI){ try{ await window.electronAPI.writeSaves(localStorage.getItem(SAVE_KEY)||'[]'); }catch(_){} }
@@ -19985,16 +20170,15 @@ async function openFullBackup(){
   let ov=document.getElementById('fullBkOverlay');
   if(!ov){
     ov=document.createElement('div'); ov.className='modal-overlay'; ov.id='fullBkOverlay';
-    ov.innerHTML='<div class="modal snap-modal fbk-modal"><div class="modal-header"><span>🗄 全保存（まるごと 保存・復元）</span><button class="modal-close" onclick="closeFullBackup()">✕</button></div>'
+    ov.innerHTML='<div class="modal snap-modal fbk-modal"><div class="modal-header"><span>🗄 エクスポート・インポート（全保存）</span><button class="modal-close" onclick="closeFullBackup()">✕</button></div>'
       +'<div class="modal-body" id="fullBkBody">'
-      +'<div class="snap-note"><b>この 端末の 中身を ぜんぶ</b>（いまの表・シート・保存した表・<b>設定</b>〈色・テンキー・マイキー など〉・道具の データ・<b>写真</b>・前の状態の 控え）<b>1つの ファイル</b>に します。<br>別の パソコンや スマホで「全保存から 元に戻す」で 読み込むと、<b>まったく 同じ 状態</b>に なります。</div>'
+      +'<div class="snap-note"><b>この 端末の 中身を ぜんぶ</b>（いまの表・シート・保存した表・<b>設定</b>〈色・テンキー・マイキー・帯の ボタン など〉・道具の データ・<b>写真</b>・前の状態の 控え）<b>1つの ファイル</b>に します。<br>別の パソコンや スマホで <b>⬆ インポート</b> すると、<b>まったく 同じ 状態</b>に なります。</div>'
       +'<div class="fbk-now" id="fbkNow">いまの 中身を 数えています…</div>'
-      +'<button class="fbk-go" id="fbkExport" onclick="fullExport()">⬇ 全保存する（ファイルに 書き出す）</button>'
+      +'<button class="fbk-go" id="fbkExport" onclick="fullExport()">⬇ エクスポート（ぜんぶを ファイルに）</button>'
       +'<div class="fbk-last" id="fbkLast" hidden></div>'
-      +'<button class="snap-take fbk-in" onclick="document.getElementById(\'fullImportInput\').click()">⬆ 全保存から 元に戻す（ファイルを 選ぶ）</button>'
-      +'<div class="fbk-warn">⚠ 元に戻すと、その 端末の いまの 中身は ファイルの 中身に <b>置きかわります</b>。ファイルには 入れた ものが そのまま 入るので、人には 渡さないで ください。</div>'
-      +'<div class="fbk-how"><b>別の パソコンへ 移すには</b><ol><li>ここで <b>⬇ 全保存する</b></li><li>できた ファイル（hyodentaku_full_….json）を USB・メール・LINE・クラウド などで 移す</li><li>移した 先で 表電卓を 開き、☰ → … ほかの機能 → 📁 ファイル → <b>🗄 全保存・復元</b> →「⬆ 全保存から 元に戻す」で その ファイルを 選ぶ</li></ol></div>'
-      +'<input type="file" id="fullImportInput" accept="application/json,.json" hidden onchange="fullImport(event)">'
+      +'<button class="snap-take fbk-in" id="fbkImport" onclick="fullPickImport()">⬆ インポート（ファイルから 同じ 状態に）</button>'
+      +'<div class="fbk-warn">⚠ インポートすると、その 端末の いまの 中身は ファイルの 中身に <b>置きかわります</b>。ファイルには 入れた ものが そのまま 入るので、人には 渡さないで ください。</div>'
+      +'<div class="fbk-how"><b>別の パソコンへ 移すには</b><ol><li>ここで <b>⬇ エクスポート</b></li><li>できた ファイル（hyodentaku_full_….json）を USB・メール・LINE・クラウド などで 移す</li><li>移した 先で 表電卓を 開き、☰ → … ほかの機能 → 📁 ファイル → <b>⬆ インポート</b> で その ファイルを 選ぶ（📋 リストの 下・⚙ 設定 → 💾 保存とデータ からも）</li></ol></div>'
       +'</div></div>';
     ov.addEventListener('click', e=>{ if(e.target===ov) closeFullBackup(); });
     document.body.appendChild(ov);
@@ -20346,9 +20530,9 @@ a11yInit();          // 読み上げ・キーボード操作の下ごしらえ�
 saveDirty=false; updateRecordTitle();   // 起動直後は「📄 自動保存」（記録は開いていない）
 applyNpPlace(true);                        // テンキーの置き場所（v399）
 applyFbPlace();                            // セルのバーの置き場所（v619）
-syncFbRec();                               // セルのバーに 表の名前（v624）
+syncSumPlace(); renderSumPlace();          // 合計の置き場所（v628）
 snapDaily();                               // 毎日 はじめの 表を 控える（v624）
-try{ const fd=sessionStorage.getItem('excalc_full_done'); if(fd){ sessionStorage.removeItem('excalc_full_done'); const o=JSON.parse(fd)||{}; setTimeout(()=>toast('🗄 全保存（'+(o.when||'')+'）から 元に戻しました'+(o.skip ? '（写真など '+o.skip+'か所は 戻せませんでした）' : ''), 5600), 700); } }catch(_){}
+try{ const fd=sessionStorage.getItem('excalc_full_done'); if(fd){ sessionStorage.removeItem('excalc_full_done'); const o=JSON.parse(fd)||{}; setTimeout(()=>toast('⬆ インポートしました（'+(o.when||'')+' の 状態）'+(o.skip ? '（写真など '+o.skip+'か所は 戻せませんでした）' : ''), 5600), 700); } }catch(_){}
 try{ const sd=sessionStorage.getItem('excalc_snap_done'); if(sd){ sessionStorage.removeItem('excalc_snap_done'); setTimeout(()=>toast('「'+sd+'」の 表に 戻しました（☰ → 🕘 前の状態に戻す で また 戻せます）', 4800), 600); } }catch(_){}
 if(localStorage.getItem('excalc_trigmode')==='rad') trigMode='rad';
 applyTrigModeBtn();
