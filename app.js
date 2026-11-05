@@ -15096,9 +15096,10 @@ function ktSaveVals(){ try{ localStorage.setItem(KT_VALS_KEY, JSON.stringify(ktV
 function openKantab(){
   ktRenderInputs(); ktCalc();
   openDlg('kantabOverlay');
-  ktRenderTName();   // いまの 換算表の 名前（ロット。v623）
+  ktRenderTName();   // いまの 換算表の ロット番号（v623。v632 から 画面の いちばん上に 大きく）
+  ktRenderWHist();   // 前に 入れた 単位水量（v632）
 }
-function closeKantab(){ closeDlg('kantabOverlay'); }
+function closeKantab(){ ktRecW(ktVals.W); closeDlg('kantabOverlay'); }
 function ktRenderInputs(){
   const grid=document.getElementById('ktGrid'); if(!grid) return;
   document.getElementById('ktIn_W').value = (ktVals.W!=null?ktVals.W:'');
@@ -15109,11 +15110,47 @@ function ktRenderInputs(){
     row.innerHTML='<span class="kt-gn">'+f.mark+'</span>'+
       '<input type="text" inputmode="decimal" id="ktIn_'+f.key+'" '+
         'value="'+(ktVals[f.key]!=null?ktVals[f.key]:'')+'" oninput="ktInput(\''+f.key+'\',this.value,this)" '+
-        'onfocus="ktCaretEnd(this)" onclick="ktCaretEnd(this)">'+
+        'onfocus="ktReadFocus(this,\''+f.key+'\')">'+
       '<span class="kt-gv kt-none" id="ktC_'+f.key+'">—</span>'+
       '<span class="kt-gv kt-none" id="ktQ_'+f.key+'">—</span>';
     grid.appendChild(row);
   });
+}
+/* 読み値の 枠を 押したら、前に 入れた 数字は 消す（v632。次の 試験の 読み値を そのまま 打てる） */
+function ktReadFocus(el, key){
+  if(!el || el.value==='') return;
+  el.value=''; ktInput(key, '', el);
+}
+/* ↺ 読み値を リセット（v632）：①〜③ を 消す。単位水量は そのまま（前に 入れた 単位水量にも 残す） */
+function ktResetReads(){
+  ktRecW(ktVals.W);
+  KT_READS.forEach(f=>{ ktVals[f.key]=''; const el=document.getElementById('ktIn_'+f.key); if(el) el.value=''; });
+  ktSaveVals(); ktCalc();
+  toast('読み値を リセット しました（単位水量は そのまま）');
+}
+/* ── 前に 入れた 単位水量（v632）：欄の すぐ 下に 並べる。押すと 入る・✕ で 消す。新しい 順に 10個まで ── */
+const KT_WHIST_KEY='excalc_kantab_whist', KT_WHIST_MAX=10;
+function ktWHist(){ try{ const a=JSON.parse(localStorage.getItem(KT_WHIST_KEY)||'[]'); return Array.isArray(a) ? a.filter(x=>typeof x==='string' && x!=='').slice(0, KT_WHIST_MAX) : []; }catch(_){ return []; } }
+function ktWHistSave(a){ try{ if(a.length) localStorage.setItem(KT_WHIST_KEY, JSON.stringify(a.slice(0, KT_WHIST_MAX))); else localStorage.removeItem(KT_WHIST_KEY); }catch(_){} }
+function ktRecW(v){
+  const t=String(v==null ? '' : v).trim(), n=parseFloat(t);
+  if(t==='' || !isFinite(n) || n<=0) return;
+  const s=String(n);   // 「175.0」も「175」に そろえる
+  ktWHistSave([s].concat(ktWHist().filter(x=>x!==s)));
+  ktRenderWHist();
+}
+function ktUseW(v){
+  const el=document.getElementById('ktIn_W'); if(el) el.value=v;
+  ktInput('W', v, el); ktRecW(v);
+}
+function ktDelW(v){ ktWHistSave(ktWHist().filter(x=>x!==v)); ktRenderWHist(); }
+function ktRenderWHist(){
+  const box=document.getElementById('ktWHist'); if(!box) return;
+  const a=ktWHist(), cur=String(parseFloat(ktVals.W));
+  box.hidden=!a.length;
+  box.innerHTML=a.length ? '<span class="kt-wh-lb">前に 入れた：</span>'+a.map(v=>'<span class="kt-wh'+(v===cur?' on':'')+'">'
+    +'<button type="button" class="kt-wh-v" data-w="'+escHtml(v)+'" onclick="ktUseW(this.dataset.w)" title="単位水量に '+escHtml(v)+' を 入れる">'+escHtml(v)+'</button>'
+    +'<button type="button" class="kt-wh-x" data-w="'+escHtml(v)+'" onclick="ktDelW(this.dataset.w)" aria-label="'+escHtml(v)+' を 消す" title="この 値を 前に 入れた 一覧から 消す">✕</button></span>').join('') : '';
 }
 /* 数字を入れる位置をいつも右端（末尾）にする。
    途中をタップしても末尾に移るので、続きの桁がそのまま打てる。 */
@@ -15163,7 +15200,7 @@ function ktResult(){
 }
 function ktCalc(){
   const vEl=document.getElementById('ktResVal'), sEl=document.getElementById('ktResSub');
-  const jEl=document.getElementById('ktJudge'), btn=document.getElementById('ktInsertBtn');
+  const jEl=document.getElementById('ktJudge'), btn=document.getElementById('ktInsertBtn');   // v632：ボタンは 外した（ない ときは 何も しない）
   if(!vEl) return;
   const R=ktResult(), cls={length:R.n}, nRead=R.nRead, nOut=R.nOut, nInterp=R.nInterp, noTable=R.noTable;
   R.rows.forEach(row=>{
@@ -15191,9 +15228,9 @@ function ktCalc(){
     sEl.textContent=cls.length+'回ぶんの平均（合格 '+tsFmt(ktWarn,2)+' 以下／管理値 '+tsFmt(ktLimit,2)+'）'
       + (nInterp?'　* は表の間を直線でおぎなった値です':'')
       + (nOut?'　※範囲外の'+nOut+'回は平均に入れていません':'');
-    btn.disabled=false;
+    if(btn) btn.disabled=false;
   } else {
-    vEl.textContent='—'; jEl.textContent='—'; btn.disabled=true;
+    vEl.textContent='—'; jEl.textContent='—'; if(btn) btn.disabled=true;
     if(noTable) sEl.textContent='換算表がまだ登録されていません。「⚙設定」でお使いのカンタブの表を入れてください';
     else if(nRead===0) sEl.textContent='読み値を入れてください（①〜③のうち入れた分だけで平均します）';
     else if(nOut===nRead) sEl.textContent='読み値がどれも登録した換算表の範囲外です（表に行を足すか、読み値を確かめてください）';
@@ -15201,11 +15238,6 @@ function ktCalc(){
   }
 }
 let ktLastCl=null;
-/* 出た値を、表の選択中のセルに入れる（容積計算と同じ使い勝手） */
-function ktInsertToCell(){
-  if(ktLastCl==null){ toast('先に単位水量と読み値を入れてください'); return; }
-  putToCell(ktLastCl, '塩化物イオン量をセルに入れました', closeKantab);
-}
 /* ── カンタブの設定ダイアログ ── */
 function openKtSettings(){ ktSyncUi(); ktRenderTable(); ktRenderPresets(); openDlg('ktSettingsOverlay'); }
 /* いま入っている 換算表の 名前と 範囲（v623） */
@@ -15218,7 +15250,23 @@ function ktRenderTName(){
   const i=ktTableInfo();
   el.innerHTML=i.n ? 'いまの換算表：<b>'+escHtml(i.name||'名前なし')+'</b><small>（'+i.n+'行・読み値 '+i.lo+'〜'+i.hi+'）</small>' : 'いまの換算表：<b>まだ登録されていません</b>';
   const m=document.getElementById('ktTNameMain');
-  if(m){ m.hidden=!i.n; m.textContent=i.n ? '換算表：'+(i.name||'名前なし')+'（'+i.lo+'〜'+i.hi+'）' : ''; }
+  if(m){
+    m.hidden=false;
+    m.classList.toggle('kt-lot-none', !i.n);
+    if(!i.n){ m.innerHTML='<span class="kt-lot-t">換算表</span><b class="kt-lot-no">まだ 登録されて いません</b><small>押すと ⚙ 設定（換算表の 登録）</small>'; }
+    else {
+      const lot=ktLotOf(i.name), prod=lot ? ktLotStrip(i.name) : (i.name||'名前なし');
+      m.innerHTML='<span class="kt-lot-t">換算表</span><b class="kt-lot-no">'+escHtml(lot ? 'Lot No. '+lot : prod)+'</b>'
+        +'<small>'+escHtml((lot && prod ? prod+'・' : '')+'読み値 '+i.lo+'〜'+i.hi)+'</small>';
+    }
+  }
+}
+/* 換算表の 名前から ロット番号を 取り出す（「Lot No. 772115」「ロット番号 772115」「LOT772115」など。v632） */
+const KT_LOT_RE=/(?:lot|ロット)\s*(?:no|ナンバー|番号|#)?\s*[.:：#]?\s*([A-Za-z0-9][A-Za-z0-9-]*)/i;
+function ktLotOf(name){ const m=KT_LOT_RE.exec(String(name||'')); return m ? m[1] : ''; }
+function ktLotStrip(name){
+  return String(name||'').replace(/[（(][^（）()]*?(?:lot|ロット)[^（）()]*[）)]/ig, '')   // 「（Lot No. 4750571 の表から）」は かっこごと
+    .replace(KT_LOT_RE, '').replace(/[（(]\s*[）)]/g,'').replace(/[\s　,，、（(]+$/,'').trim();
 }
 function closeKtSettings(){ closeDlg('ktSettingsOverlay'); }
 function ktSyncUi(){
@@ -15254,34 +15302,61 @@ function ktEdit(i, key, v){
 /* 貼り付けた文字から「読み値・濃度」の組を読み取る。
    全角の数字や、区切りがスペース／タブ／カンマのどれでも読めるようにする。 */
 function ktParseTable(text){
-  const rows=[], skipped=[]; let name='';
+  const rows=[], skipped=[]; let name='', lot='', tpl=false, blank=0, pairs=null;
   const zen='０１２３４５６７８９．，－ー−';
   const han='0123456789.,---';
   const fix=x=>Math.round(x*1e6)/1e6;   // Excel の 0.010300000000000001 などを ととのえる
+  const unq=s=>String(s==null?'':s).replace(/^\s*"|"\s*$/g,'').trim();
+  const cellNum=s=>{ const t=unq(s).replace(/[０-９．－ー−]/g, ch=>han[zen.indexOf(ch)]); return /^-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?$/.test(t) ? parseFloat(t) : NaN; };
   String(text||'').split(/[\r\n]+/).forEach(line=>{
     // 「# 名前, ○○」の 行は 表の 名前（製品・ロット）。ほかの # の 行は メモとして 読み飛ばす（v623）
     const raw=line.replace(/^\uFEFF/,'').replace(/^"+/,'').trim();
     if(/^[#＃]/.test(raw)){
-      const nm=raw.match(/^[#＃]\s*(?:名前|なまえ|name)\s*[,，:：\t]\s*(.+)$/i);
+      if(raw.replace(/^＃/,'#').startsWith(KT_TPL_MARK)) tpl=true;   // 📊 入力用の Excel（v632）
+      const nm=raw.match(/^[#＃]\s*(?:名前|なまえ|製品名|品名|name)\s*[,，:：\t]\s*(.+)$/i);
       if(nm && !name) name=nm[1].replace(/["\t,，]+$/,'').replace(/^"|"$/g,'').trim().slice(0,80);
+      // 「# ロット番号, 772115」（入力用の Excel の 3行目。v632）
+      const lt=raw.match(/^[#＃]\s*(?:ロット(?:番号|ナンバー)?|lot\s*(?:no\.?|number)?)\s*(?:[,，:：\t]\s*(.*))?$/i);
+      if(lt && !lot){ lot=unq(String(lt[1]||'').split(/[\t,，]/)[0]).replace(/^(?:lot|ロット)\s*(?:no|ナンバー|番号)?\s*[.:：#]?\s*/i,'').slice(0,30); }
       return;
+    }
+    // 入力用の Excel：見出しの 行で「読み値」の 列を 見つけ、すぐ 右の 列を 塩化物イオン(%) として 組で 読む（カードと 同じ 何列 並びでも）
+    if(tpl){
+      const cs=line.split(line.indexOf('\t')>=0 ? '\t' : ',').map(unq);
+      if(!pairs){ const p=[]; cs.forEach((x,i)=>{ if(/^読み値/.test(x)) p.push(i); }); if(p.length){ pairs=p; return; } }
+      if(pairs){
+        pairs.forEach(c=>{
+          const r=cellNum(cs[c]), v=cellNum(cs[c+1]);
+          if(isFinite(r) && isFinite(v)) rows.push({r:fix(r), c:fix(v)});
+          else if(isFinite(r) && !cs[c+1]) blank++;             // 読み値だけ（塩化物イオン(%) が まだ 空）
+          else if(cs[c] || cs[c+1]) skipped.push(cs[c]+' '+(cs[c+1]||''));
+        });
+        return;
+      }
     }
     const t=line.replace(/[^\x00-\x7F]/g, ch=>{ const i=zen.indexOf(ch); return i>=0?han[i]:' '; }).trim();
     if(!t) return;
     const m=t.match(/-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?/g);   // Excel は 小さな 数を 1.03E-2 と 書く
     if(!m || m.length<2){ if(/\d/.test(t)) skipped.push(line.trim()); return; }
-    const r=parseFloat(m[0]), c=parseFloat(m[1]);
-    if(!isFinite(r)||!isFinite(c)){ skipped.push(line.trim()); return; }
-    rows.push({r:fix(r), c:fix(c)});
+    // 1行に 組が いくつも（カードと 同じ「1.8 0.0103 4.0 0.0211 6.2 0.0537」。v632）
+    const n=(m.length>=4 && m.length%2===0) ? m.length : 2;
+    for(let k=0;k<n;k+=2){
+      const r=parseFloat(m[k]), c=parseFloat(m[k+1]);
+      if(!isFinite(r)||!isFinite(c)){ skipped.push(line.trim()); return; }
+      rows.push({r:fix(r), c:fix(c)});
+    }
   });
-  return {rows, skipped, name};
+  // 製品名と ロット番号を 1つの 名前に（「カンタブ 低濃度品（コンクリート用） Lot No. 772115」）
+  if(lot){ const base=ktLotStrip(name); name=((base ? base+' ' : '')+'Lot No. '+lot).slice(0,80); }
+  return {rows, skipped, name, tpl, blank};
 }
 function ktImportTable(){
   const ta=document.getElementById('ktPaste'); if(!ta) return;
-  const {rows, skipped, name}=ktParseTable(ta.value);
+  const {rows, skipped, name, blank}=ktParseTable(ta.value);
   if(!rows.length){ toast('読み取れる行がありませんでした（1行に数字を2つ並べてください）'); return; }
   if(rows.length>KT_TABLE_MAX){ toast('行が多すぎます（'+KT_TABLE_MAX+'行まで）'); return; }
   const msg='読み取った '+rows.length+' 行で、今の換算表（'+ktTable.length+'行）を置きかえます。よろしいですか？'
+    + (blank?'\n※塩化物イオン(%) が 空の '+blank+' 行は 読み飛ばします。':'')
     + (skipped.length?'\n※数字が2つ揃わない '+skipped.length+' 行は読み飛ばします。':'');
   const ask=(typeof appConfirm==='function')?appConfirm(msg,'置きかえる','やめる'):Promise.resolve(confirm(msg));
   ask.then(ok=>{
@@ -15313,13 +15388,15 @@ async function ktOpenFile(inp){
   const file=inp && inp.files && inp.files[0]; if(inp) inp.value=''; if(!file) return;
   let text='';
   try{ text=await ktFileText(file); }catch(_){ toast('ファイルを読めませんでした（.csv・.txt・.xlsx を えらんでください）', 3600); return; }
-  const {rows, skipped, name}=ktParseTable(text);
-  if(!rows.length){ toast('換算表が 見つかりませんでした（1行に「読み値」と「濃度」の 数字を 2つ）', 3600); return; }
+  const {rows, skipped, name, tpl, blank}=ktParseTable(text);
+  if(!rows.length){ toast(tpl ? 'まだ 塩化物イオン(%) が 入って いません（Excel の 黄色の 欄に 入れて 保存してから 読み込んでください）' : '換算表が 見つかりませんでした（1行に「読み値」と「濃度」の 数字を 2つ）', 4200); return; }
   if(rows.length>KT_TABLE_MAX){ toast('行が多すぎます（'+KT_TABLE_MAX+'行まで）'); return; }
-  const nm=name || String(file.name||'').replace(/\.[^.]+$/,'').slice(0,80);
+  const nm=tpl ? name : (name || String(file.name||'').replace(/\.[^.]+$/,'').slice(0,80));   // 入力用の Excel は ファイルの 名前を 使わない
   const sorted=rows.slice().sort((x,y)=>x.r-y.r);
   const msg='「'+(nm||'換算表')+'」の '+rows.length+' 行（読み値 '+sorted[0].r+'〜'+sorted[sorted.length-1].r+'）で、今の換算表（'+ktTable.length+'行）を置きかえます。'
+    +(blank?'\n※塩化物イオン(%) が 空の '+blank+' 行は 読み飛ばします。':'')
     +(skipped.length?'\n※数字が2つ揃わない '+skipped.length+' 行は読み飛ばします。':'')
+    +(tpl && !ktLotOf(nm)?'\n※ロット番号が 入って いません（Excel の「# ロット番号」の 黄色の 欄に 入れると、カンタブの 画面の いちばん上に 出ます）。':'')
     +'\n入れたあと、試験紙の 容器の 表と ロット番号を 見くらべてください。';
   const ok=(typeof appConfirm==='function') ? await appConfirm(msg,'置きかえる','やめる') : confirm(msg);
   if(!ok) return;
@@ -15343,6 +15420,142 @@ function ktSaveFile(){
   const a=Object.assign(document.createElement('a'),{ href:URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})), download:name });
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1500);
   toast('換算表を '+name+' に 保存しました', 3200);
+}
+/* 📊 入力用の Excel（.xlsx）を 書き出す（v632）。試験紙の 換算表（カード）と 同じ 読み値が はじめから 入っていて、
+   Excel では 黄色の 欄（ロット番号と 塩化物イオン(%)）だけ 入れて 保存 → 📂 ファイルから読む で 読み込める。
+   1行目は「#」で 始まる 説明（読み込みの 目印）、2行目「# 製品名」、3行目「# ロット番号」、4行目が 見出し、
+   5行目から 読み値と 塩化物イオン(%) の 組を カードと 同じ ように 何列かに 並べる（組の あいだに 細い すき間の 列） */
+const KT_TPL_MARK='# 表電卓 カンタブの換算表（入力用）';
+const KT_TPL_DEF={lo:1.8, hi:8.1, step:0.1, cols:3};   // カンタブ 低濃度品（コンクリート用）Lot No. 772115 の カードと 同じ
+const KT_TPL_PROD='カンタブ 低濃度品（コンクリート用）';
+/* いまの 表が 等間隔（10行 以上）なら その 読み値に、なければ カードと 同じ 1.8〜8.1・0.1 きざみ */
+function ktTplDefaults(){
+  const t=ktTable.map(p=>p.r).filter(r=>r!=null && isFinite(r)).sort((a,b)=>a-b);
+  if(t.length>=10){
+    const d=t.slice(1).map((x,i)=>Math.round((x-t[i])*1e6)/1e6), s=d[0];
+    if(s>0 && d.every(x=>Math.abs(x-s)<1e-6)) return {lo:t[0], hi:t[t.length-1], step:s, cols:KT_TPL_DEF.cols};
+  }
+  return Object.assign({}, KT_TPL_DEF);
+}
+/* 読み値の 並び（hi を こえない。小数の 桁は 入れた 数に そろえる）。おかしい ときは [] */
+function ktTplReadings(o){
+  const lo=+o.lo, hi=+o.hi, st=+o.step;
+  if(!isFinite(lo) || !isFinite(hi) || !isFinite(st) || st<=0 || hi<=lo) return [];
+  const n=Math.floor((hi-lo)/st+1e-9)+1; if(n<2 || n>KT_TABLE_MAX) return [];
+  const dp=Math.min(4, Math.max(...[lo, hi, st].map(v=>(String(v).split('.')[1]||'').length)));
+  const out=[]; for(let i=0;i<n;i++) out.push(+(lo+i*st).toFixed(dp));
+  return out;
+}
+const ktTplProduct=()=>ktLotStrip(ktTName) || KT_TPL_PROD;
+function ktXlsxSheet(o){
+  const rd=ktTplReadings(o), n=rd.length, k=Math.max(1, Math.min(4, o.cols|0 || 1)), per=Math.ceil(n/k), last=3*k-2;
+  const grid=[], put=(r,c,s,v)=>{ (grid[r]=grid[r]||[])[c]={s, v}; };
+  put(0,0,3, KT_TPL_MARK+'：黄色の 欄に ロット番号と 塩化物イオン(%) を 入れて 保存 → 🧪 カンタブ → ⚙ 設定 → 📂 ファイルから読む');
+  put(1,0,1,'# 製品名'); for(let c=1;c<=last;c++) put(1,c,4, c===1 ? (o.product||'') : '');
+  put(2,0,1,'# ロット番号'); put(2,1,6,'');
+  for(let j=0;j<k;j++){ put(3,3*j,1,'読み値'); put(3,3*j+1,1,'塩化物イオン(%)'); }
+  for(let i=0;i<n;i++){ const j=Math.floor(i/per), r=4+i%per; put(r,3*j,5,rd[i]); put(r,3*j+1,2,''); }
+  const cell=(c,ri,ci)=>{
+    if(!c) return '';
+    const ref=xlColLetter(ci)+(ri+1), s=c.s ? ` s="${c.s}"` : '';
+    if(c.v==null || c.v==='') return `<c r="${ref}"${s}/>`;
+    return typeof c.v==='number' ? `<c r="${ref}"${s}><v>${c.v}</v></c>` : `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${xlEsc(String(c.v))}</t></is></c>`;
+  };
+  const body=grid.map((r,ri)=>`<row r="${ri+1}">`+r.map((c,ci)=>cell(c,ri,ci)).join('')+'</row>').join('');
+  let cols='<cols><col min="1" max="1" width="13" customWidth="1"/>';
+  for(let j=0;j<k;j++){
+    if(j) cols+=`<col min="${3*j}" max="${3*j}" width="2" customWidth="1"/><col min="${3*j+1}" max="${3*j+1}" width="9" customWidth="1"/>`;
+    cols+=`<col min="${3*j+2}" max="${3*j+2}" width="16" customWidth="1"/>`;
+  }
+  cols+='</cols>';
+  const ins=[]; for(let j=0;j<k;j++){ const m=Math.min(per, n-j*per); if(m>0) ins.push(`${xlColLetter(3*j+1)}5:${xlColLetter(3*j+1)}${4+m}`); }
+  const X='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+  return `${X}<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:${xlColLetter(last)}${grid.length}"/>`
+    +`<sheetViews><sheetView workbookViewId="0"><pane ySplit="4" topLeftCell="A5" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="B5" sqref="B5"/></sheetView></sheetViews>`
+    +`<sheetFormatPr defaultRowHeight="15"/>${cols}<sheetData>${body}</sheetData>`
+    +(last>1 ? `<mergeCells count="1"><mergeCell ref="B2:${xlColLetter(last)}2"/></mergeCells>` : '')
+    +(ins.length ? `<dataValidations count="1"><dataValidation type="decimal" allowBlank="1" showErrorMessage="1" errorTitle="塩化物イオン(%)" error="数を 入れて ください（例：0.0103）" sqref="${ins.join(' ')}"><formula1>0</formula1><formula2>100</formula2></dataValidation></dataValidations>` : '')
+    +`<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="portrait" fitToWidth="1" fitToHeight="0"/></worksheet>`;
+}
+async function ktXlsxBlob(o){
+  o=Object.assign({product:ktTplProduct()}, KT_TPL_DEF, o||{});
+  const enc=new TextEncoder(), X='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>', M='http://schemas.openxmlformats.org/spreadsheetml/2006/main',
+    R='http://schemas.openxmlformats.org/officeDocument/2006/relationships', PK='http://schemas.openxmlformats.org/package/2006/', O='application/vnd.openxmlformats-officedocument.spreadsheetml.';
+  // 0 ふつう／1 見出し（太字・うすい緑・枠）／2 塩化物イオン(%) を 入れる 欄（黄色・枠・0.0000##）／3 説明（灰色の 斜体）
+  // 4 製品名（太字・枠）／5 読み値（うすい 灰色・枠・0.0#）／6 ロット番号を 入れる 欄（太字・黄色・枠・文字）
+  const bd='<left style="thin"><color rgb="FFB0BEC5"/></left><right style="thin"><color rgb="FFB0BEC5"/></right><top style="thin"><color rgb="FFB0BEC5"/></top><bottom style="thin"><color rgb="FFB0BEC5"/></bottom><diagonal/>';
+  const solid=rgb=>`<fill><patternFill patternType="solid"><fgColor rgb="${rgb}"/><bgColor indexed="64"/></patternFill></fill>`;
+  const styles=`${X}<styleSheet xmlns="${M}"><numFmts count="2"><numFmt numFmtId="164" formatCode="0.0000##"/><numFmt numFmtId="165" formatCode="0.0#"/></numFmts>`
+    +`<fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><i/><sz val="10"/><color rgb="FF666666"/><name val="Calibri"/></font></fonts>`
+    +`<fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>${solid('FFE8F5E9')}${solid('FFFFF2CC')}${solid('FFF2F2F2')}</fills>`
+    +`<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border>${bd}</border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>`
+    +`<cellXfs count="7"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>`
+    +`<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>`
+    +`<xf numFmtId="164" fontId="0" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"/>`
+    +`<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>`
+    +`<xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/>`
+    +`<xf numFmtId="165" fontId="0" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"/>`
+    +`<xf numFmtId="49" fontId="1" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/></cellXfs>`
+    +`<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  const wb=`${X}<workbook xmlns="${M}" xmlns:r="${R}"><sheets><sheet name="換算表" sheetId="1" r:id="rId1"/></sheets></workbook>`;
+  const wbRels=`${X}<Relationships xmlns="${PK}relationships"><Relationship Id="rId1" Type="${R}/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="${R}/styles" Target="styles.xml"/></Relationships>`;
+  const rootRels=`${X}<Relationships xmlns="${PK}relationships"><Relationship Id="rId1" Type="${R}/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+  const ct=`${X}<Types xmlns="${PK}content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>`
+    +`<Override PartName="/xl/workbook.xml" ContentType="${O}sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="${O}worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="${O}styles+xml"/></Types>`;
+  const files=[['[Content_Types].xml', ct], ['_rels/.rels', rootRels], ['xl/workbook.xml', wb], ['xl/_rels/workbook.xml.rels', wbRels], ['xl/styles.xml', styles], ['xl/worksheets/sheet1.xml', ktXlsxSheet(o)]];
+  return xlsxZip(files.map(([name, x])=>({name, u8:enc.encode(x)})));
+}
+/* 読み値の 範囲・きざみ・並べ方を 確かめる 窓。{lo,hi,step,cols} か null（やめる・戻る） */
+function ktXlsxDialog(){
+  return new Promise(resolve=>{
+    let ov=document.getElementById('ktXlsxOverlay');
+    if(!ov){
+      ov=document.createElement('div'); ov.className='modal-overlay'; ov.id='ktXlsxOverlay';
+      ov.innerHTML='<div class="modal snap-modal kx-modal"><div class="modal-header"><span>📊 入力用の Excel</span><button class="modal-close" data-kx="x" aria-label="やめる">✕</button></div><div class="modal-body" id="kxBody"></div></div>';
+      document.body.appendChild(ov);
+    }
+    const body=document.getElementById('kxBody'), d=ktTplDefaults();
+    let cols=d.cols, done=false;
+    const fmt=v=>String(+(+v).toFixed(4));
+    const finish=v=>{ if(done) return; done=true; closeDlg('ktXlsxOverlay'); resolve(v); };
+    const han=s=>String(s||'').replace(/[０-９．]/g, ch=>'0123456789.'['０１２３４５６７８９．'.indexOf(ch)]).trim();
+    const read=()=>({lo:parseFloat(han(body.querySelector('#kxLo').value)), hi:parseFloat(han(body.querySelector('#kxHi').value)), step:parseFloat(han(body.querySelector('#kxStep').value)), cols});
+    const update=()=>{
+      const o=read(), rd=ktTplReadings(o), go=body.querySelector('.kx-go'), pv=body.querySelector('.kx-prev');
+      body.querySelectorAll('[data-kx-cols]').forEach(b=>{ const on=+b.dataset.kxCols===cols; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+      if(!rd.length){ pv.innerHTML='<b>読み値の 範囲を 直して ください</b>（はじめ ＜ おわり、きざみは 0 より 大きく、'+KT_TABLE_MAX+'行 まで）'; pv.classList.add('kx-bad'); go.disabled=true; return; }
+      const per=Math.ceil(rd.length/cols), sizes=[]; for(let j=0;j<cols;j++){ const m=Math.min(per, rd.length-j*per); if(m>0) sizes.push(m); }
+      pv.classList.remove('kx-bad'); go.disabled=false;
+      pv.innerHTML='読み値 <b>'+rd[0]+'</b>, '+rd[1]+', … <b>'+rd[rd.length-1]+'</b>（<b>'+rd.length+'行</b>'+(sizes.length>1 ? '・'+sizes.length+'列：'+sizes.join('・') : '')+'）<br>製品名：'+escHtml(ktTplProduct());
+    };
+    body.innerHTML='<div class="snap-note">試験紙の 換算表（カード）と 同じ <b>読み値</b> が 入った Excel を 作ります。Excel では 黄色の 欄の <b>ロット番号</b> と <b>塩化物イオン(%)</b> だけ 入れて 保存し、<b>📂 ファイルから読む</b> で 読み込みます。</div>'
+      +'<div class="kx-rows"><label class="kx-row"><span>読み値の はじめ</span><input id="kxLo" type="text" inputmode="decimal" value="'+fmt(d.lo)+'"></label>'
+      +'<label class="kx-row"><span>おわり</span><input id="kxHi" type="text" inputmode="decimal" value="'+fmt(d.hi)+'"></label>'
+      +'<label class="kx-row"><span>きざみ</span><input id="kxStep" type="text" inputmode="decimal" value="'+fmt(d.step)+'"></label></div>'
+      +'<div class="bcf-sec">並べ方（カードに 合わせる）</div>'
+      +'<div class="skin-seg kx-seg">'+[1,2,3,4].map(n=>'<button class="skin-seg-btn" data-kx-cols="'+n+'">'+n+'列</button>').join('')+'</div>'
+      +'<div class="mk-prev kx-prev"></div>'
+      +'<div class="mk-btns"><button class="snap-take mk-no kx-no" data-kx="x">やめる</button><button class="fbk-go mk-go kx-go" data-kx="go">📊 書き出す</button></div>';
+    body.oninput=update;
+    body.onclick=e=>{
+      const t=e.target, cb=t.closest && t.closest('[data-kx-cols]');
+      if(cb){ cols=+cb.dataset.kxCols; update(); return; }
+      const bt=t.closest && t.closest('[data-kx]');
+      if(bt){ if(bt.dataset.kx==='go'){ const o=read(); if(ktTplReadings(o).length) finish(o); } else finish(null); }
+    };
+    ov.onclick=e=>{ if(e.target===ov) finish(null); else if(e.target.closest && e.target.closest('.modal-header [data-kx="x"]')) finish(null); };
+    update();
+    openDlg('ktXlsxOverlay', ()=>{ if(!done){ done=true; resolve(null); } });   // 端末の「戻る」＝やめる
+  });
+}
+async function ktSaveXlsx(){
+  const o=await ktXlsxDialog(); if(!o) return;
+  let blob=null;
+  try{ blob=await ktXlsxBlob(o); }catch(e){ console.error(e); toast('Excel の ファイルを 作れませんでした'); return; }
+  const rd=ktTplReadings(o), name='kantab-template.xlsx';   // 日本語の 名前は 端末で 消える ことが あるので 英数字
+  const url=URL.createObjectURL(blob), a=Object.assign(document.createElement('a'), {href:url, download:name});
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  toast(name+' を 書き出しました（読み値 '+rd[0]+'〜'+rd[rd.length-1]+'・'+rd.length+'行）。黄色の 欄に ロット番号と 塩化物イオン(%) を 入れて 保存 → 📂 ファイルから読む', 4600);
 }
 /* ひな形のボタンを並べる */
 function ktRenderPresets(){
@@ -16962,7 +17175,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v629';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v632';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -18164,7 +18377,8 @@ function kfmtVAlign(v){
   kfmtApply(s=>{ if(clear) delete s.valign; else s.valign=v; });
 }
 /* セルを結合して中央揃え（Excel と同じ）。範囲を選んでいれば結合、
-   結合したセルを選んで押せば解除。左上以外の値は消えるので、あれば先に聞く */
+   結合したセルを選んで押せば解除。v631：値の 入った セルが 1つなら その 値を 残し（左上でなくても）、
+   2つ 以上なら 残す 値を 選ぶ 窓を 出す（いくつでも 選べる。前は 左上の 値だけ 残った） */
 async function kfmtMerge(){
   if(isStructMode()){ toast('この表のかたちではセルを結合できません'); return; }
   const cells=kfmtCells();
@@ -18181,14 +18395,108 @@ async function kfmtMerge(){
     kfmtSyncState();
     return;
   }
-  const lost=cells.filter(([r,c])=>!(r===r1&&c===c1) && String(data[r][c]??'')!=='');
-  if(lost.length && !await appConfirm('結合すると、左上のセルの値だけが残ります（ほか '+lost.length+'個の値は消えます）。\n結合しますか','結合する','やめる')) return;
+  const vals=mergeValueCells(r1,c1,r2-r1+1,c2-c1+1);
+  const keep=await mergeKeepPick(vals);
+  if(!keep) return;   // やめる
   pushSnapshot('セルの結合');
+  mergePlaceKept(r1,c1,keep);
   applyMerge(r1,c1,r2-r1+1,c2-c1+1);
   clearRangeSelection(); sel(r1,c1);
   if(typeof recalcAll==='function') recalcAll();
-  toast('結合しました（'+(r2-r1+1)+'行 × '+(c2-c1+1)+'列）');
+  toast('結合しました（'+(r2-r1+1)+'行 × '+(c2-c1+1)+'列）'+mergeKeepNote(r1,c1,keep));
   kfmtSyncState();
+}
+/* ── 結合で 残す 値（v631）──
+   値の 入った セルが 1つ なら、その 値を 残す（左上に 移す。日付・¥・小数の 形も いっしょに）。
+   2つ 以上 なら、残す 値を 選ぶ 窓を 出す（いくつでも 選べる。2つ 以上 選ぶと 区切りを はさんで、左上から 順に つなげる） */
+const MERGE_SEP_KEY='excalc_merge_sep';
+const MERGE_SEPS=[{id:'sp',n:'スペース',v:' '},{id:'none',n:'つなげる',v:''},{id:'ten',n:'「、」',v:'、'},{id:'dot',n:'「・」',v:'・'}];
+const MERGE_FMT_KEYS=['dfmt','nf','dec','nodate'];   // 値と いっしょに 移す 形（日付・¥/%・小数・日付に しない）
+const MERGE_TEXT_KEYS=['bold','italic','underline','strike','color'];   // 左上に ない ときだけ 移す 文字の 飾り
+function mergeShownText(r,c){
+  let t='';
+  try{ t=String(getCellDisplay(r,c)); }catch(_){ t=String(data[r][c]??''); }
+  try{ if(typeof nfText==='function') t=String(nfText(r,c,t)); }catch(_){}
+  return t;
+}
+/* 範囲（左上 ar,ac から rs×cs）の 値の 入った セル（左上から 順に） */
+function mergeValueCells(ar,ac,rs,cs){
+  const out=[];
+  for(let r=ar;r<ar+rs && r<ROWS;r++) for(let c=ac;c<ac+cs && c<COLS;c++){
+    if(coverOf(r,c)) continue;   // 結合で 隠れて いる セル（中身は 空）
+    const raw=data[r][c]; if(String(raw??'').trim()==='') continue;
+    out.push({r, c, raw, text:mergeShownText(r,c)});
+  }
+  return out;
+}
+/* 残す 値を 決める。null＝やめる／{empty}＝空で 結合／{r,c}＝その セルの 値を そのまま／{text,n}＝つないだ 文字 */
+async function mergeKeepPick(cells){
+  if(!cells.length) return {empty:true};
+  if(cells.length===1) return {r:cells[0].r, c:cells[0].c};
+  const res=await mergeKeepDialog(cells);
+  if(!res) return null;
+  const pick=cells.filter((_,i)=>res.on[i]);
+  if(!pick.length) return {empty:true};
+  if(pick.length===1) return {r:pick[0].r, c:pick[0].c};
+  return {text:pick.map(x=>x.text).join(res.sep), n:pick.length};
+}
+/* 決めた 値を 左上（ar,ac）に 置く（結合の 前に 呼ぶ） */
+function mergePlaceKept(ar,ac,keep){
+  const ak=`${ar},${ac}`;
+  if(keep.empty){ data[ar][ac]=''; return; }
+  if(keep.text!=null){
+    data[ar][ac]=keep.text;
+    const s=cellStyles[ak]; if(s){ delete s.dfmt; delete s.nf; }   // つないだ 文字は 文字の まま 見せる
+    return;
+  }
+  if(keep.r===ar && keep.c===ac) return;   // 左上の 値を そのまま 残す
+  // ほかの セルの 値を 左上へ 移す（数式は そのまま。日付・¥・小数の 形も いっしょに）
+  data[ar][ac]=data[keep.r][keep.c];
+  const src=cellStyles[`${keep.r},${keep.c}`]||{}, dst=cellStyles[ak]=cellStyles[ak]||{};
+  MERGE_FMT_KEYS.forEach(k=>{ if(src[k]!=null) dst[k]=src[k]; else delete dst[k]; });
+  MERGE_TEXT_KEYS.forEach(k=>{ if(src[k]!=null && dst[k]==null) dst[k]=src[k]; });
+}
+function mergeKeepNote(ar,ac,keep){
+  if(keep.text!=null) return '。'+keep.n+'つの 値を つなげました';
+  if(keep.r!=null && !(keep.r===ar && keep.c===ac)) return '。'+ALPHA[keep.c]+(keep.r+1)+' の 値を 残しました';
+  return '';
+}
+/* 残す 値を 選ぶ 窓。{on:[…], sep} か null（やめる・戻る） */
+function mergeKeepDialog(cells){
+  return new Promise(resolve=>{
+    let ov=document.getElementById('mergeKeepOverlay');
+    if(!ov){
+      ov=document.createElement('div'); ov.className='modal-overlay'; ov.id='mergeKeepOverlay';
+      ov.innerHTML='<div class="modal snap-modal mk-modal"><div class="modal-header"><span>⊞ 結合して 残す 値</span><button class="modal-close" data-mk="x" aria-label="やめる">✕</button></div><div class="modal-body" id="mkBody"></div></div>';
+      document.body.appendChild(ov);
+    }
+    const body=document.getElementById('mkBody');
+    const on=cells.map(()=>true);   // はじめは ぜんぶ 残す（消える ものが ない）
+    let sepId='sp'; try{ const v=localStorage.getItem(MERGE_SEP_KEY); if(MERGE_SEPS.some(s=>s.id===v)) sepId=v; }catch(_){}
+    let done=false;
+    const finish=v=>{ if(done) return; done=true; closeDlg('mergeKeepOverlay'); resolve(v); };
+    const result=()=>{ const p=cells.filter((_,i)=>on[i]); const sep=(MERGE_SEPS.find(s=>s.id===sepId)||MERGE_SEPS[0]).v; return {p, txt:p.map(x=>x.text).join(sep)}; };
+    const render=()=>{
+      const {p, txt}=result();
+      body.innerHTML='<div class="snap-note">値の 入った セルが <b>'+cells.length+'つ</b> あります。結合した セルに <b>残す 値</b>を 選んで ください（いくつでも。2つ 以上 選ぶと、左上から 順に つなげます）。</div>'
+        +'<div class="bcf-list mk-list">'+cells.map((x,i)=>'<div class="bcf-row'+(on[i]?'':' off')+'"><label class="bcf-chk"><input type="checkbox" data-mk-i="'+i+'"'+(on[i]?' checked':'')+'><b>'+escHtml(ALPHA[x.c]+(x.r+1))+'</b><small class="mk-val">'+escHtml(x.text)+'</small></label></div>').join('')+'</div>'
+        +'<div class="bcf-sec">2つ 以上 残す ときの 区切り</div>'
+        +'<div class="skin-seg mk-seg'+(p.length>1?'':' mk-dim')+'">'+MERGE_SEPS.map(s=>'<button class="skin-seg-btn'+(s.id===sepId?' on':'')+'" data-mk-sep="'+s.id+'" aria-pressed="'+(s.id===sepId)+'">'+escHtml(s.n)+'</button>').join('')+'</div>'
+        +'<div class="mk-prev">結合した セル：<b>'+(p.length ? '「'+escHtml(txt)+'」' : '（空）')+'</b></div>'
+        +'<div class="mk-btns"><button class="snap-take mk-no" data-mk="x">やめる</button><button class="fbk-go mk-go" data-mk="go">⊞ '+(p.length ? '結合する' : '空で 結合する')+'</button></div>';
+    };
+    body.onclick=e=>{
+      const t=e.target;
+      const sb=t.closest && t.closest('[data-mk-sep]');
+      if(sb){ sepId=sb.dataset.mkSep; try{ localStorage.setItem(MERGE_SEP_KEY, sepId); }catch(_){} render(); return; }
+      const bt=t.closest && t.closest('[data-mk]');
+      if(bt){ if(bt.dataset.mk==='go') finish({on:on.slice(), sep:(MERGE_SEPS.find(s=>s.id===sepId)||MERGE_SEPS[0]).v}); else finish(null); }
+    };
+    body.onchange=e=>{ const i=e.target && e.target.dataset ? e.target.dataset.mkI : null; if(i==null) return; on[+i]=e.target.checked; render(); };
+    ov.onclick=e=>{ if(e.target===ov) finish(null); else if(e.target.closest && e.target.closest('.modal-header [data-mk="x"]')) finish(null); };
+    render();
+    openDlg('mergeKeepOverlay', ()=>{ if(!done){ done=true; resolve(null); } });   // 端末の「戻る」＝やめる
+  });
 }
 /* 書式のコピー/貼り付け（Excel の刷毛）。1回目＝選んでいるセルの書式を写す、
    貼りたいセル（範囲）を選んで2回目＝貼る。結合は写さない（形が変わってしまうため） */
@@ -18373,8 +18681,8 @@ function applyMerge(ar,ac,rs,cs){
   fmtR=ar; fmtC=ac; fmtCellsList=null; sel(ar,ac);   // 書式対象＝アンカーを維持（モーダルは開いたまま）
   persistModes();
 }
-/* 書式モーダル：結合する横(cs)・縦(rs)のセル数を増減 */
-function fmtMergeSpan(dim, delta){
+/* 書式モーダル：結合する横(cs)・縦(rs)のセル数を増減。v631：広げて 値の 入った セルを 含む ときは、範囲を 選んで 結合 と 同じに 残す 値を 決める */
+async function fmtMergeSpan(dim, delta){
   if(isStructMode()){ toast('この表のかたちではセルを結合できません'); return; }
   const ar=fmtR, ac=fmtC;
   if(isUserLocked(ar,ac)){ toast('ロックされたセルは結合できません'); return; }
@@ -18382,7 +18690,16 @@ function fmtMergeSpan(dim, delta){
   let rs=cur.rs, cs=cur.cs;
   if(dim==='cs') cs=Math.max(1, Math.min(COLS-ac, cs+delta));
   else           rs=Math.max(1, Math.min(ROWS-ar, rs+delta));
+  if(rs===cur.rs && cs===cur.cs) return;
+  let keep=null;
+  if(rs>cur.rs || cs>cur.cs){
+    keep=await mergeKeepPick(mergeValueCells(ar,ac,rs,cs));
+    if(!keep) return;   // やめる
+  }
+  pushSnapshot(rs>1||cs>1 ? 'セルの結合' : '結合の解除');
+  if(keep) mergePlaceKept(ar,ac,keep);
   applyMerge(ar,ac,rs,cs);
+  if(keep && typeof recalcAll==='function') recalcAll();
   syncCellFmt();
   toast(rs>1||cs>1 ? `結合：${rs}行 × ${cs}列` : '結合を解除しました');
 }
@@ -18505,7 +18822,7 @@ function startCellPress(r,c,x,y){
   if(cellGesture==='excel'){
     // Excel と同じ：選んだセルの右下の ■ から引っぱるとフィル
     // メニューは長押しでは出さず、ダブルタップで直すときにキーボード（テンキー）の上に出す
-    if(fillHow==='handle' && lpFromActive && onFillHandle(r,c,x,y)){ fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; fillProbeStart(r,c,x,y); }
+    if(fillHow==='handle' && lpFromActive && onFillHandle(r,c,x,y)){ fillMode=true; fillSrcR=r; fillSrcC=c; fillEndR=r; fillEndC=c; fillProbeStart(r,c,x,y); fillGrabOn(r,c); }
     else if(fillHow==='hold' && lpFromActive){
       // 長押し して なぞる（v629）：0.5秒 動かさずに 押して いたら コピーの 用意（ブルッと して 点線の 枠）。その前に 動かせば 範囲選択
       lpFillTimer=setTimeout(()=>{
@@ -18532,7 +18849,7 @@ function moveCellPress(x,y){
       if(fillMode){   // フィル成立：ここで初めて元セルを強調＆文字選択を抑止
         const el=document.getElementById(`c${fillSrcR}_${fillSrcC}`); if(el) el.classList.add('fill-src');
         document.body.classList.add('fill-active');
-        if(navigator.vibrate){try{navigator.vibrate(30);}catch(_){}}
+        if(navigator.vibrate && !fillGrabbed){try{navigator.vibrate(30);}catch(_){}}   // 丸を 押した ときに もう ブルッと して いる（v630）
       } else if(lpFromActive){
         // 選択中のセルからすぐスライド＝範囲選択（フィルは長押し後のドラッグのまま）
         rangeDragging=true;
@@ -18558,6 +18875,7 @@ function endCellPress(){
   if(fillScrollRaf){ cancelAnimationFrame(fillScrollRaf); fillScrollRaf=0; }
   fillProbe=null;
   if(fillMode && moved){ fillJustCommitted=true; commitFill(); return; }   // ドラッグ＝フィル確定
+  fillGrabOff();   // 丸を 押しただけで 離した（v630）
   if(rangeDragging && moved){ rangeDragging=false; fillJustCommitted=true; if(cellGesture==='excel') showEditBar(true); return; }   // スライド＝範囲選択を確定（次のclickを1回無効化）。v418：帯を出す
   rangeDragging=false;
   fillMode=false; document.body.classList.remove('fill-active');
@@ -18570,8 +18888,24 @@ function cancelCellPress(){
   if(fillScrollRaf){ cancelAnimationFrame(fillScrollRaf); fillScrollRaf=0; }
   fillProbe=null;
   if(fillMode){ clearFillPreview(); const el=document.getElementById(`c${fillSrcR}_${fillSrcC}`); if(el) el.classList.remove('fill-src'); document.body.classList.remove('fill-active'); }
+  fillGrabOff();
   fillMode=false; fillSrcR=fillSrcC=fillEndR=fillEndC=-1;
   lpR=lpC=-1; lpStage=0; lpMoved=false; rangeDragging=false;
+}
+/* 右下の 丸（角の つまみ）を 押した 瞬間に、セルを 囲む 枠を オレンジに・丸も 大きく オレンジに して ブルッ（v630）。
+   つかめた ことが 分かる。前は 指を 動かすまで 何も 変わらなかった */
+let fillGrabbed=false;
+function fillGrabOn(r,c){
+  fillGrabbed=true;
+  const el=document.getElementById(`c${r}_${c}`); if(el) el.classList.add('fill-src');
+  const hd=document.getElementById('fillHandle'); if(hd) hd.classList.add('grab');
+  if(navigator.vibrate){ try{ navigator.vibrate(15); }catch(_){} }
+}
+function fillGrabOff(){
+  if(!fillGrabbed) return;
+  fillGrabbed=false;
+  document.querySelectorAll('#sheet .cell.fill-src').forEach(el=>{ if(!fillMode || !document.body.classList.contains('fill-active')) el.classList.remove('fill-src'); });
+  const hd=document.getElementById('fillHandle'); if(hd) hd.classList.remove('grab');
 }
 /* 座標(clientX,clientY)のセルまでフィル範囲プレビューを更新（タッチ・マウス共通） */
 function fillUpdateTo(clientX, clientY){
@@ -18599,6 +18933,7 @@ function adjustFormula(formula,dr,dc) {
 }
 function commitFill() {
   fillMode=false;
+  fillGrabOff();
   document.body.classList.remove('fill-active');
   const srcEl=document.getElementById(`c${fillSrcR}_${fillSrcC}`);
   if(srcEl) srcEl.classList.remove('fill-src');
@@ -19697,6 +20032,8 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_band_cfg',   // 🎛 帯の ボタン（出す ボタン・並び。v626）
   'excalc_sum_place',   // 合計の 置き場所（テンキーの上の行／セルのバー。v628）
   'excalc_fill_how',   // 範囲選択と コピー（フィル）の しかた（角の つまみ／帯の ボタン／長押しして なぞる。v629）
+  'excalc_merge_sep',   // 結合で 2つ 以上 残す ときの 区切り（v631）
+  'excalc_kantab_whist',   // 🧪 カンタブの 前に 入れた 単位水量（v632）
 ];
 function settingsBundle(){
   const o={};
