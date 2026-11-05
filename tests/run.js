@@ -873,7 +873,7 @@ async function runShared(browser) {
       + '/' + localStorage.getItem('excalc_rows') + 'x' + localStorage.getItem('excalc_cols'); }), '8x4/8x4/8x4');
   check('  行や列が0や大きすぎるときは直す', await page.evaluate(() => {
     setSheetSize(0, 9999); const r = ROWS + 'x' + COLS; setSheetSize(15, 3); return r; }),
-    '1x' + 50);   // MAXCOLS まででとまる
+    '1x' + 100);   // MAXCOLS まででとまる（v636 から 100列）
   check('  ▦既定も同じしくみを使う', await page.evaluate(() => {
     setSheetSize(5, 2); applyDefaultSize(); return ROWS + 'x' + COLS; }), '15x3');
 
@@ -14884,9 +14884,9 @@ async function runHyoPlus563(browser) {
 
   // ── 行・列の増減・決まった形の表・記録 ──
   await setKakei();
-  await page.evaluate(() => { cellStyles._ct = { 4: { k: 'ck', r1: 1 }, 3: { k: 'pk', r1: 1, o: ['現金', 'カード'] } }; cellStyles._cf = [{ r1: 1, r2: 249, c1: 0, c2: 4, t: 'past', row: 1, kc: 0, nock: 4, st: { bg: 'yellow' } }]; cellStyles._flt = { h: 0, cond: { 1: { v: ['食費'] } }, hid: [2, 4, 6] }; buildSheet(); }); await w(150);
+  await page.evaluate(() => { cellStyles._ct = { 4: { k: 'ck', r1: 1 }, 3: { k: 'pk', r1: 1, o: ['現金', 'カード'] } }; cellStyles._cf = [{ r1: 1, r2: MAXROWS - 1, c1: 0, c2: 4, t: 'past', row: 1, kc: 0, nock: 4, st: { bg: 'yellow' } }]; cellStyles._flt = { h: 0, cond: { 1: { v: ['食費'] } }, hid: [2, 4, 6] }; buildSheet(); }); await w(150);
   await page.evaluate(() => insertRowAt(1)); await w(200);
-  check('  見出しのすぐ下に行を足す（☑ の列に入る・色の決まり・隠す行も1つずれる）', await page.evaluate(() => [JSON.stringify(cellStyles._ct[4]), cellStyles._cf[0].r1 + '-' + cellStyles._cf[0].r2, cellStyles._flt.h, cellStyles._flt.hid.join(','), getCellDisplay(1, 4)].join('/')), '{"k":"ck","r1":1}/1-249/0/3,5,7/☐');
+  check('  見出しのすぐ下に行を足す（☑ の列に入る・色の決まり・隠す行も1つずれる）', await page.evaluate(() => [JSON.stringify(cellStyles._ct[4]), cellStyles._cf[0].r1 + '-' + cellStyles._cf[0].r2, cellStyles._flt.h, cellStyles._flt.hid.join(','), getCellDisplay(1, 4)].join('/')), '{"k":"ck","r1":1}/1-999/0/3,5,7/☐');
   await page.evaluate(() => deleteColAt(0)); await w(200);
   check('  見る列（日付）を消すと その色の決まりは消える・ほかは左へ', await page.evaluate(() => [JSON.stringify(cellStyles._ct), JSON.stringify(cellStyles._cf || null), JSON.stringify(cellStyles._flt.cond)].join('/')), '{"2":{"k":"pk","r1":1,"o":["現金","カード"]},"3":{"k":"ck","r1":1}}/null/{"0":{"v":["食費"]}}');
   await page.evaluate(() => switchMode('shopping')); await w(300);
