@@ -1493,14 +1493,16 @@ body.cg-excel #fillHandle.on { display: block; }
 #sheet td.cell.fill-arm { box-shadow: inset 0 0 0 2px var(--warn), inset 0 0 0 999px color-mix(in srgb, var(--warn) 14%, transparent); outline: 2px dashed var(--warn); outline-offset: -5px; }   /* v630：コピーの 色（オレンジ）に そろえる */
 body.fill-active #fillHandle { display: none; }
 /* 右下の 丸の 大きさ（v633）：設定の 段と 見本（実物と 同じ 大きさの 丸を セルの 角に） */
-.fs-row { display: flex; align-items: center; gap: 16px; }
-.fs-row .skin-seg { flex: 1 1 auto; min-width: 0; }
-.fs-row.fs-off .skin-seg, .fs-row.fs-off .fs-prev { opacity: .45; }
-.fs-prev { position: relative; flex: 0 0 auto; width: 56px; height: 28px; margin: 0 16px 14px 0; border: 2px solid var(--acc); background: var(--cell-bg, #fff); box-sizing: border-box; }
-.fs-prev i { position: absolute; width: var(--fh-mouse, 7px); height: var(--fh-mouse, 7px); right: calc(var(--fh-mouse, 7px) / -2 - 1px); bottom: calc(var(--fh-mouse, 7px) / -2 - 1px);
+.fsz-row { display: flex; flex-direction: column; align-items: stretch; gap: 8px; width: 100%; align-self: stretch; box-sizing: border-box; }   /* v634：6つ 並ぶ ので 見本は 下の 行に（設定の 欄は 真ん中寄せ なので 幅いっぱいを はっきり） */
+.fsz-row .skin-seg { flex: 1 1 auto; min-width: 0; }
+.fsz-prev-line { display: flex; align-items: center; gap: 12px; padding-left: 2px; }
+.fsz-prev-lb { font-size: 13px; color: var(--text-light); }
+.fsz-row.fsz-off .skin-seg, .fsz-row.fsz-off .fsz-prev { opacity: .45; }
+.fsz-prev { position: relative; flex: 0 0 auto; width: 56px; height: 28px; margin: 0 16px 14px 0; border: 2px solid var(--acc); background: var(--cell-bg, #fff); box-sizing: border-box; }
+.fsz-prev i { position: absolute; width: var(--fh-mouse, 7px); height: var(--fh-mouse, 7px); right: calc(var(--fh-mouse, 7px) / -2 - 1px); bottom: calc(var(--fh-mouse, 7px) / -2 - 1px);
   background: var(--acc); box-shadow: 0 0 0 1px var(--cell-bg, #fff); }
 @media (pointer: coarse) {
-  .fs-prev i { width: var(--fh-touch, 16px); height: var(--fh-touch, 16px); right: calc(var(--fh-touch, 16px) / -2 - 1px); bottom: calc(var(--fh-touch, 16px) / -2 - 1px);
+  .fsz-prev i { width: var(--fh-touch, 16px); height: var(--fh-touch, 16px); right: calc(var(--fh-touch, 16px) / -2 - 1px); bottom: calc(var(--fh-touch, 16px) / -2 - 1px);
     border-radius: 50%; box-shadow: 0 0 0 2px var(--cell-bg, #fff), 0 1px 3px rgba(0,0,0,.35); }
 }
 /* 右下の 丸を 押して いる 間（v630）：丸も 大きく オレンジに（セルの 枠は .fill-src で オレンジ） */
@@ -4449,7 +4451,7 @@ body.dark {
     <div class="skin-seg" id="fillHowSeg"></div>
     <div class="set-note" id="fillHowNote"></div>
     <div class="set-sec">右下の 丸（角の つまみ）の 大きさ</div>
-    <div class="fs-row" id="fillSizeRow"><div class="skin-seg" id="fillSizeSeg"></div><span class="fs-prev" aria-hidden="true"><i></i></span></div>
+    <div class="fsz-row" id="fillSizeRow"><div class="skin-seg" id="fillSizeSeg"></div><div class="fsz-prev-line"><span class="fsz-prev-lb">いまの 大きさ</span><span class="fsz-prev" aria-hidden="true"><i></i></span></div></div>
     <div class="set-note" id="fillSizeNote"></div>
     <div class="set-sec">帯の ボタン</div>
     <div class="set-note">セルを 押すと テンキーの 上に 出る <b>帯</b>に、どの ボタンを どの 順で 出すかを、帯の 種類（数字の セル・文字の セル・範囲・列名・行番号 など）ごとに 決められます。押しても 並びは 変わりません。</div>

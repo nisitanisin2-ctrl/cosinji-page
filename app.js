@@ -1320,9 +1320,12 @@ function renderFillHow(){
 }
 /* 右下の 丸（角の つまみ）の 大きさ（v633）。指の 画面は 丸の さしわたし、マウスの 画面は 四角の 一辺（px）。
    当たり（in＝セルの 中へ・out＝セルの 外へ）も 大きさに 合わせる（in は 丸の 半分＋α。ふつう＝v629 の まま）。
-   大きく すると 押しやすいが、セルの 角の 近くから なぞった ときに コピーに なりやすい */
+   大きく すると 押しやすいが、セルの 角の 近くから なぞった ときに コピーに なりやすい。
+   v634：「小 でも まだ 大きい」（利用者の 声）ので、小 より 二回り 小さい 最小（6px）と その あいだの 極小（9px）を 足した */
 const FILL_SIZE_KEY='excalc_fill_size';
 const FILL_SIZES=[
+  {id:'xxs',n:'最小',   touch:6,  mouse:4,  hit:{ touch:{in:6,  out:20}, mouse:{in:7,  out:6 } }},
+  {id:'xs', n:'極小',   touch:9,  mouse:5,  hit:{ touch:{in:8,  out:22}, mouse:{in:8,  out:7 } }},
   {id:'sm', n:'小',     touch:12, mouse:6,  hit:{ touch:{in:9,  out:24}, mouse:{in:9,  out:8 } }},
   {id:'md', n:'ふつう', touch:16, mouse:7,  hit:{ touch:{in:12, out:28}, mouse:{in:12, out:10} }},
   {id:'lg', n:'大',     touch:22, mouse:10, hit:{ touch:{in:15, out:32}, mouse:{in:14, out:12} }},
@@ -1330,7 +1333,7 @@ const FILL_SIZES=[
 ];
 let fillSize='md';
 try{ const v=localStorage.getItem(FILL_SIZE_KEY); if(FILL_SIZES.some(s=>s.id===v)) fillSize=v; }catch(_){}
-function fillSizeDef(){ return FILL_SIZES.find(s=>s.id===fillSize) || FILL_SIZES[1]; }
+function fillSizeDef(){ return FILL_SIZES.find(s=>s.id===fillSize) || FILL_SIZES.find(s=>s.id==='md'); }
 function applyFillSize(){
   const s=fillSizeDef(), st=document.documentElement.style;
   st.setProperty('--fh-touch', s.touch+'px'); st.setProperty('--fh-mouse', s.mouse+'px');
@@ -1347,11 +1350,11 @@ function renderFillSize(){
   if(ss.children.length!==FILL_SIZES.length) ss.innerHTML=FILL_SIZES.map(s=>'<button class="skin-seg-btn" data-fs="'+s.id+'" onclick="setFillSize(\''+s.id+'\')">'+s.n+'</button>').join('');
   Array.from(ss.children).forEach(el=>{ const on=el.dataset.fs===fillSize; el.classList.toggle('on', on); el.setAttribute('aria-pressed', String(on)); });
   const off=(fillHow!=='handle' || cellGesture!=='excel');
-  const row=document.getElementById('fillSizeRow'); if(row) row.classList.toggle('fs-off', off);
+  const row=document.getElementById('fillSizeRow'); if(row) row.classList.toggle('fsz-off', off);   // fsz-：ほかに .fs-row が ある ので 別の 名前（v634）
   const sn=document.getElementById('fillSizeNote');
   if(sn) sn.innerHTML=off
     ? '（いまは '+(cellGesture!=='excel' ? 'セルの操作が「以前の表電卓」' : '「'+((FILL_HOWS.find(x=>x.id===fillHow)||{}).n||'')+'」')+' なので、丸は 出ません。上で「角の つまみ」に すると 使えます）'
-    : '<b>大きく</b> すると 押しやすく なり、押せる 範囲も 広がります。そのぶん、セルの 角の 近くから なぞると コピーに なりやすく なります（<b>小さく</b> すると その 逆）。右の 見本が いまの 大きさです。';
+    : '<b>大きく</b> すると 押しやすく なり、押せる 範囲も 広がります。そのぶん、セルの 角の 近くから なぞると コピーに なりやすく なります（<b>小さく</b> すると その 逆）。';
 }
 /* 右下の四角を、選んだセルの枠の右下の角に合わせる（v421）。v629：角の つまみ の ときだけ 出す */
 function updateFillHandle(){
@@ -17239,7 +17242,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v633';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v634';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

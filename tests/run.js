@@ -20324,18 +20324,18 @@ async function runFillSize633(browser) {
   const handle = () => page.evaluate(() => { const h = document.getElementById('fillHandle'), s = getComputedStyle(h), hb = h.getBoundingClientRect(), tb = document.getElementById('c0_1').getBoundingClientRect();
     return [s.display, s.width, Math.abs((hb.left + hb.width / 2) - (tb.right - 1)) <= 1.5 && Math.abs((hb.top + hb.height / 2) - (tb.bottom - 1)) <= 1.5].join('/'); });
   const seg = () => page.evaluate(() => [...document.querySelectorAll('#fillSizeSeg button')].map(b => b.textContent + (b.classList.contains('on') ? '●' : '')).join('|'));
-  const prev = () => page.evaluate(() => getComputedStyle(document.querySelector('#fillSizeRow .fs-prev i')).width);
+  const prev = () => page.evaluate(() => getComputedStyle(document.querySelector('#fillSizeRow .fsz-prev i')).width);
   await page.evaluate(() => setSheetSize(15, 6)); await w(300);
   // ── 設定の 段（はじめは ふつう） ──
   await page.evaluate(() => { toggleSettings(); setSettingsTab(0); }); await w(300);
-  check('  設定：表の操作に「右下の 丸（角の つまみ）の 大きさ」4つ（はじめは ふつう）・見本は 16px', await page.evaluate(() => [[...document.querySelectorAll('#setPage0 .set-sec')].some(e => e.textContent === '右下の 丸（角の つまみ）の 大きさ'), document.getElementById('fillSizeSeg').closest('.set-page').id, /押しやすく/.test(document.getElementById('fillSizeNote').textContent)].join('/')) + ' ' + await seg() + ' ' + await prev(), 'true/setPage0/true 小|ふつう●|大|特大 16px');
+  check('  設定：表の操作に「右下の 丸（角の つまみ）の 大きさ」4つ（はじめは ふつう）・見本は 16px', await page.evaluate(() => [[...document.querySelectorAll('#setPage0 .set-sec')].some(e => e.textContent === '右下の 丸（角の つまみ）の 大きさ'), document.getElementById('fillSizeSeg').closest('.set-page').id, /押しやすく/.test(document.getElementById('fillSizeNote').textContent)].join('/')) + ' ' + await seg() + ' ' + await prev(), 'true/setPage0/true 最小|極小|小|ふつう●|大|特大 16px');
   await page.evaluate(() => toggleSettings()); await w(300);
   await reset();
   check('  ふつう：丸は 16px（v629 の まま）', await handle(), 'block/16px/true');
   // ── 特大 ──
   await page.evaluate(() => { toggleSettings(); setSettingsTab(0); }); await w(300);
   await page.click('#fillSizeSeg [data-fs="xl"]'); await w(300);
-  check('  特大 を 押すと 見本も 28px・覚える・お知らせ', [await seg(), await prev(), await page.evaluate(() => localStorage.getItem('excalc_fill_size') + '|' + document.getElementById('appToast').textContent)].join(' '), '小|ふつう|大|特大● 28px xl|右下の 丸の 大きさを「特大」に しました');
+  check('  特大 を 押すと 見本も 28px・覚える・お知らせ', [await seg(), await prev(), await page.evaluate(() => localStorage.getItem('excalc_fill_size') + '|' + document.getElementById('appToast').textContent)].join(' '), '最小|極小|小|ふつう|大|特大● 28px xl|右下の 丸の 大きさを「特大」に しました');
   await page.evaluate(() => toggleSettings()); await w(300);
   await reset();
   check('  特大：丸は 28px（角の 真ん中）', await handle(), 'block/28px/true');
@@ -20357,6 +20357,22 @@ async function runFillSize633(browser) {
   // ── 小・大 ──
   await page.evaluate(() => setFillSize('sm')); await reset();
   check('  小：12px・当たりも 小さく（セルの 中へ 9px）', await handle() + ' ' + await page.evaluate(() => { const b = document.getElementById('c0_1').getBoundingClientRect(); fillPressTouch = true; const r = [fillHandleHit(b.right - 8, b.bottom - 8), fillHandleHit(b.right - 11, b.bottom - 11)]; fillPressTouch = false; return r.join('/'); }), 'block/12px/true true/false');
+  // v634：小 より 二回り 小さい 最小（6px）・極小（9px）
+  await page.evaluate(() => setFillSize('xs')); await reset();
+  check('  極小：9px・当たりは セルの 中へ 8px', await handle() + ' ' + await page.evaluate(() => { const b = document.getElementById('c0_1').getBoundingClientRect(); fillPressTouch = true; const r = [fillHandleHit(b.right - 7, b.bottom - 7), fillHandleHit(b.right - 9, b.bottom - 9), fillHandleHit(b.right + 21, b.bottom + 21)]; fillPressTouch = false; return r.join('/'); }), 'block/9px/true true/false/true');
+  await page.evaluate(() => setFillSize('xxs')); await reset();
+  check('  最小：6px・当たりは セルの 中へ 6px・外へ 20px', await handle() + ' ' + await page.evaluate(() => { const b = document.getElementById('c0_1').getBoundingClientRect(); fillPressTouch = true; const r = [fillHandleHit(b.right - 5, b.bottom - 5), fillHandleHit(b.right - 7, b.bottom - 7), fillHandleHit(b.right + 19, b.bottom + 19), fillHandleHit(b.right + 22, b.bottom + 10)]; fillPressTouch = false; return r.join('/'); }) + ' ' + await page.evaluate(() => localStorage.getItem('excalc_fill_size')), 'block/6px/true true/false/true/false xxs');
+  c = await rect(0, 1);
+  await swipe(c.r - 8, c.b - 8, c.r - 8, c.b - 8 + c.h * 2.6);   // 3行目の 真ん中あたりまで
+  check('  　最小：角の 近く（中へ 8px）から なぞっても 範囲選択', await st(), '空,空,空 / 0:1:3:1');
+  await reset(); c = await rect(0, 1);
+  await swipe(c.r + 10, c.b + 10, c.r + 10, c.b + 10 + c.h * 3.2);
+  check('  　最小でも 丸の すぐ 外（となりの セルの 角）を 引くと コピー', await st(), '5,5,5 / 選択なし');
+  check('  　マウスの 画面の 四角は 4px', await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--fh-mouse').trim()), '4px');
+  await page.evaluate(() => { toggleSettings(); setSettingsTab(0); }); await w(300);
+  check('  設定：6つが 1行に おさまる・見本は ボタンの 下（6px）', await page.evaluate(() => { const bs = [...document.querySelectorAll('#fillSizeSeg button')], seg = document.getElementById('fillSizeSeg'), pv = document.querySelector('#fillSizeRow .fsz-prev');
+    return [bs.length, bs.every(b => b.offsetTop === bs[0].offsetTop), bs.every(b => b.scrollWidth <= b.clientWidth + 1), bs.every(b => b.getBoundingClientRect().height < 50), seg.getBoundingClientRect().width > document.getElementById('setPage0').getBoundingClientRect().width * 0.85, pv.getBoundingClientRect().top > seg.getBoundingClientRect().bottom, getComputedStyle(pv.querySelector('i')).width].join('/'); }) + ' ' + await seg(), '6/true/true/true/true/true/6px 最小●|極小|小|ふつう|大|特大');   // 字が 縦に 折れない・幅いっぱい（別の .fs-row と ぶつかって 細く なった ことが あった）
+  await page.evaluate(() => toggleSettings()); await w(300);
   await page.evaluate(() => setFillSize('lg')); await reset();
   check('  大：22px', await handle(), 'block/22px/true');
   check('  マウスの 画面の 四角も 大きさに 合わせる（大＝10px・当たり 中へ 14px）', await page.evaluate(() => { const b = document.getElementById('c0_1').getBoundingClientRect(); fillPressTouch = false;
@@ -20367,9 +20383,9 @@ async function runFillSize633(browser) {
   check('  開き直しても 大 の まま・設定の 書き出しにも 入る', await handle() + ' ' + await page.evaluate(() => settingsBundle().excalc_fill_size + '/' + SETTINGS_BACKUP_KEYS.includes('excalc_fill_size')), 'block/22px/true lg/true');
   // ── 丸を 出さない 設定の ときは 薄く・知らせる ──
   await page.evaluate(() => { setFillHow('band'); toggleSettings(); setSettingsTab(0); }); await w(300);
-  check('  「帯の ボタン」の ときは 薄く して「丸は 出ません」', await page.evaluate(() => document.getElementById('fillSizeRow').classList.contains('fs-off') + '/' + /丸は 出ません/.test(document.getElementById('fillSizeNote').textContent)), 'true/true');
+  check('  「帯の ボタン」の ときは 薄く して「丸は 出ません」', await page.evaluate(() => document.getElementById('fillSizeRow').classList.contains('fsz-off') + '/' + /丸は 出ません/.test(document.getElementById('fillSizeNote').textContent)), 'true/true');
   await page.evaluate(() => { setFillHow('handle'); }); await w(200);
-  check('  　角の つまみ に 戻すと 元の 濃さ', await page.evaluate(() => document.getElementById('fillSizeRow').classList.contains('fs-off')), false);
+  check('  　角の つまみ に 戻すと 元の 濃さ', await page.evaluate(() => document.getElementById('fillSizeRow').classList.contains('fsz-off')), false);
   await page.evaluate(() => { toggleSettings(); setFillSize('md'); }); await w(200);
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
@@ -21354,7 +21370,7 @@ const SUITES = [
   [['merge631', 'v631'], b => runMerge631(b)],
   [['kantab632', 'v632'], b => runKantab632(b)],
   [['kantab632', 'kantabxlsx', 'v632'], b => runKantabXlsx632(b)],
-  [['fillsize633', 'fill', 'v633'], b => runFillSize633(b)],
+  [['fillsize633', 'fill', 'v633', 'v634'], b => runFillSize633(b)],
   [['bandpc633', 'band', 'v633'], b => runBandPc633(b)],
   [['clip'], b => runClip(b)],
   [['koe'], b => runKoe(b)],
