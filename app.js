@@ -7,8 +7,8 @@
    起動中は 設定を 当てる たびに 呼ばれ、そのつど 画面の 組み直しが 起きて 起動が 遅かった。
    1＝起動中・2＝起動中に 頼まれた・0＝起動が 終わった（ふつうに その場で 合わせる） */
 let npFitBoot = 1;
-const MAXROWS = 250;   // 最大行数
-const MAXCOLS = 50;    // 最大列数（A〜AX）
+const MAXROWS = 1000;  // 最大行数（v636 で 250 → 1,000。入力の たびの 列幅合わせを 速く して 広げた）
+const MAXCOLS = 100;   // 最大列数（A〜CV。v636 で 50 → 100）
 let ROWS = 15;
 let COLS = 3;
 let decPlaces = -1;
@@ -474,9 +474,9 @@ function getCellDisplay(r, c) {
    タップで理由が出せるように印を付ける。 */
 function setCellDisp(el, r, c){
   if(!el) return;
-  const t=nfText(r, c, getCellDisplay(r,c));   // ¥・%・桁区切り（v624。見た目だけ）
-  el.textContent=t;
-  if(typeof a11yCellLabel==='function') a11yCellLabel(el, r, c);
+  const d=getCellDisplay(r,c), t=nfText(r, c, d);   // ¥・%・桁区切り（v624。見た目だけ）
+  if(el.textContent!==t){ afMarkDirty(r,c); el.textContent=t; }   // 変わった ときだけ 書く・列幅も その セルだけ 見直す（v636。1,000行で 速く）
+  if(typeof a11yCellLabel==='function') a11yCellLabel(el, r, c, d);   // 計算済みの 値を 渡す（数式を 2回 計算しない。v636）
   const bad=isErrText(t);
   el.classList.toggle('cell-err', bad);
   if(bad){
@@ -823,7 +823,7 @@ function recalcAll() {
         if (el) setCellDisp(el, r,c);
       }
   hpAfterRecalc();   // 🎨 条件の色・☑ の見た目を いまの中身に合わせる（v563）
-  autoFitSheet();
+  autoFitSmart();   // 表示が 変わった セルだけ 列幅を 見直す（v636。前は 毎回 表 ぜんぶ）
 }
 /* ── セル結合 ──
    結合情報は cellStyles に持たせる（保存・モード切替に自動で同梱される）。
@@ -856,6 +856,7 @@ function buildSheet() {
   updateEnterArrow();
   const t=document.getElementById('sheet');
   t.innerHTML='';
+  afReady=false; afDirty.clear();   // 作り直す ときは 最後に ぜんぶ 測る（v636）
   // テーブルは横幅いっぱい(width:100%)。列が多い時だけ最小幅でスクロールさせる
   // 実際の最小幅は autoFitSheet() で内容に合わせて決める
   const rhW = isFormMode() ? 30 : 48;   // フォーム型モードは行番号列を狭く
@@ -959,6 +960,43 @@ function buildSheet() {
   autoFitSheet();
 }
 
+/* ── 列幅合わせを 入力の たびに 表 ぜんぶで やらない（v636）──
+   これまでは 入力（recalcAll）の たびに 表の ぜんぶの セルを 測り直して いた（1,000行×20列で 1回 0.4秒、スマホでは 2秒 近く）。
+   ぜんぶ 測った ときの 値（autoFitSheet）を 覚えて おき、ふだんの 入力では 表示が 変わった セルだけ 見る。
+   列を 広げる 必要が ある（はみ出した）・いちばん 広かった セルが 短く なった ときだけ、ぜんぶ 測り直す */
+let afReady=false, afBaseW=60;
+const afDirty=new Set();          // 表示や 形が 変わった セル "r,c"
+let afNat={}, afColW=[], afColMax=[];   // ぜんぶ 測った ときの 各セルの 幅・列の 幅・列を 広げられる 上限
+function afMarkDirty(r,c){ if(afReady) afDirty.add(r+','+c); }
+function autoFitSmart(){
+  if(!afReady || isFormMode() || tableMode==='youseki' || !document.getElementById('c0_0')) return autoFitSheet();
+  if(!afDirty.size) return;
+  const PAD=8, list=[];
+  afDirty.forEach(k=>{ const p=k.split(','), r=+p[0], c=+p[1]; if(r>=ROWS || c>=COLS) return;
+    const td=document.getElementById('c'+r+'_'+c); if(!td) return;
+    td.style.removeProperty('--fit'); list.push({k, c, td}); });
+  afDirty.clear();
+  const rg=document.createRange();
+  list.forEach(x=>{   // 読みは まとめて（レイアウトは 1回）
+    x.sw=x.td.scrollWidth; x.cw=x.td.clientWidth; x.over=x.sw>x.cw+0.5;
+    // はみ出して いない ときは 字の 幅を じかに 測る（列に 余白を 配って 広く 見えて いる ときも、中身が 広く なった ことが 分かる）
+    if(!x.over && !colWidths[x.c] && x.td.colSpan<=1 && x.td.textContent!==''){
+      rg.selectNodeContents(x.td); const cs=getComputedStyle(x.td);
+      x.nat=Math.ceil(rg.getBoundingClientRect().width+(parseFloat(cs.paddingLeft)||0)+(parseFloat(cs.paddingRight)||0));
+    }
+  });
+  for(const x of list){
+    if(colWidths[x.c] || x.td.colSpan>1) continue;   // 手で 決めた 幅・横の 結合は 列幅を 変えない
+    const w=afColW[x.c]||0, mx=afColMax[x.c]||0;
+    if(x.over && w<mx) return autoFitSheet();                                   // はみ出した → 列を 広げる
+    if(!x.over && x.nat!=null && x.nat>w+1 && w<mx) return autoFitSheet();      // 余白で 見えて いる だけで、中身は 列より 広い → 広げる
+    if(!x.over && w>afBaseW && (afNat[x.k]||0)>=w-1) return autoFitSheet();     // いちばん 広かった セルが 短く なった → 狭める かも
+  }
+  list.forEach(x=>{
+    if(!colWidths[x.c] && x.td.colSpan<=1) afNat[x.k]=x.over ? x.sw : (x.nat!=null ? x.nat : 0);
+    if(x.over && x.cw>PAD) x.td.style.setProperty('--fit', Math.max(AUTOFIT_MIN, (x.cw-PAD)/(x.sw-PAD)).toFixed(3));   // 広げられない 列は 字を 縮める
+  });
+}
 /* ── セル自動フィット ──
    文字が枠に収まらない列は現状幅の AUTOFIT_MAX(=1.15)倍まで広げ、
    それでも収まらないセルは文字サイズを縮小する。 */
@@ -967,20 +1005,27 @@ const AUTOFIT_MIN=0.55;   // 文字縮小の下限（読めなくならない範
 function autoFitSheet(){
   const t=document.getElementById('sheet'); if(!t||COLS<=0) return;
   if(!document.getElementById('c0_0')) return;
+  afReady=false; afDirty.clear(); afNat={}; afColW=[]; afColMax=[];   // ぜんぶ 測り直す（v636）
   const scale=cellScale||1;
   const baseW=Math.round(60*scale);
   const maxW=Math.round(baseW*AUTOFIT_MAX);
   // 1) 基準幅に揃え、前回の縮小を解除（手動指定列は「100%基準の幅×倍率」）
+  //    v636：測る 間は 表の 幅も 基準幅の 合計に する。前の 幅（t.style.width）が 残って いると セルが 広く 測れて、
+  //    合わせる たびに 列が 1px ずつ 広がって いた（72→73→74→75px）
+  let w0sum=isFormMode()?30:48;
   for(let c=0;c<COLS;c++){
     const ch=document.getElementById('ch'+c);
-    if(ch) ch.style.width=(colWidths[c]?Math.round(colWidths[c]*scale):baseW)+'px';
+    const w0=colWidths[c]?Math.round(colWidths[c]*scale):baseW;
+    if(ch) ch.style.width=w0+'px';
+    if(!(cellStyles._hid && hidColSet().has(c))) w0sum+=w0;
     for(let r=0;r<ROWS;r++){
       const td=document.getElementById('c'+r+'_'+c);
-      if(td) td.style.removeProperty('--fit');
+      if(td && td.style.getPropertyValue('--fit')) td.style.removeProperty('--fit');   // 縮めて いる セルだけ（v636）
     }
   }
   const rhW=isFormMode()?30:48;   // 行番号列の幅（フォーム型は狭く）
-  t.style.minWidth=(rhW+COLS*baseW)+'px';
+  if(isFormMode()) t.style.minWidth=(rhW+COLS*baseW)+'px';
+  else { t.style.minWidth=w0sum+'px'; t.style.width=w0sum+'px'; }   // 測る 間だけ（3) で 元の 決め方に もどす。v636）
   // 2) 列ごとに必要幅を測る（手動指定列は測らず固定）
   const need=new Array(COLS).fill(baseW);
   for(let c=0;c<COLS;c++){
@@ -988,7 +1033,9 @@ function autoFitSheet(){
     for(let r=0;r<ROWS;r++){
       const td=document.getElementById('c'+r+'_'+c); if(!td) continue;
       if(td.colSpan>1) continue;           // 横結合セルは列幅測定から除外
-      if(td.scrollWidth>need[c]) need[c]=td.scrollWidth;
+      if(td.textContent==='') continue;     // 空の セルは 基準幅に おさまる（測らない。1,000行×100列で 速く。v636）
+      const sw=td.scrollWidth; afNat[r+','+c]=sw;   // 覚えて おく（ふだんの 入力では 変わった セルだけ 見る。v636）
+      if(sw>need[c]) need[c]=sw;
     }
   }
   // 3) 列幅を設定（手動指定はそのまま、自動は baseW〜maxW にクランプ）
@@ -1001,6 +1048,7 @@ function autoFitSheet(){
     const w=colWidths[c] ? Math.round(colWidths[c]*scale)
           : isYsShape ? ysShapeW
           : Math.min(Math.max(baseW,need[c]), isTsVal?tsValMaxW:maxW);
+    afColW[c]=w; afColMax[c]=colWidths[c] ? w : isYsShape ? ysShapeW : (isTsVal ? tsValMaxW : maxW);   // v636
     if(!(cellStyles._hid && hidColSet().has(c))) total+=w;   // 隠した列は 幅に 入れない（v624）
     const ch=document.getElementById('ch'+c); if(!ch) continue;
     // 単位水量モードは「項目」列を可変にして余白を吸収させ、行番号列を狭いまま保つ
@@ -1039,7 +1087,7 @@ function autoFitSheet(){
   const PAD=8;
   for(let c=0;c<COLS;c++){
     for(let r=0;r<ROWS;r++){
-      const td=document.getElementById('c'+r+'_'+c); if(!td) continue;
+      const td=document.getElementById('c'+r+'_'+c); if(!td || td.textContent==='') continue;   // 空の セルは はみ出さない（v636）
       const avail=td.clientWidth, cont=td.scrollWidth;
       if(cont>avail+0.5 && avail>PAD){
         const ratio=(avail-PAD)/(cont-PAD);
@@ -1049,6 +1097,7 @@ function autoFitSheet(){
   }
   applyRowHeights();
   fzApply();   // 見出しの 固定（v624。幅・高さが 決まってから）
+  afBaseW=baseW; afReady=true;   // これで ふだんの 入力は 変わった セルだけ（v636）
 }
 /* iPhone のホーム画面から開いたとき（上のバーの下まで画面を使う black-translucent）、100vh / 100dvh も
    innerHeight も上のバーの分（SE で 20px）だけ短く出る iOS があり、テンキーの下に隙間が出る（v431→v432）。
@@ -3529,13 +3578,13 @@ document.addEventListener('keydown', e=>{
 }, true);
 
 /* 表のセルの名前（「A1 12」のように、場所と中身を続けて言う） */
-function a11yCellLabel(td, r, c){
+function a11yCellLabel(td, r, c, disp){   // disp：計算済みの 表示（あれば 数式を 計算し直さない。v636）
   if(!td) return;
   const v=(data[r] && data[r][c]!=null) ? String(data[r][c]) : '';
-  const shown=v==='' ? '空' : (typeof getCellDisplay==='function' ? getCellDisplay(r,c) : v);
+  const shown=v==='' ? '空' : disp!=null ? disp : (typeof getCellDisplay==='function' ? getCellDisplay(r,c) : v);
   const lock=(typeof isLockedCell==='function' && isLockedCell(r,c)) ? '（保護）' : '';
   const label=`${ALPHA[c]}${r+1} ${shown}${lock}`;
-  td.setAttribute('aria-label', label);
+  if(td.getAttribute('aria-label')!==label) td.setAttribute('aria-label', label);
   // 選んでいるセルの中身が変わったときは、読み上げ欄も追いかける
   if(r===selR && c===selC){
     const live=document.getElementById('a11yLive');
@@ -5574,7 +5623,7 @@ function afterStructChange(newSelR,newSelC){
 /* 行・列の挿入／削除（at で対象位置を指定）。見出し長押しメニューと設定パネル両方から使う */
 function insertRowAt(at){
   if(structOpBlocked()) return;
-  if(ROWS>=MAXROWS){ toast('これ以上行を増やせません（最大250行）'); return; }
+  if(ROWS>=MAXROWS){ toast('これ以上行を増やせません（最大'+MAXROWS+'行）'); return; }
   stripAllMerges();   // 行・列の挿入/削除時は結合を解除（構造破綻を防ぐ）
   at=Math.max(0, Math.min(at, ROWS));
   const newROWS=ROWS+1;
@@ -5603,7 +5652,7 @@ function deleteRowAt(at){
 }
 function insertColAt(at){
   if(structOpBlocked()) return;
-  if(COLS>=MAXCOLS){ toast('これ以上列を増やせません（最大50列）'); return; }
+  if(COLS>=MAXCOLS){ toast('これ以上列を増やせません（最大'+MAXCOLS+'列）'); return; }
   stripAllMerges();
   at=Math.max(0, Math.min(at, COLS));
   const newCOLS=COLS+1;
@@ -11388,7 +11437,7 @@ function updateRowStats(r) {
       if(isNaN(v)) hasErr=true; else nums.push(v);
       continue;
     }
-    const ue=unitEval(String(raw).trim()), v=ue ? ue.v : parseFloat(raw);   // 📐 単位つきの 計算は その 数（v602）
+    const s0=String(raw).trim(), ue=/^-?\d+(\.\d+)?$/.test(s0) ? null : unitEval(s0), v=ue ? ue.v : parseFloat(raw);   // 📐 単位つきの 計算は その 数（v602）。数だけの セルは すぐ（v636）
     if(!isNaN(v)) nums.push(v);
   }
   renderStats(nums, hasErr);
@@ -11612,7 +11661,7 @@ function updateStats(c) {
       else nums.push(v);
       continue;
     }
-    const ue=unitEval(String(raw).trim()), v=ue ? ue.v : parseFloat(raw);   // 📐 単位つきの 計算は その 数（v602）
+    const s0=String(raw).trim(), ue=/^-?\d+(\.\d+)?$/.test(s0) ? null : unitEval(s0), v=ue ? ue.v : parseFloat(raw);   // 📐 単位つきの 計算は その 数（v602）。数だけの セルは すぐ（v636）
     if(!isNaN(v)) nums.push(v);
   }
   renderStats(nums, hasErr);
@@ -15966,11 +16015,11 @@ function freshSheetInMode(name, mode){
       return { name, store:{ current:mode, rows, warikanPeople:2, states:{ [mode]:{cols:t.cols||normalCols(), data:d, styles:{...(t.styles||{})}} } }, colWidths:{}, rowHeights:{} };
     }
   }
-  const blank=[]; for(let r=0;r<MAXROWS;r++){ blank[r]=[]; for(let c=0;c<MAXCOLS;c++) blank[r][c]=''; }
+  const blank=[];   // 空の 表（読みこむ ときに '' で うめる。全部の セルを 持つと 1,000×100 で 保存が 重い。v636）
   let cols=getDefaultCols(), rows=getDefaultRows();
   if(mode==='simple') cols=2;
   else if(STRUCT_MODES[mode]){
-    STRUCT_MODES[mode].headers.forEach((h,i)=>{ blank[0][i]=h; });
+    blank[0]=[]; STRUCT_MODES[mode].headers.forEach((h,i)=>{ blank[0][i]=h; });   // 見出しの 行だけ 持つ（v636）
     cols=STRUCT_MODES[mode].cols;
     if(FORM_MODES[mode]) rows=FORM_MODES[mode].rows;
   }
@@ -16045,7 +16094,7 @@ function saveSheets(){
 /* 空の新しいシートを作る */
 function freshSheet(name){
   const rows=getDefaultRows(), cols=getDefaultCols();
-  const blank=[]; for(let r=0;r<MAXROWS;r++){ blank[r]=[]; for(let c=0;c<MAXCOLS;c++) blank[r][c]=''; }
+  const blank=[];   // 空の 表（読みこむ ときに '' で うめる。全部の セルを 持つと 1,000×100 で 保存が 重い。v636）
   return { name, store:{ current:'normal', rows, warikanPeople:2, states:{ normal:{cols, data:blank, styles:{}} } }, colWidths:{}, rowHeights:{} };
 }
 
@@ -17252,7 +17301,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v635';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v636';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -17400,6 +17449,7 @@ let fmtR=-1, fmtC=-1;
 
 /* td に現在の書式を反映（毎回リセットしてから適用） */
 function applyCellStyle(td, r, c){
+  afMarkDirty(r,c);   // 太字・文字の 大きさ などで 幅が 変わる ことも ある（v636。表を 作り直す 間は 何も しない）
   td.style.fontWeight=''; td.style.fontStyle=''; td.style.textDecoration='';
   td.style.color=''; td.style.background=''; td.style.fontSize='';
   td.style.textAlign=''; td.style.verticalAlign='';

@@ -880,7 +880,7 @@ function pvMake(){
   Object.assign(sheets[curSheet], captureCurrentSheet());   // 今のシートを退避
   const sh=freshSheet(name);
   const ms=sh.store.states.normal;
-  grid.forEach((row,i)=>row.forEach((v,j)=>{ ms.data[i][j]=v; }));
+  grid.forEach((row,i)=>{ ms.data[i]=ms.data[i]||[]; row.forEach((v,j)=>{ ms.data[i][j]=v; }); });   // 新しい シートは 空の 並び（v636）
   ms.cols=Math.max(2, grid[0].length);
   sh.store.rows=Math.max(grid.length+1, 5);
   const sty={};
