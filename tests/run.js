@@ -20304,6 +20304,115 @@ async function runKantabXlsx632(browser) {
   await ctx.close();
 }
 
+/* v633：右下の 丸（角の つまみ）の 大きさを 設定で 選ぶ（小・ふつう・大・特大。当たりも 合わせる） */
+async function runFillSize633(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 表電卓 v633：右下の 丸（角の つまみ）の 大きさ ──');
+  const w = ms => page.waitForTimeout(ms);
+  const cdp = await page.context().newCDPSession(page);
+  const rect = (r, c) => page.evaluate(([r, c]) => { const b = document.getElementById('c' + r + '_' + c).getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height }; }, [r, c]);
+  const swipe = async (x0, y0, x1, y1) => {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y: y0 }] });
+    for (let i = 1; i <= 10; i++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x0 + (x1 - x0) * i / 10, y: y0 + (y1 - y0) * i / 10 }] }); await w(20); }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await w(350);
+  };
+  const st = () => page.evaluate(() => [[1, 2, 3].map(r => data[r][1] || '空').join(','), rangeR1 >= 0 ? [rangeR1, rangeC1, rangeR2, rangeC2].join(':') : '選択なし'].join(' / '));
+  const reset = async () => { await page.evaluate(() => { try { hideEditBar(); hideSeqBtn(); } catch (_) {} clearRangeSelection(); for (let r = 1; r <= 6; r++) setCellVal(r, 1, ''); setCellVal(0, 1, '5'); recalcAll(); sel(0, 1); }); await w(400); };
+  const handle = () => page.evaluate(() => { const h = document.getElementById('fillHandle'), s = getComputedStyle(h), hb = h.getBoundingClientRect(), tb = document.getElementById('c0_1').getBoundingClientRect();
+    return [s.display, s.width, Math.abs((hb.left + hb.width / 2) - (tb.right - 1)) <= 1.5 && Math.abs((hb.top + hb.height / 2) - (tb.bottom - 1)) <= 1.5].join('/'); });
+  const seg = () => page.evaluate(() => [...document.querySelectorAll('#fillSizeSeg button')].map(b => b.textContent + (b.classList.contains('on') ? '●' : '')).join('|'));
+  const prev = () => page.evaluate(() => getComputedStyle(document.querySelector('#fillSizeRow .fs-prev i')).width);
+  await page.evaluate(() => setSheetSize(15, 6)); await w(300);
+  // ── 設定の 段（はじめは ふつう） ──
+  await page.evaluate(() => { toggleSettings(); setSettingsTab(0); }); await w(300);
+  check('  設定：表の操作に「右下の 丸（角の つまみ）の 大きさ」4つ（はじめは ふつう）・見本は 16px', await page.evaluate(() => [[...document.querySelectorAll('#setPage0 .set-sec')].some(e => e.textContent === '右下の 丸（角の つまみ）の 大きさ'), document.getElementById('fillSizeSeg').closest('.set-page').id, /押しやすく/.test(document.getElementById('fillSizeNote').textContent)].join('/')) + ' ' + await seg() + ' ' + await prev(), 'true/setPage0/true 小|ふつう●|大|特大 16px');
+  await page.evaluate(() => toggleSettings()); await w(300);
+  await reset();
+  check('  ふつう：丸は 16px（v629 の まま）', await handle(), 'block/16px/true');
+  // ── 特大 ──
+  await page.evaluate(() => { toggleSettings(); setSettingsTab(0); }); await w(300);
+  await page.click('#fillSizeSeg [data-fs="xl"]'); await w(300);
+  check('  特大 を 押すと 見本も 28px・覚える・お知らせ', [await seg(), await prev(), await page.evaluate(() => localStorage.getItem('excalc_fill_size') + '|' + document.getElementById('appToast').textContent)].join(' '), '小|ふつう|大|特大● 28px xl|右下の 丸の 大きさを「特大」に しました');
+  await page.evaluate(() => toggleSettings()); await w(300);
+  await reset();
+  check('  特大：丸は 28px（角の 真ん中）', await handle(), 'block/28px/true');
+  check('  　押せる 範囲も 広がる（セルの 中へ 18px・外へ 36px。セルの 中の 右側は 範囲選択の まま）', await page.evaluate(() => { const b = document.getElementById('c0_1').getBoundingClientRect(); fillPressTouch = true;
+    const r = [fillHandleHit(b.right - 15, b.bottom - 15), fillHandleHit(b.right + 34, b.bottom + 34), fillHandleHit(b.right - 22, b.bottom - 4), fillHandleHit(b.right + 40, b.bottom + 10)]; fillPressTouch = false; return r.join('/'); }), 'true/true/false/false');
+  let c = await rect(0, 1);
+  await swipe(c.r - 15, c.b - 15, c.r - 15, c.b - 15 + c.h * 3.2);
+  check('  　丸の 内側（角から 15px）を 引いても コピー', await st(), '5,5,5 / 選択なし');
+  // 押した 瞬間の オレンジ（大きく なる）も 28px の 丸から
+  await reset(); c = await rect(0, 1);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: c.r + 6, y: c.b + 6 }] }); await w(150);
+  check('  　押した 瞬間は オレンジで さらに 大きく（28px の 1.45倍）', await page.evaluate(() => { const h = document.getElementById('fillHandle'); return h.classList.contains('grab') + '/' + Math.round(h.getBoundingClientRect().width); }), 'true/41');
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await w(350);
+  // ── ふつうに 戻すと 同じ 所は 範囲選択 ──
+  await page.evaluate(() => setFillSize('md')); await w(200);
+  await reset(); c = await rect(0, 1);
+  await swipe(c.r - 15, c.b - 15, c.r - 15, c.b - 15 + c.h * 3.2);
+  check('  ふつう に 戻すと 同じ 所（角から 15px）は 範囲選択・覚えた 値も 消す', [await st(), await page.evaluate(() => String(localStorage.getItem('excalc_fill_size')))].join(' '), '空,空,空 / 0:1:3:1 null');
+  // ── 小・大 ──
+  await page.evaluate(() => setFillSize('sm')); await reset();
+  check('  小：12px・当たりも 小さく（セルの 中へ 9px）', await handle() + ' ' + await page.evaluate(() => { const b = document.getElementById('c0_1').getBoundingClientRect(); fillPressTouch = true; const r = [fillHandleHit(b.right - 8, b.bottom - 8), fillHandleHit(b.right - 11, b.bottom - 11)]; fillPressTouch = false; return r.join('/'); }), 'block/12px/true true/false');
+  await page.evaluate(() => setFillSize('lg')); await reset();
+  check('  大：22px', await handle(), 'block/22px/true');
+  check('  マウスの 画面の 四角も 大きさに 合わせる（大＝10px・当たり 中へ 14px）', await page.evaluate(() => { const b = document.getElementById('c0_1').getBoundingClientRect(); fillPressTouch = false;
+    return getComputedStyle(document.documentElement).getPropertyValue('--fh-mouse').trim() + '/' + fillHandleHit(b.right - 13, b.bottom - 13) + '/' + fillHandleHit(b.right - 16, b.bottom - 16); }), '10px/true/false');
+  // ── 開き直しても・設定の 書き出し・全保存にも ──
+  await page.reload(); await w(900);
+  await page.evaluate(() => { setSheetSize(15, 6); setCellVal(0, 1, '5'); recalcAll(); sel(0, 1); }); await w(400);
+  check('  開き直しても 大 の まま・設定の 書き出しにも 入る', await handle() + ' ' + await page.evaluate(() => settingsBundle().excalc_fill_size + '/' + SETTINGS_BACKUP_KEYS.includes('excalc_fill_size')), 'block/22px/true lg/true');
+  // ── 丸を 出さない 設定の ときは 薄く・知らせる ──
+  await page.evaluate(() => { setFillHow('band'); toggleSettings(); setSettingsTab(0); }); await w(300);
+  check('  「帯の ボタン」の ときは 薄く して「丸は 出ません」', await page.evaluate(() => document.getElementById('fillSizeRow').classList.contains('fs-off') + '/' + /丸は 出ません/.test(document.getElementById('fillSizeNote').textContent)), 'true/true');
+  await page.evaluate(() => { setFillHow('handle'); }); await w(200);
+  check('  　角の つまみ に 戻すと 元の 濃さ', await page.evaluate(() => document.getElementById('fillSizeRow').classList.contains('fs-off')), false);
+  await page.evaluate(() => { toggleSettings(); setFillSize('md'); }); await w(200);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
+/* v633：パソコン（マウス）で 帯が スクロールバーに 隠れない（バーを 出さない・ホイールと ◀ ▶ で 送る） */
+async function runBandPc633(browser) {
+  console.log('\n── 表電卓 v633：パソコンの 帯（スクロールバーを 出さない・ホイール・◀ ▶） ──');
+  const ctx = await browser.newContext({ viewport: { width: 560, height: 980 } });   // マウスの 画面（指では ない）
+  const page = await ctx.newPage();
+  const errs = []; page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+  await page.goto(INDEX); await page.waitForTimeout(300);
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_back_ask', '0'); });
+  await page.reload(); await page.waitForTimeout(900);
+  const w = ms => page.waitForTimeout(ms);
+  const st = () => page.evaluate(() => { const m = document.getElementById('cellMenu'), vis = s => getComputedStyle(m.querySelector(s)).display !== 'none';
+    return [m.scrollLeft > 1 ? '送った' : 'はじめ', vis('.cm-arr-l') ? '◀' : '-', vis('.cm-arr-r') ? '▶' : '-'].join('/'); });
+  await page.evaluate(() => { clearRangeSelection(); sel(0, 1); rangeR1 = 0; rangeC1 = 1; extendRange(7, 1); showEditBar(true); }); await w(500);
+  check('  マウスの 画面か', await page.evaluate(() => matchMedia('(hover: hover) and (pointer: fine)').matches), true);
+  check('  帯は 横に だけ 送り、スクロールバーを 出さない（ボタンの 字に かぶらない）', await page.evaluate(() => { const m = document.getElementById('cellMenu'), cs = getComputedStyle(m), b = m.querySelector('[data-act="copy"]').getBoundingClientRect();
+    return [m.classList.contains('on-pad'), cs.overflowX, cs.overflowY, cs.scrollbarWidth, m.clientHeight >= m.getBoundingClientRect().height - 4, Math.round(b.height) >= Math.round(m.clientHeight) - 1].join('/'); }), 'true/auto/hidden/none/true/true');
+  check('  はみ出して いる ときは 右端に ▶（左は まだ 出さない）', await st(), 'はじめ/-/▶');
+  const npNow = () => page.evaluate(() => numpadPager ? String(numpadPager.current()) : '?');
+  const openWhich0 = await npNow();
+  const bb = await page.evaluate(() => { const r = document.getElementById('cellMenu').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await page.mouse.move(bb.x, bb.y); await page.mouse.wheel(0, 150); await w(400);
+  check('  帯の 上で ホイールを 回すと 横に 送る（テンキーの ページは 変わらない）・左にも ◀', await st() + ' ' + (await npNow() === openWhich0), '送った/◀/▶ true');
+  await page.click('#cellMenu .cm-arr-r'); await w(700);
+  check('  ▶ を 押すと 右へ 送る（端まで 来たら ▶ は 消える）', await st(), '送った/◀/-');
+  await page.click('#cellMenu .cm-arr-l'); await w(700);
+  check('  ◀ で 左へ 戻る', await st(), 'はじめ/-/▶');
+  await page.mouse.move(bb.x, bb.y); await page.mouse.wheel(0, 120); await w(300);
+  await page.click('#cellMenu [data-act="copy"]'); await w(300);
+  check('  送った あとも ボタンは 押せる（⧉ コピー）', await page.evaluate(() => document.getElementById('appToast').textContent), '8行×1列をコピーしました');
+  check('  ◀ ▶ は 帯の ボタン（data-act）では ない・帯を 閉じると 消える', await page.evaluate(() => { const m = document.getElementById('cellMenu'); const a = !m.querySelector('.cm-arr[data-act]'); hideEditBar(); return a + '/' + m.classList.contains('can-l') + '/' + m.classList.contains('can-r') + '/' + [...m.querySelectorAll('.cm-arr')].every(x => getComputedStyle(x).display === 'none'); }), 'true/false/false/true');
+  await ctx.close();
+  // 指の 画面では ◀ ▶ は 出さない（なぞって 送る）
+  const { ctx: ctx2, page: p2, errs: errs2 } = await newPage(browser);
+  await p2.evaluate(() => { clearRangeSelection(); sel(0, 1); rangeR1 = 0; rangeC1 = 1; extendRange(7, 1); showEditBar(true); }); await p2.waitForTimeout(500);
+  check('  指の 画面では ◀ ▶ を 出さない（スクロールバーも 出さない）', await p2.evaluate(() => { const m = document.getElementById('cellMenu'); return [m.scrollWidth > m.clientWidth, [...m.querySelectorAll('.cm-arr')].every(x => getComputedStyle(x).display === 'none'), getComputedStyle(m).scrollbarWidth].join('/'); }), 'true/true/none');
+  await ctx2.close();
+  check('  JSエラーが出ていない', errs.length + errs2.length, 0);
+  if (errs.length || errs2.length) console.log('    ', errs, errs2);
+}
+
 async function runFmtPage(browser) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, acceptDownloads: true });
   const page = await ctx.newPage();
@@ -21242,6 +21351,8 @@ const SUITES = [
   [['merge631', 'v631'], b => runMerge631(b)],
   [['kantab632', 'v632'], b => runKantab632(b)],
   [['kantab632', 'kantabxlsx', 'v632'], b => runKantabXlsx632(b)],
+  [['fillsize633', 'fill', 'v633'], b => runFillSize633(b)],
+  [['bandpc633', 'band', 'v633'], b => runBandPc633(b)],
   [['clip'], b => runClip(b)],
   [['koe'], b => runKoe(b)],
   [['koe', 'koelisten'], b => runKoeListen(b)],

@@ -1316,6 +1316,42 @@ function renderFillHow(){
   Array.from(seg.children).forEach(el=>{ const on=el.dataset.fh===fillHow; el.classList.toggle('on', on); el.setAttribute('aria-pressed', String(on)); });
   const nt=document.getElementById('fillHowNote'), m=FILL_HOWS.find(x=>x.id===fillHow);
   if(nt && m) nt.innerHTML=m.note+(cellGesture==='old' ? '<br>（いまは セルの操作が「以前の表電卓」なので、長押しして 動かす＝コピー の ままです）' : '');
+  renderFillSize();   // 右下の 丸の 大きさ（v633）
+}
+/* 右下の 丸（角の つまみ）の 大きさ（v633）。指の 画面は 丸の さしわたし、マウスの 画面は 四角の 一辺（px）。
+   当たり（in＝セルの 中へ・out＝セルの 外へ）も 大きさに 合わせる（in は 丸の 半分＋α。ふつう＝v629 の まま）。
+   大きく すると 押しやすいが、セルの 角の 近くから なぞった ときに コピーに なりやすい */
+const FILL_SIZE_KEY='excalc_fill_size';
+const FILL_SIZES=[
+  {id:'sm', n:'小',     touch:12, mouse:6,  hit:{ touch:{in:9,  out:24}, mouse:{in:9,  out:8 } }},
+  {id:'md', n:'ふつう', touch:16, mouse:7,  hit:{ touch:{in:12, out:28}, mouse:{in:12, out:10} }},
+  {id:'lg', n:'大',     touch:22, mouse:10, hit:{ touch:{in:15, out:32}, mouse:{in:14, out:12} }},
+  {id:'xl', n:'特大',   touch:28, mouse:13, hit:{ touch:{in:18, out:36}, mouse:{in:16, out:14} }},
+];
+let fillSize='md';
+try{ const v=localStorage.getItem(FILL_SIZE_KEY); if(FILL_SIZES.some(s=>s.id===v)) fillSize=v; }catch(_){}
+function fillSizeDef(){ return FILL_SIZES.find(s=>s.id===fillSize) || FILL_SIZES[1]; }
+function applyFillSize(){
+  const s=fillSizeDef(), st=document.documentElement.style;
+  st.setProperty('--fh-touch', s.touch+'px'); st.setProperty('--fh-mouse', s.mouse+'px');
+}
+applyFillSize();
+function setFillSize(v){
+  if(!FILL_SIZES.some(s=>s.id===v)) return;
+  fillSize=v; try{ if(v==='md') localStorage.removeItem(FILL_SIZE_KEY); else localStorage.setItem(FILL_SIZE_KEY, v); }catch(_){}
+  applyFillSize(); updateFillHandle(); renderFillHow();
+  toast('右下の 丸の 大きさを「'+fillSizeDef().n+'」に しました'+((fillHow!=='handle' || cellGesture!=='excel') ? '（いまは 丸を 出さない 設定です）' : ''));
+}
+function renderFillSize(){
+  const ss=document.getElementById('fillSizeSeg'); if(!ss) return;
+  if(ss.children.length!==FILL_SIZES.length) ss.innerHTML=FILL_SIZES.map(s=>'<button class="skin-seg-btn" data-fs="'+s.id+'" onclick="setFillSize(\''+s.id+'\')">'+s.n+'</button>').join('');
+  Array.from(ss.children).forEach(el=>{ const on=el.dataset.fs===fillSize; el.classList.toggle('on', on); el.setAttribute('aria-pressed', String(on)); });
+  const off=(fillHow!=='handle' || cellGesture!=='excel');
+  const row=document.getElementById('fillSizeRow'); if(row) row.classList.toggle('fs-off', off);
+  const sn=document.getElementById('fillSizeNote');
+  if(sn) sn.innerHTML=off
+    ? '（いまは '+(cellGesture!=='excel' ? 'セルの操作が「以前の表電卓」' : '「'+((FILL_HOWS.find(x=>x.id===fillHow)||{}).n||'')+'」')+' なので、丸は 出ません。上で「角の つまみ」に すると 使えます）'
+    : '<b>大きく</b> すると 押しやすく なり、押せる 範囲も 広がります。そのぶん、セルの 角の 近くから なぞると コピーに なりやすく なります（<b>小さく</b> すると その 逆）。右の 見本が いまの 大きさです。';
 }
 /* 右下の四角を、選んだセルの枠の右下の角に合わせる（v421）。v629：角の つまみ の ときだけ 出す */
 function updateFillHandle(){
@@ -1415,6 +1451,7 @@ function placeEditBar(){
   if(row){
     menu.style.left=Math.round(row.left)+'px'; menu.style.width=Math.round(row.width)+'px';
     menu.style.height=Math.round(row.height)+'px'; menu.style.bottom='auto'; menu.style.top=Math.round(row.top)+'px';
+    bandScrollSync();
     return;
   }
   menu.style.height='';
@@ -1438,12 +1475,38 @@ function placeEditBar(){
   }
   menu.style.bottom='auto';
   menu.style.top=Math.max(0, Math.round(top))+'px';
+  bandScrollSync();
 }
 function hideEditBar(){
   const menu=document.getElementById('cellMenu'); if(!menu || !menu.classList.contains('edit-bar')) return;
-  menu.classList.remove('edit-bar','show','bar-nokb','on-pad','ctx-hdr'); menu.style.bottom=''; menu.style.top=''; menu.style.left=''; menu.style.width=''; menu.style.height='';
+  menu.classList.remove('edit-bar','show','bar-nokb','on-pad','ctx-hdr','can-l','can-r'); menu.style.bottom=''; menu.style.top=''; menu.style.left=''; menu.style.width=''; menu.style.height='';
   bandHdrKind='';
 }
+/* 帯は 横に だけ 送り、スクロールバーは 出さない（v633。パソコン〈Windows〉では 太い バーが ボタンの 字に かぶって 隠れて いた）。
+   指は これまで どおり なぞって 送る。マウスでは ホイールを 回すと 横に 送れ、はみ出して いる 側の 端に ◀ ▶ が 出る */
+function bandScrollSync(){
+  const m=document.getElementById('cellMenu'); if(!m) return;
+  const on=m.classList.contains('edit-bar') && m.classList.contains('show'), max=m.scrollWidth-m.clientWidth;
+  m.classList.toggle('can-l', on && m.scrollLeft>1);
+  m.classList.toggle('can-r', on && m.scrollLeft<max-1);
+}
+function bandScroll(dir){
+  const m=document.getElementById('cellMenu'); if(!m) return;
+  m.scrollBy({left:dir*Math.max(80, Math.round(m.clientWidth*0.7)), behavior:'smooth'});
+  setTimeout(bandScrollSync, 400);
+}
+function bandScrollInit(){
+  const m=document.getElementById('cellMenu'); if(!m || m.dataset.bsInit) return;
+  m.dataset.bsInit='1';
+  m.addEventListener('scroll', bandScrollSync, {passive:true});
+  m.addEventListener('wheel', e=>{
+    if(!m.classList.contains('edit-bar') || m.scrollWidth<=m.clientWidth+1) return;
+    if(Math.abs(e.deltaY)<=Math.abs(e.deltaX)) return;   // 横の ホイール（トラックパッド）は そのまま
+    e.preventDefault(); m.scrollLeft+=e.deltaY; bandScrollSync();
+  }, {passive:false});
+  window.addEventListener('resize', bandScrollSync);
+}
+if(document.getElementById('cellMenu')) bandScrollInit(); else document.addEventListener('DOMContentLoaded', bandScrollInit);
 function endKbEdit(){ document.body.classList.remove('kb-edit'); hideEditBar(); }
 /* いま選んでいるものの 種類 */
 function bandCellKind(){
@@ -1596,6 +1659,7 @@ function bandRender(){
   m.classList.toggle('ctx-hdr', !!bandHdrKind && bandLive.length>0);
   m.dataset.ctx=kind;
   bandOrder(m, kind);
+  bandScrollSync();   // ボタンが 変わると はみ出し方も 変わる（v633）
 }
 /* 決めた 並びに する（決めて いない いつもの ボタンは 隠す。並びは 押しても 変わらない） */
 function bandOrder(m, kind){
@@ -17175,7 +17239,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v632';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v633';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -18755,7 +18819,7 @@ const LP_FILL_MS=550, LP_MENU_MS=1000, LP_MOVE_TOL=8;
    v470：■ は枠の角にまたがっているので、セルの外側（右・下のとなりのセル）を押しても取っ手とみなす */
 /* 指で押すときは、マウスより広くとる（v471）。指は ■ より大きく、押したところも少しずれるため */
 /* v629：角の まわりだけに した（in＝セルの 中へ、out＝セルの 外へ）。前は 指だと 右の 40px・高さの 9割（セルの ほぼ 右半分）で、範囲選択と 紙一重だった */
-const FILL_HIT={ touch:{ in:12, out:28 }, mouse:{ in:12, out:10 } };
+const FILL_HIT={ get touch(){ return fillSizeDef().hit.touch; }, get mouse(){ return fillSizeDef().hit.mouse; } };   // v633：丸の 大きさに 合わせる（ふつう＝指 in12・out28／マウス in12・out10）
 let fillPressTouch=false;   // いまの押し始めが指か（touchstart で true、mousedown で false）
 function onFillHandle(r,c,x,y){
   const td=document.getElementById(`c${r}_${c}`); if(!td) return false;
@@ -20032,6 +20096,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_band_cfg',   // 🎛 帯の ボタン（出す ボタン・並び。v626）
   'excalc_sum_place',   // 合計の 置き場所（テンキーの上の行／セルのバー。v628）
   'excalc_fill_how',   // 範囲選択と コピー（フィル）の しかた（角の つまみ／帯の ボタン／長押しして なぞる。v629）
+  'excalc_fill_size',   // 右下の 丸（角の つまみ）の 大きさ（v633）
   'excalc_merge_sep',   // 結合で 2つ 以上 残す ときの 区切り（v631）
   'excalc_kantab_whist',   // 🧪 カンタブの 前に 入れた 単位水量（v632）
 ];
