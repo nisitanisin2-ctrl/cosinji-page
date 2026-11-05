@@ -20189,7 +20189,10 @@ async function runKantab632(browser) {
   await page.evaluate(() => { for (let i = 1; i <= 12; i++) ktRecW(String(150 + i)); }); await w(100);
   check('  多くても 新しい 10個まで', await page.evaluate(() => ktWHist().length + '/' + ktWHist()[0] + '/' + ktWHist()[9]), '10/162/153');
   await page.evaluate(() => { ktWHistSave(['175', '180']); ktRenderWHist(); });
-  await page.evaluate(() => closeKantab()); await page.reload(); await w(900);
+  // 閉じると 履歴を 1つ 戻す（戻る 動き）ので、終わってから 読み直す（すぐ だと 読み直しが 止められる ことが あった）
+  await page.evaluate(() => closeKantab()); await w(600);
+  try { await page.reload(); } catch (_) { await w(600); await page.reload(); }
+  await w(900);
   await page.evaluate(() => openKantab()); await w(400);
   check('  開き直しても 残る', await chips(), '175●,180');
   // ── 読み値は 枠を 押すと 消える ──
