@@ -1452,6 +1452,20 @@ body.kb-edit { grid-template-columns: 1fr !important; }
 #cellMenu.edit-bar.on-pad.show { align-items: stretch; padding: 0 3px; border: 2px solid var(--acc); border-radius: var(--r-btn);
   box-shadow: 0 2px 8px rgba(0,0,0,.25); box-sizing: border-box; }
 #cellMenu.edit-bar.on-pad button { padding-top: 0; padding-bottom: 0; }
+/* 帯は 横に だけ 送る。スクロールバーは 出さない（v633。Windows の 太い バーが ボタンの 字に かぶって いた）。
+   マウスでは ホイールで 横に 送れ、はみ出して いる 側の 端に ◀ ▶ を 出す（指の 画面は なぞって 送る ので 出さない） */
+#cellMenu.edit-bar.show { overflow-y: hidden; scrollbar-width: none; }
+#cellMenu.edit-bar.show::-webkit-scrollbar { display: none; }
+#cellMenu .cm-arr { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  #cellMenu.edit-bar.show.can-l .cm-arr-l, #cellMenu.edit-bar.show.can-r .cm-arr-r {
+    display: flex; align-items: center; justify-content: center; position: sticky; z-index: 2; flex: none; align-self: stretch;
+    width: 28px; min-width: 28px; padding: 0 !important; border: none; border-radius: 0; font-size: 12px; line-height: 1;
+    background: var(--acc); color: #fff !important; cursor: pointer; opacity: .92; }
+  #cellMenu.edit-bar.show .cm-arr-l { order: -1; left: 0; margin-right: -30px; box-shadow: 6px 0 8px -4px rgba(0,0,0,.35); }
+  #cellMenu.edit-bar.show .cm-arr-r { order: 9999; right: 0; margin-left: -30px; box-shadow: -6px 0 8px -4px rgba(0,0,0,.35); }
+  #cellMenu.edit-bar.show .cm-arr:hover { opacity: 1; }
+}
 /* 選んだものに 合わせて 変わる ボタン（v624）。帯の 中だけで 出す */
 #cellMenu .cm-ctx { display: none; }
 #cellMenu.edit-bar .cm-ctx { display: contents; }
@@ -1469,15 +1483,26 @@ body.kb-edit { grid-template-columns: 1fr !important; }
 /* 選んだセルの枠の右下の角に置く小さな四角（v421。Excel のパソコン版と同じ形）。引っぱるとフィル。
    セルは中身がはみ出さないよう枠の内側で切っているので、四角は表の上に1つだけ別に置いて、角に合わせて動かす */
 .sheet-wrap { position: relative; }
-#fillHandle { position: absolute; width: 7px; height: 7px; background: var(--acc); z-index: 1;
+#fillHandle { position: absolute; width: var(--fh-mouse, 7px); height: var(--fh-mouse, 7px); background: var(--acc); z-index: 1;   /* 大きさは ⚙ 設定（v633） */
   box-shadow: 0 0 0 1px var(--sheet-cell-bg, var(--cell-bg)); pointer-events: none; display: none; }
 body.cg-excel #fillHandle.on { display: block; }
 @media (pointer: coarse) {   /* 指で使う画面では 丸い つまみ（v629。前は 10px の 四角） */
-  #fillHandle { width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 0 2px var(--sheet-cell-bg, var(--cell-bg)), 0 1px 3px rgba(0,0,0,.35); }
+  #fillHandle { width: var(--fh-touch, 16px); height: var(--fh-touch, 16px); border-radius: 50%; box-shadow: 0 0 0 2px var(--sheet-cell-bg, var(--cell-bg)), 0 1px 3px rgba(0,0,0,.35); }
 }
 /* 長押し して なぞる（v629）：コピーの 用意が できた セル */
 #sheet td.cell.fill-arm { box-shadow: inset 0 0 0 2px var(--warn), inset 0 0 0 999px color-mix(in srgb, var(--warn) 14%, transparent); outline: 2px dashed var(--warn); outline-offset: -5px; }   /* v630：コピーの 色（オレンジ）に そろえる */
 body.fill-active #fillHandle { display: none; }
+/* 右下の 丸の 大きさ（v633）：設定の 段と 見本（実物と 同じ 大きさの 丸を セルの 角に） */
+.fs-row { display: flex; align-items: center; gap: 16px; }
+.fs-row .skin-seg { flex: 1 1 auto; min-width: 0; }
+.fs-row.fs-off .skin-seg, .fs-row.fs-off .fs-prev { opacity: .45; }
+.fs-prev { position: relative; flex: 0 0 auto; width: 56px; height: 28px; margin: 0 16px 14px 0; border: 2px solid var(--acc); background: var(--cell-bg, #fff); box-sizing: border-box; }
+.fs-prev i { position: absolute; width: var(--fh-mouse, 7px); height: var(--fh-mouse, 7px); right: calc(var(--fh-mouse, 7px) / -2 - 1px); bottom: calc(var(--fh-mouse, 7px) / -2 - 1px);
+  background: var(--acc); box-shadow: 0 0 0 1px var(--cell-bg, #fff); }
+@media (pointer: coarse) {
+  .fs-prev i { width: var(--fh-touch, 16px); height: var(--fh-touch, 16px); right: calc(var(--fh-touch, 16px) / -2 - 1px); bottom: calc(var(--fh-touch, 16px) / -2 - 1px);
+    border-radius: 50%; box-shadow: 0 0 0 2px var(--cell-bg, #fff), 0 1px 3px rgba(0,0,0,.35); }
+}
 /* 右下の 丸を 押して いる 間（v630）：丸も 大きく オレンジに（セルの 枠は .fill-src で オレンジ） */
 #fillHandle.grab { background: var(--warn); transform: scale(1.45); box-shadow: 0 0 0 2px var(--sheet-cell-bg, var(--cell-bg)), 0 0 0 5px color-mix(in srgb, var(--warn) 35%, transparent); }
 .cell-menu button:active { background: var(--cell-border); }
@@ -4423,6 +4448,9 @@ body.dark {
     <div class="set-sec">範囲選択と コピー（フィル）</div>
     <div class="skin-seg" id="fillHowSeg"></div>
     <div class="set-note" id="fillHowNote"></div>
+    <div class="set-sec">右下の 丸（角の つまみ）の 大きさ</div>
+    <div class="fs-row" id="fillSizeRow"><div class="skin-seg" id="fillSizeSeg"></div><span class="fs-prev" aria-hidden="true"><i></i></span></div>
+    <div class="set-note" id="fillSizeNote"></div>
     <div class="set-sec">帯の ボタン</div>
     <div class="set-note">セルを 押すと テンキーの 上に 出る <b>帯</b>に、どの ボタンを どの 順で 出すかを、帯の 種類（数字の セル・文字の セル・範囲・列名・行番号 など）ごとに 決められます。押しても 並びは 変わりません。</div>
     <button class="set-act" id="setBandBtn" onclick="toggleSettings();openBandCfg()" title="帯に 出す ボタンと 並びを 決める">🎛 帯の ボタン（出す ボタン・並び）</button>
@@ -6479,6 +6507,7 @@ body.dark {
   <button onclick="cellMenuAct('fmt')" data-act="fmt" title="小数・日付・文字の大きさ・色などを 決める 窓">🎨 書式</button>
   <button onclick="cellMenuAct('lock')" id="cellMenuLock" data-act="lock" title="まちがって 消さない ように 守る">🔒 保護</button>
   <button onclick="cellMenuAct('hp')" id="cellMenuHp" data-act="hp" title="グラフ・条件で色・しぼり込み などを 開く">📊 グラフ・色・しぼる</button>
+  <button type="button" class="cm-arr cm-arr-l" tabindex="-1" aria-hidden="true" title="帯を 左へ 送る" onclick="bandScroll(-1)">◀</button><button type="button" class="cm-arr cm-arr-r" tabindex="-1" aria-hidden="true" title="帯を 右へ 送る" onclick="bandScroll(1)">▶</button><!-- パソコン（マウス）で 帯を 送る（v633） -->
 </div>
 
 <!-- 🔎セルの検索・移動 -->
