@@ -20555,6 +20555,64 @@ async function runRangeFill635(browser) {
   await ctx2.close();
 }
 
+/* v636：表の 最大を 250行×50列 → 1,000行×100列 に・入力の たびの 列幅合わせは 変わった セルだけ（表 ぜんぶを 測らない） */
+async function runBig636(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 表電卓 v636：1,000行×100列・入力の たびの 列幅合わせを 速く ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  最大は 1,000行×100列（列は CV まで）', await page.evaluate(() => [MAXROWS, MAXCOLS, ALPHA[99]].join('/')), '1000/100/CV');
+  await page.evaluate(() => setSheetSize(1000, 100)); await w(500);
+  check('  1,000行×100列の 表を 作れる（いちばん 下・右の セル CV1000）', await page.evaluate(() => [ROWS, COLS, !!document.getElementById('c999_99'), document.getElementById('ch99').textContent, document.getElementById('rh999').textContent].join('/')), '1000/100/true/CV/1000');
+  await page.evaluate(() => { sel(999, 99); insertRowAt(1000); }); await w(300);
+  check('  それより 行は 増やせない（お知らせ）', await page.evaluate(() => ROWS + '|' + document.getElementById('appToast').textContent), '1000|これ以上行を増やせません（最大1000行）');
+  await page.evaluate(() => insertColAt(100)); await w(300);
+  check('  列も 増やせない（お知らせ）', await page.evaluate(() => COLS + '|' + document.getElementById('appToast').textContent), '100|これ以上列を増やせません（最大100列）');
+  check('  はじめの 大きさの 欄も 1〜1000行・1〜100列', await page.evaluate(() => [document.getElementById('defRowsInput').max, document.getElementById('defColsInput').max, document.querySelector('label[for=defRowsInput]').textContent, document.querySelector('label[for=defColsInput]').textContent].join('/')), '1000/100/行数（1〜1000）/列数（1〜100）');
+  // 1,000行目・100列目の 中身を 保存して 開き直す
+  await page.evaluate(() => { setCellVal(999, 99, 'いちばん すみ'); setCellVal(500, 60, '=12*3'); recalcAll(); saveSheets(); }); await w(300);
+  await page.reload(); await w(1500);
+  check('  1,000行目・CV 列の 中身も 保存して 開き直せる', await page.evaluate(() => [ROWS, COLS, data[999][99], getCellDisplay(500, 60)].join('/')), '1000/100/いちばん すみ/36');
+  check('  新しい シートは 空の 並び（1,000×100 の 空の セルを 保存しない）', await page.evaluate(() => { const s = freshSheet('x'); return JSON.stringify(s.store.states.normal.data); }), '[]');
+  await page.evaluate(() => setSheetSize(20, 8)); await w(400);
+
+  // ── 列幅合わせ：入力の たびに 表 ぜんぶ 測らない（変わった セルだけ）・結果は ぜんぶ 測った ときと 同じ ──
+  const snap = () => page.evaluate(() => { const ws = []; for (let c = 0; c < COLS; c++) ws.push(document.getElementById('ch' + c).style.width); const fit = []; for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) { const v = document.getElementById('c' + r + '_' + c).style.getPropertyValue('--fit'); if (v) fit.push(r + ',' + c + '=' + v); } return ws.join(' ') + ' | ' + fit.join(' '); });
+  await page.evaluate(() => { for (let r = 0; r < 20; r++) for (let c = 0; c < 8; c++) setCellVal(r, c, ''); for (let r = 0; r < 20; r++) { setCellVal(r, 0, String(r * 3)); setCellVal(r, 5, '=A' + (r + 1) + '*1000'); } setCellVal(0, 3, 'ちょっと長めの見出し'); recalcAll(); autoFitSheet(); });
+  await w(200);
+  const s0 = await snap();
+  await page.evaluate(() => { autoFitSheet(); autoFitSheet(); }); await w(100);
+  check('  ぜんぶ 測るのを くり返しても 列が 広がらない（前は 1回ごとに 1px ずつ 広がった）', await snap(), s0);
+  // 何回 表 ぜんぶを 測ったか 数える
+  await page.evaluate(() => { window.__af = 0; const f = window.autoFitSheet; window.__afOrig = f; window.autoFitSheet = function () { window.__af++; return f.apply(this, arguments); }; });
+  const act = async (label, fn, wantFull) => {
+    await page.evaluate(() => { window.__af = 0; });
+    await page.evaluate(fn); await w(100);
+    const inc = await snap(), n = await page.evaluate(() => window.__af);
+    await page.evaluate(() => window.__afOrig()); await w(100);
+    const full = await snap();
+    check('  ' + label, [n, inc === full].join('/'), wantFull + '/true');
+  };
+  await act('短い 数を 入れる → 表 ぜんぶは 測らない（0回）・結果は ぜんぶ 測った ときと 同じ', () => setCellVal(4, 2, '42'), 0);
+  await act('数式の 結果が 変わる → 0回', () => setCellVal(6, 0, '9'), 0);
+  await act('長い 文字で 列が はみ出す → 1回 ぜんぶ 測って 列を 広げる', () => setCellVal(3, 1, 'とても長い文字列のセルの中身です'), 1);
+  await act('その 列で 短い 値を 入れる → 0回', () => setCellVal(8, 1, '5'), 0);
+  await act('いちばん 広い セルを 消す → 1回（列を 狭める）', () => setCellVal(3, 1, ''), 1);
+  await act('とても 長い 文字（広げきって 字を 縮める）→ 1回', () => setCellVal(9, 4, 'ああああああああああいいいいいいいいいいうううううううううう'), 1);
+  await act('太字に する（字の 幅が 変わる）→ 結果は 同じ', () => { (cellStyles['0,0'] = cellStyles['0,0'] || {}).bold = true; applyCellStyle(document.getElementById('c0_0'), 0, 0); recalcAll(); }, 0);
+  await page.evaluate(() => { window.autoFitSheet = window.__afOrig; });
+  // 3列（画面に 余白が あって 列を 広げて いる とき）でも 同じ
+  await page.evaluate(() => { setSheetSize(20, 3); for (let r = 0; r < 20; r++) for (let c = 0; c < 3; c++) setCellVal(r, c, ''); setCellVal(0, 0, '1'); recalcAll(); autoFitSheet(); }); await w(300);
+  await page.evaluate(() => { window.__af = 0; const f = window.__afOrig; window.autoFitSheet = function () { window.__af++; return f.apply(this, arguments); }; });
+  await act('余白を 配って いる 3列の 表で 長い 数 → 列の 幅も ぜんぶ 測った ときと 同じ', () => setCellVal(5, 2, '123456789'), 1);
+  await page.evaluate(() => { window.autoFitSheet = window.__afOrig; });
+  // 大きい 表でも ふつうの 入力では 表 ぜんぶを 測らない
+  await page.evaluate(() => { for (let r = 0; r < 1000; r++) for (let c = 0; c < 20; c++) data[r][c] = (c % 5 === 4) ? '=' + ALPHA[c - 1] + (r + 1) + '*2' : String((r * 7 + c * 13) % 1000); setSheetSize(1000, 20); }); await w(800);
+  check('  1,000行×20列（数式 4,000）で 1つ 入れても 表 ぜんぶは 測らない・数式も 計算し直す', await page.evaluate(() => { let n = 0; const f = window.autoFitSheet; window.autoFitSheet = function () { n++; return f.apply(this, arguments); }; setCellVal(10, 3, '500'); window.autoFitSheet = f; return n + '/' + getCellDisplay(10, 4); }), '0/1000');
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 async function runFmtPage(browser) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, acceptDownloads: true });
   const page = await ctx.newPage();
@@ -21496,6 +21554,7 @@ const SUITES = [
   [['fillsize633', 'fill', 'v633', 'v634'], b => runFillSize633(b)],
   [['bandpc633', 'band', 'v633'], b => runBandPc633(b)],
   [['rangefill635', 'fill', 'v635'], b => runRangeFill635(b)],
+  [['big636', 'v636'], b => runBig636(b)],
   [['clip'], b => runClip(b)],
   [['koe'], b => runKoe(b)],
   [['koe', 'koelisten'], b => runKoeListen(b)],
