@@ -20432,6 +20432,129 @@ async function runBandPc633(browser) {
   if (errs.length || errs2.length) console.log('    ', errs, errs2);
 }
 
+/* v635：範囲（1行・1列・何行何列でも）を Excel と 同じ ように 範囲ごと コピー（右下の 丸・長押しして なぞる・コピー → 広く 選んで 貼り付け） */
+async function runRangeFill635(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 表電卓 v635：範囲ごと コピー（右下の 丸・長押し・貼り付けで くり返す） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const cdp = await page.context().newCDPSession(page);
+  const swipe = async (x0, y0, x1, y1, hold = 0) => {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y: y0 }] }); if (hold) await w(hold);
+    for (let i = 1; i <= 10; i++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x0 + (x1 - x0) * i / 10, y: y0 + (y1 - y0) * i / 10 }] }); await w(25); }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await w(450);
+  };
+  const col = (c, n) => page.evaluate(([c, n]) => Array.from({ length: n }, (_, r) => data[r][c] || '・').join(','), [c, n]);
+  const row = (r, n) => page.evaluate(([r, n]) => Array.from({ length: n }, (_, c) => data[r][c] || '・').join(','), [r, n]);
+  const selS = () => page.evaluate(() => rangeR1 >= 0 ? [Math.min(rangeR1, rangeR2), Math.min(rangeC1, rangeC2), Math.max(rangeR1, rangeR2), Math.max(rangeC1, rangeC2)].join(':') : 'なし');
+  const toastT = () => page.evaluate(() => document.getElementById('appToast').textContent);
+  const reset = async () => { await page.evaluate(() => { try { hideEditBar(); hideSeqBtn(); } catch (_) {} clearRangeSelection(); for (let r = 0; r < 12; r++) for (let c = 0; c < 7; c++) { setCellVal(r, c, ''); delete cellStyles[r + ',' + c]; } recalcAll(); document.querySelector('.sheet-wrap').scrollLeft = 0; document.querySelector('.sheet-wrap').scrollTop = 0; sel(0, 0); }); await w(300); };
+  const pick = async (r1, c1, r2, c2) => { await page.evaluate(([r1, c1, r2, c2]) => { clearRangeSelection(); sel(r1, c1); rangeR1 = r1; rangeC1 = c1; extendRange(r2, c2); }, [r1, c1, r2, c2]); await w(250); };
+  const hd = () => page.evaluate(() => { const h = document.getElementById('fillHandle').getBoundingClientRect(); return { x: h.left + h.width / 2, y: h.top + h.height / 2 }; });
+  const cell = (r, c) => page.evaluate(([r, c]) => { const b = document.getElementById('c' + r + '_' + c).getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height, x: b.left + b.width / 2, y: b.top + b.height / 2 }; }, [r, c]);
+  await page.evaluate(() => setSheetSize(20, 8)); await w(300);
+
+  // ── 右下の 丸（角の つまみ。はじめ） ──
+  await reset(); await page.evaluate(() => { setCellVal(0, 0, '1'); setCellVal(0, 1, 'り'); setCellVal(0, 2, '=A1*10'); recalcAll(); });
+  await pick(0, 0, 0, 2);
+  let h = await hd(), c = await cell(0, 2), a1 = await cell(0, 0);
+  check('  範囲を 選ぶと 丸は 範囲の 右下（C1 の 角）に 出る（最初の セル A1 の 角では ない）', [Math.abs(h.x - c.r) < 3 && Math.abs(h.y - c.b) < 3, Math.abs(h.x - a1.r) > 20].join('/'), 'true/true');
+  await swipe(a1.r - 4, a1.b - 4, a1.r - 4, a1.b - 4 + a1.h * 2.6);
+  check('  　最初の セルの 角を 引いても 1つだけの コピーには しない（範囲を 選び直す）', [await col(0, 4), await selS()].join(' / '), '1,・,・,・ / 0:0:3:0');
+  await pick(0, 0, 0, 2); h = await hd();
+  await swipe(h.x, h.y, h.x, h.y + c.h * 3.2);
+  check('  1行（A1:C1）の 丸を 下へ → 各列を 下へ コピー（数式は ずらす）・広げた 所まで 選んだ まま', [await col(0, 5), await col(1, 5), await col(2, 5), await selS()].join(' / '), '1,1,1,1,・ / り,り,り,り,・ / =A1*10,=A2*10,=A3*10,=A4*10,・ / 0:0:3:2');
+  check('  　お知らせ', await toastT(), '範囲ごと コピー：A1:C1 → A1:C4（9セル）。↶戻す で 戻せます');
+  check('  　丸は 広げた 範囲の 右下（C4）へ', await page.evaluate(() => { const h = document.getElementById('fillHandle').getBoundingClientRect(), c = document.getElementById('c3_2').getBoundingClientRect(); return Math.abs(h.left + h.width / 2 - c.right) < 3 && Math.abs(h.top + h.height / 2 - c.bottom) < 3; }), true);
+  await page.evaluate(() => undoLast()); await w(300);
+  check('  　↶戻す 1回で ぜんぶ 戻る', [await col(0, 5), await col(1, 5), await col(2, 5)].join(' / '), '1,・,・,・,・ / り,・,・,・,・ / =A1*10,・,・,・,・');
+  // 1列：数の 並びは 続ける・文字は くり返す
+  await reset(); await page.evaluate(() => { setCellVal(0, 0, '1'); setCellVal(1, 0, '2'); setCellVal(2, 0, '3'); setCellVal(0, 1, 'あ'); setCellVal(1, 1, 'い'); setCellVal(2, 1, 'う'); recalcAll(); });
+  await pick(0, 0, 2, 1); h = await hd(); c = await cell(2, 1);
+  await swipe(h.x, h.y, h.x, h.y + c.h * 4.2);
+  check('  1列（縦）の 範囲を 下へ：1,2,3 → 4,5,6,7（数の 並びは 続ける）・あ,い,う → くり返す', [await col(0, 8), await col(1, 8)].join(' / '), '1,2,3,4,5,6,7,・ / あ,い,う,あ,い,う,あ,・');
+  check('  　お知らせに「数の 並びは 続けました」', /数の 並びは 続けました/.test(await toastT()), true);
+  // 右へ（1行の 数）・0.5 きざみ・第1回
+  await reset(); await page.evaluate(() => { setCellVal(0, 0, '0.5'); setCellVal(0, 1, '1.0'); setCellVal(1, 0, '第1回'); setCellVal(1, 1, '第2回'); recalcAll(); });
+  await pick(0, 0, 1, 1); h = await hd(); c = await cell(1, 1);
+  await swipe(h.x, h.y, h.x + c.w * 2.2, h.y);
+  check('  右へ（2列）：0.5,1.0 → 1.5,2.0・第1回,第2回 → 第3回,第4回', [await row(0, 6), await row(1, 6)].join(' / '), '0.5,1.0,1.5,2.0,・,・ / 第1回,第2回,第3回,第4回,・,・');
+  // 上へ（並びを そろえて くり返す）
+  await reset(); await page.evaluate(() => { setCellVal(4, 0, 'x'); setCellVal(5, 0, 'y'); recalcAll(); });
+  await pick(4, 0, 5, 0); h = await hd(); c = await cell(5, 0);
+  await swipe(h.x, h.y, h.x, h.y - c.h * 4.6);
+  check('  上へ：x,y を 上へ → x,y,x,y（並びを そろえる）', [await col(0, 7), await selS()].join(' / '), 'x,y,x,y,x,y,・ / 0:0:5:0');
+  // 日付（7日 ごと）と ¥ の 形も いっしょに
+  await reset(); await page.evaluate(() => { setCellVal(0, 0, '2026/11/1'); setCellVal(1, 0, '2026/11/8'); setCellVal(0, 1, '1200'); setCellVal(1, 1, '1500'); (cellStyles['0,1'] = cellStyles['0,1'] || {}).nf = 'yen'; (cellStyles['1,1'] = cellStyles['1,1'] || {}).nf = 'yen'; recalcAll(); buildSheet(); });
+  await pick(0, 0, 1, 1); h = await hd(); c = await cell(1, 1);
+  await swipe(h.x, h.y, h.x, h.y + c.h * 2.2);
+  check('  日付は 7日 ごとに 続ける（日付の 形も）・¥ の 形も いっしょに（1200,1500 → 1800,2100）', await page.evaluate(() => [2, 3].map(r => document.getElementById('c' + r + '_0').textContent.trim() + '|' + document.getElementById('c' + r + '_1').textContent.trim()).join(' ')), '2026/11/15|¥1,800 2026/11/22|¥2,100');
+  await page.evaluate(() => undoLast()); await w(300);
+  check('  　↶戻す で 形も 戻る', await page.evaluate(() => [data[2][0] || '空', !!(cellStyles['2,0'] && cellStyles['2,0'].dfmt), !!(cellStyles['2,1'] && cellStyles['2,1'].nf)].join('/')), '空/false/false');
+  // 保護した セルには 入れない
+  await reset(); await page.evaluate(() => { setCellVal(0, 0, 'a'); setCellVal(0, 1, 'b'); recalcAll(); (cellStyles['2,1'] = cellStyles['2,1'] || {}).locked = true; buildSheet(); });
+  await pick(0, 0, 0, 1); h = await hd(); c = await cell(0, 1);
+  await swipe(h.x, h.y, h.x, h.y + c.h * 3.2);
+  check('  保護した セル（B3）は のぞく・お知らせ', [await col(0, 5), await col(1, 5), /保護の 1つは のぞく/.test(await toastT())].join(' / '), 'a,a,a,a,・ / b,b,・,b,・ / true');
+  await page.evaluate(() => { delete cellStyles['2,1']; buildSheet(); });
+  // 丸を 押しただけで 離すと 何も せず、範囲は 選んだ まま
+  await reset(); await page.evaluate(() => { setCellVal(0, 0, 'a'); setCellVal(0, 1, 'b'); recalcAll(); });
+  await pick(0, 0, 0, 1); h = await hd();
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: h.x, y: h.y }] }); await w(150);
+  check('  丸を 押した 瞬間 範囲ごと オレンジ', await page.evaluate(() => [0, 1].map(c => document.getElementById('c0_' + c).classList.contains('fill-src')).join(',') + '/' + document.getElementById('fillHandle').classList.contains('grab')), 'true,true/true');
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await w(400);
+  check('  　離すと 元の 色・何も 入らない・範囲は 選んだ まま', [await page.evaluate(() => [0, 1].map(c => document.getElementById('c0_' + c).classList.contains('fill-src')).join(',')), await col(0, 3), await selS()].join(' / '), 'false,false / a,・,・ / 0:0:0:1');
+  // 範囲を 外すと 丸は 選んだ セルの 角へ
+  await page.evaluate(() => { clearRangeSelection(); }); await w(200);
+  check('  範囲を 外すと 丸は 選んだ セル（A1）の 角へ 戻る', await page.evaluate(() => { const h = document.getElementById('fillHandle').getBoundingClientRect(), c = document.getElementById('c0_0').getBoundingClientRect(); return Math.abs(h.left + h.width / 2 - c.right) < 3; }), true);
+
+  // ── 長押しして なぞる ──
+  await reset(); await page.evaluate(() => { setFillHow('hold'); setCellVal(0, 0, '1'); setCellVal(0, 1, 'り'); setCellVal(0, 2, '=A1*10'); recalcAll(); });
+  await pick(0, 0, 0, 2); c = await cell(0, 1);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: c.x, y: c.y }] }); await w(800);
+  check('  長押し：範囲の 中（B1）を 0.5秒 押すと 範囲ごと 用意（点線の 枠）', await page.evaluate(() => [0, 1, 2].map(c => document.getElementById('c0_' + c).classList.contains('fill-arm')).join(',')), 'true,true,true');
+  for (let i = 1; i <= 10; i++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: c.x, y: c.y + c.h * 2.2 * i / 10 }] }); await w(25); }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await w(450);
+  check('  　なぞると 範囲ごと 下へ（動かした ぶん すぐ 広がる）', [await col(0, 4), await col(1, 4), await col(2, 4), await selS()].join(' / '), '1,1,1,・ / り,り,り,・ / =A1*10,=A2*10,=A3*10,・ / 0:0:2:2');
+  await reset(); await page.evaluate(() => { setCellVal(0, 0, '1'); setCellVal(0, 1, '2'); recalcAll(); });
+  await pick(0, 0, 0, 1); c = await cell(0, 1);
+  await swipe(c.x, c.y, c.x, c.y + c.h * 2.2);
+  check('  　すぐ なぞると コピーしない', await col(1, 4), '2,・,・,・');
+  await page.evaluate(() => setFillHow('handle'));
+
+  // ── 帯：⧉ コピー → 広く 選んで 📥 貼り付け で くり返して 埋める ──
+  await reset(); await page.evaluate(() => { setFillHow('band'); setCellVal(0, 0, '1'); setCellVal(1, 0, '2'); setCellVal(2, 0, '3'); setCellVal(0, 1, 'り'); setCellVal(0, 2, '=A1*10'); recalcAll(); });
+  await pick(0, 0, 2, 0); await page.evaluate(() => cellMenuAct('copy')); await w(300);
+  await pick(3, 0, 8, 0); await page.evaluate(() => cellMenuAct('paste')); await w(800);
+  check('  帯：1列（A1:A3）を コピー → A4:A9 を 選んで 貼り付け → くり返して 埋める', [await col(0, 10), await toastT()].join(' / '), '1,2,3,1,2,3,1,2,3,・ / 貼り付けました（3行×1列 を くり返して A4:A9 に）');
+  await page.evaluate(() => undoLast()); await w(300);
+  check('  　↶戻す 1回で 戻る', await col(0, 10), '1,2,3,・,・,・,・,・,・,・');
+  await pick(0, 0, 0, 2); await page.evaluate(() => cellMenuAct('copy')); await w(300);
+  await pick(1, 0, 4, 2); await page.evaluate(() => cellMenuAct('paste')); await w(800);
+  check('  　1行（A1:C1）を A2:C5 に → 4行 くり返す（数式は ずらす）', [await col(1, 6), await col(2, 6)].join(' / '), 'り,り,り,り,り,・ / =A1*10,=A2*10,=A3*10,=A4*10,=A5*10,・');
+  await pick(9, 4, 9, 4); await page.evaluate(() => cellMenuAct('paste')); await w(600);
+  check('  　1つの セルを 選んで 貼ると 1回だけ（これまで どおり）', await row(9, 7), '・,・,・,・,1,り,=E10*10');
+  await page.evaluate(() => setFillHow('handle'));
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+
+  // ── パソコン（マウス）でも 範囲の 角の 四角を 引くと 範囲ごと ──
+  const ctx2 = await browser.newContext({ viewport: { width: 900, height: 900 } });
+  const p2 = await ctx2.newPage();
+  const errs2 = []; p2.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs2.push(e.message); });
+  await p2.goto(INDEX); await p2.waitForTimeout(300);
+  await p2.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_back_ask', '0'); });
+  await p2.reload(); await p2.waitForTimeout(900);
+  await p2.evaluate(() => { setCellVal(0, 0, '10'); setCellVal(1, 0, '20'); recalcAll(); clearRangeSelection(); sel(0, 0); rangeR1 = 0; rangeC1 = 0; extendRange(1, 0); }); await p2.waitForTimeout(300);
+  const mh = await p2.evaluate(() => { const h = document.getElementById('fillHandle').getBoundingClientRect(), c = document.getElementById('c1_0').getBoundingClientRect(); return { x: h.left + h.width / 2, y: h.top + h.height / 2, h: c.height, w: h.width }; });
+  await p2.mouse.move(mh.x, mh.y); await p2.mouse.down();
+  for (let i = 1; i <= 10; i++) { await p2.mouse.move(mh.x, mh.y + mh.h * 2.2 * i / 10); await p2.waitForTimeout(20); }
+  await p2.mouse.up(); await p2.waitForTimeout(400);
+  check('  パソコン：マウスで 範囲の 角の 四角を 引くと 10,20 → 30,40', [mh.w <= 8, await p2.evaluate(() => [0, 1, 2, 3, 4].map(r => data[r][0] || '・').join(','))].join(' / '), 'true / 10,20,30,40,・');
+  check('  JSエラーが出ていない（パソコン）', errs2.length, 0);
+  await ctx2.close();
+}
+
 async function runFmtPage(browser) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, acceptDownloads: true });
   const page = await ctx.newPage();
@@ -21372,6 +21495,7 @@ const SUITES = [
   [['kantab632', 'kantabxlsx', 'v632'], b => runKantabXlsx632(b)],
   [['fillsize633', 'fill', 'v633', 'v634'], b => runFillSize633(b)],
   [['bandpc633', 'band', 'v633'], b => runBandPc633(b)],
+  [['rangefill635', 'fill', 'v635'], b => runRangeFill635(b)],
   [['clip'], b => runClip(b)],
   [['koe'], b => runKoe(b)],
   [['koe', 'koelisten'], b => runKoeListen(b)],
