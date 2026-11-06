@@ -614,7 +614,7 @@ function parseArith(s) {
             if(r1){
               const ci1=ALPHA.indexOf(c1),ci2=ALPHA.indexOf(c2),ri1=+r1-1,ri2=+r2-1;
               for(let rr2=Math.min(ri1,ri2);rr2<=Math.max(ri1,ri2);rr2++)
-                for(let cc2=Math.min(ci1,ci2);cc2<=Math.max(ci1,ci2);cc2++) vals.push(toNum(cellRawValue(sp,rr2,cc2)));
+                for(let cc2=Math.min(ci1,ci2);cc2<=Math.max(ci1,ci2);cc2++){ const rv=cellRawValue(sp,rr2,cc2); if(rv==='' || rv===null || rv===undefined) continue; vals.push(toNum(rv)); }   // 空の セルは 数えない（v637）
               ws(); if(pos<s.length && s[pos]===',') pos++; continue;
             }
           }
@@ -633,8 +633,11 @@ function parseArith(s) {
           const ri1=parseInt(r1)-1, ci1=ALPHA.indexOf(c1);
           const ri2=parseInt(r2)-1, ci2=ALPHA.indexOf(c2);
           for (let rr=Math.min(ri1,ri2); rr<=Math.max(ri1,ri2); rr++)
-            for (let cc=Math.min(ci1,ci2); cc<=Math.max(ci1,ci2); cc++)
-              vals.push(toNum(cellRawValue(evalSheetIdx(), rr, cc)));
+            for (let cc=Math.min(ci1,ci2); cc<=Math.max(ci1,ci2); cc++){
+              const rv=cellRawValue(evalSheetIdx(), rr, cc);
+              if(rv==='' || rv===null || rv===undefined) continue;   // 範囲の 空の セルは 数えない（Excel と 同じ。前は 0 と して 平均・個数・最小に 入って いた。v637）
+              vals.push(toNum(rv));
+            }
         } else if (r1) {
           ws();
           if (pos<s.length && s[pos]!==',' && s[pos]!==')'){
@@ -14188,20 +14191,18 @@ const CALC_TEMPLATES=[
   {id:'temp', icon:'🌡', name:'温度換算（℃⇄℉）', desc:'摂氏→華氏も、華氏→摂氏も', rows:[
     ['〔摂氏 → 華氏〕',null],['摂氏(℃)',''],['華氏(℉)','=B2*9/5+32'],
     ['〔華氏 → 摂氏〕',null],['華氏(℉)',''],['摂氏(℃)','=(B5-32)*5/9']]},
-  {id:'avg', icon:'📊', name:'合計・平均（5つまで）', desc:'最大5つの値の合計・平均・最大・最小（個数は変更可）', rows:[
+  {id:'avg', icon:'📊', name:'合計・平均（5つまで）', desc:'5つまでの値の合計・平均・最大・最小。入れた数だけで計算', rows:[
     ['値1',''],['値2',''],['値3',''],['値4',''],['値5',''],
-    ['入れた値の個数','5'],
+    ['入れた値の個数','=COUNT(B1:B5)'],   // v637：前は 5 と 手で 入れる 欄だった（空の 欄も 数えて 平均が ずれた）
     ['合計','=SUM(B1:B5)'],['平均','=IF(B6>0,B7/B6,0)'],['最大','=MAX(B1:B5)'],['最小','=MIN(B1:B5)']]},
 ];
 function openCalcTmpl(){ renderCalcTmplBody(); openDlg('calcTmplOverlay'); }
 function closeCalcTmpl(){ closeDlg('calcTmplOverlay'); }
 function renderCalcTmplBody(){
   const body=document.getElementById('calcTmplBody'); if(!body) return;
-  body.innerHTML=CALC_TEMPLATES.map(t=>`
-    <button class="mode-item" onclick="applyCalcTemplate('${t.id}')">
-      <span class="mode-ico">${t.icon}</span>
-      <span class="mode-text"><span class="mode-name">${escHtml(t.name)}</span><span class="mode-desc">${escHtml(t.desc)}</span></span>
-    </button>`).join('');
+  // v637：ひな形の 一覧と 同じ カード・同じ 用途の まとまりで
+  body.innerHTML=TMPL_GROUPS.map(g=>tmplGroupHtml(g.name, g.items.filter(tk=>tk.startsWith('c:')).map(tmplEntry).filter(Boolean))).join('')
+    .replace(/onclick="pickTemplate\('calc','([^']+)'\)"/g, `onclick="applyCalcTemplate('$1')"`);
 }
 function applyCalcTemplate(id){ const t=CALC_TEMPLATES.find(x=>x.id===id); if(t) applyTemplateObj(t, closeCalcTmpl); }
 /* いまの表がひな形そのものかどうかは、変数の印ではなく「A列の見出しが一致するか」で見分ける。
@@ -14227,6 +14228,33 @@ function currentTemplate(){
    読み込み直したりすると分かりにくかったので、いつでも同じ大きさに戻す形にした。 */
 /* テンプレを表に展開（計算テンプレ・決算書テンプレ共通）。
    rows: [A列ラベル, B列値]。B列が null＝見出し行、'='始まり＝計算式、それ以外＝入力(黄色)。 */
+/* v637：ひな形の表の 色を 一覧表（買物 など）と そろえる。
+   見出し＝緑（一覧表の 見出しと 同じ）・入れる 所＝水色・答え＝だいだい（一覧表の 自動計算と 同じ）。
+   前は 入れる 所が 黄色で、買物の 答えの 列（うすい 黄色）と 取り違えやすかった */
+const TMPL_COL={ head:{bg:'#d5e8d4', color:'#1e5631'}, input:{bg:'#ddeefc', color:'#12324f'}, ans:{bg:'#fff2cc', color:'#7d4e00'} };
+/* 答えの 式は、入れる 所が ぜんぶ 空の 間は 空に する（前は 0 が ならんで、答えが 出たように 見えた）。
+   はじめから 値の 入って いる 欄（税率・単価 など）は 数えない。Excel でも そのまま 使える 式（=IF(B1&B2="","",…)） */
+function tmplBlankWrap(vals){
+  const memo={};
+  const refsOf=f=>{ const out=new Set();
+    String(f).replace(/\$?B\$?(\d+):\$?B\$?(\d+)/g,(m,p,q)=>{ for(let k=Math.min(+p,+q);k<=Math.max(+p,+q);k++) out.add(k-1); return ''; })
+      .replace(/\$?B\$?(\d+)/g,(m,p)=>{ out.add(+p-1); return ''; });
+    return [...out]; };
+  const ins=(i,seen)=>{
+    if(memo[i]) return memo[i];
+    const v=vals[i];
+    if(v==='') return memo[i]=new Set([i]);
+    if(typeof v!=='string' || v[0]!=='=' || seen.has(i)) return new Set();
+    seen.add(i);
+    const s=new Set(); refsOf(v).forEach(j=>{ if(j!==i && j>=0 && j<vals.length) ins(j,seen).forEach(x=>s.add(x)); });
+    return memo[i]=s;
+  };
+  return vals.map((v,i)=>{
+    if(typeof v!=='string' || v[0]!=='=') return v;
+    const s=[...ins(i,new Set())].sort((x,y)=>x-y);
+    return s.length ? '=IF('+s.map(j=>'B'+(j+1)).join('&')+'="","",'+v.slice(1)+')' : v;
+  });
+}
 function applyTemplateObj(t, closeFn){
   // 確認は出さない。選ぶ流れの途中で確認窓が割り込むと止まってしまうため。
   // 上書きされた前の表は ↶戻る で戻せる（下の pushSnapshot）。
@@ -14239,21 +14267,23 @@ function applyTemplateObj(t, closeFn){
   for(let r=0;r<MAXROWS;r++) for(let c=0;c<MAXCOLS;c++) data[r][c]='';
   cellStyles={};
   let firstInput=-1;
+  const vals=tmplBlankWrap(t.rows.map(row=>{ const v=(typeof row[1]==='function')?row[1]():row[1]; return v===null ? null : String(v); }));   // 関数は その時の設定から（消費税の税率・1円未満。v565）
   t.rows.forEach((row,i)=>{
-    const label=row[0], v=(typeof row[1]==='function')?row[1]():row[1];   // 関数は その時の設定から（消費税の税率・1円未満。v565）
+    const label=row[0], v=vals[i];
     data[i][0]=label;
-    if(v===null){                                          // 見出し行（グレー背景・太字・入力なし）
-      cellStyles[`${i},0`]={bold:true, bg:'#e6e6e6'};
-      cellStyles[`${i},1`]={bg:'#e6e6e6'};
+    if(v===null){                                          // 見出し行：2列を つないで 緑（一覧表の 見出しと 同じ。v637）
+      cellStyles[`${i},0`]={bold:true, bg:TMPL_COL.head.bg, color:TMPL_COL.head.color, align:'center', merge:{rs:1, cs:2}};
+      cellStyles[`${i},1`]={cover:`${i},0`};
       data[i][1]='';
       return;
     }
-    data[i][1]=String(v);
-    if(String(v).startsWith('=')){                         // 計算式行（合計・利益など）：太字
-      cellStyles[`${i},0`]={bold:true};
-      cellStyles[`${i},1`]={bold:true};
-    } else {                                               // 入力行：黄色で強調
-      cellStyles[`${i},1`]={bg:'#fff2b3'};
+    data[i][1]=v;
+    if(v.startsWith('=')){                                 // 答えの 行：太字・だいだい（一覧表の 自動計算と 同じ）
+      cellStyles[`${i},0`]={bold:true, align:'left'};
+      cellStyles[`${i},1`]={bold:true, bg:TMPL_COL.ans.bg, color:TMPL_COL.ans.color};
+    } else {                                               // 入れる 行：水色
+      cellStyles[`${i},0`]={align:'left'};
+      cellStyles[`${i},1`]={bg:TMPL_COL.input.bg, color:TMPL_COL.input.color};   // 字の 色も 決める（暗い 画面で 白い 字に ならない）
       if(firstInput<0 && v==='') firstInput=i;             // 最初の空入力にカーソル
     }
   });
@@ -14268,7 +14298,7 @@ function applyTemplateObj(t, closeFn){
   updateModeButton();
   persistModes();
   if(typeof saveSheets==='function') saveSheets();   // テンプレ内容を今のシートに反映
-  toast(`「${t.name}」を読み込みました。黄色のセルに値を入れてください（前の表は ↶戻る で戻せます）`, 4600);
+  toast(`「${t.name}」：水色のセルに入れると、だいだいのセルに答えが出ます（前の表は ↶戻す で戻せます）`, 4600);
 }
 
 /* ひな形を入れた直後に「▦通常」を押しても、もともと通常モードなので切り替える先が無く、
@@ -14336,11 +14366,8 @@ function openFinTmpl(){ renderFinTmplBody(); openDlg('finTmplOverlay'); }
 function closeFinTmpl(){ closeDlg('finTmplOverlay'); }
 function renderFinTmplBody(){
   const body=document.getElementById('finTmplBody'); if(!body) return;
-  body.innerHTML=FINANCIAL_TEMPLATES.map(t=>`
-    <button class="mode-item" onclick="applyFinTemplate('${t.id}')">
-      <span class="mode-ico">${t.icon}</span>
-      <span class="mode-text"><span class="mode-name">${escHtml(t.name)}</span><span class="mode-desc">${escHtml(t.desc)}</span></span>
-    </button>`).join('');
+  body.innerHTML=tmplGroupHtml('帳票', FINANCIAL_TEMPLATES.map(t=>tmplEntry('f:'+t.id)).filter(Boolean))
+    .replace(/onclick="pickTemplate\('fin','([^']+)'\)"/g, `onclick="applyFinTemplate('$1')"`);   // v637：同じ カードで
 }
 function applyFinTemplate(id){ const t=FINANCIAL_TEMPLATES.find(x=>x.id===id); if(t) applyTemplateObj(t, closeFinTmpl); }
 
@@ -16433,45 +16460,119 @@ function renderModeItem(m, isCustom){
       ${isCustom?`<span class="mode-remove" onclick="event.stopPropagation();removeCustomMode('${m.key}')" title="この登録を外す">✕</span>`:''}
     </div>`;
 }
-/* ひな形を「何がしたいか」でまとめる。中身は既存のテンプレそのままで、
-   並べ方だけ目的別にして、モード選びと同じ画面から始められるようにする。 */
+/* v637：ひな形の 一覧を「何が したいか」で 1つに まとめる。
+   前は「表のかたち（買物・消費税 など。大きい 行）」と「ひな形から始める（小さい ボタン）」が 別々で、
+   消費税・割合 などが 2か所に あり、名前も 途中で 切れて いた。
+   いまは 同じ 形の カードで、用途ごとに 一覧表（行を 足して 何件でも）と 計算（入れるだけで 答え）を 並べる。
+   上の 欄で さがせる・最近 使った ものが 上に 出る。
+   'm:キー'＝表のかたち（モード）、'c:id'＝計算の ひな形、'f:id'＝帳票の ひな形 */
 const TMPL_GROUPS=[
-  { name:'くらし',       calc:['discount','tax','pct','change','power'] },
-  { name:'おかね',       calc:['profit','wage','commission','compound','loan','avg'] },
-  { name:'からだ・くるま', calc:['bmi','kcal','sdt','fuel'] },
-  { name:'かたち',       calc:['rect','tri','pytha','circle','cylinder','sphere'] },
-  { name:'単位',         calc:['uarea','ulen','uvol','temp'] },
-  { name:'帳票',         fin:['pl','bs','income'] }
+  { name:'お買い物・くらし',     items:['m:shopping','m:warikan','m:yosan','c:discount','m:zei','c:tax','m:wariai','c:pct','c:change','c:power'] },
+  { name:'仕事・お金',           items:['c:profit','c:wage','c:commission','c:compound','c:loan','f:pl','f:bs','f:income'] },
+  { name:'時間・からだ・くるま', items:['m:jikan','c:bmi','c:kcal','c:sdt','c:fuel'] },
+  { name:'面積・かたち',         items:['m:youseki','c:rect','c:tri','c:pytha','c:circle','c:cylinder','c:sphere'] },
+  { name:'単位の換算',           items:['c:uarea','c:ulen','c:uvol','c:temp'] },
+  { name:'集計',                 items:['c:avg'] }
 ];
-function renderTmplPick(){
-  const box=document.getElementById('tmplPickBody'); if(!box) return;
-  const byId={}; CALC_TEMPLATES.forEach(t=>byId[t.id]=['calc',t]);
-  FINANCIAL_TEMPLATES.forEach(t=>byId[t.id]=['fin',t]);
-  box.innerHTML=TMPL_GROUPS.map(g=>{
-    const ids=[...(g.calc||[]), ...(g.fin||[])];
-    const chips=ids.map(id=>{
-      const e=byId[id]; if(!e) return '';
-      const [kind,t]=e;
-      return `<button class="tmpl-chip" onclick="pickTemplate('${kind}','${t.id}')" title="${escHtml(t.desc||'')}">`
-        +`<span class="tmpl-ico">${t.icon||''}</span><span class="tmpl-name">${escHtml(t.name)}</span></button>`;
-    }).join('');
-    return `<div class="tmpl-group"><div class="tmpl-group-name">${escHtml(g.name)}</div><div class="tmpl-grid">${chips}</div></div>`;
-  }).join('');
+/* 一覧表（モード）の カードの 短い 説明（計算の ひな形と 見分けやすく） */
+const TMPL_MODE_DESC={
+  normal:'行と列を自由に使う、ふつうの表',
+  shopping:'単価×個数の小計と合計。何品でも', warikan:'金額の合計を人数で割る。何件でも',
+  yosan:'予算と合計個数から、買う数を決める', zei:'何品でも並べて、税込・税抜を一覧に',
+  wariai:'何件でも並べて、◯割・◯％と足す／引く', youseki:'何件でも並べて、面積㎡・容積㎥・周の長さ',
+  jikan:'開始・終了・時間のうち2つで残りを出す'
+};
+/* さがす ときの よみ（ひらがな）・言いかえ */
+const TMPL_KW={
+  shopping:'かいもの かいもの けいさん しょうけい ねだん', warikan:'わりかん のみかい', yosan:'よさん はいぶん',
+  zei:'しょうひぜい ぜいこみ ぜいぬき 税込 税抜', wariai:'わりあい ぱーせんと パーセント %', youseki:'めんせき ようせき たいせき つぼ',
+  jikan:'じかん なんじ じこく', discount:'わりびき ねびき せーる セール', tax:'しょうひぜい ぜいこみ ぜいぬき 税込 税抜',
+  pct:'わりあい ぱーせんと パーセント %', change:'ぞうげん ぜんねんひ のびりつ', power:'でんきだい でんき',
+  profit:'りえき あらり げんか ばいか', wage:'きゅうりょう じきゅう ざんぎょう', commission:'ぶあい ぶあいきゅう',
+  compound:'ふくり りし ちょきん', loan:'ろーん へんさい じゅうたく', pl:'そんえき けっさん', bs:'たいしゃく けっさん', income:'しゅうし',
+  bmi:'びーえむあい たいじゅう しんちょう', kcal:'きそたいしゃ かろりー', sdt:'はやさ きょり じかん そくど', fuel:'ねんぴ がそりん',
+  rect:'ちょうほうけい めんせき しかく つぼ', tri:'さんかく めんせき', pytha:'さんへいほう ぴたごらす', circle:'えん えんしゅう',
+  cylinder:'えんちゅう たいせき', sphere:'きゅう たいせき', uarea:'たんい つぼ たん へいべい', ulen:'たんい しゃく けん いんち',
+  uvol:'たんい りっとる きろ しょう', temp:'おんど せっし かし', avg:'ごうけい へいきん さいだい さいしょう'
+};
+const TMPL_RECENT_KEY='excalc_tmpl_recent';
+function tmplRecentGet(){ try{ const a=JSON.parse(localStorage.getItem(TMPL_RECENT_KEY)||'[]'); return Array.isArray(a)?a:[]; }catch(_){ return []; } }
+function tmplRecentAdd(tk){
+  if(!tk || tk==='m:normal') return;
+  const a=tmplRecentGet().filter(x=>x!==tk); a.unshift(tk);
+  try{ localStorage.setItem(TMPL_RECENT_KEY, JSON.stringify(a.slice(0,8))); }catch(_){}
 }
+/* 'm:shopping' などを カードの 中身に */
+function tmplEntry(tk){
+  const kind=tk.slice(0,1), id=tk.slice(2);
+  if(kind==='m'){
+    if(!isValidMode(id) || (isModeHidden(id) && id!==workspaceMode)) return null;
+    const o=modeItemByKey(id); if(!o) return null;
+    return {tk, kind, id, icon:o.item.icon, name:o.item.name, desc:o.custom ? '自分で登録した表' : (TMPL_MODE_DESC[id]||o.item.desc), custom:o.custom, list:!o.custom && id!=='normal'};
+  }
+  const t=(kind==='f' ? FINANCIAL_TEMPLATES : CALC_TEMPLATES).find(x=>x.id===id); if(!t) return null;
+  return {tk, kind, id, icon:t.icon, name:t.name, desc:t.desc};
+}
+function tmplNorm(s){ return String(s||'').toLowerCase().replace(/[\u30a1-\u30f6]/g, ch=>String.fromCharCode(ch.charCodeAt(0)-0x60)).replace(/[\s　（）()・／/]/g,''); }
+function tmplMatch(e, q){
+  if(!q) return true;
+  const hay=tmplNorm(e.name+' '+e.desc+' '+(TMPL_KW[e.id]||''));
+  return tmplNorm(q).split(/\s+/).every(w=>!w || hay.includes(w));
+}
+/* カード 1枚（一覧表＝mode-item：押すと 表のかたちが 変わる。計算＝押すと ひな形を 入れる） */
+function tmplCard(e, wide){
+  const active=e.kind==='m' && e.id===workspaceMode;
+  const badge=e.list ? '<span class="tmpl-badge">一覧表</span>' : '';
+  const inner=`<span class="tmpl-ico">${e.icon||''}</span>`
+    +`<span class="tmpl-txt"><span class="tmpl-name">${escHtml(e.name)}${badge}</span><span class="tmpl-desc">${escHtml(e.desc||'')}</span></span>`
+    +(active ? '<span class="mode-check">✓</span>' : '')
+    +(e.custom ? `<span class="mode-remove" onclick="event.stopPropagation();removeCustomMode('${e.id}')" title="この登録を外す">✕</span>` : '');
+  if(e.kind==='m') return `<div class="tmpl-chip mode-item${active?' active':''}${wide?' wide':''}" data-key="${e.id}" data-tk="${e.tk}" role="button" tabindex="0">${inner}</div>`;
+  return `<button type="button" class="tmpl-chip${wide?' wide':''}" data-tk="${e.tk}" onclick="pickTemplate('${e.kind==='f'?'fin':'calc'}','${e.id}')">${inner}</button>`;
+}
+function tmplGroupHtml(name, entries, cls){
+  if(!entries.length) return '';
+  return `<div class="tmpl-group${cls?' '+cls:''}"><div class="tmpl-group-name">${escHtml(name)}</div><div class="tmpl-grid">${entries.map(e=>tmplCard(e)).join('')}</div></div>`;
+}
+function renderTmplPick(){
+  const box=document.getElementById('modeMenuBody'); if(!box) return;
+  const qi=document.getElementById('tmplSearch'), q=qi ? qi.value.trim() : '';
+  const seen=new Set(), groups=[];
+  const take=list=>list.map(tmplEntry).filter(e=>e && tmplMatch(e,q));
+  TMPL_GROUPS.forEach(g=>{ g.items.forEach(tk=>seen.add(tk)); groups.push([g.name, take(g.items)]); });
+  // 一覧に 決めて いない 表のかたち（これから 足す もの）は「その他」に
+  const extra=MODE_MENU.map(m=>'m:'+m.key).filter(tk=>tk!=='m:normal' && !seen.has(tk));
+  if(extra.length) groups.push(['その他', take(extra)]);
+  const mine=take(customModes.map(m=>'m:'+m.key));
+  let html='';
+  const normal=tmplEntry('m:normal');
+  if(normal && tmplMatch(normal,q)) html+=`<div class="tmpl-group tmpl-top">${tmplCard(normal, true)}</div>`;
+  if(!q){
+    const rec=tmplRecentGet().map(tmplEntry).filter(Boolean).slice(0,4);
+    html+=tmplGroupHtml('🕘 最近つかった', rec, 'tmpl-recent');
+  }
+  html+=groups.map(([n,es])=>tmplGroupHtml(n,es)).join('');
+  html+=tmplGroupHtml('🗂 自分のひな形（保存リストから登録）', mine);
+  if(!html) html=`<div class="tmpl-none">「${escHtml(q)}」に合うひな形はありません。<br>ことばを短くするか、ひらがなでさがしてみてください。</div>`;
+  box.innerHTML=html;
+  bindModeDrag();
+}
+function tmplSearchInput(){ renderTmplPick(); const x=document.getElementById('tmplSearchClear'); if(x) x.hidden=!document.getElementById('tmplSearch').value; }
+function tmplSearchClear(){ const i=document.getElementById('tmplSearch'); if(i){ i.value=''; tmplSearchInput(); i.focus(); } }
 /* ひな形を選んだ：この画面を閉じてから読み込む（読み込みの確認は既存のまま） */
 function pickTemplate(kind, id){
+  if(isDlgOpen('modeMenuOverlay') && mmGuardActive()) return;   // 開いた 直後の 指（v637）
+  tmplRecentAdd((kind==='fin'?'f:':'c:')+id);
   closeModeMenu();
   setTimeout(()=>{ if(kind==='fin') applyFinTemplate(id); else applyCalcTemplate(id); }, 0);
 }
 function openModeMenu(){
   syncModeOrder();
+  const qi=document.getElementById('tmplSearch'); if(qi) qi.value='';
+  const x=document.getElementById('tmplSearchClear'); if(x) x.hidden=true;
   renderTmplPick();
-  const body=document.getElementById('modeMenuBody');
-  body.innerHTML=modeOrder
-    .filter(k=> !isModeHidden(k) || k===workspaceMode )   // 非表示モードは出さない（現在のモードは常に表示）
-    .map(k=>{ const o=modeItemByKey(k); return o?renderModeItem(o.item,o.custom):''; }).join('');
-  bindModeDrag();
   openDlg('modeMenuOverlay');
+  const mb=document.querySelector('#modeMenuOverlay .modal-body'); if(mb) mb.scrollTop=0;
   guardAfterOpen('modeMenuOverlay');   // 開いた直後の「押しっぱなしの指」で項目が反応しないように
 }
 
@@ -16486,6 +16587,7 @@ let mdDrag=null;
 function bindModeDrag(){
   document.querySelectorAll('#modeMenuBody .mode-item').forEach(el=>{
     el.addEventListener('pointerdown', onModePointerDown);
+    el.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); if(el.dataset.tk) tmplRecentAdd(el.dataset.tk); pickMode(el.dataset.key); } });   // v637
   });
 }
 function onModePointerDown(e){
@@ -16497,9 +16599,8 @@ function onModePointerDown(e){
   if(fromGrip){
     // グリップ(⠿)は touch-action:none。スクロールに奪われないので、動かせば即ドラッグ開始
     try{ el.setPointerCapture(e.pointerId); }catch(_){}
-  } else {
-    mdDrag.timer=setTimeout(startModeDrag, 320);   // 本体は長押しでドラッグ（PC等の補助）
   }
+  // v637：一覧を 用途ごとに 並べたので、長押しで 並べ替えるのは やめた（タップで 切り替えだけ）
 }
 function startModeDrag(){
   if(!mdDrag || mdDrag.started) return;
@@ -16545,6 +16646,7 @@ function onModePointerUp(e){
     persistModeOrder();
   } else if(!fromGrip){
     if(mmGuardActive()) return;   // 「モード」キーを押した指がそのまま乗っているだけ
+    if(el.dataset.tk) tmplRecentAdd(el.dataset.tk);   // 最近 つかった（v637）
     pickMode(key);   // 本体の短いタップ＝モード切替（グリップのタップは何もしない）
   }
 }
@@ -17301,7 +17403,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v636';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v637';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
