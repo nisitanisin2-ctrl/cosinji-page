@@ -2639,16 +2639,16 @@ async function runTmplUnit(browser) {
   // ── 目的から選ぶ画面に「単位」が出る ──
   await page.evaluate(() => openModeMenu()); await page.waitForTimeout(500);
   check('  用途の一覧に「単位」がある', await page.evaluate(() =>
-    [...document.querySelectorAll('#tmplPickBody .tmpl-group-name')].map(e => e.textContent).join('/')),
-    'くらし/おかね/からだ・くるま/かたち/単位/帳票');
+    [...document.querySelectorAll('#modeMenuBody .tmpl-group-name')].map(e => e.textContent).join('/')),
+    'お買い物・くらし/仕事・お金/時間・からだ・くるま/面積・かたち/単位の換算/集計');
   check('  単位のまとまりは4つ', await page.evaluate(() => {
-    const g = [...document.querySelectorAll('#tmplPickBody .tmpl-group')]
-      .find(x => x.querySelector('.tmpl-group-name').textContent === '単位');
+    const g = [...document.querySelectorAll('#modeMenuBody .tmpl-group')]
+      .find(x => x.querySelector('.tmpl-group-name') && x.querySelector('.tmpl-group-name').textContent === '単位の換算');
     return [...g.querySelectorAll('.tmpl-name')].map(e => e.textContent).join('/'); }),
     '面積の単位（㎡⇄坪・反）/長さの単位（m⇄尺・間）/体積・重さの単位/温度換算（℃⇄℉）');
   check('  計算式のひな形は25種類', await page.evaluate(() => CALC_TEMPLATES.length), 25);
   check('  用途の一覧に全部出ている', await page.evaluate(() =>
-    TMPL_GROUPS.reduce((n, g) => n + (g.calc || []).length + (g.fin || []).length, 0)),
+    TMPL_GROUPS.reduce((n, g) => n + g.items.filter(k => !k.startsWith('m:')).length, 0)),
     28);
   await page.evaluate(() => closeModeMenu()); await page.waitForTimeout(300);
 
@@ -20555,6 +20555,64 @@ async function runRangeFill635(browser) {
   await ctx2.close();
 }
 
+/* v637：ひな形の 一覧を 1つに（用途ごと・同じ カード・さがす・最近つかった）・ひな形の 表の 色を 一覧表と そろえる・答えは 入れるまで 空 */
+async function runTmpl637(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 表電卓 v637：ひな形の 整理 ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => openModeMenu()); await w(500);
+  check('  一覧は 1つ（前の「ひな形から始める」の 欄は ない）', await page.evaluate(() => !!document.getElementById('tmplPickBody') + '/' + !!document.getElementById('tmplSearch')), 'false/true');
+  check('  いちばん上は「通常」（いまの 表のかたち ✓）', await page.evaluate(() => { const e = document.querySelector('#modeMenuBody .tmpl-top .mode-item'); return e.dataset.key + '/' + !!e.querySelector('.mode-check'); }), 'normal/true');
+  check('  用途ごとの まとまり', await page.evaluate(() => [...document.querySelectorAll('#modeMenuBody .tmpl-group-name')].map(e => e.textContent).join('/')), 'お買い物・くらし/仕事・お金/時間・からだ・くるま/面積・かたち/単位の換算/集計');
+  check('  表のかたち 7つ＋計算 25＋帳票 3 が ぜんぶ 出る（同じ カード）', await page.evaluate(() => { const ks = [...document.querySelectorAll('#modeMenuBody .tmpl-chip')].map(e => e.dataset.tk); return [ks.filter(k => k.startsWith('m:')).length, ks.filter(k => k.startsWith('c:')).length, ks.filter(k => k.startsWith('f:')).length, new Set(ks).size === ks.length].join('/'); }), '8/25/3/true');
+  check('  消費税は 一覧表と 計算が 同じ まとまりに 並ぶ（一覧表の 印つき）', await page.evaluate(() => { const g = document.querySelector('#modeMenuBody .tmpl-group:not(.tmpl-top)'); const z = g.querySelector('[data-tk="m:zei"]'), t = g.querySelector('[data-tk="c:tax"]'); return !!z && !!t && !!z.querySelector('.tmpl-badge') && !t.querySelector('.tmpl-badge'); }), true);
+  check('  名前が 途中で 切れない（2行まで 折り返す）', await page.evaluate(() => [...document.querySelectorAll('#modeMenuBody .tmpl-name')].filter(e => e.scrollWidth > e.clientWidth + 1).length), 0);
+  check('  カードに 短い 説明', await page.evaluate(() => [...document.querySelectorAll('#modeMenuBody .tmpl-chip')].every(e => (e.querySelector('.tmpl-desc') || {}).textContent)), true);
+  const q = async s => { await page.fill('#tmplSearch', s); await w(150); return page.evaluate(() => [...document.querySelectorAll('#modeMenuBody .tmpl-chip')].map(e => e.dataset.tk).join(',') || document.querySelector('#modeMenuBody .tmpl-none').textContent.slice(0, 12)); };
+  check('  さがす：ぜい → 消費税の 2つ', await q('ぜい'), 'm:zei,c:tax');
+  check('  さがす：ローン（カタカナ）', await q('ローン'), 'c:loan');
+  check('  さがす：セール（言いかえ）→ 割引', await q('セール'), 'c:discount');
+  check('  さがす：つぼ → 面積・容積・長方形・面積の単位', await q('つぼ'), 'm:youseki,c:rect,c:uarea');
+  check('  合う ものが ない ときの 知らせ', await q('ほげほげ'), '「ほげほげ」に合うひな形');
+  await page.click('#tmplSearchClear'); await w(150);
+  check('  ✕ で 消すと ぜんぶ 戻る', await page.evaluate(() => document.getElementById('tmplSearch').value + '/' + document.querySelectorAll('#modeMenuBody .tmpl-chip').length), '/36');
+  await w(400);
+  await page.evaluate(() => document.querySelector('#modeMenuBody [data-tk="c:tax"]').click()); await w(700);
+  check('  計算を 押すと 入る・一覧は 閉じる', await page.evaluate(() => (currentTemplate() || {}).id + '/' + isDlgOpen('modeMenuOverlay')), 'tax/false');
+  // ── 表の 見た目 ──
+  check('  見出しは 2列を つないで 緑・まん中', await page.evaluate(() => { const s = cellStyles['2,0']; return [JSON.stringify(s.merge), s.bg, s.align, cellStyles['2,1'].cover, document.getElementById('c2_0').colSpan].join('/'); }), '{"rs":1,"cs":2}/#d5e8d4/center/2,0/2');
+  check('  入れる 所は 水色・答えは だいだい（一覧表の 自動計算と 同じ）・名前は 左よせ', await page.evaluate(() => [cellStyles['3,1'].bg, cellStyles['4,1'].bg, cellStyles['4,1'].bold, cellStyles['3,0'].align].join('/')), '#ddeefc/#fff2cc/true/left');
+  check('  入れる 前は 答えが 空（0 が 並ばない）', await page.evaluate(() => [4, 5, 8, 9].map(r => '[' + getCellDisplay(r, 1) + ']').join('')), '[][][][]');
+  check('  答えの 式は Excel でも そのまま 使える 形', await page.evaluate(() => data[4][1]), '=IF(B4="","",B4+B6)');
+  await page.evaluate(() => { setCellVal(3, 1, '1000'); recalcAll(); }); await w(200);
+  check('  入れると 答えが 出る（税抜 1000 → 税込 1100・消費税 100）', await page.evaluate(() => [4, 5, 8].map(r => '[' + getCellDisplay(r, 1) + ']').join('')), '[1100][100][]');
+  check('  黄色 → 水色 の 案内', await page.evaluate(() => document.getElementById('appToast').textContent.includes('水色のセル')), true);
+  // ── 合計・平均：個数は 自動・空の 欄は 数えない ──
+  await page.evaluate(() => { applyCalcTemplate('avg'); setCellVal(0, 1, '4'); setCellVal(2, 1, '10'); recalcAll(); }); await w(300);
+  check('  合計・平均：個数は 自動（2つ）・平均 7・最小 4（空の 欄を 0 と しない）', await page.evaluate(() => [5, 6, 7, 8, 9].map(r => getCellDisplay(r, 1)).join(',')), '2,14,7,10,4');
+  // ── 範囲の 空の セル（Excel と 同じ）──
+  await page.evaluate(() => { switchMode('normal'); }); await w(400);
+  await page.evaluate(() => { setSheetSize(10, 4); for (let r = 0; r < 10; r++) for (let c = 0; c < 4; c++) setCellVal(r, c, ''); setCellVal(0, 0, '2'); setCellVal(2, 0, '6'); setCellVal(5, 1, '=AVERAGE(A1:A4)'); setCellVal(6, 1, '=COUNT(A1:A4)'); setCellVal(7, 1, '=MIN(A1:A4)'); setCellVal(8, 1, '=SUM(A1:A4)'); recalcAll(); }); await w(300);
+  check('  範囲の 空の セルは 平均・個数・最小に 入れない（合計は 同じ）', await page.evaluate(() => [5, 6, 7, 8].map(r => getCellDisplay(r, 1)).join(',')), '4,2,2,8');
+  // ── 最近 つかった ──
+  await page.evaluate(() => openModeMenu()); await w(900);
+  check('  最近 つかった ものが 上に 出る', await page.evaluate(() => [...document.querySelectorAll('#modeMenuBody .tmpl-recent .tmpl-chip')].map(e => e.dataset.tk).join(',')), 'c:tax');
+  const sb = await page.evaluate(() => { const it = document.querySelector('#modeMenuBody .tmpl-group:not(.tmpl-top):not(.tmpl-recent) [data-tk="m:shopping"]'); it.scrollIntoView({ block: 'center' }); const r = it.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await page.touchscreen.tap(sb.x, sb.y); await w(800);
+  check('  一覧表を 押すと 表のかたちが 変わる・最近 つかったに 入る', await page.evaluate(() => workspaceMode + '/' + tmplRecentGet().slice(0, 2).join(',')), 'shopping/m:shopping,c:tax');
+  // ── 📋 式テンプレの 窓も 同じ カード ──
+  await page.evaluate(() => { switchMode('normal'); openCalcTmpl(); }); await w(400);
+  check('  📋 式テンプレの 窓も 同じ カード・同じ まとまり', await page.evaluate(() => [document.querySelectorAll('#calcTmplBody .tmpl-chip').length, [...document.querySelectorAll('#calcTmplBody .tmpl-group-name')].map(e => e.textContent).join('/')].join('|')), '25|お買い物・くらし/仕事・お金/時間・からだ・くるま/面積・かたち/単位の換算/集計');
+  await page.evaluate(() => document.querySelector('#calcTmplBody [data-tk="c:bmi"]').click()); await w(500);
+  check('  　押すと 入る', await page.evaluate(() => (currentTemplate() || {}).id + '/' + isDlgOpen('calcTmplOverlay')), 'bmi/false');
+  await page.evaluate(() => { openFinTmpl(); }); await w(300);
+  await page.evaluate(() => document.querySelector('#finTmplBody [data-tk="f:pl"]').click()); await w(500);
+  check('  📑 決算テンプレも 同じ カードで 入る', await page.evaluate(() => (currentTemplate() || {}).id + '/' + isDlgOpen('finTmplOverlay')), 'pl/false');
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 /* v636：表の 最大を 250行×50列 → 1,000行×100列 に・入力の たびの 列幅合わせは 変わった セルだけ（表 ぜんぶを 測らない） */
 async function runBig636(browser) {
   const { ctx, page, errs } = await newPage(browser);
@@ -21555,6 +21613,7 @@ const SUITES = [
   [['bandpc633', 'band', 'v633'], b => runBandPc633(b)],
   [['rangefill635', 'fill', 'v635'], b => runRangeFill635(b)],
   [['big636', 'v636'], b => runBig636(b)],
+  [['tmpl637', 'v637'], b => runTmpl637(b)],
   [['clip'], b => runClip(b)],
   [['koe'], b => runKoe(b)],
   [['koe', 'koelisten'], b => runKoeListen(b)],
