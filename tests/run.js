@@ -21015,6 +21015,22 @@ async function runGgolfHole620(browser) {
       ['18ホール × 6', () => { GGOLF.close(); GGOLF.setSet({ crs: 6, hn: 18 }); GGOLF.card(GGOLF.ids()[0]); }], ['順位・賞', () => { GGOLF.close(); GGOLF.setSet({ crs: 2, hn: 8 }); GGOLF.view('res'); }]];
   }, 'ホールごとの スコア');
 }
+// ⛳ グラウンドゴルフ：ホールインワンで 引く（v638）
+async function runGgolfDed638(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ⛳ グラウンドゴルフ：ホールインワン 1回で 合計から 引く（v638） ──');
+  await page.evaluate(() => { window.appConfirm = async () => true; window.print = () => {}; openGgolf(); }); await page.waitForTimeout(400);
+  await page.evaluate(() => { GGOLF.newCupGo({ title: 'であいの里', date: '2026-11-08' }); GGOLF.addMany(GGOLF.parse('西谷 晋二 43 2\n田渕 治 42 1\n竹下 澄江 41\n片田 博 42\n山下 武麿 45 1')); });
+  check('  はじめは 引かない（実打数の 順）', await page.evaluate(() => [GGOLF.state().cups[0].set.hded, GGOLF.result().order.join(',')].join(' / ')), '0 / 竹下 澄江,田渕 治,片田 博,西谷 晋二,山下 武麿');
+  await page.evaluate(() => { GGOLF.setup(); document.getElementById('ggSHded').value = '３'; GGOLF.setupSave(); GGOLF.view('res'); }); await page.waitForTimeout(150);
+  check('  ⚙ で 3打：順位は 引いた 合計（37・39・41・42⛳1・42）', await page.evaluate(() => [GGOLF.state().cups[0].set.hded, GGOLF.result().order.join(','), document.querySelector('.gg-sum .r').textContent.includes('ホールインワン 1回 −3打')].join(' / ')),
+    '3 / 西谷 晋二,田渕 治,竹下 澄江,山下 武麿,片田 博 / true');
+  check('  画面・コピー・表は 引いた 合計と 実打数', await page.evaluate(() => [document.querySelector('.gg-rr .sc').textContent, GGOLF.text().split('\n').find(l => l.startsWith('1. ')), JSON.stringify(GGOLF.rows().slice(0, 2))].join(' | ')),
+    '37打⛳2実 43 | 1. 西谷 晋二　37打・⛳2（実打数 43） | [["順位","名前","チーム","合計","ホールインワン","賞","実打数"],[1,"西谷 晋二","",37,2,"個人賞・ホールインワン賞",43]]');
+  check('  入れて ある 合計（実打数）は そのまま', await page.evaluate(() => GGOLF.state().cups[0].mem.map(m => m.tot).join(',')), '43,42,41,42,45');
+  check('  エラーなし', errs.join(' | '), '');
+  await ctx.close();
+}
 // 🧱 供試体（v611・v612。kyoshi.js）：Apps Script の 受け口を 作り物の CalendarApp・ContentService で 動かす（vm）
 // opt.shared：共有されて いる ほかの アカウントの カレンダー（getCalendarById で 開ける メールアドレス）
 function kyoshiGasMock(code, opt) {
@@ -21748,6 +21764,7 @@ const SUITES = [
   [['ggolf', 'v616'], b => runGgolf616(b)],
   [['ggolf', 'ggolfxl', 'v618'], b => runGgolfXl618(b)],
   [['ggolf', 'ggolfhole', 'v620'], b => runGgolfHole620(b)],
+  [['ggolf', 'ggolfded', 'v638'], b => runGgolfDed638(b)],
   [['dasetsu', 'v561'], b => runDasetsu561(b)],
   [['okaeshi', 'v564'], b => runOkaeshi564(b)],
   [['tax', 'v565'], b => runTax565(b)],
