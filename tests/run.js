@@ -1242,7 +1242,7 @@ async function runKeys466(browser) {
   console.log('\n── テンキーの 🧰道具・ひな形の場所（v466） ──');
   const at = k => page.evaluate(k => { const b = document.querySelector('#numpadPage1 [data-key="' + k + '"]'); if (!b) return 'なし';
     const cs = getComputedStyle(b); return cs.gridRowStart + '/' + cs.gridColumnStart; }, k);
-  check('  あ文字のキーは無い', await page.evaluate(() => !document.querySelector('#numpadPage1 [data-key="text"]') && !document.getElementById('textBtn')), true);
+  check('  右下の あ文字のキーは無い（v639 から あ文字は 上の段）', await page.evaluate(() => !document.querySelector('#numpadPage1 [data-key="text"]') && document.getElementById('textBtn').dataset.key === 'u_text'), true);
   check('  🧰道具は左上（ひな形のあった所）', await at('tools'), '2/1');
   check('  ひな形は右下', await at('mode'), '6/5');
   check('  ひな形のキーの字', await page.evaluate(() => document.getElementById('shoppingBtn').textContent.trim()), 'ひな形');
