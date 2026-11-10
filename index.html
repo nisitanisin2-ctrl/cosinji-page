@@ -248,7 +248,7 @@ body.skin-keys .numpad-overlay {
   background: linear-gradient(150deg, #2a8a55, #217346 55%, #0f4a26);
   color: #fff; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 14px;
-  transition: opacity .28s ease;
+  transition: opacity .14s ease;   /* v639：短く（前は .28s） */
 }
 #appSplash.gone { opacity: 0; pointer-events: none; }
 #appSplash .sp-ico { font-size: 62px; line-height: 1; }
@@ -269,7 +269,7 @@ body.skin-keys .numpad-overlay {
   padding: 22px 20px 16px; display: flex; flex-direction: column; gap: 14px;
 }
 .tour-skip {
-  position: absolute; top: calc(12px + var(--safe-top)); right: 14px;
+  position: absolute; top: calc(12px + var(--safe-top)); right: calc(14px + var(--safe-right));   /* v639：横向きの 切りかきを よける */
   padding: 8px 14px; border-radius: var(--r-pill); border: none;
   background: rgba(255,255,255,.22); color: #fff; font-size: 13px; font-weight: bold;
   cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
@@ -843,6 +843,25 @@ body.tb-fold.dentaku-mode .dt-pane .dt-tape-empty { min-height: 38px; }
 .fmt-select, .save-sortsel { min-height: 36px; }
 .tsx-sec-btn { min-height: 36px; align-items: center; }
 .btn-more:active { background: rgba(255,255,255,0.4); }
+/* ☰ の お知らせの 印（v639） */
+.btn-more.has-note::after { content: ''; position: absolute; top: 3px; right: 3px; width: 10px; height: 10px; border-radius: 50%;
+  background: #ff7a2f; box-shadow: 0 0 0 2px #fff; pointer-events: none; z-index: 1; }
+#moreBtn, #fbMenu { position: relative; }
+.fb-menu.has-note::after { content: ''; position: absolute; top: 2px; right: 2px; width: 10px; height: 10px; border-radius: 50%;
+  background: #ff7a2f; box-shadow: 0 0 0 2px #fff; pointer-events: none; z-index: 1; }
+.more-notes { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.more-notes[hidden] { display: none; }
+.more-note { display: flex; align-items: stretch; gap: 4px; border: 1px solid #f0b48a; background: #fff6ef; border-radius: var(--r-btn); }
+.more-note-go { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 9px 10px; border: 0; background: none; color: #3b2a1e;
+  text-align: left; font: inherit; cursor: pointer; touch-action: manipulation; }
+.more-note-ico { font-size: 20px; flex-shrink: 0; }
+.more-note-tx { display: flex; flex-direction: column; min-width: 0; }
+.more-note-tx b { font-size: 14px; }
+.more-note-tx small { font-size: 11.5px; color: #7a5a44; margin-top: 2px; }
+.more-note-x { flex-shrink: 0; width: 40px; border: 0; background: none; color: #7a5a44; font-size: 15px; cursor: pointer; touch-action: manipulation; }
+body.dark .more-note { background: #3a2a1c; border-color: #8a5a35; }
+body.dark .more-note-go { color: #f6e6d8; }
+body.dark .more-note-tx small, body.dark .more-note-x { color: #d9b89c; }
 /* 「⋯」の中身 */
 .modal.more-modal { width: 100%; max-width: 420px; max-height: 90vh; }
 .more-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
@@ -1652,6 +1671,7 @@ table.sheet {
   vertical-align: middle; touch-action: manipulation;
 }
 .cell:hover { background: var(--cell-hover); }
+.cell.cell-txt { text-align: left; }   /* 文字は 左（v639。数は 右の まま。書式で 寄せを 決めた セルは そちらが 勝つ） */
 .cell.active {
   border: 2px solid var(--acc) !important;
   outline: none; background: var(--sheet-cell-bg, var(--cell-bg));
@@ -2091,6 +2111,9 @@ body.calc-only #numpadPageSci .btn[data-key="dk_dec"] { grid-column: span 2; }
 /* 🧰道具のキー（v466）。ひな形のあった場所。どの道具もここから。目立つだいだい色 */
 .btn.kp-tools { background: #e65100; }
 .btn.kp-tools:hover { background: #f57c00; }
+/* ひな形の キー（v639）。前は 赤（CE と 同じ「消す」色）だった。場所を 移る キーなので 道具の 段と 同じ 落ちついた 色に */
+.btn.kp-mode { background: #3f4a5a; }
+.btn.kp-mode:hover { background: #4d5a6d; }
 .btn.enter  { background: #1a5276; grid-row: span 2; font-size: calc(22px * var(--key-scale, 1.3));
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
 /* Enterの下に、確定後に進む向き（下／右）を表示。長押しで切替。
@@ -2389,9 +2412,187 @@ body.compact .modal.modal-full .modal-body { padding: 9px 10px calc(12px + var(-
   padding-left: calc(16px + var(--safe-left));
   padding-right: calc(16px + var(--safe-right));
 }
-@media (min-width: 700px) {   /* パソコンなど広い画面では真ん中に浮くので、避ける必要がない */
+@media (min-width: 700px) {   /* パソコンなど広い画面では真ん中に浮く。切りかき・時計の帯は 下の .modal-overlay の 余白で よける（v639） */
   .modal.modal-full > .modal-header { padding: 12px 16px; }
 }
+
+/* ══ 新しい画面（v640。body.ui2）══════════════════════════════════════
+   上：表の名前・↶ ↷・書式・⋮ ／ まん中：表 ／ その下：入力欄（Σ・マイク・✓）／ テンキー（4段・3色）／ 下：タブ。
+   設定の「画面の形 → 前の画面」で、v639 までの 形に もどせる */
+.app-top, .app-nav { display: none; }
+.ui-ic { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.fb-sum, .fb-mic, .fb-ok { display: none; }
+body.ui2 { --nav-h: calc(54px + var(--safe-bottom)); padding-top: 0 !important; }
+body.ui2::before { display: none !important; }
+body.ui2 .app-top {
+  display: flex; align-items: center; gap: 2px; flex-shrink: 0;
+  padding: calc(4px + var(--safe-top)) calc(4px + var(--safe-right)) 4px calc(10px + var(--safe-left));
+  background: var(--modal-bg, #fff); border-bottom: 1px solid var(--cell-border, #e1e6e2); color: var(--text);
+}
+.at-title { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 3px 4px; border: 0; background: none;
+  color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: var(--r-btn); touch-action: manipulation; }
+.at-title:active { background: var(--cell-hover); }
+.at-title b { display: flex; align-items: center; gap: 3px; max-width: 100%; font-size: 16px; font-weight: 800; line-height: 1.25; }
+.at-title b span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.at-title .at-dn { width: 16px; height: 16px; color: var(--text-light); }
+.at-title small { font-size: 11px; color: var(--text-light); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.at-title small.dirty { color: #b26a00; }
+.at-ib { flex: none; width: 42px; height: 42px; border: 0; border-radius: 50%; background: none; color: var(--text); display: grid; place-items: center;
+  cursor: pointer; touch-action: manipulation; font: inherit; }
+.at-ib:active { background: var(--cell-hover); }
+.at-ib:disabled { opacity: .3; cursor: default; }
+.at-ib .ui-ic { width: 23px; height: 23px; }
+.at-aa { font-weight: 800; font-size: 17px; }
+body.ui2 .toolbar:not(.sheets-open) { display: none; }
+body.ui2 .fb-menu { display: none !important; }
+.ui2-only { display: none !important; }
+body.ui2 .ui2-only { display: flex !important; }
+body.ui2 .fb-sum { display: grid; place-items: center; flex: none; width: 36px; height: 32px; border-radius: var(--r-btn); border: 1px solid var(--formula-border, #cfd7d2);
+  background: var(--modal-bg, #fff); color: var(--acc-text); font-size: 18px; font-weight: 800; cursor: pointer; touch-action: manipulation; padding: 0; }
+body.ui2 .fb-mic { display: grid; place-items: center; flex: none; width: 34px; height: 32px; border: 0; background: none; color: var(--text-light); cursor: pointer; padding: 0; touch-action: manipulation; }
+body.ui2 .fb-ok { display: grid; place-items: center; flex: none; width: 44px; height: 32px; border: 0; border-radius: var(--r-btn); background: var(--acc); color: #fff; cursor: pointer; padding: 0; touch-action: manipulation; }
+body.ui2 .fb-ok .ui-ic { stroke-width: 2.6; }
+body.ui2 .formula-bar { gap: 5px; }
+body.ui2 #formulaInput { font-size: 16px; }
+/* テンキー：4段（道具の段・道具・ひな形・±・Σ・数式は 外へ）。色は 3つの 役（数・計算の記号・決定） */
+body.ui2 #numpadPage1 .btn.kp-off2 { display: none !important; }
+body.ui2.np-side #numpadPage1, body.ui2 #numpadPage1.ui2-rows { grid-template-rows: repeat(4, 1fr) !important; }
+@media (orientation: landscape) and (max-height: 500px) { body.ui2 #numpadPage1 { grid-template-rows: repeat(4, 1fr) !important; } body.ui2 #numpadPage1 .btn { padding-top: 0 !important; padding-bottom: 0 !important; } }
+body.ui2 #numpadPage1 .btn { padding-top: calc(12px * var(--key-scale, 1.3)); padding-bottom: calc(12px * var(--key-scale, 1.3)); }   /* 4段なので 1段を 高く（押しやすく） */
+/* 電卓の ときは テンキーを 高く（電卓の キーは 6段。前の 画面と 同じ 高さに） */
+body.ui2.dentaku-mode .numpad-viewport { min-height: calc(272px * var(--key-scale, 1.3) / 1.3); }
+body.ui2.dentaku-mode #numpadPage1 { height: 100%; }
+/* 時計・電池の 帯（iPhone を ホーム画面から 開いた とき）は 緑に（白い 字が 見えるように） */
+body.ui2 .app-top { background: linear-gradient(var(--bar-bg, var(--acc)) 0 var(--safe-top), var(--modal-bg, #fff) var(--safe-top)); }
+body.ui2 #numpadPage1 .btn[data-key="u_text"] { height: auto; line-height: 1; padding: calc(9px * var(--key-scale, 1.3)) 4px; font-size: calc(13px * var(--key-scale, 1.3)); background: #4a545e; }
+body.ui2 #numpadPage1 .btn[data-key="bs"], body.ui2 #numpadPage1 .btn[data-key="ce"] { background: #4a545e; }
+body.ui2 #numpadPage1 .btn[data-key="ce"] { color: #ffb4aa; }
+body.ui2 #numpadPage1 .btn.enter { background: #1f8a55; }
+body.ui2 #numpadPage1 .btn.enter:hover { background: #239c60; }
+/* 下の タブ */
+body.ui2 .app-nav {
+  display: grid; grid-template-columns: repeat(5, 1fr); flex-shrink: 0; position: relative; z-index: 1001;
+  height: var(--nav-h); padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left);
+  background: var(--modal-bg, #fff); border-top: 1px solid var(--cell-border, #e1e6e2);
+}
+.app-nav button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 0; background: none;
+  color: var(--text-light); font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; touch-action: manipulation; padding: 0; }
+.app-nav button .ui-ic { width: 22px; height: 22px; padding: 3px 14px; box-sizing: content-box; border-radius: 14px; }
+.app-nav button.on { color: var(--acc-text); }
+.app-nav button.on .ui-ic { background: var(--acc-weak); }
+.app-nav button.has-note::after { content: ''; position: absolute; top: 5px; left: calc(50% + 10px); width: 9px; height: 9px; border-radius: 50%; background: #ff7a2f; box-shadow: 0 0 0 2px var(--modal-bg, #fff); }
+body.ui2 .numpad-section { padding-bottom: var(--np-bottom, 3px); }   /* ホームの バーは 下の タブが よける */
+/* 窓は タブの 上まで（タブは いつも 押せる） */
+body.ui2 .modal-overlay { bottom: var(--nav-h); padding-bottom: 0; }
+body.ui2 .modal.modal-full { padding-bottom: 0; }
+body.ui2.calc-only .app-nav, html.app-tool body.ui2 .app-nav, html.app-techo body.ui2 .app-nav { display: none; }
+body.ui2.calc-only .modal-overlay, html.app-tool body.ui2 .modal-overlay, html.app-techo body.ui2 .modal-overlay { bottom: 0; }
+
+/* ══ 段階4（v641）：出かたを 3種類に そろえる（新しい 画面）══
+   ページ（メニュー・ひな形・道具は タブの 上いっぱい）・下からの シート（ほかの 窓）・その場の メニュー（セルの そば） */
+body.ui2 .modal-overlay { align-items: flex-end; }
+body.ui2 .modal-overlay > .modal:not(.modal-full) {
+  width: 100%; max-width: 640px; max-height: 88%; border-radius: 18px 18px 0 0;
+  box-shadow: 0 -8px 28px rgba(0,0,0,.22);
+}
+body.ui2 .modal-overlay > .modal:not(.modal-full) > .modal-header { border-radius: 18px 18px 0 0; }
+body.ui2 #moreMenuOverlay > .modal, body.ui2 #modeMenuOverlay > .modal, body.ui2 #toolsListOverlay > .modal, body.ui2 #settingsPanel > .modal {
+  max-width: none; height: 100%; max-height: 100%; border-radius: 0;
+}
+body.ui2 #moreMenuOverlay > .modal > .modal-header, body.ui2 #modeMenuOverlay > .modal > .modal-header,
+body.ui2 #toolsListOverlay > .modal > .modal-header, body.ui2 #settingsPanel > .modal > .modal-header { border-radius: 0; padding-top: calc(12px + var(--safe-top)); }
+body.ui2 #moreMenuOverlay, body.ui2 #modeMenuOverlay, body.ui2 #toolsListOverlay, body.ui2 #settingsPanel { padding: 0 var(--safe-right) 0 var(--safe-left); background: var(--modal-bg); }
+/* 下からの シートは 時計の 帯・切りかきの 下まで（高い 窓でも 上に はみ出さない） */
+body.ui2 .modal-overlay > .modal:not(.modal-full) { max-height: 100% !important; }
+body.ui2 .modal-overlay > .modal:not(.modal-full).ui2-tall { height: 100% !important; }
+@media (min-width: 700px) {
+  body.ui2 #moreMenuOverlay > .modal, body.ui2 #modeMenuOverlay > .modal, body.ui2 #toolsListOverlay > .modal, body.ui2 #settingsPanel > .modal { max-width: 760px; margin: 0 auto; }
+  body.ui2 #moreMenuOverlay, body.ui2 #modeMenuOverlay, body.ui2 #toolsListOverlay, body.ui2 #settingsPanel { background: rgba(0,0,0,.35); justify-content: center; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  body.ui2 .modal-overlay.open > .modal:not(.modal-full) { animation: uiSheetUp .18s ease-out; }
+  @keyframes uiSheetUp { from { transform: translateY(24px); opacity: .6; } }
+}
+/* その場の メニュー（帯を セルの そばに） */
+#cellMenu .cm-more2 { display: none; }
+#cellMenu.edit-bar.ui2-pop.show {
+  right: auto; width: max-content; max-width: min(560px, calc(100vw - 24px)); height: auto;
+  padding: 4px; gap: 2px; border: 0; border-radius: 14px; background: #20262a; color: #fff; box-shadow: 0 10px 24px -8px rgba(0,0,0,.55);
+}
+#cellMenu.edit-bar.ui2-pop button { color: #fff; background: none; border-radius: 10px; padding: 9px 10px; }
+#cellMenu.edit-bar.ui2-pop button:active { background: #3a4248; }
+#cellMenu.edit-bar.ui2-pop .cm-cx { color: #9fe3c0; background: rgba(255,255,255,.06); }
+#cellMenu.edit-bar.ui2-pop .cm-cx.on { background: var(--acc); color: #fff; }
+#cellMenu.edit-bar.ui2-pop .cm-more2 { display: block; order: 10000; color: #ffd9a8; }
+#cellMenu.edit-bar.ui2-pop .cm-arr { background: #20262a; color: #fff; }
+.bm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.bm-item { min-height: 54px; padding: 8px 6px; border: 1px solid var(--save-item-border); border-radius: var(--r-btn); background: var(--save-item-bg); color: var(--text);
+  font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; touch-action: manipulation; }
+.bm-item:active { background: var(--cell-hover); }
+/* お知らせの「元に戻す」 */
+.app-toast.has-act { display: flex; align-items: center; gap: 14px; pointer-events: auto; text-align: left; }
+.app-toast .toast-act { flex: none; border: 0; background: none; color: #8fe0b6; font: inherit; font-weight: 800; padding: 4px 2px; cursor: pointer; }
+.app-toast:not(.show) { pointer-events: none; }
+
+/* ══ 段階5（v642）：保存を 考えなくて よい（新しい 画面）══ */
+.tt-note { font-size: 12px; color: var(--text-light); margin: 0 2px 10px; line-height: 1.6; }
+body.ui2 #saveNowBar, body.ui2 #saveStateBanner { display: none; }
+body.ui2 #moreSave, body.ui2 #moreSaveAs { display: none !important; }
+body.ui2 #moreFold .more-grid { grid-template-columns: 1fr; }
+body.ui2 #moreRec { display: none; }
+/* 背の 低い 画面（iPhone SE など）は キーを 少し 低く して 表を 広く */
+@media (max-height: 720px) {
+  body.ui2 #numpadPage1 .btn { padding-top: calc(8px * var(--key-scale, 1.3)); padding-bottom: calc(8px * var(--key-scale, 1.3)); }
+  body.ui2 .app-top { padding-top: calc(2px + var(--safe-top)); padding-bottom: 2px; }
+  body.ui2 .at-ib { width: 38px; height: 38px; }
+  body.ui2 { --nav-h: calc(50px + var(--safe-bottom)); }
+}
+/* テンキーを 右に 出す とき・スマホの 横向き：上の バーと タブは 横いっぱい */
+body.ui2.np-side { grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "top top" "main numpad" "nav nav"; }
+body.ui2.np-side .app-top { grid-area: top; }
+body.ui2.np-side .app-nav { grid-area: nav; }
+@media (orientation: landscape) and (max-height: 500px) {
+  body.ui2 { grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "top top" "main numpad" "nav nav"; }
+  body.ui2 .app-top { grid-area: top; padding-left: calc(10px + var(--safe-left)); }
+  body.ui2 .app-nav { grid-area: nav; }
+  body.ui2 .left-pane { padding-left: 0; }
+  body.ui2 .left-pane .formula-bar { padding-left: calc(6px + var(--safe-left)); }
+  body.ui2 .sheet-wrap { margin-left: var(--safe-left); }
+  body.ui2 #numpadPage1 .btn { padding-top: calc(7px * var(--key-scale, 1.3)); padding-bottom: calc(7px * var(--key-scale, 1.3)); }
+}
+/* 横向きの スマホ：タブを 低く */
+@media (orientation: landscape) and (max-height: 500px) {
+  body.ui2 { --nav-h: calc(42px + var(--safe-bottom)); }
+  .app-nav button { flex-direction: row; gap: 6px; font-size: 12px; }
+  .app-nav button .ui-ic { padding: 2px 8px; }
+  body.ui2 .app-top { padding-top: 2px; padding-bottom: 2px; }
+  body.ui2 .at-ib { width: 36px; height: 36px; }
+}
+/* この表の メニュー（下からの シート） */
+.tm-list { display: flex; flex-direction: column; border: 1px solid var(--save-item-border); border-radius: var(--r-card); overflow: hidden; }
+.tm-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 14px; border: 0; border-bottom: 1px solid var(--save-item-border); background: var(--save-item-bg);
+  color: var(--text); font: inherit; font-size: 15px; text-align: left; cursor: pointer; touch-action: manipulation; }
+.tm-row:last-child { border-bottom: 0; }
+.tm-row:active { background: var(--cell-hover); }
+.tm-row > span { width: 24px; text-align: center; font-size: 18px; }
+.tm-row.tm-danger { color: var(--danger); }
+/* 設定の「画面の形」 */
+.set-ui2 { margin: 0 0 10px; padding: 10px 12px; border: 1px solid var(--save-item-border); border-radius: var(--r-card); background: var(--save-item-bg); }
+.set-ui2-t { font-size: 13px; font-weight: 800; margin-bottom: 6px; }
+.set-ui2-note { font-size: 11.5px; color: var(--text-light); margin-top: 6px; line-height: 1.6; }
+/* ── iPhone・iPad の 切りかき・時計の帯・ホームのバーに 窓が かからないように（v639）──
+   前は 広い画面（大きい iPhone の 横向き・iPad。幅 700px 以上）で、真ん中に 浮く 全画面の 窓が
+   時計の帯や 切りかきの 下まで 広がり、上の「もどる」「✕」が 押しにくく なっていた。
+   窓を 出す 地（.modal-overlay）に 安全な 余白を 付け、窓は その 内側に 出す。
+   狭い 画面の 全画面の 窓は、見出しが 自分で よけるので 地の 余白は 付けない */
+.modal-overlay { padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left); }
+@media (max-width: 699.98px) {
+  .modal-overlay:has(> .modal.modal-full) { padding: 0; }
+  /* 全画面の 窓の いちばん下（入れる欄・ボタン）が ホームの バーに かからないように */
+  .modal.modal-full { padding-bottom: var(--safe-bottom); }
+  body.ui2 .modal.modal-full { padding-bottom: 0; }   /* 新しい 画面は 下の タブが よける（v640） */
+}
+body.ui2 .modal-overlay { padding-bottom: 0; }
 
 /* ダイアログ見出しの「🗑削除」（✕の左） */
 .modal-del {
@@ -4209,6 +4410,14 @@ body.dark {
   <div class="sp-b"><span></span></div>
 </div>
 
+<!-- 新しい画面（v640）の 上の バー：表の 名前・保存の ようす・↶ ↷・書式・この表の メニュー。前の 画面（設定）では 出ない -->
+<div class="app-top" id="appTop">
+  <button class="at-title" id="atTitle" onclick="atTitleTap()" title="表の名前（押すと 表の一覧・名前を変える）"><b><span id="atName">いまの表</span><svg class="ui-ic at-dn" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></b><small id="atState"></small></button>
+  <button class="at-ib" id="atUndo" onclick="undoLast()" aria-label="元に戻す" title="元に戻す（長押しで 取り消せる操作の一覧）" disabled><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+  <button class="at-ib" id="atRedo" onclick="redoLast()" aria-label="やり直す" title="やり直す" disabled><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+  <button class="at-ib at-aa" id="atFmt" onclick="atFmtTap()" aria-label="書式" title="書式・枠線（太字・色・寄せ・罫線）">Aa</button>
+  <button class="at-ib" id="atMore" onclick="openTableMenu()" aria-label="この表のメニュー" title="この表のメニュー"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></button>
+</div>
 <div class="toolbar" id="mainToolbar">
   <span class="toolbar-title" id="recordTitle" onclick="showSaveList()" title="今開いている記録（タップでリストを開く）">📄 自動保存</span>
   <button class="btn-save menu-item sv2" id="saveBtn" onclick="saveData()" title="名前を付けて保存">名前を付けて<br>保存</button>
@@ -4293,6 +4502,8 @@ body.dark {
       <button class="modal-close" onclick="closeMoreMenu()">✕</button>
     </div>
     <div class="modal-body">
+      <!-- お知らせ（v639）：新しい版・バックアップの おすすめ。起動の ときに 割りこませず ここに 出す -->
+      <div class="more-notes" id="moreNotes" hidden></div>
       <!-- 最近使った操作（v624）。ほかの機能の中で 押した ものを 3つ -->
       <div class="more-recent" id="moreRecent" hidden><span class="more-recent-t">🕘 最近使った</span><div class="more-recent-list" id="moreRecentList"></div></div>
       <!-- 標準モード／かんたんモード（v482。前は ⚙設定 のいちばん上にあった） -->
@@ -4426,6 +4637,12 @@ body.dark {
   <div class="set-easy" id="setEasy">
     <!-- 🔈 読み上げの声（v540）：見つけやすいよう設定のいちばん上に。かんたん・標準のどちらでも出す -->
     <button class="set-act set-voice" id="setVoiceBtn" onclick="openVoiceSet()">🔈 読み上げの声<small>声・速さ・高さ・大きさ。声の計算帳・ほかの道具でも同じ声</small></button>
+    <!-- 画面の 形（v640）：新しい 画面（下の タブ）か、前の 画面か -->
+    <div class="set-ui2" id="setUi2">
+      <div class="set-ui2-t">画面の形</div>
+      <div class="skin-seg" id="ui2Seg"><button class="skin-seg-btn" data-u="1" onclick="setUi2(true)">新しい画面</button><button class="skin-seg-btn" data-u="0" onclick="setUi2(false)">前の画面</button></div>
+      <div class="set-ui2-note" id="ui2Note"></div>
+    </div>
     <div class="ez-only">
       <div class="set-note ez-note" id="ezNote"><b>かんたんモード</b>です。よく使う設定だけを出しています。<br>標準モードにするときは <b>☰ メニューのいちばん上</b>で切りかえます。</div>
       <div class="set-sec">よく使う設定</div>
@@ -4715,11 +4932,14 @@ body.dark {
      合計は数値があるときだけ右側に出る。▼ はテンキーの開閉。 -->
 <div class="formula-bar">
   <button class="fb-menu" id="fbMenu" onclick="openMoreMenu()" aria-label="メニュー" title="メニュー（保存・戻す・リスト・設定・道具など）">☰</button>
+  <button class="fb-sum" id="fbSum" aria-label="合計を入れる" title="Σ 上の数字の合計（長押しで 合計・平均・数式）">Σ</button>
   <span class="cellref-wrap">
     <input id="cellRef" type="text" value="A1" readonly onclick="openCellFmt()" title="タップでこのセルの書式設定（小数点・装飾・色・大きさ）">
     <span id="dateBadge" class="date-badge" title="日付書式のセル"></span>
   </span>
   <input id="formulaInput" type="text" placeholder="値を入力 (Enterで確定)" autocomplete="off" aria-label="選択中のセルの値・数式">
+  <button class="fb-mic" id="fbMic" onmousedown="event.preventDefault()" onclick="voiceStart()" aria-label="声で入れる" title="声で入れる"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></button>
+  <button class="fb-ok" id="fbOk" onmousedown="event.preventDefault()" onclick="fbOkTap()" aria-label="決定" title="決定"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
   <div class="stats-section stats-empty" id="statsSection">
     <span class="stats-title" id="statsTitle" title="タップで合計⇄平均を切替">合計A</span>
     <span class="stat-val" id="sSum" title="タップで数値コピー">0</span>
@@ -5122,9 +5342,10 @@ body.dark {
          🎤声・進む・戻る・リセット・▦通常（通常モードへ）の5つ（v328から。電卓は⋯の中）。
          5つとも長押しで好きな機能に変えられる（設定・機能／表の操作 など）。 -->
     <button class="btn util" data-key="u_voice" onclick="voiceStart()" title="声で入れる（続けて入れるときは☰の🎤を長押し、または「🎤続け」をキーに割り当て）／長押しで別の機能に変更">🎤声</button>
-    <button class="btn util" data-key="u_redo"  onclick="redoLast()" title="元に戻した入力をやり直す／長押しで別の機能に変更">↷進む</button>
+    <!-- v639：ほかの アプリと 同じく ↶戻す を 左・↷進む を 右に。「リセット」（表を 消す）は ☰ の 奥へ 移し、文字を 打つ「あ文字」に -->
     <button class="btn util" data-key="u_undo"  onclick="undoLast()" title="タップで元に戻す／長押しで取り消せる操作の一覧">↶戻す</button>
-    <button class="btn util" data-key="u_reset" onclick="resetAll()" title="表の中身を消す（戻るで元に戻せます）／長押しで別の機能に変更">リセット</button>
+    <button class="btn util" data-key="u_redo"  onclick="redoLast()" title="元に戻した入力をやり直す／長押しで別の機能に変更">↷進む</button>
+    <button class="btn util" data-key="u_text" id="textBtn" onmousedown="event.preventDefault()" onclick="toggleTextInput()" title="文字を打つ（キーボードを出す。もう一度でテンキーへ）／長押しで別の機能に変更">あ文字</button>
     <button class="btn util" data-key="u_normal" onclick="switchMode('normal')" title="ふつうの表に戻す／長押しで別の機能に変更">▦通常</button>
     <button class="btn kp-tools" data-key="tools" onclick="openToolsList()" title="🧰道具の窓を開く／長押しで別の機能に変更">🧰道具</button>
     <button class="btn clr" data-key="ce"   onclick="ce()">CE</button>
@@ -5148,7 +5369,7 @@ body.dark {
     <button class="btn span2" data-key="n0" onclick="num('0')">0</button>
     <button class="btn"     data-key="dot"  onclick="dot()">.</button>
     <button class="btn fx"  data-key="fx"   onclick="startFormula()" title="数式を入れる（＝から始まる式。Excel と同じ）"><span class="kl2"><b>＝</b><small>数式</small></span></button>
-    <button class="btn clr" data-key="mode" id="shoppingBtn" onclick="onModeBtnClick()">ひな形</button>
+    <button class="btn kp-mode" data-key="mode" id="shoppingBtn" onclick="onModeBtnClick()">ひな形</button>
     </div>
     <div class="numpad-grid numpad-overlay ov-right" id="numpadPage2">
     <!-- 関数・記号ページ（数字ページから左フリックで表示。数字ページの上に重なってスライドイン）。数式に記号・関数を挿入する。data-keyで配置編集に対応 -->
@@ -5493,6 +5714,49 @@ body.dark {
       </div>
       <div class="tmpl-legend"><span class="tmpl-badge">一覧表</span> 行を足して何件でも入れられる表 ／ ほかは <span class="tmpl-sw in"></span>水色に入れると <span class="tmpl-sw ans"></span>答えが出る計算。今の表は上書き（↶戻す で戻せます）</div>
       <div id="modeMenuBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 表の 名前を 押した とき（新しい 画面。v642） -->
+<div class="modal-overlay ui-sheet" id="titleMenuOverlay" onclick="if(event.target===this)closeTitleMenu()">
+  <div class="modal">
+    <div class="modal-header"><span id="titleMenuName">いまの表</span><button class="modal-close" onclick="closeTitleMenu()">✕</button></div>
+    <div class="modal-body">
+      <div class="tt-note" id="titleMenuNote"></div>
+      <div class="tm-list">
+        <button class="tm-row" onclick="titleRename()"><span>✏</span>名前を変える</button>
+        <button class="tm-row" onclick="titleNew()"><span>＋</span>新しい表</button>
+        <button class="tm-row" onclick="titleList()"><span>📂</span>ほかの表を開く（表の一覧）</button>
+        <button class="tm-row" onclick="titleCopy()"><span>⧉</span>コピーを作る</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- 帯の「⋯ もっと」（v641） -->
+<div class="modal-overlay ui-sheet" id="bandMoreOverlay" onclick="if(event.target===this)closeDlg('bandMoreOverlay')">
+  <div class="modal">
+    <div class="modal-header"><span id="bandMoreTitle">操作</span><button class="modal-close" onclick="closeDlg('bandMoreOverlay')">✕</button></div>
+    <div class="modal-body"><div class="bm-grid" id="bandMoreBody"></div></div>
+  </div>
+</div>
+<!-- この表の メニュー（新しい画面の 上の バーの ⋮。v640） -->
+<div class="modal-overlay ui-sheet" id="tableMenuOverlay" onclick="if(event.target===this)closeTableMenu()">
+  <div class="modal">
+    <div class="modal-header"><span id="tableMenuTitle">この表</span><button class="modal-close" onclick="closeTableMenu()">✕</button></div>
+    <div class="modal-body">
+      <div class="tm-list">
+        <button class="tm-row" onclick="tmDo(openFindDlg)"><span>🔎</span>さがす・移動</button>
+        <button class="tm-row" onclick="tmDo(insertRowAtSel)"><span>⬆</span>行を足す（選んだセルの上）</button>
+        <button class="tm-row" onclick="tmDo(insertColAtSel)"><span>⬅</span>列を足す（選んだセルの左）</button>
+        <button class="tm-row" onclick="tmDo(()=>hpRun('filter', selC))"><span>↕</span>並べかえ・しぼり込み</button>
+        <button class="tm-row" onclick="tmDo(()=>hpRun('chart'))"><span>📊</span>グラフ</button>
+        <button class="tm-row" onclick="tmDo(exportPDF)"><span>🖨</span>印刷・PDF</button>
+        <button class="tm-row" onclick="tmDo(exportXLSX)"><span>📊</span>Excel で送る・保存</button>
+        <button class="tm-row" onclick="tmDo(shareSheetImage)"><span>🖼</span>画像で送る</button>
+        <button class="tm-row" onclick="tmDo(freezePanes)"><span>📌</span>見出しを固定</button>
+        <button class="tm-row tm-danger" onclick="tmDo(resetAll)"><span>🧹</span>この表を空にする（元に戻せます）</button>
+      </div>
     </div>
   </div>
 </div>
@@ -6476,11 +6740,28 @@ body.dark {
         <span class="mode-text"><span class="mode-name">平均</span><span class="mode-desc">範囲の数値の平均を出す</span></span>
         <span class="mode-check" id="sumChkAvg"></span>
       </button>
+      <!-- 新しい 画面（v640）：テンキーから 外した ＝数式・± を ここから -->
+      <button class="mode-item ui2-only" onclick="closeSumFuncMenu();startFormula()">
+        <span class="mode-ico">＝</span>
+        <span class="mode-text"><span class="mode-name">数式を書く</span><span class="mode-desc">＝ から始まる式（Excel と同じ。例 =B2*C2）</span></span>
+      </button>
+      <button class="mode-item ui2-only" onclick="closeSumFuncMenu();toggleSign()">
+        <span class="mode-ico">±</span>
+        <span class="mode-text"><span class="mode-name">プラス・マイナスを変える</span><span class="mode-desc">いま入れている数の符号を変える</span></span>
+      </button>
     </div>
   </div>
 </div>
 
 <!-- セル/範囲を指でタップして選ぶときの案内バー（照合ビルダーのピック中に表示） -->
+<!-- 新しい画面（v640）の 下の タブ。場所の 移動は いつも ここから -->
+<nav class="app-nav" id="appNav" aria-label="画面の切り替え">
+  <button data-nav="sheet" onclick="navGo('sheet')"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg><span>表</span></button>
+  <button data-nav="calc" onclick="navGo('calc')"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2.5"/><path d="M8.5 7h7M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01M8.5 15h.01M12 15h.01M15.5 15h.01M8.5 18.2h.01M12 18.2h.01M15.5 18.2h.01"/></svg><span>電卓</span></button>
+  <button data-nav="tpl" onclick="navGo('tpl')"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18M9 21V9"/></svg><span>ひな形</span></button>
+  <button data-nav="tools" onclick="navGo('tools')"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="7.5" width="19" height="13" rx="2.5"/><path d="M8.5 7.5V5.5a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v2M2.5 13h19M12 11.5v3"/></svg><span>道具</span></button>
+  <button data-nav="menu" id="navMenuBtn" onclick="navGo('menu')"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h16"/></svg><span>メニュー</span></button>
+</nav>
 <div class="pick-banner" id="pickBanner">
   <div class="pick-top">
     <span id="pickBannerMsg">セルを選んでください</span>
@@ -6540,6 +6821,7 @@ body.dark {
   <button onclick="cellMenuAct('fmt')" data-act="fmt" title="小数・日付・文字の大きさ・色などを 決める 窓">🎨 書式</button>
   <button onclick="cellMenuAct('lock')" id="cellMenuLock" data-act="lock" title="まちがって 消さない ように 守る">🔒 保護</button>
   <button onclick="cellMenuAct('hp')" id="cellMenuHp" data-act="hp" title="グラフ・条件で色・しぼり込み などを 開く">📊 グラフ・色・しぼる</button>
+  <button onclick="bandMoreOpen()" class="cm-more2" data-act="more2" title="ほかの 操作を ぜんぶ 出す">⋯ もっと</button>
   <button type="button" class="cm-arr cm-arr-l" tabindex="-1" aria-hidden="true" title="帯を 左へ 送る" onclick="bandScroll(-1)">◀</button><button type="button" class="cm-arr cm-arr-r" tabindex="-1" aria-hidden="true" title="帯を 右へ 送る" onclick="bandScroll(1)">▶</button><!-- パソコン（マウス）で 帯を 送る（v633） -->
 </div>
 

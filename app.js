@@ -7,6 +7,12 @@
    起動中は 設定を 当てる たびに 呼ばれ、そのつど 画面の 組み直しが 起きて 起動が 遅かった。
    1＝起動中・2＝起動中に 頼まれた・0＝起動が 終わった（ふつうに その場で 合わせる） */
 let npFitBoot = 1;
+/* 新しい 画面（v640）。設定の「画面の形」で 前の 画面（v639 まで）に もどせる。業務手帳・道具だけの アプリでは 使わない */
+const UI2_KEY='excalc_ui2';
+let ui2On=true;
+try{ ui2On=localStorage.getItem(UI2_KEY)!=='0'; }catch(_){}
+if(window.APP_TECHO || window.APP_TOOL) ui2On=false;
+document.body.classList.toggle('ui2', ui2On);
 const MAXROWS = 1000;  // 最大行数（v636 で 250 → 1,000。入力の たびの 列幅合わせを 速く して 広げた）
 const MAXCOLS = 100;   // 最大列数（A〜CV。v636 で 50 → 100）
 let ROWS = 15;
@@ -476,6 +482,7 @@ function setCellDisp(el, r, c){
   if(!el) return;
   const d=getCellDisplay(r,c), t=nfText(r, c, d);   // ¥・%・桁区切り（v624。見た目だけ）
   if(el.textContent!==t){ afMarkDirty(r,c); el.textContent=t; }   // 変わった ときだけ 書く・列幅も その セルだけ 見直す（v636。1,000行で 速く）
+  el.classList.toggle('cell-txt', isTextDisp(t));   // 文字は 左・数は 右（Excel と 同じ。v639。前は ぜんぶ 右）
   if(typeof a11yCellLabel==='function') a11yCellLabel(el, r, c, d);   // 計算済みの 値を 渡す（数式を 2回 計算しない。v636）
   const bad=isErrText(t);
   el.classList.toggle('cell-err', bad);
@@ -483,6 +490,18 @@ function setCellDisp(el, r, c){
     const d=cellErrDetail[r+','+c];
     el.title=(FORMULA_ERR_HELP[t]||'')+(d?'（'+d+'）':'');
   }
+}
+/* 表示が「文字」かどうか（v639）。数・お金・％・日付・時刻・単位つきの 数・エラーは 文字に しない（右よせの まま） */
+function isTextDisp(t){
+  const s=String(t==null?'':t).trim();
+  if(s==='' || !/\D/.test(s)) return false;
+  if(isErrText(s)) return false;
+  if(/^[-+−]?[¥￥$]?[-+−]?[\d,，]*\.?\d+([eE][-+]?\d+)?\s*[%％円]?$/.test(s)) return false;          // 1,234.5・¥1,000・12%・500円
+  if(/^\d{1,4}[\/\-.年]\d{1,2}([\/\-.月]\d{1,4}日?)?$/.test(s)) return false;                      // 2026/11/10・11月10日
+  if(/^\d{1,3}:\d{2}(:\d{2})?$/.test(s)) return false;                                               // 10:30
+  if(/^(TRUE|FALSE)$/i.test(s)) return false;
+  if(/\d/.test(s) && typeof unitEval==='function'){ try{ if(unitEval(s)) return false; }catch(_){} }   // 12m・3.5kg
+  return true;
 }
 /* エラーのセルを選んだときに、なぜそうなったかを一言出す */
 function tellCellError(r, c){
@@ -1503,6 +1522,30 @@ function padTopRow(){
 }
 function placeEditBar(){
   const menu=document.getElementById('cellMenu'); if(!menu || !menu.classList.contains('edit-bar')) return;
+  // 新しい 画面（v641）：テンキーには 重ねず、選んだ セルの そばに 小さく 出す（その場の メニュー）
+  menu.classList.toggle('ui2-pop', ui2On && !document.body.classList.contains('kb-edit'));
+  if(menu.classList.contains('ui2-pop')){
+    menu.classList.remove('on-pad');
+    menu.style.height=''; menu.style.width=''; menu.style.right='auto'; menu.style.bottom='auto';
+    const wrap=document.querySelector('.sheet-wrap'), wr=wrap ? wrap.getBoundingClientRect() : {top:0,bottom:innerHeight,left:0,right:innerWidth,width:innerWidth};
+    const r1=rangeR1>=0 ? Math.min(rangeR1,rangeR2) : selR, c1=rangeR1>=0 ? Math.min(rangeC1,rangeC2) : selC;
+    const r2=rangeR1>=0 ? Math.max(rangeR1,rangeR2) : selR, c2=rangeR1>=0 ? Math.max(rangeC1,rangeC2) : selC;
+    const a1=document.getElementById('c'+r1+'_'+c1), a2=document.getElementById('c'+r2+'_'+c2);
+    const ra1=a1 ? a1.getBoundingClientRect() : null, ra2=a2 ? a2.getBoundingClientRect() : ra1;
+    const W=Math.min(menu.offsetWidth||300, wr.width-12), H=menu.offsetHeight||44;
+    let top, left;
+    if(ra1){
+      top=ra1.top-H-8;
+      if(top<wr.top+2) top=ra2.bottom+8;
+      if(top+H>wr.bottom-2) top=Math.max(wr.top+2, wr.bottom-H-2);
+      left=(ra1.left+ra2.right)/2-W/2;
+    } else { top=wr.top+6; left=wr.left+(wr.width-W)/2; }
+    left=Math.max(wr.left+6, Math.min(left, wr.right-W-6));
+    menu.style.left=Math.round(left)+'px'; menu.style.top=Math.round(top)+'px';
+    bandScrollSync();
+    return;
+  }
+  menu.style.right='';
   // テンキーが 出ているときは、いちばん上の 列（声・進む・戻す・リセット…）に かさねて 出す。帯が 消えると 元の ボタンに 戻る（v619）
   const row=padTopRow();
   menu.classList.toggle('on-pad', !!row);
@@ -1537,7 +1580,7 @@ function placeEditBar(){
 }
 function hideEditBar(){
   const menu=document.getElementById('cellMenu'); if(!menu || !menu.classList.contains('edit-bar')) return;
-  menu.classList.remove('edit-bar','show','bar-nokb','on-pad','ctx-hdr','can-l','can-r'); menu.style.bottom=''; menu.style.top=''; menu.style.left=''; menu.style.width=''; menu.style.height='';
+  menu.classList.remove('edit-bar','show','bar-nokb','on-pad','ctx-hdr','can-l','can-r','ui2-pop'); menu.style.bottom=''; menu.style.top=''; menu.style.left=''; menu.style.width=''; menu.style.height=''; menu.style.right='';
   bandHdrKind='';
 }
 /* 帯は 横に だけ 送り、スクロールバーは 出さない（v633。パソコン〈Windows〉では 太い バーが ボタンの 字に かぶって 隠れて いた）。
@@ -1737,6 +1780,17 @@ function cellMenuCtx(i){
   it.run();
 }
 
+/* 帯の「⋯ もっと」（v641）：いま 出せる 操作を ぜんぶ、下からの シートに 大きく 並べる。押すと 帯の ボタンと 同じ 働き */
+function bandMoreOpen(){
+  const m=document.getElementById('cellMenu'), box=document.getElementById('bandMoreBody'); if(!m || !box) return;
+  const btns=[...m.querySelectorAll('button[data-act]')].filter(b=>b.dataset.act!=='more2' && !b.classList.contains('cm-arr') && getComputedStyle(b).display!=='none' || (b.dataset.act!=='more2' && b.classList.contains('cm-off')));
+  const t=document.getElementById('bandMoreTitle');
+  if(t) t.textContent=(rangeR1>=0 ? '選んだ範囲' : (ALPHA[selC]+(selR+1)))+' の操作';
+  box.innerHTML=btns.map((b,i)=>'<button type="button" class="bm-item" data-i="'+i+'">'+escHtml(b.textContent.trim())+'</button>').join('');
+  box.querySelectorAll('.bm-item').forEach(x=>x.addEventListener('click', ()=>{ const b=btns[+x.dataset.i]; closeDlg('bandMoreOverlay'); if(b) b.click(); }));
+  hideEditBar();
+  openDlg('bandMoreOverlay');
+}
 /* ══ 🎛 帯の ボタンを 決める 窓（v626）══ */
 let bandCfgKind='num';
 function openBandCfg(k){
@@ -2446,6 +2500,7 @@ function clearSelection(){
   cells.forEach(([r,c])=>{ if(!isLockedCell(r,c) && data[r][c]!=='') entries.push({r,c,val:data[r][c]}); });
   if(!entries.length) return;
   pushHistory(entries, entries.length>1?'まとめて消去':'消去');
+  if(ui2On) toast(entries.length>1 ? entries.length+'個のセルを消しました' : '消しました', 0, {undo:true});   // v641
   entries.forEach(({r,c})=>{ data[r][c]=''; const el=document.getElementById(`c${r}_${c}`); if(el) setCellDisp(el, r,c); });
   recalcAll(); if(isStructMode()) recalcMode();
   document.getElementById('formulaInput').value=cellEditString(selR,selC);
@@ -4192,6 +4247,43 @@ function renderWhatsNew(){
 }
 /* 前に使っていた版と違っていたら、下のバーで一度だけ知らせる。
    はじめて入れた人（前の版を知らない人）には出さない。 */
+/* ── ☰ の お知らせ（v639）──
+   新しい版・バックアップの おすすめを、☰ の 赤い 印と、メニューの いちばん上の 行で 知らせる。
+   行を 押すと 前と 同じ（新しくなったこと を 開く・書き出す）。✕ で「あとで」と 同じ */
+let menuNotes=[];
+function menuNotesInit(){
+  menuNotes=[];
+  const prev=seenVer();
+  if(!prev) markSeenVer();                       // はじめての人。案内のほうを見てもらう
+  else if(prev!==APP_VERSION){
+    const n={id:'wn', ico:'🆕', t:APP_VERSION+' に新しくなりました', s:'', go:()=>openWhatsNew(), skip:()=>markSeenVer()};
+    menuNotes.push(n);
+    loadWhatsNew().then(list=>{
+      const w=list && list.find(x=>x.v===APP_VERSION);
+      if(list && !w){ markSeenVer(); menuNotes=menuNotes.filter(x=>x!==n); }
+      else if(w) n.s=w.t;
+      renderMenuNotes();
+    });
+  }
+  if(!bkSnoozed() && typeof backupWanted==='function' && backupWanted()){
+    const d=(typeof daysSinceBackup==='function')?daysSinceBackup():null;
+    menuNotes.push({id:'bk', ico:'💾', t:'大事な記録をファイルに残しておきませんか',
+      s:(d===null?'まだ一度もファイルに書き出していません':'最後の書き出しから'+d+'日たちました'),
+      go:()=>{ bkSnooze(); try{ fullExport(); }catch(_){ toast('書き出せませんでした'); } }, skip:()=>bkSnooze()});
+  }
+  renderMenuNotes();
+}
+function renderMenuNotes(){
+  if(typeof navSync==='function') navSync();   // 新しい 画面の 下の タブ「メニュー」にも 印（v640）
+  ['moreBtn','fbMenu'].forEach(id=>{ const mb=document.getElementById(id);   // 上の バーの ☰ と、入力欄の 左の ☰
+    if(mb){ mb.classList.toggle('has-note', menuNotes.length>0); mb.setAttribute('aria-label', menuNotes.length ? 'メニュー（お知らせ '+menuNotes.length+'件）' : 'メニュー'); } });
+  const box=document.getElementById('moreNotes'); if(!box) return;
+  box.hidden=!menuNotes.length;
+  box.innerHTML=menuNotes.map(n=>'<div class="more-note"><button class="more-note-go" onclick="menuNoteGo(\''+n.id+'\')"><span class="more-note-ico">'+n.ico+'</span><span class="more-note-tx"><b>'+escHtml(n.t)+'</b>'+(n.s?'<small>'+escHtml(n.s)+'</small>':'')+'</span></button>'
+    +'<button class="more-note-x" onclick="menuNoteSkip(\''+n.id+'\')" aria-label="あとで" title="あとで">✕</button></div>').join('');
+}
+function menuNoteGo(id){ const n=menuNotes.find(x=>x.id===id); if(!n) return; menuNotes=menuNotes.filter(x=>x!==n); renderMenuNotes(); moreDo(n.go); }   // moreDo＝閉じたすぐあとに 開く（戻るの 履歴が ずれない）
+function menuNoteSkip(id){ const n=menuNotes.find(x=>x.id===id); if(!n) return; menuNotes=menuNotes.filter(x=>x!==n); try{ n.skip(); }catch(_){} renderMenuNotes(); }
 function maybeTellWhatsNew(){
   const prev=seenVer();
   if(!prev){ markSeenVer(); return false; }        // はじめての人。案内のほうを見てもらう
@@ -5551,12 +5643,30 @@ bindDefaultSizeBtn(document.getElementById('defsizeTopBtn'));
 /* ── 行・列の挿入／削除 ── */
 /* 簡易トースト通知 */
 let _toastTimer=null;
-function toast(msg, ms){
+/* お知らせの 高さ（v639）：表の 画面で テンキーが 下に 出て いれば、その すぐ 上。窓を 開いて いる ときは いままで どおり 下 */
+function toastBottom(){
+  try{
+    if(document.querySelector('.modal-overlay.open')) return '';
+    const np=document.getElementById('numpadSection'); if(!np || !np.offsetParent) return '';
+    const r=np.getBoundingClientRect();
+    if(r.height<40 || r.width<window.innerWidth*0.8 || r.top<window.innerHeight*0.25) return '';   // 横向き（テンキーが 横）・隠して いる とき
+    return Math.round(window.innerHeight-r.top+10)+'px';
+  }catch(_){ return ''; }
+}
+function toast(msg, ms, opt){
   let el=document.getElementById('appToast');
   if(!el){ el=document.createElement('div'); el.id='appToast'; el.className='app-toast';
     el.setAttribute('role','status'); el.setAttribute('aria-live','polite');   // 読み上げに乗せる
     document.body.appendChild(el); }
-  el.textContent=msg; el.classList.add('show');
+  el.textContent=msg;
+  el.classList.toggle('has-act', !!(opt && opt.undo));
+  if(opt && opt.undo){   // 「元に戻す」（v641）
+    const b=document.createElement('button'); b.type='button'; b.className='toast-act'; b.textContent='元に戻す';
+    b.addEventListener('click', ()=>{ el.classList.remove('show'); try{ undoLast(); }catch(_){} });
+    el.appendChild(b); ms=ms||5000;
+  }
+  el.style.bottom=toastBottom();   // テンキーの 上に 出す（v639。前は テンキーの 下の 段に 重なって いた）
+  el.classList.add('show');
   clearTimeout(_toastTimer);
   _toastTimer=setTimeout(()=>el.classList.remove('show'), ms||1800);
 }
@@ -5651,7 +5761,7 @@ function deleteRowAt(at){
   remapAllFormulas((r,c)=> r===at ? null : [r>at?r-1:r, c]);
   ROWS=ROWS-1;
   afterStructChange(Math.min(at,ROWS-1), selC);
-  toast(`${at+1}行目を削除しました`);
+  toast(`${at+1}行目を削除しました`, 0, {undo:ui2On});
 }
 function insertColAt(at){
   if(structOpBlocked()) return;
@@ -5680,7 +5790,7 @@ function deleteColAt(at){
   remapAllFormulas((r,c)=> c===at ? null : [r, c>at?c-1:c]);
   COLS=COLS-1;
   afterStructChange(selR, Math.min(at,COLS-1));
-  toast(`${ALPHA[at]}列を削除しました`);
+  toast(`${ALPHA[at]}列を削除しました`, 0, {undo:ui2On});
 }
 /* 設定パネルの「選択中のセル」に対する操作（従来ボタン用） */
 function insertRowAtSel(){ insertRowAt(selR); }
@@ -6011,7 +6121,7 @@ const FB_PLACES=[{id:'top',n:'表の上'},{id:'pad',n:'テンキーの真上'}];
 let fbPlace='top';
 try{ if(localStorage.getItem(FB_PLACE_KEY)==='pad') fbPlace='pad'; }catch(_){}
 function applyFbPlace(){
-  document.body.classList.toggle('fb-low', fbPlace==='pad');
+  document.body.classList.toggle('fb-low', fbPlace==='pad' || ui2On);   // 新しい 画面は いつも テンキーの 真上（v640）
   renderFbPlace();
   requestAnimationFrame(()=>{ if(typeof placeEditBar==='function') placeEditBar(); if(typeof autoFitSheet==='function') autoFitSheet(); });
 }
@@ -9497,6 +9607,15 @@ let kaReady=false;   // ピッカー表示後、新しく押し直すまで項�
     localStorage.setItem('excalc_kp466','1');
   }catch(_){}
 })();
+/* v639：テンキーの「リセット」→「あ文字」。リセットの キーに 長押しで 別の 機能を 割り当てていた 人は、そのまま 引き継ぐ（1回だけ） */
+(function kpMigrate639(){
+  try{
+    if(localStorage.getItem('excalc_kp639')==='1') return;
+    const ka=JSON.parse(localStorage.getItem('excalc_key_assign')||'null');
+    if(ka && typeof ka==='object' && ka.u_reset){ ka.u_text=ka.u_reset; delete ka.u_reset; localStorage.setItem('excalc_key_assign', JSON.stringify(ka)); }
+    localStorage.setItem('excalc_kp639','1');
+  }catch(_){}
+})();
 function loadKeyAssign(){ try{ keyAssign=JSON.parse(localStorage.getItem('excalc_key_assign')||'{}'); }catch(_){ keyAssign={}; } }
 function saveKeyAssign(){ localStorage.setItem('excalc_key_assign', JSON.stringify(keyAssign)); }
 function applyKeyAssign(){
@@ -9899,14 +10018,14 @@ const NP_TOOLS=[
    アプリを開いたときに、表・電卓・道具のどれを出すかを選べる。
    「前回のつづき」なら今までどおり、閉じたときのままで開く。 */
 const START_PAGE_KEY='excalc_startpage';
-let startPage='home';
+let startPage='last';   // v639：前は ホーム（「何をしますか？」の 窓）。毎回 1回 押さないと 打てなかった
 function startPageOptions(){
   return [['home','🏠 ホーム'],['last','前回のつづき'],['normal','▦ 通常の表'],['dentaku','🧮 電卓']]
     .concat(NP_TOOLS.filter(t=>t.ov).map(t=>[t.id, t.label]));   // 別のアプリとして開く「メモ」は出さない
 }
 function loadStartPage(){
-  let v='home'; try{ v=localStorage.getItem(START_PAGE_KEY)||'home'; }catch(_){}   // 決めていなければホーム（v459）
-  startPage=startPageOptions().some(o=>o[0]===v)?v:'home';
+  let v='last'; try{ v=localStorage.getItem(START_PAGE_KEY)||'last'; }catch(_){}   // 決めていなければ 前回の つづき（v639。v459〜v638 は ホーム）
+  startPage=startPageOptions().some(o=>o[0]===v)?v:'last';
 }
 function setStartPage(v){
   startPage=startPageOptions().some(o=>o[0]===v)?v:'last';
@@ -10910,7 +11029,7 @@ window.addEventListener('resize', updateNumpadEdgeBtn);   // 画面の向きが�
 /* 数字ページ（page1）の既定配置 */
 const KEYPAD_DEFAULT_POS={
   /* r1＝道具の段（u:1 の印が付いたキーは道具の段どうしでだけ入れ替えできる） */
-  u_voice:{r:1,c:1,u:1}, u_redo:{r:1,c:2,u:1}, u_undo:{r:1,c:3,u:1}, u_reset:{r:1,c:4,u:1}, u_normal:{r:1,c:5,u:1},
+  u_voice:{r:1,c:1,u:1}, u_undo:{r:1,c:2,u:1}, u_redo:{r:1,c:3,u:1}, u_text:{r:1,c:4,u:1}, u_normal:{r:1,c:5,u:1},   // v639：↶↷ の 順・リセット → あ文字
   tools:{r:2,c:1}, ce:{r:2,c:2}, sign:{r:2,c:3}, mul:{r:2,c:4}, bs:{r:2,c:5},
   n7:{r:3,c:1}, n8:{r:3,c:2}, n9:{r:3,c:3}, div:{r:3,c:4}, enter:{r:3,c:5,h:2},
   n4:{r:4,c:1}, n5:{r:4,c:2}, n6:{r:4,c:3}, plus:{r:4,c:4},
@@ -10937,6 +11056,13 @@ const KEYPAD_DEFAULT_POS_FMT={
   kf_left:{r:5,c:1}, kf_center:{r:5,c:2}, kf_right:{r:5,c:3}, kf_merge:{r:5,c:4}, bd_clear:{r:5,c:5}, kf_nofill:{r:5,c:6},
   kf_vtop:{r:6,c:1}, kf_vmid:{r:6,c:2}, kf_vbot:{r:6,c:3}, kf_autocolor:{r:6,c:4}, kf_undo:{r:6,c:5}, kf_paint:{r:6,c:6}
 };
+/* 新しい 画面（v640）の 数字ページ：4段×5列。道具の段・道具・ひな形・±・Σ・数式は 外す（タブ・入力欄へ） */
+const KEYPAD_UI2_POS={
+  n7:{r:1,c:1}, n8:{r:1,c:2}, n9:{r:1,c:3}, div:{r:1,c:4}, bs:{r:1,c:5},
+  n4:{r:2,c:1}, n5:{r:2,c:2}, n6:{r:2,c:3}, mul:{r:2,c:4}, ce:{r:2,c:5},
+  n1:{r:3,c:1}, n2:{r:3,c:2}, n3:{r:3,c:3}, minus:{r:3,c:4}, enter:{r:3,c:5,h:2},
+  u_text:{r:4,c:1}, n0:{r:4,c:2}, dot:{r:4,c:3}, plus:{r:4,c:4}
+};
 /* 編集対象のページ一覧（各ページが独自の既定配置・保存キー・現在配置を持つ） */
 const KP_PAGES=[
   /* v278 で道具の段を足し、既存のキーが1段ずつ下がったので保存キーを変えた。
@@ -10948,7 +11074,8 @@ const KP_PAGES=[
   /* v466 で右下の「あ文字」をなくし、そこへ「ひな形」を、ひな形のあった所へ「🧰道具」を置いた。
      自分で並べ替えた人・長押しで機能を割り当てた人は、場所ごと引き継ぐ（kpMigrate466）。 */
   {sel:'#numpadPage1', def:KEYPAD_DEFAULT_POS,  skey:'excalc_keypad_pos_v2', pos:{}, oldKey:'excalc_keypad_pos', shiftRow:1,
-   renamed:{u_normal:'u_save', u_voice:'u_dentaku'}},
+   renamed:{u_normal:'u_save', u_voice:'u_dentaku', u_text:'u_reset'}},   // v639：リセットの 場所に あ文字
+  {sel:'#numpadPage1', def:KEYPAD_UI2_POS, skey:'excalc_keypad_pos_ui2', pos:{}, ui2:true},   // 新しい 画面の 数字ページ（v640）
   {sel:'#numpadPage2', def:KEYPAD_DEFAULT_POS2, skey:'excalc_keypad_pos2', pos:{}},
   {sel:'#numpadPageFmt', def:KEYPAD_DEFAULT_POS_FMT, skey:'excalc_keypad_posfmt4', pos:{}}   // v407 で6列（posfmt3）、v483 で色のボタンを変えたので新しいキー
 ];
@@ -10958,7 +11085,8 @@ let kpDrag=null;
    入力キーは行き来させない（高さが違って不格好になるため）。 */
 function kpFootprint(def,key){ const d=def[key]||{}; return (d.w||1)+'x'+(d.h||1)+(d.u?'u':''); }
 function kpIsFixed(def,key){ const d=def[key]||{}; return (d.w||1)>1 || (d.h||1)>1; }   // 大きいボタン(Enter・0)は固定
-function kpPageOfEl(el){ return KP_PAGES.find(p=>el.closest && el.closest(p.sel)); }
+function kpPageOn(p){ return p.sel!=='#numpadPage1' || !!p.ui2===!!ui2On; }   // 新しい 画面か どうかで 数字ページの 並びを 使い分ける（v640）
+function kpPageOfEl(el){ return KP_PAGES.find(p=>kpPageOn(p) && el.closest && el.closest(p.sel)); }
 function loadKeypadPos(){
   KP_PAGES.forEach(pg=>{
     pg.pos={};
@@ -10990,6 +11118,8 @@ function loadKeypadPos(){
 function saveKeypadPos(pg){ try{ localStorage.setItem(pg.skey, JSON.stringify(pg.pos)); }catch(_){} }
 function applyKeypadLayout(){
   KP_PAGES.forEach(pg=>{
+    if(!kpPageOn(pg)) return;
+    if(pg.sel==='#numpadPage1') document.querySelectorAll('#numpadPage1 .btn[data-key]').forEach(b=>b.classList.toggle('kp-off2', ui2On && !(b.dataset.key in pg.def)));
     for(const key in pg.pos){
       const b=document.querySelector(pg.sel+' [data-key="'+key+'"]');
       if(!b) continue;
@@ -11074,6 +11204,7 @@ function onKeypadPointerUp(){
 }
 function bindKeypadDrag(){
   KP_PAGES.forEach(pg=>{
+    if(pg.ui2) return;   // 同じ 数字ページ（新しい 画面の 並び）は 1回 だけ 付ける
     const grid=document.querySelector(pg.sel);
     if(!grid) return;
     grid.addEventListener('pointerdown', onKeypadGridPointerDown, true);   // capture：ボタン側ハンドラより先に処理
@@ -16721,6 +16852,7 @@ function pickMode(key){ closeModeMenu(); switchMode(key); }
 })();
 
 function toggleSettings() {
+  if(typeof renderUi2Seg==='function') renderUi2Seg();
   const btn=document.getElementById('settingsBtn');
   if(!isDlgOpen('settingsPanel')){ const sp=document.getElementById('settingsPanel'); if(sp) sp.classList.remove('show-all'); ezSync(); }   // かんたん表示は、よく使う設定から（v461）
   const open=isDlgOpen('settingsPanel') ? !closeDlg('settingsPanel') : openDlg('settingsPanel');
@@ -16848,6 +16980,8 @@ function openUndoList(){
 function closeUndoList(){ closeDlg('undoListOverlay'); }
 function openMoreMenu(){
   renderMoreTools(); applyMoreAcc(); renderMenuRecent();   // 最近使った操作（v624）
+  renderMenuNotes();   // 新しい版・バックアップの お知らせ（v639）
+  { const lb=document.getElementById('listBtn'); if(lb){ if(!lb.dataset.h0) lb.dataset.h0=lb.innerHTML; lb.innerHTML=ui2On ? '<span>📂</span>表の一覧' : lb.dataset.h0; } }   // v642
   const tt=document.getElementById('moreTitle'); if(tt) tt.textContent='☰ メニュー';
   ezSync();   // 標準モード／かんたんモードの印（v482）
   {   // 上のバーにある記録名・保存・↶ を写す（v459 から、たたんでいなくても出す）
@@ -17403,7 +17537,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v638';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v640';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -17499,7 +17633,7 @@ function resetAll() {
   document.getElementById('formulaInput').value=data[selR][selC];
   persistModes();
   if(typeof saveSheets==='function') saveSheets();   // 今のシートの内容だけ保存に反映（記録との紐付けは保つ）
-  toast('表の中身を消しました（戻るで元に戻せます）');
+  toast(ui2On ? '表の中身を消しました' : '表の中身を消しました（戻るで元に戻せます）', 0, {undo:ui2On});
 }
 /* シートリセット：ほかのシートを全部消して1枚に戻す（今開いているシートの内容・名前は残す）。
    表の中身は消さない（中身を消したいときは通常の「リセット」を使う）。 */
@@ -17518,6 +17652,10 @@ function resetSheets(){
 /* 新規：全モードのシートを空にして、まっさらな状態から始める（記録との紐付けも解除）。
    保存済みの記録はリストに残る。登録済みのカスタムモード定義は残す（内容だけ新規化）。 */
 function newWorkspace(){
+  if(ui2On){   // 新しい 画面（v642）：いまの 表は 一覧に 残して いるので 聞かない
+    autoRecFlush();
+    if(currentSaveId==null && !isSheetEmpty()) autoRecSave();
+  } else
   if(!confirm('新しく始めますか？\n今のすべての内容（すべての表のかたちのシート）が消えます。\n保存した記録はリストに残ります。')) return;
   for(const k in modeSheets) delete modeSheets[k];
   for(const k in modeStates) delete modeStates[k];
@@ -17536,7 +17674,7 @@ function newWorkspace(){
   persistModes(); saveSheets();
   saveDirty=false; if(typeof updateRecordTitle==='function') updateRecordTitle();
   closeSaveList();
-  toast('新しく始めました');
+  toast(ui2On ? '新しい表にしました（前の表は「表の一覧」に残っています）' : '新しく始めました');
 }
 
 /* ── セル書式（小数点・装飾・色・大きさ）──────────────────── */
@@ -19600,7 +19738,42 @@ function flashSaveBtn(t){
   b.dataset.flash='1'; b.textContent=t;
   setTimeout(()=>{ delete b.dataset.flash; updateSaveBtnLabel(); },1200);
 }
-function markSaveDirty(){ if(!saveDirty){ saveDirty=true; } updateRecordTitle(); }
+function markSaveDirty(){ if(!saveDirty){ saveDirty=true; } updateRecordTitle(); if(typeof autoRecSchedule==='function') autoRecSchedule(); }
+/* ── 段階5（v642）：新しい 画面では「保存」を 考えなくて よい ──
+   変えた 表は 少し 待って（0.9秒）自動で 一覧（記録）に 書く。まだ 一覧に ない 表は Book1・Book2… の 名前で 足す。
+   🔒 ロック した 表・ひな形に 登録した 表は 書きかえない（コピーを 作って もらう）。
+   データの 形は 前と 同じ（excalc_saves）。前の 画面に もどしても そのまま 使える */
+let autoRecTimer=null;
+function autoRecOn(){ return !!ui2On && !isDentaku(); }
+function autoRecSchedule(){ if(!autoRecOn()) return; clearTimeout(autoRecTimer); autoRecTimer=setTimeout(()=>autoRecSave(), 900); }
+function autoRecFlush(){ if(autoRecTimer){ clearTimeout(autoRecTimer); autoRecTimer=null; autoRecSave(); } }
+function autoRecSnap(){
+  const R=Math.max(1,ROWS), C=Math.max(1,COLS);
+  return { timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces, mode:workspaceMode,
+    data:data.slice(0,R).map(row=>row.slice(0,C)), styles:{...cellStyles},   // 表の 大きさ ぶん だけ（1,000×100 を まるごと 書かない）
+    modeSheets:makeAllModesSnap(), curMode:workspaceMode, sheetSet:undefined, sheets:undefined, cur:undefined };
+}
+function autoRecSave(name){
+  autoRecTimer=null;
+  if(!autoRecOn()) return false;
+  const saves=getSaves();
+  let cur=(currentSaveId!=null)?saves.find(s=>s.id===currentSaveId):null;
+  if(cur && (cur.locked || cur.tab===SAVE_TAB_MODE)) return false;   // 書きかえない 表
+  if(!cur){
+    if(!name && isSheetEmpty() && (!Array.isArray(sheets) || sheets.length<=1)) return false;   // 空の 表は 残さない
+    const id=Date.now();
+    cur=Object.assign({ id, name:name||nextBookName(saves), tab:0 }, autoRecSnap());
+    saves.unshift(cur); currentSaveId=id;
+  } else {
+    Object.assign(cur, autoRecSnap());
+    if(name) cur.name=name;
+  }
+  if(!persistSaves(saves)) return false;
+  saveDirty=false; updateRecordTitle();
+  return true;
+}
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') autoRecFlush(); });
+window.addEventListener('pagehide', ()=>autoRecFlush());
 
 /* 保存データを永続化する共通関数。
    localStorage に書くのは従来通り（ブラウザ版・即時の作業用）。
@@ -19852,6 +20025,10 @@ function setSaveItemTab(id, tabStr){
   renderSaveList();
 }
 function showSaveList(){
+  if(typeof autoRecFlush==='function') autoRecFlush();   // v642
+  { const ov=document.getElementById('saveListOverlay');
+    if(ov){ const hd=ov.querySelector('.modal-header > span'); if(hd){ if(!hd.dataset.t0) hd.dataset.t0=hd.textContent; hd.textContent=ui2On ? '表の一覧' : hd.dataset.t0; }
+      const nb=ov.querySelector('.save-new-btn'); if(nb){ if(!nb.dataset.t0) nb.dataset.t0=nb.textContent; nb.textContent=ui2On ? '＋ 新しい表' : nb.dataset.t0; } } }
   renderSaveTabBar();
   renderSaveStateBanner();
   setSaveTab(0);
@@ -21139,6 +21316,7 @@ function duplicateSave(id){
 }
 
 function loadSave(id) {
+  if(typeof autoRecFlush==='function') autoRecFlush();   // いまの 表を 一覧に 書いてから 開く（v642）
   const saves=getSaves();
   const entry=saves.find(s=>s.id===id); if(!entry) return;
   // 確認は出さない（記録を選ぶたびに窓が出ると、探しているだけでも止まってしまうため）。
@@ -21490,16 +21668,192 @@ window.addEventListener('resize', ()=>{
   clearTimeout(cmpTimer);
   cmpTimer=setTimeout(()=>{ if(compactMode==='auto') applyCompact(); }, 200);
 });
+/* ══ 新しい 画面（v640）の 動き ══════════════════════════════════════ */
+function setUi2(on){
+  ui2On=!!on && !window.APP_TECHO && !window.APP_TOOL;
+  try{ localStorage.setItem(UI2_KEY, ui2On?'1':'0'); }catch(_){}
+  applyUi2();
+  toast(ui2On ? '新しい画面にしました（下のタブで 表・電卓・ひな形・道具・メニューを切り替えます）' : '前の画面にもどしました（設定の「画面の形」で いつでも 新しい画面に できます）', 3600);
+}
+function applyUi2(){
+  document.body.classList.toggle('ui2', ui2On);
+  const fi=document.getElementById('formulaInput');
+  if(fi){ if(!fi.dataset.ph0) fi.dataset.ph0=fi.placeholder; fi.placeholder=ui2On ? '数字・文字・式を入れる' : fi.dataset.ph0; }
+  if(typeof applyFbPlace==='function') applyFbPlace();
+  if(typeof applyKeypadLayout==='function') applyKeypadLayout();
+  renderUi2Seg(); uiTopSync(); navSync();
+  try{ window.dispatchEvent(new Event('resize')); }catch(_){}
+}
+function renderUi2Seg(){
+  document.querySelectorAll('#ui2Seg button').forEach(b=>b.classList.toggle('on', (b.dataset.u==='1')===ui2On));
+  const n=document.getElementById('ui2Note');
+  if(n) n.textContent=ui2On ? '下のタブで移動・上のバーに表の名前と ↶ ↷・入力欄はテンキーのすぐ上' : 'v639 までの画面です（☰ メニュー・テンキーの上の段）';
+}
+/* 上の バー：表の 名前と 保存の ようす・↶ ↷ */
+function uiTopSync(){
+  if(!ui2On) return;
+  const nm=document.getElementById('atName'), st=document.getElementById('atState');
+  if(nm){
+    let cur=null; try{ cur=(currentSaveId!=null)?getSaves().find(s=>s.id===currentSaveId):null; }catch(_){}
+    let name=cur ? cur.name : '';
+    if(!name){ try{ name=(sheets && sheets[curSheet] && sheets[curSheet].name) || ''; }catch(_){} }
+    if(isDentaku()) name='電卓';
+    nm.textContent=name || '新しい表';
+    if(st){
+      let info=null; try{ info=saveStateInfo(); }catch(_){}
+      const label = !info ? '' : (cur && cur.locked) ? '🔒 ロック中（自動では残りません）' : (cur && cur.tab===SAVE_TAB_MODE) ? 'ひな形（自動では残りません）'
+        : info.cls==='dirty' ? '保存しています…' : info.cls==='nobackup' ? '✓ 保存済み' : (cur ? '✓ 保存済み' : '✓ 自動で保存');
+      st.textContent=isDentaku() ? 'テープは自動で残ります' : label;
+      st.className=info ? info.cls : '';
+    }
+  }
+  const u=document.getElementById('atUndo'), r=document.getElementById('atRedo');
+  if(u) u.disabled=!(Array.isArray(history) && history.length);
+  if(r) r.disabled=!(Array.isArray(redoHistory) && redoHistory.length);
+}
+function atTitleTap(){
+  if(isDentaku()){ navGo('sheet'); return; }
+  autoRecFlush();
+  const cur=(currentSaveId!=null)?getSaves().find(s=>s.id===currentSaveId):null;
+  const t=document.getElementById('titleMenuName'); if(t) t.textContent=cur ? cur.name : 'いまの表';
+  const n=document.getElementById('titleMenuNote');
+  if(n) n.textContent = cur && cur.locked ? '🔒 ロックした表です。変えた分は自動で残りません（コピーを作ってください）'
+    : cur && cur.tab===SAVE_TAB_MODE ? 'ひな形に登録した表です。変えた分は自動で残りません（コピーを作ってください）'
+    : '変えたところは自動で残ります。保存ボタンはありません';
+  openDlg('titleMenuOverlay');
+}
+function closeTitleMenu(){ closeDlg('titleMenuOverlay'); }
+async function titleRename(){
+  closeTitleMenu();
+  const saves=getSaves(), cur=(currentSaveId!=null)?saves.find(s=>s.id===currentSaveId):null;
+  const v=await appPrompt('表の名前', cur ? cur.name : nextBookName(saves));
+  if(v===null) return;
+  const name=v.trim(); if(!name) return;
+  if(cur && (cur.locked || cur.tab===SAVE_TAB_MODE)){ cur.name=name; persistSaves(saves); updateRecordTitle(); toast('名前を「'+name+'」にしました'); return; }
+  if(autoRecSave(name)) toast('名前を「'+name+'」にしました');
+}
+function titleNew(){ closeTitleMenu(); newWorkspace(); }
+function titleList(){ closeTitleMenu(); showSaveList(); }
+function titleCopy(){
+  closeTitleMenu(); autoRecFlush();
+  const saves=getSaves(), cur=(currentSaveId!=null)?saves.find(s=>s.id===currentSaveId):null;
+  const id=Date.now(), name=cur ? nextCopyName(cur.name, saves) : nextBookName(saves);
+  saves.unshift(Object.assign({ id, name, tab:(cur && [0,1,2].includes(cur.tab||0)) ? (cur.tab||0) : 0 }, autoRecSnap()));
+  if(!persistSaves(saves)) return;
+  currentSaveId=id; saveDirty=false; updateRecordTitle();
+  toast('「'+name+'」を作って開きました（元の表はそのまま）', 3200);
+}
+function atFmtTap(){
+  if(isDentaku()){ toast('書式は表で使えます'); return; }
+  if(numpadHidden){ numpadHidden=false; applyNumpad(); }
+  if(numpadPager) numpadPager.go(numpadPager.current()==='fmt' ? 'num' : 'fmt');
+}
+/* 入力欄の ✓：打って いる ものを 決める（Enter と 同じ。下へは 進まない） */
+function fbOkTap(){
+  const fi=document.getElementById('formulaInput');
+  if(fi && document.activeElement===fi){
+    fi.dispatchEvent(new KeyboardEvent('keydown', {key:'Enter', bubbles:true, cancelable:true}));
+    fi.blur(); return;
+  }
+  eq();
+}
+/* この 表の メニュー（⋮） */
+function openTableMenu(){ const t=document.getElementById('tableMenuTitle'); if(t) t.textContent=(document.getElementById('atName')||{}).textContent||'この表'; openDlg('tableMenuOverlay'); }
+function closeTableMenu(){ closeDlg('tableMenuOverlay'); }
+function tmDo(fn){ closeTableMenu(); try{ fn(); }catch(e){ toast('うまく開けませんでした'); } }
+/* 下の タブ：開いて いる 窓を 閉じてから 移る（閉じた すぐ あとに 開く ので、戻るの 履歴は ずれない） */
+function navCloseAll(){
+  document.querySelectorAll('.modal-overlay.open').forEach(o=>{ try{ closeDlg(o.id); }catch(_){ o.classList.remove('open'); } });
+  if(typeof closeSideApp==='function'){ try{ closeSideApp(); }catch(_){} }
+}
+function navGo(tab){
+  const was=navCurrent();
+  navCloseAll();
+  if(tab==='sheet'){ if(isDentaku()) switchMode((typeof dtPrevMode!=='undefined' && dtPrevMode && dtPrevMode!=='dentaku') ? dtPrevMode : 'normal'); }
+  else if(tab==='calc'){ if(!isDentaku()) switchMode('dentaku'); }
+  else if(tab==='tpl'){ if(was!=='tpl'){ if(isDentaku()) switchMode((typeof dtPrevMode!=='undefined' && dtPrevMode && dtPrevMode!=='dentaku') ? dtPrevMode : 'normal'); openModeMenu(); } }
+  else if(tab==='tools'){ if(was!=='tools') openToolsList(); }
+  else if(tab==='menu'){ if(was!=='menu') openMoreMenu(); }
+  navSync();
+}
+function navCurrent(){
+  const open=id=>isDlgOpen(id);
+  if(open('moreMenuOverlay') || open('settingsPanel') || open('helpOverlay')) return 'menu';
+  if(open('modeMenuOverlay') || open('calcTmplOverlay') || open('finTmplOverlay')) return 'tpl';
+  if(open('toolsListOverlay')) return 'tools';
+  try{ if(NP_TOOLS.some(t=>t.ov && open(t.ov))) return 'tools'; }catch(_){}
+  if(isDentaku()) return 'calc';
+  return 'sheet';
+}
+function navSync(){
+  if(!ui2On) return;
+  const cur=navCurrent();
+  document.querySelectorAll('#appNav button').forEach(b=>{ const on=b.dataset.nav===cur; b.classList.toggle('on', on); if(on) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
+  const mb=document.getElementById('navMenuBtn'); if(mb) mb.classList.toggle('has-note', !!(typeof menuNotes!=='undefined' && menuNotes.length));
+  uiTopSync();
+}
+/* 窓の 開け閉め・モードの 切り替え・元に戻す の たびに タブと 上の バーを 合わせる */
+(function ui2Hooks(){
+  const wrap=(name, after)=>{ const f=window[name]; if(typeof f!=='function') return; window[name]=function(){ const r=f.apply(this, arguments); try{ after(); }catch(_){} return r; }; };
+  ['openDlg','closeDlg','switchMode','updateUndoBtn','updateRedoBtn','updateRecordTitle'].forEach(n=>wrap(n, ()=>{ if(ui2On) requestAnimationFrame(navSync); }));
+  // Σ：短く 押すと 合計、長く 押すと 合計・平均・数式の 窓（テンキーの Σ合計 と 同じ）
+  const b=document.getElementById('fbSum');
+  if(b){
+    let timer=null, longed=false;
+    b.addEventListener('pointerdown', e=>{ longed=false; clearTimeout(timer); timer=setTimeout(()=>{ longed=true; timer=null; try{ openSumFuncMenu(); }catch(_){} }, 500); });
+    const end=()=>{ if(timer){ clearTimeout(timer); timer=null; } };
+    b.addEventListener('pointerup', end); b.addEventListener('pointercancel', end); b.addEventListener('pointerleave', end);
+    b.addEventListener('click', e=>{ if(longed){ longed=false; return; } try{ autoSum(); }catch(_){} });
+    b.addEventListener('mousedown', e=>e.preventDefault());
+  }
+  // ↶ の 長押し：取り消せる 操作の 一覧
+  const u=document.getElementById('atUndo');
+  if(u){ let t=null, lg=false;
+    u.addEventListener('pointerdown', ()=>{ lg=false; clearTimeout(t); t=setTimeout(()=>{ lg=true; t=null; try{ openUndoList(); }catch(_){} }, 450); });
+    ['pointerup','pointercancel','pointerleave'].forEach(ev=>u.addEventListener(ev, ()=>{ if(t){ clearTimeout(t); t=null; } }));
+    u.addEventListener('click', e=>{ if(lg){ lg=false; e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+  }
+})();
+(function bandFollow(){   // v641：表を 送ったら その場の メニューも ついて いく
+  const w=document.querySelector('.sheet-wrap'); if(!w) return;
+  w.addEventListener('scroll', ()=>{ const m=document.getElementById('cellMenu'); if(m && m.classList.contains('ui2-pop') && m.classList.contains('show')) placeEditBar(); }, {passive:true});
+})();
+/* ── iPhone で キーボードを 閉じた あと、画面が 上に ずれた まま 戻らない（iOS の くせ）のを 直す（v639）──
+   iOS は 入力欄を 見せる ために ページごと 上へ 送る。キーボードを 閉じても 戻らない ことが あり、
+   上の バーが 画面の 外に 出たり、押した 場所と ずれたりして「上の ほうが 操作 できない」に なっていた。
+   この アプリは 画面 ぴったりの 作り（ページは 送らない）なので、キーボードが 閉じたら 0 に 戻す */
+(function iosScrollFix(){
+  const isField=el=>!!el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || !!(el && el.isContentEditable);
+  const reset=()=>{
+    if(isField(document.activeElement)) return;   // まだ 打って いる
+    const se=document.scrollingElement||document.documentElement;
+    if(window.scrollY || window.scrollX || se.scrollTop || document.body.scrollTop){ window.scrollTo(0,0); se.scrollTop=0; document.body.scrollTop=0; }
+  };
+  document.addEventListener('focusout', e=>{ if(isField(e.target)) setTimeout(reset, 80); }, true);
+  if(window.visualViewport){
+    let lastH=window.visualViewport.height;
+    window.visualViewport.addEventListener('resize', ()=>{
+      const h=window.visualViewport.height;
+      if(h>lastH+80) setTimeout(reset, 60);      // キーボードが 閉じた（見える 高さが 戻った）
+      lastH=h;
+    });
+  }
+  window.addEventListener('orientationchange', ()=>setTimeout(reset, 350));
+  window.addEventListener('pageshow', reset);
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') setTimeout(reset, 50); });
+})();
 /* 組み上がったので読み込み表示を消す（v385） */
 function splashDone(){
   const el=document.getElementById('appSplash'); if(!el) return;
   el.classList.add('gone');
-  setTimeout(()=>{ if(el.parentNode) el.parentNode.removeChild(el); }, 400);
+  setTimeout(()=>{ if(el.parentNode) el.parentNode.removeChild(el); }, 160);
 }
-requestAnimationFrame(()=>setTimeout(splashDone, 120));
+try{ applyUi2(); }catch(_){}   // 新しい 画面（v640）
+requestAnimationFrame(()=>splashDone());   // v639：前は 組み上がってから 0.12秒 待ち、0.4秒かけて 消していた（打てるまでの 間に なっていた）
 
-/* 更新があったら、下のバーで一度だけ知らせる（v385） */
-if(!window.APP_TECHO && !window.APP_TOOL) setTimeout(()=>{ try{ maybeTellWhatsNew(); }catch(_){} }, 2200);
+/* 新しい版・バックアップの おすすめは、起動の 2〜4秒後に 下の バーで 聞いていた（打ち始めた 手が 止まる）。
+   v639 から ☰ に 赤い 印を 付けて、メニューの いちばん上に 出す。押せば 前と 同じ 窓が 開く */
+if(!window.APP_TECHO && !window.APP_TOOL) setTimeout(()=>{ try{ menuNotesInit(); }catch(_){} }, 1200);
 if(new URLSearchParams(location.search).get('app')==='receipt') setTimeout(()=>{ try{ toast('📷 レシート読み取りは なくなりました。表電卓を開いています', 5000); }catch(_){} }, 1200);   // ホーム画面に足した 📷 のアイコンから来たとき（v564）   // 業務手帳だけのアプリでは表電卓の知らせは出さない
 
 /* はじめて開いた人にだけ、案内を出す（v384）。
@@ -21508,4 +21862,4 @@ if(!tourSeen() && !window.APP_TECHO && !window.APP_TOOL) setTimeout(()=>{ try{ i
 
 /* 起動して落ち着いてから、データの守りとバックアップのおすすめ（v382） */
 setTimeout(()=>{ stInitPersist(); }, 1200);
-setTimeout(()=>{ try{ maybeAskBackup(); }catch(_){} }, 4500);
+// バックアップの おすすめも ☰ の 印へ（v639。menuNotesInit。前は 4.5秒後に 下の バーで 聞いていた）
