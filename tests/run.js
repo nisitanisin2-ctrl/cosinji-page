@@ -20661,7 +20661,13 @@ async function runUi2640(browser) {
   check('  下の タブは 表・電卓・ひな形・道具・メニュー（いまは 表）', await page.evaluate(() => [...document.querySelectorAll('#appNav button')].map(b => b.textContent.trim() + (b.classList.contains('on') ? '*' : '')).join(',')), '表*,電卓,ひな形,道具,メニュー');
   const lay = await page.evaluate(() => { const t = id => document.getElementById(id).getBoundingClientRect(); const fb = document.querySelector('.formula-bar').getBoundingClientRect(); return [t('appTop').top < document.querySelector('.sheet-wrap').getBoundingClientRect().top, fb.bottom <= t('numpadSection').top + 1, t('numpadSection').bottom <= t('appNav').top + 1].join('/'); });
   check('  上から 上のバー・表・入力欄・テンキー・タブ の 順', lay, 'true/true/true');
-  check('  入力欄は ✓ だけ（Σ・＝・マイクは キーの 上の 低い 段へ。v641）', [await vis('fbSum'), await vis('fbEq'), await vis('fbMic'), await vis('fbOk')].join('/'), 'false/false/false/true');
+  check('  入力欄に ボタンは ない（Σ・＝・マイクは キーの 上の 低い 段へ。✓ も なくし 入力欄を 広く。v643）', [await vis('fbSum'), await vis('fbEq'), await vis('fbMic'), await vis('fbOk')].join('/'), 'false/false/false/false');
+  const fbw = await page.evaluate(() => { const g = q => document.querySelector(q).getBoundingClientRect(); const r = g('#cellRef'), f = g('#formulaInput'); return [Math.abs(r.right - f.left) < 1.5, Math.abs(r.top - f.top) < 1.5, f.width > 260].join('/'); });
+  check('  　セル番号と 入力欄は くっついて 1つの 枠・入力欄は 広い', fbw, 'true/true/true');
+  check('  行番号は 細い 列（36px）・いまの 行に 印', await page.evaluate(() => { sel(3, 1); const e = document.getElementById('rh3'); return Math.round(e.getBoundingClientRect().width) + '/' + e.classList.contains('rcur') + '/' + document.getElementById('rh2').classList.contains('rcur'); }), '36/true/false');
+  check('  合計は テンキーの 上の 行（自分のボタンの 所）', await page.evaluate(() => document.getElementById('statsSection').parentNode.id), 'numpadPageBar');
+  check('  あ文字 は ⌨あ', await page.evaluate(() => { const b = document.getElementById('textBtn'); return !!b.querySelector('svg') + '/' + b.textContent.trim(); }), 'true/あ');
+  check('  キーの 角は 丸い（14px）', await page.evaluate(() => getComputedStyle(document.querySelector('#numpadPage1 [data-key="n7"]')).borderTopLeftRadius), '14px');
   const keys = await page.evaluate(() => { const v = [...document.querySelectorAll('#numpadPage1 .btn[data-key]')].filter(b => b.offsetParent && b.getBoundingClientRect().height > 0); return { n: v.length, rows: new Set(v.map(b => Math.round(b.getBoundingClientRect().top))).size, k: v.map(b => b.dataset.key).sort().join(',') }; });
   check('  テンキーは 低い 段＋4段 23個（Σ合計・＝数式・🎤声・±・あ文字 ／ 数・計算の記号・⌫・C・Enter）', keys.n + '/' + keys.rows, '23/5');
   check('  道具・ひな形・戻す・進む・通常は テンキーから 外れる', /tools|mode|u_undo|u_redo|u_normal/.test(keys.k), false);
@@ -20679,8 +20685,8 @@ async function runUi2640(browser) {
   check('  ↷ で やり直す', await page.evaluate(() => data[0][0]), '5');
   // 入力欄の ✓・Σ
   await page.evaluate(() => sel(1, 0)); await w(100);
-  await page.click('#formulaInput'); await page.keyboard.type('りんご'); await page.click('#fbOk'); await w(300);
-  check('  ✓ で 打った 文字を 決める', await page.evaluate(() => data[1][0]), 'りんご');
+  await page.click('#formulaInput'); await page.keyboard.type('りんご'); await page.keyboard.press('Enter'); await w(300);
+  check('  キーボードの Enter で 打った 文字を 決める', await page.evaluate(() => data[1][0]), 'りんご');
   await page.evaluate(() => { setCellVal(0, 1, '100'); setCellVal(1, 1, '250'); recalcAll(); sel(2, 1); }); await w(200);
   await page.click('#autoSumBtn'); await w(500);
   await page.evaluate(() => { if (typeof sumSelectMode !== 'undefined' && sumSelectMode) eq(); }); await w(300);
@@ -20720,8 +20726,8 @@ async function runUi2640(browser) {
   await page.tap('#formulaInput'); await w(700);
   const kbs = () => page.evaluate(() => [document.body.classList.contains('kb-edit'), !!document.getElementById('numpadSection').offsetParent, !!document.getElementById('appNav').offsetParent].join('/'));
   check('  入力欄を 押すと キーボードの 間 テンキーと タブを 隠す', await kbs(), 'true/false/false');
-  await page.keyboard.type('ぶどう'); await page.click('#fbOk'); await w(500);
-  check('  ✓ で 決めると テンキーと タブが 戻る', await kbs() + '/' + await page.evaluate(() => data[5][0]), 'false/true/true/ぶどう');
+  await page.keyboard.type('ぶどう'); await page.keyboard.press('Enter'); await w(500);
+  check('  Enter で 決めると テンキーと タブが 戻る', await kbs() + '/' + await page.evaluate(() => data[5][0]), 'false/true/true/ぶどう');
   await page.evaluate(() => sel(6, 0)); await w(200);
   await page.tap('#textBtn'); await w(800);
   check('  あ文字 でも 隠す（入力欄に 入る）', await kbs() + '/' + await page.evaluate(() => document.activeElement.id), 'true/false/false/formulaInput');
