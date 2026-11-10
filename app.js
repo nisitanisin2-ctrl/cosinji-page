@@ -8242,7 +8242,7 @@ function openDlg(id, cleanup){
   el.classList.add('open');
   el.querySelectorAll(':scope > .tool-hint').forEach(h=>h.remove());   // 戻るで閉じたときの残り
   let tool=null;
-  try{ tool=NP_TOOLS.find(x=>x.ov===id)||null; if(tool){ noteRecentTool(tool.id); addToolBack(tool, el); showToolHint(tool.id, el); } }catch(_){}   // さいきん使った道具（ホームに出す。v459）・はじめての吹き出し（v460）
+  try{ tool=NP_TOOLS.find(x=>x.ov===id)||null; if(tool){ noteRecentTool(tool.id); addToolBack(tool, el); showToolHint(tool.id, el); el.classList.add('np-tool-ov'); el.classList.toggle('tool-fs', toolFsOn()); } }catch(_){}   // さいきん使った道具（ホームに出す。v459）・はじめての吹き出し（v460）
   const fn=()=>{ el.classList.remove('open'); if(cleanup) cleanup(); };
   fn.dlgId=id; fn.tool=tool;   // どの画面の分か・道具か（道具なら 表電卓に戻る前に 聞く。v553）
   armBackGuard(fn);
@@ -18083,7 +18083,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v648';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v649';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -22237,7 +22237,22 @@ function applyUi2(){
   if(typeof applySysBar==='function') requestAnimationFrame(applySysBar);   // 時計の帯・戻るボタンの 所の 色（v642）
   try{ window.dispatchEvent(new Event('resize')); }catch(_){}
 }
+/* ── 道具の 出し方（v649）──
+   新しい 画面では 窓が 下の タブの 上で 止まるので、道具が 全画面で なく なって いた。
+   はじめは 全画面（前の 画面と 同じ。タブは 道具を 開いて いる 間 隠す）。設定で「下のタブを残す」にも できる */
+const TOOL_FS_KEY='excalc_tool_fs';
+function toolFsOn(){ try{ return localStorage.getItem(TOOL_FS_KEY)!=='0'; }catch(_){ return true; } }
+function toolFsSync(){
+  document.querySelectorAll('.modal-overlay.np-tool-ov').forEach(o=>o.classList.toggle('tool-fs', toolFsOn()));
+  document.body.classList.toggle('tool-fs-open', !!document.querySelector('.modal-overlay.open.tool-fs'));
+}
+function setToolFs(on){
+  try{ localStorage.setItem(TOOL_FS_KEY, on ? '1' : '0'); }catch(_){}
+  toolFsSync(); renderUi2Seg();
+  toast(on ? '道具を全画面で開きます' : '道具を開いても下のタブを残します');
+}
 function renderUi2Seg(){
+  document.querySelectorAll('#toolFsSeg button').forEach(b=>{ const on=(b.dataset.t==='1')===toolFsOn(); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
   document.querySelectorAll('#ui2Seg button').forEach(b=>b.classList.toggle('on', (b.dataset.u==='1')===ui2On));
   const n=document.getElementById('ui2Note');
   if(n) n.textContent=ui2On ? '下のタブで移動・上のバーに表の名前と ↶ ↷・入力欄はテンキーのすぐ上' : 'v639 までの画面です（☰ メニュー・テンキーの上の段）';
@@ -22349,7 +22364,7 @@ function navSync(){
 /* 窓の 開け閉め・モードの 切り替え・元に戻す の たびに タブと 上の バーを 合わせる */
 (function ui2Hooks(){
   const wrap=(name, after)=>{ const f=window[name]; if(typeof f!=='function') return; window[name]=function(){ const r=f.apply(this, arguments); try{ after(); }catch(_){} return r; }; };
-  ['openDlg','closeDlg','switchMode','updateUndoBtn','updateRedoBtn','updateRecordTitle'].forEach(n=>wrap(n, ()=>{ if(ui2On) requestAnimationFrame(navSync); }));
+  ['openDlg','closeDlg','switchMode','updateUndoBtn','updateRedoBtn','updateRecordTitle'].forEach(n=>wrap(n, ()=>{ if(ui2On) requestAnimationFrame(navSync); requestAnimationFrame(toolFsSync); }));
   // Σ：短く 押すと 合計、長く 押すと 合計・平均・数式の 窓（テンキーの Σ合計 と 同じ）
   const b=document.getElementById('fbSum');
   if(b){

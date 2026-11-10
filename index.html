@@ -2503,19 +2503,19 @@ body.ui2 .app-nav {
 .app-nav button.has-note::after { content: ''; position: absolute; top: 5px; left: calc(50% + 10px); width: 9px; height: 9px; border-radius: 50%; background: #ff7a2f; box-shadow: 0 0 0 2px var(--modal-bg, #fff); }
 body.ui2 .numpad-section { padding-bottom: var(--np-bottom, 3px); }   /* ホームの バーは 下の タブが よける */
 /* 窓は タブの 上まで（タブは いつも 押せる） */
-body.ui2 .modal-overlay { top: var(--nav-top, 0px); bottom: var(--nav-h); padding-bottom: 0; }
-body.ui2 .modal.modal-full { padding-bottom: 0; }
+body.ui2 .modal-overlay:not(.tool-fs) { top: var(--nav-top, 0px); bottom: var(--nav-h); padding-bottom: 0; }
+body.ui2 .modal-overlay:not(.tool-fs) > .modal.modal-full { padding-bottom: 0; }
 body.ui2.calc-only .app-nav, html.app-tool body.ui2 .app-nav, html.app-techo body.ui2 .app-nav { display: none; }
 body.ui2.calc-only .modal-overlay, html.app-tool body.ui2 .modal-overlay, html.app-techo body.ui2 .modal-overlay { bottom: 0; }
 
 /* ══ 段階4（v641）：出かたを 3種類に そろえる（新しい 画面）══
    ページ（メニュー・ひな形・道具は タブの 上いっぱい）・下からの シート（ほかの 窓）・その場の メニュー（セルの そば） */
-body.ui2 .modal-overlay { align-items: flex-end; }
-body.ui2 .modal-overlay > .modal:not(.modal-full) {
+body.ui2 .modal-overlay:not(.tool-fs) { align-items: flex-end; }
+body.ui2 .modal-overlay:not(.tool-fs) > .modal:not(.modal-full) {
   width: 100%; max-width: 640px; max-height: 88%; border-radius: 18px 18px 0 0;
   box-shadow: 0 -8px 28px rgba(0,0,0,.22);
 }
-body.ui2 .modal-overlay > .modal:not(.modal-full) > .modal-header { border-radius: 18px 18px 0 0; }
+body.ui2 .modal-overlay:not(.tool-fs) > .modal:not(.modal-full) > .modal-header { border-radius: 18px 18px 0 0; }
 body.ui2 #moreMenuOverlay > .modal, body.ui2 #modeMenuOverlay > .modal, body.ui2 #toolsListOverlay > .modal, body.ui2 #settingsPanel > .modal {
   max-width: none; height: 100%; max-height: 100%; border-radius: 0;
 }
@@ -2523,14 +2523,14 @@ body.ui2 #moreMenuOverlay > .modal > .modal-header, body.ui2 #modeMenuOverlay > 
 body.ui2 #toolsListOverlay > .modal > .modal-header, body.ui2 #settingsPanel > .modal > .modal-header { border-radius: 0; padding-top: calc(12px + var(--safe-top)); }
 body.ui2 #moreMenuOverlay, body.ui2 #modeMenuOverlay, body.ui2 #toolsListOverlay, body.ui2 #settingsPanel { padding: 0 var(--safe-right) 0 var(--safe-left); background: var(--modal-bg); }
 /* 下からの シートは 時計の 帯・切りかきの 下まで（高い 窓でも 上に はみ出さない） */
-body.ui2 .modal-overlay > .modal:not(.modal-full) { max-height: 100% !important; }
-body.ui2 .modal-overlay > .modal:not(.modal-full).ui2-tall { height: 100% !important; }
+body.ui2 .modal-overlay:not(.tool-fs) > .modal:not(.modal-full) { max-height: 100% !important; }
+body.ui2 .modal-overlay:not(.tool-fs) > .modal:not(.modal-full).ui2-tall { height: 100% !important; }
 @media (min-width: 700px) {
   body.ui2 #moreMenuOverlay > .modal, body.ui2 #modeMenuOverlay > .modal, body.ui2 #toolsListOverlay > .modal, body.ui2 #settingsPanel > .modal { max-width: 760px; margin: 0 auto; }
   body.ui2 #moreMenuOverlay, body.ui2 #modeMenuOverlay, body.ui2 #toolsListOverlay, body.ui2 #settingsPanel { background: rgba(0,0,0,.35); justify-content: center; }
 }
 @media (prefers-reduced-motion: no-preference) {
-  body.ui2 .modal-overlay.open > .modal:not(.modal-full) { animation: uiSheetUp .18s ease-out; }
+  body.ui2 .modal-overlay.open:not(.tool-fs) > .modal:not(.modal-full) { animation: uiSheetUp .18s ease-out; }
   @keyframes uiSheetUp { from { transform: translateY(24px); opacity: .6; } }
 }
 /* その場の メニュー（帯を セルの そばに） */
@@ -2673,6 +2673,13 @@ body.ui2.np-side #numpadPage1 .fx-row .btn { height: auto; }
 @media (orientation: landscape) and (max-height: 500px) { body.ui2 #numpadPage1 .fx-row .btn { height: auto; } }
 /* 数式の 中で なぞって いる 間、表が 動かないように */
 body.ui2 .formula-bar #formulaInput { caret-color: var(--acc); }
+
+/* ══ v649：道具は 全画面（設定で 下のタブを 残せる）══ */
+body.ui2.tool-fs-open .app-nav { visibility: hidden; }   /* 道具の 窓の 下に 隠れる（並びは 変えない） */
+body.ui2 .modal-overlay.tool-fs { top: 0; bottom: 0; }
+.ui2-only-blk { display: none; }
+body.ui2 .ui2-only-blk { display: block; }
+body.ui2 .skin-seg.ui2-only-blk { display: flex; }
 /* 背の 低い 画面（iPhone SE など）は キーを 少し 低く して 表を 広く */
 @media (max-height: 720px) {
   body.ui2 #numpadPage1 .btn { padding-top: calc(8px * var(--key-scale, 1.3)); padding-bottom: calc(8px * var(--key-scale, 1.3)); }
@@ -2732,9 +2739,9 @@ body.ui2.np-side .app-nav { grid-area: nav; }
   .modal-overlay:has(> .modal.modal-full) { padding: 0; }
   /* 全画面の 窓の いちばん下（入れる欄・ボタン）が ホームの バーに かからないように */
   .modal.modal-full { padding-bottom: var(--safe-bottom); }
-  body.ui2 .modal.modal-full { padding-bottom: 0; }   /* 新しい 画面は 下の タブが よける（v640） */
+  body.ui2 .modal-overlay:not(.tool-fs) > .modal.modal-full { padding-bottom: 0; }   /* 新しい 画面は 下の タブが よける（v640） */
 }
-body.ui2 .modal-overlay { padding-bottom: 0; }
+body.ui2 .modal-overlay:not(.tool-fs) { padding-bottom: 0; }
 
 /* ダイアログ見出しの「🗑削除」（✕の左） */
 .modal-del {
@@ -4786,6 +4793,9 @@ body.dark {
       <div class="set-ui2-t">画面の形</div>
       <div class="skin-seg" id="ui2Seg"><button class="skin-seg-btn" data-u="1" onclick="setUi2(true)">新しい画面</button><button class="skin-seg-btn" data-u="0" onclick="setUi2(false)">前の画面</button></div>
       <div class="set-ui2-note" id="ui2Note"></div>
+      <div class="set-ui2-t ui2-only-blk" style="margin-top:10px">道具の出し方</div>
+      <div class="skin-seg ui2-only-blk" id="toolFsSeg"><button class="skin-seg-btn" data-t="1" onclick="setToolFs(true)">全画面</button><button class="skin-seg-btn" data-t="0" onclick="setToolFs(false)">下のタブを残す</button></div>
+      <div class="set-ui2-note ui2-only-blk">全画面は、道具を開いている間は下のタブを隠します（もどるで表に戻ります）。</div>
     </div>
     <div class="ez-only">
       <div class="set-note ez-note" id="ezNote"><b>かんたんモード</b>です。よく使う設定だけを出しています。<br>標準モードにするときは <b>☰ メニューのいちばん上</b>で切りかえます。</div>
