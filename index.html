@@ -269,7 +269,7 @@ body.skin-keys .numpad-overlay {
   padding: 22px 20px 16px; display: flex; flex-direction: column; gap: 14px;
 }
 .tour-skip {
-  position: absolute; top: calc(12px + var(--safe-top)); right: 14px;
+  position: absolute; top: calc(12px + var(--safe-top)); right: calc(14px + var(--safe-right));   /* v639：横向きの 切りかきを よける */
   padding: 8px 14px; border-radius: var(--r-pill); border: none;
   background: rgba(255,255,255,.22); color: #fff; font-size: 13px; font-weight: bold;
   cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
@@ -2412,8 +2412,19 @@ body.compact .modal.modal-full .modal-body { padding: 9px 10px calc(12px + var(-
   padding-left: calc(16px + var(--safe-left));
   padding-right: calc(16px + var(--safe-right));
 }
-@media (min-width: 700px) {   /* パソコンなど広い画面では真ん中に浮くので、避ける必要がない */
+@media (min-width: 700px) {   /* パソコンなど広い画面では真ん中に浮く。切りかき・時計の帯は 下の .modal-overlay の 余白で よける（v639） */
   .modal.modal-full > .modal-header { padding: 12px 16px; }
+}
+/* ── iPhone・iPad の 切りかき・時計の帯・ホームのバーに 窓が かからないように（v639）──
+   前は 広い画面（大きい iPhone の 横向き・iPad。幅 700px 以上）で、真ん中に 浮く 全画面の 窓が
+   時計の帯や 切りかきの 下まで 広がり、上の「もどる」「✕」が 押しにくく なっていた。
+   窓を 出す 地（.modal-overlay）に 安全な 余白を 付け、窓は その 内側に 出す。
+   狭い 画面の 全画面の 窓は、見出しが 自分で よけるので 地の 余白は 付けない */
+.modal-overlay { padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left); }
+@media (max-width: 699.98px) {
+  .modal-overlay:has(> .modal.modal-full) { padding: 0; }
+  /* 全画面の 窓の いちばん下（入れる欄・ボタン）が ホームの バーに かからないように */
+  .modal.modal-full { padding-bottom: var(--safe-bottom); }
 }
 
 /* ダイアログ見出しの「🗑削除」（✕の左） */

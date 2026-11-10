@@ -21561,6 +21561,30 @@ window.addEventListener('resize', ()=>{
   clearTimeout(cmpTimer);
   cmpTimer=setTimeout(()=>{ if(compactMode==='auto') applyCompact(); }, 200);
 });
+/* ── iPhone で キーボードを 閉じた あと、画面が 上に ずれた まま 戻らない（iOS の くせ）のを 直す（v639）──
+   iOS は 入力欄を 見せる ために ページごと 上へ 送る。キーボードを 閉じても 戻らない ことが あり、
+   上の バーが 画面の 外に 出たり、押した 場所と ずれたりして「上の ほうが 操作 できない」に なっていた。
+   この アプリは 画面 ぴったりの 作り（ページは 送らない）なので、キーボードが 閉じたら 0 に 戻す */
+(function iosScrollFix(){
+  const isField=el=>!!el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || !!(el && el.isContentEditable);
+  const reset=()=>{
+    if(isField(document.activeElement)) return;   // まだ 打って いる
+    const se=document.scrollingElement||document.documentElement;
+    if(window.scrollY || window.scrollX || se.scrollTop || document.body.scrollTop){ window.scrollTo(0,0); se.scrollTop=0; document.body.scrollTop=0; }
+  };
+  document.addEventListener('focusout', e=>{ if(isField(e.target)) setTimeout(reset, 80); }, true);
+  if(window.visualViewport){
+    let lastH=window.visualViewport.height;
+    window.visualViewport.addEventListener('resize', ()=>{
+      const h=window.visualViewport.height;
+      if(h>lastH+80) setTimeout(reset, 60);      // キーボードが 閉じた（見える 高さが 戻った）
+      lastH=h;
+    });
+  }
+  window.addEventListener('orientationchange', ()=>setTimeout(reset, 350));
+  window.addEventListener('pageshow', reset);
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') setTimeout(reset, 50); });
+})();
 /* 組み上がったので読み込み表示を消す（v385） */
 function splashDone(){
   const el=document.getElementById('appSplash'); if(!el) return;

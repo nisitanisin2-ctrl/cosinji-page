@@ -20610,9 +20610,39 @@ async function runQuick639(browser) {
   await page.evaluate(() => { openMoreMenu(); toast('窓の 中'); }); await w(300);
   check('  窓を 開いて いる ときは いままで どおり 下', await page.evaluate(() => document.getElementById('appToast').style.bottom), '');
   await page.evaluate(() => closeMoreMenu()); await w(200);
+  // iPhone で キーボードを 閉じた あと、画面が 上に ずれた ままに ならない
+  await page.evaluate(() => { document.body.style.height = '3000px'; document.body.style.overflow = 'visible'; document.documentElement.style.overflow = 'auto'; window.scrollTo(0, 400); });
+  await w(100);
+  const sy0 = await page.evaluate(() => window.scrollY);
+  await page.evaluate(() => { const fi = document.getElementById('formulaInput'); fi.focus(); fi.blur(); }); await w(300);
+  check('  キーボードを 閉じたら ずれた 画面を 0 に 戻す（iOS の くせ）', sy0 > 0 && await page.evaluate(() => window.scrollY), 0);
+  await page.evaluate(() => { document.body.style.height = ''; document.body.style.overflow = ''; document.documentElement.style.overflow = ''; });
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();
+  // iPhone・iPad の 切りかき・時計の 帯に「もどる」「✕」が かからない（ほんとうの 余白を まねて 調べる）
+  for (const [name, vp, ins] of [['iPhone 縦', { width: 393, height: 852 }, [59, 34, 0, 0]], ['iPhone 横', { width: 852, height: 393 }, [0, 21, 59, 59]], ['iPad', { width: 820, height: 1180 }, [24, 20, 0, 0]]]) {
+    const c2 = await browser.newContext({ viewport: vp, hasTouch: true, isMobile: true });
+    const p2 = await c2.newPage();
+    const cdp = await c2.newCDPSession(p2);
+    let ok = true;
+    try { await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: ins[0], topMax: ins[0], bottom: ins[1], bottomMax: ins[1], left: ins[2], leftMax: ins[2], right: ins[3], rightMax: ins[3] } }); } catch (e) { ok = false; }
+    if (!ok) { console.log('     （この ブラウザでは 余白を まねられないので とばす）'); await c2.close(); break; }
+    await p2.goto(INDEX); await p2.waitForTimeout(500);
+    await p2.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); });
+    await p2.reload(); await p2.waitForTimeout(1200);
+    const bad = await p2.evaluate(async ins => {
+      const out = [], W = innerWidth, H = innerHeight;
+      const look = id => { document.querySelectorAll('#' + id + ' .modal-header button, #' + id + ' .hdr-back, #' + id + ' .modal-close').forEach(e => { const r = e.getBoundingClientRect(); if (!r.width) return;
+        if (r.top < ins[0] - 1 || r.left < ins[2] - 1 || r.right > W - ins[3] + 1) out.push(id + ':' + (e.textContent || '').trim().slice(0, 6)); }); };
+      for (const id of ['shimai', 'tansui', 'koyomi', 'regi']) { const t = NP_TOOLS.find(x => x.id === id); if (!t) continue; t.run(); await new Promise(r => setTimeout(r, 500)); look(t.ov); closeDlg(t.ov); await new Promise(r => setTimeout(r, 200)); }
+      for (const f of ['openMoreMenu', 'toggleSettings', 'openToolsList', 'openModeMenu']) { window[f](); await new Promise(r => setTimeout(r, 400)); const o = document.querySelector('.modal-overlay.open'); if (o) { look(o.id); closeDlg(o.id); } await new Promise(r => setTimeout(r, 200)); }
+      const fb = document.getElementById('fbMenu').getBoundingClientRect(); if (fb.top < ins[0] - 1 || fb.left < ins[2] - 1) out.push('表の ☰');
+      return out.join(' / ');
+    }, ins);
+    check('  ' + name + '：上の「もどる」「✕」「☰」が 切りかき・時計の 帯に かからない', bad, '');
+    await c2.close();
+  }
 }
 
 /* v637：ひな形の 一覧を 1つに（用途ごと・同じ カード・さがす・最近つかった）・ひな形の 表の 色を 一覧表と そろえる・答えは 入れるまで 空 */
