@@ -20782,6 +20782,22 @@ async function runUi2640(browser) {
       const m = JSON.parse(fs.readFileSync(f, 'utf8')); if (m.theme_color !== c || m.background_color !== c) return true;
       const x = { ...m, theme_color: base.theme_color, background_color: base.background_color }; return JSON.stringify(x) !== JSON.stringify(base); });
     check('  　色ちがいの manifest は ぜんぶ あり、色の ほかは manifest.json と 同じ', bad.join(','), ''); }
+  // 範囲を 選んで ⌫・CE で まとめて 消す（v646）
+  await page.evaluate(() => { for (let r = 10; r < 13; r++) for (let c = 0; c < 3; c++) setCellVal(r, c, String(r * 10 + c)); recalcAll(); sel(10, 0); extendRange(11, 1); }); await w(200);
+  await page.click('#numpadPage1 [data-key="bs"]'); await w(300);
+  check('  範囲を 選んで ⌫ で 範囲の 中身だけ 消える', await page.evaluate(() => [data[10][0], data[10][1], data[11][0], data[11][1], data[10][2], data[12][0]].join(',')), ',,,,102,120');
+  await page.evaluate(() => undoLast()); await w(300);
+  check('  　元に戻す で 戻る', await page.evaluate(() => [data[10][0], data[11][1]].join(',')), '100,111');
+  await page.evaluate(() => { clearRangeSelection(); sel(10, 0); extendRange(12, 2); }); await w(200);
+  await page.click('#numpadPage1 [data-key="ce"]'); await w(300);
+  check('  　CE でも 範囲を 消す', await page.evaluate(() => [10, 11, 12].every(r => [0, 1, 2].every(c => data[r][c] === ''))), true);
+  await page.evaluate(() => { undoLast(); clearRangeSelection(); sel(12, 2); }); await w(300);
+  await page.click('#numpadPage1 [data-key="bs"]'); await w(200);
+  check('  　1つの セルの ときは ⌫ は ふつう（打って いる 数字を 1字 消す）', await page.evaluate(() => data[12][2]), '122');
+  await page.evaluate(() => { ac(); hdrClick('col', 2); }); await w(300);
+  await page.click('#numpadPage1 [data-key="bs"]'); await w(300);
+  check('  　列名で 選んだ 列も ⌫ で 消える', await page.evaluate(() => [data[10][2], data[12][2], data[10][1]].join(',')), ',,101');
+  await page.evaluate(() => { undoLast(); hdrMultiClear(); sel(0, 0); }); await w(300);
   // セルの バーの 置き場所（v641）：新しい 画面でも 設定の「表の上」が 効く
   const fbAt = () => page.evaluate(() => { const f = document.querySelector('.formula-bar').getBoundingClientRect(), sw = document.querySelector('.sheet-wrap').getBoundingClientRect(); return (f.top < sw.top ? 'top' : 'pad') + '/' + [...document.querySelectorAll('#fbPlaceSeg button')].filter(x => x.classList.contains('on')).map(x => x.dataset.fb).join(''); });
   await page.evaluate(() => renderFbPlace()); await w(100);

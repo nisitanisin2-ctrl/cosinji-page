@@ -2504,9 +2504,31 @@ function cellMenuAct(a){
   else if(a==='hp'){ hpRun('menu'); }   // 📊 グラフ・🎨 条件で色・🔎 しぼり込み・☑ チェック欄・📑 まとめ表（v563）
 }
 /* 選択セル（範囲があれば範囲全体）の値を消去（枠線・書式は残す） */
-function clearSelection(){
+/* 範囲を 選んで いる とき（2つ 以上の セル・列名や 行番号で 選んだ 列・行）の セルの 一覧（v646）。1つ だけ なら null */
+function selBlockCells(){
   const cells=[];
-  if(rangeR1>=0){
+  if(rangeR1>=0 && (rangeR1!==rangeR2 || rangeC1!==rangeC2)){
+    const r1=Math.min(rangeR1,rangeR2), r2=Math.max(rangeR1,rangeR2), c1=Math.min(rangeC1,rangeC2), c2=Math.max(rangeC1,rangeC2);
+    for(let r=r1;r<=r2;r++){ if(hpHidRow(r)) continue; for(let c=c1;c<=c2;c++) cells.push([r,c]); }
+  } else if(typeof hdrMulti!=='undefined' && hdrMulti && hdrMulti.kind==='col'){
+    hdrMulti.set.forEach(c=>{ for(let r=0;r<ROWS;r++){ if(!hpHidRow(r)) cells.push([r,c]); } });
+  } else if((typeof hdrMulti!=='undefined' && hdrMulti && hdrMulti.kind==='row') || selRow>=0){
+    const rows = (hdrMulti && hdrMulti.kind==='row') ? [...hdrMulti.set] : [selRow];
+    rows.forEach(r=>{ for(let c=0;c<COLS;c++) cells.push([r,c]); });
+  } else return null;
+  return cells;
+}
+/* ⌫・CE・Delete：範囲を 選んで いれば、その 範囲の 中身を まとめて 消す（v646。元に戻す で 戻せる） */
+function clearBlockIfAny(){
+  if(isDentaku() || formulaEditMode || cellEditing) return false;
+  const cells=selBlockCells(); if(!cells) return false;
+  clearSelection(cells);
+  return true;
+}
+function clearSelection(given){
+  const cells=Array.isArray(given) ? given.slice() : [];   // given＝消す セルの 一覧（⌫・CE から。v646）
+  if(Array.isArray(given)){ /* そのまま */ }
+  else if(rangeR1>=0){
     const r1=Math.min(rangeR1,rangeR2), r2=Math.max(rangeR1,rangeR2);
     const c1=Math.min(rangeC1,rangeC2), c2=Math.max(rangeC1,rangeC2);
     for(let r=r1;r<=r2;r++){ if(hpHidRow(r)) continue; for(let c=c1;c<=c2;c++) cells.push([r,c]); }   // しぼり込みで隠した行は消さない（v563）
@@ -2516,6 +2538,7 @@ function clearSelection(){
   if(!entries.length) return;
   pushHistory(entries, entries.length>1?'まとめて消去':'消去');
   if(ui2On) toast(entries.length>1 ? entries.length+'個のセルを消しました' : '消しました', 0, {undo:true});   // v641
+  else if(Array.isArray(given)) toast(entries.length+'個のセルを消しました（↶ で戻せます）');
   entries.forEach(({r,c})=>{ data[r][c]=''; const el=document.getElementById(`c${r}_${c}`); if(el) setCellDisp(el, r,c); });
   recalcAll(); if(isStructMode()) recalcMode();
   document.getElementById('formulaInput').value=cellEditString(selR,selC);
@@ -12560,12 +12583,14 @@ function ac() {
   disp_val='0'; op1=null; cur_op=null; waiting=false;
 }
 function ce() {
+  if (clearBlockIfAny()) return;   // 範囲を 選んで いれば その 中身を 消す（v646）
   if (isDentaku()) { if(dtStyle==='expr') dtExpr=''; disp_val=''; dtRender(); return; }
   if (formulaEditMode) { document.getElementById('formulaInput').value='='; refreshDisp(); return; }
   if (editBlocked()) return;
   cellEditing=true; disp_val=''; refreshDisp();
 }
 function bs() {
+  if (clearBlockIfAny()) return;   // 範囲を 選んで いれば その 中身を 消す（v646）
   if (isDentaku() && dtStyle==='expr') { dtExpr=dtExpr.slice(0,-1); dtRender(); return; }
   if (formulaEditMode) {
     const fi=document.getElementById('formulaInput');
@@ -14185,7 +14210,7 @@ document.addEventListener('keydown', e=>{
   else if (k==='Enter') { e.preventDefault(); eq(); }
   else if (k==='Backspace') { e.preventDefault(); bs(); }
   else if (k==='Escape') { e.preventDefault(); ac(); clearRangeSelection(); clearCopySrc(); }
-  else if (k==='Delete') { e.preventDefault(); setCellVal(selR,selC,''); ac(); }
+  else if (k==='Delete') { e.preventDefault(); if(!clearBlockIfAny()){ setCellVal(selR,selC,''); ac(); } }
   else if (k==='ArrowRight') {
     e.preventDefault();
     if (e.shiftKey&&selC<COLS-1) { extendRange(selR, rangeR1>=0?Math.min(rangeC2+1,COLS-1):selC+1); }
@@ -17640,7 +17665,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v645';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v646';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
