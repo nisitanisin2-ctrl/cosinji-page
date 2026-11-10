@@ -20747,6 +20747,14 @@ async function runUi2640(browser) {
   check('  開き直しても 前の 画面', await page.evaluate(() => document.body.classList.contains('ui2')), false);
   await page.evaluate(() => setUi2(true)); await w(500);
   check('  新しい 画面に 戻せる', [await vis('appTop'), await vis('appNav')].join('/'), 'true/true');
+  // セルの バーの 置き場所（v641）：新しい 画面でも 設定の「表の上」が 効く
+  const fbAt = () => page.evaluate(() => { const f = document.querySelector('.formula-bar').getBoundingClientRect(), sw = document.querySelector('.sheet-wrap').getBoundingClientRect(); return (f.top < sw.top ? 'top' : 'pad') + '/' + [...document.querySelectorAll('#fbPlaceSeg button')].filter(x => x.classList.contains('on')).map(x => x.dataset.fb).join(''); });
+  await page.evaluate(() => renderFbPlace()); await w(100);
+  check('  セルの バー：選んで いなければ テンキーの 真上（設定の 印も）', await fbAt(), 'pad/pad');
+  await page.evaluate(() => setFbPlace('top')); await w(400);
+  check('  　設定で「表の上」に できる', await fbAt(), 'top/top');
+  await page.evaluate(() => setFbPlace('pad')); await w(400);
+  check('  　「テンキーの真上」に 戻せる', await fbAt(), 'pad/pad');
   // 横向き（v641）：上の バーと タブを 1段に（表と テンキーを 広く）
   await page.setViewportSize({ width: 840, height: 380 }); await w(700);
   const ld = await page.evaluate(() => { const g = q => document.querySelector(q).getBoundingClientRect(); const t = g('#appTop'), n = g('#appNav'), np = g('#numpadSection'), sw = g('.sheet-wrap');

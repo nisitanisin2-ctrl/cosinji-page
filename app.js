@@ -6126,16 +6126,18 @@ window.addEventListener('resize', ()=>applyNpPlace());   // 最初の1回は起�
    テンキーが 下に あるときだけ 効く（右に 出すとき・スマホの 横向きは 表の上の まま） */
 const FB_PLACE_KEY='excalc_fb_place';
 const FB_PLACES=[{id:'top',n:'表の上'},{id:'pad',n:'テンキーの真上'}];
-let fbPlace='top';
-try{ if(localStorage.getItem(FB_PLACE_KEY)==='pad') fbPlace='pad'; }catch(_){}
+let fbPlace='top', fbPlaceSet=false;   // fbPlaceSet＝自分で 選んだ か（v641）
+try{ const v=localStorage.getItem(FB_PLACE_KEY); if(v==='pad'||v==='top'){ fbPlace=v; fbPlaceSet=true; } }catch(_){}
+/* 新しい 画面は、選んで いなければ テンキーの 真上。設定で「表の上」を 選べば 表の上（v641。前は 新しい 画面で 設定が 効かなかった） */
+function fbPlaceNow(){ return fbPlaceSet ? fbPlace : (ui2On ? 'pad' : 'top'); }
 function applyFbPlace(){
-  document.body.classList.toggle('fb-low', fbPlace==='pad' || ui2On);   // 新しい 画面は いつも テンキーの 真上（v640）
+  document.body.classList.toggle('fb-low', fbPlaceNow()==='pad');
   renderFbPlace();
   requestAnimationFrame(()=>{ if(typeof placeEditBar==='function') placeEditBar(); if(typeof autoFitSheet==='function') autoFitSheet(); });
 }
 function setFbPlace(v){
   if(!FB_PLACES.some(m=>m.id===v)) return;
-  fbPlace=v; try{ localStorage.setItem(FB_PLACE_KEY, v); }catch(_){}
+  fbPlace=v; fbPlaceSet=true; try{ localStorage.setItem(FB_PLACE_KEY, v); }catch(_){}
   applyFbPlace();
   toast(v==='pad' ? (document.body.classList.contains('np-side') ? 'テンキーを右に出している間は、セルのバーは表の上のままです' : 'セルのバーを テンキーの真上に 出します') : 'セルのバーを 表の上に 出します');
 }
@@ -6144,7 +6146,7 @@ function renderFbPlace(){
   if(seg.children.length!==FB_PLACES.length){
     seg.innerHTML=FB_PLACES.map(m=>'<button class="skin-seg-btn" data-fb="'+m.id+'" onclick="setFbPlace(\''+m.id+'\')">'+m.n+'</button>').join('');
   }
-  Array.from(seg.children).forEach(el=>{ const on=el.dataset.fb===fbPlace; el.classList.toggle('on', on); el.setAttribute('aria-pressed', String(on)); });
+  Array.from(seg.children).forEach(el=>{ const on=el.dataset.fb===fbPlaceNow(); el.classList.toggle('on', on); el.setAttribute('aria-pressed', String(on)); });
 }
 /* ── 合計の 置き場所（v628）──
    pad＝テンキーの上の行（書式・枠線／数字／電卓 の 並びの 右。前の「▲ 自分のボタン」の 所）／bar＝セルのバー（入力欄の 右。これまで）。
