@@ -2422,7 +2422,7 @@ body.compact .modal.modal-full .modal-body { padding: 9px 10px calc(12px + var(-
 .app-top, .app-nav { display: none; }
 .ui-ic { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 .fb-sum, .fb-mic, .fb-ok { display: none; }
-body.ui2 { --nav-h: calc(54px + var(--safe-bottom)); padding-top: 0 !important; }
+body.ui2 { --nav-h: calc(48px + var(--safe-bottom)); --nav-top: 0px; padding-top: 0 !important; }
 body.ui2::before { display: none !important; }
 body.ui2 .app-top {
   display: flex; align-items: center; gap: 2px; flex-shrink: 0;
@@ -2447,8 +2447,24 @@ body.ui2 .toolbar:not(.sheets-open) { display: none; }
 body.ui2 .fb-menu { display: none !important; }
 .ui2-only { display: none !important; }
 body.ui2 .ui2-only { display: flex !important; }
+body.ui2 .fb-sum, body.ui2 .fb-mic { display: none !important; }   /* v642：Σ・＝・🎤 は キーの 上の 低い 段へ */
+.more-reset { align-items: center; gap: 10px; width: 100%; margin: 0 0 10px; padding: 11px 14px; border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent); border-radius: var(--r-card);
+  background: color-mix(in srgb, var(--danger) 7%, var(--modal-bg, #fff)); color: var(--danger); font: inherit; font-size: 15px; cursor: pointer; touch-action: manipulation; text-align: left; }
+.more-reset > span { font-size: 19px; } .more-reset b { font-weight: 800; } .more-reset small { font-size: 11.5px; color: var(--text-light); margin-left: auto; }
+/* キーの 上の 低い 段（v642）：ふつうの キーの 半分くらいの 高さ */
+body.ui2 #numpadPage1 .btn.kp-half { height: calc(21px * var(--key-scale, 1.3)); min-height: 0 !important; line-height: 1; padding: 0 3px !important; font-size: calc(11.5px * var(--key-scale, 1.3)); font-weight: 700;
+  background: #4a545e; color: #fff; white-space: nowrap; }
+body.ui2 #numpadPage1 .btn.kp-half[data-key="sum"], body.ui2 #numpadPage1 .btn.kp-half[data-key="fx"] { background: #2f6f57; }
+body.ui2 #numpadPage1 .btn.kp-half .kl2 { flex-direction: row; align-items: baseline; gap: 2px; }
+body.ui2 #numpadPage1 .btn.kp-half .kl2 b, body.ui2 #numpadPage1 .btn.kp-half .kl2 small { font-size: inherit; font-weight: inherit; line-height: 1; }
+body.ui2.np-side #numpadPage1 .btn.kp-half { height: auto; }
+@media (orientation: landscape) and (max-height: 500px) { body.ui2 #numpadPage1 .btn.kp-half { height: auto; } }
 body.ui2 .fb-sum { display: grid; place-items: center; flex: none; width: 36px; height: 32px; border-radius: var(--r-btn); border: 1px solid var(--formula-border, #cfd7d2);
   background: var(--modal-bg, #fff); color: var(--acc-text); font-size: 18px; font-weight: 800; cursor: pointer; touch-action: manipulation; padding: 0; }
+body.ui2 .fb-eq { font-size: 20px; width: 34px; }
+/* キーボードで 打って いる 間は テンキーと 下の タブを 隠す（v641。Android で キーボードの 上に テンキーが 残って いた） */
+body.ui2.kb-edit .app-nav { display: none !important; }
+body.ui2.kb-edit .modal-overlay { bottom: 0; }
 body.ui2 .fb-mic { display: grid; place-items: center; flex: none; width: 34px; height: 32px; border: 0; background: none; color: var(--text-light); cursor: pointer; padding: 0; touch-action: manipulation; }
 body.ui2 .fb-ok { display: grid; place-items: center; flex: none; width: 44px; height: 32px; border: 0; border-radius: var(--r-btn); background: var(--acc); color: #fff; cursor: pointer; padding: 0; touch-action: manipulation; }
 body.ui2 .fb-ok .ui-ic { stroke-width: 2.6; }
@@ -2456,15 +2472,14 @@ body.ui2 .formula-bar { gap: 5px; }
 body.ui2 #formulaInput { font-size: 16px; }
 /* テンキー：4段（道具の段・道具・ひな形・±・Σ・数式は 外へ）。色は 3つの 役（数・計算の記号・決定） */
 body.ui2 #numpadPage1 .btn.kp-off2 { display: none !important; }
-body.ui2.np-side #numpadPage1, body.ui2 #numpadPage1.ui2-rows { grid-template-rows: repeat(4, 1fr) !important; }
-@media (orientation: landscape) and (max-height: 500px) { body.ui2 #numpadPage1 { grid-template-rows: repeat(4, 1fr) !important; } body.ui2 #numpadPage1 .btn { padding-top: 0 !important; padding-bottom: 0 !important; } }
+body.ui2.np-side #numpadPage1, body.ui2 #numpadPage1.ui2-rows { grid-template-rows: 0.55fr repeat(4, 1fr) !important; }
+@media (orientation: landscape) and (max-height: 500px) { body.ui2 #numpadPage1 { grid-template-rows: 0.55fr repeat(4, 1fr) !important; } body.ui2 #numpadPage1 .btn { padding-top: 0 !important; padding-bottom: 0 !important; } }
 body.ui2 #numpadPage1 .btn { padding-top: calc(12px * var(--key-scale, 1.3)); padding-bottom: calc(12px * var(--key-scale, 1.3)); }   /* 4段なので 1段を 高く（押しやすく） */
 /* 電卓の ときは テンキーを 高く（電卓の キーは 6段。前の 画面と 同じ 高さに） */
 body.ui2.dentaku-mode .numpad-viewport { min-height: calc(272px * var(--key-scale, 1.3) / 1.3); }
 body.ui2.dentaku-mode #numpadPage1 { height: 100%; }
 /* 時計・電池の 帯（iPhone を ホーム画面から 開いた とき）は 緑に（白い 字が 見えるように） */
 body.ui2 .app-top { background: linear-gradient(var(--bar-bg, var(--acc)) 0 var(--safe-top), var(--modal-bg, #fff) var(--safe-top)); }
-body.ui2 #numpadPage1 .btn[data-key="u_text"] { height: auto; line-height: 1; padding: calc(9px * var(--key-scale, 1.3)) 4px; font-size: calc(13px * var(--key-scale, 1.3)); background: #4a545e; }
 body.ui2 #numpadPage1 .btn[data-key="bs"], body.ui2 #numpadPage1 .btn[data-key="ce"] { background: #4a545e; }
 body.ui2 #numpadPage1 .btn[data-key="ce"] { color: #ffb4aa; }
 body.ui2 #numpadPage1 .btn.enter { background: #1f8a55; }
@@ -2477,13 +2492,13 @@ body.ui2 .app-nav {
 }
 .app-nav button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 0; background: none;
   color: var(--text-light); font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; touch-action: manipulation; padding: 0; }
-.app-nav button .ui-ic { width: 22px; height: 22px; padding: 3px 14px; box-sizing: content-box; border-radius: 14px; }
+.app-nav button .ui-ic { width: 21px; height: 21px; padding: 2px 14px; box-sizing: content-box; border-radius: 14px; }
 .app-nav button.on { color: var(--acc-text); }
 .app-nav button.on .ui-ic { background: var(--acc-weak); }
 .app-nav button.has-note::after { content: ''; position: absolute; top: 5px; left: calc(50% + 10px); width: 9px; height: 9px; border-radius: 50%; background: #ff7a2f; box-shadow: 0 0 0 2px var(--modal-bg, #fff); }
 body.ui2 .numpad-section { padding-bottom: var(--np-bottom, 3px); }   /* ホームの バーは 下の タブが よける */
 /* 窓は タブの 上まで（タブは いつも 押せる） */
-body.ui2 .modal-overlay { bottom: var(--nav-h); padding-bottom: 0; }
+body.ui2 .modal-overlay { top: var(--nav-top, 0px); bottom: var(--nav-h); padding-bottom: 0; }
 body.ui2 .modal.modal-full { padding-bottom: 0; }
 body.ui2.calc-only .app-nav, html.app-tool body.ui2 .app-nav, html.app-techo body.ui2 .app-nav { display: none; }
 body.ui2.calc-only .modal-overlay, html.app-tool body.ui2 .modal-overlay, html.app-techo body.ui2 .modal-overlay { bottom: 0; }
@@ -2545,14 +2560,14 @@ body.ui2 #moreRec { display: none; }
   body.ui2 #numpadPage1 .btn { padding-top: calc(8px * var(--key-scale, 1.3)); padding-bottom: calc(8px * var(--key-scale, 1.3)); }
   body.ui2 .app-top { padding-top: calc(2px + var(--safe-top)); padding-bottom: 2px; }
   body.ui2 .at-ib { width: 38px; height: 38px; }
-  body.ui2 { --nav-h: calc(50px + var(--safe-bottom)); }
+  body.ui2 { --nav-h: calc(45px + var(--safe-bottom)); }
+  .app-nav button { gap: 1px; }
 }
 /* テンキーを 右に 出す とき・スマホの 横向き：上の バーと タブは 横いっぱい */
 body.ui2.np-side { grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "top top" "main numpad" "nav nav"; }
 body.ui2.np-side .app-top { grid-area: top; }
 body.ui2.np-side .app-nav { grid-area: nav; }
 @media (orientation: landscape) and (max-height: 500px) {
-  body.ui2 { grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "top top" "main numpad" "nav nav"; }
   body.ui2 .app-top { grid-area: top; padding-left: calc(10px + var(--safe-left)); }
   body.ui2 .app-nav { grid-area: nav; }
   body.ui2 .left-pane { padding-left: 0; }
@@ -2560,13 +2575,22 @@ body.ui2.np-side .app-nav { grid-area: nav; }
   body.ui2 .sheet-wrap { margin-left: var(--safe-left); }
   body.ui2 #numpadPage1 .btn { padding-top: calc(7px * var(--key-scale, 1.3)); padding-bottom: calc(7px * var(--key-scale, 1.3)); }
 }
-/* 横向きの スマホ：タブを 低く */
+/* 横向きの スマホ（v642）：タブを 下の 段に 置かず、上の バーと 同じ 段（テンキーの 上）へ。
+   前は 上の バー・下の タブの 2段で 表と テンキーが 低く なって いた（表 343→256px）。1段に まとめて 表と テンキーを 広く */
 @media (orientation: landscape) and (max-height: 500px) {
-  body.ui2 { --nav-h: calc(42px + var(--safe-bottom)); }
-  .app-nav button { flex-direction: row; gap: 6px; font-size: 12px; }
-  .app-nav button .ui-ic { padding: 2px 8px; }
-  body.ui2 .app-top { padding-top: 2px; padding-bottom: 2px; }
-  body.ui2 .at-ib { width: 36px; height: 36px; }
+  body.ui2 { --nav-h: 0px; --nav-top: calc(38px + var(--safe-top)); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "top nav" "main numpad"; }
+  body.ui2 .app-top { height: var(--nav-top); box-sizing: border-box; padding-top: var(--safe-top); padding-bottom: 0; padding-right: 2px; }
+  body.ui2 .at-ib { width: 36px; height: 34px; }
+  body.ui2 .at-title { padding: 0 4px; } body.ui2 .at-title b { font-size: 14px; } body.ui2 .at-title small { font-size: 10px; }
+  body.ui2 .app-nav { height: var(--nav-top); padding: var(--safe-top) var(--safe-right) 0 0; border-top: 0; border-bottom: 1px solid var(--cell-border, #e1e6e2); border-left: 2px solid var(--acc); }
+  body.ui2.kb-edit .app-nav { display: grid !important; }
+  .app-nav button { gap: 0; font-size: 9.5px; line-height: 1.1; }
+  .app-nav button .ui-ic { width: 19px; height: 19px; padding: 1px 10px; }
+  .app-nav button.has-note::after { top: 2px; }
+  /* テンキーを たたんだ とき・電卓だけの とき は タブの 場所が ないので 下の 段に */
+  body.ui2.numpad-off { --nav-h: calc(38px + var(--safe-bottom)); grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "top top" "main numpad" "nav nav"; }
+  body.ui2.numpad-off .app-nav { height: var(--nav-h); padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left); border: 0; border-top: 1px solid var(--cell-border, #e1e6e2); }
+  body.ui2.calc-only { grid-template-areas: "top top" "main numpad"; }
 }
 /* この表の メニュー（下からの シート） */
 .tm-list { display: flex; flex-direction: column; border: 1px solid var(--save-item-border); border-radius: var(--r-card); overflow: hidden; }
@@ -4504,6 +4528,8 @@ body.dark {
     <div class="modal-body">
       <!-- お知らせ（v639）：新しい版・バックアップの おすすめ。起動の ときに 割りこませず ここに 出す -->
       <div class="more-notes" id="moreNotes" hidden></div>
+      <!-- リセット（新しい 画面。v642）：メニューの いちばん上 -->
+      <button class="more-reset ui2-only" id="moreReset" onclick="moreDo(resetAll)" title="表の中身を消して 空にする（すぐ後なら「元に戻す」で戻せます）"><span>🧹</span><b>リセット</b><small>表を空にする（元に戻せます）</small></button>
       <!-- 最近使った操作（v624）。ほかの機能の中で 押した ものを 3つ -->
       <div class="more-recent" id="moreRecent" hidden><span class="more-recent-t">🕘 最近使った</span><div class="more-recent-list" id="moreRecentList"></div></div>
       <!-- 標準モード／かんたんモード（v482。前は ⚙設定 のいちばん上にあった） -->
@@ -4933,6 +4959,7 @@ body.dark {
 <div class="formula-bar">
   <button class="fb-menu" id="fbMenu" onclick="openMoreMenu()" aria-label="メニュー" title="メニュー（保存・戻す・リスト・設定・道具など）">☰</button>
   <button class="fb-sum" id="fbSum" aria-label="合計を入れる" title="Σ 上の数字の合計（長押しで 合計・平均・数式）">Σ</button>
+  <button class="fb-sum fb-eq" id="fbEq" onmousedown="event.preventDefault()" onclick="startFormula()" aria-label="数式を入れる" title="＝ 数式を入れる（Excel と同じ。例 =B2*C2）">＝</button>
   <span class="cellref-wrap">
     <input id="cellRef" type="text" value="A1" readonly onclick="openCellFmt()" title="タップでこのセルの書式設定（小数点・装飾・色・大きさ）">
     <span id="dateBadge" class="date-badge" title="日付書式のセル"></span>

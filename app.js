@@ -1609,6 +1609,14 @@ function bandScrollInit(){
 }
 if(document.getElementById('cellMenu')) bandScrollInit(); else document.addEventListener('DOMContentLoaded', bandScrollInit);
 function endKbEdit(){ document.body.classList.remove('kb-edit'); hideEditBar(); }
+/* 入力欄を 直接 押した・「あ文字」で 打ち始めた ときも、キーボードの 間は テンキーを 隠す（v641。
+   前は セルの ダブルタップの ときだけ 隠して いて、Android では キーボードの 上に テンキーが 残って 見えた） */
+(function kbHideNumpad(){
+  const fi=document.getElementById('formulaInput'); if(!fi) return;
+  // 押した 指が 離れて から 隠す（すぐ 隠すと、テンキーの 下に あった セルに 押した ことが 届いて 入力欄から 外れる ことが ある）
+  fi.addEventListener('focus', ()=>{ if(isTouchUI() && !isDentaku()) setTimeout(()=>{ if(document.activeElement!==fi || document.body.classList.contains('kb-edit')) return; document.body.classList.add('kb-edit'); try{ window.dispatchEvent(new Event('resize')); }catch(_){} }, 350); });
+  fi.addEventListener('blur', ()=>{ setTimeout(()=>{ if(document.activeElement!==fi && document.body.classList.contains('kb-edit')){ endKbEdit(); try{ window.dispatchEvent(new Event('resize')); }catch(_){} } }, 120); });
+})();
 /* いま選んでいるものの 種類 */
 function bandCellKind(){
   if(typeof selRect!=='function') return '';
@@ -6118,16 +6126,18 @@ window.addEventListener('resize', ()=>applyNpPlace());   // 最初の1回は起�
    テンキーが 下に あるときだけ 効く（右に 出すとき・スマホの 横向きは 表の上の まま） */
 const FB_PLACE_KEY='excalc_fb_place';
 const FB_PLACES=[{id:'top',n:'表の上'},{id:'pad',n:'テンキーの真上'}];
-let fbPlace='top';
-try{ if(localStorage.getItem(FB_PLACE_KEY)==='pad') fbPlace='pad'; }catch(_){}
+let fbPlace='top', fbPlaceSet=false;   // fbPlaceSet＝自分で 選んだ か（v641）
+try{ const v=localStorage.getItem(FB_PLACE_KEY); if(v==='pad'||v==='top'){ fbPlace=v; fbPlaceSet=true; } }catch(_){}
+/* 新しい 画面は、選んで いなければ テンキーの 真上。設定で「表の上」を 選べば 表の上（v641。前は 新しい 画面で 設定が 効かなかった） */
+function fbPlaceNow(){ return fbPlaceSet ? fbPlace : (ui2On ? 'pad' : 'top'); }
 function applyFbPlace(){
-  document.body.classList.toggle('fb-low', fbPlace==='pad' || ui2On);   // 新しい 画面は いつも テンキーの 真上（v640）
+  document.body.classList.toggle('fb-low', fbPlaceNow()==='pad');
   renderFbPlace();
   requestAnimationFrame(()=>{ if(typeof placeEditBar==='function') placeEditBar(); if(typeof autoFitSheet==='function') autoFitSheet(); });
 }
 function setFbPlace(v){
   if(!FB_PLACES.some(m=>m.id===v)) return;
-  fbPlace=v; try{ localStorage.setItem(FB_PLACE_KEY, v); }catch(_){}
+  fbPlace=v; fbPlaceSet=true; try{ localStorage.setItem(FB_PLACE_KEY, v); }catch(_){}
   applyFbPlace();
   toast(v==='pad' ? (document.body.classList.contains('np-side') ? 'テンキーを右に出している間は、セルのバーは表の上のままです' : 'セルのバーを テンキーの真上に 出します') : 'セルのバーを 表の上に 出します');
 }
@@ -6136,7 +6146,7 @@ function renderFbPlace(){
   if(seg.children.length!==FB_PLACES.length){
     seg.innerHTML=FB_PLACES.map(m=>'<button class="skin-seg-btn" data-fb="'+m.id+'" onclick="setFbPlace(\''+m.id+'\')">'+m.n+'</button>').join('');
   }
-  Array.from(seg.children).forEach(el=>{ const on=el.dataset.fb===fbPlace; el.classList.toggle('on', on); el.setAttribute('aria-pressed', String(on)); });
+  Array.from(seg.children).forEach(el=>{ const on=el.dataset.fb===fbPlaceNow(); el.classList.toggle('on', on); el.setAttribute('aria-pressed', String(on)); });
 }
 /* ── 合計の 置き場所（v628）──
    pad＝テンキーの上の行（書式・枠線／数字／電卓 の 並びの 右。前の「▲ 自分のボタン」の 所）／bar＝セルのバー（入力欄の 右。これまで）。
@@ -11056,12 +11066,14 @@ const KEYPAD_DEFAULT_POS_FMT={
   kf_left:{r:5,c:1}, kf_center:{r:5,c:2}, kf_right:{r:5,c:3}, kf_merge:{r:5,c:4}, bd_clear:{r:5,c:5}, kf_nofill:{r:5,c:6},
   kf_vtop:{r:6,c:1}, kf_vmid:{r:6,c:2}, kf_vbot:{r:6,c:3}, kf_autocolor:{r:6,c:4}, kf_undo:{r:6,c:5}, kf_paint:{r:6,c:6}
 };
-/* 新しい 画面（v640）の 数字ページ：4段×5列。道具の段・道具・ひな形・±・Σ・数式は 外す（タブ・入力欄へ） */
+/* 新しい 画面の 数字ページ：低い 段（Σ合計・＝数式・🎤声・±・あ文字）＋ 4段×5列。
+   v642：入力欄に あった Σ・＝・🎤 を、キーの すぐ上の 低い 段（ふつうの キーの 半分くらいの 高さ）へ。入力欄は 中身を 広く 見せる */
 const KEYPAD_UI2_POS={
-  n7:{r:1,c:1}, n8:{r:1,c:2}, n9:{r:1,c:3}, div:{r:1,c:4}, bs:{r:1,c:5},
-  n4:{r:2,c:1}, n5:{r:2,c:2}, n6:{r:2,c:3}, mul:{r:2,c:4}, ce:{r:2,c:5},
-  n1:{r:3,c:1}, n2:{r:3,c:2}, n3:{r:3,c:3}, minus:{r:3,c:4}, enter:{r:3,c:5,h:2},
-  u_text:{r:4,c:1}, n0:{r:4,c:2}, dot:{r:4,c:3}, plus:{r:4,c:4}
+  sum:{r:1,c:1,u:1}, fx:{r:1,c:2,u:1}, u_voice:{r:1,c:3,u:1}, sign:{r:1,c:4,u:1}, u_text:{r:1,c:5,u:1},
+  n7:{r:2,c:1}, n8:{r:2,c:2}, n9:{r:2,c:3}, div:{r:2,c:4}, bs:{r:2,c:5},
+  n4:{r:3,c:1}, n5:{r:3,c:2}, n6:{r:3,c:3}, mul:{r:3,c:4}, ce:{r:3,c:5},
+  n1:{r:4,c:1}, n2:{r:4,c:2}, n3:{r:4,c:3}, minus:{r:4,c:4}, enter:{r:4,c:5,h:2},
+  n0:{r:5,c:1,w:2}, dot:{r:5,c:3}, plus:{r:5,c:4}
 };
 /* 編集対象のページ一覧（各ページが独自の既定配置・保存キー・現在配置を持つ） */
 const KP_PAGES=[
@@ -11075,7 +11087,7 @@ const KP_PAGES=[
      自分で並べ替えた人・長押しで機能を割り当てた人は、場所ごと引き継ぐ（kpMigrate466）。 */
   {sel:'#numpadPage1', def:KEYPAD_DEFAULT_POS,  skey:'excalc_keypad_pos_v2', pos:{}, oldKey:'excalc_keypad_pos', shiftRow:1,
    renamed:{u_normal:'u_save', u_voice:'u_dentaku', u_text:'u_reset'}},   // v639：リセットの 場所に あ文字
-  {sel:'#numpadPage1', def:KEYPAD_UI2_POS, skey:'excalc_keypad_pos_ui2', pos:{}, ui2:true},   // 新しい 画面の 数字ページ（v640）
+  {sel:'#numpadPage1', def:KEYPAD_UI2_POS, skey:'excalc_keypad_pos_ui3', pos:{}, ui2:true},   // 新しい 画面の 数字ページ（v640。v642 で 低い 段を 足したので 新しい キー）
   {sel:'#numpadPage2', def:KEYPAD_DEFAULT_POS2, skey:'excalc_keypad_pos2', pos:{}},
   {sel:'#numpadPageFmt', def:KEYPAD_DEFAULT_POS_FMT, skey:'excalc_keypad_posfmt4', pos:{}}   // v407 で6列（posfmt3）、v483 で色のボタンを変えたので新しいキー
 ];
@@ -11119,7 +11131,7 @@ function saveKeypadPos(pg){ try{ localStorage.setItem(pg.skey, JSON.stringify(pg
 function applyKeypadLayout(){
   KP_PAGES.forEach(pg=>{
     if(!kpPageOn(pg)) return;
-    if(pg.sel==='#numpadPage1') document.querySelectorAll('#numpadPage1 .btn[data-key]').forEach(b=>b.classList.toggle('kp-off2', ui2On && !(b.dataset.key in pg.def)));
+    if(pg.sel==='#numpadPage1') document.querySelectorAll('#numpadPage1 .btn[data-key]').forEach(b=>{ b.classList.toggle('kp-off2', ui2On && !(b.dataset.key in pg.def)); b.classList.toggle('kp-half', !!(ui2On && pg.def[b.dataset.key] && pg.def[b.dataset.key].u)); });
     for(const key in pg.pos){
       const b=document.querySelector(pg.sel+' [data-key="'+key+'"]');
       if(!b) continue;
@@ -17537,7 +17549,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v640';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v641';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
