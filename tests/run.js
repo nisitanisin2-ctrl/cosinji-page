@@ -20664,6 +20664,7 @@ async function runUi2640(browser) {
   check('  入力欄に ボタンは ない（Σ・＝・マイクは キーの 上の 低い 段へ。✓ も なくし 入力欄を 広く。v643）', [await vis('fbSum'), await vis('fbEq'), await vis('fbMic'), await vis('fbOk')].join('/'), 'false/false/false/false');
   const fbw = await page.evaluate(() => { const g = q => document.querySelector(q).getBoundingClientRect(); const r = g('#cellRef'), f = g('#formulaInput'); return [Math.abs(r.right - f.left) < 1.5, Math.abs(r.top - f.top) < 1.5, f.width > 260].join('/'); });
   check('  　セル番号と 入力欄は くっついて 1つの 枠・入力欄は 広い', fbw, 'true/true/true');
+  check('  セル番号の 欄は 中身の 幅（A1 で 52px 以下）・左上の ⤢ は 出ない', await page.evaluate(() => (document.getElementById('cellRef').getBoundingClientRect().width <= 52) + '/' + getComputedStyle(document.getElementById('cornerCell'), '::after').display), 'true/none');
   check('  行番号は 細い 列（36px）・いまの 行に 印', await page.evaluate(() => { sel(3, 1); const e = document.getElementById('rh3'); return Math.round(e.getBoundingClientRect().width) + '/' + e.classList.contains('rcur') + '/' + document.getElementById('rh2').classList.contains('rcur'); }), '36/true/false');
   check('  合計は テンキーの 上の 行（自分のボタンの 所）', await page.evaluate(() => document.getElementById('statsSection').parentNode.id), 'numpadPageBar');
   check('  あ文字 は ⌨あ', await page.evaluate(() => { const b = document.getElementById('textBtn'); return !!b.querySelector('svg') + '/' + b.textContent.trim(); }), 'true/あ');

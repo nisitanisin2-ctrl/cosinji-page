@@ -2585,7 +2585,15 @@ body.ui2 .formula-bar:has(#formulaInput:focus) .cellref-wrap { box-shadow: -2px 
 body.dark.ui2 .formula-bar { background: var(--sheet-ch-bg, #1f262b); }
 body.dark.ui2 .formula-bar #cellRef, body.dark.ui2 .formula-bar #formulaInput { border-color: #3b464d; }
 body.ui2 #setSumPlace { display: none; }
-body.ui2 .formula-bar .cellref-wrap { margin-right: -6px; }   /* バーの すき間を 打ち消して 入力欄と くっつける */
+/* セル番号と 入力欄の あいだを なくす（v644）：バーの すき間を 0 に して、▼ だけ 離す。
+   セル番号の 欄は 中身（A5・AB120 など）の 幅に 合わせる（端末の 字の 大きさで 間が 空かないように） */
+body.ui2 .formula-bar { gap: 0; }
+body.ui2 .formula-bar .cellref-wrap { margin: 0; }
+body.ui2 .formula-bar #numpadEdgeBtn { margin-left: 6px; }
+body.ui2 .formula-bar #cellRef { field-sizing: content; width: auto; min-width: 2.6em; max-width: 7em; padding: 0 9px 0 12px; }
+@supports not (field-sizing: content) { body.ui2 .formula-bar #cellRef { width: 3.4em; padding: 0 4px 0 8px; text-align: center; } }
+/* 表の 左上の ⤢ の 印は 出さない（v644。なぞって 大きさを 変える 動きは そのまま） */
+body.ui2 .ch.corner-resizer::after { display: none; }
 @media (orientation: landscape) and (max-height: 500px) {
   body.ui2 .formula-bar { padding-top: 3px; padding-bottom: 3px; }
   body.ui2 .formula-bar #cellRef, body.ui2 .formula-bar #formulaInput { height: 32px; }
