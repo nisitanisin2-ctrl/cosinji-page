@@ -20765,6 +20765,23 @@ async function runUi2640(browser) {
   check('  　夜の 色でも 背景（下の タブ）と 同じ', await tc() === dk && dk !== '#ffffff', true);
   await page.evaluate(() => toggleDark()); await w(300);
   check('  　昼に 戻すと 白', await tc(), '#ffffff');
+  // 下の 帯（Android の 戻るボタンの 所）の 色（v645）：色ちがいの manifest に 差しかえる
+  const mfh = () => page.evaluate(() => document.querySelector('link[rel="manifest"]').getAttribute('href'));
+  check('  戻るボタンの 所：自動は 下の タブの 色（白）の manifest', await mfh() + '/' + await page.evaluate(() => localStorage.getItem('excalc_mf')), 'manifest-cffffff.json/manifest-cffffff.json');
+  await page.evaluate(() => setSysNav('acc')); await w(200);
+  check('  　テーマの色（みどり）に できる', await mfh(), 'manifest-c217346.json');
+  await page.evaluate(() => setSysNav('black')); await w(200);
+  check('  　黒に できる・設定の 印', await mfh() + '/' + await page.evaluate(() => [...document.querySelectorAll('#sysNavSeg button')].filter(x => x.classList.contains('on')).map(x => x.textContent).join('')), 'manifest-c000000.json/黒');
+  await page.reload(); await w(1300);
+  check('  　開き直しても 黒の manifest（読み込みの すぐ 後から）', await mfh(), 'manifest-c000000.json');
+  await page.evaluate(() => setSysNav('auto')); await w(200);
+  { const fs = require('fs'), path = require('path'), R = path.join(__dirname, '..');
+    const base = JSON.parse(fs.readFileSync(path.join(R, 'manifest.json'), 'utf8'));
+    const pal = await page.evaluate(() => SYS_NAV_PAL);
+    const bad = pal.filter(c => { const f = path.join(R, 'manifest-c' + c.slice(1) + '.json'); if (!fs.existsSync(f)) return true;
+      const m = JSON.parse(fs.readFileSync(f, 'utf8')); if (m.theme_color !== c || m.background_color !== c) return true;
+      const x = { ...m, theme_color: base.theme_color, background_color: base.background_color }; return JSON.stringify(x) !== JSON.stringify(base); });
+    check('  　色ちがいの manifest は ぜんぶ あり、色の ほかは manifest.json と 同じ', bad.join(','), ''); }
   // セルの バーの 置き場所（v641）：新しい 画面でも 設定の「表の上」が 効く
   const fbAt = () => page.evaluate(() => { const f = document.querySelector('.formula-bar').getBoundingClientRect(), sw = document.querySelector('.sheet-wrap').getBoundingClientRect(); return (f.top < sw.top ? 'top' : 'pad') + '/' + [...document.querySelectorAll('#fbPlaceSeg button')].filter(x => x.classList.contains('on')).map(x => x.dataset.fb).join(''); });
   await page.evaluate(() => renderFbPlace()); await w(100);

@@ -3828,10 +3828,55 @@ function sysBarColor(){
   if(!m || (m[4]!==undefined && parseFloat(m[4])<0.5)) return dark ? '#1c1c28' : '#ffffff';
   return '#'+[m[1],m[2],m[3]].map(v=>(+v).toString(16).padStart(2,'0')).join('');
 }
+/* ── 下の 帯（Android の「戻る」などが ある 所）の 色（v645）──
+   ホーム画面に 置いた アプリの 下の 帯は、Chrome が manifest の 色（theme_color）で ぬる。ページからは 変えられないので、
+   色ちがいの manifest（manifest-c〇〇〇〇〇〇.json。中身は manifest.json と 同じ）を 用意して、選んだ 色の ものに 差しかえる。
+   Chrome は アプリを 開いた ときに manifest を 見て、変わって いれば アプリを 作り直す（1日 くらい かかる ことが ある）。
+   auto＝画面に 合わせる（新しい 画面は 下の タブの 色・前の 画面は テンキーの 地の 色。「テーマの色」を 選んで いれば テーマの 色） */
+const SYS_NAV_PAL=['#ffffff','#000000','#2c2c2c','#aab2bd','#1e2a45','#217346','#1565c0','#3949ab','#00796b','#6a3f9e','#c2185b','#c0392b','#d97706','#795548','#455a64'];
+const SYS_NAV=[{id:'auto',n:'自動'},{id:'acc',n:'テーマの色'},{id:'white',n:'白'},{id:'black',n:'黒'},{id:'gray',n:'灰色'}];
+const SYS_NAV_KEY='excalc_sysnav', SYS_MF_KEY='excalc_mf';
+let sysNav='auto';
+try{ const v=localStorage.getItem(SYS_NAV_KEY); if(SYS_NAV.some(x=>x.id===v)) sysNav=v; }catch(_){}
+function cssHex(el){
+  if(!el) return null;
+  const m=/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/.exec(getComputedStyle(el).backgroundColor||'');
+  if(!m || (m[4]!==undefined && parseFloat(m[4])<0.5)) return null;
+  return '#'+[m[1],m[2],m[3]].map(v=>(+v).toString(16).padStart(2,'0')).join('');
+}
+function sysNavColor(){
+  const b=document.body, th=skinTheme_();
+  if(sysNav==='white') return '#ffffff';
+  if(sysNav==='black') return '#000000';
+  if(sysNav==='gray') return '#2c2c2c';
+  if(sysNav==='acc' || skinSys==='acc') return th.a;
+  return (b.classList.contains('ui2') ? cssHex(document.getElementById('appNav')) : cssHex(document.getElementById('numpadSection'))) || '#ffffff';
+}
+function nearestNavPal(hex){
+  const rgb=x=>[1,3,5].map(i=>parseInt(x.substr(i,2),16)), t=rgb(hex);
+  let best=SYS_NAV_PAL[0], bd=1e9;
+  SYS_NAV_PAL.forEach(p=>{ const q=rgb(p), d=(q[0]-t[0])**2+(q[1]-t[1])**2+(q[2]-t[2])**2; if(d<bd){ bd=d; best=p; } });
+  return best;
+}
+function applySysNav(){
+  if(window.APP_TECHO || window.APP_TOOL) return;   // 道具だけの アプリは 自分の manifest
+  const ln=document.querySelector('link[rel="manifest"]'); if(!ln) return;
+  let c; try{ c=nearestNavPal(sysNavColor()); }catch(_){ c='#ffffff'; }
+  const href='manifest-c'+c.slice(1)+'.json';
+  if(ln.getAttribute('href')!==href) ln.setAttribute('href', href);
+  try{ localStorage.setItem(SYS_MF_KEY, href); }catch(_){}
+}
+function setSysNav(id){
+  if(!SYS_NAV.some(x=>x.id===id)) return;
+  sysNav=id; try{ localStorage.setItem(SYS_NAV_KEY, id); }catch(_){}
+  applySysNav(); refreshSkinUI();
+  toast('「戻る」ボタンの所の色を変えました。ホーム画面のアプリは、次に開いたあと（1日くらいかかることがあります）に変わります', 4200);
+}
 function applySysBar(){
-  const mt=document.querySelector('meta[name="theme-color"]'); if(!mt) return;
+  const mt=document.querySelector('meta[name="theme-color"]');
   let c; try{ c=sysBarColor(); }catch(_){ c='#ffffff'; }
-  if(mt.getAttribute('content')!==c) mt.setAttribute('content', c);
+  if(mt && mt.getAttribute('content')!==c) mt.setAttribute('content', c);
+  applySysNav();
 }
 function setSkinSys(id){
   if(!SKIN_SYS.some(x=>x.id===id)) return;
@@ -4082,6 +4127,11 @@ function refreshSkinUI(){
       ).join('');
     }
     Array.from(seg.children).forEach(el=>el.classList.toggle('on', el.dataset.key===skinKeyTone));
+  }
+  const nseg=document.getElementById('sysNavSeg');
+  if(nseg){
+    if(nseg.children.length!==SYS_NAV.length) nseg.innerHTML=SYS_NAV.map(w=>'<button class="skin-seg-btn" data-nav="'+w.id+'" onclick="setSysNav(\''+w.id+'\')">'+w.n+'</button>').join('');
+    Array.from(nseg.children).forEach(el=>{ const on=el.dataset.nav===sysNav; el.classList.toggle('on', on); el.setAttribute('aria-pressed', String(on)); });
   }
   const yseg=document.getElementById('skinSysSeg');
   if(yseg){
@@ -17590,7 +17640,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v644';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v645';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
