@@ -20559,6 +20559,86 @@ async function runRangeFill635(browser) {
   await ctx2.close();
 }
 
+/* v640：新しい 画面（段階2・3）。上の バー・下の タブ・入力欄を テンキーの 真上に・テンキー 4段 3色・前の 画面に もどせる */
+async function runUi2640(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 393, height: 852 }, hasTouch: true, isMobile: true });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+  console.log('\n── 表電卓 v640：新しい 画面（上の バー・下の タブ・テンキー 4段） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.goto(INDEX); await w(500);
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_ui2', '1'); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_back_ask', '0'); });
+  await page.reload(); await w(1500);
+  const vis = id => page.evaluate(id => { const e = document.getElementById(id); return !!(e && e.offsetParent && e.getBoundingClientRect().height > 0); }, id);
+  check('  新しい 画面が 既定（上の バー・下の タブが 出る・前の 上の バーと ☰ は 出ない）', [await vis('appTop'), await vis('appNav'), await vis('mainToolbar'), await vis('fbMenu')].join('/'), 'true/true/false/false');
+  check('  下の タブは 表・電卓・ひな形・道具・メニュー（いまは 表）', await page.evaluate(() => [...document.querySelectorAll('#appNav button')].map(b => b.textContent.trim() + (b.classList.contains('on') ? '*' : '')).join(',')), '表*,電卓,ひな形,道具,メニュー');
+  const lay = await page.evaluate(() => { const t = id => document.getElementById(id).getBoundingClientRect(); const fb = document.querySelector('.formula-bar').getBoundingClientRect(); return [t('appTop').top < document.querySelector('.sheet-wrap').getBoundingClientRect().top, fb.bottom <= t('numpadSection').top + 1, t('numpadSection').bottom <= t('appNav').top + 1].join('/'); });
+  check('  上から 上のバー・表・入力欄・テンキー・タブ の 順', lay, 'true/true/true');
+  check('  入力欄に Σ・マイク・✓', [await vis('fbSum'), await vis('fbMic'), await vis('fbOk')].join('/'), 'true/true/true');
+  const keys = await page.evaluate(() => { const v = [...document.querySelectorAll('#numpadPage1 .btn[data-key]')].filter(b => b.offsetParent && b.getBoundingClientRect().height > 0); return { n: v.length, rows: new Set(v.map(b => Math.round(b.getBoundingClientRect().top))).size, k: v.map(b => b.dataset.key).sort().join(',') }; });
+  check('  テンキーは 4段 19個（数・計算の記号・⌫・C・Enter・あ文字）', keys.n + '/' + keys.rows, '19/4');
+  check('  道具・ひな形・±・Σ・数式・道具の段は テンキーから 外れる', /tools|mode|sign|sum|fx|u_voice|u_undo|u_redo|u_normal/.test(keys.k), false);
+  check('  色は 3つの 役（数は 灰・記号は 緑・Enter は 明るい 緑。C と ⌫ は 灰）', await page.evaluate(() => ['n7', 'plus', 'enter', 'ce', 'bs'].map(k => getComputedStyle(document.querySelector('#numpadPage1 [data-key="' + k + '"]')).backgroundColor).join('|')), 'rgb(74, 74, 74)|rgb(26, 92, 53)|rgb(31, 138, 85)|rgb(74, 84, 94)|rgb(74, 84, 94)');
+  // 上の バー
+  check('  上の バーに 表の 名前と 保存の ようす・↶ は まだ 押せない', await page.evaluate(() => document.getElementById('atName').textContent + '/' + document.getElementById('atState').textContent + '/' + document.getElementById('atUndo').disabled), 'シート1/✓ 自動で保存/true');
+  await page.evaluate(() => { sel(0, 0); num('5'); eq(); }); await w(300);
+  check('  入れると ↶ が 押せる', await page.evaluate(() => document.getElementById('atUndo').disabled), false);
+  await page.click('#atUndo'); await w(300);
+  check('  ↶ で 元に 戻る・↷ が 押せる', await page.evaluate(() => (data[0][0] || '空') + '/' + document.getElementById('atRedo').disabled), '空/false');
+  await page.click('#atRedo'); await w(300);
+  check('  ↷ で やり直す', await page.evaluate(() => data[0][0]), '5');
+  // 入力欄の ✓・Σ
+  await page.evaluate(() => sel(1, 0)); await w(100);
+  await page.click('#formulaInput'); await page.keyboard.type('りんご'); await page.click('#fbOk'); await w(300);
+  check('  ✓ で 打った 文字を 決める', await page.evaluate(() => data[1][0]), 'りんご');
+  await page.evaluate(() => { setCellVal(0, 1, '100'); setCellVal(1, 1, '250'); recalcAll(); sel(2, 1); }); await w(200);
+  await page.click('#fbSum'); await w(500);
+  await page.evaluate(() => { if (typeof sumSelectMode !== 'undefined' && sumSelectMode) eq(); }); await w(300);
+  check('  Σ で 上の 数字の 合計', await page.evaluate(() => /^=SUM\(B1:B2\)$/.test(data[2][1]) + '/' + getCellDisplay(2, 1)), 'true/350');
+  // Aa・⋮
+  await page.click('#atFmt'); await w(500);
+  check('  Aa で テンキーが 書式の ページに', await page.evaluate(() => numpadPager.current()), 'fmt');
+  await page.click('#atFmt'); await w(400);
+  await page.click('#atMore'); await w(400);
+  check('  ⋮ で この表の メニュー（表を 空にする は いちばん 下・赤）', await page.evaluate(() => isDlgOpen('tableMenuOverlay') + '/' + document.querySelector('#tableMenuOverlay .tm-row:last-child').classList.contains('tm-danger')), 'true/true');
+  await page.evaluate(() => document.querySelector('#tableMenuOverlay .tm-danger').click()); await w(500);
+  check('  この表を 空にする → 空に なる・元に 戻せる', await page.evaluate(() => { const e = data[1][0] === ''; undoLast(); return e + '/' + data[1][0]; }), 'true/りんご');
+  // 下の タブ
+  const tab = async n => { await page.click('#appNav [data-nav="' + n + '"]'); await w(600); };
+  const on = () => page.evaluate(() => document.querySelector('#appNav button.on').dataset.nav);
+  await tab('calc');
+  check('  電卓の タブ → 電卓（タブも 電卓）', await page.evaluate(() => isDentaku()) + '/' + await on(), 'true/calc');
+  await tab('sheet');
+  check('  表の タブ → 表に 戻る', await page.evaluate(() => isDentaku()) + '/' + await on(), 'false/sheet');
+  await tab('tools');
+  check('  道具の タブ → 道具の 一覧', await page.evaluate(() => isDlgOpen('toolsListOverlay')) + '/' + await on(), 'true/tools');
+  check('  窓を 開いても タブは 見えて 押せる（窓は タブの 上まで）', await page.evaluate(() => { const o = document.getElementById('toolsListOverlay').getBoundingClientRect(), n = document.getElementById('appNav').getBoundingClientRect(); const top = document.elementFromPoint(n.left + n.width * 0.9, n.top + n.height / 2); return (o.bottom <= n.top + 1) + '/' + !!(top && top.closest('#appNav')); }), 'true/true');
+  await tab('menu');
+  check('  メニューの タブ → 道具は 閉じて メニュー', await page.evaluate(() => isDlgOpen('toolsListOverlay') + '/' + isDlgOpen('moreMenuOverlay')) + '/' + await on(), 'false/true/menu');
+  await tab('tpl');
+  check('  ひな形の タブ → ひな形の 一覧', await page.evaluate(() => isDlgOpen('moreMenuOverlay') + '/' + isDlgOpen('modeMenuOverlay')) + '/' + await on(), 'false/true/tpl');
+  await tab('sheet');
+  check('  表の タブで ぜんぶ 閉じる', await page.evaluate(() => [...document.querySelectorAll('.modal-overlay.open')].length) + '/' + await on(), '0/sheet');
+  await page.evaluate(() => NP_TOOLS.find(t => t.id === 'shimai').run()); await w(800);
+  check('  道具を 開くと 道具の タブ', await on(), 'tools');
+  await tab('sheet');
+  check('  表の タブで 道具を 閉じて 表へ', await page.evaluate(() => isDlgOpen('shimaiOverlay')) + '/' + await on(), 'false/sheet');
+  await page.evaluate(() => window.history.back()); await w(600);
+  check('  そのあと 端末の「戻る」で アプリの 外へ 出ない', await page.evaluate(() => typeof navGo), 'function');
+  // 前の 画面に もどす
+  await page.evaluate(() => setUi2(false)); await w(500);
+  const kc = await page.evaluate(() => [...document.querySelectorAll('#numpadPage1 .btn[data-key]')].filter(b => b.offsetParent && b.getBoundingClientRect().height > 0).length);
+  check('  前の 画面に もどせる（上の バー・タブは 消え、☰ と 6段の テンキー）', [await vis('appTop'), await vis('appNav'), await vis('fbMenu'), kc].join('/'), 'false/false/true/28');
+  check('  覚えて おく', await page.evaluate(() => localStorage.getItem('excalc_ui2')), '0');
+  await page.reload(); await w(1300);
+  check('  開き直しても 前の 画面', await page.evaluate(() => document.body.classList.contains('ui2')), false);
+  await page.evaluate(() => setUi2(true)); await w(500);
+  check('  新しい 画面に 戻せる', [await vis('appTop'), await vis('appNav')].join('/'), 'true/true');
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 /* v639：すぐ 打てるように（段階1）。読み込み表示を すぐ 消す・前回の つづきで 開く・お知らせは ☰ の 印・文字は 左／数は 右・テンキーの 上の 段・お知らせの 位置 */
 async function runQuick639(browser) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
@@ -21721,6 +21801,7 @@ const SUITES = [
   [['big636', 'v636'], b => runBig636(b)],
   [['tmpl637', 'v637'], b => runTmpl637(b)],
   [['quick639', 'v639'], b => runQuick639(b)],
+  [['ui2640', 'v640'], b => runUi2640(b)],
   [['clip'], b => runClip(b)],
   [['koe'], b => runKoe(b)],
   [['koe', 'koelisten'], b => runKoeListen(b)],
@@ -21891,6 +21972,15 @@ if (only === '--list') {
   const { idx, unknown } = pickSuites(only);
   if (unknown.length) { console.error('その 名前の 組は ありません: ' + unknown.join(', ')); if (!idx.length) process.exit(2); }
   const browser = await chromium.launch({ executablePath: CHROME });
+  /* v640：新しい 画面（下の タブ）が 既定に なった。これまでの 組は 前の 画面の 作りを 確かめて いるので、
+     決めて いない ときは 前の 画面で 開く（localStorage を 消しても 読み込み直す たびに 入れ直す）。
+     新しい 画面を 確かめる 組は excalc_ui2 を '1' に する */
+  const _newCtx = browser.newContext.bind(browser);
+  browser.newContext = async (...args) => {
+    const c = await _newCtx(...args);
+    await c.addInitScript(() => { try { if (localStorage.getItem('excalc_ui2') === null) localStorage.setItem('excalc_ui2', '0'); } catch (e) {} });
+    return c;
+  };
   try {
     for (const i of idx) await SUITES[i][1](browser);
   } finally { await browser.close(); }
