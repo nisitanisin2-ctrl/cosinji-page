@@ -20663,7 +20663,7 @@ async function runUi2640(browser) {
   check('  上から 上のバー・表・入力欄・テンキー・タブ の 順', lay, 'true/true/true');
   check('  入力欄は 🎤 だけ（Σ・＝ は キーの 上の 低い 段へ。✓ も なくし 入力欄を 広く。🎤 は 枠の 中。v647）', [await vis('fbSum'), await vis('fbEq'), await vis('fbMic'), await vis('fbOk')].join('/'), 'false/false/true/false');
   check('  　🎤 は 入力欄の 右に くっつく', await page.evaluate(() => { const f = document.getElementById('formulaInput').getBoundingClientRect(), m = document.getElementById('fbMic').getBoundingClientRect(); return Math.abs(f.right - m.left) < 1.5 && Math.abs(f.top - m.top) < 1.5; }), true);
-  const fbw = await page.evaluate(() => { const g = q => document.querySelector(q).getBoundingClientRect(); const r = g('#cellRef'), f = g('#formulaInput'); return [Math.abs(r.right - f.left) < 1.5, Math.abs(r.top - f.top) < 1.5, f.width > 260].join('/'); });
+  const fbw = await page.evaluate(() => { const g = q => document.querySelector(q).getBoundingClientRect(); const r = g('#cellRef'), f = g('#formulaInput'); return [Math.abs(r.right - f.left) < 1.5, Math.abs(r.top - f.top) < 1.5, f.width > 200].join('/'); });
   check('  　セル番号と 入力欄は くっついて 1つの 枠・入力欄は 広い', fbw, 'true/true/true');
   check('  セル番号の 欄は 中身の 幅（A1 で 52px 以下）・左上の ⤢ は 出ない', await page.evaluate(() => (document.getElementById('cellRef').getBoundingClientRect().width <= 52) + '/' + getComputedStyle(document.getElementById('cornerCell'), '::after').display), 'true/none');
   check('  行番号は 細い 列（36px）・いまの 行に 印', await page.evaluate(() => { sel(3, 1); const e = document.getElementById('rh3'); return Math.round(e.getBoundingClientRect().width) + '/' + e.classList.contains('rcur') + '/' + document.getElementById('rh2').classList.contains('rcur'); }), '36/true/false');
@@ -20727,7 +20727,9 @@ async function runUi2640(browser) {
   await page.evaluate(() => { navGo('sheet'); sel(5, 0); }); await w(300);
   await page.tap('#formulaInput'); await w(700);
   const kbs = () => page.evaluate(() => [document.body.classList.contains('kb-edit'), !!document.getElementById('numpadSection').offsetParent, !!document.getElementById('appNav').offsetParent].join('/'));
-  check('  入力欄を 押すと キーボードの 間 テンキーと タブを 隠す', await kbs(), 'true/false/false');
+  check('  空の セルで 入力欄を 押すと テンキーの まま（v648）', await kbs() + '/' + await page.evaluate(() => document.getElementById('formulaInput').inputMode), 'false/true/true/none');
+  await page.tap('#fbKb'); await w(700);
+  check('  「あ」で キーボードに・キーボードの 間 テンキーと タブを 隠す', await kbs(), 'true/false/false');
   await page.keyboard.type('ぶどう'); await page.keyboard.press('Enter'); await w(500);
   check('  Enter で 決めると テンキーと タブが 戻る', await kbs() + '/' + await page.evaluate(() => data[5][0]), 'false/true/true/ぶどう');
   await page.evaluate(() => sel(6, 0)); await w(200);
@@ -20811,6 +20813,49 @@ async function runUi2640(browser) {
   await page.evaluate(() => { openCalPick(); calSetFmt('wareki'); closeDlg('calPickOverlay'); }); await w(200);
   check('  　日付の セルで 形を 変えると すぐ 変わる', await page.evaluate(() => getCellDisplay(19, 0)), '令和8年11月3日');
   await page.evaluate(() => { for (let r = 14; r < 20; r++) for (let c = 0; c < 3; c++) setCellVal(r, c, ''); sel(0, 0); }); await w(200);
+  // v648：セルの バーを テンキーで 直す・数式で セルを 選ぶ・数式の キーの 段・✕ ✓
+  {
+    const fst = () => page.evaluate(() => { const fi = document.getElementById('formulaInput'); return [fi.value, document.activeElement === fi, fi.inputMode, document.body.classList.contains('bar-edit'), document.body.classList.contains('kb-edit')].join('|'); });
+    const key = k => page.tap('#numpadPage1 [data-key="' + k + '"]');
+    await page.evaluate(() => { if (ROWS < 28) changeRows(28 - ROWS); setCellVal(20, 0, '見出し'); setCellVal(21, 0, '120'); setCellVal(22, 0, '80'); setCellVal(21, 1, '3'); setCellVal(22, 1, '10'); recalcAll(); sel(21, 0); }); await w(300);
+    await page.tap('#formulaInput'); await w(500);
+    check('  数の セルで バーを 押すと キーボードは 出さず テンキーで 直す', await fst() + '/' + await page.evaluate(() => !!document.getElementById('fxRow').offsetParent && !document.getElementById('funcBtn').offsetParent), '120|true|none|true|false/true');
+    await page.tap('#fxRow .fxk >> nth=0'); await key('n5'); await w(150);
+    check('  　◀ で カーソルを 動かし、テンキーの 数は カーソルの 所へ', await page.evaluate(() => { const fi = document.getElementById('formulaInput'); return fi.value + '|' + fi.selectionStart; }), '1250|3');
+    await key('bs'); await key('mul'); await key('n2'); await w(150);
+    check('  　⌫ は カーソルの 前を 消す・× も カーソルの 所へ', await page.evaluate(() => document.getElementById('formulaInput').value), '12×20');
+    check('  　直して いる 間は ✕ ✓ が 出る', await page.evaluate(() => !!document.getElementById('fbCancel').offsetParent && !!document.getElementById('fbOk').offsetParent), true);
+    await page.tap('#fbOk'); await w(400);
+    check('  　✓ で 決めて その セルに いる', await page.evaluate(() => getCellDisplay(21, 0) + '/' + selR + '/' + !!document.getElementById('fbCancel').offsetParent), '240/21/false');
+    await page.evaluate(() => sel(20, 0)); await page.tap('#formulaInput'); await w(600);
+    check('  文字の セルは 本体の キーボードで 直す', await fst(), '見出し|true|text|false|true');
+    await page.keyboard.type('X'); await page.tap('#fbCancel'); await w(400);
+    check('  　✕ で やめると 元の まま', await page.evaluate(() => data[20][0] + '/' + (document.activeElement === document.getElementById('formulaInput'))), '見出し/false');
+    await page.evaluate(() => sel(24, 1)); await w(100); await key('fx'); await w(400);
+    check('  ＝数式 で 入力欄に カーソル（押した 所に 出た 数式の キーは 押されない）', await fst(), '=|true|none|true|false');
+    await page.tap('#c21_1'); await w(150); await page.tap('#c22_1'); await w(150);
+    check('  　番地を 入れた すぐ あとに 別の セルを 押すと 入れかえ', await page.evaluate(() => document.getElementById('formulaInput').value), '=B23');
+    await key('plus'); await page.tap('#c21_0'); await w(150);
+    check('  　＋ の あとは 足す', await page.evaluate(() => document.getElementById('formulaInput').value), '=B23+A22');
+    await key('ce'); await page.evaluate(() => numpadAppend('SUM(')); await page.tap('#c21_0'); await page.tap('#c22_0'); await w(150);
+    check('  　関数の かっこの 中は「,」で つなぐ', await page.evaluate(() => document.getElementById('formulaInput').value), '=SUM(A22,A23');
+    await key('ce'); await page.evaluate(() => numpadAppend('SUM(')); await w(100);
+    const pt = id => page.evaluate(id => { const r = document.getElementById(id).getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }, id);
+    const p1 = await pt('c21_0'), p2 = await pt('c22_1'), cdp = await ctx.newCDPSession(page);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: p1[0], y: p1[1] }] });
+    for (let i = 1; i <= 6; i++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: p1[0] + (p2[0] - p1[0]) * i / 6, y: p1[1] + (p2[1] - p1[1]) * i / 6 }] }); await w(30); }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await w(300);
+    check('  　セルを なぞると 範囲（A22:B23）', await page.evaluate(() => document.getElementById('formulaInput').value), '=SUM(A22:B23');
+    await page.tap('#fxRow .fxk >> nth=2'); await key('enter'); await w(400);
+    check('  　テンキーの Enter で 決めて 次の セルへ', await page.evaluate(() => data[24][1] + '/' + getCellDisplay(24, 1) + '/' + selR), '=SUM(A22:B23)/333/25');
+    await page.evaluate(() => sel(26, 0)); await page.tap('#fbKb'); await w(600);
+    check('  「あ」で 本体の キーボード', await fst(), '|true|text|false|true');
+    await page.keyboard.type('メモ'); await page.tap('#fbKb'); await w(600);
+    check('  　もう一度で テンキーに 戻る（打った 文字は そのまま）', await fst(), 'メモ|true|none|true|false');
+    await key('n7'); await key('enter'); await w(400);
+    check('  　テンキーの 続きも 入る', await page.evaluate(() => data[26][0]), 'メモ7');
+    await page.evaluate(() => { for (let r = 20; r < 28; r++) for (let c = 0; c < 3; c++) setCellVal(r, c, ''); sel(0, 0); }); await w(200);
+  }
   // 範囲を 選んで ⌫・CE で まとめて 消す（v646）
   await page.evaluate(() => { for (let r = 10; r < 13; r++) for (let c = 0; c < 3; c++) setCellVal(r, c, String(r * 10 + c)); recalcAll(); sel(10, 0); extendRange(11, 1); }); await w(200);
   await page.click('#numpadPage1 [data-key="bs"]'); await w(300);
