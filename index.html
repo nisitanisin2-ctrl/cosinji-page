@@ -2449,6 +2449,13 @@ body.ui2 .fb-menu { display: none !important; }
 body.ui2 .ui2-only { display: flex !important; }
 body.ui2 .fb-sum { display: grid; place-items: center; flex: none; width: 36px; height: 32px; border-radius: var(--r-btn); border: 1px solid var(--formula-border, #cfd7d2);
   background: var(--modal-bg, #fff); color: var(--acc-text); font-size: 18px; font-weight: 800; cursor: pointer; touch-action: manipulation; padding: 0; }
+body.ui2 .fb-eq { font-size: 20px; width: 34px; }
+.at-reset { width: auto !important; min-width: 42px; padding: 0 6px; border-radius: 12px !important; display: flex !important; flex-direction: column; align-items: center; justify-content: center; gap: 0; color: var(--danger) !important; }
+.at-reset .ui-ic { width: 20px !important; height: 20px !important; }
+.at-reset small { font-size: 9.5px; font-weight: 800; line-height: 1.1; }
+/* キーボードで 打って いる 間は テンキーと 下の タブを 隠す（v641。Android で キーボードの 上に テンキーが 残って いた） */
+body.ui2.kb-edit .app-nav { display: none !important; }
+body.ui2.kb-edit .modal-overlay { bottom: 0; }
 body.ui2 .fb-mic { display: grid; place-items: center; flex: none; width: 34px; height: 32px; border: 0; background: none; color: var(--text-light); cursor: pointer; padding: 0; touch-action: manipulation; }
 body.ui2 .fb-ok { display: grid; place-items: center; flex: none; width: 44px; height: 32px; border: 0; border-radius: var(--r-btn); background: var(--acc); color: #fff; cursor: pointer; padding: 0; touch-action: manipulation; }
 body.ui2 .fb-ok .ui-ic { stroke-width: 2.6; }
@@ -4416,6 +4423,7 @@ body.dark {
   <button class="at-ib" id="atUndo" onclick="undoLast()" aria-label="元に戻す" title="元に戻す（長押しで 取り消せる操作の一覧）" disabled><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
   <button class="at-ib" id="atRedo" onclick="redoLast()" aria-label="やり直す" title="やり直す" disabled><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
   <button class="at-ib at-aa" id="atFmt" onclick="atFmtTap()" aria-label="書式" title="書式・枠線（太字・色・寄せ・罫線）">Aa</button>
+  <button class="at-ib at-reset" id="atReset" onclick="resetAll()" aria-label="リセット（表を空にする）" title="リセット：表の中身を消す（下の「元に戻す」で戻せます）"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 20H9.5L4 14.5a1.8 1.8 0 0 1 0-2.5l7.5-7.5a1.8 1.8 0 0 1 2.5 0l5.5 5.5a1.8 1.8 0 0 1 0 2.5L12 20M8 9l7 7"/></svg><small>リセット</small></button>
   <button class="at-ib" id="atMore" onclick="openTableMenu()" aria-label="この表のメニュー" title="この表のメニュー"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></button>
 </div>
 <div class="toolbar" id="mainToolbar">
@@ -4933,6 +4941,7 @@ body.dark {
 <div class="formula-bar">
   <button class="fb-menu" id="fbMenu" onclick="openMoreMenu()" aria-label="メニュー" title="メニュー（保存・戻す・リスト・設定・道具など）">☰</button>
   <button class="fb-sum" id="fbSum" aria-label="合計を入れる" title="Σ 上の数字の合計（長押しで 合計・平均・数式）">Σ</button>
+  <button class="fb-sum fb-eq" id="fbEq" onmousedown="event.preventDefault()" onclick="startFormula()" aria-label="数式を入れる" title="＝ 数式を入れる（Excel と同じ。例 =B2*C2）">＝</button>
   <span class="cellref-wrap">
     <input id="cellRef" type="text" value="A1" readonly onclick="openCellFmt()" title="タップでこのセルの書式設定（小数点・装飾・色・大きさ）">
     <span id="dateBadge" class="date-badge" title="日付書式のセル"></span>

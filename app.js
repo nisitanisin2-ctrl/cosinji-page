@@ -1609,6 +1609,14 @@ function bandScrollInit(){
 }
 if(document.getElementById('cellMenu')) bandScrollInit(); else document.addEventListener('DOMContentLoaded', bandScrollInit);
 function endKbEdit(){ document.body.classList.remove('kb-edit'); hideEditBar(); }
+/* 入力欄を 直接 押した・「あ文字」で 打ち始めた ときも、キーボードの 間は テンキーを 隠す（v641。
+   前は セルの ダブルタップの ときだけ 隠して いて、Android では キーボードの 上に テンキーが 残って 見えた） */
+(function kbHideNumpad(){
+  const fi=document.getElementById('formulaInput'); if(!fi) return;
+  // 押した 指が 離れて から 隠す（すぐ 隠すと、テンキーの 下に あった セルに 押した ことが 届いて 入力欄から 外れる ことが ある）
+  fi.addEventListener('focus', ()=>{ if(isTouchUI() && !isDentaku()) setTimeout(()=>{ if(document.activeElement!==fi || document.body.classList.contains('kb-edit')) return; document.body.classList.add('kb-edit'); try{ window.dispatchEvent(new Event('resize')); }catch(_){} }, 350); });
+  fi.addEventListener('blur', ()=>{ setTimeout(()=>{ if(document.activeElement!==fi && document.body.classList.contains('kb-edit')){ endKbEdit(); try{ window.dispatchEvent(new Event('resize')); }catch(_){} } }, 120); });
+})();
 /* いま選んでいるものの 種類 */
 function bandCellKind(){
   if(typeof selRect!=='function') return '';
@@ -17537,7 +17545,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v640';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v641';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

@@ -20712,6 +20712,26 @@ async function runUi2640(browser) {
   check('  表の タブで 道具を 閉じて 表へ', await page.evaluate(() => isDlgOpen('shimaiOverlay')) + '/' + await on(), 'false/sheet');
   await page.evaluate(() => window.history.back()); await w(600);
   check('  そのあと 端末の「戻る」で アプリの 外へ 出ない', await page.evaluate(() => typeof navGo), 'function');
+  // v641：キーボードで 打つ 間は テンキーと タブを 隠す・＝ と リセット に すぐ 届く
+  await page.evaluate(() => { navGo('sheet'); sel(5, 0); }); await w(300);
+  await page.tap('#formulaInput'); await w(700);
+  const kbs = () => page.evaluate(() => [document.body.classList.contains('kb-edit'), !!document.getElementById('numpadSection').offsetParent, !!document.getElementById('appNav').offsetParent].join('/'));
+  check('  入力欄を 押すと キーボードの 間 テンキーと タブを 隠す', await kbs(), 'true/false/false');
+  await page.keyboard.type('ぶどう'); await page.click('#fbOk'); await w(500);
+  check('  ✓ で 決めると テンキーと タブが 戻る', await kbs() + '/' + await page.evaluate(() => data[5][0]), 'false/true/true/ぶどう');
+  await page.evaluate(() => sel(6, 0)); await w(200);
+  await page.tap('#textBtn'); await w(800);
+  check('  あ文字 でも 隠す（入力欄に 入る）', await kbs() + '/' + await page.evaluate(() => document.activeElement.id), 'true/false/false/formulaInput');
+  await page.evaluate(() => document.getElementById('formulaInput').blur()); await w(500);
+  await page.evaluate(() => sel(7, 1)); await w(200);
+  await page.click('#fbEq'); await w(300);
+  check('  入力欄の ＝ で 数式を 始める', await page.evaluate(() => document.getElementById('formulaInput').value), '=');
+  await page.evaluate(() => { const fi = document.getElementById('formulaInput'); fi.value = '=2*3'; fi.dispatchEvent(new Event('input')); fi.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); fi.blur(); }); await w(500);
+  check('  　数式が 入る', await page.evaluate(() => getCellDisplay(7, 1)), '6');
+  await page.click('#atReset'); await w(500);
+  check('  上の バーの リセットで 表を 空に・元に戻す が 出る', await page.evaluate(() => isSheetEmpty() + '/' + !!document.querySelector('#appToast .toast-act')), 'true/true');
+  await page.click('#appToast .toast-act'); await w(400);
+  check('  　元に戻す で 戻る', await page.evaluate(() => data[5][0]), 'ぶどう');
   // 前の 画面に もどす
   await page.evaluate(() => setUi2(false)); await w(500);
   const kc = await page.evaluate(() => [...document.querySelectorAll('#numpadPage1 .btn[data-key]')].filter(b => b.offsetParent && b.getBoundingClientRect().height > 0).length);
