@@ -14,6 +14,7 @@
    ・⚙ 入力の しかた（v620）：合計と ホールインワン か、ホールごとの スコア（コースの 数 × ホール数。はじめは 2 × 8）。ホールごとの ときは
      📝 スコアカード（ホールを 押して 下の 数を 押す・1＝ホールインワン・次の 人へ）で 入れ、ぜんぶ 入ると 合計と ⛳ が 出る（途中は 順位に 入らない）。
      コースごとの 計を 順位・コピー・表・印刷（スコア表）に、Excel は A1〜B8 の 列（合計・ホールインワンは 式）と 結果の「スコア」の シート。
+   ・⚙ ホールインワンで 引く（v638）：ホールインワン 1回で 合計から ○打 引く 大会の 決まり。入れるのは 実打数の まま、順位・賞・印刷・Excel は 引いた 合計で。
    ・中身は excalc_ggolf（この端末の中だけ）。 */
 (function(){
 'use strict';
@@ -54,13 +55,14 @@ function stIn(v){ const n=numIn(v, -1, 1e6, null); return n!=null && n>=1 ? Math
 // 賞の 決め方。ind：個人賞（上位 何人）・team：チーム賞（上位 いくつ）・tmode：チームの 成績（sum 合計／avg 平均）・
 // tobi：とび賞の 位・booby：ブービー賞・bmaker：ブービーメーカー賞・hio：ホールインワン賞の 用意（0＝見ない）・hone：1人 1つ まで
 // inp：入力の しかた（tot 合計と ホールインワン／hole ホールごとの スコア）・crs：コースの 数・hn：1コースの ホール数（v620）
-const DEF={ind:5, team:1, tmode:'sum', tobi:[10,15,20,25], booby:true, bmaker:false, hio:15, hone:false, inp:'tot', crs:2, hn:8};
+// hded：ホールインワン 1回で 合計から 引く 打数（0＝引かない。v638）
+const DEF={ind:5, team:1, tmode:'sum', tobi:[10,15,20,25], booby:true, bmaker:false, hio:15, hone:false, inp:'tot', crs:2, hn:8, hded:0};
 function tobiList(v){ return [...new Set(String(Array.isArray(v) ? v.join(',') : v==null ? '' : v).normalize('NFKC').split(/[^0-9]+/).filter(Boolean).map(Number).filter(n=>n>=2 && n<=MAX_M))].sort((a,b)=>a-b).slice(0,20); }
 function cleanSet(x){
   x=(x && typeof x==='object') ? x : {};
   return {ind:numIn(x.ind,0,30,DEF.ind), team:numIn(x.team,0,10,DEF.team), tmode:x.tmode==='avg' ? 'avg' : 'sum',
     tobi:x.tobi===undefined ? DEF.tobi.slice() : tobiList(x.tobi), booby:x.booby===undefined ? DEF.booby : !!x.booby, bmaker:!!x.bmaker,
-    hio:numIn(x.hio,0,999,DEF.hio), hone:!!x.hone, inp:x.inp==='hole' ? 'hole' : 'tot', crs:numIn(x.crs,1,MAX_CRS,DEF.crs), hn:numIn(x.hn,1,MAX_HN,DEF.hn)};
+    hio:numIn(x.hio,0,999,DEF.hio), hone:!!x.hone, inp:x.inp==='hole' ? 'hole' : 'tot', crs:numIn(x.crs,1,MAX_CRS,DEF.crs), hn:numIn(x.hn,1,MAX_HN,DEF.hn), hded:numIn(x.hded,0,5,0)};
 }
 // ホールごとの スコア：h[コース×ホール数＋ホール]（null＝まだ）。うしろの まだ は 持たない
 const CL=k=>String.fromCharCode(65+k);   // コースの 名前：A・B・C…
@@ -127,16 +129,19 @@ const nextS=c=>c.mem.reduce((a,m)=>Math.max(a, m.s), -1)+1;
 const bySeq=(a,b)=>a.s-b.s;
 
 /* ───────── 計算 ───────── */
-const keyM=m=>m.tot+'|'+m.hio;
+// 順位に 使う 合計：入れた 合計（実打数）から ホールインワン 1回ごとに hded 打 引く。ded は calc で いまの 大会の 分に する
+let ded=0;
+const pt=m=>m.tot-ded*m.hio;
+const keyM=m=>pt(m)+'|'+m.hio;
 const fixed=m=>m.tb>0 && m.tg===keyM(m);
 // 合計の 少ない 順 → ホールインワンの 多い 順 → 決めた 順 → 入れた 順
-function cmpM(a,b){ return a.tot-b.tot || b.hio-a.hio || (fixed(a) ? a.tb : 1e6)-(fixed(b) ? b.tb : 1e6) || a.s-b.s; }
+function cmpM(a,b){ return pt(a)-pt(b) || b.hio-a.hio || (fixed(a) ? a.tb : 1e6)-(fixed(b) ? b.tb : 1e6) || a.s-b.s; }
 function teamsOf(c){
   const by=new Map();
   c.mem.slice().sort(bySeq).forEach(m=>{
     if(!m.team) return;
     let t=by.get(m.team); if(!t){ t={name:m.team, mem:[], n:0, sum:0, hio:0, miss:0, s:m.s}; by.set(m.team, t); }
-    t.mem.push(m); if(m.tot==null){ t.miss++; return; } t.n++; t.sum+=m.tot; t.hio+=m.hio;
+    t.mem.push(m); if(m.tot==null){ t.miss++; return; } t.n++; t.sum+=pt(m); t.hio+=m.hio;
   });
   const avg=c.set.tmode==='avg', list=[...by.values()].filter(t=>t.n>0);
   list.forEach(t=>{ t.score=avg ? t.sum/t.n : t.sum; t.key=(avg ? t.score.toFixed(6) : String(t.sum))+'|'+t.hio; const d=c.ttb[t.name]; t.tb=d && d.g===t.key ? d.n : 0; });
@@ -147,6 +152,7 @@ function teamsOf(c){
 // 同じ ものが 続く ところ（[はじめ, おわり] の 番号）
 function runs(list, key){ const g=[]; for(let i=0; i<list.length;){ let j=i; while(j+1<list.length && key(list[j+1])===key(list[i])) j++; if(j>i) g.push([i,j]); i=j+1; } return g; }
 function calc(c){
+  ded=c.set.hded||0;
   const S=c.set, list=c.mem.filter(m=>m.tot!=null).sort(cmpM), N=list.length;
   const booby=S.booby && N>=3 && N-1>S.ind ? N-1 : 0, bmaker=S.bmaker && N>=2 && N>S.ind ? N : 0;
   const tobi=S.tobi.filter(p=>p>S.ind && p<=N);
@@ -164,7 +170,7 @@ function calc(c){
   return {list, N, pend, at, tobi, booby, bmaker, ties, teams, tN, tties, hio:{who:hw, times, need:S.hone ? hw.length : times, have:S.hio}};
 }
 const warnN=R=>R.ties.filter(t=>t.hot.length && !t.ok).length+R.tties.filter(t=>t.hot && !t.ok).length;
-const scTxt=m=>m.tot==null ? 'まだ' : m.tot+'打'+(m.hio ? '・⛳'+m.hio : '');
+const scTxt=m=>m.tot==null ? 'まだ' : pt(m)+'打'+(m.hio ? '・⛳'+m.hio : '')+(ded && m.hio ? '（実打数 '+m.tot+'）' : '');
 const tScTxt=(c,t)=>(c.set.tmode==='avg' ? '平均 '+fmt1(t.score)+'打' : '合計 '+t.sum+'打')+'（'+t.n+'人）'+(t.hio ? '・⛳'+t.hio : '');
 const posTxt=(a,b)=>b-a===1 ? a+'位・'+b+'位' : a+'〜'+b+'位';
 function hioSub(c, H){
@@ -207,7 +213,7 @@ function notes(c, R){
 
 /* ───────── 画面 ───────── */
 const RULE=c=>{ const S=c.set; return [S.ind ? '個人 '+S.ind+'位まで' : '', S.team ? 'チーム '+(S.team>1 ? S.team+'位まで' : '1位') : '', S.tobi.length ? 'とび '+S.tobi.join('・')+'位' : '',
-  S.booby ? 'ブービー' : '', S.bmaker ? 'ブービーメーカー' : '', 'ホールインワン'+(S.hio ? ' '+S.hio+'個' : '')].filter(Boolean).join('・'); };
+  S.booby ? 'ブービー' : '', S.bmaker ? 'ブービーメーカー' : '', 'ホールインワン'+(S.hio ? ' '+S.hio+'個' : ''), S.hded ? 'ホールインワン 1回 −'+S.hded+'打' : ''].filter(Boolean).join('・'); };
 const inpTxt=S=>S.inp==='hole' ? 'ホールごとの スコア（'+(S.crs>1 ? 'A〜'+CL(S.crs-1)+' の '+S.crs+'コース × ' : '')+S.hn+'ホール）' : '合計と ホールインワン';
 function sumN(c, R){
   const mid=c.set.inp==='hole' ? R.pend.filter(m=>holeInfo(c.set, m).n).length : 0;   // ホールごと：入れて いる 途中の 人
@@ -294,7 +300,7 @@ function refresh(c){
 function resHtml(c, R){
   if(!c.mem.length) return '<p class="gg-note">まだ だれも いません。「✏ 成績を 入れる」で 名前と 合計を 入れてください。</p>';
   if(!R.N) return '<p class="gg-note">合計を 入れると、ここに 順位と 賞が 出ます。</p>';
-  const w=R.ties.filter(t=>t.hot.length && !t.ok).map(t=>`<div class="w"><span>${posTxt(t.from, t.to)}：${t.ms.map(m=>esc(m.name)).join('・')}（${t.ms[0].tot}打${t.ms[0].hio ? '・⛳'+t.ms[0].hio : ''}）</span><button type="button" class="gg-b sm" onclick="GGOLF.fix('${t.ms[0].id}')">✓ この 順で 決める</button></div>`)
+  const w=R.ties.filter(t=>t.hot.length && !t.ok).map(t=>`<div class="w"><span>${posTxt(t.from, t.to)}：${t.ms.map(m=>esc(m.name)).join('・')}（${pt(t.ms[0])}打${t.ms[0].hio ? '・⛳'+t.ms[0].hio : ''}）</span><button type="button" class="gg-b sm" onclick="GGOLF.fix('${t.ms[0].id}')">✓ この 順で 決める</button></div>`)
     .concat(R.tties.filter(t=>t.hot && !t.ok).map(t=>`<div class="w"><span>チーム ${posTxt(t.from, t.to)}：${t.ts.map(x=>esc(x.name)).join('・')}</span><button type="button" class="gg-b sm" onclick="GGOLF.tfix(${t.from})">✓ この 順で 決める</button></div>`));
   const nt=notes(c, R);
   let secs=sections(c, R); if(st.ann) secs=annOrder(secs);
@@ -305,7 +311,7 @@ function resHtml(c, R){
         +s.rows.map(r=>`<div class="pr"><span class="lb">${esc(r.lab)}</span><span class="nm">${esc(r.name)}${r.team ? `<small>（${esc(r.team)}）</small>` : ''}</span>${r.sc ? `<span class="sc">${esc(r.sc)}</span>` : ''}${r.mem ? `<small class="mm">${esc(r.mem)}</small>` : ''}</div>`).join('')+'</div>').join('')}</div>`
     +rankHtml(c, R)+teamHtml(c, R)
     +`<div class="gg-acts"><button type="button" class="gg-b" onclick="GGOLF.print()">🖨 印刷</button><button type="button" class="gg-b" onclick="GGOLF.copy()">📋 コピー</button><button type="button" class="gg-b" onclick="GGOLF.table()">▦ 表に 入れる</button><button type="button" class="gg-b" onclick="GGOLF.xlRes()">📊 Excel</button></div>
-    <p class="gg-note">順位は 合計の 少ない 順、同じ ときは ホールインワンの 多い 順です。それも 同じ 人には「同点」と 出ます。</p>`;
+    <p class="gg-note">順位は 合計の 少ない 順${c.set.hded ? '（合計は 実打数から ホールインワン 1回で '+c.set.hded+'打 引いた 数）' : ''}、同じ ときは ホールインワンの 多い 順です。それも 同じ 人には「同点」と 出ます。</p>`;
 }
 function rankHtml(c, R){
   const tie=new Map(); R.ties.forEach(t=>t.ms.forEach((m,i)=>tie.set(m.id, {t, i})));
@@ -313,7 +319,7 @@ function rankHtml(c, R){
     const p=i+1, pz=R.at[p]||[], ti=tie.get(m.id), n=esc(m.name), x=crsTxt(c, m);
     const sub=(m.team ? `<small>${esc(m.team)}</small>` : '')+(x ? `<small>${esc(x)}</small>` : '')+pz.map(x=>`<i class="bd k-${x.k}">${x.l}</i>`).join('')+(ti ? '<i class="bd tie">同点</i>' : '');
     return `<div class="gg-rr${pz.length ? ' hot' : ''}${ti && ti.t.hot.length && !ti.t.ok ? ' warn' : ''}" data-id="${m.id}"><span class="p">${p}</span><span class="nm"><b>${n}</b>${sub ? `<span class="sub">${sub}</span>` : ''}</span>
-      <span class="sc"><b>${m.tot}</b><small>打</small>${m.hio ? `<i class="h">⛳${m.hio}</i>` : ''}</span>${ti && ti.i>0 ? `<button type="button" class="gg-up" onclick="GGOLF.up('${m.id}')" aria-label="${n}を 同点の 中で 1つ 上へ">▲</button>` : ''}</div>`; }).join('')}</div>`;
+      <span class="sc"><b>${pt(m)}</b><small>打</small>${m.hio ? `<i class="h">⛳${m.hio}</i>` : ''}${ded && m.hio ? `<small class="raw">実 ${m.tot}</small>` : ''}</span>${ti && ti.i>0 ? `<button type="button" class="gg-up" onclick="GGOLF.up('${m.id}')" aria-label="${n}を 同点の 中で 1つ 上へ">▲</button>` : ''}</div>`; }).join('')}</div>`;
 }
 function teamHtml(c, R){
   if(!R.teams.length) return c.mem.some(m=>m.team) ? '' : '<p class="gg-note">チームを 入れると、チームの 順位と チーム賞も 出ます（名前を 押して チームを 入れるか、「名前／チーム」で まとめて 入れます）。</p>';
@@ -381,6 +387,7 @@ function openSetup(){
     <label class="gg-ck2"><input id="ggSBmaker" type="checkbox"${S.bmaker ? ' checked' : ''}> ブービーメーカー賞（いちばん 下）</label>
     <label class="gg-f"><span>ホールインワン賞</span><em>用意</em><input id="ggSHio" class="sm" type="text" inputmode="numeric" value="${S.hio}"><em>個（たりるか 見ます。0＝見ない）</em></label>
     <label class="gg-ck2"><input id="ggSHone" type="checkbox"${S.hone ? ' checked' : ''}> ホールインワン賞は 1人 1つ まで（何回 出ても）</label>
+    <label class="gg-f"><span>ホールインワンで 引く</span><em>1回で 合計から</em><input id="ggSHded" class="sm" type="text" inputmode="numeric" value="${S.hded}"><em>打 引く（0＝引かない。大会の 決まりで 3打 など）</em></label>
     <div class="gg-acts end"><button type="button" class="gg-b" onclick="GGOLF.close()">やめる</button><button type="button" class="gg-b pri" onclick="GGOLF.setupSave()">✓ 保存</button></div>
     <div class="gg-sep"></div>
     <div class="gg-acts"><button type="button" class="gg-b" onclick="GGOLF.clear()">🧹 成績を 空に する（名簿は 残す）</button><button type="button" class="gg-b warn" onclick="GGOLF.delCup()">🗑 この 大会を 消す</button></div>`, 'setup');
@@ -390,7 +397,7 @@ function setupSave(){
   const ck=k=>{ const e=$(k); return !!(e && e.checked); }, tm=document.querySelector('#ggolfOverlay input[name="ggSTm"]:checked');
   c.title=oneLine(val('ggSTitle'),40)||c.title; c.date=okDate(val('ggSDate')) ? val('ggSDate') : '';
   const ip=document.querySelector('#ggolfOverlay input[name="ggSInp"]:checked'), S0=c.set;
-  const S1=cleanSet({ind:val('ggSInd'), team:val('ggSTeam'), tmode:tm ? tm.value : 'sum', tobi:val('ggSTobi'), booby:ck('ggSBooby'), bmaker:ck('ggSBmaker'), hio:val('ggSHio'), hone:ck('ggSHone'),
+  const S1=cleanSet({ind:val('ggSInd'), team:val('ggSTeam'), tmode:tm ? tm.value : 'sum', tobi:val('ggSTobi'), booby:ck('ggSBooby'), bmaker:ck('ggSBmaker'), hio:val('ggSHio'), hone:ck('ggSHone'), hded:$('ggSHded') ? val('ggSHded') : S0.hded,
     inp:ip ? ip.value : S0.inp, crs:$('ggSCrs') ? val('ggSCrs') : S0.crs, hn:$('ggSHn') ? val('ggSHn') : S0.hn});
   setSet(c, S1);
   save(); popClose(); render(); toastS('✓ 保存しました'+(S1.inp!==S0.inp ? '（入力：'+inpTxt(S1)+'）' : ''));
@@ -669,7 +676,7 @@ function docHtml(c){
   const prz=sections(c, R).map(s=>s.rows.length
     ? s.rows.map((r,i)=>`<tr>${i===0 ? `<td rowspan="${s.rows.length}" class="k">${s.ic} ${s.t}${s.sub ? `<small>${esc(s.sub)}</small>` : ''}</td>` : ''}<td class="c">${esc(r.lab)}</td><td class="nm">${esc(r.name)}${r.mem ? `<small>${esc(r.mem)}</small>` : ''}</td><td>${esc(r.team)}</td><td class="r">${esc(r.sc)}</td></tr>`).join('')
     : `<tr><td class="k">${s.ic} ${s.t}</td><td colspan="4">${esc(s.sub||'')}</td></tr>`).join('');
-  const rk=R.list.map((m,i)=>`<tr><td class="c">${i+1}</td><td class="nm">${esc(m.name)}</td><td>${esc(m.team)}</td><td class="r">${m.tot}</td><td class="c">${m.hio||''}</td><td>${(R.at[i+1]||[]).map(x=>x.l).join('・')}</td></tr>`).join('')
+  const rk=R.list.map((m,i)=>`<tr><td class="c">${i+1}</td><td class="nm">${esc(m.name)}</td><td>${esc(m.team)}</td><td class="r">${pt(m)}${ded && m.hio ? '（実 '+m.tot+'）' : ''}</td><td class="c">${m.hio||''}</td><td>${(R.at[i+1]||[]).map(x=>x.l).join('・')}</td></tr>`).join('')
     +R.pend.map(m=>`<tr class="pend"><td class="c">—</td><td class="nm">${esc(m.name)}</td><td>${esc(m.team)}</td><td class="r">まだ</td><td class="c">${m.hio||''}</td><td></td></tr>`).join('');
   const tm=R.teams.length ? `<h2>チームの 順位（${avg ? '平均' : '合計'}）</h2><table><thead><tr><th>順位</th><th>チーム</th><th>人数</th><th>${avg ? '平均' : '合計'}</th><th>⛳</th><th>賞</th><th>メンバー</th></tr></thead><tbody>`
     +R.teams.map((t,i)=>`<tr><td class="c">${i+1}</td><td class="nm">${esc(t.name)}</td><td class="c">${t.n}${t.miss ? '（まだ '+t.miss+'）' : ''}</td><td class="r">${avg ? fmt1(t.score) : t.sum}</td><td class="c">${t.hio||''}</td><td>${i<R.tN ? 'チーム賞' : ''}</td><td>${esc(t.mem.map(m=>m.name).join('・'))}</td></tr>`).join('')+'</tbody></table>' : '';
@@ -709,9 +716,10 @@ function copy(){ if(!C()){ toastS('大会が ありません'); return; } if(typ
 // 順位の 表（見出し・1人ずつ・まだの 人）
 function rankRows(c, R){
   const S=c.set, hole=S.inp==='hole', cs=m=>hole ? crsSums(S, m).map(x=>x.n ? x.s : '') : [];
-  return [['順位','名前','チーム','合計','ホールインワン','賞'].concat(hole ? Array.from({length:S.crs}, (_,k)=>CL(k)+'計') : [])]
-    .concat(R.list.map((m,i)=>[i+1, m.name, m.team, m.tot, m.hio||'', (R.at[i+1]||[]).map(x=>x.l).concat(m.hio ? ['ホールインワン賞'] : []).join('・')].concat(cs(m))),
-      R.pend.map(m=>['まだ', m.name, m.team, '', m.hio||'', m.hio ? 'ホールインワン賞' : ''].concat(cs(m))));
+  const raw=m=>S.hded ? [m.tot==null ? '' : m.tot] : [];   // ホールインワンで 引く ときは 実打数も
+  return [['順位','名前','チーム','合計','ホールインワン','賞'].concat(hole ? Array.from({length:S.crs}, (_,k)=>CL(k)+'計') : [], S.hded ? ['実打数'] : [])]
+    .concat(R.list.map((m,i)=>[i+1, m.name, m.team, pt(m), m.hio||'', (R.at[i+1]||[]).map(x=>x.l).concat(m.hio ? ['ホールインワン賞'] : []).join('・')].concat(cs(m), raw(m))),
+      R.pend.map(m=>['まだ', m.name, m.team, '', m.hio||'', m.hio ? 'ホールインワン賞' : ''].concat(cs(m), raw(m))));
 }
 // チームの 順位の 表（first：はじめの 見出し・mem：メンバーの 列も）
 function teamRows(c, R, first, mem){
@@ -797,7 +805,7 @@ function scoreRows(c, R){
   const S=c.set;
   return [['順位','名前','チーム'].concat(...Array.from({length:S.crs}, (_,k)=>Array.from({length:S.hn}, (_,j)=>CL(k)+(j+1)).concat([CL(k)+'計'])), ['合計','ホールインワン'])]
     .concat(R.list.concat(R.pend).map((m,i)=>{ const h=m.h||[], sm=crsSums(S, m);
-      return [i<R.N ? i+1 : 'まだ', m.name, m.team].concat(...Array.from({length:S.crs}, (_,k)=>Array.from({length:S.hn}, (_,j)=>{ const v=h[k*S.hn+j]; return v==null ? '' : v; }).concat([sm[k].n ? sm[k].s : ''])), [m.tot==null ? '' : m.tot, m.hio||'']); }));
+      return [i<R.N ? i+1 : 'まだ', m.name, m.team].concat(...Array.from({length:S.crs}, (_,k)=>Array.from({length:S.hn}, (_,j)=>{ const v=h[k*S.hn+j]; return v==null ? '' : v; }).concat([sm[k].n ? sm[k].s : ''])), [m.tot==null ? '' : pt(m), m.hio||'']); }));
 }
 // 競技結果：賞・順位・チーム・名簿・大会
 function resBlob(){
@@ -807,7 +815,7 @@ function resBlob(){
     if(!s.rows.length){ prz.push([s.t, '', s.sub||'']); return; }
     s.rows.forEach(r=>{
       if(r.tm) prz.push([s.t, r.p+'位', r.mem, r.tm.name, avg ? Math.round(r.tm.score*10)/10 : r.tm.sum, r.tm.hio||'']);
-      else prz.push([s.t, s.k==='hio' ? r.m.hio+'回' : r.p+'位', r.m.name, r.m.team, r.m.tot==null ? '' : r.m.tot, r.m.hio||'']);
+      else prz.push([s.t, s.k==='hio' ? r.m.hio+'回' : r.p+'位', r.m.name, r.m.team, r.m.tot==null ? '' : pt(r.m), r.m.hio||'']);
     });
   });
   const info=cupInfo(c).concat([['参加', R.N+'人'+(R.pend.length ? '（まだ '+R.pend.length+'人）' : '')], ['ホールインワン', R.hio.times+'回'], ['賞の 決め方', RULE(c)], ['順位の 決め方', '合計の 少ない 順。同じ ときは ホールインワンの 多い 順']]);
@@ -1103,7 +1111,7 @@ const CSS=`
 .gg-rr .p{ flex:none; min-width:1.8em; font-size:17px; font-weight:bold; text-align:right; }
 .gg-rr .nm{ flex:1; min-width:0; overflow-wrap:anywhere; } .gg-rr .nm > b{ display:block; font-size:15.5px; }
 .gg-rr .sub{ display:flex; flex-wrap:wrap; align-items:center; gap:2px 6px; margin-top:1px; } .gg-rr .sub small{ font-size:12px; color:var(--text-light,#666); }
-.gg-rr .sc{ flex:none; display:inline-flex; align-items:baseline; gap:2px; } .gg-rr .sc b{ font-size:17px; } .gg-rr .sc small{ font-size:12px; color:var(--text-light,#666); } .gg-rr .sc .h{ margin-left:6px; font-style:normal; font-size:13.5px; font-weight:bold; color:#2e7d32; }
+.gg-rr .sc{ flex:none; display:inline-flex; align-items:baseline; gap:2px; } .gg-rr .sc b{ font-size:17px; } .gg-rr .sc small{ font-size:12px; color:var(--text-light,#666); } .gg-rr .sc .raw{ margin-left:6px; } .gg-rr .sc .h{ margin-left:6px; font-style:normal; font-size:13.5px; font-weight:bold; color:#2e7d32; }
 .gg-rr .bd{ padding:0 7px; border-radius:10px; font-size:11.5px; line-height:1.6; font-style:normal; font-weight:bold; background:rgba(120,132,156,.16); color:var(--text,#222); white-space:nowrap; }
 .gg-rr .bd.k-ind{ background:#ffe082; color:#5d4100; } .gg-rr .bd.k-team{ background:#bbdefb; color:#0d3c61; } .gg-rr .bd.k-tobi{ background:#e1bee7; color:#4a148c; }
 .gg-rr .bd.k-booby, .gg-rr .bd.k-bmaker{ background:#f8bbd0; color:#880e4f; } .gg-rr .bd.tie{ background:transparent; border:1px solid rgba(120,132,156,.5); color:var(--text-light,#666); }
