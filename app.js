@@ -3804,6 +3804,32 @@ function skinPat(pat, rgb, k, m){
   return { img:'', size:'auto', rep:'repeat', pos:'center' };
 }
 
+/* ── 時計の帯（上）と Android の「戻る」などが ある 所（下）の 色（v642）──
+   bg＝表電卓の 背景と 同じ（既定。新しい 画面なら 上の バー・下の タブと 同じ 色で、ひと続きに 見える）／acc＝テーマの 色（前は いつも これ）。
+   ブラウザーと Android は meta の theme-color を 見て 帯を ぬる（字の 色は 明るさに 合わせて 自動）。
+   iPhone の ホーム画面からの ときは 帯の 字が いつも 白なので、アプリ側の 帯（緑）は そのまま */
+const SKIN_SYS=[{id:'bg',n:'背景と同じ'},{id:'acc',n:'テーマの色'}];
+let skinSys='bg';
+function sysBarColor(){
+  const b=document.body, th=skinTheme_(), dark=b.classList.contains('dark');
+  const acc=dark ? (b.style.getPropertyValue('--bar-bg')||th.a) : th.a;
+  if(skinSys!=='bg') return acc;
+  const el = b.classList.contains('ui2') ? document.getElementById('appNav')
+    : b.classList.contains('tb-fold') ? document.querySelector('.formula-bar') : null;   // 前の 画面で 上の バーを 出して いる ときは バーの 色
+  if(!el) return acc;
+  const m=/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/.exec(getComputedStyle(el).backgroundColor||'');
+  if(!m || (m[4]!==undefined && parseFloat(m[4])<0.5)) return dark ? '#1c1c28' : '#ffffff';
+  return '#'+[m[1],m[2],m[3]].map(v=>(+v).toString(16).padStart(2,'0')).join('');
+}
+function applySysBar(){
+  const mt=document.querySelector('meta[name="theme-color"]'); if(!mt) return;
+  let c; try{ c=sysBarColor(); }catch(_){ c='#ffffff'; }
+  if(mt.getAttribute('content')!==c) mt.setAttribute('content', c);
+}
+function setSkinSys(id){
+  if(!SKIN_SYS.some(x=>x.id===id)) return;
+  skinSys=id; saveSkin(); applySysBar(); refreshSkinUI();
+}
 function applySkin(){
   const th=skinTheme_(), b=document.body; if(!b) return;
   const st=b.style, dark=b.classList.contains('dark'), rgb=skinRgb(th.a);
@@ -3899,8 +3925,7 @@ function applySkin(){
   }else{
     st.setProperty('--kp-key',kk); st.setProperty('--kp-key-h',kh); st.setProperty('--kp-key-a',ka);
   }
-  const mt=document.querySelector('meta[name="theme-color"]');
-  if(mt) mt.setAttribute('content',th.a);
+  applySysBar();
   refreshSkinUI();
   applyFmtCol();   // 書式・枠線のテンキーの色も、夜/昼に合わせて組み直す（v411）
 }
@@ -4014,7 +4039,7 @@ function fpcShow(){
 }
 loadFmtCol();
 function saveSkin(){
-  try{ localStorage.setItem(SKIN_KEY, JSON.stringify({t:skinTheme,k:skinKeyTone,b:skinBg,s:skinStr,w:skinWhere})); }
+  try{ localStorage.setItem(SKIN_KEY, JSON.stringify({t:skinTheme,k:skinKeyTone,b:skinBg,s:skinStr,w:skinWhere,y:skinSys})); }
   catch(_){ toast('色の設定を覚えられませんでした。端末の空きを確かめてください'); }
 }
 function loadSkin(){
@@ -4026,6 +4051,7 @@ function loadSkin(){
     if(SKIN_KEYS.some(x=>x.id===o.k)) skinKeyTone=o.k;
     if(SKIN_BGS.some(x=>x.id===o.b)) skinBg=o.b;
     if(SKIN_WHERE.some(x=>x.id===o.w)) skinWhere=o.w;
+    if(SKIN_SYS.some(x=>x.id===o.y)) skinSys=o.y;
     const n=parseInt(o.s,10); if(!isNaN(n)&&n>=0&&n<SKIN_STR.length) skinStr=n;
   }
 }
@@ -4049,6 +4075,11 @@ function refreshSkinUI(){
       ).join('');
     }
     Array.from(seg.children).forEach(el=>el.classList.toggle('on', el.dataset.key===skinKeyTone));
+  }
+  const yseg=document.getElementById('skinSysSeg');
+  if(yseg){
+    if(yseg.children.length!==SKIN_SYS.length) yseg.innerHTML=SKIN_SYS.map(w=>'<button class="skin-seg-btn" data-sys="'+w.id+'" onclick="setSkinSys(\''+w.id+'\')">'+w.n+'</button>').join('');
+    Array.from(yseg.children).forEach(el=>{ const on=el.dataset.sys===skinSys; el.classList.toggle('on', on); el.setAttribute('aria-pressed', String(on)); });
   }
   const wseg=document.getElementById('skinWhereSeg');
   if(wseg){
@@ -4095,7 +4126,7 @@ function changeSkinStr(d){
   skinStr=n; saveSkin(); applySkin();
 }
 function resetSkin(){
-  skinTheme='green'; skinKeyTone='dark'; skinBg='none'; skinStr=1; skinWhere='both';
+  skinTheme='green'; skinKeyTone='dark'; skinBg='none'; skinStr=1; skinWhere='both'; skinSys='bg';
   saveSkin(); applySkin(); toast('もとの色に戻しました');
 }
 function skinPickPhoto(){
@@ -16906,6 +16937,7 @@ function applyTbFold(){
   const on=tbFoldOn();
   document.body.classList.toggle('tb-fold', on);
   document.querySelectorAll('#tbFoldSeg button').forEach(b=>b.classList.toggle('on', (b.dataset.f==='1')===on));
+  if(typeof applySysBar==='function') requestAnimationFrame(applySysBar);
 }
 function setTbFold(on){
   try{ localStorage.setItem('excalc_tbfold', on?'1':'0'); }catch(_){}
@@ -17549,7 +17581,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v641';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v642';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -21694,6 +21726,7 @@ function applyUi2(){
   if(typeof applyFbPlace==='function') applyFbPlace();
   if(typeof applyKeypadLayout==='function') applyKeypadLayout();
   renderUi2Seg(); uiTopSync(); navSync();
+  if(typeof applySysBar==='function') requestAnimationFrame(applySysBar);   // 時計の帯・戻るボタンの 所の 色（v642）
   try{ window.dispatchEvent(new Event('resize')); }catch(_){}
 }
 function renderUi2Seg(){

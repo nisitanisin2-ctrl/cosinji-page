@@ -4038,8 +4038,8 @@ async function runSkin(browser) {
   check('  濃い色・明るい色もそろう', [await cssVar('--acc-dark'), await cssVar('--acc-light')].join('/'), '#0d47a1/#1e88e5');
   check('  上のバーの色も変わる', await page.evaluate(() =>
     getComputedStyle(document.querySelector('.numpad-section')).borderTopColor), 'rgb(21, 101, 192)');
-  check('  スマホの上の帯の色も変わる', await page.evaluate(() =>
-    document.querySelector('meta[name="theme-color"]').content), '#1565c0');
+  check('  スマホの上の帯の色（「テーマの色」を 選んだ とき）も変わる', await page.evaluate(() => {
+    setSkinSys('acc'); const c = document.querySelector('meta[name="theme-color"]').content; setSkinSys('bg'); return c; }), '#1565c0');
   check('  印が移る', await page.evaluate(() =>
     document.querySelector('#skinSw .skin-chip.on').dataset.skin), 'blue');
 
@@ -20747,6 +20747,17 @@ async function runUi2640(browser) {
   check('  開き直しても 前の 画面', await page.evaluate(() => document.body.classList.contains('ui2')), false);
   await page.evaluate(() => setUi2(true)); await w(500);
   check('  新しい 画面に 戻せる', [await vis('appTop'), await vis('appNav')].join('/'), 'true/true');
+  // 時計の帯・戻るボタンの 所の 色（v642）：既定は 背景と 同じ
+  const tc = () => page.evaluate(() => document.querySelector('meta[name="theme-color"]').content);
+  await page.evaluate(() => { refreshSkinUI(); applySysBar(); }); await w(200);
+  check('  時計の帯・戻るの 所は 背景と 同じ 色が 既定（上の バー・下の タブと 同じ 白）', await tc() + '/' + await page.evaluate(() => [...document.querySelectorAll('#skinSysSeg button')].map(x => x.textContent + (x.classList.contains('on') ? '*' : '')).join(',')), '#ffffff/背景と同じ*,テーマの色');
+  await page.evaluate(() => setSkinSys('acc')); await w(200);
+  check('  　設定で テーマの 色に できる', await tc(), '#217346');
+  await page.evaluate(() => { setSkinSys('bg'); toggleDark(); }); await w(400);
+  const dk = await page.evaluate(() => { const c = getComputedStyle(document.getElementById('appNav')).backgroundColor.match(/\d+/g).slice(0, 3).map(v => (+v).toString(16).padStart(2, '0')).join(''); return '#' + c; });
+  check('  　夜の 色でも 背景（下の タブ）と 同じ', await tc() === dk && dk !== '#ffffff', true);
+  await page.evaluate(() => toggleDark()); await w(300);
+  check('  　昼に 戻すと 白', await tc(), '#ffffff');
   // セルの バーの 置き場所（v641）：新しい 画面でも 設定の「表の上」が 効く
   const fbAt = () => page.evaluate(() => { const f = document.querySelector('.formula-bar').getBoundingClientRect(), sw = document.querySelector('.sheet-wrap').getBoundingClientRect(); return (f.top < sw.top ? 'top' : 'pad') + '/' + [...document.querySelectorAll('#fbPlaceSeg button')].filter(x => x.classList.contains('on')).map(x => x.dataset.fb).join(''); });
   await page.evaluate(() => renderFbPlace()); await w(100);
