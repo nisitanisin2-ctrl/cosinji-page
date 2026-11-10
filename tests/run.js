@@ -20717,10 +20717,11 @@ async function runUi2640(browser) {
   check('  ひな形の タブ → ひな形の 一覧', await page.evaluate(() => isDlgOpen('moreMenuOverlay') + '/' + isDlgOpen('modeMenuOverlay')) + '/' + await on(), 'false/true/tpl');
   await tab('sheet');
   check('  表の タブで ぜんぶ 閉じる', await page.evaluate(() => [...document.querySelectorAll('.modal-overlay.open')].length) + '/' + await on(), '0/sheet');
-  await page.evaluate(() => NP_TOOLS.find(t => t.id === 'shimai').run()); await w(800);
+  await page.evaluate(() => { localStorage.setItem('excalc_tool_fs', '0'); NP_TOOLS.find(t => t.id === 'shimai').run(); }); await w(800);   // 下の タブを 残す 設定で（v649）
   check('  道具を 開くと 道具の タブ', await on(), 'tools');
   await tab('sheet');
   check('  表の タブで 道具を 閉じて 表へ', await page.evaluate(() => isDlgOpen('shimaiOverlay')) + '/' + await on(), 'false/sheet');
+  await page.evaluate(() => localStorage.removeItem('excalc_tool_fs'));
   await page.evaluate(() => window.history.back()); await w(600);
   check('  そのあと 端末の「戻る」で アプリの 外へ 出ない', await page.evaluate(() => typeof navGo), 'function');
   // v641：キーボードで 打つ 間は テンキーと タブを 隠す・＝ と リセット に すぐ 届く
@@ -20855,6 +20856,17 @@ async function runUi2640(browser) {
     await key('n7'); await key('enter'); await w(400);
     check('  　テンキーの 続きも 入る', await page.evaluate(() => data[26][0]), 'メモ7');
     await page.evaluate(() => { for (let r = 20; r < 28; r++) for (let c = 0; c < 3; c++) setCellVal(r, c, ''); sel(0, 0); }); await w(200);
+  }
+  // v649：道具は 全画面（はじめ）。設定で 下の タブを 残せる
+  {
+    const tm = () => page.evaluate(() => { const o = document.getElementById('tansuiOverlay'), r = o.getBoundingClientRect(); return Math.round(r.bottom) + '/' + getComputedStyle(document.getElementById('appNav')).visibility + '/' + [...document.querySelectorAll('#toolFsSeg button')].filter(b => b.classList.contains('on')).map(b => b.dataset.t).join(''); });
+    await page.evaluate(() => { renderUi2Seg(); NP_TOOLS.find(t => t.id === 'tansui').run(); }); await w(700);
+    check('  道具は はじめ 全画面（下の タブは 隠れる）', await tm(), '852/hidden/1');
+    await page.evaluate(() => { NP_TOOLS.find(t => t.id === 'tansui').close(); }); await w(400);
+    check('  　閉じると タブが 戻る', await page.evaluate(() => getComputedStyle(document.getElementById('appNav')).visibility), 'visible');
+    await page.evaluate(() => { setToolFs(false); NP_TOOLS.find(t => t.id === 'tansui').run(); }); await w(700);
+    check('  　設定で「下のタブを残す」に できる', await tm(), (852 - 48) + '/visible/0');
+    await page.evaluate(() => { NP_TOOLS.find(t => t.id === 'tansui').close(); setToolFs(true); }); await w(400);
   }
   // 範囲を 選んで ⌫・CE で まとめて 消す（v646）
   await page.evaluate(() => { for (let r = 10; r < 13; r++) for (let c = 0; c < 3; c++) setCellVal(r, c, String(r * 10 + c)); recalcAll(); sel(10, 0); extendRange(11, 1); }); await w(200);
