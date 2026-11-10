@@ -872,6 +872,13 @@ function stripAllMerges(){
 }
 
 /* ── スプレッドシート構築 ── */
+/* 行番号の 列の 幅：フォーム型 30・新しい 画面 36（v643。見本と 同じ 細い 列）・前の 画面 48 */
+function rhWidth(){ return isFormMode() ? 30 : (ui2On ? 36 : 48); }
+function applyRhWidth(){
+  const w=rhWidth()+'px', cn=document.getElementById('cornerCell'); if(cn) cn.style.width=w;
+  for(let r=0;r<ROWS;r++){ const e=document.getElementById('rh'+r); if(e) e.style.width=w; }
+  if(typeof autoFitSheet==='function') autoFitSheet();
+}
 function buildSheet() {
   copySrcR=copySrcC=-1;
   hpCfMap=hpCfCompute();   // 🎨 条件で付く色（v563。下の applyCellStyle で重ねる）
@@ -881,7 +888,7 @@ function buildSheet() {
   afReady=false; afDirty.clear();   // 作り直す ときは 最後に ぜんぶ 測る（v636）
   // テーブルは横幅いっぱい(width:100%)。列が多い時だけ最小幅でスクロールさせる
   // 実際の最小幅は autoFitSheet() で内容に合わせて決める
-  const rhW = isFormMode() ? 30 : 48;   // フォーム型モードは行番号列を狭く
+  const rhW = rhWidth();   // フォーム型モードは行番号列を狭く・新しい 画面も 細く（v643）
   const hr=t.insertRow();
   const corner=hr.insertCell();
   corner.className='ch corner-resizer'; corner.id='cornerCell'; corner.style.width=rhW+'px';
@@ -1034,7 +1041,7 @@ function autoFitSheet(){
   // 1) 基準幅に揃え、前回の縮小を解除（手動指定列は「100%基準の幅×倍率」）
   //    v636：測る 間は 表の 幅も 基準幅の 合計に する。前の 幅（t.style.width）が 残って いると セルが 広く 測れて、
   //    合わせる たびに 列が 1px ずつ 広がって いた（72→73→74→75px）
-  let w0sum=isFormMode()?30:48;
+  let w0sum=rhWidth();
   for(let c=0;c<COLS;c++){
     const ch=document.getElementById('ch'+c);
     const w0=colWidths[c]?Math.round(colWidths[c]*scale):baseW;
@@ -1045,7 +1052,7 @@ function autoFitSheet(){
       if(td && td.style.getPropertyValue('--fit')) td.style.removeProperty('--fit');   // 縮めて いる セルだけ（v636）
     }
   }
-  const rhW=isFormMode()?30:48;   // 行番号列の幅（フォーム型は狭く）
+  const rhW=rhWidth();   // 行番号列の幅（フォーム型は狭く）
   if(isFormMode()) t.style.minWidth=(rhW+COLS*baseW)+'px';
   else { t.style.minWidth=w0sum+'px'; t.style.width=w0sum+'px'; }   // 測る 間だけ（3) で 元の 決め方に もどす。v636）
   // 2) 列ごとに必要幅を測る（手動指定列は測らず固定）
@@ -6190,7 +6197,9 @@ let sumPlace='pad';
 try{ if(localStorage.getItem(SUM_PLACE_KEY)==='bar') sumPlace='bar'; }catch(_){}
 function sumPadOn(){
   const b=document.body.classList;
-  if(sumPlace!=='pad' || b.contains('np-side') || b.contains('numpad-off') || b.contains('pagebar-off') || b.contains('dentaku-mode')) return false;
+  if(b.contains('numpad-off') || b.contains('pagebar-off') || b.contains('dentaku-mode')) return false;
+  if(ui2On) return true;   // 新しい 画面は いつも テンキーの 上の 行（自分のボタンの 所）。セルの バーは 中身を 広く 見せる（v643）
+  if(sumPlace!=='pad' || b.contains('np-side')) return false;
   try{ if(typeof numpadIsLandscape==='function' && numpadIsLandscape()) return false; }catch(_){}
   return true;
 }
@@ -11465,7 +11474,7 @@ function sel(r,c) {
 
 function highlightCol(c,on) {
   const ch=document.getElementById(`ch${c}`); if(ch) ch.classList.toggle('sel',on);   // 範囲外の列でもエラーにしない
-  const rh=document.getElementById(`rh${selR}`); if(rh) rh.classList.toggle('sel',false);
+  const rh=document.getElementById(`rh${selR}`); if(rh){ rh.classList.toggle('sel',false); rh.classList.toggle('rcur',on); }   // rcur＝いまの 行（v643）
   for (let r=0;r<ROWS;r++) {
     const cell=document.getElementById(`c${r}_${c}`);
     if (cell&&!cell.classList.contains('active')) cell.classList.toggle('in-col',on);
@@ -17581,7 +17590,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v642';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v643';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -21726,6 +21735,11 @@ function applyUi2(){
   if(typeof applyFbPlace==='function') applyFbPlace();
   if(typeof applyKeypadLayout==='function') applyKeypadLayout();
   renderUi2Seg(); uiTopSync(); navSync();
+  { const tb=document.getElementById('textBtn');   // あ文字 → キーボードの 絵＋あ（見本と 同じ。v643）
+    if(tb){ const t=tb.textContent.trim();
+      if(ui2On && t==='あ文字'){ tb.innerHTML='<span class="kb-a"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h.01M10 10h.01M13.5 10h.01M17 10h.01M7.5 14h9"/></svg>あ</span>'; tb.dataset.kbA='1'; tb.setAttribute('aria-label','あ文字（文字を打つ）'); }
+      else if(!ui2On && tb.dataset.kbA){ tb.textContent='あ文字'; delete tb.dataset.kbA; tb.removeAttribute('aria-label'); } } }
+  if(typeof applyRhWidth==='function' && typeof ROWS!=='undefined') applyRhWidth();
   if(typeof applySysBar==='function') requestAnimationFrame(applySysBar);   // 時計の帯・戻るボタンの 所の 色（v642）
   try{ window.dispatchEvent(new Event('resize')); }catch(_){}
 }
