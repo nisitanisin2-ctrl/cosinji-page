@@ -2369,8 +2369,8 @@ async function runSpeech(browser) {
   const toolRow = () => page.evaluate(() => [...document.querySelectorAll('#numpadPage1 .btn.util')]
     .map(b => ({ k: b.dataset.key, c: +getComputedStyle(b).gridColumnStart }))
     .sort((a, b) => a.c - b.c).map(x => x.k).join(','));
-  check('  道具の段は 🎤声・進む・戻る・リセット・▦通常',
-        await toolRow(), 'u_voice,u_redo,u_undo,u_reset,u_normal');
+  check('  道具の段は 🎤声・↶戻す・↷進む・あ文字・▦通常（v639）',
+        await toolRow(), 'u_voice,u_undo,u_redo,u_text,u_normal');
   check('  電卓キーは道具の段に無い',
         await page.evaluate(() => !!document.querySelector('#numpadPage1 [data-key="u_dentaku"]')), false);
   check('  電卓は⋯から出せる', await page.evaluate(() =>
@@ -2382,8 +2382,8 @@ async function runSpeech(browser) {
     u_dentaku: { r: 1, c: 1 }, u_redo: { r: 1, c: 2 }, u_undo: { r: 1, c: 3 },
     u_reset: { r: 1, c: 4 }, u_normal: { r: 1, c: 5 } })));
   await page.reload(); await page.waitForTimeout(900);
-  check('  並べ替えていた人は電卓の場所に🎤声',
-        await toolRow(), 'u_voice,u_redo,u_undo,u_reset,u_normal');
+  check('  並べ替えていた人は電卓の場所に🎤声・リセットの場所に あ文字（v639）',
+        await toolRow(), 'u_voice,u_redo,u_undo,u_text,u_normal');
   await page.evaluate(() => { localStorage.removeItem('excalc_keypad_pos_v2'); });
   await page.reload(); await page.waitForTimeout(900);
   // 読み込み直したので、偽の音声認識を入れ直す
@@ -3142,12 +3142,16 @@ async function runStartPage(browser) {
     document.getElementById('startPageSel').value), 'kantab');
   await page.evaluate(() => localStorage.setItem('excalc_startpage', 'なにこれ'));
   await page.reload(); await page.waitForTimeout(1200);
-  check('  知らない値はホームにする（v459）', await page.evaluate(() => startPage + '/' + isDlgOpen('homeOverlay')), 'home/true');
+  check('  知らない値は前回のつづき（v639。v459〜はホーム）', await page.evaluate(() => startPage + '/' + isDlgOpen('homeOverlay')), 'last/false');
   check('  そのとき道具は開かない', await opened(), 'なし/normal');
   // 🏠 ホーム（v459）
   await page.evaluate(() => { localStorage.removeItem('excalc_startpage'); localStorage.setItem('excalc_recent_tools', JSON.stringify(['shimai', 'nothing', 'techo', 'koe'])); });
   await page.reload(); await page.waitForTimeout(1200);
-  check('  決めていなければホームで開く', await page.evaluate(() => startPage + '/' + isDlgOpen('homeOverlay') + '/' + document.getElementById('homeStartChk').checked), 'home/true/true');
+  check('  決めていなければ前回のつづき（v639。ホームの窓は出さない）', await page.evaluate(() => startPage + '/' + isDlgOpen('homeOverlay')), 'last/false');
+  await page.evaluate(() => openHome()); await page.waitForTimeout(300);
+  check('  ホームの「開いたときに出す」は外れている', await page.evaluate(() => document.getElementById('homeStartChk').checked), false);
+  await page.evaluate(() => { const c = document.getElementById('homeStartChk'); c.checked = true; c.dispatchEvent(new Event('change')); }); await page.waitForTimeout(100);
+  check('  付ければホームで開く', await page.evaluate(() => localStorage.getItem('excalc_startpage')), 'home');
   check('  ホーム：表・電卓・道具と、さいきん使った道具（知らないものは出さない）', await page.evaluate(() => [...document.querySelectorAll('#homeOverlay .home-tile b')].map(b => b.textContent).join(',') + '/' + [...document.querySelectorAll('#homeRecent [data-tool]')].map(b => b.dataset.tool).join(',')), '表,電卓,道具/shimai,techo,koe');
   await page.evaluate(() => homeGo('dentaku')); await page.waitForTimeout(400);
   check('  ホーム：電卓', await page.evaluate(() => isDlgOpen('homeOverlay') + '/' + isDentaku()), 'false/true');
@@ -3181,7 +3185,7 @@ async function runStartPage(browser) {
   await page.reload(); await page.waitForTimeout(1500);
   check('  はじめての人は案内が先（ホームは重ねない）', await page.evaluate(() => isDlgOpen('tourOverlay') + '/' + isDlgOpen('homeOverlay')), 'true/false');
   await page.evaluate(() => tourSkip()); await page.waitForTimeout(700);
-  check('  案内を閉じるとホーム', await page.evaluate(() => isDlgOpen('homeOverlay')), true);
+  check('  案内を閉じてもホームは出さない（v639。すぐ打てる）', await page.evaluate(() => isDlgOpen('homeOverlay')), false);
   await page.evaluate(() => { closeHome(); setStartPage('last'); }); await page.waitForTimeout(300);
 
   check('  JSエラーが出ていない', errs.length, 0);
@@ -20555,6 +20559,62 @@ async function runRangeFill635(browser) {
   await ctx2.close();
 }
 
+/* v639：すぐ 打てるように（段階1）。読み込み表示を すぐ 消す・前回の つづきで 開く・お知らせは ☰ の 印・文字は 左／数は 右・テンキーの 上の 段・お知らせの 位置 */
+async function runQuick639(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+  console.log('\n── 表電卓 v639：すぐ 打てるように ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.goto(INDEX); await w(600);
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_seen_ver', 'v600');
+    localStorage.setItem('excalc_saves', JSON.stringify([{ id: 1, name: '見積り', at: Date.now() }]));
+    localStorage.setItem('excalc_key_assign', JSON.stringify({ u_reset: 'a_modedentaku' })); localStorage.removeItem('excalc_kp639'); });
+  await page.reload({ waitUntil: 'load' });
+  const t0 = Date.now();
+  await page.waitForFunction(() => !document.getElementById('appSplash'), null, { timeout: 5000 });
+  check('  読み込み表示は 組み上がったら すぐ 消える（1秒 かからない）', Date.now() - t0 < 1000, true);
+  await w(2000);
+  check('  開いたら 前回の つづき（窓は 何も 出ない）', await page.evaluate(() => startPage + '/' + ([...document.querySelectorAll('.modal-overlay.open')].map(e => e.id).join(',') || 'なし')), 'last/なし');
+  check('  新しい版・バックアップの おすすめを 下の バーで 割りこませない', await page.evaluate(() => { const n = document.getElementById('noticeBar'); return !!(n && n.classList.contains('show')); }), false);
+  check('  そのかわり ☰ に 印', await page.evaluate(() => document.getElementById('fbMenu').classList.contains('has-note') + '/' + document.getElementById('fbMenu').getAttribute('aria-label')), 'true/メニュー（お知らせ 2件）');
+  await page.evaluate(() => openMoreMenu()); await w(500);
+  check('  メニューの いちばん上に お知らせ 2つ', await page.evaluate(() => [...document.querySelectorAll('#moreNotes .more-note b')].map(e => e.textContent).join('|')), 'v' + (await page.evaluate(() => APP_VERSION)).slice(1) + ' に新しくなりました|大事な記録をファイルに残しておきませんか');
+  check('  新しい版の 見出しも 出る', await page.evaluate(() => { const s = document.querySelector('#moreNotes .more-note small'); return !!(s && s.textContent.length > 3); }), true);
+  await page.evaluate(() => document.querySelectorAll('#moreNotes .more-note-x')[1].click()); await w(200);
+  check('  バックアップの ✕ は「あとで」と 同じ（7日 寝かせる）', await page.evaluate(() => bkSnoozed() + '/' + document.querySelectorAll('#moreNotes .more-note').length), 'true/1');
+  await page.evaluate(() => document.querySelector('#moreNotes .more-note-go').click()); await w(700);
+  check('  新しい版を 押すと「新しくなったこと」が 開く・見た ことを 覚える', await page.evaluate(() => isDlgOpen('whatsNewOverlay') + '/' + (seenVer() === APP_VERSION)), 'true/true');
+  check('  お知らせが なくなれば ☰ の 印も 消える', await page.evaluate(() => document.getElementById('fbMenu').classList.contains('has-note')), false);
+  await page.evaluate(() => closeWhatsNew()); await w(300);
+  // 文字は 左・数は 右
+  await page.evaluate(() => { setSheetSize(15, 4); [['品名', '単価', '割合', '日付'], ['りんご', '1,200', '10%', '2026/11/10'], ['=A2&"です"', '=B2*2', '¥500', '10:30'], ['#DIV/0!', '-3.5', 'TRUE', '12m']].forEach((row, r) => row.forEach((v, c) => setCellVal(r, c, v))); recalcAll(); });
+  await w(300);
+  const al = () => page.evaluate(() => [0, 1, 2, 3].map(r => [0, 1, 2, 3].map(c => getComputedStyle(document.getElementById('c' + r + '_' + c)).textAlign[0]).join('')).join(' '));
+  check('  文字は 左・数（区切り・％・円・日付・時刻・式の 答え）・エラーは 右', await al(), 'llll lrrr lrrr rrrl');
+  await page.evaluate(() => { sel(1, 0); kfmtAlign('right'); }); await w(200);
+  check('  寄せを 決めた セルは そちらが 勝つ', await page.evaluate(() => getComputedStyle(document.getElementById('c1_0')).textAlign), 'right');
+  // テンキーの 上の 段
+  check('  上の 段は 🎤声・↶戻す・↷進む・あ文字・▦通常', await page.evaluate(() => [...document.querySelectorAll('#numpadPage1 .btn.util')].sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left).map(e => e.dataset.origLabel || e.textContent.trim()).join(',')), '🎤声,↶戻す,↷進む,あ文字,▦通常');
+  check('  リセットの キーに 割り当てて いた 機能は あ文字の 場所へ 引き継ぐ', await page.evaluate(() => JSON.parse(localStorage.getItem('excalc_key_assign')).u_text + '/' + !JSON.parse(localStorage.getItem('excalc_key_assign')).u_reset), 'a_modedentaku/true');
+  await page.evaluate(() => { keyAssign = {}; saveKeyAssign(); applyKeyAssign(); sel(5, 0); }); await w(200);
+  await page.tap('#textBtn'); await w(300);
+  check('  あ文字で キーボードの 入力に なる', await page.evaluate(() => document.activeElement.id + '/' + document.getElementById('textBtn').classList.contains('text-on')), 'formulaInput/true');
+  await page.keyboard.type('ぶどう'); await page.keyboard.press('Enter'); await w(300);
+  check('  そのまま 文字が 入る', await page.evaluate(() => data[5][0]), 'ぶどう');
+  check('  リセットは ☰ の 奥に 残って いる', await page.evaluate(() => !!document.getElementById('resetBtn')), true);
+  check('  ひな形の キーは 赤く ない（消す 色は CE だけ）', await page.evaluate(() => { const b = document.getElementById('shoppingBtn'); return b.classList.contains('clr') + '/' + getComputedStyle(b).backgroundColor; }), 'false/rgb(63, 74, 90)');
+  // お知らせの 位置
+  await page.evaluate(() => toast('ためし')); await w(300);
+  check('  お知らせは テンキーの 上に 出る（キーに 重ならない）', await page.evaluate(() => { const t = document.getElementById('appToast').getBoundingClientRect(), n = document.getElementById('numpadSection').getBoundingClientRect(); return t.bottom <= n.top; }), true);
+  await page.evaluate(() => { openMoreMenu(); toast('窓の 中'); }); await w(300);
+  check('  窓を 開いて いる ときは いままで どおり 下', await page.evaluate(() => document.getElementById('appToast').style.bottom), '');
+  await page.evaluate(() => closeMoreMenu()); await w(200);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 /* v637：ひな形の 一覧を 1つに（用途ごと・同じ カード・さがす・最近つかった）・ひな形の 表の 色を 一覧表と そろえる・答えは 入れるまで 空 */
 async function runTmpl637(browser) {
   const { ctx, page, errs } = await newPage(browser);
@@ -21630,6 +21690,7 @@ const SUITES = [
   [['rangefill635', 'fill', 'v635'], b => runRangeFill635(b)],
   [['big636', 'v636'], b => runBig636(b)],
   [['tmpl637', 'v637'], b => runTmpl637(b)],
+  [['quick639', 'v639'], b => runQuick639(b)],
   [['clip'], b => runClip(b)],
   [['koe'], b => runKoe(b)],
   [['koe', 'koelisten'], b => runKoeListen(b)],

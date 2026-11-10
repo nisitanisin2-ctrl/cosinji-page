@@ -248,7 +248,7 @@ body.skin-keys .numpad-overlay {
   background: linear-gradient(150deg, #2a8a55, #217346 55%, #0f4a26);
   color: #fff; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 14px;
-  transition: opacity .28s ease;
+  transition: opacity .14s ease;   /* v639：短く（前は .28s） */
 }
 #appSplash.gone { opacity: 0; pointer-events: none; }
 #appSplash .sp-ico { font-size: 62px; line-height: 1; }
@@ -843,6 +843,25 @@ body.tb-fold.dentaku-mode .dt-pane .dt-tape-empty { min-height: 38px; }
 .fmt-select, .save-sortsel { min-height: 36px; }
 .tsx-sec-btn { min-height: 36px; align-items: center; }
 .btn-more:active { background: rgba(255,255,255,0.4); }
+/* ☰ の お知らせの 印（v639） */
+.btn-more.has-note::after { content: ''; position: absolute; top: 3px; right: 3px; width: 10px; height: 10px; border-radius: 50%;
+  background: #ff7a2f; box-shadow: 0 0 0 2px #fff; pointer-events: none; z-index: 1; }
+#moreBtn, #fbMenu { position: relative; }
+.fb-menu.has-note::after { content: ''; position: absolute; top: 2px; right: 2px; width: 10px; height: 10px; border-radius: 50%;
+  background: #ff7a2f; box-shadow: 0 0 0 2px #fff; pointer-events: none; z-index: 1; }
+.more-notes { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.more-notes[hidden] { display: none; }
+.more-note { display: flex; align-items: stretch; gap: 4px; border: 1px solid #f0b48a; background: #fff6ef; border-radius: var(--r-btn); }
+.more-note-go { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 9px 10px; border: 0; background: none; color: #3b2a1e;
+  text-align: left; font: inherit; cursor: pointer; touch-action: manipulation; }
+.more-note-ico { font-size: 20px; flex-shrink: 0; }
+.more-note-tx { display: flex; flex-direction: column; min-width: 0; }
+.more-note-tx b { font-size: 14px; }
+.more-note-tx small { font-size: 11.5px; color: #7a5a44; margin-top: 2px; }
+.more-note-x { flex-shrink: 0; width: 40px; border: 0; background: none; color: #7a5a44; font-size: 15px; cursor: pointer; touch-action: manipulation; }
+body.dark .more-note { background: #3a2a1c; border-color: #8a5a35; }
+body.dark .more-note-go { color: #f6e6d8; }
+body.dark .more-note-tx small, body.dark .more-note-x { color: #d9b89c; }
 /* 「⋯」の中身 */
 .modal.more-modal { width: 100%; max-width: 420px; max-height: 90vh; }
 .more-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
@@ -1652,6 +1671,7 @@ table.sheet {
   vertical-align: middle; touch-action: manipulation;
 }
 .cell:hover { background: var(--cell-hover); }
+.cell.cell-txt { text-align: left; }   /* 文字は 左（v639。数は 右の まま。書式で 寄せを 決めた セルは そちらが 勝つ） */
 .cell.active {
   border: 2px solid var(--acc) !important;
   outline: none; background: var(--sheet-cell-bg, var(--cell-bg));
@@ -2091,6 +2111,9 @@ body.calc-only #numpadPageSci .btn[data-key="dk_dec"] { grid-column: span 2; }
 /* 🧰道具のキー（v466）。ひな形のあった場所。どの道具もここから。目立つだいだい色 */
 .btn.kp-tools { background: #e65100; }
 .btn.kp-tools:hover { background: #f57c00; }
+/* ひな形の キー（v639）。前は 赤（CE と 同じ「消す」色）だった。場所を 移る キーなので 道具の 段と 同じ 落ちついた 色に */
+.btn.kp-mode { background: #3f4a5a; }
+.btn.kp-mode:hover { background: #4d5a6d; }
 .btn.enter  { background: #1a5276; grid-row: span 2; font-size: calc(22px * var(--key-scale, 1.3));
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
 /* Enterの下に、確定後に進む向き（下／右）を表示。長押しで切替。
@@ -4293,6 +4316,8 @@ body.dark {
       <button class="modal-close" onclick="closeMoreMenu()">✕</button>
     </div>
     <div class="modal-body">
+      <!-- お知らせ（v639）：新しい版・バックアップの おすすめ。起動の ときに 割りこませず ここに 出す -->
+      <div class="more-notes" id="moreNotes" hidden></div>
       <!-- 最近使った操作（v624）。ほかの機能の中で 押した ものを 3つ -->
       <div class="more-recent" id="moreRecent" hidden><span class="more-recent-t">🕘 最近使った</span><div class="more-recent-list" id="moreRecentList"></div></div>
       <!-- 標準モード／かんたんモード（v482。前は ⚙設定 のいちばん上にあった） -->
@@ -5122,9 +5147,10 @@ body.dark {
          🎤声・進む・戻る・リセット・▦通常（通常モードへ）の5つ（v328から。電卓は⋯の中）。
          5つとも長押しで好きな機能に変えられる（設定・機能／表の操作 など）。 -->
     <button class="btn util" data-key="u_voice" onclick="voiceStart()" title="声で入れる（続けて入れるときは☰の🎤を長押し、または「🎤続け」をキーに割り当て）／長押しで別の機能に変更">🎤声</button>
-    <button class="btn util" data-key="u_redo"  onclick="redoLast()" title="元に戻した入力をやり直す／長押しで別の機能に変更">↷進む</button>
+    <!-- v639：ほかの アプリと 同じく ↶戻す を 左・↷進む を 右に。「リセット」（表を 消す）は ☰ の 奥へ 移し、文字を 打つ「あ文字」に -->
     <button class="btn util" data-key="u_undo"  onclick="undoLast()" title="タップで元に戻す／長押しで取り消せる操作の一覧">↶戻す</button>
-    <button class="btn util" data-key="u_reset" onclick="resetAll()" title="表の中身を消す（戻るで元に戻せます）／長押しで別の機能に変更">リセット</button>
+    <button class="btn util" data-key="u_redo"  onclick="redoLast()" title="元に戻した入力をやり直す／長押しで別の機能に変更">↷進む</button>
+    <button class="btn util" data-key="u_text" id="textBtn" onmousedown="event.preventDefault()" onclick="toggleTextInput()" title="文字を打つ（キーボードを出す。もう一度でテンキーへ）／長押しで別の機能に変更">あ文字</button>
     <button class="btn util" data-key="u_normal" onclick="switchMode('normal')" title="ふつうの表に戻す／長押しで別の機能に変更">▦通常</button>
     <button class="btn kp-tools" data-key="tools" onclick="openToolsList()" title="🧰道具の窓を開く／長押しで別の機能に変更">🧰道具</button>
     <button class="btn clr" data-key="ce"   onclick="ce()">CE</button>
@@ -5148,7 +5174,7 @@ body.dark {
     <button class="btn span2" data-key="n0" onclick="num('0')">0</button>
     <button class="btn"     data-key="dot"  onclick="dot()">.</button>
     <button class="btn fx"  data-key="fx"   onclick="startFormula()" title="数式を入れる（＝から始まる式。Excel と同じ）"><span class="kl2"><b>＝</b><small>数式</small></span></button>
-    <button class="btn clr" data-key="mode" id="shoppingBtn" onclick="onModeBtnClick()">ひな形</button>
+    <button class="btn kp-mode" data-key="mode" id="shoppingBtn" onclick="onModeBtnClick()">ひな形</button>
     </div>
     <div class="numpad-grid numpad-overlay ov-right" id="numpadPage2">
     <!-- 関数・記号ページ（数字ページから左フリックで表示。数字ページの上に重なってスライドイン）。数式に記号・関数を挿入する。data-keyで配置編集に対応 -->
