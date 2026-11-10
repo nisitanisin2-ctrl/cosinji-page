@@ -1522,6 +1522,30 @@ function padTopRow(){
 }
 function placeEditBar(){
   const menu=document.getElementById('cellMenu'); if(!menu || !menu.classList.contains('edit-bar')) return;
+  // 新しい 画面（v641）：テンキーには 重ねず、選んだ セルの そばに 小さく 出す（その場の メニュー）
+  menu.classList.toggle('ui2-pop', ui2On && !document.body.classList.contains('kb-edit'));
+  if(menu.classList.contains('ui2-pop')){
+    menu.classList.remove('on-pad');
+    menu.style.height=''; menu.style.width=''; menu.style.right='auto'; menu.style.bottom='auto';
+    const wrap=document.querySelector('.sheet-wrap'), wr=wrap ? wrap.getBoundingClientRect() : {top:0,bottom:innerHeight,left:0,right:innerWidth,width:innerWidth};
+    const r1=rangeR1>=0 ? Math.min(rangeR1,rangeR2) : selR, c1=rangeR1>=0 ? Math.min(rangeC1,rangeC2) : selC;
+    const r2=rangeR1>=0 ? Math.max(rangeR1,rangeR2) : selR, c2=rangeR1>=0 ? Math.max(rangeC1,rangeC2) : selC;
+    const a1=document.getElementById('c'+r1+'_'+c1), a2=document.getElementById('c'+r2+'_'+c2);
+    const ra1=a1 ? a1.getBoundingClientRect() : null, ra2=a2 ? a2.getBoundingClientRect() : ra1;
+    const W=Math.min(menu.offsetWidth||300, wr.width-12), H=menu.offsetHeight||44;
+    let top, left;
+    if(ra1){
+      top=ra1.top-H-8;
+      if(top<wr.top+2) top=ra2.bottom+8;
+      if(top+H>wr.bottom-2) top=Math.max(wr.top+2, wr.bottom-H-2);
+      left=(ra1.left+ra2.right)/2-W/2;
+    } else { top=wr.top+6; left=wr.left+(wr.width-W)/2; }
+    left=Math.max(wr.left+6, Math.min(left, wr.right-W-6));
+    menu.style.left=Math.round(left)+'px'; menu.style.top=Math.round(top)+'px';
+    bandScrollSync();
+    return;
+  }
+  menu.style.right='';
   // テンキーが 出ているときは、いちばん上の 列（声・進む・戻す・リセット…）に かさねて 出す。帯が 消えると 元の ボタンに 戻る（v619）
   const row=padTopRow();
   menu.classList.toggle('on-pad', !!row);
@@ -1556,7 +1580,7 @@ function placeEditBar(){
 }
 function hideEditBar(){
   const menu=document.getElementById('cellMenu'); if(!menu || !menu.classList.contains('edit-bar')) return;
-  menu.classList.remove('edit-bar','show','bar-nokb','on-pad','ctx-hdr','can-l','can-r'); menu.style.bottom=''; menu.style.top=''; menu.style.left=''; menu.style.width=''; menu.style.height='';
+  menu.classList.remove('edit-bar','show','bar-nokb','on-pad','ctx-hdr','can-l','can-r','ui2-pop'); menu.style.bottom=''; menu.style.top=''; menu.style.left=''; menu.style.width=''; menu.style.height=''; menu.style.right='';
   bandHdrKind='';
 }
 /* 帯は 横に だけ 送り、スクロールバーは 出さない（v633。パソコン〈Windows〉では 太い バーが ボタンの 字に かぶって 隠れて いた）。
@@ -1756,6 +1780,17 @@ function cellMenuCtx(i){
   it.run();
 }
 
+/* 帯の「⋯ もっと」（v641）：いま 出せる 操作を ぜんぶ、下からの シートに 大きく 並べる。押すと 帯の ボタンと 同じ 働き */
+function bandMoreOpen(){
+  const m=document.getElementById('cellMenu'), box=document.getElementById('bandMoreBody'); if(!m || !box) return;
+  const btns=[...m.querySelectorAll('button[data-act]')].filter(b=>b.dataset.act!=='more2' && !b.classList.contains('cm-arr') && getComputedStyle(b).display!=='none' || (b.dataset.act!=='more2' && b.classList.contains('cm-off')));
+  const t=document.getElementById('bandMoreTitle');
+  if(t) t.textContent=(rangeR1>=0 ? '選んだ範囲' : (ALPHA[selC]+(selR+1)))+' の操作';
+  box.innerHTML=btns.map((b,i)=>'<button type="button" class="bm-item" data-i="'+i+'">'+escHtml(b.textContent.trim())+'</button>').join('');
+  box.querySelectorAll('.bm-item').forEach(x=>x.addEventListener('click', ()=>{ const b=btns[+x.dataset.i]; closeDlg('bandMoreOverlay'); if(b) b.click(); }));
+  hideEditBar();
+  openDlg('bandMoreOverlay');
+}
 /* ══ 🎛 帯の ボタンを 決める 窓（v626）══ */
 let bandCfgKind='num';
 function openBandCfg(k){
@@ -2465,6 +2500,7 @@ function clearSelection(){
   cells.forEach(([r,c])=>{ if(!isLockedCell(r,c) && data[r][c]!=='') entries.push({r,c,val:data[r][c]}); });
   if(!entries.length) return;
   pushHistory(entries, entries.length>1?'まとめて消去':'消去');
+  if(ui2On) toast(entries.length>1 ? entries.length+'個のセルを消しました' : '消しました', 0, {undo:true});   // v641
   entries.forEach(({r,c})=>{ data[r][c]=''; const el=document.getElementById(`c${r}_${c}`); if(el) setCellDisp(el, r,c); });
   recalcAll(); if(isStructMode()) recalcMode();
   document.getElementById('formulaInput').value=cellEditString(selR,selC);
@@ -5617,12 +5653,18 @@ function toastBottom(){
     return Math.round(window.innerHeight-r.top+10)+'px';
   }catch(_){ return ''; }
 }
-function toast(msg, ms){
+function toast(msg, ms, opt){
   let el=document.getElementById('appToast');
   if(!el){ el=document.createElement('div'); el.id='appToast'; el.className='app-toast';
     el.setAttribute('role','status'); el.setAttribute('aria-live','polite');   // 読み上げに乗せる
     document.body.appendChild(el); }
   el.textContent=msg;
+  el.classList.toggle('has-act', !!(opt && opt.undo));
+  if(opt && opt.undo){   // 「元に戻す」（v641）
+    const b=document.createElement('button'); b.type='button'; b.className='toast-act'; b.textContent='元に戻す';
+    b.addEventListener('click', ()=>{ el.classList.remove('show'); try{ undoLast(); }catch(_){} });
+    el.appendChild(b); ms=ms||5000;
+  }
   el.style.bottom=toastBottom();   // テンキーの 上に 出す（v639。前は テンキーの 下の 段に 重なって いた）
   el.classList.add('show');
   clearTimeout(_toastTimer);
@@ -5719,7 +5761,7 @@ function deleteRowAt(at){
   remapAllFormulas((r,c)=> r===at ? null : [r>at?r-1:r, c]);
   ROWS=ROWS-1;
   afterStructChange(Math.min(at,ROWS-1), selC);
-  toast(`${at+1}行目を削除しました`);
+  toast(`${at+1}行目を削除しました`, 0, {undo:ui2On});
 }
 function insertColAt(at){
   if(structOpBlocked()) return;
@@ -5748,7 +5790,7 @@ function deleteColAt(at){
   remapAllFormulas((r,c)=> c===at ? null : [r, c>at?c-1:c]);
   COLS=COLS-1;
   afterStructChange(selR, Math.min(at,COLS-1));
-  toast(`${ALPHA[at]}列を削除しました`);
+  toast(`${ALPHA[at]}列を削除しました`, 0, {undo:ui2On});
 }
 /* 設定パネルの「選択中のセル」に対する操作（従来ボタン用） */
 function insertRowAtSel(){ insertRowAt(selR); }
@@ -17590,7 +17632,7 @@ function resetAll() {
   document.getElementById('formulaInput').value=data[selR][selC];
   persistModes();
   if(typeof saveSheets==='function') saveSheets();   // 今のシートの内容だけ保存に反映（記録との紐付けは保つ）
-  toast('表の中身を消しました（戻るで元に戻せます）');
+  toast(ui2On ? '表の中身を消しました' : '表の中身を消しました（戻るで元に戻せます）', 0, {undo:ui2On});
 }
 /* シートリセット：ほかのシートを全部消して1枚に戻す（今開いているシートの内容・名前は残す）。
    表の中身は消さない（中身を消したいときは通常の「リセット」を使う）。 */
@@ -21694,6 +21736,10 @@ function navSync(){
     ['pointerup','pointercancel','pointerleave'].forEach(ev=>u.addEventListener(ev, ()=>{ if(t){ clearTimeout(t); t=null; } }));
     u.addEventListener('click', e=>{ if(lg){ lg=false; e.stopImmediatePropagation(); e.preventDefault(); } }, true);
   }
+})();
+(function bandFollow(){   // v641：表を 送ったら その場の メニューも ついて いく
+  const w=document.querySelector('.sheet-wrap'); if(!w) return;
+  w.addEventListener('scroll', ()=>{ const m=document.getElementById('cellMenu'); if(m && m.classList.contains('ui2-pop') && m.classList.contains('show')) placeEditBar(); }, {passive:true});
 })();
 /* ── iPhone で キーボードを 閉じた あと、画面が 上に ずれた まま 戻らない（iOS の くせ）のを 直す（v639）──
    iOS は 入力欄を 見せる ために ページごと 上へ 送る。キーボードを 閉じても 戻らない ことが あり、
