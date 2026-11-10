@@ -6271,7 +6271,7 @@ try{ if(localStorage.getItem(SUM_PLACE_KEY)==='bar') sumPlace='bar'; }catch(_){}
 function sumPadOn(){
   const b=document.body.classList;
   if(b.contains('numpad-off') || b.contains('pagebar-off') || b.contains('dentaku-mode')) return false;
-  if(ui2On) return true;   // 新しい 画面は いつも テンキーの 上の 行（自分のボタンの 所）。セルの バーは 中身を 広く 見せる（v643）
+  if(ui2On) return false;   // 新しい 画面は 範囲を 選んだ とき 表の 右下に 出す（v647。前は テンキーの 上の 行）
   if(sumPlace!=='pad' || b.contains('np-side')) return false;
   try{ if(typeof numpadIsLandscape==='function' && numpadIsLandscape()) return false; }catch(_){}
   return true;
@@ -6280,11 +6280,180 @@ let sumStatsEl=null;   // 合計の 欄（ページ名の 行を 描き直すと
 function syncSumPlace(){
   const st=sumStatsEl || (sumStatsEl=document.getElementById('statsSection')), bar=document.getElementById('numpadPageBar'), fb=document.querySelector('.formula-bar');
   if(!st || !bar || !fb) return;
+  if(ui2On){   // 新しい 画面（v647）：範囲・列・行を 選んだ ときだけ、表の 右下に 浮かせて 出す
+    document.body.classList.remove('sum-pad');
+    const fl=document.getElementById('rangeSum');
+    if(fl && st.parentNode!==fl) fl.appendChild(st);
+    rangeSumSync(); return;
+  }
+  { const fl=document.getElementById('rangeSum'); if(fl) fl.hidden=true; }
   const on=sumPadOn();
   if(document.body.classList.contains('sum-pad')!==on) document.body.classList.toggle('sum-pad', on);
   if(on){ if(st.parentNode!==bar || bar.lastElementChild!==st) bar.appendChild(st); }
   else if(st.parentNode!==fb){ const edge=document.getElementById('numpadEdgeBtn'); fb.insertBefore(st, edge && edge.parentNode===fb ? edge : null); }
   sumTightCheck();
+}
+/* 範囲（2つ 以上の セル）・列・行を 選んで いるか（v647） */
+function hasSelBlock(){
+  let hm=false; try{ hm=!!hdrMulti; }catch(_){}   // 起動の 途中（hdrMulti が まだ 無い）でも 止まらない
+  return (rangeR1>=0 && (rangeR1!==rangeR2 || rangeC1!==rangeC2)) || hm || selRow>=0;
+}
+/* 表の 右下の 合計（新しい 画面。v647） */
+function rangeSumSync(){ try{ rangeSumSync0(); }catch(_){} }
+function rangeSumSync0(){
+  const fl=document.getElementById('rangeSum'); if(!fl) return;
+  const b=document.body.classList;
+  const on=ui2On && hasSelBlock() && !b.contains('dentaku-mode') && !b.contains('kb-edit') && !(typeof navCurrent==='function' && navCurrent()!=='sheet');
+  fl.hidden=!on;
+  if(!on) return;
+  const sw=document.querySelector('.sheet-wrap'); if(!sw) return;
+  const r=sw.getBoundingClientRect();
+  fl.style.right=Math.max(6, window.innerWidth - r.right + 12)+'px';
+  fl.style.bottom=Math.max(6, window.innerHeight - r.bottom + 14)+'px';
+  fl.style.maxWidth=Math.max(120, r.width-24)+'px';
+}
+(function(){
+  const wrap=(name)=>{ const f=window[name]; if(typeof f!=='function') return; window[name]=function(){ const v=f.apply(this, arguments); try{ if(ui2On) requestAnimationFrame(rangeSumSync); }catch(_){} return v; }; };
+  ['updateStats','updateRowStats','clearRangeSelection','hdrMultiClear','navGo'].forEach(wrap);
+  window.addEventListener('resize', ()=>requestAnimationFrame(rangeSumSync));
+})();
+
+/* ── ƒx 関数を えらぶ（新しい 画面の テンキーの 上。v647）──
+   用途から えらぶ だけで 数式が 入る。
+   ・まとめて 計算（合計・平均・個数・最大・最小）：範囲を 選んで いれば その すぐ 下（横に 長い 範囲は すぐ 右）へ。
+     選んで いなければ、いまの セルの 上（無ければ 左）に 続く 数を まとめる（Σ と 同じ）
+   ・丸める・お金：いまの セルに 数（式）が あれば それを 包む。空なら 左（無ければ 上）の セルを 使う
+   ・条件：数式の 書き始めを 入れる（例を お知らせに 出す） */
+const FUNC_PICK=[
+  {g:'まとめて計算（範囲）', items:[
+    {k:'SUM',n:'合計',d:'足す'},{k:'AVERAGE',n:'平均',d:'ならす'},{k:'COUNT',n:'個数',d:'数の入ったセル'},
+    {k:'MAX',n:'最大',d:'いちばん大きい'},{k:'MIN',n:'最小',d:'いちばん小さい'}]},
+  {g:'丸める（1円・1個の単位に）', items:[
+    {k:'ROUND',n:'四捨五入',d:'整数に'},{k:'ROUNDUP',n:'切り上げ',d:'整数に'},{k:'ROUNDDOWN',n:'切り捨て',d:'整数に'}]},
+  {g:'お金（1円未満は切り捨て）', items:[
+    {k:'TAX10',n:'税込 10%',d:'×1.1'},{k:'TAX8',n:'税込 8%',d:'×1.08'},{k:'TAXAMT10',n:'消費税 10%',d:'×0.1'},
+    {k:'NOTAX10',n:'税抜き 10%',d:'÷1.1'},{k:'NOTAX8',n:'税抜き 8%',d:'÷1.08'}]},
+  {g:'条件で（書き始めを入れます）', items:[
+    {k:'IF',n:'もし〜なら',d:'IF'},{k:'COUNTIF',n:'条件の数',d:'COUNTIF'},{k:'SUMIF',n:'条件の合計',d:'SUMIF'}]}
+];
+const FUNC_WRAP={ ROUND:'ROUND(X,0)', ROUNDUP:'ROUNDUP(X,0)', ROUNDDOWN:'ROUNDDOWN(X,0)',
+  TAX10:'ROUNDDOWN((X)*1.1,0)', TAX8:'ROUNDDOWN((X)*1.08,0)', TAXAMT10:'ROUNDDOWN((X)*0.1,0)', NOTAX10:'ROUNDDOWN((X)/1.1,0)', NOTAX8:'ROUNDDOWN((X)/1.08,0)' };
+const FUNC_START={ IF:['=IF(','例 =IF(B2>=100,"○","×")　条件・合うとき・合わないとき'], COUNTIF:['=COUNTIF(','例 =COUNTIF(B2:B20,"○")　範囲・条件'], SUMIF:['=SUMIF(','例 =SUMIF(A2:A20,"食費",B2:B20)　条件の範囲・条件・足す範囲'] };
+const cref=(r,c)=>ALPHA[c]+(r+1);
+function openFuncPick(){
+  if(isDentaku()){ toast('電卓では使えません（表で使えます）'); return; }
+  if(typeof window.fiFlush==='function') window.fiFlush();
+  const box=document.getElementById('funcPickBody'); if(!box) return;
+  box.innerHTML='<div class="tt-note" id="funcPickNote"></div>'+FUNC_PICK.map(g=>'<div class="fp-g">'+g.g+'</div><div class="bm-grid">'+
+    g.items.map(it=>'<button class="bm-item fp-item" data-k="'+it.k+'" onclick="funcPickDo(\''+it.k+'\')"><b>'+it.n+'</b><small>'+it.d+'</small></button>').join('')+'</div>').join('')+
+    '<div class="bm-grid fp-more"><button class="bm-item" onclick="closeDlg(\'funcPickOverlay\');startFormula()"><b>＝ 自分で書く</b><small>数式</small></button></div>';
+  const rg=(rangeR1>=0 && (rangeR1!==rangeR2 || rangeC1!==rangeC2));
+  document.getElementById('funcPickNote').textContent = rg
+    ? '選んだ範囲 '+cref(Math.min(rangeR1,rangeR2),Math.min(rangeC1,rangeC2))+':'+cref(Math.max(rangeR1,rangeR2),Math.max(rangeC1,rangeC2))+' の答えを、すぐ下（横長の範囲はすぐ右）に入れます'
+    : 'いまのセル '+cref(selR,selC)+' に入れます。まとめて計算は、上（無ければ左）に続く数をまとめます。先に範囲を選んでから押すこともできます';
+  openDlg('funcPickOverlay');
+}
+function funcPickDo(k){
+  closeDlg('funcPickOverlay');
+  if(editBlocked()) return;
+  if(FUNC_START[k]){
+    startFormula();
+    const fi=document.getElementById('formulaInput'); fi.value=FUNC_START[k][0]; refreshDisp();
+    toast(FUNC_START[k][1]+'　セルを押すと番地が入ります。Enter で決めます', 6000); return;
+  }
+  if(FUNC_WRAP[k]) return funcWrapDo(k);
+  funcRangeDo(k);
+}
+function funcRangeDo(fn){
+  const put=[];   // [r,c,式]
+  if(rangeR1>=0 && (rangeR1!==rangeR2 || rangeC1!==rangeC2)){
+    const r1=Math.min(rangeR1,rangeR2), r2=Math.max(rangeR1,rangeR2), c1=Math.min(rangeC1,rangeC2), c2=Math.max(rangeC1,rangeC2);
+    if(r1===r2){ if(c2+1>=COLS){ toast('右に空きの列がありません'); return; } put.push([r1,c2+1,'='+fn+'('+cref(r1,c1)+':'+cref(r1,c2)+')']); }
+    else { if(r2+1>=ROWS){ toast('下に空きの行がありません'); return; } for(let c=c1;c<=c2;c++) put.push([r2+1,c,'='+fn+'('+cref(r1,c)+':'+cref(r2,c)+')']); }
+  } else {
+    let er=selR-1; while(er>=0 && data[er][selC]==='') er--;
+    if(er>=0){ let sr=er; while(sr>0 && data[sr-1][selC]!=='') sr--; put.push([selR,selC,'='+fn+'('+cref(sr,selC)+':'+cref(er,selC)+')']); }
+    else { let ec=selC-1; while(ec>=0 && data[selR][ec]==='') ec--;
+      if(ec>=0){ let sc=ec; while(sc>0 && data[selR][sc-1]!=='') sc--; put.push([selR,selC,'='+fn+'('+cref(selR,sc)+':'+cref(selR,ec)+')']); }
+      else { startFormula(); const fi=document.getElementById('formulaInput'); fi.value='='+fn+'('; refreshDisp(); toast('まとめるセルを押してえらび、Enter で決めます', 4500); return; } }
+  }
+  const ok=put.filter(([r,c])=>!isLockedCell(r,c) && data[r][c]==='');
+  if(!ok.length){ toast('入れる所（'+put.map(p=>cref(p[0],p[1])).join('・')+'）が空いていません'); return; }
+  const first=ok[0];
+  if(rangeR1>=0) clearRangeSelection();
+  ok.forEach(([r,c,f])=>setCellVal(r,c,f));
+  sel(first[0],first[1]);
+  toast(cref(first[0],first[1])+' に '+first[2]+(ok.length>1?' ほか '+(ok.length-1)+'つ':'')+(ok.length<put.length?'（空いていない所は入れませんでした）':''), 3500);
+}
+function funcWrapDo(k){
+  let r=selR, c=selC, x=null;
+  const cur=String(data[r][c]);
+  if(cur!==''){
+    if(cur.startsWith('=')) x=cur.slice(1);
+    else if(!isNaN(cur.trim()) && cur.trim()!=='') x=cur.trim();
+    else { toast('数のセルで使えます'); return; }
+  } else {
+    let cc=c-1; while(cc>=0 && data[r][cc]==='') cc--;
+    if(cc>=0) x=cref(r,cc);
+    else { let rr=r-1; while(rr>=0 && data[rr][c]==='') rr--; if(rr>=0) x=cref(rr,c); }
+    if(x===null){ toast('左（または上）に数のあるセルの所で押してください'); return; }
+  }
+  const f='='+FUNC_WRAP[k].replace('X', x);
+  setCellVal(r,c,f); sel(r,c);
+  toast(cref(r,c)+' に '+f, 3500);
+}
+
+/* ── 📅 日付を カレンダーから（新しい 画面の テンキーの 上。v647）──
+   日を 押すと いまの セルに 入る（日付として。計算・Excel への 書き出しも そのまま）。表示の 形も ここで えらぶ */
+const CAL_FMTS=[{id:'ymd'},{id:'jp'},{id:'jpmd'},{id:'md'},{id:'wday'},{id:'wareki'}];
+const CAL_FMT_KEY='excalc_cal_fmt';
+let calY=0, calM=0, calFmt='ymd';
+try{ const v=localStorage.getItem(CAL_FMT_KEY); if(CAL_FMTS.some(f=>f.id===v)) calFmt=v; }catch(_){}
+function openCalPick(){
+  if(isDentaku()){ toast('電卓では使えません（表で使えます）'); return; }
+  if(typeof window.fiFlush==='function') window.fiFlush();
+  let base=null;
+  if(cellDateFmt(selR,selC) && isDateSerialCell(selR,selC)){ base=serialToYMD(Number(data[selR][selC])); calFmt=cellDateFmt(selR,selC); }
+  if(!CAL_FMTS.some(f=>f.id===calFmt)) calFmt='ymd';
+  const n=new Date(); calY=base?base.y:n.getFullYear(); calM=base?base.m:n.getMonth()+1;
+  renderCal(); openDlg('calPickOverlay');
+}
+function calMove(d){ calM+=d; if(calM<1){ calM=12; calY--; } if(calM>12){ calM=1; calY++; } renderCal(); }
+function renderCal(){
+  const t=document.getElementById('calTitle'); if(t) t.textContent=calY+'年'+calM+'月';
+  const g=document.getElementById('calGrid'); if(!g) return;
+  const first=new Date(Date.UTC(calY,calM-1,1)).getUTCDay(), days=new Date(Date.UTC(calY,calM,0)).getUTCDate();
+  const ts=todaySerial(), cur=(cellDateFmt(selR,selC) && isDateSerialCell(selR,selC)) ? Number(data[selR][selC]) : null;
+  let s=WDAY_JP.map((w,i)=>'<span class="cal-w'+(i===0?' sun':i===6?' sat':'')+'">'+w+'</span>').join('');
+  for(let i=0;i<first;i++) s+='<span></span>';
+  for(let d=1; d<=days; d++){
+    const se=dateToSerial(calY,calM,d), wd=(first+d-1)%7;
+    s+='<button class="cal-d'+(wd===0?' sun':wd===6?' sat':'')+(se===ts?' today':'')+(se===cur?' on':'')+'" onclick="calPick('+se+')">'+d+'</button>';
+  }
+  g.innerHTML=s;
+  const fs=document.getElementById('calFmtSeg');
+  if(fs){ const ex=cur!=null?cur:ts;
+    fs.innerHTML=CAL_FMTS.map(f=>'<button class="cal-f'+(f.id===calFmt?' on':'')+'" aria-pressed="'+(f.id===calFmt)+'" onclick="calSetFmt(\''+f.id+'\')">'+formatDate(ex,f.id)+'</button>').join(''); }
+}
+function calSetFmt(id){
+  calFmt=id; try{ localStorage.setItem(CAL_FMT_KEY, id); }catch(_){}
+  // いまの セルが 日付なら 表示の 形も すぐ 変える
+  if(cellDateFmt(selR,selC) && isDateSerialCell(selR,selC) && !isLockedCell(selR,selC)){
+    pushStyleHistory([`${selR},${selC}`], '日付の形式');
+    (cellStyles[`${selR},${selC}`]=cellStyles[`${selR},${selC}`]||{}).dfmt=id; repaintCell(selR,selC); persistModes();
+  }
+  renderCal();
+}
+function calPick(serial){
+  closeDlg('calPickOverlay');
+  if(editBlocked() || isLockedCell(selR,selC)){ toast('このセルには入れられません'); return; }
+  const r=selR, c=selC;
+  setCellVal(r,c, formatDate(serial,'ymd'));   // 日付として 入る（通し番号）
+  const s=(cellStyles[`${r},${c}`]=cellStyles[`${r},${c}`]||{}); s.dfmt=calFmt; delete s.nodate;
+  repaintCell(r,c); persistModes();
+  document.getElementById('formulaInput').value=cellEditString(r,c);
+  if(typeof saveSheets==='function') saveSheets();
+  toast(cref(r,c)+' に '+formatDate(serial,calFmt));
 }
 /* 入りきらない ときは「▲ 自分のボタン」を「▲ 自分」に 縮める */
 function sumTightCheck(){
@@ -10563,6 +10732,7 @@ function togglePageBar(){
   const SEL='#numpadPage1 .btn[data-key], #numpadPage2 .btn[data-key], #numpadPageSci .btn[data-key]';
   const recs=new Map();        // pointerId -> {btn, x, y, t, maxMove}
   const fired=new Map();       // btn -> 発行時刻（直後の本物clickを1回だけ抑止）
+  let lastFired=null;          // いちばん 最後に 発行した タップ {t,x,y}（v647）
   vp.addEventListener('pointerdown', e=>{
     if(e.button!==undefined && e.button>0) return;
     const b=e.target && e.target.closest ? e.target.closest(SEL) : null;
@@ -10591,12 +10761,18 @@ function togglePageBar(){
     }
     if(!r.btn.isConnected) return;
     fired.set(r.btn, performance.now());
+    lastFired={t:performance.now(), x:e.clientX, y:e.clientY};
     r.btn.click();
   });
   // 発行済みタップの直後に届く「本物の」clickを1回だけ無効化（documentのcaptureで最初に握る）
   document.addEventListener('click', e=>{
     if(!e.isTrusted) return;
     const b=e.target && e.target.closest ? e.target.closest(SEL) : null;
+    // キーで 窓を 開いた ときは、あとから 届く 本物の click が 開いた 窓の 中（同じ 所の ボタン・日付 など）に 当たる。
+    // キーの 外に 当たった click は、同じ 所なら 1回だけ 無効に する（v647。📅 で 押した 所の 日付が すぐ 入って いた）
+    if(!b && lastFired && performance.now()-lastFired.t<600 && Math.hypot(e.clientX-lastFired.x, e.clientY-lastFired.y)<30){
+      lastFired=null; e.preventDefault(); e.stopPropagation(); return;
+    }
     if(!b) return;
     const t=fired.get(b);
     if(t!==undefined){
@@ -11182,7 +11358,7 @@ const KEYPAD_DEFAULT_POS_FMT={
 /* 新しい 画面の 数字ページ：低い 段（Σ合計・＝数式・🎤声・±・あ文字）＋ 4段×5列。
    v642：入力欄に あった Σ・＝・🎤 を、キーの すぐ上の 低い 段（ふつうの キーの 半分くらいの 高さ）へ。入力欄は 中身を 広く 見せる */
 const KEYPAD_UI2_POS={
-  sum:{r:1,c:1,u:1}, fx:{r:1,c:2,u:1}, u_voice:{r:1,c:3,u:1}, sign:{r:1,c:4,u:1}, u_text:{r:1,c:5,u:1},
+  sum:{r:1,c:1,u:1}, fx:{r:1,c:2,u:1}, u_func:{r:1,c:3,u:1}, sign:{r:1,c:4,u:1}, u_cal:{r:1,c:5,u:1},   // v647：🎤声は セルの バーの 中へ・あ文字は セルの バーを 押せば 打てるので 📅日付に
   n7:{r:2,c:1}, n8:{r:2,c:2}, n9:{r:2,c:3}, div:{r:2,c:4}, bs:{r:2,c:5},
   n4:{r:3,c:1}, n5:{r:3,c:2}, n6:{r:3,c:3}, mul:{r:3,c:4}, ce:{r:3,c:5},
   n1:{r:4,c:1}, n2:{r:4,c:2}, n3:{r:4,c:3}, minus:{r:4,c:4}, enter:{r:4,c:5,h:2},
@@ -11200,7 +11376,7 @@ const KP_PAGES=[
      自分で並べ替えた人・長押しで機能を割り当てた人は、場所ごと引き継ぐ（kpMigrate466）。 */
   {sel:'#numpadPage1', def:KEYPAD_DEFAULT_POS,  skey:'excalc_keypad_pos_v2', pos:{}, oldKey:'excalc_keypad_pos', shiftRow:1,
    renamed:{u_normal:'u_save', u_voice:'u_dentaku', u_text:'u_reset'}},   // v639：リセットの 場所に あ文字
-  {sel:'#numpadPage1', def:KEYPAD_UI2_POS, skey:'excalc_keypad_pos_ui3', pos:{}, ui2:true},   // 新しい 画面の 数字ページ（v640。v642 で 低い 段を 足したので 新しい キー）
+  {sel:'#numpadPage1', def:KEYPAD_UI2_POS, skey:'excalc_keypad_pos_ui4', pos:{}, ui2:true},   // 新しい 画面の 数字ページ（v640。v642 で 低い 段を 足したので 新しい キー）
   {sel:'#numpadPage2', def:KEYPAD_DEFAULT_POS2, skey:'excalc_keypad_pos2', pos:{}},
   {sel:'#numpadPageFmt', def:KEYPAD_DEFAULT_POS_FMT, skey:'excalc_keypad_posfmt4', pos:{}}   // v407 で6列（posfmt3）、v483 で色のボタンを変えたので新しいキー
 ];
@@ -11489,6 +11665,7 @@ function updateDateBadge(){
   if(b) b.classList.toggle('on', !!cellDateFmt(selR,selC));
 }
 function sel(r,c) {
+  if (typeof window.fiFlush==='function' && window.fiFlush()){ const fi=document.getElementById('formulaInput'); if(document.activeElement===fi) fi.blur(); }   // 打った 文字を 先に 決める（v647）
   if (hpHidRow(r)) r=hpVisNear(r, r>=selR?1:-1);   // しぼり込みで隠した行には止まらない（進む向きの次の見える行へ。v563）
   if (cellStyles._hid) c=hidVisCol(c, c>=selC?1:-1);   // 隠した列にも 止まらない（v624）
   { const a=anchorOf(r,c); r=a[0]; c=a[1]; }
@@ -11729,6 +11906,8 @@ function normalizeFullWidth(v){
 
 function setCellVal(r,c,v) {
   v = normalizeFullWidth(v);                              // 全角数字→半角（iPhoneキーボード対策）
+  // 数式の 閉じ かっこが 足りない ときは 足す（Excel と 同じ。ƒx の 書き始めから Enter した とき など。v647）
+  if (typeof v==='string' && v.startsWith('=')) { const q=v.replace(/"[^"]*"/g,''), o=(q.match(/\(/g)||[]).length, cl=(q.match(/\)/g)||[]).length; if(o>cl) v=v+')'.repeat(o-cl); }
   if (isLockedCell(r,c)) { flashLocked(r,c); return; }   // 保護セルへの書き込みを防止（手入力・貼付・フィル）
   // 日付の自動認識：日付として入力されたらExcel互換の通し番号に変換し日付書式を付ける
   let dfmtChange=null;   // {set:'ymd'} または {clear:true}
@@ -12502,6 +12681,10 @@ function op(o) {
 }
 function eq() {
   if (isDentaku()) { dtEquals(); return; }
+  if (typeof window.fiFlush==='function' && window.fiFlush()){   // 入力欄で 打った 文字を テンキーの Enter で 決める（v647）
+    const fi=document.getElementById('formulaInput'); if(document.activeElement===fi) fi.blur();
+    advanceRowOrAdd(); return;
+  }
   if (cur_op===null||op1===null) { toCell(); return; }
   const r=calc(op1,parseFloat(disp_val),cur_op);
   disp_val=fmtNum(r); op1=null; cur_op=null; waiting=false; refreshDisp();
@@ -12822,6 +13005,28 @@ function toCell() {
       }
     }
   });
+  /* 打った 文字が セルに 入らない ことが あった（v647）：
+     テンキーの キーは 押しても 入力欄から 外れない（touchstart を 止めて いる）ので、文字を 打った あと テンキーの Enter や
+     別の セルへの 移動が 先に 動くと、入力欄の 中身が 次の セルの 中身で 上書きされて 消えて いた。
+     セルを 動く 前・テンキーの Enter の 前に、まだ 決めて いない 文字を いまの セルへ 入れる */
+  window.fiFlush=function(){
+    if(!fiDirty) return false;
+    if(String(fi.value).startsWith('=') && formulaEditMode) return false;   // 数式を 組み立てて いる 間は セルを 押すと 参照が 入る（そのまま）
+    fiDirty=false;
+    if(isLockedCell(selR,selC)) return false;
+    const v=speechCommit(fi.value.trim(), selR, selC);
+    formulaEditMode=false; fi.classList.remove('formula-mode');
+    if(v!==data[selR][selC]) setCellVal(selR,selC,v);
+    return true;
+  };
+  // キーボードを 閉じた（Android の「戻る」など）のに 入力欄に 残って いる ときは、打ち終わり として 決める
+  if(window.visualViewport){
+    let vh=visualViewport.height;
+    visualViewport.addEventListener('resize', ()=>{
+      const h=visualViewport.height, grew=h-vh>120; vh=h;
+      if(grew && document.activeElement===fi && isTouchUI()) fi.blur();
+    });
+  }
   fi.addEventListener('keydown', e=>{
     if (e.key==='Enter') {
       e.preventDefault(); e.stopPropagation();
@@ -17665,7 +17870,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v646';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v647';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
