@@ -16981,6 +16981,7 @@ function closeUndoList(){ closeDlg('undoListOverlay'); }
 function openMoreMenu(){
   renderMoreTools(); applyMoreAcc(); renderMenuRecent();   // 最近使った操作（v624）
   renderMenuNotes();   // 新しい版・バックアップの お知らせ（v639）
+  { const lb=document.getElementById('listBtn'); if(lb){ if(!lb.dataset.h0) lb.dataset.h0=lb.innerHTML; lb.innerHTML=ui2On ? '<span>📂</span>表の一覧' : lb.dataset.h0; } }   // v642
   const tt=document.getElementById('moreTitle'); if(tt) tt.textContent='☰ メニュー';
   ezSync();   // 標準モード／かんたんモードの印（v482）
   {   // 上のバーにある記録名・保存・↶ を写す（v459 から、たたんでいなくても出す）
@@ -17536,7 +17537,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v639';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v640';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -17651,6 +17652,10 @@ function resetSheets(){
 /* 新規：全モードのシートを空にして、まっさらな状態から始める（記録との紐付けも解除）。
    保存済みの記録はリストに残る。登録済みのカスタムモード定義は残す（内容だけ新規化）。 */
 function newWorkspace(){
+  if(ui2On){   // 新しい 画面（v642）：いまの 表は 一覧に 残して いるので 聞かない
+    autoRecFlush();
+    if(currentSaveId==null && !isSheetEmpty()) autoRecSave();
+  } else
   if(!confirm('新しく始めますか？\n今のすべての内容（すべての表のかたちのシート）が消えます。\n保存した記録はリストに残ります。')) return;
   for(const k in modeSheets) delete modeSheets[k];
   for(const k in modeStates) delete modeStates[k];
@@ -17669,7 +17674,7 @@ function newWorkspace(){
   persistModes(); saveSheets();
   saveDirty=false; if(typeof updateRecordTitle==='function') updateRecordTitle();
   closeSaveList();
-  toast('新しく始めました');
+  toast(ui2On ? '新しい表にしました（前の表は「表の一覧」に残っています）' : '新しく始めました');
 }
 
 /* ── セル書式（小数点・装飾・色・大きさ）──────────────────── */
@@ -19733,7 +19738,42 @@ function flashSaveBtn(t){
   b.dataset.flash='1'; b.textContent=t;
   setTimeout(()=>{ delete b.dataset.flash; updateSaveBtnLabel(); },1200);
 }
-function markSaveDirty(){ if(!saveDirty){ saveDirty=true; } updateRecordTitle(); }
+function markSaveDirty(){ if(!saveDirty){ saveDirty=true; } updateRecordTitle(); if(typeof autoRecSchedule==='function') autoRecSchedule(); }
+/* ── 段階5（v642）：新しい 画面では「保存」を 考えなくて よい ──
+   変えた 表は 少し 待って（0.9秒）自動で 一覧（記録）に 書く。まだ 一覧に ない 表は Book1・Book2… の 名前で 足す。
+   🔒 ロック した 表・ひな形に 登録した 表は 書きかえない（コピーを 作って もらう）。
+   データの 形は 前と 同じ（excalc_saves）。前の 画面に もどしても そのまま 使える */
+let autoRecTimer=null;
+function autoRecOn(){ return !!ui2On && !isDentaku(); }
+function autoRecSchedule(){ if(!autoRecOn()) return; clearTimeout(autoRecTimer); autoRecTimer=setTimeout(()=>autoRecSave(), 900); }
+function autoRecFlush(){ if(autoRecTimer){ clearTimeout(autoRecTimer); autoRecTimer=null; autoRecSave(); } }
+function autoRecSnap(){
+  const R=Math.max(1,ROWS), C=Math.max(1,COLS);
+  return { timestamp:Date.now(), rows:ROWS, cols:COLS, decPlaces, mode:workspaceMode,
+    data:data.slice(0,R).map(row=>row.slice(0,C)), styles:{...cellStyles},   // 表の 大きさ ぶん だけ（1,000×100 を まるごと 書かない）
+    modeSheets:makeAllModesSnap(), curMode:workspaceMode, sheetSet:undefined, sheets:undefined, cur:undefined };
+}
+function autoRecSave(name){
+  autoRecTimer=null;
+  if(!autoRecOn()) return false;
+  const saves=getSaves();
+  let cur=(currentSaveId!=null)?saves.find(s=>s.id===currentSaveId):null;
+  if(cur && (cur.locked || cur.tab===SAVE_TAB_MODE)) return false;   // 書きかえない 表
+  if(!cur){
+    if(!name && isSheetEmpty() && (!Array.isArray(sheets) || sheets.length<=1)) return false;   // 空の 表は 残さない
+    const id=Date.now();
+    cur=Object.assign({ id, name:name||nextBookName(saves), tab:0 }, autoRecSnap());
+    saves.unshift(cur); currentSaveId=id;
+  } else {
+    Object.assign(cur, autoRecSnap());
+    if(name) cur.name=name;
+  }
+  if(!persistSaves(saves)) return false;
+  saveDirty=false; updateRecordTitle();
+  return true;
+}
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') autoRecFlush(); });
+window.addEventListener('pagehide', ()=>autoRecFlush());
 
 /* 保存データを永続化する共通関数。
    localStorage に書くのは従来通り（ブラウザ版・即時の作業用）。
@@ -19985,6 +20025,10 @@ function setSaveItemTab(id, tabStr){
   renderSaveList();
 }
 function showSaveList(){
+  if(typeof autoRecFlush==='function') autoRecFlush();   // v642
+  { const ov=document.getElementById('saveListOverlay');
+    if(ov){ const hd=ov.querySelector('.modal-header > span'); if(hd){ if(!hd.dataset.t0) hd.dataset.t0=hd.textContent; hd.textContent=ui2On ? '表の一覧' : hd.dataset.t0; }
+      const nb=ov.querySelector('.save-new-btn'); if(nb){ if(!nb.dataset.t0) nb.dataset.t0=nb.textContent; nb.textContent=ui2On ? '＋ 新しい表' : nb.dataset.t0; } } }
   renderSaveTabBar();
   renderSaveStateBanner();
   setSaveTab(0);
@@ -21272,6 +21316,7 @@ function duplicateSave(id){
 }
 
 function loadSave(id) {
+  if(typeof autoRecFlush==='function') autoRecFlush();   // いまの 表を 一覧に 書いてから 開く（v642）
   const saves=getSaves();
   const entry=saves.find(s=>s.id===id); if(!entry) return;
   // 確認は出さない（記録を選ぶたびに窓が出ると、探しているだけでも止まってしまうため）。
@@ -21653,10 +21698,11 @@ function uiTopSync(){
     let name=cur ? cur.name : '';
     if(!name){ try{ name=(sheets && sheets[curSheet] && sheets[curSheet].name) || ''; }catch(_){} }
     if(isDentaku()) name='電卓';
-    nm.textContent=name || 'いまの表';
+    nm.textContent=name || '新しい表';
     if(st){
       let info=null; try{ info=saveStateInfo(); }catch(_){}
-      const label = !info ? '' : info.cls==='dirty' ? '● 保存していない変更あり' : info.cls==='nobackup' ? '⚠ バックアップをおすすめ' : (cur ? '✓ 保存済み' : '✓ 自動で保存');
+      const label = !info ? '' : (cur && cur.locked) ? '🔒 ロック中（自動では残りません）' : (cur && cur.tab===SAVE_TAB_MODE) ? 'ひな形（自動では残りません）'
+        : info.cls==='dirty' ? '保存しています…' : info.cls==='nobackup' ? '✓ 保存済み' : (cur ? '✓ 保存済み' : '✓ 自動で保存');
       st.textContent=isDentaku() ? 'テープは自動で残ります' : label;
       st.className=info ? info.cls : '';
     }
@@ -21665,7 +21711,38 @@ function uiTopSync(){
   if(u) u.disabled=!(Array.isArray(history) && history.length);
   if(r) r.disabled=!(Array.isArray(redoHistory) && redoHistory.length);
 }
-function atTitleTap(){ if(isDentaku()){ navGo('sheet'); return; } showSaveList(); }
+function atTitleTap(){
+  if(isDentaku()){ navGo('sheet'); return; }
+  autoRecFlush();
+  const cur=(currentSaveId!=null)?getSaves().find(s=>s.id===currentSaveId):null;
+  const t=document.getElementById('titleMenuName'); if(t) t.textContent=cur ? cur.name : 'いまの表';
+  const n=document.getElementById('titleMenuNote');
+  if(n) n.textContent = cur && cur.locked ? '🔒 ロックした表です。変えた分は自動で残りません（コピーを作ってください）'
+    : cur && cur.tab===SAVE_TAB_MODE ? 'ひな形に登録した表です。変えた分は自動で残りません（コピーを作ってください）'
+    : '変えたところは自動で残ります。保存ボタンはありません';
+  openDlg('titleMenuOverlay');
+}
+function closeTitleMenu(){ closeDlg('titleMenuOverlay'); }
+async function titleRename(){
+  closeTitleMenu();
+  const saves=getSaves(), cur=(currentSaveId!=null)?saves.find(s=>s.id===currentSaveId):null;
+  const v=await appPrompt('表の名前', cur ? cur.name : nextBookName(saves));
+  if(v===null) return;
+  const name=v.trim(); if(!name) return;
+  if(cur && (cur.locked || cur.tab===SAVE_TAB_MODE)){ cur.name=name; persistSaves(saves); updateRecordTitle(); toast('名前を「'+name+'」にしました'); return; }
+  if(autoRecSave(name)) toast('名前を「'+name+'」にしました');
+}
+function titleNew(){ closeTitleMenu(); newWorkspace(); }
+function titleList(){ closeTitleMenu(); showSaveList(); }
+function titleCopy(){
+  closeTitleMenu(); autoRecFlush();
+  const saves=getSaves(), cur=(currentSaveId!=null)?saves.find(s=>s.id===currentSaveId):null;
+  const id=Date.now(), name=cur ? nextCopyName(cur.name, saves) : nextBookName(saves);
+  saves.unshift(Object.assign({ id, name, tab:(cur && [0,1,2].includes(cur.tab||0)) ? (cur.tab||0) : 0 }, autoRecSnap()));
+  if(!persistSaves(saves)) return;
+  currentSaveId=id; saveDirty=false; updateRecordTitle();
+  toast('「'+name+'」を作って開きました（元の表はそのまま）', 3200);
+}
 function atFmtTap(){
   if(isDentaku()){ toast('書式は表で使えます'); return; }
   if(numpadHidden){ numpadHidden=false; applyNumpad(); }

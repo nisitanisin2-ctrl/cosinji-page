@@ -20559,6 +20559,93 @@ async function runRangeFill635(browser) {
   await ctx2.close();
 }
 
+/* 新しい 画面の 組の 始め（v640）：まっさらな 状態で 新しい 画面を 開く。
+   読み込み直しの 直後に 書いた 値が まれに 消える ことが あるので、入るまで やり直す */
+async function ui2Fresh(page) {
+  for (let i = 0; i < 4; i++) {
+    await page.waitForFunction(() => typeof navGo === 'function', null, { timeout: 30000 });
+    await page.waitForTimeout(400);
+    await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_ui2', '1'); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_back_ask', '0'); });
+    await page.reload(); await page.waitForFunction(() => typeof navGo === 'function' && document.getElementById('c0_0'), null, { timeout: 30000 }); await page.waitForTimeout(1200);
+    if (await page.evaluate(() => ui2On && localStorage.getItem('excalc_tour_done') === '1')) return;
+  }
+}
+
+/* v640 段階4・5：その場の メニュー・もっと・下からの シート・元に戻す ／ どの 表も 自動で 一覧に 残る */
+async function runUi2Stage45(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 393, height: 852 }, hasTouch: true, isMobile: true });
+  const page = await ctx.newPage(); const errs = [];
+  page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+  console.log('\n── 表電卓 v640：段階4（出かた）・段階5（保存を 考えなくて よい） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.goto(INDEX); await w(500);
+  await ui2Fresh(page);
+  const tapCell = async (r, c) => { const b = await page.evaluate(([r, c]) => { const e = document.getElementById('c' + r + '_' + c); const q = e.getBoundingClientRect(); return { x: q.left + q.width / 2, y: q.top + q.height / 2 }; }, [r, c]); await page.touchscreen.tap(b.x, b.y); await w(250); };
+  check('  何も 入れて いない 表は 一覧に 足さない', await page.evaluate(() => getSaves().length + '/' + currentSaveId + '/' + document.getElementById('atName').textContent), '0/null/シート1');
+  // ── 段階5：自動で 一覧に 残る ──
+  await page.evaluate(() => { setSheetSize(15, 4); [['品名', '単価'], ['りんご', '120'], ['みかん', '80']].forEach((row, r) => row.forEach((v, c) => setCellVal(r, c, v))); recalcAll(); });
+  await w(1400);
+  check('  入れると 少し あとで 一覧に 自動で 足す（Book1）', await page.evaluate(() => { const s = getSaves(); return s.length + '/' + s[0].name + '/' + (currentSaveId === s[0].id) + '/' + document.getElementById('atName').textContent + '/' + document.getElementById('atState').textContent; }), '1/Book1/true/Book1/✓ 保存済み');
+  check('  一覧に 書く ときは 表の 大きさ ぶん だけ（1,000×100 を まるごと 書かない）', await page.evaluate(() => getSaves()[0].data.length + 'x' + getSaves()[0].data[0].length), '15x4');
+  await page.evaluate(() => { setCellVal(3, 0, 'バナナ'); recalcAll(); }); await w(1300);
+  check('  変えると 同じ 表に 書きかえる（ふえない）', await page.evaluate(() => { const s = getSaves(); return s.length + '/' + JSON.stringify(s[0].modeSheets).includes('バナナ'); }), '1/true');
+  check('  保存ボタン（名前を付けて保存）は メニューに 出さない', await page.evaluate(() => { openMoreMenu(); const v = !!document.getElementById('moreSave').offsetParent; const l = document.getElementById('listBtn').textContent; closeMoreMenu(); return v + '/' + l; }), 'false/📂表の一覧');
+  await w(300);
+  // 名前を 変える
+  await page.evaluate(() => { window.appPrompt = async () => 'くだもの'; });
+  await page.click('#atTitle'); await w(400);
+  check('  表の 名前を 押すと 名前を変える・新しい表・一覧・コピー', await page.evaluate(() => isDlgOpen('titleMenuOverlay') + '/' + [...document.querySelectorAll('#titleMenuOverlay .tm-row')].map(b => b.lastChild.textContent.trim()).join(',')), 'true/名前を変える,新しい表,ほかの表を開く（表の一覧）,コピーを作る');
+  await page.evaluate(() => titleRename()); await w(500);
+  check('  名前を 変える', await page.evaluate(() => getSaves()[0].name + '/' + document.getElementById('atName').textContent), 'くだもの/くだもの');
+  // 新しい 表
+  await page.evaluate(() => { window.confirm = () => { window.__asked = 1; return true; }; window.__asked = 0; titleNew(); }); await w(600);
+  check('  新しい 表：聞かずに 空に（前の 表は 一覧に 残る）', await page.evaluate(() => window.__asked + '/' + data[1][0] + '/' + getSaves().length + '/' + currentSaveId + '/' + document.getElementById('atName').textContent), '0//1/null/シート1');
+  await page.evaluate(() => { setCellVal(0, 0, '会費'); setCellVal(1, 0, '3000'); recalcAll(); }); await w(1300);
+  check('  新しい 表も 入れると 一覧に（Book1）', await page.evaluate(() => getSaves().map(s => s.name).join(',')), 'Book1,くだもの');
+  // ほかの 表を 開く
+  await page.evaluate(() => { setCellVal(2, 0, '未保存の分'); }); await w(100);
+  await page.evaluate(() => loadSave(getSaves().find(s => s.name === 'くだもの').id)); await w(700);
+  check('  ほかの 表を 開く 前に、いまの 表を 書いて おく', await page.evaluate(() => data[1][0] + '/' + JSON.stringify(getSaves().find(s => s.name === 'Book1').modeSheets).includes('未保存の分')), 'りんご/true');
+  // コピー
+  await page.evaluate(() => titleCopy()); await w(400);
+  check('  コピーを 作って 開く（元は そのまま）', await page.evaluate(() => getSaves().length + '/' + document.getElementById('atName').textContent), '3/くだもの (2)');
+  // ロック
+  await page.evaluate(() => { const s = getSaves(); s.find(x => x.name === 'くだもの').locked = true; persistSaves(s); loadSave(s.find(x => x.name === 'くだもの').id); }); await w(600);
+  await page.evaluate(() => { setCellVal(5, 0, 'ロック中に 入れた'); }); await w(1300);
+  check('  🔒 ロックした 表は 自動で 書きかえない（上の バーに 出す）', await page.evaluate(() => JSON.stringify(getSaves().find(s => s.name === 'くだもの').modeSheets).includes('ロック中に') + '/' + document.getElementById('atState').textContent), 'false/🔒 ロック中（自動では残りません）');
+  await page.evaluate(() => { undoLast(); const s = getSaves(); loadSave(s.find(x => x.name === 'Book1').id); }); await w(600);
+  // ── 段階4：その場の メニュー・もっと・元に戻す・シート ──
+  await page.evaluate(() => sel(1, 0)); await w(150);
+  await tapCell(1, 0); await w(500);
+  const pop = await page.evaluate(() => { const m = document.getElementById('cellMenu'), r = m.getBoundingClientRect(), np = document.getElementById('numpadSection').getBoundingClientRect(), sw = document.querySelector('.sheet-wrap').getBoundingClientRect(); return [m.classList.contains('ui2-pop'), r.bottom <= np.top, r.top >= sw.top - 1, !!document.querySelector('#cellMenu .cm-more2').offsetParent].join('/'); });
+  check('  セルを もう一度 押すと その場の メニュー（テンキーに 重ねない・もっと つき）', pop, 'true/true/true/true');
+  await page.evaluate(() => bandMoreOpen()); await w(500);
+  check('  もっと：下からの シートに 操作を ぜんぶ', await page.evaluate(() => isDlgOpen('bandMoreOverlay') + '/' + (document.querySelectorAll('#bandMoreBody .bm-item').length >= 8) + '/' + [...document.querySelectorAll('#bandMoreBody .bm-item')].some(b => b.textContent.includes('コピー'))), 'true/true/true');
+  await page.evaluate(() => [...document.querySelectorAll('#bandMoreBody .bm-item')].find(b => b.textContent.includes('コピー')).click()); await w(400);
+  check('  シートの ボタンは 帯と 同じ 働き（コピー）', await page.evaluate(() => isDlgOpen('bandMoreOverlay') + '/' + (clipData && clipData.val)), 'false/3000');
+  await page.evaluate(() => { sel(1, 0); clearSelection(); }); await w(300);
+  check('  消すと 下に「元に戻す」', await page.evaluate(() => { const t = document.getElementById('appToast'); return t.classList.contains('show') + '/' + !!t.querySelector('.toast-act') + '/' + data[1][0]; }), 'true/true/');
+  await page.click('#appToast .toast-act'); await w(300);
+  check('  元に戻す で 戻る', await page.evaluate(() => data[1][0]), '3000');
+  await page.evaluate(() => openCellFmt()); await w(500);
+  check('  窓は 下からの シート（下の タブの すぐ 上）', await page.evaluate(() => { const m = document.querySelector('#cellFmtOverlay > .modal').getBoundingClientRect(), n = document.getElementById('appNav').getBoundingClientRect(); return Math.abs(m.bottom - n.top) <= 2; }), true);
+  await page.evaluate(() => closeDlg('cellFmtOverlay')); await w(300);
+  await page.evaluate(() => navGo('menu')); await w(500);
+  check('  メニューは 1ページ（タブの 上 いっぱい）', await page.evaluate(() => { const m = document.querySelector('#moreMenuOverlay > .modal').getBoundingClientRect(), n = document.getElementById('appNav').getBoundingClientRect(); return m.top <= 1 && Math.abs(m.bottom - n.top) <= 2; }), true);
+  await page.evaluate(() => navGo('sheet')); await w(300);
+  await page.evaluate(() => openSumFuncMenu()); await w(400);
+  check('  Σ の 長押しの 窓に ＝数式・±（テンキーから 外した 分）', await page.evaluate(() => [...document.querySelectorAll('#sumFuncOverlay .mode-item')].filter(b => b.offsetParent).map(b => b.querySelector('.mode-name').textContent).join(',')), '合計,平均,数式を書く,プラス・マイナスを変える');
+  await page.evaluate(() => closeSumFuncMenu()); await w(300);
+  // 前の 画面では 自動では 足さない
+  await page.evaluate(() => { setUi2(false); newWorkspace(); }); await w(500);
+  const n0 = await page.evaluate(() => getSaves().length);
+  await page.evaluate(() => { setCellVal(0, 0, '前の画面'); }); await w(1300);
+  check('  前の 画面では いままで どおり（自動では 一覧に 足さない）', await page.evaluate(() => getSaves().length), n0);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 /* v640：新しい 画面（段階2・3）。上の バー・下の タブ・入力欄を テンキーの 真上に・テンキー 4段 3色・前の 画面に もどせる */
 async function runUi2640(browser) {
   const ctx = await browser.newContext({ viewport: { width: 393, height: 852 }, hasTouch: true, isMobile: true });
@@ -20567,8 +20654,8 @@ async function runUi2640(browser) {
   console.log('\n── 表電卓 v640：新しい 画面（上の バー・下の タブ・テンキー 4段） ──');
   const w = ms => page.waitForTimeout(ms);
   await page.goto(INDEX); await w(500);
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_ui2', '1'); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_back_ask', '0'); });
-  await page.reload(); await w(1500);
+  await ui2Fresh(page);
+  await page.waitForFunction(() => typeof navGo === 'function' && document.getElementById('c0_0'), null, { timeout: 30000 });
   const vis = id => page.evaluate(id => { const e = document.getElementById(id); return !!(e && e.offsetParent && e.getBoundingClientRect().height > 0); }, id);
   check('  新しい 画面が 既定（上の バー・下の タブが 出る・前の 上の バーと ☰ は 出ない）', [await vis('appTop'), await vis('appNav'), await vis('mainToolbar'), await vis('fbMenu')].join('/'), 'true/true/false/false');
   check('  下の タブは 表・電卓・ひな形・道具・メニュー（いまは 表）', await page.evaluate(() => [...document.querySelectorAll('#appNav button')].map(b => b.textContent.trim() + (b.classList.contains('on') ? '*' : '')).join(',')), '表*,電卓,ひな形,道具,メニュー');
@@ -21802,6 +21889,7 @@ const SUITES = [
   [['tmpl637', 'v637'], b => runTmpl637(b)],
   [['quick639', 'v639'], b => runQuick639(b)],
   [['ui2640', 'v640'], b => runUi2640(b)],
+  [['ui2s45', 'v640'], b => runUi2Stage45(b)],
   [['clip'], b => runClip(b)],
   [['koe'], b => runKoe(b)],
   [['koe', 'koelisten'], b => runKoeListen(b)],
