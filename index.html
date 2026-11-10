@@ -4637,13 +4637,13 @@ body.dark {
        標準モード／かんたんモードの切りかえは ☰ メニューのいちばん上へ移した（v482） -->
   <div class="set-easy" id="setEasy">
     <!-- 🔈 読み上げの声（v540）：見つけやすいよう設定のいちばん上に。かんたん・標準のどちらでも出す -->
+    <button class="set-act set-voice" id="setVoiceBtn" onclick="openVoiceSet()">🔈 読み上げの声<small>声・速さ・高さ・大きさ。声の計算帳・ほかの道具でも同じ声</small></button>
     <!-- 画面の 形（v640）：新しい 画面（下の タブ）か、前の 画面か -->
     <div class="set-ui2" id="setUi2">
       <div class="set-ui2-t">画面の形</div>
       <div class="skin-seg" id="ui2Seg"><button class="skin-seg-btn" data-u="1" onclick="setUi2(true)">新しい画面</button><button class="skin-seg-btn" data-u="0" onclick="setUi2(false)">前の画面</button></div>
       <div class="set-ui2-note" id="ui2Note"></div>
     </div>
-    <button class="set-act set-voice" id="setVoiceBtn" onclick="openVoiceSet()">🔈 読み上げの声<small>声・速さ・高さ・大きさ。声の計算帳・ほかの道具でも同じ声</small></button>
     <div class="ez-only">
       <div class="set-note ez-note" id="ezNote"><b>かんたんモード</b>です。よく使う設定だけを出しています。<br>標準モードにするときは <b>☰ メニューのいちばん上</b>で切りかえます。</div>
       <div class="set-sec">よく使う設定</div>
