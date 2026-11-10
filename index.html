@@ -34,6 +34,11 @@
   set('meta[name="apple-mobile-web-app-title"]','content','業務手帳');
   document.title='📔 業務手帳';
 }catch(_){} })();
+/* 下の 帯の 色ちがいの manifest（v645）：前回 選んだ ものに すぐ 差しかえる（道具・業務手帳は 下で 自分の ものに） */
+(function(){ try{
+  const v=localStorage.getItem('excalc_mf');
+  if(!window.APP_TECHO && v && /^manifest-c[0-9a-f]{6}\.json$/.test(v)) document.querySelectorAll('link[rel="manifest"]').forEach(e=>e.setAttribute('href',v));
+}catch(_){} })();
 /* 道具だけのアプリとして開く（?app=shimai など。apps/〇〇/ から来る・ホーム画面のアイコンから起動。v462）。
    業務手帳と同じように、ホーム画面に足すときの名前とアイコンをその道具のものにする */
 (function(){ try{
@@ -4788,6 +4793,9 @@ body.dark {
     <div class="skin-seg" id="skinKeySeg"></div>
     <div class="set-sec">時計の帯・「戻る」ボタンの所の色<small style="font-weight:normal;margin-left:6px">画面のいちばん上と下（Android）</small></div>
     <div class="skin-seg" id="skinSysSeg"></div>
+    <div class="set-sec">「戻る」ボタンの所の色<small style="font-weight:normal;margin-left:6px">Android・ホーム画面に置いたアプリの下の帯</small></div>
+    <div class="skin-seg" id="sysNavSeg"></div>
+    <div class="set-note">ホーム画面に置いたアプリは、色を変えてから次に開いたあとに変わります（Android の仕組みで、1日くらいかかることがあります）。自動は、新しい画面なら下のタブの色、前の画面ならテンキーの地の色に合わせます。</div>
     <div class="set-row">
       <span class="set-label">背景<small>表の下地とテンキーの地</small></span>
       <select class="fmt-select" id="skinBgSel" onchange="setSkinBg(this.value)" style="flex-shrink:0"></select>
