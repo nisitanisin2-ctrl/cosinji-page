@@ -1249,7 +1249,7 @@ async function runKeys466(browser) {
   check('  🧰道具の字', await page.evaluate(() => document.querySelector('#numpadPage1 [data-key="tools"]').textContent.trim()), '🧰道具');
   check('  ボタンが重ならない', await page.evaluate(() => {
     const seen = new Set(); let dup = 0;
-    document.querySelectorAll('#numpadPage1 .btn[data-key]').forEach(b => { const cs = getComputedStyle(b); const k = cs.gridRowStart + '/' + cs.gridColumnStart; if (seen.has(k)) dup++; seen.add(k); });
+    document.querySelectorAll('#numpadPage1 .btn[data-key]').forEach(b => { if (!b.offsetParent) return; const cs = getComputedStyle(b); const k = cs.gridRowStart + '/' + cs.gridColumnStart; if (seen.has(k)) dup++; seen.add(k); });
     return dup; }), 0);
   await page.evaluate(() => document.getElementById('shoppingBtn').click()); await page.waitForTimeout(800);
   check('  右下のひな形でひな形の窓が開く', await page.evaluate(() => isDlgOpen('modeMenuOverlay')), true);
@@ -20661,18 +20661,19 @@ async function runUi2640(browser) {
   check('  下の タブは 表・電卓・ひな形・道具・メニュー（いまは 表）', await page.evaluate(() => [...document.querySelectorAll('#appNav button')].map(b => b.textContent.trim() + (b.classList.contains('on') ? '*' : '')).join(',')), '表*,電卓,ひな形,道具,メニュー');
   const lay = await page.evaluate(() => { const t = id => document.getElementById(id).getBoundingClientRect(); const fb = document.querySelector('.formula-bar').getBoundingClientRect(); return [t('appTop').top < document.querySelector('.sheet-wrap').getBoundingClientRect().top, fb.bottom <= t('numpadSection').top + 1, t('numpadSection').bottom <= t('appNav').top + 1].join('/'); });
   check('  上から 上のバー・表・入力欄・テンキー・タブ の 順', lay, 'true/true/true');
-  check('  入力欄に ボタンは ない（Σ・＝・マイクは キーの 上の 低い 段へ。✓ も なくし 入力欄を 広く。v643）', [await vis('fbSum'), await vis('fbEq'), await vis('fbMic'), await vis('fbOk')].join('/'), 'false/false/false/false');
+  check('  入力欄は 🎤 だけ（Σ・＝ は キーの 上の 低い 段へ。✓ も なくし 入力欄を 広く。🎤 は 枠の 中。v647）', [await vis('fbSum'), await vis('fbEq'), await vis('fbMic'), await vis('fbOk')].join('/'), 'false/false/true/false');
+  check('  　🎤 は 入力欄の 右に くっつく', await page.evaluate(() => { const f = document.getElementById('formulaInput').getBoundingClientRect(), m = document.getElementById('fbMic').getBoundingClientRect(); return Math.abs(f.right - m.left) < 1.5 && Math.abs(f.top - m.top) < 1.5; }), true);
   const fbw = await page.evaluate(() => { const g = q => document.querySelector(q).getBoundingClientRect(); const r = g('#cellRef'), f = g('#formulaInput'); return [Math.abs(r.right - f.left) < 1.5, Math.abs(r.top - f.top) < 1.5, f.width > 260].join('/'); });
   check('  　セル番号と 入力欄は くっついて 1つの 枠・入力欄は 広い', fbw, 'true/true/true');
   check('  セル番号の 欄は 中身の 幅（A1 で 52px 以下）・左上の ⤢ は 出ない', await page.evaluate(() => (document.getElementById('cellRef').getBoundingClientRect().width <= 52) + '/' + getComputedStyle(document.getElementById('cornerCell'), '::after').display), 'true/none');
   check('  行番号は 細い 列（36px）・いまの 行に 印', await page.evaluate(() => { sel(3, 1); const e = document.getElementById('rh3'); return Math.round(e.getBoundingClientRect().width) + '/' + e.classList.contains('rcur') + '/' + document.getElementById('rh2').classList.contains('rcur'); }), '36/true/false');
-  check('  合計は テンキーの 上の 行（自分のボタンの 所）', await page.evaluate(() => document.getElementById('statsSection').parentNode.id), 'numpadPageBar');
-  check('  あ文字 は ⌨あ', await page.evaluate(() => { const b = document.getElementById('textBtn'); return !!b.querySelector('svg') + '/' + b.textContent.trim(); }), 'true/あ');
+  check('  合計は セルの バーにも テンキーの 上にも 出さない（1つの セルの ときは 出ない）', await page.evaluate(() => document.getElementById('statsSection').parentNode.id + '/' + document.getElementById('rangeSum').hidden), 'rangeSum/true');
+  check('  低い 段は Σ合計・＝数式・ƒx関数・±・📅日付（あ文字・🎤 は 出さない）', await page.evaluate(() => ['sum', 'fx', 'u_func', 'sign', 'u_cal', 'u_text', 'u_voice'].map(k => { const b = document.querySelector('#numpadPage1 [data-key="' + k + '"]'); return b && b.offsetParent ? 1 : 0; }).join('')), '1111100');
   check('  キーの 角は 丸い（14px）', await page.evaluate(() => getComputedStyle(document.querySelector('#numpadPage1 [data-key="n7"]')).borderTopLeftRadius), '14px');
   const keys = await page.evaluate(() => { const v = [...document.querySelectorAll('#numpadPage1 .btn[data-key]')].filter(b => b.offsetParent && b.getBoundingClientRect().height > 0); return { n: v.length, rows: new Set(v.map(b => Math.round(b.getBoundingClientRect().top))).size, k: v.map(b => b.dataset.key).sort().join(',') }; });
   check('  テンキーは 低い 段＋4段 23個（Σ合計・＝数式・🎤声・±・あ文字 ／ 数・計算の記号・⌫・C・Enter）', keys.n + '/' + keys.rows, '23/5');
   check('  道具・ひな形・戻す・進む・通常は テンキーから 外れる', /tools|mode|u_undo|u_redo|u_normal/.test(keys.k), false);
-  const half = await page.evaluate(() => { const hgt = k => document.querySelector('#numpadPage1 [data-key="' + k + '"]').getBoundingClientRect(); const a = ['sum', 'fx', 'u_voice', 'sign', 'u_text'].map(hgt), n = hgt('n7'); return [a.every(x => Math.abs(x.top - a[0].top) < 1), a.every(x => x.height >= 28 && x.height <= n.height * 0.65), a[0].bottom <= n.top, Math.round(hgt('n0').width) > Math.round(n.width) * 1.8].join('/'); });
+  const half = await page.evaluate(() => { const hgt = k => document.querySelector('#numpadPage1 [data-key="' + k + '"]').getBoundingClientRect(); const a = ['sum', 'fx', 'u_func', 'sign', 'u_cal'].map(hgt), n = hgt('n7'); return [a.every(x => Math.abs(x.top - a[0].top) < 1), a.every(x => x.height >= 28 && x.height <= n.height * 0.65), a[0].bottom <= n.top, Math.round(hgt('n0').width) > Math.round(n.width) * 1.8].join('/'); });
   check('  低い 段は 1列に 並び、ふつうの キーの 半分くらいの 高さ・数字の 上・0 は 2つ分', half, 'true/true/true/true');
   check('  下の タブは 少し 低く（48px）', await page.evaluate(() => Math.round(document.getElementById('appNav').getBoundingClientRect().height)), 48);
   check('  色は 3つの 役（数は 灰・記号は 緑・Enter は 明るい 緑。C と ⌫ は 灰）', await page.evaluate(() => ['n7', 'plus', 'enter', 'ce', 'bs'].map(k => getComputedStyle(document.querySelector('#numpadPage1 [data-key="' + k + '"]')).backgroundColor).join('|')), 'rgb(74, 74, 74)|rgb(26, 92, 53)|rgb(31, 138, 85)|rgb(74, 84, 94)|rgb(74, 84, 94)');
@@ -20730,7 +20731,7 @@ async function runUi2640(browser) {
   await page.keyboard.type('ぶどう'); await page.keyboard.press('Enter'); await w(500);
   check('  Enter で 決めると テンキーと タブが 戻る', await kbs() + '/' + await page.evaluate(() => data[5][0]), 'false/true/true/ぶどう');
   await page.evaluate(() => sel(6, 0)); await w(200);
-  await page.tap('#textBtn'); await w(800);
+  await page.evaluate(() => toggleTextInput()); await w(800);
   check('  あ文字 でも 隠す（入力欄に 入る）', await kbs() + '/' + await page.evaluate(() => document.activeElement.id), 'true/false/false/formulaInput');
   await page.evaluate(() => document.getElementById('formulaInput').blur()); await w(500);
   await page.evaluate(() => sel(7, 1)); await w(200);
@@ -20782,6 +20783,34 @@ async function runUi2640(browser) {
       const m = JSON.parse(fs.readFileSync(f, 'utf8')); if (m.theme_color !== c || m.background_color !== c) return true;
       const x = { ...m, theme_color: base.theme_color, background_color: base.background_color }; return JSON.stringify(x) !== JSON.stringify(base); });
     check('  　色ちがいの manifest は ぜんぶ あり、色の ほかは manifest.json と 同じ', bad.join(','), ''); }
+  // v647：打った 文字が テンキーの Enter・セルの 移動で 消えない／範囲の 合計は 表の 右下／ƒx 関数／📅 日付
+  await page.evaluate(() => { if (ROWS < 22) changeRows(22 - ROWS); }); await w(300);
+  await page.evaluate(() => { sel(14, 0); document.getElementById('formulaInput').focus(); }); await page.keyboard.type('なし'); await w(100);
+  await page.evaluate(() => { document.body.classList.remove('kb-edit'); eq(); }); await w(300);
+  check('  入力欄で 打って テンキーの Enter でも 文字が 入る（前は 消えて いた）', await page.evaluate(() => data[14][0] + '/' + selR), 'なし/15');
+  await page.evaluate(() => { document.getElementById('formulaInput').focus(); }); await page.keyboard.type('かき'); await page.evaluate(() => sel(16, 2)); await w(300);
+  check('  　打って すぐ 別の セルを 選んでも 入る', await page.evaluate(() => data[15][0]), 'かき');
+  await page.evaluate(() => { document.activeElement.blur(); setCellVal(14, 1, '120'); setCellVal(15, 1, '80'); setCellVal(16, 1, '198'); recalcAll(); sel(14, 1); extendRange(16, 1); }); await w(400);
+  const rs = await page.evaluate(() => { const f = document.getElementById('rangeSum'), r = f.getBoundingClientRect(), sw = document.querySelector('.sheet-wrap').getBoundingClientRect(); return [f.hidden, f.textContent.replace(/\s+/g, '').includes('398'), r.right <= sw.right && r.right > sw.right - 40, r.bottom <= sw.bottom && r.bottom > sw.bottom - 40].join('/'); });
+  check('  範囲を 選ぶと 表の 右下に その 範囲の 合計', rs, 'false/true/true/true');
+  await page.tap('#funcBtn'); await w(500);
+  check('  ƒx 関数を 押すと えらぶ 窓（押した 所の ボタンは 押されない）', await page.evaluate(() => isDlgOpen('funcPickOverlay') + '/' + data[17][1]), 'true/');
+  await page.tap('#funcPickBody [data-k="SUM"]'); await w(400);
+  check('  　合計 → 範囲の すぐ 下に =SUM', await page.evaluate(() => data[17][1] + '/' + getCellDisplay(17, 1) + '/' + document.getElementById('rangeSum').hidden), '=SUM(B15:B17)/398/true');
+  await page.evaluate(() => { sel(17, 2); funcPickDo('TAX10'); }); await w(300);
+  check('  　税込 10% → 左の セルの 税込（1円未満 切り捨て）', await page.evaluate(() => data[17][2] + '/' + getCellDisplay(17, 2)), '=ROUNDDOWN((B18)*1.1,0)/437');
+  await page.evaluate(() => { sel(18, 1); funcPickDo('IF'); }); await w(200);
+  check('  　もし〜なら → 数式の 書き始め', await page.evaluate(() => document.getElementById('formulaInput').value), '=IF(');
+  await page.evaluate(() => { const fi = document.getElementById('formulaInput'); fi.value = '=IF(B18>300,"多い","少ない"'; formulaEditMode = true; eq(); }); await w(300);
+  check('  　閉じ かっこが 足りなくても 足して 入る', await page.evaluate(() => data[18][1] + '/' + getCellDisplay(18, 1)), '=IF(B18>300,"多い","少ない")/多い');
+  await page.evaluate(() => sel(19, 0)); await page.tap('#calBtn'); await w(500);
+  check('  📅 日付を 押すと カレンダー（押した 所の 日付は 入らない）', await page.evaluate(() => isDlgOpen('calPickOverlay') + '/' + data[19][0] + '/' + document.querySelectorAll('#calFmtSeg .cal-f').length), 'true//6');
+  await page.evaluate(() => calSetFmt('wday')); await w(100);
+  await page.evaluate(() => calPick(dateToSerial(2026, 11, 3))); await w(300);
+  check('  　日を 押すと 日付で 入る・表示の 形も えらべる', await page.evaluate(() => getCellDisplay(19, 0) + '/' + cellDateFmt(19, 0) + '/' + isDlgOpen('calPickOverlay')), '2026/11/3(火)/wday/false');
+  await page.evaluate(() => { openCalPick(); calSetFmt('wareki'); closeDlg('calPickOverlay'); }); await w(200);
+  check('  　日付の セルで 形を 変えると すぐ 変わる', await page.evaluate(() => getCellDisplay(19, 0)), '令和8年11月3日');
+  await page.evaluate(() => { for (let r = 14; r < 20; r++) for (let c = 0; c < 3; c++) setCellVal(r, c, ''); sel(0, 0); }); await w(200);
   // 範囲を 選んで ⌫・CE で まとめて 消す（v646）
   await page.evaluate(() => { for (let r = 10; r < 13; r++) for (let c = 0; c < 3; c++) setCellVal(r, c, String(r * 10 + c)); recalcAll(); sel(10, 0); extendRange(11, 1); }); await w(200);
   await page.click('#numpadPage1 [data-key="bs"]'); await w(300);

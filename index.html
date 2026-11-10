@@ -2603,6 +2603,50 @@ body.ui2 .ch.corner-resizer::after { display: none; }
   body.ui2 .formula-bar { padding-top: 3px; padding-bottom: 3px; }
   body.ui2 .formula-bar #cellRef, body.ui2 .formula-bar #formulaInput { height: 32px; }
 }   /* 合計は いつも テンキーの 上の 行 */
+
+/* ══ v647：声は セルの バーの 中・ƒx 関数・📅 日付・範囲の 合計は 表の 右下（新しい 画面）══ */
+body:not(.ui2) #numpadPage1 .u2k { display: none !important; }
+#numpadPage1 .fx-i { font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-size: 1.15em; }
+body.ui2 #numpadPage1 .btn.kp-half[data-key="u_func"] { background: #2f6f57; }
+/* 🎤 を 入力欄の 右はしに（1つの 枠に 入れる） */
+body.ui2 .formula-bar .fb-mic { display: grid !important; place-items: center; flex: none; width: 40px; height: 38px; box-sizing: border-box; margin: 0; padding: 0;
+  border: 1px solid #cfd7d2; border-left: 0; border-radius: 0 12px 12px 0; background: var(--modal-bg, #fff); color: #6b7570; }
+body.ui2 .formula-bar .fb-mic .ui-ic { width: 21px; height: 21px; }
+body.ui2 .formula-bar #formulaInput { border-radius: 0; border-right: 0; }
+body.ui2 .formula-bar:has(#formulaInput:focus) .fb-mic { border-color: var(--acc); }
+body.dark.ui2 .formula-bar .fb-mic { border-color: #3b464d; }
+@media (orientation: landscape) and (max-height: 500px) { body.ui2 .formula-bar .fb-mic { height: 32px; } }
+/* 範囲の 合計（表の 右下に 浮かせる） */
+.range-sum { position: fixed; z-index: 40; display: flex; align-items: center; padding: 5px 8px 5px 12px; border-radius: 14px; background: #20262a; color: #fff;
+  box-shadow: 0 8px 20px -6px rgba(0,0,0,.5); pointer-events: auto; }
+.range-sum[hidden], .range-sum:has(.stats-empty) { display: none !important; }
+.range-sum .stats-section { display: flex; align-items: center; gap: 7px; margin: 0; padding: 0; border: 0; background: none; min-width: 0; }
+.range-sum .stats-title { color: #9fe3c0; font-size: 12px; font-weight: 700; }
+.range-sum .stat-val { color: #fff; font-size: 17px; font-weight: 800; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.range-sum .stat-yen { background: rgba(255,255,255,.12); color: #e6ebe8; border: 0; border-radius: 8px; font-size: 11px; padding: 3px 7px; }
+.range-sum .stat-yen.on { background: var(--acc); color: #fff; }
+/* ƒx 関数を えらぶ */
+.fp-g { margin: 12px 2px 6px; font-size: 12.5px; font-weight: 800; color: var(--text-light); }
+.fp-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.fp-item b, .fp-more b { font-size: 15px; } .fp-item small, .fp-more small { font-size: 11px; color: var(--text-light); font-weight: 600; }
+.fp-more { margin-top: 12px; grid-template-columns: 1fr; }
+.fp-more .bm-item { display: flex; align-items: center; justify-content: center; gap: 8px; }
+/* 📅 日付 */
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin: 0 2px 8px; }
+.cal-head b { font-size: 17px; }
+.cal-nav { width: 44px; height: 38px; border: 1px solid var(--save-item-border); border-radius: 10px; background: var(--save-item-bg); color: var(--text); font: inherit; cursor: pointer; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+.cal-w { font-size: 12px; font-weight: 700; color: var(--text-light); padding: 2px 0; }
+.cal-w.sun, .cal-d.sun { color: #d0453a; } .cal-w.sat, .cal-d.sat { color: #2d6fc4; }
+.cal-d { height: 42px; border: 0; border-radius: 10px; background: var(--save-item-bg); color: var(--text); font: inherit; font-size: 16px; font-weight: 600; cursor: pointer; touch-action: manipulation; }
+.cal-d:active { background: var(--cell-hover); }
+.cal-d.today { box-shadow: inset 0 0 0 2px var(--acc); }
+.cal-d.on { background: var(--acc); color: #fff; }
+.cal-today { display: grid; grid-template-columns: 1fr; margin-top: 10px; }
+.cal-today .bm-item { min-height: 44px; }
+.cal-fmts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.cal-f { min-height: 40px; padding: 6px; border: 1px solid var(--save-item-border); border-radius: 10px; background: var(--save-item-bg); color: var(--text); font: inherit; font-size: 13.5px; cursor: pointer; }
+.cal-f.on { border-color: var(--acc); background: var(--acc-weak); color: var(--acc-text); font-weight: 800; }
 /* 背の 低い 画面（iPhone SE など）は キーを 少し 低く して 表を 広く */
 @media (max-height: 720px) {
   body.ui2 #numpadPage1 .btn { padding-top: calc(8px * var(--key-scale, 1.3)); padding-bottom: calc(8px * var(--key-scale, 1.3)); }
@@ -5425,6 +5469,8 @@ body.dark {
     <!-- v639：ほかの アプリと 同じく ↶戻す を 左・↷進む を 右に。「リセット」（表を 消す）は ☰ の 奥へ 移し、文字を 打つ「あ文字」に -->
     <button class="btn util" data-key="u_undo"  onclick="undoLast()" title="タップで元に戻す／長押しで取り消せる操作の一覧">↶戻す</button>
     <button class="btn util" data-key="u_redo"  onclick="redoLast()" title="元に戻した入力をやり直す／長押しで別の機能に変更">↷進む</button>
+    <button class="btn u2k" data-key="u_func" id="funcBtn" onclick="openFuncPick()" title="関数：合計・平均・四捨五入・税込など、用途からえらんで入れる"><span class="kb-a"><b class="fx-i">ƒx</b>関数</span></button>
+    <button class="btn u2k" data-key="u_cal" id="calBtn" onclick="openCalPick()" title="日付：カレンダーからえらんで入れる（表示の形もえらべる）">📅日付</button>
     <button class="btn util" data-key="u_text" id="textBtn" onmousedown="event.preventDefault()" onclick="toggleTextInput()" title="文字を打つ（キーボードを出す。もう一度でテンキーへ）／長押しで別の機能に変更">あ文字</button>
     <button class="btn util" data-key="u_normal" onclick="switchMode('normal')" title="ふつうの表に戻す／長押しで別の機能に変更">▦通常</button>
     <button class="btn kp-tools" data-key="tools" onclick="openToolsList()" title="🧰道具の窓を開く／長押しで別の機能に変更">🧰道具</button>
@@ -6803,6 +6849,26 @@ body.dark {
   </div>
 </div>
 
+ <!-- ƒx 関数を えらぶ・📅 日付（v647） -->
+<div class="modal-overlay" id="funcPickOverlay" onclick="if(event.target===this)closeDlg('funcPickOverlay')">
+  <div class="modal">
+    <div class="modal-header"><span>ƒx 関数をえらぶ</span><button class="modal-close" onclick="closeDlg('funcPickOverlay')">✕</button></div>
+    <div class="modal-body" id="funcPickBody"></div>
+  </div>
+</div>
+<div class="modal-overlay" id="calPickOverlay" onclick="if(event.target===this)closeDlg('calPickOverlay')">
+  <div class="modal">
+    <div class="modal-header"><span>📅 日付をえらぶ</span><button class="modal-close" onclick="closeDlg('calPickOverlay')">✕</button></div>
+    <div class="modal-body">
+      <div class="cal-head"><button class="cal-nav" onclick="calMove(-1)" aria-label="前の月">◀</button><b id="calTitle"></b><button class="cal-nav" onclick="calMove(1)" aria-label="次の月">▶</button></div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-today"><button class="bm-item" onclick="calPick(todaySerial())"><b>今日</b></button></div>
+      <div class="fp-g">表示の形</div>
+      <div class="cal-fmts" id="calFmtSeg"></div>
+    </div>
+  </div>
+</div>
+<div class="range-sum" id="rangeSum" hidden></div>
 <div class="modal-overlay" id="sumFuncOverlay" onclick="if(event.target===this)closeSumFuncMenu()">
   <div class="modal">
     <div class="modal-header">
