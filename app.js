@@ -963,8 +963,8 @@ function buildSheet() {
         if (isStructLocked(r,c)) return;   // 見出し・自動計算列は選択不可（ユーザーロックは選択可＝解除のため）
         const fi=document.getElementById('formulaInput');
         if (formulaEditMode && fi.value.startsWith('=')) {
-          fi.value=fi.value+`${ALPHA[c]}${r+1}`;
-          refreshDisp(); return;
+          if (fxSuppressClick) { fxSuppressClick=false; return; }   // なぞって 範囲を 入れた あと（v648）
+          fxPutRef(cref(r,c)); return;   // 押し直すと 入れかえ・関数の 中は「,」で つなぐ（Excel と 同じ。v648）
         }
         formulaEditMode=false; fi.classList.remove('formula-mode');
         if (hpCellTap(r,c)) return;   // ☑ チェック欄は押すと ☑⇄☐、えらぶだけの列は えらぶ窓（v563）
@@ -1475,7 +1475,8 @@ function editCellInBar(r,c){
   fi.classList.toggle('formula-mode', formulaEditMode);
   if(formulaEditMode) frefPaint(v);   // 数式の セルに 色（v624）
   // スマホ・タブレットでは、テンキーを隠してその場所にキーボードを出す（v414）
-  if (isTouchUI()) document.body.classList.add('kb-edit');
+  if (padBarOn()){ const kb=cellWantsKb(r,c); setFiMode(kb); if(kb) document.body.classList.add('kb-edit'); }   // v648：数・式・空は テンキーで 直す
+  else if (isTouchUI()) document.body.classList.add('kb-edit');
   fi.focus();
   try { fi.setSelectionRange(fi.value.length, fi.value.length); } catch(e) {}
   const btn=document.getElementById('textBtn'); if (btn && !formulaEditMode) btn.classList.add('text-on');
@@ -1621,7 +1622,7 @@ function endKbEdit(){ document.body.classList.remove('kb-edit'); hideEditBar(); 
 (function kbHideNumpad(){
   const fi=document.getElementById('formulaInput'); if(!fi) return;
   // 押した 指が 離れて から 隠す（すぐ 隠すと、テンキーの 下に あった セルに 押した ことが 届いて 入力欄から 外れる ことが ある）
-  fi.addEventListener('focus', ()=>{ if(isTouchUI() && !isDentaku()) setTimeout(()=>{ if(document.activeElement!==fi || document.body.classList.contains('kb-edit')) return; document.body.classList.add('kb-edit'); try{ window.dispatchEvent(new Event('resize')); }catch(_){} }, 350); });
+  fi.addEventListener('focus', ()=>{ if(isTouchUI() && !isDentaku()) setTimeout(()=>{ if(document.activeElement!==fi || document.body.classList.contains('kb-edit') || fi.inputMode==='none') return; document.body.classList.add('kb-edit'); try{ window.dispatchEvent(new Event('resize')); }catch(_){} }, 350); });
   fi.addEventListener('blur', ()=>{ setTimeout(()=>{ if(document.activeElement!==fi && document.body.classList.contains('kb-edit')){ endKbEdit(); try{ window.dispatchEvent(new Event('resize')); }catch(_){} } }, 120); });
 })();
 /* いま選んでいるものの 種類 */
@@ -10729,7 +10730,9 @@ function togglePageBar(){
    握りつぶして二重入力を防ぐ。Σは独自の押し離し処理があるため対象外。 */
 (function setupTapBoost(){
   const vp=document.getElementById('numpadViewport'); if(!vp) return;
-  const SEL='#numpadPage1 .btn[data-key], #numpadPage2 .btn[data-key], #numpadPageSci .btn[data-key]';
+  const SEL='#numpadPage1 .btn[data-key], #numpadPage2 .btn[data-key], #numpadPageSci .btn[data-key], #numpadPage1 .btn.fxk';
+  // セルの バーを テンキーで 直して いる 間は、キーを 押しても 入力欄から 外れない（v648）
+  vp.addEventListener('mousedown', e=>{ if(document.activeElement===document.getElementById('formulaInput')) e.preventDefault(); }, true);
   const recs=new Map();        // pointerId -> {btn, x, y, t, maxMove}
   const fired=new Map();       // btn -> 発行時刻（直後の本物clickを1回だけ抑止）
   let lastFired=null;          // いちばん 最後に 発行した タップ {t,x,y}（v647）
@@ -10770,7 +10773,8 @@ function togglePageBar(){
     const b=e.target && e.target.closest ? e.target.closest(SEL) : null;
     // キーで 窓を 開いた ときは、あとから 届く 本物の click が 開いた 窓の 中（同じ 所の ボタン・日付 など）に 当たる。
     // キーの 外に 当たった click は、同じ 所なら 1回だけ 無効に する（v647。📅 で 押した 所の 日付が すぐ 入って いた）
-    if(!b && lastFired && performance.now()-lastFired.t<600 && Math.hypot(e.clientX-lastFired.x, e.clientY-lastFired.y)<30){
+    // キーの 押した あとに 並びが 変わった（＝数式 → 数式の キーの 段）ときも、その 所に 出た 別の キーは 押さない（v648）
+    if((!b || !fired.has(b)) && lastFired && performance.now()-lastFired.t<600 && Math.hypot(e.clientX-lastFired.x, e.clientY-lastFired.y)<30){
       lastFired=null; e.preventDefault(); e.stopPropagation(); return;
     }
     if(!b) return;
@@ -12598,6 +12602,7 @@ function refreshDisp() {
 }
 function numpadAppend(char) {
   const fi=document.getElementById('formulaInput');
+  if (document.activeElement===fi) { fiIns(char); refreshDisp(); return; }   // カーソルの 所へ（v648）
   fi.value=fi.value+char; refreshDisp();
 }
 function startFormula() {
@@ -12608,7 +12613,9 @@ function startFormula() {
   if (editBlocked()) return;
   formulaEditMode=true;
   const fi=document.getElementById('formulaInput');
-  fi.value='='; fi.classList.add('formula-mode'); refreshDisp();
+  fi.value='='; fi.classList.add('formula-mode'); fxRef=null;
+  if (padBarOn()) { setFiMode(false); fi.focus(); try{ fi.setSelectionRange(1,1); }catch(_){} }   // テンキーの まま 入力欄で 組み立てる（v648）
+  refreshDisp(); syncFiUi();
 }
 /* 数式モードでないときに、記号を「そのままの文字」としてセルに打ち込む（v358） */
 function symAppend(s){
@@ -12629,6 +12636,7 @@ function fkey(token){
   symAppend(token);                                                  // (, ), ℃, 「 … は記号だけ入れる
 }
 function num(n) {
+  if (barPadKey('num', n)) return;   // セルの バーを テンキーで 直して いる（v648）
   // ふつうの電卓と同じで、＝のあとに数字を押したら新しい数として打ち始める
   // （これが無いと 12×3＝36 のあと 1 を押して「361」になってしまう）
   if (dtFresh && isDentaku()) {
@@ -12645,6 +12653,7 @@ function num(n) {
   refreshDisp();
 }
 function dot() {
+  if (barPadKey('dot', null)) return;   // セルの バーを テンキーで 直して いる（v648）
   if (dtFresh && isDentaku()) {
     dtFresh=false;
     if (dtStyle==='expr'){ dtExpr='0.'; disp_val=dtExpr; dtRender(); return; }
@@ -12664,6 +12673,7 @@ function dot() {
   refreshDisp();
 }
 function op(o) {
+  if (barPadKey('op', o)) return;   // セルの バーを テンキーで 直して いる（v648）
   if (isDentaku() && dtStyle==='expr') { dtExprAppend(o); return; }
   if (isDentaku()) dtSeqOp(o);
   if (formulaEditMode) { numpadAppend(o==='*'?'×':o==='/'?'÷':o); return; }
@@ -12681,6 +12691,7 @@ function op(o) {
 }
 function eq() {
   if (isDentaku()) { dtEquals(); return; }
+  if (barPadKey('eq')) return;   // v648
   if (typeof window.fiFlush==='function' && window.fiFlush()){   // 入力欄で 打った 文字を テンキーの Enter で 決める（v647）
     const fi=document.getElementById('formulaInput'); if(document.activeElement===fi) fi.blur();
     advanceRowOrAdd(); return;
@@ -12766,6 +12777,7 @@ function ac() {
   disp_val='0'; op1=null; cur_op=null; waiting=false;
 }
 function ce() {
+  if (barPadKey('ce')) return;   // v648
   if (clearBlockIfAny()) return;   // 範囲を 選んで いれば その 中身を 消す（v646）
   if (isDentaku()) { if(dtStyle==='expr') dtExpr=''; disp_val=''; dtRender(); return; }
   if (formulaEditMode) { document.getElementById('formulaInput').value='='; refreshDisp(); return; }
@@ -12773,6 +12785,7 @@ function ce() {
   cellEditing=true; disp_val=''; refreshDisp();
 }
 function bs() {
+  if (barPadKey('bs')) return;   // v648
   if (clearBlockIfAny()) return;   // 範囲を 選んで いれば その 中身を 消す（v646）
   if (isDentaku() && dtStyle==='expr') { dtExpr=dtExpr.slice(0,-1); dtRender(); return; }
   if (formulaEditMode) {
@@ -12790,6 +12803,7 @@ function bs() {
   disp_val=disp_val.length>1?disp_val.slice(0,-1):''; refreshDisp();
 }
 function toggleSign() {
+  if (barPadKey('sign', null)) return;   // セルの バーを テンキーで 直して いる（v648）
   if (isDentaku() && dtStyle==='expr') { dtExprAppend('-'); return; }
   if (formulaEditMode) { numpadAppend('-'); return; }
   if (editBlocked()) return;
@@ -12799,6 +12813,7 @@ function toggleSign() {
 }
 function toggleTextInput() {
   if(isDentaku()){ toast('電卓モードでは文字は入れられません'); return; }
+  if(padBarOn()){ fbKbTap(true); return; }   // 新しい 画面は キーボードで 打つ（v648）
   const fi=document.getElementById('formulaInput');
   const btn=document.getElementById('textBtn');
   if (document.activeElement===fi) {
@@ -12990,6 +13005,7 @@ function toCell() {
     updateDigitHint();
   });
   fi.addEventListener('blur', ()=>{
+    if(window.fiSwitching) return;   // テンキー⇄キーボードの 切りかえ中（v648）
     const btn=document.getElementById('textBtn');
     if(btn) btn.classList.remove('text-on');
     // 直し終わり：帯を消してテンキーを戻す（v414）。帯のボタンを押した分で外れたときも押せるよう、少し待つ
@@ -13024,9 +13040,31 @@ function toCell() {
     let vh=visualViewport.height;
     visualViewport.addEventListener('resize', ()=>{
       const h=visualViewport.height, grew=h-vh>120; vh=h;
-      if(grew && document.activeElement===fi && isTouchUI()) fi.blur();
+      if(grew && document.activeElement===fi && isTouchUI() && fi.inputMode!=='none' && !window.fiSwitching) fi.blur();
     });
   }
+  /* ✓（stay＝そのセルに いる）・テンキーの Enter（次の セルへ）で 決める／✕ で やめる（v648） */
+  window.fiEnter=function(stay){
+    fiDirty=false;
+    formulaEditMode=false; fi.classList.remove('formula-mode');
+    if(!isLockedCell(selR,selC)) setCellVal(selR,selC,speechCommit(fi.value.trim(), selR, selC));
+    fxRef=null;
+    const tb=document.getElementById('textBtn'); if(tb) tb.classList.remove('text-on');
+    if(document.activeElement===fi) fi.blur();
+    if(stay) sel(selR,selC); else advanceRowOrAdd();
+    syncFiUi();
+  };
+  window.fiCancel=function(){
+    fiDirty=false;
+    formulaEditMode=false; fi.classList.remove('formula-mode');
+    fi.value=cellEditString(selR,selC); clearSumRange(); fxRef=null;
+    const el=document.getElementById(`c${selR}_${selC}`);
+    if(el) setCellDisp(el, selR,selC);
+    if(typeof frefClear==='function') frefClear();
+    const tb=document.getElementById('textBtn'); if(tb) tb.classList.remove('text-on');
+    if(document.activeElement===fi) fi.blur();
+    syncFiUi();
+  };
   fi.addEventListener('keydown', e=>{
     if (e.key==='Enter') {
       e.preventDefault(); e.stopPropagation();
@@ -13050,6 +13088,181 @@ function toCell() {
   });
 })();
 
+
+/* ══ セルの バーを テンキーで 直す・数式で セルを 選ぶ（v648）══
+   案1：セルの バーを 押しても 本体の キーボードを 出さず、カーソルだけ 出して テンキーの キーを その 所へ 入れる。
+        文字の セル（見出しなど）を 直す ときと「⌨あ」を 押した ときだけ 本体の キーボード。
+   案3：数式の 中で セルを なぞると 範囲（B2:B5）。番地を 入れた すぐ あとに 別の セルを 押すと 入れかえ、
+        関数の かっこの 中では「,」で つなぐ。
+   案2：直して いる 間は テンキーの 上の 段が ◀ ▶ ( ) , : に なる。
+   案4：直して いる 間だけ セルの バーに ✕（やめる）・✓（決める）。 */
+function padBarOn(){ return !!ui2On && isTouchUI() && !isDentaku(); }
+function fiEl(){ return document.getElementById('formulaInput'); }
+/* 文字の セル（数・式・日付・空 では ない）は キーボードで 直す */
+function cellWantsKb(r,c){
+  const v=String((data[r] && data[r][c]!=null) ? data[r][c] : '');
+  if(v==='' || v.startsWith('=')) return false;
+  if(cellDateFmt(r,c)) return false;
+  return isNaN(v.trim());
+}
+function setFiMode(kb){ const fi=fiEl(); if(!fi) return; fi.inputMode = kb ? 'text' : 'none'; syncFiUi(); }
+function barPad(){ const fi=fiEl(); return padBarOn() && document.activeElement===fi && fi.inputMode==='none'; }
+function syncFiUi(){
+  const fi=fiEl(), b=document.body; if(!fi || !b) return;
+  const foc=document.activeElement===fi;
+  b.classList.toggle('bar-edit', foc && padBarOn() && fi.inputMode==='none');
+  b.classList.toggle('fi-edit', !!ui2On && (foc || formulaEditMode));
+  const k=document.getElementById('fbKb');
+  if(k){ const kb=foc && fi.inputMode!=='none'; k.classList.toggle('on', kb); k.textContent = kb ? '123' : 'あ'; k.title = kb ? 'テンキーで打つ' : '本体のキーボードで文字を打つ'; }
+}
+/* 入力欄の カーソルの 所へ 入れる（選んで いる 文字は 置きかえ） */
+function fiIns(s){
+  const fi=fiEl(), foc=document.activeElement===fi, v=fi.value;
+  let p0=foc && fi.selectionStart!=null ? fi.selectionStart : v.length, p1=foc && fi.selectionEnd!=null ? fi.selectionEnd : v.length;
+  fi.value=v.slice(0,p0)+s+v.slice(p1);
+  const p=p0+s.length; try{ fi.setSelectionRange(p,p); }catch(_){}
+  fi.dispatchEvent(new Event('input'));
+}
+function fiDel(){
+  const fi=fiEl(), v=fi.value; let p0=fi.selectionStart??v.length, p1=fi.selectionEnd??v.length;
+  if(p0===p1){ if(p0===0) return; p0--; }
+  fi.value=v.slice(0,p0)+v.slice(p1); try{ fi.setSelectionRange(p0,p0); }catch(_){}
+  fi.dispatchEvent(new Event('input'));
+}
+function fiMove(d){
+  const fi=fiEl(); if(document.activeElement!==fi) return;
+  const v=fi.value; let p=(d<0 ? fi.selectionStart : fi.selectionEnd) ?? v.length;
+  if(fi.selectionStart===fi.selectionEnd) p+=d;
+  p=Math.max(0, Math.min(v.length, p)); try{ fi.setSelectionRange(p,p); }catch(_){}
+  fxRef=null;
+}
+/* テンキーの キー（数・記号・⌫・C・±・Enter）を 入力欄へ */
+function barPadKey(kind, arg){
+  if(!barPad()) return false;
+  const fi=fiEl(), v=fi.value;
+  if(kind==='num') fiIns(String(arg));
+  else if(kind==='dot') fiIns('.');
+  else if(kind==='op'){
+    const sym = arg==='*' ? '×' : arg==='/' ? '÷' : arg;
+    // 数の あとに 計算の 記号を 押したら 式に する（120 × 3 → =120×3）
+    if(!v.startsWith('=') && /^-?\d+(\.\d+)?$/.test(v.trim()) && fi.selectionStart===v.length){ fi.value='='+v.trim(); try{ fi.setSelectionRange(fi.value.length, fi.value.length); }catch(_){} }
+    fiIns(sym);
+  }
+  else if(kind==='sign'){
+    if(/^-?\d+(\.\d+)?$/.test(v.trim())){ fi.value = v.trim().startsWith('-') ? v.trim().slice(1) : '-'+v.trim(); try{ fi.setSelectionRange(fi.value.length, fi.value.length); }catch(_){} fi.dispatchEvent(new Event('input')); }
+    else fiIns('-');
+  }
+  else if(kind==='bs') fiDel();
+  else if(kind==='ce'){ fi.value = v.startsWith('=') ? '=' : ''; try{ fi.setSelectionRange(fi.value.length, fi.value.length); }catch(_){} fi.dispatchEvent(new Event('input')); }
+  else if(kind==='eq'){ fiEnter(false); return true; }
+  fxRef=null;
+  refreshDisp(); return true;
+}
+/* ⌨あ：テンキー ⇄ 本体の キーボード */
+function fiSwitch(fn){
+  const fi=fiEl(), p0=fi.selectionStart, p1=fi.selectionEnd;
+  window.fiSwitching=true;
+  fi.blur(); fn(); fi.focus();
+  try{ if(p0!=null) fi.setSelectionRange(p0,p1); }catch(_){}
+  setTimeout(()=>{ window.fiSwitching=false; syncFiUi(); }, 450);
+}
+function fbKbTap(forceKb){
+  const fi=fiEl(); if(!fi || isDentaku()) return;
+  if(document.activeElement===fi){
+    const toKb = forceKb || fi.inputMode==='none';
+    if(!toKb){ document.body.classList.remove('kb-edit'); }
+    fiSwitch(()=>setFiMode(toKb));
+    if(toKb) document.body.classList.add('kb-edit');
+    return;
+  }
+  if(editBlocked() || isLockedCell(selR,selC)) return;
+  cellEditing=false; op1=null; cur_op=null; waiting=false;
+  const v=cellEditString(selR,selC); fi.value=v;
+  formulaEditMode=String(v).startsWith('='); fi.classList.toggle('formula-mode', formulaEditMode);
+  setFiMode(true); document.body.classList.add('kb-edit');
+  fi.focus(); try{ fi.setSelectionRange(fi.value.length, fi.value.length); }catch(_){}
+  syncFiUi();
+}
+function fbCancelTap(){ fiCancel(); }
+/* 数式の 中の セル番地（案3） */
+let fxRef=null;            // いちばん 最後に 入れた 番地 {start,end,val}
+let fxDrag=null, fxSuppressClick=false;
+function fxRangeStr(r1,c1,r2,c2){
+  const a=Math.min(r1,r2), b=Math.max(r1,r2), c=Math.min(c1,c2), d=Math.max(c1,c2);
+  return (a===b && c===d) ? cref(a,c) : cref(a,c)+':'+cref(b,d);
+}
+/* pos の 所が 関数の かっこの 中か（SUM( の 中 など。ただの かっこは ちがう） */
+function fxInFunc(v,pos){
+  const s=v.slice(0,pos).replace(/"[^"]*"?/g, m=>' '.repeat(m.length));
+  const st=[];
+  for(let i=0;i<s.length;i++){ const ch=s[i]; if(ch==='(') st.push(/[A-Za-z0-9_.]$/.test(s.slice(0,i))); else if(ch===')') st.pop(); }
+  return st.length>0 && st[st.length-1];
+}
+function fxPutRef(ref){
+  const fi=fiEl(), foc=document.activeElement===fi, v=fi.value;
+  let p0=foc && fi.selectionStart!=null ? fi.selectionStart : v.length, p1=foc && fi.selectionEnd!=null ? fi.selectionEnd : v.length, pre='';
+  if(fxRef && fxRef.val===v && p0===p1 && p0===fxRef.end){
+    if(fxInFunc(v, fxRef.start)) pre=',';           // 関数の 中＝つなぐ（=SUM(B2,D2）
+    else { p0=fxRef.start; p1=fxRef.end; }          // 入れかえ（=B2 → =D2）
+  }
+  fi.value=v.slice(0,p0)+pre+ref+v.slice(p1);
+  const st=p0+pre.length, en=st+ref.length;
+  try{ if(foc) fi.setSelectionRange(en,en); }catch(_){}
+  fi.dispatchEvent(new Event('input'));
+  fxRef={start:st, end:en, val:fi.value};
+  refreshDisp();
+}
+function fxReplaceRef(ref){
+  const fi=fiEl(); if(!fxRef || fxRef.val!==fi.value) return;
+  const v=fi.value; fi.value=v.slice(0,fxRef.start)+ref+v.slice(fxRef.end);
+  const en=fxRef.start+ref.length; try{ if(document.activeElement===fi) fi.setSelectionRange(en,en); }catch(_){}
+  fi.dispatchEvent(new Event('input'));
+  fxRef={start:fxRef.start, end:en, val:fi.value};
+  refreshDisp();
+}
+function fxCellAt(x,y){
+  const t=document.elementFromPoint(x,y), td=t && t.closest ? t.closest('#sheet .cell') : null;
+  const m=td && td.id.match(/^c(\d+)_(\d+)$/); return m ? [+m[1], +m[2]] : null;
+}
+function fxDragMove(x,y){
+  if(!fxDrag) return;
+  if(!fxDrag.started){
+    if(Math.hypot(x-fxDrag.x, y-fxDrag.y)<8) return;
+    fxDrag.started=true; fxPutRef(cref(fxDrag.r, fxDrag.c));
+  }
+  const c=fxCellAt(x,y); if(!c) return;
+  fxReplaceRef(fxRangeStr(fxDrag.r, fxDrag.c, c[0], c[1]));
+}
+function fxDragEnd(){
+  if(fxDrag && fxDrag.started){ fxSuppressClick=true; setTimeout(()=>{ fxSuppressClick=false; }, 600); }
+  fxDrag=null;
+}
+(function fxDragSetup(){
+  const sw=document.querySelector('.sheet-wrap'); if(!sw) return;
+  const startAt=(x,y,t)=>{
+    if(!formulaEditMode) return;
+    const fi=fiEl(); if(!fi || !fi.value.startsWith('=')) return;
+    const td=t && t.closest ? t.closest('#sheet .cell') : null; const m=td && td.id.match(/^c(\d+)_(\d+)$/); if(!m) return;
+    fxDrag={r:+m[1], c:+m[2], x, y, started:false};
+  };
+  sw.addEventListener('touchstart', e=>{ if(e.touches.length!==1){ fxDrag=null; return; } startAt(e.touches[0].clientX, e.touches[0].clientY, e.target); }, {passive:true});
+  // セルから なぞると 範囲（表を 動かす ときは 行番号・列名の 所を なぞる）
+  document.addEventListener('touchmove', e=>{ if(!fxDrag) return; if(e.touches.length!==1){ fxDrag=null; return; } if(e.cancelable) e.preventDefault(); fxDragMove(e.touches[0].clientX, e.touches[0].clientY); }, {passive:false});
+  document.addEventListener('touchend', ()=>fxDragEnd());
+  document.addEventListener('touchcancel', ()=>{ fxDrag=null; });
+  sw.addEventListener('mousedown', e=>{ if(e.button>0) return; startAt(e.clientX, e.clientY, e.target); });
+  document.addEventListener('mousemove', e=>{ if(fxDrag && e.buttons&1) fxDragMove(e.clientX, e.clientY); });
+  document.addEventListener('mouseup', ()=>fxDragEnd());
+})();
+/* 入力欄を 押した とき：テンキーで 直すか キーボードか（押す 前に 決める）・見た目を 合わせる */
+(function fiPadSetup(){
+  const fi=fiEl(); if(!fi) return;
+  fi.addEventListener('pointerdown', ()=>{ if(padBarOn() && document.activeElement!==fi) setFiMode(cellWantsKb(selR,selC)); });
+  fi.addEventListener('focus', ()=>syncFiUi());
+  fi.addEventListener('blur', ()=>{ if(window.fiSwitching) return; setTimeout(()=>{ if(document.activeElement!==fi){ fxRef=null; syncFiUi(); } }, 0); });
+  fi.addEventListener('click', ()=>{ fxRef=null; });   // カーソルを 動かしたら 入れかえは しない
+  new MutationObserver(()=>syncFiUi()).observe(fi, {attributes:true, attributeFilter:['class']});
+})();
 /* ── しゃべった式を読み取る ────────────────────────────────────
    音声入力（キーボードのマイク／アプリの🎤）で入る文字は端末によって形が違う。
      「251×68」「251かける68」「２５１ かける ６８ は」「二百五十一かける六十八」
@@ -17870,7 +18083,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v647';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v648';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -19886,6 +20099,7 @@ function applySeqCustom(){
   toast((by>0?by+' ずつ増やす':Math.abs(by)+' ずつ減らす')+'連番にしました（↶戻す で元に戻せます）');
 }
 document.querySelector('.sheet-wrap').addEventListener('touchstart',e=>{
+  if(formulaEditMode) return;   // 数式を 組み立てて いる 間は なぞると 範囲（下の fxDrag。v648）
   // 選んだセルの右下の ■ の近くなら、となりのセルや表の外を押していても、選んだセルからのフィルにする（v470）
   fillPressTouch=true;
   if(e.touches.length===1 && !sumSelectMode && fillHandleHit(e.touches[0].clientX, e.touches[0].clientY)){
@@ -22090,6 +22304,7 @@ function atFmtTap(){
 /* 入力欄の ✓：打って いる ものを 決める（Enter と 同じ。下へは 進まない） */
 function fbOkTap(){
   const fi=document.getElementById('formulaInput');
+  if(ui2On && (document.activeElement===fi || formulaEditMode)){ fiEnter(true); return; }   // ✓＝決めて その セルに いる（v648）
   if(fi && document.activeElement===fi){
     fi.dispatchEvent(new KeyboardEvent('keydown', {key:'Enter', bubbles:true, cancelable:true}));
     fi.blur(); return;
