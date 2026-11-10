@@ -20661,10 +20661,13 @@ async function runUi2640(browser) {
   check('  下の タブは 表・電卓・ひな形・道具・メニュー（いまは 表）', await page.evaluate(() => [...document.querySelectorAll('#appNav button')].map(b => b.textContent.trim() + (b.classList.contains('on') ? '*' : '')).join(',')), '表*,電卓,ひな形,道具,メニュー');
   const lay = await page.evaluate(() => { const t = id => document.getElementById(id).getBoundingClientRect(); const fb = document.querySelector('.formula-bar').getBoundingClientRect(); return [t('appTop').top < document.querySelector('.sheet-wrap').getBoundingClientRect().top, fb.bottom <= t('numpadSection').top + 1, t('numpadSection').bottom <= t('appNav').top + 1].join('/'); });
   check('  上から 上のバー・表・入力欄・テンキー・タブ の 順', lay, 'true/true/true');
-  check('  入力欄に Σ・マイク・✓', [await vis('fbSum'), await vis('fbMic'), await vis('fbOk')].join('/'), 'true/true/true');
+  check('  入力欄は ✓ だけ（Σ・＝・マイクは キーの 上の 低い 段へ。v641）', [await vis('fbSum'), await vis('fbEq'), await vis('fbMic'), await vis('fbOk')].join('/'), 'false/false/false/true');
   const keys = await page.evaluate(() => { const v = [...document.querySelectorAll('#numpadPage1 .btn[data-key]')].filter(b => b.offsetParent && b.getBoundingClientRect().height > 0); return { n: v.length, rows: new Set(v.map(b => Math.round(b.getBoundingClientRect().top))).size, k: v.map(b => b.dataset.key).sort().join(',') }; });
-  check('  テンキーは 4段 19個（数・計算の記号・⌫・C・Enter・あ文字）', keys.n + '/' + keys.rows, '19/4');
-  check('  道具・ひな形・±・Σ・数式・道具の段は テンキーから 外れる', /tools|mode|sign|sum|fx|u_voice|u_undo|u_redo|u_normal/.test(keys.k), false);
+  check('  テンキーは 低い 段＋4段 23個（Σ合計・＝数式・🎤声・±・あ文字 ／ 数・計算の記号・⌫・C・Enter）', keys.n + '/' + keys.rows, '23/5');
+  check('  道具・ひな形・戻す・進む・通常は テンキーから 外れる', /tools|mode|u_undo|u_redo|u_normal/.test(keys.k), false);
+  const half = await page.evaluate(() => { const hgt = k => document.querySelector('#numpadPage1 [data-key="' + k + '"]').getBoundingClientRect(); const a = ['sum', 'fx', 'u_voice', 'sign', 'u_text'].map(hgt), n = hgt('n7'); return [a.every(x => Math.abs(x.top - a[0].top) < 1), a.every(x => x.height >= 28 && x.height <= n.height * 0.65), a[0].bottom <= n.top, Math.round(hgt('n0').width) > Math.round(n.width) * 1.8].join('/'); });
+  check('  低い 段は 1列に 並び、ふつうの キーの 半分くらいの 高さ・数字の 上・0 は 2つ分', half, 'true/true/true/true');
+  check('  下の タブは 少し 低く（48px）', await page.evaluate(() => Math.round(document.getElementById('appNav').getBoundingClientRect().height)), 48);
   check('  色は 3つの 役（数は 灰・記号は 緑・Enter は 明るい 緑。C と ⌫ は 灰）', await page.evaluate(() => ['n7', 'plus', 'enter', 'ce', 'bs'].map(k => getComputedStyle(document.querySelector('#numpadPage1 [data-key="' + k + '"]')).backgroundColor).join('|')), 'rgb(74, 74, 74)|rgb(26, 92, 53)|rgb(31, 138, 85)|rgb(74, 84, 94)|rgb(74, 84, 94)');
   // 上の バー
   check('  上の バーに 表の 名前と 保存の ようす・↶ は まだ 押せない', await page.evaluate(() => document.getElementById('atName').textContent + '/' + document.getElementById('atState').textContent + '/' + document.getElementById('atUndo').disabled), 'シート1/✓ 自動で保存/true');
@@ -20679,7 +20682,7 @@ async function runUi2640(browser) {
   await page.click('#formulaInput'); await page.keyboard.type('りんご'); await page.click('#fbOk'); await w(300);
   check('  ✓ で 打った 文字を 決める', await page.evaluate(() => data[1][0]), 'りんご');
   await page.evaluate(() => { setCellVal(0, 1, '100'); setCellVal(1, 1, '250'); recalcAll(); sel(2, 1); }); await w(200);
-  await page.click('#fbSum'); await w(500);
+  await page.click('#autoSumBtn'); await w(500);
   await page.evaluate(() => { if (typeof sumSelectMode !== 'undefined' && sumSelectMode) eq(); }); await w(300);
   check('  Σ で 上の 数字の 合計', await page.evaluate(() => /^=SUM\(B1:B2\)$/.test(data[2][1]) + '/' + getCellDisplay(2, 1)), 'true/350');
   // Aa・⋮
@@ -20724,12 +20727,15 @@ async function runUi2640(browser) {
   check('  あ文字 でも 隠す（入力欄に 入る）', await kbs() + '/' + await page.evaluate(() => document.activeElement.id), 'true/false/false/formulaInput');
   await page.evaluate(() => document.getElementById('formulaInput').blur()); await w(500);
   await page.evaluate(() => sel(7, 1)); await w(200);
-  await page.click('#fbEq'); await w(300);
-  check('  入力欄の ＝ で 数式を 始める', await page.evaluate(() => document.getElementById('formulaInput').value), '=');
+  await page.click('#numpadPage1 [data-key="fx"]'); await w(300);
+  check('  キーの 上の ＝数式 で 数式を 始める', await page.evaluate(() => document.getElementById('formulaInput').value), '=');
   await page.evaluate(() => { const fi = document.getElementById('formulaInput'); fi.value = '=2*3'; fi.dispatchEvent(new Event('input')); fi.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); fi.blur(); }); await w(500);
   check('  　数式が 入る', await page.evaluate(() => getCellDisplay(7, 1)), '6');
-  await page.click('#atReset'); await w(500);
-  check('  上の バーの リセットで 表を 空に・元に戻す が 出る', await page.evaluate(() => isSheetEmpty() + '/' + !!document.querySelector('#appToast .toast-act')), 'true/true');
+  check('  上の バーに リセットは ない', await page.evaluate(() => !!document.getElementById('atReset')), false);
+  await page.click('#appNav [data-nav="menu"]'); await w(500);
+  check('  メニューの いちばん上に リセット', await page.evaluate(() => { const b = document.getElementById('moreReset'), body = b.parentElement; const first = [...body.children].find(e => e.offsetParent && e.getBoundingClientRect().height > 0); return (first === b) + '/' + b.textContent.includes('リセット'); }), 'true/true');
+  await page.click('#moreReset'); await w(700);
+  check('  メニューの リセットで 表を 空に・元に戻す が 出る', await page.evaluate(() => isSheetEmpty() + '/' + !!document.querySelector('#appToast .toast-act')), 'true/true');
   await page.click('#appToast .toast-act'); await w(400);
   check('  　元に戻す で 戻る', await page.evaluate(() => data[5][0]), 'ぶどう');
   // 前の 画面に もどす
@@ -20741,6 +20747,16 @@ async function runUi2640(browser) {
   check('  開き直しても 前の 画面', await page.evaluate(() => document.body.classList.contains('ui2')), false);
   await page.evaluate(() => setUi2(true)); await w(500);
   check('  新しい 画面に 戻せる', [await vis('appTop'), await vis('appNav')].join('/'), 'true/true');
+  // 横向き（v641）：上の バーと タブを 1段に（表と テンキーを 広く）
+  await page.setViewportSize({ width: 840, height: 380 }); await w(700);
+  const ld = await page.evaluate(() => { const g = q => document.querySelector(q).getBoundingClientRect(); const t = g('#appTop'), n = g('#appNav'), np = g('#numpadSection'), sw = g('.sheet-wrap');
+    return [Math.round(t.top) === Math.round(n.top), n.left >= t.right - 1, Math.round(n.left) === Math.round(np.left), t.height <= 40, Math.round(np.bottom) === 380, Math.round(sw.bottom) === 380, sw.height >= 295, np.height >= 335].join('/'); });
+  check('  横向き：タブは 上の バーと 同じ 段（テンキーの 上）・表と テンキーは 下の 端まで', ld, 'true/true/true/true/true/true/true/true');
+  await page.click('#appNav [data-nav="menu"]'); await w(500);
+  check('  　メニューを 開いても 上の 段（タブ）は 押せる', await page.evaluate(() => { const n = document.querySelector('#appNav [data-nav="sheet"]').getBoundingClientRect(); const e = document.elementFromPoint(n.left + n.width / 2, n.top + n.height / 2); return !!(e && e.closest('#appNav')) + '/' + document.getElementById('moreMenuOverlay').classList.contains('open'); }), 'true/true');
+  await page.click('#appNav [data-nav="sheet"]'); await w(400);
+  check('  　表の タブで 戻る', await page.evaluate(() => document.getElementById('moreMenuOverlay').classList.contains('open')), false);
+  await page.setViewportSize({ width: 390, height: 844 }); await w(500);
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();

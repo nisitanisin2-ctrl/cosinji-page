@@ -11064,12 +11064,14 @@ const KEYPAD_DEFAULT_POS_FMT={
   kf_left:{r:5,c:1}, kf_center:{r:5,c:2}, kf_right:{r:5,c:3}, kf_merge:{r:5,c:4}, bd_clear:{r:5,c:5}, kf_nofill:{r:5,c:6},
   kf_vtop:{r:6,c:1}, kf_vmid:{r:6,c:2}, kf_vbot:{r:6,c:3}, kf_autocolor:{r:6,c:4}, kf_undo:{r:6,c:5}, kf_paint:{r:6,c:6}
 };
-/* 新しい 画面（v640）の 数字ページ：4段×5列。道具の段・道具・ひな形・±・Σ・数式は 外す（タブ・入力欄へ） */
+/* 新しい 画面の 数字ページ：低い 段（Σ合計・＝数式・🎤声・±・あ文字）＋ 4段×5列。
+   v642：入力欄に あった Σ・＝・🎤 を、キーの すぐ上の 低い 段（ふつうの キーの 半分くらいの 高さ）へ。入力欄は 中身を 広く 見せる */
 const KEYPAD_UI2_POS={
-  n7:{r:1,c:1}, n8:{r:1,c:2}, n9:{r:1,c:3}, div:{r:1,c:4}, bs:{r:1,c:5},
-  n4:{r:2,c:1}, n5:{r:2,c:2}, n6:{r:2,c:3}, mul:{r:2,c:4}, ce:{r:2,c:5},
-  n1:{r:3,c:1}, n2:{r:3,c:2}, n3:{r:3,c:3}, minus:{r:3,c:4}, enter:{r:3,c:5,h:2},
-  u_text:{r:4,c:1}, n0:{r:4,c:2}, dot:{r:4,c:3}, plus:{r:4,c:4}
+  sum:{r:1,c:1,u:1}, fx:{r:1,c:2,u:1}, u_voice:{r:1,c:3,u:1}, sign:{r:1,c:4,u:1}, u_text:{r:1,c:5,u:1},
+  n7:{r:2,c:1}, n8:{r:2,c:2}, n9:{r:2,c:3}, div:{r:2,c:4}, bs:{r:2,c:5},
+  n4:{r:3,c:1}, n5:{r:3,c:2}, n6:{r:3,c:3}, mul:{r:3,c:4}, ce:{r:3,c:5},
+  n1:{r:4,c:1}, n2:{r:4,c:2}, n3:{r:4,c:3}, minus:{r:4,c:4}, enter:{r:4,c:5,h:2},
+  n0:{r:5,c:1,w:2}, dot:{r:5,c:3}, plus:{r:5,c:4}
 };
 /* 編集対象のページ一覧（各ページが独自の既定配置・保存キー・現在配置を持つ） */
 const KP_PAGES=[
@@ -11083,7 +11085,7 @@ const KP_PAGES=[
      自分で並べ替えた人・長押しで機能を割り当てた人は、場所ごと引き継ぐ（kpMigrate466）。 */
   {sel:'#numpadPage1', def:KEYPAD_DEFAULT_POS,  skey:'excalc_keypad_pos_v2', pos:{}, oldKey:'excalc_keypad_pos', shiftRow:1,
    renamed:{u_normal:'u_save', u_voice:'u_dentaku', u_text:'u_reset'}},   // v639：リセットの 場所に あ文字
-  {sel:'#numpadPage1', def:KEYPAD_UI2_POS, skey:'excalc_keypad_pos_ui2', pos:{}, ui2:true},   // 新しい 画面の 数字ページ（v640）
+  {sel:'#numpadPage1', def:KEYPAD_UI2_POS, skey:'excalc_keypad_pos_ui3', pos:{}, ui2:true},   // 新しい 画面の 数字ページ（v640。v642 で 低い 段を 足したので 新しい キー）
   {sel:'#numpadPage2', def:KEYPAD_DEFAULT_POS2, skey:'excalc_keypad_pos2', pos:{}},
   {sel:'#numpadPageFmt', def:KEYPAD_DEFAULT_POS_FMT, skey:'excalc_keypad_posfmt4', pos:{}}   // v407 で6列（posfmt3）、v483 で色のボタンを変えたので新しいキー
 ];
@@ -11127,7 +11129,7 @@ function saveKeypadPos(pg){ try{ localStorage.setItem(pg.skey, JSON.stringify(pg
 function applyKeypadLayout(){
   KP_PAGES.forEach(pg=>{
     if(!kpPageOn(pg)) return;
-    if(pg.sel==='#numpadPage1') document.querySelectorAll('#numpadPage1 .btn[data-key]').forEach(b=>b.classList.toggle('kp-off2', ui2On && !(b.dataset.key in pg.def)));
+    if(pg.sel==='#numpadPage1') document.querySelectorAll('#numpadPage1 .btn[data-key]').forEach(b=>{ b.classList.toggle('kp-off2', ui2On && !(b.dataset.key in pg.def)); b.classList.toggle('kp-half', !!(ui2On && pg.def[b.dataset.key] && pg.def[b.dataset.key].u)); });
     for(const key in pg.pos){
       const b=document.querySelector(pg.sel+' [data-key="'+key+'"]');
       if(!b) continue;
