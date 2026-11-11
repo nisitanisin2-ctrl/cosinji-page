@@ -11685,7 +11685,7 @@ function sel(r,c) {
     if (prevEl) setCellDisp(prevEl, selR,selC);
   }
   if (cellEditing) {
-    const commitVal=(waiting&&op1!==null)?fmtNum(op1):disp_val;
+    const commitVal=calcCommitVal();   // 計算して いれば 式（v651）
     const isNoOp=(commitVal==='0'&&data[selR][selC]==='')||commitVal===data[selR][selC];
     if (!isNoOp) setCellVal(selR,selC,commitVal);
     else {
@@ -12111,6 +12111,26 @@ function updateStats(c) {
 
 /* ── テンキー状態 ── */
 let disp_val='0', op1=null, cur_op=null, waiting=false;
+/* テンキーで 計算した セルに 式を 残す（v651）
+   セルを 選んで テンキーで 120 × 3 Enter と 押すと、前は 答えの 360 だけが 入って いた。
+   押した 式を 覚えて おき、セルには =120*3（表示は 答え・セルの バーは 式）を 入れる。
+   電卓と 同じ 順番（2 + 3 × 4 は 20）に なるよう、必要な ときは かっこで 包む（=(2+3)*4）。
+   calcLeft＝いまの op1（左の 値）を 作った 式。op1 が null の ときは 使わない */
+let calcLeft=null;
+function calcOperand(x){ x=String(x); if(x.endsWith('.')) x=x.slice(0,-1); if(x===''||x==='-') x='0'; return x.startsWith('-') ? '('+x+')' : x; }
+function calcCombine(L,o,R){
+  let flat=L, prev; do{ prev=flat; flat=flat.replace(/\([^()]*\)/g,''); }while(flat!==prev);
+  if((o==='*'||o==='/') && /[+\-]/.test(flat)) L='('+L+')';
+  return L+o+R;
+}
+function calcCommitVal(){
+  const plain=(waiting&&op1!==null)?fmtNum(op1):(disp_val==='Error'?'':disp_val);
+  if(isDentaku() || op1===null || calcLeft==null || !autoRuleOn('calcfx')) return plain;
+  if(cur_op && !waiting) return '='+calcCombine(calcLeft, cur_op, calcOperand(disp_val));
+  let flat=calcLeft, prev; do{ prev=flat; flat=flat.replace(/\([^()]*\)/g,''); }while(flat!==prev);
+  if(waiting && /[+\-*/]/.test(flat)) return '='+calcLeft;   // 120 × 3 × で 決めた → =120*3
+  return plain;
+}
 let cellEditing=false;
 
 /* ── アンドゥ／リドゥ履歴 ── */
@@ -12683,10 +12703,11 @@ function op(o) {
   // 電卓では、途中の答えも決めた桁で作って、その値のまま計算を続ける（実務電卓と同じ）
   if (op1!==null&&!waiting) {
     const r=calc(op1,cur,cur_op);
+    if(!isDentaku() && calcLeft!=null) calcLeft=calcCombine(calcLeft, cur_op, calcOperand(disp_val));   // v651
     if(isDentaku()){ disp_val=dtFmtNum(r); op1=parseFloat(disp_val); }
     else { disp_val=fmtNum(r); op1=r; }
   }
-  else { op1=isNaN(cur)?0:cur; }
+  else if (op1===null) { op1=isNaN(cur)?0:cur; calcLeft=isNaN(cur)?'0':calcOperand(disp_val); }
   cur_op=o; waiting=true; refreshDisp();
 }
 function eq() {
@@ -12697,6 +12718,7 @@ function eq() {
     advanceRowOrAdd(); return;
   }
   if (cur_op===null||op1===null) { toCell(); return; }
+  if (!waiting && calcLeft!=null && autoRuleOn('calcfx')) { toCell(); return; }   // 式を 入れて 次の セルへ（v651。前は 1回目で 答えを 見せ、2回目で 入れた）
   const r=calc(op1,parseFloat(disp_val),cur_op);
   disp_val=fmtNum(r); op1=null; cur_op=null; waiting=false; refreshDisp();
 }
@@ -12984,7 +13006,7 @@ function toCell() {
     advanceRowOrAdd(); return;
   }
   if (cellEditing) {
-    const commitVal=(waiting&&op1!==null)?fmtNum(op1):(disp_val==='Error'?'':disp_val);
+    const commitVal=calcCommitVal();   // 計算して いれば 式（v651）
     setCellVal(selR,selC,commitVal);
   }
   cellEditing=false; op1=null; cur_op=null; waiting=false;
@@ -14605,10 +14627,11 @@ const AUTO_RULES=[
   {k:'date',  key:'excalc_auto_date',  n:'日付に見えるものは日付に',            ex:'11/10 → 2026/11/10'},
   {k:'speech',key:'excalc_speechauto', n:'式に見える文字は計算する',            ex:'120×3・251かける68 → 答え'},
   {k:'opfx',  key:'excalc_auto_opfx',  n:'テンキーで直すとき、数のあとの × などで式に', ex:'120 × 3 → =120×3'},
-  {k:'paren', key:'excalc_auto_paren', n:'数式の閉じかっこを足す',              ex:'=SUM(A1:A3 → =SUM(A1:A3)'}
+  {k:'paren', key:'excalc_auto_paren', n:'数式の閉じかっこを足す',              ex:'=SUM(A1:A3 → =SUM(A1:A3)'},
+  {k:'calcfx',key:'excalc_auto_calcfx',n:'テンキーで計算したセルに式を残す',    ex:'120 × 3 Enter → 表示は 360・バーは =120*3（オフ＝答えだけ）'}
 ];
 function autoRuleOn(k){   // 起動の 途中（この 行より 前）でも 呼ばれるので、上の 一覧は 使わない
-  const key={half:'excalc_auto_half', date:'excalc_auto_date', speech:'excalc_speechauto', opfx:'excalc_auto_opfx', paren:'excalc_auto_paren'}[k];
+  const key={half:'excalc_auto_half', date:'excalc_auto_date', speech:'excalc_speechauto', opfx:'excalc_auto_opfx', paren:'excalc_auto_paren', calcfx:'excalc_auto_calcfx'}[k];
   if(!key) return true;
   try{ return localStorage.getItem(key)!=='0'; }catch(_){ return true; }
 }
@@ -18109,7 +18132,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v650';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v651';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -21127,7 +21150,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_keysize','excalc_links','excalc_modeorder','excalc_np_place','excalc_fb_place','excalc_npad','excalc_numpad_hidden',
   'excalc_numpad_landw','excalc_numscale','excalc_pagebar','excalc_pdf_settings','excalc_pm_custom_colors','excalc_pm_phrases',
   'excalc_pm_prefs','excalc_prn','excalc_savesort','excalc_savetabnames','excalc_saveview','excalc_show_resizerbar',
-  'excalc_show_sheettabs','excalc_skin','excalc_speechauto','excalc_auto_half','excalc_auto_date','excalc_auto_opfx','excalc_auto_paren','excalc_speechlayout','excalc_speechspeak','excalc_startpage',
+  'excalc_show_sheettabs','excalc_skin','excalc_speechauto','excalc_auto_half','excalc_auto_date','excalc_auto_opfx','excalc_auto_paren','excalc_auto_calcfx','excalc_speechlayout','excalc_speechspeak','excalc_startpage',
   'excalc_sumfunc','excalc_taxrate','excalc_taxround','excalc_tbfold','excalc_toolsbtn_hide','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
   'excalc_ts_warn','excalc_userkeys',
   'excalc_uimode','excalc_trim','excalc_manner','excalc_boki','excalc_kurashi','excalc_keisan','excalc_ruler','excalc_tool_fav','excalc_tool_hints','excalc_seq_step','excalc_regi_ui',   // v460〜v462・v501
