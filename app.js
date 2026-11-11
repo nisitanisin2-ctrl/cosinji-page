@@ -5613,7 +5613,7 @@ const TOUR_PAGES=[
     ex:'<b>ダブルタップ</b> … 中身を直す（切り取り・コピー・貼り付けもここ）<br><b>右下の ■ を引っぱる</b> … 下や横へコピー<br><b>選んだセルからなぞる</b> … 範囲を選ぶ<br><b>行番号・列名を長押し</b> … 行や列を足す・消す<br><b>＝数式</b> … 数式を入れる'},
   { ico:'🎤', h:'口で言うだけでも計算できます',
     b:'<b>🎤声</b>のキーを押して、ふだんのことばで言うだけです。',
-    ex:'「<b>180円を4個</b>」→ 720円<br>「<b>20平米に厚さ10センチ</b>」→ 2㎥<br>「<b>12800円を4人で割って</b>」→ 3,200円<br><b>📖言い方の早見表</b>に、言える形が63とおり並んでいます。' },
+    ex:'「<b>180円を4個</b>」→ 720円<br>「<b>20平米に厚さ10センチ</b>」→ 2㎥<br>「<b>12800円を4人で割って</b>」→ 3,200円<br><b>📖言い方の早見表</b>に、言える形が100とおり以上並んでいます。<br>「<b>それに50足して</b>」「<b>半分にして</b>」のように、前の答えからつづけても計算できます。' },
   { ico:'🧰', h:'くらしと仕事の道具がそろっています',
     b:'<b>☰ メニュー → 🧰道具</b>から開けます。よく使う道具は <b>★</b> で上に並べられます。',
     ex:'📦しまい場所　📔業務手帳　📅当番表　🔐サブスク<br>💧単位水量　🧪カンタブ　🌱野菜づくり　ほか' },
@@ -14090,7 +14090,7 @@ const SPEECH_RECIPES=[
      return { e:`${withCommas(m[1])}円 に 消費税${r}%`, v:taxFix(a+tx), u:'円',
               sub:`消費税 ${srYen(tx)}${note(a*r/100)}` }; }},
   /* ⑪ 12800円を15パーセント引き／増し */
-  {id:'offon', g:'お金', ex:'12800円を15パーセント引き', re:new RegExp(SR_N+'円?(?:を|から|に)?'+SR_N+SR_P+'(引き|びき|オフ|off|値引き|増し|まし|アップ|up)'),
+  {id:'offon', g:'お金', ex:'12800円を15パーセント引き', re:new RegExp('(?<![\\d.])'+SR_N+'(?:円(?:を|から|に|の)?|を|から|に|の)'+SR_N+SR_P+'(引き|びき|オフ|off|値引き|増し|まし|アップ|up)'),
    run:m=>{ const a=+m[1], r=+m[2];
      const up=/増|まし|アップ|up/i.test(m[3]);
      const v=up? a*(1+r/100) : a*(1-r/100);
@@ -14136,6 +14136,10 @@ function speechRecipe(text){
    言える形が増えたので、説明書を読まなくても分かるように一覧で出す。
    お手本はレシピ自身が持っている ex なので、機能を足せば自動でここに並ぶ。 */
 const SAY_EXTRA=[
+  // 話しことば（v662）：言った 順に 計算する・前の 答えから つづける
+  ...['2と3を足して4をかける','1000から200引いて半分','100の半分','3000円の2割引きに消費税を足して','120円が5個と80円が3個',
+      '1万円で3980円のお釣り','5000円あって1200円使った残り','4人に3個ずつ','月3万円を2年','1から10まで足して',
+      'それに50足して','さらに2倍にして','3で割って','2割引にして','税込みにして','あと100'].map(ex=>({g:'話しことば（つづけて計算）', ex})),
   {g:'ふつうの計算', ex:'251かける68'},
   {g:'ふつうの計算', ex:'1たす2かける3'},
   {g:'ふつうの計算', ex:'10わる3'},
@@ -14152,8 +14156,8 @@ const SAY_EXTRA=[
       '月給25万円でボーナス2か月分の年収','300万円を金利2%で5年ローン毎月の返済','100万円を年利3%で10年複利','10000円を3対2で分ける',
       '昭和55年生まれは何歳','2026年は令和何年','半径3の円の面積','身長170センチ体重65キロのBMI'].map(ex=>({g:'いろいろな言い方', ex})),
 ];
-const SAY_GROUPS=['ふつうの計算','分数','方程式（電卓のみ）','いろいろな言い方','お金','現場','畑・材料','単位・時間','くるま'];
-const SAY_ICON={'いろいろな言い方':'🎙','ふつうの計算':'🧮','分数':'½','方程式（電卓のみ）':'✖','お金':'💰',
+const SAY_GROUPS=['話しことば（つづけて計算）','ふつうの計算','分数','方程式（電卓のみ）','いろいろな言い方','お金','現場','畑・材料','単位・時間','くるま'];
+const SAY_ICON={'話しことば（つづけて計算）':'💬','いろいろな言い方':'🎙','ふつうの計算':'🧮','分数':'½','方程式（電卓のみ）':'✖','お金':'💰',
   '現場':'🏗','畑・材料':'🌱','単位・時間':'📏','くるま':'⛽'};
 /* 一覧に出すもの（レシピ＋そのほか）をまとめる */
 function sayList(){
@@ -14165,8 +14169,17 @@ function sayAnswer(ex){
   try{
     const ph=dtPhrase(ex);
     if(ph && ph.cls!=='err' && !speechToEquation(ex)) return String(ph.a||'');
+    // 話しことば（v662）：受け取りと 同じ 順で 見る
+    const veAns=r=>srNum(r.v, r.dp)+(r.u||'');
+    if(veStartsCont(ex)) return voiceEasy(ex, 0) ? '（前の答えから つづけて計算）' : '';
+    const ms=speechToFormula(ex)===null ? veMulti(ex) : null; if(ms) return veAns(ms);
+    const it=veItems(veNorm(ex), 2); if(it) return veAns(it);
     const rc=speechRecipe(ex);
     if(rc) return srNum(rc.v, rc.dp)+(rc.u||'');
+    if(speechToFormula(ex)===null && !speechToEquation(ex)){
+      const ez=voiceEasy(ex, null); if(ez && !ez.err) return veAns(ez);
+      if(voiceEasy(ex, 0)) return '（前の答えから つづけて計算）';
+    }
     const eq=speechToEquation(ex);
     if(eq) return eq.none?'実数の解なし':eq.roots.map(x=>'x＝'+fmtNum(x)).join('　');
     const f=speechToFormula(ex);
@@ -14239,6 +14252,7 @@ function sayUnderstands(t){
   try{ if(speechRecipe(t)) return true; }catch(_){}
   try{ if(speechToFormula(t)!==null) return true; }catch(_){}
   try{ if(speechToEquation(t)) return true; }catch(_){}
+  try{ const ez=voiceEasy(t); if(ez && !ez.err) return true; }catch(_){}
   return false;
 }
 /* 近い言い方をさがす（v390で作り直し）。
@@ -14544,20 +14558,231 @@ function speechSay(text){
   }catch(_){}
 }
 
+/* ── 🎤 話しことばを 順に 計算する（v662。電卓の 声）──
+   「2と3を足して4をかける」「それに50足して」「半分にして」「1万円で3980円のお釣り」のように、
+   式の 形で なくても、言った 順に 計算する。前の 言い方（式・型・言い回し）で 読めなかった ときに 使う。
+   「それに」「さらに」「そこから」や、数から 始まらない「50足して」「2倍にして」は 前の 答えから つづける。
+   返すのは 言い回しと 同じ {e:読みやすい式, v:数, u:単位, sub:補足, dp}。読めなければ null。 */
+const VE_UNIT='円|個|本|枚|人|つ|回|台|冊|匹|杯|箱|袋|点|件|名|歳|才';
+const VE_NUM='(\\d+(?:\\.\\d+)?)(?![\\d.%])('+VE_UNIT+')?';
+const VE_NUMX='\\d+(?:\\.\\d+)?(?![\\d.%])(?:'+VE_UNIT+')?';
+const VE_LIST='('+VE_NUMX+'(?:(?:と|、|や)'+VE_NUMX+')*)';
+const VE_PN='(\\d+(?:\\.\\d+)?)%';
+const VE_END='(?:して(?:から)?|したら|すると|する|した|てから|て|たら|ると|る|た|と|ば|ます)?';
+const VE_ADD='(?:値上げ|高く|足し|足す|足せ|たし|たす|加え|くわえ|プラス|増やし|増やす|ふやし|ふやす|上乗せ|乗せ|のせ|合わせ|あわせ|追加|もらっ|もらう)';
+const VE_SUB='(?:値引き|値引い|値下げ|安く|差し引い|差し引く|引い|引き|引く|引け|ひい|ひき|ひく|マイナス|減らし|減らす|へらし|へらす|取っ|とっ|取る|除い|のぞい|除く|使っ|使う|つかっ|払っ|払う|はらっ|抜い|抜く)';
+const VE_MUL='(?:かけ|掛け|乗じ)';
+const VE_DIV='(?:割り勘|わりかん|割勘|山分け|割っ|割り|割る|割れ|わっ|わり|わる|分け|わけ|等分)';
+const VE_RE={
+  cont:/^(?:(?:それ|これ|そこ|その(?:答え|数|結果|金額|値段)|さっきの(?:答え|数|やつ|結果)?|今の(?:答え|数|やつ|結果)?|いまの(?:答え|数|やつ|結果)?|前の(?:答え|数|結果)?|答え|こたえ|結果)(?:に|を|から|の|で|と|は|へ)?|さらに|続けて|つづけて|そのまま|ついでに|それから|そして|あとは?|もっと)、?/,
+  conn:/^(?:、|。|,|そして|それから|それに|それを|それで|そこに|そこから|そこへ|そのあと|その後|あとは?|さらに|最後に|次に|つぎに|今度は|んで|ほんで|あって|あったのが|あったら|持っていて|持ってて|もらって|のうち|あるうち|の?(?:値段|金額|額|数|答え)(?:に|を|から|で)|で(?=、|さらに|そこ|それ|あと|消費税|税込|税抜|半))+/,
+  taxIn:new RegExp('^(?:に|を|の|で|へ)?(?:(?:消費税|税金|税)(?:を|分を?|ぶんを?)?(?:足し|足す|たし|たす|加え|乗せ|のせ|入れ|いれ|つけ|付け|かけ|掛け|プラス|込み|込め|こみ)|消費税|税込み?(?:価格|金額|の値段)?(?:にし|に)?)'+VE_END),
+  taxEx:new RegExp('^(?:を|の|で|から)?(?:(?:消費税|税金|税)(?:を|分を?|ぶんを?)?(?:抜い|抜く|抜き|ぬい|ぬき|引い|引く|引き|除い|除く|取っ)|税抜き?(?:価格|金額|の値段)?(?:にし|に)?)'+VE_END),
+  pOff:new RegExp('^(?:に|を|から|の|で|が)?'+VE_PN+'(?:を|分を?|ぶんを?)?(?:値引き|値引い|割り引い|割引|引き|びき|引い|引く|ひい|ひく|オフ|off|安く|下げ|さげ|減らし|減らす|カット|マイナス|ダウン|引)(?:にし|に|し)?'+VE_END),
+  pUp:new RegExp('^(?:に|を|の|で|が)?'+VE_PN+'(?:を|分を?|ぶんを?)?(?:上乗せ|増やし|増やす|増し|まし|アップ|up|上げ|あげ|足し|足す|たし|たす|乗せ|のせ|プラス|高く|加え|増)(?:にし|に|し)?'+VE_END),
+  pOf:new RegExp('^の'+VE_PN+'(?:分|ぶん)?'),
+  add:new RegExp('^(?:に|と|へ)?'+VE_LIST+'(?:を|も|分を?)?'+VE_ADD+VE_END),
+  addPre:new RegExp('^(?:に|と)?(?:プラス|足す|たす)'+VE_NUM),
+  sub:new RegExp('^(?:から|より)?'+VE_LIST+'(?:を|分を?)?'+VE_SUB+VE_END),
+  subPre:new RegExp('^(?:から)?(?:マイナス|引く|ひく)'+VE_NUM),
+  mul:new RegExp('^(?:に|を|と|の)?'+VE_NUM+'(?:を|で)?'+VE_MUL+VE_END),
+  times:new RegExp('^(?:を|の|に)?'+VE_NUM+'倍(?:にし|に|し)?'+VE_END),
+  mulPre:new RegExp('^(?:に|を)?(?:かける|掛ける)'+VE_NUM),
+  div:new RegExp('^(?:を)?'+VE_NUM+'(?:で|に)'+VE_DIV+VE_END),
+  parts:new RegExp('^(?:を)?'+VE_NUM+'等分(?:にし|に|し)?'+VE_END),
+  divPre:new RegExp('^(?:を)?(?:割る|わる)'+VE_NUM),
+  half:new RegExp('^(?:の|を|が)?(?:半分こ?|半額|半値)(?:にし|に|し)?'+VE_END),
+  pow:new RegExp('^(?:の|を)?(\\d+)乗(?:にし|し)?'+VE_END),
+  pBare:new RegExp('^'+VE_PN+'(?:分|ぶん)?'),
+  dbl:new RegExp('^(?:の|を)倍(?:にし|に|し)?'+VE_END),
+  dbl0:new RegExp('^倍(?:にし|に|し)?'+VE_END),
+  sumList:new RegExp('^((?:(?:と|、|や)'+VE_NUMX+')+)(?:を|で|の)?(?:合計|ごうけい|全部で?|ぜんぶで?|トータルで?|総額|合わせて|あわせて)?'),
+  tail:/^(?:で|に|を|は|が|と|の|って)?(?:する|して|した|したら|すると|になる|なる|なった)?(?:と|ら)?(?:全部で|ぜんぶで|合わせて|あわせて|合計で?|結局|つまり)?(?:の?(?:残り|のこり|お釣り|おつり)(?:は|が)?)?(?:いくら|いくつ|なんぼ|何円|なんえん|何個|なんこ|何人|なんにん|どれくらい|どのくらい|どうなる|何|なに)?(?:になる|になります|になるの|なの|ですか|です|だろう|でしょう|かな|か|だ)*(?:を?(?:教えて|おしえて|計算して|出して|だして))?(?:ください|下さい|お願いします|お願い|おねがいします|おねがい|ね|よ)?[?？。、!！]*$/
+};
+const veFmt=n=>withCommas(String(+(+n).toFixed(10)));
+function veDp(v, yen){ const dec=(String(+(+v).toFixed(6)).split('.')[1]||'').length; return Math.min(dec, yen?2:6); }
+/* 聞き取った 文を そろえる（半角・漢数字→数字・「3割」→30%・「えーと」「だいたい」を 落とす・ダース→個） */
+function veNorm(raw){
+  let t=toHalfAscii(String(raw==null?'':raw)).replace(/[％]/g,'%');
+  t=t.replace(/(\d),(?=\d{3}(?!\d))/g,'$1').replace(/[\s　]/g,'');
+  t=t.replace(/[A-Z]/g, c=>c.toLowerCase());
+  t=t.replace(/えーっと|えーと|ええと|えっと|あのー|あのう|んーと|うーんと|じゃあ|ねえ|ねぇ/g,'');
+  t=kanjiNumsToDigits(t);
+  t=t.replace(/パーセント|ぱーせんと|パー(?=[引オ増アび])/g,'%');
+  t=t.replace(/(\d+)割(\d+)分(?!の)/g, (m,a,b)=>String(+a*10 + +b)+'%').replace(/(\d+)割(?![るりっ合れ])/g, (m,a)=>String(+a*10)+'%');
+  t=t.replace(/約|およそ|だいたい|大体|ざっと|ちょうど|きっかり|たぶん|多分/g,'').replace(/(\d(?:円|個|本|枚|人|つ)?)(?:くらい|ぐらい|ほど|ちょい|ちょっと)/g,'$1');
+  t=t.replace(/半ダース/g,'6個').replace(/(\d+(?:\.\d+)?)ダース/g, (m,a)=>String(+(+a*12).toFixed(6))+'個');
+  return t.replace(/^[、。,]+/,'');
+}
+/* 「120円が5個と80円が3個」「300円を2つと500円」＝品物ごとの 小計を 足す */
+function veItems(t, min){
+  const ITEM='(?:1(?:個|つ|本|枚|袋|箱|パック|杯|皿|冊|点)(?:あたり)?)?(\\d+(?:\\.\\d+)?)円(?:の[^\\d、。]{1,8}?(?=(?:が|を|で)?\\d)|の(?:もの|やつ|商品|品)?)?(?:が|を|で)?(?:(\\d+(?:\\.\\d+)?)(個|つ|本|枚|袋|箱|パック|杯|皿|人|台|冊|点|セット|ケース))?';
+  const SEP='(?:それと|あと|プラス|足す|たす|と|、|に)';
+  const all=new RegExp('^'+ITEM+'(?:'+SEP+ITEM+')*');
+  const m=t.match(all); if(!m) return null;
+  const rest=t.slice(m[0].length);
+  if(/\d/.test(rest) || rest.length>14) return null;
+  const items=[]; const re=new RegExp('(?:^|'+SEP+')'+ITEM,'g'); let x;
+  while((x=re.exec(m[0]))){ if(!x[0]) break; items.push({p:+x[1], n:x[2]!=null?+x[2]:null, u:x[3]||''}); }
+  if(items.length<(min||1) || !items.some(i=>i.n!=null)) return null;
+  const v=items.reduce((s,i)=>s+i.p*(i.n==null?1:i.n), 0);
+  return { e:items.map(i=>veFmt(i.p)+'円'+(i.n==null?'':'×'+veFmt(i.n)+i.u)).join(' ＋ '), v:+v.toFixed(10), u:'円', dp:veDp(v,true) };
+}
+/* 決まった 形（お釣り・1からNまで・N回・ずつ・入り・月いくらを何年・1個あたり・ダース） */
+function veSpecial(t, raw){
+  const N='(\\d+(?:\\.\\d+)?)', loose=r=>!/\d/.test(r) && r.length<=14;
+  let m;
+  // お釣り：「1万円で3980円のお釣り」「1万円出して3980円の買い物」
+  m=t.match(new RegExp('^'+N+'円?(?:で|から|札で|札を出して|を?出して|を?出したら|を?払って|を?渡して)、?'+N+'円?(?:の(?:買い物|もの|やつ|品物)?|を)?(?:を?(?:買ったら|買って|買うと|払ったら|払って|払うと|使ったら|使って|使うと)|を?(?:したら|して|すると))?(?:、|の|で|は)?(お釣り|おつり|釣り|つり)?'));
+  if(m && (m[3] || /出し|渡し|札/.test(m[0])) && loose(t.slice(m[0].length)))
+    return { e:veFmt(m[1])+'円 − '+veFmt(m[2])+'円', v:+(m[1]-m[2]).toFixed(10), u:'円', sub:'お釣り', dp:veDp(m[1]-m[2],true) };
+  // 1から10まで足す
+  m=t.match(/^(\d+)から(\d+)まで(?:の(?:数|整数|数字)?)?を?(?:全部|ぜんぶ|順に|順番に)?(?:足し|足す|たし|たす|の?合計|合わせ|の?和)/);
+  if(m && +m[2]>=+m[1] && loose(t.slice(m[0].length))){ const a=+m[1], b=+m[2]; return { e:a+'から'+b+'まで足す', v:(a+b)*(b-a+1)/2, u:'', dp:0 }; }
+  // 100を3回足す
+  m=t.match(new RegExp('^'+N+'(円|個)?(?:を|が)'+N+'回(?:足し|足す|たし|たす|分|ぶん|繰り返し|かけ)?'));
+  if(m && loose(t.slice(m[0].length))){ const v=m[1]*m[3]; return { e:veFmt(m[1])+(m[2]||'')+'×'+veFmt(m[3])+'回', v:+v.toFixed(10), u:m[2]==='円'?'円':'', dp:veDp(v,m[2]==='円') }; }
+  // ずつ：「4人に3個ずつ」＝かける・「24個を4個ずつ」＝わる・「3個ずつ4人」＝かける
+  m=t.match(new RegExp('^'+N+'(人|個|つ|箱|袋|皿|組|日|回|台|枚|本)?(を|に|で|が|へ|とも|分|ぶん)?'+N+'(円|個|本|枚|つ|杯|粒|錠|切れ|回)?ずつ'));
+  if(m && loose(t.slice(m[0].length))){
+    if(m[3]==='を'){ if(+m[4]===0) return {err:'0では割れません'}; const v=m[1]/m[4]; return { e:veFmt(m[1])+(m[2]||'')+'÷'+veFmt(m[4])+(m[5]||''), v:+v.toFixed(10), u:'', dp:veDp(v) }; }
+    const v=m[1]*m[4]; return { e:veFmt(m[4])+(m[5]||'')+'×'+veFmt(m[1])+(m[2]||''), v:+v.toFixed(10), u:m[5]||'', dp:veDp(v,m[5]==='円') };
+  }
+  m=t.match(new RegExp('^'+N+'(円|個|本|枚|つ|杯|粒|錠|切れ|回)?ずつ(?:を|で)?'+N+'(人|個|つ|箱|袋|皿|組|日|回|台)?(?:に|で|分|ぶん)?'));
+  if(m && loose(t.slice(m[0].length))){ const v=m[1]*m[3]; return { e:veFmt(m[1])+(m[2]||'')+'×'+veFmt(m[3])+(m[4]||''), v:+v.toFixed(10), u:m[2]||'', dp:veDp(v,m[2]==='円') }; }
+  // 1箱12個入りを8箱
+  m=t.match(new RegExp('^(?:1(?:箱|袋|ケース|パック|束|セット))?'+N+'(個|本|枚|粒|錠|缶)?入り(?:の(?:を|箱|袋|やつ)?)?(?:を|が)?'+N+'(箱|袋|ケース|パック|個|つ|束|セット)'));
+  if(m && loose(t.slice(m[0].length))){ const v=m[1]*m[3]; return { e:veFmt(m[1])+(m[2]||'')+'入り×'+veFmt(m[3])+m[4], v:+v.toFixed(10), u:m[2]||'', dp:veDp(v) }; }
+  // 月3万円を2年・1日3回を7日間
+  m=t.match(new RegExp('^(毎日|1日|日|毎週|1週間|週|毎月|月々|1[ヶかカケ]月|ひと月|月|毎年|1年|年間|年)(?:に|あたり)?'+N+'(円|個|本|枚|回|杯|錠|粒|日|時間)?(?:を|で|ずつ|の|が)?'+N+'(日|週間|週|[ヶかカケ]月|年)(?:間|分|ぶん)?'));
+  if(m && loose(t.slice(m[0].length))){
+    const per=/日/.test(m[1])?'d':/週/.test(m[1])?'w':/月/.test(m[1])?'m':'y', dur=/日/.test(m[5])?'d':/週/.test(m[5])?'w':/月/.test(m[5])?'m':'y';
+    const k={dd:1, dw:7, dy:365, ww:1, mm:1, my:12, yy:1}[per+dur];
+    if(k){ const v=m[2]*k*m[4], lb={d:'日',w:'週間',m:'か月',y:'年'};
+      return { e:veFmt(m[2])+(m[3]||'')+'×'+(k===1?veFmt(m[4])+lb[dur]:veFmt(k*m[4])+lb[per]+'（'+veFmt(m[4])+lb[dur]+'）'), v:+v.toFixed(10), u:m[3]||'', dp:veDp(v,m[3]==='円') }; }
+  }
+  // 1000円で5個、1個あたり
+  m=t.match(new RegExp('^'+N+'円で、?'+N+'(個|つ|本|枚|袋|箱|パック|人)(?:、|だと|なら|買うと|買ったら|買えた|入り)?(?:1(?:個|つ|本|枚|袋|箱|パック|人)|ひとつ|ひとり)?(?:あたり|当たり|いくら|の値段|単価|分)'));
+  if(m && +m[2]!==0 && loose(t.slice(m[0].length))){ const v=m[1]/m[2]; return { e:veFmt(m[1])+'円 ÷ '+veFmt(m[2])+m[3], v:+v.toFixed(10), u:'円', sub:'1'+m[3]+'あたり', dp:veDp(v,true) }; }
+  // 3ダース
+  m=/ダース/.test(String(raw||'')) ? t.match(/^(\d+(?:\.\d+)?)個$/) : null;
+  if(m) return { e:veFmt(m[1]/12)+'ダース', v:+m[1], u:'個', dp:veDp(+m[1]) };
+  return null;
+}
+/* 言った 順に 計算する。acc0＝はじめの 数、implicit＝前の 答えから つづける */
+function veRun(s, acc0, implicit){
+  let rest=s, v=acc0.v, yen=acc0.u==='円', shown=veFmt(acc0.v), prec=2, ops=0, m;
+  const eat=re=>{ const x=rest.match(re); if(x && x[0]) rest=rest.slice(x[0].length); return (x && x[0]) ? x : null; };
+  const wrap=()=>prec<2 ? '（'+shown+'）' : shown;
+  const nums=str=>{ const out=[]; const re=new RegExp(VE_NUM,'g'); let x; while((x=re.exec(str))) out.push({v:+x[1], u:x[2]||''}); return out; };
+  const sumTry=()=>{ const sl=rest.match(VE_RE.sumList);   // 動詞の 無い「100と200と300（で いくら）」「500円、300円」＝合計
+    if(!(sl && sl[0] && VE_RE.tail.test(rest.slice(sl[0].length)))) return false;
+    rest=rest.slice(sl[0].length); for(const x of nums(sl[1])){ v+=x.v; shown+='＋'+veFmt(x.v); if(x.u==='円') yen=true; } prec=1; ops++; return true; };
+  for(let guard=0; guard<12; guard++){
+    if(sumTry()) break;
+    eat(VE_RE.conn);
+    if(rest==='' ) break;
+    if((m=eat(VE_RE.taxEx))){ v=taxExOfInc(v); shown=wrap()+' 税抜'; prec=1; yen=true; ops++; continue; }
+    if((m=eat(VE_RE.taxIn))){ v=taxIncOfEx(v); shown=wrap()+' 税込'+taxPct+'%'; prec=1; yen=true; ops++; continue; }
+    if((m=eat(VE_RE.pOff))){ v=v*(1-m[1]/100); shown=wrap()+' の'+m[1]+'%引き'; prec=1; ops++; continue; }
+    if((m=eat(VE_RE.pUp))){ v=v*(1+m[1]/100); shown=wrap()+' の'+m[1]+'%増し'; prec=1; ops++; continue; }
+    if((m=eat(VE_RE.pOf))){ v=v*m[1]/100; shown=wrap()+' の'+m[1]+'%'; prec=1; ops++; continue; }
+    if((m=eat(VE_RE.add)) || (m=eat(VE_RE.addPre))){ for(const x of nums(m[0])){ v+=x.v; shown+='＋'+veFmt(x.v); if(x.u==='円') yen=true; } prec=1; ops++; continue; }
+    if((m=eat(VE_RE.sub)) || (m=eat(VE_RE.subPre))){ for(const x of nums(m[0])){ v-=x.v; shown+='−'+veFmt(x.v); if(x.u==='円') yen=true; } prec=1; ops++; continue; }
+    if((m=eat(VE_RE.times)) || (m=eat(VE_RE.mul)) || (m=eat(VE_RE.mulPre))){ v*=+m[1]; shown=wrap()+'×'+veFmt(m[1]); prec=2; if(m[2]==='円') yen=true; ops++; continue; }
+    if((m=eat(VE_RE.parts)) || (m=eat(VE_RE.div)) || (m=eat(VE_RE.divPre))){ if(+m[1]===0) return {err:'0では割れません'}; v/=+m[1]; shown=wrap()+'÷'+veFmt(m[1]); prec=2; if(m[2]==='円' && yen) yen=false; ops++; continue; }
+    if((m=eat(VE_RE.half))){ v/=2; shown=wrap()+'÷2'; prec=2; ops++; continue; }
+    if((m=eat(VE_RE.pow))){ v=Math.pow(v, +m[1]); shown=wrap()+'の'+m[1]+'乗'; prec=1; ops++; continue; }
+    if(implicit && ops===0 && (m=eat(VE_RE.pBare))){ v=v*m[1]/100; shown=wrap()+' の'+m[1]+'%'; prec=1; ops++; continue; }
+    if((m=eat(VE_RE.dbl)) || (implicit && ops===0 && (m=eat(VE_RE.dbl0)))){ v*=2; shown=wrap()+'×2'; prec=2; ops++; continue; }
+    break;
+  }
+  if(!ops || !VE_RE.tail.test(rest) || !isFinite(v)) return null;
+  v=+v.toFixed(10);
+  return { e:shown, v, u:yen?'円':'', dp:veDp(v,yen), ops };
+}
+/* 数から 始まり、計算が 2つ以上 つながった 言い方（「3000円の2割引きに消費税を足して」）。
+   言い回しは 文の 一部だけを 読んで 残りを 捨てて しまうので、こちらを 先に 見る */
+function veMulti(raw){
+  try{ const t=veNorm(raw), m=t.match(new RegExp('^'+VE_NUM)); if(!m) return null;
+    const r=veRun(veHead(t.slice(m[0].length)), {v:+m[1], u:m[2]||''}, false);
+    return (r && !r.err && r.ops>=2) ? r : null; }catch(_){ return null; }
+}
+/* はじめの 数の すぐ あとの「のものが」「は」を 落とす（1000円のものが3割引） */
+function veHead(s){ return s.replace(/^(?:の(?:もの|やつ|品|商品))?(?:が|は)(?=\d|半)/,''); }
+function veStartsCont(raw){ const t=veNorm(raw); const m=t.match(VE_RE.cont); return !!(m && m[0]); }
+function veSteps(t, prev){
+  let s=t, cont=false;
+  for(let i=0;i<4;i++){ const m=s.match(VE_RE.cont); if(!m || !m[0]) break; s=s.slice(m[0].length); cont=true; }
+  const from=r=>{ if(r && !r.err) r.sub='前の答え '+veFmt(prev)+' から'; return r; };
+  if(cont){
+    if(prev==null) return null;
+    // 「あと50」「さらに100円」＝足す
+    const b=/^(?:あとは?|さらに|もっと)/.test(t) ? s.match(new RegExp('^'+VE_NUM)) : null;
+    if(b && VE_RE.tail.test(s.slice(b[0].length))){ const v=+(prev + +b[1]).toFixed(10); return from({ e:veFmt(prev)+'＋'+veFmt(b[1]), v, u:b[2]==='円'?'円':'', dp:veDp(v,b[2]==='円'), ops:1 }); }
+    return from(veRun(s, {v:prev,u:''}, true));
+  }
+  const m=t.match(new RegExp('^'+VE_NUM));
+  if(m){ const r=veRun(veHead(t.slice(m[0].length)), {v:+m[1], u:m[2]||''}, false); if(r) return r; }
+  if(prev!=null) return from(veRun(t, {v:prev,u:''}, true));
+  return null;
+}
+/* 電卓に 出て いる 数（前の 答え） */
+function vePrev(){ const p=parseFloat(String(disp_val).replace(/,/g,'')); return isFinite(p) ? p : null; }
+function voiceEasy(raw, prev){
+  try{
+    const t=veNorm(raw); if(!t || !/\d|半|倍|税/.test(t)) return null;
+    return veSpecial(t, raw) || veSteps(t, prev===undefined ? vePrev() : prev) || veItems(t, 1);
+  }catch(_){ return null; }
+}
+/* 読めなかった 文を ゆるめて、もう 一度 前からの 読み方に かける（「定価」「だいたい」「3つ→3個」「〜を教えて」） */
+function voiceRelax(raw){
+  let t=String(raw==null?'':raw);
+  t=t.replace(/えーっと|えーと|ええと|えっと|あのー|あのう|んーと|うーんと/g,'');
+  t=t.replace(/約|およそ|だいたい|大体|ざっと|ちょうど|きっかり|たぶん|多分/g,'').replace(/([0-9０-９一二三四五六七八九十百千万](?:円|個|本|枚|人|つ)?)(?:くらい|ぐらい|ほど)/g,'$1');
+  t=t.replace(/^(?:定価|お値段|値段|金額|代金|お会計|会計)(?:が|は)?/,'');
+  t=t.replace(/([0-9０-９一二三四五六七八九十])つ/g,'$1個').replace(/のと/g,'と');
+  t=t.replace(/(?:って|を)?(?:教えて|おしえて)(?:ください|下さい)?[?？。]*$/,'').replace(/(?:になる|になります|なります)(?:か|かな|の)?[?？。]*$/,'');
+  return t;
+}
+function voiceAcceptEasy(r, raw){
+  if(r.err){ dtVoiceShow(r.err, raw, 'ng'); dtVoiceGuess(null); toast(r.err, 4200); return; }
+  voiceAcceptRecipe(r, raw);
+}
 /* 電卓モードのときは、セルではなく電卓に入れる。
    言った式をその場で計算して、答えを大きい表示に出し、履歴（テープ）にも残す。 */
 function voiceAcceptDentaku(raw){
   // まず方程式として読めるか見る（電卓のときだけ。表では X列のセルと見分けが付かない）
   const eq = speechAutoOn ? speechToEquation(raw) : null;
   if(eq) return voiceAcceptEquation(eq, raw);
+  // 「それに50足して」「さらに2倍」＝前の 答えから つづける 言い方は 先に 見る（v662）
+  if(speechAutoOn && veStartsCont(raw)){ const ez=voiceEasy(raw); if(ez) return voiceAcceptEasy(ez, raw); }
   // 声の計算帳と同じ「いろいろな言い方」（型）。文全体が型に合ったときだけ使う（v424）
   const ph = speechAutoOn ? dtPhrase(raw) : null;
   if(ph) return voiceAcceptPhrase(ph, raw);
+  // 計算が 2つ以上 つながった 言い方（v662。式の 形で 言った ときは 式の 決まり＝かけ算が 先 の まま）
+  const ms = (speechAutoOn && speechToFormula(raw)===null) ? veMulti(raw) : null;
+  if(ms) return voiceAcceptEasy(ms, raw);
+  // 「120円が5個と80円が3個」＝品物ごとの 小計を 足す（v662。下の 言い回しは 1つめしか 見ないので 先に）
+  const it = speechAutoOn ? veItems(veNorm(raw), 2) : null;
+  if(it) return voiceAcceptRecipe(it, raw);
   // つぎに「5000円の18パーセント」のような言い回し
   const rc = speechAutoOn ? speechRecipe(raw) : null;
   if(rc) return voiceAcceptRecipe(rc, raw);
-  const f = speechAutoOn ? speechToFormula(raw) : null;
-  const wasFrac = speechLastFrac;
+  let f = speechAutoOn ? speechToFormula(raw) : null;
+  let wasFrac = speechLastFrac;
+  if(f===null && speechAutoOn){
+    // 話しことばを 順に 計算する（v662）
+    const ez=voiceEasy(raw); if(ez) return voiceAcceptEasy(ez, raw);
+    // 「定価」「だいたい」「3つ」などを ゆるめて、前からの 読み方に もう 一度 かける
+    const lx=voiceRelax(raw);
+    if(lx && lx!==String(raw)){
+      const ph2=dtPhrase(lx); if(ph2 && ph2.cls!=='err') return voiceAcceptPhrase(ph2, raw);
+      const rc2=speechRecipe(lx); if(rc2) return voiceAcceptRecipe(rc2, raw);
+      f=speechToFormula(lx); wasFrac=speechLastFrac;
+      if(f===null){ const ez2=voiceEasy(lx); if(ez2) return voiceAcceptEasy(ez2, raw); }
+    }
+  }
   if(f===null){
     const g=speechGuess(raw);
     if(g && g.fit){
@@ -18297,7 +18522,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v661';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v662';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
