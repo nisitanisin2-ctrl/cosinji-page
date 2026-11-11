@@ -20956,6 +20956,16 @@ async function runUi2640(browser) {
     check('  　Ctrl を 切ると ƒx関数・今日は 出ず 0 に 戻る', await page.evaluate(() => [!!document.getElementById('ctrlFxBtn').offsetParent, !!document.getElementById('ctrlTodayBtn').offsetParent, getComputedStyle(document.querySelector('#numpadPage1 [data-key=n0]')).visibility].join('/')), 'false/false/visible');
     await page.evaluate(() => { [[0, 0], [2, 1], [4, 2], [6, 0]].forEach(([r, c]) => setCellVal(r, c, '')); msClear(); sel(0, 0); }); await w(200);
   }
+  // 本体の キーボードで 打つ 間は 画面を キーボードの 上に 合わせる（v658）
+  {
+    await page.evaluate(() => { sel(14, 1); const fi = document.getElementById('formulaInput'); setFiMode(true); fi.focus(); }); await w(600);
+    await page.evaluate(() => { const vv = window.visualViewport; Object.defineProperty(vv, 'height', { get: () => 480, configurable: true }); vv.dispatchEvent(new Event('resize')); window.scrollTo(0, 350); }); await w(400);
+    const kf = await page.evaluate(() => { const g = q => document.querySelector(q).getBoundingClientRect(); const t = g('#atTitle'), f = g('#formulaInput'), c = g('#c14_1'), sw = g('.sheet-wrap');
+      return [document.body.classList.contains('kb-fit'), window.scrollY, t.top >= 0, f.bottom <= 480, c.top >= sw.top + 20 && c.bottom <= sw.bottom + 1].join('/'); });
+    check('本体の キーボードの 間：上の バー・選んだ セル・セルの バーが キーボードの 上に 見える（v658）', kf, 'true/0/true/true/true');
+    await page.evaluate(() => { delete window.visualViewport.height; window.visualViewport.dispatchEvent(new Event('resize')); fiCancel(); setFiMode(false); document.activeElement && document.activeElement.blur(); sel(0, 0); }); await w(500);
+    check('  キーボードを 閉じると もとの 高さ', await page.evaluate(() => document.body.classList.contains('kb-fit') + '/' + Math.round(document.body.getBoundingClientRect().height)), 'false/852');
+  }
   // 範囲を 選んで ⌫・CE で まとめて 消す（v646）
   await page.evaluate(() => { for (let r = 10; r < 13; r++) for (let c = 0; c < 3; c++) setCellVal(r, c, String(r * 10 + c)); recalcAll(); sel(10, 0); extendRange(11, 1); }); await w(200);
   await page.click('#numpadPage1 [data-key="bs"]'); await w(300);
