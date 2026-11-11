@@ -13306,12 +13306,13 @@ function msPaint(){
 }
 function msClear(){ if(!msSet || !msSet.size) return; msSet.clear(); msPaint(); try{ updateStats(selC); }catch(_){} }
 function msSyncBtn(){ const b=document.getElementById('msBtn'); if(b){ b.classList.toggle('on', msOn); b.setAttribute('aria-pressed', String(msOn)); } document.body.classList.toggle('ms-on', msOn); if(msOn){ try{ ctrlLabels(); }catch(_){} } ctrlFxPlace(); }
-/* Ctrl オンの 間だけ、0 の キーの 右半分に ƒx関数（v655）。0 を 並べかえて いても その 右半分に 合わせる */
+/* Ctrl オンの 間は、0 の キー（2つ分）の 所に 別々の 2つの キー：左「ƒx関数」・右「今日」（v656。v655 は 1つの キーを 半分に 分けて いて 紛らわしかった）。
+   0 を 並べかえて いても その 場所に 合わせる */
 function ctrlFxPlace(){
-  const fx=document.getElementById('ctrlFxBtn'), z=document.querySelector('#numpadPage1 .btn[data-key="n0"]'); if(!fx || !z) return;
+  const fx=document.getElementById('ctrlFxBtn'), td=document.getElementById('ctrlTodayBtn'), z=document.querySelector('#numpadPage1 .btn[data-key="n0"]'); if(!fx || !td || !z) return;
   if(!msOn) return;
   const cs=getComputedStyle(z), c0=parseInt(cs.gridColumnStart,10), r0=parseInt(cs.gridRowStart,10);
-  if(c0>0 && r0>0){ fx.style.gridColumn=String(c0+1); fx.style.gridRow=String(r0); }
+  if(c0>0 && r0>0){ fx.style.gridColumn=String(c0); fx.style.gridRow=String(r0); td.style.gridColumn=String(c0+1); td.style.gridRow=String(r0); }
 }
 function msToggleBtn(force){
   msOn = (force!=null) ? !!force : !msOn;
@@ -18269,7 +18270,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v655';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v656';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
