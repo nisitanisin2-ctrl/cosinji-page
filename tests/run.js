@@ -20877,10 +20877,24 @@ async function runUi2640(browser) {
     await page.evaluate(() => { if (ROWS < 30) changeRows(30 - ROWS); }); await w(200);
     check('  自動の 変換は はじめ ぜんぶ オン（半角・日付・式に 見える 文字・閉じかっこ）', await run(), '120 | date | =SUM(A1:A1) | =120*3');
     await page.evaluate(() => ['half', 'date', 'speech', 'opfx', 'paren'].forEach(k => setAutoRule(k, false))); await w(200);
-    check('  　設定で 1つずつ オフに できる', await run() + '/' + await page.evaluate(() => [...document.querySelectorAll('#autoRuleList .auto-sw')].map(b => b.textContent).join('')), '１２０ | 11/10 | =SUM(A1:A1 | 120×3/オフオフオフオフオフ');
+    check('  　設定で 1つずつ オフに できる', await run() + '/' + await page.evaluate(() => [...document.querySelectorAll('#autoRuleList .auto-sw')].map(b => b.textContent).join('')), '１２０ | 11/10 | =SUM(A1:A1 | 120×3/オフオフオフオフオフオン');
     await page.evaluate(() => { sel(28, 0); calPick(dateToSerial(2026, 11, 3)); }); await w(200);
     check('  　日付の 変換を オフでも 📅 の 日付は 日付で 入る', await page.evaluate(() => !!cellDateFmt(28, 0) && data[28][0] === String(dateToSerial(2026, 11, 3))), true);
     await page.evaluate(() => { setCellVal(28, 0, ''); ['half', 'date', 'speech', 'opfx', 'paren'].forEach(k => setAutoRule(k, true)); sel(0, 0); }); await w(200);
+  }
+  // v651：テンキーで 計算した セルに 式を 残す（表示は 答え・バーは 式）
+  {
+    await page.evaluate(() => { if (ROWS < 35) changeRows(35 - ROWS); }); await w(200);
+    const calcIn = async (r, c, seq) => { await page.evaluate(([r, c]) => sel(r, c), [r, c]); const M = { '+': 'plus', '-': 'minus', '×': 'mul', '÷': 'div', '=': 'enter', '±': 'sign' };
+      for (const ch of seq) await page.tap('#numpadPage1 [data-key="' + (M[ch] || 'n' + ch) + '"]'); await w(250);
+      return page.evaluate(([r, c]) => { sel(r, c); return data[r][c] + '/' + getCellDisplay(r, c) + '/' + document.getElementById('formulaInput').value; }, [r, c]); };
+    check('  テンキーで 120 × 3 Enter → 表示は 360・バーは =120*3', await calcIn(31, 0, '120×3='), '=120*3/360/=120*3');
+    check('  　電卓と 同じ 順番（2 + 3 × 4 は 20）', await calcIn(31, 1, '2+3×4='), '=(2+3)*4/20/=(2+3)*4');
+    check('  　計算しない ときは 数の まま', await calcIn(31, 2, '42='), '42/42/42');
+    await page.evaluate(() => setAutoRule('calcfx', false)); await w(100);
+    await calcIn(32, 0, '120×3='); await page.tap('#numpadPage1 [data-key="enter"]'); await w(250);
+    check('  　設定で オフ＝答えだけ（前と 同じ）', await page.evaluate(() => data[32][0]), '360');
+    await page.evaluate(() => { setAutoRule('calcfx', true); [[31, 0], [31, 1], [31, 2], [32, 0], [33, 0]].forEach(([r, c]) => { if (r < ROWS) setCellVal(r, c, ''); }); sel(0, 0); }); await w(200);
   }
   // 範囲を 選んで ⌫・CE で まとめて 消す（v646）
   await page.evaluate(() => { for (let r = 10; r < 13; r++) for (let c = 0; c < 3; c++) setCellVal(r, c, String(r * 10 + c)); recalcAll(); sel(10, 0); extendRange(11, 1); }); await w(200);
