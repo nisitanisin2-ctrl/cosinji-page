@@ -3681,7 +3681,36 @@ async function runVoiceSay(browser) {
   await page.evaluate(() => openSayHelp()); await page.waitForTimeout(350);
   check('  📖言い方で開く', await page.evaluate(() => isDlgOpen('sayHelpOverlay')), true);
   check('  まとまりごとに並ぶ', await page.evaluate(() =>
-    [...document.querySelectorAll('#sayHelpBody .say-g')].length), 9);   // v424 で「いろいろな言い方」を足した
+    [...document.querySelectorAll('#sayHelpBody .say-g')].length), 10);   // v424 で「いろいろな言い方」、v662 で「話しことば」を足した
+  // ── 💬 話しことばを 順に 計算する・前の 答えから つづける（v662） ──
+  {
+    const say = (t, prev) => page.evaluate(([t, prev]) => { disp_val = String(prev); voiceAcceptDentaku(t); return disp_val; }, [t, prev == null ? 0 : prev]);
+    const cases = [
+      ['2と3を足して4をかける', 0, '20'], ['10から3を引いて2をかける', 0, '14'], ['8を2で割って3を足す', 0, '7'], ['5に3をかけて', 0, '15'],
+      ['100の半分', 0, '50'], ['1000円の半額', 0, '500'], ['12の倍', 0, '24'], ['100から20と30を引く', 0, '50'], ['500円、300円、200円', 0, '1000'],
+      ['3000円の2割引きに消費税を足して', 0, '2640'], ['1000円のものが3割引でさらに消費税', 0, '770'], ['100に8パーセント足して', 0, '108'],
+      ['120円が5個と80円が3個', 0, '840'], ['250円のお弁当を4つと150円のお茶を4本', 0, '1600'], ['定価3000円の30パーセントオフ', 0, '2100'],
+      ['1万円で3980円のお釣り', 0, '6020'], ['5000円あって1200円使った残りは', 0, '3800'], ['1万2千円足す3千円', 0, '15000'],
+      ['4人で3個ずつ', 0, '12'], ['20個を4個ずつ分けると', 0, '5'], ['1箱12個入りを8箱', 0, '96'], ['月3万円を2年', 0, '720000'], ['1日3回を7日間', 0, '21'],
+      ['1から10まで足して', 0, '55'], ['100を3回足す', 0, '300'], ['3ダース', 0, '36'], ['1000円で5個、1個あたり', 0, '200'],
+      ['だいたい300円くらいと500円くらいを足して', 0, '800'], ['えーと、100と200を足して、それから3をかけて', 0, '900'],
+      // 前の 答えから つづける
+      ['それに50足して', 100, '150'], ['さらに2をかけて', 100, '200'], ['そこから100引いて', 250, '150'], ['答えを半分に', 100, '50'],
+      ['2倍にして', 100, '200'], ['3で割って', 90, '30'], ['2割引にして', 100, '80'], ['税込みにして', 100, '110'], ['あと50', 100, '150'], ['それの3割', 100, '30'],
+      ['それを2倍にして10引いて', 100, '190'],
+    ];
+    const bad = [];
+    for (const [t, prev, want] of cases) { const got = await say(t, prev); if (got !== want) bad.push(t + '→' + got + '（' + want + '）'); }
+    check('  話しことばを 順に 計算する・前の 答えから つづける（' + cases.length + '件・v662）', bad.join(' / '), '');
+    // 式の 形で 言った ときは 式の 決まり（かけ算が 先）の まま・計算に ならない 言葉は 受け取らない
+    check('  式の 形は 今までどおり（1たす2かける3＝7）', await say('1たす2かける3', 0), '7');
+    const no = [];
+    for (const t of ['7の倍数', '100の位', '今日は5日', '3000円', '税金', '2倍速', '半分以上', 'こんにちは']) { const got = await say(t, 100); if (got !== '100') no.push(t + '→' + got); }
+    check('  計算に ならない 言葉は 受け取らない', no.join(' / '), '');
+    check('  前の 答えから つづけた ことを 行に 出す', await page.evaluate(() => { disp_val = '100'; voiceAcceptDentaku('それに50足して'); return /前の答え 100 から/.test(document.getElementById('dtVoice').textContent); }), true);
+    check('  0 では 割らない', await page.evaluate(() => { disp_val = '100'; voiceAcceptDentaku('それを0で割って'); return disp_val + '/' + /割れません/.test(document.getElementById('dtVoice').textContent); }), '100/true');
+    await page.evaluate(() => { disp_val = '0'; });
+  }
   check('  どの行にも答えが出る', await page.evaluate(() =>
     [...document.querySelectorAll('#sayHelpBody .say-row')].filter(r => !r.querySelector('.say-ans')).length), 0);
   check('  さがすでしぼれる', await page.evaluate(() => { sayHelpFind('立米');
