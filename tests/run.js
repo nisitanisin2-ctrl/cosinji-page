@@ -20933,7 +20933,23 @@ async function runUi2640(browser) {
   check('  　メニューを 開いても 上の 段（タブ）は 押せる', await page.evaluate(() => { const n = document.querySelector('#appNav [data-nav="sheet"]').getBoundingClientRect(); const e = document.elementFromPoint(n.left + n.width / 2, n.top + n.height / 2); return !!(e && e.closest('#appNav')) + '/' + document.getElementById('moreMenuOverlay').classList.contains('open'); }), 'true/true');
   await page.click('#appNav [data-nav="sheet"]'); await w(400);
   check('  　表の タブで 戻る', await page.evaluate(() => document.getElementById('moreMenuOverlay').classList.contains('open')), false);
+  // v653：シートの 切りかえ（シート1 ＋）を 出しても、テンキーは 下まで・シートの 切りかえは 表の 下
+  await page.evaluate(() => { if (!sheetViewOpen) toggleSheetView(); }); await w(400);
+  const sl = () => page.evaluate(() => { const g = q => document.querySelector(q).getBoundingClientRect(); const np = g('#numpadSection'), tb = g('#mainToolbar'), sw = g('.sheet-wrap'), nav = g('#appNav');
+    return [Math.round(np.bottom) === innerHeight, Math.round(tb.bottom) === innerHeight, tb.right <= np.left + 1, Math.abs(tb.top - sw.bottom) < 2, Math.round(nav.top) === 0, nav.left >= np.left - 1].join('/'); });
+  check('  横向き：シートの 切りかえは 表の 下・テンキーは 下まで・タブは テンキーの 上', await sl(), 'true/true/true/true/true/true');
+  await page.evaluate(() => { if (sheetViewOpen) toggleSheetView(); }); await w(300);
   await page.setViewportSize({ width: 390, height: 844 }); await w(500);
+  { // パソコンの 広い 画面（テンキーを 右に 出す）も 同じ 並び
+    const pc = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await pc.addInitScript(() => { if (localStorage.getItem('excalc_ui2') !== '1') { localStorage.setItem('excalc_ui2', '1'); localStorage.setItem('excalc_tour_done', '1'); } });
+    const pp = await pc.newPage(); await pp.goto(INDEX); await pp.waitForTimeout(1500);
+    await pp.evaluate(() => { if (!sheetViewOpen) toggleSheetView(); }); await pp.waitForTimeout(400);
+    const r = await pp.evaluate(() => { const g = q => document.querySelector(q).getBoundingClientRect(); const np = g('#numpadSection'), tb = g('#mainToolbar'), nav = g('#appNav'), top = g('#appTop');
+      return [document.body.classList.contains('np-side'), Math.round(nav.top) === 0, Math.abs(nav.left - np.left) < 3, Math.round(top.right) <= Math.round(np.left) + 1, Math.round(np.bottom) === innerHeight, tb.right <= np.left + 1].join('/'); });
+    check('  パソコン：タブは テンキーの 上（スマホの 横向きと 同じ）・シートの 切りかえは 表の 下', r, 'true/true/true/true/true/true');
+    await pc.close();
+  }
   check('  JSエラーが出ていない', errs.length, 0);
   if (errs.length) console.log('    ', errs);
   await ctx.close();

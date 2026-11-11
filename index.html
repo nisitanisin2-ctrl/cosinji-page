@@ -2713,7 +2713,8 @@ body.ui2.np-side .app-nav { grid-area: nav; }
 /* 横向きの スマホ（v642）：タブを 下の 段に 置かず、上の バーと 同じ 段（テンキーの 上）へ。
    前は 上の バー・下の タブの 2段で 表と テンキーが 低く なって いた（表 343→256px）。1段に まとめて 表と テンキーを 広く */
 @media (orientation: landscape) and (max-height: 500px) {
-  body.ui2 { --nav-h: 0px; --nav-top: calc(38px + var(--safe-top)); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "top nav" "main numpad"; }
+  body.ui2 { --nav-h: 0px; --nav-top: calc(38px + var(--safe-top)); grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "top nav" "main numpad" "sheets numpad"; }
+  body.ui2 .toolbar { grid-area: sheets; }   /* シートの 切りかえ（シート1 ＋）は 表の 下。テンキーは 下まで（v653） */
   body.ui2 .app-top { height: var(--nav-top); box-sizing: border-box; padding-top: var(--safe-top); padding-bottom: 0; padding-right: 2px; }
   body.ui2 .at-ib { width: 36px; height: 34px; }
   body.ui2 .at-title { padding: 0 4px; } body.ui2 .at-title b { font-size: 14px; } body.ui2 .at-title small { font-size: 10px; }
@@ -2723,10 +2724,23 @@ body.ui2.np-side .app-nav { grid-area: nav; }
   .app-nav button .ui-ic { width: 19px; height: 19px; padding: 1px 10px; }
   .app-nav button.has-note::after { top: 2px; }
   /* テンキーを たたんだ とき・電卓だけの とき は タブの 場所が ないので 下の 段に */
-  body.ui2.numpad-off { --nav-h: calc(38px + var(--safe-bottom)); grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "top top" "main numpad" "nav nav"; }
+  body.ui2.numpad-off { --nav-h: calc(38px + var(--safe-bottom)); grid-template-rows: auto minmax(0, 1fr) auto auto; grid-template-areas: "top top" "main numpad" "sheets numpad" "nav nav"; }
   body.ui2.numpad-off .app-nav { height: var(--nav-h); padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left); border: 0; border-top: 1px solid var(--cell-border, #e1e6e2); }
-  body.ui2.calc-only { grid-template-areas: "top top" "main numpad"; }
+  body.ui2.calc-only { grid-template-areas: "top top" "main numpad" "sheets numpad"; }
 }
+/* パソコン・タブレットの 横長（テンキーを 右に 出す とき。v653）も スマホの 横向きと 同じく、タブを テンキーの 上（上の バーと 同じ 段）に。
+   前は 下の 段に 横いっぱいで、スマホの 横向きと 並びが ちがって いた */
+body.ui2.np-side { --nav-h: 0px; --nav-top: calc(50px + var(--safe-top)); grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "top nav" "main numpad" "sheets numpad"; }
+body.ui2.np-side .toolbar { grid-area: sheets; }
+body.ui2.np-side .app-top { height: var(--nav-top); box-sizing: border-box; padding-top: var(--safe-top); padding-bottom: 0; }
+body.ui2.np-side .app-nav { height: var(--nav-top); padding: var(--safe-top) var(--safe-right) 0 0; border-top: 0; border-bottom: 1px solid var(--cell-border, #e1e6e2); border-left: 2px solid var(--acc); }
+body.ui2.np-side.kb-edit .app-nav { display: grid !important; }
+body.ui2.np-side .numpad-section { border-left: 2px solid var(--acc); }
+@media (max-height: 720px) { body.ui2.np-side { --nav-top: calc(44px + var(--safe-top)); } body.ui2.np-side .app-nav button { gap: 0; } body.ui2.np-side .app-nav button .ui-ic { padding: 1px 12px; } }
+/* テンキーを たたんだ とき・電卓だけの ときは タブの 場所が ないので 下の 段に */
+body.ui2.np-side.numpad-off { --nav-h: calc(48px + var(--safe-bottom)); grid-template-rows: auto minmax(0, 1fr) auto auto; grid-template-areas: "top top" "main numpad" "sheets numpad" "nav nav"; }
+body.ui2.np-side.numpad-off .app-nav { height: var(--nav-h); padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left); border: 0; border-top: 1px solid var(--cell-border, #e1e6e2); }
+body.ui2.np-side.calc-only { grid-template-areas: "top top" "main numpad" "sheets numpad"; }
 /* この表の メニュー（下からの シート） */
 .tm-list { display: flex; flex-direction: column; border: 1px solid var(--save-item-border); border-radius: var(--r-card); overflow: hidden; }
 .tm-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 14px; border: 0; border-bottom: 1px solid var(--save-item-border); background: var(--save-item-bg);
