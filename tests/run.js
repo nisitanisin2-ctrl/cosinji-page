@@ -20966,6 +20966,21 @@ async function runUi2640(browser) {
     await page.evaluate(() => { delete window.visualViewport.height; window.visualViewport.dispatchEvent(new Event('resize')); fiCancel(); setFiMode(false); document.activeElement && document.activeElement.blur(); sel(0, 0); }); await w(500);
     check('  キーボードを 閉じると もとの 高さ', await page.evaluate(() => document.body.classList.contains('kb-fit') + '/' + Math.round(document.body.getBoundingClientRect().height)), 'false/852');
   }
+  // 「電卓だけ」の あいだは 上の バーを 押しても 表に 戻らない・⋮ に 設定と やめる（v659）
+  {
+    await page.evaluate(() => { if (!calcOnly) toggleCalcOnly(); }); await w(500);
+    await page.tap('#atTitle'); await w(500);
+    check('「電卓だけ」の あいだは 上の 名前を 押しても 電卓の まま（v659）', await page.evaluate(() => isDentaku() + '/' + numpadPager.current()), 'true/sci');
+    await page.evaluate(() => openTableMenu()); await w(400);
+    check('  ⋮ は 設定と「電卓だけ」を やめる だけ', await page.evaluate(() => [...document.querySelectorAll('#tableMenuOverlay .tm-row')].filter(e => e.offsetParent).map(e => e.id).join(',')), 'tmCoSet,tmCoOff');
+    await page.tap('#tmCoSet'); await w(500);
+    check('  ⋮ → 設定 で 設定が 開く', await page.evaluate(() => isDlgOpen('settingsPanel')), true);
+    await page.evaluate(() => toggleSettings()); await w(300);
+    await page.evaluate(() => openTableMenu()); await w(400); await page.tap('#tmCoOff'); await w(400);
+    await page.tap('#atTitle'); await w(500);
+    check('  やめると 上の 名前で 表に 戻れる', await page.evaluate(() => calcOnly + '/' + isDentaku()), 'false/false');
+    await page.evaluate(() => { document.querySelectorAll('.modal-overlay.open').forEach(o => closeDlg(o.id)); sel(0, 0); }); await w(300);
+  }
   // 範囲を 選んで ⌫・CE で まとめて 消す（v646）
   await page.evaluate(() => { for (let r = 10; r < 13; r++) for (let c = 0; c < 3; c++) setCellVal(r, c, String(r * 10 + c)); recalcAll(); sel(10, 0); extendRange(11, 1); }); await w(200);
   await page.click('#numpadPage1 [data-key="bs"]'); await w(300);

@@ -5546,7 +5546,7 @@ function toggleCalcOnly(){
   try{ localStorage.setItem(CALCONLY_KEY, calcOnly?'1':'0'); }catch(_){}
   applyCalcOnly();
   toast(calcOnly
-    ? '電卓だけにしました（設定→🎨見た目 で戻せます）'
+    ? '電卓だけにしました（設定→⌨テンキー で戻せます）'
     : 'ほかのテンキーも使えるようにしました');
 }
 function renderCalcOnly(){
@@ -18289,7 +18289,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v658';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v659';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -22543,6 +22543,8 @@ function navCloseAll(){
   if(typeof closeSideApp==='function'){ try{ closeSideApp(); }catch(_){} }
 }
 function navGo(tab){
+  // 「電卓だけ」の あいだは 表・ひな形へ 移らない（表に 戻ると テンキーは 電卓の まま 動けなく なるため。v659）
+  if(calcOnly && isDentaku() && (tab==='sheet' || tab==='tpl')){ toast('「電卓だけ」のあいだは表に移りません（⋮ → 設定 → ⌨テンキー で戻せます）', 3200); navSync(); return; }
   const was=navCurrent();
   navCloseAll();
   if(tab==='sheet'){ if(isDentaku()) switchMode((typeof dtPrevMode!=='undefined' && dtPrevMode && dtPrevMode!=='dentaku') ? dtPrevMode : 'normal'); }

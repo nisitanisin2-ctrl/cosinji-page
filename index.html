@@ -2719,6 +2719,10 @@ body.ui2.ms-on #numpadPage1 .btn[data-ctrl].pick-on::before { color: #fff !impor
 body.ui2 #numpadPage1 #msBtn { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; letter-spacing: .02em; }
 /* ══ v658：本体の キーボードの 間は 画面を キーボードの 上に 合わせる ══ */
 body.ui2.kb-edit.kb-fit { height: var(--kbvh, 100dvh) !important; min-height: 0 !important; overflow: hidden; }
+/* ══ v659：「電卓だけ」の あいだの ⋮ は 設定と やめる だけ（表の 操作は 出さない）══ */
+.tm-row.tm-co { display: none; }
+body.calc-only .tm-row.tm-co { display: flex; }
+body.calc-only #tableMenuOverlay .tm-row:not(.tm-co) { display: none; }
 /* 背の 低い 画面（iPhone SE など）は キーを 少し 低く して 表を 広く */
 @media (max-height: 720px) {
   body.ui2 #numpadPage1 .btn { padding-top: calc(8px * var(--key-scale, 1.3)); padding-bottom: calc(8px * var(--key-scale, 1.3)); }
@@ -5977,6 +5981,8 @@ body.dark {
     <div class="modal-header"><span id="tableMenuTitle">この表</span><button class="modal-close" onclick="closeTableMenu()">✕</button></div>
     <div class="modal-body">
       <div class="tm-list">
+        <button class="tm-row tm-co" id="tmCoSet" onclick="tmDo(toggleSettings)"><span>⚙</span>設定</button>
+        <button class="tm-row tm-co" id="tmCoOff" onclick="tmDo(toggleCalcOnly)"><span>🧮</span>「電卓だけ」をやめる（表も使う）</button>
         <button class="tm-row" onclick="tmDo(openFindDlg)"><span>🔎</span>さがす・移動</button>
         <button class="tm-row" onclick="tmDo(insertRowAtSel)"><span>⬆</span>行を足す（選んだセルの上）</button>
         <button class="tm-row" onclick="tmDo(insertColAtSel)"><span>⬅</span>列を足す（選んだセルの左）</button>
