@@ -964,10 +964,10 @@ function buildSheet() {
         const fi=document.getElementById('formulaInput');
         if (formulaEditMode && fi.value.startsWith('=')) {
           if (fxSuppressClick) { fxSuppressClick=false; return; }   // なぞって 範囲を 入れた あと（v648）
-          fxPutRef(cref(r,c), msOn || e.ctrlKey || e.metaKey); return;   // 複数選択（Ctrl）の 間は「,」で つなぐ（v654）   // 押し直すと 入れかえ・関数の 中は「,」で つなぐ（Excel と 同じ。v648）
+          fxPutRef(cref(r,c), msPick || e.ctrlKey || e.metaKey); return;   // 複数選択（Ctrl）の 間は「,」で つなぐ（v654）   // 押し直すと 入れかえ・関数の 中は「,」で つなぐ（Excel と 同じ。v648）
         }
         formulaEditMode=false; fi.classList.remove('formula-mode');
-        if (msOn || e.ctrlKey || e.metaKey) { msTap(r,c); return; }   // 複数選択：ばらばらの セルを 足す（v654）
+        if (msPick || e.ctrlKey || e.metaKey) { msTap(r,c); return; }   // v657：Ctrl の 段の「複数選ぶ」が オンの とき   // 複数選択：ばらばらの セルを 足す（v654）
         msClear();
         if (hpCellTap(r,c)) return;   // ☑ チェック欄は押すと ☑⇄☐、えらぶだけの列は えらぶ窓（v563）
         // v418：Excel と同じ操作のとき、選んでいる範囲の中をタップしたら範囲はそのままで帯を出す
@@ -13316,8 +13316,9 @@ function ctrlFxPlace(){
 }
 function msToggleBtn(force){
   msOn = (force!=null) ? !!force : !msOn;
+  if(!msOn && typeof msPickSet==='function' && msPick) msPickSet(false);   // Ctrl を 切ったら「複数選ぶ」も 切る（選んだ セルは そのまま）
   msSyncBtn();
-  if(msOn) toast('Ctrl オン：セルを押すと複数選択・テンキーはショートカット', 2400);
+  if(msOn) toast('Ctrl オン：テンキーがショートカットに（7 で複数選ぶ）', 2400);
 }
 function msTap(r,c){
   if(isLockedCell(r,c) && false) return;
@@ -13340,6 +13341,7 @@ function msTap(r,c){
 function ctrlLabels(){
   const pg=document.getElementById('numpadPage1'); if(!pg || typeof CTRL_KEYS==='undefined') return;
   Object.keys(CTRL_KEYS).forEach(k=>{ const b=pg.querySelector('.btn[data-key="'+k+'"]'); if(b && b.dataset.ctrl!==CTRL_KEYS[k].l) b.dataset.ctrl=CTRL_KEYS[k].l; });
+  if(msPick){ const b=pg.querySelector('.btn[data-key="n7"]'); if(b){ b.dataset.ctrl='複数\n選択中'; b.classList.add('pick-on'); } }
 }
 function ctrlCells(){ return (typeof msActive==='function' && msActive()) ? msCells() : kfmtCells(); }
 function ctrlSelectAll(){ msClear(); clearRangeSelection(); sel(0,0); extendRange(ROWS-1, COLS-1); toast('ぜんぶ 選びました'); }
@@ -13378,15 +13380,32 @@ function ctrlFill(){
   updateStats(selC);
   toast(cells.length+'個の セルに「'+(String(v)||'（空）')+'」を 入れました（↶ で 戻せます）', 3200);
 }
+/* Ctrl の 段（v657 で 並べ直し）：いちばん上の 段は「選ぶ」。↶戻す・↷やり直す は 上の バーに いつも あるので 外した（パソコンの Ctrl＋Z・Y は そのまま） */
 const CTRL_KEYS={
-  n7:{l:'↶\n戻す',   run:()=>undoLast()},           n8:{l:'↷やり\n直す', run:()=>redoLast()},       n9:{l:'全部\n選ぶ', run:()=>ctrlSelectAll()},
+  n7:{l:'複数\n選ぶ', run:()=>msPickSet(!msPick)}, n8:{l:'行を\n選ぶ', run:()=>ctrlPickLine('row')}, n9:{l:'列を\n選ぶ', run:()=>ctrlPickLine('col')},
+  ce:{l:'全部\n選ぶ', run:()=>ctrlSelectAll()},
   n4:{l:'コピー',     run:()=>copyCell()},           n5:{l:'切り\n取り',  run:()=>cutCell()},         n6:{l:'貼り\n付け', run:()=>pasteCell()},
   n1:{l:'B\n太字',    run:()=>kfmtToggle('bold')},   n2:{l:'I\n斜体',     run:()=>kfmtToggle('italic')}, n3:{l:'U\n下線', run:()=>kfmtToggle('underline')},
-  n0:{l:'今日', run:()=>ctrlToday()},          dot:{l:'時刻',       run:()=>ctrlNow()},   // 0 の 右半分は ƒx関数（v655）
-  plus:{l:'行を\n足す', run:()=>insertRowAtSel()},   minus:{l:'行を\n消す', run:()=>deleteRowAtSel()},
-  div:{l:'列を\n足す',  run:()=>insertColAtSel()},   mul:{l:'列を\n消す',   run:()=>deleteColAtSel()},
+  n0:{l:'今日', run:()=>ctrlToday()},          dot:{l:'時刻',       run:()=>ctrlNow()},   // 0 の 所は ƒx関数・今日 の 別の キー（v656）
+  div:{l:'行を\n足す', run:()=>insertRowAtSel()},   mul:{l:'行を\n消す', run:()=>deleteRowAtSel()},
+  minus:{l:'列を\n足す', run:()=>insertColAtSel()}, plus:{l:'列を\n消す', run:()=>deleteColAtSel()},
   enter:{l:'一括\n入力', run:()=>ctrlFill()}
 };
+/* 複数選ぶ（Ctrl の 段の 7）：オンの 間は セルを 押すたびに 足す／外す */
+var msPick=false;
+function msPickSet(v){
+  msPick=!!v;
+  const b=document.querySelector('#numpadPage1 .btn[data-key="n7"]');
+  if(b){ b.classList.toggle('pick-on', msPick); b.dataset.ctrl = msPick ? '複数\n選択中' : CTRL_KEYS.n7.l; }
+  document.body.classList.toggle('ms-pick', msPick);
+  if(msPick) toast('セルを押すたびに選ぶセルが増えます（もう一度押すと外れます）', 2400);
+}
+/* 行を 選ぶ・列を 選ぶ：いまの セルの 行（列）ぜんぶ（列名・行番号を 押したのと 同じ） */
+function ctrlPickLine(kind){
+  msClear();
+  if(kind==='row') hdrSelectOne('row', selR); else hdrSelectOne('col', selC);
+  toast(kind==='row' ? (selR+1)+'行目を ぜんぶ 選びました' : ALPHA[selC]+'列を ぜんぶ 選びました');
+}
 (function ctrlSetup(){
   const pg=document.getElementById('numpadPage1'); if(!pg) return;
   ctrlLabels();
@@ -18270,7 +18289,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v656';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v657';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
