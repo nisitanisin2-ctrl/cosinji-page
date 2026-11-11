@@ -2540,16 +2540,28 @@ body.ui2 .modal-overlay:not(.tool-fs) > .modal:not(.modal-full).ui2-tall { heigh
 }
 /* その場の メニュー（帯を セルの そばに） */
 #cellMenu .cm-more2 { display: none; }
+/* v663：明るい 半透明に して 下の セルが 透けて 見える・ボタンは アイコン＋下に 小さい 名前 */
 #cellMenu.edit-bar.ui2-pop.show {
-  right: auto; width: max-content; max-width: min(560px, calc(100vw - 24px)); height: auto;
-  padding: 4px; gap: 2px; border: 0; border-radius: 14px; background: #20262a; color: #fff; box-shadow: 0 10px 24px -8px rgba(0,0,0,.55);
+  --pop-bg: rgba(255,255,255,.72); --pop-ink: #1f2a24; --pop-sub: #5b6660; --pop-press: rgba(33,115,70,.14); --pop-line: rgba(0,0,0,.08);
+  right: auto; width: max-content; max-width: min(240px, calc(100vw - 24px)); height: auto;   /* 幅は 前の 半分くらい（入りきらない 分は 横に 送る） */
+  padding: 2px; gap: 0; border: 1px solid var(--pop-line); border-radius: 14px; background: var(--pop-bg); color: var(--pop-ink);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4); backdrop-filter: blur(10px) saturate(1.4);
+  box-shadow: 0 6px 18px -8px rgba(0,0,0,.35);
 }
-#cellMenu.edit-bar.ui2-pop button { color: #fff; background: none; border-radius: 10px; padding: 9px 10px; }
-#cellMenu.edit-bar.ui2-pop button:active { background: #3a4248; }
-#cellMenu.edit-bar.ui2-pop .cm-cx { color: #9fe3c0; background: rgba(255,255,255,.06); }
+body.dark #cellMenu.edit-bar.ui2-pop.show { --pop-bg: rgba(48,54,58,.72); --pop-ink: #eef3f0; --pop-sub: #b9c4be; --pop-press: rgba(255,255,255,.12); --pop-line: rgba(255,255,255,.10); }
+#cellMenu.edit-bar.ui2-pop button:not(.cm-arr) { color: var(--pop-ink); background: none; border-radius: 10px; padding: 4px 2px 3px; min-width: 44px;
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; line-height: 1.1; }
+#cellMenu.edit-bar.ui2-pop button .pi { font-size: 18px; line-height: 1.15; font-weight: 700; white-space: nowrap; }
+#cellMenu.edit-bar.ui2-pop button .pl { font-size: 9.5px; font-weight: 700; color: var(--pop-sub); white-space: nowrap; letter-spacing: -.02em; }
+#cellMenu.edit-bar.ui2-pop button .pl:empty { display: none; }
+#cellMenu.edit-bar.ui2-pop button:active { background: var(--pop-press); }
+#cellMenu.edit-bar.ui2-pop .cm-cx { color: var(--pop-cx, var(--acc)); background: none; }
+#cellMenu.edit-bar.ui2-pop .cm-cx .pl { color: var(--pop-cx, var(--acc)); }
+body.dark #cellMenu.edit-bar.ui2-pop.show { --pop-cx: #8fd9b0; }
 #cellMenu.edit-bar.ui2-pop .cm-cx.on { background: var(--acc); color: #fff; }
-#cellMenu.edit-bar.ui2-pop .cm-more2 { display: block; order: 10000; color: #ffd9a8; }
-#cellMenu.edit-bar.ui2-pop .cm-arr { background: #20262a; color: #fff; }
+#cellMenu.edit-bar.ui2-pop .cm-cx.on .pl { color: #fff; }
+#cellMenu.edit-bar.ui2-pop .cm-more2 { display: inline-flex; order: 10000; color: var(--pop-ink); }
+#cellMenu.edit-bar.ui2-pop .cm-arr { background: var(--pop-bg); color: var(--pop-ink); }
 .bm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .bm-item { min-height: 54px; padding: 8px 6px; border: 1px solid var(--save-item-border); border-radius: var(--r-btn); background: var(--save-item-bg); color: var(--text);
   font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; touch-action: manipulation; }
