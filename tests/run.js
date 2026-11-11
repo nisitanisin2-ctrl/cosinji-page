@@ -21030,6 +21030,16 @@ async function runUi2640(browser) {
       return [m.classList.contains('ui2-pop') && m.classList.contains('show'), m.getBoundingClientRect().width <= 241, +a[0] > 200 && a.length === 4 && +a[3] < 0.9,
         bs.length > 0 && bs.every(b => b.querySelector('.pi')), getComputedStyle(bs[0]).flexDirection, bs.some(b => b.getAttribute('aria-label') === '📥 貼り付け')].join('/'); });
     check('セルの 帯は 明るい 半透明・アイコン＋名前・幅 240px まで（v663）', pp, 'true/true/true/true/column/true');
+    // 出る 場所：少し 右上・右端の 列は 左上・上の 行は 下側。どれも 選んだ セルに 重ならない
+    const where = async (r, c) => { await page.evaluate(() => { try { hideCellMenu(); } catch (_) {} }); await w(200);
+      await page.evaluate(([r, c]) => sel(r, c), [r, c]); await w(250); await page.tap('#c' + r + '_' + c); await w(600);
+      return page.evaluate(([r, c]) => { const m = document.getElementById('cellMenu').getBoundingClientRect(), e = document.getElementById('c' + r + '_' + c).getBoundingClientRect();
+        const over = !(m.right <= e.left || m.left >= e.right || m.bottom <= e.top || m.top >= e.bottom);
+        return [m.bottom <= e.top ? 'up' : m.top >= e.bottom ? 'down' : 'side', m.left > e.left ? 'R' : 'L', over].join(''); }, [r, c]); };
+    check('  帯は 少し 右上（セルを 隠さない）', await where(5, 0), 'upRfalse');
+    check('  上の 行の セルは 下側', await where(0, 0), 'downRfalse');
+    const lastC = await page.evaluate(() => { const w = document.querySelector('.sheet-wrap').getBoundingClientRect(); for (let c = 0; c < COLS; c++) { const e = document.getElementById('c5_' + c).getBoundingClientRect(); if (e.right > w.right - 24) return c; } return -1; });
+    check('  右端の 列の セルは 左上', lastC >= 0 ? await where(5, lastC) : 'upLfalse', 'upLfalse');
     await page.evaluate(() => { try { hideCellMenu(); } catch (_) {} sel(0, 0); }); await w(300);
   }
   // 範囲を 選んで ⌫・CE で まとめて 消す（v646）

@@ -1570,10 +1570,17 @@ function placeEditBar(){
     const W=Math.min(menu.offsetWidth||300, wr.width-12), H=menu.offsetHeight||44;
     let top, left;
     if(ra1){
-      top=ra1.top-H-8;
-      if(top<wr.top+2) top=ra2.bottom+8;
+      // v663：選んだ セルの 少し 右上に 出す（セルの 中身は 隠さない）。
+      // 右に 入りきらない（右端の セル）ときは 左上、上に 入りきらない（上の ほうの セル）ときは 下側へ
+      const gap=6, over=14;   // over：セルの 右端から 少し 内側に かけて 出す（どの セルの 帯か 分かるように）
+      top=ra1.top-H-gap;
+      if(top<wr.top+2) top=ra2.bottom+gap;
       if(top+H>wr.bottom-2) top=Math.max(wr.top+2, wr.bottom-H-2);
-      left=(ra1.left+ra2.right)/2-W/2;
+      left=ra2.right-over;
+      if(left+W>wr.right-6){
+        // 右端の 列（セルの 右が 画面の 端に かかる）は 左上へ。それ 以外は 右に 寄せられる だけ 寄せる
+        left = (ra2.right>wr.right-24) ? ra1.left-W+over : Math.max(wr.right-W-6, ra1.left+over);
+      }
     } else { top=wr.top+6; left=wr.left+(wr.width-W)/2; }
     left=Math.max(wr.left+6, Math.min(left, wr.right-W-6));
     menu.style.left=Math.round(left)+'px'; menu.style.top=Math.round(top)+'px';
