@@ -13167,7 +13167,7 @@ function barPadKey(kind, arg){
   else if(kind==='op'){
     const sym = arg==='*' ? '×' : arg==='/' ? '÷' : arg;
     // 数の あとに 計算の 記号を 押したら 式に する（120 × 3 → =120×3）
-    if(autoRuleOn('opfx') && !v.startsWith('=') && /^-?\d+(\.\d+)?$/.test(v.trim()) && fi.selectionStart===v.length){ fi.value='='+v.trim(); try{ fi.setSelectionRange(fi.value.length, fi.value.length); }catch(_){} }
+    if(autoRuleOn('speech') && !v.startsWith('=') && /^-?\d+(\.\d+)?$/.test(v.trim()) && fi.selectionStart===v.length){ fi.value='='+v.trim(); try{ fi.setSelectionRange(fi.value.length, fi.value.length); }catch(_){} }
     fiIns(sym);
   }
   else if(kind==='sign'){
@@ -14625,8 +14625,7 @@ let speechAutoOn = localStorage.getItem('excalc_speechauto')!=='0';   // 既定�
 const AUTO_RULES=[
   {k:'half',  key:'excalc_auto_half',  n:'全角の数字・記号を半角に',            ex:'１２０ → 120'},
   {k:'date',  key:'excalc_auto_date',  n:'日付に見えるものは日付に',            ex:'11/10 → 2026/11/10'},
-  {k:'speech',key:'excalc_speechauto', n:'式に見える文字は計算する',            ex:'120×3・251かける68 → 答え'},
-  {k:'opfx',  key:'excalc_auto_opfx',  n:'テンキーで直すとき、数のあとの × などで式に', ex:'120 × 3 → =120×3'},
+  {k:'speech',key:'excalc_speechauto', n:'式に見える文字は計算する',            ex:'120×3・251かける68 → 表示は答え・バーは =式（キーボード・テンキー・声。オフ＝文字のまま）'},
   {k:'paren', key:'excalc_auto_paren', n:'数式の閉じかっこを足す',              ex:'=SUM(A1:A3 → =SUM(A1:A3)'},
   {k:'calcfx',key:'excalc_auto_calcfx',n:'テンキーで計算したセルに式を残す',    ex:'120 × 3 Enter → 表示は 360・バーは =120*3（オフ＝答えだけ）'}
 ];
@@ -18132,7 +18131,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v651';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v652';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
