@@ -20936,10 +20936,11 @@ async function runUi2640(browser) {
     await key('n1'); await w(200);
     check('  　Ctrl＋1 で 太字', await page.evaluate(() => !!(cellStyles['0,0'] || {}).bold), true);
     await page.evaluate(() => undoLast()); await w(200);
-    await key('n8'); await w(300);
-    check('  　Ctrl＋8 で 行を 選ぶ（v657）', await page.evaluate(() => (hdrMulti ? hdrMulti.kind : '-') + '/' + selRow), 'row/0');
+    await page.evaluate(() => sel(2, 1)); await key('n8'); await w(300);
+    check('  　Ctrl＋8 で 行の セルを ぜんぶ 範囲で 選ぶ（v660）', await page.evaluate(() => { const r = selRect(); return [r.r1, r.c1, r.r2, r.c2 === COLS - 1, selR, selC, document.getElementById('c2_' + (COLS - 1)).classList.contains('sel-range'), document.getElementById('c3_0').classList.contains('sel-range')].join('/'); }), '2/0/2/true/2/1/true/false');
     await key('n9'); await w(300);
-    check('  　Ctrl＋9 で 列を 選ぶ', await page.evaluate(() => (hdrMulti ? hdrMulti.kind + [...hdrMulti.set].join('') : '-')), 'col0');
+    check('  　Ctrl＋9 で 列の セルを ぜんぶ 範囲で 選ぶ（v660）', await page.evaluate(() => { const r = selRect(); return [r.r1, r.c1, r.r2 === ROWS - 1, r.c2, selR, selC, document.getElementById('c0_1').classList.contains('sel-range'), document.getElementById('c2_0').classList.contains('sel-range')].join('/'); }), '0/1/true/1/2/1/true/false');
+    await page.evaluate(() => { clearRangeSelection(); sel(0, 0); }); await w(200);
     await key('ce'); await w(300);
     check('  　Ctrl＋CE で 全部 選ぶ', await page.evaluate(() => [rangeR1, rangeC1, rangeR2 === ROWS - 1, rangeC2 === COLS - 1].join('/')), '0/0/true/true');
     await page.evaluate(() => { clearRangeSelection(); hdrMultiClear(); sel(0, 0); }); await key('n7'); await page.tap('#c2_1'); await page.tap('#c4_2'); await page.tap('#msBtn'); await w(200);
