@@ -16297,6 +16297,16 @@ async function runKoe(browser) {
     }
     check('  言い方：' + cat + '（' + list.length + '件）', bad.join(' / '), '');
   }
+  // くらし・買い物・お金（phrase.js v7）：文例には 出さない 型。答えを 確かめる
+  {
+    const P7 = require('./koe-phrases7.js'), bad = [];
+    for (const [q, want] of P7) {
+      const r = await page.evaluate(q => { state.entries = []; state.log = []; state.drill = null; state.ask = null; recomputeAll();
+        const r = koeRun(q); return { a: r && r.a, v: state.lastV }; }, q);
+      if (!(r.v != null && Math.abs(r.v - want) <= Math.max(0.005, 1e-4 * Math.abs(want)))) bad.push(q + ' → ' + (r.a || '—') + '（' + want + '）');
+    }
+    check('  言い方：くらし・買い物・お金（' + P7.length + '件・v7）', bad.join(' / '), '');
+  }
   check('  文例の数', phrN >= 300, true);
   check('  型の数と言い回しの数を数えられる', await page.evaluate(() => { const s = phraseStats(); return s.types >= 140 && s.forms > 1e6; }), true);
   check('  型の答えも「それに…」で続けられる', await page.evaluate(() => { state.entries = []; recomputeAll(); koeRun('8と3の差'); return koeRun('それに2をかけて').a; }), '10');   // 「2をかけて」のように、数のあとに言った「かける」も前の答えにかける
@@ -19043,6 +19053,17 @@ async function runDtPhrase(browser) {
       n++;
     }
     check('  電卓の声：' + cat + '（' + list.length + '件）', bad.join(' / '), '');
+  }
+  // くらし・買い物・お金（phrase.js v7・表電卓 v664）：画面には 出さない 型。答えを 確かめる
+  {
+    const P7 = require('./koe-phrases7.js'), bad = [];
+    for (const [q, want] of P7) {
+      const r = await page.evaluate(q => { disp_val = '0'; voiceAcceptDentaku(q); return disp_val; }, q);
+      const v = parseFloat(String(r).replace(/,/g, ''));
+      if (!(Math.abs(v - want) <= Math.max(0.01, 1e-4 * Math.abs(want)))) bad.push(q + ' → ' + r + '（' + want + '）');
+    }
+    check('  電卓の声：くらし・買い物・お金（' + P7.length + '件・v664）', bad.join(' / '), '');
+    check('  型の数は 430 以上', await page.evaluate(() => KoePhrase.stats().types >= 430), true);
   }
   check('  文例の数', n >= 300, true);
   // 前から言えた言い方（📖言い方 の見本）は、型を読み込む前と答えが変わらない
