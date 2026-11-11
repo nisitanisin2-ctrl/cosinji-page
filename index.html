@@ -1703,14 +1703,19 @@ body.dark .cell.cell-lock-flash { animation: lockFlashDark 0.35s ease; }
    in-col クラスは付くが背景色は変更しない。 */
 .cell.in-col { }
 .cell.in-row { background: var(--cell-in-row); }
+/* 選んだ 範囲（v661：Excel と 同じ 見せ方）
+   セルの 背景色は そのまま 残し、上に うすい 色を 重ねる（色を 塗っても 変わったのが 分かる）。
+   枠は 範囲の まわりだけ（sr-t/b/l/r）。 */
 .cell.sel-range {
-  background: #bbdefb !important;
-  outline: 1px solid #1976d2;
+  --sel-tint: rgba(20, 60, 120, .16); --sel-edge: var(--acc, #1976d2);
+  --st: 0px; --sb: 0px; --sl: 0px; --sr: 0px;
+  background-image: linear-gradient(var(--sel-tint), var(--sel-tint)) !important;
+  box-shadow: inset 0 var(--st) 0 0 var(--sel-edge), inset 0 calc(-1 * var(--sb)) 0 0 var(--sel-edge),
+              inset var(--sl) 0 0 0 var(--sel-edge), inset calc(-1 * var(--sr)) 0 0 0 var(--sel-edge);
 }
-body.dark .cell.sel-range {
-  background: #1a3a5c !important;
-  outline: 1px solid #4488cc;
-}
+.cell.sel-range.sr-t { --st: 2px; } .cell.sel-range.sr-b { --sb: 2px; }
+.cell.sel-range.sr-l { --sl: 2px; } .cell.sel-range.sr-r { --sr: 2px; }
+body.dark .cell.sel-range { --sel-tint: rgba(150, 190, 240, .20); }
 .cell.clip-src { outline: 2px dashed var(--warn) !important; outline-offset: -2px; }   /* コピー・切り取りした範囲（v417） */
 .cell.copy-src {
   outline: 2px dashed var(--warn) !important;
@@ -2692,8 +2697,8 @@ body.ui2 .skin-seg.ui2-only-blk { display: flex; }
 .auto-sw.on { background: var(--acc); border-color: var(--acc); color: #fff; }
 
 /* ══ v654：複数選択（Ctrl）・数式の キーの 段に ＝ ══ */
-#sheet .cell.ms-cell { background: #bbdefb !important; outline: 2px solid #1976d2; outline-offset: -2px; }
-body.dark #sheet .cell.ms-cell { background: #1a3a5c !important; outline-color: #4488cc; }
+#sheet .cell.ms-cell { background-image: linear-gradient(rgba(20, 60, 120, .16), rgba(20, 60, 120, .16)) !important; outline: 2px solid var(--acc, #1976d2); outline-offset: -2px; }   /* v661：背景色が 見える ように うすく 重ねる */
+body.dark #sheet .cell.ms-cell { background-image: linear-gradient(rgba(150, 190, 240, .20), rgba(150, 190, 240, .20)) !important; }
 body.ui2 #numpadPage1 .btn.kp-half#msBtn.on { background: #d97706; color: #fff; box-shadow: inset 0 0 0 2px #ffd28a; }
 
 /* ══ v655：Ctrl キー（オンの 間は テンキーが ショートカットに）══ */

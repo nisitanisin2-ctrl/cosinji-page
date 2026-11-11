@@ -1295,7 +1295,7 @@ function makeRowGrip(rh,r){
 
 /* ── 複数セル選択 ── */
 function clearRangeSelection() {
-  document.querySelectorAll('.sel-range').forEach(el=>el.classList.remove('sel-range'));
+  document.querySelectorAll('.sel-range').forEach(el=>el.classList.remove('sel-range','sr-t','sr-b','sr-l','sr-r'));
   const had=rangeR1>=0;
   rangeR1=rangeC1=rangeR2=rangeC2=-1;
   if(had && selRow<0) updateStats(selC);   // 右上の合計を列の合計へ戻す
@@ -1305,12 +1305,17 @@ function clearRangeSelection() {
 function extendRange(r,c) {
   if (rangeR1<0) { rangeR1=selR; rangeC1=selC; }
   rangeR2=r; rangeC2=c;
-  document.querySelectorAll('.sel-range').forEach(el=>el.classList.remove('sel-range'));
+  document.querySelectorAll('.sel-range').forEach(el=>el.classList.remove('sel-range','sr-t','sr-b','sr-l','sr-r'));
   const r1=Math.min(rangeR1,rangeR2), r2=Math.max(rangeR1,rangeR2);
   const c1=Math.min(rangeC1,rangeC2), c2=Math.max(rangeC1,rangeC2);
   for (let rr=r1;rr<=r2;rr++) for (let cc=c1;cc<=c2;cc++) {
     const el=document.getElementById(`c${rr}_${cc}`);
-    if (el && !(rr===selR&&cc===selC)) el.classList.add('sel-range');
+    if (el && !(rr===selR&&cc===selC)){
+      el.classList.add('sel-range');
+      // 範囲の まわりだけに 枠（Excel と 同じ。セルの 背景色は うすく 重ねた 色の 下に 見える。v661）
+      if(rr===r1) el.classList.add('sr-t'); if(rr===r2) el.classList.add('sr-b');
+      if(cc===c1) el.classList.add('sr-l'); if(cc===c2) el.classList.add('sr-r');
+    }
   }
   updateStats(selC);   // 右上の合計を範囲の合計に（v480）
   if(typeof updateFillHandle==='function') updateFillHandle();   // 丸を 範囲の 右下の 角へ（v635）
@@ -18292,7 +18297,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v660';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v661';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

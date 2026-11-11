@@ -20982,6 +20982,15 @@ async function runUi2640(browser) {
     check('  やめると 上の 名前で 表に 戻れる', await page.evaluate(() => calcOnly + '/' + isDentaku()), 'false/false');
     await page.evaluate(() => { document.querySelectorAll('.modal-overlay.open').forEach(o => closeDlg(o.id)); sel(0, 0); }); await w(300);
   }
+  // 選んだ 範囲は セルの 背景色の 上に うすく 重ね、枠は まわりだけ（v661：Excel と 同じ）
+  {
+    const sr = await page.evaluate(() => { cellStyles['21,1'] = { bg: '#ffeb3b' }; applyCellStyle(document.getElementById('c21_1'), 21, 1); sel(20, 0); extendRange(22, 2);
+      const cs = el => getComputedStyle(el), a = document.getElementById('c21_1'), m = document.getElementById('c21_2'), t = document.getElementById('c20_1');
+      const out = [cs(a).backgroundColor, /gradient/.test(cs(a).backgroundImage), t.classList.contains('sr-t'), t.classList.contains('sr-b'), m.classList.contains('sr-r'), a.className.includes('sr-')].join('/');
+      clearRangeSelection(); delete cellStyles['21,1']; applyCellStyle(a, 21, 1); sel(0, 0);
+      return out + '/' + document.querySelectorAll('.sr-t,.sr-b,.sr-l,.sr-r').length; });
+    check('選んだ 範囲の 中でも セルの 背景色が 見え、枠は まわりだけ（v661）', sr, 'rgb(255, 235, 59)/true/true/false/true/false/0');
+  }
   // 範囲を 選んで ⌫・CE で まとめて 消す（v646）
   await page.evaluate(() => { for (let r = 10; r < 13; r++) for (let c = 0; c < 3; c++) setCellVal(r, c, String(r * 10 + c)); recalcAll(); sel(10, 0); extendRange(11, 1); }); await w(200);
   await page.click('#numpadPage1 [data-key="bs"]'); await w(300);
