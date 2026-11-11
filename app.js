@@ -18289,7 +18289,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v657';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v658';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -22593,6 +22593,34 @@ function navSync(){
 (function bandFollow(){   // v641：表を 送ったら その場の メニューも ついて いく
   const w=document.querySelector('.sheet-wrap'); if(!w) return;
   w.addEventListener('scroll', ()=>{ const m=document.getElementById('cellMenu'); if(m && m.classList.contains('ui2-pop') && m.classList.contains('show')) placeEditBar(); }, {passive:true});
+})();
+/* ── 本体の キーボードで 打つ 間、画面を キーボードの 上の 見えて いる 所に 合わせる（v658）──
+   Android・iPhone の ブラウザーは キーボードが 出ても ページの 高さを 変えず、入力欄を 見せる ために ページごと 上へ 送る。
+   新しい 画面は キーボードの 間 テンキーと タブを 隠すので、セルの バーが 画面の いちばん 下に なり、
+   ページが キーボードの 高さ ぶん 上へ 送られて 上の バー・列名・選んだ セルが 見えなく なって いた。
+   キーボードが 出て いる 間（kb-edit）は 体（body）の 高さを 見えて いる 高さ（visualViewport）に して、ページは 送らない。
+   （ブラウザーに ページの 高さを 変えさせる 設定は、背が 低く なった 画面が 横向きの 並びに 切りかわるので 使わない） */
+(function kbFitSetup(){
+  const vv=window.visualViewport; if(!vv) return;
+  const b=()=>document.body;
+  const fit=()=>{
+    const on=b().classList.contains('kb-edit') && !!ui2On && (window.innerHeight - vv.height > 100);
+    if(on){
+      document.documentElement.style.setProperty('--kbvh', Math.round(vv.height)+'px');
+      b().classList.add('kb-fit');
+      if(window.scrollY || vv.offsetTop) window.scrollTo(0,0);
+      const el=document.getElementById(`c${selR}_${selC}`); if(el) try{ el.scrollIntoView({block:'nearest', inline:'nearest'}); }catch(_){}
+      if(window.scrollY) window.scrollTo(0,0);
+    } else if(b().classList.contains('kb-fit')){
+      b().classList.remove('kb-fit'); document.documentElement.style.removeProperty('--kbvh');
+      window.scrollTo(0,0);
+    }
+  };
+  let raf=0; const later=()=>{ if(raf) return; raf=requestAnimationFrame(()=>{ raf=0; fit(); }); };
+  vv.addEventListener('resize', later);
+  vv.addEventListener('scroll', ()=>{ if(b().classList.contains('kb-fit') && (window.scrollY || vv.offsetTop)) later(); });
+  new MutationObserver(later).observe(document.body, {attributes:true, attributeFilter:['class']});
+  window.kbFit=fit;
 })();
 /* ── iPhone で キーボードを 閉じた あと、画面が 上に ずれた まま 戻らない（iOS の くせ）のを 直す（v639）──
    iOS は 入力欄を 見せる ために ページごと 上へ 送る。キーボードを 閉じても 戻らない ことが あり、
