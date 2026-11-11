@@ -2690,6 +2690,11 @@ body.ui2 .skin-seg.ui2-only-blk { display: flex; }
 .auto-sw { flex: none; min-width: 58px; height: 34px; border: 1px solid var(--save-item-border); border-radius: 17px; background: var(--modal-bg, #fff); color: var(--text-light);
   font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; touch-action: manipulation; }
 .auto-sw.on { background: var(--acc); border-color: var(--acc); color: #fff; }
+
+/* ══ v654：複数選択（Ctrl）・数式の キーの 段に ＝ ══ */
+#sheet .cell.ms-cell { background: #bbdefb !important; outline: 2px solid #1976d2; outline-offset: -2px; }
+body.dark #sheet .cell.ms-cell { background: #1a3a5c !important; outline-color: #4488cc; }
+body.ui2 #numpadPage1 .btn.kp-half#msBtn.on { background: #d97706; color: #fff; box-shadow: inset 0 0 0 2px #ffd28a; }
 /* 背の 低い 画面（iPhone SE など）は キーを 少し 低く して 表を 広く */
 @media (max-height: 720px) {
   body.ui2 #numpadPage1 .btn { padding-top: calc(8px * var(--key-scale, 1.3)); padding-bottom: calc(8px * var(--key-scale, 1.3)); }
@@ -5535,6 +5540,7 @@ body.dark {
     <button class="btn util" data-key="u_redo"  onclick="redoLast()" title="元に戻した入力をやり直す／長押しで別の機能に変更">↷進む</button>
     <div class="fx-row" id="fxRow" aria-label="数式のキー">
       <button class="btn fxk" onclick="fiMove(-1)" aria-label="カーソルを左へ">◀</button>
+      <button class="btn fxk" onclick="numpadAppend('=')">=</button>
       <button class="btn fxk" onclick="numpadAppend('(')">(</button>
       <button class="btn fxk" onclick="numpadAppend(')')">)</button>
       <button class="btn fxk" onclick="numpadAppend(',')">,</button>
@@ -5542,6 +5548,7 @@ body.dark {
       <button class="btn fxk" onclick="fiMove(1)" aria-label="カーソルを右へ">▶</button>
     </div>
     <button class="btn u2k" data-key="u_func" id="funcBtn" onclick="openFuncPick()" title="関数：合計・平均・四捨五入・税込など、用途からえらんで入れる"><span class="kb-a"><b class="fx-i">ƒx</b>関数</span></button>
+    <button class="btn u2k" data-key="u_multi" id="msBtn" onclick="msToggleBtn()" title="複数選択：オンの間はセルを押すたびに選ぶセルが増えます（もう一度押すと外れる）。パソコンの Ctrl と同じ">☑複数</button>
     <button class="btn u2k" data-key="u_cal" id="calBtn" onclick="openCalPick()" title="日付：カレンダーからえらんで入れる（表示の形もえらべる）">📅日付</button>
     <button class="btn util" data-key="u_text" id="textBtn" onmousedown="event.preventDefault()" onclick="toggleTextInput()" title="文字を打つ（キーボードを出す。もう一度でテンキーへ）／長押しで別の機能に変更">あ文字</button>
     <button class="btn util" data-key="u_normal" onclick="switchMode('normal')" title="ふつうの表に戻す／長押しで別の機能に変更">▦通常</button>

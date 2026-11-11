@@ -964,9 +964,11 @@ function buildSheet() {
         const fi=document.getElementById('formulaInput');
         if (formulaEditMode && fi.value.startsWith('=')) {
           if (fxSuppressClick) { fxSuppressClick=false; return; }   // なぞって 範囲を 入れた あと（v648）
-          fxPutRef(cref(r,c)); return;   // 押し直すと 入れかえ・関数の 中は「,」で つなぐ（Excel と 同じ。v648）
+          fxPutRef(cref(r,c), msOn || e.ctrlKey || e.metaKey); return;   // 複数選択（Ctrl）の 間は「,」で つなぐ（v654）   // 押し直すと 入れかえ・関数の 中は「,」で つなぐ（Excel と 同じ。v648）
         }
         formulaEditMode=false; fi.classList.remove('formula-mode');
+        if (msOn || e.ctrlKey || e.metaKey) { msTap(r,c); return; }   // 複数選択：ばらばらの セルを 足す（v654）
+        msClear();
         if (hpCellTap(r,c)) return;   // ☑ チェック欄は押すと ☑⇄☐、えらぶだけの列は えらぶ窓（v563）
         // v418：Excel と同じ操作のとき、選んでいる範囲の中をタップしたら範囲はそのままで帯を出す
         if (cellGesture==='excel' && rangeR1>=0 && document.activeElement!==fi){
@@ -2507,6 +2509,7 @@ function cellMenuAct(a){
 /* 選択セル（範囲があれば範囲全体）の値を消去（枠線・書式は残す） */
 /* 範囲を 選んで いる とき（2つ 以上の セル・列名や 行番号で 選んだ 列・行）の セルの 一覧（v646）。1つ だけ なら null */
 function selBlockCells(){
+  if(msActive()) return msCells();   // 複数選択（v654）
   const cells=[];
   if(rangeR1>=0 && (rangeR1!==rangeR2 || rangeC1!==rangeC2)){
     const r1=Math.min(rangeR1,rangeR2), r2=Math.max(rangeR1,rangeR2), c1=Math.min(rangeC1,rangeC2), c2=Math.max(rangeC1,rangeC2);
@@ -6296,7 +6299,7 @@ function syncSumPlace(){
 }
 /* 範囲（2つ 以上の セル）・列・行を 選んで いるか（v647） */
 function hasSelBlock(){
-  let hm=false; try{ hm=!!hdrMulti; }catch(_){}   // 起動の 途中（hdrMulti が まだ 無い）でも 止まらない
+  let hm=false; try{ hm=!!hdrMulti || msActive(); }catch(_){}   // 起動の 途中（hdrMulti が まだ 無い）でも 止まらない・複数選択（v654）
   return (rangeR1>=0 && (rangeR1!==rangeR2 || rangeC1!==rangeC2)) || hm || selRow>=0;
 }
 /* 表の 右下の 合計（新しい 画面。v647） */
@@ -11362,7 +11365,7 @@ const KEYPAD_DEFAULT_POS_FMT={
 /* 新しい 画面の 数字ページ：低い 段（Σ合計・＝数式・🎤声・±・あ文字）＋ 4段×5列。
    v642：入力欄に あった Σ・＝・🎤 を、キーの すぐ上の 低い 段（ふつうの キーの 半分くらいの 高さ）へ。入力欄は 中身を 広く 見せる */
 const KEYPAD_UI2_POS={
-  sum:{r:1,c:1,u:1}, fx:{r:1,c:2,u:1}, u_func:{r:1,c:3,u:1}, sign:{r:1,c:4,u:1}, u_cal:{r:1,c:5,u:1},   // v647：🎤声は セルの バーの 中へ・あ文字は セルの バーを 押せば 打てるので 📅日付に
+  sum:{r:1,c:1,u:1}, fx:{r:1,c:2,u:1}, u_multi:{r:1,c:3,u:1}, sign:{r:1,c:4,u:1}, u_cal:{r:1,c:5,u:1},   // v654：ƒx関数 → 複数選択（パソコンの Ctrl と 同じ）   // v647：🎤声は セルの バーの 中へ・あ文字は セルの バーを 押せば 打てるので 📅日付に
   n7:{r:2,c:1}, n8:{r:2,c:2}, n9:{r:2,c:3}, div:{r:2,c:4}, bs:{r:2,c:5},
   n4:{r:3,c:1}, n5:{r:3,c:2}, n6:{r:3,c:3}, mul:{r:3,c:4}, ce:{r:3,c:5},
   n1:{r:4,c:1}, n2:{r:4,c:2}, n3:{r:4,c:3}, minus:{r:4,c:4}, enter:{r:4,c:5,h:2},
@@ -11380,7 +11383,7 @@ const KP_PAGES=[
      自分で並べ替えた人・長押しで機能を割り当てた人は、場所ごと引き継ぐ（kpMigrate466）。 */
   {sel:'#numpadPage1', def:KEYPAD_DEFAULT_POS,  skey:'excalc_keypad_pos_v2', pos:{}, oldKey:'excalc_keypad_pos', shiftRow:1,
    renamed:{u_normal:'u_save', u_voice:'u_dentaku', u_text:'u_reset'}},   // v639：リセットの 場所に あ文字
-  {sel:'#numpadPage1', def:KEYPAD_UI2_POS, skey:'excalc_keypad_pos_ui4', pos:{}, ui2:true},   // 新しい 画面の 数字ページ（v640。v642 で 低い 段を 足したので 新しい キー）
+  {sel:'#numpadPage1', def:KEYPAD_UI2_POS, skey:'excalc_keypad_pos_ui5', pos:{}, ui2:true},   // 新しい 画面の 数字ページ（v640。v642 で 低い 段を 足したので 新しい キー）
   {sel:'#numpadPage2', def:KEYPAD_DEFAULT_POS2, skey:'excalc_keypad_pos2', pos:{}},
   {sel:'#numpadPageFmt', def:KEYPAD_DEFAULT_POS_FMT, skey:'excalc_keypad_posfmt4', pos:{}}   // v407 で6列（posfmt3）、v483 で色のボタンを変えたので新しいキー
 ];
@@ -11809,6 +11812,7 @@ function hdrToggle(kind, i, shift){
   hdrApply(kind, set, adding, i);
 }
 function hdrClick(kind, i, e){
+  if(typeof msClear==='function') msClear();   // v654
   hdrClick0(kind, i, e);
   // 列名・行番号を 1つ 押したら、その列（行）で できることを 帯に 出す（v624。スプレッドシートと 同じ）
   if(cellGesture==='excel' && hdrMulti && hdrMulti.kind===kind && !hdrMulti.adding && hdrMulti.set.size===1 && hpOk()) showEditBar(true, kind);
@@ -12088,7 +12092,8 @@ function updateStats(c) {
   lastStatScope=isRange ? `${ALPHA[g.c1]}${g.r1+1}:${ALPHA[g.c2]}${g.r2+1}` : mcols ? hdrLabel('col',mcols) : ALPHA[c];   // 「合計A」＝A列の合計
   const nums=[]; let hasErr=false;
   const cells=[];
-  if(isRange){ for(let r=g.r1;r<=g.r2;r++) for(let cc=g.c1;cc<=g.c2;cc++) cells.push([r,cc]); }
+  if(msActive()){ msCells().forEach(x=>cells.push(x)); lastStatScope='（'+msSet.size+'つ）'; }   // 複数選択（v654）
+  else if(isRange){ for(let r=g.r1;r<=g.r2;r++) for(let cc=g.c1;cc<=g.c2;cc++) cells.push([r,cc]); }
   else for(const cc of (mcols||[c])) for(let r=0;r<ROWS;r++) cells.push([r,cc]);
   // しぼり込みで隠した行は数えない（Excel の下の合計と同じ）。しぼっているときは いちばん下の合計の行も入れない（v563）
   const hid=hpHidSet(), totFrom=hid ? hpFltRegion(hpFlt()).tot : -1;
@@ -13220,11 +13225,11 @@ function fxInFunc(v,pos){
   for(let i=0;i<s.length;i++){ const ch=s[i]; if(ch==='(') st.push(/[A-Za-z0-9_.]$/.test(s.slice(0,i))); else if(ch===')') st.pop(); }
   return st.length>0 && st[st.length-1];
 }
-function fxPutRef(ref){
+function fxPutRef(ref, join){
   const fi=fiEl(), foc=document.activeElement===fi, v=fi.value;
   let p0=foc && fi.selectionStart!=null ? fi.selectionStart : v.length, p1=foc && fi.selectionEnd!=null ? fi.selectionEnd : v.length, pre='';
   if(fxRef && fxRef.val===v && p0===p1 && p0===fxRef.end){
-    if(fxInFunc(v, fxRef.start)) pre=',';           // 関数の 中＝つなぐ（=SUM(B2,D2）
+    if(join || fxInFunc(v, fxRef.start)) pre=',';           // 関数の 中＝つなぐ（=SUM(B2,D2）
     else { p0=fxRef.start; p1=fxRef.end; }          // 入れかえ（=B2 → =D2）
   }
   fi.value=v.slice(0,p0)+pre+ref+v.slice(p1);
@@ -13284,6 +13289,56 @@ function fxDragEnd(){
   fi.addEventListener('blur', ()=>{ if(window.fiSwitching) return; setTimeout(()=>{ if(document.activeElement!==fi){ fxRef=null; syncFiUi(); } }, 0); });
   fi.addEventListener('click', ()=>{ fxRef=null; });   // カーソルを 動かしたら 入れかえは しない
   new MutationObserver(()=>syncFiUi()).observe(fi, {attributes:true, attributeFilter:['class']});
+})();
+
+/* ══ 複数選択（パソコンの Ctrl と 同じ。v654）══
+   テンキーの 上の「☑複数」を オンに すると、セルを 押すたびに 選ぶ セルが 増える（もう一度 押すと 外れる）。
+   選んだ セルは 表の 右下の 合計・⌫ と CE（まとめて 消す）・書式（太字・色 など）の 対象に なる。
+   ボタンを オフに しても 選んだ ままで、次に ふつうに セルを 押すと 外れる（Excel と 同じ）。
+   パソコンは Ctrl を 押して 離すと ボタンの オン／オフ。Ctrl を 押しながら クリックでも 足せる。 */
+var msOn=false;                  // var：起動の 途中（この 行より 前）でも 読まれるため
+var msSet=msSet||new Set();      // "r,c"
+function msActive(){ return !!msSet && msSet.size>1; }
+function msCells(){ return [...msSet].map(k=>k.split(',').map(Number)); }
+function msPaint(){
+  document.querySelectorAll('#sheet .cell.ms-cell').forEach(e=>e.classList.remove('ms-cell'));
+  msSet.forEach(k=>{ const [r,c]=k.split(','); const el=document.getElementById('c'+r+'_'+c); if(el) el.classList.add('ms-cell'); });
+}
+function msClear(){ if(!msSet || !msSet.size) return; msSet.clear(); msPaint(); try{ updateStats(selC); }catch(_){} }
+function msSyncBtn(){ const b=document.getElementById('msBtn'); if(b){ b.classList.toggle('on', msOn); b.setAttribute('aria-pressed', String(msOn)); } document.body.classList.toggle('ms-on', msOn); }
+function msToggleBtn(force){
+  msOn = (force!=null) ? !!force : !msOn;
+  msSyncBtn();
+  if(msOn) toast('複数選択オン：セルを押して足す・外す', 2200);
+}
+function msTap(r,c){
+  if(isLockedCell(r,c) && false) return;
+  if(!msSet.size){   // はじめは いま 選んで いる セル（範囲）も 入れる
+    kfmtCells().forEach(([rr,cc])=>msSet.add(rr+','+cc));
+  }
+  const k=r+','+c;
+  if(msSet.has(k) && msSet.size>1) msSet.delete(k); else msSet.add(k);
+  clearRangeSelection();
+  const last=msSet.has(k) ? [r,c] : msCells().pop();
+  sel(last[0], last[1]);
+  msPaint();
+  updateStats(selC);
+}
+(function msKeys(){
+  let solo=false;
+  document.addEventListener('keydown', e=>{
+    if(e.key==='Control' || e.key==='Meta'){ if(!e.repeat) solo=true; }
+    else if(e.ctrlKey || e.metaKey) solo=false;   // Ctrl+C など
+  }, true);
+  document.addEventListener('mousedown', e=>{ if(e.ctrlKey || e.metaKey) solo=false; }, true);   // Ctrl を 押しながら クリック
+  document.addEventListener('keyup', e=>{
+    if((e.key==='Control' || e.key==='Meta') && solo){
+      solo=false;
+      if(!ui2On || isDentaku() || document.querySelector('.modal-overlay.open')) return;
+      msToggleBtn();
+    }
+  }, true);
+  window.addEventListener('blur', ()=>{ solo=false; });
 })();
 /* ── しゃべった式を読み取る ────────────────────────────────────
    音声入力（キーボードのマイク／アプリの🎤）で入る文字は端末によって形が違う。
@@ -18131,7 +18186,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v653';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v654';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -19299,6 +19354,7 @@ function afterFmtChange(){
 /* ── テンキー左の「セル書式」ページ ──
    選択中のセル（スライドで範囲選択していれば範囲全体）に書式を適用する */
 function kfmtCells(){
+  if(typeof msActive==='function' && msActive()) return msCells();   // 複数選択（v654）
   const out=[];
   if(rangeR1>=0){
     const r1=Math.min(rangeR1,rangeR2), r2=Math.max(rangeR1,rangeR2);
