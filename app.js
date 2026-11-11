@@ -13305,7 +13305,14 @@ function msPaint(){
   msSet.forEach(k=>{ const [r,c]=k.split(','); const el=document.getElementById('c'+r+'_'+c); if(el) el.classList.add('ms-cell'); });
 }
 function msClear(){ if(!msSet || !msSet.size) return; msSet.clear(); msPaint(); try{ updateStats(selC); }catch(_){} }
-function msSyncBtn(){ const b=document.getElementById('msBtn'); if(b){ b.classList.toggle('on', msOn); b.setAttribute('aria-pressed', String(msOn)); } document.body.classList.toggle('ms-on', msOn); }
+function msSyncBtn(){ const b=document.getElementById('msBtn'); if(b){ b.classList.toggle('on', msOn); b.setAttribute('aria-pressed', String(msOn)); } document.body.classList.toggle('ms-on', msOn); if(msOn){ try{ ctrlLabels(); }catch(_){} } ctrlFxPlace(); }
+/* Ctrl オンの 間だけ、0 の キーの 右半分に ƒx関数（v655）。0 を 並べかえて いても その 右半分に 合わせる */
+function ctrlFxPlace(){
+  const fx=document.getElementById('ctrlFxBtn'), z=document.querySelector('#numpadPage1 .btn[data-key="n0"]'); if(!fx || !z) return;
+  if(!msOn) return;
+  const cs=getComputedStyle(z), c0=parseInt(cs.gridColumnStart,10), r0=parseInt(cs.gridRowStart,10);
+  if(c0>0 && r0>0){ fx.style.gridColumn=String(c0+1); fx.style.gridRow=String(r0); }
+}
 function msToggleBtn(force){
   msOn = (force!=null) ? !!force : !msOn;
   msSyncBtn();
@@ -13328,6 +13335,11 @@ function msTap(r,c){
 /* ══ Ctrl キー（v655）══
    「Ctrl」を オンに した 間は、テンキーの 文字が Excel の ショートカットと 同じ 働きに 変わる（スマホの Shift の ように 文字も 変わる）。
    セルを 押すと 複数選択（v654）。パソコンでは Ctrl＋Z などの 本物の ショートカットも 同じ 働き */
+/* テンキーの キーに Ctrl の 文字を 付ける（キーを 作り直す 設定が あるので、オンに する たびに 付け直す） */
+function ctrlLabels(){
+  const pg=document.getElementById('numpadPage1'); if(!pg || typeof CTRL_KEYS==='undefined') return;
+  Object.keys(CTRL_KEYS).forEach(k=>{ const b=pg.querySelector('.btn[data-key="'+k+'"]'); if(b && b.dataset.ctrl!==CTRL_KEYS[k].l) b.dataset.ctrl=CTRL_KEYS[k].l; });
+}
 function ctrlCells(){ return (typeof msActive==='function' && msActive()) ? msCells() : kfmtCells(); }
 function ctrlSelectAll(){ msClear(); clearRangeSelection(); sel(0,0); extendRange(ROWS-1, COLS-1); toast('ぜんぶ 選びました'); }
 function ctrlToday(){
@@ -13369,14 +13381,14 @@ const CTRL_KEYS={
   n7:{l:'↶\n戻す',   run:()=>undoLast()},           n8:{l:'↷やり\n直す', run:()=>redoLast()},       n9:{l:'全部\n選ぶ', run:()=>ctrlSelectAll()},
   n4:{l:'コピー',     run:()=>copyCell()},           n5:{l:'切り\n取り',  run:()=>cutCell()},         n6:{l:'貼り\n付け', run:()=>pasteCell()},
   n1:{l:'B\n太字',    run:()=>kfmtToggle('bold')},   n2:{l:'I\n斜体',     run:()=>kfmtToggle('italic')}, n3:{l:'U\n下線', run:()=>kfmtToggle('underline')},
-  n0:{l:'今日の日付', run:()=>ctrlToday()},          dot:{l:'時刻',       run:()=>ctrlNow()},
+  n0:{l:'今日', run:()=>ctrlToday()},          dot:{l:'時刻',       run:()=>ctrlNow()},   // 0 の 右半分は ƒx関数（v655）
   plus:{l:'行を\n足す', run:()=>insertRowAtSel()},   minus:{l:'行を\n消す', run:()=>deleteRowAtSel()},
   div:{l:'列を\n足す',  run:()=>insertColAtSel()},   mul:{l:'列を\n消す',   run:()=>deleteColAtSel()},
   enter:{l:'一括\n入力', run:()=>ctrlFill()}
 };
 (function ctrlSetup(){
   const pg=document.getElementById('numpadPage1'); if(!pg) return;
-  Object.keys(CTRL_KEYS).forEach(k=>{ const b=pg.querySelector('.btn[data-key="'+k+'"]'); if(b) b.dataset.ctrl=CTRL_KEYS[k].l; });
+  ctrlLabels();
   // Ctrl オンの 間は、キーの 本来の 働きの 前に ショートカットを 動かす（キーの onclick までは 届かせない）
   pg.addEventListener('click', e=>{
     if(!msOn || !ui2On || keypadEditing) return;
@@ -18257,7 +18269,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v654';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v655';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

@@ -20935,8 +20935,15 @@ async function runUi2640(browser) {
     await page.tap('#c2_1'); await page.tap('#c4_2'); await page.tap('#msBtn'); await w(200);
     await key('n5'); await key('n0'); await page.tap('#msBtn'); await w(200); await key('enter'); await w(400);
     check('  　Ctrl＋Enter で 選んだ セル ぜんぶに 同じ 値（一括入力）', await page.evaluate(() => [data[0][0], data[2][1], data[4][2]].join(',')), '50,50,50');
+    const fxp = await page.evaluate(() => { const g = q => document.querySelector(q).getBoundingClientRect(); const z = g('#numpadPage1 [data-key=n0]'), f = g('#ctrlFxBtn'), d = g('#numpadPage1 [data-key=dot]');
+      return [Math.abs(f.right - z.right) < 2, Math.abs(f.top - z.top) < 2, f.width < z.width * 0.6, getComputedStyle(document.querySelector('#numpadPage1 [data-key=n0]'), '::before').content.replace(/"/g, ''), getComputedStyle(document.querySelector('#numpadPage1 [data-key=dot]'), '::before').content.replace(/"/g, ''), Math.round(d.width) === Math.round(f.width)].join('/'); });
+    check('  　Ctrl の 間は 0 の キーの 右半分に ƒx関数（左は 今日）・. は 時刻（v655）', fxp, 'true/true/true/今日/時刻/true');
+    await page.tap('#ctrlFxBtn'); await w(500);
+    check('  　ƒx関数 で 関数を えらぶ 窓', await page.evaluate(() => isDlgOpen('funcPickOverlay')), true);
+    await page.evaluate(() => closeDlg('funcPickOverlay')); await w(300);
     await page.tap('#msBtn'); await w(200); await page.evaluate(() => sel(6, 0)); await key('n7'); await key('enter'); await w(300);
     check('  　Ctrl を 切ると ふつうの テンキー', await page.evaluate(() => data[6][0] + '/' + msOn), '7/false');
+    check('  　Ctrl を 切ると ƒx関数は 出ない', await page.evaluate(() => !!document.getElementById('ctrlFxBtn').offsetParent), false);
     await page.evaluate(() => { [[0, 0], [2, 1], [4, 2], [6, 0]].forEach(([r, c]) => setCellVal(r, c, '')); msClear(); sel(0, 0); }); await w(200);
   }
   // 範囲を 選んで ⌫・CE で まとめて 消す（v646）
