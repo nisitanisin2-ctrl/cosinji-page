@@ -6449,7 +6449,7 @@ function calPick(serial){
   closeDlg('calPickOverlay');
   if(editBlocked() || isLockedCell(selR,selC)){ toast('このセルには入れられません'); return; }
   const r=selR, c=selC;
-  setCellVal(r,c, formatDate(serial,'ymd'));   // 日付として 入る（通し番号）
+  setCellVal(r,c, String(serial));   // 日付として 入る（通し番号。日付の 自動の 変換を 止めて いても 日付。v650）
   const s=(cellStyles[`${r},${c}`]=cellStyles[`${r},${c}`]||{}); s.dfmt=calFmt; delete s.nodate;
   repaintCell(r,c); persistModes();
   document.getElementById('formulaInput').value=cellEditString(r,c);
@@ -11909,15 +11909,15 @@ function normalizeFullWidth(v){
 }
 
 function setCellVal(r,c,v) {
-  v = normalizeFullWidth(v);                              // 全角数字→半角（iPhoneキーボード対策）
+  if (autoRuleOn('half')) v = normalizeFullWidth(v);      // 全角数字→半角（iPhoneキーボード対策）。設定で 止められる（v650）
   // 数式の 閉じ かっこが 足りない ときは 足す（Excel と 同じ。ƒx の 書き始めから Enter した とき など。v647）
-  if (typeof v==='string' && v.startsWith('=')) { const q=v.replace(/"[^"]*"/g,''), o=(q.match(/\(/g)||[]).length, cl=(q.match(/\)/g)||[]).length; if(o>cl) v=v+')'.repeat(o-cl); }
+  if (typeof v==='string' && v.startsWith('=') && autoRuleOn('paren')) { const q=v.replace(/"[^"]*"/g,''), o=(q.match(/\(/g)||[]).length, cl=(q.match(/\)/g)||[]).length; if(o>cl) v=v+')'.repeat(o-cl); }
   if (isLockedCell(r,c)) { flashLocked(r,c); return; }   // 保護セルへの書き込みを防止（手入力・貼付・フィル）
   // 日付の自動認識：日付として入力されたらExcel互換の通し番号に変換し日付書式を付ける
   let dfmtChange=null;   // {set:'ymd'} または {clear:true}
   if (v!=='' && !String(v).startsWith('=')) {
     const s0=cellStyles[`${r},${c}`];
-    if (!(s0 && s0.nodate)) {                              // 「日付にしない」を選んだセルは自動で日付化しない
+    if (!(s0 && s0.nodate) && autoRuleOn('date')) {        // 「日付にしない」を選んだセル・設定で 止めた ときは 自動で日付化しない（v650）
       const serial=parseDateInput(v);
       if (serial!==null) { dfmtChange={set:(s0&&s0.dfmt)?s0.dfmt:defaultDateFmt}; v=String(serial); }
       else if (s0&&s0.dfmt) { dfmtChange={clear:true}; }   // 日付セルに日付以外→書式解除
@@ -13145,7 +13145,7 @@ function barPadKey(kind, arg){
   else if(kind==='op'){
     const sym = arg==='*' ? '×' : arg==='/' ? '÷' : arg;
     // 数の あとに 計算の 記号を 押したら 式に する（120 × 3 → =120×3）
-    if(!v.startsWith('=') && /^-?\d+(\.\d+)?$/.test(v.trim()) && fi.selectionStart===v.length){ fi.value='='+v.trim(); try{ fi.setSelectionRange(fi.value.length, fi.value.length); }catch(_){} }
+    if(autoRuleOn('opfx') && !v.startsWith('=') && /^-?\d+(\.\d+)?$/.test(v.trim()) && fi.selectionStart===v.length){ fi.value='='+v.trim(); try{ fi.setSelectionRange(fi.value.length, fi.value.length); }catch(_){} }
     fiIns(sym);
   }
   else if(kind==='sign'){
@@ -14599,10 +14599,36 @@ function voiceStartContinuous(){
 
 /* 自動で式に直すかどうか（設定→🧮計算） */
 let speechAutoOn = localStorage.getItem('excalc_speechauto')!=='0';   // 既定は直す
+/* ── 入れた ときの 自動の 変換（v650）── それぞれ 設定で オン／オフ（はじめは ぜんぶ オン） */
+const AUTO_RULES=[
+  {k:'half',  key:'excalc_auto_half',  n:'全角の数字・記号を半角に',            ex:'１２０ → 120'},
+  {k:'date',  key:'excalc_auto_date',  n:'日付に見えるものは日付に',            ex:'11/10 → 2026/11/10'},
+  {k:'speech',key:'excalc_speechauto', n:'式に見える文字は計算する',            ex:'120×3・251かける68 → 答え'},
+  {k:'opfx',  key:'excalc_auto_opfx',  n:'テンキーで直すとき、数のあとの × などで式に', ex:'120 × 3 → =120×3'},
+  {k:'paren', key:'excalc_auto_paren', n:'数式の閉じかっこを足す',              ex:'=SUM(A1:A3 → =SUM(A1:A3)'}
+];
+function autoRuleOn(k){   // 起動の 途中（この 行より 前）でも 呼ばれるので、上の 一覧は 使わない
+  const key={half:'excalc_auto_half', date:'excalc_auto_date', speech:'excalc_speechauto', opfx:'excalc_auto_opfx', paren:'excalc_auto_paren'}[k];
+  if(!key) return true;
+  try{ return localStorage.getItem(key)!=='0'; }catch(_){ return true; }
+}
+function setAutoRule(k, on){
+  const d=AUTO_RULES.find(x=>x.k===k); if(!d) return;
+  if(k==='speech'){ if(speechAutoOn!==on) toggleSpeechAuto(); }
+  else { try{ localStorage.setItem(d.key, on?'1':'0'); }catch(_){} toast(d.n+'：'+(on?'オン':'オフ')); }
+  renderAutoRules();
+}
+function renderAutoRules(){
+  const box=document.getElementById('autoRuleList'); if(!box) return;
+  box.innerHTML=AUTO_RULES.map(d=>{ const on=autoRuleOn(d.k);
+    return '<div class="auto-row"><span class="auto-t">'+d.n+'<small>'+escHtml(d.ex)+'</small></span>'
+      +'<button class="auto-sw'+(on?' on':'')+'" data-k="'+d.k+'" aria-pressed="'+on+'" onclick="setAutoRule(\''+d.k+'\','+(!on)+')">'+(on?'オン':'オフ')+'</button></div>'; }).join('');
+}
 function toggleSpeechAuto(){
   speechAutoOn=!speechAutoOn;
   localStorage.setItem('excalc_speechauto', speechAutoOn?'1':'0');
   const b=document.getElementById('speechAutoBtn'); if(b) b.classList.toggle('on', speechAutoOn);
+  renderAutoRules();
   toast(speechAutoOn?'しゃべった式を自動で計算します（例「251かける68」→ =251*68）'
                    :'しゃべった言葉は文字のまま入れます');
 }
@@ -18083,7 +18109,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v649';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v650';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -21101,7 +21127,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_keysize','excalc_links','excalc_modeorder','excalc_np_place','excalc_fb_place','excalc_npad','excalc_numpad_hidden',
   'excalc_numpad_landw','excalc_numscale','excalc_pagebar','excalc_pdf_settings','excalc_pm_custom_colors','excalc_pm_phrases',
   'excalc_pm_prefs','excalc_prn','excalc_savesort','excalc_savetabnames','excalc_saveview','excalc_show_resizerbar',
-  'excalc_show_sheettabs','excalc_skin','excalc_speechauto','excalc_speechlayout','excalc_speechspeak','excalc_startpage',
+  'excalc_show_sheettabs','excalc_skin','excalc_speechauto','excalc_auto_half','excalc_auto_date','excalc_auto_opfx','excalc_auto_paren','excalc_speechlayout','excalc_speechspeak','excalc_startpage',
   'excalc_sumfunc','excalc_taxrate','excalc_taxround','excalc_tbfold','excalc_toolsbtn_hide','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
   'excalc_ts_warn','excalc_userkeys',
   'excalc_uimode','excalc_trim','excalc_manner','excalc_boki','excalc_kurashi','excalc_keisan','excalc_ruler','excalc_tool_fav','excalc_tool_hints','excalc_seq_step','excalc_regi_ui',   // v460〜v462・v501
@@ -22024,7 +22050,7 @@ applyPageBar();      // テンキーのページ表示の有無を復元
 syncFuncPageBtn();   // 記号ページを出すかどうかの見た目を合わせる
 loadTopBtnShown(); applyTopBtnShown();                       // 上のバーに出すボタンを復元
 if(typeof bindDefaultSizeBtn==='function') bindDefaultSizeBtn(document.getElementById('tbDefsize'));   // ▦を押すと既定の大きさの設定が開く
-(function(){ const b=document.getElementById('speechAutoBtn'); if(b) b.classList.toggle('on', speechAutoOn); })();
+(function(){ const b=document.getElementById('speechAutoBtn'); if(b) b.classList.toggle('on', speechAutoOn); renderAutoRules(); })();
 (function(){ const b=document.getElementById('speechSpeakBtn'); if(b) b.classList.toggle('on', speechSpeakOn); })();
 (function(){ const el=document.getElementById('speechLayoutSel'); if(el) el.value=speechLayout; })();
 (function(){   // 🎤は、この端末で使えるときだけ出す。長押しで「続けて入れる」

@@ -20868,6 +20868,20 @@ async function runUi2640(browser) {
     check('  　設定で「下のタブを残す」に できる', await tm(), (852 - 48) + '/visible/0');
     await page.evaluate(() => { NP_TOOLS.find(t => t.id === 'tansui').close(); setToolFs(true); }); await w(400);
   }
+  // v650：入れた ときの 自動の 変換を 1つずつ オン／オフ
+  {
+    const run = () => page.evaluate(() => { setCellVal(28, 0, '１２０'); setCellVal(28, 1, '11/10'); setCellVal(28, 2, '=SUM(A1:A1');
+      sel(27, 0); const fi = document.getElementById('formulaInput'); fi.value = '120×3'; fi.dispatchEvent(new Event('input')); fiEnter(true);
+      const r = [data[28][0], /^\d+$/.test(data[28][1]) ? 'date' : data[28][1], data[28][2], data[27][0]].join(' | ');
+      [[27, 0], [28, 0], [28, 1], [28, 2]].forEach(([r, c]) => setCellVal(r, c, '')); return r; });
+    await page.evaluate(() => { if (ROWS < 30) changeRows(30 - ROWS); }); await w(200);
+    check('  自動の 変換は はじめ ぜんぶ オン（半角・日付・式に 見える 文字・閉じかっこ）', await run(), '120 | date | =SUM(A1:A1) | =120*3');
+    await page.evaluate(() => ['half', 'date', 'speech', 'opfx', 'paren'].forEach(k => setAutoRule(k, false))); await w(200);
+    check('  　設定で 1つずつ オフに できる', await run() + '/' + await page.evaluate(() => [...document.querySelectorAll('#autoRuleList .auto-sw')].map(b => b.textContent).join('')), '１２０ | 11/10 | =SUM(A1:A1 | 120×3/オフオフオフオフオフ');
+    await page.evaluate(() => { sel(28, 0); calPick(dateToSerial(2026, 11, 3)); }); await w(200);
+    check('  　日付の 変換を オフでも 📅 の 日付は 日付で 入る', await page.evaluate(() => !!cellDateFmt(28, 0) && data[28][0] === String(dateToSerial(2026, 11, 3))), true);
+    await page.evaluate(() => { setCellVal(28, 0, ''); ['half', 'date', 'speech', 'opfx', 'paren'].forEach(k => setAutoRule(k, true)); sel(0, 0); }); await w(200);
+  }
   // 範囲を 選んで ⌫・CE で まとめて 消す（v646）
   await page.evaluate(() => { for (let r = 10; r < 13; r++) for (let c = 0; c < 3; c++) setCellVal(r, c, String(r * 10 + c)); recalcAll(); sel(10, 0); extendRange(11, 1); }); await w(200);
   await page.click('#numpadPage1 [data-key="bs"]'); await w(300);
