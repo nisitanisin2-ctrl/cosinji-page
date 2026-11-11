@@ -1535,11 +1535,31 @@ function padTopRow(){
   if(!isFinite(top) || !isFinite(bot) || bot-top<16) return null;
   return { left:v.left, width:v.width, top, height:bot-top };
 }
+/* その場の メニューの ボタンを「アイコン＋下に 小さい 名前」に する（v663）。
+   名前は ほかの ところで textContent ごと 書きかわる（保護・結合）ので、出す たびに 作り直す */
+const POP_SHORT={'グラフ・色・しぼる':'グラフ他','結合を解除':'結合解除','保護をやめる':'保護解除','幅を中身に':'幅合わせ','隠した列を出す':'列を出す',
+  '隠した行を出す':'行を出す','ここまで固定':'固定','下へコピー':'下へ','右へコピー':'右へ','あいうえお順':'あいうえお','しぼり込み':'しぼる','ロック中':'ロック中'};
+const POP_ACT={nf_comma:['1,000','桁区切り'], dec_up:['.0','小数＋'], dec_dn:['.0','小数−'], nf_pct:['%','パーセント'], nf_yen:['¥','円'], fill_series:['123','連番'], more2:['⋯','もっと']};
+function popIconize(menu){
+  menu.querySelectorAll('button:not(.cm-arr)').forEach(b=>{
+    if(b.querySelector('.pi')) return;
+    const full=b.textContent.trim(); if(!full) return;
+    let ic, lb;
+    const fix=POP_ACT[b.dataset.act];
+    if(fix){ ic=fix[0]; lb=fix[1]; }
+    else { const k=full.search(/[\s　]/); if(k>0){ ic=full.slice(0,k); lb=full.slice(k).trim(); } else { ic=full; lb=''; } }
+    lb=POP_SHORT[lb]||lb;
+    if(!b.title) b.title=full;
+    b.setAttribute('aria-label', full);
+    b.innerHTML='<span class="pi" aria-hidden="true">'+escHtml(ic)+'</span> <span class="pl" aria-hidden="true">'+escHtml(lb)+'</span>';
+  });
+}
 function placeEditBar(){
   const menu=document.getElementById('cellMenu'); if(!menu || !menu.classList.contains('edit-bar')) return;
   // 新しい 画面（v641）：テンキーには 重ねず、選んだ セルの そばに 小さく 出す（その場の メニュー）
   menu.classList.toggle('ui2-pop', ui2On && !document.body.classList.contains('kb-edit'));
   if(menu.classList.contains('ui2-pop')){
+    popIconize(menu);
     menu.classList.remove('on-pad');
     menu.style.height=''; menu.style.width=''; menu.style.right='auto'; menu.style.bottom='auto';
     const wrap=document.querySelector('.sheet-wrap'), wr=wrap ? wrap.getBoundingClientRect() : {top:0,bottom:innerHeight,left:0,right:innerWidth,width:innerWidth};
@@ -1783,6 +1803,7 @@ function bandRender(){
   m.classList.toggle('ctx-hdr', !!bandHdrKind && bandLive.length>0);
   m.dataset.ctx=kind;
   bandOrder(m, kind);
+  if(m.classList.contains('ui2-pop')) popIconize(m);   // その場の メニューは アイコン＋名前（v663）
   bandScrollSync();   // ボタンが 変わると はみ出し方も 変わる（v633）
 }
 /* 決めた 並びに する（決めて いない いつもの ボタンは 隠す。並びは 押しても 変わらない） */
@@ -18522,7 +18543,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v662';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v663';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
