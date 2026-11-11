@@ -20903,21 +20903,26 @@ async function runUi2640(browser) {
   // v654：☑複数（パソコンの Ctrl）で ばらばらの セルを 選ぶ・数式の キーの 段に ＝
   {
     await page.evaluate(() => { setCellVal(0, 0, '10'); setCellVal(1, 1, '20'); setCellVal(3, 2, '30'); recalcAll(); sel(0, 0); }); await w(200);
-    await page.tap('#msBtn'); await w(200); await page.tap('#c1_1'); await page.tap('#c3_2'); await w(400);
+    await page.tap('#msBtn'); await w(200);
+    await page.tap('#c3_1'); await w(200);
+    check('  Ctrl を オンに した だけでは 複数選択に ならない（v657）', await page.evaluate(() => msSet.size + '/' + selR + ',' + selC), '0/3,1');
+    await page.evaluate(() => sel(0, 0)); await page.tap('#numpadPage1 [data-key="n7"]'); await w(200);
+    check('  　Ctrl の 7「複数選ぶ」で 複数選択（ラベルも 選択中）', await page.evaluate(() => msPick + '/' + document.querySelector('#numpadPage1 [data-key=n7]').dataset.ctrl.replace(/\n/g, '')), 'true/複数選択中');
+    await page.tap('#c1_1'); await page.tap('#c3_2'); await w(400);
     const ms = () => page.evaluate(() => { const f = document.getElementById('rangeSum'); return [msOn, msSet.size, document.querySelectorAll('#sheet .ms-cell').length, f.hidden ? '-' : f.textContent.replace(/\s+/g, '')].join('|'); });
-    check('  ☑複数 を オンに して セルを 押すと ばらばらに 選べる・右下に その 合計', (await ms()).replace(/¥$/, ''), 'true|3|3|合計（3つ）60');
+    check('  　セルを 押すと ばらばらに 選べる・右下に その 合計', (await ms()).replace(/¥$/, ''), 'true|3|3|合計（3つ）60');
     await page.tap('#c1_1'); await w(300);
     check('  　もう一度 押すと 外れる', (await ms()).replace(/¥$/, ''), 'true|2|2|合計（2つ）40');
     await page.tap('#msBtn'); await w(200);
     await page.evaluate(() => kfmtApply(s => { s.bold = true; })); await w(100);
-    check('  　ボタンを 切っても 選んだ まま・書式は 選んだ セルに', await page.evaluate(() => [msSet.size, !!(cellStyles['0,0'] || {}).bold, !!(cellStyles['3,2'] || {}).bold, !!(cellStyles['1,1'] || {}).bold].join('/')), '2/true/true/false');
+    check('  　Ctrl を 切っても 選んだ まま（複数選ぶ も 切れる）・書式は 選んだ セルに', await page.evaluate(() => [msSet.size, !!(cellStyles['0,0'] || {}).bold, !!(cellStyles['3,2'] || {}).bold, !!(cellStyles['1,1'] || {}).bold].join('/')), '2/true/true/false');
     await page.tap('#numpadPage1 [data-key="bs"]'); await w(300);
     check('  　⌫ で 選んだ セルだけ 消す', await page.evaluate(() => [data[0][0], data[1][1], data[3][2]].join(',')), ',20,');
     await page.evaluate(() => undoLast()); await w(200); await page.tap('#c5_0'); await w(300);
     check('  　ふつうに セルを 押すと 外れる', await page.evaluate(() => msSet.size + '/' + document.querySelectorAll('#sheet .ms-cell').length), '0/0');
     await page.evaluate(() => { kfmtApply(s => { delete s.bold; }); sel(6, 0); }); await page.tap('#numpadPage1 [data-key="fx"]'); await w(400);
     check('  数式の キーの 段に ＝', await page.evaluate(() => [...document.querySelectorAll('#fxRow .fxk')].map(b => b.textContent).join(' ')), '◀ = ( ) , : ▶');
-    await page.tap('#c0_0'); await page.evaluate(() => msToggleBtn(true)); await page.tap('#c3_2'); await w(200);
+    await page.tap('#c0_0'); await page.evaluate(() => { msToggleBtn(true); msPickSet(true); }); await page.tap('#c3_2'); await w(200);
     check('  　数式の 中で ☑複数 の 間は「,」で つなぐ', await page.evaluate(() => document.getElementById('formulaInput').value), '=A1,C4');
     await page.evaluate(() => { msToggleBtn(false); fiCancel(); [[0, 0], [1, 1], [3, 2]].forEach(([r, c]) => setCellVal(r, c, '')); sel(0, 0); }); await w(200);
   }
@@ -20930,9 +20935,14 @@ async function runUi2640(browser) {
     check('  Ctrl の ボタン・オンで テンキーの 文字が ショートカットに（大きさは 同じ）', await page.evaluate(() => document.getElementById('msBtn').textContent.trim() + '/' + getComputedStyle(document.querySelector('#numpadPage1 [data-key=n4]'), '::before').content.replace(/"/g, '') + '/' + Math.round(document.getElementById('numpadSection').getBoundingClientRect().top)), 'Ctrl/コピー/' + h0);
     await key('n1'); await w(200);
     check('  　Ctrl＋1 で 太字', await page.evaluate(() => !!(cellStyles['0,0'] || {}).bold), true);
-    await key('n7'); await w(200);
-    check('  　Ctrl＋7 で ↶戻す', await page.evaluate(() => !!(cellStyles['0,0'] || {}).bold), false);
-    await page.tap('#c2_1'); await page.tap('#c4_2'); await page.tap('#msBtn'); await w(200);
+    await page.evaluate(() => undoLast()); await w(200);
+    await key('n8'); await w(300);
+    check('  　Ctrl＋8 で 行を 選ぶ（v657）', await page.evaluate(() => (hdrMulti ? hdrMulti.kind : '-') + '/' + selRow), 'row/0');
+    await key('n9'); await w(300);
+    check('  　Ctrl＋9 で 列を 選ぶ', await page.evaluate(() => (hdrMulti ? hdrMulti.kind + [...hdrMulti.set].join('') : '-')), 'col0');
+    await key('ce'); await w(300);
+    check('  　Ctrl＋CE で 全部 選ぶ', await page.evaluate(() => [rangeR1, rangeC1, rangeR2 === ROWS - 1, rangeC2 === COLS - 1].join('/')), '0/0/true/true');
+    await page.evaluate(() => { clearRangeSelection(); hdrMultiClear(); sel(0, 0); }); await key('n7'); await page.tap('#c2_1'); await page.tap('#c4_2'); await page.tap('#msBtn'); await w(200);
     await key('n5'); await key('n0'); await page.tap('#msBtn'); await w(200); await key('enter'); await w(400);
     check('  　Ctrl＋Enter で 選んだ セル ぜんぶに 同じ 値（一括入力）', await page.evaluate(() => [data[0][0], data[2][1], data[4][2]].join(',')), '50,50,50');
     const fxp = await page.evaluate(() => { const g = q => document.querySelector(q).getBoundingClientRect(); const z = g('#numpadPage1 [data-key=n0]'), f = g('#ctrlFxBtn'), t = g('#ctrlTodayBtn'), d = g('#numpadPage1 [data-key=dot]');
