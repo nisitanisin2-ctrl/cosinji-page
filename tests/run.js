@@ -20874,10 +20874,14 @@ async function runUi2640(browser) {
       sel(27, 0); const fi = document.getElementById('formulaInput'); fi.value = '120×3'; fi.dispatchEvent(new Event('input')); fiEnter(true);
       const r = [data[28][0], /^\d+$/.test(data[28][1]) ? 'date' : data[28][1], data[28][2], data[27][0]].join(' | ');
       [[27, 0], [28, 0], [28, 1], [28, 2]].forEach(([r, c]) => setCellVal(r, c, '')); return r; });
-    await page.evaluate(() => { if (ROWS < 30) changeRows(30 - ROWS); }); await w(200);
+    await page.evaluate(() => { if (ROWS < 35) changeRows(35 - ROWS); }); await w(200);
     check('  自動の 変換は はじめ ぜんぶ オン（半角・日付・式に 見える 文字・閉じかっこ）', await run(), '120 | date | =SUM(A1:A1) | =120*3');
     await page.evaluate(() => ['half', 'date', 'speech', 'opfx', 'paren'].forEach(k => setAutoRule(k, false))); await w(200);
-    check('  　設定で 1つずつ オフに できる', await run() + '/' + await page.evaluate(() => [...document.querySelectorAll('#autoRuleList .auto-sw')].map(b => b.textContent).join('')), '１２０ | 11/10 | =SUM(A1:A1 | 120×3/オフオフオフオフオフオン');
+    check('  　設定で 1つずつ オフに できる', await run() + '/' + await page.evaluate(() => [...document.querySelectorAll('#autoRuleList .auto-sw')].map(b => b.textContent).join('')), '１２０ | 11/10 | =SUM(A1:A1 | 120×3/オフオフオフオフオン');
+    await page.evaluate(() => sel(33, 0)); await page.tap('#formulaInput'); await w(400);
+    for (const k of ['n1', 'n2', 'n0', 'mul', 'n3', 'enter']) await page.tap('#numpadPage1 [data-key="' + k + '"]'); await w(300);
+    check('  　「式に見える文字」が オフなら、バーを テンキーで 打った 120×3 も 文字の まま（v652）', await page.evaluate(() => data[33][0]), '120×3');
+    await page.evaluate(() => setCellVal(33, 0, ''));
     await page.evaluate(() => { sel(28, 0); calPick(dateToSerial(2026, 11, 3)); }); await w(200);
     check('  　日付の 変換を オフでも 📅 の 日付は 日付で 入る', await page.evaluate(() => !!cellDateFmt(28, 0) && data[28][0] === String(dateToSerial(2026, 11, 3))), true);
     await page.evaluate(() => { setCellVal(28, 0, ''); ['half', 'date', 'speech', 'opfx', 'paren'].forEach(k => setAutoRule(k, true)); sel(0, 0); }); await w(200);
