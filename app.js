@@ -13719,8 +13719,9 @@ const SPEECH_RECIPES=[
         「割って」が続くときは割り勘なので、そちらにゆずる */
   {id:'qtytotal', g:'お金', ex:'180円を4個',
    re:new RegExp('(?:(?:1|１)(?:'+SR_CNT+'))?'+SR_N+'円(?:を|の|が|×|かける|掛ける)(?:もの|品|の品)?'+SR_N+'('+SR_CNT+')(?!(?:で|に)?(?:割|わ|分|わけ|あたま|頭))'),
-   run:m=>{ const y=+m[1], q=+m[2], u=m[3];
+   run:(m,t)=>{ const y=+m[1], q=+m[2], u=m[3];
      if(!q) return null;
+     if(/^(人|にん)$/.test(u) && /^で/.test(String(t||'').slice((m.index||0)+m[0].length))) return null;   // 「12800円を4人で」は 分ける（v666）
      const lb=srCntLabel(u);
      return { e:`1${lb} ${withCommas(m[1])}円 × ${withCommas(m[2])}${lb}`, v:y*q, u:'円', dp:2,
               sub:`1${lb}あたり ${srYen(y)}` }; }},
@@ -14660,6 +14661,9 @@ function veItems(t, min){
 function veSpecial(t, raw){
   const N='(\\d+(?:\\.\\d+)?)', loose=r=>!/\d/.test(r) && r.length<=14;
   let m;
+  // 「12800円を4人で」「1万円を3人で分けると」＝分ける（v666）
+  m=t.match(new RegExp('^'+N+'(円)?(?:を|は)'+N+'(?:人|にん)(?:で|に)(?:分ける|わける|分けると|わけると|分けたら|割ると|わると|割ったら|割り勘|わりかん|山分け|配ると|配る)?(?:すると|したら|と)?(?:1人|ひとり)?(?:あたり|当たり|分|ぶん)?'));
+  if(m && +m[3] && loose(t.slice(m[0].length))) return { e:veFmt(m[1])+(m[2]||'')+' ÷ '+veFmt(m[3])+'人', v:+(m[1]/m[3]).toFixed(10), u:m[2]||'', sub:'1人あたり', dp:veDp(m[1]/m[3], !!m[2]) };
   // お釣り：「1万円で3980円のお釣り」「1万円出して3980円の買い物」
   m=t.match(new RegExp('^'+N+'円?(?:で|から|札で|札を出して|を?出して|を?出したら|を?払って|を?渡して)、?'+N+'円?(?:の(?:買い物|もの|やつ|品物)?|を)?(?:を?(?:買ったら|買って|買うと|払ったら|払って|払うと|使ったら|使って|使うと)|を?(?:したら|して|すると))?(?:、|の|で|は)?(お釣り|おつり|釣り|つり)?'));
   if(m && (m[3] || /出し|渡し|札/.test(m[0])) && loose(t.slice(m[0].length)))
@@ -14773,8 +14777,25 @@ function voiceRelax(raw){
   t=t.replace(/(?:って|を)?(?:教えて|おしえて)(?:ください|下さい)?[?？。]*$/,'').replace(/(?:になる|になります|なります)(?:か|かな|の)?[?？。]*$/,'');
   return t;
 }
+/* 「〜何km 進む」のように、うしろに よけいな 言葉が 付いて 読めない とき、うしろから 1文字ずつ 落として 読める 形を さがす（v666） */
+function voiceTrimGuess(raw){
+  const s=String(raw==null?'':raw).trim();
+  for(let k=1; k<=12 && k<s.length; k++){
+    const c=s.slice(0, s.length-k).replace(/[\s、。,]+$/,'');
+    if(!/\d/.test(c) || c.length<3) break;
+    if(/[\d.]$/.test(c) && /^[\d.]/.test(s.slice(s.length-k))) continue;   // 数の 途中では 切らない
+    try{ if(sayUnderstands(c)) return c; }catch(_){}
+  }
+  return null;
+}
+/* 電卓の 声の 行が 見えて いる ときは、同じ ことを 黒い お知らせで 重ねて 出さない（行に かぶって 読めなく なるため。v666） */
+function dtVoiceToast(msg, ms){
+  const el=document.getElementById('dtVoice');
+  if(el && el.offsetParent && el.getBoundingClientRect().height>0) return;
+  toast(msg, ms);
+}
 function voiceAcceptEasy(r, raw){
-  if(r.err){ dtVoiceShow(r.err, raw, 'ng'); dtVoiceGuess(null); toast(r.err, 4200); return; }
+  if(r.err){ dtVoiceShow(r.err, raw, 'ng'); dtVoiceGuess(null); dtVoiceToast(r.err, 4200); return; }
   voiceAcceptRecipe(r, raw);
 }
 /* 電卓モードのときは、セルではなく電卓に入れる。
@@ -14812,21 +14833,22 @@ function voiceAcceptDentaku(raw){
     }
   }
   if(f===null){
-    const g=speechGuess(raw);
+    const tg=voiceTrimGuess(raw);
+    const g=tg ? {fit:tg, ex:tg} : speechGuess(raw);
     if(g && g.fit){
       // 言った数をそのまま当てはめられた＝押せばその人の数で計算できる
       dtVoiceShow('もしかして「'+g.fit+'」？', raw, 'ng');
       dtVoiceGuess(g.fit);
-      toast(`もしかして「${g.fit}」ですか（下の行を押すと試せます）`, 5200);
+      dtVoiceToast(`もしかして「${g.fit}」ですか（下の行を押すと試せます）`, 5200);
     }else if(g){
       // 数の個数が合わない＝見本の数で計算すると言っていない答えが出るので、押せなくする
       dtVoiceShow('こう言うと計算できます：「'+g.ex+'」', raw, 'ng');
       dtVoiceGuess(null);
-      toast(`「${g.ex}」のように、数をぜんぶ入れて言ってください`, 5200);
+      dtVoiceToast(`「${g.ex}」のように、数をぜんぶ入れて言ってください`, 5200);
     }else{
       dtVoiceShow('計算の形になりませんでした', raw, 'ng');
       dtVoiceGuess(null);
-      toast('計算の形で言ってください。📖言い方 で言える形を見られます', 5200);
+      dtVoiceToast('計算の形で言ってください。📖言い方 で言える形を見られます', 5200);
     }
     return;
   }
@@ -14834,7 +14856,7 @@ function voiceAcceptDentaku(raw){
   let v; try{ v=evalFormula(f); }catch(_){ v=null; }
   if(typeof v!=='number' || !isFinite(v)){
     dtVoiceShow(shown, raw, 'ng');
-    toast('計算できませんでした'); return;
+    dtVoiceToast('計算できませんでした'); return;
   }
   const num=dtFmtNum(v);
   const fr=wasFrac?fracText(v):null;          // 分数で言われたら、分数の形を先に出す
@@ -14844,13 +14866,13 @@ function voiceAcceptDentaku(raw){
   if(dtStyle==='expr') dtExpr=num;
   disp_val=num; op1=null; cur_op=null; waiting=false; dtSeq=''; dtFresh=true;
   dtRender();
-  toast(`「${raw}」＝ ${ans}`, 4200);
+  dtVoiceToast(`「${raw}」＝ ${ans}`, 4200);
   speechSay(fr?(fr.replace('/','分の').replace(/（.*/,'')):num);
 }
 /* 型として受け取ったとき（v424）。答えが数なら電卓の表示に出して、続けてキーで計算できる。
    「3 余り 2」「9時15分」「素数です」のような答えは、行と履歴に文字で出す */
 function voiceAcceptPhrase(ph, raw){
-  if(ph.cls==='err'){ dtVoiceShow(ph.a, raw, 'ng'); dtVoiceGuess(null); toast(ph.a, 4200); speechSay(ph.say||ph.a); return; }
+  if(ph.cls==='err'){ dtVoiceShow(ph.a, raw, 'ng'); dtVoiceGuess(null); dtVoiceToast(ph.a, 4200); speechSay(ph.say||ph.a); return; }
   const e=ph.f||raw, shownA=String(ph.a||'');
   dtVoiceShow(e+'　→ '+shownA, raw, 'on');
   dtPush(e, shownA);
@@ -14861,7 +14883,7 @@ function voiceAcceptPhrase(ph, raw){
     disp_val=num; op1=null; cur_op=null; waiting=false; dtSeq=''; dtFresh=true;
     dtRender();
   }
-  toast(shownA+(ph.f?'（'+ph.f+'）':''), 5200);
+  dtVoiceToast(shownA+(ph.f?'（'+ph.f+'）':''), 5200);
   speechSay(ph.say||shownA);
 }
 /* 言い回しとして受け取ったとき（割合・割り勘・単価・単位変換など） */
@@ -14873,7 +14895,7 @@ function voiceAcceptRecipe(rc, raw){
   if(dtStyle==='expr') dtExpr=num;
   disp_val=num; op1=null; cur_op=null; waiting=false; dtSeq=''; dtFresh=true;
   dtRender();
-  toast(`${rc.e} ＝ ${ans}`+(rc.sub?`（${rc.sub}）`:''), 5200);
+  dtVoiceToast(`${rc.e} ＝ ${ans}`+(rc.sub?`（${rc.sub}）`:''), 5200);
   speechSay(ans);
 }
 /* 方程式として受け取ったとき（1次・2次まで） */
@@ -14881,7 +14903,7 @@ function voiceAcceptEquation(eq, raw){
   const shown=eqReadable(eq);
   if(eq.none || !eq.roots.length){
     dtVoiceShow(shown+' → 実数の解なし', raw, 'ng');
-    toast(`${shown} … 実数の解はありません`, 4600);
+    dtVoiceToast(`${shown} … 実数の解はありません`, 4600);
     return;
   }
   const one=x=>{ const f=fracText(x); return 'x＝'+dtFmtNum(x)+(f?('（'+f.replace(/（.*/,'')+'）'):''); };
@@ -14894,7 +14916,7 @@ function voiceAcceptEquation(eq, raw){
   if(dtStyle==='expr') dtExpr=num;
   disp_val=num; op1=null; cur_op=null; waiting=false; dtSeq=''; dtFresh=true;
   dtRender();
-  toast(`${shown} → ${ansTxt}`+(eq.roots.length>1?'（電卓には小さい方を入れました）':''), 5200);
+  dtVoiceToast(`${shown} → ${ansTxt}`+(eq.roots.length>1?'（電卓には小さい方を入れました）':''), 5200);
   speechSay(eq.roots.map(x=>'エックスは'+dtFmtNum(x)).join('、'));
 }
 
@@ -18550,7 +18572,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v665';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v666';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

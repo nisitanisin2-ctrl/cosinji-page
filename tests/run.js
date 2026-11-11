@@ -19070,6 +19070,13 @@ async function runDtPhrase(browser) {
       check('  電卓の声：' + name + '（' + PX.length + '件）', bad.join(' / '), '');
     }
     check('  型の数は 680 以上', await page.evaluate(() => KoePhrase.stats().types >= 680), true);
+    // v666：うしろの よけいな 言葉・もしかして・割り勘・黒い お知らせを 重ねない
+    const v6 = async q => page.evaluate(q => { disp_val = '0'; voiceAcceptDentaku(q); return disp_val + '|' + document.getElementById('dtVoice').textContent.replace(/\s+/g, ' '); }, q);
+    check('  「時速50km で15分走ったら何 km 進む」は 計算する（v666）', (await v6('時速50km で15分走ったら何 km 進む')).split('|')[0], '12.5');
+    check('  「12800円を4人で」は 分ける（かけない）', (await v6('12800円を4人で')).split('|')[0], '3200');
+    check('  「180円を4個」は 今までどおり かける', (await v6('180円を4個')).split('|')[0], '720');
+    check('  読めない ときは うしろを 落とした 形を「もしかして」で 出す', /もしかして「時速50キロで15分走ったら何キロ」/.test(await v6('時速50キロで15分走ったら何キロぐらい行けるかな')), true);
+    check('  声の 行が 見えて いる ときは 黒い お知らせを 出さない', await page.evaluate(() => { document.querySelectorAll('.app-toast').forEach(t => t.classList.remove('show')); disp_val = '0'; voiceAcceptDentaku('りんご3個の値段'); return !!document.querySelector('.app-toast.show'); }), false);
   }
   check('  文例の数', n >= 300, true);
   // 前から言えた言い方（📖言い方 の見本）は、型を読み込む前と答えが変わらない
