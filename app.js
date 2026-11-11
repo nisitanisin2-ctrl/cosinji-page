@@ -13309,7 +13309,7 @@ function msSyncBtn(){ const b=document.getElementById('msBtn'); if(b){ b.classLi
 function msToggleBtn(force){
   msOn = (force!=null) ? !!force : !msOn;
   msSyncBtn();
-  if(msOn) toast('複数選択オン：セルを押して足す・外す', 2200);
+  if(msOn) toast('Ctrl オン：セルを押すと複数選択・テンキーはショートカット', 2400);
 }
 function msTap(r,c){
   if(isLockedCell(r,c) && false) return;
@@ -13324,6 +13324,68 @@ function msTap(r,c){
   msPaint();
   updateStats(selC);
 }
+
+/* ══ Ctrl キー（v655）══
+   「Ctrl」を オンに した 間は、テンキーの 文字が Excel の ショートカットと 同じ 働きに 変わる（スマホの Shift の ように 文字も 変わる）。
+   セルを 押すと 複数選択（v654）。パソコンでは Ctrl＋Z などの 本物の ショートカットも 同じ 働き */
+function ctrlCells(){ return (typeof msActive==='function' && msActive()) ? msCells() : kfmtCells(); }
+function ctrlSelectAll(){ msClear(); clearRangeSelection(); sel(0,0); extendRange(ROWS-1, COLS-1); toast('ぜんぶ 選びました'); }
+function ctrlToday(){
+  const cells=ctrlCells().filter(([r,c])=>!isLockedCell(r,c)); if(!cells.length) return;
+  const keys=cells.map(([r,c])=>`${r},${c}`);
+  pushStyleHistory(keys, '今日の日付');
+  pushHistory(cells.map(([r,c])=>({r,c,val:data[r][c]})), '今日の日付');
+  const t=String(todaySerial());
+  cells.forEach(([r,c])=>{ data[r][c]=t; const s=(cellStyles[`${r},${c}`]=cellStyles[`${r},${c}`]||{}); if(!s.dfmt) s.dfmt=defaultDateFmt; delete s.nodate; repaintCell(r,c); });
+  recalcAll(); if(isStructMode()) recalcMode(); persistModes();
+  document.getElementById('formulaInput').value=cellEditString(selR,selC);
+}
+function ctrlNow(){
+  if(isLockedCell(selR,selC)) return;
+  const n=new Date(); setCellVal(selR,selC, n.getHours()+':'+String(n.getMinutes()).padStart(2,'0'));
+}
+/* Ctrl＋Enter：選んだ セル ぜんぶに 同じ 値を 入れる（Excel と 同じ） */
+function ctrlFill(){
+  const fi=fiEl(); let v;
+  if(document.activeElement===fi) v=fi.value.trim();
+  else if(cellEditing) v=calcCommitVal();
+  else v=data[selR][selC];
+  const typed=(document.activeElement===fi) || cellEditing;
+  const cells=ctrlCells().filter(([r,c])=>!isLockedCell(r,c));
+  if(cells.length<2){ toast('先に セルを 2つ以上 選んでください（Ctrl オンで セルを 押す・なぞって 範囲）', 3200); return; }
+  if(!typed && String(v)===''){ toast('入れる 値を 先に 打ってください（Ctrl を 切って 打ち、Ctrl を 入れて まとめて入れる）', 3600); return; }   // 空で 上書きしない
+  pushHistory(cells.map(([r,c])=>({r,c,val:data[r][c]})), 'まとめて入れる');
+  cellEditing=false; op1=null; cur_op=null; waiting=false; disp_val='0';
+  cells.forEach(([r,c])=>{ data[r][c]=String(v); });
+  if(document.activeElement===fi) fiCancel();
+  cells.forEach(([r,c])=>{ const el=document.getElementById(`c${r}_${c}`); if(el) setCellDisp(el,r,c); });
+  recalcAll(); if(isStructMode()) recalcMode(); persistModes();
+  if(typeof saveSheets==='function') saveSheets();
+  document.getElementById('formulaInput').value=cellEditString(selR,selC);
+  updateStats(selC);
+  toast(cells.length+'個の セルに「'+(String(v)||'（空）')+'」を 入れました（↶ で 戻せます）', 3200);
+}
+const CTRL_KEYS={
+  n7:{l:'↶\n戻す',   run:()=>undoLast()},           n8:{l:'↷やり\n直す', run:()=>redoLast()},       n9:{l:'全部\n選ぶ', run:()=>ctrlSelectAll()},
+  n4:{l:'コピー',     run:()=>copyCell()},           n5:{l:'切り\n取り',  run:()=>cutCell()},         n6:{l:'貼り\n付け', run:()=>pasteCell()},
+  n1:{l:'B\n太字',    run:()=>kfmtToggle('bold')},   n2:{l:'I\n斜体',     run:()=>kfmtToggle('italic')}, n3:{l:'U\n下線', run:()=>kfmtToggle('underline')},
+  n0:{l:'今日の日付', run:()=>ctrlToday()},          dot:{l:'時刻',       run:()=>ctrlNow()},
+  plus:{l:'行を\n足す', run:()=>insertRowAtSel()},   minus:{l:'行を\n消す', run:()=>deleteRowAtSel()},
+  div:{l:'列を\n足す',  run:()=>insertColAtSel()},   mul:{l:'列を\n消す',   run:()=>deleteColAtSel()},
+  enter:{l:'一括\n入力', run:()=>ctrlFill()}
+};
+(function ctrlSetup(){
+  const pg=document.getElementById('numpadPage1'); if(!pg) return;
+  Object.keys(CTRL_KEYS).forEach(k=>{ const b=pg.querySelector('.btn[data-key="'+k+'"]'); if(b) b.dataset.ctrl=CTRL_KEYS[k].l; });
+  // Ctrl オンの 間は、キーの 本来の 働きの 前に ショートカットを 動かす（キーの onclick までは 届かせない）
+  pg.addEventListener('click', e=>{
+    if(!msOn || !ui2On || keypadEditing) return;
+    const b=e.target && e.target.closest ? e.target.closest('.btn[data-key]') : null; if(!b) return;
+    const d=CTRL_KEYS[b.dataset.key]; if(!d) return;
+    e.preventDefault(); e.stopPropagation();
+    try{ d.run(); }catch(err){ toast('うまく できませんでした'); }
+  }, true);
+})();
 (function msKeys(){
   let solo=false;
   document.addEventListener('keydown', e=>{
@@ -14720,6 +14782,15 @@ document.addEventListener('keydown', e=>{
     if (k==='c') { e.preventDefault(); copyCell(); return; }
     if (k==='v') { e.preventDefault(); pasteCell(); return; }
     if (k==='z') { e.preventDefault(); undoLast(); return; }
+    if (k==='y') { e.preventDefault(); redoLast(); return; }        // v655：Ctrl キーの 段と そろえる
+    if (k==='x') { e.preventDefault(); cutCell(); return; }
+    if (k==='a') { e.preventDefault(); ctrlSelectAll(); return; }
+    if (k==='b') { e.preventDefault(); kfmtToggle('bold'); return; }
+    if (k==='i') { e.preventDefault(); kfmtToggle('italic'); return; }
+    if (k==='u') { e.preventDefault(); kfmtToggle('underline'); return; }
+    if (k===';') { e.preventDefault(); ctrlToday(); return; }
+    if (k===':') { e.preventDefault(); ctrlNow(); return; }
+    if (k==='Enter') { e.preventDefault(); ctrlFill(); return; }
     if (k==='s'||k==='S') { e.preventDefault(); if(e.shiftKey) saveAsData(); else saveData(); return; }   // v560：Ctrl+S 保存・Ctrl+Shift+S 別の名前で保存
   }
   if      (k>='0'&&k<='9') { e.preventDefault(); num(k); }

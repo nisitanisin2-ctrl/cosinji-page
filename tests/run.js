@@ -20921,6 +20921,24 @@ async function runUi2640(browser) {
     check('  　数式の 中で ☑複数 の 間は「,」で つなぐ', await page.evaluate(() => document.getElementById('formulaInput').value), '=A1,C4');
     await page.evaluate(() => { msToggleBtn(false); fiCancel(); [[0, 0], [1, 1], [3, 2]].forEach(([r, c]) => setCellVal(r, c, '')); sel(0, 0); }); await w(200);
   }
+  // v654：Ctrl キー（オンの 間は テンキーが ショートカット・キーの 大きさは 変えない）
+  {
+    const key = k => page.tap('#numpadPage1 [data-key="' + k + '"]');
+    await page.evaluate(() => { ['0,0', '3,2', '1,1'].forEach(k => { if (cellStyles[k]) delete cellStyles[k].bold; }); setCellVal(0, 0, '10'); recalcAll(); sel(0, 0); }); await w(200);
+    const h0 = await page.evaluate(() => Math.round(document.getElementById('numpadSection').getBoundingClientRect().top));
+    await page.tap('#msBtn'); await w(300);
+    check('  Ctrl の ボタン・オンで テンキーの 文字が ショートカットに（大きさは 同じ）', await page.evaluate(() => document.getElementById('msBtn').textContent.trim() + '/' + getComputedStyle(document.querySelector('#numpadPage1 [data-key=n4]'), '::before').content.replace(/"/g, '') + '/' + Math.round(document.getElementById('numpadSection').getBoundingClientRect().top)), 'Ctrl/コピー/' + h0);
+    await key('n1'); await w(200);
+    check('  　Ctrl＋1 で 太字', await page.evaluate(() => !!(cellStyles['0,0'] || {}).bold), true);
+    await key('n7'); await w(200);
+    check('  　Ctrl＋7 で ↶戻す', await page.evaluate(() => !!(cellStyles['0,0'] || {}).bold), false);
+    await page.tap('#c2_1'); await page.tap('#c4_2'); await page.tap('#msBtn'); await w(200);
+    await key('n5'); await key('n0'); await page.tap('#msBtn'); await w(200); await key('enter'); await w(400);
+    check('  　Ctrl＋Enter で 選んだ セル ぜんぶに 同じ 値（一括入力）', await page.evaluate(() => [data[0][0], data[2][1], data[4][2]].join(',')), '50,50,50');
+    await page.tap('#msBtn'); await w(200); await page.evaluate(() => sel(6, 0)); await key('n7'); await key('enter'); await w(300);
+    check('  　Ctrl を 切ると ふつうの テンキー', await page.evaluate(() => data[6][0] + '/' + msOn), '7/false');
+    await page.evaluate(() => { [[0, 0], [2, 1], [4, 2], [6, 0]].forEach(([r, c]) => setCellVal(r, c, '')); msClear(); sel(0, 0); }); await w(200);
+  }
   // 範囲を 選んで ⌫・CE で まとめて 消す（v646）
   await page.evaluate(() => { for (let r = 10; r < 13; r++) for (let c = 0; c < 3; c++) setCellVal(r, c, String(r * 10 + c)); recalcAll(); sel(10, 0); extendRange(11, 1); }); await w(200);
   await page.click('#numpadPage1 [data-key="bs"]'); await w(300);
